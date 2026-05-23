@@ -38,8 +38,10 @@
  * @brief 内部预设条目结构
  */
 typedef struct InternalPresetEntry {
+    int id;                         /**< 唯一标识符 */
     PresetMetadata metadata;        /**< 预设元数据 */
     FuncBlock *template_fb;         /**< 模板函数块（可为NULL） */
+    PresetType *input_types;        /**< 输入类型数组（动态分配） */
     bool is_builtin;                /**< 是否为内置预设 */
     bool is_active;                 /**< 是否激活 */
     int reference_count;            /**< 引用计数 */
@@ -2195,10 +2197,9 @@ static void free_entry(InternalPresetEntry *entry)
 
     /* 释放元数据中的动态内存 */
     /* 注意：metadata 字段可能为 const 限定，需要通过非 const 中间变量释放 */
-    if (entry->metadata.input_types != NULL) {
-        void *tmp = (void *)entry->metadata.input_types;
-        lv00_free(&tmp);
-        entry->metadata.input_types = NULL;
+    if (entry->input_types != NULL) {
+        lv00_free((void **)&entry->input_types);
+        entry->input_types = NULL;
     }
     if (entry->metadata.preconditions != NULL) {
         for (int i = 0; i < entry->metadata.precondition_count; i++) {
@@ -2469,7 +2470,7 @@ bool preset_register_custom(const PresetMetadata *metadata,
         lv00_strdup(metadata->mathematical_def) : NULL;
     
     /* 分配ID */
-    entry->metadata.id = PRESET_ATOMIC_INC(g_library.next_id);
+    entry->id = PRESET_ATOMIC_INC(g_library.next_id);
     
     entry->is_builtin = false;
     entry->is_active = true;

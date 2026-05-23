@@ -59,6 +59,9 @@ typedef enum {
     LV00_ERROR_IO = 12,               /**< IO错误 */
     LV00_ERROR_PARSE = 13,            /**< 解析错误 */
     LV00_ERROR_INVALID_STATE = 14,    /**< 无效状态 */
+    LV00_ERROR_INVALID_ARGUMENT = 15, /**< 无效参数（字符串为空等） */
+    LV00_ERROR_INDEX_OUT_OF_RANGE = 17,  /**< 索引越界 */
+    LV00_ERROR_VALUE_OUT_OF_RANGE = 18,  /**< 数值越界 */
 
     /* 内存与资源错误 (100-199) */
     LV00_ERROR_OUT_OF_MEMORY = 100,   /**< 内存不足 */
@@ -105,6 +108,10 @@ typedef enum {
     LV00_ERROR_FUNC_BLOCK_NON_DETERMINISTIC = 701, /**< 非确定性函数块 */
     LV00_ERROR_FUNC_BLOCK_CIRCULAR = 702,  /**< 循环函数块 */
     LV00_ERROR_FUNC_BLOCK_TYPE_ERROR = 703, /**< 函数块类型错误 */
+
+    /* 预设系统错误 (750-799) */
+    LV00_ERROR_PRESET_REGISTRATION_FAILED = 750, /**< 预设注册失败 */
+    LV00_ERROR_PRESET_INSTANTIATION_FAILED = 751, /**< 预设实例化失败 */
 
     /* 类型系统错误 (800-899) */
     LV00_ERROR_TYPE_MISMATCH = 800,        /**< 类型不匹配 */

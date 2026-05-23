@@ -152,7 +152,7 @@ typedef _Atomic int PresetAtomicCounter;
     do { \
         (ptr) = lv00_malloc(size); \
         if ((ptr) == NULL) { \
-            LV00_ERROR_SET(LV00_ERROR_MEMORY_ALLOCATION_FAILED, \
+            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, \
                           "内存分配失败: %s", #ptr); \
             goto label; \
         } \
@@ -169,7 +169,7 @@ typedef _Atomic int PresetAtomicCounter;
     do { \
         (ptr) = lv00_calloc(count, size); \
         if ((ptr) == NULL) { \
-            LV00_ERROR_SET(LV00_ERROR_MEMORY_ALLOCATION_FAILED, \
+            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, \
                           "内存分配失败: %s", #ptr); \
             goto label; \
         } \
@@ -185,7 +185,7 @@ typedef _Atomic int PresetAtomicCounter;
     do { \
         void *_tmp = lv00_realloc((ptr), (size)); \
         if (_tmp == NULL && (size) > 0) { \
-            LV00_ERROR_SET(LV00_ERROR_MEMORY_ALLOCATION_FAILED, \
+            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, \
                           "内存重新分配失败: %s", #ptr); \
             goto label; \
         } \

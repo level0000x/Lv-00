@@ -69,8 +69,8 @@ typedef struct {
 typedef struct {
     const char *name_pattern;           /**< 名称模式（支持通配符） */
     PresetCategory category;            /**< 类别筛选 */
-    PresetProperties required_properties;   /**< 必需属性 */
-    PresetProperties forbidden_properties;  /**< 禁止属性 */
+    PresetProperty required_properties;   /**< 必需属性 */
+    PresetProperty forbidden_properties;  /**< 禁止属性 */
     const char *complexity_max;         /**< 最大复杂度 */
     int min_inputs;                     /**< 最小输入数量 */
     int max_inputs;                     /**< 最大输入数量 */
@@ -556,6 +556,13 @@ void preset_clear_error(void);
 void preset_set_error_callback(void (*callback)(const char *error,
                                                void *user_data),
                               void *user_data);
+
+/**
+ * @brief 释放预设条目句柄持有的资源
+ *
+ * @param entry 预设条目句柄，可为 NULL（no-op）
+ */
+void preset_release(PresetEntryHandle entry);
 
 #ifdef __cplusplus
 }

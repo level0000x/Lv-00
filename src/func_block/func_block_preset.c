@@ -1130,15 +1130,12 @@ bool func_block_preset_validate_types(
             /* 获取节点实际类型映射 */
             PresetParamType actual;
             switch (input_nodes[i]->type) {
-                case NODE_TYPE_POINT:   actual = PARAM_TYPE_POINT;    break;
-                case NODE_TYPE_LINE:    actual = PARAM_TYPE_LINE;     break;
-                case NODE_TYPE_CIRCLE:  actual = PARAM_TYPE_CIRCLE;   break;
-                case NODE_TYPE_ARC:     actual = PARAM_TYPE_ARC;      break;
-                case NODE_TYPE_POLYGON: actual = PARAM_TYPE_POLYGON;  break;
-                case NODE_TYPE_REGION:  actual = PARAM_TYPE_REGION;   break;
-                case NODE_TYPE_SCALAR:  actual = PARAM_TYPE_SCALAR;   break;
-                case NODE_TYPE_VECTOR:  actual = PARAM_TYPE_VECTOR;   break;
-                default:                actual = PARAM_TYPE_ANY;      break;
+                case GEOM_POINT:         actual = PARAM_TYPE_POINT;    break;
+                case GEOM_LINE_SEGMENT:  actual = PARAM_TYPE_SEGMENT;  break;
+                case GEOM_REGION:        actual = PARAM_TYPE_REGION;   break;
+                /* GEOM_PORT, GEOM_FUNCTION_BLOCK, and any future types
+                 * fall through to the generic default. */
+                default:                 actual = PARAM_TYPE_ANY;      break;
             }
 
             /* 类型兼容性检查：
