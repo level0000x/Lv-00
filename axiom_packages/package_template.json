@@ -1,0 +1,140 @@
+{
+  "$schema": "https://lv00.dev/schemas/package-manifest-v1.json",
+
+  "========== REQUIRED FIELDS ==========": "以下字段为必填字段",
+
+  "name": "YOUR_PACKAGE_NAME",
+  "version": "0.1.0",
+  "namespace": "your_namespace",
+  "description": "A concise description of what axioms this package provides.",
+  "category": "geometry | algebra | analysis | foundations | logic | topology | number_theory | discrete_math",
+  "author": "Your Name or Team",
+  "license": "MIT",
+
+  "========== PACKAGE METADATA ==========": "以下字段为可选元数据",
+
+  "keywords": ["keyword1", "keyword2"],
+  "homepage": "https://example.com/package-homepage",
+  "repository": "https://github.com/user/repo",
+  "content_hash_algorithm": "SHA-256",
+
+  "========== LAYER DEFINITIONS ==========": "公理层定义 -- 按逻辑依赖顺序排列",
+
+  "layers": [
+    {
+      "========== LAYER TEMPLATE ==========": "每个层包含以下字段",
+
+      "name": "layer_name",
+      "description": "What this layer of axioms describes.",
+      "order": 0,
+      "depends_on": [],
+      "independence_notes": "Notes about whether axioms in this layer are independent of other layers.",
+
+      "========== AXIOM DEFINITIONS ==========": "层的公理列表",
+
+      "axioms": [
+        {
+          "id": "AXIOM_ID",
+          "namespace_name": "namespace.AXIOM_ID",
+          "name": "Human-Readable Axiom Name",
+          "signature": "forall (X Y : Type), condition(X, Y) -> conclusion(X, Y)",
+          "arity": 2,
+          "primitive_relations": ["relation_1", "relation_2"],
+          "note": "Optional additional information about this axiom"
+        }
+      ],
+
+      "========== LAYER INHERITANCE (optional) ==========": "如果复用其他包的公理层",
+
+      "inherits_from": {
+        "package": "source_package_name",
+        "layer": "source_layer_name",
+        "minimum_version": "1.0.0"
+      }
+    }
+  ],
+
+  "========== DEPENDENCY EXAMPLE (full package dependency) ==========": "示例：声明对整个包的依赖（在 INDEX.json 中使用）",
+
+  "_package_dependencies_example": {
+    "description": "To declare that this package depends on another package, add the dependency in INDEX.json. Layer-level dependencies go in the layer's depends_on field inside the manifest.",
+    "example": {
+      "dependencies": ["group_theory", "zfc_set_theory"]
+    }
+  },
+
+  "========== COMPLETE EXAMPLE ==========": "以下是一个完整的公理包示例",
+
+  "_complete_example": {
+    "name": "example_geometry",
+    "version": "1.0.0",
+    "namespace": "example",
+    "description": "A minimal example geometry package with 2 layers and 3 axioms.",
+    "category": "geometry",
+    "author": "Example Author",
+    "license": "MIT",
+    "keywords": ["geometry", "example"],
+    "content_hash_algorithm": "SHA-256",
+    "layers": [
+      {
+        "name": "incidence",
+        "description": "Basic incidence between points and lines.",
+        "order": 0,
+        "axioms": [
+          {
+            "id": "I1",
+            "namespace_name": "example.I1",
+            "name": "Two-Point Incidence",
+            "signature": "forall (A B : Point), A != B -> exists! (l : Line), on(A, l) AND on(B, l)",
+            "arity": 2,
+            "primitive_relations": ["on", "!="]
+          },
+          {
+            "id": "I2",
+            "namespace_name": "example.I2",
+            "name": "Non-Collinearity",
+            "signature": "exists (A B C : Point), ~collinear(A, B, C)",
+            "arity": 3,
+            "primitive_relations": ["collinear"]
+          }
+        ],
+        "depends_on": [],
+        "independence_notes": "I1 and I2 are independent of each other."
+      },
+      {
+        "name": "parallels",
+        "description": "Parallel postulate for this geometry.",
+        "order": 1,
+        "axioms": [
+          {
+            "id": "Parallel",
+            "namespace_name": "example.Parallel",
+            "name": "Parallel Postulate",
+            "signature": "forall (A : Point) (l : Line), ~on(A, l) -> exists (m : Line), on(A, m) AND ~intersect(l, m)",
+            "arity": 2,
+            "primitive_relations": ["on", "intersect"]
+          }
+        ],
+        "depends_on": ["incidence"],
+        "independence_notes": "Parallel postulate is independent of incidence axioms."
+      }
+    ],
+    "references": [
+      "Author, A. 'Title of Reference' (Year). Journal/Publisher.",
+      "Second Reference with URL: https://example.com"
+    ]
+  },
+
+  "========== NOTES ==========": "注意事项",
+
+  "_notes": [
+    "1. namespaced_name MUST use the format 'namespace.axiom_id' (e.g., 'euclidean.I1')",
+    "2. Layers MUST be ordered by logical dependency (layer 0 depends on nothing, layer 1 depends on layer 0, etc.)",
+    "3. depends_on lists layer NAMES, not axiom IDs",
+    "4. primitive_relations should list ALL primitive relations used in the axiom signature",
+    "5. Use 'inherits_from' when reusing axioms from another package to avoid duplication",
+    "6. References should include author, title, year, and preferably a DOI or URL",
+    "7. After creating the manifest, register the package in INDEX.json",
+    "8. Each axiom should have a corresponding definition in a .lvz file"
+  ]
+}

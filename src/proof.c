@@ -880,6 +880,7 @@ ProofNavigator *proof_navigator_create(Proposition *target, LV00Engine *engine) 
     nav->current_step = -1;
     nav->is_complete = false;
     nav->final_color = PROOF_COLOR_BLUE_UNEXPLORED;
+    nav->strategy_note = NULL;  /* LeanGeo风格：策略注释 */
 
     return nav;
 }
@@ -920,6 +921,9 @@ void proof_navigator_destroy(ProofNavigator *nav) {
     /* 释放引理视图状态 */
     lv00_free((void **)&nav->lemma_view_step_ids);
     lv00_free((void **)&nav->lemma_view_states);
+
+    /* 释放策略注释 */
+    lv00_free((void **)&nav->strategy_note);
 
     lv00_free((void **)&nav);
 }
@@ -1713,6 +1717,20 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
     fprintf(f, ".bg-orange{background:var(--c-orange)} .bg-amber{background:var(--c-amber);color:#333}\n");
     fprintf(f, ".bg-dark{background:var(--c-dark-orange)}\n");
 
+    /* 策略概述（LeanGeo风格） */
+    fprintf(f, ".strategy-box{background:var(--bg-card);border:2px solid var(--accent);\n");
+    fprintf(f, "  border-radius:var(--radius);padding:14px 18px;margin-bottom:14px}\n");
+    fprintf(f, ".strategy-title{font-size:14px;font-weight:700;color:var(--accent);\n");
+    fprintf(f, "  margin-bottom:8px;display:flex;align-items:center;gap:6px}\n");
+    fprintf(f, ".strategy-content{font-size:13px;line-height:1.7;color:var(--text)}\n");
+
+    /* 自然语言步骤描述（AlphaGeometry风格） */
+    fprintf(f, ".nl-description{background:var(--border-light);border-radius:var(--radius);\n");
+    fprintf(f, "  padding:12px 16px;margin-top:8px;font-size:13px;line-height:1.8}\n");
+    fprintf(f, ".nl-description .nl-step-label{font-weight:700;color:var(--accent);\n");
+    fprintf(f, "  display:block;margin-bottom:4px}\n");
+    fprintf(f, ".nl-description .nl-why{color:var(--text-muted);font-style:italic}\n");
+
     /* 空状态 */
     fprintf(f, ".empty{color:var(--text-muted);text-align:center;padding:60px 20px}\n");
 
@@ -1764,6 +1782,17 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
                     color_counts[PROOF_COLOR_AMBER] + color_counts[PROOF_COLOR_DARK_ORANGE]);
     }
     fprintf(f, "</div>\n");
+
+    /* ===== 证明策略概述（LeanGeo风格：先展示总体策略） ===== */
+    {
+        const char *strategy = proof_navigator_get_strategy_note(nav);
+        if (strategy && strategy[0] != '\0') {
+            fprintf(f, "<div class=\"strategy-box\">\n");
+            fprintf(f, "  <div class=\"strategy-title\">📋 证明策略</div>\n");
+            fprintf(f, "  <div class=\"strategy-content\">%s</div>\n", strategy);
+            fprintf(f, "</div>\n");
+        }
+    }
 
     /* 进度条 */
     fprintf(f, "<div class=\"progress-bar-wrap\"><div class=\"progress-bar-fill\" id=\"progressBar\"></div></div>\n");
@@ -1945,6 +1974,28 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
             }
             if (step->merged_count >= 10) fprintf(f, " ... (+%d more)", step->merged_count - 10);
             fprintf(f, " → <span class=\"id-chip\">%d</span> (保留)</div>\n", step->retained_node_id);
+        }
+
+        /* 自然语言描述（AlphaGeometry风格） */
+        {
+            char *nl_desc = proof_step_get_natural_language(step, PROOF_NL_LANG_ZH_CN);
+            if (nl_desc) {
+                fprintf(f, "  <div class=\"nl-description\">\n");
+                fprintf(f, "    <span class=\"nl-step-label\">📝 自然语言描述</span>\n");
+                /* 将换行的纯文本转为HTML（替换\n为<br>） */
+                for (const char *c = nl_desc; *c; c++) {
+                    if (*c == '\n') {
+                        fprintf(f, "<br>");
+                    } else if (*c == ' ') {
+                        /* 保留空格但确保不会塌陷 */
+                        fprintf(f, " ");
+                    } else {
+                        fputc(*c, f);
+                    }
+                }
+                fprintf(f, "\n  </div>\n");
+                lv00_free((void**)&nl_desc);
+            }
         }
 
         if (step->note && step->note[0] != '\0')
@@ -3211,4 +3262,365 @@ void unconstruct_info_destroy(UnconstructInfo *info) {
         lv00_free((void**)&info->detailed_report);
     }
     memset(info, 0, sizeof(UnconstructInfo));
+}
+
+/* ============== 自然语言证明输出（AlphaGeometry风格） ============== */
+
+/**
+ * @brief 步骤类型到自然语言动词映射（中文）
+ */
+static const char *step_type_verb_zh(ProofStepType type) {
+    switch (type) {
+        case PROOF_STEP_ADD_NODE:       return "构造";
+        case PROOF_STEP_ADD_CONSTRAINT: return "添加约束";
+        case PROOF_STEP_REWRITE:        return "应用重写规则";
+        case PROOF_STEP_FUNCTION_APP:   return "应用函数块";
+        case PROOF_STEP_PACK_FUNCTION:  return "打包函数块";
+        case PROOF_STEP_NORMALIZATION:  return "执行规范化";
+        case PROOF_STEP_UNIFY:          return "执行合一检查";
+        case PROOF_STEP_EX_FALSO:       return "应用爆炸原理";
+        case PROOF_STEP_ORACLE:         return "引用外部预言机";
+        default:                        return "执行操作";
+    }
+}
+
+/**
+ * @brief 步骤类型到自然语言动词映射（英文）
+ */
+static const char *step_type_verb_en(ProofStepType type) {
+    switch (type) {
+        case PROOF_STEP_ADD_NODE:       return "Construct";
+        case PROOF_STEP_ADD_CONSTRAINT: return "Add constraint";
+        case PROOF_STEP_REWRITE:        return "Apply rewrite rule";
+        case PROOF_STEP_FUNCTION_APP:   return "Apply function block";
+        case PROOF_STEP_PACK_FUNCTION:  return "Package function block";
+        case PROOF_STEP_NORMALIZATION:  return "Perform normalization";
+        case PROOF_STEP_UNIFY:          return "Perform unification check";
+        case PROOF_STEP_EX_FALSO:       return "Apply ex falso quodlibet";
+        case PROOF_STEP_ORACLE:         return "Reference external oracle";
+        default:                        return "Execute operation";
+    }
+}
+
+/**
+ * @brief 生成步骤的几何对象描述（中文）
+ */
+static void describe_objects_zh(const ProofStep *step, char *buf, size_t buf_size) {
+    buf[0] = '\0';
+    if (step->node_id >= 0) {
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "节点 %d", step->node_id);
+    }
+    if (step->constraint_id >= 0) {
+        if (buf[0] != '\0') strncat(buf, "，", buf_size - strlen(buf) - 1);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "约束 %d", step->constraint_id);
+    }
+    if (step->rule_id >= 0) {
+        if (buf[0] != '\0') strncat(buf, "，", buf_size - strlen(buf) - 1);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "规则 %d", step->rule_id);
+    }
+    if (step->func_block_id >= 0) {
+        if (buf[0] != '\0') strncat(buf, "，", buf_size - strlen(buf) - 1);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "函数块 %d", step->func_block_id);
+    }
+}
+
+/**
+ * @brief 生成步骤的几何对象描述（英文）
+ */
+static void describe_objects_en(const ProofStep *step, char *buf, size_t buf_size) {
+    buf[0] = '\0';
+    if (step->node_id >= 0) {
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "node %d", step->node_id);
+    }
+    if (step->constraint_id >= 0) {
+        if (buf[0] != '\0') strncat(buf, ", ", buf_size - strlen(buf) - 1);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "constraint %d", step->constraint_id);
+    }
+    if (step->rule_id >= 0) {
+        if (buf[0] != '\0') strncat(buf, ", ", buf_size - strlen(buf) - 1);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "rule %d", step->rule_id);
+    }
+    if (step->func_block_id >= 0) {
+        if (buf[0] != '\0') strncat(buf, ", ", buf_size - strlen(buf) - 1);
+        snprintf(buf + strlen(buf), buf_size - strlen(buf), "function block %d", step->func_block_id);
+    }
+}
+
+/**
+ * @brief 生成为什么可以进行这一步骤的解释（中文）
+ */
+static const char *explain_why_zh(ProofStepType type) {
+    switch (type) {
+        case PROOF_STEP_ADD_NODE:
+            return "根据已知条件和构造规则，该几何对象可以合法构造。";
+        case PROOF_STEP_ADD_CONSTRAINT:
+            return "根据已构造的几何对象之间的关系，该约束成立。";
+        case PROOF_STEP_REWRITE:
+            return "模式匹配成功，重写规则的前提条件已满足。";
+        case PROOF_STEP_FUNCTION_APP:
+            return "函数块的输入端口类型与实参类型匹配。";
+        case PROOF_STEP_NORMALIZATION:
+            return "检测到坐标等价的节点，执行合并以保持图的一致性。";
+        case PROOF_STEP_UNIFY:
+            return "构造图与命题模式在所有层级完成匹配。";
+        case PROOF_STEP_EX_FALSO:
+            return "由矛盾 ⊥ 出发，根据爆炸原理可以推出任意命题。";
+        case PROOF_STEP_ORACLE:
+            return "此步骤依赖外部知识源，其正确性需要独立验证。";
+        default:
+            return "";
+    }
+}
+
+/**
+ * @brief 生成为什么可以进行这一步骤的解释（英文）
+ */
+static const char *explain_why_en(ProofStepType type) {
+    switch (type) {
+        case PROOF_STEP_ADD_NODE:
+            return "Based on the known conditions and construction rules, this geometric object is validly constructible.";
+        case PROOF_STEP_ADD_CONSTRAINT:
+            return "Based on the relationships between constructed geometric objects, this constraint holds.";
+        case PROOF_STEP_REWRITE:
+            return "Pattern matching succeeded; the preconditions of the rewrite rule are satisfied.";
+        case PROOF_STEP_FUNCTION_APP:
+            return "The input port types of the function block match the argument types.";
+        case PROOF_STEP_NORMALIZATION:
+            return "Coordinate-equivalent nodes detected; merging to maintain graph consistency.";
+        case PROOF_STEP_UNIFY:
+            return "The construction graph matches the proposition pattern at all levels.";
+        case PROOF_STEP_EX_FALSO:
+            return "From contradiction ⊥, any proposition follows by the principle of explosion.";
+        case PROOF_STEP_ORACLE:
+            return "This step depends on an external knowledge source whose correctness requires independent verification.";
+        default:
+            return "";
+    }
+}
+
+/**
+ * @brief 将单个证明步骤转换为自然语言描述
+ */
+char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguage lang) {
+    if (!step) return NULL;
+
+    char obj_desc[256];
+    char result[1024];
+    const char *verb, *why, *step_type_name, *color_name;
+
+    if (lang == PROOF_NL_LANG_ZH_CN) {
+        verb = step_type_verb_zh(step->type);
+        describe_objects_zh(step, obj_desc, sizeof(obj_desc));
+        why = explain_why_zh(step->type);
+        step_type_name = proof_step_type_to_string(step->type);
+        color_name = proof_color_to_string(step->color);
+
+        if (obj_desc[0] != '\0') {
+            snprintf(result, sizeof(result),
+                "步骤 %d：%s%s。\n"
+                "  —— 涉及对象：%s\n"
+                "  —— 推理依据：%s\n"
+                "  —— 信任状态：%s",
+                step->id, verb,
+                (step->type == PROOF_STEP_ADD_NODE) ? "新的几何对象" : "",
+                obj_desc,
+                why,
+                color_name);
+        } else {
+            snprintf(result, sizeof(result),
+                "步骤 %d：%s。\n"
+                "  —— 推理依据：%s\n"
+                "  —— 信任状态：%s",
+                step->id, verb,
+                why,
+                color_name);
+        }
+    } else {
+        verb = step_type_verb_en(step->type);
+        describe_objects_en(step, obj_desc, sizeof(obj_desc));
+        why = explain_why_en(step->type);
+        step_type_name = proof_step_type_to_string(step->type);
+        color_name = proof_color_to_string(step->color);
+
+        if (obj_desc[0] != '\0') {
+            snprintf(result, sizeof(result),
+                "Step %d: %s.\n"
+                "  -- Objects involved: %s\n"
+                "  -- Reasoning: %s\n"
+                "  -- Trust status: %s",
+                step->id, verb,
+                obj_desc,
+                why,
+                color_name);
+        } else {
+            snprintf(result, sizeof(result),
+                "Step %d: %s.\n"
+                "  -- Reasoning: %s\n"
+                "  -- Trust status: %s",
+                step->id, verb,
+                why,
+                color_name);
+        }
+    }
+
+    /* 附加用户注释 */
+    if (step->note && step->note[0] != '\0') {
+        size_t len = strlen(result);
+        if (lang == PROOF_NL_LANG_ZH_CN) {
+            snprintf(result + len, sizeof(result) - len, "\n  —— 注释：%s", step->note);
+        } else {
+            snprintf(result + len, sizeof(result) - len, "\n  -- Note: %s", step->note);
+        }
+    }
+
+    /* 附加依赖信息 */
+    if (step->dependency_count > 0) {
+        size_t len = strlen(result);
+        if (lang == PROOF_NL_LANG_ZH_CN) {
+            snprintf(result + len, sizeof(result) - len, "\n  —— 依赖步骤：");
+        } else {
+            snprintf(result + len, sizeof(result) - len, "\n  -- Depends on: ");
+        }
+        for (int d = 0; d < step->dependency_count && d < 8; d++) {
+            len = strlen(result);
+            if (d > 0) {
+                strncat(result, ", ", sizeof(result) - len - 1);
+                len = strlen(result);
+            }
+            snprintf(result + len, sizeof(result) - len, "Step %d", step->dependency_step_ids[d]);
+        }
+    }
+
+    char *output = lv00_malloc(strlen(result) + 1);
+    if (!output) return NULL;
+    strcpy(output, result);
+    return output;
+}
+
+/**
+ * @brief 导出完整证明为自然语言文本
+ */
+bool proof_export_natural_language(ProofNavigator *nav, const char *filepath, ProofNaturalLanguage lang) {
+    if (!nav || !filepath) return false;
+
+    FILE *f = fopen(filepath, "w");
+    if (!f) return false;
+
+    bool is_zh = (lang == PROOF_NL_LANG_ZH_CN);
+
+    /* ===== 标题 ===== */
+    if (is_zh) {
+        fprintf(f, "========================================\n");
+        fprintf(f, "  Lv-00 证明导出（自然语言格式）\n");
+        fprintf(f, "========================================\n\n");
+    } else {
+        fprintf(f, "========================================\n");
+        fprintf(f, "  Lv-00 Proof Export (Natural Language)\n");
+        fprintf(f, "========================================\n\n");
+    }
+
+    /* ===== 总体策略（LeanGeo风格：先展示总体策略） ===== */
+    const char *strategy = proof_navigator_get_strategy_note(nav);
+    if (strategy && strategy[0] != '\0') {
+        if (is_zh) {
+            fprintf(f, "【证明策略】\n");
+            fprintf(f, "%s\n\n", strategy);
+            fprintf(f, "【证明步骤】\n");
+        } else {
+            fprintf(f, "[Proof Strategy]\n");
+            fprintf(f, "%s\n\n", strategy);
+            fprintf(f, "[Proof Steps]\n");
+        }
+    } else {
+        if (is_zh) {
+            fprintf(f, "【证明步骤】\n");
+        } else {
+            fprintf(f, "[Proof Steps]\n");
+        }
+    }
+    fprintf(f, "----------------------------------------\n\n");
+
+    /* ===== 逐步骤输出 ===== */
+    for (int i = 0; i < nav->step_count; i++) {
+        ProofStep *step = nav->steps[i];
+        if (!step) continue;
+
+        char *nl_desc = proof_step_get_natural_language(step, lang);
+        if (nl_desc) {
+            fprintf(f, "%s\n\n", nl_desc);
+            lv00_free((void**)&nl_desc);
+        }
+    }
+
+    /* ===== 总结 ===== */
+    fprintf(f, "----------------------------------------\n");
+    if (is_zh) {
+        fprintf(f, "\n【证明总结】\n");
+        fprintf(f, "总步骤数：%d\n", nav->step_count);
+        fprintf(f, "最终颜色：%s\n", proof_color_to_string(nav->final_color));
+        fprintf(f, "证明状态：%s\n", nav->is_complete ? "已完成" : "进行中");
+    } else {
+        fprintf(f, "\n[Proof Summary]\n");
+        fprintf(f, "Total steps: %d\n", nav->step_count);
+        fprintf(f, "Final color: %s\n", proof_color_to_string(nav->final_color));
+        fprintf(f, "Status: %s\n", nav->is_complete ? "Complete" : "In progress");
+    }
+
+    fclose(f);
+    return true;
+}
+
+/* ============== 证明策略注释（LeanGeo风格） ============== */
+
+/**
+ * @brief 设置证明的总体策略描述
+ */
+bool proof_navigator_set_strategy_note(ProofNavigator *nav, const char *strategy_note) {
+    if (!nav) return false;
+
+    /* 释放旧值 */
+    lv00_free((void**)&nav->strategy_note);
+
+    if (strategy_note && strategy_note[0] != '\0') {
+        nav->strategy_note = lv00_malloc(strlen(strategy_note) + 1);
+        if (!nav->strategy_note) return false;
+        strcpy(nav->strategy_note, strategy_note);
+    } else {
+        nav->strategy_note = NULL;
+    }
+
+    if (proof_stream_ctx) {
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO,
+            strategy_note ? "策略注释已设置" : "策略注释已清除", 0);
+    }
+
+    return true;
+}
+
+/**
+ * @brief 获取证明的总体策略描述
+ */
+const char *proof_navigator_get_strategy_note(const ProofNavigator *nav) {
+    if (!nav) return NULL;
+    return nav->strategy_note;
+}
+
+/**
+ * @brief 为证明步骤设置自然语言注释
+ */
+bool proof_step_set_note(ProofStep *step, const char *note) {
+    if (!step) return false;
+
+    /* 释放旧值 */
+    lv00_free((void**)&step->note);
+
+    if (note && note[0] != '\0') {
+        step->note = lv00_malloc(strlen(note) + 1);
+        if (!step->note) return false;
+        strcpy(step->note, note);
+    } else {
+        step->note = NULL;
+    }
+
+    return true;
 }

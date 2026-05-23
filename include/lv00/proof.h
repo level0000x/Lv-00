@@ -222,6 +222,9 @@ struct ProofNavigator {
 
     /* 引擎上下文（用于访问已加载的公理包等） */
     LV00Engine *engine;
+
+    /* 证明策略注释（LeanGeo风格：先展示总体策略，再展开细节） */
+    char *strategy_note;        /* 总体策略描述 */
 };
 
 /* ============== 命题管理API ============== */
@@ -441,7 +444,7 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id);
 /* ============== 导出功能 ============== */
 
 /**
- * 导出证明为HTML
+ * 导出证明为HTML（含交互式导航、SVG时间线、自然语言描述）
  */
 bool proof_export_html(ProofNavigator *nav, const char *filepath);
 
@@ -454,6 +457,81 @@ bool proof_export_latex(ProofNavigator *nav, const char *filepath);
  * 导出证明为Coq调用序列
  */
 bool proof_export_coq(ProofNavigator *nav, const char *filepath);
+
+/* ============== 自然语言证明输出（AlphaGeometry风格） ============== */
+
+/**
+ * @brief 自然语言证明输出语言
+ */
+typedef enum {
+    PROOF_NL_LANG_ZH_CN,    /**< 简体中文 */
+    PROOF_NL_LANG_EN_US     /**< 英文 */
+} ProofNaturalLanguage;
+
+/**
+ * @brief 将单个证明步骤转换为自然语言描述
+ *
+ * 借鉴 AlphaGeometry 的人类可读证明输出设计，
+ * 每一步都生成完整的自然语言描述，包括：
+ * - 应用了什么推理规则
+ * - 涉及哪些几何对象
+ * - 为什么可以进行这一步
+ *
+ * @param step        证明步骤
+ * @param lang        输出语言
+ * @return 新分配的自然语言描述字符串（调用者需用lv00_free释放），失败返回NULL
+ */
+char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguage lang);
+
+/**
+ * @brief 导出完整证明为自然语言文本
+ *
+ * 生成 AlphaGeometry 风格的人类可读证明：
+ * - 首先说明总体证明策略
+ * - 然后逐步展开，每一步只应用一条推理规则
+ * - 辅助构造附带"为什么"的解释
+ * - 从已知条件出发，逐步推导到结论
+ *
+ * @param nav        证明导航器
+ * @param filepath   输出文件路径
+ * @param lang       输出语言
+ * @return 是否成功
+ */
+bool proof_export_natural_language(ProofNavigator *nav, const char *filepath, ProofNaturalLanguage lang);
+
+/* ============== 证明策略注释（LeanGeo风格） ============== */
+
+/**
+ * @brief 设置证明的总体策略描述
+ *
+ * 借鉴 LeanGeo 的"先展示总体策略，再展开细节"的呈现方式。
+ * 例如："通过作辅助线构造相似三角形，利用角平分线性质完成证明"
+ *
+ * @param nav            证明导航器
+ * @param strategy_note  策略描述（会内部复制）
+ * @return 是否成功
+ */
+bool proof_navigator_set_strategy_note(ProofNavigator *nav, const char *strategy_note);
+
+/**
+ * @brief 获取证明的总体策略描述
+ *
+ * @param nav  证明导航器
+ * @return 策略描述字符串（属于导航器，不要释放），未设置返回NULL
+ */
+const char *proof_navigator_get_strategy_note(const ProofNavigator *nav);
+
+/**
+ * @brief 为证明步骤设置自然语言注释
+ *
+ * 在自动生成的描述之外，允许用户为每个步骤添加自定义注释。
+ * 注释在HTML导出和自然语言导出中都会显示。
+ *
+ * @param step  证明步骤
+ * @param note  注释字符串（会内部复制），传NULL清除
+ * @return 是否成功
+ */
+bool proof_step_set_note(ProofStep *step, const char *note);
 
 /* ============== 命题的等价变换 ============== */
 
