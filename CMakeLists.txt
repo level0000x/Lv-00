@@ -178,6 +178,7 @@ set(LV00_HEADERS
     include/lv00/preset_set_theory.h
     include/lv00/preset_math_logic.h
     include/lv00/preset_category_theory.h
+    include/lv00/preset_category_theory_adv.h
     include/lv00/preset_complex_analysis.h
     include/lv00/preset_differential_geometry.h
     include/lv00/preset_numerical_analysis.h
@@ -198,15 +199,17 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "^src/symbolic_coord\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "func_block_preset\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "magic/magic\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
+# Files needing significant header/type fixes (deferred)
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
-# Files with REGISTER_XX({TYPE1, TYPE2}) brace-in-macro preprocessor issues
-# or unknown compatibility status (not in original working build)
+# Files with remaining compatibility issues
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis\\.c$")
+# REGISTER_XX brace-macro — partially fixed, remaining calls need manual review
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_differential_geometry\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "/preset_algebraic_topology\\.c$")
+# Files with REGISTER_XX({TYPES}) brace-macro — LaTeX ; in strings breaks regex fix
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_algebraic_topology\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_integral_transforms\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_lattice_theory\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_representation_theory\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis\\.c$")
 
 
 # ============================================================
