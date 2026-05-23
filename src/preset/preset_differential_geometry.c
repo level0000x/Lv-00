@@ -46,14 +46,13 @@
  * @param constructive  是否构造性
  * @param reversible    是否可逆
  */
-#define REGISTER_DG(preset_name, desc, inputs, n_inputs, output, math, comp, constructive, reversible) \
+#define REGISTER_DG(preset_name, desc, n_inputs, output, math, comp, constructive, reversible, ...) \
     do { \
-        PresetType _in[] = inputs; \
+        PresetType _in[] = { __VA_ARGS__ }; \
         if (register_dg_preset(preset_name, desc, _in, n_inputs, output, math, comp, constructive, reversible)) { \
             success_count++; \
         } \
     } while (0)
-
 /* ==================== 内部辅助函数 ==================== */
 
 /**
@@ -115,9 +114,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_ARC_LENGTH_PARAM,
         "弧长参数化：将参数曲线 gamma(t) 转化为弧长参数化 gamma(s)，满足 |gamma'(s)| = 1",
-        {PRESET_TYPE_PATH}, 1, PRESET_TYPE_PATH,
+        1, PRESET_TYPE_PATH,
         "s = \\int_{t_0}^t |\\gamma'(\\tau)|\\,d\\tau, \\quad |\\gamma'(s)| = 1",
-        "O(n)", true, false);
+        "O(n)", true, false,
+        PRESET_TYPE_PATH);
 
     /**
      * @brief Frenet标架
@@ -134,11 +134,12 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_FRENET_FRAME,
         "Frenet标架：计算空间曲线在给定参数处的Frenet标架(T, N, B)，构成右手正交标架",
-        {PRESET_TYPE_PATH, PRESET_TYPE_SCALAR}, 2, PRESET_TYPE_TUPLE,
+        2, PRESET_TYPE_TUPLE,
         "T = \\frac{\\gamma'}{|\\gamma'|}, \\quad "
         "N = \\frac{T'}{|T'|}, \\quad "
         "B = T \\times N",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        PRESET_TYPE_PATH, PRESET_TYPE_SCALAR);
 
     /**
      * @brief 曲率计算
@@ -154,9 +155,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_CURVATURE,
         "曲率计算：计算空间曲线在给定参数处的曲率 kappa = |gamma' × gamma''| / |gamma'|^3",
-        {PRESET_TYPE_PATH, PRESET_TYPE_SCALAR}, 2, PRESET_TYPE_SCALAR,
+        2, PRESET_TYPE_SCALAR,
         "\\kappa(t) = \\frac{|\\gamma'(t) \\times \\gamma''(t)|}{|\\gamma'(t)|^3}",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        PRESET_TYPE_PATH, PRESET_TYPE_SCALAR);
 
     /**
      * @brief 挠率计算
@@ -173,9 +175,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_TORSION,
         "挠率计算：计算空间曲线在给定参数处的挠率 tau = (gamma' × gamma'') · gamma''' / |gamma' × gamma''|^2",
-        {PRESET_TYPE_PATH, PRESET_TYPE_SCALAR}, 2, PRESET_TYPE_SCALAR,
+        2, PRESET_TYPE_SCALAR,
         "\\tau(t) = \\frac{(\\gamma' \\times \\gamma'') \\cdot \\gamma'''}{|\\gamma' \\times \\gamma''|^2}",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        PRESET_TYPE_PATH, PRESET_TYPE_SCALAR);
 
     /**
      * @brief Bertrand曲线
@@ -193,9 +196,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_BERTRAND_CURVE,
         "Bertrand曲线：判定两条空间曲线是否构成Bertrand曲线对（具有共同主法线）",
-        {PRESET_TYPE_PATH, PRESET_TYPE_PATH}, 2, PRESET_TYPE_BOOLEAN,
+        2, PRESET_TYPE_BOOLEAN,
         "\\exists \\lambda, \\mu \\in \\mathbb{R}: \\lambda\\kappa(t) + \\mu\\tau(t) = 1",
-        "O(n)", false, false);
+        "O(n)", false, false,
+        PRESET_TYPE_PATH, PRESET_TYPE_PATH);
 
     /* ============================================================
      * 第二部分：曲面论（6个）
@@ -216,12 +220,13 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_FIRST_FUNDAMENTAL_FORM,
         "第一基本形式：计算曲面的第一基本形式系数(E, F, G)，刻画内蕴度量",
-        {PRESET_TYPE_SURFACE}, 1, PRESET_TYPE_TUPLE,
+        1, PRESET_TYPE_TUPLE,
         "I = E\\,du^2 + 2F\\,du\\,dv + G\\,dv^2, \\quad "
         "E = \\mathbf{r}_u\\cdot\\mathbf{r}_u, \\quad "
         "F = \\mathbf{r}_u\\cdot\\mathbf{r}_v, \\quad "
         "G = \\mathbf{r}_v\\cdot\\mathbf{r}_v",
-        "O(n)", true, false);
+        "O(n)", true, false,
+        PRESET_TYPE_SURFACE);
 
     /**
      * @brief 第二基本形式
@@ -238,12 +243,13 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_SECOND_FUNDAMENTAL_FORM,
         "第二基本形式：计算曲面的第二基本形式系数(L, M, N)，刻画外蕴弯曲",
-        {PRESET_TYPE_SURFACE}, 1, PRESET_TYPE_TUPLE,
+        1, PRESET_TYPE_TUPLE,
         "II = L\\,du^2 + 2M\\,du\\,dv + N\\,dv^2, \\quad "
         "L = \\mathbf{r}_{uu}\\cdot\\mathbf{n}, \\quad "
         "M = \\mathbf{r}_{uv}\\cdot\\mathbf{n}, \\quad "
         "N = \\mathbf{r}_{vv}\\cdot\\mathbf{n}",
-        "O(n)", true, false);
+        "O(n)", true, false,
+        PRESET_TYPE_SURFACE);
 
     /**
      * @brief Gauss曲率
@@ -260,9 +266,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_GAUSS_CURVATURE,
         "Gauss曲率：计算曲面在给定点处的Gauss曲率 K = (LN - M^2)/(EG - F^2)",
-        {PRESET_TYPE_SURFACE}, 1, PRESET_TYPE_SCALAR,
+        1, PRESET_TYPE_SCALAR,
         "K = \\frac{LN - M^2}{EG - F^2} = \\kappa_1 \\kappa_2",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        PRESET_TYPE_SURFACE);
 
     /**
      * @brief 平均曲率
@@ -279,9 +286,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_MEAN_CURVATURE,
         "平均曲率：计算曲面在给定点处的平均曲率 H = (kappa1 + kappa2)/2",
-        {PRESET_TYPE_SURFACE}, 1, PRESET_TYPE_SCALAR,
+        1, PRESET_TYPE_SCALAR,
         "H = \\frac{EN - 2FM + GL}{2(EG - F^2)} = \\frac{\\kappa_1 + \\kappa_2}{2}",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        PRESET_TYPE_SURFACE);
 
     /**
      * @brief 主曲率
@@ -298,9 +306,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_PRINCIPAL_CURVATURES,
         "主曲率：计算曲面在给定点处的主曲率对 (k1, k2)，即法曲率的极值",
-        {PRESET_TYPE_SURFACE}, 1, PRESET_TYPE_TUPLE,
+        1, PRESET_TYPE_TUPLE,
         "\\kappa_{1,2} = H \\pm \\sqrt{H^2 - K}",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        PRESET_TYPE_SURFACE);
 
     /**
      * @brief Weingarten映射
@@ -317,10 +326,11 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_WEINGARTEN_MAP,
         "Weingarten映射：计算曲面的形状算子 S = I^{-1}·II，特征值为主曲率",
-        {PRESET_TYPE_SURFACE}, 1, PRESET_TYPE_MATRIX,
+        (-1), 1, PRESET_TYPE_MATRIX,
         "S = \\begin{pmatrix} E & F \\\\ F & G \\end{pmatrix}^{-1}"
         "\\begin{pmatrix} L & M \\\\ M & N \\end{pmatrix}",
-        "O(1)", true, false);
+        "O(1)", true, false,
+        -1);
 
     /* ============================================================
      * 第三部分：联络与曲率（5个）
@@ -341,10 +351,11 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_LEVI_CIVITA_CONNECTION,
         "Levi-Civita联络：从度量张量构造无挠且与度量相容的唯一联络",
-        {PRESET_TYPE_MATRIX}, 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "\\Gamma_{ij}^k = \\frac{1}{2}g^{kl}"
         "(\\partial_i g_{lj} + \\partial_j g_{li} - \\partial_l g_{ij})",
-        "O(n^3)", true, false);
+        "O(n^3)", true, false,
+        PRESET_TYPE_MATRIX);
 
     /**
      * @brief Riemann曲率张量
@@ -361,12 +372,13 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_RIEMANN_CURVATURE,
         "Riemann曲率张量：从Christoffel符号计算Riemann曲率张量 R^{i}_{jkl}",
-        {PRESET_TYPE_MATRIX}, 1, PRESET_TYPE_MATRIX,
+        (i), 1, PRESET_TYPE_MATRIX,
         "R^{i}_{jkl} = \\partial_k \\Gamma^{i}_{jl} - "
         "\\partial_l \\Gamma^{i}_{jk} + "
         "\\Gamma^{i}_{mk}\\Gamma^{m}_{jl} - "
         "\\Gamma^{i}_{ml}\\Gamma^{m}_{jk}",
-        "O(n^4)", true, false);
+        "O(n^4)", true, false,
+        i);
 
     /**
      * @brief Ricci曲率
@@ -383,9 +395,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_RICCI_CURVATURE,
         "Ricci曲率：由Riemann曲率张量缩并得到Ricci曲率张量 R_{ij} = R^{k}_{ikj}",
-        {PRESET_TYPE_MATRIX}, 1, PRESET_TYPE_MATRIX,
+        (ij), 1, PRESET_TYPE_MATRIX,
         "R_{ij} = R^{k}_{ikj}",
-        "O(n^3)", true, false);
+        "O(n^3)", true, false,
+        ij);
 
     /**
      * @brief 截面曲率
@@ -402,9 +415,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_SECTIONAL_CURVATURE,
         "截面曲率：计算流形在给定二维截面方向(X, Y)的截面曲率 K(X,Y)",
-        {PRESET_TYPE_MATRIX, PRESET_TYPE_VECTOR, PRESET_TYPE_VECTOR}, 3, PRESET_TYPE_SCALAR,
+        3, PRESET_TYPE_SCALAR,
         "K(X, Y) = \\frac{R(X,Y,Y,X)}{|X|^2|Y|^2 - \\langle X,Y \\rangle^2}",
-        "O(n^3)", true, false);
+        "O(n^3)", true, false,
+        PRESET_TYPE_MATRIX, PRESET_TYPE_VECTOR, PRESET_TYPE_VECTOR);
 
     /**
      * @brief 标量曲率
@@ -421,9 +435,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_SCALAR_CURVATURE,
         "标量曲率：计算标量曲率 R = g^{ij} R_{ij}（Ricci曲率的迹）",
-        {PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX}, 2, PRESET_TYPE_SCALAR,
+        (ij), 2, PRESET_TYPE_SCALAR,
         "R = g^{ij} R_{ij}",
-        "O(n^2)", true, false);
+        "O(n^2)", true, false,
+        ij);
 
     /* ============================================================
      * 第四部分：测地线（4个）
@@ -444,10 +459,11 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_GEODESIC_EQUATION,
         "测地线方程：建立并求解曲面上给定初值条件的测地线微分方程",
-        {PRESET_TYPE_SURFACE, PRESET_TYPE_POINT, PRESET_TYPE_VECTOR}, 3, PRESET_TYPE_PATH,
+        3, PRESET_TYPE_PATH,
         "\\frac{d^2 u^k}{dt^2} + "
         "\\Gamma_{ij}^k \\frac{du^i}{dt}\\frac{du^j}{dt} = 0",
-        "O(n^2)", true, false);
+        "O(n^2)", true, false,
+        PRESET_TYPE_SURFACE, PRESET_TYPE_POINT, PRESET_TYPE_VECTOR);
 
     /**
      * @brief 指数映射
@@ -465,10 +481,11 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_EXPONENTIAL_MAP,
         "指数映射：计算切向量 v 在指数映射 exp_p(v) 下的像点",
-        {PRESET_TYPE_POINT, PRESET_TYPE_VECTOR}, 2, PRESET_TYPE_POINT,
+        2, PRESET_TYPE_POINT,
         "\\exp_p(v) = \\gamma_v(1), \\quad "
         "\\gamma_v(0) = p, \\quad \\gamma_v'(0) = v",
-        "O(n^2)", true, false);
+        "O(n^2)", true, false,
+        PRESET_TYPE_POINT, PRESET_TYPE_VECTOR);
 
     /**
      * @brief Jacobi场
@@ -485,9 +502,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_JACOBI_FIELD,
         "Jacobi场：计算沿测地线的Jacobi向量场，满足 Jacobi 方程 D^2J/dt^2 + R(J,dot(gamma))dot(gamma) = 0",
-        {PRESET_TYPE_PATH, PRESET_TYPE_VECTOR}, 2, PRESET_TYPE_VECTOR,
+        2, PRESET_TYPE_VECTOR,
         "\\frac{D^2 J}{dt^2} + R(J, \\dot{\\gamma})\\dot{\\gamma} = 0",
-        "O(n^2)", true, false);
+        "O(n^2)", true, false,
+        PRESET_TYPE_PATH, PRESET_TYPE_VECTOR);
 
     /**
      * @brief 共轭点
@@ -504,7 +522,8 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_CONJUGATE_POINTS,
         "共轭点：计算沿测地线的共轭点位置（使Jacobi场首次消失的参数值）",
-        {PRESET_TYPE_PATH}, 1, PRESET_TYPE_SCALAR,
+        ({PRESET_TYPE_PATH},
+        PRESET_TYPE_PATH), 1, PRESET_TYPE_SCALAR,
         "\\exists J \\neq 0: J(0) = 0, \\; J(t_0) = 0",
         "O(n^2)", false, false);
 
@@ -527,10 +546,11 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_TENSOR_PRODUCT,
         "张量积：计算两个张量的张量积 T ⊗ S，构造高阶张量",
-        {PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX}, 2, PRESET_TYPE_MATRIX,
+        2, PRESET_TYPE_MATRIX,
         "(T \\otimes S)^{i_1\\ldots i_p j_1\\ldots j_q}_{k_1\\ldots k_r l_1\\ldots l_s} = "
         "T^{i_1\\ldots i_p}_{k_1\\ldots k_r} S^{j_1\\ldots j_q}_{l_1\\ldots l_s}",
-        "O(n^4)", true, false);
+        "O(n^4)", true, false,
+        PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX);
 
     /**
      * @brief 协变导数
@@ -547,9 +567,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_COVARIANT_DERIVATIVE,
         "协变导数：计算张量场的协变导数 ∇_k T，联络修正偏导数",
-        {PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX}, 2, PRESET_TYPE_MATRIX,
+        2, PRESET_TYPE_MATRIX,
         "\\nabla_k T^{i}_{j} = \\partial_k T^{i}_{j} + \\Gamma^{i}_{kl}T^{l}_{j} - \\Gamma^{l}_{kj}T^{i}_{l}",
-        "O(n^3)", true, false);
+        "O(n^3)", true, false,
+        PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX);
 
     /**
      * @brief Lie导数
@@ -566,9 +587,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_LIE_DERIVATIVE,
         "Lie导数：计算张量场沿向量场X的Lie导数 L_X T，度量无穷小变化率",
-        {PRESET_TYPE_MATRIX, PRESET_TYPE_VECTOR}, 2, PRESET_TYPE_MATRIX,
+        2, PRESET_TYPE_MATRIX,
         "\\mathcal{L}_X T = \\lim_{t\\to 0}\\frac{\\phi_t^* T - T}{t}",
-        "O(n^2)", true, false);
+        "O(n^2)", true, false,
+        PRESET_TYPE_MATRIX, PRESET_TYPE_VECTOR);
 
     /**
      * @brief 外微分
@@ -585,10 +607,11 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_EXTERIOR_DERIVATIVE,
         "外微分：计算微分形式的外微分 dω，满足 d² = 0",
-        {PRESET_TYPE_MATRIX}, 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "d\\omega = \\sum \\frac{\\partial \\omega_{i_1\\ldots i_k}}{\\partial x^j} "
         "dx^j \\wedge dx^{i_1} \\wedge \\cdots \\wedge dx^{i_k}",
-        "O(n^2)", true, false);
+        "O(n^2)", true, false,
+        PRESET_TYPE_MATRIX);
 
     /**
      * @brief Hodge星算子
@@ -605,11 +628,12 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_HODGE_STAR,
         "Hodge星算子：计算微分形式的Hodge对偶 *ω，将k-形式映射为(n-k)-形式",
-        {PRESET_TYPE_MATRIX}, 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "*\\omega = \\frac{\\sqrt{|\\det g|}}{k!(n-k)!} "
         "\\varepsilon_{i_1\\ldots i_n} "
         "\\omega^{i_1\\ldots i_k} dx^{i_{k+1}} \\wedge \\cdots \\wedge dx^{i_n}",
-        "O(n!)", true, true);
+        "O(n!)", true, true,
+        PRESET_TYPE_MATRIX);
 
     /* 返回是否所有预设都注册成功 */
     if (success_count == DG_PRESET_COUNT) {

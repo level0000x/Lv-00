@@ -272,6 +272,70 @@ SolverStatus solver_handle_multiple_solutions(
     SymbolicCoord ***out_branches,
     int *out_branch_count);
 
+/* ============== 交互式求解反馈（Solvespace风格） ============== */
+
+/**
+ * @brief 求解器交互事件类型（借鉴 Solvespace 的拖拽约束实时反馈设计）
+ *
+ * Solvespace 的核心交互理念：
+ * - 用户拖拽几何元素 → 约束图变化 → 求解器增量重解 → 实时视觉反馈
+ * - 明确告诉用户：哪些变量已确定（绿色）、哪些可拖动（蓝色）、哪些过约束（红色）
+ * - 自由度可视化：每个可拖动元素高亮，过约束元素警告
+ */
+typedef enum {
+    SOLVER_FEEDBACK_CONSTRAINT_ADDED,    /**< 约束已添加，增量求解开始 */
+    SOLVER_FEEDBACK_VARIABLE_SOLVED,     /**< 变量被唯一确定（变绿） */
+    SOLVER_FEEDBACK_VARIABLE_FREE,       /**< 变量仍有自由度（保持蓝） */
+    SOLVER_FEEDBACK_OVERCONSTRAINED,     /**< 检测到过约束（变红） */
+    SOLVER_FEEDBACK_DOF_CHANGED,         /**< 自由度数量变化 */
+    SOLVER_FEEDBACK_CONFLICT_DETECTED    /**< 约束冲突：上次解不满足新约束 */
+} SolverFeedbackType;
+
+/**
+ * @brief 求解器交互反馈信息（Solvespace风格）
+ *
+ * 每次用户交互后，求解器返回结构化的反馈信息，
+ * 供 Web GUI 画布层即时更新视觉状态。
+ */
+typedef struct SolverFeedback {
+    SolverFeedbackType type;         /**< 反馈类型 */
+    int affected_var_id;             /**< 受影响的变量节点ID */
+    char *message;                   /**< 人类可读消息（如"点A的位置已确定"） */
+    int degrees_of_freedom;          /**< 当前剩余自由度 */
+    int *free_var_ids;              /**< 仍有自由度的变量ID数组 */
+    int free_var_count;             /**< 自由变量数量 */
+    int *overconstrained_ids;       /**< 过约束的变量ID数组 */
+    int overconstrained_count;      /**< 过约束变量数量 */
+} SolverFeedback;
+
+/**
+ * @brief 创建求解器反馈（调用者需用 solver_feedback_destroy 释放）
+ */
+SolverFeedback *solver_feedback_create(SolverFeedbackType type,
+                                        const char *message);
+
+/**
+ * @brief 销毁求解器反馈
+ */
+void solver_feedback_destroy(SolverFeedback *feedback);
+
+/**
+ * @brief 增量求解并返回交互反馈
+ *
+ * 借鉴 Solvespace 的拖拽-实时反馈循环：
+ * 1. 用户添加/修改约束
+ * 2. 求解器仅重解脏变量子图
+ * 3. 返回结构化的反馈信息，标注每个变量的状态变化
+ *
+ * @param graph          约束图
+ * @param dirty_vars     发生变化的变量节点ID
+ * @param dirty_count    脏变量数量
+ * @return 新分配的求解器反馈（调用者需释放），失败返回NULL
+ */
+SolverFeedback *solver_feedback_solve(ConstraintGraph *graph,
+                                       const int *dirty_vars,
+                                       int dirty_count);
+
 #ifdef __cplusplus
 }
 #endif

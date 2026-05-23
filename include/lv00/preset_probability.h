@@ -540,6 +540,45 @@ extern "C" {
  */
 #define PRESET_LAW_OF_LARGE_NUMBERS "law_of_large_numbers"
 
+/* ==================== 概率统计预设（v5.0 统一宏，与 .c 对齐） ==================== */
+
+/* 概率基础 */
+#define PRESET_PROB_SAMPLE_SPACE          "prob_sample_space"
+#define PRESET_PROB_EVENT_PROBABILITY     "prob_event_probability"
+#define PRESET_PROB_COMPLEMENT_EVENT      "prob_complement_event"
+#define PRESET_PROB_UNION_EVENT           "prob_union_event"
+#define PRESET_PROB_INTERSECTION_EVENT    "prob_intersection_event"
+
+/* 条件概率 */
+#define PRESET_PROB_CONDITIONAL           "prob_conditional"
+#define PRESET_PROB_BAYES                 "prob_bayes"
+#define PRESET_PROB_INDEPENDENCE_TEST     "prob_independence_test"
+#define PRESET_PROB_TOTAL_PROBABILITY     "prob_total_probability"
+
+/* 离散分布 */
+#define PRESET_PROB_BINOMIAL_PMF          "prob_binomial_pmf"
+#define PRESET_PROB_POISSON_PMF           "prob_poisson_pmf"
+#define PRESET_PROB_GEOMETRIC_PMF         "prob_geometric_pmf"
+#define PRESET_PROB_HYPERGEOMETRIC_PMF    "prob_hypergeometric_pmf"
+#define PRESET_PROB_DISCRETE_UNIFORM_PMF  "prob_discrete_uniform_pmf"
+
+/* 连续分布 */
+#define PRESET_PROB_NORMAL_PDF            "prob_normal_pdf"
+#define PRESET_PROB_NORMAL_CDF            "prob_normal_cdf"
+#define PRESET_PROB_EXPONENTIAL_PDF       "prob_exponential_pdf"
+#define PRESET_PROB_UNIFORM_PDF           "prob_uniform_pdf"
+
+/* 统计量 */
+#define PRESET_PROB_SAMPLE_MEAN           "prob_sample_mean"
+#define PRESET_PROB_SAMPLE_VARIANCE       "prob_sample_variance"
+#define PRESET_PROB_SAMPLE_STD            "prob_sample_std"
+#define PRESET_PROB_SAMPLE_MEDIAN         "prob_sample_median"
+
+/* 假设检验 */
+#define PRESET_PROB_Z_TEST                "prob_z_test"
+#define PRESET_PROB_T_TEST                "prob_t_test"
+#define PRESET_PROB_CHI_SQUARED_TEST      "prob_chi_squared_test"
+
 /* ==================== 模块初始化 ==================== */
 
 /**
@@ -558,6 +597,23 @@ bool preset_probability_register(void);
  * @return 预设函数块数量
  */
 int preset_probability_count(void);
+
+/**
+ * @brief 获取概率统计预设的类别
+ *
+ * @return 预设类别
+ */
+PresetCategory preset_probability_category(void);
+
+/**
+ * @brief 获取概率统计模块的预设名称列表
+ *
+ * @param out_names 输出名称数组（调用者需释放每个元素和数组本身）
+ * @param out_count 输出数量
+ * @return true 成功
+ * @return false 失败
+ */
+bool preset_probability_get_names(char ***out_names, int *out_count);
 
 #ifdef __cplusplus
 }

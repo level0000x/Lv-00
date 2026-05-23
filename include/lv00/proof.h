@@ -741,6 +741,134 @@ UnconstructResult proof_attempt_unconstructibility(
  */
 void unconstruct_info_destroy(UnconstructInfo *info);
 
+/* ============== 证明回溯与搜索树可视化（Newclid风格） ============== */
+
+/**
+ * @brief 回溯点类型
+ */
+typedef enum {
+    BACKTRACK_CHOICE_POINT,     /**< 选择点：多个策略分支 */
+    BACKTRACK_FAILURE,          /**< 失败点：此路径不可行 */
+    BACKTRACK_SUCCESS,          /**< 成功点：此路径到达目标 */
+    BACKTRACK_PRUNE             /**< 剪枝点：启发式跳过 */
+} BacktrackNodeType;
+
+/**
+ * @brief 证明搜索树节点（Newclid风格）
+ *
+ * 借鉴 Newclid 的证明搜索树可视化：
+ * - 展示证明搜索过程中尝试了哪些路径
+ * - 标注在哪些节点进行了回溯
+ * - 支持在不同搜索策略之间切换观察效果
+ */
+typedef struct BacktrackNode {
+    int id;                          /**< 节点ID */
+    BacktrackNodeType type;          /**< 节点类型 */
+    int step_index;                  /**< 关联的证明步骤索引（-1 = 无关联） */
+    char *label;                     /**< 节点标签（如"尝试辅助线AD"） */
+    char *strategy_name;             /**< 使用的策略名称 */
+    bool is_backtrack_point;         /**< 是否为回溯点 */
+
+    /* 树结构 */
+    struct BacktrackNode *parent;    /**< 父节点 */
+    struct BacktrackNode **children; /**< 子节点数组 */
+    int child_count;                 /**< 子节点数量 */
+    int child_capacity;              /**< 子节点容量 */
+
+    /* 颜色/状态 */
+    bool explored;                   /**< 是否已探索 */
+    ProofColor color;                /**< 节点信任颜色 */
+} BacktrackNode;
+
+/**
+ * @brief 证明搜索树（Newclid风格）
+ */
+typedef struct {
+    BacktrackNode *root;             /**< 根节点 */
+    BacktrackNode **all_nodes;       /**< 所有节点（用于遍历） */
+    int node_count;                  /**< 节点总数 */
+    int node_capacity;               /**< 节点容量 */
+
+    /* 统计信息 */
+    int success_paths;              /**< 成功路径数 */
+    int failure_paths;              /**< 失败路径数 */
+    int backtrack_count;            /**< 回溯次数 */
+    int pruned_branches;            /**< 剪枝分支数 */
+    int max_depth;                  /**< 最大搜索深度 */
+
+    /* 策略信息 */
+    char *current_strategy;          /**< 当前使用的搜索策略名称 */
+    char **available_strategies;    /**< 可用策略名称列表 */
+    int strategy_count;             /**< 策略数量 */
+} ProofSearchTree;
+
+/* --- API --- */
+
+/**
+ * @brief 创建证明搜索树
+ * @return 新分配的搜索树，失败返回NULL
+ */
+ProofSearchTree *proof_search_tree_create(void);
+
+/**
+ * @brief 销毁证明搜索树（递归释放所有节点）
+ */
+void proof_search_tree_destroy(ProofSearchTree *tree);
+
+/**
+ * @brief 创建回溯节点
+ * @param type   节点类型
+ * @param label  节点标签
+ * @return 新分配的节点，失败返回NULL
+ */
+BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label);
+
+/**
+ * @brief 向搜索树添加子节点
+ * @param tree   搜索树
+ * @param parent 父节点（传NULL则设为根节点）
+ * @param child  子节点
+ * @return 是否成功
+ */
+bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, BacktrackNode *child);
+
+/**
+ * @brief 标记回溯点
+ * @param node         要标记的节点
+ * @param strategy_name 使用的策略名称
+ */
+void backtrack_node_mark_backtrack(BacktrackNode *node, const char *strategy_name);
+
+/**
+ * @brief 注册可用策略
+ * @param tree          搜索树
+ * @param strategy_name 策略名称
+ */
+void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *strategy_name);
+
+/**
+ * @brief 设置当前策略
+ * @param tree          搜索树
+ * @param strategy_name 策略名称
+ */
+void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_name);
+
+/**
+ * @brief 导出搜索树为JSON（用于Web GUI可视化）
+ * @param tree      搜索树
+ * @param filepath   输出文件路径
+ * @return 是否成功
+ */
+bool proof_search_tree_export_json(const ProofSearchTree *tree, const char *filepath);
+
+/**
+ * @brief 导出搜索树为DOT格式（Graphviz）
+ * @param tree      搜索树
+ * @param filepath   输出文件路径
+ * @return 是否成功
+ */
+bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filepath);
+
 #ifdef __cplusplus
 }
 #endif

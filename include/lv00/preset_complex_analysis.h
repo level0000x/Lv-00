@@ -524,6 +524,40 @@ extern "C" {
 #define PRESET_ARGUMENT_PRINCIPLE "argument_principle"
 
 /* ============================================================
+ * 复分析 v5.0 统一宏（.c 中 get_names 使用，与 .c 对齐）
+ * ============================================================ */
+
+/* 复数基本运算（扩展） */
+#define PRESET_COMPLEX_EXP                "complex_exp"
+#define PRESET_COMPLEX_LOG                "complex_log"
+#define PRESET_COMPLEX_POWER              "complex_power"
+#define PRESET_COMPLEX_SIN                "complex_sin"
+#define PRESET_COMPLEX_COS                "complex_cos"
+#define PRESET_COMPLEX_TAN                "complex_tan"
+
+/* 复积分 */
+#define PRESET_COMPLEX_LINE_INTEGRAL      "complex_line_integral"
+#define PRESET_CAUCHY_INTEGRAL            "cauchy_integral"
+#define PRESET_RESIDUE_CALCULATE          "residue_calculate"
+#define PRESET_RESIDUE_THEOREM            "residue_theorem"
+#define PRESET_CONTOUR_INTEGRAL_PARAMETRIC "contour_integral_parametric"
+
+/* 级数展开 */
+#define PRESET_CONVERGENCE_RADIUS         "power_series_radius"
+#define PRESET_ANALYTIC_CONTINUATION      "analytic_continuation"
+#define PRESET_MEROMORPHIC_DECOMPOSITION  "meromorphic_decomposition"
+
+/* 共形映射与定理 */
+#define PRESET_SCHWARZ_LEMMA              "schwarz_lemma"
+#define PRESET_RIEMANN_MAPPING_TEST       "riemann_mapping"
+#define PRESET_HARMONIC_FUNCTION_TEST     "harmonic_function_check"
+
+/* 特殊函数 */
+#define PRESET_GAMMA_FUNCTION_COMPLEX     "gamma_function"
+#define PRESET_ZETA_FUNCTION_COMPLEX      "zeta_function_complex"
+#define PRESET_BESSEL_FUNCTION            "bessel_function"
+
+/* ============================================================
  * 模块注册函数
  * ============================================================ */
 

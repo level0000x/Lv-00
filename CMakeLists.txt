@@ -184,89 +184,30 @@ set(LV00_HEADERS
     include/lv00/preset_statistics.h
 )
 
-set(LV00_SOURCES
-    src/error_codes.c
-    src/symbolic_coord.c
-    # Note: symbolic_coord_circuit.c functions are already in symbolic_coord.c (merged)
-    src/constraint_graph.c
-    src/normalization.c
-    src/solver.c
-    src/mpz_poly_resultant.c
-    src/rewrite.c
-    src/unify.c
-    src/axiom_pkg.c
-    src/module.c
-    src/engine.c
-    src/stream.c
-    src/debug.c
-    src/func_block.c
-    src/func_block_determinism.c
-    src/func_block_instantiate.c
-    src/func_block_serialize.c
-    src/func_block_utils.c
-    src/func_block_selector.c
-    src/func_block_compose.c
-    src/func_block_registry.c
-    # 模块化预设函数块系统
-    src/preset_blocks.c
-    src/preset_common.c
-    src/func_block_preset_ops.c
-    src/preset_basic_geometry.c
-    # preset_basic_geometry_v2.c 已弃用（重命名为 .deprecated），统一使用原版
-    src/preset_transformations.c
-    src/preset_measurements.c
-    src/preset_polygons.c
-    src/preset_algebraic.c
-    src/preset_number_theory.c
-    src/preset_group_theory.c
-    src/preset_topology.c
-    src/preset_analysis.c
-    src/preset_basic_math.c
-    src/preset_calculus.c
-    # preset_combinatorics.c  -- 宏名不匹配，待修复
-    src/preset_graph_theory.c
-    # preset_probability.c  -- 宏名不匹配，待修复
-    src/preset_numerical.c
-    src/preset_optimization.c
-    src/preset_advanced_geometry.c
-    src/preset_geometry_3d.c
-    src/preset_field_theory.c
-    # preset_ring_theory.c  -- 宏名不匹配，待修复
-    # preset_linear_algebra.c  -- 宏名不匹配，待修复
-    src/preset_matrix.c
-    # preset_complex_analysis.c  -- 宏名不匹配，待修复
-    # preset_differential_geometry.c  -- 宏名不匹配，待修复
-    src/preset_statistics.c
-    src/preset_numerical_analysis.c
-    # 新增预设函数块模块
-    # preset_mathematical_logic.c  -- 宏名不匹配，待修复
-    src/preset_category_theory.c
-    src/preset_logic_advanced.c
-    src/preset_set_theory.c
-    src/preset_polynomial.c
-    src/preset_math_logic.c
-    src/preset_differential_equations.c
-    src/preset_trigonometry.c
-    # preset_manager.c  -- __attribute__((constructor)) causes startup crash
-    # 测度论与序理论预设（v7.0）
-    src/preset_measure_theory.c
-    src/preset_order_theory.c
-    # 泛函分析与代数拓扑进阶（v7.0）
-    src/preset_functional_analysis_adv.c
-    src/preset_algebraic_topology_adv.c
-    src/type_system.c
-    src/proof.c
-    src/recursion.c
-    src/lv00_utils.c
-    src/lv00.c
-    src/high_dim.c
-    src/interop.c
-    src/formula_parser.c
-    src/formula_renderer.c
-    src/formula_converter.c
-    src/prop_verifier.c
-    src/lexer_shared.c
+set(LV00_SOURCES)
+file(GLOB_RECURSE LV00_SOURCES
+    src/*.c
 )
+# Exclude test files and deprecated
+list(FILTER LV00_SOURCES EXCLUDE REGEX "tests/")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_basic_geometry_v2\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "\\.deprecated$")
+# Exclude duplicate source files (root-level copies superseded by subdir versions)
+list(FILTER LV00_SOURCES EXCLUDE REGEX "^src/symbolic_coord\\.c$")
+# Exclude incomplete/legacy files that use incompatible type systems
+list(FILTER LV00_SOURCES EXCLUDE REGEX "func_block_preset\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "magic/magic\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
+# Files with REGISTER_XX({TYPE1, TYPE2}) brace-in-macro preprocessor issues
+# or unknown compatibility status (not in original working build)
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_differential_geometry\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "/preset_algebraic_topology\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_integral_transforms\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_lattice_theory\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_representation_theory\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis\\.c$")
+
 
 # ============================================================
 # 库目标
@@ -454,7 +395,7 @@ if(BUILD_TESTS)
     add_lv00_test_and_register(test_symbolic_coord
         tests/test_symbolic_coord.c symbolic_coord_test)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
-    add_executable(test_prop_verifier tests/test_prop_verifier.c src/prop_verifier.c)
+    add_executable(test_prop_verifier tests/test_prop_verifier.c src/core/prop_verifier.c)
     target_include_directories(test_prop_verifier PRIVATE include/lv00)
     target_link_libraries(test_prop_verifier lv00 ${GMP_LIBRARIES})
     add_test(NAME prop_verifier_test COMMAND test_prop_verifier

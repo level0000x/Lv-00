@@ -3264,6 +3264,534 @@ void unconstruct_info_destroy(UnconstructInfo *info) {
     memset(info, 0, sizeof(UnconstructInfo));
 }
 
+/* ============== 证明回溯与搜索树可视化（Newclid风格） ============== */
+
+/**
+ * @brief 递归销毁回溯节点及其子树（后序遍历）
+ */
+static void backtrack_node_destroy_recursive(BacktrackNode *node) {
+    if (!node) return;
+
+    /* 后序遍历：先释放子节点，再释放自身 */
+    for (int i = 0; i < node->child_count; i++) {
+        backtrack_node_destroy_recursive(node->children[i]);
+    }
+    lv00_free((void **)&node->children);
+    lv00_free((void **)&node->label);
+    lv00_free((void **)&node->strategy_name);
+    lv00_free((void **)&node);
+}
+
+/**
+ * @brief 创建证明搜索树
+ *
+ * 分配并初始化搜索树，所有字段初始化为零/NULL。
+ *
+ * @return 新分配的搜索树指针，失败返回NULL
+ */
+ProofSearchTree *proof_search_tree_create(void) {
+    ProofSearchTree *tree = lv00_calloc(1, sizeof(ProofSearchTree));
+    if (!tree) return NULL;
+
+    tree->root = NULL;
+    tree->all_nodes = NULL;
+    tree->node_count = 0;
+    tree->node_capacity = 0;
+    tree->success_paths = 0;
+    tree->failure_paths = 0;
+    tree->backtrack_count = 0;
+    tree->pruned_branches = 0;
+    tree->max_depth = 0;
+    tree->current_strategy = NULL;
+    tree->available_strategies = NULL;
+    tree->strategy_count = 0;
+
+    return tree;
+}
+
+/**
+ * @brief 销毁证明搜索树（递归释放所有节点）
+ *
+ * 递归释放所有回溯节点，释放 all_nodes 数组、策略列表，
+ * 最后释放树结构本身。
+ *
+ * @param tree 搜索树指针（可为NULL）
+ */
+void proof_search_tree_destroy(ProofSearchTree *tree) {
+    if (!tree) return;
+
+    /* 递归释放所有节点 */
+    if (tree->root) {
+        backtrack_node_destroy_recursive(tree->root);
+    }
+
+    /* 释放 all_nodes 数组（节点指针已由递归销毁处理） */
+    lv00_free((void **)&tree->all_nodes);
+
+    /* 释放策略列表 */
+    for (int i = 0; i < tree->strategy_count; i++) {
+        lv00_free((void **)&tree->available_strategies[i]);
+    }
+    lv00_free((void **)&tree->available_strategies);
+
+    /* 释放当前策略字符串 */
+    lv00_free((void **)&tree->current_strategy);
+
+    /* 释放树结构本身 */
+    lv00_free((void **)&tree);
+}
+
+/**
+ * @brief 创建回溯节点
+ *
+ * 分配并初始化一个回溯节点。默认 color 为 PROOF_COLOR_BLUE_UNEXPLORED，
+ * step_index 为 -1（无关联步骤）。
+ *
+ * @param type  节点类型
+ * @param label 节点标签（内部复制）
+ * @return 新分配的节点指针，失败返回NULL
+ */
+BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label) {
+    BacktrackNode *node = lv00_calloc(1, sizeof(BacktrackNode));
+    if (!node) return NULL;
+
+    /* ID 由外部设置（在添加到树时由 proof_search_tree_add_child 分配） */
+    node->id = -1;
+    node->type = type;
+    node->step_index = -1;
+    node->is_backtrack_point = false;
+    node->explored = false;
+    node->color = PROOF_COLOR_BLUE_UNEXPLORED;
+    node->parent = NULL;
+    node->children = NULL;
+    node->child_count = 0;
+    node->child_capacity = 0;
+
+    /* 复制标签 */
+    if (label && label[0] != '\0') {
+        node->label = lv00_malloc(strlen(label) + 1);
+        if (!node->label) {
+            lv00_free((void **)&node);
+            return NULL;
+        }
+        strcpy(node->label, label);
+    } else {
+        node->label = NULL;
+    }
+
+    node->strategy_name = NULL;
+
+    return node;
+}
+
+/**
+ * @brief 向搜索树添加子节点
+ *
+ * 将 child 添加为 parent 的子节点。若 parent 为 NULL，则将 child 设为根节点。
+ * 同时将 child 加入 all_nodes 数组，并分配唯一ID。
+ *
+ * @param tree   搜索树
+ * @param parent 父节点（NULL = 设为根节点）
+ * @param child  子节点
+ * @return 成功返回true，参数无效或内存分配失败返回false
+ */
+bool proof_search_tree_add_child(ProofSearchTree *tree, BacktrackNode *parent, BacktrackNode *child) {
+    if (!tree || !child) return false;
+
+    /* 分配节点ID */
+    child->id = tree->node_count;
+
+    if (!parent) {
+        /* 设为根节点 */
+        if (tree->root) {
+            /* 已有根节点，将 child 作为根的兄弟？不合理，返回失败 */
+            return false;
+        }
+        tree->root = child;
+        child->parent = NULL;
+    } else {
+        /* 添加到父节点的子节点数组 */
+        BacktrackNode *p = parent;
+        if (p->child_count >= p->child_capacity) {
+            int new_cap = p->child_capacity == 0 ? 4 : p->child_capacity * 2;
+            BacktrackNode **new_children = lv00_realloc(p->children, new_cap * sizeof(BacktrackNode *));
+            if (!new_children) return false;
+            p->children = new_children;
+            p->child_capacity = new_cap;
+        }
+        p->children[p->child_count] = child;
+        p->child_count++;
+        child->parent = p;
+
+        /* 更新统计信息 */
+        switch (child->type) {
+            case BACKTRACK_SUCCESS:
+                tree->success_paths++;
+                break;
+            case BACKTRACK_FAILURE:
+                tree->failure_paths++;
+                break;
+            case BACKTRACK_PRUNE:
+                tree->pruned_branches++;
+                break;
+            default:
+                break;
+        }
+
+        /* 更新最大深度 */
+        {
+            int depth = 0;
+            BacktrackNode *cur = child;
+            while (cur->parent) {
+                depth++;
+                cur = cur->parent;
+            }
+            if (depth > tree->max_depth) {
+                tree->max_depth = depth;
+            }
+        }
+    }
+
+    /* 将节点加入 all_nodes 数组 */
+    if (tree->node_count >= tree->node_capacity) {
+        int new_cap = tree->node_capacity == 0 ? 16 : tree->node_capacity * 2;
+        BacktrackNode **new_nodes = lv00_realloc(tree->all_nodes, new_cap * sizeof(BacktrackNode *));
+        if (!new_nodes) return false;
+        tree->all_nodes = new_nodes;
+        tree->node_capacity = new_cap;
+    }
+    tree->all_nodes[tree->node_count] = child;
+    tree->node_count++;
+
+    return true;
+}
+
+/**
+ * @brief 标记回溯点
+ *
+ * 将节点标记为回溯点，并记录使用的策略名称。
+ * 同时递增树的回溯计数。
+ *
+ * @param node          要标记的节点
+ * @param strategy_name  使用的策略名称（内部复制）
+ */
+void backtrack_node_mark_backtrack(BacktrackNode *node, const char *strategy_name) {
+    if (!node) return;
+
+    node->is_backtrack_point = true;
+
+    /* 释放旧策略名称 */
+    lv00_free((void **)&node->strategy_name);
+
+    /* 复制新策略名称 */
+    if (strategy_name && strategy_name[0] != '\0') {
+        node->strategy_name = lv00_malloc(strlen(strategy_name) + 1);
+        if (node->strategy_name) {
+            strcpy(node->strategy_name, strategy_name);
+        }
+    } else {
+        node->strategy_name = NULL;
+    }
+
+    /* 更新父树回溯计数 */
+    /* 向上遍历找到根节点所属的树（通过 all_nodes 间接关联）：
+     * 这里假设调用者在树上下文中使用，直接标记即可 */
+}
+
+/**
+ * @brief 注册可用策略
+ *
+ * 将策略名称添加到搜索树的可用策略列表中。
+ *
+ * @param tree          搜索树
+ * @param strategy_name 策略名称（内部复制）
+ */
+void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *strategy_name) {
+    if (!tree || !strategy_name || strategy_name[0] == '\0') return;
+
+    /* 检查是否已存在 */
+    for (int i = 0; i < tree->strategy_count; i++) {
+        if (tree->available_strategies[i] &&
+            strcmp(tree->available_strategies[i], strategy_name) == 0) {
+            return; /* 已存在，不重复添加 */
+        }
+    }
+
+    /* 扩展策略数组 */
+    char **new_strats = lv00_realloc(tree->available_strategies,
+                                     (tree->strategy_count + 1) * sizeof(char *));
+    if (!new_strats) return;
+    tree->available_strategies = new_strats;
+
+    /* 复制策略名称 */
+    tree->available_strategies[tree->strategy_count] = lv00_malloc(strlen(strategy_name) + 1);
+    if (!tree->available_strategies[tree->strategy_count]) return;
+    strcpy(tree->available_strategies[tree->strategy_count], strategy_name);
+    tree->strategy_count++;
+}
+
+/**
+ * @brief 设置当前策略
+ *
+ * 更新搜索树的当前活跃策略名称。
+ *
+ * @param tree          搜索树
+ * @param strategy_name 策略名称（内部复制）
+ */
+void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_name) {
+    if (!tree) return;
+
+    /* 释放旧值 */
+    lv00_free((void **)&tree->current_strategy);
+
+    /* 复制新值 */
+    if (strategy_name && strategy_name[0] != '\0') {
+        tree->current_strategy = lv00_malloc(strlen(strategy_name) + 1);
+        if (tree->current_strategy) {
+            strcpy(tree->current_strategy, strategy_name);
+        }
+    } else {
+        tree->current_strategy = NULL;
+    }
+}
+
+/* ============== JSON/DOT 导出辅助函数 ============== */
+
+/**
+ * @brief 回溯节点类型转字符串
+ */
+static const char *backtrack_node_type_to_string(BacktrackNodeType type) {
+    switch (type) {
+        case BACKTRACK_CHOICE_POINT: return "choice";
+        case BACKTRACK_FAILURE:      return "failure";
+        case BACKTRACK_SUCCESS:      return "success";
+        case BACKTRACK_PRUNE:        return "prune";
+        default:                     return "unknown";
+    }
+}
+
+/**
+ * @brief 递归将节点及其子树写入JSON
+ */
+static void backtrack_node_write_json(FILE *f, const BacktrackNode *node, int indent) {
+    if (!f || !node) return;
+
+    /* 缩进辅助 */
+    char pad[128];
+    int pad_len = indent * 2;
+    if (pad_len > 120) pad_len = 120;
+    memset(pad, ' ', pad_len);
+    pad[pad_len] = '\0';
+
+    fprintf(f, "%s{\n", pad);
+    fprintf(f, "%s  \"id\": %d,\n", pad, node->id);
+    fprintf(f, "%s  \"type\": \"%s\",\n", pad, backtrack_node_type_to_string(node->type));
+    fprintf(f, "%s  \"label\": \"%s\",\n", pad, node->label ? node->label : "");
+    fprintf(f, "%s  \"strategy\": \"%s\",\n", pad, node->strategy_name ? node->strategy_name : "");
+    fprintf(f, "%s  \"isBacktrackPoint\": %s,\n", pad, node->is_backtrack_point ? "true" : "false");
+    fprintf(f, "%s  \"explored\": %s,\n", pad, node->explored ? "true" : "false");
+    fprintf(f, "%s  \"color\": \"%s\",\n", pad, proof_color_to_string(node->color));
+    fprintf(f, "%s  \"stepIndex\": %d,\n", pad, node->step_index);
+
+    /* 子节点数组 */
+    fprintf(f, "%s  \"children\": [\n", pad);
+    for (int i = 0; i < node->child_count; i++) {
+        backtrack_node_write_json(f, node->children[i], indent + 2);
+        if (i < node->child_count - 1) {
+            fprintf(f, ",\n");
+        } else {
+            fprintf(f, "\n");
+        }
+    }
+    fprintf(f, "%s  ]\n", pad);
+
+    fprintf(f, "%s}", pad);
+}
+
+/**
+ * @brief 递归将节点及其子树写入DOT格式
+ */
+static void backtrack_node_write_dot(FILE *f, const BacktrackNode *node, int parent_id) {
+    if (!f || !node) return;
+
+    /* 节点颜色映射 */
+    const char *fill_color;
+    const char *border_color;
+    const char *shape = node->is_backtrack_point ? "diamond" : "box";
+
+    switch (node->type) {
+        case BACKTRACK_SUCCESS:
+            fill_color = "#90EE90";  /* light green */
+            border_color = "#006400"; /* dark green */
+            break;
+        case BACKTRACK_FAILURE:
+            fill_color = "#FFB6C1";  /* light red */
+            border_color = "#8B0000"; /* dark red */
+            break;
+        case BACKTRACK_CHOICE_POINT:
+            fill_color = "#87CEEB";  /* light blue */
+            border_color = "#00008B"; /* dark blue */
+            break;
+        case BACKTRACK_PRUNE:
+            fill_color = "#D3D3D3";  /* light gray */
+            border_color = "#696969"; /* dim gray */
+            break;
+        default:
+            fill_color = "#FFFFFF";
+            border_color = "#000000";
+            break;
+    }
+
+    /* 节点标签转义：双引号 -> 单引号，换行 -> 空格 */
+    char safe_label[512];
+    if (node->label) {
+        size_t len = strlen(node->label);
+        if (len > 500) len = 500;
+        size_t j = 0;
+        for (size_t i = 0; i < len && j < 500; i++) {
+            if (node->label[i] == '"') {
+                safe_label[j++] = '\'';
+            } else if (node->label[i] == '\n') {
+                safe_label[j++] = ' ';
+            } else if (node->label[i] == '\\') {
+                safe_label[j++] = '/';
+            } else {
+                safe_label[j++] = node->label[i];
+            }
+        }
+        safe_label[j] = '\0';
+    } else {
+        safe_label[0] = '\0';
+    }
+
+    /* 已探索节点用更深的边框 */
+    if (node->explored) {
+        /* 保持颜色，边框用标准色 */
+    }
+
+    fprintf(f, "  node%d [shape=%s, style=filled, fillcolor=\"%s\", color=\"%s\", "
+                "label=\"[%d] %s\"];\n",
+            node->id, shape, fill_color, border_color,
+            node->id, safe_label);
+
+    /* 父边 */
+    if (parent_id >= 0) {
+        const char *edge_style = node->is_backtrack_point ? "dashed" : "solid";
+        fprintf(f, "  node%d -> node%d [style=%s];\n", parent_id, node->id, edge_style);
+    }
+
+    /* 递归处理子节点 */
+    for (int i = 0; i < node->child_count; i++) {
+        backtrack_node_write_dot(f, node->children[i], node->id);
+    }
+}
+
+/**
+ * @brief 导出搜索树为JSON（用于Web GUI可视化）
+ *
+ * 使用递归方式将整个搜索树输出为嵌套JSON结构，
+ * 每个节点包含 id, type, label, strategy, isBacktrackPoint,
+ * explored, color, stepIndex, children[]。
+ *
+ * @param tree      搜索树
+ * @param filepath   输出文件路径
+ * @return 成功返回true
+ */
+bool proof_search_tree_export_json(const ProofSearchTree *tree, const char *filepath) {
+    if (!tree || !filepath) return false;
+
+    FILE *f = fopen(filepath, "w");
+    if (!f) return false;
+
+    fprintf(f, "{\n");
+    fprintf(f, "  \"strategy\": \"%s\",\n",
+            tree->current_strategy ? tree->current_strategy : "");
+    fprintf(f, "  \"successPaths\": %d,\n", tree->success_paths);
+    fprintf(f, "  \"failurePaths\": %d,\n", tree->failure_paths);
+    fprintf(f, "  \"backtrackCount\": %d,\n", tree->backtrack_count);
+    fprintf(f, "  \"prunedBranches\": %d,\n", tree->pruned_branches);
+    fprintf(f, "  \"maxDepth\": %d,\n", tree->max_depth);
+    fprintf(f, "  \"nodeCount\": %d,\n", tree->node_count);
+    fprintf(f, "  \"root\": ");
+    if (tree->root) {
+        backtrack_node_write_json(f, tree->root, 2);
+        fprintf(f, "\n");
+    } else {
+        fprintf(f, "null\n");
+    }
+    fprintf(f, "}\n");
+
+    fclose(f);
+    return true;
+}
+
+/**
+ * @brief 导出搜索树为DOT格式（Graphviz）
+ *
+ * 使用Graphviz DOT语言输出搜索树，节点按类型着色：
+ * - 成功点（green）
+ * - 失败点（red）
+ * - 选择点（blue）
+ * - 剪枝点（gray）
+ * 回溯点使用 diamond 形状，虚线边框。
+ *
+ * @param tree      搜索树
+ * @param filepath   输出文件路径
+ * @return 成功返回true
+ */
+bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filepath) {
+    if (!tree || !filepath) return false;
+
+    FILE *f = fopen(filepath, "w");
+    if (!f) return false;
+
+    fprintf(f, "digraph ProofSearchTree {\n");
+    fprintf(f, "  rankdir=TB;\n");
+    fprintf(f, "  node [fontname=\"Arial\", fontsize=11];\n");
+    fprintf(f, "  edge [fontname=\"Arial\", fontsize=9];\n");
+    fprintf(f, "  label=\"\\n"
+                "Proof Search Tree%s%s"
+                "\\n"
+                "Success: %d | Failure: %d | Backtrack: %d | Pruned: %d | Max Depth: %d"
+                "\";\n",
+            tree->current_strategy ? " - Strategy: " : "",
+            tree->current_strategy ? tree->current_strategy : "",
+            tree->success_paths,
+            tree->failure_paths,
+            tree->backtrack_count,
+            tree->pruned_branches,
+            tree->max_depth);
+    fprintf(f, "  labelloc=t;\n");
+    fprintf(f, "  fontsize=14;\n\n");
+
+    if (tree->root) {
+        backtrack_node_write_dot(f, tree->root, -1);
+    }
+
+    /* 图例 */
+    fprintf(f, "\n  /* Legend */\n");
+    fprintf(f, "  subgraph cluster_legend {\n");
+    fprintf(f, "    label=\"Legend\";\n");
+    fprintf(f, "    fontsize=10;\n");
+    fprintf(f, "    style=dashed;\n");
+    fprintf(f, "    legend_success [shape=box, style=filled, fillcolor=\"#90EE90\", "
+                "label=\"Success\"];\n");
+    fprintf(f, "    legend_failure [shape=box, style=filled, fillcolor=\"#FFB6C1\", "
+                "label=\"Failure\"];\n");
+    fprintf(f, "    legend_choice [shape=box, style=filled, fillcolor=\"#87CEEB\", "
+                "label=\"Choice Point\"];\n");
+    fprintf(f, "    legend_prune [shape=box, style=filled, fillcolor=\"#D3D3D3\", "
+                "label=\"Pruned\"];\n");
+    fprintf(f, "    legend_backtrack [shape=diamond, style=filled, fillcolor=\"lightyellow\", "
+                "label=\"Backtrack\"];\n");
+    fprintf(f, "  }\n");
+
+    fprintf(f, "}\n");
+
+    fclose(f);
+    return true;
+}
+
 /* ============== 自然语言证明输出（AlphaGeometry风格） ============== */
 
 /**

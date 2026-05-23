@@ -1,4 +1,68 @@
-﻿/**
+/**
+#endif
+
+ * 内部数据结构
+ * ============================================================ */
+
+/**
+ * @brief 内部预设条目结构
+ */
+typedef struct InternalPresetEntry {
+    PresetMetadata metadata;        /**< 预设元数据 */
+    FuncBlock *template_fb;         /**< 模板函数块（可为NULL） */
+    bool is_builtin;                /**< 是否为内置预设 */
+    bool is_active;                 /**< 是否激活 */
+    int reference_count;            /**< 引用计数 */
+    struct InternalPresetEntry *next;  /**< 哈希表冲突链 */
+} InternalPresetEntry;
+
+/**
+ * @brief 预设库状态结构
+ */
+typedef struct {
+    InternalPresetEntry **hash_table;   /**< 哈希表 */
+    int hash_table_size;                /**< 哈希表大小 */
+    int entry_count;                    /**< 条目数量 */
+    int builtin_count;                  /**< 内置预设数量 */
+    int custom_count;                   /**< 自定义预设数量 */
+    bool initialized;                   /**< 是否已初始化 */
+    
+#ifdef _WIN32
+    CRITICAL_SECTION mutex;             /**< Windows临界区 */
+#else
+    pthread_mutex_t mutex;              /**< POSIX互斥锁 */
+#endif
+    
+    PresetAtomicCounter next_id;        /**< 下一个预设ID */
+    char last_error[PRESET_BUFFER_SIZE]; /**< 最后错误信息 */
+    
+    /* 错误回调 */
+    void (*error_callback)(const char*, void*);
+    void *error_callback_data;
+} PresetLibraryState;
+
+/* ============================================================
+ * 全局状态
+ * ============================================================ */
+
+/** 预设库全局状态 */
+static PresetLibraryState g_library = {
+    .hash_table = NULL,
+    .hash_table_size = 0,
+    .entry_count = 0,
+    .builtin_count = 0,
+    .custom_count = 0,
+    .initialized = false,
+    .next_id = PRESET_ID_OFFSET,
+    .last_error = {0},
+    .error_callback = NULL,
+    .error_callback_data = NULL
+};
+
+/* ============================================================
+
+#endif
+/**
  * @file preset_manager.c
  * @brief 预设函数块管理器 - 核心实现
  *
@@ -24,6 +88,9 @@
 #include <stdio.h>
 
 #ifdef _WIN32
+
+#endif
+
 #include <windows.h>
 #else
 #include <pthread.h>
@@ -1916,65 +1983,6 @@ error:
 }
 
 /* ============================================================
- * 内部数据结构
- * ============================================================ */
-
-/**
- * @brief 内部预设条目结构
- */
-typedef struct InternalPresetEntry {
-    PresetMetadata metadata;        /**< 预设元数据 */
-    FuncBlock *template_fb;         /**< 模板函数块（可为NULL） */
-    bool is_builtin;                /**< 是否为内置预设 */
-    bool is_active;                 /**< 是否激活 */
-    int reference_count;            /**< 引用计数 */
-    struct InternalPresetEntry *next;  /**< 哈希表冲突链 */
-} InternalPresetEntry;
-
-/**
- * @brief 预设库状态结构
- */
-typedef struct {
-    InternalPresetEntry **hash_table;   /**< 哈希表 */
-    int hash_table_size;                /**< 哈希表大小 */
-    int entry_count;                    /**< 条目数量 */
-    int builtin_count;                  /**< 内置预设数量 */
-    int custom_count;                   /**< 自定义预设数量 */
-    bool initialized;                   /**< 是否已初始化 */
-    
-#ifdef _WIN32
-    CRITICAL_SECTION mutex;             /**< Windows临界区 */
-#else
-    pthread_mutex_t mutex;              /**< POSIX互斥锁 */
-#endif
-    
-    PresetAtomicCounter next_id;        /**< 下一个预设ID */
-    char last_error[PRESET_BUFFER_SIZE]; /**< 最后错误信息 */
-    
-    /* 错误回调 */
-    void (*error_callback)(const char*, void*);
-    void *error_callback_data;
-} PresetLibraryState;
-
-/* ============================================================
- * 全局状态
- * ============================================================ */
-
-/** 预设库全局状态 */
-static PresetLibraryState g_library = {
-    .hash_table = NULL,
-    .hash_table_size = 0,
-    .entry_count = 0,
-    .builtin_count = 0,
-    .custom_count = 0,
-    .initialized = false,
-    .next_id = PRESET_ID_OFFSET,
-    .last_error = {0},
-    .error_callback = NULL,
-    .error_callback_data = NULL
-};
-
-/* ============================================================
  * 内部辅助函数声明
  * ============================================================ */
 
@@ -2015,6 +2023,16 @@ static uint32_t hash_string(const char *str)
 
 static void lock_library(void)
 {
+    /* 惰性初始化：静态库链接时 DllMain/constructor 不会被调用 */
+    static volatile long g_mutex_initialized = 0;
+    if (!g_mutex_initialized) {
+#ifdef _WIN32
+        InitializeCriticalSection(&g_library.mutex);
+#else
+        pthread_mutex_init(&g_library.mutex, NULL);
+#endif
+        InterlockedExchange(&g_mutex_initialized, 1);
+    }
 #ifdef _WIN32
     EnterCriticalSection(&g_library.mutex);
 #else

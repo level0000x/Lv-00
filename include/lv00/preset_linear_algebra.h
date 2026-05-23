@@ -604,6 +604,54 @@ extern "C" {
 #define PRESET_DISTANCE_COMPUTE "distance_compute"
 
 /* ============================================================
+ * 线性代数 v5.0 统一宏（PRESET_LINALG_ 前缀，与 .c 对齐）
+ * ============================================================ */
+
+/* 矩阵基础运算 */
+#define PRESET_LINALG_MATRIX_CREATE       "linalg_matrix_create"
+#define PRESET_LINALG_MATRIX_ADD          "linalg_matrix_add"
+#define PRESET_LINALG_MATRIX_SUBTRACT     "linalg_matrix_subtract"
+#define PRESET_LINALG_MATRIX_MULTIPLY     "linalg_matrix_multiply"
+#define PRESET_LINALG_MATRIX_SCALE        "linalg_matrix_scale"
+#define PRESET_LINALG_MATRIX_TRANSPOSE    "linalg_matrix_transpose"
+#define PRESET_LINALG_MATRIX_TRACE        "linalg_matrix_trace"
+#define PRESET_LINALG_MATRIX_NEGATE       "linalg_matrix_negate"
+
+/* 行列式与逆矩阵 */
+#define PRESET_LINALG_DETERMINANT_2X2     "linalg_determinant_2x2"
+#define PRESET_LINALG_DETERMINANT_3X3     "linalg_determinant_3x3"
+#define PRESET_LINALG_DETERMINANT_N       "linalg_determinant_n"
+#define PRESET_LINALG_INVERSE_2X2         "linalg_inverse_2x2"
+#define PRESET_LINALG_INVERSE_3X3         "linalg_inverse_3x3"
+#define PRESET_LINALG_ADJUGATE            "linalg_adjugate"
+
+/* 矩阵分解 */
+#define PRESET_LINALG_LU_DECOMPOSITION    "linalg_lu_decomposition"
+#define PRESET_LINALG_QR_DECOMPOSITION    "linalg_qr_decomposition"
+#define PRESET_LINALG_CHOLESKY            "linalg_cholesky"
+#define PRESET_LINALG_EIGENVALUES_2X2     "linalg_eigenvalues_2x2"
+#define PRESET_LINALG_EIGENVECTORS_2X2    "linalg_eigenvectors_2x2"
+
+/* 向量空间 */
+#define PRESET_LINALG_VECTOR_SPACE_TEST   "linalg_vector_space_test"
+#define PRESET_LINALG_LINEAR_INDEPENDENCE "linalg_linear_independence"
+#define PRESET_LINALG_SPAN                "linalg_span"
+#define PRESET_LINALG_BASIS               "linalg_basis"
+#define PRESET_LINALG_DIMENSION           "linalg_dimension"
+
+/* 线性映射 */
+#define PRESET_LINALG_LINEAR_MAP_TEST     "linalg_linear_map_test"
+#define PRESET_LINALG_KERNEL              "linalg_kernel"
+#define PRESET_LINALG_IMAGE               "linalg_image"
+#define PRESET_LINALG_RANK_NULLITY        "linalg_rank_nullity"
+
+/* 内积空间 */
+#define PRESET_LINALG_INNER_PRODUCT       "linalg_inner_product"
+#define PRESET_LINALG_GRAM_SCHMIDT        "linalg_gram_schmidt"
+#define PRESET_LINALG_ORTHOGONAL_COMPLEMENT "linalg_orthogonal_complement"
+#define PRESET_LINALG_PROJECTION          "linalg_projection"
+
+/* ============================================================
  * 模块注册函数
  * ============================================================ */
 

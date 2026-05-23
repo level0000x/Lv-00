@@ -103,6 +103,7 @@ typedef enum {
     PRESET_TYPE_RESIDUE,            /**< 剩余类 */
     /* 逻辑与结构类型 */
     PRESET_TYPE_FORMULA,            /**< 公式 */
+    PRESET_TYPE_EXPRESSION,         /**< 表达式（逻辑/集合论中的表达式） */
     PRESET_TYPE_STRUCTURE,          /**< 结构 */
     PRESET_TYPE_STRING,             /**< 字符串 */
     /* 通用类型 */

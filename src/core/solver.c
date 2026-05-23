@@ -3181,6 +3181,150 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
     return SOLVER_OK;
 }
 
+/* ================================================================== */
+/*  Solvespace 风格交互式求解反馈                                        */
+/* ================================================================== */
+
+/**
+ * @brief 创建求解器反馈
+ */
+SolverFeedback *solver_feedback_create(SolverFeedbackType type,
+                                        const char *message) {
+    SolverFeedback *fb = lv00_calloc(1, sizeof(SolverFeedback));
+    if (!fb) return NULL;
+
+    fb->type = type;
+    fb->affected_var_id = -1;
+    fb->degrees_of_freedom = -1;
+    fb->free_var_count = 0;
+    fb->overconstrained_count = 0;
+
+    if (message && message[0] != '\0') {
+        fb->message = lv00_malloc(strlen(message) + 1);
+        if (!fb->message) {
+            lv00_free((void **)&fb);
+            return NULL;
+        }
+        strcpy(fb->message, message);
+    }
+
+    return fb;
+}
+
+/**
+ * @brief 销毁求解器反馈
+ */
+void solver_feedback_destroy(SolverFeedback *feedback) {
+    if (!feedback) return;
+    lv00_free((void **)&feedback->message);
+    lv00_free((void **)&feedback->free_var_ids);
+    lv00_free((void **)&feedback->overconstrained_ids);
+    lv00_free((void **)&feedback);
+}
+
+/**
+ * @brief 增量求解并返回交互反馈（Solvespace 风格拖拽-实时反馈）
+ */
+SolverFeedback *solver_feedback_solve(ConstraintGraph *graph,
+                                       const int *dirty_vars,
+                                       int dirty_count) {
+    if (!graph) return NULL;
+
+    SolverFeedback *fb = solver_feedback_create(
+        SOLVER_FEEDBACK_CONSTRAINT_ADDED,
+        dirty_count > 0 ? "约束已添加，增量求解开始"
+                        : "执行全量求解");
+
+    if (!fb) return NULL;
+
+    /* Step 1: 执行增量求解 */
+    GroebnerResult *result = solver_incremental_solve(graph, dirty_vars, dirty_count);
+
+    if (!result) {
+        fb->type = SOLVER_FEEDBACK_CONFLICT_DETECTED;
+        lv00_free((void **)&fb->message);
+        fb->message = lv00_malloc(64);
+        if (fb->message) strcpy(fb->message, "求解失败：约束系统无解或超出范围");
+        return fb;
+    }
+
+    /* Step 2: 计算自由度 */
+    int *free_var_ids = NULL;
+    int dof = count_degrees_of_freedom(graph, &free_var_ids);
+    fb->degrees_of_freedom = (dof >= 0) ? dof : -1;
+
+    if (free_var_ids && dof > 0) {
+        fb->free_var_ids = lv00_malloc((size_t)dof * sizeof(int));
+        if (fb->free_var_ids) {
+            memcpy(fb->free_var_ids, free_var_ids, (size_t)dof * sizeof(int));
+            fb->free_var_count = dof;
+        }
+        lv00_free((void **)&free_var_ids);
+    }
+
+    /* Step 3: 判断反馈类型 */
+    if (result->overdetermined) {
+        fb->type = SOLVER_FEEDBACK_OVERCONSTRAINED;
+        lv00_free((void **)&fb->message);
+        fb->message = lv00_malloc(64);
+        if (fb->message) strcpy(fb->message, "检测到过约束：某些变量被过多方程约束");
+
+        /* 标记过约束变量（简化处理：标记脏变量为过约束候选） */
+        if (dirty_count > 0 && dirty_vars) {
+            fb->overconstrained_ids = lv00_malloc((size_t)dirty_count * sizeof(int));
+            if (fb->overconstrained_ids) {
+                memcpy(fb->overconstrained_ids, dirty_vars,
+                       (size_t)dirty_count * sizeof(int));
+                fb->overconstrained_count = dirty_count;
+            }
+        }
+    } else if (dof == 0) {
+        fb->type = SOLVER_FEEDBACK_VARIABLE_SOLVED;
+        lv00_free((void **)&fb->message);
+        fb->message = lv00_malloc(64);
+        if (fb->message) strcpy(fb->message, "所有变量已唯一确定（零自由度）");
+        if (dirty_count > 0 && dirty_vars) {
+            fb->affected_var_id = dirty_vars[0];
+        }
+    } else if (dof > 0) {
+        fb->type = SOLVER_FEEDBACK_DOF_CHANGED;
+        char buf[128];
+        snprintf(buf, sizeof(buf), "当前仍有 %d 个自由度", dof);
+        lv00_free((void **)&fb->message);
+        fb->message = lv00_malloc(strlen(buf) + 1);
+        if (fb->message) strcpy(fb->message, buf);
+        if (dirty_count > 0 && dirty_vars) {
+            fb->affected_var_id = dirty_vars[0];
+        }
+    }
+
+    /* 流式输出求解反馈 */
+    if (solver_stream_ctx) {
+        StreamEvent ev;
+        memset(&ev, 0, sizeof(ev));
+        ev.type = STREAM_EVENT_SOLVE_DONE;
+        ev.timestamp_ms = stream_timestamp_ms();
+        ev.var_id = fb->affected_var_id;
+        ev.description = fb->message ? fb->message : "";
+        char detail[256];
+        int _snw_fb;
+        LV00_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
+                 "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
+                 (fb->type == SOLVER_FEEDBACK_VARIABLE_SOLVED) ? "solved" :
+                 (fb->type == SOLVER_FEEDBACK_OVERCONSTRAINED) ? "overconstrained" :
+                 (fb->type == SOLVER_FEEDBACK_DOF_CHANGED) ? "dof_changed" :
+                 (fb->type == SOLVER_FEEDBACK_CONFLICT_DETECTED) ? "conflict" :
+                 "constraint_added",
+                 fb->degrees_of_freedom, fb->free_var_count, fb->overconstrained_count);
+        LV00_UNUSED(_snw_fb);
+        ev.detail_json = detail;
+        stream_emit(solver_stream_ctx, &ev);
+    }
+
+    groebner_result_free(result);
+    return fb;
+}
+
 /* 几何推理模板的前向声明 */
 static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys);
 static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys);

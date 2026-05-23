@@ -595,6 +595,50 @@ extern "C" {
 #define PRESET_RING_MULTIPLICATIVE_INVERSE "ring_multiplicative_inverse"
 #endif
 
+/* ==================== 向后兼容别名（v4.0 .c 文件使用的宏名） ==================== */
+#ifndef PRESET_RING_ISOMORPHISM_TEST
+#define PRESET_RING_ISOMORPHISM_TEST       "ring_isomorphism_test"
+#endif
+#ifndef PRESET_RING_INTEGRAL_DOMAIN_TEST
+#define PRESET_RING_INTEGRAL_DOMAIN_TEST   "ring_integral_domain_test"
+#endif
+#ifndef PRESET_RING_FIELD_TEST
+#define PRESET_RING_FIELD_TEST             "ring_field_test"
+#endif
+#ifndef PRESET_RING_EUCLIDEAN_DOMAIN_TEST
+#define PRESET_RING_EUCLIDEAN_DOMAIN_TEST  "ring_euclidean_domain_test"
+#endif
+#ifndef PRESET_RING_PID_TEST
+#define PRESET_RING_PID_TEST               "ring_pid_test"
+#endif
+#ifndef PRESET_RING_UFD_TEST
+#define PRESET_RING_UFD_TEST               "ring_ufd_test"
+#endif
+#ifndef PRESET_RING_POLY_ADDITION
+#define PRESET_RING_POLY_ADDITION          "ring_poly_addition"
+#endif
+#ifndef PRESET_RING_POLY_MULTIPLICATION
+#define PRESET_RING_POLY_MULTIPLICATION    "ring_poly_multiplication"
+#endif
+#ifndef PRESET_RING_POLY_GCD
+#define PRESET_RING_POLY_GCD               "ring_poly_gcd"
+#endif
+#ifndef PRESET_RING_POLY_EVALUATION
+#define PRESET_RING_POLY_EVALUATION        "ring_poly_evaluation"
+#endif
+#ifndef PRESET_RING_POLY_IRREDUCIBLE_TEST
+#define PRESET_RING_POLY_IRREDUCIBLE_TEST  "ring_poly_irreducible_test"
+#endif
+#ifndef PRESET_RING_NILPOTENT_TEST
+#define PRESET_RING_NILPOTENT_TEST         "ring_nilpotent_test"
+#endif
+#ifndef PRESET_RING_IDEMPOTENT_TEST
+#define PRESET_RING_IDEMPOTENT_TEST        "ring_idempotent_test"
+#endif
+#ifndef PRESET_RING_UNIT_GROUP
+#define PRESET_RING_UNIT_GROUP             "ring_unit_group"
+#endif
+
 /* ==================== 模块初始化 ==================== */
 
 /**
