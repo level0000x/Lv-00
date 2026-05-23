@@ -326,11 +326,11 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_WEINGARTEN_MAP,
         "Weingarten映射：计算曲面的形状算子 S = I^{-1}·II，特征值为主曲率",
-        (-1), 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "S = \\begin{pmatrix} E & F \\\\ F & G \\end{pmatrix}^{-1}"
         "\\begin{pmatrix} L & M \\\\ M & N \\end{pmatrix}",
         "O(1)", true, false,
-        -1);
+        PRESET_TYPE_SURFACE);
 
     /* ============================================================
      * 第三部分：联络与曲率（5个）
@@ -372,13 +372,13 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_RIEMANN_CURVATURE,
         "Riemann曲率张量：从Christoffel符号计算Riemann曲率张量 R^{i}_{jkl}",
-        (i), 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "R^{i}_{jkl} = \\partial_k \\Gamma^{i}_{jl} - "
         "\\partial_l \\Gamma^{i}_{jk} + "
         "\\Gamma^{i}_{mk}\\Gamma^{m}_{jl} - "
         "\\Gamma^{i}_{ml}\\Gamma^{m}_{jk}",
         "O(n^4)", true, false,
-        i);
+        PRESET_TYPE_MATRIX);
 
     /**
      * @brief Ricci曲率
@@ -395,10 +395,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_RICCI_CURVATURE,
         "Ricci曲率：由Riemann曲率张量缩并得到Ricci曲率张量 R_{ij} = R^{k}_{ikj}",
-        (ij), 1, PRESET_TYPE_MATRIX,
+        1, PRESET_TYPE_MATRIX,
         "R_{ij} = R^{k}_{ikj}",
         "O(n^3)", true, false,
-        ij);
+        PRESET_TYPE_MATRIX);
 
     /**
      * @brief 截面曲率
@@ -435,10 +435,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_SCALAR_CURVATURE,
         "标量曲率：计算标量曲率 R = g^{ij} R_{ij}（Ricci曲率的迹）",
-        (ij), 2, PRESET_TYPE_SCALAR,
+        2, PRESET_TYPE_SCALAR,
         "R = g^{ij} R_{ij}",
         "O(n^2)", true, false,
-        ij);
+        PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX);
 
     /* ============================================================
      * 第四部分：测地线（4个）
@@ -522,10 +522,10 @@ bool preset_differential_geometry_register(void)
      */
     REGISTER_DG(PRESET_DG_CONJUGATE_POINTS,
         "共轭点：计算沿测地线的共轭点位置（使Jacobi场首次消失的参数值）",
-        ({PRESET_TYPE_PATH},
-        PRESET_TYPE_PATH), 1, PRESET_TYPE_SCALAR,
+        2, PRESET_TYPE_SCALAR,
         "\\exists J \\neq 0: J(0) = 0, \\; J(t_0) = 0",
-        "O(n^2)", false, false);
+        "O(n^2)", false, false,
+        PRESET_TYPE_PATH, PRESET_TYPE_PATH);
 
     /* ============================================================
      * 第五部分：张量分析（5个）

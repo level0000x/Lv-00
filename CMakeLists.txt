@@ -198,11 +198,6 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "^src/symbolic_coord\\.c$")
 # Exclude incomplete/legacy files that use incompatible type systems
 list(FILTER LV00_SOURCES EXCLUDE REGEX "magic/magic\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
-# Files with symbol conflicts (duplicate symbol with func_block_preset_ops)
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
-# Files with remaining compatibility issues (REGISTER_XX brace-macro / LaTeX escapes)
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis[.]c")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_differential_geometry[.]c")
 
 
 # ============================================================
