@@ -8,7 +8,8 @@
  * 功能模块:
  *   - 生命周期管理: 创建/销毁流式上下文
  *   - 回调管理: 注册/注销回调，支持事件类型过滤掩码
- *   - 事件发射: 立即/缓冲/节流三种模式
+ *   - 事件发射: 立即/缓冲/节流/惰性四种模式
+ *   - 惰性求值: 消费者主动拉取模式，阈值自动刷新
  *   - 异步模式: 基于环形缓冲区的缓冲队列（纯 C 无线程依赖）
  *   - JSON 序列化: 手工拼接 JSON / JSON-RPC 字符串
  *   - 事件统计: 按类型计数、总数、丢弃数
@@ -18,7 +19,7 @@
  * 于 2026-05-20 基于头文件声明和功能规格重新实现，并通过回归测试验证。
  *
  * @author Lv-00 Project
- * @version 3.1.0
+ * @version 3.2.0  (惰性求值完整实现 2026-05-23)
  *
  * @dependencies
  *   - stream.h              : 流式输出系统公共接口定义
@@ -54,6 +55,7 @@
 /* ── 事件缓冲区配置 ── */
 #define STREAM_INITIAL_BUFFER    64   /**< 初始事件缓冲区容量 */
 #define STREAM_MAX_BUFFER       4096  /**< 硬上限：缓冲区最大事件数 */
+#define STREAM_MAX_LAZY         8192  /**< 惰性队列最大容量 */
 #define STREAM_DEFAULT_THROTTLE  50   /**< 默认节流间隔（毫秒） */
 
 /* ── JSON 序列化配置 ── */
@@ -121,6 +123,13 @@ struct StreamContext {
     long event_counts[STREAM_EVENT_TYPE_COUNT]; /**< 各事件类型发射计数 */
     long total_count;           /**< 事件发射总数 */
     long dropped_count;         /**< 丢弃的事件数（缓冲区满时） */
+
+    /* ── 惰性队列（LAZY 模式专用） ── */
+    StreamEvent *lazy_queue;    /**< 惰性事件队列（环形缓冲区） */
+    int lazy_count;             /**< 惰性队列中当前事件数 */
+    int lazy_capacity;          /**< 惰性队列容量 */
+    int lazy_head;              /**< 惰性队列读头 */
+    int lazy_threshold;         /**< 惰性自动刷新阈值（0=禁用） */
 };
 
 /* ==================== 内部辅助函数（前向声明） ==================== */
@@ -131,6 +140,8 @@ static void stream_buffer_push(StreamContext *ctx, const StreamEvent *event);
 static void stream_dispatch(StreamContext *ctx, const StreamEvent *event);
 static bool stream_throttle_expired(StreamContext *ctx);
 static void stream_update_stats(StreamContext *ctx, const StreamEvent *event);
+static bool stream_lazy_ensure_capacity(StreamContext *ctx);
+static void stream_lazy_enqueue(StreamContext *ctx, const StreamEvent *event);
 
 /* ==================== 生命周期 ==================== */
 
@@ -171,6 +182,13 @@ StreamContext *stream_context_create(void) {
     ctx->total_count = 0;
     ctx->dropped_count = 0;
 
+    /* 初始化惰性队列 */
+    ctx->lazy_queue = NULL;
+    ctx->lazy_count = 0;
+    ctx->lazy_capacity = 0;
+    ctx->lazy_head = 0;
+    ctx->lazy_threshold = 0;
+
     return ctx;
 }
 
@@ -187,6 +205,10 @@ void stream_context_destroy(StreamContext *ctx) {
     if (ctx->buffer) {
         /* 释放缓冲区中事件的动态内存（description/detail_json 为外部指针，不释放） */
         lv00_free((void **)&ctx->buffer);
+    }
+    /* 释放惰性队列 */
+    if (ctx->lazy_queue) {
+        lv00_free((void **)&ctx->lazy_queue);
     }
     lv00_free((void **)&ctx->callbacks);
     lv00_free((void **)&ctx);
@@ -501,6 +523,17 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
         case STREAM_EMIT_THROTTLED:
             stream_buffer_push(ctx, event);
             if (stream_throttle_expired(ctx)) {
+                stream_flush(ctx);
+            }
+            break;
+
+        case STREAM_EMIT_LAZY:
+            /* 惰性模式：事件仅入队到 lazy_queue，
+             * 由消费者通过 stream_lazy_next / stream_lazy_drain 主动拉取。
+             * 当队列达到阈值时自动触发刷新。 */
+            stream_lazy_enqueue(ctx, event);
+            if (ctx->lazy_threshold > 0 &&
+                ctx->lazy_count >= ctx->lazy_threshold) {
                 stream_flush(ctx);
             }
             break;
@@ -834,6 +867,11 @@ void stream_set_emit_mode(StreamContext *ctx, StreamEmitMode mode, long throttle
     /* 切换模式时，如果从缓冲/节流切到立即模式，自动刷新残留事件 */
     if (mode == STREAM_EMIT_IMMEDIATE && ctx->buffer_count > 0) {
         stream_flush(ctx);
+    }
+    /* 从惰性模式切换出来时，清空惰性队列 */
+    if (mode != STREAM_EMIT_LAZY && ctx->lazy_count > 0) {
+        ctx->lazy_head = 0;
+        ctx->lazy_count = 0;
     }
 }
 
@@ -1577,55 +1615,132 @@ uint64_t stream_parse_filter_mask(const char *str) {
 }
 
 /* ============================================================
- * 惰性拉取模式（桩函数 —— 预留接口）
+ * 惰性拉取模式（完整实现 —— LZ/2026-05-23）
+ *
+ * 惰性模式让事件排队到 lazy_queue，消费者通过
+ * stream_lazy_next / stream_lazy_drain 主动拉取。
+ * 与 BUFFERED/THROTTLED 不同，惰性模式不自动调用 stream_dispatch，
+ * 而是由消费者控制何时分发。
+ *
+ * 当 lazy_threshold > 0 且队列达到阈值时，
+ * stream_emit 会自动触发 stream_flush 刷新。
  * ============================================================ */
 
 /**
- * @brief 惰性拉取下一个待处理事件（桩函数）
- *
- * 惰性拉取模式预留接口。当前实现为桩函数，始终返回 NULL。
- * 后续版本将实现完整的事件缓冲和拉取管道。
+ * @brief 确保惰性队列有足够容量
  */
-const StreamEvent *stream_lazy_next(StreamContext *ctx)
-{
-    (void)ctx;
-    return NULL;
+static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
+    if (ctx->lazy_capacity == 0) {
+        ctx->lazy_capacity = 64;
+        ctx->lazy_queue = (StreamEvent *)lv00_malloc(
+            sizeof(StreamEvent) * (size_t)ctx->lazy_capacity);
+        return ctx->lazy_queue != NULL;
+    }
+    if (ctx->lazy_count >= ctx->lazy_capacity) {
+        int new_cap = ctx->lazy_capacity * 2;
+        if (new_cap > STREAM_MAX_LAZY) {
+            ctx->dropped_count++;
+            return false;
+        }
+        StreamEvent *new_queue = (StreamEvent *)lv00_malloc(
+            sizeof(StreamEvent) * (size_t)new_cap);
+        if (!new_queue) return false;
+        /* 拷贝环形缓冲区到线性数组 */
+        for (int i = 0; i < ctx->lazy_count; i++) {
+            int src = (ctx->lazy_head + i) % ctx->lazy_capacity;
+            memcpy(&new_queue[i], &ctx->lazy_queue[src], sizeof(StreamEvent));
+        }
+        lv00_free((void **)&ctx->lazy_queue);
+        ctx->lazy_queue = new_queue;
+        ctx->lazy_capacity = new_cap;
+        ctx->lazy_head = 0;
+    }
+    return true;
 }
 
 /**
- * @brief 批量惰性拉取事件（桩函数）
+ * @brief 事件入队到惰性队列
+ */
+static void stream_lazy_enqueue(StreamContext *ctx, const StreamEvent *event) {
+    if (!ctx || !event) return;
+    if (!stream_lazy_ensure_capacity(ctx)) return;
+    int tail = (ctx->lazy_head + ctx->lazy_count) % ctx->lazy_capacity;
+    memcpy(&ctx->lazy_queue[tail], event, sizeof(StreamEvent));
+    ctx->lazy_count++;
+}
+
+/**
+ * @brief 惰性拉取下一个待处理事件
  *
- * 惰性拉取模式预留接口。当前实现为桩函数，始终返回 0。
+ * 从惰性队列头部取出第一个事件返回。
+ * 调用者应当在使用完后通过 stream_lazy_drain 或 stream_flush 清理。
+ *
+ * @param ctx 流式上下文
+ * @return 队列头部事件指针（属于队列内部内存），队列为空返回NULL
+ */
+const StreamEvent *stream_lazy_next(StreamContext *ctx)
+{
+    if (!ctx || ctx->lazy_count == 0) return NULL;
+    return &ctx->lazy_queue[ctx->lazy_head];
+}
+
+/**
+ * @brief 批量惰性拉取事件
+ *
+ * 从惰性队列头部开始，按 FIFO 顺序逐个调用 callback。
+ * 最多处理 max_count 个事件。每处理一个，从队列中移除。
+ *
+ * @param ctx       流式上下文
+ * @param callback  处理每个事件的回调
+ * @param user_data 回调用户数据
+ * @param max_count 最大处理事件数（<=0 表示无限制，但不推荐超过队列大小）
+ * @return 实际处理的事件数
  */
 int stream_lazy_drain(StreamContext *ctx, StreamCallback callback,
                       void *user_data, int max_count)
 {
-    (void)ctx;
-    (void)callback;
-    (void)user_data;
-    (void)max_count;
-    return 0;
+    if (!ctx || !callback || ctx->lazy_count == 0) return 0;
+
+    int limit = max_count > 0 ? max_count : ctx->lazy_count;
+    if (limit > ctx->lazy_count) limit = ctx->lazy_count;
+
+    int drained = 0;
+    for (int i = 0; i < limit; i++) {
+        int idx = (ctx->lazy_head + i) % ctx->lazy_capacity;
+        callback(&ctx->lazy_queue[idx], user_data);
+        drained++;
+
+        /* 更新 dispatch 统计 */
+        ctx->total_count++;
+    }
+
+    /* 将剩余事件前移 */
+    ctx->lazy_head = (ctx->lazy_head + drained) % ctx->lazy_capacity;
+    ctx->lazy_count -= drained;
+
+    return drained;
 }
 
 /**
- * @brief 获取惰性队列中的待处理事件数（桩函数）
- *
- * 惰性拉取模式预留接口。当前实现为桩函数，始终返回 0。
+ * @brief 获取惰性队列中的待处理事件数
  */
 int stream_lazy_pending(const StreamContext *ctx)
 {
-    (void)ctx;
-    return 0;
+    if (!ctx) return 0;
+    return ctx->lazy_count;
 }
 
 /**
- * @brief 设置惰性模式的自动刷新阈值（桩函数）
+ * @brief 设置惰性模式的自动刷新阈值
  *
- * 惰性拉取模式预留接口。当前实现为桩函数，无实际操作。
+ * 当 lazy_threshold > 0 时，stream_emit 在懒队列达到阈值
+ * 时自动调用 stream_flush() 刷新事件。
+ *
+ * @param ctx       流式上下文
+ * @param threshold 事件数阈值（0 禁用自动刷新）
  */
 void stream_set_lazy_threshold(StreamContext *ctx, int threshold)
 {
-    (void)ctx;
-    (void)threshold;
-    /* 桩函数：预留接口，无实际操作 */
+    if (!ctx) return;
+    ctx->lazy_threshold = (threshold > 0) ? threshold : 0;
 }

@@ -46,7 +46,7 @@ interface ConstraintModalProps {
  * @returns 约束对话框 JSX
  */
 const ConstraintModal: React.FC<ConstraintModalProps> = ({
-  visible,
+  visible: _visible,
   title,
   fields,
   values,
@@ -55,7 +55,7 @@ const ConstraintModal: React.FC<ConstraintModalProps> = ({
   onCancel,
 }) => {
   return (
-    <Modal visible={visible} title={title} onClose={onCancel}>
+    <Modal id="constraint-modal" title={title} onCancel={onCancel}>
       <div className="constraint-modal-body">
         {fields.map((field) => (
           <div className="constraint-field" key={field.name}>

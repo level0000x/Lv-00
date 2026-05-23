@@ -247,11 +247,11 @@ class AIConfigManager {
     // 回退到第一个启用的提供商
     const enabled = this.getEnabledProviders();
     if (enabled.length > 0) {
-      this.activeProviderId = enabled[0].id;
-      return enabled[0];
+      this.activeProviderId = enabled[0]!.id;
+      return enabled[0]!;
     }
     // 返回默认配置
-    return DEFAULT_PROVIDERS[0];
+    return DEFAULT_PROVIDERS[0]!;
   }
 
   /**

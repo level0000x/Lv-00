@@ -127,7 +127,9 @@ function isEngineStreamEvent(event: StreamingEvent | EngineStreamEvent): event i
  */
 const StreamEventItem: React.FC<StreamEventItemProps> = ({ event, index }) => {
   const [expanded, setExpanded] = useState(false);
-  const style = getEventStyle(event.type);
+  const isEngine = isEngineStreamEvent(event);
+
+  const style = getEventStyle(typeof event.type === 'number' ? event.type : 0);
 
   const handleToggle = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -142,8 +144,6 @@ const StreamEventItem: React.FC<StreamEventItemProps> = ({ event, index }) => {
     minute: '2-digit',
     second: '2-digit',
   });
-
-  const isEngine = isEngineStreamEvent(event);
 
   return (
     <div

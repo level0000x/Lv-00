@@ -10,7 +10,7 @@
  *              均通过 `if` 守卫或空值合并提供安全回退，避免运行时崩溃。
  */
 
-import type { StreamingEvent, ChatMessage, StreamFilter } from '@/types';
+import type { StreamingEvent } from '@/types';
 import { AI_SIMULATED_DELAY_MIN, AI_SIMULATED_DELAY_MAX } from '@/utils/constants';
 
 // ================================================================

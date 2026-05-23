@@ -177,7 +177,7 @@ function buildRequestBody(
 
   // Google Gemini 使用不同的 API 格式和认证方式
   if (options.provider === 'gemini') {
-    const url = `${DEFAULT_ENDPOINTS.gemini}?key=${encodeURIComponent(options.apiKey)}`;
+    void (`${DEFAULT_ENDPOINTS.gemini}?key=${encodeURIComponent(options.apiKey)}`);
     // 在这里统一处理 URL。由于我们可以在调用时传入 endpoint，所以返回更新后的 headers
     // Gemini 使用 URL 参数传递密钥，不需要 Authorization 头
     const body = {
@@ -331,8 +331,6 @@ export async function streamChat(
   const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  let lastError: unknown = null;
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       // 创建超时控制器：合并传入的 signal 和超时 signal
@@ -372,7 +370,6 @@ export async function streamChat(
           return;
         }
 
-        lastError = err;
         // 可重试：等待并继续
         if (attempt < maxRetries) {
           await delay(INITIAL_BACKOFF_MS * Math.pow(2, attempt));
@@ -388,8 +385,6 @@ export async function streamChat(
       await parseSSEStream(reader, callbacks, mergedSignal);
       return; // 成功完成
     } catch (err) {
-      lastError = err;
-
       if (err instanceof ApiClientError) {
         // 客户端错误或超时直接停止，不重试
         if (err.category === 'client' || err.category === 'timeout' || err.category === 'auth') {
@@ -441,8 +436,6 @@ export async function chat(
   const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  let lastError: unknown = null;
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const abortController = new AbortController();
@@ -476,7 +469,6 @@ export async function chat(
           throw err;
         }
 
-        lastError = err;
         if (attempt < maxRetries) {
           await delay(INITIAL_BACKOFF_MS * Math.pow(2, attempt));
         }
@@ -490,7 +482,6 @@ export async function chat(
           throw err;
         }
       }
-      lastError = err;
       if (attempt >= maxRetries) {
         throw err instanceof ApiClientError
           ? err

@@ -12,7 +12,6 @@ import ConstraintGraphPanel from '@/components/panels/ConstraintGraphPanel';
 import NarrativeExport from '@/components/panels/NarrativeExport';
 import { MAX_VISIBLE_STREAM_EVENTS } from '@/utils/constants';
 import { getEventCategory } from '@/types';
-import type { StreamingEvent, StreamFilter } from '@/types';
 
 // ================================================================
 // 辅助：事件类型到筛选器类别的映射 / Event Type → Filter Category

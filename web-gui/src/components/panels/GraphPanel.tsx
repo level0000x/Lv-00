@@ -13,7 +13,6 @@ import Panel from './Panel';
 import { useAppStore } from '@/stores';
 import type { Constraint } from '@/types';
 import { generateId } from '@/utils/idGenerator';
-import { CIRCLE_APPROX_SIDES } from '@/utils/constants';
 import {
   calculateMidpoint,
   calculateIntersection,

@@ -268,7 +268,7 @@ export class StreamManager {
       onEvent: (event) => {
         this.handleEngineEvent(event);
       },
-      onStatsUpdate: (total, eps) => {
+      onStatsUpdate: (_total, eps) => {
         this.stats.eventsPerSecond = eps;
         this.notifyStatsUpdate();
       },

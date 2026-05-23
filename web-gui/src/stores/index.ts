@@ -50,7 +50,7 @@ import type {
 // 导入子 Store / Import Sub-Stores
 // ================================================================
 
-import { useCanvasStore, getThemeColors } from './canvasStore';
+import { useCanvasStore } from './canvasStore';
 import { useGeometryStore } from './geometryStore';
 import { useInteractionStore } from './interactionStore';
 import { useAIStore } from './aiStore';

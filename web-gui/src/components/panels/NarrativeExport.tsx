@@ -109,7 +109,7 @@ function isSquare(a: Point, b: Point, c: Point, d: Point, tolerance = 0.05): boo
   const pts = [a, b, c, d];
   const dists: number[] = [];
   for (let i = 0; i < 4; i++) {
-    dists.push(distance(pts[i], pts[(i + 1) % 4]));
+    dists.push(distance(pts[i]!, pts[(i + 1) % 4]!));
   }
   const avgDist = dists.reduce((s, v) => s + v, 0) / 4;
   if (avgDist < 0.001) return false;
@@ -178,7 +178,6 @@ function detectPattern(
 ): PatternInfo {
   const n = points.length;
   const m = segments.length;
-  const k = constraints.length;
 
   // No points case
   if (n === 0) {
@@ -193,12 +192,13 @@ function detectPattern(
 
   // Single point
   if (n === 1) {
+    const p0 = points[0]!;
     return {
       type: 'free_construction',
       label: 'Single Point',
       labelZh: '单点',
-      detail: `One free point has been placed at (${points[0].x.toFixed(2)}, ${points[0].y.toFixed(2)}).`,
-      detailZh: `放置了一个自由点，坐标为 (${points[0].x.toFixed(2)}, ${points[0].y.toFixed(2)})。`,
+      detail: `One free point has been placed at (${p0.x.toFixed(2)}, ${p0.y.toFixed(2)}).`,
+      detailZh: `放置了一个自由点，坐标为 (${p0.x.toFixed(2)}, ${p0.y.toFixed(2)})。`,
     };
   }
 
@@ -209,10 +209,11 @@ function detectPattern(
   // Check for betweenness (midpoint detection)
   const betweennessConstraints = constraints.filter((c) => c.type === 'betweenness' && c.args.length >= 3);
   if (betweennessConstraints.length > 0) {
-    const bcArgs = betweennessConstraints[0].args;
-    const labelA = idToLabel(bcArgs[0], sortedIds);
-    const labelB = idToLabel(bcArgs[1], sortedIds);
-    const labelC = idToLabel(bcArgs[2], sortedIds);
+    const bc = betweennessConstraints[0]!;
+    const bcArgs = bc.args;
+    const labelA = idToLabel(bcArgs[0]!, sortedIds);
+    const labelB = idToLabel(bcArgs[1]!, sortedIds);
+    const labelC = idToLabel(bcArgs[2]!, sortedIds);
     return {
       type: 'midpoint',
       label: 'Midpoint Construction',
@@ -243,10 +244,10 @@ function detectPattern(
       const cycle = findCycle(adj, p.id, 3);
       if (cycle && cycle.length === 3) {
         const [a, b, c] = cycle.map((id) => pointMap.get(id)!);
-        const eq = isEquilateral(a, b, c);
-        const labelA = idToLabel(cycle[0], sortedIds);
-        const labelB = idToLabel(cycle[1], sortedIds);
-        const labelC = idToLabel(cycle[2], sortedIds);
+        const eq = isEquilateral(a!, b!, c!);
+        const labelA = idToLabel(cycle[0]!, sortedIds);
+        const labelB = idToLabel(cycle[1]!, sortedIds);
+        const labelC = idToLabel(cycle[2]!, sortedIds);
         if (eq) {
           return {
             type: 'equilateral_triangle',
@@ -273,11 +274,11 @@ function detectPattern(
       const cycle = findCycle(adj, p.id, 4);
       if (cycle && cycle.length === 4) {
         const pts = cycle.map((id) => pointMap.get(id)!);
-        const sq = isSquare(pts[0], pts[1], pts[2], pts[3]);
-        const labelA = idToLabel(cycle[0], sortedIds);
-        const labelB = idToLabel(cycle[1], sortedIds);
-        const labelC = idToLabel(cycle[2], sortedIds);
-        const labelD = idToLabel(cycle[3], sortedIds);
+        const sq = isSquare(pts[0]!, pts[1]!, pts[2]!, pts[3]!);
+        const labelA = idToLabel(cycle[0]!, sortedIds);
+        const labelB = idToLabel(cycle[1]!, sortedIds);
+        const labelC = idToLabel(cycle[2]!, sortedIds);
+        const labelD = idToLabel(cycle[3]!, sortedIds);
         if (sq) {
           return {
             type: 'square',
@@ -454,9 +455,9 @@ function generateNarrative(
         const cycle = findCycle(adj, p.id, 3);
         if (cycle && cycle.length === 3) {
           const [a, b, c] = cycle.map((id) => pointMap.get(id)!);
-          const ab = distance(a, b);
-          const bc = distance(b, c);
-          const ca = distance(c, a);
+          const ab = distance(a!, b!);
+          const bc = distance(b!, c!);
+          const ca = distance(c!, a!);
           perimeter = ab + bc + ca;
           const s = perimeter / 2;
           area = Math.sqrt(Math.max(0, s * (s - ab) * (s - bc) * (s - ca)));
@@ -472,11 +473,11 @@ function generateNarrative(
         if (cycle && cycle.length === 4) {
           const pts = cycle.map((id) => pointMap.get(id)!);
           for (let i = 0; i < 4; i++) {
-            perimeter += distance(pts[i], pts[(i + 1) % 4]);
+            perimeter += distance(pts[i]!, pts[(i + 1) % 4]!);
           }
           // Approximate area using Shoelace formula
           const shoelace = pts.reduce((sum, pt, i) => {
-            const next = pts[(i + 1) % 4];
+            const next = pts[(i + 1) % 4]!;
             return sum + pt.x * next.y - pt.y * next.x;
           }, 0);
           area = Math.abs(shoelace) / 2;
@@ -608,9 +609,9 @@ function generateSVG(
   // Constraints (dashed / special lines)
   for (const c of constraints) {
     if (c.type === 'betweenness' && c.args.length >= 3) {
-      const a = pointMap.get(c.args[0]);
-      const b = pointMap.get(c.args[1]);
-      const cp = pointMap.get(c.args[2]);
+      const a = pointMap.get(c.args[0]!);
+      const b = pointMap.get(c.args[1]!);
+      const cp = pointMap.get(c.args[2]!);
       if (!a || !b || !cp) continue;
       const xA = tx(a.x), yA = ty(a.y);
       const xC = tx(cp.x), yC = ty(cp.y);

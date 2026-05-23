@@ -139,6 +139,12 @@
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\func_block\\func_block_preset.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\func_block\\func_block_preset.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/func_block/func_block_preset.c",
+  "output": "CMakeFiles/lv00_static.dir/src/func_block/func_block_preset.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\func_block\\func_block_preset_ops.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\func_block\\func_block_preset_ops.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/func_block/func_block_preset_ops.c",
   "output": "CMakeFiles/lv00_static.dir/src/func_block/func_block_preset_ops.c.obj"
@@ -193,6 +199,12 @@
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\func_block\\preset_manager.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\func_block\\preset_manager.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/func_block/preset_manager.c",
+  "output": "CMakeFiles/lv00_static.dir/src/func_block/preset_manager.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\interop\\interop.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\interop\\interop.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/interop/interop.c",
   "output": "CMakeFiles/lv00_static.dir/src/interop/interop.c.obj"
@@ -232,6 +244,12 @@
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_algebraic.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_algebraic.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_algebraic.c",
   "output": "CMakeFiles/lv00_static.dir/src/preset/preset_algebraic.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_algebraic_topology.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_algebraic_topology.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_algebraic_topology.c",
+  "output": "CMakeFiles/lv00_static.dir/src/preset/preset_algebraic_topology.c.obj"
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
@@ -283,9 +301,21 @@
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_differential_geometry.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_differential_geometry.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_differential_geometry.c",
+  "output": "CMakeFiles/lv00_static.dir/src/preset/preset_differential_geometry.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_field_theory.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_field_theory.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_field_theory.c",
   "output": "CMakeFiles/lv00_static.dir/src/preset/preset_field_theory.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_functional_analysis.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_functional_analysis.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_functional_analysis.c",
+  "output": "CMakeFiles/lv00_static.dir/src/preset/preset_functional_analysis.c.obj"
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
@@ -310,6 +340,18 @@
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_group_theory.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_group_theory.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_group_theory.c",
   "output": "CMakeFiles/lv00_static.dir/src/preset/preset_group_theory.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_integral_transforms.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_integral_transforms.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_integral_transforms.c",
+  "output": "CMakeFiles/lv00_static.dir/src/preset/preset_integral_transforms.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_lattice_theory.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_lattice_theory.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_lattice_theory.c",
+  "output": "CMakeFiles/lv00_static.dir/src/preset/preset_lattice_theory.c.obj"
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
@@ -403,6 +445,12 @@
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_representation_theory.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_representation_theory.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_representation_theory.c",
+  "output": "CMakeFiles/lv00_static.dir/src/preset/preset_representation_theory.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_ring_theory.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_ring_theory.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_ring_theory.c",
   "output": "CMakeFiles/lv00_static.dir/src/preset/preset_ring_theory.c.obj"
@@ -412,6 +460,12 @@
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_set_theory.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_set_theory.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_set_theory.c",
   "output": "CMakeFiles/lv00_static.dir/src/preset/preset_set_theory.c.obj"
+},
+{
+  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
+  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_special_functions.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_special_functions.c",
+  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_special_functions.c",
+  "output": "CMakeFiles/lv00_static.dir/src/preset/preset_special_functions.c.obj"
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
@@ -436,12 +490,6 @@
   "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\preset\\preset_trigonometry.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\preset\\preset_trigonometry.c",
   "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/preset/preset_trigonometry.c",
   "output": "CMakeFiles/lv00_static.dir/src/preset/preset_trigonometry.c.obj"
-},
-{
-  "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",
-  "command": "C:\\Users\\xingg\\AppData\\Local\\Microsoft\\WinGet\\Packages\\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\llvm-mingw-20260505-ucrt-x86_64\\bin\\cc.exe  @CMakeFiles/lv00_static.dir/includes_C.rsp  -Wno-unicode-homoglyph -Wno-unicode -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -D_FORTIFY_SOURCE=2 -o CMakeFiles\\lv00_static.dir\\src\\symbolic_coord.c.obj -c C:\\Users\\xingg\\Documents\\trae_projects\\Lv-00\\src\\symbolic_coord.c",
-  "file": "C:/Users/xingg/Documents/trae_projects/Lv-00/src/symbolic_coord.c",
-  "output": "CMakeFiles/lv00_static.dir/src/symbolic_coord.c.obj"
 },
 {
   "directory": "C:/Users/xingg/Documents/trae_projects/Lv-00/build2",

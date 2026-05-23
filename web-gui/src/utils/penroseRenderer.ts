@@ -502,7 +502,7 @@ export function buildSubstance(
   points: Point[],
   segments: Segment[],
   constraints: Constraint[],
-  domain: PenroseDomain = euclideanGeometryDomain,
+  _domain: PenroseDomain = euclideanGeometryDomain,
 ): PenroseSubstance {
   const pointNameMap = new Map<number, string>();
   const objects: PenroseObject[] = [];
@@ -536,7 +536,7 @@ export function buildSubstance(
       case 'incidence': {
         // args: [pointId, segmentId]
         if (con.args.length >= 2) {
-          const ptName = pointNameMap.get(con.args[0]);
+          const ptName = pointNameMap.get(con.args[0]!);
           const segName = `S${con.args[1]}`;
           if (ptName) {
             statements.push({ predicate: 'incidence', args: [ptName, segName] });
@@ -547,9 +547,9 @@ export function buildSubstance(
       case 'betweenness': {
         // args: [A_id, B_id, C_id]
         if (con.args.length >= 3) {
-          const aName = pointNameMap.get(con.args[0]);
-          const bName = pointNameMap.get(con.args[1]);
-          const cName = pointNameMap.get(con.args[2]);
+          const aName = pointNameMap.get(con.args[0]!);
+          const bName = pointNameMap.get(con.args[1]!);
+          const cName = pointNameMap.get(con.args[2]!);
           if (aName && bName && cName) {
             statements.push({ predicate: 'betweenness', args: [aName, bName, cName] });
           }
@@ -559,7 +559,7 @@ export function buildSubstance(
       case 'intersection': {
         // args: [intersectionPointId, seg1Id, seg2Id, ...]
         if (con.args.length >= 3) {
-          const intName = pointNameMap.get(con.args[0]);
+          const intName = pointNameMap.get(con.args[0]!);
           const seg1Name = `S${con.args[1]}`;
           const seg2Name = `S${con.args[2]}`;
           if (intName) {
@@ -576,8 +576,8 @@ export function buildSubstance(
       case 'connection': {
         // args: [a_id, b_id, ...]
         if (con.args.length >= 2) {
-          const aName = pointNameMap.get(con.args[0]);
-          const bName = pointNameMap.get(con.args[1]);
+          const aName = pointNameMap.get(con.args[0]!);
+          const bName = pointNameMap.get(con.args[1]!);
           if (aName && bName) {
             statements.push({ predicate: 'connection', args: [aName, bName] });
           }
@@ -665,7 +665,7 @@ export function computeLayout(
     // 如果有对应的 Lv-00 点数据，使用实际坐标
     const match = obj.name.match(/^P(\d+)$/);
     if (match) {
-      const ptId = parseInt(match[1], 10);
+      const ptId = parseInt(match[1]!, 10);
       const pt = substance.points.find((p) => p.id === ptId);
       if (pt) {
         startX = pt.x;
@@ -707,8 +707,8 @@ export function computeLayout(
     if (stmt.args.length >= 2) {
       // 取前两个参数构建边
       edges.push({
-        source: stmt.args[0],
-        target: stmt.args[1],
+        source: stmt.args[0]!,
+        target: stmt.args[1]!,
         predicate: stmt.predicate,
         idealLength: 100,
         strength: 0.5,
@@ -718,11 +718,11 @@ export function computeLayout(
 
   // 为 Segment 类型对象计算其端点之间的中点作为初始位置
   for (let i = 0; i < positioned.length; i++) {
-    const pos = positioned[i];
+    const pos = positioned[i]!;
     if (pos.type === 'Segment' && !pos.fixed) {
       const segMatch = pos.name.match(/^S(\d+)$/);
       if (segMatch) {
-        const segId = parseInt(segMatch[1], 10);
+        const segId = parseInt(segMatch[1]!, 10);
         const seg = substance.segments.find((s) => s.id === segId);
         if (seg) {
           const p1Name = substance.pointNameMap.get(seg.p1);
@@ -757,8 +757,8 @@ export function computeLayout(
     const names = Array.from(stateMap.keys());
     for (let i = 0; i < names.length; i++) {
       for (let j = i + 1; j < names.length; j++) {
-        const si = stateMap.get(names[i])!;
-        const sj = stateMap.get(names[j])!;
+        const si = stateMap.get(names[i]!)!;
+        const sj = stateMap.get(names[j]!)!;
 
         const dx = si.x - sj.x;
         const dy = si.y - sj.y;
@@ -770,12 +770,12 @@ export function computeLayout(
         const fy = (dy / dist) * repulsionForce;
 
         if (!si.fixed) {
-          forcesX.set(names[i], (forcesX.get(names[i]) ?? 0) + fx);
-          forcesY.set(names[i], (forcesY.get(names[i]) ?? 0) + fy);
+          forcesX.set(names[i]!, (forcesX.get(names[i]!) ?? 0) + fx);
+          forcesY.set(names[i]!, (forcesY.get(names[i]!) ?? 0) + fy);
         }
         if (!sj.fixed) {
-          forcesX.set(names[j], (forcesX.get(names[j]) ?? 0) - fx);
-          forcesY.set(names[j], (forcesY.get(names[j]) ?? 0) - fy);
+          forcesX.set(names[j]!, (forcesX.get(names[j]!) ?? 0) - fx);
+          forcesY.set(names[j]!, (forcesY.get(names[j]!) ?? 0) - fy);
         }
       }
     }
@@ -1024,8 +1024,8 @@ export function renderToSVG(
       // 绘制箭头（从 source 到 target）
       const arrowMatch = pos.name.match(/^Arrow_(\w+)_(\w+)$/);
       if (arrowMatch) {
-        const srcObj = index.get(arrowMatch[1]);
-        const tgtObj = index.get(arrowMatch[2]);
+        const srcObj = index.get(arrowMatch[1]!);
+        const tgtObj = index.get(arrowMatch[2]!);
         if (srcObj && tgtObj) {
           const sc = typeStyle.strokeColor ?? typeStyle.color;
           lines.push(`  <!-- Arrow ${pos.name} -->`);
@@ -1134,9 +1134,9 @@ export function renderToSVG(
 
       if (btStmts.length > 0 && pos.style.shape !== 'line') {
         for (const stmt of btStmts) {
-          const a = index.get(stmt.args[0]);
-          const b = index.get(stmt.args[1]);
-          const c = index.get(stmt.args[2]);
+          const a = index.get(stmt.args[0]!);
+          const b = index.get(stmt.args[1]!);
+          const c = index.get(stmt.args[2]!);
           if (a && b && c) {
             lines.push(
               `  <!-- Betweenness: ${stmt.args[0]} — ${stmt.args[1]} — ${stmt.args[2]} -->`,
@@ -1155,8 +1155,8 @@ export function renderToSVG(
     // 绘制 connection 关系（虚线连接）
     for (const stmt of substance.statements) {
       if (stmt.predicate === 'connection' && stmt.args.length >= 2) {
-        const a = index.get(stmt.args[0]);
-        const b = index.get(stmt.args[1]);
+        const a = index.get(stmt.args[0]!);
+        const b = index.get(stmt.args[1]!);
         if (a && b) {
           lines.push(
             `  <!-- Connection: ${stmt.args[0]} — ${stmt.args[1]} -->`,
@@ -1463,7 +1463,7 @@ export function generatePenroseDiagram(
   layoutConfig?: Partial<LayoutConfig>,
 ): string {
   // 使用默认参数
-  const effectiveStyle = style ?? PRESET_STYLES.dark;
+  const effectiveStyle = (style ?? PRESET_STYLES.dark)!;
   const effectiveDomain = domain ?? euclideanGeometryDomain;
 
   // 步骤 1: 构建 Substance 程序

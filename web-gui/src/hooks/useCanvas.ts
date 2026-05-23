@@ -16,7 +16,7 @@
  *                 避免高频触发时产生性能抖动。
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { Renderer, type ViewportState } from '@/engine/renderer';
 import { useAppStore } from '@/stores';
 

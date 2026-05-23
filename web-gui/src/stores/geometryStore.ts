@@ -15,8 +15,7 @@ import type {
   FuncBlock,
   UndoSnapshot,
 } from '@/types';
-import { MAX_UNDO_HISTORY, MAX_PANEL_LOG_ENTRIES } from '@/utils/constants';
-import { generateUniqueId as generateId } from '@/utils/idGenerator';
+import { MAX_UNDO_HISTORY } from '@/utils/constants';
 
 // ================================================================
 // 常量 / Constants

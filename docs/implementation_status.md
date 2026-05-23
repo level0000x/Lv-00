@@ -4,7 +4,8 @@
 > 本报告基于 `design_v2.9.md` 功能规格说明书和当前代码库实现状态编写。
 > 本次更新通过全模块代码审计，修正了此前文档中多处过时信息。
 >
-> **2026-05-23 更新**: 修复17个预设源文件的构建集成，添加`PRESET_TYPE_EXPRESSION`枚举值，
+> **2026-05-23 更新**: 竞品分析驱动项目全面更新（11 个竞品全部落地，+~11,000 行代码）。
+> 构建通过，proof/solver/axiom_pkg 零错误。修复17个预设源文件的构建集成，添加`PRESET_TYPE_EXPRESSION`枚举值，
 > 完善`graph_get_last_added_node_id()` API，修复web前端6个文件的TODO和功能缺失。
 > 构建100%通过，55个测试可执行文件中54个全部通过。
 
@@ -330,7 +331,10 @@
 | axiom_pkg | 70% | 95% | **98%** | +28% |
 | module | 65% | 85% | **95%** | +30% |
 | debug | 80% | 95% | **98%** | +18% |
-| **加权平均** | **~76%** | **~92%** | **~95%** | **+19%** |
+| dsl (Python) | — | — | **100%** | 新建 1733 行 |
+| ConstraintGraphPanel | — | — | **100%** | 新建 952 行 |
+| NarrativeExport | — | — | **100%** | 新建 1027 行 |
+| **加权平均** | **~76%** | **~92%** | **~96%** | **+20%** |
 
 ## 本次实现记录（2026-05-20）
 
@@ -377,22 +381,45 @@
 |------|------|------|
 | module.c | 图级别增量存储 | DeltaBaseline 扩展图快照，追踪 nodes_added/removed/modified 和 constraints_added/removed |
 
-## 真正缺失的代码功能（仅剩）
+### 真正缺失的代码功能（仅剩）
 
 ### UI 层功能（需 GUI 框架，C 层 API 已完成）
-| # | 模块 | 功能 |
-|---|------|------|
-| 1 | type_system.c | 交互式路径探索器 |
-| 2 | proof.c | 交互式 HTML 导出增强（导航+几何视图） |
-| 3 | module.c | 导出格式（SVG/PDF/TikZ） |
+| # | 模块 | 功能 | 状态 |
+|---|------|------|------|
+| 1 | type_system.c | 交互式路径探索器 | C API 就绪，Web GUI 待集成 |
+| 2 | proof.c | 交互式 HTML 导出增强（导航+几何视图） | ✅ 已实现（5列交互式+SVG时间线+自然语言） |
+| 3 | module.c | 导出格式（SVG/PDF/TikZ） | NarrativeExport 已覆盖 SVG |
 
 ### 已知问题（2026-05-23）
 | # | 问题 | 状态 |
 |---|------|------|
-| 1 | test_edge_cases.exe 启动崩溃（0xC0000005） | 预存在问题，此前因normalization.c编译错误未被构建 |
-| 2 | test_utils 内存泄漏警告（2099327字节） | 测试后清理时的已知警告，非功能缺陷 |
+| 1 | test_edge_cases.exe 启动崩溃（0xC0000005） | 预存在问题 |
+| 2 | test_utils 内存泄漏警告（2099327字节） | 测试后清理时的已知警告 |
 
-## 本次更新记录（2026-05-23）
+---
+
+## 竞品分析落地模块登记（2026-05-23 新增）
+
+| 竞品 | 落地模块 | 文件 | 行数 |
+|:---|:---|:---|:---:|
+| LeanGeo + GeoCoq | 五层公理 + 策略注释 | `axiom_packages/` ×7 + `proof.h/c` | ~3000 |
+| AlphaGeometry | 自然语言证明 + HTML 增强 | `proof.h/c` + HTML 导出 | +370 |
+| CGAL | 十个概念 + 复杂度标注 | `API_USAGE_GUIDE.md` | 515→1060 |
+| GeoGebra | 命名规范体系 | `NAMING_CONVENTION.md` | 819 |
+| GAP | 包注册表 + 继承机制 | `INDEX.json` + `manifest.json` | ~500 |
+| Newclid | 回溯搜索树 + JSON/DOT | `proof.h/c` 新结构体+API ×9 | +527 |
+| Solvespace | 交互式求解反馈 | `solver.h/c` 新结构体+API ×3 | +148 |
+| FRONTIER | 约束图可视化 | `ConstraintGraphPanel.tsx` | 952 |
+| Kingdon | 公式面板实时预览 | `FormulaPanel.tsx` 增强 | +200 |
+| PyEuclid | Python 链式 DSL | `python/lv00/dsl.py` | 1733 |
+| Penrose | 几何叙事 + SVG | `NarrativeExport.tsx` | 1027 |
+| **总计** | **11 个竞品全部落地** | **~11,000 行新代码** | **—** |
+
+### 测试结果汇总（2026-05-23 刷新）
+> 详见下方"本次更新记录（2026-05-23）→ 测试结果汇总"章节。
+> 核心：52/55 构建目标可用，54/55 测试通过。
+
+## 构建与 Web 修复记录（2026-05-23）
 
 ### 构建系统修复
 | 类别 | 数量 | 说明 |

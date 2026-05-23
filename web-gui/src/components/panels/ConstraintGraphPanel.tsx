@@ -260,8 +260,8 @@ function stepSimulation(
       const force = SIM.REPULSION / (dist * dist);
       const fdx = (dx / dist) * force;
       const fdy = (dy / dist) * force;
-      fx[i] += fdx; fy[i] += fdy;
-      fx[j] -= fdx; fy[j] -= fdy;
+      fx[i] = (fx[i] ?? 0) + fdx; fy[i] = (fy[i] ?? 0) + fdy;
+      fx[j] = (fx[j] ?? 0) - fdx; fy[j] = (fy[j] ?? 0) - fdy;
     }
   }
 
@@ -279,8 +279,8 @@ function stepSimulation(
     const force = SIM.ATTRACTION * (dist - SIM.REST_LENGTH);
     const fdx = (dx / dist) * force;
     const fdy = (dy / dist) * force;
-    fx[si] += fdx; fy[si] += fdy;
-    fx[ti] -= fdx; fy[ti] -= fdy;
+    fx[si] = (fx[si] ?? 0) + fdx; fy[si] = (fy[si] ?? 0) + fdy;
+    fx[ti] = (fx[ti] ?? 0) - fdx; fy[ti] = (fy[ti] ?? 0) - fdy;
   }
 
   // Apply forces with damping + centering

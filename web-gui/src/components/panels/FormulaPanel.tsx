@@ -224,7 +224,7 @@ const FormulaPanel: React.FC = () => {
     }
     const now = new Date().toLocaleTimeString();
     appendLog(`解析公式: ${formulaInput.substring(0, LOG_TRUNCATE_LENGTH)}...`, 'info');
-    setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: 'PARSE: 开始解析', id: generateId() }]);
+    setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: 'PARSE: 开始解析', id: String(generateId()) }]);
 
     // 调用 DSL 解析器
     const result = parseFormula(formulaInput);
@@ -237,8 +237,8 @@ const FormulaPanel: React.FC = () => {
         // 尝试解析错误格式：提取行号和内容
         const lineMatch = err.match(/^(?:line\s*)?(\d+)[:;]?\s*(.*)/i);
         if (lineMatch) {
-          const errLine = parseInt(lineMatch[1], 10);
-          const errMsg = lineMatch[2].trim();
+          const errLine = parseInt(lineMatch[1]!, 10);
+          const errMsg = lineMatch[2]!.trim();
           // 获取对应行的原始文本
           const rawLines = formulaInput.split('\n');
           const offendingLine = rawLines[errLine - 1] || '';
@@ -269,7 +269,7 @@ const FormulaPanel: React.FC = () => {
     setOutputText(lines.join('\n'));
     setLogEntries((prev) => [
       ...prev.slice(-MAX_PANEL_LOG_ENTRIES),
-      { time: now, msg: `PARSE: ${validCount} 有效, ${result.errors.length} 错误`, id: generateId() },
+      { time: now, msg: `PARSE: ${validCount} 有效, ${result.errors.length} 错误`, id: String(generateId()) },
     ]);
     addToast(
       result.errors.length > 0 ? 'warning' : 'success',
@@ -287,7 +287,7 @@ const FormulaPanel: React.FC = () => {
     }
     const now = new Date().toLocaleTimeString();
     appendLog(`渲染公式: ${formulaInput.substring(0, LOG_TRUNCATE_LENGTH)}...`, 'info');
-    setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: 'RENDER: 开始执行', id: generateId() }]);
+    setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: 'RENDER: 开始执行', id: String(generateId()) }]);
 
     // 保存撤销状态
     saveUndoState();
@@ -353,7 +353,7 @@ const FormulaPanel: React.FC = () => {
         {
           time: now,
           msg: `RENDER: ${result.createdPoints.length} 点, ${result.createdSegments.length} 线段`,
-          id: generateId(),
+          id: String(generateId()),
         },
       ]);
       addToast(
@@ -384,7 +384,7 @@ const FormulaPanel: React.FC = () => {
     }
     const now = new Date().toLocaleTimeString();
     appendLog('公式转图形: 开始', 'info');
-    setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: 'F->G: 开始转换', id: generateId() }]);
+    setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: 'F->G: 开始转换', id: String(generateId()) }]);
 
     saveUndoState();
 
@@ -416,7 +416,7 @@ const FormulaPanel: React.FC = () => {
       setOutputText(lines.join('\n'));
 
       appendLog(summary, 'info');
-      setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: `F->G: 完成`, id: generateId() }]);
+      setLogEntries((prev) => [...prev.slice(-MAX_PANEL_LOG_ENTRIES), { time: now, msg: `F->G: 完成`, id: String(generateId()) }]);
       addToast(result.errors.length > 0 ? 'warning' : 'success', summary);
     } finally {
       isExecutingFormula.current = false;
@@ -449,7 +449,7 @@ const FormulaPanel: React.FC = () => {
 
     setLogEntries((prev) => [
       ...prev.slice(-MAX_PANEL_LOG_ENTRIES),
-      { time: now, msg: `G->F: ${points.length} 点, ${segments.length} 线段`, id: generateId() },
+      { time: now, msg: `G->F: ${points.length} 点, ${segments.length} 线段`, id: String(generateId()) },
     ]);
     addToast('success', `已生成 DSL: ${points.length} 点, ${segments.length} 线段`);
   }, [points, segments, constraints, setFormulaInput, addToast, appendLog]);
@@ -516,7 +516,7 @@ const FormulaPanel: React.FC = () => {
         return stack;
       }
       setHistoryIndex(newIdx);
-      setFormulaInput(stack[newIdx]);
+      setFormulaInput(stack[newIdx]!);
       addToast('info', `已撤销至 v${newIdx + 1}/${stack.length} / Undone to v${newIdx + 1}/${stack.length}`);
       return stack;
     });
@@ -531,7 +531,7 @@ const FormulaPanel: React.FC = () => {
       }
       const newIdx = historyIndex + 1;
       setHistoryIndex(newIdx);
-      setFormulaInput(prev[newIdx]);
+      setFormulaInput(prev[newIdx]!);
       addToast('info', `已重做至 v${newIdx + 1}/${prev.length} / Redone to v${newIdx + 1}/${prev.length}`);
       return prev;
     });
@@ -548,8 +548,8 @@ const FormulaPanel: React.FC = () => {
     const pointRe = /point\s+(\w+)\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/gi;
     let m: RegExpExecArray | null;
     while ((m = pointRe.exec(text)) !== null) {
-      const px = m[2].trim();
-      const py = m[3].trim();
+      const px = m[2]!.trim();
+      const py = m[3]!.trim();
       [px, py].forEach((expr) => {
         const tokens = expr.match(/[a-zA-Z_]\w*/g);
         if (tokens) tokens.forEach((t) => { if (!['sin','cos','tan','sqrt','abs','PI','pi','E','e'].includes(t)) varSet.add(t); });
@@ -569,9 +569,9 @@ const FormulaPanel: React.FC = () => {
   } | null => {
     const m = raw.match(/point\s+(\w+)\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/i);
     if (!m) return null;
-    const label = m[1];
-    const sx = m[2].trim();
-    const sy = m[3].trim();
+    const label = m[1]!;
+    const sx = m[2]!.trim();
+    const sy = m[3]!.trim();
     const nx = Number(sx);
     const ny = Number(sy);
     if (!isNaN(nx) && !isNaN(ny)) {
@@ -584,7 +584,7 @@ const FormulaPanel: React.FC = () => {
       xVal = 0;
       yVal = 0;
     } catch { /* ignore */ }
-    return { label, x: xVal, y: yVal, isSymbolic: true, exprX: sx, exprY: sy };
+    return { label, x: xVal, y: yVal, isSymbolic: true, exprX: sx!, exprY: sy! };
   }, []);
 
   /** 构造 mini SVG 预览（200x150） */
@@ -620,7 +620,7 @@ const FormulaPanel: React.FC = () => {
       });
       // 线段（按顺序连）
       for (let i = 1; i < pts.length; i++) {
-        svg += `<line x1="${tx(pts[i-1].x)}" y1="${ty(pts[i-1].y)}" x2="${tx(pts[i].x)}" y2="${ty(pts[i].y)}" stroke="#888" stroke-width="0.8"/>`;
+        svg += `<line x1="${tx(pts[i-1]!.x)}" y1="${ty(pts[i-1]!.y)}" x2="${tx(pts[i]!.x)}" y2="${ty(pts[i]!.y)}" stroke="#888" stroke-width="0.8"/>`;
       }
       svg += `</svg>`;
       return svg;
@@ -644,7 +644,7 @@ const FormulaPanel: React.FC = () => {
       const commandDescriptions: Record<string, (raw: string) => string> = {
         point: (raw) => {
           const m = raw.match(/point\s+(\w+)\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/i);
-          return m ? `\u5C06\u521B\u5EFA\u70B9 (${m[2].trim()},${m[3].trim()})` : '\u5C06\u521B\u5EFA\u70B9';
+          return m ? `\u5C06\u521B\u5EFA\u70B9 (${m[2]!.trim()},${m[3]!.trim()})` : '\u5C06\u521B\u5EFA\u70B9';
         },
         segment: () => '\u5C06\u521B\u5EFA\u7EBF\u6BB5 / will create a segment',
         circle: () => '\u5C06\u521B\u5EFA\u5706 / will create a circle',
@@ -771,12 +771,12 @@ const FormulaPanel: React.FC = () => {
       }
       const m = cmd.raw.match(/^(\w+)\s+(.+)/);
       if (!m) { lines.push(cmd.raw); return; }
-      const op = m[1].toLowerCase();
-      const rest = m[2].trim();
+      const op = m[1]!.toLowerCase();
+      const rest = m[2]!.trim();
       switch (op) {
         case 'point': {
           const pm = rest.match(/(\w+)\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/i);
-          if (pm) lines.push(`% \\coordinate (${pm[1]}) at (${pm[2].trim()},${pm[3].trim()});`);
+          if (pm) lines.push(`% \\coordinate (${pm[1]!}) at (${pm[2]!.trim()},${pm[3]!.trim()});`);
           else lines.push(cmd.raw);
           break;
         }
@@ -828,12 +828,12 @@ const FormulaPanel: React.FC = () => {
       }
       const m = cmd.raw.match(/^(\w+)\s+(.+)/);
       if (!m) { lines.push(cmd.raw); return; }
-      const op = m[1].toLowerCase();
-      const rest = m[2].trim();
+      const op = m[1]!.toLowerCase();
+      const rest = m[2]!.trim();
       switch (op) {
         case 'point': {
           const pm = rest.match(/(\w+)\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)/i);
-          if (pm) lines.push(`${pm[1]} = sp.Point(${pm[2].trim()}, ${pm[3].trim()})`);
+          if (pm) lines.push(`${pm[1]!} = sp.Point(${pm[2]!.trim()}, ${pm[3]!.trim()})`);
           else lines.push(cmd.raw);
           break;
         }
@@ -1187,7 +1187,7 @@ const FormulaPanel: React.FC = () => {
               return;
             }
             // 复制到剪贴板
-            copyToClipboard(outputText, addToast);
+            copyToClipboard(outputText, (v, m) => addToast(v as 'success' | 'error' | 'warning' | 'info', m));
           }}
         >
           EXPORT / 导出

@@ -7,7 +7,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/stores';
-import { EngineEventType, getEventCategory } from '@/types';
+import { getEventCategory } from '@/types';
 import StreamEventItem from './StreamEventItem';
 
 // ================================================================

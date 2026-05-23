@@ -82,6 +82,11 @@ const DARK_THEME_COLORS: ThemeColors = {
   pointHover: '#79c0ff',
   segment: '#3fb950',
   text: '#c9d1d9',
+  port: '#79c0ff',
+  portHover: '#58a6ff',
+  funcBlockFill: 'rgba(88, 166, 255, 0.1)',
+  funcBlockStroke: '#58a6ff',
+  funcBlockText: '#c9d1d9',
 };
 
 /** 浅色主题默认画布颜色方案 */
@@ -94,6 +99,11 @@ const LIGHT_THEME_COLORS: ThemeColors = {
   pointHover: '#58a6ff',
   segment: '#1a7f37',
   text: '#24292f',
+  port: '#0969da',
+  portHover: '#58a6ff',
+  funcBlockFill: 'rgba(9, 105, 218, 0.08)',
+  funcBlockStroke: '#0969da',
+  funcBlockText: '#24292f',
 };
 
 // ================================================================

@@ -212,7 +212,6 @@ export function createStreamClient(
   let lastEventTime = 0;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let heartbeatTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
-  let connected = false;
 
   /** 更新内部状态并通知回调 */
   function setState(newState: EngineStreamState): void {
@@ -273,7 +272,6 @@ export function createStreamClient(
 
   /** 处理断开连接 */
   function handleDisconnect(): void {
-    connected = false;
     cleanup();
     setState('disconnected');
   }
@@ -297,7 +295,6 @@ export function createStreamClient(
     }
 
     ws.onopen = () => {
-      connected = true;
       reconnectAttempt = 0;
       sessionStartMs = Date.now();
       eventCount = 0;

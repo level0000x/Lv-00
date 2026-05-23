@@ -11,7 +11,6 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import Panel from './Panel';
 import { useAppStore } from '@/stores';
 import type { Point, Segment } from '@/types';
-import { generateId } from '@/utils/idGenerator';
 
 // ================================================================
 // 类型定义 / Type Definitions

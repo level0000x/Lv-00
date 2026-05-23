@@ -14,17 +14,11 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Panel from './Panel';
 import { useAppStore } from '@/stores';
-import type { Point, Segment, Constraint } from '@/types';
 import {
   MAX_PANEL_LOG_ENTRIES,
-  COLLINEARITY_TOLERANCE,
-  BETWEENNESS_TOLERANCE,
-  INTERSECTION_ERROR_THRESHOLD,
   NORMALIZE_DISTANCE_THRESHOLD,
 } from '@/utils/constants';
 import {
-  dist,
-  solveIncidence,
   solveBetweenness,
   solveIntersection,
   performSolve,

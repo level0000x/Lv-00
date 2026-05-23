@@ -16,7 +16,6 @@
  * @since 3.0.0
  */
 
-import React from 'react';
 import Layout from '@/components/layout/Layout';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 

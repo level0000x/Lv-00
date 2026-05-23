@@ -6,7 +6,7 @@
  *              进行节点过滤，避免高频输入时的性能抖动。
  */
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@/stores';
 import { useDebounce } from '@/hooks/useDebounce';
 import { SEARCH_DEBOUNCE_MS, MAX_SEARCH_RESULTS } from '@/utils/constants';

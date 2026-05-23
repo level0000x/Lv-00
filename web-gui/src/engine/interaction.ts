@@ -9,7 +9,7 @@
 
 import type { ViewportState } from '@/engine/renderer';
 import type { Point, Segment, ToolType } from '@/types';
-import { ZOOM_STEP, ZOOM_SMOOTH, SCALE_MIN, SCALE_MAX } from '@/utils/constants';
+import { ZOOM_SMOOTH, SCALE_MIN, SCALE_MAX } from '@/utils/constants';
 import { generateId } from '@/utils/idGenerator';
 import { CIRCLE_APPROX_SIDES, MOUSE_MOVE_THROTTLE_MS } from '@/utils/constants';
 

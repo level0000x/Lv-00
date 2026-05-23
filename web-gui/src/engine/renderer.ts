@@ -584,7 +584,7 @@ export class Renderer {
   ): void {
     // args: [pointId, segmentId]
     if (constraint.args.length < 1) return;
-    const point = pointMap.get(constraint.args[0]);
+    const point = pointMap.get(constraint.args[0]!);
     if (!point) return;
 
     const ctx = this.ctx;
@@ -609,9 +609,9 @@ export class Renderer {
   ): void {
     // args: [pointA_id, pointB_id, pointC_id]
     if (constraint.args.length < 3) return;
-    const pointA = pointMap.get(constraint.args[0]);
-    const pointB = pointMap.get(constraint.args[1]);
-    const pointC = pointMap.get(constraint.args[2]);
+    const pointA = pointMap.get(constraint.args[0]!);
+    const pointB = pointMap.get(constraint.args[1]!);
+    const pointC = pointMap.get(constraint.args[2]!);
     if (!pointA || !pointB || !pointC) return;
 
     const ctx = this.ctx;
@@ -656,7 +656,7 @@ export class Renderer {
   ): void {
     // args: [intersectionPointId, segment1Id, segment2Id, ...]
     if (constraint.args.length < 1) return;
-    const point = pointMap.get(constraint.args[0]);
+    const point = pointMap.get(constraint.args[0]!);
     if (!point) return;
 
     const ctx = this.ctx;
