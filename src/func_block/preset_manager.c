@@ -1,6 +1,36 @@
 /**
+ * @file preset_manager.c
+ * @brief 预设函数块管理器 - 核心实现
+ *
+ * @details 实现预设函数块系统的核心管理功能，包括：
+ *          - 预设库的初始化和关闭
+ *          - 预设的注册、查询、实例化
+ *          - 线程安全的预设操作
+ *          - 内存管理和错误处理
+ *
+ * @version 4.0.0
+ * @author Lv-00 Project
+ */
+
+
+#include "lv00_internal.h"
+#include "error_codes.h"
+#include "lv00_utils.h"
+#include "preset_core.h"
+#include "preset_common.h"
+#include "preset_blocks.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
 #endif
 
+/* ============================================================
  * 内部数据结构
  * ============================================================ */
 
@@ -61,40 +91,6 @@ static PresetLibraryState g_library = {
 
 /* ============================================================
 
-#endif
-/**
- * @file preset_manager.c
- * @brief 预设函数块管理器 - 核心实现
- *
- * @details 实现预设函数块系统的核心管理功能，包括：
- *          - 预设库的初始化和关闭
- *          - 预设的注册、查询、实例化
- *          - 线程安全的预设操作
- *          - 内存管理和错误处理
- *
- * @version 4.0.0
- * @author Lv-00 Project
- */
-
-#include "lv00_internal.h"
-#include "error_codes.h"
-#include "lv00_utils.h"
-#include "preset_core.h"
-#include "preset_common.h"
-#include "preset_blocks.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
-#ifdef _WIN32
-
-#endif
-
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
 
 /* ── 前向声明：供下方新增函数使用的静态辅助函数 ──
  * （这些函数的定义在文件后半部分） */
@@ -168,6 +164,7 @@ int preset_register_builtin(void)
  *
  * @param metadatas 元数据数组
  * @param count 数量
+
  * @return 成功注册的数量
  */
 int preset_register_batch(const PresetMetadata *metadatas, int count)

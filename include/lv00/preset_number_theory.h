@@ -143,6 +143,23 @@ bool preset_number_theory_register(void);
  */
 int preset_number_theory_count(void);
 
+/**
+ * @brief 获取数论预设名称列表
+ *
+ * @param out_names 输出名称数组（调用者需释放每个元素和数组本身）
+ * @param out_count 输出数量
+ * @return true 成功
+ * @return false 失败
+ */
+bool preset_number_theory_get_names(char ***out_names, int *out_count);
+
+/**
+ * @brief 获取数论预设的类别
+ *
+ * @return PresetCategory 预设类别（PRESET_CATEGORY_NUMBER_THEORY）
+ */
+PresetCategory preset_number_theory_category(void);
+
 #ifdef __cplusplus
 }
 #endif

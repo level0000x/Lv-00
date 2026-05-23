@@ -99,8 +99,11 @@ temp/
 # 日志文件（运行时产生）
 /lv00.log*
 
-# 根目录中的报告文件（应统一放入 docs/reports/ 目录）
-/*.docx
+# 归档的构建目录
+_archived_builds/
+
+# 测试输出归档
+test_outputs/
 
 # MSVC 构建产物（Symbol/PDB/增量链接/项目文件）
 *.pdb
@@ -116,7 +119,7 @@ temp/
 # Node.js
 node_modules/
 
-# Test result files（仅忽略根目录下的测试输出文件）
+# Test result files（测试输出已统一放入 test_outputs/ 目录）
 /test_output*.txt
 /test_*.txt
 

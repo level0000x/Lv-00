@@ -723,15 +723,80 @@ export function generateDSLFromGeometry(
     lines.push(`segment ${p1Name}${p2Name}`);
   }
 
-  // 为 betweenness 约束生成 midpoint DSL
+  // 为所有约束生成 DSL
   for (const con of constraints) {
-    if (con.type === 'betweenness' && con.args.length === 3) {
-      const midName = pointNames.get(con.args[1]!);
-      const p1Name = pointNames.get(con.args[0]!);
-      const p2Name = pointNames.get(con.args[2]!);
-      if (midName && p1Name && p2Name) {
-        lines.push(`midpoint ${midName} of ${p1Name}, ${p2Name}`);
+    switch (con.type) {
+      case 'betweenness': {
+        // midpoint M of A, B
+        if (con.args.length === 3) {
+          const midName = pointNames.get(con.args[1]!);
+          const p1Name = pointNames.get(con.args[0]!);
+          const p2Name = pointNames.get(con.args[2]!);
+          if (midName && p1Name && p2Name) {
+            lines.push(`midpoint ${midName} of ${p1Name}, ${p2Name}`);
+          }
+        }
+        break;
       }
+      case 'incidence': {
+        // point A lies on line BC
+        // args: [pointId, segPointAId, segPointBId]
+        if (con.args.length >= 3) {
+          const ptName = pointNames.get(con.args[0]!);
+          const segP1Name = pointNames.get(con.args[1]!);
+          const segP2Name = pointNames.get(con.args[2]!);
+          if (ptName && segP1Name && segP2Name) {
+            lines.push(`point ${ptName} lies on line ${segP1Name}${segP2Name}`);
+          }
+        }
+        break;
+      }
+      case 'intersection': {
+        // intersect AB with CD at E
+        // args: [seg1P1, seg1P2, seg2P1, seg2P2, intersectionPoint]
+        if (con.args.length >= 5) {
+          const s1p1 = pointNames.get(con.args[0]!);
+          const s1p2 = pointNames.get(con.args[1]!);
+          const s2p1 = pointNames.get(con.args[2]!);
+          const s2p2 = pointNames.get(con.args[3]!);
+          const intPt = pointNames.get(con.args[4]!);
+          if (s1p1 && s1p2 && s2p1 && s2p2 && intPt) {
+            lines.push(`intersect ${s1p1}${s1p2} with ${s2p1}${s2p2} at ${intPt}`);
+          }
+        }
+        break;
+      }
+      case 'containment': {
+        // point D inside circle (O, A)  or  point D inside region R
+        // args: [containedPointId, containerId(s)]
+        if (con.args.length >= 2) {
+          const containedName = pointNames.get(con.args[0]!);
+          const containerNames = con.args.slice(1).map((id) => pointNames.get(id)).filter(Boolean);
+          if (containedName && containerNames.length > 0) {
+            const container = containerNames.join(', ');
+            if (containerNames.length === 2) {
+              lines.push(`point ${containedName} inside circle (${container})`);
+            } else {
+              lines.push(`point ${containedName} inside region (${container})`);
+            }
+          }
+        }
+        break;
+      }
+      case 'connection': {
+        // port P connected to Q
+        // args: [sourcePointId, targetPointId]
+        if (con.args.length >= 2) {
+          const srcName = pointNames.get(con.args[0]!);
+          const tgtName = pointNames.get(con.args[1]!);
+          if (srcName && tgtName) {
+            lines.push(`port ${srcName} connected to ${tgtName}`);
+          }
+        }
+        break;
+      }
+      default:
+        break;
     }
   }
 

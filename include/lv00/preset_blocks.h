@@ -169,7 +169,13 @@ typedef enum {
     /* 组合数学 */
     PRESET_EXT_COMBINATORICS,             /* 组合运算 */
     
-    PRESET_EXT_CATEGORY_COUNT             /* 类别总数 */
+    /* ---- v10.0 新增：补齐界面层缺失的扩展类别 ---- */
+    PRESET_EXT_GRAPH_THEORY,              /* 图论运算 */
+    PRESET_EXT_NUMERICAL_ANALYSIS,        /* 数值分析 */
+    PRESET_EXT_OPTIMIZATION_THEORY,       /* 优化理论 */
+    PRESET_EXT_MATH_LOGIC,                /* 数理逻辑 */
+    
+    PRESET_EXT_CATEGORY_COUNT             /* 类别总数（哨兵值） */
 } PresetExtendedCategory;
 
 /* ================================================================

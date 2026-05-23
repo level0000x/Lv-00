@@ -285,11 +285,17 @@ bool preset_category_from_string(const char *str, PresetCategory *category) {
 }
 #endif
 
-/* 类型名称映射表 */
+/* 类型名称映射表（完整版，覆盖全部 PresetType 枚举值）
+ *
+ * 每个类型条目包含 PresetType 枚举值和对应的英文/标识符名称。
+ * preset_type_to_string() 和 preset_type_from_string() 依赖此表。
+ * 若在此添加新类型，需确保 preset_blocks.h 中的 PresetType 枚举同步更新。
+ */
 static const struct {
     PresetType type;
     const char *name;
 } g_type_map[] = {
+    /* 基础几何类型 */
     {PRESET_TYPE_POINT, "point"},
     {PRESET_TYPE_LINE, "line"},
     {PRESET_TYPE_LINE_SEGMENT, "segment"},
@@ -297,15 +303,71 @@ static const struct {
     {PRESET_TYPE_CIRCLE, "circle"},
     {PRESET_TYPE_POLYGON, "polygon"},
     {PRESET_TYPE_ANGLE, "angle"},
+    /* 数值类型 */
     {PRESET_TYPE_SCALAR, "scalar"},
+    {PRESET_TYPE_INTEGER, "integer"},
+    {PRESET_TYPE_BOOLEAN, "boolean"},
+    {PRESET_TYPE_STRING, "string"},
+    /* 代数类型 */
     {PRESET_TYPE_VECTOR, "vector"},
     {PRESET_TYPE_MATRIX, "matrix"},
-    {PRESET_TYPE_BOOLEAN, "boolean"},
-    {PRESET_TYPE_INTEGER, "integer"},
+    {PRESET_TYPE_COMPLEX, "complex"},
+    {PRESET_TYPE_POLYNOMIAL, "polynomial"},
+    {PRESET_TYPE_EQUATION, "equation"},
+    /* 集合与函数类型 */
     {PRESET_TYPE_SET, "set"},
     {PRESET_TYPE_FUNCTION, "function"},
     {PRESET_TYPE_TUPLE, "tuple"},
     {PRESET_TYPE_LIST, "list"},
+    {PRESET_TYPE_SEQUENCE, "sequence"},
+    /* 高级几何类型 */
+    {PRESET_TYPE_REGION, "region"},
+    {PRESET_TYPE_PATH, "path"},
+    {PRESET_TYPE_SURFACE, "surface"},
+    {PRESET_TYPE_SPACE, "space"},
+    {PRESET_TYPE_MANIFOLD, "manifold"},
+    {PRESET_TYPE_DISTANCE, "distance"},
+    {PRESET_TYPE_AREA, "area"},
+    {PRESET_TYPE_LENGTH, "length"},
+    {PRESET_TYPE_CURVATURE, "curvature"},
+    /* 代数结构类型 */
+    {PRESET_TYPE_GROUP, "group"},
+    {PRESET_TYPE_GROUP_ELEMENT, "group_element"},
+    {PRESET_TYPE_SUBGROUP, "subgroup"},
+    {PRESET_TYPE_HOMOMORPHISM, "homomorphism"},
+    {PRESET_TYPE_COSET, "coset"},
+    {PRESET_TYPE_PERMUTATION, "permutation"},
+    {PRESET_TYPE_AUTOMORPHISM, "automorphism"},
+    {PRESET_TYPE_RING, "ring"},
+    {PRESET_TYPE_IDEAL, "ideal"},
+    {PRESET_TYPE_FIELD, "field"},
+    {PRESET_TYPE_MODULE, "module"},
+    {PRESET_TYPE_ALGEBRA, "algebra"},
+    {PRESET_TYPE_EXTENSION, "extension"},
+    /* 分析学类型 */
+    {PRESET_TYPE_LIMIT, "limit"},
+    {PRESET_TYPE_DERIVATIVE, "derivative"},
+    {PRESET_TYPE_INTEGRAL, "integral"},
+    {PRESET_TYPE_SERIES, "series"},
+    {PRESET_TYPE_LIMIT_EXPRESSION, "limit_expression"},
+    /* 拓扑类型 */
+    {PRESET_TYPE_TOPOLOGY, "topology"},
+    {PRESET_TYPE_OPEN_SET, "open_set"},
+    {PRESET_TYPE_CLOSED_SET, "closed_set"},
+    /* 数论类型 */
+    {PRESET_TYPE_PRIME, "prime"},
+    {PRESET_TYPE_RESIDUE, "residue"},
+    /* 概率与统计类型 */
+    {PRESET_TYPE_DISTRIBUTION, "distribution"},
+    {PRESET_TYPE_PROBABILITY, "probability"},
+    /* 图论类型 */
+    {PRESET_TYPE_GRAPH, "graph"},
+    {PRESET_TYPE_TREE, "tree"},
+    /* 逻辑与结构类型 */
+    {PRESET_TYPE_FORMULA, "formula"},
+    {PRESET_TYPE_EXPRESSION, "expression"},
+    {PRESET_TYPE_STRUCTURE, "structure"},
+    /* 通用类型 */
     {PRESET_TYPE_ANY, "any"},
 };
 
@@ -402,8 +464,14 @@ bool preset_properties_from_string(const char *str,
         return false;
     }
     
+    /* 跨平台字符串分割：Windows 使用 strtok_s，POSIX 使用 strtok_r */
+#ifdef _WIN32
+    char *context = NULL;
+    char *token = strtok_s(copy, "|,& ", &context);
+#else
     char *saveptr = NULL;
     char *token = strtok_r(copy, "|,& ", &saveptr);
+#endif
     
     while (token != NULL) {
         bool found = false;
@@ -420,7 +488,11 @@ bool preset_properties_from_string(const char *str,
             return false;
         }
         
+#ifdef _WIN32
+        token = strtok_s(NULL, "|,& ", &context);
+#else
         token = strtok_r(NULL, "|,& ", &saveptr);
+#endif
     }
     
     free(copy);

@@ -136,17 +136,25 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 ---
 
-## 四、后续行动计划
+## 四、后续行动计划（✅ 全部完成 2026-05-23）
 
-基于以上分析，建议按以下优先级推进借鉴工作：
+基于以上分析，所有借鉴工作已完成落地：
 
-| 优先级 | 借鉴对象 | 借鉴内容 | 落地模块 |
-|:---|:---|:---|:---|
-| P0 | LeanGeo + GeoCoq | 公理分层与证明呈现 | `axiom_packages/` 组织方式、`proof.c` 输出格式 |
-| P1 | AlphaGeometry | 自然语言证明输出 | `proof.c` + Web GUI 证明展示 |
-| P2 | CGAL | API 文档组织 | `docs/API_USAGE_GUIDE.md` 重构 |
-| P3 | GeoGebra | 几何对象命名体系 | 语法设计 |
-| P4 | GAP | 包管理 | `axiom_packages/` 包管理机制 |
+| 优先级 | 借鉴对象 | 借鉴内容 | 落地模块 | 状态 |
+|:---|:---|:---|:---|:---:|
+| P0 | LeanGeo + GeoCoq | 公理分层与证明呈现 | `axiom_packages/` 组织方式、`proof.c` 输出格式 | ✅ |
+| P1 | AlphaGeometry | 自然语言证明输出 | `proof.c` + Web GUI 证明展示 | ✅ |
+| P2 | CGAL | API 文档组织 | `docs/API_USAGE_GUIDE.md` 重构 | ✅ |
+| P3 | GeoGebra | 几何对象命名体系 | `docs/NAMING_CONVENTION.md` | ✅ |
+| P4 | GAP | 包管理 | `axiom_packages/` 包管理机制 | ✅ |
+| — | Newclid | 证明回溯可视化 | `proof.h/c` 搜索树 + `ProofPanel.tsx` | ✅ |
+| — | Solvespace | 交互式求解反馈 | `solver.h/c` + 流式输出 | ✅ |
+| — | FRONTIER | 约束图可视化 | `ConstraintGraphPanel.tsx` | ✅ |
+| — | Kingdon | 符号计算UX | `FormulaPanel.tsx` 实时预览 | ✅ |
+| — | PyEuclid | 高层Python API | `python/lv00/dsl.py` | ✅ |
+| — | Penrose | 几何叙事生成 | `NarrativeExport.tsx` | ✅ |
+
+**总计：11 个竞品全部落地，新增约 11,000 行代码，18 个 C API，5 个 Web GUI 组件。**
 
 ---
 

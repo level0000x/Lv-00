@@ -170,28 +170,28 @@ ctest -j4
 
 ```
 lv00/
-├── include/lv00/    # 头文件
-│   ├── lv00.h       # 主头文件
-│   ├── symbolic_coord.h
-│   ├── constraint_graph.h
-│   └── ...
-├── src/             # 源文件
-│   ├── symbolic_coord.c
-│   ├── constraint_graph.c
-│   └── ...
-├── tests/           # 测试文件
-│   ├── test_basic.c
-│   ├── test_edge_cases.c
-│   └── ...
-├── examples/        # 示例程序
-│   ├── triangle_construction.c
-│   ├── circle_intersection.c
-│   └── function_composition.c
-├── docs/            # 文档
-│   ├── API_USAGE_GUIDE.md
-│   └── 01_symbolic_coord.md
-├── .github/workflows/  # CI配置
-│   └── ci.yml
+├── include/lv00/      # 公共头文件
+│   ├── lv00.h         # 主头文件
+│   ├── lv00_internal.h # 内部宏定义
+│   ├── symbolic_coord.h / constraint_graph.h / ...
+│   └── preset_*.h     # 预设模块头文件
+├── src/
+│   ├── core/          # 核心引擎（求解器、归一化、重写、类型系统等）
+│   ├── func_block/    # 函数块系统（打包、实例化、组合、确定性检查等）
+│   ├── preset/        # 预设函数块模块（几何、代数、拓扑、逻辑等42个模块）
+│   ├── parser/        # 公式解析、转换、渲染
+│   ├── utils/         # 工具函数
+│   ├── axiom/         # 公理包
+│   ├── interop/       # 互操作
+│   ├── magic/         # Magic 模块
+│   └── _deprecated/   # 废弃文件归档
+├── tests/             # 测试文件
+├── examples/          # 示例程序
+├── docs/              # 文档
+│   ├── reports/       # 历史汇报文档
+│   └── *.md           # 设计文档
+├── scripts/           # 工具脚本
+├── .github/workflows/ # CI 配置
 ├── CMakeLists.txt
 └── README.md
 ```

@@ -1647,6 +1647,11 @@ static void node_destroy(GeomNode *node) {
     lv00_free((void **)&node);
 }
 
+int graph_get_last_added_node_id(const ConstraintGraph *graph) {
+    if (!graph || graph->node_count == 0) return -1;
+    return graph->node_count - 1;
+}
+
 void graph_destroy(ConstraintGraph *graph) {
     if (!graph) return;
     for (int i = 0; i < graph->node_count; i++) {

@@ -65,6 +65,12 @@ extern bool preset_statistics_register(void);
 extern bool preset_integral_transforms_register(void);
 extern bool preset_representation_theory_register(void);
 extern bool preset_algebraic_topology_register(void);
+/* ---- v10.0 新增：格论模块 ---- */
+extern bool preset_lattice_theory_register(void);
+/* ---- v10.0 新增：进阶范畴论模块 ---- */
+extern bool preset_category_theory_adv_register(void);
+/* ---- v10.0 新增：特殊函数模块 ---- */
+extern bool preset_special_functions_register(void);
 
 /* ==================== 命名常量 ==================== */
 
@@ -128,17 +134,45 @@ static ExtendedPresetRegistry g_preset_registry = {
     .next_preset_id = PRESET_FB_ID_OFFSET
 };
 
-/* 线程安全：注册表互斥锁 */
+/* 线程安全：注册表互斥锁
+ *
+ * 使用原子操作+双重检查锁定模式消除 TOCTOU 竞态条件。
+ * 锁的初始化在 preset_blocks_init() 中提前完成，
+ * LOCK() 宏不再执行惰性初始化，避免多线程竞态。
+ */
 #ifdef _WIN32
 #include <windows.h>
 static CRITICAL_SECTION g_preset_registry_lock;
-static bool g_preset_registry_lock_initialized = false;
+static volatile LONG g_preset_registry_lock_initialized = 0;
+
+/** 
+ * @brief 初始化预设注册表锁（线程安全，仅执行一次）
+ *
+ * 使用 InterlockedCompareExchange 原子操作确保
+ * 多线程环境下仅初始化一次临界区，消除 TOCTOU 竞态条件。
+ */
+static void preset_registry_lock_init_once(void)
+{
+    if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) == 0) {
+        /* volatile 重读，避免编译器优化消除检查 */
+        LONG expected = 0;
+        if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 1, 0) == 0) {
+            InitializeCriticalSection(&g_preset_registry_lock);
+            /* 内存屏障：确保临界区初始化对后续所有线程可见 */
+            MemoryBarrier();
+            InterlockedExchange(&g_preset_registry_lock_initialized, 2);
+        } else {
+            /* 其他线程正在初始化，自旋等待完成 */
+            while (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) != 2) {
+                Sleep(0);  /* 让出时间片 */
+            }
+        }
+    }
+}
+
 #define PRESET_REGISTRY_LOCK() \
     do { \
-        if (!g_preset_registry_lock_initialized) { \
-            InitializeCriticalSection(&g_preset_registry_lock); \
-            g_preset_registry_lock_initialized = true; \
-        } \
+        preset_registry_lock_init_once(); \
         EnterCriticalSection(&g_preset_registry_lock); \
     } while (0)
 #define PRESET_REGISTRY_UNLOCK() LeaveCriticalSection(&g_preset_registry_lock)
@@ -247,14 +281,7 @@ bool preset_blocks_init(void)
         return true;
     }
 
-#ifdef _WIN32
-    if (!g_preset_registry_lock_initialized) {
-        InitializeCriticalSection(&g_preset_registry_lock);
-        g_preset_registry_lock_initialized = true;
-    }
-#endif
-
-    /* 确保基础注册表已初始化 */
+    /* 确保基础注册表已初始化（锁初始化由 LOCK 宏自动完成） */
     if (!func_block_registry_init()) {
         return false;
     }
@@ -305,6 +332,7 @@ bool preset_blocks_init(void)
      * 40. 代数拓扑模块（新增 v9.0）—— 同调/上同调/高阶同伦/单纯复形
      * 41. 积分变换模块（新增 v9.0）—— 傅里叶/拉普拉斯/Z变换/梅林/希尔伯特
      * 42. 表示论模块（新增 v9.0）—— 群表示/特征标/不可约/诱导/李代数表示
+     * 43. 特殊函数模块（新增 v10.0）—— Gamma/Beta/Bessel/正交多项式/Zeta，共20个
      * ============================================================ */
 
     /* 注册基础几何模块 */
@@ -355,6 +383,11 @@ bool preset_blocks_init(void)
     /* 注册微分方程模块（新增 v9.0） */
     if (!preset_differential_equations_register()) {
         LV00_LOG_WARNING("微分方程模块预设注册部分失败");
+    }
+
+    /* 注册特殊函数模块（新增 v10.0）—— Gamma/Beta/Bessel/正交多项式/Zeta */
+    if (!preset_special_functions_register()) {
+        LV00_LOG_WARNING("特殊函数模块预设注册部分失败");
     }
 
     /* 注册组合数学模块（新增 v5.0） */
@@ -497,29 +530,31 @@ bool preset_blocks_init(void)
         LV00_LOG_WARNING("进阶数学逻辑模块预设注册部分失败");
     }
 
-    /* 注册微分几何模块（新增 v9.0） */
-    if (!preset_differential_geometry_register()) {
-        LV00_LOG_WARNING("微分几何模块预设注册部分失败");
-    }
-
-    /* 注册代数拓扑模块（新增 v9.0） */
+    /* 注册代数拓扑模块（新增 v9.0）—— 同调/上同调/高阶同伦/单纯复形 */
     if (!preset_algebraic_topology_register()) {
         LV00_LOG_WARNING("代数拓扑模块预设注册部分失败");
     }
 
-    /* 注册微分方程模块（新增 v9.0） */
-    if (!preset_differential_equations_register()) {
-        LV00_LOG_WARNING("微分方程模块预设注册部分失败");
-    }
-
-    /* 注册积分变换模块（新增 v9.0） */
+    /* 注册积分变换模块（新增 v9.0）—— 傅里叶/拉普拉斯/Z变换/梅林/希尔伯特 */
     if (!preset_integral_transforms_register()) {
         LV00_LOG_WARNING("积分变换模块预设注册部分失败");
     }
 
-    /* 注册表示论模块（新增 v9.0） */
+    /* 注册表示论模块（新增 v9.0）—— 群表示/特征标/不可约/诱导/李代数表示 */
     if (!preset_representation_theory_register()) {
         LV00_LOG_WARNING("表示论模块预设注册部分失败");
+    }
+
+    /* ---- v10.0 新增：格论模块接入 ---- */
+    /* 格论模块（lattice_theory）：格基础运算/特殊格/格同态与表示，共30个预设 */
+    if (!preset_lattice_theory_register()) {
+        LV00_LOG_WARNING("格论模块预设注册部分失败");
+    }
+
+    /* ---- v10.0 新增：进阶范畴论模块接入 ---- */
+    /* 进阶范畴论（category_theory_adv）：Yoneda引理/Kan扩张/单子/预层，共20个预设 */
+    if (!preset_category_theory_adv_register()) {
+        LV00_LOG_WARNING("进阶范畴论模块预设注册部分失败");
     }
 
     g_preset_registry.initialized = true;
@@ -547,9 +582,10 @@ void preset_blocks_cleanup(void)
     PRESET_REGISTRY_UNLOCK();
 
 #ifdef _WIN32
-    if (g_preset_registry_lock_initialized) {
+    /* 检查锁是否已初始化（原子标志值 2 表示完全初始化完成） */
+    if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) != 0) {
         DeleteCriticalSection(&g_preset_registry_lock);
-        g_preset_registry_lock_initialized = false;
+        InterlockedExchange(&g_preset_registry_lock_initialized, 0);
     }
 #endif
 }
@@ -652,28 +688,37 @@ const char *preset_extended_category_to_string(PresetExtendedCategory cat)
 static PresetExtendedCategory map_category_to_extended(PresetCategory category)
 {
     switch (category) {
-        case PRESET_CATEGORY_CONSTRUCTION:   return PRESET_EXT_BASIC_CONSTRUCTION;
-        case PRESET_CATEGORY_MEASUREMENT:    return PRESET_EXT_MEASUREMENT;
-        case PRESET_CATEGORY_TRANSFORMATION: return PRESET_EXT_TRANSFORMATION_BASIC;
-        case PRESET_CATEGORY_ALGEBRAIC:      return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_LOGIC:          return PRESET_EXT_LOGIC_PROPOSITIONAL;
-        case PRESET_CATEGORY_ANALYSIS:       return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_NUMBER_THEORY:  return PRESET_EXT_NUMBER_THEORY;
-        case PRESET_CATEGORY_GROUP_THEORY:   return PRESET_EXT_GROUP_THEORY;
-        case PRESET_CATEGORY_TOPOLOGY:       return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_RING_THEORY:   return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_FIELD_THEORY:  return PRESET_EXT_ALGEBRA_ADVANCED;
-        case PRESET_CATEGORY_LINEAR_ALGEBRA: return PRESET_EXT_LINEAR_ALGEBRA;
-        case PRESET_CATEGORY_COMBINATORICS: return PRESET_EXT_COMBINATORICS;
-        case PRESET_CATEGORY_COMPLEX_ANALYSIS: return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_PROBABILITY:   return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_GEOMETRY:      return PRESET_EXT_ADVANCED_CONSTRUCTION;
-        case PRESET_CATEGORY_ALGEBRA:       return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_CATEGORY_THEORY: return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_SET_THEORY:    return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_CUSTOM:        return PRESET_EXT_BASIC_CONSTRUCTION;
-        default:                             return PRESET_EXT_BASIC_CONSTRUCTION;
+        case PRESET_CATEGORY_CONSTRUCTION:       return PRESET_EXT_BASIC_CONSTRUCTION;
+        case PRESET_CATEGORY_MEASUREMENT:        return PRESET_EXT_MEASUREMENT;
+        case PRESET_CATEGORY_TRANSFORMATION:     return PRESET_EXT_TRANSFORMATION_BASIC;
+        case PRESET_CATEGORY_ALGEBRAIC:          return PRESET_EXT_ALGEBRA_BASIC;
+        case PRESET_CATEGORY_LOGIC:              return PRESET_EXT_LOGIC_PROPOSITIONAL;
+        case PRESET_CATEGORY_ANALYSIS:           return PRESET_EXT_ANALYSIS;
+        case PRESET_CATEGORY_NUMBER_THEORY:      return PRESET_EXT_NUMBER_THEORY;
+        case PRESET_CATEGORY_GROUP_THEORY:       return PRESET_EXT_GROUP_THEORY;
+        case PRESET_CATEGORY_TOPOLOGY:           return PRESET_EXT_TOPOLOGY;
+        case PRESET_CATEGORY_RING_THEORY:        return PRESET_EXT_ALGEBRA_BASIC;
+        case PRESET_CATEGORY_FIELD_THEORY:       return PRESET_EXT_ALGEBRA_ADVANCED;
+        case PRESET_CATEGORY_LINEAR_ALGEBRA:     return PRESET_EXT_LINEAR_ALGEBRA;
+        case PRESET_CATEGORY_COMBINATORICS:      return PRESET_EXT_COMBINATORICS;
+        case PRESET_CATEGORY_COMPLEX_ANALYSIS:   return PRESET_EXT_ANALYSIS;
+        case PRESET_CATEGORY_PROBABILITY:        return PRESET_EXT_ANALYSIS;
+        case PRESET_CATEGORY_GEOMETRY:           return PRESET_EXT_ADVANCED_CONSTRUCTION;
+        case PRESET_CATEGORY_ALGEBRA:            return PRESET_EXT_ALGEBRA_BASIC;
+        case PRESET_CATEGORY_CATEGORY_THEORY:    return PRESET_EXT_TOPOLOGY;
+        case PRESET_CATEGORY_SET_THEORY:         return PRESET_EXT_TOPOLOGY;
+        case PRESET_CATEGORY_CUSTOM:             return PRESET_EXT_BASIC_CONSTRUCTION;
+        /* ---- v10.0 修复：补齐"界面层-扩展类别"映射中缺失的 5 个分支 ---- */
+        case PRESET_CATEGORY_GRAPH_THEORY:       return PRESET_EXT_GRAPH_THEORY;
+        case PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY: return PRESET_EXT_DIFFERENTIAL_GEOMETRY;
+        case PRESET_CATEGORY_NUMERICAL:          return PRESET_EXT_NUMERICAL_ANALYSIS;
+        case PRESET_CATEGORY_OPTIMIZATION:       return PRESET_EXT_OPTIMIZATION_THEORY;
+        case PRESET_CATEGORY_MATH_LOGIC:         return PRESET_EXT_MATH_LOGIC;
+        case PRESET_CATEGORY_COUNT:              return PRESET_EXT_BASIC_CONSTRUCTION;
+        /* 不提供 default 分支：若未来新增 PresetCategory 而未同步更新此 switch，
+         * 编译器将发出 -Wswitch 警告，提示开发者补充映射。这比静默回退到默认值更安全。 */
     }
+    return PRESET_EXT_BASIC_CONSTRUCTION;
 }
 
 /* ==================== 通用简化注册 ==================== */

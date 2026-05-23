@@ -16,6 +16,8 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -528,13 +530,13 @@ bool preset_properties_from_string(const char *str,
  * @brief 错误日志
  */
 #define PRESET_ERROR_LOG(fmt, ...) \
-    lv00_log_error("[PRESET] " fmt, ##__VA_ARGS__)
+    fprintf(stderr, "[PRESET ERROR] " fmt "\n", ##__VA_ARGS__)
 
 /**
  * @brief 警告日志
  */
 #define PRESET_WARN_LOG(fmt, ...) \
-    lv00_log_warn("[PRESET] " fmt, ##__VA_ARGS__)
+    fprintf(stderr, "[PRESET WARN] " fmt "\n", ##__VA_ARGS__)
 
 /**
  * @brief 信息日志

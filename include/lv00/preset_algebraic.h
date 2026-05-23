@@ -384,18 +384,40 @@ extern "C" {
  * @brief 注册代数运算预设函数块
  *
  * 此函数由 preset_blocks_init() 自动调用。
+ * 使用 preset_blocks_register_simple() 接口注册所有 15 个代数预设，
+ * 每个预设均携带完整的元数据（输入类型、输出类型、LaTeX 数学定义、复杂度、可逆性等）。
  *
- * @return true 注册成功
- * @return false 注册失败
+ * @return true 所有 15 个预设注册成功
+ * @return false 注册失败（部分或全部失败）
  */
 bool preset_algebraic_register(void);
 
 /**
  * @brief 获取代数模块的预设数量
  *
- * @return 预设函数块数量
+ * @return 预设函数块总数（当前为 15）
  */
 int preset_algebraic_count(void);
+
+/**
+ * @brief 获取代数模块的预设类别
+ *
+ * @return 始终返回 PRESET_CATEGORY_ALGEBRAIC
+ */
+PresetCategory preset_algebraic_category(void);
+
+/**
+ * @brief 获取代数模块所有预设的名称列表
+ *
+ * 分配并返回包含所有代数预设名称的字符串数组。
+ * 调用者负责释放 out_names 中的每个字符串（lv00_free）以及数组本身（lv00_free）。
+ *
+ * @param out_names 输出：预设名称字符串数组的指针（由调用者释放）
+ * @param out_count 输出：预设名称数量
+ * @return true 成功获取
+ * @return false 参数为空或内存分配失败
+ */
+bool preset_algebraic_get_names(char ***out_names, int *out_count);
 
 #ifdef __cplusplus
 }

@@ -581,7 +581,7 @@ bool preset_group_theory_register(void)
     }
 
     /* ============================================================
-     * 第七部分：中心列
+     * 第六部分：中心列
      * ============================================================ */
 
     /* -------------------- 下中心列 -------------------- */
@@ -708,64 +708,4 @@ PresetCategory preset_group_theory_category(void)
     return PRESET_CATEGORY_GROUP_THEORY;
 }
 
-/**
- * @brief 获取群论模块所有预设名称列表
- * @return 以 NULL 结尾的名称数组，调用者需使用 lv00_free 释放
- */
-static char** get_group_theory_names(void)
-{
-    static const char* names[] = {
-        PRESET_GROUP_OPERATION,
-        PRESET_GROUP_INVERSE,
-        PRESET_GROUP_POWER,
-        PRESET_GROUP_IDENTITY_TEST,
-        PRESET_ELEMENT_ORDER,
-        PRESET_SUBGROUP_TEST,
-        PRESET_GENERATED_SUBGROUP,
-        PRESET_LEFT_COSET,
-        PRESET_RIGHT_COSET,
-        PRESET_COSET_DECOMPOSITION,
-        PRESET_NORMAL_SUBGROUP_TEST,
-        PRESET_QUOTIENT_GROUP,
-        PRESET_GROUP_HOMOMORPHISM_TEST,
-        PRESET_HOMOMORPHISM_KERNEL,
-        PRESET_HOMOMORPHISM_IMAGE,
-        PRESET_GROUP_ISOMORPHISM_TEST,
-        PRESET_AUTOMORPHISM_GROUP,
-        PRESET_INNER_AUTOMORPHISM,
-        PRESET_CYCLIC_GROUP_TEST,
-        PRESET_CYCLIC_GENERATORS,
-        PRESET_ABELIAN_GROUP_TEST,
-        PRESET_PERMUTATION_MULTIPLY,
-        PRESET_PERMUTATION_DECOMPOSE,
-        PRESET_SYMMETRIC_GROUP,
-        PRESET_ALTERNATING_GROUP,
-        PRESET_DIHEDRAL_GROUP,
-        PRESET_QUATERNION_GROUP,
-        PRESET_GROUP_ORDER,
-        PRESET_CONJUGACY_CLASS,
-        PRESET_CLASS_EQUATION,
-        PRESET_GROUP_CENTER,
-        PRESET_COMMUTATOR_SUBGROUP,
-        PRESET_DERIVED_SERIES,
-        PRESET_SOLVABLE_GROUP_TEST,
-        PRESET_NILPOTENT_GROUP_TEST,
-        PRESET_SYLOW_P_SUBGROUP,
-        PRESET_SYLOW_SUBGROUP_COUNT,
-        PRESET_LOWER_CENTRAL_SERIES,
-        PRESET_UPPER_CENTRAL_SERIES,
-    };
-    const int count = sizeof(names) / sizeof(names[0]);
-    char** result = (char**)lv00_malloc((count + 1) * sizeof(char*));
-    if (!result) return NULL;
-    for (int i = 0; i < count; i++) {
-        result[i] = lv00_strdup(names[i]);
-        if (!result[i]) {
-            for (int j = 0; j < i; j++) { void *tmp = result[j]; lv00_free(&tmp); }
-            { void *tmp = result; lv00_free(&tmp); }
-            return NULL;
-        }
-    }
-    result[count] = NULL;
-    return result;
-}
+

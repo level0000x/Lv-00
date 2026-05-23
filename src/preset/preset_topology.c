@@ -761,7 +761,6 @@ bool preset_topology_register(void)
     }
 
     /* 返回是否所有预设都注册成功 */
-    /* lv00_log_info("拓扑学预设注册完成，共 %d 个预设", success_count) */
     return success_count == TOPOLOGY_PRESET_COUNT;
 }
 
@@ -856,70 +855,4 @@ PresetCategory preset_topology_category(void)
     return PRESET_CATEGORY_TOPOLOGY;
 }
 
-static char** get_topology_names(void)
-{
-    static const char* names[] = {
-        PRESET_TOPOLOGY_TEST,
-        PRESET_OPEN_SET_TEST,
-        PRESET_CLOSED_SET_TEST,
-        PRESET_CLOSURE,
-        PRESET_INTERIOR,
-        PRESET_BOUNDARY,
-        PRESET_NEIGHBORHOOD_TEST,
-        PRESET_NEIGHBORHOOD_SYSTEM,
-        PRESET_BASE_TEST,
-        PRESET_TOPOLOGY_FROM_BASE,
-        PRESET_CONTINUOUS_MAP_TEST,
-        PRESET_HOMEOMORPHISM_TEST,
-        PRESET_QUOTIENT_TOPOLOGY,
-        PRESET_PRODUCT_TOPOLOGY,
-        PRESET_SUBSPACE_TOPOLOGY,
-        PRESET_T0_SPACE_TEST,
-        PRESET_T1_SPACE_TEST,
-        PRESET_T2_SPACE_TEST,
-        PRESET_T3_SPACE_TEST,
-        PRESET_T4_SPACE_TEST,
-        PRESET_COMPACT_SPACE_TEST,
-        PRESET_SEQUENTIALLY_COMPACT,
-        PRESET_LOCALLY_COMPACT_TEST,
-        PRESET_ONE_POINT_COMPACTIFICATION,
-        PRESET_CONNECTED_SPACE_TEST,
-        PRESET_PATH_CONNECTED_TEST,
-        PRESET_CONNECTED_COMPONENT,
-        PRESET_PATH_COMPONENT,
-        PRESET_LOCALLY_CONNECTED_TEST,
-        PRESET_TOTALLY_DISCONNECTED,
-        PRESET_HOMOTOPY_TEST,
-        PRESET_PATH_HOMOTOPY_TEST,
-        PRESET_FUNDAMENTAL_GROUP,
-        PRESET_PATH_CLASS_MULTIPLY,
-        PRESET_SIMPLY_CONNECTED_TEST,
-        PRESET_COVERING_SPACE,
-        PRESET_DISCRETE_TOPOLOGY,
-        PRESET_TRIVIAL_TOPOLOGY,
-        PRESET_METRIC_TOPOLOGY,
-        PRESET_ORDER_TOPOLOGY,
-        PRESET_OPEN_MAP_TEST,
-        PRESET_CLOSED_MAP_TEST,
-        PRESET_EMBEDDING_TEST,
-        PRESET_SUBBASE_TEST,
-        PRESET_OPEN_COVER,
-        PRESET_SEPARATION_AXIOMS,
-        PRESET_COMPACTIFICATION,
-        PRESET_FINITE_SUBCOVER,
-        PRESET_LIFTING_EXISTENCE,
-    };
-    const int count = sizeof(names) / sizeof(names[0]);
-    char** result = (char**)lv00_malloc((count + 1) * sizeof(char*));
-    if (!result) return NULL;
-    for (int i = 0; i < count; i++) {
-        result[i] = lv00_strdup(names[i]);
-        if (!result[i]) {
-            for (int j = 0; j < i; j++) { void *tmp = result[j]; lv00_free(&tmp); }
-            { void *tmp = result; lv00_free(&tmp); }
-            return NULL;
-        }
-    }
-    result[count] = NULL;
-    return result;
-}
+

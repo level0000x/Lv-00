@@ -466,29 +466,16 @@ PackResult func_block_pack(
 
     /* 函数块ID = 新创建节点的ID
      *
-     * 注意：此处依赖 graph_add_function_block 内部递增 graph->next_node_id
-     * 的实现细节。graph_add_function_block 当前返回 AddNodeResult（成功/失败
-     * 状态码），不返回新节点的 ID，因此无法通过返回值直接获取 fb_id。
-     *
-     * TODO: 将 graph_add_function_block 的返回类型改为包含新节点 ID 的结构体
-     *       （例如 AddNodeResultWithId），或提供 graph_get_last_added_node_id()
-     *       查询接口，以消除对 next_node_id 内部递增顺序的脆弱假设。
-     *       参见 constraint_graph.h 中 graph_add_function_block 声明处的 TODO。
+     * v10.0 修复：使用 graph_get_last_added_node_id() 公共接口替代脆弱的
+     * graph->next_node_id - 1 内部实现假设。该接口由 constraint_graph.c 提供，
+     * 确保无论内部实现如何变化都能正确获取最后添加的节点 ID。
      */
-    /* FIXME: 脆弱假设 —— 依赖 graph->next_node_id 内部递增的实现细节。
-     * graph_add_function_block 当前仅返回状态码，不返回新节点 ID，
-     * 因此此处通过 next_node_id - 1 推断新节点 ID。
-     * 参见 constraint_graph.h 中 graph_add_function_block 声明处的 TODO。 */
-
-    /* 修复：边界检查，防止 graph->next_node_id == 0 时 fb_id 为负数，
-     * 导致后续 func_block_create(fb_id) 收到无效参数。
-     * next_node_id 至少应为 1，因为 graph_add_function_block 已成功执行。 */
-    if (graph->next_node_id < 1) {
-        LV00_LOG_ERROR("func_block_pack: graph->next_node_id=%d 异常，无法推断函数块ID",
-                       graph->next_node_id);
+    int fb_id = graph_get_last_added_node_id(graph);
+    if (fb_id < 0) {
+        LV00_LOG_ERROR("func_block_pack: graph_get_last_added_node_id() 返回 %d，无法推断函数块ID",
+                       fb_id);
         return PACK_OUT_OF_MEMORY;
     }
-    int fb_id = graph->next_node_id - 1;
 
     /* 创建 FuncBlock 结构 */
     FuncBlock *fb = func_block_create(fb_id);

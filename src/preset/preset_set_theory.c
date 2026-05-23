@@ -767,7 +767,7 @@ bool preset_set_theory_register(void)
  */
 PresetCategory preset_set_theory_category(void)
 {
-    return PRESET_CATEGORY_LOGIC;
+    return PRESET_CATEGORY_SET_THEORY;
 }
 
 /**

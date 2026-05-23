@@ -471,6 +471,87 @@ bool preset_number_theory_register(void)
     }
 
     /* 返回是否所有预设都注册成功 */
-    /* lv00_log_info("数论预设注册完成，共 %d 个预设", success_count) */
     return success_count == NUMBER_THEORY_PRESET_COUNT;
+}
+
+/**
+ * @brief 获取数论预设函数块数量
+ *
+ * @return int 数论模块预设函数块总数
+ */
+int preset_number_theory_count(void)
+{
+    return NUMBER_THEORY_PRESET_COUNT;
+}
+
+/**
+ * @brief 获取数论预设的类别
+ *
+ * @return PresetCategory 预设类别（PRESET_CATEGORY_NUMBER_THEORY）
+ */
+PresetCategory preset_number_theory_category(void)
+{
+    return PRESET_CATEGORY_NUMBER_THEORY;
+}
+
+/**
+ * @brief 获取数论预设名称列表
+ *
+ * @param out_names 输出名称数组（调用者需释放每个元素和数组本身）
+ * @param out_count 输出数量
+ * @return true 成功
+ * @return false 失败
+ */
+bool preset_number_theory_get_names(char ***out_names, int *out_count)
+{
+    if (!out_names || !out_count) return false;
+
+    char **names = (char **)lv00_malloc(NUMBER_THEORY_PRESET_COUNT * sizeof(char *));
+    if (!names) return false;
+
+    const char *preset_names[] = {
+        PRESET_GCD,
+        PRESET_LCM,
+        PRESET_EXTENDED_GCD,
+        PRESET_MODULAR_INVERSE,
+        PRESET_MODULAR_EXPONENTIATION,
+        PRESET_PRIMALITY_TEST,
+        PRESET_PRIME_FACTORIZATION,
+        PRESET_NEXT_PRIME,
+        PRESET_SIEVE_OF_ERATOSTHENES,
+        PRESET_CHINESE_REMAINDER,
+        PRESET_DISCRETE_LOGARITHM,
+        PRESET_MULTIPLICATIVE_ORDER,
+        PRESET_PRIMITIVE_ROOT,
+        PRESET_EULER_TOTIENT,
+        PRESET_MOBIUS_FUNCTION,
+        PRESET_DIVISOR_COUNT,
+        PRESET_DIVISOR_SUM,
+        PRESET_LARGEST_PROPER_DIVISOR,
+        PRESET_LEGENDRE_SYMBOL,
+        PRESET_JACOBI_SYMBOL,
+        PRESET_QUADRATIC_RESIDUE_TEST,
+        PRESET_TONELLI_SHANKS,
+        PRESET_FIBONACCI,
+        PRESET_LUCAS,
+        PRESET_PELL_EQUATION,
+        PRESET_MODULAR_ADD,
+        PRESET_MODULAR_MULTIPLY,
+        PRESET_WILSON_TEST,
+    };
+
+    int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
+
+    for (int i = 0; i < count; i++) {
+        names[i] = lv00_strdup(preset_names[i]);
+        if (names[i] == NULL) {
+            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv00_free(&tmp); }
+            { void *tmp = names; lv00_free(&tmp); }
+            return false;
+        }
+    }
+
+    *out_names = names;
+    *out_count = count;
+    return true;
 }

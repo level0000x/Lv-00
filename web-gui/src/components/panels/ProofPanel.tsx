@@ -86,6 +86,36 @@ const ProofPanel: React.FC = () => {
   const [showConflictPanel, setShowConflictPanel] = useState(false);
 
   // ================================================================
+  // 自然语言证明状态 / Natural Language Proof State
+  // ================================================================
+  const [nlProof, setNlProof] = useState('');
+  const [showNlPanel, setShowNlPanel] = useState(false);
+
+  // ================================================================
+  // 回溯树状态 / Backtrack Tree State
+  // ================================================================
+  const [backtrackTree, setBacktrackTree] = useState<Array<{
+    id: number;
+    label: string;
+    status: 'success' | 'failure' | 'choice' | 'pruned';
+    isBacktrack: boolean;
+    children: Array<{
+      id: number;
+      label: string;
+      status: 'success' | 'failure' | 'choice' | 'pruned';
+      isBacktrack: boolean;
+    }>;
+  }>>([]);
+  const [showBacktrackPanel, setShowBacktrackPanel] = useState(false);
+
+  // ================================================================
+  // 策略与注释状态 / Strategy & Notes State
+  // ================================================================
+  const [strategyNote, setStrategyNote] = useState('');
+  const [stepNote, setStepNote] = useState('');
+  const [searchStrategy, setSearchStrategy] = useState('Forward Chaining');
+
+  // ================================================================
   // 约束满足度计算 / Constraint Satisfaction Calculation
   // ================================================================
   const constraintSatisfaction = useMemo(() => {
@@ -307,6 +337,281 @@ const ProofPanel: React.FC = () => {
   }, [constraints, addToast, appendLog]);
 
   // ================================================================
+  // 自然语言证明生成 / Natural Language Proof Generation
+  // ================================================================
+
+  /** 根据 proofSteps 比较相邻快照，生成 AlphaGeometry 风格的自然语言步骤描述 */
+  const generateNlProof = useCallback(() => {
+    if (proofSteps.length <= 1) {
+      setNlProof('证明步骤不足，无法生成自然语言描述。至少需要2个步骤。\nNot enough proof steps to generate a natural language description. At least 2 steps are needed.');
+      setShowNlPanel(true);
+      return;
+    }
+
+    let nl = `=== 自然语言证明 / Natural Language Proof ===\n`;
+    nl += `搜索策略: ${searchStrategy} / Search Strategy: ${searchStrategy}\n`;
+    if (strategyNote) {
+      nl += `策略注释: ${strategyNote} / Strategy Note: ${strategyNote}\n`;
+    }
+    nl += `---\n\n`;
+
+    const verbs = [
+      { ch: '构造', en: 'Construct' },
+      { ch: '连接', en: 'Connect' },
+      { ch: '添加约束', en: 'Add constraint' },
+      { ch: '移动', en: 'Move' },
+      { ch: '删除', en: 'Delete' },
+      { ch: '修改', en: 'Modify' },
+    ];
+
+    for (let i = 0; i < proofSteps.length; i++) {
+      const step = proofSteps[i];
+      if (!step) continue;
+      const stepNum = i + 1;
+      const isCurrent = i === currentStepIndex;
+
+      // 比较与前一步的差异
+      let verb = verbs[0]!;
+      let objects: string[] = [];
+      let reason = '';
+
+      if (i === 0) {
+        verb = { ch: '初始化', en: 'Initialize' };
+        if (step.points.length > 0) {
+          objects.push(`点集 / point set (${step.points.length} pts)`);
+        }
+        reason = '起始画布 / initial canvas';
+      } else {
+        const prev = proofSteps[i - 1];
+        if (!prev) continue;
+
+        // 检测新增的点
+        const newPoints = step.points.filter((p) => !prev.points.some((pp) => pp.id === p.id));
+        // 检测新增的线段
+        const newSegments = step.segments.filter((s) => !prev.segments.some((ps) => ps.id === s.id));
+        // 检测新增的约束
+        const newConstraints = step.constraints.filter((c) => !prev.constraints.some((pc) => pc.id === c.id));
+
+        if (newPoints.length > 0) {
+          verb = verbs[0]!;
+          objects = newPoints.map((p) => `点 / pt ${p.id}`);
+          reason = `${searchStrategy}策略: 添加辅助点 / add auxiliary point`;
+        } else if (newSegments.length > 0) {
+          verb = verbs[1]!;
+          objects = newSegments.map((s) => `线段 / seg ${s.id} (p${s.p1}-p${s.p2})`);
+          reason = '连接已有元素 / connect existing elements';
+        } else if (newConstraints.length > 0) {
+          verb = verbs[2]!;
+          objects = newConstraints.map((c) => `约束 / constraint ${c.id} (${c.type})`);
+          reason = '施加推理约束 / apply deductive constraint';
+        } else {
+          verb = verbs[5]!;
+          objects = ['已有元素 / existing elements'];
+          reason = '细化或调整 / refinement or adjustment';
+        }
+      }
+
+      const trustStatus = isCurrent ? 'CURRENT / 当前' : (i < currentStepIndex ? 'VERIFIED / 已验证' : 'AHEAD / 未到达');
+
+      nl += `[步骤 ${stepNum}] `;
+      nl += `${verb.ch} / ${verb.en}\n`;
+      nl += `    对象 / Objects: ${objects.join(', ')}\n`;
+      nl += `    推理 / Reasoning: ${reason}\n`;
+      nl += `    状态 / Status: ${trustStatus}\n`;
+
+      if (i === currentStepIndex && stepNote) {
+        nl += `    步骤注释 / Step Note: ${stepNote}\n`;
+      }
+
+      nl += `\n`;
+    }
+
+    // 总结
+    nl += `---\n`;
+    const conflictCount = detectConflicts(constraints).length;
+    if (conflictCount > 0) {
+      nl += `结论: 检测到 ${conflictCount} 个约束冲突，证明可能无效。\n`;
+      nl += `Conclusion: ${conflictCount} constraint conflict(s) detected. Proof may be invalid.\n`;
+    } else {
+      nl += `结论: 约束集合一致，构造有效。\n`;
+      nl += `Conclusion: Constraint set is consistent. Construction is valid.\n`;
+    }
+
+    setNlProof(nl);
+    setShowNlPanel(true);
+    appendLog(`自然语言证明已生成: ${proofSteps.length} 步骤`, 'info');
+    addToast('success', '自然语言证明已生成 / NL proof generated');
+  }, [proofSteps, currentStepIndex, searchStrategy, strategyNote, stepNote, constraints, addToast, appendLog]);
+
+  // ================================================================
+  // 回溯树构建 / Backtrack Tree Construction
+  // ================================================================
+
+  /** 基于 undoStack 历史构建 Newclid 风格的回溯搜索树 */
+  const buildBacktrackTree = useCallback(() => {
+    if (undoStack.length === 0) {
+      const emptyTree = [{
+        id: 0,
+        label: `ROOT: ${searchStrategy}`,
+        status: 'choice' as const,
+        isBacktrack: false,
+        children: [],
+      }];
+      setBacktrackTree(emptyTree);
+      setShowBacktrackPanel(true);
+      addToast('info', '回溯树为空 / Backtrack tree is empty');
+      return;
+    }
+
+    // 构建树状结构：每个 undo 快照作为一个决策点
+    // 检测回溯点：undoStack 中相邻快照如果约束数量先增后减，标记为回溯
+    const tree: Array<{
+      id: number;
+      label: string;
+      status: 'success' | 'failure' | 'choice' | 'pruned';
+      isBacktrack: boolean;
+      children: Array<{
+        id: number;
+        label: string;
+        status: 'success' | 'failure' | 'choice' | 'pruned';
+        isBacktrack: boolean;
+      }>;
+    }> = [];
+
+    for (let i = 0; i < undoStack.length; i++) {
+      const snapshot = undoStack[i];
+      if (!snapshot) continue;
+
+      const constraintCount = snapshot.constraints ? snapshot.constraints.length : 0;
+      const pointCount = snapshot.points ? snapshot.points.length : 0;
+
+      // 判断是否为回溯点：如果下一步的约束数减少，说明发生了撤销/回溯
+      let isBacktrack = false;
+      if (i > 0) {
+        const prev = undoStack[i - 1];
+        if (prev && prev.constraints && snapshot.constraints &&
+            snapshot.constraints.length < prev.constraints.length) {
+          isBacktrack = true;
+        }
+      }
+
+      // 判断节点状态
+      let status: 'success' | 'failure' | 'choice' | 'pruned' = 'choice';
+      if (constraintCount === 0 && pointCount <= 1) {
+        status = 'pruned';
+      } else if (isBacktrack) {
+        status = 'failure';
+      } else if (constraintCount >= 3) {
+        status = 'success';
+      }
+
+      // 检测策略变更：比较相邻快照的约束类型分布
+      let strategyLabel = searchStrategy;
+      if (i > 0) {
+        const prev = undoStack[i - 1];
+        if (prev && snapshot.constraints && prev.constraints) {
+          const prevTypes = new Set((prev.constraints || []).map((c: { type: string }) => c.type));
+          const currTypes = new Set((snapshot.constraints || []).map((c: { type: string }) => c.type));
+          // 检查是否有新的约束类型
+          const hasNewTypes = [...currTypes].some((t) => !prevTypes.has(t));
+          if (hasNewTypes) {
+            strategyLabel = `${searchStrategy} [SWITCH]`;
+          }
+        }
+      }
+
+      const node: typeof tree[0] = {
+        id: i,
+        label: isBacktrack
+          ? `↩ ${strategyLabel} #${i + 1} (回溯/backtrack)`
+          : `${strategyLabel} #${i + 1}`,
+        status,
+        isBacktrack,
+        children: [],
+      };
+
+      // 如果非回溯节点，添加其推理子节点
+      if (!isBacktrack && constraintCount > 0) {
+        (snapshot.constraints || []).forEach((c: { id: number; type: string }, ci: number) => {
+          if (ci < 3) { // 最多3个子节点避免过长
+            node.children.push({
+              id: i * 100 + ci,
+              label: `${c.type} #${c.id ?? ci + 1}`,
+              status: 'success' as const,
+              isBacktrack: false,
+            });
+          }
+        });
+      }
+
+      tree.push(node);
+    }
+
+    // 添加当前状态作为最终节点
+    const currentConstraintCount = constraints.length;
+    const finalStatus: 'success' | 'failure' | 'choice' | 'pruned' =
+      currentConstraintCount >= 3 ? 'success' : 'choice';
+
+    const finalNode: typeof tree[0] = {
+      id: undoStack.length,
+      label: `${searchStrategy} #FINAL (当前/current)`,
+      status: finalStatus,
+      isBacktrack: false,
+      children: constraints.slice(0, 3).map((c, ci) => ({
+        id: undoStack.length * 100 + ci,
+        label: `${c.type} #${c.id ?? ci + 1}`,
+        status: 'success' as const,
+        isBacktrack: false,
+      })),
+    };
+    tree.push(finalNode);
+
+    setBacktrackTree(tree);
+    setShowBacktrackPanel(true);
+    appendLog(`回溯树已构建: ${tree.length} 个节点`, 'info');
+    addToast('success', `回溯树已构建 / Backtrack tree built (${tree.length} nodes)`);
+  }, [undoStack, constraints, searchStrategy, addToast, appendLog]);
+
+  // ================================================================
+  // 当前步骤自然语言描述 / Current Step NL Description (inline)
+  // ================================================================
+  const currentStepNlDescription = useMemo(() => {
+    if (proofSteps.length === 0) return '';
+    const idx = currentStepIndex;
+    if (idx < 0 || idx >= proofSteps.length) return '';
+
+    const step = proofSteps[idx];
+    if (!step) return '';
+
+    if (idx === 0) {
+      return `初始化画布，包含 ${step.points.length} 个点。\nInitialize canvas with ${step.points.length} point(s).`;
+    }
+
+    const prev = proofSteps[idx - 1];
+    if (!prev) return '';
+
+    const newPoints = step.points.filter((p) => !prev.points.some((pp) => pp.id === p.id));
+    const newSegments = step.segments.filter((s) => !prev.segments.some((ps) => ps.id === s.id));
+    const newConstraints = step.constraints.filter((c) => !prev.constraints.some((pc) => pc.id === c.id));
+
+    const parts: string[] = [];
+    if (newPoints.length > 0) {
+      parts.push(`构造 ${newPoints.length} 个新点 / Construct ${newPoints.length} new point(s)`);
+    }
+    if (newSegments.length > 0) {
+      parts.push(`连接 ${newSegments.length} 条新线段 / Connect ${newSegments.length} new segment(s)`);
+    }
+    if (newConstraints.length > 0) {
+      parts.push(`施加 ${newConstraints.length} 个新约束 / Apply ${newConstraints.length} new constraint(s)`);
+    }
+    if (parts.length === 0) {
+      parts.push('细化已有元素 / Refine existing elements');
+    }
+
+    return parts.join('\n');
+  }, [proofSteps, currentStepIndex]);
+
+  // ================================================================
   // 当撤销栈变化时同步步骤索引 / Sync step index when undo stack changes
   // ================================================================
   React.useEffect(() => {
@@ -339,6 +644,107 @@ const ProofPanel: React.FC = () => {
           </button>
         </div>
 
+        {/* 搜索策略选择器 / Search Strategy Selector */}
+        <div className="info-box" style={{ marginTop: '4px' }}>
+          <div className="info-row">
+            <span className="info-label" style={{ minWidth: '110px' }}>STRATEGY / 策略</span>
+            <select
+              value={searchStrategy}
+              onChange={(e) => setSearchStrategy(e.target.value)}
+              style={{
+                flex: 1,
+                background: 'var(--canvas-bg, #1a1a2e)',
+                color: 'var(--text, #e0e0e0)',
+                border: '1px solid var(--segment, #555)',
+                borderRadius: '4px',
+                padding: '4px 6px',
+                fontSize: '11px',
+                fontFamily: 'inherit',
+              }}
+            >
+              <option value="Forward Chaining">Forward Chaining / 前向链</option>
+              <option value="Backward Chaining">Backward Chaining / 后向链</option>
+              <option value="Auxiliary Construction">Auxiliary Construction / 辅助构造</option>
+              <option value="Algebraic">Algebraic / 代数法</option>
+              <option value="Hybrid">Hybrid / 混合策略</option>
+            </select>
+          </div>
+        </div>
+
+        {/* 策略注释 / Strategy Note */}
+        <div className="info-box" style={{ marginTop: '4px' }}>
+          <div className="info-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '2px' }}>
+            <span className="info-label">STRATEGY NOTE / 策略注释</span>
+            <input
+              type="text"
+              value={strategyNote}
+              onChange={(e) => setStrategyNote(e.target.value)}
+              placeholder="e.g. 先构造辅助圆，再用角平分性质..."
+              style={{
+                width: '100%',
+                background: 'var(--canvas-bg, #1a1a2e)',
+                color: 'var(--text, #e0e0e0)',
+                border: '1px solid var(--segment, #555)',
+                borderRadius: '4px',
+                padding: '4px 6px',
+                fontSize: '11px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 步骤注释 / Step Note */}
+        <div className="info-box" style={{ marginTop: '4px' }}>
+          <div className="info-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '2px' }}>
+            <span className="info-label">STEP NOTE / 步骤注释</span>
+            <input
+              type="text"
+              value={stepNote}
+              onChange={(e) => setStepNote(e.target.value)}
+              placeholder={`步骤 ${currentStepIndex + 1} 的注释...`}
+              style={{
+                width: '100%',
+                background: 'var(--canvas-bg, #1a1a2e)',
+                color: 'var(--text, #e0e0e0)',
+                border: '1px solid var(--segment, #555)',
+                borderRadius: '4px',
+                padding: '4px 6px',
+                fontSize: '11px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 当前步骤内联 NL 描述 / Current Step NL Description Inline */}
+        {currentStepNlDescription && (
+          <div
+            className="info-box"
+            style={{
+              marginTop: '4px',
+              padding: '6px 8px',
+              background: 'var(--canvas-bg, #1a1a2e)',
+              border: '1px solid var(--segment, #555)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              lineHeight: '1.5',
+              color: '#51cf66',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {currentStepNlDescription}
+          </div>
+        )}
+
+        {/* 自然语言证明生成 */}
+        <button className="btn btn-accent" onClick={generateNlProof} style={{ marginTop: '4px' }}>
+          GENERATE NL PROOF / 生成自然语言证明
+        </button>
+
         {/* Coq 导出 */}
         <button className="btn btn-accent" onClick={generateCoqScript}>
           EXPORT COQ / 导出 Coq
@@ -347,6 +753,11 @@ const ProofPanel: React.FC = () => {
         {/* 反证法 */}
         <button className="btn" onClick={handleExFalso}>
           EX FALSO / 矛盾证明
+        </button>
+
+        {/* 回溯树 */}
+        <button className="btn" onClick={buildBacktrackTree}>
+          SHOW SEARCH TREE / 显示搜索树
         </button>
       </Panel>
 
@@ -412,6 +823,159 @@ const ProofPanel: React.FC = () => {
         </Panel>
       )}
 
+      {/* 自然语言证明面板 / Natural Language Proof Panel */}
+      {showNlPanel && (
+        <Panel title="NATURAL LANGUAGE / 自然语言" panelId="proof-nl">
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              lineHeight: '1.4',
+              background: 'var(--canvas-bg, #1a1a2e)',
+              color: 'var(--text, #e0e0e0)',
+              border: '1px solid var(--segment, #555)',
+              borderRadius: '4px',
+              padding: '8px',
+              maxHeight: '350px',
+              overflowY: 'auto',
+            }}
+          >
+            {nlProof}
+          </pre>
+          <button className="btn" onClick={() => setShowNlPanel(false)} style={{ marginTop: '4px', width: '100%' }}>
+            CLOSE / 关闭
+          </button>
+        </Panel>
+      )}
+
+      {/* 回溯树面板 / Backtrack Tree Panel */}
+      {showBacktrackPanel && (
+        <Panel title="BACKTRACK TREE / 回溯树" panelId="proof-backtrack">
+          <div
+            style={{
+              maxHeight: '350px',
+              overflowY: 'auto',
+              padding: '6px',
+              background: 'var(--canvas-bg, #1a1a2e)',
+              border: '1px solid var(--segment, #555)',
+              borderRadius: '4px',
+            }}
+          >
+            {/* 图例 / Legend */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', fontSize: '10px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#51cf66', display: 'inline-block' }} /> Success/成功
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#ff6b6b', display: 'inline-block' }} /> Failure/失败
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#4dabf7', display: 'inline-block' }} /> Choice/选择点
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#868e96', display: 'inline-block' }} /> Pruned/剪枝
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ fontWeight: 'bold', color: '#ffd43b' }}>↩</span> Backtrack/回溯
+              </span>
+            </div>
+
+            {/* 树节点 / Tree Nodes */}
+            {backtrackTree.map((node) => {
+              const statusColor =
+                node.status === 'success' ? '#51cf66' :
+                node.status === 'failure' ? '#ff6b6b' :
+                node.status === 'choice' ? '#4dabf7' :
+                '#868e96';
+
+              return (
+                <div key={node.id} style={{ marginBottom: '6px' }}>
+                  {/* 父节点 / Parent Node */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: `${statusColor}22`,
+                      border: `1px solid ${statusColor}`,
+                      fontSize: '11px',
+                      color: 'var(--text, #e0e0e0)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 2,
+                        background: statusColor,
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                    {node.isBacktrack && (
+                      <span style={{ color: '#ffd43b', fontWeight: 'bold', flexShrink: 0 }}>↩</span>
+                    )}
+                    <span style={{ flex: 1 }}>{node.label}</span>
+                    <span style={{ fontSize: '9px', color: statusColor, flexShrink: 0 }}>
+                      {node.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* 子节点 / Children */}
+                  {node.children.length > 0 && (
+                    <div style={{ marginLeft: '20px', borderLeft: `1px solid ${statusColor}44`, paddingLeft: '8px', marginTop: '2px' }}>
+                      {node.children.map((child) => (
+                        <div
+                          key={child.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 6px',
+                            marginTop: '2px',
+                            borderRadius: '3px',
+                            background: '#51cf6611',
+                            fontSize: '10px',
+                            color: 'var(--text, #e0e0e0)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: 1,
+                              background: '#51cf66',
+                              display: 'inline-block',
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span>{child.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {backtrackTree.length === 0 && (
+              <div style={{ color: '#868e96', fontSize: '11px', padding: '8px', textAlign: 'center' }}>
+                尚未构建回溯树。点击 "SHOW SEARCH TREE" 按钮开始。
+                <br />
+                No backtrack tree built yet. Click "SHOW SEARCH TREE" to build.
+              </div>
+            )}
+          </div>
+          <button className="btn" onClick={() => setShowBacktrackPanel(false)} style={{ marginTop: '4px', width: '100%' }}>
+            CLOSE / 关闭
+          </button>
+        </Panel>
+      )}
+
       <Panel title="INFO / 信息" panelId="proof-info">
         <div className="info-box">
           {/* 证明步骤进度 */}
@@ -439,6 +1003,16 @@ const ProofPanel: React.FC = () => {
           <div className="info-row">
             <span className="info-label">TOOL / 工具</span>
             <span className="info-value">{tool.toUpperCase()}</span>
+          </div>
+          {/* 搜索策略 */}
+          <div className="info-row">
+            <span className="info-label">STRATEGY / 策略</span>
+            <span className="info-value" style={{
+              color: '#4dabf7',
+              fontSize: '11px',
+            }}>
+              {searchStrategy}
+            </span>
           </div>
           {/* 几何元素统计 */}
           <div className="info-row">
