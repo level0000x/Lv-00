@@ -200,10 +200,9 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "magic/magic\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
 # Files with symbol conflicts (duplicate symbol with func_block_preset_ops)
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
-# Files with remaining compatibility issues
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis\\.c$")
-# REGISTER_XX brace-macro — fixed: algebraic_topology, integral_transforms, lattice_theory, representation_theory
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_differential_geometry\\.c$")
+# Files with remaining compatibility issues (REGISTER_XX brace-macro / LaTeX escapes)
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis[.]c")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_differential_geometry[.]c")
 
 
 # ============================================================
@@ -232,6 +231,8 @@ if(BUILD_SHARED_LIBS)
     if(WIN32)
         target_link_libraries(lv00_shared ws2_32)
     endif()
+    # 共享库构建时跳过有编译错误的预设
+    target_compile_definitions(lv00_shared PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
     set_target_properties(lv00_shared PROPERTIES
         OUTPUT_NAME lv00
         VERSION ${PROJECT_VERSION}
