@@ -201,12 +201,11 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
 # Files with remaining compatibility issues
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis\\.c$")
 # REGISTER_XX brace-macro — partially fixed, remaining calls need manual review
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_algebraic_topology\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_integral_transforms\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_lattice_theory\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_representation_theory\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_differential_geometry\\.c$")
-# Files with REGISTER_XX({TYPES}) brace-macro — LaTeX ; in strings breaks regex fix
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_algebraic_topology\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_integral_transforms\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_lattice_theory\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_representation_theory\\.c$")
 
 
 # ============================================================
