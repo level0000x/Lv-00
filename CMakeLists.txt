@@ -198,13 +198,11 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "^src/symbolic_coord\\.c$")
 # Exclude incomplete/legacy files that use incompatible type systems
 list(FILTER LV00_SOURCES EXCLUDE REGEX "magic/magic\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
+# Files with symbol conflicts (duplicate symbol with func_block_preset_ops)
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
 # Files with remaining compatibility issues
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_functional_analysis\\.c$")
-# REGISTER_XX brace-macro — partially fixed, remaining calls need manual review
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_algebraic_topology\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_integral_transforms\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_lattice_theory\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_representation_theory\.c$")
+# REGISTER_XX brace-macro — fixed: algebraic_topology, integral_transforms, lattice_theory, representation_theory
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_differential_geometry\\.c$")
 
 
@@ -231,6 +229,9 @@ if(BUILD_SHARED_LIBS)
         ${CMAKE_SOURCE_DIR}/include/lv00
     )
     target_link_libraries(lv00_shared ${GMP_LIBRARIES})
+    if(WIN32)
+        target_link_libraries(lv00_shared ws2_32)
+    endif()
     set_target_properties(lv00_shared PROPERTIES
         OUTPUT_NAME lv00
         VERSION ${PROJECT_VERSION}

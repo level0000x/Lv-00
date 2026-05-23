@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_integral_transforms.c
  * @brief 积分变换预设函数块 - 实现
  *
@@ -46,9 +46,9 @@
  * @param constructive  是否构造性
  * @param reversible    是否可逆
  */
-#define REGISTER_IT(preset_name, desc, inputs, n_inputs, output, math, comp, constructive, reversible) \
+#define REGISTER_IT(preset_name, desc, n_inputs, output, math, comp, constructive, reversible, ...) \
     do { \
-        PresetType _in[] = inputs; \
+        PresetType _in[] = { __VA_ARGS__ }; \
         if (register_it_preset(preset_name, desc, _in, n_inputs, output, math, comp, constructive, reversible)) { \
             success_count++; \
         } \
@@ -115,13 +115,13 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_FOURIER_SERIES,
         "傅里叶级数：将周期函数 f(t) 展开为正弦/余弦项之和，计算系数 {a_n, b_n}",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR}, 2, PRESET_TYPE_SERIES,
+        2, PRESET_TYPE_SERIES,
         "f(t) = \\frac{a_0}{2} + \\sum_{n=1}^{\\infty} "
         "[a_n \\cos(n\\omega t) + b_n \\sin(n\\omega t)], \\quad "
         "a_n = \\frac{2}{T}\\int_0^T f(t)\\cos(n\\omega t)\\,dt, \\quad "
         "b_n = \\frac{2}{T}\\int_0^T f(t)\\sin(n\\omega t)\\,dt",
-        "O(N^2)", true, true);
-
+        "O(N^2)", true, true,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR);
     /**
      * @brief 傅里叶变换
      *
@@ -137,10 +137,10 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_FOURIER_TRANSFORM,
         "傅里叶变换：将时域信号 f(t) 变换为频域表示 F(omega) = ∫ f(t) e^{-i omega t} dt",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "\\hat{f}(\\xi) = \\int_{-\\infty}^{\\infty} f(x)\\,e^{-2\\pi i x\\xi}\\,dx",
-        "O(N \\log N)", true, true);
-
+        "O(N \\log N)", true, true,
+        PRESET_TYPE_FUNCTION);
     /**
      * @brief 逆傅里叶变换
      *
@@ -156,10 +156,10 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_INVERSE_FOURIER,
         "逆傅里叶变换：将频域信号 F(omega) 恢复为时域信号 f(t)（与正变换构成可逆对）",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "f(x) = \\int_{-\\infty}^{\\infty} \\hat{f}(\\xi)\\,e^{2\\pi i x\\xi}\\,d\\xi",
-        "O(N \\log N)", true, true);
-
+        "O(N \\log N)", true, true,
+        PRESET_TYPE_FUNCTION);
     /**
      * @brief 离散傅里叶变换（DFT）
      *
@@ -175,10 +175,10 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_DFT,
         "离散傅里叶变换（DFT）：对长度为N的离散序列 x[n] 计算频谱 X[k] = sum x[n]·exp(-2πikn/N)",
-        {PRESET_TYPE_SEQUENCE}, 1, PRESET_TYPE_SEQUENCE,
+        1, PRESET_TYPE_SEQUENCE,
         "X_k = \\sum_{n=0}^{N-1} x_n \\cdot e^{-2\\pi i kn/N}, \\quad k = 0,\\dots,N-1",
-        "O(N^2)", true, true);
-
+        "O(N^2)", true, true,
+        PRESET_TYPE_SEQUENCE);
     /**
      * @brief 快速傅里叶变换（FFT）
      *
@@ -193,11 +193,11 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_FFT,
         "快速傅里叶变换（FFT）：用 Cooley-Tukey 分治算法将 DFT 从 O(N^2) 加速至 O(N log N)",
-        {PRESET_TYPE_SEQUENCE}, 1, PRESET_TYPE_SEQUENCE,
+        1, PRESET_TYPE_SEQUENCE,
         "X_k = \\sum_{n=0}^{N-1} x_n \\cdot \\omega_N^{kn}, \\quad "
         "\\omega_N = e^{-2\\pi i/N}",
-        "O(N \\log N)", true, true);
-
+        "O(N \\log N)", true, true,
+        PRESET_TYPE_SEQUENCE);
     /**
      * @brief 傅里叶余弦/正弦变换
      *
@@ -213,13 +213,13 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_FOURIER_SINE_COSINE,
         "傅里叶余弦/正弦变换：将实偶/实奇函数进行对称展开，用于 JPEG 压缩和 PDE 求解",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_BOOLEAN}, 2, PRESET_TYPE_FUNCTION,
+        2, PRESET_TYPE_FUNCTION,
         "C_k = \\sum_{n=0}^{N-1} x_n \\cos\\left[\\frac{\\pi}{N}"
         "\\left(n+\\frac{1}{2}\\right)k\\right], \\quad "
         "S_k = \\sum_{n=0}^{N-1} x_n \\sin\\left[\\frac{\\pi}{N}"
         "(n+1)(k+1)\\right]",
-        "O(N)", true, true);
-
+        "O(N)", true, true,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_BOOLEAN);
     /* ============================================================
      * 第二部分：拉普拉斯变换（5个）
      * ============================================================ */
@@ -239,11 +239,11 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_LAPLACE_TRANSFORM,
         "拉普拉斯变换：将因果信号 f(t), t>=0 变换到 s 域 F(s) = ∫_{0}^{∞} f(t) e^{-st} dt",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "F(s) = \\mathcal{L}\\{f(t)\\} = "
         "\\int_0^{\\infty} f(t) e^{-st}\\,dt, \\quad s \\in \\mathbb{C}",
-        "O(N)", true, true);
-
+        "O(N)", true, true,
+        PRESET_TYPE_FUNCTION);
     /**
      * @brief 逆拉普拉斯变换
      *
@@ -258,12 +258,12 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_INVERSE_LAPLACE,
         "逆拉普拉斯变换：通过 Bromwich 积分将 s 域函数恢复为时域信号 f(t)",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "f(t) = \\mathcal{L}^{-1}\\{F(s)\\} = "
         "\\frac{1}{2\\pi i} \\int_{\\gamma-i\\infty}^{\\gamma+i\\infty} "
         "F(s) e^{st}\\,ds",
-        "O(N)", true, true);
-
+        "O(N)", true, true,
+        PRESET_TYPE_FUNCTION);
     /**
      * @brief 卷积定理
      *
@@ -279,10 +279,10 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_CONVOLUTION_THEOREM,
         "卷积定理：时域卷积对应 s 域乘积 L{f*g} = F(s)G(s)，简化系统分析",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION}, 2, PRESET_TYPE_FUNCTION,
+        2, PRESET_TYPE_FUNCTION,
         "\\mathcal{L}\\{(f*g)(t)\\} = F(s) \\cdot G(s)",
-        "O(N)", false, false);
-
+        "O(N)", false, false,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION);
     /**
      * @brief 传递函数
      *
@@ -298,12 +298,12 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_TRANSFER_FUNCTION,
         "传递函数：由 LTI 系统的微分方程推导 H(s) = Y(s)/X(s)，描述输入-输出关系",
-        {PRESET_TYPE_LIST, PRESET_TYPE_LIST}, 2, PRESET_TYPE_FUNCTION,
+        2, PRESET_TYPE_FUNCTION,
         "H(s) = \\frac{Y(s)}{X(s)} = "
         "\\frac{b_m s^m + \\cdots + b_1 s + b_0}"
         "{a_n s^n + \\cdots + a_1 s + a_0}",
-        "O(1)", false, false);
-
+        "O(1)", false, false,
+        PRESET_TYPE_LIST, PRESET_TYPE_LIST);
     /**
      * @brief 初值定理/终值定理
      *
@@ -319,12 +319,12 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_INITIAL_FINAL_THEOREM,
         "初值定理/终值定理：由 s 域 F(s) 直接求 f(0+) 和 f(∞)，无需逆变换",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_TUPLE,
+        1, PRESET_TYPE_TUPLE,
         "f(0^+) = \\lim_{s\\to\\infty} sF(s), \\quad "
         "f(\\infty) = \\lim_{s\\to 0} sF(s) \\; "
         "\\text{（极点均在 LHP 条件）}",
-        "O(1)", false, false);
-
+        "O(1)", false, false,
+        PRESET_TYPE_FUNCTION);
     /* ============================================================
      * 第三部分：Z变换（3个）
      * ============================================================ */
@@ -344,11 +344,11 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_Z_TRANSFORM,
         "Z变换：将离散序列 x[n] 变换到 z 域 X(z) = sum x[n]·z^{-n}",
-        {PRESET_TYPE_SEQUENCE}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "X(z) = \\mathcal{Z}\\{x[n]\\} = "
         "\\sum_{n=0}^{\\infty} x[n]\\,z^{-n}",
-        "O(N)", true, true);
-
+        "O(N)", true, true,
+        PRESET_TYPE_SEQUENCE);
     /**
      * @brief 逆Z变换
      *
@@ -363,10 +363,10 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_INVERSE_Z,
         "逆Z变换：将 z 域函数 X(z) 恢复为离散序列 x[n]（留数法/幂级数展开法）",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_SEQUENCE,
+        1, PRESET_TYPE_SEQUENCE,
         "x[n] = \\frac{1}{2\\pi i} \\oint_C X(z) z^{n-1}\\,dz",
-        "O(N)", true, true);
-
+        "O(N)", true, true,
+        PRESET_TYPE_FUNCTION);
     /**
      * @brief Z域卷积
      *
@@ -381,11 +381,11 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_Z_CONVOLUTION,
         "Z域卷积：离散序列卷积的 Z 变换等于各自 Z 变换的乘积 Z{x*y} = X(z)Y(z)",
-        {PRESET_TYPE_SEQUENCE, PRESET_TYPE_SEQUENCE}, 2, PRESET_TYPE_SEQUENCE,
+        2, PRESET_TYPE_SEQUENCE,
         "\\mathcal{Z}\\{x[n] * y[n]\\} = X(z) \\cdot Y(z), \\quad "
         "(x*y)[n] = \\sum_{k} x[k]\\,y[n-k]",
-        "O(N^2)", true, false);
-
+        "O(N^2)", true, false,
+        PRESET_TYPE_SEQUENCE, PRESET_TYPE_SEQUENCE);
     /* ============================================================
      * 第四部分：其他变换（3个）
      * ============================================================ */
@@ -405,10 +405,10 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_MELLIN_TRANSFORM,
         "梅林变换：计算乘性频谱 M{f}(s) = ∫_{0}^{∞} x^{s-1} f(x) dx，乘性群上傅里叶变换",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "\\mathcal{M}\\{f\\}(s) = \\int_0^{\\infty} x^{s-1} f(x)\\,dx",
-        "O(N)", true, true);
-
+        "O(N)", true, true,
+        PRESET_TYPE_FUNCTION);
     /**
      * @brief 希尔伯特变换
      *
@@ -424,12 +424,12 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_HILBERT_TRANSFORM,
         "希尔伯特变换：90度相移积分变换 H{f}(t) = (1/pi)·p.v.∫ f(tau)/(t-tau) dtau",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "\\mathcal{H}\\{f\\}(t) = "
         "\\frac{1}{\\pi} \\operatorname{p.v.}"
         "\\int_{-\\infty}^{\\infty} \\frac{f(\\tau)}{t-\\tau}\\,d\\tau",
-        "O(N \\log N)", true, true);
-
+        "O(N \\log N)", true, true,
+        PRESET_TYPE_FUNCTION);
     /**
      * @brief 小波变换
      *
@@ -445,12 +445,12 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_WAVELET_TRANSFORM,
         "小波变换（CWT）：通过伸缩和平移母小波进行多分辨率时频分析 W_f(a,b)",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION}, 2, PRESET_TYPE_MATRIX,
+        2, PRESET_TYPE_MATRIX,
         "W_f(a,b) = \\frac{1}{\\sqrt{|a|}} "
         "\\int_{-\\infty}^{\\infty} f(t)\\,"
         "\\overline{\\psi\\!\\left(\\frac{t-b}{a}\\right)}\\,dt",
-        "O(N^2)", true, true);
-
+        "O(N^2)", true, true,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION);
     /* ============================================================
      * 第五部分：卷积运算（2个）
      * ============================================================ */
@@ -470,11 +470,11 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_CONTINUOUS_CONVOLUTION,
         "连续卷积：计算两个连续函数的卷积 (f*g)(t) = ∫ f(tau)·g(t-tau) dtau",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION}, 2, PRESET_TYPE_FUNCTION,
+        2, PRESET_TYPE_FUNCTION,
         "(f * g)(t) = \\int_{-\\infty}^{\\infty} "
         "f(\\tau)\\,g(t-\\tau)\\,d\\tau",
-        "O(N^2)", true, false);
-
+        "O(N^2)", true, false,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION);
     /**
      * @brief 离散/循环卷积
      *
@@ -490,10 +490,10 @@ bool preset_integral_transforms_register(void)
      */
     REGISTER_IT(PRESET_IT_DISCRETE_CONVOLUTION,
         "离散/循环卷积：计算有限序列的线性或循环卷积（FFT 加速至 O(N log N)）",
-        {PRESET_TYPE_SEQUENCE, PRESET_TYPE_SEQUENCE, PRESET_TYPE_BOOLEAN}, 3, PRESET_TYPE_SEQUENCE,
+        3, PRESET_TYPE_SEQUENCE,
         "(x * y)[n] = \\sum_{k=0}^{N-1} x[k]\\,y[(n-k)\\bmod N] \\quad \\text{（循环）}",
-        "O(N \\log N)", true, false);
-
+        "O(N \\log N)", true, false,
+        PRESET_TYPE_SEQUENCE, PRESET_TYPE_SEQUENCE, PRESET_TYPE_BOOLEAN);
     /* 返回是否所有预设都注册成功 */
     if (success_count == IT_PRESET_COUNT) {
         /* lv00_log_info("积分变换模块注册成功：%d/%d 个预设", success_count, IT_PRESET_COUNT) */

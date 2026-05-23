@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic_topology.c
  * @brief 代数拓扑预设函数块 - 实现
  *
@@ -46,9 +46,9 @@
  * @param constructive  是否构造性
  * @param reversible    是否可逆
  */
-#define REGISTER_AT(preset_name, desc, inputs, n_inputs, output, math, comp, constructive, reversible) \
+#define REGISTER_AT(preset_name, desc, n_inputs, output, math, comp, constructive, reversible, ...) \
     do { \
-        PresetType _in[] = inputs; \
+        PresetType _in[] = { __VA_ARGS__ }; \
         if (register_at_preset(preset_name, desc, _in, n_inputs, output, math, comp, constructive, reversible)) { \
             success_count++; \
         } \
@@ -115,11 +115,11 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_SIMPLICIAL_HOMOLOGY,
         "单纯同调群：基于单纯复形的单纯链复形计算同调群 H_n(K; G)",
-        {PRESET_TYPE_STRUCTURE, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_GROUP,
+        2, PRESET_TYPE_GROUP,
         "H_n(K; G) = \\frac{\\ker \\partial_n}{\\operatorname{im} \\partial_{n+1}}, \\quad "
         "\\partial_n: C_n \\to C_{n-1}",
-        "O(2^n)", true, false);
-
+        "O(2^n)", true, false,
+        PRESET_TYPE_STRUCTURE, PRESET_TYPE_GROUP);
     /**
      * @brief 奇异同调群
      *
@@ -135,10 +135,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_SINGULAR_HOMOLOGY,
         "奇异同调群：计算一般拓扑空间的奇异同调群 H_n(X; G)（最一般的同调理论）",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_GROUP,
+        2, PRESET_TYPE_GROUP,
         "H_n(X; G) = \\frac{\\ker \\partial_n}{\\operatorname{im} \\partial_{n+1}}",
-        "O(2^n)", false, false);
-
+        "O(2^n)", false, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_GROUP);
     /**
      * @brief 相对同调群
      *
@@ -154,10 +154,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_RELATIVE_HOMOLOGY,
         "相对同调群：计算空间对 (X, A) 的相对同调群 H_n(X, A)",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY}, 2, PRESET_TYPE_GROUP,
+        2, PRESET_TYPE_GROUP,
         "H_n(X, A) = \\frac{\\ker \\partial_n^{rel}}{\\operatorname{im} \\partial_{n+1}^{rel}}",
-        "O(2^n)", true, false);
-
+        "O(2^n)", true, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY);
     /**
      * @brief Mayer-Vietoris序列
      *
@@ -172,10 +172,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_MAYER_VIETORIS,
         "Mayer-Vietoris序列：利用空间开覆盖 U∪V 分解同调群计算",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY}, 3, PRESET_TYPE_STRUCTURE,
+        3, PRESET_TYPE_STRUCTURE,
         "\\cdots \\to H_n(U\\cap V) \\to H_n(U)\\oplus H_n(V) \\to H_n(X) \\to H_{n-1}(U\\cap V) \\to \\cdots",
-        "O(2^n)", true, false);
-
+        "O(2^n)", true, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY);
     /**
      * @brief 切除定理
      *
@@ -190,10 +190,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_EXCISION_THEOREM,
         "切除定理：验证并应用切除同构 H_n(X-Z, A-Z) ≅ H_n(X, A)（闭包条件）",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY}, 3, PRESET_TYPE_BOOLEAN,
+        3, PRESET_TYPE_BOOLEAN,
         "\\bar{Z} \\subset \\operatorname{int}(A) \\Rightarrow H_n(X-Z, A-Z) \\cong H_n(X, A)",
-        "O(2^n)", false, false);
-
+        "O(2^n)", false, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY);
     /**
      * @brief 胞腔同调
      *
@@ -209,10 +209,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_CELLULAR_HOMOLOGY,
         "胞腔同调：基于CW复形的胞腔分解计算同调群 H_n^{CW}(X)",
-        {PRESET_TYPE_STRUCTURE}, 1, PRESET_TYPE_GROUP,
+        1, PRESET_TYPE_GROUP,
         "H_n^{CW}(X) = H_n(C_n^{cell}, \\partial_n^{cell})",
-        "O(n)", true, false);
-
+        "O(n)", true, false,
+        PRESET_TYPE_STRUCTURE);
     /**
      * @brief Betti数
      *
@@ -228,11 +228,11 @@ bool preset_algebraic_topology_register(void)
      * @reversible 否
      */
     REGISTER_AT(PRESET_AT_BETTI_NUMBERS,
-        "Betti数：计算拓扑空间的Betti数 beta_n = rank H_n(X)，描述"洞"的数量",
-        {PRESET_TYPE_GROUP}, 1, PRESET_TYPE_TUPLE,
+        "Betti数：计算拓扑空间的Betti数 beta_n = rank H_n(X)，描述'洞'的数量",
+        1, PRESET_TYPE_TUPLE,
         "\\beta_n = \\operatorname{rank} H_n(X)",
-        "O(n)", true, false);
-
+        "O(n)", true, false,
+        PRESET_TYPE_GROUP);
     /**
      * @brief 同调正合序列
      *
@@ -248,10 +248,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_HOMOLOGY_EXACT_SEQUENCE,
         "同调正合序列：构造空间对 (X, A) 的长正合同调序列",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY}, 2, PRESET_TYPE_STRUCTURE,
+        2, PRESET_TYPE_STRUCTURE,
         "\\cdots \\to H_n(A) \\to H_n(X) \\to H_n(X,A) \\xrightarrow{\\partial} H_{n-1}(A) \\to \\cdots",
-        "O(2^n)", true, false);
-
+        "O(2^n)", true, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY);
     /* ============================================================
      * 第二部分：上同调论（5个）
      * ============================================================ */
@@ -271,11 +271,11 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_SINGULAR_COHOMOLOGY,
         "奇异上同调群：计算拓扑空间的奇异上同调群 H^n(X; G)（对偶链复形）",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_GROUP,
+        2, PRESET_TYPE_GROUP,
         "H^n(X; G) = \\frac{\\ker \\delta^n}{\\operatorname{im} \\delta^{n-1}}, \\quad "
         "\\delta^n = (\\partial_{n+1})^*",
-        "O(2^n)", false, false);
-
+        "O(2^n)", false, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_GROUP);
     /**
      * @brief 上积结构
      *
@@ -291,11 +291,11 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_CUP_PRODUCT,
         "上积结构：计算两个上同调类的上积 alpha ∪ beta ∈ H^{p+q}(X)",
-        {PRESET_TYPE_GROUP, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_GROUP,
+        2, PRESET_TYPE_GROUP,
         "(\\alpha \\smile \\beta)(\\sigma) = "
         "\\alpha(\\sigma|_{[v_0\\ldots v_p]})\\beta(\\sigma|_{[v_p\\ldots v_{p+q}]})",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_GROUP, PRESET_TYPE_GROUP);
     /**
      * @brief de Rham上同调
      *
@@ -311,11 +311,11 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_DE_RHAM_COHOMOLOGY,
         "de Rham上同调：基于光滑流形上微分形式计算de Rham上同调群",
-        {PRESET_TYPE_MANIFOLD}, 1, PRESET_TYPE_GROUP,
+        1, PRESET_TYPE_GROUP,
         "H_{dR}^k(M) = \\frac{\\ker d_k}{\\operatorname{im} d_{k-1}}, \\quad "
         "H_{dR}^k(M) \\cong H^k(M; \\mathbb{R})",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_MANIFOLD);
     /**
      * @brief 下积
      *
@@ -331,10 +331,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_CAP_PRODUCT,
         "下积：计算同调类与上同调类的下积 cap: H_p × H^q -> H_{p-q}",
-        {PRESET_TYPE_GROUP, PRESET_TYPE_GROUP}, 2, PRESET_TYPE_GROUP,
+        2, PRESET_TYPE_GROUP,
         "\\frown: H_p(X) \\times H^q(X) \\to H_{p-q}(X)",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_GROUP, PRESET_TYPE_GROUP);
     /**
      * @brief 上同调环
      *
@@ -350,10 +350,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_COHOMOLOGY_RING,
         "上同调环：构造上同调群的带分次环结构 H^*(X; R)，上积为乘法",
-        {PRESET_TYPE_GROUP}, 1, PRESET_TYPE_STRUCTURE,
+        1, PRESET_TYPE_STRUCTURE,
         "H^*(X; R) = \\bigoplus_{n\\ge 0} H^n(X; R)",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_GROUP);
     /* ============================================================
      * 第三部分：基本群推广 - 高阶同伦（5个）
      * ============================================================ */
@@ -373,10 +373,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_HIGHER_HOMOTOPY_GROUPS,
         "高阶同伦群：计算拓扑空间的n阶同伦群 pi_n(X, x0)（n>=2时为阿贝尔群）",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER}, 2, PRESET_TYPE_GROUP,
+        2, PRESET_TYPE_GROUP,
         "\\pi_n(X, x_0) = [(S^n, *), (X, x_0)], \\quad n \\ge 2 \\Rightarrow \\text{Abel}",
-        "O(2^{2^n})", false, false);
-
+        "O(2^{2^n})", false, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER);
     /**
      * @brief 相对同伦群
      *
@@ -392,10 +392,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_RELATIVE_HOMOTOPY,
         "相对同伦群：计算空间对 (X, A) 的相对同伦群 pi_n(X, A, x0)",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER}, 3, PRESET_TYPE_GROUP,
+        3, PRESET_TYPE_GROUP,
         "\\pi_n(X, A, x_0) = [(D^n, S^{n-1}, *), (X, A, x_0)]",
-        "O(2^{2^n})", false, false);
-
+        "O(2^{2^n})", false, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER);
     /**
      * @brief Hurewicz同态
      *
@@ -412,10 +412,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_HUREWICZ_HOMOMORPHISM,
         "Hurewicz同态：构造从同伦群到同调群的自然同态 h_n: pi_n -> H_n",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER}, 2, PRESET_TYPE_HOMOMORPHISM,
+        2, PRESET_TYPE_HOMOMORPHISM,
         "h_n: \\pi_n(X) \\to H_n(X), \\quad h_n([f]) = f_*([S^n])",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_INTEGER);
     /**
      * @brief 同伦正合序列
      *
@@ -431,10 +431,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_HOMOTOPY_EXACT_SEQUENCE,
         "同伦正合序列：构造空间对 (X, A) 的长正合同伦序列",
-        {PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY}, 2, PRESET_TYPE_STRUCTURE,
+        2, PRESET_TYPE_STRUCTURE,
         "\\cdots \\to \\pi_n(A) \\to \\pi_n(X) \\to \\pi_n(X,A) \\xrightarrow{\\partial} \\pi_{n-1}(A) \\to \\cdots",
-        "O(2^{2^n})", true, false);
-
+        "O(2^{2^n})", true, false,
+        PRESET_TYPE_TOPOLOGY, PRESET_TYPE_TOPOLOGY);
     /**
      * @brief Whitehead定理
      *
@@ -450,10 +450,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_WHITEHEAD_THEOREM,
         "Whitehead定理：判定CW复形间映射是否同伦等价（诱导所有同伦群的同构）",
-        {PRESET_TYPE_FUNCTION, PRESET_TYPE_STRUCTURE, PRESET_TYPE_STRUCTURE}, 3, PRESET_TYPE_BOOLEAN,
+        3, PRESET_TYPE_BOOLEAN,
         "f_*: \\pi_n(X) \\xrightarrow{\\cong} \\pi_n(Y), \\; \\forall n \\Rightarrow f \\text{ 同伦等价}",
-        "O(2^{2^n})", false, false);
-
+        "O(2^{2^n})", false, false,
+        PRESET_TYPE_FUNCTION, PRESET_TYPE_STRUCTURE, PRESET_TYPE_STRUCTURE);
     /* ============================================================
      * 第四部分：单纯复形（5个）
      * ============================================================ */
@@ -473,10 +473,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_SIMPLICIAL_COMPLEX,
         "单纯复形构造：由顶点集合和单形列表构造单纯复形K（满足子单形封闭性）",
-        {PRESET_TYPE_SET, PRESET_TYPE_LIST}, 2, PRESET_TYPE_STRUCTURE,
+        2, PRESET_TYPE_STRUCTURE,
         "K = \\{ \\sigma \\subset V : \\tau \\subset \\sigma \\in K \\Rightarrow \\tau \\in K \\}",
-        "O(n \\log n)", true, false);
-
+        "O(n \\log n)", true, false,
+        PRESET_TYPE_SET, PRESET_TYPE_LIST);
     /**
      * @brief 三角剖分
      *
@@ -492,10 +492,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_TRIANGULATION,
         "三角剖分：对拓扑空间或多面体进行三角剖分，表示为单纯复形",
-        {PRESET_TYPE_TOPOLOGY}, 1, PRESET_TYPE_STRUCTURE,
+        1, PRESET_TYPE_STRUCTURE,
         "|K| \\cong X \\text{（同胚）}",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_TOPOLOGY);
     /**
      * @brief Euler示性数
      *
@@ -511,10 +511,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_EULER_CHARACTERISTIC,
         "Euler示性数：计算单纯复形的Euler示性数 chi = sum (-1)^i * (i维单形数)",
-        {PRESET_TYPE_STRUCTURE}, 1, PRESET_TYPE_INTEGER,
+        1, PRESET_TYPE_INTEGER,
         "\\chi(K) = \\sum_{i=0}^n (-1)^i f_i",
-        "O(n)", true, false);
-
+        "O(n)", true, false,
+        PRESET_TYPE_STRUCTURE);
     /**
      * @brief 重心重分
      *
@@ -530,10 +530,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_BARYCENTRIC_SUBDIVISION,
         "重心重分：计算单纯复形的重心重分 Sd(K)，细化网格但保持几何实现",
-        {PRESET_TYPE_STRUCTURE}, 1, PRESET_TYPE_STRUCTURE,
+        1, PRESET_TYPE_STRUCTURE,
         "\\operatorname{Sd}(K), \\quad |\\operatorname{Sd}(K)| = |K|",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_STRUCTURE);
     /**
      * @brief 单纯逼近
      *
@@ -549,10 +549,10 @@ bool preset_algebraic_topology_register(void)
      */
     REGISTER_AT(PRESET_AT_SIMPLICIAL_APPROX,
         "单纯逼近：构造连续映射的单纯逼近 g: K -> L 满足 |g| ≈ f",
-        {PRESET_TYPE_FUNCTION}, 1, PRESET_TYPE_FUNCTION,
+        1, PRESET_TYPE_FUNCTION,
         "g: K \\to L \\text{ 是 } f: |K| \\to |L| \\text{ 的单纯逼近}",
-        "O(n^2)", true, false);
-
+        "O(n^2)", true, false,
+        PRESET_TYPE_FUNCTION);
     /* 返回是否所有预设都注册成功 */
     if (success_count == AT_PRESET_COUNT) {
         /* lv00_log_info("代数拓扑模块注册成功：%d/%d 个预设", success_count, AT_PRESET_COUNT) */
