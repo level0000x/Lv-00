@@ -1,0 +1,416 @@
+/* ============================================================
+   LV-00 Animations / 动画定义
+   ============================================================ */
+
+/* === Fade Animations / 淡入淡出 === */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* === Slide Animations / 滑入滑出 === */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideOutDown {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideOutUp {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+}
+
+/* === Scale Animations / 缩放动画 === */
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes scaleOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+}
+
+/* === Panel Fade In / 面板淡入 === */
+@keyframes panelFadeIn {
+    from { opacity: 0.5; }
+    to { opacity: 1; }
+}
+
+/* === Toast Slide In / 提示滑入 === */
+@keyframes toast-slide-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* === Toast Slide Out / 提示滑出 === */
+@keyframes toast-slide-out {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.toast {
+    animation: toast-slide-in 0.3s ease;
+}
+
+.toast.hiding {
+    animation: toast-slide-out 0.3s ease forwards;
+}
+
+/* === Loading Bar / 加载条 === */
+.loading-bar {
+    width: 200px;
+    height: 2px;
+    background: var(--color-bg-overlay);
+    overflow: hidden;
+    margin-bottom: var(--spacing-xl);
+    border-radius: var(--radius-full);
+}
+
+.loading-bar-inner {
+    width: 40%;
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    animation: loading-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes loading-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+}
+
+/* === Button Loading Spinner / 按钮加载旋转 === */
+.btn.loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: btn-loading-spin 0.8s linear infinite;
+}
+
+@keyframes btn-loading-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* === Pulse Loading / 脉冲加载 === */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+@keyframes pulse-scale {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.7; }
+}
+
+.loading-pulse {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.loading-pulse-scale {
+    animation: pulse-scale 1.5s ease-in-out infinite;
+}
+
+/* === Spinner / 旋转加载器 === */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border-primary);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: btn-loading-spin 0.8s linear infinite;
+}
+
+.spinner-sm {
+    width: 10px;
+    height: 10px;
+    border-width: 1.5px;
+}
+
+.spinner-lg {
+    width: 24px;
+    height: 24px;
+    border-width: 3px;
+}
+
+/* === Conflict Pulse / 冲突脉冲 === */
+@keyframes conflict-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.conflict-highlight {
+    animation: conflict-pulse 0.8s ease-in-out infinite;
+}
+
+/* === Streaming Entry In / 流式条目进入 === */
+@keyframes streaming-entry-in {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.streaming-entry.new-entry {
+    animation: streaming-entry-in 0.3s ease;
+}
+
+/* === Streaming Pulse / 流式脉冲指示器 === */
+@keyframes streaming-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.streaming-active .streaming-title::after {
+    content: ' \25CF';
+    color: var(--color-trust-green);
+    animation: streaming-pulse 1.2s ease-in-out infinite;
+}
+
+/* === Modal Backdrop Blur / 模态框背景模糊 === */
+@keyframes modal-backdrop-in {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(var(--backdrop-blur));
+        -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    }
+}
+
+@keyframes modal-backdrop-out {
+    from {
+        opacity: 1;
+        backdrop-filter: blur(var(--backdrop-blur));
+        -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    }
+    to {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+    }
+}
+
+.modal-overlay {
+    animation: modal-backdrop-in var(--duration-slow) var(--ease-default);
+}
+
+/* === Panel Collapse Height / 面板折叠高度动画 === */
+@keyframes panel-collapse {
+    from {
+        max-height: 500px;
+        opacity: 1;
+    }
+    to {
+        max-height: 0;
+        opacity: 0;
+    }
+}
+
+@keyframes panel-expand {
+    from {
+        max-height: 0;
+        opacity: 0;
+    }
+    to {
+        max-height: 500px;
+        opacity: 1;
+    }
+}
+
+/* === Button Ripple Effect / 按钮涟漪效果 === */
+@keyframes ripple-effect {
+    0% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* === Canvas Loading / 画布加载动画 === */
+@keyframes canvas-fade-in {
+    from {
+        opacity: 0;
+        filter: blur(2px);
+    }
+    to {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
+.canvas-area {
+    animation: canvas-fade-in var(--duration-slower) var(--ease-out);
+}
+
+/* === Shimmer / 微光效果 === */
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.shimmer {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(var(--color-accent-rgb), 0.05) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+/* === Glow Pulse / 发光脉冲 === */
+@keyframes glow-pulse {
+    0%, 100% {
+        box-shadow: 0 0 4px rgba(var(--color-accent-rgb), 0.2);
+    }
+    50% {
+        box-shadow: 0 0 12px rgba(var(--color-accent-rgb), 0.4);
+    }
+}
+
+.glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* === Reduced Motion / 减少动画 === */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

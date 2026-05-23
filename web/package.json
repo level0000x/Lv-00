@@ -1,0 +1,32 @@
+{
+  "name": "lv00-web",
+  "version": "3.0.1",
+  "description": "Lv-00 Symbolic Geometry Engine - Web Frontend",
+  "private": true,
+  "main": "index.html",
+  "scripts": {
+    "start": "python serve.py",
+    "serve": "python serve.py",
+    "lint": "eslint js/**/*.js",
+    "test": "echo \"No tests configured yet\" && exit 0"
+  },
+  "dependencies": {
+    "katex": "^0.16.9"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lv-00/Lv-00.git"
+  },
+  "keywords": [
+    "geometry",
+    "symbolic",
+    "proof",
+    "constraint-graph",
+    "mathematics"
+  ],
+  "author": "Lv-00 Team",
+  "license": "MIT"
+}

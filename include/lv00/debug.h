@@ -1,0 +1,384 @@
+/**
+ * @file debug.h
+ * @brief 调试子系统 —— 日志、性能计数器、断言、内存池与追踪
+ * @details 提供分级日志系统（DEBUG/INFO/WARN/ERROR）、全局性能计数器、
+ * 归一化/端口不变量断言、引用计数与垃圾回收、内存池、紧急保存机制
+ * 以及归一化/重写/求解的追踪会话。
+ */
+
+#ifndef LV00_DEBUG_H
+#define LV00_DEBUG_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/* [C5 修复] 使用前向声明替代完整包含 engine.h，
+ * 减少编译依赖链。仅需要 LV00Engine 和 ConstraintGraph 指针类型。 */
+struct LV00Engine;
+typedef struct LV00Engine LV00Engine;
+struct ConstraintGraph;
+typedef struct ConstraintGraph ConstraintGraph;
+
+/* 版本宏统一定义在 lv00.h 中，通过 engine.h 间接包含 */
+/* 如果因某些原因未定义，使用编译期拼接回退 */
+#ifndef LV00_VERSION_STRING
+#define LV00_VERSION_STRING_EXPAND_(maj, min, pat) #maj "." #min "." #pat
+#define LV00_VERSION_STRING_MACRO_(maj, min, pat) LV00_VERSION_STRING_EXPAND_(maj, min, pat)
+#define LV00_VERSION_STRING LV00_VERSION_STRING_MACRO_(3, 0, 1)
+#endif
+
+#define LV00_NAME "Lv-00 Geometry Metalanguage"
+
+/* 日志轮转设置 */
+#define LV00_LOG_MAX_FILES 5
+#define LV00_LOG_MAX_SIZE (10 * 1024 * 1024)  /* 10MB */
+#define LV00_LOG_PATH_MAX 256
+
+/* 日志级别: DEBUG < INFO < WARN < ERROR */
+typedef enum {
+    LOG_LEVEL_DEBUG = 0,
+    LOG_LEVEL_INFO  = 1,
+    LOG_LEVEL_WARN  = 2,
+    LOG_LEVEL_ERROR = 3,
+    LOG_LEVEL_NONE  = 4  /* 禁用所有日志 */
+} LogLevel;
+
+/* 性能计数器（第18.5节） */
+typedef struct PerformanceCounters {
+    /* 节点统计 */
+    uint64_t total_nodes_created;
+    uint64_t current_nodes_alive;
+    
+    /* 约束统计 */
+    uint64_t total_constraints_created;
+    uint64_t current_constraints_alive;
+    
+    /* 求解器统计 */
+    uint64_t solver_call_count;
+    uint64_t solver_total_time_us;   /* 总耗时（微秒） */
+    double    solver_avg_time_us;    /* 平均耗时（微秒） */
+    
+    /* 重写引擎统计 */
+    uint64_t rewrite_total_steps;
+    uint64_t rewrite_rule_applications;
+    
+    /* 合一检查统计 */
+    uint64_t unify_check_count;
+    uint64_t unify_success_count;
+    
+    /* 内存统计 */
+    uint64_t memory_usage_peak;
+    uint64_t memory_current;
+} PerformanceCounters;
+
+/* 调试上下文，用于断言和追踪 */
+typedef struct DebugContext {
+    bool normalization_assertions;
+    bool port_invariant_checks;
+    bool rewrite_trace;
+    bool solver_trace;
+    bool abort_on_violation;
+    int violation_count;
+} DebugContext;
+
+/*=== 调试上下文函数 ===*/
+DebugContext *debug_context_create(void);
+void debug_context_destroy(DebugContext *ctx);
+
+/*=== 端口不变量断言 ===*/
+int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx);
+
+/*=== 遗留日志函数（向后兼容） ===*/
+void debug_log_normalization(const char *fmt, ...);
+void debug_log_rewrite(const char *fmt, ...);
+void debug_log_solver(const char *fmt, ...);
+
+/*=== 新日志系统 ===*/
+
+/**
+ * @brief 初始化日志系统。
+ * 如需要则创建日志目录，打开日志文件。
+ * @return 成功返回 0，失败返回负值
+ */
+int debug_log_init(void);
+
+/**
+ * @brief 关闭日志系统。
+ * 关闭日志文件并释放资源。
+ */
+void debug_log_shutdown(void);
+
+/**
+ * @brief 设置当前日志级别。
+ * @param level 最低日志级别
+ */
+void debug_set_log_level(LogLevel level);
+
+/**
+ * @brief 获取当前日志级别。
+ * @return 当前日志级别
+ */
+LogLevel debug_get_log_level(void);
+
+/**
+ * @brief 设置调试模式（记录所有级别，包括 DEBUG）。
+ * @param debug_mode true 启用调试模式，false 恢复普通模式
+ */
+void debug_set_mode(bool debug_mode);
+
+/**
+ * @brief 检查调试模式是否启用。
+ * @return 调试模式启用时返回 true
+ */
+bool debug_is_debug_mode(void);
+
+/**
+ * @brief 核心日志函数，支持级别和模块参数。
+ * @param level  此消息的日志级别
+ * @param module 模块名称（如 "solver"、"rewrite"、"unify"）
+ * @param fmt    printf 风格的格式化字符串
+ * @param ...    格式化参数
+ */
+void debug_log(LogLevel level, const char *module, const char *fmt, ...);
+
+/**
+ * @brief 各级别日志的便捷宏。
+ */
+#define LOG_DEBUG(module, fmt, ...) debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__)
+#define LOG_INFO(module, fmt, ...)  debug_log(LOG_LEVEL_INFO, module, fmt, ##__VA_ARGS__)
+#define LOG_WARN(module, fmt, ...)  debug_log(LOG_LEVEL_WARN, module, fmt, ##__VA_ARGS__)
+#define LOG_ERROR(module, fmt, ...) debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__)
+
+/*=== 性能计数器 ===*/
+
+/**
+ * @brief 获取全局性能计数器。
+ * 返回当前计数器值的快照。
+ * @param counters 用于存储计数器值的指针
+ */
+void debug_get_counters(PerformanceCounters *counters);
+
+/**
+ * @brief 将所有性能计数器重置为零。
+ */
+void debug_reset_counters(void);
+
+/* 计数器递增函数（由其他模块调用） */
+void debug_counter_node_created(void);
+void debug_counter_node_destroyed(void);
+void debug_counter_constraint_created(void);
+void debug_counter_constraint_destroyed(void);
+void debug_counter_solver_called(uint64_t time_us);
+void debug_counter_rewrite_step(void);
+void debug_counter_rule_applied(void);
+void debug_counter_unify_called(bool success);
+void debug_counter_memory_update(uint64_t current_bytes);
+
+/*=== 工具函数 ===*/
+
+/**
+ * @brief 将性能计数器格式化为可读字符串。
+ * 调用者须负责释放返回的字符串。
+ * @return 新分配的包含计数器报告的字符串
+ */
+char *debug_counters_report(void);
+
+/**
+ * @brief 获取日志文件路径。
+ * @param buf  存储路径的缓冲区
+ * @param size 缓冲区大小
+ * @return 成功返回 0，失败返回负值
+ */
+int debug_get_log_path(char *buf, size_t size);
+
+/*=== 归一化不变量断言 ===*/
+
+/**
+ * @brief 对引擎的约束图断言归一化不变量。
+ * 返回违规数量（0 = 全部通过）。
+ */
+int debug_assert_normalization_invariants(const LV00Engine *engine, DebugContext *ctx);
+
+/*=== 内存池 ===*/
+
+/**
+ * @brief 内存池——用于频繁分配/释放的小对象
+ */
+typedef struct MemPool MemPool;
+
+/**
+ * @brief 创建内存池
+ * @param block_size  每个块的大小（字节）
+ * @param initial_blocks  初始块数量
+ */
+MemPool *mem_pool_create(size_t block_size, int initial_blocks);
+
+/**
+ * @brief 从内存池分配一个块
+ */
+void *mem_pool_alloc(MemPool *pool);
+
+/**
+ * @brief 将块归还内存池
+ */
+void mem_pool_free(MemPool *pool, void *block);
+
+/**
+ * @brief 销毁内存池
+ */
+void mem_pool_destroy(MemPool *pool);
+
+/**
+ * @brief 获取内存池统计信息
+ * @param total_bytes 使用 size_t* 类型，避免大内存池场景下 int 截断
+ */
+void mem_pool_stats(const MemPool *pool, int *total_blocks, int *free_blocks, size_t *total_bytes);
+
+/*=== 引用计数与垃圾回收 ===*/
+
+/**
+ * @brief 引用计数对象基类
+ */
+typedef struct {
+    int ref_count;
+    void (*destructor)(void *self);
+} RefCounted;
+
+/**
+ * @brief 增加引用计数
+ */
+void ref_count_inc(void *obj);
+
+/**
+ * @brief 减少引用计数，到0时自动销毁
+ */
+bool ref_count_dec(void *obj);
+
+/**
+ * @brief 获取当前引用计数
+ */
+int ref_count_get(const void *obj);
+
+/*=== 紧急保存 ===*/
+
+/**
+ * @brief 紧急保存——在崩溃/异常时保存调试信息
+ *
+ * 将当前引擎状态、性能计数器、日志缓冲区等保存到文件。
+ */
+typedef struct {
+    char *filepath;             /* 保存路径 */
+    bool include_graph;         /* 是否包含约束图快照 */
+    bool include_counters;      /* 是否包含性能计数器 */
+    bool include_log_buffer;    /* 是否包含日志缓冲区 */
+    bool include_memory_map;    /* 是否包含内存分配映射 */
+} EmergencySaveConfig;
+
+/**
+ * @brief 执行紧急保存
+ */
+bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *config);
+
+/**
+ * @brief 设置紧急保存回调（在信号处理程序中调用）
+ */
+typedef void (*EmergencySaveHandler)(const char *reason);
+
+void debug_set_emergency_handler(EmergencySaveHandler handler);
+
+/*=== 端口不变量断言（完整版） ===*/
+
+/**
+ * @brief 端口不变量检查结果
+ */
+typedef struct {
+    bool all_valid;
+    int total_ports;
+    int invalid_ports;
+    int *invalid_port_ids;
+    char **error_messages;
+} PortInvariantResult;
+
+/**
+ * @brief 执行完整的端口不变量检查
+ *
+ * 检查所有端口的不变量：
+ * 1. INPUT 端口的 namespace_depth <= 父函数块的 namespace_depth
+ * 2. OUTPUT 端口的 namespace_depth <= 父函数块的 namespace_depth
+ * 3. 端口连接的对方节点存在
+ * 4. 端口的类型区域与连接节点的类型兼容
+ */
+PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph);
+
+/**
+ * @brief 销毁端口不变量检查结果
+ */
+void debug_port_invariant_result_destroy(PortInvariantResult *result);
+
+/*=== 归一化/重写/求解追踪 ===*/
+
+/**
+ * @brief 追踪事件类型
+ */
+typedef enum {
+    TRACE_NORMALIZATION,
+    TRACE_REWRITE,
+    TRACE_SOLVER
+} TraceEventType;
+
+/**
+ * @brief 追踪事件
+ */
+typedef struct {
+    TraceEventType type;
+    double timestamp;
+    int step_number;
+    char *description;
+    char *details;              /* JSON 格式的详细信息 */
+} TraceEvent;
+
+/**
+ * @brief 追踪会话
+ */
+typedef struct {
+    TraceEvent *events;
+    int event_count;
+    int capacity;
+    bool active;
+} TraceSession;
+
+/**
+ * @brief 创建追踪会话
+ */
+TraceSession *trace_session_create(void);
+
+/**
+ * @brief 销毁追踪会话
+ */
+void trace_session_destroy(TraceSession *session);
+
+/**
+ * @brief 记录追踪事件
+ */
+void trace_record_event(TraceSession *session, TraceEventType type,
+                         int step, const char *description, const char *details);
+
+/**
+ * @brief 导出追踪会话为 JSON
+ */
+char *trace_session_export_json(const TraceSession *session);
+
+/**
+ * @brief 获取全局追踪会话
+ */
+TraceSession *debug_get_trace_session(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LV00_DEBUG_H */

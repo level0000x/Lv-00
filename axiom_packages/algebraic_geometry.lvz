@@ -1,0 +1,364 @@
+# =============================================================================
+# Lv-00 Axiom Package: Algebraic Geometry
+# =============================================================================
+#
+# Mathematical Theory: Algebraic Geometry
+# Axiomatization: Sheaf axioms (3) + Scheme axioms (4)
+#
+# References:
+#   - Wikipedia: Algebraic geometry
+#     https://en.wikipedia.org/wiki/Algebraic_geometry
+#   - Hartshorne, R. (1977). "Algebraic Geometry." Springer.
+#     ISBN 0-387-90244-9.
+#   - Wikipedia: Algebraic variety
+#     https://en.wikipedia.org/wiki/Algebraic_variety
+#   - Wikipedia: Scheme (mathematics)
+#     https://en.wikipedia.org/wiki/Scheme_(mathematics)
+#   - Wikipedia: Sheaf theory
+#     https://en.wikipedia.org/wiki/Sheaf_theory
+#   - nLab: Algebraic geometry
+#     https://ncatlab.org/nlab/show/algebraic+geometry
+#
+# Primitive Notions:
+#   - Affine space A^n over a field k
+#   - Algebraic set V(I) defined by ideal I
+#   - Affine coordinate ring k[V]
+#   - Sheaf of rings on a topological space
+#   - Scheme: locally ringed space locally isomorphic to an affine scheme
+#
+# Core Axioms (7):
+#   Sheaf Axioms (3):
+#     S1. Locality:      If sections s, t of F over U agree on all
+#                        open V ⊆ U, then s = t.
+#     S2. Gluability:    Given open cover {U_i} of U and sections
+#                        s_i in F(U_i) agreeing on overlaps, there
+#                        exists a unique s in F(U) restricting to s_i.
+#     S3. Restriction:   Res(U, V): F(U) -> F(V) for V ⊆ U, with
+#                        Res(U, U) = id and Res(U, W) = Res(V, W) o Res(U, V).
+#
+#   Scheme Axioms (4):
+#     X1. Local isomorphism: Every point has a neighborhood isomorphic
+#                            to an affine scheme Spec(R).
+#     X2. Separatedness:   The diagonal morphism X -> X x Y is closed.
+#     X3. Properness:      Proper over base S: universally closed + finite
+#                          type + separated.
+#     X4. Morphism:        Structure preserving map of locally ringed spaces.
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "algebraic_geometry" "1.0.0" {
+
+    # =================================================================
+    # Group I: Affine Algebraic Geometry (6)
+    # =================================================================
+
+    # Affine space — A^n(k) = k^n, the n-dimensional vector space over
+    # a field k; serves as ambient space for algebraic varieties
+    template "affine_space" 2
+
+    # Algebraic set — V(I) = { x in A^n : f(x) = 0 for all f in I },
+    # the zero set of an ideal I in k[x_1,...,x_n]; closed sets
+    # of Zariski topology
+    template "algebraic_set" 1
+
+    # Zariski topology — the topology on A^n where closed sets are
+    # algebraic sets; quasi-compact but not Hausdorff; basis of
+    # algebraic geometry
+    template "zariski_topology" 1
+
+    # Coordinate ring — k[V] = k[x_1,...,x_n]/I(V), the ring of
+    # polynomial functions on an algebraic set V; fundamental
+    # invariant encoding geometric structure
+    template "coordinate_ring" 1
+
+    # Hilbert Nullstellensatz — I(V(I)) = sqrt(I) for algebraically
+    # closed fields; establishes bijection between algebraic sets
+    # and radical ideals
+    template "hilbert_nullstellensatz" 2
+
+    # Ideal-variety correspondence — radical ideals correspond to
+    # algebraic sets: V: Rad(I) -> V(I), I: X -> I(X); fundamental
+    # bridge between algebra and geometry
+    template "ideal_variety_correspondence" 2
+
+    # =================================================================
+    # Group II: Projective Geometry (5)
+    # =================================================================
+
+    # Projective space — P^n = (k^{n+1} \ {0}) / ~ where x ~ lambda*x;
+    # compactification of affine space; includes points at infinity
+    template "projective_space" 1
+
+    # Projective variety — an algebraic set in P^n; homogeneous
+    # coordinate ring k[x_0,...,x_n]/I; compact in Zariski topology
+    template "projective_variety" 1
+
+    # Homogeneous coordinates — [x_0:...:x_n] in P^n; coordinates
+    # defined up to scalar multiplication; ring k[x_0,...,x_n] is
+    # graded by degree
+    template "homogeneous_coordinates" 1
+
+    # Serre duality — for a coherent sheaf F on a smooth projective
+    # variety X: H^i(X, F) ≅ Ext^i(Omega_X, F)*; relates sheaf
+    # cohomology to Ext groups
+    template "serre_duality" 2
+
+    # Projective normality — a projective variety X subset P^n is
+    # projectively normal if its homogeneous coordinate ring is
+    # integrally closed; stronger than normality
+    template "projective_normality" 1
+
+    # =================================================================
+    # Group III: Scheme Theory (6)
+    # =================================================================
+
+    # Scheme theory — a locally ringed space locally isomorphic to
+    # affine schemes; generalization of algebraic varieties allowing
+    # nilpotents and non-reduced structures
+    template "scheme_theory" 1
+
+    # Affine scheme — Spec(R) for a commutative ring R; topological
+    # space of prime ideals with Zariski topology; structure sheaf
+    # given by localization
+    template "affine_scheme" 1
+
+    # Locally ringed space — a topological space X with a sheaf of
+    # rings O_X such that each stalk O_{X,x} is a local ring; scheme
+    # is a locally ringed space locally isomorphic to affine schemes
+    template "locally_ringed_space" 1
+
+    # Separated morphism — a morphism f: X -> Y is separated if
+    # the diagonal morphism X -> X x_Y X is closed; property of
+    # schemes analogous to Hausdorff for manifolds
+    template "separated_morphism" 1
+
+    # Proper morphism — morphism f: X -> Y of finite type that is
+    # universally closed (closed under base change) and separated;
+    # projective morphisms are proper; proper curves are complete
+    template "proper_morphism" 1
+
+    # Morphism of schemes — a pair (f, f^#) where f: |X| -> |Y| is
+    # continuous and f^#: O_Y -> f_* O_X is a morphism of sheaves
+    # of rings preserving local behavior
+    template "morphism_of_schemes" 2
+
+    # =================================================================
+    # Group IV: Sheaves and Cohomology (6)
+    # =================================================================
+
+    # Sheaf of rings — a functor O: Open(X)^op -> Rings satisfying
+    # locality and gluing axioms; structure sheaf O_X of a scheme
+    # has local rings as stalks
+    template "sheaf_of_rings" 1
+
+    # Presheaf — a contravariant functor from Open(X) to Sets or
+    # Rings; becomes a sheaf when satisfying locality and gluing;
+    # presheaf of abelian groups for cohomology
+    template "presheaf" 2
+
+    # Sheafification — the functor from presheaves to sheaves:
+    # for any presheaf F, there is a universal map F -> F^+ such
+    # that F^+ is a sheaf and any map to a sheaf factors uniquely
+    template "sheafification" 1
+
+    # Cohomology group — H^i(X, F) for a sheaf F on a topological
+    # space X; computed via injective resolutions; derived functor
+    # of global sections Gamma(X, -)
+    template "cohomology_group" 2
+
+    # Serre criterion — conditions for affineness: R^i pi_* F = 0
+    # for i > 0 and all quasi-coherent F; equivalently, algebraic
+    # versions of Cartan's criteria A and B
+    template "serre_criterion" 2
+
+    # Leray cover — an open cover {U_i} used to compute sheaf
+    # cohomology via Cech cohomology; for affine schemes, Cech
+    # cohomology vanishes for quasi-coherent sheaves
+    template "leray_cover" 2
+
+    # =================================================================
+    # Group V: Dimension Theory (5)
+    # =================================================================
+
+    # Krull dimension — dim(R) = supremum of lengths n of chains
+    # of prime ideals; geometrically, dimension of associated
+    # scheme; purely algebraic notion
+    template "krull_dimension" 1
+
+    # Codimension — for a subvariety Y subset X, codim(Y, X) is
+    # the length of maximal chains of subvarieties between Y and X;
+    # equals dim(R) - dim(R/p) for prime p
+    template "codimension" 2
+
+    # Dimension theorem — for a Noetherian ring R: dim(R/p) +
+    # ht(p) = dim(R) for any prime p; relates dimension of quotient
+    # to height of prime
+    template "dimension_theorem" 2
+
+    # Transcendence degree — for a field extension L/k, trdeg(L/k)
+    # is the cardinality of a transcendence basis; equals dimension
+    # of Var(L) for varieties over algebraically closed fields
+    template "transcendence_degree" 1
+
+    # Regular local ring — a Noetherian local ring (R, m) such that
+    # dim(R) = dim_k (m/m^2); equivalent to smoothness in dimension
+    # theory; regular rings are integral and catenary
+    template "regular_local_ring" 1
+
+    # =================================================================
+    # Group VI: Special Varieties (5)
+    # =================================================================
+
+    # Algebraic curve — a 1-dimensional integral scheme of finite
+    # type over a field; classified by genus g: genus 0 are
+    # rational (P^1), genus 1 are elliptic curves (with marked point)
+    template "algebraic_curve" 1
+
+    # Elliptic curve scheme — a smooth projective genus 1 curve with
+    # a marked rational point (identity); group variety structure
+    # given by chord-tangent process; abelian variety of dimension 1
+    template "elliptic_curve_scheme" 1
+
+    # Abelian variety — a complete algebraic group; a projective
+    # variety with group structure; examples include elliptic curves
+    # (dim 1), Jacobian varieties (dim g), and products thereof
+    template "abelian_variety" 1
+
+    # Grassmannian — G(k, n) = { k-dimensional subspaces of V };
+    # smooth projective variety of dimension k(n-k); parameterizes
+    # subspaces; Schubert cells give cellular decomposition
+    template "grassmannian" 2
+
+    # Flag variety — complete flag variety Fl(V) parameterizing
+    # chains of subspaces; homogeneous space G/B for algebraic
+    # group G with Borel subgroup B; cellular with Schubert cells
+    template "flag_variety" 1
+
+    # =================================================================
+    # Group VII: Commutative Algebra Connections (5)
+    # =================================================================
+
+    # Noetherian ring — a ring where every ascending chain of ideals
+    # stabilizes; equivalently, every ideal is finitely generated;
+    # fundamental finiteness condition for schemes
+    template "noetherian_ring" 1
+
+    # Artinian ring — a ring where every descending chain of ideals
+    # stabilizes; finite-dimensional over field implies Artinian
+    # iff Noetherian; structure theorem for Artinian rings
+    template "artinian_ring" 1
+
+    # Integral extension — B is integral over A if each b in B
+    # satisfies a monic equation with coefficients in A; lying
+    # over and going up theorems govern prime ideal behavior
+    template "integral_extension" 2
+
+    # Noether normalization — for a field k and finitely generated
+    # k-algebra R, there exists a polynomial ring k[x_1,...,x_d]
+    # such that R is a finitely generated module over it; d = dim(R)
+    template "noether_normalization" 1
+
+    # Zariski main theorem — for a finite morphism f: X -> Y, the
+    # fibers are finite; if Y is normal and f is birational,
+    # then f has connected fibers; relates to fundamental results
+    # in resolution of singularities
+    template "zariski_main_theorem" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (6)
+    # =================================================================
+
+    # Hartshorne conjecture — on lines on hypersurfaces: for X a
+    # smooth complex hypersurface of degree d >= 6 in P^n with
+    # n >= 3d-2, the lines on X should form a linear space of
+    # dimension 2n - d - 5; the general case remains open
+    unconstructible "hartshorne_conjecture" {
+        reduces_to "open_problem"
+        dependency "projective_variety"
+        dependency "hilbert_nullstellensatz"
+        dependency "coordinate_ring"
+        external_ref "https://en.wikipedia.org/wiki/Hartshorne_conjecture"
+        green_verified true
+    }
+
+    # Minimal model program —birational classification of algebraic
+    # varieties: for varieties over fields of characteristic 0,
+    # every variety should have a minimal model or a Mori fiber
+    # space; the program is far advanced but not fully complete,
+    # especially in higher dimensions and mixed characteristic
+    unconstructible "minimal_model_program" {
+        reduces_to "open_problem"
+        dependency "morphism_of_schemes"
+        dependency "proper_morphism"
+        dependency "separated_morphism"
+        dependency "cohomology_group"
+        external_ref "https://en.wikipedia.org/wiki/Minimal_model_program"
+        green_verified true
+    }
+
+    # Resolution of singularities — for a variety X over a field
+    # of characteristic 0, there exists a proper birational
+    # morphism Y -> X with Y smooth; proven by Hironaka in
+    # characteristic 0; but the computational complexity and
+    # explicit algorithms remain areas of active research
+    unconstructible "resolution_of_singularities" {
+        reduces_to "proven_hard"
+        dependency "morphism_of_schemes"
+        dependency "proper_morphism"
+        dependency "projective_variety"
+        dependency "cohomology_group"
+        external_ref "https://en.wikipedia.org/wiki/Resolution_of_singularities"
+        green_verified true
+    }
+
+    # Cohomology ring computation — computing the cup product
+    # structure on H^*(X, k) for an arbitrary smooth projective
+    # variety is in general undecidable; requires solving systems
+    # of polynomial equations and determining ring structure
+    unconstructible "cohomology_ring_computation" {
+        reduces_to "undecidable"
+        dependency "cohomology_group"
+        dependency "sheaf_of_rings"
+        dependency "serre_duality"
+        external_ref "https://en.wikipedia.org/wiki/Cohomology_ring"
+        green_verified true
+    }
+
+    # Rational point existence — for a variety X over a number
+    # field k, determining whether X(k) is nonempty is undecidable
+    # in general (by Matiyasevich's theorem on Diophantine sets);
+    # even for specific classes, the problem can be very difficult
+    unconstructible "rational_point_existence" {
+        reduces_to "undecidable"
+        dependency "algebraic_set"
+        dependency "coordinate_ring"
+        dependency "affine_space"
+        external_ref "https://en.wikipedia.org/wiki/Rational_point"
+        green_verified true
+    }
+
+    # Hilbert's sixteenth problem — determining the maximal number
+    # N(n, m) of limit cycles for a polynomial vector field in R^2
+    # of degree n, and the relative positions of limit cycles and
+    # separatrix cycles for n >= 2, remains open; even the case
+    # n = 2 is not completely solved
+    unconstructible "hilbert_sixteenth_problem" {
+        reduces_to "open_problem"
+        dependency "algebraic_curve"
+        dependency "projective_variety"
+        dependency "cohomology_group"
+        external_ref "https://en.wikipedia.org/wiki/Hilbert%27s_sixteenth_problem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "polynomial_equation_solutions_in_affine_projective_space"
+    negation_encoding "sheaf_stalk_complement"
+    contradiction_behavior "explosion_principle"
+}

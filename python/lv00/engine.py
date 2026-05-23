@@ -1,0 +1,782 @@
+"""
+Lv-00 引擎模块
+
+提供 Lv-00 主引擎的高级 Python 接口，用于：
+    - 工作流编排
+    - 模块/公理加载
+    - 函数打包与实例化
+    - 重写与求解协作
+    - 位电路跳闸处理
+    - 冻结点快照回滚
+    - 合一检查（构造与命题匹配）
+
+设计原则：
+    1. 资源安全：支持上下文管理器，确保资源正确释放
+    2. 错误处理：完整的异常层次结构，清晰的错误消息
+    3. 类型安全：完整的类型提示和参数验证
+    4. 可扩展性：支持自定义模块和公理包加载
+
+版本：3.0.2
+作者：Lv-00 开发团队
+"""
+
+import ctypes
+import os  # 修复：添加 os 导入，用于 os.fsencode() 处理非 UTF-8 路径
+from typing import Any, Dict, List, Optional, Tuple
+
+from ._ctypes_binding import (
+    _lib, _LV00Engine,
+    ENGINE_OK, ENGINE_OUT_OF_MEMORY, ENGINE_INVALID_STATE,
+    ENGINE_CONSTRAINT_CONFLICT, ENGINE_MODULE_ERROR,
+    ENGINE_SOLVE_OK, ENGINE_SOLVE_CONFLICT, ENGINE_SOLVE_TIMEOUT, ENGINE_SOLVE_ERROR,
+    LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_WARN, LOG_LEVEL_ERROR,
+    # 重写相关常量
+    UNIFY_OK, UNIFY_FAILED, UNIFY_TYPE_MISMATCH
+)
+
+
+# ============================================================
+# 异常类
+# ============================================================
+
+class EngineError(Exception):
+    """
+    引擎操作错误基类。
+
+    所有引擎相关异常的父类，当引擎操作失败时抛出。
+
+    属性：
+        message: 异常消息字符串
+        error_code: 可选的错误码（整数，默认为 -1）
+    """
+
+    def __init__(self, message: str = "", error_code: int = -1) -> None:
+        """
+        创建引擎错误异常。
+
+        参数：
+            message: 异常描述消息
+            error_code: 可选的错误码
+        """
+        super().__init__(message)
+        self.message: str = message
+        self.error_code: int = error_code
+
+    def __str__(self) -> str:
+        """
+        返回人类可读的异常字符串。
+
+        返回：
+            str: 格式为 "EngineError(错误码): 消息" 的字符串
+        """
+        if self.error_code >= 0:
+            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
+        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+
+
+class EngineMemoryError(EngineError):
+    """内存不足错误。"""
+    pass
+
+
+class EngineStateError(EngineError):
+    """引擎状态错误。"""
+    pass
+
+
+class EngineConflictError(EngineError):
+    """约束冲突错误。"""
+    pass
+
+
+class EngineModuleError(EngineError):
+    """模块加载错误。"""
+    pass
+
+
+# ============================================================
+# 引擎类
+# ============================================================
+
+class Engine:
+    """
+    Lv-00 主引擎类。
+    
+    引擎是系统的核心，协调所有子系统的工作。
+    提供统一的接口来管理约束图、模块、公理包和求解流程。
+    
+    示例：
+        >>> engine = Engine()
+        >>> engine.load_module("my_module.lv00")
+        >>> engine.load_axiom_package("geometry_axioms.lv00")
+        >>> result = engine.solve()
+    """
+    
+    def __init__(self):
+        """
+        创建新的引擎实例。
+        
+        异常：
+            EngineError: 创建失败
+        """
+        self._ptr = _lib.engine_create()
+        if not self._ptr:
+            raise EngineError("创建引擎失败")
+        self._owns_ptr = True
+    
+    def __del__(self):
+        """
+        析构函数：释放引擎资源。
+
+        释放底层 C 引擎指针，仅在引擎拥有指针所有权时执行。
+        """
+        if hasattr(self, '_ptr') and self._ptr and getattr(self, '_owns_ptr', True):
+            try:
+                _lib.engine_destroy(self._ptr)
+            except Exception:
+                pass
+            self._ptr = None
+
+    def __enter__(self) -> 'Engine':
+        """
+        上下文管理器入口，支持 with 语句。
+
+        使用 with 语句可以确保引擎资源在使用完毕后自动释放，
+        无需手动调用 destroy_frozen_point 等清理方法。
+
+        返回：
+            Engine: 引擎自身
+
+        示例：
+            >>> with Engine() as engine:
+            ...     engine.load_module("module.lv00")
+            ...     engine.solve()
+            # 退出 with 块后自动释放引擎资源
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """
+        上下文管理器出口，自动释放引擎资源。
+
+        无论 with 块中是否发生异常，都会确保引擎资源被释放。
+
+        参数：
+            exc_type: 异常类型（无异常时为 None）
+            exc_val: 异常值（无异常时为 None）
+            exc_tb: 异常回溯（无异常时为 None）
+
+        返回：
+            None: 不抑制异常，让异常正常传播
+        """
+        if hasattr(self, '_ptr') and self._ptr and getattr(self, '_owns_ptr', True):
+            try:
+                _lib.engine_destroy(self._ptr)
+            except Exception:
+                pass
+            self._ptr = None
+        # 不抑制异常，返回 None 让异常继续传播
+        return None
+
+    def _check_status(self, status: int) -> None:
+        """
+        检查引擎状态码，异常时抛出对应错误。
+        
+        参数：
+            status: 状态码
+        
+        异常：
+            EngineMemoryError: 内存不足
+            EngineStateError: 状态错误
+            EngineConflictError: 约束冲突
+            EngineModuleError: 模块错误
+        """
+        if status == ENGINE_OK:
+            return
+        elif status == ENGINE_OUT_OF_MEMORY:
+            raise EngineMemoryError("内存不足")
+        elif status == ENGINE_INVALID_STATE:
+            raise EngineStateError("引擎状态无效")
+        elif status == ENGINE_CONSTRAINT_CONFLICT:
+            raise EngineConflictError("约束冲突")
+        elif status == ENGINE_MODULE_ERROR:
+            raise EngineModuleError("模块错误")
+        else:
+            raise EngineError(f"未知错误: {status}")
+    
+    # ============================================================
+    # 求解
+    # ============================================================
+    
+    def solve(self) -> int:
+        """
+        执行完整的求解流程。
+
+        流程包括：重写 -> 求解 -> 冲突检查 -> 自由度更新。
+        求解完成后，可通过 get_last_status() 获取详细状态码，
+        通过 get_last_error() 获取错误消息。
+
+        返回：
+            int: 求解结果状态码，取值为：
+                - ENGINE_SOLVE_OK (0): 求解成功
+                - ENGINE_SOLVE_CONFLICT (1): 检测到约束冲突
+                - ENGINE_SOLVE_TIMEOUT (2): 求解超时
+
+        异常：
+            EngineMemoryError: 引擎内存不足
+            EngineStateError: 引擎状态无效（未初始化必要组件）
+            EngineConflictError: 约束图存在不可解决的冲突
+        """
+        status = _lib.engine_solve(self._ptr)
+        if status not in (ENGINE_SOLVE_OK, ENGINE_SOLVE_CONFLICT, ENGINE_SOLVE_TIMEOUT):
+            self._check_status(status)
+        return status
+    
+    def rewrite_and_solve(self, max_rewrite_steps: int = 1000, 
+                          max_solve_steps: int = 1000) -> int:
+        """
+        执行重写-求解协作流程。
+
+        实现协作协议：重写优先 -> 停滞时求解 -> 暴露冲突。
+        这是 Lv-00 引擎的核心工作流，将重写规则的化简能力
+        与代数求解的定量计算能力有机结合。
+
+        参数：
+            max_rewrite_steps: 最大重写步数（默认 1000）
+            max_solve_steps: 最大求解步数（默认 1000）
+
+        返回：
+            int: 总步数（正数），或负数表示错误码
+
+        异常：
+            EngineMemoryError: 引擎内存不足
+            EngineStateError: 引擎状态无效
+            EngineConflictError: 约束冲突无法解决
+        """
+        return _lib.engine_rewrite_and_solve(self._ptr, max_rewrite_steps, max_solve_steps)
+    
+    def get_last_status(self) -> int:
+        """
+        获取最后的状态码。
+        
+        返回：
+            int: 状态码
+        """
+        return _lib.engine_get_last_status(self._ptr)
+    
+    def get_last_error(self) -> str:
+        """
+        获取最后的错误消息。
+        
+        返回：
+            str: 错误消息
+        """
+        msg = _lib.engine_get_last_error(self._ptr)
+        if msg:
+            return msg.decode('utf-8')
+        return ""
+    
+    # ============================================================
+    # 配置
+    # ============================================================
+    
+    def set_rewrite_step_limit(self, limit: int) -> None:
+        """
+        设置重写步数限制。
+        
+        参数：
+            limit: 最大步数（必须 > 0）
+        """
+        if limit <= 0:
+            raise ValueError("步数限制必须大于0")
+        _lib.engine_set_rewrite_step_limit(self._ptr, limit)
+    
+    def get_rewrite_step_limit(self) -> int:
+        """
+        获取当前的重写步数限制。
+        
+        返回：
+            int: 当前限制（默认1000）
+        """
+        return _lib.engine_get_rewrite_step_limit(self._ptr)
+    
+    # ============================================================
+    # 模块加载
+    # ============================================================
+
+    def _load_file(self, filepath: str, operation_name: str, c_func) -> bool:
+        """
+        加载文件的内部通用方法。
+
+        编码文件路径为 UTF-8 字节串，调用对应的 C 函数加载，
+        并在失败时抛出统一格式的 EngineModuleError。
+
+        参数：
+            filepath: 文件路径字符串
+            operation_name: 操作名称（用于错误消息，如 "模块"、"公理包"）
+            c_func: C 加载函数（如 _lib.engine_load_module）
+
+        返回：
+            bool: 加载成功返回 True
+
+        异常：
+            EngineModuleError: C 函数返回非 OK 状态时抛出
+        """
+        # 修复：使用 os.fsencode() 替代 .encode('utf-8')，正确处理非 UTF-8 文件路径
+        # （如 Windows 上包含中文/日文等非 ASCII 字符的路径）
+        b = os.fsencode(filepath)
+        status = c_func(self._ptr, b)
+        if status != ENGINE_OK:
+            raise EngineModuleError(f"加载{operation_name}失败: {filepath}")
+        return True
+
+    def load_module(self, filepath: str) -> bool:
+        """
+        加载模块文件。
+
+        参数：
+            filepath: 模块文件路径
+
+        返回：
+            bool: 是否成功
+
+        异常：
+            EngineModuleError: 加载失败
+        """
+        return self._load_file(filepath, "模块", _lib.engine_load_module)
+
+    def load_axiom_package(self, filepath: str) -> bool:
+        """
+        加载公理包文件。
+
+        参数：
+            filepath: 公理包文件路径
+
+        返回：
+            bool: 是否成功
+
+        异常：
+            EngineModuleError: 加载失败
+        """
+        return self._load_file(filepath, "公理包", _lib.engine_load_axiom_package)
+    
+    # ============================================================
+    # 函数块操作
+    # ============================================================
+    
+    def pack_function(self, internal_node_ids: List[int],
+                      input_port_ids: List[int],
+                      output_port_ids: List[int]) -> int:
+        """
+        打包函数块。
+
+        将一组内部节点和端口打包成一个可重用的函数块。
+        打包后的函数块可在相同或不同的约束图中实例化。
+
+        参数：
+            internal_node_ids: 内部节点 ID 列表，打包进函数块的节点
+            input_port_ids: 输入端口 ID 列表，函数块的参数入口
+            output_port_ids: 输出端口 ID 列表，函数块的结果出口
+
+        返回：
+            int: 打包后的函数块 ID（正数），可用于后续的实例化操作
+
+        异常：
+            EngineError: 打包失败，可通过 get_last_error() 获取详细原因
+        """
+        internal_arr = (ctypes.c_int * len(internal_node_ids))(*internal_node_ids)
+        input_arr = (ctypes.c_int * len(input_port_ids))(*input_port_ids)
+        output_arr = (ctypes.c_int * len(output_port_ids))(*output_port_ids)
+        
+        fb_id = ctypes.c_int()
+        success = _lib.engine_pack_function(
+            self._ptr,
+            internal_arr, len(internal_node_ids),
+            input_arr, len(input_port_ids),
+            output_arr, len(output_port_ids),
+            ctypes.byref(fb_id)
+        )
+        
+        if not success:
+            raise EngineError(f"打包函数块失败: {self.get_last_error()}")
+        
+        return fb_id.value
+    
+    def instantiate_function(self, func_block_id: int, 
+                              arg_mappings: List[int]) -> List[int]:
+        """
+        实例化函数块。
+
+        使用实参替换形式参数，在引擎的约束图中创建函数块的新实例。
+        实例化后的节点会被添加到引擎的约束图中。
+
+        参数：
+            func_block_id: 函数块 ID（由 pack_function 返回）
+            arg_mappings: 实参映射列表，将函数块的输入端口 ID 
+                          映射到约束图中的节点 ID
+
+        返回：
+            List[int]: 新创建的节点 ID 列表（实例化产生的几何节点）
+
+        异常：
+            EngineError: 实例化失败，可通过 get_last_error() 获取详细原因
+        """
+        mappings_arr = (ctypes.c_int * len(arg_mappings))(*arg_mappings)
+        count = ctypes.c_int()
+        
+        result_ptr = _lib.engine_instantiate_function(
+            self._ptr, func_block_id,
+            mappings_arr, len(arg_mappings),
+            ctypes.byref(count)
+        )
+        
+        if not result_ptr:
+            raise EngineError(f"实例化函数块失败: {self.get_last_error()}")
+        
+        result = [result_ptr[i] for i in range(count.value)]
+        _lib.free(result_ptr)
+        
+        return result
+    
+    # ============================================================
+    # 合一检查 (Unification Check)
+    # ============================================================
+    # 合一检查是 Lv-00 证明系统的核心操作之一。将构造图与命题模式图进行匹配，
+    # 判断构造是否实现了命题所描述的几何结构。
+    # 引擎内置三层优化：哈希快速过滤 -> 拓扑特征匹配 -> 端口精化。
+
+    def unify(self, construction: Any, proposition: Any) -> int:
+        """
+        执行合一检查（检查构造图是否满足命题模式）。
+
+        C 层 engine_unify() 接受两个 ConstraintGraph* 参数，本方法
+        从 Python 层的 Graph 对象提取底层 C 指针后传入。
+
+        参数：
+            construction: 构造图对象（Graph 实例），必须已初始化且包含有效的 _ptr
+            proposition: 命题模式图对象（Graph 实例或具有 _ptr 的兼容对象）
+
+        返回：
+            int: 合一状态码，取值为：
+                - UNIFY_OK (0): 构造满足命题模式，合一成功
+                - UNIFY_FAILED (1): 构造不满足命题模式
+                - UNIFY_TYPE_MISMATCH (2): 图类型不匹配，无法执行合一
+
+        异常：
+            TypeError: construction 或 proposition 没有有效的 _ptr 属性
+            EngineError: 底层 C 合一引擎调用失败
+        """
+        # ---- 参数验证 ----
+        if not hasattr(construction, '_ptr') or construction._ptr is None:
+            raise TypeError(
+                f"construction 必须具有有效的 _ptr 属性（C 约束图指针），"
+                f"收到类型: {type(construction).__name__}"
+            )
+        if not hasattr(proposition, '_ptr') or proposition._ptr is None:
+            raise TypeError(
+                f"proposition 必须具有有效的 _ptr 属性（C 约束图指针），"
+                f"收到类型: {type(proposition).__name__}"
+            )
+
+        # ---- 调用 C 层合一检查 ----
+        # C 函数签名: unify_check(ConstraintGraph*, ConstraintGraph*) -> int
+        # 内部执行三层匹配：哈希过滤 -> 拓扑特征 -> 端口精化
+        return _lib.unify_check(construction._ptr, proposition._ptr)
+
+    def unify_detailed(self, construction: Any, proposition: Any) -> Tuple[int, str]:
+        """
+        执行详细的合一检查（带失败原因报告）。
+
+        与 unify() 功能相同，但在合一失败时额外返回人类可读的失败原因。
+        适用于调试和开发场景，帮助研究者理解为什么两个图不能合一。
+
+        参数：
+            construction: 构造图对象（Graph 实例）
+            proposition: 命题模式图对象（Graph 实例）
+
+        返回：
+            Tuple[int, str]: (合一状态码, 详细失败原因描述)，
+            成功时失败原因为空字符串，失败时包含 C 引擎的诊断信息
+
+        异常：
+            TypeError: 参数没有有效的 C 指针
+        """
+        # ---- 参数验证 ----
+        if not hasattr(construction, '_ptr') or construction._ptr is None:
+            raise TypeError("construction 必须具有有效的 C 指针")
+        if not hasattr(proposition, '_ptr') or proposition._ptr is None:
+            raise TypeError("proposition 必须具有有效的 C 指针")
+
+        # ---- 调用带详细报告的 C 合一函数 ----
+        # C 函数签名: unify_detailed(ConstraintGraph*, ConstraintGraph*, char**) -> int
+        # 第三个参数为输出参数，接收 C 引擎分配的诊断字符串
+        reason_ptr = ctypes.c_char_p()
+        result = _lib.unify_detailed(
+            construction._ptr, proposition._ptr,
+            ctypes.byref(reason_ptr)
+        )
+        reason = reason_ptr.value.decode('utf-8') if reason_ptr.value else ""
+        return (result, reason)
+
+
+    # ============================================================
+    # 位电路处理
+    # ============================================================
+    
+    def handle_circuit_trip(self) -> int:
+        """
+        处理位电路跳闸事件。
+
+        当计算发生溢出时调用此方法，引擎将执行默认的跳闸恢复策略。
+        位电路溢出是 Lv-00 安全模型的核心特性之一。
+
+        返回：
+            int: 处理结果状态码：
+                - 0: 恢复成功
+                - 1: 需要降级操作
+                - 负数: 错误码
+
+        异常：
+            EngineStateError: 引擎状态无效，无法处理跳闸
+        """
+        return _lib.engine_handle_circuit_trip(self._ptr)
+    
+    def handle_circuit_trip_with_action(self, action: int) -> int:
+        """
+        使用指定动作处理位电路跳闸。
+
+        参数：
+            action: 处理动作：
+                - 0: 忽略跳闸，继续计算
+                - 1: 回滚到最近的冻结点
+                - 2: 降级精度继续计算
+
+        返回：
+            int: 处理结果状态码，与 handle_circuit_trip() 相同
+        """
+        return _lib.engine_handle_circuit_trip_with_action(self._ptr, action)
+    
+    # ============================================================
+    # 冻结点管理
+    # ============================================================
+    
+    def create_frozen_point(self) -> Any:
+        """
+        创建冻结点快照。
+
+        保存当前引擎状态的完整快照，用于在位电路跳闸时回滚状态。
+        这是 Lv-00 安全回滚机制的核心接口。
+
+        返回：
+            Any: 快照句柄（不透明指针），后续用于 restore_frozen_point()
+
+        异常：
+            EngineMemoryError: 内存不足，无法创建快照
+            EngineStateError: 引擎状态无效
+        """
+        frozen = _lib.engine_create_frozen_point(self._ptr)
+        if not frozen:
+            raise EngineError("创建冻结点失败")
+        return frozen
+    
+    def restore_frozen_point(self, frozen_point: Any) -> bool:
+        """
+        恢复到冻结点状态。
+
+        将引擎状态回滚到 create_frozen_point() 创建快照时的状态。
+        恢复后会丢弃快照之后的所有修改。
+
+        参数：
+            frozen_point: 冻结点句柄（由 create_frozen_point() 返回）
+
+        返回：
+            bool: 恢复成功返回 True
+
+        异常：
+            EngineStateError: 冻结点句柄无效或已释放
+            EngineError: 恢复过程中发生其他错误
+        """
+        success = _lib.engine_restore_frozen_point(self._ptr, frozen_point)
+        if not success:
+            raise EngineError("恢复冻结点失败")
+        return True
+    
+    def destroy_frozen_point(self, frozen_point: Any) -> None:
+        """
+        销毁冻结点快照。
+
+        释放冻结点占用的内存资源。快照一旦销毁，无法再用于恢复。
+
+        参数：
+            frozen_point: 冻结点句柄（由 create_frozen_point() 返回）
+
+        注意：
+            调用此方法后，frozen_point 句柄将失效。
+        """
+        _lib.engine_destroy_frozen_point(frozen_point)
+    
+    # ============================================================
+    # 批量操作
+    # ============================================================
+    
+    def load_modules(self, filepaths: List[str]) -> int:
+        """
+        批量加载模块文件。
+
+        依次加载多个模块文件，返回成功加载的数量。
+        如果某个模块加载失败，会抛出异常并停止后续加载。
+
+        参数：
+            filepaths: 模块文件路径列表
+
+        返回：
+            int: 成功加载的模块数量
+
+        异常：
+            EngineModuleError: 任一模块加载失败时抛出
+
+        示例：
+            >>> engine.load_modules(["module1.lv00", "module2.lv00"])
+        """
+        success_count = 0
+        for filepath in filepaths:
+            self.load_module(filepath)
+            success_count += 1
+        return success_count
+    
+    def load_axiom_packages(self, filepaths: List[str]) -> int:
+        """
+        批量加载公理包文件。
+
+        依次加载多个公理包文件，返回成功加载的数量。
+
+        参数：
+            filepaths: 公理包文件路径列表
+
+        返回：
+            int: 成功加载的公理包数量
+
+        异常：
+            EngineModuleError: 任一公理包加载失败时抛出
+        """
+        success_count = 0
+        for filepath in filepaths:
+            self.load_axiom_package(filepath)
+            success_count += 1
+        return success_count
+    
+    # ============================================================
+    # 状态查询
+    # ============================================================
+    
+    def is_healthy(self) -> bool:
+        """
+        检查引擎是否处于健康状态。
+
+        健康状态意味着引擎已正确初始化，可以执行求解操作。
+
+        返回：
+            bool: 引擎健康返回 True，否则返回 False
+        """
+        try:
+            # 尝试获取状态，如果引擎指针无效会抛出异常
+            status = self.get_last_status()
+            return status >= 0
+        except Exception:
+            return False
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        获取引擎运行统计信息。
+
+        返回引擎的运行状态和性能指标。
+
+        返回：
+            Dict[str, Any]: 包含统计信息的字典，包括：
+                - rewrite_step_limit: 重写步数限制
+                - last_status: 最后的状态码
+                - is_healthy: 健康状态
+        """
+        return {
+            "rewrite_step_limit": self.get_rewrite_step_limit(),
+            "last_status": self.get_last_status(),
+            "is_healthy": self.is_healthy(),
+        }
+    
+    # ============================================================
+    # 便捷方法
+    # ============================================================
+    
+    def solve_with_retry(self, max_retries: int = 3) -> int:
+        """
+        带重试机制的求解。
+
+        当求解超时时自动重试，直到成功或达到最大重试次数。
+
+        参数：
+            max_retries: 最大重试次数（默认 3）
+
+        返回：
+            int: 最终的求解结果状态码
+
+        异常：
+            EngineError: 所有重试都失败时抛出
+        """
+        from ._ctypes_binding import ENGINE_SOLVE_OK, ENGINE_SOLVE_CONFLICT
+        
+        for attempt in range(max_retries):
+            result = self.solve()
+            if result == ENGINE_SOLVE_OK:
+                return result
+            if result == ENGINE_SOLVE_CONFLICT:
+                # 冲突不需要重试
+                return result
+        
+        raise EngineError(f"求解失败，已重试 {max_retries} 次")
+    
+    def safe_solve(self) -> Tuple[int, str]:
+        """
+        安全求解（不抛出异常）。
+
+        执行求解操作，但不会抛出异常。适合需要静默处理的场景。
+
+        返回：
+            Tuple[int, str]: (状态码, 错误消息)
+            成功时错误消息为空字符串
+
+        示例：
+            >>> status, msg = engine.safe_solve()
+            >>> if status != 0:
+            ...     print(f"求解失败: {msg}")
+        """
+        try:
+            result = self.solve()
+            return (result, "")
+        except Exception as e:
+            return (-1, str(e))
+
+
+# ============================================================
+# 常量导出
+# ============================================================
+
+__all__ = [
+    'Engine',
+    'EngineError',
+    'EngineMemoryError', 
+    'EngineStateError',
+    'EngineConflictError',
+    'EngineModuleError',
+    'ENGINE_OK',
+    'ENGINE_OUT_OF_MEMORY',
+    'ENGINE_INVALID_STATE',
+    'ENGINE_CONSTRAINT_CONFLICT',
+    'ENGINE_MODULE_ERROR',
+    'ENGINE_SOLVE_OK',
+    'ENGINE_SOLVE_CONFLICT',
+    'ENGINE_SOLVE_TIMEOUT',
+    'ENGINE_SOLVE_ERROR',
+    'UNIFY_OK',
+    'UNIFY_FAILED',
+    'UNIFY_TYPE_MISMATCH',
+]

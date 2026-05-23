@@ -1,0 +1,459 @@
+# =============================================================================
+# Lv-00 Axiom Package: Game Theory (von Neumann 1928, Nash 1950)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Game theory — the mathematical study of strategic interactions among
+#   rational decision-makers. Founded by John von Neumann (1928) with the
+#   minimax theorem, and extended by John Nash (1950) with the Nash equilibrium
+#   concept. The theory provides formal frameworks for analyzing cooperation,
+#   competition, and conflict in economics, political science, biology,
+#   computer science, and philosophy.
+#
+# References:
+#   - von Neumann, J. (1928). "Zur Theorie der Gesellschaftsspiele."
+#     Mathematische Annalen, 100(1): 295-320.
+#     https://doi.org/10.1007/BF01448847
+#   - von Neumann, J. & Morgenstern, O. (1944). "Theory of Games and
+#     Economic Behavior." Princeton University Press.
+#     https://press.princeton.edu/books/paperback/9780691130613/
+#   - Nash, J.F. (1950). "Equilibrium Points in N-Person Games."
+#     Proceedings of the National Academy of Sciences, 36(1): 48-49.
+#     https://doi.org/10.1073/pnas.36.1.48
+#   - Nash, J.F. (1951). "Non-Cooperative Games." Annals of Mathematics,
+#     54(2): 286-295. https://doi.org/10.2307/1969529
+#   - Wikipedia: Game theory
+#     https://en.wikipedia.org/wiki/Game_theory
+#   - Wikipedia: Nash equilibrium
+#     https://en.wikipedia.org/wiki/Nash_equilibrium
+#   - Wikipedia: Minimax theorem
+#     https://en.wikipedia.org/wiki/Minimax_theorem
+#   - Osborne, M.J. & Rubinstein, A. (1994). "A Course in Game Theory."
+#     MIT Press. ISBN 0-262-65040-1.
+#   - Myerson, R.B. (1991). "Game Theory: Analysis of Conflict."
+#     Harvard University Press. ISBN 0-674-34116-3.
+#   - nLab: game theory
+#     https://ncatlab.org/nlab/show/game+theory
+#   - Shapley, L.S. (1953). "A Value for n-Person Games."
+#     Contributions to the Theory of Games, II: 307-317.
+#
+# Primitive Notions:
+#   - Player: rational decision-maker in the game
+#   - Strategy: a complete plan of action for a player
+#   - Strategy profile: a tuple of strategies, one per player
+#   - Payoff/utility: real-valued outcome for each player given a strategy profile
+#   - Game: (N, {S_i}_{i∈N}, {u_i}_{i∈N}) where N = players, S_i = strategies, u_i = utility
+#
+# Core Axioms (6 groups):
+#   I. Strategic Game Structure (3): player set, strategy spaces, utility functions
+#   II. Rationality Axioms (3): completeness, transitivity, expected utility
+#   III. Nash Equilibrium (2): best response, equilibrium stability
+#   IV. Zero-Sum Games (3): minimax theorem, maximin, saddle point
+#   V. Cooperative Games (4): characteristic function, core, Shapley value, stability
+#   VI. Solution Concepts (4): dominance, Pareto efficiency, subgame perfection, ESS
+#
+# Key Theorems:
+#   - Nash Existence Theorem: every finite game has a Nash equilibrium (in mixed strategies)
+#   - von Neumann Minimax Theorem: every finite two-player zero-sum game has a value
+#   - Shapley Value Uniqueness: the Shapley value is the unique value satisfying
+#     efficiency, symmetry, dummy, and additivity
+#   - Bondareva-Shapley Theorem: a game has a non-empty core iff it is balanced
+#
+# Relationship to other axiom packages:
+#   - Connects to: real_analysis (utility functions, continuity, convexity)
+#   - Connects to: linear_algebra (mixed strategies, payoff matrices)
+#   - Connects to: combinatorics (game trees, extensive form)
+#   - Connects to: topology (fixed-point theorems for equilibrium existence)
+#   - Connects to: probability (mixed strategies, expected utility)
+#   - Connects to: classical_propositional_logic (rationality, common knowledge)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "game_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: Strategic Game Structure
+    # =================================================================
+
+    # Player set: N = {1, 2, ..., n} is a finite non-empty set of players
+    # Params: game, player set N
+    template "player_set" 2
+
+    # Strategy space: each player i has strategy set S_i
+    # Params: player i, strategy set S_i
+    template "strategy_space" 2
+
+    # Strategy profile: s = (s_1, s_2, ..., s_n) ∈ S_1 × S_2 × ... × S_n
+    # Params: strategy profile, all player strategy sets
+    template "strategy_profile" 2
+
+    # Utility/payoff function: u_i: S → ℝ for each player i
+    # Params: player i, strategy profile, payoff value
+    template "utility_function" 3
+
+    # Game tuple: Γ = (N, {S_i}_{i∈N}, {u_i}_{i∈N})
+    # Params: game Γ, player set, strategy spaces, utility functions
+    template "game_tuple" 4
+
+    # =================================================================
+    # Group II: Rationality Axioms (von Neumann-Morgenstern)
+    # =================================================================
+
+    # Preference completeness: for all outcomes a, b: a ≿ b or b ≿ a
+    # Params: outcome a, outcome b
+    template "preference_completeness" 2
+
+    # Preference transitivity: a ≿ b and b ≿ c implies a ≿ c
+    # Params: outcomes a, b, c
+    template "preference_transitivity" 3
+
+    # Expected utility representation: U(p) = Σ p(a)·u(a) for lottery p
+    # Params: lottery p, utility function u, expected utility value
+    template "expected_utility" 3
+
+    # Independence axiom: if a ≿ b, then pa + (1-p)c ≿ pb + (1-p)c
+    # Params: outcomes a, b, c, probability p
+    template "independence_axiom" 4
+
+    # Continuity axiom: if a ≿ b ≿ c, then ∃p: b ≈ pa + (1-p)c
+    # Params: outcomes a, b, c, probability p
+    template "continuity_axiom" 4
+
+    # =================================================================
+    # Group III: Nash Equilibrium
+    # =================================================================
+
+    # Best response: s_i* ∈ BR_i(s_{-i}) iff u_i(s_i*, s_{-i}) ≥ u_i(s_i, s_{-i}) for all s_i
+    # Params: player i, strategy s_i*, opponent strategies s_{-i}
+    template "best_response" 3
+
+    # Nash equilibrium: s* is NE iff s_i* ∈ BR_i(s*_{-i}) for all i ∈ N
+    # Params: strategy profile s*, game Γ
+    template "nash_equilibrium" 2
+
+    # Nash existence (finite games): every finite game has a NE in mixed strategies
+    # Params: game Γ, equilibrium profile
+    template "nash_existence_finite" 2
+
+    # Mixed strategy: σ_i is probability distribution over S_i
+    # Params: player i, mixed strategy σ_i, pure strategy set S_i
+    template "mixed_strategy" 3
+
+    # Expected payoff under mixed strategies: u_i(σ) = Σ_{s∈S} (∏ σ_i(s_i)) · u_i(s)
+    # Params: mixed strategy profile σ, player i, expected payoff
+    template "expected_payoff_mixed" 3
+
+    # Support of mixed strategy: supp(σ_i) = {s ∈ S_i : σ_i(s) > 0}
+    # Params: mixed strategy σ_i, support set
+    template "mixed_strategy_support" 2
+
+    # =================================================================
+    # Group IV: Zero-Sum Games and Minimax
+    # =================================================================
+
+    # Zero-sum condition: Σ_i u_i(s) = 0 for all strategy profiles s
+    # Params: strategy profile s, game Γ
+    template "zero_sum_condition" 2
+
+    # Maximin: max_{σ_1} min_{σ_2} u_1(σ_1, σ_2)
+    # Params: player 1 mixed strategy, player 2 mixed strategy, payoff
+    template "maximin" 3
+
+    # Minimax: min_{σ_2} max_{σ_1} u_1(σ_1, σ_2)
+    # Params: player 2 mixed strategy, player 1 mixed strategy, payoff
+    template "minimax" 3
+
+    # von Neumann minimax theorem: max_{σ_1} min_{σ_2} u_1 = min_{σ_2} max_{σ_1} u_1
+    # Params: game Γ, game value v
+    template "minimax_theorem" 2
+
+    # Saddle point: (σ_1*, σ_2*) is saddle iff u_1(σ_1, σ_2*) ≤ u_1(σ_1*, σ_2*) ≤ u_1(σ_1*, σ_2)
+    # Params: player 1 strategy, player 2 strategy, game Γ
+    template "saddle_point" 3
+
+    # Game value: v = max_{σ_1} min_{σ_2} u_1(σ_1, σ_2) = min_{σ_2} max_{σ_1} u_1(σ_1, σ_2)
+    # Params: game Γ, value v
+    template "game_value" 2
+
+    # =================================================================
+    # Group V: Cooperative Game Theory
+    # =================================================================
+
+    # Characteristic function: v: 2^N → ℝ (value of each coalition)
+    # Params: coalition S ⊆ N, value v(S)
+    template "characteristic_function" 2
+
+    # Grand coalition: v(N) is the total value available
+    # Params: player set N, value v(N)
+    template "grand_coalition" 2
+
+    # Imputation: x ∈ ℝ^N with Σ x_i = v(N) and x_i ≥ v({i}) for all i
+    # Params: payoff vector x, game v
+    template "imputation" 2
+
+    # Core: {x : Σ_{i∈N} x_i = v(N), Σ_{i∈S} x_i ≥ v(S) ∀S ⊆ N}
+    # Params: payoff vector x, coalition S, game v
+    template "core" 3
+
+    # Core non-emptiness (Bondareva-Shapley): core ≠ ∅ iff game is balanced
+    # Params: game v, balanced collection
+    template "bondareva_shapley_theorem" 2
+
+    # Shapley value: φ_i(v) = Σ_{S⊆N\{i}} (|S|!(n-|S|-1)!/n!) · (v(S∪{i}) - v(S))
+    # Params: player i, game v, Shapley value φ_i
+    template "shapley_value" 3
+
+    # Shapley efficiency: Σ_i φ_i(v) = v(N)
+    # Params: game v, Shapley values
+    template "shapley_efficiency" 2
+
+    # Shapley symmetry: if i and j are interchangeable, φ_i = φ_j
+    # Params: players i, j, game v
+    template "shapley_symmetry" 3
+
+    # Shapley dummy player: if v(S∪{i}) = v(S) for all S, then φ_i = 0
+    # Params: player i, game v
+    template "shapley_dummy" 2
+
+    # Shapley additivity: φ_i(v + w) = φ_i(v) + φ_i(w)
+    # Params: player i, games v, w
+    template "shapley_additivity" 3
+
+    # =================================================================
+    # Group VI: Dominance and Solution Concepts
+    # =================================================================
+
+    # Strict dominance: s_i strictly dominates s_i' iff u_i(s_i, s_{-i}) > u_i(s_i', s_{-i}) ∀s_{-i}
+    # Params: strategy s_i, dominated strategy s_i', player i
+    template "strict_dominance" 3
+
+    # Weak dominance: s_i weakly dominates s_i' iff u_i(s_i, s_{-i}) ≥ u_i(s_i', s_{-i}) ∀s_{-i}
+    # Params: strategy s_i, dominated strategy s_i', player i
+    template "weak_dominance" 3
+
+    # Iterated elimination of strictly dominated strategies (IESDS)
+    # Params: game Γ, reduced game after elimination
+    template "iterated_elimination" 2
+
+    # Pareto efficiency: s is Pareto efficient iff no s' with u_i(s') ≥ u_i(s) ∀i, strict for some i
+    # Params: strategy profile s, game Γ
+    template "pareto_efficiency" 2
+
+    # =================================================================
+    # Group VII: Extensive Form and Refinements
+    # =================================================================
+
+    # Game tree: rooted tree with nodes labeled by players or nature
+    # Params: game tree, root node
+    template "game_tree" 2
+
+    # Information set: set of nodes indistinguishable to a player
+    # Params: player, information set
+    template "information_set" 2
+
+    # Perfect information: every information set is a singleton
+    # Params: extensive game
+    template "perfect_information" 1
+
+    # Imperfect information: some information sets have multiple nodes
+    # Params: extensive game
+    template "imperfect_information" 1
+
+    # Subgame perfect equilibrium (Selten 1965): NE in every subgame
+    # Params: extensive game, equilibrium
+    template "subgame_perfect_equilibrium" 2
+
+    # Backward induction: solve game tree from leaves to root
+    # Params: game tree, solution
+    template "backward_induction" 2
+
+    # =================================================================
+    # Group VIII: Evolutionary Game Theory
+    # =================================================================
+
+    # Evolutionarily stable strategy (ESS): σ* is ESS iff
+    #   (1) u(σ*, σ*) ≥ u(σ, σ*) for all σ, and
+    #   (2) if u(σ*, σ*) = u(σ, σ*), then u(σ*, σ) > u(σ, σ) for all σ ≠ σ*
+    # Params: strategy σ*, population game
+    template "evolutionarily_stable_strategy" 2
+
+    # Fitness: expected payoff in population context
+    # Params: strategy, population distribution, fitness value
+    template "fitness" 3
+
+    # Replicator dynamics: dx_i/dt = x_i(u(e_i, x) - u(x, x))
+    # Params: strategy frequency x_i, population state x
+    template "replicator_dynamics" 2
+
+    # Nash equilibrium implies ESS (for symmetric games, converse false)
+    # Params: symmetric game, Nash equilibrium
+    template "nash_implies_ess" 2
+
+    # =================================================================
+    # Group IX: Mechanism Design and Social Choice
+    # =================================================================
+
+    # Social choice function: f: (S_1 × ... × S_n) → A maps strategy profiles to outcomes
+    # Params: strategy profile, outcome
+    template "social_choice_function" 2
+
+    # Incentive compatibility (truthfulness): reporting true type is dominant strategy
+    # Params: mechanism, player type, reported type
+    template "incentive_compatibility" 3
+
+    # Vickrey-Clarke-Groves (VCG) mechanism: truthful, efficient, individual rational
+    # Params: mechanism, allocation, payments
+    template "vcg_mechanism" 3
+
+    # Arrow's impossibility: no social welfare function satisfies
+    # unrestricted domain, Pareto, independence, non-dictatorship (≥3 alternatives)
+    # Params: social welfare function, alternatives, voters
+    template "arrow_impossibility" 3
+
+    # =================================================================
+    # Group X: Repeated Games and Correlated Equilibrium
+    # =================================================================
+
+    # Repeated game: G^T = G played T times with discount factor δ
+    # Params: stage game G, repetitions T, discount factor δ
+    template "repeated_game" 3
+
+    # Folk theorem: any feasible individually rational payoff is sustainable
+    # Params: repeated game, feasible payoff, equilibrium
+    template "folk_theorem" 3
+
+    # Correlated equilibrium (Aumann 1974): players observe correlated signal
+    # Params: correlation device, strategy profile
+    template "correlated_equilibrium" 2
+
+    # Trembling-hand perfect equilibrium (Selten 1975)
+    # Params: game, equilibrium
+    template "trembling_hand_perfect" 2
+
+    # Proper equilibrium (Myerson 1978)
+    # Params: game, equilibrium
+    template "proper_equilibrium" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "nash_equilibrium_computation" {
+        reduces_to "PPAD_complete"
+        dependency "nash_equilibrium"
+        dependency "mixed_strategy"
+        dependency "expected_payoff_mixed"
+        dependency "best_response"
+        external_ref "https://doi.org/10.1145/1060590.1060645"
+        green_verified true
+    }
+
+    unconstructible "game_isomorphism" {
+        reduces_to "graph_isomorphism_hard"
+        dependency "game_tuple"
+        dependency "strategy_space"
+        dependency "utility_function"
+        external_ref "https://en.wikipedia.org/wiki/Game_theory"
+        green_verified true
+    }
+
+    unconstructible "dominance_solvable_check" {
+        reduces_to "coNP_complete"
+        dependency "strict_dominance"
+        dependency "weak_dominance"
+        dependency "iterated_elimination"
+        external_ref "https://doi.org/10.1016/0899-8256(90)90004-T"
+        green_verified true
+    }
+
+    unconstructible "core_nonemptiness" {
+        reduces_to "coNP_complete"
+        dependency "core"
+        dependency "characteristic_function"
+        dependency "bondareva_shapley_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Core_(game_theory)"
+        green_verified true
+    }
+
+    unconstructible "shapley_value_computation" {
+        reduces_to "#P_complete"
+        dependency "shapley_value"
+        dependency "characteristic_function"
+        external_ref "https://doi.org/10.1016/0022-0531(88)90317-7"
+        green_verified true
+    }
+
+    unconstructible "ess_existence" {
+        reduces_to "undecidable_in_general"
+        dependency "evolutionarily_stable_strategy"
+        dependency "fitness"
+        dependency "replicator_dynamics"
+        external_ref "https://en.wikipedia.org/wiki/Evolutionarily_stable_strategy"
+        green_verified true
+    }
+
+    unconstructible "subgame_perfect_equilibrium_computation" {
+        reduces_to "PSPACE_complete"
+        dependency "subgame_perfect_equilibrium"
+        dependency "game_tree"
+        dependency "backward_induction"
+        external_ref "https://doi.org/10.1145/331527.331534"
+        green_verified true
+    }
+
+    unconstructible "mechanism_design_optimal" {
+        reduces_to "undecidable_in_general"
+        dependency "incentive_compatibility"
+        dependency "vcg_mechanism"
+        dependency "social_choice_function"
+        external_ref "https://doi.org/10.1016/0022-0531(86)90006-0"
+        green_verified true
+    }
+
+    unconstructible "correlated_equilibrium_finding" {
+        reduces_to "polynomial_time_solvable"
+        dependency "correlated_equilibrium"
+        dependency "nash_equilibrium"
+        dependency "mixed_strategy"
+        external_ref "https://doi.org/10.1016/0022-0531(87)90037-8"
+        green_verified true
+    }
+
+    unconstructible "bayesian_nash_equilibrium" {
+        reduces_to "PPAD_complete"
+        dependency "nash_equilibrium"
+        dependency "mixed_strategy"
+        dependency "expected_utility"
+        external_ref "https://doi.org/10.1145/353468.353481"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    # Bottom geometry: Game theory's "bottom" represents the worst possible
+    # outcome for a player — the minimax payoff in zero-sum games, or the
+    # security level (maximin value). The geometry is a utility space
+    # (ℝ^n for n players) with the structure of a convex polytope defined
+    # by the feasible payoff region. The bottom element for each player
+    # is their maximin value.
+    bottom_geometry "utility_space_convex_polytope"
+
+    # Negation encoding: Game theory uses classical negation. The theory
+    # is developed within classical mathematics. "Not playing strategy s_i"
+    # means playing some other strategy in S_i. The negation of "player i
+    # benefits from deviating" is "player i does not benefit from deviating"
+    # (which defines Nash equilibrium).
+    negation_encoding "classical_deviation_negation"
+
+    # Contradiction behavior: EXPLOSION_PRINCIPLE
+    # Game theory is a classical mathematical theory. If a contradiction
+    # is derived (e.g., a game with no equilibrium and an equilibrium
+    # simultaneously), any conclusion follows. The theory is developed
+    # within ZFC set theory with classical logic.
+    contradiction_behavior "explosion_principle"
+}

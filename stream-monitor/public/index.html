@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多路并发输出实时监控</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-dim: #8b949e;
+      --accent: #58a6ff;
+      --danger: #f85149;
+      --warning: #d2991d;
+      --success: #3fb950;
+      --panel-bg: #0d1117;
+      --scrollbar-bg: #21262d;
+      --scrollbar-thumb: #484f58;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ===== Top Bar ===== */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .topbar .logo {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .topbar .logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .topbar .spacer { flex: 1; }
+
+    .topbar input[type="text"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      width: 240px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .topbar input[type="text"]:focus { border-color: var(--accent); }
+    .topbar input[type="text"]::placeholder { color: var(--text-dim); }
+
+    .topbar .search-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .topbar .search-hint .match-count {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .topbar button {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--scrollbar-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .topbar button:hover { background: #30363d; border-color: #8b949e; }
+    .topbar button.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .topbar button.danger:hover { background: #da3633; border-color: #f85149; }
+
+    .topbar .layout-btns { display: flex; gap: 2px; }
+    .topbar .layout-btns button { border-radius: 0; }
+    .topbar .layout-btns button:first-child { border-radius: 6px 0 0 6px; }
+    .topbar .layout-btns button:last-child { border-radius: 0 6px 6px 0; }
+
+    /* ===== Panel Grid ===== */
+    .panels-container {
+      flex: 1;
+      display: grid;
+      gap: 2px;
+      padding: 2px;
+      overflow: hidden;
+    }
+    .panels-container.layout-grid-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .panels-container.layout-grid-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+    .panels-container.layout-cols-1 { grid-template-columns: 1fr; }
+    .panels-container.layout-cols-3 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr; }
+
+    /* ===== Single Panel ===== */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .panel-header .status-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .panel-header .status-dot.running { background: var(--success); animation: pulse 2s infinite; }
+    .panel-header .status-dot.stopped { background: var(--text-dim); }
+    .panel-header .status-dot.error { background: var(--danger); }
+    .panel-header .panel-name {
+      font-weight: 600;
+      font-size: 12px;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .panel-header .line-count {
+      font-size: 11px;
+      color: var(--text-dim);
+      min-width: 40px;
+      text-align: right;
+    }
+    .panel-header .panel-actions {
+      display: flex;
+      gap: 2px;
+    }
+    .panel-header .panel-actions button {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: inherit;
+      transition: color 0.15s;
+    }
+    .panel-header .panel-actions button:hover { color: var(--text); }
+    .panel-header .panel-actions button.pinned { color: var(--accent); }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 4px 0;
+      position: relative;
+    }
+    .panel-body::-webkit-scrollbar { width: 6px; }
+    .panel-body::-webkit-scrollbar-track { background: var(--scrollbar-bg); }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+    .panel-body::-webkit-scrollbar-thumb:hover { background: #6e7681; }
+
+    .panel-body .log-line {
+      display: flex;
+      padding: 1px 8px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 20px;
+      transition: background 0.3s;
+      border-left: 3px solid transparent;
+    }
+    .panel-body .log-line:hover { background: rgba(255,255,255,0.03); }
+    .panel-body .log-line .line-num {
+      color: var(--text-dim);
+      margin-right: 8px;
+      flex-shrink: 0;
+      text-align: right;
+      min-width: 36px;
+      font-size: 11px;
+      user-select: none;
+    }
+    .panel-body .log-line .line-content { flex: 1; }
+
+    /* keyword highlights */
+    .highlight { background: rgba(255, 200, 50, 0.35); border-radius: 2px; padding: 0 1px; }
+    .highlight.current { background: rgba(255, 150, 0, 0.55); outline: 1px solid #ffaa00; }
+
+    /* level coloring */
+    .log-line.level-error { background: rgba(248,81,73,0.08); border-left-color: var(--danger); }
+    .log-line.level-warn { background: rgba(210,153,29,0.06); border-left-color: var(--warning); }
+
+    /* empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-dim);
+      gap: 8px;
+    }
+    .empty-state .icon { font-size: 36px; opacity: 0.4; }
+
+    /* ===== Bottom Status Bar ===== */
+    .statusbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 5px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .statusbar .ws-status { display: flex; align-items: center; gap: 5px; }
+    .statusbar .ws-status .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .statusbar .ws-status .dot.connected { background: var(--success); }
+    .statusbar .ws-status .dot.disconnected { background: var(--danger); }
+
+    .statusbar .stream-summary {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .statusbar .stream-summary .tag {
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      background: var(--scrollbar-bg);
+      border: 1px solid var(--border);
+    }
+
+    /* Confirm dialog */
+    .overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .dialog {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      max-width: 400px;
+      width: 90%;
+    }
+    .dialog h3 { margin-bottom: 10px; font-size: 15px; }
+    .dialog input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-family: inherit; margin-bottom: 10px; }
+    .dialog .btns { display: flex; gap: 8px; justify-content: flex-end; }
+    .dialog .btns button { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-family: inherit; background: var(--scrollbar-bg); color: var(--text); }
+    .dialog .btns button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Top Bar ===== -->
+  <div class="topbar">
+    <div class="logo"><span class="dot"></span> StreamMonitor</div>
+
+    <input type="text" id="searchInput" placeholder="搜索关键词 (Enter 跳转, ↑↓ 导航)..." title="输入关键词实时高亮，Enter 跳转到下一个匹配项">
+
+    <span class="search-hint">
+      匹配: <span class="match-count" id="matchCount">0</span>
+    </span>
+
+    <span class="spacer"></span>
+
+    <div class="layout-btns">
+      <button onclick="setLayout('cols-1')" title="单列">☰</button>
+      <button onclick="setLayout('grid-2')" title="双列">☷</button>
+      <button onclick="setLayout('cols-3')" title="三列">☳</button>
+      <button onclick="setLayout('grid-4')" class="active" title="四宫格">⊞</button>
+    </div>
+
+    <button onclick="addCommandStream()" title="添加自定义命令流">+ 添加命令</button>
+    <button onclick="restartDemo()">🔄 重启 Demo</button>
+    <button class="danger" onclick="clearAll()">清空全部</button>
+  </div>
+
+  <!-- ===== Panels Grid ===== -->
+  <div class="panels-container layout-grid-4" id="panelsContainer">
+    <!-- Panels injected dynamically -->
+  </div>
+
+  <!-- ===== Status Bar ===== -->
+  <div class="statusbar">
+    <div class="ws-status">
+      <span class="dot disconnected" id="wsDot"></span>
+      <span id="wsText">连接中...</span>
+    </div>
+    <span>|</span>
+    <span>流总数: <strong id="streamCount">0</strong></span>
+    <span>|</span>
+    <div class="stream-summary" id="streamSummary"></div>
+    <span class="spacer" style="flex:1"></span>
+    <span id="clock"></span>
+  </div>
+
+  <!-- ===== Hidden dialog for adding command stream ===== -->
+  <div class="overlay" id="cmdDialog" style="display:none">
+    <div class="dialog">
+      <h3>添加命令监控流</h3>
+      <label style="font-size:12px;color:var(--text-dim)">流名称</label>
+      <input type="text" id="cmdName" placeholder="例如：Ping 监控">
+      <label style="font-size:12px;color:var(--text-dim)">命令</label>
+      <input type="text" id="cmdCommand" placeholder="例如：ping -t google.com">
+      <div class="btns">
+        <button onclick="closeCmdDialog()">取消</button>
+        <button class="primary" onclick="submitCommand()">启动监控</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ============== State ==============
+let streams = {};           // streamId → { name, color, status, element, bodyEl, lines, autoScroll }
+let allLines = [];          // global line buffer for search
+let panelCounter = 0;
+let currentLayout = 'grid-4';
+let ws = null;
+let searchTerm = '';
+let searchIndex = -1;
+let searchMatches = [];
+
+// ============== WebSocket ==============
+function connectWS() {
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${protocol}://${location.host}`);
+
+  ws.onopen = () => {
+    document.getElementById('wsDot').className = 'dot connected';
+    document.getElementById('wsText').textContent = '已连接';
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      handleMessage(msg);
+    } catch (err) {}
+  };
+
+  ws.onclose = () => {
+    document.getElementById('wsDot').className = 'dot disconnected';
+    document.getElementById('wsText').textContent = '已断开 - 3秒后重连';
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => {
+    document.getElementById('wsDot').className = 'dot disconnected';
+    document.getElementById('wsText').textContent = '连接错误';
+  };
+}
+
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'streams_list':
+      // 初始化/更新流列表
+      msg.streams.forEach(s => ensurePanel(s.id, s.name, s.color, s.status));
+      break;
+
+    case 'output':
+      addLine(msg.streamId, msg.text, msg.color, msg.streamName);
+      // 自动创建新流面板
+      if (!streams[msg.streamId]) {
+        ensurePanel(msg.streamId, msg.streamName, msg.color, 'running');
+      }
+      break;
+
+    case 'stream_closed':
+      if (streams[msg.streamId]) {
+        updateStreamStatus(msg.streamId, 'stopped');
+      }
+      break;
+
+    case 'stream_error':
+      if (streams[msg.streamId]) {
+        updateStreamStatus(msg.streamId, 'error');
+      }
+      break;
+
+    case 'history':
+      if (streams[msg.streamId] && streams[msg.streamId].bodyEl) {
+        loadHistory(msg.streamId, msg.lines);
+      }
+      break;
+  }
+}
+
+// ============== Panel Management ==============
+function ensurePanel(id, name, color, status) {
+  if (streams[id]) {
+    updateStreamStatus(id, status);
+    return;
+  }
+
+  const container = document.getElementById('panelsContainer');
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.id = `panel-${id}`;
+
+  panel.innerHTML = `
+    <div class="panel-header">
+      <span class="status-dot ${status || 'ready'}"></span>
+      <span class="panel-name" style="color:${color}" title="${name}">${name}</span>
+      <span class="line-count" id="ln-${id}">0</span>
+      <div class="panel-actions">
+        <button title="切换自动滚动" onclick="toggleAutoScroll('${id}')" class="pinned" id="scroll-${id}">▼</button>
+        <button title="清空此面板" onclick="clearPanel('${id}')">✕</button>
+      </div>
+    </div>
+    <div class="panel-body" id="body-${id}"></div>
+  `;
+
+  container.appendChild(panel);
+
+  const bodyEl = document.getElementById(`body-${id}`);
+  // 点击面板聚焦搜索输入
+  bodyEl.addEventListener('click', () => document.getElementById('searchInput').focus());
+
+  streams[id] = {
+    id, name, color,
+    status: status || 'ready',
+    panel, bodyEl,
+    lines: [],
+    autoScroll: true,
+    lineCount: 0,
+  };
+
+  panelCounter++;
+  updateStreamSummary();
+}
+
+function addLine(streamId, text, color, streamName) {
+  let s = streams[streamId];
+  if (!s) {
+    ensurePanel(streamId, streamName || `stream-${streamId}`, color || '#c9d1d9', 'running');
+    s = streams[streamId];
+  }
+
+  s.lineCount++;
+  s.lines.push({ text, lineNum: s.lineCount });
+
+  // 限制面板内行数
+  const MAX_VISIBLE = 1000;
+  if (s.lines.length > MAX_VISIBLE) {
+    s.lines = s.lines.slice(-MAX_VISIBLE);
+    // 清理 DOM
+    while (s.bodyEl.children.length > MAX_VISIBLE) {
+      s.bodyEl.removeChild(s.bodyEl.firstChild);
+    }
+  }
+
+  // 检测级别
+  const level = detectLevel(text);
+
+  const lineEl = document.createElement('div');
+  lineEl.className = `log-line${level ? ' level-' + level : ''}`;
+  lineEl.innerHTML = `
+    <span class="line-num">${s.lineCount}</span>
+    <span class="line-content">${escapeHtml(text)}</span>
+  `;
+
+  s.bodyEl.appendChild(lineEl);
+
+  // 应用当前搜索高亮
+  if (searchTerm) highlightLine(lineEl, text, s.lineCount);
+
+  // 自动滚动
+  if (s.autoScroll) {
+    s.bodyEl.scrollTop = s.bodyEl.scrollHeight;
+  }
+
+  // 更新行计数
+  const lnEl = document.getElementById(`ln-${streamId}`);
+  if (lnEl) lnEl.textContent = s.lineCount;
+
+  // 全局行缓存
+  allLines.push({ streamId, text, lineNum: s.lineCount, el: lineEl, panelBody: s.bodyEl });
+  if (allLines.length > 5000) allLines = allLines.slice(-5000);
+
+  // 更新搜索匹配
+  if (searchTerm) {
+    const count = updateSearchCount();
+    document.getElementById('matchCount').textContent = count;
+  }
+}
+
+function loadHistory(streamId, lines) {
+  const s = streams[streamId];
+  if (!s) return;
+  s.bodyEl.innerHTML = '';
+  s.lines = [];
+  s.lineCount = 0;
+
+  lines.forEach(l => {
+    s.lineCount++;
+    s.lines.push({ text: l.text, lineNum: s.lineCount });
+    const lineEl = document.createElement('div');
+    lineEl.className = 'log-line';
+    lineEl.innerHTML = `<span class="line-num">${s.lineCount}</span><span class="line-content">${escapeHtml(l.text)}</span>`;
+    s.bodyEl.appendChild(lineEl);
+    allLines.push({ streamId, text: l.text, lineNum: s.lineCount, el: lineEl, panelBody: s.bodyEl });
+  });
+
+  document.getElementById(`ln-${streamId}`).textContent = s.lineCount;
+  if (s.autoScroll) s.bodyEl.scrollTop = s.bodyEl.scrollHeight;
+}
+
+function updateStreamStatus(id, status) {
+  const s = streams[id];
+  if (!s) return;
+  s.status = status;
+  const dot = s.panel.querySelector('.status-dot');
+  if (dot) dot.className = `status-dot ${status}`;
+  updateStreamSummary();
+}
+
+function toggleAutoScroll(id) {
+  const s = streams[id];
+  if (!s) return;
+  s.autoScroll = !s.autoScroll;
+  const btn = document.getElementById(`scroll-${id}`);
+  if (btn) {
+    btn.className = s.autoScroll ? 'pinned' : '';
+    btn.textContent = s.autoScroll ? '▼' : '▶';
+  }
+  if (s.autoScroll) s.bodyEl.scrollTop = s.bodyEl.scrollHeight;
+}
+
+function clearPanel(id) {
+  const s = streams[id];
+  if (!s) return;
+  s.bodyEl.innerHTML = '';
+  s.lines = [];
+  s.lineCount = 0;
+  document.getElementById(`ln-${id}`).textContent = '0';
+  allLines = allLines.filter(l => l.streamId !== id);
+  if (searchTerm) updateSearchCount();
+}
+
+function clearAll() {
+  Object.keys(streams).forEach(id => clearPanel(id));
+  allLines = [];
+  searchMatches = [];
+  searchIndex = -1;
+  document.getElementById('matchCount').textContent = '0';
+}
+
+function updateStreamSummary() {
+  const el = document.getElementById('streamSummary');
+  const count = document.getElementById('streamCount');
+  const total = Object.keys(streams).length;
+  count.textContent = total;
+
+  el.innerHTML = Object.values(streams).map(s =>
+    `<span class="tag" style="border-left: 3px solid ${s.color}">${s.name} <small>(${s.status})</small></span>`
+  ).join('');
+}
+
+function detectLevel(text) {
+  const t = text.toLowerCase();
+  if (/\b(error|fail|fatal|exception|panic|refused|timeout)\b/i.test(t)) return 'error';
+  if (/\b(warn|warning|deprecated|alert)\b/i.test(t)) return 'warn';
+  return null;
+}
+
+// ============== Layout ==============
+function setLayout(layout) {
+  currentLayout = layout;
+  const container = document.getElementById('panelsContainer');
+  container.className = `panels-container layout-${layout}`;
+  document.querySelectorAll('.layout-btns button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.layout-btns button[onclick="setLayout('${layout}')"]`).classList.add('active');
+}
+
+// ============== Search ==============
+const searchInput = document.getElementById('searchInput');
+
+searchInput.addEventListener('input', () => {
+  searchTerm = searchInput.value.trim();
+  clearAllHighlights();
+  if (!searchTerm) {
+    searchMatches = [];
+    searchIndex = -1;
+    document.getElementById('matchCount').textContent = '0';
+    return;
+  }
+  const count = updateSearchCount();
+  document.getElementById('matchCount').textContent = count;
+  if (count > 0) {
+    searchIndex = 0;
+    scrollToMatch(0);
+  }
+});
+
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (searchMatches.length === 0) return;
+    searchIndex = (searchIndex + 1) % searchMatches.length;
+    scrollToMatch(searchIndex);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (searchMatches.length === 0) return;
+    searchIndex = (searchIndex - 1 + searchMatches.length) % searchMatches.length;
+    scrollToMatch(searchIndex);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (searchMatches.length === 0) return;
+    searchIndex = (searchIndex + 1) % searchMatches.length;
+    scrollToMatch(searchIndex);
+  } else if (e.key === 'Escape') {
+    searchInput.value = '';
+    searchTerm = '';
+    clearAllHighlights();
+    searchMatches = [];
+    searchIndex = -1;
+    document.getElementById('matchCount').textContent = '0';
+  }
+});
+
+function updateSearchCount() {
+  clearAllHighlights();
+  if (!searchTerm) { searchMatches = []; return 0; }
+  const regex = new RegExp(escapeRegex(searchTerm), 'gi');
+  searchMatches = [];
+  allLines.forEach(line => {
+    const contentSpan = line.el.querySelector('.line-content');
+    if (!contentSpan) return;
+    const text = line.text;
+    const matches = [...text.matchAll(regex)];
+    matches.forEach(m => {
+      searchMatches.push({ line, index: m.index });
+    });
+    if (matches.length > 0) highlightLine(line.el, text, line.lineNum);
+  });
+  return searchMatches.length;
+}
+
+function highlightLine(el, text, lineNum) {
+  if (!searchTerm) return;
+  const contentSpan = el.querySelector('.line-content');
+  if (!contentSpan) return;
+  const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+  contentSpan.innerHTML = escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
+}
+
+function clearAllHighlights() {
+  document.querySelectorAll('.log-line').forEach(el => {
+    const contentSpan = el.querySelector('.line-content');
+    if (contentSpan) contentSpan.innerHTML = contentSpan.textContent;
+  });
+  document.querySelectorAll('.highlight.current').forEach(el => el.classList.remove('current'));
+}
+
+function scrollToMatch(idx) {
+  if (idx < 0 || idx >= searchMatches.length) return;
+
+  // Clear previous current
+  document.querySelectorAll('.highlight.current').forEach(el => el.classList.remove('current'));
+
+  const match = searchMatches[idx];
+  const contentSpan = match.line.el.querySelector('.line-content');
+  if (!contentSpan) return;
+
+  // Re-highlight with current marker
+  const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+  contentSpan.innerHTML = escapeHtml(match.line.text).replace(regex, (m, p1, offset) => {
+    if (offset === match.index) return '<mark class="highlight current">$1</mark>';
+    return '<mark class="highlight">$1</mark>';
+  });
+
+  // Scroll panel and window
+  match.line.panelBody.scrollTop = match.line.el.offsetTop - match.line.panelBody.clientHeight / 2;
+  match.line.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ============== Command Stream Dialog ==============
+function addCommandStream() {
+  document.getElementById('cmdDialog').style.display = 'flex';
+  document.getElementById('cmdName').value = '';
+  document.getElementById('cmdCommand').value = '';
+  document.getElementById('cmdName').focus();
+}
+
+function closeCmdDialog() {
+  document.getElementById('cmdDialog').style.display = 'none';
+}
+
+function submitCommand() {
+  const name = document.getElementById('cmdName').value.trim();
+  const command = document.getElementById('cmdCommand').value.trim();
+  if (!command) return;
+
+  fetch('/api/streams', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name || command, command }),
+  }).then(r => r.json()).then(data => {
+    ensurePanel(data.id, data.name, data.color, 'running');
+  });
+
+  closeCmdDialog();
+}
+
+// Allow Enter key in dialog
+document.getElementById('cmdDialog').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitCommand();
+  if (e.key === 'Escape') closeCmdDialog();
+});
+
+function restartDemo() {
+  // Clear existing panels
+  Object.keys(streams).forEach(id => {
+    const s = streams[id];
+    if (s.panel) s.panel.remove();
+  });
+  streams = {};
+  allLines = [];
+  searchMatches = [];
+  searchIndex = -1;
+  document.getElementById('matchCount').textContent = '0';
+
+  fetch('/api/demo/stop', { method: 'POST' }).then(() => {
+    fetch('/api/demo/start', { method: 'POST' });
+  });
+}
+
+// ============== Init ==============
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleString('zh-CN', {
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Start
+connectWS();
+
+// Keyboard shortcut: Ctrl+K for command dialog
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 'k') {
+    e.preventDefault();
+    addCommandStream();
+  }
+  // Ctrl+1..4 for layout
+  if (e.ctrlKey && e.key >= '1' && e.key <= '4') {
+    e.preventDefault();
+    const layouts = { '1':'cols-1', '2':'grid-2', '3':'cols-3', '4':'grid-4' };
+    setLayout(layouts[e.key]);
+  }
+  // / to focus search
+  if (e.key === '/' && document.activeElement !== searchInput && document.activeElement?.tagName !== 'INPUT') {
+    e.preventDefault();
+    searchInput.focus();
+  }
+});
+</script>
+</body>
+</html>

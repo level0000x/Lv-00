@@ -1,0 +1,72 @@
+name: Deploy Web Demo
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'web/**'
+      - 'src/**'
+      - 'include/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Emscripten
+      uses: emscripten-core/emsdk@v5
+      with:
+        version: 3.1.60
+        actions-cache-folder: 'emsdk-cache'
+    
+    - name: Verify Emscripten
+      run: |
+        emcc --version
+    
+    - name: Build WebAssembly module
+      run: |
+        cd web
+        emcmake cmake -B build
+        cmake --build build
+    
+    - name: Copy files to dist
+      shell: bash
+      run: |
+        mkdir -p web/dist
+        cp web/build/lv00_web.js web/dist/
+        cp web/build/lv00_web.wasm web/dist/
+        cp web/js/app.js web/dist/
+        cp web/index.html web/dist/
+    
+    - name: Verify WebAssembly module
+      shell: bash
+      run: |
+        echo "=== Verifying WebAssembly module ==="
+        if [ -f web/dist/lv00_web.wasm ]; then
+          echo "WASM module found: $(du -h web/dist/lv00_web.wasm | cut -f1)"
+          file web/dist/lv00_web.wasm
+        else
+          echo "ERROR: WASM module not found!"
+          exit 1
+        fi
+        if [ -f web/dist/lv00_web.js ]; then
+          echo "JS glue found: $(du -h web/dist/lv00_web.js | cut -f1)"
+        else
+          echo "ERROR: JS glue not found!"
+          exit 1
+        fi
+    
+    # 部署到 GitHub Pages。也可考虑替代方案：
+    # - Netlify: 使用 nwtgck/actions-netlify
+    # - Cloudflare Pages: 使用 cloudflare/pages-action
+    # - Vercel: 使用 amondnet/vercel-action
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./web/dist
+        publish_branch: gh-pages

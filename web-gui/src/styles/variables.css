@@ -1,0 +1,416 @@
+/* ============================================================
+   LV-00 CSS Variables / CSS 自定义属性
+   统一管理颜色、间距、字体、圆角、动画、z-index 等设计令牌
+   ============================================================ */
+
+:root {
+    /* === 主色调 / Background Colors === */
+    --color-bg-primary: #0d1117;
+    --color-bg-secondary: #161b22;
+    --color-bg-tertiary: #21262d;
+    --color-bg-canvas: #0a0e14;
+    --color-bg-overlay: #1c2128;
+
+    /* === 文字颜色 / Text Colors === */
+    --color-text-primary: #c9d1d9;
+    --color-text-secondary: #8b949e;
+    --color-text-muted: #484f58;
+    --color-text-bright: #e6edf3;
+
+    /* === 边框颜色 / Border Colors === */
+    --color-border-primary: #30363d;
+    --color-border-secondary: #21262d;
+
+    /* === 强调色 / Accent Colors === */
+    --color-accent: #00bcd4;
+    --color-accent-hover: #26c6da;
+    --color-accent-rgb: 0, 188, 212;
+
+    /* === 危险/错误颜色 / Danger Colors === */
+    --color-danger: #f85149;
+    --color-danger-hover: #994444;
+    --color-danger-border: #663333;
+
+    /* === 状态色 / Status Colors (success/warning/info) === */
+    --color-success: #3fb950;
+    --color-success-rgb: 63, 185, 80;
+    --color-success-bg: rgba(63, 185, 80, 0.1);
+    --color-success-border: rgba(63, 185, 80, 0.3);
+
+    --color-warning: #d29922;
+    --color-warning-rgb: 210, 153, 34;
+    --color-warning-bg: rgba(210, 153, 34, 0.1);
+    --color-warning-border: rgba(210, 153, 34, 0.3);
+
+    --color-info: #58a6ff;
+    --color-info-rgb: 88, 166, 255;
+    --color-info-bg: rgba(88, 166, 255, 0.1);
+    --color-info-border: rgba(88, 166, 255, 0.3);
+
+    /* === 背景叠加色 / Background Overlay Colors === */
+    --color-bg-hover-subtle: rgba(255, 255, 255, 0.03);
+    --color-bg-active: rgba(255, 255, 255, 0.06);
+
+    /* === 信任颜色 / Trust Colors === */
+    --color-trust-green: #3fb950;
+    --color-trust-blue: #58a6ff;
+    --color-trust-grey: #8b949e;
+    --color-trust-red: #f85149;
+    --color-trust-orange: #f0883e;
+    --color-trust-yellow: #d29922;
+    --color-trust-dark-orange: #db6d28;
+
+    /* === 模块颜色 / Module Colors === */
+    /* 公式模块 - 蓝色系 */
+    --color-module-formula: #58a6ff;
+    --color-module-formula-hover: #79c0ff;
+    --color-module-formula-deep: #388bfd;
+    /* 图模块 - 绿色系 */
+    --color-module-graph: #3fb950;
+    --color-module-graph-hover: #56d364;
+    --color-module-graph-deep: #2ea043;
+    /* 函数块模块 - 紫色系 */
+    --color-module-block: #bc8cff;
+    --color-module-block-hover: #d2a8ff;
+    --color-module-block-deep: #8957e5;
+    /* 证明模块 - 浅紫色系 */
+    --color-module-proof: #d2a8ff;
+    --color-module-proof-hover: #bc8cff;
+    --color-module-proof-deep: #8957e5;
+    /* 类型模块 - 青色系 */
+    --color-module-type: #39d2c0;
+    --color-module-type-hover: #56d4c8;
+    --color-module-type-deep: #2ba89a;
+    /* 递归模块 - 琥珀色系 */
+    --color-module-recurse: #d29922;
+    --color-module-recurse-hover: #e3b341;
+    --color-module-recurse-deep: #9e7a1f;
+    /* 引擎模块 - 青色系（工程色调） */
+    --color-module-engine: #00bcd4;
+    --color-module-engine-hover: #26c6da;
+    --color-module-engine-deep: #0097a7;
+    /* 调试模块 - 橙色系 */
+    --color-module-debug: #f0883e;
+    --color-module-debug-hover: #f5a623;
+    --color-module-debug-deep: #c25d0e;
+    /* 帮助模块 - 灰蓝色系 */
+    --color-module-help: #8b949e;
+    --color-module-help-hover: #a5acb5;
+    --color-module-help-deep: #6e7681;
+    /* AI 助手模块 - 品红色系 */
+    --color-module-assistant: #db61a2;
+    --color-module-assistant-hover: #e378b5;
+    --color-module-assistant-deep: #bf4b8a;
+    /* 兼容旧变量名：engineering -> engine */
+    --color-module-engineering: var(--color-module-engine);
+    --color-module-engineering-hover: var(--color-module-engine-hover);
+
+    /* === 布局尺寸 / Layout Dimensions === */
+    --header-height: 40px;
+    --statusbar-height: 26px;
+    --sidebar-width-default: 280px;
+    --sidebar-min-width: 200px;
+    --sidebar-max-width: 400px;
+
+    /* === 间距 / Spacing === */
+    --spacing-xs: 2px;
+    --spacing-sm: 4px;
+    --spacing-md: 8px;
+    --spacing-lg: 12px;
+    --spacing-xl: 20px;
+    --spacing-2xl: 32px;
+    --spacing-3xl: 48px;
+
+    /* === 字体 / Font === */
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+
+    /* === 字体大小层级 / Font Size Scale === */
+    --font-size-xs: 9px;
+    --font-size-sm: 10px;
+    --font-size-base: 11px;
+    --font-size-md: 12px;
+    --font-size-lg: 13px;
+    --font-size-xl: 14px;
+    --font-size-2xl: 18px;
+    --font-size-3xl: 24px;
+
+    /* === 字重 / Font Weight === */
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /* === 行高 / Line Height === */
+    --line-height-tight: 1.2;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.8;
+
+    /* === 圆角 / Border Radius === */
+    --radius-sm: 3px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-full: 9999px;
+
+    /* === 动画时长 / Transition Durations === */
+    --duration-instant: 0.1s;
+    --duration-fast: 0.15s;
+    --duration-normal: 0.2s;
+    --duration-slow: 0.3s;
+    --duration-slower: 0.5s;
+
+    /* === 缓动函数 / Easing Functions === */
+    --ease-default: ease;
+    --ease-in: ease-in;
+    --ease-out: ease-out;
+    --ease-in-out: ease-in-out;
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* === 过渡 / Transitions === */
+    --transition-fast: var(--duration-fast) var(--ease-default);
+    --transition-normal: var(--duration-normal) var(--ease-default);
+    --transition-slow: var(--duration-slow) var(--ease-default);
+    --transition-spring: var(--duration-slow) var(--ease-spring);
+    --transition-smooth: var(--duration-normal) var(--ease-smooth);
+
+    /* === 滚动条颜色 / Scrollbar Colors === */
+    --color-scrollbar-thumb: #30363d;
+    --color-scrollbar-thumb-hover: #484f58;
+    --color-scrollbar-track: #0d1117;
+
+    /* === 阴影系统 / Shadow System (sm/md/lg/xl) === */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-glow-accent: 0 0 12px rgba(var(--color-accent-rgb), 0.3);
+    --shadow-glow-success: 0 0 12px rgba(var(--color-success-rgb), 0.3);
+    --shadow-glow-danger: 0 0 12px rgba(248, 81, 73, 0.3);
+    --shadow-inset-sm: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+
+    /* === 模态/遮罩层 / Modal & Overlay === */
+    --color-modal-backdrop: rgba(0, 0, 0, 0.7);
+    --backdrop-blur: 4px;
+
+    /* === Canvas 渲染颜色 / Canvas Rendering Colors === */
+    --color-canvas-bg: #080808;
+    --color-canvas-grid: #1a1a1a;
+    --color-canvas-axis: #2a2a2a;
+    --color-canvas-point: #888;
+    --color-canvas-point-selected: #4caf50;
+    --color-canvas-point-hover: #2196f3;
+    --color-canvas-segment: #555;
+    --color-canvas-text: #888;
+    --color-canvas-tooltip-bg: rgba(20, 20, 20, 0.9);
+    --color-canvas-tooltip-border: #444;
+    --color-canvas-tooltip-text: #aaa;
+    --color-canvas-hud-text: #444;
+
+    /* === 约束标记颜色 / Constraint Marker Colors === */
+    --color-constraint-incidence: #4caf50;
+    --color-constraint-betweenness: #ff9800;
+    --color-constraint-intersection: #f44336;
+    --color-constraint-containment: #2196f3;
+
+    /* === 区域/端口/函数块渲染颜色 === */
+    --color-region-fill: rgba(100, 180, 255, 0.1);
+    --color-region-border: rgba(100, 180, 255, 0.4);
+    --color-port-in: #2196f3;
+    --color-port-out: #4caf50;
+    --color-block-bg: rgba(40, 44, 52, 0.9);
+    --color-block-border: #58a6ff;
+    --color-block-title: #58a6ff;
+    --color-block-type-text: #8b949e;
+
+    /* === 调试面板暗色背景 === */
+    --color-debug-panel-bg: #010409;
+
+    /* === 选择矩形颜色 === */
+    --color-selection-rect-border: rgba(88, 166, 255, 0.5);
+    --color-selection-rect-bg: rgba(88, 166, 255, 0.08);
+
+    /* === z-index 层级系统 / Z-index Scale === */
+    --z-base: 0;
+    --z-canvas: 1;
+    --z-selection: 5;
+    --z-toolbar: 10;
+    --z-resize: 15;
+    --z-sidebar: 20;
+    --z-sticky: 30;
+    --z-dropdown: 40;
+    --z-context-menu: 50;
+    --z-tooltip: 100;
+    --z-modal-backdrop: 190;
+    --z-modal: 200;
+    --z-toast: 300;
+    --z-loading: 1000;
+
+    /* === 侧边栏渐变 / Sidebar Gradient === */
+    --sidebar-gradient: linear-gradient(180deg, var(--color-bg-secondary) 0%, rgba(22, 27, 34, 0.95) 100%);
+
+    /* === 状态栏渐变 / Status Bar Gradient === */
+    --statusbar-gradient: linear-gradient(90deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 50%, var(--color-bg-secondary) 100%);
+}
+
+/* ============================================================
+   亮色主题 / Light Theme Variables
+   ============================================================ */
+body.light-theme {
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f6f8fa;
+    --color-bg-tertiary: #d0d7de;
+    --color-bg-canvas: #f6f8fa;
+    --color-bg-overlay: #ffffff;
+
+    --color-text-primary: #1f2328;
+    --color-text-secondary: #656d76;
+    --color-text-muted: #8b949e;
+    --color-text-bright: #1f2328;
+
+    --color-border-primary: #d0d7de;
+    --color-border-secondary: #e0e4e8;
+
+    --color-canvas-bg: #f5f5f5;
+    --color-canvas-grid: #e0e0e0;
+    --color-canvas-axis: #ccc;
+    --color-canvas-point: #333;
+    --color-canvas-point-selected: #2196f3;
+    --color-canvas-point-hover: #4caf50;
+    --color-canvas-segment: #666;
+    --color-canvas-text: #333;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.12);
+    --shadow-glow-accent: 0 0 12px rgba(var(--color-accent-rgb), 0.15);
+    --shadow-glow-success: 0 0 12px rgba(var(--color-success-rgb), 0.15);
+    --shadow-glow-danger: 0 0 12px rgba(248, 81, 73, 0.15);
+    --shadow-inset-sm: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+
+    --color-modal-backdrop: rgba(0, 0, 0, 0.4);
+    --backdrop-blur: 6px;
+
+    --color-scrollbar-thumb: #c8cdd3;
+    --color-scrollbar-thumb-hover: #a0a7af;
+    --color-scrollbar-track: #f6f8fa;
+
+    --color-debug-panel-bg: #fafafa;
+
+    --color-accent: #0891b2;
+    --color-accent-hover: #06b6d4;
+    --color-accent-rgb: 8, 145, 178;
+
+    --color-danger: #cf222e;
+    --color-danger-hover: #a40e26;
+    --color-danger-border: #ee5a5a;
+
+    --color-bg-hover-subtle: rgba(0, 0, 0, 0.03);
+    --color-bg-active: rgba(0, 0, 0, 0.06);
+
+    --color-success: #1a7f37;
+    --color-success-rgb: 26, 127, 55;
+    --color-success-bg: rgba(26, 127, 55, 0.08);
+    --color-success-border: rgba(26, 127, 55, 0.25);
+
+    --color-warning: #9a6700;
+    --color-warning-rgb: 154, 103, 0;
+    --color-warning-bg: rgba(154, 103, 0, 0.08);
+    --color-warning-border: rgba(154, 103, 0, 0.25);
+
+    --color-info: #0550ae;
+    --color-info-rgb: 5, 80, 174;
+    --color-info-bg: rgba(5, 80, 174, 0.08);
+    --color-info-border: rgba(5, 80, 174, 0.25);
+
+    --color-trust-green: #1a7f37;
+    --color-trust-blue: #0550ae;
+    --color-trust-grey: #57606a;
+    --color-trust-red: #cf222e;
+    --color-trust-orange: #bc4c00;
+    --color-trust-yellow: #9a6700;
+    --color-trust-dark-orange: #bc4c00;
+
+    --color-module-formula: #0550ae;
+    --color-module-formula-hover: #0969da;
+    --color-module-formula-deep: #033d8b;
+    --color-module-graph: #1a7f37;
+    --color-module-graph-hover: #2da44e;
+    --color-module-proof: #8250df;
+    --color-module-proof-hover: #9a6eff;
+    --color-module-proof-deep: #6f42c1;
+    --color-module-debug: #bc4c00;
+    --color-module-debug-hover: #d4620c;
+
+    /* === 补全缺失的模块颜色变量 / Complete missing module color variables === */
+
+    /* Block 模块 */
+    --color-module-block: #059669;
+    --color-module-block-hover: #047857;
+    --color-module-block-deep: #065f46;
+
+    /* Type 模块 */
+    --color-module-type: #d97706;
+    --color-module-type-hover: #b45309;
+    --color-module-type-deep: #92400e;
+
+    /* Recurse 模块 */
+    --color-module-recurse: #7c3aed;
+    --color-module-recurse-hover: #6d28d9;
+    --color-module-recurse-deep: #5b21b6;
+
+    /* Engine 模块（统一使用 engine 命名） */
+    --color-module-engine: #0891b2;
+    --color-module-engine-hover: #0e7490;
+    --color-module-engine-deep: #155e75;
+
+    /* Help 模块 */
+    --color-module-help: #6b7280;
+    --color-module-help-hover: #4b5563;
+    --color-module-help-deep: #374151;
+
+    /* Assistant 模块 */
+    --color-module-assistant: #ec4899;
+    --color-module-assistant-hover: #db2777;
+    --color-module-assistant-deep: #be185d;
+
+    /* 补全 deep 变量 */
+    --color-module-graph-deep: #1e3a5f;
+    --color-module-engineering-deep: #155e75;
+
+    /* 危险色 RGB 变量（用于 rgba 场景） */
+    --color-danger-rgb: 248, 81, 73;
+
+    /* 兼容旧变量名：engineering -> engine（别名） */
+    --color-module-engineering: var(--color-module-engine);
+    --color-module-engineering-hover: var(--color-module-engine-hover);
+
+    --color-region-fill: rgba(5, 80, 174, 0.08);
+    --color-region-border: rgba(5, 80, 174, 0.3);
+
+    --color-selection-rect-border: rgba(5, 80, 174, 0.5);
+    --color-selection-rect-bg: rgba(5, 80, 174, 0.06);
+
+    --sidebar-gradient: linear-gradient(180deg, var(--color-bg-secondary) 0%, rgba(246, 248, 250, 0.95) 100%);
+    --statusbar-gradient: linear-gradient(90deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 50%, var(--color-bg-secondary) 100%);
+}
+
+/* ============================================================
+   减少动画偏好 / Reduced Motion Preferences
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-instant: 0ms;
+        --duration-fast: 0ms;
+        --duration-normal: 0ms;
+        --duration-slow: 0ms;
+        --duration-slower: 0ms;
+        --transition-fast: 0ms;
+        --transition-normal: 0ms;
+        --transition-slow: 0ms;
+        --transition-spring: 0ms;
+        --transition-smooth: 0ms;
+    }
+}

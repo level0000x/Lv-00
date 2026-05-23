@@ -1,0 +1,27 @@
+# Lv-00 项目 Python 依赖声明
+# ==============================
+# 注意：核心 lv00 包使用 ctypes 加载 C 动态库，无需额外 Python 依赖
+# 以下依赖按子系统分组
+
+# -- 并发进程监控 (concurrent_monitor/) --
+rich>=13.0,<14.0    # 终端美化输出（可选，缺失时自动降级为纯文本）
+                    # 版本上限 <14.0：避免主版本升级引入不兼容的 API 变更
+flask>=3.0,<4.0     # Web 仪表盘 HTTP 服务
+                    # 版本上限 <4.0：flask 4.0 可能移除已弃用的 API
+
+# -- LLM 编程辅助 (llm_coding_assistant/) --
+fastapi>=0.110      # HTTP API 框架
+uvicorn>=0.25       # ASGI 服务器
+pydantic>=2.5       # 数据验证
+dashscope>=1.18     # 阿里云 DashScope AI 接口
+openai>=1.0         # OpenAI 兼容接口
+httpx>=0.25         # 异步 HTTP 客户端
+
+# -- 性能基准测试 (scripts/) --
+# 仅使用 Python 标准库，无额外依赖
+
+# -- Web 前端开发服务器 (web/) --
+# 仅使用 Python 标准库 http.server，无额外依赖
+
+# -- Python 绑定 (python/) --
+# 仅使用 ctypes 标准库，无额外依赖

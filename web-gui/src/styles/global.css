@@ -1,0 +1,484 @@
+/* ============================================================
+   LV-00 Global Styles / 全局样式
+   ============================================================ */
+
+/* === Global Reset / 全局重置 === */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* === BODY / 页面主体 === */
+body {
+    font-family: var(--font-mono);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    font-size: var(--font-size-lg);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern' 1;
+    line-height: var(--line-height-normal);
+}
+
+/* === 选中文本样式 / Text Selection === */
+::selection {
+    background: rgba(var(--color-accent-rgb), 0.25);
+    color: var(--color-text-bright);
+}
+
+::-moz-selection {
+    background: rgba(var(--color-accent-rgb), 0.25);
+    color: var(--color-text-bright);
+}
+
+/* === 焦点可见样式 / Focus Visible === */
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+    transition: outline-color var(--duration-fast) var(--ease-default);
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* === 自定义滚动条 / Custom Scrollbars (WebKit) === */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-scrollbar-track);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-scrollbar-thumb);
+    border-radius: var(--radius-full);
+    border: 1px solid transparent;
+    background-clip: content-box;
+    transition: background-color var(--duration-fast) var(--ease-default);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-scrollbar-thumb-hover);
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+    background: var(--color-scrollbar-track);
+}
+
+/* === 自定义滚动条 / Custom Scrollbars (Firefox) === */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+/* === HEADER / 顶部导航栏 === */
+.header {
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border-primary);
+    padding: 0 var(--spacing-xl);
+    display: flex;
+    align-items: center;
+    height: 40px;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.header-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-bright);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-right: 16px;
+    white-space: nowrap;
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-text-bright) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    transition: opacity var(--duration-fast) var(--ease-default);
+}
+
+.header-title:hover {
+    opacity: 0.85;
+}
+
+.header-version {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border-primary);
+    padding: var(--spacing-xs) var(--spacing-md);
+    letter-spacing: 1px;
+    margin-right: var(--spacing-xl);
+    white-space: nowrap;
+    border-radius: var(--radius-full);
+    transition: border-color var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
+}
+
+.header-version:hover {
+    border-color: var(--color-text-muted);
+    color: var(--color-text-secondary);
+}
+
+/* === BREADCRUMB / 面包屑导航 === */
+.breadcrumb {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-right: var(--spacing-lg);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.breadcrumb-current {
+    color: var(--color-text-secondary);
+    transition: color var(--duration-fast) var(--ease-default);
+}
+
+/* === MODULE TABS / 模块标签页 === */
+.module-tabs {
+    display: flex;
+    height: 100%;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    position: relative;
+}
+.module-tabs::-webkit-scrollbar { display: none; }
+
+.module-tab {
+    padding: 0 var(--spacing-lg);
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    color: var(--color-text-muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+    position: relative;
+}
+
+.module-tab:hover {
+    color: var(--color-text-secondary);
+    background: var(--color-bg-hover-subtle);
+}
+
+.module-tab.active {
+    color: var(--color-text-primary);
+    border-bottom-color: var(--color-accent);
+    background: rgba(var(--color-accent-rgb), 0.05);
+}
+
+.module-tab .tab-icon {
+    font-size: 12px;
+    margin-right: var(--spacing-sm);
+    opacity: 0.7;
+    transition: opacity var(--duration-fast) var(--ease-default), transform var(--duration-fast) var(--ease-spring);
+}
+.module-tab.active .tab-icon { opacity: 1; }
+.module-tab:hover .tab-icon { transform: scale(1.1); }
+
+/* === MAIN LAYOUT / 主布局 === */
+.app-shell {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.main-container {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+/* === LEFT SIDEBAR / 左侧边栏 === */
+.sidebar-left {
+    width: 280px;
+    min-width: 200px;
+    max-width: 400px;
+    background: var(--sidebar-gradient);
+    border-right: 1px solid var(--color-border-secondary);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: background var(--duration-slow) var(--ease-default);
+}
+
+/* === RESIZE HANDLE / 拖拽调整大小手柄 === */
+.resize-handle {
+    width: 5px;
+    cursor: col-resize;
+    background: transparent;
+    flex-shrink: 0;
+    position: relative;
+    z-index: var(--z-resize);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.resize-handle:hover {
+    background: var(--color-accent);
+    box-shadow: 0 0 8px rgba(var(--color-accent-rgb), 0.3);
+}
+
+.resize-handle.dragging {
+    background: var(--color-accent);
+    box-shadow: 0 0 12px rgba(var(--color-accent-rgb), 0.4);
+}
+
+/* === CANVAS AREA / 画布区域 === */
+.canvas-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--color-bg-canvas);
+    min-width: 0;
+}
+
+#geometryCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+
+/* === RIGHT SIDEBAR / 右侧边栏 === */
+.sidebar-right {
+    width: 280px;
+    min-width: 200px;
+    max-width: 360px;
+    background: var(--sidebar-gradient);
+    border-left: 1px solid var(--color-border-secondary);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: background var(--duration-slow) var(--ease-default);
+}
+
+/* === STATUS BAR / 状态栏 === */
+.status-bar {
+    background: var(--statusbar-gradient);
+    border-top: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-sm) var(--spacing-xl);
+    font-size: var(--font-size-xs);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 26px;
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    position: relative;
+}
+
+.status-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(var(--color-accent-rgb), 0.3) 50%,
+        transparent 100%
+    );
+}
+
+.status-left {
+    color: var(--color-text-secondary);
+    min-width: 200px;
+    display: flex;
+    gap: 16px;
+}
+
+.status-center {
+    color: var(--color-text-muted);
+    flex: 1;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-right {
+    color: var(--color-text-muted);
+    letter-spacing: 1px;
+    min-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    display: flex;
+    gap: var(--spacing-lg);
+    justify-content: flex-end;
+}
+
+/* === SCROLLBAR / 滚动条样式 (组件级) === */
+.sidebar-left::-webkit-scrollbar,
+.sidebar-right::-webkit-scrollbar,
+.log-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-left::-webkit-scrollbar-track,
+.sidebar-right::-webkit-scrollbar-track,
+.log-content::-webkit-scrollbar-track {
+    background: var(--color-scrollbar-track);
+}
+
+.sidebar-left::-webkit-scrollbar-thumb,
+.sidebar-right::-webkit-scrollbar-thumb,
+.log-content::-webkit-scrollbar-thumb {
+    background: var(--color-scrollbar-thumb);
+    border-radius: var(--radius-full);
+    transition: background-color var(--duration-fast) var(--ease-default);
+}
+
+.sidebar-left::-webkit-scrollbar-thumb:hover,
+.sidebar-right::-webkit-scrollbar-thumb:hover,
+.log-content::-webkit-scrollbar-thumb:hover {
+    background: var(--color-scrollbar-thumb-hover);
+}
+
+.sidebar-left,
+.sidebar-right,
+.log-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+/* === HEADER ACTIONS / 顶部操作按钮 === */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.header-action-btn {
+    padding: 0 10px;
+    height: 30px;
+    border: 1px solid var(--color-border-primary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    font-family: inherit;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.header-action-btn:hover {
+    background: var(--color-bg-overlay);
+    color: var(--color-text-primary);
+    border-color: var(--color-text-muted);
+}
+
+.header-action-btn:active {
+    transform: scale(0.97);
+}
+
+/* === LOADING / 加载遮罩 === */
+.loading {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--color-bg-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-loading);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* === 字体加载策略 / Font Loading === */
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: local('JetBrains Mono'), local('JetBrainsMono-Regular');
+}
+
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: local('JetBrains Mono Bold'), local('JetBrainsMono-Bold');
+}
+
+/* === 平滑滚动 / Smooth Scrolling === */
+@media (prefers-reduced-motion: no-preference) {
+    .sidebar-left,
+    .sidebar-right,
+    .log-content,
+    .assistant-messages,
+    .streaming-log {
+        scroll-behavior: smooth;
+    }
+}
+
+/* === 减少动画 / Reduced Motion === */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* === 全局链接样式 / Global Link Styles === */
+a {
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-default);
+}
+
+a:hover {
+    color: var(--color-accent-hover);
+}
+
+/* === 全局代码样式 / Global Code Styles === */
+code, pre {
+    font-family: var(--font-mono);
+}
+
+/* === 全局禁用选择 / Global No Select (for interactive elements) === */
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+}

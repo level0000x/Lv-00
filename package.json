@@ -1,0 +1,9 @@
+{
+  "name": "lv00",
+  "version": "3.0.1",
+  "description": "Lv-00 Symbolic Geometry Engine - Core project with C engine, Python bindings, and Web frontend",
+  "private": true,
+  "dependencies": {
+    "docx": "^9.6.1"
+  }
+}

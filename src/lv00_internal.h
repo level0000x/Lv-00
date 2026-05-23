@@ -1,0 +1,214 @@
+/**
+ * @file lv00_internal.h (src/)
+ * @brief 内部宏定义统一入口（src/ 目录的桥接文件）
+ *
+ * 【设计意图】编译器对 #include "lv00_internal.h" 优先在当前目录（src/）搜索。
+ * 本文件将 lv00.h 中的核心宏和本文件中定义的
+ * 辅助宏合并加载，作为所有 .c 源文件的统一宏入口。
+ *
+ * 【三层架构说明】
+ *   第 1 层 - lv00.h：对外公开的核心平台宏，供库用户和内部代码共同使用。
+ *      包含线程局部存储、版本号、废弃标记等跨平台兼容性定义。
+ *   第 2 层 - 内部辅助宏：不便暴露给库用户的编译器/工具宏。
+ *      包含未使用变量抑制、数组计数、安全格式化输出、数学常量等。
+ *      这些宏在此文件中定义，作为内部辅助宏的权威来源。
+ *   第 3 层 - 项目级公共常量：消除 src/ 目录下所有 .c 文件中的魔术数字。
+ *      包含引擎配置默认值、哈希参数、容差阈值、迭代上限等。
+ *      所有常量集中在此定义，确保修改一处、全项目生效。
+ *
+ * @author Lv-00 Project
+ * @version 3.0.1
+ */
+
+#ifndef LV00_INTERNAL_H
+#define LV00_INTERNAL_H
+
+/* ====================================================================
+ * 第 1 层：lv00.h 提供的核心平台宏
+ *   - LV00_THREAD_LOCAL  (线程局部存储)
+ *   - LV00_LOCALTIME     (线程安全 localtime)
+ *   - LV00_DEPRECATED(msg) (函数废弃标记)
+ *   - LV00_VERSION_STRING  等
+ * ==================================================================== */
+#include "lv00.h"
+
+/* ====================================================================
+ * 第 2 层：内部辅助宏（不便在 lv00.h 中暴露的）
+ *   - LV00_UNUSED(x)        抑制未使用变量警告
+ *   - LV00_ARRAY_COUNT(arr) 获取数组元素个数
+ *   - LV00_SAFE_SNPRINTF    安全格式化输出到定长缓冲区
+ *   - M_PI                  圆周率常量
+ *
+ * 这些宏在此文件中直接定义，作为内部辅助宏的权威来源。
+ * ==================================================================== */
+
+/* ── 数学常量 ── */
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
+/* ── 自然对数底数 e ── */
+#ifndef M_E
+    #define M_E  2.71828182845904523536
+#endif
+
+/* ── 抑制"未使用变量"警告 ── */
+#ifndef LV00_UNUSED
+    #define LV00_UNUSED(x) ((void)(x))
+#endif
+
+/* ── 数组元素计数 ──
+ * 注意：此宏仅适用于编译期数组，传入指针会产生错误结果。
+ * 编译时可通过 _Generic 或 static_assert 进行基本检查。 */
+#ifndef LV00_ARRAY_COUNT
+    #define LV00_ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
+
+/* ── 安全加法（防溢出） ──
+ * 注意：参数 a、b 在宏中仅求值一次，可安全传入含副作用的表达式。
+ * 若 a + b > limit，返回 limit；否则返回 a + b。 */
+#ifndef LV00_SAFE_ADD
+    #define LV00_SAFE_ADD(a, b, limit) \
+        (__extension__({ \
+            __typeof__(a) _sa_a = (a); \
+            __typeof__(b) _sa_b = (b); \
+            __typeof__(limit) _sa_l = (limit); \
+            (_sa_a > _sa_l - _sa_b) ? _sa_l : (_sa_a + _sa_b); \
+        }))
+#endif
+
+/* ── 安全 snprintf：确保返回值非负且不超过 buf_size-1 ── */
+#ifndef LV00_SAFE_SNPRINTF
+    #define LV00_SAFE_SNPRINTF(written, buf, buf_size, ...) \
+        do { \
+            int _sn = snprintf((buf), (buf_size), __VA_ARGS__); \
+            (written) = (_sn < 0) ? 0 : ((size_t)(_sn) >= (buf_size) ? (int)((buf_size) - 1) : _sn); \
+        } while (0)
+#endif
+
+/* ====================================================================
+ * 第 3 层：项目级公共常量
+ *
+ * 消除魔术数字，全部在此定义，供所有 .c 源文件引用。
+ * ==================================================================== */
+
+/* ── 引擎配置默认值 ── */
+#define LV00_DEFAULT_MAX_ITERATIONS        1000
+#define LV00_DEFAULT_PRECISION_BITS        64
+#define LV00_DEFAULT_REWRITE_STEP_LIMIT    1000
+#define LV00_DEFAULT_MEMORY_LIMIT_MB       0       /* 0 = 无限制 */
+
+/* ── 动态数组初始容量与增长因子 ── */
+#define LV00_INITIAL_ARRAY_CAPACITY        4
+#define LV00_ARRAY_GROWTH_FACTOR           2
+
+/* ── 哈希索引参数 ── */
+#define LV00_NODE_INDEX_INITIAL_SIZE       64
+#define LV00_CONSTRAINT_INDEX_INITIAL_SIZE 64
+#define LV00_INDEX_LOAD_FACTOR             0.75
+
+/* ── FNV-1a 哈希常量 ── */
+/** FNV-1a 64 位哈希参数（项目统一使用 64 位） */
+#define LV00_FNV64_OFFSET_BASIS            0xcbf29ce484222325ULL
+#define LV00_FNV64_PRIME                   0x100000001b3ULL
+/** FNV-1a 32 位哈希参数（仅在需要 32 位哈希时使用） */
+#define LV00_FNV32_OFFSET_BASIS            2166136261u
+#define LV00_FNV32_PRIME                   16777619u
+/* 简化版乘法器：2654435769 = 0x9E3779B9（黄金比例 phi 的 2^32 倍），
+   用于快速位混合，非标准 FNV 参数，仅在特定路径使用 */
+#define LV00_FNV_HASH_MULTIPLIER           2654435769u
+
+/* ── 位数熔断阈值 ── */
+#define LV00_BIT_CUTOFF_THRESHOLD          1000000
+#define LV00_MAX_PRECISION_BITS            100
+
+/* ── 电路溢出阈值 ── */
+#define LV00_CIRCUIT_OVERFLOW_THRESHOLD    3
+
+/* ── 健康检查阈值 ── */
+#define LV00_HEALTH_SCORE_MAX              100
+#define LV00_HEALTH_MEMORY_USAGE_RATIO     0.9
+#define LV00_HEALTH_MEMORY_LEAK_RATIO      0.5
+#define LV00_HEALTH_RECENT_ERROR_PENALTY   15
+#define LV00_HEALTH_MEMORY_WARNING_PENALTY 20
+#define LV00_HEALTH_MEMORY_LEAK_PENALTY    10
+
+/* ── 数值计算容差 ── */
+#define LV00_EPSILON_DOUBLE                1e-12
+#define LV00_EPSILON_NUMERIC_COMPARE       1e-10
+#define LV00_EPSILON_NEWTON                1e-15
+#define LV00_EPSILON_SEGMENT_INTERIOR      1e-9
+#define LV00_EPSILON_FRACTION_ZERO         1e-300
+
+/* ── 连分数迭代上限 ── */
+#define LV00_CONTINUED_FRACTION_MAX_ITER   1000
+
+/* ── 根隔离参数 ── */
+#define LV00_MAX_SUBINTERVALS              256
+#define LV00_ROOT_EPSILON                  1e-12
+
+/* ── 牛顿/代数数细化 ── */
+#define LV00_NEWTON_REFINE_ITERATIONS      10
+
+/* ── 代数数比较/细化迭代 ── */
+#define LV00_ALGEBRAIC_REFINE_ITERATIONS   100
+
+/* ── 降级近似分母基数 ── */
+#define LV00_DOWNGRADE_DENOMINATOR         1000000000
+
+/* ── 坐标值过大阈值（用于降级判断） ── */
+#define LV00_VALUE_TOO_LARGE              9.2e9
+
+/* ── 二次根式化简循环 ── */
+#define LV00_SQRT_REMOVE_MAX_TRIES         100000
+
+/* ── 求解器 (solver.c) 模块级常量 ── */
+/** 缩放因子 —— 提供约6位十进制精度，用于有理数转换，未来应使用mpq直接运算 */
+#define LV00_SOLVER_SCALE_FACTOR         1000000
+/** 质数搜索上限 —— 平方因子分解时的最大质数搜索范围 */
+#define LV00_SOLVER_PRIME_LIMIT          100000
+/** Buchberger算法步数限制 —— Groebner基计算的迭代上限 */
+#define LV00_SOLVER_BUCHBERGER_STEP_LIMIT 10000
+
+/* ── 重写引擎 (rewrite.c) 模块级常量 ── */
+/** Weisfeiler-Lehman 图哈希乘法器 */
+#define LV00_REWRITE_WL_HASH_MULTIPLIER 65599
+
+/* ── 函数块 (func_block.c) 模块级常量 ── */
+/** 函数块ID起始偏移量 —— 避免与普通节点ID冲突 */
+#define LV00_FUNC_BLOCK_ID_OFFSET 10000
+/** 距离平方的默认值，当无法计算有效距离时返回（func_block.c 和 func_block_selector.c 共用） */
+#define LV00_DEFAULT_DISTANCE_SQUARED 1e30
+
+/* ── 递归 (recursion.c) 模块级常量 ── */
+/** 递归深度硬上限 —— 防止栈溢出 */
+#define LV00_MAX_RECURSION_DEPTH_LIMIT 100000
+
+/* ── 预设函数块 (func_block_preset.c) 模块级常量 ── */
+/** 预设函数块库版本 */
+#define LV00_PRESET_LIBRARY_VERSION_MAJOR 5
+#define LV00_PRESET_LIBRARY_VERSION_MINOR 0
+#define LV00_PRESET_LIBRARY_VERSION_PATCH 0
+/** 最大预设数量 */
+#define LV00_PRESET_MAX_COUNT 1024
+/** 最大参数数量 */
+#define LV00_PRESET_MAX_PARAMS 16
+/** 预设ID起始偏移 */
+#define LV00_PRESET_ID_OFFSET 60000
+
+/* ── 日志级别 ── */
+#define LV00_LOG_LEVEL_ERROR   1
+#define LV00_LOG_LEVEL_WARNING 2
+#define LV00_LOG_LEVEL_INFO    3
+#define LV00_LOG_LEVEL_DEBUG   4
+
+/* ── 日志宏 ── */
+#define LV00_LOG_ERROR(fmt, ...)   lv00_log_message(LV00_LOG_LEVEL_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LV00_LOG_WARNING(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_WARNING, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LV00_LOG_INFO(fmt, ...)    lv00_log_message(LV00_LOG_LEVEL_INFO, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LV00_LOG_DEBUG(fmt, ...)   lv00_log_message(LV00_LOG_LEVEL_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+
+/* 日志函数声明（在lv00_utils.c中实现） */
+void lv00_log_message(int level, const char *file, int line, const char *fmt, ...);
+
+#endif /* LV00_INTERNAL_H */

@@ -1,0 +1,125 @@
+# Build artifacts
+build/
+cmake-build-*/
+out/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!CMakeModules/*.cmake
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Coverage
+*.gcno
+*.gcda
+*.gcov
+coverage.info
+coverage/
+htmlcov/
+
+# Benchmark
+benchmark_results/
+
+# Fuzzing
+fuzz_corpus*/
+crash-*
+oom-*
+timeout-*
+slow-unit-*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+*.egg
+.eggs/
+*.whl
+
+# WebAssembly
+web/dist/
+web/build/
+
+# Environment
+.env
+.venv/
+venv/
+
+# Logs
+*.log
+
+# Clangd cache
+.cache/
+
+# CTest temp files
+Testing/
+
+# Temporary
+*.tmp
+temp/
+
+# 根目录构建产物（防止误提交）
+/*.o
+/*.obj
+/*.exe
+/test_output*.txt
+/*_stdout.txt
+/*_stderr.txt
+/build_output.txt
+
+# 日志文件（运行时产生）
+/lv00.log*
+
+# 根目录中的报告文件（应统一放入 docs/reports/ 目录）
+/*.docx
+
+# MSVC 构建产物（Symbol/PDB/增量链接/项目文件）
+*.pdb
+*.ilk
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# 根目录下 clangd 或构建系统生成的 compile_commands.json 软链接
+/compile_commands.json
+
+# Node.js
+node_modules/
+
+# Test result files（仅忽略根目录下的测试输出文件）
+/test_output*.txt
+/test_*.txt
+
+# Build directories
+build_*/
+branches/
