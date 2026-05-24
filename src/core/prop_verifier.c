@@ -39,6 +39,7 @@ LV00_DECLARE_STREAM_CTX(prop_verifier)
 #define MAX_FORMULA_STR 2048  /**< 公式字符串最大长度 */
 #define MAX_COPY_DEPTH 200    /**< 公式深拷贝最大递归深度（防止栈溢出） */
 #define MAX_DESTROY_DEPTH 200 /**< 公式销毁最大递归深度（防止栈溢出） */
+#define MAX_FORMULA_TRAVERSE_DEPTH 256 /**< 公式遍历最大递归深度（防止栈溢出） */
 
 /* ---- 析构栈容量 ---- */
 #define PROP_DESTROY_STACK_INIT_CAP 64 /* 销毁时栈的初始容量 */
@@ -410,9 +411,11 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
  * @param b 第二个公式指针（可为 NULL）
  * @return true 表示结构相等，false 表示不同
  */
-static bool formula_equal(const PropFormula *a, const PropFormula *b) {
+static bool formula_equal_depth(const PropFormula *a, const PropFormula *b, int depth) {
     if (!a || !b)
         return a == b;
+    if (depth > MAX_FORMULA_TRAVERSE_DEPTH)
+        return false; /* 深度超标，保守返回不相等 */
     if (a->type != b->type)
         return false;
     switch (a->type) {
@@ -421,15 +424,19 @@ static bool formula_equal(const PropFormula *a, const PropFormula *b) {
         case PROP_CONJUNCTION:
         case PROP_DISJUNCTION:
         case PROP_IMPLICATION:
-            return formula_equal(a->data.binary.left, b->data.binary.left) &&
-                   formula_equal(a->data.binary.right, b->data.binary.right);
+            return formula_equal_depth(a->data.binary.left, b->data.binary.left, depth + 1) &&
+                   formula_equal_depth(a->data.binary.right, b->data.binary.right, depth + 1);
         case PROP_NEGATION:
-            return formula_equal(a->data.unary.operand, b->data.unary.operand);
+            return formula_equal_depth(a->data.unary.operand, b->data.unary.operand, depth + 1);
         case PROP_BOTTOM:
         case PROP_TRUE:
             return true;
     }
     return false;
+}
+
+static bool formula_equal(const PropFormula *a, const PropFormula *b) {
+    return formula_equal_depth(a, b, 0);
 }
 
 /* ============================================================
@@ -463,7 +470,7 @@ static int formula_precedence(const PropFormula *f) {
 }
 
 /* 内部递归序列化 */
-static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+static void formula_to_string_buf_depth(const PropFormula *f, char *buf, size_t size, int parent_prec, int depth) {
     if (!f || size == 0)
         return;
 
@@ -485,6 +492,11 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
         }                                      \
     } while (0)
 
+    if (depth > MAX_FORMULA_TRAVERSE_DEPTH) {
+        BUF_APPEND("..."); /* 深度超标，截断显示 */
+        return;
+    }
+
     if (need_parens) {
         BUF_APPEND("(");
     }
@@ -494,23 +506,26 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
             BUF_APPEND(f->data.atom.name);
             break;
         case PROP_CONJUNCTION:
-            formula_to_string_buf(f->data.binary.left, buf, size, prec);
+            formula_to_string_buf_depth(f->data.binary.left, buf, size, prec, depth + 1);
+            pos = strlen(buf);  /* 递归调用写入了buf，必须同步游标 */
             BUF_APPEND(" /\\ ");
-            formula_to_string_buf(f->data.binary.right, buf, size, prec);
+            formula_to_string_buf_depth(f->data.binary.right, buf, size, prec, depth + 1);
             break;
         case PROP_DISJUNCTION:
-            formula_to_string_buf(f->data.binary.left, buf, size, prec);
+            formula_to_string_buf_depth(f->data.binary.left, buf, size, prec, depth + 1);
+            pos = strlen(buf);  /* 递归调用写入了buf，必须同步游标 */
             BUF_APPEND(" \\/ ");
-            formula_to_string_buf(f->data.binary.right, buf, size, prec);
+            formula_to_string_buf_depth(f->data.binary.right, buf, size, prec, depth + 1);
             break;
         case PROP_IMPLICATION:
-            formula_to_string_buf(f->data.binary.left, buf, size, prec);
+            formula_to_string_buf_depth(f->data.binary.left, buf, size, prec, depth + 1);
+            pos = strlen(buf);  /* 递归调用写入了buf，必须同步游标 */
             BUF_APPEND(" -> ");
-            formula_to_string_buf(f->data.binary.right, buf, size, prec + 1);
+            formula_to_string_buf_depth(f->data.binary.right, buf, size, prec + 1, depth + 1);
             break;
         case PROP_NEGATION:
             BUF_APPEND("~");
-            formula_to_string_buf(f->data.unary.operand, buf, size, prec);
+            formula_to_string_buf_depth(f->data.unary.operand, buf, size, prec, depth + 1);
             break;
         case PROP_BOTTOM:
             BUF_APPEND("_|_");
@@ -525,6 +540,11 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, 
     }
 
 #undef BUF_APPEND
+}
+
+/* 外部入口包装函数 */
+static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+    formula_to_string_buf_depth(f, buf, size, parent_prec, 0);
 }
 
 /**
@@ -543,12 +563,17 @@ char *prop_formula_to_string(const PropFormula *f) {
     return buf;
 }
 
-/* LaTeX 序列化 */
-static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+/* LaTeX 序列化（带深度保护） */
+static void formula_to_latex_buf_depth(const PropFormula *f, char *buf, size_t size, int parent_prec, int depth) {
     if (!f || size == 0)
         return;
     int prec = formula_precedence(f);
     bool need_parens = (parent_prec > prec);
+
+    if (depth > MAX_FORMULA_TRAVERSE_DEPTH) {
+        strncat(buf, "\\ldots", size - strlen(buf) - 1);
+        return;
+    }
 
     if (need_parens) {
         strncat(buf, "\\left(", size - strlen(buf) - 1);
@@ -559,23 +584,23 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, i
             strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
             break;
         case PROP_CONJUNCTION:
-            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
+            formula_to_latex_buf_depth(f->data.binary.left, buf, size, prec, depth + 1);
             strncat(buf, " \\wedge ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.binary.right, buf, size, prec);
+            formula_to_latex_buf_depth(f->data.binary.right, buf, size, prec, depth + 1);
             break;
         case PROP_DISJUNCTION:
-            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
+            formula_to_latex_buf_depth(f->data.binary.left, buf, size, prec, depth + 1);
             strncat(buf, " \\vee ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.binary.right, buf, size, prec);
+            formula_to_latex_buf_depth(f->data.binary.right, buf, size, prec, depth + 1);
             break;
         case PROP_IMPLICATION:
-            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
+            formula_to_latex_buf_depth(f->data.binary.left, buf, size, prec, depth + 1);
             strncat(buf, " \\to ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.binary.right, buf, size, prec + 1);
+            formula_to_latex_buf_depth(f->data.binary.right, buf, size, prec + 1, depth + 1);
             break;
         case PROP_NEGATION:
             strncat(buf, "\\neg ", size - strlen(buf) - 1);
-            formula_to_latex_buf(f->data.unary.operand, buf, size, prec);
+            formula_to_latex_buf_depth(f->data.unary.operand, buf, size, prec, depth + 1);
             break;
         case PROP_BOTTOM:
             strncat(buf, "\\bot", size - strlen(buf) - 1);
@@ -588,6 +613,11 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, i
     if (need_parens) {
         strncat(buf, "\\right)", size - strlen(buf) - 1);
     }
+}
+
+/* 外部入口包装函数 */
+static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+    formula_to_latex_buf_depth(f, buf, size, parent_prec, 0);
 }
 
 /**
@@ -628,8 +658,9 @@ typedef struct {
     bool timed_out;
     /* 超时基准时间 */
     uint64_t start_time_ms;
-    /* 记忆化表 */
-    MemoEntry memo[MAX_MEMO_ENTRIES];
+    /* 记忆化表（堆分配，避免 ~24KB 栈占用） */
+    MemoEntry *memo;
+    int memo_capacity; /* 记忆化表当前容量 */
     int memo_count;
     /* 递归深度计数器（防止栈溢出） */
     int recursion_depth;
@@ -700,9 +731,11 @@ static uint64_t hash_ptr(const void *p) {
  * @param f 公式指针（可为 NULL）
  * @return 64 位哈希值（NULL 公式返回 0）
  */
-static uint64_t formula_hash(const PropFormula *f) {
+static uint64_t formula_hash_depth(const PropFormula *f, int depth) {
     if (!f)
         return 0;
+    if (depth > MAX_FORMULA_TRAVERSE_DEPTH)
+        return (uint64_t)f->type * PROP_HASH_TYPE_MULTIPLIER; /* 深度超标，仅类型哈希 */
     uint64_t h = (uint64_t) f->type * PROP_HASH_TYPE_MULTIPLIER;
     switch (f->type) {
         case PROP_ATOM: {
@@ -713,17 +746,21 @@ static uint64_t formula_hash(const PropFormula *f) {
         case PROP_CONJUNCTION:
         case PROP_DISJUNCTION:
         case PROP_IMPLICATION:
-            h ^= formula_hash(f->data.binary.left) * PROP_HASH_LEFT_MULTIPLIER;
-            h ^= formula_hash(f->data.binary.right) * PROP_HASH_RIGHT_MULTIPLIER;
+            h ^= formula_hash_depth(f->data.binary.left, depth + 1) * PROP_HASH_LEFT_MULTIPLIER;
+            h ^= formula_hash_depth(f->data.binary.right, depth + 1) * PROP_HASH_RIGHT_MULTIPLIER;
             break;
         case PROP_NEGATION:
-            h ^= formula_hash(f->data.unary.operand) * PROP_HASH_RIGHT_MULTIPLIER;
+            h ^= formula_hash_depth(f->data.unary.operand, depth + 1) * PROP_HASH_RIGHT_MULTIPLIER;
             break;
         case PROP_BOTTOM:
         case PROP_TRUE:
             break;
     }
     return h;
+}
+
+static uint64_t formula_hash(const PropFormula *f) {
+    return formula_hash_depth(f, 0);
 }
 
 /**
@@ -814,11 +851,11 @@ static int forward_chain_conjunctions(const PropFormula **input, int input_count
             const PropFormula *p = output[i];
             if (p->type == PROP_CONJUNCTION) {
                 /* 检查左右是否已在列表中 */
-                if (!premise_contains(output, out_count, p->data.binary.left)) {
+                if (out_count < max_output && !premise_contains(output, out_count, p->data.binary.left)) {
                     output[out_count++] = p->data.binary.left;
                     changed = true;
                 }
-                if (!premise_contains(output, out_count, p->data.binary.right)) {
+                if (out_count < max_output && !premise_contains(output, out_count, p->data.binary.right)) {
                     output[out_count++] = p->data.binary.right;
                     changed = true;
                 }
@@ -920,7 +957,7 @@ static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises, int pr
 static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, const PropFormula *goal) {
     /* 检查递归深度限制，防止栈溢出 */
     ++ctx->recursion_depth;
-    if (ctx->recursion_depth > MAX_MEMO_ENTRIES) { /* 最大递归深度 = 记忆化表容量 */
+    if (ctx->recursion_depth > ctx->memo_capacity) { /* 最大递归深度 = 记忆化表容量 */
         goto prove_depth_exceeded;
     }
 
@@ -1243,6 +1280,14 @@ VerifyDetail prop_verifier_verify(const PropFormula **premises, int premise_coun
     ctx.premise_count = premise_count;
     ctx.config = config;
     ctx.start_time_ms = get_time_ms();
+    /* 堆分配记忆化表，避免 ~24KB 栈占用 */
+    ctx.memo = (MemoEntry *)lv00_calloc(MAX_MEMO_ENTRIES, sizeof(MemoEntry));
+    if (!ctx.memo) {
+        detail.result = PV_VERIFY_ERROR;
+        snprintf(detail.error_message, sizeof(detail.error_message), "无法分配记忆化表 (%d 条目)", MAX_MEMO_ENTRIES);
+        return detail;
+    }
+    ctx.memo_capacity = MAX_MEMO_ENTRIES;
 
     /* 流式事件：验证开始 */
     if (prop_verifier_stream_ctx) {
@@ -1266,6 +1311,10 @@ VerifyDetail prop_verifier_verify(const PropFormula **premises, int premise_coun
         snprintf(detail.error_message, sizeof(detail.error_message), "搜索空间耗尽，未能证明 (%d 步)", ctx.steps);
     }
 
+    /* 释放堆分配的记忆化表 */
+    lv00_free((void **)&ctx.memo);
+    /* ctx.memo 已被 lv00_free 置为 NULL */
+
     return detail;
 }
 
@@ -1273,23 +1322,29 @@ VerifyDetail prop_verifier_verify(const PropFormula **premises, int premise_coun
  * 内置烟测集
  * ============================================================ */
 
-/* 检查 child 是否是 parent 的子节点（递归） */
-static bool formula_is_descendant(const PropFormula *child, const PropFormula *parent) {
+/* 检查 child 是否是 parent 的子节点（递归，带深度保护） */
+static bool formula_is_descendant_depth(const PropFormula *child, const PropFormula *parent, int depth) {
     if (!child || !parent)
         return false;
+    if (depth > MAX_FORMULA_TRAVERSE_DEPTH)
+        return false; /* 深度超标，保守返回 false */
     if (child == parent)
         return true;
     switch (parent->type) {
         case PROP_CONJUNCTION:
         case PROP_DISJUNCTION:
         case PROP_IMPLICATION:
-            return formula_is_descendant(child, parent->data.binary.left) ||
-                   formula_is_descendant(child, parent->data.binary.right);
+            return formula_is_descendant_depth(child, parent->data.binary.left, depth + 1) ||
+                   formula_is_descendant_depth(child, parent->data.binary.right, depth + 1);
         case PROP_NEGATION:
-            return formula_is_descendant(child, parent->data.unary.operand);
+            return formula_is_descendant_depth(child, parent->data.unary.operand, depth + 1);
         default:
             return false;
     }
+}
+
+static bool formula_is_descendant(const PropFormula *child, const PropFormula *parent) {
+    return formula_is_descendant_depth(child, parent, 0);
 }
 
 /* 烟测辅助宏：创建原子命题 */

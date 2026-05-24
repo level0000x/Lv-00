@@ -427,6 +427,9 @@ static int test_multiple_solutions_stream(void) {
 
     reset_collector();
 
+    /* v3.3.0: 先清除之前测试可能遗留的全局流上下文，防止 SEGFAULT */
+    solver_set_stream_context(NULL);
+
     ConstraintGraph *g = graph_create();
     StreamContext *sctx = stream_context_create();
     if (sctx) {

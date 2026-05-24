@@ -316,6 +316,11 @@ set(LV00_HEADERS
     include/lv00/preset_information_theory.h
     include/lv00/preset_coding_theory.h
     include/lv00/preset_difference_equations.h
+    # v3.3.0 性能优化模块
+    include/lv00/thread_pool.h
+    include/lv00/simd_ops.h
+    include/lv00/fast_index.h
+    include/lv00/benchmark.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -359,6 +364,9 @@ set(LV00_LAYER3_SOURCES
     src/core/geom_evol.c
     src/core/float_error.c
     src/core/mpz_poly_resultant.c
+    # v3.3.0 性能优化模块
+    src/core/thread_pool.c
+    src/core/simd_ops.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -527,6 +535,9 @@ target_link_libraries(lv00_layer1_parser lv00_layer2_resource)
 add_library(lv00_layer3_geometry OBJECT ${LV00_LAYER3_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_layer3_geometry 3)
 target_link_libraries(lv00_layer3_geometry lv00_layer2_resource)
+# v3.3.0: 线程库链接（用于 thread_pool.c）
+find_package(Threads REQUIRED)
+target_link_libraries(lv00_layer3_geometry Threads::Threads)
 
 # Layer 4: 公理推理层（依赖 Layer 3，Layer 2）
 add_library(lv00_layer4_reasoning OBJECT ${LV00_LAYER4_SOURCES} ${LV00_HEADERS})
@@ -551,7 +562,7 @@ target_include_directories(lv00_static PUBLIC
     ${GMP_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/include/lv00
 )
-target_link_libraries(lv00_static ${GMP_LIBRARIES})
+target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
 set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
 
 if(BUILD_SHARED_LIBS)
@@ -763,6 +774,15 @@ if(BUILD_TESTS)
     # 新增：符号坐标系统测试
     add_lv00_test_and_register(test_symbolic_coord
         tests/test_symbolic_coord.c symbolic_coord_test)
+    # 新增：v3.3.0 新模块集成测试
+    add_lv00_test_and_register(test_rational
+        tests/test_rational.c rational_test)
+    add_lv00_test_and_register(test_expr_canon
+        tests/test_expr_canon.c expr_canon_test)
+    add_lv00_test_and_register(test_proof_trace
+        tests/test_proof_trace.c proof_trace_test)
+    add_lv00_test_and_register(test_circuit_breaker
+        tests/test_circuit_breaker.c circuit_breaker_test)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
     add_executable(test_prop_verifier tests/test_prop_verifier.c src/core/prop_verifier.c)
     target_include_directories(test_prop_verifier PRIVATE include/lv00)
