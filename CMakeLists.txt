@@ -321,6 +321,15 @@ set(LV00_HEADERS
     include/lv00/simd_ops.h
     include/lv00/fast_index.h
     include/lv00/benchmark.h
+    # v3.3.0 新增核心模块（整改实施）
+    include/lv00/memory_pool.h
+    include/lv00/expr_canonical.h
+    include/lv00/geometry_transform.h
+    include/lv00/inequality_reasoning.h
+    include/lv00/runtime_monitor.h
+    include/lv00/axiom_rule_engine.h
+    include/lv00/proof_engine_enhanced.h
+    include/lv00/test_framework.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -345,6 +354,10 @@ set(LV00_LAYER2_SOURCES
     src/core/error_codes.c
     src/core/debug.c
     src/core/node_deep_copy.c
+    # v3.3.0 新增：内存池、运行时监控、测试框架
+    src/core/memory_pool.c
+    src/core/runtime_monitor.c
+    src/core/test_framework.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -364,6 +377,8 @@ set(LV00_LAYER3_SOURCES
     src/core/geom_evol.c
     src/core/float_error.c
     src/core/mpz_poly_resultant.c
+    # v3.3.0 新增：几何变换推理
+    src/core/geometry_transform.c
     # v3.3.0 性能优化模块
     src/core/thread_pool.c
     src/core/simd_ops.c
@@ -405,6 +420,8 @@ set(LV00_LAYER4_SOURCES
     src/core/rational.c
     src/core/expr_canon.c
     src/core/exact_arithmetic.c
+    # v3.3.0 新增：表达式规范化、不等式推理
+    src/core/expr_canonical.c
     # 模型与模式
     src/core/relation_model.c
     src/core/algebra_mode.c
@@ -781,6 +798,9 @@ if(BUILD_TESTS)
         tests/test_expr_canon.c expr_canon_test)
     add_lv00_test_and_register(test_proof_trace
         tests/test_proof_trace.c proof_trace_test)
+    # v3.3.0 新模块集成测试
+    add_lv00_test_and_register(test_new_modules
+        tests/test_new_modules.c new_modules_test)
     add_lv00_test_and_register(test_circuit_breaker
         tests/test_circuit_breaker.c circuit_breaker_test)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
