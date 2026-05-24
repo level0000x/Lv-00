@@ -7,7 +7,7 @@
  *              Displays all available keyboard shortcuts in categorized cards.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 // ============================================================
@@ -15,9 +15,19 @@ import { createPortal } from 'react-dom';
 // ============================================================
 
 /**
+ * ShortcutHelp 组件属性
+ * @property isVisible - 面板是否可见（由父组件 Layout.tsx 控制）
+ * @property onClose - 关闭面板的回调函数
+ */
+interface ShortcutHelpProps {
+  /** 面板是否可见（由父组件控制） */
+  isVisible: boolean;
+  /** 关闭面板的回调 */
+  onClose: () => void;
+}
+
+/**
  * 单个快捷键条目 / Single shortcut entry
- * @property key - 快捷键按键组合文本 / The key combination text
- * @property description - 快捷键功能描述 / Description of the shortcut's function
  */
 interface ShortcutItem {
   key: string;
@@ -26,8 +36,6 @@ interface ShortcutItem {
 
 /**
  * 快捷键分类 / Shortcut category
- * @property title - 分类标题 / Category title
- * @property items - 该分类下的快捷键列表 / List of shortcuts in this category
  */
 interface ShortcutCategory {
   title: string;
@@ -235,69 +243,20 @@ const styles: Record<string, React.CSSProperties> = {
  * ShortcutHelp - 键盘快捷键帮助面板 / Keyboard Shortcut Help Panel
  *
  * 功能特性 / Features:
- * - 按 ? 键或 Ctrl+/ 触发打开/关闭 / Toggle with ? or Ctrl+/
- * - 按 ESC 键关闭 / Close with ESC key
+ * - 由父组件 Layout.tsx 控制 ? 键和 Ctrl+/ 的显示/隐藏
+ * - 按 ESC 键关闭（通过父组件的键盘监听）
  * - 点击遮罩层关闭 / Click overlay to close
  * - 使用 React Portal 渲染到 document.body / Rendered to document.body via React Portal
  * - 快捷键按分类分卡片展示 / Shortcuts displayed in categorized cards
  * - 完全使用内联样式，不依赖外部 CSS 文件 / Fully inline-styled, no external CSS dependency
  * - 使用项目 CSS 变量保持视觉一致性 / Uses project CSS variables for visual consistency
+ *
+ * 注意：键盘监听已统一由 Layout.tsx 管理，本组件不再独立注册 keydown 监听器。
  */
-const ShortcutHelp: React.FC = () => {
-  /** 面板是否可见 / Whether the panel is visible */
-  const [isVisible, setIsVisible] = useState(false);
-
-  /** promptTip：标记是否允许 ? 键触发，
-   *  当用户在 input/textarea 等输入控件中时，应阻止 ? 触发快捷键面板
-   *  Marks whether ? key trigger is allowed.
-   *  When the user is focused in an input/textarea control, ? should not trigger the panel. */
-  const allowQuestionMark = useRef(true);
-
+const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isVisible, onClose }) => {
   // ----------------------------------------------------------
   // 事件处理器 / Event Handlers
   // ----------------------------------------------------------
-
-  /**
-   * 处理全局键盘事件，检测 ? 和 Ctrl+/ 组合键
-   * Handles global keyboard events, detecting ? and Ctrl+/ combos
-   */
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      /** 检测 Ctrl+/ (或 Cmd+/ on Mac) / Detect Ctrl+/ (or Cmd+/ on Mac) */
-      const isCtrlSlash = (e.ctrlKey || e.metaKey) && e.key === '/';
-      /** 检测 ? 键（且不在表单控件中）/ Detect ? key (and not in form controls) */
-      const isQuestionMark = e.key === '?' && allowQuestionMark.current;
-
-      if (isCtrlSlash || isQuestionMark) {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsVisible((prev) => !prev);
-        return;
-      }
-
-      /** ESC 键关闭面板 / ESC key closes the panel */
-      if (e.key === 'Escape' && isVisible) {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsVisible(false);
-      }
-    },
-    [isVisible],
-  );
-
-  /**
-   * 处理 focusin 事件：当用户聚焦到输入控件时，阻止 ? 键触发面板
-   * Handles focusin events: when user focuses an input control, block ? from triggering the panel
-   */
-  const handleFocusIn = useCallback(() => {
-    const tag = (document.activeElement?.tagName || '').toLowerCase();
-    const isInput =
-      tag === 'input' ||
-      tag === 'textarea' ||
-      tag === 'select' ||
-      document.activeElement?.getAttribute('contenteditable') === 'true';
-    allowQuestionMark.current = !isInput;
-  }, []);
 
   /**
    * 点击遮罩层关闭面板（仅当点击目标是遮罩本身）
@@ -306,25 +265,15 @@ const ShortcutHelp: React.FC = () => {
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (e.target === e.currentTarget) {
-        setIsVisible(false);
+        onClose();
       }
     },
-    [],
+    [onClose],
   );
 
   // ----------------------------------------------------------
   // 副作用 / Side Effects
   // ----------------------------------------------------------
-
-  /** 注册全局键盘事件监听 / Register global keyboard event listeners */
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown, true);
-    document.addEventListener('focusin', handleFocusIn);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-      document.removeEventListener('focusin', handleFocusIn);
-    };
-  }, [handleKeyDown, handleFocusIn]);
 
   /** 面板打开时阻止 body 滚动 / Prevent body scroll when panel is open */
   useEffect(() => {

@@ -84,6 +84,14 @@ static const char *eco_sort_name_str(Lv00EcoSortBy sort_by);
  * 生命周期函数
  * ======================================================================== */
 
+/**
+ * @brief 初始化生态系统实例
+ *
+ * 分配并初始化 Lv00Ecosystem 结构体，设置默认注册表 URL、
+ * 默认贡献指南和一键体验（Docker）配置。
+ *
+ * @return 新分配的 Lv00Ecosystem 指针，失败返回 NULL
+ */
 Lv00Ecosystem *eco_init(void) {
     Lv00Ecosystem *eco = (Lv00Ecosystem *)lv00_malloc(sizeof(Lv00Ecosystem));
     LV00_CHECK_NULL(eco, NULL);
@@ -114,6 +122,14 @@ Lv00Ecosystem *eco_init(void) {
     return eco;
 }
 
+/**
+ * @brief 销毁生态系统实例，释放所有关联资源
+ *
+ * 释放兼容性矩阵、一键体验中的环境变量和卷挂载列表，
+ * 最后释放生态系统结构体本身。
+ *
+ * @param eco 要销毁的生态系统指针
+ */
 void eco_destroy(Lv00Ecosystem *eco) {
     if (!eco) return;
 
@@ -142,6 +158,15 @@ void eco_destroy(Lv00Ecosystem *eco) {
  * 包管理函数
  * ======================================================================== */
 
+/**
+ * @brief 注册一个公理包到生态系统注册表
+ *
+ * 若包 ID 已存在且新版本更高则更新，否则追加新条目。
+ *
+ * @param eco 生态系统指针
+ * @param pkg 要注册的包信息
+ * @return 成功返回包索引（>=0），已存在且版本不更高返回 -1，参数无效或已满返回 -2
+ */
 int eco_package_register(Lv00Ecosystem *eco, const Lv00EcoPackage *pkg) {
     LV00_CHECK_NULL(eco, -2);
     LV00_CHECK_NULL(pkg, -2);
@@ -167,6 +192,15 @@ int eco_package_register(Lv00Ecosystem *eco, const Lv00EcoPackage *pkg) {
     return idx;
 }
 
+/**
+ * @brief 从注册表中注销指定包
+ *
+ * 按包 ID 查找并移除，后续条目前移填补空缺。
+ *
+ * @param eco        生态系统指针
+ * @param package_id 要注销的包 ID
+ * @return 成功返回 0，未找到或参数无效返回 -1
+ */
 int eco_package_unregister(Lv00Ecosystem *eco, const char *package_id) {
     LV00_CHECK_NULL(eco, -1);
     LV00_CHECK_NULL(package_id, -1);
@@ -186,6 +220,37 @@ int eco_package_unregister(Lv00Ecosystem *eco, const char *package_id) {
     return 0;
 }
 
+/** @brief 生态系统包搜索排序依据（线程局部，供比较函数使用） */
+static LV00_THREAD_LOCAL Lv00EcoSortBy g_sort_by = ECO_SORT_RELEVANCE;
+
+/** @brief 生态系统包搜索排序比较函数（供qsort使用） */
+static int eco_package_sort_cmp(const void *a, const void *b) {
+    const Lv00EcoPackage *pa = (const Lv00EcoPackage *)a;
+    const Lv00EcoPackage *pb = (const Lv00EcoPackage *)b;
+    switch (g_sort_by) {
+        case ECO_SORT_STARS:
+            return (pa->star_count > pb->star_count) - (pa->star_count < pb->star_count);
+        case ECO_SORT_DATE:
+            return (pa->install_date > pb->install_date) - (pa->install_date < pb->install_date);
+        case ECO_SORT_NAME:
+            return strcmp(pa->name, pb->name);
+        default:
+            return 0;
+    }
+}
+
+/**
+ * @brief 搜索注册表中的包
+ *
+ * 根据查询条件（文本搜索、实体类型过滤）匹配包，支持排序和分页。
+ * 相关性排序基于包名称、描述、作者和包 ID 的加权文本匹配。
+ *
+ * @param eco       生态系统指针
+ * @param query     搜索查询条件
+ * @param results   输出匹配结果数组（调用者负责释放）
+ * @param out_count 输出匹配结果数量
+ * @return 成功返回 0，失败返回 -1
+ */
 int eco_package_search(const Lv00Ecosystem *eco, const Lv00EcoSearchQuery *query,
                         Lv00EcoPackage **results, int *out_count) {
     LV00_CHECK_NULL(eco, -1);
@@ -219,31 +284,8 @@ int eco_package_search(const Lv00Ecosystem *eco, const Lv00EcoSearchQuery *query
 
     /* 排序 */
     if (query->sort_by != ECO_SORT_RELEVANCE) {
-        /* 使用类型安全排序 */
-        Lv00EcoSortBy sort_by = query->sort_by;
-        for (int i = 0; i < match_count - 1; i++) {
-            for (int j = i + 1; j < match_count; j++) {
-                bool swap = false;
-                switch (sort_by) {
-                    case ECO_SORT_STARS:
-                        swap = matches[i].star_count < matches[j].star_count;
-                        break;
-                    case ECO_SORT_DATE:
-                        swap = matches[i].install_date < matches[j].install_date;
-                        break;
-                    case ECO_SORT_NAME:
-                        swap = strcmp(matches[i].name, matches[j].name) > 0;
-                        break;
-                    default:
-                        break;
-                }
-                if (swap) {
-                    Lv00EcoPackage tmp = matches[i];
-                    matches[i] = matches[j];
-                    matches[j] = tmp;
-                }
-            }
-        }
+        g_sort_by = query->sort_by;
+        qsort(matches, (size_t)match_count, sizeof(Lv00EcoPackage), eco_package_sort_cmp);
     }
 
     /* 分页 */
@@ -274,6 +316,17 @@ int eco_package_search(const Lv00Ecosystem *eco, const Lv00EcoSearchQuery *query
  * 安装管理函数
  * ======================================================================== */
 
+/**
+ * @brief 安装指定包及其依赖项
+ *
+ * 检查版本兼容性后递归安装所有依赖项，标记包为已安装状态。
+ *
+ * @param eco        生态系统指针
+ * @param package_id 要安装的包 ID
+ * @param version    期望的版本号（NULL 表示不检查版本）
+ * @param force      是否强制重新安装已安装的包
+ * @return 安装状态码（ECO_INSTALL_OK 表示成功）
+ */
 Lv00EcoInstallStatus eco_package_install(Lv00Ecosystem *eco, const char *package_id,
                                           const char *version, bool force) {
     LV00_CHECK_NULL(eco, ECO_INSTALL_NOT_FOUND);
@@ -321,6 +374,13 @@ Lv00EcoInstallStatus eco_package_install(Lv00Ecosystem *eco, const char *package
     return ECO_INSTALL_OK;
 }
 
+/**
+ * @brief 卸载指定包
+ *
+ * @param eco        生态系统指针
+ * @param package_id 要卸载的包 ID
+ * @return 成功返回 0，未找到或参数无效返回 -1
+ */
 int eco_package_uninstall(Lv00Ecosystem *eco, const char *package_id) {
     LV00_CHECK_NULL(eco, -1);
     LV00_CHECK_NULL(package_id, -1);
@@ -336,6 +396,14 @@ int eco_package_uninstall(Lv00Ecosystem *eco, const char *package_id) {
     return 0;
 }
 
+/**
+ * @brief 列出所有已安装的包
+ *
+ * @param eco      生态系统指针
+ * @param out_pkgs 输出已安装包数组（调用者负责释放）
+ * @param out_count 输出已安装包数量
+ * @return 成功返回 0，失败返回 -1
+ */
 int eco_package_list_installed(const Lv00Ecosystem *eco, Lv00EcoPackage **out_pkgs,
                                 int *out_count) {
     LV00_CHECK_NULL(eco, -1);
@@ -368,6 +436,18 @@ int eco_package_list_installed(const Lv00Ecosystem *eco, Lv00EcoPackage **out_pk
  * 兼容性检查函数
  * ======================================================================== */
 
+/**
+ * @brief 检查两个包之间的兼容性
+ *
+ * 查询兼容性矩阵，支持双向匹配（A-B 等同于 B-A）。
+ * 同一包自身视为完全兼容。
+ *
+ * @param eco          生态系统指针
+ * @param package_id_a 包 A 的 ID
+ * @param package_id_b 包 B 的 ID
+ * @param out_result   输出兼容性详细信息（可为 NULL）
+ * @return 兼容性等级
+ */
 Lv00EcoCompatibilityLevel eco_check_compatibility(const Lv00Ecosystem *eco,
     const char *package_id_a, const char *package_id_b,
     Lv00EcoCompatibility *out_result) {
@@ -398,6 +478,16 @@ Lv00EcoCompatibilityLevel eco_check_compatibility(const Lv00Ecosystem *eco,
     return ECO_COMPAT_UNKNOWN;
 }
 
+/**
+ * @brief 解析所有已安装包之间的兼容性冲突
+ *
+ * 遍历所有已安装包的两两组合，收集不兼容或部分兼容的配对。
+ *
+ * @param eco           生态系统指针
+ * @param out_conflicts 输出冲突列表数组（调用者负责释放）
+ * @param out_count     输出冲突数量
+ * @return 成功返回 0，失败返回 -1
+ */
 int eco_resolve_conflicts(Lv00Ecosystem *eco, Lv00EcoCompatibility **out_conflicts,
                            int *out_count) {
     LV00_CHECK_NULL(eco, -1);
@@ -454,6 +544,13 @@ int eco_resolve_conflicts(Lv00Ecosystem *eco, Lv00EcoCompatibility **out_conflic
  * 注册表同步函数
  * ======================================================================== */
 
+/**
+ * @brief 同步远程注册表
+ *
+ * @param eco      生态系统指针
+ * @param full_sync 是否执行全量同步
+ * @return 成功返回 0，失败返回 -1
+ */
 int eco_registry_sync(Lv00Ecosystem *eco, bool full_sync) {
     LV00_CHECK_NULL(eco, -1);
 
@@ -471,6 +568,17 @@ int eco_registry_sync(Lv00Ecosystem *eco, bool full_sync) {
  * 一键体验函数
  * ======================================================================== */
 
+/**
+ * @brief 创建一键体验配置
+ *
+ * 初始化 Docker/Podman 容器配置，设置默认镜像、端口转发等。
+ *
+ * @param eco        生态系统指针
+ * @param image_name Docker 镜像名称（NULL 使用默认值）
+ * @param use_podman 是否使用 Podman 替代 Docker
+ * @param one_click  输出一键体验配置
+ * @return 成功返回 0，失败返回 -1
+ */
 int eco_one_click_create(const Lv00Ecosystem *eco, const char *image_name,
                           bool use_podman, Lv00OneClick *one_click) {
     LV00_CHECK_NULL(eco, -1);
@@ -498,6 +606,16 @@ int eco_one_click_create(const Lv00Ecosystem *eco, const char *image_name,
     return 0;
 }
 
+/**
+ * @brief 导出一键体验的 Dockerfile 内容
+ *
+ * 根据一键体验配置生成完整的 Dockerfile 字符串，包含基础镜像、
+ * 依赖安装、公理包复制、端口暴露和环境变量配置。
+ *
+ * @param one_click 一键体验配置
+ * @param output    输出 Dockerfile 字符串（调用者负责释放）
+ * @return 成功返回字符串长度，失败返回 -1
+ */
 int eco_one_click_export_dockerfile(const Lv00OneClick *one_click, char **output) {
     LV00_CHECK_NULL(one_click, -1);
     LV00_CHECK_NULL(output, -1);
@@ -563,6 +681,13 @@ int eco_one_click_export_dockerfile(const Lv00OneClick *one_click, char **output
  * 贡献指南函数
  * ======================================================================== */
 
+/**
+ * @brief 获取生态系统贡献指南内容
+ *
+ * @param eco    生态系统指针
+ * @param output 输出贡献指南字符串（调用者负责释放）
+ * @return 成功返回字符串长度，失败返回 -1
+ */
 int eco_contribute_guidelines(const Lv00Ecosystem *eco, char **output) {
     LV00_CHECK_NULL(eco, -1);
     LV00_CHECK_NULL(output, -1);
@@ -579,6 +704,16 @@ int eco_contribute_guidelines(const Lv00Ecosystem *eco, char **output) {
  * 统计信息函数
  * ======================================================================== */
 
+/**
+ * @brief 收集生态系统统计信息
+ *
+ * 统计总包数、已安装数、总星标数、已验证数、最近更新数、
+ * 最热门包、平均依赖数等指标。
+ *
+ * @param eco   生态系统指针
+ * @param stats 输出统计信息结构体
+ * @return 成功返回 0，失败返回 -1
+ */
 int eco_stats(const Lv00Ecosystem *eco, Lv00EcoStats *stats) {
     LV00_CHECK_NULL(eco, -1);
     LV00_CHECK_NULL(stats, -1);
@@ -635,22 +770,47 @@ int eco_stats(const Lv00Ecosystem *eco, Lv00EcoStats *stats) {
  * 辅助函数
  * ======================================================================== */
 
+/**
+ * @brief 获取生态系统实体类型的名称字符串
+ * @param entity 实体类型枚举值
+ * @return 类型名称字符串
+ */
 const char *eco_entity_type_name(Lv00EcosystemEntity entity) {
     return eco_entity_type_name_str(entity);
 }
 
+/**
+ * @brief 获取许可证类型的名称字符串
+ * @param license 许可证枚举值
+ * @return 许可证名称字符串
+ */
 const char *eco_license_name(Lv00EcoLicense license) {
     return eco_license_name_str(license);
 }
 
+/**
+ * @brief 获取安装状态的名称字符串
+ * @param status 安装状态枚举值
+ * @return 状态名称字符串
+ */
 const char *eco_install_status_name(Lv00EcoInstallStatus status) {
     return eco_install_status_name_str(status);
 }
 
+/**
+ * @brief 获取兼容性等级的名称字符串
+ * @param level 兼容性等级枚举值
+ * @return 等级名称字符串
+ */
 const char *eco_compatibility_name(Lv00EcoCompatibilityLevel level) {
     return eco_compatibility_name_str(level);
 }
 
+/**
+ * @brief 验证版本字符串是否符合语义化版本规范（x.y.z）
+ * @param version 版本字符串
+ * @return 合法返回 true，否则返回 false
+ */
 bool eco_validate_semver(const char *version) {
     if (!version) return false;
 
@@ -658,6 +818,16 @@ bool eco_validate_semver(const char *version) {
     return eco_parse_semver(version, &major, &minor, &patch);
 }
 
+/**
+ * @brief 比较两个语义化版本号
+ *
+ * 按主版本号、次版本号、补丁版本号逐级比较。
+ * 若版本字符串不符合 semver 格式，则退化为字符串比较。
+ *
+ * @param v1 第一个版本字符串
+ * @param v2 第二个版本字符串
+ * @return v1 > v2 返回 1，v1 < v2 返回 -1，相等返回 0
+ */
 int eco_compare_versions(const char *v1, const char *v2) {
     if (!v1 || !v2) return 0;
 
@@ -674,6 +844,11 @@ int eco_compare_versions(const char *v1, const char *v2) {
     return 0;
 }
 
+/**
+ * @brief 获取排序方式的名称字符串
+ * @param sort_by 排序方式枚举值
+ * @return 排序方式名称字符串
+ */
 const char *eco_sort_name(Lv00EcoSortBy sort_by) {
     return eco_sort_name_str(sort_by);
 }

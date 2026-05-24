@@ -46,7 +46,6 @@ from enum import IntEnum
 import ctypes
 import ctypes.util
 import os
-import struct
 
 # ================================================================
 # Logging Configuration (日志配置)
@@ -358,6 +357,12 @@ class CTypesStreamBridge:
         self._event_callback_type = None
         self._event_callback_fn = None
         self._event_callback_wrapper = None
+        # 【修复 #2】持久化缓冲区列表，防止 C 侧使用期间被 Python GC 回收
+        # 每次 emit_event 调用时创建的 ctypes 缓冲区会追加到此列表，
+        # 确保在 C 库完成对 StreamEvent 结构体的处理之前，底层数据不会被释放。
+        # 注意：此列表会持续增长，适合事件流场景；如果需要精确释放，
+        # 可以在 stream_emit() 返回后手动清理旧条目。
+        self._persistent_buffers: list = []
     
     def _find_library(self):
         """在常见路径中搜索 Lv-00 共享库"""
@@ -521,10 +526,17 @@ class CTypesStreamBridge:
         return cb_id
     
     def emit_event(self, event_type, description="", step_number=0, **kwargs):
-        """通过 C 库发射事件（用于从 Python 端模拟引擎事件）"""
+        """通过 C 库发射事件（用于从 Python 端模拟引擎事件）
+
+        【修复 #2】使用 ctypes.create_string_buffer 创建持久的 C 字符缓冲区，
+        并将引用保存到 self._persistent_buffers 列表中，防止在 C 侧使用期间
+        被 Python 垃圾回收器回收。直接赋值 bytes 给 c_char_p 字段时，
+        ctypes 仅复制指针值而不持有对原始 bytes 对象的引用，
+        一旦 Python 侧 bytes 对象被 GC 回收，C 侧将访问已释放的内存。
+        """
         if not self._loaded:
             return
-        
+
         c_event = StreamEventCTypes()
         c_event.type = int(event_type)
         c_event.timestamp_ms = int(time.time() * 1000)
@@ -537,14 +549,18 @@ class CTypesStreamBridge:
         c_event.merge_count = 0
         c_event.progress = kwargs.get('progress', -1.0)
         c_event.numeric_value = kwargs.get('numeric_value', 0.0)
-        
-        # description 需要编码为 bytes
+
+        # 【修复 #2】使用 create_string_buffer 创建持久的 C 字符缓冲区
+        # create_string_buffer 返回的 ctypes 数组对象拥有独立的内存块，
+        # 赋值给 c_char_p 字段时 ctypes 会正确获取其内部指针。
+        # 将缓冲区引用保存到 _persistent_buffers 防止 GC 回收。
         if isinstance(description, str):
-            desc_bytes = description.encode('utf-8')
+            desc_buf = ctypes.create_string_buffer(description.encode('utf-8'))
         else:
-            desc_bytes = description
-        c_event.description = desc_bytes
-        
+            desc_buf = ctypes.create_string_buffer(description)
+        c_event.description = desc_buf
+        self._persistent_buffers.append(desc_buf)
+
         self.lib.stream_emit(self.ctx_ptr, ctypes.byref(c_event))
     
     def flush(self):
@@ -597,68 +613,89 @@ def try_load_c_library():
 # Demo Engine Simulation (演示模式下模拟 C 引擎流程)
 # ================================================================
 
-class DemoEngine:
+# 【修复 #1】提取公共基类 _DemoEngineBase
+# DemoEngine（纯 Python 模拟）和 DemoEngineCTypes（C 库桥接）有约 80% 重复代码，
+# 主要是三个场景的事件序列定义完全一致。提取公共基类后：
+#   - 场景事件序列定义在基类中，子类共享
+#   - _emit_simple() 和 _emit_with_fields() 作为抽象接口，由子类实现
+#   - 子类只需实现事件发射的具体方式（Python StreamContext vs C ctypes）
+# 这样当需要新增场景或修改事件序列时，只需修改基类一处即可。
+
+class _DemoEngineBase:
     """
-    演示引擎 —— 在无 C 库环境下模拟完整的求解/规范化/重写流程，产生真实感的事件流。
-    支持三种场景：triangle（等边三角形）、circle（圆交点）、proof（命题证明）
+    演示引擎公共基类 —— 定义场景事件序列和运行流程骨架。
+
+    子类需要实现：
+      - _emit_simple(event_type, description, step): 发射简单事件
+      - _emit_with_fields(event_type, desc, node_id, constr_id, rule_id, var_id, progress, numeric): 发射带字段的事件
+
+    场景定义（SCENARIOS）和三个场景运行方法（run_*_scenario）在基类中统一实现，
+    子类通过 _emit_simple / _emit_with_fields 多态调用完成事件发射。
     """
 
+    # 支持的场景定义（子类共享）
     SCENARIOS = {
         "triangle": "等边三角形构造 → 规范化 → 约束求解",
         "circle": "圆与线段相交 → 代数求解 → 坐标确定",
         "proof": "中点定理证明 → 合一检查 → 依赖链验证",
     }
 
-    def __init__(self, ctx: StreamContext):
-        self.ctx = ctx
+    def __init__(self):
         self.step = 0
         self.total = 0
+
+    def _emit_simple(self, event_type: StreamEventType, description: str, step: int = -1):
+        """发射简单事件（仅类型 + 描述 + 步骤号）—— 子类必须实现"""
+        raise NotImplementedError
+
+    def _emit_with_fields(self, etype: StreamEventType, desc: str,
+                          node_id: int = -1, constr_id: int = -1, rule_id: int = -1,
+                          var_id: int = -1, progress: float = -1.0, numeric: float = 0.0):
+        """发射带字段的事件 —— 子类必须实现"""
+        raise NotImplementedError
 
     def _emit(self, etype: StreamEventType, desc: str,
               node_id: int = -1, constr_id: int = -1, rule_id: int = -1,
               var_id: int = -1, progress: float = -1.0, numeric: float = 0.0):
+        """内部便捷方法：递增步骤计数并发射带字段的事件"""
         self.step += 1
-        self.ctx.emit(StreamEvent(
-            type=int(etype),
-            step_number=self.step,
-            total_steps=self.total,
-            node_id=node_id,
-            constraint_id=constr_id,
-            rule_id=rule_id,
-            var_id=var_id,
-            description=desc,
-            progress=progress,
-            numeric_value=numeric,
-        ))
+        self._emit_with_fields(etype, desc, node_id, constr_id, rule_id, var_id, progress, numeric)
         # 模拟引擎计算延迟
         time.sleep(0.03 + (hash(desc) % 5) * 0.01)
 
+    def _reset(self):
+        """重置步骤计数器（每个场景开始前调用）"""
+        self.step = 0
+
+    # ---- 场景 1: 等边三角形构造 ----
+
     def run_triangle_scenario(self):
         """场景：等边三角形构造 → 规范化 → 求解"""
+        self._reset()
         self.total = 18
-        self.ctx.emit_simple(StreamEventType.ENGINE_START, "三角形场景引擎初始化完成", 0)
+        self._emit_simple(StreamEventType.ENGINE_START, "三角形场景引擎初始化完成", 0)
 
         # ---- 阶段 1: 添加节点 ----
-        self.ctx.emit_simple(StreamEventType.INFO, "阶段 1/4: 添加构造节点")
+        self._emit_simple(StreamEventType.INFO, "阶段 1/4: 添加构造节点")
         self._emit(StreamEventType.NODE_ADDED, "添加点 A(0, 0)", node_id=1)
         self._emit(StreamEventType.NODE_ADDED, "添加点 B(1, 0)", node_id=2)
         self._emit(StreamEventType.NODE_ADDED, "添加点 C 为自由变量", node_id=3)
 
         # ---- 阶段 2: 添加约束 ----
-        self.ctx.emit_simple(StreamEventType.INFO, "阶段 2/4: 添加几何约束")
+        self._emit_simple(StreamEventType.INFO, "阶段 2/4: 添加几何约束")
         self._emit(StreamEventType.CONSTRAINT_ADDED, "添加: dist(A,B) = 1 (约定)", constr_id=1)
         self._emit(StreamEventType.CONSTRAINT_ADDED, "添加: dist(A,C) = 1 (等边条件)", constr_id=2)
         self._emit(StreamEventType.CONSTRAINT_ADDED, "添加: dist(B,C) = 1 (等边条件)", constr_id=3)
 
         # ---- 阶段 3: 规范化 ----
-        self.ctx.emit_simple(StreamEventType.NORMALIZE_START, "阶段 3/4: 图规范化", 5)
+        self._emit_simple(StreamEventType.NORMALIZE_START, "阶段 3/4: 图规范化", 5)
         self._emit(StreamEventType.NORMALIZE_MERGE, "并查集扫描: 3 节点 → 2 等价类", node_id=1)
         self._emit(StreamEventType.NORMALIZE_MERGE, "等价类合并: 点 B ≈ 点 A? — 跳过（不重合）", node_id=2)
         self._emit(StreamEventType.NORMALIZE_MERGE, "哈希预分组: 约束 1,2,3 归入 'dist' 组", constr_id=1)
-        self.ctx.emit_simple(StreamEventType.NORMALIZE_DONE, "规范化完成: 0 合并, 3 节点保留, 3 约束", 9)
+        self._emit_simple(StreamEventType.NORMALIZE_DONE, "规范化完成: 0 合并, 3 节点保留, 3 约束", 9)
 
         # ---- 阶段 4: 代数求解 ----
-        self.ctx.emit_simple(StreamEventType.SOLVE_START, "阶段 4/4: 符号代数求解", 10)
+        self._emit_simple(StreamEventType.SOLVE_START, "阶段 4/4: 符号代数求解", 10)
         self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED,
                    u"提取方程: (x_C - 0)^2 + (y_C - 0)^2 = 1", var_id=3)
         self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED,
@@ -671,15 +708,18 @@ class DemoEngine:
                    u"代入求解: y_C^2 = 3/4 → y_C = sqrt(3)/2", numeric=0.8660254)
         self._emit(StreamEventType.SOLVE_VARIABLE_RESOLVED,
                    u"变量解得: y_C = sqrt(3)/2 (二次扩域 Q[sqrt(3)])", var_id=3, numeric=0.8660254037844)
-        self.ctx.emit_simple(StreamEventType.SOLVE_DONE, u"求解完成: 等边三角形 C(1/2, sqrt(3)/2)", 17)
+        self._emit_simple(StreamEventType.SOLVE_DONE, u"求解完成: 等边三角形 C(1/2, sqrt(3)/2)", 17)
 
         self._emit(StreamEventType.INFO, "C 坐标确定为 (0.5, 0.8660254)", progress=1.0)
-        self.ctx.emit_simple(StreamEventType.ENGINE_DONE, "全部阶段完成", 18)
+        self._emit_simple(StreamEventType.ENGINE_DONE, "全部阶段完成", 18)
+
+    # ---- 场景 2: 圆与线段相交 ----
 
     def run_circle_scenario(self):
         """场景：圆与线段相交 → 代数方程 → 两个交点"""
+        self._reset()
         self.total = 16
-        self.ctx.emit_simple(StreamEventType.ENGINE_START, "圆交点场景引擎初始化", 0)
+        self._emit_simple(StreamEventType.ENGINE_START, "圆交点场景引擎初始化", 0)
 
         # 添加节点
         self._emit(StreamEventType.NODE_ADDED, "添加圆心 O(0, 0)", node_id=1)
@@ -693,12 +733,12 @@ class DemoEngine:
         self._emit(StreamEventType.CONSTRAINT_ADDED, "关联约束: I 在线段 PQ 上", constr_id=2)
 
         # 规范化
-        self.ctx.emit_simple(StreamEventType.NORMALIZE_START, "图规范化")
+        self._emit_simple(StreamEventType.NORMALIZE_START, "图规范化")
         self._emit(StreamEventType.NORMALIZE_MERGE, "节点哈希: 5 节点 → 5 独立等价类")
-        self.ctx.emit_simple(StreamEventType.NORMALIZE_DONE, "规范化完成: 无合并")
+        self._emit_simple(StreamEventType.NORMALIZE_DONE, "规范化完成: 无合并")
 
         # 求解
-        self.ctx.emit_simple(StreamEventType.SOLVE_START, "代数求解圆-线段交点")
+        self._emit_simple(StreamEventType.SOLVE_START, "代数求解圆-线段交点")
         self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED,
                    u"x_I^2 + y_I^2 = 1  (圆方程)", var_id=5)
         self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED,
@@ -710,24 +750,27 @@ class DemoEngine:
         self._emit(StreamEventType.INFO, "多解分支: 2 个交点（上下对称）", progress=0.85)
         self._emit(StreamEventType.SOLVE_VARIABLE_RESOLVED,
                    u"多解分支 2: y_I = -sqrt(3)/2 ≈ -0.8660254", var_id=5, numeric=-0.8660254)
-        self.ctx.emit_simple(StreamEventType.SOLVE_DONE,
+        self._emit_simple(StreamEventType.SOLVE_DONE,
                              u"求解完成: I1(0.5, 0.866), I2(0.5, -0.866)")
         self._emit(StreamEventType.GRAPH_SNAPSHOT, "图快照: 5 节点, 2 约束, 2 解分支", progress=1.0)
-        self.ctx.emit_simple(StreamEventType.ENGINE_DONE, "圆交点场景完成")
+        self._emit_simple(StreamEventType.ENGINE_DONE, "圆交点场景完成")
+
+    # ---- 场景 3: 中点定理证明 ----
 
     def run_proof_scenario(self):
         """场景：中点定理证明 → 合一检查 → 依赖链"""
+        self._reset()
         self.total = 14
-        self.ctx.emit_simple(StreamEventType.ENGINE_START, "中点定理证明引擎初始化", 0)
+        self._emit_simple(StreamEventType.ENGINE_START, "中点定理证明引擎初始化", 0)
 
         self._emit(StreamEventType.NODE_ADDED, "构造三角形 ABC", node_id=1)
         self._emit(StreamEventType.CONSTRAINT_ADDED, "M 是 AB 中点", constr_id=1)
         self._emit(StreamEventType.CONSTRAINT_ADDED, "N 是 AC 中点", constr_id=2)
         self._emit(StreamEventType.CONSTRAINT_ADDED, "MN // BC 需要证明", constr_id=3)
 
-        self.ctx.emit_simple(StreamEventType.NORMALIZE_START, "图规范化")
+        self._emit_simple(StreamEventType.NORMALIZE_START, "图规范化")
         self._emit(StreamEventType.NORMALIZE_MERGE, "等价类: AB 中点 M 语义检查")
-        self.ctx.emit_simple(StreamEventType.NORMALIZE_DONE, "规范化完成")
+        self._emit_simple(StreamEventType.NORMALIZE_DONE, "规范化完成")
 
         self._emit(StreamEventType.PROOF_STEP_ADDED, "证明步骤 1: 添加向量表示 AM = MB = AB/2")
         self._emit(StreamEventType.PROOF_STEP_ADDED, "证明步骤 2: 向量 AN = NC = AC/2")
@@ -736,103 +779,74 @@ class DemoEngine:
         self._emit(StreamEventType.PROOF_COLOR_UPDATE, "信任颜色: 中位线定理已验证 → 绿色")
         self._emit(StreamEventType.PROOF_DEPENDENCY_CHANGE, "依赖链: M,N 中点 → MN//BC (传递闭包)")
         self._emit(StreamEventType.INFO, "命题验证: MN // BC 成立 (中位线定理)", progress=1.0)
-        self.ctx.emit_simple(StreamEventType.ENGINE_DONE, "中点定理证明完成")
+        self._emit_simple(StreamEventType.ENGINE_DONE, "中点定理证明完成")
 
 
-class DemoEngineCTypes:
-    """使用 C 库的演示引擎适配器 —— 与 DemoEngine 接口兼容"""
-    
-    SCENARIOS = DemoEngine.SCENARIOS  # 复用场景定义
-    
+class DemoEngine(_DemoEngineBase):
+    """
+    演示引擎（纯 Python 模拟）—— 在无 C 库环境下模拟完整的求解/规范化/重写流程。
+
+    继承 _DemoEngineBase 的场景定义，通过 StreamContext 发射事件。
+    """
+
+    def __init__(self, ctx: StreamContext):
+        super().__init__()
+        self.ctx = ctx
+
+    def _emit_simple(self, event_type: StreamEventType, description: str, step: int = -1):
+        """通过 StreamContext 发射简单事件"""
+        self.ctx.emit_simple(event_type, description, step)
+
+    def _emit_with_fields(self, etype: StreamEventType, desc: str,
+                          node_id: int = -1, constr_id: int = -1, rule_id: int = -1,
+                          var_id: int = -1, progress: float = -1.0, numeric: float = 0.0):
+        """通过 StreamContext 发射带字段的事件"""
+        self.ctx.emit(StreamEvent(
+            type=int(etype),
+            step_number=self.step,
+            total_steps=self.total,
+            node_id=node_id,
+            constraint_id=constr_id,
+            rule_id=rule_id,
+            var_id=var_id,
+            description=desc,
+            progress=progress,
+            numeric_value=numeric,
+        ))
+
+
+class DemoEngineCTypes(_DemoEngineBase):
+    """
+    演示引擎（C 库桥接）—— 通过 CTypesStreamBridge 发射事件。
+
+    继承 _DemoEngineBase 的场景定义，通过 C 共享库发射事件。
+    与 DemoEngine 接口完全兼容，可互换使用。
+    """
+
     def __init__(self, c_bridge: CTypesStreamBridge):
+        super().__init__()
         self.bridge = c_bridge
-        self.step = 0
-        self.total = 0
-    
-    def _emit(self, etype, desc, **kwargs):
-        self.step += 1
+
+    def _emit_simple(self, event_type: StreamEventType, description: str, step: int = -1):
+        """通过 C 库发射简单事件"""
+        self.bridge.emit_event(event_type, description, step_number=step)
+
+    def _emit_with_fields(self, etype: StreamEventType, desc: str,
+                          node_id: int = -1, constr_id: int = -1, rule_id: int = -1,
+                          var_id: int = -1, progress: float = -1.0, numeric: float = 0.0):
+        """通过 C 库发射带字段的事件"""
         self.bridge.emit_event(
             event_type=etype,
             description=desc,
             step_number=self.step,
             total_steps=self.total,
-            **kwargs
+            node_id=node_id,
+            constraint_id=constr_id,
+            rule_id=rule_id,
+            var_id=var_id,
+            progress=progress,
+            numeric_value=numeric,
         )
-        time.sleep(0.03 + (hash(desc) % 5) * 0.01)
-    
-    def run_triangle_scenario(self):
-        """场景：等边三角形构造 → 规范化 → 求解（通过 C 库发射事件）"""
-        self.total = 18
-        self.step = 0
-        self.bridge.emit_event(StreamEventType.ENGINE_START, "三角形场景引擎初始化完成 (C)", 0)
-        self._emit(StreamEventType.NODE_ADDED, "添加点 A(0, 0)", node_id=1)
-        self._emit(StreamEventType.NODE_ADDED, "添加点 B(1, 0)", node_id=2)
-        self._emit(StreamEventType.NODE_ADDED, "添加点 C 为自由变量", node_id=3)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "添加: dist(A,B) = 1", constraint_id=1)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "添加: dist(A,C) = 1", constraint_id=2)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "添加: dist(B,C) = 1", constraint_id=3)
-        self.bridge.emit_event(StreamEventType.NORMALIZE_START, "阶段 3/4: 图规范化", 5)
-        self._emit(StreamEventType.NORMALIZE_MERGE, "并查集扫描: 3 节点 → 2 等价类", node_id=1)
-        self._emit(StreamEventType.NORMALIZE_MERGE, "等价类合并: 点 B ≈ 点 A? — 跳过", node_id=2)
-        self._emit(StreamEventType.NORMALIZE_MERGE, "哈希预分组: 约束 1,2,3 归入 'dist' 组", constraint_id=1)
-        self.bridge.emit_event(StreamEventType.NORMALIZE_DONE, "规范化完成: 0 合并, 3 节点保留", 9)
-        self.bridge.emit_event(StreamEventType.SOLVE_START, "阶段 4/4: 符号代数求解", 10)
-        self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED, "提取方程: x_C^2 + y_C^2 = 1", var_id=3)
-        self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED, "提取方程: (x_C-1)^2 + y_C^2 = 1", var_id=3)
-        self._emit(StreamEventType.SOLVE_GROEBNER_STEP, "Groebner 基: S-多项式约简 → x_C = 0.5", numeric=0.5)
-        self._emit(StreamEventType.SOLVE_VARIABLE_RESOLVED, "变量解得: x_C = 1/2", var_id=3, numeric=0.5)
-        self._emit(StreamEventType.SOLVE_GROEBNER_STEP, "代入求解: y_C = sqrt(3)/2", numeric=0.8660254)
-        self._emit(StreamEventType.SOLVE_VARIABLE_RESOLVED, "变量解得: y_C = sqrt(3)/2", var_id=3, numeric=0.8660254)
-        self.bridge.emit_event(StreamEventType.SOLVE_DONE, "求解完成: C(1/2, sqrt(3)/2)", 17)
-        self._emit(StreamEventType.INFO, "C 坐标确定为 (0.5, 0.8660254)", progress=1.0)
-        self.bridge.emit_event(StreamEventType.ENGINE_DONE, "全部阶段完成 (C)", 18)
-    
-    def run_circle_scenario(self):
-        """场景：圆与线段相交（通过 C 库发射事件）"""
-        self.total = 16
-        self.step = 0
-        self.bridge.emit_event(StreamEventType.ENGINE_START, "圆交点场景引擎初始化 (C)", 0)
-        self._emit(StreamEventType.NODE_ADDED, "添加圆心 O(0, 0)", node_id=1)
-        self._emit(StreamEventType.NODE_ADDED, "添加半径点 R(1, 0)", node_id=2)
-        self._emit(StreamEventType.NODE_ADDED, "添加线段端点 P(0.5, -2)", node_id=3)
-        self._emit(StreamEventType.NODE_ADDED, "添加线段端点 Q(0.5, 2)", node_id=4)
-        self._emit(StreamEventType.NODE_ADDED, "添加交点 I 为自由变量", node_id=5)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "圆约束: dist(O,I) = 1", constraint_id=1)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "I 在线段 PQ 上", constraint_id=2)
-        self.bridge.emit_event(StreamEventType.NORMALIZE_START, "图规范化")
-        self._emit(StreamEventType.NORMALIZE_MERGE, "节点哈希: 5 节点 → 5 独立等价类")
-        self.bridge.emit_event(StreamEventType.NORMALIZE_DONE, "规范化完成: 无合并")
-        self.bridge.emit_event(StreamEventType.SOLVE_START, "代数求解圆-线段交点")
-        self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED, "x_I^2 + y_I^2 = 1", var_id=5)
-        self._emit(StreamEventType.SOLVE_EQUATION_EXTRACTED, "x_I = 0.5", var_id=5)
-        self._emit(StreamEventType.SOLVE_GROEBNER_STEP, "代入: 0.25 + y_I^2 = 1 → y_I^2 = 3/4")
-        self._emit(StreamEventType.SOLVE_VARIABLE_RESOLVED, "分支 1: y_I = +sqrt(3)/2", var_id=5, numeric=0.8660254)
-        self._emit(StreamEventType.INFO, "多解分支: 2 个交点", progress=0.85)
-        self._emit(StreamEventType.SOLVE_VARIABLE_RESOLVED, "分支 2: y_I = -sqrt(3)/2", var_id=5, numeric=-0.8660254)
-        self.bridge.emit_event(StreamEventType.SOLVE_DONE, "求解完成: I1(0.5, 0.866), I2(0.5, -0.866)")
-        self._emit(StreamEventType.GRAPH_SNAPSHOT, "图快照: 5 节点, 2 约束, 2 解分支", progress=1.0)
-        self.bridge.emit_event(StreamEventType.ENGINE_DONE, "圆交点场景完成 (C)")
-    
-    def run_proof_scenario(self):
-        """场景：中点定理证明（通过 C 库发射事件）"""
-        self.total = 14
-        self.step = 0
-        self.bridge.emit_event(StreamEventType.ENGINE_START, "中点定理证明引擎初始化 (C)", 0)
-        self._emit(StreamEventType.NODE_ADDED, "构造三角形 ABC", node_id=1)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "M 是 AB 中点", constraint_id=1)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "N 是 AC 中点", constraint_id=2)
-        self._emit(StreamEventType.CONSTRAINT_ADDED, "MN // BC 需要证明", constraint_id=3)
-        self.bridge.emit_event(StreamEventType.NORMALIZE_START, "图规范化")
-        self._emit(StreamEventType.NORMALIZE_MERGE, "等价类: AB 中点 M 语义检查")
-        self.bridge.emit_event(StreamEventType.NORMALIZE_DONE, "规范化完成")
-        self._emit(StreamEventType.PROOF_STEP_ADDED, "证明步骤 1: AM = MB = AB/2")
-        self._emit(StreamEventType.PROOF_STEP_ADDED, "证明步骤 2: AN = NC = AC/2")
-        self._emit(StreamEventType.PROOF_UNIFY, "合一检查: MN ↔ (AN - AM) 匹配成功")
-        self._emit(StreamEventType.PROOF_STEP_APPLIED, "应用: MN = BC/2")
-        self._emit(StreamEventType.PROOF_COLOR_UPDATE, "信任颜色: 中位线定理已验证 → 绿色")
-        self._emit(StreamEventType.PROOF_DEPENDENCY_CHANGE, "依赖链: M,N 中点 → MN//BC")
-        self._emit(StreamEventType.INFO, "命题验证: MN // BC 成立", progress=1.0)
-        self.bridge.emit_event(StreamEventType.ENGINE_DONE, "中点定理证明完成 (C)")
 
 
 # ================================================================
@@ -859,7 +873,7 @@ class JsonLineWriter:
 # SSE Server (HTTP Server-Sent Events 模式)
 # ================================================================
 
-def run_sse_server(port: int = 5801) -> None:
+def run_sse_server(port: int = 5801, cors_origins: Optional[List[str]] = None) -> None:
     """
     启动 HTTP SSE 服务器 —— 供浏览器前端直连（支持多连接并发）
 
@@ -870,7 +884,24 @@ def run_sse_server(port: int = 5801) -> None:
 
     Args:
         port: 监听端口号
+        cors_origins: 【修复 #7】允许的 CORS 来源列表。
+                      默认为 ["http://localhost:*", "http://127.0.0.1:*"]，
+                      仅允许本地开发来源。传入 ["*"] 可恢复通配符行为（不推荐用于生产环境）。
     """
+    # 【修复 #7】CORS 来源列表：默认仅允许本地来源，不再使用通配符 '*'
+    # 生产环境应通过参数显式指定允许的域名列表
+    if cors_origins is None:
+        cors_origins = ["http://localhost", "http://127.0.0.1"]
+
+    def _is_cors_allowed(origin: str) -> bool:
+        """检查请求来源是否在允许的 CORS 列表中（支持通配符端口匹配）"""
+        for allowed in cors_origins:
+            if allowed == "*":
+                return True
+            # 支持通配符端口匹配，如 "http://localhost" 匹配 "http://localhost:5801"
+            if origin == allowed or origin.startswith(allowed + ":") or origin.startswith(allowed + "/"):
+                return True
+        return False
     try:
         from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
     except ImportError:
@@ -885,7 +916,11 @@ def run_sse_server(port: int = 5801) -> None:
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Connection", "keep-alive")
-                self.send_header("Access-Control-Allow-Origin", "*")
+                # 【修复 #7】使用可配置的 CORS 来源列表替代通配符 '*'
+                origin = self.headers.get("Origin", "")
+                if _is_cors_allowed(origin):
+                    self.send_header("Access-Control-Allow-Origin", origin)
+                    self.send_header("Vary", "Origin")
                 self.end_headers()
 
                 ctx = StreamContext()
@@ -1070,6 +1105,10 @@ def run_demo_mode(scenario: str = "triangle") -> int:
     # 尝试使用 C 库
     c_bridge = try_load_c_library()
     use_c_lib = False
+    # 【修复 #3】确保 ctx 在所有代码路径中都被正确初始化
+    # 原代码中 ctx 仅在 else 分支中赋值，当 use_c_lib=True 时
+    # 后续的 else 分支引用 ctx.total_count 会导致 NameError
+    ctx = StreamContext()  # 默认初始化，C 库模式下不会被使用
     if c_bridge and c_bridge.is_loaded:
         c_bridge.register_callback(lambda ev: JsonLineWriter.write(ev))
         engine = DemoEngineCTypes(c_bridge)
@@ -1078,7 +1117,6 @@ def run_demo_mode(scenario: str = "triangle") -> int:
     else:
         if c_bridge:
             print(f"[stream-bridge] Demo: C library unavailable: {c_bridge.load_error}", file=sys.stderr)
-        ctx = StreamContext()
         engine = DemoEngine(ctx)
         ctx.register_callback(JsonLineWriter.write)
         print(f"[stream-bridge] Demo: Using Python simulation", file=sys.stderr)
@@ -1144,6 +1182,9 @@ Examples:
     sse_parser = subparsers.add_parser("sse", help="HTTP SSE 服务器模式")
     sse_parser.add_argument("--port", type=int, default=5801, help="监听端口 (默认: 5801)")
     sse_parser.add_argument("--open", action="store_true", help="自动打开浏览器仪表盘")
+    # 【修复 #7】添加 --cors-origins 参数，支持配置允许的跨域来源
+    sse_parser.add_argument("--cors-origins", type=str, default=None,
+                            help="允许的 CORS 来源，多个用逗号分隔 (默认: localhost, 127.0.0.1)")
 
     # demo 子命令
     demo_parser = subparsers.add_parser("demo", help="演示模式")
@@ -1159,7 +1200,11 @@ Examples:
         if args.open:
             import webbrowser
             threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{args.port}")).start()
-        return run_sse_server(args.port) or 0
+        # 【修复 #7】解析 CORS 来源列表并传递给 SSE 服务器
+        cors_list = None
+        if args.cors_origins:
+            cors_list = [s.strip() for s in args.cors_origins.split(",") if s.strip()]
+        return run_sse_server(args.port, cors_origins=cors_list) or 0
     elif args.mode == "demo":
         return run_demo_mode(args.scenario)
     else:

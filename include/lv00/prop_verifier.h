@@ -1,19 +1,32 @@
+/* ========================================================================
+ * 模块名称：命题逻辑验证器 (prop_verifier)
+ * 功能概述：Lv-00 自举目标——基于自然演绎风格的命题逻辑证明搜索器。
+ *          支持 BHK 解释下的几何构造验证：合取（积类型）、析取（和类型）、
+ *          蕴涵（标准函数块）、否定（蕴涵矛盾）。当构造的外部端口通过
+ *          合一匹配命题的几何模式时，命题被验证。
+ *          包含不可构造性分析和 BHK 几何构造验证桥接。
+ *
+ * 主要 API：
+ *   - prop_verifier_verify                     — 验证命题 sequent
+ *   - prop_formula_create_atom / conjunction / ... — 命题构造
+ *   - prop_formula_to_string / to_latex        — 命题序列化
+ *   - prop_verifier_run_smoke_tests            — 烟测集
+ *   - prop_verifier_analyze_inconstructibility — 不可构造性分析
+ *   - prop_verifier_bhk_verify                 — BHK 几何构造验证
+ *   - prop_verifier_apply_trust_colors         — 信任颜色桥接
+ *   - prop_verifier_check_equivalence          — 等价性检查
+ *
+ * 使用示例：
+ *   PropFormula *goal = prop_formula_create_atom("Pythagorean");
+ *   VerifyDetail detail = prop_verifier_verify(premises, n, goal, NULL);
+ *   if (detail.result == PV_VERIFY_PROVEN) { /* 证明成功 */ }
+ *
+ * @version 3.3.0
+ * ======================================================================== */
+
 /**
  * @file prop_verifier.h
  * @brief 命题逻辑验证器 —— Lv-00 自举目标
- *
- * @details 基于自然演绎风格的命题逻辑证明搜索器。
- *          支持 BHK 解释下的几何构造验证：
- *            - 合取: 积类型函数块
- *            - 析取: 和类型函数块
- *            - 蕴涵: 标准函数块
- *            - 否定: 蕴涵矛盾（默认）
- *            - 矛盾: 无输出端口的空模式
- *
- *          当构造的外部端口通过合一匹配命题的几何模式时，命题被验证。
- *
- * @author Lv-00 Project
- * @version 3.2.0
  */
 
 #ifndef LV00_PROP_VERIFIER_H

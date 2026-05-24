@@ -21,7 +21,7 @@
  *          - 测度递减原则：每次递归调用必须使测度值严格递减
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - recursion.h          : 递归系统公共接口定义
@@ -45,6 +45,9 @@
 #include "stream_context_util.h"
 
 LV00_DECLARE_STREAM_CTX(recursion)
+
+/** 度量系统初始容量 */
+#define MEASURE_INITIAL_CAPACITY 4
 
 
 /* ============== 测度系统API ============== */
@@ -174,7 +177,9 @@ bool measure_system_add(MeasureSystem *ms, Measure *m) {
 
     /* 指数增长策略：当数组已满时，容量翻倍 */
     if (ms->measure_count >= ms->measure_capacity) {
-        int new_cap = ms->measure_capacity == 0 ? 4 : ms->measure_capacity * 2;
+        /* 检查容量扩大的乘法是否会导致整数溢出 */
+        if (ms->measure_capacity > 0 && ms->measure_capacity > INT_MAX / 2) return false;
+        int new_cap = ms->measure_capacity == 0 ? MEASURE_INITIAL_CAPACITY : ms->measure_capacity * 2;
         Measure **new_arr = lv00_realloc(ms->measures, (size_t) new_cap * sizeof(Measure *));
         if (!new_arr)
             return false;

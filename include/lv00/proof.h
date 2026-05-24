@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof.h
  * @brief 命题与证明系统 - 合一检查、证明导航器、证明步骤
  *
@@ -10,6 +10,23 @@
  * - ⊥的公理包可定义性
  * - 爆炸原理
  * - 证明导航器
+ *
+ * 【中文模块说明】
+ * proof.h 是 Lv-00 系统的证明引擎核心模块，提供完整的几何证明框架。
+ * 主要功能包括：
+ * - 命题管理：创建、销毁、设置端口/模式/前置条件/后置条件
+ * - 合一检查：将构造图与命题模式进行匹配验证
+ * - 证明导航器：管理证明步骤的添加、导航、断点管理
+ * - 证明依赖链：追踪证明步骤间的依赖关系和信任颜色
+ * - 爆炸原理（Ex Falso）：从矛盾推导任意命题
+ * - 反证法证明：假设目标否定，推导矛盾以证明原命题
+ * - 自然语言输出：AlphaGeometry 风格的人类可读证明文本
+ * - 策略注释：LeanGeo 风格的"先展示总体策略，再展开细节"
+ * - 回溯搜索树：Newclid 风格的证明搜索可视化
+ * - 多策略引擎：JGEX 风格的多证明方法共存（面积法、Groebner基法、向量法等）
+ * - 不可构造性证明：三等分角、倍立方等经典不可构造问题的检测
+ * - 参考项目 API：借鉴 Agda（洞填充）、Idris 2（QTT）、Isabelle（Sledgehammer）、
+ *   HOL Light（微内核验证）、F*（精化类型）的证明功能
  */
 
 #ifndef LV00_PROOF_H
@@ -238,7 +255,14 @@ typedef ProofNavigator Proof;
 /* ============== 命题管理API ============== */
 
 /**
- * 创建命题
+ * @brief 创建命题
+ *
+ * 分配并初始化一个新的命题实例。新命题的所有字段均初始化为零/NULL，
+ * 调用者需通过 proposition_set_* 系列函数设置具体内容。
+ *
+ * @param[in] id    命题ID（唯一标识符）
+ * @param[in] type  命题类型（原子、合取、析取等）
+ * @return 新创建的命题指针，失败返回 NULL
  */
 Proposition *proposition_create(int id, PropositionType type);
 
@@ -286,7 +310,7 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child);
  * @param normalize_first 是否先执行图规范化遍
  * @return 合一结果
  */
-UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *proposition, bool normalize_first);
+UnifyStatus proof_unify(const ConstraintGraph *construction, const Proposition *proposition, bool normalize_first);
 
 /**
  * 合一检查（详细版）
@@ -295,17 +319,27 @@ UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *propos
  * @param out_mismatch_info 输出不匹配信息
  * @return 合一结果
  */
-UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info);
+UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, const Proposition *proposition, char **out_mismatch_info);
 
 /* ============== 证明步骤管理 ============== */
 
 /**
- * 创建证明步骤
+ * @brief 创建证明步骤
+ *
+ * 分配并初始化一个新的证明步骤实例，类型由参数指定。
+ * 新步骤的所有字段均初始化为零/NULL。
+ *
+ * @param[in] type 证明步骤类型（添加节点、重写、合一检查等）
+ * @return 新创建的证明步骤指针，失败返回 NULL
  */
 ProofStep *proof_step_create(ProofStepType type);
 
 /**
- * 销毁证明步骤
+ * @brief 销毁证明步骤
+ *
+ * 释放证明步骤及其所有动态分配的资源（依赖数组、合并节点数组、注释等）。
+ *
+ * @param[in] step 证明步骤指针（可为 NULL，此时函数无操作）
  */
 void proof_step_destroy(ProofStep *step);
 

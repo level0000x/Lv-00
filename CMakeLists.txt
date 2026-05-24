@@ -87,10 +87,21 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # --- Clang 专用编译器选项 ---
-# v3.3.0: 使用 -Weverything 开启所有 Clang 诊断，再选择性禁用噪音警告
+# v3.3.0: 与 GCC 保持一致的警告级别，添加 Clang 特有的有用警告
 if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
-    # -Weverything : 启用所有 Clang 诊断警告（最严格的检查模式）
-    add_compile_options(-Weverything)
+    add_compile_options(
+        # 与 GCC/通用选项保持一致的基础警告
+        -Wall -Wextra -Wpedantic
+
+        # Clang 特有实用警告
+        -Wconversion              # 隐式类型转换警告
+        -Wnull-dereference        # 空指针解引用警告
+        -Wformat=2                # 增强格式字符串检查
+        -Wswitch-enum             # switch 未覆盖所有枚举值时警告
+        -Wunreachable-code        # 不可达代码检测
+        -Wshadow                  # 变量遮蔽警告
+        -Wnonportable-include-path # 不可移植的 include 路径
+    )
 
     # 选择性禁用 Clang 的噪音警告
     add_compile_options(
@@ -99,22 +110,18 @@ if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
         -Wno-unused-macros              # 头文件中定义的未使用宏
 
         # C 标准兼容性
-        -Wno-disabled-macro-expansion   # 禁用的宏展开
         -Wno-reserved-id-macro          # 保留 ID 宏（在第三方头文件中常见）
         -Wno-reserved-identifier        # 保留标识符
-        -Wno-c11-extensions             # C11 扩展（如 _Generic）
 
         # 实用性警告
         -Wno-float-equal                # 浮点数相等比较（在数学代码中可能是故意的）
         -Wno-covered-switch-default     # 覆盖所有 case 的 switch 语句
-        -Wno-missing-variable-declarations # 缺失变量声明
 
         # 文档与声明
         -Wno-documentation-unknown-command # 未知 doxygen 命令
-        -Wno-vla                         # VLA 使用（C11 可选特性）
     )
 
-    # 额外安全标志（Clang 也支持）
+    # 额外安全标志
     add_compile_options(-fstack-clash-protection)
 endif()
 
@@ -273,6 +280,7 @@ set(LV00_HEADERS
     include/lv00/path_type.h
     # 模块化预设函数块系统
     include/lv00/preset_blocks.h
+    include/lv00/preset_register_macros.h
     include/lv00/preset_basic_geometry.h
     include/lv00/preset_transformations.h
     include/lv00/preset_measurements.h
@@ -330,6 +338,53 @@ set(LV00_HEADERS
     include/lv00/axiom_rule_engine.h
     include/lv00/proof_engine_enhanced.h
     include/lv00/test_framework.h
+    # Magic 模拟器模块
+    include/lv00/magic.h
+    # 内部/实现头文件（用于 IDE 索引和 OBJECT 库关联）
+    include/lv00/lv00_internal.h
+    include/lv00/config.h
+    include/lv00/context.h
+    include/lv00/geometry_types.h
+    include/lv00/node_deep_copy.h
+    include/lv00/parser_safety.h
+    include/lv00/func_block_internal.h
+    include/lv00/func_block_preset.h
+    include/lv00/expr_canon.h
+    include/lv00/modal_operators.h
+    include/lv00/logic_check.h
+    include/lv00/circuit_breaker.h
+    include/lv00/axiom_grade.h
+    include/lv00/three_valued_logic.h
+    include/lv00/quantifier.h
+    include/lv00/rational.h
+    include/lv00/proof_priority.h
+    include/lv00/proof_trace.h
+    include/lv00/proof_score.h
+    include/lv00/runtime_guard.h
+    include/lv00/status_codes.h
+    include/lv00/exact_arithmetic.h
+    # func_block 内部预设头文件
+    include/lv00/preset_basic_math.h
+    include/lv00/preset_common.h
+    include/lv00/preset_calculus.h
+    include/lv00/preset_core.h
+    include/lv00/preset_blocks.h
+    # 预设模块头文件（内部实现）
+    include/lv00/preset_algebraic_topology.h
+    include/lv00/preset_algebraic_topology_adv.h
+    include/lv00/preset_arithmetic_geometry.h
+    include/lv00/preset_dynamical_systems.h
+    include/lv00/preset_functional_analysis_adv.h
+    include/lv00/preset_integral_transforms.h
+    include/lv00/preset_lattice_theory.h
+    include/lv00/preset_logic_advanced.h
+    include/lv00/preset_mathematical_logic.h
+    include/lv00/preset_mathematical_physics.h
+    include/lv00/preset_matrix.h
+    include/lv00/preset_order_theory.h
+    include/lv00/preset_polynomial.h
+    include/lv00/preset_representation_theory.h
+    include/lv00/preset_special_functions.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -401,6 +456,12 @@ set(LV00_LAYER4_SOURCES
     src/core/proof_priority.c
     src/core/logic_check.c
     src/core/circuit_breaker.c
+    # 三值逻辑、模态算子、量词系统
+    src/core/three_valued_logic.c
+    src/core/modal_operators.c
+    src/core/quantifier.c
+    # 增强证明引擎
+    src/core/proof_engine_enhanced.c
     # 重写与合一
     src/core/rewrite.c
     src/core/unify.c
@@ -519,6 +580,8 @@ set(LV00_LAYER5_SOURCES
     src/core/proof_widget.c
     src/core/tikz_export.c
     src/interop/interop.c
+    # Magic 模拟器模块
+    src/magic/magic.c
 )
 
 # ============================================================
@@ -582,6 +645,10 @@ target_include_directories(lv00_static PUBLIC
 target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
 set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
 
+# 跳过有深层依赖问题的预设注册（preset_differential_geometry, preset_functional_analysis）
+# 此定义对静态库始终生效，不依赖于 BUILD_SHARED_LIBS 选项
+target_compile_definitions(lv00_static PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
+
 if(BUILD_SHARED_LIBS)
     add_library(lv00_shared SHARED
         $<TARGET_OBJECTS:lv00_layer1_parser>
@@ -594,15 +661,14 @@ if(BUILD_SHARED_LIBS)
         ${GMP_INCLUDE_DIR}
         ${CMAKE_SOURCE_DIR}/include/lv00
     )
-    target_link_libraries(lv00_shared ${GMP_LIBRARIES})
+    # [P0 修复] 共享库也需要链接 Threads::Threads（与静态库保持一致）
+    target_link_libraries(lv00_shared ${GMP_LIBRARIES} Threads::Threads)
     if(WIN32)
         target_link_libraries(lv00_shared ws2_32)
     endif()
     # v3.3.0: 定义 LV00_BUILD_SHARED 以启用 lv00.h 中的 dllexport/visibility
     target_compile_definitions(lv00_shared PRIVATE LV00_BUILD_SHARED)
 
-    # 跳过有深层依赖问题的预设注册（preset_differential_geometry, preset_functional_analysis）
-    target_compile_definitions(lv00_static PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
     set_target_properties(lv00_shared PROPERTIES
         OUTPUT_NAME lv00
         VERSION ${PROJECT_VERSION}
@@ -773,18 +839,17 @@ if(BUILD_TESTS)
         tests/test_stream_extended.c stream_extended_test)
     add_lv00_test_and_register(test_func_block_utils
         tests/test_func_block_utils.c func_block_utils_test)
-    # 暂时排除：依赖 preset_blocks.c
-    # add_lv00_test_and_register(test_func_block_preset
-    #     tests/test_func_block_preset.c func_block_preset_test)
+    # 恢复：preset_blocks.c 已加入 Layer 4 构建列表，依赖已满足
+    add_lv00_test_and_register(test_func_block_preset
+        tests/test_func_block_preset.c func_block_preset_test)
     add_lv00_test_and_register(test_error_codes
         tests/test_error_codes.c error_codes_test)
-    # 新增：互操作模块测试
-    # 互操作模块测试暂时跳过（interop.c 被排除）
-    # add_lv00_test_and_register(test_interop
-    #     tests/test_interop.c interop_test)
-    # if(WIN32)
-    #     target_link_libraries(test_interop ws2_32)
-    # endif()
+    # 恢复：interop.c 已在 Layer 5 构建列表中，依赖已满足
+    add_lv00_test_and_register(test_interop
+        tests/test_interop.c interop_test)
+    if(WIN32)
+        target_link_libraries(test_interop ws2_32)
+    endif()
     # 新增：高维结构模块测试
     add_lv00_test_and_register(test_high_dim
         tests/test_high_dim.c high_dim_test)
@@ -869,6 +934,13 @@ if(BUILD_SHARED_LIBS)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 endif()
+
+# [P0 修复] 导出 CMake 目标文件，供 find_package(lv00) 使用
+install(EXPORT lv00-targets
+    FILE lv00-targets.cmake
+    NAMESPACE lv00::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lv00
+)
 
 # ============================================================
 # v3.3.0: pkg-config .pc 文件生成

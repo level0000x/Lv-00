@@ -387,7 +387,7 @@ extern "C" {
 #define PRESET_FIELD_DIVIDE "field_divide"
 
 /** 子域检查 */
-#define PRESET_FIELD_SUBFIELD_CHECK "field_subfield_check"
+#define PRESET_FIELD_SUBFIELD_CHECK PRESET_FIELD_SUBFIELD_TEST
 
 /** 域扩张检查 */
 #define PRESET_FIELD_EXTENSION_CHECK "field_extension_check"
@@ -408,19 +408,19 @@ extern "C" {
 #define PRESET_FINITE_EXTENSION "finite_extension"
 
 /** 代数元检查 */
-#define PRESET_ALGEBRAIC_ELEMENT_CHECK "algebraic_element_check"
+#define PRESET_ALGEBRAIC_ELEMENT_CHECK PRESET_ALGEBRAIC_ELEMENT_TEST
 
 /** 本原元 */
 #define PRESET_PRIMITIVE_ELEMENT "primitive_element"
 
 /** 正规扩张 */
-#define PRESET_NORMAL_EXTENSION "normal_extension"
+#define PRESET_NORMAL_EXTENSION PRESET_NORMAL_EXTENSION_TEST
 
 /** 伽罗瓦检查 */
-#define PRESET_GALOIS_CHECK "galois_check"
+#define PRESET_GALOIS_CHECK PRESET_GALOIS_EXTENSION_TEST
 
 /** 可分扩张 */
-#define PRESET_SEPARABLE_EXTENSION "separable_extension"
+#define PRESET_SEPARABLE_EXTENSION PRESET_SEPARABLE_EXTENSION_TEST
 
 /** 分裂域 */
 #define PRESET_SPLITTING_FIELD "splitting_field"

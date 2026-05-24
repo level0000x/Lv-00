@@ -8,6 +8,7 @@
  */
 
 import type { Point, Segment, Constraint } from '@/types';
+import { generateUniqueId } from '@/utils/idGenerator';
 
 // ================================================================
 // 类型定义 / Type Definitions
@@ -56,20 +57,30 @@ export interface FuncBlockPreset {
 // 辅助函数 / Helper Functions
 // ================================================================
 
-/** 生成唯一 ID 的计数器（由调用方通过 nextId 回调提供） */
-let _globalIdCounter = 1000;
-
-/** 获取下一个可用 ID */
+/**
+ * 获取下一个可用 ID（使用全局统一的 generateUniqueId）
+ * 保留此函数名以兼容 BlockPanel.tsx 中的调用
+ */
 export function getNextId(): number {
-  return ++_globalIdCounter;
+  return generateUniqueId();
 }
 
-/** 重置 ID 计数器（用于测试） */
+/**
+ * 重置 ID 计数器（空操作，保留以兼容旧代码）
+ * 全局 ID 生成器不需要手动重置
+ */
 export function resetIdCounter(): void {
-  _globalIdCounter = 1000;
+  // 空操作：全局 generateUniqueId() 不需要手动重置
 }
 
-/** 两点之间的距离 */
+/**
+ * 计算两点之间的欧几里得距离。
+ * 使用勾股定理：d = sqrt((x2-x1)^2 + (y2-y1)^2)
+ *
+ * @param a - 第一个点
+ * @param b - 第二个点
+ * @returns 两点之间的距离
+ */
 function distance(a: Point, b: Point): number {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
@@ -92,7 +103,20 @@ function projectPointOnSegment(p: Point, seg: Segment, points: Point[]): Point |
   return { id: -1, x: a.x + t * dx, y: a.y + t * dy };
 }
 
-/** 两线段交点 */
+/**
+ * 计算两条线段的交点。
+ * 使用参数化直线求交算法：
+ *   P = A + t * (B - A)
+ *   Q = C + u * (D - C)
+ * 通过求解参数 t 和 u 来确定交点位置。
+ * 如果两条线段平行或共线（分母接近零），返回 null。
+ * 交点必须同时落在两条线段上（含微小容差）才视为有效。
+ *
+ * @param seg1 - 第一条线段
+ * @param seg2 - 第二条线段
+ * @param points - 所有点的坐标列表（用于通过 ID 查找端点坐标）
+ * @returns 交点坐标，如果无交点则返回 null
+ */
 function segmentIntersection(
   seg1: Segment,
   seg2: Segment,
@@ -120,7 +144,18 @@ function segmentIntersection(
   return null;
 }
 
-/** 三点确定圆心（外接圆圆心） */
+/**
+ * 计算三点确定的外接圆圆心（外心）。
+ * 基于垂直平分线交点公式：
+ *   给定三角形三个顶点 A(ax,ay)、B(bx,by)、C(cx,cy)，
+ *   外心坐标通过求解两条垂直平分线的交点得到。
+ * 如果三点共线（行列式 D 接近零），返回 null。
+ *
+ * @param a - 第一个顶点
+ * @param b - 第二个顶点
+ * @param c - 第三个顶点
+ * @returns 外接圆圆心坐标，如果三点共线则返回 null
+ */
 function circumcenter(a: Point, b: Point, c: Point): Point | null {
   const ax = a.x, ay = a.y;
   const bx = b.x, by = b.y;

@@ -143,19 +143,57 @@
     EVENT_META[38] = { name: '图快照 / Graph Snapshot',       shortName: 'SNAPSHOT',  cssClass: 'stream-ev-info',    colorScheme: 'lightgray' };
 
     // ================================================================
+    //  流式输出 UI 颜色常量
+    //  用于替代 style.cssText 和动态样式设置中的硬编码颜色值
+    //  颜色值从 CSS 自定义属性（variables.css）读取，如不存在则回退到默认值。
+    // ================================================================
+
+    /**
+     * @brief 从 CSS 自定义属性读取颜色值，支持回退默认值
+     * @param {string} varName - CSS 变量名（不含 -- 前缀）
+     * @param {string} fallback - 回退默认值
+     * @returns {string} 颜色值
+     */
+    function _readCssColor(varName, fallback) {
+        try {
+            var style = getComputedStyle(document.documentElement);
+            var value = style.getPropertyValue('--' + varName).trim();
+            return value || fallback;
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    var STREAM_COLORS = {
+        success:     _readCssColor('color-streaming-success', '#3fb950'),
+        error:       _readCssColor('color-streaming-error', '#f85149'),
+        warning:     _readCssColor('color-streaming-warning', '#d29922'),
+        info:        _readCssColor('color-streaming-info', '#58a6ff'),
+        dim:         _readCssColor('color-streaming-dim', '#8b949e'),
+        text:        _readCssColor('color-streaming-text', '#c9d1d9'),
+        border:      _readCssColor('color-streaming-border', '#30363d'),
+        bgPrimary:   _readCssColor('color-streaming-bg-primary', '#161b22'),
+        bgSecondary: _readCssColor('color-streaming-bg-secondary', '#21262d'),
+        bgLog:       _readCssColor('color-streaming-bg-log', '#0d1117'),
+        bgActive:    _readCssColor('color-streaming-bg-active', '#1f2a3a'),
+        bgSuccess:   _readCssColor('color-streaming-bg-success', '#1a2e1f')
+    };
+
+    // ================================================================
     //  颜色方案定义
     //  与 C 内核 stream.c 中 STREAM_COLOR_* 宏保持一致
+    //  颜色值从 CSS 自定义属性（variables.css）读取
     // ================================================================
     var COLOR_SCHEMES = {
-        green:    { text: '#3fb950', bg: '#0d3317' },
-        red:      { text: '#f85149', bg: '#3d1214' },
-        yellow:   { text: '#d29922', bg: '#332b0d' },
-        orange:   { text: '#f0883e', bg: '#331e0d' },
-        blue:     { text: '#58a6ff', bg: '#0d2c5e' },
-        gray:     { text: '#8b949e', bg: '#21262d' },
-        lightgray:{ text: '#c9d1d9', bg: '#161b22' },
-        purple:   { text: '#a371f7', bg: '#1e0d3d' },
-        teal:     { text: '#39d353', bg: '#0d3317' }
+        green:    { text: _readCssColor('color-streaming-scheme-green-text', '#3fb950'),     bg: _readCssColor('color-streaming-scheme-green-bg', '#0d3317') },
+        red:      { text: _readCssColor('color-streaming-scheme-red-text', '#f85149'),       bg: _readCssColor('color-streaming-scheme-red-bg', '#3d1214') },
+        yellow:   { text: _readCssColor('color-streaming-scheme-yellow-text', '#d29922'),    bg: _readCssColor('color-streaming-scheme-yellow-bg', '#332b0d') },
+        orange:   { text: _readCssColor('color-streaming-scheme-orange-text', '#f0883e'),    bg: _readCssColor('color-streaming-scheme-orange-bg', '#331e0d') },
+        blue:     { text: _readCssColor('color-streaming-scheme-blue-text', '#58a6ff'),      bg: _readCssColor('color-streaming-scheme-blue-bg', '#0d2c5e') },
+        gray:     { text: _readCssColor('color-streaming-scheme-gray-text', '#8b949e'),      bg: _readCssColor('color-streaming-scheme-gray-bg', '#21262d') },
+        lightgray:{ text: _readCssColor('color-streaming-scheme-lightgray-text', '#c9d1d9'), bg: _readCssColor('color-streaming-scheme-lightgray-bg', '#161b22') },
+        purple:   { text: _readCssColor('color-streaming-scheme-purple-text', '#a371f7'),    bg: _readCssColor('color-streaming-scheme-purple-bg', '#1e0d3d') },
+        teal:     { text: _readCssColor('color-streaming-scheme-teal-text', '#39d353'),      bg: _readCssColor('color-streaming-scheme-teal-bg', '#0d3317') }
     };
 
     // ================================================================
@@ -180,6 +218,9 @@
         /** @type {HTMLElement|null} 流式输出面板的容器 DOM 元素 */
         this._container = null;
 
+        /** @type {number} 事件日志最大保留条数，超过后自动移除最旧条目 */
+        this._maxEvents = 200;
+
         /** @type {Array<Object>} 事件日志环形缓冲区，固定大小避免 shift() O(n) 操作 */
         this._eventLog = new Array(this._maxEvents);
         /** @type {number} 环形缓冲区写入指针（下一个事件写入位置） */
@@ -188,9 +229,6 @@
         this._eventTail = 0;
         /** @type {number} 环形缓冲区中当前有效事件数 */
         this._eventCount = 0;
-
-        /** @type {number} 事件日志最大保留条数，超过后自动移除最旧条目 */
-        this._maxEvents = 200;
 
         /** @type {Object<number, boolean>} 事件类型过滤器，键为事件类型数值，值为是否显示 */
         this._filters = {};
@@ -261,9 +299,8 @@
     //  初始化 UI 面板
     //  在给定的容器 DOM 元素内构建流式输出的完整 UI（工具栏 + 日志区 + 状态栏）。
     //
-    //  注意：以下 style.cssText 中使用的硬编码颜色值（如 #161b22、#30363d 等）
-    //  与 GitHub Dark 主题保持一致。如需切换主题，可将这些值抽取为 CSS 变量
-    //  或改用 CSS 类名（通过 className 替代内联样式）。
+    //  注意：UI 颜色值已提取到 STREAM_COLORS 常量中，徽章颜色使用 COLOR_SCHEMES。
+    //  如需切换主题，修改 STREAM_COLORS 和 COLOR_SCHEMES 即可。
     //
     //  @param {HTMLElement} container - 流式输出面板容器 DOM 元素
     // ================================================================
@@ -286,7 +323,7 @@
 
         // ---- 构建工具栏 ----
         this._uiToolbar = document.createElement('div');
-        this._uiToolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;padding:3px 4px;border-bottom:1px solid #30363d;background:#161b22;flex-shrink:0;';
+        this._uiToolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;padding:3px 4px;border-bottom:1px solid ' + STREAM_COLORS.border + ';background:' + STREAM_COLORS.bgPrimary + ';flex-shrink:0;';
 
         var self = this;
 
@@ -302,7 +339,7 @@
             { label: 'ERR',   types: [30, 31, 32, 33, 34, 35],           desc: '冲突与错误' },
             { label: 'LOG',   types: [36, 37, 38],                        desc: '信息与进度' }
         ];
-        var groupColors = ['#3fb950', '#3fb950', '#d29922', '#a371f7', '#a371f7', '#39d353', '#f85149', '#8b949e'];
+        var groupColors = [STREAM_COLORS.success, STREAM_COLORS.success, STREAM_COLORS.warning, COLOR_SCHEMES.purple.text, COLOR_SCHEMES.purple.text, COLOR_SCHEMES.teal.text, STREAM_COLORS.error, STREAM_COLORS.dim];
 
         for (var gi = 0; gi < filterGroups.length; gi++) {
             (function(group, gColor) {
@@ -310,10 +347,10 @@
                 filterBtn.setAttribute('data-filter-group', group.label);
                 filterBtn.textContent = group.label;
                 filterBtn.title = group.desc;
-                filterBtn.style.cssText = 'padding:1px 5px;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#c9d1d9;cursor:pointer;font-size:9px;line-height:1.6;white-space:nowrap;';
+                filterBtn.style.cssText = 'padding:1px 5px;border:1px solid ' + STREAM_COLORS.border + ';border-radius:3px;background:' + STREAM_COLORS.bgSecondary + ';color:' + STREAM_COLORS.text + ';cursor:pointer;font-size:9px;line-height:1.6;white-space:nowrap;';
                 // 默认选中状态
                 filterBtn.style.borderColor = gColor;
-                filterBtn.style.background = '#1f2a3a';
+                filterBtn.style.background = STREAM_COLORS.bgActive;
 
                 // 点击切换该组所有类型事件的过滤状态
                 filterBtn.addEventListener('click', function() {
@@ -328,12 +365,12 @@
                     }
                     if (newState) {
                         filterBtn.style.borderColor = gColor;
-                        filterBtn.style.background = '#1f2a3a';
-                        filterBtn.style.color = '#c9d1d9';
+                        filterBtn.style.background = STREAM_COLORS.bgActive;
+                        filterBtn.style.color = STREAM_COLORS.text;
                     } else {
-                        filterBtn.style.borderColor = '#30363d';
-                        filterBtn.style.background = '#21262d';
-                        filterBtn.style.color = '#8b949e';
+                        filterBtn.style.borderColor = STREAM_COLORS.border;
+                        filterBtn.style.background = STREAM_COLORS.bgSecondary;
+                        filterBtn.style.color = STREAM_COLORS.dim;
                     }
                     self._refreshLogDisplay();
                 });
@@ -350,20 +387,20 @@
         // 自动滚动切换按钮
         var autoScrollBtn = document.createElement('button');
         autoScrollBtn.textContent = 'AUTO-SCROLL / 自动滚动';
-        autoScrollBtn.style.cssText = 'padding:1px 5px;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#c9d1d9;cursor:pointer;font-size:9px;line-height:1.6;white-space:nowrap;';
+        autoScrollBtn.style.cssText = 'padding:1px 5px;border:1px solid ' + STREAM_COLORS.border + ';border-radius:3px;background:' + STREAM_COLORS.bgSecondary + ';color:' + STREAM_COLORS.text + ';cursor:pointer;font-size:9px;line-height:1.6;white-space:nowrap;';
         if (this._autoScroll) {
-            autoScrollBtn.style.borderColor = '#3fb950';
-            autoScrollBtn.style.background = '#1a2e1f';
+            autoScrollBtn.style.borderColor = STREAM_COLORS.success;
+            autoScrollBtn.style.background = STREAM_COLORS.bgSuccess;
         }
         autoScrollBtn.addEventListener('click', function() {
             self._autoScroll = !self._autoScroll;
             if (self._autoScroll) {
-                autoScrollBtn.style.borderColor = '#3fb950';
-                autoScrollBtn.style.background = '#1a2e1f';
+                autoScrollBtn.style.borderColor = STREAM_COLORS.success;
+                autoScrollBtn.style.background = STREAM_COLORS.bgSuccess;
                 self._scrollToBottom();
             } else {
-                autoScrollBtn.style.borderColor = '#30363d';
-                autoScrollBtn.style.background = '#21262d';
+                autoScrollBtn.style.borderColor = STREAM_COLORS.border;
+                autoScrollBtn.style.background = STREAM_COLORS.bgSecondary;
             }
         });
         this._uiToolbar.appendChild(autoScrollBtn);
@@ -371,7 +408,7 @@
         // 清除日志按钮
         var clearBtn = document.createElement('button');
         clearBtn.textContent = 'CLEAR / 清除';
-        clearBtn.style.cssText = 'padding:1px 5px;border:1px solid #30363d;border-radius:3px;background:#21262d;color:#f85149;cursor:pointer;font-size:9px;line-height:1.6;white-space:nowrap;';
+        clearBtn.style.cssText = 'padding:1px 5px;border:1px solid ' + STREAM_COLORS.border + ';border-radius:3px;background:' + STREAM_COLORS.bgSecondary + ';color:' + STREAM_COLORS.error + ';cursor:pointer;font-size:9px;line-height:1.6;white-space:nowrap;';
         clearBtn.addEventListener('click', function() {
             self.clearLogs();
         });
@@ -381,14 +418,14 @@
 
         // ---- 构建日志内容区 ----
         this._uiLogArea = document.createElement('div');
-        this._uiLogArea.style.cssText = 'flex:1;overflow-y:auto;overflow-x:hidden;padding:4px;background:#0d1117;';
+        this._uiLogArea.style.cssText = 'flex:1;overflow-y:auto;overflow-x:hidden;padding:4px;background:' + STREAM_COLORS.bgLog + ';';
         this._uiLogArea.setAttribute('role', 'log');
         this._uiLogArea.setAttribute('aria-live', 'polite');
         this._uiLogArea.setAttribute('aria-label', '流式事件日志 / Streaming Event Log');
 
         // 初始占位提示
         var placeholder = document.createElement('div');
-        placeholder.style.cssText = 'color:#8b949e;text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
+        placeholder.style.cssText = 'color:' + STREAM_COLORS.dim + ';text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
         placeholder.textContent = '等待流式事件... / Awaiting streaming events...';
         placeholder.setAttribute('data-placeholder', 'true');
         this._uiLogArea.appendChild(placeholder);
@@ -397,7 +434,7 @@
 
         // ---- 构建状态栏 ----
         this._uiStatus = document.createElement('div');
-        this._uiStatus.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:2px 6px;border-top:1px solid #30363d;background:#161b22;font-size:9px;color:#8b949e;flex-shrink:0;min-height:20px;';
+        this._uiStatus.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:2px 6px;border-top:1px solid ' + STREAM_COLORS.border + ';background:' + STREAM_COLORS.bgPrimary + ';font-size:9px;color:' + STREAM_COLORS.dim + ';flex-shrink:0;min-height:20px;';
         this._updateStatus(0);
         container.appendChild(this._uiStatus);
     };
@@ -495,13 +532,13 @@
 
         // 构建事件行容器
         var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:flex-start;gap:4px;padding:2px 0;border-bottom:1px solid #161b22;line-height:1.5;';
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:4px;padding:2px 0;border-bottom:1px solid ' + STREAM_COLORS.bgPrimary + ';line-height:1.5;';
         row.setAttribute('data-event-id', String(event.id));
         row.setAttribute('data-event-type', String(event.type));
 
         // 时间戳列
         var timeEl = document.createElement('span');
-        timeEl.style.cssText = 'color:#8b949e;font-size:9px;white-space:nowrap;flex-shrink:0;min-width:60px;';
+        timeEl.style.cssText = 'color:' + STREAM_COLORS.dim + ';font-size:9px;white-space:nowrap;flex-shrink:0;min-width:60px;';
         timeEl.textContent = this._formatTime(event.timestamp);
         row.appendChild(timeEl);
 
@@ -516,14 +553,14 @@
         // 步骤编号（如果有的话）
         if (typeof event.step_number === 'number') {
             var stepEl = document.createElement('span');
-            stepEl.style.cssText = 'color:#8b949e;font-size:9px;white-space:nowrap;flex-shrink:0;min-width:32px;text-align:right;';
+            stepEl.style.cssText = 'color:' + STREAM_COLORS.dim + ';font-size:9px;white-space:nowrap;flex-shrink:0;min-width:32px;text-align:right;';
             stepEl.textContent = '#' + event.step_number;
             row.appendChild(stepEl);
         }
 
         // 描述文本
         var descEl = document.createElement('span');
-        descEl.style.cssText = 'color:#c9d1d9;font-size:10px;word-break:break-word;';
+        descEl.style.cssText = 'color:' + STREAM_COLORS.text + ';font-size:10px;word-break:break-word;';
         descEl.textContent = event.description;
         row.appendChild(descEl);
 
@@ -588,7 +625,7 @@
         // 如果没有事件日志，显示占位提示
         if (this._eventCount === 0) {
             var placeholder = document.createElement('div');
-            placeholder.style.cssText = 'color:#8b949e;text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
+            placeholder.style.cssText = 'color:' + STREAM_COLORS.dim + ';text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
             placeholder.textContent = '等待流式事件... / Awaiting streaming events...';
             placeholder.setAttribute('data-placeholder', 'true');
             this._uiLogArea.appendChild(placeholder);
@@ -614,7 +651,7 @@
         } else {
             // 如果过滤后无可见事件，显示提示
             var noEventsMsg = document.createElement('div');
-            noEventsMsg.style.cssText = 'color:#8b949e;text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
+            noEventsMsg.style.cssText = 'color:' + STREAM_COLORS.dim + ';text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
             noEventsMsg.textContent = '所有事件类型已被过滤，不显示任何条目 / All event types filtered';
             this._uiLogArea.appendChild(noEventsMsg);
         }
@@ -643,7 +680,7 @@
 
             // 恢复占位提示
             var placeholder = document.createElement('div');
-            placeholder.style.cssText = 'color:#8b949e;text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
+            placeholder.style.cssText = 'color:' + STREAM_COLORS.dim + ';text-align:center;padding:24px 8px;font-size:11px;font-style:italic;';
             placeholder.textContent = '日志已清除 / Logs cleared';
             placeholder.setAttribute('data-placeholder', 'true');
             this._uiLogArea.appendChild(placeholder);

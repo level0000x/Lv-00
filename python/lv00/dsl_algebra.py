@@ -12,7 +12,7 @@ Lv-00 DSL 代数模式模块 — 借鉴 CadQuery + build123d + GAlgebra 设计
 3. Transform & 操作符链 (借鉴 GAlgebra + build123d)
    用乘法链表达几何变换：Plane.XY * Pos(5,0) * Rot(45) * Circle(2)
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 参考：
   - CadQuery (https://github.com/CadQuery/cadquery) — Fluent API / Selector / Workplane
@@ -148,7 +148,7 @@ class Transform:
         if self.tx != 0 or self.ty != 0:
             parts.append(f"Pos({self.tx:.2f}, {self.ty:.2f})")
         if self.angle_deg != 0:
-            parts.append(f"Rot({self.angle_deg:.1f}°))")
+            parts.append(f"Rot({self.angle_deg:.1f}°)")
         if self.scale_x != 1.0 or self.scale_y != 1.0:
             parts.append(f"Scale({self.scale_x:.2f}, {self.scale_y:.2f})")
         return " * ".join(parts) if parts else "Identity"
@@ -165,7 +165,7 @@ def Rot(angle_deg: float) -> Transform:
     return Transform(angle_deg=angle_deg)
 
 
-def Scale(sx: float = 1.0, sy: float = None) -> Transform:
+def Scale(sx: float = 1.0, sy: float | None = None) -> Transform:
     """创建缩放变换。"""
     if sy is None:
         sy = sx
@@ -240,9 +240,11 @@ class Plane:
 
 
 # 初始化预定义平面
+# YZ 平面：Y 轴沿 y 方向，Z 轴映射到 x 方向（2D 投影）
+# XZ 平面：X 轴沿 x 方向，Z 轴映射到 y 方向（2D 投影）
 Plane.XY = Plane(origin=(0, 0), u_dir=(1, 0), v_dir=(0, 1), name="XY")
-Plane.YZ = Plane(origin=(0, 0), u_dir=(0, 1), v_dir=(0, 0), name="YZ")
-Plane.XZ = Plane(origin=(0, 0), u_dir=(1, 0), v_dir=(0, 0), name="XZ")
+Plane.YZ = Plane(origin=(0, 0), u_dir=(0, 1), v_dir=(1, 0), name="YZ")
+Plane.XZ = Plane(origin=(0, 0), u_dir=(1, 0), v_dir=(0, 1), name="XZ")
 
 
 # ============================================================
@@ -401,7 +403,9 @@ class Workplane:
 
         r = radius
         if self._transform.scale_x != 0:
-            r *= self._transform.scale_x
+            # 缩放因子取绝对值：圆的半径不能为负数，
+            # 负数缩放在几何上无意义，此处自动修正为正数
+            r *= abs(self._transform.scale_x)
 
         circ = self._ctx.circle(center=center, radius=r)
         self._objects.append(circ)

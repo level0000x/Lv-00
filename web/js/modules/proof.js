@@ -1,10 +1,16 @@
 /**
- * proof.js - PROOF 证明模块方法
+ * @file proof.js
+ * @brief PROOF 证明模块方法
+ * @description 实现 Lv-00 证明系统的前端操作方法，挂载到 Lv00WebApp.prototype 上。
+ *              包括创建命题、设置证明模式（正向/反证/归谬）、
+ *              统一性检查、证明导航（上一步/下一步/跳转）、
+ *              Coq 导出、矛盾证明等功能。
+ *              所有证明操作通过后端 API 执行，前端负责 UI 交互和状态管理。
  *
- * 实现证明模块的操作方法，包括创建命题、设置模式、
- * 统一性检查、导航（上一步/下一步/跳转）、导出等。
- *
- * 依赖：Lv00WebApp 构造函数、ui.js
+ * @module proof
+ * @requires Lv00WebApp 构造函数（app.js）
+ * @requires ui.js（appendLog, showToast, showModal 等方法）
+ * @since 3.0.0
  */
 (function() {
     'use strict';

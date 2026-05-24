@@ -19,7 +19,7 @@
  *          于 2026-05-20 基于头文件声明和功能规格重新实现，并通过回归测试验证。
  *
  * @author Lv-00 Project
- * @version 3.2.0  (惰性求值完整实现 2026-05-23)
+ * @version 3.3.0  (惰性求值完整实现 2026-05-23)
  *
  * @dependencies
  *   - stream.h              : 流式输出系统公共接口定义
@@ -53,7 +53,9 @@
 #include <process.h>
 #define LV00_THREAD_HANDLE HANDLE
 #define LV00_MUTEX HANDLE
-#define LV00_CONDVAR HANDLE(CONDITION_VARIABLE *)
+/* 注意：Windows 条件变量使用 CONDITION_VARIABLE 类型（栈分配），
+ * 不需要 HANDLE 包装。此处保留宏仅为跨平台代码一致性。 */
+#define LV00_CONDVAR CONDITION_VARIABLE
 /* Windows 线程函数返回 unsigned, 需要适配 */
 #else
 #include <pthread.h>
@@ -1510,25 +1512,42 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     const char *type_name = stream_event_type_name(event->type);
     const char *color = stream_event_color(event->type);
 
-    /* 转义 description 字段
+    /* Adaptive buffer for escaped description field.
      *
-     * 【安全说明】desc_escaped 使用 2048 字节栈缓冲区。
-     * 截断策略：stream_json_escape() 内部已实现安全截断 —— 当转义后的
-     * 结果超出缓冲区大小时，会在最后一个完整转义字符后写入 '\0' 终止符，
-     * 不会发生缓冲区溢出。
+     * Fast path: use a 2048-byte stack buffer for typical descriptions
+     * (< 200 bytes raw, < 400 bytes escaped). This covers all built-in
+     * event descriptions without any heap allocation.
      *
-     * 2048 字节的限制说明：
-     * - 典型事件描述长度 < 200 字节（如 "节点合并: 42 -> 17"）
-     * - JSON 转义最多将每个字符扩展为 2 字节（如 \n, \t）
-     * - 2048 字节可安全容纳约 1000 字节的原始描述，远超实际需求
-     * - 如果描述超过此限制，超出部分将被静默截断，JSON 输出仍然有效
+     * Slow path: if the raw description exceeds 1024 bytes (which after
+     * JSON escaping could approach or exceed the 2048-byte stack buffer),
+     * allocate a heap buffer of 2 * strlen(description) + 1 bytes to
+     * guarantee sufficient space for worst-case escaping (every character
+     * becomes 2 bytes). The heap buffer is freed before the function
+     * returns.
      *
-     * TODO: 如果未来需要支持超长描述，可考虑使用堆分配缓冲区。
-     * 但当前所有内置事件描述均远小于此限制，无需优化。 */
-    char desc_escaped[2048];
-    desc_escaped[0] = '\0';
+     * desc_buf / desc_buf_size point to whichever buffer is active,
+     * and desc_heap tracks whether free() is needed. */
+    char desc_stack[2048];
+    char *desc_buf = desc_stack;
+    size_t desc_buf_size = sizeof(desc_stack);
+    bool desc_heap = false;
+
+    desc_buf[0] = '\0';
     if (event->description) {
-        stream_json_escape(desc_escaped, event->description, sizeof(desc_escaped));
+        size_t raw_len = strlen(event->description);
+        if (raw_len > 1024) {
+            /* Slow path: allocate heap buffer sized for worst-case escaping */
+            size_t heap_size = raw_len * 2 + 1;
+            char *heap_buf = (char *) lv00_malloc(heap_size);
+            if (heap_buf) {
+                desc_buf = heap_buf;
+                desc_buf_size = heap_size;
+                desc_heap = true;
+            }
+            /* If malloc fails, fall through with the stack buffer
+             * (truncation is safe — stream_json_escape handles it) */
+        }
+        stream_json_escape(desc_buf, event->description, desc_buf_size);
     }
 
     /* 先用 NULL buffer 计算所需大小 */
@@ -1545,7 +1564,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     needed = stream_buf_append(NULL, 0, needed, "  \"rule_id\": %d,\n", event->rule_id);
     needed = stream_buf_append(NULL, 0, needed, "  \"var_id\": %d,\n", event->var_id);
     if (event->description) {
-        needed = stream_buf_append(NULL, 0, needed, "  \"description\": \"%s\",\n", desc_escaped);
+        needed = stream_buf_append(NULL, 0, needed, "  \"description\": \"%s\",\n", desc_buf);
     } else {
         needed = stream_buf_append(NULL, 0, needed, "  \"description\": null,\n");
     }
@@ -1554,8 +1573,11 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     needed = stream_buf_append(NULL, 0, needed, "}");
 
     /* 如果没有提供缓冲区或缓冲区太小，返回所需大小 */
-    if (!buffer || size == 0)
+    if (!buffer || size == 0) {
+        if (desc_heap)
+            lv00_free((void **) &desc_buf);
         return needed;
+    }
 
     /* 写入实际数据 */
     int pos = 0;
@@ -1571,7 +1593,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     pos = stream_buf_append(buffer, size, pos, "  \"rule_id\": %d,\n", event->rule_id);
     pos = stream_buf_append(buffer, size, pos, "  \"var_id\": %d,\n", event->var_id);
     if (event->description) {
-        pos = stream_buf_append(buffer, size, pos, "  \"description\": \"%s\",\n", desc_escaped);
+        pos = stream_buf_append(buffer, size, pos, "  \"description\": \"%s\",\n", desc_buf);
     } else {
         pos = stream_buf_append(buffer, size, pos, "  \"description\": null,\n");
     }
@@ -1585,6 +1607,10 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     } else if (size > 0) {
         buffer[size - 1] = '\0';
     }
+
+    /* Free heap-allocated description buffer if used */
+    if (desc_heap)
+        lv00_free((void **) &desc_buf);
 
     return pos;
 }

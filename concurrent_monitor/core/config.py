@@ -58,6 +58,9 @@ class EngineConfig:
         self.max_concurrency = validate_positive_int(self.max_concurrency, "max_concurrency")
         self.max_output_lines = validate_positive_int(self.max_output_lines, "max_output_lines")
         self.buffer_size = validate_positive_int(self.buffer_size, "buffer_size")
+        # 验证超时时间（None 表示不限制，非 None 时必须为正数）
+        if self.default_timeout is not None and self.default_timeout <= 0:
+            raise ValueError(f"default_timeout 必须大于 0，当前: {self.default_timeout}")
 
 
 @dataclass
@@ -142,12 +145,17 @@ class LoggingConfig:
     console_enabled: bool = True        # 启用控制台输出
 
     def __post_init__(self) -> None:
-        """初始化后验证日志级别是否合法"""
+        """初始化后验证日志级别和参数的合法性"""
         valid_levels: list[str] = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.level.upper() not in valid_levels:
             raise ValueError(f"无效的日志级别: {self.level}")
         # 统一转为大写
         self.level = self.level.upper()
+        # 验证日志文件参数
+        if self.max_bytes <= 0:
+            raise ValueError(f"max_bytes 必须为正整数，当前: {self.max_bytes}")
+        if self.backup_count < 0:
+            raise ValueError(f"backup_count 不能为负数，当前: {self.backup_count}")
 
 
 @dataclass
@@ -309,8 +317,12 @@ class Config:
 
         # 日志配置：日志级别
         if level := os.getenv("MONITOR_LOG_LEVEL"):
-            self.logging.level = level.upper()
-            logger.debug(f"环境变量覆盖: logging.level = {level}")
+            valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+            if level.upper() in valid_levels:
+                self.logging.level = level.upper()
+                logger.debug(f"环境变量覆盖: logging.level = {level}")
+            else:
+                logger.warning(f"无效的环境变量值: MONITOR_LOG_LEVEL={level}")
 
 
 class ConfigManager:

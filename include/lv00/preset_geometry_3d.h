@@ -13,8 +13,8 @@
  * @version 5.0.0
  */
 
-#ifndef PRESET_GEOMETRY_3D_H
-#define PRESET_GEOMETRY_3D_H
+#ifndef LV00_PRESET_GEOMETRY_3D_H
+#define LV00_PRESET_GEOMETRY_3D_H
 
 #include "func_block_registry.h"
 
@@ -274,4 +274,4 @@ bool preset_geometry_3d_get_names(char ***out_names, int *out_count);
 }
 #endif
 
-#endif /* PRESET_GEOMETRY_3D_H */
+#endif /* LV00_PRESET_GEOMETRY_3D_H */

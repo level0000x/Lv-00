@@ -8,6 +8,8 @@
 
 #include "test_framework.h"
 
+#include "lv00_utils.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,15 +94,15 @@ static Lv00TestSuite *find_or_create_suite(const char *name) {
         return NULL;
     }
 
-    Lv00TestSuite *suite = (Lv00TestSuite *)calloc(1, sizeof(Lv00TestSuite));
+    Lv00TestSuite *suite = (Lv00TestSuite *)lv00_calloc(1, sizeof(Lv00TestSuite));
     if (!suite) {
         return NULL;
     }
 
     strncpy(suite->name, name, sizeof(suite->name) - 1);
-    suite->cases = (Lv00TestCase *)malloc(TEST_CASE_INIT_CAPACITY * sizeof(Lv00TestCase));
+    suite->cases = (Lv00TestCase *)lv00_malloc(TEST_CASE_INIT_CAPACITY * sizeof(Lv00TestCase));
     if (!suite->cases) {
-        free(suite);
+        lv00_free((void **) &suite);
         return NULL;
     }
     suite->case_capacity = TEST_CASE_INIT_CAPACITY;
@@ -155,7 +157,7 @@ bool lv00_test_register_with_fixture(const char *suite_name, const char *test_na
     /* 扩容 */
     if (suite->case_count >= suite->case_capacity) {
         uint32_t new_cap = suite->case_capacity * 2;
-        Lv00TestCase *new_cases = (Lv00TestCase *)realloc(suite->cases,
+        Lv00TestCase *new_cases = (Lv00TestCase *)lv00_realloc(suite->cases,
                                                           new_cap * sizeof(Lv00TestCase));
         if (!new_cases) {
             MUTEX_UNLOCK(g_test_system.mutex);
@@ -220,9 +222,13 @@ bool lv00_test_add_tag(const char *suite_name, const char *test_name, const char
                     /* 添加标签 */
                     if (test_case->tag_count < 8) {
                         if (test_case->tag_count == 0) {
-                            test_case->tags = (char **)malloc(8 * sizeof(char *));
+                            test_case->tags = (char **)lv00_malloc(8 * sizeof(char *));
                         }
-                        test_case->tags[test_case->tag_count++] = strdup(tag);
+                        test_case->tags[test_case->tag_count++] = /* strdup: 使用 lv00_malloc + strcpy 替代标准 strdup */
+                            (char *)lv00_malloc(strlen(tag) + 1);
+                        if (test_case->tags[test_case->tag_count - 1]) {
+                            strcpy(test_case->tags[test_case->tag_count - 1], tag);
+                        }
                     }
                     MUTEX_UNLOCK(g_test_system.mutex);
                     return true;
@@ -270,7 +276,7 @@ void lv00_assert_pass(const char *file, int line) {
 /* ============== 测试执行实现 ============== */
 
 static Lv00TestResult *run_single_test(Lv00TestCase *test_case, Lv00TestSuite *suite) {
-    Lv00TestResult *result = (Lv00TestResult *)calloc(1, sizeof(Lv00TestResult));
+    Lv00TestResult *result = (Lv00TestResult *)lv00_calloc(1, sizeof(Lv00TestResult));
     if (!result) {
         return NULL;
     }
@@ -324,7 +330,7 @@ static Lv00TestResult *run_single_test(Lv00TestCase *test_case, Lv00TestSuite *s
 Lv00TestReport *lv00_test_run_all(void) {
     init_test_system();
 
-    Lv00TestReport *report = (Lv00TestReport *)calloc(1, sizeof(Lv00TestReport));
+    Lv00TestReport *report = (Lv00TestReport *)lv00_calloc(1, sizeof(Lv00TestReport));
     if (!report) {
         return NULL;
     }
@@ -334,10 +340,10 @@ Lv00TestReport *lv00_test_run_all(void) {
     MUTEX_LOCK(g_test_system.mutex);
 
     /* 分配套件数组 */
-    report->suites = (Lv00TestSuite *)malloc(g_test_system.suite_count * sizeof(Lv00TestSuite));
+    report->suites = (Lv00TestSuite *)lv00_malloc(g_test_system.suite_count * sizeof(Lv00TestSuite));
     if (!report->suites) {
         MUTEX_UNLOCK(g_test_system.mutex);
-        free(report);
+        lv00_free((void **) &report);
         return NULL;
     }
     report->suite_count = g_test_system.suite_count;
@@ -408,14 +414,14 @@ Lv00TestReport *lv00_test_run_suite(const char *suite_name) {
         return NULL;
     }
 
-    Lv00TestReport *report = (Lv00TestReport *)calloc(1, sizeof(Lv00TestReport));
+    Lv00TestReport *report = (Lv00TestReport *)lv00_calloc(1, sizeof(Lv00TestReport));
     if (!report) {
         MUTEX_UNLOCK(g_test_system.mutex);
         return NULL;
     }
 
     report->start_time_ns = get_time_ns();
-    report->suites = (Lv00TestSuite *)malloc(sizeof(Lv00TestSuite));
+    report->suites = (Lv00TestSuite *)lv00_malloc(sizeof(Lv00TestSuite));
     report->suite_count = 1;
 
     /* 重置统计 */
@@ -492,7 +498,7 @@ Lv00TestReport *lv00_test_run_by_tag(const char *tag) {
         return NULL;
     }
 
-    Lv00TestReport *report = (Lv00TestReport *)calloc(1, sizeof(Lv00TestReport));
+    Lv00TestReport *report = (Lv00TestReport *)lv00_calloc(1, sizeof(Lv00TestReport));
     if (!report) {
         return NULL;
     }
@@ -543,7 +549,7 @@ Lv00TestReport *lv00_test_run_by_pattern(const char *pattern) {
         return NULL;
     }
 
-    Lv00TestReport *report = (Lv00TestReport *)calloc(1, sizeof(Lv00TestReport));
+    Lv00TestReport *report = (Lv00TestReport *)lv00_calloc(1, sizeof(Lv00TestReport));
     if (!report) {
         return NULL;
     }
@@ -669,7 +675,7 @@ bool lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t 
     bench->iterations = iterations;
 
     /* 运行基准测试 */
-    int64_t *times = (int64_t *)malloc(iterations * sizeof(int64_t));
+    int64_t *times = (int64_t *)lv00_malloc(iterations * sizeof(int64_t));
     if (!times) {
         return false;
     }
@@ -703,7 +709,7 @@ bool lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t 
     }
     bench->std_dev_ns = sqrt(sum_sq / iterations);
 
-    free(times);
+    lv00_free((void **) &times);
     return true;
 }
 
@@ -740,19 +746,19 @@ void lv00_test_report_destroy(Lv00TestReport *report) {
     if (!report) {
         return;
     }
-    free(report->suites);
-    free(report->json_output);
-    free(report->xml_output);
-    free(report->html_output);
-    free(report);
+    lv00_free((void **) &report->suites);
+    lv00_free((void **) &report->json_output);
+    lv00_free((void **) &report->xml_output);
+    lv00_free((void **) &report->html_output);
+    lv00_free((void **) &report);
 }
 
 void lv00_test_result_destroy(Lv00TestResult *result) {
     if (!result) {
         return;
     }
-    free(result->failures);
-    free(result);
+    lv00_free((void **) &result->failures);
+    lv00_free((void **) &result);
 }
 
 void lv00_test_report_print(const Lv00TestReport *report, FILE *stream) {
@@ -789,7 +795,7 @@ char *lv00_test_report_to_json(const Lv00TestReport *report) {
         return NULL;
     }
 
-    char *json = (char *)malloc(8192);
+    char *json = (char *)lv00_malloc(8192);
     if (!json) {
         return NULL;
     }
@@ -828,7 +834,7 @@ char *lv00_test_report_to_xml(const Lv00TestReport *report) {
         return NULL;
     }
 
-    char *xml = (char *)malloc(16384);
+    char *xml = (char *)lv00_malloc(16384);
     if (!xml) {
         return NULL;
     }
@@ -876,7 +882,7 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
         return NULL;
     }
 
-    char *html = (char *)malloc(32768);
+    char *html = (char *)lv00_malloc(32768);
     if (!html) {
         return NULL;
     }
@@ -939,7 +945,7 @@ bool lv00_test_report_write_file(const Lv00TestReport *report,
 
     if (content) {
         fputs(content, fp);
-        free(content);
+        lv00_free((void **) &content);
     }
 
     fclose(fp);

@@ -173,7 +173,9 @@ export function normalizeGraph(
   for (const [oldId, newId] of mergeMap) {
     let finalId = newId;
     while (mergeMap.has(finalId)) {
-      finalId = mergeMap.get(finalId)!;
+      const mapped = mergeMap.get(finalId);
+      if (!mapped) break;
+      finalId = mapped;
     }
     resolvedMap.set(oldId, finalId);
   }
@@ -184,7 +186,9 @@ export function normalizeGraph(
   const resolveId = (id: number): number => {
     let current = id;
     while (resolvedMap.has(current)) {
-      current = resolvedMap.get(current)!;
+      const resolved = resolvedMap.get(current);
+      if (!resolved) break;
+      current = resolved;
     }
     return current;
   };

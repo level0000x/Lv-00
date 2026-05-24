@@ -25,16 +25,51 @@
 static int test_proposition_lifecycle(void) {
     printf("Test: proposition lifecycle...\n");
 
+    /* --- 验证命题创建后的初始状态 --- */
     Proposition *prop = proposition_create(1, PROPOSITION_ATOMIC);
     assert(prop != NULL);
     assert(prop->id == 1);
     assert(prop->type == PROPOSITION_ATOMIC);
     assert(prop->input_count == 0);
     assert(prop->output_count == 0);
+    /* 初始状态下子命题数量应为 0 */
+    assert(prop->sub_prop_count == 0);
+    /* 初始状态下模式图应为 NULL */
+    assert(prop->pattern == NULL);
 
     printf("  原子命题创建成功 (ID=%d)\n", prop->id);
 
+    /* --- 验证添加步骤后状态变化 --- */
+    /* 设置输入端口，验证 input_count 变化 */
+    int in_ports[] = {10, 20};
+    bool ok = proposition_set_input_ports(prop, in_ports, 2);
+    assert(ok == true);
+    assert(prop->input_count == 2);
+    printf("  设置输入端口后: input_count = %d\n", prop->input_count);
+
+    /* 设置输出端口，验证 output_count 变化 */
+    int out_ports[] = {30};
+    ok = proposition_set_output_ports(prop, out_ports, 1);
+    assert(ok == true);
+    assert(prop->output_count == 1);
+    printf("  设置输出端口后: output_count = %d\n", prop->output_count);
+
+    /* 添加子命题，验证 sub_prop_count 变化 */
+    Proposition *child = proposition_create(2, PROPOSITION_ATOMIC);
+    assert(child != NULL);
+    ok = proposition_add_sub_proposition(prop, child);
+    assert(ok == true);
+    assert(prop->sub_prop_count == 1);
+    printf("  添加子命题后: sub_prop_count = %d\n", prop->sub_prop_count);
+
+    /* --- 验证销毁后的资源释放 --- */
+    /* 销毁命题（会递归销毁子命题），之后不应再访问已释放的指针 */
     proposition_destroy(prop);
+    /* 注意：销毁后 prop 和 child 均已释放，此处不访问以避免未定义行为。
+     * 资源释放的正确性由 proposition_destroy 内部实现保证，
+     * 可通过内存检测工具（如 Valgrind/ASan）进一步验证。 */
+    printf("  命题销毁完成，资源已释放\n");
+
     printf("  PASSED\n");
     return 0;
 }

@@ -10,17 +10,19 @@ Lv-00 公式编程模块
     - FormulaRenderer: 公式渲染器，输出多种格式
     - FormulaConverter: 公式-约束图双向转换器
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
 import ctypes
 import re
 from fractions import Fraction
-from typing import Optional, List, Dict, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+# 导入 Lv00BaseError，供 FormulaParseError 继承使用
+from .core import Lv00BaseError
 
 from ._ctypes_binding import _lib, c_int, c_char_p, c_void_p, POINTER
-from typing import Any
 
 # ============================================================
 # 全局常量
@@ -100,12 +102,13 @@ class OutputFormat:
     DSL = 2
 
 
-class FormulaParseError(Exception):
+class FormulaParseError(Lv00BaseError):
     """
     公式解析错误。
 
     当公式字符串无法被解析为有效的 AST 时抛出。
     包含错误位置信息，便于定位问题。
+    继承 Lv00BaseError，与项目异常体系保持一致。
 
     属性：
         message: 错误描述消息
@@ -296,9 +299,12 @@ class FormulaAST:
         if not self._ptr:
             return (False, ["AST 指针为空"])
 
-        # 基本验证：检查指针是否有效
-        # 注意：完整的 AST 验证需要 C 库支持 formula_validate 函数
-        # 该函数在当前版本中未导出，因此只进行基本检查
+        # 检查 DSL 渲染结果是否为空（空公式或无效 AST）。
+        # 完整的 AST 结构验证需要 C 库支持 formula_validate 函数（当前版本未导出）。
+        dsl_output = self.to_dsl()
+        if not dsl_output or not dsl_output.strip():
+            return (False, ["AST 渲染结果为空，公式可能无效"])
+
         return (True, [])
 
     def __repr__(self) -> str:

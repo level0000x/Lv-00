@@ -1,16 +1,29 @@
+/* ========================================================================
+ * 模块名称：预设函数块系统 (func_block_preset)
+ * 功能概述：提供理论数学研究的标准化函数块库，包含完整的预设函数块
+ *          定义、参数规范和实例化接口。所有预设都有明确的输入/输出
+ *          类型签名，支持函数式组合和运行时注册自定义预设。
+ *
+ * 主要 API：
+ *   - func_block_preset_library_init      — 初始化预设库
+ *   - func_block_preset_instantiate        — 实例化预设函数块
+ *   - func_block_preset_validate_types     — 验证参数类型
+ *   - func_block_preset_compose            — 组合两个预设
+ *   - func_block_preset_register_custom    — 注册自定义预设
+ *   - func_block_preset_generate_doc       — 生成预设文档
+ *
+ * 使用示例：
+ *   func_block_preset_library_init();
+ *   FuncBlock *fb;
+ *   InstantiateResult r = func_block_preset_instantiate(
+ *       "midpoint", input_ids, 2, graph, &fb);
+ *
+ * @version 3.3.0
+ * ======================================================================== */
+
 /**
  * @file func_block_preset.h
  * @brief 预设函数块系统 - 理论数学研究的标准化函数块库
- *
- * @details 提供完整的预设函数块定义、参数规范和实例化接口。
- *          本系统遵循以下设计原则：
- *          - 类型安全：所有预设都有明确的输入/输出类型签名
- *          - 可组合性：预设函数块支持函数式组合
- *          - 可扩展性：支持运行时注册自定义预设
- *          - 文档化：每个预设都有完整的数学语义描述
- *
- * @version 3.2.0
- * @author Lv-00 Project
  */
 
 #ifndef LV00_FUNC_BLOCK_PRESET_H

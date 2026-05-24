@@ -15,6 +15,16 @@
 #include <stdio.h>
 
 #include "func_block_preset.h"
+/*
+ * [P1 修复] preset_common.h 引用了 lv00_internal.h（内部头文件）。
+ * 此依赖关系存在是因为 preset_common.h 中的宏（如 LV00_ERROR_SET、
+ * LV00_ERROR_ALLOCATION_FAILED 等）和内存管理函数（lv00_malloc 等）
+ * 定义在 lv00_internal.h / lv00_utils.h 中。
+ * 注意：lv00_internal.h 本意是 src/ 目录的内部桥接头文件，
+ * 但当前被公共头文件 preset_common.h 引用。
+ * 未来应考虑将必要的错误码和内存管理声明提取到独立的公共头文件中，
+ * 以消除公共头文件对内部头文件的依赖。
+ */
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
@@ -297,6 +307,82 @@ typedef _Atomic int PresetAtomicCounter;
         } else {                                                                                                \
             LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, "预设注册失败: %s", (name));                  \
         }                                                                                                       \
+    } while (0)
+
+/**
+ * @brief 通用预设函数块注册宏（无 success_count 依赖）
+ *
+ * 该宏消除了各 preset 模块中重复的 register_xxx_preset 静态函数定义。
+ * 所有模块共享相同的注册逻辑，仅类别参数不同。
+ * 可直接替代各模块中的静态包装函数，如 register_calculus_preset、
+ * register_basic_math_preset 等。
+ *
+ * 与 PRESET_REGISTER_EX 的区别：
+ * - 不依赖外部 success_count 变量，可在任意上下文中使用
+ * - 注册失败时记录警告但继续执行，不中断注册流程
+ * - 可作为 if 条件使用，返回 bool 值
+ *
+ * @param name 预设名称
+ * @param desc 描述
+ * @param cat  预设类别（PresetCategory 枚举值）
+ * @param in_types 输入类型数组
+ * @param in_cnt 输入数量
+ * @param out_type 输出类型
+ * @param math_def 数学定义（LaTeX）
+ * @param complexity 复杂度描述
+ * @param constructive 是否构造性
+ * @param reversible 是否可逆
+ *
+ * @return bool 注册是否成功（可在 if 条件中使用）
+ *
+ * 用法示例（替代 register_calculus_preset 静态函数）：
+ * @code
+ *   // 旧方式：
+ *   //   static bool register_calculus_preset(...) {
+ *   //       return preset_blocks_register_simple(..., PRESET_CATEGORY_ANALYSIS, ...);
+ *   //   }
+ *   //   if (register_calculus_preset(...)) { success_count++; }
+ *
+ *   // 新方式：
+ *   //   if (PRESET_REGISTER_CAT(name, desc, PRESET_CATEGORY_ANALYSIS,
+ *   //       inputs, 2, output, math, "O(n)", true, false)) {
+ *   //       success_count++;
+ *   //   }
+ * @endcode
+ */
+#define PRESET_REGISTER_CAT(name, desc, cat, in_types, in_cnt, out_type, \
+                             math_def, complexity, constructive, reversible) \
+    preset_blocks_register_simple((name), (desc), (cat), \
+        (in_types), (in_cnt), (out_type), (math_def), \
+        (complexity), (constructive), (reversible))
+
+/**
+ * @brief 通用预设注册宏（带自动成功计数）
+ *
+ * 在 PRESET_REGISTER_CAT 基础上自动递增 success_count。
+ * 适用于模块的 xxx_register() 函数内部，与 PRESET_REGISTER_BEGIN/END 配合使用。
+ *
+ * @param name 预设名称
+ * @param desc 描述
+ * @param cat  预设类别（PresetCategory 枚举值）
+ * @param in_types 输入类型数组
+ * @param in_cnt 输入数量
+ * @param out_type 输出类型
+ * @param math_def 数学定义（LaTeX）
+ * @param complexity 复杂度描述
+ * @param constructive 是否构造性
+ * @param reversible 是否可逆
+ */
+#define PRESET_REGISTER_CAT_COUNTED(name, desc, cat, in_types, in_cnt, out_type, \
+                                     math_def, complexity, constructive, reversible) \
+    do { \
+        if (PRESET_REGISTER_CAT(name, desc, cat, in_types, in_cnt, out_type, \
+                                math_def, complexity, constructive, reversible)) { \
+            success_count++; \
+        } else { \
+            LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, \
+                           "预设注册失败: %s", (name)); \
+        } \
     } while (0)
 
 /**
@@ -676,17 +762,89 @@ bool preset_validate_complexity(const char *complexity);
 /**
  * @brief 错误日志
  */
-#define PRESET_ERROR_LOG(fmt, ...) fprintf(stderr, "[PRESET ERROR] " fmt "\n", ##__VA_ARGS__)
+#define PRESET_ERROR_LOG(fmt, ...) lv00_log_error("[PRESET ERROR] " fmt, ##__VA_ARGS__)
 
 /**
  * @brief 警告日志
  */
-#define PRESET_WARN_LOG(fmt, ...) fprintf(stderr, "[PRESET WARN] " fmt "\n", ##__VA_ARGS__)
+#define PRESET_WARN_LOG(fmt, ...) lv00_log_warn("[PRESET WARN] " fmt, ##__VA_ARGS__)
 
 /**
  * @brief 信息日志
  */
 #define PRESET_INFO_LOG(fmt, ...) lv00_log_info("[PRESET] " fmt, ##__VA_ARGS__)
+
+/* ============================================================
+ * 预设模块公共模板宏
+ * ============================================================ */
+
+/**
+ * @brief 定义预设模块的注册包装函数
+ * @param module_name 模块名称（用于函数命名）
+ * @param category 预设类别枚举值
+ *
+ * 此宏生成一个静态的 register_##module_name##_preset 函数，
+ * 消除各预设模块中重复的注册包装代码。
+ */
+#define LV00_DEFINE_PRESET_REGISTER_WRAPPER(module_name, category)              \
+    static bool register_##module_name##_preset(                               \
+        const char *name, const char *brief, const char *description,           \
+        int input_count, int output_count,                                     \
+        PresetComplexity complexity,                                           \
+        const char *mathematical_definition,                                   \
+        const char *input_types, const char *output_types,                     \
+        const char *dependencies, const char *domain_tags,                     \
+        const int *internal_nodes, int internal_count,                         \
+        const int *input_ports, int input_port_count,                          \
+        const int *output_ports, int output_port_count)                        \
+    {                                                                          \
+        return preset_blocks_register_simple(                                  \
+            name, brief, description,                                          \
+            input_count, output_count,                                         \
+            category, complexity,                                              \
+            mathematical_definition,                                           \
+            input_types, output_types,                                         \
+            dependencies, domain_tags,                                         \
+            internal_nodes, internal_count,                                    \
+            input_ports, input_port_count,                                     \
+            output_ports, output_port_count);                                  \
+    }
+
+/**
+ * @brief 定义预设模块的标准接口函数
+ * @param module_name 模块名称
+ * @param category 预设类别枚举值
+ * @param preset_count 预设数量常量
+ * @param names_array 静态名称数组
+ *
+ * 此宏生成 register、count、category、get_names 四个标准函数，
+ * 完整定义一个预设模块的外部接口。
+ */
+#define LV00_DEFINE_PRESET_MODULE(module_name, category, preset_count, names_array) \
+                                                                              \
+    bool preset_##module_name##_register(void) {                               \
+        return true; /* 实际注册在 init 函数中完成 */                          \
+    }                                                                          \
+                                                                              \
+    int preset_##module_name##_count(void) {                                   \
+        return preset_count;                                                   \
+    }                                                                          \
+                                                                              \
+    PresetCategory preset_##module_name##_category(void) {                     \
+        return category;                                                       \
+    }                                                                          \
+                                                                              \
+    bool preset_##module_name##_get_names(char ***out_names,                   \
+                                          int *out_count) {                    \
+        return preset_module_get_names(names_array, preset_count,              \
+                                        out_names, out_count);                 \
+    }
+
+/**
+ * @brief 通用预设名称列表获取函数
+ */
+bool preset_module_get_names(const char *const *names, int count,
+                             char ***out_names, int *out_count);
 
 #ifdef __cplusplus
 }

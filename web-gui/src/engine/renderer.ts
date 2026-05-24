@@ -10,6 +10,7 @@
  */
 
 import type { Point, Segment, Region, Port, FuncBlock, Theme, ThemeColors, Constraint } from '@/types';
+import { getThemeColors } from '@/stores/canvasStore';
 import {
   BASE_GRID_SIZE,
   POINT_RADIUS,
@@ -25,43 +26,8 @@ import {
 
 // ================================================================
 // Theme Color Schemes / 主题颜色方案
+// 主题颜色已统一到 canvasStore.ts，通过 getThemeColors() 获取
 // ================================================================
-
-const DARK_COLORS: ThemeColors = {
-  canvasBg: '#080808',
-  grid: '#1a1a1a',
-  axis: '#2a2a2a',
-  point: '#888',
-  pointSelected: '#4caf50',
-  pointHover: '#2196f3',
-  segment: '#555',
-  text: '#888',
-  /* 端口颜色 / Port colors */
-  port: '#ff9800',
-  portHover: '#ffc107',
-  /* 函数块颜色 / Function block colors */
-  funcBlockFill: 'rgba(60, 60, 80, 0.5)',
-  funcBlockStroke: '#7e57c2',
-  funcBlockText: '#ce93d8',
-};
-
-const LIGHT_COLORS: ThemeColors = {
-  canvasBg: '#f5f5f5',
-  grid: '#e0e0e0',
-  axis: '#ccc',
-  point: '#333',
-  pointSelected: '#2196f3',
-  pointHover: '#4caf50',
-  segment: '#666',
-  text: '#333',
-  /* 端口颜色 / Port colors */
-  port: '#e65100',
-  portHover: '#ff6d00',
-  /* 函数块颜色 / Function block colors */
-  funcBlockFill: 'rgba(230, 230, 250, 0.6)',
-  funcBlockStroke: '#5c6bc0',
-  funcBlockText: '#3949ab',
-};
 
 // ================================================================
 // Renderer Configuration / 渲染器配置
@@ -172,7 +138,7 @@ export class Renderer {
    * @returns ThemeColors object with all rendering colors
    */
   getThemeColors(theme: Theme): ThemeColors {
-    return theme === 'light' ? LIGHT_COLORS : DARK_COLORS;
+    return getThemeColors(theme);
   }
 
   // ================================================================
@@ -202,8 +168,6 @@ export class Renderer {
    * @param constraints - Array of constraints to visualize
    * @param selectedPoint - Currently selected point (highlighted)
    * @param hoveredPoint - Currently hovered point (highlighted)
-   * @param mouseWorldX - Mouse world X coordinate (for HUD)
-   * @param mouseWorldY - Mouse world Y coordinate (for HUD)
    */
   render(
     vp: ViewportState,
@@ -217,8 +181,6 @@ export class Renderer {
     constraints: Constraint[],
     selectedPoint: Point | null,
     hoveredPoint: Point | null,
-    _mouseWorldX: number,
-    _mouseWorldY: number,
   ): void {
     const ctx = this.ctx;
     const colors = this.getThemeColors(theme);
@@ -452,7 +414,7 @@ export class Renderer {
     ctx.closePath();
 
     // Semi-transparent fill
-    const isLight = colors === LIGHT_COLORS;
+    const isLight = colors.canvasBg === '#ffffff';
     ctx.fillStyle = isLight
       ? 'rgba(5, 80, 174, 0.08)'
       : 'rgba(100, 180, 255, 0.1)';
@@ -495,7 +457,7 @@ export class Renderer {
     const screen = this.worldToScreen(x, y, vp);
     const screenWidth = fb.width * vp.scale;
     const screenHeight = fb.height * vp.scale;
-    const isLight = colors === LIGHT_COLORS;
+    const isLight = colors.canvasBg === '#ffffff';
     ctx.beginPath();
     ctx.roundRect(screen.x, screen.y, screenWidth, screenHeight, 6);
     const categoryColors: Record<string, string> = {
@@ -696,7 +658,7 @@ export class Renderer {
 
     // 如果至少有 3 个点，绘制阴影区域
     if (containedPoints.length >= 3) {
-      const isLight = colors === LIGHT_COLORS;
+      const isLight = colors.canvasBg === '#ffffff';
       ctx.fillStyle = isLight
         ? 'rgba(76, 175, 80, 0.08)'  // 绿色低透明度
         : 'rgba(76, 175, 80, 0.12)';
@@ -719,7 +681,7 @@ export class Renderer {
       // 两个点：绘制线段高亮
       const s1 = this.worldToScreen(containedPoints[0]!.x, containedPoints[0]!.y, vp);
       const s2 = this.worldToScreen(containedPoints[1]!.x, containedPoints[1]!.y, vp);
-      const isLight = colors === LIGHT_COLORS;
+      const isLight = colors.canvasBg === '#ffffff';
       ctx.strokeStyle = isLight
         ? 'rgba(76, 175, 80, 0.3)'
         : 'rgba(76, 175, 80, 0.4)';
@@ -741,7 +703,7 @@ export class Renderer {
         if (p1 && p2) {
           const sp1 = this.worldToScreen(p1.x, p1.y, vp);
           const sp2 = this.worldToScreen(p2.x, p2.y, vp);
-          const isLight = colors === LIGHT_COLORS;
+          const isLight = colors.canvasBg === '#ffffff';
           ctx.strokeStyle = isLight
             ? 'rgba(76, 175, 80, 0.5)'
             : 'rgba(76, 175, 80, 0.6)';

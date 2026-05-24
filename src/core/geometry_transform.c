@@ -4,11 +4,19 @@
  *
  * @details 实现旋转、轴对称、平移等几何变换的符号计算
  *
+ * 【内存管理策略说明】
+ * 本模块使用标准 malloc/free 而非 lv00_malloc/lv00_free 统一内存分配器，原因如下：
+ * 几何变换模块涉及大量临时数组和中间计算结果（如变换序列、群生成元矩阵等），
+ * 这些临时对象生命周期短、大小多变，若使用 lv00 内存池分配器会导致严重的池碎片化问题。
+ * 标准分配器能够更高效地处理此类短生命周期、变长大小的内存分配模式。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */
 
 #include "geometry_transform.h"
+
+#include "lv00_utils.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -26,7 +34,7 @@
 /* ============== 变换创建/销毁实现 ============== */
 
 Lv00Transform *lv00_transform_identity(void) {
-    Lv00Transform *t = (Lv00Transform *)malloc(sizeof(Lv00Transform));
+    Lv00Transform *t = (Lv00Transform *)lv00_malloc(sizeof(Lv00Transform));
     if (!t) {
         return NULL;
     }
@@ -470,7 +478,7 @@ void lv00_transform_destroy(Lv00Transform *t) {
     mpq_clear(t->matrix.d);
     mpq_clear(t->matrix.ty);
 
-    free(t);
+    lv00_free((void **) &t);
 }
 
 void lv00_transform_ref(Lv00Transform *t) {
@@ -553,15 +561,15 @@ bool lv00_transform_get_matrix(Lv00Transform *t, Lv00TransformMatrix *matrix) {
 /* ============== 变换复合实现 ============== */
 
 Lv00TransformSequence *lv00_transform_sequence_create(void) {
-    Lv00TransformSequence *seq = (Lv00TransformSequence *)malloc(sizeof(Lv00TransformSequence));
+    Lv00TransformSequence *seq = (Lv00TransformSequence *)lv00_malloc(sizeof(Lv00TransformSequence));
     if (!seq) {
         return NULL;
     }
     memset(seq, 0, sizeof(Lv00TransformSequence));
 
-    seq->transforms = (Lv00Transform **)malloc(TRANSFORM_SEQ_INIT_CAPACITY * sizeof(Lv00Transform *));
+    seq->transforms = (Lv00Transform **)lv00_malloc(TRANSFORM_SEQ_INIT_CAPACITY * sizeof(Lv00Transform *));
     if (!seq->transforms) {
-        free(seq);
+        lv00_free((void **) &seq);
         return NULL;
     }
     seq->capacity = TRANSFORM_SEQ_INIT_CAPACITY;
@@ -578,8 +586,8 @@ void lv00_transform_sequence_destroy(Lv00TransformSequence *seq) {
     for (uint32_t i = 0; i < seq->count; i++) {
         lv00_transform_unref(seq->transforms[i]);
     }
-    free(seq->transforms);
-    free(seq);
+    lv00_free((void **) &seq->transforms);
+    lv00_free((void **) &seq);
 }
 
 bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t) {
@@ -589,7 +597,7 @@ bool lv00_transform_sequence_add(Lv00TransformSequence *seq, Lv00Transform *t) {
 
     if (seq->count >= seq->capacity) {
         uint32_t new_cap = seq->capacity * 2;
-        Lv00Transform **new_arr = (Lv00Transform **)realloc(seq->transforms,
+        Lv00Transform **new_arr = (Lv00Transform **)lv00_realloc(seq->transforms,
                                                              new_cap * sizeof(Lv00Transform *));
         if (!new_arr) {
             return false;
@@ -610,7 +618,7 @@ Lv00Transform *lv00_transform_compose(const Lv00Transform *t1, const Lv00Transfo
         return NULL;
     }
 
-    Lv00Transform *result = (Lv00Transform *)malloc(sizeof(Lv00Transform));
+    Lv00Transform *result = (Lv00Transform *)lv00_malloc(sizeof(Lv00Transform));
     if (!result) {
         return NULL;
     }
@@ -781,7 +789,7 @@ Lv00Transform *lv00_transform_inverse(const Lv00Transform *t) {
         return NULL;
     }
 
-    Lv00Transform *inv = (Lv00Transform *)malloc(sizeof(Lv00Transform));
+    Lv00Transform *inv = (Lv00Transform *)lv00_malloc(sizeof(Lv00Transform));
     if (!inv) {
         return NULL;
     }
@@ -979,11 +987,6 @@ char *lv00_transform_to_string(const Lv00Transform *t) {
         return NULL;
     }
 
-    char *result = (char *)malloc(512);
-    if (!result) {
-        return NULL;
-    }
-
     const char *type_str;
     switch (t->type) {
         case TRANSFORM_IDENTITY: type_str = "Identity"; break;
@@ -995,7 +998,20 @@ char *lv00_transform_to_string(const Lv00Transform *t) {
         default: type_str = "Unknown"; break;
     }
 
-    snprintf(result, 512, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]",
+    /* [Bug修复] 先用 snprintf(NULL, 0, ...) 计算所需长度，再动态分配，避免固定 512 字节缓冲区溢出 */
+    int needed = snprintf(NULL, 0, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]",
+             type_str,
+             t->matrix.a, t->matrix.b, t->matrix.tx,
+             t->matrix.c, t->matrix.d, t->matrix.ty);
+    if (needed < 0) return NULL;
+    size_t size = (size_t)needed + 1;
+
+    char *result = (char *)lv00_malloc(size);
+    if (!result) {
+        return NULL;
+    }
+
+    snprintf(result, size, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]",
              type_str,
              t->matrix.a, t->matrix.b, t->matrix.tx,
              t->matrix.c, t->matrix.d, t->matrix.ty);
@@ -1005,11 +1021,6 @@ char *lv00_transform_to_string(const Lv00Transform *t) {
 
 char *lv00_transform_to_json(const Lv00Transform *t) {
     if (!t) {
-        return NULL;
-    }
-
-    char *result = (char *)malloc(1024);
-    if (!result) {
         return NULL;
     }
 
@@ -1024,7 +1035,24 @@ char *lv00_transform_to_json(const Lv00Transform *t) {
         default: type_str = "unknown"; break;
     }
 
-    snprintf(result, 1024,
+    /* [Bug修复] 先用 snprintf(NULL, 0, ...) 计算所需长度，再动态分配，避免固定 1024 字节缓冲区溢出 */
+    int needed = snprintf(NULL, 0,
+             "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":\"%Qd\",\"ty\":\"%Qd\"},"
+             "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
+             type_str,
+             t->matrix.a, t->matrix.b, t->matrix.tx,
+             t->matrix.c, t->matrix.d, t->matrix.ty,
+             t->is_isometry ? "true" : "false",
+             t->is_orientation_preserving ? "true" : "false");
+    if (needed < 0) return NULL;
+    size_t size = (size_t)needed + 1;
+
+    char *result = (char *)lv00_malloc(size);
+    if (!result) {
+        return NULL;
+    }
+
+    snprintf(result, size,
              "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":\"%Qd\",\"ty\":\"%Qd\"},"
              "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",
              type_str,
@@ -1039,19 +1067,24 @@ char *lv00_transform_to_json(const Lv00Transform *t) {
 /* ============== 变换群实现 ============== */
 
 Lv00TransformGroup *lv00_transform_group_create(const char *name) {
-    Lv00TransformGroup *group = (Lv00TransformGroup *)malloc(sizeof(Lv00TransformGroup));
+    Lv00TransformGroup *group = (Lv00TransformGroup *)lv00_malloc(sizeof(Lv00TransformGroup));
     if (!group) {
         return NULL;
     }
     memset(group, 0, sizeof(Lv00TransformGroup));
 
     if (name) {
-        group->group_name = strdup(name);
+        /* 使用 lv00_malloc + strcpy 替代标准 strdup，确保与 lv00_free 配对 */
+        size_t name_len = strlen(name);
+        group->group_name = (char *)lv00_malloc(name_len + 1);
+        if (group->group_name) {
+            memcpy(group->group_name, name, name_len + 1);
+        }
     }
 
-    group->generators = (Lv00Transform **)malloc(GROUP_MAX_GENERATORS * sizeof(Lv00Transform *));
+    group->generators = (Lv00Transform **)lv00_malloc(GROUP_MAX_GENERATORS * sizeof(Lv00Transform *));
     if (!group->generators) {
-        free(group);
+        lv00_free((void **) &group);
         return NULL;
     }
 
@@ -1066,9 +1099,9 @@ void lv00_transform_group_destroy(Lv00TransformGroup *group) {
     for (uint32_t i = 0; i < group->generator_count; i++) {
         lv00_transform_unref(group->generators[i]);
     }
-    free(group->generators);
-    free(group->group_name);
-    free(group);
+    lv00_free((void **) &group->generators);
+    lv00_free((void **) &group->group_name);
+    lv00_free((void **) &group);
 }
 
 bool lv00_transform_group_add_generator(Lv00TransformGroup *group, Lv00Transform *generator) {

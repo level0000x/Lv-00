@@ -11,6 +11,7 @@ import { useAppStore } from '@/stores';
 import { Renderer, type ViewportState, type RendererConfig } from '@/engine/renderer';
 import { InteractionManager, type InteractionCallbacks } from '@/engine/interaction';
 import { HIT_THRESHOLD } from '@/utils/constants';
+import { throttle } from '@/utils/debounce';
 import type { Point, Segment } from '@/types';
 import CanvasToolbar from './CanvasToolbar';
 import CanvasOverlay from './CanvasOverlay';
@@ -130,8 +131,6 @@ const GeometryCanvas: React.FC = () => {
       state.constraints,
       state.selectedPoint,
       state.hoveredPoint,
-      state.mouseWorldX,
-      state.mouseWorldY,
     );
 
     // Update FPS
@@ -145,6 +144,24 @@ const GeometryCanvas: React.FC = () => {
     }
     useAppStore.getState().updatePerfStats(perfStats);
   }, []);
+
+  /**
+   * 节流后的重绘函数 —— 仅在鼠标坐标变化超过 1px 或其他状态变化时触发。
+   * 通过 ref 记录上次触发时的鼠标坐标，避免高频鼠标移动导致持续重绘。
+   */
+  const lastMouseRef = useRef<{ x: number; y: number }>({ x: Infinity, y: Infinity });
+
+  const throttledRender = useCallback(() => {
+    const state = useAppStore.getState();
+    const mx = state.mouseWorldX;
+    const my = state.mouseWorldY;
+    // 鼠标坐标变化不足 1px 时跳过重绘（仅针对鼠标坐标触发的场景）
+    const dx = Math.abs(mx - lastMouseRef.current.x);
+    const dy = Math.abs(my - lastMouseRef.current.y);
+    if (dx < 1 && dy < 1) return;
+    lastMouseRef.current = { x: mx, y: my };
+    doRender();
+  }, [doRender]);
 
   // Keep ref in sync
   doRenderRef.current = doRender;
@@ -330,7 +347,8 @@ const GeometryCanvas: React.FC = () => {
   }, []);
 
   /**
-   * Re-render when relevant state changes
+   * Re-render when relevant state changes.
+   * 鼠标坐标变化使用节流重绘（throttledRender），其他状态变化直接重绘（doRender）。
    */
   useEffect(() => {
     rafIdRef.current = requestAnimationFrame(doRender);
@@ -343,8 +361,18 @@ const GeometryCanvas: React.FC = () => {
     points, segments, regions,
     selectedPoint, hoveredPoint,
     theme, showGrid, showAxes, showLabels,
-    mouseWorldX, mouseWorldY,
   ]);
+
+  /**
+   * 鼠标坐标变化时使用节流重绘，避免高频鼠标移动导致持续重绘。
+   * 仅监听 mouseWorldX / mouseWorldY，其他状态由上方 useEffect 处理。
+   */
+  useEffect(() => {
+    rafIdRef.current = requestAnimationFrame(throttledRender);
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, [mouseWorldX, mouseWorldY, throttledRender]);
 
   return (
     <>

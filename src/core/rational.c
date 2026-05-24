@@ -90,16 +90,14 @@ Lv00Rational *lv00_rational_create_from_i64(int64_t num, uint64_t den) {
     mpz_init(r->num);
     mpz_init(r->den);
 
-    /* 将 int64_t 转为 mpz_t */
-    if (num >= 0) {
-        mpz_set_ui(r->num, (unsigned long) num);
-    } else {
-        /* num < 0: 取绝对值后设负号 */
-        uint64_t abs_num = (uint64_t)(-num);
-        mpz_set_ui(r->num, (unsigned long) abs_num);
-        mpz_neg(r->num, r->num);
-    }
-    mpz_set_ui(r->den, (unsigned long) den);
+    /* 将 int64_t 转为 mpz_t（通过字符串中转避免 Windows LLP64 下 unsigned long 32 位截断） */
+    char num_str[32];
+    snprintf(num_str, sizeof(num_str), "%lld", (long long)num);
+    mpz_set_str(r->num, num_str, 10);
+
+    char den_str[32];
+    snprintf(den_str, sizeof(den_str), "%lld", (long long)den);
+    mpz_set_str(r->den, den_str, 10);
 
     lv00_rational_simplify(r);
     return r;
@@ -554,9 +552,9 @@ char *lv00_rational_to_string(const Lv00Rational *r) {
         if (!gmp_str) return NULL;
         size_t slen = strlen(gmp_str);
         char *result = (char *) lv00_malloc(slen + 1);
-        if (!result) { free(gmp_str); return NULL; }
+        if (!result) { lv00_free((void **) &gmp_str); return NULL; }
         memcpy(result, gmp_str, slen + 1);
-        free(gmp_str);  /* GMP分配，用标准free */
+        lv00_free((void **) &gmp_str);  /* GMP分配，用标准free */
         return result;
     }
 
@@ -565,23 +563,23 @@ char *lv00_rational_to_string(const Lv00Rational *r) {
     char *den_str = mpz_get_str(NULL, 10, r->den);
 
     if (!num_str || !den_str) {
-        free(num_str); num_str = NULL;  /* GMP分配，用标准free */
-        free(den_str); den_str = NULL;  /* GMP分配，用标准free */
+        lv00_free((void **) &num_str); num_str = NULL;  /* GMP分配，用标准free */
+        lv00_free((void **) &den_str); den_str = NULL;  /* GMP分配，用标准free */
         return NULL;
     }
 
     size_t len = strlen(num_str) + strlen(den_str) + 2; /* num + '/' + den + '\0' */
     char *result = (char *) lv00_malloc(len);
     if (!result) {
-        free(num_str); num_str = NULL;  /* GMP分配，用标准free */
-        free(den_str); den_str = NULL;  /* GMP分配，用标准free */
+        lv00_free((void **) &num_str); num_str = NULL;  /* GMP分配，用标准free */
+        lv00_free((void **) &den_str); den_str = NULL;  /* GMP分配，用标准free */
         return NULL;
     }
 
     snprintf(result, len, "%s/%s", num_str, den_str);
 
-    free(num_str);   /* GMP分配，用标准free */
-    free(den_str);   /* GMP分配，用标准free */
+    lv00_free((void **) &num_str);   /* GMP分配，用标准free */
+    lv00_free((void **) &den_str);   /* GMP分配，用标准free */
 
     return result;
 }

@@ -21,8 +21,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_REPRESENTATION_THEORY_H
-#define PRESET_REPRESENTATION_THEORY_H
+#ifndef LV00_PRESET_REPRESENTATION_THEORY_H
+#define LV00_PRESET_REPRESENTATION_THEORY_H
 
 #include "preset_blocks.h"
 
@@ -151,4 +151,4 @@ bool preset_representation_theory_get_names(char ***out_names, int *out_count);
 }
 #endif
 
-#endif /* PRESET_REPRESENTATION_THEORY_H */
+#endif /* LV00_PRESET_REPRESENTATION_THEORY_H */

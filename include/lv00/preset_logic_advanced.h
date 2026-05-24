@@ -13,12 +13,12 @@
  *
  * @module LogicAdvanced
  * @category PRESET_CATEGORY_LOGIC
- * @version 3.2.0
+ * @version 3.3.0
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_LOGIC_ADVANCED_H
-#define PRESET_LOGIC_ADVANCED_H
+#ifndef LV00_PRESET_LOGIC_ADVANCED_H
+#define LV00_PRESET_LOGIC_ADVANCED_H
 
 #include "preset_blocks.h"
 
@@ -128,4 +128,4 @@ int preset_logic_advanced_count(void);
 }
 #endif
 
-#endif /* PRESET_LOGIC_ADVANCED_H */
+#endif /* LV00_PRESET_LOGIC_ADVANCED_H */

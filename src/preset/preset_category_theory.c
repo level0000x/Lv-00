@@ -10,7 +10,7 @@
  *
  * @module CategoryTheory
  * @category PRESET_CATEGORY_CATEGORY_THEORY
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "preset_category_theory.h"
@@ -294,7 +294,6 @@ PresetCategory preset_category_theory_category(void) {
 bool preset_category_theory_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count)
         return false;
-    *out_count = CATEGORY_THEORY_PRESET_COUNT;
     char **names = (char **) lv00_malloc(CATEGORY_THEORY_PRESET_COUNT * sizeof(char *));
     if (!names)
         return false;
@@ -334,5 +333,6 @@ bool preset_category_theory_get_names(char ***out_names, int *out_count) {
         memcpy(names[i], preset_names[i], len);
     }
     *out_names = names;
+    *out_count = CATEGORY_THEORY_PRESET_COUNT;
     return true;
 }

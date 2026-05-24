@@ -193,9 +193,10 @@ export function useEngineStream(options: UseEngineStreamOptions = {}): UseEngine
     setStats(newStats);
   }, []);
 
-  const handleError = useCallback((_error: Error) => {
+  const handleError = useCallback((error: Error) => {
     // 错误已由 StreamManager 内部处理，此处仅做日志记录
-    // 可在此处添加 Toast 通知
+    console.error('[Lv00 useEngineStream] Engine stream error:', error.message || error);
+    // TODO: 可在此处添加 Toast 通知，向用户展示连接错误信息
   }, []);
 
   // ---- 生命周期管理 / Lifecycle Management ----

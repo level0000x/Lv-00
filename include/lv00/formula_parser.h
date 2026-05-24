@@ -1,13 +1,29 @@
+/* ========================================================================
+ * 模块名称：公式解析器 (formula_parser)
+ * 功能概述：提供几何元语言系统的 AST 结构与解析 API。支持多种语法格式
+ *          （LaTeX、Python、DSL），包含数值、变量、运算符、方程以及
+ *          几何对象（点、线段、圆、三角形、直线、多边形、向量、约束）
+ *          的表示。使用引用计数管理 AST 节点生命周期。
+ *
+ * 主要 API：
+ *   - formula_detect_syntax          — 检测输入语法类型
+ *   - formula_parse                  — 解析公式字符串构建 AST
+ *   - formula_node_destroy / ref     — AST 节点生命周期管理
+ *   - formula_node_copy              — 深拷贝 AST
+ *   - formula_create_number / variable / binary_op / ... — AST 构建辅助
+ *   - formula_create_geom_point / segment / circle / ... — 几何对象节点
+ *
+ * 使用示例：
+ *   FormulaNode *ast = formula_parse("A = (1, 2)", "auto");
+ *   char *latex = formula_render_latex(ast);
+ *   formula_node_destroy(ast);
+ *
+ * @version 3.3.0
+ * ======================================================================== */
+
 /**
  * @file formula_parser.h
  * @brief 公式解析器 —— 几何元语言系统的 AST 结构与解析 API
- *
- * @details 提供公式字符串的解析、AST 构建与操作功能。支持多种语法格式
- *          (LaTeX、Python、DSL)，包含数值、变量、运算符、方程以及
- *          几何对象（点、线段、圆、三角形、直线、多边形、向量、约束）的表示。
- *
- * @author Lv-00 Project
- * @version 3.2.0
  */
 
 #ifndef LV00_FORMULA_PARSER_H

@@ -7,7 +7,7 @@
  *
  * @module MathLogic
  * @category PRESET_CATEGORY_MATH_LOGIC
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "preset_math_logic.h"
@@ -312,7 +312,6 @@ PresetCategory preset_math_logic_category(void) {
 bool preset_math_logic_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count)
         return false;
-    *out_count = ADVANCED_MATH_LOGIC_PRESET_COUNT;
     char **names = (char **) lv00_malloc(ADVANCED_MATH_LOGIC_PRESET_COUNT * sizeof(char *));
     if (!names)
         return false;
@@ -362,6 +361,7 @@ bool preset_math_logic_get_names(char ***out_names, int *out_count) {
         memcpy(names[i], preset_names[i], len);
     }
     *out_names = names;
+    *out_count = ADVANCED_MATH_LOGIC_PRESET_COUNT;
     return true;
 }
 

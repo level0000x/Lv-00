@@ -6,7 +6,7 @@
  *          生成抽象语法树（AST），支持错误恢复和位置追踪。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - formula_parser.h : 解析器公共接口定义
@@ -19,14 +19,14 @@
  * 魔法数字常量定义
  * ============================================================ */
 
-#define MAX_COORDINATES 16      /**< 坐标列表最大元素数量 */
-#define MAX_VERTICES 32         /**< 顶点列表最大元素数量 */
-#define MAX_POLYGON_VERTICES 32 /**< 多边形顶点最大数量 */
-#define MAX_STATEMENTS 64       /**< 复合语句最大子语句数量 */
-#define MAX_ARGUMENTS 16        /**< 函数参数列表最大元素数量 */
-#define MAX_PARTICIPANTS 16     /**< 约束参与者最大数量 */
-#define MAX_BUFFER_SIZE 256     /**< 错误消息缓冲区大小 */
-#define MAX_TEMP_MSG_SIZE 128   /**< 临时错误消息/诊断缓冲区大小 */
+#define LV00_MAX_COORDINATES 16      /**< 坐标列表最大元素数量 */
+#define LV00_MAX_VERTICES 32         /**< 顶点列表最大元素数量 */
+#define LV00_MAX_POLYGON_VERTICES 32 /**< 多边形顶点最大数量 */
+#define LV00_MAX_STATEMENTS 64       /**< 复合语句最大子语句数量 */
+#define LV00_MAX_ARGUMENTS 16        /**< 函数参数列表最大元素数量 */
+#define LV00_MAX_PARTICIPANTS 16     /**< 约束参与者最大数量 */
+#define LV00_MAX_BUFFER_SIZE 256     /**< 错误消息缓冲区大小 */
+#define LV00_MAX_TEMP_MSG_SIZE 128   /**< 临时错误消息/诊断缓冲区大小 */
 
 #include "formula_parser.h"
 
@@ -50,6 +50,11 @@
 
 LV00_DECLARE_STREAM_CTX(formula_parser)
 
+/**
+ * @brief 获取解析器最近一次错误信息
+ *
+ * @return 错误信息字符串指针（内部缓冲区，无需释放），无错误时返回 NULL
+ */
 const char *formula_parser_get_last_error(void) {
     return lv00_get_last_error_message();
 }
@@ -58,7 +63,7 @@ typedef struct {
     const char *input;                   /* 输入字符串 */
     size_t pos;                          /* 当前位置 */
     size_t length;                       /* 输入长度 */
-    char error_message[MAX_BUFFER_SIZE]; /* 错误消息缓冲区 */
+    char error_message[LV00_MAX_BUFFER_SIZE]; /* 错误消息缓冲区 */
     bool has_error;                      /* 是否有错误 */
     int line;                            /* 当前行号 */
     int column;                          /* 当前列号 */
@@ -247,7 +252,7 @@ static bool match_and_consume(ParserContext *ctx, const char *str) {
  */
 static bool expect_char(ParserContext *ctx, char c) {
     if (peek(ctx) != c) {
-        char msg[MAX_TEMP_MSG_SIZE];
+        char msg[LV00_MAX_TEMP_MSG_SIZE];
         snprintf(msg, sizeof(msg), "Expected '%c' but got '%s'", c, peek(ctx) ? "unexpected char" : "EOF");
         /* 使用 lv00_strlcpy 替代不安全的 strncpy */
         lv00_strlcpy(ctx->error_message, msg, sizeof(ctx->error_message));
@@ -723,6 +728,14 @@ int formula_node_refcount(const FormulaNode *node) {
     return node->refcount;
 }
 
+/**
+ * @brief 销毁 AST 节点（引用计数管理）
+ *
+ * 递减节点的引用计数。仅当引用计数归零时，才递归销毁子节点并释放内存。
+ * 传入 NULL 指针安全无操作。
+ *
+ * @param[in] node AST节点指针，可为 NULL
+ */
 void formula_node_destroy(FormulaNode *node) {
     if (!node)
         return;
@@ -1057,7 +1070,8 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_CONSTRAINT_BISECTOR:
         case NODE_CONSTRAINT_COLLINEAR:
         case NODE_CONSTRAINT_TANGENT:
-        case NODE_CONSTRAINT_CONGRUENT: {
+        case NODE_CONSTRAINT_CONGRUENT:
+        case NODE_CONSTRAINT_ANGLE: {
             copy->data.constraint.participant_count = node->data.constraint.participant_count;
             if (node->data.constraint.participant_count > 0) {
                 copy->data.constraint.participants =
@@ -1517,13 +1531,13 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
     skip_whitespace(ctx);
 
     /* 解析坐标列表 */
-    FormulaNode *coords[MAX_COORDINATES] = {NULL};
+    FormulaNode *coords[LV00_MAX_COORDINATES] = {NULL};
     int coord_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ')') {
         skip_whitespace(ctx);
 
-        if (coord_count >= MAX_COORDINATES) {
+        if (coord_count >= LV00_MAX_COORDINATES) {
             set_error(ctx, "Too many coordinates");
             lv00_free((void **) &name);
             for (int i = 0; i < coord_count; i++)
@@ -1963,11 +1977,11 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
     skip_whitespace(ctx);
 
     /* 解析顶点列表 */
-    FormulaNode *vertices[MAX_POLYGON_VERTICES] = {NULL};
+    FormulaNode *vertices[LV00_MAX_POLYGON_VERTICES] = {NULL};
     int vertex_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ']') {
-        if (vertex_count >= MAX_POLYGON_VERTICES) {
+        if (vertex_count >= LV00_MAX_POLYGON_VERTICES) {
             set_error(ctx, "Too many vertices in polygon");
             lv00_free((void **) &name);
             for (int i = 0; i < vertex_count; i++)
@@ -2066,11 +2080,11 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
     skip_whitespace(ctx);
 
     /* 解析边界线段列表 */
-    FormulaNode *segments[MAX_POLYGON_VERTICES] = {NULL};
+    FormulaNode *segments[LV00_MAX_POLYGON_VERTICES] = {NULL};
     int segment_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ']') {
-        if (segment_count >= MAX_POLYGON_VERTICES) {
+        if (segment_count >= LV00_MAX_POLYGON_VERTICES) {
             set_error(ctx, "Too many segments in region");
             lv00_free((void **) &name);
             for (int i = 0; i < segment_count; i++)
@@ -2191,7 +2205,7 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
 
     NodeType constraint_type = get_constraint_type(constraint_name);
     if ((int) constraint_type < 0) {
-        char err_buf[MAX_TEMP_MSG_SIZE];
+        char err_buf[LV00_MAX_TEMP_MSG_SIZE];
         snprintf(err_buf, sizeof(err_buf), "未知的约束类型: %s", constraint_name);
         set_error(ctx, err_buf);
         lv00_free((void **) &constraint_name);
@@ -2209,13 +2223,13 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     skip_whitespace(ctx);
 
     /* 解析参数列表 */
-    FormulaNode *participants[MAX_PARTICIPANTS] = {NULL};
+    FormulaNode *participants[LV00_MAX_PARTICIPANTS] = {NULL};
     int participant_count = 0;
 
     while (!is_at_end(ctx) && peek(ctx) != ')') {
         skip_whitespace(ctx);
 
-        if (participant_count >= MAX_PARTICIPANTS) {
+        if (participant_count >= LV00_MAX_PARTICIPANTS) {
             set_error(ctx, "Too many participants");
             for (int i = 0; i < participant_count; i++)
                 formula_node_destroy(participants[i]);
@@ -2257,6 +2271,18 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
 
 /**
  * @brief 解析 DSL 原子表达式
+ *
+ * 解析 DSL 语法中的最小语法单元（原子），包括：
+ * - 数字字面量
+ * - 括号表达式
+ * - 一元负号/正号
+ * - 几何元素定义（point, segment, circle, triangle, arc, polygon, region）
+ * - 几何约束（perpendicular, parallel 等）
+ * - 函数调用
+ * - 变量/标识符引用
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的原子节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
     skip_whitespace(ctx);
@@ -2350,11 +2376,10 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
             skip_whitespace(ctx);
 
             /* 解析参数 */
-            FormulaNode *args[MAX_ARGUMENTS] = {NULL};
+            FormulaNode *args[LV00_MAX_ARGUMENTS] = {NULL};
             int arg_count = 0;
-
             while (!is_at_end(ctx) && peek(ctx) != ')') {
-                if (arg_count >= MAX_ARGUMENTS) {
+                if (arg_count >= LV00_MAX_ARGUMENTS) {
                     set_error(ctx, "Too many arguments");
                     lv00_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
@@ -2425,6 +2450,12 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
 /**
  * @brief 解析 DSL 因子（处理幂运算）
+ *
+ * 在原子表达式基础上处理幂运算（^ 或 **），采用右结合递归解析。
+ * 例如：a^b^c 解析为 a^(b^c)。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的因子节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_factor(ParserContext *ctx) {
     FormulaNode *left = parse_dsl_atom(ctx);
@@ -2455,6 +2486,12 @@ static FormulaNode *parse_dsl_factor(ParserContext *ctx) {
 
 /**
  * @brief 解析 DSL 项（处理乘除）
+ *
+ * 在因子基础上处理乘法（*）和除法（/）运算，采用左结合循环解析。
+ * 注意：** 被识别为幂运算符，在此层停止解析。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的项节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_term(ParserContext *ctx) {
     FormulaNode *left = parse_dsl_factor(ctx);
@@ -2500,6 +2537,12 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
 
 /**
  * @brief 解析 DSL 表达式（处理加减）
+ *
+ * 在项基础上处理加法（+）和减法（-）运算，采用左结合循环解析。
+ * 这是 DSL 表达式解析的最高优先级层。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的表达式节点，失败返回 NULL
  */
 static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
     FormulaNode *left = parse_dsl_term(ctx);
@@ -2543,6 +2586,12 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
 
 /**
  * @brief 解析 DSL 语句
+ *
+ * 解析单个 DSL 语句，即一个表达式或等式（lhs = rhs）。
+ * 等式使用单等号 =（双等号 == 不视为等式）。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的语句节点，失败或到达末尾返回 NULL
  */
 static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
     skip_whitespace(ctx);
@@ -2573,9 +2622,15 @@ static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
 
 /**
  * @brief 解析 DSL 复合语句
+ *
+ * 持续解析 DSL 语句直到输入结束，支持分号和换行作为语句分隔符。
+ * 如果只有一个语句则直接返回该节点，多个语句则包装为 COMPOUND 节点。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的复合节点或单个语句节点，无语句返回 NULL
  */
 static FormulaNode *parse_dsl_compound(ParserContext *ctx) {
-    FormulaNode *statements[MAX_STATEMENTS] = {NULL};
+    FormulaNode *statements[LV00_MAX_STATEMENTS] = {NULL};
     int statement_count = 0;
 
     while (!is_at_end(ctx)) {
@@ -2583,7 +2638,7 @@ static FormulaNode *parse_dsl_compound(ParserContext *ctx) {
         if (is_at_end(ctx))
             break;
 
-        if (statement_count >= MAX_STATEMENTS) {
+        if (statement_count >= LV00_MAX_STATEMENTS) {
             set_error(ctx, "Too many statements");
             for (int i = 0; i < statement_count; i++)
                 formula_node_destroy(statements[i]);
@@ -2632,6 +2687,13 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx);
 
 /**
  * @brief 解析 LaTeX 分数 \frac{a}{b}
+ *
+ * 解析 LaTeX 分数命令，格式为 \frac{分子}{分母}。
+ * 分子和分母各自可以包含完整的 LaTeX 表达式。
+ * 返回 DIV 类型的二元运算节点。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 分数节点（DIV 运算），失败返回 NULL
  */
 static FormulaNode *parse_latex_frac(ParserContext *ctx) {
     skip_whitespace(ctx);
@@ -2677,6 +2739,14 @@ static FormulaNode *parse_latex_frac(ParserContext *ctx) {
 
 /**
  * @brief 解析 LaTeX 根号 \sqrt{x}
+ *
+ * 解析 LaTeX 根号命令，支持两种形式：
+ * - \sqrt{表达式}：带花括号的参数
+ * - \sqrt 原子：不带花括号，取下一个原子作为参数
+ * 返回 SQRT 类型的一元运算节点。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 根号节点（SQRT 运算），失败返回 NULL
  */
 static FormulaNode *parse_latex_sqrt(ParserContext *ctx) {
     skip_whitespace(ctx);
@@ -2703,6 +2773,14 @@ static FormulaNode *parse_latex_sqrt(ParserContext *ctx) {
 
 /**
  * @brief 解析 LaTeX 命令
+ *
+ * 在反斜杠 \ 之后解析 LaTeX 命令名称，并分派到对应的处理函数。
+ * 支持的命令包括：\frac（分式）、\sqrt（根号）、三角函数
+ * （\sin, \cos, \tan, \cot）、\ln、\log、\pi 等。
+ * 未知命令作为变量名处理。
+ *
+ * @param ctx 解析器上下文指针（反斜杠已被消费）
+ * @return FormulaNode* 命令对应的 AST 节点，失败返回 NULL
  */
 static FormulaNode *parse_latex_command(ParserContext *ctx) {
     /* 已经匹配了 '\' */
@@ -2801,6 +2879,17 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
 
 /**
  * @brief 解析 LaTeX 原子
+ *
+ * 解析 LaTeX 语法中的最小语法单元，包括：
+ * - 数字字面量
+ * - 括号表达式 (...)
+ * - LaTeX 命令（\frac, \sqrt, \sin 等）
+ * - 花括号分组 {...}
+ * - 一元正负号
+ * - 标识符/变量名
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的原子节点，失败返回 NULL
  */
 static FormulaNode *parse_latex_atom(ParserContext *ctx) {
     skip_whitespace(ctx);
@@ -2879,6 +2968,12 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
 
 /**
  * @brief 解析 LaTeX 因子
+ *
+ * 在原子基础上处理上标幂运算（^），支持花括号分组和多字符指数。
+ * 例如：x^{2n} 或 x^2。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的因子节点，失败返回 NULL
  */
 static FormulaNode *parse_latex_factor(ParserContext *ctx) {
     FormulaNode *left = parse_latex_atom(ctx);
@@ -2919,6 +3014,16 @@ static FormulaNode *parse_latex_factor(ParserContext *ctx) {
 
 /**
  * @brief 解析 LaTeX 项
+ *
+ * 在因子基础上处理乘法和除法运算，支持以下运算符：
+ * - *（星号乘法）
+ * - /（斜杠除法）
+ * - \cdot（LaTeX 点乘）
+ * - \times（LaTeX 叉乘）
+ * - \div（LaTeX 除号）
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的项节点，失败返回 NULL
  */
 static FormulaNode *parse_latex_term(ParserContext *ctx) {
     FormulaNode *left = parse_latex_factor(ctx);
@@ -2968,6 +3073,12 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
 
 /**
  * @brief 解析 LaTeX 表达式
+ *
+ * 在项基础上处理加法（+）和减法（-）运算，以及等式（=）。
+ * 这是 LaTeX 表达式解析的最高优先级层。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的表达式节点，失败返回 NULL
  */
 static FormulaNode *parse_latex_expression(ParserContext *ctx) {
     FormulaNode *left = parse_latex_term(ctx);
@@ -3033,6 +3144,16 @@ static FormulaNode *parse_python_atom(ParserContext *ctx);
 
 /**
  * @brief 解析 Python 原子
+ *
+ * 解析 Python 语法中的最小语法单元，包括：
+ * - 数字字面量
+ * - 括号表达式 (...)
+ * - 一元正负号
+ * - 标识符（变量名、布尔值 True/False/None、常量 pi）
+ * - 函数调用（如 sqrt(x), sin(x) 等）
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的原子节点，失败返回 NULL
  */
 static FormulaNode *parse_python_atom(ParserContext *ctx) {
     skip_whitespace(ctx);
@@ -3103,11 +3224,10 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
             skip_whitespace(ctx);
 
             /* 解析参数 */
-            FormulaNode *args[MAX_ARGUMENTS] = {NULL};
+            FormulaNode *args[LV00_MAX_ARGUMENTS] = {NULL};
             int arg_count = 0;
-
             while (!is_at_end(ctx) && peek(ctx) != ')') {
-                if (arg_count >= MAX_ARGUMENTS) {
+                if (arg_count >= LV00_MAX_ARGUMENTS) {
                     set_error(ctx, "Too many arguments");
                     lv00_free((void **) &ident);
                     for (int i = 0; i < arg_count; i++)
@@ -3174,6 +3294,12 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
 
 /**
  * @brief 解析 Python 幂运算
+ *
+ * 在原子基础上处理 Python 幂运算符 **，采用右结合递归解析。
+ * 例如：2**3**2 解析为 2**(3**2) = 512。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的幂运算节点，失败返回 NULL
  */
 static FormulaNode *parse_python_power(ParserContext *ctx) {
     FormulaNode *left = parse_python_atom(ctx);
@@ -3200,6 +3326,13 @@ static FormulaNode *parse_python_power(ParserContext *ctx) {
 
 /**
  * @brief 解析 Python 因子
+ *
+ * Python 因子直接委托给幂运算解析（parse_python_power），
+ * 因为 Python 中一元运算符的优先级低于幂运算。
+ * 例如：-x**2 解析为 -(x**2)。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的因子节点，失败返回 NULL
  */
 static FormulaNode *parse_python_factor(ParserContext *ctx) {
     return parse_python_power(ctx);
@@ -3207,6 +3340,12 @@ static FormulaNode *parse_python_factor(ParserContext *ctx) {
 
 /**
  * @brief 解析 Python 项
+ *
+ * 在因子基础上处理乘法（*）、除法（/）和取模（%）运算。
+ * 注意：** 被识别为幂运算符，在此层停止解析。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的项节点，失败返回 NULL
  */
 static FormulaNode *parse_python_term(ParserContext *ctx) {
     FormulaNode *left = parse_python_factor(ctx);
@@ -3254,6 +3393,12 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
 
 /**
  * @brief 解析 Python 表达式
+ *
+ * 在项基础上处理加法（+）和减法（-）运算，以及等式（==）。
+ * 这是 Python 表达式解析的最高优先级层。
+ *
+ * @param ctx 解析器上下文指针
+ * @return FormulaNode* 解析出的表达式节点，失败返回 NULL
  */
 static FormulaNode *parse_python_expression(ParserContext *ctx) {
     FormulaNode *left = parse_python_term(ctx);
@@ -3311,6 +3456,16 @@ static FormulaNode *parse_python_expression(ParserContext *ctx) {
  * 主解析函数
  * ============================================================ */
 
+/**
+ * @brief 解析公式字符串为 AST
+ *
+ * 支持多种语法格式（DSL、LaTeX、Python 等），自动检测或按指定语法解析。
+ * 返回的 AST 节点引用计数为 1，调用者需通过 formula_node_destroy() 释放。
+ *
+ * @param input  输入公式字符串，不能为 NULL
+ * @param syntax 语法格式名称（如 "dsl"、"latex"、"python"），NULL 时自动检测
+ * @return 新分配的 AST 根节点指针，失败返回 NULL
+ */
 FormulaNode *formula_parse(const char *input, const char *syntax) {
     if (!input) {
         lv00_set_error(LV00_ERROR_NULL_POINTER, "Input is NULL");

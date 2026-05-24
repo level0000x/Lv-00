@@ -55,15 +55,17 @@ class BenchmarkRunner:
         results: 测试结果字典 {测试名称: 结果数据}
     """
 
-    def __init__(self, build_dir: str = _DEFAULT_BUILD_DIR) -> None:
+    def __init__(self, build_dir: str = _DEFAULT_BUILD_DIR, debug: bool = _DEBUG) -> None:
         """
         初始化基准测试运行器
 
         Args:
             build_dir: 构建目录路径，默认为 "build"
+            debug: 是否启用调试输出，默认读取环境变量
         """
         self.build_dir: str = build_dir
         self.results: Dict[str, Dict[str, Any]] = {}
+        self._debug: bool = debug
         
     def run_benchmark(self, test_name: str, executable: str) -> Optional[Dict[str, Any]]:
         """
@@ -78,7 +80,7 @@ class BenchmarkRunner:
         """
         executable_path = os.path.join(self.build_dir, executable)
         if not os.path.exists(executable_path):
-            if _DEBUG:
+            if self._debug:
                 print(f"警告: 找不到可执行文件 {executable_path}")
             return None
             
@@ -91,7 +93,7 @@ class BenchmarkRunner:
             )
             
             if result.returncode != 0:
-                if _DEBUG:
+                if self._debug:
                     print(f"错误: {test_name} 返回非零退出码")
                     print(result.stderr)
                 return None
@@ -99,11 +101,11 @@ class BenchmarkRunner:
             return self._parse_output(test_name, result.stdout)
             
         except subprocess.TimeoutExpired:
-            if _DEBUG:
+            if self._debug:
                 print(f"错误: {test_name} 超时")
             return None
         except Exception as e:
-            if _DEBUG:
+            if self._debug:
                 print(f"错误: 运行 {test_name} 时发生异常: {e}")
             return None
     
@@ -185,24 +187,24 @@ class BenchmarkRunner:
             ("func_block", "test_benchmark_func_block.exe" if sys.platform == "win32" else "test_benchmark_func_block"),
         ]
         
-        if _DEBUG:
+        if self._debug:
             print("=" * 60)
             print("Lv-00 性能基准测试")
             print("=" * 60)
             print()
         
         for name, executable in benchmarks:
-            if _DEBUG:
+            if self._debug:
                 print(f"运行 {name}...")
             result = self.run_benchmark(name, executable)
             if result:
                 self.results[name] = result
-                if _DEBUG:
+                if self._debug:
                     print(f"  v 完成 - {len(result.get('tests', []))} 个测试用例")
             else:
-                if _DEBUG:
+                if self._debug:
                     print(f"  x 失败")
-            if _DEBUG:
+            if self._debug:
                 print()
         
         return self.results
@@ -232,7 +234,7 @@ class BenchmarkRunner:
         # 生成 Markdown 报告
         self._generate_markdown(md_file)
         
-        if _DEBUG:
+        if self._debug:
             print(f"报告已保存:")
             print(f"  JSON: {json_file}")
             print(f"  Markdown: {md_file}")
@@ -397,12 +399,12 @@ def main() -> None:
     args = parser.parse_args()
 
     # 命令行参数优先级高于环境变量
+    debug = _DEBUG
     if args.debug:
-        global _DEBUG
-        _DEBUG = True
+        debug = True
     
     # 运行基准测试
-    runner = BenchmarkRunner(args.build_dir)
+    runner = BenchmarkRunner(args.build_dir, debug=debug)
     results = runner.run_all_benchmarks()
     
     if not results:
@@ -415,7 +417,7 @@ def main() -> None:
     
     # 性能比较
     if args.compare_with:
-        if _DEBUG:
+        if debug:
             print("\n" + "=" * 60)
             print("性能比较")
             print("=" * 60)
@@ -429,22 +431,22 @@ def main() -> None:
         has_regression, regressions = comparator.compare(results)
         
         if regressions:
-            if _DEBUG:
+            if debug:
                 print("检测到的性能变化:\n")
             for reg in regressions:
-                if _DEBUG:
+                if debug:
                     print(f"  . {reg}")
-            if _DEBUG:
+            if debug:
                 print()
         else:
-            if _DEBUG:
+            if debug:
                 print(". 未检测到显著性能回归\n")
         
         if has_regression and args.fail_on_regression:
             sys.stderr.write("错误: 检测到性能回归，退出\n")
             sys.exit(2)
     
-    if _DEBUG:
+    if debug:
         print("=" * 60)
         print("基准测试完成")
         print("=" * 60)

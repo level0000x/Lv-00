@@ -1,20 +1,29 @@
+/* ========================================================================
+ * 模块名称：内存池系统 (memory_pool)
+ * 功能概述：提供三种高性能内存管理策略：固定大小对象池、线性分配器
+ *          和 LRU 对象缓存。旨在减少内存碎片、提高分配速度，
+ *          支持内存使用统计和线程安全（可选）。
+ *
+ * 主要 API：
+ *   - lv00_pool_create / alloc / free / destroy  — 固定大小对象池
+ *   - lv00_linear_allocator_create / alloc / reset — 线性分配器
+ *   - lv00_cache_create / get / remove / destroy  — LRU 对象缓存
+ *   - lv00_mem_register_type / record_alloc/free  — 全局内存统计
+ *   - lv00_init_preset_pools / cleanup            — 预定义对象池
+ *
+ * 使用示例：
+ *   Lv00PoolConfig cfg = { .object_size = sizeof(GeomNode), .capacity = 1024 };
+ *   Lv00ObjectPool *pool = lv00_pool_create(&cfg);
+ *   GeomNode *node = (GeomNode *)lv00_pool_alloc(pool);
+ *   lv00_pool_free(pool, node);
+ *   lv00_pool_destroy(pool);
+ *
+ * @version 3.3.0
+ * ======================================================================== */
+
 /**
  * @file memory_pool.h
  * @brief 内存池系统 —— 高性能对象复用与批量分配
- *
- * @details 提供三种内存管理策略：
- *   1. 固定大小对象池：适用于频繁创建/销毁的同类型小对象
- *   2. 线性分配器：适用于临时对象，批量释放
- *   3. 对象缓存：LRU 缓存复用已分配对象
- *
- * 设计目标：
- *   - 减少内存碎片
- *   - 提高分配速度
- *   - 支持内存使用统计
- *   - 线程安全（可选）
- *
- * @author Lv-00 Project
- * @version 3.3.0
  */
 
 #ifndef LV00_MEMORY_POOL_H
@@ -242,6 +251,19 @@ typedef struct {
  * @brief 全局内存统计
  */
 struct Lv00MemoryStats {
+    /**
+     * @brief 各类型统计数组
+     *
+     * 数组大小由 LV00_MEM_STAT_MAX_TYPES（当前为 64）控制。
+     * 仅 types[0..type_count-1] 区间内的条目是有效的，
+     * types[type_count..LV00_MEM_STAT_MAX_TYPES-1] 为零初始化的未使用条目。
+     *
+     * 【边界检查建议】
+     *   遍历此数组时，应使用 type_count 作为上界，而非 LV00_MEM_STAT_MAX_TYPES：
+     *     for (int i = 0; i < stats.type_count; i++) { ... }
+     *   如果通过 lv00_mem_register_type() 注册的类型数超过 LV00_MEM_STAT_MAX_TYPES，
+     *   注册将失败并返回 -1。建议在系统初始化阶段检查注册返回值。
+     */
     Lv00MemTypeStat types[LV00_MEM_STAT_MAX_TYPES]; /**< 各类型统计 */
     int type_count;                                 /**< 已注册类型数 */
     uint64_t total_bytes;                           /**< 总使用字节数 */
@@ -282,9 +304,84 @@ void lv00_mem_reset_stats(void);
 
 /**
  * @brief 打印内存统计报告
+ *
  * @param stream 输出流（如 stdout）
+ *
+ * 【参数类型说明 —— 为什么使用 void* 而非 FILE*】
+ *   此函数的 stream 参数类型为 void* 而非 FILE*，原因如下：
+ *   1. 跨平台兼容性：在 Windows 平台上，stdout/stderr 的实际类型可能与
+ *      标准 C 的 FILE* 不同（特别是当使用 MSVC 的调试 CRT 时）。
+ *   2. 避免头文件依赖：使用 void* 可以避免在此头文件中包含 <stdio.h>，
+ *      减少编译依赖和编译时间。
+ *   3. 扩展性：未来可能支持非标准输出流（如自定义日志回调、文件句柄等），
+ *      void* 提供了更大的灵活性。
+ *
+ *   典型用法：
+ *     lv00_mem_print_stats(stdout);   // 输出到标准输出
+ *     lv00_mem_print_stats(stderr);   // 输出到标准错误
  */
 void lv00_mem_print_stats(void *stream);
+
+/* ============== 通用内存管理函数 ============== */
+
+/**
+ * @brief 复制字符串（安全包装）
+ *
+ * 为指定字符串分配新内存并复制内容。等价于标准 C 的 strdup()，
+ * 但提供跨平台一致性（MSVC 下使用 _strdup）。
+ *
+ * @param str 源字符串（不可为 NULL）
+ * @return 新分配的字符串副本（调用者负责 free 或 lv00_free 释放），失败返回 NULL
+ *
+ * @note 此函数在 lv00.h 中通过宏定义为 lv00_strdup（映射到 strdup 或 _strdup）。
+ *       此处提供显式的函数声明，便于不包含 lv00.h 的模块使用。
+ *       调用者获得返回指针的所有权，负责在不再使用时释放。
+ */
+char *lv00_strdup(const char *str);
+
+/**
+ * @brief 安全内存分配（声明，定义见 lv00_utils.h）
+ *
+ * 自动检查返回值并设置错误码的 malloc 包装。
+ *
+ * @param size 分配大小（字节）
+ * @return 分配的内存指针，失败返回 NULL 并设置错误码
+ *
+ * @note 完整声明和文档见 lv00_utils.h。
+ *       调用者获得返回指针的所有权，负责使用 lv00_free() 释放。
+ */
+void *lv00_malloc(size_t size);
+
+/**
+ * @brief 安全内存分配并清零（声明，定义见 lv00_utils.h）
+ *
+ * @param nmemb 元素个数
+ * @param size 每个元素大小
+ * @return 分配的内存指针，失败返回 NULL 并设置错误码
+ *
+ * @note 完整声明和文档见 lv00_utils.h。
+ */
+void *lv00_calloc(size_t nmemb, size_t size);
+
+/**
+ * @brief 安全内存重新分配（声明，定义见 lv00_utils.h）
+ *
+ * @param ptr 原指针
+ * @param size 新大小
+ * @return 重新分配的内存指针，失败返回 NULL 并设置错误码
+ *
+ * @note 完整声明和文档见 lv00_utils.h。
+ */
+void *lv00_realloc(void *ptr, size_t size);
+
+/**
+ * @brief 释放内存并将指针置 NULL（声明，定义见 lv00_utils.h）
+ *
+ * @param ptr 指向指针的指针
+ *
+ * @note 完整声明和文档见 lv00_utils.h。
+ */
+void lv00_free(void **ptr);
 
 /* ============== 预定义对象池 ============== */
 

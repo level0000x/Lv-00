@@ -14,7 +14,7 @@
  *
  * @module CategoryTheory
  * @category PRESET_CATEGORY_CATEGORY_THEORY
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_PRESET_CATEGORY_THEORY_H

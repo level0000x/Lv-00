@@ -13,7 +13,7 @@ Lv-00 预设函数块模块 - 基础构造
     3. 提供完整的中文文档和数学描述
     4. 遵循局部最优解原则
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
@@ -792,25 +792,13 @@ __all__ = [
     'create_perpendicular_bisector',
     'create_distance',
 
-    # 三角形构造
-    'create_centroid',
-    'create_circumcenter',
-    'create_incenter',
-    'create_orthocenter',
-    'create_area',
-    'create_equilateral_triangle',
-    'create_triangle_centroid',
-
-    # 多边形构造
-    'create_square',
-
-    # 变换构造
-    'create_reflection',
-    'create_translation',
-    'create_rotation',
-
     # 辅助函数
     'get_preset_info',
     'validate_preset_inputs',
+    # 注意：三角形构造（create_centroid, create_circumcenter, create_incenter,
+    # create_orthocenter）、多边形构造（create_square）、变换构造（create_reflection,
+    # create_translation, create_rotation）及其他（create_area, create_equilateral_triangle,
+    # create_triangle_centroid）定义在 preset_analysis.py 中，通过 __init__.py 的
+    # 惰性导入机制统一导出，不在此处重复声明。
 ]
 

@@ -15,7 +15,7 @@ import sys
 from collections import deque
 from typing import Optional
 
-# 修复：从包结构导入，替代旧版顶层 monitor_engine 模块
+# 从包结构导入，替代旧版顶层 monitor_engine 模块
 from concurrent_monitor.core.engine import MonitorEngine, OutputLine, ProcessStatus, ProcessInfo
 
 # --- Rich 导入（可选依赖）---

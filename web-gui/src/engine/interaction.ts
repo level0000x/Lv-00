@@ -10,7 +10,7 @@
 import type { ViewportState } from '@/engine/renderer';
 import type { Point, Segment, ToolType } from '@/types';
 import { ZOOM_SMOOTH, SCALE_MIN, SCALE_MAX } from '@/utils/constants';
-import { generateId } from '@/utils/idGenerator';
+import { generateUniqueId } from '@/utils/idGenerator';
 import { CIRCLE_APPROX_SIDES, MOUSE_MOVE_THROTTLE_MS } from '@/utils/constants';
 
 // ================================================================
@@ -18,72 +18,98 @@ import { CIRCLE_APPROX_SIDES, MOUSE_MOVE_THROTTLE_MS } from '@/utils/constants';
 // ================================================================
 
 /**
- * Callbacks provided by the host application for interaction events.
- * The interaction manager calls these to update application state.
+ * 交互管理器回调接口（合并定义）
+ * InteractionCallbacks - 主机应用提供的回调接口，交互管理器通过此接口更新应用状态。
+ *
+ * 包含必需方法和可选方法：
+ * - 必需方法：getViewport, getTool, addPoint, requestRender 等
+ * - 可选方法：getSelectedPoint, updateDragPointPosition, undo 等
+ *   可选方法通过 optional chaining (?) 安全调用
  */
 export interface InteractionCallbacks {
-  /** Get current viewport state */
+  // ---- 必需方法 / Required Methods ----
+  /** 获取当前视口状态 / Get current viewport state */
   getViewport: () => ViewportState;
-  /** Get current tool */
+  /** 获取当前工具 / Get current tool */
   getTool: () => ToolType;
-  /** Get all points */
+  /** 获取所有点 / Get all points */
   getPoints: () => Point[];
-  /** Set viewport scale */
+  /** 设置视口缩放比例 / Set viewport scale */
   setScale: (scale: number) => void;
-  /** Set viewport offset */
+  /** 设置视口偏移量 / Set viewport offset */
   setOffset: (offsetX: number, offsetY: number) => void;
-  /** Set mouse world coordinates */
+  /** 设置鼠标世界坐标 / Set mouse world coordinates */
   setMouseWorld: (x: number, y: number) => void;
-  /** Set mouse screen coordinates */
+  /** 设置鼠标屏幕坐标 / Set mouse screen coordinates */
   setMouseScreen: (x: number, y: number) => void;
-  /** Set selected point */
+  /** 设置选中的点 / Set selected point */
   setSelectedPoint: (point: Point | null) => void;
-  /** Set hovered point */
+  /** 设置悬停的点 / Set hovered point */
   setHoveredPoint: (point: Point | null) => void;
-  /** Set multi-selected points */
+  /** 设置多选的点 / Set multi-selected points */
   setSelectedPoints: (points: Point[]) => void;
-  /** Set dragging state */
+  /** 设置拖拽状态 / Set dragging state */
   setIsDragging: (dragging: boolean) => void;
-  /** Set point dragging state */
+  /** 设置点拖拽状态 / Set point dragging state */
   setIsDraggingPoint: (dragging: boolean) => void;
-  /** Set box selection state */
+  /** 设置框选状态 / Set box selection state */
   setIsBoxSelecting: (selecting: boolean) => void;
-  /** Set box selection start position */
+  /** 设置框选起始位置 / Set box selection start position */
   setBoxSelectStart: (start: { x: number; y: number } | null) => void;
-  /** Set drag start position */
+  /** 设置拖拽起始位置 / Set drag start position */
   setDragStart: (start: { x: number; y: number } | null) => void;
-  /** Set the point being dragged */
+  /** 设置正在拖拽的点 / Set the point being dragged */
   setDragPoint: (point: Point | null) => void;
-  /** Add a new point */
+  /** 添加新点 / Add a new point */
   addPoint: (point: Point) => void;
-  /** Add a new segment */
+  /** 添加新线段 / Add a new segment */
   addSegment: (segment: Segment) => void;
-  /** Set segment first point selection */
+  /** 设置线段工具的第一个端点 / Set segment first point selection */
   setSegmentFirstPoint: (point: Point | null) => void;
-  /** Add a region point */
+  /** 添加区域顶点 / Add a region point */
   addRegionPoint: (point: Point) => void;
-  /** Clear region points */
+  /** 清空区域顶点 / Clear region points */
   clearRegionPoints: () => void;
-  /** Save undo state */
+  /** 保存撤销状态 / Save undo state */
   saveUndoState: () => void;
-  /** Find point at screen position */
+  /** 查找屏幕坐标处的点 / Find point at screen position */
   findPointAt: (screenX: number, screenY: number) => Point | null;
-  /** Convert screen to world coordinates */
+  /** 屏幕坐标转世界坐标 / Convert screen to world coordinates */
   screenToWorld: (sx: number, sy: number) => { x: number; y: number };
-  /** Trigger a re-render */
+  /** 触发重新渲染 / Trigger a re-render */
   requestRender: () => void;
-  /** Update status message */
+  /** 更新状态栏消息 / Update status message */
   setStatusMessage: (message: string) => void;
-  /** Show context menu */
+  /** 显示右键菜单 / Show context menu */
   showContextMenu: (x: number, y: number, targetPoint?: Point, targetSegment?: Segment, worldX?: number, worldY?: number) => void;
-  /** Hide context menu */
+  /** 隐藏右键菜单 / Hide context menu */
   hideContextMenu: () => void;
-  /** Toggle search visibility */
+  /** 切换搜索面板可见性 / Toggle search visibility */
   toggleSearch: () => void;
-  /** Reset view to origin */
+  /** 重置视图到原点 / Reset view to origin */
   resetView: () => void;
-  /** Set the active tool */
+  /** 设置当前工具 / Set the active tool */
   setTool: (tool: ToolType) => void;
+
+  // ---- 可选方法 / Optional Methods ----
+  /** 获取当前选中的点（可选）/ Get currently selected point (optional) */
+  getSelectedPoint?: () => Point | null;
+  /** 获取线段工具的首个端点（可选）/ Get segment tool's first point (optional) */
+  getSegmentFirstPoint?: () => Point | null;
+  /** 获取区域顶点数量（可选）/ Get region vertex count (optional) */
+  getRegionPointCount?: () => number;
+  /** 更新被拖拽点的位置（可选）/ Update dragged point position (optional) */
+  updateDragPointPosition?: (point: Point) => void;
+  /** 更新框选矩形尺寸（可选）/ Update box selection rect dimensions (optional) */
+  updateBoxSelectRect?: (x1: number, y1: number, x2: number, y2: number) => void;
+  /** 撤销操作（可选）/ Undo (optional) */
+  undo?: () => void;
+  /** 重做操作（可选）/ Redo (optional) */
+  redo?: () => void;
+  /** 删除选中的点（可选）/ Delete selected point (optional) */
+  removeSelectedPoint?: (id: number) => void;
+  /** 查找屏幕坐标处的线段（可选）/ Find segment at screen position (optional) */
+  findSegmentAt?: (screenX: number, screenY: number) => Segment | null;
 }
 
 // ================================================================
@@ -221,7 +247,7 @@ export class InteractionManager {
     if (tool === 'point') {
       // Add a new point at click position
       this.callbacks.saveUndoState();
-      const newId = generateId(); // Temporary ID until backend assigns one
+      const newId = generateUniqueId(); // Temporary ID until backend assigns one
       this.callbacks.addPoint({ id: newId, x: worldPos.x, y: worldPos.y });
       this.callbacks.setStatusMessage(
         `ADD POINT (${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)}) / 添加点`,
@@ -233,8 +259,10 @@ export class InteractionManager {
         // We use a simpler approach: check if segmentFirstPoint is set via state
         if (this.callbacks.getSegmentFirstPoint?.()) {
           this.callbacks.saveUndoState();
-          const firstPointId = this.callbacks.getSegmentFirstPoint()!.id;
-          const segId = generateId();
+          const firstPoint = this.callbacks.getSegmentFirstPoint();
+          if (!firstPoint) return;
+          const firstPointId = firstPoint.id;
+          const segId = generateUniqueId();
           this.callbacks.addSegment({
             p1: firstPointId,
             p2: hit.id,
@@ -254,7 +282,7 @@ export class InteractionManager {
       const hit = this.callbacks.findPointAt(x, y);
       if (!this.compassCenter) {
         // 第一次点击：设置圆心（选择已有点或创建新点）
-        const center = hit ?? { id: generateId(), x: worldPos.x, y: worldPos.y };
+        const center = hit ?? { id: generateUniqueId(), x: worldPos.x, y: worldPos.y };
         if (!hit) {
           this.callbacks.saveUndoState();
           this.callbacks.addPoint(center);
@@ -285,7 +313,7 @@ export class InteractionManager {
           const angle = (2 * Math.PI * i) / SIDES;
           const px = this.compassCenter.x + radius * Math.cos(angle);
           const py = this.compassCenter.y + radius * Math.sin(angle);
-          const pId = generateId();
+          const pId = generateUniqueId();
           const p: Point = { id: pId, x: px, y: py };
           circlePoints.push(p);
           this.callbacks.addPoint(p);
@@ -297,7 +325,7 @@ export class InteractionManager {
           this.callbacks.addSegment({
             p1: circlePoints[i]!.id,
             p2: circlePoints[nextIdx]!.id,
-            id: generateId(),
+            id: generateUniqueId(),
           });
         }
 
@@ -548,29 +576,5 @@ export class InteractionManager {
   // Extended Callbacks (optional) / 扩展回调（可选）
   // ================================================================
 
-  // These are accessed via the callbacks object with optional chaining
-  // in the handler methods above. They allow the host to provide
-  // additional functionality without changing the interface.
-}
-
-// Extend the callbacks interface with optional methods
-export interface InteractionCallbacks {
-  /** 获取当前选中的点（可选） */
-  getSelectedPoint?: () => Point | null;
-  /** 获取线段工具的首个端点（可选） */
-  getSegmentFirstPoint?: () => Point | null;
-  /** 获取区域顶点数量（可选） */
-  getRegionPointCount?: () => number;
-  /** 更新被拖拽点的位置（可选） */
-  updateDragPointPosition?: (point: Point) => void;
-  /** 更新框选矩形尺寸（可选） */
-  updateBoxSelectRect?: (x1: number, y1: number, x2: number, y2: number) => void;
-  /** 撤销操作（可选） */
-  undo?: () => void;
-  /** 重做操作（可选） */
-  redo?: () => void;
-  /** 删除选中的点（可选） */
-  removeSelectedPoint?: (id: number) => void;
-  /** 查找屏幕坐标处的线段（可选） */
-  findSegmentAt?: (screenX: number, screenY: number) => Segment | null;
+  // These optional methods are now declared directly in the InteractionCallbacks interface above.
 }

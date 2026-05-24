@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import time
 import threading
+import warnings
 from collections import deque
 from typing import Any, Optional
 
@@ -45,17 +47,18 @@ logger = get_logger(__name__)
 # 生产环境请使用高强度随机密钥，建议通过密钥管理服务（如 Vault、AWS Secrets Manager）注入。
 
 
-def _build_cors_headers(cors_enabled: bool) -> dict[str, str]:
+def _build_cors_headers(cors_enabled: bool, request_origin: str = "") -> dict[str, str]:
     """
-    构建 CORS 响应头
+    构建 CORS 响应头（动态匹配请求来源）
 
     根据 cors_enabled 配置决定是否添加跨域头。
-    启用时从环境变量 CORS_ORIGINS 读取允许的来源列表，
-    默认仅允许本地访问（适用于本地开发场景），
+    启用时从请求的 Origin header 匹配白名单，匹配则返回该 Origin，
+    避免固定返回第一个 origin 导致其他合法来源被拒绝的问题。
     禁用时不添加任何 CORS 头。
 
     Args:
         cors_enabled: 是否启用 CORS
+        request_origin: 当前请求的 Origin header 值
 
     Returns:
         包含 CORS 头的字典
@@ -69,11 +72,21 @@ def _build_cors_headers(cors_enabled: bool) -> dict[str, str]:
         #   2. 可能导致 CSRF（跨站请求伪造）攻击
         #   3. 用户敏感数据（进程命令、输出内容）可能被第三方网站窃取
         # 当前实现从环境变量 CORS_ORIGINS 读取允许的来源列表，
-        # 默认仅允许本地访问（http://localhost:5000, http://127.0.0.1:5000）。
+        # 并根据请求的 Origin 动态匹配，确保只允许白名单中的来源访问。
         # 生产环境部署时，请务必将 CORS_ORIGINS 设置为实际的前端域名。
-        headers["Access-Control-Allow-Origin"] = os.environ.get(
-            'CORS_ORIGINS', 'http://localhost:5000,http://127.0.0.1:5000'
-        ).split(',')[0].strip()
+        allowed_origins = [
+            origin.strip()
+            for origin in os.environ.get(
+                'CORS_ORIGINS', 'http://localhost:5000,http://127.0.0.1:5000'
+            ).split(',')
+            if origin.strip()
+        ]
+        # 动态匹配请求来源：如果请求的 Origin 在白名单中，则返回该 Origin
+        if request_origin and request_origin in allowed_origins:
+            headers["Access-Control-Allow-Origin"] = request_origin
+        elif allowed_origins:
+            # 回退：如果没有 Origin header 或不匹配，返回第一个白名单来源
+            headers["Access-Control-Allow-Origin"] = allowed_origins[0]
     return headers
 
 
@@ -112,18 +125,18 @@ def create_app(engine: MonitorEngine, config: Config) -> Flask:
     """
     app = Flask(__name__)
 
-    # 安全密钥：必须通过环境变量 MONITOR_SECRET_KEY 设置
-    # 不再使用默认密钥，强制要求环境变量配置以确保安全
+    # 安全密钥：优先从环境变量 MONITOR_SECRET_KEY 读取
+    # 未设置时生成临时随机密钥并打印警告
+    # ⚠️ 安全警告：生产环境必须通过环境变量 MONITOR_SECRET_KEY 配置密钥
+    # WARNING: Production must set MONITOR_SECRET_KEY env var.
     secret_key = os.environ.get("MONITOR_SECRET_KEY")
     if not secret_key:
-        logger.error(
-            "安全配置错误：MONITOR_SECRET_KEY 环境变量未设置！"
-            "请设置环境变量后重新启动。"
-        )
-        raise RuntimeError(
-            "MONITOR_SECRET_KEY 环境变量未设置，请配置后重新启动。"
-            "开发环境可使用: set MONITOR_SECRET_KEY=your-dev-secret (Windows) "
-            "或 export MONITOR_SECRET_KEY=your-dev-secret (Linux/Mac)"
+        secret_key = secrets.token_hex(32)
+        warnings.warn(
+            "MONITOR_SECRET_KEY 环境变量未设置，已生成临时密钥。"
+            "生产环境请务必设置此环境变量。",
+            RuntimeWarning,
+            stacklevel=2
         )
     app.config["SECRET_KEY"] = secret_key
 
@@ -334,7 +347,10 @@ def create_app(engine: MonitorEngine, config: Config) -> Flask:
         with sse_lock:
             if len(sse_clients) >= config.web.max_sse_clients:
                 # 达到上限时返回错误，根据 CORS 配置决定是否添加跨域头
-                error_headers = _build_cors_headers(config.web.cors_enabled)
+                error_headers = _build_cors_headers(
+                    config.web.cors_enabled,
+                    request_origin=request.headers.get("Origin", ""),
+                )
                 return Response(
                     'data: {"type":"error","message":"已达到最大客户端连接数"}\n\n',
                     mimetype="text/event-stream",
@@ -370,8 +386,11 @@ def create_app(engine: MonitorEngine, config: Config) -> Flask:
                         sse_clients.remove(client_queue)
                         logger.debug(f"SSE 客户端断开，当前连接数: {len(sse_clients)}")
 
-        # 根据 CORS 配置构建响应头
-        response_headers = _build_cors_headers(config.web.cors_enabled)
+        # 根据 CORS 配置构建响应头（动态匹配请求来源）
+        response_headers = _build_cors_headers(
+            config.web.cors_enabled,
+            request_origin=request.headers.get("Origin", ""),
+        )
         response_headers["X-Accel-Buffering"] = "no"
 
         return Response(

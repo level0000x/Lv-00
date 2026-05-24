@@ -1,11 +1,16 @@
 /**
- * type.js - TYPE 类型模块方法
+ * @file type.js
+ * @brief TYPE 类型模块方法
+ * @description 实现 Lv-00 类型系统的前端操作方法，挂载到 Lv00WebApp.prototype 上。
+ *              包括创建各种几何类型（点、线段、区域、函数、乘积类型）、
+ *              类型等价检查、类型推断、类型层级检查等功能。
+ *              所有类型操作通过后端 API（Lv00JSBackend）执行，
+ *              前端负责参数收集、状态更新和日志输出。
  *
- * 实现类型模块的操作方法，包括创建各种几何类型
- * （点、线段、区域、函数、乘积类型）、类型等价检查、
- * 类型推断、类型层级检查等。
- *
- * 依赖：Lv00WebApp 构造函数、ui.js
+ * @module type
+ * @requires Lv00WebApp 构造函数（app.js）
+ * @requires ui.js（appendLog, showSuccess 等方法）
+ * @since 3.0.0
  */
 (function() {
     'use strict';

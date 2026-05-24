@@ -31,11 +31,11 @@ Lv00Timestamp lv00_timestamp_now(void) {
 #ifdef _WIN32
     /* Windows: 使用 QueryPerformanceCounter 实现高精度单调时钟 */
     static LARGE_INTEGER qpc_freq = { 0 };
-    static BOOL qpc_initialized = FALSE;
+    static volatile LONG qpc_initialized = 0;
 
-    if (!qpc_initialized) {
+    /* 使用 InterlockedCompareExchange 保证多线程下只初始化一次（线程安全） */
+    if (InterlockedCompareExchange(&qpc_initialized, 1, 0) == 0) {
         QueryPerformanceFrequency(&qpc_freq);
-        qpc_initialized = TRUE;
     }
 
     LARGE_INTEGER counter;
@@ -64,14 +64,16 @@ Lv00Timestamp lv00_timestamp_now(void) {
     }
 #endif
 
-    /* 规范化纳秒 */
-    while (ts.nanoseconds >= 1000000000) {
-        ts.nanoseconds -= 1000000000;
-        ts.seconds += 1;
-    }
-    while (ts.nanoseconds < 0) {
-        ts.nanoseconds += 1000000000;
-        ts.seconds -= 1;
+    /* 规范化纳秒（使用除法/取模，避免极端值时循环过多） */
+    if (ts.nanoseconds >= 1000000000 || ts.nanoseconds < 0) {
+        int64_t extra_secs = ts.nanoseconds / 1000000000;
+        ts.seconds += extra_secs;
+        ts.nanoseconds -= extra_secs * 1000000000;
+        /* 处理负数取模的余数修正 */
+        if (ts.nanoseconds < 0) {
+            ts.nanoseconds += 1000000000;
+            ts.seconds -= 1;
+        }
     }
 
     return ts;

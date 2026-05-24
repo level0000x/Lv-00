@@ -410,7 +410,7 @@ export class BackendAdapter {
     if (!wasmInstance) {
       /* 尝试动态导入 / Try dynamic import */
       try {
-        // @ts-ignore - /lv00_web.js is loaded at runtime from public directory
+        // @ts-expect-error - /lv00_web.js is loaded at runtime from public directory
         const moduleFactory = await import('/lv00_web.js');
         if (typeof moduleFactory.default === 'function') {
           wasmInstance = await (moduleFactory.default as () => Promise<Lv00WasmModule>)();

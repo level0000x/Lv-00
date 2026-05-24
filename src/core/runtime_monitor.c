@@ -8,6 +8,8 @@
 
 #include "runtime_monitor.h"
 
+#include "lv00_utils.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -346,10 +348,10 @@ void lv00_perf_shutdown(void) {
     MUTEX_LOCK(g_perf_system.mutex);
 
     for (uint32_t i = 0; i < g_perf_system.timer_count; i++) {
-        free(g_perf_system.timers[i]);
+        lv00_free((void **) &g_perf_system.timers[i]);
     }
     for (uint32_t i = 0; i < g_perf_system.stats_count; i++) {
-        free(g_perf_system.stats[i]);
+        lv00_free((void **) &g_perf_system.stats[i]);
     }
 
     MUTEX_UNLOCK(g_perf_system.mutex);
@@ -362,7 +364,7 @@ Lv00Timer *lv00_timer_create(const char *name) {
         return NULL;
     }
 
-    Lv00Timer *timer = (Lv00Timer *)calloc(1, sizeof(Lv00Timer));
+    Lv00Timer *timer = (Lv00Timer *)lv00_calloc(1, sizeof(Lv00Timer));
     if (!timer) {
         return NULL;
     }
@@ -393,7 +395,7 @@ void lv00_timer_destroy(Lv00Timer *timer) {
     }
     MUTEX_UNLOCK(g_perf_system.mutex);
 
-    free(timer);
+    lv00_free((void **) &timer);
 }
 
 void lv00_timer_start(Lv00Timer *timer) {
@@ -474,7 +476,7 @@ Lv00PerfStats *lv00_perf_stats_create(const char *name) {
         return NULL;
     }
 
-    Lv00PerfStats *stats = (Lv00PerfStats *)calloc(1, sizeof(Lv00PerfStats));
+    Lv00PerfStats *stats = (Lv00PerfStats *)lv00_calloc(1, sizeof(Lv00PerfStats));
     if (!stats) {
         return NULL;
     }
@@ -506,7 +508,7 @@ void lv00_perf_stats_destroy(Lv00PerfStats *stats) {
     }
     MUTEX_UNLOCK(g_perf_system.mutex);
 
-    free(stats);
+    lv00_free((void **) &stats);
 }
 
 void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
@@ -593,16 +595,95 @@ void lv00_health_set_cpu_thresholds(double warning_percent, double critical_perc
     g_health_system.cpu_critical_percent = critical_percent;
 }
 
+/* ============== 平台特定 CPU 使用率采样 ============== */
+
+#ifdef _WIN32
+static double get_cpu_usage_percent(void) {
+    FILETIME idle1, kernel1, user1;
+    FILETIME idle2, kernel2, user2;
+    GetSystemTimes(&idle1, &kernel1, &user1);
+    Sleep(100);
+    GetSystemTimes(&idle2, &kernel2, &user2);
+    ULONGLONG k1 = kernel1.dwLowDateTime | ((ULONGLONG)kernel1.dwHighDateTime << 32);
+    ULONGLONG u1 = user1.dwLowDateTime | ((ULONGLONG)user1.dwHighDateTime << 32);
+    ULONGLONG i1 = idle1.dwLowDateTime | ((ULONGLONG)idle1.dwHighDateTime << 32);
+    ULONGLONG k2 = kernel2.dwLowDateTime | ((ULONGLONG)kernel2.dwHighDateTime << 32);
+    ULONGLONG u2 = user2.dwLowDateTime | ((ULONGLONG)user2.dwHighDateTime << 32);
+    ULONGLONG i2 = idle2.dwLowDateTime | ((ULONGLONG)idle2.dwHighDateTime << 32);
+    ULONGLONG idle_diff = i2 - i1;
+    ULONGLONG total_diff = (k2 - k1) + (u2 - u1);
+    if (total_diff == 0) return 0.0;
+    return 100.0 * (1.0 - (double)idle_diff / (double)total_diff);
+}
+#elif defined(__linux__)
+static double get_cpu_usage_percent(void) {
+    FILE *fp = fopen("/proc/stat", "r");
+    if (!fp) return 0.0;
+    unsigned long long user1, nice1, sys1, idle1, iowait1, irq1, softirq1;
+    if (fscanf(fp, "cpu %llu %llu %llu %llu %llu %llu %llu",
+               &user1, &nice1, &sys1, &idle1, &iowait1, &irq1, &softirq1) != 7) {
+        fclose(fp);
+        return 0.0;
+    }
+    fclose(fp);
+    usleep(100000); /* 100ms */
+    fp = fopen("/proc/stat", "r");
+    if (!fp) return 0.0;
+    unsigned long long user2, nice2, sys2, idle2, iowait2, irq2, softirq2;
+    if (fscanf(fp, "cpu %llu %llu %llu %llu %llu %llu %llu",
+               &user2, &nice2, &sys2, &idle2, &iowait2, &irq2, &softirq2) != 7) {
+        fclose(fp);
+        return 0.0;
+    }
+    fclose(fp);
+    unsigned long long total1 = user1 + nice1 + sys1 + idle1 + iowait1 + irq1 + softirq1;
+    unsigned long long total2 = user2 + nice2 + sys2 + idle2 + iowait2 + irq2 + softirq2;
+    unsigned long long total_diff = total2 - total1;
+    unsigned long long idle_diff = (idle2 + iowait2) - (idle1 + iowait1);
+    if (total_diff == 0) return 0.0;
+    return 100.0 * (1.0 - (double)idle_diff / (double)total_diff);
+}
+#elif defined(__APPLE__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <mach/mach.h>
+static double get_cpu_usage_percent(void) {
+    host_cpu_load_info_data_t info1, info2;
+    mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO,
+                        (host_info_t)&info1, &count) != KERN_SUCCESS) return 0.0;
+    usleep(100000); /* 100ms */
+    count = HOST_CPU_LOAD_INFO_COUNT;
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO,
+                        (host_info_t)&info2, &count) != KERN_SUCCESS) return 0.0;
+    unsigned long long total1 = (unsigned long long)info1.cpu_ticks[CPU_STATE_USER]
+        + info1.cpu_ticks[CPU_STATE_SYSTEM] + info1.cpu_ticks[CPU_STATE_IDLE]
+        + info1.cpu_ticks[CPU_STATE_NICE];
+    unsigned long long total2 = (unsigned long long)info2.cpu_ticks[CPU_STATE_USER]
+        + info2.cpu_ticks[CPU_STATE_SYSTEM] + info2.cpu_ticks[CPU_STATE_IDLE]
+        + info2.cpu_ticks[CPU_STATE_NICE];
+    unsigned long long idle_diff = (unsigned long long)info2.cpu_ticks[CPU_STATE_IDLE]
+        - info1.cpu_ticks[CPU_STATE_IDLE];
+    unsigned long long total_diff = total2 - total1;
+    if (total_diff == 0) return 0.0;
+    return 100.0 * (1.0 - (double)idle_diff / (double)total_diff);
+}
+#else
+static double get_cpu_usage_percent(void) {
+    return 0.0; /* 不支持的平台 */
+}
+#endif
+
 Lv00HealthReport *lv00_health_check(void) {
-    Lv00HealthReport *report = (Lv00HealthReport *)calloc(1, sizeof(Lv00HealthReport));
+    Lv00HealthReport *report = (Lv00HealthReport *)lv00_calloc(1, sizeof(Lv00HealthReport));
     if (!report) {
         return NULL;
     }
 
     report->check_count = 5;
-    report->checks = (Lv00HealthCheck *)calloc(report->check_count, sizeof(Lv00HealthCheck));
+    report->checks = (Lv00HealthCheck *)lv00_calloc(report->check_count, sizeof(Lv00HealthCheck));
     if (!report->checks) {
-        free(report);
+        lv00_free((void **) &report);
         return NULL;
     }
 
@@ -649,14 +730,27 @@ Lv00HealthReport *lv00_health_check(void) {
         snprintf(check->message, sizeof(check->message), "Memory usage normal: %.1f MB", check->value);
     }
 
-    /* CPU 检查（简化） */
+    /* CPU 检查 */
     check = &report->checks[1];
     strncpy(check->name, "CPU Usage", sizeof(check->name) - 1);
     check->threshold_warning = g_health_system.cpu_warning_percent;
     check->threshold_critical = g_health_system.cpu_critical_percent;
-    check->value = 0; /* 需要平台特定实现 */
-    check->status = HEALTH_OK;
-    strncpy(check->message, "CPU usage monitoring not implemented", sizeof(check->message) - 1);
+    check->value = get_cpu_usage_percent();
+
+    if (check->value >= check->threshold_critical) {
+        check->status = HEALTH_CRITICAL;
+        snprintf(check->message, sizeof(check->message), "CPU usage critical: %.1f%%", check->value);
+        report->overall = HEALTH_CRITICAL;
+    } else if (check->value >= check->threshold_warning) {
+        check->status = HEALTH_WARNING;
+        snprintf(check->message, sizeof(check->message), "CPU usage high: %.1f%%", check->value);
+        if (report->overall < HEALTH_WARNING) {
+            report->overall = HEALTH_WARNING;
+        }
+    } else {
+        check->status = HEALTH_OK;
+        snprintf(check->message, sizeof(check->message), "CPU usage normal: %.1f%%", check->value);
+    }
 
     /* 线程检查 */
     check = &report->checks[2];
@@ -686,14 +780,14 @@ void lv00_health_report_destroy(Lv00HealthReport *report) {
     if (!report) {
         return;
     }
-    free(report->checks);
-    free(report);
+    lv00_free((void **) &report->checks);
+    lv00_free((void **) &report);
 }
 
 /* ============== 诊断报告实现 ============== */
 
 Lv00Diagnostics *lv00_diagnostics_generate(void) {
-    Lv00Diagnostics *diag = (Lv00Diagnostics *)calloc(1, sizeof(Lv00Diagnostics));
+    Lv00Diagnostics *diag = (Lv00Diagnostics *)lv00_calloc(1, sizeof(Lv00Diagnostics));
     if (!diag) {
         return NULL;
     }
@@ -743,7 +837,7 @@ Lv00Diagnostics *lv00_diagnostics_generate(void) {
 }
 
 void lv00_diagnostics_destroy(Lv00Diagnostics *diag) {
-    free(diag);
+    lv00_free((void **) &diag);
 }
 
 bool lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path) {
@@ -791,7 +885,7 @@ char *lv00_diagnostics_to_json(const Lv00Diagnostics *diag) {
         return NULL;
     }
 
-    char *json = (char *)malloc(4096);
+    char *json = (char *)lv00_malloc(4096);
     if (!json) {
         return NULL;
     }
@@ -946,7 +1040,7 @@ uint32_t lv00_event_trace_get_all(Lv00EventRecord **out_events, uint32_t max_cou
     MUTEX_LOCK(g_event_system.mutex);
 
     uint32_t count = g_event_system.event_count < max_count ? g_event_system.event_count : max_count;
-    *out_events = (Lv00EventRecord *)malloc(count * sizeof(Lv00EventRecord));
+    *out_events = (Lv00EventRecord *)lv00_malloc(count * sizeof(Lv00EventRecord));
     if (*out_events) {
         memcpy(*out_events, g_event_system.events, count * sizeof(Lv00EventRecord));
     }

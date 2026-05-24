@@ -39,44 +39,15 @@
 /* ==================== 内部辅助函数与宏 ==================== */
 
 /**
- * @brief 注册单个集合论预设
+ * @brief 简化预设注册的宏（委托给 preset_common.h 中的 PRESET_REGISTER_EX）
  *
- * 辅助函数，简化预设注册过程。
- * 所有集合论预设都属于 PRESET_CATEGORY_SET_THEORY 类别。
- *
- * @param name 预设名称
- * @param description 中文描述
- * @param input_types 输入类型数组
- * @param input_count 输入数量
- * @param output_type 输出类型
- * @param math_def 数学定义（LaTeX格式）
- * @param complexity 时间复杂度
- * @param is_constructive 是否构造性
- * @param is_reversible 是否可逆
- * @return true 注册成功
- * @return false 注册失败
- */
-static bool register_set_preset(const char *name, const char *description, const PresetType *input_types,
-                                int input_count, PresetType output_type, const char *math_def, const char *complexity,
-                                bool is_constructive, bool is_reversible) {
-    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_SET_THEORY, input_types, input_count,
-                                         output_type, math_def, complexity, is_constructive, is_reversible);
-}
-
-/**
- * @brief 简化预设注册的宏
- *
- * 减少重复代码，提高可维护性。
+ * REGISTER_SET 是 PRESET_REGISTER_EX 的类别固定版本，自动填入
+ * PRESET_CATEGORY_SET_THEORY，减少每个注册点的重复参数。
  * 注册成功时递增 success_count，失败时输出错误日志。
  */
-#define REGISTER_SET(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
-    do {                                                                                                          \
-        if (register_set_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), (rev))) { \
-            success_count++;                                                                                      \
-        } else {                                                                                                  \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                   \
-        }                                                                                                         \
-    } while (0)
+#define REGISTER_SET(name, desc, inputs, in_count, output, math, comp, cons, rev) \
+    PRESET_REGISTER_EX((name), (desc), PRESET_CATEGORY_SET_THEORY, (inputs), (in_count), \
+                       (output), (math), (comp), (cons), (rev))
 
 /* ==================== 模块注册实现 ==================== */
 
@@ -668,7 +639,6 @@ PresetCategory preset_set_theory_category(void) {
 bool preset_set_theory_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count)
         return false;
-    *out_count = SET_THEORY_PRESET_COUNT;
     char **names = (char **) lv00_malloc(SET_THEORY_PRESET_COUNT * sizeof(char *));
     if (!names)
         return false;
@@ -733,5 +703,6 @@ bool preset_set_theory_get_names(char ***out_names, int *out_count) {
         memcpy(names[i], preset_names[i], len);
     }
     *out_names = names;
+    *out_count = SET_THEORY_PRESET_COUNT;
     return true;
 }

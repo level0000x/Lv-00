@@ -1,13 +1,31 @@
+/* ========================================================================
+ * 模块名称：递归与条件系统 (recursion)
+ * 功能概述：根据 Lv-00 设计文档第9节实现递归构造系统，包含测度系统、
+ *          选择器块、递归深度监控、互递归支持和全局熔断器。
+ *          测度系统支持符号测度（长度/面积/角度/深度）和非符号测度，
+ *          用于验证递归的良基性（终止性）。
+ *
+ * 主要 API：
+ *   - measure_system_create / destroy / add  — 测度系统管理
+ *   - measure_create_symbolic / custom       — 创建测度
+ *   - measure_compute_value / compare        — 计算和比较测度
+ *   - recursion_context_create / enter / exit — 递归上下文
+ *   - recursion_context_check_decreasing     — 验证测度递减性
+ *   - lv00_recursion_enter / leave / reset   — 全局深度保护（熔断器）
+ *   - selector_block_create / evaluate       — 选择器块
+ *   - recursion_check_mutual                 — 互递归验证
+ *
+ * 使用示例：
+ *   RecursionContext *ctx = recursion_context_create(10000);
+ *   Measure *m = measure_create_symbolic("depth", MEASURE_KIND_DEPTH, -1);
+ *   recursion_context_set_measure(ctx, m);
+ *   RecursionCheckResult r = recursion_context_enter(ctx, fb_id, input, graph);
+ *
+ * ======================================================================== */
+
 /**
  * @file recursion.h
  * @brief 递归与条件系统 - 测度系统、选择器块、递归深度监控
- *
- * 根据 Lv-00 设计文档第9节实现：
- * - 递归构造
- * - 测度系统
- * - 互递归支持
- * - 递归深度监控
- * - 条件/选择器块
  */
 
 #ifndef LV00_RECURSION_H
@@ -281,7 +299,7 @@ MeasureCompareResult measure_compare(Measure *m, SymbolicCoord *a, SymbolicCoord
 /**
  * 比较两个节点的测度
  */
-MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, ConstraintGraph *graph);
+MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, const ConstraintGraph *graph);
 
 /* ============== 递归上下文API ============== */
 
@@ -315,7 +333,7 @@ void recursion_context_exit(RecursionContext *ctx);
  * 检查测度递减性（修改1：验证整条调用链的单调递减）
  * 遍历整个 measure_values 数组，验证严格单调递减
  */
-RecursionCheckResult recursion_context_check_decreasing(RecursionContext *ctx, SymbolicCoord *new_value);
+RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *ctx, SymbolicCoord *new_value);
 
 /**
  * 获取当前深度

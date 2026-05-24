@@ -28,7 +28,7 @@ typedef struct ConstraintGraph ConstraintGraph;
 #ifndef LV00_VERSION_STRING
 #define LV00_VERSION_STRING_EXPAND_(maj, min, pat) #maj "." #min "." #pat
 #define LV00_VERSION_STRING_MACRO_(maj, min, pat) LV00_VERSION_STRING_EXPAND_(maj, min, pat)
-#define LV00_VERSION_STRING LV00_VERSION_STRING_MACRO_(3, 0, 1)
+#define LV00_VERSION_STRING LV00_VERSION_STRING_MACRO_(3, 3, 0)
 #endif
 
 #define LV00_NAME "Lv-00 Geometry Metalanguage"
@@ -188,7 +188,10 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...);
  */
 #ifdef LV00_LOG_GUARD
 /* 编译期过滤版本：低于阈值的日志被编译期移除，不产生任何代码 */
-#define LOG_TRACE(module, fmt, ...)  do { /* LV00_LOG_GUARD 过滤 */ } while(0)
+#define LOG_TRACE(module, fmt, ...)  do { \
+    if (LV00_LOG_IS_ENABLED(LOG_LEVEL_TRACE)) \
+        debug_log(LOG_LEVEL_TRACE, module, fmt, ##__VA_ARGS__); \
+} while(0)
 #define LOG_DEBUG(module, fmt, ...)  do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_DEBUG)) debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__); } while(0)
 #define LOG_INFO(module, fmt, ...)   do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_INFO))  debug_log(LOG_LEVEL_INFO,  module, fmt, ##__VA_ARGS__); } while(0)
 #define LOG_WARN(module, fmt, ...)   do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_WARN))  debug_log(LOG_LEVEL_WARN,  module, fmt, ##__VA_ARGS__); } while(0)

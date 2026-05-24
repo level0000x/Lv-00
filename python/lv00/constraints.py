@@ -9,7 +9,7 @@ Lv-00 几何约束类型模块
     - ContainmentConstraint: 包含约束（区域包含关系）
     - ConnectionConstraint: 连接约束（端口连接）
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
@@ -76,11 +76,24 @@ class Constraint:
             Constraint: 对应类型的约束实例
 
         异常：
-            ValueError: data 中缺少 "type" 键
+            ValueError: data 中缺少 "type" 键或类型名称未知
         """
         constraint_type = data.get("type")
         if not constraint_type:
             raise ValueError("约束字典中缺少 'type' 键")
+
+        # 根据 constraint_type 字段返回对应的子类实例，保留子类类型信息。
+        _type_map: Dict[str, type] = {
+            "incidence": IncidenceConstraint,
+            "betweenness": BetweennessConstraint,
+            "intersection": IntersectionConstraint,
+            "containment": ContainmentConstraint,
+            "connection": ConnectionConstraint,
+        }
+        constraint_cls = _type_map.get(constraint_type)
+        if constraint_cls is not None:
+            return constraint_cls(constraint_type)
+        # 未知类型回退到基类
         return cls(constraint_type)
 
 
@@ -306,12 +319,49 @@ class ConstraintType:
         >>> ct = ConstraintType
         >>> incidence = Constraint("incidence")  # 不推荐
         >>> incidence = Constraint(ct.INCIDENCE)  # 推荐
+        >>> print(ct.INCIDENCE)  # 输出: "关联约束 (incidence)"
     """
     INCIDENCE = "incidence"
     BETWEENNESS = "betweenness"
     INTERSECTION = "intersection"
     CONTAINMENT = "containment"
     CONNECTION = "connection"
+
+    # 类型名称到中文描述的映射，用于 __str__ 输出友好错误消息
+    _DESCRIPTIONS = {
+        "incidence": "关联约束",
+        "betweenness": "介子约束",
+        "intersection": "交点约束",
+        "containment": "包含约束",
+        "connection": "连接约束",
+    }
+
+    def __str__(self) -> str:
+        """
+        返回约束类型的友好中文描述。
+
+        当 ConstraintType 的类属性直接用于字符串拼接或格式化时，
+        此方法不会被调用（因为类属性是字符串本身）。
+        但当通过实例访问或显式调用 str() 时可提供友好信息。
+
+        返回：
+            str: 所有约束类型的汇总描述
+        """
+        lines = [f"ConstraintType({name}={desc})"
+                 for name, desc in self._DESCRIPTIONS.items()]
+        return ", ".join(lines)
+
+    @classmethod
+    def describe(cls, type_name: str) -> str:
+        """获取指定约束类型的中文描述。
+
+        参数：
+            type_name: 约束类型名称（如 "incidence"）
+
+        返回：
+            str: 中文描述字符串，未知类型返回 "未知约束类型"
+        """
+        return cls._DESCRIPTIONS.get(type_name, f"未知约束类型 ({type_name})")
 
     @classmethod
     def all_types(cls) -> List[str]:

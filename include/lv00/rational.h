@@ -1,25 +1,31 @@
+/* ========================================================================
+ * 模块名称：精确有理数类型 (rational)
+ * 功能概述：提供基于 GMP mpz_t 的精确有理数类型 Lv00Rational。
+ *          所有运算均为精确，不会产生浮点舍入。分母始终 > 0，
+ *          分子和分母始终互质（gcd = 1）。支持与项目现有
+ *          Rational* (mpq_t) 类型的互操作。
+ *
+ * 主要 API：
+ *   - lv00_rational_create / destroy          — 创建/销毁有理数
+ *   - lv00_rational_add / sub / mul / div     — 精确四则运算
+ *   - lv00_rational_cmp / equal / is_zero     — 比较操作
+ *   - lv00_rational_to_double                 — 转 double（标注精度损失）
+ *   - lv00_rational_to_string / from_string   — 序列化/反序列化
+ *   - lv00_rational_from_mpq / to_mpq         — 与 mpq_t 互操作
+ *   - lv00_rational_mul_is_safe               — 乘法安全检查
+ *
+ * 使用示例：
+ *   Lv00Rational *a = lv00_rational_create_from_i64(3, 4);
+ *   Lv00Rational *b = lv00_rational_create_from_i64(1, 2);
+ *   Lv00Rational *sum = lv00_rational_add(a, b);
+ *   char *s = lv00_rational_to_string(sum);  // "5/4"
+ *
+ * @version v1.0.0
+ * ======================================================================== */
+
 /**
  * @file rational.h
  * @brief 有理数精确类型 —— 基于 GMP mpz_t 的有理数运算
- *
- * @details 提供基于 GMP 多精度整数的有理数类型 Lv00Rational。
- *          所有运算均为精确，不会产生浮点舍入。
- *
- *          设计决策：
- *          - 使用 mpz_t (而非 mpq_t) 直接存储分子/分母，以获得对
- *            分母正常化和溢出检测的完全控制。
- *          - 分母始终 > 0（规范化符号约定）。
- *          - 分子和分母始终互质（gcd = 1），通过 simplify 保证。
- *          - create/destroy 模式匹配 Lv-00 的内存管理惯例。
- *
- *          与项目现有代码的兼容性：
- *          - 可与 Rational* (symbolic_coord.h 中的 mpq_t 型) 互转
- *          - 可与 mpz_poly_t 系数数组（mpz_t*）配合使用
- *          - 零依赖额外的第三方库，仅需 GMP
- *
- * @author Lv-00 Project
- * @version v1.0.0
- * @date 2026-05-24
  */
 
 #ifndef LV00_RATIONAL_H

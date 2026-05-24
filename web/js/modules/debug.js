@@ -1,10 +1,14 @@
 /**
- * debug.js - DEBUG 调试模块方法
+ * @file debug.js
+ * @brief DEBUG 调试模块方法
+ * @description 实现 Lv-00 调试系统的前端操作方法，挂载到 Lv00WebApp.prototype 上。
+ *              包括显示性能计数器、生成完整调试报告、重置计数器等功能。
+ *              调试报告涵盖后端状态、性能指标、视图参数、模块状态等关键信息。
  *
- * 实现调试模块的操作方法，包括显示计数器、生成调试报告、
- * 重置计数器等。
- *
- * 依赖：Lv00WebApp 构造函数、ui.js
+ * @module debug
+ * @requires Lv00WebApp 构造函数（app.js）
+ * @requires ui.js（appendLog, showInfo 等方法）
+ * @since 3.0.0
  */
 (function() {
     'use strict';
@@ -125,10 +129,9 @@
         // 输出到日志
         this.appendLog(report, 'info');
 
-        // 同时输出到标准调试报告UI（如果绑定了 _showDebugReport）
-        if (typeof this._showDebugReport === 'function') {
-            this._showDebugReport();
-        }
+        // fix: 不再调用 _showDebugReport()，避免重复日志输出。
+        //      debugReport() 已包含完整报告，_showDebugReport() 仅输出简化版，
+        //      两者同时写入日志会导致双重输出。如需 UI 面板展示，可单独调用 _showDebugReport()。
 
         this.showInfo('调试报告已生成 / Debug report generated');
     };

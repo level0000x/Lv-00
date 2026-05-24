@@ -8,6 +8,13 @@
  *   - 根式规范化
  *   - Groebner 基计算
  *
+ * 【内存管理策略说明】
+ * 本模块使用标准 malloc/free 而非 lv00_malloc/lv00_free 统一内存分配器，原因如下：
+ * 表达式规范化模块在处理过程中会创建大量临时 AST 节点、多项式项和中间结果，
+ * 这些临时对象数量庞大且生命周期极短（仅在单次规范化调用内有效）。
+ * 若全部通过 lv00 内存池分配，会显著增加内存池压力，导致池频繁扩容和碎片化。
+ * 使用标准分配器可让操作系统更高效地回收这些短生命周期内存。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */
@@ -17,6 +24,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* [Bug修复] 引入 lv00_strlcpy 安全字符串函数 */
+#include "lv00_utils.h"
 
 /* ============== 内部常量 ============== */
 
@@ -29,15 +39,15 @@
 /* ============== 多项式操作实现 ============== */
 
 Lv00Polynomial *lv00_poly_create(void) {
-    Lv00Polynomial *poly = (Lv00Polynomial *)malloc(sizeof(Lv00Polynomial));
+    Lv00Polynomial *poly = (Lv00Polynomial *)lv00_malloc(sizeof(Lv00Polynomial));
     if (!poly) {
         return NULL;
     }
     memset(poly, 0, sizeof(Lv00Polynomial));
 
-    poly->terms = (Lv00PolyTerm *)malloc(POLY_INIT_CAPACITY * sizeof(Lv00PolyTerm));
+    poly->terms = (Lv00PolyTerm *)lv00_malloc(POLY_INIT_CAPACITY * sizeof(Lv00PolyTerm));
     if (!poly->terms) {
-        free(poly);
+        lv00_free((void **) &poly);
         return NULL;
     }
     poly->capacity = POLY_INIT_CAPACITY;
@@ -53,11 +63,11 @@ void lv00_poly_destroy(Lv00Polynomial *poly) {
 
     for (uint32_t i = 0; i < poly->term_count; i++) {
         mpq_clear(poly->terms[i].coeff);
-        free(poly->terms[i].vars);
-        free(poly->terms[i].exponents);
+        lv00_free((void **) &poly->terms[i].vars);
+        lv00_free((void **) &poly->terms[i].exponents);
     }
-    free(poly->terms);
-    free(poly);
+    lv00_free((void **) &poly->terms);
+    lv00_free((void **) &poly);
 }
 
 Lv00Polynomial *lv00_poly_copy(const Lv00Polynomial *src) {
@@ -96,7 +106,7 @@ bool lv00_poly_add_term(Lv00Polynomial *poly, const mpq_t coeff,
     /* 扩容 */
     if (poly->term_count >= poly->capacity) {
         uint32_t new_cap = poly->capacity * 2;
-        Lv00PolyTerm *new_terms = (Lv00PolyTerm *)realloc(poly->terms,
+        Lv00PolyTerm *new_terms = (Lv00PolyTerm *)lv00_realloc(poly->terms,
                                                            new_cap * sizeof(Lv00PolyTerm));
         if (!new_terms) {
             return false;
@@ -116,8 +126,8 @@ bool lv00_poly_add_term(Lv00Polynomial *poly, const mpq_t coeff,
     term->capacity = var_count > 0 ? var_count : TERM_INIT_VAR_CAPACITY;
 
     if (var_count > 0 && vars && exponents) {
-        term->vars = (Lv00VarId *)malloc(term->capacity * sizeof(Lv00VarId));
-        term->exponents = (uint32_t *)malloc(term->capacity * sizeof(uint32_t));
+        term->vars = (Lv00VarId *)lv00_malloc(term->capacity * sizeof(Lv00VarId));
+        term->exponents = (uint32_t *)lv00_malloc(term->capacity * sizeof(uint32_t));
         if (!term->vars || !term->exponents) {
             mpq_clear(term->coeff);
             poly->term_count--;
@@ -214,8 +224,8 @@ void lv00_poly_merge_like_terms(Lv00Polynomial *poly) {
             /* 合并系数 */
             mpq_add(prev->coeff, prev->coeff, curr->coeff);
             mpq_clear(curr->coeff);
-            free(curr->vars);
-            free(curr->exponents);
+            lv00_free((void **) &curr->vars);
+            lv00_free((void **) &curr->exponents);
         } else {
             write_idx++;
             if (write_idx != i) {
@@ -234,8 +244,8 @@ void lv00_poly_merge_like_terms(Lv00Polynomial *poly) {
             final_count++;
         } else {
             mpq_clear(poly->terms[i].coeff);
-            free(poly->terms[i].vars);
-            free(poly->terms[i].exponents);
+            lv00_free((void **) &poly->terms[i].vars);
+            lv00_free((void **) &poly->terms[i].exponents);
         }
     }
 
@@ -320,12 +330,12 @@ Lv00Polynomial *lv00_poly_mul(const Lv00Polynomial *a, const Lv00Polynomial *b) 
 
             /* 合并变量 */
             uint32_t max_vars = ta->var_count + tb->var_count;
-            Lv00VarId *vars = (Lv00VarId *)malloc(max_vars * sizeof(Lv00VarId));
-            uint32_t *exps = (uint32_t *)malloc(max_vars * sizeof(uint32_t));
+            Lv00VarId *vars = (Lv00VarId *)lv00_malloc(max_vars * sizeof(Lv00VarId));
+            uint32_t *exps = (uint32_t *)lv00_malloc(max_vars * sizeof(uint32_t));
 
             if (!vars || !exps) {
-                free(vars);
-                free(exps);
+                lv00_free((void **) &vars);
+                lv00_free((void **) &exps);
                 continue;
             }
 
@@ -356,8 +366,8 @@ Lv00Polynomial *lv00_poly_mul(const Lv00Polynomial *a, const Lv00Polynomial *b) 
             }
 
             lv00_poly_add_term(result, product, vars, exps, var_count);
-            free(vars);
-            free(exps);
+            lv00_free((void **) &vars);
+            lv00_free((void **) &exps);
         }
     }
 
@@ -404,45 +414,56 @@ char *lv00_poly_to_string(const Lv00Polynomial *poly, const char **var_names) {
     if (!poly || poly->term_count == 0) {
         char *result = (char *)malloc(2);
         if (result) {
-            strcpy(result, "0");
+            /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
+            lv00_strlcpy(result, "0", 2);
         }
         return result;
     }
 
-    /* 估算所需空间 */
+    /* [Bug修复] 改用动态增长的字符串构建方式，避免固定缓冲区溢出风险。
+     * 使用 snprintf 直接写入偏移位置，避免 strcat/strncat 的重复扫描开销。 */
     size_t size = 256 * poly->term_count;
     char *result = (char *)malloc(size);
     if (!result) {
         return NULL;
     }
     result[0] = '\0';
+    size_t pos = 0;  /* 当前写入位置 */
 
     for (uint32_t i = 0; i < poly->term_count; i++) {
         const Lv00PolyTerm *term = &poly->terms[i];
 
         if (i > 0) {
-            strcat(result, " + ");
+            int written = snprintf(result + pos, size - pos, " + ");
+            if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
+            else pos += (size_t)written;
         }
 
         /* 输出系数 */
         char coeff_str[64];
         gmp_sprintf(coeff_str, "%Qd", term->coeff);
-        strcat(result, coeff_str);
+        int written = snprintf(result + pos, size - pos, "%s", coeff_str);
+        if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
+        else pos += (size_t)written;
 
         /* 输出变量 */
         for (uint32_t j = 0; j < term->var_count; j++) {
-            strcat(result, "*");
+            written = snprintf(result + pos, size - pos, "*");
+            if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
+            else pos += (size_t)written;
+
             if (var_names && term->vars[j].id < 100) {
-                strcat(result, var_names[term->vars[j].id]);
+                written = snprintf(result + pos, size - pos, "%s", var_names[term->vars[j].id]);
             } else {
-                char var_str[32];
-                snprintf(var_str, sizeof(var_str), "x%u", term->vars[j].id);
-                strcat(result, var_str);
+                written = snprintf(result + pos, size - pos, "x%u", term->vars[j].id);
             }
+            if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
+            else pos += (size_t)written;
+
             if (term->exponents[j] > 1) {
-                char exp_str[16];
-                snprintf(exp_str, sizeof(exp_str), "^%u", term->exponents[j]);
-                strcat(result, exp_str);
+                written = snprintf(result + pos, size - pos, "^%u", term->exponents[j]);
+                if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
+                else pos += (size_t)written;
             }
         }
     }
@@ -457,7 +478,7 @@ Lv00RadicalExpr *lv00_radical_create(const mpq_t coeff, const mpz_t radicand, ui
         return NULL;
     }
 
-    Lv00RadicalExpr *rad = (Lv00RadicalExpr *)malloc(sizeof(Lv00RadicalExpr));
+    Lv00RadicalExpr *rad = (Lv00RadicalExpr *)lv00_malloc(sizeof(Lv00RadicalExpr));
     if (!rad) {
         return NULL;
     }
@@ -479,7 +500,7 @@ void lv00_radical_destroy(Lv00RadicalExpr *rad) {
     }
     mpq_clear(rad->coeff);
     mpz_clear(rad->radicand);
-    free(rad);
+    lv00_free((void **) &rad);
 }
 
 bool lv00_is_perfect_square(const mpz_t n, mpz_t out_root) {
@@ -591,7 +612,7 @@ bool lv00_radical_try_expand(const Lv00RadicalExpr *rad, Lv00Expr **out_expanded
 /* ============== 通用表达式操作实现 ============== */
 
 Lv00Expr *lv00_expr_create_int(const mpz_t val) {
-    Lv00Expr *expr = (Lv00Expr *)malloc(sizeof(Lv00Expr));
+    Lv00Expr *expr = (Lv00Expr *)lv00_malloc(sizeof(Lv00Expr));
     if (!expr) {
         return NULL;
     }
@@ -604,7 +625,7 @@ Lv00Expr *lv00_expr_create_int(const mpz_t val) {
 }
 
 Lv00Expr *lv00_expr_create_rational(const mpq_t val) {
-    Lv00Expr *expr = (Lv00Expr *)malloc(sizeof(Lv00Expr));
+    Lv00Expr *expr = (Lv00Expr *)lv00_malloc(sizeof(Lv00Expr));
     if (!expr) {
         return NULL;
     }
@@ -617,7 +638,7 @@ Lv00Expr *lv00_expr_create_rational(const mpq_t val) {
 }
 
 Lv00Expr *lv00_expr_create_var(Lv00VarId var_id, const char *name) {
-    Lv00Expr *expr = (Lv00Expr *)malloc(sizeof(Lv00Expr));
+    Lv00Expr *expr = (Lv00Expr *)lv00_malloc(sizeof(Lv00Expr));
     if (!expr) {
         return NULL;
     }
@@ -639,7 +660,7 @@ Lv00Expr *lv00_expr_create_sum(Lv00Expr **operands, uint32_t count) {
         return NULL;
     }
 
-    Lv00Expr *expr = (Lv00Expr *)malloc(sizeof(Lv00Expr));
+    Lv00Expr *expr = (Lv00Expr *)lv00_malloc(sizeof(Lv00Expr));
     if (!expr) {
         return NULL;
     }
@@ -647,9 +668,9 @@ Lv00Expr *lv00_expr_create_sum(Lv00Expr **operands, uint32_t count) {
     expr->type = EXPR_TYPE_SUM;
     expr->data.composite.capacity = count;
     expr->data.composite.count = count;
-    expr->data.composite.operands = (Lv00Expr **)malloc(count * sizeof(Lv00Expr *));
+    expr->data.composite.operands = (Lv00Expr **)lv00_malloc(count * sizeof(Lv00Expr *));
     if (!expr->data.composite.operands) {
-        free(expr);
+        lv00_free((void **) &expr);
         return NULL;
     }
     memcpy(expr->data.composite.operands, operands, count * sizeof(Lv00Expr *));
@@ -662,7 +683,7 @@ Lv00Expr *lv00_expr_create_product(Lv00Expr **operands, uint32_t count) {
         return NULL;
     }
 
-    Lv00Expr *expr = (Lv00Expr *)malloc(sizeof(Lv00Expr));
+    Lv00Expr *expr = (Lv00Expr *)lv00_malloc(sizeof(Lv00Expr));
     if (!expr) {
         return NULL;
     }
@@ -670,9 +691,9 @@ Lv00Expr *lv00_expr_create_product(Lv00Expr **operands, uint32_t count) {
     expr->type = EXPR_TYPE_PRODUCT;
     expr->data.composite.capacity = count;
     expr->data.composite.count = count;
-    expr->data.composite.operands = (Lv00Expr **)malloc(count * sizeof(Lv00Expr *));
+    expr->data.composite.operands = (Lv00Expr **)lv00_malloc(count * sizeof(Lv00Expr *));
     if (!expr->data.composite.operands) {
-        free(expr);
+        lv00_free((void **) &expr);
         return NULL;
     }
     memcpy(expr->data.composite.operands, operands, count * sizeof(Lv00Expr *));
@@ -706,7 +727,7 @@ void lv00_expr_destroy(Lv00Expr *expr) {
             for (uint32_t i = 0; i < expr->data.composite.count; i++) {
                 lv00_expr_destroy(expr->data.composite.operands[i]);
             }
-            free(expr->data.composite.operands);
+            lv00_free((void **) &expr->data.composite.operands);
             break;
         case EXPR_TYPE_POWER:
             lv00_expr_destroy(expr->data.power.base);
@@ -716,13 +737,13 @@ void lv00_expr_destroy(Lv00Expr *expr) {
             for (uint32_t i = 0; i < expr->data.func.arg_count; i++) {
                 lv00_expr_destroy(expr->data.func.args[i]);
             }
-            free(expr->data.func.args);
+            lv00_free((void **) &expr->data.func.args);
             break;
         default:
             break;
     }
 
-    free(expr);
+    lv00_free((void **) &expr);
 }
 
 Lv00Expr *lv00_expr_copy(const Lv00Expr *src) {
@@ -743,7 +764,7 @@ Lv00Expr *lv00_expr_copy(const Lv00Expr *src) {
             return copy;
         }
         case EXPR_TYPE_POLYNOMIAL: {
-            Lv00Expr *copy = (Lv00Expr *)malloc(sizeof(Lv00Expr));
+            Lv00Expr *copy = (Lv00Expr *)lv00_malloc(sizeof(Lv00Expr));
             if (copy) {
                 copy->type = EXPR_TYPE_POLYNOMIAL;
                 copy->data.poly = lv00_poly_copy(src->data.poly);
@@ -765,22 +786,23 @@ char *lv00_expr_to_string(const Lv00Expr *expr) {
 
     switch (expr->type) {
         case EXPR_TYPE_INTEGER:
-            result = (char *)malloc(128);
+            result = (char *)lv00_malloc(128);
             if (result) {
                 gmp_sprintf(result, "%Zd", expr->data.int_val);
             }
             break;
         case EXPR_TYPE_RATIONAL:
-            result = (char *)malloc(128);
+            result = (char *)lv00_malloc(128);
             if (result) {
                 gmp_sprintf(result, "%Qd", expr->data.rational_val);
             }
             break;
         case EXPR_TYPE_VARIABLE:
-            result = (char *)malloc(64);
+            result = (char *)lv00_malloc(64);
             if (result) {
                 if (expr->data.var.name[0]) {
-                    strcpy(result, expr->data.var.name);
+                    /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
+                    lv00_strlcpy(result, expr->data.var.name, 64);
                 } else {
                     snprintf(result, 64, "x%u", expr->data.var.id);
                 }
@@ -789,9 +811,10 @@ char *lv00_expr_to_string(const Lv00Expr *expr) {
         case EXPR_TYPE_POLYNOMIAL:
             return lv00_poly_to_string(expr->data.poly, NULL);
         default:
-            result = (char *)malloc(32);
+            result = (char *)lv00_malloc(32);
             if (result) {
-                strcpy(result, "(complex expr)");
+                /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
+                lv00_strlcpy(result, "(complex expr)", 32);
             }
             break;
     }
@@ -802,7 +825,7 @@ char *lv00_expr_to_string(const Lv00Expr *expr) {
 /* ============== 规范化上下文实现 ============== */
 
 Lv00CanonicalContext *lv00_canonical_ctx_create(void) {
-    Lv00CanonicalContext *ctx = (Lv00CanonicalContext *)malloc(sizeof(Lv00CanonicalContext));
+    Lv00CanonicalContext *ctx = (Lv00CanonicalContext *)lv00_malloc(sizeof(Lv00CanonicalContext));
     if (!ctx) {
         return NULL;
     }
@@ -815,7 +838,7 @@ Lv00CanonicalContext *lv00_canonical_ctx_create(void) {
 }
 
 void lv00_canonical_ctx_destroy(Lv00CanonicalContext *ctx) {
-    free(ctx);
+    lv00_free((void **) &ctx);
 }
 
 void lv00_get_default_options(Lv00CanonicalOptions *options) {
@@ -848,7 +871,7 @@ Lv00RationalExpr *lv00_rat_expr_create(Lv00Polynomial *numerator, Lv00Polynomial
         return NULL;
     }
 
-    Lv00RationalExpr *expr = (Lv00RationalExpr *)malloc(sizeof(Lv00RationalExpr));
+    Lv00RationalExpr *expr = (Lv00RationalExpr *)lv00_malloc(sizeof(Lv00RationalExpr));
     if (!expr) {
         return NULL;
     }
@@ -867,7 +890,7 @@ void lv00_rat_expr_destroy(Lv00RationalExpr *expr) {
     if (expr->denominator) {
         lv00_poly_destroy(expr->denominator);
     }
-    free(expr);
+    lv00_free((void **) &expr);
 }
 
 void lv00_rat_expr_simplify(Lv00RationalExpr *expr) {
@@ -1001,7 +1024,7 @@ bool lv00_compute_groebner_basis(Lv00Polynomial **polys, uint32_t poly_count,
     }
 
     /* 简化实现：直接返回输入多项式 */
-    *out_basis = (Lv00Polynomial **)malloc(poly_count * sizeof(Lv00Polynomial *));
+    *out_basis = (Lv00Polynomial **)lv00_malloc(poly_count * sizeof(Lv00Polynomial *));
     if (!*out_basis) {
         return false;
     }

@@ -1,61 +1,95 @@
 /**
- * Lv-00 Formula Renderer（优化版）
- * 使用 KaTeX CDN 渲染数学公式
- *
- * @description 动态加载 KaTeX CDN 资源，提供数学公式的
- *              客户端渲染能力。支持 LaTeX 公式的实时渲染。
- * @module FormulaRenderer
- * @version 1.0.0
- *
- * 严格 ES5 语法（无 class, const, let, arrow functions, template literals,
- * destructuring, default params, spread）
+ * @file formula_renderer.js
+ * @brief 公式渲染器（Formula Renderer）
+ * @description 使用 KaTeX CDN 动态加载并渲染数学公式。
+ *              提供公式的客户端渲染能力，支持 LaTeX 公式的实时渲染和公式卡片生成。
+ *              内部通过动态创建 <script> 和 <link> 标签加载 KaTeX 资源，
+ *              加载完成后执行回调队列中等待的渲染任务。
  *
  * 用法：
  *   FormulaRenderer.init(function() {
  *       FormulaRenderer.renderToElement(el, '\\frac{1}{2}', true);
  *   });
+ *
+ * @module FormulaRenderer
+ * @version 1.0.0
+ * @requires 严格 ES5 语法（无 class, const, let, arrow functions, template literals,
+ *            destructuring, default params, spread）
  */
 
 var FormulaRenderer = (function() {
     'use strict';
 
     // ---- 内部状态 ----
-    var _ready = false;
-    var _lastError = null;
-    var _initCallbacks = [];
-    var _loading = false;
+    var _ready = false;           // KaTeX 是否加载完成
+    var _lastError = null;        // 最近一次错误信息
+    var _initCallbacks = [];      // 初始化回调队列（KaTeX 加载完成后依次执行）
+    var _loading = false;         // 是否正在加载 KaTeX 资源
+    var _CDN_TIMEOUT = 15000;     // CDN 资源加载超时时间（毫秒）
 
     // ---- 工具函数 ----
 
     /**
-     * 动态加载 CSS 文件
+     * 动态加载 CSS 文件（带超时机制）
+     * @param {string} url - CSS 文件的 URL 地址
+     * @param {Function} [callback] - 加载完成后的回调函数，参数为 (error)
      */
-    function _loadCSS(url) {
+    function _loadCSS(url, callback) {
         var link = document.createElement('link');
         link.rel = 'stylesheet';
         link.type = 'text/css';
         link.href = url;
+
+        if (callback) {
+            var timeout = setTimeout(function() {
+                callback(new Error('加载样式超时 (' + _CDN_TIMEOUT + 'ms): ' + url));
+                if (link.parentNode) link.parentNode.removeChild(link);
+            }, _CDN_TIMEOUT);
+
+            link.onload = function() {
+                clearTimeout(timeout);
+                callback(null);
+            };
+            link.onerror = function() {
+                clearTimeout(timeout);
+                callback(new Error('加载样式失败: ' + url));
+            };
+        }
+
         document.head.appendChild(link);
     }
 
     /**
-     * 动态加载 JS 文件（回调风格）
+     * 动态加载 JS 文件（回调风格，带超时机制）
+     * @param {string} url - JS 文件的 URL 地址
+     * @param {Function} callback - 加载完成后的回调函数，参数为 (error)
      */
     function _loadScript(url, callback) {
         var script = document.createElement('script');
         script.type = 'text/javascript';
         script.src = url;
+
+        /* 添加超时机制 */
+        var timeout = setTimeout(function() {
+            callback(new Error('加载脚本超时 (' + _CDN_TIMEOUT + 'ms): ' + url));
+            if (script.parentNode) script.parentNode.removeChild(script);
+        }, _CDN_TIMEOUT);
+
         script.onload = function() {
+            clearTimeout(timeout);
             callback(null);
         };
         script.onerror = function() {
-            callback(new Error('Failed to load script: ' + url));
+            clearTimeout(timeout);
+            callback(new Error('加载脚本失败: ' + url));
         };
         document.head.appendChild(script);
     }
 
     /**
      * 确保容器元素存在
+     * @param {HTMLElement|string} el - DOM 元素或元素 ID 字符串
+     * @returns {boolean} 元素是否存在且有效
      */
     function _ensureElement(el) {
         if (!el) {
@@ -63,9 +97,10 @@ var FormulaRenderer = (function() {
             return false;
         }
         if (typeof el === 'string') {
-            el = document.getElementById(el);
+            var elId = el; // 保存原始 ID 字符串，避免被 getElementById 返回值覆盖
+            el = document.getElementById(elId);
             if (!el) {
-                _lastError = 'Element not found by id: ' + el;
+                _lastError = 'Element not found by id: ' + elId;
                 return false;
             }
         }
@@ -73,7 +108,12 @@ var FormulaRenderer = (function() {
     }
 
     /**
-     * 创建公式卡片 DOM
+     * 创建公式卡片 DOM 元素
+     * @param {Object} formula - 公式配置对象
+     * @param {string} [formula.label] - 公式标签文本
+     * @param {string} formula.latex - LaTeX 公式字符串
+     * @param {boolean} [formula.displayMode=true] - 是否使用显示模式（块级公式）
+     * @returns {HTMLElement} 公式卡片 DOM 元素
      */
     function _createFormulaCard(formula) {
         var card = document.createElement('div');
@@ -271,8 +311,13 @@ var FormulaRenderer = (function() {
             _lastError = null;
             _injectStyles();
 
-            // 加载 KaTeX CSS
-            _loadCSS('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css');
+            // 加载 KaTeX CSS（带超时回调，CSS 加载失败不阻塞 JS 加载）
+            _loadCSS('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css', function(cssErr) {
+                if (cssErr) {
+                    _lastError = cssErr.message;
+                    console.warn('[FormulaRenderer] ' + cssErr.message);
+                }
+            });
 
             // 加载 KaTeX JS
             _loadScript('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js', function(err) {

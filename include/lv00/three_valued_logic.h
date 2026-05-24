@@ -1,27 +1,30 @@
+/* ========================================================================
+ * 模块名称：三值逻辑系统 (three_valued_logic)
+ * 功能概述：引入 Kleene 强三值逻辑，扩展 Lv-00 原有的 TRUE/FALSE 二值
+ *          系统。支持三种真值：LV00_TRUE（已证真）、LV00_FALSE（已证伪）、
+ *          LV00_UNKNOWN（未确定）。提供完整的真值表运算（AND/OR/NOT/
+ *          IMPLIES/EQUIV）、批量归约操作和二值/三值转换。
+ *          应用于证明子目标未解决时的真值标注和无限域量词评估。
+ *
+ * 主要 API：
+ *   - lv00_tvl_and / or / not / implies / equiv  — 基本逻辑运算
+ *   - lv00_tvl_and_all / or_all                   — 批量归约
+ *   - lv00_tvl_is_known / is_true / is_false      — 判定辅助
+ *   - lv00_tvl_to_bool_conservative / optimistic  — 转布尔值
+ *   - lv00_tvl_to_string / to_string_zh           — 字符串转换
+ *   - lv00_tvl_from_bool                          — 布尔转三值
+ *
+ * 使用示例：
+ *   Lv00TruthValue a = LV00_TRUE, b = LV00_UNKNOWN;
+ *   Lv00TruthValue r = lv00_tvl_and(a, b);  // LV00_UNKNOWN
+ *   bool known = lv00_tvl_is_known(r);       // false
+ *
+ * @version 1.0.0
+ * ======================================================================== */
+
 /**
  * @file three_valued_logic.h
  * @brief 三值逻辑系统 —— 真、假、未知三态推理
- *
- * @details 针对 Lv-00 当前仅有 TRUE/FALSE 二值逻辑的局限，
- *          引入 Kleene 三值逻辑，支持：
- *          - LV00_TRUE:   已证真（构造性证明）
- *          - LV00_FALSE:  已证伪（有反例或矛盾）
- *          - LV00_UNKNOWN: 未确定（尚未证明真假）
- *
- *          真值表遵循 Kleene 强三值逻辑语义：
- *          - AND:  任何 FALSE 导致 FALSE，全 TRUE 才 TRUE，否则 UNKNOWN
- *          - OR:   任何 TRUE 导致 TRUE，全 FALSE 才 FALSE，否则 UNKNOWN
- *          - NOT:  取反（UNKNOWN 的否仍是 UNKNOWN）
- *          - IMPLIES:  ¬A ∨ B 的 Kleene 扩展
- *          - EQUIV:   (A→B) ∧ (B→A) 的 Kleene 扩展
- *
- *          应用场景：
- *          - 证明中某些子目标尚未解决时，使用 UNKNOWN 而非回退到二元假设
- *          - 量词在无限域上的真值评估（如 "∀x.P(x)" 在无限域上无法完全枚举时）
- *          - 条件性不可构造问题的真值标注
- *
- * @author Lv-00 Project
- * @version 1.0.0
  */
 
 #ifndef LV00_THREE_VALUED_LOGIC_H

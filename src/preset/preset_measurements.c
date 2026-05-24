@@ -315,7 +315,6 @@ bool preset_measurements_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count)
         return false;
 
-    *out_count = MEASUREMENTS_PRESET_COUNT;
     *out_names = (char **) lv00_malloc((size_t) MEASUREMENTS_PRESET_COUNT * sizeof(char *));
     if (!*out_names)
         return false;
@@ -347,12 +346,19 @@ bool preset_measurements_get_names(char ***out_names, int *out_count) {
         if (!(*out_names)[i]) {
             /* 回滚已分配的内存 */
             for (int j = 0; j < i; j++) {
-                lv00_free((void **) &(*out_names)[j]);
+                {
+                    void *tmp = (*out_names)[j];
+                    lv00_free(&tmp);
+                }
             }
-            lv00_free((void **) out_names);
+            {
+                void *tmp = *out_names;
+                lv00_free(&tmp);
+            }
             return false;
         }
     }
 
+    *out_count = MEASUREMENTS_PRESET_COUNT;
     return true;
 }

@@ -354,67 +354,117 @@ extern "C" {
 /* ── 曲线论 ── */
 
 /** @brief 弧长参数化：将曲线转换为弧长参数 gamma(s) */
+#ifndef PRESET_DG_ARC_LENGTH_PARAM
 #define PRESET_DG_ARC_LENGTH_PARAM "dg_arc_length_param"
+#endif
 /** @brief Frenet 标架：计算曲线的 Frenet-Serret 标架 (T, N, B) */
+#ifndef PRESET_DG_FRENET_FRAME
 #define PRESET_DG_FRENET_FRAME "dg_frenet_frame"
+#endif
 /** @brief 曲率计算：计算空间曲线的曲率 kappa(s) */
+#ifndef PRESET_DG_CURVATURE
 #define PRESET_DG_CURVATURE "dg_curvature"
+#endif
 /** @brief 挠率计算：计算空间曲线的挠率 tau(s) */
+#ifndef PRESET_DG_TORSION
 #define PRESET_DG_TORSION "dg_torsion"
+#endif
 /** @brief Bertrand 曲线判定：判定一对曲线是否为 Bertrand 曲线 */
+#ifndef PRESET_DG_BERTRAND_CURVE
 #define PRESET_DG_BERTRAND_CURVE "dg_bertrand_curve"
+#endif
 
 /* ── 曲面论 ── */
 
 /** @brief 第一基本形式：计算曲面 Riemann 度量矩阵 (E, F, G) */
+#ifndef PRESET_DG_FIRST_FUNDAMENTAL_FORM
 #define PRESET_DG_FIRST_FUNDAMENTAL_FORM "dg_first_fundamental_form"
+#endif
 /** @brief 第二基本形式：计算曲面弯曲度量矩阵 (L, M, N) */
+#ifndef PRESET_DG_SECOND_FUNDAMENTAL_FORM
 #define PRESET_DG_SECOND_FUNDAMENTAL_FORM "dg_second_fundamental_form"
+#endif
 /** @brief 高斯曲率：计算曲面 Gauss 曲率 K = kappa_1 * kappa_2 */
+#ifndef PRESET_DG_GAUSS_CURVATURE
 #define PRESET_DG_GAUSS_CURVATURE "dg_gauss_curvature"
+#endif
 /** @brief 平均曲率：计算平均曲率 H = (kappa_1 + kappa_2) / 2 */
+#ifndef PRESET_DG_MEAN_CURVATURE
 #define PRESET_DG_MEAN_CURVATURE "dg_mean_curvature"
+#endif
 /** @brief 主曲率：计算曲面的两个主曲率 kappa_1, kappa_2 */
+#ifndef PRESET_DG_PRINCIPAL_CURVATURES
 #define PRESET_DG_PRINCIPAL_CURVATURES "dg_principal_curvatures"
+#endif
 /** @brief Weingarten 映射：计算曲面形状算子 S = -(第一基本形式)^{-1} * (第二基本形式) */
+#ifndef PRESET_DG_WEINGARTEN_MAP
 #define PRESET_DG_WEINGARTEN_MAP "dg_weingarten_map"
+#endif
 
 /* ── 联络与曲率 ── */
 
 /** @brief Levi-Civita 联络：计算 Riemann 流形上唯一无挠度量相容联络 */
+#ifndef PRESET_DG_LEVI_CIVITA_CONNECTION
 #define PRESET_DG_LEVI_CIVITA_CONNECTION "dg_levi_civita_connection"
+#endif
 /** @brief Riemann 曲率张量：计算 (3,1) 型曲率张量 R^l_{ijk} */
+#ifndef PRESET_DG_RIEMANN_CURVATURE
 #define PRESET_DG_RIEMANN_CURVATURE "dg_riemann_curvature"
+#endif
 /** @brief Ricci 曲率张量：R_{ij} = R^k_{ikj}，Riemann 张量的缩并 */
+#ifndef PRESET_DG_RICCI_CURVATURE
 #define PRESET_DG_RICCI_CURVATURE "dg_ricci_curvature"
+#endif
 /** @brief 截面曲率：二维截面的截面曲率 K(X,Y) */
+#ifndef PRESET_DG_SECTIONAL_CURVATURE
 #define PRESET_DG_SECTIONAL_CURVATURE "dg_sectional_curvature"
+#endif
 /** @brief 标量曲率：R = g^{ij} * R_{ij}，Ricci 曲率的进一步缩并 */
+#ifndef PRESET_DG_SCALAR_CURVATURE
 #define PRESET_DG_SCALAR_CURVATURE "dg_scalar_curvature"
+#endif
 
 /* ── 测地线 ── */
 
 /** @brief 测地线方程：求解 nabla_{gamma'} gamma' = 0 的微分方程 */
+#ifndef PRESET_DG_GEODESIC_EQUATION
 #define PRESET_DG_GEODESIC_EQUATION "dg_geodesic_equation"
+#endif
 /** @brief 指数映射 exp_p: T_pM → M，沿测地线映射切向量到流形 */
+#ifndef PRESET_DG_EXPONENTIAL_MAP
 #define PRESET_DG_EXPONENTIAL_MAP "dg_exponential_map"
+#endif
 /** @brief Jacobi 场：沿测地线的变分向量场，满足 Jacobi 方程 */
+#ifndef PRESET_DG_JACOBI_FIELD
 #define PRESET_DG_JACOBI_FIELD "dg_jacobi_field"
+#endif
 /** @brief 共轭点：沿测地线存在非平凡 Jacobi 场的点 */
+#ifndef PRESET_DG_CONJUGATE_POINTS
 #define PRESET_DG_CONJUGATE_POINTS "dg_conjugate_points"
+#endif
 
 /* ── 张量分析 ── */
 
 /** @brief 张量积：(T ⊗ S)^{i_1...i_p i_{p+1}...}_{j_1...j_q j_{q+1}...} */
+#ifndef PRESET_DG_TENSOR_PRODUCT
 #define PRESET_DG_TENSOR_PRODUCT "dg_tensor_product"
+#endif
 /** @brief 协变导数：nabla_k T^{i_1...}_{j_1...}，保持张量性的求导运算 */
+#ifndef PRESET_DG_COVARIANT_DERIVATIVE
 #define PRESET_DG_COVARIANT_DERIVATIVE "dg_covariant_derivative"
+#endif
 /** @brief Lie 导数：L_X Y = [X, Y]，沿向量场的李导数 */
+#ifndef PRESET_DG_LIE_DERIVATIVE
 #define PRESET_DG_LIE_DERIVATIVE "dg_lie_derivative"
+#endif
 /** @brief 外微分：d(omega)，微分形式的反对称化外导算子 */
+#ifndef PRESET_DG_EXTERIOR_DERIVATIVE
 #define PRESET_DG_EXTERIOR_DERIVATIVE "dg_exterior_derivative"
+#endif
 /** @brief Hodge 星算子：*omega，微分形式的对偶变换 */
+#ifndef PRESET_DG_HODGE_STAR
 #define PRESET_DG_HODGE_STAR "dg_hodge_star"
+#endif
 
 /* ============================================================
  * 模块注册函数

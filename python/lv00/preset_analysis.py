@@ -10,7 +10,7 @@ Lv-00 预设函数块模块 - 分析与三角形构造
     2. 支持符号计算，保持精确性
     3. 提供完整的中文文档和数学描述
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
@@ -708,7 +708,7 @@ def create_incenter(graph: 'Graph', a: 'Point', b: 'Point', c: 'Point') -> 'Poin
         raise ValueError("三点共线，无法构成三角形")
     
     # 计算边长
-    # 修复：使用 side_a/side_b/side_c 避免覆盖函数参数 a/b/c
+    # 使用 side_a/side_b/side_c 避免覆盖函数参数 a/b/c
     # side_a = |BC|, side_b = |CA|, side_c = |AB|
     side_a = b.distance_to(c)
     side_b = c.distance_to(a)

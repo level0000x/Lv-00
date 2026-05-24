@@ -23,6 +23,13 @@
 #include "error_codes.h"
 #include "constraint_graph.h"
 
+/** CDCL 求解器最大决策次数，超过此限制强制终止以避免无限循环 */
+#define CDCL_MAX_DECISIONS     1000
+/** CDCL 求解器主循环最大步数 */
+#define CDCL_MAX_STEPS         1000
+/** CDCL 求解器最大重启次数 */
+#define CDCL_MAX_RESTARTS      10
+
 /* ========================================================================
  * 内部常量
  * ======================================================================== */
@@ -80,8 +87,42 @@ struct Lv00Solver {
  * 内部辅助 —— 确保容量
  * ======================================================================== */
 
+/**
+ * @brief 通用数组容量确保函数
+ *
+ * 检查数组当前容量是否满足需求，若不足则以几何增长策略扩容。
+ * 采用安全的 realloc 模式：扩容失败时原指针不会被丢失。
+ *
+ * @param arr        指向数组指针的指针（二级指针，用于更新调用者的指针）
+ * @param capacity   指向当前容量的指针（扩容成功后会被更新）
+ * @param required   需要的最小元素个数
+ * @param elem_size  每个元素的字节大小
+ *
+ * @return 1 表示容量充足或扩容成功，0 表示扩容失败（内存不足或溢出）
+ *
+ * @note 扩容策略：容量为0时初始化为 DEFAULT_CLAUSE_CAPACITY，
+ *       否则以 LV00_ARRAY_GROWTH_FACTOR 倍增长，但至少满足 required。
+ *       扩容前会检查乘法是否导致整数溢出。
+ */
+static int ensure_array_cap(void **arr, int *capacity, int required, size_t elem_size) {
+    if (required <= *capacity) return 1;
+    if (*capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) return 0;
+    int new_cap = (*capacity == 0) ? DEFAULT_CLAUSE_CAPACITY : *capacity * LV00_ARRAY_GROWTH_FACTOR;
+    if (new_cap < required) new_cap = required;
+    void *new_ptr = lv00_realloc(*arr, (size_t)new_cap * elem_size);
+    if (!new_ptr) return 0;
+    *arr = new_ptr;
+    *capacity = new_cap;
+    return 1;
+}
+
 static bool ensure_clause_cap(Lv00Solver *s) {
+    /* 注：ensure_clause_cap 需要同时扩容 clauses 和 clause_sizes 两个数组，
+     * 无法直接使用 ensure_array_cap（通用函数只处理单数组）。
+     * 但 realloc 已使用临时变量模式，失败时不会丢失原指针。 */
     if (s->clause_count >= s->clause_capacity) {
+        /* 检查容量扩大的乘法是否会导致整数溢出 */
+        if (s->clause_capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) return false;
         int new_cap = (s->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY
                                                 : s->clause_capacity * LV00_ARRAY_GROWTH_FACTOR;
         int **new_c = (int **)lv00_realloc(s->clauses, (size_t)new_cap * sizeof(int *));
@@ -99,15 +140,8 @@ static bool ensure_clause_cap(Lv00Solver *s) {
 }
 
 static bool ensure_var_cap(Lv00Solver *s) {
-    if (s->var_count >= s->var_capacity) {
-        int new_cap = (s->var_capacity == 0) ? DEFAULT_VAR_CAPACITY
-                                             : s->var_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        int *new_v = (int *)lv00_realloc(s->values, (size_t)new_cap * sizeof(int));
-        if (!new_v) return false;
-        s->values = new_v;
-        s->var_capacity = new_cap;
-    }
-    return true;
+    return ensure_array_cap((void **)&s->values, &s->var_capacity,
+                            s->var_count + 1, sizeof(int));
 }
 
 /**
@@ -123,7 +157,7 @@ static void cdcl_context_init(CDCLContext *ctx) {
  * @brief 释放 CDCL 上下文中的动态数组
  */
 static void cdcl_context_destroy(CDCLContext *ctx) {
-    if (!ctx) return;
+    LV00_CHECK_NULL_VOID(ctx);
     lv00_free((void **)&ctx->assigns);
     lv00_free((void **)&ctx->levels);
     lv00_free((void **)&ctx->reasons);
@@ -212,7 +246,7 @@ Lv00Solver *lv00_solver_create_with_config(const Lv00SolverConfig *config) {
 }
 
 void lv00_solver_destroy(Lv00Solver *solver) {
-    if (!solver) return;
+    LV00_CHECK_NULL_VOID(solver);
 
     /* 释放变量 */
     lv00_free((void **)&solver->values);
@@ -256,6 +290,12 @@ Lv00SolverVar lv00_solver_new_vars(Lv00Solver *solver, int count) {
 
     /* 扩容变量数组 */
     while (solver->var_count + count > solver->var_capacity) {
+        /* 整数溢出检查：确保扩容不会超过 INT_MAX */
+        if (solver->var_capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
+            lv00_set_error_ctx(LV00_ERROR_OVERFLOW, __FILE__, __LINE__, __func__,
+                               "变量容量溢出: current=%d", solver->var_capacity);
+            return -1;
+        }
         int new_cap = solver->var_capacity * LV00_ARRAY_GROWTH_FACTOR;
         int *new_v = (int *)lv00_realloc(solver->values, (size_t)new_cap * sizeof(int));
         if (!new_v) return -1;
@@ -300,6 +340,26 @@ Lv00ConstraintId lv00_solver_add_constraint(Lv00Solver *solver,
 
     if (!ensure_clause_cap(solver)) return LV00_CONSTRAINT_ID_INVALID;
 
+    Lv00ConstraintId cid = solver->next_constraint_id;
+
+    /* 扩展 constraint_failed 数组（在添加子句之前，避免扩容失败时子句已添加但标记数组不完整） */
+    if (cid >= solver->constraint_failed_cap) {
+        /* 整数溢出检查 */
+        if (solver->constraint_failed_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
+            lv00_set_error_ctx(LV00_ERROR_OVERFLOW, __FILE__, __LINE__, __func__,
+                               "约束失败标记数组容量溢出: current=%d", solver->constraint_failed_cap);
+            return LV00_CONSTRAINT_ID_INVALID;
+        }
+        int new_cap = (solver->constraint_failed_cap == 0) ? DEFAULT_CLAUSE_CAPACITY
+                                                           : solver->constraint_failed_cap * LV00_ARRAY_GROWTH_FACTOR;
+        bool *new_fail = (bool *)lv00_realloc(solver->constraint_failed, (size_t)new_cap * sizeof(bool));
+        if (!new_fail) return LV00_CONSTRAINT_ID_INVALID;
+        memset(new_fail + solver->constraint_failed_cap, 0,
+               (size_t)(new_cap - solver->constraint_failed_cap) * sizeof(bool));
+        solver->constraint_failed = new_fail;
+        solver->constraint_failed_cap = new_cap;
+    }
+
     /* 分配子句存储 */
     int *clause = (int *)lv00_malloc((size_t)(count + 1) * sizeof(int));
     LV00_CHECK_ALLOC(clause, LV00_CONSTRAINT_ID_INVALID);
@@ -314,19 +374,7 @@ Lv00ConstraintId lv00_solver_add_constraint(Lv00Solver *solver,
     /* 更新 CDCL 子句库 */
     solver->cdcl.orig_clause_count++;
 
-    Lv00ConstraintId cid = solver->next_constraint_id++;
-
-    /* 扩展 constraint_failed 数组 */
-    if (cid >= solver->constraint_failed_cap) {
-        int new_cap = (solver->constraint_failed_cap == 0) ? DEFAULT_CLAUSE_CAPACITY
-                                                           : solver->constraint_failed_cap * LV00_ARRAY_GROWTH_FACTOR;
-        bool *new_fail = (bool *)lv00_realloc(solver->constraint_failed, (size_t)new_cap * sizeof(bool));
-        if (!new_fail) return LV00_CONSTRAINT_ID_INVALID;
-        memset(new_fail + solver->constraint_failed_cap, 0,
-               (size_t)(new_cap - solver->constraint_failed_cap) * sizeof(bool));
-        solver->constraint_failed = new_fail;
-        solver->constraint_failed_cap = new_cap;
-    }
+    solver->next_constraint_id++;
     solver->constraint_failed[cid] = false;
 
     return cid;
@@ -340,10 +388,18 @@ bool lv00_solver_remove_constraint(Lv00Solver *solver, Lv00ConstraintId constrai
         return false;
     }
 
-    /* 桩：标记失败但不真正回收（增量求解需保留子句引用） */
+    /* 桩实现：标记约束为已移除。
+     * 注意：当前实现不回收子句内存（增量求解需保留引用）。
+     * 后续完整实现应支持子句回收和监视文字更新。 */
     if (constraint_id < solver->constraint_failed_cap) {
         solver->constraint_failed[constraint_id] = true;
     }
+
+    /* 更新 CDCL 子句计数 */
+    if (solver->cdcl.orig_clause_count > 0) {
+        solver->cdcl.orig_clause_count--;
+    }
+
     return true;
 }
 
@@ -442,9 +498,9 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
     ctx->decisions++;
     ctx->restarts++;
 
-    /* 资源耗尽检查 */
-    if (ctx->decisions > 1000) {
-        return CDCL_SATISFIED; /* 模拟：假设所有变量均已赋值 */
+    /* 资源耗尽检查：桩实现无法确定可满足性，返回 UNKNOWN（IDLE） */
+    if (ctx->decisions > CDCL_MAX_DECISIONS) {
+        return CDCL_IDLE; /* 桩实现：无法确定，返回空闲状态 */
     }
     return CDCL_IDLE; /* 模拟：返回空闲状态 */
 }
@@ -473,7 +529,7 @@ static CDCLState cdcl_step_restart(CDCLContext *ctx) {
  */
 static CDCLState cdcl_run(Lv00Solver *solver) {
     CDCLContext *ctx = &solver->cdcl;
-    int max_steps = 1000;
+    int max_steps = CDCL_MAX_STEPS;
     int step = 0;
 
     while (step < max_steps) {
@@ -507,7 +563,7 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
                 ctx->state = cdcl_step_learn(ctx);
                 /* 检查是否需要重启 */
                 if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
-                    if (ctx->restarts < 10) {
+                    if (ctx->restarts < CDCL_MAX_RESTARTS) {
                         ctx->state = CDCL_RESTARTING;
                     }
                 }
@@ -530,9 +586,9 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
         }
     }
 
-    /* 步数耗尽：桩标记为 SATISFIED */
-    ctx->state = CDCL_SATISFIED;
-    return CDCL_SATISFIED;
+    /* 步数耗尽：桩实现无法确定可满足性，返回 UNKNOWN */
+    ctx->state = CDCL_IDLE;
+    return CDCL_IDLE;
 }
 
 /* ========================================================================
@@ -693,7 +749,7 @@ Lv00SolverResult lv00_solver_solve_algebraic(Lv00Solver *solver) {
 
 void lv00_solver_set_constraint_graph(Lv00Solver *solver,
                                        const struct ConstraintGraph *graph) {
-    if (!solver) return;
+    LV00_CHECK_NULL_VOID(solver);
     solver->graph = graph;
 }
 
@@ -739,7 +795,7 @@ Lv00Solver *lv00_solver_clone(const Lv00Solver *solver) {
 }
 
 void lv00_solver_reset(Lv00Solver *solver) {
-    if (!solver) return;
+    LV00_CHECK_NULL_VOID(solver);
 
     /* 清除变量赋值 */
     memset(solver->values, 0, (size_t)solver->var_capacity * sizeof(int));

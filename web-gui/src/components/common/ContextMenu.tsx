@@ -7,8 +7,9 @@
 
 import React, { useEffect, useCallback } from 'react';
 import { useAppStore } from '@/stores';
-import { generateId } from '@/utils/idGenerator';
+import { generateUniqueId } from '@/utils/idGenerator';
 import { MERGE_NEAREST_PIXEL_THRESHOLD, MIN_SEGMENT_LENGTH_PX } from '@/utils/constants';
+import { parseAndExecuteFormula } from '@/utils/formulaParser';
 
 /**
  * ContextMenu - 右键上下文菜单 / Right-click context menu
@@ -58,7 +59,7 @@ const ContextMenu: React.FC = () => {
           if (selectedPts.length === 2 && targetId !== undefined) {
             state.saveUndoState();
             state.addConstraint({
-              id: generateId(),
+              id: generateUniqueId(),
               type: 'betweenness',
               args: [selectedPts[0]!.id, targetId, selectedPts[1]!.id],
             });
@@ -134,7 +135,7 @@ const ContextMenu: React.FC = () => {
               const p2 = state.points.find((p) => p.id === seg.p2);
               if (p1 && p2) {
                 state.saveUndoState();
-                const midId = generateId();
+                const midId = generateUniqueId();
                 const midPoint = {
                   id: midId,
                   x: (p1.x + p2.x) / 2,
@@ -143,11 +144,11 @@ const ContextMenu: React.FC = () => {
                 state.addPoint(midPoint);
                 // 将原线段拆分为两段
                 state.removeSegment(targetId);
-                state.addSegment({ id: generateId(), p1: seg.p1, p2: midId });
-                state.addSegment({ id: generateId(), p1: midId, p2: seg.p2 });
+                state.addSegment({ id: generateUniqueId(), p1: seg.p1, p2: midId });
+                state.addSegment({ id: generateUniqueId(), p1: midId, p2: seg.p2 });
                 // 添加 betweenness 约束
                 state.addConstraint({
-                  id: generateId(),
+                  id: generateUniqueId(),
                   type: 'betweenness',
                   args: [seg.p1, midId, seg.p2],
                 });
@@ -178,7 +179,7 @@ const ContextMenu: React.FC = () => {
                 const perpLen = len / 2;
                 const nx = -dy / len; // 法向量
                 const ny = dx / len;
-                const perpEndId = generateId();
+                const perpEndId = generateUniqueId();
                 const perpEnd = {
                   id: perpEndId,
                   x: midX + nx * perpLen,
@@ -187,10 +188,10 @@ const ContextMenu: React.FC = () => {
                 state.saveUndoState();
                 state.addPoint(perpEnd);
                 // 创建中点
-                const midId = generateId();
+                const midId = generateUniqueId();
                 const midPoint = { id: midId, x: midX, y: midY };
                 state.addPoint(midPoint);
-                state.addSegment({ id: generateId(), p1: midId, p2: perpEndId });
+                state.addSegment({ id: generateUniqueId(), p1: midId, p2: perpEndId });
                 addToast('success', `已作垂线 / Perpendicular line created`);
               }
             }
@@ -202,7 +203,7 @@ const ContextMenu: React.FC = () => {
         case 'add-point-here': {
           if (contextMenu.worldX !== undefined && contextMenu.worldY !== undefined) {
             state.saveUndoState();
-            const newId = generateId();
+            const newId = generateUniqueId();
             state.addPoint({
               id: newId,
               x: contextMenu.worldX,
@@ -213,7 +214,44 @@ const ContextMenu: React.FC = () => {
           break;
         }
         case 'paste': {
-          addToast('info', '粘贴功能开发中 / Paste not yet implemented');
+          // 从剪贴板读取 DSL 文本并解析执行
+          (async () => {
+            try {
+              const clipText = await navigator.clipboard.readText();
+              if (!clipText || !clipText.trim()) {
+                addToast('warning', '剪贴板为空 / Clipboard is empty');
+                return;
+              }
+
+              state.saveUndoState();
+
+              const result = parseAndExecuteFormula(clipText.trim(), state.points);
+
+              // 将解析结果添加到画布
+              result.createdPoints.forEach((p) => state.addPoint(p));
+              result.createdSegments.forEach((s) => state.addSegment(s));
+              result.createdConstraints.forEach((c) => state.addConstraint(c));
+
+              if (result.createdPoints.length > 0 || result.createdSegments.length > 0) {
+                addToast(
+                  'success',
+                  `粘贴成功: ${result.createdPoints.length} 点, ${result.createdSegments.length} 线段 / Pasted: ${result.createdPoints.length} pts, ${result.createdSegments.length} segs`,
+                );
+              } else if (result.errors.length > 0) {
+                addToast('error', `粘贴失败: ${result.errors[0] ?? '无法解析剪贴板内容'} / Paste failed`);
+              } else {
+                addToast('info', '剪贴板内容未生成几何对象 / No geometry created from clipboard');
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Unknown error';
+              // 剪贴板 API 不可用（非 HTTPS 或权限被拒）
+              if (msg.includes('permission') || msg.includes('denied')) {
+                addToast('warning', '剪贴板权限被拒绝，请检查浏览器设置 / Clipboard permission denied');
+              } else {
+                addToast('error', `粘贴失败: ${msg} / Paste failed: ${msg}`);
+              }
+            }
+          })();
           break;
         }
         case 'select-all': {

@@ -44,6 +44,8 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
     cap->last_timestamp = event->timestamp_ms;
     if (event->description) {
         snprintf(cap->last_description, sizeof(cap->last_description), "%s", event->description);
+    } else {
+        cap->last_description[0] = '\0';
     }
 }
 

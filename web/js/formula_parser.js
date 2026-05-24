@@ -46,6 +46,76 @@ var FormulaParser = (function() {
     }
 
     // ========================================================================
+    //  detectSyntax 正则缓存（惰性初始化，首次调用时构建）
+    // ========================================================================
+
+    /**
+     * 缓存的语法检测正则模式。
+     * 结构：
+     *   dslKeywords  - DSL 关键字正则数组
+     *   latexMixed   - DSL+LaTeX 混合检测正则
+     *   latexPatterns - LaTeX 特征正则数组
+     *   pythonSingle - 单个 LaTeX 特征时的 Python 混合检测正则
+     *   pythonPatterns - Python 特征正则数组
+     *   dslFallback  - 默认 DSL 方程检测正则
+     */
+    var _syntaxPatterns = null;
+
+    function _ensureSyntaxPatterns() {
+        if (_syntaxPatterns) return;
+        _syntaxPatterns = {
+            /* DSL 关键字检测（优先级最高，因为 DSL 最具体） */
+            dslKeywords: [
+                /\bpoint\s+\w+\s*\(/i,
+                /\bsegment\s+\w+/i,
+                /\bcircle\s+\w+\s*\(/i,
+                /\btriangle\s+\w+/i,
+                /\bline\s+\w+\s*\(/i,
+                /\bperpendicular\s*\(/i,
+                /\bparallel\s*\(/i,
+                /\bmidpoint\s*\(/i,
+                /\bangle\s*\(/i,
+                /\bdistance\s*\(/i,
+                /\barea\s*\(/i,
+                /\bperimeter\s*\(/i,
+                /\bregion\s+\w+/i
+            ],
+            /* DSL+LaTeX 混合检测 */
+            latexMixed: /\\frac|\\sqrt|\\sin|\\cos|\\tan|\\log|\\exp|\\pi|\\theta|\\alpha|\\sum|\\int/,
+            /* LaTeX 特征检测 */
+            latexPatterns: [
+                /\\frac\s*\{/,
+                /\\sqrt\s*(\[.*?\])?\s*\{/,
+                /\\(sin|cos|tan|log|exp|abs|sec|csc|cot)\b/,
+                /\\(pi|theta|alpha|beta|gamma|delta|epsilon|lambda|mu|sigma|omega|phi|psi|infty)\b/,
+                /\\cdot/,
+                /\\times/,
+                /\\(leq|geq|neq|approx|equiv)\b/,
+                /\\sum\b/,
+                /\\int\b/,
+                /\^\s*\{/,
+                /_\s*\{/
+            ],
+            /* 单个 LaTeX 特征时的 Python 混合检测 */
+            pythonSingle: [/\*\*/, /==/],
+            /* Python 特征检测 */
+            pythonPatterns: [
+                /\*\*/,
+                /\bsqrt\s*\(/,
+                /\bsin\s*\(/,
+                /\bcos\s*\(/,
+                /\btan\s*\(/,
+                /\blog\s*\(/,
+                /\bexp\s*\(/,
+                /\babs\s*\(/,
+                /\bpi\b/
+            ],
+            /* 默认 DSL 方程检测 */
+            dslFallback: /=/
+        };
+    }
+
+    // ========================================================================
     //  AST 工厂函数
     // ========================================================================
 
@@ -126,10 +196,8 @@ var FormulaParser = (function() {
      *   - 'mixed': 同时包含 DSL 和 LaTeX 特征时
      *   - 'unknown': 无法识别时
      *
-     * 性能说明：函数内定义了 25+ 个正则表达式对象。每次调用 detectSyntax 都会重新
-     * 编译这些正则。由于 detectSyntax 在主解析入口 parse() 中每次"auto"模式下都会
-     * 调用，且正则模式不变，将来可以考虑将这些正则提升为模块级常量（闭包缓存），
-     * 通过 RegExp.test.call(cachedPattern, trimmed) 复用编译好的正则对象，
+     * 性能说明：正则表达式已提升为模块级常量（_syntaxPatterns），通过惰性初始化
+     * 在首次调用 detectSyntax 时构建，后续调用直接复用编译好的正则对象，
      * 避免重复编译开销，尤其在批量解析场景下。
      *
      * @param {string} input - 原始输入字符串
@@ -143,56 +211,29 @@ var FormulaParser = (function() {
         var trimmed = input.replace(/^\s+|\s+$/g, '');
         var lower = trimmed.toLowerCase();
 
-        // DSL 关键字检测（优先级最高，因为 DSL 最具体）
-        // 注意：以下 13 个正则每次调用都会重新编译，可考虑提升到模块级缓存
-        var dslKeywords = [
-            /\bpoint\s+\w+\s*\(/i,
-            /\bsegment\s+\w+/i,
-            /\bcircle\s+\w+\s*\(/i,
-            /\btriangle\s+\w+/i,
-            /\bline\s+\w+\s*\(/i,
-            /\bperpendicular\s*\(/i,
-            /\bparallel\s*\(/i,
-            /\bmidpoint\s*\(/i,
-            /\bangle\s*\(/i,
-            /\bdistance\s*\(/i,
-            /\barea\s*\(/i,
-            /\bperimeter\s*\(/i,
-            /\bregion\s+\w+/i
-        ];
+        /* 确保正则缓存已初始化 */
+        _ensureSyntaxPatterns();
+        var p = _syntaxPatterns;
 
+        // DSL 关键字检测（优先级最高，因为 DSL 最具体）
         var dslCount = 0;
-        for (var i = 0; i < dslKeywords.length; i++) {
-            if (dslKeywords[i].test(trimmed)) {
+        for (var i = 0; i < p.dslKeywords.length; i++) {
+            if (p.dslKeywords[i].test(trimmed)) {
                 dslCount++;
             }
         }
         if (dslCount > 0) {
             // 如果同时有 LaTeX 特征，标记为 mixed
-            if (/\\frac|\\sqrt|\\sin|\\cos|\\tan|\\log|\\exp|\\pi|\\theta|\\alpha|\\sum|\\int/.test(trimmed)) {
+            if (p.latexMixed.test(trimmed)) {
                 return 'mixed';
             }
             return 'dsl';
         }
 
         // LaTeX 特征检测
-        var latexPatterns = [
-            /\\frac\s*\{/,
-            /\\sqrt\s*(\[.*?\])?\s*\{/,
-            /\\(sin|cos|tan|log|exp|abs|sec|csc|cot)\b/,
-            /\\(pi|theta|alpha|beta|gamma|delta|epsilon|lambda|mu|sigma|omega|phi|psi|infty)\b/,
-            /\\cdot/,
-            /\\times/,
-            /\\(leq|geq|neq|approx|equiv)\b/,
-            /\\sum\b/,
-            /\\int\b/,
-            /\^\s*\{/,
-            /_\s*\{/
-        ];
-
         var latexCount = 0;
-        for (var j = 0; j < latexPatterns.length; j++) {
-            if (latexPatterns[j].test(trimmed)) {
+        for (var j = 0; j < p.latexPatterns.length; j++) {
+            if (p.latexPatterns[j].test(trimmed)) {
                 latexCount++;
             }
         }
@@ -201,21 +242,23 @@ var FormulaParser = (function() {
         }
         if (latexCount === 1) {
             // 单个 LaTeX 特征，检查是否有 Python 特征
-            if (/\*\*/.test(trimmed) || /==/.test(trimmed)) {
-                return 'mixed';
+            for (var k = 0; k < p.pythonSingle.length; k++) {
+                if (p.pythonSingle[k].test(trimmed)) {
+                    return 'mixed';
+                }
             }
             return 'latex';
         }
 
         // Python 特征检测
-        if (/\*\*/.test(trimmed) || /\bsqrt\s*\(/.test(lower) || /\bsin\s*\(/.test(lower) ||
-            /\bcos\s*\(/.test(lower) || /\btan\s*\(/.test(lower) || /\blog\s*\(/.test(lower) ||
-            /\bexp\s*\(/.test(lower) || /\babs\s*\(/.test(lower) || /\bpi\b/.test(lower)) {
-            return 'python';
+        for (var m = 0; m < p.pythonPatterns.length; m++) {
+            if (p.pythonPatterns[m].test(lower)) {
+                return 'python';
+            }
         }
 
         // 默认：包含 = 的当作 DSL 代数方程
-        if (/=/.test(trimmed)) {
+        if (p.dslFallback.test(trimmed)) {
             return 'dsl';
         }
 

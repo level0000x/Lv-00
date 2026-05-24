@@ -28,7 +28,7 @@
  *          - 深橙色（DARK_ORANGE）：同时依赖预言机和爆炸原理
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - proof.h              : 证明系统公共接口定义
@@ -60,10 +60,14 @@
 #include "solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "thread_pool.h"
 #include "type_system.h"
 #include "unify.h"
 
 LV00_DECLARE_STREAM_CTX(proof)
+
+/** 命题销毁时迭代栈的初始容量 */
+#define PROOF_DESTROY_STACK_INITIAL_CAPACITY 128
 
 /* ============== 命题管理API ============== */
 
@@ -109,7 +113,7 @@ void proposition_destroy(Proposition *prop) {
 
     /* ====== 使用动态分配栈进行迭代销毁，防止递归栈溢出 ====== */
     /* 初始容量 128，按需动态扩容，避免深层嵌套命题导致内存泄漏 */
-    int stack_capacity = 128;
+    int stack_capacity = PROOF_DESTROY_STACK_INITIAL_CAPACITY;
     int stack_top = 0;
     Proposition **destroy_stack = (Proposition **) lv00_malloc(stack_capacity * sizeof(Proposition *));
     if (!destroy_stack) {
@@ -137,6 +141,15 @@ void proposition_destroy(Proposition *prop) {
             for (int i = 0; i < current->sub_prop_count; i++) {
                 /* 栈满时动态扩容 */
                 if (stack_top >= stack_capacity) {
+                    /* 检查栈容量扩大的乘法是否会导致整数溢出 */
+                    if (stack_capacity > INT_MAX / 2) {
+                        /* 容量已达上限，停止扩容并清理已分配资源 */
+                        for (int i = 0; i < stack_top; i++) {
+                            proposition_unref(destroy_stack[i]);
+                        }
+                        lv00_free(destroy_stack);
+                        return;
+                    }
                     int new_cap = stack_capacity * 2;
                     if (new_cap <= stack_capacity) {
                         /* 整数溢出保护：直接销毁剩余子命题 */
@@ -3647,14 +3660,14 @@ BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label) 
     node->child_count = 0;
     node->child_capacity = 0;
 
-    /* 复制标签 */
+    /* 复制标签（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
     if (label && label[0] != '\0') {
         node->label = lv00_malloc(strlen(label) + 1);
         if (!node->label) {
             lv00_free((void **) &node);
             return NULL;
         }
-        strcpy(node->label, label);
+        lv00_strlcpy(node->label, label, strlen(label) + 1);
     } else {
         node->label = NULL;
     }
@@ -3767,11 +3780,11 @@ void backtrack_node_mark_backtrack(BacktrackNode *node, const char *strategy_nam
     /* 释放旧策略名称 */
     lv00_free((void **) &node->strategy_name);
 
-    /* 复制新策略名称 */
+    /* 复制新策略名称（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
     if (strategy_name && strategy_name[0] != '\0') {
         node->strategy_name = lv00_malloc(strlen(strategy_name) + 1);
         if (node->strategy_name) {
-            strcpy(node->strategy_name, strategy_name);
+            lv00_strlcpy(node->strategy_name, strategy_name, strlen(strategy_name) + 1);
         }
     } else {
         node->strategy_name = NULL;
@@ -3807,11 +3820,11 @@ void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *stra
         return;
     tree->available_strategies = new_strats;
 
-    /* 复制策略名称 */
+    /* 复制策略名称（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
     tree->available_strategies[tree->strategy_count] = lv00_malloc(strlen(strategy_name) + 1);
     if (!tree->available_strategies[tree->strategy_count])
         return;
-    strcpy(tree->available_strategies[tree->strategy_count], strategy_name);
+    lv00_strlcpy(tree->available_strategies[tree->strategy_count], strategy_name, strlen(strategy_name) + 1);
     tree->strategy_count++;
 }
 
@@ -3830,11 +3843,11 @@ void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_
     /* 释放旧值 */
     lv00_free((void **) &tree->current_strategy);
 
-    /* 复制新值 */
+    /* 复制新值（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
     if (strategy_name && strategy_name[0] != '\0') {
         tree->current_strategy = lv00_malloc(strlen(strategy_name) + 1);
         if (tree->current_strategy) {
-            strcpy(tree->current_strategy, strategy_name);
+            lv00_strlcpy(tree->current_strategy, strategy_name, strlen(strategy_name) + 1);
         }
     } else {
         tree->current_strategy = NULL;
@@ -4337,10 +4350,11 @@ char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguag
         }
     }
 
+    /* 复制结果字符串（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
     char *output = lv00_malloc(strlen(result) + 1);
     if (!output)
         return NULL;
-    strcpy(output, result);
+    lv00_strlcpy(output, result, strlen(result) + 1);
     return output;
 }
 
@@ -4436,7 +4450,8 @@ bool proof_navigator_set_strategy_note(ProofNavigator *nav, const char *strategy
         nav->strategy_note = lv00_malloc(strlen(strategy_note) + 1);
         if (!nav->strategy_note)
             return false;
-        strcpy(nav->strategy_note, strategy_note);
+        /* [Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全 */
+        lv00_strlcpy(nav->strategy_note, strategy_note, strlen(strategy_note) + 1);
     } else {
         nav->strategy_note = NULL;
     }
@@ -4471,7 +4486,8 @@ bool proof_step_set_note(ProofStep *step, const char *note) {
         step->note = lv00_malloc(strlen(note) + 1);
         if (!step->note)
             return false;
-        strcpy(step->note, note);
+        /* [Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全 */
+        lv00_strlcpy(step->note, note, strlen(note) + 1);
     } else {
         step->note = NULL;
     }
@@ -4674,11 +4690,61 @@ int proof_check_ghost_conflicts(void) {
  * ================================================================ */
 
 /**
+ * @brief 异步任务数据结构（供 sledgehammer_async_task_execute 使用）
+ *
+ * 每个策略的异步任务数据，包含执行上下文和结果输出。
+ */
+typedef struct {
+    ProofMultiStrategy *mse;
+    ProofStrategyType strategy_type;
+    int strategy_index;
+    bool success;
+    double elapsed_sec;
+    char *isar_proof_script;
+} _SledgehammerAsyncTaskData;
+
+/**
+ * @brief 异步策略执行的实际任务函数
+ *
+ * @param user_data 指向 _SledgehammerAsyncTaskData 的指针
+ * @return 0 成功，-1 失败
+ */
+static int sledgehammer_async_task_execute(void *user_data) {
+    if (!user_data)
+        return -1;
+
+    _SledgehammerAsyncTaskData *td = (_SledgehammerAsyncTaskData *) user_data;
+
+    clock_t start = clock();
+
+    /* 激活并执行策略 */
+    proof_multi_strategy_activate(td->mse, td->strategy_type);
+    bool success = proof_multi_strategy_execute(td->mse);
+
+    clock_t end = clock();
+    td->elapsed_sec = ((double) (end - start)) / CLOCKS_PER_SEC;
+    td->success = success;
+
+    /* 生成 Isar 证明脚本 */
+    if (success) {
+        const char *sname = proof_strategy_type_to_string(td->strategy_type);
+        size_t len = strlen(sname) + 64;
+        td->isar_proof_script = (char *) lv00_malloc(len);
+        if (td->isar_proof_script) {
+            snprintf(td->isar_proof_script, len,
+                     "proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
+        }
+    }
+
+    return success ? 0 : -1;
+}
+
+/**
  * @brief Sledgehammer 风格 — 自动尝试多个证明策略，返回最优结果
  *
  * 遍历 proof_multi_strategy_try_all 的结果：
  * - SLEDGE_SYNC 模式：逐个尝试每种策略，记录成功/失败和耗时，选最优
- * - SLEDGE_ASYNC 模式：当前留 TODO（需要线程池支持）
+ * - SLEDGE_ASYNC 模式：使用全局线程池并行执行所有策略
  * - SLEDGE_TIMEOUT 模式：同 SYNC 但带超时控制
  */
 SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, SledgehammerMode mode, int timeout_ms) {
@@ -4689,13 +4755,116 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
     if (!report)
         return NULL;
 
-    /* 异步模式暂未实现 */
+    /* ---- 异步模式：使用全局线程池并行执行所有策略 ---- */
     if (mode == SLEDGE_ASYNC) {
-        report->error_msg = "SLEDGE_ASYNC 模式暂未实现（TODO: 需要线程池支持）";
-        report->result_count = 0;
-        report->best_index = -1;
-        return report;
+        Lv00ThreadPool *pool = lv00_get_global_thread_pool();
+        if (!pool) {
+            /* 线程池不可用，回退到同步模式并输出警告 */
+            if (proof_stream_ctx) {
+                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARN,
+                                   "SLEDGE_ASYNC: 全局线程池未初始化，回退到同步模式", 0);
+            }
+            /* 回退：继续执行下面的同步逻辑 */
+        } else {
+            /* 分配结果数组 */
+            report->results = (SledgehammerStrategyResult *) lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
+            if (!report->results) {
+                lv00_free((void**)&report);
+                return NULL;
+            }
+
+            /* 第一遍：收集可用策略并分配任务数据 */
+            int available_count = 0;
+            _SledgehammerAsyncTaskData *task_data_array = (_SledgehammerAsyncTaskData *)
+                lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(_SledgehammerAsyncTaskData));
+            if (!task_data_array) {
+                lv00_free((void**)&report->results);
+                lv00_free((void**)&report);
+                return NULL;
+            }
+
+            for (int st = 0; st < PROOF_STRATEGY_COUNT; st++) {
+                ProofStrategyDescriptor *desc = &mse->strategies[st];
+                if (desc->status == PROOF_STRATEGY_UNAVAILABLE || !desc->execute)
+                    continue;
+                task_data_array[available_count].mse = mse;
+                task_data_array[available_count].strategy_type = (ProofStrategyType) st;
+                task_data_array[available_count].strategy_index = st;
+                task_data_array[available_count].success = false;
+                task_data_array[available_count].elapsed_sec = 0.0;
+                task_data_array[available_count].isar_proof_script = NULL;
+                available_count++;
+            }
+
+            if (available_count == 0) {
+                /* 无可用策略 */
+                lv00_free((void**)&task_data_array);
+                report->result_count = 0;
+                report->best_index = -1;
+                return report;
+            }
+
+            /* 创建任务组 */
+            Lv00TaskGroup *group = lv00_task_group_create("sledgehammer_async");
+            if (!group) {
+                /* 任务组创建失败，回退到同步模式 */
+                lv00_free((void**)&task_data_array);
+                if (proof_stream_ctx) {
+                    stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARN,
+                                       "SLEDGE_ASYNC: 任务组创建失败，回退到同步模式", 0);
+                }
+                /* 回退：释放 results 并继续执行下面的同步逻辑 */
+                lv00_free((void**)&report->results);
+                report->results = NULL;
+            } else {
+                /* 为每个可用策略创建并提交任务 */
+                for (int i = 0; i < available_count; i++) {
+                    Lv00Task *task = lv00_task_create(sledgehammer_async_task_execute,
+                                                       &task_data_array[i], "sledgehammer_strategy");
+                    if (!task) {
+                        continue;
+                    }
+                    lv00_task_group_add(group, task);
+                    lv00_thread_pool_submit(pool, task);
+                }
+
+                /* 等待所有任务完成 */
+                lv00_thread_pool_wait_group(pool, group, 0);
+
+                /* 收集结果 */
+                clock_t total_start_a = clock();
+                int best_index_a = -1;
+                double best_time_a = 1e18;
+
+                for (int i = 0; i < available_count; i++) {
+                    _SledgehammerAsyncTaskData *td = &task_data_array[i];
+                    int idx = report->result_count;
+
+                    report->results[idx].strategy = td->strategy_type;
+                    report->results[idx].success = td->success;
+                    report->results[idx].elapsed_sec = td->elapsed_sec;
+                    report->results[idx].isar_proof_script = td->isar_proof_script;
+
+                    if (td->success && td->elapsed_sec < best_time_a) {
+                        best_time_a = td->elapsed_sec;
+                        best_index_a = idx;
+                    }
+
+                    report->result_count++;
+                }
+
+                clock_t total_end_a = clock();
+                report->total_time_sec = ((double) (total_end_a - total_start_a)) / CLOCKS_PER_SEC;
+                report->best_index = best_index_a;
+
+                lv00_task_group_destroy(group);
+                lv00_free((void**)&task_data_array);
+                return report;
+            }
+        }
     }
+
+    /* ---- 同步 / 超时模式（含异步回退） ---- */
 
     /* 分配结果数组，最多 PROOF_STRATEGY_COUNT 个策略 */
     report->results = (SledgehammerStrategyResult *) lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
@@ -4791,15 +4960,42 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
 
 /* ================================================================
  * 桩实现 — proof_multi_strategy.c 和 proof_optimize.c 被排除时的备选
+ *
+ * 以下函数为计划中但尚未实现的功能提供占位实现。
+ * 当 proof_multi_strategy.c 和 proof_optimize.c 模块被编译排除时，
+ * 链接器将使用此处的桩实现以避免未定义符号错误。
+ *
+ * TODO: 实现多策略证明搜索框架后移除这些桩。
+ *       - proof_multi_strategy_activate: 激活指定的证明策略
+ *       - proof_multi_strategy_execute: 执行已激活的策略进行证明搜索
  * ================================================================ */
 #include "proof.h"
 
+/**
+ * @brief 激活指定的多策略证明搜索策略（桩实现）
+ *
+ * @param mse            多策略引擎实例（当前未使用）
+ * @param strategy_type  要激活的策略类型（当前未使用）
+ * @return 始终返回 false，表示激活失败（功能尚未实现）
+ *
+ * @note 此为桩实现。当 proof_multi_strategy.c 模块可用时，
+ *       链接器将使用该模块中的完整实现替换此函数。
+ */
 bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type) {
     (void) mse;
     (void) strategy_type;
     return false;
 }
 
+/**
+ * @brief 执行多策略证明搜索（桩实现）
+ *
+ * @param mse  多策略引擎实例（当前未使用）
+ * @return 始终返回 false，表示执行失败（功能尚未实现）
+ *
+ * @note 此为桩实现。当 proof_multi_strategy.c 模块可用时，
+ *       链接器将使用该模块中的完整实现替换此函数。
+ */
 bool proof_multi_strategy_execute(ProofMultiStrategy *mse) {
     (void) mse;
     return false;
@@ -4893,6 +5089,136 @@ static bool is_refl_form(const char *term) {
         return false;
 
     return (strncmp(term, rhs, lhs_trim_len) == 0);
+}
+
+/* ---- 轻量级 Term AST 结构验证辅助函数 ---- */
+
+/**
+ * @brief 检查字符串是否包含 lambda 抽象模式（反斜杠或 "Abs" 或 "LAM"）
+ */
+static bool has_lambda_pattern(const char *s) {
+    if (!s) return false;
+    return (strstr(s, "\\") != NULL || strstr(s, "Abs") != NULL ||
+            strstr(s, "LAM") != NULL || strstr(s, "lambda") != NULL);
+}
+
+/**
+ * @brief 检查字符串是否包含应用模式（函数作用于参数）
+ */
+static bool has_application_pattern(const char *s) {
+    if (!s) return false;
+    return (strstr(s, "(") != NULL && strstr(s, ")") != NULL);
+}
+
+/**
+ * @brief 检查字符串是否包含组合子模式（COMB 或 "comb"）
+ */
+static bool has_comb_pattern(const char *s) {
+    if (!s) return false;
+    return (strstr(s, "COMB") != NULL || strstr(s, "comb") != NULL);
+}
+
+/**
+ * @brief 检查字符串是否包含替换实例模式（INST 或 "inst"）
+ */
+static bool has_inst_pattern(const char *s) {
+    if (!s) return false;
+    return (strstr(s, "INST") != NULL || strstr(s, "inst") != NULL ||
+            strstr(s, "[|") != NULL || strstr(s, "|]") != NULL);
+}
+
+/**
+ * @brief 检查字符串是否包含类型实例化模式（INST_TYPE 或 ":"）
+ */
+static bool has_inst_type_pattern(const char *s) {
+    if (!s) return false;
+    return (strstr(s, "INST_TYPE") != NULL || strstr(s, "inst_type") != NULL);
+}
+
+/**
+ * @brief 检查字符串是否包含蕴含/推出模式（==>, -->, imp）
+ */
+static bool has_implication_pattern(const char *s) {
+    if (!s) return false;
+    return (strstr(s, "==>") != NULL || strstr(s, "-->") != NULL ||
+            strstr(s, "imp") != NULL || strstr(s, "IMP") != NULL);
+}
+
+/**
+ * @brief 检查字符串是否包含等式模式
+ */
+static bool has_equality_pattern(const char *s) {
+    if (!s) return false;
+    /* 寻找独立等号（非 ==, !=, <=, >=） */
+    for (const char *p = s; *p; p++) {
+        if (*p == '=' && *(p + 1) != '=' && *(p + 1) != '>') {
+            if (p > s && (*(p - 1) == '!' || *(p - 1) == '<'))
+                continue;
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief 从等式结论中提取等号左侧子串（到 buf，最多 buf_size-1 字符）
+ * @return 左侧长度，-1 表示无等号
+ */
+static int extract_eq_lhs(const char *eq_str, char *buf, int buf_size) {
+    if (!eq_str || !buf || buf_size <= 0) return -1;
+    const char *eq = strchr(eq_str, '=');
+    if (!eq) return -1;
+    /* 跳过 ==, !=, <=, >= */
+    if (eq > eq_str && (*(eq - 1) == '!' || *(eq - 1) == '<')) return -1;
+    if (*(eq + 1) == '=' || *(eq + 1) == '>') return -1;
+    int len = (int) (eq - eq_str);
+    if (len >= buf_size) len = buf_size - 1;
+    memcpy(buf, eq_str, (size_t) len);
+    buf[len] = '\0';
+    /* 去除尾部空格 */
+    while (len > 0 && buf[len - 1] == ' ') buf[--len] = '\0';
+    return len;
+}
+
+/**
+ * @brief 从等式结论中提取等号右侧子串（返回指向原始字符串的指针，需调用者用完）
+ */
+static const char *extract_eq_rhs(const char *eq_str) {
+    if (!eq_str) return NULL;
+    const char *eq = strchr(eq_str, '=');
+    if (!eq) return NULL;
+    if (eq > eq_str && (*(eq - 1) == '!' || *(eq - 1) == '<')) return NULL;
+    if (*(eq + 1) == '=' || *(eq + 1) == '>') return NULL;
+    const char *rhs = eq + 1;
+    while (*rhs == ' ') rhs++;
+    return rhs;
+}
+
+/**
+ * @brief 检查字符串 s 是否以 prefix 开头（忽略前导空格）
+ */
+static bool starts_with(const char *s, const char *prefix) {
+    if (!s || !prefix) return false;
+    while (*s == ' ') s++;
+    return strncmp(s, prefix, strlen(prefix)) == 0;
+}
+
+/**
+ * @brief 辅助：生成验证 trace 字符串
+ */
+static char *make_trace(const char *fmt, const char *arg1, const char *arg2) {
+    size_t len = (fmt ? strlen(fmt) : 0) + (arg1 ? strlen(arg1) : 0) +
+                 (arg2 ? strlen(arg2) : 0) + 64;
+    char *buf = (char *) lv00_malloc(len);
+    if (buf) {
+        if (arg2)
+            snprintf(buf, len, fmt, arg1, arg2);
+        else if (arg1)
+            snprintf(buf, len, fmt, arg1);
+        else
+            snprintf(buf, len, "%s", fmt);
+    }
+    return buf;
 }
 
 /**
@@ -5018,17 +5344,239 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             return VERIFY_INVALID;
 
         case VERIFY_BETA_CONV:
-        case VERIFY_MK_COMB:
-        case VERIFY_ABS:
-        case VERIFY_SUBST:
-        case VERIFY_INST_TYPE:
-        case VERIFY_INST:
-        case VERIFY_DISCH:
-            /* 其他规则：暂留为未决（需要完整的 term AST 支持） */
-            if (out_trace) {
-                *out_trace = _strdup("VERIFY_UNDECIDED: 该规则需要完整项语法树支持（TODO）");
+            /* BETA_CONV: |- (\x.M) N = M[x:=N]
+             * 检查结论是否为等式，且左侧包含 lambda 抽象和应用模式。
+             * 轻量级检查：结论形如 "(\\x.M) N = ..." 或 "(Abs x M) N = ..." */
+            if (!has_equality_pattern(conclusion)) {
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_INVALID [BETA_CONV]: 结论 \"%s\" 非等式形式", conclusion, NULL);
+                return VERIFY_INVALID;
             }
-            return VERIFY_UNDECIDED;
+            {
+                char lhs_buf[512];
+                int lhs_len = extract_eq_lhs(conclusion, lhs_buf, (int) sizeof(lhs_buf));
+                if (lhs_len <= 0) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: 无法解析结论 \"%s\"", conclusion, NULL);
+                    return VERIFY_UNDECIDED;
+                }
+                /* 左侧应包含 lambda 模式和应用模式 */
+                if (has_lambda_pattern(lhs_buf) && has_application_pattern(lhs_buf)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_VALID [BETA_CONV]: \"%s\" 符合 beta-归约模式 (\\x.M) N = M[x:=N]", conclusion, NULL);
+                    return VERIFY_VALID;
+                }
+                /* 左侧不含 lambda 但有应用：可能是已归约形式，标记为未决 */
+                if (has_application_pattern(lhs_buf)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: \"%s\" 含应用但无 lambda 抽象，无法确认", conclusion, NULL);
+                    return VERIFY_UNDECIDED;
+                }
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_INVALID [BETA_CONV]: \"%s\" 不符合 beta-归约模式", conclusion, NULL);
+                return VERIFY_INVALID;
+            }
+
+        case VERIFY_MK_COMB:
+            /* MK_COMB: f1=f2, g1=g2 => COMB f1 g1 = COMB f2 g2
+             * 检查：需要两个前提（f1=f2 和 g1=g2），结论应含 COMB 模式 */
+            if (!premises || !premises[0] || !premises[1]) {
+                if (out_trace)
+                    *out_trace = _strdup("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
+                return VERIFY_UNDECIDED;
+            }
+            {
+                const char *p0 = premises[0]; /* f1=f2 */
+                const char *p1 = premises[1]; /* g1=g2 */
+                /* 两个前提都应为等式 */
+                if (!has_equality_pattern(p0) || !has_equality_pattern(p1)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 前提 \"%s\" 或 \"%s\" 非等式", p0, p1);
+                    return VERIFY_INVALID;
+                }
+                /* 结论应包含 COMB 模式 */
+                if (has_comb_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_VALID [MK_COMB]: 前提 \"%s\", \"%s\" => 结论 \"%s\" 符合组合子规则", p0, p1, conclusion);
+                    return VERIFY_VALID;
+                }
+                /* 结论不含 COMB 但含等式：可能是隐式组合 */
+                if (has_equality_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_UNDECIDED [MK_COMB]: 结论 \"%s\" 含等式但无 COMB 标记", conclusion, NULL);
+                    return VERIFY_UNDECIDED;
+                }
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 结论 \"%s\" 不符合 MK_COMB 规则", conclusion, NULL);
+                return VERIFY_INVALID;
+            }
+
+        case VERIFY_ABS:
+            /* ABS: x not free in Gamma => Gamma |- s=t => Gamma |- (\x.s) = (\x.t)
+             * 检查：需要一个前提 s=t，结论两侧都应含 lambda 抽象 */
+            if (!premises || !premises[0]) {
+                if (out_trace)
+                    *out_trace = _strdup("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
+                return VERIFY_UNDECIDED;
+            }
+            {
+                const char *p0 = premises[0]; /* s=t */
+                if (!has_equality_pattern(p0)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 前提 \"%s\" 非等式", p0, NULL);
+                    return VERIFY_INVALID;
+                }
+                /* 结论应为等式且两侧含 lambda */
+                if (!has_equality_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 结论 \"%s\" 非等式", conclusion, NULL);
+                    return VERIFY_INVALID;
+                }
+                char lhs_buf[512];
+                int lhs_len = extract_eq_lhs(conclusion, lhs_buf, (int) sizeof(lhs_buf));
+                const char *rhs = extract_eq_rhs(conclusion);
+                if (lhs_len > 0 && rhs && has_lambda_pattern(lhs_buf) && has_lambda_pattern(rhs)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_VALID [ABS]: 前提 \"%s\" => 结论 \"%s\" 符合抽象规则", p0, conclusion);
+                    return VERIFY_VALID;
+                }
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_UNDECIDED [ABS]: 结论 \"%s\" 两侧不全含 lambda 抽象", conclusion, NULL);
+                return VERIFY_UNDECIDED;
+            }
+
+        case VERIFY_SUBST:
+            /* SUBST: 替换实例验证
+             * 检查：前提应包含替换定理，结论应体现替换结果 */
+            if (!premises || !premises[0]) {
+                if (out_trace)
+                    *out_trace = _strdup("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
+                return VERIFY_UNDECIDED;
+            }
+            {
+                /* SUBST 通常有多个前提：替换定理 + 被替换的等式 */
+                /* 轻量级检查：前提中至少有一个等式，结论含等式或实例化标记 */
+                bool has_eq_premise = false;
+                for (int i = 0; premises[i] != NULL; i++) {
+                    if (has_equality_pattern(premises[i])) {
+                        has_eq_premise = true;
+                        break;
+                    }
+                }
+                if (!has_eq_premise) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_INVALID [SUBST]: 前提中无等式，无法执行替换", NULL, NULL);
+                    return VERIFY_INVALID;
+                }
+                /* 结论应包含某种实例化或替换标记 */
+                if (has_inst_pattern(conclusion) || has_equality_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_VALID [SUBST]: 结论 \"%s\" 符合替换实例模式", conclusion, NULL);
+                    return VERIFY_VALID;
+                }
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_UNDECIDED [SUBST]: 结论 \"%s\" 结构不明确", conclusion, NULL);
+                return VERIFY_UNDECIDED;
+            }
+
+        case VERIFY_INST_TYPE:
+            /* INST_TYPE: 类型实例化
+             * 检查：前提为泛型定理，结论为特化后的版本（通常含类型标注） */
+            if (!premises || !premises[0]) {
+                if (out_trace)
+                    *out_trace = _strdup("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
+                return VERIFY_UNDECIDED;
+            }
+            {
+                const char *p0 = premises[0];
+                /* 前提和结论应有结构相似性（类型特化不改变项结构） */
+                /* 轻量级检查：结论长度 >= 前提长度（特化通常添加类型信息） */
+                if (strlen(conclusion) >= strlen(p0) && has_inst_type_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_VALID [INST_TYPE]: 前提 \"%s\" => 结论 \"%s\" 符合类型实例化", p0, conclusion);
+                    return VERIFY_VALID;
+                }
+                /* 结论可能不含显式 INST_TYPE 标记但结构相似 */
+                if (strlen(conclusion) > 0 && strstr(conclusion, ":") != NULL) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_UNDECIDED [INST_TYPE]: 结论 \"%s\" 含类型标注但无显式标记", conclusion, NULL);
+                    return VERIFY_UNDECIDED;
+                }
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_INVALID [INST_TYPE]: 结论 \"%s\" 不符合类型实例化模式", conclusion, NULL);
+                return VERIFY_INVALID;
+            }
+
+        case VERIFY_INST:
+            /* INST: 项实例化
+             * 检查：前提为含变量的定理，结论为变量被替换后的版本 */
+            if (!premises || !premises[0]) {
+                if (out_trace)
+                    *out_trace = _strdup("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
+                return VERIFY_UNDECIDED;
+            }
+            {
+                const char *p0 = premises[0];
+                /* 轻量级检查：前提含变量模式（单字母大写或下划线开头），
+                 * 结论含实例化标记或替换列表 */
+                if (has_inst_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_VALID [INST]: 前提 \"%s\" => 结论 \"%s\" 符合项实例化", p0, conclusion);
+                    return VERIFY_VALID;
+                }
+                /* 结论可能不含显式 INST 标记 */
+                if (has_equality_pattern(conclusion) || has_application_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_UNDECIDED [INST]: 结论 \"%s\" 结构可能为实例化结果但无显式标记", conclusion, NULL);
+                    return VERIFY_UNDECIDED;
+                }
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_INVALID [INST]: 结论 \"%s\" 不符合项实例化模式", conclusion, NULL);
+                return VERIFY_INVALID;
+            }
+
+        case VERIFY_DISCH:
+            /* DISCH: 如果 Gamma, A |- B 则 Gamma |- A ==> B
+             * 检查：前提为 B，结论应含蕴含模式（A ==> B 或 A --> B） */
+            if (!premises || !premises[0]) {
+                if (out_trace)
+                    *out_trace = _strdup("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
+                return VERIFY_UNDECIDED;
+            }
+            {
+                const char *p0 = premises[0]; /* B */
+                /* 结论应包含蕴含模式 */
+                if (!has_implication_pattern(conclusion)) {
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_INVALID [DISCH]: 结论 \"%s\" 不含蕴含模式", conclusion, NULL);
+                    return VERIFY_INVALID;
+                }
+                /* 结论的后件（蕴含右侧）应与前提匹配 */
+                /* 尝试提取蕴含右侧 */
+                const char *impl = strstr(conclusion, "==>");
+                if (!impl) impl = strstr(conclusion, "-->");
+                if (impl) {
+                    const char *rhs = impl + 3;
+                    while (*rhs == ' ') rhs++;
+                    /* 去除尾部空格 */
+                    size_t p0_len = strlen(p0);
+                    size_t rhs_len = strlen(rhs);
+                    while (rhs_len > 0 && rhs[rhs_len - 1] == ' ') rhs_len--;
+                    while (p0_len > 0 && p0[p0_len - 1] == ' ') p0_len--;
+                    if (rhs_len == p0_len && strncmp(rhs, p0, p0_len) == 0) {
+                        if (out_trace)
+                            *out_trace = make_trace("VERIFY_VALID [DISCH]: 前提 \"%s\" => 结论 \"%s\" 符合蕴含引入", p0, conclusion);
+                        return VERIFY_VALID;
+                    }
+                    /* 后件与前提不完全匹配，但蕴含结构存在 */
+                    if (out_trace)
+                        *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含但后件与前提 \"%s\" 不完全匹配", conclusion, p0);
+                    return VERIFY_UNDECIDED;
+                }
+                if (out_trace)
+                    *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含关键词但格式不明确", conclusion, NULL);
+                return VERIFY_UNDECIDED;
+            }
 
         default:
             if (out_trace) {

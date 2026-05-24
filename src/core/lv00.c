@@ -7,7 +7,7 @@
  *          作为整个 Lv-00 系统的入口模块，负责协调各子系统的
  *          生命周期管理。
  *
- * @version 3.2.0
+ * @version 3.3.0
  * @author Lv-00 Team
  */
 
@@ -38,6 +38,19 @@ typedef enum {
 
 /**
  * @brief 全局系统状态（线程局部）
+ *
+ * 【线程安全设计说明】
+ * 使用 LV00_THREAD_LOCAL 宏将系统状态声明为线程局部存储（TLS），
+ * 意味着每个线程拥有独立的 g_system_state 副本，互不干扰。
+ *
+ * 设计意图：
+ * - 支持多线程并行求解：每个线程可独立初始化引擎、执行求解，无需加锁
+ * - 避免全局状态的竞态条件：不同线程的初始化/清理不会相互影响
+ * - 嵌套调用安全：同一线程内的嵌套初始化通过 g_init_count 计数器管理
+ *
+ * 注意事项：
+ * - 跨线程传递几何对象时，需确保对象本身是线程安全的（如引用计数正确）
+ * - TLS 变量在主线程退出时自动销毁，但建议显式调用 lv00_cleanup()
  */
 static LV00_THREAD_LOCAL SystemState g_system_state = SYSTEM_STATE_UNINITIALIZED;
 
@@ -63,6 +76,16 @@ static LV00_THREAD_LOCAL int g_log_level = LV00_LOG_LEVEL_INFO;
 
 /**
  * @brief 断言启用状态
+ *
+ * 【线程安全性说明】
+ *   g_assertions_enabled 使用 LV00_THREAD_LOCAL 宏声明为线程局部存储。
+ *   每个操作系统线程拥有独立的副本，因此：
+ *   - 不同线程可以独立设置和读取自己的断言启用状态，不会产生数据竞争。
+ *   - 同一线程内的读写是顺序一致的。
+ *   - 如果需要全局统一的断言控制（所有线程共享同一开关），
+ *     应考虑使用 C11 的 atomic_bool 或互斥锁保护的全局变量。
+ *     当前设计选择线程局部存储，是因为断言检查通常与特定线程的
+ *     调试上下文相关，不同线程可能有不同的调试需求。
  */
 static LV00_THREAD_LOCAL bool g_assertions_enabled = true;
 
@@ -110,7 +133,7 @@ static bool is_system_initialized(void) {
  * @return 版本号字符串，格式 "major.minor.patch"
  */
 const char *lv00_get_version_string(void) {
-    static char version_str[32] = {0};
+    static LV00_THREAD_LOCAL char version_str[32] = {0};
     if (version_str[0] == '\0') {
         snprintf(version_str, sizeof(version_str), "%d.%d.%d",
                  LV00_VERSION_MAJOR, LV00_VERSION_MINOR, LV00_VERSION_PATCH);
@@ -118,6 +141,7 @@ const char *lv00_get_version_string(void) {
     return version_str;
 }
 
+/** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv00_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
     if (g_system_state == SYSTEM_STATE_INITIALIZED) {
@@ -188,6 +212,7 @@ bool lv00_init(void) {
     return true;
 }
 
+/** @brief 系统清理函数 @details 释放所有全局资源，重置初始化状态。 */
 void lv00_cleanup(void) {
     /* 检查嵌套计数 */
     if (g_init_count > 1) {
@@ -239,6 +264,7 @@ void lv00_cleanup(void) {
     set_system_state(SYSTEM_STATE_UNINITIALIZED);
 }
 
+/** @brief 查询系统是否已初始化 @return true 已初始化，false 未初始化 */
 bool lv00_is_initialized(void) {
     return is_system_initialized();
 }
@@ -459,18 +485,21 @@ int lv00_config_get_int(const char *key, int default_val) {
     return config_get_int(g_config, key, default_val);
 }
 
+/** @brief 获取布尔配置项 @param key 配置键名 @param default_val 默认值 @return 配置值 */
 bool lv00_config_get_bool(const char *key, bool default_val) {
     if (!g_config)
         return default_val;
     return config_get_bool(g_config, key, default_val);
 }
 
+/** @brief 获取双精度浮点配置项 @param key 配置键名 @param default_val 默认值 @return 配置值 */
 double lv00_config_get_double(const char *key, double default_val) {
     if (!g_config)
         return default_val;
     return config_get_double(g_config, key, default_val);
 }
 
+/** @brief 获取字符串配置项 @param key 配置键名 @param default_val 默认值 @return 配置值（可能为 NULL） */
 const char *lv00_config_get_string(const char *key, const char *default_val) {
     if (!g_config)
         return default_val;
@@ -486,18 +515,21 @@ bool lv00_config_set_int(const char *key, int value) {
     return config_set_int(g_config, key, value);
 }
 
+/** @brief 设置布尔配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
 bool lv00_config_set_bool(const char *key, bool value) {
     if (!g_config)
         return false;
     return config_set_bool(g_config, key, value);
 }
 
+/** @brief 设置双精度浮点配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
 bool lv00_config_set_double(const char *key, double value) {
     if (!g_config)
         return false;
     return config_set_double(g_config, key, value);
 }
 
+/** @brief 设置字符串配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
 bool lv00_config_set_string(const char *key, const char *value) {
     if (!g_config)
         return false;
@@ -553,6 +585,7 @@ size_t lv00_get_memory_limit_ex(void) {
  * 调试和日志便捷API实现
  * ============================================================ */
 
+/** @brief 设置日志级别 @param level 日志级别（0=关闭, 1=错误, 2=警告, 3=信息, 4=调试） */
 void lv00_set_log_level(int level) {
     g_log_level = level;
     if (g_config) {
@@ -560,10 +593,12 @@ void lv00_set_log_level(int level) {
     }
 }
 
+/** @brief 获取当前日志级别 @return 日志级别 */
 int lv00_get_log_level(void) {
     return g_log_level;
 }
 
+/** @brief 启用或禁用运行时断言 @param enabled true 启用，false 禁用 */
 void lv00_set_assertions_enabled(bool enabled) {
     g_assertions_enabled = enabled;
     if (g_config) {
@@ -571,6 +606,7 @@ void lv00_set_assertions_enabled(bool enabled) {
     }
 }
 
+/** @brief 查询运行时断言是否启用 @return true 启用，false 禁用 */
 bool lv00_are_assertions_enabled(void) {
     return g_assertions_enabled;
 }

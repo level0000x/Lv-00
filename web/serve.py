@@ -36,13 +36,6 @@ _DEBUG = os.environ.get('LV00_DEBUG', '0') == '1'
 # 默认端口号
 _DEFAULT_PORT = 8080
 
-# 从命令行参数获取端口号，未指定则使用默认值
-try:
-    PORT = int(sys.argv[1]) if len(sys.argv) > 1 else _DEFAULT_PORT
-except (ValueError, IndexError):
-    sys.stderr.write(f"错误: 无效的端口号 '{sys.argv[1]}'，请使用整数\n")
-    sys.exit(1)
-
 # 配置日志记录器
 logging.basicConfig(
     level=logging.DEBUG if _DEBUG else logging.INFO,
@@ -255,23 +248,50 @@ class ReusableThreadingTCPServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True  # 实例级别属性，不影响进程中的其他服务器
 
 
-# ========== 启动服务器 ==========
+# ========== 服务器启动入口 ==========
 
-if _DEBUG:
-    _log.info("服务器启动在 http://localhost:%d", PORT)
-    _log.info("按 Ctrl+C 停止")
-    _log.info("访问控制: 已启用 (阻止隐藏文件和敏感目录)")
-    _log.info("线程模式: 多线程 (ThreadingTCPServer)")
+def main(argv: list = None) -> int:
+    """解析命令行参数并启动 HTTP 开发服务器。
 
-try:
-    with ReusableThreadingTCPServer(("127.0.0.1", PORT), SecureHTTPRequestHandler) as httpd:
-        _log.info("HTTP 开发服务器已启动: http://127.0.0.1:%d", PORT)
-        httpd.serve_forever()
-except PermissionError:
-    sys.stderr.write(f"\n错误: 端口 {PORT} 需要管理员权限或已被占用\n")
-    sys.stderr.write(f"请尝试其他端口: python {sys.argv[0]} 9000\n")
-except OSError as e:
-    sys.stderr.write(f"\n错误: 无法绑定端口 {PORT}: {e}\n")
-    sys.stderr.write(f"请尝试其他端口: python {sys.argv[0]} 9000\n")
-except KeyboardInterrupt:
-    _log.info("服务器已停止")
+    参数:
+        argv: 命令行参数列表，为 None 时使用 sys.argv[1:]
+
+    返回:
+        int: 退出码（0 表示正常退出）
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # 从命令行参数获取端口号，未指定则使用默认值
+    try:
+        port = int(argv[0]) if len(argv) > 0 else _DEFAULT_PORT
+    except (ValueError, IndexError):
+        sys.stderr.write(f"错误: 无效的端口号 '{argv[0]}'，请使用整数\n")
+        return 1
+
+    if _DEBUG:
+        _log.info("服务器启动在 http://localhost:%d", port)
+        _log.info("按 Ctrl+C 停止")
+        _log.info("访问控制: 已启用 (阻止隐藏文件和敏感目录)")
+        _log.info("线程模式: 多线程 (ThreadingTCPServer)")
+
+    try:
+        with ReusableThreadingTCPServer(("127.0.0.1", port), SecureHTTPRequestHandler) as httpd:
+            _log.info("HTTP 开发服务器已启动: http://127.0.0.1:%d", port)
+            httpd.serve_forever()
+    except PermissionError:
+        sys.stderr.write(f"\n错误: 端口 {port} 需要管理员权限或已被占用\n")
+        sys.stderr.write(f"请尝试其他端口: python {sys.argv[0]} 9000\n")
+        return 1
+    except OSError as e:
+        sys.stderr.write(f"\n错误: 无法绑定端口 {port}: {e}\n")
+        sys.stderr.write(f"请尝试其他端口: python {sys.argv[0]} 9000\n")
+        return 1
+    except KeyboardInterrupt:
+        _log.info("服务器已停止")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

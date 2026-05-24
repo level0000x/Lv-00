@@ -8,8 +8,8 @@
 
 import React, { useRef, useEffect } from 'react';
 
-/** 结构化日志条目 / Structured log entry */
-export interface LogEntry {
+/** 结构化日志条目（面板专用，与 types/index.ts 中的 LogEntry 不同） */
+export interface LogPanelEntry {
   /** 时间戳 / Timestamp */
   time: string;
   /** 日志消息 / Log message */
@@ -18,7 +18,7 @@ export interface LogEntry {
 
 interface LogPanelProps {
   /** 日志内容（字符串数组或结构化条目数组） / Log content */
-  entries: string[] | LogEntry[];
+  entries: string[] | LogPanelEntry[];
   /** 空状态提示文本 / Empty state placeholder text */
   emptyText?: string;
   /** 日志区域的最大高度 / Max height of the log area */
@@ -56,7 +56,7 @@ const LogPanel: React.FC<LogPanelProps> = ({
   }, [entries.length]);
 
   /** 判断是否为结构化日志 / Check if entries are structured */
-  const isStructured = (e: string[] | LogEntry[]): e is LogEntry[] =>
+  const isStructured = (e: string[] | LogPanelEntry[]): e is LogPanelEntry[] =>
     e.length > 0 && typeof e[0] === 'object' && e[0] !== null && 'time' in e[0];
 
   return (

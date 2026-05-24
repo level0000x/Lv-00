@@ -1,10 +1,15 @@
 /**
- * recurse.js - RECURSE 递归模块方法
+ * @file recurse.js
+ * @brief RECURSE 递归模块方法
+ * @description 实现 Lv-00 递归系统的前端操作方法，挂载到 Lv00WebApp.prototype 上。
+ *              包括创建/计算终止测度、进入/退出递归上下文、
+ *              选择器求值、递减检查、互递归验证等功能。
+ *              支持后端 API 和客户端回退两种测度计算方式。
  *
- * 实现递归模块的操作方法，包括创建测度、计算测度、
- * 进入/退出递归、选择器求值、递减检查等。
- *
- * 依赖：Lv00WebApp 构造函数、ui.js
+ * @module recurse
+ * @requires Lv00WebApp 构造函数（app.js）
+ * @requires ui.js（appendLog, showToast 等方法）
+ * @since 3.0.0
  */
 (function() {
     'use strict';

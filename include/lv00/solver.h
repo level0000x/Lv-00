@@ -4,6 +4,19 @@
  * @details 提供基于 Groebner 基方法的代数约束求解、全类型约束方程提取、
  * 增量求解（仅重解脏变量子图）、冲突方程检测、自由度计算以及
  * 代数数运算（结式法求和/积的最小多项式）。
+ *
+ * 【中文模块说明】
+ * solver.h 是 Lv-00 系统的代数求解核心模块，负责将几何约束转化为
+ * 代数方程并通过 Groebner 基方法求解。主要功能包括：
+ * - Groebner 基求解（支持度数 <= 2 的多项式系统）
+ * - 全类型约束方程提取（INCIDENCE、INTERSECTION、CONTAINMENT、BETWEENNESS）
+ * - 增量求解（仅重解发生变化的变量子图，提高效率）
+ * - 冲突方程检测（检查约束系统中是否存在矛盾方程）
+ * - 自由度计算（分析约束系统的自由变量数量）
+ * - 代数数运算（使用结式法计算代数数和/积的最小多项式）
+ * - 多解分支处理（处理二次方程的多个代数解）
+ * - 交互式求解反馈（Solvespace 风格的实时状态推送）
+ * - 稀疏矩阵求解后端（SuiteSparse/GraphBLAS 加速）
  */
 
 #ifndef LV00_SOLVER_H
@@ -25,11 +38,14 @@ extern "C" {
 
 /**
  * @brief 求解器中变量 ID 的最大值
- * @details 防止稀疏 ID 导致 OOM。此值与 solver.c 中保持严格一致，
- *          任何修改必须同步更新两处，否则可能导致未定义行为。
- * @note 当前值 100000，对应 solver.c 中的同名常量
+ * @details 防止稀疏 ID 导致 OOM。优先使用 config.h 中的集中定义
+ *          LV00_CONFIG_SOLVER_MAX_VAR_ID；若未定义则回退到默认值 100000。
  */
-#define SOLVER_MAX_VAR_ID 100000
+#ifndef LV00_CONFIG_SOLVER_MAX_VAR_ID
+#define SOLVER_MAX_VAR_ID 100000  /* 回退默认值 */
+#else
+#define SOLVER_MAX_VAR_ID LV00_CONFIG_SOLVER_MAX_VAR_ID
+#endif
 
 /**
  * @brief 设置求解器的流式输出上下文
@@ -46,6 +62,10 @@ typedef struct EquationSystem EquationSystem;
 typedef struct GroebnerResult {
     SymbolicCoord **solutions; /**< 解数组 */
     int solution_count;        /**< 解的数量 */
+    /* [已知限制] solution_count 使用 int 而非 size_t，与 C 标准库惯例不一致。
+     * 保留 int 是因为内部求解器接口和调用方均使用 int 计数，
+     * 且实际解数量受 SOLVER_MAX_VAR_ID 限制，不会超过 INT_MAX。
+     * 未来如需支持超大规模解集，应迁移为 size_t。 */
     bool unique;               /**< 是否唯一解 */
     bool overdetermined;       /**< 是否过度约束 */
 } GroebnerResult;
@@ -74,6 +94,13 @@ typedef enum {
  * @param[out] out_result        成功时接收新分配的 GroebnerResult。
  *                               调用者需用 groebner_result_free() 释放。
  *                               失败时设为 NULL。
+ *
+ * 【失败时的 out_result 行为 —— 重要】
+ *   当函数返回非 SOLVER_OK / SOLVER_UNIQUE / SOLVER_MULTIPLE 的状态码时，
+ *   *out_result 会被 **设为 NULL**。如果调用者在调用前 *out_result 已指向
+ *   一个有效的 GroebnerResult，该原有值会被 **先释放**（通过内部调用
+ *   groebner_result_free()），然后再设为 NULL。
+ *   因此调用者无需（也不应）在失败后手动释放 *out_result 的旧值。
  *
  * @return 求解器状态：SOLVER_OK / SOLVER_UNIQUE / SOLVER_MULTIPLE /
  *         SOLVER_NO_SOLUTION / SOLVER_OVERCONSTRAINED /
@@ -295,6 +322,19 @@ typedef enum {
  *
  * 每次用户交互后，求解器返回结构化的反馈信息，
  * 供 Web GUI 画布层即时更新视觉状态。
+ *
+ * 【字段所有权语义 —— 重要】
+ *   SolverFeedback 的动态字段采用统一释放策略：
+ *   - message:              由 solver_feedback_create() 内部分配（strdup）。
+ *                           **调用者不需要单独释放**，由 solver_feedback_destroy() 统一释放。
+ *   - free_var_ids:         由求解器内部分配（malloc）。
+ *                           **调用者不需要单独释放**，由 solver_feedback_destroy() 统一释放。
+ *   - overconstrained_ids:  由求解器内部分配（malloc）。
+ *                           **调用者不需要单独释放**，由 solver_feedback_destroy() 统一释放。
+ *
+ *   简言之：调用者只需持有 SolverFeedback 指针，最终通过
+ *   solver_feedback_destroy() 一次性释放所有资源即可。
+ *   严禁对上述字段调用 free() 或 lv00_free()，否则会导致 double-free。
  */
 typedef struct SolverFeedback {
     SolverFeedbackType type;   /**< 反馈类型 */

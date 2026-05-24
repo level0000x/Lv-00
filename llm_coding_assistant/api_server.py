@@ -34,11 +34,13 @@ import asyncio
 import logging
 import traceback
 import time
-import hashlib
 import uuid
+import secrets
 import threading
 from functools import wraps
-from typing import Optional, Dict, Any, List
+from typing import Callable, Optional, Dict, Any, List, Awaitable
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 from datetime import datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -46,6 +48,8 @@ from contextlib import asynccontextmanager
 # 确保 llm_coding_assistant 目录在搜索路径中，以便 `from core import`
 # 能正确找到 core 子模块。若通过 `python -m llm_coding_assistant.api_server`
 # 启动则不需要手动修改 sys.path。
+# 注意：修改 sys.path 会影响整个 Python 进程的模块搜索顺序，
+# 仅在包内相对导入无法正常工作时才需要此变通方案。
 _FRAME_DIR = Path(__file__).resolve().parent
 if _FRAME_DIR not in sys.path:
     sys.path.insert(0, str(_FRAME_DIR))
@@ -79,44 +83,79 @@ from .auth import (
 # ============================================================
 # 版本号
 # ============================================================
-__version__ = "1.0.0"
+__version__ = "3.3.0"
 
 # ============================================================
-# 认证配置
-# ============================================================
-
-# JWT 签名密钥（必须通过环境变量设置，未设置则拒绝启动）
-_SECRET_KEY_ENV: str = os.getenv("JWT_SECRET_KEY", "")
-if not _SECRET_KEY_ENV:
-    raise RuntimeError(
-        "环境变量 JWT_SECRET_KEY 未设置。出于安全考虑，"
-        "生产环境必须通过 JWT_SECRET_KEY 环境变量设置签名密钥后重新启动服务。"
-    )
-SECRET_KEY: str = _SECRET_KEY_ENV
-
-# 令牌过期时间（秒），默认 24 小时
-ACCESS_TOKEN_EXPIRE_SECONDS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "86400"))
-
-# 用户存储（生产环境应使用数据库）
-# 默认包含 admin 用户（密码: admin123）
-# 密码使用 PBKDF2-HMAC-SHA256 加盐哈希（参见 auth.hash_password）
-USERS: Dict[str, User] = {
-    "admin": User(
-        id="user-001",
-        username="admin",
-        role="admin",
-        password_hash=hash_password("admin123"),
-    ),
-}
-
-# ============================================================
-# 日志配置
+# 日志配置（必须在其他模块代码之前初始化，避免 logger 在定义前使用）
 # ============================================================
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
 logger = logging.getLogger("api_server")
+
+# ============================================================
+# 认证配置
+# ============================================================
+
+# JWT 签名密钥（延迟初始化，在 _validate_config 中设置）
+_SECRET_KEY_ENV: str = os.getenv("JWT_SECRET_KEY", "")
+SECRET_KEY: str = ""
+
+# 令牌过期时间（秒），默认 24 小时
+ACCESS_TOKEN_EXPIRE_SECONDS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "86400"))
+
+# 用户存储（生产环境应使用数据库）
+# 在 _ensure_admin_exists() 中从环境变量初始化管理员账户
+USERS: Dict[str, User] = {}
+
+
+def _validate_config() -> None:
+    """验证必要的环境变量并初始化安全配置（应在应用启动时调用）。
+
+    检查 JWT_SECRET_KEY 是否已设置，未设置时自动生成随机密钥并打印警告。
+    自动生成的密钥仅在单次进程生命周期内有效，重启后所有已签发的令牌将失效。
+    """
+    global SECRET_KEY
+
+    if _SECRET_KEY_ENV:
+        SECRET_KEY = _SECRET_KEY_ENV
+    else:
+        SECRET_KEY = secrets.token_urlsafe(32)
+        logger.warning(
+            "[安全警告] JWT_SECRET_KEY 环境变量未设置，已自动生成随机密钥。"
+            "生产环境请通过环境变量设置固定密钥，否则每次重启后所有令牌将失效。\n"
+            "设置方法:\n"
+            "  Linux/macOS: export JWT_SECRET_KEY='你的密钥'\n"
+            "  Windows:     set JWT_SECRET_KEY=你的密钥\n"
+            "  Docker:      -e JWT_SECRET_KEY='你的密钥'\n"
+            "建议使用 openssl rand -hex 32 生成高强度密钥。",
+        )
+
+
+def _ensure_admin_exists() -> None:
+    """确保至少存在一个管理员账户（应在应用启动时调用）。
+
+    从环境变量 LV00_ADMIN_USER 和 LV00_ADMIN_PASSWORD 读取管理员凭据。
+    两个变量都必须设置才会创建管理员账户。
+    未设置时打印警告，用户可通过 /api/auth/register 注册账户。
+    密码使用 PBKDF2-HMAC-SHA256 加盐哈希（参见 auth.hash_password）。
+    """
+    admin_user = os.environ.get("LV00_ADMIN_USER", "")
+    admin_pass = os.environ.get("LV00_ADMIN_PASSWORD", "")
+    if admin_user and admin_pass:
+        USERS[admin_user] = User(
+            id="user-001",
+            username=admin_user,
+            role="admin",
+            password_hash=hash_password(admin_pass),
+        )
+    else:
+        logger.warning(
+            "LV00_ADMIN_USER / LV00_ADMIN_PASSWORD 未设置，"
+            "未创建默认管理员账户。请通过 /api/auth/register 注册账户，"
+            "或设置环境变量后重启。",
+        )
 
 # ============================================================
 # 配置常量
@@ -173,7 +212,7 @@ class ConnectionManager:
         for connection in connections:
             try:
                 await connection.send_text(message)
-            except Exception:
+            except (RuntimeError, ConnectionError):
                 # 记录发送失败的日志，便于排查连接异常
                 logger.warning(
                     "向WebSocket连接广播消息失败，可能该连接已断开: %s",
@@ -272,7 +311,7 @@ class RegisterRequest(BaseModel):
 # 认证中间件：auth_required 装饰器
 # ============================================================
 
-def auth_required(func):
+def auth_required(func: Callable) -> Callable:
     """
     认证中间件装饰器
 
@@ -288,7 +327,7 @@ def auth_required(func):
             ...
     """
     @wraps(func)
-    async def wrapper(request: Request, *args, **kwargs):
+    async def wrapper(request: Request, *args: Any, **kwargs: Any) -> Any:
         auth_header = request.headers.get("Authorization")
         user_payload = get_current_user(auth_header, SECRET_KEY)
         if user_payload is None:
@@ -300,7 +339,7 @@ def auth_required(func):
         # 将用户信息注入到请求状态中
         request.state.current_user = user_payload
         return await func(request, *args, **kwargs)
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
 # ============================================================
@@ -333,12 +372,17 @@ async def lifespan(app: FastAPI):
     # ---------- 启动阶段 ----------
     _app_start_time = time.time()
     logger.info("正在初始化LLM编程辅助系统...")
+
+    # 验证安全配置并初始化管理员账户
+    _validate_config()
+    _ensure_admin_exists()
+
     try:
         ai_engine = AIEngine()
         code_analyzer = CodeAnalyzer()
         logger.info("AI引擎初始化完成，可用提供商: %s", ai_engine.list_providers())
         logger.info("代码分析器初始化完成")
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
         logger.error("核心组件初始化失败: %s", traceback.format_exc())
         # 记录具体的失败原因，便于运维排查
         logger.error(
@@ -393,7 +437,7 @@ app.add_middleware(
 # ============================================================
 
 @app.middleware("http")
-async def limit_request_size(request: Request, call_next):
+async def limit_request_size(request: Request, call_next: RequestResponseEndpoint) -> Response:
     """
     请求体大小限制中间件
     超过 MAX_REQUEST_BODY_SIZE 的请求将被拒绝，防止内存耗尽攻击。
@@ -478,7 +522,7 @@ def _cleanup_all_expired_rate_limits(now: float) -> None:
 # ============================================================
 
 @app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
+async def rate_limit_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
     """
     基于IP的速率限制中间件
     使用滑动窗口算法，限制每个IP在指定时间窗口内的请求数量。
@@ -489,7 +533,7 @@ async def rate_limit_middleware(request: Request, call_next):
     if request.url.path.startswith("/ws/"):
         return await call_next(request)
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(",")[0].strip() if request.client else "unknown"
     now = time.time()
 
     # 使用线程锁保护速率限制存储的并发访问
@@ -713,15 +757,68 @@ async def login(request: LoginRequest):
     })
 
 
+# ============================================================
+# 注册端点速率限制（基于内存的IP计数器，每分钟最多5次注册）
+# ============================================================
+
+# 存储格式: { "ip_address": [timestamp1, timestamp2, ...] }
+_register_rate_limit_store: Dict[str, List[float]] = {}
+# 注册速率限制：每个IP每分钟最多允许的注册次数
+REGISTER_RATE_LIMIT_MAX = 5
+# 注册速率限制时间窗口（秒）
+REGISTER_RATE_LIMIT_WINDOW = 60
+
+
+def _check_register_rate_limit(client_ip: str) -> bool:
+    """
+    检查指定IP是否超过注册速率限制。
+
+    Args:
+        client_ip: 客户端IP地址
+
+    Returns:
+        True 表示允许注册，False 表示超过限制
+    """
+    now = time.time()
+    cutoff = now - REGISTER_RATE_LIMIT_WINDOW
+    # 清理过期记录
+    timestamps = _register_rate_limit_store.get(client_ip, [])
+    timestamps = [ts for ts in timestamps if ts > cutoff]
+    _register_rate_limit_store[client_ip] = timestamps
+
+    if len(timestamps) >= REGISTER_RATE_LIMIT_MAX:
+        logger.warning(
+            "注册速率限制触发: IP=%s 在 %d 秒内注册 %d 次 (限制: %d 次)",
+            client_ip,
+            REGISTER_RATE_LIMIT_WINDOW,
+            len(timestamps),
+            REGISTER_RATE_LIMIT_MAX,
+        )
+        return False
+
+    # 记录本次请求
+    timestamps.append(now)
+    return True
+
+
 @app.post("/api/auth/register", tags=["认证"])
-async def register(request: RegisterRequest):
+async def register(request: Request, reg_req: RegisterRequest):
     """
     用户注册
 
     注册新用户账号并返回 JWT 访问令牌。
     用户名已存在时返回 409 错误。
+    每个IP每分钟最多允许5次注册，超过限制返回 429 错误。
     """
-    if request.username in USERS:
+    # 注册端点速率限制检查
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_register_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="注册请求过于频繁，每分钟最多允许5次注册，请稍后重试",
+        )
+
+    if reg_req.username in USERS:
         raise HTTPException(
             status_code=409,
             detail="用户名已存在",
@@ -731,12 +828,12 @@ async def register(request: RegisterRequest):
     user_id = f"user-{uuid.uuid4().hex[:8]}"
     new_user = User(
         id=user_id,
-        username=request.username,
-        role=request.role,
-        password_hash=hash_password(request.password),
+        username=reg_req.username,
+        role=reg_req.role,
+        password_hash=hash_password(reg_req.password),
     )
-    USERS[request.username] = new_user
-    logger.info("新用户注册: %s (role=%s)", request.username, request.role)
+    USERS[reg_req.username] = new_user
+    logger.info("新用户注册: %s (role=%s)", reg_req.username, reg_req.role)
 
     # 生成 JWT 令牌
     token = create_access_token(
@@ -744,8 +841,8 @@ async def register(request: RegisterRequest):
         secret_key=SECRET_KEY,
         expires_delta=ACCESS_TOKEN_EXPIRE_SECONDS,
         extra_data={
-            "username": request.username,
-            "role": request.role,
+            "username": reg_req.username,
+            "role": reg_req.role,
         },
     )
 
@@ -844,8 +941,8 @@ async def chat(request: Request, chat_req: ChatRequest):
             provider=chat_req.provider,
         )
         return _success_response({"response": response})
-    except Exception:
-        logger.error("AI对话失败: %s", traceback.format_exc())
+    except (RuntimeError, ConnectionError, ValueError, KeyError) as exc:
+        logger.error("AI对话失败: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(status_code=500, detail="AI对话处理失败，请稍后重试")
 
 
@@ -869,8 +966,8 @@ async def analyze_code(request: Request, analysis_req: CodeAnalysisRequest):
             "result": result.to_dict(),
             "report": report,
         })
-    except Exception:
-        logger.error("代码分析失败: %s", traceback.format_exc())
+    except (ValueError, RuntimeError, KeyError) as exc:
+        logger.error("代码分析失败: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(status_code=500, detail="代码分析处理失败，请稍后重试")
 
 
@@ -906,8 +1003,8 @@ async def generate_code(request: Request, gen_req: CodeGenerationRequest):
             "code": response,
             "language": gen_req.language,
         })
-    except Exception:
-        logger.error("代码生成失败: %s", traceback.format_exc())
+    except (RuntimeError, ConnectionError, ValueError, KeyError) as exc:
+        logger.error("代码生成失败: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(status_code=500, detail="代码生成处理失败，请稍后重试")
 
 
@@ -932,8 +1029,8 @@ async def debug_code(request: Request, debug_req: DebugRequest):
             "analysis": response,
             "language": debug_req.language,
         })
-    except Exception:
-        logger.error("代码调试失败: %s", traceback.format_exc())
+    except (RuntimeError, ConnectionError, ValueError, KeyError) as exc:
+        logger.error("代码调试失败: %s\n%s", exc, traceback.format_exc())
         raise HTTPException(status_code=500, detail="代码调试处理失败，请稍后重试")
 
 
@@ -944,12 +1041,26 @@ async def debug_code(request: Request, debug_req: DebugRequest):
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
     """
-    WebSocket实时对话接口
+    WebSocket实时对话接口（需要认证）
+    
+    认证方式：通过查询参数传递 JWT token
+    连接示例：ws://host/ws/chat?token=<your_jwt_token>
     支持流式AI对话，客户端发送JSON消息，服务端逐块返回响应。
     消息格式：
       发送: {"message": "...", "provider": "可选"}
       接收: {"type": "chunk"|"done"|"error", "content": "..."}
     """
+    # WebSocket 认证：从查询参数获取 token
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="缺少认证令牌")
+        return
+    
+    user_payload = get_current_user(f"Bearer {token}", SECRET_KEY)
+    if user_payload is None:
+        await websocket.close(code=4001, reason="认证令牌无效或已过期")
+        return
+    
     await ws_manager.connect(websocket)
 
     try:
@@ -1010,8 +1121,8 @@ async def websocket_chat(websocket: WebSocket):
                     "content": "",
                 }))
 
-            except Exception:
-                logger.error("WebSocket对话处理失败: %s", traceback.format_exc())
+            except (RuntimeError, ConnectionError, ValueError, KeyError) as exc:
+                logger.error("WebSocket对话处理失败: %s\n%s", exc, traceback.format_exc())
                 await websocket.send_text(json.dumps({
                     "type": "error",
                     "content": "处理消息时发生错误，请稍后重试",
@@ -1019,8 +1130,8 @@ async def websocket_chat(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info("客户端主动断开WebSocket连接")
-    except Exception:
-        logger.error("WebSocket异常: %s", traceback.format_exc())
+    except (RuntimeError, ConnectionError, ValueError) as exc:
+        logger.error("WebSocket异常: %s\n%s", exc, traceback.format_exc())
     finally:
         await ws_manager.disconnect(websocket)
 

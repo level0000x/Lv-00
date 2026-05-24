@@ -368,7 +368,6 @@ bool preset_matrix_register(void) {
     }
 
     /* 输出注册结果日志 */
-    ; /* 注册完成 */
 
     /* 返回是否所有预设都注册成功 */
     return success_count == MATRIX_PRESET_COUNT;

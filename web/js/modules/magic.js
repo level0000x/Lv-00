@@ -1,14 +1,15 @@
 /**
- * ============================================================================
- * Lv-00 Magic Module / 魔法模块 (整合轰界法术生成器)
- * ============================================================================
+ * @file magic.js
+ * @brief MAGIC 魔法模块（整合轰界法术生成器）
+ * @description 将轰界法术编译器（SpellCompiler）集成到 Lv-00 主界面，
+ *              支持四阶段法术构造流程：开模 -> 提纯 -> 灌注 -> 释放。
+ *              包含节点库管理、阶段选择、法术编译与评估、雷达图展示等功能。
+ *              挂载到 Lv00WebApp.prototype 上，作为 MAGIC 面板的 UI 层。
  *
- * 集成轰界法术编译器到 Lv-00 主界面
- * 支持四阶段法术构造：开模 → 提纯 → 灌注 → 释放
- *
- * 版本：2.0.0
- * 语法：严格 ES5
- * ============================================================================
+ * @module magic
+ * @requires Lv00WebApp 构造函数（app.js）
+ * @requires SpellCompiler（spell_compiler.js）轰界法术编译器
+ * @since 3.0.0
  */
 
 (function() {
@@ -43,9 +44,12 @@
     }
 
     function loadNodeLibrary() {
-        // 尝试从本地加载节点库
-        fetch('data/magic_nodes.json')
+        // 尝试从本地加载节点库（带 10 秒超时）
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function() { controller.abort(); }, 10000);
+        fetch('data/magic_nodes.json', { signal: controller.signal })
             .then(function(response) {
+                clearTimeout(timeoutId);
                 if (!response.ok) throw new Error('Failed to load node library');
                 return response.json();
             })
@@ -58,8 +62,14 @@
                 console.log('[Magic Module] Node library loaded:', data.nodes.length, 'nodes');
             })
             .catch(function(error) {
-                console.warn('[Magic Module] Using fallback node library:', error);
+                clearTimeout(timeoutId);
+                // 网络请求失败或 JSON 解析失败时，使用内嵌的回退节点库
+                console.warn('[Magic Module] 节点库加载失败，使用回退数据:', error.message || error);
                 loadFallbackLibrary();
+                // 向用户提示加载失败（不影响功能使用）
+                if (window.lv00App && typeof window.lv00App.appendLog === 'function') {
+                    window.lv00App.appendLog('魔法节点库远程加载失败，已使用内置回退数据 / Magic node library fetch failed, using fallback', 'warn');
+                }
             });
     }
 
@@ -136,9 +146,9 @@
             html += '<div class="magic-node-list">';
 
             nodes.forEach(function(node) {
-                html += '<div class="magic-node-item" data-node-id="' + node.id + '" data-stage="' + stageId + '">';
-                html += '<span class="magic-node-name">' + node.name + '</span>';
-                html += '<span class="magic-node-tier">T' + node.tier + '</span>';
+                html += '<div class="magic-node-item" data-node-id="' + _escapeHtml(node.id) + '" data-stage="' + stageId + '">';
+                html += '<span class="magic-node-name">' + _escapeHtml(node.name) + '</span>';
+                html += '<span class="magic-node-tier">T' + _escapeHtml(node.tier) + '</span>';
                 html += '</div>';
             });
 
@@ -184,9 +194,9 @@
 
                     if (node) {
                         html += '<div class="magic-stage-node">';
-                        html += '<span class="magic-stage-node-name">' + node.name + '</span>';
-                        html += '<span class="magic-stage-node-tier">T' + node.tier + '</span>';
-                        html += '<button class="magic-stage-node-remove" data-stage="' + stageId + '" data-index="' + index + '">×</button>';
+                        html += '<span class="magic-stage-node-name">' + _escapeHtml(node.name) + '</span>';
+                        html += '<span class="magic-stage-node-tier">T' + _escapeHtml(node.tier) + '</span>';
+                        html += '<button class="magic-stage-node-remove" data-stage="' + stageId + '" data-index="' + index + '">&times;</button>';
                         html += '</div>';
                     }
                 });
@@ -254,15 +264,15 @@
 
         // 法术名称和等级
         if (result.spell_name) {
-            html += '<div class="magic-result-name">' + result.spell_name + '</div>';
+            html += '<div class="magic-result-name">' + _escapeHtml(result.spell_name) + '</div>';
         }
         if (result.spell_level) {
-            html += '<div class="magic-result-level">' + result.spell_level.label + '</div>';
+            html += '<div class="magic-result-level">' + _escapeHtml(result.spell_level.label) + '</div>';
         }
 
         // 摘要
         if (result.summary) {
-            html += '<div class="magic-result-summary">' + result.summary + '</div>';
+            html += '<div class="magic-result-summary">' + _escapeHtml(result.summary) + '</div>';
         }
 
         // 阶段结果
@@ -271,8 +281,8 @@
             html += '<div class="magic-result-section-title">阶段结果</div>';
             result.stage_outcomes.forEach(function(outcome) {
                 html += '<div class="magic-result-stage">';
-                html += '<span class="magic-result-stage-label">' + outcome.label + '</span>';
-                html += '<span class="magic-result-stage-result">' + outcome.result + '</span>';
+                html += '<span class="magic-result-stage-label">' + _escapeHtml(outcome.label) + '</span>';
+                html += '<span class="magic-result-stage-result">' + _escapeHtml(outcome.result) + '</span>';
                 html += '</div>';
             });
             html += '</div>';
@@ -283,13 +293,13 @@
             html += '<div class="magic-result-radar">';
             html += '<div class="magic-result-section-title">六维雷达</div>';
             html += '<div class="magic-radar-container">';
-            html += '<canvas id="magicRadarCanvas" width="200" height="200"></canvas>';
+            html += '<canvas id="magicRadarCanvas" width="200" height="200" aria-label="法术六维雷达图" role="img"></canvas>';
             html += '</div>';
             html += '<div class="magic-radar-legend">';
             result.radar.forEach(function(item) {
                 html += '<div class="magic-radar-item">';
-                html += '<span class="magic-radar-label">' + item.label + '</span>';
-                html += '<div class="magic-radar-bar"><div class="magic-radar-fill" style="width:' + item.value + '%"></div></div>';
+                html += '<span class="magic-radar-label">' + _escapeHtml(item.label) + '</span>';
+                html += '<div class="magic-radar-bar"><div class="magic-radar-fill" style="width:' + Math.round(item.value) + '%"></div></div>';
                 html += '<span class="magic-radar-value">' + Math.round(item.value) + '</span>';
                 html += '</div>';
             });
@@ -304,9 +314,9 @@
             result.issues.forEach(function(issue) {
                 var severityClass = 'magic-issue-' + issue.severity;
                 html += '<div class="magic-issue ' + severityClass + '">';
-                html += '<div class="magic-issue-message">' + issue.message + '</div>';
+                html += '<div class="magic-issue-message">' + _escapeHtml(issue.message) + '</div>';
                 if (issue.suggestion) {
-                    html += '<div class="magic-issue-suggestion">→ ' + issue.suggestion + '</div>';
+                    html += '<div class="magic-issue-suggestion">&rarr; ' + _escapeHtml(issue.suggestion) + '</div>';
                 }
                 html += '</div>';
             });
@@ -323,7 +333,7 @@
                 html += '<div class="magic-card-section">';
                 html += '<div class="magic-card-section-title">施法条件</div>';
                 card.conditions.forEach(function(cond) {
-                    html += '<div class="magic-card-item">• ' + cond + '</div>';
+                    html += '<div class="magic-card-item">&bull; ' + _escapeHtml(cond) + '</div>';
                 });
                 html += '</div>';
             }
@@ -332,7 +342,7 @@
                 html += '<div class="magic-card-section">';
                 html += '<div class="magic-card-section-title">代价</div>';
                 card.costs.forEach(function(cost) {
-                    html += '<div class="magic-card-item">• ' + cost + '</div>';
+                    html += '<div class="magic-card-item">&bull; ' + _escapeHtml(cost) + '</div>';
                 });
                 html += '</div>';
             }
@@ -341,7 +351,7 @@
                 html += '<div class="magic-card-section">';
                 html += '<div class="magic-card-section-title">风险</div>';
                 card.risks.forEach(function(risk) {
-                    html += '<div class="magic-card-item magic-card-risk">⚠ ' + risk + '</div>';
+                    html += '<div class="magic-card-item magic-card-risk">&#9888; ' + _escapeHtml(risk) + '</div>';
                 });
                 html += '</div>';
             }
@@ -350,7 +360,7 @@
                 html += '<div class="magic-card-section">';
                 html += '<div class="magic-card-section-title">建议</div>';
                 card.suggestions.forEach(function(sugg) {
-                    html += '<div class="magic-card-item magic-card-suggestion">→ ' + sugg + '</div>';
+                    html += '<div class="magic-card-item magic-card-suggestion">&rarr; ' + _escapeHtml(sugg) + '</div>';
                 });
                 html += '</div>';
             }
@@ -626,6 +636,21 @@
     // ================================================================
     // 工具函数
     // ================================================================
+
+    /**
+     * @brief 转义HTML特殊字符，防止XSS注入
+     * @param {string} str - 需要转义的字符串
+     * @returns {string} 转义后的安全字符串
+     */
+    function _escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 
     function showToast(message, type) {
         type = type || 'info';

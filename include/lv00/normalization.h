@@ -158,6 +158,23 @@ int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log);
  */
 int merge_regions(ConstraintGraph *graph, NormalizationLog *log);
 
+/**
+ * @brief 节点合并候选 —— 描述两个可能需要合并的节点及其上下文信息
+ *
+ * 【scope_a / scope_b 的类型选择原因 —— 为什么使用 long long 而非 int】
+ *   scope_a 和 scope_b 表示节点所在的作用域深度，类型为 long long 而非 int，
+ *   原因如下：
+ *   1. 深度嵌套场景：在复杂的几何构造中，模块嵌套深度可能很大（如多层子图
+ *      嵌套、递归模块展开等），int 的 32 位范围（约 21 亿）虽然看似足够，
+ *      但使用 long long（64 位）提供了更大的安全裕度。
+ *   2. 特殊值编码：long long 允许使用 -1 等特殊值表示"无作用域"或"全局作用域"，
+ *      而不会与正常的深度值冲突。int 虽然也能表示 -1，但在混合使用无符号深度
+ *      计数器时可能产生隐式转换问题。
+ *   3. 与约束图内部表示一致：ConstraintGraph 中节点的作用域深度字段也使用
+ *      long long 类型，此处保持一致可避免类型转换和截断风险。
+ *   4. 跨平台一致性：long long 在所有主流平台上保证至少 64 位宽度，
+ *      而 int 的宽度可能因平台而异（尽管通常为 32 位）。
+ */
 typedef struct NodeMergeCandidate {
     int node_a_id;          /* 候选节点 A 的 ID */
     int node_b_id;          /* 候选节点 B 的 ID */
@@ -167,7 +184,7 @@ typedef struct NodeMergeCandidate {
     long long scope_b;      /* 节点 B 的作用域深度 */
 } NodeMergeCandidate;
 
-NodeMergeCandidate *find_merge_candidates(ConstraintGraph *graph, int *out_count);
+NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out_count);
 
 /**
  * @brief 销毁合并候选数组
@@ -227,7 +244,7 @@ void rewrite_history_destroy(RewriteHistory *history);
  * @param[in] graph   约束图
  * @return true 检测到循环，false 无循环
  */
-bool rewrite_history_check_cycle(const RewriteHistory *history, ConstraintGraph *graph);
+bool rewrite_history_check_cycle(const RewriteHistory *history, const ConstraintGraph *graph);
 
 /**
  * @brief 添加图到历史记录

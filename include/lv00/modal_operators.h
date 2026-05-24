@@ -1,35 +1,31 @@
+/* ========================================================================
+ * 模块名称：模态逻辑扩展 (modal_operators)
+ * 功能概述：为 Lv-00 几何证明系统引入基本模态逻辑。提供必然算子（□）
+ *          和可能算子（◇），基于 Kripke 语义的几何约束可达关系框架。
+ *          支持嵌套模态公式、模态对偶转换和有效性检查。
+ *          使用基本模态逻辑 K 系统。
+ *
+ * 主要 API：
+ *   - lv00_modal_world_create / destroy / assert  — 世界管理
+ *   - lv00_modal_frame_create / destroy / add_world — 框架管理
+ *   - lv00_modal_frame_set_reachability / is_reachable — 可达关系
+ *   - lv00_modal_formula_create / destroy          — 模态公式
+ *   - lv00_modal_evaluate / check_validity         — 模态评估
+ *   - lv00_modal_possible_to_necessary_not         — 对偶转换
+ *   - lv00_modal_frame_create_geometric_default    — 默认几何框架
+ *
+ * 使用示例：
+ *   Lv00ModalFrame *frame = lv00_modal_frame_create_geometric_default();
+ *   Lv00ModalFormula *f = lv00_modal_assert_point_must_on_line(frame, pt, ln);
+ *   Lv00ModalEvalResult result;
+ *   lv00_modal_evaluate(frame, f, 1, &result);
+ *
+ * @version 1.0.0
+ * ======================================================================== */
+
 /**
  * @file modal_operators.h
  * @brief 模态逻辑扩展 —— 必要性与可能性的基本操作符
- *
- * @details 为 Lv-00 的几何证明系统引入基本模态逻辑。
- *
- *          核心概念：
- *          - □ (NECESSARY / 框)：必然成立，在任何几何配置下都成立
- *          - ◇ (POSSIBLE / 钻)：可能成立，存在某个几何配置使命题成立
- *
- *          模态框架：
- *          采用基于几何约束的可达关系：
- *          世界 w' 从 w 可达，当且仅当从 w 到 w' 的几何变换是允许的
- *          （例如：平移、旋转、缩放等保持某种几何性质的变换）。
- *
- *          模态框架类型: <W, R, V>
- *          - W：所有可能的几何配置（世界集合）
- *          - R：可达关系（几何变换的可允许性）
- *          - V：命题赋值函数
- *
- *          应用场景：
- *          - "点 A 必须在直线 BC 上" = □(onLine(A, BC))  —— 必然
- *          - "点 A 可以在直线 BC 上" = ◇(onLine(A, BC)) —— 可能
- *          - "三角形的内角和必然是 180°" = □(sumAngles(triangle) = 180°)
- *          - "可能找到一个三等分角点" = ◇(trisection_possible(angle))
- *
- *          使用的逻辑系统: 基本模态逻辑 K（Kripke 语义）
- *          公理 K: □(A→B) → (□A → □B)
- *          必然化规则: 如果 A 是定理，则 □A 也是定理
- *
- * @author Lv-00 Project
- * @version 1.0.0
  */
 
 #ifndef LV00_MODAL_OPERATORS_H

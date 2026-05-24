@@ -20,6 +20,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "preset_blocks.h"
+#include "preset_common.h"
 
 /* ============================================================
  * 预设数量定义

@@ -17,10 +17,10 @@ Lv-00 UI编程辅助系统 - 主程序模块
 """
 
 import os
-import sys
 import json
 import logging
-from typing import Dict, List, Any, Optional
+from collections import deque
+from typing import Dict, List, Any, Optional, Deque
 from pathlib import Path
 
 # 导入本地模块
@@ -28,7 +28,9 @@ from .lv00_knowledge import (
     Lv00KnowledgeBase,
     Lv00PromptEngine,
     Lv00Module,
-    get_lv00_helper
+    get_lv00_helper,
+    CONCEPT_EXPLANATIONS,
+    CODE_GUIDANCE,
 )
 from .templates import (
     CODE_TEMPLATES,
@@ -56,230 +58,82 @@ class Lv00CodingAssistant:
         max_history: 命令历史记录上限，超出时自动裁剪最早记录
     """
 
+    # ── 类级常量：命令历史记录上限 ──────────────────────────────────────
+    DEFAULT_MAX_HISTORY = 1000
+
     # ── 类级常量：概念解释数据 ──────────────────────────────────────────
-    CONCEPT_EXPLANATIONS: Dict[str, str] = {
-        "normalization": """
-【图归一化 (Graph Normalization)】
-
-归一化是Lv-00保证幂等性的核心机制。
-
-工作流程:
-1. 点合并: 合并坐标相同的点
-   - 使用坐标哈希分组
-   - 精确coord_equal()判等
-   - 处理作用域冲突
-
-2. 线段/区域合并: 合并端点相同的几何体
-
-3. 稳定化: 拓扑排序固定顺序
-
-关键API:
-• graph_normalize(g, interactive)
-  - interactive=true 时跨作用域合并需确认
-  - 返回 NormalizationResult
-
-注意事项:
-• 归一化后图再次归一化不会变化(幂等性)
-• 合并日志记录用于证明导航器回放
-""",
-
-        "unification": """
-【合一检查 (Unification)】
-
-合一检查是证明系统的核心。
-
-执行流程:
-1. 对构造图和命题图各自归一化
-2. 展开命题中的模板为正则形式
-3. 三层匹配:
-   - 端口类型匹配
-   - 约束类型匹配
-   - 符号坐标精确匹配
-
-关键API:
-• proof_unify(construction, proposition, strict)
-
-返回值:
-• UNIFY_OK: 合一成功
-• UNIFY_MISMATCH: 匹配失败
-• UNIFY_INCOMPLETE: 部分匹配
-
-严格边界:
-• 不调用求解器判定语义等价
-• 仅比较结构
-""",
-
-        "proof": """
-【证明系统 (Proof System)】
-
-命题结构:
-• 输入/输出端口 (声明期望的证物)
-• 虚线框几何模式 (等待填充)
-• 前置/后置条件 (可选)
-
-证明步骤:
-1. 创建命题 (proposition_create)
-2. 设置模式图 (proposition_set_pattern)
-3. 执行构造
-4. 合一检查 (proof_unify)
-5. 成功则命题得证
-
-信任颜色:
-• 绿色: 全构造
-• 蓝色: 待完成
-• 黄色: 条件性不可构造
-• 橙色: 非构造性依赖
-
-关键API:
-• proof_create_proposition()
-• proof_unify()
-• proof_step_forward()
-• proof_step_backward()
-""",
-
-        "func_block": """
-【函数块 (Function Block)】
-
-函数块封装内部约束子图为可复用单元。
-
-生命周期:
-1. 打包 (Pack): 将子图封装为函数块
-2. 例化 (Instantiate): 创建函数块实例
-3. β-归约: 应用参数到形式参数
-
-打包要求:
-• 必须处理跨边界约束冲突
-• 端口标记 (namespace_depth, parent_block_id)
-• 变量捕获消解
-
-确定性:
-• VERIFIED: 静态分析确认唯一解
-• PARTIALLY_VERIFIED: 未发现冲突
-• NON_DETERMINISTIC: 出现多解
-
-组合子:
-• Compose: f∘g 组合
-• Product: f×g 乘积
-
-关键API:
-• func_block_pack()
-• func_block_instantiate()
-• func_block_compose()
-""",
-
-        "trust": """
-【信任颜色系统】
-
-Lv-00使用颜色编码构造的可靠性:
-
-TRUST_GREEN (0)
-   全构造，无任何非常规依赖
-
-TRUST_BLUE (1-3)
-   • 未探索 (UNEXPLORED)
-   • 资源受限 (RESOURCE)
-   • 超出范围 (OUT_OF_RANGE)
-
-TRUST_GREEN_VERIFIED (4)
-   已证不可构造
-
-TRUST_YELLOW (5)
-   条件性不可构造
-
-TRUST_ORANGE (6-7)
-   • 非构造性oracle
-   • 爆炸原理 (ex falso)
-
-TRUST_AMBER (8)
-   含数值假设
-
-TRUST_DARK_ORANGE (9)
-   非构造性+数值假设
-"""
-    }
+    # 从 lv00_knowledge 模块导入，不再在 main.py 中内联定义
+    CONCEPT_EXPLANATIONS: Dict[str, str] = {}
 
     # ── 类级常量：代码生成指导文本 ──────────────────────────────────────
-    CODE_GUIDANCE: Dict[str, str] = {
-        "binding": """
-【生成WebAssembly绑定代码】
-
-请提供以下信息:
-1. C函数名 (例如: graph_add_circle)
-2. 函数描述
-3. 参数列表
-
-我将生成:
-• C绑定代码 (EMSCRIPTEN_KEEPALIVE)
-• JavaScript包装器
-• 使用示例
-
-提示: 使用 'api graph' 查看可用API
-""",
-        "renderer": """
-【生成Canvas渲染器代码】
-
-提供:
-1. 渲染元素 (point/segment/region/mixed)
-2. 特殊功能 (选中高亮/缩放/拖拽)
-
-我将生成:
-• GeometryRenderer类
-• 坐标系转换
-• 渲染方法
-• 事件绑定
-""",
-        "interaction": """
-【生成交互处理器代码】
-
-提供:
-1. 交互模式 (select/construct/analyze)
-2. 工具列表
-3. 特殊操作
-
-我将生成:
-• CanvasInteraction类
-• 事件处理器
-• 工具切换逻辑
-• 撤销/重做支持
-""",
-        "panel": """
-【生成UI面板代码】
-
-提供:
-1. 模块名称 (graph/block/proof/type/recurse/engine/debug)
-2. 面板功能
-3. 按钮列表
-
-我将生成:
-• HTML面板结构
-• CSS样式
-• JavaScript事件绑定
-• API调用逻辑
-""",
-    }
+    # 从 lv00_knowledge 模块导入，不再在 main.py 中内联定义
+    CODE_GUIDANCE: Dict[str, str] = {}
 
     def __init__(self) -> None:
         """初始化编程辅助系统"""
         self.kb: Lv00KnowledgeBase = Lv00KnowledgeBase()
         self.pe: Lv00PromptEngine = Lv00PromptEngine(self.kb)
         self.current_context: Dict[str, Any] = {}
-        self.history: List[str] = []
 
         # 命令历史记录上限，超出时自动裁剪最早记录
-        self.max_history: int = 1000
+        self.max_history: int = self.DEFAULT_MAX_HISTORY
+        # 使用 deque 自动维护历史记录大小上限，避免手动切片
+        self.history: Deque[str] = deque(maxlen=self.max_history)
 
         # 加载用户配置
         self.config: Dict[str, Any] = self._load_config()
 
-    def _trim_history(self) -> None:
-        """
-        裁剪命令历史记录
+    # 【修复 #9】配置文件 schema 定义
+    # 定义配置文件中各字段的名称、期望类型和是否必填。
+    # 加载配置时会根据此 schema 进行验证，确保配置文件的完整性。
+    _CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
+        "ai_provider": {"type": str, "required": False, "default": "dashscope"},
+        "model": {"type": str, "required": False, "default": "qwen-coder-plus"},
+        "theme": {"type": str, "required": False, "default": "dark"},
+        "max_history": {"type": int, "required": False, "default": 1000},
+    }
 
-        当历史记录数量超过 max_history 时，
-        移除最早的记录以保持列表大小在上限以内。
+    def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """验证配置字典是否符合 schema 定义
+
+        【修复 #9】对从 JSON 文件加载的配置进行基本的 schema 验证，
+        检查必要字段是否存在、类型是否正确。对于缺失的可选字段，
+        使用 schema 中定义的默认值填充。对于类型不匹配的字段，
+        记录警告并使用默认值。
+
+        Args:
+            config: 从 JSON 文件加载的原始配置字典
+
+        Returns:
+            Dict[str, Any]: 验证后的配置字典（缺失字段已填充默认值）
         """
-        if len(self.history) > self.max_history:
-            self.history = self.history[-self.max_history:]
+        validated = {}
+        for key, schema in self._CONFIG_SCHEMA.items():
+            expected_type = schema["type"]
+            default_value = schema["default"]
+
+            if key not in config:
+                # 字段缺失，使用默认值
+                validated[key] = default_value
+                continue
+
+            value = config[key]
+            if not isinstance(value, expected_type):
+                # 类型不匹配，记录警告并使用默认值
+                logging.warning(
+                    f"配置字段 '{key}' 类型错误: 期望 {expected_type.__name__}, "
+                    f"实际 {type(value).__name__}，使用默认值 {default_value!r}"
+                )
+                validated[key] = default_value
+            else:
+                validated[key] = value
+
+        # 检查配置中是否存在未定义的字段（可能是拼写错误或版本不匹配）
+        unknown_keys = set(config.keys()) - set(self._CONFIG_SCHEMA.keys())
+        if unknown_keys:
+            logging.warning(f"配置文件中存在未识别的字段: {unknown_keys}，已忽略")
+
+        return validated
 
     def _load_config(self) -> Dict[str, Any]:
         """
@@ -288,23 +142,25 @@ TRUST_DARK_ORANGE (9)
         配置文件路径：~/.lv00_coding_assistant/config.json
         如果文件不存在或解析失败，返回默认配置。
 
+        【修复 #9】加载后通过 _validate_config() 进行 schema 验证，
+        确保配置字段的类型正确、缺失字段有默认值。
+
         Returns:
-            Dict[str, Any]: 配置字典
+            Dict[str, Any]: 验证后的配置字典
         """
         config_path: Path = Path.home() / ".lv00_coding_assistant" / "config.json"
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    raw_config = json.load(f)
+                # 【修复 #9】对加载的配置进行 schema 验证
+                return self._validate_config(raw_config)
             except json.JSONDecodeError as e:
                 logging.warning(f"配置文件 JSON 解析失败: {e}，使用默认配置")
             except OSError as e:
                 logging.warning(f"配置文件读取失败: {e}，使用默认配置")
-        return {
-            "ai_provider": "dashscope",
-            "model": "qwen-coder-plus",
-            "theme": "dark"
-        }
+        # 返回默认配置（经过 schema 验证，确保所有字段都有值）
+        return self._validate_config({})
 
     def _save_config(self) -> None:
         """保存当前配置到用户目录的配置文件"""
@@ -342,29 +198,30 @@ TRUST_DARK_ORANGE (9)
         print(banner)
 
     def print_help(self) -> None:
-        """打印帮助信息，列出所有可用命令"""
+        """打印帮助信息，列出所有可用命令（命令描述已中文化）"""
         help_text = """
 可用命令:
 ───────────────────────────────────────────────────────────────────────
-  help              显示帮助信息
-  api <module>      查看API参考 (graph/constraint/proof/type/coord)
-  template <name>   获取代码模板 (wasm_basic/wasm_string/canvas/js_wrapper)
-  snippet <name>    获取代码片段 (c_memory/c_error/js_promise/css/theme)
-  task <description> 生成编程任务指南
+  help              显示本帮助信息
+  api <模块>        查看 API 参考 (graph/constraint/proof/type/coord)
+  template <名称>   获取代码模板 (wasm_basic/wasm_string/canvas/js_wrapper)
+  snippet <名称>    获取代码片段 (c_memory/c_error/js_promise/css/theme)
+  task <描述>       根据描述生成编程任务指南
 
-  code <task>       生成代码: binding/renderer/interaction/panel
-  explain <concept> 解释概念: normalization/unification/proof
+  code <任务>       生成代码: binding/renderer/interaction/panel
+  explain <概念>    解释核心概念: normalization/unification/proof
 
-  context <file>    设置当前文件上下文
-  history          查看命令历史
-  clear            清屏
-  exit             退出
+  context <文件>    设置当前文件上下文（用于代码生成参考）
+  history           查看最近 20 条命令历史
+  clear             清屏并重新显示横幅
+  exit              退出程序
 ───────────────────────────────────────────────────────────────────────
 
-快捷提示:
-  · 输入 'api graph' 查看图操作API
-  · 输入 'template wasm_string' 获取WASM绑定模板
+使用提示:
+  · 输入 'api graph' 查看图操作 API 文档
+  · 输入 'template wasm_string' 获取 WASM 字符串绑定模板
   · 输入 'code binding' 获取绑定代码生成指导
+  · 输入 'explain normalization' 了解归一化概念
 """
         print(help_text)
 
@@ -527,9 +384,8 @@ TRUST_DARK_ORANGE (9)
                 if not cmd:
                     continue
 
-                # 记录命令到历史，并检查是否需要裁剪
+                # 记录命令到历史（deque 自动维护大小上限）
                 self.history.append(cmd)
-                self._trim_history()
 
                 # 解析命令：第一个词为命令名，其余为参数
                 parts: List[str] = cmd.split(maxsplit=1)
@@ -592,7 +448,7 @@ TRUST_DARK_ORANGE (9)
         设置当前文件上下文
 
         读取指定文件的内容作为后续操作的上下文参考。
-        包含路径安全验证：仅允许读取当前工作目录及其子目录下的文件，
+        包含路径安全验证：仅允许读取允许的目录范围内的文件，
         防止路径遍历攻击。
 
         Args:
@@ -602,17 +458,31 @@ TRUST_DARK_ORANGE (9)
             print("请提供文件路径")
             return
 
-        path: Path = Path(file_path).resolve()
+        # 【修复 #8】使用 os.path.realpath() 解析路径，消除符号链接跳转风险
+        # os.path.realpath() 会解析所有符号链接、`.` 和 `..`，返回规范化的绝对路径，
+        # 比 Path.resolve() 更可靠（在所有 Python 版本中行为一致）。
+        resolved_path = os.path.realpath(file_path)
+        path = Path(resolved_path)
 
         # 安全检查：确保解析后的路径在允许的范围内
-        # 获取当前工作目录作为允许的根目录
-        allowed_root: Path = Path.cwd().resolve()
-        try:
-            # 检查解析后的路径是否在允许的根目录下
-            path.relative_to(allowed_root)
-        except ValueError:
-            print(f"安全限制: 只能读取当前项目目录内的文件")
-            print(f"  当前目录: {allowed_root}")
+        # 【修复 #8】扩展允许的根目录列表，不仅限于 CWD，
+        # 还包括用户主目录下的 .lv00_coding_assistant 目录（配置文件所在位置）
+        allowed_roots = [
+            Path.cwd().resolve(),
+            Path.home().resolve() / ".lv00_coding_assistant",
+        ]
+        is_allowed = False
+        for allowed_root in allowed_roots:
+            try:
+                path.relative_to(allowed_root)
+                is_allowed = True
+                break
+            except ValueError:
+                continue
+
+        if not is_allowed:
+            print(f"安全限制: 只能读取允许的目录内的文件")
+            print(f"  允许的目录: {[str(r) for r in allowed_roots]}")
             print(f"  请求路径: {path}")
             return
 

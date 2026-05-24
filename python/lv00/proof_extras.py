@@ -27,6 +27,7 @@ from ._ctypes_binding import (
     _lib, _ConstraintGraph, _ProofNavigator, _Proposition,
     c_int, c_char_p, c_void_p, c_bool, POINTER,
 )
+from .core import Lv00BaseError
 
 __all__ = [
     "BacktrackNodeType", "ProofStrategyType", "ProofStrategyStatus",
@@ -147,25 +148,17 @@ class LemmaViewState:
 # 异常类
 # ============================================================
 
-class ProofExtrasError(Exception):
+class ProofExtrasError(Lv00BaseError):
     """扩展证明错误基类。
 
     所有扩展证明相关异常的父类。
+    继承 Lv00BaseError，复用统一的 message、error_code 属性和 __str__ 格式化逻辑。
 
     属性:
         message: 异常消息字符串
         error_code: 可选的错误码（整数，默认为 -1）
     """
-
-    def __init__(self, message: str = "", error_code: int = -1) -> None:
-        super().__init__(message)
-        self.message: str = message
-        self.error_code: int = error_code
-
-    def __str__(self) -> str:
-        if self.error_code >= 0:
-            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
-        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+    pass
 
 
 # ============================================================
@@ -263,6 +256,10 @@ def backtrack_node_create(node_type: int, label: str) -> Any:
 
     返回:
         Any: 底层 C 节点指针
+
+    .. warning::
+        此函数返回裸 C 指针，调用者负责在适当时机调用对应的 _destroy 函数释放内存。
+        建议使用 try/finally 确保资源释放。
     """
     return _lib.backtrack_node_create(node_type, label.encode('utf-8'))
 
@@ -526,6 +523,10 @@ def proof_sledgehammer_dispatch(mse: ProofMultiStrategy, mode: int = 0,
 
     返回:
         Any: 调度报告指针
+
+    .. warning::
+        此函数返回裸 C 指针，调用者负责在适当时机调用对应的 _destroy 函数释放内存。
+        建议使用 try/finally 确保资源释放。
     """
     return _lib.proof_sledgehammer_dispatch(mse._ptr, mode, timeout_ms)
 

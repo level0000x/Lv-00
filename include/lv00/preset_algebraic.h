@@ -40,7 +40,9 @@ extern "C" {
  *
  * 复杂度：O(1)
  */
+#ifndef PRESET_VECTOR_ADD
 #define PRESET_VECTOR_ADD "vector_add"
+#endif
 
 /**
  * @brief 向量减法
@@ -72,7 +74,9 @@ extern "C" {
  *
  * 复杂度：O(1)
  */
+#ifndef PRESET_VECTOR_SCALE
 #define PRESET_VECTOR_SCALE "vector_scale"
+#endif
 
 /**
  * @brief 向量线性组合
@@ -384,10 +388,10 @@ extern "C" {
  * @brief 注册代数运算预设函数块
  *
  * 此函数由 preset_blocks_init() 自动调用。
- * 使用 preset_blocks_register_simple() 接口注册所有 15 个代数预设，
+ * 使用 preset_blocks_register_simple() 接口注册所有 21 个代数预设，
  * 每个预设均携带完整的元数据（输入类型、输出类型、LaTeX 数学定义、复杂度、可逆性等）。
  *
- * @return true 所有 15 个预设注册成功
+ * @return true 所有 21 个预设注册成功
  * @return false 注册失败（部分或全部失败）
  */
 bool preset_algebraic_register(void);
@@ -395,7 +399,7 @@ bool preset_algebraic_register(void);
 /**
  * @brief 获取代数模块的预设数量
  *
- * @return 预设函数块总数（当前为 15）
+ * @return 预设函数块总数（当前为 21）
  */
 int preset_algebraic_count(void);
 

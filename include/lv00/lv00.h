@@ -80,8 +80,10 @@
  *         静态库构建时 LV00_PUBLIC_API 展开为空。
  */
 
-#ifndef LV00_MAIN_H
-#define LV00_MAIN_H
+/* 头文件守卫：LV00_LV00_H = "LV00"（项目名）+ "_" + "LV00_H"（文件名 lv00.h）
+ * 采用双前缀格式避免与子模块头文件（如 solver.h → LV00_SOLVER_H）冲突 */
+#ifndef LV00_LV00_H
+#define LV00_LV00_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -204,6 +206,7 @@ extern "C" {
 
 /* 基础模块（必须在其他模块之前） */
 #include "error_codes.h" /* 统一错误码系统 */
+#include "runtime_guard.h" /* 运行时安全守卫 */
 
 /* 隔离上下文系统 —— 统一状态容器、分支推理与熔断机制 */
 #include "context.h"
@@ -234,11 +237,16 @@ extern "C" {
 #include "preset_polygons.h"        /* 多边形构造模块 */
 #include "preset_transformations.h" /* 几何变换模块 */
 #include "proof.h"                  /* 命题与证明系统 */
+#include "three_valued_logic.h"     /* 三值逻辑系统 */
+#include "modal_operators.h"        /* 模态逻辑算子 */
+#include "proof_engine_enhanced.h"  /* 增强证明引擎 */
 #include "recursion.h"              /* 递归与条件 */
 #include "type_system.h"            /* 类型系统 */
+#include "quantifier.h"             /* 量词系统 */
 
 /* 引擎 */
 #include "engine.h" /* 主引擎 */
+#include "magic.h"  /* Magic 模拟器模块 */
 
 /* 调试 */
 #include "debug.h" /* 调试工具 */
@@ -350,7 +358,7 @@ LV00_PUBLIC_API bool lv00_get_version_info(LV00VersionInfo *info);
  *   lv00_init();
  *   if (!lv00_check_version_compat()) {
  *       fprintf(stderr, "Version mismatch: header v%d vs library v%d\n",
- *              LV00_VERSION_MAJOR, lv00_get_version_info(...));
+ *              LV00_VERSION_MAJOR, lv00_get_version_string());
  *   }
  * @endcode
  */
@@ -497,7 +505,7 @@ LV00_PUBLIC_API void lv00_engine_destroy(LV00Engine *engine);
  * @param[in]     y_den  Y 坐标分母（必须 > 0）
  * @return 新节点的 ID（>= 0），失败返回 -1
  *
- * @note   分母为 0 时函数将失败并设置错误码 LV00_ERR_INVALID_ARG。
+ * @note   分母为 0 时函数将失败并设置错误码 LV00_ERROR_INVALID_PARAM。
  *
  * 示例:
  * @code
@@ -560,14 +568,14 @@ LV00_PUBLIC_API bool lv00_add_constraint_incidence(LV00Engine *engine,
  *
  * @param[in,out] engine       引擎实例
  * @param[in]     scope_aware  是否考虑命名空间范围
- * @return 归一化结果（调用者负责通过 normalization_result_free 释放），失败返回 NULL
+ * @return 归一化结果（调用者负责通过 normalization_result_destroy 释放），失败返回 NULL
  *
  * 示例:
  * @code
  *   NormalizationResult *nr = lv00_normalize(engine, true);
  *   if (nr) {
  *       printf("Graph normalized: %d iterations\n", nr->iterations);
- *       normalization_result_free(nr);
+ *       normalization_result_destroy(nr);
  *   }
  * @endcode
  */
@@ -791,4 +799,4 @@ LV00_PUBLIC_API bool lv00_are_assertions_enabled(void);
 }
 #endif
 
-#endif /* LV00_MAIN_H */
+#endif /* LV00_LV00_H */

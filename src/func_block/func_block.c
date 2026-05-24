@@ -7,7 +7,7 @@
  *          序列化/反序列化见 func_block_serialize.c。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "func_block.h"
@@ -33,7 +33,15 @@
 /** 函数块默认容量 */
 #define FUNC_BLOCK_DEFAULT_CAPACITY 8
 
-/* 流式上下文定义（非 static，供其他子模块文件 extern 引用） */
+/*
+ * 流式上下文定义（非 static，供其他子模块文件 extern 引用）
+ *
+ * 注意：此处无法使用 LV00_DECLARE_STREAM_CTX 宏，原因如下：
+ * 该宏展开后会生成 static LV00_THREAD_LOCAL 变量，作用域仅限于当前编译单元。
+ * 而函数块模块的流式上下文需要被 func_block_instantiate.c、
+ * func_block_determinism.c、func_block_serialize.c 等子模块文件通过 extern 引用，
+ * 因此必须使用非 static 的线程局部变量手动声明。
+ */
 LV00_THREAD_LOCAL StreamContext *func_block_stream_ctx = NULL;
 
 /**
@@ -43,6 +51,43 @@ LV00_THREAD_LOCAL StreamContext *func_block_stream_ctx = NULL;
  */
 void func_block_set_stream_context(StreamContext *ctx) {
     func_block_stream_ctx = ctx;
+}
+
+/* ============== 内部辅助函数 ============== */
+
+/**
+ * @brief 通用整数数组深拷贝设置函数
+ * @param target 目标数组指针的地址
+ * @param count 目标计数变量的地址
+ * @param values 源数组
+ * @param n 源数组元素个数
+ * @return 成功返回 true，内存不足返回 false
+ *
+ * 该函数封装了函数块系统中常见的"释放旧数组、深拷贝新数组"模式，
+ * 避免在多个设置函数中重复相同的逻辑。
+ */
+static bool func_block_set_int_array(int **target, int *count,
+                                      const int *values, int n) {
+    if (!target || !count) return false;
+
+    /* 释放旧数组 */
+    lv00_free((void **)target);
+    *count = 0;
+
+    /* 空数组直接返回 */
+    if (n <= 0 || !values) return true;
+
+    /* 分配新数组并深拷贝 */
+    int *copy = (int *)lv00_malloc((size_t)n * sizeof(int));
+    if (!copy) return false;
+
+    for (int i = 0; i < n; i++) {
+        copy[i] = values[i];
+    }
+
+    *target = copy;
+    *count = n;
+    return true;
 }
 
 /* ============== 函数块管理API ============== */
@@ -122,6 +167,13 @@ void func_block_destroy(FuncBlock *fb) {
  * - 调用 dup_int_array 深拷贝 node_ids 到新数组
  * - 更新 internal_node_count
  *
+ * 【设计模式】以下三个 setter 函数（set_internal_nodes / set_input_ports /
+ * set_output_ports）遵循相同的"验证+委托"模式：
+ *   1. 检查 fb 非空且 count >= 0
+ *   2. 委托给 func_block_set_int_array 完成实际的深拷贝
+ * 若未来字段增多，可考虑用宏或内联辅助函数消除重复，但当前三处
+ * 的可读性和类型安全性已足够好，保持显式写法更利于调试。
+ *
  * @param fb      函数块指针（不可为 NULL）
  * @param node_ids 内部节点 ID 数组（可为 NULL，当 count=0 时）
  * @param count   节点数量
@@ -131,12 +183,8 @@ void func_block_destroy(FuncBlock *fb) {
 bool func_block_set_internal_nodes(FuncBlock *fb, const int *node_ids, int count) {
     if (!fb || count < 0)
         return false;
-    lv00_free((void **) &fb->internal_node_ids);
-    fb->internal_node_ids = dup_int_array(node_ids, count);
-    if (count > 0 && !fb->internal_node_ids)
-        return false;
-    fb->internal_node_count = count;
-    return true;
+    return func_block_set_int_array(&fb->internal_node_ids, &fb->internal_node_count,
+                                    node_ids, count);
 }
 
 /**
@@ -159,12 +207,8 @@ bool func_block_set_internal_nodes(FuncBlock *fb, const int *node_ids, int count
 bool func_block_set_input_ports(FuncBlock *fb, const int *port_ids, int count) {
     if (!fb || count < 0)
         return false;
-    lv00_free((void **) &fb->input_port_ids);
-    fb->input_port_ids = dup_int_array(port_ids, count);
-    if (count > 0 && !fb->input_port_ids)
-        return false;
-    fb->input_count = count;
-    return true;
+    return func_block_set_int_array(&fb->input_port_ids, &fb->input_count,
+                                    port_ids, count);
 }
 
 /**
@@ -187,12 +231,8 @@ bool func_block_set_input_ports(FuncBlock *fb, const int *port_ids, int count) {
 bool func_block_set_output_ports(FuncBlock *fb, const int *port_ids, int count) {
     if (!fb || count < 0)
         return false;
-    lv00_free((void **) &fb->output_port_ids);
-    fb->output_port_ids = dup_int_array(port_ids, count);
-    if (count > 0 && !fb->output_port_ids)
-        return false;
-    fb->output_count = count;
-    return true;
+    return func_block_set_int_array(&fb->output_port_ids, &fb->output_count,
+                                    port_ids, count);
 }
 
 /**
@@ -353,14 +393,18 @@ bool func_block_set_selector(FuncBlock *fb, SolutionSelector *selector) {
 bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
     if (!fb || !dep)
         return false;
-    /* 使用 lv00_realloc 统一内存管理，确保内存追踪系统可以追踪此分配 */
-    int new_count = fb->port_dep_count + 1;
-    PortDependency *new_deps = lv00_realloc(fb->port_deps, (size_t) new_count * sizeof(PortDependency));
-    if (!new_deps)
-        return false;
-    fb->port_deps = new_deps;
+    /* 使用指数扩容策略，避免每次添加依赖都触发 realloc */
+    if (fb->port_dep_count >= fb->port_dep_capacity) {
+        int new_cap = fb->port_dep_capacity == 0 ? 4 : fb->port_dep_capacity * 2;
+        if (new_cap < fb->port_dep_count + 1) new_cap = fb->port_dep_count + 1;
+        PortDependency *new_deps = lv00_realloc(fb->port_deps, (size_t) new_cap * sizeof(PortDependency));
+        if (!new_deps)
+            return false;
+        fb->port_deps = new_deps;
+        fb->port_dep_capacity = new_cap;
+    }
     fb->port_deps[fb->port_dep_count] = *dep;
-    fb->port_dep_count = new_count;
+    fb->port_dep_count++;
     return true;
 }
 
@@ -376,12 +420,8 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
 bool func_block_set_preconditions(FuncBlock *fb, const int *region_ids, int count) {
     if (!fb || count < 0)
         return false;
-    lv00_free((void **) &fb->precondition_region_ids);
-    fb->precondition_region_ids = dup_int_array(region_ids, count);
-    if (count > 0 && !fb->precondition_region_ids)
-        return false;
-    fb->precondition_count = count;
-    return true;
+    return func_block_set_int_array(&fb->precondition_region_ids, &fb->precondition_count,
+                                    region_ids, count);
 }
 
 /* ============== 跨边界检测 ============== */

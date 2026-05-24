@@ -18,7 +18,7 @@ Lv-00 几何元编程库的 Python 接口。
     - formula: 公式编程（解析、渲染、转换）
     - _ctypes_binding: 底层 C 库的 ctypes 绑定
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 
 示例：
@@ -46,7 +46,7 @@ Lv-00 几何元编程库的 Python 接口。
 
 import logging
 
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 __author__ = "Lv-00 开发团队"
 __description__ = "Lv-00 几何元编程库 Python 接口"
 
@@ -198,6 +198,96 @@ _FORMULA_NAMES: frozenset = frozenset({
 
 _formula_exports = {}
 
+# Groebner 引擎模块的导出名称集合
+_GROEBNER_NAMES: frozenset = frozenset({
+    'RingFieldType', 'MonomialOrder', 'GroebnerAlgorithm',
+    'RingRegistry', 'PolynomialRing', 'GroebnerEngineError',
+    'ring_registry_create', 'ring_create', 'ring_find',
+    'poly_create', 'poly_add', 'poly_multiply',
+    'ideal_create', 'ideal_add_generator',
+    'groebner_compute', 'ideal_membership',
+    'ideal_intersection', 'ideal_quotient',
+    'variety_compute', 'constraint_graph_to_ideal',
+})
+
+# 类型系统模块的导出名称集合
+_TYPE_SYSTEM_NAMES: frozenset = frozenset({
+    'TypeKind', 'TypeEquivResult', 'TypeCheckResult',
+    'TypeSystem', 'TypeRegion', 'TypeSystemError',
+    'type_system_create',
+    'type_check_equivalence', 'type_check_port_compatibility',
+    'type_infer_node', 'type_infer_port',
+    'type_infer_by_rules',
+    'type_system_register_inference_rule',
+    'PathExplorer',
+})
+
+# 交互几何模块的导出名称集合
+_INTERACTIVE_GEO_NAMES: frozenset = frozenset({
+    'InteractiveGeoMode', 'ConfigClassification', 'ScriptLanguage',
+    'RandomizedCheckResult', 'ConstraintMaintainStatus',
+    'InteractiveGeo', 'InteractiveGeoError',
+    'interactive_geo_init',
+})
+
+# 稀疏线性代数模块的导出名称集合
+_SPARSE_LA_NAMES: frozenset = frozenset({
+    'SparseFormat', 'SemiringType',
+    'SparseMatrix', 'SparseLAError',
+    'sparse_matrix_create',
+    'semiring_propagate_constraints',
+    'graph_to_constraint_matrix',
+    'sparse_matrix_multiply', 'sparse_matrix_transpose',
+    'graph_degree_analysis',
+})
+
+# 扩展证明模块的导出名称集合
+_PROOF_EXTRAS_NAMES: frozenset = frozenset({
+    'BacktrackNodeType', 'ProofStrategyType', 'ProofStrategyStatus',
+    'SledgehammerMode', 'IsarStructureLevel', 'LemmaViewState',
+    'ProofSearchTree', 'ProofMultiStrategy',
+    'ProofExtrasError',
+    'proof_search_tree_create', 'backtrack_node_create',
+    'proof_multi_strategy_create',
+    'proof_interactive_step',
+    'proof_save_breakpoint', 'proof_restore_breakpoint',
+    'proof_check_unconstructibility',
+    'proof_sledgehammer_dispatch',
+    'proof_minimal_verify',
+})
+_formula_exports = {}
+_groebner_exports = {}
+_type_system_exports = {}
+_interactive_geo_exports = {}
+_sparse_la_exports = {}
+_proof_extras_exports = {}
+
+
+def _lazy_import_module(
+    module_name: str,
+    names: frozenset,
+    cache: dict,
+) -> Any:
+    """惰性导入子模块的辅助函数。
+
+    参数：
+        module_name: 相对导入的模块名（如 'formula'）
+        names: 该模块的导出名称集合
+        cache: 已缓存的导出字典
+
+    返回：
+        None（仅用于填充 cache 副作用）
+
+    异常：
+        ImportError: 模块导入失败
+    """
+    import importlib
+    mod = importlib.import_module(f".{module_name}", package=__name__)
+    for attr_name in names:
+        if hasattr(mod, attr_name):
+            cache[attr_name] = getattr(mod, attr_name)
+
+
 def __getattr__(name: str):
     """
     惰性加载公式模块、预设函数块模块和异步流模块的属性和类。
@@ -224,58 +314,41 @@ def __getattr__(name: str):
     if async_stream_result is not None:
         return async_stream_result
     
-    # 公式模块的导出名称列表
+    # 公式模块（惰性导入）
     if name in _FORMULA_NAMES:
-        if name not in _formula_exports:
-            from . import formula as _formula_mod
-            for attr_name in _FORMULA_NAMES:
-                if hasattr(_formula_mod, attr_name):
-                    _formula_exports[attr_name] = getattr(_formula_mod, attr_name)
+        if not _formula_exports:
+            _lazy_import_module('formula', _FORMULA_NAMES, _formula_exports)
         return _formula_exports[name]
 
     # Groebner 引擎模块（惰性导入）
-    if name in _GROEBNER_NAMES:
-        if name not in _groebner_exports:
-            from . import groebner_engine as _groebner_mod
-            for attr_name in _GROEBNER_NAMES:
-                if hasattr(_groebner_mod, attr_name):
-                    _groebner_exports[attr_name] = getattr(_groebner_mod, attr_name)
+    # 使用 hasattr 保护：若模块级常量因加载异常未定义，避免 NameError
+    if '_GROEBNER_NAMES' in globals() and name in _GROEBNER_NAMES:
+        if not _groebner_exports:
+            _lazy_import_module('groebner_engine', _GROEBNER_NAMES, _groebner_exports)
         return _groebner_exports[name]
 
     # 类型系统模块（惰性导入）
-    if name in _TYPE_SYSTEM_NAMES:
-        if name not in _type_system_exports:
-            from . import type_system as _type_system_mod
-            for attr_name in _TYPE_SYSTEM_NAMES:
-                if hasattr(_type_system_mod, attr_name):
-                    _type_system_exports[attr_name] = getattr(_type_system_mod, attr_name)
+    if '_TYPE_SYSTEM_NAMES' in globals() and name in _TYPE_SYSTEM_NAMES:
+        if not _type_system_exports:
+            _lazy_import_module('type_system', _TYPE_SYSTEM_NAMES, _type_system_exports)
         return _type_system_exports[name]
 
     # 交互几何模块（惰性导入）
-    if name in _INTERACTIVE_GEO_NAMES:
-        if name not in _interactive_geo_exports:
-            from . import interactive_geo as _interactive_geo_mod
-            for attr_name in _INTERACTIVE_GEO_NAMES:
-                if hasattr(_interactive_geo_mod, attr_name):
-                    _interactive_geo_exports[attr_name] = getattr(_interactive_geo_mod, attr_name)
+    if '_INTERACTIVE_GEO_NAMES' in globals() and name in _INTERACTIVE_GEO_NAMES:
+        if not _interactive_geo_exports:
+            _lazy_import_module('interactive_geo', _INTERACTIVE_GEO_NAMES, _interactive_geo_exports)
         return _interactive_geo_exports[name]
 
     # 稀疏线性代数模块（惰性导入）
-    if name in _SPARSE_LA_NAMES:
-        if name not in _sparse_la_exports:
-            from . import sparse_la as _sparse_la_mod
-            for attr_name in _SPARSE_LA_NAMES:
-                if hasattr(_sparse_la_mod, attr_name):
-                    _sparse_la_exports[attr_name] = getattr(_sparse_la_mod, attr_name)
+    if '_SPARSE_LA_NAMES' in globals() and name in _SPARSE_LA_NAMES:
+        if not _sparse_la_exports:
+            _lazy_import_module('sparse_la', _SPARSE_LA_NAMES, _sparse_la_exports)
         return _sparse_la_exports[name]
 
     # 扩展证明模块（惰性导入）
-    if name in _PROOF_EXTRAS_NAMES:
-        if name not in _proof_extras_exports:
-            from . import proof_extras as _proof_extras_mod
-            for attr_name in _PROOF_EXTRAS_NAMES:
-                if hasattr(_proof_extras_mod, attr_name):
-                    _proof_extras_exports[attr_name] = getattr(_proof_extras_mod, attr_name)
+    if '_PROOF_EXTRAS_NAMES' in globals() and name in _PROOF_EXTRAS_NAMES:
+        if not _proof_extras_exports:
+            _lazy_import_module('proof_extras', _PROOF_EXTRAS_NAMES, _proof_extras_exports)
         return _proof_extras_exports[name]
 
     raise AttributeError(f"module 'lv00' has no attribute '{name}'")

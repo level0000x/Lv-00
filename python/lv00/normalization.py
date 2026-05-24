@@ -14,12 +14,12 @@ lv00.core 模块中。
     新代码应直接从 lv00.core 导入：
         from lv00.core import NormalizationResult
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import NormalizationResult
 

@@ -23,7 +23,7 @@
  *   单元测试迁移，避免引入回归。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - normalization.h       : 图规范化引擎公共接口定义
@@ -154,6 +154,13 @@ static long long scope_key(GeomNode *node) {
  *  - 两者均为 NULL 且坐标数为 0 → 视为相等
  *  - 否则 (一个为 NULL 另一个非 NULL 或坐标数不匹配) → 视为不等
  *
+ * 【重复说明】此函数与 unify.c 中的 coords_equal_by_type 功能高度相似，
+ * 均为逐元素比较 symbolic_coords 数组。差异：
+ *  - 本函数返回 bool，coords_equal_by_type 返回 int
+ *  - 本函数额外处理 coord_count==0 的边界情况
+ *  - 本函数为 static，仅供 normalization.c 内部使用
+ * 建议未来统一为公共函数（如 geom_coords_equal），消除重复。
+ *
  * @param a 第一个几何节点
  * @param b 第二个几何节点
  * @return true 坐标相等，false 不相等
@@ -185,17 +192,8 @@ static bool coords_equal(GeomNode *a, GeomNode *b) {
     return true;
 }
 
-/* 用于 qsort 的线段哈希比较函数（复用 HashIdx 类型） */
-
-static int cmp_seg_hash(const void *a, const void *b) {
-    uint64_t ha = ((const HashIdx *) a)->hash;
-    uint64_t hb = ((const HashIdx *) b)->hash;
-    if (ha < hb)
-        return -1;
-    if (ha > hb)
-        return 1;
-    return 0;
-}
+/* cmp_seg_hash 已移除，其功能与 hash_idx_compare_asc 完全相同，
+ * qsort 调用处已统一使用 hash_idx_compare_asc */
 
 /* Union-Find -------------------------------------------------------- */
 
@@ -862,7 +860,7 @@ NodeMergeCandidate *find_merge_candidates(ConstraintGraph *graph, int *out_count
                     seg_pairs[i].hash = seg_hashes[i];
                     seg_pairs[i].idx = seg_indices[i];
                 }
-                qsort(seg_pairs, (size_t) seg_count, sizeof(HashIdx), cmp_seg_hash);
+                qsort(seg_pairs, (size_t) seg_count, sizeof(HashIdx), hash_idx_compare_asc);
                 for (int i = 0; i < seg_count; i++) {
                     seg_hashes[i] = seg_pairs[i].hash;
                     seg_indices[i] = seg_pairs[i].idx;
@@ -947,7 +945,7 @@ NodeMergeCandidate *find_merge_candidates(ConstraintGraph *graph, int *out_count
 
     /* 流式事件：候选扫描完成 */
     if (normalization_stream_ctx) {
-        char desc[128];
+        char desc[NORM_DESC_BUFFER_SIZE];
         snprintf(desc, sizeof(desc), "合并候选扫描完成: 发现 %d 对候选", *out_count);
         stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_INFO, desc, 0);
     }
@@ -1050,7 +1048,7 @@ int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates, int cou
 
     /* 流式事件：批量合并进度 */
     if (normalization_stream_ctx) {
-        char desc[128];
+        char desc[NORM_DESC_BUFFER_SIZE];
         snprintf(desc, sizeof(desc), "批量合并: %d 个节点被合并", merged_total);
         stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_PROGRESS, desc, 0);
     }

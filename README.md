@@ -1,8 +1,8 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg?style=flat)](CHANGELOG.md)
-[![CI](https://github.com/yourusername/lv00/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/lv00/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg?style=flat)](CHANGELOG.md)
+[![CI](https://github.com/lv00-project/lv00/actions/workflows/ci.yml/badge.svg)](https://github.com/lv00-project/lv00/actions/workflows/ci.yml)
 
 > **Lv-00 是唯一将几何构造、计算程序、一阶逻辑证明三者统一于同一语法体系的元语言。**
 
@@ -37,6 +37,13 @@ Lv-00 不是一个几何工具库，不是一个自动证明器，也不是一�
 - **Python DSL (v3.2)**：Workplane 工作平面 + AlgebraMode 代数模式 + 操作符变换链（借鉴 CadQuery/build123d/GAlgebra）
 - **几何实体类型层次 (v3.2)**：借鉴 SymPy GeometryEntity 继承体系
 - **扁平数组存储 (v3.2)**：借鉴 clifford flat array，SIMD 友好的紧凑数值存储
+- **五层单向依赖架构 (v3.3)**：Parser → Resource → Geometry → Reasoning → Output，编译时层级边界验证（ENABLE_LAYER_VALIDATION）
+- **多后端求解引擎 (v3.3)**：Groebner 基求解引擎增强、SMT 后端集成、ATP（自动定理证明器）后端、SAT/BDD 编码
+- **运行时基础设施 (v3.3)**：环形日志缓冲区、对象缓存系统（LRU）、集中化配置系统（LV00_CONFIG_* 前缀）
+- **统一错误码系统 (v3.3)**：分层 0-999 错误码体系，覆盖全部模块
+- **函数块增强 (v3.3)**：确定性检查（静态/动态）、函数块选择器（5 种策略）
+- **预设模块生态 (v3.3)**：55+ 数学理论预设模块、47 种流式事件类型
+- **公理包系统 (v3.3)**：SHA-256 校验、模板展开机制
 
 ## 快速开始
 
@@ -57,7 +64,7 @@ sudo apt-get install cmake libgmp-dev
 brew install cmake gmp
 
 # 构建
-git clone https://github.com/USERNAME/lv00.git
+git clone https://github.com/lv00-project/lv00.git
 
 cd lv00
 mkdir build && cd build
@@ -184,7 +191,7 @@ lv00/
 ├── src/
 │   ├── core/          # 核心引擎（求解器、归一化、重写、类型系统等）
 │   ├── func_block/    # 函数块系统（打包、实例化、组合、确定性检查等）
-│   ├── preset/        # 预设函数块模块（几何、代数、拓扑、逻辑等42个模块）
+│   ├── preset/        # 预设函数块模块（几何、代数、拓扑、逻辑等57个预设模块）
 │   ├── parser/        # 公式解析、转换、渲染
 │   ├── utils/         # 工具函数
 │   ├── axiom/         # 公理包
@@ -205,7 +212,7 @@ lv00/
 ## 文档
 
 - [API使用指南](docs/API_USAGE_GUIDE.md) - 详细的API参考和最佳实践
-- [分层架构设计 v3.2](docs/architecture_v3.2.md) - **新增：OCCT 风格 7 层架构（2026-05-24）**
+- [分层架构设计 v3.3](docs/ARCHITECTURE_v3.3.md) - **更新：OCCT 风格 7 层架构 → 五层单向依赖架构（2026-05-24）**
 - [竞品分析](docs/competitive_analysis.md) - **已更新：22 个参考项目（2026-05-24）**
 - [模块文档](docs/) - 各模块的详细设计文档
 - [实现路线图](IMPLEMENTATION_ROADMAP.md) - 开发计划和进度

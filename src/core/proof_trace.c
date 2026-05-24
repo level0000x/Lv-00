@@ -91,21 +91,34 @@ Lv00ProofTree *lv00_proof_tree_create(const char *theorem_name, const char *proo
     return tree;
 }
 
+/** 递归销毁最大深度限制（防止栈溢出） */
+#define PROOF_TREE_DESTROY_MAX_DEPTH 10000
+
 /**
- * @brief 递归销毁证明树节点
+ * @brief 递归销毁证明树节点（内部实现，带深度保护）
  *
- * 自底向上释放节点的所有资源：前提描述、公理名称、
- * 结论文本、子节点数组和节点自身。
- *
- * @param node  要销毁的节点
+ * @param node   要销毁的节点
+ * @param depth  当前递归深度
  */
-static void proof_tree_node_destroy_recursive(Lv00ProofTreeNode *node) {
+static void proof_tree_node_destroy_recursive_impl(Lv00ProofTreeNode *node, int depth) {
     if (!node)
         return;
 
+    if (depth > PROOF_TREE_DESTROY_MAX_DEPTH) {
+        /* 深度超限：仅释放当前节点，子节点可能泄漏但避免栈溢出 */
+        fprintf(stderr,
+                "proof_tree_node_destroy: 递归深度 %d 超过限制 %d，"
+                "部分子节点可能未释放\n",
+                depth, PROOF_TREE_DESTROY_MAX_DEPTH);
+        /* 尝试释放子节点数组但不递归 */
+        lv00_free((void **) &node->children);
+        lv00_free((void **) &node);
+        return;
+    }
+
     /* 先递归销毁所有子节点 */
     for (int i = 0; i < node->child_count; i++) {
-        proof_tree_node_destroy_recursive(node->children[i]);
+        proof_tree_node_destroy_recursive_impl(node->children[i], depth + 1);
     }
 
     /* 释放前提列表 */
@@ -119,6 +132,15 @@ static void proof_tree_node_destroy_recursive(Lv00ProofTreeNode *node) {
     lv00_free((void **) &node->conclusion);
     lv00_free((void **) &node->children);
     lv00_free((void **) &node);
+}
+
+/**
+ * @brief 递归销毁证明树节点（包装函数）
+ *
+ * @param node  要销毁的节点
+ */
+static void proof_tree_node_destroy_recursive(Lv00ProofTreeNode *node) {
+    proof_tree_node_destroy_recursive_impl(node, 0);
 }
 
 /**

@@ -45,6 +45,9 @@
 /* 错误消息缓冲区大小（用于 last_error 数组） */
 #define LV00_ERROR_MSG_SIZE 256
 
+/** 全局画布的上下文深度（用于引擎初始化时的默认值） */
+#define ENGINE_GLOBAL_CANVAS_DEPTH 0
+
 /* ============================================================
  * LEGACY 全局状态 —— 将在迁移至 Lv00Context 后移除
  *
@@ -57,10 +60,31 @@
  *
  * 【迁移进度】第 1 阶段 —— 标记 LEGACY，禁止新增全局状态。
  * 【禁止】在引擎中新增任何全局/线程局部变量。
+ *
+ * 【线程安全性说明】
+ *   last_status 和 last_error 使用 LV00_THREAD_LOCAL 宏声明为线程局部存储。
+ *   每个操作系统线程拥有独立的副本，因此：
+ *   - 不同线程同时调用 engine_get_last_status() / engine_get_last_error()
+ *     不会产生数据竞争。
+ *   - 同一线程内的多次调用是顺序一致的。
+ *   - 线程局部存储在 Windows 上通过 __declspec(thread) 实现，
+ *     在 POSIX 上通过 __thread 或 pthread_key_t 实现。
+ *   - 注意：线程局部变量不保证跨线程可见性。如果线程 A 设置了
+ *     last_status，线程 B 无法读取到该值。这是预期行为——
+ *     每个线程应使用自己的引擎实例来获取错误状态。
  * ============================================================ */
 static LV00_THREAD_LOCAL EngineStatus last_status = ENGINE_OK;   /* LEGACY - 将迁移到 Lv00Context.error_code */
 static LV00_THREAD_LOCAL char last_error[LV00_ERROR_MSG_SIZE] = {0}; /* LEGACY - 将迁移到 Lv00Context.error_message[] */
 
+/**
+ * @brief 创建并初始化 LV00 引擎实例
+ *
+ * 分配引擎结构体内存，初始化五状态机（v3.3.0 形式化）、流式上下文、
+ * 主图等核心组件，并注册/分发内置模块的流式上下文 setter。
+ *
+ * @return 新创建的引擎实例指针；若内存不足则返回 NULL，
+ *         此时可通过 engine_get_last_status() 获取 ENGINE_OUT_OF_MEMORY 错误码。
+ */
 LV00Engine *engine_create(void) {
     LV00Engine *engine = lv00_malloc(sizeof(LV00Engine));
     if (!engine) {
@@ -82,7 +106,10 @@ LV00Engine *engine_create(void) {
      * stream_context_register_builtins() 一次性注册所有内置模块的 setter，
      * stream_context_dispatch_all() 统一分发流式上下文到所有已注册模块。
      * 新增模块时只需在 stream_context_util.c 中添加注册行，
-     * 无需修改此处的引擎初始化代码。 */
+     * 无需修改此处的引擎初始化代码。
+     *
+     * 注意：这两个函数当前不返回错误码（void 返回类型）。
+     * 如果未来重构为返回错误码，应在此处检查返回值并做相应错误处理。 */
     stream_context_register_builtins();
     stream_context_dispatch_all(engine->stream_ctx);
 
@@ -98,6 +125,15 @@ LV00Engine *engine_create(void) {
     return engine;
 }
 
+/**
+ * @brief 销毁引擎实例并释放所有关联资源
+ *
+ * 依次释放冻结点快照、流式上下文、主图、已加载模块、
+ * 公理包、重写规则及引擎结构体本身。
+ * 传入 NULL 时安全返回，不做任何操作。
+ *
+ * @param engine 待销毁的引擎实例指针
+ */
 void engine_destroy(LV00Engine *engine) {
     if (!engine)
         return;
@@ -111,6 +147,7 @@ void engine_destroy(LV00Engine *engine) {
     }
     if (engine->main_graph) {
         graph_destroy(engine->main_graph);
+        engine->main_graph = NULL;
     }
     for (int i = 0; i < engine->module_count; i++) {
         module_destroy(engine->loaded_modules[i]);
@@ -161,8 +198,11 @@ static bool engine_ensure_capacity(void **arr, int count, int *capacity, size_t 
         return false;
     int new_cap = *capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY : *capacity * LV00_ARRAY_GROWTH_FACTOR;
     /* 二次检查：确保扩容后的容量至少容纳 count 个元素 */
-    if (new_cap < count)
+    if (new_cap < count) {
+        if (count > INT_MAX / LV00_ARRAY_GROWTH_FACTOR)
+            return false;
         new_cap = count * LV00_ARRAY_GROWTH_FACTOR;
+    }
     /* 分配前检查：防止 new_cap * elem_size 超过 size_t 可表示范围 */
     if ((size_t) new_cap > SIZE_MAX / elem_size)
         return false;
@@ -174,7 +214,17 @@ static bool engine_ensure_capacity(void **arr, int count, int *capacity, size_t 
     return true;
 }
 
-bool engine_add_rewrite_rule(LV00Engine *engine, RewriteRule *rule) {
+/**
+ * @brief 向引擎添加一条重写规则
+ *
+ * 将指定的重写规则追加到引擎的规则列表中。
+ * 内部数组采用指数增长策略自动扩容。
+ *
+ * @param engine 引擎实例
+ * @param rule   待添加的重写规则（指针所有权转移至引擎，调用者不应再释放）
+ * @return true 添加成功，false 参数为 NULL 或内存不足
+ */
+bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
     if (!engine || !rule)
         return false;
 
@@ -182,11 +232,23 @@ bool engine_add_rewrite_rule(LV00Engine *engine, RewriteRule *rule) {
                                 &engine->rewrite_rule_capacity, sizeof(RewriteRule *)))
         return false;
 
-    engine->rewrite_rules[engine->rewrite_rule_count++] = rule;
+    engine->rewrite_rules[engine->rewrite_rule_count++] = (RewriteRule *)rule;
     return true;
 }
 
+/**
+ * @brief 从文件加载几何模块
+ *
+ * 创建临时模块实例，从指定文件路径解析并加载模块定义，
+ * 加载成功后将其追加到引擎的模块列表中。
+ *
+ * @param engine   引擎实例
+ * @param filepath 模块文件路径
+ * @return 模块加载状态码（MODULE_LOAD_OK 表示成功）
+ */
 ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath) {
+    if (!engine || !filepath)
+        return MODULE_LOAD_ERROR_INVALID_PATH;
     Module *mod = module_create("temp", "0.0.0");
     if (!mod) {
         last_status = ENGINE_OUT_OF_MEMORY;
@@ -211,7 +273,20 @@ ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath) {
     return MODULE_LOAD_OK;
 }
 
+/**
+ * @brief 从文件加载公理包
+ *
+ * 创建临时公理包实例，从指定文件路径解析并加载公理定义，
+ * 加载成功后将其追加到引擎的公理包列表中。
+ * 内部数组采用指数增长策略自动扩容。
+ *
+ * @param engine   引擎实例
+ * @param filepath 公理包文件路径
+ * @return 公理加载状态码（AXIOM_LOAD_OK 表示成功）
+ */
 AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepath) {
+    if (!engine || !filepath)
+        return AXIOM_LOAD_PARSE_ERROR;
     AxiomPackage *pkg = axiom_package_create("temp", "0.0.0");
     if (!pkg) {
         last_status = ENGINE_OUT_OF_MEMORY;
@@ -237,6 +312,24 @@ AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepa
 }
 
 /**
+ * @brief 更新端口节点的命名空间深度
+ * @param n 目标节点
+ * @param new_func_block_id 新函数块ID
+ * @param context_depth 上下文深度
+ * @param is_input 是否为输入端口（影响 is_formal_param 设置）
+ */
+static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
+                                         int context_depth, bool is_input) {
+    if (n && n->type == GEOM_PORT && n->data.port != NULL) {
+        n->data.port->parent_block_id = new_func_block_id;
+        n->data.port->is_formal_param = is_input;
+        n->data.port->namespace_depth = n->data.port->namespace_depth - context_depth + 1;
+        n->parent_block_id = new_func_block_id;
+        n->namespace_depth = n->namespace_depth - context_depth + 1;
+    }
+}
+
+/**
  * engine_pack_function - 将一组内部节点和端口打包为函数块。
  *
  * 将指定的内部节点、输入端口和输出端口封装为一个函数块(FunctionBlock)，
@@ -253,8 +346,13 @@ AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepa
  *                         若为 NULL 则跳过赋值。
  * @return true 成功，false 失败（错误信息存入 last_error）
  */
-bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int internal_count, int *input_port_ids,
-                          int input_count, int *output_port_ids, int output_count, int *out_func_block_id) {
+bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
+                          int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
+    if (!engine || !engine->main_graph) {
+        last_status = ENGINE_INVALID_ARGUMENT;
+        snprintf(last_error, sizeof(last_error), "引擎或主图为空");
+        return false;
+    }
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
         if (!n) {
@@ -288,13 +386,20 @@ bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int intern
         snprintf(last_error, sizeof(last_error), "创建函数块失败（图操作返回错误）");
         return false;
     }
-    /* 记录新创建的函数块ID，供调用者使用（out_func_block_id 可以为 NULL） */
+    /* 注意：graph_add_function_block 内部可能添加多个节点（含内部节点），
+     * 因此新函数块 ID 不一定等于 next_node_id - 1。
+     * 当前依赖 graph_add_function_block 返回最后一个添加的节点 ID。 */
     int new_func_block_id = engine->main_graph->next_node_id - 1;
+    /* 安全检查：确保 ID 在有效范围内 */
+    if (new_func_block_id < 0 || new_func_block_id >= engine->main_graph->next_node_id) {
+        LV00_LOG_ERROR("engine_add_function_block: 推断的函数块 ID=%d 无效", new_func_block_id);
+        return ENGINE_ERROR_INTERNAL;
+    }
     if (out_func_block_id) {
         *out_func_block_id = new_func_block_id;
     }
     /* context_depth is the current canvas depth (0 for global canvas) */
-    int context_depth = 0;
+    int context_depth = ENGINE_GLOBAL_CANVAS_DEPTH;
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
         if (n) {
@@ -305,32 +410,26 @@ bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int intern
     }
     for (int i = 0; i < input_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, input_port_ids[i]);
-        if (n && n->type == GEOM_PORT && n->data.port != NULL) {
-            n->data.port->parent_block_id = new_func_block_id;
-            n->data.port->is_formal_param = true;
-            n->data.port->namespace_depth = n->data.port->namespace_depth - context_depth + 1;
-            n->parent_block_id = new_func_block_id;
-            n->namespace_depth = n->namespace_depth - context_depth + 1;
-        }
+        update_port_namespace_depth(n, new_func_block_id, context_depth, true);
     }
     for (int i = 0; i < output_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, output_port_ids[i]);
-        if (n && n->type == GEOM_PORT && n->data.port != NULL) {
-            n->data.port->parent_block_id = new_func_block_id;
-            n->data.port->is_formal_param = false;
-            n->data.port->namespace_depth = n->data.port->namespace_depth - context_depth + 1;
-            n->parent_block_id = new_func_block_id;
-            n->namespace_depth = n->namespace_depth - context_depth + 1;
-        }
+        update_port_namespace_depth(n, new_func_block_id, context_depth, false);
     }
     return true;
 }
 
-int *engine_instantiate_function(LV00Engine *engine, int func_block_id, int *arg_mappings, int arg_count,
+int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const int *arg_mappings, int arg_count,
                                  int *out_result_count) {
     if (!out_result_count) {
         last_status = ENGINE_INVALID_ARGUMENT;
         snprintf(last_error, sizeof(last_error), "out_result_count 不能为 NULL");
+        return NULL;
+    }
+    if (!engine || !engine->main_graph) {
+        *out_result_count = 0;
+        last_status = ENGINE_INVALID_ARGUMENT;
+        snprintf(last_error, sizeof(last_error), "引擎或主图为空");
         return NULL;
     }
     *out_result_count = 0;
@@ -463,25 +562,46 @@ UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, Cons
     return status;
 }
 
+/**
+ * @brief 获取引擎最近一次操作的状态码
+ *
+ * 优先使用引擎实例级别的错误状态（每个引擎独立隔离）。
+ * 若无引擎实例，回退到线程局部变量。
+ * 当 engine 为 NULL 且线程局部变量未被初始化时，返回 ENGINE_INVALID_ARGUMENT。
+ *
+ * @param[in] engine 引擎实例（可为 NULL，此时回退到线程局部状态）
+ * @return 最近一次操作的状态码
+ */
 EngineStatus engine_get_last_status(const LV00Engine *engine) {
-    /* 优先使用引擎实例级别的错误状态（每个引擎独立隔离）。】
-     * 若无引擎实例，回退到线程局部变量。 */
     if (engine) {
         return engine->last_status;
     }
+    /* 回退到线程局部变量（LEGACY 模式） */
     return last_status;
 }
 
+/**
+ * @brief 获取引擎最近一次错误的描述字符串
+ *
+ * 优先使用引擎实例级别的错误状态（每个引擎独立隔离）。
+ * 若无引擎实例，回退到线程局部变量。
+ * 当 engine 为 NULL 且线程局部变量未被初始化时，返回空字符串。
+ *
+ * @param[in] engine 引擎实例（当前未使用，可为 NULL）
+ * @return 内部静态错误字符串指针。调用者不得 free。
+ *         在下一次可能修改错误状态的操作前有效。
+ *         如无错误，返回空字符串。
+ */
 const char *engine_get_last_error(const LV00Engine *engine) {
-    /* 优先使用引擎实例级别的错误状态。若无引擎实例，回退到线程局部变量。 */
     if (engine) {
         return engine->last_error;
     }
+    /* 回退到线程局部变量（LEGACY 模式） */
     return last_error;
 }
 
-/*
- * engine_solve - 完整求解流水线
+/**
+ * @brief engine_solve - 完整求解流水线
  *
  * 协调执行：重写（有限步数）-> 求解器（处理剩余约束）
  *         -> 冲突检查 -> 自由度更新
@@ -705,6 +825,16 @@ int engine_rewrite_and_solve(LV00Engine *engine, int max_rewrite_steps, int max_
     /* 外层循环：交替执行重写和求解 */
     while (remaining_rewrite > 0 || remaining_solve > 0) {
         iteration++;
+
+        /* 总迭代次数安全限制：防止重写-求解交替无限循环 */
+        if (iteration > 10000) {
+            engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写-求解协作超过最大迭代次数限制 (10000)", iteration, -1, -1);
+            last_status = ENGINE_CONSTRAINT_CONFLICT;
+            snprintf(last_error, sizeof(last_error),
+                     "engine_rewrite_and_solve: 总迭代次数超过上限 10000，终止执行");
+            wl_history_destroy(&wl_history);
+            return -2;
+        }
 
         /* 步骤1：运行重写引擎最多 remaining_rewrite 步 */
         if (remaining_rewrite > 0 && engine->rewrite_rule_count > 0) {
@@ -942,7 +1072,7 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
                          * overflow_coord 结构体本身，因为外部仍持有其指针），
                          * 再将 new_coord 的数据转移过来，最后仅释放 new_coord 外壳。
                          * 注意：不能调用 symbolic_coord_destroy(overflow_coord)，
-                         * 因为它会 free(coord) 整个结构体，导致后续写入为 use-after-free。 */
+                         * 因为它会 lv00_free((void **) &coord) 整个结构体，导致后续写入为 use-after-free。 */
                         switch (overflow_coord->type) {
                             case RATIONAL:
                                 rational_destroy(overflow_coord->data.rational);
@@ -961,7 +1091,7 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
                         overflow_coord->data = new_coord->data;
                         overflow_coord->trust = new_coord->trust;
                         /* 仅释放 new_coord 的外壳，不释放其内部数据（已转移至 overflow_coord） */
-                        free(new_coord);
+                        lv00_free((void **)&new_coord);
                     } else {
                         /* new_coord 创建失败，仅标记琥珀色作为降级 */
                         symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
@@ -1193,8 +1323,17 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
             dst->constraints = tmp_cons;
             dst->constraints[dst->constraint_count++] = copy_c;
         } else {
+            /* realloc 失败：释放当前约束、已复制的所有约束、整个目标图和 id_map */
             lv00_free((void **) &copy_c->participants);
             lv00_free((void **) &copy_c);
+            for (int k = 0; k < dst->constraint_count; k++) {
+                lv00_free((void **) &dst->constraints[k]->participants);
+                lv00_free((void **) &dst->constraints[k]);
+            }
+            lv00_free((void **) &dst->constraints);
+            graph_destroy(dst);
+            lv00_free((void **) &id_map);
+            return NULL;
         }
     }
 
@@ -1252,6 +1391,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
     return dst;
 }
 
+/** @brief 创建引擎状态冻结点 @details 保存当前引擎状态，用于后续回滚。 @param engine 引擎实例 @return 冻结点句柄，失败返回 NULL */
 void *engine_create_frozen_point(LV00Engine *engine) {
     if (!engine || !engine->main_graph)
         return NULL;
@@ -1260,6 +1400,7 @@ void *engine_create_frozen_point(LV00Engine *engine) {
     return (void *) snapshot;
 }
 
+/** @brief 恢复引擎状态到指定冻结点 @param engine 引擎实例 @param frozen_point 冻结点句柄 @return true 成功 */
 bool engine_restore_frozen_point(LV00Engine *engine, void *frozen_point) {
     if (!engine || !frozen_point)
         return false;
@@ -1281,6 +1422,7 @@ bool engine_restore_frozen_point(LV00Engine *engine, void *frozen_point) {
     return true;
 }
 
+/** @brief 销毁冻结点并释放关联资源 @param frozen_point 冻结点句柄 */
 void engine_destroy_frozen_point(void *frozen_point) {
     if (!frozen_point)
         return;
@@ -1292,12 +1434,14 @@ void engine_destroy_frozen_point(void *frozen_point) {
  * 流式输出 API
  * ================================================================ */
 
+/** @brief 获取引擎的流式上下文 @param engine 引擎实例 @return 流式上下文指针 */
 StreamContext *engine_get_stream_context(const LV00Engine *engine) {
     if (!engine)
         return NULL;
     return engine->stream_ctx;
 }
 
+/** @brief 启用或禁用流式输出 @param engine 引擎实例 @param enabled true 启用 */
 void engine_set_streaming_enabled(LV00Engine *engine, bool enabled) {
     if (!engine)
         return;
@@ -1314,12 +1458,14 @@ void engine_set_streaming_enabled(LV00Engine *engine, bool enabled) {
     }
 }
 
+/** @brief 查询流式输出是否启用 @param engine 引擎实例 @return true 已启用 */
 bool engine_is_streaming_enabled(const LV00Engine *engine) {
     if (!engine)
         return false;
     return engine->stream_ctx != NULL;
 }
 
+/** @brief 发射流式事件 @param engine 引擎实例 @param event_type 事件类型 @param ... 事件数据 */
 void engine_emit_stream_event(LV00Engine *engine, StreamEventType type, const char *description, int step_number,
                               int node_id, int constraint_id) {
     if (!engine || !engine->stream_ctx)
@@ -1452,7 +1598,7 @@ EngineStatus lv00_engine_transition_state(LV00Engine *engine, EngineState new_st
     EngineState current = engine->state;
 
     /* 边界检查：防止无效状态枚举值 */
-    if ((int)new_state < (int)ENGINE_STATE_IDLE || (int)new_state > (int)ENGINE_STATE_COMPLETE) {
+    if (new_state < ENGINE_STATE_IDLE || new_state > ENGINE_STATE_COMPLETE) {
         engine->last_status = ENGINE_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error),
                  "状态转移失败: 无效的目标状态 %d（合法范围: %d-%d）",

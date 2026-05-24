@@ -634,12 +634,11 @@ int preset_topology_count(void) {
  * @brief 获取拓扑学预设名称列表
  */
 bool preset_topology_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
+    PRESET_CHECK_NULL(out_names, error);
+    PRESET_CHECK_NULL(out_count, error);
 
     char **names = (char **) lv00_malloc(TOPOLOGY_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
+    PRESET_CHECK_NULL(names, error);
 
     const char *preset_names[] = {
         PRESET_TOPOLOGY_TEST,
@@ -693,7 +692,7 @@ bool preset_topology_get_names(char ***out_names, int *out_count) {
         PRESET_LIFTING_EXISTENCE,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
+    int count = TOPOLOGY_PRESET_COUNT;
 
     for (int i = 0; i < count; i++) {
         names[i] = lv00_strdup(preset_names[i]);
@@ -713,6 +712,9 @@ bool preset_topology_get_names(char ***out_names, int *out_count) {
     *out_names = names;
     *out_count = count;
     return true;
+
+error:
+    return false;
 }
 
 PresetCategory preset_topology_category(void) {

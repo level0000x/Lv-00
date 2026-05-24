@@ -1,3 +1,18 @@
+/**
+ * LV-00 React GUI (web-gui) CSS Variables / CSS 自定义属性
+ *
+ * 本文件为 web-gui (React) 前端的设计令牌定义。
+ * 与 web/css/variables.css 共享相同的设计体系（颜色、间距、字体等），
+ * 但可能根据 React 组件库的需求进行微调。
+ *
+ * 注意：两份文件之间的差异：
+ * - web/css/variables.css：服务于原生 Web 版本（index.html + 原生 JS），
+ *   可能包含额外的画布/几何相关变量。
+ * - web-gui/src/styles/variables.css（本文件）：服务于 React GUI 版本，
+ *   可能包含 React 组件特有的变量（如 Toast、Modal 等）。
+ *
+ * 维护时请确保两份文件的核心色板保持一致。
+ */
 /* ============================================================
    LV-00 CSS Variables / CSS 自定义属性
    统一管理颜色、间距、字体、圆角、动画、z-index 等设计令牌

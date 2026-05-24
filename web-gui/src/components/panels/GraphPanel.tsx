@@ -12,7 +12,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import Panel from './Panel';
 import { useAppStore } from '@/stores';
 import type { Constraint } from '@/types';
-import { generateId } from '@/utils/idGenerator';
+import { generateUniqueId } from '@/utils/idGenerator';
 import {
   calculateMidpoint,
   calculateIntersection,
@@ -168,7 +168,7 @@ const GraphPanel: React.FC = () => {
     const x = parseFloat(inputX) || 0;
     const y = parseFloat(inputY) || 0;
     saveUndoState();
-    addPoint({ id: generateId(), x, y });
+    addPoint({ id: generateUniqueId(), x, y });
     appendLog(`添加点: (${x}, ${y})`, 'info');
     setInputX('');
     setInputY('');
@@ -182,7 +182,7 @@ const GraphPanel: React.FC = () => {
     saveUndoState();
     const p1 = points[0]!;
     const p2 = points[1]!;
-    addSegment({ p1: p1.id, p2: p2.id, id: generateId() });
+    addSegment({ p1: p1.id, p2: p2.id, id: generateUniqueId() });
     appendLog(`添加线段: P${p1.id} -> P${p2.id}`, 'info');
   }, [points, saveUndoState, addSegment, addToast, appendLog]);
 
@@ -239,7 +239,7 @@ const GraphPanel: React.FC = () => {
     }
     saveUndoState();
     const newConstraint: Constraint = {
-      id: generateId(),
+      id: generateUniqueId(),
       type: 'incidence',
       args: [ptId, segId],
     };
@@ -265,7 +265,7 @@ const GraphPanel: React.FC = () => {
     }
     saveUndoState();
     const newConstraint: Constraint = {
-      id: generateId(),
+      id: generateUniqueId(),
       type: 'betweenness',
       args: [aId, bId, cId],
     };
@@ -320,12 +320,12 @@ const GraphPanel: React.FC = () => {
     saveUndoState();
 
     // Create the intersection point
-    const newPointId = generateId();
+    const newPointId = generateUniqueId();
     addPoint({ id: newPointId, x: intersection.x, y: intersection.y });
 
     // Add the intersection constraint
     const newConstraint: Constraint = {
-      id: generateId(),
+      id: generateUniqueId(),
       type: 'intersection',
       args: [s1Id, s2Id],
     };
@@ -354,7 +354,7 @@ const GraphPanel: React.FC = () => {
     }
     saveUndoState();
     const newConstraint: Constraint = {
-      id: generateId(),
+      id: generateUniqueId(),
       type: 'containment',
       args: [innerId, outerId],
     };
@@ -541,60 +541,60 @@ const GraphPanel: React.FC = () => {
       switch (presetId) {
         case 'triangle': {
           const verts = calculateEquilateralTriangle(200);
-          const p0 = { id: generateId(), x: verts[0]!.x, y: verts[0]!.y };
-          const p1 = { id: generateId(), x: verts[1]!.x, y: verts[1]!.y };
-          const p2 = { id: generateId(), x: verts[2]!.x, y: verts[2]!.y };
+          const p0 = { id: generateUniqueId(), x: verts[0]!.x, y: verts[0]!.y };
+          const p1 = { id: generateUniqueId(), x: verts[1]!.x, y: verts[1]!.y };
+          const p2 = { id: generateUniqueId(), x: verts[2]!.x, y: verts[2]!.y };
           newPoints.push(p0, p1, p2);
           newSegments.push(
-            { id: generateId(), p1: p0.id, p2: p1.id },
-            { id: generateId(), p1: p1.id, p2: p2.id },
-            { id: generateId(), p1: p2.id, p2: p0.id },
+            { id: generateUniqueId(), p1: p0.id, p2: p1.id },
+            { id: generateUniqueId(), p1: p1.id, p2: p2.id },
+            { id: generateUniqueId(), p1: p2.id, p2: p0.id },
           );
           appendLog('加载预设: 等边三角形 / Preset: Equilateral Triangle', 'info');
           break;
         }
         case 'square': {
           const verts = calculateSquare(200);
-          const p0 = { id: generateId(), x: verts[0]!.x, y: verts[0]!.y };
-          const p1 = { id: generateId(), x: verts[1]!.x, y: verts[1]!.y };
-          const p2 = { id: generateId(), x: verts[2]!.x, y: verts[2]!.y };
-          const p3 = { id: generateId(), x: verts[3]!.x, y: verts[3]!.y };
+          const p0 = { id: generateUniqueId(), x: verts[0]!.x, y: verts[0]!.y };
+          const p1 = { id: generateUniqueId(), x: verts[1]!.x, y: verts[1]!.y };
+          const p2 = { id: generateUniqueId(), x: verts[2]!.x, y: verts[2]!.y };
+          const p3 = { id: generateUniqueId(), x: verts[3]!.x, y: verts[3]!.y };
           newPoints.push(p0, p1, p2, p3);
           newSegments.push(
-            { id: generateId(), p1: p0.id, p2: p1.id },
-            { id: generateId(), p1: p1.id, p2: p2.id },
-            { id: generateId(), p1: p2.id, p2: p3.id },
-            { id: generateId(), p1: p3.id, p2: p0.id },
+            { id: generateUniqueId(), p1: p0.id, p2: p1.id },
+            { id: generateUniqueId(), p1: p1.id, p2: p2.id },
+            { id: generateUniqueId(), p1: p2.id, p2: p3.id },
+            { id: generateUniqueId(), p1: p3.id, p2: p0.id },
           );
           appendLog('加载预设: 正方形 / Preset: Square', 'info');
           break;
         }
         case 'intersection': {
           // Two crossing segments: (-150,-100)->(150,100) and (-150,100)->(150,-100)
-          const p0 = { id: generateId(), x: -150, y: -100 };
-          const p1 = { id: generateId(), x: 150, y: 100 };
-          const p2 = { id: generateId(), x: -150, y: 100 };
-          const p3 = { id: generateId(), x: 150, y: -100 };
+          const p0 = { id: generateUniqueId(), x: -150, y: -100 };
+          const p1 = { id: generateUniqueId(), x: 150, y: 100 };
+          const p2 = { id: generateUniqueId(), x: -150, y: 100 };
+          const p3 = { id: generateUniqueId(), x: 150, y: -100 };
           // Intersection point at origin
-          const p4 = { id: generateId(), x: 0, y: 0 };
+          const p4 = { id: generateUniqueId(), x: 0, y: 0 };
           newPoints.push(p0, p1, p2, p3, p4);
-          const s0 = { id: generateId(), p1: p0.id, p2: p1.id };
-          const s1 = { id: generateId(), p1: p2.id, p2: p3.id };
+          const s0 = { id: generateUniqueId(), p1: p0.id, p2: p1.id };
+          const s1 = { id: generateUniqueId(), p1: p2.id, p2: p3.id };
           newSegments.push(s0, s1);
           // Intersection constraint
           newConstraints.push({
-            id: generateId(),
+            id: generateUniqueId(),
             type: 'intersection',
             args: [s0.id, s1.id],
           });
           // Incidence: intersection point on both segments
           newConstraints.push({
-            id: generateId(),
+            id: generateUniqueId(),
             type: 'incidence',
             args: [p4.id, s0.id],
           });
           newConstraints.push({
-            id: generateId(),
+            id: generateUniqueId(),
             type: 'incidence',
             args: [p4.id, s1.id],
           });
@@ -603,22 +603,22 @@ const GraphPanel: React.FC = () => {
         }
         case 'midpoint': {
           // Two points with a segment and midpoint
-          const p0 = { id: generateId(), x: -150, y: 0 };
-          const p1 = { id: generateId(), x: 150, y: 0 };
+          const p0 = { id: generateUniqueId(), x: -150, y: 0 };
+          const p1 = { id: generateUniqueId(), x: 150, y: 0 };
           const mid = calculateMidpoint(p0, p1);
-          const p2 = { id: generateId(), x: mid.x, y: mid.y };
+          const p2 = { id: generateUniqueId(), x: mid.x, y: mid.y };
           newPoints.push(p0, p1, p2);
-          const segId = generateId();
+          const segId = generateUniqueId();
           newSegments.push({ id: segId, p1: p0.id, p2: p1.id });
           // Betweenness: midpoint is between the two endpoints
           newConstraints.push({
-            id: generateId(),
+            id: generateUniqueId(),
             type: 'betweenness',
             args: [p0.id, p2.id, p1.id],
           });
           // Incidence: midpoint on the segment
           newConstraints.push({
-            id: generateId(),
+            id: generateUniqueId(),
             type: 'incidence',
             args: [p2.id, segId],
           });

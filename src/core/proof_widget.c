@@ -112,7 +112,7 @@ static char *proof_widget_json_escape(const char *str)
 
     size_t len = strlen(str);
     size_t bufsize = PROOF_WIDGET_ESCAPE_BUFFER +
-                     len * 2; /* 每个字符最坏情况 \\uXXXX */
+                     len * 6; /* 每个字符最坏情况 \\uXXXX (6字符) */
     char *out = lv00_malloc(bufsize);
     if (!out) return NULL;
 

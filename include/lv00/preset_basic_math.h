@@ -13,10 +13,11 @@
  * @category PRESET_CATEGORY_ANALYSIS
  * @version 5.0.0
  * @author Lv-00 开发团队
+ * @author Lv-00 Project
  */
 
-#ifndef PRESET_BASIC_MATH_H
-#define PRESET_BASIC_MATH_H
+#ifndef LV00_PRESET_BASIC_MATH_H
+#define LV00_PRESET_BASIC_MATH_H
 
 #include "preset_blocks.h"
 
@@ -55,6 +56,15 @@ extern "C" {
 #define PRESET_ARITHMETIC_MODULAR "arithmetic_modular"
 
 /* -------------------- 数论基础 -------------------- */
+
+/*
+ * 数论基础预设说明：
+ * 本模块提供数论相关的基础版本预设（GCD、LCM、素性检测、质因数分解、
+ * 欧拉函数、模逆元），适用于一般数学计算场景。
+ * 如需更高级的数论算法（如 Miller-Rabin 素性检测、扩展欧几里得算法、
+ * 中国剩余定理等），请参考 preset_number_theory.h 模块。
+ * basic_math 侧重简洁易用的基础实现，number_theory 提供高级版本。
+ */
 
 /** 最大公约数：gcd(a, b) */
 #define PRESET_NUMBER_GCD "number_gcd"
@@ -146,6 +156,10 @@ bool preset_basic_math_register(void);
 /**
  * @brief 获取基础数学预设函数块数量
  *
+ * 返回当前基础数学模块中已注册的预设函数块总数，
+ * 包括算术运算（8个）、数论基础（6个）、组合计数（6个）、
+ * 数列与级数（5个）和特殊函数（5个），共计 30 个预设。
+ *
  * @return int 基础数学模块预设函数块总数
  */
 int preset_basic_math_count(void);
@@ -174,4 +188,4 @@ PresetCategory preset_basic_math_category(void);
 }
 #endif
 
-#endif /* PRESET_BASIC_MATH_H */
+#endif /* LV00_PRESET_BASIC_MATH_H */

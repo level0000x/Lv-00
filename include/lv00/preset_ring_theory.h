@@ -563,9 +563,7 @@ extern "C" {
 #ifndef PRESET_RING_IDEAL_TEST
 #define PRESET_RING_IDEAL_TEST PRESET_RING_IDEAL_CHECK
 #endif
-#ifndef PRESET_RING_PRINCIPAL_IDEAL
-#define PRESET_RING_PRINCIPAL_IDEAL PRESET_PRINCIPAL_IDEAL
-#endif
+/* PRESET_RING_PRINCIPAL_IDEAL removed - self-referencing alias, use PRESET_PRINCIPAL_IDEAL directly */
 #ifndef PRESET_RING_IDEAL_SUM
 #define PRESET_RING_IDEAL_SUM PRESET_IDEAL_SUM
 #endif
@@ -597,7 +595,7 @@ extern "C" {
 
 /* ==================== 向后兼容别名（v4.0 .c 文件使用的宏名） ==================== */
 #ifndef PRESET_RING_ISOMORPHISM_TEST
-#define PRESET_RING_ISOMORPHISM_TEST "ring_isomorphism_test"
+#define PRESET_RING_ISOMORPHISM_TEST PRESET_RING_ISOMORPHISM_CHECK
 #endif
 #ifndef PRESET_RING_INTEGRAL_DOMAIN_TEST
 #define PRESET_RING_INTEGRAL_DOMAIN_TEST "ring_integral_domain_test"
@@ -621,13 +619,13 @@ extern "C" {
 #define PRESET_RING_POLY_MULTIPLICATION "ring_poly_multiplication"
 #endif
 #ifndef PRESET_RING_POLY_GCD
-#define PRESET_RING_POLY_GCD "ring_poly_gcd"
+#define PRESET_RING_POLY_GCD PRESET_POLYNOMIAL_GCD
 #endif
 #ifndef PRESET_RING_POLY_EVALUATION
 #define PRESET_RING_POLY_EVALUATION "ring_poly_evaluation"
 #endif
 #ifndef PRESET_RING_POLY_IRREDUCIBLE_TEST
-#define PRESET_RING_POLY_IRREDUCIBLE_TEST "ring_poly_irreducible_test"
+#define PRESET_RING_POLY_IRREDUCIBLE_TEST PRESET_POLYNOMIAL_IRREDUCIBLE_CHECK
 #endif
 #ifndef PRESET_RING_NILPOTENT_TEST
 #define PRESET_RING_NILPOTENT_TEST "ring_nilpotent_test"

@@ -1,20 +1,32 @@
-/**
- * @file dsl_compiler.h
- * @brief DSL 编译器 —— 借鉴 Ganja.js 的 AST 转译 + GCLC 几何构造语言
- *
- * @details 设计借鉴：
- * - Ganja.js (github.com/enkimute/ganja.js)
- *   - inline AST 重写技术：将运算符表达式翻译为过程化 API
- *   - 度规签名式参数化：Algebra(2,0,1) = PGA2D
- *   - 跨语言代码生成管道：JS/C++/C#/Rust/Python
- * - GCLC (github.com/janicicpredrag/gclc)
- *   - GC 语言语法：point A 10 20 / line a A B / circle k A B
- *   - 构造即声明语义
+/* ========================================================================
+ * 模块名称：DSL 编译器 (dsl_compiler)
+ * 功能概述：借鉴 Ganja.js 的 AST 转译和 GCLC 几何构造语言，提供从
+ *          DSL 源码到约束图的完整编译管线。包含词法分析、语法解析、
+ *          AST 构建、中间表示（IR）生成和约束图填充五个阶段。
+ *          支持多种目标平台代码生成。
  *
  * 编译管线：DSL源码 -> Tokenizer -> AST -> IR -> 约束图
  *
+ * 主要 API：
+ *   - dsl_tokenize                    — 词法分析
+ *   - dsl_parse                       — 语法解析（递归下降）
+ *   - dsl_compile                     — AST -> IR 编译
+ *   - dsl_ir_to_constraint_graph      — IR -> 约束图
+ *   - dsl_compile_and_load            — 一键编译并加载
+ *   - dsl_ast_dump / dsl_ir_dump      — 调试输出
+ *
+ * 使用示例：
+ *   DslCompileConfig cfg;
+ *   dsl_compile_config_default(&cfg);
+ *   ConstraintGraph *g = graph_create();
+ *   bool ok = dsl_compile_and_load("point A 10 20; line a A B;", &cfg, g);
+ *
  * @version v3.3.0
- * @date 2026-05-24
+ * ======================================================================== */
+
+/**
+ * @file dsl_compiler.h
+ * @brief DSL 编译器 —— 借鉴 Ganja.js 的 AST 转译 + GCLC 几何构造语言
  */
 
 #ifndef LV00_DSL_COMPILER_H

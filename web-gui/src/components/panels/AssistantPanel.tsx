@@ -11,6 +11,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import Panel from './Panel';
 import { useAppStore } from '@/stores';
 import type { AIProvider } from '@/types';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 // ================================================================
 // 常量 / Constants
@@ -118,6 +119,7 @@ const AssistantPanel: React.FC = () => {
   const setActiveProvider = useAppStore((s) => s.setActiveProvider);
   const setModelTemperature = useAppStore((s) => s.setModelTemperature);
   const setModelMaxTokens = useAppStore((s) => s.setModelMaxTokens);
+  const setIsStreaming = useAppStore((s) => s.setIsStreaming);
 
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -194,11 +196,13 @@ const AssistantPanel: React.FC = () => {
 
   const isEmpty = chatMessages.length === 0;
 
-  /** 缓存每条消息的 Markdown 渲染结果 / Memoized Markdown rendering per message */
+  /** 缓存每条消息的 Markdown 渲染结果，并经过 HTML 消毒处理防止 XSS / Memoized Markdown rendering per message with XSS sanitization */
   const renderedMessages = useMemo(
     () => chatMessages.map((msg) => ({
       ...msg,
-      renderedHtml: msg.role !== 'user' && msg.content ? renderMarkdown(msg.content) : null,
+      renderedHtml: msg.role !== 'user' && msg.content
+        ? sanitizeHtml(renderMarkdown(msg.content))
+        : null,
     })),
     [chatMessages],
   );
@@ -287,14 +291,14 @@ const AssistantPanel: React.FC = () => {
                   输入关于几何、公式或 Lv-00 引擎的问题。
                 </div>
                 <div className="ai-empty-hints">
-                  <div className="ai-hint-item" onClick={() => setInput('How does the constraint solver work?')}>
-                    How does the constraint solver work?
+                  <div className="ai-hint-item" onClick={() => setInput('约束求解器是如何工作的？')}>
+                    约束求解器是如何工作的？
                   </div>
-                  <div className="ai-hint-item" onClick={() => setInput('Explain the symbolic geometry approach')}>
-                    Explain the symbolic geometry approach
+                  <div className="ai-hint-item" onClick={() => setInput('解释符号几何方法')}>
+                    解释符号几何方法
                   </div>
-                  <div className="ai-hint-item" onClick={() => setInput('Show me an example formula')}>
-                    Show me an example formula
+                  <div className="ai-hint-item" onClick={() => setInput('展示一个公式示例')}>
+                    展示一个公式示例
                   </div>
                 </div>
               </div>
@@ -320,7 +324,7 @@ const AssistantPanel: React.FC = () => {
                     ) : null}
                   </div>
                   <div className="ai-msg-time">
-                    {new Date(msg.timestamp).toLocaleTimeString('en-US', {
+                    {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
                       hour12: false,
                       hour: '2-digit',
                       minute: '2-digit',
@@ -361,8 +365,11 @@ const AssistantPanel: React.FC = () => {
               {isStreaming ? (
                 <button
                   className="btn btn-danger ai-send-btn"
-                  disabled
-                  title="Generating... / 生成中..."
+                  onClick={() => {
+                    /* 停止当前流式输出：设置流式状态为 false */
+                    setIsStreaming(false);
+                  }}
+                  title="Stop / 停止"
                 >
                   {'\u23F9'} STOP / 停止
                 </button>

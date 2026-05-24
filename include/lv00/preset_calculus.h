@@ -137,8 +137,15 @@ extern "C" {
 /**
  * @brief 注册所有微积分预设函数块
  *
+ * 将微积分模块的所有预设函数块注册到全局预设库中。
+ * 此函数由 preset_blocks_init() 自动调用。
+ *
+ * 返回 false 的条件：
+ *   - 内存分配失败：无法为预设元数据或名称字符串分配内存
+ *   - 预设名称冲突：尝试注册的预设名称与已注册的预设重名
+ *
  * @return true 全部注册成功
- * @return false 部分注册失败
+ * @return false 部分注册失败（内存不足或名称冲突）
  */
 bool preset_calculus_register(void);
 

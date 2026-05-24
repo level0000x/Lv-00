@@ -315,7 +315,7 @@ extern "C" {
  * 输出：
  *   - 函数 (PRESET_TYPE_FUNCTION) - 后验分布
  *
- * 复杂度：O(∞)
+ * 复杂度：O(取决于收敛速度)
  */
 #define PRESET_STAT_POSTERIOR_DISTRIBUTION "stat_posterior_distribution"
 
@@ -332,7 +332,7 @@ extern "C" {
  * 输出：
  *   - 标量 (PRESET_TYPE_SCALAR) - 贝叶斯因子 $B_{01}$
  *
- * 复杂度：O(∞)
+ * 复杂度：O(取决于收敛速度)
  */
 #define PRESET_STAT_BAYES_FACTOR "stat_bayes_factor"
 

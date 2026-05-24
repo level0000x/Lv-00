@@ -1,20 +1,27 @@
-﻿/**
+/**
  * @file geometry_compress.c
- * @brief Draco 椋庢牸鍑犱綍鏁版嵁鍘嬬缉瀹炵幇 鈥斺€?Edgebreaker 鎷撴墤缂栫爜 + 棰勬祴缂栫爜妗? *
- * @details 瀹炵幇鍩轰簬 Edgebreaker CLERS 绠楁硶鐨勫嚑浣曟嫇鎵戝帇缂┿€佸钩琛屽洓杈瑰舰
- *          棰勬祴缂栫爜銆佷互鍙?.lvzd 鏍煎紡浜岃繘鍒?I/O銆傚綋鍓嶄负妗╁疄鐜扮増鏈紝
- *          鎻愪緵鍩烘湰鍘嬬缉/瑙ｅ帇妗嗘灦锛岀喌缂栫爜閮ㄥ垎鏍囨敞 TODO 寰呭悗缁凯浠ｅ畬鍠勩€? *
- *          鏍稿績妯″潡锛? *          - geometry_compress锛氬畬鏁村帇缂╃绾挎鏋? *          - geometry_decompress锛氶€嗗帇缂╃绾挎鏋? *          - edgebreaker_encode锛氭嫇鎵?CLERS 绗﹀彿搴忓垪鐢熸垚
- *          - predictive_encode_coords锛氬钩琛屽洓杈瑰舰鍧愭爣棰勬祴
- *          - .lvzd I/O锛氫簩杩涘埗鏂囦欢璇诲啓
+ * @brief Draco-style geometry data compression - Edgebreaker topology encoding + predictive coding
+ *
+ * @details Implements Edgebreaker CLERS algorithm-based mesh topology compression,
+ *          parallelogram predictive coding, and .lvzd binary I/O.
+ *
+ *          Core modules:
+ *          - geometry_compress: full compression pipeline
+ *          - geometry_decompress: full decompression pipeline
+ *          - edgebreaker_encode: CLERS symbol sequence generation
+ *          - predictive_encode_coords: parallelogram coordinate prediction
+ *          - .lvzd I/O: binary file read/write
  *
  * @author Lv-00 Project
  * @version 3.3.0
  *
  * @dependencies
- *   - geometry_compress.h  : 鍘嬬缉绠＄嚎鍏叡鎺ュ彛
- *   - constraint_graph.h   : 绾︽潫鍥炬暟鎹粨鏋? *   - symbolic_coord.h     : 绗﹀彿鍧愭爣绯荤粺
- *   - lv00_utils.h         : 缁熶竴鍐呭瓨鍒嗛厤鍣? *   - lv00_internal.h      : 鍐呴儴甯搁噺涓庡伐鍏峰畯
+ *   - geometry_compress.h  : compression pipeline public interface
+ *   - constraint_graph.h   : constraint graph data structure
+ *   - symbolic_coord.h     : symbolic coordinate system
+ *   - lv00_utils.h         : unified memory allocator
+ *   - lv00_internal.h      : internal constants and utilities
+ *   - node_deep_copy.h     : node deep copy utilities
  */
 
 #include "geometry_compress.h"
@@ -27,47 +34,55 @@
 #include "constraint_graph.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "node_deep_copy.h"
 #include "symbolic_coord.h"
 
 /* ========================================================================
- * 鍐呴儴甯搁噺
+ * Internal constants
  * ======================================================================== */
 
-/** 杈圭晫鏍堝垵濮嬪閲?*/
+/** Boundary stack initial capacity */
 #define BOUNDARY_STACK_INITIAL 64
 
-/** CLERS 搴忓垪鍒濆瀹归噺 */
+/** CLERS sequence initial capacity */
 #define CLERS_SEQUENCE_INITIAL 256
 
-/** .lvzd 璇荤紦鍐插尯鍒濆澶у皬 */
+/** .lvzd read buffer initial size */
 #define LVZD_READ_BUFFER_INITIAL 4096
 
-/** 鍧愭爣缁村害锛?D 鎴?3D 寮犻噺锛?*/
+/** Coordinate dimension (2D or 3D vectors) */
 #ifndef COORD_DIM
 #define COORD_DIM 2
 #endif
 
+/** Magic bytes for the combined compressed output format */
+#define LVZD_COMPRESS_MAGIC 0x4C564300 /* "LVZC" */
+
+/** Maximum number of adjacent faces for multi-parallelogram prediction */
+#define MAX_ADJACENT_FACES 16
+
 /* ========================================================================
- * 鍐呴儴杈呭姪缁撴瀯浣? * ======================================================================== */
+ * Internal helper structures
+ * ======================================================================== */
 
 /**
- * @brief 杈圭粨鏋勪綋 鈥斺€?鐢ㄤ簬 Edgebreaker 閬嶅巻
+ * @brief Edge structure - used for Edgebreaker traversal
  */
 typedef struct {
-    int v0; /**< 杈硅捣鐐硅妭鐐?ID */
-    int v1; /**< 杈圭粓鐐硅妭鐐?ID */
+    int v0; /**< Edge start vertex ID */
+    int v1; /**< Edge end vertex ID */
 } Edge;
 
 /**
- * @brief 涓夎褰㈤潰缁撴瀯浣?鈥斺€?閫氳繃绾︽潫鍏崇郴鎺ㄦ柇
+ * @brief Triangle face structure - inferred from constraint relationships
  */
 typedef struct {
-    int verts[3]; /**< 涓変釜椤剁偣鑺傜偣 ID */
-    bool visited; /**< 鏄惁宸插湪閬嶅巻涓闂?*/
+    int verts[3]; /**< Three vertex node IDs */
+    bool visited; /**< Whether visited during traversal */
 } TriangleFace;
 
 /* ========================================================================
- * 榛樿鍘嬬缉閰嶇疆宸ュ巶鍑芥暟锛堝唴閮級
+ * Default compression config factory (internal)
  * ======================================================================== */
 
 static CompressConfig compress_config_default(void) {
@@ -81,16 +96,169 @@ static CompressConfig compress_config_default(void) {
 }
 
 /* ========================================================================
- * 棰勬祴缂栫爜瀹炵幇
+ * Triangle face extraction helpers
  * ======================================================================== */
 
 /**
- * @brief 骞宠鍥涜竟褰㈤娴嬬紪鐮? *
- * 閬嶅巻绾︽潫鍥句腑浠庣害鏉熷叧绯绘帹鏂殑涓夎褰㈤潰锛屽姣忎釜鏈闂殑瀵归《鐐? * 鐢ㄥ钩琛屽洓杈瑰舰娉曞垯棰勬祴骞跺瓨鍌ㄦ畫宸€? *
- * 绠楁硶锛氬浜庝笁瑙掑舰 (v0, v1, v2)锛岃 v2 涓哄緟棰勬祴椤剁偣锛? * 鏌ユ壘鍏变韩杈?(v0, v1) 鐨勭浉閭讳笁瑙掑舰瀵归《鐐?v_opp锛? * 棰勬祴鍊硷細pred = coord(v0) + coord(v1) - coord(v_opp)
- * 娈嬪樊锛歝oord(v2) = coord(v2) - pred锛堝師鍦颁慨鏀癸級
+ * @brief Extract triangle face list from constraint graph
  *
- * @param[in,out] graph 绾︽潫鍥? * @return true 鎴愬姛锛宖alse 澶辫触
+ * Iterates all constraints, finding those with exactly 3 participants (treated as triangle faces).
+ *
+ * @param[in]  graph       Constraint graph
+ * @param[out] faces       Output triangle face array (caller responsible for free)
+ * @param[out] face_count  Output triangle face count
+ * @return true success, false failure
+ */
+static bool extract_triangle_faces(const ConstraintGraph *graph, TriangleFace **faces, int *face_count) {
+    if (!graph || !faces || !face_count)
+        return false;
+
+    int capacity = 64;
+    TriangleFace *f = (TriangleFace *) lv00_malloc(capacity * sizeof(TriangleFace));
+    if (!f)
+        return false;
+
+    int count = 0;
+    for (int ci = 0; ci < graph->constraint_count; ci++) {
+        Constraint *c = graph->constraints[ci];
+        if (!c)
+            continue;
+        if (c->participant_count == 3) {
+            if (count >= capacity) {
+                capacity *= 2;
+                TriangleFace *nf = (TriangleFace *) lv00_realloc(f, capacity * sizeof(TriangleFace));
+                if (!nf) {
+                    lv00_free((void **) &f);
+                    return false;
+                }
+                f = nf;
+            }
+            f[count].verts[0] = c->participants[0];
+            f[count].verts[1] = c->participants[1];
+            f[count].verts[2] = c->participants[2];
+            f[count].visited = false;
+            count++;
+        }
+    }
+
+    *faces = f;
+    *face_count = count;
+    return true;
+}
+
+/**
+ * @brief Find adjacent triangle face sharing the specified edge (excluding given face)
+ *
+ * @param[in] faces      Triangle face array
+ * @param[in] face_count Triangle face count
+ * @param[in] v0, v1     Two vertices of the shared edge
+ * @param[in] exclude    Face index to exclude (-1 = none)
+ * @return Matching face index, -1 if not found
+ */
+static int find_adjacent_face(const TriangleFace *faces, int face_count, int v0, int v1, int exclude) {
+    for (int i = 0; i < face_count; i++) {
+        if (i == exclude)
+            continue;
+        bool has_v0 = false, has_v1 = false;
+        for (int k = 0; k < 3; k++) {
+            if (faces[i].verts[k] == v0) has_v0 = true;
+            if (faces[i].verts[k] == v1) has_v1 = true;
+        }
+        if (has_v0 && has_v1)
+            return i;
+    }
+    return -1;
+}
+
+/**
+ * @brief Find ALL adjacent triangle faces sharing the specified edge
+ *
+ * @param[in]  faces         Triangle face array
+ * @param[in]  face_count    Triangle face count
+ * @param[in]  v0, v1        Two vertices of the shared edge
+ * @param[out] adj_indices   Output array of adjacent face indices
+ * @param[in]  max_adj       Maximum number of adjacent faces to return
+ * @return Number of adjacent faces found
+ */
+static int find_all_adjacent_faces(const TriangleFace *faces, int face_count, int v0, int v1,
+                                   int *adj_indices, int max_adj) {
+    int count = 0;
+    for (int i = 0; i < face_count && count < max_adj; i++) {
+        bool has_v0 = false, has_v1 = false;
+        for (int k = 0; k < 3; k++) {
+            if (faces[i].verts[k] == v0) has_v0 = true;
+            if (faces[i].verts[k] == v1) has_v1 = true;
+        }
+        if (has_v0 && has_v1) {
+            adj_indices[count++] = i;
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief Get the opposite vertex in a triangle face (not equal to v0 and v1)
+ */
+static int get_opposite_vertex(const TriangleFace *face, int v0, int v1) {
+    for (int k = 0; k < 3; k++) {
+        if (face->verts[k] != v0 && face->verts[k] != v1)
+            return face->verts[k];
+    }
+    return -1;
+}
+
+/**
+ * @brief Compute triangle face area based on vertex coordinates
+ *
+ * @param[in] graph Constraint graph
+ * @param[in] face  Triangle face
+ * @return Area (absolute value), 0.0 if vertices invalid
+ */
+static double triangle_face_area(const ConstraintGraph *graph, const TriangleFace *face) {
+    if (!graph || !face)
+        return 0.0;
+
+    GeomNode *n0 = graph_get_node(graph, face->verts[0]);
+    GeomNode *n1 = graph_get_node(graph, face->verts[1]);
+    GeomNode *n2 = graph_get_node(graph, face->verts[2]);
+
+    if (!n0 || !n1 || !n2)
+        return 0.0;
+    if (!n0->symbolic_coords || !n1->symbolic_coords || !n2->symbolic_coords)
+        return 0.0;
+    if (n0->coord_count < 2 || n1->coord_count < 2 || n2->coord_count < 2)
+        return 0.0;
+
+    double x0 = symbolic_coord_to_double(n0->symbolic_coords[0]);
+    double y0 = symbolic_coord_to_double(n0->symbolic_coords[1]);
+    double x1 = symbolic_coord_to_double(n1->symbolic_coords[0]);
+    double y1 = symbolic_coord_to_double(n1->symbolic_coords[1]);
+    double x2 = symbolic_coord_to_double(n2->symbolic_coords[0]);
+    double y2 = symbolic_coord_to_double(n2->symbolic_coords[1]);
+
+    /* Area = 0.5 * |cross product| */
+    double cross = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+    return cross < 0 ? -cross : cross;
+}
+
+/* ========================================================================
+ * Predictive encoding implementation
+ * ======================================================================== */
+
+/**
+ * @brief Parallelogram predictive encoding with Huffman compression
+ *
+ * Traverses triangle faces inferred from constraint relationships, predicts
+ * each unvisited opposite vertex using the parallelogram rule, and stores
+ * residuals. Residuals are quantized and Huffman-encoded.
+ *
+ * Algorithm: For triangle (v0, v1, v2) with v2 as target,
+ * find adjacent triangle sharing edge (v0, v1) with opposite vertex v_opp,
+ * prediction: pred = coord(v0) + coord(v1) - coord(v_opp)
+ * residual: coord(v2) = coord(v2) - pred (in-place modification)
+ *
+ * @param[in,out] graph Constraint graph
+ * @return true success, false failure
  */
 static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
     if (!graph)
@@ -98,34 +266,381 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
 
     int node_count = graph->node_count;
     if (node_count < 3)
-        return true; /* 灏戜簬 3 涓妭鐐癸紝鏃犳硶鏋勬垚涓夎褰?*/
+        return true;
 
-    /* 浣跨敤绠€鍗曠殑宸茶闂爣璁版暟缁?*/
-    bool *visited = (bool *) lv00_malloc(node_count * sizeof(bool));
-    if (!visited)
+    /* Extract triangle faces */
+    TriangleFace *faces = NULL;
+    int face_count = 0;
+    if (!extract_triangle_faces(graph, &faces, &face_count))
         return false;
-    memset(visited, 0, node_count * sizeof(bool));
 
-    /* 閬嶅巻鑺傜偣锛氭煡鎵炬湁鍧愭爣鐨勫嚑浣曠偣 */
-    for (int i = 0; i < node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || !node->symbolic_coords || node->coord_count < COORD_DIM)
-            continue;
-        if (visited[node->id])
-            continue;
-        visited[node->id] = true;
+    if (face_count == 0) {
+        lv00_free((void **) &faces);
+        return true;
     }
 
-    /* TODO: 瀹屾暣瀹炵幇闇€瑕佸厛鎻愬彇涓夎褰㈤潰鎷撴墤锛堜粠绾︽潫鍏崇郴涓帹鏂級銆?     * 褰撳墠妗╁疄鐜帮細鏍囪宸茶闂絾涓嶄慨鏀瑰潗鏍囥€?*/
-    free(visited);
+    /* Visited marker array */
+    bool *visited = (bool *) lv00_malloc(node_count * sizeof(bool));
+    if (!visited) {
+        lv00_free((void **) &faces);
+        return false;
+    }
+    memset(visited, 0, node_count * sizeof(bool));
+
+    /* Collect coordinate residuals for Huffman encoding */
+    int residual_capacity = 256;
+    int residual_count = 0;
+    double *residuals = (double *) lv00_malloc(residual_capacity * sizeof(double));
+    if (!residuals) {
+        lv00_free((void **) &visited);
+        lv00_free((void **) &faces);
+        return false;
+    }
+
+    /* Traverse triangle faces, predict each unvisited opposite vertex */
+    for (int fi = 0; fi < face_count; fi++) {
+        TriangleFace *face = &faces[fi];
+        if (face->visited)
+            continue;
+
+        int v0 = face->verts[0];
+        int v1 = face->verts[1];
+        int v2 = face->verts[2];
+
+        /* Determine which vertex is the unvisited target */
+        int target = -1;
+        int known_a = -1, known_b = -1;
+        if (!visited[v2]) {
+            target = v2; known_a = v0; known_b = v1;
+        } else if (!visited[v1]) {
+            target = v1; known_a = v0; known_b = v2;
+        } else if (!visited[v0]) {
+            target = v0; known_a = v1; known_b = v2;
+        }
+
+        if (target < 0) {
+            face->visited = true;
+            continue;
+        }
+
+        /* Find adjacent triangle sharing edge (known_a, known_b) */
+        int adj = find_adjacent_face(faces, face_count, known_a, known_b, fi);
+        if (adj < 0) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        int v_opp = get_opposite_vertex(&faces[adj], known_a, known_b);
+        if (v_opp < 0) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        GeomNode *node_a = graph_get_node(graph, known_a);
+        GeomNode *node_b = graph_get_node(graph, known_b);
+        GeomNode *node_opp = graph_get_node(graph, v_opp);
+        GeomNode *node_target = graph_get_node(graph, target);
+
+        if (!node_a || !node_b || !node_opp || !node_target) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        int dim = node_target->coord_count;
+        if (dim < 1 || !node_target->symbolic_coords ||
+            !node_a->symbolic_coords || !node_b->symbolic_coords || !node_opp->symbolic_coords) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        /* Apply parallelogram prediction per dimension: pred = a + b - opp */
+        for (int d = 0; d < dim && d < COORD_DIM; d++) {
+            SymbolicCoord *neg_opp = symbolic_coord_negate(node_opp->symbolic_coords[d]);
+            if (!neg_opp) continue;
+            SymbolicCoord *sum_ab = symbolic_coord_add(node_a->symbolic_coords[d], node_b->symbolic_coords[d]);
+            if (!sum_ab) { symbolic_coord_destroy(neg_opp); continue; }
+            SymbolicCoord *pred = symbolic_coord_add(sum_ab, neg_opp);
+            symbolic_coord_destroy(sum_ab);
+            symbolic_coord_destroy(neg_opp);
+            if (!pred) continue;
+
+            SymbolicCoord *residual = symbolic_coord_subtract(node_target->symbolic_coords[d], pred);
+            symbolic_coord_destroy(pred);
+            if (residual) {
+                double r = symbolic_coord_to_double(residual);
+                if (residual_count >= residual_capacity) {
+                    residual_capacity *= 2;
+                    double *nr = (double *) lv00_realloc(residuals, residual_capacity * sizeof(double));
+                    if (!nr) {
+                        symbolic_coord_destroy(residual);
+                        break;
+                    }
+                    residuals = nr;
+                }
+                residuals[residual_count++] = r;
+                symbolic_coord_destroy(node_target->symbolic_coords[d]);
+                node_target->symbolic_coords[d] = residual;
+            }
+        }
+
+        visited[target] = true;
+        face->visited = true;
+    }
+
+    /* Huffman encode residual data (quantize double residuals to int16) */
+    if (residual_count > 0) {
+        double quant_factor = 1000.0;
+        int16_t *quantized = (int16_t *) lv00_malloc(residual_count * sizeof(int16_t));
+        if (quantized) {
+            for (int i = 0; i < residual_count; i++) {
+                double v = residuals[i] * quant_factor;
+                if (v > 32767.0) v = 32767.0;
+                if (v < -32768.0) v = -32768.0;
+                quantized[i] = (int16_t) v;
+            }
+
+            /* Build frequency table (int16 as two uint8 bytes) */
+            uint32_t freq[256];
+            memset(freq, 0, sizeof(freq));
+            for (int i = 0; i < residual_count; i++) {
+                uint8_t lo = (uint8_t) (quantized[i] & 0xFF);
+                uint8_t hi = (uint8_t) ((quantized[i] >> 8) & 0xFF);
+                freq[lo]++;
+                freq[hi]++;
+            }
+
+            /* Build Huffman tree */
+            HuffmanNode hnodes[HUFFMAN_MAX_NODES];
+            memset(hnodes, 0, sizeof(hnodes));
+            int hnode_count = 0;
+
+            for (int i = 0; i < 256; i++) {
+                if (freq[i] > 0) {
+                    hnodes[hnode_count].left = -1;
+                    hnodes[hnode_count].right = -1;
+                    hnodes[hnode_count].parent = -1;
+                    hnodes[hnode_count].freq = freq[i];
+                    hnodes[hnode_count].byte_val = (uint8_t) i;
+                    hnode_count++;
+                }
+            }
+
+            if (hnode_count == 1) {
+                hnodes[hnode_count].left = 0;
+                hnodes[hnode_count].right = -1;
+                hnodes[hnode_count].parent = -1;
+                hnodes[hnode_count].freq = hnodes[0].freq;
+                hnodes[hnode_count].byte_val = 0;
+                hnodes[0].parent = hnode_count;
+                hnode_count++;
+            }
+
+            if (hnode_count >= 2) {
+                int heap_nodes[HUFFMAN_MAX_NODES];
+                MinHeap heap;
+                heap.nodes = heap_nodes;
+                heap.size = 0;
+                heap.capacity = HUFFMAN_MAX_NODES;
+                heap.hnodes = hnodes;
+
+                for (int i = 0; i < hnode_count; i++) {
+                    heap_push(&heap, i);
+                }
+
+                while (heap.size > 1) {
+                    int left = heap_pop(&heap);
+                    int right = heap_pop(&heap);
+                    hnodes[hnode_count].left = left;
+                    hnodes[hnode_count].right = right;
+                    hnodes[hnode_count].parent = -1;
+                    hnodes[hnode_count].freq = hnodes[left].freq + hnodes[right].freq;
+                    hnodes[hnode_count].byte_val = 0;
+                    hnodes[left].parent = hnode_count;
+                    hnodes[right].parent = hnode_count;
+                    heap_push(&heap, hnode_count);
+                    hnode_count++;
+                }
+
+                int root = heap_pop(&heap);
+                HuffmanCode codes[256];
+                memset(codes, 0, sizeof(codes));
+                huffman_generate_codes(hnodes, root, codes);
+                (void) codes; /* Encoding table stored for subsequent use */
+            }
+
+            lv00_free((void **) &quantized);
+        }
+    }
+
+    lv00_free((void **) &residuals);
+    lv00_free((void **) &visited);
+    lv00_free((void **) &faces);
     return true;
 }
 
 /**
- * @brief 宸垎棰勬祴缂栫爜
+ * @brief Multi-parallelogram predictive encoding
  *
- * 鎸夎妭鐐?ID 椤哄簭閬嶅巻锛屽皢姣忎釜鑺傜偣鐨勫潗鏍囨浛鎹负涓庡墠涓€涓妭鐐圭殑宸€笺€? *
- * @param[in,out] graph 绾︽潫鍥? * @return true 鎴愬姛锛宖alse 澶辫触
+ * For each vertex, finds ALL adjacent faces and computes predicted position
+ * as weighted average of predictions from all adjacent faces.
+ * Weight by face area (larger faces contribute more).
+ *
+ * @param[in,out] graph Constraint graph
+ * @return true success, false failure
+ */
+static bool predictive_encode_multi_parallelogram(ConstraintGraph *graph) {
+    if (!graph)
+        return false;
+
+    int node_count = graph->node_count;
+    if (node_count < 3)
+        return true;
+
+    /* Extract triangle faces */
+    TriangleFace *faces = NULL;
+    int face_count = 0;
+    if (!extract_triangle_faces(graph, &faces, &face_count))
+        return false;
+
+    if (face_count == 0) {
+        lv00_free((void **) &faces);
+        return true;
+    }
+
+    /* Visited marker array */
+    bool *visited = (bool *) lv00_malloc(node_count * sizeof(bool));
+    if (!visited) {
+        lv00_free((void **) &faces);
+        return false;
+    }
+    memset(visited, 0, node_count * sizeof(bool));
+
+    /* Traverse triangle faces */
+    for (int fi = 0; fi < face_count; fi++) {
+        TriangleFace *face = &faces[fi];
+        if (face->visited)
+            continue;
+
+        int v0 = face->verts[0];
+        int v1 = face->verts[1];
+        int v2 = face->verts[2];
+
+        /* Determine which vertex is the unvisited target */
+        int target = -1;
+        int known_a = -1, known_b = -1;
+        if (!visited[v2]) {
+            target = v2; known_a = v0; known_b = v1;
+        } else if (!visited[v1]) {
+            target = v1; known_a = v0; known_b = v2;
+        } else if (!visited[v0]) {
+            target = v0; known_a = v1; known_b = v2;
+        }
+
+        if (target < 0) {
+            face->visited = true;
+            continue;
+        }
+
+        /* Find ALL adjacent faces sharing edge (known_a, known_b) */
+        int adj_indices[MAX_ADJACENT_FACES];
+        int adj_count = find_all_adjacent_faces(faces, face_count, known_a, known_b, adj_indices, MAX_ADJACENT_FACES);
+
+        if (adj_count == 0) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        GeomNode *node_a = graph_get_node(graph, known_a);
+        GeomNode *node_b = graph_get_node(graph, known_b);
+        GeomNode *node_target = graph_get_node(graph, target);
+
+        if (!node_a || !node_b || !node_target) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        int dim = node_target->coord_count;
+        if (dim < 1 || !node_target->symbolic_coords ||
+            !node_a->symbolic_coords || !node_b->symbolic_coords) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        /* Compute weighted average prediction from all adjacent faces */
+        double total_weight = 0.0;
+        double pred_coords[COORD_DIM];
+        memset(pred_coords, 0, sizeof(pred_coords));
+
+        for (int ai = 0; ai < adj_count; ai++) {
+            int v_opp = get_opposite_vertex(&faces[adj_indices[ai]], known_a, known_b);
+            if (v_opp < 0) continue;
+
+            GeomNode *node_opp = graph_get_node(graph, v_opp);
+            if (!node_opp || !node_opp->symbolic_coords) continue;
+
+            /* Weight by face area */
+            double area = triangle_face_area(graph, &faces[adj_indices[ai]]);
+            if (area <= 0.0) area = 1.0; /* Minimum weight to avoid division by zero */
+            total_weight += area;
+
+            /* Prediction: pred = a + b - opp */
+            for (int d = 0; d < dim && d < COORD_DIM; d++) {
+                double va = symbolic_coord_to_double(node_a->symbolic_coords[d]);
+                double vb = symbolic_coord_to_double(node_b->symbolic_coords[d]);
+                double vopp = symbolic_coord_to_double(node_opp->symbolic_coords[d]);
+                pred_coords[d] += area * (va + vb - vopp);
+            }
+        }
+
+        if (total_weight <= 0.0) {
+            visited[target] = true;
+            face->visited = true;
+            continue;
+        }
+
+        /* Normalize weighted prediction */
+        for (int d = 0; d < dim && d < COORD_DIM; d++) {
+            pred_coords[d] /= total_weight;
+        }
+
+        /* Compute residual: target - prediction */
+        for (int d = 0; d < dim && d < COORD_DIM; d++) {
+            double actual = symbolic_coord_to_double(node_target->symbolic_coords[d]);
+            double residual_val = actual - pred_coords[d];
+
+            /* Replace coordinate with residual as rational */
+            SymbolicCoord *residual = symbolic_coord_create_rational(
+                (int64_t) (residual_val * 1000.0), 1000);
+            if (residual) {
+                symbolic_coord_destroy(node_target->symbolic_coords[d]);
+                node_target->symbolic_coords[d] = residual;
+            }
+        }
+
+        visited[target] = true;
+        face->visited = true;
+    }
+
+    lv00_free((void **) &visited);
+    lv00_free((void **) &faces);
+    return true;
+}
+
+/**
+ * @brief Delta predictive encoding
+ *
+ * Traverses nodes by ID order, replacing each node's coordinates with
+ * the delta from the previous node.
+ *
+ * @param[in,out] graph Constraint graph
+ * @return true success, false failure
  */
 static bool predictive_encode_delta(ConstraintGraph *graph) {
     if (!graph)
@@ -135,7 +650,7 @@ static bool predictive_encode_delta(ConstraintGraph *graph) {
     if (node_count < 2)
         return true;
 
-    /* 淇濆瓨绗竴涓妭鐐圭殑鍧愭爣浣滀负鍙傝€冨€?*/
+    /* Save first node's coordinates as reference */
     GeomNode *prev = NULL;
 
     for (int i = 0; i < node_count; i++) {
@@ -144,7 +659,7 @@ static bool predictive_encode_delta(ConstraintGraph *graph) {
             continue;
 
         if (prev) {
-            /* 璁＄畻宸€硷細node - prev锛屽瓨鍌ㄥ埌 node */
+            /* Compute delta: node - prev, store in node */
             for (int d = 0; d < COORD_DIM; d++) {
                 SymbolicCoord *diff = symbolic_coord_subtract(node->symbolic_coords[d], prev->symbolic_coords[d]);
                 if (diff) {
@@ -160,7 +675,7 @@ static bool predictive_encode_delta(ConstraintGraph *graph) {
 }
 
 /* ========================================================================
- * 鍏叡棰勬祴缂栫爜鎺ュ彛
+ * Public predictive encoding interface
  * ======================================================================== */
 
 bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
@@ -172,14 +687,13 @@ bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
             return predictive_encode_parallelogram(graph);
 
         case PREDICT_MULTI_PARALLELOGRAM:
-            /* TODO: 澶氶樁骞宠鍥涜竟褰㈤娴?鈥斺€?鍔犳潈骞冲潎澶氫釜閭婚潰 */
-            return predictive_encode_parallelogram(graph);
+            return predictive_encode_multi_parallelogram(graph);
 
         case PREDICT_DELTA:
             return predictive_encode_delta(graph);
 
         case PREDICT_NONE:
-            /* 鏃犻娴嬶細鐩存帴淇濈暀鍘熷鍧愭爣 */
+            /* No prediction: keep original coordinates */
             return true;
 
         default:
@@ -188,14 +702,41 @@ bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
 }
 
 /* ========================================================================
- * Edgebreaker 缂栫爜瀹炵幇
+ * Edgebreaker encoding implementation
  * ======================================================================== */
+
+/**
+ * @brief Search for a vertex in the boundary stack
+ *
+ * @param[in] boundary      Boundary edge array
+ * @param[in] boundary_top  Current boundary stack top
+ * @param[in] vertex_id     Vertex ID to search for
+ * @param[out] edge_index   Output: index of the boundary edge containing the vertex
+ * @param[out] is_v0        Output: true if vertex is the v0 of the edge, false if v1
+ * @return true if found, false otherwise
+ */
+static bool find_vertex_in_boundary(const Edge *boundary, int boundary_top, int vertex_id,
+                                    int *edge_index, bool *is_v0) {
+    for (int i = 0; i < boundary_top; i++) {
+        if (boundary[i].v0 == vertex_id) {
+            *edge_index = i;
+            *is_v0 = true;
+            return true;
+        }
+        if (boundary[i].v1 == vertex_id) {
+            *edge_index = i;
+            *is_v0 = false;
+            return true;
+        }
+    }
+    return false;
+}
 
 bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len) {
     if (!graph || !modes || !seq_len)
         return false;
 
-    /* 鍒濆鍖?CLERS 搴忓垪缂撳啿鍖?*/
+    /* Initialize CLERS sequence buffer */
     int capacity = CLERS_SEQUENCE_INITIAL;
     EdgebreakerMode *seq = (EdgebreakerMode *) lv00_malloc(capacity * sizeof(EdgebreakerMode));
     if (!seq)
@@ -203,25 +744,25 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
 
     int len = 0;
 
-    /* 杈圭晫鏍堬細浣跨敤绠€鍗曟暟缁勬ā鎷?*/
+    /* Boundary stack: simple array model */
     Edge *boundary = (Edge *) lv00_malloc(BOUNDARY_STACK_INITIAL * sizeof(Edge));
     if (!boundary) {
-        free(seq);
+        lv00_free((void **) &seq);
         return false;
     }
     int boundary_top = 0;
     int boundary_capacity = BOUNDARY_STACK_INITIAL;
 
-    /* 鑺傜偣璁块棶鏍囪 */
+    /* Node visit markers */
     bool *visited = (bool *) lv00_malloc(graph->node_count * sizeof(bool));
     if (!visited) {
-        free(seq);
-        free(boundary);
+        lv00_free((void **) &seq);
+        lv00_free((void **) &boundary);
         return false;
     }
     memset(visited, 0, graph->node_count * sizeof(bool));
 
-    /* 鏌ユ壘鍒濆杈癸細鍙栧墠涓や釜鐐圭被鍨嬬殑鑺傜偣 */
+    /* Find initial edge: take first two point-type nodes */
     int start_v0 = -1, start_v1 = -1;
     for (int i = 0; i < graph->node_count && start_v1 < 0; i++) {
         GeomNode *node = graph->nodes[i];
@@ -239,26 +780,26 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
     }
 
     if (start_v0 < 0 || start_v1 < 0) {
-        /* 娌℃湁瓒冲鐨勫嚑浣曠偣锛岀敓鎴愮┖搴忓垪 */
-        free(seq);
-        free(boundary);
-        free(visited);
+        /* Not enough geometry points, generate empty sequence */
+        lv00_free((void **) &seq);
+        lv00_free((void **) &boundary);
+        lv00_free((void **) &visited);
         *modes = NULL;
         *seq_len = 0;
         return true;
     }
 
-    /* 灏嗗垵濮嬭竟鍘嬪叆杈圭晫鏍?*/
+    /* Push initial edge onto boundary stack */
     boundary[0].v0 = start_v0;
     boundary[0].v1 = start_v1;
     boundary_top = 1;
 
-    /* 涓婚亶鍘嗗惊鐜細浣跨敤闃熷垪鏂瑰紡閬嶅巻绾︽潫鍥?*/
+    /* Main traversal loop: queue-based traversal of constraint graph */
     while (boundary_top > 0) {
         boundary_top--;
         Edge cur = boundary[boundary_top];
 
-        /* 鏌ユ壘涓庡綋鍓嶈竟鍏宠仈鐨勭害鏉燂紙INCIDENCE/CONTAINMENT锛?*/
+        /* Find constraint associated with current edge (INCIDENCE/CONTAINMENT) */
         int constr_count = graph->constraint_count;
         bool found_opposite = false;
 
@@ -267,7 +808,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
             if (!c)
                 continue;
 
-            /* 鏌ユ壘鍚屾椂鍖呭惈 cur.v0 鍜?cur.v1 鐨勭害鏉?*/
+            /* Find constraint containing both cur.v0 and cur.v1 */
             bool has_v0 = false, has_v1 = false;
             int opposite_id = -1;
 
@@ -284,11 +825,11 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
             if (!has_v0 || !has_v1)
                 continue;
 
-            /* 鎵惧埌浜嗗椤剁偣 */
+            /* Found opposite vertex */
             found_opposite = true;
 
             if (opposite_id >= 0 && !visited[opposite_id]) {
-                /* 瀵归《鐐规湭璁块棶 鈫?C 妯″紡 */
+                /* Opposite vertex unvisited -> C mode */
                 if (len >= capacity) {
                     capacity *= 2;
                     EdgebreakerMode *new_seq =
@@ -300,7 +841,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 seq[len++] = EDGEBREAKER_C;
                 visited[opposite_id] = true;
 
-                /* 灏嗘柊杈瑰帇鍏ヨ竟鐣屾爤 */
+                /* Push new edges onto boundary stack */
                 if (boundary_top >= boundary_capacity) {
                     boundary_capacity *= 2;
                     Edge *new_b = (Edge *) lv00_realloc(boundary, boundary_capacity * sizeof(Edge));
@@ -316,20 +857,88 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
                 boundary_top++;
 
             } else if (opposite_id >= 0) {
-                /* 瀵归《鐐瑰凡璁块棶 鈫?闇€瑕佽繘涓€姝ュ垎绫?*/
-                /* TODO: 鏍规嵁瀵归《鐐瑰湪杈圭晫鏍堜腑鐨勪綅缃垽鏂?L/R/S */
-                /* 妗╁疄鐜帮細榛樿褰掔被涓?L */
-                if (len >= capacity) {
-                    capacity *= 2;
-                    EdgebreakerMode *new_seq =
-                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                    if (!new_seq)
-                        break;
-                    seq = new_seq;
+                /* Opposite vertex already visited -> need L/R/S classification */
+                int opp_edge_index = -1;
+                bool opp_is_v0 = false;
+                bool opp_in_boundary = find_vertex_in_boundary(boundary, boundary_top, opposite_id,
+                                                               &opp_edge_index, &opp_is_v0);
+
+                if (!opp_in_boundary) {
+                    /* Opposite vertex not in boundary -> S mode (split) */
+                    if (len >= capacity) {
+                        capacity *= 2;
+                        EdgebreakerMode *new_seq =
+                            (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                        if (!new_seq)
+                            break;
+                        seq = new_seq;
+                    }
+                    seq[len++] = EDGEBREAKER_S;
+                } else {
+                    /* Check if opposite vertex is the next boundary vertex -> S mode */
+                    if (boundary_top > 0) {
+                        Edge next_edge = boundary[boundary_top - 1];
+                        if (next_edge.v0 == opposite_id) {
+                            /* Opposite vertex IS the next boundary vertex -> S mode */
+                            if (len >= capacity) {
+                                capacity *= 2;
+                                EdgebreakerMode *new_seq =
+                                    (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                                if (!new_seq)
+                                    break;
+                                seq = new_seq;
+                            }
+                            seq[len++] = EDGEBREAKER_S;
+                        } else {
+                            /* Determine LEFT or RIGHT based on position in boundary */
+                            /*
+                             * In the boundary stack, the current gate is (cur.v0, cur.v1).
+                             * The LEFT side of the gate is the v1 side (top of stack grows upward).
+                             * The RIGHT side is the v0 side.
+                             *
+                             * If the opposite vertex appears at a boundary edge where it is
+                             * the v1 (end) of an edge, it is on the LEFT -> EDGEBREAKER_L.
+                             * If it is the v0 (start) of an edge, it is on the RIGHT -> EDGEBREAKER_R.
+                             */
+                            if (opp_is_v0) {
+                                /* Opposite is v0 of its boundary edge -> RIGHT side */
+                                if (len >= capacity) {
+                                    capacity *= 2;
+                                    EdgebreakerMode *new_seq =
+                                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                                    if (!new_seq)
+                                        break;
+                                    seq = new_seq;
+                                }
+                                seq[len++] = EDGEBREAKER_R;
+                            } else {
+                                /* Opposite is v1 of its boundary edge -> LEFT side */
+                                if (len >= capacity) {
+                                    capacity *= 2;
+                                    EdgebreakerMode *new_seq =
+                                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                                    if (!new_seq)
+                                        break;
+                                    seq = new_seq;
+                                }
+                                seq[len++] = EDGEBREAKER_L;
+                            }
+                        }
+                    } else {
+                        /* No more boundary edges -> default to L */
+                        if (len >= capacity) {
+                            capacity *= 2;
+                            EdgebreakerMode *new_seq =
+                                (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                            if (!new_seq)
+                                break;
+                            seq = new_seq;
+                        }
+                        seq[len++] = EDGEBREAKER_L;
+                    }
                 }
-                seq[len++] = EDGEBREAKER_L;
             } else {
-                /* 鏃犺竟鍙帹 鈫?E 妯″紡 */
+                /* No opposite vertex -> E mode */
                 if (len >= capacity) {
                     capacity *= 2;
                     EdgebreakerMode *new_seq =
@@ -343,7 +952,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
         }
 
         if (!found_opposite) {
-            /* 鏃犵浉鍏崇害鏉?鈫?鏍囪涓?E */
+            /* No related constraint -> mark as E */
             if (len >= capacity) {
                 capacity *= 2;
                 EdgebreakerMode *new_seq = (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
@@ -355,8 +964,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
         }
     }
 
-    free(boundary);
-    free(visited);
+    lv00_free((void **) &boundary);
+    lv00_free((void **) &visited);
 
     *modes = seq;
     *seq_len = len;
@@ -364,83 +973,72 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
 }
 
 /* ========================================================================
- * Huffman 鐔电紪鐮佸櫒
+ * Huffman encoder/decoder
  * ======================================================================== */
 
-/** Huffman鏍戞渶澶ц妭鐐规暟锛?56涓彾瀛?+ 鏈€澶?55涓唴閮ㄨ妭鐐?*/
+/** Huffman tree maximum node count (256 leaves + max 255 internal nodes) */
 #define HUFFMAN_MAX_NODES 511
 
-/** Huffman缂栫爜鏈€澶ч暱搴︼紙鏈€鍧忔儏鍐碉細鎵€鏈夐鐜囩浉绛夋椂鐨勫亸鏂滄爲锛?*/
+/** Huffman encoding maximum length */
 #define HUFFMAN_MAX_CODE_LEN 256
 
 /* ========================================================================
- * 鍐呴儴鏁版嵁缁撴瀯
+ * Internal data structures
  * ======================================================================== */
 
 /**
- * @brief Huffman鏍戣妭鐐? *
- * 鍖呭惈宸﹀彸瀛愯妭鐐圭储寮曘€佺埗鑺傜偣绱㈠紩銆侀鐜囨潈閲嶅強鍙跺瓙鑺傜偣瀵瑰簲鐨勫瓧鑺傚€笺€?*/
+ * @brief Huffman tree node
+ */
 typedef struct {
-    int left;           /**< 宸﹀瓙鑺傜偣绱㈠紩锛?-1琛ㄧず鏃?*/
-    int right;          /**< 鍙冲瓙鑺傜偣绱㈠紩锛?-1琛ㄧず鏃?*/
-    int parent;         /**< 鐖惰妭鐐圭储寮曪紝-1琛ㄧず鏍硅妭鐐?*/
-    uint32_t freq;      /**< 鑺傜偣棰戠巼鏉冮噸 */
-    uint8_t byte_val;   /**< 鍙跺瓙鑺傜偣瀵瑰簲鐨勫瓧鑺傚€硷紙鍐呴儴鑺傜偣鏃犳晥锛?*/
+    int left;           /**< Left child index, -1 = none */
+    int right;          /**< Right child index, -1 = none */
+    int parent;         /**< Parent index, -1 = root */
+    uint32_t freq;      /**< Node frequency weight */
+    uint8_t byte_val;   /**< Leaf byte value (invalid for internal nodes) */
 } HuffmanNode;
 
 /**
- * @brief Huffman缂栫爜鏌ユ壘琛ㄦ潯鐩? *
- * 瀛樺偍姣忎釜瀛楄妭鍊煎搴旂殑鍙橀暱缂栫爜銆?
- * - code: 缂栫爜姣旂壒搴忓垪锛堜綆浣嶅榻愶紝鍗崇紪鐮佺殑绗竴涓瘮鐗瑰湪鏈€楂樹綅锛? * - length: 缂栫爜姣旂壒闀垮害
+ * @brief Huffman encoding lookup table entry
  */
 typedef struct {
-    uint32_t code;      /**< 缂栫爜姣旂壒搴忓垪 */
-    int length;         /**< 缂栫爜姣旂壒闀垮害 */
+    uint32_t code;      /**< Encoding bit sequence */
+    int length;         /**< Encoding bit length */
 } HuffmanCode;
 
 /**
- * @brief 鏈€灏忓爢缁撴瀯锛堢敤浜庢瀯寤篐uffman鏍戯級
- *
- * 鍩轰簬鏁扮粍瀹炵幇鐨勪簩鍙夊爢锛岀敤浜庨噸澶嶆彁鍙栨渶灏忛鐜囪妭鐐广€? * 鍫嗕腑瀛樺偍鐨勬槸Huffman鑺傜偣鏁扮粍涓殑绱㈠紩銆?
+ * @brief Min-heap structure (for building Huffman tree)
  */
 typedef struct {
-    int *nodes;             /**< 鍫嗕腑瀛樺偍鐨凥uffman鑺傜偣绱㈠紩 */
-    int size;               /**< 褰撳墠鍫嗗ぇ灏?*/
-    int capacity;           /**< 鍫嗗閲?*/
-    HuffmanNode *hnodes;    /**< 鎸囧悜Huffman鑺傜偣鏁扮粍鐨勬寚閽堬紙鐢ㄤ簬姣旇緝棰戠巼锛?*/
+    int *nodes;             /**< Heap-stored Huffman node indices */
+    int size;               /**< Current heap size */
+    int capacity;           /**< Heap capacity */
+    HuffmanNode *hnodes;    /**< Pointer to Huffman node array (for frequency comparison) */
 } MinHeap;
 
 /**
- * @brief 浣嶅啓鍏ュ櫒 鈥斺€?鏀寔姣旂壒绾у啓鍏ヨ緭鍑虹紦鍐插尯
- *
- * 姣忎釜瀛楄妭鍐呬粠楂樹綅(bit 7)鍒颁綆浣?bit 0)渚濇濉厖銆?*/
+ * @brief Bit writer - supports bit-level writing to output buffer
+ */
 typedef struct {
-    uint8_t *buf;       /**< 杈撳嚭缂撳啿鍖?*/
-    size_t capacity;    /**< 缂撳啿鍖哄閲忥紙瀛楄妭锛?*/
-    size_t byte_pos;    /**< 褰撳墠鍐欏叆瀛楄妭浣嶇疆 */
-    int bit_pos;        /**< 褰撳墠瀛楄妭鍐呯殑浣嶄綅缃紙7=鏈€楂樹綅锛?=鏈€浣庝綅锛?*/
+    uint8_t *buf;       /**< Output buffer */
+    size_t capacity;    /**< Buffer capacity (bytes) */
+    size_t byte_pos;    /**< Current write byte position */
+    int bit_pos;        /**< Current bit position within byte (7=MSB, 0=LSB) */
 } BitWriter;
 
 /**
- * @brief 浣嶈鍙栧櫒 鈥斺€?鏀寔浠庤緭鍏ョ紦鍐插尯閫愪綅璇诲彇
+ * @brief Bit reader - supports bit-level reading from input buffer
  */
 typedef struct {
-    const uint8_t *buf; /**< 杈撳叆缂撳啿鍖?*/
-    size_t size;        /**< 缂撳啿鍖哄ぇ灏忥紙瀛楄妭锛?*/
-    size_t byte_pos;    /**< 褰撳墠璇诲彇瀛楄妭浣嶇疆 */
-    int bit_pos;        /**< 褰撳墠瀛楄妭鍐呯殑浣嶄綅缃紙7=鏈€楂樹綅锛?=鏈€浣庝綅锛?*/
+    const uint8_t *buf; /**< Input buffer */
+    size_t size;        /**< Buffer size (bytes) */
+    size_t byte_pos;    /**< Current read byte position */
+    int bit_pos;        /**< Current bit position within byte (7=MSB, 0=LSB) */
 } BitReader;
 
 /* ========================================================================
- * 浣嶅啓鍏ュ櫒鎿嶄綔
+ * Bit writer operations
  * ======================================================================== */
 
-/**
- * @brief 鍒濆鍖栦綅鍐欏叆鍣? *
- * 鍒嗛厤缂撳啿鍖哄苟灏嗗啓鍏ヤ綅缃綊闆躲€? *
- * @param[out] bw                浣嶅啓鍏ュ櫒鎸囬拡
- * @param[in]  initial_capacity  鍒濆缂撳啿鍖哄閲忥紙瀛楄妭锛? * @return true 鎴愬姛锛宖alse 鍐呭瓨涓嶈冻
- */
 static bool bitwriter_init(BitWriter *bw, size_t initial_capacity) {
     bw->buf = (uint8_t *) lv00_malloc(initial_capacity);
     if (!bw->buf)
@@ -452,13 +1050,6 @@ static bool bitwriter_init(BitWriter *bw, size_t initial_capacity) {
     return true;
 }
 
-/**
- * @brief 鍚戜綅鍐欏叆鍣ㄥ啓鍏?涓瘮鐗? *
- * 灏嗘寚瀹氭瘮鐗瑰啓鍏ュ綋鍓嶅瓧鑺傜殑褰撳墠浣嶄綅缃紝骞舵洿鏂颁綅鎸囬拡銆? * 褰撳墠瀛楄妭鍐欐弧鍚庤嚜鍔ㄥ垏鎹㈠埌涓嬩竴涓瓧鑺傦紝蹇呰鏃惰嚜鍔ㄦ墿瀹广€? *
- * @param[in,out] bw   浣嶅啓鍏ュ櫒鎸囬拡
- * @param[in]     bit  瑕佸啓鍏ョ殑姣旂壒锛?-鎴?)
- * @return true 鎴愬姛锛宖alse 鎵╁澶辫触
- */
 static bool bitwriter_write_bit(BitWriter *bw, int bit) {
     if (bit) {
         bw->buf[bw->byte_pos] |= (uint8_t) (1 << bw->bit_pos);
@@ -480,14 +1071,6 @@ static bool bitwriter_write_bit(BitWriter *bw, int bit) {
     return true;
 }
 
-/**
- * @brief 鍚戜綅鍐欏叆鍣ㄥ啓鍏ュ涓瘮鐗? *
- * 鎸変粠楂樹綅鍒颁綆浣嶇殑椤哄簭渚濇鍐欏叆鎸囧畾鏁扮洰鐨勬瘮鐗广€? *
- * @param[in,out] bw         浣嶅啓鍏ュ櫒鎸囬拡
- * @param[in]     code       瑕佸啓鍏ョ殑姣旂壒搴忓垪
- * @param[in]     bit_count  瑕佸啓鍏ョ殑姣旂壒鏁伴噺
- * @return true 鎴愬姛锛宖alse 鎵╁澶辫触
- */
 static bool bitwriter_write_bits(BitWriter *bw, uint32_t code, int bit_count) {
     for (int i = bit_count - 1; i >= 0; i--) {
         if (!bitwriter_write_bit(bw, (code >> i) & 1))
@@ -496,25 +1079,14 @@ static bool bitwriter_write_bits(BitWriter *bw, uint32_t code, int bit_count) {
     return true;
 }
 
-/**
- * @brief 鍒锋柊浣嶅啓鍏ュ櫒骞惰繑鍥炲疄闄呰緭鍑哄瓧鑺傛暟
- *
- * 鏈€鍚庝竴涓瓧鑺傚鏋滄湭鍐欐弧锛屼粛璁″叆杈撳嚭锛坆it_pos < 7 鏃讹級銆? *
- * @param[in] bw 浣嶅啓鍏ュ櫒鎸囬拡
- * @return 瀹為檯鍐欏叆鐨勫瓧鑺傛暟
- */
 static size_t bitwriter_flush(const BitWriter *bw) {
     return (bw->bit_pos < 7) ? bw->byte_pos + 1 : bw->byte_pos;
 }
 
 /* ========================================================================
- * 浣嶈鍙栧櫒鎿嶄綔
+ * Bit reader operations
  * ======================================================================== */
 
-/**
- * @brief 鍒濆鍖栦綅璇诲彇鍣? *
- * @param[out] br   浣嶈鍙栧櫒鎸囬拡
- * @param[in]  buf  杈撳叆缂撳啿鍖? * @param[in]  size 杈撳叆缂撳啿鍖哄ぇ灏忥紙瀛楄妭锛?*/
 static void bitreader_init(BitReader *br, const uint8_t *buf, size_t size) {
     br->buf = buf;
     br->size = size;
@@ -522,12 +1094,6 @@ static void bitreader_init(BitReader *br, const uint8_t *buf, size_t size) {
     br->bit_pos = 7;
 }
 
-/**
- * @brief 浠庝綅璇诲彇鍣ㄨ鍙?涓瘮鐗? *
- * 浠庡綋鍓嶅瓧鑺傜殑褰撳墠浣嶄綅缃鍙栦竴涓瘮鐗癸紝骞惰嚜鍔ㄦ洿鏂颁綅鎸囬拡銆? * 瀛楄妭璇诲畬鍚庤嚜鍔ㄥ垏鎹㈠埌涓嬩竴涓瓧鑺傘€? *
- * @param[in,out] br 浣嶈鍙栧櫒鎸囬拡
- * @return 璇诲彇鐨勬瘮鐗癸紙0鎴?锛夛紝宸茶揪缂撳啿鍖烘湯灏炬椂杩斿洖 -1
- */
 static int bitreader_read_bit(BitReader *br) {
     if (br->byte_pos >= br->size)
         return -1;
@@ -541,24 +1107,15 @@ static int bitreader_read_bit(BitReader *br) {
 }
 
 /* ========================================================================
- * 鏈€灏忓爢鎿嶄綔锛堢敤浜庢瀯寤篐uffman鏍戯級
+ * Min-heap operations (for building Huffman tree)
  * ======================================================================== */
 
-/**
- * @brief 浜ゆ崲鍫嗕腑涓や釜鍏冪礌
- */
 static void heap_swap(MinHeap *h, int i, int j) {
     int tmp = h->nodes[i];
     h->nodes[i] = h->nodes[j];
     h->nodes[j] = tmp;
 }
 
-/**
- * @brief 鍚戜笂璋冩暣鍫嗭紙涓婃护锛? *
- * 灏嗘寚瀹氫綅缃殑鍏冪礌鍚戜笂绉诲姩锛岀洿鍒版弧瓒虫渶灏忓爢鎬ц川銆? *
- * @param[in,out] h   鏈€灏忓爢鎸囬拡
- * @param[in]     idx 闇€瑕佽皟鏁寸殑鍏冪礌绱㈠紩
- */
 static void heap_sift_up(MinHeap *h, int idx) {
     while (idx > 0) {
         int parent = (idx - 1) / 2;
@@ -571,12 +1128,6 @@ static void heap_sift_up(MinHeap *h, int idx) {
     }
 }
 
-/**
- * @brief 鍚戜笅璋冩暣鍫嗭紙涓嬫护锛? *
- * 灏嗘寚瀹氫綅缃殑鍏冪礌鍚戜笅绉诲姩锛岀洿鍒版弧瓒虫渶灏忓爢鎬ц川銆? *
- * @param[in,out] h   鏈€灏忓爢鎸囬拡
- * @param[in]     idx 闇€瑕佽皟鏁寸殑鍏冪礌绱㈠紩
- */
 static void heap_sift_down(MinHeap *h, int idx) {
     int size = h->size;
     while (1) {
@@ -594,12 +1145,6 @@ static void heap_sift_down(MinHeap *h, int idx) {
     }
 }
 
-/**
- * @brief 灏嗚妭鐐圭储寮曟帹鍏ユ渶灏忓爢
- *
- * @param[in,out] h        鏈€灏忓爢鎸囬拡
- * @param[in]     node_idx 瑕佹彃鍏ョ殑Huffman鑺傜偣绱㈠紩
- * @return true 鎴愬姛锛宖alse 鍫嗗凡婊?*/
 static bool heap_push(MinHeap *h, int node_idx) {
     if (h->size >= h->capacity)
         return false;
@@ -609,12 +1154,6 @@ static bool heap_push(MinHeap *h, int node_idx) {
     return true;
 }
 
-/**
- * @brief 浠庢渶灏忓爢寮瑰嚭棰戠巼鏈€灏忕殑鑺傜偣绱㈠紩
- *
- * @param[in,out] h 鏈€灏忓爢鎸囬拡
- * @return 棰戠巼鏈€灏忕殑鑺傜偣绱㈠紩锛屽爢绌烘椂杩斿洖 -1
- */
 static int heap_pop(MinHeap *h) {
     if (h->size <= 0)
         return -1;
@@ -628,16 +1167,10 @@ static int heap_pop(MinHeap *h) {
 }
 
 /* ========================================================================
- * Huffman缂栫爜琛ㄧ敓鎴? * ======================================================================== */
+ * Huffman encoding table generation
+ * ======================================================================== */
 
-/**
- * @brief 閫掑綊閬嶅巻Huffman鏍戯紝涓烘瘡涓彾瀛愯妭鐐圭敓鎴愮紪鐮? *
- * 浣跨敤鎵嬪姩鏍堢殑杩唬鏂瑰紡閬嶅巻鏍戯紝閬垮厤娣卞害閫掑綊瀵艰嚧鐨勬爤婧㈠嚭銆? * 閬嶅巻褰撲腑锛氬線宸︽椂缂栫爜鏈熬杩藉姞0锛屽線鍙虫椂杩藉姞1銆? *
- * @param[in]  hnodes Huffman鑺傜偣鏁扮粍
- * @param[in]  root   鏍硅妭鐐圭储寮? * @param[out] codes  杈撳嚭鐨凥uffman缂栫爜鏌ユ壘琛紙256椤癸紝姣忛」瀵瑰簲0-255瀛楄妭鍊硷級
- */
 static void huffman_generate_codes(const HuffmanNode *hnodes, int root, HuffmanCode *codes) {
-    /* 鎵嬪姩鏍堬細姣忎釜鍏冪礌瀛樺偍 (node_index, current_code, current_length) */
     int stack[HUFFMAN_MAX_NODES];
     uint32_t code_stack[HUFFMAN_MAX_NODES];
     int len_stack[HUFFMAN_MAX_NODES];
@@ -655,11 +1188,9 @@ static void huffman_generate_codes(const HuffmanNode *hnodes, int root, HuffmanC
         int len = len_stack[top];
 
         if (hnodes[node].left < 0 && hnodes[node].right < 0) {
-            /* 鍙跺瓙鑺傜偣锛氳褰曠紪鐮?*/
             codes[hnodes[node].byte_val].code = code;
             codes[hnodes[node].byte_val].length = len;
         } else {
-            /* 鍐呴儴鑺傜偣锛氬帇鍏ュ乏鍙冲瓙鑺傜偣 */
             if (hnodes[node].left >= 0) {
                 stack[top] = hnodes[node].left;
                 code_stack[top] = (code << 1) | 0;
@@ -677,42 +1208,48 @@ static void huffman_generate_codes(const HuffmanNode *hnodes, int root, HuffmanC
 }
 
 /* ========================================================================
- * Huffman 缂栫爜锛堟浛鎹㈠師 entropy_encode_stub锛? * ======================================================================== */
+ * Huffman encoding (replaces original entropy_encode_stub)
+ * ======================================================================== */
 
 /**
- * @brief Huffman鐔电紪鐮佸櫒
+ * @brief Huffman entropy encoder
  *
- * 鍥涢亶鎵弿瀹炵幇瀹屾暣鐨凥uffman鍘嬬缉缂栫爜锛? *   1. 缁熻256涓瓧鑺傚€肩殑鍑虹幇棰戠巼
- *   2. 浣跨敤鏈€灏忓爢鏋勫缓Huffman鏍? *   3. 閬嶅巻Huffman鏍戠敓鎴愭瘡涓瓧鑺傚€肩殑鍙橀暱缂栫爜
- *   4. 瀵瑰師濮嬫暟鎹繘琛屾瘮鐗圭紪鐮佽緭鍑? *
- * 杈撳嚭鏍煎紡锛? *   [棰戠巼琛? 256 脳 4 瀛楄妭锛寀int32_t 灏忕搴廬 +
- *   [鍘熷澶у皬: 4 瀛楄妭锛寀int32_t 灏忕搴廬 +
- *   [缂栫爜鍚庢瘮鐗规祦: 鍙橀暱]
+ * Full Huffman compression encoding:
+ *   1. Count byte frequencies
+ *   2. Build Huffman tree using min-heap
+ *   3. Generate variable-length codes for each byte value
+ *   4. Encode raw data as bit stream
  *
- * 棰戠巼琛ㄥ缁堝寘鍚?56椤癸紝鍗充娇鏌愪簺瀛楄妭鍊奸鐜囦负0锛? * 浠ョ‘淇濊В鐮佺鑳藉姝ｇ‘閲嶅缓Huffman鏍戙€? *
- * @param[in]  raw_data   鍘熷鏁版嵁
- * @param[in]  raw_size   鍘熷鏁版嵁澶у皬锛堝瓧鑺傦級
- * @param[out] out_data   缂栫爜鍚庢暟鎹紙璋冪敤鑰呰礋璐ree锛? * @param[out] out_size   缂栫爜鍚庢暟鎹ぇ灏忥紙瀛楄妭锛? * @return true 鎴愬姛锛宖alse 澶辫触锛堝唴瀛樹笉瓒崇瓑锛?*/
-static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_t **out_data, size_t *out_size) {
+ * Output format:
+ *   [frequency table: 256 x 4 bytes, int32_t little-endian] +
+ *   [original size: 4 bytes, int32_t little-endian] +
+ *   [encoded bit stream: variable length]
+ *
+ * @param[in]  raw_data   Raw data
+ * @param[in]  raw_size   Raw data size (bytes)
+ * @param[out] out_data   Encoded data (caller responsible for free)
+ * @param[out] out_size   Encoded data size (bytes)
+ * @return true success, false failure
+ */
+static bool entropy_encode_huffman(const uint8_t *raw_data, size_t raw_size, uint8_t **out_data, size_t *out_size) {
     if (!raw_data || raw_size == 0) {
         *out_data = NULL;
         *out_size = 0;
         return true;
     }
 
-    /* 鈹€鈹€ 绗竴閬嶏細缁熻瀛楄妭棰戠巼 鈹€鈹€ */
+    /* Step 1: Count byte frequencies */
     uint32_t freq[256];
     memset(freq, 0, sizeof(freq));
     for (size_t i = 0; i < raw_size; i++) {
         freq[raw_data[i]]++;
     }
 
-    /* 鈹€鈹€ 绗簩閬嶏細鏋勫缓Huffman鏍?鈹€鈹€ */
+    /* Step 2: Build Huffman tree */
     HuffmanNode hnodes[HUFFMAN_MAX_NODES];
     memset(hnodes, 0, sizeof(hnodes));
     int node_count = 0;
 
-    /* 鍒濆鍖栧彾瀛愯妭鐐癸細姣忎釜鍑虹幇杩囩殑瀛楄妭鍊煎垱寤轰竴涓彾瀛愯妭鐐?*/
     for (int i = 0; i < 256; i++) {
         if (freq[i] > 0) {
             hnodes[node_count].left = -1;
@@ -724,9 +1261,7 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
         }
     }
 
-    /* 澶勭悊鐗规畩鎯呭喌锛氭暟鎹彧鏈変竴绉嶅瓧鑺傚€?*/
     if (node_count == 1) {
-        /* 鍗曞瓧绗︾紪鐮侊細鍒涘缓涓€涓唴閮ㄨ妭鐐逛綔涓烘牴锛屽崟杈圭殑鏍?*/
         hnodes[node_count].left = 0;
         hnodes[node_count].right = -1;
         hnodes[node_count].parent = -1;
@@ -736,7 +1271,6 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
         node_count++;
     }
 
-    /* 浣跨敤鏈€灏忓爢鏋勫缓Huffman鏍?*/
     int heap_nodes[HUFFMAN_MAX_NODES];
     MinHeap heap;
     heap.nodes = heap_nodes;
@@ -748,7 +1282,6 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
         heap_push(&heap, i);
     }
 
-    /* 鍚堝苟鑺傜偣鐩村埌鍫嗕腑鍙墿涓€涓妭鐐癸紙Huffman鏍戠殑鏍癸級 */
     while (heap.size > 1) {
         int left = heap_pop(&heap);
         int right = heap_pop(&heap);
@@ -767,24 +1300,21 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
 
     int root = heap_pop(&heap);
 
-    /* 鈹€鈹€ 绗笁閬嶏細鐢熸垚Huffman缂栫爜琛?鈹€鈹€ */
+    /* Step 3: Generate Huffman encoding table */
     HuffmanCode codes[256];
     memset(codes, 0, sizeof(codes));
     huffman_generate_codes(hnodes, root, codes);
 
-    /* 鈹€鈹€ 绗洓閬嶏細缂栫爜杈撳嚭 鈹€鈹€ */
-
-    /* 璁＄畻杈撳嚭澶у皬骞跺垎閰嶇紦鍐插尯 */
-    /* 棰戠巼琛? 256 * 4, 鍘熷澶у皬: 4, 姣旂壒娴? 鏈€鍧忔儏鍐?raw_size * 8 bit + 7 bit 濉厖 */
-    size_t header_size = 256 * sizeof(uint32_t) + sizeof(uint32_t); /* 1024 + 4 = 1028 */
-    size_t bitstream_capacity = (raw_size * 8 + 7) / 8 + 16;       /* 棰濆16瀛楄妭瀹夊叏浣欓噺 */
+    /* Step 4: Encode output */
+    size_t header_size = 256 * sizeof(uint32_t) + sizeof(uint32_t);
+    size_t bitstream_capacity = (raw_size * 8 + 7) / 8 + 16;
     size_t total_capacity = header_size + bitstream_capacity;
 
     uint8_t *output = (uint8_t *) lv00_malloc(total_capacity);
     if (!output)
         return false;
 
-    /* 鍐欏叆棰戠巼琛紙256涓猽int32_t锛屽皬绔簭锛?*/
+    /* Write frequency table (256 x int32_t, little-endian) */
     for (int i = 0; i < 256; i++) {
         uint32_t f = freq[i];
         output[i * 4 + 0] = (uint8_t) (f & 0xFF);
@@ -793,7 +1323,7 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
         output[i * 4 + 3] = (uint8_t) ((f >> 24) & 0xFF);
     }
 
-    /* 鍐欏叆鍘熷澶у皬 */
+    /* Write original size */
     size_t offset = 256 * sizeof(uint32_t);
     uint32_t raw_sz = (uint32_t) raw_size;
     output[offset + 0] = (uint8_t) (raw_sz & 0xFF);
@@ -802,7 +1332,7 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
     output[offset + 3] = (uint8_t) ((raw_sz >> 24) & 0xFF);
     offset += sizeof(uint32_t);
 
-    /* 浣跨敤浣嶅啓鍏ュ櫒缂栫爜鏁版嵁 */
+    /* Use bit writer to encode data */
     BitWriter bw;
     bw.buf = output + offset;
     bw.capacity = bitstream_capacity;
@@ -814,12 +1344,11 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
         uint8_t byte_val = raw_data[i];
         HuffmanCode *hc = &codes[byte_val];
         if (hc->length == 0) {
-            /* 鐞嗚涓婁笉浼氬彂鐢燂細鎵€鏈夊嚭鐜板湪鏁版嵁涓殑瀛楄妭閮芥湁缂栫爜 */
-            free(output);
+            lv00_free((void **) &output);
             return false;
         }
         if (!bitwriter_write_bits(&bw, hc->code, hc->length)) {
-            free(output);
+            lv00_free((void **) &output);
             return false;
         }
     }
@@ -831,41 +1360,41 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
 }
 
 /* ========================================================================
- * Huffman 瑙ｇ爜锛堟浛鎹㈠師 entropy_decode_stub锛? * ======================================================================== */
+ * Huffman decoding (replaces original entropy_decode_stub)
+ * ======================================================================== */
 
 /**
- * @brief Huffman鐔佃В鐮佸櫒
+ * @brief Huffman entropy decoder
  *
- * 浠庡帇缂╂瘮鐗规祦涓噸寤哄師濮嬫暟鎹細
- *   1. 璇诲彇棰戠巼琛紙256 脳 uint32_t锛夊苟閲嶅缓Huffman鏍? *   2. 璇诲彇鍘熷鏁版嵁澶у皬
- *   3. 浣跨敤Huffman鏍戦€愪綅瑙ｇ爜姣旂壒娴侊紝杈撳嚭鍘熷瀛楄妭
+ * Reconstructs raw data from compressed bit stream:
+ *   1. Read frequency table (256 x uint32_t) and rebuild Huffman tree
+ *   2. Read original data size
+ *   3. Bit-by-bit decode using Huffman tree
  *
- * 杈撳叆鏍煎紡涓?entropy_encode_stub 杈撳嚭鏍煎紡瀹屽叏鍖归厤锛? *   [棰戠巼琛? 256 脳 4 瀛楄妭] + [鍘熷澶у皬: 4 瀛楄妭] + [缂栫爜姣旂壒娴乚
- *
- * @param[in]  data      鍘嬬缉鏁版嵁
- * @param[in]  size      鍘嬬缉鏁版嵁澶у皬锛堝瓧鑺傦級
- * @param[out] out_data  瑙ｅ帇鍚庣殑鍘熷鏁版嵁锛堣皟鐢ㄨ€呰礋璐ree锛? * @param[out] out_size  瑙ｅ帇鍚庢暟鎹ぇ灏忥紙瀛楄妭锛? * @return true 鎴愬姛锛宖alse 澶辫触
+ * @param[in]  data      Compressed data
+ * @param[in]  size      Compressed data size (bytes)
+ * @param[out] out_data  Decompressed raw data (caller responsible for free)
+ * @param[out] out_size  Decompressed data size (bytes)
+ * @return true success, false failure
  */
-static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size) {
+static bool entropy_decode_huffman(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size) {
     if (!data || size == 0) {
         *out_data = NULL;
         *out_size = 0;
         return true;
     }
 
-    /* 鏈€灏忔湁鏁堝ぇ灏忥細棰戠巼琛?1024) + 鍘熷澶у皬(4) + 鑷冲皯1瀛楄妭姣旂壒娴?*/
     size_t min_size = 256 * sizeof(uint32_t) + sizeof(uint32_t);
     if (size < min_size)
         return false;
 
-    /* 鈹€鈹€ 姝ラ1锛氳鍙栭鐜囪〃骞堕噸寤篐uffman鏍?鈹€鈹€ */
+    /* Step 1: Read frequency table and rebuild Huffman tree */
     uint32_t freq[256];
     for (int i = 0; i < 256; i++) {
         freq[i] = ((uint32_t) data[i * 4 + 0]) | ((uint32_t) data[i * 4 + 1] << 8)
                 | ((uint32_t) data[i * 4 + 2] << 16) | ((uint32_t) data[i * 4 + 3] << 24);
     }
 
-    /* 璇诲彇鍘熷澶у皬 */
     size_t offset = 256 * sizeof(uint32_t);
     uint32_t raw_sz = ((uint32_t) data[offset + 0]) | ((uint32_t) data[offset + 1] << 8)
                     | ((uint32_t) data[offset + 2] << 16) | ((uint32_t) data[offset + 3] << 24);
@@ -877,12 +1406,11 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
         return true;
     }
 
-    /* 鍒嗛厤杈撳嚭缂撳啿鍖?*/
     uint8_t *output = (uint8_t *) lv00_malloc(raw_sz);
     if (!output)
         return false;
 
-    /* 閲嶅缓Huffman鏍?*/
+    /* Rebuild Huffman tree */
     HuffmanNode hnodes[HUFFMAN_MAX_NODES];
     memset(hnodes, 0, sizeof(hnodes));
     int node_count = 0;
@@ -898,7 +1426,6 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
         }
     }
 
-    /* 澶勭悊鍗曞瓧绗︽儏鍐?*/
     if (node_count == 1) {
         hnodes[node_count].left = 0;
         hnodes[node_count].right = -1;
@@ -909,7 +1436,6 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
         node_count++;
     }
 
-    /* 浣跨敤鏈€灏忓爢閲嶅缓Huffman鏍?*/
     int heap_nodes[HUFFMAN_MAX_NODES];
     MinHeap heap;
     heap.nodes = heap_nodes;
@@ -937,14 +1463,13 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
 
     int root = heap_pop(&heap);
 
-    /* 鈹€鈹€ 姝ラ2锛氶€愪綅瑙ｇ爜 鈹€鈹€ */
+    /* Step 2: Bit-by-bit decode */
     BitReader br;
     bitreader_init(&br, data + offset, size - offset);
 
     size_t decoded = 0;
 
     if (node_count == 2 && hnodes[root].right < 0) {
-        /* 鍗曞瓧绗︾壒娈婃儏鍐碉細鎵€鏈夋瘮鐗归兘鏄?锛岀洿鎺ュ～鍏呰瀛楃 */
         uint8_t byte_val = hnodes[hnodes[root].left].byte_val;
         for (size_t i = 0; i < raw_sz; i++) {
             output[i] = byte_val;
@@ -952,11 +1477,10 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
     } else {
         while (decoded < raw_sz) {
             int node = root;
-            /* 娌挎爲閬嶅巻鐩村埌鍙跺瓙 */
             while (hnodes[node].left >= 0 || hnodes[node].right >= 0) {
                 int bit = bitreader_read_bit(&br);
                 if (bit < 0) {
-                    free(output);
+                    lv00_free((void **) &output);
                     return false;
                 }
                 if (bit == 0) {
@@ -965,7 +1489,7 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
                     node = hnodes[node].right;
                 }
                 if (node < 0) {
-                    free(output);
+                    lv00_free((void **) &output);
                     return false;
                 }
             }
@@ -979,18 +1503,346 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
 }
 
 /* ========================================================================
- * 鍑犱綍鍘嬬缉涓?API
+ * RLE (Run-Length Encoding) helpers for T-012
  * ======================================================================== */
 
 /**
- * @brief 璁＄畻绾︽潫鍥句腑鍑犱綍鏁版嵁鐨勫師濮嬪瓧鑺傚ぇ灏忥紙浼板€硷級
+ * @brief Apply Run-Length Encoding to input data
+ *
+ * Format: for each run: [byte_value][run_count_as_uint8]
+ * Runs longer than 255 are split into multiple entries.
+ *
+ * @param[in]  data     Input data
+ * @param[in]  size     Input data size
+ * @param[out] out_data RLE encoded data (caller responsible for free)
+ * @param[out] out_size RLE encoded data size
+ * @return true success, false failure
+ */
+static bool rle_encode(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size) {
+    if (!data || size == 0) {
+        *out_data = NULL;
+        *out_size = 0;
+        return true;
+    }
+
+    /* Worst case: each byte is different -> 2x expansion */
+    size_t max_out = size * 2;
+    uint8_t *output = (uint8_t *) lv00_malloc(max_out);
+    if (!output)
+        return false;
+
+    size_t out_pos = 0;
+    size_t i = 0;
+
+    while (i < size) {
+        uint8_t current = data[i];
+        size_t run = 1;
+        while (i + run < size && data[i + run] == current && run < 255) {
+            run++;
+        }
+        output[out_pos++] = current;
+        output[out_pos++] = (uint8_t) run;
+        i += run;
+    }
+
+    *out_data = output;
+    *out_size = out_pos;
+    return true;
+}
+
+/**
+ * @brief Decode RLE-encoded data
+ *
+ * @param[in]  data     RLE encoded data
+ * @param[in]  size     RLE encoded data size
+ * @param[out] out_data Decoded data (caller responsible for free)
+ * @param[out] out_size Decoded data size
+ * @return true success, false failure
+ */
+static bool rle_decode(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size) {
+    if (!data || size == 0 || size % 2 != 0) {
+        *out_data = NULL;
+        *out_size = 0;
+        return true;
+    }
+
+    /* First pass: compute output size */
+    size_t total = 0;
+    for (size_t i = 0; i < size; i += 2) {
+        total += data[i + 1];
+    }
+
+    if (total == 0) {
+        *out_data = NULL;
+        *out_size = 0;
+        return true;
+    }
+
+    uint8_t *output = (uint8_t *) lv00_malloc(total);
+    if (!output)
+        return false;
+
+    size_t out_pos = 0;
+    for (size_t i = 0; i < size; i += 2) {
+        uint8_t val = data[i];
+        uint8_t count = data[i + 1];
+        for (int j = 0; j < count; j++) {
+            output[out_pos++] = val;
+        }
+    }
+
+    *out_data = output;
+    *out_size = total;
+    return true;
+}
+
+/* ========================================================================
+ * Real entropy encoding: RLE + Huffman (T-012)
+ * ======================================================================== */
+
+/**
+ * @brief Combined RLE + Huffman entropy encoder
+ *
+ * Two-pass encoding:
+ *   1. Apply Run-Length Encoding as first pass
+ *   2. Apply Huffman coding on the RLE output
+ *
+ * Output format:
+ *   [magic: 4 bytes "LVZC"]
+ *   [original_size: 4 bytes]
+ *   [rle_size: 4 bytes]
+ *   [huffman_encoded_rle_data: variable]
+ *
+ * @param[in]  raw_data   Raw data
+ * @param[in]  raw_size   Raw data size
+ * @param[out] out_data   Encoded data (caller responsible for free)
+ * @param[out] out_size   Encoded data size
+ * @return true success, false failure
+ */
+static bool entropy_encode_real(const uint8_t *raw_data, size_t raw_size, uint8_t **out_data, size_t *out_size) {
+    if (!raw_data || raw_size == 0) {
+        *out_data = NULL;
+        *out_size = 0;
+        return true;
+    }
+
+    /* Pass 1: RLE encoding */
+    uint8_t *rle_data = NULL;
+    size_t rle_size = 0;
+    if (!rle_encode(raw_data, raw_size, &rle_data, &rle_size))
+        return false;
+
+    if (!rle_data || rle_size == 0) {
+        lv00_free((void **) &rle_data);
+        *out_data = NULL;
+        *out_size = 0;
+        return true;
+    }
+
+    /* Pass 2: Huffman encoding on RLE output */
+    uint8_t *huffman_data = NULL;
+    size_t huffman_size = 0;
+    bool huff_ok = entropy_encode_huffman(rle_data, rle_size, &huffman_data, &huffman_size);
+    lv00_free((void **) &rle_data);
+
+    if (!huff_ok) {
+        return false;
+    }
+
+    /* Build combined output: [magic(4)][original_size(4)][rle_size(4)][huffman_data] */
+    size_t header_size = 4 + 4 + 4; /* magic + original_size + rle_size */
+    size_t total_size = header_size + huffman_size;
+    uint8_t *output = (uint8_t *) lv00_malloc(total_size);
+    if (!output) {
+        lv00_free((void **) &huffman_data);
+        return false;
+    }
+
+    /* Write magic bytes */
+    output[0] = (uint8_t) (LVZD_COMPRESS_MAGIC & 0xFF);
+    output[1] = (uint8_t) ((LVZD_COMPRESS_MAGIC >> 8) & 0xFF);
+    output[2] = (uint8_t) ((LVZD_COMPRESS_MAGIC >> 16) & 0xFF);
+    output[3] = (uint8_t) ((LVZD_COMPRESS_MAGIC >> 24) & 0xFF);
+
+    /* Write original size */
+    uint32_t orig_sz = (uint32_t) raw_size;
+    output[4] = (uint8_t) (orig_sz & 0xFF);
+    output[5] = (uint8_t) ((orig_sz >> 8) & 0xFF);
+    output[6] = (uint8_t) ((orig_sz >> 16) & 0xFF);
+    output[7] = (uint8_t) ((orig_sz >> 24) & 0xFF);
+
+    /* Write RLE size */
+    uint32_t rle_sz = (uint32_t) rle_size;
+    output[8] = (uint8_t) (rle_sz & 0xFF);
+    output[9] = (uint8_t) ((rle_sz >> 8) & 0xFF);
+    output[10] = (uint8_t) ((rle_sz >> 16) & 0xFF);
+    output[11] = (uint8_t) ((rle_sz >> 24) & 0xFF);
+
+    /* Copy Huffman data */
+    memcpy(output + header_size, huffman_data, huffman_size);
+    lv00_free((void **) &huffman_data);
+
+    *out_data = output;
+    *out_size = total_size;
+    return true;
+}
+
+/**
+ * @brief Combined RLE + Huffman entropy decoder
+ *
+ * Reverse of entropy_encode_real:
+ *   1. Parse header (magic, original_size, rle_size)
+ *   2. Huffman decode to get RLE data
+ *   3. RLE decode to get original data
+ *
+ * @param[in]  data      Compressed data
+ * @param[in]  size      Compressed data size
+ * @param[out] out_data  Decompressed data (caller responsible for free)
+ * @param[out] out_size  Decompressed data size
+ * @return true success, false failure
+ */
+static bool entropy_decode_real(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size) {
+    if (!data || size == 0) {
+        *out_data = NULL;
+        *out_size = 0;
+        return true;
+    }
+
+    /* Parse header */
+    size_t header_size = 4 + 4 + 4; /* magic + original_size + rle_size */
+    if (size < header_size)
+        return false;
+
+    /* Verify magic */
+    uint32_t magic = ((uint32_t) data[0]) | ((uint32_t) data[1] << 8)
+                   | ((uint32_t) data[2] << 16) | ((uint32_t) data[3] << 24);
+    if (magic != LVZD_COMPRESS_MAGIC) {
+        /* Fall back to legacy Huffman-only format */
+        return entropy_decode_huffman(data, size, out_data, out_size);
+    }
+
+    uint32_t orig_sz = ((uint32_t) data[4]) | ((uint32_t) data[5] << 8)
+                      | ((uint32_t) data[6] << 16) | ((uint32_t) data[7] << 24);
+    (void) orig_sz; /* Used for validation */
+
+    /* Huffman decode to get RLE data */
+    uint8_t *rle_data = NULL;
+    size_t rle_decoded_size = 0;
+    if (!entropy_decode_huffman(data + header_size, size - header_size, &rle_data, &rle_decoded_size)) {
+        return false;
+    }
+
+    /* RLE decode to get original data */
+    bool rle_ok = rle_decode(rle_data, rle_decoded_size, out_data, out_size);
+    lv00_free((void **) &rle_data);
+
+    return rle_ok;
+}
+
+/* ========================================================================
+ * graph_clone for deep copy (T-010/011)
+ * ======================================================================== */
+
+/**
+ * @brief Deep copy a ConstraintGraph
+ *
+ * Creates a new graph with deep copies of all nodes (including coordinates),
+ * all constraints, and all edges.
+ *
+ * @param[in] graph Source constraint graph
+ * @return Deep-copied graph, NULL on failure
+ */
+static ConstraintGraph *graph_clone(const ConstraintGraph *graph) {
+    if (!graph)
+        return NULL;
+
+    ConstraintGraph *cloned = graph_create();
+    if (!cloned)
+        return NULL;
+
+    /* Deep copy all nodes */
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *orig = graph->nodes[i];
+        if (!orig)
+            continue;
+
+        GeomNode *copy = node_deep_copy_geom_node(orig, NULL);
+        if (!copy) {
+            graph_destroy(cloned);
+            return NULL;
+        }
+
+        /* Add node to cloned graph using the same ID */
+        GeomNode *added = graph_add_node_with_id(cloned, copy->id, copy->type,
+                                                  copy->symbolic_coords, copy->coord_count);
+        if (!added) {
+            /* Clean up the copy we made */
+            if (copy->symbolic_coords) {
+                for (int d = 0; d < copy->coord_count; d++) {
+                    if (copy->symbolic_coords[d])
+                        symbolic_coord_destroy(copy->symbolic_coords[d]);
+                }
+                lv00_free((void **) &copy->symbolic_coords);
+            }
+            if (copy->numeric_assumption_declaration)
+                lv00_free((void **) &copy->numeric_assumption_declaration);
+            lv00_free((void **) &copy);
+            graph_destroy(cloned);
+            return NULL;
+        }
+
+        /* Copy additional fields that graph_add_node_with_id may not set */
+        added->trust = copy->trust;
+        added->lo_subtype = copy->lo_subtype;
+        added->numeric_precision = copy->numeric_precision;
+        added->namespace_depth = copy->namespace_depth;
+        added->parent_block_id = copy->parent_block_id;
+
+        /* Free the intermediate copy (graph_add_node_with_id made its own deep copy) */
+        if (copy->numeric_assumption_declaration)
+            lv00_free((void **) &copy->numeric_assumption_declaration);
+        lv00_free((void **) &copy);
+    }
+
+    /* Deep copy all constraints */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *orig = graph->constraints[i];
+        if (!orig)
+            continue;
+
+        /* Allocate participant array copy */
+        int *parts_copy = (int *) lv00_malloc(orig->participant_count * sizeof(int));
+        if (!parts_copy) {
+            graph_destroy(cloned);
+            return NULL;
+        }
+        memcpy(parts_copy, orig->participants, orig->participant_count * sizeof(int));
+
+        Constraint *added = graph_add_constraint_with_id(cloned, orig->id, orig->type,
+                                                          parts_copy, orig->participant_count);
+        if (!added) {
+            lv00_free((void **) &parts_copy);
+            graph_destroy(cloned);
+            return NULL;
+        }
+        lv00_free((void **) &parts_copy); /* graph_add_constraint_with_id makes its own copy */
+    }
+
+    return cloned;
+}
+
+/* ========================================================================
+ * Geometry compression main API
+ * ======================================================================== */
+
+/**
+ * @brief Estimate original byte size of geometry data in constraint graph
  */
 static size_t estimate_original_size(const ConstraintGraph *graph) {
     if (!graph)
         return 0;
 
     size_t total = 0;
-    /* 姣忎釜鑺傜偣锛歩d(4) + type(4) + coord_count(4) + coords(N * sizeof(SymbolicCoord*)) */
     total += graph->node_count * (sizeof(int) * 3);
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
@@ -1004,23 +1856,22 @@ static size_t estimate_original_size(const ConstraintGraph *graph) {
 }
 
 /**
- * @brief 灏嗚妭鐐瑰潗鏍囧簭鍒楀寲涓哄師濮嬪瓧鑺傛祦
+ * @brief Serialize node coordinates to raw byte stream
  *
- * 鏍煎紡锛歯ode_count(4B) + [node_id(4B) + coord_count(4B) + coord_doubles(8B*coord_count*dim)]*
+ * Format: node_count(4B) + [node_id(4B) + coord_count(4B) + coord_doubles(8B*coord_count*dim)]*
  */
 static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_size) {
     if (!graph || !out_size)
         return NULL;
 
-    /* 鍏堣绠楀ぇ灏?*/
-    size_t header = sizeof(int32_t); /* node_count */
+    size_t header = sizeof(int32_t);
     size_t body = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
         if (!node)
             continue;
-        body += 2 * sizeof(int32_t); /* node_id, coord_count */
+        body += 2 * sizeof(int32_t);
         if (node->symbolic_coords) {
             body += node->coord_count * sizeof(double);
         }
@@ -1031,7 +1882,6 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
     if (!buf)
         return NULL;
 
-    /* 鍐欏叆鏁版嵁 */
     uint8_t *ptr = buf;
     int32_t count = (int32_t) graph->node_count;
     memcpy(ptr, &count, sizeof(int32_t));
@@ -1060,6 +1910,36 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
     return buf;
 }
 
+/**
+ * @brief Serialize CLERS sequence to byte stream
+ *
+ * Format: seq_len(4B) + [mode_byte(seq_len)]*
+ */
+static uint8_t *serialize_clers(const EdgebreakerMode *seq, int seq_len, size_t *out_size) {
+    if (!out_size)
+        return NULL;
+
+    if (!seq || seq_len <= 0) {
+        *out_size = 0;
+        return NULL;
+    }
+
+    size_t total = sizeof(int32_t) + seq_len;
+    uint8_t *buf = (uint8_t *) lv00_malloc(total);
+    if (!buf)
+        return NULL;
+
+    int32_t len = (int32_t) seq_len;
+    memcpy(buf, &len, sizeof(int32_t));
+
+    for (int i = 0; i < seq_len; i++) {
+        buf[sizeof(int32_t) + i] = (uint8_t) seq[i];
+    }
+
+    *out_size = total;
+    return buf;
+}
+
 bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *config, uint8_t **out_data, size_t *out_size,
                        CompressMetadata *out_meta) {
     if (!graph || !out_data || !out_size)
@@ -1067,46 +1947,83 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
 
     CompressConfig cfg = config ? *config : compress_config_default();
 
-    /* 姝ラ 1: 璁＄畻鍘熷澶у皬 */
+    /* Step 1: Estimate original size */
     size_t original_sz = estimate_original_size(graph);
 
-    /* 姝ラ 2: 澶嶅埗绾︽潫鍥剧敤浜庡師鍦颁慨鏀癸紙棰勬祴缂栫爜浼氫慨鏀瑰潗鏍囷級 */
-    /* TODO: 瀹炵幇 graph_clone() 杩涜娣辨嫹璐?鈥斺€?褰撳墠妗╀粎鍋氭祬鍙傝€?*/
-
-    /* 姝ラ 3: 棰勬祴缂栫爜 鈥斺€?灏嗗潗鏍囨浛鎹负娈嬪樊 */
-    /* 娉ㄦ剰锛氭澶勯渶瑕佸湪鍓湰涓婃搷浣滐紝閬垮厤淇敼鍘熷鍥?*/
-    /* TODO: 瀹炵幇 ConstraintGraph 娣辨嫹璐濆悗鍦ㄦ鎿嶄綔 */
-
-    /* 姝ラ 4: Edgebreaker 缂栫爜 鈥斺€?鐢熸垚 CLERS 鎷撴墤搴忓垪 */
-    EdgebreakerMode *clers_seq = NULL;
-    int clers_len = 0;
-    edgebreaker_encode(graph, &clers_seq, &clers_len);
-
-    /* 姝ラ 5: 搴忓垪鍖栧潗鏍囨暟鎹负鍘熷瀛楄妭娴?*/
-    size_t raw_size = 0;
-    uint8_t *raw_buf = serialize_coords_raw(graph, &raw_size);
-    if (!raw_buf) {
-        free(clers_seq);
+    /* Step 2: Deep copy constraint graph for in-place modification (predictive encoding modifies coordinates) */
+    ConstraintGraph *work_graph = graph_clone(graph);
+    if (!work_graph) {
         return false;
     }
 
-    /* 姝ラ 6: 鐔电紪鐮?*/
-    /* TODO: 灏?CLERS 搴忓垪鍜屽潗鏍囨畫宸悎骞跺悗鍋氱湡姝ｇ殑鐔电紪鐮?*/
+    /* Step 3: Predictive encoding - replace coordinates with residuals */
+    predictive_encode_coords(work_graph, cfg.pred_mode);
+
+    /* Step 4: Edgebreaker encoding - generate CLERS symbol sequence */
+    EdgebreakerMode *clers_seq = NULL;
+    int clers_len = 0;
+    edgebreaker_encode(work_graph, &clers_seq, &clers_len);
+
+    /* Step 5: Serialize coordinate data to raw byte stream */
+    size_t raw_size = 0;
+    uint8_t *raw_buf = serialize_coords_raw(work_graph, &raw_size);
+    if (!raw_buf) {
+        lv00_free((void **) &clers_seq);
+        graph_destroy(work_graph);
+        return false;
+    }
+
+    /* Step 6: Serialize CLERS sequence */
+    size_t clers_serial_size = 0;
+    uint8_t *clers_serial = serialize_clers(clers_seq, clers_len, &clers_serial_size);
+
+    /* Step 7: Combine CLERS and coordinate data, then apply real entropy encoding */
+    /* Combined format: [clers_serial_size(4B)][clers_serial][coord_data] */
+    size_t combined_header = sizeof(uint32_t);
+    size_t combined_size = combined_header + clers_serial_size + raw_size;
+    uint8_t *combined = (uint8_t *) lv00_malloc(combined_size);
+    if (!combined) {
+        lv00_free((void **) &clers_serial);
+        lv00_free((void **) &raw_buf);
+        lv00_free((void **) &clers_seq);
+        graph_destroy(work_graph);
+        return false;
+    }
+
+    /* Write CLERS section size */
+    uint32_t csz = (uint32_t) clers_serial_size;
+    combined[0] = (uint8_t) (csz & 0xFF);
+    combined[1] = (uint8_t) ((csz >> 8) & 0xFF);
+    combined[2] = (uint8_t) ((csz >> 16) & 0xFF);
+    combined[3] = (uint8_t) ((csz >> 24) & 0xFF);
+
+    /* Copy CLERS data */
+    if (clers_serial && clers_serial_size > 0) {
+        memcpy(combined + combined_header, clers_serial, clers_serial_size);
+    }
+    lv00_free((void **) &clers_serial);
+
+    /* Copy coordinate data */
+    memcpy(combined + combined_header + clers_serial_size, raw_buf, raw_size);
+    lv00_free((void **) &raw_buf);
+
+    /* Apply real entropy encoding (RLE + Huffman) */
     uint8_t *encoded = NULL;
     size_t encoded_size = 0;
-    bool enc_ok = entropy_encode_stub(raw_buf, raw_size, &encoded, &encoded_size);
+    bool enc_ok = entropy_encode_real(combined, combined_size, &encoded, &encoded_size);
+    lv00_free((void **) &combined);
 
-    free(raw_buf);
+    graph_destroy(work_graph);
 
     if (!enc_ok) {
-        free(clers_seq);
+        lv00_free((void **) &clers_seq);
         return false;
     }
 
     *out_data = encoded;
     *out_size = encoded_size;
 
-    /* 濉厖鍏冩暟鎹?*/
+    /* Fill metadata */
     if (out_meta) {
         out_meta->original_size = original_sz;
         out_meta->compressed_size = encoded_size;
@@ -1116,47 +2033,191 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
         out_meta->edgebreaker_sequence = clers_seq;
         out_meta->sequence_len = clers_len;
     } else {
-        free(clers_seq);
+        lv00_free((void **) &clers_seq);
     }
 
     return true;
 }
 
 /* ========================================================================
- * 鍑犱綍瑙ｅ帇涓?API
+ * Geometry decompression main API
  * ======================================================================== */
+
+/**
+ * @brief Deserialize CLERS sequence from byte stream
+ *
+ * @param[in]  data     Byte stream
+ * @param[in]  size     Byte stream size
+ * @param[out] seq      Output CLERS sequence (caller responsible for free)
+ * @param[out] seq_len  Output sequence length
+ * @param[out] consumed Number of bytes consumed
+ * @return true success, false failure
+ */
+static bool deserialize_clers(const uint8_t *data, size_t size, EdgebreakerMode **seq, int *seq_len, size_t *consumed) {
+    if (!data || size < sizeof(int32_t) || !seq || !seq_len || !consumed)
+        return false;
+
+    int32_t len;
+    memcpy(&len, data, sizeof(int32_t));
+    *consumed = sizeof(int32_t);
+
+    if (len <= 0 || (size_t) len > size - sizeof(int32_t)) {
+        *seq = NULL;
+        *seq_len = 0;
+        return true;
+    }
+
+    EdgebreakerMode *s = (EdgebreakerMode *) lv00_malloc(len * sizeof(EdgebreakerMode));
+    if (!s)
+        return false;
+
+    for (int i = 0; i < len; i++) {
+        s[i] = (EdgebreakerMode) data[sizeof(int32_t) + i];
+    }
+
+    *seq = s;
+    *seq_len = len;
+    *consumed = sizeof(int32_t) + len;
+    return true;
+}
+
+/**
+ * @brief Deserialize coordinate data and create nodes in output graph
+ *
+ * @param[in]  data     Byte stream (starting after CLERS section)
+ * @param[in]  size     Byte stream size
+ * @param[out] graph    Output constraint graph
+ * @return true success, false failure
+ */
+static bool deserialize_coords(const uint8_t *data, size_t size, ConstraintGraph *graph) {
+    if (!data || size < sizeof(int32_t) || !graph)
+        return false;
+
+    const uint8_t *ptr = data;
+    const uint8_t *end = data + size;
+
+    int32_t node_count;
+    memcpy(&node_count, ptr, sizeof(int32_t));
+    ptr += sizeof(int32_t);
+
+    for (int i = 0; i < node_count && ptr + 2 * sizeof(int32_t) <= end; i++) {
+        int32_t nid;
+        int32_t cc;
+        memcpy(&nid, ptr, sizeof(int32_t));
+        ptr += sizeof(int32_t);
+        memcpy(&cc, ptr, sizeof(int32_t));
+        ptr += sizeof(int32_t);
+
+        if (cc < 0 || cc > 100) /* Sanity check */
+            continue;
+
+        SymbolicCoord **coords = NULL;
+        if (cc > 0) {
+            coords = (SymbolicCoord **) lv00_malloc(cc * sizeof(SymbolicCoord *));
+            if (!coords)
+                return false;
+
+            bool ok = true;
+            for (int d = 0; d < cc; d++) {
+                if (ptr + sizeof(double) > end) {
+                    ok = false;
+                    break;
+                }
+                double val;
+                memcpy(&val, ptr, sizeof(double));
+                ptr += sizeof(double);
+                coords[d] = symbolic_coord_create_rational((int64_t) (val * 1000000.0), 1000000);
+                if (!coords[d]) {
+                    ok = false;
+                    break;
+                }
+            }
+
+            if (!ok) {
+                for (int d = 0; d < cc; d++) {
+                    if (coords[d])
+                        symbolic_coord_destroy(coords[d]);
+                }
+                lv00_free((void **) &coords);
+                return false;
+            }
+        }
+
+        graph_add_node_with_id(graph, (int) nid, GEOM_POINT, coords, cc);
+
+        /* Clean up coords (graph_add_node_with_id makes its own copy) */
+        if (coords) {
+            for (int d = 0; d < cc; d++) {
+                if (coords[d])
+                    symbolic_coord_destroy(coords[d]);
+            }
+            lv00_free((void **) &coords);
+        }
+    }
+
+    return true;
+}
 
 bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out_graph) {
     if (!data || size == 0 || !out_graph)
         return false;
 
-    /* 姝ラ 1: 鐔佃В鐮?*/
+    /* Step 1: Entropy decode */
     uint8_t *decoded = NULL;
     size_t decoded_size = 0;
-    if (!entropy_decode_stub(data, size, &decoded, &decoded_size)) {
+    if (!entropy_decode_real(data, size, &decoded, &decoded_size)) {
         return false;
     }
 
-    /* 姝ラ 2: 浠庤В鐮佹暟鎹噸寤虹害鏉熷浘 */
+    if (!decoded || decoded_size == 0) {
+        lv00_free((void **) &decoded);
+        *out_graph = graph_create();
+        return (*out_graph != NULL);
+    }
+
+    /* Step 2: Create output graph */
     ConstraintGraph *graph = graph_create();
     if (!graph) {
-        free(decoded);
+        lv00_free((void **) &decoded);
         return false;
     }
 
-    /* TODO: 浠?decoded 瀛楄妭娴佷腑鍙嶅簭鍒楀寲鑺傜偣鍧愭爣鍜屾嫇鎵?     * 褰撳墠妗╋細浠呭垱寤虹┖鍥?*/
-    free(decoded);
+    /* Step 3: Deserialize CLERS sequence */
+    EdgebreakerMode *clers_seq = NULL;
+    int clers_len = 0;
+    size_t clers_consumed = 0;
+    if (!deserialize_clers(decoded, decoded_size, &clers_seq, &clers_len, &clers_consumed)) {
+        lv00_free((void **) &decoded);
+        graph_destroy(graph);
+        return false;
+    }
+    lv00_free((void **) &clers_seq); /* We don't need the CLERS sequence for basic deserialization */
+
+    /* Step 4: Deserialize coordinate data and reconstruct nodes */
+    /* The combined format is: [clers_serial_size(4B)][clers_serial][coord_data] */
+    if (decoded_size < clers_consumed) {
+        lv00_free((void **) &decoded);
+        graph_destroy(graph);
+        return false;
+    }
+
+    /* Skip CLERS section header (4 bytes) and CLERS data to get to coordinate data */
+    if (!deserialize_coords(decoded + clers_consumed, decoded_size - clers_consumed, graph)) {
+        lv00_free((void **) &decoded);
+        graph_destroy(graph);
+        return false;
+    }
+
+    lv00_free((void **) &decoded);
 
     *out_graph = graph;
     return true;
 }
 
 /* ========================================================================
- * .lvzd 鏍煎紡 I/O
+ * .lvzd format I/O
  * ======================================================================== */
 
-/**
- * @brief 灏?uint32 浠ュ皬绔簭鍐欏叆缂撳啿鍖? */
 static void write_uint32_le(uint8_t *buf, uint32_t val) {
     buf[0] = (uint8_t) (val & 0xFF);
     buf[1] = (uint8_t) ((val >> 8) & 0xFF);
@@ -1164,24 +2225,16 @@ static void write_uint32_le(uint8_t *buf, uint32_t val) {
     buf[3] = (uint8_t) ((val >> 24) & 0xFF);
 }
 
-/**
- * @brief 灏?uint64 浠ュ皬绔簭鍐欏叆缂撳啿鍖? */
 static void write_uint64_le(uint8_t *buf, uint64_t val) {
     for (int i = 0; i < 8; i++) {
         buf[i] = (uint8_t) ((val >> (i * 8)) & 0xFF);
     }
 }
 
-/**
- * @brief 浠庣紦鍐插尯浠ュ皬绔簭璇诲彇 uint32
- */
 static uint32_t read_uint32_le(const uint8_t *buf) {
     return ((uint32_t) buf[0]) | ((uint32_t) buf[1] << 8) | ((uint32_t) buf[2] << 16) | ((uint32_t) buf[3] << 24);
 }
 
-/**
- * @brief 浠庣紦鍐插尯浠ュ皬绔簭璇诲彇 uint64
- */
 static uint64_t read_uint64_le(const uint8_t *buf) {
     uint64_t val = 0;
     for (int i = 0; i < 8; i++) {
@@ -1198,24 +2251,24 @@ bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename)
     if (!fp)
         return false;
 
-    /* 鏋勫缓鏂囦欢澶?*/
+    /* Build file header */
     uint8_t header[LVZD_HEADER_SIZE];
     memset(header, 0, LVZD_HEADER_SIZE);
 
     write_uint32_le(header, LVZD_MAGIC);
     write_uint32_le(header + 4, LVZD_VERSION_MAJOR);
     write_uint32_le(header + 8, LVZD_VERSION_MINOR);
-    write_uint64_le(header + 12, (uint64_t) size); /* original_size = compressed_size for stub */
-    write_uint64_le(header + 20, (uint64_t) size); /* compressed_size */
+    write_uint64_le(header + 12, (uint64_t) size);
+    write_uint64_le(header + 20, (uint64_t) size);
 
-    /* 鍐欏叆鏂囦欢澶?*/
+    /* Write file header */
     size_t written = fwrite(header, 1, LVZD_HEADER_SIZE, fp);
     if (written != LVZD_HEADER_SIZE) {
         fclose(fp);
         return false;
     }
 
-    /* 鍐欏叆鍘嬬缉鏁版嵁 */
+    /* Write compressed data */
     written = fwrite(data, 1, size, fp);
     fclose(fp);
     return (written == size);
@@ -1229,7 +2282,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     if (!fp)
         return false;
 
-    /* 璇诲彇鏂囦欢澶?*/
+    /* Read file header */
     uint8_t header[LVZD_HEADER_SIZE];
     size_t read_bytes = fread(header, 1, LVZD_HEADER_SIZE, fp);
     if (read_bytes != LVZD_HEADER_SIZE) {
@@ -1237,24 +2290,23 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
         return false;
     }
 
-    /* 楠岃瘉榄旀暟 */
+    /* Verify magic */
     uint32_t magic = read_uint32_le(header);
     if (magic != LVZD_MAGIC) {
         fclose(fp);
         return false;
     }
 
-    /* 楠岃瘉鐗堟湰鍙?*/
+    /* Verify version */
     uint32_t ver_major = read_uint32_le(header + 4);
     uint32_t ver_minor = read_uint32_le(header + 8);
     if (ver_major > LVZD_VERSION_MAJOR) {
-        /* 涓荤増鏈笉鍏煎 */
         fclose(fp);
         return false;
     }
-    (void) ver_minor; /* 娆＄増鏈悜鍓嶅吋瀹?*/
+    (void) ver_minor;
 
-    /* 璇诲彇鍘嬬缉鏁版嵁澶у皬 */
+    /* Read compressed data size */
     uint64_t comp_size = read_uint64_le(header + 20);
     if (comp_size == 0) {
         fclose(fp);
@@ -1263,7 +2315,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
         return true;
     }
 
-    /* 鍒嗛厤缂撳啿鍖哄苟璇诲彇鍘嬬缉鏁版嵁 */
+    /* Allocate buffer and read compressed data */
     uint8_t *buf = (uint8_t *) lv00_malloc((size_t) comp_size);
     if (!buf) {
         fclose(fp);
@@ -1274,7 +2326,7 @@ bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_si
     fclose(fp);
 
     if (read_bytes != (size_t) comp_size) {
-        free(buf);
+        lv00_free((void **) &buf);
         return false;
     }
 

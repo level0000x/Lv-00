@@ -8,7 +8,7 @@
  *          - 线程安全的预设操作
  *          - 内存管理和错误处理
  *
- * @version 3.2.0
+ * @version 3.3.0
  * @author Lv-00 Project
  */
 
@@ -100,11 +100,15 @@ static void lock_library_init(void) {
 
 /* 在静态初始化后立即初始化互斥锁 */
 static void lock_library_init_once(void) {
-    static volatile int s_init_done = 0;
-    if (!s_init_done) {
+#ifdef _WIN32
+    static LONG s_init_done = 0;
+    if (InterlockedCompareExchange(&s_init_done, 1, 0) == 0) {
         lock_library_init();
-        s_init_done = 1;
     }
+#else
+    static pthread_once_t s_init_once = PTHREAD_ONCE_INIT;
+    pthread_once(&s_init_once, lock_library_init);
+#endif
 }
 
 /* ============================================================
@@ -161,7 +165,29 @@ int preset_register_builtin(void) {
     /* 通过外部 func_block_preset_library_init 注册内置预设到注册表 */
     /* 注意：此函数假设 func_block_preset 系统已链接，
      *       实际内置预设注册由 func_block_preset 模块完成。
-     *       此处仅做幂等性检查和统计报告。 */
+     *       此处仅做幂等性检查和统计报告。
+     *
+     * 统一注册入口说明：
+     *   所有内置预设的统一注册入口为 preset_blocks_init()
+     *   （定义在 preset_blocks.c 中），该函数按顺序调用所有模块的
+     *   xxx_register() 函数。preset_register_builtin() 是预设管理器
+     *   层面的入口，负责确保 func_block_preset 系统已完成初始化。
+     *
+     * 建议未来优化方向：
+     *   可考虑将 preset_blocks_init() 中的模块注册列表改为
+     *   静态数组 + 循环模式，避免每次新增模块都需要手动添加
+     *   extern 声明和调用代码。例如：
+     *   @code
+     *   static const struct { const char *name; bool (*fn)(void); } g_modules[] = {
+     *       {"基础几何", preset_basic_geometry_register},
+     *       {"微积分",   preset_calculus_register},
+     *       ...
+     *   };
+     *   for (int i = 0; i < ARRAY_SIZE(g_modules); i++) {
+     *       if (!g_modules[i].fn()) { ... }
+     *   }
+     *   @endcode
+     */
 
     int registered = g_library.builtin_count;
     unlock_library();
@@ -484,7 +510,7 @@ bool preset_list_by_category(PresetCategory category, char ***out_names, int *ou
                         unlock_library();
                         for (int j = 0; j < idx; j++) {
                             void *tmp = names[j];
-                            lv00_free(&tmp);
+                            lv00_free((void **) &tmp);
                         }
                         lv00_free((void **) &names);
                         set_error("内存分配失败");
@@ -549,7 +575,7 @@ bool preset_list_all(char ***out_names, int *out_count) {
                         unlock_library();
                         for (int j = 0; j < idx; j++) {
                             void *tmp = names[j];
-                            lv00_free(&tmp);
+                            lv00_free((void **) &tmp);
                         }
                         lv00_free((void **) &names);
                         set_error("内存分配失败");
@@ -2133,35 +2159,35 @@ static void free_entry(InternalPresetEntry *entry) {
     if (entry->metadata.preconditions != NULL) {
         for (int i = 0; i < entry->metadata.precondition_count; i++) {
             void *tmp = (void *) entry->metadata.preconditions[i];
-            lv00_free(&tmp);
+            lv00_free((void **) &tmp);
         }
         void *tmp = (void *) entry->metadata.preconditions;
-        lv00_free(&tmp);
+        lv00_free((void **) &tmp);
         entry->metadata.preconditions = NULL;
     }
     if (entry->metadata.postconditions != NULL) {
         for (int i = 0; i < entry->metadata.postcondition_count; i++) {
             void *tmp = (void *) entry->metadata.postconditions[i];
-            lv00_free(&tmp);
+            lv00_free((void **) &tmp);
         }
         void *tmp = (void *) entry->metadata.postconditions;
-        lv00_free(&tmp);
+        lv00_free((void **) &tmp);
         entry->metadata.postconditions = NULL;
     }
     if (entry->metadata.related_presets != NULL) {
         for (int i = 0; i < entry->metadata.related_count; i++) {
             void *tmp = (void *) entry->metadata.related_presets[i];
-            lv00_free(&tmp);
+            lv00_free((void **) &tmp);
         }
         void *tmp = (void *) entry->metadata.related_presets;
-        lv00_free(&tmp);
+        lv00_free((void **) &tmp);
         entry->metadata.related_presets = NULL;
     }
 
     /* 释放条目本身 */
     {
         void *tmp = entry;
-        lv00_free(&tmp);
+        lv00_free((void **) &tmp);
     }
 }
 
@@ -2223,7 +2249,7 @@ bool preset_library_shutdown(void) {
     /* 释放哈希表（使用正确的双重指针方式调用 lv00_free） */
     {
         void *tmp = g_library.hash_table;
-        lv00_free(&tmp);
+        lv00_free((void **) &tmp);
     }
     g_library.hash_table = NULL;
     g_library.hash_table_size = 0;

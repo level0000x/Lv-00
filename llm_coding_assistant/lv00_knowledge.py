@@ -29,9 +29,10 @@ Lv-00 UI编程辅助系统 - 专为几何元语言可视化界面优化的LLM助
   - generate_task_help(): 生成任务帮助信息
 """
 
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional
 from enum import Enum
 import logging
+import threading
 import time
 
 # 模块级日志
@@ -57,7 +58,7 @@ class Lv00KnowledgeBase:
     包含项目特定的API、模式、最佳实践
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_signatures = self._init_api_signatures()
         self.code_patterns = self._init_code_patterns()
         self.ui_conventions = self._init_ui_conventions()
@@ -807,27 +808,41 @@ Lv-00 UI编程任务:
 # ============================================
 # 模块级缓存，避免便捷函数重复创建实例
 # 缓存有效期1小时，超时自动失效
+# 使用 threading.Lock 保证多线程环境下的安全访问
 # ============================================
 _cached_helper: Optional[tuple] = None
 # 缓存创建时间戳，用于判断是否过期
 _cache_created_at: float = 0.0
 # 缓存有效期（秒）：1小时
 _CACHE_TTL_SECONDS = 3600
+# 缓存访问锁，保护 _cached_helper 和 _cache_created_at 的并发读写
+_cache_lock = threading.Lock()
 
 
 def invalidate_cache() -> None:
     """
     手动使缓存失效
     在知识库数据更新后调用此函数，确保下次获取辅助系统时重新创建实例。
+    线程安全：使用 _cache_lock 保护缓存变量的并发访问。
     """
     global _cached_helper, _cache_created_at
-    _cached_helper = None
-    _cache_created_at = 0.0
+    with _cache_lock:
+        _cached_helper = None
+        _cache_created_at = 0.0
     logger.info("Lv-00 辅助系统缓存已手动失效")
 
 
 def _is_cache_valid() -> bool:
-    """检查缓存是否仍然有效（未过期）"""
+    """检查缓存是否仍然有效（未过期），线程安全"""
+    with _cache_lock:
+        return _is_cache_valid_unlocked()
+
+
+def _is_cache_valid_unlocked() -> bool:
+    """检查缓存是否仍然有效（未过期），不加锁版本。
+
+    仅在已持有 _cache_lock 的上下文中调用，避免重复获取锁导致死锁。
+    """
     if _cached_helper is None:
         return False
     # 检查缓存是否超过有效期
@@ -843,12 +858,22 @@ def get_lv00_helper() -> tuple:
 
     缓存有效期为1小时，超时后自动重新创建实例。
     也可通过 invalidate_cache() 手动使缓存失效。
+    线程安全：使用 _cache_lock 保护缓存变量的并发读写，
+    防止多线程同时创建实例或读取到不一致的状态。
 
     Returns:
         (Lv00KnowledgeBase, Lv00PromptEngine) 元组
     """
     global _cached_helper, _cache_created_at
-    if not _is_cache_valid():
+    # 先在锁外做快速检查（无锁读），避免每次调用都获取锁
+    if _is_cache_valid():
+        return _cached_helper
+
+    # 缓存无效，需要创建新实例，获取锁以保证只有一个线程执行创建
+    with _cache_lock:
+        # 双重检查：获取锁后再次验证，防止等待锁期间其他线程已完成创建
+        if _is_cache_valid_unlocked():
+            return _cached_helper
         try:
             kb = Lv00KnowledgeBase()
             pe = Lv00PromptEngine(kb)
@@ -879,6 +904,216 @@ def generate_task_help(task: str) -> str:
     return pe.generate_coding_task_prompt(task)
 
 
+# ============================================
+# 概念解释数据（从 main.py 提取）
+# ============================================
+
+CONCEPT_EXPLANATIONS: Dict[str, str] = {
+    "normalization": """
+【图归一化 (Graph Normalization)】
+
+归一化是Lv-00保证幂等性的核心机制。
+
+工作流程:
+1. 点合并: 合并坐标相同的点
+   - 使用坐标哈希分组
+   - 精确coord_equal()判等
+   - 处理作用域冲突
+
+2. 线段/区域合并: 合并端点相同的几何体
+
+3. 稳定化: 拓扑排序固定顺序
+
+关键API:
+- graph_normalize(g, interactive)
+  - interactive=true 时跨作用域合并需确认
+  - 返回 NormalizationResult
+
+注意事项:
+- 归一化后图再次归一化不会变化(幂等性)
+- 合并日志记录用于证明导航器回放
+""",
+
+    "unification": """
+【合一检查 (Unification)】
+
+合一检查是证明系统的核心。
+
+执行流程:
+1. 对构造图和命题图各自归一化
+2. 展开命题中的模板为正则形式
+3. 三层匹配:
+   - 端口类型匹配
+   - 约束类型匹配
+   - 符号坐标精确匹配
+
+关键API:
+- proof_unify(construction, proposition, strict)
+
+返回值:
+- UNIFY_OK: 合一成功
+- UNIFY_MISMATCH: 匹配失败
+- UNIFY_INCOMPLETE: 部分匹配
+
+严格边界:
+- 不调用求解器判定语义等价
+- 仅比较结构
+""",
+
+    "proof": """
+【证明系统 (Proof System)】
+
+命题结构:
+- 输入/输出端口 (声明期望的证物)
+- 虚线框几何模式 (等待填充)
+- 前置/后置条件 (可选)
+
+证明步骤:
+1. 创建命题 (proposition_create)
+2. 设置模式图 (proposition_set_pattern)
+3. 执行构造
+4. 合一检查 (proof_unify)
+5. 成功则命题得证
+
+信任颜色:
+- 绿色: 全构造
+- 蓝色: 待完成
+- 黄色: 条件性不可构造
+- 橙色: 非构造性依赖
+
+关键API:
+- proof_create_proposition()
+- proof_unify()
+- proof_step_forward()
+- proof_step_backward()
+""",
+
+    "func_block": """
+【函数块 (Function Block)】
+
+函数块封装内部约束子图为可复用单元。
+
+生命周期:
+1. 打包 (Pack): 将子图封装为函数块
+2. 例化 (Instantiate): 创建函数块实例
+3. beta-归约: 应用参数到形式参数
+
+打包要求:
+- 必须处理跨边界约束冲突
+- 端口标记 (namespace_depth, parent_block_id)
+- 变量捕获消解
+
+确定性:
+- VERIFIED: 静态分析确认唯一解
+- PARTIALLY_VERIFIED: 未发现冲突
+- NON_DETERMINISTIC: 出现多解
+
+组合子:
+- Compose: f*g 组合
+- Product: f*xg 乘积
+
+关键API:
+- func_block_pack()
+- func_block_instantiate()
+- func_block_compose()
+""",
+
+    "trust": """
+【信任颜色系统】
+
+Lv-00使用颜色编码构造的可靠性:
+
+TRUST_GREEN (0)
+   全构造，无任何非常规依赖
+
+TRUST_BLUE (1-3)
+   - 未探索 (UNEXPLORED)
+   - 资源受限 (RESOURCE)
+   - 超出范围 (OUT_OF_RANGE)
+
+TRUST_GREEN_VERIFIED (4)
+   已证不可构造
+
+TRUST_YELLOW (5)
+   条件性不可构造
+
+TRUST_ORANGE (6-7)
+   - 非构造性oracle
+   - 爆炸原理 (ex falso)
+
+TRUST_AMBER (8)
+   含数值假设
+
+TRUST_DARK_ORANGE (9)
+   非构造性+数值假设
+"""
+}
+
+
+# ============================================
+# 代码生成指导文本（从 main.py 提取）
+# ============================================
+
+CODE_GUIDANCE: Dict[str, str] = {
+    "binding": """
+【生成WebAssembly绑定代码】
+
+请提供以下信息:
+1. C函数名 (例如: graph_add_circle)
+2. 函数描述
+3. 参数列表
+
+我将生成:
+- C绑定代码 (EMSCRIPTEN_KEEPALIVE)
+- JavaScript包装器
+- 使用示例
+
+提示: 使用 'api graph' 查看可用API
+""",
+    "renderer": """
+【生成Canvas渲染器代码】
+
+提供:
+1. 渲染元素 (point/segment/region/mixed)
+2. 特殊功能 (选中高亮/缩放/拖拽)
+
+我将生成:
+- GeometryRenderer类
+- 坐标系转换
+- 渲染方法
+- 事件绑定
+""",
+    "interaction": """
+【生成交互处理器代码】
+
+提供:
+1. 交互模式 (select/construct/analyze)
+2. 工具列表
+3. 特殊操作
+
+我将生成:
+- CanvasInteraction类
+- 事件处理器
+- 工具切换逻辑
+- 撤销/重做支持
+""",
+    "panel": """
+【生成UI面板代码】
+
+提供:
+1. 模块名称 (graph/block/proof/type/recurse/engine/debug)
+2. 面板功能
+3. 按钮列表
+
+我将生成:
+- HTML面板结构
+- CSS样式
+- JavaScript事件绑定
+- API调用逻辑
+""",
+}
+
+
 # 导出所有公共接口
 __all__ = [
     'Lv00Module',
@@ -888,5 +1123,7 @@ __all__ = [
     'invalidate_cache',
     'generate_binding_help',
     'generate_renderer_help',
-    'generate_task_help'
+    'generate_task_help',
+    'CONCEPT_EXPLANATIONS',
+    'CODE_GUIDANCE',
 ]

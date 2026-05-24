@@ -93,8 +93,8 @@
             void *_sp = lv00_realloc((ir)->symbols, (size_t)_nc * sizeof(char *));                  \
             void *_mp = lv00_realloc((ir)->symbol_to_ir_id, (size_t)_nc * sizeof(int));             \
             if (!_sp || !_mp) {                                                                     \
-                if (_sp) lv00_free(&_sp);                                                           \
-                if (_mp) lv00_free(&_mp);                                                           \
+                if (_sp) lv00_free((void **) &_sp);                                                           \
+                if (_mp) lv00_free((void **) &_mp);                                                           \
                 return false;                                                                       \
             }                                                                                       \
             (ir)->symbols = (char **)_sp;                                                           \
@@ -272,6 +272,7 @@ static bool dsl_skip_comment(DSLTokenizerState *state) {
         /* 块注释：跳过直到 * / */
         int start_line = state->line;
         int start_col = state->col;
+        int start_pos = state->pos;  /* 保存注释起始位置（用于错误 token） */
         state->pos += 2;
         state->col += 2;
         while (state->source[state->pos] != '\0') {
@@ -288,8 +289,8 @@ static bool dsl_skip_comment(DSLTokenizerState *state) {
             }
             state->pos++;
         }
-        /* 未闭合的块注释：创建错误 token */
-        dsl_add_token(state, DSL_TOK_ERROR, state->source + start_col - 1, start_line, start_col);
+        /* 未闭合的块注释：创建错误 token（使用 start_pos 而非 start_col 作为偏移） */
+        dsl_add_token(state, DSL_TOK_ERROR, state->source + start_pos, start_line, start_col);
         state->has_error = true;
         return false;
     }

@@ -29,7 +29,7 @@
  *   回归测试，避免破坏现有的 VF2 -> 重写 -> 规范化流水线。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - rewrite.h            : 图重写引擎公共接口定义
@@ -4476,65 +4476,173 @@ typedef struct {
     int path_len;           /* 路径长度 */
 } BackwardSearchState;
 
-/* ---- 内部辅助：逆向应用单条规则 ---- */
+/* ---- 内部辅助：逆向应用单条规则（真正的反向替换） ---- */
 static bool rewrite_rule_apply_backward(const ConstraintGraph *graph, const RewriteRule *rule,
                                         ConstraintGraph **out_predecessor) {
     if (!graph || !rule || !rule->pattern || !rule->replacement || !out_predecessor)
         return false;
 
-    RewritePattern *pat = rule->pattern;
+    const RewriteReplacement *repl = rule->replacement;
+    const RewritePattern *lhs_pat = rule->pattern;
 
-    /* 在图中匹配模式 LHS。
-     * 逆向重写的直觉：若图中的某个子图匹配了规则的 LHS 模式，
-     * 则说明该规则可能曾被正向应用于某个 predecessor 状态
-     * 来产生当前状态。我们通过在匹配位置移除模式约束、
-     * 添加替换约束来构建 predecessor。 */
-    RewriteMatch *match = vf2_find_match((ConstraintGraph *) graph, pat, false);
-    if (!match)
+    /* ---- Step 1: Build a RewritePattern from the rule's RHS (replacement) ----
+     *
+     * True reverse substitution: match the RHS of the rule in the current graph,
+     * remove the matched RHS nodes/constraints, then add the LHS nodes/constraints.
+     *
+     * The replacement constraints reference nodes by:
+     *   - negative IDs: pattern variables (shared with LHS)
+     *   - positive IDs in repl->new_nodes: nodes created during forward application
+     * We collect all unique node references from replacement_constraints to build
+     * the variable_node_ids array for the RHS pattern.
+     */
+    if (repl->replacement_constraint_count == 0)
         return false;
 
-    /* 深拷贝当前图作为 predecessor 的工作图 */
+    /* Collect unique node IDs referenced in replacement constraints */
+    int var_cap = 64;
+    int *rhs_var_ids = lv00_malloc((size_t) var_cap * sizeof(int));
+    if (!rhs_var_ids)
+        return false;
+    int rhs_var_count = 0;
+
+    for (int c = 0; c < repl->replacement_constraint_count; c++) {
+        Constraint *rc = repl->replacement_constraints[c];
+        for (int p = 0; p < rc->participant_count; p++) {
+            int pid = rc->participants[p];
+            /* Check if already collected */
+            bool found = false;
+            for (int v = 0; v < rhs_var_count; v++) {
+                if (rhs_var_ids[v] == pid) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                if (rhs_var_count >= var_cap) {
+                    var_cap *= 2;
+                    int *tmp = lv00_realloc(rhs_var_ids, (size_t) var_cap * sizeof(int));
+                    if (!tmp) {
+                        lv00_free((void **) &rhs_var_ids);
+                        return false;
+                    }
+                    rhs_var_ids = tmp;
+                }
+                rhs_var_ids[rhs_var_count++] = pid;
+            }
+        }
+    }
+
+    /* Build a RewritePattern from replacement constraints */
+    RewritePattern rhs_pattern;
+    rhs_pattern.variable_node_ids = rhs_var_ids;
+    rhs_pattern.var_count = rhs_var_count;
+    rhs_pattern.pattern_constraints = repl->replacement_constraints;
+    rhs_pattern.pattern_constraint_count = repl->replacement_constraint_count;
+
+    /* ---- Step 2: Match RHS pattern in the current graph ---- */
+    RewriteMatch *rhs_match = vf2_find_match((ConstraintGraph *) graph, &rhs_pattern, false);
+
+    lv00_free((void **) &rhs_var_ids);
+
+    if (!rhs_match)
+        return false;
+
+    /* ---- Step 3: Deep copy the current graph as the predecessor ---- */
     ConstraintGraph *pred = rewrite_graph_deep_copy(graph);
     if (!pred) {
-        lv00_free((void **) &match->node_bindings);
-        lv00_free((void **) &match->constraint_bindings);
-        lv00_free((void **) &match);
+        lv00_free((void **) &rhs_match->node_bindings);
+        lv00_free((void **) &rhs_match->constraint_bindings);
+        lv00_free((void **) &rhs_match);
         return false;
     }
 
-    /* 在 predecessor 上正向应用规则（这会修改图）：
-     *   规则正向将 LHS → RHS。
-     *   由于当前图是正向应用后的结果，predecessor 的拷贝上
-     *   再次正向应用同一规则将产生更近似的终态。
+    /* ---- Step 4: Remove matched RHS constraints from predecessor ---- */
+    for (int i = 0; i < rhs_match->binding_count; i++) {
+        int con_id = rhs_match->constraint_bindings[i];
+        if (graph_get_constraint(pred, con_id)) {
+            graph_remove_constraint(pred, con_id);
+        }
+    }
+
+    /* ---- Step 5: Remove matched RHS nodes that are not referenced
+     *            by any remaining constraint in predecessor ---- */
+    for (int i = 0; i < rhs_match->binding_count; i++) {
+        int pattern_var_id = rhs_match->node_bindings[i * 2];
+        int graph_node_id = rhs_match->node_bindings[i * 2 + 1];
+
+        /* Check if this node is still referenced by any remaining constraint */
+        bool has_refs = false;
+        for (int c = 0; c < pred->constraint_count; c++) {
+            Constraint *con = pred->constraints[c];
+            if (!con)
+                continue;
+            for (int p = 0; p < con->participant_count; p++) {
+                if (con->participants[p] == graph_node_id) {
+                    has_refs = true;
+                    break;
+                }
+            }
+            if (has_refs)
+                break;
+        }
+        if (!has_refs) {
+            GeomNode *node = graph_get_node(pred, graph_node_id);
+            if (node && node->type != GEOM_REGION) {
+                graph_remove_node(pred, graph_node_id);
+            }
+        }
+    }
+
+    /* ---- Step 6: Add LHS constraints to predecessor ----
      *
-     *   但这不是正确的逆向逻辑！
-     *
-     *   正确的逆向逻辑应为：
-     *     当前图 = forward_apply(predecessor, rule)
-     *     逆向 = 从当前图恢复 predecessor
-     *
-     *   P1 简化策略：在拷贝的正向匹配位置执行 apply_rewrite，
-     *   使得拷贝图与原始图不同（模拟一步差异）。
-     *   然后以该图作为 predecessor（虽然严格来说不正确，
-     *   但能产生搜索空间中的新状态用于探索）。
-     *
-     *   TODO(P2): 实现真正的逆向替换：
-     *     匹配 RHS → 移除 RHS 约束和节点 → 添加 LHS 约束和节点
+     * Resolve LHS pattern constraint participants using the RHS match bindings.
+     * LHS pattern variables that also appear in RHS will be resolved via the
+     * rhs_match bindings. LHS variables not in RHS cannot be resolved and
+     * are skipped (they were consumed during forward application).
      */
-    RewriteStatus status = apply_rewrite(pred, (RewriteRule *) rule, match);
+    for (int c = 0; c < lhs_pat->pattern_constraint_count; c++) {
+        Constraint *lc = lhs_pat->pattern_constraints[c];
+        int *resolved = lv00_malloc((size_t) lc->participant_count * sizeof(int));
+        if (!resolved)
+            continue;
 
-    lv00_free((void **) &match->node_bindings);
-    lv00_free((void **) &match->constraint_bindings);
-    lv00_free((void **) &match);
+        bool all_ok = true;
+        for (int p = 0; p < lc->participant_count; p++) {
+            int pid = lc->participants[p];
+            int rid = resolve_binding(rhs_match->node_bindings, rhs_match->binding_count, pid);
+            if (rid < 0) {
+                /* LHS variable not found in RHS match — cannot resolve */
+                all_ok = false;
+                break;
+            }
+            resolved[p] = rid;
+        }
 
-    if (status != REWRITE_APPLIED) {
-        graph_destroy(pred);
-        return false;
+        if (all_ok) {
+            /* Verify all referenced nodes exist before adding constraint */
+            bool nodes_exist = true;
+            for (int p = 0; p < lc->participant_count; p++) {
+                if (!graph_get_node(pred, resolved[p])) {
+                    nodes_exist = false;
+                    break;
+                }
+            }
+            if (nodes_exist) {
+                add_constraint_generic(pred, lc->type, resolved, lc->participant_count);
+            }
+        }
+
+        lv00_free((void **) &resolved);
     }
 
-    /* 检查 predecessor 是否比当前图更"简"（至少节点/约束数不同） */
+    /* Cleanup RHS match */
+    lv00_free((void **) &rhs_match->node_bindings);
+    lv00_free((void **) &rhs_match->constraint_bindings);
+    lv00_free((void **) &rhs_match);
+
+    /* Check that predecessor actually differs from current graph */
     if (pred->node_count == graph->node_count && pred->constraint_count == graph->constraint_count) {
-        /* 无变化，视为无效逆向 */
         graph_destroy(pred);
         return false;
     }
@@ -4656,10 +4764,21 @@ static bool rewrite_search_backward_bfs(const ConstraintGraph *target_graph, con
 /* ---- DFS 逆向证明搜索（递归） ---- */
 static bool rewrite_search_backward_dfs_recursive(ConstraintGraph *graph, const RewriteRule *rules, int rule_count,
                                                   int max_depth, int current_depth, int *path, int path_len,
-                                                  ConstraintGraph **cached_states, int cached_count) {
+                                                  ConstraintGraph **cached_states, int cached_count,
+                                                  int **result_path, int *result_path_len) {
     /* 检查是否归约到公理 */
-    if (rewrite_graph_is_axiom_like(graph))
+    if (rewrite_graph_is_axiom_like(graph)) {
+        /* Found: copy the current path to result */
+        if (result_path && result_path_len && path_len > 0) {
+            int *rp = lv00_malloc((size_t) path_len * sizeof(int));
+            if (rp) {
+                memcpy(rp, path, (size_t) path_len * sizeof(int));
+                *result_path = rp;
+                *result_path_len = path_len;
+            }
+        }
         return true;
+    }
 
     /* 深度限制 */
     if (current_depth >= max_depth)
@@ -4690,14 +4809,15 @@ static bool rewrite_search_backward_dfs_recursive(ConstraintGraph *graph, const 
         new_path[path_len] = r;
 
         bool found = rewrite_search_backward_dfs_recursive(pred, rules, rule_count, max_depth, current_depth + 1,
-                                                           new_path, path_len + 1, cached_states, cached_count);
+                                                           new_path, path_len + 1, cached_states, cached_count,
+                                                           result_path, result_path_len);
 
         if (found) {
-            /* 调用者负责释放 path；这里传递的是当前 DFS 帧的路径，
-             * 成功路径会在 dfs_wrapper 中拷贝到 out_path */
+            /* Path has been set by the deepest successful frame.
+             * Free the intermediate path allocation (the result was
+             * independently allocated inside the base case). */
             graph_destroy(pred);
-            /* 注意：new_path 在这里不应该释放，因为调用者需要它；
-             * 由于递归调用中已传递给上一帧，由 wrapper 负责释放。 */
+            lv00_free((void **) &new_path);
             return true;
         }
 
@@ -4731,24 +4851,29 @@ static bool rewrite_search_backward_dfs(const ConstraintGraph *target_graph, con
         return false;
     }
 
-    bool found = rewrite_search_backward_dfs_recursive(working, rules, rule_count, max_depth, 0, path_buffer, 0,
-                                                       &cached, cached_count);
+    /* result_path / result_path_len receive the successful path from the
+     * recursive base case when a proof is found. */
+    int *result_path = NULL;
+    int result_path_len = 0;
 
-    if (found) {
-        /* 路径长度在上层调用中通过递归展开传递，
-         * 此处需要重新计算路径长度。
-         * P1 简化：从深度推断。 */
-        /* 由于 DFS 递归中路径信息分散在各栈帧，P1 使用
-         * 回退方案：重新执行一次受限的 BFS 获取路径长度。 */
-        /* 实际上，递归版的路径无法简单传递出来。
-         * 这里我们标记成功但路径信息受限。 */
+    bool found = rewrite_search_backward_dfs_recursive(working, rules, rule_count, max_depth, 0, path_buffer, 0,
+                                                       &cached, cached_count, &result_path, &result_path_len);
+
+    if (found && result_path) {
+        if (out_path)
+            *out_path = result_path;
+        else
+            lv00_free((void **) &result_path);
 
         if (out_path_len)
-            *out_path_len = 0;
+            *out_path_len = result_path_len;
+    } else {
+        if (result_path)
+            lv00_free((void **) &result_path);
         if (out_path)
             *out_path = NULL;
-
-        /* TODO(P2): 重构 DFS 以正确回传路径 */
+        if (out_path_len)
+            *out_path_len = 0;
     }
 
     graph_destroy(working);

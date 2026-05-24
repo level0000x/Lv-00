@@ -18,13 +18,6 @@ import type {
 import { MAX_UNDO_HISTORY } from '@/utils/constants';
 
 // ================================================================
-// 常量 / Constants
-// ================================================================
-
-/** @deprecated 使用 MAX_UNDO_HISTORY 常量 / Use MAX_UNDO_HISTORY constant */
-const MAX_HISTORY_DEPTH = MAX_UNDO_HISTORY;
-
-// ================================================================
 // 几何状态接口 / Geometry State Interface
 // ================================================================
 
@@ -243,12 +236,20 @@ export const useGeometryStore = create<GeometryState>((set) => ({
     set((state) => ({
       points: state.points.filter((p) => p.id !== id),
       segments: state.segments.filter((s) => s.p1 !== id && s.p2 !== id),
+      /* 级联删除引用该点的所有约束，保持数据一致性 */
+      constraints: state.constraints.filter(
+        (c) => !c.args.includes(id),
+      ),
     })),
 
   /** 删除指定 ID 的线段 */
   removeSegment: (id) =>
     set((state) => ({
       segments: state.segments.filter((s) => s.id !== id),
+      /* 级联删除引用该线段的所有约束，保持数据一致性 */
+      constraints: state.constraints.filter(
+        (c) => !c.args.includes(id),
+      ),
     })),
 
   /** 批量设置所有点（替换现有数据） */
@@ -284,7 +285,7 @@ export const useGeometryStore = create<GeometryState>((set) => ({
    * 行为：
    * 1. 对当前 points、segments、constraints、regions 进行深拷贝，生成快照
    * 2. 快照推入 undoStack 尾部
-   * 3. 如果 undoStack 超过 MAX_HISTORY_DEPTH (50)，移除最旧的快照
+   * 3. 如果 undoStack 超过 MAX_UNDO_HISTORY (50)，移除最旧的快照
    * 4. 清空 redoStack（因为新操作使旧的重做历史失效）
    */
   saveUndoState: () =>
@@ -292,8 +293,8 @@ export const useGeometryStore = create<GeometryState>((set) => ({
       const snapshot = createSnapshot(state);
       const newUndoStack = [...state.undoStack, snapshot];
       // 保持栈深度在限制内（超过则移除最旧记录）
-      if (newUndoStack.length > MAX_HISTORY_DEPTH) {
-        newUndoStack.splice(0, newUndoStack.length - MAX_HISTORY_DEPTH);
+      if (newUndoStack.length > MAX_UNDO_HISTORY) {
+        newUndoStack.splice(0, newUndoStack.length - MAX_UNDO_HISTORY);
       }
       return {
         undoStack: newUndoStack,
@@ -324,8 +325,8 @@ export const useGeometryStore = create<GeometryState>((set) => ({
       // 将当前状态保存到重做栈，便于后续重做
       const currentSnapshot = createSnapshot(state);
       const newRedoStack = [...state.redoStack, currentSnapshot];
-      if (newRedoStack.length > MAX_HISTORY_DEPTH) {
-        newRedoStack.splice(0, newRedoStack.length - MAX_HISTORY_DEPTH);
+      if (newRedoStack.length > MAX_UNDO_HISTORY) {
+        newRedoStack.splice(0, newRedoStack.length - MAX_UNDO_HISTORY);
       }
 
       // 从快照恢复几何数据
@@ -359,8 +360,8 @@ export const useGeometryStore = create<GeometryState>((set) => ({
       // 将当前状态保存回撤销栈，以便再次撤销
       const currentSnapshot = createSnapshot(state);
       const newUndoStack = [...state.undoStack, currentSnapshot];
-      if (newUndoStack.length > MAX_HISTORY_DEPTH) {
-        newUndoStack.splice(0, newUndoStack.length - MAX_HISTORY_DEPTH);
+      if (newUndoStack.length > MAX_UNDO_HISTORY) {
+        newUndoStack.splice(0, newUndoStack.length - MAX_UNDO_HISTORY);
       }
 
       // 从快照恢复几何数据

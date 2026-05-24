@@ -15,8 +15,8 @@
  *
  * 1. lv00_realloc 与标准 realloc 的关键差异：
  *    - 当 size==0 时，lv00_realloc 返回 NULL 但**不释放原内存**。
- *      这是与标准 C 库 realloc(p, 0) 的重要区别（C11 标准中 realloc(p, 0)
- *      行为由实现定义）。调用者必须显式使用 lv00_free(&ptr) 来释放内存，
+ *      这是与标准 C 库 lv00_realloc(p, 0) 的重要区别（C11 标准中 lv00_realloc(p, 0)
+ *      行为由实现定义）。调用者必须显式使用 lv00_free((void **) &ptr) 来释放内存，
  *      不应依赖 lv00_realloc(ptr, 0) 来释放。
  *    - **调用者必须将返回值赋给原指针变量**，否则在 realloc 移动内存块后
  *      原指针将成为悬空指针。
@@ -24,7 +24,7 @@
  * 2. lv00_free 使用 void** 参数：
  *    - lv00_free 接受 void** 而非 void*，释放后自动将调用者的指针置为 NULL，
  *      有效防止 use-after-free 和 double-free。
- *    - 必须传递指针的地址：lv00_free((void **)&ptr)，不可写作 lv00_free(ptr)。
+ *    - 必须传递指针的地址：lv00_free((void **)&ptr)，不可写作 lv00_free((void **) &ptr)。
  *
  * 3. 内存所有权规则：
  *    - 创建函数（如 rune_create_*）返回新分配的内存，调用者拥有所有权。
@@ -46,6 +46,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+/* [Bug修复] 为 realloc 非本分配器路径获取旧大小所需的平台头文件 */
+#ifdef _WIN32
+#include <malloc.h>  /* _msize */
+#elif defined(__linux__)
+#include <malloc.h>  /* malloc_usable_size */
+#elif defined(__APPLE__)
+#include <malloc/malloc.h>  /* malloc_size on macOS */
+#endif
 
 #include "error_codes.h"
 #include "lv00.h"
@@ -73,7 +82,7 @@ static LV00_THREAD_LOCAL bool g_poison_enabled = false; /**< 毒模式填充开�
  * 尾部魔数 (写于 data[size] 位置) 用于检测缓冲区溢出。
  *
  * 对外返回的指针指向 data[] 起始位置，调用者不可感知此头部。
- * 此设计不会与外部 free() 兼容（外部调用者必须使用 lv00_free /
+ * 此设计不会与外部 lv00_free() 兼容（外部调用者必须使用 lv00_free /
  * lv00_free_ptr），但项目规范要求所有动态内存通过本模块管理，
  * 因此这是安全的。
  */
@@ -184,7 +193,7 @@ void *lv00_malloc(size_t size) {
 }
 
 void *lv00_malloc_tracked(size_t size, const char *file, int line) {
-    /* 零大小请求：分配最小块（1 字节数据 + 尾魔数），保持 malloc(0) 语义 */
+    /* 零大小请求：分配最小块（1 字节数据 + 尾魔数），保持 lv00_malloc(0) 语义 */
     size_t alloc_size = size ? size : 1;
 
     if (g_memory_limit > 0 && g_memory_stats.current_used > g_memory_limit - alloc_size) {
@@ -199,7 +208,7 @@ void *lv00_malloc_tracked(size_t size, const char *file, int line) {
     if (total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
     total += ALLOC_TAIL_MAGIC_SIZE;
 
-    AllocHeader *hdr = (AllocHeader *)malloc(total);
+    AllocHeader *hdr = (AllocHeader *)lv00_malloc(total);
     if (!hdr)
         return NULL;
 
@@ -254,7 +263,7 @@ void *lv00_calloc_tracked(size_t nmemb, size_t size, const char *file, int line)
         if (full > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
         full += ALLOC_TAIL_MAGIC_SIZE;
 
-        AllocHeader *hdr = (AllocHeader *)calloc(1, full);
+        AllocHeader *hdr = (AllocHeader *)lv00_calloc(1, full);
         if (!hdr)
             return NULL;
 
@@ -290,7 +299,7 @@ overflow:
  *
  * 行为与标准 realloc 的关键差异：
  * - 当 size 为 0 时，返回 NULL 但不释放原内存。
- *   调用者应先 lv00_free(&ptr) 再处理 size=0 的情况。
+ *   调用者应先 lv00_free((void **) &ptr) 再处理 size=0 的情况。
  * - 自动维护 current_used 统计：减去旧大小，加上新大小。
  * - 若原指针不由 lv00_malloc/lv00_calloc 分配（魔数不匹配），
  *   则委托给 lv00_malloc（保守处理：无法获取旧大小）。
@@ -318,7 +327,7 @@ void *lv00_realloc(void *ptr, size_t size) {
         /* 从追踪链表中移除旧节点 */
         untrack_allocation(old_hdr);
 
-        AllocHeader *new_hdr = (AllocHeader *)realloc(old_hdr, new_total);
+        AllocHeader *new_hdr = (AllocHeader *)lv00_realloc(old_hdr, new_total);
         if (!new_hdr) {
             /* realloc 失败：旧分配仍然有效，重新加入追踪链表 */
             track_allocation(old_hdr);
@@ -349,11 +358,29 @@ void *lv00_realloc(void *ptr, size_t size) {
         return new_hdr->data;
     } else {
         /* 非本分配器分配的指针（魔数不匹配）：
-         * 保守处理 —— 新建分配并复制内容。
-         * 无法获取旧大小，故 current_used 仅增加新分配量。 */
+         * 尝试获取旧分配大小并复制数据，以避免数据丢失。
+         * 使用平台特定 API 获取旧块大小：_msize (Windows) / malloc_usable_size (Linux/macOS)。
+         * [Bug修复] 原代码未复制旧数据，导致 realloc 语义不正确。 */
         void *new_ptr = lv00_malloc(alloc_size);
         if (!new_ptr)
             return NULL;
+
+        /* 尝试获取旧分配的实际可用大小 */
+        size_t old_usable_size = 0;
+#ifdef _WIN32
+        old_usable_size = (size_t)_msize(ptr);
+#elif defined(__APPLE__)
+        old_usable_size = (size_t)malloc_size(ptr);
+#elif defined(__linux__)
+        old_usable_size = (size_t)malloc_usable_size(ptr);
+#endif
+        if (old_usable_size > 0) {
+            /* 复制 min(alloc_size, old_usable_size) 字节，确保不越界 */
+            size_t copy_size = (alloc_size < old_usable_size) ? alloc_size : old_usable_size;
+            memcpy(new_ptr, ptr, copy_size);
+        }
+        /* 注意：若平台不支持获取旧大小（old_usable_size == 0），
+         * 则不复制旧数据。调用者应尽量使用 lv00_malloc/lv00_free 配对。 */
         return new_ptr;
     }
 
@@ -362,7 +389,7 @@ realloc_overflow:
     return NULL;
 }
 
-void lv00_free(void **ptr) {
+void lv00_free((void **) &void **ptr) {
     if (!ptr || !*ptr)
         return;
 
@@ -390,11 +417,11 @@ void lv00_free(void **ptr) {
         g_memory_stats.total_freed += freed_size;
         g_memory_stats.free_count++;
 
-        free(hdr);
+        lv00_free((void **) &hdr);
     } else {
         /* 非本分配器指针或已释放（魔数不匹配）：
          * 仍然释放内存以防泄漏，但不更新统计。 */
-        free(*ptr);
+        lv00_free((void **) &*ptr);
     }
 
     *ptr = NULL;
@@ -406,7 +433,7 @@ void lv00_free_many(void **first, ...) {
 
     void **ptr = first;
     while (ptr) {
-        lv00_free(ptr);
+        lv00_free((void **) &ptr);
         ptr = va_arg(args, void **);
     }
 
@@ -431,7 +458,7 @@ void lv00_free_many(void **first, ...) {
  */
 void lv00_auto_free(void *p) {
     void **ptr = (void **) p;
-    lv00_free(ptr);
+    lv00_free((void **) &ptr);
 }
 
 void lv00_get_memory_stats(MemoryStats *stats) {
@@ -642,25 +669,25 @@ Lv00MemoryPool *lv00_pool_create(size_t block_size, size_t initial_blocks) {
     size_t internal_size = block_size + sizeof(Lv00PoolBlock *);
 
     /* 分配池结构 */
-    Lv00MemoryPool *pool = (Lv00MemoryPool *)calloc(1, sizeof(Lv00MemoryPool));
+    Lv00MemoryPool *pool = (Lv00MemoryPool *)lv00_calloc(1, sizeof(Lv00MemoryPool));
     if (!pool)
         return NULL;
 
     pool->block_size = block_size;
     pool->internal_size = internal_size;
     pool->chunk_capacity = LV00_POOL_CHUNK_INITIAL;
-    pool->chunks = (void **)calloc(pool->chunk_capacity, sizeof(void *));
+    pool->chunks = (void **)lv00_calloc(pool->chunk_capacity, sizeof(void *));
     if (!pool->chunks) {
-        free(pool);
+        lv00_free((void **) &pool);
         return NULL;
     }
 
     /* 批量分配初始块 */
     size_t total_data = internal_size * initial_blocks;
-    char *raw = (char *)malloc(total_data);
+    char *raw = (char *)lv00_malloc(total_data);
     if (!raw) {
-        free(pool->chunks);
-        free(pool);
+        lv00_free((void **) &pool->chunks);
+        lv00_free((void **) &pool);
         return NULL;
     }
 
@@ -689,14 +716,14 @@ void *lv00_pool_alloc(Lv00MemoryPool *pool) {
         /* 扩容 chunks 数组 */
         if (pool->chunk_count >= pool->chunk_capacity) {
             size_t new_cap = pool->chunk_capacity * LV00_POOL_CHUNK_GROWTH;
-            void **new_chunks = (void **)realloc(pool->chunks, new_cap * sizeof(void *));
+            void **new_chunks = (void **)lv00_realloc(pool->chunks, new_cap * sizeof(void *));
             if (!new_chunks)
                 return NULL;
             pool->chunks = new_chunks;
             pool->chunk_capacity = new_cap;
         }
 
-        char *raw = (char *)malloc(pool->internal_size);
+        char *raw = (char *)lv00_malloc(pool->internal_size);
         if (!raw)
             return NULL;
 
@@ -737,10 +764,10 @@ void lv00_pool_destroy(Lv00MemoryPool *pool) {
 
     /* 释放所有批量分配的大块 */
     for (size_t i = 0; i < pool->chunk_count; i++) {
-        free(pool->chunks[i]);
+        lv00_free((void **) &pool->chunks[i]);
     }
-    free(pool->chunks);
-    free(pool);
+    lv00_free((void **) &pool->chunks);
+    lv00_free((void **) &pool);
 }
 
 void lv00_pool_stats(const Lv00MemoryPool *pool, size_t *total_blocks, size_t *free_blocks) {
@@ -1008,7 +1035,7 @@ void lv00_array_destroy(LV00Array *arr, bool free_elements) {
     if (free_elements && arr->data) {
         for (size_t i = 0; i < arr->count; i++) {
             if (arr->data[i]) {
-                lv00_free(&arr->data[i]);
+                lv00_free((void **) &arr->data[i]);
             }
         }
     }
@@ -1070,7 +1097,7 @@ bool lv00_array_remove(LV00Array *arr, size_t index, bool free_elem) {
         return false;
 
     if (free_elem && arr->data[index]) {
-        lv00_free(&arr->data[index]);
+        lv00_free((void **) &arr->data[index]);
     }
 
     /* 移动后续元素 */
@@ -1103,7 +1130,7 @@ void lv00_array_clear(LV00Array *arr, bool free_elements) {
     if (free_elements) {
         for (size_t i = 0; i < arr->count; i++) {
             if (arr->data[i]) {
-                lv00_free(&arr->data[i]);
+                lv00_free((void **) &arr->data[i]);
             }
         }
     }
@@ -2016,7 +2043,7 @@ struct ResourceTracker {
 };
 
 ResourceTracker *lv00_resource_tracker_create(void) {
-    ResourceTracker *rt = (ResourceTracker *)calloc(1, sizeof(ResourceTracker));
+    ResourceTracker *rt = (ResourceTracker *)lv00_calloc(1, sizeof(ResourceTracker));
     return rt; /* calloc 已将 head/tail/count 置零 */
 }
 
@@ -2029,12 +2056,12 @@ void lv00_resource_tracker_destroy(ResourceTracker **rt) {
     TrackedResource *node = (*rt)->head;
     while (node) {
         TrackedResource *next = node->next;
-        free(node->name);
-        free(node);
+        lv00_free((void **) &node->name);
+        lv00_free((void **) &node);
         node = next;
     }
 
-    free(*rt);
+    lv00_free((void **) &*rt);
     *rt = NULL;
 }
 
@@ -2043,7 +2070,7 @@ bool lv00_resource_track(ResourceTracker *rt, void *resource,
     if (!rt || !resource || !destroy)
         return false;
 
-    TrackedResource *node = (TrackedResource *)calloc(1, sizeof(TrackedResource));
+    TrackedResource *node = (TrackedResource *)lv00_calloc(1, sizeof(TrackedResource));
     if (!node)
         return false;
 
@@ -2052,9 +2079,10 @@ bool lv00_resource_track(ResourceTracker *rt, void *resource,
 
     /* 复制名称（若有） */
     if (name) {
-        node->name = (char *)malloc(strlen(name) + 1);
+        node->name = (char *)lv00_malloc(strlen(name) + 1);
         if (node->name) {
-            strcpy(node->name, name);
+            /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
+            lv00_strlcpy(node->name, name, strlen(name) + 1);
         }
     }
 
@@ -2089,8 +2117,8 @@ bool lv00_resource_untrack(ResourceTracker *rt, void *resource) {
             else
                 rt->tail = node->prev;
 
-            free(node->name);
-            free(node);
+            lv00_free((void **) &node->name);
+            lv00_free((void **) &node);
             rt->count--;
             return true;
         }
@@ -2116,8 +2144,8 @@ void lv00_resource_tracker_cleanup(ResourceTracker *rt) {
             node->destroy(node->resource);
         }
 
-        free(node->name);
-        free(node);
+        lv00_free((void **) &node->name);
+        lv00_free((void **) &node);
         node = prev;
     }
 
@@ -2140,16 +2168,16 @@ int lv00_resource_tracker_count(const ResourceTracker *rt) {
  * @brief FFI 兼容的内存释放函数
  *
  * 专为外部函数接口（Python ctypes、JNI 等）设计。
- * 与 lv00_free(void**) 不同，此函数接受标准的 void* 参数，
- * 语义与标准 C 的 free() 一致，但不执行指针置 NULL 操作。
+ * 与 lv00_free((void **) &void**) 不同，此函数接受标准的 void* 参数，
+ * 语义与标准 C 的 lv00_free() 一致，但不执行指针置 NULL 操作。
  *
  * 适用场景：
  *   - Python ctypes 调用：ctypes 无法方便地传递双重指针
- *   - 其他 FFI 绑定：需要标准 free(void*) 语义的语言绑定
+ *   - 其他 FFI 绑定：需要标准 lv00_free((void **) &void*) 语义的语言绑定
  *
  * @param ptr 要释放的内存指针，允许为 NULL（安全无操作）
  *
- * @note 对于 C 内部代码，应继续使用 lv00_free(void**) 以获得
+ * @note 对于 C 内部代码，应继续使用 lv00_free((void **) &void**) 以获得
  *       自动置 NULL 的安全保证。此函数仅用于 FFI 边界。
  */
 void lv00_free_ptr(void *ptr) {
@@ -2171,8 +2199,8 @@ void lv00_free_ptr(void *ptr) {
         }
         g_memory_stats.total_freed += freed_size;
         g_memory_stats.free_count++;
-        free(hdr);
+        lv00_free((void **) &hdr);
     } else {
-        free(ptr);
+        lv00_free((void **) &ptr);
     }
 }

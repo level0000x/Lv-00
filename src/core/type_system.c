@@ -27,7 +27,7 @@
  *          支持用户注册自定义推理规则以扩展推断能力。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - type_system.h        : 类型系统公共接口定义
@@ -688,6 +688,14 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
     if (depth >= TYPE_EQUIV_MAX_DEPTH) {
         return TYPE_EQUIV_UNKNOWN;
     }
+
+    /* TODO(v3.4.0): 当前仅通过深度计数防止无限递归，缺少访问标记（visited set）。
+     * 在存在共享子类型的图中，同一子类型可能被重复检查多次，
+     * 导致指数级时间复杂度。
+     * 实现策略：在 Lv00TypeContext 中添加 GHashTable *visited_pairs，
+     * 键为 (type1_ptr, type2_ptr) 的指针对，值忽略。
+     * 进入递归前检查是否已访问，退出时移除（回溯）。
+     * 预期收益：最坏情况从 O(2^d) 降至 O(d * n^2)，其中 d 为最大深度，n 为类型节点数。 */
 
     /* 相同指针 */
     if (type1 == type2)

@@ -5,6 +5,19 @@
  * 提供流式事件类型定义、回调注册机制和事件发射接口。
  * 支撑 Web 前端实时可视化和证明步骤动画渲染。
  *
+ * 【中文模块说明】
+ * stream.h 是 Lv-00 系统的实时事件推送模块，为 Web 前端提供引擎内部
+ * 状态的实时可视化数据。主要功能包括：
+ * - 事件类型体系：47 种事件类型，覆盖引擎全生命周期
+ *   （引擎启动/完成、归一化、重写、求解、证明、函数块、预设、冲突/错误等）
+ * - 回调注册：支持多回调，按注册顺序调用，可按事件类型掩码过滤
+ * - 发射模式：立即同步、缓冲、节流、惰性四种模式
+ * - JSON 序列化：将 StreamEvent 序列化为 JSON 或 JSON-RPC 格式
+ * - 异步事件队列：环形缓冲区 + 消费者线程，避免阻塞引擎主循环
+ * - 事件统计：记录各类事件的发射次数
+ * - 惰性拉取：消费者主动拉取事件，适用于按需处理场景
+ * - 便捷发射函数：针对节点、约束、进度、数值、图快照等场景的快捷方法
+ *
  * 功能概览:
  *   - 事件类型体系：30+ 种事件类型，覆盖引擎全生命周期
  *   - 回调注册：支持多回调，按注册顺序调用
@@ -140,8 +153,12 @@ typedef enum {
     STREAM_EVENT_GRAPH_SNAPSHOT, /* 图快照（用于前端同步） */
 } StreamEventType;
 
-/* 编译期校验：确保 STREAM_EVENT_TYPE_COUNT 与枚举值数量一致 */
-_Static_assert(STREAM_EVENT_TYPE_COUNT == 47,
+/*
+ * 编译期校验：确保 STREAM_EVENT_TYPE_COUNT 与枚举值数量一致。
+ * 使用枚举末尾值 + 1 而非硬编码数字，这样在新增事件类型时，
+ * 若忘记同步更新宏值，编译器会立即报错。
+ */
+_Static_assert(STREAM_EVENT_TYPE_COUNT == STREAM_EVENT_GRAPH_SNAPSHOT + 1,
                "STREAM_EVENT_TYPE_COUNT 与 StreamEventType 枚举值数量不一致，请同步更新");
 
 /* ============== 流式事件数据 ============== */
@@ -166,11 +183,10 @@ typedef struct StreamEvent {
     /**
      * 事件时间戳（毫秒）。
      *
-     * 注意 —— 该字段的精度依赖于平台：Windows 下使用 GetTickCount64()（精度
-     * 约 10-16ms），Linux/macOS 下使用 clock_gettime(CLOCK_MONOTONIC)（纳秒级
-     * 精度，截断至毫秒）。跨平台序列化时不宜直接比较原始值。
+     * 使用 int64_t 确保跨平台一致性：在 Windows（LLP64）和 Linux/macOS（LP64）
+     * 下均保证为 64 位有符号整数，避免 long 在不同平台上宽度不一致的问题。
      */
-    long timestamp_ms;
+    int64_t timestamp_ms;
 
     /* 步骤信息 */
     int step_number; /* 当前步骤编号（从 0 开始） */
@@ -646,7 +662,7 @@ void stream_reset_stats(StreamContext *ctx);
  * @param type  事件类型
  * @return 发射次数
  */
-long stream_get_event_count(StreamContext *ctx, StreamEventType type);
+int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type);
 
 /**
  * @brief 获取事件发射总数

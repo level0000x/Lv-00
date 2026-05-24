@@ -10,6 +10,20 @@
  * - 依赖类型
  * - 类型等价检查
  * - 类型推断
+ *
+ * 【中文模块说明】
+ * type_system.h 是 Lv-00 系统的类型理论实现模块，提供类似 Martin-Lof
+ * 类型论的类型系统。主要功能包括：
+ * - 宇宙层级：使用整数表示的无限层级体系（第0层：基本几何体，第1层：类型区域）
+ * - 类型种类：点、线段、区域、函数、乘积、和、类型变量、依赖类型、底部类型
+ * - 类型等价检查：支持直接比较和基于重写引擎的规范化等价检查
+ * - 类型推断：规则表驱动的自动类型推断，支持自定义规则注册
+ * - 类型变量实例化：多态类型的变量替换和绑定
+ * - 非良基模式：循环类型检测和非良基相容性检查
+ * - 依赖类型检查：对依赖函数类型 Π(x:A).B(x) 的兼容性验证
+ * - 路径探索器：交互式类型重写路径搜索（查找、预览、应用、撤销规则）
+ * - 重写路径记录：记录类型重写历史，支持回放到指定步骤
+ * - 节点-类型映射：外部映射表将类型区域附加到几何节点
  */
 
 #ifndef LV00_TYPE_SYSTEM_H
@@ -60,6 +74,49 @@ typedef enum {
 } TypeKind;
 
 /* ============== 类型区域 ============== */
+/**
+ * @struct TypeRegion
+ * @brief 类型区域 —— 表示类型系统中的一个类型实体
+ *
+ * 【设计说明：联合体风格平铺字段】
+ * TypeRegion 采用"联合体风格平铺字段"的设计，而非嵌套 union 或子结构体指针。
+ * 所有类型种类共享同一结构体，不同种类使用不同的字段子集。这样设计的原因：
+ *   1. 避免嵌套指针：减少间接寻址层级，提升缓存局部性
+ *   2. 减少内存分配：无需为每种类型单独分配子结构体
+ *   3. 简化内存管理：销毁时只需一个 type_region_destroy() 调用
+ *   4. 统一布局：所有类型区域在内存中具有相同的布局，便于数组存储
+ *
+ * 【各类型种类使用的字段组合】
+ *   - TYPE_KIND_POINT / TYPE_KIND_LINE_SEGMENT / TYPE_KIND_BOTTOM:
+ *       仅使用 id, kind, level；其余字段均未使用
+ *   - TYPE_KIND_REGION:
+ *       id, kind, level + contained_node_ids, contained_count
+ *   - TYPE_KIND_FUNCTION:
+ *       id, kind, level + input_type, output_type
+ *   - TYPE_KIND_PRODUCT:
+ *       id, kind, level + left_type, right_type
+ *   - TYPE_KIND_SUM:
+ *       id, kind, level + first_type, second_type
+ *   - TYPE_KIND_VARIABLE:
+ *       id, kind, level + variable_id, variable_name
+ *   - TYPE_KIND_DEPENDENT:
+ *       id, kind, level + param_node_id, body_type
+ *   - 通用字段（所有类型均可使用）:
+ *       alias_name, aliased_type（类型别名）, constraint_ids, constraint_count（约束条件）
+ *
+ * 【安全访问建议】
+ * 访问 TypeRegion 的特定字段前，必须先检查 kind 字段以确定当前类型种类。
+ * 例如：
+ *   if (tr->kind == TYPE_KIND_FUNCTION) {
+ *       // 此时可以安全访问 tr->input_type 和 tr->output_type
+ *   }
+ * 不要对不匹配的种类访问对应字段，否则可能读到未初始化的值或悬空指针。
+ *
+ * 【警告：未使用字段为未初始化值】
+ * 对于当前 kind 不涉及的字段，其值是未初始化的（创建时通常为零初始化，
+ * 但后续操作可能不会维护这些字段）。依赖未使用字段的值会导致未定义行为。
+ * 始终根据 kind 字段判断哪些字段是有效的。
+ */
 struct TypeRegion {
     int id;              /* 类型区域ID */
     TypeKind kind;       /* 类型种类 */
@@ -204,6 +261,28 @@ bool type_rewrite_path_replay(TypeRewritePath *path, int target_step);
 const TypeRewritePath *type_system_get_rewrite_path(const TypeSystem *ts);
 
 /* ============== 类型系统上下文 ============== */
+/**
+ * @struct TypeSystem
+ * @brief 类型系统 —— 管理所有类型区域、类型变量、重写规则和推断规则的核心上下文
+ *
+ * 【动态数组与容量同步】
+ * TypeSystem 包含多个动态数组（type_regions, type_vars, node_type_mappings,
+ * inference_rules 等），每个数组都有对应的 count 和 capacity 字段。
+ * 修改 count 时必须同步更新 capacity：
+ *   - 当 count 达到 capacity 时，必须先扩容（通常为 2 倍），再添加元素
+ *   - 直接修改 type_region_count 而不检查/更新 type_region_capacity 会导致
+ *     数组越界写入，引发内存损坏
+ *   - 建议仅通过 type_system_create() / type_system_destroy() 及各
+ *     type_create_*() 工厂函数操作这些数组，避免手动修改 count/capacity
+ *
+ * 【访问器函数建议】
+ * 建议使用本头文件中声明的访问器函数（如 type_create_*(),
+ * type_check_equivalence(), type_infer_node() 等）而非直接访问结构体内部数组。
+ * 直接访问内部数组的风险：
+ *   1. 可能跳过容量检查和边界验证
+ *   2. 可能破坏类型系统的内部不变式（如良基性、累积性约束）
+ *   3. 未来版本中内部布局可能变化，直接访问将导致不兼容
+ */
 struct TypeSystem {
     TypeRegion **type_regions; /* 类型区域数组 */
     int type_region_count;     /* 类型区域数量 */
@@ -499,7 +578,7 @@ const char *type_check_result_to_string(TypeCheckResult result);
 /**
  * 打印类型
  */
-void type_print(TypeRegion *tr, int indent);
+void type_print(const TypeRegion *tr, int indent);
 
 /* ============== 规则表驱动的类型推断 ============== */
 

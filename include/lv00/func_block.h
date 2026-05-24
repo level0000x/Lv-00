@@ -1,6 +1,27 @@
-/**
- * @file func_block.h
- * @brief 函数块系统 - 打包、例化、确定性检查、多解选择器
+/* ========================================================================
+ * 模块名称：函数块系统 (func_block)
+ * 功能概述：提供函数块的打包、例化、确定性检查、多解选择器等核心功能。
+ *          函数块是 Lv-00 系统中封装几何构造的基本单元，支持将一组
+ *          内部节点和约束打包为可复用的"黑盒"，通过输入/输出端口
+ *          与外部约束图交互。
+ *
+ * 主要 API：
+ *   - func_block_create / func_block_destroy  — 创建/销毁函数块
+ *   - func_block_pack / func_block_pack_ex    — 打包操作
+ *   - func_block_instantiate                   — 例化操作
+ *   - func_block_determinism_check_static     — 静态确定性检查
+ *   - func_block_determinism_check_dynamic    — 动态确定性检查
+ *   - func_block_compose / func_block_product — 组合子
+ *   - selector_create / selector_apply        — 多解选择器
+ *
+ * 使用示例：
+ *   FuncBlock *fb = func_block_create(1);
+ *   func_block_set_internal_nodes(fb, node_ids, count);
+ *   func_block_set_input_ports(fb, in_ports, in_count);
+ *   func_block_set_output_ports(fb, out_ports, out_count);
+ *   PackConfig config = { ... };
+ *   FuncBlock *result;
+ *   PackResult pr = func_block_pack_ex(graph, &config, &result);
  *
  * 根据 Lv-00 设计文档第8节实现：
  * - 打包操作（PackFunction）
@@ -8,6 +29,11 @@
  * - 多解选择器
  * - 部分应用（柯里化）
  * - 函数块组合子
+ * ======================================================================== */
+
+/**
+ * @file func_block.h
+ * @brief 函数块系统 - 打包、例化、确定性检查、多解选择器
  */
 
 #ifndef LV00_FUNC_BLOCK_H
@@ -219,12 +245,22 @@ typedef struct {
  * @brief 创建函数块
  * @param id 函数块ID
  * @return 函数块指针，失败返回NULL
+ *
+ * @note 所有权：调用者获得函数块的所有权，负责在不再使用时
+ *       调用 func_block_destroy() 释放。函数块内部所有动态分配的
+ *       成员（节点数组、端口数组、名称、描述等）均由 func_block_destroy()
+ *       统一释放，调用者不应单独释放这些成员。
  */
 FuncBlock *func_block_create(int id);
 
 /**
- * @brief 销毁函数块
- * @param fb 函数块指针（可为NULL）
+ * @brief 销毁函数块，释放所有内部资源
+ * @param fb 函数块指针（可为NULL，NULL 时安全返回）
+ *
+ * @note 释放责任：此函数会递归释放函数块的所有动态成员，
+ *       包括内部节点数组、输入/输出端口数组、端口依赖数组、
+ *       选择器（通过 selector_destroy）、前置条件数组、名称和描述字符串。
+ *       调用后 fb 指针不可再使用。
  */
 void func_block_destroy(FuncBlock *fb);
 
@@ -260,6 +296,11 @@ bool func_block_set_output_ports(FuncBlock *fb, const int *port_ids, int count);
  * @param fb 函数块
  * @param selector 选择器（函数块接管所有权）
  * @return true 成功，false 失败
+ *
+ * @note 所有权转移：函数块接管 selector 的所有权。
+ *       如果函数块已有关联的选择器，旧选择器会被自动销毁。
+ *       调用者传入 selector 后不应再使用或释放该指针。
+ *       函数块销毁时会自动释放关联的选择器。
  */
 bool func_block_set_selector(FuncBlock *fb, SolutionSelector *selector);
 
@@ -353,6 +394,9 @@ const char *func_block_get_description(const FuncBlock *fb);
  *
  * @param src 源函数块
  * @return 新创建的函数块副本，失败返回 NULL
+ *
+ * @note 所有权：调用者获得新函数块的所有权，负责在不再使用时
+ *       调用 func_block_destroy() 释放。源函数块的所有权不受影响。
  */
 FuncBlock *func_block_copy(const FuncBlock *src);
 
@@ -366,6 +410,10 @@ FuncBlock *func_block_copy(const FuncBlock *src);
  * @param out_conflicts 输出的跨边界约束数组
  * @param out_conflict_count 输出的跨边界约束数量
  * @return 是否存在跨边界约束
+ *
+ * @note 所有权：当返回 true 且存在跨边界约束时，通过 out_conflicts 输出
+ *       新分配的约束数组，调用者负责使用 lv00_free() 释放该数组。
+ *       当返回 false 时，*out_conflicts 设为 NULL，无需释放。
  */
 bool func_block_detect_cross_boundary(ConstraintGraph *graph, const int *internal_node_ids, int internal_count,
                                       CrossBoundaryConstraint **out_conflicts, int *out_conflict_count);
@@ -376,6 +424,10 @@ bool func_block_detect_cross_boundary(ConstraintGraph *graph, const int *interna
  * @param config 打包配置
  * @param out_func_block 输出的函数块
  * @return 打包结果
+ *
+ * @note 所有权：成功时通过 out_func_block 输出新创建的函数块，
+ *       调用者获得其所有权，负责在不再使用时调用 func_block_destroy() 释放。
+ *       失败时 *out_func_block 设为 NULL，无需释放。
  */
 PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, FuncBlock **out_func_block);
 
@@ -392,6 +444,10 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
  * @param cross_boundary_count 跨边界约束数量
  * @param out_func_block 输出的函数块
  * @return 打包结果
+ *
+ * @note 所有权：成功时通过 out_func_block 输出新创建的函数块，
+ *       调用者获得其所有权，负责在不再使用时调用 func_block_destroy() 释放。
+ *       失败时 *out_func_block 设为 NULL，无需释放。
  */
 PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids, int internal_count,
                            const int *input_port_ids, int input_count, const int *output_port_ids, int output_count,
@@ -440,8 +496,12 @@ DeterminismState func_block_verify_determinism(FuncBlock *fb, ConstraintGraph *g
  * @param out_new_node_ids 输出的新节点ID数组
  * @param out_new_node_count 输出的新节点数量
  * @return 例化结果
+ *
+ * @note 所有权：成功时通过 out_new_node_ids 输出新分配的节点ID数组，
+ *       调用者负责使用 lv00_free() 释放该数组。
+ *       失败时 *out_new_node_ids 设为 NULL，无需释放。
  */
-InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, int *arg_mappings, int arg_count,
+InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, const int *arg_mappings, int arg_count,
                                          int **out_new_node_ids, int *out_new_node_count);
 
 /**
@@ -452,8 +512,12 @@ InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, 
  * @param fixed_count 固定的实参数量
  * @param out_new_fb 输出的新函数块
  * @return 是否成功
+ *
+ * @note 所有权：成功时通过 out_new_fb 输出新创建的函数块，
+ *       调用者获得其所有权，负责在不再使用时调用 func_block_destroy() 释放。
+ *       原函数块 fb 的所有权不受影响。
  */
-bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, int *fixed_arg_mappings, int fixed_count,
+bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, const int *fixed_arg_mappings, int fixed_count,
                               FuncBlock **out_new_fb);
 
 /**
@@ -465,6 +529,10 @@ bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, int *fixed_
  * @param output_node_ids 输出：内部节点到外部节点ID的映射
  * @param output_node_count 输出：映射数量
  * @return 例化结果
+ *
+ * @note 所有权：成功时通过 output_node_ids 输出新分配的节点ID数组，
+ *       调用者负责使用 lv00_free() 释放该数组。
+ *       失败时 *output_node_ids 设为 NULL，无需释放。
  */
 InstantiateResult func_block_instantiate_capture_avoiding(FuncBlock *block, const int *actual_arg_nodes, int arg_count,
                                                           ConstraintGraph *target_graph, int **output_node_ids,
@@ -476,6 +544,10 @@ InstantiateResult func_block_instantiate_capture_avoiding(FuncBlock *block, cons
  * @brief 创建选择器
  * @param type 选择器类型
  * @return 选择器指针，失败返回NULL
+ *
+ * @note 所有权：调用者获得选择器的所有权，负责在不再使用时
+ *       调用 selector_destroy() 释放，或通过 func_block_set_selector()
+ *       将所有权转移给函数块。
  */
 SolutionSelector *selector_create(SelectorType type);
 
@@ -484,6 +556,8 @@ SolutionSelector *selector_create(SelectorType type);
  * @param type 选择器类型
  * @param reference_node_id 参考节点ID
  * @return 选择器指针，失败返回NULL
+ *
+ * @note 所有权：同 selector_create()，调用者获得所有权。
  */
 SolutionSelector *selector_create_with_reference(SelectorType type, int reference_node_id);
 
@@ -492,12 +566,19 @@ SolutionSelector *selector_create_with_reference(SelectorType type, int referenc
  * @param func 自定义选择函数
  * @param user_data 用户数据
  * @return 选择器指针，失败返回NULL
+ *
+ * @note 所有权：同 selector_create()，调用者获得所有权。
+ *       user_data 指针由调用者管理生命周期，选择器不会释放它。
  */
 SolutionSelector *selector_create_custom(SelectorFunction func, void *user_data);
 
 /**
- * @brief 销毁选择器
- * @param selector 选择器指针（可为NULL）
+ * @brief 销毁选择器，释放其内部资源
+ * @param selector 选择器指针（可为NULL，NULL 时安全返回）
+ *
+ * @note 释放责任：释放选择器及其内部资源。
+ *       如果选择器已通过 func_block_set_selector() 关联到函数块，
+ *       函数块销毁时会自动调用此函数，调用者不应重复释放。
  */
 void selector_destroy(SolutionSelector *selector);
 
@@ -527,6 +608,10 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
  * @param graph 约束图
  * @param out_composed 输出的组合函数块
  * @return 是否成功
+ *
+ * @note 所有权：成功时通过 out_composed 输出新创建的函数块，
+ *       调用者获得其所有权，负责在不再使用时调用 func_block_destroy() 释放。
+ *       原函数块 f 和 g 的所有权不受影响。
  */
 bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_composed);
 
@@ -537,6 +622,8 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
  * @param graph 约束图
  * @param out_product 输出的乘积函数块
  * @return 是否成功
+ *
+ * @note 所有权：同 func_block_compose()，成功时调用者获得输出函数块的所有权。
  */
 bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_product);
 

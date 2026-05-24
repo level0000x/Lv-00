@@ -1,10 +1,30 @@
+/* ========================================================================
+ * 模块名称：符号坐标系统 (symbolic_coord)
+ * 功能概述：提供四种坐标类型（有理数 Rational、代数数 Algebraic、
+ *          二次扩张数 Quadratic、超越数 Transcendental）的表示与运算。
+ *          包含创建、销毁、四则运算、序列化、比较、位电路溢出检测、
+ *          信任颜色管理、A/B 计划切换机制和用户交互式跳闸回调。
+ *
+ * 主要 API：
+ *   - symbolic_coord_create_rational / algebraic / ... — 创建符号坐标
+ *   - symbolic_coord_add / subtract / multiply / divide — 四则运算
+ *   - symbolic_coord_compare                          — 比较
+ *   - symbolic_coord_serialize                        — 序列化
+ *   - check_digit_circuit / circuit_handle_trip       — 位电路管理
+ *   - symbolic_coord_downgrade_to_amber               — 信任降级
+ *   - algebraic_get_plan / algebraic_set_plan         — A/B 计划切换
+ *
+ * 使用示例：
+ *   SymbolicCoord *x = symbolic_coord_create_rational(3, 4);
+ *   SymbolicCoord *y = symbolic_coord_create_transcendental("pi");
+ *   SymbolicCoord *sum = symbolic_coord_add(x, y);
+ *   CircuitStatus cs = check_digit_circuit(sum);
+ *
+ * ======================================================================== */
+
 /**
  * @file symbolic_coord.h
  * @brief 符号坐标系统 —— 有理数、代数数、二次数、超越数的表示与运算
- *
- * 提供四种坐标类型（Rational / Algebraic / Quadratic / Transcendental）的
- * 创建、销毁、四则运算、序列化、比较以及位电路溢出检测与信任颜色管理。
- * 同时包含 A/B 计划切换机制和用户交互式跳闸回调。
  */
 
 #ifndef LV00_SYMBOLIC_COORD_H

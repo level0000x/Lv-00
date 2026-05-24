@@ -5,6 +5,9 @@
  * @details 实现高性能线程池，支持工作窃取、任务优先级、任务依赖等功能。
  *          跨平台支持 Windows 和 POSIX 系统。
  *
+ * 设计说明：本模块使用标准库 malloc/free/realloc/calloc 而非 lv00_malloc/lv00_free，
+ * 原因同 memory_pool.c：线程池是底层基础设施，不能依赖可能使用线程池的上层分配器。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */
@@ -36,8 +39,8 @@ typedef HANDLE Lv00Thread;
 #define LV00_COND_SIGNAL(c) WakeConditionVariable(&(c))
 #define LV00_COND_BROADCAST(c) WakeAllConditionVariable(&(c))
 
-#define LV99_THREAD_FUNC DWORD WINAPI
-#define LV99_THREAD_RETURN 0
+#define LV00_THREAD_FUNC DWORD WINAPI
+#define LV00_THREAD_RETURN 0
 
 #else /* POSIX */
 #include <pthread.h>
@@ -59,8 +62,8 @@ typedef pthread_t Lv00Thread;
 #define LV00_COND_SIGNAL(c) pthread_cond_signal(&(c))
 #define LV00_COND_BROADCAST(c) pthread_cond_broadcast(&(c))
 
-#define LV99_THREAD_FUNC void *
-#define LV99_THREAD_RETURN NULL
+#define LV00_THREAD_FUNC void *
+#define LV00_THREAD_RETURN NULL
 
 #endif
 
@@ -177,7 +180,7 @@ static int get_cpu_count(void) {
 /* ============== 优先级队列操作 ============== */
 
 static void priority_queue_init(PriorityTaskQueue *queue, int capacity) {
-    queue->tasks = (Lv00Task **)malloc(capacity * sizeof(Lv00Task *));
+    queue->tasks = (Lv00Task **)lv00_malloc(capacity * sizeof(Lv00Task *));
     queue->count = 0;
     queue->capacity = capacity;
     LV00_MUTEX_INIT(queue->mutex);
@@ -185,7 +188,7 @@ static void priority_queue_init(PriorityTaskQueue *queue, int capacity) {
 
 static void priority_queue_destroy(PriorityTaskQueue *queue) {
     if (queue->tasks) {
-        free(queue->tasks);
+        lv00_free((void **) &queue->tasks);
         queue->tasks = NULL;
     }
     LV00_MUTEX_DESTROY(queue->mutex);
@@ -196,10 +199,14 @@ static void priority_queue_destroy(PriorityTaskQueue *queue) {
 static void priority_queue_push(PriorityTaskQueue *queue, Lv00Task *task) {
     LV00_MUTEX_LOCK(queue->mutex);
 
-    /* 扩容检查 */
+    /* 扩容检查（含溢出保护） */
     if (queue->count >= queue->capacity) {
+        if (queue->capacity > INT_MAX / LV00_QUEUE_GROWTH_FACTOR) {
+            LV00_MUTEX_UNLOCK(queue->mutex);
+            return; /* 容量已达上限 */
+        }
         int new_cap = queue->capacity * LV00_QUEUE_GROWTH_FACTOR;
-        Lv00Task **new_tasks = (Lv00Task **)realloc(queue->tasks, new_cap * sizeof(Lv00Task *));
+        Lv00Task **new_tasks = (Lv00Task **)lv00_realloc(queue->tasks, (size_t)new_cap * sizeof(Lv00Task *));
         if (!new_tasks) {
             LV00_MUTEX_UNLOCK(queue->mutex);
             return;
@@ -251,23 +258,34 @@ static bool priority_queue_is_empty(PriorityTaskQueue *queue) {
 static void task_registry_init(Lv00ThreadPool *pool) {
     pool->registry_capacity = LV00_POOL_QUEUE_INIT_CAP;
     pool->registry_count = 0;
-    pool->task_registry = (Lv00Task **)calloc(pool->registry_capacity, sizeof(Lv00Task *));
+    pool->task_registry = (Lv00Task **)lv00_calloc(pool->registry_capacity, sizeof(Lv00Task *));
 }
 
 static void task_registry_destroy(Lv00ThreadPool *pool) {
     if (pool->task_registry) {
-        free(pool->task_registry);
+        lv00_free((void **) &pool->task_registry);
         pool->task_registry = NULL;
     }
     pool->registry_count = 0;
     pool->registry_capacity = 0;
 }
 
+/**
+ * @brief 向任务注册表添加任务（线程安全）
+ *
+ * 注意：调用方必须持有 pool_mutex，或在已加锁的上下文中调用。
+ * 扩容失败时静默忽略，不改变注册表状态。
+ */
 static void task_registry_add(Lv00ThreadPool *pool, Lv00Task *task) {
+    /* 扩容检查：当前注册数量已达容量上限时进行指数扩容 */
     if (pool->registry_count >= pool->registry_capacity) {
+        /* 溢出保护：防止 capacity * 2 超出 int 范围 */
+        if (pool->registry_capacity > INT_MAX / LV00_QUEUE_GROWTH_FACTOR) {
+            return; /* 容量已达上限，无法继续扩容 */
+        }
         int new_cap = pool->registry_capacity * LV00_QUEUE_GROWTH_FACTOR;
-        Lv00Task **new_reg = (Lv00Task **)realloc(pool->task_registry, new_cap * sizeof(Lv00Task *));
-        if (!new_reg) return;
+        Lv00Task **new_reg = (Lv00Task **)lv00_realloc(pool->task_registry, (size_t)new_cap * sizeof(Lv00Task *));
+        if (!new_reg) return; /* 扩容失败，静默忽略 */
         pool->task_registry = new_reg;
         pool->registry_capacity = new_cap;
     }
@@ -469,7 +487,7 @@ static void *worker_thread_func(void *arg)
         LV00_MUTEX_UNLOCK(pool->pool_mutex);
     }
 
-    return LV99_THREAD_RETURN;
+    return LV00_THREAD_RETURN;
 }
 
 /* ============== 线程池生命周期 ============== */
@@ -491,14 +509,15 @@ Lv00ThreadPool *lv00_thread_pool_create(const Lv00ThreadPoolConfig *config) {
         config = &default_cfg;
     }
 
-    Lv00ThreadPool *pool = (Lv00ThreadPool *)calloc(1, sizeof(Lv00ThreadPool));
+    Lv00ThreadPool *pool = (Lv00ThreadPool *)lv00_calloc(1, sizeof(Lv00ThreadPool));
     if (!pool) return NULL;
 
     /* 配置 */
     if (config->name) {
         strncpy(pool->name, config->name, sizeof(pool->name) - 1);
     } else {
-        strcpy(pool->name, "Lv00ThreadPool");
+        strncpy(pool->name, "Lv00ThreadPool", sizeof(pool->name) - 1);
+        pool->name[sizeof(pool->name) - 1] = '\0';
     }
 
     pool->thread_count = (config->thread_count > 0) ?
@@ -529,17 +548,17 @@ Lv00ThreadPool *lv00_thread_pool_create(const Lv00ThreadPoolConfig *config) {
     task_registry_init(pool);
 
     /* 创建工作线程 */
-    pool->workers = (WorkerThread **)calloc(pool->thread_count, sizeof(WorkerThread *));
+    pool->workers = (WorkerThread **)lv00_calloc(pool->thread_count, sizeof(WorkerThread *));
     if (!pool->workers) {
         priority_queue_destroy(&pool->global_queue);
         task_registry_destroy(pool);
         LV00_MUTEX_DESTROY(pool->pool_mutex);
-        free(pool);
+        lv00_free((void **) &pool);
         return NULL;
     }
 
     for (int i = 0; i < pool->thread_count; i++) {
-        WorkerThread *worker = (WorkerThread *)calloc(1, sizeof(WorkerThread));
+        WorkerThread *worker = (WorkerThread *)lv00_calloc(1, sizeof(WorkerThread));
         if (!worker) continue;
 
         worker->id = i;
@@ -587,11 +606,11 @@ void lv00_thread_pool_destroy(Lv00ThreadPool *pool, bool immediate) {
         pthread_join(worker->thread, NULL);
 #endif
 
-        free(worker);
+        lv00_free((void **) &worker);
     }
 
     /* 清理资源 */
-    free(pool->workers);
+    lv00_free((void **) &pool->workers);
     priority_queue_destroy(&pool->global_queue);
     task_registry_destroy(pool);
 
@@ -600,13 +619,13 @@ void lv00_thread_pool_destroy(Lv00ThreadPool *pool, bool immediate) {
     LV00_COND_DESTROY(pool->task_completed);
     LV00_COND_DESTROY(pool->all_completed);
 
-    free(pool);
+    lv00_free((void **) &pool);
 }
 
 /* ============== 任务管理 ============== */
 
 Lv00Task *lv00_task_create(Lv00TaskFunc func, void *user_data, const char *name) {
-    Lv00Task *task = (Lv00Task *)calloc(1, sizeof(Lv00Task));
+    Lv00Task *task = (Lv00Task *)lv00_calloc(1, sizeof(Lv00Task));
     if (!task) return NULL;
 
     task->func = func;
@@ -626,10 +645,10 @@ void lv00_task_destroy(Lv00Task *task) {
     if (!task) return;
 
     if (task->depends_on) {
-        free(task->depends_on);
+        lv00_free((void **) &task->depends_on);
     }
 
-    free(task);
+    lv00_free((void **) &task);
 }
 
 void lv00_task_set_priority(Lv00Task *task, Lv00TaskPriority priority) {
@@ -649,7 +668,7 @@ int lv00_task_add_dependency(Lv00Task *task, uint64_t depends_on_task_id) {
     if (!task) return -1;
 
     int new_count = task->depends_count + 1;
-    uint64_t *new_deps = (uint64_t *)realloc(task->depends_on, new_count * sizeof(uint64_t));
+    uint64_t *new_deps = (uint64_t *)lv00_realloc(task->depends_on, new_count * sizeof(uint64_t));
     if (!new_deps) return -1;
 
     task->depends_on = new_deps;
@@ -809,7 +828,7 @@ int lv00_thread_pool_cancel_task(Lv00ThreadPool *pool, uint64_t task_id) {
 /* ============== 任务组 ============== */
 
 Lv00TaskGroup *lv00_task_group_create(const char *name) {
-    Lv00TaskGroup *group = (Lv00TaskGroup *)calloc(1, sizeof(Lv00TaskGroup));
+    Lv00TaskGroup *group = (Lv00TaskGroup *)lv00_calloc(1, sizeof(Lv00TaskGroup));
     if (!group) return NULL;
 
     if (name) {
@@ -821,7 +840,7 @@ Lv00TaskGroup *lv00_task_group_create(const char *name) {
 
 void lv00_task_group_destroy(Lv00TaskGroup *group) {
     if (group) {
-        free(group);
+        lv00_free((void **) &group);
     }
 }
 
@@ -910,7 +929,7 @@ static int parallel_for_task_func(void *data) {
     if (pfd && pfd->func) {
         pfd->func(pfd->index, pfd->user_data);
     }
-    free(pfd);
+    lv00_free((void **) &pfd);
     return 0;
 }
 
@@ -927,7 +946,7 @@ int lv00_thread_pool_parallel_for(Lv00ThreadPool *pool,
 
     /* 为每个迭代创建任务 */
     for (int64_t i = start; i < end; i += step) {
-        ParallelForData *data = (ParallelForData *)malloc(sizeof(ParallelForData));
+        ParallelForData *data = (ParallelForData *)lv00_malloc(sizeof(ParallelForData));
         if (!data) continue;
 
         data->index = i;

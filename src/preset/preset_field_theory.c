@@ -791,8 +791,6 @@ bool preset_field_theory_get_names(char ***out_names, int *out_count) {
         return false;
     }
 
-    *out_count = FIELD_THEORY_PRESET_COUNT;
-
     /* 分配名称数组 */
     char **names = (char **) lv00_malloc(FIELD_THEORY_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
@@ -857,5 +855,6 @@ bool preset_field_theory_get_names(char ***out_names, int *out_count) {
     }
 
     *out_names = names;
+    *out_count = FIELD_THEORY_PRESET_COUNT;
     return true;
 }

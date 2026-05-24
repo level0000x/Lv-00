@@ -29,11 +29,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 8)
         return 0;
 
-    /* 使用输入数据作为随机种子 */
-    uint32_t seed = 0;
-    for (size_t i = 0; i < 4 && i < size; i++) {
-        seed = (seed << 8) | data[i];
-    }
+    /* [P1 修复] 删除未使用的 seed 变量，原代码计算了 seed 但从未使用 */
+    /* 如需引入随机性，应使用 data 数组直接驱动（当前已通过 data[] 实现） */
 
     /* 创建约束图 */
     ConstraintGraph *g = graph_create();

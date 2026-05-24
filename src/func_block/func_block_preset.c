@@ -8,7 +8,7 @@
  *          - 实例化引擎
  *          - 文档生成
  *
- * @version 5.0.0
+ * @version 3.3.0
  */
 
 #include "func_block_preset.h"
@@ -40,8 +40,8 @@
 /** 最大参数数量 */
 #define MAX_PARAMS LV00_PRESET_MAX_PARAMS
 
-/** 字符串缓冲区大小 */
-#define BUFFER_SIZE 4096
+/** 预设序列化缓冲区大小（与 LV00_SERIALIZE_BUFFER_INITIAL_SIZE 保持一致的值 1024） */
+#define PRESET_SERIALIZE_BUFFER_SIZE 1024
 
 /* ============================================================
  * 内部数据结构
@@ -81,17 +81,17 @@ static struct {
 
 #ifdef _WIN32
 static CRITICAL_SECTION g_preset_mutex;
-static bool g_preset_mutex_initialized = false;
+static LONG g_preset_mutex_initialized = 0;
 #else
 static pthread_mutex_t g_preset_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-/* 互斥锁操作辅助函数 */
+/* 互斥锁操作辅助函数（线程安全，使用原子操作避免竞态条件） */
 static void preset_library_lock(void) {
 #ifdef _WIN32
-    if (!g_preset_mutex_initialized) {
+    /* 使用原子操作确保互斥锁只初始化一次，避免 TOCTOU 竞态条件 */
+    if (InterlockedCompareExchange(&g_preset_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_preset_mutex);
-        g_preset_mutex_initialized = true;
     }
     EnterCriticalSection(&g_preset_mutex);
 #else
@@ -1811,12 +1811,29 @@ size_t func_block_preset_generate_index(char *out_buffer, size_t buffer_size) {
     written += (size_t) n;
     remaining -= (size_t) n;
 
-    /* 按类别分组 */
-    const char *categories[] = {"几何构造", "度量计算", "几何变换", "代数运算", "逻辑推导"};
-    PresetCategory cat_enums[] = {PRESET_CATEGORY_CONSTRUCTION, PRESET_CATEGORY_MEASUREMENT,
-                                  PRESET_CATEGORY_TRANSFORMATION, PRESET_CATEGORY_ALGEBRAIC, PRESET_CATEGORY_LOGIC};
+    /* 按类别分组（覆盖所有 PresetCategory 枚举值，不含哨兵 PRESET_CATEGORY_COUNT） */
+    const char *categories[] = {
+        "几何构造", "度量计算", "几何变换", "代数运算", "逻辑推导",
+        "分析运算", "数论运算", "群论运算", "环论运算", "域论运算",
+        "拓扑构造", "线性代数", "组合数学", "复分析", "概率统计",
+        "几何", "代数", "范畴论", "集合论", "自定义/扩展类别",
+        "图论", "微分几何", "数值分析", "优化理论", "数理逻辑"
+    };
+    PresetCategory cat_enums[] = {
+        PRESET_CATEGORY_CONSTRUCTION, PRESET_CATEGORY_MEASUREMENT,
+        PRESET_CATEGORY_TRANSFORMATION, PRESET_CATEGORY_ALGEBRAIC, PRESET_CATEGORY_LOGIC,
+        PRESET_CATEGORY_ANALYSIS, PRESET_CATEGORY_NUMBER_THEORY,
+        PRESET_CATEGORY_GROUP_THEORY, PRESET_CATEGORY_RING_THEORY, PRESET_CATEGORY_FIELD_THEORY,
+        PRESET_CATEGORY_TOPOLOGY, PRESET_CATEGORY_LINEAR_ALGEBRA,
+        PRESET_CATEGORY_COMBINATORICS, PRESET_CATEGORY_COMPLEX_ANALYSIS, PRESET_CATEGORY_PROBABILITY,
+        PRESET_CATEGORY_GEOMETRY, PRESET_CATEGORY_ALGEBRA, PRESET_CATEGORY_CATEGORY_THEORY,
+        PRESET_CATEGORY_SET_THEORY, PRESET_CATEGORY_CUSTOM,
+        PRESET_CATEGORY_GRAPH_THEORY, PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY,
+        PRESET_CATEGORY_NUMERICAL, PRESET_CATEGORY_OPTIMIZATION, PRESET_CATEGORY_MATH_LOGIC
+    };
+    const int category_count = (int)(sizeof(cat_enums) / sizeof(cat_enums[0]));
 
-    for (int c = 0; c < 5; c++) {
+    for (int c = 0; c < category_count; c++) {
         n = snprintf(out_buffer + written, remaining, "### %s\n\n", categories[c]);
         if (n < 0)
             return buffer_size + 1;

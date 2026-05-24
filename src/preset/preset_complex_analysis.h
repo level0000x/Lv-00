@@ -11,7 +11,7 @@
  *   Rouché定理判定、辐角原理
  *
  * @module ComplexAnalysis
- * @category PRESET_EXT_ANALYSIS
+ * @category PRESET_CATEGORY_ANALYSIS
  * @version 1.0.0
  * @author Lv-00 开发团队
  */

@@ -23,6 +23,7 @@
 
 #include "debug.h"
 #include "lv00_internal.h"
+#include "lv00_utils.h"  /* 提供 lv00_malloc/lv00_free/lv00_strdup */
 #include "mpz_poly.h"
 
 /*
@@ -42,7 +43,7 @@
  * @param b 第二个信任等级
  * @return 两者中较低的信任等级
  */
-#define MIN_TRUST(a, b) (((a) < (b)) ? (a) : (b))
+#define LV00_MIN_TRUST(a, b) (((a) < (b)) ? (a) : (b))
 
 /**
  * 区间中点系数：用于计算隔离区间的中点值。
@@ -73,7 +74,15 @@
  * NOTE: 使用线程局部存储以保证多线程环境下的安全性。
  *       每个线程拥有独立的溢出上下文。
  * ============================================================ */
-static LV00_THREAD_LOCAL struct OverflowContext g_overflow_context = {NULL, NULL, RATIONAL, RATIONAL, 0, NULL, false};
+static LV00_THREAD_LOCAL struct OverflowContext g_overflow_context = {
+    .last_result = NULL,
+    .last_operation = NULL,
+    .left_type = RATIONAL,
+    .right_type = RATIONAL,
+    .overflow_count = 0,
+    .frozen_point = NULL,
+    .has_frozen_point = false
+};
 
 /* ============================================================
  * A/B Plan switching (Section 1.6 of design_v2.9.md)
@@ -151,6 +160,13 @@ Rational *rational_create(int64_t numerator, uint64_t denominator) {
  * @return 新创建的有理数对象，失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominator) {
+    /* 参数有效性检查：分子和分母均不能为 NULL，分母不能为零 */
+    if (!numerator) {
+        return NULL;
+    }
+    if (!denominator || mpz_sgn(denominator) == 0) {
+        return NULL;
+    }
     Rational *r = lv00_malloc(sizeof(Rational));
     if (!r)
         return NULL;
@@ -180,6 +196,10 @@ void rational_destroy(Rational *r) {
 }
 
 int rational_compare(const Rational *a, const Rational *b) {
+    if (!a || !b) {
+        /* 无效参数：返回非零值表示不相等 */
+        return (a != b) ? ((a ? 1 : -1)) : 0;
+    }
     return mpq_cmp(a->value, b->value);
 }
 
@@ -191,6 +211,7 @@ int rational_compare(const Rational *a, const Rational *b) {
  * @return 新的有理数对象表示 a + b，失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_add(const Rational *a, const Rational *b) {
+    if (!a || !b) return NULL;
     Rational *r = lv00_malloc(sizeof(Rational));
     if (!r)
         return NULL;
@@ -200,6 +221,7 @@ Rational *rational_add(const Rational *a, const Rational *b) {
 }
 
 Rational *rational_subtract(const Rational *a, const Rational *b) {
+    if (!a || !b) return NULL;
     Rational *r = lv00_malloc(sizeof(Rational));
     if (!r)
         return NULL;
@@ -216,6 +238,7 @@ Rational *rational_subtract(const Rational *a, const Rational *b) {
  * @return 新的有理数对象表示 a * b，失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_multiply(const Rational *a, const Rational *b) {
+    if (!a || !b) return NULL;
     Rational *r = lv00_malloc(sizeof(Rational));
     if (!r)
         return NULL;
@@ -232,6 +255,8 @@ Rational *rational_multiply(const Rational *a, const Rational *b) {
  * @return 新的有理数对象表示 a / b，除数为零或失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_divide(const Rational *a, const Rational *b) {
+    /* NULL 指针检查，与 rational_add / rational_multiply 保持一致 */
+    if (!a || !b) return NULL;
     if (mpq_cmp_ui(b->value, 0, 1) == 0)
         return NULL;
     Rational *r = lv00_malloc(sizeof(Rational));
@@ -276,8 +301,8 @@ char *rational_serialize(const Rational *r) {
     char *num_str = mpz_get_str(NULL, 10, mpq_numref(r->value));
     char *den_str = mpz_get_str(NULL, 10, mpq_denref(r->value));
     snprintf(buf, buf_size, "%s/%s", num_str, den_str);
-    free(num_str);
-    free(den_str);
+    lv00_free((void **) &num_str);
+    lv00_free((void **) &den_str);
     return buf;
 }
 
@@ -321,6 +346,10 @@ static CircuitStatus check_rational_circuit(const Rational *r) {
         return CIRCUIT_STATUS_OK;
     size_t num_bits = mpz_sizeinbase(mpq_numref(r->value), 2);
     size_t den_bits = mpz_sizeinbase(mpq_denref(r->value), 2);
+    /* 溢出保护：防止 num_bits + den_bits 在 size_t 范围内溢出 */
+    if (num_bits > SIZE_MAX - den_bits) {
+        return CIRCUIT_STATUS_TRIPPED;
+    }
     if (num_bits + den_bits > LV00_BIT_CUTOFF_THRESHOLD) {
         return CIRCUIT_STATUS_TRIPPED;
     }
@@ -1049,7 +1078,7 @@ static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     double actual_val = a_val + b_val * sqrt_n;
 
     alg->minimal_poly.degree = 2;
-    alg->minimal_poly.coeffs = malloc(3 * sizeof(mpz_t));
+    alg->minimal_poly.coeffs = lv00_malloc(3 * sizeof(mpz_t));
     if (!alg->minimal_poly.coeffs) {
         mpz_poly_clear(&alg->minimal_poly);
         lv00_free((void**)&alg);  /* lv00_malloc分配 */
@@ -1639,11 +1668,11 @@ char *algebraic_serialize(const Algebraic *a) {
     size_t len = strlen(poly_str) + 128;
     char *result = lv00_malloc(len);
     if (!result) {
-        free(poly_str);
+        lv00_free((void **) &poly_str);
         return NULL;
     }
     snprintf(result, len, "poly:%s left:%.15g right:%.15g", poly_str, a->left_bound, a->right_bound);
-    free(poly_str);
+    lv00_free((void **) &poly_str);
     return result;
 }
 
@@ -1946,7 +1975,7 @@ char *quadratic_serialize(const Quadratic *q) {
         return NULL;
     }
     size_t len = strlen(a_str) + strlen(b_str) + 32;
-    char *result = malloc(len);
+    char *result = lv00_malloc(len);
     if (!result) {
         lv00_free((void**)&a_str); /* lv00_malloc分配 */
         lv00_free((void**)&b_str); /* lv00_malloc分配 */
@@ -2059,7 +2088,7 @@ Transcendental *transcendental_create(const char *name) {
         t->expr = NULL;
     } else {
         /* 构造表达式树 */
-        TranscendentalExpr *expr = calloc(1, sizeof(TranscendentalExpr));
+        TranscendentalExpr *expr = lv00_calloc(1, sizeof(TranscendentalExpr));
         if (!expr) {
             lv00_free((void **) &t);
             return NULL;
@@ -2084,7 +2113,7 @@ Transcendental *transcendental_create(const char *name) {
         }
 
         if (!expr->rational_operand) {
-            free(expr);
+            lv00_free((void **) &expr);
             lv00_free((void **) &t);
             return NULL;
         }
@@ -2102,7 +2131,7 @@ void transcendental_destroy(Transcendental *t) {
         if (t->expr->rational_operand) {
             rational_destroy(t->expr->rational_operand);
         }
-        free(t->expr);
+        lv00_free((void **) &t->expr);
     }
     lv00_free((void **) &t);
 }
@@ -2148,8 +2177,8 @@ int transcendental_compare(const Transcendental *a, const Transcendental *b) {
 
 char *transcendental_serialize(const Transcendental *t) {
     if (!t->expr) {
-        /* Bare constant */
-        return strdup(t->name);
+        /* 裸常量：使用 lv00_strdup 分配内存 */
+        return lv00_strdup(t->name);
     }
 
     /* Serialize expression tree */
@@ -2168,13 +2197,14 @@ char *transcendental_serialize(const Transcendental *t) {
             op_str = "*";
             break;
         default:
-            return strdup(t->name);
+            /* 未知表达式类型：使用 lv00_strdup 分配内存 */
+            return lv00_strdup(t->name);
     }
 
     if (t->expr->out_of_scope) {
         /* Out-of-scope expression: mark clearly */
         size_t len = strlen(t->name) + strlen(op_str) + 32;
-        char *buf = malloc(len);
+        char *buf = lv00_malloc(len);
         if (!buf)
             return NULL;
         snprintf(buf, len, "[%s %s <out-of-scope>]", t->name, op_str);
@@ -2184,19 +2214,20 @@ char *transcendental_serialize(const Transcendental *t) {
     if (t->expr->rational_operand) {
         char *rat_str = rational_serialize(t->expr->rational_operand);
         if (!rat_str)
-            return strdup(t->name);
+            return lv00_strdup(t->name); /* rational_serialize 失败时使用 lv00_strdup */
         size_t len = strlen(t->name) + strlen(op_str) + strlen(rat_str) + 8;
-        char *buf = malloc(len);
+        char *buf = lv00_malloc(len);
         if (!buf) {
             lv00_free((void**)&rat_str); /* lv00_malloc分配 */
-            return strdup(t->name);
+            return lv00_strdup(t->name); /* 内存不足时使用 lv00_strdup */
         }
         snprintf(buf, len, "(%s %s %s)", t->name, op_str, rat_str);
         lv00_free((void**)&rat_str); /* lv00_malloc分配 */
         return buf;
     }
 
-    return strdup(t->name);
+    /* 无理数操作数：使用 lv00_strdup 分配内存 */
+    return lv00_strdup(t->name);
 }
 
 /**
@@ -2337,7 +2368,7 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
  * @return 新创建的符号坐标对象，失败时返回 NULL；调用者需负责释放
  */
 SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, double right) {
-    SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv00_malloc(sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = ALGEBRAIC;
@@ -2359,7 +2390,7 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
  * @return 新创建的符号坐标对象，失败时返回 NULL；调用者需负责释放
  */
 SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigned int n) {
-    SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv00_malloc(sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = QUADRATIC;
@@ -2373,7 +2404,7 @@ SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigne
 }
 
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
-    SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv00_malloc(sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = TRANSCENDENTAL;
@@ -2577,7 +2608,7 @@ static SymbolicCoord *rational_to_algebraic(const SymbolicCoord *r) {
     if (!alg)
         return NULL;
 
-    SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
     if (!result) {
         algebraic_destroy(alg);
         return NULL;
@@ -2619,7 +2650,7 @@ static SymbolicCoord *quadratic_to_algebraic(const SymbolicCoord *q) {
     if (!alg)
         return NULL;
 
-    SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
     if (!result) {
         algebraic_destroy(alg);
         return NULL;
@@ -2663,7 +2694,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2676,7 +2707,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2693,7 +2724,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2706,7 +2737,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2728,7 +2759,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2758,7 +2789,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                         rational_destroy(own_b);
 
                     if (!expr->rational_operand) {
-                        free(expr);
+                        lv00_free((void **) &expr);
                         transcendental_destroy(t);
                         return NULL;
                     }
@@ -2777,7 +2808,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2932,7 +2963,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 if (!t)
                     return NULL;
 
-                TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+                TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
                 if (!expr) {
                     transcendental_destroy(t);
                     return NULL;
@@ -2944,7 +2975,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
                 t->expr = expr;
 
-                SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+                SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
                 if (!result) {
                     transcendental_destroy(t);
                     return NULL;
@@ -2960,7 +2991,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2974,7 +3005,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -2991,7 +3022,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3003,7 +3034,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3025,7 +3056,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3055,7 +3086,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                         rational_destroy(own_b);
 
                     if (!expr->rational_operand) {
-                        free(expr);
+                        lv00_free((void **) &expr);
                         transcendental_destroy(t);
                         return NULL;
                     }
@@ -3074,7 +3105,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3224,7 +3255,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3236,7 +3267,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3253,7 +3284,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3265,7 +3296,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3287,7 +3318,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3299,7 +3330,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3460,7 +3491,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3470,14 +3501,14 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             if (inverted) {
                 /* b is transcendental, a is rational: a / t = a * (1/t), not representable */
                 transcendental_destroy(t);
-                free(expr);
+                lv00_free((void **) &expr);
                 return NULL;
             } else {
                 /* a is transcendental, b is rational: t / r = t * (1/r) */
                 expr->rational_operand = rational_divide(rational_create(1, 1), other_coord->data.rational);
                 if (!expr->rational_operand) {
                     transcendental_destroy(t);
-                    free(expr);
+                    lv00_free((void **) &expr);
                     return NULL;
                 }
             }
@@ -3485,7 +3516,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3502,7 +3533,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3514,7 +3545,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3572,7 +3603,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3584,7 +3615,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -3755,7 +3786,7 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
     if (!src)
         return NULL;
 
-    SymbolicCoord *dst = malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *dst = lv00_malloc(sizeof(SymbolicCoord));
     if (!dst)
         return NULL;
 
@@ -3785,7 +3816,7 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
             /* Deep copy the expression tree if present */
             if (dst->data.transcendental && src->data.transcendental->expr) {
                 TranscendentalExpr *src_expr = src->data.transcendental->expr;
-                TranscendentalExpr *dst_expr = malloc(sizeof(TranscendentalExpr));
+                TranscendentalExpr *dst_expr = lv00_malloc(sizeof(TranscendentalExpr));
                 if (dst_expr) {
                     dst_expr->expr_type = src_expr->expr_type;
                     /* 使用 lv00_strlcpy 替代不安全的 strncpy（自动保证零终止） */
@@ -3982,7 +4013,7 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             /* P(-x): negate odd-degree coefficients */
             if (a->minimal_poly.degree >= 0) {
                 neg_poly.degree = a->minimal_poly.degree;
-                neg_poly.coeffs = malloc((neg_poly.degree + 1) * sizeof(mpz_t));
+                neg_poly.coeffs = lv00_malloc((neg_poly.degree + 1) * sizeof(mpz_t));
                 if (!neg_poly.coeffs) {
                     mpz_poly_clear(&neg_poly);
                     return NULL;
@@ -4026,7 +4057,7 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             if (!t)
                 return NULL;
 
-            TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
+            TranscendentalExpr *expr = lv00_malloc(sizeof(TranscendentalExpr));
             if (!expr) {
                 transcendental_destroy(t);
                 return NULL;
@@ -4039,7 +4070,7 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
                 expr->expr_type = src_t->expr->expr_type;
                 Rational *neg_r = rational_create(0, 1);
                 if (!neg_r) {
-                    free(expr);
+                    lv00_free((void **) &expr);
                     transcendental_destroy(t);
                     return NULL;
                 }
@@ -4052,14 +4083,14 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             }
 
             if (!expr->rational_operand) {
-                free(expr);
+                lv00_free((void **) &expr);
                 transcendental_destroy(t);
                 return NULL;
             }
 
             t->expr = expr;
 
-            SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
+            SymbolicCoord *result = lv00_malloc(sizeof(SymbolicCoord));
             if (!result) {
                 transcendental_destroy(t);
                 return NULL;
@@ -4328,7 +4359,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     mpz_poly_t sq_poly;
                     mpz_poly_init(&sq_poly);
                     sq_poly.degree = 2;
-                    sq_poly.coeffs = malloc(3 * sizeof(mpz_t));
+                    sq_poly.coeffs = lv00_malloc(3 * sizeof(mpz_t));
                     if (sq_poly.coeffs) {
                         mpz_init(sq_poly.coeffs[0]); /* c0^2 */
                         mpz_init(sq_poly.coeffs[1]); /* c1^2 - 2*c0*c2 */
@@ -4399,7 +4430,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     mpz_poly_t check_poly;
                     mpz_poly_init(&check_poly);
                     check_poly.degree = 1;
-                    check_poly.coeffs = malloc(2 * sizeof(mpz_t));
+                    check_poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
                     if (check_poly.coeffs) {
                         mpz_init(check_poly.coeffs[0]);
                         mpz_init(check_poly.coeffs[1]);
@@ -4446,7 +4477,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             mpz_poly_t poly;
             mpz_poly_init(&poly);
             poly.degree = 1;
-            poly.coeffs = malloc(2 * sizeof(mpz_t));
+            poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
             if (!poly.coeffs) {
                 mpz_poly_clear(&poly);
                 return NULL;
@@ -4481,7 +4512,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 1;
-                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     return NULL;
@@ -4552,9 +4583,9 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 /* Both are perfect squares: return exact rational */
                 Rational *result_r = rational_create_from_mpz(*num_sqrt, *den_sqrt);
                 mpz_clear(*num_sqrt);
-                free(num_sqrt);
+                lv00_free((void **) &num_sqrt);
                 mpz_clear(*den_sqrt);
-                free(den_sqrt);
+                lv00_free((void **) &den_sqrt);
 
                 if (!result_r) {
                     mpz_clear(num);
@@ -4576,11 +4607,11 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             /* 清理任何非 NULL 的结果 */
             if (num_sqrt) {
                 mpz_clear(*num_sqrt);
-                free(num_sqrt);
+                lv00_free((void **) &num_sqrt);
             }
             if (den_sqrt) {
                 mpz_clear(*den_sqrt);
-                free(den_sqrt);
+                lv00_free((void **) &den_sqrt);
             }
 
             /* 不是完全平方数：尝试表示为二次根式 a + b*sqrt(n)
@@ -4749,11 +4780,11 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                     d_rat = rational_divide(q->b, two_c);
                     rational_destroy(two_c);
                     mpz_clear(*c_sqrt);
-                    free(c_sqrt);
+                    lv00_free((void **) &c_sqrt);
                 } else {
                     if (c_sqrt) {
                         mpz_clear(*c_sqrt);
-                        free(c_sqrt);
+                        lv00_free((void **) &c_sqrt);
                     }
 
                     /* Try c_sq_neg */
@@ -4767,11 +4798,11 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                         d_rat = rational_divide(q->b, two_c);
                         rational_destroy(two_c);
                         mpz_clear(*c_sqrt);
-                        free(c_sqrt);
+                        lv00_free((void **) &c_sqrt);
                     } else {
                         if (c_sqrt) {
                             mpz_clear(*c_sqrt);
-                            free(c_sqrt);
+                            lv00_free((void **) &c_sqrt);
                         }
                     }
                 }
@@ -4791,7 +4822,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                         rational_destroy(d_rat);
                     }
                     mpz_clear(*disc_sqrt);
-                    free(disc_sqrt);
+                    lv00_free((void **) &disc_sqrt);
                     mpq_clear(a_sq);
                     mpq_clear(b_sq);
                     mpq_clear(b_sq_n);
@@ -4806,7 +4837,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 if (d_rat)
                     rational_destroy(d_rat);
                 mpz_clear(*disc_sqrt);
-                free(disc_sqrt);
+                lv00_free((void **) &disc_sqrt);
             } else {
                 mpz_clear(disc_num_sq);
                 mpz_clear(disc_product);
@@ -4843,7 +4874,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 4;
-                poly.coeffs = malloc(5 * sizeof(mpz_t));
+                poly.coeffs = lv00_malloc(5 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     return NULL;
@@ -4961,7 +4992,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             mpz_poly_t sqrt_poly;
             mpz_poly_init(&sqrt_poly);
             sqrt_poly.degree = new_deg;
-            sqrt_poly.coeffs = malloc((new_deg + 1) * sizeof(mpz_t));
+            sqrt_poly.coeffs = lv00_malloc((new_deg + 1) * sizeof(mpz_t));
             if (!sqrt_poly.coeffs) {
                 mpz_poly_clear(&sqrt_poly);
                 return NULL;
@@ -5010,7 +5041,7 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 1;
-                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
                 if (!poly.coeffs) {
                     mpz_poly_clear(&poly);
                     return NULL;
@@ -5049,14 +5080,12 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
  *  哈希基于符号坐标的规范序列化计算。"
  * ============================================================ */
 
-/* FNV-1a hash constants */
-#define FNV_PRIME_64 1099511628211ULL
-#define FNV_OFFSET_64 14695981039346656037ULL
+/* FNV-1a hash constants - 使用 lv00_internal.h 中统一定义的 LV00_FNV64_PRIME / LV00_FNV64_OFFSET_BASIS */
 
 static uint64_t fnv1a_update(uint64_t hash, const char *data, size_t len) {
     for (size_t i = 0; i < len; i++) {
         hash ^= (uint64_t) (unsigned char) data[i];
-        hash *= FNV_PRIME_64;
+        hash *= LV00_FNV64_PRIME;
     }
     return hash;
 }
@@ -5065,7 +5094,7 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
     if (!coord)
         return 0;
 
-    uint64_t hash = FNV_OFFSET_64;
+    uint64_t hash = LV00_FNV64_OFFSET_BASIS;
 
     /* Hash the type */
     hash = fnv1a_update(hash, (const char *) &coord->type, sizeof(coord->type));
@@ -5087,7 +5116,7 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
                 char *coeff_str = mpz_get_str(NULL, 16, a->minimal_poly.coeffs[i]);
                 if (coeff_str) {
                     hash = fnv1a_update(hash, coeff_str, strlen(coeff_str));
-                    free(coeff_str);
+                    lv00_free((void **) &coeff_str);
                 }
             }
             /* Hash bounds for distinguishing different roots */
@@ -5321,7 +5350,7 @@ static mpz_t *mpz_perfect_sqrt(mpz_t n) {
     if (mpz_cmp_si(n, 0) < 0)
         return NULL;
     if (mpz_cmp_si(n, 0) == 0) {
-        mpz_t *result = malloc(sizeof(mpz_t));
+        mpz_t *result = lv00_malloc(sizeof(mpz_t));
         if (!result)
             return NULL;
         mpz_init_set_ui(*result, 0);
@@ -5340,7 +5369,7 @@ static mpz_t *mpz_perfect_sqrt(mpz_t n) {
     mpz_clear(square);
 
     if (is_perfect) {
-        mpz_t *result = malloc(sizeof(mpz_t));
+        mpz_t *result = lv00_malloc(sizeof(mpz_t));
         if (!result) {
             mpz_clear(root);
             return NULL;
@@ -5446,7 +5475,7 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
                 mpz_clear(c2);
                 mpz_clear(D);
                 mpz_clear(*k);
-                free(k);
+                lv00_free((void **) &k);
                 return NULL;
             }
             mpq_init(r1->value);
@@ -5473,7 +5502,7 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
                 mpz_clear(c2);
                 mpz_clear(D);
                 mpz_clear(*k);
-                free(k);
+                lv00_free((void **) &k);
                 return NULL;
             }
             mpq_init(r2->value);
@@ -5510,7 +5539,7 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
             mpz_clear(num1);
             mpz_clear(num2);
             mpz_clear(*k);
-            free(k);
+            lv00_free((void **) &k);
             return result;
         }
 
@@ -5518,13 +5547,13 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
 /* Try to express D as k^2 * m where m is square-free */
 
 /** 有理数近似中平方因子分解的上限 */
-#define RATIONAL_SQ_FACTOR_LIMIT 10000
+#define LV00_RATIONAL_SQ_FACTOR_LIMIT 10000
 
         mpz_t remaining;
         mpz_init_set(remaining, D);
 
         unsigned int square_factor = 1;
-        for (unsigned int i = 2; i * i <= RATIONAL_SQ_FACTOR_LIMIT; i++) {
+        for (unsigned int i = 2; i * i <= LV00_RATIONAL_SQ_FACTOR_LIMIT; i++) {
             while (mpz_divisible_ui_p(remaining, i * i)) {
                 square_factor *= i;
                 mpz_divexact_ui(remaining, remaining, i * i);
@@ -5643,7 +5672,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_t poly;
     mpz_poly_init(&poly);
     poly.degree = 2;
-    poly.coeffs = malloc(3 * sizeof(mpz_t));
+    poly.coeffs = lv00_malloc(3 * sizeof(mpz_t));
     if (!poly.coeffs) {
         mpz_poly_clear(&poly);
         result.precision_stable = false;
@@ -5670,7 +5699,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_t poly2;
     mpz_poly_init(&poly2);
     poly2.degree = 2;
-    poly2.coeffs = malloc(3 * sizeof(mpz_t));
+    poly2.coeffs = lv00_malloc(3 * sizeof(mpz_t));
     if (!poly2.coeffs) {
         mpz_poly_clear(&poly2);
         algebraic_destroy(current);

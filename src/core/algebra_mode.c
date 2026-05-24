@@ -54,7 +54,7 @@
 #define ALG_MAX_ITERATIONS 100
 
 /** @brief 自动递增的几何体 ID 计数器 */
-static int g_geom_id_counter = 0;
+static LV00_THREAD_LOCAL int g_geom_id_counter = 0;
 
 /* ========================================================================
  * 内部辅助函数声明
@@ -76,9 +76,18 @@ static const char *algebra_selector_type_name_str(Lv00SelectorType type);
  * 生命周期函数
  * ======================================================================== */
 
+/**
+ * @brief 创建代数几何体实例
+ *
+ * 在指定工作平面上创建新的代数几何体，初始化变换矩阵为单位矩阵，
+ * 分配构造历史、快照栈和重做栈。
+ *
+ * @param plane 工作平面（PLANE_XY / PLANE_XZ / PLANE_YZ）
+ * @param name  几何体名称（可为 NULL）
+ * @return 新分配的 AlgebraicGeom 指针，失败返回 NULL
+ */
 AlgebraicGeom *algebra_create(Lv00Plane plane, const char *name) {
     AlgebraicGeom *geom = (AlgebraicGeom *)lv00_malloc(sizeof(AlgebraicGeom));
-    LV00_CHECK_NULL(lv00_malloc, NULL);
     if (!geom) return NULL;
 
     memset(geom, 0, sizeof(AlgebraicGeom));
@@ -111,6 +120,10 @@ AlgebraicGeom *algebra_create(Lv00Plane plane, const char *name) {
     return geom;
 }
 
+/**
+ * @brief 销毁代数几何体实例，递归释放所有快照
+ * @param geom 要销毁的几何体指针
+ */
 void algebra_destroy(AlgebraicGeom *geom) {
     if (!geom) return;
 
@@ -133,6 +146,18 @@ void algebra_destroy(AlgebraicGeom *geom) {
  * 点构造函数
  * ======================================================================== */
 
+/**
+ * @brief 构造坐标点（链式 API）
+ *
+ * 在当前几何体中添加一个坐标为 (x, y, z) 的点，
+ * 记录到构造历史并更新当前实体 ID。
+ *
+ * @param geom 几何体指针
+ * @param x    X 坐标
+ * @param y    Y 坐标
+ * @param z    Z 坐标
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z) {
     LV00_CHECK_NULL(geom, NULL);
 
@@ -149,6 +174,13 @@ AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z) 
     return geom;
 }
 
+/**
+ * @brief 在已有实体上构造点（链式 API）
+ *
+ * @param geom     几何体指针
+ * @param entity_id 目标实体 ID（必须 >= 0）
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (entity_id < 0) {
@@ -165,6 +197,14 @@ AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
     return geom;
 }
 
+/**
+ * @brief 构造两点的中点（链式 API）
+ *
+ * @param geom 几何体指针
+ * @param id_a 第一个端点实体 ID
+ * @param id_b 第二个端点实体 ID
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0) {
@@ -180,6 +220,14 @@ AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b) {
     return geom;
 }
 
+/**
+ * @brief 构造两实体的交点（链式 API）
+ *
+ * @param geom 几何体指针
+ * @param id_a 第一个实体 ID
+ * @param id_b 第二个实体 ID
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0) {
@@ -199,6 +247,14 @@ AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b) {
  * 线构造函数
  * ======================================================================== */
 
+/**
+ * @brief 构造通过两点的直线（链式 API）
+ *
+ * @param geom 几何体指针
+ * @param id_a 第一个点实体 ID
+ * @param id_b 第二个点实体 ID（必须与 id_a 不同）
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0 || id_a == id_b) {
@@ -214,6 +270,14 @@ AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b) {
     return geom;
 }
 
+/**
+ * @brief 构造两点间的线段（链式 API）
+ *
+ * @param geom 几何体指针
+ * @param id_a 第一个端点实体 ID
+ * @param id_b 第二个端点实体 ID（必须与 id_a 不同）
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_segment(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0 || id_a == id_b) {
@@ -229,6 +293,16 @@ AlgebraicGeom *algebra_segment(AlgebraicGeom *geom, int id_a, int id_b) {
     return geom;
 }
 
+/**
+ * @brief 构造射线（链式 API）
+ *
+ * 从 origin_id 出发，经过 through_id 的射线。
+ *
+ * @param geom       几何体指针
+ * @param origin_id  射线起点实体 ID
+ * @param through_id 射线经过的实体 ID
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (origin_id < 0 || through_id < 0 || origin_id == through_id) {
@@ -248,6 +322,14 @@ AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id) {
  * 圆构造函数
  * ======================================================================== */
 
+/**
+ * @brief 以指定半径构造圆（链式 API）
+ *
+ * @param geom      几何体指针
+ * @param center_id 圆心实体 ID
+ * @param radius    圆的半径（必须 > 0）
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double radius) {
     LV00_CHECK_NULL(geom, NULL);
     if (center_id < 0 || radius <= 0.0) {
@@ -263,6 +345,14 @@ AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double 
     return geom;
 }
 
+/**
+ * @brief 构造通过圆心和圆上一点的圆（链式 API）
+ *
+ * @param geom          几何体指针
+ * @param center_id     圆心实体 ID
+ * @param on_circle_id  圆上一点实体 ID（必须与 center_id 不同）
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_circle(AlgebraicGeom *geom, int center_id, int on_circle_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (center_id < 0 || on_circle_id < 0 || center_id == on_circle_id) {
@@ -282,6 +372,16 @@ AlgebraicGeom *algebra_circle(AlgebraicGeom *geom, int center_id, int on_circle_
  * 特殊线构造函数
  * ======================================================================== */
 
+/**
+ * @brief 构造平行线（链式 API）
+ *
+ * 过指定点构造与给定直线平行的直线。
+ *
+ * @param geom     几何体指针
+ * @param line_id  参考直线实体 ID
+ * @param point_id 平行线经过的点实体 ID
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (line_id < 0 || point_id < 0) {
@@ -297,6 +397,16 @@ AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id) 
     return geom;
 }
 
+/**
+ * @brief 构造垂线（链式 API）
+ *
+ * 过指定点构造与给定直线垂直的直线。
+ *
+ * @param geom     几何体指针
+ * @param line_id  参考直线实体 ID
+ * @param point_id 垂线经过的点实体 ID
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (line_id < 0 || point_id < 0) {
@@ -316,6 +426,17 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
  * 变换操作函数
  * ======================================================================== */
 
+/**
+ * @brief 应用几何变换（链式 API）
+ *
+ * 将指定的变换操作（平移/旋转/缩放/镜像/投影）累积到变换矩阵中。
+ *
+ * @param geom        几何体指针
+ * @param op          变换操作类型
+ * @param params      变换参数数组
+ * @param param_count 参数数量
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op,
                                   const double *params, int param_count) {
     LV00_CHECK_NULL(geom, NULL);
@@ -335,6 +456,18 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op,
     return geom;
 }
 
+/**
+ * @brief 旋转变换（链式 API）
+ *
+ * 绕指定轴旋转指定角度（度数）。
+ *
+ * @param geom    几何体指针
+ * @param angle_deg 旋转角度（度）
+ * @param axis_x  旋转轴 X 分量
+ * @param axis_y  旋转轴 Y 分量
+ * @param axis_z  旋转轴 Z 分量
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_rotate(AlgebraicGeom *geom, double angle_deg,
                                double axis_x, double axis_y, double axis_z) {
     LV00_CHECK_NULL(geom, NULL);
@@ -342,12 +475,28 @@ AlgebraicGeom *algebra_rotate(AlgebraicGeom *geom, double angle_deg,
     return algebra_transform(geom, TRANSFORM_ROTATE, params, 4);
 }
 
+/**
+ * @brief 平移变换（链式 API）
+ * @param geom 几何体指针
+ * @param dx   X 方向平移量
+ * @param dy   Y 方向平移量
+ * @param dz   Z 方向平移量
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_translate(AlgebraicGeom *geom, double dx, double dy, double dz) {
     LV00_CHECK_NULL(geom, NULL);
     double params[] = { dx, dy, dz };
     return algebra_transform(geom, TRANSFORM_TRANSLATE, params, 3);
 }
 
+/**
+ * @brief 缩放变换（链式 API）
+ * @param geom 几何体指针
+ * @param sx   X 方向缩放因子
+ * @param sy   Y 方向缩放因子
+ * @param sz   Z 方向缩放因子
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double sz) {
     LV00_CHECK_NULL(geom, NULL);
     double params[] = { sx, sy, sz };
@@ -358,6 +507,16 @@ AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double s
  * 选择器操作函数
  * ======================================================================== */
 
+/**
+ * @brief 创建选择器实例
+ *
+ * 根据选择器类型和表达式创建选择器。支持方向选择、索引选择、
+ * 最近邻选择和复合选择器等 12 种类型。
+ *
+ * @param type 选择器类型
+ * @param expr 选择器表达式（可为 NULL）
+ * @return 新分配的 Lv00Selector 指针，失败返回 NULL
+ */
 Lv00Selector *algebra_selector_create(Lv00SelectorType type, const char *expr) {
     Lv00Selector *sel = (Lv00Selector *)lv00_malloc(sizeof(Lv00Selector));
     LV00_CHECK_NULL(sel, NULL);
@@ -410,6 +569,10 @@ Lv00Selector *algebra_selector_create(Lv00SelectorType type, const char *expr) {
     return sel;
 }
 
+/**
+ * @brief 销毁选择器实例，递归释放子选择器
+ * @param sel 要销毁的选择器指针
+ */
 void algebra_selector_destroy(Lv00Selector *sel) {
     if (!sel) return;
 
@@ -425,6 +588,17 @@ void algebra_selector_destroy(Lv00Selector *sel) {
     lv00_free((void **)&sel);
 }
 
+/**
+ * @brief 使用选择器筛选几何实体（链式 API）
+ *
+ * 根据选择器类型执行不同的筛选策略，返回匹配的实体 ID 列表。
+ *
+ * @param geom      几何体指针
+ * @param sel       选择器
+ * @param out_ids   输出匹配实体 ID 数组（调用者负责释放）
+ * @param out_count 输出匹配实体数量
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel,
                                int **out_ids, int *out_count) {
     LV00_CHECK_NULL(geom, NULL);
@@ -477,6 +651,17 @@ AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel,
  * 约束与证明函数
  * ======================================================================== */
 
+/**
+ * @brief 添加几何约束（链式 API）
+ *
+ * 对指定实体集合添加指定类型的约束关系。
+ *
+ * @param geom           几何体指针
+ * @param constraint_type 约束类型字符串
+ * @param entity_ids     参与约束的实体 ID 数组
+ * @param count          实体数量
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_type,
                                   const int *entity_ids, int count) {
     LV00_CHECK_NULL(geom, NULL);
@@ -498,6 +683,13 @@ AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_typ
     return geom;
 }
 
+/**
+ * @brief 提交几何命题证明（链式 API）
+ *
+ * @param geom        几何体指针
+ * @param proposition 待证明的命题字符串
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_prove(AlgebraicGeom *geom, const char *proposition) {
     LV00_CHECK_NULL(geom, NULL);
     LV00_CHECK_NULL(proposition, NULL);
@@ -514,6 +706,12 @@ AlgebraicGeom *algebra_prove(AlgebraicGeom *geom, const char *proposition) {
  * 构建与查询函数
  * ======================================================================== */
 
+/**
+ * @brief 构建几何体，验证构造状态
+ *
+ * @param geom 几何体指针
+ * @return 操作结果（ALGEBRA_OK 表示成功）
+ */
 AlgebraOpResult algebra_build(AlgebraicGeom *geom) {
     LV00_CHECK_NULL(geom, ALGEBRA_INVALID_ARGUMENT);
 
@@ -528,16 +726,31 @@ AlgebraOpResult algebra_build(AlgebraicGeom *geom) {
     return ALGEBRA_OK;
 }
 
+/**
+ * @brief 获取几何体关联的约束图
+ * @param geom 几何体指针
+ * @return 约束图指针（可为 NULL），失败返回 NULL
+ */
 ConstraintGraph *algebra_get_graph(const AlgebraicGeom *geom) {
     LV00_CHECK_NULL(geom, NULL);
     return geom->graph;
 }
 
+/**
+ * @brief 获取几何体的当前操作状态
+ * @param geom 几何体指针
+ * @return 操作结果枚举值
+ */
 AlgebraOpResult algebra_get_status(const AlgebraicGeom *geom) {
     LV00_CHECK_NULL(geom, ALGEBRA_INVALID_ARGUMENT);
     return ALGEBRA_OK; /* 默认返回成功 */
 }
 
+/**
+ * @brief 获取最近构造的实体 ID
+ * @param geom 几何体指针
+ * @return 当前实体 ID，无实体或失败返回 -1
+ */
 int algebra_get_current_entity(const AlgebraicGeom *geom) {
     LV00_CHECK_NULL(geom, -1);
     return geom->current_entity;
@@ -547,6 +760,14 @@ int algebra_get_current_entity(const AlgebraicGeom *geom) {
  * Undo/Redo 函数
  * ======================================================================== */
 
+/**
+ * @brief 撤销最近一步构造操作（链式 API）
+ *
+ * 将最后一步从构造历史弹出并压入重做栈。
+ *
+ * @param geom 几何体指针
+ * @return 几何体指针（支持链式调用），历史为空返回 NULL
+ */
 AlgebraicGeom *algebra_undo(AlgebraicGeom *geom) {
     LV00_CHECK_NULL(geom, NULL);
     if (geom->history_count == 0) return NULL;
@@ -568,6 +789,14 @@ AlgebraicGeom *algebra_undo(AlgebraicGeom *geom) {
     return geom;
 }
 
+/**
+ * @brief 重做最近一步被撤销的操作（链式 API）
+ *
+ * 从重做栈弹出步骤并重新推入构造历史。
+ *
+ * @param geom 几何体指针
+ * @return 几何体指针（支持链式调用），重做栈为空返回 NULL
+ */
 AlgebraicGeom *algebra_redo(AlgebraicGeom *geom) {
     LV00_CHECK_NULL(geom, NULL);
     if (geom->redo_count == 0) return NULL;
@@ -583,11 +812,28 @@ AlgebraicGeom *algebra_redo(AlgebraicGeom *geom) {
  * 快照/回退函数
  * ======================================================================== */
 
+/**
+ * @brief 创建当前几何体状态的快照
+ *
+ * 深拷贝当前几何体状态并压入快照栈，用于后续回退。
+ *
+ * @param geom 几何体指针
+ * @return 快照索引（>=0），失败返回 -1
+ */
 int algebra_snapshot(AlgebraicGeom *geom) {
     LV00_CHECK_NULL(geom, -1);
     return algebra_snapshot_internal(geom);
 }
 
+/**
+ * @brief 恢复到指定快照状态（链式 API）
+ *
+ * 将快照中的实体 ID、工作平面、变换矩阵和构造历史复制回当前几何体。
+ *
+ * @param geom           几何体指针
+ * @param snapshot_index 快照索引（必须在 [0, snapshot_count) 范围内）
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_restore(AlgebraicGeom *geom, int snapshot_index) {
     LV00_CHECK_NULL(geom, NULL);
     if (snapshot_index < 0 || snapshot_index >= geom->snapshot_count) {
@@ -625,12 +871,23 @@ AlgebraicGeom *algebra_restore(AlgebraicGeom *geom, int snapshot_index) {
  * 工作平面函数
  * ======================================================================== */
 
+/**
+ * @brief 设置工作平面（链式 API）
+ * @param geom  几何体指针
+ * @param plane 目标工作平面
+ * @return 几何体指针（支持链式调用），失败返回 NULL
+ */
 AlgebraicGeom *algebra_set_plane(AlgebraicGeom *geom, Lv00Plane plane) {
     LV00_CHECK_NULL(geom, NULL);
     geom->plane = (int)plane;
     return geom;
 }
 
+/**
+ * @brief 获取当前工作平面
+ * @param geom 几何体指针
+ * @return 当前工作平面枚举值，失败返回 PLANE_XY
+ */
 Lv00Plane algebra_get_plane(const AlgebraicGeom *geom) {
     if (!geom) return PLANE_XY;
     return (Lv00Plane)geom->plane;
@@ -640,10 +897,20 @@ Lv00Plane algebra_get_plane(const AlgebraicGeom *geom) {
  * 工具函数
  * ======================================================================== */
 
+/**
+ * @brief 获取操作结果的名称字符串
+ * @param result 操作结果枚举值
+ * @return 结果名称字符串
+ */
 const char *algebra_result_name(AlgebraOpResult result) {
     return algebra_op_result_name_str(result);
 }
 
+/**
+ * @brief 获取选择器类型的名称字符串
+ * @param type 选择器类型枚举值
+ * @return 类型名称字符串
+ */
 const char *algebra_selector_type_name(Lv00SelectorType type) {
     return algebra_selector_type_name_str(type);
 }

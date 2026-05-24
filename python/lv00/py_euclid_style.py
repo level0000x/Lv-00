@@ -23,14 +23,13 @@ PyEuclid 风格高层 API 模块
     tri = G.triangle(A, B, C).with_circumcircle().with_centroid()
     tri.solve()
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
 from __future__ import annotations
 
 import math
-import xml.etree.ElementTree as ET
 from typing import (TYPE_CHECKING, Any, Dict, List, Optional,
                     Sequence, Tuple, Union)
 

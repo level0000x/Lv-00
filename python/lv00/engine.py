@@ -16,17 +16,19 @@ Lv-00 引擎模块
     3. 类型安全：完整的类型提示和参数验证
     4. 可扩展性：支持自定义模块和公理包加载
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
 import ctypes
-import os  # 修复：添加 os 导入，用于 os.fsencode() 处理非 UTF-8 路径
+import logging
+import os
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
-    # 类型检查时导入 Lv00BaseError，避免运行时循环导入
-    from .core import Lv00BaseError
+    pass  # Lv00BaseError 现在在运行时导入
+
+from .core import Lv00BaseError
 
 from ._ctypes_binding import (
     _lib, _LV00Engine,
@@ -43,45 +45,18 @@ from ._ctypes_binding import (
 # 异常类
 # ============================================================
 
-class EngineError(Exception):
+class EngineError(Lv00BaseError):
     """
     引擎操作错误基类。
 
     所有引擎相关异常的父类，当引擎操作失败时抛出。
-    注意：此类当前独立继承 Exception，保留自身的 __str__ 实现。
-    未来应统一继承 Lv00BaseError（from .core import Lv00BaseError），
-    以消除与 Lv00Error/Lv00BaseError 之间重复的 __str__ 逻辑。
+    继承 Lv00BaseError，复用统一的 message、error_code 属性和 __str__ 格式化逻辑。
 
     属性：
         message: 异常消息字符串
         error_code: 可选的错误码（整数，默认为 -1）
     """
-
-    def __init__(self, message: str = "", error_code: int = -1) -> None:
-        """
-        创建引擎错误异常。
-
-        参数：
-            message: 异常描述消息
-            error_code: 可选的错误码
-        """
-        super().__init__(message)
-        self.message: str = message
-        self.error_code: int = error_code
-
-    def __str__(self) -> str:
-        """
-        返回人类可读的异常字符串。
-
-        注意：此方法与 Lv00BaseError.__str__ 逻辑完全一致，
-        未来统一继承后应移除此方法以复用基类实现。
-
-        返回：
-            str: 格式为 "EngineError(错误码): 消息" 的字符串
-        """
-        if self.error_code >= 0:
-            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
-        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+    pass
 
 
 class EngineMemoryError(EngineError):
@@ -146,18 +121,27 @@ class Engine:
             raise EngineError("创建引擎失败")
         self._owns_ptr = True
     
+    def _cleanup(self) -> None:
+        """
+        释放引擎资源的内部方法。
+
+        释放底层 C 引擎指针，仅在引擎拥有指针所有权时执行。
+        被 __del__ 和 __exit__ 共同调用，避免重复逻辑。
+        """
+        if hasattr(self, '_ptr') and self._ptr and getattr(self, '_owns_ptr', True):
+            try:
+                _lib.engine_destroy(self._ptr)
+            except Exception as e:
+                logging.getLogger(__name__).debug("引擎清理时发生异常: %s", e)
+            self._ptr = None
+
     def __del__(self) -> None:
         """
         析构函数：释放引擎资源。
 
         释放底层 C 引擎指针，仅在引擎拥有指针所有权时执行。
         """
-        if hasattr(self, '_ptr') and self._ptr and getattr(self, '_owns_ptr', True):
-            try:
-                _lib.engine_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        self._cleanup()
 
     def __enter__(self) -> 'Engine':
         """
@@ -191,12 +175,7 @@ class Engine:
         返回：
             None: 不抑制异常，让异常正常传播
         """
-        if hasattr(self, '_ptr') and self._ptr and getattr(self, '_owns_ptr', True):
-            try:
-                _lib.engine_destroy(self._ptr)
-            except Exception:
-                pass
-            self._ptr = None
+        self._cleanup()
         # 不抑制异常，返回 None 让异常继续传播
         return None
 
@@ -344,8 +323,7 @@ class Engine:
         异常：
             EngineModuleError: C 函数返回非 OK 状态时抛出
         """
-        # 修复：使用 os.fsencode() 替代 .encode('utf-8')，正确处理非 UTF-8 文件路径
-        # （如 Windows 上包含中文/日文等非 ASCII 字符的路径）
+        # 使用 os.fsencode() 处理文件路径编码（兼容非 UTF-8 路径）
         b = os.fsencode(filepath)
         status = c_func(self._ptr, b)
         if status != ENGINE_OK:
@@ -738,6 +716,29 @@ class Engine:
     # 批量操作
     # ============================================================
     
+    def _load_from_directory(self, filepaths: List[str], loader: Callable[[str], Any]) -> int:
+        """
+        批量加载文件的通用方法。
+
+        依次对每个文件路径调用指定的加载函数，返回成功加载的数量。
+        如果某个文件加载失败，会抛出异常并停止后续加载。
+
+        参数：
+            filepaths: 文件路径列表
+            loader: 加载函数，接受文件路径，执行加载操作
+
+        返回：
+            int: 成功加载的文件数量
+
+        异常：
+            EngineModuleError: 任一文件加载失败时抛出
+        """
+        success_count = 0
+        for filepath in filepaths:
+            loader(filepath)
+            success_count += 1
+        return success_count
+
     def load_modules(self, filepaths: List[str]) -> int:
         """
         批量加载模块文件。
@@ -757,11 +758,7 @@ class Engine:
         示例：
             >>> engine.load_modules(["module1.lv00", "module2.lv00"])
         """
-        success_count = 0
-        for filepath in filepaths:
-            self.load_module(filepath)
-            success_count += 1
-        return success_count
+        return self._load_from_directory(filepaths, self.load_module)
     
     def load_axiom_packages(self, filepaths: List[str]) -> int:
         """
@@ -778,11 +775,7 @@ class Engine:
         异常：
             EngineModuleError: 任一公理包加载失败时抛出
         """
-        success_count = 0
-        for filepath in filepaths:
-            self.load_axiom_package(filepath)
-            success_count += 1
-        return success_count
+        return self._load_from_directory(filepaths, self.load_axiom_package)
     
     # ============================================================
     # 状态查询

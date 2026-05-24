@@ -162,6 +162,30 @@
 
     // ================================================================
     /**
+     * 转义 HTML 特殊字符，防止 XSS 攻击
+     *
+     * @description 将字符串中的 HTML 特殊字符（&, <, >, ", '）替换为对应的 HTML 实体，
+     *              防止在 innerHTML 中插入用户输入时产生 XSS 漏洞。
+     *
+     * @param {string} str - 需要转义的字符串
+     * @returns {string} 转义后的安全字符串，非字符串输入返回空字符串
+     *
+     * @example
+     *   app._escapeHtml('<script>alert("xss")</script>')
+     *   // => '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
+     */
+    // ================================================================
+    Lv00WebApp.prototype._escapeHtml = function(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;');
+    };
+
+    // ================================================================
+    /**
      * 解析逗号分隔的 ID 列表字符串
      *
      * @description 将逗号分隔的字符串解析为数字 ID 数组，自动过滤空值和无效值。

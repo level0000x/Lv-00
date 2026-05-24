@@ -255,9 +255,115 @@ void test_engine() {
     printf("  PASSED\n");
 }
 
+/**
+ * @brief 测试有理数的边界条件
+ *
+ * 验证有理数在零值运算、负数运算和分母为零时的行为。
+ */
+void test_rational_boundary(void) {
+    printf("Testing rational boundary conditions...\n");
+
+    /* --- 零值运算 --- */
+
+    /* 创建零值有理数: 0/1 */
+    Rational *zero = rational_create(0, 1);
+    TEST_ASSERT_NOT_NULL(zero);
+
+    /* 创建普通有理数: 3/4 */
+    Rational *r = rational_create(3, 4);
+    TEST_ASSERT_NOT_NULL(r);
+
+    /* 0 + x == x */
+    Rational *sum_zero = rational_add(zero, r);
+    TEST_ASSERT_NOT_NULL(sum_zero);
+    Rational *expected_r = rational_create(3, 4);
+    TEST_ASSERT(rational_compare(sum_zero, expected_r) == 0, "0 + 3/4 should equal 3/4");
+    rational_destroy(expected_r);
+    rational_destroy(sum_zero);
+
+    /* 0 * x == 0 */
+    Rational *prod_zero = rational_multiply(zero, r);
+    TEST_ASSERT_NOT_NULL(prod_zero);
+    Rational *expected_zero = rational_create(0, 1);
+    TEST_ASSERT(rational_compare(prod_zero, expected_zero) == 0, "0 * 3/4 should equal 0");
+    rational_destroy(expected_zero);
+    rational_destroy(prod_zero);
+
+    /* x / 1 == x */
+    Rational *one = rational_create(1, 1);
+    Rational *div_one = rational_divide(r, one);
+    TEST_ASSERT_NOT_NULL(div_one);
+    Rational *expected_r2 = rational_create(3, 4);
+    TEST_ASSERT(rational_compare(div_one, expected_r2) == 0, "3/4 / 1 should equal 3/4");
+    rational_destroy(expected_r2);
+    rational_destroy(div_one);
+
+    rational_destroy(one);
+    rational_destroy(zero);
+    rational_destroy(r);
+
+    /* --- 负数运算 --- */
+
+    /* 创建负数有理数: -2/3 */
+    Rational *neg = rational_create(-2, 3);
+    TEST_ASSERT_NOT_NULL(neg);
+
+    /* 创建正数有理数: 1/3 */
+    Rational *pos = rational_create(1, 3);
+    TEST_ASSERT_NOT_NULL(pos);
+
+    /* 负数 + 正数: -2/3 + 1/3 = -1/3 */
+    Rational *sum_neg = rational_add(neg, pos);
+    TEST_ASSERT_NOT_NULL(sum_neg);
+    Rational *expected_neg = rational_create(-1, 3);
+    TEST_ASSERT(rational_compare(sum_neg, expected_neg) == 0, "-2/3 + 1/3 should equal -1/3");
+    rational_destroy(expected_neg);
+    rational_destroy(sum_neg);
+
+    /* 负数 * 正数: -2/3 * 1/3 = -2/9 */
+    Rational *prod_neg = rational_multiply(neg, pos);
+    TEST_ASSERT_NOT_NULL(prod_neg);
+    Rational *expected_neg2 = rational_create(-2, 9);
+    TEST_ASSERT(rational_compare(prod_neg, expected_neg2) == 0, "-2/3 * 1/3 should equal -2/9");
+    rational_destroy(expected_neg2);
+    rational_destroy(prod_neg);
+
+    /* 负数 * 负数: -2/3 * -2/3 = 4/9 */
+    Rational *prod_neg_neg = rational_multiply(neg, neg);
+    TEST_ASSERT_NOT_NULL(prod_neg_neg);
+    Rational *expected_pos = rational_create(4, 9);
+    TEST_ASSERT(rational_compare(prod_neg_neg, expected_pos) == 0, "-2/3 * -2/3 should equal 4/9");
+    rational_destroy(expected_pos);
+    rational_destroy(prod_neg_neg);
+
+    rational_destroy(neg);
+    rational_destroy(pos);
+
+    /* --- 分母为零的错误处理 --- */
+
+    /* 用分母为零创建有理数应返回 NULL 或被规范化处理 */
+    Rational *div_by_zero = rational_create(1, 0);
+    /* 实现应安全处理分母为零的情况：返回 NULL 或规范化为有效值 */
+    printf("  分母为零创建: %s\n", div_by_zero ? "返回非NULL（已规范化）" : "返回NULL（安全处理）");
+    if (div_by_zero != NULL) {
+        rational_destroy(div_by_zero);
+    }
+
+    /* 有理数除以零应返回 NULL */
+    Rational *a = rational_create(5, 1);
+    Rational *b = rational_create(0, 1);
+    Rational *div_result = rational_divide(a, b);
+    TEST_ASSERT(div_result == NULL, "有理数除以零应返回 NULL");
+    rational_destroy(a);
+    rational_destroy(b);
+
+    printf("  PASSED\n");
+}
+
 int main() {
     printf("=== Lv-00 Geometry Metalanguage Test Suite ===\n\n");
     test_rational();
+    test_rational_boundary();
     test_constraint_graph();
     test_normalization();
     test_module();

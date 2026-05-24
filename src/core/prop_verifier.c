@@ -13,7 +13,7 @@
  *            - 爆炸原理：若启用，从矛盾推出任意命题
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "prop_verifier.h"

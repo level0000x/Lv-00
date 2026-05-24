@@ -819,9 +819,18 @@ int high_dim_enter_block_perspective(HighDimManager *manager, int block_id) {
 
     /* 检查深度栈是否已满 */
     if (manager->perspective_depth >= HIGH_DIM_MAX_DEPTH) {
-        lv00_set_error(LV00_ERROR_UNSUPPORTED, "语义缩放深度栈已满（最大深度=%d），无法进入更深的透视层级",
-                       HIGH_DIM_MAX_DEPTH);
-        return LV00_ERROR_UNSUPPORTED;
+        /* T-NEW-18: 自动折叠最深层，腾出空间 */
+        int collapsed_block_id = manager->perspective_stack[manager->perspective_depth - 1];
+        manager->perspective_stack[manager->perspective_depth - 1] = 0;
+        manager->perspective_depth--;
+
+        LOG_DEBUG("high_dim", "深度栈已满（最大深度=%d），自动折叠最深层block_id=%d后继续进入block_id=%d",
+                   HIGH_DIM_MAX_DEPTH, collapsed_block_id, block_id);
+
+        if (high_dim_stream_ctx) {
+            stream_emit_warning(high_dim_stream_ctx,
+                "语义缩放深度栈已满，自动折叠最深层（block_id=%d）", collapsed_block_id);
+        }
     }
 
     /* 将当前block_id压入深度栈 */
@@ -856,8 +865,12 @@ int high_dim_exit_block_perspective(HighDimManager *manager) {
 
     /* 检查深度栈是否已空 */
     if (manager->perspective_depth <= 0) {
-        lv00_set_error(LV00_ERROR_UNSUPPORTED, "当前已在最外层透视，无法继续退出");
-        return LV00_ERROR_UNSUPPORTED;
+        /* T-NEW-19: 已在最外层，返回当前状态信息而非错误 */
+        lv00_set_error(LV00_OK,
+                       "当前已在最外层透视（深度=0），无需退出。当前状态：block_count=%d",
+                       manager->block_count);
+        LOG_DEBUG("high_dim", "退出透视请求被忽略：已在最外层，当前block_count=%d", manager->block_count);
+        return LV00_OK;
     }
 
     /* 获取即将退出的block_id并pop栈 */
@@ -886,6 +899,83 @@ int high_dim_get_current_depth(const HighDimManager *manager) {
 
     /* 直接返回C层维护的深度计数值 */
     return manager->perspective_depth;
+}
+
+int high_dim_zoom_to_level(HighDimManager *manager, int target_depth, int block_id) {
+    /**
+     * 直接跳转到指定缩放层级
+     *
+     * 通过反复进入或退出透视来达到目标深度。
+     */
+    if (!manager)
+        return LV00_ERROR_INVALID_PARAM;
+    if (target_depth < 0 || target_depth > HIGH_DIM_MAX_DEPTH)
+        return LV00_ERROR_INVALID_PARAM;
+
+    /* 如果目标深度小于当前深度，退出到目标深度 */
+    while (manager->perspective_depth > target_depth) {
+        int rc = high_dim_exit_block_perspective(manager);
+        if (rc != LV00_OK)
+            return rc;
+    }
+
+    /* 如果目标深度大于当前深度，进入透视到目标深度 */
+    while (manager->perspective_depth < target_depth) {
+        int rc = high_dim_enter_block_perspective(manager, block_id);
+        if (rc != LV00_OK)
+            return rc;
+    }
+
+    return LV00_OK;
+}
+
+int high_dim_get_zoom_level(const HighDimManager *manager, int *out_depth, int *out_top_block_id) {
+    /**
+     * 获取当前缩放级别信息
+     */
+    if (!manager)
+        return LV00_ERROR_INVALID_PARAM;
+
+    if (out_depth)
+        *out_depth = manager->perspective_depth;
+
+    if (out_top_block_id) {
+        if (manager->perspective_depth > 0) {
+            *out_top_block_id = manager->perspective_stack[manager->perspective_depth - 1];
+        } else {
+            *out_top_block_id = -1;
+        }
+    }
+
+    return LV00_OK;
+}
+
+int high_dim_set_focus_point(HighDimManager *manager, int focus_block_id) {
+    /**
+     * 设置缩放焦点block_id
+     *
+     * 验证block存在后记录焦点，供UI层在缩放时参考。
+     */
+    if (!manager)
+        return LV00_ERROR_INVALID_PARAM;
+
+    HighDimAbstractBlock *block = high_dim_get_block(manager, focus_block_id);
+    if (!block) {
+        lv00_set_error(LV00_ERROR_NOT_FOUND, "设置缩放焦点失败：未找到block_id=%d", focus_block_id);
+        return LV00_ERROR_NOT_FOUND;
+    }
+
+    /* 焦点信息记录在透视栈的保留位置（不影响当前深度） */
+    /* 使用 perspective_stack[0] 作为焦点记录（仅当深度为0时） */
+    if (manager->perspective_depth == 0) {
+        manager->perspective_stack[0] = focus_block_id;
+    }
+
+    if (high_dim_stream_ctx) {
+        stream_emit_info(high_dim_stream_ctx, "语义缩放：焦点已设置", focus_block_id);
+    }
+
+    return LV00_OK;
 }
 
 /* ==================== 多投影视图 ==================== */
@@ -2992,10 +3082,110 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *vie
             return LV00_OK;
         }
 
+        case MULTIVIEW_OP_GET_VIEW: {
+            /* 获取指定索引的视图 */
+            int idx = count ? count[0] : -1;
+            if (idx < 0 || idx >= g_multi_view_count || !g_multi_views[idx].is_active) {
+                lv00_set_error(LV00_ERROR_NOT_FOUND,
+                               "多视图管理GET_VIEW失败：无效索引=%d，活跃视图数=%d", idx, g_multi_view_count);
+                return LV00_ERROR_NOT_FOUND;
+            }
+            if (view_ids)
+                view_ids[0] = g_multi_views[idx].view_id;
+            lv00_set_error(LV00_OK, "多视图管理GET_VIEW成功：索引=%d, view_id=%d", idx, g_multi_views[idx].view_id);
+            return LV00_OK;
+        }
+
+        case MULTIVIEW_OP_SET_ACTIVE: {
+            /* 设置指定视图为活跃状态 */
+            if (!view_ids) {
+                lv00_set_error(LV00_ERROR_INVALID_PARAM, "多视图管理SET_ACTIVE失败：view_ids为NULL");
+                return LV00_ERROR_INVALID_PARAM;
+            }
+            int target_view_id = view_ids[0];
+            int found_idx = high_dim_find_view_index(target_view_id);
+            if (found_idx < 0) {
+                lv00_set_error(LV00_ERROR_NOT_FOUND,
+                               "多视图管理SET_ACTIVE失败：未找到view_id=%d", target_view_id);
+                return LV00_ERROR_NOT_FOUND;
+            }
+            g_multi_views[found_idx].is_active = true;
+            lv00_set_error(LV00_OK, "多视图管理SET_ACTIVE成功：view_id=%d已设为活跃", target_view_id);
+            return LV00_OK;
+        }
+
+        case MULTIVIEW_OP_CLONE_VIEW: {
+            /* 克隆指定视图 */
+            if (!view_ids) {
+                lv00_set_error(LV00_ERROR_INVALID_PARAM, "多视图管理CLONE_VIEW失败：view_ids为NULL");
+                return LV00_ERROR_INVALID_PARAM;
+            }
+            int source_view_id = view_ids[0];
+            int found_idx = high_dim_find_view_index(source_view_id);
+            if (found_idx < 0) {
+                lv00_set_error(LV00_ERROR_NOT_FOUND,
+                               "多视图管理CLONE_VIEW失败：未找到源view_id=%d", source_view_id);
+                return LV00_ERROR_NOT_FOUND;
+            }
+            int new_view_id = source_view_id + 1;
+            int new_idx = high_dim_allocate_view_slot(new_view_id,
+                g_multi_views[found_idx].block_id,
+                g_multi_views[found_idx].preset_index);
+            if (new_idx < 0) {
+                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+                               "多视图管理CLONE_VIEW失败：无法分配新视图槽位");
+                return LV00_ERROR_OUT_OF_MEMORY;
+            }
+            g_multi_views[new_idx].highlighted_count = g_multi_views[found_idx].highlighted_count;
+            memcpy(g_multi_views[new_idx].highlighted_elements,
+                   g_multi_views[found_idx].highlighted_elements,
+                   sizeof(int) * HIGH_DIM_MAX_DIMENSIONS);
+            if (count)
+                count[0] = new_view_id;
+            lv00_set_error(LV00_OK, "多视图管理CLONE_VIEW成功：源view_id=%d, 新view_id=%d",
+                           source_view_id, new_view_id);
+            return LV00_OK;
+        }
+
+        case MULTIVIEW_OP_COMPARE_VIEWS: {
+            /* 比较两个视图的差异 */
+            if (!view_ids) {
+                lv00_set_error(LV00_ERROR_INVALID_PARAM, "多视图管理COMPARE_VIEWS失败：view_ids为NULL");
+                return LV00_ERROR_INVALID_PARAM;
+            }
+            int view1_id = view_ids[0];
+            int view2_id = view_ids[1];
+            int idx1 = high_dim_find_view_index(view1_id);
+            int idx2 = high_dim_find_view_index(view2_id);
+            if (idx1 < 0 || idx2 < 0) {
+                lv00_set_error(LV00_ERROR_NOT_FOUND,
+                               "多视图管理COMPARE_VIEWS失败：未找到视图（view1_id=%d, idx1=%d, view2_id=%d, idx2=%d）",
+                               view1_id, idx1, view2_id, idx2);
+                return LV00_ERROR_NOT_FOUND;
+            }
+            int diffs = 0;
+            if (g_multi_views[idx1].block_id != g_multi_views[idx2].block_id) diffs++;
+            if (g_multi_views[idx1].preset_index != g_multi_views[idx2].preset_index) diffs++;
+            if (g_multi_views[idx1].highlighted_count != g_multi_views[idx2].highlighted_count) diffs++;
+            int min_hl = g_multi_views[idx1].highlighted_count < g_multi_views[idx2].highlighted_count
+                         ? g_multi_views[idx1].highlighted_count : g_multi_views[idx2].highlighted_count;
+            for (int i = 0; i < min_hl; i++) {
+                if (g_multi_views[idx1].highlighted_elements[i] != g_multi_views[idx2].highlighted_elements[i])
+                    diffs++;
+            }
+            if (count)
+                count[0] = diffs;
+            lv00_set_error(LV00_OK,
+                           "多视图管理COMPARE_VIEWS完成：view1=%d vs view2=%d, 差异数=%d",
+                           view1_id, view2_id, diffs);
+            return LV00_OK;
+        }
+
         default:
             lv00_set_error(LV00_ERROR_UNSUPPORTED,
                            "多视图管理失败：不支持的操作类型=%d"
-                           "（有效值：0=LIST, 1=COUNT, 2=CLEAR, 3=LIST_BY_BLOCK, 4=EXPORT_JSON）",
+                           "（有效值：0=LIST, 1=COUNT, 2=CLEAR, 3=LIST_BY_BLOCK, 4=EXPORT_JSON, "
+                           "5=GET_VIEW, 6=SET_ACTIVE, 7=CLONE_VIEW, 8=COMPARE_VIEWS）",
                            operation);
             return LV00_ERROR_UNSUPPORTED;
     }

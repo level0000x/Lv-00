@@ -11,8 +11,8 @@
  * - 便捷宏和包装函数
  */
 
-#ifndef LV00_UTILS_H
-#define LV00_UTILS_H
+#ifndef LV00_LV00_UTILS_H
+#define LV00_LV00_UTILS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -1042,4 +1042,4 @@ int lv00_resource_tracker_count(const ResourceTracker *rt);
 }
 #endif
 
-#endif /* LV00_UTILS_H */
+#endif /* LV00_LV00_UTILS_H */

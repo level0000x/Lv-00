@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Lv-00 几何元语言 - 统一几何构造、计算程序与一阶逻辑证明的符号计算系统">
     <!--
       CSP 策略说明（仅开发环境使用）：
       - default-src 'self' 'unsafe-inline': 默认仅允许同源资源，'unsafe-inline' 确保
@@ -56,32 +57,62 @@
   <div class="loading" id="loading" role="status" aria-live="polite" aria-label="加载中">
     <div class="loading-bar"><div class="loading-bar-inner"></div></div>
     <p>INITIALIZING LV-00 MODULE / 正在初始化 LV-00 模块</p>
+    <ul id="loadingSteps" style="list-style:none;padding:0;margin:8px 0 0 0;font-size:11px;color:#8b949e;text-align:center;">
+      <li id="loadingStep1" style="opacity:0.4;">[1/4] 加载常量配置 / Loading constants...</li>
+      <li id="loadingStep2" style="opacity:0.4;">[2/4] 初始化后端引擎 / Initializing backend...</li>
+      <li id="loadingStep3" style="opacity:0.4;">[3/4] 配置画布与事件 / Setting up canvas & events...</li>
+      <li id="loadingStep4" style="opacity:0.4;">[4/4] 加载功能模块 / Loading modules...</li>
+    </ul>
   </div>
 
     <!-- ==================== HEADER ==================== -->
     <div class="header">
         <span class="header-title">LV-00</span>
-        <span class="header-version">v3.2.0</span>
+        <span class="header-version">v3.3.0</span>
         <div class="breadcrumb">
             <span class="breadcrumb-current" id="breadcrumbModule">FORMULA</span>
         </div>
         <div class="module-tabs" role="tablist" aria-label="模块导航">
-            <button class="module-tab active" data-module="formula" data-tooltip="FORMULA / 公式模块" role="tab" aria-selected="true"><span class="tab-icon">F</span>Formula</button>
-            <button class="module-tab" data-module="graph" data-tooltip="GRAPH / 图模块" role="tab" aria-selected="false"><span class="tab-icon">G</span>Graph</button>
-            <button class="module-tab" data-module="block" data-tooltip="BLOCK / 函数块模块" role="tab" aria-selected="false"><span class="tab-icon">B</span>Block</button>
-            <button class="module-tab" data-module="proof" data-tooltip="PROOF / 证明模块" role="tab" aria-selected="false"><span class="tab-icon">P</span>Proof</button>
-            <button class="module-tab" data-module="type" data-tooltip="TYPE / 类型模块" role="tab" aria-selected="false"><span class="tab-icon">T</span>Type</button>
-            <button class="module-tab" data-module="recurse" data-tooltip="RECURSE / 递归模块" role="tab" aria-selected="false"><span class="tab-icon">R</span>Recurse</button>
-            <button class="module-tab" data-module="engine" data-tooltip="ENGINE / 引擎模块" role="tab" aria-selected="false"><span class="tab-icon">E</span>Engine</button>
-            <button class="module-tab" data-module="debug" data-tooltip="DEBUG / 调试模块" role="tab" aria-selected="false"><span class="tab-icon">D</span>Debug</button>
-            <button class="module-tab" data-module="help" data-tooltip="HELP / 帮助" role="tab" aria-selected="false"><span class="tab-icon">H</span>Help</button>
-            <button class="module-tab" data-module="assistant" data-tooltip="ASSISTANT / AI 助手" role="tab" aria-selected="false"><span class="tab-icon">AI</span>AI</button>
-            <button class="module-tab" data-module="magic" data-tooltip="MAGIC / 魔法模块" role="tab" aria-selected="false"><span class="tab-icon">M</span>Magic</button>
+            <button class="module-tab active" data-module="formula" data-tooltip="FORMULA / 公式模块" role="tab" aria-selected="true" aria-controls="panelFormula" tabindex="0"><span class="tab-icon">F</span>Formula</button>
+            <button class="module-tab" data-module="graph" data-tooltip="GRAPH / 图模块" role="tab" aria-selected="false" aria-controls="panelGraph" tabindex="-1"><span class="tab-icon">G</span>Graph</button>
+            <button class="module-tab" data-module="block" data-tooltip="BLOCK / 函数块模块" role="tab" aria-selected="false" aria-controls="panelBlock" tabindex="-1"><span class="tab-icon">B</span>Block</button>
+            <button class="module-tab" data-module="proof" data-tooltip="PROOF / 证明模块" role="tab" aria-selected="false" aria-controls="panelProof" tabindex="-1"><span class="tab-icon">P</span>Proof</button>
+            <button class="module-tab" data-module="type" data-tooltip="TYPE / 类型模块" role="tab" aria-selected="false" aria-controls="panelType" tabindex="-1"><span class="tab-icon">T</span>Type</button>
+            <button class="module-tab" data-module="recurse" data-tooltip="RECURSE / 递归模块" role="tab" aria-selected="false" aria-controls="panelRecurse" tabindex="-1"><span class="tab-icon">R</span>Recurse</button>
+            <button class="module-tab" data-module="engine" data-tooltip="ENGINE / 引擎模块" role="tab" aria-selected="false" aria-controls="panelEngine" tabindex="-1"><span class="tab-icon">E</span>Engine</button>
+            <button class="module-tab" data-module="debug" data-tooltip="DEBUG / 调试模块" role="tab" aria-selected="false" aria-controls="panelDebug" tabindex="-1"><span class="tab-icon">D</span>Debug</button>
+            <button class="module-tab" data-module="help" data-tooltip="HELP / 帮助" role="tab" aria-selected="false" aria-controls="panelHelp" tabindex="-1"><span class="tab-icon">H</span>Help</button>
+            <button class="module-tab" data-module="assistant" data-tooltip="ASSISTANT / AI 助手" role="tab" aria-selected="false" aria-controls="panelAssistant" tabindex="-1"><span class="tab-icon">AI</span>AI</button>
+            <button class="module-tab" data-module="magic" data-tooltip="MAGIC / 魔法模块" role="tab" aria-selected="false" aria-controls="panelMagic" tabindex="-1"><span class="tab-icon">M</span>Magic</button>
+        </div>
+        <!-- 窄屏标签页下拉菜单（默认隐藏，通过 CSS 媒体查询在 <=768px 时显示） -->
+        <div class="module-tabs-dropdown" id="moduleTabsDropdown" role="tablist" aria-label="模块导航菜单">
+            <button class="module-tabs-dropdown-btn" id="moduleTabsDropdownBtn" aria-haspopup="true" aria-expanded="false">
+                <span id="moduleTabsDropdownLabel">Formula</span>
+                <span class="dropdown-arrow">&#9660;</span>
+            </button>
+            <div class="module-tabs-dropdown-menu" role="menu">
+                <button class="module-tabs-dropdown-item active" data-module="formula" role="tab" aria-selected="true" aria-controls="panelFormula">Formula / 公式</button>
+                <button class="module-tabs-dropdown-item" data-module="graph" role="tab" aria-selected="false" aria-controls="panelGraph">Graph / 图</button>
+                <button class="module-tabs-dropdown-item" data-module="block" role="tab" aria-selected="false" aria-controls="panelBlock">Block / 函数块</button>
+                <button class="module-tabs-dropdown-item" data-module="proof" role="tab" aria-selected="false" aria-controls="panelProof">Proof / 证明</button>
+                <button class="module-tabs-dropdown-item" data-module="type" role="tab" aria-selected="false" aria-controls="panelType">Type / 类型</button>
+                <button class="module-tabs-dropdown-item" data-module="recurse" role="tab" aria-selected="false" aria-controls="panelRecurse">Recurse / 递归</button>
+                <button class="module-tabs-dropdown-item" data-module="engine" role="tab" aria-selected="false" aria-controls="panelEngine">Engine / 引擎</button>
+                <button class="module-tabs-dropdown-item" data-module="debug" role="tab" aria-selected="false" aria-controls="panelDebug">Debug / 调试</button>
+                <button class="module-tabs-dropdown-item" data-module="help" role="tab" aria-selected="false" aria-controls="panelHelp">Help / 帮助</button>
+                <button class="module-tabs-dropdown-item" data-module="assistant" role="tab" aria-selected="false" aria-controls="panelAssistant">AI / 助手</button>
+                <button class="module-tabs-dropdown-item" data-module="magic" role="tab" aria-selected="false" aria-controls="panelMagic">Magic / 魔法</button>
+            </div>
         </div>
         <div class="header-actions">
-            <button class="header-action-btn" id="btnThemeToggle" title="切换主题 / Toggle Theme">THEME / 主题</button>
-            <button class="header-action-btn" id="btnSearch" title="搜索 / Search (Ctrl+F)">SEARCH / 搜索</button>
-            <button class="header-action-btn" id="btnExport" title="导出 / Export">EXPORT / 导出</button>
+            <!-- 左侧边栏切换按钮（移动端显示） -->
+            <button class="sidebar-toggle-btn" id="btnSidebarLeftToggle" aria-label="切换左侧边栏" title="切换左侧边栏">&#9776;</button>
+            <button class="header-action-btn" id="btnThemeToggle" title="切换主题 / Toggle Theme" aria-label="切换主题">THEME / 主题</button>
+            <button class="header-action-btn" id="btnSearch" title="搜索 / Search (Ctrl+F)" aria-label="搜索">SEARCH / 搜索</button>
+            <button class="header-action-btn" id="btnExport" title="导出 / Export" aria-label="导出">EXPORT / 导出</button>
+            <!-- 右侧边栏切换按钮（移动端显示） -->
+            <button class="sidebar-toggle-btn" id="btnSidebarRightToggle" aria-label="切换右侧边栏" title="切换右侧边栏">&#9881;</button>
         </div>
     </div>
 
@@ -534,12 +565,12 @@
 
             <!-- Canvas Toolbar -->
             <div class="canvas-toolbar" role="toolbar" aria-label="画布工具">
-                <button class="tool-btn active" id="toolSelect" title="SELECT / 选择工具 (V) - 点击选择画布上的元素" aria-label="选择/Select"><span class="tool-icon">S</span><span class="tool-label">SEL</span></button>
-                <button class="tool-btn" id="toolPoint" title="ADD POINT / 添加点 (P) - 在画布上点击创建新的点" aria-label="添加点/Add Point"><span class="tool-icon">P</span><span class="tool-label">PT</span></button>
-                <button class="tool-btn" id="toolSegment" title="ADD SEGMENT / 添加线段 (L) - 依次点击两个点创建线段" aria-label="添加线段/Add Segment"><span class="tool-icon">L</span><span class="tool-label">SEG</span></button>
-                <button class="tool-btn" id="toolPan" title="PAN VIEW / 平移视图 (H) - 拖拽画布以平移视口" aria-label="平移/Pan"><span class="tool-icon">H</span><span class="tool-label">PAN</span></button>
-                <button class="tool-btn" id="toolRegion" title="REGION / 区域 (R) - 在画布上框选创建区域" aria-label="添加区域/Add Region"><span class="tool-icon">R</span><span class="tool-label">REG</span></button>
-                <button class="tool-btn" id="toolProbe" title="PROBE / 探测 (?) - 悬停查看元素的详细信息" aria-label="探针/Probe"><span class="tool-icon">?</span><span class="tool-label">PRB</span></button>
+                <button class="tool-btn active" id="toolSelect" title="SELECT / 选择工具 (V) - 点击选择画布上的元素" aria-label="选择工具 - 点击选择画布上的元素 (V)"><span class="tool-icon">S</span><span class="tool-label">SEL</span></button>
+                <button class="tool-btn" id="toolPoint" title="ADD POINT / 添加点 (P) - 在画布上点击创建新的点" aria-label="画点工具 - 在画布上点击创建新的点 (P)"><span class="tool-icon">P</span><span class="tool-label">PT</span></button>
+                <button class="tool-btn" id="toolSegment" title="ADD SEGMENT / 添加线段 (L) - 依次点击两个点创建线段" aria-label="画线段工具 - 依次点击两个点创建线段 (L)"><span class="tool-icon">L</span><span class="tool-label">SEG</span></button>
+                <button class="tool-btn" id="toolPan" title="PAN VIEW / 平移视图 (H) - 拖拽画布以平移视口" aria-label="平移视图工具 - 拖拽画布以平移视口 (H)"><span class="tool-icon">H</span><span class="tool-label">PAN</span></button>
+                <button class="tool-btn" id="toolRegion" title="REGION / 区域 (R) - 在画布上框选创建区域" aria-label="区域工具 - 在画布上框选创建区域 (R)"><span class="tool-icon">R</span><span class="tool-label">REG</span></button>
+                <button class="tool-btn" id="toolProbe" title="PROBE / 探测 (?) - 悬停查看元素的详细信息" aria-label="探针工具 - 悬停查看元素的详细信息 (?)"><span class="tool-icon">?</span><span class="tool-label">PRB</span></button>
             </div>
 
             <!-- Canvas Info -->
@@ -665,116 +696,200 @@
     <!-- ==================== TOAST CONTAINER ==================== -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- ==================== SCRIPTS ==================== -->
-    <!-- 核心后端 -->
-    <script src="js/lv00_js_backend.js"></script>
-    <!-- 公式模块 -->
-    <script src="js/formula_parser.js"></script>
-    <script src="js/formula_renderer.js"></script>
-    <script src="js/formula_to_graph.js"></script>
-    <script src="js/graph_to_formula.js"></script>
-    <script src="js/formula_module.js"></script>
-    <!-- 应用核心（构造函数 + init + 按钮绑定 + 坐标转换 + 几何操作） -->
-    <script src="js/app.js"></script>
-    <!-- 应用模块（按依赖顺序加载） -->
-    <script src="js/utils.js"></script>
-    <script src="js/render.js"></script>
-    <script src="js/interaction.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/undo.js"></script>
-    <!-- 功能模块 -->
-    <script src="js/modules/graph.js"></script>
-    <script src="js/modules/block.js"></script>
-    <script src="js/modules/proof.js"></script>
-    <script src="js/modules/type.js"></script>
-    <script src="js/modules/recurse.js"></script>
-    <script src="js/modules/debug.js"></script>
-    <script src="js/axiom_engine.js"></script>
-    <script src="js/spell_compiler.js"></script>
-    <script src="js/modules/magic.js"></script>
-    <script src="js/streaming.js"></script>
-    <script src="integrate-all.js"></script>
-    <!-- ==================== 全局清理与事件委托 ==================== -->
-    <script>
-    'use strict';
-    /**
-     * 页面卸载前清理所有事件监听器，防止内存泄漏
-     * Cleanup all event listeners before page unload to prevent memory leaks
-     */
-    window.addEventListener('beforeunload', function() {
-        if (window.lv00App && typeof window.lv00App.cleanup === 'function') {
-            // 调用 app.cleanup() 执行完整的资源清理：
-            // - 移除所有 DOM 事件监听器（Canvas 交互、键盘快捷键、resize 等）
-            // - 取消 requestAnimationFrame 渲染循环
-            // - 清理 WebAssembly 内存引用（若已加载 WASM）
-            // - 断开 SSE/WebSocket 连接
-            // - 释放临时对象引用，帮助 GC 回收
-            window.lv00App.cleanup();
-        }
-    });
+    <!-- ==================== SIDEBAR OVERLAY / 侧边栏遮罩层（移动端） ==================== -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    /**
-     * 数值假设模态框关闭事件委托
-     * 绑定到 document.body 以捕获 data-action="close-numeric-assumption" 按钮点击
-     */
+    <!-- ==================== SCRIPTS ==================== -->
+    <!-- 所有脚本使用 defer 属性，按文档顺序在 DOM 解析完成后、DOMContentLoaded 前依次执行。
+         注意：内联脚本无法使用 defer，因此已提取到 js/init.js 中一并 defer 加载。
+         各脚本之间的依赖顺序由 HTML 中的出现顺序保证。 -->
+    <!-- 全局常量（必须在所有依赖它的 JS 文件之前加载） -->
+    <script src="js/constants.js" defer></script>
+    <!-- 核心后端 -->
+    <script src="js/lv00_js_backend.js" defer></script>
+    <!-- 公式模块 -->
+    <script src="js/formula_parser.js" defer></script>
+    <script src="js/formula_renderer.js" defer></script>
+    <script src="js/formula_to_graph.js" defer></script>
+    <script src="js/graph_to_formula.js" defer></script>
+    <script src="js/formula_module.js" defer></script>
+    <!-- 应用核心（构造函数 + init + 按钮绑定 + 坐标转换 + 几何操作） -->
+    <script src="js/app.js" defer></script>
+    <!-- 应用模块（按依赖顺序加载） -->
+    <script src="js/utils.js" defer></script>
+    <script src="js/render.js" defer></script>
+    <script src="js/interaction.js" defer></script>
+    <script src="js/ui.js" defer></script>
+    <script src="js/undo.js" defer></script>
+    <!-- 功能模块 -->
+    <script src="js/modules/graph.js" defer></script>
+    <script src="js/modules/block.js" defer></script>
+    <script src="js/modules/proof.js" defer></script>
+    <script src="js/modules/type.js" defer></script>
+    <script src="js/modules/recurse.js" defer></script>
+    <script src="js/modules/debug.js" defer></script>
+    <script src="js/axiom_engine.js" defer></script>
+    <script src="js/spell_compiler.js" defer></script>
+    <script src="js/modules/magic.js" defer></script>
+    <script src="js/streaming.js" defer></script>
+    <script src="integrate-all.js" defer></script>
+    <!-- ==================== 全局清理与事件委托（从内联脚本提取） ==================== -->
+    <script src="js/init.js" defer></script>
+    <!-- ==================== 无障碍访问与响应式增强脚本 ==================== -->
+    <script>
+    /* === 无障碍访问增强：标签页键盘导航、侧边栏切换、下拉菜单 === */
     document.addEventListener('DOMContentLoaded', function() {
-        document.body.addEventListener('click', function(e) {
-            var target = e.target;
-            if (target && target.getAttribute('data-action') === 'close-numeric-assumption') {
-                var modal = document.getElementById('modalNumericAssumption');
-                if (modal) {
-                    modal.classList.remove('active');
+        // --- 标签页键盘导航（左右箭头切换标签） ---
+        var tablist = document.querySelector('.module-tabs[role="tablist"]');
+        if (tablist) {
+            var tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+            tablist.addEventListener('keydown', function(e) {
+                var currentIndex = tabs.indexOf(document.activeElement);
+                if (currentIndex === -1) return;
+                var newIndex = currentIndex;
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    newIndex = (currentIndex + 1) % tabs.length;
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+                } else if (e.key === 'Home') {
+                    e.preventDefault();
+                    newIndex = 0;
+                } else if (e.key === 'End') {
+                    e.preventDefault();
+                    newIndex = tabs.length - 1;
                 }
-            }
+                if (newIndex !== currentIndex) {
+                    // 更新 tabindex：当前激活标签 tabindex=0，其余 tabindex=-1
+                    tabs.forEach(function(tab, i) {
+                        tab.setAttribute('tabindex', i === newIndex ? '0' : '-1');
+                    });
+                    tabs[newIndex].focus();
+                    // 触发点击以切换模块
+                    tabs[newIndex].click();
+                }
+            });
+        }
+
+        // --- 窄屏标签页下拉菜单 ---
+        var dropdown = document.getElementById('moduleTabsDropdown');
+        var dropdownBtn = document.getElementById('moduleTabsDropdownBtn');
+        var dropdownLabel = document.getElementById('moduleTabsDropdownLabel');
+        var dropdownItems = document.querySelectorAll('.module-tabs-dropdown-item');
+
+        if (dropdown && dropdownBtn) {
+            // 点击按钮切换下拉菜单
+            dropdownBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var isOpen = dropdown.classList.toggle('open');
+                dropdownBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
+            // 点击下拉菜单项切换模块
+            dropdownItems.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    var moduleName = this.getAttribute('data-module');
+                    // 同步更新下拉菜单的选中状态和标签文本
+                    dropdownItems.forEach(function(di) {
+                        di.classList.remove('active');
+                        di.setAttribute('aria-selected', 'false');
+                    });
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
+                    if (dropdownLabel) {
+                        dropdownLabel.textContent = this.textContent;
+                    }
+                    // 关闭下拉菜单
+                    dropdown.classList.remove('open');
+                    dropdownBtn.setAttribute('aria-expanded', 'false');
+                    // 触发对应的标签页点击（同步切换模块）
+                    var mainTab = document.querySelector('.module-tabs .module-tab[data-module="' + moduleName + '"]');
+                    if (mainTab) mainTab.click();
+                });
+            });
+
+            // 点击页面其他区域关闭下拉菜单
+            document.addEventListener('click', function() {
+                if (dropdown.classList.contains('open')) {
+                    dropdown.classList.remove('open');
+                    dropdownBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        // --- 同步标签页切换到下拉菜单的选中状态 ---
+        var mainTabs = document.querySelectorAll('.module-tabs .module-tab');
+        mainTabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var moduleName = this.getAttribute('data-module');
+                // 更新下拉菜单的选中状态
+                dropdownItems.forEach(function(di) {
+                    var isActive = di.getAttribute('data-module') === moduleName;
+                    di.classList.toggle('active', isActive);
+                    di.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                    if (isActive && dropdownLabel) {
+                        dropdownLabel.textContent = di.textContent;
+                    }
+                });
+            });
         });
 
-        /**
-         * 全局键盘快捷键处理
-         * Ctrl+1~9: 切换到对应序号的模块标签
-         * Ctrl+Z:   撤销操作（委托给 app.undo）
-         * Ctrl+Y:   重做操作（委托给 app.redo）
-         *
-         * 注意：仅在非输入框（input/textarea/select）聚焦时生效，
-         *       避免与文本编辑冲突。
-         */
+        // --- 移动端侧边栏切换 ---
+        var sidebarLeft = document.getElementById('sidebarLeft');
+        var sidebarRight = document.getElementById('sidebarRight');
+        var sidebarOverlay = document.getElementById('sidebarOverlay');
+        var btnToggleLeft = document.getElementById('btnSidebarLeftToggle');
+        var btnToggleRight = document.getElementById('btnSidebarRightToggle');
+
+        // 关闭所有侧边栏的通用函数
+        function closeAllSidebars() {
+            if (sidebarLeft) sidebarLeft.classList.remove('open');
+            if (sidebarRight) sidebarRight.classList.remove('open');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+        }
+
+        // 打开指定侧边栏
+        function openSidebar(sidebar) {
+            closeAllSidebars();
+            if (sidebar) sidebar.classList.add('open');
+            if (sidebarOverlay) sidebarOverlay.classList.add('active');
+        }
+
+        if (btnToggleLeft) {
+            btnToggleLeft.addEventListener('click', function() {
+                if (sidebarLeft && sidebarLeft.classList.contains('open')) {
+                    closeAllSidebars();
+                } else {
+                    openSidebar(sidebarLeft);
+                }
+            });
+        }
+
+        if (btnToggleRight) {
+            btnToggleRight.addEventListener('click', function() {
+                if (sidebarRight && sidebarRight.classList.contains('open')) {
+                    closeAllSidebars();
+                } else {
+                    openSidebar(sidebarRight);
+                }
+            });
+        }
+
+        // 点击遮罩层关闭侧边栏
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', closeAllSidebars);
+        }
+
+        // ESC 键关闭侧边栏和下拉菜单
         document.addEventListener('keydown', function(e) {
-            // 如果焦点在输入框中，不处理快捷键（避免干扰文本输入）
-            var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-            if (tag === 'input' || tag === 'textarea' || tag === 'select') {
-                return;
-            }
-
-            var ctrl = e.ctrlKey || e.metaKey;
-
-            // Ctrl+1~9: 切换模块标签
-            if (ctrl && e.key >= '1' && e.key <= '9') {
-                e.preventDefault();
-                var tabs = document.querySelectorAll('.module-tab');
-                var index = parseInt(e.key, 10) - 1;
-                if (index >= 0 && index < tabs.length) {
-                    tabs[index].click();
+            if (e.key === 'Escape') {
+                closeAllSidebars();
+                if (dropdown && dropdown.classList.contains('open')) {
+                    dropdown.classList.remove('open');
+                    if (dropdownBtn) dropdownBtn.setAttribute('aria-expanded', 'false');
+                    dropdownBtn.focus();
                 }
-                return;
-            }
-
-            // Ctrl+Z: 撤销
-            if (ctrl && e.key === 'z' && !e.shiftKey) {
-                e.preventDefault();
-                var app = window.lv00App;
-                if (app && typeof app.undo === 'function') {
-                    app.undo();
-                }
-                return;
-            }
-
-            // Ctrl+Y: 重做
-            if (ctrl && e.key === 'y') {
-                e.preventDefault();
-                var app2 = window.lv00App;
-                if (app2 && typeof app2.redo === 'function') {
-                    app2.redo();
-                }
-                return;
             }
         });
     });

@@ -14,7 +14,6 @@ import logging.handlers
 import os
 import sys
 from pathlib import Path
-from typing import TextIO
 
 from .constants import DEFAULT_LOG_FORMAT
 

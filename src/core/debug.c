@@ -18,15 +18,14 @@
 #include <direct.h>
 #include <io.h>
 #include <windows.h>
-#define PATH_SEPARATOR '\\'
 #define mkdir(path, mode) _mkdir(path)
 #define access _access
-#define F_OK 0
+#define LV00_DEBUG_F_OK 0
 #else
 #include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
-#define PATH_SEPARATOR '/'
+#define LV00_DEBUG_F_OK F_OK
 #endif
 
 #include "debug.h"
@@ -43,31 +42,63 @@ LV00_DECLARE_STREAM_CTX(debug)
 /* ==================== 命名常量（消除魔术数字） ==================== */
 
 /** 错误诊断消息缓冲区的默认大小 */
-#define DEBUG_MSG_BUF_SIZE 512
+#define LV00_DEBUG_MSG_BUF_SIZE 512
 
 /** 时间戳格式化缓冲区大小 */
-#define DEBUG_TIMESTAMP_BUF_SIZE 32
+#define LV00_DEBUG_TIMESTAMP_BUF_SIZE 32
 
 /** GC 及内存池的默认块大小 */
-#define DEBUG_GC_BLOCK_SIZE 2048
+#define LV00_DEBUG_GC_BLOCK_SIZE 2048
 
 /** 默认日志文件基本名称 */
-#define DEBUG_LOG_BASENAME "lv00.log"
+#define LV00_DEBUG_LOG_BASENAME "lv00.log"
 
 /** 日志消息格式化缓冲区大小 */
-#define DEBUG_LOG_MESSAGE_BUF_SIZE 4096
+#define LV00_DEBUG_LOG_MESSAGE_BUF_SIZE 4096
 
 /** 日志行拼接缓冲区大小（含时间戳、级别、模块名、消息） */
-#define DEBUG_LOG_LINE_BUF_SIZE 8192
+#define LV00_DEBUG_LOG_LINE_BUF_SIZE 8192
 
 /** 追踪会话初始事件容量 */
-#define DEBUG_TRACE_INITIAL_CAPACITY 64
+#define LV00_DEBUG_TRACE_INITIAL_CAPACITY 64
 
 /** 空 JSON 导出缓冲区大小 */
-#define DEBUG_EMPTY_JSON_BUF_SIZE 32
+#define LV00_DEBUG_EMPTY_JSON_BUF_SIZE 32
 
 /** JSON 导出初始缓冲区容量 */
-#define DEBUG_JSON_INITIAL_CAPACITY 1024
+#define LV00_DEBUG_JSON_INITIAL_CAPACITY 1024
+
+/*=== 线程安全策略 ===
+ *
+ * 本模块的全局状态分为以下几类，各自有不同的保护策略：
+ *
+ * 1. 日志互斥锁（g_log_mutex）：
+ *    - 保护：g_log_file, g_log_file_path, g_log_dir_path,
+ *            g_current_log_size, g_initialized, g_log_level, g_debug_mode
+ *    - 所有日志写入路径（debug_log, debug_log_legacy_impl 等）均通过
+ *      log_lock()/log_unlock() 获取此锁。
+ *    - debug_log_init() 在 POSIX 上通过 pthread_mutex_lock 保护初始化；
+ *      在 Windows 上通过 InterlockedCompareExchange 确保单次初始化，
+ *      并在写入全局路径前获取 g_log_mutex。
+ *    - debug_log_shutdown() 在检查 g_initialized 之前获取锁，
+ *      防止与 debug_log_init() 产生竞态条件。
+ *
+ * 2. 性能计数器互斥锁（g_counter_mutex）：
+ *    - 保护：g_counters（PerformanceCounters 结构体）
+ *    - 所有计数器读写路径均通过 counter_lock()/counter_unlock() 获取此锁。
+ *
+ * 3. 线程局部变量（LV00_THREAD_LOCAL）：
+ *    - g_log_level 和 g_debug_mode 为线程局部存储，
+ *      每个线程有独立副本，无需锁保护。
+ *
+ * 4. 互斥锁自身的初始化：
+ *    - POSIX：使用 PTHREAD_MUTEX_INITIALIZER 静态初始化，可直接使用。
+ *    - Windows：使用 InterlockedCompareExchange + volatile LONG 标志
+ *      确保每个 CRITICAL_SECTION 只初始化一次。
+ *
+ * 注意：g_log_file 是全局共享的（非线程局部），因为日志系统本身
+ * 应该是全局共享的。关键是确保所有访问都在互斥锁保护下进行。
+ */
 
 /*=== 内部状态 ===*/
 
@@ -77,35 +108,35 @@ static LV00_THREAD_LOCAL LogLevel g_log_level = LOG_LEVEL_INFO;
 /* 调试模式标志（启用 DEBUG 级别日志） */
 static LV00_THREAD_LOCAL bool g_debug_mode = false;
 
-/* 日志文件句柄（全局共享，所有线程写入同一日志文件） */
+/* 日志文件句柄（全局共享，所有线程写入同一日志文件，由 g_log_mutex 保护） */
 static FILE *g_log_file = NULL;
 
-/* 日志文件路径（全局共享） */
+/* 日志文件路径（全局共享，由 g_log_mutex 保护） */
 static char g_log_file_path[LV00_LOG_PATH_MAX] = {0};
 
-/* 日志目录路径（全局共享） */
+/* 日志目录路径（全局共享，由 g_log_mutex 保护） */
 static char g_log_dir_path[LV00_LOG_PATH_MAX] = {0};
 
-/* 当前日志文件大小（全局共享，由互斥锁保护） */
+/* 当前日志文件大小（全局共享，由 g_log_mutex 保护） */
 static size_t g_current_log_size = 0;
 
-/* 初始化标志（全局共享） */
-static bool g_initialized = false;
+/* 初始化标志（全局共享，由 g_log_mutex 保护） */
+static volatile bool g_initialized = false;
 
 /* 线程安全互斥锁 */
 #ifdef _WIN32
 static CRITICAL_SECTION g_log_mutex;
-static bool g_mutex_initialized = false;
+static volatile LONG g_mutex_initialized = 0;
 #else
 static pthread_mutex_t g_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-/* 性能计数器 */
+/* 性能计数器（全局共享，由 g_counter_mutex 保护） */
 static PerformanceCounters g_counters = {0};
 
 #ifdef _WIN32
 static CRITICAL_SECTION g_counter_mutex;
-static bool g_counter_mutex_initialized = false;
+static volatile LONG g_counter_mutex_initialized = 0;
 #else
 static pthread_mutex_t g_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -120,84 +151,45 @@ static int g_log_ring_buffer_capacity = LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 
 /*=== 内部辅助函数 ===*/
 
-/* 日志加锁 */
-/**
- * @brief 获取日志系统互斥锁
- * @note 在 Windows 上使用 CRITICAL_SECTION，在 POSIX 上使用 pthread_mutex_t
- */
-static void log_lock(void) {
 #ifdef _WIN32
-    if (g_mutex_initialized) {
-        EnterCriticalSection(&g_log_mutex);
-    }
-#else
-    pthread_mutex_lock(&g_log_mutex);
-#endif
-}
+/** @brief 通用互斥锁加锁宏（Windows 下使用 InterlockedCompareExchange 确保线程安全惰性初始化） */
+#define LV00_MUTEX_LOCK(mutex) do { \
+    EnterCriticalSection(&(mutex)); \
+} while (0)
 
-/**
- * @brief 释放日志系统互斥锁
- * @note 必须与 log_lock() 配对使用
- */
-static void log_unlock(void) {
-#ifdef _WIN32
-    if (g_mutex_initialized) {
-        LeaveCriticalSection(&g_log_mutex);
-    }
+/** @brief 通用互斥锁解锁宏 */
+#define LV00_MUTEX_UNLOCK(mutex) do { \
+    LeaveCriticalSection(&(mutex)); \
+} while (0)
 #else
-    pthread_mutex_unlock(&g_log_mutex);
+/** @brief 通用互斥锁加锁宏（POSIX 版本） */
+#define LV00_MUTEX_LOCK(mutex) do { \
+    pthread_mutex_lock(&(mutex)); \
+} while (0)
+
+/** @brief 通用互斥锁解锁宏（POSIX 版本） */
+#define LV00_MUTEX_UNLOCK(mutex) do { \
+    pthread_mutex_unlock(&(mutex)); \
+} while (0)
 #endif
-}
+
+/* 锁函数生成宏：消除 6 个锁函数的重复代码 */
+#define LV00_DEFINE_LOCK_FUNCS(name, mutex_var) \
+    static void name##_lock(void) { \
+        LV00_MUTEX_LOCK(mutex_var); \
+    } \
+    static void name##_unlock(void) { \
+        LV00_MUTEX_UNLOCK(mutex_var); \
+    }
+
+/* 日志加锁 */
+LV00_DEFINE_LOCK_FUNCS(log, g_log_mutex)
 
 /* 性能计数器加锁 */
-/**
- * @brief 获取性能计数器互斥锁
- * @note 保护 g_counters 全局性能计数器的并发访问
- */
-static void counter_lock(void) {
-#ifdef _WIN32
-    if (g_counter_mutex_initialized) {
-        EnterCriticalSection(&g_counter_mutex);
-    }
-#else
-    pthread_mutex_lock(&g_counter_mutex);
-#endif
-}
-
-/**
- * @brief 释放性能计数器互斥锁
- * @note 必须与 counter_lock() 配对使用
- */
-static void counter_unlock(void) {
-#ifdef _WIN32
-    if (g_counter_mutex_initialized) {
-        LeaveCriticalSection(&g_counter_mutex);
-    }
-#else
-    pthread_mutex_unlock(&g_counter_mutex);
-#endif
-}
+LV00_DEFINE_LOCK_FUNCS(counter, g_counter_mutex)
 
 /* 引用计数加锁/解锁（复用 counter_mutex） */
-static void debug_lock_refcount(void) {
-#ifdef _WIN32
-    if (g_counter_mutex_initialized) {
-        EnterCriticalSection(&g_counter_mutex);
-    }
-#else
-    pthread_mutex_lock(&g_counter_mutex);
-#endif
-}
-
-static void debug_unlock_refcount(void) {
-#ifdef _WIN32
-    if (g_counter_mutex_initialized) {
-        LeaveCriticalSection(&g_counter_mutex);
-    }
-#else
-    pthread_mutex_unlock(&g_counter_mutex);
-#endif
-}
+LV00_DEFINE_LOCK_FUNCS(debug_refcount, g_counter_mutex)
 
 /* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
 static const char *log_level_string(LogLevel level) {
@@ -246,19 +238,19 @@ static int create_directory(const char *path) {
     /* strncpy 不安全使用 → lv00_strlcpy，确保零终止后再计算 strlen */
     lv00_strlcpy(tmp, path, sizeof(tmp));
     len = strlen(tmp);
-    if (len > 0 && tmp[len - 1] == PATH_SEPARATOR) {
+    if (len > 0 && tmp[len - 1] == LV00_PATH_SEPARATOR) {
         tmp[len - 1] = '\0';
     }
 
     for (p = tmp + 1; *p; p++) {
-        if (*p == PATH_SEPARATOR) {
+        if (*p == LV00_PATH_SEPARATOR) {
             *p = '\0';
             /* 直接尝试创建目录，处理 EEXIST（目录已存在）而非预先检查，
              * 避免 TOCTOU（检查时间-使用时间）竞争条件 */
             if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
                 return -1;
             }
-            *p = PATH_SEPARATOR;
+            *p = LV00_PATH_SEPARATOR;
         }
     }
 
@@ -283,24 +275,26 @@ static void get_timestamp(char *buf, size_t size) {
     strftime(buf, size, "%Y-%m-%d %H:%M:%S", &tm_buf);
 }
 
-/* 日志文件轮转 */
+/* 日志文件轮转
+ * @note 调用此函数前必须已持有 log_lock()，否则存在竞态条件风险。
+ *       当前唯一调用点 check_rotation() 在 debug_log() 中被调用时已持有锁。 */
 static void rotate_logs(void) {
     char old_path[LV00_LOG_PATH_MAX];
     char new_path[LV00_LOG_PATH_MAX];
     int i;
 
     /* 如果存在则删除最旧的文件 */ /* [修复] 英文注释改为中文 */
-    snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, PATH_SEPARATOR, DEBUG_LOG_BASENAME,
+    snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME,
              LV00_LOG_MAX_FILES);
-    if (access(old_path, F_OK) == 0) {
+    if (access(old_path, LV00_DEBUG_F_OK) == 0) {
         remove(old_path);
     }
 
     /* 重命名现有文件: .4 -> .5, .3 -> .4, 依此类推 */
     for (i = LV00_LOG_MAX_FILES - 1; i >= 1; i--) {
-        snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, PATH_SEPARATOR, DEBUG_LOG_BASENAME, i);
-        snprintf(new_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, PATH_SEPARATOR, DEBUG_LOG_BASENAME, i + 1);
-        if (access(old_path, F_OK) == 0) {
+        snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME, i);
+        snprintf(new_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME, i + 1);
+        if (access(old_path, LV00_DEBUG_F_OK) == 0) {
             rename(old_path, new_path);
         }
     }
@@ -314,9 +308,9 @@ static void rotate_logs(void) {
     /* 重置日志大小计数器，因为旧文件已被关闭 */
     g_current_log_size = 0;
 
-    snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, PATH_SEPARATOR, DEBUG_LOG_BASENAME);
-    snprintf(new_path, LV00_LOG_PATH_MAX, "%s%c%s.1", g_log_dir_path, PATH_SEPARATOR, DEBUG_LOG_BASENAME);
-    if (access(old_path, F_OK) == 0) {
+    snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME);
+    snprintf(new_path, LV00_LOG_PATH_MAX, "%s%c%s.1", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME);
+    if (access(old_path, LV00_DEBUG_F_OK) == 0) {
         rename(old_path, new_path);
     }
 
@@ -767,8 +761,8 @@ int ref_count_get(const void *obj) {
 static LV00_THREAD_LOCAL EmergencySaveHandler g_emergency_handler = NULL;
 
 /* 日志缓冲区：保存最近的日志条目用于紧急保存 */
-#define EMERGENCY_LOG_BUFFER_SIZE 256
-static char *g_log_buffer[EMERGENCY_LOG_BUFFER_SIZE];
+#define LV00_EMERGENCY_LOG_BUFFER_SIZE 256
+static char *g_log_buffer[LV00_EMERGENCY_LOG_BUFFER_SIZE];
 static int g_log_buffer_head = 0;
 static int g_log_buffer_count = 0;
 
@@ -790,8 +784,8 @@ static void log_buffer_append(const char *line) {
         lv00_free((void **) &g_log_buffer[g_log_buffer_head]);
     }
     g_log_buffer[g_log_buffer_head] = copy;
-    g_log_buffer_head = (g_log_buffer_head + 1) % EMERGENCY_LOG_BUFFER_SIZE;
-    if (g_log_buffer_count < EMERGENCY_LOG_BUFFER_SIZE) {
+    g_log_buffer_head = (g_log_buffer_head + 1) % LV00_EMERGENCY_LOG_BUFFER_SIZE;
+    if (g_log_buffer_count < LV00_EMERGENCY_LOG_BUFFER_SIZE) {
         g_log_buffer_count++;
     }
 }
@@ -816,7 +810,7 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
     time_t now = time(NULL);
     struct tm tm_buf;
     LV00_LOCALTIME(&now, &tm_buf);
-    char time_buf[DEBUG_TIMESTAMP_BUF_SIZE];
+    char time_buf[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
     strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_buf);
     fprintf(f, "=== Lv-00 Emergency Save ===\n");
     fprintf(f, "Timestamp: %s\n\n", time_buf);
@@ -846,9 +840,9 @@ bool debug_emergency_save(const char *filepath, const EmergencySaveConfig *confi
     if (config && config->include_log_buffer) {
         fprintf(f, "[Recent Log Buffer (%d entries)]\n", g_log_buffer_count);
         /* 按时间顺序输出：从最旧到最新 */
-        int start = (g_log_buffer_head - g_log_buffer_count + EMERGENCY_LOG_BUFFER_SIZE) % EMERGENCY_LOG_BUFFER_SIZE;
+        int start = (g_log_buffer_head - g_log_buffer_count + LV00_EMERGENCY_LOG_BUFFER_SIZE) % LV00_EMERGENCY_LOG_BUFFER_SIZE;
         for (int i = 0; i < g_log_buffer_count; i++) {
-            int idx = (start + i) % EMERGENCY_LOG_BUFFER_SIZE;
+            int idx = (start + i) % LV00_EMERGENCY_LOG_BUFFER_SIZE;
             if (g_log_buffer[idx]) {
                 fprintf(f, "%s", g_log_buffer[idx]);
             }
@@ -999,7 +993,7 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
                     int idx = result->invalid_ports;
                     result->invalid_port_ids[idx] = node->id;
                     const char *port_type_str = (port->type == PORT_INPUT) ? "INPUT" : "OUTPUT";
-                    char msg[DEBUG_MSG_BUF_SIZE];
+                    char msg[LV00_DEBUG_MSG_BUF_SIZE];
                     snprintf(msg, sizeof(msg),
                              "Port %d (%s): namespace_depth (%d) > parent function block %d namespace_depth (%d)",
                              node->id, port_type_str, port->namespace_depth, port->parent_block_id,
@@ -1025,7 +1019,7 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
             if (!found) {
                 int idx = result->invalid_ports;
                 result->invalid_port_ids[idx] = node->id;
-                char msg[DEBUG_MSG_BUF_SIZE];
+                char msg[LV00_DEBUG_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg), "Port %d: connected_to node does not exist in graph", node->id);
                 lv00_free((void **) &result->error_messages[idx]);
                 result->error_messages[idx] = lv00_strdup_safe(msg);
@@ -1041,7 +1035,7 @@ PortInvariantResult *debug_check_port_invariants(const ConstraintGraph *graph) {
                 /* 类型不兼容——记录违规 */
                 int idx = result->invalid_ports;
                 result->invalid_port_ids[idx] = node->id;
-                char msg[DEBUG_MSG_BUF_SIZE];
+                char msg[LV00_DEBUG_MSG_BUF_SIZE];
                 snprintf(msg, sizeof(msg), "Port %d: type incompatible with connected node %d", node->id,
                          port->connected_to->id);
                 lv00_free((void **) &result->error_messages[idx]);
@@ -1095,14 +1089,14 @@ static const char *trace_event_type_string(TraceEventType type) {
 /**
  * @brief 创建追踪会话
  * @return 新创建的追踪会话指针，内存分配失败时返回 NULL
- * @note 初始事件容量为 DEBUG_TRACE_INITIAL_CAPACITY（64），会话创建后默认处于活跃状态
+ * @note 初始事件容量为 LV00_DEBUG_TRACE_INITIAL_CAPACITY（64），会话创建后默认处于活跃状态
  */
 TraceSession *trace_session_create(void) {
     TraceSession *session = (TraceSession *) lv00_calloc(1, sizeof(TraceSession));
     if (!session)
         return NULL;
 
-    session->capacity = DEBUG_TRACE_INITIAL_CAPACITY; /* 初始容量 */
+    session->capacity = LV00_DEBUG_TRACE_INITIAL_CAPACITY; /* 初始容量 */
     session->events = (TraceEvent *) lv00_calloc((size_t) session->capacity, sizeof(TraceEvent));
     if (!session->events) {
         lv00_free((void **) &session);
@@ -1306,15 +1300,15 @@ static bool trace_json_escape_string(char **json, size_t *capacity, size_t *pos,
 
 char *trace_session_export_json(const TraceSession *session) {
     if (!session) {
-        char *empty = lv00_malloc(DEBUG_EMPTY_JSON_BUF_SIZE);
+        char *empty = lv00_malloc(LV00_DEBUG_EMPTY_JSON_BUF_SIZE);
         if (!empty)
             return NULL;
-        snprintf(empty, DEBUG_EMPTY_JSON_BUF_SIZE, "{\"event_count\":0,\"active\":false}");
+        snprintf(empty, LV00_DEBUG_EMPTY_JSON_BUF_SIZE, "{\"event_count\":0,\"active\":false}");
         return empty;
     }
 
     /* 动态增长缓冲区 */
-    size_t capacity = DEBUG_JSON_INITIAL_CAPACITY;
+    size_t capacity = LV00_DEBUG_JSON_INITIAL_CAPACITY;
     size_t pos = 0;
     char *json = lv00_malloc(capacity);
     if (!json)
@@ -1413,7 +1407,7 @@ static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_lis
 
     /* 同时输出到日志文件（如果已初始化） */
     if (g_log_file && g_initialized) {
-        char timestamp[DEBUG_TIMESTAMP_BUF_SIZE];
+        char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
         get_timestamp(timestamp, sizeof(timestamp));
         fprintf(g_log_file, "[%s] [DEBUG] [%s] ", timestamp, subsystem);
         va_copy(args_copy, args);
@@ -1450,21 +1444,46 @@ void debug_log_solver(const char *fmt, ...) {
 /*=== 新日志系统实现 ===*/
 
 int debug_log_init(void) {
+    /* 使用互斥锁保护初始化检查，防止多线程竞态条件。
+     * POSIX 上 g_log_mutex 已通过 PTHREAD_MUTEX_INITIALIZER 静态初始化，
+     * 可直接使用；Windows 上在初始化前使用原子操作保护。
+     *
+     * 线程安全说明：
+     * - Windows: 使用 InterlockedCompareExchange 确保只有一个线程进入初始化路径，
+     *   其他线程通过自旋等待 g_initialized 变为 true。
+     *   进入初始化路径后，先初始化 CRITICAL_SECTION，再获取锁保护全局路径写入。
+     * - POSIX: 直接使用 pthread_mutex_lock 保护整个初始化过程。 */
+#ifdef _WIN32
+    static volatile LONG s_init_guard = 0;
+    if (InterlockedCompareExchange(&s_init_guard, 1, 0) != 0) {
+        /* 另一个线程正在初始化或已完成初始化，等待完成 */
+        while (!g_initialized) {
+            Sleep(1);
+        }
+        return 0;
+    }
+    /* 首次进入的线程：先初始化互斥锁 */
+    if (InterlockedCompareExchange(&g_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_log_mutex);
+    }
+    if (InterlockedCompareExchange(&g_counter_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_counter_mutex);
+    }
+    /* 获取日志互斥锁，保护后续对 g_log_dir_path、g_log_file_path 等全局变量的写入 */
+    EnterCriticalSection(&g_log_mutex);
+#else
+    pthread_mutex_lock(&g_log_mutex);
     if (g_initialized) {
+        pthread_mutex_unlock(&g_log_mutex);
         return 0; /* 已初始化 */
     }
-
-    /* 初始化互斥锁 */
-#ifdef _WIN32
-    InitializeCriticalSection(&g_log_mutex);
-    InitializeCriticalSection(&g_counter_mutex);
-    g_mutex_initialized = true;
-    g_counter_mutex_initialized = true;
 #endif
 
-    /* 构建日志目录路径: ~/.lv00/logs */
+    /* 构建日志目录路径: ~/.lv00/logs
+     * 以下对 g_log_dir_path 和 g_log_file_path 的写入在 g_log_mutex 保护内，
+     * 防止与其他线程读取这些路径产生竞态条件 */
     const char *home = get_home_dir();
-    snprintf(g_log_dir_path, LV00_LOG_PATH_MAX, "%s%c.lv00%clogs", home, PATH_SEPARATOR, PATH_SEPARATOR);
+    snprintf(g_log_dir_path, LV00_LOG_PATH_MAX, "%s%c.lv00%clogs", home, LV00_PATH_SEPARATOR, LV00_PATH_SEPARATOR);
 
     /* 创建日志目录 */
     if (create_directory(g_log_dir_path) != 0) {
@@ -1473,7 +1492,7 @@ int debug_log_init(void) {
     }
 
     /* 构建日志文件路径 */
-    snprintf(g_log_file_path, LV00_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, PATH_SEPARATOR, DEBUG_LOG_BASENAME);
+    snprintf(g_log_file_path, LV00_LOG_PATH_MAX, "%s%c%s", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME);
 
     /* 打开日志文件 */
     g_log_file = fopen(g_log_file_path, "a");
@@ -1489,6 +1508,14 @@ int debug_log_init(void) {
 
     g_initialized = true;
 
+#ifdef _WIN32
+    LeaveCriticalSection(&g_log_mutex);
+    /* 初始化完成，释放等待的线程 */
+    InterlockedExchange(&s_init_guard, 2);
+#else
+    pthread_mutex_unlock(&g_log_mutex);
+#endif
+
     /* 【v3.3.0】创建全局环形日志缓冲区 */
     if (!g_log_ring_buffer) {
         g_log_ring_buffer = lv00_log_ring_buffer_create(g_log_ring_buffer_capacity);
@@ -1502,7 +1529,7 @@ int debug_log_init(void) {
     }
 
     /* 记录初始化日志 */
-    char timestamp[DEBUG_TIMESTAMP_BUF_SIZE];
+    char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
     get_timestamp(timestamp, sizeof(timestamp));
     LOG_INFO("debug", "=== Lv-00 v%s Logging System Initialized ===", LV00_VERSION_STRING);
 
@@ -1510,15 +1537,20 @@ int debug_log_init(void) {
 }
 
 void debug_log_shutdown(void) {
+    /* 必须在锁内检查 g_initialized，防止与 debug_log_init() 产生竞态条件。
+     * 如果在锁外检查，可能出现：线程 A 检查 g_initialized 为 false 并返回，
+     * 同时线程 B 正在执行 debug_log_init() 并即将设置 g_initialized = true，
+     * 导致线程 A 错过关闭。 */
+    log_lock();
+
     if (!g_initialized) {
+        log_unlock();
         return;
     }
 
-    log_lock();
-
     /* 记录关闭日志 */
     if (g_log_file) {
-        char timestamp[DEBUG_TIMESTAMP_BUF_SIZE];
+        char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
         get_timestamp(timestamp, sizeof(timestamp));
         fprintf(g_log_file, "[%s] [INFO] [debug] === Logging System Shutdown ===\n", timestamp);
         fclose(g_log_file);
@@ -1551,13 +1583,13 @@ void debug_log_shutdown(void) {
     if (g_mutex_initialized) {
         LeaveCriticalSection(&g_log_mutex);
         DeleteCriticalSection(&g_log_mutex);
-        g_mutex_initialized = false;
+        InterlockedExchange(&g_mutex_initialized, 0);
     }
     if (g_counter_mutex_initialized) {
         EnterCriticalSection(&g_counter_mutex);
         LeaveCriticalSection(&g_counter_mutex);
         DeleteCriticalSection(&g_counter_mutex);
-        g_counter_mutex_initialized = false;
+        InterlockedExchange(&g_counter_mutex_initialized, 0);
     }
 #else
     pthread_mutex_unlock(&g_log_mutex);
@@ -1617,18 +1649,18 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
     check_rotation();
 
     /* 格式化消息 */
-    char timestamp[DEBUG_TIMESTAMP_BUF_SIZE];
+    char timestamp[LV00_DEBUG_TIMESTAMP_BUF_SIZE];
     get_timestamp(timestamp, sizeof(timestamp));
 
     /* 格式化可变参数 */
-    char message[DEBUG_LOG_MESSAGE_BUF_SIZE];
+    char message[LV00_DEBUG_LOG_MESSAGE_BUF_SIZE];
     va_list args;
     va_start(args, fmt);
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
     /* 构建日志行 */
-    char log_line[DEBUG_LOG_LINE_BUF_SIZE];
+    char log_line[LV00_DEBUG_LOG_LINE_BUF_SIZE];
     int len = snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
                        module ? module : "unknown", message);
 

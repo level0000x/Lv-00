@@ -609,7 +609,7 @@ class CLIMonitor:
                 live.update(self._render())
 
         except Exception as e:
-            logger.exception(f"TUI 运行异常: {e}")
+            logger.exception("TUI 运行异常: %s", e)
         finally:
             self._stop_keyboard_listener()
             self._live = None

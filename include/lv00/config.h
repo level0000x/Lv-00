@@ -5,6 +5,19 @@
  * 此文件收集项目中散布在各源文件中的魔数、阈值、默认缓冲区大小
  * 和定时参数，统一以 LV00_CONFIG_ 前缀命名。
  *
+ * 【中文模块说明】
+ * config.h 是 Lv-00 系统的全局配置中心，集中管理所有可调参数。
+ * 所有硬编码常量均在此定义，避免魔数散布在源代码各处。
+ * 配置分为以下几大类：
+ * - 约束图与求解器限制（变量ID上限、模块嵌套深度、缓冲区大小）
+ * - 重写引擎阈值（默认重写步数上限、WL图核迭代次数）
+ * - 流式输出阈值（异步队列容量、JSON缓冲区大小、节流间隔）
+ * - 数值精度与代数计算（位数熔断阈值、代数数精度位数）
+ * - 极简验证内核参数（最大语句数、证明深度、验证超时）
+ * - 解析器安全限制（最大输入长度、token数、AST深度/节点数）
+ * - 运行时防护阈值（递归深度、自旋次数、写操作警告阈值）
+ * - 通用缓冲区大小（标签、公式、变量名、替换项、证明引用）
+ *
  * 使用方式:
  *   #include "lv00/config.h"
  *   engine->rewrite_step_limit = LV00_CONFIG_DEFAULT_REWRITE_LIMIT;
@@ -19,7 +32,7 @@
  *   - constraint_graph.h: 错误缓冲区大小
  *   - 各 .c 文件中的魔数
  *
- * @version 1.0.0
+ * @version 3.3.0
  * @date 2026-05-24
  */
 
@@ -162,10 +175,76 @@ extern "C" {
 #define LV00_CONFIG_MAX_PROOF_REFS                64
 
 /* ====================================================================
+ * 集中化配置常量（从各模块提取）
+ *
+ * 以下常量从各模块中提取集中管理，避免魔数分散。
+ * 来源模块：constraint_graph, stream, formula_parser, memory_pool 等
+ * ==================================================================== */
+
+/* 约束图配置 */
+/** @brief 每个节点的最大邻接数（来源：constraint_graph.c） */
+#define LV00_CONFIG_GRAPH_ADJ_MAX_PER_NODE    256
+
+/* 流式系统配置 */
+/** @brief 流式回调初始容量（来源：stream.c） */
+#define LV00_CONFIG_STREAM_INITIAL_CALLBACKS  16
+
+/** @brief 流式回调硬上限（来源：stream.c） */
+#define LV00_CONFIG_STREAM_MAX_CALLBACKS      64
+
+/* 内存池配置 */
+/** @brief 约束节点池对象大小（来源：memory_pool.c） */
+#define LV00_CONFIG_POOL_CONSTRAINT_NODE_SIZE 128
+
+/** @brief 约束池对象大小（来源：memory_pool.c） */
+#define LV00_CONFIG_POOL_CONSTRAINT_SIZE      96
+
+/** @brief 符号坐标池对象大小（来源：memory_pool.c） */
+#define LV00_CONFIG_POOL_SYMBOLIC_COORD_SIZE  64
+
+/** @brief 证明步骤池对象大小（来源：memory_pool.c） */
+#define LV00_CONFIG_POOL_PROOF_STEP_SIZE      128
+
+/* 解析器配置 */
+/** @brief 最大坐标数（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_COORDINATES    16
+
+/** @brief 最大顶点数（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_VERTICES       32
+
+/** @brief 多边形最大顶点数（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_POLYGON_VERTICES 32
+
+/** @brief 最大语句数（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_STATEMENTS     64
+
+/** @brief 最大参数数（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_ARGUMENTS      16
+
+/** @brief 最大参与者数（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_PARTICIPANTS   16
+
+/** @brief 解析器缓冲区大小（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_BUFFER_SIZE    256
+
+/** @brief 临时消息大小（来源：formula_parser.c） */
+#define LV00_CONFIG_PARSER_MAX_TEMP_MSG_SIZE  128
+
+/* ====================================================================
  * 兼容层 —— 保持与现有宏的向后兼容
  *
  * 以下定义确保在逐步迁移到 config.h 期间，现有代码不中断。
  * 迁移完成后可移除此节。
+ *
+ * 【设计风险说明】
+ * 此兼容层使用 #ifndef 守卫定义旧宏名，当旧宏已在其他头文件中
+ * 被定义时，本节不会覆盖该定义。这种设计可能导致以下问题：
+ *   1. 若某模块在包含 config.h 之前自行定义了同名宏（值不同），
+ *      该模块将使用自己的值而非集中配置值，产生不一致。
+ *   2. 宏定义顺序依赖：先包含的模块的定义会"胜出"，后包含的
+ *      config.h 兼容层静默跳过，不发出任何警告。
+ * 缓解措施：建议各模块统一通过 lv00.h（已包含 config.h）引入
+ * 配置，避免在模块内部自行定义 LV00_CONFIG_ 前缀以外的同名常量。
  * ==================================================================== */
 
 /* solver.h 兼容 */
@@ -205,3 +284,29 @@ extern "C" {
 #endif
 
 #endif /* LV00_CONFIG_H */
+
+/*
+ * ========================================================================
+ * 配置集中化迁移计划
+ * ========================================================================
+ *
+ * 以下分散在各模块中的本地 #define 应逐步迁移到本文件：
+ *
+ * | 模块              | 当前常量                          | 建议名称                    |
+ * |-------------------|-----------------------------------|-----------------------------|
+ * | constraint_graph  | ADJ_MAX_PER_NODE (256)            | LV00_CONFIG_ADJ_MAX_PER_NODE|
+ * | constraint_graph  | POINT_CONSTRAINT_ARRAY_SIZE (64)  | LV00_CONFIG_CONSTRAINT_ARRAY|
+ * | normalization     | NORM_MAX_ID (1000000)             | LV00_CONFIG_NORM_MAX_ID     |
+ * | normalization     | NORM_DEFAULT_CAPACITY (16)        | LV00_CONFIG_NORM_DEFAULT_CAP|
+ * | solver_core       | DEFAULT_CLAUSE_CAPACITY (256)     | LV00_CONFIG_CLAUSE_CAP      |
+ * | solver_core       | DEFAULT_VAR_CAPACITY (128)        | LV00_CONFIG_VAR_CAP         |
+ * | rewrite           | REWRITE_VF2_MAX_DEPTH (100)       | LV00_CONFIG_REWRITE_MAX_DEPTH|
+ * | memory_pool       | LV00_DEFAULT_ALIGNMENT (16)       | LV00_CONFIG_MEM_ALIGNMENT   |
+ * | unify             | MAX_EQUIVALENCES (256)            | LV00_CONFIG_MAX_EQUIVALENCES|
+ *
+ * 迁移原则：
+ * 1. 新常量使用 LV00_CONFIG_ 前缀
+ * 2. 原模块保留 #define 作为别名（#define OLD_NAME LV00_CONFIG_NEW_NAME）
+ * 3. 逐步替换各模块中的直接引用
+ * ========================================================================
+ */

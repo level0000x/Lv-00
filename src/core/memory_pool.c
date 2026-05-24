@@ -7,6 +7,35 @@
  *   2. 线性分配器
  *   3. 对象缓存（LRU）
  *
+ * 设计说明：本模块作为底层内存基础设施，池结构体本身使用 lv00_malloc/lv00_free
+ * 分配，而内部数据块（性能关键路径）保留原生 malloc/free/realloc/calloc，
+ * 原因：
+ * 1. 避免循环依赖：lv00_malloc 内部可能依赖内存池，而内存池不能依赖 lv00_malloc
+ *    进行内部块分配
+ * 2. 对象池/线性分配器有独立的内存管理策略，内部块不走 lv00 的统计系统
+ * 3. 全局内存统计（lv00_mem_*）是可选的附加功能，不影响核心分配路径
+ * 4. 池结构体（Lv00ObjectPool、Lv00LinearAllocator、Lv00ObjectCache 等）
+ *    的生命周期管理使用 lv00_malloc/lv00_free，便于统一追踪和调试
+ *
+ * 【为何内部数据块使用标准 malloc/free 而非 lv00_malloc/lv00_free】
+ *
+ * memory_pool 是整个项目的底层内存基础设施，位于依赖链的最底层。
+ * 如果内部数据块也使用 lv00_malloc/lv00_free，会形成循环依赖：
+ *
+ *   lv00_malloc() → 内存统计(lv00_mem_record_alloc) → 可能触发内存池分配
+ *   → lv00_pool_alloc() → 内部 malloc → lv00_malloc() → ...（无限递归）
+ *
+ * 因此，内部数据块（对象池中的内存块、线性分配器的 MemoryBlock、
+ * 缓存条目的 CacheEntry 等）必须使用标准库的 malloc/free/realloc/calloc，
+ * 绕过 lv00 的统计和追踪系统。
+ *
+ * 而池结构体本身（Lv00ObjectPool、Lv00LinearAllocator 等）的分配/释放
+ * 使用 lv00_malloc/lv00_free，因为这些操作发生在池创建/销毁时，
+ * 不在性能关键路径上，且便于统一追踪和调试。
+ *
+ * 使用约定：通过 lv00_pool_alloc 分配的对象必须通过 lv00_pool_free 释放，
+ * 严禁混用 lv00_free 或标准 free。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */
@@ -16,12 +45,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <pthread.h>
 #endif
+
+#include "lv00_internal.h"  /* LV00_FNV64_* 哈希常量 */
+#include "lv00_utils.h"     /* lv00_strdup, lv00_malloc, lv00_free */
 
 /* ============== 内部常量 ============== */
 
@@ -33,6 +66,9 @@
 
 /** 哈希表初始容量 */
 #define LV00_HASH_TABLE_INIT_CAP 64
+
+/* [Bug修复] 溢出检查宏：检测 size_t 乘法是否溢出 */
+#define LV00_SIZE_MUL_OVERFLOW(a, b) ((a) != 0 && (b) > SIZE_MAX / (a))
 
 /* ============== 平台抽象层（线程安全） ============== */
 
@@ -74,6 +110,7 @@ struct Lv00ObjectPool {
     void **blocks;          /**< 内存块数组 */
     size_t block_count;     /**< 内存块数量 */
     size_t block_capacity;  /**< 内存块数组容量 */
+    size_t *block_capacities; /**< [Bug修复] 每块实际分配的对象数量，用于 pool_clear 正确重建空闲链表 */
 
     /* 空闲链表 */
     FreeNode *free_list;    /**< 空闲对象链表 */
@@ -97,7 +134,7 @@ Lv00ObjectPool *lv00_pool_create(const Lv00PoolConfig *config) {
         return NULL;
     }
 
-    Lv00ObjectPool *pool = (Lv00ObjectPool *)malloc(sizeof(Lv00ObjectPool));
+    Lv00ObjectPool *pool = (Lv00ObjectPool *)lv00_malloc(sizeof(Lv00ObjectPool));
     if (!pool) {
         return NULL;
     }
@@ -121,22 +158,31 @@ Lv00ObjectPool *lv00_pool_create(const Lv00PoolConfig *config) {
         LV00_MUTEX_INIT(pool->mutex);
     }
 
-    /* 分配初始内存块 */
+    /* 分配初始内存块数组 */
     pool->block_capacity = 4;
-    pool->blocks = (void **)malloc(pool->block_capacity * sizeof(void *));
+    pool->blocks = (void **)lv00_malloc(pool->block_capacity * sizeof(void *));
     if (!pool->blocks) {
-        free(pool);
+        lv00_free(pool);
         return NULL;
     }
 
-    /* 分配第一个内存块 */
+    /* [Bug修复] 分配块容量记录数组 */
+    pool->block_capacities = (size_t *)lv00_malloc(pool->block_capacity * sizeof(size_t));
+    if (!pool->block_capacities) {
+        lv00_free(pool->blocks);
+        lv00_free(pool);
+        return NULL;
+    }
+
+    /* 分配第一个内存块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
     void *block = malloc(pool->object_size * pool->capacity);
     if (!block) {
-        free(pool->blocks);
-        free(pool);
+        lv00_free(pool->blocks);
+        lv00_free(pool);
         return NULL;
     }
     pool->blocks[0] = block;
+    pool->block_capacities[0] = pool->capacity;  /* [Bug修复] 记录首块容量 */
     pool->block_count = 1;
 
     /* 初始化空闲链表 */
@@ -156,18 +202,19 @@ void lv00_pool_destroy(Lv00ObjectPool *pool) {
         return;
     }
 
-    /* 释放所有内存块 */
+    /* 释放所有内存块（性能关键路径：保留原生 free） */
     for (size_t i = 0; i < pool->block_count; i++) {
         free(pool->blocks[i]);
     }
-    free(pool->blocks);
+    lv00_free(pool->blocks);
+    lv00_free(pool->block_capacities);  /* [Bug修复] 释放块容量记录数组 */
 
     /* 销毁线程锁 */
     if (pool->thread_safe) {
         LV00_MUTEX_DESTROY(pool->mutex);
     }
 
-    free(pool);
+    lv00_free(pool);
 }
 
 void *lv00_pool_alloc(Lv00ObjectPool *pool) {
@@ -190,8 +237,19 @@ void *lv00_pool_alloc(Lv00ObjectPool *pool) {
 
         /* 扩展内存块数组 */
         if (pool->block_count >= pool->block_capacity) {
+            /* [Bug修复] 溢出检查：确保 block_capacity * GROWTH_FACTOR 不会溢出 */
+            if (LV00_SIZE_MUL_OVERFLOW(pool->block_capacity, LV00_POOL_GROWTH_FACTOR)) {
+                if (pool->thread_safe) { LV00_MUTEX_UNLOCK(pool->mutex); }
+                return NULL;
+            }
             size_t new_cap = pool->block_capacity * LV00_POOL_GROWTH_FACTOR;
-            void **new_blocks = (void **)realloc(pool->blocks, new_cap * sizeof(void *));
+
+            /* [Bug修复] 溢出检查：确保 new_cap * sizeof(void*) 不会溢出 */
+            if (LV00_SIZE_MUL_OVERFLOW(new_cap, sizeof(void *))) {
+                if (pool->thread_safe) { LV00_MUTEX_UNLOCK(pool->mutex); }
+                return NULL;
+            }
+            void **new_blocks = (void **)lv00_realloc(pool->blocks, new_cap * sizeof(void *));
             if (!new_blocks) {
                 if (pool->thread_safe) {
                     LV00_MUTEX_UNLOCK(pool->mutex);
@@ -199,11 +257,33 @@ void *lv00_pool_alloc(Lv00ObjectPool *pool) {
                 return NULL;
             }
             pool->blocks = new_blocks;
+
+            /* [Bug修复] 同步扩展 block_capacities 数组 */
+            size_t *new_bcaps = (size_t *)lv00_realloc(pool->block_capacities, new_cap * sizeof(size_t));
+            if (!new_bcaps) {
+                /* 回滚 blocks 扩展 */
+                pool->blocks = (void **)lv00_realloc(new_blocks, pool->block_capacity * sizeof(void *));
+                if (pool->thread_safe) { LV00_MUTEX_UNLOCK(pool->mutex); }
+                return NULL;
+            }
+            pool->block_capacities = new_bcaps;
             pool->block_capacity = new_cap;
         }
 
         /* 分配新内存块 */
+        /* [Bug修复] 溢出检查：确保 capacity * GROWTH_FACTOR 不会溢出 */
+        if (LV00_SIZE_MUL_OVERFLOW(pool->capacity, LV00_POOL_GROWTH_FACTOR)) {
+            if (pool->thread_safe) { LV00_MUTEX_UNLOCK(pool->mutex); }
+            return NULL;
+        }
         size_t new_capacity = pool->capacity * LV00_POOL_GROWTH_FACTOR;
+
+        /* [Bug修复] 溢出检查：确保 object_size * new_capacity 不会溢出 */
+        if (LV00_SIZE_MUL_OVERFLOW(pool->object_size, new_capacity)) {
+            if (pool->thread_safe) { LV00_MUTEX_UNLOCK(pool->mutex); }
+            return NULL;
+        }
+        /* 分配新内存块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
         void *block = malloc(pool->object_size * new_capacity);
         if (!block) {
             if (pool->thread_safe) {
@@ -211,7 +291,9 @@ void *lv00_pool_alloc(Lv00ObjectPool *pool) {
             }
             return NULL;
         }
-        pool->blocks[pool->block_count++] = block;
+        pool->blocks[pool->block_count] = block;
+        pool->block_capacities[pool->block_count] = new_capacity;  /* [Bug修复] 记录新块容量 */
+        pool->block_count++;
 
         /* 添加到空闲链表 */
         char *ptr = (char *)block;
@@ -268,9 +350,24 @@ void lv00_pool_get_stats(const Lv00ObjectPool *pool,
     if (!pool) {
         return;
     }
+
+    /*
+     * 注意：由于参数为 const，此处需要通过 const_cast 获取锁。
+     * 已知限制：C 标准中 const 限定符与互斥锁操作的语义冲突，
+     * 此处通过强制转换解决，调用方应确保不会在持有 const 指针时
+     * 修改池的状态。
+     */
+    if (pool->thread_safe) {
+        LV00_MUTEX_LOCK(((Lv00ObjectPool *)pool)->mutex);
+    }
+
     if (out_total_allocs) *out_total_allocs = pool->total_allocs;
     if (out_total_frees) *out_total_frees = pool->total_frees;
     if (out_current_used) *out_current_used = pool->current_used;
+
+    if (pool->thread_safe) {
+        LV00_MUTEX_UNLOCK(((Lv00ObjectPool *)pool)->mutex);
+    }
 }
 
 void lv00_pool_clear(Lv00ObjectPool *pool) {
@@ -282,12 +379,12 @@ void lv00_pool_clear(Lv00ObjectPool *pool) {
         LV00_MUTEX_LOCK(pool->mutex);
     }
 
-    /* 重建空闲链表 */
+    /* [Bug修复] 使用 block_capacities 记录的实际容量重建空闲链表，
+     * 替代原来基于 LV00_POOL_DEFAULT_CAPACITY 的错误计算 */
     pool->free_list = NULL;
     for (size_t b = 0; b < pool->block_count; b++) {
         char *ptr = (char *)pool->blocks[b];
-        size_t block_size = (b == 0) ?
-            LV00_POOL_DEFAULT_CAPACITY : (LV00_POOL_DEFAULT_CAPACITY * (1 << b));
+        size_t block_size = pool->block_capacities[b];
         for (size_t i = 0; i < block_size; i++) {
             FreeNode *node = (FreeNode *)(ptr + i * pool->object_size);
             node->next = pool->free_list;
@@ -325,7 +422,7 @@ struct Lv00LinearAllocator {
 };
 
 Lv00LinearAllocator *lv00_linear_allocator_create(size_t block_size) {
-    Lv00LinearAllocator *allocator = (Lv00LinearAllocator *)malloc(sizeof(Lv00LinearAllocator));
+    Lv00LinearAllocator *allocator = (Lv00LinearAllocator *)lv00_malloc(sizeof(Lv00LinearAllocator));
     if (!allocator) {
         return NULL;
     }
@@ -333,10 +430,10 @@ Lv00LinearAllocator *lv00_linear_allocator_create(size_t block_size) {
 
     allocator->block_size = block_size > 0 ? block_size : LV00_LINEAR_ALLOCATOR_BLOCK_SIZE;
 
-    /* 预分配第一个块 */
+    /* 预分配第一个块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
     MemoryBlock *block = (MemoryBlock *)malloc(sizeof(MemoryBlock) + allocator->block_size);
     if (!block) {
-        free(allocator);
+        lv00_free(allocator);
         return NULL;
     }
     block->next = NULL;
@@ -355,7 +452,7 @@ void lv00_linear_allocator_destroy(Lv00LinearAllocator *allocator) {
         return;
     }
 
-    /* 释放所有内存块 */
+    /* 释放所有内存块（性能关键路径：保留原生 free） */
     MemoryBlock *block = allocator->blocks;
     while (block) {
         MemoryBlock *next = block->next;
@@ -363,7 +460,7 @@ void lv00_linear_allocator_destroy(Lv00LinearAllocator *allocator) {
         block = next;
     }
 
-    free(allocator);
+    lv00_free(allocator);
 }
 
 void *lv00_linear_alloc(Lv00LinearAllocator *allocator, size_t size, size_t alignment) {
@@ -393,7 +490,11 @@ void *lv00_linear_alloc(Lv00LinearAllocator *allocator, size_t size, size_t alig
         block = block->next;
     }
 
-    /* 需要新块 */
+    /* 需要新块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
+    /* 溢出检查：确保 size + align 不会溢出 */
+    if (size > SIZE_MAX - align) {
+        return NULL;
+    }
     size_t new_block_size = size + align;
     if (new_block_size < allocator->block_size) {
         new_block_size = allocator->block_size;
@@ -485,9 +586,16 @@ struct Lv00ObjectCache {
     size_t current_size;
 };
 
-/* 简单哈希函数 */
+/* FNV-1a 哈希函数（使用项目统一的 LV00_FNV64_* 常量，定义在 lv00_internal.h） */
 static inline size_t hash_key(Lv00CacheKey key, size_t capacity) {
-    return (size_t)(key % capacity);
+    uint64_t hash = LV00_FNV64_OFFSET_BASIS;
+    /* 对 8 字节 key 逐字节进行 FNV-1a 混合 */
+    const unsigned char *bytes = (const unsigned char *)&key;
+    for (size_t i = 0; i < sizeof(key); i++) {
+        hash ^= bytes[i];
+        hash *= LV00_FNV64_PRIME;
+    }
+    return (size_t)(hash % capacity);
 }
 
 Lv00ObjectCache *lv00_cache_create(size_t capacity,
@@ -498,7 +606,7 @@ Lv00ObjectCache *lv00_cache_create(size_t capacity,
         return NULL;
     }
 
-    Lv00ObjectCache *cache = (Lv00ObjectCache *)malloc(sizeof(Lv00ObjectCache));
+    Lv00ObjectCache *cache = (Lv00ObjectCache *)lv00_malloc(sizeof(Lv00ObjectCache));
     if (!cache) {
         return NULL;
     }
@@ -513,7 +621,7 @@ Lv00ObjectCache *lv00_cache_create(size_t capacity,
     cache->hash_capacity = LV00_HASH_TABLE_INIT_CAP;
     cache->hash_table = (CacheEntry **)calloc(cache->hash_capacity, sizeof(CacheEntry *));
     if (!cache->hash_table) {
-        free(cache);
+        lv00_free(cache);
         return NULL;
     }
 
@@ -525,7 +633,7 @@ void lv00_cache_destroy(Lv00ObjectCache *cache) {
         return;
     }
 
-    /* 释放所有条目 */
+    /* 释放所有条目（性能关键路径：保留原生 free） */
     CacheEntry *entry = cache->head;
     while (entry) {
         CacheEntry *next = entry->next;
@@ -537,7 +645,7 @@ void lv00_cache_destroy(Lv00ObjectCache *cache) {
     }
 
     free(cache->hash_table);
-    free(cache);
+    lv00_free(cache);
 }
 
 /* 将条目移到链表头部 */
@@ -637,7 +745,7 @@ void *lv00_cache_get(Lv00ObjectCache *cache, Lv00CacheKey key) {
         evict_lru(cache);
     }
 
-    /* 创建条目 */
+    /* 创建条目（性能关键路径：保留原生 malloc） */
     entry = (CacheEntry *)malloc(sizeof(CacheEntry));
     if (!entry) {
         if (cache->destroy_func) {
@@ -749,13 +857,28 @@ void lv00_cache_get_stats(const Lv00ObjectCache *cache,
 
 static Lv00MemoryStats g_global_stats = {0};
 static Lv00Mutex g_stats_mutex;
-static bool g_stats_initialized = false;
+static volatile long g_stats_initialized = 0; /* 原子标志，用于线程安全的一次性初始化 */
 
+/**
+ * @brief 线程安全地确保全局统计互斥锁已初始化
+ *
+ * 使用 InterlockedCompareExchange（Windows）或 __atomic（POSIX/GCC）保证
+ * 只有一个线程执行初始化，避免 ensure_stats_init() 的竞态条件。
+ */
 static void ensure_stats_init(void) {
-    if (!g_stats_initialized) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_stats_initialized, 1, 0) == 0) {
+        /* 首次调用：执行初始化 */
         LV00_MUTEX_INIT(g_stats_mutex);
-        g_stats_initialized = true;
     }
+    /* 后续调用：g_stats_initialized 已为 1，直接返回 */
+#else
+    /* 使用 __atomic 内建保证原子比较-交换 */
+    if (__atomic_exchange_n(&g_stats_initialized, 1, __ATOMIC_ACQ_REL) == 0) {
+        /* 首次调用：执行初始化 */
+        LV00_MUTEX_INIT(g_stats_mutex);
+    }
+#endif
 }
 
 int lv00_mem_register_type(const char *name) {
@@ -772,7 +895,7 @@ int lv00_mem_register_type(const char *name) {
     }
 
     int id = g_global_stats.type_count++;
-    g_global_stats.types[id].name = name;
+    g_global_stats.types[id].name = lv00_strdup(name);  /* 复制字符串，避免保存裸指针 */
     g_global_stats.types[id].total_allocs = 0;
     g_global_stats.types[id].total_frees = 0;
     g_global_stats.types[id].current_bytes = 0;
@@ -878,11 +1001,11 @@ void lv00_mem_print_stats(void *stream) {
 
 /* ============== 预定义对象池 ============== */
 
-/* 对象大小定义 */
-#define CONSTRAINT_NODE_SIZE 128
-#define CONSTRAINT_SIZE 96
-#define SYMBOLIC_COORD_SIZE 64
-#define PROOF_STEP_SIZE 128
+/* 对象大小定义 —— 集中管理于 config.h，此处引用 */
+#define LV00_CONSTRAINT_NODE_SIZE LV00_CONFIG_POOL_CONSTRAINT_NODE_SIZE
+#define LV00_CONSTRAINT_SIZE      LV00_CONFIG_POOL_CONSTRAINT_SIZE
+#define LV00_SYMBOLIC_COORD_SIZE  LV00_CONFIG_POOL_SYMBOLIC_COORD_SIZE
+#define LV00_PROOF_STEP_SIZE      LV00_CONFIG_POOL_PROOF_STEP_SIZE
 
 /* 全局对象池 */
 static Lv00ObjectPool *g_node_pool = NULL;
@@ -900,7 +1023,7 @@ bool lv00_init_preset_pools(void) {
     };
 
     /* ConstraintNode 池 */
-    config.object_size = CONSTRAINT_NODE_SIZE;
+    config.object_size = LV00_CONSTRAINT_NODE_SIZE;
     config.name = "ConstraintNode";
     g_node_pool = lv00_pool_create(&config);
     if (!g_node_pool) {
@@ -908,7 +1031,7 @@ bool lv00_init_preset_pools(void) {
     }
 
     /* Constraint 池 */
-    config.object_size = CONSTRAINT_SIZE;
+    config.object_size = LV00_CONSTRAINT_SIZE;
     config.name = "Constraint";
     g_constraint_pool = lv00_pool_create(&config);
     if (!g_constraint_pool) {
@@ -918,7 +1041,7 @@ bool lv00_init_preset_pools(void) {
     }
 
     /* SymbolicCoord 池 */
-    config.object_size = SYMBOLIC_COORD_SIZE;
+    config.object_size = LV00_SYMBOLIC_COORD_SIZE;
     config.name = "SymbolicCoord";
     g_symbolic_coord_pool = lv00_pool_create(&config);
     if (!g_symbolic_coord_pool) {
@@ -930,7 +1053,7 @@ bool lv00_init_preset_pools(void) {
     }
 
     /* ProofStep 池 */
-    config.object_size = PROOF_STEP_SIZE;
+    config.object_size = LV00_PROOF_STEP_SIZE;
     config.name = "ProofStep";
     g_proof_step_pool = lv00_pool_create(&config);
     if (!g_proof_step_pool) {

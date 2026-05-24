@@ -32,9 +32,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     /* 测试有理数坐标 */
     {
-        int64_t numer = (int64_t) (data[0] | (data[1] << 8) | ((int64_t) data[2] << 16) | ((int64_t) data[3] << 24));
-        uint64_t denom =
-            (uint64_t) (data[4] | (data[5] << 8) | ((uint64_t) data[6] << 16) | ((uint64_t) data[7] << 24));
+        /* [P1 修复] 使用位移操作代替直接内存操作，避免字节序假设 */
+        int64_t numer = (int64_t)((uint64_t)data[0] | ((uint64_t)data[1] << 8) |
+                                  ((uint64_t)data[2] << 16) | ((uint64_t)data[3] << 24));
+        uint64_t denom = (uint64_t)data[4] | ((uint64_t)data[5] << 8) |
+                         ((uint64_t)data[6] << 16) | ((uint64_t)data[7] << 24);
         if (denom == 0)
             denom = 1; /* 避免除零 */
 
@@ -60,39 +62,43 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         int64_t n2 = (int64_t) data[9];
 
         SymbolicCoord *a = symbolic_coord_create_rational(n1, 1);
+        if (!a)
+            goto skip_coord_ops;
         SymbolicCoord *b = symbolic_coord_create_rational(n2, 1);
-
-        if (a && b) {
-            /* 测试加法 */
-            SymbolicCoord *sum = symbolic_coord_add(a, b);
-            if (sum)
-                symbolic_coord_destroy(sum);
-
-            /* 测试减法 */
-            SymbolicCoord *diff = symbolic_coord_subtract(a, b);
-            if (diff)
-                symbolic_coord_destroy(diff);
-
-            /* 测试乘法 */
-            SymbolicCoord *prod = symbolic_coord_multiply(a, b);
-            if (prod)
-                symbolic_coord_destroy(prod);
-
-            /* 测试除法（避免除零） */
-            if (n2 != 0) {
-                SymbolicCoord *quot = symbolic_coord_divide(a, b);
-                if (quot)
-                    symbolic_coord_destroy(quot);
-            }
-
-            /* 测试比较 */
-            symbolic_coord_compare(a, b);
+        if (!b) {
+            symbolic_coord_destroy(a);
+            goto skip_coord_ops;
         }
 
-        if (a)
-            symbolic_coord_destroy(a);
-        if (b)
-            symbolic_coord_destroy(b);
+        /* 测试加法 */
+        SymbolicCoord *sum = symbolic_coord_add(a, b);
+        if (sum)
+            symbolic_coord_destroy(sum);
+
+        /* 测试减法 */
+        SymbolicCoord *diff = symbolic_coord_subtract(a, b);
+        if (diff)
+            symbolic_coord_destroy(diff);
+
+        /* 测试乘法 */
+        SymbolicCoord *prod = symbolic_coord_multiply(a, b);
+        if (prod)
+            symbolic_coord_destroy(prod);
+
+        /* 测试除法（避免除零） */
+        if (n2 != 0) {
+            SymbolicCoord *quot = symbolic_coord_divide(a, b);
+            if (quot)
+                symbolic_coord_destroy(quot);
+        }
+
+        /* 测试比较 */
+        symbolic_coord_compare(a, b);
+
+        symbolic_coord_destroy(a);
+        symbolic_coord_destroy(b);
+
+    skip_coord_ops:
     }
 
     return 0;

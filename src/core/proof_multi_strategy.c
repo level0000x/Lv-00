@@ -367,7 +367,7 @@ static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategy
 /* ============== 公共 API 实现 ============== */
 
 ProofMultiStrategy *proof_multi_strategy_create(ProofNavigator *nav) {
-    ProofMultiStrategy *mse = (ProofMultiStrategy *) calloc(1, sizeof(ProofMultiStrategy));
+    ProofMultiStrategy *mse = (ProofMultiStrategy *) lv00_calloc(1, sizeof(ProofMultiStrategy));
     if (!mse)
         return NULL;
 
@@ -384,9 +384,9 @@ ProofMultiStrategy *proof_multi_strategy_create(ProofNavigator *nav) {
     mse->strategies[PROOF_STRATEGY_ORACLE].status = PROOF_STRATEGY_UNAVAILABLE;
 
     /* 分配计时数组 */
-    mse->strategy_timings_ms = (int64_t *) calloc(PROOF_STRATEGY_COUNT, sizeof(int64_t));
+    mse->strategy_timings_ms = (int64_t *) lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(int64_t));
     if (!mse->strategy_timings_ms) {
-        free(mse);
+        lv00_free((void **) &mse);
         return NULL;
     }
 
@@ -409,20 +409,20 @@ void proof_multi_strategy_destroy(ProofMultiStrategy *mse) {
     /* 释放策略描述符中的动态字符串 */
     for (int i = 0; i < PROOF_STRATEGY_COUNT; i++) {
         ProofStrategyDescriptor *desc = &mse->strategies[i];
-        free(desc->name);
-        free(desc->description);
+        lv00_free((void **) &desc->name);
+        lv00_free((void **) &desc->description);
         if (desc->required_axiom_packages) {
             for (int j = 0; j < desc->axiom_package_count; j++) {
-                free(desc->required_axiom_packages[j]);
+                lv00_free((void **) &desc->required_axiom_packages[j]);
             }
-            free(desc->required_axiom_packages);
+            lv00_free((void **) &desc->required_axiom_packages);
         }
-        free(desc->generated_step_ids);
+        lv00_free((void **) &desc->generated_step_ids);
     }
 
-    free(mse->fallback_order);
-    free(mse->strategy_timings_ms);
-    free(mse);
+    lv00_free((void **) &mse->fallback_order);
+    lv00_free((void **) &mse->strategy_timings_ms);
+    lv00_free((void **) &mse);
 }
 
 bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyDescriptor *descriptor) {
@@ -434,9 +434,9 @@ bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyD
     ProofStrategyDescriptor *target = &mse->strategies[descriptor->type];
 
     /* 释放旧数据 */
-    free(target->name);
-    free(target->description);
-    free(target->generated_step_ids);
+    lv00_free((void **) &target->name);
+    lv00_free((void **) &target->description);
+    lv00_free((void **) &target->generated_step_ids);
 
     /* 复制新数据 */
     target->type = descriptor->type;
@@ -449,7 +449,7 @@ bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyD
     /* 复制公理包依赖 */
     if (descriptor->required_axiom_packages && descriptor->axiom_package_count > 0) {
         target->axiom_package_count = descriptor->axiom_package_count;
-        target->required_axiom_packages = (char **) calloc(descriptor->axiom_package_count, sizeof(char *));
+        target->required_axiom_packages = (char **) lv00_calloc(descriptor->axiom_package_count, sizeof(char *));
         if (target->required_axiom_packages) {
             for (int i = 0; i < descriptor->axiom_package_count; i++) {
                 if (descriptor->required_axiom_packages[i]) {
@@ -582,8 +582,8 @@ void proof_multi_strategy_set_fallback_order(ProofMultiStrategy *mse, const int 
     if (!mse || !fallback_order || count <= 0)
         return;
 
-    free(mse->fallback_order);
-    mse->fallback_order = (int *) malloc(count * sizeof(int));
+    lv00_free((void **) &mse->fallback_order);
+    mse->fallback_order = (int *) lv00_malloc(count * sizeof(int));
     if (!mse->fallback_order)
         return;
 

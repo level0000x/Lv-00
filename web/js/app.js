@@ -21,7 +21,7 @@
  *
  * @module app
  * @author Lv-00 Team
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 'use strict';
@@ -30,6 +30,20 @@
 // Lv00Const 命名空间由 js/constants.js 定义，需在 app.js 之前加载。
 // 所有应用级常量通过 Lv00Const 扁平别名访问（如 Lv00Const.SCALE_MIN），
 // 也可使用模块级路径（如 Lv00Const.app.SCALE_MIN）。
+
+// ---- 加载步骤提示辅助函数 -----------------------------------------------
+/**
+ * 更新加载遮罩中的步骤提示状态
+ * 将指定步骤标记为已完成（高亮显示），帮助用户了解初始化进度
+ * @param {string} stepId - 步骤 li 元素的 ID（如 'loadingStep1'）
+ */
+function _updateLoadingStep(stepId) {
+    var stepEl = document.getElementById(stepId);
+    if (stepEl) {
+        stepEl.style.opacity = '1';
+        stepEl.style.color = '#58a6ff';
+    }
+}
 
 function Lv00WebApp() {
     // ================================================================
@@ -44,7 +58,25 @@ function Lv00WebApp() {
     //  Canvas 与几何状态
     // ================================================================
     this.canvas = document.getElementById('geometryCanvas');
+    // 容错处理：Canvas 元素不存在时给出明确错误提示，避免后续 getContext 抛出异常
+    if (!this.canvas) {
+        var errorMsg = '[Lv-00] 致命错误：找不到 Canvas 元素 #geometryCanvas，请检查 index.html 中是否存在该元素';
+        console.error(errorMsg);
+        // 尝试在页面中显示错误信息
+        var loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            loadingEl.innerHTML = '<p style="color:#f88;padding:40px;text-align:center;">' +
+                'Canvas 元素未找到 / Canvas element not found<br>' +
+                '<small style="color:#888;">请检查 index.html 中是否存在 &lt;canvas id="geometryCanvas"&gt;</small></p>';
+        }
+        throw new Error(errorMsg);
+    }
     this.ctx = this.canvas.getContext('2d');
+    // 容错处理：getContext 返回 null 时（极罕见，如浏览器不支持 2d context）
+    if (!this.ctx) {
+        console.error('[Lv-00] 致命错误：无法获取 Canvas 2D 渲染上下文');
+        throw new Error('[Lv-00] 无法获取 Canvas 2D 渲染上下文 / Failed to get Canvas 2D context');
+    }
     this.points = [];                 // 前端点数据 [{id, x, y}, ...]
     this.segments = [];               // 前线段数据 [{p1, p2, id}, ...]
 
@@ -87,6 +119,11 @@ function Lv00WebApp() {
     // ================================================================
     this.isDraggingPoint = false;     // 是否正在拖拽点
     this.dragPoint = null;            // 被拖拽的点对象
+
+    // ================================================================
+    //  事件监听器引用（用于 cleanup 时移除，防止内存泄漏）
+    // ================================================================
+    this._resizeHandler = null;
 
     // ================================================================
     //  模块状态（与后端子系统一一对应）
@@ -173,6 +210,9 @@ function Lv00WebApp() {
 Lv00WebApp.prototype.init = function() {
     var self = this;
 
+    // 更新加载步骤提示：常量已加载（constants.js 在 HTML 中先于此脚本加载）
+    _updateLoadingStep('loadingStep1');
+
     // 优先尝试 WASM 后端
     if (typeof Lv00Module === 'function') {
         Lv00Module().then(function(wasmModule) {
@@ -202,6 +242,9 @@ Lv00WebApp.prototype.init = function() {
 // ================================================================
 
 Lv00WebApp.prototype._initJSBackend = function() {
+    // 更新加载步骤提示：正在初始化后端引擎
+    _updateLoadingStep('loadingStep2');
+
     try {
         // 安全检查：确保 Lv00JSBackend 构造函数存在
         if (typeof Lv00JSBackend === 'undefined') {
@@ -305,6 +348,9 @@ Lv00WebApp.prototype._callBackend = function(methodName, args) {
 Lv00WebApp.prototype._finishInit = function() {
     var self = this;
 
+    // 更新加载步骤提示：正在配置画布与事件
+    _updateLoadingStep('loadingStep3');
+
     /**
      * 安全执行初始化函数，捕获异常但不中断整体流程
      * 使用 console.error 完整输出异常堆栈，方便排查问题
@@ -377,6 +423,9 @@ Lv00WebApp.prototype._finishInit = function() {
     // 工具按钮绑定
     safeInit('区域工具按钮', function() { self._bindTool('toolRegion', 'region'); });
     safeInit('探测工具按钮', function() { self._bindTool('toolProbe', 'probe'); });
+
+    // 更新加载步骤提示：正在加载功能模块
+    _updateLoadingStep('loadingStep4');
 
     // 模块按钮与导出按钮
     safeInit('模块按钮', function() { self._bindModuleButtons(); });
@@ -714,8 +763,9 @@ Lv00WebApp.prototype.setupCanvas = function() {
         self.render();
     };
 
-    // 窗口大小改变时重新设置画布
-    window.addEventListener('resize', this._debounce(resize, 100));
+    // 保存 resize 监听器引用，便于 cleanup 时移除
+    self._resizeHandler = this._debounce(resize, 100);
+    window.addEventListener('resize', self._resizeHandler);
     resize();
 };
 
@@ -814,17 +864,23 @@ Lv00WebApp.prototype.setupEventListeners = function() {
 };
 
 // ================================================================
+// 模块级辅助函数：按钮绑定（供 _bindGraphButtons 等方法复用）
+// 中文说明：提取各模块按钮绑定方法中重复的 bindBtn 局部函数，
+//            统一为 Lv00WebApp 静态方法，避免全局命名空间污染。
+// ================================================================
+Lv00WebApp.bindBtn = function(id, handler) {
+    var btn = document.getElementById(id);
+    if (btn) btn.addEventListener('click', handler);
+};
+
+// ================================================================
 // Graph 模块按钮绑定（委托给 modules/graph.js 中的方法）
 // ================================================================
 
 Lv00WebApp.prototype._bindGraphButtons = function() {
     var self = this;
-    var bindBtn = function(id, handler) {
-        var btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', handler);
-    };
 
-    bindBtn('btnGraphAddPoint', function() {
+    Lv00WebApp.bindBtn('btnGraphAddPoint', function() {
         var x = parseFloat(self._getInputValue('inputPointX', '0')) || 0;
         var y = parseFloat(self._getInputValue('inputPointY', '0')) || 0;
         self.addPoint(x, y);
@@ -835,22 +891,22 @@ Lv00WebApp.prototype._bindGraphButtons = function() {
         if (inputY) inputY.value = '';
     });
 
-    bindBtn('btnGraphAddSegment',       function() { self.graphAddSegment(); });
-    bindBtn('btnGraphAddRegion',        function() { self.graphAddRegion(); });
-    bindBtn('btnGraphDeleteNode',       function() { self.graphRemoveNode(); });
-    bindBtn('btnGraphDeleteConstraint', function() { self.graphRemoveConstraint(); });
-    bindBtn('btnGraphIncidence',        function() { self.graphAddIncidence(); });
-    bindBtn('btnGraphBetweenness',      function() { self.graphAddBetweenness(); });
-    bindBtn('btnGraphIntersection',     function() { self.graphAddIntersection(); });
-    bindBtn('btnGraphContainment',      function() { self.graphAddContainment(); });
-    bindBtn('btnGraphNormalize',        function() { self.graphNormalize(); });
-    bindBtn('btnGraphFindMerge',        function() { self.graphFindMergeCandidates(); });
-    bindBtn('btnGraphRedundant',        function() { self.graphDetectRedundant(); });
-    bindBtn('btnGraphConflicts',        function() { self.graphDetectConflicts(); });
-    bindBtn('btnGraphDOF',              function() { self.graphDegreesOfFreedom(); });
-    bindBtn('btnGraphTopoSort',         function() { self.graphTopologicalSort(); });
-    bindBtn('btnGraphHash',             function() { self.graphHash(); });
-    bindBtn('btnGraphClear', function() {
+    Lv00WebApp.bindBtn('btnGraphAddSegment',       function() { self.graphAddSegment(); });
+    Lv00WebApp.bindBtn('btnGraphAddRegion',        function() { self.graphAddRegion(); });
+    Lv00WebApp.bindBtn('btnGraphDeleteNode',       function() { self.graphRemoveNode(); });
+    Lv00WebApp.bindBtn('btnGraphDeleteConstraint', function() { self.graphRemoveConstraint(); });
+    Lv00WebApp.bindBtn('btnGraphIncidence',        function() { self.graphAddIncidence(); });
+    Lv00WebApp.bindBtn('btnGraphBetweenness',      function() { self.graphAddBetweenness(); });
+    Lv00WebApp.bindBtn('btnGraphIntersection',     function() { self.graphAddIntersection(); });
+    Lv00WebApp.bindBtn('btnGraphContainment',      function() { self.graphAddContainment(); });
+    Lv00WebApp.bindBtn('btnGraphNormalize',        function() { self.graphNormalize(); });
+    Lv00WebApp.bindBtn('btnGraphFindMerge',        function() { self.graphFindMergeCandidates(); });
+    Lv00WebApp.bindBtn('btnGraphRedundant',        function() { self.graphDetectRedundant(); });
+    Lv00WebApp.bindBtn('btnGraphConflicts',        function() { self.graphDetectConflicts(); });
+    Lv00WebApp.bindBtn('btnGraphDOF',              function() { self.graphDegreesOfFreedom(); });
+    Lv00WebApp.bindBtn('btnGraphTopoSort',         function() { self.graphTopologicalSort(); });
+    Lv00WebApp.bindBtn('btnGraphHash',             function() { self.graphHash(); });
+    Lv00WebApp.bindBtn('btnGraphClear', function() {
         // 使用原生 confirm() 而非自定义模态框，以确保清空操作时的确认对话框
         // 在所有浏览器中行为一致且不会被异步渲染干扰
         // Use native confirm() instead of custom modal for reliable synchronous confirmation
@@ -866,24 +922,20 @@ Lv00WebApp.prototype._bindGraphButtons = function() {
 
 Lv00WebApp.prototype._bindTypeButtons = function() {
     var self = this;
-    var bindBtn = function(id, handler) {
-        var btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', handler);
-    };
 
-    bindBtn('btnTypePoint',    function() { self.typeCreatePoint(); });
-    bindBtn('btnTypeSegment',  function() { self.typeCreateSegment(); });
-    bindBtn('btnTypeRegion',   function() { self.typeCreateRegion(); });
-    bindBtn('btnTypeFunction', function() { self.typeCreateFunction(); });
-    bindBtn('btnTypeProduct',  function() { self.typeCreateProduct(); });
-    bindBtn('btnTypeEquiv',    function() { self.typeCheckEquiv(); });
-    bindBtn('btnTypeInfer',    function() { self.typeInferNode(); });
-    bindBtn('btnTypeLevel',    function() { self.typeCheckLevel(); });
-    // TYPE 模块额外按钮（类型操作）
-    bindBtn('btnTypeCreate',    function() { self.showToast('类型创建功能开发中', 'info'); });
-    bindBtn('btnTypeCheck',     function() { self.showToast('类型检查功能开发中', 'info'); });
-    bindBtn('btnTypeUnify',     function() { self.showToast('类型统一化功能开发中', 'info'); });
-    bindBtn('btnTypeSubtype',   function() { self.showToast('子类型检查功能开发中', 'info'); });
+    Lv00WebApp.bindBtn('btnTypePoint',    function() { self.typeCreatePoint(); });
+    Lv00WebApp.bindBtn('btnTypeSegment',  function() { self.typeCreateSegment(); });
+    Lv00WebApp.bindBtn('btnTypeRegion',   function() { self.typeCreateRegion(); });
+    Lv00WebApp.bindBtn('btnTypeFunction', function() { self.typeCreateFunction(); });
+    Lv00WebApp.bindBtn('btnTypeProduct',  function() { self.typeCreateProduct(); });
+    Lv00WebApp.bindBtn('btnTypeEquiv',    function() { self.typeCheckEquiv(); });
+    Lv00WebApp.bindBtn('btnTypeInfer',    function() { self.typeInferNode(); });
+    Lv00WebApp.bindBtn('btnTypeLevel',    function() { self.typeCheckLevel(); });
+
+    Lv00WebApp.bindBtn('btnTypeCreate',    function() { self.showToast('类型创建功能开发中', 'info'); });
+    Lv00WebApp.bindBtn('btnTypeCheck',     function() { self.showToast('类型检查功能开发中', 'info'); });
+    Lv00WebApp.bindBtn('btnTypeUnify',     function() { self.showToast('类型统一化功能开发中', 'info'); });
+    Lv00WebApp.bindBtn('btnTypeSubtype',   function() { self.showToast('子类型检查功能开发中', 'info'); });
 
     // 禁用 TYPE 模块中尚在开发中的按钮
     ['btnTypeCreate', 'btnTypeCheck', 'btnTypeUnify', 'btnTypeSubtype'].forEach(function(id) {
@@ -898,20 +950,16 @@ Lv00WebApp.prototype._bindTypeButtons = function() {
 
 Lv00WebApp.prototype._bindRecurseButtons = function() {
     var self = this;
-    var bindBtn = function(id, handler) {
-        var btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', handler);
-    };
 
-    bindBtn('btnRecurseCreateMeasure',   function() { self.recurseCreateMeasure(); });
-    bindBtn('btnRecurseComputeMeasure',  function() { self.recurseComputeMeasure(); });
-    bindBtn('btnRecurseEnter',           function() { self.recurseEnter(); });
-    bindBtn('btnRecurseExit',            function() { self.recurseExit(); });
-    bindBtn('btnRecurseSelector',        function() { self.recurseSelectorEvaluate(); });
-    bindBtn('btnRecurseCheckDecreasing', function() { self.recurseCheckDecreasing(); });
-    // RECURSE 模块额外按钮（递归操作）
-    bindBtn('btnRecurseDefine', function() { self.showToast('递归定义功能开发中', 'info'); });
-    bindBtn('btnRecurseStep',   function() { self.showToast('递归步骤功能开发中', 'info'); });
+    Lv00WebApp.bindBtn('btnRecurseCreateMeasure',   function() { self.recurseCreateMeasure(); });
+    Lv00WebApp.bindBtn('btnRecurseComputeMeasure',  function() { self.recurseComputeMeasure(); });
+    Lv00WebApp.bindBtn('btnRecurseEnter',           function() { self.recurseEnter(); });
+    Lv00WebApp.bindBtn('btnRecurseExit',            function() { self.recurseExit(); });
+    Lv00WebApp.bindBtn('btnRecurseSelector',        function() { self.recurseSelectorEvaluate(); });
+    Lv00WebApp.bindBtn('btnRecurseCheckDecreasing', function() { self.recurseCheckDecreasing(); });
+
+    Lv00WebApp.bindBtn('btnRecurseDefine', function() { self.showToast('递归定义功能开发中', 'info'); });
+    Lv00WebApp.bindBtn('btnRecurseStep',   function() { self.showToast('递归步骤功能开发中', 'info'); });
 
     // 禁用 RECURSE 模块中尚在开发中的按钮
     ['btnRecurseDefine', 'btnRecurseStep'].forEach(function(id) {
@@ -926,16 +974,12 @@ Lv00WebApp.prototype._bindRecurseButtons = function() {
 
 Lv00WebApp.prototype._bindEngineButtons = function() {
     var self = this;
-    var bindBtn = function(id, handler) {
-        var btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', handler);
-    };
 
-    bindBtn('btnEngineStatus',      function() { self.engineStatus(); });
-    bindBtn('btnEngineAddRule',     function() { self.engineAddRule(); });
-    bindBtn('btnEnginePack',        function() { self.enginePack(); });
-    bindBtn('btnEngineInstantiate', function() { self.engineInstantiate(); });
-    bindBtn('btnEngineUnify',       function() { self.engineUnify(); });
+    Lv00WebApp.bindBtn('btnEngineStatus',      function() { self.engineStatus(); });
+    Lv00WebApp.bindBtn('btnEngineAddRule',     function() { self.engineAddRule(); });
+    Lv00WebApp.bindBtn('btnEnginePack',        function() { self.enginePack(); });
+    Lv00WebApp.bindBtn('btnEngineInstantiate', function() { self.engineInstantiate(); });
+    Lv00WebApp.bindBtn('btnEngineUnify',       function() { self.engineUnify(); });
 };
 
 // ================================================================
@@ -944,13 +988,9 @@ Lv00WebApp.prototype._bindEngineButtons = function() {
 
 Lv00WebApp.prototype._bindDebugButtons = function() {
     var self = this;
-    var bindBtn = function(id, handler) {
-        var btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', handler);
-    };
 
-    bindBtn('btnDebugCounters', function() { self.debugCounters(); });
-    bindBtn('btnDebugReport',   function() { self.debugReport(); });
+    Lv00WebApp.bindBtn('btnDebugCounters', function() { self.debugCounters(); });
+    Lv00WebApp.bindBtn('btnDebugReport',   function() { self.debugReport(); });
 };
 
 // ================================================================
@@ -1240,6 +1280,12 @@ Lv00WebApp.prototype.addSegment = function(p1, p2) {
 // 与 interaction.js 的 cleanup() 协调工作，依次清理各子系统。
 // ================================================================
 Lv00WebApp.prototype.cleanup = function() {
+    // 0. 移除窗口 resize 事件监听器（防止内存泄漏）
+    if (this._resizeHandler) {
+        window.removeEventListener('resize', this._resizeHandler);
+        this._resizeHandler = null;
+    }
+
     // 1. 清理交互事件监听器（键盘、鼠标、触摸、右键菜单等）
     if (typeof this.cleanupInteraction === 'function') {
         this.cleanupInteraction();

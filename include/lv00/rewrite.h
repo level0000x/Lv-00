@@ -1,8 +1,29 @@
+/* ========================================================================
+ * 模块名称：重写引擎 (rewrite)
+ * 功能概述：提供约束图的规则匹配、替换与循环检测功能。支持 VF2 子图
+ *          同构匹配、规则热加载/卸载、图快照事务回滚、WL 图核哈希
+ *          循环检测、多非重叠匹配批量应用以及归约度量验证。
+ *          同时借鉴 Maude 的策略组合子和 Herbie 的数值精度优化。
+ *
+ * 主要 API：
+ *   - rewrite_rule_create / rewrite_rule_destroy  — 创建/销毁重写规则
+ *   - find_rewrite_match / apply_rewrite           — 查找/应用匹配
+ *   - rewrite_with_rules                           — 多规则重写
+ *   - rewrite_strategy_apply                       — Maude 风格策略执行
+ *   - rewrite_search_backward                      — BFS/DFS 逆向证明搜索
+ *   - graph_snapshot_create / restore / destroy    — 图快照事务
+ *   - rewrite_num_optimize                         — Herbie 风格数值优化
+ *
+ * 使用示例：
+ *   RewriteRule *rule = rewrite_rule_create("simplify", pattern, replacement, 1);
+ *   RewriteMatch *match = find_rewrite_match(graph, rule, false);
+ *   if (match) { apply_rewrite(graph, rule, match); }
+ *
+ * ======================================================================== */
+
 /**
  * @file rewrite.h
  * @brief 重写引擎 —— 规则匹配、替换与循环检测
- * @details 提供 VF2 子图同构匹配、规则热加载/卸载、图快照事务回滚、
- * WL 图核哈希循环检测、多非重叠匹配批量应用以及归约度量验证等功能。
  */
 
 #ifndef LV00_REWRITE_H
@@ -91,8 +112,12 @@ typedef struct {
 } VF2State;
 
 /* WL (Weisfeiler-Lehman) 图核哈希历史 */
+#ifndef WL_ITERATIONS
 #define WL_ITERATIONS 3
+#endif
+#ifndef WL_HISTORY_SIZE
 #define WL_HISTORY_SIZE 64
+#endif
 
 typedef struct {
     uint64_t *hash_history;       /* 最近图哈希的环形缓冲区（完整 WL 哈希） */

@@ -1,10 +1,15 @@
 /**
- * block.js - BLOCK 函数块模块方法
+ * @file block.js
+ * @brief BLOCK 函数块模块方法
+ * @description 实现 Lv-00 函数块系统的前端操作方法，挂载到 Lv00WebApp.prototype 上。
+ *              包括函数块的打包（pack）、实例化（instantiate）、统一化（unify）、
+ *              状态查询、添加规则、引擎求解和重写探索等功能。
+ *              函数块是 Lv-00 系统的核心抽象，用于封装可复用的几何约束子图。
  *
- * 实现函数块模块的操作方法，包括打包、实例化、统一化、
- * 状态查询、添加规则等。
- *
- * 依赖：Lv00WebApp 构造函数、ui.js
+ * @module block
+ * @requires Lv00WebApp 构造函数（app.js）
+ * @requires ui.js（appendLog, showSuccess 等方法）
+ * @since 3.0.0
  */
 (function() {
     'use strict';

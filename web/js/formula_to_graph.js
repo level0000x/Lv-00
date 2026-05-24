@@ -1,32 +1,27 @@
 /**
- * Lv-00 Formula to Graph Converter
- * 将公式 AST 转换为约束图操作
- *
- * 严格 ES5 语法（无 class, const, let, arrow functions, template literals,
- * destructuring, default params, spread）
- *
- * 依赖 Lv-00 JS 后端 API：
- *   backend.graphCreate()
- *   backend.graphAddPoint(graph, x, y)
- *   backend.graphAddLineSegment(graph, node1Id, node2Id)
- *   backend.graphAddRegion(graph, segmentIds, count)
- *   backend.graphAddIncidence(graph, pointId, lineOrRegionId)
- *   backend.graphAddBetweenness(graph, p1, p2, p3)
- *   backend.graphAddIntersection(graph, line1, line2, resultPoint)
- *   backend.graphAddContainment(graph, innerId, outerId)
- *   backend.graphNormalize(graph, scopeAware)
+ * @file formula_to_graph.js
+ * @brief 公式到图形转换器 (Formula to Graph Converter)
+ * @description 将公式 AST 转换为约束图操作。
+ *              解析 AST 节点（几何点、线段、区域、方程等），
+ *              调用后端 API 创建对应的图节点和约束关系。
+ *              转换结果包含操作记录、错误信息和新建节点列表。
  *
  * 用法：
  *   var result = FormulaToGraph.convert(ast, graph, backend);
  *   // result.success, result.operations, result.errors, result.newNodes
+ *
+ * @module FormulaToGraph
+ * @requires 严格 ES5 语法（无 class, const, let, arrow functions, template literals,
+ *            destructuring, default params, spread）
+ * @requires Lv-00 JS 后端 API（graphCreate, graphAddPoint, graphAddLineSegment 等）
  */
 
 var FormulaToGraph = (function() {
     'use strict';
 
     // ---- 内部状态 ----
-    var _log = [];
-    var _varMap = {};
+    var _log = [];       // 转换过程日志
+    var _varMap = {};    // 变量名到节点 ID 的映射表
 
     // ---- 工具函数 ----
 
@@ -96,6 +91,8 @@ var FormulaToGraph = (function() {
 
     /**
      * 安全获取 AST 节点类型
+     * @param {Object} node - AST 节点对象
+     * @returns {string} 节点类型字符串，无效节点返回 'unknown'
      */
     function _getNodeType(node) {
         if (!node) return null;

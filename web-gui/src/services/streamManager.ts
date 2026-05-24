@@ -97,13 +97,6 @@ export interface StreamStats {
   sessionDuration: number;
 }
 
-/**
- * 默认类别过滤器配置（已统一使用 stores/aiStore.ts 中的 DEFAULT_STREAM_FILTERS）
- * 此处保留引用以确保向后兼容，但推荐直接导入 DEFAULT_STREAM_FILTERS
- * @deprecated 请直接使用 DEFAULT_STREAM_FILTERS from '@/stores/aiStore'
- */
-const DEFAULT_CATEGORY_FILTERS = DEFAULT_STREAM_FILTERS;
-
 // ================================================================
 // 流式管理器类 / Stream Manager Class
 // ================================================================
@@ -132,7 +125,7 @@ export class StreamManager {
       heartbeatInterval: config.heartbeatInterval ?? 15000,
     };
     this.callbacks = callbacks;
-    this.categoryFilters = [...DEFAULT_CATEGORY_FILTERS];
+    this.categoryFilters = [...DEFAULT_STREAM_FILTERS];
     this.enabledCategories = new Set(
       this.categoryFilters.filter(f => f.enabled).map(f => f.category)
     );

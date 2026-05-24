@@ -34,16 +34,10 @@ import os
 import sys
 import time
 import argparse
-from dataclasses import dataclass, field
-from typing import Optional, Callable, Any, Dict, List, Set
+from typing import Optional, Callable, Any, Dict, List
 from ctypes import CDLL, CFUNCTYPE, c_void_p, c_int, c_long, c_double, c_char_p, POINTER, Structure
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+# 日志配置：库模块不应调用 logging.basicConfig()，由使用方（应用入口）负责全局日志配置。
 logger = logging.getLogger('stream_bridge')
 
 # ================================================================
@@ -514,7 +508,7 @@ class EventPersistence:
             'file_path': self.file_path,
             'file_size_bytes': 0,
             'event_types': {},
-            'sessions': set(),
+            'sessions': list(),
             'time_range': [None, None],
         }
 
@@ -985,10 +979,3 @@ if __name__ == '__main__':
 # ================================================================
 
 from .ws_server import StreamBridgeServer, ClientSession, WEBSOCKETS_AVAILABLE
-
-# ================================================================
-# 主入口 / Main Entry (保持不变)
-# ================================================================
-
-if __name__ == '__main__':
-    main()

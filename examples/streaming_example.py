@@ -22,9 +22,6 @@ Lv-00 流式输出示例
 
 import asyncio
 import logging
-import sys
-import time
-from typing import List, Optional
 
 # 配置日志
 logging.basicConfig(

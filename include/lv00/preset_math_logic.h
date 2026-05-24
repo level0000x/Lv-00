@@ -14,7 +14,7 @@
  *
  * @module MathLogic
  * @category PRESET_CATEGORY_LOGIC
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_PRESET_MATH_LOGIC_H

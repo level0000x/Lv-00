@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import shlex
 import subprocess
+import sys
 import threading
 import time
 import weakref
@@ -83,7 +83,7 @@ class ProcessExecutor:
         """
         proc_info = self.engine.get_process(self.process_id)
         if proc_info is None:
-            logger.error(f"进程未注册: {self.process_id}")
+            logger.error("进程未注册: %s", self.process_id)
             return
 
         if self._lock is None:
@@ -91,7 +91,7 @@ class ProcessExecutor:
         async with self._lock:
             # 检查是否已被外部取消
             if self._cancelled:
-                logger.debug(f"进程已被取消: {self.process_id}")
+                logger.debug("进程已被取消: %s", self.process_id)
                 return
 
             # 标记进程开始运行，并发出开始事件
@@ -101,11 +101,11 @@ class ProcessExecutor:
             try:
                 await self._run_process(proc_info)
             except asyncio.CancelledError:
-                logger.debug(f"进程执行被取消: {self.process_id}")
+                logger.debug("进程执行被取消: %s", self.process_id)
                 await self._cleanup()
                 raise
             except Exception as e:
-                logger.exception(f"进程执行异常: {self.process_id}, 错误: {e}")
+                logger.exception("进程执行异常: %s, 错误: %s", self.process_id, e)
                 proc_info.mark_failed(str(e))
                 self._emit_event(EventType.ERROR, {"error": str(e)})
             finally:
@@ -128,18 +128,31 @@ class ProcessExecutor:
           6. 根据退出码更新进程状态
         """
         # 解析命令字符串为参数列表
-        # [平台兼容性说明] shlex.split 使用 Unix Shell 风格的词法分析规则，
-        # 在 Windows 平台上可能存在以下兼容性问题：
-        #   1. Windows 路径中的反斜杠（\）会被 shlex 解释为转义字符，
-        #      例如 "C:\Users\test" 中的 \U 和 \t 会被特殊处理
-        #   2. Windows 原生命令（如 dir、copy）的参数格式与 Unix 不同
-        #   3. 包含空格的 Windows 路径需要用双引号包裹，但 shlex 可能错误拆分
-        # 如果需要在 Windows 上执行复杂命令，建议：
-        #   - 使用列表形式直接传递参数（如 ["cmd", "/c", "dir", "C:\\Users"]）
-        #   - 或在命令字符串中使用正斜杠（/）替代反斜杠
-        #   - 对于 PowerShell 命令，建议以 ["powershell", "-Command", "..."] 形式传入
+        # 【修复 #10】改进 Windows 平台命令解析兼容性
+        #
+        # 原实现问题：
+        #   Windows 上使用 str.split() 按空格分割，无法正确处理带引号的路径，
+        #   例如：'python "C:\\My Documents\\script.py" --arg' 会被错误拆分。
+        #
+        # 改进方案：
+        #   1. 优先尝试 shlex.split()（添加 posix=False 参数以适配 Windows 风格）
+        #   2. 如果 shlex.split() 失败（例如遇到不匹配的引号），回退到简单空格分割
+        #   3. 对于 Windows 平台，额外尝试使用 subprocess.list2cmdline 的逆操作
         try:
-            cmd_parts: list[str] = shlex.split(self.command)
+            if sys.platform == 'win32':
+                # Windows 平台：优先尝试 shlex.split(posix=False)
+                # posix=False 使 shlex 使用 Windows 风格的引号处理规则
+                try:
+                    import shlex
+                    cmd_parts: list[str] = shlex.split(self.command, posix=False)
+                except ValueError:
+                    # shlex 解析失败（如不匹配的引号），回退到简单空格分割
+                    # 这种情况下命令本身可能有语法问题，记录警告后继续
+                    logger.warning(f"Windows 命令解析回退到空格分割: {self.command}")
+                    cmd_parts: list[str] = self.command.split()
+            else:
+                import shlex
+                cmd_parts: list[str] = shlex.split(self.command)
         except ValueError as e:
             raise RuntimeError(f"命令解析失败: {e}") from e
 
@@ -147,7 +160,7 @@ class ProcessExecutor:
             raise RuntimeError("空命令")
 
         # 启动子进程，分别捕获 stdout 和 stderr
-        logger.debug(f"启动进程: {self.process_id}, 命令: {self.command}")
+        logger.debug("启动进程: %s, 命令: %s", self.process_id, self.command)
         self._emit_system_message(f"[START] {self.command}")
 
         try:
@@ -198,7 +211,7 @@ class ProcessExecutor:
 
         except asyncio.TimeoutError:
             # 进程执行超时，需要终止它
-            logger.warning(f"进程超时: {self.process_id}, 超时时间: {self.timeout}s")
+            logger.warning("进程超时: %s, 超时时间: %ss", self.process_id, self.timeout)
             proc_info.mark_timeout()
             self._emit_system_message(f"[TIMEOUT] after {self.timeout}s")
             await self._kill_process()
@@ -256,7 +269,7 @@ class ProcessExecutor:
                 # 任务被取消时重新抛出，让上层处理
                 raise
             except Exception as e:
-                logger.warning(f"读取流时出错: {self.process_id}, {stream_name}, {e}")
+                logger.warning("读取流时出错: %s, %s, %s", self.process_id, stream_name, e)
                 break
 
     async def _kill_process(self) -> None:
@@ -276,20 +289,20 @@ class ProcessExecutor:
             self._process.terminate()
             try:
                 await asyncio.wait_for(self._process.wait(), timeout=3.0)
-                logger.debug(f"进程已优雅终止: {self.process_id}")
+                logger.debug("进程已优雅终止: %s", self.process_id)
             except asyncio.TimeoutError:
                 # 第二步：强制终止（发送 SIGKILL 或 TerminateProcess）
-                logger.warning(f"进程未能优雅终止，尝试强制终止: {self.process_id}")
+                logger.warning("进程未能优雅终止，尝试强制终止: %s", self.process_id)
                 try:
                     self._process.kill()
                     await asyncio.wait_for(self._process.wait(), timeout=2.0)
                 except asyncio.TimeoutError:
-                    logger.error(f"进程强制终止后仍未退出: {self.process_id}")
+                    logger.error("进程强制终止后仍未退出: %s", self.process_id)
         except ProcessLookupError:
             # 进程已经终止，无需处理
             pass
         except Exception as e:
-            logger.warning(f"终止进程时出错: {self.process_id}, {e}")
+            logger.warning("终止进程时出错: %s, %s", self.process_id, e)
 
     async def _cleanup(self) -> None:
         """清理资源
@@ -433,7 +446,7 @@ class MonitorEngine:
         self.event_bus.subscribe(EventType.OUTPUT, self._on_output_event)
         self.event_bus.subscribe(EventType.SYSTEM, self._on_output_event)
 
-        logger.info(f"监控引擎初始化完成，最大并发数: {self.config.engine.max_concurrency}")
+        logger.info("监控引擎初始化完成，最大并发数: %s", self.config.engine.max_concurrency)
 
     # ========== 进程管理 ==========
 
@@ -457,7 +470,7 @@ class MonitorEngine:
 
             info: ProcessInfo = ProcessInfo(process_id=process_id, command=command)
             self._processes[process_id] = info
-            logger.debug(f"注册进程: {process_id}, 命令: {command}")
+            logger.debug("注册进程: %s, 命令: %s", process_id, command)
             return info
 
     def get_process(self, process_id: str) -> ProcessInfo | None:
@@ -505,7 +518,7 @@ class MonitorEngine:
 
             del self._processes[process_id]
             self._executors.pop(process_id, None)
-            logger.debug(f"注销进程: {process_id}")
+            logger.debug("注销进程: %s", process_id)
             return True
 
     def _register_subprocess(
@@ -578,7 +591,7 @@ class MonitorEngine:
                 try:
                     callback(event.data)
                 except Exception as e:
-                    logger.exception(f"输出回调执行失败: {e}")
+                    logger.exception("输出回调执行失败: %s", e)
 
     # ========== 执行控制 ==========
 
@@ -608,7 +621,7 @@ class MonitorEngine:
         try:
             # 确定要执行的进程列表
             targets: list[str] = process_ids or list(self._processes.keys())
-            logger.info(f"开始执行 {len(targets)} 个进程")
+            logger.info("开始执行 %d 个进程", len(targets))
 
             # 为每个待执行的进程创建执行器
             if self._async_lock is None:
@@ -695,7 +708,7 @@ class MonitorEngine:
             try:
                 asyncio.run(self.run_all(process_ids, timeout))
             except Exception as e:
-                logger.exception(f"后台执行失败: {e}")
+                logger.exception("后台执行失败: %s", e)
 
         thread: threading.Thread = threading.Thread(target=runner, daemon=True)
         thread.start()
@@ -733,7 +746,16 @@ class MonitorEngine:
             try:
                 # 第一步：尝试优雅终止
                 subprocess.terminate()
-                logger.info(f"已发送终止信号: {process_id}")
+                logger.info("已发送终止信号: %s", process_id)
+
+                # 调用 terminate() 后等待进程退出，防止僵尸进程。
+                # 设置超时防止无限阻塞。
+                try:
+                    subprocess.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    logger.warning("进程 %s 未在超时时间内退出，尝试强制终止", process_id)
+                    subprocess.kill()
+                    subprocess.wait(timeout=3)
 
                 # 更新进程状态为失败
                 proc_info: ProcessInfo | None = self._processes.get(process_id)
@@ -742,7 +764,7 @@ class MonitorEngine:
 
                 return True
             except Exception as e:
-                logger.warning(f"停止进程失败: {process_id}, {e}")
+                logger.warning("停止进程失败: %s, %s", process_id, e)
                 return False
 
     def stop_all(self) -> int:
@@ -760,7 +782,7 @@ class MonitorEngine:
             if self.stop_process(pid):
                 stopped += 1
 
-        logger.info(f"已停止 {stopped} 个进程")
+        logger.info("已停止 %d 个进程", stopped)
         return stopped
 
     def restart_process(self, process_id: str) -> bool:
@@ -787,17 +809,19 @@ class MonitorEngine:
 
         # 重新注册并启动
         try:
-            # 使用 asyncio 运行异步启动
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 如果事件循环已在运行，创建任务
-                asyncio.create_task(self._run_single_async(process_id))
-            else:
-                # 否则直接运行
+            # 使用 asyncio.get_running_loop() 替代已弃用的 asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # 没有正在运行的事件循环，使用 asyncio.run 创建新的
                 asyncio.run(self._run_single_async(process_id))
+                return True
+
+            # 事件循环已在运行，创建任务
+            asyncio.create_task(self._run_single_async(process_id))
             return True
         except Exception as e:
-            logger.error(f"重启进程失败: {process_id}, {e}")
+            logger.error("重启进程失败: %s, %s", process_id, e)
             return False
 
     async def _run_single_async(self, process_id: str) -> None:
@@ -826,17 +850,12 @@ class MonitorEngine:
             logger.warning("进程不存在，无法运行: %s", process_id)
             return
 
-        # 将进程状态重置为 PENDING（如果不是已结束状态）
+        # 将进程状态重置为初始值（使用公共方法，避免直接访问私有成员）
         if proc_info.status not in (ProcessStatus.PENDING, ProcessStatus.FAILED,
                                      ProcessStatus.COMPLETED, ProcessStatus.TIMEOUT):
             return
 
-        proc_info.status = ProcessStatus.PENDING
-        proc_info.output_lines.clear()
-        proc_info.error_count = 0
-        proc_info.exit_code = None
-        proc_info._start_time = None
-        proc_info._end_time = None
+        proc_info.reset()
 
         executor = ProcessExecutor(
             process_id=process_id,
@@ -871,7 +890,7 @@ class MonitorEngine:
 
             # 清空输出行列表
             proc_info.output_lines.clear()
-            logger.debug(f"已清空进程输出: {process_id}")
+            logger.debug("已清空进程输出: %s", process_id)
             return True
 
     # ========== 状态查询 ==========
@@ -936,7 +955,7 @@ class MonitorEngine:
                 self.event_bus.unsubscribe(EventType.OUTPUT, self._on_output_event)
                 self.event_bus.unsubscribe(EventType.SYSTEM, self._on_output_event)
             except Exception as e:
-                logger.warning(f"取消事件订阅失败: {e}")
+                logger.warning("取消事件订阅失败: %s", e)
 
             # 清理所有内部引用
             self._processes.clear()

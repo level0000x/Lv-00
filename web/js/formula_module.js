@@ -85,8 +85,14 @@
     function _createFormulaCard(title, content) {
         var card = document.createElement('div');
         card.className = 'formula-card';
-        card.innerHTML = '<div class="formula-title">' + title + '</div>' +
-                        '<div class="formula-content">' + content + '</div>';
+        var titleEl = document.createElement('div');
+        titleEl.className = 'formula-title';
+        titleEl.textContent = title;
+        card.appendChild(titleEl);
+        var contentEl = document.createElement('div');
+        contentEl.className = 'formula-content';
+        contentEl.textContent = content;
+        card.appendChild(contentEl);
         return card;
     }
 

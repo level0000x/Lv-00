@@ -15,20 +15,21 @@ Lv-00 函数块模块
     3. β-归约：实例化时执行变量捕获消解，实现正确的参数传递
     4. 组合子支持：预置 Compose、Product 等几何化组合子
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
 import ctypes
-from ctypes import c_int, c_void_p, POINTER  # 修复：添加缺失的 ctypes 类型导入，供 SolutionSelector.apply() 和 instantiate() 使用
+from ctypes import c_int, c_void_p, POINTER
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
-    # 类型检查时导入 Lv00BaseError，避免运行时循环导入
-    from .core import Lv00BaseError
+    pass  # Lv00BaseError 现在在运行时导入
+
+from .core import Lv00BaseError
 
 from ._ctypes_binding import (
-    _lib, _FuncBlock, _SymbolicCoord,  # 修复：添加 _SymbolicCoord 导入，用于 check_determinism_dynamic
+    _lib, _FuncBlock, _SymbolicCoord,
     PACK_OK, PACK_CROSS_BOUNDARY_CONFLICT, PACK_INVALID_NODES, 
     PACK_INVALID_PORTS, PACK_OUT_OF_MEMORY, PACK_CANCELLED,
     INSTANTIATE_OK, INSTANTIATE_NO_SOLUTION, INSTANTIATE_MULTIPLE_SOLUTIONS,
@@ -39,70 +40,24 @@ from ._ctypes_binding import (
     SELECTOR_NEAREST_TO_POINT, SELECTOR_CUSTOM
 )
 
-__all__ = [
-    # 异常类
-    "FuncBlockError",
-    "FuncBlockPackError",
-    "FuncBlockInstantiateError",
-    "FuncBlockDeterminismError",
-    # 枚举/状态类
-    "DeterminismState",
-    "SelectorType",
-    # 结果类
-    "PackResult",
-    "InstantiateResult",
-    # 核心类
-    "SolutionSelector",
-    "FuncBlock",
-    # 工具函数
-    "func_block_pack",
-]
-
 
 # ============================================================
 # 异常类
 # ============================================================
 
-class FuncBlockError(Exception):
+class FuncBlockError(Lv00BaseError):
     """
     函数块错误基类。
 
     所有函数块相关异常的父类。
     当函数块的打包、实例化或确定性检查操作失败时抛出。
-    注意：此类当前独立继承 Exception，保留自身的 __str__ 实现。
-    未来应统一继承 Lv00BaseError（from .core import Lv00BaseError），
-    以消除与 Lv00Error/Lv00BaseError 之间重复的 __str__ 逻辑。
+    继承 Lv00BaseError，复用统一的 message、error_code 属性和 __str__ 格式化逻辑。
 
     属性：
         message: 异常消息字符串
         error_code: 可选的错误码（整数，默认为 -1）
     """
-
-    def __init__(self, message: str = "", error_code: int = -1) -> None:
-        """
-        创建函数块错误异常。
-
-        参数：
-            message: 异常描述消息
-            error_code: 可选的错误码
-        """
-        super().__init__(message)
-        self.message: str = message
-        self.error_code: int = error_code
-
-    def __str__(self) -> str:
-        """
-        返回人类可读的异常字符串。
-
-        注意：此方法与 Lv00BaseError.__str__ 逻辑完全一致，
-        未来统一继承后应移除此方法以复用基类实现。
-
-        返回：
-            str: 格式为 "FuncBlockError(错误码): 消息" 的字符串
-        """
-        if self.error_code >= 0:
-            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
-        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+    pass
 
 
 class FuncBlockPackError(FuncBlockError):
@@ -473,7 +428,6 @@ class SolutionSelector:
     
     def __del__(self) -> None:
         """析构函数：释放底层 C 选择器资源。"""
-        # 修复：添加 hasattr 检查，防止 __init__ 未完成时（如异常中途）访问不存在的 _ptr
         if hasattr(self, '_ptr') and self._ptr:
             try:
                 _lib.selector_destroy(self._ptr)
@@ -551,7 +505,14 @@ class FuncBlock:
         return fb
     
     def __del__(self) -> None:
-        """析构函数：释放底层 C 函数块资源。"""
+        """析构函数：释放底层 C 函数块资源。
+
+        注意：若 __init__ 未正常完成（例如子类 __init__ 抛出异常），
+        _ptr 属性可能尚未被创建，因此需要 hasattr 保护。
+        """
+        # 防止 _ptr 属性未初始化时引发 AttributeError（例如子类构造失败）
+        if not hasattr(self, '_ptr'):
+            return
         if self._ptr and self._owns_ptr:
             try:
                 _lib.func_block_destroy(self._ptr)
@@ -732,7 +693,6 @@ class FuncBlock:
             validated_ptrs.append(v._ptr)
 
         # 构造 C 指针数组并调用底层函数
-        # 修复：使用正确的 _SymbolicCoord 类型（从 _ctypes_binding 导入），而非 _lib._SymbolicCoord
         ptr_array_type = POINTER(_SymbolicCoord) * len(validated_ptrs)
         values_ptr = ptr_array_type(*validated_ptrs)
 
@@ -797,7 +757,6 @@ class FuncBlock:
             )
         
         new_node_ids = [result_ptr[i] for i in range(count.value)]
-        # 修复：使用 lv00_free_ptr 替代 free，保持内存分配器一致性
         # lv00_free_ptr 接受 void*（FFI 兼容），无需双重指针转换
         _lib.lv00_free_ptr(ctypes.cast(ctypes.pointer(result_ptr), c_void_p))
         

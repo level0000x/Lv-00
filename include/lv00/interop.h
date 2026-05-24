@@ -10,7 +10,7 @@
  *          - 规范表示导出
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_INTEROP_H
@@ -71,7 +71,9 @@ typedef enum {
     INTEROP_EXPORT_PDF,      /**< PDF文档 */
     INTEROP_EXPORT_TIKZ,     /**< LaTeX TikZ */
     INTEROP_EXPORT_GEOJSON,  /**< GeoJSON格式 */
-    INTEROP_EXPORT_CANONICAL /**< 规范表示 */
+    INTEROP_EXPORT_CANONICAL, /**< 规范表示 */
+    INTEROP_EXPORT_ISABELLE, /**< Isabelle/HOL格式 */
+    INTEROP_EXPORT_HOL_LIGHT /**< HOL Light格式 */
 } InteropExportFormat;
 
 /**
@@ -128,6 +130,7 @@ typedef enum {
  */
 typedef struct {
     InteropCommandType type;              /**< 命令类型 */
+    char command_name[256];               /**< 原始命令名称（用于错误报告） */
     char params[INTEROP_MAX_PARAMS][256]; /**< 参数数组 */
     int param_count;                      /**< 参数数量 */
     int request_id;                       /**< 请求ID */

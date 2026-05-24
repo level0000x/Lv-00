@@ -7,7 +7,7 @@
  *
  * @module GraphTheory
  * @category PRESET_CATEGORY_GRAPH_THEORY
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "preset_graph_theory.h"

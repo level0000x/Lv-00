@@ -5,8 +5,29 @@
  * @details 提供标准化的错误码定义、错误信息获取和错误处理宏。
  *          所有模块的错误码都应在此定义，确保错误处理的一致性和可追溯性。
  *
+ * 【中文模块说明】
+ * error_codes.h 定义了 Lv-00 系统的统一错误码体系，采用分层编号设计：
+ * - 0: 成功 (LV00_OK)
+ * - 1-99: 通用系统错误（空指针、参数无效、超时、IO错误等）
+ * - 100-199: 内存与资源错误（内存不足、分配失败、资源耗尽）
+ * - 130-139: 解析器安全错误（输入过长、token超限、AST深度超限等）
+ * - 200-299: 约束图相关错误（节点冲突、约束冲突、循环依赖等）
+ * - 300-399: 符号坐标相关错误（坐标溢出、精度丢失、求值失败）
+ * - 400-499: 求解器相关错误（无解、奇异矩阵、Groebner基计算失败）
+ * - 500-599: 重写引擎相关错误（无匹配规则、重写循环、深度超限）
+ * - 600-699: 合一检查相关错误（合一失败、发生检查失败、类型不匹配）
+ * - 700-799: 函数块相关错误（无效函数块、非确定性、循环引用）
+ * - 800-899: 类型系统相关错误（类型不匹配、推断失败、宇宙层级不一致）
+ * - 900-999: 证明系统相关错误（无效证明、证明不完整、验证失败、熔断器跳闸）
+ *
+ * 此外提供：
+ * - 错误信息获取函数（lv00_error_string, lv00_error_name, lv00_error_category）
+ * - 线程局部错误状态管理（lv00_set_error, lv00_get_last_error_code 等）
+ * - 便捷错误处理宏（LV00_CHECK_NULL, LV00_CHECK, LV00_CHECK_ALLOC 等）
+ * - 错误码反向查找（lv00_error_code_from_string）
+ *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_ERROR_CODES_H
@@ -45,6 +66,7 @@ typedef enum {
 
     /* 通用系统错误 (1-99) */
     LV00_ERROR_UNKNOWN = 1,             /**< 未知错误 */
+    /* 16-69: 预留范围 / Reserved range */
     LV00_ERROR_INTERNAL = 70,           /**< 内部错误 */
     LV00_ERROR_INVALID_PARAM = 2,       /**< 无效参数 */
     LV00_ERROR_NULL_POINTER = 3,        /**< 空指针 */
@@ -134,6 +156,8 @@ typedef enum {
     LV00_ERROR_PROOF_INCOMPLETE = 901,          /**< 证明不完整 */
     LV00_ERROR_PROOF_VERIFICATION_FAILED = 902, /**< 证明验证失败 */
     LV00_ERROR_CIRCUIT_OPEN = 903,              /**< 熔断器已跳闸（OPEN 态） */
+
+    LV00_ERROR_COUNT /**< 错误码总数，用于数组大小计算 */
 
 } Lv00ErrorCode;
 
@@ -272,6 +296,18 @@ Lv00ErrorCode lv00_error_code_from_string(const char *name);
         if ((ptr) == NULL) {                                                                               \
             lv00_set_error_ctx(LV00_ERROR_NULL_POINTER, __FILE__, __LINE__, __func__, "空指针: %s", #ptr); \
             return (ret);                                                                                  \
+        }                                                                                                  \
+    } while (0)
+
+/**
+ * @brief 检查指针是否为NULL，如果是则设置错误并无返回值返回（用于 void 函数）
+ * @param ptr 要检查的指针
+ */
+#define LV00_CHECK_NULL_VOID(ptr)                                                                          \
+    do {                                                                                                   \
+        if ((ptr) == NULL) {                                                                               \
+            lv00_set_error_ctx(LV00_ERROR_NULL_POINTER, __FILE__, __LINE__, __func__, "空指针: %s", #ptr); \
+            return;                                                                                        \
         }                                                                                                  \
     } while (0)
 

@@ -492,7 +492,10 @@ bool preset_homological_algebra_get_names(char ***out_names, int *out_count) {
                 void *tmp = names[j];
                 lv00_free(&tmp);
             }
-            lv00_free((void **) &names);
+            {
+                void *tmp = names;
+                lv00_free(&tmp);
+            }
             return false;
         }
     }

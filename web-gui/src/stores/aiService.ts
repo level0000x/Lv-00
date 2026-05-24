@@ -38,8 +38,8 @@ export function buildContextualResponse(query: string): string[] {
   /* 约束系统关键词 */
   if (/constraint|约束|incidence|关联|betweenness|介值|intersection|相交|containment|包含/i.test(query)) {
     chunks.push(isChinese
-      ? '### 约束系统概述\n\nLv-00 支持 **4 种约束类型**：\n\n1. **关联约束** — 点位于线段上\n2. **介值约束** — 点 B 位于 A 和 C 之间\n3. **相交约束** — 两条线段相交\n4. **包含约束** — 点在区域内\n\n'
-      : '### Constraint System Overview\n\nLv-00 supports **4 constraint types**:\n\n1. **Incidence** — point lies on a segment\n2. **Betweenness** — point B is between A and C\n3. **Intersection** — two segments intersect\n4. **Containment** — point in region\n\n');
+      ? '### 约束系统概述\n\nLv-00 支持 **5 种约束类型**：\n\n1. **关联约束 (incidence)** — 点位于线段上\n2. **介值约束 (betweenness)** — 点 B 位于 A 和 C 之间\n3. **相交约束 (intersection)** — 两条线段相交\n4. **包含约束 (containment)** — 点在区域内\n5. **连接约束 (connection)** — 一般连接关系\n\n'
+      : '### Constraint System Overview\n\nLv-00 supports **5 constraint types**:\n\n1. **Incidence** — point lies on a segment\n2. **Betweenness** — point B is between A and C\n3. **Intersection** — two segments intersect\n4. **Containment** — point in region\n5. **Connection** — general connection between elements\n\n');
   }
 
   /* 求解器关键词 */
@@ -155,7 +155,7 @@ export function getFallbackResponse(provider: string): string[] {
       '### Lv-00 符号几何引擎\n\n',
       'Lv-00 是一个基于符号计算的几何引擎，具有以下特点：\n\n',
       '1. **精确计算**：使用符号运算而非浮点近似\n',
-      '2. **约束系统**：支持关联、介值、相交、包含四种约束类型\n',
+      '2. **约束系统**：支持关联、介值、相交、包含、连接五种约束类型\n',
       '3. **区域管理**：支持多边形区域的定义和面积计算\n\n',
       '```python\n# 约束示例\nadd_constraint(incidence, [point_id, segment_id])\nadd_constraint(betweenness, [p_a, p_b, p_c])\n```\n\n',
       '如需更多帮助，请随时提问！\n',
@@ -439,31 +439,458 @@ type SimulatedEventEntry = (typeof SIMULATED_EVENT_TYPES)[number];
  *   3. ws.onmessage 中解析 JSON 帧，调用 onChunk 回调
  *   4. 在 sendMessage() 入口通过 realAPIConfig 的字段选择传输方式
  *
- *   示例 stub（保留以作参考，实际启用时移入独立模块）：
+// ================================================================
+// WebSocket 客户端 / WebSocket Client
+// ================================================================
+
+/**
+ * WebSocket 连接状态
+ */
+export type WebSocketState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+
+/**
+ * WebSocket 客户端配置
+ */
+export interface WebSocketClientConfig {
+  /** WebSocket 服务器地址 / WebSocket server URL (e.g., "ws://localhost:8080/ws") */
+  url: string;
+  /** 最大重连次数 / Maximum reconnection attempts (default: 10) */
+  maxReconnectAttempts?: number;
+  /** 初始重连延迟（毫秒）/ Initial reconnection delay in ms (default: 1000) */
+  initialReconnectDelay?: number;
+  /** 最大重连延迟（毫秒）/ Maximum reconnection delay in ms (default: 30000) */
+  maxReconnectDelay?: number;
+  /** 连接超时（毫秒）/ Connection timeout in ms (default: 10000) */
+  connectionTimeout?: number;
+  /** 请求超时（毫秒）/ Request timeout in ms (default: 30000) */
+  requestTimeout?: number;
+}
+
+/**
+ * WebSocket 消息类型（客户端 -> 服务端）
+ */
+export interface WSRequestMessage {
+  id: string;
+  type: 'query' | 'proof' | 'solve';
+  content: string;
+  timestamp: number;
+}
+
+/**
+ * WebSocket 响应类型（服务端 -> 客户端）
+ */
+export interface WSResponseMessage {
+  id: string;
+  type: 'chunk' | 'done' | 'error';
+  content?: string;
+  error?: string;
+  timestamp: number;
+}
+
+/**
+ * WebSocket 客户端回调接口
+ */
+export interface WebSocketClientCallbacks {
+  /** 收到文本分块时调用 / Called when a text chunk is received */
+  onChunk: (queryId: string, chunk: string) => void;
+  /** 查询完成时调用 / Called when a query is completed */
+  onComplete: (queryId: string, fullContent: string) => void;
+  /** 查询出错时调用 / Called when a query encounters an error */
+  onError: (queryId: string, error: string) => void;
+  /** 连接状态变化时调用 / Called when connection state changes */
+  onStateChange: (state: WebSocketState) => void;
+}
+
+/**
+ * WebSocket AI 客户端。
  *
- *   ```
- *   function createWebSocketClient(config: AIClientConfig): RealAPIClient {
- *     return {
- *       async sendMessage(content, onChunk): Promise<string> {
- *         const wsUrl = config.endpoint.replace(/^http/, 'ws') + '/v1/stream';
- *         const ws = new WebSocket(wsUrl);
- *         let fullContent = '';
- *         return new Promise((resolve, reject) => {
- *           ws.onopen = () => ws.send(JSON.stringify({ model: config.modelName, messages: [{ role: 'user', content }] }));
- *           ws.onmessage = (event) => {
- *             const parsed = JSON.parse(event.data);
- *             if (parsed.done) { ws.close(); resolve(fullContent); return; }
- *             const text = parsed.content ?? '';
- *             fullContent += text;
- *             onChunk(text);
- *           };
- *           ws.onerror = () => reject(new Error('WebSocket connection error'));
- *           ws.onclose = () => resolve(fullContent);
- *         });
- *       },
- *     };
- *   }
- *   ```
+ * 特性：
+ * - 自动重连（指数退避）/ Automatic reconnection with exponential backoff
+ * - 流式响应解析 / Streaming response parsing
+ * - 请求超时处理 / Request timeout handling
+ * - 连接生命周期管理 / Connection lifecycle management
+ *
+ * 使用方式 / Usage:
+ * ```ts
+ * const client = new WebSocketAIClient({ url: 'ws://localhost:8080/ws' });
+ * client.onResponse({
+ *   onChunk: (id, chunk) => console.log(chunk),
+ *   onComplete: (id, content) => console.log('Done:', content),
+ *   onError: (id, err) => console.error(err),
+ *   onStateChange: (state) => console.log('State:', state),
+ * });
+ * await client.connect();
+ * await client.sendQuery('Solve the triangle ABC');
+ * client.disconnect();
+ * ```
+ */
+export class WebSocketAIClient {
+  private config: Required<WebSocketClientConfig>;
+  private ws: WebSocket | null = null;
+  private state: WebSocketState = 'disconnected';
+  private callbacks: WebSocketClientCallbacks | null = null;
+  private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private connectionTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingQueries = new Map<string, {
+    resolve: (content: string) => void;
+    reject: (error: Error) => void;
+    accumulated: string;
+    timeoutTimer: ReturnType<typeof setTimeout>;
+  }>();
+  private queryCounter = 0;
+  private intentionalClose = false;
+  private messageBuffer = '';
+
+  constructor(config: WebSocketClientConfig) {
+    this.config = {
+      url: config.url,
+      maxReconnectAttempts: config.maxReconnectAttempts ?? 10,
+      initialReconnectDelay: config.initialReconnectDelay ?? 1000,
+      maxReconnectDelay: config.maxReconnectDelay ?? 30000,
+      connectionTimeout: config.connectionTimeout ?? 10000,
+      requestTimeout: config.requestTimeout ?? 30000,
+    };
+  }
+
+  /**
+   * 注册响应回调。
+   * Register response callbacks.
+   */
+  onResponse(callbacks: WebSocketClientCallbacks): void {
+    this.callbacks = callbacks;
+  }
+
+  /**
+   * 获取当前连接状态。
+   * Get current connection state.
+   */
+  getState(): WebSocketState {
+    return this.state;
+  }
+
+  /**
+   * 建立 WebSocket 连接。
+   * Establish WebSocket connection.
+   *
+   * @returns Promise，连接成功时 resolve / Promise that resolves when connected
+   * @throws 连接超时或被拒绝时 reject / Rejects on timeout or refusal
+   */
+  connect(): Promise<void> {
+    if (this.ws && (this.state === 'connected' || this.state === 'connecting')) {
+      return Promise.resolve();
+    }
+
+    this.intentionalClose = false;
+    this.setState('connecting');
+
+    return new Promise((resolve, reject) => {
+      // 连接超时计时器
+      this.clearConnectionTimer();
+      this.connectionTimer = setTimeout(() => {
+        if (this.state === 'connecting') {
+          this.cleanupWebSocket();
+          this.setState('disconnected');
+          reject(new Error(
+            `WebSocket connection timeout after ${this.config.connectionTimeout}ms / 连接超时`,
+          ));
+        }
+      }, this.config.connectionTimeout);
+
+      try {
+        this.ws = new WebSocket(this.config.url);
+      } catch (err) {
+        this.clearConnectionTimer();
+        const msg = err instanceof Error ? err.message : 'Failed to create WebSocket';
+        this.setState('disconnected');
+        reject(new Error(msg));
+        return;
+      }
+
+      this.ws.onopen = () => {
+        this.clearConnectionTimer();
+        this.reconnectAttempts = 0;
+        this.setState('connected');
+        resolve();
+      };
+
+      this.ws.onmessage = (event: MessageEvent) => {
+        this.handleMessage(event.data as string);
+      };
+
+      this.ws.onerror = () => {
+        // onerror 本身不传递详细信息，错误细节在 onclose 中处理
+      };
+
+      this.ws.onclose = (event: CloseEvent) => {
+        this.clearConnectionTimer();
+        this.cleanupWebSocket();
+
+        // 拒绝所有挂起的查询
+        for (const [id, pending] of this.pendingQueries) {
+          clearTimeout(pending.timeoutTimer);
+          pending.reject(new Error(
+            `Connection closed (code: ${event.code}) / 连接已关闭`,
+          ));
+          this.callbacks?.onError(id, `Connection closed (code: ${event.code})`);
+        }
+        this.pendingQueries.clear();
+
+        if (!this.intentionalClose) {
+          this.attemptReconnect();
+        } else {
+          this.setState('disconnected');
+        }
+      };
+    });
+  }
+
+  /**
+   * 发送查询并等待流式响应。
+   * Send a query and wait for streaming response.
+   *
+   * @param content - 查询内容 / Query content
+   * @param type - 查询类型 / Query type ('query' | 'proof' | 'solve')
+   * @returns Promise，包含完整响应文本 / Promise with full response text
+   */
+  sendQuery(content: string, type: 'query' | 'proof' | 'solve' = 'query'): Promise<string> {
+    if (this.state !== 'connected' || !this.ws) {
+      return Promise.reject(new Error('WebSocket not connected / WebSocket 未连接'));
+    }
+
+    const queryId = `q_${++this.queryCounter}_${Date.now()}`;
+    const message: WSRequestMessage = {
+      id: queryId,
+      type,
+      content,
+      timestamp: Date.now(),
+    };
+
+    return new Promise((resolve, reject) => {
+      // 请求超时计时器
+      const timeoutTimer = setTimeout(() => {
+        this.pendingQueries.delete(queryId);
+        const errMsg = `Query timeout after ${this.config.requestTimeout}ms / 查询超时`;
+        this.callbacks?.onError(queryId, errMsg);
+        reject(new Error(errMsg));
+      }, this.config.requestTimeout);
+
+      this.pendingQueries.set(queryId, {
+        resolve,
+        reject,
+        accumulated: '',
+        timeoutTimer,
+      });
+
+      try {
+        this.ws!.send(JSON.stringify(message));
+      } catch (err) {
+        clearTimeout(timeoutTimer);
+        this.pendingQueries.delete(queryId);
+        const msg = err instanceof Error ? err.message : 'Send failed';
+        reject(new Error(`Failed to send query: ${msg}`));
+      }
+    });
+  }
+
+  /**
+   * 断开 WebSocket 连接。
+   * Disconnect WebSocket.
+   */
+  disconnect(): void {
+    this.intentionalClose = true;
+    this.clearReconnectTimer();
+    this.clearConnectionTimer();
+
+    // 清理所有挂起查询
+    for (const [, pending] of this.pendingQueries) {
+      clearTimeout(pending.timeoutTimer);
+      pending.reject(new Error('Client disconnected / 客户端已断开'));
+    }
+    this.pendingQueries.clear();
+
+    if (this.ws) {
+      this.ws.close(1000, 'Client disconnect');
+      this.cleanupWebSocket();
+    }
+
+    this.setState('disconnected');
+  }
+
+  /**
+   * 处理收到的消息。
+   * Handle received message.
+   *
+   * 支持两种格式：
+   * 1. JSON 帧: {"id":"...","type":"chunk","content":"..."}
+   * 2. SSE-like 文本: "data: {...}\n\ndata: {...}\n"
+   */
+  private handleMessage(data: string): void {
+    // 尝试 SSE-like 格式解析
+    if (data.startsWith('data: ') || data.includes('\ndata: ')) {
+      this.handleSSEMessage(data);
+      return;
+    }
+
+    // JSON 帧解析
+    try {
+      const message: WSResponseMessage = JSON.parse(data);
+      this.processMessage(message);
+    } catch {
+      // 非 JSON 文本，作为纯文本 chunk 处理
+      this.handlePlainText(data);
+    }
+  }
+
+  /**
+   * 处理 SSE-like 格式消息。
+   * Handle SSE-like format messages.
+   */
+  private handleSSEMessage(data: string): void {
+    // 追加到缓冲区处理跨帧分割
+    this.messageBuffer += data;
+
+    const lines = this.messageBuffer.split('\n');
+    this.messageBuffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+      const jsonStr = trimmed.slice(6).trim();
+      if (jsonStr === '[DONE]') continue;
+
+      try {
+        const message: WSResponseMessage = JSON.parse(jsonStr);
+        this.processMessage(message);
+      } catch {
+        // 忽略无法解析的 SSE 行
+      }
+    }
+  }
+
+  /**
+   * 处理纯文本消息（无 ID，广播给所有挂起查询）。
+   */
+  private handlePlainText(text: string): void {
+    // 纯文本广播给第一个挂起查询
+    for (const [id, pending] of this.pendingQueries) {
+      pending.accumulated += text;
+      this.callbacks?.onChunk(id, text);
+      break; // 只发给第一个挂起查询
+    }
+  }
+
+  /**
+   * 处理解析后的消息对象。
+   */
+  private processMessage(message: WSResponseMessage): void {
+    const pending = this.pendingQueries.get(message.id);
+    if (!pending) return;
+
+    switch (message.type) {
+      case 'chunk': {
+        const chunk = message.content ?? '';
+        pending.accumulated += chunk;
+        this.callbacks?.onChunk(message.id, chunk);
+        break;
+      }
+      case 'done': {
+        clearTimeout(pending.timeoutTimer);
+        this.pendingQueries.delete(message.id);
+        this.callbacks?.onComplete(message.id, pending.accumulated);
+        pending.resolve(pending.accumulated);
+        break;
+      }
+      case 'error': {
+        clearTimeout(pending.timeoutTimer);
+        this.pendingQueries.delete(message.id);
+        const errMsg = message.error ?? 'Unknown error';
+        this.callbacks?.onError(message.id, errMsg);
+        pending.reject(new Error(errMsg));
+        break;
+      }
+    }
+  }
+
+  /**
+   * 指数退避重连。
+   * Exponential backoff reconnection.
+   */
+  private attemptReconnect(): void {
+    if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
+      this.setState('disconnected');
+      return;
+    }
+
+    this.setState('reconnecting');
+    this.reconnectAttempts += 1;
+
+    // 指数退避: delay = min(initial * 2^(attempt-1), max) + jitter
+    const baseDelay = this.config.initialReconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    const delay = Math.min(baseDelay, this.config.maxReconnectDelay);
+    const jitter = Math.random() * 500; // 0-500ms 随机抖动
+
+    this.clearReconnectTimer();
+    this.reconnectTimer = setTimeout(() => {
+      this.connect().catch(() => {
+        // connect 失败会触发 onclose -> attemptReconnect，无需额外处理
+      });
+    }, delay + jitter);
+  }
+
+  /**
+   * 更新连接状态并通知回调。
+   */
+  private setState(newState: WebSocketState): void {
+    this.state = newState;
+    this.callbacks?.onStateChange(newState);
+  }
+
+  /**
+   * 清理 WebSocket 实例引用。
+   */
+  private cleanupWebSocket(): void {
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
+      this.ws = null;
+    }
+  }
+
+  /**
+   * 清除连接超时计时器。
+   */
+  private clearConnectionTimer(): void {
+    if (this.connectionTimer !== null) {
+      clearTimeout(this.connectionTimer);
+      this.connectionTimer = null;
+    }
+  }
+
+  /**
+   * 清除重连计时器。
+   */
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+}
+
+/**
+ * 创建 WebSocket AI 客户端的便捷工厂函数。
+ * Convenience factory function for creating a WebSocket AI client.
+ *
+ * @param config - WebSocket 客户端配置 / WebSocket client configuration
+ * @returns WebSocketAIClient 实例 / WebSocketAIClient instance
+ */
+export function createWebSocketClient(config: WebSocketClientConfig): WebSocketAIClient {
+  return new WebSocketAIClient(config);
+}
  *
  * 当前 mock 实现（下方）用于开发/演示阶段，连接真实 API 后自动跳过。
  *

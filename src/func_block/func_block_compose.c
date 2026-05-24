@@ -5,7 +5,7 @@
  *          使用 graph->next_node_id 生成唯一 ID 以避免冲突。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include <limits.h>
@@ -68,7 +68,7 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     /* 整数溢出检查 */
     if (f->internal_node_count > INT_MAX - g->internal_node_count - f->output_count - g->input_count) {
         fprintf(stderr, "[ERROR] 函数块组合失败：内部节点总数溢出\n");
-        return NULL;
+        return false;
     }
     int total_internal = f->internal_node_count + g->internal_node_count + f->output_count + g->input_count;
     int *internal_ids = lv00_malloc((size_t) total_internal * sizeof(int));

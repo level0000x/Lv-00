@@ -6,7 +6,7 @@
  *          和错误表验证功能。为整个 Lv-00 系统提供统一的错误报告机制，
  *          支持文件名、行号、函数名等上下文信息的自动捕获。
  *
- * @version 3.2.0
+ * @version 3.3.0
  * @author Lv-00 Team
  */
 
@@ -284,7 +284,7 @@ int lv00_get_error_description(char *buf, size_t buf_size) {
     /* 修复：添加 g_error_file、g_error_line 和 g_error_func 的有效性检查。
      * 只有当文件名非空、行号大于0、且函数名非空时，才认为上下文信息完整，
      * 否则回退到无上下文的格式，避免输出中包含空的文件名或函数名。 */
-    int written;
+    int written = -1;
     bool has_valid_context = (g_error_line > 0 && g_error_file[0] != '\0');
     bool has_valid_func = (g_error_func[0] != '\0');
 

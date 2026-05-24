@@ -1,10 +1,29 @@
+/* ========================================================================
+ * 模块名称：模块系统 (module)
+ * 功能概述：提供模块的创建/销毁、依赖管理、循环依赖检测、
+ *          LVZ 文本格式与 MessagePack 二进制格式的序列化/反序列化、
+ *          自动保存、崩溃恢复、增量快照以及 SVG/TikZ/PDF 可视化导出。
+ *
+ * 主要 API：
+ *   - module_create / module_destroy                — 创建/销毁模块
+ *   - module_add_dependency / validate_chain        — 依赖管理
+ *   - module_load / module_save                     — LVZ 文件加载/保存
+ *   - module_load_from_binary / save_to_binary      — MessagePack 格式
+ *   - module_serialize_to_json / deserialize        — JSON 序列化
+ *   - module_set_autosave_config / autosave         — 自动保存
+ *   - module_compute_delta / apply_delta            — 增量快照
+ *   - module_export_svg / tikz / pdf                — 可视化导出
+ *
+ * 使用示例：
+ *   Module *mod = module_create("euclidean", "1.0.0");
+ *   module_add_dependency(mod, "base", ">=1.0.0");
+ *   ModuleLoadStatus s = module_load(mod, "euclidean.lvz", NULL, 0);
+ *
+ * ======================================================================== */
+
 /**
  * @file module.h
  * @brief 模块系统 —— 模块加载/保存、依赖管理、增量快照与崩溃恢复
- *
- * 提供模块的创建/销毁、依赖链验证、循环依赖检测、
- * LVZ 文本格式与 MessagePack 二进制格式的序列化/反序列化、
- * 自动保存、崩溃恢复以及增量快照等功能。
  */
 
 #ifndef LV00_MODULE_H
@@ -92,7 +111,7 @@ int module_get_axiom_package_count(const Module *mod);
  * @brief 获取模块的约束图
  * @return 约束图指针（所有权归模块所有，不可释放），无图时返回 NULL
  */
-ConstraintGraph *module_get_graph(const Module *mod);
+const ConstraintGraph *module_get_graph(const Module *mod);
 
 /**
  * @brief 设置模块的约束图

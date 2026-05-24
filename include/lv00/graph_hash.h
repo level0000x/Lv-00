@@ -11,7 +11,7 @@
  *          - graph_hash_equal 只读，不转移所有权
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_GRAPH_HASH_H

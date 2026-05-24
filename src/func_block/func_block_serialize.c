@@ -5,7 +5,7 @@
  *          包含端口依赖类型转换、辅助解析函数等。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include <stdbool.h>
@@ -13,15 +13,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "func_block.h"
+#include "func_block_internal.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
 /* ==================== 命名常量 ==================== */
 
-/** 序列化缓冲区的初始大小 */
-#define SERIALIZE_BUFFER_INITIAL_SIZE 1024
+/* 使用 func_block_internal.h 中统一的 LV00_SERIALIZE_BUFFER_INITIAL_SIZE（1024） */
 
 /* ============== 确定性状态持久化 ============== */
 
@@ -76,7 +77,7 @@ char *func_block_serialize_state(const FuncBlock *fb) {
         return NULL;
 
     /* 估算缓冲区大小 */
-    size_t buf_size = SERIALIZE_BUFFER_INITIAL_SIZE;
+    size_t buf_size = LV00_SERIALIZE_BUFFER_INITIAL_SIZE;
     if (fb->name)
         buf_size += strlen(fb->name);
     if (fb->description)
@@ -224,7 +225,13 @@ static const char *parse_int(const char *p, int *out) {
         p++;
     }
     while (*p >= '0' && *p <= '9') {
-        *out = *out * 10 + (*p - '0');
+        int digit = *p - '0';
+        /* 溢出检查：确保 *out * 10 + digit 不超过 INT_MAX */
+        if (*out > (INT_MAX - digit) / 10) {
+            *out = INT_MAX; /* 溢出时钳位到最大值 */
+            break;
+        }
+        *out = *out * 10 + digit;
         p++;
     }
     *out *= sign;
@@ -247,15 +254,49 @@ static const char *parse_quoted_string(const char *p, char **out) {
         return p;
     }
     p++; /* 跳过开始引号 */
-    const char *start = p;
-    while (*p && *p != '"')
-        p++;
-    size_t len = (size_t) (p - start);
-    *out = lv00_malloc(len + 1);
-    if (*out) {
-        memcpy(*out, start, len);
-        (*out)[len] = '\0';
+
+    /* 第一遍：计算转义后的实际长度 */
+    const char *scan = p;
+    size_t len = 0;
+    while (*scan && *scan != '"') {
+        if (*scan == '\\' && *(scan + 1)) {
+            scan += 2; /* 跳过转义序列（如 \" 或 \\） */
+        } else {
+            scan++;
+        }
+        len++;
     }
+
+    *out = lv00_malloc(len + 1);
+    if (!*out) {
+        /* 跳到结束引号后返回 */
+        while (*p && *p != '"') p++;
+        if (*p == '"') p++;
+        return p;
+    }
+
+    /* 第二遍：复制并处理转义字符 */
+    size_t idx = 0;
+    while (*p && *p != '"') {
+        if (*p == '\\' && *(p + 1)) {
+            p++; /* 跳过反斜杠 */
+            /* 支持常见转义序列 */
+            switch (*p) {
+                case '"':  (*out)[idx] = '"';  break;
+                case '\\': (*out)[idx] = '\\'; break;
+                case 'n':  (*out)[idx] = '\n'; break;
+                case 't':  (*out)[idx] = '\t'; break;
+                case 'r':  (*out)[idx] = '\r'; break;
+                default:   (*out)[idx] = *p;   break; /* 未知转义，保留原字符 */
+            }
+        } else {
+            (*out)[idx] = *p;
+        }
+        p++;
+        idx++;
+    }
+    (*out)[idx] = '\0';
+
     if (*p == '"')
         p++; /* 跳过结束引号 */
     return p;

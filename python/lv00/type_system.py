@@ -24,9 +24,11 @@ Lv-00 类型系统模块
 """
 
 import ctypes
+import enum
 from typing import Any, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _ConstraintGraph, c_int, c_char_p, c_void_p, c_bool, POINTER
+from .core import Lv00BaseError
 
 __all__ = [
     "TypeKind", "TypeEquivResult", "TypeCheckResult",
@@ -44,7 +46,7 @@ __all__ = [
 # 枚举常量
 # ============================================================
 
-class TypeKind:
+class TypeKind(enum.IntEnum):
     """类型种类枚举。
 
     常量:
@@ -111,25 +113,17 @@ class TypeCheckResult:
 # 异常类
 # ============================================================
 
-class TypeSystemError(Exception):
+class TypeSystemError(Lv00BaseError):
     """类型系统错误基类。
 
     所有类型系统相关异常的父类。
+    继承 Lv00BaseError，复用统一的 message、error_code 属性和 __str__ 格式化逻辑。
 
     属性:
         message: 异常消息字符串
         error_code: 可选的错误码（整数，默认为 -1）
     """
-
-    def __init__(self, message: str = "", error_code: int = -1) -> None:
-        super().__init__(message)
-        self.message: str = message
-        self.error_code: int = error_code
-
-    def __str__(self) -> str:
-        if self.error_code >= 0:
-            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
-        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+    pass
 
 
 # ============================================================

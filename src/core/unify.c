@@ -55,7 +55,7 @@
  *   - type_region 使用引用语义，详见 unify_instantiate_proposition 文档
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - unify.h               : 合一检查器公共接口定义
@@ -368,7 +368,7 @@ UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, C
             construction_port_count++;
     }
     /* 【安全性修复】避免 lv00_calloc(0, sizeof(int)) 的实现定义行为。
-     * C标准规定 calloc(0, N) 可能返回 NULL 或一个不可解引用的非NULL指针。
+     * C标准规定 lv00_calloc(0, N) 可能返回 NULL 或一个不可解引用的非NULL指针。
      * 当 construction_port_count == 0 时：
      *   - 若返回 NULL：used_construction_ports 为 NULL，后续依赖其非NULL的代码存在隐患
      *   - 若返回非NULL：该指针在函数退出时未被 lv00_free()，造成内存泄漏

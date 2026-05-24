@@ -14,7 +14,7 @@ Lv-00 底层 C 库 ctypes 绑定模块
     LV00_LIBRARY_PATH: 可手动指定库文件路径
 
 作者：Lv-00 开发团队
-版本：3.2.0
+版本：3.3.0
 """
 
 import ctypes
@@ -841,7 +841,7 @@ _lib.mem_pool_destroy.restype = None
 
 # [已移除] rewrite_create_rule, rewrite_add_rule, rewrite_rewrite, rewrite_rewrite_until: C 库中不存在这些导出函数
 
-# [修复] rewrite_destroy_rule -> rewrite_rule_destroy
+# [重命名] rewrite_destroy_rule -> rewrite_rule_destroy
 _lib.rewrite_rule_destroy.argtypes = [c_void_p]
 _lib.rewrite_rule_destroy.restype = None
 
@@ -872,7 +872,7 @@ _lib.eliminate_geometry.restype = c_int
 # 辅助函数
 # ============================================================
 
-# [修复] lv00_free_ptr: FFI 兼容释放函数，接受 void*（与 lv00_free(void**) 不同）
+# lv00_free_ptr: FFI 兼容释放函数，接受 void*（与 lv00_free(void**) 不同）
 # lv00_free 接受 void**（双重指针），ctypes 无法方便传递双重指针
 # 因此 C 层新增了 lv00_free_ptr(void*) 专供 FFI 使用
 _lib.lv00_free_ptr = _lib.lv00_free_ptr if hasattr(_lib, 'lv00_free_ptr') else _lib.free
@@ -913,7 +913,7 @@ _lib.formula_render.restype = c_char_p
 
 # [已移除] formula_validate, formula_free_error_list: C 库中不存在这些导出函数
 
-# [修复] formula_get_last_error -> formula_parser_get_last_error
+# [重命名] formula_get_last_error -> formula_parser_get_last_error
 _lib.formula_parser_get_last_error.argtypes = []
 _lib.formula_parser_get_last_error.restype = c_char_p
 
@@ -933,7 +933,7 @@ _lib.graph_to_formula.restype = c_void_p
 _lib.graph_to_formula_result_destroy.argtypes = [c_void_p]
 _lib.graph_to_formula_result_destroy.restype = None
 
-# 修复：注册 formula_node_destroy，供 formula.py 的 __del__ 调用
+# 注册 formula_node_destroy，供 formula.py 的 __del__ 调用
 _lib.formula_node_destroy.argtypes = [c_void_p]
 _lib.formula_node_destroy.restype = None
 

@@ -104,6 +104,11 @@ static const char *gcl_command_names[] = {
  * enum → 字符串转换
  * ======================================================================== */
 
+/**
+ * @brief 将证明方法枚举值转换为字符串
+ * @param method 证明方法枚举值
+ * @return 方法名称字符串（"area"/"wu"/"groebner"/"full_angle"/"vector"），无效返回 "?"
+ */
 const char *gcl_proof_method_to_string(GCLProofMethod method)
 {
     static const char *names[] = {
@@ -113,12 +118,22 @@ const char *gcl_proof_method_to_string(GCLProofMethod method)
     return names[(int)method];
 }
 
+/**
+ * @brief 将命令类型枚举值转换为字符串
+ * @param type 命令类型枚举值
+ * @return 命令名称字符串，无效返回 "?"
+ */
 const char *gcl_command_type_to_string(GCLCommandType type)
 {
     if ((int)type < 0 || type >= GCL_CMD_COUNT) return "?";
     return gcl_command_names[(int)type];
 }
 
+/**
+ * @brief 将证明结果枚举值转换为字符串
+ * @param result 证明结果枚举值
+ * @return 结果名称字符串，无效返回 "?"
+ */
 const char *gcl_prove_result_to_string(GCLProveResult result)
 {
     static const char *names[] = {
@@ -128,6 +143,11 @@ const char *gcl_prove_result_to_string(GCLProveResult result)
     return names[(int)result];
 }
 
+/**
+ * @brief 将 WASM 导出格式枚举值转换为字符串
+ * @param format WASM 导出格式枚举值
+ * @return 格式名称字符串，无效返回 "?"
+ */
 const char *gcl_wasm_format_to_string(WasmExportFormat format)
 {
     static const char *names[] = { "default", "minimal", "full" };
@@ -139,6 +159,13 @@ const char *gcl_wasm_format_to_string(WasmExportFormat format)
  * 第一部分：上下文生命周期
  * ======================================================================== */
 
+/**
+ * @brief 创建 GCL 上下文实例
+ *
+ * 分配并初始化命令数组、符号表、证明方法和 WASM 配置。
+ *
+ * @return 新分配的 GCLContext 指针，失败返回 NULL
+ */
 GCLContext *gcl_context_create(void)
 {
     GCLContext *ctx = lv00_malloc(sizeof(GCLContext));
@@ -193,6 +220,10 @@ GCLContext *gcl_context_create(void)
     return ctx;
 }
 
+/**
+ * @brief 销毁 GCL 上下文实例，释放所有命令和符号表资源
+ * @param ctx 要销毁的上下文指针
+ */
 void gcl_context_destroy(GCLContext *ctx)
 {
     if (!ctx) return;
@@ -267,6 +298,12 @@ static int gcl_register_symbol(GCLContext *ctx, const char *name, int node_id)
     return idx;
 }
 
+/**
+ * @brief 在符号表中查找指定名称对应的节点 ID
+ * @param ctx         GCL 上下文
+ * @param symbol_name 符号名称
+ * @return 对应的节点 ID，未找到返回 -1
+ */
 int gcl_find_symbol(const GCLContext *ctx, const char *symbol_name)
 {
     if (!ctx || !symbol_name) return -1;
@@ -279,6 +316,11 @@ int gcl_find_symbol(const GCLContext *ctx, const char *symbol_name)
     return -1;
 }
 
+/**
+ * @brief 获取最近一次错误信息
+ * @param ctx GCL 上下文
+ * @return 错误信息字符串，无错误返回 NULL
+ */
 const char *gcl_get_last_error(const GCLContext *ctx)
 {
     if (!ctx) return NULL;
@@ -320,6 +362,16 @@ static GCLCommandType gcl_identify_command(const char *keyword)
     return GCL_CMD_COMMENT; /* 未识别的命令视为注释 */
 }
 
+/**
+ * @brief 解析单行 GCL 命令
+ *
+ * 识别命令关键字，提取标签和参数，存储到上下文的命令数组中。
+ * 空行和注释行被跳过，未识别的命令视为注释。
+ *
+ * @param ctx  GCL 上下文
+ * @param line 待解析的命令行字符串
+ * @return 成功返回 true，失败返回 false
+ */
 bool gcl_parse(GCLContext *ctx, const char *line)
 {
     LV00_CHECK_NULL(ctx, false);
@@ -397,6 +449,15 @@ bool gcl_parse(GCLContext *ctx, const char *line)
     return true;
 }
 
+/**
+ * @brief 从文件批量解析 GCL 命令
+ *
+ * 逐行读取文件内容并调用 gcl_parse 进行解析。
+ *
+ * @param ctx      GCL 上下文
+ * @param filepath GCL 源文件路径
+ * @return 成功解析的命令数量，失败返回 -1
+ */
 int gcl_parse_file(GCLContext *ctx, const char *filepath)
 {
     LV00_CHECK_NULL(ctx, -1);
@@ -436,6 +497,17 @@ int gcl_parse_file(GCLContext *ctx, const char *filepath)
  * 第四部分：命令执行引擎
  * ======================================================================== */
 
+/**
+ * @brief 执行单条 GCL 命令
+ *
+ * 根据命令类型分派到对应的处理逻辑：
+ * 声明类命令创建节点，构造类命令创建约束和节点，
+ * 测量类命令执行度量，证明类命令委托证明引擎。
+ *
+ * @param ctx GCL 上下文
+ * @param cmd 要执行的命令
+ * @return 成功返回 true，失败返回 false
+ */
 bool gcl_execute_command(GCLContext *ctx, const GCLCommand *cmd)
 {
     LV00_CHECK_NULL(ctx, false);
@@ -514,6 +586,14 @@ bool gcl_execute_command(GCLContext *ctx, const GCLCommand *cmd)
     }
 }
 
+/**
+ * @brief 批量执行上下文中所有已解析的命令
+ *
+ * 按顺序执行命令数组中的每条命令，遇到失败时停止并记录错误。
+ *
+ * @param ctx GCL 上下文
+ * @return 成功执行的命令数量，失败返回负数（-1 - 失败命令索引）
+ */
 int gcl_execute(GCLContext *ctx)
 {
     LV00_CHECK_NULL(ctx, -1);
@@ -539,6 +619,14 @@ int gcl_execute(GCLContext *ctx)
  * 第五部分：证明方法管理
  * ======================================================================== */
 
+/**
+ * @brief 设置证明方法
+ *
+ * 支持 5 种证明方法：面积法、吴方法、Groebner 基法、全角法、向量法。
+ *
+ * @param ctx    GCL 上下文
+ * @param method 证明方法枚举值
+ */
 void gcl_set_proof_method(GCLContext *ctx, GCLProofMethod method)
 {
     if (!ctx) return;
@@ -551,6 +639,11 @@ void gcl_set_proof_method(GCLContext *ctx, GCLProofMethod method)
     ctx->proof_method_explicit = true;
 }
 
+/**
+ * @brief 获取当前证明方法
+ * @param ctx GCL 上下文
+ * @return 当前证明方法枚举值，失败返回 GCL_PROOF_AREA
+ */
 GCLProofMethod gcl_get_proof_method(const GCLContext *ctx)
 {
     if (!ctx) return GCL_PROOF_AREA;
@@ -561,6 +654,16 @@ GCLProofMethod gcl_get_proof_method(const GCLContext *ctx)
  * 第六部分：证明执行
  * ======================================================================== */
 
+/**
+ * @brief 执行几何定理证明
+ *
+ * 在符号表中查找命题，根据当前证明方法执行证明。
+ *
+ * @param ctx        GCL 上下文
+ * @param proposition 待证明的命题名称
+ * @param timeout_ms 超时时间（毫秒）
+ * @return 证明结果枚举值
+ */
 GCLProveResult gcl_prove(GCLContext *ctx, const char *proposition,
                           int timeout_ms)
 {
@@ -606,6 +709,15 @@ GCLProveResult gcl_prove(GCLContext *ctx, const char *proposition,
  * 第七部分：导出 API
  * ======================================================================== */
 
+/**
+ * @brief 将证明导出为 LaTeX 文件
+ *
+ * 生成包含证明方法信息和命令列表的 LaTeX 文档。
+ *
+ * @param ctx      GCL 上下文
+ * @param filepath 输出文件路径
+ * @return 成功返回 true，失败返回 false
+ */
 bool gcl_export_latex(const GCLContext *ctx, const char *filepath)
 {
     LV00_CHECK_NULL(ctx, false);
@@ -644,6 +756,15 @@ bool gcl_export_latex(const GCLContext *ctx, const char *filepath)
     return true;
 }
 
+/**
+ * @brief 将证明导出为 HTML 文件
+ *
+ * 生成包含命令列表的 HTML 页面，带样式化展示。
+ *
+ * @param ctx      GCL 上下文
+ * @param filepath 输出文件路径
+ * @return 成功返回 true，失败返回 false
+ */
 bool gcl_export_html(const GCLContext *ctx, const char *filepath)
 {
     LV00_CHECK_NULL(ctx, false);
@@ -687,6 +808,16 @@ bool gcl_export_html(const GCLContext *ctx, const char *filepath)
  * 第八部分：WASM 编译管道
  * ======================================================================== */
 
+/**
+ * @brief 配置 WASM 编译参数
+ *
+ * 根据导出格式设置 WASM 模块的功能开关（证明、可视化、LaTeX/HTML 导出）。
+ *
+ * @param ctx           GCL 上下文
+ * @param export_format WASM 导出格式
+ * @param memory_size   WASM 内存大小（字节，<=0 使用默认值）
+ * @return 成功返回 true
+ */
 bool gcl_compile_wasm(GCLContext *ctx, WasmExportFormat export_format,
                        int memory_size)
 {
@@ -722,6 +853,15 @@ bool gcl_compile_wasm(GCLContext *ctx, WasmExportFormat export_format,
     return true;
 }
 
+/**
+ * @brief 导出 TypeScript 绑定文件
+ *
+ * 生成包含 GCLCommand、GCLContext 和 WasmExports 接口定义的 TypeScript 文件。
+ *
+ * @param ctx      GCL 上下文
+ * @param filepath 输出文件路径
+ * @return 成功返回 true，失败返回 false
+ */
 bool gcl_export_typescript_bindings(const GCLContext *ctx,
                                      const char *filepath)
 {
@@ -774,6 +914,15 @@ bool gcl_export_typescript_bindings(const GCLContext *ctx,
  * 第九部分：约束图转换
  * ======================================================================== */
 
+/**
+ * @brief 将 GCL 上下文转换为约束图
+ *
+ * 临时绑定约束图到上下文，重新执行所有命令以填充约束图数据。
+ *
+ * @param ctx   GCL 上下文
+ * @param graph 目标约束图
+ * @return 成功转换的命令数量，失败返回负数
+ */
 int gcl_to_constraint_graph(const GCLContext *ctx, ConstraintGraph *graph)
 {
     LV00_CHECK_NULL(ctx, -1);

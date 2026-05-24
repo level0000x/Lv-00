@@ -3,7 +3,7 @@
  * @brief 模块系统实现
  * @details 实现模块的加载、保存和依赖管理。支持 MessagePack 序列化、
  *          自动保存、崩溃恢复和增量快照功能。
- * @version 3.2.0
+ * @version 3.3.0
  * @author Lv-00 Team
  */
 

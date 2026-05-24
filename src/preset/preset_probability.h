@@ -543,41 +543,91 @@ extern "C" {
 /* ==================== 概率统计预设（v5.0 统一宏，与 .c 对齐） ==================== */
 
 /* 概率基础 */
+#ifndef PRESET_PROB_SAMPLE_SPACE
 #define PRESET_PROB_SAMPLE_SPACE "prob_sample_space"
+#endif
+#ifndef PRESET_PROB_EVENT_PROBABILITY
 #define PRESET_PROB_EVENT_PROBABILITY "prob_event_probability"
+#endif
+#ifndef PRESET_PROB_COMPLEMENT_EVENT
 #define PRESET_PROB_COMPLEMENT_EVENT "prob_complement_event"
+#endif
+#ifndef PRESET_PROB_UNION_EVENT
 #define PRESET_PROB_UNION_EVENT "prob_union_event"
+#endif
+#ifndef PRESET_PROB_INTERSECTION_EVENT
 #define PRESET_PROB_INTERSECTION_EVENT "prob_intersection_event"
+#endif
 
 /* 条件概率 */
+#ifndef PRESET_PROB_CONDITIONAL
 #define PRESET_PROB_CONDITIONAL "prob_conditional"
+#endif
+#ifndef PRESET_PROB_BAYES
 #define PRESET_PROB_BAYES "prob_bayes"
+#endif
+#ifndef PRESET_PROB_INDEPENDENCE_TEST
 #define PRESET_PROB_INDEPENDENCE_TEST "prob_independence_test"
+#endif
+#ifndef PRESET_PROB_TOTAL_PROBABILITY
 #define PRESET_PROB_TOTAL_PROBABILITY "prob_total_probability"
+#endif
 
 /* 离散分布 */
+#ifndef PRESET_PROB_BINOMIAL_PMF
 #define PRESET_PROB_BINOMIAL_PMF "prob_binomial_pmf"
+#endif
+#ifndef PRESET_PROB_POISSON_PMF
 #define PRESET_PROB_POISSON_PMF "prob_poisson_pmf"
+#endif
+#ifndef PRESET_PROB_GEOMETRIC_PMF
 #define PRESET_PROB_GEOMETRIC_PMF "prob_geometric_pmf"
+#endif
+#ifndef PRESET_PROB_HYPERGEOMETRIC_PMF
 #define PRESET_PROB_HYPERGEOMETRIC_PMF "prob_hypergeometric_pmf"
+#endif
+#ifndef PRESET_PROB_DISCRETE_UNIFORM_PMF
 #define PRESET_PROB_DISCRETE_UNIFORM_PMF "prob_discrete_uniform_pmf"
+#endif
 
 /* 连续分布 */
+#ifndef PRESET_PROB_NORMAL_PDF
 #define PRESET_PROB_NORMAL_PDF "prob_normal_pdf"
+#endif
+#ifndef PRESET_PROB_NORMAL_CDF
 #define PRESET_PROB_NORMAL_CDF "prob_normal_cdf"
+#endif
+#ifndef PRESET_PROB_EXPONENTIAL_PDF
 #define PRESET_PROB_EXPONENTIAL_PDF "prob_exponential_pdf"
+#endif
+#ifndef PRESET_PROB_UNIFORM_PDF
 #define PRESET_PROB_UNIFORM_PDF "prob_uniform_pdf"
+#endif
 
 /* 统计量 */
+#ifndef PRESET_PROB_SAMPLE_MEAN
 #define PRESET_PROB_SAMPLE_MEAN "prob_sample_mean"
+#endif
+#ifndef PRESET_PROB_SAMPLE_VARIANCE
 #define PRESET_PROB_SAMPLE_VARIANCE "prob_sample_variance"
+#endif
+#ifndef PRESET_PROB_SAMPLE_STD
 #define PRESET_PROB_SAMPLE_STD "prob_sample_std"
+#endif
+#ifndef PRESET_PROB_SAMPLE_MEDIAN
 #define PRESET_PROB_SAMPLE_MEDIAN "prob_sample_median"
+#endif
 
 /* 假设检验 */
+#ifndef PRESET_PROB_Z_TEST
 #define PRESET_PROB_Z_TEST "prob_z_test"
+#endif
+#ifndef PRESET_PROB_T_TEST
 #define PRESET_PROB_T_TEST "prob_t_test"
+#endif
+#ifndef PRESET_PROB_CHI_SQUARED_TEST
 #define PRESET_PROB_CHI_SQUARED_TEST "prob_chi_squared_test"
+#endif
 
 /* ==================== 模块初始化 ==================== */
 

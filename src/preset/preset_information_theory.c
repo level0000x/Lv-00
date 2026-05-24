@@ -587,8 +587,6 @@ bool preset_information_theory_get_names(char ***out_names, int *out_count) {
         return false;
     }
 
-    *out_count = INFORMATION_THEORY_PRESET_COUNT;
-
     /* 分配名称数组（使用项目统一的内存管理函数） */
     char **names = (char **) lv00_malloc(INFORMATION_THEORY_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
@@ -617,20 +615,24 @@ bool preset_information_theory_get_names(char ***out_names, int *out_count) {
                 void *tmp = names[j];
                 lv00_free(&tmp);
             }
-            lv00_free((void **) &names);
+            {
+                void *tmp = names;
+                lv00_free(&tmp);
+            }
             return false;
         }
     }
 
     *out_names = names;
+    *out_count = INFORMATION_THEORY_PRESET_COUNT;
     return true;
 }
 
 /**
- * @brief 获取信息论模块类别名称
+ * @brief 获取信息论模块类别
  *
- * @return 类别名称字符串
+ * @return 预设类别枚举值
  */
-const char *preset_information_theory_category(void) {
-    return "信息论";
+PresetCategory preset_information_theory_category(void) {
+    return PRESET_CATEGORY_ANALYSIS;
 }

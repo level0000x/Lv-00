@@ -33,7 +33,7 @@
     // ================================================================
     Lv00WebApp.prototype.updateStatus = function(text) {
         try {
-var el = document.getElementById('statusText');
+            var el = document.getElementById('statusText');
             if (el) el.textContent = String(text);
         } catch (e) {
             console.warn('[Lv-00] updateStatus: 更新状态栏失败:', e.message);
@@ -52,8 +52,8 @@ var el = document.getElementById('statusText');
     // ================================================================
     Lv00WebApp.prototype.updateStats = function() {
         try {
-var nodeCountEl = document.getElementById('nodeCount');
-var constraintCountEl = document.getElementById('constraintCount');
+            var nodeCountEl = document.getElementById('nodeCount');
+            var constraintCountEl = document.getElementById('constraintCount');
 
             if (nodeCountEl) nodeCountEl.textContent = this.points.length;
             if (constraintCountEl && this.graph) {
@@ -76,26 +76,26 @@ var constraintCountEl = document.getElementById('constraintCount');
      */
     // ================================================================
     Lv00WebApp.prototype.updateProperties = function(point) {
-var el = document.getElementById('propContent');
+        var el = document.getElementById('propContent');
         if (!el) return;
 
         // 使用 DocumentFragment 批量更新 DOM，避免多次重排
-var fragment = document.createDocumentFragment();
+        var fragment = document.createDocumentFragment();
 
         if (!point) {
-var emptyDiv = document.createElement('div');
+            var emptyDiv = document.createElement('div');
             emptyDiv.className = 'prop-empty';
             emptyDiv.textContent = 'No selection / 未选择';
             fragment.appendChild(emptyDiv);
         } else {
             // 辅助函数：创建属性行
-var _makePropRow = function(key, value) {
-var row = document.createElement('div');
+            var _makePropRow = function(key, value) {
+                var row = document.createElement('div');
                 row.className = 'prop-row';
-var keySpan = document.createElement('span');
+                var keySpan = document.createElement('span');
                 keySpan.className = 'prop-key';
                 keySpan.textContent = key;
-var valSpan = document.createElement('span');
+                var valSpan = document.createElement('span');
                 valSpan.className = 'prop-val';
                 valSpan.textContent = value;
                 row.appendChild(keySpan);
@@ -205,9 +205,9 @@ var valSpan = document.createElement('span');
         duration = duration || uc.TOAST_DURATION_DEFAULT;
 
         try {
-var container = document.getElementById('toastContainer');
+            var container = document.getElementById('toastContainer');
             if (!container) return;
-var toast = document.createElement('div');
+            var toast = document.createElement('div');
             toast.className = 'toast toast-' + type;
             toast.textContent = message;
 
@@ -290,14 +290,14 @@ var toast = document.createElement('div');
 
         try {
             // 隐藏所有模块面板
-var panels = document.querySelectorAll('.module-panel');
+            var panels = document.querySelectorAll('.module-panel');
             for (var i = 0; i < panels.length; i++) {
                 panels[i].classList.add('panel-hidden');
             }
 
             // 显示目标模块面板
-var panelId = 'panel' + moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
-var targetPanel = document.getElementById(panelId);
+            var panelId = 'panel' + moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+            var targetPanel = document.getElementById(panelId);
             if (targetPanel) {
                 targetPanel.classList.remove('panel-hidden');
             } else {
@@ -305,13 +305,13 @@ var targetPanel = document.getElementById(panelId);
             }
 
             // 更新面包屑导航
-var breadcrumb = document.getElementById('breadcrumbModule');
+            var breadcrumb = document.getElementById('breadcrumbModule');
             if (breadcrumb) {
                 breadcrumb.textContent = moduleName.toUpperCase();
             }
 
             // 更新模块标签页激活状态
-var tabs = document.querySelectorAll('.module-tab');
+            var tabs = document.querySelectorAll('.module-tab');
             for (var j = 0; j < tabs.length; j++) {
                 tabs[j].classList.remove('active');
                 tabs[j].setAttribute('aria-selected', 'false');
@@ -373,29 +373,29 @@ var tabs = document.querySelectorAll('.module-tab');
      */
     // ================================================================
     Lv00WebApp.prototype._initModals = function() {
-var self = this;
+        var self = this;
 
         try {
             // 通用模态框确认按钮
-var okBtn = document.getElementById('modalOk');
+            var okBtn = document.getElementById('modalOk');
             if (okBtn) {
                 okBtn.addEventListener('click', function() {
-var overlay = document.getElementById('modalOverlay');
+                    var overlay = document.getElementById('modalOverlay');
                     if (overlay) overlay.classList.remove('active');
                 });
             }
 
             // 通用模态框取消按钮
-var cancelBtn = document.getElementById('modalCancel');
+            var cancelBtn = document.getElementById('modalCancel');
             if (cancelBtn) {
                 cancelBtn.addEventListener('click', function() {
-var overlay = document.getElementById('modalOverlay');
+                    var overlay = document.getElementById('modalOverlay');
                     if (overlay) overlay.classList.remove('active');
                 });
             }
 
             // 点击遮罩层关闭模态框
-var overlay = document.getElementById('modalOverlay');
+            var overlay = document.getElementById('modalOverlay');
             if (overlay) {
                 overlay.addEventListener('click', function(e) {
                     if (e.target === overlay) {
@@ -408,7 +408,7 @@ var overlay = document.getElementById('modalOverlay');
             // 中文说明：将 ESC 事件处理器保存为 _escHandler，后续可在 _cleanupModals 中移除
             this._escHandler = function(e) {
                 if (e.key === 'Escape') {
-var overlays = document.querySelectorAll('.modal-overlay.active');
+                    var overlays = document.querySelectorAll('.modal-overlay.active');
                     for (var i = 0; i < overlays.length; i++) {
                         overlays[i].classList.remove('active');
                     }
@@ -461,11 +461,11 @@ var overlays = document.querySelectorAll('.modal-overlay.active');
      */
     // ================================================================
     Lv00WebApp.prototype._initSearch = function() {
-var self = this;
-var searchBtn = document.getElementById('btnSearch');
-var searchBar = document.getElementById('searchBar');
-var searchInput = document.getElementById('searchInput');
-var searchResults = document.getElementById('searchResults');
+        var self = this;
+        var searchBtn = document.getElementById('btnSearch');
+        var searchBar = document.getElementById('searchBar');
+        var searchInput = document.getElementById('searchInput');
+        var searchResults = document.getElementById('searchResults');
 
         if (!searchBtn || !searchBar || !searchInput) return;
 
@@ -502,7 +502,7 @@ var searchResults = document.getElementById('searchResults');
 
             // 实时搜索（input 事件）
             searchInput.addEventListener('input', function() {
-var query = searchInput.value.trim().toLowerCase();
+                var query = searchInput.value.trim().toLowerCase();
                 if (!searchResults) return;
 
                 // 清空现有搜索结果
@@ -515,15 +515,15 @@ var query = searchInput.value.trim().toLowerCase();
                 }
 
                 // 使用 DocumentFragment 批量构建搜索结果
-var fragment = document.createDocumentFragment();
-var found = 0;
+                var fragment = document.createDocumentFragment();
+                var found = 0;
 
                 // 搜索节点
                 for (var i = 0; i < self.points.length; i++) {
-var point = self.points[i];
-var label = 'n' + point.id;
+                    var point = self.points[i];
+                    var label = 'n' + point.id;
                     if (label.indexOf(query) !== -1 || query === String(point.id)) {
-var item = document.createElement('div');
+                        var item = document.createElement('div');
                         item.className = 'search-result-item';
                         item.textContent = label + ' (' + point.x.toFixed(2) + ', ' + point.y.toFixed(2) + ')';
                         item.setAttribute('data-node-id', point.id);
@@ -551,7 +551,7 @@ var item = document.createElement('div');
                 }
 
                 if (found === 0) {
-var noResultDiv = document.createElement('div');
+                    var noResultDiv = document.createElement('div');
                     noResultDiv.className = 'search-result-item';
                     // 修复：使用 CSS 变量替代硬编码颜色值 '#666'，与主题系统保持一致
                     // 中文说明：通过 var(--color-text-muted) 使文本颜色响应主题切换
@@ -574,7 +574,7 @@ var noResultDiv = document.createElement('div');
     var _EXAMPLES = {
                 'equilateral_triangle': function(app) {
                     // 等边三角形：边长为 4
-var h = Math.sqrt(3) / 2 * 4;
+                    var h = Math.sqrt(3) / 2 * 4;
                     app.addPoint(-2, -h / 3);
                     app.addPoint(2, -h / 3);
                     app.addPoint(0, 2 * h / 3);
@@ -587,10 +587,10 @@ var h = Math.sqrt(3) / 2 * 4;
                 },
                 'circle_equation': function(app) {
                     // 圆（正十二边形近似），半径 3
-var r = 3;
-var n = 12;
+                    var r = 3;
+                    var n = 12;
                     for (var i = 0; i < n; i++) {
-var angle = (2 * Math.PI * i) / n;
+                        var angle = (2 * Math.PI * i) / n;
                         app.addPoint(r * Math.cos(angle), r * Math.sin(angle));
                     }
                     for (var j = 0; j < n; j++) {
@@ -652,10 +652,10 @@ var angle = (2 * Math.PI * i) / n;
                 },
                 'ellipse': function(app) {
                     // 椭圆 a=4, b=2（正十六边形近似）
-var a = 4, b = 2;
-var n = 16;
+                    var a = 4, b = 2;
+                    var n = 16;
                     for (var i = 0; i < n; i++) {
-var angle = (2 * Math.PI * i) / n;
+                        var angle = (2 * Math.PI * i) / n;
                         app.addPoint(a * Math.cos(angle), b * Math.sin(angle));
                     }
                     for (var j = 0; j < n; j++) {
@@ -663,19 +663,7 @@ var angle = (2 * Math.PI * i) / n;
                     }
                     app.appendLog('Loaded: Ellipse a=4, b=2 / 椭圆', 'info');
                 },
-                'triangle': function(app) {
-                    // 等边三角形（Graph 模块预设）
-var h = Math.sqrt(3) / 2 * 4;
-                    app.addPoint(-2, -h / 3);
-                    app.addPoint(2, -h / 3);
-                    app.addPoint(0, 2 * h / 3);
-                    if (app.points.length >= 3) {
-                        app.addSegment(app.points[0].id, app.points[1].id);
-                        app.addSegment(app.points[1].id, app.points[2].id);
-                        app.addSegment(app.points[2].id, app.points[0].id);
-                    }
-                    app.appendLog('Loaded: Equilateral Triangle / 等边三角形', 'info');
-                },
+                'triangle': _EXAMPLES['equilateral_triangle'],  // 复用等边三角形示例
                 'square': function(app) {
                     // 正方形 4x4
                     app.addPoint(-2, -2);
@@ -736,7 +724,7 @@ var h = Math.sqrt(3) / 2 * 4;
             this.clear();
             // 修复：使用模块级 _EXAMPLES 常量，避免每次调用时重新创建示例对象
             // 中文说明：_EXAMPLES 在 IIFE 闭包中仅初始化一次，后续调用直接复用
-var loader = _EXAMPLES[name];
+            var loader = _EXAMPLES[name];
             if (loader) {
                 loader(this);
                 this.render();

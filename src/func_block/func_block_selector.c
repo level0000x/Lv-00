@@ -5,7 +5,7 @@
  *          区域内选择（射线法）、最近点选择和自定义选择函数。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include <math.h>
@@ -100,7 +100,9 @@ static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *
      *     只统计在候选点右侧的交点。如果交点在左侧，说明射线已经
      *     "穿过"了，但方向不对，不应计入。
      */
-    /* 【修复】检查 boundary_segments 数组指针是否为空，防止空指针解引用崩溃 */
+    /* 【修复】检查 region 指针及 boundary_segments 数组指针是否为空，防止空指针解引用崩溃 */
+    if (!region)
+        return false;
     if (!region->data.region.boundary_segments)
         return false;
 

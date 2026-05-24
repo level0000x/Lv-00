@@ -151,6 +151,16 @@ bool lv00_expr_is_canonical(const Lv00ExprCanonical *expr);
  *      形成 grlex/monomial ordering 的混合策略）
  *   3. 完全相同指数: 返回 0（应被合并）
  *
+ * 【重要：返回值语义与标准 qsort 比较函数相反】
+ * 本函数的返回值语义与 C 标准库 qsort 的比较函数约定相反：
+ *   - 返回 < 0：表示 a 应排在 b 之后（即 a 的次数更小或字典序更后）
+ *   - 返回 > 0：表示 a 应排在 b 之前（即 a 的次数更大或字典序更前）
+ *   - 返回 0：  表示 a 和 b 完全相同（应合并同类项）
+ *
+ * 这意味着本函数实现的是降序排列（次数大的在前），而非标准 qsort
+ * 比较函数的升序约定。直接将本函数传给 qsort 时，排序结果为降序。
+ * 如果需要升序排列，需要将返回值取反后再传给 qsort。
+ *
  * @param a 指数数组 a
  * @param b 指数数组 b
  * @param var_count 变量数

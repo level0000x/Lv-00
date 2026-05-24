@@ -693,8 +693,12 @@ typedef struct Lv00Context {
  *
  * 这是无论如何不能被超越的深度硬限制，
  * 由系统栈大小和内存约束决定。
+ *
+ * @note 设为 10000 而非更大的值，是因为 C 语言默认栈大小
+ *       通常为 1-8 MB，每层递归帧可能消耗数百字节到数 KB，
+ *       过深的递归会导致栈溢出（Stack Overflow），引发未定义行为。
  */
-#define LV00_CONTEXT_MAX_RECURSION_DEPTH 100000
+#define LV00_CONTEXT_MAX_RECURSION_DEPTH 10000
 
 /**
  * @brief 默认最大推理步骤数

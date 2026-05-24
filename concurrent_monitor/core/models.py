@@ -18,7 +18,7 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from enum import Enum
 from typing import Any
 
 
@@ -320,6 +320,20 @@ class ProcessInfo:
         self.end_time = time.time()
         if error_msg:
             self.metadata["error_message"] = error_msg
+
+    def reset(self) -> None:
+        """
+        重置进程状态，用于进程重启场景。
+
+        将状态恢复为初始值：状态设为 PENDING，清空输出和错误计数，
+        清除退出码和时间戳。保留 process_id 和 command 不变。
+        """
+        self.status = ProcessStatus.PENDING
+        self.output_lines.clear()
+        self.error_count = 0
+        self.exit_code = None
+        self.start_time = None
+        self.end_time = None
 
 
 @dataclass

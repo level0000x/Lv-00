@@ -11,7 +11,7 @@ Lv-00 DSL 包装器模块 - 几何对象包装类
     - TriangleWrapper: 三角形包装器
     - PolygonWrapper: 多边形包装器
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
@@ -21,6 +21,7 @@ import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .core import Graph, LineSegment, Point, SymbolicCoord, Lv00Error
+from .dsl_context import _float  # 显式导入，避免依赖 dsl.py 的 re-export 机制
 
 
 # ============================================================
@@ -184,8 +185,9 @@ class PointWrapper:
         return False
 
     def __hash__(self) -> int:
-        """哈希值（基于对象 id）。"""
-        return hash(id(self._point))
+        """哈希值（基于坐标值，与 __eq__ 保持契约一致）。"""
+        # 基于坐标值计算哈希，确保 a == b ⟹ hash(a) == hash(b)。
+        return hash((float(self.x), float(self.y)))
 
     # ---- 几何方法 ----
 
@@ -646,6 +648,9 @@ class CircleWrapper:
             return [pw]
 
         # 两个交点
+        # 注意：discriminant ** (1/2) 在数学上等价于 sqrt(discriminant)，
+        # 此处使用 SymbolicCoord.from_rational(1, 2) 构造指数 1/2，
+        # 利用 SymbolicCoord 的幂运算实现平方根计算。
         sqrt_disc = discriminant ** SymbolicCoord.from_rational(1, 2)
         t1 = (-b - sqrt_disc) / (SymbolicCoord(2) * a)
         t2 = (-b + sqrt_disc) / (SymbolicCoord(2) * a)

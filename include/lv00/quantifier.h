@@ -1,20 +1,32 @@
+/* ========================================================================
+ * 模块名称：量词系统 (quantifier)
+ * 功能概述：提供全称量词（forall）、存在量词（exists）和唯一存在量词
+ *          （exists_unique）的形式化处理。支持量词实例化/泛化操作、
+ *          有限域上的量词消去、与约束图的双向映射，以及三值逻辑
+ *          真值评估。遵循构造性/BHK 解释语义。
+ *
+ * 主要 API：
+ *   - lv00_quant_domain_create / destroy      — 域管理
+ *   - lv00_quant_expr_create / destroy        — 量化表达式管理
+ *   - lv00_quant_expr_evaluate                — 三值逻辑评估
+ *   - lv00_quantifier_instantiate              — 全称量词消去（forall-E）
+ *   - lv00_quantifier_generalize              — 全称量词引入（forall-I）
+ *   - lv00_quant_exists_introduce / eliminate — 存在量词引入/消去
+ *   - lv00_quant_eliminate_forall_finite      — 有限域全称消去
+ *   - lv00_quant_count_satisfying             — 统计满足元素数
+ *
+ * 使用示例：
+ *   Lv00Domain *d = lv00_quant_domain_create_finite(1, elements, n);
+ *   Lv00QuantifiedExpr *expr = lv00_quant_expr_create(
+ *       1, LV00_FORALL, "p", var_id, d, body_prop);
+ *   Lv00TruthValue tv = lv00_quant_expr_evaluate(expr);
+ *
+ * @version 1.0.0
+ * ======================================================================== */
+
 /**
  * @file quantifier.h
  * @brief 量词系统 —— 全称/存在/唯一存在量词的形式化处理
- *
- * @details 设计文档指出当前量词约束系统不完整，本模块提供：
- *          - 三种标准量词：∀（全称）、∃（存在）、∃!（唯一存在）
- *          - 量词实例化/泛化操作
- *          - 有限域上的量词消去
- *          - 与约束图的双向映射
- *
- *          量词语义（构造性/BHK 解释）：
- *          - ∀x∈D. P(x) : 一个构造，对 D 中每个元素产生 P 的证物
- *          - ∃x∈D. P(x) : 一对 (d, proof_P(d))，其中 d∈D
- *          - ∃!x∈D. P(x): ∃x.P(x) ∧ ∀y.(P(y) → y=x)，即唯一存在
- *
- * @author Lv-00 Project
- * @version 1.0.0
  */
 
 #ifndef LV00_QUANTIFIER_H

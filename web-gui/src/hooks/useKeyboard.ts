@@ -33,6 +33,7 @@ export function useKeyboard(): void {
   const setSearchVisible = useAppStore((s) => s.setSearchVisible);
   const hideContextMenu = useAppStore((s) => s.hideContextMenu);
   const clearRegionPoints = useAppStore((s) => s.clearRegionPoints);
+  const togglePanel = useAppStore((s) => s.togglePanel);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -46,59 +47,81 @@ export function useKeyboard(): void {
 
       switch (key) {
         case 'v':
+          // V 键：切换到选择工具 / Switch to select tool
           if (!ctrl) setTool('select');
           break;
         case 'p':
+          // P 键：切换到画点工具 / Switch to point tool
           if (!ctrl) setTool('point');
           break;
         case 'l':
+          // L 键：切换到画线段工具 / Switch to segment tool
           if (!ctrl) setTool('segment');
           break;
         case 'c':
+          // C 键：切换到圆规工具 / Switch to compass tool
           if (!ctrl) setTool('compass');
           break;
         case 'h':
+          // H 键：切换到平移工具 / Switch to pan tool
           if (!ctrl) setTool('pan');
           break;
         case 'r':
+          // R 键：切换到区域工具 / Switch to region tool
           if (!ctrl) setTool('region');
           break;
         case '?':
+          // ? 键：切换到探针工具 / Switch to probe tool
           if (!ctrl) setTool('probe');
           break;
         case '+':
         case '=':
+          // +/= 键：放大画布 / Zoom in
           if (!ctrl) setScale(scale * ZOOM_STEP);
           break;
         case '-':
         case '_':
+          // -/_ 键：缩小画布 / Zoom out
           if (!ctrl) setScale(scale / ZOOM_STEP);
           break;
         case '0':
+          // Ctrl+0 键：重置视图到原点 / Reset view to origin
           if (ctrl) {
             e.preventDefault();
             resetView();
           }
           break;
         case 'z':
+          // Ctrl+Z 键：撤销操作 / Undo
           if (ctrl && !e.shiftKey) {
             e.preventDefault();
             undo();
           }
           break;
         case 'y':
+          // Ctrl+Y 键：重做操作 / Redo
           if (ctrl) {
             e.preventDefault();
             redo();
           }
           break;
         case 'f':
+          // Ctrl+F 键：切换搜索面板 / Toggle search panel
           if (ctrl) {
             e.preventDefault();
             setSearchVisible(!searchVisible);
           }
           break;
+        case '/':
+          // / 键：切换帮助面板 / Toggle help panel
+          if (!ctrl) {
+            e.preventDefault();
+            togglePanel('help');
+          }
+          break;
         case 'escape':
+          // Escape 键：重置为选择工具、关闭右键菜单、清除区域顶点
+          // Reset to select tool, hide context menu, clear region points
           setTool('select');
           hideContextMenu();
           clearRegionPoints();
@@ -108,6 +131,7 @@ export function useKeyboard(): void {
     [
       setTool, scale, setScale, resetView, undo, redo,
       searchVisible, setSearchVisible, hideContextMenu, clearRegionPoints,
+      togglePanel,
     ],
   );
 

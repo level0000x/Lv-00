@@ -19,8 +19,12 @@
 // 类型定义 / Type Definitions
 // ================================================================
 
-/** 支持的后端 AI 提供者标识符 / Supported backend AI provider identifiers */
-export type AIProviderId = 'openai' | 'claude' | 'gemini' | 'deepseek' | 'local';
+/**
+ * AI 提供商标识符 —— 统一使用 types/index.ts 中的定义
+ * 类型成员：'openai' | 'deepseek' | 'dashscope' | 'anthropic' | 'gemini' | 'ollama' | 'custom'
+ */
+import type { AIProviderId } from '@/types';
+export type { AIProviderId } from '@/types';
 
 /** API 调用选项 / API Call Options */
 export interface ApiCallOptions {
@@ -95,19 +99,23 @@ export class ApiClientError extends Error {
 /** 各提供者的默认 API 端点 / Default API endpoints by provider */
 const DEFAULT_ENDPOINTS: Record<AIProviderId, string> = {
   openai: 'https://api.openai.com/v1/chat/completions',
-  claude: 'https://api.anthropic.com/v1/messages',
+  anthropic: 'https://api.anthropic.com/v1/messages',
   gemini: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
   deepseek: 'https://api.deepseek.com/v1/chat/completions',
-  local: 'http://localhost:11434/v1/chat/completions', // 默认本地 Ollama 端点
+  ollama: 'http://localhost:11434/v1/chat/completions', // 默认本地 Ollama 端点
+  dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+  custom: '',
 };
 
 /** 各提供者的默认模型名称 / Default model names by provider */
 const DEFAULT_MODELS: Record<AIProviderId, string> = {
   openai: 'gpt-3.5-turbo',
-  claude: 'claude-3-haiku-20240307',
+  anthropic: 'claude-3-haiku-20240307',
   gemini: 'gemini-pro',
   deepseek: 'deepseek-chat',
-  local: 'llama3',
+  ollama: 'llama3',
+  dashscope: 'qwen-turbo',
+  custom: '',
 };
 
 /** 默认请求超时时间（毫秒） / Default request timeout in milliseconds */
@@ -162,11 +170,11 @@ function buildRequestBody(
   };
 
   // Anthropic (Claude) 使用不同的 API 格式和认证头
-  if (options.provider === 'claude') {
+  if (options.provider === 'anthropic') {
     headers['x-api-key'] = options.apiKey;
     headers['anthropic-version'] = '2023-06-01';
     const body = {
-      model: options.model ?? DEFAULT_MODELS.claude,
+      model: options.model ?? DEFAULT_MODELS.anthropic,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       max_tokens: options.maxTokens ?? 2048,
       temperature: options.temperature ?? 0.7,
@@ -177,8 +185,6 @@ function buildRequestBody(
 
   // Google Gemini 使用不同的 API 格式和认证方式
   if (options.provider === 'gemini') {
-    void (`${DEFAULT_ENDPOINTS.gemini}?key=${encodeURIComponent(options.apiKey)}`);
-    // 在这里统一处理 URL。由于我们可以在调用时传入 endpoint，所以返回更新后的 headers
     // Gemini 使用 URL 参数传递密钥，不需要 Authorization 头
     const body = {
       contents: messages.map((m) => ({

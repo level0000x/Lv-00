@@ -1,14 +1,29 @@
+/* ========================================================================
+ * 模块名称：公式渲染器 (formula_renderer)
+ * 功能概述：将公式 AST 渲染为多种输出格式的字符串。支持 LaTeX（数学
+ *          排版）、Python（数值计算代码生成）、DSL（Lv-00 几何语言）、
+ *          MathML、ASCII 艺术和 HTML MathJax 六种输出格式。
+ *
+ * 主要 API：
+ *   - formula_render / formula_render_ex     — 通用渲染
+ *   - formula_render_to_buffer / _ex        — 渲染到缓冲区
+ *   - formula_render_latex / python / dsl   — 格式特定渲染
+ *   - formula_render_point_latex            — 几何点 LaTeX 渲染
+ *   - formula_render_fraction_latex         — 分数 LaTeX 渲染
+ *   - formula_latex_greek_name              — 希腊字母映射
+ *
+ * 使用示例：
+ *   char *latex = formula_render_latex(ast);
+ *   char *python = formula_render_python(ast);
+ *   RenderOptions opts = { .display_mode = true };
+ *   char *result = formula_render_ex(ast, OUTPUT_LATEX, &opts);
+ *
+ * @version 3.3.0
+ * ======================================================================== */
+
 /**
  * @file formula_renderer.h
  * @brief 公式渲染器 —— 将 AST 渲染为 LaTeX / Python / DSL 字符串
- *
- * @details 提供三种输出格式的渲染功能：
- *          - LaTeX: 用于数学排版和显示
- *          - Python: 用于数值计算和代码生成
- *          - DSL: 用于 Lv-00 几何元语言系统
- *
- * @author Lv-00 Project
- * @version 3.2.0
  */
 
 #ifndef LV00_FORMULA_RENDERER_H
@@ -25,9 +40,12 @@ extern "C" {
  * ============================================================ */
 
 typedef enum {
-    OUTPUT_LATEX,  /* LaTeX 格式 */
-    OUTPUT_PYTHON, /* Python 代码格式 */
-    OUTPUT_DSL     /* Lv-00 DSL 格式 */
+    OUTPUT_LATEX,    /* LaTeX 格式 */
+    OUTPUT_PYTHON,   /* Python 代码格式 */
+    OUTPUT_DSL,      /* Lv-00 DSL 格式 */
+    OUTPUT_MATHML,   /* MathML 格式 */
+    OUTPUT_ASCII,    /* ASCII 艺术格式 */
+    OUTPUT_HTML      /* HTML MathJax 格式 */
 } OutputFormat;
 
 /* ============================================================

@@ -98,6 +98,8 @@ export function useStreamCanvasSync(config: Partial<CanvasSyncConfig> = {}) {
   const eventBufferRef = useRef<EngineStreamEvent[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastProcessedIndexRef = useRef(0);
+  /** 活跃动画数量跟踪 ref，用于控制 rAF 循环的启停 */
+  const activeAnimationCountRef = useRef(0);
 
   // 处理单个事件
   const processEvent = useCallback((event: EngineStreamEvent) => {
@@ -182,7 +184,12 @@ export function useStreamCanvasSync(config: Partial<CanvasSyncConfig> = {}) {
 
     setState(prev => {
       const newHighlights = new Map(prev.highlights);
+      const isNew = !newHighlights.has(nodeId);
       newHighlights.set(nodeId, highlight);
+      // 仅在新增高亮时递增活跃动画计数
+      if (isNew) {
+        activeAnimationCountRef.current++;
+      }
       return {
         ...prev,
         highlights: newHighlights,
@@ -205,6 +212,8 @@ export function useStreamCanvasSync(config: Partial<CanvasSyncConfig> = {}) {
         if (now - highlight.startTime > highlight.duration) {
           newHighlights.delete(nodeId);
           changed = true;
+          // 过期高亮递减活跃动画计数
+          activeAnimationCountRef.current = Math.max(0, activeAnimationCountRef.current - 1);
         }
       }
 
@@ -212,21 +221,55 @@ export function useStreamCanvasSync(config: Partial<CanvasSyncConfig> = {}) {
     });
   }, []);
 
-  // 动画循环
-  useEffect(() => {
+  /**
+   * 启动 rAF 动画循环。
+   * 仅在有活跃动画（activeAnimationCountRef > 0）时运行，
+   * 动画全部结束后自动停止，避免空转浪费 CPU 资源。
+   */
+  const startAnimationLoop = useCallback(() => {
+    // 如果已在运行则不重复启动
+    if (animationFrameRef.current !== null) return;
+
     const animate = () => {
       cleanupHighlights();
+      // 没有活跃动画时停止循环
+      if (activeAnimationCountRef.current <= 0) {
+        animationFrameRef.current = null;
+        return;
+      }
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
   }, [cleanupHighlights]);
+
+  /** 停止 rAF 动画循环 */
+  const stopAnimationLoop = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  /**
+   * 监听高亮状态变化，动态启停 rAF 动画循环。
+   * 有活跃高亮时启动循环，无活跃高亮时停止循环。
+   */
+  useEffect(() => {
+    const currentHighlights = state.highlights;
+    if (currentHighlights.size > 0) {
+      startAnimationLoop();
+    } else {
+      stopAnimationLoop();
+    }
+  }, [state.highlights, startAnimationLoop, stopAnimationLoop]);
+
+  // 组件卸载时清理 rAF
+  useEffect(() => {
+    return () => {
+      stopAnimationLoop();
+    };
+  }, [stopAnimationLoop]);
 
   // 监听新事件
   useEffect(() => {

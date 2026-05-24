@@ -85,6 +85,16 @@ static int is_unicode_whitespace_start(unsigned char c, unsigned char n2, unsign
  * 公共 API 实现
  * ============================================================ */
 
+/**
+ * @brief 检查字节是否为安全的控制字符
+ *
+ * 判断给定字节是否属于允许的控制字符集合（空格、制表符、换行符、回车符），
+ * 或为可打印 ASCII 字符。
+ *
+ * @param c 字节值
+ * @return true  字符安全（可打印或允许的控制字符）
+ * @return false 字符不安全（不允许的控制字符）
+ */
 bool lv00_char_is_safe_ctrl(unsigned char c) {
     if (c >= 0x20) return true;  /* 可打印ASCII */
     if (c == 0x09) return true;  /* '\t' */
@@ -93,6 +103,16 @@ bool lv00_char_is_safe_ctrl(unsigned char c) {
     return false;
 }
 
+/**
+ * @brief 验证输入字符串的安全性
+ *
+ * 检查输入是否为 NULL、是否为空、是否超过最大长度限制，
+ * 以及是否包含非法字符（null 字节或不允许的控制字符）。
+ *
+ * @param input 输入字符串指针
+ * @param len   输入字符串长度
+ * @return LV00_OK 验证通过，其他值为具体错误码
+ */
 Lv00ErrorCode lv00_input_validate(const char *input, size_t len) {
     /* 检查1：非NULL且非空 */
     if (!input) {
@@ -134,6 +154,19 @@ Lv00ErrorCode lv00_input_validate(const char *input, size_t len) {
     return LV00_OK;
 }
 
+/**
+ * @brief 净化输入字符串（就地修改）
+ *
+ * 对输入字符串进行就地净化处理：
+ * - 将多字节 Unicode 空白字符替换为 ASCII 空格
+ * - 移除 null 字节
+ * - 将不允许的控制字符替换为空格
+ * - 统一换行符格式（\r\n -> \n, \r -> \n）
+ *
+ * @param input   输入字符串缓冲区（就地修改）
+ * @param max_len 缓冲区最大长度
+ * @return 净化后的字符串长度
+ */
 size_t lv00_input_sanitize(char *input, size_t max_len) {
     if (!input || max_len == 0) return 0;
 
@@ -189,6 +222,12 @@ size_t lv00_input_sanitize(char *input, size_t max_len) {
     return write;
 }
 
+/**
+ * @brief 检查 AST 深度是否超过安全上限
+ *
+ * @param depth 当前 AST 深度
+ * @return LV00_OK 深度在安全范围内，其他值为错误码
+ */
 Lv00ErrorCode lv00_check_ast_depth(int depth) {
     if (depth > LV00_MAX_AST_DEPTH) {
         lv00_set_error(LV00_ERROR_PARSER_DEPTH_EXCEEDED,
@@ -198,6 +237,12 @@ Lv00ErrorCode lv00_check_ast_depth(int depth) {
     return LV00_OK;
 }
 
+/**
+ * @brief 检查 AST 节点数量是否超过安全上限
+ *
+ * @param count 当前 AST 节点数量
+ * @return LV00_OK 节点数在安全范围内，其他值为错误码
+ */
 Lv00ErrorCode lv00_check_ast_node_count(int count) {
     if (count > LV00_MAX_AST_NODES) {
         lv00_set_error(LV00_ERROR_PARSER_NODE_LIMIT,
@@ -207,6 +252,12 @@ Lv00ErrorCode lv00_check_ast_node_count(int count) {
     return LV00_OK;
 }
 
+/**
+ * @brief 检查 Token 长度是否超过安全上限
+ *
+ * @param len 当前 Token 长度
+ * @return LV00_OK Token 长度在安全范围内，其他值为错误码
+ */
 Lv00ErrorCode lv00_check_token_length(size_t len) {
     if (len > LV00_MAX_TOKEN_LENGTH) {
         lv00_set_error(LV00_ERROR_PARSER_TOKEN_TOO_LONG,

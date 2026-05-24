@@ -26,6 +26,11 @@
 #include "lv00.h"
 #include "stream.h"
 
+/* [P1 修复] 添加 extern "C" 保护，确保 C++ 编译器能正确链接此头文件 */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ================================================================
  * 流式上下文 Setter 回调类型
  * ================================================================ */
@@ -140,5 +145,9 @@ void stream_context_register_builtins(void);
  * @param name  变量名
  */
 #define LV00_DECLARE_STREAM_CTX_EXTERN(type, name) extern type name
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LV00_STREAM_CONTEXT_UTIL_H */

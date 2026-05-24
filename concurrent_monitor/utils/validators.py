@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 
-from .constants import DANGEROUS_COMMAND_PATTERNS
+from .constants import DANGEROUS_COMMAND_PATTERNS, MAX_COMMAND_LENGTH
 
 
 class ValidationError(ValueError):
@@ -62,7 +62,7 @@ def validate_command(command: str) -> str:
     """
     验证命令字符串
 
-    检查命令是否为非空字符串、长度不超过4096个字符，
+    检查命令是否为非空字符串、长度不超过 MAX_COMMAND_LENGTH 个字符，
     并通过正则匹配检测是否包含危险命令模式（包括
     Linux/Unix 和 Windows 平台的破坏性命令）。
 
@@ -85,8 +85,8 @@ def validate_command(command: str) -> str:
     # 清理命令：去除首尾空白
     command = command.strip()
 
-    if len(command) > 4096:
-        raise ValidationError(f"命令长度不能超过4096个字符，当前: {len(command)}")
+    if len(command) > MAX_COMMAND_LENGTH:
+        raise ValidationError(f"命令长度不能超过{MAX_COMMAND_LENGTH}个字符，当前: {len(command)}")
 
     # 检查危险命令模式（来自 constants.DANGEROUS_COMMAND_PATTERNS）
     for pattern in DANGEROUS_COMMAND_PATTERNS:
@@ -155,6 +155,9 @@ def validate_timeout(timeout: float | None) -> float | None:
 
     检查超时时间是否为正数且不超过24小时（86400秒）。
     允许传入 None 表示不设置超时。
+
+    此函数用于 CLI 和 API 层的用户输入校验，确保传入引擎的超时值合法。
+    典型调用场景：Web 仪表盘的 /api/start 接口、CLI 的 --timeout 参数解析。
 
     Args:
         timeout: 超时时间（秒），None 表示无超时限制

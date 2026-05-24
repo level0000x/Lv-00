@@ -13,7 +13,7 @@
  *
  * @module LinearAlgebra
  * @category PRESET_EXT_LINEAR_ALGEBRA
- * @version 1.0.0
+ * @version 3.3.0
  * @author Lv-00 开发团队
  */
 
@@ -607,49 +607,122 @@ extern "C" {
  * 线性代数 v5.0 统一宏（PRESET_LINALG_ 前缀，与 .c 对齐）
  * ============================================================ */
 
+/*
+ * 统一命名规范预设名称说明：
+ * 以下宏定义采用 PRESET_LINALG_ 前缀的统一命名规范，
+ * 与对应的 .c 实现文件保持一致。这些宏名称遵循
+ * "模块_子类别_功能" 的命名模式，便于代码维护和查找。
+ * 上方的原始宏定义（PRESET_MATRIX_、PRESET_LINEAR_ 等前缀）
+ * 保留以兼容旧版代码，新代码建议使用此处统一命名的版本。
+ */
+
 /* 矩阵基础运算 */
+#ifndef PRESET_LINALG_MATRIX_CREATE
 #define PRESET_LINALG_MATRIX_CREATE "linalg_matrix_create"
+#endif
+#ifndef PRESET_LINALG_MATRIX_ADD
 #define PRESET_LINALG_MATRIX_ADD "linalg_matrix_add"
+#endif
+#ifndef PRESET_LINALG_MATRIX_SUBTRACT
 #define PRESET_LINALG_MATRIX_SUBTRACT "linalg_matrix_subtract"
+#endif
+#ifndef PRESET_LINALG_MATRIX_MULTIPLY
 #define PRESET_LINALG_MATRIX_MULTIPLY "linalg_matrix_multiply"
+#endif
+#ifndef PRESET_LINALG_MATRIX_SCALE
 #define PRESET_LINALG_MATRIX_SCALE "linalg_matrix_scale"
+#endif
+#ifndef PRESET_LINALG_MATRIX_TRANSPOSE
 #define PRESET_LINALG_MATRIX_TRANSPOSE "linalg_matrix_transpose"
+#endif
+#ifndef PRESET_LINALG_MATRIX_TRACE
 #define PRESET_LINALG_MATRIX_TRACE "linalg_matrix_trace"
+#endif
+#ifndef PRESET_LINALG_MATRIX_NEGATE
 #define PRESET_LINALG_MATRIX_NEGATE "linalg_matrix_negate"
+#endif
 
 /* 行列式与逆矩阵 */
+#ifndef PRESET_LINALG_DETERMINANT_2X2
 #define PRESET_LINALG_DETERMINANT_2X2 "linalg_determinant_2x2"
+#endif
+#ifndef PRESET_LINALG_DETERMINANT_3X3
 #define PRESET_LINALG_DETERMINANT_3X3 "linalg_determinant_3x3"
+#endif
+#ifndef PRESET_LINALG_DETERMINANT_N
 #define PRESET_LINALG_DETERMINANT_N "linalg_determinant_n"
+#endif
+#ifndef PRESET_LINALG_INVERSE_2X2
 #define PRESET_LINALG_INVERSE_2X2 "linalg_inverse_2x2"
+#endif
+#ifndef PRESET_LINALG_INVERSE_3X3
 #define PRESET_LINALG_INVERSE_3X3 "linalg_inverse_3x3"
+#endif
+#ifndef PRESET_LINALG_ADJUGATE
 #define PRESET_LINALG_ADJUGATE "linalg_adjugate"
+#endif
 
 /* 矩阵分解 */
+#ifndef PRESET_LINALG_LU_DECOMPOSITION
 #define PRESET_LINALG_LU_DECOMPOSITION "linalg_lu_decomposition"
+#endif
+#ifndef PRESET_LINALG_QR_DECOMPOSITION
 #define PRESET_LINALG_QR_DECOMPOSITION "linalg_qr_decomposition"
+#endif
+#ifndef PRESET_LINALG_CHOLESKY
 #define PRESET_LINALG_CHOLESKY "linalg_cholesky"
+#endif
+#ifndef PRESET_LINALG_EIGENVALUES_2X2
 #define PRESET_LINALG_EIGENVALUES_2X2 "linalg_eigenvalues_2x2"
+#endif
+#ifndef PRESET_LINALG_EIGENVECTORS_2X2
 #define PRESET_LINALG_EIGENVECTORS_2X2 "linalg_eigenvectors_2x2"
+#endif
 
 /* 向量空间 */
+#ifndef PRESET_LINALG_VECTOR_SPACE_TEST
 #define PRESET_LINALG_VECTOR_SPACE_TEST "linalg_vector_space_test"
+#endif
+#ifndef PRESET_LINALG_LINEAR_INDEPENDENCE
 #define PRESET_LINALG_LINEAR_INDEPENDENCE "linalg_linear_independence"
+#endif
+#ifndef PRESET_LINALG_SPAN
 #define PRESET_LINALG_SPAN "linalg_span"
+#endif
+#ifndef PRESET_LINALG_BASIS
 #define PRESET_LINALG_BASIS "linalg_basis"
+#endif
+#ifndef PRESET_LINALG_DIMENSION
 #define PRESET_LINALG_DIMENSION "linalg_dimension"
+#endif
 
 /* 线性映射 */
+#ifndef PRESET_LINALG_LINEAR_MAP_TEST
 #define PRESET_LINALG_LINEAR_MAP_TEST "linalg_linear_map_test"
+#endif
+#ifndef PRESET_LINALG_KERNEL
 #define PRESET_LINALG_KERNEL "linalg_kernel"
+#endif
+#ifndef PRESET_LINALG_IMAGE
 #define PRESET_LINALG_IMAGE "linalg_image"
+#endif
+#ifndef PRESET_LINALG_RANK_NULLITY
 #define PRESET_LINALG_RANK_NULLITY "linalg_rank_nullity"
+#endif
 
 /* 内积空间 */
+#ifndef PRESET_LINALG_INNER_PRODUCT
 #define PRESET_LINALG_INNER_PRODUCT "linalg_inner_product"
+#endif
+#ifndef PRESET_LINALG_GRAM_SCHMIDT
 #define PRESET_LINALG_GRAM_SCHMIDT "linalg_gram_schmidt"
+#endif
+#ifndef PRESET_LINALG_ORTHOGONAL_COMPLEMENT
 #define PRESET_LINALG_ORTHOGONAL_COMPLEMENT "linalg_orthogonal_complement"
+#endif
+#ifndef PRESET_LINALG_PROJECTION
 #define PRESET_LINALG_PROJECTION "linalg_projection"
+#endif
 
 /* ============================================================
  * 模块注册函数

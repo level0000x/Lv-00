@@ -4,6 +4,12 @@
  *
  * @details 实现预设系统公共头文件中声明的工具函数。
  *
+ * 通用注册宏（定义在 preset_common.h 中）：
+ * - PRESET_REGISTER_CAT：通用预设注册宏，接受类别参数，替代各模块中
+ *   重复的 register_xxx_preset 静态函数。可直接在 if 条件中使用。
+ * - PRESET_REGISTER_CAT_COUNTED：带自动 success_count 递增的版本。
+ * - PRESET_REGISTER_EX / PRESET_REGISTER：向后兼容的注册宏。
+ *
  * @version 5.0.0
  * @author Lv-00 Project
  */
@@ -230,6 +236,7 @@ bool preset_validate_type_combination(const PresetType *input_types, int input_c
  * ============================================================ */
 
 /* 类别名称映射表 */
+#if 0
 static const struct {
     PresetCategory category;
     const char *name;
@@ -249,6 +256,7 @@ static const struct {
     {PRESET_CATEGORY_GEOMETRY, "geometry"},
     {PRESET_CATEGORY_CUSTOM, "custom"},
 };
+#endif
 
 /*
  * preset_category_to_string() 和 preset_category_from_string()
@@ -476,7 +484,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
         }
 
         if (!found) {
-            free(copy);
+            lv00_free((void **) &copy);
             return false;
         }
 
@@ -487,6 +495,49 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
 #endif
     }
 
-    free(copy);
+    lv00_free((void **) &copy);
+    return true;
+}
+
+/* ============================================================
+ * 预设模块通用工具函数
+ * ============================================================ */
+
+/**
+ * @brief 通用预设名称列表获取函数
+ * @param names 静态名称数组
+ * @param count 名称数量
+ * @param out_names 输出：动态分配的名称数组（调用者负责释放）
+ * @param out_count 输出：名称数量
+ * @return true 成功，false 失败
+ *
+ * 此函数消除了各预设模块中 get_names 函数的重复代码。
+ * 调用者需要通过 lv00_free 释放每个名称字符串和数组本身。
+ */
+bool preset_module_get_names(const char *const *names, int count,
+                             char ***out_names, int *out_count) {
+    if (!names || !out_names || !out_count || count <= 0) {
+        return false;
+    }
+
+    char **result = (char **)lv00_malloc((size_t)count * sizeof(char *));
+    if (!result) {
+        return false;
+    }
+
+    for (int i = 0; i < count; i++) {
+        result[i] = lv00_strdup(names[i]);
+        if (!result[i]) {
+            /* 回滚已分配的内存 */
+            for (int j = 0; j < i; j++) {
+                lv00_free(result[j]);
+            }
+            lv00_free(result);
+            return false;
+        }
+    }
+
+    *out_names = result;
+    *out_count = count;
     return true;
 }

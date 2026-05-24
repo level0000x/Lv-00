@@ -54,6 +54,7 @@
 | 46 | ergodic_theory | 1.0.0 | Ergodic Theory (Measure-Preserving Systems + Ergodicity + Mixing Hierarchy + Birkhoff/von Neumann Theorems + KS Entropy + Ornstein Isomorphism, 49 templates) | 2026-05-24 |
 | 47 | graph_theory | 1.0.0 | Graph Theory (Euler-Diestel, 70 templates, 14 NP-complete problems, Matching/Coloring/Planarity) | 2026-05-24 |
 | 48 | cartesian_closed_category | 1.0.0 | Cartesian Closed Category / CCC (Eilenberg-Kelly, Terminal + Products + Exponentials, Curry-Howard-Lambek, 55 templates) | 2026-05-24 |
+| 49 | topos_theory | 1.0.0 | Topos Theory / Elementary Topos (Lawvere-Tierney, Finite Limits + Cartesian Closed + Subobject Classifier, 90 templates) | 2026-05-25 |
 
 ### 1. euclidean_plane v1.0.0
 
@@ -1853,6 +1854,82 @@
 **File**: `axiom_packages/cartesian_closed_category.lvz`
 **Test**: `tests/test_axiom_cartesian_closed_category.c` (10 test functions)
 
+### 49. topos_theory v1.0.0
+
+**Mathematical Theory**: Elementary topos — a category that behaves like the category of sheaves of sets on a topological space. Topos theory unifies category theory, algebraic geometry, and mathematical logic. An elementary topos provides a "generalized mathematical universe" where one can do mathematics internally, with an intuitionistic higher-order logic. The internal language of a topos (Mitchell-Bénabou language) allows reasoning about topos objects as if they were sets.
+
+- **References**:
+  - nLab: Topos
+    https://ncatlab.org/nlab/show/topos
+  - Wikipedia: Elementary topos
+    https://en.wikipedia.org/wiki/Elementary_topos
+  - Johnstone, P.T. (2002). "Sketches of an Elephant: A Topos Theory Compendium." Oxford University Press. ISBN 0-19-853425-6.
+  - Mac Lane, S. and Moerdijk, I. (1994). "Sheaves in Geometry and Logic: A First Introduction to Topos Theory." Springer. ISBN 0-387-97710-4.
+  - Lawvere, F.W. and Tierney, M. (1970). Lectures on Elementary Toposes. (Unpublished lecture notes)
+  - Wikipedia: Topos
+    https://en.wikipedia.org/wiki/Topos
+
+- **Primitive Notions**: object, morphism (from category_theory); terminal object 1; subobject classifier Ω; exponential B^A; power object P(A); natural numbers object N (for W-topos)
+
+- **Core Axioms** (Lawvere-Tierney, 3 structural requirements):
+  - T1. Finite Limits: Has terminal object, pullbacks (equivalently, all finite limits)
+  - T2. Cartesian Closed: Has exponentials B^A for all objects A, B
+  - T3. Subobject Classifier: Has object Ω with true: 1 → Ω such that every subobject A' ↪ A corresponds uniquely to χ: A → Ω
+
+- **Equivalent Definition**:
+  - T1'. Finite Limits
+  - T2'. Power Objects: For each A, there exists P(A) with membership relation ∈_A ↪ A × P(A)
+
+- **Automatic Properties** (follow from the axioms):
+  - Finite colimits exist
+  - Locally cartesian closed
+  - Heyting category (intuitionistic internal logic)
+  - Pretopos structure (extensive + exact)
+  - Adhesive category
+
+- **Constraint Templates**: 90 (11 parts)
+  - Part I: Finite Limits (8 templates) — terminal, products, pullbacks, equalizers, initial, coproducts, pushouts, coequalizers
+  - Part II: Cartesian Closed (6 templates) — exponentials, evaluation, currying, uncurrying, functorial, adjunction
+  - Part III: Subobject Classifier (10 templates) — Ω, true, characteristic function, classification, false, negation, conjunction, disjunction, implication, biconditional
+  - Part IV: Power Objects (8 templates) — P(A), membership, universal property, singleton, power-as-exponential, union, intersection, complement, subset
+  - Part V: Natural Numbers Object (7 templates) — N, zero, successor, recursion, addition, multiplication, predecessor, W-types
+  - Part VI: Internal Logic (7 templates) — Heyting implication, negation, non-contradiction, double negation intro/elim, excluded middle, Peirce's law
+  - Part VII: Geometric Morphisms (6 templates) — geometric morphism, inverse/direct image functors, adjunction, points, essential morphisms
+  - Part VIII: Logical Morphisms (4 templates) — logical morphism, preserves classifier/exponentials/NNO
+  - Part IX: Lawvere-Tierney Topology (7 templates) — j: Ω → Ω, truth preservation, idempotence, meet preservation, sheaves, double negation, sheafification
+  - Part X: Constructions (8 templates) — slice topos, presheaf topos, sheaf topos, Grothendieck topos, classifying topos, morphism object, internal category, internal presheaf
+  - Part XI: Key Theorems (8 templates) — topos is Heyting/pretopos/LCCC/extensive/adhesive, Mitchell-Bénabou language, Kripke-Joyal semantics, Diaconescu's theorem
+
+- **Known Unconstructible Problems**: 10
+  - internal_logic_decidability/undecidable
+  - law_of_excluded_middle/intuitionistic_logic (NOT a theorem!)
+  - double_negation_elimination/intuitionistic_logic (NOT a theorem!)
+  - axiom_of_choice_internal/intuitionistic_logic
+  - propositional_extensionality/intuitionistic_logic
+  - geometric_morphism_classification/undecidable
+  - classifying_topos_construction/decidable_for_geometric_theories
+  - topos_morphism_equivalence/undecidable
+  - internal_theorem_proving/undecidable
+  - sheaf_coherence/decidable_for_finite_sites
+
+- **Bottom Geometry**: elementary_topos
+- **Negation Encoding**: heyting_negation (intuitionistic, NOT classical)
+- **Contradiction Behavior**: blocking (NO explosion principle — intuitionistic logic)
+
+- **Relationship to other packages**:
+  - Extends cartesian_closed_category with subobject classifier Ω
+  - Extends category_theory with finite limits, exponentials, and Ω
+  - Internal logic is intuitionistic_propositional_logic (higher-order)
+  - A boolean_algebra is a topos where Ω = {0,1} and LEM holds
+  - lattice_theory: Ω is an internal Heyting algebra
+  - Every Heyting algebra (lattice_theory) is a topos when viewed as a poset category
+  - Grothendieck toposes are sheaves on a site (connects to algebraic_geometry)
+  - The classifying topos of a geometric theory is the "space of models"
+  - HoTT (homotopy_type_theory) uses ∞-toposes as semantics
+
+**File**: `axiom_packages/topos_theory.lvz`
+**Test**: `tests/test_axiom_topos_theory.c` (7 test functions)
+
 ---
 
 ## Dependency Graph
@@ -2696,7 +2773,7 @@ universal_algebra (v1.0.0)
 
 ## Candidate Theories for Next Implementation
 
-Major mathematical branches are now comprehensively covered. The three classical geometries (Euclidean, Hyperbolic, Elliptic) and affine geometry are now complete. Game theory (economics/CS) and metric space theory (foundational analysis) are now covered. Galois theory (algebra/field theory) is now complete. Graph theory (discrete mathematics) is now covered. Future directions:
+Major mathematical branches are now comprehensively covered. The three classical geometries (Euclidean, Hyperbolic, Elliptic) and affine geometry are now complete. Game theory (economics/CS) and metric space theory (foundational analysis) are now covered. Galois theory (algebra/field theory) is now complete. Graph theory (discrete mathematics) is now covered. Topos theory (category theory/logic bridge) is now complete. Future directions:
 
 1. ~~**Affine Geometry** (Geometry)~~ — ✅ Completed as affine_geometry (2026-05-23). Incidence + parallelism + vector space + affine structure, 50 templates, 7 unconstructible problems.
 2. **String Theory / Quantum Field Theory** (Mathematical Physics) — Conformal field theory, vertex operator algebras. Bridges geometry, algebra, and analysis.
@@ -2719,6 +2796,7 @@ Major mathematical branches are now comprehensively covered. The three classical
 19. ~~**Robinson Arithmetic (Q)** (Logic)~~ — ✅ Completed as robin_arithmetic (2026-05-24). Finitely axiomatizable fragment of PA, only 7 axioms with no induction, essentially undecidable, weakest theory for Gödel's incompleteness, 39 templates, 12 unconstructible problems. Bridges peano_arithmetic, computability_theory, and decidability theory.
 20. ~~**Galois Theory** (Algebra)~~ — ✅ Completed as galois_theory (2026-05-24). Field extensions, Galois groups, fundamental theorem, solvability by radicals, 62 templates, 8 unconstructible problems including inverse Galois problem (unsolved).
 21. ~~**Probability Theory** (Analysis/Probability)~~ — ✅ Completed and upgraded as probability_theory (2026-05-24, v1.0.0, 120 templates). Kolmogorov axioms, conditional probability, Bayes' theorem, independence, random variables, distributions (Bernoulli, Binomial, Poisson, Normal, etc.), moments and expectation, limit theorems (LLN, CLT), stochastic processes (martingales, Markov chains, Brownian motion), concentration inequalities, ergodic theory, 12 unconstructible problems. Depends on measure_theory, real_analysis, computability_theory.
+22. ~~**Topos Theory** (Category Theory/Logic)~~ — ✅ Completed as topos_theory (2026-05-25). Elementary topos (Lawvere-Tierney axioms): finite limits + cartesian closed + subobject classifier Ω. Internal logic is intuitionistic higher-order logic (Mitchell-Bénabou language). 90 templates in 11 parts, 10 unconstructible problems. Bridges category_theory, cartesian_closed_category, lattice_theory, intuitionistic_propositional_logic, algebraic_geometry (Grothendieck toposes), and homotopy_type_theory (∞-toposes).
 
 ---
 

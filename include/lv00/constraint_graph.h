@@ -1,9 +1,31 @@
+/* ========================================================================
+ * 模块名称：约束图 (constraint_graph)
+ * 功能概述：Lv-00 系统的核心数据结构，提供几何节点（点、线段、区域、
+ *          端口、函数块）和约束（关联、之间、相交、包含、连接）的
+ *          创建/删除/查询接口，以及 O(1) 哈希索引加速查找，
+ *          支持冗余检测与冲突分析、JSON 序列化、DOT 格式导出。
+ *
+ * 主要 API：
+ *   - graph_create / graph_destroy                  — 创建/销毁约束图
+ *   - graph_add_point / line_segment / region / ... — 添加几何节点
+ *   - graph_add_incidence / betweenness / ...       — 添加约束
+ *   - graph_get_node / graph_get_constraint         — O(1) 哈希查询
+ *   - graph_serialize_to_json / deserialize         — JSON 序列化
+ *   - graph_export_dot / export_dot_to_svg          — DOT 格式导出
+ *   - graph_detect_redundant_constraints            — 冗余检测
+ *   - graph_detect_conflicts                        — 冲突分析
+ *
+ * 使用示例：
+ *   ConstraintGraph *g = graph_create();
+ *   graph_add_point(g, coords, 2);
+ *   graph_add_line_segment(g, p1_id, p2_id);
+ *   graph_add_incidence(g, point_id, line_id);
+ *
+ * ======================================================================== */
+
 /**
  * @file constraint_graph.h
  * @brief 约束图 —— 几何节点、约束与哈希索引的核心数据结构
- * @details 提供几何节点（点、线段、区域、端口、函数块）和约束（关联、
- * 之间、相交、包含、连接）的创建/删除/查询接口，以及 O(1) 哈希索引
- * 加速节点和约束的查找，支持冗余检测与冲突分析。
  */
 
 #ifndef LV00_CONSTRAINT_GRAPH_H
@@ -79,6 +101,47 @@ struct Port {
     GeomNode *connected_to;
 };
 
+/**
+ * @struct GeomNode
+ * @brief 几何节点 —— 约束图中的核心数据单元
+ *
+ * 【union data 的使用方式与各变体含义】
+ * GeomNode 使用 union data 字段存储与特定几何类型相关的数据。
+ * 根据 type 字段的值，应使用 union 中对应的变体：
+ *   - GEOM_POINT / GEOM_LINE_SEGMENT:
+ *       不使用 union data（这些类型的所有信息已由通用字段表达）
+ *   - GEOM_PORT:
+ *       使用 data.port（Port* 指针），指向一个 Port 结构体，
+ *       包含端口方向、命名空间深度、父函数块 ID、多态类型标记等
+ *   - GEOM_REGION:
+ *       使用 data.region（匿名结构体），包含：
+ *         - boundary_segments: 边界线段数组（GeomNode**）
+ *         - segment_count:    边界线段数量
+ *   - GEOM_FUNCTION_BLOCK:
+ *       使用 data.func_block（匿名结构体），包含：
+ *         - internal_nodes:    内部节点数组（GeomNode**）
+ *         - input_port_ids:    输入端口 ID 数组（int*）
+ *         - output_port_ids:   输出端口 ID 数组（int*）
+ *         - internal_node_count / input_count / output_count: 各数组长度
+ *         - determinism_state: 确定性状态（见下方说明）
+ *
+ * 【data.func_block.determinism_state 的类型说明】
+ * determinism_state 是一个匿名枚举类型，定义在 func_block 结构体内，
+ * 取值为以下四种之一：
+ *   - UNVERIFIED:        未验证 —— 尚未进行确定性分析
+ *   - VERIFIED:          已验证 —— 函数块的行为是确定性的
+ *   - NON_DETERMINISTIC: 非确定性 —— 函数块可能产生不同输出
+ *   - PARTIALLY_VERIFIED: 部分验证 —— 仅部分路径已验证确定性
+ * 该字段用于类型检查和约束求解时判断函数块的可替换性。
+ *
+ * 【numeric_precision 字段是近似值】
+ * numeric_precision（double 类型）表示节点的数值精度，这是一个近似值。
+ * 它通常由浮点运算或数值逼近算法得出，不保证精确。
+ * 使用时应注意：
+ *   - 不应依赖该值进行精确相等比较（应使用容差比较）
+ *   - 该值可能受浮点舍入误差影响
+ *   - 对于符号计算场景，应优先使用 symbolic_coords 而非 numeric_precision
+ */
 struct GeomNode {
     int id;
     GeomType type;
@@ -128,6 +191,29 @@ struct Constraint {
  *
  * 图以邻接表形式组织，节点和约束分别存储于动态数组中，
  * 并通过哈希索引支持 O(1) 的按 ID 查找。
+ *
+ * 【哈希索引的实现方式】
+ * 哈希索引使用开放寻址法（open addressing）实现：
+ *   - node_index 和 constraint_index 分别是 GeomNode** 和 Constraint** 数组
+ *   - 索引容量（node_index_capacity / constraint_index_capacity）始终为 2 的幂
+ *   - 哈希函数为 node_id % capacity（或 constraint_id % capacity）
+ *   - 冲突时采用线性探测（linear probing）解决
+ *   - 空槽位以 NULL 标记
+ * 插入和查找操作的平均时间复杂度为 O(1)，最坏情况为 O(n)（当装载因子过高时）。
+ * 哈希索引通过 graph_node_index_insert() 和 graph_constraint_index_insert()
+ * 注册，通过 graph_get_node() 和 graph_get_constraint() 查询。
+ *
+ * 【error_buffer 和 serialize_buffer 的大小与溢出风险】
+ * error_buffer 和 serialize_buffer 均为堆分配的 256 字节字符数组：
+ *   - error_buffer:    存储图级内部错误消息（替代旧版 static 全局变量）
+ *   - serialize_buffer: 存储图级序列化错误消息
+ * 溢出风险：
+ *   - 两个缓冲区大小固定为 256 字节，写入超过 255 个字符（含终止符）将导致
+ *     缓冲区溢出，可能引发内存损坏或安全漏洞
+ *   - 内部实现应使用 snprintf() 等带长度限制的函数，而非 sprintf()
+ *   - 如果错误消息可能很长（如包含长路径名或复杂约束描述），应考虑截断处理
+ *   - 调用 graph_get_serialize_error() 等函数获取错误信息时，返回的指针
+ *     指向图内部存储，无需手动释放，但也不应在图销毁后继续使用
  */
 struct ConstraintGraph {
     /** 节点数组 —— 动态扩容，按 node_id 顺序存储 */
@@ -186,9 +272,45 @@ Lv00ErrorCode lv00_add_constraint_result_to_error(AddConstraintResult result);
 /** @brief 将 RemoveNodeResult 转换为 Lv00ErrorCode */
 Lv00ErrorCode lv00_remove_node_result_to_error(RemoveNodeResult result);
 
+/**
+ * @brief 向约束图添加几何点节点
+ *
+ * @param[in] graph       约束图
+ * @param[in] coords      符号坐标数组
+ * @param[in] coord_count 坐标数量
+ * @return 操作结果状态码
+ */
 AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, int coord_count);
+
+/**
+ * @brief 向约束图添加线段节点
+ *
+ * @param[in] graph      约束图
+ * @param[in] endpoint1_id 第一个端点的节点 ID
+ * @param[in] endpoint2_id 第二个端点的节点 ID
+ * @return 操作结果状态码
+ */
 AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, int endpoint2_id);
+
+/**
+ * @brief 向约束图添加区域节点
+ *
+ * @param[in] graph                约束图
+ * @param[in] boundary_segment_ids 边界线段 ID 数组
+ * @param[in] segment_count        边界线段数量
+ * @return 操作结果状态码
+ */
 AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segment_ids, int segment_count);
+
+/**
+ * @brief 向约束图添加端口节点
+ *
+ * @param[in] graph            约束图
+ * @param[in] type             端口方向（输入/输出）
+ * @param[in] namespace_depth  命名空间深度
+ * @param[in] parent_block_id  父函数块 ID
+ * @return 操作结果状态码
+ */
 AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespace_depth, int parent_block_id);
 /**
  * @brief 向约束图添加函数块节点
@@ -217,49 +339,233 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
  */
 int graph_get_last_added_node_id(const ConstraintGraph *graph);
 
+/**
+ * @brief 添加关联约束（点在线段/区域上）
+ *
+ * @param[in] graph              约束图
+ * @param[in] point_id           点节点 ID
+ * @param[in] line_or_region_id  线段或区域节点 ID
+ * @return 操作结果状态码
+ */
 AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, int line_or_region_id);
+
+/**
+ * @brief 添加之间约束（点 B 在点 A 和点 C 之间）
+ *
+ * @param[in] graph 约束图
+ * @param[in] p1_id 第一个端点 ID
+ * @param[in] p2_id 中间点 ID
+ * @param[in] p3_id 第二个端点 ID
+ * @return 操作结果状态码
+ */
 AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, int p1_id, int p2_id, int p3_id);
+
+/**
+ * @brief 添加相交约束（两线段在交点处相交）
+ *
+ * @param[in] graph          约束图
+ * @param[in] line1_id       第一条线段 ID
+ * @param[in] line2_id       第二条线段 ID
+ * @param[in] result_point_id 交点节点 ID
+ * @return 操作结果状态码
+ */
 AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id, int line2_id, int result_point_id);
+
+/**
+ * @brief 添加包含约束（内部对象完全包含在外部对象内）
+ *
+ * @param[in] graph   约束图
+ * @param[in] inner_id  内部对象节点 ID
+ * @param[in] outer_id  外部对象节点 ID
+ * @return 操作结果状态码
+ */
 AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, int outer_id);
+
+/**
+ * @brief 添加连接约束（端口之间的数据流连接）
+ *
+ * @param[in] graph       约束图
+ * @param[in] src_port_id 源端口 ID
+ * @param[in] dst_port_id 目标端口 ID
+ * @return 操作结果状态码
+ */
 AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id, int dst_port_id);
 
+/**
+ * @brief 从约束图中移除节点
+ *
+ * @param[in] graph   约束图
+ * @param[in] node_id 要移除的节点 ID
+ * @return 操作结果状态码
+ */
 RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id);
+
+/**
+ * @brief 从约束图中移除约束
+ *
+ * @param[in] graph           约束图
+ * @param[in] constraint_index 约束索引
+ * @return 操作结果状态码
+ */
 RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int constraint_index);
+
+/**
+ * @brief 查找涉及指定节点的所有约束
+ *
+ * @param[in]  graph       约束图
+ * @param[in]  node_id     节点 ID
+ * @param[out] out_indices 输出约束索引数组
+ * @param[in]  max_results 数组最大容量
+ * @return 找到的约束数量
+ */
 int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, int *out_indices, int max_results);
+
+/**
+ * @brief 检测指定约束是否冗余
+ *
+ * @param[in] graph        约束图
+ * @param[in] type         约束类型
+ * @param[in] participants 参与者节点 ID 数组
+ * @param[in] n_parts      参与者数量
+ * @return 冗余约束的索引，无冗余返回 -1
+ */
 int graph_detect_redundancy(const ConstraintGraph *graph, ConstraintType type, const int *participants, int n_parts);
+
+/**
+ * @brief 获取约束图中的节点总数
+ *
+ * @param[in] graph 约束图
+ * @return 节点数量
+ */
 int graph_get_node_count(const ConstraintGraph *graph);
+
+/**
+ * @brief 获取约束图中的约束总数
+ *
+ * @param[in] graph 约束图
+ * @return 约束数量
+ */
 int graph_get_constraint_count(const ConstraintGraph *graph);
 
-/* @deprecated Use graph_get_node() instead */
+/**
+ * @deprecated 使用 graph_get_node() 代替
+ *
+ * @param[in] graph   约束图
+ * @param[in] node_id 节点 ID
+ * @return 节点指针，未找到返回 NULL
+ */
 GeomNode *graph_get_node_by_id(const ConstraintGraph *graph, int node_id);
 
-/* 推荐的节点查询 API：通过节点 ID 在 O(1) 时间内获取节点指针。 */
+/**
+ * @brief 通过节点 ID 在 O(1) 时间内获取节点指针（推荐）
+ *
+ * @param[in] graph   约束图
+ * @param[in] node_id 节点 ID
+ * @return 节点指针，未找到返回 NULL
+ */
 GeomNode *graph_get_node(const ConstraintGraph *graph, int node_id);
+
+/**
+ * @brief 通过约束 ID 获取约束指针
+ *
+ * @param[in] graph         约束图
+ * @param[in] constraint_id 约束 ID
+ * @return 约束指针，未找到返回 NULL
+ */
 Constraint *graph_get_constraint(const ConstraintGraph *graph, int constraint_id);
 
-/* 哈希索引注册接口（供 func_block.c 例化时使用） */
+/**
+ * @brief 向哈希索引注册节点（供 func_block.c 例化时使用）
+ *
+ * @param[in] graph 约束图
+ * @param[in] node  要注册的节点
+ */
 void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node);
+
+/**
+ * @brief 向哈希索引注册约束（供 func_block.c 例化时使用）
+ *
+ * @param[in] graph 约束图
+ * @param[in] con   要注册的约束
+ */
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 
-/* 带指定ID添加节点和约束（用于反序列化） */
+/**
+ * @brief 使用指定 ID 添加节点（用于反序列化）
+ *
+ * @param[in] graph       约束图
+ * @param[in] node_id     指定的节点 ID
+ * @param[in] type        几何类型
+ * @param[in] coords      符号坐标数组
+ * @param[in] coord_count 坐标数量
+ * @return 新创建的节点指针，失败返回 NULL
+ */
 GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type, SymbolicCoord **coords,
                                  int coord_count);
+
+/**
+ * @brief 使用指定 ID 添加约束（用于反序列化）
+ *
+ * @param[in] graph            约束图
+ * @param[in] constraint_id    指定的约束 ID
+ * @param[in] type             约束类型
+ * @param[in] participants     参与者节点 ID 数组
+ * @param[in] participant_count 参与者数量
+ * @return 新创建的约束指针，失败返回 NULL
+ */
 Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id, ConstraintType type,
                                          int *participants, int participant_count);
 
+/**
+ * @brief 创建空的约束图
+ *
+ * @return 新创建的约束图，失败返回 NULL
+ *
+ * @note 调用者获得所有权，需在不再使用时调用 graph_destroy() 释放。
+ */
 ConstraintGraph *graph_create(void);
+
+/**
+ * @brief 销毁约束图，释放所有内部资源
+ *
+ * @param graph 约束图指针（可为 NULL，NULL 时安全返回）
+ *
+ * @note 释放后 graph 指针不可再使用。
+ */
 void graph_destroy(ConstraintGraph *graph);
 
-/* 流式上下文设置 */
+/**
+ * @brief 设置约束图的流式输出上下文
+ *
+ * @param ctx 流式上下文（可为 NULL 以禁用流式输出）
+ */
 void graph_set_stream_context(StreamContext *ctx);
 
+/**
+ * @brief 跨边界约束结构
+ *
+ * 描述一个跨越函数块边界的约束，包含约束 ID、类型和涉及的节点。
+ */
 typedef struct {
-    int constraint_id;
-    ConstraintType type;
-    int node_ids[2];
-    int node_count;
+    int constraint_id; /**< 约束 ID */
+    ConstraintType type; /**< 约束类型 */
+    int node_ids[2]; /**< 涉及的节点 ID（内部节点和外部节点） */
+    int node_count; /**< 涉及的节点数量 */
 } CrossBoundaryConstraint;
 
+/**
+ * @brief 查找跨越函数块边界的约束
+ *
+ * 检测内部节点与外部节点之间的所有约束连接。
+ *
+ * @param[in]  graph           约束图
+ * @param[in]  internal_node_ids 内部节点 ID 数组
+ * @param[in]  internal_count  内部节点数量
+ * @param[in]  port_ids        端口 ID 数组
+ * @param[in]  port_count      端口数量
+ * @param[out] out_count       输出：找到的跨边界约束数量
+ * @return 跨边界约束数组（调用者需 free），无跨边界约束返回 NULL
+ */
 CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph, const int *internal_node_ids,
                                                          int internal_count, const int *port_ids, int port_count,
                                                          int *out_count);
@@ -286,6 +592,13 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
  */
 int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_count, int **out_conflict_sizes);
 
+/**
+ * @brief 验证区域的闭合性（边界线段是否形成封闭环路）
+ *
+ * @param[in] graph     约束图
+ * @param[in] region_id 区域节点 ID
+ * @return true 区域闭合，false 区域不闭合或出错
+ */
 bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id);
 
 /* ============== 图序列化与反序列化 ============== */

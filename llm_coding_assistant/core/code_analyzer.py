@@ -1,13 +1,41 @@
 """
-LLM编程辅助系统 - 代码分析模块
-提供代码分析、优化建议、错误诊断等功能
+LLM编程辅助系统 - 代码分析器模块
+====================================
+
+本模块提供静态代码分析功能，支持多种编程语言的语法分析和质量评估。
+
+核心组件：
+  - CodeAnalyzer: 代码分析器类，提供语言检测、复杂度分析、代码统计等功能
+
+支持功能：
+  - 多语言支持：Python、JavaScript、Java、C/C++、Go、Rust 等
+  - 代码统计：行数、函数数、类数、注释率等
+  - 复杂度分析：圈复杂度、嵌套深度等
+  - 代码质量评分：基于多维度指标的综合评分
+
+使用示例：
+  >>> analyzer = CodeAnalyzer()
+  >>> result = analyzer.analyze("def hello(): print('hello')")
+  >>> print(result.summary)
 """
 import re
 import ast
 import json
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+
+
+# ============================================================
+# 代码分析阈值常量
+# ============================================================
+
+# 行长度限制
+MAX_LINE_LENGTH = 120
+# 圈复杂度阈值
+CYCLOMATIC_COMPLEXITY_THRESHOLD = 10
+# 函数长度阈值（行数）
+MAX_FUNCTION_LENGTH = 50
 
 
 class IssueSeverity(Enum):
@@ -79,7 +107,7 @@ class AnalysisResult:
 class CodeAnalyzer:
     """代码分析器"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.language_patterns = {
             "python": r"\.py$",
             "javascript": r"\.(js|jsx)$",
@@ -129,28 +157,28 @@ class CodeAnalyzer:
         """
         language = self.detect_language(code, filename)
         
-        # 基础统计
+        # 基础统计（缓存行列表，避免在多个分析方法中重复分割）
         lines = code.split('\n')
         total_lines = len(lines)
         blank_lines = sum(1 for line in lines if not line.strip())
         
         # 计算注释行数
-        comment_lines = self._count_comment_lines(code, language)
+        comment_lines = self._count_comment_lines(lines, language)
         code_lines = total_lines - blank_lines - comment_lines
         
         # 分析代码问题
         issues = []
         
         if language == "python":
-            issues.extend(self._analyze_python_syntax(code))
-            issues.extend(self._analyze_python_style(code))
+            issues.extend(self._analyze_python_syntax(code, lines))
+            issues.extend(self._analyze_python_style(lines))
             issues.extend(self._analyze_python_complexity(code))
         
         # 通用分析
-        issues.extend(self._analyze_common_issues(code, language))
+        issues.extend(self._analyze_common_issues(lines, language))
         
         # 计算指标
-        metrics = self._calculate_metrics(code, language, issues)
+        metrics = self._calculate_metrics(lines, issues)
         
         # 生成摘要
         summary = self._generate_summary(language, total_lines, issues, metrics)
@@ -166,9 +194,8 @@ class CodeAnalyzer:
             summary=summary
         )
     
-    def _count_comment_lines(self, code: str, language: str) -> int:
+    def _count_comment_lines(self, lines: List[str], language: str) -> int:
         """计算注释行数"""
-        lines = code.split('\n')
         comment_count = 0
         in_multiline_comment = False
         
@@ -240,10 +267,9 @@ class CodeAnalyzer:
         # 由于我们已经知道行以 # 开头，如果在字符串外就是注释
         return not in_string
     
-    def _analyze_python_syntax(self, code: str) -> List[CodeIssue]:
+    def _analyze_python_syntax(self, code: str, lines: List[str]) -> List[CodeIssue]:
         """分析Python语法问题"""
         issues = []
-        lines = code.split('\n')
 
         try:
             ast.parse(code)
@@ -292,20 +318,19 @@ class CodeAnalyzer:
 
         return issues
     
-    def _analyze_python_style(self, code: str) -> List[CodeIssue]:
+    def _analyze_python_style(self, lines: List[str]) -> List[CodeIssue]:
         """分析Python代码风格"""
         issues = []
-        lines = code.split('\n')
         
         for i, line in enumerate(lines, 1):
             # 检查行长度
-            if len(line) > 120:
+            if len(line) > MAX_LINE_LENGTH:
                 issues.append(CodeIssue(
                     line=i,
-                    column=120,
+                    column=MAX_LINE_LENGTH,
                     severity=IssueSeverity.WARNING,
                     category=IssueCategory.STYLE,
-                    message=f"行长度超过120字符 ({len(line)}字符)",
+                    message=f"行长度超过{MAX_LINE_LENGTH}字符 ({len(line)}字符)",
                     suggestion="将长行拆分为多行",
                     code_snippet=line[:100] + "..."
                 ))
@@ -365,7 +390,7 @@ class CodeAnalyzer:
                         elif isinstance(child, ast.BoolOp):
                             complexity += len(child.values) - 1
                     
-                    if complexity > 10:
+                    if complexity > CYCLOMATIC_COMPLEXITY_THRESHOLD:
                         issues.append(CodeIssue(
                             line=node.lineno,
                             column=0,
@@ -378,7 +403,7 @@ class CodeAnalyzer:
                     
                     # 检查函数长度
                     func_lines = node.end_lineno - node.lineno if node.end_lineno else 0
-                    if func_lines > 50:
+                    if func_lines > MAX_FUNCTION_LENGTH:
                         issues.append(CodeIssue(
                             line=node.lineno,
                             column=0,
@@ -395,10 +420,9 @@ class CodeAnalyzer:
         
         return issues
     
-    def _analyze_common_issues(self, code: str, language: str) -> List[CodeIssue]:
+    def _analyze_common_issues(self, lines: List[str], language: str) -> List[CodeIssue]:
         """分析通用问题"""
         issues = []
-        lines = code.split('\n')
         
         # 检查硬编码的敏感信息
         sensitive_patterns = [
@@ -450,9 +474,8 @@ class CodeAnalyzer:
         
         return issues
     
-    def _calculate_metrics(self, code: str, language: str, issues: List[CodeIssue]) -> Dict[str, Any]:
+    def _calculate_metrics(self, lines: List[str], issues: List[CodeIssue]) -> Dict[str, Any]:
         """计算代码指标"""
-        lines = code.split('\n')
         
         # 统计各严重程度问题数量
         severity_counts = {s.value: 0 for s in IssueSeverity}
@@ -495,11 +518,11 @@ class CodeAnalyzer:
             warnings = metrics["issue_counts"].get("warning", 0)
             
             if critical > 0:
-                parts.append(f"⚠️ {critical} 个严重问题需要立即处理")
+                parts.append(f"[警告] {critical} 个严重问题需要立即处理")
             if errors > 0:
-                parts.append(f"❌ {errors} 个错误需要修复")
+                parts.append(f"[错误] {errors} 个错误需要修复")
             if warnings > 0:
-                parts.append(f"⚡ {warnings} 个警告建议优化")
+                parts.append(f"[提示] {warnings} 个警告建议优化")
         
         parts.append(f"代码质量评分: {metrics['quality_score']}/100")
         

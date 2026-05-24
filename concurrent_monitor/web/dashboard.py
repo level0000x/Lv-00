@@ -85,10 +85,9 @@ class WebDashboard:
 
         url = f"http://{self.host}:{self.port}"
         logger.info(f"Web 仪表盘已启动: {url}")
-        print(f"\n  ✅ Web 仪表盘已启动: {url}")
-        print(f"  📡 SSE 端点: {url}/stream")
-        print(f"  🔍 API 文档: {url}/api/processes")
-        print(f"  🛑 按 Ctrl+C 停止服务器\n")
+        logger.info(f"SSE 端点: {url}/stream")
+        logger.info(f"API 文档: {url}/api/processes")
+        logger.info(f"按 Ctrl+C 停止服务器")
 
         # 自动打开浏览器
         if self.open_browser:

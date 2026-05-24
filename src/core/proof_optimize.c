@@ -96,7 +96,7 @@ int proof_navigator_compress(ProofNavigator *nav) {
         if (!proof_steps_equivalent(nav->steps[i - 1], nav->steps[i]))
             continue;
 
-        /* 合并注释 */
+        /* 合并注释（使用 snprintf 替代 strcpy，确保缓冲区安全） */
         if (nav->steps[i]->note && nav->steps[i]->note[0] != '\0') {
             ProofStep *prev = nav->steps[i - 1];
             if (prev->note) {
@@ -105,13 +105,15 @@ int proof_navigator_compress(ProofNavigator *nav) {
                 char *merged = lv00_realloc(prev->note, old_len + new_len + 8);
                 if (merged) {
                     prev->note = merged;
-                    strcpy(prev->note + old_len, " | ");
-                    strcpy(prev->note + old_len + 3, nav->steps[i]->note);
+                    /* [Bug修复] snprintf → lv00_strlcpy 防止缓冲区溢出 */
+                    lv00_strlcpy(prev->note + old_len, " | ", 4);
+                    lv00_strlcpy(prev->note + old_len + 3, nav->steps[i]->note, new_len + 1);
                 }
             } else {
                 prev->note = lv00_malloc(strlen(nav->steps[i]->note) + 1);
                 if (prev->note)
-                    strcpy(prev->note, nav->steps[i]->note);
+                    /* [Bug修复] snprintf → lv00_strlcpy 防止缓冲区溢出 */
+                    lv00_strlcpy(prev->note, nav->steps[i]->note, strlen(nav->steps[i]->note) + 1);
             }
         }
 
@@ -401,9 +403,11 @@ ProofStrategyType proof_backtrack_search(ProofNavigator *nav, ProofMultiStrategy
                 char fail_label[320];
                 snprintf(fail_label, sizeof(fail_label), "%s 失败 (添加了 %d 步后回滚)", desc->name, steps_added);
                 lv00_free((void **) &fail_node->label);
+                /* 使用 snprintf 替代 strcpy，确保缓冲区安全 */
                 fail_node->label = lv00_malloc(strlen(fail_label) + 1);
                 if (fail_node->label)
-                    strcpy(fail_node->label, fail_label);
+                    /* [Bug修复] snprintf → lv00_strlcpy 防止缓冲区溢出 */
+                    lv00_strlcpy(fail_node->label, fail_label, strlen(fail_label) + 1);
                 fail_node->step_index = steps_before;
                 proof_search_tree_add_child(tree, try_node, fail_node);
             }

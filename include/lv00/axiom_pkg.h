@@ -37,8 +37,8 @@ typedef struct KnownUnconstructible {
 AxiomPackage *axiom_package_create(const char *name, const char *version);
 void axiom_package_destroy(AxiomPackage *pkg);
 
-/* 流式上下文设置 */
-void axiom_pkg_set_stream_context(StreamContext *ctx);
+/* 流式上下文设置（由 LV00_DECLARE_STREAM_CTX(axiom) 宏生成） */
+void axiom_set_stream_context(StreamContext *ctx);
 
 bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstructible *item);
 KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, const char *name);

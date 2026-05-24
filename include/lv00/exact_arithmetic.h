@@ -1,26 +1,29 @@
+/* ========================================================================
+ * 模块名称：精确算术基础设施 (exact_arithmetic)
+ * 功能概述：提供 Lv-00 项目的代数学计算保证策略，包含三个层级：
+ *   - 层级 A（严格精确）：proof/certification 路径，禁止 double/float
+ *   - 层级 B（容忍近似）：numerical_backend 路径，需用宏标记浮点使用
+ *   - 层级 C（严格模式）：LV00_STRICT_EXACT_MODE 下所有浮点产生警告
+ *          同时提供安全算术宏（防溢出乘法/加法/减法）和精确时间戳类型。
+ *
+ * 主要 API（宏）：
+ *   - LV00_TOLERATED_FLOAT(var)  — 审计标记浮点变量
+ *   - LV00_LOSSY_TO_DOUBLE       — 标注精度损失转换
+ *   - LV00_SAFE_MUL / ADD / SUB  — 安全算术（溢出检测）
+ *   - lv00_safe_pow              — 安全取幂
+ *   - lv00_timestamp_now         — 精确时间戳
+ *
+ * 使用示例：
+ *   double LV00_TOLERATED_FLOAT(approx) = compute_approx();
+ *   int64_t result;
+ *   if (LV00_SAFE_MUL(a, b, &result)) { /* 安全 */ }
+ *
+ * @version v1.0.0
+ * ======================================================================== */
+
 /**
  * @file exact_arithmetic.h
  * @brief 精确算术基础设施 —— 浮点检测、审计追踪与严格精确模式
- *
- * @details Lv-00 项目的代数学计算保证策略：
- *
- *          层级 A - 严格精确（proof/certification 路径）:
- *            所有计算必须使用 GMP 多精度整数/有理数，禁止任何
- *            double/float 参与。若 LV00_NO_FLOAT 已定义，任何使用
- *            double/float 的代码将产生编译错误。
- *
- *          层级 B - 容忍近似（numerical_backend 等数值求解路径）:
- *            double 用法必须用 LV00_TOLERATED_FLOAT() 宏显式标记，
- *            以便审计追踪工具识别所有可容忍的浮点位置。
- *            未标记的 double 用法视为缺陷。
- *
- *          层级 C - 严格模式（LV00_STRICT_EXACT_MODE）:
- *            启用后，所有 double/float 用法都产生 #warning 或 #error，
- *            用于代码审查和 CI 流水线。
- *
- * @author Lv-00 Project
- * @version v1.0.0
- * @date 2026-05-24
  */
 
 #ifndef LV00_EXACT_ARITHMETIC_H

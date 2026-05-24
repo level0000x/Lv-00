@@ -15,7 +15,7 @@ Lv-00 WebSocket 服务器模块
     本模块的 WebSocket 服务器不包含任何认证或授权机制。
     仅适用于受信任的内网开发环境，切勿直接暴露到公网。
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
@@ -32,17 +32,6 @@ logger = logging.getLogger('stream_bridge')
 
 # ================================================================
 # WebSocket 依赖检查
-# ================================================================
-
-try:
-    import websockets
-    from websockets.server import serve, WebSocketServerProtocol
-    WEBSOCKETS_AVAILABLE = True
-except ImportError:
-    WEBSOCKETS_AVAILABLE = False
-    logger.warning("websockets 库未安装，WebSocket 功能不可用。安装: pip install websockets")
-
-# WebSocket 服务器 / WebSocket Server
 # ================================================================
 
 try:
@@ -387,8 +376,17 @@ class StreamBridgeServer:
 
         参数：
             event_queue: SSE 客户端的事件队列
+
+        TODO: 此方法当前为空实现，SSE 响应逻辑已内联在 _handle_sse_client 中。
+              未来应将 SSE 数据发送循环重构到此方法中，以提高代码可维护性。
+              基本实现参考：
+                while True:
+                    message_json = await event_queue.get()
+                    if message_json is None:
+                        break
+                    writer.write(f"data: {message_json}\\n\\n".encode('utf-8'))
+                    await writer.drain()
         """
-        # 此方法作为协程被 _handle_sse_client 内部调用
         pass
 
     async def _handle_sse_client(self, reader: asyncio.StreamReader,

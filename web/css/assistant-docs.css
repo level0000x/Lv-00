@@ -6,13 +6,6 @@
  *
  * 创建日期：2026-05-23
  */
-/* === 基础重置（移除浏览器默认样式） === */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
 /* === 全局样式：暗色主题背景与等宽字体 === */
 html {
     scroll-behavior: smooth;

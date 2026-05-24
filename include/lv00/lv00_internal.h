@@ -17,11 +17,16 @@
  *      所有常量集中在此定义，确保修改一处、全项目生效。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
-#ifndef LV00_INTERNAL_H
-#define LV00_INTERNAL_H
+#ifndef LV00_LV00_INTERNAL_H
+#define LV00_LV00_INTERNAL_H
+
+/* [P1 修复] 添加 extern "C" 保护，确保 C++ 编译器能正确链接此头文件 */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ====================================================================
  * 第 1 层：lv00.h 提供的核心平台宏
@@ -107,14 +112,19 @@
 #define LV00_DEFAULT_MAX_ITERATIONS 1000
 /** @brief 默认符号精度位数（symbolic_coord 精度，单位：比特） */
 #define LV00_DEFAULT_PRECISION_BITS 64
-/** @brief 默认重写步数上限（每次 solve 调用中的重写步数限制） */
+/** @brief 默认重写步数上限（每次 solve 调用中的重写步数限制）
+ *  与 config.h 中 LV00_CONFIG_DEFAULT_REWRITE_LIMIT 保持一致 */
 #define LV00_DEFAULT_REWRITE_STEP_LIMIT 1000
 /** @brief 默认内存使用上限（单位：MB，0 表示无限制） */
 #define LV00_DEFAULT_MEMORY_LIMIT_MB 0
 
 /* ── 动态数组初始容量与增长因子 ── */
-/** @brief 动态数组的初始容量（引擎中 module/axiom/rule 数组的起始大小） */
+/** @brief 动态数组的初始容量（统一使用 config.h 中的定义） */
+#ifndef LV00_CONFIG_INITIAL_ARRAY_CAPACITY
 #define LV00_INITIAL_ARRAY_CAPACITY 4
+#else
+#define LV00_INITIAL_ARRAY_CAPACITY LV00_CONFIG_INITIAL_ARRAY_CAPACITY
+#endif
 /** @brief 动态数组增长因子（容量不足时乘以该因子进行扩容） */
 #define LV00_ARRAY_GROWTH_FACTOR 2
 
@@ -300,4 +310,8 @@
  *  @param ...   可变参数列表 */
 void lv00_log_message(int level, const char *file, int line, const char *fmt, ...);
 
-#endif /* LV00_INTERNAL_H */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LV00_LV00_INTERNAL_H */

@@ -1,11 +1,18 @@
 /**
- * graph.js - GRAPH 图模块方法
+ * @file graph.js
+ * @brief GRAPH 图模块方法
+ * @description 实现 Lv-00 图模块的所有前端操作方法，挂载到 Lv00WebApp.prototype 上。
+ *              包括节点/线段/区域的增删改查、
+ *              约束操作（关联、介于、相交、包含）、
+ *              分析操作（归一化、合并候选、冗余检测、冲突检测、自由度、拓扑排序、哈希）。
+ *              图模块是 Lv-00 系统的核心数据结构操作层。
  *
- * 实现图模块的所有操作方法，包括节点/线段/区域的增删改查、
- * 约束操作（关联、之间、相交、包含）、分析操作（归一化、
- * 合并候选、冗余检测、冲突检测、自由度、拓扑排序、哈希）。
- *
- * 依赖：Lv00WebApp 构造函数、ui.js、undo.js、interaction.js
+ * @module graph
+ * @requires Lv00WebApp 构造函数（app.js）
+ * @requires ui.js（appendLog, showToast 等方法）
+ * @requires undo.js（_saveUndoState 等方法）
+ * @requires interaction.js（syncPointsFromGraph 等方法）
+ * @since 3.0.0
  */
 (function() {
     'use strict';
@@ -52,7 +59,7 @@
 
         this._saveUndoState();
         this.regions.push({
-            points: this.selectedPoints.slice()
+            points: this.selectedPoints.map(function(p) { return { x: p.x, y: p.y, id: p.id, label: p.label }; })
         });
 
         this.appendLog('Region created with ' + this.selectedPoints.length + ' points / 区域已创建（' + this.selectedPoints.length + ' 个点）', 'info');
@@ -84,8 +91,8 @@
         this._saveUndoState();
         var result = this._callBackend('graphRemoveNode', [this.graph, nodeId]);
 
-        // fix: 使用 != null 同时检查 null 和 undefined（JS 隐式类型转换）
-        if (result != null) {
+        // fix: 使用 !== null && !== undefined 进行严格空值检查，与其他方法保持一致
+        if (result !== null && result !== undefined) {
             this.syncPointsFromGraph();
             this.syncSegmentsFromGraph();
             this.selectedPoint = null;

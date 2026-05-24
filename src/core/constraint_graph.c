@@ -4,6 +4,12 @@
  * @details 实现几何约束图的数据结构和操作，包括点、线段、区域、端口和函数块节点。
  *          支持 5 种约束类型（关联、中间、等距、角度、正交），
  *          提供哈希索引、冗余检测和冲突检测功能。
+ *
+ * 【错误系统迁移说明】
+ * 本文件已完成从旧版 g_internal_error[256] 全局字符数组 + set_error()/clear_error()
+ * 兼容层到统一错误系统（lv00_set_error / lv00_clear_error / lv00_get_error）的迁移。
+ * 所有错误报告均已直接调用 lv00_set_error()，错误清除调用 lv00_clear_error()。
+ * 旧的双轨错误系统已被完全移除，不再保留兼容层。
  */
 
 /* ============================================================================
@@ -14,30 +20,31 @@
  * @brief 每个节点的最大邻接约束数量
  * @details 用于邻接表的内存分配，超过此限制的约束将被静默忽略并记录警告
  */
-#define ADJ_MAX_PER_NODE 256
+#define LV00_ADJ_MAX_PER_NODE 256
 
 /**
  * @brief 冲突检测中每个点的最大约束数量
  */
-#define POINT_CONSTRAINT_ARRAY_SIZE 64
+#define LV00_POINT_CONSTRAINT_ARRAY_SIZE 64
 
 /**
  * @brief 连接图邻接矩阵的列步长
  */
-#define MAX_CONN_ADJ_STRIDE 256
+#define LV00_MAX_CONN_ADJ_STRIDE 256
 
 /**
  * @brief JSON 序列化缓冲区初始大小
  */
-#define JSON_BUFFER_INITIAL_SIZE 1024
+#define LV00_JSON_BUFFER_INITIAL_SIZE 1024
 
 /**
  * @brief 节点/约束描述字符串缓冲区大小
  */
-#define DESC_BUFFER_SIZE 128
+#define LV00_DESC_BUFFER_SIZE 128
 
 #include "constraint_graph.h"
 
+#include <assert.h>
 #include <gmp.h>
 #include <math.h>
 #include <stdarg.h>
@@ -53,27 +60,6 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
-/* ===== 遗留双轨错误系统兼容层 =====
- * set_error() / clear_error() 是旧版错误处理接口。
- *
- * 新代码应统一使用标准的 lv00_set_error() / lv00_clear_error() 系列函数。
- * 保留此兼容层仅为向后兼容旧版模块中的遗留调用点，计划在后续主版本中移除。
- */
-static char g_internal_error[256] = {0};
-
-static void set_error(const char *msg) {
-    if (msg) {
-        lv00_strlcpy(g_internal_error, msg, sizeof(g_internal_error));
-    } else {
-        g_internal_error[0] = '\0';
-    }
-    lv00_set_error(LV00_ERROR_UNKNOWN, "%s", msg ? msg : "unknown error");
-}
-static void clear_error(void) {
-    g_internal_error[0] = '\0';
-    lv00_clear_error();
-}
-
 LV00_DECLARE_STREAM_CTX(graph)
 
 /* Forward declarations for hash index functions
@@ -82,6 +68,25 @@ LV00_DECLARE_STREAM_CTX(graph)
 void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node);
 static void node_index_remove(ConstraintGraph *graph, int node_id);
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
+
+/**
+ * @brief 通用数组扩容辅助函数
+ * @param arr 当前数组指针
+ * @param count 当前元素数量
+ * @param capacity 当前容量指针
+ * @param elem_size 单个元素大小
+ * @param min_growth 最小增长量
+ * @return 扩容后的数组指针，失败返回 NULL
+ */
+static void *graph_ensure_capacity(void *arr, int count, int *capacity,
+                                    size_t elem_size, int min_growth) {
+    if (count < *capacity) return arr;
+    int new_cap = *capacity * 2;
+    if (new_cap < count + min_growth) new_cap = count + min_growth;
+    void *new_arr = lv00_realloc(arr, (size_t)new_cap * elem_size);
+    if (new_arr) *capacity = new_cap;
+    return new_arr;
+}
 
 /**
  * @brief 在约束图中分配并初始化一个新的几何节点
@@ -104,21 +109,14 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
     node->trust = TRUST_GREEN;
     node->namespace_depth = 0;
     node->parent_block_id = -1;
-    if (graph->node_count >= graph->node_capacity) {
-        if (graph->node_capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
-            lv00_free((void **) &node);
-            return NULL;
-        } /* would overflow */
-        int new_capacity =
-            graph->node_capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY : graph->node_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        GeomNode **new_nodes = lv00_realloc(graph->nodes, (size_t) new_capacity * sizeof(GeomNode *));
-        if (!new_nodes) {
-            lv00_free((void **) &node);
-            return NULL;
-        }
-        graph->nodes = new_nodes;
-        graph->node_capacity = new_capacity;
+    GeomNode **new_nodes = (GeomNode **)graph_ensure_capacity(
+        graph->nodes, graph->node_count, &graph->node_capacity,
+        sizeof(GeomNode *), 1);
+    if (!new_nodes) {
+        lv00_free((void **) &node);
+        return NULL;
     }
+    graph->nodes = new_nodes;
     graph->nodes[graph->node_count++] = node;
     graph_node_index_insert(graph, node);
     return node;
@@ -142,21 +140,14 @@ static Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType
     memset(con, 0, sizeof(Constraint));
     con->id = graph->next_constraint_id++;
     con->type = type;
-    if (graph->constraint_count >= graph->constraint_capacity) {
-        if (graph->constraint_capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
-            lv00_free((void **) &con);
-            return NULL;
-        } /* would overflow */
-        int new_capacity = graph->constraint_capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY
-                                                           : graph->constraint_capacity * LV00_ARRAY_GROWTH_FACTOR;
-        Constraint **new_constraints = lv00_realloc(graph->constraints, (size_t) new_capacity * sizeof(Constraint *));
-        if (!new_constraints) {
-            lv00_free((void **) &con);
-            return NULL;
-        }
-        graph->constraints = new_constraints;
-        graph->constraint_capacity = new_capacity;
+    Constraint **new_constraints = (Constraint **)graph_ensure_capacity(
+        graph->constraints, graph->constraint_count, &graph->constraint_capacity,
+        sizeof(Constraint *), 1);
+    if (!new_constraints) {
+        lv00_free((void **) &con);
+        return NULL;
     }
+    graph->constraints = new_constraints;
     graph->constraints[graph->constraint_count++] = con;
     graph_constraint_index_insert(graph, con);
     return con;
@@ -170,7 +161,7 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
     /* 检查ID是否已被使用 */
     if (graph_get_node(graph, node_id) != NULL) {
-        set_error("Node ID already exists");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Node ID already exists");
         return NULL;
     }
 
@@ -258,7 +249,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
 
     /* 检查ID是否已被使用 */
     if (graph_get_constraint(graph, constraint_id) != NULL) {
-        set_error("Constraint ID already exists");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Constraint ID already exists");
         return NULL;
     }
 
@@ -362,6 +353,8 @@ static bool constraint_exists(ConstraintGraph *graph, ConstraintType type, int *
  * @return 哈希值
  */
 static unsigned node_id_hash(int id, int capacity) {
+    /* 防御性断言：哈希表容量必须为 2 的幂（位掩码操作的前提条件） */
+    assert(capacity > 0 && (capacity & (capacity - 1)) == 0);
     /* FNV-1a-like hash，乘数定义在 lv00_internal.h 中 */
     unsigned h = (unsigned) id * LV00_FNV_HASH_MULTIPLIER;
     return h & (unsigned) (capacity - 1);
@@ -415,6 +408,15 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
     return true;
 }
 
+/**
+ * @brief 将节点插入哈希索引
+ *
+ * 确保哈希索引有足够容量后，使用开放寻址法将节点插入到
+ * 对应的哈希槽中。若哈希冲突则线性探测下一个可用槽位。
+ *
+ * @param graph 约束图指针
+ * @param node  要插入的几何节点指针
+ */
 void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node) {
     if (!node_index_ensure_capacity(graph))
         return;
@@ -446,13 +448,30 @@ static void node_index_remove(ConstraintGraph *graph, int node_id) {
     while (graph->node_index[i] != NULL) {
         GeomNode *entry = graph->node_index[i];
         graph->node_index[i] = NULL;
-        unsigned j = node_id_hash(entry->id, graph->node_index_capacity);
-        /* 重新插入，但如果绕回到 idx 则停止（防止哈希表满时无限循环） */
-        while (graph->node_index[j] != NULL && j != idx) {
-            j = (j + 1) & (unsigned) (graph->node_index_capacity - 1);
+        unsigned ideal = node_id_hash(entry->id, graph->node_index_capacity);
+        /* 判断理想位置是否在 [idx+1, i] 的环绕范围内 */
+        bool in_range = false;
+        if (ideal > idx) {
+            in_range = (i >= ideal || i <= idx);
+        } else {
+            in_range = (i >= ideal && i <= idx);
         }
-        if (graph->node_index[j] == NULL) {
-            graph->node_index[j] = entry;
+        if (in_range) {
+            /* 条目属于被删除槽的影响范围，需要重新插入 */
+            unsigned j = ideal;
+            while (graph->node_index[j] != NULL) {
+                j = (j + 1) & (unsigned) (graph->node_index_capacity - 1);
+                if (j == ideal) {
+                    /* 哈希表探测绕回起点，条目无法重新插入 —— 记录错误 */
+                    lv00_set_error(LV00_ERROR_INTERNAL, "哈希表已满，无法重新插入条目（ID=%d）", entry->id);
+                    break;
+                }
+            }
+            if (graph->node_index[j] == NULL)
+                graph->node_index[j] = entry;
+        } else {
+            /* 条目不在影响范围内，保持原位 */
+            graph->node_index[i] = entry;
         }
         i = (i + 1) & (unsigned) (graph->node_index_capacity - 1);
     }
@@ -519,6 +538,15 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
     return true;
 }
 
+/**
+ * @brief 将约束插入哈希索引
+ *
+ * 确保哈希索引有足够容量后，使用开放寻址法将约束插入到
+ * 对应的哈希槽中。若哈希冲突则线性探测下一个可用槽位。
+ *
+ * @param graph 约束图指针
+ * @param con   要插入的约束指针
+ */
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con) {
     if (!constraint_index_ensure_capacity(graph))
         return;
@@ -663,17 +691,17 @@ static bool check_incremental_conflict(const ConstraintGraph *graph, const Const
          * 但3条或更多条线且没有相交约束则是冲突 */
             if (incident_count >= 2) {
                 /* 检查是否有任意一对关联线之间有 INTERSECTION 约束 */
-                int lines[ADJ_MAX_PER_NODE]; /* 与 ADJ_MAX_PER_NODE 保持一致，避免静默截断 */
+                int lines[LV00_ADJ_MAX_PER_NODE]; /* 与 LV00_ADJ_MAX_PER_NODE 保持一致，避免静默截断 */
                 int line_count = 0;
                 for (int i = 0; i < graph->constraint_count; i++) {
                     Constraint *c = graph->constraints[i];
                     if (c->type == INCIDENCE && c->participants[0] == point_id) {
-                        if (line_count < ADJ_MAX_PER_NODE)
+                        if (line_count < LV00_ADJ_MAX_PER_NODE)
                             lines[line_count++] = c->participants[1];
                     }
                 }
                 /* 包含新添加的线 */
-                if (line_count < ADJ_MAX_PER_NODE)
+                if (line_count < LV00_ADJ_MAX_PER_NODE)
                     lines[line_count++] = line_id;
 
                 /* 检查所有线对的相交约束 */
@@ -812,6 +840,16 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, in
     return ADD_NODE_OK;
 }
 
+/**
+ * @brief 添加线段节点（由两个端点定义）
+ *
+ * 创建线段类型的几何节点，验证端点存在性，并自动添加端点关联约束。
+ *
+ * @param graph         约束图指针
+ * @param endpoint1_id 第一个端点节点 ID
+ * @param endpoint2_id 第二个端点节点 ID
+ * @return 操作结果枚举
+ */
 AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, int endpoint2_id) {
     GeomNode *n1 = graph_get_node(graph, endpoint1_id);
     GeomNode *n2 = graph_get_node(graph, endpoint2_id);
@@ -908,6 +946,17 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
     return ADD_NODE_OK;
 }
 
+/**
+ * @brief 添加端口节点
+ *
+ * 端口是函数块与外部约束图之间的连接接口。
+ *
+ * @param graph           约束图指针
+ * @param type            端口类型
+ * @param namespace_depth 命名空间深度
+ * @param parent_block_id 父函数块节点 ID
+ * @return 操作结果枚举
+ */
 AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespace_depth, int parent_block_id) {
     GeomNode *node = graph_alloc_node(graph, GEOM_PORT);
     if (!node)
@@ -1160,21 +1209,21 @@ static bool check_cross_boundary_constraints(ConstraintGraph *graph, GeomNode *f
             if (external_namespace == block_namespace && external_parent != block_parent) {
                 /* 相同深度但不同父块 - 兄弟块引用 */
                 lv00_free((void **) &internal_ids);
-                set_error("Cross-boundary constraint references sibling block's private node");
+                lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references sibling block's private node");
                 return false;
             }
 
             /* 引用更深命名空间的节点是无效的 */
             if (external_namespace > block_namespace) {
                 lv00_free((void **) &internal_ids);
-                set_error("Cross-boundary constraint references node from deeper namespace");
+                lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Cross-boundary constraint references node from deeper namespace");
                 return false;
             }
 
             /* 命名空间深度差异 > 1 是无效的 */
             if (block_namespace - external_namespace > 1) {
                 lv00_free((void **) &internal_ids);
-                set_error("Cross-boundary constraint spans more than one namespace level");
+                lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Cross-boundary constraint spans more than one namespace level");
                 return false;
             }
         }
@@ -1232,6 +1281,17 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
     return ADD_CONSTRAINT_OK;
 }
 
+/**
+ * @brief 添加介于约束（B-A-C 共线有序）
+ *
+ * 声明点 B 在点 A 和点 C 之间，三点共线且有序。
+ *
+ * @param graph 约束图指针
+ * @param p1_id 第一个端点 ID
+ * @param p2_id 中间点 ID
+ * @param p3_id 第二个端点 ID
+ * @return 操作结果枚举
+ */
 AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, int p1_id, int p2_id, int p3_id) {
     GeomNode *p1 = graph_get_node(graph, p1_id);
     GeomNode *p2 = graph_get_node(graph, p2_id);
@@ -1266,6 +1326,17 @@ AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, int p1_id, int
     return ADD_CONSTRAINT_OK;
 }
 
+/**
+ * @brief 添加相交约束
+ *
+ * 声明两条线在指定交点处真交。
+ *
+ * @param graph           约束图指针
+ * @param line1_id        第一条线 ID
+ * @param line2_id        第二条线 ID
+ * @param result_point_id 交点 ID
+ * @return 操作结果枚举
+ */
 AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id, int line2_id, int result_point_id) {
     GeomNode *l1 = graph_get_node(graph, line1_id);
     GeomNode *l2 = graph_get_node(graph, line2_id);
@@ -1301,6 +1372,16 @@ AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id,
     return ADD_CONSTRAINT_OK;
 }
 
+/**
+ * @brief 添加包含约束
+ *
+ * 声明内部节点被包含在外部节点（区域）中。
+ *
+ * @param graph   约束图指针
+ * @param inner_id 内部节点 ID
+ * @param outer_id 外部节点 ID
+ * @return 操作结果枚举
+ */
 AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, int outer_id) {
     GeomNode *inner = graph_get_node(graph, inner_id);
     GeomNode *outer = graph_get_node(graph, outer_id);
@@ -1378,10 +1459,14 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
 }
 
 /**
- * 从约束中移除对节点的引用。
+ * @brief 从所有约束的参与者列表中移除对指定节点的引用
+ *
+ * 遍历约束图中的所有约束，将参与者列表中匹配 node_id 的条目
+ * 移除，并相应减少 participant_count。此函数在删除节点时调用，
+ * 确保约束数据与图的节点集合保持一致。
  *
  * @param graph   约束图指针
- * @param node_id 要移除的节点 ID
+ * @param node_id 要移除引用的节点 ID
  */
 static void remove_references_to_node(ConstraintGraph *graph, int node_id) {
     for (int i = 0; i < graph->constraint_count; i++) {
@@ -1421,6 +1506,15 @@ static bool node_in_region_boundary(const ConstraintGraph *graph, int node_id) {
     return false;
 }
 
+/**
+ * @brief 从约束图中移除节点
+ *
+ * 移除指定节点及其所有关联约束，清理邻接表和哈希索引。
+ *
+ * @param graph   约束图指针
+ * @param node_id 要移除的节点 ID
+ * @return 操作结果枚举
+ */
 RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
     GeomNode *node = graph_get_node(graph, node_id);
     if (!node)
@@ -1498,6 +1592,13 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
     return REMOVE_NODE_NOT_FOUND;
 }
 
+/**
+ * @brief 从约束图中移除指定索引处的约束
+ *
+ * @param graph           约束图指针
+ * @param constraint_index 约束在数组中的索引
+ * @return 操作结果枚举
+ */
 RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int constraint_index) {
     if (constraint_index < 0 || constraint_index >= graph->constraint_count) {
         return REMOVE_CONSTRAINT_NOT_FOUND;
@@ -1595,6 +1696,12 @@ int graph_get_node_count(const ConstraintGraph *graph) {
     return graph->node_count;
 }
 
+/**
+ * @brief 获取约束图中的约束数量
+ *
+ * @param graph 约束图指针
+ * @return 约束数量
+ */
 int graph_get_constraint_count(const ConstraintGraph *graph) {
     if (!graph)
         return 0;
@@ -1671,6 +1778,9 @@ ConstraintGraph *graph_create(void) {
     graph->next_node_id = 0;
     graph->next_constraint_id = 0;
 
+    /* TODO(v3.4.0): 清理遗留错误系统 —— error_buffer 和 serialize_buffer
+     * 应在迁移到 Lv00Context 统一错误系统后移除。
+     * 当前保留仅为向后兼容。 */
     /* 为每图级的错误缓冲区分配堆内存（v3.3.0：替代旧版静态全局变量） */
     graph->error_buffer = lv00_malloc(256);
     graph->serialize_buffer = lv00_malloc(256);
@@ -1736,6 +1846,16 @@ Lv00ErrorCode lv00_remove_node_result_to_error(RemoveNodeResult result) {
     }
 }
 
+/**
+ * @brief 销毁几何节点并释放其所有资源
+ *
+ * 根据节点类型释放对应的内部数据：
+ * - GEOM_FUNCTION_BLOCK：释放内部节点数组、输入/输出端口 ID 数组
+ * - 所有类型：释放符号坐标数组和数值假设声明字符串
+ * 最后释放节点结构体本身。
+ *
+ * @param node 要销毁的几何节点指针
+ */
 static void node_destroy(GeomNode *node) {
     if (!node)
         return;
@@ -1767,12 +1887,30 @@ static void node_destroy(GeomNode *node) {
     lv00_free((void **) &node);
 }
 
+/**
+ * @brief 获取约束图中最后添加的节点 ID
+ *
+ * 返回节点数组中最后一个节点的索引（即 node_count - 1）。
+ * 注意：此 ID 是数组索引而非节点的逻辑 ID。
+ *
+ * @param graph 约束图指针
+ * @return 最后添加的节点索引，图为空或无效时返回 -1
+ */
 int graph_get_last_added_node_id(const ConstraintGraph *graph) {
     if (!graph || graph->node_count == 0)
         return -1;
     return graph->node_count - 1;
 }
 
+/**
+ * @brief 销毁约束图并释放所有资源
+ *
+ * 依次销毁所有节点（调用 node_destroy）、释放所有约束的参与者数组和约束本身、
+ * 释放节点和约束的哈希索引、释放序列化缓冲区和邻接矩阵。
+ * 最后释放约束图结构体本身。
+ *
+ * @param graph 约束图指针（可以为 NULL，此时直接返回）
+ */
 void graph_destroy(ConstraintGraph *graph) {
     if (!graph)
         return;
@@ -2456,7 +2594,18 @@ static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_
     return conflict;
 }
 
-/* Helper: Count constraints affecting a point */
+/**
+ * @brief 统计影响指定点的约束数量
+ *
+ * 遍历所有约束，收集参与者中包含指定点 ID 的约束，
+ * 将结果写入 out_constraints 数组。
+ *
+ * @param graph       约束图指针
+ * @param point_id    目标点节点 ID
+ * @param out_constraints 输出：找到的约束指针数组
+ * @param max_out     输出数组的最大容量
+ * @return 找到的约束数量
+ */
 static int count_point_constraints(ConstraintGraph *graph, int point_id, Constraint **out_constraints, int max_out) {
     int count = 0;
     for (int i = 0; i < graph->constraint_count && count < max_out; i++) {
@@ -2471,7 +2620,17 @@ static int count_point_constraints(ConstraintGraph *graph, int point_id, Constra
     return count;
 }
 
-/* Helper: Check if two constraints are independent (not derived from each other) */
+/**
+ * @brief 检查两个约束是否独立（非互相推导）
+ *
+ * 两个约束独立的条件是：c1 的参与者集合不完全是 c2 参与者集合的子集。
+ * 如果 c1 的所有参与者都出现在 c2 中，则认为 c1 可能由 c2 推导而来，
+ * 此时返回 false（不独立）。
+ *
+ * @param c1 第一个约束指针
+ * @param c2 第二个约束指针
+ * @return true 表示两个约束独立，false 表示可能互相推导
+ */
 static bool constraints_are_independent(Constraint *c1, Constraint *c2) {
     /* Two constraints are dependent if they involve the exact same participants */
     if (c1->participant_count != c2->participant_count)
@@ -2534,7 +2693,18 @@ static bool point_on_segment(ConstraintGraph *graph, int point_id, int segment_i
     return false;
 }
 
-/* Helper: Add a conflict group to the output */
+/**
+ * @brief 将一组节点 ID 添加到冲突组输出数组
+ *
+ * 分配内存并复制节点 ID 列表到冲突组数组中，
+ * 同时更新冲突组大小数组和冲突组计数。
+ *
+ * @param conflicts       输入/输出：冲突组二维数组
+ * @param conflict_count  输入/输出：当前冲突组数量（将递增）
+ * @param conflict_sizes  输入/输出：每个冲突组的大小数组
+ * @param node_ids        要添加的节点 ID 数组
+ * @param node_count      节点 ID 数量
+ */
 static void add_conflict_group(int **conflicts, int *conflict_count, int **conflict_sizes, int *node_ids,
                                int node_count) {
     conflicts[*conflict_count] = lv00_malloc(node_count * sizeof(int));
@@ -2628,7 +2798,7 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
         /* 回退：仅检查直接环路（1层） */
         int cnt = conn_counts[start_port_id];
         for (int ci = 0; ci < cnt; ci++) {
-            Constraint *c = graph->constraints[conn_adj[start_port_id * MAX_CONN_ADJ_STRIDE + ci]];
+            Constraint *c = graph->constraints[conn_adj[start_port_id * LV00_MAX_CONN_ADJ_STRIDE + ci]];
             if (c->participants[0] == start_port_id && c->participants[1] == start_port_id) {
                 /* 自环路（罕见但需检测） */
                 path[0] = start_port_id;
@@ -2668,7 +2838,7 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
         bool pushed_child = false;
         while (frame->neighbor_idx < cnt && !pushed_child) {
             int ci = frame->neighbor_idx;
-            Constraint *c = graph->constraints[conn_adj[current_id * MAX_CONN_ADJ_STRIDE + ci]];
+            Constraint *c = graph->constraints[conn_adj[current_id * LV00_MAX_CONN_ADJ_STRIDE + ci]];
             int next_port = -1;
 
             /* CONNECTION 是双向存储的（participants[0] 和 [1] 都是端口ID），
@@ -2749,7 +2919,18 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
     return found_cycle;
 }
 
-/* Helper: Check if two line segments can intersect (are not parallel) */
+/**
+ * @brief 检查两条线段是否可能相交（非平行）
+ *
+ * 遍历约束图检查两条线段之间是否存在平行约束。
+ * 当前实现默认返回 true（假设可以相交），后续可扩展
+ * 平行约束检测逻辑。
+ *
+ * @param graph    约束图指针
+ * @param seg1_id 第一条线段节点 ID
+ * @param seg2_id 第二条线段节点 ID
+ * @return true 表示两条线段可能相交，false 表示平行
+ */
 static bool segments_can_intersect(ConstraintGraph *graph, int seg1_id, int seg2_id) {
     /* For symbolic coordinates, we check if there's any geometric constraint 
      * that would make them parallel */
@@ -2762,7 +2943,7 @@ static bool segments_can_intersect(ConstraintGraph *graph, int seg1_id, int seg2
 }
 
 int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_count, int **out_conflict_sizes) {
-    clear_error();
+    lv00_clear_error();
 
     if (!graph || !out_conflict_count || !out_conflict_sizes) {
         if (out_conflict_count)
@@ -2794,7 +2975,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     }
 
     /* adj: node_id -> 约束索引的扁平数组 */
-    int adj_total = (max_node_id + 1) * ADJ_MAX_PER_NODE;
+    int adj_total = (max_node_id + 1) * LV00_ADJ_MAX_PER_NODE;
     int *adj_lists = lv00_calloc(adj_total, sizeof(int));
     int *adj_counts = lv00_calloc(max_node_id + 1, sizeof(int));
 
@@ -2819,10 +3000,10 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
                     continue;
 
                 /* 通用邻接关系 */
-                if (adj_counts[nid] < ADJ_MAX_PER_NODE) {
-                    adj_lists[nid * ADJ_MAX_PER_NODE + adj_counts[nid]++] = i;
+                if (adj_counts[nid] < LV00_ADJ_MAX_PER_NODE) {
+                    adj_lists[nid * LV00_ADJ_MAX_PER_NODE + adj_counts[nid]++] = i;
                 } else {
-                    LOG_DEBUG("constraint_graph", "节点 %d 超出邻接限制 (%d)，约束 %d 被忽略", nid, ADJ_MAX_PER_NODE,
+                    LOG_DEBUG("constraint_graph", "节点 %d 超出邻接限制 (%d)，约束 %d 被忽略", nid, LV00_ADJ_MAX_PER_NODE,
                               i);
                 }
                 /* 类型特定邻接关系 */
@@ -2840,10 +3021,10 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
                     ta = int_adj;
                     tc = int_counts;
                 }
-                if (ta && tc && tc[nid] < ADJ_MAX_PER_NODE) {
-                    ta[nid * ADJ_MAX_PER_NODE + tc[nid]++] = i;
+                if (ta && tc && tc[nid] < LV00_ADJ_MAX_PER_NODE) {
+                    ta[nid * LV00_ADJ_MAX_PER_NODE + tc[nid]++] = i;
                 } else if (ta && tc) {
-                    LOG_DEBUG("constraint_graph", "节点 %d 超出类型特定邻接限制 (%d)，类型 %d", nid, ADJ_MAX_PER_NODE,
+                    LOG_DEBUG("constraint_graph", "节点 %d 超出类型特定邻接限制 (%d)，类型 %d", nid, LV00_ADJ_MAX_PER_NODE,
                               c->type);
                 }
             }
@@ -3140,28 +3321,38 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     return conflicts;
 }
 
+/**
+ * @brief 验证区域的边界是否闭合
+ *
+ * 检查指定区域的所有边界线段是否首尾相连形成闭合路径。
+ * 从第一条边界线段出发，沿连接关系遍历，最终应回到起始线段。
+ *
+ * @param graph     约束图指针
+ * @param region_id 区域节点 ID
+ * @return true 表示区域边界闭合，false 表示不闭合或参数无效
+ */
 bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) {
-    clear_error();
+    lv00_clear_error();
 
     if (!graph) {
-        set_error("Null graph");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Null graph");
         return false;
     }
 
     GeomNode *region = graph_get_node(graph, region_id);
     if (!region) {
-        set_error("Region node not found");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Region node not found");
         return false;
     }
 
     if (region->type != GEOM_REGION) {
-        set_error("Node is not a region");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Node is not a region");
         return false;
     }
 
     /* Check 1: segment_count >= 3 */
     if (region->data.region.segment_count < 3) {
-        set_error("Region must have at least 3 boundary segments");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Region must have at least 3 boundary segments");
         return false;
     }
 
@@ -3171,11 +3362,11 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
     /* Check 2: All segments exist and are valid */
     for (int i = 0; i < segment_count; i++) {
         if (!segments[i]) {
-            set_error("Null segment in region boundary");
+            lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Null segment in region boundary");
             return false;
         }
         if (segments[i]->type != GEOM_LINE_SEGMENT) {
-            set_error("Boundary element is not a line segment");
+            lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Boundary element is not a line segment");
             return false;
         }
     }
@@ -3193,7 +3384,7 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
     /* We'll use a simplified approach: track which segments connect at each point */
     int *endpoint_connections = lv00_calloc(segment_count * 2, sizeof(int));
     if (!endpoint_connections) {
-        set_error("Memory allocation failed");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Memory allocation failed");
         return false;
     }
 
@@ -3256,7 +3447,7 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
     lv00_free((void **) &endpoint_connections);
 
     if (unconnected_count > 0) {
-        set_error("Region boundary has dangling segments (not closed)");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Region boundary has dangling segments (not closed)");
         return false;
     }
 
@@ -3264,7 +3455,7 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
     /* We do this by traversing from segment 0 and counting how many we visit */
     bool *visited_segments = lv00_calloc(segment_count, sizeof(bool));
     if (!visited_segments) {
-        set_error("Memory allocation failed");
+        lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Memory allocation failed");
         return false;
     }
 
@@ -3282,7 +3473,7 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
             }
             /* Multiple loops detected */
             lv00_free((void **) &visited_segments);
-            set_error("Region boundary forms multiple loops instead of single closed chain");
+            lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Region boundary forms multiple loops instead of single closed chain");
             return false;
         }
 
@@ -3337,7 +3528,7 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
 
         if (!found_next && visited_count < segment_count) {
             lv00_free((void **) &visited_segments);
-            set_error("Region boundary is not connected");
+            lv00_set_error(LV00_ERROR_UNKNOWN, "%s", "Region boundary is not connected");
             return false;
         }
     }
@@ -3384,6 +3575,16 @@ const char *graph_get_serialize_error(const ConstraintGraph *graph) {
     return graph->serialize_buffer;
 }
 
+/**
+ * @brief 设置序列化错误信息
+ *
+ * 使用可变参数格式化字符串，将错误信息写入约束图的序列化缓冲区。
+ * 若图或缓冲区不可用，则回退到全局错误 API。
+ *
+ * @param graph 约束图指针（可以为 NULL）
+ * @param fmt   printf 风格的格式字符串
+ * @param ...   可变参数列表
+ */
 static void set_serialize_error(ConstraintGraph *graph, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -3405,6 +3606,15 @@ typedef struct {
     size_t pos;
 } JsonBuf;
 
+/**
+ * @brief 初始化 JSON 写入缓冲区
+ *
+ * 分配指定初始大小的缓冲区，并将位置归零。
+ *
+ * @param buf           JsonBuf 结构体指针
+ * @param initial_size  初始缓冲区大小（字节）
+ * @return 成功返回 true，内存分配失败返回 false
+ */
 static bool json_buf_init(JsonBuf *buf, size_t initial_size) {
     buf->capacity = initial_size;
     buf->pos = 0;
@@ -3415,6 +3625,14 @@ static bool json_buf_init(JsonBuf *buf, size_t initial_size) {
     return true;
 }
 
+/**
+ * @brief 扩展 JSON 缓冲区容量（倍增策略）
+ *
+ * 将缓冲区容量翻倍，使用 lv00_realloc 重新分配内存。
+ * 若重分配失败则保持原缓冲区不变。
+ *
+ * @param buf JsonBuf 结构体指针
+ */
 static void json_buf_grow(JsonBuf *buf) {
     buf->capacity *= 2;
     char *new_buf = lv00_realloc(buf->buffer, buf->capacity);
@@ -3422,6 +3640,14 @@ static void json_buf_grow(JsonBuf *buf) {
         buf->buffer = new_buf;
 }
 
+/**
+ * @brief 向 JSON 缓冲区追加字符串
+ *
+ * 若剩余空间不足则自动扩展缓冲区，然后将字符串（含 null 终止符）复制到缓冲区。
+ *
+ * @param buf JsonBuf 结构体指针
+ * @param str 要追加的字符串
+ */
 static void json_buf_append(JsonBuf *buf, const char *str) {
     size_t len = strlen(str);
     while (buf->pos + len + 1 >= buf->capacity) {
@@ -3431,6 +3657,14 @@ static void json_buf_append(JsonBuf *buf, const char *str) {
     buf->pos += len;
 }
 
+/**
+ * @brief 向 JSON 缓冲区追加单个字符
+ *
+ * 若剩余空间不足则自动扩展缓冲区，然后写入一个字符并添加 null 终止符。
+ *
+ * @param buf JsonBuf 结构体指针
+ * @param c  要追加的字符
+ */
 static void json_buf_append_char(JsonBuf *buf, char c) {
     if (buf->pos + 2 >= buf->capacity) {
         json_buf_grow(buf);
@@ -3439,13 +3673,29 @@ static void json_buf_append_char(JsonBuf *buf, char c) {
     buf->buffer[buf->pos] = '\0';
 }
 
+/**
+ * @brief 完成 JSON 缓冲区写入并返回内容
+ *
+ * 将缓冲区的内部指针转移给调用者，调用者负责释放该内存。
+ * 调用后 JsonBuf 结构体不应再被使用。
+ *
+ * @param buf JsonBuf 结构体指针
+ * @return 缓冲区内容的字符串指针（调用者需释放），失败返回 NULL
+ */
 static char *json_buf_finalize(JsonBuf *buf) {
     char *result = buf->buffer;
     (void) buf; /* 防止未使用警告 */
     return result;
 }
 
-/* 序列化节点类型名称 */
+/**
+ * @brief 将几何节点类型枚举转换为字符串
+ *
+ * 用于 JSON 序列化时输出节点类型的可读名称。
+ *
+ * @param type 几何节点类型枚举值
+ * @return 类型名称字符串（静态常量，无需释放）
+ */
 static const char *geom_type_to_string(GeomType type) {
     switch (type) {
         case GEOM_POINT:
@@ -3463,7 +3713,14 @@ static const char *geom_type_to_string(GeomType type) {
     }
 }
 
-/* 序列化约束类型名称 */
+/**
+ * @brief 将约束类型枚举转换为字符串
+ *
+ * 用于 JSON 序列化时输出约束类型的可读名称。
+ *
+ * @param type 约束类型枚举值
+ * @return 类型名称字符串（静态常量，无需释放）
+ */
 static const char *constraint_type_to_string(ConstraintType type) {
     switch (type) {
         case INCIDENCE:

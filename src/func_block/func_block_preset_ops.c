@@ -178,7 +178,7 @@ bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *in
     if (!ensure_chain_capacity(chain)) {
         {
             void *tmp = meta;
-            lv00_free(&tmp);
+            lv00_free((void **) &tmp);
         }
         return false;
     }
@@ -190,7 +190,7 @@ bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *in
     if (!node->preset_name) {
         {
             void *tmp = meta;
-            lv00_free(&tmp);
+            lv00_free((void **) &tmp);
         }
         return false;
     }
@@ -202,7 +202,7 @@ bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *in
             lv00_free((void **) &node->preset_name);
             {
                 void *tmp = meta;
-                lv00_free(&tmp);
+                lv00_free((void **) &tmp);
             }
             return false;
         }
@@ -216,7 +216,7 @@ bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *in
     chain->count++;
     {
         void *tmp = meta;
-        lv00_free(&tmp);
+        lv00_free((void **) &tmp);
     }
     return true;
 }

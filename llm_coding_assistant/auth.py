@@ -18,10 +18,11 @@ import os
 import hmac
 import hashlib
 import json
+import logging
 import time
 import base64
 from typing import Optional, Dict, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # ============================================================
 # 尝试导入 PyJWT，不可用时降级为纯 HMAC+SHA256 实现
@@ -31,6 +32,14 @@ try:
     PYJWT_AVAILABLE = True
 except ImportError:
     PYJWT_AVAILABLE = False
+
+
+# ============================================================
+# 密码哈希常量
+# ============================================================
+
+# PBKDF2 迭代次数（符合 OWASP 推荐）
+PBKDF2_ITERATIONS = 100000
 
 
 # ============================================================
@@ -71,7 +80,7 @@ def hash_password(password: str) -> str:
     使用 PBKDF2-HMAC-SHA256 加盐哈希密码
 
     返回格式为 "salt:hash" 的字符串，salt 和 hash 均为十六进制编码。
-    迭代次数为 100000，符合 OWASP 推荐。
+    迭代次数为 PBKDF2_ITERATIONS，符合 OWASP 推荐。
 
     Args:
         password: 明文密码
@@ -84,7 +93,7 @@ def hash_password(password: str) -> str:
         'sha256',
         password.encode('utf-8'),
         salt.encode('utf-8'),
-        100000,
+        PBKDF2_ITERATIONS,
     )
     return salt + ':' + key.hex()
 
@@ -109,7 +118,7 @@ def verify_password(password: str, password_hash: str) -> bool:
             'sha256',
             password.encode('utf-8'),
             salt.encode('utf-8'),
-            100000,
+            PBKDF2_ITERATIONS,
         )
         return hmac.compare_digest(key.hex(), hash_value)
     except (ValueError, AttributeError):
@@ -209,7 +218,9 @@ def create_access_token(
         JWT 令牌字符串
     """
     if expires_delta is None:
-        expires_delta = 3600  # 默认 1 小时
+        # 默认 1 小时。注意：api_server.py 中 ACCESS_TOKEN_EXPIRE_SECONDS 默认为 86400（24小时），
+        # 调用方通常会显式传入该值。此默认值仅作为未指定时的安全回退。
+        expires_delta = 3600
 
     now = int(time.time())
     payload = {
@@ -267,7 +278,8 @@ def verify_access_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]
             return None
 
         return payload
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).debug("Token 验证异常: %s", e)
         return None
 
 

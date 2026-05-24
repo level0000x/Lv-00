@@ -31,6 +31,7 @@ import argparse
 import os
 import threading
 import signal
+import logging
 
 try:
     import websocket
@@ -44,8 +45,8 @@ except ImportError:
     print("[BRIDGE] ================================================")
     sys.exit(1)
 
-
-# ── Lv-00 事件类型颜色映射 ──
+# 模块级日志
+logger = logging.getLogger(__name__)
 EVENT_COLORS = {
     "ENGINE":        "#3fb950",  # 绿色: 引擎生命周期
     "NORMALIZE":     "#a371f7",  # 紫色: 归一化
@@ -141,8 +142,8 @@ class Lv00StreamBridge:
         if self.ws:
             try:
                 self.ws.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("关闭旧WebSocket连接时异常（可忽略）: %s", e)
             self.ws = None
 
         # 计算退避延迟（指数退避，上限为 WS_RECONNECT_MAX_DELAY）
@@ -189,9 +190,9 @@ class Lv00StreamBridge:
                     "text": f"═══ {panel_name} 已就绪 ═══"
                 })
                 self.ws.send(init_msg)
-            except Exception:
+            except Exception as e:
                 # 初始化消息发送失败不影响主流程
-                pass
+                logger.debug("面板初始化消息发送失败（可忽略）: %s", e)
 
         return stream_id
 
@@ -223,8 +224,9 @@ class Lv00StreamBridge:
                         "text": text
                     })
                     self.ws.send(msg)
-                except Exception:
+                except Exception as e:
                     self.ws_connected = False
+                    logger.warning("重连后重试发送消息失败: %s", e)
                     print(f"[BRIDGE] (离线) {text}")
             else:
                 # 重连失败，将消息回显到控制台避免丢失
@@ -379,9 +381,9 @@ class Lv00StreamBridge:
         if self.ws:
             try:
                 self.ws.close()
-            except Exception:
+            except Exception as e:
                 # 关闭时异常可忽略
-                pass
+                logger.debug("关闭WebSocket连接时异常（可忽略）: %s", e)
         print(f"\n[BRIDGE] 已停止。共处理 {self.event_count} 个事件。")
 
 
@@ -445,12 +447,19 @@ def main():
 
     # 信号处理 —— 使用 graceful shutdown 标志
     # 不在信号处理器中调用 sys.exit()，避免跳过 finally 块和资源清理。
+    # 【修复 #4】使用非局部变量（nonlocal）而非类属性来设置关闭标志。
+    # 原代码中 signal_handler() 内部设置 _shutdown_requested = True，
+    # 但由于 Python 的作用域规则，这会在 signal_handler 函数内创建一个局部变量
+    # 而非修改外层的 _shutdown_requested。同时末尾引用 Lv00StreamBridge._shutdown_requested
+    # 也是错误的，因为 _shutdown_requested 并非类属性。
+    # 修复方案：使用 nonlocal 声明确保修改的是外层变量。
     _shutdown_requested = False
 
     def signal_handler(sig, frame):
+        nonlocal _shutdown_requested
         print("\n[BRIDGE] 收到中断信号，正在优雅关闭...")
         bridge.stop()
-        Lv00StreamBridge._shutdown_requested = True
+        _shutdown_requested = True
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -468,7 +477,7 @@ def main():
         bridge.stop()
 
     # graceful shutdown: 让 Python 解释器自然退出，确保所有 finally 块执行完毕
-    if Lv00StreamBridge._shutdown_requested:
+    if _shutdown_requested:
         print("[BRIDGE] 优雅关闭完成。")
 
 

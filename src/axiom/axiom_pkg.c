@@ -19,17 +19,15 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "stream.h"
+#include "stream_context_util.h"
 
 /* 兼容性宏：axiom_set_error → lv00_set_error */
 #define axiom_set_error(fmt, ...) lv00_set_error(LV00_ERROR_INVALID_PARAM, (fmt), ##__VA_ARGS__)
 
 /* 线程局部存储用于错误消息（使用lv00_internal.h中定义的LV00_THREAD_LOCAL） */
 
-static LV00_THREAD_LOCAL StreamContext *axiom_stream_ctx = NULL;
-
-void axiom_pkg_set_stream_context(StreamContext *ctx) {
-    axiom_stream_ctx = ctx;
-}
+/* 使用 LV00_DECLARE_STREAM_CTX 宏统一声明流式上下文（static + setter 函数） */
+LV00_DECLARE_STREAM_CTX(axiom)
 
 /** SHA-256 输出大小（字节） */
 #define AXIOM_SHA256_OUTPUT_SIZE 32
@@ -373,6 +371,18 @@ bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstruct
         }
         for (int i = 0; i < item->dependency_count; i++) {
             target->dependency_chain[i] = lv00_strdup_safe(item->dependency_chain[i]);
+            if (!target->dependency_chain[i]) {
+                /* 部分拷贝失败：释放已拷贝的字符串 */
+                for (int j = 0; j < i; j++) {
+                    lv00_free((void **)&target->dependency_chain[j]);
+                }
+                lv00_free((void **)&target->dependency_chain);
+                lv00_free((void **)&target->name);
+                lv00_free((void **)&target->reduces_to);
+                lv00_free((void **)&target->external_ref);
+                memset(target, 0, sizeof(KnownUnconstructible));
+                return false;
+            }
         }
     }
 
@@ -415,7 +425,7 @@ bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl
         slot->name = lv00_strdup_safe(slot->name);
     }
     /* 安全初始化：浅拷贝后 params 指针指向调用者的内存（或未初始化），
-     * pkg 不应持有该指针的所有权。无条件置 NULL 以避免 free() 未初始化
+     * pkg 不应持有该指针的所有权。无条件置 NULL 以避免 lv00_free() 未初始化
      * 指针或调用者内存导致 bad-free / double-free。
      * 若调用者需要注册参数描述，应使用独立的 API 设置。 */
     slot->params = NULL;

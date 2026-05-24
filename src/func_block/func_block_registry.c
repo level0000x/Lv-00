@@ -43,7 +43,7 @@
 
 #ifdef _WIN32
 static CRITICAL_SECTION g_registry_mutex;
-static bool g_registry_mutex_initialized = false;
+static LONG g_registry_mutex_initialized = 0;
 #else
 static pthread_mutex_t g_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -51,9 +51,9 @@ static pthread_mutex_t g_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
 /* 互斥锁操作辅助函数 */
 static void registry_lock(void) {
 #ifdef _WIN32
-    if (!g_registry_mutex_initialized) {
+    /* 使用原子操作确保互斥锁只初始化一次，避免竞态条件 */
+    if (InterlockedCompareExchange(&g_registry_mutex_initialized, 1, 0) == 0) {
         InitializeCriticalSection(&g_registry_mutex);
-        g_registry_mutex_initialized = true;
     }
     EnterCriticalSection(&g_registry_mutex);
 #else
@@ -197,6 +197,10 @@ static int hash_compute_bucket_count(int entry_count) {
     /* 向上取整到 2 的幂（用于位掩码取模） */
     int buckets = 1;
     while (buckets < needed) {
+        if (buckets > INT_MAX / 2) {
+            /* 溢出保护：无法分配足够大的哈希表 */
+            return 0;
+        }
         buckets <<= 1;
     }
     return buckets;
@@ -229,6 +233,9 @@ static HashNode *hash_node_create(const char *key, PresetEntry *entry) {
  * @return true 成功，false 内存不足
  */
 static bool hash_insert_entry(const char *key, PresetEntry *entry) {
+    if (g_hash_table.bucket_count == 0) {
+        return false;
+    }
     uint64_t h = hash_fnv1a(key);
     int idx = hash_bucket_index(h, g_hash_table.bucket_count);
     HashNode *node = hash_node_create(key, entry);
@@ -928,6 +935,10 @@ bool func_block_registry_init(void) {
 void func_block_registry_cleanup(void) {
     registry_lock();
 
+    /* TODO: 当前实现不检查外部引用。如果有外部代码仍持有注册表中的
+     * FuncBlock 指针，cleanup 后将产生悬空指针。
+     * 建议未来添加引用计数机制。 */
+
     /* 释放所有条目的资源 */
     for (int i = 0; i < g_registry.count; i++) {
         free_preset_entry(&g_registry.entries[i]);
@@ -964,63 +975,55 @@ bool func_block_register(const char *name, const char *description, PresetCatego
     return result;
 }
 
-FuncBlock *func_block_registry_lookup(const char *name) {
+/**
+ * @brief 在注册表中查找指定名称的条目（内部公共函数）
+ *
+ * 查找策略：
+ * 1. 优先使用哈希表进行 O(1) 平均查找
+ * 2. 哈希表构建失败时优雅降级为线性搜索
+ *
+ * @param name 要查找的条目名称
+ * @return 找到的条目指针，未找到返回 NULL
+ */
+static PresetEntry *registry_find_entry(const char *name) {
     if (!name)
         return NULL;
-
-    registry_lock();
 
     /* 先尝试确保哈希表已构建（延迟重建） */
     if (hash_ensure_built()) {
         /* 哈希表可用：O(1) 平均查找 */
         PresetEntry *entry = hash_lookup_entry(name);
-        if (entry && entry->template_fb) {
-            FuncBlock *copy = func_block_copy(entry->template_fb);
-            registry_unlock();
-            return copy;
-        }
+        if (entry)
+            return entry;
     } else {
         /* 哈希表构建失败（内存不足）：回退到线性搜索。
          * 这是优雅降级策略，确保系统在内存压力下仍能正常工作。 */
         for (int i = 0; i < g_registry.count; i++) {
             if (g_registry.entries[i].name && strcmp(g_registry.entries[i].name, name) == 0) {
-                if (g_registry.entries[i].template_fb) {
-                    FuncBlock *copy = func_block_copy(g_registry.entries[i].template_fb);
-                    registry_unlock();
-                    return copy;
-                }
+                return &g_registry.entries[i];
             }
         }
     }
 
-    registry_unlock();
     return NULL; /* 未找到 */
 }
 
-PresetEntry *func_block_registry_find(const char *name) {
-    if (!name)
-        return NULL;
-
+FuncBlock *func_block_registry_lookup(const char *name) {
     registry_lock();
-
-    /* 先尝试确保哈希表已构建（延迟重建） */
-    if (hash_ensure_built()) {
-        /* 哈希表可用：O(1) 平均查找 */
-        PresetEntry *entry = hash_lookup_entry(name);
-        registry_unlock();
-        return entry;
+    PresetEntry *entry = registry_find_entry(name);
+    FuncBlock *result = NULL;
+    if (entry && entry->template_fb) {
+        result = func_block_copy(entry->template_fb);
     }
-
-    /* 哈希表构建失败（内存不足）：回退到线性搜索（优雅降级） */
-    for (int i = 0; i < g_registry.count; i++) {
-        if (g_registry.entries[i].name && strcmp(g_registry.entries[i].name, name) == 0) {
-            registry_unlock();
-            return &g_registry.entries[i];
-        }
-    }
-
     registry_unlock();
-    return NULL; /* 未找到 */
+    return result;
+}
+
+PresetEntry *func_block_registry_find(const char *name) {
+    registry_lock();
+    PresetEntry *entry = registry_find_entry(name);
+    registry_unlock();
+    return entry;
 }
 
 int func_block_registry_find_by_category(PresetCategory category, PresetEntry **out_entries, int max_count) {
@@ -1043,7 +1046,7 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
 }
 
 /**
- * @brief 将预设类别枚举值转换为中文可读字符串
+ * @brief 类别映射表（统一中英文名称）
  *
  * 类别说明：
  *   - PRESET_CATEGORY_CONSTRUCTION   : 几何构造 — 点、线、圆等几何对象的构造操作
@@ -1062,52 +1065,59 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
  *   - PRESET_CATEGORY_COMPLEX_ANALYSIS : 复分析 — 复变函数相关
  *   - PRESET_CATEGORY_PROBABILITY    : 概率统计 — 概率分布、统计推断等
  *
+ * 合并 preset_category_to_string 和 preset_category_from_string 的映射数据，
+ * 消除两处独立维护相同类别信息导致的重复。
+ * cn 字段为 NULL 的条目仅用于英文解析，en 字段为 NULL 的条目仅用于中文显示。
+ */
+static const struct {
+    PresetCategory cat;
+    const char *cn;  /* 中文名称（用于 to_string 显示） */
+    const char *en;  /* 英文名称（用于序列化/反序列化） */
+} g_category_map[] = {
+    {PRESET_CATEGORY_CONSTRUCTION,       "几何构造",   "construction"},
+    {PRESET_CATEGORY_MEASUREMENT,        "度量计算",   "measurement"},
+    {PRESET_CATEGORY_TRANSFORMATION,     "几何变换",   "transformation"},
+    {PRESET_CATEGORY_ALGEBRAIC,          "代数运算",   "algebraic"},
+    {PRESET_CATEGORY_LOGIC,              "逻辑推导",   "logic"},
+    {PRESET_CATEGORY_ANALYSIS,           "分析运算",   "analysis"},
+    {PRESET_CATEGORY_NUMBER_THEORY,      "数论运算",   "number_theory"},
+    {PRESET_CATEGORY_GROUP_THEORY,       "群论运算",   "group_theory"},
+    {PRESET_CATEGORY_RING_THEORY,        "环论运算",   "ring_theory"},
+    {PRESET_CATEGORY_FIELD_THEORY,       "域论运算",   "field_theory"},
+    {PRESET_CATEGORY_TOPOLOGY,           "拓扑构造",   "topology"},
+    {PRESET_CATEGORY_LINEAR_ALGEBRA,     "线性代数",   "linear_algebra"},
+    {PRESET_CATEGORY_COMBINATORICS,      "组合数学",   "combinatorics"},
+    {PRESET_CATEGORY_COMPLEX_ANALYSIS,   "复分析",     "complex_analysis"},
+    {PRESET_CATEGORY_PROBABILITY,        "概率统计",   "probability"},
+    /* 以下条目仅用于 from_string 解析（cn 为 NULL 表示无中文显示名） */
+    {PRESET_CATEGORY_GEOMETRY,           NULL,         "geometry"},
+    {PRESET_CATEGORY_ALGEBRA,            NULL,         "algebra"},
+    {PRESET_CATEGORY_CATEGORY_THEORY,    NULL,         "category_theory"},
+    {PRESET_CATEGORY_SET_THEORY,         NULL,         "set_theory"},
+    {PRESET_CATEGORY_CUSTOM,             NULL,         "custom"},
+    {PRESET_CATEGORY_GRAPH_THEORY,       NULL,         "graph_theory"},
+    {PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY, NULL,       "differential_geometry"},
+};
+
+#define CATEGORY_MAP_COUNT (sizeof(g_category_map) / sizeof(g_category_map[0]))
+
+/**
+ * @brief 将预设类别枚举值转换为中文可读字符串
  * @param cat 预设类别枚举值
  * @return 类别的中文可读字符串，未知类别返回 "未知类别"
  */
 const char *preset_category_to_string(PresetCategory cat) {
-    switch (cat) {
-        case PRESET_CATEGORY_CONSTRUCTION:
-            return "几何构造";
-        case PRESET_CATEGORY_MEASUREMENT:
-            return "度量计算";
-        case PRESET_CATEGORY_TRANSFORMATION:
-            return "几何变换";
-        case PRESET_CATEGORY_ALGEBRAIC:
-            return "代数运算";
-        case PRESET_CATEGORY_LOGIC:
-            return "逻辑推导";
-        case PRESET_CATEGORY_ANALYSIS:
-            return "分析运算";
-        case PRESET_CATEGORY_NUMBER_THEORY:
-            return "数论运算";
-        case PRESET_CATEGORY_GROUP_THEORY:
-            return "群论运算";
-        case PRESET_CATEGORY_RING_THEORY:
-            return "环论运算";
-        case PRESET_CATEGORY_FIELD_THEORY:
-            return "域论运算";
-        case PRESET_CATEGORY_TOPOLOGY:
-            return "拓扑构造";
-        case PRESET_CATEGORY_LINEAR_ALGEBRA:
-            return "线性代数";
-        case PRESET_CATEGORY_COMBINATORICS:
-            return "组合数学";
-        case PRESET_CATEGORY_COMPLEX_ANALYSIS:
-            return "复分析";
-        case PRESET_CATEGORY_PROBABILITY:
-            return "概率统计";
-        default:
-            return "未知类别";
+    for (size_t i = 0; i < CATEGORY_MAP_COUNT; i++) {
+        if (g_category_map[i].cat == cat && g_category_map[i].cn)
+            return g_category_map[i].cn;
     }
+    return "未知类别";
 }
 
 /**
  * @brief 从字符串解析预设类别枚举值
  *
- * 支持中文名称和英文名称两种格式的解析。
- * 中文名称与 preset_category_to_string() 返回值对应；
- * 英文名称用于序列化/反序列化等场景。
+ * 支持中文名称和英文名称两种格式的解析，基于 g_category_map 统一查找。
  *
  * @param str      类别名称字符串（中文或英文）
  * @param category 输出：解析后的类别枚举值
@@ -1117,74 +1127,10 @@ bool preset_category_from_string(const char *str, PresetCategory *category) {
     if (!str || !category)
         return false;
 
-    /* 中文名称映射（与 preset_category_to_string 返回值对应） */
-    static const struct {
-        const char *name;
-        PresetCategory cat;
-    } cn_map[] = {
-        {"几何构造", PRESET_CATEGORY_CONSTRUCTION},
-        {"度量计算", PRESET_CATEGORY_MEASUREMENT},
-        {"几何变换", PRESET_CATEGORY_TRANSFORMATION},
-        {"代数运算", PRESET_CATEGORY_ALGEBRAIC},
-        {"逻辑推导", PRESET_CATEGORY_LOGIC},
-        {"分析运算", PRESET_CATEGORY_ANALYSIS},
-        {"数论运算", PRESET_CATEGORY_NUMBER_THEORY},
-        {"群论运算", PRESET_CATEGORY_GROUP_THEORY},
-        {"环论运算", PRESET_CATEGORY_RING_THEORY},
-        {"域论运算", PRESET_CATEGORY_FIELD_THEORY},
-        {"拓扑构造", PRESET_CATEGORY_TOPOLOGY},
-        {"线性代数", PRESET_CATEGORY_LINEAR_ALGEBRA},
-        {"组合数学", PRESET_CATEGORY_COMBINATORICS},
-        {"复分析", PRESET_CATEGORY_COMPLEX_ANALYSIS},
-        {"概率统计", PRESET_CATEGORY_PROBABILITY},
-        {"几何", PRESET_CATEGORY_GEOMETRY},
-        {"代数", PRESET_CATEGORY_ALGEBRA},
-        {"范畴论", PRESET_CATEGORY_CATEGORY_THEORY},
-        {"集合论", PRESET_CATEGORY_SET_THEORY},
-        {"自定义", PRESET_CATEGORY_CUSTOM},
-        {"图论", PRESET_CATEGORY_GRAPH_THEORY},
-        {"微分几何", PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY},
-    };
-
-    for (size_t i = 0; i < sizeof(cn_map) / sizeof(cn_map[0]); i++) {
-        if (strcmp(cn_map[i].name, str) == 0) {
-            *category = cn_map[i].cat;
-            return true;
-        }
-    }
-
-    /* 英文名称映射（用于序列化/反序列化） */
-    static const struct {
-        const char *name;
-        PresetCategory cat;
-    } en_map[] = {
-        {"construction", PRESET_CATEGORY_CONSTRUCTION},
-        {"measurement", PRESET_CATEGORY_MEASUREMENT},
-        {"transformation", PRESET_CATEGORY_TRANSFORMATION},
-        {"algebraic", PRESET_CATEGORY_ALGEBRAIC},
-        {"logic", PRESET_CATEGORY_LOGIC},
-        {"analysis", PRESET_CATEGORY_ANALYSIS},
-        {"number_theory", PRESET_CATEGORY_NUMBER_THEORY},
-        {"group_theory", PRESET_CATEGORY_GROUP_THEORY},
-        {"ring_theory", PRESET_CATEGORY_RING_THEORY},
-        {"field_theory", PRESET_CATEGORY_FIELD_THEORY},
-        {"topology", PRESET_CATEGORY_TOPOLOGY},
-        {"linear_algebra", PRESET_CATEGORY_LINEAR_ALGEBRA},
-        {"combinatorics", PRESET_CATEGORY_COMBINATORICS},
-        {"complex_analysis", PRESET_CATEGORY_COMPLEX_ANALYSIS},
-        {"probability", PRESET_CATEGORY_PROBABILITY},
-        {"geometry", PRESET_CATEGORY_GEOMETRY},
-        {"algebra", PRESET_CATEGORY_ALGEBRA},
-        {"category_theory", PRESET_CATEGORY_CATEGORY_THEORY},
-        {"set_theory", PRESET_CATEGORY_SET_THEORY},
-        {"custom", PRESET_CATEGORY_CUSTOM},
-        {"graph_theory", PRESET_CATEGORY_GRAPH_THEORY},
-        {"differential_geometry", PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY},
-    };
-
-    for (size_t i = 0; i < sizeof(en_map) / sizeof(en_map[0]); i++) {
-        if (strcmp(en_map[i].name, str) == 0) {
-            *category = en_map[i].cat;
+    for (size_t i = 0; i < CATEGORY_MAP_COUNT; i++) {
+        if ((g_category_map[i].cn && strcmp(g_category_map[i].cn, str) == 0) ||
+            (g_category_map[i].en && strcmp(g_category_map[i].en, str) == 0)) {
+            *category = g_category_map[i].cat;
             return true;
         }
     }

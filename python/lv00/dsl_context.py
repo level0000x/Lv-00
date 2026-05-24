@@ -3,7 +3,7 @@ Lv-00 DSL 上下文模块 - 几何构造上下文
 
 提供 G 上下文类，支持 with G() as g: 模式管理局部几何构造作用域。
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
@@ -17,6 +17,9 @@ from .dsl_wrappers import (
     PointWrapper, SegmentWrapper, LineWrapper,
     CircleWrapper, TriangleWrapper, PolygonWrapper,
 )
+
+# 浮点数相等性比较的容差值。
+_EPSILON = 1e-15
 
 # ============================================================
 # 内部辅助
@@ -52,7 +55,8 @@ def _to_core_point(
     graph: Graph
 ) -> Point:
     """将 PointWrapper / Point / tuple 转为 core.Point。"""
-    if type(value).__name__ == 'PointWrapper':
+    # 使用 isinstance() 进行类型检查，替代基于类型名称的字符串比较。
+    if isinstance(value, PointWrapper):
         return value._point
     if isinstance(value, Point):
         return value
@@ -263,7 +267,7 @@ class G:
 
         if through is not None:
             r = center.distance_to(through)
-            if abs(r) < 1e-15:
+            if abs(r) < _EPSILON:
                 raise DSLError(f"圆心与 through 点重合，无法确定半径")
             return CircleWrapper(center, SymbolicCoord(r), self)
 
@@ -521,7 +525,7 @@ class G:
         x4, y4 = _float(l2._p2.x), _float(l2._p2.y)
 
         denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-        if abs(denom) < 1e-15:
+        if abs(denom) < _EPSILON:
             raise DSLError("两条直线平行或重合，无唯一交点")
 
         px = ((x1*y2 - y1*x2) * (x3 - x4) - (x1 - x2) * (x3*y4 - y3*x4)) / denom
@@ -551,7 +555,7 @@ class G:
         dy = y2 - y1
         d = math.sqrt(dx * dx + dy * dy)
 
-        if d < 1e-15 and abs(r1 - r2) < 1e-15:
+        if d < _EPSILON and abs(r1 - r2) < _EPSILON:
             raise DSLError("两圆重合，有无穷多个交点")
         if d > r1 + r2 + 1e-9:
             raise DSLError("两圆相离，无交点")
@@ -610,7 +614,7 @@ class G:
         mag_ba = math.sqrt(bax*bax + bay*bay)
         mag_bc = math.sqrt(bcx*bcx + bcy*bcy)
 
-        if mag_ba < 1e-15 or mag_bc < 1e-15:
+        if mag_ba < _EPSILON or mag_bc < _EPSILON:
             raise DSLError("角度计算失败：边退化为点")
 
         cos_val = max(-1.0, min(1.0, dot / (mag_ba * mag_bc)))

@@ -1,21 +1,48 @@
 """
 LLM编程辅助系统 - AI引擎模块
 整合多个AI服务提供商的统一接口
+
+支持的AI提供商:
+  - DashScope (阿里云通义千问) - 默认提供商，适合中文编程场景
+  - OpenAI (GPT-4) - 通用编程辅助
+  - DeepSeek - 专为代码优化设计
+  - Anthropic Claude - 长上下文推理
+  - Google Gemini - 多模态能力
+  - Local (本地兜底) - 无API密钥时的预设回复
+
+会话管理机制:
+  - 支持按 session_id 隔离的对话历史，防止跨用户泄漏
+  - LRU (Least Recently Used) 策略自动清理最久未访问的会话
+  - 默认最大会话数 max_sessions=100，超出时淘汰最旧会话
+  - 每个会话最大历史条数 max_history=50
+
+流式输出:
+  - DashScope、OpenAI、DeepSeek、Gemini 均支持流式输出
+  - 流式调用通过 asyncio.to_thread() 包装同步SDK，避免阻塞事件循环
+  - 流式方法返回 AsyncGenerator[str, None]，调用方可逐块消费
+
+配置要求:
+  - DASHSCOPE_API_KEY: 通义千问API密钥（推荐，默认提供商）
+  - OPENAI_API_KEY: OpenAI API密钥
+  - DEEPSEEK_API_KEY: DeepSeek API密钥
+  - ANTHROPIC_API_KEY: Anthropic Claude API密钥
+  - GEMINI_API_KEY: Google Gemini API密钥
+  - 至少配置一个API密钥即可使用，未配置时回退到本地预设回复
+
+核心类:
+  - AIProvider: AI服务提供商枚举
+  - AIEngine: 统一AI引擎，支持多提供商切换和会话管理
 """
 import os
 import json
 import logging
 import asyncio
-import threading
+import time
 from typing import Optional, Dict, Any, List, AsyncGenerator, Union
 from enum import Enum
 
 # 模块级日志
 logger = logging.getLogger(__name__)
-
-# 全局锁：保护 dashscope 全局 API key 的修改
-# 注意：dashscope 库使用全局配置，多实例场景需要加锁保护
-_dashscope_lock = threading.Lock()
 
 
 class AIProvider(Enum):
@@ -65,6 +92,16 @@ class AIEngine:
         self.max_sessions = 100
         # 会话访问时间戳，用于 LRU 清理
         self._session_access_times: Dict[str, float] = {}
+        # 上次定期清理会话的时间戳
+        self._last_session_cleanup: float = time.time()
+        # 定期清理会话的间隔（秒），默认 10 分钟
+        self._session_cleanup_interval: float = 600.0
+        # 不活跃会话的超时时间（秒），超过此时间未访问的会话将被清理，默认 30 分钟
+        self._session_inactive_timeout: float = 1800.0
+        # 保护共享会话状态的异步锁
+        self._history_lock = asyncio.Lock()
+        # OpenAI 客户端实例（延迟初始化，复用连接池）
+        self._openai_client: Optional[Any] = None
 
     def _load_config(self) -> Dict[str, Any]:
         """加载配置，包含API密钥和模型参数"""
@@ -100,9 +137,11 @@ class AIEngine:
                 return provider
         return AIProvider.LOCAL
 
-    def _get_history(self, session_id: Optional[str] = None) -> List[Dict[str, str]]:
+    async def _get_history(self, session_id: Optional[str] = None) -> List[Dict[str, str]]:
         """
         获取指定会话的对话历史
+
+        当会话数量超过 max_sessions 时，按 LRU 策略清理最久未访问的会话。
 
         Args:
             session_id: 会话ID，为None时返回默认的对话历史
@@ -110,11 +149,66 @@ class AIEngine:
         Returns:
             该会话的对话历史列表
         """
-        if session_id is not None:
-            return self.session_histories.setdefault(session_id, [])
-        return self.conversation_history
+        async with self._history_lock:
+            if session_id is not None:
+                # 更新会话访问时间
+                self._session_access_times[session_id] = time.time()
+                # LRU 清理：当会话数超过上限时，移除最久未访问的会话
+                if len(self.session_histories) > self.max_sessions:
+                    self._evict_oldest_sessions()
+                return self.session_histories.setdefault(session_id, [])
+            return self.conversation_history
 
-    def _build_messages(self, system_prompt: str, message: str,
+    def _evict_oldest_sessions(self) -> None:
+        """
+        按 LRU 策略清理最久未访问的会话，直到会话数不超过 max_sessions。
+
+        同时执行定期清理：每隔 _session_cleanup_interval 秒，
+        清理所有超过 _session_inactive_timeout 未访问的不活跃会话。
+
+        每次清理最多移除 20% 的会话，避免频繁触发清理。
+        """
+        now = time.time()
+
+        # 定期清理不活跃会话（基于超时时间）
+        if now - self._last_session_cleanup >= self._session_cleanup_interval:
+            inactive_cutoff = now - self._session_inactive_timeout
+            inactive_sessions = [
+                sid for sid, ts in self._session_access_times.items()
+                if ts < inactive_cutoff
+            ]
+            if inactive_sessions:
+                for sid in inactive_sessions:
+                    self.session_histories.pop(sid, None)
+                    self._session_access_times.pop(sid, None)
+                logger.info(
+                    "定期清理不活跃会话完成，移除 %d 个超时会话（超时阈值: %.0f 秒），剩余 %d 个",
+                    len(inactive_sessions),
+                    self._session_inactive_timeout,
+                    len(self.session_histories),
+                )
+            self._last_session_cleanup = now
+
+        if len(self.session_histories) <= self.max_sessions:
+            return
+
+        # 按访问时间排序，移除最旧的会话（一次最多清理 20%）
+        evict_count = max(1, len(self.session_histories) // 5)
+        sorted_sessions = sorted(
+            self._session_access_times.items(),
+            key=lambda item: item[1],
+        )
+        for session_id, _ in sorted_sessions[:evict_count]:
+            self.session_histories.pop(session_id, None)
+            self._session_access_times.pop(session_id, None)
+
+        logger.info(
+            "LRU 会话清理完成，移除 %d 个最久未访问的会话，剩余 %d 个",
+            evict_count,
+            len(self.session_histories),
+        )
+
+    async def _build_messages(self, system_prompt: str, message: str,
                         session_id: Optional[str] = None) -> List[Dict[str, str]]:
         """
         构建发送给AI提供商的消息列表（系统提示词 + 历史记录 + 用户消息）
@@ -130,7 +224,7 @@ class AIEngine:
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        messages.extend(self._get_history(session_id))
+        messages.extend(await self._get_history(session_id))
         messages.append({"role": "user", "content": message})
         return messages
 
@@ -177,7 +271,8 @@ class AIEngine:
                 if stream:
                     return await self._chat_gemini_stream(message, system, session_id=session_id)
                 return await self._chat_gemini(message, system, session_id=session_id)
-        except Exception as e:
+        except (RuntimeError, ConnectionError, ValueError, KeyError, ImportError) as e:
+            logger.error("AI提供商调用失败 [%s]: %s", provider, e, exc_info=True)
             return await self._chat_fallback(message, system)
 
         return "暂不支持该提供商"
@@ -222,27 +317,63 @@ class AIEngine:
         try:
             import dashscope
             # 不再修改 dashscope 全局 api_key，改为在每次调用时通过参数传递
-            messages = self._build_messages(system, message, session_id)
+            messages = await self._build_messages(system, message, session_id)
 
             # 使用 asyncio.to_thread 避免同步SDK阻塞事件循环
             response = await asyncio.to_thread(self._dashscope_call_sync, messages, stream=False)
 
             if response.status_code == 200:
                 content = response.output.choices[0].message.content
-                self._update_history(message, content, session_id=session_id)
+                await self._update_history(message, content, session_id=session_id)
                 return content
             else:
-                return f"API错误: {response.code} - {response.message}"
+                return f"API 请求失败（错误码 {response.code}）：{response.message}"
         except ImportError:
-            return "请安装dashscope: pip install dashscope"
-        except Exception as e:
+            raise ImportError("请安装dashscope: pip install dashscope")
+        except (ConnectionError, TimeoutError, RuntimeError, KeyError, OSError) as e:
             logger.error("通义千问调用失败: %s", e, exc_info=True)
             return "AI服务暂时不可用，请稍后重试"
+
+    def _dashscope_stream_collect_sync(self, messages: List[Dict[str, str]]) -> List[str]:
+        """
+        同步执行 DashScope 流式调用并收集所有文本片段（在线程中运行，避免阻塞事件循环）
+
+        将整个同步迭代过程封装在线程内完成，包括网络 I/O 和响应解析，
+        确保异步事件循环不会被阻塞。
+
+        Args:
+            messages: 消息列表
+
+        Returns:
+            文本片段列表（每个元素是一个流式 chunk 的内容）
+        """
+        import dashscope
+        timeout = self.config.get("request_timeout", 60.0)
+        response = dashscope.Generation.call(
+            model=self.config.get("default_model", "qwen-coder-plus"),
+            messages=messages,
+            max_tokens=self.config.get("max_tokens", 4000),
+            temperature=self.config.get("temperature", 0.3),
+            stream=True,
+            request_timeout=timeout,
+            api_key=self.config["dashscope_api_key"]
+        )
+        chunks: List[str] = []
+        for chunk in response:
+            if chunk.status_code == 200:
+                content = chunk.output.choices[0].message.content
+                if content:
+                    chunks.append(content)
+        return chunks
 
     async def _chat_dashscope_stream(self, message: str, system: str,
                                      session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
         阿里云通义千问 - 流式输出
+
+        使用 asyncio.to_thread() 将整个同步流式调用（包括迭代器遍历）
+        包装在线程中执行，避免阻塞事件循环。线程完成收集后，
+        在异步循环中逐个 yield 结果给调用方。
 
         Args:
             message: 用户消息
@@ -253,30 +384,17 @@ class AIEngine:
             流式文本片段
         """
         try:
-            import dashscope
-            # 不再修改 dashscope 全局 api_key，改为在每次调用时通过参数传递
+            messages = await self._build_messages(system, message, session_id)
 
-            messages = self._build_messages(system, message, session_id)
-
-            timeout = self.config.get("request_timeout", 60.0)
-            response = dashscope.Generation.call(
-                model=self.config.get("default_model", "qwen-coder-plus"),
-                messages=messages,
-                max_tokens=self.config.get("max_tokens", 4000),
-                temperature=self.config.get("temperature", 0.3),
-                stream=True,
-                request_timeout=timeout,
-                api_key=self.config["dashscope_api_key"]
-            )
+            # 在线程中完成整个同步流式调用和迭代，避免阻塞事件循环
+            chunks = await asyncio.to_thread(self._dashscope_stream_collect_sync, messages)
 
             full_content = ""
-            for chunk in response:
-                if chunk.status_code == 200:
-                    content = chunk.output.choices[0].message.content
-                    full_content += content
-                    yield content
+            for content in chunks:
+                full_content += content
+                yield content
 
-            self._update_history(message, full_content, session_id=session_id)
+            await self._update_history(message, full_content, session_id=session_id)
         except Exception as e:
             logger.error("通义千问流式调用失败: %s", e, exc_info=True)
             yield "AI服务暂时不可用，请稍后重试"
@@ -294,11 +412,13 @@ class AIEngine:
         """
         from openai import OpenAI
         timeout = self.config.get("request_timeout", 60.0)
-        client = OpenAI(
-            api_key=self.config["openai_api_key"],
-            timeout=timeout
-        )
-        return client.chat.completions.create(
+        # 复用客户端实例以利用连接池
+        if self._openai_client is None:
+            self._openai_client = OpenAI(
+                api_key=self.config["openai_api_key"],
+                timeout=timeout
+            )
+        return self._openai_client.chat.completions.create(
             model="gpt-4",
             messages=messages,
             max_tokens=self.config.get("max_tokens", 4000),
@@ -320,24 +440,65 @@ class AIEngine:
             AI回复文本
         """
         try:
-            messages = self._build_messages(system, message, session_id)
+            messages = await self._build_messages(system, message, session_id)
 
             # 使用 asyncio.to_thread 避免同步SDK阻塞事件循环
             response = await asyncio.to_thread(self._openai_call_sync, messages, stream=False)
 
             content = response.choices[0].message.content
-            self._update_history(message, content, session_id=session_id)
+            await self._update_history(message, content, session_id=session_id)
             return content
         except ImportError:
-            return "请安装openai: pip install openai"
+            raise ImportError("请安装openai: pip install openai")
         except Exception as e:
             logger.error("OpenAI调用失败: %s", e, exc_info=True)
             return "AI服务暂时不可用，请稍后重试"
+
+    def _openai_stream_collect_sync(self, messages: List[Dict[str, str]]) -> List[str]:
+        """
+        同步执行 OpenAI 流式调用并收集所有文本片段（在线程中运行，避免阻塞事件循环）
+
+        将整个同步迭代过程封装在线程内完成，包括网络 I/O 和响应解析，
+        确保异步事件循环不会被阻塞。
+
+        Args:
+            messages: 消息列表
+
+        Returns:
+            文本片段列表（每个元素是一个流式 chunk 的内容）
+        """
+        from openai import OpenAI
+        timeout = self.config.get("request_timeout", 60.0)
+        # 复用客户端实例以利用连接池
+        if self._openai_client is None:
+            self._openai_client = OpenAI(
+                api_key=self.config["openai_api_key"],
+                timeout=timeout
+            )
+
+        response = self._openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=messages,
+            max_tokens=self.config.get("max_tokens", 4000),
+            temperature=self.config.get("temperature", 0.3),
+            stream=True
+        )
+
+        chunks: List[str] = []
+        for chunk in response:
+            if chunk.choices[0].delta.content:
+                content = chunk.choices[0].delta.content
+                chunks.append(content)
+        return chunks
 
     async def _chat_openai_stream(self, message: str, system: str,
                                   session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
         OpenAI GPT - 流式输出
+
+        使用 asyncio.to_thread() 将整个同步流式调用（包括迭代器遍历）
+        包装在线程中执行，避免阻塞事件循环。线程完成收集后，
+        在异步循环中逐个 yield 结果给调用方。
 
         Args:
             message: 用户消息
@@ -348,31 +509,17 @@ class AIEngine:
             流式文本片段
         """
         try:
-            from openai import OpenAI
-            timeout = self.config.get("request_timeout", 60.0)
-            client = OpenAI(
-                api_key=self.config["openai_api_key"],
-                timeout=timeout
-            )
+            messages = await self._build_messages(system, message, session_id)
 
-            messages = self._build_messages(system, message, session_id)
-
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=messages,
-                max_tokens=self.config.get("max_tokens", 4000),
-                temperature=self.config.get("temperature", 0.3),
-                stream=True
-            )
+            # 在线程中完成整个同步流式调用和迭代，避免阻塞事件循环
+            chunks = await asyncio.to_thread(self._openai_stream_collect_sync, messages)
 
             full_content = ""
-            for chunk in response:
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_content += content
-                    yield content
+            for content in chunks:
+                full_content += content
+                yield content
 
-            self._update_history(message, full_content, session_id=session_id)
+            await self._update_history(message, full_content, session_id=session_id)
         except Exception as e:
             logger.error("OpenAI流式调用失败: %s", e, exc_info=True)
             yield "AI服务暂时不可用，请稍后重试"
@@ -393,7 +540,7 @@ class AIEngine:
         try:
             import httpx
 
-            messages = self._build_messages(system, message, session_id)
+            messages = await self._build_messages(system, message, session_id)
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -414,13 +561,13 @@ class AIEngine:
                 if response.status_code == 200:
                     data = response.json()
                     content = data["choices"][0]["message"]["content"]
-                    self._update_history(message, content, session_id=session_id)
+                    await self._update_history(message, content, session_id=session_id)
                     return content
                 else:
-                    return f"API错误: {response.status_code}"
+                    return f"API 请求失败（HTTP 状态码 {response.status_code}）"
         except ImportError:
-            return "请安装httpx: pip install httpx"
-        except Exception as e:
+            raise ImportError("请安装httpx: pip install httpx")
+        except (ConnectionError, TimeoutError, RuntimeError, KeyError, OSError) as e:
             logger.error("DeepSeek调用失败: %s", e, exc_info=True)
             return "AI服务暂时不可用，请稍后重试"
 
@@ -440,7 +587,7 @@ class AIEngine:
         try:
             import httpx
 
-            messages = self._build_messages(system, message, session_id)
+            messages = await self._build_messages(system, message, session_id)
 
             async with httpx.AsyncClient() as client:
                 async with client.stream(
@@ -473,10 +620,10 @@ class AIEngine:
                                     yield content
                             except (json.JSONDecodeError, KeyError, IndexError) as e:
                                 # SSE 流中可能出现不完整的 JSON 行，记录后跳过
-                                logger.debug(f"解析 SSE 数据块失败: {data} - {e}")
+                                logger.debug("解析 SSE 数据块失败: %s - %s", data, e)
 
-                    self._update_history(message, full_content, session_id=session_id)
-        except Exception as e:
+                    await self._update_history(message, full_content, session_id=session_id)
+        except (ConnectionError, TimeoutError, RuntimeError, KeyError, OSError) as e:
             logger.error("DeepSeek流式调用失败: %s", e, exc_info=True)
             yield "AI服务暂时不可用，请稍后重试"
 
@@ -496,7 +643,7 @@ class AIEngine:
         try:
             import httpx
 
-            history = self._get_history(session_id)
+            history = await self._get_history(session_id)
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -519,13 +666,37 @@ class AIEngine:
                 if response.status_code == 200:
                     data = response.json()
                     content = data["content"][0]["text"]
-                    self._update_history(message, content, session_id=session_id)
+                    await self._update_history(message, content, session_id=session_id)
                     return content
                 else:
-                    return f"API错误: {response.status_code}"
-        except Exception as e:
+                    return f"API 请求失败（HTTP 状态码 {response.status_code}）"
+        except (ConnectionError, TimeoutError, RuntimeError, KeyError, OSError) as e:
             logger.error("Claude调用失败: %s", e, exc_info=True)
             return "AI服务暂时不可用，请稍后重试"
+
+    def _convert_messages_to_gemini_format(self, messages: List[Dict[str, str]]) -> tuple:
+        """将 OpenAI 格式的消息列表转换为 Gemini 格式
+
+        Args:
+            messages: OpenAI 格式的消息列表，每条消息包含 role 和 content 字段
+
+        Returns:
+            tuple: (contents, system_instruction)
+                - contents: Gemini 格式的消息内容列表
+                - system_instruction: 系统指令文本（如果有）
+        """
+        contents = []
+        system_instruction = None
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            if role == "system":
+                system_instruction = content
+            elif role == "user":
+                contents.append({"role": "user", "parts": [{"text": content}]})
+            elif role == "assistant":
+                contents.append({"role": "model", "parts": [{"text": content}]})
+        return contents, system_instruction
 
     async def _chat_gemini(self, message: str, system: str,
                            session_id: Optional[str] = None) -> str:
@@ -543,32 +714,16 @@ class AIEngine:
         try:
             import httpx
 
-            messages = self._build_messages(system, message, session_id)
+            messages = await self._build_messages(system, message, session_id)
 
             # 将 OpenAI 格式消息转换为 Gemini 格式
-            contents = []
-            system_instruction = None
-            for msg in messages:
-                role = msg["role"]
-                content = msg["content"]
-                if role == "system":
-                    system_instruction = content
-                elif role == "user":
-                    contents.append({
-                        "role": "user",
-                        "parts": [{"text": content}]
-                    })
-                elif role == "assistant":
-                    contents.append({
-                        "role": "model",
-                        "parts": [{"text": content}]
-                    })
+            contents, system_instruction = self._convert_messages_to_gemini_format(messages)
 
             model = self.config.get("gemini_model", "gemini-pro")
             api_key = self.config["gemini_api_key"]
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model}:generateContent?key={api_key}"
+                f"{model}:generateContent"
             )
 
             request_body = {
@@ -586,7 +741,7 @@ class AIEngine:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url,
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
                     json=request_body,
                     timeout=self.config.get("request_timeout", 60.0)
                 )
@@ -597,16 +752,16 @@ class AIEngine:
                     if candidates:
                         parts = candidates[0].get("content", {}).get("parts", [])
                         content = "".join(part.get("text", "") for part in parts)
-                        self._update_history(message, content, session_id=session_id)
+                        await self._update_history(message, content, session_id=session_id)
                         return content
                     else:
                         return "Gemini 返回空响应"
                 else:
                     error_detail = response.text
                     logger.error("Gemini API错误 [%d]: %s", response.status_code, error_detail)
-                    return f"Gemini API错误: {response.status_code}"
+                    return f"Gemini API 请求失败（HTTP 状态码 {response.status_code}）"
         except ImportError:
-            return "请安装httpx: pip install httpx"
+            raise ImportError("请安装httpx: pip install httpx")
         except Exception as e:
             logger.error("Gemini调用失败: %s", e, exc_info=True)
             return "AI服务暂时不可用，请稍后重试"
@@ -626,34 +781,18 @@ class AIEngine:
         """
         try:
             import httpx
-            import json as _json
 
-            messages = self._build_messages(system, message, session_id)
+            messages = await self._build_messages(system, message, session_id)
 
             # 将 OpenAI 格式消息转换为 Gemini 格式
-            contents = []
-            system_instruction = None
-            for msg in messages:
-                role = msg["role"]
-                content = msg["content"]
-                if role == "system":
-                    system_instruction = content
-                elif role == "user":
-                    contents.append({
-                        "role": "user",
-                        "parts": [{"text": content}]
-                    })
-                elif role == "assistant":
-                    contents.append({
-                        "role": "model",
-                        "parts": [{"text": content}]
-                    })
+            contents, system_instruction = self._convert_messages_to_gemini_format(messages)
 
             model = self.config.get("gemini_model", "gemini-pro")
             api_key = self.config["gemini_api_key"]
+            # 使用 streamGenerateContent 端点，API 密钥通过 HTTP Header 传递，避免暴露在 URL 中
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model}:streamGenerateContent?alt=sse&key={api_key}"
+                f"{model}:streamGenerateContent?alt=sse"
             )
 
             request_body = {
@@ -672,7 +811,7 @@ class AIEngine:
                 async with client.stream(
                     "POST",
                     url,
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
                     json=request_body,
                     timeout=self.config.get("request_timeout", 60.0)
                 ) as response:
@@ -683,7 +822,7 @@ class AIEngine:
                             if not data_str.strip():
                                 continue
                             try:
-                                chunk = _json.loads(data_str)
+                                chunk = json.loads(data_str)
                                 candidates = chunk.get("candidates", [])
                                 if candidates:
                                     parts = candidates[0].get("content", {}).get("parts", [])
@@ -692,11 +831,11 @@ class AIEngine:
                                         if text:
                                             full_content += text
                                             yield text
-                            except (_json.JSONDecodeError, KeyError, IndexError) as e:
+                            except (json.JSONDecodeError, KeyError, IndexError) as e:
                                 logger.debug("解析 Gemini SSE 数据块失败: %s - %s", data_str[:100], e)
 
-                    self._update_history(message, full_content, session_id=session_id)
-        except Exception as e:
+                    await self._update_history(message, full_content, session_id=session_id)
+        except (ConnectionError, TimeoutError, RuntimeError, KeyError, OSError) as e:
             logger.error("Gemini流式调用失败: %s", e, exc_info=True)
             yield "AI服务暂时不可用，请稍后重试"
 
@@ -725,7 +864,7 @@ class AIEngine:
 
         return f"收到你的消息。由于未配置API密钥，我的功能有限。\n\n请配置以下环境变量之一：\n- DASHSCOPE_API_KEY（推荐）\n- OPENAI_API_KEY\n- DEEPSEEK_API_KEY\n\n你的消息：{message[:100]}..."
 
-    def _update_history(self, user_msg: str, assistant_msg: str,
+    async def _update_history(self, user_msg: str, assistant_msg: str,
                         session_id: Optional[str] = None):
         """
         更新对话历史
@@ -735,13 +874,22 @@ class AIEngine:
             assistant_msg: AI回复
             session_id: 会话ID，为None时更新默认的对话历史
         """
-        history = self._get_history(session_id)
-        history.append({"role": "user", "content": user_msg})
-        history.append({"role": "assistant", "content": assistant_msg})
+        async with self._history_lock:
+            if session_id is not None:
+                history = self.session_histories.setdefault(session_id, [])
+            else:
+                history = self.conversation_history
+            history.append({"role": "user", "content": user_msg})
+            history.append({"role": "assistant", "content": assistant_msg})
 
-        # 保持历史记录在限制内
-        if len(history) > self.max_history * 2:
-            del history[:len(history) - self.max_history * 2]
+            # 保持历史记录在限制内
+            if len(history) > self.max_history * 2:
+                del history[:len(history) - self.max_history * 2]
+
+            # LRU 会话清理：超过最大会话数时，统一调用 _evict_oldest_sessions() 清理
+            if session_id is not None:
+                self._session_access_times[session_id] = time.time()
+                self._evict_oldest_sessions()
 
     def clear_history(self) -> None:
         """

@@ -27,11 +27,12 @@ Lv-00 异步流式迭代器模块
     >>> async for event in AsyncStreamIterator(engine, event_types=['normalization', 'solving']):
     ...     process(event)
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
 import asyncio
+import sys
 import threading
 import time
 from collections import deque
@@ -42,6 +43,33 @@ from typing import (
 )
 from enum import Enum, auto
 import logging
+
+# Python 版本兼容性：asyncio.timeout() 需要 Python 3.11+
+# 在 3.10 上使用 asyncio.wait_for() 作为降级方案
+if sys.version_info >= (3, 11):
+    _async_timeout = asyncio.timeout
+else:
+    import contextlib
+
+    @contextlib.asynccontextmanager
+    async def _async_timeout(seconds):
+        """Python 3.10 兼容的超时上下文管理器。"""
+        # 使用 asyncio.wait_for 的包装器实现超时语义
+        # 注意：此实现通过 CancelledError 传播超时
+        loop = asyncio.get_running_loop()
+        task = asyncio.current_task()
+
+        def _on_timeout():
+            if not task.done():
+                task.cancel()
+
+        handle = loop.call_later(seconds, _on_timeout)
+        try:
+            yield
+        except asyncio.CancelledError:
+            raise asyncio.TimeoutError()
+        finally:
+            handle.cancel()
 
 logger = logging.getLogger('lv00.async_stream')
 
@@ -87,10 +115,10 @@ class StreamEvent:
     constraint_id: int = -1
     rule_id: int = -1
     description: str = ""
-    detail: Dict = field(default_factory=dict)
+    detail: Dict[str, Any] = field(default_factory=dict)
     progress: float = 0.0
     numeric_value: float = 0.0
-    raw: Dict = field(default_factory=dict)
+    raw: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'StreamEvent':
@@ -352,10 +380,15 @@ class AsyncStreamIterator(AsyncIterator[StreamEvent]):
         事件处理器回调。
 
         将引擎事件转换为 StreamEvent 并放入队列。
+        暂停状态下的事件会被丢弃（不放入队列）。
 
         参数：
             event_dict: 原始事件字典
         """
+        # 暂停状态下丢弃事件，避免队列堆积
+        if self._state == StreamState.PAUSED:
+            return
+
         # 过滤事件类型
         if self._event_types:
             event_type = event_dict.get('type', '')
@@ -396,10 +429,6 @@ class AsyncStreamIterator(AsyncIterator[StreamEvent]):
             self._iteration_count += 1
             return event
 
-        except asyncio.TimeoutError:
-            raise
-        except StopAsyncIteration:
-            raise
         except Exception as e:
             logger.error(f"获取事件错误: {e}")
             raise StopAsyncIteration
@@ -687,7 +716,7 @@ async def collect_events(
         timeout=timeout
     ) as stream:
         try:
-            async with asyncio.timeout(timeout):
+            async with _async_timeout(timeout):
                 async for event in stream:
                     events.append(event)
                     if len(events) >= count:
@@ -725,7 +754,7 @@ async def wait_for_event(
         timeout=timeout
     ) as stream:
         try:
-            async with asyncio.timeout(timeout):
+            async with _async_timeout(timeout):
                 async for event in stream:
                     if event.type == event_type:
                         return event

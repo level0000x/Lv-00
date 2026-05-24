@@ -2,7 +2,7 @@
   "$schema": "https://lv00.dev/schemas/package-index-v1.json",
   "registry_version": "1.0",
   "registry_name": "Lv-00 Axiom Package Registry",
-  "last_updated": "2026-05-24",
+  "last_updated": "2026-05-25",
   "packages": {
     "euclidean_plane": {
       "version": "1.0.0",
@@ -513,6 +513,94 @@
       "manifest_path": null,
       "axiom_file": "robin_arithmetic.lvz",
       "test_file": "test_axiom_robin_arithmetic.c",
+      "test_save": null
+    },
+    "topos_theory": {
+      "version": "1.0.0",
+      "category": "foundations",
+      "layers": ["elementary_topos", "internal_logic", "geometric_morphisms", "lawvere_tierney_topology"],
+      "dependencies": ["category_theory", "cartesian_closed_category", "lattice_theory"],
+      "description": "Topos Theory / Elementary Topos (Lawvere-Tierney) -- finite limits + cartesian closed + subobject classifier, intuitionistic higher-order internal logic, 90 templates",
+      "manifest_path": null,
+      "axiom_file": "topos_theory.lvz",
+      "test_file": "test_axiom_topos_theory.c",
+      "test_save": null
+    },
+    "peano_arithmetic": {
+      "version": "1.0.0",
+      "category": "foundations",
+      "layers": ["peano"],
+      "dependencies": [],
+      "description": "Peano Arithmetic (PA) -- first-order arithmetic with induction schema, successor function, addition, multiplication",
+      "manifest_path": null,
+      "axiom_file": "peano_arithmetic.lvz",
+      "test_file": "test_axiom_peano_arithmetic.c",
+      "test_save": null
+    },
+    "presburger_arithmetic": {
+      "version": "1.0.0",
+      "category": "foundations",
+      "layers": ["presburger"],
+      "dependencies": [],
+      "description": "Presburger Arithmetic -- first-order theory of natural numbers with addition only, decidable, quantifier elimination",
+      "manifest_path": null,
+      "axiom_file": "presburger_arithmetic.lvz",
+      "test_file": "test_axiom_presburger_arithmetic.c",
+      "test_save": "presburger_arithmetic_test_save.lvz"
+    },
+    "second_order_arithmetic": {
+      "version": "1.0.0",
+      "category": "foundations",
+      "layers": ["second_order"],
+      "dependencies": ["peano_arithmetic"],
+      "description": "Second-Order Arithmetic (Z_2) -- two-sorted theory with number and set variables, comprehension schema, full induction",
+      "manifest_path": null,
+      "axiom_file": "second_order_arithmetic.lvz",
+      "test_file": "test_axiom_second_order_arithmetic.c",
+      "test_save": null
+    },
+    "cartesian_closed_category": {
+      "version": "1.0.0",
+      "category": "foundations",
+      "layers": ["ccc"],
+      "dependencies": ["category_theory"],
+      "description": "Cartesian Closed Category -- finite products, exponential objects, currying, used as foundation for topos theory and lambda calculus semantics",
+      "manifest_path": null,
+      "axiom_file": "cartesian_closed_category.lvz",
+      "test_file": "test_axiom_cartesian_closed_category.c",
+      "test_save": null
+    },
+    "galois_theory": {
+      "version": "1.0.0",
+      "category": "algebra",
+      "layers": ["galois"],
+      "dependencies": ["group_theory", "field_theory", "ring_theory"],
+      "description": "Galois Theory -- field extensions, Galois groups, fundamental theorem of Galois theory, solvability by radicals",
+      "manifest_path": null,
+      "axiom_file": "galois_theory.lvz",
+      "test_file": "test_axiom_galois_theory.c",
+      "test_save": null
+    },
+    "measure_theory": {
+      "version": "1.0.0",
+      "category": "analysis",
+      "layers": ["measure", "integration", "product_measure"],
+      "dependencies": ["real_analysis", "zfc_set_theory"],
+      "description": "Measure Theory -- sigma-algebras, measures, Lebesgue integration, Caratheodory extension, Fubini's theorem",
+      "manifest_path": null,
+      "axiom_file": "measure_theory.lvz",
+      "test_file": "test_axiom_measure_theory.c",
+      "test_save": null
+    },
+    "quantum_information_theory": {
+      "version": "1.0.0",
+      "category": "discrete_math",
+      "layers": ["quantum_info"],
+      "dependencies": ["linear_algebra", "probability_theory", "information_theory"],
+      "description": "Quantum Information Theory -- qubits, quantum entanglement, quantum channels, von Neumann entropy, quantum error correction",
+      "manifest_path": null,
+      "axiom_file": "quantum_information_theory.lvz",
+      "test_file": "test_axiom_quantum_information_theory.c",
       "test_save": null
     }
   }

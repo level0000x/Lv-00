@@ -1,8 +1,30 @@
+/* ========================================================================
+ * 模块名称：合一检查 (unify)
+ * 功能概述：提供构造图与命题图的匹配验证功能。包含基础版、坐标增强版、
+ *          哈希预过滤版三种合一检查，以及详细失败报告、命题等价声明
+ *          与查找、多态命题实例化等功能。
+ *
+ * 主要 API：
+ *   - unify_construction_with_proposition        — 基础合一检查
+ *   - unify_construction_with_proposition_coord  — 坐标增强合一
+ *   - unify_construction_with_proposition_hash_filtered — 哈希预过滤合一
+ *   - unify_construction_with_proposition_detailed — 带详细报告的合一
+ *   - unify_match_ports / constraints / coords   — 精细化匹配
+ *   - unify_declare_proposition_equivalence      — 声明命题等价
+ *   - unify_instantiate_proposition              — 多态命题实例化
+ *
+ * 使用示例：
+ *   UnifyStatus s = unify_construction_with_proposition(construction, proposition);
+ *   if (s != UNIFY_STATUS_OK) {
+ *       UnifyFailureInfo info;
+ *       unify_construction_with_proposition_detailed(construction, pattern, &info);
+ *   }
+ *
+ * ======================================================================== */
+
 /**
  * @file unify.h
  * @brief 合一检查 —— 构造图与命题图的匹配验证
- * @details 提供构造图与命题图的合一检查（基础版、坐标增强版、哈希预过滤版）、
- * 详细失败报告、命题等价声明与查找、多态命题实例化以及简化命题/证明结构。
  */
 
 #ifndef LV00_UNIFY_H
@@ -53,19 +75,42 @@ typedef enum {
     COORD_TYPE_MISMATCH                    /* 坐标类型不匹配 */
 } MismatchReason;
 
-UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, ConstraintGraph *proposition);
+/**
+ * @brief 将构造图与命题图进行合一检查（基础版）
+ *
+ * 检查构造图是否满足命题图定义的结构模式，包括端口类型匹配和约束匹配。
+ *
+ * @param[in] construction  构造图（当前几何构造的状态）
+ * @param[in] proposition   命题模式图（待匹配的目标模式）
+ * @return 合一状态（UNIFY_STATUS_OK 表示匹配成功）
+ */
+UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construction, const ConstraintGraph *proposition);
 
-/* 带坐标级别相等检查的合一（增强版）
+/**
+ * @brief 带坐标级别相等检查的合一（增强版）
+ *
  * 在约束匹配阶段，除了检查约束类型和参与者 ID，
  * 还验证对应参与者的符号坐标是否相等。
- * 返回 UNIFY_STATUS_COORD_MISMATCH 如果坐标不匹配。 */
-UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construction, ConstraintGraph *proposition);
+ * 返回 UNIFY_STATUS_COORD_MISMATCH 如果坐标不匹配。
+ *
+ * @param[in] construction  构造图
+ * @param[in] proposition   命题模式图
+ * @return 合一状态
+ */
+UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *construction, const ConstraintGraph *proposition);
 
-/* 带哈希预过滤的合一（优化版）
+/**
+ * @brief 带哈希预过滤的合一（优化版）
+ *
  * 在约束匹配前，使用 symbolic_coord_hash() 对节点分组，
- * 只比较相同哈希组的节点，加速匹配过程。 */
-UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *construction,
-                                                              ConstraintGraph *proposition);
+ * 只比较相同哈希组的节点，加速匹配过程。
+ *
+ * @param[in] construction  构造图
+ * @param[in] proposition   命题模式图
+ * @return 合一状态
+ */
+UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGraph *construction,
+                                                              const ConstraintGraph *proposition);
 
 /* ============== 精细化匹配函数（供外部精细控制） ============== */
 
@@ -81,6 +126,18 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
  *                                大小至少为 proposition 端口数的 2 倍。
  *                                调用者需分配并传入（可为 NULL 以仅计数）。
  * @return 匹配成功的端口对数（>=0），或 -1 表示错误
+ *
+ * 【缓冲区大小要求 —— 重要】
+ *   如果 out_port_bindings 非 NULL，调用者必须确保其分配的数组大小
+ *   **至少为命题图端口总数的 2 倍**。这是因为每个匹配的端口对占用两个
+ *   连续的 int 元素（prop_port_id, const_port_id）。
+ *
+ *   获取命题图端口数的方法：
+ *     int port_count = constraint_graph_port_count(proposition);
+ *     int *buf = malloc(port_count * 2 * sizeof(int));
+ *
+ *   如果缓冲区过小，函数行为未定义（可能越界写入）。
+ *   建议在调用前检查端口数并分配足够的缓冲区，或传入 NULL 以仅获取匹配计数。
  */
 int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition, int *out_port_bindings);
 
@@ -115,6 +172,25 @@ int unify_match_coords(const SymbolicCoord *c1, const SymbolicCoord *c2);
 
 /**
  * @brief 合一失败详细信息
+ *
+ * 【混合内存管理策略 —— 重要】
+ *   UnifyFailureInfo 的字段采用两种不同的内存管理策略：
+ *
+ *   1. 需要手动释放的字段：
+ *      - description: 堆分配的字符串（通常通过 strdup 或 asprintf 分配）。
+ *                     **必须**通过 unify_failure_info_destroy() 释放。
+ *                     调用者不得直接 free() 此字段，因为 destroy 函数可能
+ *                     执行额外的清理操作。
+ *
+ *   2. 固定大小、无需释放的字段：
+ *      - reason_detail[256]: 结构体内嵌的固定大小字符数组。
+ *                            不涉及堆分配，**不需要**也不应被释放。
+ *                            其生命周期与 UnifyFailureInfo 结构体本身一致。
+ *      - status / mismatch_reason: 枚举值，值类型，无需释放。
+ *      - failed_constraint_id / failed_node_id / failed_port_index: int 值类型。
+ *
+ *   释放规则：始终通过 unify_failure_info_destroy() 释放整个结构体，
+ *   不要单独释放 description 字段。
  */
 typedef struct {
     UnifyStatus status;             /* 失败类型 */

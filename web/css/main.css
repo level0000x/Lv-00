@@ -18,17 +18,21 @@
     box-sizing: border-box;
 }
 
-/* === BODY / 页面主体 === */
+/* === BODY / 页面主体 ===
+   使用 flex 纵向布局：header + main-container + status-bar，
+   main-container 通过 flex:1 自动填充剩余空间，无需硬编码高度。 */
 body {
     font-family: var(--font-mono);
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
-    min-height: 100vh;
+    height: 100vh;
     font-size: 13px;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    display: flex;
+    flex-direction: column;
 }
 
 /* === HEADER / 顶部导航栏 === */
@@ -86,6 +90,111 @@ body {
 }
 .module-tabs::-webkit-scrollbar { display: none; } /* Chrome/Safari/Edge */
 
+/* === MODULE TAB DROPDOWN / 标签页下拉菜单（窄屏折叠用） === */
+.module-tabs-dropdown {
+    display: none; /* 默认隐藏，窄屏时通过媒体查询显示 */
+    position: relative;
+}
+.module-tabs-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 var(--spacing-md);
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+}
+.module-tabs-dropdown-btn:hover {
+    color: var(--color-text-primary);
+}
+.module-tabs-dropdown-btn .dropdown-arrow {
+    font-size: 8px;
+    transition: transform var(--transition-fast);
+}
+.module-tabs-dropdown.open .dropdown-arrow {
+    transform: rotate(180deg);
+}
+.module-tabs-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 180px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    z-index: var(--z-dropdown, 1100);
+    max-height: 300px;
+    overflow-y: auto;
+}
+.module-tabs-dropdown.open .module-tabs-dropdown-menu {
+    display: block;
+}
+.module-tabs-dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 8px var(--spacing-lg);
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+.module-tabs-dropdown-item:hover {
+    background: var(--color-bg-hover, rgba(255,255,255,0.05));
+    color: var(--color-text-primary);
+}
+.module-tabs-dropdown-item.active {
+    color: var(--color-accent);
+    font-weight: 600;
+}
+
+/* === SIDEBAR TOGGLE BUTTONS / 侧边栏切换按钮（移动端） === */
+.sidebar-toggle-btn {
+    display: none; /* 默认隐藏，窄屏时通过媒体查询显示 */
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+.sidebar-toggle-btn:hover {
+    background: var(--color-bg-hover, rgba(255,255,255,0.05));
+    color: var(--color-text-primary);
+}
+
+/* === SIDEBAR OVERLAY / 侧边栏遮罩层（移动端） === */
+.sidebar-overlay {
+    display: none; /* 默认隐藏，移动端侧边栏打开时显示 */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+.sidebar-overlay.active {
+    display: block;
+}
+
 .module-tab {
     padding: 0 var(--spacing-lg);
     height: 100%;
@@ -139,10 +248,19 @@ body {
     pointer-events: none;
 }
 
-/* === MAIN LAYOUT / 主布局 === */
+/* === CSS 变量 - 布局尺寸 / Layout Size Variables === */
+:root {
+    --layout-header-height: 40px;   /* 顶部导航栏高度 */
+    --layout-status-height: 26px;   /* 底部状态栏高度 */
+}
+
+/* === MAIN LAYOUT / 主布局 ===
+   使用 CSS 变量替代硬编码的 calc(100vh - 40px - 26px)，
+   当 header 或 status-bar 高度变化时只需修改变量即可。 */
 .main-container {
     display: flex;
-    height: calc(100vh - 40px - 26px);
+    flex: 1;
+    min-height: 0; /* 允许 flex 子项收缩 */
 }
 
 /* === LEFT SIDEBAR / 左侧边栏 === */
@@ -1904,14 +2022,45 @@ body.light-theme .modal-btn:focus {
     .sidebar-left {
         position: fixed;
         left: -280px;
+        top: var(--layout-header-height);
+        bottom: var(--layout-status-height);
         transition: left 0.3s ease;
         z-index: 1000;
     }
     .sidebar-left.open {
         left: 0;
     }
+
+    /* 右侧边栏：平板上折叠为底部面板 */
+    .sidebar-right {
+        position: fixed;
+        right: -300px;
+        top: var(--layout-header-height);
+        bottom: var(--layout-status-height);
+        width: 280px;
+        transition: right 0.3s ease;
+        z-index: 1000;
+    }
+    .sidebar-right.open {
+        right: 0;
+    }
+
+    /* 显示侧边栏切换按钮 */
+    .sidebar-toggle-btn {
+        display: flex;
+    }
+
+    /* 标签页在窄屏上隐藏，改用下拉菜单 */
+    .module-tabs {
+        display: none;
+    }
+    .module-tabs-dropdown {
+        display: block;
+    }
+
     .canvas-area {
         margin-left: 0;
+        margin-right: 0;
     }
 }
 
@@ -1920,6 +2069,15 @@ body.light-theme .modal-btn:focus {
     .sidebar-left {
         width: 100%;
         left: -100%;
+    }
+    .sidebar-right {
+        width: 100%;
+        right: -100%;
+    }
+
+    /* 手机上进一步缩小标签页下拉菜单 */
+    .module-tabs-dropdown-menu {
+        min-width: 150px;
     }
 }
 

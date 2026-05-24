@@ -89,6 +89,71 @@ refactor(constraint_graph): 按功能拆分模块
 - 测试使用项目统一测试框架（`test_helpers.h`）
 - PR 必须通过全部现有测试
 
+## Python 贡献指南
+
+### Python 代码风格标准
+
+- 遵循 **PEP 8** 编码规范（使用 `flake8` 或 `pylint` 检查）
+- 行长度限制为 **100 字符**（非 PEP 8 默认的 79）
+- 使用 `black` 自动格式化工具（配置 `line-length = 100`）
+- 使用 `isort` 管理导入排序
+- 类型存根文件遵循 PEP 484 规范
+
+### 类型注解要求
+
+- 所有公共函数和方法必须包含完整的类型注解（参数和返回值）
+- 使用 `from __future__ import annotations` 启用延迟注解求值（Python 3.7+）
+- 复杂类型使用 `typing` 模块（`Optional`, `Union`, `List`, `Dict`, `Tuple` 等）
+- Python 3.9+ 优先使用内置泛型（`list[int]` 而非 `List[int]`）
+- 回调函数类型使用 `Callable[[ArgType, ...], ReturnType]`
+- CI 流水线集成 `mypy --strict` 进行静态类型检查
+
+### Python 测试要求
+
+- 测试框架使用 `pytest`
+- 测试文件命名：`test_<module>.py`
+- 每个公共函数至少一个正常路径测试和一个异常路径测试
+- 使用 `pytest-asyncio` 测试异步代码
+- Mock 外部依赖（DashScope API 等），不依赖真实网络请求
+- 测试覆盖率目标：新增代码 >= 80%
+
+### 中文注释要求
+
+- Python 模块的 docstring 使用中文（与 C 头文件注释风格一致）
+- 类和公共方法的 docstring 遵循 Google 风格或 NumPy 风格
+- 行内注释使用中文，解释"为什么"而非"是什么"
+- 示例：
+
+```python
+class GeometrySession:
+    """几何计算会话 —— 管理用户的一次几何构造过程。
+
+    每个会话包含独立的约束图和证明上下文，
+    会话超时后自动清理资源。
+
+    Attributes:
+        session_id: 会话唯一标识符
+        graph: 关联的约束图实例
+        created_at: 创建时间戳
+    """
+
+    def add_point(self, x: float, y: float) -> int:
+        """添加几何点到约束图。
+
+        Args:
+            x: 点的 x 坐标
+            y: 点的 y 坐标
+
+        Returns:
+            新创建的节点 ID
+
+        Raises:
+            ValueError: 坐标值超出允许范围时
+        """
+        # 检查坐标范围，防止数值溢出
+        ...
+```
+
 ## 联系方式
 
 请通过 Issue 或 PR 进行交流。

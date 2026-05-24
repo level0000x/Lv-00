@@ -4,6 +4,19 @@
  *
  * 提供引擎的创建/销毁、模块与公理包加载、函数打包与实例化、
  * 重写-求解协作流程、位电路跳闸处理以及冻结点快照回滚机制。
+ *
+ * 【中文模块说明】
+ * engine.h 是 Lv-00 系统的核心调度模块，负责协调各子系统的工作流程。
+ * 主要功能包括：
+ * - 引擎生命周期管理（创建、销毁、状态机控制）
+ * - 模块与公理包的动态加载
+ * - 重写规则注册与管理
+ * - 重写-求解协作流水线（先重写简化约束，再调用求解器求解）
+ * - 位电路跳闸处理（当符号计算精度超限时触发熔断器）
+ * - 冻结点快照与回滚（支持撤销到之前的约束图状态）
+ * - 五状态机形式化管理（IDLE → PARSING → REASONING → COMPLETE/ERROR）
+ * - 流式输出集成（通过 StreamContext 实时推送引擎事件）
+ * - 五层架构层级验证（编译时和运行时检查跨层调用合法性）
  */
 
 #ifndef LV00_ENGINE_H
@@ -13,6 +26,7 @@
 extern "C" {
 #endif
 
+#include "config.h"
 #include "axiom_pkg.h"
 #include "constraint_graph.h"
 #include "func_block.h"
@@ -201,6 +215,52 @@ typedef enum {
     ENGINE_STATE_COMPLETE
 } EngineState;
 
+/**
+ * @struct LV00Engine
+ * @brief 引擎核心状态 —— Lv-00 系统的中央调度器
+ *
+ * LV00Engine 是整个 Lv-00 系统的核心数据结构，持有约束图、模块、公理包、
+ * 重写规则等所有子系统资源，并协调它们之间的工作流程。
+ *
+ * 【字段分组说明】
+ *   1. 核心数据容器组：
+ *      - main_graph: 主约束图，所有几何元素与约束的统一容器
+ *      - loaded_modules / axiom_packages / rewrite_rules: 动态资源数组
+ *      - rewrite_step_limit: 可配置的重写步数上限
+ *
+ *   2. 状态与快照组：
+ *      - frozen_point: 位电路跳闸回滚用的冻结点快照（引擎持有所有权）
+ *      - last_unify_status: 上一次合一操作的结果状态码
+ *
+ *   3. 错误报告组：
+ *      - last_status: 最近一次操作的 EngineStatus 错误码
+ *      - last_error: 最近一次操作的错误描述文本
+ *
+ *   4. 流式输出组：
+ *      - stream_ctx: 可选的流式输出上下文（为 NULL 时不发射事件）
+ *
+ *   5. 上下文与架构组：
+ *      - context: 关联的 Lv00Context 实例指针（v3.3.0 过渡期共存设计）
+ *      - layer_validation_flags: 五层架构运行时层级验证标志
+ *
+ *   6. 状态机组：
+ *      - state / previous_state / state_transition_count: 五状态机字段
+ *
+ * 【线程安全性】
+ *   LV00Engine 本身 **不是线程安全的**。所有对引擎实例的调用必须在同一线程中执行。
+ *   如果需要在多线程环境中使用，调用者负责通过外部同步机制（如互斥锁）保护引擎实例。
+ *   引擎内部的动态数组（模块、公理包、重写规则）在单次 API 调用内是安全的，
+ *   但跨调用的并发访问会导致未定义行为。
+ *
+ * 【生命周期管理】
+ *   创建：通过 engine_create() 分配并初始化，初始状态为 ENGINE_STATE_IDLE。
+ *   使用：通过 engine_load_module() / engine_load_axiom_package() / engine_add_rewrite_rule()
+ *         加载资源，通过 engine_solve() / engine_rewrite_and_solve() 执行求解。
+ *   销毁：通过 engine_destroy() 释放所有关联资源（约束图、模块、公理包、重写规则、
+ *         冻结点快照、流式上下文），最后释放引擎结构体本身。
+ *   注意：engine_destroy() 接受 NULL 参数（空操作），因此无需检查 NULL 后再调用。
+ *         销毁后，引擎指针不可再被使用（悬垂指针）。
+ */
 typedef struct LV00Engine {
     ConstraintGraph *main_graph;    /**< 主约束图指针 —— 引擎的核心数据结构，所有几何元素与约束的容器 */
     Module **loaded_modules;        /**< 已加载模块的动态数组（指针数组） */
@@ -224,7 +284,7 @@ typedef struct LV00Engine {
 
     /* ── 引擎级别的错误状态（每个引擎实例独立隔离）── */
     EngineStatus last_status; /* 最近一次操作的状态码 */
-    char last_error[256];     /**< 最近一次操作的错误描述文本（固定 256 字节，长消息会被截断） */
+    char last_error[LV00_CONFIG_ENGINE_ERROR_BUFFER_SIZE]; /**< 最近一次操作的错误描述文本（大小由 config.h 控制） */
 
     /* 流式输出上下文（可选，为 NULL 时不发射事件） */
     StreamContext *stream_ctx;
@@ -277,20 +337,38 @@ typedef struct LV00Engine {
 /**
  * @brief 创建并初始化一个 Lv-00 引擎实例。
  *
- * 分配 LV00Engine 结构体，初始化约束图、模块/公理/规则数组，
- * 设置默认步数上限（1000），并为流式输出创建 StreamContext。
+ * 【创建流程】
+ *   1. 分配 LV00Engine 结构体内存（堆分配）
+ *   2. 创建并初始化主约束图（ConstraintGraph）
+ *   3. 初始化模块/公理包/重写规则动态数组（初始容量由 LV00_INITIAL_ARRAY_CAPACITY 控制）
+ *   4. 设置默认重写步数上限（1000 步）
+ *   5. 创建流式输出上下文（StreamContext）
+ *   6. 将引擎状态设为 ENGINE_STATE_IDLE
+ *   7. 清零错误状态和冻结点指针
  *
  * @return 指向新引擎的指针；内存分配失败时返回 NULL。
+ * @note 调用者拥有返回指针的所有权，最终须通过 engine_destroy() 释放。
  */
 LV00Engine *engine_create(void);
 
 /**
  * @brief 销毁引擎实例，释放所有关联资源。
  *
- * 依次释放：约束图、所有已加载模块、所有公理包、所有重写规则、
- * 冻结点快照（如果存在）、流式上下文，最后释放引擎结构体本身。
+ * 【销毁流程与资源释放顺序】
+ *   1. 销毁主约束图（constraint_graph_destroy）—— 释放所有节点、约束和符号坐标
+ *   2. 逐个销毁已加载模块（module_destroy）—— 释放模块内部资源
+ *   3. 逐个销毁已加载公理包（axiom_package_destroy）—— 释放公理定义和规则
+ *   4. 逐个销毁重写规则（rewrite_rule_destroy）—— 释放规则的模式和替换图
+ *   5. 销毁冻结点快照（如果 frozen_point 非 NULL）—— 释放深拷贝的约束图
+ *   6. 销毁流式输出上下文（stream_destroy）—— 释放回调注册表和事件队列
+ *   7. 释放模块/公理包/重写规则动态数组本身（非数组内元素，元素已在上面的步骤中释放）
+ *   8. 释放 LV00Engine 结构体本身
  *
  * @param engine 要销毁的引擎指针（可为 NULL，此时为空操作）。
+ * @note 销毁后引擎指针不可再被使用。引擎不持有 context（Lv00Context）的所有权，
+ *       因此 context 的生命周期由外部管理，不会被此函数释放。
+ * @warning 如果引擎处于 ENGINE_STATE_REASONING 状态，销毁操作将强制中断推理流程。
+ *          建议在销毁前确保引擎处于 IDLE 或 COMPLETE 状态。
  */
 void engine_destroy(LV00Engine *engine);
 
@@ -304,7 +382,7 @@ void engine_destroy(LV00Engine *engine);
  * @param rule   要注册的重写规则指针（所有权转移给引擎，调用者不应再释放）。
  * @return true 成功，false 失败（内存不足或参数无效）。
  */
-bool engine_add_rewrite_rule(LV00Engine *engine, RewriteRule *rule);
+bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule);
 
 /**
  * @brief 从指定文件路径加载一个模块到引擎。

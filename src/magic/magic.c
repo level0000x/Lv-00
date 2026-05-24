@@ -8,7 +8,7 @@
  * - 咒语系统 (基于函数块)
  *
  * @author Lv-00 Project
- * @version 3.2.0（与项目主版本保持一致）
+ * @version 3.3.0（与项目主版本保持一致）
  */
 
 #include "magic.h"
@@ -35,7 +35,7 @@
 #define MAGIC_POLY_DEGREE_QUADRATIC 2  /* 二次多项式次数 */
 #define MAGIC_POLY_COEFF_COUNT 3       /* 二次多项式系数个数 */
 #define MAGIC_POLY_APPROX_A 1000000.0  /* 连分数近似二次项系数 */
-#define MAGIC_POLY_APPROX_B (-1000)    /* 连分数近似线性项系数 */
+#define MAGIC_POLY_APPROX_B 1000       /* 连分数近似线性项系数 */
 #define MAGIC_POLY_APPROX_C 1          /* 连分数近似常数项系数 */
 #define MAGIC_POLY_ROOT_TOLERANCE 0.01 /* 求根容忍区间半宽 */
 
@@ -196,13 +196,15 @@ Rune *rune_create_algebraic(double value, MagicElement element) {
     }
 
     /* 使用 mpz_set_d / mpz_set_si 安全设置 GMP 值，避免 double 到 long 的溢出风险 */
-    double computed = value * value * MAGIC_POLY_APPROX_A - value * (-MAGIC_POLY_APPROX_B);
+    double computed = value * value * MAGIC_POLY_APPROX_A - value * MAGIC_POLY_APPROX_B;
     mpz_set_d(poly.coeffs[0], computed);
     mpz_set_si(poly.coeffs[1], (long) (MAGIC_POLY_APPROX_B));
     mpz_set_si(poly.coeffs[2], MAGIC_POLY_APPROX_C);
 
+    /* 使用相对容差，避免小数值时区间不合理 */
+    double tolerance = fabs(value) * MAGIC_POLY_ROOT_TOLERANCE + MAGIC_POLY_ROOT_TOLERANCE;
     rune->coord =
-        symbolic_coord_create_algebraic(&poly, value - MAGIC_POLY_ROOT_TOLERANCE, value + MAGIC_POLY_ROOT_TOLERANCE);
+        symbolic_coord_create_algebraic(&poly, value - tolerance, value + tolerance);
     if (!rune->coord) {
         /* 错误路径：必须先清理 mpz_t 内部状态，再释放数组内存 */
         for (int i = 0; i < MAGIC_POLY_COEFF_COUNT; i++) {
@@ -273,6 +275,10 @@ Rune *rune_copy(const Rune *src) {
         return NULL;
 
     rune->coord = symbolic_coord_copy(src->coord);
+    if (!rune->coord) {
+        lv00_free((void **)&rune);
+        return NULL;
+    }
     rune->element = src->element;
     rune->power_level = src->power_level;
 
@@ -455,8 +461,8 @@ Rune *rune_parse(const char *str) {
             LV00_LOG_WARNING("rune_parse: 分子过长");
             return NULL;
         }
-        strncpy(num_buf, num_start, num_len);
-        num_buf[num_len] = '\0';
+        /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
+        lv00_strlcpy(num_buf, num_start, num_len + 1);
         numerator = strtoll(num_buf, NULL, 10);
 
         /* 解析分母 */
@@ -466,8 +472,8 @@ Rune *rune_parse(const char *str) {
             LV00_LOG_WARNING("rune_parse: 分母过长");
             return NULL;
         }
-        strncpy(denom_buf, slash + 1, denom_len);
-        denom_buf[denom_len] = '\0';
+        /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
+        lv00_strlcpy(denom_buf, slash + 1, denom_len + 1);
         denominator = strtoull(denom_buf, NULL, 10);
 
         if (denominator == 0) {
@@ -482,8 +488,8 @@ Rune *rune_parse(const char *str) {
             LV00_LOG_WARNING("rune_parse: 数值过长");
             return NULL;
         }
-        strncpy(num_buf, num_start, num_len);
-        num_buf[num_len] = '\0';
+        /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
+        lv00_strlcpy(num_buf, num_start, num_len + 1);
         numerator = strtoll(num_buf, NULL, 10);
     }
 
@@ -1301,8 +1307,8 @@ MagicArray *magic_array_deserialize(const char *json) {
                 size_t name_len = (size_t) (name_end - name_start);
                 char *name_buf = (char *) lv00_malloc(name_len + 1);
                 if (name_buf) {
-                    strncpy(name_buf, name_start, name_len);
-                    name_buf[name_len] = '\0';
+                    /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
+                    lv00_strlcpy(name_buf, name_start, name_len + 1);
                     if (array->name)
                         lv00_free((void **) &array->name);
                     array->name = name_buf;

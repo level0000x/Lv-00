@@ -20,5 +20,5 @@ Requires: @LV00_PC_REQUIRES@
 Requires.private:
 Conflicts:
 Libs: -L${libdir} -llv00
-Libs.private: -lgmp
+Libs.private:
 Cflags: -I${includedir}

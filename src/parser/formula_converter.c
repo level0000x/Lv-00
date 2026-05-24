@@ -6,7 +6,7 @@
  *          支持点、线段、圆等几何元素的解析和生成。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  *
  * @dependencies
  *   - formula_converter.h : 转换器公共接口定义
@@ -32,8 +32,8 @@
  * 内部常量和宏
  * ============================================================ */
 
-#define MAX_VAR_MAP_SIZE 256
-#define MAX_NAME_LENGTH 64
+#define LV00_MAX_VAR_MAP_SIZE 256
+#define LV00_MAX_NAME_LENGTH 64
 
 /**
  * 有理数近似精度缩放因子
@@ -51,13 +51,13 @@ LV00_DECLARE_STREAM_CTX(formula_converter)
  * ============================================================ */
 
 typedef struct {
-    char name[MAX_NAME_LENGTH];
+    char name[LV00_MAX_NAME_LENGTH];
     int node_id;
 } VarMapEntry;
 
 /* 注意：此全局变量已使用线程本地存储，每线程独立副本。
  * 若需跨线程共享变量映射，需额外使用互斥锁保护。 */
-static LV00_THREAD_LOCAL VarMapEntry g_var_map[MAX_VAR_MAP_SIZE];
+static LV00_THREAD_LOCAL VarMapEntry g_var_map[LV00_MAX_VAR_MAP_SIZE];
 static LV00_THREAD_LOCAL int g_var_map_count = 0;
 
 /**
@@ -97,11 +97,13 @@ void formula_set_node_id(const char *var_name, int node_id) {
     }
 
     /* 添加新条目 */
-    if (g_var_map_count < MAX_VAR_MAP_SIZE) {
+    if (g_var_map_count < LV00_MAX_VAR_MAP_SIZE) {
         /* 使用 lv00_strlcpy 替代不安全的 strncpy，自动保证零终止 */
-        lv00_strlcpy(g_var_map[g_var_map_count].name, var_name, MAX_NAME_LENGTH);
+        lv00_strlcpy(g_var_map[g_var_map_count].name, var_name, LV00_MAX_NAME_LENGTH);
         g_var_map[g_var_map_count].node_id = node_id;
         g_var_map_count++;
+    } else {
+        lv00_set_error(LV00_ERROR_INTERNAL, "变量映射表已满，无法添加新条目");
     }
 }
 
@@ -255,6 +257,9 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
             lv00_free((void **) &coords); /* 统一内存释放器 */
         }
         coords = (SymbolicCoord **) lv00_malloc(sizeof(SymbolicCoord *) * 2); /* 统一内存分配器 */
+        if (!coords) {
+            return false;
+        }
         coords[0] = symbolic_coord_create_rational(0, 1);
         coords[1] = symbolic_coord_create_rational(0, 1);
         coord_count = 2;
@@ -1167,8 +1172,8 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
  */
 
 /* 创建节点/约束的最大数量限制 */
-#define MAX_CREATED_NODES 256
-#define MAX_CREATED_CONSTRAINTS 64
+#define LV00_MAX_CREATED_NODES 256
+#define LV00_MAX_CREATED_CONSTRAINTS 64
 
 static bool formula_to_graph_process_statement(const FormulaNode *stmt, ConstraintGraph *graph,
                                                FormulaToGraphResult *result) {
@@ -1178,49 +1183,49 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt, Constrai
     switch (stmt->type) {
         case NODE_GEOM_POINT:
             if (formula_convert_point(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
+                if (result->created_node_count < LV00_MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
             return true;
 
         case NODE_GEOM_SEGMENT:
             if (formula_convert_segment(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
+                if (result->created_node_count < LV00_MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
             return true;
 
         case NODE_GEOM_CIRCLE:
             if (formula_convert_circle(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
+                if (result->created_node_count < LV00_MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
             return true;
 
         case NODE_CONSTRAINT_PERPENDICULAR:
             if (formula_convert_perpendicular(stmt, graph, &constraint_id)) {
-                if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
+                if (result->created_constraint_count < LV00_MAX_CREATED_CONSTRAINTS)
                     result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
             }
             return true;
 
         case NODE_CONSTRAINT_PARALLEL:
             if (formula_convert_parallel(stmt, graph, &constraint_id)) {
-                if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
+                if (result->created_constraint_count < LV00_MAX_CREATED_CONSTRAINTS)
                     result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
             }
             return true;
 
         case NODE_CONSTRAINT_MIDPOINT:
             if (formula_convert_midpoint(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
+                if (result->created_node_count < LV00_MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
             return true;
 
         case NODE_CONSTRAINT_ANGLE:
             if (formula_convert_angle(stmt, graph, &constraint_id)) {
-                if (result->created_constraint_count < MAX_CREATED_CONSTRAINTS)
+                if (result->created_constraint_count < LV00_MAX_CREATED_CONSTRAINTS)
                     result->created_constraint_ids[result->created_constraint_count++] = constraint_id;
             }
             return true;
@@ -1228,7 +1233,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt, Constrai
         case NODE_EQUATION:
             /* 代数方程：转换为约束图中的隐式曲线 */
             if (formula_convert_equation(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
+                if (result->created_node_count < LV00_MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
             return true;
@@ -1237,7 +1242,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt, Constrai
             int node_ids[64];
             int count = 0;
             if (formula_convert_polygon(stmt, graph, node_ids, &count)) {
-                for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
+                for (int j = 0; j < count && result->created_node_count < LV00_MAX_CREATED_NODES; j++) {
                     result->created_node_ids[result->created_node_count++] = node_ids[j];
                 }
             }
@@ -1246,7 +1251,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt, Constrai
 
         case NODE_GEOM_REGION:
             if (formula_convert_region(stmt, graph, &node_id)) {
-                if (result->created_node_count < MAX_CREATED_NODES)
+                if (result->created_node_count < LV00_MAX_CREATED_NODES)
                     result->created_node_ids[result->created_node_count++] = node_id;
             }
             return true;
@@ -1255,7 +1260,7 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt, Constrai
             int node_ids[10];
             int count = 0;
             if (formula_convert_arc(stmt, graph, node_ids, &count)) {
-                for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
+                for (int j = 0; j < count && result->created_node_count < LV00_MAX_CREATED_NODES; j++) {
                     result->created_node_ids[result->created_node_count++] = node_ids[j];
                 }
             }
@@ -1656,6 +1661,13 @@ void formula_to_graph_result_destroy(FormulaToGraphResult *result) {
     lv00_free((void **) &result); /* 统一内存释放器 */
 }
 
+/**
+ * @brief 销毁图到公式的转换结果
+ *
+ * 释放结果结构体及其内部成员的堆内存。传入 NULL 安全无操作。
+ *
+ * @param result 转换结果指针，可为 NULL
+ */
 void graph_to_formula_result_destroy(GraphToFormulaResult *result) {
     if (!result)
         return;
@@ -1677,7 +1689,11 @@ void graph_to_formula_result_destroy(GraphToFormulaResult *result) {
  * ============================================================ */
 
 /**
- * 销毁方程曲线转换结果
+ * @brief 销毁方程曲线转换结果
+ *
+ * 释放结果结构体及其内部成员的堆内存。传入 NULL 安全无操作。
+ *
+ * @param result 方程曲线转换结果指针，可为 NULL
  */
 void equation_curve_result_destroy(EquationCurveResult *result) {
     if (!result)
@@ -1690,8 +1706,15 @@ void equation_curve_result_destroy(EquationCurveResult *result) {
 }
 
 /**
- * 评估公式节点在特定点的值 (递归)
- * 用于计算方程在特定点的值
+ * @brief 评估公式节点在特定点的值（递归）
+ *
+ * 递归遍历 AST 节点，计算公式在给定点 (x, y) 处的数值结果。
+ * 用于隐式曲线方程的数值采样和判定。
+ *
+ * @param node 公式 AST 节点
+ * @param x    x 坐标值
+ * @param y    y 坐标值
+ * @return 计算结果
  */
 static double eval_node(const FormulaNode *node, double x, double y);
 
@@ -2267,8 +2290,8 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
  * @param[in]  max_deg 每维最大次数
  * @return 成功返回 true，失败返回 false
  */
-#define IMPLICIT_MAX_DEG 4
-#define IMPLICIT_COEFFS_SIZE (IMPLICIT_MAX_DEG * IMPLICIT_MAX_DEG)
+#define LV00_IMPLICIT_MAX_DEG 4
+#define LV00_IMPLICIT_COEFFS_SIZE (LV00_IMPLICIT_MAX_DEG * LV00_IMPLICIT_MAX_DEG)
 
 static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
     if (!node)
@@ -2303,9 +2326,9 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
      */
 
     /* 临时缓冲区用于中间计算 */
-    double tmp[IMPLICIT_COEFFS_SIZE];
-    double lhs[IMPLICIT_COEFFS_SIZE];
-    double rhs[IMPLICIT_COEFFS_SIZE];
+    double tmp[LV00_IMPLICIT_COEFFS_SIZE];
+    double lhs[LV00_IMPLICIT_COEFFS_SIZE];
+    double rhs[LV00_IMPLICIT_COEFFS_SIZE];
 
     switch (node->type) {
         case NODE_NUMBER: {
@@ -2453,7 +2476,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
                 }
             }
             /* P^3 = P^2 * P */
-            double p3[IMPLICIT_COEFFS_SIZE];
+            double p3[LV00_IMPLICIT_COEFFS_SIZE];
             memset(p3, 0, sizeof(double) * coeffs_size);
             for (int i = 0; i < max_deg; i++) {
                 for (int j = 0; j < max_deg; j++) {
@@ -2470,7 +2493,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
                 }
             }
             /* 保存 P^3 的副本用于后续 P^5 计算 */
-            double p3_raw[IMPLICIT_COEFFS_SIZE];
+            double p3_raw[LV00_IMPLICIT_COEFFS_SIZE];
             memcpy(p3_raw, p3, sizeof(double) * coeffs_size);
             /* P^3 / 6 */
             for (int i = 0; i < coeffs_size; i++)
@@ -2481,7 +2504,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
 
             /* 计算 P^5 / 120 */
             /* P^4 = P^3 * P (使用未除以6的 P^3) */
-            double p4[IMPLICIT_COEFFS_SIZE];
+            double p4[LV00_IMPLICIT_COEFFS_SIZE];
             memset(p4, 0, sizeof(double) * coeffs_size);
             for (int i = 0; i < max_deg; i++) {
                 for (int j = 0; j < max_deg; j++) {
@@ -2498,7 +2521,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
                 }
             }
             /* P^5 = P^4 * P */
-            double p5[IMPLICIT_COEFFS_SIZE];
+            double p5[LV00_IMPLICIT_COEFFS_SIZE];
             memset(p5, 0, sizeof(double) * coeffs_size);
             for (int i = 0; i < max_deg; i++) {
                 for (int j = 0; j < max_deg; j++) {
@@ -2555,7 +2578,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
 
             /* 计算 P^4 / 24 */
             /* P^3 = P^2 * P */
-            double p3[IMPLICIT_COEFFS_SIZE];
+            double p3[LV00_IMPLICIT_COEFFS_SIZE];
             memset(p3, 0, sizeof(double) * coeffs_size);
             for (int i = 0; i < max_deg; i++) {
                 for (int j = 0; j < max_deg; j++) {
@@ -2572,7 +2595,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
                 }
             }
             /* P^4 = P^3 * P */
-            double p4[IMPLICIT_COEFFS_SIZE];
+            double p4[LV00_IMPLICIT_COEFFS_SIZE];
             memset(p4, 0, sizeof(double) * coeffs_size);
             for (int i = 0; i < max_deg; i++) {
                 for (int j = 0; j < max_deg; j++) {
@@ -2644,12 +2667,12 @@ static bool identify_circle(const double *coeffs, double *cx, double *cy, double
      *   coeffs[2] = y^2 系数
      *   coeffs[5] = xy 系数
      */
-    double c_xy = coeffs[1 * IMPLICIT_MAX_DEG + 1]; /* xy 项 */
-    double c_x2 = coeffs[2 * IMPLICIT_MAX_DEG + 0]; /* x^2 项 */
-    double c_y2 = coeffs[0 * IMPLICIT_MAX_DEG + 2]; /* y^2 项 */
-    double c_x = coeffs[1 * IMPLICIT_MAX_DEG + 0];  /* x 项 */
-    double c_y = coeffs[0 * IMPLICIT_MAX_DEG + 1];  /* y 项 */
-    double c_0 = coeffs[0 * IMPLICIT_MAX_DEG + 0];  /* 常数项 */
+    double c_xy = coeffs[1 * LV00_IMPLICIT_MAX_DEG + 1]; /* xy 项 */
+    double c_x2 = coeffs[2 * LV00_IMPLICIT_MAX_DEG + 0]; /* x^2 项 */
+    double c_y2 = coeffs[0 * LV00_IMPLICIT_MAX_DEG + 2]; /* y^2 项 */
+    double c_x = coeffs[1 * LV00_IMPLICIT_MAX_DEG + 0];  /* x 项 */
+    double c_y = coeffs[0 * LV00_IMPLICIT_MAX_DEG + 1];  /* y 项 */
+    double c_0 = coeffs[0 * LV00_IMPLICIT_MAX_DEG + 0];  /* 常数项 */
 
     /* 检查：x^2 和 y^2 系数相同且非零，xy 系数为零 */
     if (fabs(c_x2 - c_y2) > 1e-9 || fabs(c_x2) < 1e-9 || fabs(c_xy) > 1e-9) {
@@ -2685,17 +2708,17 @@ static bool identify_circle(const double *coeffs, double *cx, double *cy, double
  */
 static bool identify_line(const double *coeffs, double *a, double *b, double *c) {
     /* 检查所有二次及以上项是否为零 */
-    for (int i = 0; i < IMPLICIT_COEFFS_SIZE; i++) {
-        int deg_x = i / IMPLICIT_MAX_DEG;
-        int deg_y = i % IMPLICIT_MAX_DEG;
+    for (int i = 0; i < LV00_IMPLICIT_COEFFS_SIZE; i++) {
+        int deg_x = i / LV00_IMPLICIT_MAX_DEG;
+        int deg_y = i % LV00_IMPLICIT_MAX_DEG;
         if (deg_x + deg_y >= 2 && fabs(coeffs[i]) > 1e-9) {
             return false;
         }
     }
 
-    *a = coeffs[1 * IMPLICIT_MAX_DEG + 0]; /* x 系数 */
-    *b = coeffs[0 * IMPLICIT_MAX_DEG + 1]; /* y 系数 */
-    *c = coeffs[0 * IMPLICIT_MAX_DEG + 0]; /* 常数项 */
+    *a = coeffs[1 * LV00_IMPLICIT_MAX_DEG + 0]; /* x 系数 */
+    *b = coeffs[0 * LV00_IMPLICIT_MAX_DEG + 1]; /* y 系数 */
+    *c = coeffs[0 * LV00_IMPLICIT_MAX_DEG + 0]; /* 常数项 */
 
     /* a 和 b 不能同时为零 */
     if (fabs(*a) < 1e-9 && fabs(*b) < 1e-9) {
@@ -2743,23 +2766,23 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
      */
 
     /* 尝试将方程展开为多项式 F(x,y) = lhs - rhs = 0 */
-    double coeffs[IMPLICIT_COEFFS_SIZE];
+    double coeffs[LV00_IMPLICIT_COEFFS_SIZE];
     bool poly_ok = false;
 
     if (rhs) {
         /* 计算 F = lhs - rhs */
-        double lhs_coeffs[IMPLICIT_COEFFS_SIZE];
-        double rhs_coeffs[IMPLICIT_COEFFS_SIZE];
-        if (flatten_to_polynomial(lhs, lhs_coeffs, IMPLICIT_COEFFS_SIZE, IMPLICIT_MAX_DEG) &&
-            flatten_to_polynomial(rhs, rhs_coeffs, IMPLICIT_COEFFS_SIZE, IMPLICIT_MAX_DEG)) {
-            for (int i = 0; i < IMPLICIT_COEFFS_SIZE; i++) {
+        double lhs_coeffs[LV00_IMPLICIT_COEFFS_SIZE];
+        double rhs_coeffs[LV00_IMPLICIT_COEFFS_SIZE];
+        if (flatten_to_polynomial(lhs, lhs_coeffs, LV00_IMPLICIT_COEFFS_SIZE, LV00_IMPLICIT_MAX_DEG) &&
+            flatten_to_polynomial(rhs, rhs_coeffs, LV00_IMPLICIT_COEFFS_SIZE, LV00_IMPLICIT_MAX_DEG)) {
+            for (int i = 0; i < LV00_IMPLICIT_COEFFS_SIZE; i++) {
                 coeffs[i] = lhs_coeffs[i] - rhs_coeffs[i];
             }
             poly_ok = true;
         }
     } else {
         /* F = lhs = 0 */
-        poly_ok = flatten_to_polynomial(lhs, coeffs, IMPLICIT_COEFFS_SIZE, IMPLICIT_MAX_DEG);
+        poly_ok = flatten_to_polynomial(lhs, coeffs, LV00_IMPLICIT_COEFFS_SIZE, LV00_IMPLICIT_MAX_DEG);
     }
 
     if (poly_ok) {
@@ -2910,9 +2933,9 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
         if (poly_ok) {
             /* 计算实际多项式次数 */
             int max_total_deg = 0;
-            for (int i = 0; i < IMPLICIT_COEFFS_SIZE; i++) {
-                int deg_x = i / IMPLICIT_MAX_DEG;
-                int deg_y = i % IMPLICIT_MAX_DEG;
+            for (int i = 0; i < LV00_IMPLICIT_COEFFS_SIZE; i++) {
+                int deg_x = i / LV00_IMPLICIT_MAX_DEG;
+                int deg_y = i % LV00_IMPLICIT_MAX_DEG;
                 if (fabs(coeffs[i]) > 1e-12 && (deg_x + deg_y) > max_total_deg) {
                     max_total_deg = deg_x + deg_y;
                 }
@@ -2928,7 +2951,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             } else if (offset >= (int) sizeof(buf)) {
                 offset = (int) sizeof(buf) - 1;
             }
-            for (int i = 0; i < IMPLICIT_COEFFS_SIZE && offset < (int) sizeof(buf) - 1; i++) {
+            for (int i = 0; i < LV00_IMPLICIT_COEFFS_SIZE && offset < (int) sizeof(buf) - 1; i++) {
                 if (fabs(coeffs[i]) > 1e-12) {
                     int added = snprintf(buf + offset, sizeof(buf) - offset, ":%d:%.10g", i, coeffs[i]);
                     if (added > 0) {

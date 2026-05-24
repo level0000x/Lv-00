@@ -14,7 +14,7 @@ Lv-00 高维模块
     3. 保真度透明：实时计算并提示信息损失程度
     4. 交互联动：多视图之间联动高亮
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
@@ -23,6 +23,7 @@ from ctypes import c_int, c_bool, c_double, c_char_p, c_void_p, POINTER, byref
 from typing import Any, Dict, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _SymbolicCoord, _ConstraintGraph
+from .core import Lv00BaseError
 
 
 # ============================================================
@@ -62,25 +63,17 @@ MULTIVIEW_OP_EXPORT_JSON = 4
 # 异常类
 # ============================================================
 
-class HighDimError(Exception):
+class HighDimError(Lv00BaseError):
     """高维模块错误基类。
 
     所有高维模块相关异常的父类。
+    继承 Lv00BaseError，复用统一的 message、error_code 属性和 __str__ 格式化逻辑。
 
     属性：
         message: 异常消息字符串
         error_code: 可选的错误码（整数，默认为 -1）
     """
-
-    def __init__(self, message: str = "", error_code: int = -1) -> None:
-        super().__init__(message)
-        self.message: str = message
-        self.error_code: int = error_code
-
-    def __str__(self) -> str:
-        if self.error_code >= 0:
-            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
-        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+    pass
 
 
 class HighDimProjectionError(HighDimError):
@@ -300,13 +293,8 @@ class HighDimManager:
         result = _lib.high_dim_calculate_fidelity(self._ptr, block_id, graph_ptr, stats)
         if result != 0:
             raise HighDimFidelityError(f"计算保真度失败: 错误码 {result}")
-        # 简单解析统计结构
-        return {
-            "total_relations": 0,
-            "visible_relations": 0,
-            "fidelity_ratio": 0.0,
-            "status": result
-        }
+        # TODO: 占位实现 — 需要定义 HighDimVisibilityStats ctypes 结构体以正确解析返回数据
+        raise NotImplementedError("该功能尚未实现 / This feature is not yet implemented")
 
     def is_fidelity_below_threshold(self, block_id: int,
                                      threshold: float = HIGH_DIM_DEFAULT_FIDELITY_THRESHOLD) -> bool:

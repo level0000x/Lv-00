@@ -6,7 +6,7 @@
  * 高维对象通过端口抽象块承载，二维矩形编码仅为投影视图之一。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_HIGH_DIM_H
@@ -346,6 +346,43 @@ int high_dim_exit_block_perspective(HighDimManager *manager);
  */
 int high_dim_get_current_depth(const HighDimManager *manager);
 
+/**
+ * @brief 直接跳转到指定缩放层级
+ *
+ * 通过反复进入或退出透视来达到目标深度。
+ * 如果目标深度大于当前深度，将进入最外层block的透视（需要block_id参数）。
+ * 如果目标深度小于当前深度，将退出到目标深度。
+ *
+ * @param manager 高维管理器
+ * @param target_depth 目标深度
+ * @param block_id 进入时使用的block_id（退出时忽略）
+ * @return LV00_OK 成功，错误码表示失败原因
+ */
+int high_dim_zoom_to_level(HighDimManager *manager, int target_depth, int block_id);
+
+/**
+ * @brief 获取当前缩放级别信息
+ *
+ * 返回当前缩放级别的详细信息，包括深度和栈顶block_id。
+ *
+ * @param manager 高维管理器
+ * @param out_depth 输出当前深度（可为NULL）
+ * @param out_top_block_id 输出栈顶block_id（可为NULL，深度为0时无意义）
+ * @return LV00_OK 成功，错误码表示失败原因
+ */
+int high_dim_get_zoom_level(const HighDimManager *manager, int *out_depth, int *out_top_block_id);
+
+/**
+ * @brief 设置缩放焦点
+ *
+ * 记录焦点block_id，供UI层在缩放时使用。
+ *
+ * @param manager 高维管理器
+ * @param focus_block_id 焦点block_id
+ * @return LV00_OK 成功，错误码表示失败原因
+ */
+int high_dim_set_focus_point(HighDimManager *manager, int focus_block_id);
+
 /* ==================== 多投影视图 ==================== */
 
 /**
@@ -466,6 +503,14 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const Const
 #define MULTIVIEW_OP_LIST_BY_BLOCK 3
 /** 多视图管理操作：视图状态JSON导出（view_ids作为字符缓冲区） */
 #define MULTIVIEW_OP_EXPORT_JSON 4
+/** 多视图管理操作：获取指定索引的视图（view_ids[0]=输出view_id，count=输入索引） */
+#define MULTIVIEW_OP_GET_VIEW 5
+/** 多视图管理操作：设置指定视图为活跃状态（view_ids[0]=view_id） */
+#define MULTIVIEW_OP_SET_ACTIVE 6
+/** 多视图管理操作：克隆指定视图（view_ids[0]=源view_id，输出新view_id到count） */
+#define MULTIVIEW_OP_CLONE_VIEW 7
+/** 多视图管理操作：比较两个视图差异（view_ids[0]=view1, view_ids[1]=view2） */
+#define MULTIVIEW_OP_COMPARE_VIEWS 8
 
 /**
  * @brief 统一的多投影视图管理接口
@@ -476,6 +521,10 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const Const
  *   - MULTIVIEW_OP_CLEAR (2)：清除所有视图（批量标记为inactive）
  *   - MULTIVIEW_OP_LIST_BY_BLOCK (3)：按block_id过滤列出，count复用为block_id输入/实际数输出
  *   - MULTIVIEW_OP_EXPORT_JSON (4)：导出JSON到view_ids字符缓冲区，count=缓冲区大小
+ *   - MULTIVIEW_OP_GET_VIEW (5)：获取指定索引的视图，count=输入索引，view_ids[0]=输出view_id
+ *   - MULTIVIEW_OP_SET_ACTIVE (6)：设置指定视图为活跃，view_ids[0]=view_id
+ *   - MULTIVIEW_OP_CLONE_VIEW (7)：克隆指定视图，view_ids[0]=源view_id，count=输出新view_id
+ *   - MULTIVIEW_OP_COMPARE_VIEWS (8)：比较两个视图，view_ids[0]=view1, view_ids[1]=view2
  *
  * @param manager 高维管理器
  * @param operation 操作类型（0/1/2/3/4）

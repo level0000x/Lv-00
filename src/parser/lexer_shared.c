@@ -10,7 +10,7 @@
  *          - module 使用浮点数（double），标识符允许连字符和点号
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "lexer_shared.h"
@@ -106,6 +106,16 @@ void lv00_lexer_skip_whitespace_and_comments(Lv00Lexer *lex) {
  *  提取字符串字面量（含转义处理）
  * ================================================================ */
 
+/**
+ * @brief 从词法分析器当前位置提取字符串字面量
+ *
+ * 从当前引号位置开始，解析字符串内容直到闭合引号。
+ * 支持常见转义序列（\n, \t, \r, \", \\）。
+ * 成功时推进词法分析器位置到闭合引号之后。
+ *
+ * @param lex 词法分析器指针，不能为 NULL
+ * @return 新分配的解码后字符串（堆分配，调用者负责释放），失败返回 NULL
+ */
 char *lv00_lexer_extract_string(Lv00Lexer *lex) {
     if (!lex || !lex->pos)
         return NULL;
@@ -145,8 +155,7 @@ char *lv00_lexer_extract_string(Lv00Lexer *lex) {
     /* 第二遍：解码转义序列到结果缓冲区 */
     const char *src = start;
     char *dst = result;
-    const char *dst_end = result + len; /* 修复：设置缓冲区末尾边界，防止溢出 */
-    size_t written = 0;                 /* 已写入字符计数，用于防止缓冲区溢出 */
+    const char *dst_end = result + len; /* 缓冲区末尾边界，防止溢出 */
     while (src < lex->pos && dst < dst_end) {
         if (*src == '\\' && src + 1 < lex->pos) {
             src++;
@@ -171,10 +180,8 @@ char *lv00_lexer_extract_string(Lv00Lexer *lex) {
                     break; /* 未识别的转义，保留原字符 */
             }
             src++;
-            written++;
         } else {
             *dst++ = *src++;
-            written++;
         }
     }
     *dst = '\0';

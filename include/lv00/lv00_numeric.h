@@ -20,8 +20,8 @@
  * @date 2026-05-24
  */
 
-#ifndef LV00_NUMERIC_H
-#define LV00_NUMERIC_H
+#ifndef LV00_LV00_NUMERIC_H
+#define LV00_LV00_NUMERIC_H
 
 #include <math.h>
 #include <stdbool.h>
@@ -1024,4 +1024,4 @@ static inline bool lv00_nearly_equal(double a, double b, double epsilon) {
 }
 #endif
 
-#endif /* LV00_NUMERIC_H */
+#endif /* LV00_LV00_NUMERIC_H */

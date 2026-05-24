@@ -1,43 +1,25 @@
 /**
- * ============================================================================
- *  Lv-00 纯 JavaScript 后端 (Pure JavaScript Backend)
- * ============================================================================
+ * @file lv00_js_backend.js
+ * @brief Lv-00 纯 JavaScript 后端 (Pure JavaScript Backend)
+ * @description 当 WebAssembly 不可用时的回退后端实现，完整实现 Lv-00 系统的全部核心模块。
+ *              包含符号坐标系统、信任色谱、表达式系统、函数块、约束图、
+ *              类型系统、统一化引擎、求解引擎、证明系统、递归系统、调试系统、
+ *              模块系统、互操作层和流式输出系统共 14 个核心模块。
+ *              无外部依赖，独立运行。
  *
- *  用途：当 WebAssembly 不可用时的回退后端实现。
- *        完整实现 Lv-00 系统的全部核心模块。
- *
- *  模块列表（共 14 个核心模块）：
- *    1. SymbolicCoord     - 符号坐标系统（有理数/代数/二次/超越数）
- *    2. TrustColor        - 信任色谱系统
- *    3. Expression        - 表达式系统
- *    4. FuncBlock         - 函数块系统
- *    5. ConstraintGraph   - 约束图系统
- *    6. TypeSystem        - 类型系统
- *    7. Unification       - 统一化引擎
- *    8. Engine            - 求解引擎
- *    9. Proof             - 证明系统
- *    10. Recursion        - 递归系统
- *    11. Debug            - 调试系统
- *    12. Module           - 模块系统
- *    13. Interop          - 互操作层
- *    14. Stream           - 流式输出系统
- *
- *  语法要求：严格 ES5（无 class, const, let, arrow functions,
- *            template literals, destructuring, default params, spread）。
- *
- *  依赖：无外部依赖，独立运行。
- *
- *  作者：Lv-00 Team
- *  版本：3.0.0
- *  创建日期：2026-05-20
- * ============================================================================
+ * @module lv00_js_backend
+ * @version 3.3.0
+ * @author Lv-00 Team
+ * @since 2026-05-20
+ * @requires 严格 ES5 语法（无 class, const, let, arrow functions, template literals,
+ *            destructuring, default params, spread）
  */
 
 var Lv00JSBackend = (function() {
     'use strict';
 
     // ================================================================
-    // Constants
+    // 常量定义
     // ================================================================
 
     var CoordType = {
@@ -84,11 +66,11 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // Backend Constructor
+    // 后端构造函数
     // ================================================================
 
     function Backend() {
-        this.version = "3.0.0-js";
+        this.version = "3.3.0-js";
         this._counters = {
             coordCreated: 0,
             coordDestroyed: 0,
@@ -102,7 +84,7 @@ var Lv00JSBackend = (function() {
     }
 
     // ================================================================
-    // 0. Utility Helpers
+    // 0. 工具辅助函数
     // ================================================================
 
     // 中文说明：欧几里得最大公约数算法，处理负数、零和特殊值（Infinity/NaN）
@@ -261,7 +243,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 1. Symbolic Coordinate System
+    // 1. 符号坐标系统
     // ================================================================
 
     /**
@@ -586,7 +568,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 2. Constraint Graph
+    // 2. 约束图系统
     // ================================================================
 
     /**
@@ -962,7 +944,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 3. Normalization Engine
+    // 3. 归一化引擎
     // ================================================================
 
     /**
@@ -1212,7 +1194,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 4. Solver
+    // 4. 代数求解器
     // ================================================================
 
     Backend.prototype.solveAlgebraicSystem = function(graph, dirtyVarIds) {
@@ -1348,7 +1330,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 5. Rewrite Engine
+    // 5. 重写引擎
     // ================================================================
 
     Backend.prototype.rewriteRuleCreate = function(name, pattern, replacement) {
@@ -1473,7 +1455,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 6. Unification Check
+    // 6. 统一化检查
     // ================================================================
 
     Backend.prototype.unifyConstructionWithProposition = function(construction, proposition) {
@@ -1548,7 +1530,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 7. Function Block System
+    // 7. 函数块系统
     // ================================================================
 
     Backend.prototype.funcBlockCreate = function(id) {
@@ -1710,7 +1692,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 8. Type System
+    // 8. 类型系统
     // ================================================================
 
     Backend.prototype.typeSystemCreate = function() {
@@ -1822,7 +1804,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 9. Proof System
+    // 9. 证明系统
     // ================================================================
 
     Backend.prototype.propositionCreate = function(id, type) {
@@ -1942,7 +1924,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 10. Recursion System
+    // 10. 递归系统
     // ================================================================
 
     Backend.prototype.measureSystemCreate = function() {
@@ -2080,7 +2062,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 11. Axiom Package
+    // 11. 公理包
     // ================================================================
 
     Backend.prototype.axiomPackageCreate = function(name, version) {
@@ -2101,7 +2083,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 12. Module System
+    // 12. 模块系统
     // ================================================================
 
     Backend.prototype.moduleCreate = function(name, version) {
@@ -2175,7 +2157,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 13. Engine
+    // 13. 引擎
     // ================================================================
 
     /**
@@ -2242,7 +2224,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // 14. Debug
+    // 14. 调试系统
     // ================================================================
 
     Backend.prototype.debugGetCounters = function() {
@@ -2277,7 +2259,7 @@ var Lv00JSBackend = (function() {
     };
 
     // ================================================================
-    // Expose constants
+    // 暴露常量到外部接口
     // ================================================================
 
     Backend.CoordType = CoordType;

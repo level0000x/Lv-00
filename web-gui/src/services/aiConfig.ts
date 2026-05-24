@@ -15,32 +15,11 @@
 // ================================================================
 
 /**
- * AI 提供商标识符
- * ⚠️ 此类型与 types/index.ts 中的 AIProviderId 保持一致
- *    统一定义：'openai' | 'deepseek' | 'dashscope' | 'anthropic' | 'gemini' | 'ollama' | 'custom'
- *    本地映射：'claude' → 'anthropic', 'local' → 'ollama'
+ * AI 提供商标识符 —— 统一使用 types/index.ts 中的定义
+ * 类型成员：'openai' | 'deepseek' | 'dashscope' | 'anthropic' | 'gemini' | 'ollama' | 'custom'
  */
-export type AIProviderId = 'openai' | 'deepseek' | 'claude' | 'gemini' | 'local';
-
-/** 将本地 AIProviderId 映射到 types/index.ts 中的标准 AIProviderId */
-export const AI_PROVIDER_ID_MAP: Record<AIProviderId, import('@/types').AIProviderId> = {
-  openai: 'openai',
-  deepseek: 'deepseek',
-  claude: 'anthropic',  // Claude 映射到 Anthropic
-  gemini: 'gemini',
-  local: 'ollama',      // 本地模型映射到 Ollama
-};
-
-/** 将标准 AIProviderId 映射回本地 AIProviderId */
-export const AI_PROVIDER_ID_REVERSE_MAP: Record<string, AIProviderId> = {
-  openai: 'openai',
-  deepseek: 'deepseek',
-  anthropic: 'claude',
-  gemini: 'gemini',
-  ollama: 'local',
-  dashscope: 'local',
-  custom: 'local',
-};
+import type { AIProviderId } from '@/types';
+export type { AIProviderId } from '@/types';
 
 /**
  * AI 提供商配置
@@ -114,9 +93,9 @@ export const DEFAULT_PROVIDERS: AIProviderConfig[] = [
     maxRetries: 3,
   },
   {
-    id: 'claude',
-    name: 'Claude',
-    nameZh: 'Claude',
+    id: 'anthropic',
+    name: 'Anthropic (Claude)',
+    nameZh: 'Anthropic (Claude)',
     endpoint: 'https://api.anthropic.com',
     apiKey: '',
     defaultModel: 'claude-3-5-sonnet-20241022',
@@ -144,9 +123,9 @@ export const DEFAULT_PROVIDERS: AIProviderConfig[] = [
     maxRetries: 3,
   },
   {
-    id: 'local',
-    name: 'Local Model',
-    nameZh: '本地模型',
+    id: 'ollama',
+    name: 'Local Model (Ollama)',
+    nameZh: '本地模型 (Ollama)',
     endpoint: 'http://localhost:11434',
     apiKey: '',
     defaultModel: 'llama3',
@@ -331,7 +310,7 @@ class AIConfigManager {
       errors.push('API 端点不能为空');
     }
 
-    if (!config.apiKey && id !== 'local') {
+    if (!config.apiKey && id !== 'ollama') {
       errors.push('API 密钥不能为空');
     }
 
@@ -414,8 +393,8 @@ export function buildChatRequestBody(
   };
 
   // 特定提供商的特殊处理
-  if (config.id === 'claude') {
-    // Claude API 格式略有不同
+  if (config.id === 'anthropic') {
+    // Anthropic (Claude) API 格式略有不同
     body.max_tokens = config.maxTokens; // Claude 要求必填
   }
 
@@ -430,7 +409,7 @@ export function getProviderHeaders(config: AIProviderConfig): Record<string, str
     'Content-Type': 'application/json',
   };
 
-  if (config.id === 'claude') {
+  if (config.id === 'anthropic') {
     headers['x-api-key'] = config.apiKey;
     headers['anthropic-version'] = '2023-06-01';
   } else if (config.id === 'gemini') {

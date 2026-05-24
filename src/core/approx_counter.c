@@ -1,7 +1,10 @@
-﻿/**
+/**
  * @file approx_counter.c
- * @brief ApproxMC 杩戜技妯″瀷璁℃暟 鈥斺€?妗╁疄鐜? *
- * 鎻愪緵绾︽潫鍥锯啋DIMACS CNF 缂栫爜鍜岃繎浼兼ā鍨嬭鏁扮殑鍩烘湰妗嗘灦銆? * 褰撳墠涓烘々瀹炵幇锛屽悗缁彲瀵规帴 ApproxMC 鐨?C API 鎴栬皟鐢ㄥ閮?ApproxMC 鍙墽琛屾枃浠躲€? *
+ * @brief ApproxMC 近似模型计数 —— 桩实现
+ *
+ * 提供约束图 -> DIMACS CNF 编码和近似模型计数的基本框架。
+ * 当前为桩实现，后续可对接 ApproxMC 的 C API 或调用外部 ApproxMC 可执行文件。
+ *
  * @version v3.3.0
  * @date 2026-05-24
  */
@@ -15,19 +18,19 @@
 
 #include "lv00.h"
 
-/* ---- 鍐呴儴杈呭姪 ---- */
+/* ---- 内部辅助 ---- */
 
-/** 鍐呴儴 CNF 瀛愬彞鏋勫缓鍣?*/
+/** 内部 CNF 子句构建器 */
 typedef struct {
-    int var_count;       /**< 褰撳墠鍙橀噺鏁?*/
-    int *clause_buffer;  /**< 瀛愬彞缂撳啿鍖猴紙0 缁撳熬锛?*/
-    int clause_buf_size; /**< 缂撳啿鍖哄閲?*/
-    int clause_buf_len;  /**< 宸蹭娇鐢ㄩ暱搴?*/
-    int clause_count;    /**< 瀛愬彞鎬绘暟 */
-    int next_var_id;     /**< 涓嬩竴涓彲鐢ㄧ殑涓存椂鍙橀噺 ID */
+    int var_count;       /**< 当前变量数 */
+    int *clause_buffer;  /**< 子句缓冲区（0 结尾） */
+    int clause_buf_size; /**< 缓冲区容量 */
+    int clause_buf_len;  /**< 已使用长度 */
+    int clause_count;    /**< 子句总数 */
+    int next_var_id;     /**< 下一个可用的临时变量 ID */
 } CNFBuilder;
 
-/** 鍒濆鍖?CNF 鏋勫缓鍣?*/
+/** 初始化 CNF 构建器 */
 static CNFBuilder *cnf_builder_create(void) {
     CNFBuilder *b = (CNFBuilder *) lv00_malloc(sizeof(CNFBuilder));
     if (!b)
@@ -45,12 +48,12 @@ static CNFBuilder *cnf_builder_create(void) {
     return b;
 }
 
-/** 鍦?CNF 鏋勫缓鍣ㄤ腑鍒涘缓鏂板彉閲?*/
+/** 在 CNF 构建器中创建新变量 */
 static int cnf_builder_new_var(CNFBuilder *b) {
     return b->next_var_id++;
 }
 
-/** 娣诲姞鍗曚釜瀛楅潰閲忓埌褰撳墠瀛愬彞锛堟鏁?= 姝ｆ枃瀛楋紝璐熸暟 = 璐熸枃瀛楋級 */
+/** 添加单个文字到当前子句（正数 = 正文字，负数 = 负文字） */
 static void cnf_builder_add_lit(CNFBuilder *b, int lit) {
     if (b->clause_buf_len + 1 >= b->clause_buf_size) {
         b->clause_buf_size *= 2;
@@ -59,13 +62,13 @@ static void cnf_builder_add_lit(CNFBuilder *b, int lit) {
     b->clause_buffer[b->clause_buf_len++] = lit;
 }
 
-/** 缁撴潫褰撳墠瀛愬彞锛堝湪瀛楅潰閲忓簭鍒楁湯灏惧姞 0锛?*/
+/** 结束当前子句（在文字序列末尾加 0） */
 static void cnf_builder_end_clause(CNFBuilder *b) {
     cnf_builder_add_lit(b, 0);
     b->clause_count++;
 }
 
-/** 閿€姣?CNF 鏋勫缓鍣?*/
+/** 销毁 CNF 构建器 */
 static void cnf_builder_destroy(CNFBuilder *b) {
     if (b) {
         lv00_free((void **)&b->clause_buffer);
@@ -73,7 +76,7 @@ static void cnf_builder_destroy(CNFBuilder *b) {
     }
 }
 
-/** 灏?CNF 鏋勫缓鍣ㄨ緭鍑轰负 DIMACS 鏍煎紡瀛楃涓?*/
+/** 将 CNF 构建器输出为 DIMACS 格式字符串 */
 static char *cnf_builder_to_dimacs(CNFBuilder *b) {
     if (!b)
         return NULL;
@@ -84,29 +87,30 @@ static char *cnf_builder_to_dimacs(CNFBuilder *b) {
     if (!buf)
         return NULL;
 
-    /* 鍐欏叆澶撮儴 */
+    /* 写入头部 */
     int offset = snprintf(buf, header_size, "p cnf %d %d\n", b->next_var_id - 1, b->clause_count);
 
-    /* 鍐欏叆瀛愬彞 */
+    /* 写入子句 */
     int lit_idx = 0;
     for (int ci = 0; ci < b->clause_count; ci++) {
         while (b->clause_buffer[lit_idx] != 0) {
             offset += snprintf(buf + offset, buf_size - offset, "%d ", b->clause_buffer[lit_idx]);
             lit_idx++;
         }
-        lit_idx++; /* 璺宠繃缁堟绗?0 */
+        lit_idx++; /* 跳过终止符 0 */
         offset += snprintf(buf + offset, buf_size - offset, "0\n");
     }
     return buf;
 }
 
 /* ========================================================================
- * approx_count_to_sat 鈥?绾︽潫鍥?鈫?DIMACS CNF
+ * approx_count_to_sat —— 约束图 -> DIMACS CNF
  *
- * 缂栫爜绛栫暐锛圱seitin 鍙樻崲锛夛細
- * 1. 涓烘瘡涓害鏉熷叧绯诲垱寤轰竴涓竷灏斿彉閲忥紙鍛藉悕瀛楀彉閲忥級
- * 2. 涓烘瘡涓潗鏍囩殑姣忎釜浣嶅垱寤轰竴涓竷灏斿彉閲忥紙bit-blast锛? * 3. 瀵规瘡涓妭鐐?绾︽潫鍏崇郴鐢熸垚 Tseitin 瀛愬彞
- * 4. 鐗规畩澶勭悊锛欼NCIDENCE 鈫?鐐瑰湪绾夸笂锛孊ETWEENNESS 鈫?A-B-C 鍏辩嚎鏈夊簭
+ * 编码策略（Tseitin 变换）：
+ * 1. 为每个约束关系创建一个布尔变量（命名变量）
+ * 2. 为每个坐标的每一位创建一个布尔变量（bit-blast）
+ * 3. 对每个节点约束关系生成 Tseitin 子句
+ * 4. 特殊处理：INCIDENCE -> 点在线上，BETWEENNESS -> A-B-C 共线有序
  * ======================================================================== */
 
 char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
@@ -117,8 +121,11 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
     if (!b)
         return NULL;
 
-    /* Phase 1: 鍙橀噺鍒嗛厤
-     * 涓烘瘡涓妭鐐圭殑鏍囪瘑鍒嗛厤甯冨皵鍙橀噺绌洪棿銆?     * 绠€鍖栧鐞嗭細姣忎釜鑺傜偣涓€涓竷灏斿彉閲忥紙琛ㄧず璇ヨ妭鐐?娲昏穬"锛夈€?     * 瀹屾暣瀹炵幇搴斿鍧愭爣鍋?bit-blasting銆?     */
+    /* Phase 1: 变量分配
+     * 为每个节点的标识分配布尔变量空间。
+     * 简化处理：每个节点一个布尔变量（表示该节点"活跃"）。
+     * 完整实现应对坐标做 bit-blasting。
+     */
     int *node_vars = (int *) lv00_malloc((size_t) graph->node_count * sizeof(int));
     if (!node_vars) {
         cnf_builder_destroy(b);
@@ -129,13 +136,15 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
         node_vars[i] = cnf_builder_new_var(b);
     }
 
-    /* Phase 2: 绾︽潫缂栫爜锛圱seitin 鍙樻崲锛?     * 閬嶅巻姣忎釜绾︽潫锛岀敓鎴愬悎鍙栬寖寮忓瓙鍙ャ€?     */
+    /* Phase 2: 约束编码（Tseitin 变换）
+     * 遍历每个约束，生成合取范式子句。
+     */
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        /* 涓虹害鏉熷垱寤鸿緟鍔╁彉閲?*/
+        /* 为约束创建辅助变量 */
         int aux = cnf_builder_new_var(b);
 
-        /* 鑾峰彇鍙備笌绾︽潫鐨勮妭鐐?ID */
+        /* 获取参与约束的节点 ID */
         int n0 = c->participants ? c->participants[0] : 0;
         int n1 = (c->participant_count > 1) ? c->participants[1] : 0;
         int n2 = (c->participant_count > 2) ? c->participants[2] : 0;
@@ -146,9 +155,9 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
 
         switch (c->type) {
             case INCIDENCE:
-                /* 鍏宠仈绾︽潫锛氱偣鍦ㄧ嚎娈典笂
-             * Tseitin: aux 鈫?v0 鈭?v1
-             * 瀛愬彞锛毬琣ux 鈭?v0, 卢aux 鈭?v1, aux 鈭?卢v0 鈭?卢v1 */
+                /* 关联约束：点在线段上
+             * Tseitin: aux -> v0 & v1
+             * 子句：(~aux | v0), (~aux | v1), (aux | ~v0 | ~v1) */
                 cnf_builder_add_lit(b, -aux);
                 cnf_builder_add_lit(b, v0);
                 cnf_builder_end_clause(b);
@@ -162,9 +171,9 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
                 break;
 
             case BETWEENNESS:
-                /* 涔嬮棿鐨勭害鏉燂細B 鍦?A 鍜?C 涔嬮棿
-             * Tseitin: aux 鈫?v0 鈭?v1 鈭?v2
-             * 4 鏉″瓙鍙?*/
+                /* 之间的约束：B 在 A 和 C 之间
+             * Tseitin: aux -> v0 & v1 & v2
+             * 4 条子句 */
                 cnf_builder_add_lit(b, -aux);
                 cnf_builder_add_lit(b, v0);
                 cnf_builder_end_clause(b);
@@ -182,8 +191,8 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
                 break;
 
             case INTERSECTION:
-                /* 鐩镐氦绾︽潫锛氫袱涓璞″湪鏌愮偣鐩镐氦
-             * 绠€鍖栵細鍙屽彉閲?AND */
+                /* 真交约束：两个对象在某点真交
+             * 简化：双变量 AND */
                 cnf_builder_add_lit(b, -aux);
                 cnf_builder_add_lit(b, v0);
                 cnf_builder_end_clause(b);
@@ -198,7 +207,7 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
 
             case CONTAINMENT:
             case CONNECTION:
-                /* 鍖呭惈/杩炴帴绾︽潫锛氫笌 INCIDENCE 绫讳技澶勭悊 */
+                /* 包含/连接约束：与 INCIDENCE 类似处理 */
                 cnf_builder_add_lit(b, -aux);
                 cnf_builder_add_lit(b, v0);
                 cnf_builder_end_clause(b);
@@ -216,13 +225,13 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
         }
     }
 
-    /* 娣诲姞鍗曞厓瀛愬彞锛氭墍鏈夎妭鐐瑰彉閲忎负鐪燂紙婵€娲荤姸鎬侊級 */
+    /* 添加单元子句：所有节点变量为真（激活状态） */
     for (int i = 0; i < graph->node_count; i++) {
         cnf_builder_add_lit(b, node_vars[i]);
         cnf_builder_end_clause(b);
     }
 
-    /* Phase 3: 杈撳嚭 DIMACS */
+    /* Phase 3: 输出 DIMACS */
     char *result = cnf_builder_to_dimacs(b);
 
     if (out_cnf_vars) {
@@ -235,15 +244,28 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
 }
 
 /* ========================================================================
- * approx_count_solutions 鈥?杩戜技妯″瀷璁℃暟
+ * approx_count_solutions —— 近似模型计数
  *
- * 褰撳墠妗╁疄鐜帮細璋冪敤 approx_count_to_sat 鍚庝娇鐢ㄦā鎷熶及璁°€? * 瀹屾暣瀹炵幇搴旇皟鐢?ApproxMC 鐨?C API 鎴栧閮ㄨ繘绋嬨€? * ======================================================================== */
+ * 当前桩实现：调用 approx_count_to_sat 后使用模拟估算。
+ * 完整实现应调用 ApproxMC 的 C API 或外部进程。
+ * ======================================================================== */
 
+/**
+ * @brief 近似模型计数
+ *
+ * 将约束图编码为 CNF，使用模拟 ApproxMC 估算模型数量，
+ * 并计算 PAC（Probably Approximately Correct）置信度。
+ *
+ * @param graph 约束图
+ * @param cfg   PAC 配置参数
+ * @param out   输出计数结果
+ * @return 成功返回 true，失败返回 false
+ */
 bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, ApproxCountResult *out) {
     if (!graph || !cfg || !out)
         return false;
 
-    /* 灏嗙害鏉熷浘缂栫爜涓?CNF */
+    /* 将约束图编码为 CNF */
     int cnf_vars = 0;
     char *cnf_str = approx_count_to_sat(graph, &cnf_vars);
     if (!cnf_str) {
@@ -255,17 +277,18 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
         return false;
     }
 
-    /* 妯℃嫙 ApproxMC 浼拌锛?     * 浣跨敤鍝堝笇灞傜骇鏁颁及绠楋紙褰撳墠浣跨敤閰嶇疆涓殑 num_hashes 鎴栭粯璁ゅ€硷級
+    /* 模拟 ApproxMC 估算：
+     * 使用哈希层数计算（当前使用配置中的 num_hashes 或默认值）
      */
     int h = cfg->num_hashes > 0 ? cfg->num_hashes : 4;
 
-    /* 绠€鍗曚及璁★細鍋囪姣忎釜鍗曞厓骞冲潎鏈?n 涓В */
+    /* 简单估算：假设每个单元平均有 n 个解 */
     uint64_t estimated_cell = 1;
 
     /* total_count = cell_sol_count * 2^hash_count */
     uint64_t estimated_total = estimated_cell * ((uint64_t) 1 << (unsigned) h);
 
-    /* 璁＄畻 PAC 缃俊搴︼紙Chernoff-Hoeffding 鐣岀畝鍖栵級 */
+    /* 计算 PAC 置信度（Chernoff-Hoeffding 界简化） */
     double pac_bound = approx_count_get_pac_bound(cfg, out);
 
     out->cell_sol_count = estimated_cell;
@@ -273,7 +296,7 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
     out->total_count = estimated_total;
     out->confidence = pac_bound;
 
-    /* 鐢熸垚鐘舵€佹秷鎭?*/
+    /* 生成状态消息 */
     size_t msg_size = 256;
     out->status_msg = (char *) lv00_malloc(msg_size);
     if (out->status_msg) {
@@ -288,21 +311,34 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
 }
 
 /* ========================================================================
- * approx_count_projected 鈥?鎶曞奖妯″瀷璁℃暟
+ * approx_count_projected —— 投影模型计数
  *
- * 妗╁疄鐜帮細妗嗘灦涓?approx_count_solutions 鐩稿悓锛屾姇褰卞彉閲忚繃婊ょ暀寰呭悗缁€? * ======================================================================== */
+ * 桩实现：框架与 approx_count_solutions 相同，投影变量过滤留待后续。
+ * ======================================================================== */
 
+/**
+ * @brief 投影模型计数
+ *
+ * 在指定投影变量子集上计算模型数量（当前桩实现与全量计数相同）。
+ *
+ * @param graph      约束图
+ * @param proj_vars  投影变量 ID 数组
+ * @param proj_count 投影变量数量
+ * @param cfg        PAC 配置参数
+ * @param out        输出计数结果
+ * @return 成功返回 true，失败返回 false
+ */
 bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int proj_count, const PacConfig *cfg,
                             ApproxCountResult *out) {
     if (!graph || !proj_vars || proj_count <= 0 || !cfg || !out)
         return false;
 
-    /* 褰撳墠妗╋細涓庡叏閲忚鏁扮浉鍚岋紝蹇界暐鎶曞奖鍙橀噺杩囨护 */
+    /* 当前桩：与全量计数相同，忽略投影变量过滤 */
     bool ok = approx_count_solutions(graph, cfg, out);
     if (!ok)
         return false;
 
-    /* 鐘舵€佹秷鎭檮鍔犳姇褰变俊鎭?*/
+    /* 状态消息附加投影信息 */
     if (out->status_msg) {
         size_t len = strlen(out->status_msg);
         size_t new_size = len + 128;
@@ -316,17 +352,28 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int pr
 }
 
 /* ========================================================================
- * approx_count_get_pac_bound 鈥?PAC 缃俊搴﹁绠? * ======================================================================== */
+ * approx_count_get_pac_bound —— PAC 置信度计算
+ * ======================================================================== */
 
+/**
+ * @brief 计算 PAC 置信度
+ *
+ * 基于 Chernoff-Hoeffding 界计算概率近似正确（PAC）的置信度。
+ *
+ * @param cfg PAC 配置参数
+ * @param res 计数结果
+ * @return 置信度值（0.0 ~ 1.0）
+ */
 double approx_count_get_pac_bound(const PacConfig *cfg, const ApproxCountResult *res) {
     if (!cfg || !res)
         return 0.0;
 
-    /* Chernoff-Hoeffding 鐣岋細
-     * 鎵€闇€鏍锋湰鏁?m >= (3/epsilon^2) * log(2/delta)
-     * 缃俊搴?= 1 - delta * exp(-epsilon^2 * m / 3)
+    /* Chernoff-Hoeffding 界：
+     * 所需样本数 m >= (3/epsilon^2) * log(2/delta)
+     * 置信度 = 1 - delta * exp(-epsilon^2 * m / 3)
      *
-     * 濡傛灉 cell_sol_count > 0锛屼娇鐢ㄧ畝鍖栦及璁?     */
+     * 如果 cell_sol_count > 0，使用简化估算
+     */
     if (res->total_count == 0)
         return 0.0;
 
@@ -343,9 +390,13 @@ double approx_count_get_pac_bound(const PacConfig *cfg, const ApproxCountResult 
 }
 
 /* ========================================================================
- * approx_count_result_free 鈥?閲婃斁璁℃暟缁撴灉
+ * approx_count_result_free —— 释放计数结果
  * ======================================================================== */
 
+/**
+ * @brief 释放计数结果中的动态资源
+ * @param res 计数结果指针
+ */
 void approx_count_result_free(ApproxCountResult *res) {
     if (res) {
         lv00_free((void **)&res->status_msg);
@@ -358,19 +409,30 @@ void approx_count_result_free(ApproxCountResult *res) {
 }
 
 /* ========================================================================
- * is_approximately_constructible 鈥?杩戜技鏋勯€犳€у垽鏂? * ======================================================================== */
+ * is_approximately_constructible —— 近似可构造性判定
+ * ======================================================================== */
 
+/**
+ * @brief 近似可构造性判定
+ *
+ * 使用默认 PAC 配置进行模型计数，判断约束图对应的几何构造
+ * 是否以不低于 min_prob 的置信度可构造。
+ *
+ * @param graph    约束图
+ * @param min_prob 最小置信度阈值
+ * @return 可构造返回 true，否则返回 false
+ */
 bool is_approximately_constructible(const ConstraintGraph *graph, double min_prob) {
     if (!graph)
         return false;
 
-    /* 浣跨敤榛樿 PAC 閰嶇疆杩涜璁℃暟 */
+    /* 使用默认 PAC 配置进行计数 */
     PacConfig cfg;
     cfg.epsilon = 0.2;
     cfg.delta = 1.0 - min_prob;
     cfg.seed = 42;
     cfg.sparse_xor = true;
-    cfg.num_hashes = 0; /* 鑷姩閫夋嫨 */
+    cfg.num_hashes = 0; /* 自动选择 */
 
     ApproxCountResult res;
     memset(&res, 0, sizeof(res));

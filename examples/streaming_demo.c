@@ -188,7 +188,10 @@ static void demo_circle_line(void) {
     graph_add_incidence(g, x, qr);
 
     /* 交点约束: 线段 OP 与 QR 相交于点 X */
-    graph_add_intersection(g, op_seg, qr, x);
+    int inter_result = graph_add_intersection(g, op_seg, qr, x);
+    if (inter_result < 0) {
+        fprintf(stderr, "  警告: 添加交点约束失败 (返回值=%d)\n", inter_result);
+    }
 
     fprintf(stderr, "\n  运行引擎求解...\n");
     EngineSolveResult result = engine_solve(engine);
@@ -225,7 +228,10 @@ static void demo_stream_stats(void) {
 
     /* 构造多个点触发多轮事件 */
     for (int i = 0; i < 5; i++) {
-        add_rational_point(g, i * 2, 1, i, 1);
+        int pid = add_rational_point(g, i * 2, 1, i, 1);
+        if (pid < 0) {
+            fprintf(stderr, "  警告: 创建第%d个点失败\n", i);
+        }
     }
 
     /* 连接所有点 */
@@ -233,6 +239,10 @@ static void demo_stream_stats(void) {
         int sid = g->next_node_id - 5 + i;
         int tid = sid + 1;
         int seg = graph_add_line_segment(g, sid, tid);
+        if (seg < 0) {
+            fprintf(stderr, "  警告: 创建第%d条线段失败\n", i);
+            continue;
+        }
         graph_add_incidence(g, sid, seg);
         graph_add_incidence(g, tid, seg);
     }

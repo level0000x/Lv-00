@@ -5,7 +5,7 @@
  *          包含约束统计、自由度分析、Groebner 基求解等核心逻辑。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include <limits.h>

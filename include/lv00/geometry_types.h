@@ -88,6 +88,16 @@ typedef struct GeomEntity {
 
 /**
  * @brief 点实体（0 维）
+ *
+ * 【字段冗余说明】
+ * 本结构同时提供 x/y 命名字段和 coords 动态数组，两者在逻辑上冗余：
+ *  - x/y：向后兼容早期 API，提供便捷的二维点访问（避免 coords[0]/coords[1]）
+ *  - coords：支持任意维度的通用坐标访问（2D/3D/更高维度）
+ *
+ * 维护规则：
+ *  - 修改 x 或 y 时必须同步更新 coords[0] 或 coords[1]，反之亦然
+ *  - dimension 字段记录实际维度，coords 数组长度应等于 dimension
+ *  - 新代码优先使用 coords 数组，x/y 仅用于二维场景的便捷访问
  */
 typedef struct PointEntity {
     GeomEntity base;  /**< 基类 */

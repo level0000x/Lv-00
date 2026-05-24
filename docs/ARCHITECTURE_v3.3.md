@@ -529,6 +529,21 @@ void    module_unload(Module *mod);
 | `src/func_block/preset_calculus.c` | 微积分预设 |
 | `src/func_block/preset_common.c` | 通用预设 |
 | `src/func_block/preset_manager.c` | 预设管理器 |
+| `src/core/three_valued_logic.c` | 三值逻辑系统 |
+| `src/core/modal_operators.c` | 模态算子（必然、可能等） |
+| `src/core/quantifier.c` | 量词系统（全称、存在等） |
+| `src/core/runtime_monitor.c` | 运行时监控（资源/超时/心跳） |
+| `src/core/test_framework.c` | 测试框架（断言、套件、报告） |
+| `src/core/geometry_transform.c` | 几何变换（平移、旋转、缩放） |
+| `src/core/expr_canonical.c` | 表达式规范化（标准形/排序） |
+| `src/core/simd_ops.c` | SIMD 向量化操作 |
+| `src/core/thread_pool.c` | 线程池（并行任务调度） |
+| `src/core/memory_pool.c` | 内存池（批量分配/回收） |
+| `src/core/rational.c` | 有理数精确运算 |
+| `src/core/logic_check.c` | 逻辑一致性检查 |
+| `src/core/circuit_breaker.c` | 熔断器（异常检测与降级） |
+| `src/core/proof_priority.c` | 证明优先级调度 |
+| `src/core/proof_trace.c` | 证明轨迹记录与回放 |
 | `src/preset/*.c` (全部 55 个文件) | 数学理论预设（群论/环论/拓扑/分析等） |
 
 ### 7.5 Layer 5: 结果输出层
@@ -549,9 +564,9 @@ void    module_unload(Module *mod);
 | Layer 1 (输入解析层) | 6 | ~3,000 行 |
 | Layer 2 (资源管理层) | 5 | ~2,500 行 |
 | Layer 3 (几何拓扑层) | 13 | ~8,000 行 |
-| Layer 4 (公理推理层) | 26 (核心) + 15 (func_block) + 55 (preset) = 96 | ~40,000 行 |
+| Layer 4 (公理推理层) | 42 (核心) + 15 (func_block) + 55 (preset) = 112 | ~45,000 行 |
 | Layer 5 (结果输出层) | 6 | ~5,000 行 |
-| **总计** | **126** | **~58,500 行** |
+| **总计** | **142** | **~63,500 行** |
 
 ---
 
@@ -852,3 +867,4 @@ dot -Tpng build/deps.dot -o build/deps.png
 | 版本 | 日期 | 变更内容 |
 |------|------|---------|
 | v3.3 | 2026-05-24 | 初始版本：定义五层架构、文件映射、构建系统集成、层级验证宏 |
+| v3.3.1 | 2026-05-25 | Layer 4 新增 16 个核心模块（三值逻辑、模态算子、量词系统、运行时监控、测试框架、几何变换、表达式规范化、SIMD操作、线程池、内存池、有理数、逻辑检查、熔断器、证明优先级、证明轨迹等） |

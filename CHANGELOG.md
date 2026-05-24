@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-05-25
+
+### 新增 (Added)
+- **五层单向依赖架构**：Parser → Resource → Geometry → Reasoning → Output 层级划分
+- **编译时层级边界验证**：ENABLE_LAYER_VALIDATION 宏，构建期检测跨层违规依赖
+- **Groebner 基求解引擎增强**：多项式理想求解能力提升
+- **SMT 后端集成**：支持 SMT 求解器作为证明后端
+- **ATP（自动定理证明器）后端**：集成自动定理证明器接口
+- **SAT/BDD 编码**：命题逻辑可满足性求解与二元决策图支持
+- **环形日志缓冲区**：高性能固定大小日志系统，支持结构化日志输出
+- **对象缓存系统（LRU）**：最近最少使用缓存，加速重复对象访问
+- **集中化配置系统**：LV00_CONFIG_* 前缀统一配置项，替代散落的宏定义
+- **统一错误码系统**：分层 0-999 错误码体系，覆盖全部模块
+- **函数块确定性检查**：静态分析 + 动态运行时双重检查机制
+- **函数块选择器**：5 种选择策略（优先级、轮询、随机、加权、自适应）
+- **55+ 数学理论预设模块**：覆盖几何、代数、拓扑、逻辑等领域
+- **47 种流式事件类型**：完整的流式处理事件分类体系
+- **公理包系统**：SHA-256 完整性校验、模板展开机制
+- 新增三值逻辑模块实现（`three_valued_logic.c`）：Kleene 强三值逻辑完整运算
+- 新增模态算子模块实现（`modal_operators.c`）：Kripke 语义框架与模态推理
+- 新增量词系统模块实现（`quantifier.c`）：全称/存在/唯一存在量词管理
+- 新增 7 个公理包注册（INDEX.json）：Presburger 算术、量子信息论、二阶算术等
+- 新增 `llm_coding_assistant/requirements.txt` 依赖声明
+- 新增高级功能 C 示例：证明系统、类型系统、递归演示
+
+### 修复 (Fixed)
+- **版本号统一**：README.md、error_codes.h、web/index.html 版本号同步至 3.3.0
+- **内存安全**：engine.c 中 `free()` 统一为 `lv00_free()`
+- **内存安全**：src/core/ 下 100+ 处 `malloc()` 迁移至 `lv00_malloc()`
+- **公理包完整性**：INDEX.json 补全 7 个未注册包及依赖关系
+- **Web 前端**：github-demo.html 重复 class 属性修复
+- **安全加固**：llm_coding_assistant 默认密码改为环境变量注入
+- **安全修复**：WebSocket 认证机制完善、CSP 白名单配置、XSS 防护增强、密码管理安全加固
+- **代码质量**：类型注解统一、ID 生成器统一、字符串安全处理、死代码清理
+- **性能优化**：Canvas 渲染节流（throttle）、requestAnimationFrame 按需启动
+- **架构改进**：FormulaPanel 组件拆分、头文件注释规范完善
+- **文档更新**：SECURITY.md 安全策略、CONTRIBUTING.md 贡献指南、TODO_TRACKING.md 任务跟踪
+- **工程规范**：README.md 占位符替换为实际项目地址、web-deploy.yml 路径修正（web/ → web-gui/）
+- **CI 增强**：Python CI 新增 flake8 + mypy 静态检查步骤、requirements.txt 补全开发依赖
+- **CLI 中文化**：llm_coding_assistant 命令行帮助信息改为中文
+- **配置统一**：.editorconfig 行长度规则添加注释说明
+
+### 变更 (Changed)
+- **架构升级**：OCCT 风格 7 层架构重构为五层单向依赖架构
+- **CI/CD**：python.yml 扩展覆盖 concurrent_monitor 和 llm_coding_assistant
+- **架构文档**：ARCHITECTURE_v3.3.md 文件映射表补全
+- **代码规范**：统一所有头文件版本标注
+
+### 内部 (Internal)
+- 全部头文件 @version 标签更新为 3.3.0
+- 全部源文件 @version 标签更新为 3.3.0
+- 预设模块目录扩展至 55+ 个 .c 文件
+- 流式事件类型枚举扩展至 47 种
+- 错误码头文件重构为分层编号体系
+
 ## [3.2.0] - 2026-05-24
 
 ### 新增
@@ -141,4 +196,4 @@ Thanks to all contributors who made this release possible!
 
 ---
 
-[3.0.0]: https://github.com/yourusername/lv00/releases/tag/v3.0.0
+[3.0.0]: https://github.com/lv00-project/lv00/releases/tag/v3.0.0

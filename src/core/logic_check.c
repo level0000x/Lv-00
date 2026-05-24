@@ -178,7 +178,8 @@ static bool assertion_table_insert(AssertionTable *table, const NormalizedAssert
     bucket->assertion.description = assertion->description
         ? lv00_malloc(strlen(assertion->description) + 1) : NULL;
     if (bucket->assertion.description && assertion->description) {
-        strcpy(bucket->assertion.description, assertion->description);
+        /* 使用 snprintf 替代 strncpy，确保缓冲区安全 */
+        snprintf(bucket->assertion.description, strlen(assertion->description) + 1, "%s", assertion->description);
     }
     bucket->next = table->buckets[hash];
     table->buckets[hash] = bucket;
@@ -212,15 +213,16 @@ static Lv00LogicIssue *logic_issue_create(Lv00LogicIssueLevel level, const char 
     issue->id = -1; /* 由报告分配 */
     issue->level = level;
     issue->category = category ? lv00_malloc(strlen(category) + 1) : NULL;
-    if (issue->category && category) strcpy(issue->category, category);
+    if (issue->category && category) snprintf(issue->category, strlen(category) + 1, "%s", category);
     issue->description = description ? lv00_malloc(strlen(description) + 1) : NULL;
-    if (issue->description && description) strcpy(issue->description, description);
+    if (issue->description && description) snprintf(issue->description, strlen(description) + 1, "%s", description);
     issue->location = location ? lv00_malloc(strlen(location) + 1) : NULL;
-    if (issue->location && location) strcpy(issue->location, location);
+    if (issue->location && location) snprintf(issue->location, strlen(location) + 1, "%s", location);
     issue->step_index = step_index;
     issue->conflicting_step = conflicting_step;
     issue->suggestion = suggestion ? lv00_malloc(strlen(suggestion) + 1) : NULL;
-    if (issue->suggestion && suggestion) strcpy(issue->suggestion, suggestion);
+    if (issue->suggestion && suggestion) /* [Bug修复] strcpy → lv00_strlcpy 防止缓冲区溢出 */
+        lv00_strlcpy(issue->suggestion, suggestion, strlen(suggestion) + 1);
 
     return issue;
 }

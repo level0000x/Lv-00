@@ -65,6 +65,9 @@ static int tikz_render_element(char *buf, int buf_size, int offset,
 static int tikz_render_preamble(const Lv00TikZContext *ctx, char *buf, int buf_size);
 static int tikz_render_tikzpicture(const Lv00TikZContext *ctx, char *buf, int buf_size);
 static const char *tikz_coord_mode_str(Lv00TikZCoordMode mode);
+static void tikz_style_to_svg_attrs(const Lv00TikZStyle *style, char *buf, int buf_size);
+static int tikz_render_element_svg(char *buf, int buf_size, int offset,
+                                    const Lv00TikZElement *elem, const Lv00TikZContext *ctx);
 
 /* ========================================================================
  * 生命周期函数
@@ -387,34 +390,236 @@ int tikz_render(const Lv00TikZContext *ctx, char **output) {
     return offset;
 }
 
+/* ========================================================================
+ * 内置 SVG 渲染器 —— 直接从 TikZ 元素生成 SVG（无需外部工具）
+ * ======================================================================== */
+
+static void tikz_style_to_svg_attrs(const Lv00TikZStyle *style, char *buf, int buf_size) {
+    if (!style || !buf || buf_size <= 0) return;
+    int pos = 0;
+    /* 线条颜色 */
+    if (style->line_color[0]) {
+        pos += snprintf(buf + pos, buf_size - pos, "stroke=\"%s\"", style->line_color);
+    } else {
+        pos += snprintf(buf + pos, buf_size - pos, "stroke=\"black\"");
+    }
+    /* 线宽 */
+    if (style->line_width > 0) {
+        pos += snprintf(buf + pos, buf_size - pos, " stroke-width=\"%.2f\"", style->line_width);
+    }
+    /* 透明度 */
+    if (style->opacity < 1.0) {
+        pos += snprintf(buf + pos, buf_size - pos, " opacity=\"%.2f\"", style->opacity);
+    }
+    /* 填充颜色 */
+    if (style->fill_color[0] && strcmp(style->fill_color, "none") != 0) {
+        pos += snprintf(buf + pos, buf_size - pos, " fill=\"%s\"", style->fill_color);
+    } else {
+        pos += snprintf(buf + pos, buf_size - pos, " fill=\"none\"");
+    }
+    /* 虚线模式 */
+    switch (style->dash_pattern) {
+        case DASH_DASHED:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"6,3\"");
+            break;
+        case DASH_DOTTED:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"2,3\"");
+            break;
+        case DASH_DASHDOT:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"6,3,2,3\"");
+            break;
+        case DASH_DASHDOTDOT:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"6,3,2,3,2,3\"");
+            break;
+        case DASH_LOOSELY_DASHED:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"10,5\"");
+            break;
+        case DASH_DENSELY_DASHED:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"4,2\"");
+            break;
+        case DASH_LOOSELY_DOTTED:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"2,6\"");
+            break;
+        case DASH_DENSELY_DOTTED:
+            pos += snprintf(buf + pos, buf_size - pos, " stroke-dasharray=\"1,2\"");
+            break;
+        default:
+            break;
+    }
+    LV00_UNUSED(pos);
+}
+
+static int tikz_render_element_svg(char *buf, int buf_size, int offset,
+                                    const Lv00TikZElement *elem, const Lv00TikZContext *ctx) {
+    if (!buf || !elem) return offset;
+    char svg_attrs[512] = "";
+    const Lv00TikZStyle *style = NULL;
+    if (elem->style_ref >= 0 && elem->style_ref < ctx->style_count) {
+        style = &ctx->styles[elem->style_ref];
+        tikz_style_to_svg_attrs(style, svg_attrs, sizeof(svg_attrs));
+    }
+
+    switch (elem->tikz_type) {
+        case TIKZ_POINT:
+            if (elem->coord_count >= 2) {
+                const char *color = (style && style->line_color[0]) ? style->line_color : "black";
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<circle cx=\"%.3f\" cy=\"%.3f\" r=\"3\" fill=\"%s\"/>\n",
+                    elem->coords[0], elem->coords[1], color);
+            }
+            if (elem->point_labels && elem->point_label_count > 0 && elem->point_labels[0]) {
+                int fs = (style && style->label_font_size > 0) ? style->label_font_size : 10;
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<text x=\"%.3f\" y=\"%.3f\" font-size=\"%dpt\" "
+                    "text-anchor=\"start\" dominant-baseline=\"auto\">%s</text>\n",
+                    elem->coords[0] + 5, elem->coords[1] - 5, fs, elem->point_labels[0]);
+            }
+            break;
+        case TIKZ_LINE:
+            if (elem->coord_count >= 4) {
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<line x1=\"%.3f\" y1=\"%.3f\" x2=\"%.3f\" y2=\"%.3f\" %s/>\n",
+                    elem->coords[0], elem->coords[1],
+                    elem->coords[2], elem->coords[3], svg_attrs);
+            }
+            break;
+        case TIKZ_CIRCLE:
+            if (elem->coord_count >= 3) {
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<circle cx=\"%.3f\" cy=\"%.3f\" r=\"%.3f\" %s/>\n",
+                    elem->coords[0], elem->coords[1], elem->coords[2], svg_attrs);
+            }
+            break;
+        case TIKZ_ARC:
+            if (elem->coord_count >= 5) {
+                double cx = elem->coords[0];
+                double sa = elem->coords[2], ea = elem->coords[3], r = elem->coords[4];
+                double sa_rad = sa * M_PI / 180.0;
+                double ea_rad = ea * M_PI / 180.0;
+                double x1 = cx + r * cos(sa_rad);
+                double y1 = cy + r * sin(sa_rad);
+                double x2 = cx + r * cos(ea_rad);
+                double y2 = cy + r * sin(ea_rad);
+                double span = ea - sa;
+                int large_arc = (span > 180.0 || span < -180.0) ? 1 : 0;
+                int sweep = (span > 0.0) ? 1 : 0;
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<path d=\"M %.3f %.3f A %.3f %.3f 0 %d %d %.3f %.3f\" %s/>\n",
+                    x1, y1, r, r, large_arc, sweep, x2, y2, svg_attrs);
+            }
+            break;
+        case TIKZ_POLYGON:
+            if (elem->coord_count >= 6 && elem->point_count >= 3) {
+                offset += snprintf(buf + offset, buf_size - offset, "<polygon points=\"");
+                for (int i = 0; i < elem->point_count; i++) {
+                    offset += snprintf(buf + offset, buf_size - offset,
+                        "%.3f,%.3f ", elem->coords[i * 2], elem->coords[i * 2 + 1]);
+                }
+                offset += snprintf(buf + offset, buf_size - offset, "\" %s/>\n", svg_attrs);
+            }
+            break;
+        case TIKZ_LABEL:
+            if (elem->label_text[0] && elem->coord_count >= 2) {
+                int fs = (style && style->label_font_size > 0) ? style->label_font_size : 10;
+                const char *color = (style && style->line_color[0]) ? style->line_color : "black";
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<text x=\"%.3f\" y=\"%.3f\" font-size=\"%dpt\" fill=\"%s\" "
+                    "text-anchor=\"middle\" dominant-baseline=\"central\">%s</text>\n",
+                    elem->coords[0], elem->coords[1], fs, color, elem->label_text);
+            }
+            break;
+        case TIKZ_ELLIPSE:
+            if (elem->coord_count >= 4) {
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<ellipse cx=\"%.3f\" cy=\"%.3f\" rx=\"%.3f\" ry=\"%.3f\" %s/>\n",
+                    elem->coords[0], elem->coords[1],
+                    elem->coords[2], elem->coords[3], svg_attrs);
+            }
+            break;
+        case TIKZ_RECTANGLE:
+            if (elem->coord_count >= 4) {
+                double x = fmin(elem->coords[0], elem->coords[2]);
+                double y = fmin(elem->coords[1], elem->coords[3]);
+                double w = fabs(elem->coords[2] - elem->coords[0]);
+                double h = fabs(elem->coords[3] - elem->coords[1]);
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<rect x=\"%.3f\" y=\"%.3f\" width=\"%.3f\" height=\"%.3f\" %s/>\n",
+                    x, y, w, h, svg_attrs);
+            }
+            break;
+        case TIKZ_BEZIER:
+            if (elem->coord_count >= 8) {
+                offset += snprintf(buf + offset, buf_size - offset,
+                    "<path d=\"M %.3f %.3f C %.3f %.3f %.3f %.3f %.3f %.3f\" %s/>\n",
+                    elem->coords[0], elem->coords[1],
+                    elem->coords[2], elem->coords[3],
+                    elem->coords[4], elem->coords[5],
+                    elem->coords[6], elem->coords[7], svg_attrs);
+            }
+            break;
+        default:
+            /* 其他类型暂不渲染为 SVG */
+            break;
+    }
+    return offset;
+}
+
 int tikz_render_svg(const Lv00TikZContext *ctx, const Lv00TikZRenderConfig *config,
                      char **output) {
     LV00_CHECK_NULL(ctx, -1);
     LV00_CHECK_NULL(config, -1);
     LV00_CHECK_NULL(output, -1);
+    LV00_UNUSED(config);
 
-    char *latex = NULL;
-    int latex_len = tikz_render(ctx, &latex);
-    if (latex_len < 0 || !latex) return -1;
+    /* 计算包围盒 */
+    double xmin = 0, ymin = 0, xmax = 100, ymax = 100;
+    if (ctx->element_count > 0) {
+        xmin = ctx->bounding_box_xmin;
+        ymin = ctx->bounding_box_ymin;
+        xmax = ctx->bounding_box_xmax;
+        ymax = ctx->bounding_box_ymax;
+        /* 如果包围盒未计算，则从元素中推导 */
+        if (xmax <= xmin && ymax <= ymin) {
+            xmin = ymin = 1e30;
+            xmax = ymax = -1e30;
+            for (int i = 0; i < ctx->element_count; i++) {
+                const Lv00TikZElement *e = &ctx->elements[i];
+                for (int j = 0; j + 1 < e->coord_count; j += 2) {
+                    if (e->coords[j] < xmin) xmin = e->coords[j];
+                    if (e->coords[j] > xmax) xmax = e->coords[j];
+                    if (e->coords[j + 1] < ymin) ymin = e->coords[j + 1];
+                    if (e->coords[j + 1] > ymax) ymax = e->coords[j + 1];
+                }
+            }
+        }
+    }
+    double pad = 10;
+    xmin -= pad; ymin -= pad; xmax += pad; ymax += pad;
+    double vw = xmax - xmin;
+    double vh = ymax - ymin;
+    if (vw < 1) vw = 100;
+    if (vh < 1) vh = 100;
 
     size_t svg_size = LV00_TIKZ_SVG_BUFFER_SIZE;
     char *svg = (char *)lv00_malloc(svg_size);
-    if (!svg) { lv00_free((void **)&latex); return -1; }
+    if (!svg) return -1;
 
-    switch (config->backend) {
-        case RENDER_VIA_WASM:
-            snprintf(svg, svg_size, "<!-- WASM rendering placeholder -->\n<svg></svg>\n");
-            break;
-        case RENDER_VIA_DVISVGM:
-            snprintf(svg, svg_size, "<!-- dvisvgm rendering placeholder -->\n<svg></svg>\n");
-            break;
-        default:
-            snprintf(svg, svg_size, "<!-- LaTeX rendering placeholder -->\n<svg></svg>\n");
-            break;
+    int offset = 0;
+    offset += snprintf(svg + offset, svg_size - offset,
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+        "viewBox=\"%.3f %.3f %.3f %.3f\" "
+        "width=\"%.1f\" height=\"%.1f\">\n",
+        xmin, ymin, vw, vh, vw, vh);
+
+    /* 渲染所有元素 */
+    for (int i = 0; i < ctx->element_count; i++) {
+        offset = tikz_render_element_svg(svg, (int)svg_size, offset,
+                                          &ctx->elements[i], ctx);
     }
-    lv00_free((void **)&latex);
+
+    offset += snprintf(svg + offset, svg_size - offset, "</svg>\n");
     *output = svg;
-    return (int)strlen(svg);
+    return offset;
 }
 
 int tikz_compile(const Lv00TikZContext *ctx, const Lv00TikZRenderConfig *config,

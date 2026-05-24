@@ -22,7 +22,7 @@
  *       编译单元中实现（如 smt_z3.c、smt_cvc5.c），通过工厂函数注册。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_SMT_BACKEND_H

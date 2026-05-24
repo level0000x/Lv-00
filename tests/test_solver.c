@@ -46,6 +46,9 @@ static int test_degrees_of_freedom(void) {
     int dof2 = count_degrees_of_freedom(g, &free_vars2);
     printf("  添加线段后: 自由度 = %d\n", dof2);
 
+    /* 添加一条线段约束应减少1个自由度：4 - 1 = 3 */
+    assert(dof2 == 3);
+
     if (free_vars2)
         lv00_free_ptr(free_vars2);
 
@@ -72,6 +75,9 @@ static int test_conflict_detection(void) {
 
     bool has_conflict = check_conflict_equations(g);
     printf("  三个共线点: 冲突 = %s\n", has_conflict ? "是" : "否");
+
+    /* 三个共线点加两条线段约束不构成冲突 */
+    assert(has_conflict == false);
 
     graph_destroy(g);
     printf("  PASSED\n");

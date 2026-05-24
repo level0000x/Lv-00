@@ -7,7 +7,7 @@
  *
  * @module Numerical
  * @category PRESET_CATEGORY_NUMERICAL
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "preset_numerical.h"
@@ -364,7 +364,7 @@ bool preset_numerical_register(void) {
  * @return 预设类别枚举值
  */
 PresetCategory preset_numerical_category(void) {
-    return PRESET_CATEGORY_CUSTOM;
+    return PRESET_CATEGORY_NUMERICAL;
 }
 
 /**
@@ -376,7 +376,6 @@ PresetCategory preset_numerical_category(void) {
 bool preset_numerical_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count)
         return false;
-    *out_count = NUMERICAL_PRESET_COUNT;
     char **names = (char **) lv00_malloc(NUMERICAL_PRESET_COUNT * sizeof(char *));
     if (!names)
         return false;
@@ -433,5 +432,6 @@ bool preset_numerical_get_names(char ***out_names, int *out_count) {
         memcpy(names[i], preset_names[i], len);
     }
     *out_names = names;
+    *out_count = NUMERICAL_PRESET_COUNT;
     return true;
 }

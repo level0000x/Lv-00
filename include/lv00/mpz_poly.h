@@ -7,7 +7,7 @@
  *          代数数运算所需的结式（resultant）计算功能。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #ifndef LV00_MPZ_POLY_H

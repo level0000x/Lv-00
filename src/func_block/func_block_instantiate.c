@@ -5,7 +5,7 @@
  *          以及捕获避免替换（Capture-Avoiding Substitution）和 Alpha-重命名。
  *
  * @author Lv-00 Project
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include <stdbool.h>
@@ -108,6 +108,11 @@ static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, Constrai
         memset(&copy->data, 0, sizeof(copy->data));
 
         /* 分配新ID */
+        /* TODO(v3.4.0): 在多线程环境下，next_node_id++ 不是原子操作。
+         * 当前约束图操作假设在单线程或外部同步下进行。
+         * 实现策略：将 next_node_id 改为 _Atomic int 或 stdatomic.h 的 atomic_int，
+         * 使用 atomic_fetch_add(&graph->next_node_id, 1) 替代普通递增。
+         * 注意：需同步修改 constraint_graph.h 中的类型声明。 */
         copy->id = graph->next_node_id++;
         /* namespace_depth 恢复到外层 */
         copy->namespace_depth = orig->namespace_depth > 0 ? orig->namespace_depth - 1 : 0;
@@ -481,7 +486,8 @@ static void instantiate_copy_constraints(FuncBlock *fb, ConstraintGraph *graph, 
  * @param id_map ID 映射表（旧 ID -> 新 ID）
  * @param max_id 最大 ID（用于边界检查）
  */
-static void instantiate_copy_connection_constraints(FuncBlock *fb, ConstraintGraph *graph, int *id_map, int max_id) {
+static void instantiate_copy_connection_constraints(FuncBlock *fb, ConstraintGraph *graph, int *id_map, int max_id,
+                                                       bool *out_incomplete) {
     /* 收集所有内部相关ID（使用共享辅助函数） */
     int *all_ids = NULL;
     int all_count = 0;
@@ -575,8 +581,12 @@ static void instantiate_copy_connection_constraints(FuncBlock *fb, ConstraintGra
 
         /* 创建新的 CONNECTION 约束 */
         Constraint *new_c = lv00_malloc(sizeof(Constraint));
-        if (!new_c)
+        if (!new_c) {
+            LOG_WARN("func_block", "实例化复制 CONNECTION 约束失败：无法分配约束内存 (约束ID=%d)", c->id);
+            if (out_incomplete)
+                *out_incomplete = true;
             continue;
+        }
         memset(new_c, 0, sizeof(Constraint));
         new_c->id = graph->next_constraint_id++;
         new_c->type = CONNECTION;
@@ -584,7 +594,10 @@ static void instantiate_copy_connection_constraints(FuncBlock *fb, ConstraintGra
         new_c->participant_count = 2;
         new_c->participants = lv00_malloc(2 * sizeof(int));
         if (!new_c->participants) {
+            LOG_WARN("func_block", "实例化复制 CONNECTION 约束失败：无法分配参与者数组 (约束ID=%d)", new_c->id);
             lv00_free((void **) &new_c);
+            if (out_incomplete)
+                *out_incomplete = true;
             continue;
         }
         new_c->participants[0] = new_src_id;
@@ -595,8 +608,11 @@ static void instantiate_copy_connection_constraints(FuncBlock *fb, ConstraintGra
         Constraint **new_constraints =
             lv00_realloc(graph->constraints, (size_t) (graph->constraint_count + 1) * sizeof(Constraint *));
         if (!new_constraints) {
+            LOG_WARN("func_block", "实例化复制 CONNECTION 约束失败：无法扩展约束数组 (约束ID=%d)", new_c->id);
             lv00_free((void **) &new_c->participants);
             lv00_free((void **) &new_c);
+            if (out_incomplete)
+                *out_incomplete = true;
             continue;
         }
         graph->constraints = new_constraints;
@@ -718,7 +734,11 @@ InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, 
     instantiate_copy_constraints(fb, graph, id_map, max_id);
 
     /* 复制 CONNECTION 约束（应用设计文档 3.3 节三情况 beta-归约） */
-    instantiate_copy_connection_constraints(fb, graph, id_map, max_id);
+    bool connection_incomplete = false;
+    instantiate_copy_connection_constraints(fb, graph, id_map, max_id, &connection_incomplete);
+    if (connection_incomplete) {
+        LOG_WARN("func_block", "函数块实例化不完整：部分 CONNECTION 约束复制失败 (函数块ID=%d)", fb->id);
+    }
 
     /* 流式事件：函数块例化完成 */
     if (func_block_stream_ctx) {

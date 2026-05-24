@@ -12,7 +12,7 @@
  *
  * @module MathematicalLogic (兼容性)
  * @category PRESET_CATEGORY_LOGIC
- * @version 3.2.0
+ * @version 3.3.0
  * @author Lv-00 开发团队
  * @deprecated 请使用 preset_math_logic.h 替代
  */

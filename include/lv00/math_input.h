@@ -1,22 +1,32 @@
+/* ========================================================================
+ * 模块名称：数学输入系统 (math_input)
+ * 功能概述：借鉴 MathLive 的交互式编辑器设计，提供所见即所得的数学
+ *          公式输入系统。支持 LaTeX/纯文本/可视化三种输入模式，
+ *          预置 20+ 几何专用宏，可自定义宏库和虚拟键盘布局，
+ *          支持命令补全、undo/redo 和双向绑定。
+ *
+ * 主要 API：
+ *   - math_input_init / destroy               — 初始化/销毁输入状态
+ *   - math_input_set_mode / get_mode          — 输入模式切换
+ *   - math_input_register_macro               — 注册自定义宏
+ *   - math_input_create_default_geometry_macros — 创建几何宏库
+ *   - math_input_autocomplete                 — 命令补全
+ *   - math_input_render / parse               — 渲染/解析
+ *   - math_input_export_latex / import_latex  — LaTeX 导入/导出
+ *   - math_input_insert_text / delete / undo  — 文本编辑
+ *
+ * 使用示例：
+ *   MathInputState *state = math_input_init();
+ *   math_input_create_default_geometry_macros();
+ *   math_input_insert_text(state, "\\point{A}");
+ *   const char *rendered = math_input_render(state);
+ *
+ * @version v3.3.0
+ * ======================================================================== */
+
 /**
  * @file math_input.h
  * @brief 所见即所得数学公式输入系统 —— 借鉴 MathLive 的交互式编辑器设计
- *
- * 借鉴来源：
- *   - MathLive（cortexjs.io/mathlive）
- *     LaTeX 输入实时渲染、虚拟键盘、命令补全
- *   - 双向绑定（编辑器 <-> 渲染视图）
- *   - 自定义宏机制（\point{A} 等几何专用宏）
- *
- * 设计目标：
- *   - 支持 LaTeX / 纯文本 / 可视化三种输入模式
- *   - 预置 20+ 几何专用宏（\point, \line, \circle, \segment, \angle 等）
- *   - 可自定义宏库、虚拟键盘布局
- *   - 与 math_protocol.h 的 MathExpr 互转，支持前后端通信
- *   - 命令补全（前缀匹配 + 虚拟键盘触发）
- *
- * @version v3.3.0
- * @date 2026-05-24
  */
 
 #ifndef LV00_MATH_INPUT_H

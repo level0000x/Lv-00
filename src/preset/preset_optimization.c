@@ -7,7 +7,7 @@
  *
  * @module Optimization
  * @category PRESET_CATEGORY_OPTIMIZATION
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 #include "preset_optimization.h"
@@ -356,7 +356,7 @@ bool preset_optimization_register(void) {
  * @return 预设类别枚举值
  */
 PresetCategory preset_optimization_category(void) {
-    return PRESET_CATEGORY_CUSTOM;
+    return PRESET_CATEGORY_OPTIMIZATION;
 }
 
 /**
@@ -368,7 +368,6 @@ PresetCategory preset_optimization_category(void) {
 bool preset_optimization_get_names(char ***out_names, int *out_count) {
     if (!out_names || !out_count)
         return false;
-    *out_count = OPTIMIZATION_PRESET_COUNT;
     char **names = (char **) lv00_malloc(OPTIMIZATION_PRESET_COUNT * sizeof(char *));
     if (!names)
         return false;
@@ -422,5 +421,6 @@ bool preset_optimization_get_names(char ***out_names, int *out_count) {
         memcpy(names[i], preset_names[i], len);
     }
     *out_names = names;
+    *out_count = OPTIMIZATION_PRESET_COUNT;
     return true;
 }

@@ -62,6 +62,8 @@ int main() {
             printf("     轴%d -> %s\n", preset->mappings[i].axis_index,
                    high_dim_mapping_type_to_string(preset->mappings[i].mapping_type));
         }
+    } else {
+        fprintf(stderr, "   警告: 获取当前投影预设失败\n");
     }
 
     /* 创建自定义投影预设 */
@@ -88,7 +90,10 @@ int main() {
     }
 
     /* 设置旋转变换（45度） */
-    high_dim_create_rotation_transform(M_PI / 4, &custom_preset.transform);
+    int rot_result = high_dim_create_rotation_transform(M_PI / 4, &custom_preset.transform);
+    if (rot_result != LV00_OK) {
+        fprintf(stderr, "   创建旋转变换失败: %d\n", rot_result);
+    }
 
     int preset_idx = high_dim_add_projection_preset(manager, block_id, &custom_preset);
     if (preset_idx >= 0) {

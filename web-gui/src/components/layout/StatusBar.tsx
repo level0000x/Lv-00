@@ -78,7 +78,7 @@ const StatusBar: React.FC = () => {
           {TOOL_NAMES[tool] ?? tool}
         </output>
         <output className="status-stats" id="statusStats" aria-live="polite">
-          {points.length} nodes, {segments.length} constraints
+          {points.length} nodes, {segments.length} segments
         </output>
       </div>
       <output className="status-center" id="statusText" aria-live="polite">

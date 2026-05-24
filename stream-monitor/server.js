@@ -516,7 +516,18 @@ class StreamManager {
     const stream = this.streams.get(streamId);
     if (!stream) return;
     if (stream.process) {
-      stream.process.kill();
+      // 【修复 #6】Windows 平台信号兼容性处理
+      // Windows 不支持 SIGTERM 信号，process.kill() 在 Windows 上等同于 TerminateProcess。
+      // 使用 'SIGTERM' 在 Unix 上会优雅终止，在 Windows 上 Node.js 会自动转为 TerminateProcess。
+      // 这里直接使用无参数的 kill() 方法，Node.js 会根据平台自动选择合适的方式。
+      try {
+        stream.process.kill();
+      } catch (e) {
+        // 进程可能已经退出，忽略 ESRCH 错误
+        if (e.code !== 'ESRCH') {
+          Logger.warn(`终止进程失败 (${stream.name}): ${e.message}`);
+        }
+      }
       stream.process = null;
     }
     stream.status = 'stopped';
@@ -1177,6 +1188,12 @@ wss.on('close', () => {
 /**
  * 优雅退出处理函数
  * 依次：停止 Demo → 杀死子进程 → 关闭 WebSocket → 关闭 HTTP 服务器
+ *
+ * 【修复 #6】Windows 平台信号兼容性处理：
+ * - Windows 不支持 SIGTERM 信号，process.kill('SIGTERM') 在 Windows 上不可靠
+ * - 改为使用平台检测：Windows 上使用 tree-kill 模式（杀死进程树），
+ *   Unix 上仍使用 SIGTERM 优雅终止
+ * - SIGINT (Ctrl+C) 在 Windows 上正常工作，无需特殊处理
  */
 function gracefulShutdown(signal) {
   Logger.info(`收到 ${signal} 信号，开始优雅退出...`);
@@ -1188,7 +1205,19 @@ function gracefulShutdown(signal) {
   manager.streams.forEach(s => {
     if (s.process) {
       try {
-        s.process.kill('SIGTERM');
+        // 【修复 #6】Windows 平台信号兼容性处理
+        // Windows 不支持 POSIX 信号（SIGTERM/SIGKILL），
+        // Node.js 在 Windows 上对 process.kill(pid, 'SIGTERM') 的处理：
+        //   - 实际上会调用 TerminateProcess()，这是强制终止而非优雅终止
+        //   - 但 Node.js 文档建议在 Windows 上直接使用 process.kill(pid) 不带信号参数
+        // 因此这里根据平台选择不同的终止策略：
+        if (process.platform === 'win32') {
+          // Windows: 使用不带信号参数的 kill()，Node.js 会调用 TerminateProcess
+          s.process.kill();
+        } else {
+          // Unix: 先尝试 SIGTERM 优雅终止
+          s.process.kill('SIGTERM');
+        }
       } catch (e) {
         Logger.warn(`终止进程失败 (${s.name}): ${e.message}`);
       }
@@ -1217,8 +1246,14 @@ function gracefulShutdown(signal) {
 }
 
 // 注册进程信号监听
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+// 【修复 #6】Windows 平台信号兼容性处理
+// SIGTERM 在 Windows 上不可靠（仅在控制台模式下可用，且行为与 Unix 不同）
+// SIGINT (Ctrl+C) 在 Windows 上正常工作
+// 在 Windows 上仅注册 SIGINT，在 Unix 上同时注册 SIGTERM 和 SIGINT
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+if (process.platform !== 'win32') {
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+}
 
 // 捕获未处理的 Promise 拒绝
 process.on('unhandledRejection', (reason, promise) => {

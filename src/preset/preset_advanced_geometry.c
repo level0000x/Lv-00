@@ -7,7 +7,7 @@
  *
  * @module AdvancedGeometry
  * @category PRESET_CATEGORY_GEOMETRY
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 /*
@@ -594,7 +594,10 @@ bool preset_advanced_geometry_get_names(char ***out_names, int *out_count) {
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                lv00_free((void **) &names[j]);
+                {
+                    void *tmp = names[j];
+                    lv00_free(&tmp);
+                }
             }
             {
                 void *tmp = names;

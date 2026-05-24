@@ -18,6 +18,8 @@
  */
 
 import type { Point, Segment, Constraint } from '@/types';
+import { generateUniqueId } from '@/utils/idGenerator';
+import { dist } from '@/utils/constraintSolver';
 
 // ================================================================
 // 类型定义 / Type Definitions
@@ -65,26 +67,12 @@ export interface FormulaParseResult {
 
 // ================================================================
 // ID 生成器 / ID Generator
+// 使用全局统一的 generateUniqueId() 替代独立计数器
 // ================================================================
-
-let _formulaIdCounter = 2000;
-
-function nextFormulaId(): number {
-  return ++_formulaIdCounter;
-}
-
-export function resetFormulaIdCounter(): void {
-  _formulaIdCounter = 2000;
-}
 
 // ================================================================
 // 辅助函数 / Helper Functions
 // ================================================================
-
-/** 两点距离 */
-function dist(a: Point, b: Point): number {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-}
 
 /** 三点角度（B 为顶点），返回角度（度） */
 function angleBetween(a: Point, b: Point, c: Point): number {
@@ -352,7 +340,7 @@ export function executeFormula(
       switch (cmd.type) {
         case 'point': {
           const { name, x, y } = cmd.args as { name: string; x: number; y: number };
-          const pt: Point = { id: nextFormulaId(), x, y };
+          const pt: Point = { id: generateUniqueId(), x, y };
           registerPoint(name, pt);
           cmd.result = `创建点 ${name}(${x}, ${y})`;
           break;
@@ -372,7 +360,7 @@ export function executeFormula(
             result.errors.push(cmd.error);
             break;
           }
-          const seg: Segment = { id: nextFormulaId(), p1: p1.id, p2: p2.id };
+          const seg: Segment = { id: generateUniqueId(), p1: p1.id, p2: p2.id };
           result.createdSegments.push(seg);
           cmd.result = `创建线段 ${p1Name}${p2Name} (ID: ${seg.id})`;
           break;
@@ -418,7 +406,7 @@ export function executeFormula(
           const circlePointIds: number[] = [];
           for (let i = 0; i < n; i++) {
             const angle = (2 * Math.PI * i) / n;
-            const pid = nextFormulaId();
+            const pid = generateUniqueId();
             const pt: Point = {
               id: pid,
               x: center.x + radius * Math.cos(angle),
@@ -431,7 +419,7 @@ export function executeFormula(
           }
           for (let i = 0; i < n; i++) {
             const seg: Segment = {
-              id: nextFormulaId(),
+              id: generateUniqueId(),
               p1: circlePointIds[i]!,
               p2: circlePointIds[(i + 1) % n]!,
             };
@@ -460,14 +448,14 @@ export function executeFormula(
             break;
           }
           const mid: Point = {
-            id: nextFormulaId(),
+            id: generateUniqueId(),
             x: (p1.x + p2.x) / 2,
             y: (p1.y + p2.y) / 2,
           };
           registerPoint(name, mid);
           // 添加 betweenness 约束
           const constraint: Constraint = {
-            id: nextFormulaId(),
+            id: generateUniqueId(),
             type: 'betweenness',
             args: [p1.id, mid.id, p2.id],
           };
@@ -496,7 +484,7 @@ export function executeFormula(
             break;
           }
           const foot = projectOnSegment(p, a, b);
-          foot.id = nextFormulaId();
+          foot.id = generateUniqueId();
           registerPoint(`foot_${pointName}_${segP1Name}${segP2Name}`, foot);
           // 添加 incidence 约束
           const seg = result.createdSegments.find(
@@ -505,7 +493,7 @@ export function executeFormula(
               (s.p1 === b.id && s.p2 === a.id),
           );
           const constraint: Constraint = {
-            id: nextFormulaId(),
+            id: generateUniqueId(),
             type: 'incidence',
             args: [foot.id, ...(seg ? [seg.id] : [])],
           };
@@ -544,8 +532,8 @@ export function executeFormula(
           const ux = dx / len;
           const uy = dy / len;
           const halfLen = len * 0.8;
-          const id1 = nextFormulaId();
-          const id2 = nextFormulaId();
+          const id1 = generateUniqueId();
+          const id2 = generateUniqueId();
           const p1: Point = {
             id: id1,
             x: through.x + ux * halfLen,
@@ -558,7 +546,7 @@ export function executeFormula(
           };
           registerPoint(`par_${throughName}_1`, p1);
           registerPoint(`par_${throughName}_2`, p2);
-          result.createdSegments.push({ id: nextFormulaId(), p1: id1, p2: id2 });
+          result.createdSegments.push({ id: generateUniqueId(), p1: id1, p2: id2 });
           cmd.result = `创建平行线 (过 ${throughName}, 长 ${(halfLen * 2).toFixed(2)})`;
           break;
         }
@@ -585,7 +573,7 @@ export function executeFormula(
             result.errors.push(cmd.error);
             break;
           }
-          intersection.id = nextFormulaId();
+          intersection.id = generateUniqueId();
           registerPoint(`int_${seg1P1Name}${seg1P2Name}_${seg2P1Name}${seg2P2Name}`, intersection);
           cmd.result = `创建交点 (${intersection.x.toFixed(2)}, ${intersection.y.toFixed(2)})`;
           break;

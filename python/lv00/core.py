@@ -18,11 +18,12 @@ Lv-00 核心模块
     3. 类型安全：完整的类型提示和参数验证
     4. 异常处理：清晰的错误消息和错误码
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 
 import ctypes
+import logging
 import sys as _sys
 from fractions import Fraction
 from typing import Any, Iterator, List, Optional, Set, Tuple, Union
@@ -306,10 +307,9 @@ class SymbolicCoord:
                 self._ptr = None
         except Exception as e:
             # 解释器关闭时模块可能已被垃圾回收，此时静默忽略
-            # 其他情况记录警告以便排查内存泄漏
+            # 其他情况通过 logging 记录警告，避免使用 print 直接输出到 stderr
             if not _is_interpreter_shutting_down():
-                import sys
-                print(f"[Lv00] 警告：SymbolicCoord 析构失败：{e}", file=sys.stderr)
+                logging.warning("SymbolicCoord 析构失败：%s", e)
     
     def __repr__(self) -> str:
         """
@@ -814,7 +814,7 @@ class Point:
             y = SymbolicCoord(y)
         self.x = x
         self.y = y
-        self._id = None  # Set by Graph.add_point
+        self._id = None  # 由 Graph.add_point() 自动分配
     
     def __repr__(self) -> str:
         """返回点的调试表示。
@@ -840,8 +840,9 @@ class Point:
             return False
         return self.x == other.x and self.y == other.y
 
-    # 修复：定义了 __eq__ 后必须显式设置 __hash__，否则 Python 3 会将其设为 None
-    # Point 的相等性基于可变坐标值，不适合用作哈希键，因此显式标记为不可哈希
+    # 定义了 __eq__ 后必须显式设置 __hash__，否则 Python 3 会将其设为 None。
+    # Point 的坐标是可变的（SymbolicCoord 可被重新赋值），因此不适合用作哈希键。
+    # 显式标记为不可哈希，防止在 set/dict 中使用可变对象导致不一致行为。
     __hash__ = None
     
     def __iter__(self) -> 'Iterator[SymbolicCoord]':
@@ -1044,7 +1045,7 @@ class LineSegment:
             raise TypeError("参数必须是 Point 类型")
         self.p1 = p1
         self.p2 = p2
-        self._id = None  # Set by Graph.add_line_segment
+        self._id = None  # 由 Graph.add_line_segment() 自动分配
     
     def __repr__(self) -> str:
         """
@@ -1512,13 +1513,11 @@ class Graph:
             - 增加 self._segments 列表
             - self._next_id 自增
         """
-        if p1 not in self._points or p2 not in self._points:
-            # 性能优化：使用 _point_id_set 进行 O(1) 成员检查
-            # 优先使用加速索引，回退到 O(n) 的列表查找（兼容旧 ID 格式）
-            p1_in = p1._id in self._point_id_set if self._point_id_set else (p1 in self._points)
-            p2_in = p2._id in self._point_id_set if self._point_id_set else (p2 in self._points)
-            if not (p1_in and p2_in):
-                raise Lv00Error("点必须先通过 add_point 添加到图中")
+        # 统一使用 _point_id_set 进行 O(1) 存在性检查。
+        p1_in = p1._id in self._point_id_set if self._point_id_set else (p1 in self._points)
+        p2_in = p2._id in self._point_id_set if self._point_id_set else (p2 in self._points)
+        if not (p1_in and p2_in):
+            raise Lv00Error("点必须先通过 add_point 添加到图中")
         
         segment = LineSegment(p1, p2)
         
@@ -1799,16 +1798,24 @@ class Graph:
         new_ptr = _lib.graph_deserialize_from_json(b)
         if not new_ptr:
             raise Lv00Error("从 JSON 反序列化图失败")
-        # 替换底层 C 指针
-        if self._ptr:
-            _lib.graph_destroy(self._ptr)
+        # 先保存旧指针，成功后再销毁旧图，确保异常安全。
+        old_ptr = self._ptr
         self._ptr = new_ptr
-        self._points = []
-        self._segments = []
-        self._regions = []
-        self._ports = []
-        self._point_id_set = set()
-        self._sync_id_from_c()
+        try:
+            self._points = []
+            self._segments = []
+            self._regions = []
+            self._ports = []
+            self._point_id_set = set()
+            self._sync_id_from_c()
+        except Exception:
+            # 回滚：恢复旧指针，释放新指针
+            self._ptr = old_ptr
+            _lib.graph_destroy(new_ptr)
+            raise
+        # 成功后销毁旧图
+        if old_ptr:
+            _lib.graph_destroy(old_ptr)
         return self
 
     def detect_redundancy(self, constraint_type: int,
@@ -2050,7 +2057,7 @@ class Graph:
             return []
         
         try:
-            # 修复：使用 try-finally 确保异常路径也能正确释放内存
+            # 使用 try-finally 确保异常路径也能正确释放内存
             redundant = [result_ptr[i] for i in range(count.value)]
         finally:
             _lib.lv00_free_ptr(result_ptr)
@@ -2067,14 +2074,14 @@ class Graph:
             若无冲突则返回 ([], [])
         """
         conflict_count = ctypes.c_int()
-        # 修复：sizes_ptr 应为指向整数数组的指针，而非单个整数
+        # sizes_ptr 应为指向整数数组的指针，而非单个整数
         sizes_ptr = ctypes.POINTER(ctypes.c_int)()
         result_ptr = _lib.graph_detect_conflicts(self._ptr, ctypes.byref(conflict_count), ctypes.byref(sizes_ptr))
         if not result_ptr:
             return ([], [])
         
         try:
-            # 修复：使用 try-finally 确保异常路径也能正确释放内存
+            # 使用 try-finally 确保异常路径也能正确释放内存
             conflicts = []
             sizes = []
             for i in range(conflict_count.value):
@@ -2147,9 +2154,9 @@ def get_version() -> str:
         lv00_get_version 在 C 库中为 static inline 函数，不在 DLL 导出中。
         此处返回 Python 包的版本号作为替代。
     """
-    # lv00_get_version 已从 DLL 导出中移除（static inline），
-    # 返回 Python 包版本作为替代
-    return "3.2.0"
+    # 从包的 __version__ 导入，确保版本号唯一来源。
+    from . import __version__
+    return __version__
 
 
 def get_last_error() -> str:
