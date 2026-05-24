@@ -1500,7 +1500,7 @@ void rewrite_history_destroy(RewriteHistory *history) {
     }
 }
 
-bool rewrite_history_check_cycle(RewriteHistory *history, ConstraintGraph *graph) {
+bool rewrite_history_check_cycle(const RewriteHistory *history, ConstraintGraph *graph) {
     GraphHash *current_hash = compute_complete_graph_hash(graph);
     if (!current_hash)
         return false;
@@ -1545,7 +1545,7 @@ void rewrite_history_add(RewriteHistory *history, ConstraintGraph *graph) {
  * @param graph 约束图（预期已规范化）
  * @return true 如果幂等（无变化），false 否则
  */
-bool normalization_verify_idempotency(ConstraintGraph *graph) {
+bool normalization_verify_idempotency(const ConstraintGraph *graph) {
     if (!graph)
         return false;
 

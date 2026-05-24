@@ -27,6 +27,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "exact_arithmetic.h" /* LV00_TOLERATED_FLOAT for approximate backend */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -209,7 +211,9 @@ struct Lv00VectorOps {
 struct Lv00Vector {
     int64_t length;           /**< 向量长度（元素个数） */
     Lv00BackendType backend;  /**< 所属后端类型 */
-    double *data;             /**< 数据数组（序列后端直接使用） */
+    double LV00_TOLERATED_FLOAT(*data);  /**< 数据数组（序列后端直接使用）
+                                          * @note LV00_TOLERATED_FLOAT:
+                                          * 数值后端为近似求解路径，double 可容忍 */
     void *backend_data;       /**< 后端私有不透明数据（GPU 指针等） */
     const Lv00VectorOps *ops; /**< 操作表 */
 };

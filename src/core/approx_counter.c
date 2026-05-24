@@ -29,7 +29,7 @@ typedef struct {
 
 /** 鍒濆鍖?CNF 鏋勫缓鍣?*/
 static CNFBuilder *cnf_builder_create(void) {
-    CNFBuilder *b = (CNFBuilder *) malloc(sizeof(CNFBuilder));
+    CNFBuilder *b = (CNFBuilder *) lv00_malloc(sizeof(CNFBuilder));
     if (!b)
         return NULL;
     b->var_count = 0;
@@ -37,9 +37,9 @@ static CNFBuilder *cnf_builder_create(void) {
     b->clause_buf_len = 0;
     b->clause_count = 0;
     b->next_var_id = 1;
-    b->clause_buffer = (int *) malloc((size_t) b->clause_buf_size * sizeof(int));
+    b->clause_buffer = (int *) lv00_malloc((size_t) b->clause_buf_size * sizeof(int));
     if (!b->clause_buffer) {
-        free(b);
+        lv00_free((void **)&b);
         return NULL;
     }
     return b;
@@ -54,7 +54,7 @@ static int cnf_builder_new_var(CNFBuilder *b) {
 static void cnf_builder_add_lit(CNFBuilder *b, int lit) {
     if (b->clause_buf_len + 1 >= b->clause_buf_size) {
         b->clause_buf_size *= 2;
-        b->clause_buffer = (int *) realloc(b->clause_buffer, (size_t) b->clause_buf_size * sizeof(int));
+        b->clause_buffer = (int *) lv00_realloc(b->clause_buffer, (size_t) b->clause_buf_size * sizeof(int));
     }
     b->clause_buffer[b->clause_buf_len++] = lit;
 }
@@ -68,8 +68,8 @@ static void cnf_builder_end_clause(CNFBuilder *b) {
 /** 閿€姣?CNF 鏋勫缓鍣?*/
 static void cnf_builder_destroy(CNFBuilder *b) {
     if (b) {
-        free(b->clause_buffer);
-        free(b);
+        lv00_free((void **)&b->clause_buffer);
+        lv00_free((void **)&b);
     }
 }
 
@@ -77,10 +77,10 @@ static void cnf_builder_destroy(CNFBuilder *b) {
 static char *cnf_builder_to_dimacs(CNFBuilder *b) {
     if (!b)
         return NULL;
-    /* 璁＄畻鎵€闇€缂撳啿鍖哄ぇ灏?*/
+    /* 计算所需缓冲区大小 */
     size_t header_size = 256;
     size_t buf_size = header_size + (size_t) b->clause_buf_len * 12;
-    char *buf = (char *) malloc(buf_size);
+    char *buf = (char *) lv00_malloc(buf_size);
     if (!buf)
         return NULL;
 
@@ -119,7 +119,7 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
 
     /* Phase 1: 鍙橀噺鍒嗛厤
      * 涓烘瘡涓妭鐐圭殑鏍囪瘑鍒嗛厤甯冨皵鍙橀噺绌洪棿銆?     * 绠€鍖栧鐞嗭細姣忎釜鑺傜偣涓€涓竷灏斿彉閲忥紙琛ㄧず璇ヨ妭鐐?娲昏穬"锛夈€?     * 瀹屾暣瀹炵幇搴斿鍧愭爣鍋?bit-blasting銆?     */
-    int *node_vars = (int *) malloc((size_t) graph->node_count * sizeof(int));
+    int *node_vars = (int *) lv00_malloc((size_t) graph->node_count * sizeof(int));
     if (!node_vars) {
         cnf_builder_destroy(b);
         return NULL;
@@ -229,7 +229,7 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
         *out_cnf_vars = b->next_var_id - 1;
     }
 
-    free(node_vars);
+    lv00_free((void **)&node_vars);
     cnf_builder_destroy(b);
     return result;
 }
@@ -275,7 +275,7 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
 
     /* 鐢熸垚鐘舵€佹秷鎭?*/
     size_t msg_size = 256;
-    out->status_msg = (char *) malloc(msg_size);
+    out->status_msg = (char *) lv00_malloc(msg_size);
     if (out->status_msg) {
         snprintf(out->status_msg, msg_size,
                  "Model count: ~%llu with %.0f%% confidence "
@@ -283,7 +283,7 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
                  (unsigned long long) estimated_total, pac_bound * 100.0, cfg->epsilon, cfg->delta, cnf_vars);
     }
 
-    free(cnf_str);
+    lv00_free((void **)&cnf_str);
     return true;
 }
 
@@ -306,7 +306,7 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int pr
     if (out->status_msg) {
         size_t len = strlen(out->status_msg);
         size_t new_size = len + 128;
-        char *new_msg = (char *) realloc(out->status_msg, new_size);
+        char *new_msg = (char *) lv00_realloc(out->status_msg, new_size);
         if (new_msg) {
             out->status_msg = new_msg;
             snprintf(out->status_msg + len, new_size - len, " [projected: %d vars]", proj_count);
@@ -348,7 +348,7 @@ double approx_count_get_pac_bound(const PacConfig *cfg, const ApproxCountResult 
 
 void approx_count_result_free(ApproxCountResult *res) {
     if (res) {
-        free(res->status_msg);
+        lv00_free((void **)&res->status_msg);
         res->status_msg = NULL;
         res->cell_sol_count = 0;
         res->hash_count = 0;

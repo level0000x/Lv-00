@@ -36,6 +36,7 @@
 #define LV00_FLOAT_ERROR_H
 
 #include "constraint_graph.h"
+#include "exact_arithmetic.h" /* LV00_TOLERATED_FLOAT for error-analysis double */
 #include "lv00.h"
 #include "symbolic_coord.h"
 
@@ -60,12 +61,12 @@ extern "C" {
  * 用于误差界分析时将变量不确定性传播为结果不确定性。
  */
 typedef struct {
-    double center_val;    /**< 中心点处的函数值 f(center) */
-    double *first_derivs; /**< 一阶偏导数数组 df/dxi|center */
+    double LV00_TOLERATED_FLOAT(center_val);    /**< 中心点处的函数值 f(center) */
+    double LV00_TOLERATED_FLOAT(*first_derivs); /**< 一阶偏导数数组 df/dxi|center */
     int *deriv_var_ids;   /**< 导数对应的变量 ID 数组 */
     int deriv_count;      /**< 偏导数数量（= 变量数） */
-    double interval_lo;   /**< 区间下界（含泰勒余项） */
-    double interval_hi;   /**< 区间上界（含泰勒余项） */
+    double LV00_TOLERATED_FLOAT(interval_lo);   /**< 区间下界（含泰勒余项） */
+    double LV00_TOLERATED_FLOAT(interval_hi);   /**< 区间上界（含泰勒余项） */
     int order;            /**< 泰勒展开阶数（1 = 一阶，2 = 二阶，...） */
 } TaylorForm;
 
@@ -83,8 +84,8 @@ typedef struct {
  * 区间算术遵循 IEEE 1788 标准的基本操作定义。
  */
 typedef struct {
-    double lo;     /**< 区间下界 */
-    double hi;     /**< 区间上界 */
+    double LV00_TOLERATED_FLOAT(lo);     /**< 区间下界 */
+    double LV00_TOLERATED_FLOAT(hi);     /**< 区间上界 */
     bool is_exact; /**< 是否为精确值（lo == hi） */
 } FloatInterval;
 
@@ -203,8 +204,8 @@ FloatInterval interval_log(FloatInterval a);
  * proof_text 提供形式化的误差证明文本（如 FPTaylor 输出的证书）。
  */
 typedef struct {
-    double absolute_error;  /**< 绝对误差上界 */
-    double relative_error;  /**< 相对误差上界 */
+    double LV00_TOLERATED_FLOAT(absolute_error);  /**< 绝对误差上界 */
+    double LV00_TOLERATED_FLOAT(relative_error);  /**< 相对误差上界 */
     TrustColor trust_level; /**< 信任颜色等级 */
     char *proof_text;       /**< 误差证明文本（调用者负责 free） */
 } ErrorBound;

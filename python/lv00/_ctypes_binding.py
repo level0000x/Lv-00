@@ -1116,3 +1116,632 @@ COORD_RATIONAL = 0       # 有理数：精确分数表示
 COORD_ALGEBRAIC = 1      # 代数数：通过最小多项式定义
 COORD_QUADRATIC = 2      # 二次根式：a + b*sqrt(n) 形式
 COORD_TRANSCENDENTAL = 3 # 超越数：π、e 等非代数数
+
+# ============================================================
+# Groebner 引擎函数签名
+# ============================================================
+# Groebner基计算引擎，借鉴Singular/Macaulay2的多项式理想与Gröbner基计算
+
+# 环管理
+_lib.ring_registry_create.argtypes = [c_int]
+_lib.ring_registry_create.restype = c_void_p
+
+_lib.ring_registry_destroy.argtypes = [c_void_p]
+_lib.ring_registry_destroy.restype = None
+
+_lib.ring_create.argtypes = [c_void_p, POINTER(c_char_p), c_int, c_int, c_int, c_char_p]
+_lib.ring_create.restype = c_int
+
+_lib.ring_destroy.argtypes = [c_void_p, c_int]
+_lib.ring_destroy.restype = None
+
+_lib.ring_register.argtypes = [c_void_p, c_void_p]
+_lib.ring_register.restype = c_int
+
+_lib.ring_find.argtypes = [c_void_p, c_int]
+_lib.ring_find.restype = c_void_p
+
+# 多项式操作
+_lib.poly_create.argtypes = [c_void_p, c_int, c_int, c_char_p]
+_lib.poly_create.restype = c_int
+
+_lib.poly_destroy.argtypes = [c_void_p, c_int]
+_lib.poly_destroy.restype = None
+
+_lib.poly_add.argtypes = [c_void_p, c_int, c_int, c_char_p]
+_lib.poly_add.restype = c_int
+
+_lib.poly_multiply.argtypes = [c_void_p, c_int, c_int, c_char_p]
+_lib.poly_multiply.restype = c_int
+
+_lib.poly_substitute.argtypes = [c_void_p, c_int, c_int, c_int, c_char_p]
+_lib.poly_substitute.restype = c_int
+
+_lib.poly_get.argtypes = [c_void_p, c_int]
+_lib.poly_get.restype = c_void_p
+
+# 理想与Groebner基
+_lib.ideal_create.argtypes = [c_void_p, c_int, c_char_p]
+_lib.ideal_create.restype = c_int
+
+_lib.ideal_destroy.argtypes = [c_void_p, c_int]
+_lib.ideal_destroy.restype = None
+
+_lib.ideal_add_generator.argtypes = [c_void_p, c_int, c_int]
+_lib.ideal_add_generator.restype = c_int
+
+_lib.groebner_compute.argtypes = [c_void_p, c_int, c_int]
+_lib.groebner_compute.restype = c_int
+
+_lib.groebner_compute_incremental.argtypes = [c_void_p, c_int, c_int]
+_lib.groebner_compute_incremental.restype = c_int
+
+_lib.ideal_membership.argtypes = [c_void_p, c_int, c_int]
+_lib.ideal_membership.restype = c_bool
+
+_lib.ideal_intersection.argtypes = [c_void_p, c_int, c_int, c_char_p]
+_lib.ideal_intersection.restype = c_int
+
+_lib.ideal_quotient.argtypes = [c_void_p, c_int, c_int, c_char_p]
+_lib.ideal_quotient.restype = c_int
+
+# 代数簇
+_lib.variety_compute.argtypes = [c_void_p, c_int, c_char_p]
+_lib.variety_compute.restype = c_int
+
+_lib.variety_dimension.argtypes = [c_void_p, c_int]
+_lib.variety_dimension.restype = c_int
+
+_lib.variety_is_zero_dimensional.argtypes = [c_void_p, c_int]
+_lib.variety_is_zero_dimensional.restype = c_bool
+
+# 约束图->多项式理想转换
+_lib.constraint_graph_to_ideal.argtypes = [c_void_p, POINTER(_ConstraintGraph), c_int, c_char_p]
+_lib.constraint_graph_to_ideal.restype = c_int
+
+# ============================================================
+# 类型系统函数签名
+# ============================================================
+# 类型系统：宇宙层级、类型等价检查、类型推断
+
+# 流式上下文
+_lib.type_system_set_stream_context.argtypes = [c_void_p]
+_lib.type_system_set_stream_context.restype = None
+
+# 类型系统管理
+_lib.type_system_create.argtypes = []
+_lib.type_system_create.restype = c_void_p
+
+_lib.type_system_destroy.argtypes = [c_void_p]
+_lib.type_system_destroy.restype = None
+
+_lib.type_system_set_well_founded.argtypes = [c_void_p, c_bool]
+_lib.type_system_set_well_founded.restype = None
+
+_lib.type_system_set_cumulative.argtypes = [c_void_p, c_bool]
+_lib.type_system_set_cumulative.restype = None
+
+# 类型区域创建
+_lib.type_create_point.argtypes = [c_void_p]
+_lib.type_create_point.restype = c_void_p
+
+_lib.type_create_line_segment.argtypes = [c_void_p]
+_lib.type_create_line_segment.restype = c_void_p
+
+_lib.type_create_region.argtypes = [c_void_p, POINTER(c_int), c_int]
+_lib.type_create_region.restype = c_void_p
+
+_lib.type_create_function.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.type_create_function.restype = c_void_p
+
+_lib.type_create_product.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.type_create_product.restype = c_void_p
+
+_lib.type_create_sum.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.type_create_sum.restype = c_void_p
+
+_lib.type_create_variable.argtypes = [c_void_p, c_char_p]
+_lib.type_create_variable.restype = c_void_p
+
+_lib.type_create_dependent.argtypes = [c_void_p, c_int, c_void_p]
+_lib.type_create_dependent.restype = c_void_p
+
+_lib.type_create_bottom.argtypes = [c_void_p]
+_lib.type_create_bottom.restype = c_void_p
+
+_lib.type_region_destroy.argtypes = [c_void_p]
+_lib.type_region_destroy.restype = None
+
+_lib.type_add_alias.argtypes = [c_void_p, c_char_p]
+_lib.type_add_alias.restype = c_bool
+
+# 宇宙层级
+_lib.type_get_level.argtypes = [c_void_p]
+_lib.type_get_level.restype = c_int
+
+_lib.type_check_level_validity.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.type_check_level_validity.restype = c_bool
+
+_lib.type_check_cumulative.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.type_check_cumulative.restype = c_bool
+
+# 类型等价检查
+_lib.type_check_equivalence.argtypes = [c_void_p, c_void_p, c_void_p, c_bool]
+_lib.type_check_equivalence.restype = c_int
+
+_lib.type_check_port_compatibility.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.type_check_port_compatibility.restype = c_int
+
+# 类型推断
+_lib.type_infer_node.argtypes = [c_void_p, POINTER(_ConstraintGraph), c_int, POINTER(c_void_p)]
+_lib.type_infer_node.restype = c_bool
+
+_lib.type_infer_port.argtypes = [c_void_p, POINTER(_ConstraintGraph), c_int, POINTER(c_void_p)]
+_lib.type_infer_port.restype = c_bool
+
+# 类型变量实例化
+_lib.type_instantiate_variable.argtypes = [c_void_p, c_int, c_void_p]
+_lib.type_instantiate_variable.restype = c_bool
+
+_lib.type_substitute_variable.argtypes = [c_void_p, c_void_p, c_int, c_void_p, POINTER(c_void_p)]
+_lib.type_substitute_variable.restype = c_bool
+
+# 非良基模式
+_lib.type_detect_cycle.argtypes = [c_void_p, c_void_p]
+_lib.type_detect_cycle.restype = c_bool
+
+_lib.type_check_non_well_founded_compatibility.argtypes = [c_void_p, c_void_p]
+_lib.type_check_non_well_founded_compatibility.restype = c_bool
+
+# 类型规范化
+_lib.type_normalize.argtypes = [c_void_p, c_void_p, POINTER(c_void_p)]
+_lib.type_normalize.restype = c_bool
+
+# 类型附加到节点
+_lib.type_attach_to_node.argtypes = [c_void_p, c_int, c_void_p]
+_lib.type_attach_to_node.restype = c_bool
+
+_lib.type_get_node_type.argtypes = [c_void_p, c_int]
+_lib.type_get_node_type.restype = c_void_p
+
+_lib.type_detach_node_type.argtypes = [c_void_p, c_int]
+_lib.type_detach_node_type.restype = c_bool
+
+# 依赖类型检查
+_lib.type_check_dependent.argtypes = [c_void_p, c_void_p, c_void_p, c_void_p]
+_lib.type_check_dependent.restype = c_bool
+
+# 辅助函数
+_lib.type_kind_to_string.argtypes = [c_int]
+_lib.type_kind_to_string.restype = c_char_p
+
+_lib.universe_level_to_string.argtypes = [c_int]
+_lib.universe_level_to_string.restype = c_char_p
+
+_lib.type_equiv_result_to_string.argtypes = [c_int]
+_lib.type_equiv_result_to_string.restype = c_char_p
+
+_lib.type_check_result_to_string.argtypes = [c_int]
+_lib.type_check_result_to_string.restype = c_char_p
+
+_lib.type_print.argtypes = [c_void_p, c_int]
+_lib.type_print.restype = None
+
+# 规则表驱动的类型推断
+_lib.type_system_register_inference_rule.argtypes = [c_void_p, c_int, c_int, c_int, c_char_p]
+_lib.type_system_register_inference_rule.restype = c_int
+
+_lib.type_system_get_inference_rules.argtypes = [c_void_p, POINTER(c_int)]
+_lib.type_system_get_inference_rules.restype = c_void_p
+
+_lib.type_system_clear_inference_rules.argtypes = [c_void_p]
+_lib.type_system_clear_inference_rules.restype = None
+
+_lib.type_infer_by_rules.argtypes = [c_void_p, POINTER(_ConstraintGraph), c_int]
+_lib.type_infer_by_rules.restype = c_int
+
+# 重写路径
+_lib.type_rewrite_path_create.argtypes = []
+_lib.type_rewrite_path_create.restype = c_void_p
+
+_lib.type_rewrite_path_destroy.argtypes = [c_void_p]
+_lib.type_rewrite_path_destroy.restype = None
+
+_lib.type_rewrite_path_record.argtypes = [c_void_p, c_char_p, c_void_p, c_void_p]
+_lib.type_rewrite_path_record.restype = None
+
+_lib.type_rewrite_path_replay.argtypes = [c_void_p, c_int]
+_lib.type_rewrite_path_replay.restype = c_bool
+
+_lib.type_system_get_rewrite_path.argtypes = [c_void_p]
+_lib.type_system_get_rewrite_path.restype = c_void_p
+
+# 路径探索器
+_lib.path_explorer_create.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.path_explorer_create.restype = c_void_p
+
+_lib.path_explorer_destroy.argtypes = [c_void_p]
+_lib.path_explorer_destroy.restype = None
+
+_lib.path_explorer_get_applicable_rules.argtypes = [c_void_p, POINTER(POINTER(c_int)), POINTER(c_int)]
+_lib.path_explorer_get_applicable_rules.restype = c_int
+
+_lib.path_explorer_preview_rule.argtypes = [c_void_p, c_int, POINTER(c_void_p)]
+_lib.path_explorer_preview_rule.restype = c_int
+
+_lib.path_explorer_apply_rule.argtypes = [c_void_p, c_int]
+_lib.path_explorer_apply_rule.restype = c_int
+
+_lib.path_explorer_undo.argtypes = [c_void_p]
+_lib.path_explorer_undo.restype = c_int
+
+_lib.path_explorer_check_goal.argtypes = [c_void_p, POINTER(c_bool)]
+_lib.path_explorer_check_goal.restype = c_int
+
+_lib.path_explorer_save_path.argtypes = [c_void_p, POINTER(c_void_p)]
+_lib.path_explorer_save_path.restype = c_int
+
+_lib.path_explorer_get_step_count.argtypes = [c_void_p]
+_lib.path_explorer_get_step_count.restype = c_int
+
+_lib.path_explorer_get_steps.argtypes = [c_void_p]
+_lib.path_explorer_get_steps.restype = c_void_p
+
+_lib.path_explorer_get_current.argtypes = [c_void_p]
+_lib.path_explorer_get_current.restype = c_void_p
+
+# ============================================================
+# 证明搜索树与多策略引擎函数签名
+# ============================================================
+# 证明系统的回溯搜索树可视化与多证明方法并存引擎
+
+# 证明搜索树
+_lib.proof_search_tree_create.argtypes = []
+_lib.proof_search_tree_create.restype = c_void_p
+
+_lib.proof_search_tree_destroy.argtypes = [c_void_p]
+_lib.proof_search_tree_destroy.restype = None
+
+_lib.backtrack_node_create.argtypes = [c_int, c_char_p]
+_lib.backtrack_node_create.restype = c_void_p
+
+_lib.proof_search_tree_add_child.argtypes = [c_void_p, c_void_p, c_void_p]
+_lib.proof_search_tree_add_child.restype = c_bool
+
+_lib.backtrack_node_mark_backtrack.argtypes = [c_void_p, c_char_p]
+_lib.backtrack_node_mark_backtrack.restype = None
+
+_lib.proof_search_tree_register_strategy.argtypes = [c_void_p, c_char_p]
+_lib.proof_search_tree_register_strategy.restype = None
+
+_lib.proof_search_tree_set_strategy.argtypes = [c_void_p, c_char_p]
+_lib.proof_search_tree_set_strategy.restype = None
+
+_lib.proof_search_tree_export_json.argtypes = [c_void_p, c_char_p]
+_lib.proof_search_tree_export_json.restype = c_bool
+
+_lib.proof_search_tree_export_dot.argtypes = [c_void_p, c_char_p]
+_lib.proof_search_tree_export_dot.restype = c_bool
+
+# 多策略引擎
+_lib.proof_multi_strategy_create.argtypes = [POINTER(_ProofNavigator)]
+_lib.proof_multi_strategy_create.restype = c_void_p
+
+_lib.proof_multi_strategy_destroy.argtypes = [c_void_p]
+_lib.proof_multi_strategy_destroy.restype = None
+
+_lib.proof_multi_strategy_register.argtypes = [c_void_p, c_void_p]
+_lib.proof_multi_strategy_register.restype = c_bool
+
+_lib.proof_multi_strategy_activate.argtypes = [c_void_p, c_int]
+_lib.proof_multi_strategy_activate.restype = c_bool
+
+_lib.proof_multi_strategy_get_active.argtypes = [c_void_p]
+_lib.proof_multi_strategy_get_active.restype = c_void_p
+
+_lib.proof_multi_strategy_evaluate_applicability.argtypes = [c_void_p, POINTER(_ConstraintGraph), POINTER(_Proposition), POINTER(c_int), c_int]
+_lib.proof_multi_strategy_evaluate_applicability.restype = c_int
+
+_lib.proof_multi_strategy_execute.argtypes = [c_void_p]
+_lib.proof_multi_strategy_execute.restype = c_bool
+
+_lib.proof_multi_strategy_try_all.argtypes = [c_void_p]
+_lib.proof_multi_strategy_try_all.restype = c_int
+
+_lib.proof_multi_strategy_pipeline.argtypes = [c_void_p, POINTER(c_int), c_int]
+_lib.proof_multi_strategy_pipeline.restype = c_bool
+
+_lib.proof_multi_strategy_set_fallback_order.argtypes = [c_void_p, POINTER(c_int), c_int]
+_lib.proof_multi_strategy_set_fallback_order.restype = None
+
+_lib.proof_multi_strategy_switch.argtypes = [c_void_p, c_int]
+_lib.proof_multi_strategy_switch.restype = c_bool
+
+_lib.proof_multi_strategy_get_stats.argtypes = [c_void_p, POINTER(c_int), POINTER(c_int)]
+_lib.proof_multi_strategy_get_stats.restype = None
+
+_lib.proof_strategy_type_to_string.argtypes = [c_int]
+_lib.proof_strategy_type_to_string.restype = c_char_p
+
+_lib.proof_strategy_status_to_string.argtypes = [c_int]
+_lib.proof_strategy_status_to_string.restype = c_char_p
+
+# 证明步骤管理（额外API）
+_lib.proof_navigator_add_step.argtypes = [POINTER(_ProofNavigator), c_void_p]
+_lib.proof_navigator_add_step.restype = c_bool
+
+_lib.proof_navigator_current_step.argtypes = [POINTER(_ProofNavigator)]
+_lib.proof_navigator_current_step.restype = c_void_p
+
+_lib.proof_navigator_next_breakpoint.argtypes = [POINTER(_ProofNavigator)]
+_lib.proof_navigator_next_breakpoint.restype = c_bool
+
+_lib.proof_navigator_set_strategy_note.argtypes = [POINTER(_ProofNavigator), c_char_p]
+_lib.proof_navigator_set_strategy_note.restype = c_bool
+
+_lib.proof_navigator_get_strategy_note.argtypes = [POINTER(_ProofNavigator)]
+_lib.proof_navigator_get_strategy_note.restype = c_char_p
+
+_lib.proof_step_create.argtypes = [c_int]
+_lib.proof_step_create.restype = c_void_p
+
+_lib.proof_step_destroy.argtypes = [c_void_p]
+_lib.proof_step_destroy.restype = None
+
+_lib.proof_step_add_dependency.argtypes = [c_void_p, c_int]
+_lib.proof_step_add_dependency.restype = c_bool
+
+_lib.proof_step_set_breakpoint.argtypes = [c_void_p, c_bool]
+_lib.proof_step_set_breakpoint.restype = None
+
+_lib.proof_step_set_note.argtypes = [c_void_p, c_char_p]
+_lib.proof_step_set_note.restype = c_bool
+
+_lib.proof_step_get_natural_language.argtypes = [c_void_p, c_int]
+_lib.proof_step_get_natural_language.restype = c_char_p
+
+# 证明依赖
+_lib.proof_dependency_create.argtypes = [c_int]
+_lib.proof_dependency_create.restype = c_void_p
+
+_lib.proof_dependency_destroy.argtypes = [c_void_p]
+_lib.proof_dependency_destroy.restype = None
+
+_lib.proof_dependency_add_sub.argtypes = [c_void_p, c_void_p]
+_lib.proof_dependency_add_sub.restype = c_bool
+
+_lib.proof_dependency_compute_color.argtypes = [c_void_p]
+_lib.proof_dependency_compute_color.restype = c_int
+
+# 证明导出
+_lib.proof_export_coq.argtypes = [POINTER(_ProofNavigator), c_char_p]
+_lib.proof_export_coq.restype = c_bool
+
+_lib.proof_export_natural_language.argtypes = [POINTER(_ProofNavigator), c_char_p, c_int]
+_lib.proof_export_natural_language.restype = c_bool
+
+# 交互式证明
+_lib.proof_interactive_step.argtypes = [POINTER(_ProofNavigator), c_int, c_void_p]
+_lib.proof_interactive_step.restype = c_bool
+
+_lib.proof_save_breakpoint.argtypes = [POINTER(_ProofNavigator), c_int]
+_lib.proof_save_breakpoint.restype = c_bool
+
+_lib.proof_restore_breakpoint.argtypes = [POINTER(_ProofNavigator), c_int]
+_lib.proof_restore_breakpoint.restype = c_bool
+
+# 命题等价
+_lib.proof_declare_proposition_equivalence.argtypes = [POINTER(_ProofNavigator), c_int, c_int]
+_lib.proof_declare_proposition_equivalence.restype = None
+
+_lib.proof_find_equivalent_proposition.argtypes = [POINTER(_ProofNavigator), c_int, POINTER(c_int), c_int]
+_lib.proof_find_equivalent_proposition.restype = c_int
+
+# 依赖验证
+_lib.proof_validate_dependencies.argtypes = [POINTER(_ProofNavigator), c_void_p, c_int]
+_lib.proof_validate_dependencies.restype = c_int
+
+# 矛盾定义
+_lib.proof_set_bottom_definition.argtypes = [POINTER(_ProofNavigator), c_void_p]
+_lib.proof_set_bottom_definition.restype = None
+
+_lib.proof_get_bottom_definition.argtypes = [POINTER(_ProofNavigator)]
+_lib.proof_get_bottom_definition.restype = c_void_p
+
+# 引理折叠
+_lib.proof_set_lemma_view_state.argtypes = [POINTER(_ProofNavigator), c_int, c_int]
+_lib.proof_set_lemma_view_state.restype = None
+
+_lib.proof_get_lemma_view_state.argtypes = [POINTER(_ProofNavigator), c_int]
+_lib.proof_get_lemma_view_state.restype = c_int
+
+# 命题实例化
+_lib.proof_has_type_variables.argtypes = [POINTER(_Proposition)]
+_lib.proof_has_type_variables.restype = c_bool
+
+_lib.proof_instantiate_proposition.argtypes = [POINTER(_Proposition), POINTER(c_int), c_int]
+_lib.proof_instantiate_proposition.restype = POINTER(_Proposition)
+
+# 不可构造性证明
+_lib.proof_check_unconstructibility.argtypes = [POINTER(_ProofNavigator), POINTER(_ConstraintGraph), POINTER(_Proposition), c_void_p]
+_lib.proof_check_unconstructibility.restype = c_int
+
+_lib.proof_attempt_unconstructibility.argtypes = [POINTER(_ProofNavigator), POINTER(_ConstraintGraph), POINTER(_Proposition), c_void_p]
+_lib.proof_attempt_unconstructibility.restype = c_int
+
+_lib.unconstruct_info_destroy.argtypes = [c_void_p]
+_lib.unconstruct_info_destroy.restype = None
+
+# 命题管理（额外API）
+_lib.proposition_set_input_ports.argtypes = [POINTER(_Proposition), POINTER(c_int), c_int]
+_lib.proposition_set_input_ports.restype = c_bool
+
+_lib.proposition_set_output_ports.argtypes = [POINTER(_Proposition), POINTER(c_int), c_int]
+_lib.proposition_set_output_ports.restype = c_bool
+
+_lib.proposition_set_pattern.argtypes = [POINTER(_Proposition), POINTER(_ConstraintGraph)]
+_lib.proposition_set_pattern.restype = c_bool
+
+_lib.proposition_set_preconditions.argtypes = [POINTER(_Proposition), POINTER(c_int), c_int]
+_lib.proposition_set_preconditions.restype = c_bool
+
+_lib.proposition_set_postconditions.argtypes = [POINTER(_Proposition), POINTER(c_int), c_int]
+_lib.proposition_set_postconditions.restype = c_bool
+
+_lib.proposition_add_sub_proposition.argtypes = [POINTER(_Proposition), POINTER(_Proposition)]
+_lib.proposition_add_sub_proposition.restype = c_bool
+
+# 辅助函数
+_lib.proof_color_to_string.argtypes = [c_int]
+_lib.proof_color_to_string.restype = c_char_p
+
+_lib.proposition_type_to_string.argtypes = [c_int]
+_lib.proposition_type_to_string.restype = c_char_p
+
+_lib.proof_step_type_to_string.argtypes = [c_int]
+_lib.proof_step_type_to_string.restype = c_char_p
+
+_lib.unify_result_to_string.argtypes = [c_int]
+_lib.unify_result_to_string.restype = c_char_p
+
+# 证明流式上下文
+_lib.proof_set_stream_context.argtypes = [c_void_p]
+_lib.proof_set_stream_context.restype = None
+
+# Agda/Idris2/Isabelle/F* 借鉴API
+_lib.proof_guided_fill.argtypes = [c_void_p, c_char_p, c_int]
+_lib.proof_guided_fill.restype = c_void_p
+
+_lib.fill_suggestions_destroy.argtypes = [c_void_p]
+_lib.fill_suggestions_destroy.restype = None
+
+_lib.proof_mark_ghost.argtypes = [c_int, c_int]
+_lib.proof_mark_ghost.restype = c_bool
+
+_lib.proof_check_ghost_conflicts.argtypes = []
+_lib.proof_check_ghost_conflicts.restype = c_int
+
+_lib.proof_sledgehammer_dispatch.argtypes = [c_void_p, c_int, c_int]
+_lib.proof_sledgehammer_dispatch.restype = c_void_p
+
+_lib.sledgehammer_report_destroy.argtypes = [c_void_p]
+_lib.sledgehammer_report_destroy.restype = None
+
+_lib.proof_export_isar.argtypes = [POINTER(POINTER(_Proposition)), c_int]
+_lib.proof_export_isar.restype = c_char_p
+
+_lib.proof_minimal_verify.argtypes = [c_int, POINTER(c_char_p), c_char_p, POINTER(c_char_p)]
+_lib.proof_minimal_verify.restype = c_int
+
+_lib.proof_refinement_check.argtypes = [c_void_p, c_void_p, c_int]
+_lib.proof_refinement_check.restype = c_void_p
+
+_lib.refinement_check_report_destroy.argtypes = [c_void_p]
+_lib.refinement_check_report_destroy.restype = None
+
+# ============================================================
+# 交互几何函数签名
+# ============================================================
+# 借鉴Cinderella与Dr. Geo的交互几何UX设计
+
+_lib.interactive_geo_init.argtypes = [c_void_p]
+_lib.interactive_geo_init.restype = c_void_p
+
+_lib.interactive_geo_destroy.argtypes = [c_void_p]
+_lib.interactive_geo_destroy.restype = None
+
+_lib.interactive_geo_set_mode.argtypes = [c_void_p, c_int]
+_lib.interactive_geo_set_mode.restype = None
+
+_lib.interactive_geo_get_mode.argtypes = [c_void_p]
+_lib.interactive_geo_get_mode.restype = c_int
+
+_lib.interactive_geo_select.argtypes = [c_void_p, c_int]
+_lib.interactive_geo_select.restype = c_int
+
+_lib.interactive_geo_deselect.argtypes = [c_void_p, c_int]
+_lib.interactive_geo_deselect.restype = None
+
+_lib.interactive_geo_drag_start.argtypes = [c_void_p, c_int, c_double, c_double]
+_lib.interactive_geo_drag_start.restype = c_int
+
+_lib.interactive_geo_drag_move.argtypes = [c_void_p, c_double, c_double]
+_lib.interactive_geo_drag_move.restype = c_int
+
+_lib.interactive_geo_drag_end.argtypes = [c_void_p, c_double, c_double]
+_lib.interactive_geo_drag_end.restype = c_int
+
+_lib.interactive_geo_randomized_check.argtypes = [c_void_p, c_int, c_double, c_char_p, c_void_p]
+_lib.interactive_geo_randomized_check.restype = c_int
+
+_lib.interactive_geo_generate_script.argtypes = [c_void_p, c_int, POINTER(c_char_p)]
+_lib.interactive_geo_generate_script.restype = c_int
+
+_lib.interactive_geo_detect_singularity.argtypes = [c_void_p, POINTER(c_int)]
+_lib.interactive_geo_detect_singularity.restype = c_bool
+
+_lib.interactive_geo_maintain_constraints.argtypes = [c_void_p, c_int, c_double, c_double]
+_lib.interactive_geo_maintain_constraints.restype = c_int
+
+_lib.interactive_geo_export_state.argtypes = [c_void_p]
+_lib.interactive_geo_export_state.restype = c_char_p
+
+_lib.interactive_geo_import_state.argtypes = [c_void_p, c_char_p]
+_lib.interactive_geo_import_state.restype = c_int
+
+_lib.interactive_geo_get_all_objects.argtypes = [c_void_p, POINTER(c_int)]
+_lib.interactive_geo_get_all_objects.restype = POINTER(c_int)
+
+_lib.interactive_geo_snapshot.argtypes = [c_void_p]
+_lib.interactive_geo_snapshot.restype = c_int
+
+_lib.interactive_geo_restore.argtypes = [c_void_p, c_int]
+_lib.interactive_geo_restore.restype = c_int
+
+# ============================================================
+# 稀疏线性代数函数签名
+# ============================================================
+# SuiteSparse/GraphBLAS风格的半环矩阵运算与约束传播
+
+_lib.sparse_matrix_create.argtypes = [c_int, c_int, c_int]
+_lib.sparse_matrix_create.restype = c_void_p
+
+_lib.sparse_matrix_destroy.argtypes = [c_void_p]
+_lib.sparse_matrix_destroy.restype = None
+
+_lib.sparse_matrix_clone.argtypes = [c_void_p]
+_lib.sparse_matrix_clone.restype = c_void_p
+
+_lib.sparse_matrix_print.argtypes = [c_void_p, c_char_p]
+_lib.sparse_matrix_print.restype = None
+
+# 半环
+# semiring_create 按值返回结构体，ctypes 无法直接处理，需要通过包装函数
+# 此处声明为返回 void*（需 C 侧提供包装）
+
+_lib.semiring_propagate_constraints.argtypes = [POINTER(_ConstraintGraph), c_int, POINTER(c_double), c_int]
+_lib.semiring_propagate_constraints.restype = c_int
+
+_lib.sparse_cholesky_solve.argtypes = [c_void_p, POINTER(c_double), POINTER(c_double)]
+_lib.sparse_cholesky_solve.restype = c_bool
+
+_lib.sparse_lu_solve.argtypes = [c_void_p, POINTER(c_double), POINTER(c_double)]
+_lib.sparse_lu_solve.restype = c_bool
+
+_lib.sparse_qr_solve.argtypes = [c_void_p, POINTER(c_double), POINTER(c_double)]
+_lib.sparse_qr_solve.restype = c_bool
+
+_lib.graph_to_constraint_matrix.argtypes = [POINTER(_ConstraintGraph), POINTER(c_void_p)]
+_lib.graph_to_constraint_matrix.restype = c_bool
+
+_lib.sparse_matrix_multiply.argtypes = [c_void_p, c_void_p, POINTER(c_void_p)]
+_lib.sparse_matrix_multiply.restype = c_bool
+
+_lib.sparse_matrix_transpose.argtypes = [c_void_p, POINTER(c_void_p)]
+_lib.sparse_matrix_transpose.restype = c_bool
+
+_lib.graph_degree_analysis.argtypes = [POINTER(_ConstraintGraph), POINTER(c_void_p)]
+_lib.graph_degree_analysis.restype = c_bool
+
+_lib.degree_analysis_free.argtypes = [c_void_p]
+_lib.degree_analysis_free.restype = None

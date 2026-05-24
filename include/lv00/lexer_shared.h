@@ -61,6 +61,17 @@ typedef struct {
 void lv00_lexer_init(Lv00Lexer *lex, const char *source);
 
 /**
+ * @brief 重置/清除词法分析器状态
+ *
+ * 释放词法分析器内部的堆分配资源（如 error_msg），
+ * 将分析器重置为安全初始状态，以便重用。
+ * 调用后词法分析器可以安全地通过 lv00_lexer_init 重新初始化。
+ *
+ * @param lex 指向词法分析器结构体的指针
+ */
+void lv00_lexer_clear(Lv00Lexer *lex);
+
+/**
  * @brief 跳过空白字符和注释
  *
  * 跳过空格、制表符、换行符等空白字符，以及从 '#' 到行尾的注释。

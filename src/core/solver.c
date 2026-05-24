@@ -3577,7 +3577,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
  * @return SOLVER_OK 表示成功消元，SOLVER_OUT_OF_SCOPE 表示超出范围
  */
 
-SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, int *eliminate_ids, int elim_count) {
+SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids, int elim_count) {
     if (!graph || elim_count <= 0)
         return SOLVER_OK;
 
@@ -3745,7 +3745,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, int *
 /*  PUBLIC API: analyze_out_of_scope                                   */
 /* ================================================================== */
 
-SolverStatus analyze_out_of_scope(ConstraintGraph *graph, int var_id, char **suggestion) {
+SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char **suggestion) {
     if (!graph || !suggestion)
         return SOLVER_OUT_OF_SCOPE;
 
@@ -3871,8 +3871,8 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph, int var_id, char **sug
             stream_emit(solver_stream_ctx, &ev);
         }
 
-        lv00_free((void **) &f1_str);
-        lv00_free((void **) &f2_str);
+        free(f1_str); f1_str = NULL;  /* GMP分配，用标准free */
+        free(f2_str); f2_str = NULL;  /* GMP分配，用标准free */
         mpz_poly_clear(&factor1);
         mpz_poly_clear(&factor2);
         equation_system_clear(&sys);
@@ -3950,7 +3950,7 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph, int var_id, char **sug
         stream_emit(solver_stream_ctx, &ev);
     }
 
-    lv00_free((void **) &poly_str);
+    free(poly_str); poly_str = NULL;  /* GMP分配，用标准free */
 
     equation_system_clear(&sys);
     return SOLVER_OUT_OF_SCOPE;
@@ -3974,7 +3974,7 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph, int var_id, char **sug
  * @return 自由度数量（非负整数），-1 表示参数错误
  */
 
-int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids) {
+int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_ids) {
     if (!graph) {
         if (out_free_var_ids)
             *out_free_var_ids = NULL;

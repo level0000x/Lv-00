@@ -21,6 +21,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "error_codes.h"
 
@@ -78,6 +79,77 @@ void lv00_free_many(void **first, ...);
 void lv00_auto_free(void *p);
 
 /* ============================================================
+ * POISON/MAGIC 内存安全检测
+ * ============================================================ */
+
+/**
+ * @brief 毒模式值 —— 写入已释放内存，用于检测 use-after-free
+ * @note 当调用 lv00_free 时，会将此值写入整个已释放的数据区。
+ *       若后续代码读取到 0xDEADBEEF，说明正在访问已释放的内存。
+ */
+#define LV00_POISON_PATTERN 0xDEADBEEF
+
+/**
+ * @brief 分配头魔数 —— 标识存活分配块的起始
+ * @note 用于快速检测 double-free 和内存损坏。
+ */
+#define LV00_MAGIC_HEAD 0xADBEEF01
+
+/**
+ * @brief 分配尾魔数 —— 标识存活分配块的末尾
+ * @note 写入用户数据区末尾之后，用于检测缓冲区溢出（buffer overflow）。
+ */
+#define LV00_MAGIC_TAIL 0xADBEEF02
+
+/**
+ * @brief 已释放标记 —— 防止 double-free
+ * @note 释放内存时，头部魔数被改写为此值。再次释放同一块时魔数不匹配，
+ *       从而检测到 double-free 行为。
+ */
+#define LV00_MAGIC_FREED 0xDEADDEAD
+
+/**
+ * @brief 检查内存块的 poison 标记是否完整
+ *
+ * 扫描指定内存区域，检测是否包含毒模式（即是否已被释放）。
+ * 用于调试 use-after-free 类型的内存错误。
+ *
+ * @param ptr 要检查的内存指针
+ * @param size 检查的字节数
+ * @return true  未发现毒模式（内存完整）
+ *         false 发现毒模式（内存可能已被释放）
+ */
+bool lv00_memory_check_poison(const void *ptr, size_t size);
+
+/**
+ * @brief 检查内存块的魔数完整性
+ *
+ * 验证指定内存块的头部魔数和尾部魔数是否完整。
+ * 头部魔数被破坏说明可能发生了 double-free 或内存损坏；
+ * 尾部魔数被破坏说明可能发生了缓冲区溢出。
+ *
+ * @param ptr 要检查的内存指针（必须由 lv00_malloc 系列函数分配）
+ * @return true  魔数完整
+ *         false 魔数被破坏
+ */
+bool lv00_memory_check_magic(const void *ptr);
+
+/**
+ * @brief 使能/禁用全局毒模式填充
+ * @param enable true 启用，false 禁用
+ * @note 默认启用。毒模式填充会增加释放操作的开销，在生产环境中
+ *       可禁用以提升性能，但会失去 use-after-free 检测能力。
+ *       此设置对整个进程生效。
+ */
+void lv00_poison_enable(bool enable);
+
+/**
+ * @brief 获取毒模式填充的当前状态
+ * @return true 已启用，false 已禁用
+ */
+bool lv00_poison_is_enabled(void);
+
+/* ============================================================
  * 字符串处理
  * ============================================================ */
 
@@ -107,6 +179,18 @@ size_t lv00_strlcat(char *dest, const char *src, size_t dest_size);
 char *lv00_strdup_safe(const char *str);
 
 /**
+ * @brief lv00_strdup 便捷别名 —— 映射到 lv00_strdup_safe
+ *
+ * 项目代码中大量使用 lv00_strdup 作为 strdup 的项目封装，
+ * 统一映射到 lv00_strdup_safe 以保持一致的错误处理行为。
+ *
+ * @note 优先使用 lv00_strdup（更短），底层实现为 lv00_strdup_safe。
+ */
+#ifndef lv00_strdup
+#define lv00_strdup lv00_strdup_safe
+#endif
+
+/**
  * @brief 格式化字符串（自动分配内存）
  * @param fmt 格式字符串
  * @return 新分配的字符串，失败返回NULL
@@ -124,6 +208,52 @@ bool lv00_str_is_blank(const char *str);
  * @return 去除空白后的字符串指针（可能在原位置）
  */
 char *lv00_str_trim(char *str);
+
+/**
+ * @brief 安全字符串复制 —— 保证 \0 终止并检查参数有效性
+ *
+ * 与标准 strncpy 不同：
+ * - 始终以 \0 终止目标字符串（即使截断）
+ * - 参数为 NULL 时安全返回 NULL（不崩溃）
+ * - dest_size 为 0 时安全返回 NULL
+ *
+ * @param dest 目标缓冲区
+ * @param src  源字符串（可为 NULL）
+ * @param dest_size 目标缓冲区大小（字节）
+ * @return 成功时返回 dest，失败时返回 NULL
+ */
+char *lv00_strncpy(char *dest, const char *src, size_t dest_size);
+
+/**
+ * @brief 安全字符串连接 —— 保证 \0 终止并检查参数有效性
+ *
+ * 将 src 连接到 dest 末尾，确保不溢出 dest 缓冲区。
+ * 行为类似于标准 strncat，但：
+ * - 始终以 \0 终止目标字符串
+ * - 参数为 NULL 时安全返回 NULL
+ * - dest 已满时仍保证 \0 终止
+ *
+ * @param dest 目标缓冲区（必须已包含一个有效的 \0 终止字符串）
+ * @param src  源字符串（可为 NULL）
+ * @param dest_size 目标缓冲区总大小（字节）
+ * @return 成功时返回 dest，失败时返回 NULL
+ */
+char *lv00_strncat(char *dest, const char *src, size_t dest_size);
+
+/**
+ * @brief 安全格式化输出到定长缓冲区
+ *
+ * 与标准 snprintf 相同的行为，但额外：
+ * - 参数为 NULL 时安全返回 -1（不崩溃）
+ * - 始终保证 \0 终止
+ *
+ * @param buf  输出缓冲区
+ * @param size 缓冲区大小
+ * @param fmt  格式字符串
+ * @param ...  可变参数
+ * @return 成功时返回写入的字符数（不含 \0），失败返回 -1
+ */
+int lv00_snprintf(char *buf, size_t size, const char *fmt, ...);
 
 /* ============================================================
  * 数组操作辅助
@@ -538,6 +668,67 @@ static inline size_t lv00_max_z(size_t a, size_t b) {
             return (ret);                              \
     } while (0)
 
+/**
+ * @brief 安全赋值宏 —— 记录非空指针的覆盖操作
+ *
+ * 若 ptr 当前非 NULL，则通过 LV00_LOG_WARNING 输出警告日志，
+ * 提示可能存在内存泄漏（旧值未被释放就被覆盖）。
+ * 然后无条件将 value 赋给 ptr。
+ *
+ * 使用示例：
+ *   LV00_SAFE_ASSIGN(my_ptr, new_ptr);
+ *
+ * @param ptr  目标指针变量
+ * @param value 要赋的值
+ */
+#define LV00_SAFE_ASSIGN(ptr, value)                                                       \
+    do {                                                                                   \
+        if ((ptr) != NULL) {                                                               \
+            LV00_LOG_WARNING("LV00_SAFE_ASSIGN: 指针 " #ptr " 非空时被覆盖 (0x%p)，可能泄漏", \
+                             (const void *)(uintptr_t)(ptr));                              \
+        }                                                                                  \
+        (ptr) = (value);                                                                   \
+    } while (0)
+
+/**
+ * @brief NULL 检查宏 —— 指针为空时直接返回
+ *
+ * 检查指针是否为 NULL，若为空则返回 ret。
+ * 与 LV00_RETURN_IF_NULL 不同，此宏不设置错误码，适用于
+ * 不需要记录错误信息的简单防御场景。
+ *
+ * 使用示例：
+ *   LV00_NULL_CHECK(ptr, -1);
+ *
+ * @param ptr 要检查的指针
+ * @param ret 空指针时的返回值
+ */
+#define LV00_NULL_CHECK(ptr, ret) \
+    do {                          \
+        if (!(ptr))               \
+            return (ret);         \
+    } while (0)
+
+/**
+ * @brief 释放并置 NULL 宏 —— 一步完成释放和置空
+ *
+ * 检查 ptr 是否为 NULL，若非 NULL 则调用 lv00_free 释放内存
+ * 并自动将 ptr 置为 NULL。此宏会自动取地址，使用更简单。
+ *
+ * 使用示例：
+ *   LV00_FREE_AND_NULL(ptr);
+ *
+ * @param ptr 要释放的指针变量（不是指针的地址）
+ * @note 此宏展开为 lv00_free((void**)&(ptr))，
+ *       ptr 必须是可以取地址的变量（不能是表达式或字面量）。
+ */
+#define LV00_FREE_AND_NULL(ptr)      \
+    do {                             \
+        if ((ptr)) {                 \
+            lv00_free((void **)&(ptr)); \
+        }                            \
+    } while (0)
+
 /* ============================================================
  * 内存使用统计
  * ============================================================ */
@@ -576,6 +767,131 @@ size_t lv00_get_memory_limit(void);
  * @brief 检查是否超过内存限制
  */
 bool lv00_memory_limit_exceeded(void);
+
+/* ============================================================
+ * 边界检查分配与内存溯源
+ * ============================================================ */
+
+/**
+ * @brief 带最大大小限制的安全内存分配
+ *
+ * 防止请求过大内存导致系统不稳定。若请求大小超过 max_size，
+ * 返回 NULL 并设置错误码。
+ *
+ * @param size 请求分配的大小（字节）
+ * @param max_size 允许的最大分配大小（字节）
+ * @return 分配的内存指针，超限或失败返回 NULL
+ */
+void *lv00_malloc_bounded(size_t size, size_t max_size);
+
+/**
+ * @brief 带溯源信息的追踪分配
+ *
+ * 与 lv00_malloc 功能相同，但额外记录分配所在的源文件名和行号，
+ * 用于内存泄漏报告中的精确定位。
+ *
+ * @param size 分配大小（字节）
+ * @param file 源文件名（通常由 __FILE__ 宏自动填入）
+ * @param line 源行号（通常由 __LINE__ 宏自动填入）
+ * @return 分配的内存指针，失败返回 NULL
+ *
+ * @note 推荐使用 LV00_TRACKED_MALLOC(size) 宏代替直接调用此函数，
+ *       该宏会自动填入 __FILE__ 和 __LINE__。
+ */
+void *lv00_malloc_tracked(size_t size, const char *file, int line);
+
+/**
+ * @brief 带溯源信息的追踪分配宏
+ *
+ * 使用方式：void *p = LV00_TRACKED_MALLOC(1024);
+ * 自动记录调用点所在的文件和行号，便于内存泄漏定位。
+ */
+#define LV00_TRACKED_MALLOC(size) lv00_malloc_tracked((size), __FILE__, __LINE__)
+
+/**
+ * @brief 带溯源信息的 calloc 宏
+ */
+#define LV00_TRACKED_CALLOC(nmemb, size) lv00_calloc_tracked((nmemb), (size), __FILE__, __LINE__)
+
+void *lv00_calloc_tracked(size_t nmemb, size_t size, const char *file, int line);
+
+/**
+ * @brief 打印所有未释放的内存分配报告
+ *
+ * 遍历内部追踪链表，列出所有至今未被释放的内存块，
+ * 包括分配大小、源文件和行号（若有记录）。
+ * 此函数通常在主函数退出前调用，以检测内存泄漏。
+ *
+ * @param output 输出流，NULL 表示输出到 stderr
+ * @return 泄漏的分配数量（0 表示无泄漏）
+ */
+int lv00_memory_leak_report(FILE *output);
+
+/* ============================================================
+ * 内存池
+ * ============================================================ */
+
+/**
+ * @brief 内存池结构 —— 用于频繁分配/释放的等大小对象
+ *
+ * 内存池预分配一组固定大小的内存块，通过空闲链表管理。
+ * 适用于 AST 节点、临时中间结构等频繁创建/销毁的等大小对象，
+ * 可显著减少 malloc/free 的系统调用开销。
+ */
+typedef struct Lv00MemoryPool Lv00MemoryPool;
+
+/**
+ * @brief 创建内存池
+ *
+ * 预分配 initial_blocks 个大小为 block_size 的内存块。
+ * 内存池内部维护一个空闲链表，lv00_pool_alloc 从链表头部获取空闲块，
+ * lv00_pool_free 将块归还到链表头部。
+ *
+ * @param block_size 每个内存块的大小（字节），必须大于 0
+ * @param initial_blocks 初始预分配的块数，至少为 1
+ * @return 创建的内存池指针，失败返回 NULL
+ */
+Lv00MemoryPool *lv00_pool_create(size_t block_size, size_t initial_blocks);
+
+/**
+ * @brief 从内存池分配一个内存块
+ *
+ * 若空闲链表非空，直接返回链表头部块（O(1)）；
+ * 若空闲链表为空，自动扩容分配一块新的内存。
+ *
+ * @param pool 内存池指针
+ * @return 分配的内存块指针，失败返回 NULL
+ */
+void *lv00_pool_alloc(Lv00MemoryPool *pool);
+
+/**
+ * @brief 将内存块归还内存池
+ *
+ * 将 ptr 指向的内存块插入空闲链表头部（O(1)）。
+ * ptr 必须是通过同一内存池的 lv00_pool_alloc 分配的，否则行为未定义。
+ *
+ * @param pool 内存池指针
+ * @param ptr 要归还的内存块指针（允许为 NULL，为 NULL 时无操作）
+ */
+void lv00_pool_free(Lv00MemoryPool *pool, void *ptr);
+
+/**
+ * @brief 销毁内存池并释放所有关联内存
+ *
+ * 释放所有预分配的内存块及内存池自身占用的资源。
+ * 销毁后 pool 指针变为无效。
+ *
+ * @param pool 内存池指针
+ */
+void lv00_pool_destroy(Lv00MemoryPool *pool);
+
+/**
+ * @brief 获取内存池统计信息
+ * @param pool 内存池指针
+ * @param total_blocks 输出：总共分配的块数
+ * @param free_blocks 输出：当前空闲块数
+ */
+void lv00_pool_stats(const Lv00MemoryPool *pool, size_t *total_blocks, size_t *free_blocks);
 
 /* ============================================================
  * 时间工具
@@ -637,6 +953,90 @@ uint64_t lv00_hash_bytes(const void *data, size_t len);
  * @brief 计算整数哈希值
  */
 uint64_t lv00_hash_int(int value);
+
+/* ============================================================
+ * 资源追踪器
+ * ============================================================ */
+
+/**
+ * @brief 通用资源销毁回调函数类型
+ *
+ * 每个被追踪的资源都需要一个对应的销毁函数，
+ * 在资源追踪器清理时被调用以释放资源。
+ *
+ * @param resource 资源指针
+ */
+typedef void (*Lv00ResourceDestroyFunc)(void *resource);
+
+/**
+ * @brief 资源追踪器结构
+ *
+ * 维护一个资源（不仅仅是内存，还包括文件句柄、互斥锁等）的链表，
+ * 在发生错误需要清理或程序退出时，统一调用所有资源的销毁函数。
+ *
+ * 典型使用场景：
+ * - 函数中打开了多个文件，中途出错需要全部关闭
+ * - 多层嵌套的资源分配，确保全部释放
+ */
+typedef struct ResourceTracker ResourceTracker;
+
+/**
+ * @brief 创建资源追踪器
+ * @return 新创建的资源追踪器指针，失败返回 NULL
+ */
+ResourceTracker *lv00_resource_tracker_create(void);
+
+/**
+ * @brief 销毁资源追踪器并释放其自身内存（不清理追踪的资源）
+ * @param rt 资源追踪器指针的地址
+ * @note 此函数仅释放追踪器自身，不调用被追踪资源的销毁函数。
+ *       如需清理所有资源，请先调用 lv00_resource_tracker_cleanup。
+ */
+void lv00_resource_tracker_destroy(ResourceTracker **rt);
+
+/**
+ * @brief 追踪一个资源
+ *
+ * 将资源及其销毁函数注册到追踪器中。
+ * 若 resource 为 NULL 或 destroy 为 NULL，注册失败返回 false。
+ *
+ * @param rt 资源追踪器
+ * @param resource 资源指针
+ * @param destroy 销毁回调函数
+ * @param name 资源名称（用于调试输出，可为 NULL）
+ * @return true 追踪成功，false 失败
+ */
+bool lv00_resource_track(ResourceTracker *rt, void *resource,
+                          Lv00ResourceDestroyFunc destroy, const char *name);
+
+/**
+ * @brief 取消追踪一个资源
+ *
+ * 从追踪器中移除指定资源，但不销毁资源本身。
+ * 常用于资源已成功移交给调用者或其他管理器的场景。
+ *
+ * @param rt 资源追踪器
+ * @param resource 要取消追踪的资源指针
+ * @return true 成功取消追踪，false 资源未被追踪
+ */
+bool lv00_resource_untrack(ResourceTracker *rt, void *resource);
+
+/**
+ * @brief 清理所有被追踪的资源
+ *
+ * 逆序调用所有被追踪资源的销毁函数（后注册的先销毁），
+ * 然后清空追踪列表。常用于错误路径的资源回滚。
+ *
+ * @param rt 资源追踪器
+ */
+void lv00_resource_tracker_cleanup(ResourceTracker *rt);
+
+/**
+ * @brief 获取当前追踪的资源数量
+ * @param rt 资源追踪器
+ * @return 追踪的资源数量
+ */
+int lv00_resource_tracker_count(const ResourceTracker *rt);
 
 #ifdef __cplusplus
 }

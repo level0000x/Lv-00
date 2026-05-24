@@ -14,7 +14,7 @@ Lv-00 几何约束类型模块
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 # 使用 TYPE_CHECKING 避免循环导入，同时在类型检查时提供正确的类型提示
 if TYPE_CHECKING:
@@ -54,6 +54,34 @@ class Constraint:
             str: 格式为 "ConstraintType(name)" 的字符串
         """
         return f"{self.__class__.__name__}({self.name})"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        将约束序列化为字典。
+
+        返回：
+            Dict[str, Any]: 包含约束类型名称的字典
+        """
+        return {"type": self.name}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Constraint':
+        """
+        从字典反序列化约束。
+
+        参数：
+            data: 包含 "type" 键的字典
+
+        返回：
+            Constraint: 对应类型的约束实例
+
+        异常：
+            ValueError: data 中缺少 "type" 键
+        """
+        constraint_type = data.get("type")
+        if not constraint_type:
+            raise ValueError("约束字典中缺少 'type' 键")
+        return cls(constraint_type)
 
 
 class IncidenceConstraint(Constraint):
@@ -286,11 +314,11 @@ class ConstraintType:
     CONNECTION = "connection"
 
     @classmethod
-    def all_types(cls) -> 'list[str]':
+    def all_types(cls) -> List[str]:
         """获取所有约束类型列表。
 
         返回：
-            list[str]: 所有约束类型字符串的列表，按字母顺序排列
+            List[str]: 所有约束类型字符串的列表，按字母顺序排列
         """
         return [
             cls.INCIDENCE,
@@ -301,6 +329,61 @@ class ConstraintType:
         ]
 
 
+# ============================================================
+# 模块级类型化工具函数
+# ============================================================
+
+def constraints_to_dict(constraints: List[Constraint]) -> List[Dict[str, Any]]:
+    """
+    将约束列表序列化为字典列表。
+
+    参数：
+        constraints: 约束对象列表
+
+    返回：
+        List[Dict[str, Any]]: 每个约束的字典表示
+    """
+    return [c.to_dict() for c in constraints]
+
+
+def find_constraint_by_type(
+    constraints: List[Constraint],
+    constraint_type: str
+) -> Optional[Constraint]:
+    """
+    在约束列表中查找指定类型的第一个约束。
+
+    参数：
+        constraints: 约束对象列表
+        constraint_type: 要查找的约束类型名称（如 "incidence"）
+
+    返回：
+        Optional[Constraint]: 找到的约束，未找到返回 None
+    """
+    for c in constraints:
+        if c.name == constraint_type:
+            return c
+    return None
+
+
+def count_constraints_by_type(
+    constraints: List[Constraint]
+) -> Dict[str, int]:
+    """
+    按类型统计约束数量。
+
+    参数：
+        constraints: 约束对象列表
+
+    返回：
+        Dict[str, int]: 约束类型名称到计数的映射
+    """
+    counts: Dict[str, int] = {}
+    for c in constraints:
+        counts[c.name] = counts.get(c.name, 0) + 1
+    return counts
+
+
 __all__ = [
     'Constraint',
     'IncidenceConstraint',
@@ -309,4 +392,7 @@ __all__ = [
     'ContainmentConstraint',
     'ConnectionConstraint',
     'ConstraintType',
+    'constraints_to_dict',
+    'find_constraint_by_type',
+    'count_constraints_by_type',
 ]

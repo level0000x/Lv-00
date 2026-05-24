@@ -104,6 +104,7 @@ set(LV00_SOURCES
     ../src/parser/formula_converter.c
     ../src/core/prop_verifier.c
     ../src/parser/lexer_shared.c
+    ../src/parser/parser_safety.c
 )
 
 # Create WebAssembly module

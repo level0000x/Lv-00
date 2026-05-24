@@ -424,7 +424,7 @@ class SolutionSelector:
         return selector
     
     @classmethod
-    def custom(cls, func: Callable) -> 'SolutionSelector':
+    def custom(cls, func: 'Callable[..., int]') -> 'SolutionSelector':
         """
         创建自定义选择器。
         
@@ -438,7 +438,7 @@ class SolutionSelector:
         selector.custom_func = func
         return selector
     
-    def apply(self, candidates: List) -> int:
+    def apply(self, candidates: List[Any]) -> int:
         """
         应用选择器从候选解中选取一个。
 
@@ -516,7 +516,7 @@ class FuncBlock:
         >>> fb.instantiate(graph, arg_mappings)
     """
     
-    def __init__(self, fb_id: int = -1):
+    def __init__(self, fb_id: int = -1) -> None:
         """
         创建函数块对象。
         
@@ -532,7 +532,7 @@ class FuncBlock:
         self._output_count: int = 0
     
     @classmethod
-    def from_ptr(cls, ptr, owns_ptr: bool = False) -> 'FuncBlock':
+    def from_ptr(cls, ptr: Any, owns_ptr: bool = False) -> 'FuncBlock':
         """
         从底层指针创建函数块对象。
         
@@ -682,7 +682,7 @@ class FuncBlock:
         return status
     
     def check_determinism_dynamic(self, graph: Any, 
-                                    input_values: List) -> int:
+                                    input_values: List[Any]) -> int:
         """
         执行动态确定性检查。
 
@@ -760,7 +760,7 @@ class FuncBlock:
         self.determinism = status
         return status
     
-    def instantiate(self, graph: Any, arg_mappings: List[int]) -> Tuple[int, list]:
+    def instantiate(self, graph: Any, arg_mappings: List[int]) -> Tuple[int, List[int]]:
         """
         实例化函数块。
 

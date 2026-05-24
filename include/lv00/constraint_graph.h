@@ -150,6 +150,21 @@ struct ConstraintGraph {
     /** O(1) 约束哈希索引 —— constraint_id -> Constraint* */
     Constraint **constraint_index;
     int constraint_index_capacity; /**< 哈希表大小（2 的幂） */
+
+    /* ============================================================
+     * 每图级的错误缓冲区（替代旧版静态全局变量，v3.3.0）
+     *
+     * 旧版使用静态 file-scope char[] 存储错误信息，限制了并发使用。
+     * 现将错误缓冲区提升为堆分配的每图级字段：
+     *   - error_buffer[256]：    替代旧版 static g_internal_error[256]
+     *   - serialize_buffer[256]：替代旧版 static g_serialize_error[256]
+     *
+     * 在 graph_create() 中分配，在 graph_destroy() 中释放。
+     * 每个 ConstraintGraph 实例拥有独立的错误轨道，
+     * 多线程/多引擎场景下不再相互覆盖错误信息。
+     * ============================================================ */
+    char *error_buffer;       /**< 图级内部错误消息缓冲区（256 字节，堆分配） */
+    char *serialize_buffer;   /**< 图级序列化错误消息缓冲区（256 字节，堆分配） */
 };
 
 typedef enum {
@@ -173,7 +188,7 @@ Lv00ErrorCode lv00_remove_node_result_to_error(RemoveNodeResult result);
 
 AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, int coord_count);
 AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, int endpoint2_id);
-AddNodeResult graph_add_region(ConstraintGraph *graph, int *boundary_segment_ids, int segment_count);
+AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segment_ids, int segment_count);
 AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespace_depth, int parent_block_id);
 /**
  * @brief 向约束图添加函数块节点
@@ -188,8 +203,8 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
  * @return 操作结果状态码
  *
  */
-AddNodeResult graph_add_function_block(ConstraintGraph *graph, int *internal_node_ids, int internal_count,
-                                       int *input_port_ids, int input_count, int *output_port_ids, int output_count);
+AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *internal_node_ids, int internal_count,
+                                       const int *input_port_ids, int input_count, const int *output_port_ids, int output_count);
 
 /**
  * @brief 获取最近一次通过 graph_add_* 成功添加的节点 ID
@@ -257,7 +272,7 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
  * @return 冗余约束 ID 数组（调用者需 free）。
  *         出错返回 NULL。
  */
-int *graph_detect_redundant_constraints(ConstraintGraph *graph, int *out_count);
+int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_count);
 
 /**
  * @brief 检测图中的冲突约束组
@@ -269,9 +284,9 @@ int *graph_detect_redundant_constraints(ConstraintGraph *graph, int *out_count);
  *         调用者需逐组释放，然后释放数组本身。
  *         无冲突或出错返回 NULL。
  */
-int **graph_detect_conflicts(ConstraintGraph *graph, int *out_conflict_count, int **out_conflict_sizes);
+int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_count, int **out_conflict_sizes);
 
-bool graph_validate_region_closure(ConstraintGraph *graph, int region_id);
+bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id);
 
 /* ============== 图序列化与反序列化 ============== */
 
@@ -311,11 +326,15 @@ char *graph_node_serialize_to_json(const GeomNode *node);
 char *graph_constraint_serialize_to_json(const Constraint *constraint);
 
 /**
- * @brief 获取序列化错误信息
+ * @brief 获取图级序列化错误信息（v3.3.0：需传入图指针）
  *
- * @return 错误信息字符串（内部存储，勿 free）
+ * 每个 ConstraintGraph 实例拥有独立的序列化错误缓冲区，
+ * 替代旧版全局静态变量 g_serialize_error。
+ *
+ * @param graph 约束图（不可为 NULL）
+ * @return 错误信息字符串（内部存储，勿 free），graph 为 NULL 时返回空字符串
  */
-const char *graph_get_serialize_error(void);
+const char *graph_get_serialize_error(const ConstraintGraph *graph);
 
 /* ========================================================================
  * DOT 格式导出（借鉴 Graphviz DOT 声明式图描述语言，v3.3.0）

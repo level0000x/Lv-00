@@ -85,8 +85,9 @@ typedef struct FormulaNode FormulaNode;
 
 struct FormulaNode {
     NodeType type;
-    int line;   /* 源码行号 */
-    int column; /* 源码列号 */
+    int line;     /* 源码行号 */
+    int column;   /* 源码列号 */
+    int refcount; /* 引用计数：>0 表示存活，0 时方可释放 */
     union {
         /* NUMBER: 有理数 */
         struct {
@@ -244,9 +245,31 @@ const char *formula_parser_get_last_error(void);
 /**
  * @brief 销毁 AST 节点及其所有子节点
  *
+ * 使用引用计数安全释放：递减引用计数，仅当 refcount=0 时才释放内存。
+ * 递归释放所有子节点（子节点引用计数也相应递减）。
+ *
  * @param[in] node 要销毁的 AST 节点
  */
 void formula_node_destroy(FormulaNode *node);
+
+/**
+ * @brief 增加 AST 节点引用计数
+ *
+ * 当多个位置持有同一节点的指针时应调用此函数，
+ * 以确保节点不会因某处的 formula_node_destroy 而提前释放。
+ *
+ * @param[in] node AST节点指针（不能为NULL）
+ * @return 增加后的引用计数值
+ */
+int formula_node_ref(FormulaNode *node);
+
+/**
+ * @brief 获取 AST 节点当前引用计数
+ *
+ * @param[in] node AST节点指针
+ * @return 当前引用计数，node为NULL时返回0
+ */
+int formula_node_refcount(const FormulaNode *node);
 
 /**
  * @brief 深拷贝 AST 节点

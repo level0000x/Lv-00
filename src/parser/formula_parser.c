@@ -40,6 +40,7 @@
 #include "lv00.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "parser_safety.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
@@ -61,6 +62,8 @@ typedef struct {
     bool has_error;                      /* 是否有错误 */
     int line;                            /* 当前行号 */
     int column;                          /* 当前列号 */
+    int node_count;                      /* AST节点计数（安全限制用） */
+    int current_depth;                   /* 当前解析递归深度 */
 } ParserContext;
 
 /* ============================================================
@@ -347,6 +350,7 @@ FormulaNode *formula_create_number(int64_t numerator, uint64_t denominator) {
     node->type = NODE_NUMBER;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.number.numerator = numerator;
     node->data.number.denominator = denominator;
     node->data.number.is_integer = (denominator == 1);
@@ -368,6 +372,7 @@ FormulaNode *formula_create_variable(const char *name) {
     node->type = NODE_VARIABLE;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.variable.name = lv00_strdup_safe(name);
     if (!node->data.variable.name) {
         lv00_free((void **) &node);
@@ -391,6 +396,7 @@ FormulaNode *formula_create_identifier(const char *name) {
     node->type = NODE_IDENTIFIER;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.identifier.name = lv00_strdup_safe(name);
     if (!node->data.identifier.name) {
         lv00_free((void **) &node);
@@ -414,6 +420,7 @@ FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, Formu
     node->type = op_type;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.binary_op.left = left;
     node->data.binary_op.right = right;
     return node;
@@ -433,6 +440,7 @@ FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
     node->type = op_type;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.unary_op.operand = operand;
     return node;
 }
@@ -451,6 +459,7 @@ FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
     node->type = NODE_EQUATION;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.equation.lhs = lhs;
     node->data.equation.rhs = rhs;
     return node;
@@ -463,6 +472,7 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
     node->type = NODE_COORDINATE_LIST;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     if (count > 0 && coords) {
         node->data.coord_list.coords = lv00_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.coord_list.coords) {
@@ -484,6 +494,7 @@ FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
     node->type = NODE_GEOM_POINT;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.geom_point.name = lv00_strdup_safe(name);
     if (!node->data.geom_point.name) {
         lv00_free((void **) &node);
@@ -502,6 +513,7 @@ FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, For
     node->type = NODE_GEOM_SEGMENT;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.geom_segment.name = lv00_strdup_safe(name);
     if (!node->data.geom_segment.name) {
         lv00_free((void **) &node);
@@ -521,6 +533,7 @@ FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, F
     node->type = NODE_GEOM_CIRCLE;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.geom_circle.name = lv00_strdup_safe(name);
     if (!node->data.geom_circle.name) {
         lv00_free((void **) &node);
@@ -540,6 +553,7 @@ FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, For
     node->type = NODE_GEOM_TRIANGLE;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.geom_triangle.name = lv00_strdup_safe(name);
     if (!node->data.geom_triangle.name) {
         lv00_free((void **) &node);
@@ -560,6 +574,7 @@ FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertice
     node->type = NODE_GEOM_POLYGON;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.geom_polygon.name = lv00_strdup_safe(name);
     if (!node->data.geom_polygon.name) {
         lv00_free((void **) &node);
@@ -587,6 +602,7 @@ FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments
     node->type = NODE_GEOM_REGION;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.geom_region.name = lv00_strdup_safe(name);
     if (!node->data.geom_region.name) {
         lv00_free((void **) &node);
@@ -615,6 +631,7 @@ FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, Form
     node->type = NODE_GEOM_ARC;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     node->data.geom_arc.name = lv00_strdup_safe(name);
     if (!node->data.geom_arc.name) {
         lv00_free((void **) &node);
@@ -634,6 +651,7 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
     node->type = constraint_type;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     if (count > 0 && participants) {
         node->data.constraint.participants = lv00_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.constraint.participants) {
@@ -653,6 +671,7 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
     node->type = NODE_COMPOUND;
     node->line = 1;
     node->column = 1;
+    node->refcount = 1;
     if (count > 0 && statements) {
         node->data.compound.statements = lv00_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.compound.statements) {
@@ -679,8 +698,38 @@ int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement
     return 0;
 }
 
+/**
+ * @brief 增加 AST 节点引用计数
+ *
+ * 调用此函数表示调用者持有了对该节点的额外引用。
+ * 节点在其引用计数归零之前不会被公式销毁释放。
+ *
+ * @param[in] node AST节点指针（不能为NULL）
+ * @return 增加后的引用计数
+ */
+int formula_node_ref(FormulaNode *node) {
+    if (!node) return 0;
+    return ++node->refcount;
+}
+
+/**
+ * @brief 获取 AST 节点当前引用计数
+ *
+ * @param[in] node AST节点指针
+ * @return 当前引用计数，node为NULL时返回0
+ */
+int formula_node_refcount(const FormulaNode *node) {
+    if (!node) return 0;
+    return node->refcount;
+}
+
 void formula_node_destroy(FormulaNode *node) {
     if (!node)
+        return;
+
+    /* 引用计数递减：仅当引用计数归零时才真正销毁 */
+    node->refcount--;
+    if (node->refcount > 0)
         return;
 
     switch (node->type) {
@@ -825,6 +874,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
     copy->type = node->type;
     copy->line = node->line;
     copy->column = node->column;
+    copy->refcount = 1;
 
     switch (node->type) {
         case NODE_NUMBER:
@@ -1064,6 +1114,31 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 }
 
 /* ============================================================
+ * 安全性辅助函数
+ * ============================================================ */
+
+/**
+ * @brief 追踪AST节点创建并检查安全限制
+ *
+ * 每次创建AST节点时调用，递增节点计数器并检查是否超过
+ * LV00_MAX_AST_NODES 上限。超限时设置错误状态并返回false。
+ *
+ * @param[in,out] ctx 解析器上下文
+ * @param[in]     node 新创建的AST节点
+ * @return 新创建的节点（如果超限则释放并返回NULL）
+ */
+static FormulaNode *track_node(ParserContext *ctx, FormulaNode *node) {
+    if (!node) return NULL;
+    ctx->node_count++;
+    if (ctx->node_count > LV00_MAX_AST_NODES) {
+        set_error(ctx, "AST节点数超过安全上限");
+        formula_node_destroy(node);
+        return NULL;
+    }
+    return node;
+}
+
+/* ============================================================
  * 解析数字
  * ============================================================ */
 
@@ -1257,7 +1332,7 @@ static FormulaNode *parse_number(ParserContext *ctx) {
             node->column = ctx->column;
         }
     }
-    return node;
+    return track_node(ctx, node);
 }
 
 /* ============================================================
@@ -1292,6 +1367,13 @@ static char *parse_identifier_str(ParserContext *ctx) {
     }
 
     size_t len = ctx->pos - start;
+
+    /* 安全加固：检查token长度限制 */
+    if (len > LV00_MAX_TOKEN_LENGTH) {
+        set_error(ctx, "Identifier too long");
+        return NULL;
+    }
+
     char *ident = lv00_malloc(len + 1);
     if (!ident) {
         set_error(ctx, "Memory allocation failed");
@@ -2206,7 +2288,7 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
         FormulaNode *operand = parse_dsl_factor(ctx);
         if (!operand)
             return NULL;
-        return formula_create_unary_op(NODE_UNARY_OP_NEG, operand);
+        return track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
     }
 
     /* 正号 */
@@ -2408,7 +2490,7 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
             return NULL;
         }
 
-        left = formula_create_binary_op(op_type, left, right);
+        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -2451,7 +2533,7 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
             return NULL;
         }
 
-        left = formula_create_binary_op(op_type, left, right);
+        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -2483,7 +2565,7 @@ static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
             formula_node_destroy(left);
             return NULL;
         }
-        return formula_create_equation(left, right);
+        return track_node(ctx, formula_create_equation(left, right));
     }
 
     return left;
@@ -2771,7 +2853,7 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
         FormulaNode *operand = parse_latex_factor(ctx);
         if (!operand)
             return NULL;
-        return formula_create_unary_op(NODE_UNARY_OP_NEG, operand);
+        return track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
     }
 
     /* 正号 */
@@ -2786,12 +2868,12 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
         if (!ident)
             return NULL;
 
-        FormulaNode *node = formula_create_variable(ident);
+        FormulaNode *node = track_node(ctx, formula_create_variable(ident));
         lv00_free((void **) &ident);
         return node;
     }
 
-    set_error(ctx, "Unexpected character in LaTeX expression");
+    set_error(ctx, "Unexpected character in DSL expression");
     return NULL;
 }
 
@@ -2876,7 +2958,7 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
             return NULL;
         }
 
-        left = formula_create_binary_op(op_type, left, right);
+        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -2919,7 +3001,7 @@ static FormulaNode *parse_latex_expression(ParserContext *ctx) {
             return NULL;
         }
 
-        left = formula_create_binary_op(op_type, left, right);
+        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -2934,7 +3016,7 @@ static FormulaNode *parse_latex_expression(ParserContext *ctx) {
             formula_node_destroy(left);
             return NULL;
         }
-        return formula_create_equation(left, right);
+        return track_node(ctx, formula_create_equation(left, right));
     }
 
     return left;
@@ -2983,7 +3065,7 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
         FormulaNode *operand = parse_python_factor(ctx);
         if (!operand)
             return NULL;
-        return formula_create_unary_op(NODE_UNARY_OP_NEG, operand);
+        return track_node(ctx, formula_create_unary_op(NODE_UNARY_OP_NEG, operand));
     }
 
     /* 正号 */
@@ -3162,7 +3244,7 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
             return NULL;
         }
 
-        left = formula_create_binary_op(op_type, left, right);
+        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -3205,7 +3287,7 @@ static FormulaNode *parse_python_expression(ParserContext *ctx) {
             return NULL;
         }
 
-        left = formula_create_binary_op(op_type, left, right);
+        left = track_node(ctx, formula_create_binary_op(op_type, left, right));
         if (!left)
             return NULL;
     }
@@ -3219,7 +3301,7 @@ static FormulaNode *parse_python_expression(ParserContext *ctx) {
             formula_node_destroy(left);
             return NULL;
         }
-        return formula_create_equation(left, right);
+        return track_node(ctx, formula_create_equation(left, right));
     }
 
     return left;
@@ -3237,18 +3319,28 @@ FormulaNode *formula_parse(const char *input, const char *syntax) {
 
     lv00_clear_error();
 
+    /* ──── 安全加固：输入验证 ──── */
+    size_t input_len = strlen(input);
+    Lv00ErrorCode validate_err = lv00_input_validate(input, input_len);
+    if (validate_err != LV00_OK) {
+        /* lv00_input_validate 已通过 lv00_set_error 设置详细错误信息 */
+        return NULL;
+    }
+
     if (formula_parser_stream_ctx) {
         stream_emit_info(formula_parser_stream_ctx, "公式解析开始", 0);
     }
 
-    /* 初始化解析上下文 */
+    /* 初始化解析上下文（node_count/current_depth 用于安全限制追踪） */
     ParserContext ctx = {0};
     ctx.input = input;
     ctx.pos = 0;
-    ctx.length = strlen(input);
+    ctx.length = input_len;
     ctx.line = 1;
     ctx.column = 1;
     ctx.has_error = false;
+    ctx.node_count = 0;
+    ctx.current_depth = 0;
 
     FormulaNode *ast = NULL;
 
@@ -3269,7 +3361,11 @@ FormulaNode *formula_parse(const char *input, const char *syntax) {
     }
 
     if (ctx.has_error) {
-        lv00_set_error(LV00_ERROR_PARSE, "%s", ctx.error_message);
+        /* 如果已通过安全函数设置了错误，保留原有错误码；
+           否则使用通用解析错误码 */
+        if (lv00_get_last_error_code() == LV00_OK) {
+            lv00_set_error(LV00_ERROR_PARSE, "%s", ctx.error_message);
+        }
         if (formula_parser_stream_ctx) {
             stream_emit_error(formula_parser_stream_ctx, "公式解析错误", 0);
         }

@@ -962,6 +962,126 @@ void recursion_context_set_depth_callback(RecursionContext *ctx, RecursionDepthC
     ctx->depth_callback_user_data = user_data;
 }
 
+/* ============== 全局递归深度保护（熔断器） ============== */
+
+/**
+ * @brief 全局递归深度状态 —— 线程局部存储
+ *
+ * 维护一个与 RecursionContext 独立的全局深度计数器，
+ * 用于在未创建 RecursionContext 的场景下提供轻量级保护。
+ *
+ * 熔断器模式（Circuit Breaker Pattern）：
+ * - CLOSED（正常）：depth < LV00_MAX_RECURSION_DEPTH，允许进入
+ * - OPEN（熔断）：depth 超限或 circuit_breaker_triggered == true，拒绝进入
+ * - HALF-OPEN（恢复中）：depth 回到 0 后自动重置，允许下一次尝试
+ */
+#ifdef LV00_THREAD_LOCAL
+static LV00_THREAD_LOCAL int   g_recursion_depth = 0;
+static LV00_THREAD_LOCAL bool  g_circuit_breaker_triggered = false;
+static LV00_THREAD_LOCAL int   g_circuit_breaker_at_depth = 0;
+#else
+static int   g_recursion_depth = 0;
+static bool  g_circuit_breaker_triggered = false;
+static int   g_circuit_breaker_at_depth = 0;
+#endif
+
+/**
+ * @brief 进入递归调用 —— 全局深度保护入口
+ *
+ * 维护全局递归深度计数器。每次进入递归时 +1。
+ * 超过 LV00_MAX_RECURSION_DEPTH 时触发熔断器。
+ *
+ * 使用场景：在任何递归函数（如 normalize、unify、rewrite）的入口处调用。
+ *
+ * @return true  可以继续递归
+ * @return false 熔断器已触发，应立即终止递归链
+ */
+bool lv00_recursion_enter(void) {
+    /* 如果熔断器已触发，直接拒绝 */
+    if (g_circuit_breaker_triggered) {
+        /* 流式事件：熔断器阻止递归进入 */
+        if (recursion_stream_ctx) {
+            stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_ERROR,
+                              "熔断器阻止递归进入（已触发）", g_recursion_depth);
+        }
+        return false;
+    }
+
+    g_recursion_depth++;
+
+    /* 检查是否超限 */
+    if (g_recursion_depth > LV00_MAX_RECURSION_DEPTH) {
+        /* 触发熔断器 */
+        g_circuit_breaker_triggered = true;
+        g_circuit_breaker_at_depth = g_recursion_depth;
+
+        /* 流式事件：递归深度超限，熔断器触发 */
+        if (recursion_stream_ctx) {
+            char buf[128];
+            snprintf(buf, sizeof(buf),
+                    "递归深度超限: depth=%d > max=%d, 熔断器触发",
+                    g_recursion_depth, LV00_MAX_RECURSION_DEPTH);
+            stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_ERROR, buf, 0);
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief 退出递归调用 —— 全局深度保护出口
+ *
+ * 全局递归深度 -1。在递归函数返回前调用。
+ * 如果深度回到 0 且熔断器未被触发，自动重置状态。
+ */
+void lv00_recursion_leave(void) {
+    if (g_recursion_depth > 0) {
+        g_recursion_depth--;
+    }
+
+    /* 当深度回到 0 时，如果熔断器未触发，自动重置 */
+    if (g_recursion_depth == 0 && !g_circuit_breaker_triggered) {
+        g_circuit_breaker_at_depth = 0;
+    }
+}
+
+/**
+ * @brief 检查熔断器是否已触发
+ *
+ * @return true  熔断器已触发
+ */
+bool lv00_recursion_circuit_breaker_triggered(void) {
+    return g_circuit_breaker_triggered;
+}
+
+/**
+ * @brief 重置全局递归深度保护状态
+ *
+ * 将深度计数器置零，清除熔断器标志。
+ * 应在开始新递归链之前调用。
+ */
+void lv00_recursion_reset(void) {
+    g_recursion_depth = 0;
+    g_circuit_breaker_triggered = false;
+    g_circuit_breaker_at_depth = 0;
+
+    /* 流式事件：熔断器重置 */
+    if (recursion_stream_ctx) {
+        stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO, "熔断器已重置", 0);
+    }
+}
+
+/**
+ * @brief 获取当前全局递归深度
+ *
+ * @return 当前递归深度
+ */
+int lv00_recursion_get_depth(void) {
+    return g_recursion_depth;
+}
+
 /**
  * @brief 进入递归调用（递归深度检查入口）
  *
@@ -1513,7 +1633,7 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
         /* 根据定义，边界点不算在内部 */
         /* 修改3：真分支变为虚影，假分支激活 */
         sb->true_state = BRANCH_SHADOWED;
-        sb->false_state = BRANCH_ACTIVE;
+        sb->false_state = BRANCH_ACTIVE_SELECTED;
         return true;
     }
 
@@ -1554,12 +1674,12 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
     /* 修改3：评估后根据结果设置分支状态 */
     if (is_inside) {
         /* 真分支激活，假分支变为虚影 */
-        sb->true_state = BRANCH_ACTIVE;
+        sb->true_state = BRANCH_ACTIVE_SELECTED;
         sb->false_state = BRANCH_SHADOWED;
     } else {
         /* 假分支激活，真分支变为虚影 */
         sb->true_state = BRANCH_SHADOWED;
-        sb->false_state = BRANCH_ACTIVE;
+        sb->false_state = BRANCH_ACTIVE_SELECTED;
     }
 
     /* 根据 design_v2.9.md 第 9.5 节管理分支子图节点：
@@ -1596,9 +1716,9 @@ int selector_block_get_active_branch(SelectorBlock *sb) {
     if (!sb)
         return -1;
 
-    if (sb->true_state == BRANCH_ACTIVE) {
+    if (sb->true_state == BRANCH_ACTIVE_SELECTED) {
         return sb->true_branch_root_id;
-    } else if (sb->false_state == BRANCH_ACTIVE) {
+    } else if (sb->false_state == BRANCH_ACTIVE_SELECTED) {
         return sb->false_branch_root_id;
     }
 
@@ -2031,7 +2151,7 @@ const char *branch_state_to_string(BranchState state) {
     switch (state) {
         case BRANCH_INACTIVE:
             return "Inactive";
-        case BRANCH_ACTIVE:
+        case BRANCH_ACTIVE_SELECTED:
             return "Active";
         case BRANCH_PENDING:
             return "Pending";

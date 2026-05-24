@@ -57,40 +57,184 @@
 
 static LV00_THREAD_LOCAL MemoryStats g_memory_stats = {0};
 static LV00_THREAD_LOCAL size_t g_memory_limit = 0;
+static LV00_THREAD_LOCAL bool g_poison_enabled = false; /**< 毒模式填充开关，默认关闭（v3.3.0调试阶段） */
 
-/* 包装malloc以跟踪内存使用 */
-typedef struct {
-    uint32_t magic; /**< 魔数，用于检测double-free */
-    size_t size;
-    char data[];
+/**
+ * @brief 内部分配头 —— 存储每次分配的元数据
+ *
+ * 每个通过 lv00_malloc / lv00_calloc 分配的内存块前附加此头部，
+ * 使得 lv00_free 和 lv00_realloc 可以精确获取原始分配大小，
+ * 从而正确维护 current_used 等内存统计指标。
+ *
+ * 内存布局（实际分配 = 头部 + 用户数据 + 尾部魔数）：
+ *   [AllocHeader | 用户数据 (size 字节) | 尾部魔数 (4 字节)]
+ *
+ * 头部魔数 (head_magic) 用于检测 double-free 和内存损坏；
+ * 尾部魔数 (写于 data[size] 位置) 用于检测缓冲区溢出。
+ *
+ * 对外返回的指针指向 data[] 起始位置，调用者不可感知此头部。
+ * 此设计不会与外部 free() 兼容（外部调用者必须使用 lv00_free /
+ * lv00_free_ptr），但项目规范要求所有动态内存通过本模块管理，
+ * 因此这是安全的。
+ */
+typedef struct AllocHeader {
+    uint32_t head_magic;            /**< 头部魔数，检测内存损坏和 double-free */
+    uint32_t tail_offset;           /**< 尾部魔数相对于 data 的偏移（字节）= size */
+    size_t size;                    /**< 用户请求的分配大小（字节） */
+    const char *file;               /**< 分配源文件名（NULL 表示未记录） */
+    int line;                       /**< 分配源行号（0 表示未记录） */
+    struct AllocHeader *track_next; /**< 全局追踪链表中的下一个节点 */
+    char data[];                    /**< 柔性数组成员：实际数据起始位置 */
 } AllocHeader;
 
-#define ALLOC_MAGIC_LIVE 0xADBEEF01  /**< 存活标记 */
-#define ALLOC_MAGIC_FREED 0x00000000 /**< 已释放标记 */
+#define ALLOC_HEAD_MAGIC  0xADBEEF01  /**< 头部魔数（存活标记） */
+#define ALLOC_TAIL_MAGIC  0xADBEEF02  /**< 尾部魔数（缓冲区溢出检测） */
+#define ALLOC_POISON      0xDEADBEEF  /**< 毒模式（use-after-free 检测） */
+#define ALLOC_MAGIC_FREED 0xDEADDEAD  /**< 已释放标记（double-free 检测） */
+#define ALLOC_HEADER_SIZE offsetof(AllocHeader, data) /**< 头部大小（不含 data） */
 
-/*
- * 内存分配器实现 — 直接使用系统 malloc/free
- *
- * 注意：放弃 AllocHeader 包装以避免与外部 free() 的兼容性问题。
- * 内存追踪仅统计分配次数/总量，free 时不再精确减扣。
+#define ALLOC_TAIL_MAGIC_SIZE sizeof(uint32_t)        /**< 尾部魔数大小 */
+
+/** 全局追踪链表头 —— 记录所有未释放的分配 */
+static LV00_THREAD_LOCAL AllocHeader *g_tracked_allocs = NULL;
+
+/**
+ * @brief 从用户指针获取分配头
+ * @param ptr 用户指针（即 lv00_malloc 等返回的 data[] 地址）
+ * @return 对应的 AllocHeader 指针；若头部或尾部魔数不匹配则返回 NULL
  */
+static AllocHeader *get_header(void *ptr) {
+    if (!ptr)
+        return NULL;
+    AllocHeader *hdr = (AllocHeader *)((char *)ptr - ALLOC_HEADER_SIZE);
+    /* 检查头部魔数 */
+    if (hdr->head_magic != ALLOC_HEAD_MAGIC)
+        return NULL;
+    /* 检查尾部魔数（缓冲区溢出检测）—— 使用 memcpy 避免未对齐访问 */
+    if (hdr->tail_offset > 0) {
+        uint32_t tail_value;
+        memcpy(&tail_value, (char *)ptr + hdr->tail_offset, sizeof(uint32_t));
+        if (tail_value != ALLOC_TAIL_MAGIC) {
+            /* 尾部魔数不匹配 —— 可能发生了缓冲区溢出 */
+            LV00_LOG_ERROR("内存损坏检测: 尾部魔数不匹配，指针=0x%p, 期望=0x%08X, 实际=0x%08X",
+                           ptr, ALLOC_TAIL_MAGIC, tail_value);
+            return NULL;
+        }
+    }
+    return hdr;
+}
+
+/**
+ * @brief 将分配加入全局追踪链表
+ * @param hdr 分配头指针
+ */
+static void track_allocation(AllocHeader *hdr) {
+    hdr->track_next = g_tracked_allocs;
+    g_tracked_allocs = hdr;
+}
+
+/**
+ * @brief 从全局追踪链表中移除分配
+ * @param hdr 分配头指针
+ * @return true 成功移除，false 未找到
+ */
+static bool untrack_allocation(AllocHeader *hdr) {
+    AllocHeader **curr = &g_tracked_allocs;
+    while (*curr) {
+        if (*curr == hdr) {
+            *curr = hdr->track_next;
+            hdr->track_next = NULL;
+            return true;
+        }
+        curr = &(*curr)->track_next;
+    }
+    return false;
+}
+
+/**
+ * @brief 用毒模式填充已释放的内存区域
+ *
+ * 将指定内存区域的每个 32 位字填充为 ALLOC_POISON (0xDEADBEEF)。
+ * 之后任何对该区域的读操作都会发现毒模式值，从而检测 use-after-free。
+ *
+ * @param data 数据区域起始地址
+ * @param size 数据区域大小（字节）
+ */
+static void fill_poison(void *data, size_t size) {
+    if (!g_poison_enabled || !data || size == 0)
+        return;
+    /* 使用 memcpy 避免未对齐访问 —— data 可能非 4 字节对齐 */
+    uint32_t poison_val = ALLOC_POISON;
+    uint8_t *p = (uint8_t *)data;
+    size_t count = size / sizeof(uint32_t);
+    for (size_t i = 0; i < count; i++) {
+        memcpy(p + i * sizeof(uint32_t), &poison_val, sizeof(uint32_t));
+    }
+    /* 填充剩余不足 4 字节的尾部 */
+    size_t remaining = size % sizeof(uint32_t);
+    if (remaining > 0) {
+        uint8_t *tail = (uint8_t *)(p + count);
+        memset(tail, 0xBE, remaining);
+    }
+}
+
 void *lv00_malloc(size_t size) {
-    if (g_memory_limit > 0 && g_memory_stats.current_used > g_memory_limit - size) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", size);
+    /* 向后兼容：委托给 tracked 版本，file/line 为 NULL/0 */
+    return lv00_malloc_tracked(size, NULL, 0);
+}
+
+void *lv00_malloc_tracked(size_t size, const char *file, int line) {
+    /* 零大小请求：分配最小块（1 字节数据 + 尾魔数），保持 malloc(0) 语义 */
+    size_t alloc_size = size ? size : 1;
+
+    if (g_memory_limit > 0 && g_memory_stats.current_used > g_memory_limit - alloc_size) {
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", alloc_size);
         return NULL;
     }
-    void *ptr = malloc(size ? size : 1);
-    if (ptr) {
-        g_memory_stats.total_allocated += size;
-        g_memory_stats.current_used += size;
-        g_memory_stats.allocation_count++;
-        if (g_memory_stats.current_used > g_memory_stats.peak_used)
-            g_memory_stats.peak_used = g_memory_stats.current_used;
-    }
-    return ptr;
+
+    /* 检查溢出：头部大小 + 用户请求大小 + 尾部魔数大小 */
+    size_t total = ALLOC_HEADER_SIZE;
+    if (total > SIZE_MAX - alloc_size) goto overflow;
+    total += alloc_size;
+    if (total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
+    total += ALLOC_TAIL_MAGIC_SIZE;
+
+    AllocHeader *hdr = (AllocHeader *)malloc(total);
+    if (!hdr)
+        return NULL;
+
+    hdr->head_magic = ALLOC_HEAD_MAGIC;
+    hdr->tail_offset = (uint32_t)alloc_size;
+    hdr->size = alloc_size;
+    hdr->file = file;
+    hdr->line = line;
+
+    /* 设置尾部魔数（使用 memcpy 避免未对齐访问） */
+    uint32_t tail_magic = ALLOC_TAIL_MAGIC;
+    memcpy(hdr->data + alloc_size, &tail_magic, sizeof(uint32_t));
+
+    /* 加入全局追踪链表 */
+    track_allocation(hdr);
+
+    g_memory_stats.total_allocated += alloc_size;
+    g_memory_stats.current_used += alloc_size;
+    g_memory_stats.allocation_count++;
+    if (g_memory_stats.current_used > g_memory_stats.peak_used)
+        g_memory_stats.peak_used = g_memory_stats.current_used;
+
+    return hdr->data;
+
+overflow:
+    lv00_set_error(LV00_ERROR_OVERFLOW, "malloc 溢出: header=%zu + size=%zu + tail=%zu",
+                   (size_t)ALLOC_HEADER_SIZE, alloc_size, (size_t)ALLOC_TAIL_MAGIC_SIZE);
+    return NULL;
 }
 
 void *lv00_calloc(size_t nmemb, size_t size) {
+    return lv00_calloc_tracked(nmemb, size, NULL, 0);
+}
+
+void *lv00_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
     if (nmemb == 0 || size == 0)
         return NULL;
 
@@ -101,22 +245,55 @@ void *lv00_calloc(size_t nmemb, size_t size) {
     }
 
     size_t total = nmemb * size;
-    void *ptr = calloc(nmemb, size);
-    if (ptr) {
+
+    /* 检查头部和尾部大小溢出 */
+    {
+        size_t full = ALLOC_HEADER_SIZE;
+        if (full > SIZE_MAX - total) goto overflow;
+        full += total;
+        if (full > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
+        full += ALLOC_TAIL_MAGIC_SIZE;
+
+        AllocHeader *hdr = (AllocHeader *)calloc(1, full);
+        if (!hdr)
+            return NULL;
+
+        hdr->head_magic = ALLOC_HEAD_MAGIC;
+        hdr->tail_offset = (uint32_t)total;
+        hdr->size = total;
+        hdr->file = file;
+        hdr->line = line;
+
+        /* 设置尾部魔数（使用 memcpy 避免未对齐访问） */
+        uint32_t ctail_magic = ALLOC_TAIL_MAGIC;
+        memcpy(hdr->data + total, &ctail_magic, sizeof(uint32_t));
+
+        track_allocation(hdr);
+
         g_memory_stats.total_allocated += total;
         g_memory_stats.current_used += total;
         g_memory_stats.allocation_count++;
         if (g_memory_stats.current_used > g_memory_stats.peak_used)
             g_memory_stats.peak_used = g_memory_stats.current_used;
+
+        return hdr->data;
     }
-    return ptr;
+
+overflow:
+    lv00_set_error(LV00_ERROR_OVERFLOW, "calloc 溢出: header=%zu + total=%zu + tail=%zu",
+                   (size_t)ALLOC_HEADER_SIZE, total, (size_t)ALLOC_TAIL_MAGIC_SIZE);
+    return NULL;
 }
 
 /**
  * @brief 重新分配内存（统一内存追踪版本）
- * @warning 行为与标准 realloc 不同：当 size 为 0 时，返回 NULL 但不释放原内存。
- *          调用者应先 lv00_free(&ptr) 再处理 size=0 的情况。
- *          这是有意设计，避免隐式释放导致追踪系统状态不一致。
+ *
+ * 行为与标准 realloc 的关键差异：
+ * - 当 size 为 0 时，返回 NULL 但不释放原内存。
+ *   调用者应先 lv00_free(&ptr) 再处理 size=0 的情况。
+ * - 自动维护 current_used 统计：减去旧大小，加上新大小。
+ * - 若原指针不由 lv00_malloc/lv00_calloc 分配（魔数不匹配），
+ *   则委托给 lv00_malloc（保守处理：无法获取旧大小）。
  */
 void *lv00_realloc(void *ptr, size_t size) {
     if (!ptr)
@@ -124,31 +301,103 @@ void *lv00_realloc(void *ptr, size_t size) {
     if (size == 0)
         return NULL;
 
-    /* 内存统计说明：当前 lv00_malloc 使用原生 malloc（自定义 AllocHeader 分配器
-     * 已临时禁用，见上方 DEBUG 注释），因此无法获取原分配大小。
-     *
-     * 采用保守策略：realloc 成功时不更新 current_used（避免只增不减导致
-     * 健康检查误报内存泄漏），仅更新 total_allocated 和 peak_used。
-     *
-     * 当自定义分配器（AllocHeader）恢复启用后，应改为：
-     *   AllocHeader *hdr = (AllocHeader *)((char *)ptr - sizeof(AllocHeader));
-     *   old_size = (hdr->magic == ALLOC_MAGIC_LIVE) ? hdr->size : 0;
-     *   g_memory_stats.current_used = g_memory_stats.current_used - old_size + size;
-     */
-    void *new_ptr = realloc(ptr, size);
-    if (new_ptr) {
-        g_memory_stats.total_allocated += size;
+    size_t alloc_size = size;
+    AllocHeader *old_hdr = get_header(ptr);
+
+    if (old_hdr) {
+        /* 正规路径：由本分配器分配的指针，可以精确追踪 */
+        size_t old_size = old_hdr->size;
+
+        /* 计算新总大小 */
+        size_t new_total = ALLOC_HEADER_SIZE;
+        if (new_total > SIZE_MAX - alloc_size) goto realloc_overflow;
+        new_total += alloc_size;
+        if (new_total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto realloc_overflow;
+        new_total += ALLOC_TAIL_MAGIC_SIZE;
+
+        /* 从追踪链表中移除旧节点 */
+        untrack_allocation(old_hdr);
+
+        AllocHeader *new_hdr = (AllocHeader *)realloc(old_hdr, new_total);
+        if (!new_hdr) {
+            /* realloc 失败：旧分配仍然有效，重新加入追踪链表 */
+            track_allocation(old_hdr);
+            return NULL;
+        }
+
+        new_hdr->head_magic = ALLOC_HEAD_MAGIC;
+        new_hdr->tail_offset = (uint32_t)alloc_size;
+        new_hdr->size = alloc_size;
+
+        /* 设置尾部魔数 */
+        uint32_t *tail = (uint32_t *)(new_hdr->data + alloc_size);
+        *tail = ALLOC_TAIL_MAGIC;
+
+        /* 重新加入追踪链表 */
+        track_allocation(new_hdr);
+
+        /* 更新统计：减去旧大小，加上新大小 */
+        g_memory_stats.total_allocated += alloc_size;
+        if (old_size <= g_memory_stats.current_used) {
+            g_memory_stats.current_used = g_memory_stats.current_used - old_size + alloc_size;
+        } else {
+            g_memory_stats.current_used += alloc_size;
+        }
+        if (g_memory_stats.current_used > g_memory_stats.peak_used)
+            g_memory_stats.peak_used = g_memory_stats.current_used;
+
+        return new_hdr->data;
+    } else {
+        /* 非本分配器分配的指针（魔数不匹配）：
+         * 保守处理 —— 新建分配并复制内容。
+         * 无法获取旧大小，故 current_used 仅增加新分配量。 */
+        void *new_ptr = lv00_malloc(alloc_size);
+        if (!new_ptr)
+            return NULL;
+        return new_ptr;
     }
-    return new_ptr;
+
+realloc_overflow:
+    lv00_set_error(LV00_ERROR_OVERFLOW, "realloc 溢出");
+    return NULL;
 }
 
 void lv00_free(void **ptr) {
     if (!ptr || !*ptr)
         return;
-    free(*ptr);
+
+    AllocHeader *hdr = get_header(*ptr);
+    if (hdr) {
+        /* 正规路径：由本分配器分配的指针 */
+        size_t freed_size = hdr->size;
+
+        /* 从追踪链表中移除 */
+        untrack_allocation(hdr);
+
+        /* 用毒模式填充用户数据区（检测 use-after-free） */
+        fill_poison(hdr->data, hdr->tail_offset);
+
+        /* 标记头部魔数为已释放（防止 double-free） */
+        hdr->head_magic = ALLOC_MAGIC_FREED;
+
+        /* 更新统计 */
+        if (freed_size <= g_memory_stats.current_used) {
+            g_memory_stats.current_used -= freed_size;
+        } else {
+            /* 防御：统计不一致时将 current_used 归零 */
+            g_memory_stats.current_used = 0;
+        }
+        g_memory_stats.total_freed += freed_size;
+        g_memory_stats.free_count++;
+
+        free(hdr);
+    } else {
+        /* 非本分配器指针或已释放（魔数不匹配）：
+         * 仍然释放内存以防泄漏，但不更新统计。 */
+        free(*ptr);
+    }
+
     *ptr = NULL;
-    g_memory_stats.total_freed += 1; /* 近似追踪 */
-    g_memory_stats.free_count++;
 }
 
 void lv00_free_many(void **first, ...) {
@@ -207,6 +456,300 @@ bool lv00_memory_limit_exceeded(void) {
     if (g_memory_limit == 0)
         return false;
     return g_memory_stats.current_used > g_memory_limit;
+}
+
+/* ============================================================
+ * POISON/MAGIC 检测实现
+ * ============================================================ */
+
+bool lv00_memory_check_poison(const void *ptr, size_t size) {
+    if (!ptr || size == 0)
+        return true; /* 空区域视为安全 */
+
+    const uint8_t *p = (const uint8_t *)ptr;
+    size_t count = size / sizeof(uint32_t);
+    uint32_t val;
+
+    for (size_t i = 0; i < count; i++) {
+        memcpy(&val, p + i * sizeof(uint32_t), sizeof(uint32_t));  /* 避免未对齐访问 */
+        if (val == ALLOC_POISON) {
+            LV00_LOG_WARNING("Poison 标记检测: 地址 0x%p 偏移 %zu 处发现毒模式 0x%08X（可能 use-after-free）",
+                             ptr, i * sizeof(uint32_t), ALLOC_POISON);
+            return false;
+        }
+    }
+
+    /* 检查尾部不完整的字节 */
+    size_t remaining = size % sizeof(uint32_t);
+    if (remaining > 0) {
+        const uint8_t *tail = (const uint8_t *)(p + count);
+        for (size_t i = 0; i < remaining; i++) {
+            if (tail[i] == 0xBE) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool lv00_memory_check_magic(const void *ptr) {
+    if (!ptr)
+        return true; /* NULL 视为安全 */
+
+    AllocHeader *hdr = (AllocHeader *)((char *)ptr - ALLOC_HEADER_SIZE);
+
+    /* 检查头部魔数 */
+    if (hdr->head_magic != ALLOC_HEAD_MAGIC) {
+        if (hdr->head_magic == ALLOC_MAGIC_FREED) {
+            LV00_LOG_ERROR("魔数检测失败: 指针 0x%p 的内存已被释放（double-free?）", ptr);
+        } else {
+            LV00_LOG_ERROR("魔数检测失败: 指针 0x%p 的头部魔数异常 0x%08X", ptr, hdr->head_magic);
+        }
+        return false;
+    }
+
+    /* 检查尾部魔数 */
+    if (hdr->tail_offset > 0) {
+        const uint32_t *tail = (const uint32_t *)((const char *)ptr + hdr->tail_offset);
+        if (*tail != ALLOC_TAIL_MAGIC) {
+            LV00_LOG_ERROR("尾部魔数检测失败: 指针 0x%p 可能发生缓冲区溢出, 期望 0x%08X, 实际 0x%08X",
+                           ptr, ALLOC_TAIL_MAGIC, *tail);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void lv00_poison_enable(bool enable) {
+    g_poison_enabled = enable;
+}
+
+bool lv00_poison_is_enabled(void) {
+    return g_poison_enabled;
+}
+
+/* ============================================================
+ * 边界检查分配与泄漏报告实现
+ * ============================================================ */
+
+void *lv00_malloc_bounded(size_t size, size_t max_size) {
+    if (size > max_size) {
+        lv00_set_error(LV00_ERROR_OVERFLOW,
+                       "malloc_bounded: 请求大小 %zu 超过上限 %zu", size, max_size);
+        return NULL;
+    }
+    return lv00_malloc(size);
+}
+
+int lv00_memory_leak_report(FILE *output) {
+    if (!output)
+        output = stderr;
+
+    int leak_count = 0;
+    size_t leak_bytes = 0;
+    AllocHeader *curr = g_tracked_allocs;
+
+    fprintf(output, "\n========== Lv-00 内存泄漏报告 ==========\n");
+
+    if (!curr) {
+        fprintf(output, "无内存泄漏 —— 所有分配均已正确释放。\n");
+        fprintf(output, "==========================================\n\n");
+        return 0;
+    }
+
+    fprintf(output, "%-20s %-12s %-30s %s\n", "地址", "大小(字节)", "源文件:行号", "状态");
+    fprintf(output, "----------------------------------------------------------------------------\n");
+
+    while (curr) {
+        leak_count++;
+        leak_bytes += curr->size;
+
+        /* 格式化源位置信息 */
+        char location[64];
+        if (curr->file && curr->line > 0) {
+            /* 只取文件名部分（去除路径前缀） */
+            const char *filename = strrchr(curr->file, '\\');
+            if (!filename)
+                filename = strrchr(curr->file, '/');
+            if (filename)
+                filename++; /* 跳过路径分隔符 */
+            else
+                filename = curr->file;
+            snprintf(location, sizeof(location), "%s:%d", filename, curr->line);
+        } else {
+            snprintf(location, sizeof(location), "<未记录>");
+        }
+
+        fprintf(output, "0x%018p %-12zu %-30s [泄漏]\n",
+                (const void *)curr->data, curr->size, location);
+
+        curr = curr->track_next;
+    }
+
+    fprintf(output, "----------------------------------------------------------------------------\n");
+    fprintf(output, "总计: %d 个泄漏块, %zu 字节\n", leak_count, leak_bytes);
+    fprintf(output, "==========================================\n\n");
+
+    return leak_count;
+}
+
+/* ============================================================
+ * 内存池实现
+ * ============================================================ */
+
+/**
+ * @brief 内存池内部块头 —— 空闲链表节点
+ *
+ * 每个块在空闲时，其前 sizeof(void*) 字节存储 next_free 指针。
+ * 分配后该区域由调用者使用，归还时恢复 next_free 指针。
+ */
+typedef struct Lv00PoolBlock {
+    struct Lv00PoolBlock *next_free; /**< 空闲链表的下一个块 */
+    /* 用户数据紧随其后，大小为 pool->block_size */
+} Lv00PoolBlock;
+
+/**
+ * @brief 内存池结构
+ */
+struct Lv00MemoryPool {
+    size_t block_size;       /**< 每个块的用户数据大小（字节） */
+    size_t internal_size;    /**< 内部实际块大小 = block_size + sizeof(header) */
+    size_t total_blocks;     /**< 从创建至今累计分配的块数 */
+    size_t free_blocks;      /**< 当前空闲块数 */
+    Lv00PoolBlock *free_list; /**< 空闲链表头 */
+
+    /* 大块分配追踪，用于销毁时批量释放 */
+    void **chunks;           /**< 每次批量分配的大块指针数组 */
+    size_t chunk_count;      /**< 当前大块数量 */
+    size_t chunk_capacity;   /**< chunks 数组容量 */
+};
+
+/** 内存池大块数组初始容量 & 增长因子 */
+#define LV00_POOL_CHUNK_INITIAL 8
+#define LV00_POOL_CHUNK_GROWTH  2
+
+Lv00MemoryPool *lv00_pool_create(size_t block_size, size_t initial_blocks) {
+    if (block_size == 0 || initial_blocks == 0) {
+        lv00_set_error(LV00_ERROR_INVALID_PARAM,
+                       "pool_create: block_size=%zu initial_blocks=%zu 无效",
+                       block_size, initial_blocks);
+        return NULL;
+    }
+
+    /* 计算内部实际块大小：用户数据 + 链表指针头部 */
+    size_t internal_size = block_size + sizeof(Lv00PoolBlock *);
+
+    /* 分配池结构 */
+    Lv00MemoryPool *pool = (Lv00MemoryPool *)calloc(1, sizeof(Lv00MemoryPool));
+    if (!pool)
+        return NULL;
+
+    pool->block_size = block_size;
+    pool->internal_size = internal_size;
+    pool->chunk_capacity = LV00_POOL_CHUNK_INITIAL;
+    pool->chunks = (void **)calloc(pool->chunk_capacity, sizeof(void *));
+    if (!pool->chunks) {
+        free(pool);
+        return NULL;
+    }
+
+    /* 批量分配初始块 */
+    size_t total_data = internal_size * initial_blocks;
+    char *raw = (char *)malloc(total_data);
+    if (!raw) {
+        free(pool->chunks);
+        free(pool);
+        return NULL;
+    }
+
+    /* 记录大块用于销毁 */
+    pool->chunks[0] = raw;
+    pool->chunk_count = 1;
+
+    /* 将每个块串入空闲链表 */
+    for (size_t i = 0; i < initial_blocks; i++) {
+        Lv00PoolBlock *blk = (Lv00PoolBlock *)(raw + i * internal_size);
+        blk->next_free = pool->free_list;
+        pool->free_list = blk;
+    }
+    pool->total_blocks = initial_blocks;
+    pool->free_blocks = initial_blocks;
+
+    return pool;
+}
+
+void *lv00_pool_alloc(Lv00MemoryPool *pool) {
+    if (!pool)
+        return NULL;
+
+    /* 若空闲链表为空，自动扩容一个块 */
+    if (!pool->free_list) {
+        /* 扩容 chunks 数组 */
+        if (pool->chunk_count >= pool->chunk_capacity) {
+            size_t new_cap = pool->chunk_capacity * LV00_POOL_CHUNK_GROWTH;
+            void **new_chunks = (void **)realloc(pool->chunks, new_cap * sizeof(void *));
+            if (!new_chunks)
+                return NULL;
+            pool->chunks = new_chunks;
+            pool->chunk_capacity = new_cap;
+        }
+
+        char *raw = (char *)malloc(pool->internal_size);
+        if (!raw)
+            return NULL;
+
+        pool->chunks[pool->chunk_count++] = raw;
+
+        Lv00PoolBlock *blk = (Lv00PoolBlock *)raw;
+        blk->next_free = NULL;
+        pool->free_list = blk;
+        pool->total_blocks++;
+        pool->free_blocks++;
+    }
+
+    /* 取空闲链表头 */
+    Lv00PoolBlock *blk = pool->free_list;
+    pool->free_list = blk->next_free;
+    pool->free_blocks--;
+
+    /* 返回用户数据区（跳过 next_free 指针头部） */
+    return (void *)((char *)blk + sizeof(Lv00PoolBlock *));
+}
+
+void lv00_pool_free(Lv00MemoryPool *pool, void *ptr) {
+    if (!pool || !ptr)
+        return;
+
+    /* 还原块头指针（用户指针前方为 next_free 区域） */
+    Lv00PoolBlock *blk = (Lv00PoolBlock *)((char *)ptr - sizeof(Lv00PoolBlock *));
+
+    /* 插入空闲链表头部 */
+    blk->next_free = pool->free_list;
+    pool->free_list = blk;
+    pool->free_blocks++;
+}
+
+void lv00_pool_destroy(Lv00MemoryPool *pool) {
+    if (!pool)
+        return;
+
+    /* 释放所有批量分配的大块 */
+    for (size_t i = 0; i < pool->chunk_count; i++) {
+        free(pool->chunks[i]);
+    }
+    free(pool->chunks);
+    free(pool);
+}
+
+void lv00_pool_stats(const Lv00MemoryPool *pool, size_t *total_blocks, size_t *free_blocks) {
+    if (!pool)
+        return;
+    if (total_blocks)
+        *total_blocks = pool->total_blocks;
+    if (free_blocks)
+        *free_blocks = pool->free_blocks;
 }
 
 /* ============================================================
@@ -334,6 +877,100 @@ char *lv00_str_trim(char *str) {
     end[1] = '\0';
 
     return str;
+}
+
+/**
+ * @brief 安全字符串复制 —— 保证 \0 终止并全面检查参数有效性
+ *
+ * 与 lv00_strlcpy 不同：
+ * - 参数为 NULL 时安全返回 NULL
+ * - dest_size 为 0 时返回 NULL
+ * - 仅复制 dest_size - 1 个字符并确保以 \0 结尾
+ *
+ * @param dest 目标缓冲区
+ * @param src  源字符串（可为 NULL）
+ * @param dest_size 目标缓冲区大小（字节）
+ * @return 成功时返回 dest，失败时返回 NULL
+ */
+char *lv00_strncpy(char *dest, const char *src, size_t dest_size) {
+    if (!dest || !src || dest_size == 0)
+        return NULL;
+
+    size_t i;
+    for (i = 0; i < dest_size - 1 && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+    dest[i] = '\0';
+    return dest;
+}
+
+/**
+ * @brief 安全字符串连接 —— 保证 \0 终止并全面检查参数有效性
+ *
+ * 查找 dest 中现有字符串的末尾，然后追加 src。
+ * 若 dest 已经完全填满（无 \0 终止符），则仅保证 dest[dest_size-1] = '\0'。
+ *
+ * @param dest 目标缓冲区（必须已包含一个有效的 \0 终止字符串）
+ * @param src  源字符串（可为 NULL）
+ * @param dest_size 目标缓冲区总大小（字节）
+ * @return 成功时返回 dest，失败时返回 NULL
+ */
+char *lv00_strncat(char *dest, const char *src, size_t dest_size) {
+    if (!dest || !src || dest_size == 0)
+        return NULL;
+
+    /* 查找 dest 当前字符串的末尾 */
+    size_t dest_len = 0;
+    while (dest_len < dest_size && dest[dest_len] != '\0') {
+        dest_len++;
+    }
+
+    /* 若 dest 已满（没有 \0），则保证末尾为 \0 */
+    if (dest_len >= dest_size) {
+        dest[dest_size - 1] = '\0';
+        return dest;
+    }
+
+    /* 追加 src */
+    size_t remaining = dest_size - dest_len - 1; /* -1 保留 \0 空间 */
+    size_t i;
+    for (i = 0; i < remaining && src[i] != '\0'; i++) {
+        dest[dest_len + i] = src[i];
+    }
+    dest[dest_len + i] = '\0';
+    return dest;
+}
+
+/**
+ * @brief 安全格式化输出到定长缓冲区
+ *
+ * 包装 vsnprintf，添加参数有效性检查并确保 \0 终止。
+ *
+ * @param buf  输出缓冲区
+ * @param size 缓冲区大小
+ * @param fmt  格式字符串
+ * @param ...  可变参数
+ * @return 成功时返回写入的字符数（不含 \0），失败返回 -1
+ */
+int lv00_snprintf(char *buf, size_t size, const char *fmt, ...) {
+    if (!buf || size == 0 || !fmt)
+        return -1;
+
+    va_list args;
+    va_start(args, fmt);
+    int written = vsnprintf(buf, size, fmt, args);
+    va_end(args);
+
+    /* 确保 \0 终止（防御 vsnprintf 的某些非标准实现） */
+    if (written < 0) {
+        buf[0] = '\0';
+        return -1;
+    }
+    if ((size_t)written >= size) {
+        buf[size - 1] = '\0';
+    }
+
+    return written;
 }
 
 /* ============================================================
@@ -1352,6 +1989,150 @@ uint64_t lv00_hash_int(int value) {
 }
 
 /* ============================================================
+ * 资源追踪器实现
+ * ============================================================ */
+
+/**
+ * @brief 被追踪的资源节点
+ *
+ * 双向链表节点，存储资源指针、名称和销毁回调函数。
+ * 后进先出（LIFO）顺序销毁，确保依赖关系正确（后分配的先释放）。
+ */
+typedef struct TrackedResource {
+    void *resource;                  /**< 资源指针（文件句柄、内存、锁等） */
+    Lv00ResourceDestroyFunc destroy; /**< 资源销毁回调 */
+    char *name;                      /**< 资源名称（用于调试），可为 NULL */
+    struct TrackedResource *prev;    /**< 前驱节点 */
+    struct TrackedResource *next;    /**< 后继节点 */
+} TrackedResource;
+
+/**
+ * @brief 资源追踪器
+ */
+struct ResourceTracker {
+    TrackedResource *head; /**< 链表头（最早注册的资源） */
+    TrackedResource *tail; /**< 链表尾（最近注册的资源） */
+    int count;             /**< 当前追踪的资源数量 */
+};
+
+ResourceTracker *lv00_resource_tracker_create(void) {
+    ResourceTracker *rt = (ResourceTracker *)calloc(1, sizeof(ResourceTracker));
+    return rt; /* calloc 已将 head/tail/count 置零 */
+}
+
+void lv00_resource_tracker_destroy(ResourceTracker **rt) {
+    if (!rt || !*rt)
+        return;
+
+    /* 仅释放追踪器自身和节点，不调用销毁回调 */
+    /* 注意：先调用 cleanup 再调用此函数才安全 */
+    TrackedResource *node = (*rt)->head;
+    while (node) {
+        TrackedResource *next = node->next;
+        free(node->name);
+        free(node);
+        node = next;
+    }
+
+    free(*rt);
+    *rt = NULL;
+}
+
+bool lv00_resource_track(ResourceTracker *rt, void *resource,
+                          Lv00ResourceDestroyFunc destroy, const char *name) {
+    if (!rt || !resource || !destroy)
+        return false;
+
+    TrackedResource *node = (TrackedResource *)calloc(1, sizeof(TrackedResource));
+    if (!node)
+        return false;
+
+    node->resource = resource;
+    node->destroy = destroy;
+
+    /* 复制名称（若有） */
+    if (name) {
+        node->name = (char *)malloc(strlen(name) + 1);
+        if (node->name) {
+            strcpy(node->name, name);
+        }
+    }
+
+    /* 追加到双向链表尾部 */
+    if (rt->tail) {
+        rt->tail->next = node;
+        node->prev = rt->tail;
+        rt->tail = node;
+    } else {
+        rt->head = rt->tail = node;
+    }
+
+    rt->count++;
+    return true;
+}
+
+bool lv00_resource_untrack(ResourceTracker *rt, void *resource) {
+    if (!rt || !resource)
+        return false;
+
+    TrackedResource *node = rt->head;
+    while (node) {
+        if (node->resource == resource) {
+            /* 从双向链表中移除 */
+            if (node->prev)
+                node->prev->next = node->next;
+            else
+                rt->head = node->next;
+
+            if (node->next)
+                node->next->prev = node->prev;
+            else
+                rt->tail = node->prev;
+
+            free(node->name);
+            free(node);
+            rt->count--;
+            return true;
+        }
+        node = node->next;
+    }
+
+    return false;
+}
+
+void lv00_resource_tracker_cleanup(ResourceTracker *rt) {
+    if (!rt)
+        return;
+
+    /* 从链表尾部开始逆序销毁（后注册的先销毁） */
+    TrackedResource *node = rt->tail;
+    while (node) {
+        TrackedResource *prev = node->prev;
+
+        /* 调用销毁回调 */
+        if (node->resource && node->destroy) {
+            LV00_LOG_DEBUG("资源追踪器清理: %s (0x%p)",
+                           node->name ? node->name : "<未命名>", node->resource);
+            node->destroy(node->resource);
+        }
+
+        free(node->name);
+        free(node);
+        node = prev;
+    }
+
+    rt->head = NULL;
+    rt->tail = NULL;
+    rt->count = 0;
+}
+
+int lv00_resource_tracker_count(const ResourceTracker *rt) {
+    if (!rt)
+        return 0;
+    return rt->count;
+}
+
+/* ============================================================
  * FFI 兼容接口
  * ============================================================ */
 
@@ -1374,7 +2155,24 @@ uint64_t lv00_hash_int(int value) {
 void lv00_free_ptr(void *ptr) {
     if (!ptr)
         return;
-    free(ptr);
-    g_memory_stats.total_freed += 1;
-    g_memory_stats.free_count++;
+
+    AllocHeader *hdr = get_header(ptr);
+    if (hdr) {
+        size_t freed_size = hdr->size;
+
+        untrack_allocation(hdr);
+        fill_poison(hdr->data, hdr->tail_offset);
+        hdr->head_magic = ALLOC_MAGIC_FREED;
+
+        if (freed_size <= g_memory_stats.current_used) {
+            g_memory_stats.current_used -= freed_size;
+        } else {
+            g_memory_stats.current_used = 0;
+        }
+        g_memory_stats.total_freed += freed_size;
+        g_memory_stats.free_count++;
+        free(hdr);
+    } else {
+        free(ptr);
+    }
 }

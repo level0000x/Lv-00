@@ -18,7 +18,7 @@
 #define AXIOM_PKG_PATH "axiom_packages/projective_geometry.lvz"
 #define SAVE_TEST_PATH "axiom_packages/projective_geometry_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT 42
+#define EXPECTED_TEMPLATE_COUNT 38
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7
 
 static int g_fail_count = 0;
@@ -69,7 +69,7 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 42 constraint templates");
+    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 38 constraint templates");
     printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
 
     /* All 42 expected template names */

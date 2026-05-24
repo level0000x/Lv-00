@@ -63,6 +63,17 @@ typedef enum {
     LV00_ERROR_INDEX_OUT_OF_RANGE = 17, /**< 索引越界 */
     LV00_ERROR_VALUE_OUT_OF_RANGE = 18, /**< 数值越界 */
 
+    /* 解析器安全错误 (130-139) */
+    LV00_ERROR_PARSER_NULL_INPUT = 130,     /**< 输入为NULL */
+    LV00_ERROR_PARSER_EMPTY_INPUT = 131,    /**< 输入为空字符串 */
+    LV00_ERROR_PARSER_INPUT_TOO_LONG = 132, /**< 输入长度超限 */
+    LV00_ERROR_PARSER_ILLEGAL_CHARS = 133,  /**< 输入含非法控制字符或null字节 */
+    LV00_ERROR_PARSER_TOO_MANY_TOKENS = 134,/**< token数量超限 */
+    LV00_ERROR_PARSER_DEPTH_EXCEEDED = 135, /**< AST深度超限 */
+    LV00_ERROR_PARSER_NODE_LIMIT = 136,     /**< AST节点数超限 */
+    LV00_ERROR_PARSER_TOKEN_TOO_LONG = 137, /**< token长度超限 */
+    LV00_ERROR_PARSER_POOL_EXHAUSTED = 138, /**< 内存池耗尽 */
+
     /* 内存与资源错误 (100-199) */
     LV00_ERROR_OUT_OF_MEMORY = 100,      /**< 内存不足 */
     LV00_ERROR_ALLOCATION_FAILED = 101,  /**< 内存分配失败 */
@@ -122,6 +133,7 @@ typedef enum {
     LV00_ERROR_PROOF_INVALID = 900,             /**< 无效证明 */
     LV00_ERROR_PROOF_INCOMPLETE = 901,          /**< 证明不完整 */
     LV00_ERROR_PROOF_VERIFICATION_FAILED = 902, /**< 证明验证失败 */
+    LV00_ERROR_CIRCUIT_OPEN = 903,              /**< 熔断器已跳闸（OPEN 态） */
 
 } Lv00ErrorCode;
 

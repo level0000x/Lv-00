@@ -13,7 +13,7 @@
  *              All features are implemented in pure JS, no WASM backend required.
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Panel from './Panel';
 import { useAppStore } from '@/stores';
 import { detectConflicts } from '@/utils/geometryAlgorithms';
@@ -116,6 +116,16 @@ const ProofPanel: React.FC = () => {
   const [searchStrategy, setSearchStrategy] = useState('Forward Chaining');
 
   // ================================================================
+  // 跳转到指定步骤状态 / Jump to Step State
+  // ================================================================
+  const [jumpToStepInput, setJumpToStepInput] = useState('');
+
+  // ================================================================
+  // SVG 几何视图开关 / SVG Geometry View Toggle
+  // ================================================================
+  const [showSvgView, setShowSvgView] = useState(false);
+
+  // ================================================================
   // 约束满足度计算 / Constraint Satisfaction Calculation
   // ================================================================
   const constraintSatisfaction = useMemo(() => {
@@ -188,6 +198,437 @@ const ProofPanel: React.FC = () => {
     appendLog(`证明导航: 前进到步骤 ${nextIndex + 1}/${totalSteps}`, 'info');
     addToast('info', `步骤 ${nextIndex + 1} / ${totalSteps}`);
   }, [currentStepIndex, proofSteps, totalSteps, saveUndoState, setPoints, setSegments, setConstraints, addToast, appendLog]);
+
+  /** 跳转到指定步骤 */
+  const handleJumpToStep = useCallback(() => {
+    const targetStep = parseInt(jumpToStepInput, 10);
+    if (isNaN(targetStep) || targetStep < 1 || targetStep > totalSteps) {
+      addToast('warning', `请输入有效步骤 (1-${totalSteps}) / Enter a valid step (1-${totalSteps})`);
+      return;
+    }
+    const targetIndex = targetStep - 1;
+    const snapshot = proofSteps[targetIndex];
+    if (!snapshot) return;
+
+    saveUndoState();
+    setPoints(snapshot.points.map((p) => ({ ...p })));
+    setSegments(snapshot.segments.map((s) => ({ ...s })));
+    setConstraints(snapshot.constraints.map((c) => ({ ...c, args: [...c.args] })));
+    setCurrentStepIndex(targetIndex);
+    setJumpToStepInput('');
+
+    appendLog(`证明导航: 跳转到步骤 ${targetStep}/${totalSteps}`, 'info');
+    addToast('info', `已跳转到步骤 ${targetStep} / Jumped to step ${targetStep}`);
+  }, [jumpToStepInput, totalSteps, proofSteps, saveUndoState, setPoints, setSegments, setConstraints, addToast, appendLog]);
+
+  // ================================================================
+  // 键盘快捷键 / Keyboard Shortcuts
+  // ================================================================
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 仅在证明面板相关区域响应快捷键
+      const activeEl = document.activeElement;
+      // 如果焦点在输入框中，不处理快捷键（允许正常输入）
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          handlePrev();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          handleNext();
+          break;
+        case 'Home':
+          e.preventDefault();
+          if (totalSteps > 0) {
+            const firstSnapshot = proofSteps[0];
+            if (firstSnapshot) {
+              saveUndoState();
+              setPoints(firstSnapshot.points.map((p) => ({ ...p })));
+              setSegments(firstSnapshot.segments.map((s) => ({ ...s })));
+              setConstraints(firstSnapshot.constraints.map((c) => ({ ...c, args: [...c.args] })));
+              setCurrentStepIndex(0);
+              addToast('info', '已跳到第一步 / Jumped to first step');
+            }
+          }
+          break;
+        case 'End':
+          e.preventDefault();
+          if (totalSteps > 0) {
+            const lastSnapshot = proofSteps[totalSteps - 1];
+            if (lastSnapshot) {
+              saveUndoState();
+              setPoints(lastSnapshot.points.map((p) => ({ ...p })));
+              setSegments(lastSnapshot.segments.map((s) => ({ ...s })));
+              setConstraints(lastSnapshot.constraints.map((c) => ({ ...c, args: [...c.args] })));
+              setCurrentStepIndex(totalSteps - 1);
+              addToast('info', '已跳到最新步骤 / Jumped to latest step');
+            }
+          }
+          break;
+        case 'g':
+          // 'g' 键快速跳转到步骤：打开输入框
+          if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+            const jumpInput = document.getElementById('proofJumpInput') as HTMLInputElement | null;
+            if (jumpInput) {
+              e.preventDefault();
+              jumpInput.focus();
+              jumpInput.select();
+            }
+          }
+          break;
+        case 's':
+          // 's' 键切换 SVG 视图
+          if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            setShowSvgView((prev) => !prev);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePrev, handleNext, totalSteps, proofSteps, saveUndoState, setPoints, setSegments, setConstraints, addToast]);
+
+  // ================================================================
+  // SVG 几何视图生成 / SVG Geometry View Generation
+  // ================================================================
+
+  /** 为当前步骤生成 SVG 几何构造视图 */
+  const generateProofSvg = useCallback((): string => {
+    if (proofSteps.length === 0) return '';
+
+    const step = proofSteps[currentStepIndex];
+    if (!step || step.points.length === 0) return '';
+
+    const pts = step.points;
+    const segs = step.segments;
+
+    // 计算画布范围
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+
+    // 确保最小范围
+    if (minX === maxX) { minX -= 50; maxX += 50; }
+    if (minY === maxY) { minY -= 50; maxY += 50; }
+
+    // 添加边距
+    const padX = (maxX - minX) * 0.15 || 10;
+    const padY = (maxY - minY) * 0.15 || 10;
+    const viewMinX = minX - padX;
+    const viewMinY = minY - padY;
+    const viewW = (maxX - minX) + 2 * padX;
+    const viewH = (maxY - minY) + 2 * padY;
+
+    // SVG 宽高
+    const svgW = 280;
+    const svgH = Math.max(160, (viewH / viewW) * svgW);
+
+    const xform = (wx: number) => ((wx - viewMinX) / viewW) * svgW;
+    const yform = (wy: number) => svgH - ((wy - viewMinY) / viewH) * svgH;
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}" class="proof-svg-view">\n`;
+    svg += `  <rect width="${svgW}" height="${svgH}" fill="#0d1117" />\n`;
+
+    // 绘制网格
+    svg += `  <g stroke="#21262d" stroke-width="0.5">\n`;
+    for (let gx = 0; gx <= svgW; gx += 20) {
+      svg += `    <line x1="${gx}" y1="0" x2="${gx}" y2="${svgH}" />\n`;
+    }
+    for (let gy = 0; gy <= svgH; gy += 20) {
+      svg += `    <line x1="0" y1="${gy}" x2="${svgW}" y2="${gy}" />\n`;
+    }
+    svg += `  </g>\n`;
+
+    // 绘制线段
+    for (const s of segs) {
+      const p1 = pts.find((pp) => pp.id === s.p1);
+      const p2 = pts.find((pp) => pp.id === s.p2);
+      if (p1 && p2) {
+        svg += `  <line x1="${xform(p1.x)}" y1="${yform(p1.y)}" x2="${xform(p2.x)}" y2="${yform(p2.y)}" stroke="#58a6ff" stroke-width="1.5" opacity="0.7" />\n`;
+      }
+    }
+
+    // 绘制约束（虚线箭头表明约束关系）
+    const stepConstraints = step.constraints ?? [];
+    for (const c of stepConstraints) {
+      // 为不同类型的约束使用不同颜色
+      let constraintColor = '#8b949e';
+      switch (c.type) {
+        case 'incidence': constraintColor = '#51cf66'; break;
+        case 'betweenness': constraintColor = '#ffd43b'; break;
+        case 'intersection': constraintColor = '#ff6b6b'; break;
+        case 'containment': constraintColor = '#da77f2'; break;
+        case 'connection': constraintColor = '#4dabf7'; break;
+      }
+      if (c.args.length >= 2) {
+        const a1 = pts.find((pp) => pp.id === c.args[0]);
+        const a2 = pts.find((pp) => pp.id === c.args[1]);
+        if (a1 && a2) {
+          svg += `  <line x1="${xform(a1.x)}" y1="${yform(a1.y)}" x2="${xform(a2.x)}" y2="${yform(a2.y)}" stroke="${constraintColor}" stroke-width="1" stroke-dasharray="4,3" opacity="0.5" />\n`;
+        }
+      }
+    }
+
+    // 绘制点
+    for (const p of pts) {
+      const cx = xform(p.x);
+      const cy = yform(p.y);
+      const isSelected = selectedPoint?.id === p.id;
+      svg += `  <circle cx="${cx}" cy="${cy}" r="${isSelected ? 5 : 3.5}" fill="${isSelected ? '#ffd43b' : '#51cf66'}" stroke="${isSelected ? '#fff' : '#238636'}" stroke-width="1" />\n`;
+      svg += `  <text x="${cx + 5}" y="${cy - 5}" fill="#e6edf3" font-size="8" font-family="monospace">p${p.id}</text>\n`;
+    }
+
+    svg += `</svg>`;
+    return svg;
+  }, [proofSteps, currentStepIndex]);
+
+  const proofSvg = useMemo(() => generateProofSvg(), [generateProofSvg]);
+
+  // ================================================================
+  // HTML 导出 / HTML Export
+  // ================================================================
+
+  const selectedPoint = useAppStore((s) => s.selectedPoint);
+
+  /** 生成自包含的交互式 HTML 证明文件 */
+  const exportHtmlProof = useCallback(() => {
+    if (proofSteps.length === 0) {
+      addToast('warning', '暂无证明步骤 / No proof steps to export');
+      return;
+    }
+
+    // 为每个步骤生成 SVG
+    const stepsSvgData: string[] = [];
+    for (let i = 0; i < proofSteps.length; i++) {
+      const step = proofSteps[i];
+      if (!step || step.points.length === 0) {
+        stepsSvgData.push('');
+        continue;
+      }
+      const pts = step.points;
+      const segs = step.segments;
+
+      let sminX = Infinity, sminY = Infinity, smaxX = -Infinity, smaxY = -Infinity;
+      for (const p of pts) {
+        if (p.x < sminX) sminX = p.x;
+        if (p.y < sminY) sminY = p.y;
+        if (p.x > smaxX) smaxX = p.x;
+        if (p.y > smaxY) smaxY = p.y;
+      }
+      if (sminX === smaxX) { sminX -= 50; smaxX += 50; }
+      if (sminY === smaxY) { sminY -= 50; smaxY += 50; }
+      const spadX = (smaxX - sminX) * 0.15 || 10;
+      const spadY = (smaxY - sminY) * 0.15 || 10;
+      const svMinX = sminX - spadX;
+      const svMinY = sminY - spadY;
+      const svW = (smaxX - sminX) + 2 * spadX;
+      const svH = (smaxY - sminY) + 2 * spadY;
+      const svgw = 400;
+      const svgh = Math.max(200, (svH / svW) * svgw);
+      const sxf = (wx: number) => ((wx - svMinX) / svW) * svgw;
+      const syf = (wy: number) => svgh - ((wy - svMinY) / svH) * svgh;
+
+      let ssvg = '';
+      for (const s of segs) {
+        const p1 = pts.find((pp) => pp.id === s.p1);
+        const p2 = pts.find((pp) => pp.id === s.p2);
+        if (p1 && p2) {
+          ssvg += `<line x1="${sxf(p1.x)}" y1="${syf(p1.y)}" x2="${sxf(p2.x)}" y2="${syf(p2.y)}" stroke="#58a6ff" stroke-width="1.5" opacity="0.7"/>\n`;
+        }
+      }
+      for (const p of pts) {
+        ssvg += `<circle cx="${sxf(p.x)}" cy="${syf(p.y)}" r="4" fill="#51cf66" stroke="#238636" stroke-width="1"/>\n`;
+        ssvg += `<text x="${sxf(p.x) + 6}" y="${syf(p.y) - 6}" fill="#e6edf3" font-size="10" font-family="monospace">p${p.id}</text>\n`;
+      }
+
+      stepsSvgData.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgw} ${svgh}" width="100%" style="max-width:400px;height:auto;background:#0d1117;border:1px solid #30363d;border-radius:4px">\n${ssvg}</svg>`);
+    }
+
+    // 构建 HTML 内容
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lv-00 Proof Export / 证明导出 - ${timestamp}</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+    --text: #e6edf3; --text2: #8b949e; --text3: #484f58;
+    --accent: #58a6ff; --green: #51cf66; --red: #ff6b6b;
+    --border: #30363d; --yellow: #ffd43b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; }
+  h1 { font-size: 20px; margin-bottom: 8px; color: var(--accent); }
+  .meta { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+  .controls { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .controls button { padding: 6px 14px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); cursor: pointer; border-radius: 4px; font-size: 13px; font-family: inherit; transition: background 0.15s; }
+  .controls button:hover { background: var(--bg3); }
+  .controls button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .controls button.active { border-color: var(--accent); color: var(--accent); }
+  .step-info { font-size: 13px; color: var(--text2); min-width: 80px; text-align: center; }
+  .jump-input { width: 60px; padding: 5px 8px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); font-size: 13px; border-radius: 4px; text-align: center; font-family: monospace; outline: none; }
+  .jump-input:focus { border-color: var(--accent); }
+  .main-layout { display: flex; gap: 16px; flex-wrap: wrap; }
+  .svg-panel { flex: 1; min-width: 300px; }
+  .info-panel { flex: 1; min-width: 250px; }
+  .info-panel pre { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 12px; font-size: 12px; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; word-break: break-word; color: var(--text2); }
+  .info-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .info-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  .info-table .label { color: var(--text2); }
+  .info-table .value { color: var(--text); font-weight: 600; text-align: right; }
+  .shortcuts { font-size: 11px; color: var(--text3); margin-top: 12px; line-height: 1.6; }
+  .shortcuts kbd { background: var(--bg3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-family: monospace; font-size: 10px; color: var(--text2); }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 11px; color: var(--text2); }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+</style>
+</head>
+<body>
+<h1>Lv-00 Geometry Proof / 几何证明导出</h1>
+<div class="meta">Generated: ${new Date().toLocaleString()} | Steps: ${proofSteps.length} | Points: ${points.length} | Segments: ${segments.length} | Constraints: ${constraints.length}</div>
+
+<div class="controls">
+  <button onclick="goToStep(0)" id="btnFirst" title="First Step / 第一步">&#x23EE; First</button>
+  <button onclick="prevStep()" id="btnPrev" title="Previous Step / 上一步">&#x25C0; Prev</button>
+  <span class="step-info">Step <span id="stepNum">${totalSteps}</span> / ${totalSteps}</span>
+  <button onclick="nextStep()" id="btnNext" title="Next Step / 下一步">Next &#x25B6;</button>
+  <button onclick="goToStep(${totalSteps - 1})" id="btnLast" title="Last Step / 最后一步">Last &#x23ED;</button>
+  <input type="number" class="jump-input" id="jumpInput" min="1" max="${totalSteps}" placeholder="Go to..."
+    onkeydown="if(event.key==='Enter')goToStep(parseInt(this.value)-1)" />
+  <button onclick="toggleAuto()" id="btnAuto" class="active">Auto SVG</button>
+</div>
+
+<div class="main-layout">
+  <div class="svg-panel" id="svgPanel"></div>
+  <div class="info-panel">
+    <table class="info-table" id="infoTable"></table>
+    <div class="legend" style="margin-top:12px">
+      <span><span class="legend-dot" style="background:#51cf66"></span> Point / 点</span>
+      <span><span class="legend-dot" style="background:#58a6ff"></span> Segment / 线段</span>
+      <span style="color:#ff6b6b">---</span> Constraint / 约束
+    </div>
+  </div>
+</div>
+
+<div class="shortcuts">
+  <strong>Keyboard Shortcuts / 快捷键:</strong><br/>
+  <kbd>Left Arrow</kbd> Prev step / 上一步 &nbsp;
+  <kbd>Right Arrow</kbd> Next step / 下一步 &nbsp;
+  <kbd>Home</kbd> First step / 第一步 &nbsp;
+  <kbd>End</kbd> Last step / 最后一步<br/>
+  <kbd>Space</kbd> Toggle auto-play / 切换自动播放 &nbsp;
+  <kbd>G</kbd> Focus jump input / 跳转步骤
+</div>
+
+<script>
+var currentStep = ${currentStepIndex};
+var totalSteps = ${totalSteps};
+var autoPlayInterval = null;
+var showAutoSvg = true;
+
+var stepsData = ${JSON.stringify(
+  proofSteps.map((step, i) => ({
+    idx: i,
+    points: step?.points?.length ?? 0,
+    segments: step?.segments?.length ?? 0,
+    constraints: step?.constraints?.length ?? 0,
+  }))
+)};
+
+var svgs = ${JSON.stringify(stepsSvgData)};
+
+function updateStep(newStep) {
+  if (newStep < 0 || newStep >= totalSteps) return;
+  currentStep = newStep;
+  document.getElementById('stepNum').textContent = newStep + 1;
+  document.getElementById('btnPrev').disabled = (currentStep <= 0);
+  document.getElementById('btnNext').disabled = (currentStep >= totalSteps - 1);
+  document.getElementById('btnFirst').disabled = (currentStep <= 0);
+  document.getElementById('btnLast').disabled = (currentStep >= totalSteps - 1);
+  document.getElementById('jumpInput').value = '';
+
+  // 更新 SVG
+  var svgPanel = document.getElementById('svgPanel');
+  if (showAutoSvg && svgs[newStep]) {
+    svgPanel.innerHTML = svgs[newStep];
+  }
+
+  // 更新信息表
+  var sd = stepsData[newStep];
+  var info = '<tr><td class="label">Step / 步骤</td><td class="value">' + (newStep + 1) + ' / ' + totalSteps + '</td></tr>';
+  if (sd) {
+    info += '<tr><td class="label">Points / 点</td><td class="value" style="color:#51cf66">' + sd.points + '</td></tr>';
+    info += '<tr><td class="label">Segments / 线段</td><td class="value" style="color:#58a6ff">' + sd.segments + '</td></tr>';
+    info += '<tr><td class="label">Constraints / 约束</td><td class="value" style="color:#ffd43b">' + sd.constraints + '</td></tr>';
+  }
+  document.getElementById('infoTable').innerHTML = info;
+}
+
+function prevStep() { updateStep(currentStep - 1); }
+function nextStep() { updateStep(currentStep + 1); }
+function goToStep(step) {
+  if (isNaN(step) || step < 0 || step >= totalSteps) { alert('Please enter a valid step (1-' + totalSteps + ').'); return; }
+  updateStep(step);
+}
+function toggleAuto() {
+  showAutoSvg = !showAutoSvg;
+  var btn = document.getElementById('btnAuto');
+  if (showAutoSvg) {
+    btn.classList.add('active');
+    updateStep(currentStep);
+  } else {
+    btn.classList.remove('active');
+    document.getElementById('svgPanel').innerHTML = '';
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT') return;
+  switch(e.key) {
+    case 'ArrowLeft': e.preventDefault(); prevStep(); break;
+    case 'ArrowRight': e.preventDefault(); nextStep(); break;
+    case 'Home': e.preventDefault(); goToStep(0); break;
+    case 'End': e.preventDefault(); goToStep(totalSteps - 1); break;
+    case ' ': e.preventDefault(); toggleAuto(); break;
+    case 'g': case 'G': e.preventDefault(); var inp = document.getElementById('jumpInput'); inp.focus(); inp.select(); break;
+  }
+});
+
+// 初始化
+updateStep(currentStep);
+</script>
+</body>
+</html>`;
+
+    // 下载 HTML 文件
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lv00_proof_${timestamp}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    appendLog(`HTML 证明已导出: ${proofSteps.length} 步骤`, 'info');
+    addToast('success', `HTML 证明已导出 / HTML proof exported (${proofSteps.length} steps)`);
+  }, [proofSteps, currentStepIndex, points.length, segments.length, constraints.length, addToast, appendLog]);
 
   // ================================================================
   // Coq 导出 / Coq Export
@@ -630,7 +1071,7 @@ const ProofPanel: React.FC = () => {
             className="btn"
             onClick={handlePrev}
             disabled={currentStepIndex <= 0}
-            title="回退到上一步证明状态"
+            title="回退到上一步证明状态 (Left Arrow)"
           >
             &#9664; PREV / 上一步
           </button>
@@ -638,10 +1079,40 @@ const ProofPanel: React.FC = () => {
             className="btn"
             onClick={handleNext}
             disabled={currentStepIndex >= totalSteps - 1}
-            title="前进到下一步证明状态"
+            title="前进到下一步证明状态 (Right Arrow)"
           >
             NEXT / 下一步 &#9654;
           </button>
+        </div>
+
+        {/* 跳转到指定步骤 / Jump to Step */}
+        <div className="proof-step-jump-row">
+          <label>JUMP TO / 跳转到:</label>
+          <input
+            id="proofJumpInput"
+            className="proof-step-jump-input"
+            type="number"
+            min={1}
+            max={totalSteps || 1}
+            value={jumpToStepInput}
+            onChange={(e) => setJumpToStepInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleJumpToStep(); }}
+            placeholder="#"
+            title={`输入步骤号 (1-${totalSteps})，按 Enter 跳转 / Enter step number, press Enter to jump`}
+          />
+          <button
+            className="btn btn-small"
+            onClick={handleJumpToStep}
+            disabled={totalSteps === 0}
+            style={{ padding: '3px 8px', fontSize: '10px', width: 'auto', marginBottom: 0 }}
+          >
+            GO
+          </button>
+        </div>
+
+        {/* 快捷键提示 */}
+        <div className="proof-shortcut-hint">
+          Arrow keys: Prev/Next | Home/End: First/Last | G: Jump | S: SVG
         </div>
 
         {/* 搜索策略选择器 / Search Strategy Selector */}
@@ -750,6 +1221,16 @@ const ProofPanel: React.FC = () => {
           EXPORT COQ / 导出 Coq
         </button>
 
+        {/* HTML 证明导出 */}
+        <button className="btn btn-accent" onClick={exportHtmlProof}>
+          EXPORT HTML PROOF / 导出HTML证明
+        </button>
+
+        {/* SVG 几何视图切换 */}
+        <button className="btn" onClick={() => setShowSvgView(!showSvgView)}>
+          {showSvgView ? 'HIDE SVG / 隐藏几何视图' : 'SHOW SVG / 显示几何视图'}
+        </button>
+
         {/* 反证法 */}
         <button className="btn" onClick={handleExFalso}>
           EX FALSO / 矛盾证明
@@ -760,6 +1241,21 @@ const ProofPanel: React.FC = () => {
           SHOW SEARCH TREE / 显示搜索树
         </button>
       </Panel>
+
+      {/* SVG 几何视图面板 / SVG Geometry View Panel */}
+      {showSvgView && proofSvg && (
+        <Panel title="GEOMETRY VIEW / 几何视图" panelId="proof-svg">
+          <div className="proof-svg-container">
+            <div
+              dangerouslySetInnerHTML={{ __html: proofSvg }}
+              style={{ width: '100%', overflow: 'hidden' }}
+            />
+          </div>
+          <div className="proof-shortcut-hint" style={{ marginTop: '4px' }}>
+            步骤 {currentStepIndex + 1}/{totalSteps} | {proofSteps[currentStepIndex]?.points.length ?? 0} 点, {proofSteps[currentStepIndex]?.segments.length ?? 0} 线段, {proofSteps[currentStepIndex]?.constraints.length ?? 0} 约束
+          </div>
+        </Panel>
+      )}
 
       {/* Coq 脚本展示面板 */}
       {showCoqPanel && (

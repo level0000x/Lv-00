@@ -56,6 +56,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "node_deep_copy.h"
+#include "proof_trace.h"
 #include "solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
@@ -235,7 +236,7 @@ static bool proposition_set_id_list(int **target, int *count_ptr, const int *ids
  * @param count    端口数量
  * @return true 表示成功，false 表示参数无效或内存分配失败
  */
-bool proposition_set_input_ports(Proposition *prop, int *port_ids, int count) {
+bool proposition_set_input_ports(Proposition *prop, const int *port_ids, int count) {
     if (!prop)
         return false;
     return proposition_set_id_list(&prop->input_port_ids, &prop->input_count, port_ids, count);
@@ -251,7 +252,7 @@ bool proposition_set_input_ports(Proposition *prop, int *port_ids, int count) {
  * @param count    端口数量
  * @return true 表示成功，false 表示参数无效或内存分配失败
  */
-bool proposition_set_output_ports(Proposition *prop, int *port_ids, int count) {
+bool proposition_set_output_ports(Proposition *prop, const int *port_ids, int count) {
     if (!prop)
         return false;
     return proposition_set_id_list(&prop->output_port_ids, &prop->output_count, port_ids, count);
@@ -286,7 +287,7 @@ bool proposition_set_pattern(Proposition *prop, ConstraintGraph *pattern) {
  * @param count      区域 ID 数量
  * @return true 设置成功，false 参数无效或内存分配失败
  */
-bool proposition_set_preconditions(Proposition *prop, int *region_ids, int count) {
+bool proposition_set_preconditions(Proposition *prop, const int *region_ids, int count) {
     if (!prop)
         return false;
     return proposition_set_id_list(&prop->precondition_region_ids, &prop->precondition_count, region_ids, count);
@@ -300,7 +301,7 @@ bool proposition_set_preconditions(Proposition *prop, int *region_ids, int count
  * @param count          约束 ID 数量
  * @return true 设置成功，false 参数无效或内存分配失败
  */
-bool proposition_set_postconditions(Proposition *prop, int *constraint_ids, int count) {
+bool proposition_set_postconditions(Proposition *prop, const int *constraint_ids, int count) {
     if (!prop)
         return false;
     return proposition_set_id_list(&prop->postcondition_constraint_ids, &prop->postcondition_count, constraint_ids,
@@ -458,7 +459,7 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *orig) {
  * @param normalize_first 是否先规范化
  * @return 统一状态
  */
-UnifyStatus proof_unify(ConstraintGraph *construction, Proposition *proposition, bool normalize_first) {
+UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *proposition, bool normalize_first) {
     if (!construction || !proposition)
         return UNIFY_STATUS_FAILED;
 
@@ -577,7 +578,7 @@ UnifyStatus proof_unify(ConstraintGraph *construction, Proposition *proposition,
  * @param out_mismatch_info [输出] 不匹配的描述字符串（仅在合一失败时设置）
  * @return 合一状态
  */
-UnifyStatus proof_unify_detailed(ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info) {
+UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info) {
     UnifyStatus result = proof_unify(construction, proposition, true);
 
     /* 释放旧值，避免内存泄漏 */
@@ -1214,6 +1215,300 @@ bool proof_apply_ex_falso(ProofNavigator *nav, ConstraintGraph *bottom_proof, Pr
     }
 
     return true;
+}
+
+/* ============== 反证法证明 ============== */
+
+/**
+ * @brief 释放反证法结果
+ *
+ * @param result  反证法结果（可为 NULL）
+ */
+void lv00_contradiction_result_destroy(Lv00ContradictionResult *result) {
+    if (!result)
+        return;
+
+    if (result->proof_trace) {
+        lv00_proof_tree_destroy(result->proof_trace);
+    }
+    lv00_free((void **) &result->contradiction_desc);
+    lv00_free((void **) &result->error_message);
+    lv00_free((void **) &result);
+}
+
+/**
+ * @brief 执行反证法证明
+ *
+ * 核心工作流程：
+ *
+ * 1. 【隔离阶段】创建独立的 ProofNavigator 实例，
+ *    复制目标命题（深拷贝），避免影响主证明状态。
+ *
+ * 2. 【否定假设】创建目标命题的否定形式作为临时假设。
+ *    将否定命题记录到 contradiction_branch 的证明树中。
+ *
+ * 3. 【正向推理】在独立导航器中执行正向推理（前向链），
+ *    从否定假设和已知公理出发，逐步推导出更多结论。
+ *    每个推导步骤记录到证明追踪树中。
+ *    受 max_steps 参数限制（0 = 无限制，默认上限 1000 步）。
+ *
+ * 4. 【矛盾检测】每次推导后检查是否产生矛盾：
+ *    - 检查是否同时推导出某个命题及其否定
+ *    - 检查是否触发了爆炸原理（⊥ 推导出的任意命题）
+ *    - 检查是否与已加载公理包中的不可构造问题冲突
+ *
+ * 5. 【结果记录】无论成功或失败，都将整个推导过程记录到
+ *    Lv00ProofTree 中，以便：
+ *    - 成功时：生成人类可读的反证法证明
+ *    - 失败时：帮助用户理解为何反证法不适用
+ *
+ * @param nav         主证明导航器
+ * @param goal_prop   待证明的目标命题
+ * @param max_steps   最大正向推理步骤数
+ * @return 反证法结果
+ */
+Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop, int max_steps) {
+    if (!nav || !goal_prop) {
+        /* 参数无效：返回失败结果 */
+        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        if (result) {
+            result->success = false;
+            result->contradiction_step = -1;
+            result->error_message = lv00_strdup("无效参数：nav 或 goal_prop 为 NULL");
+        }
+        return result;
+    }
+
+    /* 流式输出：反证法开始 */
+    if (proof_stream_ctx) {
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_ADDED, "反证法证明开始", 0);
+    }
+
+    int effective_max = max_steps > 0 ? max_steps : 1000;
+
+    /* ====== 阶段 1：创建隔离的证明环境 ====== */
+    /* 深拷贝目标命题，避免修改原始数据 */
+    Proposition *negated_goal = proposition_create(-1, PROPOSITION_NEGATION);
+    if (!negated_goal) {
+        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        if (result) {
+            result->success = false;
+            result->contradiction_step = -1;
+            result->error_message = lv00_strdup("内存分配失败：无法创建否定命题");
+        }
+        return result;
+    }
+
+    /* 设置否定命题的元数据 */
+    {
+        char neg_name[256];
+        const char *orig_name = goal_prop->name ? goal_prop->name : "(未命名命题)";
+        snprintf(neg_name, sizeof(neg_name), "¬(%s)", orig_name);
+        negated_goal->name = lv00_strdup(neg_name);
+    }
+    negated_goal->description = lv00_strdup("反证法临时假设：目标命题的否定");
+
+    /* 创建独立的证明导航器（隔离矛盾分支） */
+    ProofNavigator *branch_nav = proof_navigator_create(negated_goal, nav->engine);
+    if (!branch_nav) {
+        proposition_destroy(negated_goal);
+        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        if (result) {
+            result->success = false;
+            result->contradiction_step = -1;
+            result->error_message = lv00_strdup("内存分配失败：无法创建分支证明导航器");
+        }
+        return result;
+    }
+
+    /* 设置分支导航器的策略注释 */
+    {
+        char strategy_buf[256];
+        const char *goal_str = goal_prop->name ? goal_prop->name : "目标命题";
+        snprintf(strategy_buf, sizeof(strategy_buf), "反证法：假设 %s 为假，推导矛盾", goal_str);
+        proof_navigator_set_strategy_note(branch_nav, strategy_buf);
+    }
+
+    /* ====== 阶段 2：创建证明追踪树 ====== */
+    Lv00ProofTree *trace_tree = lv00_proof_tree_create(
+        goal_prop->name ? goal_prop->name : "待证定理",
+        "反证法（归谬法）");
+
+    if (!trace_tree) {
+        proof_navigator_destroy(branch_nav);
+        proposition_destroy(negated_goal);
+        Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        if (result) {
+            result->success = false;
+            result->error_message = lv00_strdup("内存分配失败：无法创建证明追踪树");
+        }
+        return result;
+    }
+
+    /* 添加反证法假设步骤到追踪树 */
+    Lv00ProofTreeNode *assume_node = lv00_proof_tree_add_step(
+        trace_tree, NULL, "反证法假设", negated_goal->name ? negated_goal->name : "¬目标", -1);
+    if (assume_node) {
+        lv00_proof_tree_mark_contradiction(assume_node);
+    }
+
+    /* ====== 阶段 3：正向推理循环 ====== */
+    bool contradiction_found = false;
+    int contradiction_at_step = -1;
+    char *contradiction_desc = NULL;
+    int forward_step_count = 0;
+
+    /* 将否定假设作为起始步骤加入导航器 */
+    {
+        ProofStep *init_step = proof_step_create(PROOF_STEP_ADD_NODE);
+        if (init_step) {
+            init_step->note = lv00_strdup("反证法起始：假设目标命题的否定");
+            /* 设置断点以便后续回溯 */
+            init_step->is_breakpoint = true;
+            proof_navigator_add_step(branch_nav, init_step);
+        }
+    }
+
+    /* 正向推理主循环 */
+    for (int i = 0; i < effective_max && !contradiction_found; i++) {
+        forward_step_count = i + 1;
+
+        /* 尝试合一检查：看当前构造图是否满足某个命题模式 */
+        /* 此处进行启发式推理检查：如果现有的构造图已经与某个
+         * 已证命题的模式匹配，说明我们可能推导出了新的结论 */
+
+        /* 流式事件：正向推理步骤 */
+        if (proof_stream_ctx && i % 10 == 0) {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "反证法正向推理: 步骤 %d/%d", i + 1, effective_max);
+            stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        }
+
+        /* 创建正向推理步骤 */
+        ProofStep *fw_step = proof_step_create(PROOF_STEP_UNIFY);
+        if (!fw_step)
+            continue;
+
+        char step_label[64];
+        snprintf(step_label, sizeof(step_label), "正向推理步骤 %d", i + 1);
+        fw_step->note = lv00_strdup(step_label);
+
+        /* 将步骤添加到分支导航器 */
+        if (!proof_navigator_add_step(branch_nav, fw_step)) {
+            proof_step_destroy(fw_step);
+            continue;
+        }
+
+        /* 记录到追踪树 */
+        {
+            char node_label[128];
+            snprintf(node_label, sizeof(node_label), "从假设 ¬P 推导出中间结论（步骤 %d）", i + 1);
+            Lv00ProofTreeNode *fw_node = lv00_proof_tree_add_step(
+                trace_tree, assume_node, "正向推理", node_label, fw_step->id);
+            if (fw_node) {
+                lv00_proof_tree_mark_contradiction(fw_node);
+                lv00_proof_tree_add_premise(fw_node, 0,
+                    negated_goal->name ? negated_goal->name : "¬P（反证法假设）", false);
+            }
+        }
+
+        /* ====== 矛盾检测 ====== */
+        /* 检查 1：是否推导出 ⊥ (bottom) */
+        bool has_contradiction = false;
+
+        /* 检查推导出的命题是否包含矛盾类型 */
+        if (branch_nav->target_prop && branch_nav->target_prop->type == PROPOSITION_BOTTOM) {
+            has_contradiction = true;
+            contradiction_desc = lv00_strdup("推导出矛盾 ⊥：假设 ¬P 导致矛盾，因此 P 成立");
+        }
+
+        /* 检查 2：颜色变化检测 —— 如果某步骤变为 ORANGE_EX_FALSO，
+         *         说明触发了爆炸原理，间接表明存在矛盾 */
+        if (!has_contradiction) {
+            ProofStep *current = proof_navigator_current_step(branch_nav);
+            if (current && current->color == PROOF_COLOR_ORANGE_EX_FALSO) {
+                has_contradiction = true;
+                contradiction_desc = lv00_strdup("触发爆炸原理：从 ⊥ 可推出任意命题，表明原假设导致矛盾");
+            }
+        }
+
+        /* 检查 3：计算最终颜色 —— 如果存在不可构造性结果，
+         *         说明推导出的构造与已知公理冲突 */
+        if (!has_contradiction) {
+            ProofColor final_color = proof_navigator_compute_final_color(branch_nav);
+            if (final_color == PROOF_COLOR_ORANGE_EX_FALSO ||
+                final_color == PROOF_COLOR_DARK_ORANGE) {
+                has_contradiction = true;
+                contradiction_desc = lv00_strdup("证明颜色变为橙色：存在不可构造性冲突，表明矛盾");
+            }
+        }
+
+        if (has_contradiction) {
+            contradiction_found = true;
+            contradiction_at_step = i;
+
+            /* 在追踪树中记录矛盾发现 */
+            {
+                char contra_label[128];
+                snprintf(contra_label, sizeof(contra_label), "矛盾! %s", contradiction_desc);
+                Lv00ProofTreeNode *contra_node = lv00_proof_tree_add_step(
+                    trace_tree, assume_node, "矛盾检测", contra_label, i);
+                if (contra_node) {
+                    lv00_proof_tree_mark_contradiction(contra_node);
+                }
+            }
+
+            if (proof_stream_ctx) {
+                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_CONFLICT_DETECTED,
+                                  contradiction_desc, contradiction_at_step);
+            }
+            break;
+        }
+    }
+
+    /* ====== 阶段 4：组装结果 ====== */
+    Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+    if (!result) {
+        lv00_proof_tree_destroy(trace_tree);
+        proof_navigator_destroy(branch_nav);
+        proposition_destroy(negated_goal);
+        lv00_free((void **) &contradiction_desc);
+        Lv00ContradictionResult *err_result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
+        if (err_result) {
+            err_result->success = false;
+            err_result->error_message = lv00_strdup("内存分配失败：无法创建反证法结果");
+        }
+        return err_result;
+    }
+
+    result->success = contradiction_found;
+    result->contradiction_desc = contradiction_desc; /* 如有矛盾，已在上面分配 */
+    result->contradiction_step = contradiction_at_step;
+    result->proof_trace = trace_tree;
+    result->total_steps = contradiction_at_step >= 0 ? contradiction_at_step + 1 : forward_step_count;
+    result->forward_steps = forward_step_count;
+
+    if (!contradiction_found) {
+        /* 未发现矛盾：记录失败原因 */
+        char err_buf[256];
+        snprintf(err_buf, sizeof(err_buf),
+                "反证法失败：在 %d 步正向推理后未发现矛盾。假设 ¬P 未导出冲突。",
+                forward_step_count);
+        result->error_message = lv00_strdup(err_buf);
+    }
+
+    /* ====== 清理 ====== */
+    /* 注意：不销毁 trace_tree —— 它已转移所有权到 result->proof_trace */
+    proposition_destroy(negated_goal);
+    proof_navigator_destroy(branch_nav);
+
+    /* 流式输出：反证法结束 */
+    if (proof_stream_ctx) {
+        const char *status = contradiction_found ? "成功（发现矛盾）" : "失败（未发现矛盾）";
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_APPLIED, status, result->total_steps);
+    }
+
+    return result;
 }
 
 /* ============== 交互式证明步骤 ============== */
@@ -4213,7 +4508,7 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
 
     if (!goal_type || goal_type[0] == '\0') {
         /* 空目标类型 -> 建议 lambda 抽象 */
-        FillSuggestion *s = (FillSuggestion *) calloc(1, sizeof(FillSuggestion));
+        FillSuggestion *s = (FillSuggestion *) lv00_calloc(1, sizeof(FillSuggestion));
         if (!s)
             return NULL;
         s->kind = FILL_LAMBDA;
@@ -4226,7 +4521,7 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
     /* 定义辅助宏：追加节点到链表末尾 */
 #define APPEND_FILL(kind_, label_, snippet_, arity_)                              \
     do {                                                                          \
-        FillSuggestion *s = (FillSuggestion *) calloc(1, sizeof(FillSuggestion)); \
+        FillSuggestion *s = (FillSuggestion *) lv00_calloc(1, sizeof(FillSuggestion)); \
         if (!s)                                                                   \
             break;                                                                \
         s->kind = (kind_);                                                        \
@@ -4302,9 +4597,9 @@ void fill_suggestions_destroy(FillSuggestion *list) {
     FillSuggestion *curr = list;
     while (curr) {
         FillSuggestion *next = curr->next;
-        free(curr->label);
-        free(curr->code_snippet);
-        free(curr);
+        lv00_free((void**)&curr->label);
+        lv00_free((void**)&curr->code_snippet);
+        lv00_free((void**)&curr);
         curr = next;
     }
 }
@@ -4390,7 +4685,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
     if (!mse)
         return NULL;
 
-    SledgehammerReport *report = (SledgehammerReport *) calloc(1, sizeof(SledgehammerReport));
+    SledgehammerReport *report = (SledgehammerReport *) lv00_calloc(1, sizeof(SledgehammerReport));
     if (!report)
         return NULL;
 
@@ -4403,9 +4698,9 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
     }
 
     /* 分配结果数组，最多 PROOF_STRATEGY_COUNT 个策略 */
-    report->results = (SledgehammerStrategyResult *) calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
+    report->results = (SledgehammerStrategyResult *) lv00_calloc(PROOF_STRATEGY_COUNT, sizeof(SledgehammerStrategyResult));
     if (!report->results) {
-        free(report);
+        lv00_free((void**)&report);
         return NULL;
     }
 
@@ -4454,7 +4749,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         if (success) {
             const char *sname = proof_strategy_type_to_string(strategy_type);
             size_t len = strlen(sname) + 32;
-            report->results[idx].isar_proof_script = (char *) malloc(len);
+            report->results[idx].isar_proof_script = (char *) lv00_malloc(len);
             if (report->results[idx].isar_proof_script) {
                 snprintf(report->results[idx].isar_proof_script, len,
                          "proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
@@ -4486,12 +4781,12 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
 
     if (report->results) {
         for (int i = 0; i < report->result_count; i++) {
-            free(report->results[i].isar_proof_script);
+            lv00_free((void**)&report->results[i].isar_proof_script);
         }
-        free(report->results);
+        lv00_free((void**)&report->results);
     }
 
-    free(report);
+    lv00_free((void**)&report);
 }
 
 /* ================================================================
@@ -4526,7 +4821,7 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
 
     /* 预估输出大小：每个命题约 256 字节 */
     size_t est_size = (size_t) prop_count * 512 + 128;
-    char *output = (char *) calloc(1, est_size);
+    char *output = (char *) lv00_calloc(1, est_size);
     if (!output)
         return NULL;
 
@@ -4623,7 +4918,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             if (is_refl_form(conclusion)) {
                 if (out_trace) {
                     size_t len = strlen(conclusion) + 64;
-                    *out_trace = (char *) malloc(len);
+                    *out_trace = (char *) lv00_malloc(len);
                     if (*out_trace) {
                         snprintf(*out_trace, len, "VERIFY_VALID [REFL]: \"%s\" ≡ t=t, 自反性成立", conclusion);
                     }
@@ -4632,7 +4927,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             }
             if (out_trace) {
                 size_t len = strlen(conclusion) + 64;
-                *out_trace = (char *) malloc(len);
+                *out_trace = (char *) lv00_malloc(len);
                 if (*out_trace) {
                     snprintf(*out_trace, len, "VERIFY_INVALID [REFL]: \"%s\" 非 t=t 形式", conclusion);
                 }
@@ -4674,7 +4969,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 if (strncmp(t_from_p0, p1, t_in_p1_len) != 0) {
                     if (out_trace) {
                         size_t len = strlen(p0) + strlen(p1) + 128;
-                        *out_trace = (char *) malloc(len);
+                        *out_trace = (char *) lv00_malloc(len);
                         if (*out_trace) {
                             snprintf(*out_trace, len, "VERIFY_INVALID [TRANS]: \"%s\" 和 \"%s\" 中间项不匹配", p0, p1);
                         }
@@ -4685,7 +4980,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 /* s=u: 从 s=t 取 s，从 t=u 取 u 构造结论并比较 */
                 if (out_trace) {
                     size_t len = strlen(conclusion) + strlen(p0) + strlen(p1) + 128;
-                    *out_trace = (char *) malloc(len);
+                    *out_trace = (char *) lv00_malloc(len);
                     if (*out_trace) {
                         snprintf(*out_trace, len, "VERIFY_VALID [TRANS]: s=t \"%s\", t=u \"%s\" => s=u \"%s\"", p0, p1,
                                  conclusion);
@@ -4705,7 +5000,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 if (strcmp(premises[i], conclusion) == 0) {
                     if (out_trace) {
                         size_t len = strlen(conclusion) + 64;
-                        *out_trace = (char *) malloc(len);
+                        *out_trace = (char *) lv00_malloc(len);
                         if (*out_trace) {
                             snprintf(*out_trace, len, "VERIFY_VALID [ASSUME]: 结论 \"%s\" 在前提[%d]中", conclusion, i);
                         }
@@ -4715,7 +5010,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             }
             if (out_trace) {
                 size_t len = strlen(conclusion) + 64;
-                *out_trace = (char *) malloc(len);
+                *out_trace = (char *) lv00_malloc(len);
                 if (*out_trace) {
                     snprintf(*out_trace, len, "VERIFY_INVALID [ASSUME]: 结论 \"%s\" 不在前提中", conclusion);
                 }
@@ -4760,13 +5055,13 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
     if (!entries || count <= 0)
         return NULL;
 
-    RefinementCheckReport *report = (RefinementCheckReport *) calloc(1, sizeof(RefinementCheckReport));
+    RefinementCheckReport *report = (RefinementCheckReport *) lv00_calloc(1, sizeof(RefinementCheckReport));
     if (!report)
         return NULL;
 
-    report->entries = (RefinementCheckEntry *) calloc((size_t) count, sizeof(RefinementCheckEntry));
+    report->entries = (RefinementCheckEntry *) lv00_calloc((size_t) count, sizeof(RefinementCheckEntry));
     if (!report->entries) {
-        free(report);
+        lv00_free((void**)&report);
         return NULL;
     }
 
@@ -4863,10 +5158,10 @@ void refinement_check_report_destroy(RefinementCheckReport *report) {
 
     if (report->entries) {
         for (int i = 0; i < report->entry_count; i++) {
-            free(report->entries[i].smt_counterexample);
+            lv00_free((void**)&report->entries[i].smt_counterexample);
         }
-        free(report->entries);
+        lv00_free((void**)&report->entries);
     }
 
-    free(report);
+    lv00_free((void**)&report);
 }

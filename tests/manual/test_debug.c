@@ -37,8 +37,8 @@ int main() {
     printf("6. Printing: %s/%s\n", num_str, den_str);
 
     printf("\n7. Freeing strings...\n");
-    lv00_free_ptr(num_str);
-    lv00_free_ptr(den_str);
+    free(num_str);  /* GMP分配，用标准free */
+    free(den_str);  /* GMP分配，用标准free */
     printf("   OK\n");
 
     printf("8. Clearing mpz...\n");

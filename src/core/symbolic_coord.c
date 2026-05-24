@@ -1052,7 +1052,7 @@ static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     alg->minimal_poly.coeffs = malloc(3 * sizeof(mpz_t));
     if (!alg->minimal_poly.coeffs) {
         mpz_poly_clear(&alg->minimal_poly);
-        free(alg);
+        lv00_free((void**)&alg);  /* lv00_malloc分配 */
         return NULL;
     }
 
@@ -1722,7 +1722,7 @@ void quadratic_destroy(Quadratic *q) {
     if (q) {
         rational_destroy(q->a);
         rational_destroy(q->b);
-        free(q);
+        lv00_free((void**)&q);  /* lv00_malloc分配 */
     }
 }
 
@@ -1941,20 +1941,20 @@ char *quadratic_serialize(const Quadratic *q) {
     char *a_str = rational_serialize(q->a);
     char *b_str = rational_serialize(q->b);
     if (!a_str || !b_str) {
-        free(a_str);
-        free(b_str);
+        lv00_free((void**)&a_str); /* lv00_malloc分配 */
+        lv00_free((void**)&b_str); /* lv00_malloc分配 */
         return NULL;
     }
     size_t len = strlen(a_str) + strlen(b_str) + 32;
     char *result = malloc(len);
     if (!result) {
-        free(a_str);
-        free(b_str);
+        lv00_free((void**)&a_str); /* lv00_malloc分配 */
+        lv00_free((void**)&b_str); /* lv00_malloc分配 */
         return NULL;
     }
     snprintf(result, len, "%s + %s*sqrt(%u)", a_str, b_str, q->n);
-    free(a_str);
-    free(b_str);
+    lv00_free((void**)&a_str); /* lv00_malloc分配 */
+    lv00_free((void**)&b_str); /* lv00_malloc分配 */
     return result;
 }
 
@@ -2188,11 +2188,11 @@ char *transcendental_serialize(const Transcendental *t) {
         size_t len = strlen(t->name) + strlen(op_str) + strlen(rat_str) + 8;
         char *buf = malloc(len);
         if (!buf) {
-            free(rat_str);
+            lv00_free((void**)&rat_str); /* lv00_malloc分配 */
             return strdup(t->name);
         }
         snprintf(buf, len, "(%s %s %s)", t->name, op_str, rat_str);
-        free(rat_str);
+        lv00_free((void**)&rat_str); /* lv00_malloc分配 */
         return buf;
     }
 
@@ -2315,14 +2315,14 @@ static double transcendental_to_double(const Transcendental *t) {
  * ============================================================ */
 
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
-    SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
+    SymbolicCoord *coord = lv00_malloc(sizeof(SymbolicCoord));
     if (!coord)
         return NULL;
     coord->type = RATIONAL;
     coord->trust = TRUST_GREEN;
     coord->data.rational = rational_create(num, denom);
     if (!coord->data.rational) {
-        free(coord);
+        lv00_free((void**)&coord);  /* lv00_malloc分配 */
         return NULL;
     }
     return coord;
@@ -2344,7 +2344,7 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
     coord->trust = TRUST_GREEN;
     coord->data.algebraic = algebraic_create(poly, left, right);
     if (!coord->data.algebraic) {
-        free(coord);
+        lv00_free((void**)&coord);  /* lv00_malloc分配 */
         return NULL;
     }
     return coord;
@@ -2366,7 +2366,7 @@ SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigne
     coord->trust = TRUST_GREEN;
     coord->data.quadratic = quadratic_create(a, b, n);
     if (!coord->data.quadratic) {
-        free(coord);
+        lv00_free((void**)&coord);  /* lv00_malloc分配 */
         return NULL;
     }
     return coord;
@@ -2380,7 +2380,7 @@ SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
     coord->trust = TRUST_BLUE;
     coord->data.transcendental = transcendental_create(name);
     if (!coord->data.transcendental) {
-        free(coord);
+        lv00_free((void**)&coord);  /* lv00_malloc分配 */
         return NULL;
     }
     return coord;
@@ -2408,7 +2408,7 @@ void symbolic_coord_destroy(SymbolicCoord *coord) {
             transcendental_destroy(coord->data.transcendental);
             break;
     }
-    free(coord);
+    lv00_free((void**)&coord);  /* lv00_malloc分配 */
 }
 
 /**
@@ -2842,7 +2842,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                free(q); /* quadratic_create copies the rationals */
+                lv00_free((void**)&q); /* quadratic_create copies the rationals */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -3138,7 +3138,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                free(q);
+                lv00_free((void**)&q);  /* lv00_malloc分配 */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -3363,7 +3363,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                free(q);
+                lv00_free((void**)&q);  /* lv00_malloc分配 */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -3648,7 +3648,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                     return result;
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
-                free(q);
+                lv00_free((void**)&q);  /* lv00_malloc分配 */
                 if (result)
                     result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
@@ -5076,7 +5076,7 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
             char *ser = rational_serialize(coord->data.rational);
             if (ser) {
                 hash = fnv1a_update(hash, ser, strlen(ser));
-                free(ser);
+                lv00_free((void**)&ser); /* lv00_malloc分配 */
             }
             break;
         }
@@ -5101,11 +5101,11 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
             char *b_ser = rational_serialize(q->b);
             if (a_ser) {
                 hash = fnv1a_update(hash, a_ser, strlen(a_ser));
-                free(a_ser);
+                lv00_free((void**)&a_ser); /* lv00_malloc分配 */
             }
             if (b_ser) {
                 hash = fnv1a_update(hash, b_ser, strlen(b_ser));
-                free(b_ser);
+                lv00_free((void**)&b_ser); /* lv00_malloc分配 */
             }
             hash = fnv1a_update(hash, (const char *) &q->n, sizeof(q->n));
             break;

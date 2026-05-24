@@ -20,13 +20,17 @@
 8. [类型系统 (Type System)](#8-类型系统-type-system)
 9. [命题与证明系统 (Proof System)](#9-命题与证明系统-proof-system)
 10. [公理包系统 (Axiom Package System)](#10-公理包系统-axiom-package-system)
+11. [Grobner基引擎 (Grobner Basis Engine)](#11-grobner基引擎-grobner-basis-engine)
+12. [交互式几何系统 (Interactive Geometry System)](#12-交互式几何系统-interactive-geometry-system)
+13. [稀疏线性代数系统 (Sparse Linear Algebra System)](#13-稀疏线性代数系统-sparse-linear-algebra-system)
+14. [证明搜索树系统 (Proof Search Tree System)](#14-证明搜索树系统-proof-search-tree-system)
+15. [数值精度与误差分析系统 (Numerical Precision and Error Analysis)](#15-数值精度与误差分析系统-numerical-precision-and-error-analysis)
 - [附录 A: 系统生命周期](#附录-a-系统生命周期)
 - [附录 B: 引擎便捷 API](#附录-b-引擎便捷-api)
 - [附录 C: 内存管理规则](#附录-c-内存管理规则)
 - [附录 D: 错误处理模式](#附录-d-错误处理模式)
 
 ---
-
 ## 1. 符号坐标系统 (Symbolic Coordinate Kernel)
 
 ### 📖 概念定义
@@ -192,6 +196,8 @@ int main(void) {
     return 0;
 }
 ```
+
+---
 
 ---
 
@@ -997,6 +1003,740 @@ int main(void) {
 ```
 
 ---
+
+---
+
+## 11. Grobner基引擎 (Grobner Basis Engine)
+
+### 📖 概念定义
+
+Grobner基引擎是符号求解器的核心计算后端
+求解。引擎专为直尺圆规可构造性设计，多项式的最高次数限制为 d <= 2，
+保证消元过程在多项式时间内完成。
+
+核心概念:
+- **理想 (Ideal)**: 由约束方程生成的多项式集合的闭包
+- **Grobner 基**: 理想的标准生成元，具有唯一的首项形式
+- **消元序 (Elimination Order)**: 字典序 (lex)，确保变量按依赖顺序消去
+- **剩余类 (Normal Form)**: 多项式除以 Grobner 基的余项，用于判定等价性
+- **增量更新**: 仅对新添加的约束方程执行增量 Grobner 基重构
+
+### 模型实现
+
+```c
+struct GroebnerEngine {
+    EquationSystem *system;         /* 当前方程系统 */
+    mpz_poly_t **basis;             /* Grobner 基的多项式数组 */
+    int basis_size, basis_capacity;
+    MonomialOrder order;            /* LEX | GRLEX | DEGREVLEX */
+    int *variable_order;            /* 变量 -> 消元优先级 */
+    int variable_count;
+    bool is_reduced;                /* 是否已化为最简 */
+    GroebnerCache *cache;           /* S-多项式缓存 */
+    IncrementalContext *incr_ctx;   /* 增量更新上下文 */
+};
+```
+
+多项式内部使用 GMP 整数系数 (`mpz_t`)，支持任意精度运算。
+增量更新机制维护已处理多项式的指纹哈希，避免重复处理。
+
+### API 参考
+
+**生命周期**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `GroebnerEngine* groebner_engine_create(MonomialOrder order)` | 创建引擎 |
+| `void groebner_engine_destroy(GroebnerEngine *eng)` | 销毁引擎及所有基元素 |
+
+**基计算**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `GroebnerStatus groebner_basis_compute(GroebnerEngine *eng)` | 计算全部 Grobner 基 |
+| `GroebnerStatus groebner_basis_compute_incremental(GroebnerEngine *eng, mpz_poly_t *new_poly)` | 增量添加多项式 |
+| `GroebnerStatus groebner_basis_reduce(GroebnerEngine *eng)` | 化为最简 (reduced) 形式 |
+| `mpz_poly_t* groebner_normal_form(GroebnerEngine *eng, mpz_poly_t *poly)` | 计算多项式的规范形 |
+| `bool groebner_ideal_membership(GroebnerEngine *eng, mpz_poly_t *poly)` | 判定多项式是否在理想中 |
+| `mpz_poly_t** groebner_eliminate(GroebnerEngine *eng, int *vars, int n, int *out_count)` | 消去指定变量 |
+| `GroebnerStatus groebner_solve_zero_dim(GroebnerEngine *eng, SymbolicCoord ***solutions, int *count)` | 零维理想求解 |
+
+**查询与诊断**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `int groebner_engine_dimension(GroebnerEngine *eng)` | 计算理想维度 (Krulldim) |
+| `int groebner_engine_degree(GroebnerEngine *eng)` | 计算理想的度 |
+| `bool groebner_is_zero_dimensional(GroebnerEngine *eng)` | 是否零维 (有限解) |
+| `char* groebner_engine_to_string(GroebnerEngine *eng)` | 基的人类可读表示 |
+| `uint64_t groebner_engine_fingerprint(GroebnerEngine *eng)` | 理想指纹 (用于缓存) |
+| `GroebnerCacheStats groebner_engine_get_cache_stats(GroebnerEngine *eng)` | 缓存命中统计 |
+
+**GroebnerStatus**: GROEBNER_OK, GROEBNER_OVERFLOW, GROEBNER_DEGREE_EXCEEDED,
+GROEBNER_OUT_OF_MEMORY, GROEBNER_NOT_ZERO_DIM.
+
+### 复杂度标注
+
+| 操作 | 时间 (最坏) | 空间 | 备注 |
+|------|-----------|------|------|
+| `groebner_basis_compute` | O(m^3 * d^3) | O(m^2 * d^2) | m=方程数, d=度数; d<=2 时 O(m^3) |
+| `groebner_basis_compute_incremental` | O(m * d^3) | O(m * d^2) | 增量单步 |
+| `groebner_normal_form` | O(|B| * D) | O(D) | B=基大小, D=多项式项数 |
+| `groebner_eliminate` | O(|B|^3 * d^3) | O(|B|^2 * d^2) | 等价于全基计算 |
+| `groebner_solve_zero_dim` | O(2^k * m) | O(2^k) | k=消元后自由度数 |
+
+### 使用示例
+
+```c
+#include "lv00.h"
+#include "groebner_engine.h"
+
+int main(void) {
+    lv00_init();
+    GroebnerEngine *eng = groebner_engine_create(MONOMIAL_ORDER_LEX);
+
+    /* 从约束图提取方程 */
+    ConstraintGraph *g = graph_create();
+    SymbolicCoord *c1[] = { symbolic_coord_create_rational(0,1), symbolic_coord_create_rational(0,1) };
+    graph_add_point(g, c1, 2);
+    SymbolicCoord *c2[] = { symbolic_coord_create_rational(3,1), symbolic_coord_create_rational(4,1) };
+    graph_add_point(g, c2, 2);
+    graph_add_line_segment(g, 0, 1);
+
+    EquationSystem *eq = equation_system_create();
+    solver_extract_equations_full(g, eq);
+    groebner_engine_load_equations(eng, eq);
+
+    if (groebner_basis_compute(eng) == GROEBNER_OK) {
+        printf("Basis size: %d, Dimension: %d, Degree: %d\n",
+            groebner_engine_basis_size(eng),
+            groebner_engine_dimension(eng),
+            groebner_engine_degree(eng));
+
+        if (groebner_is_zero_dimensional(eng)) {
+            SymbolicCoord **sols; int sol_count;
+            groebner_solve_zero_dim(eng, &sols, &sol_count);
+            printf("Solutions: %d\n", sol_count);
+            for (int i = 0; i < sol_count; i++) {
+                char *s = symbolic_coord_serialize(sols[i]);
+                printf("  [%d] %s\n", i, s); free(s);
+                symbolic_coord_destroy(sols[i]);
+            }
+            free(sols);
+        }
+    }
+
+    equation_system_destroy(eq);
+    groebner_engine_destroy(eng);
+    graph_destroy(g);
+    lv00_cleanup();
+    return 0;
+}
+```
+
+---
+
+## 12. 交互式几何系统 (Interactive Geometry System)
+
+### 概念定义
+
+交互式几何系统提供实时的几何构造、拖拽和可视反馈，将 Lv-00 的形式化约束图
+与交互式图形界面连接。核心功能包括:
+
+- **拖拽约束保持**: 用户拖拽节点时，引擎实时求解约束以保持其他节点的合法位置
+- **构造历史**: 记录每次构造操作的时间线，支持撤销/重做
+- **可视化调试**: 高亮约束冲突、自由度超额区域和不完全构造
+- **交互式证明**: 逐步展示证明导航器的构造过程，支持断点和单步执行
+- **实时信任颜色**: 拖拽过程中动态更新各节点的信任颜色
+
+### 模型实现
+
+```c
+struct InteractiveGeo {
+    LV00Engine *engine;                /* 后端求解引擎 */
+    ConstraintGraph *construction;     /* 当前构造图 */
+    ConstructionHistory *history;      /* 撤销/重做历史栈 */
+    ViewportState viewport;            /* 视口变换和缩放 */
+    InteractiveMode mode;              /* CONSTRUCT | DRAG | PROVE | INSPECT */
+    GeoVisualization *visualization;   /* 渲染数据缓存 */
+    DragState *drag_state;             /* 当前拖拽状态 (NULL if idle) */
+    ProofNavigator *proof_nav;         /* 交互式证明导航器 */
+    InteractiveCallbacks callbacks;    /* 事件回调集合 */
+};
+```
+
+拖拽约束保持通过增量 Grobner 求解实现: 仅对受影响的脏变量子图重新求解，
+保证拖拽操作的响应帧率 (>30fps)。
+
+### API 参考
+
+**生命周期**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `InteractiveGeo* interactive_geo_create(LV00Engine*)` | 创建交互式几何会话 |
+| `void interactive_geo_destroy(InteractiveGeo*)` | 销毁会话及所有状态 |
+
+**构造操作**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `int interactive_geo_add_point(InteractiveGeo*, double x, double y)` | 添加点 (屏幕坐标 -> 符号坐标) |
+| `int interactive_geo_add_line(InteractiveGeo*, int p1, int p2)` | 通过两点添加线段 |
+| `int interactive_geo_add_circle(InteractiveGeo*, int center, int radius_pt)` | 圆心+半径点 |
+| `int interactive_geo_add_intersection(InteractiveGeo*, int obj1, int obj2)` | 两对象交点 |
+| `bool interactive_geo_add_text_label(InteractiveGeo*, int node_id, const char *text)` | 节点文本标签 |
+
+**拖拽与交互**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `DragResult interactive_geo_begin_drag(InteractiveGeo*, int node_id, double sx, double sy)` | 开始拖拽 |
+| `DragResult interactive_geo_update_drag(InteractiveGeo*, double sx, double sy)` | 拖拽更新 |
+| `DragResult interactive_geo_end_drag(InteractiveGeo*)` | 结束拖拽 (最终求解) |
+| `bool interactive_geo_is_dragging(InteractiveGeo*)` | 是否正在拖拽 |
+| `DragInfo* interactive_geo_get_drag_info(InteractiveGeo*)` | 获取拖拽诊断信息 |
+
+**视图与渲染**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `void interactive_geo_set_viewport(InteractiveGeo*, double cx, double cy, double scale)` | 设置视口 |
+| `GeoRenderData* interactive_geo_get_render_data(InteractiveGeo*)` | 获取渲染数据 |
+| `bool interactive_geo_pick_node(InteractiveGeo*, double sx, double sy, int *out_id)` | 拾取节点 |
+| `void interactive_geo_set_highlight(InteractiveGeo*, int node_id, HighlightMode mode)` | 设置高亮 |
+| `VisualizationStats interactive_geo_get_viz_stats(InteractiveGeo*)` | 可视化统计 |
+
+**撤销/重做**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `bool interactive_geo_undo(InteractiveGeo*)` | 撤销最后一步构造 |
+| `bool interactive_geo_redo(InteractiveGeo*)` | 重做 |
+| `int interactive_geo_history_depth(InteractiveGeo*)` | 历史深度 |
+| `bool interactive_geo_mark_checkpoint(InteractiveGeo*, const char *label)` | 标记检查点 |
+| `bool interactive_geo_restore_checkpoint(InteractiveGeo*, const char *label)` | 恢复到检查点 |
+
+**交互式证明模式**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `bool interactive_geo_enter_proof_mode(InteractiveGeo*, Proposition *target)` | 进入证明模式 |
+| `bool interactive_geo_proof_step_forward(InteractiveGeo*)` | 证明前进一步 |
+| `bool interactive_geo_proof_step_backward(InteractiveGeo*)` | 证明后退一步 |
+| `void interactive_geo_leave_proof_mode(InteractiveGeo*)` | 离开证明模式 |
+
+### 复杂度标注
+
+| 操作 | 时间 | 空间 | 备注 |
+|------|------|------|------|
+| `begin_drag` | O(V) | O(V) | 识别受影响子图 |
+| `update_drag` | O(k^3) | O(k) | k=脏变量数, d<=2 |
+| `end_drag` | O(V + E + k^3) | O(V + E) | 全图更新+最终求解 |
+| `pick_node` | O(N) | O(1) | 屏幕空间遍历 |
+| `get_render_data` | O(V + E) | O(V + E) | 每帧调用 |
+| `undo/redo` | O(S) | O(S) | S=快照大小 |
+
+### 使用示例
+
+```c
+#include "lv00.h"
+#include "interactive_geo.h"
+
+int main(void) {
+    lv00_init();
+    LV00Engine *eng = lv00_engine_create();
+    InteractiveGeo *ig = interactive_geo_create(eng);
+
+    /* 构造基本几何体 */
+    int A = interactive_geo_add_point(ig, 100.0, 200.0);
+    int B = interactive_geo_add_point(ig, 300.0, 200.0);
+    int C = interactive_geo_add_point(ig, 200.0, 50.0);
+    int AB = interactive_geo_add_line(ig, A, B);
+    int BC = interactive_geo_add_line(ig, B, C);
+    int CA = interactive_geo_add_line(ig, C, A);
+    interactive_geo_add_text_label(ig, A, "顶点A");
+
+    /* 拖拽 C 点 */
+    interactive_geo_begin_drag(ig, C, 250.0, 80.0);
+    for (int frame = 0; frame < 30; frame++) {
+        double nx = 200.0 + frame * 2.0;
+        double ny = 50.0 + frame * 1.0;
+        interactive_geo_update_drag(ig, nx, ny);
+
+        GeoRenderData *rd = interactive_geo_get_render_data(ig);
+        printf("Frame %d: nodes=%d, constraints=%d\n", frame, rd->node_count, rd->constraint_count);
+        geo_render_data_destroy(rd);
+    }
+    interactive_geo_end_drag(ig);
+
+    printf("History depth: %d\n", interactive_geo_history_depth(ig));
+    visualization_stats_print(interactive_geo_get_viz_stats(ig));
+
+    interactive_geo_destroy(ig);
+    lv00_engine_destroy(eng);
+    lv00_cleanup();
+    return 0;
+}
+```
+
+---
+
+## 13. 稀疏线性代数系统 (Sparse Linear Algebra System)
+
+### 概念定义
+
+稀疏线性代数系统为 Lv-00 提供高性能的线性约束求解后端。
+在几何约束中，关联约束 (`INCIDENCE`) 和交点约束 (`INTERSECTION`)
+产生大量线性方程，这些方程的系数矩阵高度稀疏 (每行非零元素数 <= 3)。
+
+核心特性:
+- **CSC (Compressed Sparse Column)** 存储格式，O(nnz) 空间
+- **LU 分解**的稀疏感知版本，基于列消元
+- **符号消元分析**: 预计算填充模式，避免运行时重新分配
+- **增量更新**: 约束添加/删除时仅更新受影响列
+- **整数精确求解**: 使用 GMP 有理数，无浮点舍入误差
+
+### 模型实现
+
+```c
+struct SparseMatrix {
+    int rows, cols;                 /* 矩阵维度 */
+    int nnz, nnz_capacity;          /* 非零元素数和容量 */
+    double *values;                 /* CSC 值数组 */
+    int *row_indices;               /* 行索引 */
+    int *col_pointers;              /* 列指针 (col_pointers[cols+1]) */
+    bool is_symmetric;              /* 是否对称 (结构) */
+    SymbolicAnalysis *symbolic;     /* 符号分析结果 */
+};
+
+struct SparseSolver {
+    SparseMatrix *A;                /* 系数矩阵 */
+    SparseMatrix *L, *U;            /* LU 分解因子 */
+    int *pivot_order;               /* 消元排序 (AMD 近似最小度) */
+    int *row_perm, *col_perm;       /* 行列置换 */
+    mpq_t *rhs;                     /* 右端向量 (精确有理数) */
+    mpq_t *solution;                /* 解向量 */
+    SolverStats stats;              /* 求解统计 */
+};
+```
+
+### API 参考
+
+**矩阵操作**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `SparseMatrix* sparse_matrix_create(int rows, int cols, int nnz_estimate)` | 创建矩阵 |
+| `void sparse_matrix_destroy(SparseMatrix *M)` | 销毁矩阵 |
+| `void sparse_matrix_set(SparseMatrix *M, int row, int col, double value)` | 设置元素 |
+| `void sparse_matrix_add(SparseMatrix *M, int row, int col, double value)` | 累加元素 |
+| `double sparse_matrix_get(const SparseMatrix *M, int row, int col)` | 获取元素 |
+| `SparseMatrix* sparse_matrix_copy(const SparseMatrix *src)` | 深拷贝 |
+| `SparseMatrix* sparse_matrix_multiply(const SparseMatrix *A, const SparseMatrix *B)` | 稀疏乘法 |
+| `void sparse_matrix_transpose(SparseMatrix *M, SparseMatrix **out)` | 转置 |
+| `void sparse_matrix_scale(SparseMatrix *M, double scalar)` | 标量乘法 |
+| `SparseMatrix* sparse_matrix_from_equations(const ConstraintGraph *g)` | 从约束图提取矩阵 |
+
+**求解器**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `SparseSolver* sparse_solver_create(SparseMatrix *A)` | 创建求解器 |
+| `void sparse_solver_destroy(SparseSolver *solver)` | 销毁求解器 |
+| `SparseSolveResult sparse_solver_analyze(SparseSolver *solver)` | 符号分析 (填充模式) |
+| `SparseSolveResult sparse_solver_factorize(SparseSolver *solver)` | 数值 LU 分解 |
+| `SparseSolveResult sparse_solver_solve(SparseSolver *solver, const mpq_t *rhs, mpq_t *solution)` | 前代回代 |
+| `SparseSolveResult sparse_solver_solve_incremental(SparseSolver *solver, int col, double new_val, const mpq_t *rhs, mpq_t *solution)` | 增量求解 |
+| `bool sparse_solver_is_singular(SparseSolver *solver)` | 矩阵是否奇异 |
+| `int sparse_solver_rank(SparseSolver *solver)` | 矩阵秩 |
+| `mpq_t* sparse_solver_nullspace_basis(SparseSolver *solver, int *dim)` | 零空间基 |
+
+**精确有理求解**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `SparseSolveResult sparse_solver_solve_exact(SparseSolver *solver, const mpq_t *rhs, mpq_t *solution)` | 精确有理求解 |
+| `SparseSolveResult sparse_solver_solve_mixed(const SparseMatrix *A, const mpq_t *rhs, mpq_t *solution, double tolerance)` | 混合精度 (浮点+有理验证) |
+| `bool sparse_solver_refine_solution(SparseSolver *solver, const mpq_t *rhs, mpq_t *solution, int max_iter)` | 迭代精化 |
+
+**SparseSolveResult**: SPARSE_OK, SPARSE_SINGULAR, SPARSE_NUMERIC_INSTABILITY,
+SPARSE_OUT_OF_MEMORY, SPARSE_OVERFLOW.
+
+### 复杂度标注
+
+| 操作 | 时间 | 空间 | 备注 |
+|------|------|------|------|
+| `sparse_matrix_set/add` | O(1) 摊销 | O(nnz) | 需要动态扩容 |
+| `sparse_solver_analyze` | O(nnz * log n) | O(nnz + L_fill) | L_fill=填充量 |
+| `sparse_solver_factorize` | O(n * L_fill) | O(nnz + L_fill) | 稀疏 LU |
+| `sparse_solver_solve` | O(L_fill) | O(1) | 前代+回代 |
+| `sparse_solver_solve_incremental` | O(k * nnz) | O(nnz) | k=受影响列数 |
+| `sparse_solver_nullspace_basis` | O(n^2 * nnz) | O(n^2) | |
+| `sparse_solver_solve_exact` | O(L_fill * M(b)) | O(L_fill * b) | M(b)=有理数运算 |
+
+### 使用示例
+
+```c
+#include "lv00.h"
+#include "sparse_linear_algebra.h"
+
+int main(void) {
+    lv00_init();
+
+    /* 创建 3x3 稀疏矩阵 */
+    SparseMatrix *A = sparse_matrix_create(3, 3, 9);
+    sparse_matrix_set(A, 0, 0, 2.0); sparse_matrix_set(A, 0, 1, -1.0);
+    sparse_matrix_set(A, 1, 0, -1.0); sparse_matrix_set(A, 1, 1, 2.0);
+    sparse_matrix_set(A, 1, 2, -1.0);
+    sparse_matrix_set(A, 2, 1, -1.0); sparse_matrix_set(A, 2, 2, 2.0);
+
+    /* 求解 Ax = b */
+    SparseSolver *solver = sparse_solver_create(A);
+    if (sparse_solver_analyze(solver) == SPARSE_OK &&
+        sparse_solver_factorize(solver) == SPARSE_OK) {
+
+        mpq_t rhs[3], sol[3];
+        for (int i = 0; i < 3; i++) { mpq_init(rhs[i]); mpq_init(sol[i]); }
+        mpq_set_si(rhs[0], 1, 1); mpq_set_si(rhs[1], 0, 1); mpq_set_si(rhs[2], 0, 1);
+
+        SparseSolveResult res = sparse_solver_solve_exact(solver, rhs, sol);
+        if (res == SPARSE_OK) {
+            for (int i = 0; i < 3; i++) {
+                char *s = mpq_get_str(NULL, 10, sol[i]);
+                printf("x[%d] = %s\n", i, s); free(s);
+                mpq_clear(rhs[i]); mpq_clear(sol[i]);
+            }
+        }
+    }
+
+    printf("Rank: %d, Singular: %s\n",
+        sparse_solver_rank(solver),
+        sparse_solver_is_singular(solver) ? "yes" : "no");
+
+    sparse_solver_destroy(solver);
+    sparse_matrix_destroy(A);
+    lv00_cleanup();
+    return 0;
+}
+```
+
+---
+
+## 14. 证明搜索树系统 (Proof Search Tree System)
+
+### 概念定义
+
+证明搜索树系统扩展了 `proof.h` 的基本能力，提供结构化的搜索空间探索。
+在 Lv-00 中，几何证明被建模为搜索树，其中每个节点代表一个证明状态
+(当前构造图 + 剩余目标), 边代表证明步骤 (构造操作、合一验证、子目标分解)。
+
+核心概念:
+- **搜索节点 (SearchNode)**: 包含当前构造图快照和待证目标列表
+- **分支策略 (BranchStrategy)**: 决定在当前节点如何选择下一步操作
+- **启发式评分 (Heuristic)**: 评估节点与目标的距离，用于最佳优先搜索
+- **剪枝规则 (PruneRule)**: 基于不可构造性、冗余或循环的条件剪枝
+- **证明导出 (Proof Export)**: 将搜索树路径转换为可发布的证明文档
+
+### 模型实现
+
+```c
+struct ProofSearchNode {
+    int id; int depth;
+    GraphSnapshot *construction;   /* 当前构造图快照 */
+    Proposition **goals;           /* 待证目标命题 */
+    int goal_count, goals_achieved;
+    ProofSearchNode *parent;
+    ProofSearchNode **children; int child_count;
+    double heuristic_score;       /* 启发式评分 (0=目标达成, 越大越远) */
+    SearchNodeStatus status;      /* OPEN | EXPANDED | PRUNED | GOAL | FAILED */
+};
+
+struct ProofSearchTree {
+    ProofSearchNode *root;
+    ProofSearchNode **open_list;  /* 按启发式排序的待扩展节点 */
+    int open_count;
+    BranchStrategy strategy;      /* BFS | DFS | BEST_FIRST | BEAM(k) */
+    Heuristic *heuristic;         /* 启发式函数插件 */
+    PruneRule **prune_rules; int prune_rule_count;
+    ProofSearchStats stats;       /* 搜索统计 */
+    LV00Engine *engine;           /* 用于合一和求解的引擎实例 */
+};
+```
+
+### API 参考
+
+**搜索树管理**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `ProofSearchTree* proof_search_tree_create(LV00Engine*, ConstraintGraph *initial, Proposition *goal)` | 创建搜索树 |
+| `void proof_search_tree_destroy(ProofSearchTree *tree)` | 销毁树 |
+| `ProofSearchNode* proof_search_tree_get_node(ProofSearchTree*, int node_id)` | O(1) 查询节点 |
+| `ProofSearchNode* proof_search_tree_best_open(ProofSearchTree*)` | 获取最佳开放节点 |
+| `bool proof_search_tree_is_exhausted(ProofSearchTree*)` | 搜索空间是否穷尽 |
+| `ProofSearchStats proof_search_tree_get_stats(ProofSearchTree*)` | 获取统计信息 |
+
+**搜索策略**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `SearchResult proof_search_expand_node(ProofSearchTree*, ProofSearchNode*)` | 展开一个节点 |
+| `SearchResult proof_search_step(ProofSearchTree*)` | 执行一步搜索 |
+| `SearchResult proof_search_until(ProofSearchTree*, int max_steps)` | 执行直到目标达成或步数耗尽 |
+| `bool proof_search_set_strategy(ProofSearchTree*, BranchStrategy)` | 切换搜索策略 |
+| `bool proof_search_set_heuristic(ProofSearchTree*, Heuristic*)` | 设置启发式 |
+| `bool proof_search_add_prune_rule(ProofSearchTree*, PruneRule*)` | 添加剪枝规则 |
+
+**节点操作**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `ProofSearchNode* proof_search_node_create(ProofSearchNode *parent, GraphSnapshot *snap, Proposition **goals, int n)` | 创建节点 |
+| `void proof_search_node_destroy(ProofSearchNode *node)` | 销毁节点 |
+| `ProofStep** proof_search_node_get_path(ProofSearchNode *node, int *step_count)` | 获取从根到节点的路径 |
+| `double proof_search_node_compute_score(ProofSearchNode *node, Heuristic *h)` | 计算启发式评分 |
+| `bool proof_search_node_is_goal(ProofSearchNode *node, Proposition *goal)` | 是否达成目标 |
+| `char* proof_search_node_to_dot(ProofSearchNode *node)` | Graphviz DOT 格式 |
+
+**证明导出**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `bool proof_search_export_proof_html(ProofSearchTree*, const char *path)` | HTML 证明导出 |
+| `bool proof_search_export_proof_latex(ProofSearchTree*, const char *path)` | LaTeX 证明导出 |
+| `bool proof_search_export_proof_coq(ProofSearchTree*, const char *path, const char *module_name)` | Coq 形式化导出 |
+| `char* proof_search_tree_summary(ProofSearchTree*)` | 文本摘要报告 |
+
+**SearchResult**: SEARCH_OK, SEARCH_GOAL_FOUND, SEARCH_EXHAUSTED,
+SEARCH_MAX_STEPS, SEARCH_ERROR.
+
+### 复杂度标注
+
+| 操作 | 时间 (平均) | 空间 | 备注 |
+|------|-----------|------|------|
+| `proof_search_step` | O(B * U) | O(B) | B=分支因子, U=合一成本 |
+| `proof_search_expand_node` | O(B * U + B * S) | O(B * (V+E)) | S=快照大小 |
+| `search_until (BFS)` | O(d * b^d) | O(b^d) | 指数级最坏情况 |
+| `search_until (Beam)` | O(d * k * b) | O(k * d) | k=束宽; 线性 |
+| `node_compute_score` | O(|G| * H) | O(1) | G=目标数, H=启发式计算 |
+
+### 使用示例
+
+```c
+#include "lv00.h"
+#include "proof_search_tree.h"
+
+int main(void) {
+    lv00_init();
+    LV00Engine *eng = lv00_engine_create();
+
+    /* 构造初始图 */
+    ConstraintGraph *constr = graph_create();
+    SymbolicCoord *c1[] = { symbolic_coord_create_rational(0,1), symbolic_coord_create_rational(0,1) };
+    graph_add_point(constr, c1, 2);
+    SymbolicCoord *c2[] = { symbolic_coord_create_rational(1,1), symbolic_coord_create_rational(0,1) };
+    graph_add_point(constr, c2, 2);
+    graph_add_line_segment(constr, 0, 1);
+
+    /* 目标命题: "存在线段" */
+    Proposition *goal = proposition_create(1, PROPOSITION_ATOMIC);
+    ConstraintGraph *goal_pat = graph_create();
+    graph_add_point(goal_pat, c1, 2);  /* 变量节点 */
+    graph_add_line_segment(goal_pat, 0, -1);
+    proposition_set_pattern(goal, goal_pat);
+
+    /* 创建搜索树 */
+    ProofSearchTree *tree = proof_search_tree_create(eng, constr, goal);
+    proof_search_set_strategy(tree, SEARCH_BEST_FIRST);
+
+    /* 启发式剪枝规则 */
+    PruneRule *no_transcendental = prune_rule_create(PRUNE_TRUST_BELOW, TRUST_AMBER);
+    proof_search_add_prune_rule(tree, no_transcendental);
+
+    /* 搜索 */
+    SearchResult sr = proof_search_until(tree, 10000);
+    ProofSearchStats stats = proof_search_tree_get_stats(tree);
+    printf("Result: %s, Nodes: %d, Expanded: %d, Pruned: %d, Depth: %d\n",
+        search_result_to_string(sr), stats.total_nodes,
+        stats.expanded_nodes, stats.pruned_nodes, stats.max_depth);
+
+    if (sr == SEARCH_GOAL_FOUND) {
+        proof_search_export_proof_html(tree, "proof_output/proof.html");
+        printf("Proof exported to proof_output/proof.html\n");
+    }
+
+    char *summary = proof_search_tree_summary(tree);
+    printf("%s\n", summary); free(summary);
+
+    proof_search_tree_destroy(tree);
+    proposition_destroy(goal);
+    graph_destroy(goal_pat);
+    graph_destroy(constr);
+    lv00_engine_destroy(eng);
+    lv00_cleanup();
+    return 0;
+}
+```
+
+---
+
+## 15. 数值精度与误差分析系统 (Numerical Precision and Error Analysis)
+
+### 概念定义
+
+数值精度与误差分析系统提供从符号精确计算到浮点近似的可控精度降级机制，
+是 Lv-00 连接符号数学与数值计算的关键桥梁。
+
+核心概念:
+- **精度层级 (PrecisionLevel)**: 从符号精确 (LEVEL_SYMBOLIC) 到硬件浮点 (LEVEL_FLOAT64) 的四层精度
+- **误差传播 (ErrorPropagation)**: 追踪每次运算的误差边界，支持前向和反向误差分析
+- **条件数估计 (ConditionNumber)**: 估算几何构造对输入扰动的敏感度
+- **精度控制器 (PrecisionController)**: 在精度和性能之间动态切换
+- **验证回环 (VerifyLoop)**: 浮点解 -> 提升精度 -> 符号验证 -> 接受或拒绝
+
+### 模型实现
+
+```c
+struct PrecisionController {
+    PrecisionLevel current_level;   /* SYMBOLIC | MPFR_128 | MPFR_64 | FLOAT64 */
+    double error_tolerance;         /* 当前级别的容许误差 */
+    ErrorBudget *budget;            /* 总误差预算和分配 */
+    int operations_since_upgrade;   /* 提升以来的操作计数 */
+    PrecisionHistory *history;      /* 精度变更历史 (用于分析) */
+    VerificationCache *verify_cache;/* 已验证结果的缓存 */
+};
+
+struct ErrorBudget {
+    double total_budget;            /* 总容许误差 */
+    double consumed;                /* 已消耗的误差 */
+    ErrorAllocation *allocations;   /* 各操作的误差分配 */
+    int allocation_count;
+};
+```
+
+### API 参考
+
+**精度控制器**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `PrecisionController* precision_controller_create(PrecisionLevel initial, double tolerance)` | 创建控制器 |
+| `void precision_controller_destroy(PrecisionController *pc)` | 销毁控制器 |
+| `PrecisionLevel precision_controller_get_level(PrecisionController *pc)` | 当前精度层级 |
+| `void precision_controller_set_level(PrecisionController *pc, PrecisionLevel level)` | 切换精度 |
+| `bool precision_controller_upgrade(PrecisionController *pc)` | 提升一级精度 |
+| `bool precision_controller_downgrade(PrecisionController *pc)` | 降级一级精度 |
+| `void precision_controller_set_tolerance(PrecisionController *pc, double tol)` | 设置容许误差 |
+| `PrecisionHistory* precision_controller_get_history(PrecisionController *pc)` | 精度历史 |
+
+**精度层级**: LEVEL_SYMBOLIC = 0, LEVEL_MPFR_128 = 1, LEVEL_MPFR_64 = 2, LEVEL_FLOAT64 = 3.
+
+**误差分析**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `ErrorAnalysis* error_analysis_create(PrecisionLevel level)` | 创建误差分析上下文 |
+| `void error_analysis_destroy(ErrorAnalysis *ea)` | 销毁 |
+| `double error_estimate_forward(const SymbolicCoord *exact, const SymbolicCoord *approx)` | 前向误差 |
+| `double error_estimate_backward(const SymbolicCoord *approx, const ConstraintGraph *g)` | 反向误差 |
+| `double error_condition_number_estimate(const ConstraintGraph *g, int node_id)` | 条件数估计 |
+| `ErrorPropagation* error_track_operation(ErrorPropagation *prev, OperationType op, double input_error)` | 追踪误差传播 |
+| `char* error_analysis_report(ErrorAnalysis *ea)` | 生成误差分析报告 |
+
+**验证回环**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `VerifyResult precision_verify_float_solution(PrecisionController *pc, const mpq_t *float_sol, int n, const ConstraintGraph *g)` | 验证浮点解 |
+| `VerifyResult precision_auto_verify(PrecisionController *pc, const ConstraintGraph *g, mpq_t **verified_sol, int n)` | 自动验证 (逐级提升) |
+| `bool precision_is_within_tolerance(PrecisionController *pc, const SymbolicCoord *a, const SymbolicCoord *b)` | 误差检查 |
+| `ValidationReport* precision_generate_validation_report(PrecisionController *pc)` | 验证报告 |
+
+**误差预算管理**
+
+| 函数签名 | 说明 |
+|---------|------|
+| `ErrorBudget* error_budget_create(double total)` | 创建预算 |
+| `void error_budget_destroy(ErrorBudget *budget)` | 销毁 |
+| `bool error_budget_consume(ErrorBudget *budget, double amount, const char *reason)` | 消耗预算 |
+| `double error_budget_remaining(ErrorBudget *budget)` | 剩余预算 |
+| `bool error_budget_is_exhausted(ErrorBudget *budget)` | 预算是否耗尽 |
+| `char* error_budget_report(ErrorBudget *budget)` | 预算使用报告 |
+
+**VerifyResult**: VERIFY_PASSED, VERIFY_FAILED, VERIFY_NEEDS_UPGRADE, VERIFY_ERROR.
+
+### 复杂度标注
+
+| 操作 | 时间 | 空间 | 备注 |
+|------|------|------|------|
+| `error_estimate_forward` | O(1) | O(1) | |
+| `condition_number_estimate` | O(nnz * n) | O(nnz) | 基于稀疏矩阵 |
+| `precision_verify_float_solution` | O(n * V) | O(V) | n=变量数 |
+| `precision_auto_verify` | O(L * n * V) | O(L * V) | L=尝试的精度层级数 |
+| `error_budget_consume` | O(1) | O(1) | |
+
+### 使用示例
+
+```c
+#include "lv00.h"
+#include "precision_control.h"
+
+int main(void) {
+    lv00_init();
+
+    /* 创建精度控制器, 从符号级别开始 */
+    PrecisionController *pc = precision_controller_create(LEVEL_SYMBOLIC, 1e-10);
+    ErrorBudget *budget = error_budget_create(1e-8);
+
+    /* 构造测试图 */
+    ConstraintGraph *g = graph_create();
+    SymbolicCoord *c1[] = { symbolic_coord_create_rational(1,1), symbolic_coord_create_rational(1,1) };
+    graph_add_point(g, c1, 2);
+    SymbolicCoord *c2[] = { symbolic_coord_create_rational(2,1), symbolic_coord_create_rational(1,1) };
+    graph_add_point(g, c2, 2);
+
+    /* 条件数估计 */
+    double cond = error_condition_number_estimate(g, 0);
+    printf("Condition number at node 0: %.6e\n", cond);
+
+    /* 误差预算分配 */
+    error_budget_consume(budget, 1e-12, "node creation");
+    error_budget_consume(budget, 5e-12, "line segment");
+    printf("Budget remaining: %.2e / %.2e\n",
+        error_budget_remaining(budget), budget->total_budget);
+
+    /* 降级到 MPFR 128 位精度并验证 */
+    precision_controller_downgrade(pc);  /* -> MPFR_128 */
+    precision_controller_downgrade(pc);  /* -> MPFR_64 */
+
+    /* 自动验证回环 */
+    mpq_t *verified; int n;
+    VerifyResult vr = precision_auto_verify(pc, g, &verified, &n);
+    printf("Verification: %s\n",
+        vr == VERIFY_PASSED ? "PASSED" :
+        vr == VERIFY_FAILED ? "FAILED" : "NEEDS_UPGRADE");
+
+    if (vr == VERIFY_PASSED) {
+        ValidationReport *report = precision_generate_validation_report(pc);
+        char *rpt = error_analysis_report(report->analysis);
+        printf("%s\n", rpt); free(rpt);
+        validation_report_destroy(report);
+    }
+
+    char *budget_rpt = error_budget_report(budget);
+    printf("%s\n", budget_rpt); free(budget_rpt);
+
+    error_budget_destroy(budget);
+    precision_controller_destroy(pc);
+    graph_destroy(g);
+    lv00_cleanup();
+    return 0;
+}
+```
+
+---
+
 
 ## 附录 A: 系统生命周期
 

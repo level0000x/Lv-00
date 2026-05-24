@@ -10,6 +10,7 @@ import { useAppStore, useAIStore } from '@/stores';
 import Panel from '@/components/panels/Panel';
 import ConstraintGraphPanel from '@/components/panels/ConstraintGraphPanel';
 import NarrativeExport from '@/components/panels/NarrativeExport';
+import TypeExplorer from '@/components/panels/TypeExplorer';
 import { MAX_VISIBLE_STREAM_EVENTS } from '@/utils/constants';
 
 // ================================================================
@@ -146,6 +147,11 @@ const SidebarRight: React.FC = () => {
       {/* Narrative Export Panel / 几何叙事面板（Penrose 风格） */}
       {/* ================================================================ */}
       <NarrativeExport />
+
+      {/* ================================================================ */}
+      {/* Type Explorer Panel / 类型路径探索器 */}
+      {/* ================================================================ */}
+      <TypeExplorer />
 
       {/* ================================================================ */}
       {/* Dependencies Panel / 依赖面板 */}

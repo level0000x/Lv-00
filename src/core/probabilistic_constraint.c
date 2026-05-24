@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00_utils.h"
+
 /* ---- 鍐呴儴甯搁噺 ---- */
 
 /** 榛樿閲囨牱鏁伴噺锛堢敤浜?Monte Carlo 浼拌锛?*/
@@ -52,7 +54,7 @@ static double rand_normal_box_muller(void) {
  * ======================================================================== */
 
 ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_count) {
-    ProbDistribution *dist = (ProbDistribution *) malloc(sizeof(ProbDistribution));
+    ProbDistribution *dist = (ProbDistribution *) lv00_malloc(sizeof(ProbDistribution));
     if (!dist)
         return NULL;
 
@@ -62,9 +64,9 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
     dist->cdf = NULL;
 
     if (param_count > 0 && params) {
-        dist->params = (double *) malloc((size_t) param_count * sizeof(double));
+        dist->params = (double *) lv00_malloc((size_t) param_count * sizeof(double));
         if (!dist->params) {
-            free(dist);
+            lv00_free((void **)&dist);
             return NULL;
         }
         memcpy(dist->params, params, (size_t) param_count * sizeof(double));
@@ -100,8 +102,8 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
 
 void prob_dist_destroy(ProbDistribution *dist) {
     if (dist) {
-        free(dist->params);
-        free(dist);
+        lv00_free((void **)&dist->params);
+        lv00_free((void **)&dist);
     }
 }
 
@@ -190,7 +192,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
     if (!dist || n_samples <= 0 || !out_samples)
         return -1;
 
-    double *samples = (double *) malloc((size_t) n_samples * sizeof(double));
+    double *samples = (double *) lv00_malloc((size_t) n_samples * sizeof(double));
     if (!samples)
         return -1;
 
@@ -243,7 +245,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
  * ======================================================================== */
 
 ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) {
-    ProbConstraintNode *node = (ProbConstraintNode *) malloc(sizeof(ProbConstraintNode));
+    ProbConstraintNode *node = (ProbConstraintNode *) lv00_malloc(sizeof(ProbConstraintNode));
     if (!node)
         return NULL;
 
@@ -262,8 +264,8 @@ ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) 
 void prob_constraint_destroy(ProbConstraintNode *node) {
     if (node) {
         prob_dist_destroy(node->coord_dist);
-        free(node->pctl_formula);
-        free(node);
+        lv00_free((void **)&node->pctl_formula);
+        lv00_free((void **)&node);
     }
 }
 
@@ -275,8 +277,8 @@ int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out
         return -1;
 
     if (!node->coord_dist) {
-        /* 鏃犲垎甯冿細杩斿洖 0.0锛堢‘瀹氭€у潗鏍囷級 */
-        double *samples = (double *) malloc((size_t) n_samples * sizeof(double));
+        /* 无分布：返回 0.0（确定性坐标） */
+        double *samples = (double *) lv00_malloc((size_t) n_samples * sizeof(double));
         if (!samples)
             return -1;
         for (int i = 0; i < n_samples; i++)
@@ -416,7 +418,7 @@ bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbCon
         total_confidence += conf;
         valid_constraints++;
 
-        free(samples);
+        lv00_free((void **)&samples);
     }
 
     if (valid_constraints > 0) {

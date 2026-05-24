@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00_utils.h"
+
 /* ========================================================================
  * 鍐呴儴锛氬敮涓€琛ㄥ搱甯? * ======================================================================== */
 
@@ -27,7 +29,7 @@ static int bdd_unique_hash(int var_id, BDDNode *low, BDDNode *high, int table_si
 /** 鍦ㄥ敮涓€琛ㄤ腑鏌ユ壘鎴栨彃鍏ヨ妭鐐?*/
 static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDDNode *high) {
     /* 绠€鍖栧疄鐜帮細杩斿洖鏂拌妭鐐癸紙妗╋紝涓嶄娇鐢ㄧ湡姝ｅ敮涓€琛ㄧ紦瀛橈級 */
-    BDDNode *node = (BDDNode *) malloc(sizeof(BDDNode));
+    BDDNode *node = (BDDNode *) lv00_malloc(sizeof(BDDNode));
     if (!node)
         return NULL;
     node->var_id = var_id;
@@ -43,14 +45,14 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
  * BDD 绠＄悊鍣ㄧ敓鍛藉懆鏈? * ======================================================================== */
 
 BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
-    BDDManager *mgr = (BDDManager *) malloc(sizeof(BDDManager));
+    BDDManager *mgr = (BDDManager *) lv00_malloc(sizeof(BDDManager));
     if (!mgr)
         return NULL;
 
     /* 鍒涘缓缁堢 T 鑺傜偣 */
-    mgr->true_node = (BDDNode *) malloc(sizeof(BDDNode));
+    mgr->true_node = (BDDNode *) lv00_malloc(sizeof(BDDNode));
     if (!mgr->true_node) {
-        free(mgr);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     mgr->true_node->var_id = -1;
@@ -60,10 +62,10 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     mgr->true_node->complemented = false;
 
     /* 鍒涘缓缁堢 F 鑺傜偣 */
-    mgr->false_node = (BDDNode *) malloc(sizeof(BDDNode));
+    mgr->false_node = (BDDNode *) lv00_malloc(sizeof(BDDNode));
     if (!mgr->false_node) {
-        free(mgr->true_node);
-        free(mgr);
+        lv00_free((void **)&mgr->true_node);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     mgr->false_node->var_id = -1;
@@ -75,22 +77,22 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     /* 鍒嗛厤鍞竴琛紙妗╁疄鐜颁腑涓嶄娇鐢ㄥ搱甯岋紝浠呭崰浣嶏級 */
     if (unique_table_size < 1024)
         unique_table_size = 1024;
-    mgr->unique_table = (BDDNode **) calloc((size_t) unique_table_size, sizeof(BDDNode *));
+    mgr->unique_table = (BDDNode **) lv00_calloc((size_t) unique_table_size, sizeof(BDDNode *));
     if (!mgr->unique_table) {
-        free(mgr->false_node);
-        free(mgr->true_node);
-        free(mgr);
+        lv00_free((void **)&mgr->false_node);
+        lv00_free((void **)&mgr->true_node);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     mgr->unique_table_size = unique_table_size;
 
     /* 鍙橀噺搴忔暟缁?*/
-    mgr->var_order = (int *) malloc((size_t) var_count * sizeof(int));
+    mgr->var_order = (int *) lv00_malloc((size_t) var_count * sizeof(int));
     if (!mgr->var_order) {
-        free(mgr->unique_table);
-        free(mgr->false_node);
-        free(mgr->true_node);
-        free(mgr);
+        lv00_free((void **)&mgr->unique_table);
+        lv00_free((void **)&mgr->false_node);
+        lv00_free((void **)&mgr->true_node);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     for (int i = 0; i < var_count; i++) {
@@ -105,12 +107,12 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
 void bdd_manager_destroy(BDDManager *mgr) {
     if (!mgr)
         return;
-    /* 娉細妗╁疄鐜颁腑涓嶉亶鍘嗗洖鏀舵墍鏈夎妭鐐癸紙瀹屾暣瀹炵幇闇€瑕?GC锛?*/
-    free(mgr->true_node);
-    free(mgr->false_node);
-    free(mgr->unique_table);
-    free(mgr->var_order);
-    free(mgr);
+    /* 注：桩实现中不遍历回收所有节点（完整实现需要 GC） */
+    lv00_free((void **)&mgr->true_node);
+    lv00_free((void **)&mgr->false_node);
+    lv00_free((void **)&mgr->unique_table);
+    lv00_free((void **)&mgr->var_order);
+    lv00_free((void **)&mgr);
 }
 
 int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
@@ -270,7 +272,7 @@ int bdd_reorder_sift(BDDManager *mgr) {
         return -1;
 
     int n = mgr->var_count;
-    int *best_order = (int *) malloc((size_t) n * sizeof(int));
+    int *best_order = (int *) lv00_malloc((size_t) n * sizeof(int));
     if (!best_order)
         return -1;
     memcpy(best_order, mgr->var_order, (size_t) n * sizeof(int));
@@ -340,7 +342,7 @@ int bdd_reorder_sift(BDDManager *mgr) {
         }
     }
 
-    free(best_order);
+    lv00_free((void **)&best_order);
     return improved;
 }
 
@@ -427,7 +429,7 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
 
     /* 妗╁疄鐜帮細鐢熸垚妗嗘灦 CNF */
     size_t buf_size = 4096;
-    char *buf = (char *) malloc(buf_size);
+    char *buf = (char *) lv00_malloc(buf_size);
     if (!buf)
         return false;
 
@@ -445,13 +447,13 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
  * ======================================================================== */
 
 ADDManager *add_manager_create(int var_count, int unique_table_size) {
-    ADDManager *mgr = (ADDManager *) malloc(sizeof(ADDManager));
+    ADDManager *mgr = (ADDManager *) lv00_malloc(sizeof(ADDManager));
     if (!mgr)
         return NULL;
 
-    mgr->zero_node = (ADDNode *) malloc(sizeof(ADDNode));
+    mgr->zero_node = (ADDNode *) lv00_malloc(sizeof(ADDNode));
     if (!mgr->zero_node) {
-        free(mgr);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     mgr->zero_node->var_id = -1;
@@ -460,10 +462,10 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     mgr->zero_node->constant = 0.0;
     mgr->zero_node->is_constant = true;
 
-    mgr->one_node = (ADDNode *) malloc(sizeof(ADDNode));
+    mgr->one_node = (ADDNode *) lv00_malloc(sizeof(ADDNode));
     if (!mgr->one_node) {
-        free(mgr->zero_node);
-        free(mgr);
+        lv00_free((void **)&mgr->zero_node);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     mgr->one_node->var_id = -1;
@@ -477,7 +479,7 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     mgr->var_count = var_count;
     mgr->node_count = 0;
 
-    mgr->var_order = (int *) malloc((size_t) var_count * sizeof(int));
+    mgr->var_order = (int *) lv00_malloc((size_t) var_count * sizeof(int));
     if (mgr->var_order) {
         for (int i = 0; i < var_count; i++)
             mgr->var_order[i] = i;
@@ -489,17 +491,17 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
 void add_manager_destroy(ADDManager *mgr) {
     if (!mgr)
         return;
-    free(mgr->zero_node);
-    free(mgr->one_node);
-    free(mgr->unique_table);
-    free(mgr->var_order);
-    free(mgr);
+    lv00_free((void **)&mgr->zero_node);
+    lv00_free((void **)&mgr->one_node);
+    lv00_free((void **)&mgr->unique_table);
+    lv00_free((void **)&mgr->var_order);
+    lv00_free((void **)&mgr);
 }
 
 ADDNode *add_constant(ADDManager *mgr, double value) {
     if (!mgr)
         return NULL;
-    ADDNode *node = (ADDNode *) malloc(sizeof(ADDNode));
+    ADDNode *node = (ADDNode *) lv00_malloc(sizeof(ADDNode));
     if (!node)
         return NULL;
     node->var_id = -1;

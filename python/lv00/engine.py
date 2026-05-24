@@ -22,7 +22,7 @@ Lv-00 引擎模块
 
 import ctypes
 import os  # 修复：添加 os 导入，用于 os.fsencode() 处理非 UTF-8 路径
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
     # 类型检查时导入 Lv00BaseError，避免运行时循环导入
@@ -464,7 +464,7 @@ class Engine:
     # 重写规则管理
     # ============================================================
     
-    def add_rewrite_rule(self, rule: Any) -> bool:
+    def add_rewrite_rule(self, rule: Union[Any, 'ctypes.c_void_p']) -> bool:
         """
         向引擎添加重写规则。
 
@@ -495,7 +495,7 @@ class Engine:
     # 流式输出管理
     # ============================================================
 
-    def get_stream_context(self) -> Any:
+    def get_stream_context(self) -> Optional['ctypes.c_void_p']:
         """
         获取引擎的流式上下文。
 
@@ -567,7 +567,9 @@ class Engine:
 
         参数：
             construction: 构造图对象（Graph 实例），必须已初始化且包含有效的 _ptr
+                （类型约定：Any，实际运行时支持任何具有 _ptr 属性的对象）
             proposition: 命题模式图对象（Graph 实例或具有 _ptr 的兼容对象）
+                （类型约定：Any，实际运行时支持任何具有 _ptr 属性的对象）
 
         返回：
             int: 合一状态码，取值为：
@@ -677,7 +679,7 @@ class Engine:
     # 冻结点管理
     # ============================================================
     
-    def create_frozen_point(self) -> Any:
+    def create_frozen_point(self) -> Optional['ctypes.c_void_p']:
         """
         创建冻结点快照。
 
@@ -696,7 +698,7 @@ class Engine:
             raise EngineError("创建冻结点失败")
         return frozen
     
-    def restore_frozen_point(self, frozen_point: Any) -> bool:
+    def restore_frozen_point(self, frozen_point: 'ctypes.c_void_p') -> bool:
         """
         恢复到冻结点状态。
 
@@ -718,7 +720,7 @@ class Engine:
             raise EngineError("恢复冻结点失败")
         return True
     
-    def destroy_frozen_point(self, frozen_point: Any) -> None:
+    def destroy_frozen_point(self, frozen_point: 'ctypes.c_void_p') -> None:
         """
         销毁冻结点快照。
 

@@ -30,6 +30,7 @@
 #endif
 
 #include "debug.h"
+#include "context.h"      /* v3.3.0: 结构化日志需要 Lv00Context */
 #include "engine.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
@@ -108,6 +109,14 @@ static bool g_counter_mutex_initialized = false;
 #else
 static pthread_mutex_t g_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
+
+/*=== 环形日志缓冲区（v3.3.0 新增）===*/
+
+/** 全局环形日志缓冲区（线程安全，前置声明以支持所有函数访问） */
+static Lv00LogRingBuffer *g_log_ring_buffer = NULL;
+
+/** 环形日志缓冲区容量（默认 256） */
+static int g_log_ring_buffer_capacity = LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 
 /*=== 内部辅助函数 ===*/
 
@@ -190,9 +199,11 @@ static void debug_unlock_refcount(void) {
 #endif
 }
 
-/* 获取日志级别字符串 */
+/* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
 static const char *log_level_string(LogLevel level) {
     switch (level) {
+        case LOG_LEVEL_TRACE:
+            return "TRACE";
         case LOG_LEVEL_DEBUG:
             return "DEBUG";
         case LOG_LEVEL_INFO:
@@ -201,6 +212,8 @@ static const char *log_level_string(LogLevel level) {
             return "WARN";
         case LOG_LEVEL_ERROR:
             return "ERROR";
+        case LOG_LEVEL_FATAL:
+            return "FATAL";
         default:
             return "UNKNOWN";
     }
@@ -1476,6 +1489,18 @@ int debug_log_init(void) {
 
     g_initialized = true;
 
+    /* 【v3.3.0】创建全局环形日志缓冲区 */
+    if (!g_log_ring_buffer) {
+        g_log_ring_buffer = lv00_log_ring_buffer_create(g_log_ring_buffer_capacity);
+        if (g_log_ring_buffer) {
+            lv00_log_ring_buffer_write(g_log_ring_buffer,
+                                       LOG_LEVEL_INFO, "debug", "debug_log_init",
+                                       __FILE__, __LINE__,
+                                       "环形日志缓冲区已创建（容量: %d）",
+                                       g_log_ring_buffer_capacity);
+        }
+    }
+
     /* 记录初始化日志 */
     char timestamp[DEBUG_TIMESTAMP_BUF_SIZE];
     get_timestamp(timestamp, sizeof(timestamp));
@@ -1540,6 +1565,12 @@ void debug_log_shutdown(void) {
     pthread_mutex_unlock(&g_counter_mutex);
     pthread_mutex_destroy(&g_counter_mutex);
 #endif
+
+    /* 【v3.3.0】销毁全局环形日志缓冲区 */
+    if (g_log_ring_buffer) {
+        lv00_log_ring_buffer_destroy(g_log_ring_buffer);
+        g_log_ring_buffer = NULL;
+    }
 }
 
 void debug_set_log_level(LogLevel level) {
@@ -1619,6 +1650,327 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
     log_buffer_append(log_line);
 
     log_unlock();
+
+    /* 【v3.3.0】FATAL 级别额外处理：触发紧急保存 */
+    if (level == LOG_LEVEL_FATAL) {
+        /* FATAL 不在此处加锁/解锁，因为 emergency_save 会在内部自行加锁 */
+        EmergencySaveConfig cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        cfg.filepath = NULL;          /* 使用默认路径 */
+        cfg.include_graph = true;     /* 包含约束图快照 */
+        cfg.include_counters = true;  /* 包含性能计数器 */
+        cfg.include_log_buffer = true;/* 包含日志缓冲区 */
+        cfg.include_memory_map = false;
+        debug_emergency_save(NULL, &cfg);
+    }
+}
+
+/**
+ * @brief 高精度时间戳（微秒级）
+ *
+ * 在 Windows 上使用 QueryPerformanceCounter，
+ * 在 POSIX 上使用 clock_gettime(CLOCK_MONOTONIC)。
+ *
+ * @return 单调递增的微秒时间戳
+ */
+static uint64_t get_timestamp_us(void) {
+#ifdef _WIN32
+    LARGE_INTEGER freq, counter;
+    static LARGE_INTEGER freq_cached = {0};
+    if (freq_cached.QuadPart == 0) {
+        QueryPerformanceFrequency(&freq_cached);
+    }
+    QueryPerformanceCounter(&counter);
+    return (uint64_t)((counter.QuadPart * 1000000ULL) / freq_cached.QuadPart);
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+#endif
+}
+
+/* ============================================================
+ * 环形日志缓冲区实现
+ * ============================================================ */
+
+/**
+ * @brief 创建环形日志缓冲区
+ *
+ * 分配 entries 数组并初始化所有控制字段。
+ * capacity 必须 >= 1。
+ *
+ * @param capacity 缓冲区容量（条目数）
+ * @return 新分配的缓冲区，失败返回 NULL
+ */
+Lv00LogRingBuffer *lv00_log_ring_buffer_create(int capacity) {
+    if (capacity < 1) {
+        capacity = LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY;
+    }
+
+    Lv00LogRingBuffer *rb = lv00_malloc(sizeof(Lv00LogRingBuffer));
+    if (!rb) {
+        return NULL;
+    }
+    memset(rb, 0, sizeof(Lv00LogRingBuffer));
+
+    rb->entries = lv00_malloc((size_t)capacity * sizeof(Lv00LogEntry));
+    if (!rb->entries) {
+        lv00_free((void **)&rb);
+        return NULL;
+    }
+    memset(rb->entries, 0, (size_t)capacity * sizeof(Lv00LogEntry));
+
+    rb->capacity = capacity;
+    rb->head = 0;
+    rb->count = 0;
+    rb->wrapped = false;
+
+    return rb;
+}
+
+/**
+ * @brief 销毁环形日志缓冲区
+ * @param rb 缓冲区指针（可为 NULL）
+ */
+void lv00_log_ring_buffer_destroy(Lv00LogRingBuffer *rb) {
+    if (!rb) {
+        return;
+    }
+    lv00_free((void **)&rb->entries);
+    lv00_free((void **)&rb);
+}
+
+/**
+ * @brief 向环形缓冲区写入一条结构化日志
+ *
+ * 固定大小的环形缓冲区：当 count == capacity 时，
+ * 新条目覆盖最旧的条目。
+ *
+ * @note 此函数内部加锁（log_lock/log_unlock）以确保线程安全。
+ *       如果在已持有 log_lock 的上下文中调用，请使用
+ *       lv00_log_ring_buffer_write_unlocked() 内部版本。
+ */
+void lv00_log_ring_buffer_write(Lv00LogRingBuffer *rb, LogLevel level,
+                                const char *module_name, const char *function_name,
+                                const char *file_name, int line_number,
+                                const char *fmt, ...) {
+    if (!rb || rb->capacity < 1) {
+        return;
+    }
+
+    log_lock();
+
+    /* 获取写入位置 */
+    int idx = rb->head;
+    Lv00LogEntry *entry = &rb->entries[idx];
+
+    /* 填充结构化字段 */
+    entry->level = level;
+    entry->timestamp_us = get_timestamp_us();
+    entry->module_name = module_name;
+    entry->function_name = function_name;
+    entry->file_name = file_name;
+    entry->line_number = line_number;
+    entry->context_id = 0; /* 默认全局日志，lv00_log_with_context 会覆盖 */
+
+    /* 格式化消息（定长缓冲区，防止 OOM） */
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(entry->message, sizeof(entry->message), fmt, args);
+    va_end(args);
+
+    /* 推进写入位置 */
+    rb->head = (rb->head + 1) % rb->capacity;
+    if (rb->count < rb->capacity) {
+        rb->count++;
+    } else {
+        rb->wrapped = true;
+    }
+
+    log_unlock();
+}
+
+/**
+ * @brief 导出环形缓冲区中的所有日志（按时间顺序）
+ *
+ * 以插入顺序导出所有条目（最旧的在前，最新的在后）。
+ * 返回的数组由调用者负责释放（使用 lv00_free）。
+ *
+ * @param rb        环形缓冲区（非 NULL）
+ * @param out_count 输出：实际导出的条目数量
+ * @return 日志条目数组（按插入时间排序），count == 0 时返回 NULL
+ */
+Lv00LogEntry *lv00_log_ring_buffer_export(const Lv00LogRingBuffer *rb, int *out_count) {
+    if (!rb || !out_count) {
+        if (out_count) *out_count = 0;
+        return NULL;
+    }
+
+    log_lock();
+
+    if (rb->count == 0) {
+        *out_count = 0;
+        log_unlock();
+        return NULL;
+    }
+
+    Lv00LogEntry *exported = lv00_malloc((size_t)rb->count * sizeof(Lv00LogEntry));
+    if (!exported) {
+        *out_count = 0;
+        log_unlock();
+        return NULL;
+    }
+
+    /* 计算起始位置：如果已填满（wrapped），起始位置 = head（最旧的条目） */
+    int start = rb->wrapped ? rb->head : 0;
+
+    for (int i = 0; i < rb->count; i++) {
+        int src_idx = (start + i) % rb->capacity;
+        memcpy(&exported[i], &rb->entries[src_idx], sizeof(Lv00LogEntry));
+    }
+
+    *out_count = rb->count;
+    log_unlock();
+    return exported;
+}
+
+/**
+ * @brief 清空环形缓冲区中的所有日志条目
+ * @param rb 环形缓冲区（非 NULL）
+ */
+void lv00_log_ring_buffer_clear(Lv00LogRingBuffer *rb) {
+    if (!rb) {
+        return;
+    }
+    log_lock();
+    rb->head = 0;
+    rb->count = 0;
+    rb->wrapped = false;
+    memset(rb->entries, 0, (size_t)rb->capacity * sizeof(Lv00LogEntry));
+    log_unlock();
+}
+
+/**
+ * @brief 调整环形缓冲区容量
+ *
+ * 分配新的 entries 数组，复制最多 new_capacity 条最新日志。
+ * 如果 new_capacity < 当前条目数，最旧的多余条目将被丢弃。
+ *
+ * @param rb       环形缓冲区（非 NULL）
+ * @param capacity 新容量（>= 1）
+ * @return true 成功，false 失败（内存不足）
+ */
+bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity) {
+    if (!rb || capacity < 1) {
+        return false;
+    }
+    if (capacity == rb->capacity) {
+        return true; /* 无需改变 */
+    }
+
+    log_lock();
+
+    Lv00LogEntry *new_entries = lv00_malloc((size_t)capacity * sizeof(Lv00LogEntry));
+    if (!new_entries) {
+        log_unlock();
+        return false;
+    }
+    memset(new_entries, 0, (size_t)capacity * sizeof(Lv00LogEntry));
+
+    /* 计算要保留的条目数量（保留最新的） */
+    int keep_count = (rb->count < capacity) ? rb->count : capacity;
+    if (keep_count > 0) {
+        /* 从旧缓冲区中导出最新的 keep_count 条记录。
+         * 如果 wrapped，最旧的在 head 位置；否则在位置 0。 */
+        int start = rb->wrapped ? rb->head : 0;
+        /* 计算最新 keep_count 条记录的起始位置 */
+        if (rb->count > keep_count) {
+            /* 跳过最旧的 (rb->count - keep_count) 条记录 */
+            start = (start + (rb->count - keep_count)) % rb->capacity;
+            if (rb->capacity > 0) {
+                start = start % rb->capacity;
+            }
+        }
+
+        for (int i = 0; i < keep_count; i++) {
+            int src_idx = (start + i) % rb->capacity;
+            memcpy(&new_entries[i], &rb->entries[src_idx], sizeof(Lv00LogEntry));
+        }
+    }
+
+    /* 替换旧的缓冲区 */
+    lv00_free((void **)&rb->entries);
+    rb->entries = new_entries;
+    rb->capacity = capacity;
+    rb->head = keep_count % capacity;
+    rb->count = keep_count;
+    rb->wrapped = (keep_count >= capacity);
+
+    log_unlock();
+    return true;
+}
+
+/* ============================================================
+ * 带上下文的日志函数实现（v3.3.0 新增）
+ *
+ * lv00_log_with_context() 是结构化日志的核心入口。
+ * 它将日志同时写入标准日志流、文件日志和环形缓冲区。
+ * ============================================================ */
+
+/**
+ * @brief 记录带完整上下文的日志
+ *
+ * 流程：
+ * 1. 如果上下文有效，提取 context_id 用于追踪
+ * 2. 调用 debug_log() 写入标准日志流（受级别过滤控制）
+ * 3. 如果全局环形缓冲区存在，写入结构化记录
+ * 4. FATAL 级别日志触发紧急保存（在 debug_log 内部处理）
+ *
+ * @param ctx           上下文指针（可为 NULL）
+ * @param level         日志级别
+ * @param module_name   模块名称
+ * @param function_name 函数名称
+ * @param file_name     文件名
+ * @param line_number   行号
+ * @param fmt           格式字符串
+ * @param ...           格式参数
+ */
+void lv00_log_with_context(struct Lv00Context *ctx, LogLevel level,
+                           const char *module_name, const char *function_name,
+                           const char *file_name, int line_number,
+                           const char *fmt, ...) {
+    /* 1. 格式化消息到临时缓冲区 */
+    char message[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(message, sizeof(message), fmt, args);
+    va_end(args);
+
+    /* 2. 写入标准日志流（debug_log 负责级别过滤和文件/控制台输出） */
+    debug_log(level, module_name, "%s [%s:%d]", message, function_name, line_number);
+
+    /* 3. 写入全局环形缓冲区 */
+    if (g_log_ring_buffer) {
+        lv00_log_ring_buffer_write(g_log_ring_buffer, level,
+                                   module_name, function_name,
+                                   file_name, line_number,
+                                   "%s", message);
+        /* 覆盖自动设置的 context_id 为实际的上下文 ID */
+        log_lock();
+        if (g_log_ring_buffer->count > 0) {
+            /* 找到刚写入的条目（head - 1，处理绕回） */
+            int last_idx = (g_log_ring_buffer->head - 1 + g_log_ring_buffer->capacity)
+                           % g_log_ring_buffer->capacity;
+            /* 从上下文中获取 ID（如果可用） */
+            if (ctx && ctx->context_id > 0) {
+                g_log_ring_buffer->entries[last_idx].context_id = ctx->context_id;
+            }
+        }
+        log_unlock();
+    }
+
+    /* 4. 使用上下文信息（防止未使用参数警告） */
+    (void)ctx;
 }
 
 /*=== Performance Counters Implementation ===*/

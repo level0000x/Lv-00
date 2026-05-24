@@ -138,7 +138,7 @@ void normalization_result_destroy(NormalizationResult *result);
  * @param[in] graph 约束图
  * @return true 幂等，false 非幂等
  */
-bool normalization_verify_idempotency(ConstraintGraph *graph);
+bool normalization_verify_idempotency(const ConstraintGraph *graph);
 
 /**
  * @brief 合并图中共线的线段
@@ -227,7 +227,7 @@ void rewrite_history_destroy(RewriteHistory *history);
  * @param[in] graph   约束图
  * @return true 检测到循环，false 无循环
  */
-bool rewrite_history_check_cycle(RewriteHistory *history, ConstraintGraph *graph);
+bool rewrite_history_check_cycle(const RewriteHistory *history, ConstraintGraph *graph);
 
 /**
  * @brief 添加图到历史记录

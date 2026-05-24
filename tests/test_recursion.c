@@ -325,7 +325,7 @@ static int test_selector_block(void) {
     printf("  设置分支: %s\n", ok ? "成功" : "失败");
 
     /* 更新分支状态 */
-    selector_block_update_states(sb, BRANCH_ACTIVE, BRANCH_INACTIVE);
+    selector_block_update_states(sb, BRANCH_ACTIVE_SELECTED, BRANCH_INACTIVE);
     printf("  真分支状态: %s\n", branch_state_to_string(sb->true_state));
     printf("  假分支状态: %s\n", branch_state_to_string(sb->false_state));
 
@@ -345,7 +345,7 @@ static int test_selector_block(void) {
 static int test_branch_states(void) {
     printf("Test: branch states...\n");
 
-    BranchState states[] = {BRANCH_INACTIVE, BRANCH_ACTIVE, BRANCH_PENDING};
+    BranchState states[] = {BRANCH_INACTIVE, BRANCH_ACTIVE_SELECTED, BRANCH_PENDING};
 
     const char *expected[] = {"Inactive", "Active", "Pending"};
 

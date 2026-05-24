@@ -13,7 +13,7 @@
 #define AXIOM_PKG_PATH "axiom_packages/metric_space.lvz"
 #define SAVE_TEST_PATH "axiom_packages/metric_space_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT 45
+#define EXPECTED_TEMPLATE_COUNT 47
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
 static int g_fail_count = 0;
@@ -57,7 +57,7 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 45 constraint templates");
+    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 47 constraint templates");
     printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
 
     const char *expected_templates[] = {

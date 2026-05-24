@@ -23,6 +23,21 @@
 extern "C" {
 #endif
 
+/* ============== 递归深度保护常量 ============== */
+
+/**
+ * @brief 全局递归深度上限 —— 防止无限递归导致栈溢出
+ *
+ * 比上下文级 max_depth (10000) 更严格的全局硬限制。
+ * 当任何递归调用深度超过此值时，触发熔断机制（circuit breaker），
+ * 自动终止当前递归链。默认值 128，足够覆盖绝大多数合法递归场景。
+ *
+ * 与 LV00_MAX_RECURSION_DEPTH_LIMIT (100000, 定义在 lv00_internal.h) 的关系：
+ * - LV00_MAX_RECURSION_DEPTH (128): 全局熔断阈值，由 lv00_recursion_enter/leave 管理
+ * - LV00_MAX_RECURSION_DEPTH_LIMIT (100000): 单个 RecursionContext 的硬上限
+ */
+#define LV00_MAX_RECURSION_DEPTH 128
+
 void recursion_set_stream_context(StreamContext *ctx);
 
 /* ============== 前向声明 ============== */
@@ -125,7 +140,7 @@ struct MeasureSystem {
 /* ============== 选择器块分支状态 ============== */
 typedef enum {
     BRANCH_INACTIVE, /* 不活跃（灰色虚影） */
-    BRANCH_ACTIVE,   /* 活跃（实线） */
+    BRANCH_ACTIVE_SELECTED,   /* 活跃（实线） */
     BRANCH_PENDING,  /* 待定（半透明） */
     BRANCH_SHADOWED  /* 虚影状态（被遮蔽的分支） */
 } BranchState;
@@ -319,6 +334,62 @@ void recursion_context_reset(RecursionContext *ctx);
  * @param user_data 用户数据
  */
 void recursion_context_set_depth_callback(RecursionContext *ctx, RecursionDepthCallback callback, void *user_data);
+
+/* ============== 全局递归深度保护（熔断器） ============== */
+
+/**
+ * @brief 进入递归调用 —— 全局深度保护入口
+ *
+ * 维护一个全局（线程局部）的递归深度计数器。
+ * 每次递归调用前调用此函数：
+ * - 深度 +1
+ * - 如果 depth > LV00_MAX_RECURSION_DEPTH，触发熔断器（circuit breaker）
+ *
+ * 熔断器机制：
+ * - 自动将全局 circuit_breaker_triggered 标志设为 true
+ * - 后续所有 lv00_recursion_enter() 调用都会返回 false
+ * - 必须调用 lv00_recursion_reset() 才能恢复
+ *
+ * 与 recursion_context_enter() 的区别：
+ * - lv00_recursion_enter/leave 是轻量级全局保护，无上下文依赖
+ * - recursion_context_enter/exit 是上下文相关的完整测度验证
+ *
+ * @return true  进入成功（深度在安全范围内）
+ * @return false 熔断器已触发或深度超限
+ */
+bool lv00_recursion_enter(void);
+
+/**
+ * @brief 退出递归调用 —— 全局深度保护出口
+ *
+ * 全局递归深度计数器 -1。
+ * 每次递归调用返回后调用此函数。
+ * 如果当前深度回到 0 且熔断器未被触发，自动重置熔断器状态。
+ */
+void lv00_recursion_leave(void);
+
+/**
+ * @brief 检查熔断器是否已触发
+ *
+ * @return true  熔断器已触发（应停止当前递归链）
+ * @return false 熔断器未触发（可以继续递归）
+ */
+bool lv00_recursion_circuit_breaker_triggered(void);
+
+/**
+ * @brief 重置全局递归深度保护状态
+ *
+ * 将深度计数器置零，清除熔断器标志。
+ * 应在开始新的递归链之前调用。
+ */
+void lv00_recursion_reset(void);
+
+/**
+ * @brief 获取当前全局递归深度
+ *
+ * @return 当前递归深度（0 = 未在递归中）
+ */
+int lv00_recursion_get_depth(void);
 
 /* ============== 选择器块API ============== */
 

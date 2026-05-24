@@ -23,15 +23,183 @@ extern "C" {
 #include "stream.h"
 #include "unify.h"
 
+/* ============================================================
+ * 五层架构层级标识（v3.3）
+ * ============================================================
+ * 用于编译时层级边界检查和运行时诊断。
+ * 详见 docs/ARCHITECTURE_v3.3.md
+ *
+ * 使用方式：
+ *   在每个 .c 文件开头（#include 之前），通过 CMake 的
+ *   target_compile_definitions 自动设置 LV00_CURRENT_LAYER。
+ *   无需手动定义。
+ * ============================================================ */
+
+/** @brief Layer 1: 输入解析层 — 词法分析、公式解析、DSL 编译 */
+#define LV00_LAYER_PARSER    1
+
+/** @brief Layer 2: 资源管理层 — 内存分配、错误码、调试、工具函数 */
+#define LV00_LAYER_RESOURCE  2
+
+/** @brief Layer 3: 几何拓扑层 — 约束图、符号坐标、几何原语 */
+#define LV00_LAYER_GEOMETRY  3
+
+/** @brief Layer 4: 公理推理层 — 引擎、求解器、证明、重写、合一 */
+#define LV00_LAYER_REASONING 4
+
+/** @brief Layer 5: 结果输出层 — 流式输出、TikZ 导出、互操作 */
+#define LV00_LAYER_OUTPUT    5
+
+/* ── 层级验证开关 ──
+ * 通过 CMake 选项 ENABLE_LAYER_VALIDATION 控制。
+ * 启用后，LV00_ENABLE_LAYER_VALIDATION 和 LV00_CURRENT_LAYER
+ * 会被自动定义在每个层的编译单元中。
+ */
+#ifdef LV00_ENABLE_LAYER_VALIDATION
+
+/* 确保 LV00_CURRENT_LAYER 已被 CMake 定义 */
+#ifndef LV00_CURRENT_LAYER
+#error "LV00_CURRENT_LAYER must be defined when LV00_ENABLE_LAYER_VALIDATION is enabled. \
+Check that the source file belongs to a CMake layer target (lv00_layerN_*)."
+#endif
+
+/**
+ * @brief 编译时层级边界断言
+ *
+ * 在源文件头部使用此宏声明当前编译单元允许调用的最低层级。
+ * 例如，Layer 4 的代码可以使用 LV00_ALLOW_LAYER(2) 来声明
+ * 它可以调用 Layer 2 及以上的代码。
+ *
+ * @param min_layer 允许的最低层级编号（1-5，数字越小层级越低）
+ *
+ * 使用示例：
+ *   // 在 Layer 4 (reasoning) 的源文件中：
+ *   LV00_ALLOW_LAYER(LV00_LAYER_RESOURCE);  // 允许调用 Layer 2+
+ *   LV00_ALLOW_LAYER(LV00_LAYER_GEOMETRY);  // 允许调用 Layer 3+
+ *
+ * @note 此宏在编译时通过 _Static_assert 检查，不产生运行时代码。
+ * @note 当 LV00_ENABLE_LAYER_VALIDATION 未定义时，此宏为空操作。
+ */
+#define LV00_ALLOW_LAYER(min_layer) \
+    _Static_assert(LV00_CURRENT_LAYER >= (min_layer), \
+        "LV00 layer boundary violation: layer " #LV00_CURRENT_LAYER \
+        " may not call functions from layer " #min_layer \
+        " (only upper layers may call lower layers)." \
+        " See docs/ARCHITECTURE_v3.3.md")
+
+/**
+ * @brief 编译时断言：当前层可以直接调用目标层
+ *
+ * 更严格的检查：要求当前层必须高于目标层至少 1 级
+ * （即禁止同层调用，允许跨层向下调用）。
+ *
+ * @param target_layer 目标层级编号
+ */
+#define LV00_REQUIRE_STRICTLY_ABOVE(target_layer) \
+    _Static_assert(LV00_CURRENT_LAYER > (target_layer), \
+        "LV00 layer boundary violation: layer " #LV00_CURRENT_LAYER \
+        " must be strictly above layer " #target_layer)
+
+#else
+/* 未启用层级验证时，所有检查宏均为空操作 */
+#define LV00_ALLOW_LAYER(min_layer)                 ((void)0)
+#define LV00_REQUIRE_STRICTLY_ABOVE(target_layer)   ((void)0)
+#endif /* LV00_ENABLE_LAYER_VALIDATION */
+
+/**
+ * @brief 层级验证标志
+ *
+ * 引擎实例可以通过此标志决定是否在运行时执行层级边界检查。
+ * 默认关闭（仅影响运行时诊断，不影响编译时 _Static_assert）。
+ *
+ * 启用后，跨层函数调用会检查调用栈是否合规，
+ * 违规时通过 engine 的错误报告机制发出警告。
+ */
+#define LV00_LAYER_VALIDATION_FLAG_NONE     0x00  /**< 不执行层级验证 */
+#define LV00_LAYER_VALIDATION_FLAG_RUNTIME  0x01  /**< 运行时调用栈检查 */
+#define LV00_LAYER_VALIDATION_FLAG_STRICT   0x02  /**< 严格模式：违规即中止 */
+
+/* 前向声明 —— Lv00Context 定义在 context.h 中，避免循环依赖 */
+struct Lv00Context;
+
 /* ── 引擎状态码（必须在 LV00Engine 结构体之前定义）── */
 typedef enum {
-    ENGINE_OK,                /**< 操作成功完成 */
-    ENGINE_OUT_OF_MEMORY,     /**< 内存分配失败 */
-    ENGINE_INVALID_STATE,     /**< 引擎处于无效状态（如未初始化即调用） */
-    ENGINE_INVALID_ARGUMENT,  /**< 传入参数无效（空指针、越界等） */
-    ENGINE_CONSTRAINT_CONFLICT, /**< 约束冲突：无法满足的约束条件 */
-    ENGINE_MODULE_ERROR       /**< 模块加载/执行错误 */
+    ENGINE_OK,                 /**< 操作成功完成 */
+    ENGINE_OUT_OF_MEMORY,      /**< 内存分配失败 */
+    ENGINE_INVALID_STATE,      /**< 引擎处于无效状态（如未初始化即调用） */
+    ENGINE_INVALID_ARGUMENT,   /**< 传入参数无效（空指针、越界等） */
+    ENGINE_CONSTRAINT_CONFLICT,/**< 约束冲突：无法满足的约束条件 */
+    ENGINE_MODULE_ERROR        /**< 模块加载/执行错误 */
 } EngineStatus;
+
+/* ============================================================
+ * 五状态引擎状态机（v3.3.0 形式化）
+ *
+ * 引擎从创建到销毁经历以下状态的严格转移：
+ *
+ *                   ┌──────────────┐
+ *                   │    IDLE      │  <── 初始状态（刚创建/重置后）
+ *                   └──────┬───────┘
+ *                          │ 开始解析输入
+ *                          ▼
+ *                   ┌──────────────┐
+ *              ┌─── │   PARSING    │ ── 解析失败 ──→ ERROR
+ *              │    └──────┬───────┘
+ *              │           │ 解析完成，开始推理
+ *              │           ▼
+ *              │    ┌──────────────┐
+ *              │    │  REASONING   │ ── 矛盾/超时 ──→ ERROR
+ *              │    └──────┬───────┘
+ *              │           │ 证明成功
+ *              │           ▼
+ *              │    ┌──────────────┐
+ *              └───→│  COMPLETE    │ ── 重置 ──→ IDLE
+ *                   └──────────────┘
+ *                        ↑
+ *                   ┌──────────────┐
+ *                   │    ERROR     │ ── 重置 ──→ IDLE
+ *                   └──────────────┘
+ *
+ * 状态转移规则（严格）：
+ *   IDLE      → PARSING   (开始接收新输入)
+ *   IDLE      → ERROR     (初始化失败)
+ *   PARSING   → REASONING (解析成功完成)
+ *   PARSING   → ERROR     (解析失败)
+ *   PARSING   → IDLE      (取消/中断)
+ *   REASONING → COMPLETE  (证明/求解成功)
+ *   REASONING → ERROR     (矛盾/超时/资源耗尽)
+ *   REASONING → IDLE      (取消/中断)
+ *   COMPLETE  → IDLE      (重置，准备新问题)
+ *   ERROR     → IDLE      (重置，清理错误状态)
+ * ============================================================ */
+
+/**
+ * @brief 引擎状态机枚举 —— 与 context.h 中 Lv00ContextState 语义对齐
+ *
+ * 引擎在其生命周期内严格遵循这些状态的转移规则。
+ * 任何非法转移都将被拒绝并返回错误码。
+ */
+typedef enum {
+    /** 空闲状态 —— 引擎已创建但尚未开始处理任何问题。
+     *  可接收输入、加载模块/公理、设置参数。 */
+    ENGINE_STATE_IDLE = 0,
+
+    /** 解析状态 —— 正在将输入文本/DSL 解析为内部约束图结构。
+     *  可逐步添加几何对象和约束。 */
+    ENGINE_STATE_PARSING,
+
+    /** 推理状态 —— 正在执行重写、求解、合一、证明等推理操作。
+     *  禁止修改约束图拓扑（仅允许变量绑定和代数计算）。 */
+    ENGINE_STATE_REASONING,
+
+    /** 错误状态 —— 遇到不可恢复的错误（解析失败、约束冲突、资源耗尽等）。
+     *  必须通过 engine_reset() 清理后重新开始。 */
+    ENGINE_STATE_ERROR,
+
+    /** 完成状态 —— 当前问题的求解/证明已成功完成。
+     *  可查询结果，或通过 engine_reset() 开始新问题。 */
+    ENGINE_STATE_COMPLETE
+} EngineState;
 
 typedef struct LV00Engine {
     ConstraintGraph *main_graph;    /**< 主约束图指针 —— 引擎的核心数据结构，所有几何元素与约束的容器 */
@@ -60,6 +228,50 @@ typedef struct LV00Engine {
 
     /* 流式输出上下文（可选，为 NULL 时不发射事件） */
     StreamContext *stream_ctx;
+
+    /*
+     * ── 隔离上下文指针（v3.3.0 新增）──
+     *
+     * 指向该引擎关联的 Lv00Context 实例。在"引擎-上下文共存"过渡期内，
+     * 引擎通过此指针访问上下文的熔断器、推理栈、缓存等高级功能。
+     *
+     * 迁移计划（见 engine.c 顶部注释）：
+     *   短期：LV00Engine.context 与 Lv00Context 中的 main_graph 共存。
+     *   长期：引擎逻辑逐步迁移到 Lv00Context，LV00Engine 降级为薄封装层。
+     *
+     * 为 NULL 时，引擎工作在传统模式（不启用上下文高级特性）。
+     */
+    struct Lv00Context *context;
+
+    /*
+     * ── 五层架构层级验证标志（v3.3 新增）──
+     *
+     * 控制运行时层级边界检查的行为。
+     * 默认值：LV00_LAYER_VALIDATION_FLAG_NONE（不检查）。
+     *
+     * 可用值（可位或组合）：
+     *   LV00_LAYER_VALIDATION_FLAG_RUNTIME — 启用运行时调用栈检查
+     *   LV00_LAYER_VALIDATION_FLAG_STRICT  — 违规时立即 abort()
+     *
+     * 注意：此标志仅影响运行时检查。编译时检查由
+     * LV00_ENABLE_LAYER_VALIDATION / LV00_ALLOW_LAYER 宏控制。
+     */
+    int layer_validation_flags;
+
+    /*
+     * ── 五状态机字段（v3.3.0 形式化）──
+     *
+     * 引擎在其生命周期内严格遵循状态机转移规则。
+     * 所有状态变更必须通过 lv00_engine_transition_state() 执行，
+     * 该函数验证转移合法性。非法转移将被拒绝并返回错误码。
+     *
+     * state:                当前状态（初始为 ENGINE_STATE_IDLE）
+     * previous_state:       上一个状态（用于调试和审计追踪）
+     * state_transition_count: 状态转移总次数（检测异常状态循环）
+     */
+    EngineState state;
+    EngineState previous_state;
+    int state_transition_count;
 } LV00Engine;
 
 /**
@@ -276,6 +488,42 @@ bool engine_is_streaming_enabled(const LV00Engine *engine);
  */
 void engine_emit_stream_event(LV00Engine *engine, StreamEventType type, const char *description, int step_number,
                               int node_id, int constraint_id);
+
+/* ---- 五状态机 API（v3.3.0 形式化）---- */
+
+/**
+ * @brief 尝试将引擎转移到指定状态
+ *
+ * 验证状态转移的合法性。非法转移将返回错误，不改变引擎状态。
+ * 合法的转移记录在转移表中（见 engine.c）。
+ *
+ * @param engine    引擎实例（非 NULL）
+ * @param new_state 目标状态（ENGINE_STATE_IDLE / PARSING / REASONING / ERROR / COMPLETE）
+ * @return ENGINE_OK 成功，ENGINE_INVALID_STATE 非法转移
+ */
+EngineStatus lv00_engine_transition_state(LV00Engine *engine, EngineState new_state);
+
+/**
+ * @brief 获取引擎当前状态
+ * @param engine 引擎实例（可为 NULL，返回 ENGINE_STATE_IDLE）
+ * @return 当前状态枚举值
+ */
+EngineState engine_get_state(const LV00Engine *engine);
+
+/**
+ * @brief 获取状态的可读名称
+ * @param state 状态枚举值
+ * @return 状态的中文名称字符串（静态存储，无需释放）
+ */
+const char *engine_state_name(EngineState state);
+
+/**
+ * @brief 检查从当前状态到目标状态的转移是否合法
+ * @param from 当前状态
+ * @param to   目标状态
+ * @return true 合法，false 不合法
+ */
+bool engine_is_valid_transition(EngineState from, EngineState to);
 
 #ifdef __cplusplus
 }

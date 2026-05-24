@@ -232,6 +232,52 @@ def __getattr__(name: str):
                 if hasattr(_formula_mod, attr_name):
                     _formula_exports[attr_name] = getattr(_formula_mod, attr_name)
         return _formula_exports[name]
+
+    # Groebner 引擎模块（惰性导入）
+    if name in _GROEBNER_NAMES:
+        if name not in _groebner_exports:
+            from . import groebner_engine as _groebner_mod
+            for attr_name in _GROEBNER_NAMES:
+                if hasattr(_groebner_mod, attr_name):
+                    _groebner_exports[attr_name] = getattr(_groebner_mod, attr_name)
+        return _groebner_exports[name]
+
+    # 类型系统模块（惰性导入）
+    if name in _TYPE_SYSTEM_NAMES:
+        if name not in _type_system_exports:
+            from . import type_system as _type_system_mod
+            for attr_name in _TYPE_SYSTEM_NAMES:
+                if hasattr(_type_system_mod, attr_name):
+                    _type_system_exports[attr_name] = getattr(_type_system_mod, attr_name)
+        return _type_system_exports[name]
+
+    # 交互几何模块（惰性导入）
+    if name in _INTERACTIVE_GEO_NAMES:
+        if name not in _interactive_geo_exports:
+            from . import interactive_geo as _interactive_geo_mod
+            for attr_name in _INTERACTIVE_GEO_NAMES:
+                if hasattr(_interactive_geo_mod, attr_name):
+                    _interactive_geo_exports[attr_name] = getattr(_interactive_geo_mod, attr_name)
+        return _interactive_geo_exports[name]
+
+    # 稀疏线性代数模块（惰性导入）
+    if name in _SPARSE_LA_NAMES:
+        if name not in _sparse_la_exports:
+            from . import sparse_la as _sparse_la_mod
+            for attr_name in _SPARSE_LA_NAMES:
+                if hasattr(_sparse_la_mod, attr_name):
+                    _sparse_la_exports[attr_name] = getattr(_sparse_la_mod, attr_name)
+        return _sparse_la_exports[name]
+
+    # 扩展证明模块（惰性导入）
+    if name in _PROOF_EXTRAS_NAMES:
+        if name not in _proof_extras_exports:
+            from . import proof_extras as _proof_extras_mod
+            for attr_name in _PROOF_EXTRAS_NAMES:
+                if hasattr(_proof_extras_mod, attr_name):
+                    _proof_extras_exports[attr_name] = getattr(_proof_extras_mod, attr_name)
+        return _proof_extras_exports[name]
+
     raise AttributeError(f"module 'lv00' has no attribute '{name}'")
 
 # ============================================================
@@ -404,6 +450,48 @@ __all__ = [
     "stream_events",
     "collect_events",
     "wait_for_event",
+
+    # Groebner 引擎模块（通过惰性导入）
+    "RingRegistry", "RingFieldType", "MonomialOrder", "GroebnerAlgorithm",
+    "GroebnerEngineError",
+    "ring_registry_create", "ring_create", "ring_find",
+    "poly_create", "poly_add", "poly_multiply",
+    "ideal_create", "ideal_add_generator",
+    "groebner_compute", "ideal_membership",
+    "ideal_intersection", "ideal_quotient",
+    "variety_compute", "constraint_graph_to_ideal",
+
+    # 类型系统模块（通过惰性导入）
+    "TypeSystem", "TypeRegion", "TypeKind", "TypeEquivResult",
+    "TypeCheckResult", "TypeSystemError", "PathExplorer",
+    "type_system_create",
+    "type_check_equivalence", "type_check_port_compatibility",
+    "type_infer_node", "type_infer_port", "type_infer_by_rules",
+    "type_system_register_inference_rule",
+
+    # 交互几何模块（通过惰性导入）
+    "InteractiveGeo", "InteractiveGeoMode", "InteractiveGeoError",
+    "ConfigClassification", "ScriptLanguage",
+    "RandomizedCheckResult", "ConstraintMaintainStatus",
+    "interactive_geo_init",
+
+    # 稀疏线性代数模块（通过惰性导入）
+    "SparseMatrix", "SparseFormat", "SemiringType", "SparseLAError",
+    "sparse_matrix_create",
+    "semiring_propagate_constraints",
+    "graph_to_constraint_matrix",
+    "sparse_matrix_multiply", "sparse_matrix_transpose",
+
+    # 扩展证明模块（通过惰性导入）
+    "ProofSearchTree", "ProofMultiStrategy",
+    "BacktrackNodeType", "ProofStrategyType", "ProofStrategyStatus",
+    "LemmaViewState", "ProofExtrasError",
+    "proof_search_tree_create", "backtrack_node_create",
+    "proof_multi_strategy_create",
+    "proof_interactive_step",
+    "proof_save_breakpoint", "proof_restore_breakpoint",
+    "proof_check_unconstructibility",
+    "proof_sledgehammer_dispatch", "proof_minimal_verify",
 ]
 
 

@@ -1,0 +1,32 @@
+# lv00-config.cmake.in — CMake 包配置文件模板
+#
+# 由 CMake configure_package_config_file() 生成 lv00-config.cmake
+# 安装到 ${CMAKE_INSTALL_LIBDIR}/cmake/lv00/
+#
+# 使用方式:
+#   find_package(lv00 3.3.0 REQUIRED)
+#   target_link_libraries(myapp lv00::lv00)
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# GMP 是必要的运行时依赖
+find_dependency(GMP REQUIRED)
+
+# 加载导出的目标（lv00::lv00_static, lv00::lv00_shared 等）
+include("${CMAKE_CURRENT_LIST_DIR}/lv00-targets.cmake")
+
+# 为方便使用者，创建 lv00::lv00 别名
+if(TARGET lv00::lv00_static AND NOT TARGET lv00::lv00)
+    add_library(lv00::lv00 ALIAS lv00::lv00_static)
+endif()
+
+# 设置版本变量供使用者检查
+set(LV00_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
+set(LV00_VERSION_MINOR @PROJECT_VERSION_MINOR@)
+set(LV00_VERSION_PATCH @PROJECT_VERSION_PATCH@)
+set(LV00_VERSION_STRING "@PROJECT_VERSION@")
+
+# 检查版本一致性
+check_required_components(lv00)

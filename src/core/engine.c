@@ -3,6 +3,29 @@
  * @brief 主引擎实现
  * @details 实现工作流编排，协调规范化、重写、求解和冲突检查。
  *          支持重写-求解协作、位电路跳闸处理和冻结点回滚。
+ *
+ * ============================================================
+ * 迁移计划：从全局状态到 Lv00Context（v3.3.0）
+ * ============================================================
+ *
+ * Lv-00 正在从"全局引擎模式"迁移到"隔离上下文模式"。迁移路线图：
+ *
+ *   第 1 阶段（当前）：LV00Engine 持有 Lv00Context* 指针，两者共存。
+ *     上下文中已拥有独立的错误码、错误消息、递归深度追踪。
+ *     引擎级全局变量标记为 LEGACY，新代码禁止新增全局状态。
+ *
+ *   第 2 阶段（下一主版本）：将引擎的核心逻辑逐步下沉到 Lv00Context。
+ *     engine_solve()、engine_rewrite_and_solve() 等函数改用 context 参数。
+ *     全局变量 last_status / last_error 彻底移除。
+ *
+ *   第 3 阶段（远期）：LV00Engine 降级为 C API 的薄封装层，
+ *     所有引擎逻辑由 Lv00Context 统一管理。
+ *
+ * 设计原则：
+ *   1. 新代码必须通过 context 访问引擎状态，禁止新增全局/线程局部变量。
+ *   2. 现有 LEGACY 变量在迁移完成前继续工作，不影响运行时行为。
+ *   3. 每个 context 实例是完全隔离的，支持并发、分支推理和资源熔断。
+ * ============================================================
  */
 
 #include "engine.h"
@@ -22,18 +45,21 @@
 /* 错误消息缓冲区大小（用于 last_error 数组） */
 #define LV00_ERROR_MSG_SIZE 256
 
-/**
- * 线程局部的引擎状态（作为回退使用）
+/* ============================================================
+ * LEGACY 全局状态 —— 将在迁移至 Lv00Context 后移除
  *
- * 【设计说明】last_status 和 last_error 同时存在于两个层级：
- *   - 线程局部变量（此处）：用于 engine_create 等无实例场景的回退
- *   - 实例字段（engine->last_status / engine->last_error）：每个引擎独立隔离
+ * 迁移目标：
+ *   last_status → ctx->error_code (Lv00ErrorCode) 或 ctx->last_status (int)
+ *   last_error  → ctx->error_message[512]
  *
- * 优先使用实例级别的错误状态，线程局部变量仅在没有引擎实例可用时
- * 作为回退方案（如 engine_create 失败，尚未创建引擎实例时）。
- */
-static LV00_THREAD_LOCAL EngineStatus last_status = ENGINE_OK;
-static LV00_THREAD_LOCAL char last_error[LV00_ERROR_MSG_SIZE] = {0};
+ * 当前保留原因：engine_create() 等函数在创建引擎实例前无法访问
+ * context，需要回退到线程局部存储来报告早期错误。
+ *
+ * 【迁移进度】第 1 阶段 —— 标记 LEGACY，禁止新增全局状态。
+ * 【禁止】在引擎中新增任何全局/线程局部变量。
+ * ============================================================ */
+static LV00_THREAD_LOCAL EngineStatus last_status = ENGINE_OK;   /* LEGACY - 将迁移到 Lv00Context.error_code */
+static LV00_THREAD_LOCAL char last_error[LV00_ERROR_MSG_SIZE] = {0}; /* LEGACY - 将迁移到 Lv00Context.error_message[] */
 
 LV00Engine *engine_create(void) {
     LV00Engine *engine = lv00_malloc(sizeof(LV00Engine));
@@ -44,7 +70,13 @@ LV00Engine *engine_create(void) {
     memset(engine, 0, sizeof(LV00Engine));
     engine->rewrite_step_limit = LV00_DEFAULT_REWRITE_STEP_LIMIT; /* 默认重写步数限制 */
     engine->frozen_point = NULL;
+    engine->context = NULL; /* 迁移中：暂不绑定上下文，后续可通过 engine_bind_context() 设置 */
     engine->stream_ctx = stream_context_create(); /* 创建流式上下文 */
+
+    /* 初始化五状态机（v3.3.0 形式化） */
+    engine->state = ENGINE_STATE_IDLE;
+    engine->previous_state = ENGINE_STATE_IDLE;
+    engine->state_transition_count = 0;
 
     /* 通过注册/分发机制将流式上下文同步到各子模块。
      * stream_context_register_builtins() 一次性注册所有内置模块的 setter，
@@ -1308,4 +1340,160 @@ void engine_emit_stream_event(LV00Engine *engine, StreamEventType type, const ch
     ev.numeric_value = 0.0;
 
     stream_emit(engine->stream_ctx, &ev);
+}
+
+/* ============================================================
+ * 五状态机实现（v3.3.0 形式化）
+ *
+ * 从 context.h 中引入的状态机概念在引擎层的具体实现。
+ * 引擎在其生命周期内严格遵循状态转移规则，
+ * 所有状态变更通过 lv00_engine_transition_state() 执行。
+ * ============================================================ */
+
+/**
+ * @brief 状态转移表 —— 定义所有合法的状态转移
+ *
+ * 二维矩阵：engine_transition_table[from][to] = true（转移合法）/ false（非法）。
+ * 数组大小为 5x5（ENGINE_STATE_IDLE..ENGINE_STATE_COMPLETE）。
+ *
+ * 转移规则：
+ *   IDLE      → PARSING   ✓  开始接收新输入
+ *   IDLE      → ERROR     ✓  初始化失败
+ *   PARSING   → REASONING ✓  解析成功完成
+ *   PARSING   → ERROR     ✓  解析失败
+ *   PARSING   → IDLE      ✓  取消/中断
+ *   REASONING → COMPLETE  ✓  证明/求解成功
+ *   REASONING → ERROR     ✓  矛盾/超时/资源耗尽
+ *   REASONING → IDLE      ✓  取消/中断
+ *   COMPLETE  → IDLE      ✓  重置，准备新问题
+ *   ERROR     → IDLE      ✓  重置，清理错误状态
+ *
+ * 所有其他组合均非法（如 IDLE → COMPLETE，COMPLETE → REASONING 等）。
+ */
+static const bool engine_transition_table[5][5] = {
+    /* from \ to →        IDLE  PARSING  REASONING  ERROR  COMPLETE */
+    /* IDLE      */  {  false,   true,     false,    true,   false },
+    /* PARSING   */  {   true,  false,      true,    true,   false },
+    /* REASONING */  {   true,  false,     false,    true,    true },
+    /* ERROR     */  {   true,  false,     false,   false,   false },
+    /* COMPLETE  */  {   true,  false,     false,   false,   false },
+};
+
+/**
+ * @brief 检查状态转移是否合法
+ *
+ * 直接查转移表，O(1) 时间复杂度。
+ *
+ * @param from 当前状态
+ * @param to   目标状态
+ * @return true 合法，false 非法
+ */
+bool engine_is_valid_transition(EngineState from, EngineState to) {
+    /* 边界检查：防止无效状态索引 */
+    if (from > ENGINE_STATE_COMPLETE || to > ENGINE_STATE_COMPLETE) {
+        return false;
+    }
+    return engine_transition_table[from][to];
+}
+
+/**
+ * @brief 获取引擎状态的中文名称
+ *
+ * 返回静态字符串，调用者无需释放。
+ *
+ * @param state 引擎状态枚举值
+ * @return 状态的中文描述字符串
+ */
+const char *engine_state_name(EngineState state) {
+    switch (state) {
+        case ENGINE_STATE_IDLE:
+            return "空闲";       /* IDLE: 等待输入 */
+        case ENGINE_STATE_PARSING:
+            return "解析中";     /* PARSING: 解析输入文本 */
+        case ENGINE_STATE_REASONING:
+            return "推理中";     /* REASONING: 执行重写/求解/证明 */
+        case ENGINE_STATE_ERROR:
+            return "错误";       /* ERROR: 发生不可恢复错误 */
+        case ENGINE_STATE_COMPLETE:
+            return "完成";       /* COMPLETE: 推理成功完成 */
+        default:
+            return "未知状态";
+    }
+}
+
+/**
+ * @brief 尝试将引擎转移到指定状态
+ *
+ * 这是引擎状态机的核心 API。在执行任何可能改变引擎上下文的操作前，
+ * 调用此函数来验证状态的合法性。
+ *
+ * 转移成功时：
+ * - 记录 previous_state（用于审计和调试）
+ * - 更新 state
+ * - 递增 state_transition_count
+ * - 返回 ENGINE_OK
+ *
+ * 转移非法时：
+ * - 不改变任何状态字段
+ * - 设置 last_status = ENGINE_INVALID_STATE
+ * - 设置 last_error 描述尝试的非法转移
+ * - 返回 ENGINE_INVALID_STATE
+ *
+ * @param engine    引擎实例（非 NULL）
+ * @param new_state 目标状态
+ * @return ENGINE_OK 成功，ENGINE_INVALID_STATE 非法转移
+ */
+EngineStatus lv00_engine_transition_state(LV00Engine *engine, EngineState new_state) {
+    /* 参数校验 */
+    if (!engine) {
+        return ENGINE_INVALID_ARGUMENT;
+    }
+
+    EngineState current = engine->state;
+
+    /* 边界检查：防止无效状态枚举值 */
+    if ((int)new_state < (int)ENGINE_STATE_IDLE || (int)new_state > (int)ENGINE_STATE_COMPLETE) {
+        engine->last_status = ENGINE_INVALID_STATE;
+        snprintf(engine->last_error, sizeof(engine->last_error),
+                 "状态转移失败: 无效的目标状态 %d（合法范围: %d-%d）",
+                 (int)new_state, ENGINE_STATE_IDLE, ENGINE_STATE_COMPLETE);
+        return ENGINE_INVALID_STATE;
+    }
+
+    /* 转移到相同状态 —— 允许（幂等），只记录日志不触发错误 */
+    if (current == new_state) {
+        /* 相同状态转移：这是一个 no-op，但计数仍然递增用于审计 */
+        engine->state_transition_count++;
+        return ENGINE_OK;
+    }
+
+    /* 查转移表验证合法性 */
+    if (!engine_is_valid_transition(current, new_state)) {
+        engine->last_status = ENGINE_INVALID_STATE;
+        snprintf(engine->last_error, sizeof(engine->last_error),
+                 "状态转移非法: 不能从 \"%s\" 转移到 \"%s\"（转移次数: %d）",
+                 engine_state_name(current), engine_state_name(new_state),
+                 engine->state_transition_count);
+        return ENGINE_INVALID_STATE;
+    }
+
+    /* 合法转移：记录并执行 */
+    engine->previous_state = current;
+    engine->state = new_state;
+    engine->state_transition_count++;
+
+    return ENGINE_OK;
+}
+
+/**
+ * @brief 获取引擎当前状态
+ *
+ * @param engine 引擎实例（可为 NULL）
+ * @return 当前状态（NULL 时返回 ENGINE_STATE_IDLE）
+ */
+EngineState engine_get_state(const LV00Engine *engine) {
+    if (!engine) {
+        return ENGINE_STATE_IDLE;
+    }
+    return engine->state;
 }

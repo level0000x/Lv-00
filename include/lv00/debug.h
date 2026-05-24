@@ -38,21 +38,47 @@ typedef struct ConstraintGraph ConstraintGraph;
 #define LV00_LOG_MAX_SIZE (10 * 1024 * 1024) /* 10MB */
 #define LV00_LOG_PATH_MAX 256
 
-/* 日志级别: DEBUG < INFO < WARN < ERROR
+/* 日志级别: TRACE < DEBUG < INFO < WARN < ERROR < FATAL
  *
  * 注意：lv00_internal.h 中定义了另一套日志级别宏（LV00_LOG_LEVEL_*），
  * 用于内部日志函数 lv00_log_message()。该套宏为项目级权威定义。
  * 此处 LogLevel 枚举专用于 debug.h 的日志子系统 API
  *（debug_log / debug_set_log_level 等），两套系统相互独立。
  * 若需修改日志级别语义，请同步检查 lv00_internal.h 中的定义。
+ *
+ * 【v3.3.0 增强】新增 TRACE 和 FATAL 级别：
+ *   TRACE — 最细粒度，记录函数进入/退出、参数值、循环迭代（极大量）
+ *   FATAL — 不可恢复错误，记录后触发 emergency_save 和可能的 abort
  */
 typedef enum {
-    LOG_LEVEL_DEBUG = 0,
-    LOG_LEVEL_INFO = 1,
-    LOG_LEVEL_WARN = 2,
-    LOG_LEVEL_ERROR = 3,
-    LOG_LEVEL_NONE = 4 /* 禁用所有日志 */
+    LOG_LEVEL_TRACE = -1, /**< 追踪级别：最详细的逐步骤日志（函数进入/退出、参数转储） */
+    LOG_LEVEL_DEBUG = 0,  /**< 调试级别：开发调试信息 */
+    LOG_LEVEL_INFO  = 1,  /**< 信息级别：常规运行时信息 */
+    LOG_LEVEL_WARN  = 2,  /**< 警告级别：潜在问题，不影响当前操作 */
+    LOG_LEVEL_ERROR = 3,  /**< 错误级别：操作失败，但引擎可继续 */
+    LOG_LEVEL_FATAL = 4,  /**< 致命级别：不可恢复错误，记录后触发保护性动作 */
+    LOG_LEVEL_NONE  = 5   /**< 禁用所有日志 */
 } LogLevel;
+
+/**
+ * @brief 编译期日志级别过滤 —— 零运行时开销
+ *
+ * 在 CMakeLists.txt 中定义此宏来控制编译期最低日志级别。
+ * 低于此级别的日志调用在编译期被完全剔除，不产生任何代码。
+ *
+ * 用法示例：
+ *   cmake -DLV00_LOG_LEVEL_GUARD=LOG_LEVEL_WARN ..
+ *   // TRACE, DEBUG, INFO 日志调用被编译期移除
+ *
+ * 默认值：不定义（所有级别在运行时决定）
+ */
+#ifdef LV00_LOG_GUARD
+/* LV00_LOG_GUARD 由 CMake 传入，值如 LOG_LEVEL_WARN */
+#define LV00_LOG_IS_ENABLED(level) ((level) >= (LV00_LOG_GUARD))
+#else
+/* 未定义时所有级别在运行时决定 */
+#define LV00_LOG_IS_ENABLED(level) true
+#endif /* LV00_LOG_GUARD */
 
 /* 性能计数器（第18.5节） */
 typedef struct PerformanceCounters {
@@ -154,11 +180,188 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...);
 
 /**
  * @brief 各级别日志的便捷宏。
+ *
+ * 【v3.3.0 增强】
+ *   - 新增 LOG_TRACE / LOG_FATAL 宏
+ *   - LOG_GUARDED 变体在编译期过滤低于阈值的日志调用（零开销）
+ *   - LV00_LOG_GUARD 通过 CMake 定义，默认不定义
  */
-#define LOG_DEBUG(module, fmt, ...) debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__)
-#define LOG_INFO(module, fmt, ...) debug_log(LOG_LEVEL_INFO, module, fmt, ##__VA_ARGS__)
-#define LOG_WARN(module, fmt, ...) debug_log(LOG_LEVEL_WARN, module, fmt, ##__VA_ARGS__)
-#define LOG_ERROR(module, fmt, ...) debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__)
+#ifdef LV00_LOG_GUARD
+/* 编译期过滤版本：低于阈值的日志被编译期移除，不产生任何代码 */
+#define LOG_TRACE(module, fmt, ...)  do { /* LV00_LOG_GUARD 过滤 */ } while(0)
+#define LOG_DEBUG(module, fmt, ...)  do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_DEBUG)) debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__); } while(0)
+#define LOG_INFO(module, fmt, ...)   do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_INFO))  debug_log(LOG_LEVEL_INFO,  module, fmt, ##__VA_ARGS__); } while(0)
+#define LOG_WARN(module, fmt, ...)   do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_WARN))  debug_log(LOG_LEVEL_WARN,  module, fmt, ##__VA_ARGS__); } while(0)
+#define LOG_ERROR(module, fmt, ...)  do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_ERROR)) debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__); } while(0)
+#define LOG_FATAL(module, fmt, ...)  do { if (LV00_LOG_IS_ENABLED(LOG_LEVEL_FATAL)) debug_log(LOG_LEVEL_FATAL, module, fmt, ##__VA_ARGS__); } while(0)
+#else
+/* 无编译期过滤：所有级别在运行时由 debug_set_log_level 决定 */
+#define LOG_TRACE(module, fmt, ...)  debug_log(LOG_LEVEL_TRACE, module, fmt, ##__VA_ARGS__)
+#define LOG_DEBUG(module, fmt, ...)  debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__)
+#define LOG_INFO(module, fmt, ...)   debug_log(LOG_LEVEL_INFO,  module, fmt, ##__VA_ARGS__)
+#define LOG_WARN(module, fmt, ...)   debug_log(LOG_LEVEL_WARN,  module, fmt, ##__VA_ARGS__)
+#define LOG_ERROR(module, fmt, ...)  debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__)
+#define LOG_FATAL(module, fmt, ...)  debug_log(LOG_LEVEL_FATAL, module, fmt, ##__VA_ARGS__)
+#endif /* LV00_LOG_GUARD */
+
+/* ============================================================
+ * 结构化日志与环形缓冲区（v3.3.0 新增）
+ * ============================================================ */
+
+/**
+ * @brief 环形日志缓冲区默认容量
+ *
+ * 存储最近 N 条日志消息，用于崩溃后诊断。
+ * 可通过 debug_set_ring_buffer_capacity() 调整。
+ */
+#define LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY 256
+
+/**
+ * @brief 单条结构化日志记录
+ *
+ * 每条日志记录包含完整的上下文信息，用于：
+ * - 崩溃后诊断（环形缓冲区可紧急保存）
+ * - 日志分析工具的解析（结构化字段）
+ * - 性能分析（记录时间戳和耗时）
+ */
+typedef struct Lv00LogEntry {
+    LogLevel    level;          /**< 日志级别 */
+    uint64_t    timestamp_us;   /**< 时间戳（微秒精度） */
+    const char *module_name;    /**< 模块名称（如 "solver", "engine", "graph"） */
+    const char *function_name;  /**< 函数名称（__func__） */
+    int         line_number;    /**< 源文件行号（__LINE__） */
+    const char *file_name;      /**< 源文件名（__FILE__） */
+    char        message[512];   /**< 格式化后的日志消息（定长，防止 OOM） */
+    uint64_t    context_id;     /**< 关联的上下文 ID（0 = 全局日志） */
+} Lv00LogEntry;
+
+/**
+ * @brief 环形日志缓冲区
+ *
+ * 固定容量的环形缓冲区，新条目覆盖最旧的条目。
+ * 线程安全（内部使用互斥锁保护）。
+ *
+ * 使用场景：
+ * - 崩溃后通过 emergency_save 导出最近日志
+ * - 调试时查询最近操作序列
+ * - 性能敏感场景下的轻量级日志存储
+ */
+typedef struct Lv00LogRingBuffer {
+    Lv00LogEntry *entries;   /**< 环形缓冲区条目数组 */
+    int           capacity;  /**< 缓冲区容量（最大条目数） */
+    int           head;      /**< 写入位置（下一条新日志将写入此位置） */
+    int           count;     /**< 当前缓冲区中的日志数量（<= capacity） */
+    bool          wrapped;   /**< 是否已经至少绕回一次 */
+} Lv00LogRingBuffer;
+
+/**
+ * @brief 创建环形日志缓冲区
+ * @param capacity 缓冲区容量（条目数，至少为 1；默认 256）
+ * @return 新分配的环形缓冲区，失败返回 NULL
+ */
+Lv00LogRingBuffer *lv00_log_ring_buffer_create(int capacity);
+
+/**
+ * @brief 销毁环形日志缓冲区
+ * @param rb 缓冲区指针（可为 NULL）
+ */
+void lv00_log_ring_buffer_destroy(Lv00LogRingBuffer *rb);
+
+/**
+ * @brief 向环形缓冲区写入一条结构化日志
+ *
+ * 线程安全。如果缓冲区已满，覆盖最旧的条目。
+ *
+ * @param rb            环形缓冲区（非 NULL）
+ * @param level         日志级别
+ * @param module_name   模块名称
+ * @param function_name 函数名称（__func__）
+ * @param file_name     文件名（__FILE__）
+ * @param line_number   行号（__LINE__）
+ * @param fmt           printf 格式字符串
+ * @param ...           格式参数
+ */
+void lv00_log_ring_buffer_write(Lv00LogRingBuffer *rb, LogLevel level,
+                                const char *module_name, const char *function_name,
+                                const char *file_name, int line_number,
+                                const char *fmt, ...);
+
+/**
+ * @brief 导出环形缓冲区中的所有日志（按时间顺序）
+ *
+ * 返回的数组由调用者负责释放（使用 lv00_free）。
+ *
+ * @param rb           环形缓冲区（非 NULL）
+ * @param out_count    输出：实际导出的条目数量
+ * @return 日志条目数组（按插入时间排序），失败返回 NULL
+ */
+Lv00LogEntry *lv00_log_ring_buffer_export(const Lv00LogRingBuffer *rb, int *out_count);
+
+/**
+ * @brief 清空环形缓冲区中的所有日志条目
+ * @param rb 环形缓冲区（非 NULL）
+ */
+void lv00_log_ring_buffer_clear(Lv00LogRingBuffer *rb);
+
+/**
+ * @brief 设置环形缓冲区容量（保留现有条目，最多保留新容量条）
+ *
+ * 如果新容量小于当前条目数，最旧的多余条目将被丢弃。
+ *
+ * @param rb       环形缓冲区（非 NULL）
+ * @param capacity 新容量（>= 1）
+ * @return true 成功，false 失败（内存不足）
+ */
+bool lv00_log_ring_buffer_resize(Lv00LogRingBuffer *rb, int capacity);
+
+/* ============================================================
+ * 带上下文的日志函数（v3.3.0 新增）
+ *
+ * lv00_log_with_context() 是结构化日志的核心 API。
+ * 与简单的 debug_log() 相比，它额外记录：
+ *   - 上下文 ID（用于多上下文场景的日志追踪）
+ *   - 函数名 / 文件名 / 行号（用于精确的故障定位）
+ *   - 自动写入环形缓冲区
+ *
+ * 使用 LV00_LOG_CTX() 便捷宏，自动填入 __func__, __FILE__, __LINE__。
+ * ============================================================ */
+
+/**
+ * @brief 带上下文的日志记录函数
+ *
+ * 同时执行以下操作：
+ * 1. 通过 debug_log() 写入标准日志流（级别过滤、文件输出等）
+ * 2. 写入上下文关联的环形缓冲区（如果启用）
+ * 3. FATAL 级别时触发紧急保存
+ *
+ * @param ctx           上下文指针（可为 NULL，此时仅写入全局日志）
+ * @param level         日志级别
+ * @param module_name   模块名称（如 "solver", "engine"）
+ * @param function_name 函数名称（__func__）
+ * @param file_name     源文件名（__FILE__）
+ * @param line_number   行号（__LINE__）
+ * @param fmt           printf 格式字符串
+ * @param ...           格式参数
+ */
+struct Lv00Context; /* 前向声明 */
+void lv00_log_with_context(struct Lv00Context *ctx, LogLevel level,
+                           const char *module_name, const char *function_name,
+                           const char *file_name, int line_number,
+                           const char *fmt, ...);
+
+/**
+ * @brief 带上下文的便捷日志宏 —— 自动填入位置信息
+ *
+ * 使用示例：
+ * @code
+ *   LV00_LOG_CTX(ctx, LOG_LEVEL_WARN, "solver",
+ *                "约束 %d 的变量 %d 超出范围 [%d, %d]",
+ *                constraint_id, var_id, min_val, max_val);
+ * @endcode
+ */
+#define LV00_LOG_CTX(ctx, level, module, fmt, ...) \
+    lv00_log_with_context((ctx), (level), (module), __func__, __FILE__, __LINE__, \
+                          (fmt), ##__VA_ARGS__)
 
 /*=== 性能计数器 ===*/
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(lv00 VERSION 3.2.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
+project(lv00 VERSION 3.3.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -22,6 +22,8 @@ option(BUILD_SHARED_LIBS "Build shared library (DLL/SO)"         OFF)
 option(BUILD_FUZZERS     "Build fuzzing targets (requires Clang)" OFF)
 option(ENABLE_COVERAGE   "Enable code coverage (GCC/Clang)"       OFF)
 option(ENABLE_SANITIZERS "Enable ASan + UBSan (GCC/Clang)"       OFF)
+# v3.3.0: 层级验证开关（启用后在编译时检查跨层依赖违规）
+option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" OFF)
 
 # ============================================================
 # 编译器标志
@@ -35,10 +37,85 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# --- MSVC 警告选项 ---
+# --- MSVC 编译器选项 ---
+# v3.3.0: 升级警告级别到 /W4（最高级别），确保代码质量
 if(MSVC)
-    # /W3 : 标准警告级别（/W4 过于严格，可能产生大量噪音）
-    add_compile_options(/W3)
+    # /W4          : 最高警告级别（启用所有信息性警告）
+    # /guard:cf    : 控制流保护（Control Flow Guard），防止 ROP 攻击
+    # /CETCOMPAT   : 标记二进制为 CET（Control-flow Enforcement Technology）兼容
+    # /sdl         : 启用 SDL 检查（额外安全代码生成）
+    add_compile_options(/W4 /guard:cf /CETCOMPAT /sdl)
+
+    # 选择性禁用 MSVC 的噪音警告（若产生大量误报）
+    # C4201: 无名 struct/union（C11 匿名结构体，合法使用）
+    # C4710: 函数未内联（信息性，非错误）
+    # C4820: 填充字节（信息性，非错误）
+    add_compile_options(/wd4201 /wd4710)
+endif()
+
+# --- GCC 专用编译器选项 ---
+# v3.3.0: 添加额外的 GCC 警告和安全标志
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    # -Wconversion        : 隐式类型转换警告（防止精度损失/符号变化）
+    # -Wnull-dereference  : 空指针解引用警告
+    # -Wformat=2          : 增强格式字符串检查
+    # -Wduplicated-branches : 重复分支检测
+    # -Wduplicated-cond   : 重复条件检测
+    # -Wlogical-op        : 可疑逻辑运算符检测
+    # -Wjump-misses-init  : 跳转跨越变量初始化
+    # -fstack-clash-protection : 栈冲突保护
+    add_compile_options(
+        -Wconversion
+        -Wnull-dereference
+        -Wformat=2
+        -Wduplicated-branches
+        -Wduplicated-cond
+        -Wlogical-op
+        -Wjump-misses-init
+        -fstack-clash-protection
+    )
+
+    # 选择性禁用 GCC 的噪音警告
+    # -Wno-sign-conversion   : 符号转换警告过多（如 int → size_t）
+    # -Wno-unused-parameter  : 未使用参数在回调 API 中常见
+    # -Wno-missing-field-initializers : C 语言中合法且常见
+    add_compile_options(
+        -Wno-sign-conversion
+        -Wno-unused-parameter
+        -Wno-missing-field-initializers
+    )
+endif()
+
+# --- Clang 专用编译器选项 ---
+# v3.3.0: 使用 -Weverything 开启所有 Clang 诊断，再选择性禁用噪音警告
+if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    # -Weverything : 启用所有 Clang 诊断警告（最严格的检查模式）
+    add_compile_options(-Weverything)
+
+    # 选择性禁用 Clang 的噪音警告
+    add_compile_options(
+        # 代码风格相关（不影响正确性）
+        -Wno-padded                     # 结构体填充字节
+        -Wno-unused-macros              # 头文件中定义的未使用宏
+
+        # C 标准兼容性
+        -Wno-disabled-macro-expansion   # 禁用的宏展开
+        -Wno-reserved-id-macro          # 保留 ID 宏（在第三方头文件中常见）
+        -Wno-reserved-identifier        # 保留标识符
+        -Wno-c11-extensions             # C11 扩展（如 _Generic）
+
+        # 实用性警告
+        -Wno-float-equal                # 浮点数相等比较（在数学代码中可能是故意的）
+        -Wno-covered-switch-default     # 覆盖所有 case 的 switch 语句
+        -Wno-missing-variable-declarations # 缺失变量声明
+
+        # 文档与声明
+        -Wno-documentation-unknown-command # 未知 doxygen 命令
+        -Wno-vla                         # VLA 使用（C11 可选特性）
+    )
+
+    # 额外安全标志（Clang 也支持）
+    add_compile_options(-fstack-clash-protection)
 endif()
 
 if(ENABLE_COVERAGE AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -116,10 +193,20 @@ endif()
 # GMP_LIBRARIES 已包含完整路径，无需 link_directories
 
 # ============================================================
-# 源文件
+# 源文件 —— 五层架构组织（v3.3）
 # ============================================================
+# 设计原则：
+#   1. 每层编译为 OBJECT 库，允许内部的函数调用
+#   2. 层间通过 target_link_libraries 控制依赖方向
+#   3. Layer 5 -> Layer 4 -> Layer 3 -> Layer 2 <- Layer 1
+#   4. lv00_static 聚合所有 OBJECT 库，保持向后兼容
+# 详见 docs/ARCHITECTURE_v3.3.md
+# ============================================================
+
+# ── 共享头文件列表（所有层共用）──
 set(LV00_HEADERS
     include/lv00/lv00.h
+    include/lv00/cross_platform.h
     include/lv00/error_codes.h
     include/lv00/symbolic_coord.h
     include/lv00/constraint_graph.h
@@ -231,47 +318,235 @@ set(LV00_HEADERS
     include/lv00/preset_difference_equations.h
 )
 
-set(LV00_SOURCES)
-file(GLOB_RECURSE LV00_SOURCES CONFIGURE_DEPENDS
-    src/*.c
+# ── Layer 1: 输入解析层 (Parser) ──
+# 职责：词法分析、公式解析、DSL 编译
+# 依赖：Layer 2
+set(LV00_LAYER1_SOURCES
+    src/parser/formula_parser.c
+    src/parser/formula_converter.c
+    src/parser/formula_renderer.c
+    src/parser/lexer_shared.c
+    src/parser/parser_safety.c
+    src/core/dsl_compiler.c
+    src/core/math_input.c
 )
-# Exclude test files and deprecated
-list(FILTER LV00_SOURCES EXCLUDE REGEX "tests/")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_basic_geometry_v2\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "\\.deprecated$")
-# Exclude duplicate source files (root-level copies superseded by subdir versions)
-list(FILTER LV00_SOURCES EXCLUDE REGEX "^src/symbolic_coord\\.c$")
-# Exclude incomplete/legacy files that use incompatible type systems
-list(FILTER LV00_SOURCES EXCLUDE REGEX "magic/magic\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "nv_encoding\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "sat_solver\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "geometric_algebra\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "crypto_hash\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "ref_count\\.c$")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
-# -- v3.3.0 新增模块（2026-05-24）-- 以下模块已实现并编入：
-#   groebner_engine.c (Gröbner基引擎：多项式环、Buchberger算法、理想操作、代数簇求解)
-#   engine_scheduler.c (多后端调度引擎：特征分析、路由规则、回退链、分发求解)
-#   euclidean_geometry.c (欧几里得几何公理体系：Hilbert五大公理组、Birkhoff/Tarski双体系)
-# -- v3.3.0 功能修复 --
-#   float_error.c (已实现Shunting-yard表达式解析器与求值器，修复有限差分/泰勒展开存根)
-#   sparse_linear_algebra.c (已移除10×10矩阵限制，稠密回退求解器支持任意规模)
-#   geometry_compress.c (已实现完整Huffman熵编解码器，替换pass-through存根)
-# -- 已知排除项 --
-#   magic/magic.c (类型系统重构待完成)
-#   approx_counter.c / bdd_encoding.c (API未对齐，编译但功能为桩)
 
+# ── Layer 2: 资源管理层 (Resource) ──
+# 职责：内存分配、错误码、调试、深拷贝、工具函数
+# 依赖：GMP，C 标准库（仅 Layer 2 能直接依赖 GMP 链接）
+set(LV00_LAYER2_SOURCES
+    src/utils/lv00_utils.c
+    src/core/lv00.c
+    src/core/error_codes.c
+    src/core/debug.c
+    src/core/node_deep_copy.c
+)
+
+# ── Layer 3: 几何拓扑层 (Geometry) ──
+# 职责：约束图、符号坐标、几何原语、高维结构
+# 依赖：Layer 2，GMP（通过 Layer 2 传递）
+set(LV00_LAYER3_SOURCES
+    src/core/constraint_graph.c
+    src/core/symbolic_coord.c
+    src/core/euclidean_geometry.c
+    src/core/interactive_geo.c
+    src/core/high_dim.c
+    src/core/geometry_compress.c
+    src/core/geo_event_detect.c
+    src/core/geo_spec.c
+    src/core/geometry_csg.c
+    src/core/sparse_linear_algebra.c
+    src/core/geom_evol.c
+    src/core/float_error.c
+    src/core/mpz_poly_resultant.c
+)
+
+# ── Layer 4: 公理推理层 (Reasoning) ──
+# 职责：引擎、求解器、证明、重写、合一、规范化、类型系统、公理包
+# 依赖：Layer 3，Layer 2
+set(LV00_LAYER4_SOURCES
+    # 核心引擎与求解
+    src/core/engine.c
+    src/core/engine_scheduler.c
+    src/core/solver.c
+    src/core/solver_core.c
+    # 证明系统
+    src/core/proof.c
+    src/core/proof_optimize.c
+    src/core/proof_multi_strategy.c
+    src/core/proof_trace.c
+    src/core/proof_priority.c
+    src/core/logic_check.c
+    src/core/circuit_breaker.c
+    # 重写与合一
+    src/core/rewrite.c
+    src/core/unify.c
+    src/core/normalization.c
+    src/core/recursion.c
+    # 类型与属性
+    src/core/type_system.c
+    src/core/prop_verifier.c
+    # 后端求解引擎
+    src/core/groebner_engine.c
+    src/core/smt_backend_impl.c
+    src/core/atp_backend.c
+    src/core/sat_encoding.c
+    src/core/bdd_encoding.c
+    src/core/approx_counter.c
+    src/core/probabilistic_constraint.c
+    src/core/rational.c
+    src/core/expr_canon.c
+    src/core/exact_arithmetic.c
+    # 模型与模式
+    src/core/relation_model.c
+    src/core/algebra_mode.c
+    src/core/numerical_backend.c
+    # 内核与协议
+    src/core/module.c
+    src/core/mini_kernel.c
+    src/core/gc_language.c
+    src/core/ecosystem.c
+    src/core/math_protocol.c
+    src/core/stream.c
+    src/core/stream_context_util.c
+    # 公理包
+    src/axiom/axiom_pkg.c
+    src/axiom/axiom_grade.c
+    # func_block 函数块系统
+    src/func_block/func_block.c
+    src/func_block/func_block_compose.c
+    src/func_block/func_block_determinism.c
+    src/func_block/func_block_instantiate.c
+    src/func_block/func_block_preset.c
+    src/func_block/func_block_preset_ops.c
+    src/func_block/func_block_registry.c
+    src/func_block/func_block_selector.c
+    src/func_block/func_block_serialize.c
+    src/func_block/func_block_utils.c
+    src/func_block/preset_basic_math.c
+    src/func_block/preset_blocks.c
+    src/func_block/preset_calculus.c
+    src/func_block/preset_common.c
+    src/func_block/preset_manager.c
+    # 数学理论预设 (55 个文件)
+    src/preset/preset_advanced_geometry.c
+    src/preset/preset_algebraic.c
+    src/preset/preset_algebraic_geometry.c
+    src/preset/preset_algebraic_topology.c
+    src/preset/preset_algebraic_topology_adv.c
+    src/preset/preset_analysis.c
+    src/preset/preset_arithmetic_geometry.c
+    src/preset/preset_basic_geometry.c
+    src/preset/preset_category_theory.c
+    src/preset/preset_category_theory_adv.c
+    src/preset/preset_coding_theory.c
+    src/preset/preset_combinatorics.c
+    src/preset/preset_complex_analysis.c
+    src/preset/preset_difference_equations.c
+    src/preset/preset_differential_equations.c
+    src/preset/preset_differential_geometry.c
+    src/preset/preset_differential_geometry_adv.c
+    src/preset/preset_dynamical_systems.c
+    src/preset/preset_field_theory.c
+    src/preset/preset_functional_analysis.c
+    src/preset/preset_functional_analysis_adv.c
+    src/preset/preset_game_theory.c
+    src/preset/preset_geometry_3d.c
+    src/preset/preset_graph_theory.c
+    src/preset/preset_group_theory.c
+    src/preset/preset_homological_algebra.c
+    src/preset/preset_information_theory.c
+    src/preset/preset_integral_transforms.c
+    src/preset/preset_lattice_theory.c
+    src/preset/preset_lie_theory_advanced.c
+    src/preset/preset_linear_algebra.c
+    src/preset/preset_logic_advanced.c
+    src/preset/preset_math_logic.c
+    src/preset/preset_mathematical_logic.c
+    src/preset/preset_mathematical_physics.c
+    src/preset/preset_matrix.c
+    src/preset/preset_measure_theory.c
+    src/preset/preset_measurements.c
+    src/preset/preset_number_theory.c
+    src/preset/preset_numerical.c
+    src/preset/preset_numerical_analysis.c
+    src/preset/preset_optimization.c
+    src/preset/preset_order_theory.c
+    src/preset/preset_polygons.c
+    src/preset/preset_polynomial.c
+    src/preset/preset_probability.c
+    src/preset/preset_probability_statistics.c
+    src/preset/preset_representation_theory.c
+    src/preset/preset_ring_theory.c
+    src/preset/preset_set_theory.c
+    src/preset/preset_special_functions.c
+    src/preset/preset_statistics.c
+    src/preset/preset_stochastic_processes.c
+    src/preset/preset_topology.c
+    src/preset/preset_transformations.c
+    src/preset/preset_trigonometry.c
+)
+
+# ── Layer 5: 结果输出层 (Output) ──
+# 职责：流式输出、TikZ 导出、证明可视化、模块、互操作
+# 依赖：Layer 4，Layer 3，Layer 2
+set(LV00_LAYER5_SOURCES
+    src/core/proof_widget.c
+    src/core/tikz_export.c
+    src/interop/interop.c
+)
 
 # ============================================================
-# 库目标
+# 库目标 —— 五层 OBJECT 库 + 聚合静态库
 # ============================================================
-add_library(lv00_static STATIC ${LV00_SOURCES} ${LV00_HEADERS})
-# 修复 2：使用 target_include_directories 替代全局 include_directories，
-# 避免目录属性污染所有目标
-# 源文件使用 #include "xxx.h" 模式（直接引用头文件名），
-# 因此 include 目录设为 ${CMAKE_SOURCE_DIR}/include/lv00。
-# 这样编译器会在 include/lv00/ 下找到对应的头文件。
+
+# ── 辅助宏：为每个层设置公共编译属性 ──
+macro(lv00_setup_layer target layer_id)
+    target_include_directories(${target} PUBLIC
+        ${GMP_INCLUDE_DIR}
+        ${CMAKE_SOURCE_DIR}/include/lv00
+    )
+    # 层级标识（用于编译时诊断和层级验证）
+    target_compile_definitions(${target} PRIVATE LV00_CURRENT_LAYER=${layer_id})
+    if(ENABLE_LAYER_VALIDATION)
+        target_compile_definitions(${target} PRIVATE LV00_ENABLE_LAYER_VALIDATION)
+    endif()
+endmacro()
+
+# Layer 2: 资源管理层（基础层，不依赖任何上层）
+add_library(lv00_layer2_resource OBJECT ${LV00_LAYER2_SOURCES} ${LV00_HEADERS})
+lv00_setup_layer(lv00_layer2_resource 2)
+target_link_libraries(lv00_layer2_resource ${GMP_LIBRARIES})
+
+# Layer 1: 输入解析层（依赖 Layer 2）
+add_library(lv00_layer1_parser OBJECT ${LV00_LAYER1_SOURCES} ${LV00_HEADERS})
+lv00_setup_layer(lv00_layer1_parser 1)
+target_link_libraries(lv00_layer1_parser lv00_layer2_resource)
+
+# Layer 3: 几何拓扑层（依赖 Layer 2）
+add_library(lv00_layer3_geometry OBJECT ${LV00_LAYER3_SOURCES} ${LV00_HEADERS})
+lv00_setup_layer(lv00_layer3_geometry 3)
+target_link_libraries(lv00_layer3_geometry lv00_layer2_resource)
+
+# Layer 4: 公理推理层（依赖 Layer 3，Layer 2）
+add_library(lv00_layer4_reasoning OBJECT ${LV00_LAYER4_SOURCES} ${LV00_HEADERS})
+lv00_setup_layer(lv00_layer4_reasoning 4)
+target_link_libraries(lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+
+# Layer 5: 结果输出层（依赖 Layer 4，Layer 3，Layer 2）
+add_library(lv00_layer5_output OBJECT ${LV00_LAYER5_SOURCES} ${LV00_HEADERS})
+lv00_setup_layer(lv00_layer5_output 5)
+target_link_libraries(lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+
+# ── 聚合静态库（向后兼容 lv00_static）──
+# 将所有层的 OBJECT 文件聚合到一个静态库中
+add_library(lv00_static STATIC
+    $<TARGET_OBJECTS:lv00_layer1_parser>
+    $<TARGET_OBJECTS:lv00_layer2_resource>
+    $<TARGET_OBJECTS:lv00_layer3_geometry>
+    $<TARGET_OBJECTS:lv00_layer4_reasoning>
+    $<TARGET_OBJECTS:lv00_layer5_output>
+)
 target_include_directories(lv00_static PUBLIC
     ${GMP_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/include/lv00
@@ -280,7 +555,13 @@ target_link_libraries(lv00_static ${GMP_LIBRARIES})
 set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
 
 if(BUILD_SHARED_LIBS)
-    add_library(lv00_shared SHARED ${LV00_SOURCES} ${LV00_HEADERS})
+    add_library(lv00_shared SHARED
+        $<TARGET_OBJECTS:lv00_layer1_parser>
+        $<TARGET_OBJECTS:lv00_layer2_resource>
+        $<TARGET_OBJECTS:lv00_layer3_geometry>
+        $<TARGET_OBJECTS:lv00_layer4_reasoning>
+        $<TARGET_OBJECTS:lv00_layer5_output>
+    )
     target_include_directories(lv00_shared PUBLIC
         ${GMP_INCLUDE_DIR}
         ${CMAKE_SOURCE_DIR}/include/lv00
@@ -289,6 +570,9 @@ if(BUILD_SHARED_LIBS)
     if(WIN32)
         target_link_libraries(lv00_shared ws2_32)
     endif()
+    # v3.3.0: 定义 LV00_BUILD_SHARED 以启用 lv00.h 中的 dllexport/visibility
+    target_compile_definitions(lv00_shared PRIVATE LV00_BUILD_SHARED)
+
     # 跳过有深层依赖问题的预设注册（preset_differential_geometry, preset_functional_analysis）
     target_compile_definitions(lv00_static PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
     set_target_properties(lv00_shared PROPERTIES
@@ -526,6 +810,7 @@ endif()
 include(GNUInstallDirs)
 
 install(TARGETS lv00_static
+    EXPORT lv00-targets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
@@ -538,8 +823,138 @@ install(DIRECTORY include/lv00
 
 if(BUILD_SHARED_LIBS)
     install(TARGETS lv00_shared
+        EXPORT lv00-targets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 endif()
+
+# ============================================================
+# v3.3.0: pkg-config .pc 文件生成
+#
+# 安装后，使用者可以通过以下命令获取编译和链接标志:
+#   pkg-config --cflags lv00
+#   pkg-config --libs lv00
+# ============================================================
+
+# 准备 pkg-config 变量
+set(LV00_PC_REQUIRES "gmp")            # 依赖的 pkg-config 包
+
+# 计算 libdir（相对于 prefix）
+# 若 CMAKE_INSTALL_LIBDIR 是绝对路径则使用，否则添加 ${prefix}/
+if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+    set(LV00_PC_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+else()
+    set(LV00_PC_LIBDIR "\${prefix}/${CMAKE_INSTALL_LIBDIR}")
+endif()
+
+if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
+    set(LV00_PC_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
+else()
+    set(LV00_PC_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+endif()
+
+# 生成 lv00.pc
+configure_file(
+    ${CMAKE_SOURCE_DIR}/cmake/lv00.pc.in
+    ${CMAKE_BINARY_DIR}/lv00.pc
+    @ONLY
+)
+
+install(FILES ${CMAKE_BINARY_DIR}/lv00.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
+
+# ============================================================
+# v3.3.0: CMake 包配置文件生成
+#
+# 安装后，其他 CMake 项目可以通过以下方式引用:
+#   find_package(lv00 3.3.0 REQUIRED)
+#   target_link_libraries(myapp lv00::lv00)
+# ============================================================
+
+include(CMakePackageConfigHelpers)
+
+# 包安装路径
+set(LV00_CMAKE_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/lv00")
+
+# 生成 lv00-config.cmake 和 lv00-config-version.cmake
+configure_package_config_file(
+    ${CMAKE_SOURCE_DIR}/cmake/lv00-config.cmake.in
+    ${CMAKE_BINARY_DIR}/lv00-config.cmake
+    INSTALL_DESTINATION ${LV00_CMAKE_CONFIG_DIR}
+)
+
+write_basic_package_version_file(
+    ${CMAKE_BINARY_DIR}/lv00-config-version.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+# 安装 CMake 包配置文件
+install(FILES
+    ${CMAKE_BINARY_DIR}/lv00-config.cmake
+    ${CMAKE_BINARY_DIR}/lv00-config-version.cmake
+    DESTINATION ${LV00_CMAKE_CONFIG_DIR}
+)
+
+# ============================================================
+# v3.3.0: CPack 打包配置
+#
+# 生成可分发的归档包（.tar.gz, .zip）和安装器包（.deb, .rpm, NSIS）。
+#
+# 用法:
+#   cmake --build . --target package          # 生成二进制包
+#   cmake --build . --target package_source   # 生成源码包
+# ============================================================
+
+set(CPACK_PACKAGE_NAME            "lv00")
+set(CPACK_PACKAGE_VENDOR          "Lv-00 Project")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Lv-00: A geometric metalanguage for dual-mode mathematics")
+set(CPACK_PACKAGE_VERSION_MAJOR   ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR   ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH   ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_FILE_NAME       "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}")
+set(CPACK_PACKAGE_CONTACT         "Lv-00 Project <lv00@example.com>")
+set(CPACK_RESOURCE_FILE_LICENSE   "${CMAKE_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README    "${CMAKE_SOURCE_DIR}/README.md")
+
+# 包生成器
+if(WIN32)
+    set(CPACK_GENERATOR "ZIP")
+    # 如果安装了 NSIS，也可以生成 Windows 安装器
+    find_program(NSIS_FOUND makensis)
+    if(NSIS_FOUND)
+        list(APPEND CPACK_GENERATOR "NSIS")
+    endif()
+elseif(APPLE)
+    set(CPACK_GENERATOR "TGZ")
+    # macOS 可选: productbuild, DragNDrop
+else()
+    set(CPACK_GENERATOR "TGZ;DEB;RPM")
+endif()
+
+# DEB 包特定设置
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Lv-00 Project")
+set(CPACK_DEBIAN_PACKAGE_SECTION     "libs")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS     "libgmp10 (>= 6.0.0)")
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE    "https://github.com/example/lv00")
+
+# RPM 包特定设置
+set(CPACK_RPM_PACKAGE_LICENSE        "MIT")
+set(CPACK_RPM_PACKAGE_GROUP          "Development/Libraries")
+set(CPACK_RPM_PACKAGE_REQUIRES       "gmp >= 6.0.0")
+set(CPACK_RPM_PACKAGE_URL            "https://github.com/example/lv00")
+
+# 排除不需要的文件
+set(CPACK_SOURCE_IGNORE_FILES
+    "/build/"
+    "/.git/"
+    "/.vs/"
+    "\\\\.gitignore$"
+    "\\\\.vscode/"
+    ".*~$"
+)
+
+include(CPack)

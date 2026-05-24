@@ -105,6 +105,19 @@ static bool is_system_initialized(void) {
  * 公共API实现
  * ============================================================ */
 
+/**
+ * @brief 获取版本字符串
+ * @return 版本号字符串，格式 "major.minor.patch"
+ */
+const char *lv00_get_version_string(void) {
+    static char version_str[32] = {0};
+    if (version_str[0] == '\0') {
+        snprintf(version_str, sizeof(version_str), "%d.%d.%d",
+                 LV00_VERSION_MAJOR, LV00_VERSION_MINOR, LV00_VERSION_PATCH);
+    }
+    return version_str;
+}
+
 bool lv00_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
     if (g_system_state == SYSTEM_STATE_INITIALIZED) {

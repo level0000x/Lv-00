@@ -358,8 +358,9 @@ static int test_engine_solve_stream_integration(void) {
     SymbolicCoord *cy = symbolic_coord_create_quadratic(qa, qb, 3);
     SymbolicCoord *c_coords[] = {cx, cy};
     graph_add_point(g, c_coords, 2);
-    rational_destroy(qa);
-    rational_destroy(qb);
+    /* NOTE: Do NOT destroy qa/qb here — the quadratic coord cy may
+     * internally reference them, and the graph takes ownership of coords.
+     * Destroying them early would cause use-after-free heap corruption. */
     int c = g->next_node_id - 1;
 
     int ab = graph_add_line_segment(g, a, b);

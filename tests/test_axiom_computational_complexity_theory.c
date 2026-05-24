@@ -191,8 +191,11 @@ static void test_unconstructible_problems(void) {
         TEST_ASSERT(uc != NULL, expected[i].name);
 
         if (uc) {
-            TEST_ASSERT(uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0,
-                        expected[i].name);
+            /* reduces_to may be NULL for open problems with unknown reduction target */
+            bool reduces_ok = (expected[i].reduces_to == NULL)
+                                 ? (uc->reduces_to == NULL)
+                                 : (uc->reduces_to != NULL && strcmp(uc->reduces_to, expected[i].reduces_to) == 0);
+            TEST_ASSERT(reduces_ok, expected[i].name);
             TEST_ASSERT(uc->dependency_count == expected[i].dep_count, expected[i].name);
             TEST_ASSERT(uc->green_verified == expected[i].green_verified, expected[i].name);
             TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 0, "should have external_ref URL");
@@ -319,7 +322,7 @@ static void test_external_refs(void) {
         const char *name;
         const char *expected_prefix;
     } ref_checks[] = {
-        {"P_vs_NP_problem", "https://en.wikipedia.org/wiki/P_versus_NP_problem"},
+        {"P_vs_NP_problem", "https://www.claymath.org/millennium-problems/p-vs-np-problem"},
         {"graph_isomorphism_problem", "https://en.wikipedia.org/wiki/Graph_isomorphism_problem"},
         {"discrete_logarithm_problem", "https://en.wikipedia.org/wiki/Discrete_logarithm"},
         {"integer_factorization_problem", "https://en.wikipedia.org/wiki/Integer_factorization"},

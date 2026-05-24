@@ -18,6 +18,7 @@
 #include <stdbool.h>
 
 #include "constraint_graph.h"
+#include "exact_arithmetic.h" /* LV00_TOLERATED_FLOAT for proof timing/thresholds */
 #include "normalization.h"
 #include "stream.h"
 #include "type_system.h"
@@ -172,7 +173,9 @@ struct ProofDependency {
 
     /* 数值假设声明 */
     char *numeric_declaration;  /* 数值假设声明 */
-    double precision_threshold; /* 精度阈值 */
+    double LV00_TOLERATED_FLOAT(precision_threshold); /* 精度阈值
+                                                        * @note LV00_TOLERATED_FLOAT:
+                                                        * 阈值用于证明规则参数化，不参与代数计算 */
 
     /* 子依赖 */
     ProofDependency **sub_deps; /* 子依赖数组 */
@@ -247,12 +250,12 @@ void proposition_destroy(Proposition *prop);
 /**
  * 设置输入端口
  */
-bool proposition_set_input_ports(Proposition *prop, int *port_ids, int count);
+bool proposition_set_input_ports(Proposition *prop, const int *port_ids, int count);
 
 /**
  * 设置输出端口
  */
-bool proposition_set_output_ports(Proposition *prop, int *port_ids, int count);
+bool proposition_set_output_ports(Proposition *prop, const int *port_ids, int count);
 
 /**
  * 设置模式图
@@ -262,12 +265,12 @@ bool proposition_set_pattern(Proposition *prop, ConstraintGraph *pattern);
 /**
  * 设置前置条件
  */
-bool proposition_set_preconditions(Proposition *prop, int *region_ids, int count);
+bool proposition_set_preconditions(Proposition *prop, const int *region_ids, int count);
 
 /**
  * 设置后置条件
  */
-bool proposition_set_postconditions(Proposition *prop, int *constraint_ids, int count);
+bool proposition_set_postconditions(Proposition *prop, const int *constraint_ids, int count);
 
 /**
  * 添加子命题
@@ -283,7 +286,7 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child);
  * @param normalize_first 是否先执行图规范化遍
  * @return 合一结果
  */
-UnifyStatus proof_unify(ConstraintGraph *construction, Proposition *proposition, bool normalize_first);
+UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *proposition, bool normalize_first);
 
 /**
  * 合一检查（详细版）
@@ -292,7 +295,7 @@ UnifyStatus proof_unify(ConstraintGraph *construction, Proposition *proposition,
  * @param out_mismatch_info 输出不匹配信息
  * @return 合一结果
  */
-UnifyStatus proof_unify_detailed(ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info);
+UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info);
 
 /* ============== 证明步骤管理 ============== */
 
@@ -405,6 +408,60 @@ bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id);
  * @return 是否成功
  */
 bool proof_apply_ex_falso(ProofNavigator *nav, ConstraintGraph *bottom_proof, Proposition *target_prop);
+
+/* ============== 反证法证明 ============== */
+
+/**
+ * @brief 反证法证明结果 —— 包含矛盾路径和证明追踪树
+ *
+ * 当反证法成功时，该结构记录完整的矛盾推导路径。
+ * 失败的证明也记录尝试的路径，用于调试和学习。
+ */
+typedef struct Lv00ProofTree Lv00ProofTree; /* 前向声明，完整定义见 proof_trace.h */
+
+typedef struct {
+    bool              success;           /**< 反证法是否成功 */
+    char             *contradiction_desc; /**< 矛盾的描述（如"P ∧ ¬P 同时成立"） */
+    int               contradiction_step; /**< 发现矛盾的步骤索引（-1 = 未发现） */
+    struct Lv00ProofTree *proof_trace;    /**< 完整的证明追踪树（成功时记录完整路径，失败时也记录已探索路径） */
+    int               total_steps;       /**< 反证法证明的总步骤数 */
+    int               forward_steps;     /**< 正向推理步骤数 */
+    char             *error_message;     /**< 错误消息（失败时有效，可为 NULL） */
+} Lv00ContradictionResult;
+
+/**
+ * @brief 执行反证法证明
+ *
+ * 反证法（归谬法）工作流程：
+ * 1. 假设目标命题的否定成立（¬goal）
+ * 2. 将否定假设作为临时前提加入证明环境
+ * 3. 正向推理：从否定的假设出发，尽可能多地推导出结论
+ * 4. 矛盾检测：检查推导出的结论是否与已知公理或已证定理冲突
+ * 5. 如果发现矛盾，则反证法成功，原命题得证
+ * 6. 记录整个矛盾推导路径到 proof_trace 中
+ *
+ * 关键设计原则：
+ * - 矛盾分支与主证明隔离：否定假设只在矛盾分支内有效，
+ *   不会污染主证明上下文。使用独立的 ProofNavigator 实例。
+ * - 记录完整路径：成功和失败的情况都记录已探索的推导路径，
+ *   方便用户理解证明过程和排查失败原因。
+ *
+ * @param nav         主证明导航器（不会被修改，仅用于获取引擎上下文和已证定理）
+ * @param goal_prop   待证明的目标命题
+ * @param max_steps   最大允许的正向推理步骤数（0 = 无限制）
+ * @return 反证法结果，包含成功标志和矛盾路径。调用者需用 lv00_contradiction_result_destroy 释放。
+ */
+Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const Proposition *goal_prop, int max_steps);
+
+/**
+ * @brief 释放反证法结果
+ *
+ * 释放 Lv00ContradictionResult 中所有动态分配的内存，
+ * 包括证明追踪树、矛盾描述和错误消息。
+ *
+ * @param result  反证法结果（可为 NULL）
+ */
+void lv00_contradiction_result_destroy(Lv00ContradictionResult *result);
 
 /**
  * 交互式证明步骤
@@ -1132,7 +1189,7 @@ typedef enum { ISAR_LEMMA, ISAR_HAVE, ISAR_SHOW, ISAR_QED } IsarStructureLevel;
 typedef struct {
     ProofStrategyType strategy;
     bool success;
-    double elapsed_sec;
+    double LV00_TOLERATED_FLOAT(elapsed_sec); /* @note tolerated: timing only */
     char *isar_proof_script; /* 自动生成的 Isar 证明脚本 */
 } SledgehammerStrategyResult;
 
@@ -1141,7 +1198,7 @@ typedef struct {
     SledgehammerStrategyResult *results;
     int result_count;
     int best_index; /* 最优（最简）证明的索引 */
-    double total_time_sec;
+    double LV00_TOLERATED_FLOAT(total_time_sec); /* @note tolerated: timing only */
     const char *error_msg;
 } SledgehammerReport;
 
@@ -1208,7 +1265,7 @@ typedef struct {
     const char *refinement_pred; /* 精化谓词（如 "is_right && area > 0"） */
     RefinementCheckResult result;
     char *smt_counterexample; /* SMT 反例（失败时） */
-    double elapsed_sec;
+    double LV00_TOLERATED_FLOAT(elapsed_sec); /* @note tolerated: timing only */
 } RefinementCheckEntry;
 
 /** @brief 精化类型批量检查报告 */

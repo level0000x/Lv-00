@@ -18,7 +18,7 @@
 #define AXIOM_PKG_PATH "axiom_packages/computability_theory.lvz"
 #define SAVE_TEST_PATH "axiom_packages/computability_theory_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT 52
+#define EXPECTED_TEMPLATE_COUNT 55
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 14
 
 static int g_fail_count = 0;
@@ -67,7 +67,7 @@ static void test_templates(void) {
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 52 constraint templates");
+    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 55 constraint templates");
     printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
 
     const char *expected_templates[] = {

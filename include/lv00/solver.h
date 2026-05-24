@@ -90,7 +90,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
  * @param[in] elim_count      要消除的变量数量
  * @return 求解器状态
  */
-SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, int *eliminate_ids, int elim_count);
+SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids, int elim_count);
 
 /**
  * @brief 分析超出范围的变量
@@ -99,7 +99,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, int *
  * @param[out] suggestion 建议信息输出
  * @return 求解器状态
  */
-SolverStatus analyze_out_of_scope(ConstraintGraph *graph, int var_id, char **suggestion);
+SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char **suggestion);
 
 /**
  * 计算约束图的自由度（degrees of freedom）。
@@ -113,7 +113,7 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph, int var_id, char **sug
  * @return 自由变量数量（自由度），出错时返回 -1。
  *         注意：返回 -1 明确区分了"0 自由度（完全确定）"与"函数出错"两种情况。
  */
-int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids);
+int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_ids);
 
 bool check_conflict_equations(const ConstraintGraph *graph);
 

@@ -45,6 +45,23 @@ void lv00_lexer_init(Lv00Lexer *lex, const char *source) {
     lex->error_msg = NULL;
 }
 
+/**
+ * @brief 重置/清除词法分析器状态
+ *
+ * 释放 error_msg 堆分配内存并将所有字段归零，
+ * 使词法分析器可安全重用。
+ *
+ * @param lex 词法分析器指针，不能为 NULL
+ */
+void lv00_lexer_clear(Lv00Lexer *lex) {
+    if (!lex)
+        return;
+    if (lex->error_msg) {
+        lv00_free((void **) &lex->error_msg);
+    }
+    memset(lex, 0, sizeof(Lv00Lexer));
+}
+
 /* ================================================================
  *  跳过空白字符和注释
  * ================================================================ */
