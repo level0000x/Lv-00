@@ -6,7 +6,7 @@
  * 高维对象通过端口抽象块承载，二维矩形编码仅为投影视图之一。
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 3.2.0
  */
 
 #ifndef LV00_HIGH_DIM_H
@@ -414,14 +414,22 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
 /**
  * @brief 将4D及以上坐标投影到3D空间
  *
- * 支持两种投影模式：
+ * 支持四种投影模式：
  *   - 透视投影（projection_mode=0）：以第4维作为深度，产生远小近大的效果
- *   - 正交投影（projection_mode=1）：直接丢弃第4维及以上维度
+ *   - 正交投影（projection_mode=1）：保留选定维度，高维加权折叠
+ *   - 旋转投影（projection_mode=2）：SO(4)旋转后正交投影到3D
+ *   - 立体投影（projection_mode=3）：4D球面S^3到3D空间R^3的球极投影
+ *
+ * 正交投影增强：通过全局变量 g_ortho_selected_axes[3] 选择保留轴，
+ * dim_count>4 时支持级联加权折叠（衰减权重公式：w_i = 1/(i-2)）。
+ *
+ * 投影质量指标：每次调用后在全局变量 g_project_to_3d_projection_trace
+ * 中存储投影矩阵迹的近似值（3.0=完美保留，<3.0=信息损失）。
  *
  * @param coord_4d 高维坐标数组（x, y, z, w, ...）
  * @param dim_count 维度数（>= 1，dim_count=4为完整的4D投影）
  * @param camera_distance 摄像机距离（透视投影使用，> 0）
- * @param projection_mode 投影模式（0=透视, 1=正交）
+ * @param projection_mode 投影模式（0=透视, 1=正交, 2=旋转, 3=立体）
  * @param coord_3d 输出的3D坐标数组（长度>=3，调用者分配）
  * @return LV00_OK 成功，LV00_ERROR_INVALID_PARAM 参数无效
  */
@@ -432,15 +440,17 @@ int high_dim_project_to_3d(const double *coord_4d, int dim_count,
 /* ==================== 保真度计算（增强版） ==================== */
 
 /**
- * @brief 计算投影保真度（增强版，基于约束图的三层度量）
+ * @brief 计算投影保真度（增强版，基于约束图的五层度量）
  *
- * 综合三层度量计算加权保真度得分：
+ * 综合五层度量计算加权保真度得分：
  *   - 第一层：维度可见性比例（基础）
- *   - 第二层：约束图关系保留率（核心）
- *   - 第三层：几何信息熵比（辅助）
+ *   - 第二层：约束类型敏感度加权保留率（核心，按INCIDENCE/BETWEENNESS等类型差异加权）
+ *   - 第三层：几何失真度量（角度失真 + 面积失真）
+ *   - 第四层：拓扑保持度量（节点邻接关系变化）
+ *   - 第五层：MDS Stress值（仅dim_count>=5，Frobenius范数近似）
  *
- * 与 high_dim_calculate_fidelity 的关系：本函数是其增强版，
- * 增加了约束分析和几何信息度量。
+ * 5D以下权重：0.20*dim + 0.45*constraint + 0.20*distortion + 0.15*topology
+ * 5D+权重：0.15*dim + 0.35*constraint + 0.20*distortion + 0.15*topology + 0.15*mds
  *
  * @param manager 高维管理器
  * @param block_id 高维块ID
@@ -460,6 +470,10 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
 #define MULTIVIEW_OP_COUNT  1
 /** 多视图管理操作：清除所有视图 */
 #define MULTIVIEW_OP_CLEAR  2
+/** 多视图管理操作：按block_id过滤列出活跃视图（count复用为block_id输入） */
+#define MULTIVIEW_OP_LIST_BY_BLOCK 3
+/** 多视图管理操作：视图状态JSON导出（view_ids作为字符缓冲区） */
+#define MULTIVIEW_OP_EXPORT_JSON 4
 
 /**
  * @brief 统一的多投影视图管理接口
@@ -468,11 +482,13 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
  *   - MULTIVIEW_OP_LIST (0)：列出所有活跃视图ID到 view_ids 数组
  *   - MULTIVIEW_OP_COUNT (1)：获取活跃视图总数到 count
  *   - MULTIVIEW_OP_CLEAR (2)：清除所有视图（批量标记为inactive）
+ *   - MULTIVIEW_OP_LIST_BY_BLOCK (3)：按block_id过滤列出，count复用为block_id输入/实际数输出
+ *   - MULTIVIEW_OP_EXPORT_JSON (4)：导出JSON到view_ids字符缓冲区，count=缓冲区大小
  *
  * @param manager 高维管理器
- * @param operation 操作类型（0/1/2）
- * @param view_ids 视图ID数组（LIST操作使用，其他可为NULL）
- * @param count 输入/输出参数（LIST: 容量/实际数; COUNT: 输出总数; CLEAR: 输出清除数）
+ * @param operation 操作类型（0/1/2/3/4）
+ * @param view_ids 视图ID数组（LIST/LIST_BY_BLOCK）或字符缓冲区（EXPORT_JSON）
+ * @param count 输入/输出参数（语义随operation变化）
  * @return LV00_OK 成功，错误码见返回值
  */
 int high_dim_manage_multi_views(HighDimManager *manager, int operation,

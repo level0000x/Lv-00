@@ -1,6 +1,8 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg?style=flat)](CHANGELOG.md)
+[![CI](https://github.com/yourusername/lv00/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/lv00/actions/workflows/ci.yml)
 
 > **Lv-00 是唯一将几何构造、计算程序、一阶逻辑证明三者统一于同一语法体系的元语言。**
 
@@ -29,8 +31,12 @@ Lv-00 不是一个几何工具库，不是一个自动证明器，也不是一�
 - **统一化**：验证构造是否满足命题模式
 - **函数块系统**：支持打包、实例化、部分应用和组合子
 - **证明系统**：支持命题创建、证明导航和爆炸原理
+- **多策略证明引擎 (v3.2)**：8 种证明方法并存（借鉴 JGEX 架构）
 - **类型系统**：宇宙层级、类型等价检查和类型推断
 - **递归系统**：测度系统、递归深度监控和终止检查
+- **Python DSL (v3.2)**：Workplane 工作平面 + AlgebraMode 代数模式 + 操作符变换链（借鉴 CadQuery/build123d/GAlgebra）
+- **几何实体类型层次 (v3.2)**：借鉴 SymPy GeometryEntity 继承体系
+- **扁平数组存储 (v3.2)**：借鉴 clifford flat array，SIMD 友好的紧凑数值存储
 
 ## 快速开始
 
@@ -199,6 +205,8 @@ lv00/
 ## 文档
 
 - [API使用指南](docs/API_USAGE_GUIDE.md) - 详细的API参考和最佳实践
+- [分层架构设计 v3.2](docs/architecture_v3.2.md) - **新增：OCCT 风格 7 层架构（2026-05-24）**
+- [竞品分析](docs/competitive_analysis.md) - **已更新：22 个参考项目（2026-05-24）**
 - [模块文档](docs/) - 各模块的详细设计文档
 - [实现路线图](IMPLEMENTATION_ROADMAP.md) - 开发计划和进度
 
@@ -222,14 +230,33 @@ lv00/
 
 ## 相关项目
 
-Lv-00 的设计深受以下项目的启发（详见[竞品分析](docs/competitive_analysis.md)）：
+Lv-00 的设计深受以下项目的启发（详见[竞品分析](docs/competitive_analysis.md)，共 22 个参考项目）：
 
+### 第一梯队：直接相关
 | 项目 | 借鉴方向 |
 |:---|:---|
 | [LeanGeo](https://github.com/ahumenberger/LeanGeo) | 几何形式化的公理组织 |
 | [GeoCoq](https://github.com/GeoCoq/GeoCoq) | Tarski 公理体系的模块化分层 |
 | [AlphaGeometry](https://github.com/google-deepmind/alphageometry) | 自然语言证明输出 |
 | [Newclid](https://github.com/leomlopes/newclid) | 证明搜索与回溯可视化 |
+
+### v3.2 新增借鉴
+| 项目 | 借鉴方向 |
+|:---|:---|
+| [JGEX](https://github.com/kovzol/Java-Geometry-Expert) | 多证明方法并存引擎（8 种策略） |
+| [CadQuery](https://github.com/CadQuery/cadquery) | Fluent API + Selector DSL + Workplane |
+| [build123d](https://github.com/gumyr/build123d) | 代数模式无状态设计 + 操作符变换链 |
+| [GAlgebra](https://github.com/pygae/galgebra) | 操作符重载数学映射 |
+| [Ganja.js](https://github.com/enkimute/ganja.js) | inline AST 转译 DSL 技术 |
+| [OpenCASCADE](https://dev.opencascade.org) | 7 模块分层架构 |
+| [SymPy Geometry](https://github.com/sympy/sympy) | GeometryEntity 类型层次 |
+| [clifford](https://github.com/pygae/clifford) | flat array 数值存储策略 |
+| [Grassmann.jl](https://github.com/chakravala/Grassmann.jl) | 编译期类型级代数 |
+| [OpenGeometry](https://opengeometry.cn) | 国产开源几何内核生态 |
+
+### 其他参考
+| 项目 | 借鉴方向 |
+|:---|:---|
 | [CGAL](https://www.cgal.org) | API 文档组织与模块分类 |
 | [Penrose](https://penrose.cs.cmu.edu) | 数学关系→可视化的叙事方式 |
 | [GeoGebra](https://www.geogebra.org) | 几何对象的命名与引用体系 |

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_calculus.c
  * @brief 微积分预设函数块 - 实现
  *
@@ -64,8 +64,6 @@ static bool register_calculus_preset(
 bool preset_calculus_register(void)
 {
     int success_count = 0;
-
-    ; /* 注册完成 */
 
     /* ============================================================
      * 第一部分：极限运算
@@ -497,7 +495,6 @@ bool preset_calculus_register(void)
     }
 
     /* 返回是否所有预设都注册成功 */
-    ; /* 注册完成 */
     return success_count == CALCULUS_PRESET_COUNT;
 }
 

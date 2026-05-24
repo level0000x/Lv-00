@@ -13,10 +13,10 @@
  * @version 5.0.0
  */
 
-#ifndef PRESET_ADVANCED_GEOMETRY_H
-#define PRESET_ADVANCED_GEOMETRY_H
+#ifndef LV00_PRESET_ADVANCED_GEOMETRY_H
+#define LV00_PRESET_ADVANCED_GEOMETRY_H
 
-#include "func_block_registry.h"
+#include "preset_blocks.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -248,4 +248,4 @@ bool preset_advanced_geometry_get_names(char ***out_names, int *out_count);
 }
 #endif
 
-#endif /* PRESET_ADVANCED_GEOMETRY_H */
+#endif /* LV00_PRESET_ADVANCED_GEOMETRY_H */

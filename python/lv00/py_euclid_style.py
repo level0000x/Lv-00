@@ -23,7 +23,7 @@ PyEuclid 风格高层 API 模块
     tri = G.triangle(A, B, C).with_circumcircle().with_centroid()
     tri.solve()
 
-版本：3.1.0
+版本：3.2.0
 作者：Lv-00 开发团队
 """
 
@@ -110,7 +110,6 @@ class P:
         + : 平移
         - : 向量差（两个 P 相减）或反向平移（P 减向量元组）
         @ : 关联（点到线的 incidence）
-        * : 交点（线之间）
 
     示例：
         >>> A = P(0, 0)
@@ -162,7 +161,7 @@ class P:
     # ---- 运算符重载 ----
 
     def __add__(self, other: Union[Tuple[float, float], 'P', Point]) -> 'P':
-        """平移：P + (dx, dy) 或 P + Q（点加向量）。"""
+        """平移：P + (dx, dy) 返回平移后的点；P + Q 返回点加向量。"""
         if isinstance(other, (P, Point)):
             dx = other.x - self.x
             dy = other.y - self.y
@@ -182,7 +181,7 @@ class P:
         return NotImplemented
 
     def __matmul__(self, line: 'L') -> 'P':
-        """关联约束：A @ AB 表示 A 在 AB 上。"""
+        """关联约束：A @ AB 表示点 A 在线段 AB 上。"""
         if not isinstance(line, L):
             return NotImplemented
         try:
@@ -193,26 +192,6 @@ class P:
                 f"线段 ({line}) 上。{e}"
             ) from e
         return self
-
-    def __mul__(self, other: 'L') -> 'P':
-        """交点：L1 * L2 返回两线段交点。"""
-        if not isinstance(other, L):
-            return NotImplemented
-        result_point = self._graph.add_point(
-            SymbolicCoord.zero(), SymbolicCoord.zero()
-        )
-        try:
-            self._graph.add_intersection(
-                self._core._id, other._core._id, result_point._id
-            )
-        except Lv00ConstraintError as e:
-            raise GeometryError(
-                f"无法计算交点：两条线段可能平行。{e}"
-            ) from e
-        p = P.__new__(P)
-        p._core = result_point
-        p._graph = self._graph
-        return p
 
     def __neg__(self) -> 'P':
         """取反：-P 返回关于原点的对称点。"""
@@ -232,7 +211,7 @@ class P:
     # ---- 几何方法 ----
 
     def distance_to(self, other: _PointLike) -> SymbolicCoord:
-        """计算到另一点的距离。"""
+        """计算到另一点的欧几里得距离。"""
         pt = _to_point(other, self._graph)
         return self._core.distance_to(pt)
 
@@ -243,7 +222,7 @@ class P:
         return P(mid.x, mid.y, graph=self._graph)
 
     def between(self, p1: _PointLike, p2: _PointLike) -> 'P':
-        """约束：当前点位于 p1 和 p2 之间。"""
+        """约束：当前点位于 p1 和 p2 之间（介子约束）。"""
         a = _to_point(p1, self._graph)
         b = _to_point(p2, self._graph)
         try:
@@ -255,7 +234,7 @@ class P:
         return self
 
     def project_onto(self, line: 'L') -> 'P':
-        """投影到直线上，返回垂足。"""
+        """投影到直线上，返回垂足点。"""
         if not isinstance(line, L):
             raise TypeError("project_onto 需要 L 类型的线段参数")
         seg = line._core
@@ -272,11 +251,11 @@ class P:
         return P(proj_x, proj_y, graph=self._graph)
 
     def translate(self, dx: _CoordLike, dy: _CoordLike) -> 'P':
-        """平移点。"""
+        """平移点，返回沿 (dx, dy) 方向平移后的新点。"""
         return P(self.x + dx, self.y + dy, graph=self._graph)
 
     def is_collinear_with(self, p2: _PointLike, p3: _PointLike) -> bool:
-        """三点是否共线。"""
+        """判断三点是否共线。"""
         a = _to_point(p2, self._graph)
         b = _to_point(p3, self._graph)
         return self._core.is_collinear_with(a, b)
@@ -289,7 +268,7 @@ class P:
     # ---- 导出方法 ----
 
     def to_dict(self) -> Dict[str, Any]:
-        """导出为字典。"""
+        """导出为字典，包含类型和坐标信息。"""
         return {'type': 'Point', 'x': str(self.x), 'y': str(self.y)}
 
     def to_latex(self) -> str:
@@ -321,6 +300,7 @@ class L:
         >>> AB.length
         >>> AB.angle_with(BC)
         >>> AB.is_parallel_to(CD)
+        >>> X = AB * CD  # 两条线段的交点
     """
 
     __slots__ = ('_core', '_graph', '_p1', '_p2')
@@ -367,7 +347,7 @@ class L:
         return P(m.x, m.y, graph=self._graph)
 
     def angle_with(self, other: 'L') -> float:
-        """与另一线段的夹角（弧度，[0, pi]）。"""
+        """计算与另一线段的夹角（弧度，范围 [0, pi]）。"""
         v1 = self._core.direction_vector()
         v2 = other._core.direction_vector()
         dot = v1[0] * v2[0] + v1[1] * v2[1]
@@ -381,20 +361,20 @@ class L:
         return math.acos(cos_f)
 
     def is_parallel_to(self, other: 'L') -> bool:
-        """是否平行。"""
+        """判断两条线段是否平行。"""
         return self._core.is_parallel_to(other._core)
 
     def is_perpendicular_to(self, other: 'L') -> bool:
-        """是否垂直。"""
+        """判断两条线段是否垂直。"""
         return self._core.is_perpendicular_to(other._core)
 
     def contains_point(self, point: _PointLike) -> bool:
-        """点是否在线段上。"""
+        """判断点是否在线段上。"""
         pt = _to_point(point, self._graph)
         return self._core.contains_point(pt)
 
     def perpendicular_through(self, point: _PointLike) -> 'L':
-        """过指定点作垂线。"""
+        """过指定点作当前线段的垂线。"""
         pt = _to_point(point, self._graph)
         seg = self._core
         dx, dy = seg.direction_vector()
@@ -410,6 +390,42 @@ class L:
         dx, dy = seg.direction_vector()
         p2_core = Point(pt.x + dx, pt.y + dy)
         return L(pt, p2_core, graph=self._graph)
+
+    def __mul__(self, other: 'L') -> 'P':
+        """交点：self * other 返回两条线段的交点。
+
+        计算当前线段与另一条线段的交点，结果作为新的 P 对象返回。
+        交点通过约束图求解器计算，支持符号化坐标。
+
+        参数：
+            other: 另一条线段（L 实例）
+
+        返回：
+            P: 两条线段的交点
+
+        异常：
+            GeometryError: 两条线段平行（无交点）时抛出
+
+        示例：
+            >>> X = AB * CD  # AB 和 CD 的交点
+        """
+        if not isinstance(other, L):
+            return NotImplemented
+        result_point = self._graph.add_point(
+            SymbolicCoord.zero(), SymbolicCoord.zero()
+        )
+        try:
+            self._graph.add_intersection(
+                self._core._id, other._core._id, result_point._id
+            )
+        except Lv00ConstraintError as e:
+            raise GeometryError(
+                f"无法计算交点：两条线段可能平行。{e}"
+            ) from e
+        p = P.__new__(P)
+        p._core = result_point
+        p._graph = self._graph
+        return p
 
     def __repr__(self) -> str:
         return f"L({self._p1}, {self._p2})"

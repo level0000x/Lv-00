@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_differential_geometry_adv.h
  * @brief 微分几何进阶预设函数块 - 头文件
  *

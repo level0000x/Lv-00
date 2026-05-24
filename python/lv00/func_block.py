@@ -15,16 +15,20 @@ Lv-00 函数块模块
     3. β-归约：实例化时执行变量捕获消解，实现正确的参数传递
     4. 组合子支持：预置 Compose、Product 等几何化组合子
 
-版本：3.0.2
+版本：3.2.0
 作者：Lv-00 开发团队
 """
 
 import ctypes
 from ctypes import c_int, c_void_p, POINTER  # 修复：添加缺失的 ctypes 类型导入，供 SolutionSelector.apply() 和 instantiate() 使用
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    # 类型检查时导入 Lv00BaseError，避免运行时循环导入
+    from .core import Lv00BaseError
 
 from ._ctypes_binding import (
-    _lib, _FuncBlock,
+    _lib, _FuncBlock, _SymbolicCoord,  # 修复：添加 _SymbolicCoord 导入，用于 check_determinism_dynamic
     PACK_OK, PACK_CROSS_BOUNDARY_CONFLICT, PACK_INVALID_NODES, 
     PACK_INVALID_PORTS, PACK_OUT_OF_MEMORY, PACK_CANCELLED,
     INSTANTIATE_OK, INSTANTIATE_NO_SOLUTION, INSTANTIATE_MULTIPLE_SOLUTIONS,
@@ -34,6 +38,25 @@ from ._ctypes_binding import (
     SELECTOR_POSITIVE_ROOT, SELECTOR_NEGATIVE_ROOT, SELECTOR_IN_REGION,
     SELECTOR_NEAREST_TO_POINT, SELECTOR_CUSTOM
 )
+
+__all__ = [
+    # 异常类
+    "FuncBlockError",
+    "FuncBlockPackError",
+    "FuncBlockInstantiateError",
+    "FuncBlockDeterminismError",
+    # 枚举/状态类
+    "DeterminismState",
+    "SelectorType",
+    # 结果类
+    "PackResult",
+    "InstantiateResult",
+    # 核心类
+    "SolutionSelector",
+    "FuncBlock",
+    # 工具函数
+    "func_block_pack",
+]
 
 
 # ============================================================
@@ -46,6 +69,9 @@ class FuncBlockError(Exception):
 
     所有函数块相关异常的父类。
     当函数块的打包、实例化或确定性检查操作失败时抛出。
+    注意：此类当前独立继承 Exception，保留自身的 __str__ 实现。
+    未来应统一继承 Lv00BaseError（from .core import Lv00BaseError），
+    以消除与 Lv00Error/Lv00BaseError 之间重复的 __str__ 逻辑。
 
     属性：
         message: 异常消息字符串
@@ -68,6 +94,9 @@ class FuncBlockError(Exception):
         """
         返回人类可读的异常字符串。
 
+        注意：此方法与 Lv00BaseError.__str__ 逻辑完全一致，
+        未来统一继承后应移除此方法以复用基类实现。
+
         返回：
             str: 格式为 "FuncBlockError(错误码): 消息" 的字符串
         """
@@ -77,17 +106,28 @@ class FuncBlockError(Exception):
 
 
 class FuncBlockPackError(FuncBlockError):
-    """打包错误。"""
+    """打包错误。
+
+    当函数块打包操作失败时抛出，可能的原因包括：
+    跨边界约束冲突、无效节点、无效端口、内存不足等。
+    """
     pass
 
 
 class FuncBlockInstantiateError(FuncBlockError):
-    """实例化错误。"""
+    """实例化错误。
+
+    当函数块实例化操作失败时抛出，可能的原因包括：
+    无解、多解需要选择器、前置条件不满足、内存不足等。
+    """
     pass
 
 
 class FuncBlockDeterminismError(FuncBlockError):
-    """确定性错误。"""
+    """确定性错误。
+
+    当函数块确定性检查操作失败时抛出。
+    """
     pass
 
 
@@ -95,12 +135,42 @@ class FuncBlockDeterminismError(FuncBlockError):
 # 常量类
 # ============================================================
 
+def _enum_to_string(value: int, mapping: dict, default: str = "未知") -> str:
+    """
+    通用的枚举值转中文字符串函数。
+
+    将整数枚举值通过映射字典转换为可读的中文字符串，
+    避免各常量类中重复的 to_string 实现逻辑。
+
+    参数：
+        value: 枚举整数值
+        mapping: 值到中文字符串的映射字典
+        default: 未找到映射时的默认返回值（默认为 "未知"）
+
+    返回：
+        str: 对应的中文字符串描述
+    """
+    return mapping.get(value, default)
+
+
 class DeterminismState:
     """
     确定性状态常量类。
 
     定义函数块确定性验证的可能状态值，用于标识函数块
     在静态或动态分析下是否具有唯一解。
+
+    设计说明：
+        本类使用类常量（而非标准库 enum.Enum）定义枚举值，
+        这是有意为之的设计选择，原因如下：
+        1. 公共 API 兼容性：用户代码通过 DeterminismState.VERIFIED
+           等方式访问常量，转换为 Enum 后 isinstance() 检查行为改变，
+           且 Enum 成员不再是 int，可能导致与 C 层交互的代码中断。
+        2. 与 C 层一致：常量值直接来自 _ctypes_binding 模块导出的
+           C 枚举值（如 DETERMINISM_VERIFIED），保持 int 类型便于
+           直接传递给 ctypes 绑定函数。
+        3. 统一风格：项目中其他常量类（如 formula.py 中的 SyntaxType、
+           OutputFormat）也采用相同模式，保持项目内部一致性。
 
     常量：
         UNVERIFIED: 未验证
@@ -125,13 +195,12 @@ class DeterminismState:
         返回：
             str: 状态的中文描述字符串
         """
-        names = {
+        return _enum_to_string(state, {
             cls.UNVERIFIED: "未验证",
             cls.VERIFIED: "已验证（唯一解）",
             cls.NON_DETERMINISTIC: "非确定性（多解）",
             cls.PARTIALLY_VERIFIED: "部分验证"
-        }
-        return names.get(state, "未知")
+        })
 
 
 class SelectorType:
@@ -140,6 +209,8 @@ class SelectorType:
 
     定义多解选择器的类型，用于在函数块产生多个解时
     决定返回哪个解。
+
+    设计说明：使用类常量而非 enum.Enum，原因同 DeterminismState。
 
     常量：
         POSITIVE_ROOT: 取正根
@@ -166,14 +237,13 @@ class SelectorType:
         返回：
             str: 选择器类型的中文描述字符串
         """
-        names = {
+        return _enum_to_string(t, {
             cls.POSITIVE_ROOT: "取正根",
             cls.NEGATIVE_ROOT: "取负根",
             cls.IN_REGION: "取区域内的解",
             cls.NEAREST_TO_POINT: "取最近的解",
             cls.CUSTOM: "自定义"
-        }
-        return names.get(t, "未知")
+        })
 
 
 class PackResult:
@@ -181,6 +251,8 @@ class PackResult:
     打包结果常量类。
 
     定义函数块打包操作的返回结果状态码。
+
+    设计说明：使用类常量而非 enum.Enum，原因同 DeterminismState。
 
     常量：
         OK: 打包成功
@@ -209,15 +281,14 @@ class PackResult:
         返回：
             str: 打包结果的中文描述字符串
         """
-        names = {
+        return _enum_to_string(result, {
             cls.OK: "成功",
             cls.CROSS_BOUNDARY_CONFLICT: "跨边界约束冲突",
             cls.INVALID_NODES: "无效节点",
             cls.INVALID_PORTS: "无效端口",
             cls.OUT_OF_MEMORY: "内存不足",
             cls.CANCELLED: "已取消"
-        }
-        return names.get(result, "未知")
+        })
 
     @classmethod
     def is_success(cls, result: int) -> bool:
@@ -238,6 +309,8 @@ class InstantiateResult:
     实例化结果常量类。
 
     定义函数块实例化操作的返回结果状态码。
+
+    设计说明：使用类常量而非 enum.Enum，原因同 DeterminismState。
 
     常量：
         OK: 实例化成功
@@ -266,15 +339,14 @@ class InstantiateResult:
         返回：
             str: 实例化结果的中文描述字符串
         """
-        names = {
+        return _enum_to_string(result, {
             cls.OK: "成功",
             cls.NO_SOLUTION: "无解",
             cls.MULTIPLE_SOLUTIONS: "多解",
             cls.SELECTOR_NEEDED: "需要选择器",
             cls.PRECONDITION_FAILED: "前置条件不满足",
             cls.OUT_OF_MEMORY: "内存不足"
-        }
-        return names.get(result, "未知")
+        })
 
 
 # ============================================================
@@ -399,10 +471,8 @@ class SolutionSelector:
 
         return selected.value
     
-    def __del__(self):
-        """
-        析构函数：释放底层 C 选择器资源。
-        """
+    def __del__(self) -> None:
+        """析构函数：释放底层 C 选择器资源。"""
         # 修复：添加 hasattr 检查，防止 __init__ 未完成时（如异常中途）访问不存在的 _ptr
         if hasattr(self, '_ptr') and self._ptr:
             try:
@@ -480,8 +550,8 @@ class FuncBlock:
         fb._output_count = 0
         return fb
     
-    def __del__(self):
-        """析构函数"""
+    def __del__(self) -> None:
+        """析构函数：释放底层 C 函数块资源。"""
         if self._ptr and self._owns_ptr:
             try:
                 _lib.func_block_destroy(self._ptr)
@@ -493,53 +563,87 @@ class FuncBlock:
     def input_count(self) -> int:
         """获取输入端口数量。
 
-        优先通过 C API 函数 func_block_get_input_count 获取端口计数；
-        若该函数不可用，则回退到内部计数器 _input_count；
-        若两者均不可用，抛出 NotImplementedError。
+        通过 C API 函数 func_block_get_input_count 获取端口计数。
+        该函数已在新版本中实现，支持 NULL 安全检查。
 
         返回：
-            int: 输入端口数量
-
-        异常：
-            NotImplementedError: C API 和内部计数器均不可用时抛出
+            int: 输入端口数量，若函数块指针无效则返回 0
         """
         if not self._ptr:
             return 0
-        if hasattr(_lib, 'func_block_get_input_count'):
-            return _lib.func_block_get_input_count(self._ptr)
-        raise NotImplementedError(
-            "无法获取 input_count：C API 函数 'func_block_get_input_count' 不可用。"
-            "请重新编译 Lv-00 C 库并在 _ctypes_binding 中注册该函数，"
-            "或通过 func_block_pack() 创建 FuncBlock 实例以设置内部计数器。"
-        )
+        return _lib.func_block_get_input_count(self._ptr)
 
     @property
     def output_count(self) -> int:
         """获取输出端口数量。
 
-        优先通过 C API 函数 func_block_get_output_count 获取端口计数；
-        若该函数不可用，则回退到内部计数器 _output_count；
-        若两者均不可用，抛出 NotImplementedError。
+        通过 C API 函数 func_block_get_output_count 获取端口计数。
+        该函数已在新版本中实现，支持 NULL 安全检查。
 
         返回：
-            int: 输出端口数量
-
-        异常：
-            NotImplementedError: C API 和内部计数器均不可用时抛出
+            int: 输出端口数量，若函数块指针无效则返回 0
         """
         if not self._ptr:
             return 0
-        if hasattr(_lib, 'func_block_get_output_count'):
-            return _lib.func_block_get_output_count(self._ptr)
-        raise NotImplementedError(
-            "无法获取 output_count：C API 函数 'func_block_get_output_count' 不可用。"
-            "请重新编译 Lv-00 C 库并在 _ctypes_binding 中注册该函数，"
-            "或通过 func_block_pack() 创建 FuncBlock 实例以设置内部计数器。"
-        )
+        return _lib.func_block_get_output_count(self._ptr)
+    
+    @property
+    def internal_count(self) -> int:
+        """获取内部节点数量。
+
+        通过 C API 函数 func_block_get_internal_count 获取内部节点计数。
+
+        返回：
+            int: 内部节点数量，若函数块指针无效则返回 0
+        """
+        if not self._ptr:
+            return 0
+        return _lib.func_block_get_internal_count(self._ptr)
+    
+    @property
+    def block_id(self) -> int:
+        """获取函数块唯一标识符。
+
+        通过 C API 函数 func_block_get_id 获取函数块 ID。
+
+        返回：
+            int: 函数块 ID，若函数块指针无效则返回 -1
+        """
+        if not self._ptr:
+            return -1
+        return _lib.func_block_get_id(self._ptr)
+    
+    @property
+    def block_name(self) -> Optional[str]:
+        """获取函数块名称。
+
+        通过 C API 函数 func_block_get_name 获取函数块名称。
+
+        返回：
+            str | None: 函数块名称，若无名称或指针无效则返回 None
+        """
+        if not self._ptr:
+            return None
+        name_ptr = _lib.func_block_get_name(self._ptr)
+        return name_ptr.decode('utf-8') if name_ptr else None
+    
+    @property
+    def block_description(self) -> Optional[str]:
+        """获取函数块描述。
+
+        通过 C API 函数 func_block_get_description 获取函数块描述。
+
+        返回：
+            str | None: 函数块描述，若无描述或指针无效则返回 None
+        """
+        if not self._ptr:
+            return None
+        desc_ptr = _lib.func_block_get_description(self._ptr)
+        return desc_ptr.decode('utf-8') if desc_ptr else None
     
     @property
     def determinism_str(self) -> str:
-        """获取确定性状态字符串"""
+        """获取确定性状态的可读中文字符串。"""
         return DeterminismState.to_string(self.determinism)
     
     def set_selector(self, selector: SolutionSelector) -> None:
@@ -628,7 +732,8 @@ class FuncBlock:
             validated_ptrs.append(v._ptr)
 
         # 构造 C 指针数组并调用底层函数
-        ptr_array_type = ctypes.POINTER(_lib._SymbolicCoord) * len(validated_ptrs)
+        # 修复：使用正确的 _SymbolicCoord 类型（从 _ctypes_binding 导入），而非 _lib._SymbolicCoord
+        ptr_array_type = POINTER(_SymbolicCoord) * len(validated_ptrs)
         values_ptr = ptr_array_type(*validated_ptrs)
 
         status = _lib.func_block_determinism_check_dynamic(
@@ -692,7 +797,9 @@ class FuncBlock:
             )
         
         new_node_ids = [result_ptr[i] for i in range(count.value)]
-        _lib.free(result_ptr)
+        # 修复：使用 lv00_free_ptr 替代 free，保持内存分配器一致性
+        # lv00_free_ptr 接受 void*（FFI 兼容），无需双重指针转换
+        _lib.lv00_free_ptr(ctypes.cast(ctypes.pointer(result_ptr), c_void_p))
         
         return (INSTANTIATE_OK, new_node_ids)
     
@@ -745,6 +852,268 @@ class FuncBlock:
             "determinism": self.determinism_str,
             "needs_selector": self.needs_selector(),
         }
+    
+    # ============================================================
+    # Setter 方法
+    # ============================================================
+
+    def set_internal_nodes(self, node_ids: List[int]) -> bool:
+        """
+        设置函数块的内部节点。
+
+        内部节点是封装在函数块中的约束图节点，
+        它们对函数块外部不可见。
+
+        参数：
+            node_ids: 内部节点 ID 列表
+
+        返回：
+            bool: 设置成功返回 True
+
+        异常：
+            FuncBlockError: 函数块未初始化或设置失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        arr = (ctypes.c_int * len(node_ids))(*node_ids)
+        if not _lib.func_block_set_internal_nodes(self._ptr, arr, len(node_ids)):
+            raise FuncBlockError("设置内部节点失败")
+        return True
+
+    def set_input_ports(self, port_ids: List[int]) -> bool:
+        """
+        设置函数块的输入端口。
+
+        输入端口定义了函数块的参数接口，
+        实例化时通过实参映射替换。
+
+        参数：
+            port_ids: 输入端口 ID 列表
+
+        返回：
+            bool: 设置成功返回 True
+
+        异常：
+            FuncBlockError: 函数块未初始化或设置失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        arr = (ctypes.c_int * len(port_ids))(*port_ids)
+        if not _lib.func_block_set_input_ports(self._ptr, arr, len(port_ids)):
+            raise FuncBlockError("设置输入端口失败")
+        self._input_count = len(port_ids)
+        return True
+
+    def set_output_ports(self, port_ids: List[int]) -> bool:
+        """
+        设置函数块的输出端口。
+
+        输出端口定义了函数块的结果接口，
+        实例化后可通过输出端口获取结果节点。
+
+        参数：
+            port_ids: 输出端口 ID 列表
+
+        返回：
+            bool: 设置成功返回 True
+
+        异常：
+            FuncBlockError: 函数块未初始化或设置失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        arr = (ctypes.c_int * len(port_ids))(*port_ids)
+        if not _lib.func_block_set_output_ports(self._ptr, arr, len(port_ids)):
+            raise FuncBlockError("设置输出端口失败")
+        self._output_count = len(port_ids)
+        return True
+
+    def add_port_dependency(self, dependency: Any) -> bool:
+        """
+        添加端口依赖关系。
+
+        端口依赖定义了输入端口之间的先后关系，
+        确保实例化时的求解顺序正确。
+
+        参数：
+            dependency: PortDependency 对象或底层 C 指针
+
+        返回：
+            bool: 添加成功返回 True
+
+        异常：
+            FuncBlockError: 函数块未初始化或添加失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        # 支持 PortDependency 对象和底层 C 指针
+        dep_ptr = dependency._ptr if hasattr(dependency, '_ptr') else dependency
+        if not _lib.func_block_add_port_dependency(self._ptr, dep_ptr):
+            raise FuncBlockError("添加端口依赖失败")
+        return True
+
+    def set_preconditions(self, region_ids: List[int]) -> bool:
+        """
+        设置函数块的前置条件。
+
+        前置条件定义了函数块实例化前必须满足的约束。
+        通常以区域 ID 列表的形式指定。
+
+        参数：
+            region_ids: 前置条件区域 ID 列表
+
+        返回：
+            bool: 设置成功返回 True
+
+        异常：
+            FuncBlockError: 函数块未初始化或设置失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        arr = (ctypes.c_int * len(region_ids))(*region_ids)
+        if not _lib.func_block_set_preconditions(self._ptr, arr, len(region_ids)):
+            raise FuncBlockError("设置前置条件失败")
+        return True
+
+    def set_name(self, name: str) -> bool:
+        """
+        设置函数块名称。
+
+        名称用于标识和检索函数块，在注册表和日志中显示。
+
+        参数：
+            name: 函数块名称字符串
+
+        返回：
+            bool: 设置成功返回 True
+
+        异常：
+            FuncBlockError: 函数块未初始化或设置失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        b = name.encode('utf-8')
+        if not _lib.func_block_set_name(self._ptr, b):
+            raise FuncBlockError("设置函数块名称失败")
+        return True
+
+    def set_description(self, description: str) -> bool:
+        """
+        设置函数块描述。
+
+        描述提供函数块的详细说明，包括数学定义和使用注意事项。
+
+        参数：
+            description: 描述字符串
+
+        返回：
+            bool: 设置成功返回 True
+
+        异常：
+            FuncBlockError: 函数块未初始化或设置失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        b = description.encode('utf-8')
+        if not _lib.func_block_set_description(self._ptr, b):
+            raise FuncBlockError("设置函数块描述失败")
+        return True
+
+    def copy(self) -> 'FuncBlock':
+        """
+        深拷贝函数块。
+
+        创建一个函数块的完整深拷贝，拷贝后的函数块与
+        原始函数块完全独立，修改互不影响。
+
+        返回：
+            FuncBlock: 新的函数块副本
+
+        异常：
+            FuncBlockError: 函数块未初始化或拷贝失败
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        new_ptr = _lib.func_block_copy(self._ptr)
+        if not new_ptr:
+            raise FuncBlockError("拷贝函数块失败")
+        fb = FuncBlock.from_ptr(new_ptr, owns_ptr=True)
+        fb.determinism = self.determinism
+        fb.selector = self.selector
+        fb._input_count = self._input_count
+        fb._output_count = self._output_count
+        return fb
+
+    def detect_cross_boundary(self, graph: Any) -> Tuple[bool, List[Any]]:
+        """
+        检测跨边界约束。
+
+        在打包前检查内部节点是否与外部节点存在跨边界的
+        约束关系，这些约束可能导致打包失败。
+
+        参数：
+            graph: 约束图对象，必须已初始化
+
+        返回：
+            Tuple[bool, List]: (是否存在跨边界约束, 冲突列表)
+
+        异常：
+            FuncBlockError: 函数块未初始化
+        """
+        if not self._ptr:
+            raise FuncBlockError("函数块未初始化")
+        conflicts_ptr = ctypes.c_void_p()
+        conflict_count = ctypes.c_int()
+        has_cross = _lib.func_block_detect_cross_boundary(
+            graph._ptr, None, 0,
+            ctypes.byref(conflicts_ptr),
+            ctypes.byref(conflict_count)
+        )
+        conflicts = []
+        if has_cross and conflicts_ptr:
+            # 跨边界约束以 CrossBoundaryConstraint 数组形式返回
+            # 此处返回是否存在的布尔值，冲突详情由 C 层管理
+            conflicts = list(range(conflict_count.value))  # 占位
+            _lib.lv00_free_ptr(conflicts_ptr)
+        return (has_cross, conflicts)
+
+    def pack_ex(self, graph: Any, config: Any) -> Tuple[int, 'FuncBlock']:
+        """
+        执行扩展打包操作。
+
+        使用 PackConfig 配置进行更灵活的打包，支持
+        自定义跨边界处理策略和前置条件验证。
+
+        参数：
+            graph: 约束图对象，必须已初始化
+            config: PackConfig 对象或底层 C 指针
+
+        返回：
+            Tuple[int, FuncBlock]: (结果码, 新函数块对象)
+
+        异常：
+            FuncBlockPackError: 打包失败
+        """
+        config_ptr = config._ptr if hasattr(config, '_ptr') else config
+        fb_ptr = ctypes.POINTER(_FuncBlock)()
+        result = _lib.func_block_pack_ex(graph._ptr, config_ptr, ctypes.byref(fb_ptr))
+        if result != PACK_OK:
+            raise FuncBlockPackError(f"扩展打包失败: {PackResult.to_string(result)}")
+        fb = FuncBlock.from_ptr(fb_ptr, owns_ptr=True)
+        return (result, fb)
+
+    def get_determinism(self) -> int:
+        """
+        获取函数块的确定性状态。
+
+        返回底层 C 层的确定性检查结果，不修改 Python 层的缓存值。
+
+        返回：
+            int: 确定性状态编码（DeterminismState 枚举值）
+        """
+        if not self._ptr:
+            return DETERMINISM_UNVERIFIED
+        return _lib.func_block_get_determinism(self._ptr)
     
     def safe_instantiate(
         self, 

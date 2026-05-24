@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-05-24
+
+### 新增
+- 新增 `.clang-format` 代码格式化配置，统一 C11 代码风格
+- 新增 `stream_context_util.c` 流式上下文注册分发系统，支持集中化管理
+- 新增 `func_block_registry` FNV-1a 哈希表加速（O(1) 查找，含优雅降级）
+- 新增 `src/_deprecated/README.md` 废弃文件说明文档
+- 新增 `package.json` 中实用的构建/测试/格式化脚本命令
+- 新增 `stream_context_register_builtins()` 内置模块自动注册
+- 新增 `LV00_REGISTER_STREAM_CTX` 便捷注册宏
+
+### 修复
+- **版本号统一**：所有模块版本号统一为 `3.2.0`（CMake/lv00.h/Python/web-gui/concurrent_monitor）
+- 修复 `engine.c` 中流式上下文手动逐模块注册的耦合问题，改用自动分发
+- 修复 `solver.c` 中 18 处散落 TODO(设计决策) 注释，统一为 GMP 标准分配器说明
+- 修复 `func_block_registry.c` 中 `unregister` 函数缺少锁保护的问题
+- 修复 `stream_context_util.h` 中缺少注册机制的问题
+
+### 改进
+- **代码风格**：统一 include 风格、添加 `.clang-format` 配置
+- **内存安全**：CI 新增 macOS sanitizer 构建步骤（Linux 已有）
+- **文档完整性**：废弃目录添加说明文档、CHANGELOG 补全
+- **工程规范性**：`package.json` 添加 cmake 构建脚本、格式化命令
+- **注释质量**：多处 TODO → 正式设计决策文档注释
+
+### 内部变更
+- `include/lv00/` 全部头文件 @version 标签更新为 3.2.0
+- `src/` 全部源文件 @version 标签更新为 3.2.0
+- `python/` 全部 Python 绑定版本字符串更新为 3.2.0
+- `concurrent_monitor/` 版本号同步为 3.2.0
+- `web-gui/` Tauri 和前端版本号同步
+
 ## [3.0.1] - 2026-05-20
 ### 修复
 - 修复 interop.c 和 high_dim.c 中桩函数返回 LV00_OK 的静默失败问题
@@ -100,7 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **C Standard**: C11
 - **Supported Platforms**: Linux, macOS, Windows (MSYS2/MinGW)
 - **Dependencies**: GMP (GNU Multiple Precision Arithmetic Library)
-- **Python**: 3.8+
+- **Python**: 3.10+
 - **Browsers**: Modern browsers with WebAssembly support
 
 ## Contributors

@@ -70,10 +70,10 @@ static FuncBlock* create_midpoint_function(ConstraintGraph *g)
 
     if (result == PACK_OK && fb) {
         /*
-         * 注意：strdup 分配的内存在 func_block_destroy 中释放。
+         * 注意：lv00_strdup_safe 分配的内存在 func_block_destroy 中释放。
          * func_block_destroy 负责清理 fb->name 和 fb->description。
          */
-        fb->name = strdup("Midpoint");
+        fb->name = lv00_strdup_safe("Midpoint");
         printf("  中点函数块创建成功 (ID=%d)\n", fb->id);
     } else {
         printf("  中点函数块创建失败\n");
@@ -119,10 +119,10 @@ static FuncBlock* create_distance_function(ConstraintGraph *g)
 
     if (result == PACK_OK && fb) {
         /*
-         * 注意：strdup 分配的内存在 func_block_destroy 中释放。
+         * 注意：lv00_strdup_safe 分配的内存在 func_block_destroy 中释放。
          * func_block_destroy 负责清理 fb->name 和 fb->description。
          */
-        fb->name = strdup("Distance");
+        fb->name = lv00_strdup_safe("Distance");
         printf("  距离函数块创建成功 (ID=%d)\n", fb->id);
     } else {
         printf("  距离函数块创建失败\n");

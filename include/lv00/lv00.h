@@ -10,7 +10,7 @@
  *         集中定义在 lv00_internal.h 中，该头文件不应被外部使用者直接引用。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #ifndef LV00_MAIN_H
@@ -86,10 +86,10 @@ extern "C" {
 /* 向后兼容：旧宏名 LV00_PATH_SEPARATOR 保留 */
 #define LV00_PATH_SEPARATOR LV00_PATH_SEPARATOR_CHAR
 
-/* ---- 版本信息（统一版本号 v3.0.1，所有模块引用此宏） ---- */
+/* ---- 版本信息（统一版本号 v3.2.0，所有模块引用此宏） ---- */
 #define LV00_VERSION_MAJOR 3
-#define LV00_VERSION_MINOR 0
-#define LV00_VERSION_PATCH 1
+#define LV00_VERSION_MINOR 2
+#define LV00_VERSION_PATCH 0
 #define LV00_VERSION_STRING_EXPAND(maj, min, pat) #maj "." #min "." #pat
 #define LV00_VERSION_STRING_MACRO(maj, min, pat) LV00_VERSION_STRING_EXPAND(maj, min, pat)
 #ifndef LV00_VERSION_STRING
@@ -166,10 +166,10 @@ bool lv00_init(void);
 void lv00_cleanup(void);
 
 /**
- * @brief 获取 Lv-00 系统状态信息
- * @param[out] info 输出缓冲区
- * @param[in]  size 缓冲区大小（字节数）
- * @return 实际写入的字符数（不含终止符），参数无效时返回 0
+ * @brief 获取系统信息字符串
+ * @param buf   输出缓冲区
+ * @param size  缓冲区大小（建议至少 1024 字节）
+ * @return 实际写入的字符数（不含终止符），缓冲区不足时返回所需大小
  */
 int lv00_get_system_info(char *info, size_t size);
 

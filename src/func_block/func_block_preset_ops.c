@@ -1,14 +1,14 @@
-﻿/**
+/**
  * @file func_block_preset_ops.c
  * @brief 预设函数块操作接口实现
  *
- * 实现预设函数块的高级操作，包括链式调用、批量操作、验证测试等。
- * 所有操作都遵循函数式设计原则，不修改原始预设。
+ * @details 实现预设函数块的高级操作，包括链式调用、批量操作、验证测试等。
+ *          所有操作都遵循函数式设计原则，不修改原始预设。
  *
- * 内存管理：
- * - 使用 lv00_malloc / lv00_free 进行内存管理
- * - 所有输出参数由调用者负责释放
- * - 错误时自动清理已分配的资源
+ *          内存管理：
+ *          - 使用 lv00_malloc / lv00_free 进行内存管理
+ *          - 所有输出参数由调用者负责释放
+ *          - 错误时自动清理已分配的资源
  */
 
 #include "func_block_preset_ops.h"
@@ -967,7 +967,7 @@ void preset_search_result_free(PresetSearchResult *result)
  * 预设组合操作实现
  * ================================================================ */
 
-bool preset_compose(const char *preset_a,
+static bool preset_compose(const char *preset_a,
                      const char *preset_b,
                      PresetComposeMode mode,
                      char **out_composed_name)

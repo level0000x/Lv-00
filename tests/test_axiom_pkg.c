@@ -145,7 +145,7 @@ static int test_content_hash(void)
     char *hash = axiom_package_compute_content_hash(pkg);
     if (hash) {
         printf("  内容哈希: %s\n", hash);
-        free(hash);
+        lv00_free_ptr(hash);
     } else {
         printf("  内容哈希: (未实现或为空)\n");
     }

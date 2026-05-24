@@ -195,7 +195,7 @@ static int test_version_hash(void)
     char *hash = module_compute_version_hash(mod);
     if (hash) {
         printf("  版本哈希: %s\n", hash);
-        free(hash);
+        lv00_free_ptr(hash);
     } else {
         printf("  版本哈希: (未实现)\n");
     }

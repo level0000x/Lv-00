@@ -41,8 +41,19 @@
 | 35 | metric_space | 1.0.0 | Metric Space Theory (Fréchet 1906, Hausdorff, Completeness, Banach Fixed Point) | 2026-05-23 |
 | 36 | computability_theory | 1.0.0 | Computability Theory / Recursion Theory (Turing, Church, Kleene, μ-Recursive Functions, Turing Degrees) | 2026-05-23 |
 | 37 | affine_geometry | 1.0.0 | Affine Geometry (Coxeter/Artin, Incidence + Parallelism + Vector Space + Affine Structure) | 2026-05-23 |
+| 38 | universal_algebra | 1.0.0 | Universal Algebra (Birkhoff HSP, Signatures, Equational Classes, Mal'cev Conditions) | 2026-05-24 |
+| 39 | peano_arithmetic | 1.0.0 | Peano Arithmetic / PA (First-Order, Successor + Induction Schema, 70 templates) | 2026-05-24 |
 | — | category_theory | 1.0.0 | Category Theory (Eilenberg-Mac Lane, Objects + Morphisms) | 2026-05-21 |
 | — | intuitionistic_logic | 1.0.0 | Intuitionistic Logic (Heyting's Calculus, BHK Interpretation) | 2026-05-21 |
+| 40 | measure_theory | 1.0.0 | Measure Theory (σ-Algebra + Kolmogorov Measure + Carathéodory Extension + Lebesgue Integration + Convergence Theorems + Lᵖ Spaces + Radon-Nikodym, 90 templates) | 2026-05-24 |
+| 41 | order_theory | 1.0.0 | Order Theory (Poset, Total/Well-Order, Bounds, Morphisms, Constructions, Zorn/Dilworth/Knaster-Tarski) | 2026-05-24 |
+| 42 | probability_theory | 1.0.0 | Probability Theory (Kolmogorov 1933, Kolmogorov Axioms, Conditional Probability, Random Variables, Limit Theorems, Stochastic Processes, 102 templates) | 2026-05-24 |
+| 43 | galois_theory | 1.0.0 | Galois Theory (Field Extensions + Galois Groups + Fundamental Theorem + Solvability by Radicals) | 2026-05-24 |
+| 44 | second_order_arithmetic | 1.0.0 | Second-Order Arithmetic Z₂ (Big Five Subsystems RCA₀/WKL₀/ACA₀/ATR₀/Π¹₁-CA₀, Reverse Mathematics, 135 templates) | 2026-05-24 |
+| 45 | robinson_arithmetic | 1.0.0 | Robinson Arithmetic / Q (Finitely Axiomatized Fragment of PA, 7 Axioms, Essentially Undecidable, No Induction) | 2026-05-24 |
+| 46 | ergodic_theory | 1.0.0 | Ergodic Theory (Measure-Preserving Systems + Ergodicity + Mixing Hierarchy + Birkhoff/von Neumann Theorems + KS Entropy + Ornstein Isomorphism, 49 templates) | 2026-05-24 |
+| 47 | graph_theory | 1.0.0 | Graph Theory (Euler-Diestel, 70 templates, 14 NP-complete problems, Matching/Coloring/Planarity) | 2026-05-24 |
+| 48 | cartesian_closed_category | 1.0.0 | Cartesian Closed Category / CCC (Eilenberg-Kelly, Terminal + Products + Exponentials, Curry-Howard-Lambek, 55 templates) | 2026-05-24 |
 
 ### 1. euclidean_plane v1.0.0
 
@@ -1263,6 +1274,585 @@
 **File**: `axiom_packages/computability_theory.lvz`
 **Test**: `tests/test_axiom_computability_theory.c` (10 test functions)
 
+### 38. universal_algebra v1.0.0
+
+**Mathematical Theory**: Universal algebra (general algebra) — the study of algebraic structures in general, providing a unified framework for groups, rings, lattices, and all equational classes (varieties). Rather than studying specific algebraic structures, universal algebra studies the possible types of algebraic structures and their relationships. The fundamental objects are algebras of a given signature (type) equipped with equational axioms.
+
+- **References**:
+  - Whitehead, A.N. (1898). "A Treatise on Universal Algebra." Cambridge University Press.
+    https://en.wikipedia.org/wiki/A_Treatise_on_Universal_Algebra
+  - Birkhoff, G. (1935). "On the structure of abstract algebras." *Proc. Cambridge Phil. Soc.*, 31: 433-454.
+    https://doi.org/10.1017/S0305004100013463
+  - Burris, S. and Sankappanavar, H.P. (1981). "A Course in Universal Algebra." Springer.
+    http://www.math.uwaterloo.ca/~snburris/htdocs/ualg.html
+  - Grätzer, G. (2008). "Universal Algebra" (2nd ed.). Springer. ISBN 978-0-387-77486-2.
+  - Bergman, G.M. (2011). "An Invitation to General Algebra and Universal Constructions." Springer.
+  - Wikipedia: Universal algebra
+    https://en.wikipedia.org/wiki/Universal_algebra
+  - nLab: Universal algebra
+    https://ncatlab.org/nlab/show/universal+algebra
+  - Wikipedia: Variety (universal algebra)
+    https://en.wikipedia.org/wiki/Variety_(universal_algebra)
+  - Wikipedia: Word problem (mathematics) — section on universal algebra
+    https://en.wikipedia.org/wiki/Word_problem_(mathematics)#The_word_problem_in_universal_algebra
+  - Makanin, G.S. (1977). "The problem of solvability of equations in a free semigroup." *Math. USSR Sbornik*, 32(2): 129-198.
+    https://doi.org/10.1070/SM1977v032n02ABEH002376
+  - Mal'cev, A.I. (1971). "The Metamathematics of Algebraic Systems." North-Holland.
+- **Primitive Notions**: carrier set A, finitary operations f_i : A^{n_i} → A (specified by signature Ω), equational laws (universally quantified identities t_1 = t_2)
+- **Core Axioms**: 10 core axioms in 10 groups:
+  - UA1. Signature definition (operation arities)
+  - UA2. Term algebra (inductive construction of terms)
+  - UA3. Substitution lemma
+  - UA4. Equational satisfaction (A ⊧ t_1 = t_2)
+  - UA5. Congruence relation (equivalence respecting operations)
+  - UA6. Quotient algebra (A/~ with inherited operations)
+  - UA7. Homomorphism (structure-preserving map)
+  - UA8. Subalgebra (subset closed under operations)
+  - UA9. Direct product (coordinatewise operations)
+  - UA10. Free algebra (term algebra modulo equational theory)
+- **Constraint Templates**: 60 total across 10 groups:
+  - Core axioms (10): signature, term algebra, substitution, equational satisfaction, congruence, quotient algebra, homomorphism, subalgebra, direct product, free algebra
+  - Birkhoff's HSP theorem (3): homomorphic image, subalgebra closure, product closure
+  - Congruence theory (6): identity, total, meet, join, lattice, factor theorem
+  - Isomorphism theorems (4): first, second, third, correspondence
+  - Variety theory (6): equational class, HSP theorem, free algebra universal property, subdirect representation, subdirectly irreducible, equational basis
+  - Mal'cev conditions (6): Mal'cev term, congruence permutability, modularity, distributivity, Jónsson terms, Day terms
+  - Term rewriting and equational deduction (5): equational deduction, term rewriting, confluence, termination, Knuth-Bendix completion
+  - Core constructors (8): apply operation, build term, evaluate term, form quotient, form homomorphism, form subalgebra, form product, form free algebra
+  - Derived constructors (12): congruence generation, kernel, image, isomorphism, endomorphism, automorphism, subdirect embedding, ultrafilter construction, clone, polynomial clone, variety membership, equational consequence
+- **Known Unconstructible Problems**: 8
+  - Word problem for varieties/undecidable (Post 1947, Markov 1947)
+  - Equational theory equivalence/undecidable
+  - Finite basis problem/undecidable (Oates-Powell, Perkins)
+  - Variety equivalence/undecidable
+  - Congruence lattice recognition/undecidable (green_verified=false)
+  - Free algebra finiteness/undecidable (green_verified=false)
+  - Knuth-Bendix completion termination/undecidable
+  - Equational unification/undecidable
+- **Bottom Geometry**: universal_algebra_equational
+- **Negation Encoding**: equational_equality
+- **Contradiction Behavior**: explosion_principle
+
+**Relationships to existing packages**:
+- **group_theory**: Groups are a variety in universal algebra (signature (2,1,0) with associativity, identity, inverse equations)
+- **ring_theory**: Rings are a variety (signature (2,2,0,0) with 10 equational axioms)
+- **boolean_algebra**: Boolean algebras are a variety (signature (2,2,1,0,0) with Huntington's 3 equations)
+- **lattice_theory**: Lattices are a variety (signature (2,2) with idempotence, commutativity, associativity, absorption)
+- **field_theory**: Fields are NOT a variety (inversion is partial — 0 has no inverse); this is a key distinction
+- **category_theory**: Universal algebra connects via Lawvere theories and monads (categorical approach)
+- **model_theory**: Model theory = "universal algebra + logic" (allows relations and quantifiers)
+- **simple_type_theory**: Simply typed λ-calculus corresponds to free algebras of algebraic theories
+- **homotopy_type_theory**: HoTT extends dependent type theory with univalence, connecting to categorical universal algebra
+
+**File**: `axiom_packages/universal_algebra.lvz`
+**Test**: `tests/test_axiom_universal_algebra.c` (10 test functions)
+
+### 39. peano_arithmetic v1.0.0
+
+**Mathematical Theory**: First-order Peano Arithmetic (PA) — the standard first-order axiomatization of the natural numbers with successor function, addition, multiplication, and the induction schema. PA is the most widely studied base theory in mathematical logic, proof theory, and computability theory. It serves as the canonical framework for investigating Gödel's incompleteness phenomena, the arithmetical hierarchy, and the foundations of number theory.
+
+- **References**:
+  - Peano, G. (1889). "Arithmetices principia, nova methodo exposita." Turin: Bocca.
+    https://en.wikipedia.org/wiki/Arithmetices_principia,_nova_methodo_exposita
+  - Dedekind, R. (1888). "Was sind und was sollen die Zahlen?" Braunschweig: Vieweg.
+    https://en.wikipedia.org/wiki/Was_sind_und_was_sollen_die_Zahlen%3F
+  - Kaye, R. (1991). "Models of Peano Arithmetic." Oxford Logic Guides 15. Oxford University Press.
+  - Hájek, P. & Pudlák, P. (1993). "Metamathematics of First-Order Arithmetic." Perspectives in Mathematical Logic. Springer.
+  - Mendelson, E. (2015). "Introduction to Mathematical Logic," 6th ed. CRC Press. Chapter 3.
+  - Wikipedia: Peano axioms
+    https://en.wikipedia.org/wiki/Peano_axioms
+  - Wikipedia: Gödel's incompleteness theorems
+    https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems
+  - Wikipedia: Goodstein's theorem
+    https://en.wikipedia.org/wiki/Goodstein%27s_theorem
+  - Wikipedia: Paris–Harrington theorem
+    https://en.wikipedia.org/wiki/Paris%E2%80%93Harrington_theorem
+  - nLab: Peano arithmetic
+    https://ncatlab.org/nlab/show/Peano+arithmetic
+  - Stanford Encyclopedia of Philosophy: Arithmetic
+    https://plato.stanford.edu/entries/arithmetical-hierarchy/
+- **Primitive Notions**: constant 0 (zero), unary function S (successor), binary functions + (addition) and × (multiplication), binary relation < (strict less-than, definable from +)
+- **Core Axioms**: 7 non-induction axioms + 1 induction schema:
+  - PA1: ∀x (S(x) ≠ 0) — 0 is not a successor
+  - PA2: ∀x∀y (S(x) = S(y) → x = y) — successor is injective
+  - PA3: ∀x (x + 0 = x) — left additive identity
+  - PA4: ∀x∀y (x + S(y) = S(x + y)) — recursive addition
+  - PA5: ∀x (0 + x = x) — right additive identity (derivable)
+  - PA6: ∀x (x × 0 = 0) — multiplicative annihilator
+  - PA7: ∀x∀y (x × S(y) = (x × y) + x) — recursive multiplication
+  - PA8: Induction schema — (φ(0) ∧ ∀x(φ(x)→φ(S(x)))) → ∀x φ(x)
+- **Constraint Templates**: 70 total across 11 groups:
+  - Successor axioms (3): zero_not_successor, successor_injective, add_zero_left
+  - Addition axioms (2): add_successor_right, add_zero_right
+  - Multiplication axioms (2): mul_zero, mul_successor_right
+  - Induction schema (4): induction_schema, induction_on_addition, induction_on_multiplication, strong_induction
+  - Order relation (6): less_than_definition, less_than_irreflexive, less_than_transitive, less_than_total, zero_is_least, no_largest_element
+  - Elementary arithmetic consequences (16): successor_not_equal, successor_distinct, addition_commutative, addition_associative, addition_cancellative, multiplication_commutative, multiplication_associative, distributivity_left, distributivity_right, mul_identity_right, mul_identity_left, mul_zero_commutes, no_zero_divisors, order_add_right, order_add_left, order_mul_positive
+  - Exponentiation (5): exp_zero, exp_successor, exp_addition_law, exp_multiplication_law, exp_power_law
+  - Divisibility and remainder (4): divisibility_definition, division_algorithm, euclidean_gcd, bezout_identity
+  - Primality (4): prime_definition, unique_prime_factorization, infinitude_of_primes, euclid_lemma
+  - Core constructors (13): successor, predecessor, add, subtract_truncated, multiply, exponentiate, less_than_compare, less_or_equal_compare, equality_compare, maximum, minimum, factorial
+  - Derived constructors (13): quotient, remainder, divisibility_test, gcd, lcm, primality_test, next_prime, prime_factorization, beta_function_encode, beta_function_decode, bounded_forall, bounded_exists
+- **Known Unconstructible Problems**: 8
+  - Gödel sentence/godel_first_incompleteness (true but unprovable in PA)
+  - Consistency of PA/godel_second_incompleteness (PA cannot prove Con(PA))
+  - Goodstein's theorem/transfinite_induction_up_to_epsilon_0 (provable in ZFC but not PA)
+  - Paris–Harrington principle/independence_from_PA (first natural combinatorial independent of PA)
+  - Kirby–Paris hydra/transfinite_induction_up_to_epsilon_0 (hydra game, independent of PA)
+  - Truth predicate for PA/tarski_undefinability (no consistent extension of PA defines its own truth)
+  - Halting problem for PA/turing_halting_problem (reduction from Turing's result)
+  - ε₀ consistency/gentzen_consistency_proof (requires transfinite induction up to ε₀)
+- **Bottom Geometry**: peano_arithmetic_discrete
+- **Negation Encoding**: classical_first_order_logic
+- **Contradiction Behavior**: explosion_principle
+
+**Relationships to existing packages**:
+- **zfc_set_theory**: PA is interpretable in ZFC (ω with von Neumann ordinals); ZFC proves Con(PA) by constructing the standard model ℕ
+- **number_theory**: PA is the first-order fragment of number theory; most elementary number theory is formalizable in PA
+- **computability_theory**: PA and Turing computability are intimately linked — the arithmetical hierarchy is defined over PA-provable formulas
+- **proof_theory**: PA is the central object of study in proof theory; Gentzen's consistency proof uses transfinite induction up to ε₀
+- **model_theory**: PA has nonstandard models (by compactness theorem); the study of models of PA is a major area of model theory
+- **classical_propositional_logic**: PA extends classical propositional logic with first-order quantifiers and the induction schema
+- **ring_theory**: (ℕ, +, ×) is the initial semiring; PA's arithmetic axioms define the free semiring on no generators
+- **group_theory**: Addition in PA makes (ℕ, +) a commutative monoid (not a group — no additive inverses)
+- **category_theory**: The standard model ℕ is the initial object in the category of PA-models
+- **homotopy_type_theory**: HoTT's natural number type (Nat) satisfies the Peano axioms with higher inductive types
+
+**File**: `axiom_packages/peano_arithmetic.lvz`
+**Test**: `tests/test_axiom_peano_arithmetic.c` (10 test functions)
+
+### 40. measure_theory v1.0.0 (upgraded 2026-05-24)
+
+**Mathematical Theory**: Measure Theory — the rigorous mathematical study of "size," "length," "area," and "volume" through the lens of σ-algebras and countably additive set functions. Formalized via the standard axiomatization: (1) σ-algebra axioms defining measurable sets, (2) Kolmogorov's measure axioms (null empty set, non-negativity, countable additivity), (3) Carathéodory's outer measure framework for constructing measures from pre-measures, and (4) the full edifice of Lebesgue integration, convergence theorems, product measures, Radon-Nikodym theory, L^p spaces, Borel/Radon measures, probability measures, and differentiation theorems.
+
+- **References**:
+  - Lebesgue, H. (1902). "Integrale, Longueur, Aire." Annali di Matematica Pura ed Applicata, 7(1): 231-359.
+    https://doi.org/10.1007/BF02419242
+  - Carathéodory, C. (1914). "Ueber das lineare Mass von Punktmengen." Nachrichten von der Gesellschaft der Wissenschaften zu Goettingen.
+  - Kolmogorov, A.N. (1933). "Grundbegriffe der Wahrscheinlichkeitsrechnung." Springer, Berlin.
+    https://en.wikipedia.org/wiki/Foundations_of_probability
+  - Halmos, P.R. (1950). "Measure Theory." D. Van Nostrand. ISBN 0-387-90088-8.
+  - Rudin, W. (1987). "Real and Complex Analysis" (3rd ed.). McGraw-Hill. ISBN 0-07-054234-1.
+  - Folland, G.B. (1999). "Real Analysis: Modern Techniques and Their Applications" (2nd ed.). Wiley. ISBN 0-471-31716-0.
+  - Bogachev, V.I. (2007). "Measure Theory, Vol. I & II." Springer. ISBN 978-3-540-34513-8.
+  - Dudley, R.M. (2002). "Real Analysis and Probability." Cambridge. ISBN 0-521-00754-2.
+  - Cohn, D.L. (2013). "Measure Theory" (2nd ed.). Birkhäuser. ISBN 978-1-4614-6955-1.
+  - Wikipedia: Measure (mathematics)
+    https://en.wikipedia.org/wiki/Measure_(mathematics)
+  - Wikipedia: Sigma-algebra
+    https://en.wikipedia.org/wiki/%CE%A3-algebra
+  - Wikipedia: Measurable space
+    https://en.wikipedia.org/wiki/Measurable_space
+  - Wikipedia: Measure space
+    https://en.wikipedia.org/wiki/Measure_space
+  - Wikipedia: Outer measure
+    https://en.wikipedia.org/wiki/Outer_measure
+  - Wikipedia: Caratheodory's extension theorem
+    https://en.wikipedia.org/wiki/Carath%C3%A9odory%27s_extension_theorem
+  - Wikipedia: Lebesgue measure
+    https://en.wikipedia.org/wiki/Lebesgue_measure
+  - Wikipedia: Radon-Nikodym theorem
+    https://en.wikipedia.org/wiki/Radon%E2%80%93Nikodym_theorem
+  - Wikipedia: Fubini's theorem
+    https://en.wikipedia.org/wiki/Fubini%27s_theorem
+  - Wikipedia: Non-measurable set
+    https://en.wikipedia.org/wiki/Non-measurable_set
+  - Wikipedia: Banach-Tarski paradox
+    https://en.wikipedia.org/wiki/Banach%E2%80%93Tarski_paradox
+  - Wikipedia: Vitali set
+    https://en.wikipedia.org/wiki/Vitali_set
+  - Wikipedia: Solovay model
+    https://en.wikipedia.org/wiki/Solovay_model
+  - Wikipedia: Universal measurable set
+    https://en.wikipedia.org/wiki/Universal_measurable_set
+  - nLab: measure space
+    https://ncatlab.org/nlab/show/measure+space
+  - nLab: measurable space
+    https://ncatlab.org/nlab/show/measurable+space
+  - nLab: sigma-algebra
+    https://ncatlab.org/nlab/show/sigma-algebra
+- **Primitive Notions**: set X (underlying space), σ-algebra Σ (collection of measurable subsets), measure μ: Σ → [0, +∞], outer measure μ*: P(X) → [0, +∞], measurable function f: (X,Σ) → (Y,Τ)
+- **Core Axioms**: 6 axioms in 2 groups:
+  - Group I. σ-Algebra Axioms (3): whole space (S1), complement closure (S2), countable union closure (S3)
+  - Group II. Measure Axioms (3) [Kolmogorov]: null empty set (M1), non-negativity (M2), countable additivity (M3)
+- **Constraint Templates**: 90 in 16 groups:
+  - Group I. σ-Algebra Core Axioms (3): sigma_algebra_contains_X, sigma_algebra_complement, sigma_algebra_countable_union
+  - Group II. σ-Algebra Derived Properties (5): contains_empty, countable_intersection, set_difference, symmetric_difference, generated
+  - Group III. Measure Core Axioms (3): empty_set_zero, non_negativity, countable_additivity
+  - Group IV. Measure Derived Properties (8): monotonicity, countable_subadditivity, continuity_from_below/above, finite_additivity, complement, inclusion_exclusion, sigma_finiteness
+  - Group V. Outer Measure & Carathéodory (6): outer_measure, caratheodory_criterion, caratheodory_extension, lebesgue_outer_measure, lebesgue_measurable, lebesgue_measure
+  - Group VI. Measurable Functions (7): measurable_function, characteristic_function, simple_function, pointwise_limit_measurable, sup_inf_measurable, composition_measurable, borel_measurable_function
+  - Group VII. Lebesgue Integration (8): integral_simple_function, integral_non_negative, integral_general, integrable_function, integral_linearity, integral_monotonicity, markov_inequality, chebyshev_inequality
+  - Group VIII. Convergence Theorems (7): MCT, fatou_lemma, DCT, egorov_theorem, lusin_theorem, convergence_in_measure, vitali_convergence_theorem
+  - Group IX. Product Measures & Fubini-Tonelli (5): product_sigma_algebra, product_measure, tonelli_theorem, fubini_theorem, product_measure_rectangle
+  - Group X. Radon-Nikodym & Decomposition (7): absolute_continuity, mutual_singularity, radon_nikodym_derivative, radon_nikodym_theorem, lebesgue_decomposition, signed_measure, hahn_decomposition
+  - Group XI. L^p Spaces (6): lp_norm, linf_norm, lp_space, holder_inequality, minkowski_inequality, riesz_fischer_theorem
+  - Group XII. Borel & Radon Measures (5): borel_sigma_algebra, borel_measure, radon_measure, borel_measure_regularity, riesz_representation_theorem
+  - Group XIII. Probability Measure (5): probability_measure, probability_space, random_variable, expected_value, kolmogorov_extension_theorem
+  - Group XIV. Modes of Convergence (5): convergence_ae, convergence_in_lp, convergence_in_measure_implies_ae_subsequence, lp_implies_measure, dominated_lp_convergence
+  - Group XV. Differentiation & Covering (4): vitali_covering_lemma, lebesgue_differentiation_theorem, hardy_littlewood_maximal_function, maximal_function_inequality
+  - Group XVI. Core Constructors (6): construct_sigma_algebra, construct_measure_from_premeasure, construct_lebesgue_measure, construct_product_measure, construct_pushforward_measure, construct_restriction_measure
+- **Known Unconstructible Problems**: 8 (Vitali non-measurable set/requires AC, Banach-Tarski paradox/non-measurable decomposition using AC, Lebesgue measure on all subsets/independent of ZFC, measure extension to all sets/impossible in ZFC, universal measurable set existence/requires large cardinals, measure equivalence of σ-algebras/undecidable in general, computable Lebesgue measure for arbitrary sets/non-computable, Solovay model all sets measurable/requires inaccessible cardinal consistency)
+- **Bottom Geometry**: measure_space_general
+- **Negation Encoding**: classical_measure_complement
+- **Contradiction Behavior**: explosion_principle
+- **Relationship to other theories**:
+  - **zfc_set_theory**: Measures are set functions defined on σ-algebras of subsets; the Axiom of Choice is essential for proving existence of non-measurable sets
+  - **point_set_topology**: Borel σ-algebra is generated from open sets; Lebesgue σ-algebra is the completion; Radon measures bridge topology and measure
+  - **real_analysis**: Lebesgue measure and Lebesgue integration are the core tools of real analysis
+  - **functional_analysis**: L^p spaces are Banach spaces; L^2 is a Hilbert space; Riesz representation theorem connects measures to linear functionals; spectral measures
+  - **probability**: Probability spaces are measure spaces with total measure 1 (Kolmogorov 1933); random variables are measurable functions
+  - **boolean_algebra**: The measure algebra (Σ/~, where A~B iff μ(AΔB)=0) is a Boolean algebra
+  - **information_theory**: Shannon entropy is a special case of measure-theoretic entropy
+  - **metric_space**: Carathéodory construction uses metric outer measures; Hausdorff measure generalizes Lebesgue measure
+  - **descriptive_set_theory**: Lebesgue measurability is a regularity property studied in DST
+  - **computability_theory**: Computable measure theory studies algorithmic aspects of measures
+
+**File**: `axiom_packages/measure_theory.lvz`
+**Test**: `tests/test_axiom_measure_theory.c` (9 test functions)
+
+---
+
+### 41. probability_theory v1.0.0
+
+**Mathematical Theory**: Probability theory — the mathematical study of random phenomena and uncertainty, founded on Kolmogorov's axioms (1933). A probability space (Ω, F, P) consists of a sample space Ω, a σ-algebra F of events, and a probability measure P with total mass 1. This axiomatization unified probability with measure theory and provides the rigorous foundation for statistics, stochastic processes, and modern applications.
+
+- **References**:
+  - Kolmogorov, A.N. (1933). "Grundbegriffe der Wahrscheinlichkeitsrechnung" (Foundations of the Theory of Probability). Berlin: Springer.
+    https://en.wikipedia.org/wiki/Foundations_of_the_Theory_of_Probability
+  - Wikipedia: Probability axioms
+    https://en.wikipedia.org/wiki/Probability_axioms
+  - Wikipedia: Probability theory
+    https://en.wikipedia.org/wiki/Probability_theory
+  - Wikipedia: Probability space
+    https://en.wikipedia.org/wiki/Probability_space
+  - Wikipedia: Random variable
+    https://en.wikipedia.org/wiki/Random_variable
+  - Wikipedia: Conditional probability
+    https://en.wikipedia.org/wiki/Conditional_probability
+  - Wikipedia: Law of large numbers
+    https://en.wikipedia.org/wiki/Law_of_large_numbers
+  - Wikipedia: Central limit theorem
+    https://en.wikipedia.org/wiki/Central_limit_theorem
+  - Wikipedia: Bayes' theorem
+    https://en.wikipedia.org/wiki/Bayes%27_theorem
+  - Wikipedia: Kolmogorov complexity
+    https://en.wikipedia.org/wiki/Kolmogorov_complexity
+  - Wikipedia: Algorithmically random sequence
+    https://en.wikipedia.org/wiki/Algorithmically_random_sequence
+  - Billingsley, P. (1995). "Probability and Measure" (3rd ed.). Wiley. ISBN 0-471-00710-2.
+  - Durrett, R. (2019). "Probability: Theory and Examples" (5th ed.). Cambridge University Press.
+  - Feller, W. (1968). "An Introduction to Probability Theory and Its Applications" (3rd ed., Vol. 1 & 2). Wiley.
+  - nLab: Probability theory
+    https://ncatlab.org/nlab/show/probability+theory
+  - Stanford Encyclopedia of Philosophy: Interpretations of Probability
+    https://plato.stanford.edu/entries/probability-interpret/
+- **Primitive Notions**: sample space Ω (set of all possible outcomes), event space F (σ-algebra of measurable subsets), probability measure P: F → [0, 1], random variable X: Ω → ℝ (measurable function), probability distribution (law of a random variable)
+- **Core Axioms** (Kolmogorov, 1933):
+  - K1. Non-negativity: P(E) ≥ 0 for all events E ∈ F
+  - K2. Normalization: P(Ω) = 1
+  - K3. σ-Additivity: For pairwise disjoint E₁, E₂, ... ∈ F: P(⋃ᵢ Eᵢ) = Σᵢ P(Eᵢ)
+- **Constraint Templates**: 102 in 12 groups:
+  - Group I. Kolmogorov Axioms (4): non_negativity, normalization, sigma_additivity, finite_additivity
+  - Group II. Elementary Consequences (10): empty_set, complement, monotonicity, bounds, inclusion_exclusion_two/three, boole_inequality, bonferroni_inequality, continuity_below/above
+  - Group III. Conditional Probability (7): conditional_probability, multiplication_rule, chain_rule, law_total_probability, bayes_theorem, prior_posterior, likelihood
+  - Group IV. Independence (6): independence_two_events, conditional_independence, mutual_independence, pairwise_independence, independent_sigma_algebras, independent_random_variables
+  - Group V. Random Variables (6): random_variable, discrete_random_variable, continuous_random_variable, indicator_random_variable, simple_random_variable, sigma_algebra_generated_by_rv
+  - Group VI. Probability Distributions (12): cdf, pmf, pdf, joint_distribution, marginal_distribution, conditional_distribution, bernoulli/binomial/poisson/normal/exponential/uniform distributions
+  - Group VII. Expected Value and Moments (14): expected_value_discrete/continuous/general, linearity_expectation, variance, standard_deviation, covariance, correlation_coefficient, mgf, characteristic_function, law_unconscious_statistician, jensen/markov/chebyshev_inequalities
+  - Group VIII. Convergence (6): convergence_almost_sure, convergence_in_probability, convergence_in_lp, convergence_in_distribution, convergence_implications, skorokhod_representation
+  - Group IX. Limit Theorems (7): weak_law_large_numbers, strong_law_large_numbers, central_limit_theorem, lindeberg_feller_clt, berry_esseen_theorem, borel_cantelli_first/second
+  - Group X. Stochastic Processes (12): stochastic_process, filtration, adapted_process, markov_property, markov_chain, martingale, submartingale, supermartingale, stopping_time, optional_stopping_theorem, brownian_motion, poisson_process
+  - Group XI. Conditional Expectation (5): conditional_expectation_definition, tower_property, taking_out_known, conditional_jensen, conditional_variance_formula
+  - Group XII. Information-Theoretic Quantities (8): shannon_entropy, differential_entropy, joint_entropy, conditional_entropy, mutual_information, kullback_leibler_divergence, entropy_chain_rule, data_processing_inequality
+- **Known Unconstructible/Undecidable Problems**: 8
+  - kolmogorov_complexity_uncomputable: The length of the shortest program outputting a given string is uncomputable (reduces to halting problem)
+  - chaitin_constant_uncomputable: The halting probability Ω is algorithmically random and its digits are uncomputable beyond finitely many positions
+  - martin_lof_randomness_undecidable: Determining if a sequence is Martin-Löf random is Π₂⁰-complete
+  - stopping_time_expectation_undecidable: Computing expected value of certain stopping times can be algorithmically undecidable
+  - stochastic_process_prediction_undecidable: Predicting outcomes of general stochastic processes is algorithmically impossible
+  - continuous_probability_exact_computation: Computing exact probabilities in continuous spaces can require infinite precision
+  - distribution_equality_undecidable: Determining if two continuous distributions are equal can be undecidable
+  - entropy_computation_undecidable: Computing entropy of certain distributions may be non-computable
+- **Bottom Geometry**: probability_space_sample_space
+- **Negation Encoding**: classical_complement_in_probability
+- **Contradiction Behavior**: explosion_principle
+- **Relationship to other theories**:
+  - **measure_theory**: Probability theory is a special case of measure theory where the total measure is 1; all measure-theoretic results apply
+  - **zfc_set_theory**: Probability spaces are defined within ZFC; the existence of non-measurable sets affects probability constructions
+  - **real_analysis**: Random variables are measurable functions; Lebesgue integration underlies expectation
+  - **information_theory**: Shannon entropy H(X) = -Σ p(x) log p(x) bridges probability and information
+  - **computability_theory**: Algorithmic randomness and Kolmogorov complexity connect probability to computability
+  - **classical_propositional_logic**: Probabilistic logic extends classical logic with degrees of belief
+  - **functional_analysis**: Lᵖ spaces are fundamental; characteristic functions; martingale theory
+
+**File**: `axiom_packages/probability_theory.lvz`
+**Test**: `tests/test_axiom_probability_theory.c` (10 test functions)
+
+---
+
+### 42. galois_theory v1.0.0
+
+**Mathematical Theory**: Galois theory — the connection between field theory and group theory, developed by Évariste Galois (1830s). Provides a powerful framework for understanding field extensions through their automorphism groups, with applications to solvability of polynomial equations by radicals.
+- **References**:
+  - Wikipedia: Galois theory
+    https://en.wikipedia.org/wiki/Galois_theory
+  - Wikipedia: Fundamental theorem of Galois theory
+    https://en.wikipedia.org/wiki/Fundamental_theorem_of_Galois_theory
+  - Wikipedia: Galois group
+    https://en.wikipedia.org/wiki/Galois_group
+  - Wikipedia: Inverse Galois problem
+    https://en.wikipedia.org/wiki/Inverse_Galois_problem
+  - Rotman, J.J. (1990). "Galois Theory" (2nd ed.). Springer.
+  - Stewart, I. (2015). "Galois Theory" (4th ed.). CRC Press.
+  - Lang, S. (2002). "Algebra" (3rd ed.). Springer. Chapter VI.
+- **Primitive Notions**: field extension E/F, Galois group Gal(E/F), automorphism, fixed field, splitting field
+- **Core Concepts**:
+  - Field Extension: E is a field containing F as a subfield
+  - Galois Group: Automorphisms of E that fix F pointwise
+  - Galois Extension: Normal + Separable extension
+  - Fundamental Theorem: One-to-one correspondence between subgroups of Gal(E/F) and intermediate fields
+  - Solvability by Radicals: A polynomial is solvable by radicals iff its Galois group is solvable
+- **Constraint Templates**: 62 (12 field extension + 16 Galois group + 14 solvability + 8 classical constructions + 12 advanced)
+- **Known Unconstructible/Undecidable Problems**: 8
+  - inverse_galois_problem (unsolved): Is every finite group realizable as a Galois group over Q?
+  - galois_group_computation: Reduces to polynomial factorization
+  - solvability_by_radicals_decision: Reduces to Galois group computation
+  - minimal_polynomial_computation: Reduces to polynomial factorization
+  - splitting_field_construction: Reduces to polynomial factorization
+  - absolute_galois_group_q: Structure of Gal(Q̄/Q) is an open problem
+  - hilbert_irreducibility_specialization: Reduces to polynomial irreducibility
+  - galois_cohomology_computation: Reduces to group cohomology
+- **Classical Applications**:
+  - Abel-Ruffini theorem: General quintic not solvable by radicals
+  - Doubling the cube: Impossible (∛2 not constructible)
+  - Angle trisection: Impossible in general
+  - Squaring the circle: Impossible (π transcendental)
+  - Constructible polygons: n = 2ᵏ × product of distinct Fermat primes
+- **Bottom Geometry**: galois_theory_field_extension
+- **Negation Encoding**: classical_equality
+- **Contradiction Behavior**: explosion_principle
+- **Dependencies**:
+  - **group_theory**: Galois groups are groups; solvability uses derived series
+  - **field_theory**: Field extensions are built on fields; splitting fields, normal closures
+  - **ring_theory**: Polynomial rings and irreducibility
+  - **number_theory**: Cyclotomic fields, algebraic number theory connections
+
+**File**: `axiom_packages/galois_theory.lvz`
+**Test**: `tests/test_axiom_galois_theory.c` (10 test functions)
+
+---
+
+### 43. second_order_arithmetic v1.0.0
+
+**Mathematical Theory**: Second-Order Arithmetic (Z₂) — a collection of axiomatic systems that formalize the natural numbers and their subsets. It is an alternative to axiomatic set theory as a foundation for much of mathematics. The standard axiomatization is denoted Z₂. The study of its subsystems forms the core of reverse mathematics, a research program investigating which axioms are necessary to prove theorems of ordinary mathematics.
+
+- **References**:
+  - Simpson, S.G. (2009). "Subsystems of Second Order Arithmetic" (2nd ed.). Cambridge University Press. ISBN 978-0-521-88439-6.
+    https://www.personal.psu.edu/t20/sosoa/
+  - Shapiro, S. (1991). "Foundations without Foundationalism: A Case for Second-Order Logic." Oxford University Press.
+  - Wikipedia: Second-order arithmetic
+    https://en.wikipedia.org/wiki/Second-order_arithmetic
+  - Wikipedia: Reverse mathematics
+    https://en.wikipedia.org/wiki/Reverse_mathematics
+  - Stanford Encyclopedia of Philosophy: Reverse Mathematics
+    https://plato.stanford.edu/entries/reverse-mathematics/
+  - Friedman, H. (1975). "Some systems of second order arithmetic and their use." Proceedings of the ICM.
+  - Hirschfeldt, D.R. (2015). "Slicing the Truth." World Scientific.
+  - nLab: second-order arithmetic
+    https://ncatlab.org/nlab/show/second-order+arithmetic
+- **Primitive Notions**: Two-sorted language L = {0, S, +, ·, =, <, ∈}
+  - Individual variables (natural numbers): n, m, k, ...
+  - Set variables (subsets of ℕ): X, Y, Z, ...
+  - Functions: 0 (zero), S (successor), + (addition), · (multiplication)
+  - Relations: = (equality), < (order), ∈ (membership)
+- **Core Axioms**:
+  - I. Basic (Robinson) Axioms (11): successor, addition, multiplication, order
+  - II. Set Induction Axiom (1): ∀X[(0∈X ∧ ∀n(n∈X→S(n)∈X)) → ∀n(n∈X)]
+  - III. Full Comprehension Schema (1): ∃Z∀n(n∈Z↔φ(n)) for any second-order φ
+  - IV. Restricted Induction Schemes (Σ⁰₁, Π⁰₁, arithmetical, full second-order)
+- **The Big Five Subsystems** (Reverse Mathematics):
+  1. **RCA₀** (Recursive Comprehension): Q + Δ⁰₁-COMP + Σ⁰₁-IND. Ordinal: ω^ω. ↔ Constructive mathematics (Bishop)
+  2. **WKL₀** (Weak König's Lemma): RCA₀ + WKL. Ordinal: ω^ω. ↔ Finitistic reductionism (Hilbert)
+  3. **ACA₀** (Arithmetical Comprehension): Q + arithmetical COMP + set induction. Ordinal: ε₀. ↔ Predicativism (Weyl)
+  4. **ATR₀** (Arithmetical Transfinite Recursion): ACA₀ + ATR. Ordinal: Γ₀. ↔ Predicative reductionism (Friedman)
+  5. **Π¹₁-CA₀** (Π¹₁ Comprehension): ACA₀ + Π¹₁-COMP. Ordinal: Ψ₀(Ω_ω). ↔ Impredicativism
+- **Constraint Templates**: 135 in 14 groups:
+  - Group I (11): Basic (Robinson) axioms — successor, addition, multiplication, order
+  - Group II (1): Set induction axiom
+  - Group III (8): Comprehension schemes — Δ⁰₁, Σ⁰₁, Π⁰₁, Σ⁰ₖ, arithmetical, Π¹₁, Σ¹₁, full
+  - Group IV (7): Induction schemes — Σ⁰₁, Π⁰₁, arithmetical, full second-order, LNP, bounding
+  - Group V (10): Big Five subsystems — RCA₀, WKL₀ (tree+path), ACA₀ (jump), ATR₀ (WO+H-set), Π¹₁-CA₀
+  - Group VI (15): Elementary consequences — commutativity, associativity, distributivity, order properties
+  - Group VII (8): Coding and representation — pairs, tuples, sequences, reals, countable structures, trees, Borel, analytical
+  - Group VIII (30): Reverse mathematics equivalences — RCA₀(2), WKL₀(7), ACA₀(8), ATR₀(8), Π¹₁-CA₀(5)
+  - Group IX (10): Arithmetical and analytical hierarchy — Σ⁰ₖ, Π⁰ₖ, Δ⁰ₖ, Σ¹₁, Π¹₁, Δ¹₁, Post's theorem, Kleene normal form
+  - Group X (6): ω-models and β-models — definitions, min models for RCA₀/WKL₀/ATR₀/Π¹₁-CA₀
+  - Group XI (6): Proof-theoretic ordinals — ω^ω, ε₀, Γ₀, Ψ₀(Ω_ω), full Z₂
+  - Group XII (5): Conservation and independence — WKL₀/ACA₀/ATR₀ conservativity, strict inclusion chain
+  - Group XIII (10): Core constructors — comprehension, Turing jump, set operations, trees, paths, H-sets, ordinals, reals
+  - Group XIV (8): Derived constructors — Turing/many-one/arithmetic/hyperarithmetical reducibility, relativized hierarchies, Borel codes
+- **Known Unconstructible/Independent Problems**: 12
+  - consistency_of_Z2: Unprovable in Z₂ (Gödel's second incompleteness)
+  - true_arithmetical_sentences: Tarski's undefinability of truth
+  - goodstein_theorem: Independent of PA, provable in ACA₀
+  - paris_harrington_theorem: Independent of PA, equivalent to ACA₀ over RCA₀
+  - kruskal_tree_theorem: Independent of ACA₀, provable in ATR₀
+  - frasse_conjecture_wqo: Equivalent to ATR₀ over RCA₀ (Laver 1971)
+  - pi11_comprehension_consistency: Transcends Π¹₁-CA₀
+  - full_Z2_consistency: Unprovable in Z₂
+  - wkl0_vs_rca0_independence: Π¹₁-conservative but not Σ¹₁-conservative
+  - ramsey_theory_RT22_complexity: Between RCA₀ and WKL₀ (exact strength **open**, green_verified=false)
+  - determinacy_of_Borel_games: Provable in Z₂ but strength exceeds Π¹₁-CA₀ (Martin 1975)
+  - projective_determinacy: Not provable in Z₂; requires large cardinal axioms
+- **Key Reverse Mathematics Equivalences**:
+  - WKL₀ ≡ Heine-Borel ≡ Brouwer fixed point ≡ Jordan curve ≡ Gödel completeness (countable) ≡ Separable Hahn-Banach
+  - ACA₀ ≡ Bolzano-Weierstrass ≡ Supremum principle ≡ Cantor-Bendixson ≡ König's lemma ≡ Countable vector space basis ≡ RT³₂
+  - ATR₀ ≡ Well-ordering comparability ≡ Perfect set (closed) ≡ Lusin separation ≡ Open Ramsey ≡ Open determinacy ≡ Fraïssé's conjecture
+  - Π¹₁-CA₀ ≡ Perfect set (analytic) ≡ Cantor-Bendixson (analytic) ≡ Coanalytic uniformization
+- **Bottom Geometry**: second_order_arithmetic_natural_numbers — ⊥ is the empty set ∅ in the set universe. The two-sorted structure has natural numbers and sets of natural numbers as distinct types.
+- **Negation Encoding**: classical_material_implication — classical negation in a two-sorted language.
+- **Contradiction Behavior**: explosion_principle — classical logic, from ⊥ any proposition follows.
+- **Relationship to existing packages**:
+  - **peano_arithmetic**: Z₂ extends PA with second-order quantification; ACA₀ is conservative over PA for arithmetical sentences
+  - **robinson_arithmetic**: The basic axioms of Z₂ are exactly Robinson arithmetic Q
+  - **zfc_set_theory**: Z₂ is much weaker than ZFC but sufficient for most "ordinary mathematics"
+  - **computability_theory**: RCA₀ captures computable mathematics; Turing reducibility formalized in Z₂
+  - **proof_theory**: Ordinal analysis of subsystems (ω^ω, ε₀, Γ₀, Ψ₀(Ω_ω))
+  - **descriptive_set_theory**: Borel and projective hierarchies formalized in Z₂
+  - **real_analysis**: Real numbers coded as sets of naturals; most classical analysis in Z₂
+  - **measure_theory**: Lebesgue measure formalizable in ACA₀; measure-theoretic results classified by Big Five
+- **Foundational Significance**:
+  - RCA₀ ↔ Computable mathematics (constructive)
+  - WKL₀ ↔ Finitistic reductionism (Hilbert's program)
+  - ACA₀ ↔ Predicative analysis (Weyl)
+  - ATR₀ ↔ Limit of predicativity (Feferman-Schütte ordinal Γ₀)
+  - Π¹₁-CA₀ ↔ Impredicative analysis
+  - Full Z₂ ↔ Classical analysis (all second-order subsets of ℕ exist)
+
+**File**: `axiom_packages/second_order_arithmetic.lvz`
+**Test**: `tests/test_axiom_second_order_arithmetic.c` (10 test functions, 135 templates, 12 unconstructible problems)
+
+---
+
+### 46. ergodic_theory v1.0.0
+
+**Mathematical Theory**: Ergodic theory — the study of measure-preserving transformations, their statistical properties, and the long-term average behavior of dynamical systems. Founded by Birkhoff (1931), von Neumann (1932), and Kolmogorov (1958), ergodic theory bridges measure theory, probability theory, and dynamics. The central insight is that for ergodic systems, the time average equals the space average (Birkhoff's ergodic theorem).
+
+- **References**:
+  - Birkhoff, G.D. (1931). "Proof of the Ergodic Theorem." *PNAS*, 17(12): 656-660.
+    https://doi.org/10.1073/pnas.17.12.656
+  - von Neumann, J. (1932). "Proof of the Quasi-Ergodic Hypothesis." *PNAS*, 18(1): 70-82.
+    https://doi.org/10.1073/pnas.18.1.70
+  - Kolmogorov, A.N. (1958). "A New Metric Invariant of Transient Dynamical Systems." *DAN SSSR*, 119(5): 861-864.
+  - Ornstein, D.S. (1970). "Bernoulli Shifts with the Same Entropy are Isomorphic." *Adv. Math.*, 4(3): 337-352.
+    https://doi.org/10.1016/0001-8708(70)90029-0
+  - Halmos, P.R. (1956). "Lectures on Ergodic Theory." Chelsea.
+  - Walters, P. (1982). "An Introduction to Ergodic Theory." GTM 79, Springer.
+  - Furstenberg, H. (1981). "Recurrence in Ergodic Theory and Combinatorial Number Theory." Princeton.
+  - Wikipedia: Ergodic theory
+    https://en.wikipedia.org/wiki/Ergodic_theory
+  - Wikipedia: Measure-preserving dynamical system
+    https://en.wikipedia.org/wiki/Measure-preserving_dynamical_system
+  - Wikipedia: Mixing (mathematics)
+    https://en.wikipedia.org/wiki/Mixing_(mathematics)
+- **Primitive Notions**: probability space (X, B, μ) with μ(X) = 1, measurable transformation T: X → X, measure-preserving property μ(T⁻¹(A)) = μ(A), time average operator A_n(f) = (1/n)Σ f∘Tᵏ
+- **Core Axioms**: 4 groups:
+  - I. Measure-Preserving System (4): probability space (MDS1), measurable T (MDS2), μ(T⁻¹(A)) = μ(A) (MDS3), invertible extension (MDS4)
+  - II. Ergodicity (1 definition + 3 equivalents): T⁻¹(A) = A ⇒ μ(A)∈{0,1} (E1), f∘T = f ⇒ f constant (E2), Cesàro correlation (E3)
+  - III. Mixing Hierarchy (4): strong mixing (MIX1: lim μ(T⁻ⁿA∩B)=μ(A)μ(B)), weak mixing (MIX2: Cesàro), K-mixing (MIX3: positive entropy), Bernoulli (MIX4: i.i.d.)
+  - IV. Entropy (3): H(P) = -Σ μ(A_i) log μ(A_i) (ENT1), h(T) = sup h(T,α) (ENT2), generator theorem (ENT3)
+- **Constraint Templates**: 49 in 9 groups:
+  - Group I. Measure-Preserving System Foundation (5): probability_space_base, measurable_transformation, measure_preserving, invertible_mp_transformation, non_singular_transformation
+  - Group II. Ergodicity Core (6): ergodicity_definition, ergodicity_constant_invariant_function, ergodicity_cesaro_convergence, ergodicity_product_criterion, ergodicity_fourier_criterion, ergodicity_irrational_rotation
+  - Group III. Mixing Hierarchy (5): strong_mixing, weak_mixing, k_mixing_kolmogorov, bernoulli_property, mixing_implies_ergodic
+  - Group IV. Ergodic Theorems (7): birkhoff_pointwise_ergodic_theorem, birkhoff_ergodic_constancy, von_neumann_mean_ergodic, poincare_recurrence, kingman_subadditive_ergodic, krylov_bogolyubov_invariant_measure, furstenberg_multiple_recurrence
+  - Group V. Entropy Theory (6): entropy_of_partition, entropy_relative_to_partition, kolmogorov_sinai_entropy, generator_theorem, entropy_properties, shannon_mcmillan_breiman
+  - Group VI. Spectral Theory (4): koopman_operator, spectral_isomorphism, discrete_spectrum, continuous_spectrum
+  - Group VII. Classification (5): measure_theoretic_isomorphism, ornstein_isomorphism_theorem, factor_system, orbit_equivalence, kakutani_equivalence
+  - Group VIII. Examples (6): irrational_rotation_system, bernoulli_shift_system, baker_transformation_system, hyperbolic_toral_automorphism, markov_shift_system, geodesic_flow_negative_curvature
+  - Group IX. Constructors (5): product_system, induced_transformation, natural_extension, suspension_flow, rokhlin_tower
+- **Known Unconstructible Problems**: 8 (MPT isomorphism/undecidable, Kolmogorov spectral problem/open, KS entropy computation/undecidable, K-automorphism classification/open, SFT conjugacy/undecidable, invariant measure without compactness/AC-dependent, Rokhlin standardness without choice/AC-dependent, von Neumann amenability conjecture/disproved)
+- **Bottom Geometry**: measure_preserving_dynamical_system
+- **Negation Encoding**: classical_equality
+- **Contradiction Behavior**: explosion_principle
+- **Key Relationship to measure_theory**: Ergodic theory is built directly on measure spaces — the underlying space (X, B, μ, T) is a structured measure space with a dynamics. Every definition (ergodicity, mixing, entropy) is formulated in measure-theoretic language. The Koopman operator bridges to functional_analysis. The Kolmogorov-Sinai entropy generalizes Shannon entropy from information_theory. Poincaré recurrence guarantees that measure-preserving systems return arbitrarily close to their initial state.
+
+**File**: `axiom_packages/ergodic_theory.lvz`
+**Test**: `tests/test_axiom_ergodic_theory.c` (10 test functions)
+
+### 47. graph_theory v1.0.0 (upgraded)
+
+**Mathematical Theory**: Graph theory — the study of graphs as mathematical structures modeling pairwise relations between objects. A graph G = (V, E) consists of a finite set V of vertices and a set E of edges (unordered pairs of distinct vertices). This package formalizes finite, undirected, simple graphs with comprehensive coverage of graph properties, operations, special classes, matching/covering theory, coloring, and fundamental theorems.
+- **References**:
+  - Euler, L. (1736). "Solutio problematis ad geometriam situs pertinentis." Commentarii Academiae Scientiarum Imperialis Petropolitanae, 8: 128-140.
+    https://en.wikipedia.org/wiki/Seven_Bridges_of_K%C3%B6nigsberg
+  - Diestel, R. (2017). "Graph Theory" (5th ed.). Springer. GTM 173. ISBN 978-3-662-53621-6.
+  - Bondy, J.A. and Murty, U.S.R. (2008). "Graph Theory." Springer. GTM 244. ISBN 978-1-84628-969-9.
+  - West, D.B. (2001). "Introduction to Graph Theory" (2nd ed.). Prentice Hall. ISBN 0-13-014400-2.
+  - Bollobás, B. (1998). "Modern Graph Theory." Springer. GTM 184. ISBN 978-0-387-98488-9.
+  - Harary, F. (1969). "Graph Theory." Addison-Wesley. ISBN 0-201-02787-9.
+  - Wikipedia: Graph theory
+    https://en.wikipedia.org/wiki/Graph_theory
+  - nLab: graph
+    https://ncatlab.org/nlab/show/graph
+- **Primitive Notions**: vertex (element of V), edge (element of E ⊆ {{u,v} : u≠v}); incidence (vertex-edge membership), adjacency (symmetric vertex-vertex relation)
+- **Core Axioms**: 20 axioms in 5 groups:
+  - Group I. Graph Definition (3): vertex set G1, edge set G2, incidence G3
+  - Group II. Connectivity (2): path definition G4, connectedness G5
+  - Group III. Graph Operations (5): subgraph G6, complement G7, union G8, intersection G9, vertex deletion G10
+  - Group IV. Special Graph Classes (6): complete Kₙ G11, bipartite G12, tree G13, forest G14, cycle Cₙ G15, planar G16
+  - Group V. Fundamental Theorems (4): handshaking lemma G17, Euler's formula G18, König's theorem G19, Menger's theorem G20
+- **Constraint Templates**: 70 (3 core definition + 5 adjacency/degree + 8 paths/connectivity + 8 cycles/trees + 12 graph operations + 10 special classes + 8 matching/covering + 6 coloring + 5 fundamental theorems + 5 advanced properties)
+- **Known Unconstructible Problems**: 14 (graph 3-coloring/NP-complete, Hamiltonian cycle/NP-complete, subgraph isomorphism/NP-complete, graph isomorphism/GI-class, treewidth/NP-complete, maximum clique/NP-complete, maximum independent set/NP-complete, minimum vertex cover/NP-complete, minimum dominating set/NP-complete, graph k-coloring/NP-complete, Steiner tree/NP-complete, feedback vertex set/NP-complete, graph homomorphism/NP-complete, bandwidth minimization/NP-complete)
+- **Bottom Geometry**: graph_incidence_structure
+- **Negation Encoding**: classical_edge_complement
+- **Contradiction Behavior**: explosion_principle
+- **Relationship to other packages**: Extends zfc_set_theory (V and E are sets). Related to order_theory (trees as partial orders), combinatorics (enumerative aspects), point_set_topology (planarity, Kuratowski's theorem), algebraic_topology (fundamental group of graph), group_theory (automorphism group Aut(G)), computational_complexity_theory (NP-completeness of many graph problems). The combinatorics package covers broader discrete structures; graph_theory focuses specifically on vertex-edge incidence structures.
+
+**File**: `axiom_packages/graph_theory.lvz`
+**Test**: `tests/test_axiom_graph_theory.c` (10 test functions)
+
+### 48. cartesian_closed_category v1.0.0
+
+**Mathematical Theory**: Cartesian closed category (CCC) — a category equipped with finite products and exponentials (internal hom-objects). CCCs are the categorical semantics of simply typed lambda calculus, and their internal logic is minimal logic (intuitionistic logic without ⊥). The Curry-Howard-Lambek correspondence establishes a deep isomorphism: Intuitionistic Propositional Logic ≅ Simply Typed λ-Calculus ≅ CCC.
+- **References**:
+  - Eilenberg, S. & Kelly, G.M. (1966). "Closed Categories." In: Proceedings of the Conference on Categorical Algebra (La Jolla 1965). Springer, pp. 421-562.
+    https://doi.org/10.1007/978-3-642-99902-4
+  - Mac Lane, S. (1998). "Categories for the Working Mathematician" (2nd ed.), §IV.6. Springer.
+    https://doi.org/10.1007/978-1-4757-4721-8
+  - Lambek, J. & Scott, P.J. (1986). "Introduction to Higher Order Categorical Logic." Cambridge Studies in Advanced Mathematics 7.
+  - Borceux, F. (1994). "Handbook of Categorical Algebra, Vol. 2: Categories and Structures," Def. 6.1.5. Cambridge University Press.
+    https://doi.org/10.1017/CBO9780511525865
+  - Wikipedia: Cartesian closed category
+    https://en.wikipedia.org/wiki/Cartesian_closed_category
+  - nLab: Cartesian closed category
+    https://ncatlab.org/nlab/show/cartesian+closed+category
+  - nLab: Exponential object
+    https://ncatlab.org/nlab/show/exponential+object
+  - Wikipedia: Curry-Howard-Lambek correspondence
+    https://en.wikipedia.org/wiki/Curry%E2%80%93Howard%E2%80%93Lambek_correspondence
+- **Primitive Notions**: object, morphism (inherited from category_theory); terminal object 1; binary product A × B with projections π₁, π₂; exponential B^A with evaluation ev : B^A × A → B
+- **Core Axioms** (3 structural requirements):
+  - CCC1. Terminal Object: ∃1 such that ∀X, ∃! !_X : X → 1
+  - CCC2. Finite Products: ∀A,B, ∃A×B with π₁, π₂ and universal property
+  - CCC3. Exponentials: ∀A,B, ∃B^A with ev : B^A × A → B and Hom(C×A, B) ≅ Hom(C, B^A) (natural in C)
+- **Constraint Templates**: 55 (7 foundational + 3 terminal object + 13 finite products + 7 exponential objects + 6 internal composition + 5 functorial structure + 4 CCC functor + 3 special objects + 4 limits/colimits + 6 internal logic + 1 sections)
+- **Known Unconstructible Problems**: 7 (CCC recognition/undecidable, morphism equality in free CCC/undecidable, CCC functor preservation/undecidable, exponential existence/undecidable, local Cartesian closedness/reduces to exponential existence, word problem for free CCC/reduces to morphism equality, NNO existence/undecidable)
+- **Bottom Geometry**: directed_multigraph_with_products_and_exponentials
+- **Negation Encoding**: exponential_to_terminal_A_implies_false (¬A = A → ⊥ via exponentiation)
+- **Contradiction Behavior**: constructive (minimal logic has no explosion principle)
+- **Relationship to other packages**:
+  - Extends category_theory with finite products and exponentials
+  - By Curry-Howard-Lambek, is the categorical counterpart of simple_type_theory (types ↔ objects, terms ↔ morphisms, function types ↔ exponentials)
+  - Internal logic corresponds to intuitionistic_propositional_logic (without ⊥)
+  - A Heyting algebra (lattice_theory) is a CCC viewed as a poset category
+  - domain_theory: the category of DCPOs with Scott-continuous maps is a CCC
+  - boolean_algebra: a Boolean algebra is a CCC with subobject classifier (topos)
+
+**File**: `axiom_packages/cartesian_closed_category.lvz`
+**Test**: `tests/test_axiom_cartesian_closed_category.c` (10 test functions)
+
 ---
 
 ## Dependency Graph
@@ -1280,6 +1870,150 @@ elliptic_geometry (v1.0.0)
     [elliptic_geometry → differential_geometry: constant positive curvature Riemannian geometry, spherical model S^2/{+/-}]
     [Key: separation axioms replace betweenness (lines are circles); bounded segments; pole-polar duality; two midpoints per segment]
 
+measure_theory (v1.0.0, upgraded 2026-05-24, 90 templates)
+    [Extends zfc_set_theory: measures are set functions on sigma-algebras of subsets]
+    [Extends point_set_topology: Borel sigma-algebra generated from open sets; Radon measures]
+    [Extends real_analysis: Lebesgue measure and integration on R^n]
+    [Foundation for probability theory (Kolmogorov 1933)]
+    [Connects to functional_analysis: L^p spaces, Riesz representation theorem, spectral measures]
+    [Connects to information_theory: Shannon entropy as measure-theoretic entropy]
+    [Connects to metric_space: Hausdorff measure, metric outer measures]
+    [Connects to descriptive_set_theory: Lebesgue measurability as regularity property]
+    [Connects to computability_theory: computable measure theory]
+    [Core axioms: 6 (3 sigma-algebra + 3 Kolmogorov measure)]
+    [16 groups: sigma-algebra, measure properties, outer measure, measurable functions, integration, convergence theorems, product measures, Radon-Nikodym, L^p spaces, Borel/Radon, probability, convergence modes, differentiation, constructors]
+    [90 templates, 8 unconstructible problems]
+    [Oracle blocks: Axiom of Choice (non-constructive), Countable Choice]
+    [52 templates across 14 groups: sigma-algebra axioms, core measure axioms, outer measure
+     (Carathéodory), Carathéodory measurability, null sets & completeness, sigma-finite &
+     semifinite measures, signed & complex measures, absolute continuity & Radon-Nikodym,
+     product measures & Fubini-Tonelli, convergence theorems, Carathéodory extension theorem,
+     specific measures (Lebesgue, counting, Dirac, Hausdorff), L^p spaces, probability measures]
+    [8 unconstructible problems: Vitali set (AC), Banach-Tarski paradox, universal measure
+     impossibility, Solovay model consistency, Hausdorff dimension computation, measure space
+     isomorphism classification, extension uniqueness without sigma-finiteness, Riemann
+     integrability decision]
+    [bottom_geometry: measure_space_extended_reals]
+    [negation_encoding: classical_equality]
+    [contradiction_behavior: explosion_principle]
+    [Key: Carathéodory extension theorem bridges premeasures on algebras to complete measures
+     on sigma-algebras; Radon-Nikodym theorem connects absolute continuity to density functions]
+
+probability_theory (v1.0.0, 102 templates)
+    [Built on measure_theory: probability measure P is a measure with P(Ω) = 1]
+    [Extends real_analysis: random variables as measurable functions; expectation as Lebesgue integral]
+    [Extends point_set_topology: Borel sigma-algebra; Polish spaces in advanced probability]
+    [Connects to information_theory: Shannon entropy H(X) = -Σ p(x) log p(x); mutual information I(X;Y)]
+    [Connects to functional_analysis: Lᵖ spaces; characteristic functions; martingale theory]
+    [Connects to computability_theory: Kolmogorov complexity is uncomputable; algorithmic randomness]
+    [Core axioms: 3 (Kolmogorov: non-negativity, normalization, sigma-additivity)]
+    [12 groups: Kolmogorov axioms (4), elementary consequences (10), conditional probability (7),
+     independence (6), random variables (6), probability distributions (12), expected value/moments (14),
+     convergence (6), limit theorems (7), stochastic processes (12), conditional expectation (5),
+     information-theoretic quantities (8)]
+    [102 templates, 8 unconstructible problems]
+    [Key theorems: Bayes' theorem, law of total probability, laws of large numbers,
+     central limit theorem, Borel-Cantelli lemmas, Chebyshev's inequality]
+    [8 unconstructible problems: Kolmogorov complexity (uncomputable), Chaitin's constant Ω (uncomputable),
+     Martin-Löf randomness (Π₂⁰-complete), stopping time expectation (undecidable),
+     stochastic process prediction (undecidable), continuous probability computation (non-computable),
+     distribution equality (undecidable), entropy computation (undecidable)]
+    [bottom_geometry: probability_space_sample_space]
+    [negation_encoding: classical_complement_in_probability]
+    [contradiction_behavior: explosion_principle]
+    [Key: Kolmogorov's 1933 axiomatization unified probability with measure theory;
+     Bayes' theorem inverts conditional probabilities; limit theorems describe asymptotic behavior;
+     connects to algorithmic information theory via Kolmogorov complexity and Martin-Löf randomness]
+
+ergodic_theory (v1.0.0, 49 templates)
+    [Built on measure_theory: underlying space is a probability space (measure space with μ(X)=1)]
+    [Built on real_analysis: Birkhoff ergodic theorem uses Lᵖ (p=1) convergence for integrable functions]
+    [Built on zfc_set_theory: Krylov-Bogolyubov existence of invariant measures requires AC]
+    [Connects to functional_analysis: Koopman operator U_T f = f∘T is a unitary operator on L²(μ);
+     von Neumann mean ergodic theorem is a Hilbert space result]
+    [Connects to information_theory: Kolmogorov-Sinai entropy h(T) generalizes Shannon entropy
+     to dynamical systems; H(P) = -Σ μ(A_i) log μ(A_i) as partition entropy]
+    [Connects to point_set_topology: topological dynamics (minimality, unique ergodicity,
+     topological entropy) bridges topology and ergodic theory]
+    [Connects to group_theory: actions of amenable groups; representation theory; von Neumann's
+     conjecture on amenable groups (disproved)]
+    [Connects to number_theory: Furstenberg's ergodic-theoretic proof of Szemerédi's theorem;
+     equidistribution of {nα} modulo 1]
+    [Connects to descriptive_set_theory: Borel dynamical systems; classification of automorphisms]
+    [Connects to lie_theory: homogeneous dynamics on Lie groups; Ratner's theorems]
+    [Connects to category_theory: category of MPTs with factor maps]
+    [Core axioms: 4 groups (MDS foundation, ergodicity, mixing hierarchy, Kolmogorov-Sinai entropy)]
+    [9 groups: MDS foundation (5), Ergodicity (6), Mixing Hierarchy (5), Ergodic Theorems (7),
+     Entropy Theory (6), Spectral Theory (4), Classification (5), Examples (6), Constructors (5)]
+    [49 templates, 8 unconstructible problems]
+    [Mixing hierarchy: Ergodic ⊂ Weak Mixing ⊂ Strong Mixing ⊂ K-Mixing ⊂ Bernoulli]
+    [Key theorems: Birkhoff pointwise ergodic theorem (1931), von Neumann mean ergodic (1932),
+     Poincaré recurrence, Ornstein isomorphism (entropy = complete invariant for Bernoulli shifts),
+     Kolmogorov-Sinai generator theorem, Kingman subadditive ergodic, Furstenberg multiple recurrence]
+    [8 unconstructible problems: MPT isomorphism (undecidable, Foreman-Rudolph-Weiss 2011),
+     Kolmogorov spectral problem (open), KS entropy computation (undecidable),
+     K-automorphism classification (open), SFT conjugacy (undecidable),
+     invariant measure existence without compactness (AC-dependent),
+     Rokhlin standardness without choice (AC-dependent),
+     von Neumann amenability conjecture (disproved, Ol'shanskii 1980)]
+    [bottom_geometry: measure_preserving_dynamical_system]
+    [negation_encoding: classical_equality]
+    [contradiction_behavior: explosion_principle]
+    [Key: time average = space average (Birkhoff); entropy as complete invariant (Ornstein);
+     mixing hierarchy captures decreasing randomness; Poincaré recurrence guarantees return]
+
+graph_theory (v1.0.0, 48 templates)
+    [Built on set_theory: G = (V, E) where V and E are sets]
+    [Connects to order_theory: partial orders are special directed acyclic graphs;
+     comparability graphs, transitive orientation]
+    [Connects to combinatorics: graph enumeration, Ramsey theory, Turán-type extremal results]
+    [Connects to point_set_topology: planarity (Kuratowski's theorem), graph embeddings,
+     topological graph theory]
+    [Connects to algebraic_topology: fundamental group of graph, homology of graph complexes,
+     covering spaces of graphs]
+    [Connects to linear_algebra: adjacency matrix, spectral graph theory, Laplacian]
+    [Connects to group_theory: automorphism group of graph, Cayley graphs, graph coloring groups]
+    [Connects to zfc_set_theory: infinite graph theory requires choice for some results]
+    [Core axioms: 3 groups (structural, incidence/adjacency, well-formedness)]
+    [8 groups: structural (6), elementary consequences (10), core constructors (6),
+     connectivity (6), paths/cycles (5), trees/forests (4), special graph classes (5),
+     graph operations (6)]
+    [48 templates, 10 unconstructible problems]
+    [Key theorems: Handshaking lemma, Euler's formula V-E+F=2, Hall's marriage theorem,
+     Mantel's theorem, Kuratowski's planarity theorem, Menger's theorem, max-flow min-cut]
+    [10 unconstructible problems: graph isomorphism (quasi-polynomial, Babai 2015),
+     subgraph isomorphism (NP-complete), Hamiltonian cycle/path (NP-complete),
+     TSP (NP-hard), k-coloring (NP-complete for k≥3), max clique (NP-complete),
+     min vertex cover (NP-complete), max independent set (NP-complete),
+     subgraph homeomorphism (NP-complete)]
+    [bottom_geometry: graph_theory_discrete]
+    [negation_encoding: classical_equality]
+    [contradiction_behavior: explosion_principle]
+
+cartesian_closed_category (v1.0.0, 55 templates)
+    [Extends category_theory: adds finite products and exponentials to a category]
+    [Curry-Howard-Lambek correspondence: CCC ≅ Simply Typed λ-Calculus ≅ Intuitionistic Propositional Logic]
+    [Connects to simple_type_theory: types ↔ objects, terms ↔ morphisms, function types ↔ exponentials]
+    [Connects to intuitionistic_propositional_logic: internal logic is minimal logic (no ⊥)]
+    [Connects to lattice_theory: Heyting algebras are CCCs viewed as poset categories]
+    [Connects to domain_theory: DCPOs with Scott-continuous maps form a CCC (Scott 1972)]
+    [Connects to boolean_algebra: Boolean algebras are CCCs with subobject classifier (topos)]
+    [Connects to point_set_topology: compactly generated Hausdorff spaces form a CCC]
+    [Core axioms: 3 (terminal object, finite products, exponentials)]
+    [11 groups: foundational (7), terminal object (3), finite products (13), exponential objects (7),
+     internal composition (6), functorial structure (5), CCC functor (4), special objects (3),
+     limits/colimits (4), internal logic (6), sections (1)]
+    [55 templates, 7 unconstructible problems]
+    [7 unconstructible problems: CCC recognition (undecidable), morphism equality in free CCC
+     (undecidable, reduces to βη-equality for STLC), CCC functor preservation (undecidable),
+     exponential existence (undecidable), local Cartesian closedness (reduces to exponential
+     existence), word problem for free CCC (reduces to morphism equality), NNO existence (undecidable)]
+    [bottom_geometry: directed_multigraph_with_products_and_exponentials]
+    [negation_encoding: exponential_to_terminal_A_implies_false]
+    [contradiction_behavior: constructive (minimal logic, no ex falso quodlibet)]
+    [Key: β-reduction ↔ computational step; η-expansion ↔ extensionality;
+     currying ↔ λ-abstraction; evaluation ↔ function application]
+
 boolean_algebra (v1.0.0)
     [self-contained, no inter-package dependencies]
     [algebraic dual of classical propositional logic via Lindenbaum-Tarski algebra]
@@ -1289,7 +2023,50 @@ group_theory (v1.0.0)
     [foundation for ring theory: rings are abelian groups under addition with compatible multiplication]
     [Galois theory connects group theory to field theory and polynomial equations]
     [boolean_algebra is a special case: a Boolean algebra is a complemented distributive lattice,
-     which is a group under symmetric difference (XOR)]
+
+galois_theory (v1.0.0)
+    [Depends on: group_theory, field_theory, ring_theory, number_theory]
+    [group_theory → galois_theory: Galois groups are groups; solvability uses derived series]
+    [field_theory → galois_theory: Field extensions built on fields; splitting fields, normal closures]
+    [ring_theory → galois_theory: Polynomial rings and irreducibility criteria]
+    [number_theory → galois_theory: Cyclotomic fields, algebraic number theory connections]
+    [Core: Fundamental theorem establishes Galois correspondence between subgroups and intermediate fields]
+    [Applications: Abel-Ruffini theorem, constructibility, inverse Galois problem (unsolved)]
+    [62 templates: 12 field extension + 16 Galois group + 14 solvability + 8 constructions + 12 advanced]
+    [8 unconstructible problems including inverse_galois_problem (unsolved)]
+    [bottom_geometry: galois_theory_field_extension]
+    [Key: Polynomial solvable by radicals iff Galois group is solvable]
+
+second_order_arithmetic (v1.0.0)
+    [Extends peano_arithmetic: Z₂ adds second-order quantification over sets of naturals]
+    [Foundation for reverse mathematics: The Big Five subsystems (RCA₀, WKL₀, ACA₀, ATR₀, Π¹₁-CA₀)]
+    [second_order_arithmetic → peano_arithmetic: Z₂ is conservative over PA for arithmetical sentences]
+    [second_order_arithmetic → computability_theory: RCA₀ captures computable mathematics; Turing degrees]
+    [second_order_arithmetic → proof_theory: Ordinal analysis of subsystems (ω^ω, ε₀, Γ₀, Ψ₀(Ω_ω))]
+    [second_order_arithmetic → descriptive_set_theory: Borel and projective hierarchies formalized]
+    [second_order_arithmetic → real_analysis: Real numbers coded as sets of naturals; analysis in Z₂]
+    [second_order_arithmetic → zfc_set_theory: Z₂ is much weaker than ZFC but sufficient for most "ordinary mathematics"]
+    [80 templates across 13 groups: Basic axioms, Induction, Comprehension, Big Five, Key theorems, Hierarchies, Models, Ordinals, Constructors, Coding, Conservation]
+    [8 unconstructible problems: Con(Z₂), Con(subsystems), Projective determinacy, CH in Z₂]
+    [bottom_geometry: second_order_arithmetic_two_sorted]
+    [negation_encoding: classical_first_order_with_sets]
+    [contradiction_behavior: explosion_principle]
+    [Key: Reverse mathematics shows most theorems equivalent to one of the Big Five subsystems]
+
+presburger_arithmetic (v1.0.0, 2026-05-24)
+    [self-contained, no inter-package dependencies]
+    [Strict subtheory of peano_arithmetic: PA = Presburger + multiplication]
+    [presburger_arithmetic → peano_arithmetic: Every Presburger theorem is a PA theorem; PA is strictly stronger]
+    [presburger_arithmetic → robinson_arithmetic: Incomparable — Q has multiplication but no induction; Presburger has induction but no multiplication]
+    [presburger_arithmetic → computability_theory: Decision procedure is doubly-to-triply exponential (Fischer-Rabin 1974, Oppen 1978)]
+    [presburger_arithmetic → proof_theory: Quantifier elimination via Cooper's algorithm (1972)]
+    [presburger_arithmetic → computational_complexity_theory: PA(1) is NP-complete; PA(i+1) is Σ_i^EXP-complete]
+    [57 templates across 8 groups: core axioms, elementary consequences, order/successor, congruence/modular, bounded quantification, core constructors, derived theorems, QE/decision procedure]
+    [7 complexity-bounded problems (NOT undecidable — Presburger is decidable)]
+    [bottom_geometry: natural_numbers_with_addition]
+    [negation_encoding: classical_equality]
+    [contradiction_behavior: explosion_principle]
+    [Key: First axiom package where decidability is a FEATURE; all "unconstructible" entries are complexity barriers]
 
 classical_propositional_logic (v1.0.0)
     [self-contained, no inter-package dependencies]
@@ -1387,6 +2164,28 @@ lattice_theory (v1.0.0)
      Stone representation (Boolean algebras ≡ fields of sets),
      Knaster-Tarski fixed point (monotone f on complete lattice has lfp and gfp),
      Dedekind-MacNeille completion (smallest complete lattice containing L)]
+
+order_theory (v1.0.0)
+    [Foundation of lattice_theory and domain_theory: posets are the most general ordered structures]
+    [3 core axioms: reflexivity, antisymmetry, transitivity]
+    [32 templates across 8 groups: partial order axioms, special elements, bounds,
+     total order, well-order, order morphisms, order constructions, derived concepts]
+    [8 unconstructible problems: poset dimension (NP-hard), counting linear extensions (#P-complete),
+     poset isomorphism (GI-hard), infinite poset width, order automorphism group,
+     poset convex realizability (undecidable), dimension >= 4 decision (NP-complete),
+     chain partition minimization (NP-hard)]
+    [order_theory → lattice_theory: lattices are posets where every pair has a join and meet]
+    [order_theory → domain_theory: DCPOs are posets with directed-complete property]
+    [order_theory → zfc_set_theory: Zorn's Lemma (equivalent to AC), ordinals are well-ordered sets]
+    [order_theory → category_theory: posets are (0,1)-categories; preorder categories]
+    [order_theory → boolean_algebra: Boolean algebras are complemented distributive lattices]
+    [order_theory → point_set_topology: specialization preorder, Alexandrov topology]
+    [Key theorems: Zorn's Lemma (maximal elements), Dilworth's Theorem (chain decomposition),
+     Mirsky's Theorem (antichain decomposition), Knaster-Tarski Fixed Point Theorem,
+     Szpilrajn Extension Theorem (partial → total order)]
+    [bottom_geometry: hasse_diagram_poset]
+    [negation_encoding: classical_order_negation]
+    [contradiction_behavior: explosion_principle]
 
 lie_theory (v1.0.0)
     [Bridges group_theory and differential_geometry: Lie groups are smooth manifolds with group structure]
@@ -1736,6 +2535,131 @@ metric_space (v1.0.0)
 - **field_theory**: Pappus's theorem implies the coordinate field is commutative
 - **group_theory**: The translation group of an affine space is an abelian group
 
+universal_algebra (v1.0.0)
+    [self-contained as a foundational framework, but conceptually depends on set theory]
+    [UNIFYING FRAMEWORK: provides the meta-theory for all equational algebraic structures]
+    [group_theory ⊂ universal_algebra: groups are a variety with signature (2,1,0)]
+    [ring_theory ⊂ universal_algebra: rings are a variety with signature (2,2,0,0)]
+    [boolean_algebra ⊂ universal_algebra: Boolean algebras are a variety with signature (2,2,1,0,0)]
+    [lattice_theory ⊂ universal_algebra: lattices are a variety with signature (2,2)]
+    [field_theory ⊄ universal_algebra: fields are NOT a variety (partial inverse)]
+    [category_theory ↔ universal_algebra: connected via Lawvere theories and monads]
+    [model_theory ↔ universal_algebra: model theory = "universal algebra + logic"]
+    [simple_type_theory ↔ universal_algebra: free algebras of algebraic theories]
+    [Key theorems: Birkhoff HSP theorem, subdirect representation, Mal'cev conditions]
+    [60 templates across 10 groups; 8 unconstructible problems]
+
+### 44. robin_arithmetic v1.0.0
+
+**Mathematical Theory**: Robinson Arithmetic (Q) — the finitely axiomatized fragment of first-order Peano arithmetic, first set out by Raphael M. Robinson in 1950. Q is PA without the axiom schema of mathematical induction. It is the weakest theory strong enough for Gödel's first incompleteness theorem. Q is essentially undecidable: no consistent recursively axiomatized extension of Q is decidable (Tarski, Mostowski, Robinson 1953).
+
+- **References**:
+  - Robinson, R.M. (1950). "An Essentially Undecidable Axiom System." Proceedings of the ICM, pp. 729-730.
+    https://en.wikipedia.org/wiki/Robinson_arithmetic
+  - Wikipedia: Robinson arithmetic
+    https://en.wikipedia.org/wiki/Robinson_arithmetic
+  - nLab: Robinson arithmetic
+    https://ncatlab.org/nlab/show/Robinson+arithmetic
+  - Boolos, G.; Burgess, J.P.; Jeffrey, R. (2002). "Computability and Logic" (4th ed.). Cambridge University Press. Chapter 16.
+  - Burgess, J.P. (2005). "Fixing Frege." Princeton University Press.
+  - Mendelson, E. (2015). "Introduction to Mathematical Logic" (6th ed.). Chapman & Hall. pp. 202-203.
+  - Tarski, A.; Mostowski, A.; Robinson, R.M. (1953). "Undecidable Theories." North Holland.
+  - Bezboruah, A.; Shepherdson, J.C. (1976). "Gödel's Second Incompleteness Theorem for Q". JSL, 41(2): 503-512. https://doi.org/10.2307/2272251
+  - Tourlakis, G. (2022). "Computability." Springer. Section 12.6.
+  - Wikipedia: Essentially undecidable theory
+    https://en.wikipedia.org/wiki/Essentially_undecidable_theory
+  - Wikipedia: Tennenbaum's theorem
+    https://en.wikipedia.org/wiki/Tennenbaum%27s_theorem
+- **Primitive Notions**: natural number (element of domain N), zero constant 0, successor function S : N → N, addition + : N × N → N, multiplication · : N × N → N, identity/equality =
+- **Core Axioms**: 7 axioms (Q1-Q7, Burgess 2005):
+  - Q1: Sx ≠ 0 (zero is not a successor)
+  - Q2: Sx = Sy → x = y (successor is injective)
+  - Q3: y = 0 ∨ ∃x (Sx = y) (every number is zero or a successor — the only axiom with ∃)
+  - Q4: x + 0 = x (addition base case)
+  - Q5: x + Sy = S(x + y) (addition inductive case)
+  - Q6: x · 0 = 0 (multiplication base case)
+  - Q7: x · Sy = x · y + x (multiplication inductive case)
+  - **No induction schema** — this is the defining difference from PA
+- **Constraint Templates**: 39 in 5 groups:
+  - Group I (7): Core Q axioms
+  - Group II (4): Definitional extension — order relation (less-than, zero-impossible, successor relation, trichotomy)
+  - Group III (12): Elementary consequences provable in Q (zero predecessor property, successor-not-self-instance, add/mul zero left, add/mul one right/left, associativity/commutativity/distributivity instances, less-than irreflexive/transitive instances, zero is least successor)
+  - Group IV (8): Core constructors (successor, predecessor, add, multiply, zero, numeral, less-than check, equality check)
+  - Group V (8): Derived constructors (truncated subtraction, exponentiation, parity check, max/min, truncated division, remainder, GCD)
+- **Known Unconstructible Problems**: 12:
+  1. Consistency of Q — Gödel's second incompleteness {7 deps}
+  2. Gödel sentence for Q — Gödel's first incompleteness {3 deps}
+  3. Addition commutativity (general) — requires induction {3 deps}
+  4. Multiplication commutativity (general) — requires induction {4 deps}
+  5. Addition associativity (general) — requires induction {3 deps}
+  6. Sx ≠ x (general) — requires induction {3 deps}
+  7. Decidability of Q — essentially undecidable {7 deps}
+  8. Decidability of any consistent extension of Q — Tarski-Mostowski-Robinson theorem {7 deps}
+  9. Hilbert's tenth problem for Q — MDRP theorem / Diophantine unsolvability {3 deps}
+  10. Nonstandard model characterization of Q — Tennenbaum's theorem does not apply {3 deps}
+  11. Uniform solvability of equations in Q — Diophantine set unsolvability {2 deps}
+  12. Recursive separability of Q theorems from refutations — essential inseparability {7 deps}
+- **Bottom Geometry**: natural_number_zero_without_predecessor — ⊥ is geometrically represented as the zero element without a predecessor. The structure is infinite but has a well-defined foundation at 0. Unlike PA, Q lacks the inductive "climbing" structure — the standard part is embedded but non-standard models can have "rogue" elements.
+- **Negation Encoding**: classical_falsum_in_first_order_logic — Q uses classical first-order logic with identity as its background logic. Negation is classical: ¬φ means φ is false (φ → ⊥). The falsum ⊥ is the contradiction that any false statement entails.
+- **Contradiction Behavior**: explosion_principle — Q is a classical theory. From ⊥ (contradiction), any proposition follows via ex falso quodlibet.
+- **Relationship to existing packages**:
+  - **peano_arithmetic**: Q is a proper sub-theory of PA. PA adds the induction schema to Q. Every theorem of Q is a theorem of PA, but the converse is not true (commutativity of addition is a PA theorem but not a Q theorem). Q was explicitly designed by Robinson as the minimal set of PA axioms needed to prove that all computable functions are representable.
+  - **zfc_set_theory**: Q is interpretable in a very weak fragment of ZFC (General Set Theory: extensionality + empty set + adjunction). This is the weakest set theory that can interpret arithmetic.
+  - **computability_theory**: Q is the canonical example of an essentially undecidable theory. All computable functions are representable in Q. The essential undecidability of Q is the key step in proving the undecidability of first-order logic and the Entscheidungsproblem.
+  - **number_theory**: Q captures the most basic number-theoretic operations. All elementary number theory can be encoded in Q, though generalizations typically require induction (not available in Q).
+  - **classical_propositional_logic**: Q uses first-order logic with identity as its background logic. All propositional tautologies are derivable in Q.
+  - **model_theory**: Q has nonstandard models and is a classic example of the compactness theorem. Unlike PA, Q has computable nonstandard models (Tennenbaum's theorem does not apply).
+  - **proof_theory**: Gentzen's consistency proof for PA uses transfinite induction up to ε₀. Q, being weaker, does not require such strong methods — but still Gödel's second incompleteness holds for Q.
+  - **Presburger arithmetic**: Q contains Presburger arithmetic's language but is not a sub-theory (Q has multiplication; Presburger is addition-only and is decidable).
+- **Key Properties of Q**:
+  - **Finitely axiomatizable**: Only 7 axioms, no axiom schemas (unlike PA's infinite induction schema)
+  - **Essentially undecidable**: Even adding any finite or recursively enumerable set of true arithmetic sentences to Q yields an undecidable theory
+  - **Recursively incompletable**: There is no consistent, complete, recursively axiomatizable extension of Q
+  - **Computable nonstandard models**: The simplest has a single nonstandard "rogue" element ∞ with S(∞)=∞, plus all standard numbers
+  - **Representability of computable functions**: This is the key property that makes Gödel's first incompleteness theorem work for Q
+  - **Gödel's second incompleteness holds for Q** (Bezboruah & Shepherdson 1976) — no consistent recursively axiomatizable extension of Q can prove its own consistency
+  - **If any single axiom is dropped, the theory is no longer essentially undecidable**
+  - **Instance-regimented**: Specific instances are provable (e.g., 5+7=7+5), but general statements are not (e.g., ∀x∀y(x+y=y+x))
+  - **The sum of cubes 1³+2³+...+n³ is NOT definable in Q** — this is a consequence of lacking induction
+
+**File**: `axiom_packages/robin_arithmetic.lvz`
+**Test**: `tests/test_axiom_robin_arithmetic.c` (10 test functions: load, templates, unconstructibles, logical framework, content hash, round-trip, dependency validation, negative lookups, external refs, key axioms present)
+
+### 42. presburger_arithmetic v1.0.0
+
+**Mathematical Theory**: Presburger Arithmetic — the first-order theory of natural numbers with addition only, introduced by Mojżesz Presburger in 1929. Unlike Peano Arithmetic (which includes multiplication), Presburger arithmetic is consistent, complete, and decidable, but not finitely axiomatizable. It is one of the rare examples of a complete, decidable first-order theory that is rich enough to be mathematically interesting.
+
+- **References**:
+  - Presburger, M. (1929). "Über die Vollständigkeit eines gewissen Systems der Arithmetik ganzer Zahlen, in welchem die Addition als einzige Operation hervortritt." Comptes Rendus du I Congrès des Mathématiciens des Pays Slaves, Warszawa, pp. 92-101.
+  - Wikipedia: Presburger arithmetic
+    https://en.wikipedia.org/wiki/Presburger_arithmetic
+  - Fischer, M.J. & Rabin, M.O. (1974). "Super-Exponential Complexity of Presburger Arithmetic." SIAM J. Comput., 3(4): 316-321.
+    https://doi.org/10.1137/0203024
+  - Cooper, D.C. (1972). "Theorem Proving in Arithmetic without Multiplication." Machine Intelligence 7, pp. 91-99.
+  - Büchi, J.R. (1962). "On a Decision Method in Restricted Second Order Arithmetic." Stanford University Press, pp. 1-11.
+  - Oppen, D.C. (1978). "A 2^2^2^pn Upper Bound on the Complexity of Presburger Arithmetic." J. Comput. Syst. Sci., 16(3): 323-332.
+  - Nipkow, T. (2010). "Linear Quantifier Elimination." J. Autom. Reasoning, 45(2): 189-212.
+  - Enderton, H.B. (2001). "A Mathematical Introduction to Logic" (2nd ed.). Academic Press.
+  - Stanford Encyclopedia of Philosophy: Arithmetic
+    https://plato.stanford.edu/entries/arithmetic/
+  - nLab: Presburger arithmetic
+    https://ncatlab.org/nlab/show/Presburger+arithmetic
+- **Primitive Notions**: constant 0 (zero), constant 1 (one), binary operation + (addition), equality =
+- **Core Axioms**: 5 (P1: zero not successor, P2: successor injectivity, P3: additive identity, P4: recursive addition, P5: induction schema)
+- **Constraint Templates**: 74 (5 core axioms + 12 elementary consequences + 6 order relation + 6 constant multiplication + 8 parity/divisibility + 6 linear Diophantine + 4 quantifier elimination + 4 automata-theoretic + 5 model theory + 6 core constructors + 8 derived constructors + 4 formal verification applications)
+- **Known Unconstructible Problems**: 10 (primality/inexpressible, general multiplication/inexpressible, general divisibility/inexpressible, exponentiation/inexpressible, Goldbach conjecture/inexpressible, Fermat's last theorem/inexpressible, Goodstein theorem/inexpressible, Gödel sentence/inexpressible, satisfiability/2-EXPTIME-complete, bit-vector arithmetic/undecidable extension)
+  - Note: Presburger arithmetic is DECIDABLE, so "inexpressible" means the concept cannot be formulated in the language (requires multiplication between variables). "2-EXPTIME-complete" is a complexity barrier, not logical undecidability.
+- **Bottom Geometry**: presburger_natural_numbers
+- **Negation Encoding**: classical_first_order
+- **Contradiction Behavior**: explosion_principle
+- **Key Distinction**: The first axiom package where decidability is a FEATURE rather than a limitation. All 7 "unconstructible" entries reflect complexity bounds (2-EXPTIME lower, 3-EXPTIME upper), not logical undecidability.
+- **Relationship to peano_arithmetic**: PA = Presburger + multiplication. PA is undecidable (Gödel 1931); Presburger is decidable. Presburger is a proper subtheory of PA.
+- **Relationship to robinson_arithmetic**: Q is finitely axiomatizable but undecidable; Presburger is infinitely axiomatizable (induction schema) but decidable. They are incomparable in strength.
+- **Applications**: Formal verification, model checking, SMT solvers (Coq omega tactic, Lean, Isabelle verified QE by Nipkow 2010)
+
+**File**: `axiom_packages/presburger_arithmetic.lvz`
+**Test**: `tests/test_axiom_presburger_arithmetic.c` (10 test functions, all passing)
+
 ---
 
 ## Mathematical Branch Coverage
@@ -1744,47 +2668,57 @@ metric_space (v1.0.0)
 |--------|--------|----------|
 | Geometry | ✅ Covered | euclidean_plane, hyperbolic_geometry, projective_geometry, elliptic_geometry, affine_geometry |
 | Geometry/Analysis | ✅ Covered | differential_geometry |
-| Algebra | ✅ Covered | boolean_algebra, group_theory, ring_theory, field_theory, lattice_theory, lie_theory |
-| Number Theory | ✅ Covered | number_theory |
+| Algebra | ✅ Covered | boolean_algebra, group_theory, ring_theory, field_theory, lattice_theory, lie_theory, universal_algebra |
+| Number Theory | ✅ Covered | number_theory, peano_arithmetic |
+| Arithmetic / Foundations | ✅ Covered | peano_arithmetic, robinson_arithmetic, second_order_arithmetic, presburger_arithmetic |
 | Logic | ✅ Covered | classical_propositional_logic, intuitionistic_propositional_logic, modal_logic, model_theory |
 | Proof Theory | ✅ Covered | proof_theory |
 | Set Theory | ✅ Covered | zfc_set_theory, nbg_set_theory, descriptive_set_theory |
 | Type Theory | ✅ Covered | simple_type_theory, dependent_type_theory |
 | HoTT | ✅ Covered | homotopy_type_theory |
-| Category Theory | ✅ Covered | category_theory |
+| Category Theory | ✅ Covered | category_theory, cartesian_closed_category |
 | Topology | ✅ Covered | point_set_topology, algebraic_topology |
-| Analysis | ✅ Covered | real_analysis, metric_space |
+| Analysis | ✅ Covered | real_analysis, metric_space, measure_theory |
 | Functional Analysis | ✅ Covered | functional_analysis |
 | Algebraic Geometry | ✅ Covered | algebraic_geometry |
-| Combinatorics | ✅ Covered | combinatorics |
+| Combinatorics | ✅ Covered | combinatorics, graph_theory |
 | Homological Algebra | ✅ Covered | homological_algebra |
-| Order Theory | ✅ Covered | lattice_theory |
+| Order Theory | ✅ Covered | lattice_theory, order_theory |
 | Theoretical CS | ✅ Covered | computational_complexity_theory, domain_theory, computability_theory |
 | Denotational Semantics / Domain Theory | ✅ Covered | domain_theory |
-| Information Theory / Probability | ✅ Covered | information_theory |
+| Information Theory / Probability | ✅ Covered | information_theory, probability_theory |
 | Game Theory / Mathematical Economics | ✅ Covered | game_theory |
+| Dynamical Systems / Ergodic Theory | ✅ Covered | ergodic_theory |
+| Probability Theory / Stochastic Analysis | ✅ Covered | probability_theory |
+| Quantum Information / Quantum Computing | ✅ Covered | quantum_information_theory |
 
 ---
 
 ## Candidate Theories for Next Implementation
 
-Major mathematical branches are now comprehensively covered. The three classical geometries (Euclidean, Hyperbolic, Elliptic) and affine geometry are now complete. Game theory (economics/CS) and metric space theory (foundational analysis) are now covered. Future directions:
+Major mathematical branches are now comprehensively covered. The three classical geometries (Euclidean, Hyperbolic, Elliptic) and affine geometry are now complete. Game theory (economics/CS) and metric space theory (foundational analysis) are now covered. Galois theory (algebra/field theory) is now complete. Graph theory (discrete mathematics) is now covered. Future directions:
 
 1. ~~**Affine Geometry** (Geometry)~~ — ✅ Completed as affine_geometry (2026-05-23). Incidence + parallelism + vector space + affine structure, 50 templates, 7 unconstructible problems.
 2. **String Theory / Quantum Field Theory** (Mathematical Physics) — Conformal field theory, vertex operator algebras. Bridges geometry, algebra, and analysis.
 3. **Non-Commutative Geometry** (Geometry/Analysis) — Connes' non-commutative geometry, spectral triples. Extends functional_analysis and differential_geometry.
-4. **Stochastic Processes** (Analysis/Probability) — Brownian motion, martingales, stochastic calculus. Extends real_analysis.
+4. ~~**Stochastic Processes** (Analysis/Probability)~~ — ✅ Covered within probability_theory (2026-05-24). Brownian motion, Markov chains, martingales, stationary distributions are included as templates.
 5. **Cryptography Foundations** (Number Theory/CS) — Lattice-based cryptography, elliptic curve theory. Bridges number_theory and combinatorics.
 6. **Elliptic Curves** (Algebra/Number Theory) — Mordell-Weil theorem, modular forms. Bridges number_theory and algebraic_geometry.
-7. **Measure Theory** (Analysis) — Lebesgue measure, Carathéodory extension, Radon-Nikodym. Extends real_analysis with deeper measure-theoretic foundations.
-8. **Ergodic Theory** (Analysis/Dynamics) — Measure-preserving transformations, ergodicity, mixing. Bridges real_analysis and descriptive_set_theory.
+7. ~~**Measure Theory** (Analysis)~~ — ✅ Completed and upgraded as measure_theory (2026-05-24, v1.0.0, 90 templates). σ-Algebra axioms, Carathéodory outer measure, Lebesgue measure on ℝⁿ, measurable functions, Lebesgue integration, convergence theorems (MCT, DCT, Fatou, Egorov, Lusin), product measures, Fubini-Tonelli, Radon-Nikodym, signed measures, Hahn decomposition, Lᵖ spaces, Borel/Radon measures, probability measures, differentiation theorems, 8 unconstructible problems.
+8. ~~**Ergodic Theory** (Analysis/Dynamics)~~ — ✅ Completed as ergodic_theory (2026-05-24). Measure-preserving transformations, ergodicity, mixing hierarchy, Birkhoff/von Neumann theorems, Kolmogorov-Sinai entropy, Ornstein isomorphism, 49 templates, 8 unconstructible problems.
 9. **Effective Descriptive Set Theory** (Logic/Set Theory) — Lightface hierarchy, hyperarithmetical sets. Bridges descriptive_set_theory and computability theory.
 10. **Proof Complexity** (Logic/CS) — Frege systems, extended Frege, propositional proof length. Bridges proof_theory and computational_complexity_theory.
-11. **Quantum Information Theory** (Physics/CS) — Qubits, entanglement, quantum channels. Extends information_theory with quantum mechanics.
-12. **Universal Algebra** (Algebra/Logic) — General algebraic structures, varieties, free algebras. Unifies group_theory, ring_theory, lattice_theory.
+11. ~~**Quantum Information Theory** (Physics/CS)~~ — ✅ Completed as quantum_information_theory (2026-05-24). Qubits, quantum states, quantum channels (CPTP maps), entanglement, von Neumann entropy, quantum gates, quantum error correction, quantum cryptography (BB84), Bell inequalities, 98 templates in 12 groups, 8 unconstructible problems. Depends on information_theory, functional_analysis, probability_theory.
+12. ~~**Universal Algebra** (Algebra/Logic)~~ — ✅ Completed as universal_algebra (2026-05-24). Signatures, equational classes, Birkhoff HSP theorem, Mal'cev conditions, term rewriting, 60 templates, 8 unconstructible problems.
 13. ~~**Recursion Theory / Computability** (Logic/CS)~~ — ✅ Completed as computability_theory (2026-05-23). Turing degrees, arithmetical hierarchy, recursion theorems, 14 undecidable problems.
 14. **Spherical Geometry** (Geometry) — Double elliptic geometry on S^2 without antipodal identification. Complements elliptic_geometry (single elliptic = S^2/{+/-}).
 15. **Social Choice Theory** (Economics/Logic) — Voting systems, Arrow's theorem extensions, judgment aggregation. Bridges game_theory and modal_logic.
+16. ~~**Peano Arithmetic** (Foundations/Logic)~~ — ✅ Completed as peano_arithmetic (2026-05-24). First-order PA with successor, addition, multiplication, induction schema, 70 templates, 8 undecidable problems (Gödel, Goodstein, Paris-Harrington, etc.).
+17. ~~**Second-Order Arithmetic (Z₂)** (Foundations/Logic)~~ — ✅ Completed as second_order_arithmetic (2026-05-24, upgraded to 135 templates in 14 groups). The Big Five subsystems (RCA₀, WKL₀, ACA₀, ATR₀, Π¹₁-CA₀), reverse mathematics equivalences (30 theorems), coding schemes, arithmetical/analytical hierarchy, ω-models/β-models, proof-theoretic ordinals, 12 undecidable problems. Bridges peano_arithmetic, robinson_arithmetic, proof_theory, computability_theory, and descriptive_set_theory.
+18. ~~**Presburger Arithmetic** (Logic)~~ — ✅ Completed as presburger_arithmetic (2026-05-24, upgraded to v1.0.0, 74 templates). Decidable fragment of PA (addition only). Cooper's quantifier elimination, automata-theoretic connection, semilinear sets, 10 inexpressible/complexity problems. Complements peano_arithmetic with a decidable theory.
+19. ~~**Robinson Arithmetic (Q)** (Logic)~~ — ✅ Completed as robin_arithmetic (2026-05-24). Finitely axiomatizable fragment of PA, only 7 axioms with no induction, essentially undecidable, weakest theory for Gödel's incompleteness, 39 templates, 12 unconstructible problems. Bridges peano_arithmetic, computability_theory, and decidability theory.
+20. ~~**Galois Theory** (Algebra)~~ — ✅ Completed as galois_theory (2026-05-24). Field extensions, Galois groups, fundamental theorem, solvability by radicals, 62 templates, 8 unconstructible problems including inverse Galois problem (unsolved).
+21. ~~**Probability Theory** (Analysis/Probability)~~ — ✅ Completed and upgraded as probability_theory (2026-05-24, v1.0.0, 120 templates). Kolmogorov axioms, conditional probability, Bayes' theorem, independence, random variables, distributions (Bernoulli, Binomial, Poisson, Normal, etc.), moments and expectation, limit theorems (LLN, CLT), stochastic processes (martingales, Markov chains, Brownian motion), concentration inequalities, ergodic theory, 12 unconstructible problems. Depends on measure_theory, real_analysis, computability_theory.
 
 ---
 
@@ -1878,6 +2812,55 @@ Major mathematical branches are now comprehensively covered. The three classical
    - Key relationships: bridges point_set_topology (metric topology), real_analysis (ℝ as complete metric space), euclidean_plane (ℝ² with Euclidean metric), functional_analysis (Banach/Hilbert spaces), descriptive_set_theory (Polish spaces), category_theory (category Met)
    - Key theorems formalized: Banach fixed-point theorem, Baire category theorem, Heine-Borel (compact = complete + totally bounded), Arzelà-Ascoli, Urysohn metrization theorem
    - Total axiom packages: 36 (including 2 unnumbered), covering 20 mathematical branches
+
+### 2026-05-24 (Session 2)
+
+11. **Peano Arithmetic axiom package implemented** — Added the 39th numbered axiom package covering first-order Peano Arithmetic (PA), the standard first-order axiomatization of the natural numbers.
+   - 70 constraint templates across 11 groups: successor axioms (3), addition axioms (2), multiplication axioms (2), induction schema (4), order relation (6), elementary arithmetic consequences (16), exponentiation (5), divisibility and remainder (4), primality (4), core constructors (13), derived constructors (13)
+   - 8 known unconstructible problems: Gödel sentence, consistency of PA (Gödel's second), Goodstein's theorem, Paris–Harrington principle, Kirby–Paris hydra, truth predicate (Tarski's undefinability), halting problem for PA, ε₀ consistency (Gentzen)
+   - References: Peano (1889), Dedekind (1888), Kaye (1991), Hájek & Pudlák (1993), Mendelson (2015), Wikipedia, nLab, Stanford Encyclopedia of Philosophy
+   - Test file: `tests/test_axiom_peano_arithmetic.c` with 10 test functions
+   - New mathematical branch covered: Arithmetic / Foundations of Mathematics
+   - Key relationships: bridges zfc_set_theory (PA interpretable in ZFC), number_theory (first-order fragment), computability_theory (arithmetical hierarchy), proof_theory (Gentzen's consistency proof), model_theory (nonstandard models), classical_propositional_logic (first-order extension)
+   - Total axiom packages: 39 (including 2 unnumbered), covering 21 mathematical branches
+
+### 2026-05-24 (Session 3)
+
+12. **Probability Theory axiom package implemented** — Added the 42nd numbered axiom package covering probability theory (Kolmogorov 1933), the mathematical foundation of probability based on measure theory.
+   - 95 constraint templates across 13 groups: Kolmogorov axioms (3), elementary consequences (12), conditional probability (6), independence (6), random variables (8), expectation and moments (10), common distributions (12), limit theorems (6), stochastic processes (8), convergence types (5), multivariate distributions (6), statistical inference (8), information theory connections (5)
+   - 8 known unconstructible problems: Bayesian inference general/NP-hard, exact inference graphical models/NP-hard, optimal stopping general/PSPACE-complete, continuous probabilistic inference/undecidable, stochastic convergence general/undecidable, ergodic hypothesis verification/undecidable, Kolmogorov complexity/uncomputable, randomness test (Martin-Löf)/undecidable
+   - References: Kolmogorov (1933) "Grundbegriffe der Wahrscheinlichkeitsrechnung", Wikipedia Probability axioms, nLab Probability theory
+   - Test file: `tests/test_axiom_probability_theory.c` with 10 test functions
+   - New mathematical branch covered: Probability Theory / Stochastic Analysis
+   - Key relationships: bridges measure_theory (probability measure = normalized measure), real_analysis (random variables as measurable functions), functional_analysis (L^p spaces), information_theory (entropy), game_theory (mixed strategies), computability_theory (algorithmic randomness)
+   - Key theorems: Law of Large Numbers (weak/strong), Central Limit Theorem, Bayes' Theorem, Chebyshev's Inequality, Markov's Inequality, Chernoff Bounds
+   - Core Kolmogorov axioms: K1 (non-negativity), K2 (unit measure), K3 (σ-additivity)
+   - Total axiom packages: 42 (including 2 unnumbered), covering 22 mathematical branches
+
+### 2026-05-24 (Session 4)
+
+13. **Robinson Arithmetic (Q) axiom package implemented** — Added the 44th numbered axiom package covering Robinson Arithmetic (Q), the finitely axiomatized fragment of PA, the weakest theory strong enough for Gödel's first incompleteness theorem.
+   - 39 constraint templates across 5 groups: core Q axioms (7), definitional extension: order relation (4), elementary consequences provable in Q (12), core constructors (8), derived constructors (8)
+   - 12 known unconstructible problems: consistency of Q (Gödel's second), Gödel sentence for Q (Gödel's first), general commutativity of addition/multiplication (requires induction), general associativity (requires induction), Sx≠x general (requires induction), decidability of Q (essentially undecidable), decidability of any extension (TMR theorem), Hilbert's 10th problem (MDRP theorem), nonstandard model characterization (Tennenbaum context), Diophantine equation solvability, recursive separability (essential inseparability)
+   - References: Robinson (1950) ICM, Wikipedia Robinson arithmetic, nLab Robinson arithmetic, Boolos-Burgess-Jeffrey (2002), Burgess (2005), Mendelson (2015), Tarski-Mostowski-Robinson (1953), Bezboruah-Shepherdson (1976), Tourlakis (2022)
+   - Test file: `tests/test_axiom_robin_arithmetic.c` with 10 test functions (load, templates, unconstructibles, logical framework, content hash, round-trip, dependency validation, negative lookups, external refs, key axioms present)
+   - Key distinction from peano_arithmetic: No induction schema (the defining difference). General statements like commutativity of addition are NOT provable in Q, though all specific instances are. Q has computable nonstandard models (unlike PA).
+   - Key property: Q is essentially undecidable — no consistent recursively axiomatized extension is decidable. If any single one of the 7 axioms is dropped, the theory ceases to be essentially undecidable.
+   - Key relationships: bridges peano_arithmetic (Q ⊂ PA), zfc_set_theory (interpretable in General Set Theory), computability_theory (all computable functions representable in Q; canonical essentially undecidable theory), number_theory (basic operations), model_theory (computable nonstandard models), proof_theory (Gödel's second incompleteness holds for Q)
+   - Total axiom packages: 44 (including 2 unnumbered), covering 22 mathematical branches
+
+### 2026-05-24 (Session 5)
+
+14. **Quantum Information Theory axiom package implemented** — Added the 45th numbered axiom package covering quantum information theory (Nielsen & Chuang 2010), the mathematical foundation of quantum computing, quantum cryptography, and quantum communication.
+   - 98 constraint templates across 12 groups: quantum postulates (4), qubit states (10), density operators (12), quantum channels (12), entanglement (12), quantum entropy (10), measurements (8), fundamental theorems (8), quantum gates (10), error correction (8), cryptography (6), Bell inequalities (6)
+   - 8 known unconstructible problems: quantum_separability_problem (NP-hard), quantum_channel_capacity_computation (no closed-form), optimal_state_discrimination (optimization), bqp_vs_np (open problem, green_verified=false), quantum_circuit_optimization (hard), general_entanglement_detection (reduces to separability), qec_code_optimization (optimization), quantum_supremacy_verification (complexity)
+   - References: Nielsen & Chuang (2010) "Quantum Computation and Quantum Information", Wilde (2017) "Quantum Information Theory", Preskill (1998) Caltech lecture notes, Watrous (2018), Wikipedia, nLab
+   - Test file: `tests/test_axiom_quantum_information_theory.c` with 9 test functions
+   - New mathematical branch covered: Quantum Information / Quantum Computing
+   - Key relationships: bridges information_theory (von Neumann entropy generalizes Shannon), functional_analysis (Hilbert spaces, CPTP maps), probability_theory (quantum states as probability measures), computability_theory (BQP complexity class), group_theory (Pauli group, unitaries), category_theory (quantum channels as morphisms)
+   - Key theorems: No-cloning theorem, quantum teleportation, Holevo bound, Tsirelson bound, strong subadditivity
+   - Core quantum postulates: QP1 (state space), QP2 (unitary evolution), QP3 (POVM measurement), QP4 (tensor product composition)
+   - Total axiom packages: 45 (including 2 unnumbered), covering 23 mathematical branches
 
 ---
 

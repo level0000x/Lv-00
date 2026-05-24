@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file func_block_instantiate.c
  * @brief 函数块例化与捕获避免模块
  * @details 实现函数块的例化（beta-归约）、部分应用（柯里化），
  *          以及捕获避免替换（Capture-Avoiding Substitution）和 Alpha-重命名。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include <stdbool.h>
@@ -701,6 +701,12 @@ InstantiateResult func_block_instantiate(
     }
     for (int i = 0; i < fb->output_count; i++) {
         if (fb->output_port_ids[i] > max_id) max_id = fb->output_port_ids[i];
+    }
+
+    /* 整数溢出检查：确保 max_id + 2 不超过 INT_MAX */
+    if (max_id > INT_MAX - 2) {
+        LOG_ERROR("func_block", "实例化失败：节点ID过大，无法分配ID映射表");
+        return INSTANTIATE_OUT_OF_MEMORY;
     }
 
     int *id_map = lv00_malloc((size_t)(max_id + 2) * sizeof(int));

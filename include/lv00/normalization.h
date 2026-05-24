@@ -160,12 +160,12 @@ int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log);
 int merge_regions(ConstraintGraph *graph, NormalizationLog *log);
 
 typedef struct NodeMergeCandidate {
-    int node_a_id;
-    int node_b_id;
-    SymbolicCoord *coord_a;
-    SymbolicCoord *coord_b;
-    long long scope_a;
-    long long scope_b;
+    int node_a_id;            /* 候选节点 A 的 ID */
+    int node_b_id;            /* 候选节点 B 的 ID */
+    SymbolicCoord *coord_a;   /* 节点 A 的符号坐标 */
+    SymbolicCoord *coord_b;   /* 节点 B 的符号坐标 */
+    long long scope_a;        /* 节点 A 的作用域深度 */
+    long long scope_b;        /* 节点 B 的作用域深度 */
 } NodeMergeCandidate;
 
 NodeMergeCandidate *find_merge_candidates(ConstraintGraph *graph, int *out_count);

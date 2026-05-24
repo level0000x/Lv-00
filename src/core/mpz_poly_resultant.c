@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mpz_poly_resultant.c
  * @brief 多精度多项式结式计算
  *
@@ -6,7 +6,7 @@
  *          极小多项式的推导。限制多项式次数不超过 4 以防止组合爆炸。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include "mpz_poly.h"

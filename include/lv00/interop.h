@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop.h
  * @brief 外部互操作模块头文件
  *
@@ -10,7 +10,7 @@
  *          - 规范表示导出
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 3.2.0
  */
 
 #ifndef LV00_INTEROP_H
@@ -19,13 +19,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "constraint_graph.h"
+#include "constraint_graph.h"`n#include "proof.h"
 
 /* 前向声明 —— 避免引入 lv00.h 的 16+ 传递依赖 */
 struct LV00Engine;
 typedef struct LV00Engine LV00Engine;
-struct Proof;
-typedef struct Proof Proof;
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -311,6 +310,19 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
  * @return 成功返回0，失败返回错误码
  */
 int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig *config);
+
+/**
+ * @brief 导出为 TikZ 片段（不含文档框架）
+ *
+ * 仅输出 \begin{tikzpicture}...\end{tikzpicture} 片段，
+ * 可直接嵌入已有的 LaTeX 文档。
+ *
+ * @param graph 约束图
+ * @param output 输出缓冲区
+ * @param size 缓冲区大小
+ * @return 实际写入字符数（不含终止符），失败返回负数
+ */
+int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, size_t size);
 
 /**
  * @brief 导出规范表示

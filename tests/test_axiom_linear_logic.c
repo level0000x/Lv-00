@@ -299,7 +299,7 @@ static void test_content_hash(void)
 
     if (hash) {
         printf("  SHA-256: %s\n", hash);
-        free(hash);
+        lv00_free_ptr(hash);
     }
 
     axiom_package_destroy(pkg);

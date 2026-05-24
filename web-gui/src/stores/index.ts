@@ -42,8 +42,8 @@ import type {
   ResizeState,
   StreamingEntry,
   ChatMessage,
-  StreamingEvent,
-  StreamFilter,
+  EngineStreamEvent,
+  EngineStreamCategoryFilter,
 } from '@/types';
 
 // ================================================================
@@ -182,8 +182,8 @@ interface AppState {
   chatMessages: ChatMessage[];
   activeProvider: string;
   isStreaming: boolean;
-  streamingEvents: StreamingEvent[];
-  streamFilters: StreamFilter[];
+  streamingEvents: EngineStreamEvent[];
+  streamFilters: EngineStreamCategoryFilter[];
   modelTemperature: number;
   modelMaxTokens: number;
 
@@ -305,7 +305,7 @@ interface AppState {
   clearMessages: () => void;
   setActiveProvider: (providerId: string) => void;
   setIsStreaming: (streaming: boolean) => void;
-  addStreamEvent: (event: StreamingEvent) => void;
+  addStreamEvent: (event: EngineStreamEvent) => void;
   clearStreamEvents: () => void;
   toggleStreamFilter: (type: string) => void;
   resetStreamFilterCounts: () => void;

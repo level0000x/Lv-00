@@ -42,7 +42,7 @@ extern "C" {
  * 必须同步更新此宏的值，否则位掩码过滤和事件统计将出现偏差。
  * 建议在 CI 中使用 static_assert 校验一致性。
  */
-#define STREAM_EVENT_TYPE_COUNT 39
+#define STREAM_EVENT_TYPE_COUNT 47
 
 /** 全部事件掩码（接收所有事件） */
 #define STREAM_FILTER_ALL  ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
@@ -116,6 +116,16 @@ typedef enum {
     STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID,    /* 捕获避免 */
     STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY,   /* 跨边界操作 */
 
+    /* ---- 预设函数块系统（v12.0 新增）---- */
+    STREAM_EVENT_PRESET_REGISTER_START,      /* 预设注册开始 */
+    STREAM_EVENT_PRESET_REGISTER_DONE,       /* 预设注册完成 */
+    STREAM_EVENT_PRESET_REGISTER_FAILED,     /* 预设注册失败 */
+    STREAM_EVENT_PRESET_LOOKUP,              /* 预设查找 */
+    STREAM_EVENT_PRESET_INSTANTIATE,         /* 预设实例化 */
+    STREAM_EVENT_PRESET_VALIDATE,            /* 预设验证 */
+    STREAM_EVENT_PRESET_CATEGORY_LOADED,     /* 预设类别加载完成 */
+    STREAM_EVENT_PRESET_MODULE_LOADED,       /* 预设模块加载完成 */
+
     /* ---- 冲突与错误 ---- */
     STREAM_EVENT_CONFLICT_DETECTED,    /* 冲突检测到 */
     STREAM_EVENT_CONSTRAINT_ADDED,     /* 约束添加 */
@@ -129,6 +139,10 @@ typedef enum {
     STREAM_EVENT_PROGRESS,             /* 进度更新（百分比） */
     STREAM_EVENT_GRAPH_SNAPSHOT,       /* 图快照（用于前端同步） */
 } StreamEventType;
+
+/* 编译期校验：确保 STREAM_EVENT_TYPE_COUNT 与枚举值数量一致 */
+_Static_assert(STREAM_EVENT_TYPE_COUNT == 47,
+               "STREAM_EVENT_TYPE_COUNT 与 StreamEventType 枚举值数量不一致，请同步更新");
 
 /* ============== 流式事件数据 ============== */
 
@@ -150,7 +164,7 @@ typedef struct StreamEvent {
     StreamEventType type;           /* 事件类型 */
 
     /**
-     * 事件时间戳（毫秒）- Event timestamp in milliseconds.
+     * 事件时间戳（毫秒）。
      *
      * 注意 —— 该字段的精度依赖于平台：Windows 下使用 GetTickCount64()（精度
      * 约 10-16ms），Linux/macOS 下使用 clock_gettime(CLOCK_MONOTONIC)（纳秒级
@@ -468,6 +482,62 @@ void stream_emit_warning(StreamContext *ctx, const char *description, int step_n
  * @param step_number 步骤编号
  */
 void stream_emit_info(StreamContext *ctx, const char *description, int step_number);
+
+/* ============== 预设函数块便捷发射 API ============== */
+
+/**
+ * @brief 发射预设注册事件
+ *
+ * 便捷函数，用于发射预设函数块注册相关事件。
+ * 自动根据 success 参数选择 PRESET_REGISTER_DONE 或 PRESET_REGISTER_FAILED 事件类型。
+ *
+ * @param ctx          流式上下文
+ * @param name         预设名称
+ * @param success      是否注册成功
+ * @param step_number  步骤编号
+ */
+void stream_emit_preset_register(StreamContext *ctx, const char *name,
+                                  bool success, int step_number);
+
+/**
+ * @brief 发射预设实例化事件
+ *
+ * 便捷函数，用于发射预设函数块实例化事件。
+ *
+ * @param ctx          流式上下文
+ * @param name         预设名称
+ * @param instance_id  实例化后的函数块 ID
+ * @param step_number  步骤编号
+ */
+void stream_emit_preset_instantiate(StreamContext *ctx, const char *name,
+                                     int instance_id, int step_number);
+
+/**
+ * @brief 发射预设验证事件
+ *
+ * 便捷函数，用于发射预设函数块验证事件。
+ *
+ * @param ctx          流式上下文
+ * @param name         预设名称
+ * @param is_valid     验证结果
+ * @param detail       验证详情（可为 NULL）
+ * @param step_number  步骤编号
+ */
+void stream_emit_preset_validate(StreamContext *ctx, const char *name,
+                                  bool is_valid, const char *detail, int step_number);
+
+/**
+ * @brief 发射预设模块加载完成事件
+ *
+ * 便捷函数，用于发射整个预设模块加载完成的事件。
+ *
+ * @param ctx          流式上下文
+ * @param module_name  模块名称（如 "数论"、"群论"）
+ * @param count        该模块注册的预设数量
+ * @param step_number  步骤编号
+ */
+void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name,
+                                       int count, int step_number);
 
 /* ============== 异步模式 API ============== */
 

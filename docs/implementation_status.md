@@ -462,3 +462,101 @@
 benchmark:     全部通过
 总计:          52/55 构建目标可用（54/55 测试通过）
 ```
+
+---
+
+## 流式输出模块 (stream.h/c) - 100% 完成
+
+### 已实现功能：
+
+#### C 核心层
+- ✅ StreamContext 上下文管理
+- ✅ 回调注册/注销机制（支持多回调）
+- ✅ 事件过滤（按类型掩码）
+- ✅ 事件发射 API（同步/惰性模式）
+- ✅ 事件序列化（JSON 格式）
+- ✅ **惰性求值模式**（STREAM_EMIT_LAZY）
+  - ✅ `stream_lazy_next()` 惰性拉取下一个事件
+  - ✅ `stream_lazy_drain()` 批量惰性拉取
+  - ✅ `stream_lazy_pending()` 获取待处理事件数
+  - ✅ `stream_set_lazy_threshold()` 自动刷新阈值
+- ✅ 线程安全设计（互斥锁保护）
+
+#### 核心模块集成
+- ✅ 求解器集成（96+ 处 stream_emit 调用）
+  - 求解开始/进度/完成事件
+  - 变量绑定/方程求解事件
+- ✅ 归一化集成（14 处调用）
+  - 节点合并/约束简化事件
+- ✅ 重写引擎集成（10 处调用）
+  - 规则应用/重写步骤事件
+- ✅ 证明系统集成
+  - 推理步骤/定理应用事件
+
+#### Python 绑定
+- ✅ `stream_bridge.py` - WebSocket 服务器
+  - JSON-RPC 2.0 协议
+  - SSE 备选通道
+  - 事件持久化（JSONL 格式）
+  - 多引擎实例管理
+  - AI 助手代理（OpenAI/DeepSeek 兼容）
+- ✅ `async_stream.py` - 异步迭代器模块（新增）
+  - `AsyncStreamIterator` - 异步流迭代器
+  - `StreamEventQueue` - 线程安全事件队列
+  - `AsyncStreamContext` - 异步上下文管理器
+  - `BufferedStreamCollector` - 批量收集器
+  - 便捷函数：`stream_events`, `collect_events`, `wait_for_event`
+
+#### Web 前端
+- ✅ `streamClient.ts` - WebSocket 客户端
+- ✅ `useEngineStream.ts` - React Hook
+- ✅ `streamManager.ts` - 事件管理器
+- ✅ `StreamPanel.tsx` - 事件流面板
+- ✅ `StreamTimeline.tsx` - 时间线可视化
+
+#### 测试覆盖
+- ✅ `test_stream_extended.c` - C 单元测试
+- ✅ `test_streaming_e2e.py` - Python 端到端测试
+
+#### 文档
+- ✅ `streaming_guide.md` - 使用指南
+- ✅ `streaming_example.py` - 示例代码
+
+### 事件类型
+
+| 类型 | 描述 | 颜色 |
+|------|------|------|
+| STREAM_EVENT_NORMALIZATION_START | 归一化开始 | 蓝色 |
+| STREAM_EVENT_NORMALIZATION_MERGE | 节点合并 | 青色 |
+| STREAM_EVENT_NORMALIZATION_COMPLETE | 归一化完成 | 绿色 |
+| STREAM_EVENT_SOLVING_START | 求解开始 | 蓝色 |
+| STREAM_EVENT_SOLVING_PROGRESS | 求解进度 | 黄色 |
+| STREAM_EVENT_SOLVING_COMPLETE | 求解完成 | 绿色 |
+| STREAM_EVENT_PROOF_STEP | 证明步骤 | 紫色 |
+| STREAM_EVENT_ERROR | 错误 | 红色 |
+
+### 待完善功能：
+- ⚠️ 无（核心功能已完整）
+
+---
+
+## 本次更新记录（2026-05-24）
+
+### 新增文件
+| 文件 | 描述 | 行数 |
+|------|------|------:|
+| `python/lv00/async_stream.py` | 异步流迭代器模块 | ~600 |
+| `docs/streaming_guide.md` | 流式输出使用指南 | ~400 |
+| `examples/streaming_example.py` | 流式输出示例代码 | ~450 |
+
+### 更新文件
+| 文件 | 变更内容 |
+|------|----------|
+| `python/lv00/__init__.py` | 添加异步流模块惰性导入和导出 |
+
+### 功能增强
+- ✅ Python 异步迭代器模式支持
+- ✅ 线程安全事件队列
+- ✅ 批量事件收集器
+- ✅ 便捷函数（stream_events, collect_events, wait_for_event）
+- ✅ 完整使用文档和示例代码

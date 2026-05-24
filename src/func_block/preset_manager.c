@@ -8,7 +8,7 @@
  *          - 线程安全的预设操作
  *          - 内存管理和错误处理
  *
- * @version 4.0.0
+ * @version 3.2.0
  * @author Lv-00 Project
  */
 
@@ -91,8 +91,29 @@ static PresetLibraryState g_library = {
     .error_callback_data = NULL
 };
 
-/* ============================================================
+/* 显式初始化互斥锁（memset 零初始化对 POSIX pthread_mutex_t 不正确） */
+static void lock_library_init(void)
+{
+#ifdef _WIN32
+    InitializeCriticalSection(&g_library.mutex);
+#else
+    pthread_mutex_init(&g_library.mutex, NULL);
+#endif
+}
 
+/* 在静态初始化后立即初始化互斥锁 */
+static void lock_library_init_once(void)
+{
+    static volatile int s_init_done = 0;
+    if (!s_init_done) {
+        lock_library_init();
+        s_init_done = 1;
+    }
+}
+
+/* ============================================================
+ * 前向声明
+ * ============================================================ */
 
 /* ── 前向声明：供下方新增函数使用的静态辅助函数 ──
  * （这些函数的定义在文件后半部分） */
@@ -150,7 +171,6 @@ int preset_register_builtin(void)
     int registered = g_library.builtin_count;
     unlock_library();
 
-    ; /* 注册完成 */
     return registered;
 }
 
@@ -332,21 +352,16 @@ bool preset_query(const PresetQueryCriteria *criteria,
             }
 
             /* 条件7：搜索描述（关键词匹配） */
-            if (matches && criteria->search_description &&
-                criteria->name_pattern && criteria->name_pattern[0] != '\0') {
+            if (matches && criteria->search_description) {
                 /* 在描述中搜索名称模式（不使用通配符） */
                 if (meta->description) {
                     const char *found = strstr(meta->description, criteria->name_pattern);
                     if (!found) {
-                        /* 替换通配符后重新搜索 */
+                        /* 描述中未找到关键词，不匹配 */
                         matches = false;
-                        /* 如果通配符匹配了名称但描述中没有对应的关键词，
-                         * 接受这个匹配（描述搜索为可选项） */
-                        if (criteria->search_description) {
-                            matches = true; /* 名称匹配即通过 */
-                        }
                     }
                 } else {
+                    /* 无描述信息，不匹配描述搜索条件 */
                     matches = false;
                 }
             }
@@ -1039,7 +1054,6 @@ bool preset_compose(const PresetComposition *composition,
     unlock_library();
 
     if (success) {
-        ; /* 注册完成 */
     } else {
         set_error("组合预设注册失败");
     }
@@ -1899,8 +1913,8 @@ bool preset_export_to_file(const char *name, const char *filepath)
         return false;
     }
 
-    ; /* 注册完成 */
     return true;
+}
 
 error:
     return false;
@@ -1974,7 +1988,6 @@ bool preset_import_from_file(const char *filepath, char **out_name)
 
     preset_release(entry);
 
-    ; /* 注册完成 */
     return true;
 
 error:
@@ -2022,16 +2035,8 @@ static uint32_t hash_string(const char *str)
 
 static void lock_library(void)
 {
-    /* 惰性初始化：静态库链接时 DllMain/constructor 不会被调用 */
-    static volatile long g_mutex_initialized = 0;
-    if (!g_mutex_initialized) {
-#ifdef _WIN32
-        InitializeCriticalSection(&g_library.mutex);
-#else
-        pthread_mutex_init(&g_library.mutex, NULL);
-#endif
-        InterlockedExchange(&g_mutex_initialized, 1);
-    }
+    /* 使用显式初始化函数确保互斥锁正确初始化 */
+    lock_library_init_once();
 #ifdef _WIN32
     EnterCriticalSection(&g_library.mutex);
 #else
@@ -2270,7 +2275,6 @@ bool preset_library_init(void)
     clear_error();
     
     unlock_library();
-    ; /* 注册完成 */
     return true;
 }
 
@@ -2308,7 +2312,6 @@ bool preset_library_shutdown(void)
     g_library.initialized = false;
     
     unlock_library();
-    ; /* 注册完成 */
     return true;
 }
 
@@ -2413,7 +2416,6 @@ bool preset_library_reset(void)
     }
     
     unlock_library();
-    ; /* 注册完成 */
     return true;
 }
 
@@ -2501,7 +2503,6 @@ bool preset_register_custom(const PresetMetadata *metadata,
     }
     
     unlock_library();
-    ; /* 注册完成 */
     return true;
     
 error:
@@ -2550,7 +2551,6 @@ bool preset_unregister(const char *name)
     }
     
     unlock_library();
-    ; /* 注册完成 */
     return true;
     
 error:

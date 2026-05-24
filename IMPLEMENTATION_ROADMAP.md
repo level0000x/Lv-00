@@ -3,7 +3,7 @@
 ## TASK_REPORT 2026-05-20：全面优化会话
 
 ### 文档修复
-- 更新 Lv-00系统描述文档.md：完善文件结构（新增15个模块头文件引用）、修正API示例（graph_add_point使用SymbolicCoord**）、更新测试命令路径、修复许可证为MIT、添加v3.0.1版本历史
+- 更新 Lv-00系统描述文档.md：完善文件结构（新增15个模块头文件引用）、修正API示例（graph_add_point使用SymbolicCoord**）、更新测试命令路径、修复许可证为MIT、添加v3.2.0版本历史
 - 更新 IMPLEMENTATION_ROADMAP.md：本次详细TASK_REPORT记录
 
 ### 示例文件修复
@@ -62,7 +62,7 @@
 
 | 模块 | 当前完成度 | 需要完善的内容 |
 |------|------------|----------------|
-| 流处理 (stream) | 95% | 惰性求值完整实现（4/4 桩函数→完整实现，新增 LAZY case） |
+| 流处理 (stream) | 100% | ✅ 全部完成（惰性求值 + 各模块事件增强 + Web GUI 增强 + Python 桥接增强） |
 
 > **注 (2026-05-23)**: 上述"需要完善"列表已大幅精简。经过详细代码审计，
 > 以下模块实际已达到 90-100% 完成度（尽管之前文档标注为 65-80%）：
@@ -316,3 +316,67 @@
 | Penrose | 几何叙事导出 (NarrativeExport.tsx 1027行) | ✅ |
 
 **总计：11 个竞品全部借鉴落地，新增约 11,000 行代码，18 个 C API，5 个 Web GUI 组件。**
+
+---
+
+## TASK_REPORT 2026-05-24：流式输出系统全面增强
+
+### 概述
+
+对流式输出系统（stream）进行四维度全面增强：C 引擎事件发射修复与增强、Web GUI 面板功能扩展、Python 桥接层增强、端到端集成验证。
+
+### 1. Bug 修复：engine.c 流式上下文分发 ✅
+
+**文件**：`src/core/engine.c`（`engine_set_streaming_enabled()` 函数）
+
+| 问题 | 修复 |
+|------|------|
+| 禁用流式时 `normalization_set_stream_context(NULL)` 遗漏 | 添加到禁用分支 |
+| 禁用流式时 `graph_set_stream_context(NULL)` 遗漏 | 添加到禁用分支 |
+| 重新启用时 `normalization_set_stream_context(ctx)` 遗漏 | 添加到启用分支 |
+| 重新启用时 `graph_set_stream_context(ctx)` 遗漏 | 添加到启用分支 |
+
+**影响**：修复后，禁用/重新启用流式输出时所有 11 个子模块的上下文保持一致。
+
+### 2. 各模块流式事件增强 ✅
+
+| 文件 | 增强内容 |
+|------|----------|
+| `src/core/normalization.c` | Phase 2 线段合并 + Phase 3 区域合并新增 `NORMALIZE_MERGE` 事件 |
+| `src/core/constraint_graph.c` | 节点/约束移除改用 `stream_emit_node_event`/`stream_emit_constraint_event` 专用函数（携带结构化 ID） |
+| `src/core/proof.c` | `proof_navigator_destroy()` 新增流式事件（步骤数作为 step 参数） |
+
+### 3. Web GUI 流式面板增强 ✅
+
+| 新增文件 | 行数 | 功能 |
+|----------|------|------|
+| `StreamTimeline.tsx` | ~525 | 时间线视图：按类别分组、相对时间刻度、折叠/展开、选中高亮、统计摘要 |
+| `StreamSearch.tsx` | ~515 | 事件搜索：实时模糊搜索（300ms debounce）、类别/时间/步骤高级过滤、匹配高亮 |
+| `StreamExport.tsx` | ~448 | 事件导出：JSON/CSV/Markdown 三格式、全部/过滤/类别三范围、一键复制+文件下载 |
+
+| 修改文件 | 变更 |
+|----------|------|
+| `StreamPanel.tsx` | 集成三个新组件：视图切换（列表/时间线）、搜索面板、导出按钮 |
+| `components.css` | 新增 ~410 行 CSS：`.stream-timeline-*`、`.stream-search-*`、`.stream-export-*` 样式类 |
+
+### 4. Python 桥接层增强 ✅
+
+| 新增类/功能 | 位置 | 说明 |
+|-------------|------|------|
+| `EventPersistence` | `stream_bridge.py` | JSONL 事件持久化：append/replay/clear/get_stats，默认 `~/.lv00/stream_events.jsonl` |
+| `MultiEngineManager` | `stream_bridge.py` | 多引擎实例管理：register/unregister/get/list/broadcast/aggregate_stats |
+| SSE 备选通道 | `StreamBridgeServer` | 纯 asyncio HTTP SSE 端点：`_handle_sse_client` + `start_sse_server`，默认端口 3457 |
+
+**新增 CLI 参数**：`--sse`、`--sse-port`、`--persist`、`--persist-file`、`--replay`
+
+### 代码变更汇总
+
+| 类别 | 文件数 | 新增/修改行数 |
+|------|--------|---------------|
+| C 引擎修复 | 3 | +20 行 |
+| Web GUI 新组件 | 3 | ~1,488 行 |
+| Web GUI 修改 | 2 | ~430 行 |
+| Python 桥接增强 | 1 | ~500 行 |
+| 文档更新 | 1 | +15 行 |
+
+**总计：修改/新增 10 个文件，约 2,453 行代码。**

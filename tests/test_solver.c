@@ -36,7 +36,7 @@ static int test_degrees_of_freedom(void)
     /* 两个点 = 4个自由度（每个点2个坐标分量） */
     assert(dof == 4);
 
-    if (free_vars) free(free_vars);
+    if (free_vars) lv00_free_ptr(free_vars);
 
     /* 添加线段约束 */
     graph_add_line_segment(g, p1, p2);
@@ -45,7 +45,7 @@ static int test_degrees_of_freedom(void)
     int dof2 = count_degrees_of_freedom(g, &free_vars2);
     printf("  添加线段后: 自由度 = %d\n", dof2);
 
-    if (free_vars2) free(free_vars2);
+    if (free_vars2) lv00_free_ptr(free_vars2);
 
     graph_destroy(g);
     printf("  PASSED\n");
@@ -102,7 +102,7 @@ static int test_algebraic_solve(void)
     if (result) {
         printf("  解的数量: %d\n", result->solution_count);
         printf("  唯一解: %s\n", result->unique ? "是" : "否");
-        free(result);
+        lv00_free_ptr(result);
     }
 
     graph_destroy(g);
@@ -158,7 +158,7 @@ static int test_out_of_scope_analysis(void)
     printf("  分析状态: %d\n", status);
     if (suggestion) {
         printf("  建议: %s\n", suggestion);
-        free(suggestion);
+        lv00_free_ptr(suggestion);
     }
 
     graph_destroy(g);
@@ -189,7 +189,7 @@ static int test_complex_constraint_system(void)
     int dof = count_degrees_of_freedom(g, &free_vars);
     printf("  三角形自由度: %d\n", dof);
 
-    if (free_vars) free(free_vars);
+    if (free_vars) lv00_free_ptr(free_vars);
 
     /* 检测冲突 */
     bool has_conflict = check_conflict_equations(g);
@@ -227,7 +227,7 @@ static int test_overconstrained_system(void)
     int dof = count_degrees_of_freedom(g, &free_vars);
     printf("  自由度: %d\n", dof);
 
-    if (free_vars) free(free_vars);
+    if (free_vars) lv00_free_ptr(free_vars);
 
     graph_destroy(g);
     printf("  PASSED\n");

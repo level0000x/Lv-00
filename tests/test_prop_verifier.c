@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "lv00_utils.h"
 
 /* ============================================================
  * 测试辅助宏
@@ -156,37 +157,37 @@ TEST(test_formula_to_string) {
     /* 原子 */
     s = prop_formula_to_string(ATOM("P"));
     assert(s != NULL && strcmp(s, "P") == 0);
-    free(s);
+    lv00_free_ptr(s);
 
     /* 合取 */
     s = prop_formula_to_string(AND(ATOM("A"), ATOM("B")));
     assert(s != NULL && strcmp(s, "A /\\ B") == 0);
-    free(s);
+    lv00_free_ptr(s);
 
     /* 析取 */
     s = prop_formula_to_string(OR(ATOM("A"), ATOM("B")));
     assert(s != NULL && strcmp(s, "A \\/ B") == 0);
-    free(s);
+    lv00_free_ptr(s);
 
     /* 蕴涵 */
     s = prop_formula_to_string(IMPL(ATOM("A"), ATOM("B")));
     assert(s != NULL && strcmp(s, "A -> B") == 0);
-    free(s);
+    lv00_free_ptr(s);
 
     /* 否定 */
     s = prop_formula_to_string(NEG(ATOM("A")));
     assert(s != NULL && strcmp(s, "~A") == 0);
-    free(s);
+    lv00_free_ptr(s);
 
     /* 矛盾 */
     s = prop_formula_to_string(BOT());
     assert(s != NULL && strcmp(s, "_|_") == 0);
-    free(s);
+    lv00_free_ptr(s);
 
     /* 真 */
     s = prop_formula_to_string(TOP());
     assert(s != NULL && strcmp(s, "T") == 0);
-    free(s);
+    lv00_free_ptr(s);
 
     /* NULL */
     assert(prop_formula_to_string(NULL) == NULL);
@@ -198,7 +199,7 @@ TEST(test_formula_to_string) {
     assert(strstr(s, "P") != NULL);
     assert(strstr(s, "Q") != NULL);
     assert(strstr(s, "R") != NULL);
-    free(s);
+    lv00_free_ptr(s);
     prop_formula_destroy(complex);
 }
 
@@ -211,27 +212,27 @@ TEST(test_formula_to_latex) {
 
     s = prop_formula_to_latex(AND(ATOM("P"), ATOM("Q")));
     assert(s != NULL && strstr(s, "\\wedge") != NULL);
-    free(s);
+    lv00_free_ptr(s);
 
     s = prop_formula_to_latex(OR(ATOM("P"), ATOM("Q")));
     assert(s != NULL && strstr(s, "\\vee") != NULL);
-    free(s);
+    lv00_free_ptr(s);
 
     s = prop_formula_to_latex(IMPL(ATOM("P"), ATOM("Q")));
     assert(s != NULL && strstr(s, "\\to") != NULL);
-    free(s);
+    lv00_free_ptr(s);
 
     s = prop_formula_to_latex(NEG(ATOM("P")));
     assert(s != NULL && strstr(s, "\\neg") != NULL);
-    free(s);
+    lv00_free_ptr(s);
 
     s = prop_formula_to_latex(BOT());
     assert(s != NULL && strstr(s, "\\bot") != NULL);
-    free(s);
+    lv00_free_ptr(s);
 
     s = prop_formula_to_latex(TOP());
     assert(s != NULL && strstr(s, "\\top") != NULL);
-    free(s);
+    lv00_free_ptr(s);
 }
 
 /* ============================================================
@@ -254,7 +255,7 @@ TEST(test_modus_ponens) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, q, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
     assert(detail.steps_used > 0);
 
     /* pimplq 是根，包含 p 和 q */
@@ -276,10 +277,10 @@ TEST(test_conjunction_elimination) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, p_goal, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     detail = prop_verifier_verify(premises, 1, q_goal, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(pq);
 }
@@ -298,7 +299,7 @@ TEST(test_disjunction_introduction) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, porq, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     /* porq 包含 p 和 q，只销毁 porq */
     prop_formula_destroy(porq);
@@ -314,7 +315,7 @@ TEST(test_implication_introduction) {
 
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
     VerifyDetail detail = prop_verifier_verify(NULL, 0, pimplp, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(pimplp);
 }
@@ -333,7 +334,7 @@ TEST(test_negation_elimination) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, bot, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     /* notp 包含 p，bot 独立 */
     prop_formula_destroy(notp);
@@ -357,7 +358,7 @@ TEST(test_negation_introduction) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, notp, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(notp);     /* 包含 p2 */
     prop_formula_destroy(pimplbot); /* 包含 p 和 bot */
@@ -379,7 +380,7 @@ TEST(test_hypothetical_syllogism) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, pimplr, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(pimplr);
     prop_formula_destroy(qimplr);
@@ -406,18 +407,18 @@ TEST(test_builtin_smoke_tests) {
     /* 验证具体结果 */
     /* 测试 1-9 应该可证 */
     for (int i = 0; i < 9; i++) {
-        assert(results[i].result == VERIFY_PROVEN);
+        assert(results[i].result == PV_VERIFY_PROVEN);
     }
 
     /* 测试 10-12 在直觉主义模式下不可证 */
     for (int i = 9; i < 12; i++) {
-        assert(results[i].result != VERIFY_PROVEN);
+        assert(results[i].result != PV_VERIFY_PROVEN);
     }
 
     /* 测试 13 (爆炸原理) 应该可证（因为启用了 ex_falso） */
-    assert(results[12].result == VERIFY_PROVEN);
+    assert(results[12].result == PV_VERIFY_PROVEN);
 
-    free(results);
+    lv00_free_ptr(results);
 }
 
 /* ============================================================
@@ -434,7 +435,7 @@ TEST(test_intuitionistic_vs_classical) {
         PropFormula *p = ATOM("P");
         const PropFormula *premises[] = {notnotp};
         VerifyDetail detail = prop_verifier_verify(premises, 1, p, &config);
-        assert(detail.result != VERIFY_PROVEN);
+        assert(detail.result != PV_VERIFY_PROVEN);
         prop_formula_destroy(notnotp);
         prop_formula_destroy(p);
     }
@@ -443,7 +444,7 @@ TEST(test_intuitionistic_vs_classical) {
     {
         PropFormula *pornotp = OR(ATOM("P"), NEG(ATOM("P")));
         VerifyDetail detail = prop_verifier_verify(NULL, 0, pornotp, &config);
-        assert(detail.result != VERIFY_PROVEN);
+        assert(detail.result != PV_VERIFY_PROVEN);
         prop_formula_destroy(pornotp);
     }
 }
@@ -463,12 +464,12 @@ TEST(test_ex_falso) {
     config.enable_ex_falso = false;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, p, &config);
-    assert(detail.result != VERIFY_PROVEN);
+    assert(detail.result != PV_VERIFY_PROVEN);
 
     /* 启用 ex_falso：⊥ ⊢ P */
     config.enable_ex_falso = true;
     detail = prop_verifier_verify(premises, 1, p, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     /* bot 和 p 互相独立 */
     prop_formula_destroy(bot);
@@ -487,7 +488,7 @@ TEST(test_timeout) {
     config.max_steps = 1000000;
 
     VerifyDetail detail = prop_verifier_verify(NULL, 0, complex, &config);
-    assert(detail.result == VERIFY_TIMEOUT || detail.result == VERIFY_FAILED);
+    assert(detail.result == PV_VERIFY_TIMEOUT || detail.result == PV_VERIFY_FAILED);
 
     prop_formula_destroy(complex);
 }
@@ -503,7 +504,7 @@ TEST(test_step_limit) {
     config.max_steps = 2;
 
     VerifyDetail detail = prop_verifier_verify(NULL, 0, porq, &config);
-    assert(detail.result == VERIFY_FAILED);
+    assert(detail.result == PV_VERIFY_FAILED);
     assert(detail.steps_used <= config.max_steps + 1);
 
     prop_formula_destroy(porq);
@@ -518,30 +519,30 @@ TEST(test_edge_cases) {
 
     /* NULL 目标 */
     VerifyDetail detail = prop_verifier_verify(NULL, 0, NULL, &config);
-    assert(detail.result == VERIFY_INVALID_INPUT);
+    assert(detail.result == PV_VERIFY_INVALID_INPUT);
 
     /* 负前提数 */
     PropFormula *tmp = ATOM("P");
     detail = prop_verifier_verify(NULL, -1, tmp, &config);
-    assert(detail.result == VERIFY_INVALID_INPUT);
+    assert(detail.result == PV_VERIFY_INVALID_INPUT);
 
     /* 前提数组为 NULL 但数量 > 0 */
     detail = prop_verifier_verify(NULL, 1, tmp, &config);
-    assert(detail.result == VERIFY_INVALID_INPUT);
+    assert(detail.result == PV_VERIFY_INVALID_INPUT);
 
     /* NULL 配置（使用默认值） */
     detail = prop_verifier_verify(NULL, 0, tmp, NULL);
-    assert(detail.result == VERIFY_FAILED);
+    assert(detail.result == PV_VERIFY_FAILED);
 
     /* ⊤ 总是可证的 */
     PropFormula *top = TOP();
     detail = prop_verifier_verify(NULL, 0, top, NULL);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     /* 空前提 ⊢ ⊥ 不可证 */
     PropFormula *bot = BOT();
     detail = prop_verifier_verify(NULL, 0, bot, NULL);
-    assert(detail.result != VERIFY_PROVEN);
+    assert(detail.result != PV_VERIFY_PROVEN);
 
     prop_formula_destroy(bot);
     prop_formula_destroy(top);
@@ -567,7 +568,7 @@ TEST(test_distribution) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, pandqorpandr, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(pandqorpandr);
     prop_formula_destroy(pandqorr);
@@ -586,7 +587,7 @@ TEST(test_contraposition) {
 
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
     VerifyDetail detail = prop_verifier_verify(NULL, 0, contraposition, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(contraposition);
 }
@@ -640,7 +641,7 @@ TEST(test_verify_detail) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, q, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
     assert(detail.steps_used > 0);
     assert(detail.max_steps == config.max_steps);
     assert(strlen(detail.construction_summary) > 0);
@@ -665,7 +666,7 @@ TEST(test_complex_nested) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, r, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(r);
     prop_formula_destroy(pandq);
@@ -682,20 +683,20 @@ TEST(test_top_bottom) {
     /* ⊤ 总是可证 */
     PropFormula *top = TOP();
     VerifyDetail detail = prop_verifier_verify(NULL, 0, top, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     /* ⊥ ⊢ ⊥ */
     PropFormula *bot = BOT();
     const PropFormula *premises[] = {bot};
     detail = prop_verifier_verify(premises, 1, bot, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     /* ⊤ → P ⊢ P */
     PropFormula *topimplp = IMPL(TOP(), ATOM("P"));
     const PropFormula *premises2[] = {topimplp};
     PropFormula *p_goal = ATOM("P");
     detail = prop_verifier_verify(premises2, 1, p_goal, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    assert(detail.result == PV_VERIFY_PROVEN);
 
     prop_formula_destroy(p_goal);
     prop_formula_destroy(topimplp);

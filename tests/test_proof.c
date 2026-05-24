@@ -297,7 +297,7 @@ static int test_unify_check(void)
     printf("  详细合一结果: %s\n", unify_result_to_string(result2));
     if (mismatch_info) {
         printf("  不匹配信息: %s\n", mismatch_info);
-        free(mismatch_info);
+        lv00_free_ptr(mismatch_info);
     }
 
     graph_destroy(construction);

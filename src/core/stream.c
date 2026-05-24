@@ -1,22 +1,22 @@
-﻿/**
+/**
  * @file stream.c
  * @brief 流式输出系统实现 —— 引擎事件回调与实时状态推送
  *
- * 提供流式事件发射、回调注册、事件过滤、JSON 序列化、事件统计等核心功能。
- * 支撑 Web 前端实时可视化和证明步骤动画渲染。
+ * @details 提供流式事件发射、回调注册、事件过滤、JSON 序列化、事件统计等核心功能。
+ *          支撑 Web 前端实时可视化和证明步骤动画渲染。
  *
- * 功能模块:
- *   - 生命周期管理: 创建/销毁流式上下文
- *   - 回调管理: 注册/注销回调，支持事件类型过滤掩码
- *   - 事件发射: 立即/缓冲/节流/惰性四种模式
- *   - 惰性求值: 消费者主动拉取模式，阈值自动刷新
- *   - 异步模式: 基于环形缓冲区的缓冲队列（纯 C 无线程依赖）
- *   - JSON 序列化: 手工拼接 JSON / JSON-RPC 字符串
- *   - 事件统计: 按类型计数、总数、丢弃数
- *   - 工具函数: 时间戳、事件类型名称/颜色/标识符、过滤掩码解析
+ *          功能模块:
+ *            - 生命周期管理: 创建/销毁流式上下文
+ *            - 回调管理: 注册/注销回调，支持事件类型过滤掩码
+ *            - 事件发射: 立即/缓冲/节流/惰性四种模式
+ *            - 惰性求值: 消费者主动拉取模式，阈值自动刷新
+ *            - 异步模式: 基于环形缓冲区的多线程消费者模式（互斥锁+条件变量）
+ *            - JSON 序列化: 手工拼接 JSON / JSON-RPC 字符串
+ *            - 事件统计: 按类型计数、总数、丢弃数
+ *            - 工具函数: 时间戳、事件类型名称/颜色/标识符、过滤掩码解析
  *
- * 该文件为全量重构版本：原文件因编码损坏导致部分注释和逻辑丢失，
- * 于 2026-05-20 基于头文件声明和功能规格重新实现，并通过回归测试验证。
+ *          该文件为全量重构版本：原文件因编码损坏导致部分注释和逻辑丢失，
+ *          于 2026-05-20 基于头文件声明和功能规格重新实现，并通过回归测试验证。
  *
  * @author Lv-00 Project
  * @version 3.2.0  (惰性求值完整实现 2026-05-23)
@@ -26,8 +26,8 @@
  *   - lv00_utils.h          : 统一内存分配器
  *
  * @note 本模块无外部依赖（除 lv00_utils），仅依赖标准 C 库。
- *       所有平台相关代码通过 #ifdef 隔离（Windows: windows.h/timeGetTime，
- *       类 Unix: sys/time.h/strings.h）。
+ *       所有平台相关代码通过 #ifdef 隔离（Windows: windows.h/timeGetTime/process.h，
+ *       类 Unix: sys/time.h/strings.h/pthread.h）。异步模式使用平台原生线程原语。
  */
 
 #include "stream.h"
@@ -44,6 +44,20 @@
 #else
 #include <sys/time.h>   /* gettimeofday：高精度墙上时钟（非处理器时间） */
 #include <strings.h>    /* strcasecmp：不区分大小写的字符串比较 */
+#endif
+
+/* ── 平台线程支持 ── */
+#ifdef _WIN32
+#include <process.h>
+#define LV00_THREAD_HANDLE HANDLE
+#define LV00_MUTEX HANDLE
+#define LV00_CONDVAR HANDLE (CONDITION_VARIABLE*)
+/* Windows 线程函数返回 unsigned, 需要适配 */
+#else
+#include <pthread.h>
+#define LV00_THREAD_HANDLE pthread_t
+#define LV00_MUTEX pthread_mutex_t
+#define LV00_CONDVAR pthread_cond_t
 #endif
 
 /* ==================== 内部常量 ==================== */
@@ -74,6 +88,89 @@
 #define STREAM_COLOR_TEAL       "#39d353"  /**< 青绿色：函数块系统 */
 #define STREAM_COLOR_CYAN       "#56d4dd"  /**< 青色：递归系统 */
 #define STREAM_COLOR_PINK       "#f778ba"  /**< 粉色：选择器分支 */
+
+/* ==================== 平台线程抽象 ==================== */
+
+static void *lv00_mutex_create(void) {
+#ifdef _WIN32
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)lv00_malloc(sizeof(CRITICAL_SECTION));
+    if (cs) InitializeCriticalSection(cs);
+    return cs;
+#else
+    pthread_mutex_t *m = (pthread_mutex_t *)lv00_malloc(sizeof(pthread_mutex_t));
+    if (m) pthread_mutex_init(m, NULL);
+    return m;
+#endif
+}
+
+static void lv00_mutex_destroy(void *mutex) {
+    if (!mutex) return;
+#ifdef _WIN32
+    DeleteCriticalSection((CRITICAL_SECTION *)mutex);
+#else
+    pthread_mutex_destroy((pthread_mutex_t *)mutex);
+#endif
+    lv00_free((void **)&mutex);
+}
+
+static void lv00_mutex_lock(void *mutex) {
+    if (!mutex) return;
+#ifdef _WIN32
+    EnterCriticalSection((CRITICAL_SECTION *)mutex);
+#else
+    pthread_mutex_lock((pthread_mutex_t *)mutex);
+#endif
+}
+
+static void lv00_mutex_unlock(void *mutex) {
+    if (!mutex) return;
+#ifdef _WIN32
+    LeaveCriticalSection((CRITICAL_SECTION *)mutex);
+#else
+    pthread_mutex_unlock((pthread_mutex_t *)mutex);
+#endif
+}
+
+static void *lv00_condvar_create(void) {
+#ifdef _WIN32
+    /* Windows CONDITION_VARIABLE 是栈分配的，用堆包装 */
+    CONDITION_VARIABLE *cv = (CONDITION_VARIABLE *)lv00_malloc(sizeof(CONDITION_VARIABLE));
+    if (cv) InitializeConditionVariable(cv);
+    return cv;
+#else
+    pthread_cond_t *cv = (pthread_cond_t *)lv00_malloc(sizeof(pthread_cond_t));
+    if (cv) pthread_cond_init(cv, NULL);
+    return cv;
+#endif
+}
+
+static void lv00_condvar_destroy(void *cv) {
+    if (!cv) return;
+#ifdef _WIN32
+    /* Windows CONDITION_VARIABLE 不需要销毁 */
+#else
+    pthread_cond_destroy((pthread_cond_t *)cv);
+#endif
+    lv00_free((void **)&cv);
+}
+
+static void lv00_condvar_signal(void *cv) {
+    if (!cv) return;
+#ifdef _WIN32
+    WakeConditionVariable((CONDITION_VARIABLE *)cv);
+#else
+    pthread_cond_signal((pthread_cond_t *)cv);
+#endif
+}
+
+static void lv00_condvar_wait(void *cv, void *mutex) {
+    if (!cv || !mutex) return;
+#ifdef _WIN32
+    SleepConditionVariableCS((CONDITION_VARIABLE *)cv, (CRITICAL_SECTION *)mutex, INFINITE);
+#else
+    pthread_cond_wait((pthread_cond_t *)cv, (pthread_mutex_t *)mutex);
+#endif
+}
 
 /* ==================== 数据结构 ==================== */
 
@@ -130,6 +227,15 @@ struct StreamContext {
     int lazy_capacity;          /**< 惰性队列容量 */
     int lazy_head;              /**< 惰性队列读头 */
     int lazy_threshold;         /**< 惰性自动刷新阈值（0=禁用） */
+
+    /* ── 异步模式（多线程） ── */
+    bool  async_enabled;          /**< 是否启用了真正的异步模式 */
+    bool  async_running;          /**< 消费者线程运行标志 */
+    void *async_thread;           /**< 消费者线程句柄 (pthread_t / HANDLE) */
+    void *async_mutex;            /**< 保护环形缓冲区的互斥锁 */
+    void *async_cond_not_empty;   /**< 条件变量：缓冲区非空时通知消费者 */
+    void *async_cond_flushed;     /**< 条件变量：队列排空时通知 flush 等待者 */
+    int   async_flush_waiters;    /**< 等待 flush 完成的线程数 */
 };
 
 /* ==================== 内部辅助函数（前向声明） ==================== */
@@ -189,6 +295,15 @@ StreamContext *stream_context_create(void) {
     ctx->lazy_head = 0;
     ctx->lazy_threshold = 0;
 
+    /* 初始化异步模式字段 */
+    ctx->async_enabled = false;
+    ctx->async_running = false;
+    ctx->async_thread = NULL;
+    ctx->async_mutex = NULL;
+    ctx->async_cond_not_empty = NULL;
+    ctx->async_cond_flushed = NULL;
+    ctx->async_flush_waiters = 0;
+
     return ctx;
 }
 
@@ -201,9 +316,28 @@ StreamContext *stream_context_create(void) {
  */
 void stream_context_destroy(StreamContext *ctx) {
     if (!ctx) return;
+
+    /* 如果异步模式已启用，先停止消费者线程 */
+    if (ctx->async_enabled && ctx->async_running) {
+        stream_set_async_mode(ctx, false, 0);
+    }
+
+    /* 清理异步同步原语（防御性清理） */
+    if (ctx->async_mutex) {
+        lv00_mutex_destroy(ctx->async_mutex);
+        ctx->async_mutex = NULL;
+    }
+    if (ctx->async_cond_not_empty) {
+        lv00_condvar_destroy(ctx->async_cond_not_empty);
+        ctx->async_cond_not_empty = NULL;
+    }
+    if (ctx->async_cond_flushed) {
+        lv00_condvar_destroy(ctx->async_cond_flushed);
+        ctx->async_cond_flushed = NULL;
+    }
+
     /* 释放事件缓冲区 */
     if (ctx->buffer) {
-        /* 释放缓冲区中事件的动态内存（description/detail_json 为外部指针，不释放） */
         lv00_free((void **)&ctx->buffer);
     }
     /* 释放惰性队列 */
@@ -446,7 +580,11 @@ static void stream_buffer_push(StreamContext *ctx, const StreamEvent *event) {
  */
 static void stream_dispatch(StreamContext *ctx, const StreamEvent *event) {
     uint64_t event_bit = STREAM_EVENT_MASK(event->type);
-    for (int i = 0; i < ctx->callback_count; i++) {
+    /* 快照当前回调数量，防止回调函数中注册/注销回调导致迭代器失效 */
+    int saved_count = ctx->callback_count;
+    for (int i = 0; i < saved_count; i++) {
+        /* 检查索引是否仍然有效（回调可能已被注销导致前移） */
+        if (i >= ctx->callback_count) break;
         if (ctx->callbacks[i].callback &&
             (ctx->callbacks[i].filter_mask & event_bit) != 0) {
             ctx->callbacks[i].callback(event, ctx->callbacks[i].user_data);
@@ -511,6 +649,21 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
     /* 更新事件统计（无论哪种发射模式都计数） */
     stream_update_stats(ctx, event);
 
+    /* 异步模式：加锁入队 + 条件变量通知消费者 */
+    if (ctx->async_enabled && ctx->async_running) {
+        lv00_mutex_lock(ctx->async_mutex);
+        if (ctx->buffer_count < ctx->buffer_capacity) {
+            int write_pos = (ctx->buffer_head + ctx->buffer_count) % ctx->buffer_capacity;
+            ctx->buffer[write_pos] = *event;
+            ctx->buffer_count++;
+        } else {
+            ctx->dropped_count++;
+        }
+        lv00_condvar_signal(ctx->async_cond_not_empty);
+        lv00_mutex_unlock(ctx->async_mutex);
+        return;
+    }
+
     switch (ctx->emit_mode) {
         case STREAM_EMIT_IMMEDIATE:
             stream_dispatch(ctx, event);
@@ -550,28 +703,43 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
  * @param description 事件描述字符串
  * @param step_number 当前步骤编号
  */
+/* ==================== 便捷发射函数 ==================== */
+
+/**
+ * @brief 初始化 StreamEvent 的公共字段（内部辅助函数）
+ *
+ * 消除 7 个便捷发射函数中重复的 memset + 默认值设置代码。
+ * 所有便捷发射函数共享相同的初始化模式：清零、设置时间戳、
+ * 将未使用的整数字段设为 -1、将 progress 设为 -1.0。
+ *
+ * @param event       待初始化的事件指针（调用者负责分配）
+ * @param type        事件类型
+ * @param description 事件描述字符串
+ * @param step_number 当前步骤编号
+ */
+static inline void stream_event_init(StreamEvent *event, StreamEventType type,
+                                      const char *description, int step_number) {
+    memset(event, 0, sizeof(*event));
+    event->type = type;
+    event->timestamp_ms = stream_timestamp_ms();
+    event->step_number = step_number;
+    event->description = description;
+    /* 未使用的字段设为无效默认值，便于消费者区分"未设置"和"值为0" */
+    event->node_id = -1;
+    event->constraint_id = -1;
+    event->rule_id = -1;
+    event->var_id = -1;
+    event->total_steps = -1;
+    event->progress = -1.0;
+}
+
 void stream_emit_simple(StreamContext *ctx, StreamEventType type,
                          const char *description, int step_number) {
     if (!ctx) return;
-
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = type;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
-    event.description = description;
-    event.node_id = -1;
-    event.constraint_id = -1;
-    event.rule_id = -1;
-    event.var_id = -1;
-    event.total_steps = -1;
-    event.progress = -1.0;
-
+    stream_event_init(&event, type, description, step_number);
     stream_emit(ctx, &event);
 }
-
-/* ==================== 便捷发射函数 ==================== */
 
 /**
  * @brief 发射节点相关事件
@@ -587,21 +755,9 @@ void stream_emit_simple(StreamContext *ctx, StreamEventType type,
 void stream_emit_node_event(StreamContext *ctx, StreamEventType type,
                              int node_id, const char *description, int step_number) {
     if (!ctx) return;
-
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = type;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
-    event.description = description;
+    stream_event_init(&event, type, description, step_number);
     event.node_id = node_id;
-    event.constraint_id = -1;
-    event.rule_id = -1;
-    event.var_id = -1;
-    event.total_steps = -1;
-    event.progress = -1.0;
-
     stream_emit(ctx, &event);
 }
 
@@ -619,21 +775,9 @@ void stream_emit_node_event(StreamContext *ctx, StreamEventType type,
 void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type,
                                    int constraint_id, const char *description, int step_number) {
     if (!ctx) return;
-
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = type;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
-    event.description = description;
-    event.node_id = -1;
+    stream_event_init(&event, type, description, step_number);
     event.constraint_id = constraint_id;
-    event.rule_id = -1;
-    event.var_id = -1;
-    event.total_steps = -1;
-    event.progress = -1.0;
-
     stream_emit(ctx, &event);
 }
 
@@ -651,21 +795,10 @@ void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type,
 void stream_emit_progress(StreamContext *ctx, double progress,
                            const char *description, int step_number, int total_steps) {
     if (!ctx) return;
-
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = STREAM_EVENT_PROGRESS;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
+    stream_event_init(&event, STREAM_EVENT_PROGRESS, description, step_number);
     event.total_steps = total_steps;
-    event.description = description;
-    event.node_id = -1;
-    event.constraint_id = -1;
-    event.rule_id = -1;
-    event.var_id = -1;
     event.progress = progress;
-
     stream_emit(ctx, &event);
 }
 
@@ -683,22 +816,9 @@ void stream_emit_progress(StreamContext *ctx, double progress,
 void stream_emit_numeric(StreamContext *ctx, StreamEventType type,
                           double numeric_value, const char *description, int step_number) {
     if (!ctx) return;
-
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = type;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
-    event.description = description;
-    event.node_id = -1;
-    event.constraint_id = -1;
-    event.rule_id = -1;
-    event.var_id = -1;
-    event.total_steps = -1;
-    event.progress = -1.0;
+    stream_event_init(&event, type, description, step_number);
     event.numeric_value = numeric_value;
-
     stream_emit(ctx, &event);
 }
 
@@ -716,22 +836,9 @@ void stream_emit_numeric(StreamContext *ctx, StreamEventType type,
 void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type,
                                  const char *graph_json, const char *description, int step_number) {
     if (!ctx) return;
-
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = type;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
-    event.description = description;
-    event.node_id = -1;
-    event.constraint_id = -1;
-    event.rule_id = -1;
-    event.var_id = -1;
-    event.total_steps = -1;
-    event.progress = -1.0;
+    stream_event_init(&event, type, description, step_number);
     event.graph_json = graph_json;
-
     stream_emit(ctx, &event);
 }
 
@@ -749,30 +856,20 @@ void stream_emit_merge(StreamContext *ctx, int from_id, int to_id, int step_numb
     if (!ctx) return;
 
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = STREAM_EVENT_NORMALIZE_MERGE;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
+    stream_event_init(&event, STREAM_EVENT_NORMALIZE_MERGE, NULL, step_number);
     event.node_id = to_id;
     event.constraint_id = from_id;  /* 复用字段存储 from_id */
-    event.rule_id = -1;
-    event.var_id = -1;
-    event.total_steps = -1;
-    event.progress = -1.0;
 
-    /* 构建描述字符串（堆分配，避免静态缓冲区线程安全问题） */
-    char *desc_buf = (char *)lv00_malloc(128);
-    if (desc_buf) {
-        snprintf(desc_buf, 128, "节点合并: %d → %d", from_id, to_id);
-        event.description = desc_buf;
-        stream_emit(ctx, &event);
-        lv00_free((void **)&desc_buf);
-    } else {
-        /* 内存不足时使用简单描述 */
-        event.description = "节点合并";
-        stream_emit(ctx, &event);
-    }
+    /* 构建描述字符串（使用线程局部静态缓冲区，避免堆分配导致悬空指针风险）
+     * 注意：之前使用 lv00_malloc 分配堆内存，在 BUFFERED/THROTTLED/LAZY 模式下
+     *       stream_emit 会缓冲事件引用，释放 desc_buf 后 description 变为悬空指针。
+     *       改用线程局部静态缓冲区（128字节足够描述合并信息），彻底消除此风险。 */
+    static const int DESC_BUF_SIZE = 128;
+    static __thread char desc_buf[DESC_BUF_SIZE];
+    snprintf(desc_buf, DESC_BUF_SIZE, "节点合并: %d → %d", from_id, to_id);
+    event.description = desc_buf;
+
+    stream_emit(ctx, &event);
 }
 
 /**
@@ -789,22 +886,10 @@ void stream_emit_merge(StreamContext *ctx, int from_id, int to_id, int step_numb
 void stream_emit_variable_resolved(StreamContext *ctx, int var_id,
                                     double value, const char *description, int step_number) {
     if (!ctx) return;
-
     StreamEvent event;
-    memset(&event, 0, sizeof(event));
-
-    event.type = STREAM_EVENT_SOLVE_VARIABLE_RESOLVED;
-    event.timestamp_ms = stream_timestamp_ms();
-    event.step_number = step_number;
-    event.description = description;
-    event.node_id = -1;
-    event.constraint_id = -1;
-    event.rule_id = -1;
+    stream_event_init(&event, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED, description, step_number);
     event.var_id = var_id;
-    event.total_steps = -1;
-    event.progress = -1.0;
     event.numeric_value = value;
-
     stream_emit(ctx, &event);
 }
 
@@ -847,6 +932,106 @@ void stream_emit_info(StreamContext *ctx, const char *description, int step_numb
     stream_emit_simple(ctx, STREAM_EVENT_INFO, description, step_number);
 }
 
+/* ==================== 预设函数块便捷发射 API ==================== */
+
+/**
+ * 发射预设注册事件。
+ *
+ * 根据注册结果自动选择 PRESET_REGISTER_DONE 或 PRESET_REGISTER_FAILED 事件类型，
+ * 并在描述中包含预设名称和结果信息。
+ */
+void stream_emit_preset_register(StreamContext *ctx, const char *name,
+                                  bool success, int step_number) {
+    if (!ctx || !name) return;
+
+    StreamEvent ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.type = success ? STREAM_EVENT_PRESET_REGISTER_DONE
+                      : STREAM_EVENT_PRESET_REGISTER_FAILED;
+    ev.timestamp_ms = stream_timestamp_ms();
+    ev.step_number = step_number;
+
+    /* 构造描述文本：包含预设名称和结果 */
+    char desc[512];
+    snprintf(desc, sizeof(desc), "预设 '%s' 注册%s",
+             name, success ? "成功" : "失败");
+    ev.description = desc;
+
+    stream_emit(ctx, &ev);
+}
+
+/**
+ * 发射预设实例化事件。
+ *
+ * 发射 PRESET_INSTANTIATE 事件，附带预设名称和实例 ID。
+ */
+void stream_emit_preset_instantiate(StreamContext *ctx, const char *name,
+                                     int instance_id, int step_number) {
+    if (!ctx || !name) return;
+
+    StreamEvent ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.type = STREAM_EVENT_PRESET_INSTANTIATE;
+    ev.timestamp_ms = stream_timestamp_ms();
+    ev.step_number = step_number;
+    ev.node_id = instance_id;  /* 复用 node_id 字段存储实例 ID */
+
+    char desc[512];
+    snprintf(desc, sizeof(desc), "预设 '%s' 实例化 (ID=%d)", name, instance_id);
+    ev.description = desc;
+
+    stream_emit(ctx, &ev);
+}
+
+/**
+ * 发射预设验证事件。
+ *
+ * 发射 PRESET_VALIDATE 事件，附带验证结果和详情。
+ */
+void stream_emit_preset_validate(StreamContext *ctx, const char *name,
+                                  bool is_valid, const char *detail, int step_number) {
+    if (!ctx || !name) return;
+
+    StreamEvent ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.type = STREAM_EVENT_PRESET_VALIDATE;
+    ev.timestamp_ms = stream_timestamp_ms();
+    ev.step_number = step_number;
+    ev.detail_json = detail;  /* 复用 detail_json 字段存储验证详情 */
+
+    char desc[512];
+    snprintf(desc, sizeof(desc), "预设 '%s' 验证%s%s",
+             name, is_valid ? "通过" : "失败",
+             detail ? "" : "");
+    ev.description = desc;
+
+    stream_emit(ctx, &ev);
+}
+
+/**
+ * 发射预设模块加载完成事件。
+ *
+ * 发射 PRESET_MODULE_LOADED 事件，附带模块名称和注册数量。
+ */
+void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name,
+                                       int count, int step_number) {
+    if (!ctx || !module_name) return;
+
+    StreamEvent ev;
+    memset(&ev, 0, sizeof(ev));
+    ev.type = STREAM_EVENT_PRESET_MODULE_LOADED;
+    ev.timestamp_ms = stream_timestamp_ms();
+    ev.step_number = step_number;
+    ev.numeric_value = (double)count;  /* 复用 numeric_value 存储注册数量 */
+
+    char desc[512];
+    snprintf(desc, sizeof(desc), "模块 '%s' 加载完成，共 %d 个预设",
+             module_name, count);
+    ev.description = desc;
+
+    stream_emit(ctx, &ev);
+}
+
 /* ==================== 发射模式 API ==================== */
 
 /**
@@ -858,6 +1043,13 @@ void stream_emit_info(StreamContext *ctx, const char *description, int step_numb
  */
 void stream_set_emit_mode(StreamContext *ctx, StreamEmitMode mode, long throttle_ms) {
     if (!ctx) return;
+
+    /* 异步模式优先：如果已启用异步，不允许切换发射模式 */
+    if (ctx->async_enabled) {
+        /* 异步模式下忽略发射模式切换，保持 BUFFERED */
+        return;
+    }
+
     ctx->emit_mode = mode;
     if (throttle_ms > 0) {
         ctx->throttle_ms = throttle_ms;
@@ -888,12 +1080,77 @@ StreamEmitMode stream_get_emit_mode(const StreamContext *ctx) {
 
 /* ==================== 异步模式 API ==================== */
 
+/* ==================== 异步消费者线程 ==================== */
+
+#ifdef _WIN32
+static unsigned __stdcall async_consumer_thread(void *arg)
+#else
+static void *async_consumer_thread(void *arg)
+#endif
+{
+    StreamContext *ctx = (StreamContext *)arg;
+
+    while (true) {
+        lv00_mutex_lock(ctx->async_mutex);
+
+        /* 等待缓冲区非空或停止信号 */
+        while (ctx->buffer_count == 0 && ctx->async_running) {
+            lv00_condvar_wait(ctx->async_cond_not_empty, ctx->async_mutex);
+        }
+
+        /* 检查停止信号 */
+        if (!ctx->async_running) {
+            /* 排空剩余事件 */
+            while (ctx->buffer_count > 0) {
+                StreamEvent ev = ctx->buffer[ctx->buffer_head];
+                ctx->buffer_head = (ctx->buffer_head + 1) % ctx->buffer_capacity;
+                ctx->buffer_count--;
+                lv00_mutex_unlock(ctx->async_mutex);
+                stream_dispatch(ctx, &ev);
+                lv00_mutex_lock(ctx->async_mutex);
+            }
+            ctx->buffer_head = 0;
+
+            /* 通知等待 flush 的线程 */
+            if (ctx->async_flush_waiters > 0) {
+                lv00_condvar_signal(ctx->async_cond_flushed);
+            }
+
+            lv00_mutex_unlock(ctx->async_mutex);
+            break;
+        }
+
+        /* 取出一个事件 */
+        StreamEvent ev = ctx->buffer[ctx->buffer_head];
+        ctx->buffer_head = (ctx->buffer_head + 1) % ctx->buffer_capacity;
+        ctx->buffer_count--;
+
+        /* 如果队列已空，通知等待 flush 的线程 */
+        if (ctx->buffer_count == 0 && ctx->async_flush_waiters > 0) {
+            lv00_condvar_signal(ctx->async_cond_flushed);
+        }
+
+        lv00_mutex_unlock(ctx->async_mutex);
+
+        /* 在锁外执行回调（避免死锁） */
+        stream_dispatch(ctx, &ev);
+    }
+
+#ifdef _WIN32
+    return 0;
+#else
+    return NULL;
+#endif
+}
+
 /**
  * 设置异步模式。
  *
- * 由于本项目是纯 C 无线程库依赖，异步模式实现为 BUFFERED 模式的别名：
- * - 启用时：切换到 BUFFERED 模式，并按 capacity 参数分配缓冲区
- * - 禁用时：恢复为 IMMEDIATE 模式，自动刷新残留事件
+ * 启用真正的多线程异步事件分发：
+ * - 启用时：创建消费者线程，事件通过互斥锁保护的环形缓冲区传递，
+ *           消费者线程在条件变量上等待，有事件时自动唤醒并分发。
+ * - 禁用时：通知消费者线程排空剩余事件后退出，销毁同步原语，
+ *           恢复为 IMMEDIATE 模式。
  *
  * @param ctx      流式上下文
  * @param enabled  true 启用异步，false 恢复同步
@@ -904,41 +1161,130 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
     if (!ctx) return false;
 
     if (enabled) {
-        /* 启用异步：切换到 BUFFERED 模式 */
-        ctx->emit_mode = STREAM_EMIT_BUFFERED;
+        /* 如果已经启用，不重复创建 */
+        if (ctx->async_enabled && ctx->async_running) return true;
 
-        /* 如果指定了容量且大于当前容量，尝试扩容 */
-        if (capacity > 0 && capacity > ctx->buffer_capacity) {
-            /* 钳制到硬上限 */
-            if (capacity > STREAM_MAX_BUFFER) capacity = STREAM_MAX_BUFFER;
+        /* 确保缓冲区已分配 */
+        int buf_cap = capacity > 0 ? capacity : STREAM_ASYNC_QUEUE_DEFAULT_CAPACITY;
+        if (buf_cap > STREAM_MAX_BUFFER) buf_cap = STREAM_MAX_BUFFER;
+
+        if (!ctx->buffer || ctx->buffer_capacity < buf_cap) {
             StreamEvent *new_buf = (StreamEvent *)lv00_realloc(
-                ctx->buffer, (size_t)capacity * sizeof(StreamEvent));
+                ctx->buffer, (size_t)buf_cap * sizeof(StreamEvent));
             if (!new_buf) return false;
             ctx->buffer = new_buf;
-            ctx->buffer_capacity = capacity;
-        }
-        /* 如果缓冲区尚未分配，使用默认容量 */
-        if (!ctx->buffer) {
-            int init_cap = (capacity > 0 && capacity <= STREAM_MAX_BUFFER)
-                ? capacity
-                : STREAM_ASYNC_QUEUE_DEFAULT_CAPACITY;
-            if (init_cap > STREAM_MAX_BUFFER) init_cap = STREAM_MAX_BUFFER;
-            ctx->buffer = (StreamEvent *)lv00_malloc(
-                (size_t)init_cap * sizeof(StreamEvent));
-            if (!ctx->buffer) return false;
-            ctx->buffer_capacity = init_cap;
+            ctx->buffer_capacity = buf_cap;
             ctx->buffer_count = 0;
             ctx->buffer_head = 0;
         }
-    } else {
-        /* 禁用异步：恢复为 IMMEDIATE 模式，自动刷新残留事件 */
-        ctx->emit_mode = STREAM_EMIT_IMMEDIATE;
-        if (ctx->buffer_count > 0) {
-            stream_flush(ctx);
-        }
-    }
 
-    return true;
+        /* 创建同步原语 */
+        if (!ctx->async_mutex) {
+            ctx->async_mutex = lv00_mutex_create();
+            if (!ctx->async_mutex) return false;
+        }
+        if (!ctx->async_cond_not_empty) {
+            ctx->async_cond_not_empty = lv00_condvar_create();
+            if (!ctx->async_cond_not_empty) {
+                lv00_mutex_destroy(ctx->async_mutex);
+                ctx->async_mutex = NULL;
+                return false;
+            }
+        }
+        if (!ctx->async_cond_flushed) {
+            ctx->async_cond_flushed = lv00_condvar_create();
+            if (!ctx->async_cond_flushed) {
+                lv00_condvar_destroy(ctx->async_cond_not_empty);
+                ctx->async_cond_not_empty = NULL;
+                lv00_mutex_destroy(ctx->async_mutex);
+                ctx->async_mutex = NULL;
+                return false;
+            }
+        }
+
+        /* 启动消费者线程 */
+        ctx->async_running = true;
+        ctx->async_flush_waiters = 0;
+
+#ifdef _WIN32
+        HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, async_consumer_thread, ctx, 0, NULL);
+        if (!thread) {
+            ctx->async_running = false;
+            lv00_condvar_destroy(ctx->async_cond_flushed);
+            ctx->async_cond_flushed = NULL;
+            lv00_condvar_destroy(ctx->async_cond_not_empty);
+            ctx->async_cond_not_empty = NULL;
+            lv00_mutex_destroy(ctx->async_mutex);
+            ctx->async_mutex = NULL;
+            return false;
+        }
+        ctx->async_thread = (void *)thread;
+#else
+        pthread_t thread;
+        int ret = pthread_create(&thread, NULL, async_consumer_thread, ctx);
+        if (ret != 0) {
+            ctx->async_running = false;
+            lv00_condvar_destroy(ctx->async_cond_flushed);
+            ctx->async_cond_flushed = NULL;
+            lv00_condvar_destroy(ctx->async_cond_not_empty);
+            ctx->async_cond_not_empty = NULL;
+            lv00_mutex_destroy(ctx->async_mutex);
+            ctx->async_mutex = NULL;
+            return false;
+        }
+        /* For pthread, store the thread in a heap-allocated buffer */
+        pthread_t *thread_ptr = (pthread_t *)lv00_malloc(sizeof(pthread_t));
+        if (thread_ptr) {
+            *thread_ptr = thread;
+            ctx->async_thread = thread_ptr;
+        }
+#endif
+
+        ctx->async_enabled = true;
+        ctx->emit_mode = STREAM_EMIT_BUFFERED;
+
+        return true;
+    } else {
+        /* 禁用异步模式 */
+        if (!ctx->async_enabled) return true;
+
+        /* 通知消费者线程停止 */
+        lv00_mutex_lock(ctx->async_mutex);
+        ctx->async_running = false;
+        lv00_condvar_signal(ctx->async_cond_not_empty);
+        lv00_mutex_unlock(ctx->async_mutex);
+
+        /* 等待消费者线程退出 */
+#ifdef _WIN32
+        if (ctx->async_thread) {
+            WaitForSingleObject((HANDLE)ctx->async_thread, INFINITE);
+            CloseHandle((HANDLE)ctx->async_thread);
+        }
+#else
+        if (ctx->async_thread) {
+            pthread_t *thread_ptr = (pthread_t *)ctx->async_thread;
+            pthread_join(*thread_ptr, NULL);
+            lv00_free((void **)&thread_ptr);
+        }
+#endif
+        ctx->async_thread = NULL;
+
+        /* 销毁同步原语 */
+        lv00_condvar_destroy(ctx->async_cond_flushed);
+        ctx->async_cond_flushed = NULL;
+        lv00_condvar_destroy(ctx->async_cond_not_empty);
+        ctx->async_cond_not_empty = NULL;
+        lv00_mutex_destroy(ctx->async_mutex);
+        ctx->async_mutex = NULL;
+
+        ctx->async_enabled = false;
+        ctx->async_running = false;
+
+        /* 恢复为 IMMEDIATE 模式 */
+        ctx->emit_mode = STREAM_EMIT_IMMEDIATE;
+
+        return true;
+    }
 }
 
 /**
@@ -950,16 +1296,29 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
  * @param ctx 流式上下文
  */
 void stream_flush(StreamContext *ctx) {
-    if (!ctx || ctx->buffer_count == 0) return;
+    if (!ctx) return;
+
+    /* 异步模式：阻塞等待消费者线程排空队列 */
+    if (ctx->async_enabled && ctx->async_running) {
+        lv00_mutex_lock(ctx->async_mutex);
+        ctx->async_flush_waiters++;
+        while (ctx->buffer_count > 0 && ctx->async_running) {
+            lv00_condvar_wait(ctx->async_cond_flushed, ctx->async_mutex);
+        }
+        ctx->async_flush_waiters--;
+        lv00_mutex_unlock(ctx->async_mutex);
+        return;
+    }
+
+    /* 同步模式：直接分发 */
+    if (ctx->buffer_count == 0) return;
 
     while (ctx->buffer_count > 0) {
-        /* 从 buffer_head 位置读取事件 */
         StreamEvent *ev = &ctx->buffer[ctx->buffer_head];
         stream_dispatch(ctx, ev);
         ctx->buffer_head = (ctx->buffer_head + 1) % ctx->buffer_capacity;
         ctx->buffer_count--;
     }
-    /* flush 完成后重置读写指针 */
     ctx->buffer_head = 0;
 }
 
@@ -1105,7 +1464,21 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     const char *type_name = stream_event_type_name(event->type);
     const char *color = stream_event_color(event->type);
 
-    /* 转义 description 字段 */
+    /* 转义 description 字段
+     *
+     * 【安全说明】desc_escaped 使用 2048 字节栈缓冲区。
+     * 截断策略：stream_json_escape() 内部已实现安全截断 —— 当转义后的
+     * 结果超出缓冲区大小时，会在最后一个完整转义字符后写入 '\0' 终止符，
+     * 不会发生缓冲区溢出。
+     *
+     * 2048 字节的限制说明：
+     * - 典型事件描述长度 < 200 字节（如 "节点合并: 42 -> 17"）
+     * - JSON 转义最多将每个字符扩展为 2 字节（如 \n, \t）
+     * - 2048 字节可安全容纳约 1000 字节的原始描述，远超实际需求
+     * - 如果描述超过此限制，超出部分将被静默截断，JSON 输出仍然有效
+     *
+     * TODO: 如果未来需要支持超长描述，可考虑使用堆分配缓冲区。
+     * 但当前所有内置事件描述均远小于此限制，无需优化。 */
     char desc_escaped[2048];
     desc_escaped[0] = '\0';
     if (event->description) {

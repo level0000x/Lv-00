@@ -1,6 +1,12 @@
-﻿/**
+/**
  * @file preset_mathematical_logic.h
  * @brief 数理逻辑预设函数块模块 - 头文件
+ *
+ * @deprecated 此模块为 v2.0.0 旧版，已被 v4.0.0 的 preset_math_logic.h
+ *             和 preset_logic_advanced.h 替代。
+ *             新模块采用精简设计（20+20 预设），分离基础逻辑运算与高级推理规则。
+ *             旧版 40 个预设的大部分功能已在新版覆盖，建议迁移至新版 API。
+ *             此文件将在未来主版本中移除。
  *
  * 提供理论数学研究项目Lv-00中数理逻辑领域的预设函数块，包括：
  *   - 命题逻辑（12个）：合取、析取、否定、蕴涵、等价、异或、
@@ -21,8 +27,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_MATHEMATICAL_LOGIC_H
-#define PRESET_MATHEMATICAL_LOGIC_H
+#ifndef LV00_PRESET_MATHEMATICAL_LOGIC_H
+#define LV00_PRESET_MATHEMATICAL_LOGIC_H
 
 #include "preset_blocks.h"
 
@@ -190,4 +196,4 @@ int preset_mathematical_logic_count(void);
 }
 #endif
 
-#endif /* PRESET_MATHEMATICAL_LOGIC_H */
+#endif /* LV00_PRESET_MATHEMATICAL_LOGIC_H */

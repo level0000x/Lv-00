@@ -18,7 +18,7 @@
  *          - lexer_next_token()（数字解析和标识符规则不同）
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 3.2.0
  */
 
 #ifndef LV00_LEXER_SHARED_H

@@ -3,7 +3,8 @@
 运行方式: python gen_report.py
 需安装: pip install python-docx
 """
-import os, sys
+import os
+import sys
 
 try:
     from docx import Document
@@ -11,11 +12,9 @@ try:
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml.ns import qn
 except ImportError:
-    os.system(f'"{sys.executable}" -m pip install python-docx -q')
-    from docx import Document
-    from docx.shared import Pt, Cm, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.oxml.ns import qn
+    print("错误: 缺少 python-docx 依赖库。", file=sys.stderr)
+    print("请执行: pip install python-docx", file=sys.stderr)
+    sys.exit(1)
 
 doc = Document()
 for section in doc.sections:

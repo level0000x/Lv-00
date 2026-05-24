@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_order_theory.h
  * @brief 序理论预设函数块 - 头文件
  *
@@ -16,8 +16,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_ORDER_THEORY_H
-#define PRESET_ORDER_THEORY_H
+#ifndef LV00_PRESET_ORDER_THEORY_H
+#define LV00_PRESET_ORDER_THEORY_H
 
 #include "preset_blocks.h"
 
@@ -35,10 +35,10 @@ extern "C" {
 #define PRESET_ORDER_PARTIAL_ORDER_RELATION  "partial_order_relation"
 
 /** 格的上确界（join/并）：a ∨ b */
-#define PRESET_ORDER_LATTICE_JOIN            "lattice_join"
+#define PRESET_ORDER_LATTICE_JOIN            "order_lattice_join"
 
 /** 格的下确界（meet/交）：a ∧ b */
-#define PRESET_ORDER_LATTICE_MEET            "lattice_meet"
+#define PRESET_ORDER_LATTICE_MEET            "order_lattice_meet"
 
 /** 链分解（Dilworth定理）：将偏序集分解为链的最小划分 */
 #define PRESET_ORDER_CHAIN_DECOMPOSITION     "chain_decomposition"
@@ -81,4 +81,4 @@ int preset_order_theory_count(void);
 }
 #endif
 
-#endif /* PRESET_ORDER_THEORY_H */
+#endif /* LV00_PRESET_ORDER_THEORY_H */

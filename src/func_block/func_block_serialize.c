@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file func_block_serialize.c
  * @brief 函数块序列化/反序列化模块
  * @details 实现函数块状态的序列化（保存为文本格式）和反序列化（从文本格式恢复）。
  *          包含端口依赖类型转换、辅助解析函数等。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include <stdbool.h>
@@ -52,6 +52,7 @@ static PortDependencyType port_dep_type_from_string(const char *s) {
     if (strcmp(s, "BETWEENNESS") == 0)  return PORT_DEP_BETWEENNESS;
     if (strcmp(s, "CONTAINMENT") == 0)  return PORT_DEP_CONTAINMENT;
     if (strcmp(s, "INTERSECTION") == 0) return PORT_DEP_INTERSECTION;
+    LOG_WARN("serialize", "未知的端口依赖类型: '%s'，默认使用 INCIDENCE", s);
     return PORT_DEP_INCIDENCE;
 }
 

@@ -123,6 +123,12 @@ node_modules/
 /test_output*.txt
 /test_*.txt
 
-# Build directories
+# Build directories（包括 build/, build2/, build_final/, build_verify/, build_tmp/ 等所有构建目录）
+build/
 build_*/
+build2/
+build_final/
+build_verify/
+build_tmp/
+_archived_builds/
 branches/

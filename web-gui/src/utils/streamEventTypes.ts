@@ -2,8 +2,20 @@
  * @module utils/streamEventTypes
  * @description 流式事件类型定义 / Stream event type definitions
  *
- * 统一管理流式事件的类型枚举、分类映射和样式配置，
- * 替代 StreamPanel 和 StreamEventItem 中分散的魔法数字。
+ * *** DEPRECATED (2026-05-24) ***
+ * 本文件已被 @/types/index.ts 中的 EngineEventType 枚举和
+ * EngineStreamCategory 类型取代。
+ *
+ * 旧版 6 类别体系（info/step/result/error/warning/debug）已迁移为
+ * 与 C 核心 stream.h 对齐的 8 类别体系（engine/normalize/rewrite/solve/proof/func_block/conflict/info）。
+ *
+ * 请使用以下替代方案：
+ * - 事件类型枚举：import { EngineEventType } from '@/types'
+ * - 事件类别：import type { EngineStreamCategory } from '@/types'
+ * - 事件结构：import type { EngineStreamEvent } from '@/types'
+ * - 类别映射：import { getEventCategory } from '@/types'
+ *
+ * 本文件保留仅为向后兼容，新代码请勿使用。
  */
 
 /** 流式事件类别 / Stream event category */

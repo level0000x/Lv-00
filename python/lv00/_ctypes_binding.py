@@ -14,7 +14,7 @@ Lv-00 底层 C 库 ctypes 绑定模块
     LV00_LIBRARY_PATH: 可手动指定库文件路径
 
 作者：Lv-00 开发团队
-版本：3.0.1
+版本：3.2.0
 """
 
 import ctypes
@@ -116,7 +116,7 @@ except OSError as e:
     # 加载失败时提供更详细的帮助信息
     raise ImportError(
         f"加载 Lv-00 动态链接库失败。\n"
-        f"库路径: {_find_library.__wrapped__ if hasattr(_find_library, '__wrapped__') else '未知'}\n"
+        f"库路径: {_lib_path}\n"
         f"系统错误: {e}\n"
         f"可能原因：\n"
         f"  1. 库文件已损坏或与当前 Python 版本不兼容\n"
@@ -269,9 +269,7 @@ class _Port(ctypes.Structure):
 _lib.symbolic_coord_create_rational.argtypes = [c_int64, c_uint64]
 _lib.symbolic_coord_create_rational.restype = POINTER(_SymbolicCoord)
 
-# 从 GMP 大整数（mpz）创建坐标，用于处理超过 64 位的精确整数
-_lib.symbolic_coord_create_from_mpz.argtypes = [c_void_p, c_void_p]
-_lib.symbolic_coord_create_from_mpz.restype = POINTER(_SymbolicCoord)
+# [已移除] symbolic_coord_create_from_mpz, symbolic_coord_deserialize: C 库中不存在这些导出函数
 
 # 销毁符号坐标对象，释放所有关联的内存资源
 _lib.symbolic_coord_destroy.argtypes = [POINTER(_SymbolicCoord)]
@@ -280,10 +278,6 @@ _lib.symbolic_coord_destroy.restype = None
 # 序列化为字符串（如 "3/4"），返回的字符串需要调用 free() 释放
 _lib.symbolic_coord_serialize.argtypes = [POINTER(_SymbolicCoord)]
 _lib.symbolic_coord_serialize.restype = c_char_p
-
-# 从字符串反序列化创建坐标，支持 "3/4"、"1.5" 等格式
-_lib.symbolic_coord_deserialize.argtypes = [c_char_p]
-_lib.symbolic_coord_deserialize.restype = POINTER(_SymbolicCoord)
 
 # 深拷贝符号坐标对象
 _lib.symbolic_coord_copy.argtypes = [POINTER(_SymbolicCoord)]
@@ -424,9 +418,40 @@ _lib.graph_detect_conflicts.restype = POINTER(POINTER(c_int))
 _lib.graph_validate_region_closure.argtypes = [POINTER(_ConstraintGraph), c_int]
 _lib.graph_validate_region_closure.restype = c_bool
 
+# 带指定ID添加节点（用于反序列化）
+_lib.graph_add_node_with_id.argtypes = [POINTER(_ConstraintGraph), c_int, c_int, POINTER(POINTER(_SymbolicCoord)), c_int]
+_lib.graph_add_node_with_id.restype = POINTER(_GeomNode)
+
+# 带指定ID添加约束（用于反序列化）
+_lib.graph_add_constraint_with_id.argtypes = [POINTER(_ConstraintGraph), c_int, c_int, POINTER(c_int), c_int]
+_lib.graph_add_constraint_with_id.restype = POINTER(_Constraint)
+
+# 设置全局流式上下文
+_lib.graph_set_stream_context.argtypes = [c_void_p]
+_lib.graph_set_stream_context.restype = None
+
+# 查找涉及指定节点的所有约束
+_lib.graph_find_constraints_involving.argtypes = [POINTER(_ConstraintGraph), c_int, POINTER(c_int), c_int]
+_lib.graph_find_constraints_involving.restype = c_int
+
+# 序列化图为 JSON 字符串
+_lib.graph_serialize_to_json.argtypes = [POINTER(_ConstraintGraph)]
+_lib.graph_serialize_to_json.restype = c_char_p
+
+# 从 JSON 字符串反序列化图
+_lib.graph_deserialize_from_json.argtypes = [c_char_p]
+_lib.graph_deserialize_from_json.restype = POINTER(_ConstraintGraph)
+
+# 检测冗余（按类型和参与者）
+_lib.graph_detect_redundancy.argtypes = [POINTER(_ConstraintGraph), c_int, POINTER(c_int), c_int]
+_lib.graph_detect_redundancy.restype = c_int
+
 # ============================================================
 # NormalizationResult 函数签名
 # ============================================================
+# 规范化结果的生命周期管理函数。
+# NormalizationResult 由 graph_normalize() 创建，
+# 使用完毕后必须调用 normalization_result_destroy() 释放。
 
 _lib.normalization_result_destroy.argtypes = [POINTER(_NormalizationResult)]
 _lib.normalization_result_destroy.restype = None
@@ -434,6 +459,9 @@ _lib.normalization_result_destroy.restype = None
 # ============================================================
 # FuncBlock 函数签名
 # ============================================================
+# 函数块（FuncBlock）是 Lv-00 的可重用几何构造模板系统。
+# 支持打包（pack）、实例化（instantiate）和确定性检查（determinism check）。
+# 选择器（Selector）用于在多解情况下选择唯一解。
 
 _lib.func_block_create.argtypes = [c_int]
 _lib.func_block_create.restype = POINTER(_FuncBlock)
@@ -468,6 +496,65 @@ _lib.func_block_determinism_check_dynamic.restype = c_int
 _lib.func_block_verify_determinism.argtypes = [POINTER(_FuncBlock), POINTER(_ConstraintGraph), c_int]
 _lib.func_block_verify_determinism.restype = c_int
 
+# FuncBlock Getter 函数
+_lib.func_block_get_input_count.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_get_input_count.restype = c_int
+
+_lib.func_block_get_output_count.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_get_output_count.restype = c_int
+
+_lib.func_block_get_internal_count.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_get_internal_count.restype = c_int
+
+_lib.func_block_get_id.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_get_id.restype = c_int
+
+_lib.func_block_get_determinism.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_get_determinism.restype = c_int
+
+_lib.func_block_get_name.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_get_name.restype = c_char_p
+
+_lib.func_block_get_description.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_get_description.restype = c_char_p
+
+# FuncBlock Setter 函数
+_lib.func_block_set_internal_nodes.argtypes = [POINTER(_FuncBlock), POINTER(c_int), c_int]
+_lib.func_block_set_internal_nodes.restype = c_bool
+
+_lib.func_block_set_input_ports.argtypes = [POINTER(_FuncBlock), POINTER(c_int), c_int]
+_lib.func_block_set_input_ports.restype = c_bool
+
+_lib.func_block_set_output_ports.argtypes = [POINTER(_FuncBlock), POINTER(c_int), c_int]
+_lib.func_block_set_output_ports.restype = c_bool
+
+_lib.func_block_set_selector.argtypes = [POINTER(_FuncBlock), c_void_p]
+_lib.func_block_set_selector.restype = c_bool
+
+_lib.func_block_add_port_dependency.argtypes = [POINTER(_FuncBlock), c_void_p]
+_lib.func_block_add_port_dependency.restype = c_bool
+
+_lib.func_block_set_preconditions.argtypes = [POINTER(_FuncBlock), POINTER(c_int), c_int]
+_lib.func_block_set_preconditions.restype = c_bool
+
+_lib.func_block_set_name.argtypes = [POINTER(_FuncBlock), c_char_p]
+_lib.func_block_set_name.restype = c_bool
+
+_lib.func_block_set_description.argtypes = [POINTER(_FuncBlock), c_char_p]
+_lib.func_block_set_description.restype = c_bool
+
+# 深拷贝函数块
+_lib.func_block_copy.argtypes = [POINTER(_FuncBlock)]
+_lib.func_block_copy.restype = POINTER(_FuncBlock)
+
+# 检测跨边界约束
+_lib.func_block_detect_cross_boundary.argtypes = [POINTER(_ConstraintGraph), POINTER(c_int), c_int, POINTER(c_void_p), POINTER(c_int)]
+_lib.func_block_detect_cross_boundary.restype = c_bool
+
+# 打包操作（扩展版）
+_lib.func_block_pack_ex.argtypes = [POINTER(_ConstraintGraph), c_void_p, POINTER(POINTER(_FuncBlock))]
+_lib.func_block_pack_ex.restype = c_int
+
 # 选择器相关
 _lib.selector_create.argtypes = [c_int]
 _lib.selector_create.restype = c_void_p
@@ -484,6 +571,8 @@ _lib.selector_apply.restype = c_bool
 # ============================================================
 # Proof 函数签名
 # ============================================================
+# 证明系统相关函数，包括命题创建、合一检查、证明导航和导出。
+# 证明导航器（ProofNavigator）支持遍历证明树并导出为 HTML/LaTeX 格式。
 
 _lib.proposition_create.argtypes = [c_int, c_int]
 _lib.proposition_create.restype = POINTER(_Proposition)
@@ -499,6 +588,12 @@ _lib.proof_navigator_destroy.restype = None
 
 _lib.proof_unify.argtypes = [POINTER(_ConstraintGraph), POINTER(_Proposition), c_bool]
 _lib.proof_unify.restype = c_int
+
+# proof_unify_detailed: 带详细失败原因报告的合一检查
+# C 函数签名: proof_unify_detailed(ConstraintGraph*, Proposition*, bool, char**) -> int
+# 第四个参数为输出参数，接收 C 引擎分配的诊断字符串指针
+_lib.proof_unify_detailed.argtypes = [POINTER(_ConstraintGraph), POINTER(_Proposition), c_bool, POINTER(c_char_p)]
+_lib.proof_unify_detailed.restype = c_int
 
 _lib.proof_create_ex_falso_block.argtypes = [POINTER(_ConstraintGraph), POINTER(c_int)]
 _lib.proof_create_ex_falso_block.restype = c_bool
@@ -527,6 +622,9 @@ _lib.proof_export_latex.restype = c_bool
 # ============================================================
 # Recursion 函数签名
 # ============================================================
+# 递归终止检查相关函数。
+# 测度系统（MeasureSystem）管理递归终止条件，
+# 递归上下文（RecursionContext）跟踪递归调用状态并检测循环依赖。
 
 _lib.measure_system_create.argtypes = []
 _lib.measure_system_create.restype = POINTER(_MeasureSystem)
@@ -668,9 +766,31 @@ _lib.engine_get_last_status.restype = c_int
 _lib.engine_get_last_error.argtypes = [POINTER(_LV00Engine)]
 _lib.engine_get_last_error.restype = c_char_p
 
+# 添加重写规则到引擎
+_lib.engine_add_rewrite_rule.argtypes = [POINTER(_LV00Engine), c_void_p]
+_lib.engine_add_rewrite_rule.restype = c_bool
+
+# 获取引擎的流式上下文
+_lib.engine_get_stream_context.argtypes = [POINTER(_LV00Engine)]
+_lib.engine_get_stream_context.restype = c_void_p
+
+# 设置流式输出开关
+_lib.engine_set_streaming_enabled.argtypes = [POINTER(_LV00Engine), c_bool]
+_lib.engine_set_streaming_enabled.restype = None
+
+# 查询流式输出是否启用
+_lib.engine_is_streaming_enabled.argtypes = [POINTER(_LV00Engine)]
+_lib.engine_is_streaming_enabled.restype = c_bool
+
+# 发射引擎流式事件
+_lib.engine_emit_stream_event.argtypes = [POINTER(_LV00Engine), c_int, c_char_p, c_int, c_int, c_int]
+_lib.engine_emit_stream_event.restype = None
+
 # ============================================================
 # Debug 函数签名
 # ============================================================
+# 调试和诊断相关函数，包括日志控制、性能计数器和内存池管理。
+# 用于开发调试和性能分析。
 
 _lib.debug_log_init.argtypes = []
 _lib.debug_log_init.restype = c_int
@@ -708,35 +828,33 @@ _lib.mem_pool_destroy.restype = None
 # ============================================================
 # Unify 函数签名
 # ============================================================
+# 合一（Unification）相关函数，用于检查约束图是否满足命题模式。
+# 注意：部分旧接口已移除，请使用 proof_unify_detailed 等新接口。
 
-_lib.unify_check.argtypes = [POINTER(_ConstraintGraph), POINTER(_ConstraintGraph)]
-_lib.unify_check.restype = c_int
-
-_lib.unify_detailed.argtypes = [POINTER(_ConstraintGraph), POINTER(_ConstraintGraph), POINTER(c_char_p)]
-_lib.unify_detailed.restype = c_int
+# [已移除] unify_check, unify_detailed: C 库中不存在这些导出函数，请使用 unify_construction_with_proposition 系列
 
 # ============================================================
 # Rewrite 函数签名
 # ============================================================
+# 重写（Rewrite）规则相关函数，用于几何图的等价变换。
+# 注意：大部分旧接口已移除，重写功能现通过引擎接口提供。
 
-_lib.rewrite_create_rule.argtypes = [c_char_p, c_char_p, c_int]
-_lib.rewrite_create_rule.restype = c_void_p
+# [已移除] rewrite_create_rule, rewrite_add_rule, rewrite_rewrite, rewrite_rewrite_until: C 库中不存在这些导出函数
 
-_lib.rewrite_destroy_rule.argtypes = [c_void_p]
-_lib.rewrite_destroy_rule.restype = None
+# [修复] rewrite_destroy_rule -> rewrite_rule_destroy
+_lib.rewrite_rule_destroy.argtypes = [c_void_p]
+_lib.rewrite_rule_destroy.restype = None
 
-_lib.rewrite_add_rule.argtypes = [POINTER(_ConstraintGraph), c_void_p]
-_lib.rewrite_add_rule.restype = c_bool
+# [已移除] rewrite_add_rule: C 库中不存在此导出函数，请使用 engine_add_rewrite_rule 代替
 
-_lib.rewrite_rewrite.argtypes = [POINTER(_ConstraintGraph), c_int]
-_lib.rewrite_rewrite.restype = c_int
+# [已移除] rewrite_rewrite: C 库中不存在此导出函数，实际导出为 rewrite_with_rules
 
-_lib.rewrite_rewrite_until.argtypes = [POINTER(_ConstraintGraph), c_int, c_int]
-_lib.rewrite_rewrite_until.restype = c_int
+# [已移除] rewrite_rewrite_until: C 库中不存在此导出函数
 
 # ============================================================
 # Solver 函数签名
 # ============================================================
+# 代数求解器相关函数，包括方程组求解、自由度计算和冲突检测。
 
 _lib.solve_algebraic_system.argtypes = [POINTER(_ConstraintGraph), POINTER(c_int), c_int, POINTER(POINTER(_SymbolicCoord))]
 _lib.solve_algebraic_system.restype = c_int
@@ -754,8 +872,12 @@ _lib.eliminate_geometry.restype = c_int
 # 辅助函数
 # ============================================================
 
-_lib.free.argtypes = [c_void_p]
-_lib.free.restype = None
+# [修复] lv00_free_ptr: FFI 兼容释放函数，接受 void*（与 lv00_free(void**) 不同）
+# lv00_free 接受 void**（双重指针），ctypes 无法方便传递双重指针
+# 因此 C 层新增了 lv00_free_ptr(void*) 专供 FFI 使用
+_lib.lv00_free_ptr = _lib.lv00_free_ptr if hasattr(_lib, 'lv00_free_ptr') else _lib.free
+_lib.lv00_free_ptr.argtypes = [c_void_p]
+_lib.lv00_free_ptr.restype = None
 
 _lib.lv00_init.argtypes = []
 _lib.lv00_init.restype = c_bool
@@ -763,8 +885,7 @@ _lib.lv00_init.restype = c_bool
 _lib.lv00_cleanup.argtypes = []
 _lib.lv00_cleanup.restype = None
 
-_lib.lv00_get_version.argtypes = []
-_lib.lv00_get_version.restype = c_char_p
+# [已移除] lv00_get_version: 该函数在 C 头文件中为 static inline，不在 DLL 导出中
 
 _lib.lv00_get_last_error_code.argtypes = []
 _lib.lv00_get_last_error_code.restype = c_int
@@ -780,8 +901,9 @@ _lib.lv00_clear_error.restype = None
 
 # ============================================================
 # Formula 函数签名
-# 修复：添加缺失的公式解析/渲染/验证相关函数签名注册
 # ============================================================
+# 公式解析和渲染相关函数，支持将几何公式字符串解析为 AST，
+# 并将 AST 渲染为可视化输出或转换为约束图。
 
 _lib.formula_parse.argtypes = [c_char_p, c_char_p]
 _lib.formula_parse.restype = c_void_p
@@ -789,38 +911,18 @@ _lib.formula_parse.restype = c_void_p
 _lib.formula_render.argtypes = [c_void_p, c_int]
 _lib.formula_render.restype = c_char_p
 
-_lib.formula_validate.argtypes = [c_void_p]
-_lib.formula_validate.restype = c_void_p
+# [已移除] formula_validate, formula_free_error_list: C 库中不存在这些导出函数
 
-_lib.formula_free_error_list.argtypes = [c_void_p]
-_lib.formula_free_error_list.restype = None
+# [修复] formula_get_last_error -> formula_parser_get_last_error
+_lib.formula_parser_get_last_error.argtypes = []
+_lib.formula_parser_get_last_error.restype = c_char_p
 
-_lib.formula_get_last_error.argtypes = []
-_lib.formula_get_last_error.restype = c_char_p
-
-_lib.parse_result_get_ast.argtypes = [c_void_p]
-_lib.parse_result_get_ast.restype = c_void_p
-
-_lib.parse_result_destroy.argtypes = [c_void_p]
-_lib.parse_result_destroy.restype = None
+# [已移除] parse_result_get_ast, parse_result_destroy: C 库中不存在这些导出函数
 
 _lib.formula_to_graph.argtypes = [c_void_p, c_void_p]
 _lib.formula_to_graph.restype = c_void_p
 
-_lib.formula_to_graph_result_success.argtypes = [c_void_p]
-_lib.formula_to_graph_result_success.restype = c_int
-
-_lib.formula_to_graph_result_nodes.argtypes = [c_void_p]
-_lib.formula_to_graph_result_nodes.restype = POINTER(c_int)
-
-_lib.formula_to_graph_result_nodes_count.argtypes = [c_void_p]
-_lib.formula_to_graph_result_nodes_count.restype = c_int
-
-_lib.formula_to_graph_result_constraints.argtypes = [c_void_p]
-_lib.formula_to_graph_result_constraints.restype = POINTER(c_int)
-
-_lib.formula_to_graph_result_constraints_count.argtypes = [c_void_p]
-_lib.formula_to_graph_result_constraints_count.restype = c_int
+# [已移除] formula_to_graph_result_*: C 库中不存在这些导出函数，FormulaToGraphResult 结构体通过 formula_to_graph 返回指针后直接访问字段
 
 _lib.formula_to_graph_result_destroy.argtypes = [c_void_p]
 _lib.formula_to_graph_result_destroy.restype = None
@@ -831,35 +933,39 @@ _lib.graph_to_formula.restype = c_void_p
 _lib.graph_to_formula_result_destroy.argtypes = [c_void_p]
 _lib.graph_to_formula_result_destroy.restype = None
 
+# 修复：注册 formula_node_destroy，供 formula.py 的 __del__ 调用
+_lib.formula_node_destroy.argtypes = [c_void_p]
+_lib.formula_node_destroy.restype = None
+
 # ============================================================
 # 常量定义
 # ============================================================
 # 以下常量映射 Lv-00 C 库中定义的结果码、枚举值和状态标志。
 # 所有常量值与 C 头文件中的定义保持一致。
 
-# ---- 节点添加结果码 ----
+# ===== 节点添加结果码 =====
 # graph_add_* 函数的返回值，表示添加操作的结果
 ADD_NODE_OK = 0              # 添加成功
 ADD_NODE_CONFLICT = 1        # 添加导致约束冲突
 ADD_NODE_INVALID_REGION = 2  # 添加的区域定义无效（如非闭合边界）
 
-# ---- 约束添加结果码 ----
+# ===== 约束添加结果码 =====
 # graph_add_*_constraint 函数的返回值
 ADD_CONSTRAINT_OK = 0        # 约束添加成功
 ADD_CONSTRAINT_DUPLICATE = 1 # 约束已存在（重复添加）
 ADD_CONSTRAINT_CONFLICT = 2  # 约束与现有约束冲突
 
-# ---- 节点移除结果码 ----
+# ===== 节点移除结果码 =====
 REMOVE_NODE_OK = 0           # 节点移除成功
 REMOVE_NODE_NOT_FOUND = 1    # 未找到指定 ID 的节点
 REMOVE_NODE_ERROR = 2        # 移除过程发生错误
 
-# ---- 约束移除结果码 ----
+# ===== 约束移除结果码 =====
 REMOVE_CONSTRAINT_OK = 0           # 约束移除成功
 REMOVE_CONSTRAINT_NOT_FOUND = 1    # 未找到指定 ID 的约束
 REMOVE_CONSTRAINT_ERROR = 2        # 移除过程发生错误
 
-# ---- 几何类型枚举 ----
+# ===== 几何节点类型常量 =====
 # 约束图中节点的几何类型标识
 GEOM_POINT = 0              # 点：由 (x, y) 坐标定义
 GEOM_LINE_SEGMENT = 1       # 线段：由两个端点定义
@@ -867,11 +973,11 @@ GEOM_REGION = 2             # 区域：由闭合边界线段定义
 GEOM_PORT = 3               # 端口：函数块系统的输入/输出接口
 GEOM_FUNCTION_BLOCK = 4     # 函数块：可重用的几何构造模板
 
-# ---- 端口类型 ----
+# ===== 端口类型常量 =====
 PORT_INPUT = 0              # 输入端口：接收外部数据/参数
 PORT_OUTPUT = 1             # 输出端口：产生结果/返回值
 
-# ---- 约束类型 ----
+# ===== 约束类型常量 =====
 # 约束图中节点之间关系的类型枚举
 CONSTRAINT_INCIDENCE = 0    # 关联约束：点位于线段或区域上
 CONSTRAINT_BETWEENNESS = 1  # 介子约束：三点共线，一点在另两点之间
@@ -879,13 +985,13 @@ CONSTRAINT_INTERSECTION = 2 # 交点约束：两条线交于一点
 CONSTRAINT_CONTAINMENT = 3  # 包含约束：一个区域包含另一个区域
 CONSTRAINT_CONNECTION = 4   # 连接约束：端口间的数据流连接
 
-# ---- 合一状态 ----
+# ===== 合一状态常量 =====
 # 证明系统中合一检查的结果码
 UNIFY_OK = 0             # 合一成功
 UNIFY_FAILED = 1         # 合一失败
 UNIFY_TYPE_MISMATCH = 2  # 类型不匹配，无法合一
 
-# ---- 求解器状态 ----
+# ===== 求解器状态常量 =====
 # 代数求解器的返回状态
 SOLVER_OK = 0              # 求解成功
 SOLVER_UNIQUE = 1          # 存在唯一解
@@ -895,7 +1001,7 @@ SOLVER_OVERCONSTRAINED = 4 # 过约束（约束过多）
 SOLVER_OUT_OF_SCOPE = 5    # 超出求解范围
 SOLVER_TIMEOUT = 6         # 求解超时
 
-# ---- 引擎状态 ----
+# ===== 引擎状态常量 =====
 # 引擎操作的返回状态码
 ENGINE_OK = 0                 # 操作成功
 ENGINE_OUT_OF_MEMORY = 1      # 内存不足
@@ -903,13 +1009,13 @@ ENGINE_INVALID_STATE = 2      # 引擎状态无效
 ENGINE_CONSTRAINT_CONFLICT = 3 # 约束冲突
 ENGINE_MODULE_ERROR = 4       # 模块加载/解析错误
 
-# ---- 引擎求解结果 ----
+# ===== 引擎求解结果常量 =====
 ENGINE_SOLVE_OK = 0       # 求解成功
 ENGINE_SOLVE_CONFLICT = 1 # 求解过程中发现约束冲突
 ENGINE_SOLVE_TIMEOUT = 2  # 求解超时
 ENGINE_SOLVE_ERROR = 3    # 求解发生错误
 
-# ---- 打包结果 ----
+# ===== 函数块打包结果常量 =====
 # 函数块打包操作的返回码
 PACK_OK = 0                     # 打包成功
 PACK_CROSS_BOUNDARY_CONFLICT = 1 # 跨边界约束冲突（跨作用域）
@@ -918,7 +1024,7 @@ PACK_INVALID_PORTS = 3          # 无效端口（端口定义不正确）
 PACK_OUT_OF_MEMORY = 4          # 内存不足
 PACK_CANCELLED = 5              # 打包被取消
 
-# ---- 例化结果 ----
+# ===== 函数块实例化结果常量 =====
 # 函数块实例化操作的返回码
 INSTANTIATE_OK = 0                 # 实例化成功
 INSTANTIATE_NO_SOLUTION = 1        # 无解（给定实参不满足函数块约束）
@@ -927,14 +1033,14 @@ INSTANTIATE_SELECTOR_NEEDED = 3    # 需要选择器确定唯一解
 INSTANTIATE_PRECONDITION_FAILED = 4 # 前置条件不满足
 INSTANTIATE_OUT_OF_MEMORY = 5      # 内存不足
 
-# ---- 确定性状态 ----
+# ===== 确定性状态常量 =====
 # 函数块确定性检查的结果
 DETERMINISM_UNVERIFIED = 0          # 未验证（尚未进行确定性检查）
 DETERMINISM_VERIFIED = 1            # 已验证（确认解唯一）
 DETERMINISM_NON_DETERMINISTIC = 2   # 非确定性（存在多个可能的解）
 DETERMINISM_PARTIALLY_VERIFIED = 3  # 部分验证（某些路径已验证）
 
-# ---- 证明颜色 ----
+# ===== 证明颜色常量 =====
 # 证明树节点的信任颜色，从绿到琥珀表示信任度递减
 PROOF_COLOR_GREEN = 0              # 绿色：完全验证，最高信任
 PROOF_COLOR_BLUE_UNEXPLORED = 1    # 蓝色-未探索：尚未展开的节点
@@ -947,7 +1053,7 @@ PROOF_COLOR_ORANGE_EX_FALSO = 7    # 橙色-爆炸原理：从矛盾推导
 PROOF_COLOR_AMBER = 8              # 琥珀色：最低信任，需进一步验证
 PROOF_COLOR_DARK_ORANGE = 9        # 深橙色：高度可疑
 
-# ---- 命题类型 ----
+# ===== 命题类型常量 =====
 # 逻辑命题的类型枚举
 PROPOSITION_ATOMIC = 0       # 原子命题（不可再分的基本命题）
 PROPOSITION_CONJUNCTION = 1  # 合取（AND）
@@ -958,7 +1064,7 @@ PROPOSITION_UNIVERSAL = 5    # 全称量化（FOR ALL）
 PROPOSITION_EXISTENTIAL = 6  # 存在量化（EXISTS）
 PROPOSITION_BOTTOM = 7       # 矛盾命题（FALSE/矛盾）
 
-# ---- 证明步骤类型 ----
+# ===== 证明步骤类型常量 =====
 # 证明树中每个步骤的操作类型
 PROOF_STEP_ADD_NODE = 0       # 添加节点
 PROOF_STEP_ADD_CONSTRAINT = 1 # 添加约束
@@ -970,7 +1076,7 @@ PROOF_STEP_UNIFY = 6          # 合一检查
 PROOF_STEP_EX_FALSO = 7       # 爆炸原理应用
 PROOF_STEP_ORACLE = 8         # 神谕/外部求解
 
-# ---- 递归检查结果 ----
+# ===== 递归检查结果常量 =====
 # 递归终止检查的返回状态
 RECURSION_OK = 0               # 递归检查通过
 RECURSION_NOT_DECREASING = 1   # 测度未递减（可能不终止）
@@ -979,7 +1085,7 @@ RECURSION_CYCLE_DETECTED = 3   # 检测到循环依赖
 RECURSION_MEASURE_UNKNOWN = 4  # 测度未知
 RECURSION_ERROR = 5            # 检查过程发生错误
 
-# ---- 日志级别 ----
+# ===== 日志级别常量 =====
 # 调试日志输出级别，从最详细到最简洁
 LOG_LEVEL_DEBUG = 0  # 调试级别：输出所有调试信息
 LOG_LEVEL_INFO = 1   # 信息级别：输出一般运行信息
@@ -987,7 +1093,7 @@ LOG_LEVEL_WARN = 2   # 警告级别：输出警告和重要信息
 LOG_LEVEL_ERROR = 3  # 错误级别：仅输出错误信息
 LOG_LEVEL_NONE = 4   # 关闭日志：不输出任何日志
 
-# ---- 信任颜色 ----
+# ===== 信任颜色常量 =====
 # 几何元素的信任级别，颜色表示可信任程度
 TRUST_GREEN = 0        # 绿色：完全验证，最高信任度
 TRUST_BLUE = 1         # 蓝色：系统性原因，需要额外验证
@@ -996,7 +1102,7 @@ TRUST_ORANGE = 3       # 橙色：神谕/外部依赖
 TRUST_LIGHT_ORANGE = 4  # 浅橙色：轻度可疑
 TRUST_AMBER = 5        # 琥珀色：最低信任度，需进一步证明
 
-# ---- 选择器类型 ----
+# ===== 选择器类型常量 =====
 # 多解情况下选择唯一解的策略类型
 SELECTOR_POSITIVE_ROOT = 0     # 取正根：选择正的平方根/根
 SELECTOR_NEGATIVE_ROOT = 1     # 取负根：选择负的平方根/根
@@ -1004,7 +1110,7 @@ SELECTOR_IN_REGION = 2         # 区域内选解：选择位于指定区域内�
 SELECTOR_NEAREST_TO_POINT = 3  # 最近优先：选择距离参考点最近的解
 SELECTOR_CUSTOM = 4            # 自定义：使用用户定义的选择逻辑
 
-# ---- 坐标类型 ----
+# ===== 坐标类型常量 =====
 # 符号坐标的内部表示类型
 COORD_RATIONAL = 0       # 有理数：精确分数表示
 COORD_ALGEBRAIC = 1      # 代数数：通过最小多项式定义

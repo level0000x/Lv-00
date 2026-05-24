@@ -11,7 +11,6 @@ import Panel from '@/components/panels/Panel';
 import ConstraintGraphPanel from '@/components/panels/ConstraintGraphPanel';
 import NarrativeExport from '@/components/panels/NarrativeExport';
 import { MAX_VISIBLE_STREAM_EVENTS } from '@/utils/constants';
-import { getEventCategory } from '@/types';
 
 // ================================================================
 // 辅助：事件类型到筛选器类别的映射 / Event Type → Filter Category
@@ -90,12 +89,12 @@ const SidebarRight: React.FC = () => {
   const visibleEvents = useMemo(() => {
     // 构建启用类别的集合
     const enabledTypes = new Set(
-      streamFilters.filter((f) => f.enabled).map((f) => f.type),
+      streamFilters.filter((f) => f.enabled).map((f) => f.category),
     );
 
     // 筛选 + 截断（取最新的 MAX_VISIBLE_EVENTS 条）
     const filtered = streamingEvents.filter((ev) =>
-      enabledTypes.has(getEventCategory(ev.type)),
+      enabledTypes.has(ev.category),
     );
     return filtered.slice(-MAX_VISIBLE_EVENTS);
   }, [streamingEvents, streamFilters]);
@@ -168,13 +167,13 @@ const SidebarRight: React.FC = () => {
           <div className="stream-panel-filters">
             {streamFilters.map((filter) => (
               <button
-                key={filter.type}
+                key={filter.category}
                 className={`stream-filter-btn ${filter.enabled ? 'active' : 'disabled'}`}
-                onClick={() => handleFilterToggle(filter.type)}
+                onClick={() => handleFilterToggle(filter.category)}
                 title={`${filter.label} / ${filter.labelZh} (${filter.count})`}
                 style={{
                   borderColor: filter.enabled
-                    ? getCategoryColor(filter.type)
+                    ? getCategoryColor(filter.category)
                     : undefined,
                 }}
               >
@@ -182,7 +181,7 @@ const SidebarRight: React.FC = () => {
                   className="stream-filter-label"
                   style={{
                     color: filter.enabled
-                      ? getCategoryColor(filter.type)
+                      ? getCategoryColor(filter.category)
                       : undefined,
                   }}
                 >
@@ -203,11 +202,11 @@ const SidebarRight: React.FC = () => {
               </div>
             ) : (
               visibleEvents.map((event, idx) => {
-                const category = getEventCategory(event.type);
+                const category = event.category;
                 const catColor = getCategoryColor(category);
                 return (
                   <div
-                    key={`event-${idx}-${event.stepNumber}`}
+                    key={`event-${idx}-${event.step}`}
                     className="stream-event-item"
                     style={{ borderLeftColor: catColor }}
                   >
@@ -220,9 +219,9 @@ const SidebarRight: React.FC = () => {
                         {event.type}
                       </span>
                       {/* 步骤号 */}
-                      {event.stepNumber >= 0 && (
+                      {event.step >= 0 && (
                         <span className="stream-event-step">
-                          #{event.stepNumber}
+                          #{event.step}
                         </span>
                       )}
                       {/* 事件描述 */}

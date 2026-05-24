@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_lattice_theory.h
  * @brief 格论预设函数块 - 头文件
  *

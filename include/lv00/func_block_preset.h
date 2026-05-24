@@ -9,7 +9,7 @@
  *          - 可扩展性：支持运行时注册自定义预设
  *          - 文档化：每个预设都有完整的数学语义描述
  *
- * @version 4.0.0
+ * @version 3.2.0
  * @author Lv-00 Project
  */
 
@@ -339,6 +339,19 @@ int func_block_preset_list(
  * @return true 存在，false 不存在
  */
 bool func_block_preset_exists(const char *preset_name);
+
+/**
+ * @brief 获取当前已注册的预设函数块总数
+ * @return 已注册的预设数量
+ */
+int func_block_preset_count(void);
+
+/**
+ * @brief 注销指定名称的预设函数块
+ * @param name 要注销的预设名称
+ * @return 0 成功，-1 未找到或内置预设不可注销
+ */
+int func_block_preset_unregister(const char *name);
 
 /**
  * @brief 获取预设类别字符串

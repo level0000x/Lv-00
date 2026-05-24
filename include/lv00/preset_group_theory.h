@@ -11,7 +11,7 @@
  *
  * @module GroupTheory
  * @category PRESET_CATEGORY_GROUP_THEORY
- * @version 4.0.0
+ * @version 3.2.0
  * @author Lv-00 开发团队
  */
 

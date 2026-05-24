@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_matrix.h
  * @brief 矩阵运算预设函数块 - 头文件
  *
@@ -14,8 +14,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_MATRIX_H
-#define PRESET_MATRIX_H
+#ifndef LV00_PRESET_MATRIX_H
+#define LV00_PRESET_MATRIX_H
 
 #include "preset_blocks.h"
 
@@ -30,36 +30,54 @@ extern "C" {
 /* -------------------- 基础矩阵运算 -------------------- */
 
 /** 矩阵加法：A + B */
+#ifndef PRESET_MATRIX_ADD
 #define PRESET_MATRIX_ADD                 "matrix_add"
+#endif
 
 /** 矩阵减法：A - B */
+#ifndef PRESET_MATRIX_SUBTRACT
 #define PRESET_MATRIX_SUBTRACT            "matrix_subtract"
+#endif
 
 /** 标量乘法：kA */
 #define PRESET_MATRIX_SCALAR_MULTIPLY     "matrix_scalar_multiply"
 
 /** 矩阵乘法：AB */
+#ifndef PRESET_MATRIX_MULTIPLY
 #define PRESET_MATRIX_MULTIPLY            "matrix_multiply"
+#endif
 
 /** 矩阵转置：A^T */
+#ifndef PRESET_MATRIX_TRANSPOSE
 #define PRESET_MATRIX_TRANSPOSE           "matrix_transpose"
+#endif
 
 /** 矩阵迹：tr(A) */
+#ifndef PRESET_MATRIX_TRACE
 #define PRESET_MATRIX_TRACE               "matrix_trace"
+#endif
 
 /** 矩阵行列式：det(A) */
+#ifndef PRESET_MATRIX_DETERMINANT
 #define PRESET_MATRIX_DETERMINANT         "matrix_determinant"
+#endif
 
 /** 矩阵逆：A^{-1} */
+#ifndef PRESET_MATRIX_INVERSE
 #define PRESET_MATRIX_INVERSE             "matrix_inverse"
+#endif
 
 /* -------------------- 线性代数 -------------------- */
 
 /** 矩阵秩：rank(A) */
+#ifndef PRESET_MATRIX_RANK
 #define PRESET_MATRIX_RANK                "matrix_rank"
+#endif
 
 /** 零化度：nullity(A) */
+#ifndef PRESET_MATRIX_NULLITY
 #define PRESET_MATRIX_NULLITY             "matrix_nullity"
+#endif
 
 /** 特征值：lambda_i */
 #define PRESET_MATRIX_EIGENVALUES         "matrix_eigenvalues"
@@ -165,4 +183,4 @@ PresetCategory preset_matrix_category(void);
 }
 #endif
 
-#endif /* PRESET_MATRIX_H */
+#endif /* LV00_PRESET_MATRIX_H */

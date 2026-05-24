@@ -16,6 +16,7 @@ import StatusBar from './StatusBar';
 import GeometryCanvas from '@/components/canvas/GeometryCanvas';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useExport } from '@/hooks/useExport';
+import { useEngineStream } from '@/hooks/useEngineStream';
 import { useAppStore } from '@/stores';
 
 /**
@@ -32,6 +33,13 @@ import { useAppStore } from '@/stores';
 const Layout: React.FC = () => {
   // 注册全局键盘快捷键
   useKeyboard();
+
+  // 初始化引擎流式事件管理器（应用级单例）
+  // 当后端 WebSocket 服务可用时，引擎事件会自动同步到 aiStore
+  useEngineStream({
+    engineUrl: 'ws://localhost:3456',
+    autoConnect: false, // 不自动连接，等待用户手动触发或后端就绪
+  });
 
   // 使用提取的导出逻辑 Hook（导出相关状态和DOM清理由hook内部管理）
   const { exportGeometry, isExporting } = useExport();

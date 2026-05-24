@@ -10,6 +10,16 @@
  * - 注册表使用名称作为唯一键，支持按名称查找
  * - 预设函数块是只读模板，实例化时自动创建副本
  * - 支持用户注册自定义预设函数块
+ *
+ * 【查找性能优化】
+ * func_block_registry_find() 和 func_block_registry_lookup() 内部使用
+ * 基于 FNV-1a 字符串哈希的哈希表实现 O(1) 平均查找复杂度。
+ * 哈希表在 func_block_registry_init() 调用时自动构建，在每次
+ * func_block_register() / func_block_registry_unregister() 调用后
+ * 延迟标记为脏，下次查找时自动重建。所有哈希表操作受互斥锁保护。
+ *
+ * func_block_registry_find_by_category() 按类别遍历线性数组，
+ * 其 O(n) 复杂度对分类查询场景是可接受的。
  */
 
 #ifndef LV00_FUNC_BLOCK_REGISTRY_H
@@ -132,6 +142,9 @@ bool func_block_register(const char *name, const char *description,
  * 在注册表中查找指定名称的预设，找到后通过 func_block_copy
  * 创建一个独立的副本返回给调用者。调用者负责销毁返回的副本。
  *
+ * 内部使用 FNV-1a 哈希表实现 O(1) 平均查找复杂度。
+ * 哈希表脏时自动触发延迟重建。
+ *
  * @param name 预设名称
  * @return 函数块深拷贝（调用者负责释放），未找到或失败返回 NULL
  */
@@ -142,6 +155,9 @@ FuncBlock *func_block_registry_lookup(const char *name);
  *
  * 返回注册表中的条目指针，用于读取元数据。
  * 注意：返回的指针指向注册表内部数据，不要修改或释放。
+ *
+ * 内部使用 FNV-1a 哈希表实现 O(1) 平均查找复杂度。
+ * 哈希表脏时自动触发延迟重建。
  *
  * @param name 预设名称
  * @return 条目指针，未找到返回 NULL
@@ -189,6 +205,13 @@ bool preset_category_from_string(const char *str, PresetCategory *category);
  * @return 条目数量
  */
 int func_block_registry_get_count(void);
+
+/**
+ * @brief 注销指定名称的函数块
+ * @param name 要注销的函数块名称
+ * @return 0 成功，-1 未找到
+ */
+int func_block_registry_unregister(const char *name);
 
 #ifdef __cplusplus
 }

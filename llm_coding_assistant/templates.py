@@ -2,33 +2,45 @@
 Lv-00 UI编程辅助系统 - 代码模板库
 包含常用的代码模板和片段
 
-[将合并到 lv00_knowledge.py]
-本文件中的模板代码与 lv00_knowledge.py 的 Lv00KnowledgeBase._init_code_patterns()
-存在功能重叠，但两者的使用场景不同：
-  - lv00_knowledge.py: 面向 LLM 上下文注入，模板以字符串形式嵌入在知识库类中
-  - templates.py:      面向用户直接查询和代码生成，模板以结构化字典形式组织
+本文件面向用户直接查询和代码生成，模板以结构化字典形式组织。
+与 lv00_knowledge.py 的关系：
+  - lv00_knowledge.py 是模板和知识的权威来源（single source of truth），
+    其中的代码模式面向 LLM 上下文注入
+  - templates.py 中的部分模板与 lv00_knowledge.py 存在功能重叠，
+    这些重叠模板已标记为 deprecated，但保留数据以确保向后兼容
 
-重叠的模板类别:
-  - WebAssembly绑定:   wasm_basic_binding / wasm_string_binding / wasm_array_binding
-  - Canvas渲染:        canvas_basic_renderer
-  - Canvas事件处理:    canvas_event_handler
+已废弃的模板（已迁移到 lv00_knowledge.py）：
+  - wasm_basic_binding      -> Lv00KnowledgeBase.code_patterns["wasm_binding_basic"]
+  - wasm_string_binding     -> Lv00KnowledgeBase.code_patterns["wasm_binding_with_string"]
+  - wasm_array_binding      -> Lv00KnowledgeBase.code_patterns["wasm_binding_with_array"]
+  - wasm_js_wrapper         -> Lv00KnowledgeBase.code_patterns["wasm_binding_basic"] (JS端)
+  - canvas_basic_renderer   -> Lv00KnowledgeBase.code_patterns["canvas_renderer_class"]
+  - canvas_event_handler    -> Lv00KnowledgeBase.code_patterns["canvas_event_handlers"]
 
-迁移计划 (v3.2+):
-  将 templates.py 中的结构化模板合并到 lv00_knowledge.py 的 CodeTemplate dataclass
-  体系中，统一由 Lv00KnowledgeBase 管理。本文件届时将被标记为 [已废弃]。
+独有模板（仅在本文件中维护）：
+  - module_panel: 模块面板模板
+  - modal_dialog: 模态对话框模板
 """
+
+import logging
+
+# 模块级日志
+logger = logging.getLogger(__name__)
 
 CODE_TEMPLATES = {
     # ============================================
     # WebAssembly 绑定模板
-    # (与 lv00_knowledge.py Lv00KnowledgeBase.code_patterns 中的
-    #  wasm_binding_basic / wasm_binding_with_string / wasm_binding_with_array 功能重叠)
+    # [已废弃] 已迁移到 lv00_knowledge.py Lv00KnowledgeBase.code_patterns
+    # 保留数据以确保向后兼容，新代码请使用 lv00_knowledge.py 中的权威版本
     # ============================================
 
     "wasm_basic_binding": {
         "name": "基础WebAssembly绑定",
         "description": "为C函数创建简单的Web绑定",
         "language": "c",
+        "tags": ["wasm", "binding", "deprecated"],
+        "deprecated": True,
+        "_deprecated": True,  # 标记为已废弃，get_template() 会打印警告
         "template": '''/* WebAssembly绑定模板 */
 #include "lv00.h"
 #include <emscripten.h>
@@ -65,6 +77,9 @@ EMSCRIPTEN_KEEPALIVE
         "name": "返回字符串的绑定",
         "description": "返回动态分配字符串的绑定",
         "language": "c",
+        "tags": ["wasm", "binding", "string", "deprecated"],
+        "deprecated": True,
+        "_deprecated": True,
         "template": '''/* 返回字符串的绑定 - JS端负责free() */
 EMSCRIPTEN_KEEPALIVE
 char* web_{function_name}(void* graph) {{
@@ -89,6 +104,9 @@ char* web_{function_name}(void* graph) {{
         "name": "返回结构体数组的绑定",
         "description": "返回数组的绑定，需要预分配内存",
         "language": "c",
+        "tags": ["wasm", "binding", "array", "deprecated"],
+        "deprecated": True,
+        "_deprecated": True,
         "template": '''/* 返回数组的绑定 */
 // 在绑定文件顶部定义结构体
 typedef struct {{
@@ -137,13 +155,17 @@ int web_get_points(void* graph, WebPointInfo* out_points, int max_points) {{
     },
 
     # ============================================
-    # JavaScript 绑定包装器 (templates.py 独有)
+    # JavaScript 绑定包装器
+    # [已废弃] 已迁移到 lv00_knowledge.py，保留数据以确保向后兼容
     # ============================================
 
     "wasm_js_wrapper": {
         "name": "JavaScript绑定包装器",
         "description": "封装ccall调用的JS代码",
         "language": "javascript",
+        "tags": ["wasm", "javascript", "wrapper", "deprecated"],
+        "deprecated": True,
+        "_deprecated": True,
         "template": '''/**
  * Lv-00 API 包装器
  * 自动处理WebAssembly模块加载和调用
@@ -210,14 +232,17 @@ api.init().then(() => {{
 
     # ============================================
     # Canvas 渲染模板
-    # (与 lv00_knowledge.py Lv00KnowledgeBase.code_patterns 中的
-    #  canvas_renderer_class / canvas_event_handlers 功能重叠)
+    # [已废弃] 已迁移到 lv00_knowledge.py Lv00KnowledgeBase.code_patterns
+    # 保留数据以确保向后兼容，新代码请使用 lv00_knowledge.py 中的权威版本
     # ============================================
 
     "canvas_basic_renderer": {
         "name": "基础Canvas渲染器",
         "description": "点线渲染的完整实现",
         "language": "javascript",
+        "tags": ["canvas", "renderer", "deprecated"],
+        "deprecated": True,
+        "_deprecated": True,
         "template": '''/**
  * Lv-00 Canvas渲染器
  * 负责几何对象的可视化
@@ -454,6 +479,9 @@ window.GeometryRenderer = GeometryRenderer;
         "name": "Canvas事件处理器",
         "description": "鼠标和键盘交互处理",
         "language": "javascript",
+        "tags": ["canvas", "event", "interaction", "deprecated"],
+        "deprecated": True,
+        "_deprecated": True,
         "template": '''/**
  * Canvas交互处理器
  * 管理工具切换和事件响应
@@ -844,6 +872,8 @@ window.CanvasInteraction = CanvasInteraction;
         "name": "模块面板模板",
         "description": "标准的Lv-00模块面板结构",
         "language": "html",
+        "tags": ["ui", "panel", "module"],
+        "deprecated": False,
         "template": '''<!-- {module_name} 模块面板 -->
 <div id="panel{module}" class="module-panel panel-hidden">
     <div class="panel">
@@ -911,6 +941,8 @@ window.CanvasInteraction = CanvasInteraction;
         "name": "模态对话框模板",
         "description": "Lv-00标准的模态对话框",
         "language": "html",
+        "tags": ["ui", "modal", "dialog"],
+        "deprecated": False,
         "template": '''<!-- 模态对话框模板 -->
 <div class="modal-overlay" id="modal{template_name}" role="dialog" aria-modal="true">
     <div class="modal-dialog" style="min-width: {width}px;">
@@ -1166,17 +1198,51 @@ API_QUICKREF = {
 
 
 def get_template(name: str) -> str:
-    """获取代码模板"""
-    return CODE_TEMPLATES.get(name, {}).get("template", "")
+    """
+    获取代码模板
+
+    如果模板已标记为 deprecated，会通过 logger 打印一条警告日志，
+    提示调用者使用 lv00_knowledge.py 中的权威版本。
+
+    Args:
+        name: 模板名称（对应 CODE_TEMPLATES 的键）
+
+    Returns:
+        模板字符串；若模板不存在则返回空字符串
+    """
+    entry = CODE_TEMPLATES.get(name, {})
+    if entry.get("_deprecated"):
+        logger.warning(
+            "模板 '%s' 已废弃（已迁移到 lv00_knowledge.py），"
+            "请使用 Lv00KnowledgeBase.code_patterns 中的权威版本",
+            name,
+        )
+    return entry.get("template", "")
 
 
 def get_snippet(name: str) -> str:
-    """获取代码片段"""
+    """
+    获取代码片段
+
+    Args:
+        name: 片段名称（对应 CODE_SNIPPETS 的键）
+
+    Returns:
+        代码片段字符串；若不存在则返回空字符串
+    """
     return CODE_SNIPPETS.get(name, "")
 
 
-def get_api_reference(module: str = None) -> dict:
-    """获取API参考"""
+def get_api_reference(module: str | None = None) -> dict:
+    """
+    获取API参考
+
+    Args:
+        module: 模块名称；若为 None 则返回全部 API 参考
+
+    Returns:
+        指定模块的 API 参考字典，或完整的 API_QUICKREF 字典
+    """
     if module:
         return API_QUICKREF.get(module, {})
     return API_QUICKREF

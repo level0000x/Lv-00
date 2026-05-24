@@ -21,9 +21,16 @@
 #include <string.h>
 
 /**
- * 辅助函数：添加一个点
- * 使用有理数坐标创建点，返回新节点的ID
- * 注意：各个add_point调用失败会通过返回值-1通知调用方
+ * @brief 辅助函数：添加一个有理数坐标点
+ *
+ * 使用有理数坐标（分子/分母形式）创建二维几何点，并添加到约束图中。
+ *
+ * @param g  约束图指针，不允许为 NULL
+ * @param xn x 坐标分子
+ * @param xd x 坐标分母，不允许为 0
+ * @param yn y 坐标分子
+ * @param yd y 坐标分母，不允许为 0
+ * @return 成功返回新节点的 ID（>= 0），失败返回 -1
  */
 static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd)
 {

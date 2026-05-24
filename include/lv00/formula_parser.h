@@ -7,7 +7,7 @@
  *          几何对象（点、线段、圆、三角形、直线、多边形、向量、约束）的表示。
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 3.2.0
  */
 
 #ifndef LV00_FORMULA_PARSER_H

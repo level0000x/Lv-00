@@ -387,152 +387,332 @@ char *preset_blocks_generate_single_doc(const char *name);
  * ================================================================ */
 
 /* 基础几何构造 */
+
+/** 中点：构造两点 A, B 的中点 M = (A + B) / 2
+ *  输入：POINT, POINT → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_MIDPOINT
 #define PRESET_MIDPOINT "midpoint"
 #endif
+
+/** 垂直平分线：构造线段 AB 的垂直平分线
+ *  输入：POINT, POINT → 输出：LINE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_PERPENDICULAR_BISECTOR
 #define PRESET_PERPENDICULAR_BISECTOR "perpendicular_bisector"
 #endif
+
+/** 角平分线：构造角 ∠ABC 的角平分线
+ *  输入：POINT, POINT, POINT → 输出：RAY
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_ANGLE_BISECTOR
 #define PRESET_ANGLE_BISECTOR "angle_bisector"
 #endif
+
+/** 平行线：过点 P 作直线 L 的平行线
+ *  输入：POINT, LINE → 输出：LINE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_PARALLEL_LINE
 #define PRESET_PARALLEL_LINE "parallel_line"
 #endif
+
+/** 垂线：过点 P 作直线 L 的垂线
+ *  输入：POINT, LINE → 输出：LINE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_PERPENDICULAR_LINE
 #define PRESET_PERPENDICULAR_LINE "perpendicular_line"
 #endif
+
+/** 线段交点：计算两条直线的交点
+ *  输入：LINE, LINE → 输出：POINT
+ *  复杂度：O(1)，确定性：CONDITIONALLY_UNIQUE（平行时无解） */
 #ifndef PRESET_LINE_INTERSECTION
 #define PRESET_LINE_INTERSECTION "line_intersection"
 #endif
+
+/** 反射变换：关于直线 L 的反射变换
+ *  输入：POINT, LINE → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE，可逆 */
 #ifndef PRESET_REFLECTION
 #define PRESET_REFLECTION "reflection"
 #endif
 
 /* 圆相关 */
+
+/** 由圆心和半径构造圆：(x-a)² + (y-b)² = r²
+ *  输入：POINT, SCALAR → 输出：CIRCLE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_CIRCLE_BY_CENTER_RADIUS
 #define PRESET_CIRCLE_BY_CENTER_RADIUS "circle_by_center_radius"
 #endif
+
+/** 由三点确定圆（不共线）
+ *  输入：POINT, POINT, POINT → 输出：CIRCLE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_CIRCLE_BY_THREE_POINTS
 #define PRESET_CIRCLE_BY_THREE_POINTS "circle_by_three_points"
 #endif
+
+/** 切线：过圆上一点作切线
+ *  输入：POINT, CIRCLE → 输出：LINE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_TANGENT_LINE
 #define PRESET_TANGENT_LINE "tangent_line"
 #endif
+
+/** 外接圆：过三角形三顶点的圆
+ *  输入：POINT, POINT, POINT → 输出：CIRCLE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_CIRCUMCIRCLE
 #define PRESET_CIRCUMCIRCLE "circumcircle"
 #endif
+
+/** 内切圆：与三角形三边相切的圆
+ *  输入：POINT, POINT, POINT → 输出：CIRCLE
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_INCIRCLE
 #define PRESET_INCIRCLE "incircle"
 #endif
+
+/** 旁切圆：与三角形一边及另两边延长线相切的圆
+ *  输入：POINT, POINT, POINT → 输出：CIRCLE
+ *  复杂度：O(1)，确定性：MULTIPLE_SOLUTIONS（3个旁切圆） */
 #ifndef PRESET_EXCIRCLE
 #define PRESET_EXCIRCLE "excircle"
 #endif
 
 /* 多边形 */
+
+/** 等边三角形：以线段 AB 为边构造等边三角形
+ *  输入：POINT, POINT → 输出：POINT（第三顶点）
+ *  复杂度：O(1)，确定性：MULTIPLE_SOLUTIONS（2个） */
 #ifndef PRESET_EQUILATERAL_TRIANGLE
 #define PRESET_EQUILATERAL_TRIANGLE "equilateral_triangle"
 #endif
+
+/** 正方形：以线段 AB 为边构造正方形
+ *  输入：POINT, POINT → 输出：POINT, POINT（另外两个顶点）
+ *  复杂度：O(1)，确定性：MULTIPLE_SOLUTIONS（2个） */
 #ifndef PRESET_SQUARE
 #define PRESET_SQUARE "square"
 #endif
+
+/** 正多边形：以圆心和半径构造正 n 边形
+ *  输入：POINT, SCALAR, INTEGER → 输出：POLYGON
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_REGULAR_POLYGON
 #define PRESET_REGULAR_POLYGON "regular_polygon"
 #endif
+
+/** 三角形重心：三条中线的交点 G = (A + B + C) / 3
+ *  输入：POINT, POINT, POINT → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_TRIANGLE_CENTROID
 #define PRESET_TRIANGLE_CENTROID "triangle_centroid"
 #endif
+
+/** 三角形垂心：三条高的交点
+ *  输入：POINT, POINT, POINT → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_TRIANGLE_ORTHOCENTER
 #define PRESET_TRIANGLE_ORTHOCENTER "triangle_orthocenter"
 #endif
+
+/** 三角形外心：三边垂直平分线的交点
+ *  输入：POINT, POINT, POINT → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_TRIANGLE_CIRCUMCENTER
 #define PRESET_TRIANGLE_CIRCUMCENTER "triangle_circumcenter"
 #endif
+
+/** 三角形内心：三条角平分线的交点
+ *  输入：POINT, POINT, POINT → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_TRIANGLE_INCENTER
 #define PRESET_TRIANGLE_INCENTER "triangle_incenter"
 #endif
 
 /* 几何变换 */
+
+/** 平移变换：将点 P 沿向量 v 平移
+ *  输入：POINT, VECTOR → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE，可逆 */
 #ifndef PRESET_TRANSLATION
 #define PRESET_TRANSLATION "translation"
 #endif
+
+/** 旋转变换：将点 P 绕中心 O 旋转角度 θ
+ *  输入：POINT, POINT, SCALAR → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE，可逆 */
 #ifndef PRESET_ROTATION
 #define PRESET_ROTATION "rotation"
 #endif
+
+/** 位似变换：以中心 O 和比例 k 进行位似变换
+ *  输入：POINT, SCALAR, SCALAR → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE，可逆（k≠0） */
 #ifndef PRESET_HOMOTHETY
 #define PRESET_HOMOTHETY "homothety"
 #endif
+
+/** 反射变换（矩阵形式）：关于直线的反射
+ *  输入：POINT, LINE → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE，可逆（对合） */
 #ifndef PRESET_REFLECTION_TRANSFORM
 #define PRESET_REFLECTION_TRANSFORM "reflection_transform"
 #endif
+
+/** 仿射变换：一般仿射变换 T(x) = Ax + b
+ *  输入：POINT, MATRIX, VECTOR → 输出：POINT
+ *  复杂度：O(n²)，确定性：ALWAYS_UNIQUE，可逆（det(A)≠0） */
 #ifndef PRESET_AFFINE_TRANSFORM
 #define PRESET_AFFINE_TRANSFORM "affine_transform"
 #endif
+
+/** 反演变换：关于圆的反演变换
+ *  输入：POINT, CIRCLE → 输出：POINT
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE，可逆（对合） */
 #ifndef PRESET_INVERSION
 #define PRESET_INVERSION "inversion"
 #endif
 
 /* 度量计算 */
+
+/** 两点距离：d(A, B) = √((x₂-x₁)² + (y₂-y₁)²)
+ *  输入：POINT, POINT → 输出：SCALAR
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_DISTANCE
 #define PRESET_DISTANCE "distance"
 #endif
+
+/** 角度测量：计算三点形成的角度（度或弧度）
+ *  输入：POINT, POINT, POINT → 输出：SCALAR
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_ANGLE_MEASURE
 #define PRESET_ANGLE_MEASURE "angle_measure"
 #endif
+
+/** 面积计算：计算多边形或三角形的面积
+ *  输入：POLYGON → 输出：SCALAR
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_AREA
 #define PRESET_AREA "area"
 #endif
+
+/** 周长计算：计算多边形的周长
+ *  输入：POLYGON → 输出：SCALAR
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_PERIMETER
 #define PRESET_PERIMETER "perimeter"
 #endif
 
 /* 三角函数 */
+
+/** 正弦函数：sin(θ)
+ *  输入：SCALAR → 输出：SCALAR
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_SINE
 #define PRESET_SINE "sine"
 #endif
+
+/** 余弦函数：cos(θ)
+ *  输入：SCALAR → 输出：SCALAR
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_COSINE
 #define PRESET_COSINE "cosine"
 #endif
+
+/** 正切函数：tan(θ)
+ *  输入：SCALAR → 输出：SCALAR
+ *  复杂度：O(1)，确定性：CONDITIONALLY_UNIQUE（θ≠π/2+kπ） */
 #ifndef PRESET_TANGENT
 #define PRESET_TANGENT "tangent"
 #endif
+
+/** 反正切函数：arctan(y/x)
+ *  输入：SCALAR, SCALAR → 输出：SCALAR
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_ARCTANGENT
 #define PRESET_ARCTANGENT "arctangent"
 #endif
 
 /* 代数运算 */
+
+/** 向量加法：u + v
+ *  输入：VECTOR, VECTOR → 输出：VECTOR
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE，可逆 */
 #ifndef PRESET_VECTOR_ADD
 #define PRESET_VECTOR_ADD "vector_add"
 #endif
+
+/** 向量数乘：k·v
+ *  输入：SCALAR, VECTOR → 输出：VECTOR
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE，可逆（k≠0） */
 #ifndef PRESET_VECTOR_SCALE
 #define PRESET_VECTOR_SCALE "vector_scale"
 #endif
+
+/** 向量点积：u · v = Σuᵢvᵢ
+ *  输入：VECTOR, VECTOR → 输出：SCALAR
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_VECTOR_DOT
 #define PRESET_VECTOR_DOT "vector_dot"
 #endif
+
+/** 向量叉积：u × v（三维）
+ *  输入：VECTOR, VECTOR → 输出：VECTOR
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_VECTOR_CROSS
 #define PRESET_VECTOR_CROSS "vector_cross"
 #endif
+
+/** 多项式求根：求解多项式方程 p(x) = 0
+ *  输入：POLYNOMIAL → 输出：LIST
+ *  复杂度：O(n³)（特征值法），确定性：MULTIPLE_SOLUTIONS */
 #ifndef PRESET_POLYNOMIAL_ROOTS
 #define PRESET_POLYNOMIAL_ROOTS "polynomial_roots"
 #endif
+
+/** 线性方程组求解：Ax = b
+ *  输入：MATRIX, VECTOR → 输出：VECTOR
+ *  复杂度：O(n³)，确定性：CONDITIONALLY_UNIQUE */
 #ifndef PRESET_LINEAR_SOLVE
 #define PRESET_LINEAR_SOLVE "linear_solve"
 #endif
 
 /* 逻辑推导 */
+
+/** 矛盾检测器：检测约束系统中是否存在矛盾
+ *  输入：FORMULA → 输出：BOOLEAN
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_CONTRADICTION_DETECTOR
 #define PRESET_CONTRADICTION_DETECTOR "contradiction_detector"
 #endif
+
+/** 蕴含链：构造 A → B → C 的逻辑蕴含链
+ *  输入：FORMULA, FORMULA → 输出：FORMULA
+ *  复杂度：O(n)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_IMPLICATION_CHAIN
 #define PRESET_IMPLICATION_CHAIN "implication_chain"
 #endif
+
+/** 等价关系：构造 A ↔ B 的逻辑等价
+ *  输入：FORMULA, FORMULA → 输出：FORMULA
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_EQUIVALENCE
 #define PRESET_EQUIVALENCE "equivalence"
 #endif
+
+/** 全称量词：构造 ∀x. P(x)
+ *  输入：FORMULA → 输出：FORMULA
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_UNIVERSAL_QUANTIFIER
 #define PRESET_UNIVERSAL_QUANTIFIER "universal_quantifier"
 #endif
+
+/** 存在量词：构造 ∃x. P(x)
+ *  输入：FORMULA → 输出：FORMULA
+ *  复杂度：O(1)，确定性：ALWAYS_UNIQUE */
 #ifndef PRESET_EXISTENTIAL_QUANTIFIER
 #define PRESET_EXISTENTIAL_QUANTIFIER "existential_quantifier"
 #endif

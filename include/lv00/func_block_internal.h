@@ -11,10 +11,10 @@
  * @warning 此文件仅供 func_block 模块内部使用，不属于公开 API。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
-#ifndef FUNC_BLOCK_INTERNAL_H
-#define FUNC_BLOCK_INTERNAL_H
+#ifndef LV00_FUNC_BLOCK_INTERNAL_H
+#define LV00_FUNC_BLOCK_INTERNAL_H
 
 /* 首先包含 lv00.h 以获取 LV00_THREAD_LOCAL 宏定义 */
 #include "lv00.h"
@@ -123,4 +123,4 @@ extern LV00_THREAD_LOCAL StreamContext *func_block_stream_ctx;
 }
 #endif
 
-#endif /* FUNC_BLOCK_INTERNAL_H */
+#endif /* LV00_FUNC_BLOCK_INTERNAL_H */

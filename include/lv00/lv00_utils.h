@@ -57,6 +57,13 @@ void *lv00_realloc(void *ptr, size_t size);
 void lv00_free(void **ptr);
 
 /**
+ * @brief FFI 兼容的内存释放函数（接受 void* 而非 void**）
+ * @param ptr 要释放的内存指针
+ * @note 专供 Python ctypes 等外部绑定使用，C 内部代码请使用 lv00_free
+ */
+void lv00_free_ptr(void *ptr);
+
+/**
  * @brief 批量释放多个指针
  * 用法: lv00_free_many(&p1, &p2, &p3, NULL);
  */
@@ -409,7 +416,7 @@ bool lv00_check_version(const char *min_version);
 /**
  * @brief 安全释放指针并将指针置NULL
  */
-#define LV00_SAFE_FREE(ptr) do { if (ptr) { lv00_free(ptr); (ptr) = NULL; } } while(0)
+#define LV00_SAFE_FREE(ptr) do { if (ptr) { lv00_free((void **)&(ptr)); } } while(0)
 
 /**
  * @brief 字符串化宏

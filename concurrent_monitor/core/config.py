@@ -25,9 +25,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from ..utils.validators import validate_port, validate_positive_int
 
@@ -293,10 +294,13 @@ class Config:
         # Web 配置：端口
         if port := os.getenv("MONITOR_WEB_PORT"):
             try:
-                self.web.port = int(port)
+                port_int = int(port)
+                self.web.port = validate_port(port_int)
                 logger.debug(f"环境变量覆盖: web.port = {port}")
             except ValueError:
                 logger.warning(f"无效的环境变量值: MONITOR_WEB_PORT={port}")
+            except Exception as e:
+                logger.warning(f"端口验证失败: MONITOR_WEB_PORT={port}, 错误: {e}")
 
         # Web 配置：监听地址
         if host := os.getenv("MONITOR_WEB_HOST"):
@@ -316,6 +320,8 @@ class ConfigManager:
     管理全局配置实例，提供统一的配置访问入口。
     支持初始化、获取、热重载和持久化操作。
 
+    线程安全：使用线程锁保护单例初始化过程，避免多线程竞争。
+
     Example:
         >>> # 初始化（从文件加载）
         >>> ConfigManager.initialize("config.json")
@@ -327,9 +333,10 @@ class ConfigManager:
         >>> ConfigManager.reload()
     """
 
-    _instance: Config | None = None
-    _config_path: Path | None = None
+    _instance: Optional[Config] = None
+    _config_path: Optional[Path] = None
     _initialized: bool = False
+    _lock: threading.Lock = threading.Lock()  # 线程安全锁
 
     @classmethod
     def initialize(
@@ -341,6 +348,7 @@ class ConfigManager:
         初始化配置管理器
 
         只能初始化一次，重复调用会发出警告并返回已有实例。
+        使用线程锁确保多线程环境下的安全初始化。
 
         Args:
             config_path: 配置文件路径（None 使用默认配置）
@@ -349,24 +357,31 @@ class ConfigManager:
         Returns:
             Config: 配置对象
         """
+        # 快速路径：已初始化则直接返回
         if cls._initialized:
             logger.warning("配置管理器已经初始化")
             return cls._instance  # type: ignore[return-value]
 
-        # 根据是否有配置文件路径决定加载方式
-        if config_path:
-            cls._config_path = Path(config_path)
-            cls._instance = Config.from_file(cls._config_path)
-        else:
-            cls._instance = Config()
+        # 慢速路径：加锁后再次检查（双重检查锁定模式）
+        with cls._lock:
+            if cls._initialized:
+                logger.warning("配置管理器已经初始化")
+                return cls._instance  # type: ignore[return-value]
 
-        # 应用环境变量覆盖
-        if apply_env:
-            cls._instance.apply_env_overrides()
+            # 根据是否有配置文件路径决定加载方式
+            if config_path:
+                cls._config_path = Path(config_path)
+                cls._instance = Config.from_file(cls._config_path)
+            else:
+                cls._instance = Config()
 
-        cls._initialized = True
-        logger.info("配置管理器初始化完成")
-        return cls._instance  # type: ignore[return-value]
+            # 应用环境变量覆盖
+            if apply_env:
+                cls._instance.apply_env_overrides()
+
+            cls._initialized = True
+            logger.info("配置管理器初始化完成")
+            return cls._instance  # type: ignore[return-value]
 
     @classmethod
     def get_config(cls) -> Config:
@@ -374,6 +389,7 @@ class ConfigManager:
         获取当前配置
 
         如果尚未初始化，会自动使用默认配置进行初始化。
+        使用线程锁确保安全初始化。
 
         Returns:
             Config: 当前配置对象
@@ -389,17 +405,19 @@ class ConfigManager:
 
         从之前指定的配置文件重新读取配置，并应用环境变量覆盖。
         如果没有配置文件路径，发出警告。
+        使用线程锁确保安全重载。
 
         Returns:
             Config: 重新加载后的配置对象
         """
-        if cls._config_path and cls._config_path.exists():
-            cls._instance = Config.from_file(cls._config_path)
-            cls._instance.apply_env_overrides()
-            logger.info("配置已重新加载")
-        else:
-            logger.warning("没有配置文件，无法重载")
-        return cls._instance  # type: ignore[return-value]
+        with cls._lock:
+            if cls._config_path and cls._config_path.exists():
+                cls._instance = Config.from_file(cls._config_path)
+                cls._instance.apply_env_overrides()
+                logger.info("配置已重新加载")
+            else:
+                logger.warning("没有配置文件，无法重载")
+            return cls._instance  # type: ignore[return-value]
 
     @classmethod
     def save(cls, path: str | Path | None = None) -> None:
@@ -416,7 +434,7 @@ class ConfigManager:
         if cls._instance is None:
             raise RuntimeError("配置未初始化")
 
-        save_path: Path | None = Path(path) if path else cls._config_path
+        save_path: Optional[Path] = Path(path) if path else cls._config_path
         if save_path is None:
             raise ValueError("未指定保存路径")
 
@@ -428,6 +446,10 @@ class ConfigManager:
         重置为默认配置
 
         将配置恢复为所有默认值，清除配置文件路径引用。
+        使用线程锁确保安全重置。
         """
-        cls._instance = Config()
-        logger.info("配置已重置为默认值")
+        with cls._lock:
+            cls._instance = Config()
+            cls._config_path = None
+            cls._initialized = False
+            logger.info("配置已重置为默认值")

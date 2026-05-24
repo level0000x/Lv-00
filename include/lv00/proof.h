@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof.h
  * @brief 命题与证明系统 - 合一检查、证明导航器、证明步骤
  *
@@ -72,6 +72,7 @@ struct Proposition {
     int id;                     /* 命题ID */
     PropositionType type;       /* 命题类型 */
     ProofColor color;           /* 证明状态颜色 */
+    char *label;                /* 命题标签（可空） */
 
     /* 输入/输出端口 */
     int *input_port_ids;        /* 输入端口ID数组 */
@@ -183,8 +184,8 @@ struct ProofDependency {
  * @brief 引理视图状态
  */
 typedef enum {
-    LEMMA_VIEW_EXPANDED,
-    LEMMA_VIEW_COLLAPSED
+    LEMMA_VIEW_EXPANDED,         /* 展开 */
+    LEMMA_VIEW_COLLAPSED         /* 折叠 */
 } LemmaViewState;
 
 /* ============== 证明导航器 ============== */
@@ -226,6 +227,9 @@ struct ProofNavigator {
     /* 证明策略注释（LeanGeo风格：先展示总体策略，再展开细节） */
     char *strategy_note;        /* 总体策略描述 */
 };
+
+/* Proof 类型——与 ProofNavigator 相同 */
+typedef ProofNavigator Proof;
 
 /* ============== 命题管理API ============== */
 
@@ -868,6 +872,419 @@ bool proof_search_tree_export_json(const ProofSearchTree *tree, const char *file
  * @return 是否成功
  */
 bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filepath);
+
+/* ========================================================================
+ * 多证明方法并存引擎（v3.2.0 新增，借鉴 JGEX/GEX 架构）
+ *
+ * 借鉴 JGEX（中科院张景中团队）的多证明方法共存设计：
+ * - 在同一系统中集成多种独立的证明方法
+ * - 用户可在不同策略之间切换
+ * - 每种方法有独立的搜索空间和输出格式
+ *
+ * JGEX 集成了六种证明方法：
+ *   Wu's Method, Area Method, Groebner Basis, Vector Method,
+ *   Full-Angle Method, Deductive Database
+ *
+ * Lv-00 将其适配为几何元语言环境下的多策略架构。
+ * ======================================================================== */
+
+/**
+ * @brief 证明策略类型（借鉴 JGEX 的六种方法）
+ */
+typedef enum {
+    PROOF_STRATEGY_DIRECT_CONSTRUCTION,  /**< 直接构造法：通过几何构造直接满足命题模式 */
+    PROOF_STRATEGY_AREA_METHOD,          /**< 面积法：利用面积关系和消点法（借鉴 JGEX Area Method） */
+    PROOF_STRATEGY_GROEBNER_BASIS,       /**< Groebner 基法：代数方程求解（借鉴 JGEX/Wu's Method） */
+    PROOF_STRATEGY_VECTOR_METHOD,        /**< 向量法：矢量代数推导 */
+    PROOF_STRATEGY_FULL_ANGLE_METHOD,    /**< 全角法：利用全角关系进行角度推理 */
+    PROOF_STRATEGY_DEDUCTIVE_DATABASE,   /**< 演绎数据库法：前向链推理 */
+    PROOF_STRATEGY_COORDINATE,           /**< 坐标法：解析几何坐标计算 */
+    PROOF_STRATEGY_ORACLE,               /**< Oracle 法：外部求解器辅助（不可构造性） */
+    PROOF_STRATEGY_COUNT                 /**< 策略总数（用于数组大小） */
+} ProofStrategyType;
+
+/**
+ * @brief 证明策略状态
+ */
+typedef enum {
+    PROOF_STRATEGY_AVAILABLE,            /**< 可用（已加载所需公理包） */
+    PROOF_STRATEGY_UNAVAILABLE,          /**< 不可用（缺少公理包） */
+    PROOF_STRATEGY_ACTIVE,               /**< 当前激活 */
+    PROOF_STRATEGY_COMPLETED,            /**< 已完成 */
+    PROOF_STRATEGY_FAILED                /**< 失败 */
+} ProofStrategyStatus;
+
+/**
+ * @brief 证明策略描述符
+ *
+ * 每种证明方法对应一个策略描述符，记录其：
+ * - 基本元数据（名称、描述）
+ * - 依赖的公理包
+ * - 适用的问题类型
+ * - 产生的证明步骤
+ */
+typedef struct ProofStrategyDescriptor {
+    ProofStrategyType type;              /**< 策略类型 */
+    ProofStrategyStatus status;          /**< 当前状态 */
+    char *name;                          /**< 策略名称（如"面积法"） */
+    char *description;                   /**< 策略描述 */
+    char **required_axiom_packages;      /**< 依赖的公理包名称列表 */
+    int axiom_package_count;             /**< 公理包数量 */
+
+    /* 适用性评估 */
+    bool (*applicability_check)(         /**< 适用性检查函数 */
+        const struct ProofMultiStrategy *mse,
+        const ConstraintGraph *graph,
+        const Proposition *prop);
+
+    /* 策略执行 */
+    bool (*execute)(                     /**< 策略执行函数 */
+        struct ProofMultiStrategy *mse,
+        ProofNavigator *nav);
+
+    /* 生成的证明步骤 */
+    int generated_step_count;            /**< 生成的步骤数 */
+    int *generated_step_ids;             /**< 生成的步骤ID列表 */
+} ProofStrategyDescriptor;
+
+/**
+ * @brief 多策略证明引擎（借鉴 JGEX 架构）
+ *
+ * 管理多种证明方法的注册、切换、组合执行。
+ * 支持：
+ * - 策略注册与发现
+ * - 策略切换（运行时）
+ * - 策略组合（流水线：一个方法的输出作为另一个的输入）
+ * - 策略竞争（多方法并行，取最先成功者）
+ * - 策略适用性自动评估
+ */
+typedef struct ProofMultiStrategy {
+    ProofStrategyDescriptor strategies[PROOF_STRATEGY_COUNT]; /**< 策略数组 */
+    int active_strategy_index;           /**< 当前激活的策略索引（-1 = 未选择） */
+    ProofNavigator *shared_navigator;    /**< 共享的证明导航器 */
+
+    /* 策略组合配置 */
+    bool enable_fallback;                /**< 是否启用回退（主策略失败后尝试其他） */
+    int *fallback_order;                 /**< 回退顺序（策略索引数组） */
+    int fallback_count;                  /**< 回退策略数量 */
+
+    /* 执行统计 */
+    int total_attempts;                  /**< 总尝试次数 */
+    int success_count;                   /**< 成功次数 */
+    int64_t *strategy_timings_ms;        /**< 每种策略的耗时（毫秒） */
+} ProofMultiStrategy;
+
+/* --- 多策略引擎 API --- */
+
+/**
+ * @brief 创建多策略证明引擎
+ * @param nav  共享的证明导航器（可为NULL，稍后设置）
+ * @return 新分配的多策略引擎，失败返回NULL
+ */
+ProofMultiStrategy *proof_multi_strategy_create(ProofNavigator *nav);
+
+/**
+ * @brief 销毁多策略证明引擎
+ */
+void proof_multi_strategy_destroy(ProofMultiStrategy *mse);
+
+/**
+ * @brief 注册证明策略
+ * @param mse        多策略引擎
+ * @param descriptor 策略描述符
+ * @return 是否成功
+ */
+bool proof_multi_strategy_register(
+    ProofMultiStrategy *mse,
+    const ProofStrategyDescriptor *descriptor);
+
+/**
+ * @brief 激活指定策略
+ * @param mse           多策略引擎
+ * @param strategy_type 要激活的策略类型
+ * @return 是否成功
+ */
+bool proof_multi_strategy_activate(
+    ProofMultiStrategy *mse,
+    ProofStrategyType strategy_type);
+
+/**
+ * @brief 获取当前激活的策略
+ * @return 策略描述符指针（不可修改），无激活策略返回NULL
+ */
+const ProofStrategyDescriptor *proof_multi_strategy_get_active(
+    const ProofMultiStrategy *mse);
+
+/**
+ * @brief 评估所有可用策略的适用性
+ *
+ * 遍历所有已注册的策略，调用其 applicability_check 函数，
+ * 返回适用策略的列表，按适用性评分排序。
+ *
+ * @param mse    多策略引擎
+ * @param graph  目标构造图
+ * @param prop   目标命题
+ * @param out_applicable_types 输出：适用的策略类型数组
+ * @param max_count            最多返回数量
+ * @return 实际返回的适用策略数量
+ */
+int proof_multi_strategy_evaluate_applicability(
+    ProofMultiStrategy *mse,
+    const ConstraintGraph *graph,
+    const Proposition *prop,
+    ProofStrategyType *out_applicable_types,
+    int max_count);
+
+/**
+ * @brief 使用当前策略执行证明
+ * @return 是否成功
+ */
+bool proof_multi_strategy_execute(ProofMultiStrategy *mse);
+
+/**
+ * @brief 尝试所有可用策略（竞争模式）
+ *
+ * 按回退顺序依次尝试每个可用策略，直到某个策略成功或全部失败。
+ * 借鉴 JGEX 的用户可选策略机制。
+ *
+ * @return 成功的策略类型，失败返回 PROOF_STRATEGY_COUNT
+ */
+ProofStrategyType proof_multi_strategy_try_all(ProofMultiStrategy *mse);
+
+/**
+ * @brief 使用多个策略组合证明（流水线模式）
+ *
+ * 将多个策略按顺序串联：前一个策略的输出作为后一个策略的输入。
+ * 例如：先用面积法建立引理，再用直接构造法完成主证明。
+ *
+ * @param mse            多策略引擎
+ * @param pipeline       策略类型流水线（按顺序执行）
+ * @param pipeline_count 流水线长度
+ * @return 是否全部成功
+ */
+bool proof_multi_strategy_pipeline(
+    ProofMultiStrategy *mse,
+    const ProofStrategyType *pipeline,
+    int pipeline_count);
+
+/**
+ * @brief 设置回退顺序
+ * @param mse             多策略引擎
+ * @param fallback_order  策略索引数组（按优先级排序）
+ * @param count           回退策略数量
+ */
+void proof_multi_strategy_set_fallback_order(
+    ProofMultiStrategy *mse,
+    const int *fallback_order,
+    int count);
+
+/**
+ * @brief 切换策略（保存当前策略状态后切换）
+ * @param mse           多策略引擎
+ * @param strategy_type 目标策略类型
+ * @return 是否成功
+ */
+bool proof_multi_strategy_switch(
+    ProofMultiStrategy *mse,
+    ProofStrategyType strategy_type);
+
+/**
+ * @brief 获取策略执行统计
+ * @param mse              多策略引擎
+ * @param out_total_attempts  输出：总尝试次数
+ * @param out_success_count   输出：成功次数
+ */
+void proof_multi_strategy_get_stats(
+    const ProofMultiStrategy *mse,
+    int *out_total_attempts,
+    int *out_success_count);
+
+/**
+ * @brief 策略类型转字符串
+ */
+const char *proof_strategy_type_to_string(ProofStrategyType type);
+
+/**
+ * @brief 策略状态转字符串
+ */
+const char *proof_strategy_status_to_string(ProofStrategyStatus status);
+
+
+/* ================================================================
+ * === 第六梯队参考项目落地 (P1) — 2026-05-24 ======================
+ * 新增 API 声明来自 Agda/Idris2/Isabelle/HOL Light/F* 五个项目
+ * ================================================================ */
+
+/* --- 前向声明 --- */
+typedef struct ConstraintSolver ConstraintSolver;
+
+/* ================================================================
+ * 1. Agda — hole-driven 证明编辑
+ *    借鉴：逐"洞"填充的交互式证明方式，Lv-00 Web GUI 对应功能
+ * ================================================================ */
+
+/** @brief 填充建议结构体 — Agda hole-driven 证明编辑 */
+typedef enum { FILL_EXACT, FILL_LAMBDA, FILL_CONSTRUCTOR, FILL_CASE_SPLIT, FILL_REFINE } FillKind;
+
+typedef struct FillSuggestion {
+    FillKind          kind;
+    char             *label;           /* 建议描述 */
+    char             *code_snippet;    /* 填充代码片段 */
+    int               arity;           /* 构造器元数 */
+    struct FillSuggestion *next;
+} FillSuggestion;
+
+/**
+ * @brief 引导式洞填充 — 声明几何命题后，系统引导用户逐步填充证明
+ * @param solver      约束求解器上下文
+ * @param goal_type   目标几何命题的类型声明（如"等腰三角形面积公式"）
+ * @param goal_dim    维度
+ * @return 填充建议链表，调用者用 fill_suggestions_destroy() 释放
+ */
+FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_type, int goal_dim);
+void fill_suggestions_destroy(FillSuggestion *list);
+
+/* ================================================================
+ * 2. Idris 2 — QTT 线性类型标记（0/1/ω），证明仅编译期
+ * ================================================================ */
+
+/** @brief QTT 用量标注（借鉴 Idris 2 Quantitative Type Theory） */
+typedef enum { PROOF_QTT_ERASED = 0, PROOF_QTT_LINEAR = 1, PROOF_QTT_UNRESTRICTED = 2 } ProofQuantifier;
+
+/**
+ * @brief 标记构造步骤为 Ghost（仅编译期存在，运行时擦除）
+ * @param step_id  证明步骤 ID
+ * @param quant    用量标注（ERASED=仅证明，LINEAR=精确一次，UNRESTRICTED=可多次）
+ * @return 是否成功
+ */
+bool proof_mark_ghost(int step_id, ProofQuantifier quant);
+
+/**
+ * @brief 检查 Ghost 冲突 — 确认被运行时计算依赖的步骤未被标记为 ERASED
+ * @return 冲突数量（0 = 无冲突）
+ */
+int proof_check_ghost_conflicts(void);
+
+/* ================================================================
+ * 3. Isabelle/HOL — Sledgehammer 自动证明策略调度
+ * ================================================================ */
+
+/** @brief Sledgehammer 调用模式 */
+typedef enum { SLEDGE_SYNC, SLEDGE_ASYNC, SLEDGE_TIMEOUT } SledgehammerMode;
+
+/** @brief Isar 结构化证明层级 */
+typedef enum { ISAR_LEMMA, ISAR_HAVE, ISAR_SHOW, ISAR_QED } IsarStructureLevel;
+
+/** @brief Sledgehammer 单个策略执行结果 */
+typedef struct {
+    ProofStrategyType  strategy;
+    bool               success;
+    double             elapsed_sec;
+    char              *isar_proof_script;  /* 自动生成的 Isar 证明脚本 */
+} SledgehammerStrategyResult;
+
+/** @brief Sledgehammer 批量调度报告 */
+typedef struct {
+    SledgehammerStrategyResult *results;
+    int                         result_count;
+    int                         best_index;    /* 最优（最简）证明的索引 */
+    double                      total_time_sec;
+    const char                 *error_msg;
+} SledgehammerReport;
+
+/**
+ * @brief Sledgehammer 风格 — 自动尝试多个证明策略，返回最优结果
+ * @param mse          多策略引擎
+ * @param mode         调度模式（同步/异步/超时）
+ * @param timeout_ms   超时毫秒（0 = 不限）
+ * @return 调度报告，调用者用 sledgehammer_report_destroy() 释放
+ */
+SledgehammerReport *proof_sledgehammer_dispatch(
+    ProofMultiStrategy *mse,
+    SledgehammerMode mode,
+    int timeout_ms);
+void sledgehammer_report_destroy(SledgehammerReport *report);
+
+/**
+ * @brief 将证明步骤导出为 Isar 结构化证明文本
+ * @param props       命题列表
+ * @param prop_count  命题数量
+ * @return Isar 格式证明文本（调用者释放）
+ */
+char *proof_export_isar(const Proposition **props, int prop_count);
+
+/* ================================================================
+ * 4. HOL Light — 500 行微内核验证
+ * ================================================================ */
+
+/** @brief 验证规则类型（对应 HOL Light 10 条基本推理规则） */
+typedef enum {
+    VERIFY_ASSUME,       /* ASSUME: t |- t */
+    VERIFY_REFL,         /* REFL:   |- t = t */
+    VERIFY_BETA_CONV,    /* BETA_CONV: |- (\x.t) s = t[s/x] */
+    VERIFY_MK_COMB,      /* MK_COMB:  f=g, x=y => f x = g y */
+    VERIFY_ABS,          /* ABS:     x not free in Γ => Γ|-s=t => Γ|-(\x.s)=(\x.t) */
+    VERIFY_TRANS,        /* TRANS:   s=t, t=u => s=u */
+    VERIFY_SUBST,        /* SUBST:   substitution */
+    VERIFY_INST_TYPE,    /* INST_TYPE: type instantiation */
+    VERIFY_INST,         /* INST:    term instantiation */
+    VERIFY_DISCH         /* DISCH:   discharge assumption */
+} VerifyRuleType;
+
+/** @brief 验证结果 */
+typedef enum { VERIFY_VALID, VERIFY_INVALID, VERIFY_UNDECIDED } VerifyResult;
+
+/**
+ * @brief 极简验证 — 仅用不超过 10 条基本规则验证一个证明步骤
+ * @param rule        应用的推理规则
+ * @param premises    前提列表（terminated by NULL）
+ * @param conclusion  结论
+ * @param out_trace   输出：验证追溯（可选，成功时给出规则链）
+ * @return VERIFY_VALID 如果结论可从前提通过给定规则合法推导
+ */
+VerifyResult proof_minimal_verify(
+    VerifyRuleType rule,
+    const char **premises,
+    const char *conclusion,
+    char **out_trace);
+
+/* ================================================================
+ * 5. F* — 精化类型 + SMT 混合验证
+ * ================================================================ */
+
+/** @brief 精化检查结果 */
+typedef enum { REFINE_OK, REFINE_SMT_UNSAT, REFINE_TYPE_ERROR, REFINE_TIMEOUT } RefinementCheckResult;
+
+/** @brief 精化类型检查条目 */
+typedef struct {
+    const char *geom_object;       /* 几何对象名 */
+    const char *base_type;         /* 基础类型（如 Triangle） */
+    const char *refinement_pred;   /* 精化谓词（如 "is_right && area > 0"） */
+    RefinementCheckResult result;
+    char        *smt_counterexample; /* SMT 反例（失败时） */
+    double       elapsed_sec;
+} RefinementCheckEntry;
+
+/** @brief 精化类型批量检查报告 */
+typedef struct {
+    RefinementCheckEntry *entries;
+    int                   entry_count;
+    int                   passed_count;
+    int                   failed_count;
+} RefinementCheckReport;
+
+/**
+ * @brief 精化类型检查 — 验证几何体是否同时满足类型条件（struct）和精化谓词（SMT）
+ * @param solver     约束求解器
+ * @param entries    检查条目列表
+ * @param count      条目数量
+ * @return 批量检查报告
+ */
+RefinementCheckReport *proof_refinement_check(
+    ConstraintSolver *solver,
+    RefinementCheckEntry *entries,
+    int count);
+void refinement_check_report_destroy(RefinementCheckReport *report);
 
 #ifdef __cplusplus
 }

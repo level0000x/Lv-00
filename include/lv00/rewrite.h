@@ -64,11 +64,11 @@ typedef struct RewriteRule {
 } RewriteRule;
 
 typedef enum {
-    REWRITE_OK,
-    REWRITE_NO_MATCH,
-    REWRITE_APPLIED,
-    REWRITE_CONFLUENCE_ISSUE,
-    REWRITE_TERMINATED
+    REWRITE_OK,                  /* 重写成功（无操作） */
+    REWRITE_NO_MATCH,            /* 未找到匹配 */
+    REWRITE_APPLIED,             /* 规则已应用 */
+    REWRITE_CONFLUENCE_ISSUE,    /* 汇流性问题 */
+    REWRITE_TERMINATED           /* 重写终止 */
 } RewriteStatus;
 
 /* VF2 子图同构匹配状态 */
@@ -399,6 +399,107 @@ int rewrite_apply_all_matches(
     RewriteRule *rule,
     RewriteMatch *matches, int match_count,
     int *out_applied_count);
+
+/* ================================================================
+ * === 第六梯队参考项目落地 (P1) — Maude 重写策略引擎 ==============
+ * === 2026-05-24 ==================================================
+ *
+ * 借鉴 Maude (github.com/maude-team/maude) 的重写逻辑：
+ *   - sort → Lv-00 GeomType  + TypeRegion
+ *   - op   → Lv-00 FuncBlock
+ *   - eq   → Lv-00 RewriteRule（单向/双向）
+ *   - rl   → Lv-00 图重写规则
+ *   - strat → rewrite_strategy_apply() 策略组合子
+ *   - search → rewrite_search_backward() 反向证明搜索
+ * ================================================================ */
+
+/** @brief Maude 风格重写策略组合子（10 种） */
+typedef enum {
+    REWRITE_STRAT_IDLE,          /* idle:  不执行任何操作 */
+    REWRITE_STRAT_FAIL,          /* fail:  总是失败 */
+    REWRITE_STRAT_APPLY_RULE,    /* apply rule_id: 应用指定规则 */
+    REWRITE_STRAT_MATCH_PATTERN, /* match pattern: 匹配模式不替换 */
+    REWRITE_STRAT_TEST_COND,     /* test condition: 条件检查 */
+    REWRITE_STRAT_SEQUENCE,      /* s1 ; s2: 顺序组合 */
+    REWRITE_STRAT_ORELSE,        /* s1 or-else s2: 回退组合 */
+    REWRITE_STRAT_REPEAT,        /* repeat s: 重复直到不动点 */
+    REWRITE_STRAT_NORMALIZE,     /* normalize s: 规范化（等价于 repeat(s ; s)） */
+    REWRITE_STRAT_TRY            /* try s: 尝试，失败则保持原状 */
+} RewriteStrategyKind;
+
+/** @brief 可执行重写策略树节点 */
+typedef struct RewriteStrategy {
+    RewriteStrategyKind kind;
+    /* --- 叶节点数据（用于 APPLY_RULE / MATCH_PATTERN / TEST_COND）--- */
+    int   rule_id;              /* APPLY_RULE: 规则索引 */
+    char *pattern_expr;         /* MATCH_PATTERN: 模式表达式 */
+    int (*test_func)(void *);   /* TEST_COND: 条件测试函数 */
+    void *test_ctx;             /* TEST_COND: 上下文 */
+    /* --- 内部节点数据（用于 SEQUENCE / ORELSE / REPEAT 等）--- */
+    struct RewriteStrategy *left;
+    struct RewriteStrategy *right;
+    int max_iterations;         /* REPEAT: 最大迭代次数（0 = 不限） */
+} RewriteStrategy;
+
+/* ---- 策略树构造与销毁 ---- */
+RewriteStrategy *rewrite_strategy_create_idle(void);
+RewriteStrategy *rewrite_strategy_create_fail(void);
+RewriteStrategy *rewrite_strategy_create_apply_rule(int rule_id);
+RewriteStrategy *rewrite_strategy_create_match(const char *pattern);
+RewriteStrategy *rewrite_strategy_create_test(int (*test)(void *), void *ctx);
+RewriteStrategy *rewrite_strategy_sequence(RewriteStrategy *left, RewriteStrategy *right);
+RewriteStrategy *rewrite_strategy_orelse(RewriteStrategy *left, RewriteStrategy *right);
+RewriteStrategy *rewrite_strategy_repeat(RewriteStrategy *child, int max_iter);
+RewriteStrategy *rewrite_strategy_normalize(RewriteStrategy *child);
+RewriteStrategy *rewrite_strategy_try(RewriteStrategy *child);
+void rewrite_strategy_destroy(RewriteStrategy *s);
+
+/**
+ * @brief 按策略表达式在约束图上递归执行重写
+ *
+ * 这是 Maude `srewrite` 命令的 Lv-00 对应：
+ *   给定策略树和约束图，按策略定义的顺序尝试所有规则，
+ *   每次成功匹配后返回新的约束图状态。
+ *
+ * @param graph          输入约束图（调用者持有所有权，不会被修改）
+ * @param strategy       策略树根节点
+ * @param rules          可用重写规则数组
+ * @param rule_count     规则数量
+ * @param out_graph      输出：重写后的约束图（调用者负责释放）
+ * @param out_steps      输出：实际执行的重写步数
+ * @return 是否至少成功了一步
+ */
+bool rewrite_strategy_apply(
+    const ConstraintGraph *graph,
+    const RewriteStrategy *strategy,
+    const RewriteRule *rules,
+    int rule_count,
+    ConstraintGraph **out_graph,
+    int *out_steps);
+
+/**
+ * @brief BFS/DFS 逆向证明搜索（Maude `search =>*` 的 Lv-00 对应）
+ *
+ * 从目标几何命题（目标约束图）出发，逆向应用公理/规则，
+ * 搜索能归约到已知公理的重写路径。
+ *
+ * @param target_graph  目标约束图（要证明的几何命题）
+ * @param rules         可用重写规则（公理+派生规则）
+ * @param rule_count    规则数量
+ * @param max_depth     搜索深度上限
+ * @param use_bfs       true=BFS（找最短证明），false=DFS（找任意证明）
+ * @param out_path      输出：重写步骤序列（调用者释放，每个元素是 rule_id）
+ * @param out_path_len  输出：路径长度
+ * @return 是否找到证明路径
+ */
+bool rewrite_search_backward(
+    const ConstraintGraph *target_graph,
+    const RewriteRule *rules,
+    int rule_count,
+    int max_depth,
+    bool use_bfs,
+    int **out_path,
+    int *out_path_len);
 
 #ifdef __cplusplus
 }

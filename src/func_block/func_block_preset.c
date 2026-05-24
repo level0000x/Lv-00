@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_preset.c
  * @brief 预设函数块系统实现
  *
@@ -20,6 +20,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 /* ============================================================
  * 命名常量
@@ -69,6 +75,40 @@ static struct {
     .initialized = false,
     .next_preset_id = LV00_PRESET_ID_OFFSET  /**< 预设ID起始偏移 */
 };
+
+/* ============================================================
+ * 线程安全互斥锁
+ * ============================================================ */
+
+#ifdef _WIN32
+static CRITICAL_SECTION g_preset_mutex;
+static bool g_preset_mutex_initialized = false;
+#else
+static pthread_mutex_t g_preset_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+/* 互斥锁操作辅助函数 */
+static void preset_library_lock(void) {
+#ifdef _WIN32
+    if (!g_preset_mutex_initialized) {
+        InitializeCriticalSection(&g_preset_mutex);
+        g_preset_mutex_initialized = true;
+    }
+    EnterCriticalSection(&g_preset_mutex);
+#else
+    pthread_mutex_lock(&g_preset_mutex);
+#endif
+}
+
+static void preset_library_unlock(void) {
+#ifdef _WIN32
+    if (g_preset_mutex_initialized) {
+        LeaveCriticalSection(&g_preset_mutex);
+    }
+#else
+    pthread_mutex_unlock(&g_preset_mutex);
+#endif
+}
 
 /* ============================================================
  * 内置预设元数据定义
@@ -902,8 +942,11 @@ static bool init_builtin_presets(void)
 
 bool func_block_preset_library_init(void)
 {
+    preset_library_lock();
+
     /* 幂等操作 */
     if (g_preset_library.initialized) {
+        preset_library_unlock();
         return true;
     }
     
@@ -913,15 +956,19 @@ bool func_block_preset_library_init(void)
     
     /* 初始化内置预设 */
     if (!init_builtin_presets()) {
+        preset_library_unlock();
         return false;
     }
     
     g_preset_library.initialized = true;
+    preset_library_unlock();
     return true;
 }
 
 void func_block_preset_library_cleanup(void)
 {
+    preset_library_lock();
+
     /* 释放所有模板函数块 */
     for (int i = 0; i < g_preset_library.count; i++) {
         if (g_preset_library.entries[i].template_fb) {
@@ -932,16 +979,24 @@ void func_block_preset_library_cleanup(void)
     
     /* 重置状态 */
     memset(&g_preset_library, 0, sizeof(g_preset_library));
+
+    preset_library_unlock();
 }
 
 const PresetMetadata *func_block_preset_get_metadata(const char *preset_name)
 {
     if (!preset_name) return NULL;
     
+    preset_library_lock();
     int idx = find_preset_index(preset_name);
-    if (idx < 0) return NULL;
+    if (idx < 0) {
+        preset_library_unlock();
+        return NULL;
+    }
     
-    return &g_preset_library.entries[idx].metadata;
+    const PresetMetadata *meta = &g_preset_library.entries[idx].metadata;
+    preset_library_unlock();
+    return meta;
 }
 
 InstantiateResult func_block_preset_instantiate(
@@ -1221,6 +1276,7 @@ int func_block_preset_list(
 {
     if (!out_names || max_count <= 0) return 0;
     
+    preset_library_lock();
     int count = 0;
     for (int i = 0; i < g_preset_library.count && count < max_count; i++) {
         if (!g_preset_library.entries[i].is_active) continue;
@@ -1229,13 +1285,58 @@ int func_block_preset_list(
             out_names[count++] = g_preset_library.entries[i].metadata.name;
         }
     }
+    preset_library_unlock();
     
     return count;
 }
 
 bool func_block_preset_exists(const char *preset_name)
 {
-    return find_preset_index(preset_name) >= 0;
+    preset_library_lock();
+    bool exists = find_preset_index(preset_name) >= 0;
+    preset_library_unlock();
+    return exists;
+}
+
+int func_block_preset_count(void)
+{
+    preset_library_lock();
+    int count = g_preset_library.count;
+    preset_library_unlock();
+    return count;
+}
+
+int func_block_preset_unregister(const char *name)
+{
+    if (!name) return -1;
+
+    preset_library_lock();
+
+    for (int i = 0; i < g_preset_library.count; i++) {
+        if (strcmp(g_preset_library.entries[i].metadata.name, name) == 0) {
+            /* 内置预设不可注销 */
+            if (g_preset_library.entries[i].is_builtin) {
+                preset_library_unlock();
+                return -1;
+            }
+
+            /* 释放条目资源 */
+            if (g_preset_library.entries[i].template_fb) {
+                func_block_destroy(g_preset_library.entries[i].template_fb);
+                g_preset_library.entries[i].template_fb = NULL;
+            }
+
+            /* 将最后一个条目移到当前位置 */
+            if (i < g_preset_library.count - 1) {
+                g_preset_library.entries[i] = g_preset_library.entries[g_preset_library.count - 1];
+            }
+            g_preset_library.count--;
+            preset_library_unlock();
+            return 0;
+        }
+    }
+    preset_library_unlock();
+    return -1;
 }
 
 const char *func_block_preset_category_string(PresetCategory category)
@@ -1583,11 +1684,23 @@ bool func_block_preset_register_custom(
     const FuncBlock *template_fb)
 {
     if (!metadata || !template_fb) return false;
-    if (g_preset_library.count >= MAX_PRESETS) return false;
-    if (find_preset_index(metadata->name) >= 0) return false;
+
+    preset_library_lock();
+
+    if (g_preset_library.count >= MAX_PRESETS) {
+        preset_library_unlock();
+        return false;
+    }
+    if (find_preset_index(metadata->name) >= 0) {
+        preset_library_unlock();
+        return false;
+    }
     
     FuncBlock *copy = func_block_copy(template_fb);
-    if (!copy) return false;
+    if (!copy) {
+        preset_library_unlock();
+        return false;
+    }
     
     int idx = g_preset_library.count++;
     g_preset_library.entries[idx].metadata = *metadata;
@@ -1595,6 +1708,7 @@ bool func_block_preset_register_custom(
     g_preset_library.entries[idx].is_builtin = false;
     g_preset_library.entries[idx].is_active = true;
     
+    preset_library_unlock();
     return true;
 }
 

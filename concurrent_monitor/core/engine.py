@@ -25,7 +25,8 @@ import subprocess
 import threading
 import time
 import weakref
-from typing import Any, Callable
+from types import TracebackType
+from typing import Any, Callable, Optional, Type
 
 from .models import ProcessInfo, OutputLine, ProcessStatus, ProcessSummary
 from .events import EventBus, Event, EventType, get_event_bus
@@ -127,6 +128,16 @@ class ProcessExecutor:
           6. 根据退出码更新进程状态
         """
         # 解析命令字符串为参数列表
+        # [平台兼容性说明] shlex.split 使用 Unix Shell 风格的词法分析规则，
+        # 在 Windows 平台上可能存在以下兼容性问题：
+        #   1. Windows 路径中的反斜杠（\）会被 shlex 解释为转义字符，
+        #      例如 "C:\Users\test" 中的 \U 和 \t 会被特殊处理
+        #   2. Windows 原生命令（如 dir、copy）的参数格式与 Unix 不同
+        #   3. 包含空格的 Windows 路径需要用双引号包裹，但 shlex 可能错误拆分
+        # 如果需要在 Windows 上执行复杂命令，建议：
+        #   - 使用列表形式直接传递参数（如 ["cmd", "/c", "dir", "C:\\Users"]）
+        #   - 或在命令字符串中使用正斜杠（/）替代反斜杠
+        #   - 对于 PowerShell 命令，建议以 ["powershell", "-Command", "..."] 形式传入
         try:
             cmd_parts: list[str] = shlex.split(self.command)
         except ValueError as e:
@@ -251,19 +262,29 @@ class ProcessExecutor:
     async def _kill_process(self) -> None:
         """终止子进程
 
-        发送 SIGKILL 信号终止进程，并等待进程退出（最多等待5秒）。
-        如果进程在5秒内未能退出，记录错误日志。
+        使用跨平台方式终止进程：
+          1. 首先尝试 terminate() 发送 SIGTERM（Windows 下为 TerminateProcess）
+          2. 等待进程自行退出（最多等待3秒）
+          3. 如果进程未退出，使用 kill() 强制终止
+          4. 等待进程终止，避免产生僵尸进程
         """
         if self._process is None:
             return
 
         try:
-            self._process.kill()
-            # 等待进程终止，避免产生僵尸进程
+            # 第一步：尝试优雅终止（发送 SIGTERM 或 TerminateProcess）
+            self._process.terminate()
             try:
-                await asyncio.wait_for(self._process.wait(), timeout=5.0)
+                await asyncio.wait_for(self._process.wait(), timeout=3.0)
+                logger.debug(f"进程已优雅终止: {self.process_id}")
             except asyncio.TimeoutError:
-                logger.error(f"进程未能及时终止: {self.process_id}")
+                # 第二步：强制终止（发送 SIGKILL 或 TerminateProcess）
+                logger.warning(f"进程未能优雅终止，尝试强制终止: {self.process_id}")
+                try:
+                    self._process.kill()
+                    await asyncio.wait_for(self._process.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    logger.error(f"进程强制终止后仍未退出: {self.process_id}")
         except ProcessLookupError:
             # 进程已经终止，无需处理
             pass
@@ -688,7 +709,10 @@ class MonitorEngine:
         """
         停止指定进程
 
-        通过 SIGKILL 信号强制终止进程，并更新进程状态为失败。
+        使用跨平台方式终止进程：
+          1. 首先尝试 terminate() 优雅终止
+          2. 等待进程退出
+          3. 如果进程未退出，使用 kill() 强制终止
 
         Args:
             process_id: 要停止的进程ID
@@ -707,8 +731,9 @@ class MonitorEngine:
                 executor.cancel()
 
             try:
-                subprocess.kill()
-                logger.info(f"已停止进程: {process_id}")
+                # 第一步：尝试优雅终止
+                subprocess.terminate()
+                logger.info(f"已发送终止信号: {process_id}")
 
                 # 更新进程状态为失败
                 proc_info: ProcessInfo | None = self._processes.get(process_id)
@@ -737,6 +762,75 @@ class MonitorEngine:
 
         logger.info(f"已停止 {stopped} 个进程")
         return stopped
+
+    def restart_process(self, process_id: str) -> bool:
+        """
+        重启指定进程
+
+        先停止进程（如果正在运行），然后重新启动。
+
+        Args:
+            process_id: 要重启的进程ID
+
+        Returns:
+            bool: 是否成功重启（进程不存在时返回 False）
+        """
+        with self._lock:
+            proc_info = self._processes.get(process_id)
+            if proc_info is None:
+                return False
+
+            command = proc_info.command
+
+        # 停止进程（如果正在运行）
+        self.stop_process(process_id)
+
+        # 重新注册并启动
+        try:
+            # 使用 asyncio 运行异步启动
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # 如果事件循环已在运行，创建任务
+                asyncio.create_task(self._run_single_async(process_id))
+            else:
+                # 否则直接运行
+                asyncio.run(self._run_single_async(process_id))
+            return True
+        except Exception as e:
+            logger.error(f"重启进程失败: {process_id}, {e}")
+            return False
+
+    async def _run_single_async(self, process_id: str) -> None:
+        """异步启动单个进程的内部方法
+
+        作为 restart_process 的异步桥接方法，
+        在已有事件循环中通过 create_task 调用，
+        或在新事件循环中通过 asyncio.run 调用。
+
+        Args:
+            process_id: 要启动的进程ID
+        """
+        await self.run_process(process_id)
+
+    def clear_output(self, process_id: str) -> bool:
+        """
+        清空指定进程的输出缓冲区
+
+        Args:
+            process_id: 进程ID
+
+        Returns:
+            bool: 是否成功清空（进程不存在时返回 False）
+        """
+        with self._lock:
+            proc_info = self._processes.get(process_id)
+            if proc_info is None:
+                return False
+
+            # 清空输出行列表
+            proc_info.output_lines.clear()
+            logger.debug(f"已清空进程输出: {process_id}")
+            return True
 
     # ========== 状态查询 ==========
 
@@ -815,6 +909,18 @@ class MonitorEngine:
         """上下文管理器入口，支持 with 语法"""
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """上下文管理器出口，退出时自动清理资源"""
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        """
+        上下文管理器出口，退出时自动清理资源
+        
+        Args:
+            exc_type: 异常类型（无异常时为 None）
+            exc_val: 异常值（无异常时为 None）
+            exc_tb: 异常回溯（无异常时为 None）
+        """
         self.shutdown()

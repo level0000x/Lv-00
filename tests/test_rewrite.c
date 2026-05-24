@@ -97,9 +97,9 @@ static int test_pattern_matching(void)
 
     if (match) {
         printf("  绑定数量: %d\n", match->binding_count);
-        free(match->node_bindings);
-        free(match->constraint_bindings);
-        free(match);
+        lv00_free_ptr(match->node_bindings);
+        lv00_free_ptr(match->constraint_bindings);
+        lv00_free_ptr(match);
     }
 
     rewrite_rule_destroy(rule);
@@ -140,9 +140,9 @@ static int test_rule_application(void)
         RewriteStatus status = apply_rewrite(g, rule, match);
         printf("  应用状态: %d\n", status);
 
-        free(match->node_bindings);
-        free(match->constraint_bindings);
-        free(match);
+        lv00_free_ptr(match->node_bindings);
+        lv00_free_ptr(match->constraint_bindings);
+        lv00_free_ptr(match);
     }
 
     rewrite_rule_destroy(rule);

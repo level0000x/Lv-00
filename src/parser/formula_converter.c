@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *
@@ -6,7 +6,7 @@
  *          支持点、线段、圆等几何元素的解析和生成。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  *
  * @dependencies
  *   - formula_converter.h : 转换器公共接口定义

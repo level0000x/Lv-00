@@ -1,15 +1,15 @@
-﻿/**
+/**
  * @file func_block_registry.c
  * @brief 预设函数块注册系统实现
  *
- * 实现全局预设函数块注册表的初始化、查找、分类筛选和资源管理。
- * 内置 75 个预设函数块，覆盖几何构造、度量计算、几何变换、
- * 代数运算、逻辑推导和分析六大类别。
+ * @details 实现全局预设函数块注册表的初始化、查找、分类筛选和资源管理。
+ *          内置 75 个预设函数块，覆盖几何构造、度量计算、几何变换、
+ *          代数运算、逻辑推导和分析六大类别。
  *
- * 内存管理：
- * - 使用 lv00_malloc / lv00_free / lv00_strdup 进行内存管理
- * - 使用 lv00_realloc 进行数组扩容
- * - cleanup 时释放所有条目及其模板函数块
+ *          内存管理：
+ *          - 使用 lv00_malloc / lv00_free / lv00_strdup 进行内存管理
+ *          - 使用 lv00_realloc 进行数组扩容
+ *          - cleanup 时释放所有条目及其模板函数块
  */
 
 #include "func_block_registry.h"
@@ -21,6 +21,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
+
 /* ==================== 命名常量 ==================== */
 
 /** 注册表初始容量 */
@@ -31,6 +37,38 @@
 
 /** 预设函数块 ID 起始偏移（引用 lv00_internal.h 中的统一定义） */
 #define PRESET_FB_ID_OFFSET LV00_PRESET_ID_OFFSET
+
+/* ==================== 线程安全互斥锁 ==================== */
+
+#ifdef _WIN32
+static CRITICAL_SECTION g_registry_mutex;
+static bool g_registry_mutex_initialized = false;
+#else
+static pthread_mutex_t g_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+/* 互斥锁操作辅助函数 */
+static void registry_lock(void) {
+#ifdef _WIN32
+    if (!g_registry_mutex_initialized) {
+        InitializeCriticalSection(&g_registry_mutex);
+        g_registry_mutex_initialized = true;
+    }
+    EnterCriticalSection(&g_registry_mutex);
+#else
+    pthread_mutex_lock(&g_registry_mutex);
+#endif
+}
+
+static void registry_unlock(void) {
+#ifdef _WIN32
+    if (g_registry_mutex_initialized) {
+        LeaveCriticalSection(&g_registry_mutex);
+    }
+#else
+    pthread_mutex_unlock(&g_registry_mutex);
+#endif
+}
 
 /* ==================== 全局注册表 ==================== */
 
@@ -45,6 +83,330 @@ static FuncBlockRegistry g_registry = {
     .capacity    = 0,          /**< 数组容量（0 表示尚未分配） */
     .initialized = false       /**< 是否已完成初始化（含内置预设注册） */
 };
+
+/* ==================== 哈希查找表 ==================== */
+
+/**
+ * @brief 哈希表链表节点（用于处理哈希冲突的链表法）
+ *
+ * 每个节点对应注册表中一个预设条目。key 指向 PresetEntry.name，
+ * 不拥有字符串的所有权（由 PresetEntry 管理内存生命周期）。
+ */
+typedef struct HashNode {
+    const char *key;           /**< 指向 PresetEntry.name，非拥有指针 */
+    PresetEntry *entry;        /**< 指向注册表中的条目 */
+    struct HashNode *next;     /**< 链表下一节点（用于冲突链） */
+} HashNode;
+
+/**
+ * @brief 预设名称哈希表（字符串查找加速结构）
+ *
+ * @details 设计决策：
+ *   1. 哈希表作为独立的静态变量存在，不修改 FuncBlockRegistry 结构体，
+ *      以保持 ABI 兼容性（不改变公共 API 的数据结构）。
+ *   2. 使用 FNV-1a 哈希算法（64 位），与项目统一的哈希常量一致。
+ *   3. 桶数量取 2 的幂，通过位掩码代替取模运算加速索引计算。
+ *   4. 负载因子阈值 0.75，超过时自动扩容翻倍。
+ *   5. 冲突处理采用链表法（chaining）：同索引的多个条目形成单向链表。
+ *
+ * 【延迟更新策略】
+ *   哈希表在 func_block_registry_init() 时全量构建；
+ *   在 func_block_register() / func_block_registry_unregister() 时
+ *   仅设置 dirty 标志，不立即重建。下次查找前通过 ensure_built()
+ *   检测脏标志并自动重建。这样批量注册多个预设时只需一次重建开销。
+ *
+ * 【线程安全】
+ *   所有哈希表操作均在 registry_lock / registry_unlock 保护下执行，
+ *   外部调用者不应直接访问此结构。
+ */
+typedef struct {
+    HashNode **buckets;       /**< 桶指针数组（每个桶是一个链表头） */
+    int bucket_count;         /**< 桶数量（始终为 2 的幂） */
+    int node_count;           /**< 当前哈希节点总数 */
+    bool dirty;               /**< 脏标志：true 表示需要重建哈希表 */
+} PresetHashTable;
+
+/** 全局预设名称哈希表（私有，仅本文件内可见）
+ *
+ * 初始状态 buckets=NULL、dirty=true，首次 ensure_built() 时惰性分配。
+ * dirty=true 确保即使初始化路径未显式 build，首次查找也会触发构建。
+ */
+static PresetHashTable g_hash_table = {
+    .buckets      = NULL,
+    .bucket_count = 0,
+    .node_count   = 0,
+    .dirty        = true
+};
+
+/** 哈希表初始桶数量（2^7 = 128，可为约96个条目提供 <0.75 的负载因子） */
+#define HASH_TABLE_INITIAL_BUCKETS 128
+
+/** 哈希表负载因子阈值：node_count / bucket_count >= 此值时触发扩容 */
+#define HASH_TABLE_LOAD_FACTOR_THRESHOLD 0.75
+
+/** 哈希表扩容倍率 */
+#define HASH_TABLE_GROWTH_FACTOR 2
+
+/* ==================== 哈希表内部操作 ==================== */
+
+/**
+ * @brief 计算字符串的 FNV-1a 64 位哈希值
+ *
+ * @details 使用项目统一的 FNV-1a 参数（定义在 lv00_internal.h）：
+ *   - offset basis: 0xcbf29ce484222325ULL
+ *   - prime:        0x100000001b3ULL
+ *
+ * 直接内联实现而非调用 lv00_hash_string()，以便：
+ *   1. 避免函数调用开销（每个查找至少一次）
+ *   2. 确保哈希行为不受 lv00_utils 实现变化影响
+ *
+ * @param str 待哈希的字符串（不可为 NULL）
+ * @return 64 位 FNV-1a 哈希值
+ */
+static uint64_t hash_fnv1a(const char *str)
+{
+    uint64_t hash = LV00_FNV64_OFFSET_BASIS;
+    while (*str) {
+        hash ^= (uint64_t)(unsigned char)*str++;
+        hash *= LV00_FNV64_PRIME;
+    }
+    return hash;
+}
+
+/**
+ * @brief 计算哈希桶索引
+ *
+ * 使用位掩码 (bucket_count - 1) 代替取模运算，因为 bucket_count 始终为 2 的幂。
+ */
+static inline int hash_bucket_index(uint64_t hash, int bucket_count)
+{
+    return (int)(hash & (uint64_t)(bucket_count - 1));
+}
+
+/**
+ * @brief 计算合适的哈希桶数量
+ *
+ * 根据条目数计算满足负载因子要求的桶数量，结果向上取整到 2 的幂。
+ * 最低不少于 HASH_TABLE_INITIAL_BUCKETS。
+ *
+ * @param entry_count 注册表中条目总数
+ * @return 桶数量（2 的幂）
+ */
+static int hash_compute_bucket_count(int entry_count)
+{
+    /* 负载因子 = entry_count / bucket_count <= 0.75
+     * => bucket_count >= entry_count / 0.75 */
+    int needed = (int)((double)entry_count / HASH_TABLE_LOAD_FACTOR_THRESHOLD) + 1;
+    if (needed < HASH_TABLE_INITIAL_BUCKETS) {
+        needed = HASH_TABLE_INITIAL_BUCKETS;
+    }
+
+    /* 向上取整到 2 的幂（用于位掩码取模） */
+    int buckets = 1;
+    while (buckets < needed) {
+        buckets <<= 1;
+    }
+    return buckets;
+}
+
+/**
+ * @brief 创建单个哈希节点
+ *
+ * 使用 lv00_malloc 分配节点内存，保持与项目内存管理的一致性。
+ *
+ * @param key   预设名称指针（不拷贝，直接保存引用）
+ * @param entry 条目指针
+ * @return 新节点指针，内存不足返回 NULL
+ */
+static HashNode *hash_node_create(const char *key, PresetEntry *entry)
+{
+    HashNode *node = (HashNode *)lv00_malloc(sizeof(HashNode));
+    if (!node) return NULL;
+    node->key   = key;
+    node->entry = entry;
+    node->next  = NULL;
+    return node;
+}
+
+/**
+ * @brief 将条目插入哈希表（内部操作，不检查重复）
+ *
+ * @param key   预设名称
+ * @param entry 条目指针
+ * @return true 成功，false 内存不足
+ */
+static bool hash_insert_entry(const char *key, PresetEntry *entry)
+{
+    uint64_t h    = hash_fnv1a(key);
+    int      idx  = hash_bucket_index(h, g_hash_table.bucket_count);
+    HashNode *node = hash_node_create(key, entry);
+    if (!node) return false;
+
+    /* 链表头插法：新节点插入桶链表头部（O(1) 插入） */
+    node->next = g_hash_table.buckets[idx];
+    g_hash_table.buckets[idx] = node;
+    g_hash_table.node_count++;
+    return true;
+}
+
+/**
+ * @brief 从哈希表中移除指定名称的节点
+ *
+ * 遍历对应桶的链表，找到匹配的节点并移出。
+ *
+ * @param name 预设名称
+ * @return true 找到并移除，false 未找到
+ */
+static bool hash_remove_entry(const char *name)
+{
+    if (g_hash_table.bucket_count == 0 || !g_hash_table.buckets) return false;
+
+    uint64_t h   = hash_fnv1a(name);
+    int      idx = hash_bucket_index(h, g_hash_table.bucket_count);
+    HashNode *prev = NULL;
+    HashNode *curr = g_hash_table.buckets[idx];
+
+    while (curr) {
+        if (strcmp(curr->key, name) == 0) {
+            /* 从链表中移除 */
+            if (prev) {
+                prev->next = curr->next;
+            } else {
+                g_hash_table.buckets[idx] = curr->next;
+            }
+            lv00_free((void **)&curr);
+            g_hash_table.node_count--;
+            return true;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+    return false;
+}
+
+/**
+ * @brief 在哈希表中查找条目
+ *
+ * @param name 预设名称
+ * @return 找到的 PresetEntry 指针，未找到返回 NULL
+ */
+static PresetEntry *hash_lookup_entry(const char *name)
+{
+    if (g_hash_table.bucket_count == 0 || !g_hash_table.buckets || !name) {
+        return NULL;
+    }
+
+    uint64_t h   = hash_fnv1a(name);
+    int      idx = hash_bucket_index(h, g_hash_table.bucket_count);
+    HashNode *curr = g_hash_table.buckets[idx];
+
+    while (curr) {
+        if (strcmp(curr->key, name) == 0) {
+            return curr->entry;
+        }
+        curr = curr->next;
+    }
+    return NULL;
+}
+
+/**
+ * @brief 销毁哈希表，释放所有节点和桶数组
+ */
+static void hash_destroy(void)
+{
+    if (!g_hash_table.buckets) return;
+
+    for (int i = 0; i < g_hash_table.bucket_count; i++) {
+        HashNode *curr = g_hash_table.buckets[i];
+        while (curr) {
+            HashNode *next = curr->next;
+            lv00_free((void **)&curr);
+            curr = next;
+        }
+    }
+
+    lv00_free((void **)&g_hash_table.buckets);
+    g_hash_table.bucket_count = 0;
+    g_hash_table.node_count   = 0;
+    g_hash_table.dirty        = true;
+}
+
+/**
+ * @brief 全量重建哈希表
+ *
+ * 先销毁现有哈希表，根据当前 g_registry.count 计算合适的桶数量，
+ * 然后遍历注册表所有条目逐一插入。
+ *
+ * @return true 构建成功，false 内存不足（哈希表保持销毁状态且 dirty=true）
+ */
+static bool hash_rebuild(void)
+{
+    /* 先销毁旧哈希表 */
+    hash_destroy();
+
+    int entry_count = g_registry.count;
+    if (entry_count == 0) {
+        /* 注册表为空，保持已销毁状态，标记为非脏（下次注册会重新标记） */
+        g_hash_table.dirty = false;
+        return true;
+    }
+
+    /* 计算桶数量并分配桶数组 */
+    int bucket_count = hash_compute_bucket_count(entry_count);
+    g_hash_table.buckets = (HashNode **)lv00_malloc(
+        (size_t)bucket_count * sizeof(HashNode *));
+    if (!g_hash_table.buckets) {
+        g_hash_table.bucket_count = 0;
+        g_hash_table.dirty        = true;
+        return false;
+    }
+    g_hash_table.bucket_count = bucket_count;
+
+    /* 清零所有桶指针 */
+    memset(g_hash_table.buckets, 0, (size_t)bucket_count * sizeof(HashNode *));
+
+    /* 遍历注册表所有条目，插入哈希表 */
+    for (int i = 0; i < entry_count; i++) {
+        if (!g_registry.entries[i].name) continue;
+        if (!hash_insert_entry(g_registry.entries[i].name,
+                               &g_registry.entries[i])) {
+            /* 插入失败，销毁哈希表并返回错误 */
+            hash_destroy();
+            return false;
+        }
+    }
+
+    g_hash_table.dirty = false;
+    return true;
+}
+
+/**
+ * @brief 确保哈希表已构建（若脏则触发延迟重建）
+ *
+ * @details 这是延迟更新策略的核心函数。所有使用哈希表的查找操作
+ *          在查找前调用此函数，自动检测 dirty 标志并按需重建。
+ *          必须在持有 registry_lock 的情况下调用。
+ *
+ * @return true 哈希表可用，false 构建失败（回退到线性搜索）
+ */
+static bool hash_ensure_built(void)
+{
+    if (!g_hash_table.dirty) {
+        return true;
+    }
+    return hash_rebuild();
+}
+
+/**
+ * @brief 标记哈希表为脏（注册/注销操作后调用）
+ *
+ * 不立即重建，将重建推迟到下次查找时（延迟更新策略）。
+ * 必须在持有 registry_lock 的情况下调用。
+ */
+static void hash_mark_dirty(void)
+{
+    g_hash_table.dirty = true;
+}
 
 /* ==================== 内部辅助函数 ==================== */
 
@@ -427,8 +789,11 @@ static bool register_builtin_presets(void)
 
 bool func_block_registry_init(void)
 {
+    registry_lock();
+
     /* 幂等操作：已初始化则直接返回 */
     if (g_registry.initialized) {
+        registry_unlock();
         return true;
     }
 
@@ -436,15 +801,25 @@ bool func_block_registry_init(void)
     if (!register_builtin_presets()) {
         /* 内置预设注册失败，清理已注册的部分 */
         func_block_registry_cleanup();
+        registry_unlock();
         return false;
     }
 
     g_registry.initialized = true;
+
+    /* 【哈希表加速】在初始化完成时立即构建哈希查找表。
+     * 如果构建失败（极罕见的内存不足），哈希表保持 dirty 状态，
+     * 后续查找将回退到线性搜索（优雅降级而非返回 false）。 */
+    hash_rebuild();
+
+    registry_unlock();
     return true;
 }
 
 void func_block_registry_cleanup(void)
 {
+    registry_lock();
+
     /* 释放所有条目的资源 */
     for (int i = 0; i < g_registry.count; i++) {
         free_preset_entry(&g_registry.entries[i]);
@@ -457,31 +832,65 @@ void func_block_registry_cleanup(void)
     g_registry.count       = 0;
     g_registry.capacity    = 0;
     g_registry.initialized = false;
+
+    /* 销毁哈希查找表（哈希表节点持有指向 PresetEntry 的指针，
+     * 必须在条目释放之前销毁以避免悬空指针） */
+    hash_destroy();
+
+    registry_unlock();
 }
 
 bool func_block_register(const char *name, const char *description,
                           PresetCategory category, FuncBlock *fb)
 {
+    registry_lock();
     /*
      * 公共 API：检查同名重复 + 深拷贝 fb。
      * 统一委托给 add_preset_entry_ex，消除代码重复。
      */
-    return add_preset_entry_ex(name, description, category, fb,
+    bool result = add_preset_entry_ex(name, description, category, fb,
                                 true, true);
+    if (result) {
+        /* 【哈希表延迟更新】注册成功后仅设置脏标志，
+         * 将重建推迟到下次查找时，避免高频注册时的重复构建开销。 */
+        hash_mark_dirty();
+    }
+    registry_unlock();
+    return result;
 }
 
 FuncBlock *func_block_registry_lookup(const char *name)
 {
     if (!name) return NULL;
 
-    for (int i = 0; i < g_registry.count; i++) {
-        if (g_registry.entries[i].name &&
-            strcmp(g_registry.entries[i].name, name) == 0) {
-            /* 创建深拷贝返回给调用者 */
-            return func_block_copy(g_registry.entries[i].template_fb);
+    registry_lock();
+
+    /* 先尝试确保哈希表已构建（延迟重建） */
+    if (hash_ensure_built()) {
+        /* 哈希表可用：O(1) 平均查找 */
+        PresetEntry *entry = hash_lookup_entry(name);
+        if (entry && entry->template_fb) {
+            FuncBlock *copy = func_block_copy(entry->template_fb);
+            registry_unlock();
+            return copy;
+        }
+    } else {
+        /* 哈希表构建失败（内存不足）：回退到线性搜索。
+         * 这是优雅降级策略，确保系统在内存压力下仍能正常工作。 */
+        for (int i = 0; i < g_registry.count; i++) {
+            if (g_registry.entries[i].name &&
+                strcmp(g_registry.entries[i].name, name) == 0) {
+                if (g_registry.entries[i].template_fb) {
+                    FuncBlock *copy = func_block_copy(
+                        g_registry.entries[i].template_fb);
+                    registry_unlock();
+                    return copy;
+                }
+            }
         }
     }
 
+    registry_unlock();
     return NULL;  /* 未找到 */
 }
 
@@ -489,13 +898,26 @@ PresetEntry *func_block_registry_find(const char *name)
 {
     if (!name) return NULL;
 
+    registry_lock();
+
+    /* 先尝试确保哈希表已构建（延迟重建） */
+    if (hash_ensure_built()) {
+        /* 哈希表可用：O(1) 平均查找 */
+        PresetEntry *entry = hash_lookup_entry(name);
+        registry_unlock();
+        return entry;
+    }
+
+    /* 哈希表构建失败（内存不足）：回退到线性搜索（优雅降级） */
     for (int i = 0; i < g_registry.count; i++) {
         if (g_registry.entries[i].name &&
             strcmp(g_registry.entries[i].name, name) == 0) {
+            registry_unlock();
             return &g_registry.entries[i];
         }
     }
 
+    registry_unlock();
     return NULL;  /* 未找到 */
 }
 
@@ -652,5 +1074,44 @@ bool preset_category_from_string(const char *str, PresetCategory *category)
 
 int func_block_registry_get_count(void)
 {
-    return g_registry.count;
+    registry_lock();
+    int count = g_registry.count;
+    registry_unlock();
+    return count;
+}
+
+int func_block_registry_unregister(const char *name)
+{
+    if (!name) return -1;
+
+    registry_lock();
+
+    for (int i = 0; i < g_registry.count; i++) {
+        if (strcmp(g_registry.entries[i].name, name) == 0) {
+            /* 释放条目资源 */
+            lv00_free((void **)&g_registry.entries[i].name);
+            lv00_free((void **)&g_registry.entries[i].description);
+            if (g_registry.entries[i].template_fb) {
+                func_block_destroy(g_registry.entries[i].template_fb);
+            }
+
+            /* 将最后一个条目移到当前位置 */
+            if (i < g_registry.count - 1) {
+                g_registry.entries[i] = g_registry.entries[g_registry.count - 1];
+            }
+            g_registry.count--;
+
+            /* 【哈希表延迟更新】注销后标记脏，下次查找时重建。
+             * 不在此处调用 hash_remove_entry() 是因为 swap-and-pop
+             * 可能打乱条目顺序但 hash_rebuild() 会全量重建，
+             * 简单且正确。 */
+            hash_mark_dirty();
+
+            registry_unlock();
+            return 0;
+        }
+    }
+
+    registry_unlock();
+    return -1;
 }

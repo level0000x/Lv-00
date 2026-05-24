@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lexer_shared.c
  * @brief 共享词法分析器基础设施实现
  *
@@ -10,7 +10,7 @@
  *          - module 使用浮点数（double），标识符允许连字符和点号
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include "lexer_shared.h"

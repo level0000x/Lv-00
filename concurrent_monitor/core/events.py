@@ -27,7 +27,7 @@ import time
 import weakref
 from collections import defaultdict
 from enum import Enum, auto
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, TypeAlias
 
 from .models import OutputLine
 
@@ -96,8 +96,9 @@ class Event:
 
 
 # 事件处理器类型别名
-EventHandler: type = Callable[[Event], None]
-AsyncEventHandler: type = Callable[[Event], Coroutine[Any, Any, None]]
+# 使用 TypeAlias 进行正式的类型别名声明，提高类型检查的准确性
+EventHandler: TypeAlias = Callable[[Event], None]
+AsyncEventHandler: TypeAlias = Callable[[Event], Coroutine[Any, Any, None]]
 
 
 class EventBus:

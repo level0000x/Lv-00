@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_basic_math.c
  * @brief 基础数学计算预设函数块 - 实现
  *
@@ -29,7 +29,7 @@
  * @brief 注册单个基础数学预设
  *
  * 辅助函数，简化预设注册过程。
- * 所有基础数学预设都属于 PRESET_CATEGORY_ANALYSIS 类别。
+ * 默认类别为 PRESET_CATEGORY_ANALYSIS，可通过 category 参数覆盖。
  *
  * @param name 预设名称
  * @param description 中文描述
@@ -40,8 +40,34 @@
  * @param complexity 时间复杂度
  * @param is_constructive 是否构造性
  * @param is_reversible 是否可逆
+ * @param category 预设类别
  * @return true 注册成功
  * @return false 注册失败
+ */
+static bool register_basic_math_preset_ex(
+    const char *name,
+    const char *description,
+    const PresetType *input_types,
+    int input_count,
+    PresetType output_type,
+    const char *math_def,
+    const char *complexity,
+    bool is_constructive,
+    bool is_reversible,
+    PresetCategory category)
+{
+    return preset_blocks_register_simple(
+        name, description,
+        category,
+        input_types, input_count, output_type,
+        math_def, complexity,
+        is_constructive, is_reversible);
+}
+
+/**
+ * @brief 注册单个基础数学预设（默认 ANALYSIS 类别）
+ *
+ * 便捷包装函数，保持向后兼容。
  */
 static bool register_basic_math_preset(
     const char *name,
@@ -54,12 +80,12 @@ static bool register_basic_math_preset(
     bool is_constructive,
     bool is_reversible)
 {
-    return preset_blocks_register_simple(
+    return register_basic_math_preset_ex(
         name, description,
-        PRESET_CATEGORY_ANALYSIS,
         input_types, input_count, output_type,
         math_def, complexity,
-        is_constructive, is_reversible);
+        is_constructive, is_reversible,
+        PRESET_CATEGORY_ANALYSIS);
 }
 
 /* ==================== 模块注册实现 ==================== */
@@ -183,12 +209,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 最大公约数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_NUMBER_GCD,
                 "最大公约数：使用欧几里得算法计算 gcd(a, b)",
                 inputs, 2, PRESET_TYPE_INTEGER,
                 "\\gcd(a, b) = \\max\\{d \\in \\mathbb{Z}^+ : d|a \\land d|b\\}",
-                "O(\\log \\min(a,b))", true, false)) {
+                "O(\\log \\min(a,b))", true, false,
+                PRESET_CATEGORY_NUMBER_THEORY)) {
             success_count++;
         }
     }
@@ -196,12 +223,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 最小公倍数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_NUMBER_LCM,
                 "最小公倍数：计算 lcm(a, b) = |ab| / gcd(a, b)",
                 inputs, 2, PRESET_TYPE_INTEGER,
                 "\\text{lcm}(a, b) = \\frac{|a \\cdot b|}{\\gcd(a, b)}",
-                "O(\\log \\min(a,b))", true, false)) {
+                "O(\\log \\min(a,b))", true, false,
+                PRESET_CATEGORY_NUMBER_THEORY)) {
             success_count++;
         }
     }
@@ -209,12 +237,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 素性检测 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_NUMBER_PRIME_CHECK,
                 "素性检测：判断整数 n 是否为素数（Miller-Rabin算法）",
                 inputs, 1, PRESET_TYPE_BOOLEAN,
                 "\\text{isPrime}(n) = \\begin{cases} true & n \\text{ is prime} \\\\ false & \\text{otherwise} \\end{cases}",
-                "O(k \\log^3 n)", true, false)) {
+                "O(k \\log^3 n)", true, false,
+                PRESET_CATEGORY_NUMBER_THEORY)) {
             success_count++;
         }
     }
@@ -222,12 +251,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 质因数分解 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_NUMBER_PRIME_FACTORIZATION,
                 "质因数分解：将整数 n 分解为素数因子的乘积",
                 inputs, 1, PRESET_TYPE_LIST,
                 "n = p_1^{e_1} \\cdot p_2^{e_2} \\cdots p_k^{e_k}",
-                "O(\\sqrt{n})", true, false)) {
+                "O(\\sqrt{n})", true, false,
+                PRESET_CATEGORY_NUMBER_THEORY)) {
             success_count++;
         }
     }
@@ -235,12 +265,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 欧拉函数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_NUMBER_EULER_TOTIENT,
                 "欧拉函数：计算不超过 n 且与 n 互素的正整数个数 phi(n)",
                 inputs, 1, PRESET_TYPE_INTEGER,
                 "\\varphi(n) = n \\prod_{p|n}\\left(1 - \\frac{1}{p}\\right)",
-                "O(\\sqrt{n})", true, false)) {
+                "O(\\sqrt{n})", true, false,
+                PRESET_CATEGORY_NUMBER_THEORY)) {
             success_count++;
         }
     }
@@ -248,12 +279,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 模逆元 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_NUMBER_MODULAR_INVERSE,
                 "模逆元：求解 a 在模 n 下的乘法逆元 a^{-1} mod n",
                 inputs, 2, PRESET_TYPE_INTEGER,
                 "a \\cdot a^{-1} \\equiv 1 \\pmod{n}, \\quad \\gcd(a, n) = 1",
-                "O(\\log n)", true, true)) {
+                "O(\\log n)", true, true,
+                PRESET_CATEGORY_NUMBER_THEORY)) {
             success_count++;
         }
     }
@@ -265,12 +297,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 排列数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_COMBIN_PERMUTATION,
                 "排列数：从 n 个元素中取 k 个的排列数 P(n, k)",
                 inputs, 2, PRESET_TYPE_INTEGER,
                 "P(n, k) = \\frac{n!}{(n-k)!}, \\quad 0 \\leq k \\leq n",
-                "O(k)", true, false)) {
+                "O(k)", true, false,
+                PRESET_CATEGORY_COMBINATORICS)) {
             success_count++;
         }
     }
@@ -278,12 +311,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 组合数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_COMBIN_COMBINATION,
                 "组合数：从 n 个元素中取 k 个的组合数 C(n, k)",
                 inputs, 2, PRESET_TYPE_INTEGER,
                 "\\binom{n}{k} = \\frac{n!}{k!(n-k)!}, \\quad 0 \\leq k \\leq n",
-                "O(k)", true, false)) {
+                "O(k)", true, false,
+                PRESET_CATEGORY_COMBINATORICS)) {
             success_count++;
         }
     }
@@ -317,12 +351,13 @@ bool preset_basic_math_register(void)
     /* -------------------- 整数分拆数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_COMBIN_PARTITION,
                 "整数分拆数：将正整数 n 表示为正整数之和的方式数 p(n)",
                 inputs, 1, PRESET_TYPE_INTEGER,
                 "p(n) = p(n-1) + p(n-2) - p(n-5) - p(n-7) + \\cdots",
-                "O(n \\sqrt{n})", true, false)) {
+                "O(n \\sqrt{n})", true, false,
+                PRESET_CATEGORY_COMBINATORICS)) {
             success_count++;
         }
     }
@@ -330,12 +365,13 @@ bool preset_basic_math_register(void)
     /* -------------------- Catalan数 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        if (register_basic_math_preset(
+        if (register_basic_math_preset_ex(
                 PRESET_COMBIN_CATALAN,
                 "Catalan数：第 n 个Catalan数 C_n",
                 inputs, 1, PRESET_TYPE_INTEGER,
                 "C_n = \\frac{1}{n+1}\\binom{2n}{n} = \\frac{(2n)!}{(n+1)! \\, n!}",
-                "O(n)", true, false)) {
+                "O(n)", true, false,
+                PRESET_CATEGORY_COMBINATORICS)) {
             success_count++;
         }
     }

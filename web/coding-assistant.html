@@ -1,7 +1,7 @@
 <!--
   ============================================================================
   文件: coding-assistant.html
-  模块: Lv-00 编程助手面板 (v3.0.1)
+  模块: Lv-00 编程助手面板 (v3.2.0)
   说明: 集成到 index.html 主界面的 AI 编程助手模块，提供以下功能：
         - 统一 LLM 调用层（支持 Ollama / DashScope / OpenAI 多后端）
         - SSE 流式输出（服务端推送事件，实时展示生成过程）
@@ -22,14 +22,14 @@
     <div class="panel">
         <div class="panel-title">
             <span>[AI] 编程助手</span>
-            <span style="font-size:10px;color:#666;">Lv-00 Coding Assistant v3.0.1</span>
+            <span style="font-size:10px;color:#666;">Lv-00 Coding Assistant v3.2.0</span>
         </div>
 
         <!-- 对话历史 -->
         <div id="assistantChat" class="chat-container">
             <div class="chat-message system">
                 <div class="message-content">
-                    Lv-00 编程辅助系统 v3.0.1<br>
+                    Lv-00 编程辅助系统 v3.2.0<br>
                     Technical Note: 本系统为Lv-00符号几何引擎的编程辅助接口，提供以下功能域：<br>
                     &nbsp;&nbsp;1. WebAssembly绑定层开发 (lv00_web_bindings.c)<br>
                     &nbsp;&nbsp;2. Canvas 2D几何渲染器实现<br>
@@ -1014,7 +1014,7 @@
 <script>
 'use strict';
 
-// Lv-00 编程助手核心逻辑 v3.0.1
+// Lv-00 编程助手核心逻辑 v3.2.0
 // 按照Lv-00项目命名规范重构
 //
 // 【ES版本兼容性说明】

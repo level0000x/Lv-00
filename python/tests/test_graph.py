@@ -10,7 +10,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lv00 import Graph, Point, LineSegment, Lv00Error
+from lv00 import Graph, NormalizationResult, Point, LineSegment, Lv00Error
 
 
 class TestGraphCreation:
@@ -19,7 +19,7 @@ class TestGraphCreation:
     def test_create_graph(self):
         """测试创建空的约束图对象"""
         g = Graph()
-        assert g is not None
+        assert isinstance(g, Graph)
         assert repr(g) == "Graph(points=0, segments=0)"
 
     def test_graph_repr(self):
@@ -107,7 +107,7 @@ class TestGraphNormalization:
         """测试对空图执行规范化不报错"""
         g = Graph()
         result = g.normalize()
-        assert result is not None
+        assert isinstance(result, NormalizationResult)
 
     def test_normalize_with_points(self):
         """测试对含有点的图执行规范化"""
@@ -116,7 +116,7 @@ class TestGraphNormalization:
         g.add_point(1, 1)
 
         result = g.normalize()
-        assert result is not None
+        assert isinstance(result, NormalizationResult)
 
     def test_normalize_with_segments(self):
         """测试对含有线段的图执行规范化"""
@@ -126,7 +126,7 @@ class TestGraphNormalization:
         g.add_line_segment(p1, p2)
 
         result = g.normalize()
-        assert result is not None
+        assert isinstance(result, NormalizationResult)
 
 
 class TestPointRepr:

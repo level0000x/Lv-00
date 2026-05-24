@@ -17,7 +17,7 @@
  *      所有常量集中在此定义，确保修改一处、全项目生效。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #ifndef LV00_INTERNAL_H
@@ -65,16 +65,25 @@
 #endif
 
 /* ── 安全加法（防溢出） ──
- * 注意：参数 a、b 在宏中仅求值一次，可安全传入含副作用的表达式。
- * 若 a + b > limit，返回 limit；否则返回 a + b。 */
+ * 注意：GCC/Clang 分支下参数 a、b 在宏中仅求值一次，可安全传入含副作用的表达式。
+ * 若 a + b > limit，返回 limit；否则返回 a + b。
+ * 提供 GCC/Clang 和 MSVC 两种实现，自动根据编译器选择。 */
 #ifndef LV00_SAFE_ADD
-    #define LV00_SAFE_ADD(a, b, limit) \
-        (__extension__({ \
-            __typeof__(a) _sa_a = (a); \
-            __typeof__(b) _sa_b = (b); \
-            __typeof__(limit) _sa_l = (limit); \
-            (_sa_a > _sa_l - _sa_b) ? _sa_l : (_sa_a + _sa_b); \
-        }))
+#ifdef _MSC_VER
+/* MSVC 不支持 __typeof__ 和语句表达式，使用 __int64 作为通用类型。
+ * 注意：此分支下参数 a、b、limit 会被求值多次，请避免传入含副作用的表达式。 */
+#define LV00_SAFE_ADD(a, b, limit) \
+    ((__int64)(a) > (__int64)(limit) - (__int64)(b) ? (__int64)(limit) : ((__int64)(a) + (__int64)(b)))
+#else
+/* GCC/Clang 实现：使用 __typeof__ 推导参数类型 */
+#define LV00_SAFE_ADD(a, b, limit) \
+    (__extension__({ \
+        __typeof__(a) _sa_a = (a); \
+        __typeof__(b) _sa_b = (b); \
+        __typeof__(limit) _sa_l = (limit); \
+        (_sa_a > _sa_l - _sa_b) ? _sa_l : (_sa_a + _sa_b); \
+    }))
+#endif
 #endif
 
 /* ── 安全 snprintf：确保返回值非负且不超过 buf_size-1 ── */
@@ -196,17 +205,54 @@
 /** 预设ID起始偏移 */
 #define LV00_PRESET_ID_OFFSET 60000
 
+/* ── 编译期日志级别过滤 ──
+ * 通过定义 LV00_LOG_LEVEL_COMPILE 来控制编译期日志级别：
+ *   0 = 关闭所有日志
+ *   1 = 仅错误 (ERROR)
+ *   2 = 错误 + 警告 (WARN)
+ *   3 = 错误 + 警告 + 信息 (INFO)
+ *   4 = 全部日志 (DEBUG)
+ * 未定义时默认为 4（全部启用），保持向后兼容
+ */
+#ifndef LV00_LOG_LEVEL_COMPILE
+#define LV00_LOG_LEVEL_COMPILE 4  /* 默认编译全部日志级别 */
+#endif
+
+#define LV00_COMPILE_LOG_LEVEL_ERROR 1
+#define LV00_COMPILE_LOG_LEVEL_WARN  2
+#define LV00_COMPILE_LOG_LEVEL_INFO  3
+#define LV00_COMPILE_LOG_LEVEL_DEBUG 4
+
 /* ── 日志级别 ── */
 #define LV00_LOG_LEVEL_ERROR   1
 #define LV00_LOG_LEVEL_WARNING 2
 #define LV00_LOG_LEVEL_INFO    3
 #define LV00_LOG_LEVEL_DEBUG   4
 
-/* ── 日志宏 ── */
+/* ── 日志宏（带编译期过滤） ── */
+#if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_ERROR
 #define LV00_LOG_ERROR(fmt, ...)   lv00_log_message(LV00_LOG_LEVEL_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#else
+#define LV00_LOG_ERROR(fmt, ...)   ((void)0)
+#endif
+
+#if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_WARN
 #define LV00_LOG_WARNING(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_WARNING, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#else
+#define LV00_LOG_WARNING(fmt, ...) ((void)0)
+#endif
+
+#if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_INFO
 #define LV00_LOG_INFO(fmt, ...)    lv00_log_message(LV00_LOG_LEVEL_INFO, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#else
+#define LV00_LOG_INFO(fmt, ...)    ((void)0)
+#endif
+
+#if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_DEBUG
 #define LV00_LOG_DEBUG(fmt, ...)   lv00_log_message(LV00_LOG_LEVEL_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#else
+#define LV00_LOG_DEBUG(fmt, ...)   ((void)0)
+#endif
 
 /* 日志函数声明（在lv00_utils.c中实现） */
 void lv00_log_message(int level, const char *file, int line, const char *fmt, ...);

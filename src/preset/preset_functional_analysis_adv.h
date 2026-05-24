@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_functional_analysis_adv.h
  * @brief 泛函分析进阶预设函数块 - 头文件
  *

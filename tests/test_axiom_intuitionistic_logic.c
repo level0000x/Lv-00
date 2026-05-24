@@ -257,8 +257,8 @@ static void test_content_hash(void)
         "content hash should be deterministic");
     printf("  Hash is deterministic: YES\n");
 
-    free(hash);
-    free(hash2);
+    lv00_free_ptr(hash);
+    lv00_free_ptr(hash2);
     axiom_package_destroy(pkg);
 }
 

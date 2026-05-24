@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_polygons.c
  * @brief ����ι���Ԥ�躯���� - ʵ��
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_lattice_theory.c
  * @brief 格论预设函数块模块 - 实现（v2统一宏模式）
  *
@@ -849,8 +849,8 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count)
 
     *out_count = LATTICE_THEORY_PRESET_COUNT;
 
-    /* 分配名称数组 */
-    char **names = (char **)malloc(LATTICE_THEORY_PRESET_COUNT * sizeof(char *));
+    /* 分配名称数组（使用项目统一的内存管理函数） */
+    char **names = (char **)lv00_malloc(LATTICE_THEORY_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
         return false;
     }
@@ -894,17 +894,16 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count)
     };
 
     for (int i = 0; i < LATTICE_THEORY_PRESET_COUNT; i++) {
-        size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *)malloc(len);
+        names[i] = lv00_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 分配失败时释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                free(names[j]);
+                void *tmp = names[j];
+                lv00_free(&tmp);
             }
-            free(names);
+            lv00_free((void **)&names);
             return false;
         }
-        memcpy(names[i], preset_names[i], len);
     }
 
     *out_names = names;

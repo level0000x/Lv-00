@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import type { StreamingEvent, EngineStreamEvent } from '@/types';
+import type { EngineStreamEvent } from '@/types';
 import { EngineEventType } from '@/types';
 
 // ================================================================
@@ -102,13 +102,35 @@ function safeStringify(data: unknown, maxLen = 10000): string {
 // ================================================================
 
 interface StreamEventItemProps {
-  event: StreamingEvent | EngineStreamEvent;
+  event: EngineStreamEvent;
   index: number;
 }
 
-/** 类型守卫：检查事件是否为 EngineStreamEvent / Type guard to check if an event is an EngineStreamEvent */
-function isEngineStreamEvent(event: StreamingEvent | EngineStreamEvent): event is EngineStreamEvent {
-  return 'category' in event && 'timestamp_ms' in event;
+/**
+ * 将事件类型字符串解析为 EngineEventType 枚举编号。
+ * 支持字符串格式（如 "ENGINE_START"）和数字格式。
+ */
+function parseEventType(type: string | number): number {
+  if (typeof type === 'number') return type;
+  const upper = type.toUpperCase();
+  const enumMap: Record<string, number> = {
+    'ENGINE_START': 0, 'ENGINE_DONE': 1, 'ENGINE_PAUSED': 2,
+    'NORMALIZE_START': 3, 'NORMALIZE_MERGE': 4, 'NORMALIZE_DONE': 5,
+    'REWRITE_START': 6, 'REWRITE_RULE_LOADED': 7, 'REWRITE_MATCH_FOUND': 8,
+    'REWRITE_APPLIED': 9, 'REWRITE_ROLLBACK': 10, 'REWRITE_DONE': 11,
+    'SOLVE_START': 12, 'SOLVE_EQUATION_EXTRACTED': 13, 'SOLVE_GROEBNER_STEP': 14,
+    'SOLVE_VARIABLE_RESOLVED': 15, 'SOLVE_DONE': 16,
+    'PROOF_STEP_ADDED': 17, 'PROOF_STEP_APPLIED': 18, 'PROOF_UNIFY': 19,
+    'PROOF_COLOR_UPDATE': 20, 'PROOF_DEPENDENCY_CHANGE': 21,
+    'FUNC_BLOCK_PACK_START': 22, 'FUNC_BLOCK_PACK_DONE': 23,
+    'FUNC_BLOCK_INSTANTIATE_START': 24, 'FUNC_BLOCK_INSTANTIATE_DONE': 25,
+    'FUNC_BLOCK_PARTIAL_APPLY': 26, 'FUNC_BLOCK_DETERMINISM_CHECK': 27,
+    'FUNC_BLOCK_CAPTURE_AVOID': 28, 'FUNC_BLOCK_CROSS_BOUNDARY': 29,
+    'CONFLICT_DETECTED': 30, 'CONSTRAINT_ADDED': 31, 'NODE_ADDED': 32,
+    'CIRCUIT_TRIP': 33, 'ERROR': 34, 'WARNING': 35,
+    'INFO': 36, 'PROGRESS': 37, 'GRAPH_SNAPSHOT': 38,
+  };
+  return enumMap[upper] ?? 36; // 默认为 INFO
 }
 
 // ================================================================
@@ -123,27 +145,31 @@ function isEngineStreamEvent(event: StreamingEvent | EngineStreamEvent): event i
  * - 步骤编号徽标 / Step number badge
  * - 可折叠详情区域，包含所有 C 引擎字段 / Collapsible detail section with all C engine fields
  * - 时间戳显示 / Timestamp display
- * - 同时支持旧版 StreamingEvent 和新版 EngineStreamEvent / Supports both legacy StreamingEvent and new EngineStreamEvent
+ * - 支持字符串和数字两种事件类型格式 / Supports both string and numeric event type formats
  */
 const StreamEventItem: React.FC<StreamEventItemProps> = ({ event, index }) => {
   const [expanded, setExpanded] = useState(false);
-  const isEngine = isEngineStreamEvent(event);
 
-  const style = getEventStyle(typeof event.type === 'number' ? event.type : 0);
+  const eventTypeNum = parseEventType(event.type);
+  const style = getEventStyle(eventTypeNum);
 
   const handleToggle = useCallback(() => {
     setExpanded((prev) => !prev);
   }, []);
 
-  const ts = isEngine
-    ? event.timestamp_ms
-    : event.timestamp;
-  const timeStr = (ts ? new Date(ts) : new Date()).toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+  const timeStr = event.timestamp_ms
+    ? new Date(event.timestamp_ms).toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
 
   return (
     <div
@@ -164,13 +190,13 @@ const StreamEventItem: React.FC<StreamEventItemProps> = ({ event, index }) => {
           {style.icon}
         </span>
         <span className="stream-event-step">
-          #{isEngine ? event.step : event.stepNumber}
+          #{event.step}
         </span>
         <span className="stream-event-type" style={{ color: style.color }}>
           [{style.label}]
         </span>
         <span className="stream-event-desc">
-          {isEngine ? event.description : event.description}
+          {event.description}
         </span>
         <span className="stream-event-time">{timeStr}</span>
         <span className={`stream-event-expand ${expanded ? 'expanded' : ''}`}>
@@ -185,108 +211,82 @@ const StreamEventItem: React.FC<StreamEventItemProps> = ({ event, index }) => {
           </div>
           <div className="stream-event-detail-row">
             <span className="stream-event-detail-label">Step / 步骤:</span>
-            <span>{isEngine ? event.step : event.stepNumber}</span>
+            <span>{event.step}</span>
           </div>
-          {/* EngineStreamEvent 专属字段 / EngineStreamEvent specific fields */}
-          {isEngine && (
-            <>
-              {event.total_steps >= 0 && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Total Steps / 总步骤:</span>
-                  <span>{event.total_steps}</span>
-                </div>
-              )}
-              {event.node_id >= 0 && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Node ID / 节点:</span>
-                  <span>{event.node_id}</span>
-                </div>
-              )}
-              {event.constraint_id >= 0 && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Constraint ID / 约束:</span>
-                  <span>{event.constraint_id}</span>
-                </div>
-              )}
-              {event.rule_id >= 0 && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Rule ID / 规则:</span>
-                  <span>{event.rule_id}</span>
-                </div>
-              )}
-              {event.var_id >= 0 && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Var ID / 变量:</span>
-                  <span>{event.var_id}</span>
-                </div>
-              )}
-              {event.progress >= 0 && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Progress / 进度:</span>
-                  <span>{(event.progress * 100).toFixed(1)}%</span>
-                </div>
-              )}
-              {event.numeric_value !== 0 && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Numeric Value / 数值:</span>
-                  <span>{event.numeric_value}</span>
-                </div>
-              )}
-              {event.detail && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Detail / 详情:</span>
-                  <span className="stream-event-data">
-                    {(() => {
-                      try {
-                        return safeStringify(JSON.parse(event.detail));
-                      } catch {
-                        return event.detail;
-                      }
-                    })()}
-                  </span>
-                </div>
-              )}
-              {event.graph_snapshot && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Graph Snapshot / 图快照:</span>
-                  <span className="stream-event-data">
-                    {(() => {
-                      try {
-                        return safeStringify(JSON.parse(event.graph_snapshot));
-                      } catch {
-                        return event.graph_snapshot;
-                      }
-                    })()}
-                  </span>
-                </div>
-              )}
-              <div className="stream-event-detail-row">
-                <span className="stream-event-detail-label">Category / 类别:</span>
-                <span>{event.category}</span>
-              </div>
-            </>
+          {event.total_steps >= 0 && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Total Steps / 总步骤:</span>
+              <span>{event.total_steps}</span>
+            </div>
           )}
-          {/* 旧版 StreamingEvent 字段 / Legacy StreamingEvent fields */}
-          {!isEngine && (
-            <>
-              {event.nodeId !== undefined && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Node ID:</span>
-                  <span>{event.nodeId}</span>
-                </div>
-              )}
-              {event.data !== undefined && (
-                <div className="stream-event-detail-row">
-                  <span className="stream-event-detail-label">Data / 数据:</span>
-                  <span className="stream-event-data">
-                    {typeof event.data === 'string'
-                      ? event.data
-                      : safeStringify(event.data)}
-                  </span>
-                </div>
-              )}
-            </>
+          {event.node_id >= 0 && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Node ID / 节点:</span>
+              <span>{event.node_id}</span>
+            </div>
           )}
+          {event.constraint_id >= 0 && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Constraint ID / 约束:</span>
+              <span>{event.constraint_id}</span>
+            </div>
+          )}
+          {event.rule_id >= 0 && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Rule ID / 规则:</span>
+              <span>{event.rule_id}</span>
+            </div>
+          )}
+          {event.var_id >= 0 && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Var ID / 变量:</span>
+              <span>{event.var_id}</span>
+            </div>
+          )}
+          {event.progress >= 0 && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Progress / 进度:</span>
+              <span>{(event.progress * 100).toFixed(1)}%</span>
+            </div>
+          )}
+          {event.numeric_value !== 0 && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Numeric Value / 数值:</span>
+              <span>{event.numeric_value}</span>
+            </div>
+          )}
+          {event.detail && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Detail / 详情:</span>
+              <span className="stream-event-data">
+                {(() => {
+                  try {
+                    return safeStringify(JSON.parse(event.detail));
+                  } catch {
+                    return event.detail;
+                  }
+                })()}
+              </span>
+            </div>
+          )}
+          {event.graph_snapshot && (
+            <div className="stream-event-detail-row">
+              <span className="stream-event-detail-label">Graph Snapshot / 图快照:</span>
+              <span className="stream-event-data">
+                {(() => {
+                  try {
+                    return safeStringify(JSON.parse(event.graph_snapshot));
+                  } catch {
+                    return event.graph_snapshot;
+                  }
+                })()}
+              </span>
+            </div>
+          )}
+          <div className="stream-event-detail-row">
+            <span className="stream-event-detail-label">Category / 类别:</span>
+            <span>{event.category}</span>
+          </div>
           <div className="stream-event-detail-row">
             <span className="stream-event-detail-label">Index / 索引:</span>
             <span>{index}</span>

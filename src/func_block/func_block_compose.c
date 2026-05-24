@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file func_block_compose.c
  * @brief 函数块组合子实现
  * @details 提供函数块的组合操作，包括顺序组合（g o f）和并行乘积（f x g）。
  *          使用 graph->next_node_id 生成唯一 ID 以避免冲突。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include <limits.h>
@@ -67,6 +67,12 @@ bool func_block_compose(
      * f 的输出端口和 g 的输入端口在组合后成为内部连接点，
      * 不再暴露为外部端口，因此需要纳入内部节点集合。
      */
+    /* 整数溢出检查 */
+    if (f->internal_node_count > INT_MAX - g->internal_node_count -
+        f->output_count - g->input_count) {
+        fprintf(stderr, "[ERROR] 函数块组合失败：内部节点总数溢出\n");
+        return NULL;
+    }
     int total_internal = f->internal_node_count + g->internal_node_count +
                          f->output_count + g->input_count;
     int *internal_ids = lv00_malloc((size_t)total_internal * sizeof(int));

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic_topology_adv.h
  * @brief 代数拓扑进阶预设函数块 - 头文件
  *

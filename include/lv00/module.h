@@ -19,9 +19,9 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
-/* MAX_MODULE_DEPTH —— 与 symbolic_coord.h 中的定义保持同步
- * 使用 #ifndef 守卫防止重复定义。若需修改此值，请同时修改
- * symbolic_coord.h 和所有引用此宏的 .c 文件。
+/* MAX_MODULE_DEPTH —— 权威定义在 symbolic_coord.h 中
+ * 此处使用 #ifndef 守卫防止重复定义。若需修改此值，请修改
+ * symbolic_coord.h 中的权威定义，此处的值将自动同步。
  */
 #ifndef MAX_MODULE_DEPTH
 #define MAX_MODULE_DEPTH 32
@@ -44,18 +44,18 @@ typedef struct ModuleExport {
 } ModuleExport;
 
 typedef enum {
-    MODULE_LOAD_OK,
-    MODULE_LOAD_FILE_NOT_FOUND,
-    MODULE_LOAD_PARSE_ERROR,
-    MODULE_LOAD_CIRCULAR_DEPENDENCY,
-    MODULE_LOAD_DEPTH_EXCEEDED,
-    MODULE_LOAD_INVALID_LVZ
+    MODULE_LOAD_OK,                  /* 加载成功 */
+    MODULE_LOAD_FILE_NOT_FOUND,      /* 文件未找到 */
+    MODULE_LOAD_PARSE_ERROR,         /* 解析错误 */
+    MODULE_LOAD_CIRCULAR_DEPENDENCY, /* 循环依赖 */
+    MODULE_LOAD_DEPTH_EXCEEDED,      /* 依赖深度超限 */
+    MODULE_LOAD_INVALID_LVZ          /* 无效的 LVZ 格式 */
 } ModuleLoadStatus;
 
 typedef enum {
-    MODULE_SAVE_OK,
-    MODULE_SAVE_FILE_ERROR,
-    MODULE_SAVE_WRITE_ERROR
+    MODULE_SAVE_OK,          /* 保存成功 */
+    MODULE_SAVE_FILE_ERROR,  /* 文件错误 */
+    MODULE_SAVE_WRITE_ERROR  /* 写入错误 */
 } ModuleSaveStatus;
 
 Module *module_create(const char *name, const char *version);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_mathematical_logic.c
  * @brief 数理逻辑预设函数块模块 - 实现
  *

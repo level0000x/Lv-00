@@ -1,6 +1,13 @@
-﻿/**
+/**
  * @file error_codes.c
  * @brief Lv-00 统一错误码系统实现
+ *
+ * @details 实现线程局部的错误码存储、错误消息格式化、错误上下文追踪
+ *          和错误表验证功能。为整个 Lv-00 系统提供统一的错误报告机制，
+ *          支持文件名、行号、函数名等上下文信息的自动捕获。
+ *
+ * @version 3.2.0
+ * @author Lv-00 Team
  */
 
 #include "error_codes.h"
@@ -76,6 +83,11 @@ static const ErrorInfo g_error_table[] = {
     {LV00_ERROR_IO, "LV00_ERROR_IO", "IO错误", "系统"},
     {LV00_ERROR_PARSE, "LV00_ERROR_PARSE", "解析错误", "系统"},
     {LV00_ERROR_INVALID_STATE, "LV00_ERROR_INVALID_STATE", "无效状态", "系统"},
+    {LV00_ERROR_INVALID_ARGUMENT, "LV00_ERROR_INVALID_ARGUMENT", "无效参数（字符串为空等）", "系统"},
+    {LV00_ERROR_INDEX_OUT_OF_RANGE, "LV00_ERROR_INDEX_OUT_OF_RANGE", "索引越界", "系统"},
+    {LV00_ERROR_VALUE_OUT_OF_RANGE, "LV00_ERROR_VALUE_OUT_OF_RANGE", "数值越界", "系统"},
+
+    {LV00_ERROR_INTERNAL, "LV00_ERROR_INTERNAL", "内部错误", "系统"},
 
     /* 内存与资源错误 */
     {LV00_ERROR_OUT_OF_MEMORY, "LV00_ERROR_OUT_OF_MEMORY", "内存不足", "内存"},
@@ -122,6 +134,10 @@ static const ErrorInfo g_error_table[] = {
     {LV00_ERROR_FUNC_BLOCK_NON_DETERMINISTIC, "LV00_ERROR_FUNC_BLOCK_NON_DETERMINISTIC", "非确定性函数块", "函数块"},
     {LV00_ERROR_FUNC_BLOCK_CIRCULAR, "LV00_ERROR_FUNC_BLOCK_CIRCULAR", "循环函数块", "函数块"},
     {LV00_ERROR_FUNC_BLOCK_TYPE_ERROR, "LV00_ERROR_FUNC_BLOCK_TYPE_ERROR", "函数块类型错误", "函数块"},
+
+    /* 预设系统错误 */
+    {LV00_ERROR_PRESET_REGISTRATION_FAILED, "LV00_ERROR_PRESET_REGISTRATION_FAILED", "预设注册失败", "预设系统"},
+    {LV00_ERROR_PRESET_INSTANTIATION_FAILED, "LV00_ERROR_PRESET_INSTANTIATION_FAILED", "预设实例化失败", "预设系统"},
 
     /* 类型系统错误 */
     {LV00_ERROR_TYPE_MISMATCH, "LV00_ERROR_TYPE_MISMATCH", "类型不匹配", "类型系统"},
@@ -264,20 +280,20 @@ int lv00_get_error_description(char *buf, size_t buf_size) {
         if (has_valid_func) {
             /* 文件名、行号、函数名均有效：输出完整上下文 */
             LV00_SAFE_SNPRINTF(written, buf, buf_size,
-                "[%s] %s (0x%04X): %s\n  位置: %s:%d (%s)",
+                "[%s] %s (0x%08X): %s\n  位置: %s:%d (%s)",
                 category, name, g_last_error_code, message,
                 g_error_file, g_error_line, g_error_func);
         } else {
             /* 函数名无效：仅输出文件名和行号 */
             LV00_SAFE_SNPRINTF(written, buf, buf_size,
-                "[%s] %s (0x%04X): %s\n  位置: %s:%d",
+                "[%s] %s (0x%08X): %s\n  位置: %s:%d",
                 category, name, g_last_error_code, message,
                 g_error_file, g_error_line);
         }
     } else {
         /* 无上下文信息 */
         LV00_SAFE_SNPRINTF(written, buf, buf_size,
-            "[%s] %s (0x%04X): %s",
+            "[%s] %s (0x%08X): %s",
             category, name, g_last_error_code, message);
     }
     
@@ -335,4 +351,25 @@ void lv00_clear_error(void) {
     g_error_file[0] = '\0';
     g_error_line = 0;
     g_error_func[0] = '\0';
+}
+
+/**
+ * @brief 从错误名称字符串反向查找错误码
+ *
+ * 线性遍历 g_error_table，逐条比对 name 字段。
+ * 虽然时间复杂度为 O(n)，但错误表规模较小（约 50 条），
+ * 且此函数通常仅在日志/调试场景调用，性能不敏感。
+ *
+ * @param name 错误名称（如 "LV00_OK"、"LV00_ERROR_OUT_OF_MEMORY"）
+ * @return 对应的错误码枚举值，未找到时返回 LV00_ERROR_UNKNOWN
+ */
+Lv00ErrorCode lv00_error_code_from_string(const char *name) {
+    if (!name) return LV00_ERROR_UNKNOWN;
+
+    for (size_t i = 0; i < ERROR_TABLE_SIZE; i++) {
+        if (strcmp(g_error_table[i].name, name) == 0) {
+            return g_error_table[i].code;
+        }
+    }
+    return LV00_ERROR_UNKNOWN;
 }

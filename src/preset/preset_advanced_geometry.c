@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_advanced_geometry.c
  * @brief 高级几何预设函数块 - 实现
  *
@@ -7,7 +7,7 @@
  *
  * @module AdvancedGeometry
  * @category PRESET_CATEGORY_GEOMETRY
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 /*

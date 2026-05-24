@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_order_theory.h
  * @brief 序理论预设函数块 - 头文件
  *

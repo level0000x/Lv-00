@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_probability_statistics.h
  * @brief 概率论与数理统计预设函数块 - 头文件
  *

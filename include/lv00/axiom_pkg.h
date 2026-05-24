@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 #include "constraint_graph.h"
+#include "symbolic_coord.h"
 #include "stream.h"
 #include <stdbool.h>
 #include <stdint.h>

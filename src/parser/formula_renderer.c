@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_renderer.c
  * @brief 公式渲染器实现
  *
@@ -6,7 +6,7 @@
  *          支持自定义精度和格式选项。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  *
  * @dependencies
  *   - formula_renderer.h : 渲染器公共接口定义

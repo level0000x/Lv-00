@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file unify.c
  * @brief 合一检查实现
  * @details 实现构造与命题之间的合一检查，包括约束匹配、坐标判等、
@@ -55,7 +55,7 @@
  *   - type_region 使用引用语义，详见 unify_instantiate_proposition 文档
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  *
  * @dependencies
  *   - unify.h               : 合一检查器公共接口定义
@@ -464,6 +464,11 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
         if (construction->nodes[j]->type == GEOM_PORT) construction_port_count++;
     }
     int *used_construction_ports = lv00_calloc(construction_port_count > 0 ? construction_port_count : 1, sizeof(int));
+    if (!used_construction_ports) {
+        normalization_result_destroy(nc);
+        normalization_result_destroy(np);
+        return UNIFY_STATUS_FAILED;
+    }
 
     /* 创建 TypeSystem 用于端口类型等价检查 */
     TypeSystem *ts = type_system_create();

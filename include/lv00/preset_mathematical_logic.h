@@ -1,193 +1,136 @@
-﻿/**
+/**
  * @file preset_mathematical_logic.h
- * @brief 数理逻辑预设函数块模块 - 头文件
+ * @brief 数理逻辑预设函数块 - 兼容性别名
  *
- * 提供理论数学研究项目Lv-00中数理逻辑领域的预设函数块，包括：
- *   - 命题逻辑（12个）：合取、析取、否定、蕴涵、等价、异或、
- *     与非、或非、重言式判定、矛盾式判定、可满足性判定、析取范式转换
- *   - 一阶逻辑（10个）：全称量化、存在量化、量词否定、项代入、
- *     自由变量检查、约束变量检查、全称实例化、存在泛化、
- *     前束范式、Skolem范式
- *   - 证明论（8个）：假言推理、否定后件、合取引入、析取消除、
- *     归谬法、条件证明、反证法、自然演绎系统
- *   - 模型论（5个）：模型满足关系、理论一致性判定、初等等价、
- *     紧致性定理、Lowenheim-Skolem定理
- *   - 递归论（5个）：可计算函数判定、图灵机模拟、停机问题、
- *     递归可枚举判定、可判定性检查
+ * 本文件为 preset_math_logic.h 的兼容性别名。
+ * 新代码请直接使用 preset_math_logic.h。
  *
- * @module MathematicalLogic
+ * 历史说明：
+ * - preset_mathematical_logic.h（v2.0.0）定义了 40 个预设块，使用 prop_/fol_/proof_/model_ 前缀
+ * - preset_math_logic.h（v4.0.0）重新设计了 20 个预设块，使用 logic_ 前缀，注释更完善
+ * - 两者功能重叠但命名不同，为避免混淆，本文件重定向至 preset_math_logic.h
+ *
+ * @module MathematicalLogic (兼容性)
  * @category PRESET_CATEGORY_LOGIC
- * @version 2.0.0
+ * @version 3.2.0
  * @author Lv-00 开发团队
+ * @deprecated 请使用 preset_math_logic.h 替代
  */
 
-#ifndef PRESET_MATHEMATICAL_LOGIC_H
-#define PRESET_MATHEMATICAL_LOGIC_H
+#ifndef LV00_PRESET_MATHEMATICAL_LOGIC_H
+#define LV00_PRESET_MATHEMATICAL_LOGIC_H
 
-#include "preset_blocks.h"
+#include "preset_math_logic.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* ============================================================
- * 预设名称常量定义
+ * 兼容性别名宏
+ * 将旧版 preset_mathematical_logic.h 的宏名映射到新版
  * ============================================================ */
 
-/* -------------------- 命题逻辑（12个） -------------------- */
+/* -------------------- 命题逻辑兼容别名 -------------------- */
 
-/** 合取：P ∧ Q */
-#define PRESET_PROP_AND                   "prop_and"
+/** @deprecated 使用 PRESET_LOGIC_CONJUNCTION 替代 */
+#define PRESET_PROP_AND                   PRESET_LOGIC_CONJUNCTION
 
-/** 析取：P ∨ Q */
-#define PRESET_PROP_OR                    "prop_or"
+/** @deprecated 使用 PRESET_LOGIC_DISJUNCTION 替代 */
+#define PRESET_PROP_OR                    PRESET_LOGIC_DISJUNCTION
 
-/** 否定：¬P */
-#define PRESET_PROP_NOT                   "prop_not"
+/** @deprecated 使用 PRESET_LOGIC_NEGATION 替代 */
+#define PRESET_PROP_NOT                   PRESET_LOGIC_NEGATION
 
-/** 蕴涵：P → Q */
-#define PRESET_PROP_IMPLIES               "prop_implies"
+/** @deprecated 使用 PRESET_LOGIC_IMPLICATION 替代 */
+#define PRESET_PROP_IMPLIES               PRESET_LOGIC_IMPLICATION
 
-/** 等价：P ↔ Q */
-#define PRESET_PROP_IFF                   "prop_iff"
+/** @deprecated 使用 PRESET_LOGIC_BICONDITIONAL 替代 */
+#define PRESET_PROP_IFF                   PRESET_LOGIC_BICONDITIONAL
 
-/** 异或：P ⊕ Q */
-#define PRESET_PROP_XOR                   "prop_xor"
+/** @deprecated 使用 PRESET_LOGIC_TAUTOLOGY_TEST 替代 */
+#define PRESET_PROP_TAUTOLOGY_CHECK       PRESET_LOGIC_TAUTOLOGY_TEST
 
-/** 与非：P ↑ Q（Sheffer竖线） */
-#define PRESET_PROP_NAND                  "prop_nand"
+/** @deprecated 使用 PRESET_LOGIC_SATISFIABILITY_TEST 替代 */
+#define PRESET_PROP_SATISFIABLE_CHECK     PRESET_LOGIC_SATISFIABILITY_TEST
 
-/** 或非：P ↓ Q（Peirce箭头） */
-#define PRESET_PROP_NOR                   "prop_nor"
+/* -------------------- 一阶逻辑兼容别名 -------------------- */
 
-/** 重言式判定 */
-#define PRESET_PROP_TAUTOLOGY_CHECK       "prop_tautology_check"
+/** @deprecated 使用 PRESET_LOGIC_UNIVERSAL_INSTANTIATION 替代 */
+#define PRESET_FOL_FORALL                 PRESET_LOGIC_UNIVERSAL_GENERALIZATION
 
-/** 矛盾式判定 */
-#define PRESET_PROP_CONTRADICTION_CHECK   "prop_contradiction_check"
+/** @deprecated 使用 PRESET_LOGIC_EXISTENTIAL_GENERALIZATION 替代 */
+#define PRESET_FOL_EXISTS                 PRESET_LOGIC_EXISTENTIAL_GENERALIZATION
 
-/** 可满足性判定（SAT） */
-#define PRESET_PROP_SATISFIABLE_CHECK     "prop_satisfiable_check"
+/** @deprecated 使用 PRESET_LOGIC_UNIVERSAL_INSTANTIATION 替代 */
+#define PRESET_FOL_UNIVERSAL_INSTANTIATION PRESET_LOGIC_UNIVERSAL_INSTANTIATION
 
-/** 析取范式转换（DNF） */
-#define PRESET_PROP_DNF                   "prop_dnf"
+/** @deprecated 使用 PRESET_LOGIC_EXISTENTIAL_GENERALIZATION 替代 */
+#define PRESET_FOL_EXISTENTIAL_GENERALIZATION PRESET_LOGIC_EXISTENTIAL_GENERALIZATION
 
-/* -------------------- 一阶逻辑（10个） -------------------- */
+/* -------------------- 证明论兼容别名 -------------------- */
 
-/** 全称量化：∀x P(x) */
-#define PRESET_FOL_FORALL                 "fol_forall"
-
-/** 存在量化：∃x P(x) */
-#define PRESET_FOL_EXISTS                 "fol_exists"
-
-/** 量词否定 */
-#define PRESET_FOL_NEGATE_QUANTIFIER      "fol_negate_quantifier"
-
-/** 项代入 */
-#define PRESET_FOL_SUBSTITUTION           "fol_substitution"
-
-/** 自由变量检查 */
-#define PRESET_FOL_FREE_VARIABLE_CHECK    "fol_free_variable_check"
-
-/** 约束变量检查 */
-#define PRESET_FOL_BOUND_VARIABLE_CHECK   "fol_bound_variable_check"
-
-/** 全称实例化 */
-#define PRESET_FOL_UNIVERSAL_INSTANTIATION "fol_universal_instantiation"
-
-/** 存在泛化 */
-#define PRESET_FOL_EXISTENTIAL_GENERALIZATION "fol_existential_generalization"
-
-/** 前束范式（PNF） */
-#define PRESET_FOL_PRENEX_NORMAL_FORM     "fol_prenex_normal_form"
-
-/** Skolem范式 */
-#define PRESET_FOL_SKOLEM_NORMAL_FORM     "fol_skolem_normal_form"
-
-/* -------------------- 证明论（8个） -------------------- */
-
-/** 假言推理（Modus Ponens） */
+/** @deprecated 使用 PRESET_LOGIC_NATURAL_DEDUCTION 替代 */
 #define PRESET_PROOF_MODUS_PONENS         "proof_modus_ponens"
 
-/** 否定后件（Modus Tollens） */
+/** @deprecated 使用 PRESET_LOGIC_RESOLUTION 替代 */
 #define PRESET_PROOF_MODUS_TOLLENS        "proof_modus_tollens"
 
-/** 合取引入（∧I） */
-#define PRESET_PROOF_CONJUNCTION_INTRO    "proof_conjunction_intro"
+/** @deprecated 使用 PRESET_LOGIC_NATURAL_DEDUCTION 替代 */
+#define PRESET_PROOF_NATURAL_DEDUCTION    PRESET_LOGIC_NATURAL_DEDUCTION
 
-/** 析取消除（∨E） */
-#define PRESET_PROOF_DISJUNCTION_ELIM     "proof_disjunction_elim"
+/* -------------------- 模型论兼容别名 -------------------- */
 
-/** 归谬法 */
-#define PRESET_PROOF_REDUCTIO_AD_ABSURDUM "proof_reductio_ad_absurdum"
+/** @deprecated 使用 PRESET_LOGIC_MODEL_CHECK 替代 */
+#define PRESET_MODEL_SATISFIES            PRESET_LOGIC_MODEL_CHECK
 
-/** 条件证明 */
-#define PRESET_PROOF_CONDITIONAL_PROOF    "proof_conditional_proof"
+/** @deprecated 使用 PRESET_LOGIC_VALIDITY_TEST 替代 */
+#define PRESET_MODEL_THEORY_CHECK         PRESET_LOGIC_VALIDITY_TEST
 
-/** 反证法 */
-#define PRESET_PROOF_BY_CONTRADICTION     "proof_by_contradiction"
+/* -------------------- 递归论兼容别名 -------------------- */
 
-/** 自然演绎系统 */
-#define PRESET_PROOF_NATURAL_DEDUCTION    "proof_natural_deduction"
+/** @deprecated 使用 PRESET_LOGIC_TURING_MACHINE_CHECK 替代 */
+#define PRESET_TURING_MACHINE_SIMULATE    PRESET_LOGIC_TURING_MACHINE_CHECK
 
-/* -------------------- 模型论（5个） -------------------- */
+/** @deprecated 使用 PRESET_LOGIC_HALTING_PROBLEM 替代 */
+#define PRESET_HALTING_PROBLEM            PRESET_LOGIC_HALTING_PROBLEM
 
-/** 模型满足关系：M ⊨ φ */
-#define PRESET_MODEL_SATISFIES            "model_satisfies"
-
-/** 理论一致性判定 */
-#define PRESET_MODEL_THEORY_CHECK         "model_theory_check"
-
-/** 初等等价 */
-#define PRESET_MODEL_ELEMENTARY_EQUIVALENCE "model_elementary_equivalence"
-
-/** 紧致性定理 */
-#define PRESET_MODEL_COMPACTNESS          "model_compactness"
-
-/** Lowenheim-Skolem定理 */
-#define PRESET_MODEL_LOWENHEIM_SKOLEM     "model_lowenheim_skolem"
-
-/* -------------------- 递归论（5个） -------------------- */
-
-/** 可计算函数判定 */
+/** @deprecated 使用 PRESET_LOGIC_HALTING_PROBLEM 替代 */
 #define PRESET_COMPUTABLE_FUNCTION_CHECK  "computable_function_check"
 
-/** 图灵机模拟 */
-#define PRESET_TURING_MACHINE_SIMULATE    "turing_machine_simulate"
-
-/** 停机问题 */
-#define PRESET_HALTING_PROBLEM            "halting_problem"
-
-/** 递归可枚举判定 */
+/** @deprecated 使用 PRESET_LOGIC_RECURSIVE_CHECK 替代 */
 #define PRESET_RECURSIVE_ENUMERABLE_CHECK "recursive_enumerable_check"
 
-/** 可判定性检查 */
+/** @deprecated 使用 PRESET_LOGIC_RECURSIVE_CHECK 替代 */
 #define PRESET_DECIDABILITY_CHECK         "decidability_check"
 
 /* ============================================================
- * 模块注册函数
+ * 兼容性注册函数
  * ============================================================ */
 
 /**
- * @brief 注册所有数理逻辑预设函数块
+ * @brief 注册所有数理逻辑预设函数块（兼容性接口）
  *
- * 将数理逻辑模块的全部40个预设函数块注册到全局预设库中。
- * 此函数由 preset_blocks_init() 自动调用。
- *
+ * @deprecated 请直接调用 preset_math_logic_register() 替代
  * @return true 全部注册成功
  * @return false 部分注册失败
  */
-bool preset_mathematical_logic_register(void);
+static inline bool preset_mathematical_logic_register(void) {
+    return preset_math_logic_register();
+}
 
 /**
- * @brief 获取数理逻辑预设函数块数量
+ * @brief 获取数理逻辑预设函数块数量（兼容性接口）
  *
- * @return int 数理逻辑模块预设函数块总数（40）
+ * @deprecated 请直接调用 preset_math_logic_count() 替代
+ * @return int 数理逻辑模块预设函数块总数
  */
-int preset_mathematical_logic_count(void);
+static inline int preset_mathematical_logic_count(void) {
+    return preset_math_logic_count();
+}
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* PRESET_MATHEMATICAL_LOGIC_H */
+#endif /* LV00_PRESET_MATHEMATICAL_LOGIC_H */

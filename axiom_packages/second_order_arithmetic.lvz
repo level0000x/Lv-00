@@ -1,0 +1,731 @@
+# =============================================================================
+# Lv-00 Axiom Package: Second-Order Arithmetic / Reverse Mathematics (Z₂)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Second-order arithmetic (Z₂) and its subsystems for reverse mathematics.
+#   The language is two-sorted: individual variables (natural numbers) and
+#   set variables (subsets of N). The signature is L = {0, S, +, ·, =, <, ∈}.
+#
+# References:
+#   - Shapiro, S. (1991). "Foundations without Foundationalism: A Case for
+#     Second-Order Logic." Oxford University Press.
+#     https://global.oup.com/academic/product/foundations-without-foundationalism-9780198250296
+#   - Simpson, S.G. (2009). "Subsystems of Second Order Arithmetic" (2nd ed.).
+#     Perspectives in Logic, Cambridge University Press.
+#     https://www.math.psu.edu/simpson/sosoa/
+#   - Wikipedia: Second-order arithmetic
+#     https://en.wikipedia.org/wiki/Second-order_arithmetic
+#   - Wikipedia: Reverse mathematics
+#     https://en.wikipedia.org/wiki/Reverse_mathematics
+#   - Friedman, H. (1975). "Some systems of second order arithmetic and their
+#     use." Proceedings of the International Congress of Mathematicians
+#     (Vancouver, 1974), Vol. 1, pp. 235-242. Canadian Mathematical Congress.
+#   - Hirschfeldt, D.R. (2015). "Slicing the Truth: On the Computable and
+#     Reverse Mathematics of Combinatorial Principles." World Scientific.
+#     https://www.worldscientific.com/worldscibooks/10.1142/9377
+#   - Stanford Encyclopedia of Philosophy: Reverse Mathematics
+#     https://plato.stanford.edu/entries/proof-theory-constructive/
+#   - nLab: second-order arithmetic
+#     https://ncatlab.org/nlab/show/second-order+arithmetic
+#
+# Primitive Notions (7 total):
+#   Terms: 0 (zero), S (successor function), + (addition), · (multiplication)
+#   Relations: = (equality on N), < (order on N), ∈ (set membership: n ∈ X)
+#
+# Core Axioms:
+#   I.   Basic (Robinson) Axioms (11 axioms):
+#        - Successor: S(n) ≠ 0, S injective, every n is 0 or successor
+#        - Addition: m+0=m, m+S(n)=S(m+n)
+#        - Multiplication: m·0=0, m·S(n)=(m·n)+m
+#        - Order: ¬(m<0), m<S(n) ↔ (m<n ∨ m=n), 0=n ∨ 0<n, S(m)<n ↔ m<n
+#   II.  Set Induction Axiom (1 axiom):
+#        (0 ∈ X ∧ ∀n(n ∈ X → S(n) ∈ X)) → ∀n(n ∈ X)
+#   III. Full Comprehension Schema (1 schema, all second-order formulas):
+#        ∃Z ∀n(n ∈ Z ↔ φ(n))  [Z not free in φ]
+#   IV.  Restricted Induction (Σ⁰₁-Induction, used in Big Five subsystems)
+#   V.   The Big Five Subsystems:
+#        RCA₀: Robinson axioms + Δ⁰₁-comprehension + Σ⁰₁-induction
+#        WKL₀: RCA₀ + Weak König's Lemma
+#        ACA₀: Robinson axioms + arithmetical comprehension + set induction
+#        ATR₀: ACA₀ + arithmetical transfinite recursion
+#        Π¹₁-CA₀: ACA₀ + Π¹₁-comprehension
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Consistency of Z₂ (Gödel's second incompleteness)
+#   - True Π⁰₁ sentences not provable in Z₂ (Gödel's first incompleteness)
+#   - Goodstein's theorem (independent of PA, provable in Z₂)
+#   - Paris-Harrington theorem (independent of PA, provable in ACA₀)
+#   - Kruskal's tree theorem (provable in ATR₀, independent of ACA₀)
+#   - Fraïssé's conjecture (equivalent to ATR₀)
+#   - The strength of WKL₀ over RCA₀ (conservative for Π¹₁ sentences)
+#   - Π¹₁-CA₀ consistency (transcends Π¹₁-CA₀)
+#
+# Key Insight — Reverse Mathematics:
+#   The "Big Five" subsystems form a hierarchy of logical strength that
+#   classifies theorems of ordinary mathematics by their set existence
+#   axioms. Most theorems of undergraduate mathematics are equivalent
+#   (over RCA₀) to one of these five systems.
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "second_order_arithmetic" "1.0.0" {
+
+    # =================================================================
+    # Group I: Basic (Robinson) Axioms — 11 first-order axioms
+    # =================================================================
+    # These are the basic axioms of Q (Robinson arithmetic), which is
+    # PA without induction. All variables range over natural numbers.
+    # =================================================================
+
+    # I-S1: The successor of a natural number is never zero
+    # ∀m[S(m) = 0 → ⊥]
+    template "successor_not_zero" 1
+
+    # I-S2: The successor function is injective
+    # ∀m∀n[S(m) = S(n) → m = n]
+    template "successor_injective" 2
+
+    # I-S3: Every natural number is zero or a successor
+    # ∀n[0 = n ∨ ∃m[S(m) = n]]
+    template "zero_or_successor" 1
+
+    # I-A1: Addition identity (left)
+    # ∀m[m + 0 = m]
+    template "add_zero_left" 1
+
+    # I-A2: Addition successor (right)
+    # ∀m∀n[m + S(n) = S(m + n)]
+    template "add_successor_right" 2
+
+    # I-M1: Multiplication by zero
+    # ∀m[m · 0 = 0]
+    template "mul_zero" 1
+
+    # I-M2: Multiplication successor (right)
+    # ∀m∀n[m · S(n) = (m · n) + m]
+    template "mul_successor_right" 2
+
+    # I-O1: No natural number is smaller than zero
+    # ∀m[m < 0 → ⊥]
+    template "not_less_than_zero" 1
+
+    # I-O2: Order defined via successor
+    # ∀n∀m[m < S(n) ↔ (m < n ∨ m = n)]
+    template "order_successor" 2
+
+    # I-O3: Every number is zero or positive
+    # ∀n[0 = n ∨ 0 < n]
+    template "zero_or_positive" 1
+
+    # I-O4: Successor order shift
+    # ∀m∀n[S(m) < n ∨ S(m) = n ↔ m < n]
+    template "successor_order_shift" 2
+
+    # =================================================================
+    # Group II: Set Induction Axiom (Second-Order)
+    # =================================================================
+    # The full second-order induction axiom: any set containing 0 and
+    # closed under successor contains all natural numbers.
+    # =================================================================
+
+    # II-IND: Set induction axiom
+    # ∀X[(0 ∈ X ∧ ∀n(n ∈ X → S(n) ∈ X)) → ∀n(n ∈ X)]
+    template "set_induction_axiom" 1
+
+    # =================================================================
+    # Group III: Full Comprehension Schema
+    # =================================================================
+    # For any second-order formula φ(n) (possibly with set parameters),
+    # the set {n : φ(n)} exists. This is the full comprehension scheme
+    # of Z₂, parameterized by formula complexity.
+    # =================================================================
+
+    # III-COMP-FULL: Full second-order comprehension (all formulas)
+    # ∃Z ∀n(n ∈ Z ↔ φ(n))  [Z not free in φ]
+    template "full_comprehension" 1
+
+    # III-COMP-DELTA01: Δ⁰₁-comprehension (recursive comprehension)
+    # If both φ(n) and ¬φ(n) are Σ⁰₁, then {n : φ(n)} exists.
+    # This is the comprehension axiom of RCA₀.
+    template "delta01_comprehension" 1
+
+    # III-COMP-SIGMA01: Σ⁰₁-comprehension
+    # ∃Z ∀n(n ∈ Z ↔ φ(n))  where φ is Σ⁰₁
+    template "sigma01_comprehension" 1
+
+    # III-COMP-PI01: Π⁰₁-comprehension
+    # ∃Z ∀n(n ∈ Z ↔ φ(n))  where φ is Π⁰₁
+    template "pi01_comprehension" 1
+
+    # III-COMP-SIGMA0K: Σ⁰ₖ-comprehension (for any k ≥ 1)
+    # ∃Z ∀n(n ∈ Z ↔ φ(n))  where φ is Σ⁰ₖ
+    template "sigma0k_comprehension" 1
+
+    # III-COMP-ARTH: Arithmetical comprehension (ACA₀)
+    # ∃Z ∀n(n ∈ Z ↔ φ(n))  where φ has no set quantifiers
+    template "arithmetical_comprehension" 1
+
+    # III-COMP-PI11: Π¹₁-comprehension
+    # ∃Z ∀n(n ∈ Z ↔ φ(n))  where φ is Π¹₁
+    template "pi11_comprehension" 1
+
+    # III-COMP-SIGMA11: Σ¹₁-comprehension
+    # ∃Z ∀n(n ∈ Z ↔ φ(n))  where φ is Σ¹₁
+    template "sigma11_comprehension" 1
+
+    # =================================================================
+    # Group IV: Induction Schemes (by Formula Complexity)
+    # =================================================================
+    # The subscript 0 in the Big Five means restricted induction.
+    # Different subsystems use different levels of induction.
+    # =================================================================
+
+    # IV-IND-SIGMA01: Σ⁰₁-induction scheme
+    # [φ(0) ∧ ∀n(φ(n) → φ(S(n)))] → ∀n φ(n), φ is Σ⁰₁
+    # Used by RCA₀ and all Big Five subsystems.
+    template "sigma01_induction" 1
+
+    # IV-IND-PI01: Π⁰₁-induction scheme
+    # [φ(0) ∧ ∀n(φ(n) → φ(S(n)))] → ∀n φ(n), φ is Π⁰₁
+    # Equivalent to Σ⁰₁-induction over the base theory.
+    template "pi01_induction" 1
+
+    # IV-IND-ARTH: Arithmetical induction (full first-order induction)
+    # [φ(0) ∧ ∀n(φ(n) → φ(S(n)))] → ∀n φ(n), φ has no set quantifiers
+    # Used by ACA₀ (with set induction).
+    template "arithmetical_induction" 1
+
+    # IV-IND-SET: Full second-order induction scheme
+    # [φ(0) ∧ ∀n(φ(n) → φ(S(n)))] → ∀n φ(n), any second-order φ
+    template "full_second_order_induction" 1
+
+    # IV-LNP: Least number principle for Σ⁰₁ formulas
+    # If ∃n φ(n) where φ is Σ⁰₁, then ∃n(φ(n) ∧ ∀m<n ¬φ(m))
+    template "sigma01_least_number" 1
+
+    # IV-LNP-PI01: Least number principle for Π⁰₁ formulas
+    template "pi01_least_number" 1
+
+    # IV-SIGMA01-BOUNDED: Σ⁰₁-bounding (Σ⁰₁-collection)
+    # ∀n<m ∃k φ(n,k) → ∃b ∀n<m ∃k<b φ(n,k), φ is Σ⁰₁
+    template "sigma01_bounding" 1
+
+    # =================================================================
+    # Group V: The Big Five Subsystems — Core Axioms
+    # =================================================================
+
+    # V-RCA0: Recursive Comprehension Axiom
+    # The base system of reverse mathematics. RCA₀ = Q + Δ⁰₁-COMP + Σ⁰₁-IND.
+    # Corresponds to: constructive mathematics (Bishop)
+    # Ordinal: ω^ω
+    # Conservative over PRA for Π⁰₂ sentences.
+    template "rca0_base_system" 0
+
+    # V-WKL0: Weak König's Lemma
+    # Every infinite binary tree has an infinite path.
+    # WKL₀ = RCA₀ + WKL.
+    # Corresponds to: finitistic reductionism (Hilbert)
+    # Ordinal: ω^ω
+    # Conservative over RCA₀ for Π¹₁ sentences.
+    template "weak_konig_lemma" 1
+
+    # V-WKL0-TREE: Infinite binary tree definition
+    # T ⊆ 2^<ω is an infinite tree: ∀σ∈T ∀τ⊆σ[τ∈T], T is infinite
+    template "infinite_binary_tree" 1
+
+    # V-WKL0-PATH: Infinite path through a tree
+    # f: N → {0,1} such that ∀n[f↾n ∈ T]
+    template "infinite_path" 2
+
+    # V-ACA0: Arithmetical Comprehension Axiom
+    # ACA₀ = Q + arithmetical comprehension + set induction.
+    # Corresponds to: predicativism (Weyl, Feferman)
+    # Ordinal: ε₀
+    # Conservative over PA for arithmetical sentences.
+    template "aca0_system" 0
+
+    # V-ACA0-JUMP: Turing jump existence (equivalent to ACA₀ over RCA₀)
+    # For any set X, the Turing jump X' = {n : φ_n^X(n) halts} exists.
+    template "turing_jump_existence" 1
+
+    # V-ATR0: Arithmetical Transfinite Recursion
+    # ATR₀ = ACA₀ + ATR.
+    # Given a well-ordering ≺ and an arithmetical formula φ, there exists
+    # a set H such that H(a) = {φ(a, H↾b) : b ≺ a} for all a.
+    # Corresponds to: predicative reductionism (Friedman, Simpson)
+    # Ordinal: Γ₀
+    template "arithmetical_transfinite_recursion" 2
+
+    # V-ATR0-WO: Well-ordering definition for ATR
+    # ≺ is a well-ordering on a field ⊆ N
+    template "well_ordering_for_atr" 1
+
+    # V-ATR0-HSET: H-set construction along a well-ordering
+    # H(a) = {φ(a, H↾b) : b ≺ a} — the hyperarithmetic hierarchy
+    template "h_set_construction" 2
+
+    # V-PI11CA0: Π¹₁-Comprehension Axiom
+    # Π¹₁-CA₀ = ACA₀ + Π¹₁-COMP.
+    # For any Π¹₁ formula φ(n), the set {n : φ(n)} exists.
+    # Corresponds to: impredicativism
+    # Ordinal: Ψ₀(Ω_ω) (Buchholz's ordinal)
+    template "pi11ca0_system" 0
+
+    # =================================================================
+    # Group VI: Elementary Consequences of Basic Axioms
+    # =================================================================
+
+    # VI-1: Addition is commutative (provable in Q + induction)
+    template "addition_commutative" 2
+
+    # VI-2: Addition is associative
+    template "addition_associative" 3
+
+    # VI-3: Addition is cancellative
+    template "addition_cancellative" 3
+
+    # VI-4: Multiplication is commutative
+    template "multiplication_commutative" 2
+
+    # VI-5: Multiplication is associative
+    template "multiplication_associative" 3
+
+    # VI-6: Left distributivity
+    template "distributivity_left" 3
+
+    # VI-7: Right distributivity
+    template "distributivity_right" 3
+
+    # VI-8: 1 is multiplicative identity (S(0) · n = n)
+    template "mul_identity" 1
+
+    # VI-9: No zero divisors
+    template "no_zero_divisors" 2
+
+    # VI-10: Order is transitive
+    template "order_transitive" 3
+
+    # VI-11: Order is irreflexive
+    template "order_irreflexive" 1
+
+    # VI-12: Order is total
+    template "order_total" 2
+
+    # VI-13: Successor is order-preserving
+    template "successor_order_preserving" 2
+
+    # VI-14: Addition preserves order
+    template "addition_preserves_order" 3
+
+    # VI-15: Multiplication by positive preserves order
+    template "multiplication_preserves_order" 3
+
+    # =================================================================
+    # Group VII: Coding and Representation
+    # =================================================================
+    # In second-order arithmetic, all mathematical objects are coded as
+    # natural numbers or sets of natural numbers.
+    # =================================================================
+
+    # VII-1: Pair coding (Kuratowski pair via Gödel β-function)
+    template "pair_coding" 2
+
+    # VII-2: Tuple coding (finite sequences as numbers)
+    template "tuple_coding" 1
+
+    # VII-3: Sequence coding (infinite sequences as sets)
+    template "sequence_coding" 1
+
+    # VII-4: Real number coding (Cauchy sequences or Dedekind cuts)
+    template "real_number_coding" 1
+
+    # VII-5: Countable structure coding (countable groups, rings, etc.)
+    template "countable_structure_coding" 1
+
+    # VII-6: Tree coding (subsets of 2^<ω)
+    template "tree_coding" 1
+
+    # VII-7: Borel set coding
+    template "borel_set_coding" 1
+
+    # VII-8: Analytical set coding (Σ¹₁, Π¹₁ sets)
+    template "analytical_set_coding" 1
+
+    # =================================================================
+    # Group VIII: Key Reverse Mathematics Equivalences
+    # =================================================================
+    # Theorems equivalent to each Big Five subsystem over RCA₀.
+    # =================================================================
+
+    # VIII-RCA0-EQ1: Σ⁰₁-separation is equivalent to RCA₀
+    template "sigma01_separation" 1
+
+    # VIII-RCA0-EQ2: Recursive join and intersection exist
+    template "recursive_set_operations" 2
+
+    # VIII-WKL0-EQ1: Heine-Borel theorem for [0,1] ≡ WKL₀
+    template "heine_borel_compact_interval" 0
+
+    # VIII-WKL0-EQ2: Every continuous function on [0,1] is bounded ≡ WKL₀
+    template "continuous_bounded_closed_interval" 0
+
+    # VIII-WKL0-EQ3: Sequential compactness of [0,1] ≡ WKL₀
+    template "sequential_compactness_interval" 0
+
+    # VIII-WKL0-EQ4: Brouwer fixed point theorem (for [0,1]) ≡ WKL₀
+    template "brouwer_fixed_point_interval" 0
+
+    # VIII-WKL0-EQ5: The Jordan curve theorem ≡ WKL₀
+    template "jordan_curve_theorem" 0
+
+    # VIII-WKL0-EQ6: Gödel's completeness theorem (countable) ≡ WKL₀
+    template "completeness_theorem_countable" 0
+
+    # VIII-WKL0-EQ7: Every ideal in a countable commutative ring is contained
+    #   in a prime ideal ≡ WKL₀
+    template "prime_ideal_countable_ring" 0
+
+    # VIII-ACA0-EQ1: Bolzano-Weierstrass theorem ≡ ACA₀
+    template "bolzano_weierstrass" 0
+
+    # VIII-ACA0-EQ2: Every bounded sequence of reals has a supremum ≡ ACA₀
+    template "supremum_bounded_sequence" 0
+
+    # VIII-ACA0-EQ3: The Cantor-Bendixson theorem ≡ ACA₀
+    template "cantor_bendixson_theorem" 0
+
+    # VIII-ACA0-EQ4: Every countable field has an algebraic closure ≡ ACA₀
+    template "algebraic_closure_countable_field" 0
+
+    # VIII-ACA0-EQ5: König's lemma for finitely branching trees ≡ ACA₀
+    template "konig_lemma_finite_branching" 0
+
+    # VIII-ACA0-EQ6: "Every countable vector space has a basis" ≡ ACA₀
+    template "countable_vector_space_basis" 0
+
+    # VIII-ACA0-EQ7: Ramsey's theorem for triples (RT³₂) ≡ ACA₀
+    template "ramsey_theorem_triples" 0
+
+    # VIII-ACA0-EQ8: The sequential completeness of R ≡ ACA₀
+    template "sequential_completeness_reals" 0
+
+    # VIII-ATR0-EQ1: Every countable well-ordering has a ranking function ≡ ATR₀
+    template "ranking_function_existence" 0
+
+    # VIII-ATR0-EQ2: Any two countable well-orderings are comparable ≡ ATR₀
+    template "well_ordering_comparability" 0
+
+    # VIII-ATR0-EQ3: The perfect set theorem for closed sets ≡ ATR₀
+    template "perfect_set_theorem_closed" 0
+
+    # VIII-ATR0-EQ4: Lusin's separation theorem ≡ ATR₀
+    template "lusin_separation_theorem" 0
+
+    # VIII-ATR0-EQ5: The open Ramsey theorem ≡ ATR₀
+    template "open_ramsey_theorem" 0
+
+    # VIII-ATR0-EQ6: Determinacy of open games on N ≡ ATR₀
+    template "open_determinacy" 0
+
+    # VIII-ATR0-EQ7: Ulm's theorem for countable reduced abelian p-groups ≡ ATR₀
+    template "ulm_theorem_countable_groups" 0
+
+    # VIII-ATR0-EQ8: Fraïssé's conjecture (well-quasi-ordering of countable
+    #   linear orderings) ≡ ATR₀
+    template "frasse_conjecture" 0
+
+    # VIII-PI11CA0-EQ1: The perfect set theorem for analytic sets ≡ Π¹₁-CA₀
+    template "perfect_set_theorem_analytic" 0
+
+    # VIII-PI11CA0-EQ2: The Cantor-Bendixson theorem for analytic sets ≡ Π¹₁-CA₀
+    template "cantor_bendixson_analytic" 0
+
+    # VIII-PI11CA0-EQ3: Suslin's hypothesis for analytic sets ≡ Π¹₁-CA₀
+    template "suslin_hypothesis_analytic" 0
+
+    # VIII-PI11CA0-EQ4: Every uncountable analytic set contains a perfect subset
+    #   ≡ Π¹₁-CA₀
+    template "perfect_subset_analytic" 0
+
+    # VIII-PI11CA0-EQ5: The coanalytic uniformization theorem ≡ Π¹₁-CA₀
+    template "coanalytic_uniformization" 0
+
+    # =================================================================
+    # Group IX: Arithmetical and Analytical Hierarchy
+    # =================================================================
+    # Classification of formulas by quantifier complexity.
+    # =================================================================
+
+    # IX-1: Σ⁰ₖ formula definition (k alternating quantifier blocks)
+    template "sigma0k_formula" 1
+
+    # IX-2: Π⁰ₖ formula definition
+    template "pi0k_formula" 1
+
+    # IX-3: Δ⁰ₖ = Σ⁰ₖ ∩ Π⁰ₖ
+    template "delta0k_formula" 1
+
+    # IX-4: Σ¹₁ formula definition (∃X φ(n,X), φ arithmetical)
+    template "sigma11_formula" 1
+
+    # IX-5: Π¹₁ formula definition (∀X φ(n,X), φ arithmetical)
+    template "pi11_formula" 1
+
+    # IX-6: Δ¹₁ = Σ¹₁ ∩ Π¹₁
+    template "delta11_formula" 1
+
+    # IX-7: Σ¹ₙ and Π¹ₙ hierarchy (analytical hierarchy)
+    template "analytical_hierarchy_level" 1
+
+    # IX-8: Post's theorem: Σ⁰ₖ = r.e. in Σ⁰ₖ₋₁
+    template "post_theorem" 1
+
+    # IX-9: Kleene's normal form theorem for Σ⁰₁
+    template "kleene_normal_form" 1
+
+    # IX-10: The arithmetical hierarchy is proper (Σ⁰ₖ ⊊ Σ⁰ₖ₊₁)
+    template "arithmetical_hierarchy_proper" 1
+
+    # =================================================================
+    # Group X: ω-Models and β-Models
+    # =================================================================
+    # Models of second-order arithmetic where set variables range over
+    # subsets of N (ω-models) or where well-orderings are standard (β-models).
+    # =================================================================
+
+    # X-1: ω-model definition (first-order part is standard N)
+    template "omega_model" 1
+
+    # X-2: β-model definition (well-orderings are standard)
+    template "beta_model" 1
+
+    # X-3: Minimum ω-model of RCA₀ = REC (recursive sets)
+    template "min_omega_model_rca0" 0
+
+    # X-4: ω-models of WKL₀ = sets of low Turing degree
+    template "omega_models_wkl0" 0
+
+    # X-5: Minimum β-model of ATR₀ = HYP (hyperarithmetic sets)
+    template "min_beta_model_atr0" 0
+
+    # X-6: β-model existence for Π¹₁-CA₀
+    template "beta_model_pi11ca0" 0
+
+    # =================================================================
+    # Group XI: Proof-Theoretic Ordinals
+    # =================================================================
+    # Each Big Five subsystem has a characteristic proof-theoretic ordinal
+    # measuring its constructive strength.
+    # =================================================================
+
+    # XI-1: RCA₀ ordinal = ω^ω
+    template "proof_theoretic_ordinal_rca0" 0
+
+    # XI-2: WKL₀ ordinal = ω^ω (same as RCA₀)
+    template "proof_theoretic_ordinal_wkl0" 0
+
+    # XI-3: ACA₀ ordinal = ε₀
+    template "proof_theoretic_ordinal_aca0" 0
+
+    # XI-4: ATR₀ ordinal = Γ₀ (Feferman-Schütte ordinal)
+    template "proof_theoretic_ordinal_atr0" 0
+
+    # XI-5: Π¹₁-CA₀ ordinal = Ψ₀(Ω_ω) (Buchholz's ordinal)
+    template "proof_theoretic_ordinal_pi11ca0" 0
+
+    # XI-6: Full Z₂ ordinal (not recursively representable)
+    template "proof_theoretic_ordinal_full_z2" 0
+
+    # =================================================================
+    # Group XII: Conservation and Independence Results
+    # =================================================================
+
+    # XII-1: WKL₀ is Π¹₁-conservative over RCA₀
+    template "wkl0_pi11_conservative" 0
+
+    # XII-2: ACA₀ is Π⁰₁-conservative over PA
+    template "aca0_arithmetically_conservative" 0
+
+    # XII-3: ATR₀ is Π¹₁-conservative over Feferman's IR
+    template "atr0_pi11_conservative" 0
+
+    # XII-4: PA ⊂ ACA₀ (strict inclusion)
+    template "pa_strict_subsystem_aca0" 0
+
+    # XII-5: RCA₀ ⊂ WKL₀ ⊂ ACA₀ ⊂ ATR₀ ⊂ Π¹₁-CA₀ ⊂ Z₂
+    template "big_five_strict_inclusion" 0
+
+    # =================================================================
+    # Group XIII: Core Constructors
+    # =================================================================
+
+    # XIII-1: Construct a set via comprehension
+    template "construct_set_by_comprehension" 1
+
+    # XIII-2: Construct the Turing jump of a set
+    template "construct_turing_jump" 1
+
+    # XIII-3: Construct the join of two sets
+    template "construct_set_join" 2
+
+    # XIII-4: Construct the intersection of two sets
+    template "construct_set_intersection" 2
+
+    # XIII-5: Construct the complement of a set
+    template "construct_set_complement" 1
+
+    # XIII-6: Construct a tree from a set of finite sequences
+    template "construct_tree" 1
+
+    # XIII-7: Construct an infinite path through a binary tree (WKL₀)
+    template "construct_infinite_path" 1
+
+    # XIII-8: Construct the H-set along a well-ordering (ATR₀)
+    template "construct_h_set" 2
+
+    # XIII-9: Construct a code for a countable ordinal
+    template "construct_ordinal_code" 1
+
+    # XIII-10: Construct a real number from a Cauchy sequence code
+    template "construct_real_from_cauchy" 1
+
+    # =================================================================
+    # Group XIV: Derived Constructors and Operations
+    # =================================================================
+
+    # XIV-1: Relative computability (Turing reducibility)
+    template "turing_reducibility" 2
+
+    # XIV-2: Many-one reducibility
+    template "many_one_reducibility" 2
+
+    # XIV-3: Arithmetic reducibility
+    template "arithmetic_reducibility" 2
+
+    # XIV-4: Hyperarithmetical reducibility
+    template "hyperarithmetical_reducibility" 2
+
+    # XIV-5: Construct the arithmetical hierarchy relativized to a set
+    template "relativized_arithmetical_hierarchy" 1
+
+    # XIV-6: Construct the hyperarithmetical hierarchy
+    template "hyperarithmetical_hierarchy" 1
+
+    # XIV-7: Construct the analytical hierarchy relativized to a set
+    template "relativized_analytical_hierarchy" 1
+
+    # XIV-8: Construct a Borel code from a Borel set description
+    template "construct_borel_code" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "consistency_of_Z2" {
+        reduces_to "Gödel's second incompleteness theorem"
+        dependency "PA_consistency"
+        dependency "Gödel_numbering"
+        external_ref "https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems"
+        green_verified true
+    }
+
+    unconstructible "true_arithmetical_sentences" {
+        reduces_to "Tarski's undefinability of truth"
+        dependency "arithmetical_hierarchy"
+        dependency "truth_definition"
+        external_ref "https://en.wikipedia.org/wiki/Tarski%27s_undefinability_theorem"
+        green_verified true
+    }
+
+    unconstructible "goodstein_theorem" {
+        reduces_to "Independent of PA, provable in Z₂ (in fact in ACA₀)"
+        dependency "epsilon_zero_ordinal"
+        dependency "ordinal_arithmetic"
+        external_ref "https://en.wikipedia.org/wiki/Goodstein%27s_theorem"
+        green_verified true
+    }
+
+    unconstructible "paris_harrington_theorem" {
+        reduces_to "Independent of PA, equivalent to ACA₀ over RCA₀"
+        dependency "ramsey_theory"
+        dependency "arithmetical_comprehension"
+        external_ref "https://en.wikipedia.org/wiki/Paris%E2%80%93Harrington_theorem"
+        green_verified true
+    }
+
+    unconstructible "kruskal_tree_theorem" {
+        reduces_to "Independent of ACA₀, provable in ATR₀"
+        dependency "well_quasi_ordering"
+        dependency "arithmetical_transfinite_recursion"
+        external_ref "https://en.wikipedia.org/wiki/Kruskal%27s_tree_theorem"
+        green_verified true
+    }
+
+    unconstructible "frasse_conjecture_wqo" {
+        reduces_to "Equivalent to ATR₀ over RCA₀ (Laver 1971)"
+        dependency "well_quasi_ordering"
+        dependency "countable_linear_orderings"
+        external_ref "https://en.wikipedia.org/wiki/Well-quasi-ordering"
+        green_verified true
+    }
+
+    unconstructible "pi11_comprehension_consistency" {
+        reduces_to "Transcends Π¹₁-CA₀ (Gödel's second incompleteness)"
+        dependency "pi11_comprehension"
+        dependency "proof_theoretic_ordinal"
+        external_ref "https://en.wikipedia.org/wiki/Reverse_mathematics"
+        green_verified true
+    }
+
+    unconstructible "full_Z2_consistency" {
+        reduces_to "Unprovable in Z₂ (Gödel's second incompleteness)"
+        dependency "full_comprehension"
+        dependency "second_order_induction"
+        external_ref "https://en.wikipedia.org/wiki/Second-order_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "wkl0_vs_rca0_independence" {
+        reduces_to "WKL₀ is Π¹₁-conservative over RCA₀ but not Σ¹₁-conservative"
+        dependency "weak_konig_lemma"
+        dependency "pi11_conservativity"
+        external_ref "https://en.wikipedia.org/wiki/Reverse_mathematics"
+        green_verified true
+    }
+
+    unconstructible "ramsey_theory_RT22_complexity" {
+        reduces_to "RT²₂ is between RCA₀ and WKL₀ (exact strength open)"
+        dependency "ramsey_theory"
+        dependency "weak_konig_lemma"
+        external_ref "https://en.wikipedia.org/wiki/Reverse_mathematics"
+        green_verified false
+    }
+
+    unconstructible "determinacy_of_Borel_games" {
+        reduces_to "Provable in Z₂ but strength exceeds Π¹₁-CA₀ (Martin 1975)"
+        dependency "borel_determinacy"
+        dependency "analytical_hierarchy"
+        external_ref "https://en.wikipedia.org/wiki/Borel_determinacy_theorem"
+        green_verified true
+    }
+
+    unconstructible "projective_determinacy" {
+        reduces_to "Not provable in Z₂; requires large cardinal axioms"
+        dependency "projective_sets"
+        dependency "large_cardinal_axioms"
+        external_ref "https://en.wikipedia.org/wiki/Projective_determinacy"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    bottom_geometry "second_order_arithmetic_natural_numbers"
+    negation_encoding "classical_material_implication"
+    contradiction_behavior "explosion_principle"
+}

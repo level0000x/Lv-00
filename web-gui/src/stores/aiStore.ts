@@ -4,13 +4,16 @@
  *              管理聊天消息、流式事件、过滤器配置以及 AI 模型参数。
  *              模拟 AI 响应逻辑已分离到 aiService.ts 文件中。
  *              从原先 stores/index.ts（~850 行单体 Store）拆分而来，遵循单一职责原则。
+ *
+ *              流式事件体系已统一为 8 类别（与 C 核心 stream.h 对齐）：
+ *              engine / normalize / rewrite / solve / proof / func_block / conflict / info
  */
 
 import { create } from 'zustand';
 import type {
   ChatMessage,
-  StreamingEvent,
-  StreamFilter,
+  EngineStreamEvent,
+  EngineStreamCategoryFilter,
   StreamingEntry,
 } from '@/types';
 import { generateUniqueId as generateId } from '@/utils/idGenerator';
@@ -24,7 +27,6 @@ import {
 } from '@/utils/constants';
 import {
   getResponseChunks,
-  simulateStreamResponse,
 } from './aiService';
 
 // ================================================================
@@ -45,10 +47,10 @@ export interface AIState {
   isStreaming: boolean;
 
   // ---- 流式事件 / Streaming Events ----
-  /** 来自 AI 后端的流式事件列表 */
-  streamingEvents: StreamingEvent[];
-  /** 流式事件类型过滤器配置 */
-  streamFilters: StreamFilter[];
+  /** 来自引擎和 AI 后端的统一流式事件列表（8 类别体系，与 C 核心 stream.h 对齐） */
+  streamingEvents: EngineStreamEvent[];
+  /** 流式事件类别过滤器配置（8 类别：engine/normalize/rewrite/solve/proof/func_block/conflict/info） */
+  streamFilters: EngineStreamCategoryFilter[];
   /** 模型温度参数 (0-2) */
   modelTemperature: number;
   /** 模型最大 Token 数 (64-32768) */
@@ -73,16 +75,16 @@ export interface AIState {
   setIsStreaming: (streaming: boolean) => void;
 
   // ---- Actions: 流式事件 / Streaming Event Actions ----
-  /** 添加一个流式事件 */
-  addStreamEvent: (event: StreamingEvent) => void;
+  /** 添加一个引擎流式事件（8 类别体系） */
+  addStreamEvent: (event: EngineStreamEvent) => void;
   /** 清空所有流式事件并重置过滤器计数 */
   clearStreamEvents: () => void;
-  /** 切换指定类型的流式事件过滤器的启用/禁用 */
-  toggleStreamFilter: (type: string) => void;
+  /** 切换指定类别的流式事件过滤器的启用/禁用状态 */
+  toggleStreamFilter: (category: string) => void;
   /** 重置所有流式事件过滤器的计数 */
   resetStreamFilterCounts: () => void;
-  /** 增加指定类型过滤器的计数 */
-  incrementStreamFilterCount: (type: string) => void;
+  /** 增加指定类别过滤器的计数 */
+  incrementStreamFilterCount: (category: string) => void;
   /** 设置模型温度（自动钳制到 0-2） */
   setModelTemperature: (temp: number) => void;
   /** 设置模型最大 Token 数（自动钳制到 64-32768） */
@@ -107,16 +109,82 @@ export interface AIState {
 }
 
 // ================================================================
-// 默认流式过滤器 / Default Stream Filters
+// 默认流式过滤器（8 类别，与 C 核心 stream.h 对齐） / Default Stream Filters
 // ================================================================
 
-const DEFAULT_STREAM_FILTERS: StreamFilter[] = [
-  { type: 'info', label: 'Info', labelZh: '信息', enabled: true, count: 0 },
-  { type: 'step', label: 'Step', labelZh: '步骤', enabled: true, count: 0 },
-  { type: 'result', label: 'Result', labelZh: '结果', enabled: true, count: 0 },
-  { type: 'error', label: 'Error', labelZh: '错误', enabled: true, count: 0 },
-  { type: 'warning', label: 'Warning', labelZh: '警告', enabled: true, count: 0 },
-  { type: 'debug', label: 'Debug', labelZh: '调试', enabled: false, count: 0 },
+const DEFAULT_STREAM_FILTERS: EngineStreamCategoryFilter[] = [
+  {
+    category: 'engine',
+    label: 'Engine',
+    labelZh: '引擎',
+    enabled: true,
+    color: '#3fb950',
+    count: 0,
+    eventTypes: ['ENGINE_START', 'ENGINE_DONE', 'ENGINE_PAUSED'],
+  },
+  {
+    category: 'normalize',
+    label: 'Normalize',
+    labelZh: '归一化',
+    enabled: true,
+    color: '#58a6ff',
+    count: 0,
+    eventTypes: ['NORMALIZE_START', 'NORMALIZE_MERGE', 'NORMALIZE_DONE'],
+  },
+  {
+    category: 'rewrite',
+    label: 'Rewrite',
+    labelZh: '重写',
+    enabled: true,
+    color: '#a371f7',
+    count: 0,
+    eventTypes: ['REWRITE_START', 'REWRITE_RULE_LOADED', 'REWRITE_MATCH_FOUND', 'REWRITE_APPLIED', 'REWRITE_ROLLBACK', 'REWRITE_DONE'],
+  },
+  {
+    category: 'solve',
+    label: 'Solve',
+    labelZh: '求解',
+    enabled: true,
+    color: '#f0883e',
+    count: 0,
+    eventTypes: ['SOLVE_START', 'SOLVE_EQUATION_EXTRACTED', 'SOLVE_GROEBNER_STEP', 'SOLVE_VARIABLE_RESOLVED', 'SOLVE_DONE'],
+  },
+  {
+    category: 'proof',
+    label: 'Proof',
+    labelZh: '证明',
+    enabled: true,
+    color: '#f778ba',
+    count: 0,
+    eventTypes: ['PROOF_STEP_ADDED', 'PROOF_STEP_APPLIED', 'PROOF_UNIFY', 'PROOF_COLOR_UPDATE', 'PROOF_DEPENDENCY_CHANGE'],
+  },
+  {
+    category: 'func_block',
+    label: 'Function',
+    labelZh: '函数块',
+    enabled: true,
+    color: '#39d353',
+    count: 0,
+    eventTypes: ['FUNC_BLOCK_PACK_START', 'FUNC_BLOCK_PACK_DONE', 'FUNC_BLOCK_INSTANTIATE_START', 'FUNC_BLOCK_INSTANTIATE_DONE', 'FUNC_BLOCK_PARTIAL_APPLY', 'FUNC_BLOCK_DETERMINISM_CHECK', 'FUNC_BLOCK_CAPTURE_AVOID', 'FUNC_BLOCK_CROSS_BOUNDARY'],
+  },
+  {
+    category: 'conflict',
+    label: 'Conflict',
+    labelZh: '冲突',
+    enabled: true,
+    color: '#f85149',
+    count: 0,
+    eventTypes: ['CONFLICT_DETECTED', 'ERROR', 'WARNING'],
+  },
+  {
+    category: 'info',
+    label: 'Info',
+    labelZh: '信息',
+    enabled: true,
+    color: '#8b949e',
+    count: 0,
+    eventTypes: ['INFO', 'PROGRESS', 'GRAPH_SNAPSHOT', 'NODE_ADDED', 'CONSTRAINT_ADDED', 'CIRCUIT_TRIP'],
+  },
 ];
 
 // ================================================================
@@ -210,11 +278,11 @@ export const useAIStore = create<AIState>((set, get) => ({
       streamFilters: state.streamFilters.map((f) => ({ ...f, count: 0 })),
     })),
 
-  /** 切换指定类型过滤器的启用/禁用状态 */
-  toggleStreamFilter: (type) =>
+  /** 切换指定类别的流式事件过滤器的启用/禁用状态 */
+  toggleStreamFilter: (category) =>
     set((state) => ({
       streamFilters: state.streamFilters.map((f) =>
-        f.type === type ? { ...f, enabled: !f.enabled } : f,
+        f.category === category ? { ...f, enabled: !f.enabled } : f,
       ),
     })),
 
@@ -224,11 +292,11 @@ export const useAIStore = create<AIState>((set, get) => ({
       streamFilters: state.streamFilters.map((f) => ({ ...f, count: 0 })),
     })),
 
-  /** 增加指定类型过滤器的计数 */
-  incrementStreamFilterCount: (type) =>
+  /** 增加指定类别过滤器的计数 */
+  incrementStreamFilterCount: (category) =>
     set((state) => ({
       streamFilters: state.streamFilters.map((f) =>
-        f.type === type ? { ...f, count: f.count + 1 } : f,
+        f.category === category ? { ...f, count: f.count + 1 } : f,
       ),
     })),
 
@@ -264,16 +332,16 @@ export const useAIStore = create<AIState>((set, get) => ({
   // ================================================================
 
   /**
-   * 发送用户消息并获取 AI 的流式模拟响应。
+   * 发送用户消息并获取 AI 的流式响应。
    *
    * 流程：
    * 1. 添加用户消息到聊天记录
    * 2. 创建空的 assistant 消息并标记为流式
-   * 3. 通过 aiService 生成模拟响应文本分块
-   * 4. 逐块更新 assistant 消息内容，模拟打字机效果
+   * 3. 通过 aiService 生成模拟响应文本分块（或使用真实 API）
+   * 4. 逐块更新 assistant 消息内容，产生 EngineStreamEvent 事件
    * 5. 完成时清除流式标记
    *
-   * 模拟响应逻辑已提取到 aiService.ts 中，便于后续替换为真实 API 调用。
+   * 所有流式事件使用 8 类别体系（与 C 核心 stream.h 对齐）。
    */
   sendMessage: async (content) => {
     const {
@@ -309,20 +377,86 @@ export const useAIStore = create<AIState>((set, get) => ({
     // 3. 获取响应文本分块（优先上下文感知，回退到固定模拟）
     const chunks = getResponseChunks(activeProvider, content);
 
-    // 4. 模拟流式输出
-    await simulateStreamResponse(chunks, {
-      addStreamEvent,
-      incrementFilterCount: incrementStreamFilterCount,
-      updateContent: (fullContent) => {
-        updateLastAssistantMessage(fullContent);
-      },
+    // 4. 流式输出：产生 EngineStreamEvent 事件（8 类别体系）
+    let fullContent = '';
+    const startTime = Date.now();
+
+    // 流开始事件
+    addStreamEvent({
+      type: 'ENGINE_START',
+      type_name: 'AI 流开始',
+      color: '#3fb950',
+      category: 'engine',
+      timestamp_ms: Date.now(),
+      step: 0,
+      total_steps: chunks.length,
+      node_id: -1,
+      constraint_id: -1,
+      rule_id: -1,
+      var_id: -1,
+      description: 'AI stream started / AI 流开始',
+      detail: null,
+      progress: 0,
+      numeric_value: 0,
+      graph_snapshot: null,
     });
+    incrementStreamFilterCount('engine');
+
+    // 逐块输出
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      if (chunk === undefined || chunk === null) continue;
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 30 + Math.random() * 50));
+      fullContent += chunk;
+      updateLastAssistantMessage(fullContent);
+
+      addStreamEvent({
+        type: 'PROGRESS',
+        type_name: '生成中',
+        color: '#58a6ff',
+        category: 'info',
+        timestamp_ms: Date.now(),
+        step: i + 1,
+        total_steps: chunks.length,
+        node_id: -1,
+        constraint_id: -1,
+        rule_id: -1,
+        var_id: -1,
+        description: `Chunk ${i + 1}/${chunks.length} / 块 ${i + 1}/${chunks.length}`,
+        detail: null,
+        progress: (i + 1) / chunks.length,
+        numeric_value: 0,
+        graph_snapshot: null,
+      });
+      incrementStreamFilterCount('info');
+    }
+
+    // 流完成事件
+    addStreamEvent({
+      type: 'ENGINE_DONE',
+      type_name: 'AI 流完成',
+      color: '#3fb950',
+      category: 'engine',
+      timestamp_ms: Date.now(),
+      step: chunks.length,
+      total_steps: chunks.length,
+      node_id: -1,
+      constraint_id: -1,
+      rule_id: -1,
+      var_id: -1,
+      description: `AI response complete (${((Date.now() - startTime) / 1000).toFixed(1)}s) / AI 回复完成`,
+      detail: null,
+      progress: 1.0,
+      numeric_value: Date.now() - startTime,
+      graph_snapshot: null,
+    });
+    incrementStreamFilterCount('engine');
 
     // 5. 完成流式输出
-    updateLastAssistantMessage(chunks.join(''));
+    updateLastAssistantMessage(fullContent);
 
     // 清除流式标记（将 assistant 消息的 isStreaming 设为 false）
-    // 使用安全的索引访问模式，避免 ! 非空断言
     set((state) => {
       const msgs = [...state.chatMessages];
       for (let i = msgs.length - 1; i >= 0; i--) {

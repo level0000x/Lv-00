@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file constraint_graph.c
  * @brief 约束图核心实现
  * @details 实现几何约束图的数据结构和操作，包括点、线段、区域、端口和函数块节点。
@@ -58,8 +58,7 @@
 static char g_internal_error[256] = {0};
 static void set_error(const char *msg) {
     if (msg) {
-        strncpy(g_internal_error, msg, sizeof(g_internal_error) - 1);
-        g_internal_error[sizeof(g_internal_error) - 1] = '\0';
+        lv00_strlcpy(g_internal_error, msg, sizeof(g_internal_error));
     }
     lv00_set_error(LV00_ERROR_UNKNOWN, "%s", msg ? msg : "unknown error");
 }
@@ -180,6 +179,15 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
         }
         for (int i = 0; i < coord_count; i++) {
             node->symbolic_coords[i] = symbolic_coord_copy(coords[i]);
+            if (!node->symbolic_coords[i]) {
+                /* 坐标拷贝失败：清理已分配的坐标并返回 NULL */
+                for (int j = 0; j < i; j++) {
+                    symbolic_coord_destroy(node->symbolic_coords[j]);
+                }
+                lv00_free((void **)&node->symbolic_coords);
+                lv00_free((void **)&node);
+                return NULL;
+            }
         }
         node->coord_count = coord_count;
     }
@@ -416,8 +424,8 @@ static void node_index_remove(ConstraintGraph *graph, int node_id) {
         GeomNode *entry = graph->node_index[i];
         graph->node_index[i] = NULL;
         unsigned j = node_id_hash(entry->id, graph->node_index_capacity);
-        /* 重新插入，但如果绕回到 idx 则停止 */
-        while (graph->node_index[j] != NULL) {
+        /* 重新插入，但如果绕回到 idx 则停止（防止哈希表满时无限循环） */
+        while (graph->node_index[j] != NULL && j != idx) {
             j = (j + 1) & (unsigned)(graph->node_index_capacity - 1);
         }
         if (graph->node_index[j] == NULL) {
@@ -619,16 +627,16 @@ static bool check_incremental_conflict(const ConstraintGraph *graph,
          * 但3条或更多条线且没有相交约束则是冲突 */
         if (incident_count >= 2) {
             /* 检查是否有任意一对关联线之间有 INTERSECTION 约束 */
-            int lines[64];
+            int lines[ADJ_MAX_PER_NODE];  /* 与 ADJ_MAX_PER_NODE 保持一致，避免静默截断 */
             int line_count = 0;
             for (int i = 0; i < graph->constraint_count; i++) {
                 Constraint *c = graph->constraints[i];
                 if (c->type == INCIDENCE && c->participants[0] == point_id) {
-                    if (line_count < 64) lines[line_count++] = c->participants[1];
+                    if (line_count < ADJ_MAX_PER_NODE) lines[line_count++] = c->participants[1];
                 }
             }
             /* 包含新添加的线 */
-            if (line_count < 64) lines[line_count++] = line_id;
+            if (line_count < ADJ_MAX_PER_NODE) lines[line_count++] = line_id;
 
             /* 检查所有线对的相交约束 */
             for (int a = 0; a < line_count; a++) {
@@ -1400,7 +1408,8 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
             if (graph_stream_ctx) {
                 char buf[128];
                 snprintf(buf, sizeof(buf), "移除节点: id=%d", node_id);
-                stream_emit_simple(graph_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+                stream_emit_node_event(graph_stream_ctx, STREAM_EVENT_INFO,
+                                       node_id, buf, 0);
             }
             return REMOVE_NODE_OK;
         }
@@ -1434,7 +1443,8 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
     if (graph_stream_ctx) {
         char buf[128];
         snprintf(buf, sizeof(buf), "移除约束: id=%d", cid);
-        stream_emit_simple(graph_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+        stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO,
+                                     cid, buf, 0);
     }
     return REMOVE_CONSTRAINT_OK;
 }

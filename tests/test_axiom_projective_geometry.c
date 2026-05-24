@@ -328,8 +328,8 @@ static void test_content_hash(void)
     printf("  Hash verification: %s\n",
            (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "MATCH" : "MISMATCH");
 
-    if (hash1) free(hash1);
-    if (hash2) free(hash2);
+    if (hash1) lv00_free_ptr(hash1);
+    if (hash2) lv00_free_ptr(hash2);
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);
 }
@@ -390,8 +390,8 @@ static void test_round_trip_save_load(void)
     printf("  Original hash:  %s\n", hash1 ? hash1 : "(null)");
     printf("  Reloaded hash:  %s\n", hash2 ? hash2 : "(null)");
 
-    if (hash1) free(hash1);
-    if (hash2) free(hash2);
+    if (hash1) lv00_free_ptr(hash1);
+    if (hash2) lv00_free_ptr(hash2);
     axiom_package_destroy(pkg);
     axiom_package_destroy(pkg2);
 }

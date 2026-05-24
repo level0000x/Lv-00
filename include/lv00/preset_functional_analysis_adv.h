@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_functional_analysis_adv.h
  * @brief 泛函分析进阶预设函数块 - 头文件
  *
@@ -14,8 +14,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_FUNCTIONAL_ANALYSIS_ADV_H
-#define PRESET_FUNCTIONAL_ANALYSIS_ADV_H
+#ifndef LV00_PRESET_FUNCTIONAL_ANALYSIS_ADV_H
+#define LV00_PRESET_FUNCTIONAL_ANALYSIS_ADV_H
 
 #include "preset_blocks.h"
 
@@ -30,34 +30,34 @@ extern "C" {
 /* -------------------- 空间构造 -------------------- */
 
 /** Banach空间构造：验证完备赋范线性空间 */
-#define PRESET_FA_BANACH_SPACE              "banach_space"
+#define PRESET_FA_BANACH_SPACE              "fa_adv_banach_space"
 
 /** Hilbert空间构造：验证完备内积空间 */
-#define PRESET_FA_HILBERT_SPACE             "hilbert_space"
+#define PRESET_FA_HILBERT_SPACE             "fa_adv_hilbert_space"
 
 /* -------------------- 算子理论 -------------------- */
 
 /** 有界线性算子：构造或验证有界线性算子及其范数 */
-#define PRESET_FA_BOUNDED_OPERATOR          "bounded_operator"
+#define PRESET_FA_BOUNDED_OPERATOR          "fa_adv_bounded_operator"
 
 /** 谱定理：自伴紧算子的谱分解 */
-#define PRESET_FA_SPECTRAL_THEOREM          "spectral_theorem"
+#define PRESET_FA_SPECTRAL_THEOREM          "fa_adv_spectral_theorem"
 
 /* -------------------- 三大基本定理 -------------------- */
 
 /** Hahn-Banach定理：有界线性泛函的延拓 */
-#define PRESET_FA_HAHN_BANACH_THEOREM       "hahn_banach_theorem"
+#define PRESET_FA_HAHN_BANACH_THEOREM       "fa_adv_hahn_banach_theorem"
 
 /** 开映射定理：满射有界线性算子将开集映射为开集 */
-#define PRESET_FA_OPEN_MAPPING_THEOREM      "open_mapping_theorem"
+#define PRESET_FA_OPEN_MAPPING_THEOREM      "fa_adv_open_mapping_theorem"
 
 /** 闭图像定理：线性算子有界当且仅当其图像闭 */
-#define PRESET_FA_CLOSED_GRAPH_THEOREM      "closed_graph_theorem"
+#define PRESET_FA_CLOSED_GRAPH_THEOREM      "fa_adv_closed_graph_theorem"
 
 /* -------------------- 弱拓扑 -------------------- */
 
 /** 弱收敛：序列在弱拓扑下的收敛性判定 */
-#define PRESET_FA_WEAK_CONVERGENCE          "weak_convergence"
+#define PRESET_FA_WEAK_CONVERGENCE          "fa_adv_weak_convergence"
 
 /* ============================================================
  * 模块注册函数
@@ -85,4 +85,4 @@ int preset_functional_analysis_adv_count(void);
 }
 #endif
 
-#endif /* PRESET_FUNCTIONAL_ANALYSIS_ADV_H */
+#endif /* LV00_PRESET_FUNCTIONAL_ANALYSIS_ADV_H */

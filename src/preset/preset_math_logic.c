@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_math_logic.c
  * @brief 数理逻辑预设函数块 - 实现
  *
@@ -7,7 +7,7 @@
  *
  * @module MathLogic
  * @category PRESET_CATEGORY_MATH_LOGIC
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "preset_math_logic.h"

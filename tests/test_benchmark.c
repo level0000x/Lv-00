@@ -193,7 +193,7 @@ static int test_func_block_pack_performance(void)
         assert(fb != NULL);
 
         func_block_destroy(fb);
-        free(internal_ids);
+        lv00_free_ptr(internal_ids);
         graph_destroy(g);
     }
 

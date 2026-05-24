@@ -1,6 +1,6 @@
 # Lv-00 UI系统全面优化任务汇报
 
-**版本**: v3.0.1  
+**版本**: v3.2.0  
 **日期**: 2026-05-23  
 **涉及文件**: 26 个  
 **修复问题**: 85+ 项  
@@ -133,7 +133,7 @@
 | 2 | XSS防护 | 新增 `_escapeHtml()`，`renderList()`/`search()` 中动态数据转义 |
 | 3 | CSS变量化 | 新增16个 `--assist-*` 语义CSS变量，替换所有关键硬编码颜色 |
 | 4 | 事件规范化 | 移除15+处 `onclick`/`oninput`/`onchange`，全部改为 `addEventListener` |
-| 5 | 版本号 | v2.0 → v3.0.1，添加ES版本兼容性表格注释 |
+| 5 | 版本号 | v2.0 → v3.2.0，添加ES版本兼容性表格注释 |
 | 6 | 导出安全 | `exportData()` 添加 `securityWarning` 字段 |
 
 ---
@@ -147,7 +147,7 @@
 - beforeunload清理添加步骤注释
 
 ### 4.2 help-panel.html — 版本号 + 代码风格
-- 版本号 v2.9.0 → v3.0.1
+- 版本号 v2.9.0 → v3.2.0
 - 3处 `href="#" + onclick=window.open` → 直接 `href + target="_blank" + rel="noopener noreferrer"`
 - 6处内联style提取为 `.panel-subtitle` CSS类
 - `!important` 移除：提高选择器优先级替代
@@ -230,7 +230,7 @@
 
 | 规范项 | 修改前 | 修改后 |
 |--------|--------|--------|
-| 全局版本号 | v1.0 ~ v3.0.1（5处不一致） | 统一 v3.0.1 |
+| 全局版本号 | v1.0 ~ v3.2.0（5处不一致） | 统一 v3.2.0 |
 | 日志前缀 | [Lv00] vs [Lv-00] | 统一 [Lv-00] |
 | CSS硬编码颜色 | 600+行魔法模块硬编码 | 26处改为CSS变量 |
 | 内联事件处理器 | 30+处 onclick 内联 | 全部改为 addEventListener |

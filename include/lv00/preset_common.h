@@ -9,8 +9,8 @@
  * @author Lv-00 Project
  */
 
-#ifndef PRESET_COMMON_H
-#define PRESET_COMMON_H
+#ifndef LV00_PRESET_COMMON_H
+#define LV00_PRESET_COMMON_H
 
 #include "func_block_preset.h"
 #include "lv00_internal.h"
@@ -37,9 +37,9 @@ extern "C" {
  * 容量限制（可配置）
  * ============================================================ */
 
-/** 最大预设数量 */
+/** 最大预设数量（与 lv00_internal.h 中 LV00_PRESET_MAX_COUNT 保持一致） */
 #ifndef PRESET_MAX_COUNT
-#define PRESET_MAX_COUNT 512
+#define PRESET_MAX_COUNT 1024
 #endif
 
 /** 最大参数数量 */
@@ -194,13 +194,15 @@ typedef _Atomic int PresetAtomicCounter;
 
 /**
  * @brief 安全释放内存
- * @param ptr 指针变量
+ * @param ptr 指针变量的地址（与 lv00_free 调用约定一致）
+ *
+ * 注意：lv00_free 签名为 void lv00_free(void **ptr)，因此必须传入指针的地址。
+ * 此宏封装了 NULL 检查和正确的调用约定，防止 use-after-free。
  */
 #define PRESET_SAFE_FREE(ptr) \
     do { \
         if ((ptr) != NULL) { \
-            lv00_free(ptr); \
-            (ptr) = NULL; \
+            lv00_free((void **)&(ptr)); \
         } \
     } while (0)
 
@@ -286,7 +288,36 @@ typedef _Atomic int PresetAtomicCounter;
     (sizeof((PresetType[]){__VA_ARGS__}) / sizeof(PresetType))
 
 /**
- * @brief 简化预设注册调用
+ * @brief 简化预设注册调用（带类别参数）
+ *
+ * @param name 预设名称
+ * @param desc 描述
+ * @param cat  预设类别（PresetCategory 枚举值）
+ * @param inputs 输入类型数组
+ * @param input_count 输入数量
+ * @param output 输出类型
+ * @param math_def 数学定义
+ * @param complexity 复杂度
+ * @param constructive 是否构造性
+ * @param reversible 是否可逆
+ */
+#define PRESET_REGISTER_EX(name, desc, cat, inputs, input_count, output, \
+                           math_def, complexity, constructive, reversible) \
+    do { \
+        if (preset_blocks_register_simple( \
+                (name), (desc), (cat), \
+                (inputs), (input_count), (output), \
+                (math_def), (complexity), (constructive), (reversible))) { \
+            success_count++; \
+        } else { \
+            LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, \
+                          "预设注册失败: %s", (name)); \
+        } \
+    } while (0)
+
+/**
+ * @brief 简化预设注册调用（默认类别为 CONSTRUCTION，向后兼容）
+ *
  * @param name 预设名称
  * @param desc 描述
  * @param inputs 输入类型数组
@@ -296,20 +327,15 @@ typedef _Atomic int PresetAtomicCounter;
  * @param complexity 复杂度
  * @param constructive 是否构造性
  * @param reversible 是否可逆
+ *
+ * @note 推荐使用 PRESET_REGISTER_EX 以指定正确的类别。
+ *       此宏保留仅为向后兼容，默认使用 PRESET_CATEGORY_CONSTRUCTION。
  */
 #define PRESET_REGISTER(name, desc, inputs, input_count, output, \
                        math_def, complexity, constructive, reversible) \
-    do { \
-        if (preset_blocks_register_simple( \
-                (name), (desc), PRESET_CATEGORY_CONSTRUCTION, \
-                (inputs), (input_count), (output), \
-                (math_def), (complexity), (constructive), (reversible))) { \
-            success_count++; \
-        } else { \
-            LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, \
-                          "预设注册失败: %s", (name)); \
-        } \
-    } while (0)
+    PRESET_REGISTER_EX(name, desc, PRESET_CATEGORY_CONSTRUCTION, \
+                       inputs, input_count, output, \
+                       math_def, complexity, constructive, reversible)
 
 /**
  * @brief 批量注册预设的辅助宏
@@ -506,6 +532,160 @@ bool preset_properties_from_string(const char *str,
                                    PresetProperty *properties);
 
 /* ============================================================
+ * 类型验证与边界检查函数（v12.0 新增）
+ * ============================================================ */
+
+/**
+ * @brief 验证预设输入参数数量是否在有效范围内
+ *
+ * @param input_count 输入参数数量
+ * @return true 数量有效（0 到 PRESET_MAX_INPUTS）
+ * @return false 数量无效
+ */
+bool preset_validate_input_count(int input_count);
+
+/**
+ * @brief 验证预设输出参数数量是否在有效范围内
+ *
+ * @param output_count 输出参数数量
+ * @return true 数量有效（0 到 PRESET_MAX_OUTPUTS）
+ * @return false 数量无效
+ */
+bool preset_validate_output_count(int output_count);
+
+/**
+ * @brief 验证输入类型数组的有效性
+ *
+ * 检查每个类型是否在有效范围内，并验证类型组合的合理性。
+ *
+ * @param input_types 输入类型数组
+ * @param input_count 输入数量
+ * @return true 类型数组有效
+ * @return false 类型数组无效
+ */
+bool preset_validate_input_types(const PresetType *input_types, int input_count);
+
+/**
+ * @brief 验证输出类型的有效性
+ *
+ * @param output_type 输出类型
+ * @return true 类型有效
+ * @return false 类型无效
+ */
+bool preset_validate_output_type(PresetType output_type);
+
+/**
+ * @brief 检查类型是否为基本类型（点、线、圆、标量等）
+ *
+ * @param type 预设类型
+ * @return true 是基本类型
+ * @return false 不是基本类型
+ */
+bool preset_type_is_basic(PresetType type);
+
+/**
+ * @brief 检查类型是否为代数结构类型（群、环、域等）
+ *
+ * @param type 预设类型
+ * @return true 是代数结构类型
+ * @return false 不是代数结构类型
+ */
+bool preset_type_is_algebraic(PresetType type);
+
+/**
+ * @brief 检查类型是否为分析类型（函数、极限、导数等）
+ *
+ * @param type 预设类型
+ * @return true 是分析类型
+ * @return false 不是分析类型
+ */
+bool preset_type_is_analytic(PresetType type);
+
+/**
+ * @brief 检查类型是否为拓扑类型（拓扑空间、流形等）
+ *
+ * @param type 预设类型
+ * @return true 是拓扑类型
+ * @return false 不是拓扑类型
+ */
+bool preset_type_is_topological(PresetType type);
+
+/**
+ * @brief 获取类型的类别归属
+ *
+ * 返回类型所属的主要数学领域类别。
+ *
+ * @param type 预设类型
+ * @return 类别字符串（"几何"、"代数"、"分析"、"拓扑"、"逻辑"、"通用"）
+ */
+const char* preset_type_get_domain(PresetType type);
+
+/**
+ * @brief 检查两个类型是否兼容
+ *
+ * 用于验证预设函数块的输入输出类型是否可以连接。
+ *
+ * @param source_type 源类型（输出类型）
+ * @param target_type 目标类型（输入类型）
+ * @return true 类型兼容
+ * @return false 类型不兼容
+ */
+bool preset_types_compatible(PresetType source_type, PresetType target_type);
+
+/**
+ * @brief 计算预设的签名哈希值
+ *
+ * 用于快速比较预设的类型签名是否相同。
+ *
+ * @param input_types 输入类型数组
+ * @param input_count 输入数量
+ * @param output_type 输出类型
+ * @return 签名哈希值
+ */
+uint32_t preset_compute_signature_hash(const PresetType *input_types,
+                                       int input_count,
+                                       PresetType output_type);
+
+/* ============================================================
+ * 预设元数据验证函数（v12.0 新增）
+ * ============================================================ */
+
+/**
+ * @brief 验证预设元数据的完整性
+ *
+ * 检查所有必需字段是否已正确设置。
+ *
+ * @param metadata 预设元数据
+ * @param out_error_msg 输出错误信息（可为NULL）
+ * @param error_msg_size 错误信息缓冲区大小
+ * @return true 元数据有效
+ * @return false 元数据无效
+ */
+bool preset_validate_metadata(const PresetMetadata *metadata,
+                              char *out_error_msg,
+                              size_t error_msg_size);
+
+/**
+ * @brief 验证数学定义格式
+ *
+ * 检查 LaTeX 格式的数学定义是否语法正确。
+ *
+ * @param math_def 数学定义字符串
+ * @return true 格式有效
+ * @return false 格式无效
+ */
+bool preset_validate_math_definition(const char *math_def);
+
+/**
+ * @brief 验证复杂度描述格式
+ *
+ * @param complexity 复杂度描述
+ * @return true 格式有效
+ * @return false 格式无效
+ */
+bool preset_validate_complexity(const char *complexity);
+
+/* ============================================================
  * 调试和日志宏
  * ============================================================ */
 
@@ -548,4 +728,4 @@ bool preset_properties_from_string(const char *str,
 }
 #endif
 
-#endif /* PRESET_COMMON_H */
+#endif /* LV00_PRESET_COMMON_H */

@@ -9,7 +9,7 @@ Lv-00 几何约束类型模块
     - ContainmentConstraint: 包含约束（区域包含关系）
     - ConnectionConstraint: 连接约束（端口连接）
 
-版本：3.0.1
+版本：3.2.0
 作者：Lv-00 开发团队
 """
 
@@ -29,6 +29,8 @@ class Constraint:
     属性：
         name: 约束类型名称，如 "incidence"、"betweenness" 等
     """
+
+    __slots__ = ('name',)
 
     def __init__(self, name: str) -> None:
         """
@@ -65,7 +67,9 @@ class IncidenceConstraint(Constraint):
         target: 点所在的目标（LineSegment 或区域对象）
     """
 
-    def __init__(self, point: Any, target: Any) -> None:
+    __slots__ = ('point', 'target')
+
+    def __init__(self, point: Point, target: Union[Point, LineSegment]) -> None:
         """
         创建关联约束。
 
@@ -101,7 +105,9 @@ class BetweennessConstraint(Constraint):
         p3: 位于 p1 和 p2 之间的点（Point 对象）
     """
 
-    def __init__(self, p1: Any, p2: Any, p3: Any) -> None:
+    __slots__ = ('p1', 'p2', 'p3')
+
+    def __init__(self, p1: Point, p2: Point, p3: Point) -> None:
         """
         创建介子约束。
 
@@ -147,7 +153,9 @@ class IntersectionConstraint(Constraint):
         point: 交点（Point 对象）
     """
 
-    def __init__(self, line1: Any, line2: Any, point: Any) -> None:
+    __slots__ = ('line1', 'line2', 'point')
+
+    def __init__(self, line1: LineSegment, line2: LineSegment, point: Point) -> None:
         """
         创建交点约束。
 
@@ -188,6 +196,8 @@ class ContainmentConstraint(Constraint):
         outer: 外部区域对象
     """
 
+    __slots__ = ('inner', 'outer')
+
     def __init__(self, inner: Any, outer: Any) -> None:
         """
         创建包含约束。
@@ -224,6 +234,8 @@ class ConnectionConstraint(Constraint):
         src_port: 源端口对象（输出端口）
         dst_port: 目标端口对象（输入端口）
     """
+
+    __slots__ = ('src_port', 'dst_port')
 
     def __init__(self, src_port: Any, dst_port: Any) -> None:
         """

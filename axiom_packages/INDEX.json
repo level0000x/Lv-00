@@ -2,7 +2,7 @@
   "$schema": "https://lv00.dev/schemas/package-index-v1.json",
   "registry_version": "1.0",
   "registry_name": "Lv-00 Axiom Package Registry",
-  "last_updated": "2026-05-23",
+  "last_updated": "2026-05-24",
   "packages": {
     "euclidean_plane": {
       "version": "1.0.0",
@@ -447,6 +447,72 @@
       "manifest_path": null,
       "axiom_file": "homological_algebra.lvz",
       "test_file": "test_axiom_homological_algebra.c",
+      "test_save": null
+    },
+    "universal_algebra": {
+      "version": "1.0.0",
+      "category": "algebra",
+      "layers": ["universal"],
+      "dependencies": [],
+      "description": "Universal algebra axioms -- signatures, equational theories, varieties, Birkhoff's HSP theorem",
+      "manifest_path": null,
+      "axiom_file": "universal_algebra.lvz",
+      "test_file": "test_axiom_universal_algebra.c",
+      "test_save": "universal_algebra_test_save.lvz"
+    },
+    "order_theory": {
+      "version": "1.0.0",
+      "category": "algebra",
+      "layers": ["partial_order", "total_order", "well_order", "bounds", "morphisms", "constructions"],
+      "dependencies": ["zfc_set_theory", "lattice_theory"],
+      "description": "Order theory -- partial orders, total orders, well-orders, bounds, Zorn's Lemma, Dilworth's Theorem, Knaster-Tarski Fixed Point Theorem",
+      "manifest_path": null,
+      "axiom_file": "order_theory.lvz",
+      "test_file": "test_axiom_order_theory.c",
+      "test_save": null
+    },
+    "graph_theory": {
+      "version": "1.0.0",
+      "category": "discrete_math",
+      "layers": ["incidence", "adjacency", "connectivity", "cycles_trees", "operations", "matching_covering", "coloring", "planarity", "spectral"],
+      "dependencies": ["zfc_set_theory", "combinatorics"],
+      "description": "Graph theory -- finite undirected simple graphs, incidence structure, paths, cycles, trees, matching, coloring, planarity, 70 templates, 14 NP-complete problems",
+      "manifest_path": null,
+      "axiom_file": "graph_theory.lvz",
+      "test_file": "test_axiom_graph_theory.c",
+      "test_save": null
+    },
+    "ergodic_theory": {
+      "version": "1.0.0",
+      "category": "analysis",
+      "layers": ["measure_preserving_system", "ergodicity", "mixing_hierarchy", "ergodic_theorems", "entropy_theory", "spectral_theory", "classification", "examples", "constructors"],
+      "dependencies": ["measure_theory", "real_analysis", "zfc_set_theory"],
+      "description": "Ergodic theory -- measure-preserving transformations, ergodicity, mixing hierarchy (weak/strong/K/Bernoulli), Birkhoff and von Neumann ergodic theorems, Kolmogorov-Sinai entropy, Ornstein isomorphism, spectral analysis",
+      "manifest_path": null,
+      "axiom_file": "ergodic_theory.lvz",
+      "test_file": "test_axiom_ergodic_theory.c",
+      "test_save": null
+    },
+    "probability_theory": {
+      "version": "1.0.0",
+      "category": "analysis",
+      "layers": ["kolmogorov_axioms", "conditional_probability", "random_variables", "limit_theorems", "stochastic_processes"],
+      "dependencies": ["measure_theory"],
+      "description": "Probability theory (Kolmogorov 1933) -- probability spaces, random variables, expectation, limit theorems, stochastic processes",
+      "manifest_path": null,
+      "axiom_file": "probability_theory.lvz",
+      "test_file": "test_axiom_probability_theory.c",
+      "test_save": null
+    },
+    "robin_arithmetic": {
+      "version": "1.0.0",
+      "category": "foundations",
+      "layers": ["robin_arithmetic"],
+      "dependencies": [],
+      "description": "Robinson Arithmetic (Q) -- finitely axiomatized fragment of PA, 7 axioms, no induction, essentially undecidable, weakest theory for Godel's first incompleteness theorem",
+      "manifest_path": null,
+      "axiom_file": "robin_arithmetic.lvz",
+      "test_file": "test_axiom_robin_arithmetic.c",
       "test_save": null
     }
   }

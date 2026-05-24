@@ -300,6 +300,55 @@ bool func_block_set_name(FuncBlock *fb, const char *name);
 bool func_block_set_description(FuncBlock *fb, const char *description);
 
 /**
+ * @brief 获取输入端口数量
+ * @param fb 函数块指针
+ * @return 输入端口数量，fb 为 NULL 时返回 0
+ */
+int func_block_get_input_count(const FuncBlock *fb);
+
+/**
+ * @brief 获取输出端口数量
+ * @param fb 函数块指针
+ * @return 输出端口数量，fb 为 NULL 时返回 0
+ */
+int func_block_get_output_count(const FuncBlock *fb);
+
+/**
+ * @brief 获取内部节点数量
+ * @param fb 函数块指针
+ * @return 内部节点数量，fb 为 NULL 时返回 0
+ */
+int func_block_get_internal_count(const FuncBlock *fb);
+
+/**
+ * @brief 获取函数块ID
+ * @param fb 函数块指针
+ * @return 函数块ID，fb 为 NULL 时返回 -1
+ */
+int func_block_get_id(const FuncBlock *fb);
+
+/**
+ * @brief 获取确定性状态
+ * @param fb 函数块指针
+ * @return 确定性状态，fb 为 NULL 时返回 DETERMINISM_UNVERIFIED
+ */
+DeterminismState func_block_get_determinism(const FuncBlock *fb);
+
+/**
+ * @brief 获取函数块名称
+ * @param fb 函数块指针
+ * @return 名称字符串（只读），fb 为 NULL 或无名称时返回 NULL
+ */
+const char *func_block_get_name(const FuncBlock *fb);
+
+/**
+ * @brief 获取函数块描述
+ * @param fb 函数块指针
+ * @return 描述字符串（只读），fb 为 NULL 或无描述时返回 NULL
+ */
+const char *func_block_get_description(const FuncBlock *fb);
+
+/**
  * @brief 深拷贝函数块
  *
  * 创建一个函数块的完整深拷贝，包括所有动态分配的成员。

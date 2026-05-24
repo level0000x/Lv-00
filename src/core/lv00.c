@@ -1,9 +1,14 @@
-﻿/**
+/**
  * @file lv00.c
  * @brief Lv-00 几何元语言系统主实现
  *
- * 实现系统初始化、清理和全局管理功能。
- * 包含嵌套初始化支持、配置管理、健康检查和便捷API。
+ * @details 实现系统初始化、清理和全局管理功能。
+ *          包含嵌套初始化支持、配置管理、健康检查和便捷API。
+ *          作为整个 Lv-00 系统的入口模块，负责协调各子系统的
+ *          生命周期管理。
+ *
+ * @version 3.2.0
+ * @author Lv-00 Team
  */
 
 #include "lv00.h"
@@ -12,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "func_block_registry.h"
 
 /* ============================================================
  * 全局状态管理
@@ -198,7 +204,10 @@ void lv00_cleanup(void) {
         config_manager_destroy(g_config);
         g_config = NULL;
     }
-    
+
+    /* 清理函数块注册表 */
+    func_block_registry_cleanup();
+
     /* 输出内存统计 */
     MemoryStats stats;
     lv00_get_memory_stats(&stats);
@@ -353,6 +362,12 @@ void lv00_engine_destroy(LV00Engine *engine) {
 int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, 
                    int64_t y_num, uint64_t y_den) {
     if (!engine || !engine->main_graph) return -1;
+    /* 参数校验：分母不能为零 */
+    if (x_den == 0 || y_den == 0) {
+        LOG_ERROR("lv00", "lv00_add_point: 分母不能为零 (x_den=%llu, y_den=%llu)",
+                  (unsigned long long)x_den, (unsigned long long)y_den);
+        return -1;
+    }
     
     SymbolicCoord *x = symbolic_coord_create_rational(x_num, x_den);
     SymbolicCoord *y = symbolic_coord_create_rational(y_num, y_den);

@@ -27,7 +27,7 @@
  *          支持用户注册自定义推理规则以扩展推断能力。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  *
  * @dependencies
  *   - type_system.h        : 类型系统公共接口定义
@@ -267,12 +267,19 @@ static TypeRegion *type_region_create(TypeSystem *ts, TypeKind kind) {
 
     /* 添加到类型系统 */
     if (ts->type_region_count >= INT_MAX) { lv00_free((void **)&tr); return NULL; }
-    int new_count = ts->type_region_count + 1;
-    TypeRegion **new_arr = (TypeRegion **)lv00_realloc(ts->type_regions, new_count * sizeof(TypeRegion*));
+    /* 指数扩容策略：避免 O(n²) 的逐次 realloc */
+    int new_capacity = ts->type_region_capacity == 0
+        ? LV00_INITIAL_ARRAY_CAPACITY
+        : ts->type_region_capacity * LV00_ARRAY_GROWTH_FACTOR;
+    if (new_capacity <= ts->type_region_count) {
+        new_capacity = ts->type_region_count + 1;  /* 防止容量不足 */
+    }
+    TypeRegion **new_arr = (TypeRegion **)lv00_realloc(ts->type_regions, (size_t)new_capacity * sizeof(TypeRegion*));
     if (!new_arr) { lv00_free((void **)&tr); return NULL; }
     ts->type_regions = new_arr;
-    ts->type_region_count = new_count;
-    ts->type_regions[new_count - 1] = tr;
+    ts->type_region_capacity = new_capacity;
+    ts->type_region_count++;
+    ts->type_regions[ts->type_region_count - 1] = tr;
 
     tr->id = ts->type_region_count;
     return tr;
@@ -2559,7 +2566,7 @@ struct PathExplorer {
  * @param src 源类型区域
  * @return 新分配的深拷贝，失败返回 NULL
  */
-static TypeRegion *type_region_deep_copy(const TypeRegion *src) {
+TypeRegion *type_region_deep_copy(const TypeRegion *src) {
     if (!src) return NULL;
 
     TypeRegion *dst = (TypeRegion *)lv00_calloc(1, sizeof(TypeRegion));
@@ -2635,7 +2642,7 @@ static TypeRegion *type_region_deep_copy(const TypeRegion *src) {
  *
  * @param tr 要释放的类型区域
  */
-static void type_region_deep_free(TypeRegion *tr) {
+void type_region_deep_free(TypeRegion *tr) {
     if (!tr) return;
 
     /* 递归释放子类型 */
@@ -2969,7 +2976,7 @@ const ExplorerStep *path_explorer_get_steps(const PathExplorer *explorer) {
     return explorer->steps;
 }
 
-TypeRegion *path_explorer_get_current(const PathExplorer *explorer) {
+const TypeRegion *path_explorer_get_current(const PathExplorer *explorer) {
     if (!explorer) return NULL;
     return explorer->current;
 }

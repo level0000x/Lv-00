@@ -26,13 +26,13 @@ void unify_set_stream_context(StreamContext *ctx);
 
 /* 合一检查状态枚举 */
 typedef enum {
-    UNIFY_STATUS_OK,
-    UNIFY_STATUS_PORT_TYPE_MISMATCH,
-    UNIFY_STATUS_CONSTRAINT_MISMATCH,
-    UNIFY_STATUS_COORD_MISMATCH,
-    UNIFY_STATUS_STRUCTURE_MISMATCH,
-    UNIFY_STATUS_SCOPE_MISMATCH,
-    UNIFY_STATUS_FAILED
+    UNIFY_STATUS_OK,                     /* 合一成功 */
+    UNIFY_STATUS_PORT_TYPE_MISMATCH,     /* 端口类型不匹配 */
+    UNIFY_STATUS_CONSTRAINT_MISMATCH,    /* 约束不匹配 */
+    UNIFY_STATUS_COORD_MISMATCH,         /* 坐标不匹配 */
+    UNIFY_STATUS_STRUCTURE_MISMATCH,     /* 结构不匹配 */
+    UNIFY_STATUS_SCOPE_MISMATCH,         /* 作用域不匹配 */
+    UNIFY_STATUS_FAILED                  /* 合一失败 */
 } UnifyStatus;
 
 /**

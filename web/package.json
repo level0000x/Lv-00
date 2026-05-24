@@ -1,6 +1,6 @@
 {
   "name": "lv00-web",
-  "version": "3.0.1",
+  "version": "3.2.0",
   "description": "Lv-00 Symbolic Geometry Engine - Web Frontend",
   "private": true,
   "main": "index.html",

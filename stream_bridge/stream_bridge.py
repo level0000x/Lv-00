@@ -30,7 +30,7 @@ Lv-00 Stream Bridge - C 引擎流式事件到 JSON Lines 的桥接服务器模�
   python stream_bridge.py demo --scenario triangle  # 演示模式
 
 @author Lv-00 Project
-@version 3.1.0
+@version 3.2.0
 """
 
 import sys

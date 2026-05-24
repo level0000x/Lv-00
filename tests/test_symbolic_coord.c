@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include "lv00_utils.h"
 
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -61,7 +62,7 @@ void test_rational_arithmetic() {
 
     char *ser = rational_serialize(sum);
     assert(strstr(ser, "5/6") != NULL);
-    free(ser);
+    lv00_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
     Rational *parsed = rational_parse("3/4");
@@ -130,7 +131,7 @@ void test_symbolic_coord_rational() {
 
     char *ser = symbolic_coord_serialize(coord);
     assert(ser != NULL);
-    free(ser);
+    lv00_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
     symbolic_coord_destroy(coord);
@@ -260,7 +261,7 @@ void test_transcendental() {
 
     char *ser = transcendental_serialize(pi);
     assert(ser != NULL);
-    free(ser);
+    lv00_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
     transcendental_destroy(pi);

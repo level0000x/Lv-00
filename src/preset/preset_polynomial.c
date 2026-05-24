@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_polynomial.c
  * @brief 多项式理论预设函数块 - 实现
  *
@@ -8,7 +8,7 @@
  *
  * @module Polynomial
  * @category PRESET_CATEGORY_ALGEBRA
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "lv00_internal.h"

@@ -1,7 +1,7 @@
 {
   "name": "lv00-gui",
   "private": true,
-  "version": "3.0.1",
+  "version": "3.2.0",
   "type": "module",
   "description": "Lv-00 Symbolic Geometry Engine - React GUI",
   "scripts": {

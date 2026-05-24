@@ -979,6 +979,12 @@
     color: var(--color-text-muted);
 }
 .stream-filter-btn:hover { background: var(--color-bg-overlay); }
+.stream-filter-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
 .stream-filter-label { letter-spacing: 0.3px; }
 .stream-filter-count {
     background: var(--color-bg-tertiary);
@@ -1013,6 +1019,419 @@
     padding: 30px 10px;
     font-size: var(--font-size-base);
     font-style: italic;
+}
+
+/* ================================================================
+ * Stream Timeline / 流式时间线
+ * ================================================================ */
+
+.stream-timeline {
+    position: relative;
+    padding: 8px 0;
+}
+
+.stream-timeline-group {
+    margin-bottom: 8px;
+}
+
+.stream-timeline-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    user-select: none;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stream-timeline-group-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.stream-timeline-group-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.stream-timeline-group-label {
+    flex: 1;
+}
+
+.stream-timeline-group-count {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-muted);
+}
+
+.stream-timeline-group-toggle {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    transition: transform 0.2s;
+}
+
+.stream-timeline-group-toggle.collapsed {
+    transform: rotate(-90deg);
+}
+
+.stream-timeline-nodes {
+    position: relative;
+    margin-left: 20px;
+    padding-left: 16px;
+    border-left: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.stream-timeline-node {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 3px 0;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.stream-timeline-node:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.stream-timeline-node.selected {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.stream-timeline-node-dot {
+    position: absolute;
+    left: -21px;
+    top: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid;
+    background: var(--color-bg-primary);
+    flex-shrink: 0;
+}
+
+.stream-timeline-node.selected .stream-timeline-node-dot {
+    box-shadow: 0 0 6px currentColor;
+}
+
+.stream-timeline-node-time {
+    font-size: 9px;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    min-width: 48px;
+    flex-shrink: 0;
+    padding-top: 1px;
+}
+
+.stream-timeline-node-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+}
+
+.stream-timeline-node-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.stream-timeline-node-type {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.stream-timeline-node-desc {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stream-timeline-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 9px;
+    color: var(--color-text-muted);
+    flex-wrap: wrap;
+}
+
+.stream-timeline-stats-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.stream-timeline-stats-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+/* ================================================================
+ * Stream Search / 流式搜索
+ * ================================================================ */
+
+.stream-search {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.stream-search-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stream-search-input {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: var(--color-text-primary);
+    outline: none;
+}
+
+.stream-search-input:focus {
+    border-color: var(--color-accent);
+}
+
+.stream-search-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.stream-search-clear-btn {
+    padding: 3px 8px;
+    font-size: 9px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.stream-search-clear-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-primary);
+}
+
+.stream-search-status {
+    font-size: 9px;
+    color: var(--color-text-muted);
+    padding: 2px 0;
+}
+
+.stream-search-advanced {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stream-search-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.stream-search-cat-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+}
+
+.stream-search-cat-checkbox:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.stream-search-cat-checkbox input[type="checkbox"] {
+    margin: 0;
+    width: 10px;
+    height: 10px;
+}
+
+.stream-search-range-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.stream-search-range-label {
+    font-size: 9px;
+    color: var(--color-text-muted);
+    min-width: 40px;
+}
+
+.stream-search-range-input {
+    padding: 2px 4px;
+    font-size: 9px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    color: var(--color-text-primary);
+    outline: none;
+    width: 80px;
+}
+
+.stream-search-range-input:focus {
+    border-color: var(--color-accent);
+}
+
+.stream-search-highlight {
+    background: rgba(88, 166, 255, 0.3);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* ================================================================
+ * Stream Export / 流式导出
+ * ================================================================ */
+
+.stream-export {
+    position: relative;
+    display: inline-block;
+}
+
+.stream-export-btn {
+    padding: 2px 6px;
+    font-size: 11px;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.stream-export-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-primary);
+}
+
+.stream-export-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 100;
+    min-width: 200px;
+    padding: 6px;
+    background: var(--color-bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stream-export-section {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stream-export-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.stream-export-section-title {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.stream-export-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.stream-export-option:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-primary);
+}
+
+.stream-export-option.active {
+    color: var(--color-accent);
+}
+
+.stream-export-action {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: 10px;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+}
+
+.stream-export-action:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-accent);
+}
+
+.stream-export-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-accent);
+    border-radius: 6px;
+    color: var(--color-text-primary);
+    font-size: 12px;
+    z-index: 1000;
+    animation: stream-export-toast-in 0.2s ease-out;
+}
+
+@keyframes stream-export-toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Stream Event Item / 流事件项 */

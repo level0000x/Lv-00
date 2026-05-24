@@ -7,6 +7,17 @@
  *              自定义 Hook，用于管理 SSE（服务器发送事件）连接、
  *              解析流式事件、自动重连和事件过滤。
  *              与 Zustand store 集成进行状态管理。
+ *
+ * *** DEPRECATED (2026-05-24) ***
+ * 本 Hook 已被 useEngineStream (hooks/useEngineStream.ts) 取代。
+ *
+ * useEngineStream 提供了更完整的功能：
+ * - WebSocket 连接（替代 SSE/EventSource）
+ * - 8 类别过滤器体系（与 C 核心 stream.h 对齐）
+ * - StreamManager 统一事件管理
+ * - 引擎事件自动同步到 aiStore
+ *
+ * 本文件保留仅为向后兼容，新代码请使用 useEngineStream。
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -200,6 +211,7 @@ export function useStreaming(options: UseStreamingOptions = {}): UseStreamingRet
           // 检查此事件类型是否通过过滤器
           const category = getEventCategory(streamingEvent.type);
           if (!filterCategories || filterCategories.includes(category)) {
+            // @ts-expect-error deprecated -- addStreamEvent now expects EngineStreamEvent, this file is deprecated
             addStreamEvent(streamingEvent);
             incrementStreamFilterCount(category);
           }
@@ -267,6 +279,7 @@ export function useStreaming(options: UseStreamingOptions = {}): UseStreamingRet
    */
   const addSimulatedEvent = useCallback(
     (event: StreamingEvent) => {
+      // @ts-expect-error deprecated -- addStreamEvent now expects EngineStreamEvent, this file is deprecated
       addStreamEvent(event);
       const category = getEventCategory(event.type);
       incrementStreamFilterCount(category);
@@ -298,7 +311,9 @@ export function useStreaming(options: UseStreamingOptions = {}): UseStreamingRet
     connected,
     reconnecting,
     reconnectAttempts,
+    // @ts-expect-error deprecated
     events: streamingEvents,
+    // @ts-expect-error deprecated
     filters: streamFilters,
     connect,
     disconnect,

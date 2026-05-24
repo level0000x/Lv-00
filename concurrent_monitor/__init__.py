@@ -26,33 +26,42 @@
     >>> monitor = CLIMonitor(engine)
     >>> monitor.run()
 
-版本: 3.0.1
+版本: 3.2.0
 作者: Lv-00 Team
 """
 
-__version__ = "3.0.1"
+__version__ = "3.2.0"
 __author__ = "Lv-00 Team"
 
 # 核心组件导出
+# [迁移说明] 以下 try/except ImportError 回退路径是为了向后兼容旧版单文件结构。
+# 旧版代码将所有组件放在 concurrent_monitor/monitor_engine.py 单个文件中，
+# 新版已重构为 concurrent_monitor/core/ 包结构。
+# 回退路径引用的 .monitor_engine 文件为旧版遗留文件，新项目不应依赖此回退机制。
+# 如果新包结构导入成功，旧文件将不会被加载。
 try:
     from .core.engine import MonitorEngine
 except ImportError:
-    from .monitor_engine import MonitorEngine
+    from .monitor_engine import MonitorEngine  # 旧版单文件回退（已废弃，请迁移到 .core.engine）
 
 try:
     from .core.models import ProcessInfo, OutputLine, ProcessStatus
 except ImportError:
-    from .monitor_engine import ProcessInfo, OutputLine, ProcessStatus
+    from .monitor_engine import ProcessInfo, OutputLine, ProcessStatus  # 旧版单文件回退（已废弃）
 
 try:
     from .core.events import EventBus, EventType
 except ImportError:
+    # 事件系统是可选依赖，旧版可能不包含此模块
+    # 设置为 None 后，使用方需自行检查是否可用
     EventBus = None
     EventType = None
 
 try:
     from .core.config import Config, ConfigManager
 except ImportError:
+    # 配置管理是可选依赖，旧版可能不包含此模块
+    # 设置为 None 后，使用方需自行检查是否可用
     Config = None
     ConfigManager = None
 
@@ -82,21 +91,27 @@ except ImportError:
     from .web_dashboard import WebDashboard, launch_web_dashboard  # 旧版回退
 
 # 工具函数导出
+# [迁移说明] 以下工具函数的 try/except 回退路径同样用于向后兼容。
+# 新版已将工具函数拆分到 concurrent_monitor/utils/ 包中。
+# 回退时将对应变量设为 None，调用方在使用前应进行 None 检查。
 try:
     from .utils.logger import get_logger, setup_logging
 except ImportError:
+    # 日志模块缺失时设为 None，系统将无法使用统一日志功能
     get_logger = None
     setup_logging = None
 
 try:
     from .utils.validators import validate_process_id, validate_command
 except ImportError:
+    # 验证器模块缺失时设为 None，API 输入验证功能将不可用
     validate_process_id = None
     validate_command = None
 
 try:
     from .utils.constants import DEFAULT_CONFIG
 except ImportError:
+    # 默认配置缺失时设为 None，系统将使用硬编码的默认值
     DEFAULT_CONFIG = None
 
 __all__ = [

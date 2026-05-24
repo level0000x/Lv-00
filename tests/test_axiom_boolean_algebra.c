@@ -266,7 +266,7 @@ static void test_content_hash(void)
 
     if (hash) {
         printf("  SHA-256: %s\n", hash);
-        free(hash);
+        lv00_free_ptr(hash);
     }
 
     axiom_package_destroy(pkg);
@@ -309,8 +309,8 @@ static void test_round_trip(void)
     printf("  Hash match: %s\n",
            (hash1 && hash2 && strcmp(hash1, hash2) == 0) ? "YES" : "NO");
 
-    free(hash1);
-    free(hash2);
+    lv00_free_ptr(hash1);
+    lv00_free_ptr(hash2);
     axiom_package_destroy(pkg1);
     axiom_package_destroy(pkg2);
 }

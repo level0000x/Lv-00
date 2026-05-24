@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_blocks.c
  * @brief 预设函数块扩展系统 - 实现
  *
@@ -71,6 +71,34 @@ extern bool preset_lattice_theory_register(void);
 extern bool preset_category_theory_adv_register(void);
 /* ---- v10.0 新增：特殊函数模块 ---- */
 extern bool preset_special_functions_register(void);
+/* ---- v11.0 新增：高级微分几何模块 ---- */
+extern bool preset_differential_geometry_adv_register(void);
+/* ---- v11.0 新增：概率论与数理统计模块 ---- */
+extern bool preset_probability_statistics_register(void);
+/* ---- v11.0 修复：数值分析模块注册 ---- */
+extern bool preset_numerical_analysis_register(void);
+/* ---- v11.0 新增：数学物理方程模块 ---- */
+extern bool preset_mathematical_physics_register(void);
+/* ---- v11.0 新增：动力系统模块 ---- */
+extern bool preset_dynamical_systems_register(void);
+/* ---- v11.0 新增：算术几何模块 ---- */
+extern bool preset_arithmetic_geometry_register(void);
+/* ---- v11.0 新增：代数几何模块 ---- */
+extern bool preset_algebraic_geometry_register(void);
+/* ---- v11.0 新增：同调代数模块 ---- */
+extern bool preset_homological_algebra_register(void);
+/* ---- v11.0 新增：李理论高级模块 ---- */
+extern bool preset_lie_theory_advanced_register(void);
+/* ---- v12.0 新增：随机过程模块 ---- */
+extern bool preset_stochastic_processes_register(void);
+/* ---- v12.0 新增：博弈论模块 ---- */
+extern bool preset_game_theory_register(void);
+/* ---- v12.0 新增：信息论模块 ---- */
+extern bool preset_information_theory_register(void);
+/* ---- v12.0 新增：编码理论模块 ---- */
+extern bool preset_coding_theory_register(void);
+/* ---- v12.0 新增：差分方程模块 ---- */
+extern bool preset_difference_equations_register(void);
 
 /* ==================== 命名常量 ==================== */
 
@@ -425,7 +453,7 @@ bool preset_blocks_init(void)
     if (!preset_differential_geometry_register()) {
         LV00_LOG_WARNING("微分几何模块预设注册部分失败");
     }
-#endif /* LV00_EXCLUDE_BROKEN_PRESETS */
+#endif
 
     /* 注册优化理论模块（新增 v5.0） */
     if (!preset_optimization_register()) {
@@ -502,7 +530,7 @@ bool preset_blocks_init(void)
     if (!preset_functional_analysis_register()) {
         LV00_LOG_WARNING("泛函分析模块预设注册部分失败");
     }
-#endif /* LV00_EXCLUDE_BROKEN_PRESETS */
+#endif
 
     /* 注册代数拓扑进阶模块（新增 v7.0） */
     if (!preset_algebraic_topology_adv_register()) {
@@ -561,6 +589,89 @@ bool preset_blocks_init(void)
         LV00_LOG_WARNING("进阶范畴论模块预设注册部分失败");
     }
 
+    /* ---- v11.0 新增：高级微分几何模块接入 ---- */
+    /* 高级微分几何（differential_geometry_adv）：切空间/Riemann度量/测地线/Levi-Civita连接/曲率张量/Gauss-Bonnet，共8个预设 */
+    if (!preset_differential_geometry_adv_register()) {
+        LV00_LOG_WARNING("高级微分几何模块预设注册部分失败");
+    }
+
+    /* ---- v11.0 新增：概率论与数理统计模块接入 ---- */
+    /* 概率论与数理统计（probability_statistics）：概率空间/随机变量/分布/统计推断，共35个预设 */
+    if (!preset_probability_statistics_register()) {
+        LV00_LOG_WARNING("概率论与数理统计模块预设注册部分失败");
+    }
+
+    /* ---- v11.0 修复：数值分析模块接入（之前遗漏） ---- */
+    if (!preset_numerical_analysis_register()) {
+        LV00_LOG_WARNING("数值分析模块预设注册部分失败");
+    }
+
+    /* ---- v11.0 新增：代数几何模块接入 ---- */
+    /* 代数几何（algebraic_geometry）：仿射簇/射影簇/Gröbner基/奇点理论，共25个预设 */
+    if (!preset_algebraic_geometry_register()) {
+        LV00_LOG_WARNING("代数几何模块预设注册部分失败");
+    }
+
+    /* ---- v11.0 新增：同调代数模块接入 ---- */
+    /* 同调代数（homological_algebra）：链复形/正合序列/导出函子/谱序列，共25个预设 */
+    if (!preset_homological_algebra_register()) {
+        LV00_LOG_WARNING("同调代数模块预设注册部分失败");
+    }
+
+    /* ---- v11.0 新增：李理论高级模块接入 ---- */
+    /* 李理论高级（lie_theory_advanced）：根系/表示论/泛包络代数，共25个预设 */
+    if (!preset_lie_theory_advanced_register()) {
+        LV00_LOG_WARNING("李理论高级模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：数学物理方程模块接入 ---- */
+    /* 数学物理方程（mathematical_physics）：波动/热传导/位势/量子/电磁/流体，共25个预设 */
+    if (!preset_mathematical_physics_register()) {
+        LV00_LOG_WARNING("数学物理方程模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：动力系统模块接入 ---- */
+    /* 动力系统（dynamical_systems）：稳定性/分岔/极限环/混沌/流形/渐近，共25个预设 */
+    if (!preset_dynamical_systems_register()) {
+        LV00_LOG_WARNING("动力系统模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：算术几何模块接入 ---- */
+    /* 算术几何（arithmetic_geometry）：椭圆曲线/模形式/Diophantine/代数数论/p-adic，共25个预设 */
+    if (!preset_arithmetic_geometry_register()) {
+        LV00_LOG_WARNING("算术几何模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：随机过程模块接入 ---- */
+    /* 随机过程（stochastic_processes）：马尔可夫链/泊松过程/布朗运动/鞅论/随机游走，共25个预设 */
+    if (!preset_stochastic_processes_register()) {
+        LV00_LOG_WARNING("随机过程模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：博弈论模块接入 ---- */
+    /* 博弈论（game_theory）：策略型博弈/合作博弈/展开型博弈/特殊博弈模型，共20个预设 */
+    if (!preset_game_theory_register()) {
+        LV00_LOG_WARNING("博弈论模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：信息论模块接入 ---- */
+    /* 信息论（information_theory）：信息度量/信道理论/率失真理论/信息论应用，共20个预设 */
+    if (!preset_information_theory_register()) {
+        LV00_LOG_WARNING("信息论模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：编码理论模块接入 ---- */
+    /* 编码理论（coding_theory）：线性码/循环码与BCH码/码的界与性能/编码应用，共18个预设 */
+    if (!preset_coding_theory_register()) {
+        LV00_LOG_WARNING("编码理论模块预设注册部分失败");
+    }
+
+    /* ---- v12.0 新增：差分方程模块接入 ---- */
+    /* 差分方程（difference_equations）：线性差分方程/非线性差分方程/Z变换/差分方程应用，共18个预设 */
+    if (!preset_difference_equations_register()) {
+        LV00_LOG_WARNING("差分方程模块预设注册部分失败");
+    }
+
     g_preset_registry.initialized = true;
     return true;
 }
@@ -608,15 +719,26 @@ PresetBlockMetadata *preset_blocks_get_metadata(const char *name)
 
     PresetBlockMetadata *result = lv00_malloc(sizeof(PresetBlockMetadata));
     if (result) {
-        result->name = entry->name;
-        result->description = entry->description;
-        result->mathematical_definition = entry->mathematical_definition;
+        /* 深拷贝字符串字段，确保返回的元数据生命周期独立于注册表 */
+        result->name = entry->name ? lv00_strdup(entry->name) : NULL;
+        result->description = entry->description ? lv00_strdup(entry->description) : NULL;
+        result->mathematical_definition = entry->mathematical_definition ? lv00_strdup(entry->mathematical_definition) : NULL;
         result->category = entry->category;
         result->input_count = entry->input_count;
         result->output_count = entry->output_count;
         result->has_selector = entry->has_selector;
-        result->preconditions = entry->preconditions;
-        result->example_usage = entry->example_usage;
+        result->preconditions = entry->preconditions ? lv00_strdup(entry->preconditions) : NULL;
+        result->example_usage = entry->example_usage ? lv00_strdup(entry->example_usage) : NULL;
+
+        /* 若关键字符串分配失败，回滚已分配的内存 */
+        if (entry->name && !result->name) {
+            lv00_free((void **)&result->description);
+            lv00_free((void **)&result->mathematical_definition);
+            lv00_free((void **)&result->preconditions);
+            lv00_free((void **)&result->example_usage);
+            lv00_free((void **)&result);
+            result = NULL;
+        }
     }
 
     PRESET_REGISTRY_UNLOCK();
@@ -1058,26 +1180,44 @@ char *preset_blocks_generate_documentation(void)
 
 char *preset_blocks_generate_single_doc(const char *name)
 {
+    PRESET_REGISTRY_LOCK();
+
     int idx = find_preset_index(name);
-    if (idx < 0) return NULL;
+    if (idx < 0) {
+        PRESET_REGISTRY_UNLOCK();
+        return NULL;
+    }
 
     InternalPresetEntry *entry = &g_preset_registry.entries[idx];
     size_t size = 2048;
 
     char *doc = lv00_malloc(size);
-    if (!doc) return NULL;
+    if (!doc) {
+        PRESET_REGISTRY_UNLOCK();
+        return NULL;
+    }
 
+    /* 在锁保护下复制需要的数据 */
+    const char *entry_name = entry->name ? entry->name : "未知";
+    const char *entry_cat = preset_extended_category_to_string(entry->category);
+    const char *entry_desc = entry->description ? entry->description : "无描述";
+    int entry_in = entry->input_count;
+    int entry_out = entry->output_count;
+
+    PRESET_REGISTRY_UNLOCK();
+
+    /* 在锁外执行格式化操作（不访问共享数据） */
     snprintf(doc, size,
         "## %s\n\n"
         "**类别**: %s\n\n"
         "**描述**: %s\n\n"
         "**输入端口**: %d\n\n"
         "**输出端口**: %d\n",
-        entry->name,
-        preset_extended_category_to_string(entry->category),
-        entry->description ? entry->description : "无描述",
-        entry->input_count,
-        entry->output_count);
+        entry_name,
+        entry_cat,
+        entry_desc,
+        entry_in,
+        entry_out);
 
     return doc;
 }

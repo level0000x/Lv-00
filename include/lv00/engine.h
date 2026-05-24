@@ -45,10 +45,10 @@ typedef struct LV00Engine {
     int rewrite_rule_count;
     int rewrite_rule_capacity;  /* 指数增长容量 */
 
-    /* Configurable rewrite step limit (default: 1000) */
+    /* 可配置的重写步数上限（默认: 1000） */
     int rewrite_step_limit;
 
-    /* Frozen point snapshot for circuit trip rollback (owned by engine) */
+    /* 位电路跳闸回滚的冻结点快照（由引擎持有所有权） */
     void *frozen_point;
 
     /* 上一次合一操作的状态码 */
@@ -56,7 +56,7 @@ typedef struct LV00Engine {
 
     /* ── 引擎级别的错误状态（每个引擎实例独立隔离）── */
     EngineStatus last_status;           /* 最近一次操作的状态码 */
-    char          last_error[256];      /* 最近一次操作的错误描述文本 */
+    char          last_error[256];      /**< 最近一次操作的错误描述文本（固定 256 字节，长消息会被截断） */
 
     /* 流式输出上下文（可选，为 NULL 时不发射事件） */
     StreamContext *stream_ctx;
@@ -136,58 +136,56 @@ EngineCircuitResult engine_handle_circuit_trip(LV00Engine *engine);
  * 降级返回 ENGINE_CIRCUIT_DOWNGRADE，错误返回 ENGINE_CIRCUIT_ERROR。 */
 EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, EngineCircuitAction action);
 
-/* ---- Rewrite step limit configuration ---- */
+/* ---- 重写步数上限配置 ---- */
 
 /**
- * @brief Set the rewrite step limit for the engine.
+ * @brief 设置引擎的重写步数上限。
  *
- * This limit is used by engine_solve() and engine_rewrite_and_solve()
- * to cap the number of rewrite steps per iteration.
+ * 该上限由 engine_solve() 和 engine_rewrite_and_solve() 使用，
+ * 用于限制每次迭代中的重写步数。
  *
- * @param engine  Engine instance.
- * @param limit   Maximum rewrite steps (must be > 0; default is 1000).
+ * @param engine  引擎实例。
+ * @param limit   最大重写步数（必须 > 0；默认为 1000）。
  */
 void engine_set_rewrite_step_limit(LV00Engine *engine, int limit);
 
 /**
- * @brief Get the current rewrite step limit.
+ * @brief 获取当前重写步数上限。
  *
- * @param engine  Engine instance.
- * @return The current rewrite step limit (default 1000).
+ * @param engine  引擎实例。
+ * @return 当前重写步数上限（默认 1000）。
  */
 int engine_get_rewrite_step_limit(const LV00Engine *engine);
 
-/* ---- Frozen point snapshot mechanism ---- */
+/* ---- 冻结点快照机制 ---- */
 
 /**
- * @brief Create a frozen point snapshot of the current engine state.
+ * @brief 创建当前引擎状态的冻结点快照。
  *
- * Serializes a deep copy of the constraint graph for rollback after
- * a bit-circuit trip. The caller owns the returned snapshot and must
- * eventually call engine_destroy_frozen_point() to free it.
+ * 深拷贝约束图，用于位电路跳闸后的回滚。
+ * 调用者拥有返回的快照所有权，最终须调用 engine_destroy_frozen_point() 释放。
  *
- * @param engine  Engine instance.
- * @return Opaque pointer to the snapshot, or NULL on failure.
+ * @param engine  引擎实例。
+ * @return 指向快照的不透明指针，失败返回 NULL。
  */
 void *engine_create_frozen_point(LV00Engine *engine);
 
 /**
- * @brief Restore the engine to a previously created frozen point.
+ * @brief 将引擎恢复到先前创建的冻结点。
  *
- * Replaces the engine's constraint graph with the snapshot state.
- * After a successful restore, the snapshot is consumed and should
- * NOT be passed to engine_destroy_frozen_point().
+ * 用快照状态替换引擎的约束图。
+ * 成功恢复后，快照已被消耗，不应再传递给 engine_destroy_frozen_point()。
  *
- * @param engine        Engine instance.
- * @param frozen_point  Snapshot previously returned by engine_create_frozen_point().
- * @return true on success, false on failure.
+ * @param engine        引擎实例。
+ * @param frozen_point  由 engine_create_frozen_point() 返回的快照。
+ * @return true 成功，false 失败。
  */
 bool engine_restore_frozen_point(LV00Engine *engine, void *frozen_point);
 
 /**
- * @brief Destroy a frozen point snapshot, releasing its memory.
+ * @brief 销毁冻结点快照，释放其内存。
  *
- * @param frozen_point  Snapshot to destroy (may be NULL).
+ * @param frozen_point  要销毁的快照（可为 NULL）。
  */
 void engine_destroy_frozen_point(void *frozen_point);
 

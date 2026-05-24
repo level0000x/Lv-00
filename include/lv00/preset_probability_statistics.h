@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_probability_statistics.h
  * @brief 概率论与数理统计预设函数块 - 头文件
  *
@@ -16,8 +16,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_PROBABILITY_STATISTICS_H
-#define PRESET_PROBABILITY_STATISTICS_H
+#ifndef LV00_PRESET_PROBABILITY_STATISTICS_H
+#define LV00_PRESET_PROBABILITY_STATISTICS_H
 
 #include "preset_blocks.h"
 
@@ -47,13 +47,19 @@ extern "C" {
 #define PRESET_PROBABILITY_INTERSECTION     "probability_intersection"
 
 /** 条件概率 P(A|B) */
+#ifndef PRESET_CONDITIONAL_PROBABILITY
 #define PRESET_CONDITIONAL_PROBABILITY      "conditional_probability"
+#endif
 
 /** Bayes定理 */
+#ifndef PRESET_BAYES_THEOREM
 #define PRESET_BAYES_THEOREM                "bayes_theorem"
+#endif
 
 /** 全概率公式 */
+#ifndef PRESET_TOTAL_PROBABILITY
 #define PRESET_TOTAL_PROBABILITY            "total_probability"
+#endif
 
 /* -------------------- 随机变量 -------------------- */
 
@@ -182,4 +188,4 @@ PresetCategory preset_probability_statistics_category(void);
 }
 #endif
 
-#endif /* PRESET_PROBABILITY_STATISTICS_H */
+#endif /* LV00_PRESET_PROBABILITY_STATISTICS_H */

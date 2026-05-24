@@ -26,7 +26,7 @@ void test_trust_colors() {
     
     printf("  Trust colors: PASSED\n");
     
-    free(node->numeric_assumption_declaration);
+    lv00_free_ptr(node->numeric_assumption_declaration);
     graph_destroy(graph);
     printf("  PASSED\n");
 }
@@ -50,7 +50,7 @@ void test_merge_candidates() {
     
     printf("  Candidate detection: PASSED\n");
     
-    free(candidates);
+    lv00_free_ptr(candidates);
     graph_destroy(graph);
     printf("  PASSED\n");
 }

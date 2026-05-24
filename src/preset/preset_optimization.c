@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_optimization.c
  * @brief 优化理论预设函数块 - 实现
  *
@@ -7,7 +7,7 @@
  *
  * @module Optimization
  * @category PRESET_CATEGORY_OPTIMIZATION
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "preset_optimization.h"

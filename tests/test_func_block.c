@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_func_block.c
  * @brief 函数块系统测试 - 打包、实例化、确定性检查、多解选择器
  *
@@ -140,7 +140,7 @@ static int test_pack_cross_boundary_detect(void)
     assert(conflict_count > 0);
     assert(conflicts != NULL);
 
-    free(conflicts);
+    lv00_free_ptr(conflicts);
     graph_destroy(g);
     printf("  PASSED\n");
     return 0;
@@ -456,7 +456,7 @@ static int test_instantiate_basic(void)
     assert(new_node_ids != NULL);
     assert(new_node_count > 0);
 
-    free(new_node_ids);
+    lv00_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -507,7 +507,7 @@ static int test_instantiate_beta_reduction(void)
     /* 验证新节点被创建 */
     assert(new_node_count > 0);
 
-    free(new_node_ids);
+    lv00_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -1123,7 +1123,7 @@ static int test_instantiate_connection_beta_reduction(void)
     /* 应该至少有新的 CONNECTION 约束被创建 */
     assert(connection_count_after >= 0); /* 可能因情况 B（自由变量）不创建新约束 */
 
-    free(new_node_ids);
+    lv00_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -1183,7 +1183,7 @@ static int test_instantiate_connection_case_b_free_variable(void)
     /* 验证不会崩溃即可 */
     assert(new_node_count >= 0);
 
-    free(new_node_ids);
+    lv00_free_ptr(new_node_ids);
     func_block_destroy(fb);
     graph_destroy(g);
     printf("  PASSED\n");
@@ -1389,7 +1389,7 @@ static int test_func_block_serialize_deserialize(void)
         /* assert(fb2->determinism == states[i]); -- 待引擎稳定后恢复 */
         (void)fb2; /* suppress warning */
 
-        free(data);
+        lv00_free_ptr(data);
         func_block_destroy(fb);
         func_block_destroy(fb2);
     }

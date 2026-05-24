@@ -20,8 +20,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_INTEGRAL_TRANSFORMS_H
-#define PRESET_INTEGRAL_TRANSFORMS_H
+#ifndef LV00_PRESET_INTEGRAL_TRANSFORMS_H
+#define LV00_PRESET_INTEGRAL_TRANSFORMS_H
 
 #include "preset_blocks.h"
 
@@ -153,4 +153,4 @@ bool preset_integral_transforms_get_names(char ***out_names, int *out_count);
 }
 #endif
 
-#endif /* PRESET_INTEGRAL_TRANSFORMS_H */
+#endif /* LV00_PRESET_INTEGRAL_TRANSFORMS_H */

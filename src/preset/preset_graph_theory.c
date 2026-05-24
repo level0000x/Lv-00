@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_graph_theory.c
  * @brief 图论预设函数块 - 实现
  *
@@ -7,7 +7,7 @@
  *
  * @module GraphTheory
  * @category PRESET_CATEGORY_GRAPH_THEORY
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "preset_graph_theory.h"

@@ -2,23 +2,34 @@
 Lv-00 UI编程辅助系统 - 专为几何元语言可视化界面优化的LLM助手
 ================================================================
 
-这个模块为Lv-00项目的UI编程提供智能辅助，包括：
-1. WebAssembly绑定代码生成
-2. Canvas几何渲染辅助
-3. 约束图UI交互逻辑
-4. 符号坐标系统的前端集成
-5. C语言内核的JavaScript桥接
+本文件是 Lv-00 项目模板和领域知识的权威来源（single source of truth）。
 
-使用场景：
-- 编写 lv00_web_bindings.c 的新绑定
-- 实现 Canvas 2D 几何渲染器
-- 添加新的UI交互功能
-- 扩展证明导航器界面
-- 实现类型系统和函数块的可视化
+职责：
+  1. 维护 Lv-00 C API 的签名文档（api_signatures）
+  2. 维护面向 LLM 上下文注入的代码模式（code_patterns）
+  3. 维护 UI 设计规范（ui_conventions）
+  4. 维护常见编程任务的步骤指南（common_tasks）
+  5. 提供提示词生成引擎（Lv00PromptEngine）
+
+与 templates.py 的关系：
+  - templates.py 中的部分模板与本文件 code_patterns 功能重叠，
+    这些重叠模板已在 templates.py 中标记为 deprecated（保留数据以向后兼容）
+  - 新代码和权威版本统一在本文件中维护
+
+核心类：
+  - Lv00Module: Lv-00 UI 相关模块的枚举定义
+  - Lv00KnowledgeBase: 领域知识库，包含 API、代码模式、UI 规范
+  - Lv00PromptEngine: 提示词生成引擎，基于知识库生成 AI 提示词
+
+便捷函数：
+  - get_lv00_helper(): 获取知识库和提示词引擎实例（带缓存）
+  - invalidate_cache(): 手动使缓存失效
+  - generate_binding_help(): 生成绑定代码帮助信息
+  - generate_renderer_help(): 生成渲染器代码帮助信息
+  - generate_task_help(): 生成任务帮助信息
 """
 
 from typing import Dict, List, Any, Optional, Callable
-from dataclasses import dataclass
 from enum import Enum
 import logging
 import time
@@ -38,18 +49,6 @@ class Lv00Module(Enum):
     FUNC_BLOCK = "func_block"  # 函数块
     UI_CANVAS = "ui_canvas"  # Canvas渲染
     UI_EVENTS = "ui_events"  # 事件处理
-
-
-@dataclass
-class CodeTemplate:
-    """代码模板"""
-    name: str
-    description: str
-    language: str  # "c", "javascript", "html"
-    category: Lv00Module
-    code: str
-    tags: List[str]
-    complexity: str  # "simple", "medium", "complex"
 
 
 class Lv00KnowledgeBase:
@@ -140,24 +139,17 @@ class Lv00KnowledgeBase:
     
     def _init_code_patterns(self) -> Dict[str, str]:
         """
-        初始化常用代码模式
+        初始化常用代码模式（面向 LLM 上下文注入）
 
-        [注意：代码模板功能即将整合]
-        以下模式与 templates.py 中的 CODE_TEMPLATES 存在功能重叠，
-        两者的使用场景不同但代码内容高度相似。
-        - 本文件: 面向 LLM 上下文注入（嵌入在提示词中供 AI 参考）
-        - templates.py: 面向用户直接查询和代码生成（结构化模板字典）
+        本方法是代码模式的权威来源。templates.py 中的同名功能模板
+        已标记为 deprecated，新代码应统一使用本方法返回的模式。
 
-        重叠对应关系:
-        - wasm_binding_basic       <-> wasm_basic_binding / wasm_string_binding / wasm_array_binding
-        - wasm_binding_with_string <-> wasm_string_binding
-        - wasm_binding_with_array  <-> wasm_array_binding
-        - canvas_renderer_class    <-> canvas_basic_renderer
-        - canvas_event_handlers    <-> canvas_event_handler
-
-        迁移计划 (v3.2+):
-        templates.py 中的结构化模板将合并到本模块的 CodeTemplate dataclass 体系中，
-        统一由 Lv00KnowledgeBase 管理。届时 templates.py 将被标记为 [已废弃]。
+        模式与 templates.py 的对应关系:
+        - wasm_binding_basic       <-> templates.py: wasm_basic_binding (deprecated)
+        - wasm_binding_with_string <-> templates.py: wasm_string_binding (deprecated)
+        - wasm_binding_with_array  <-> templates.py: wasm_array_binding (deprecated)
+        - canvas_renderer_class    <-> templates.py: canvas_basic_renderer (deprecated)
+        - canvas_event_handlers    <-> templates.py: canvas_event_handler (deprecated)
         """
         return {
             # WebAssembly绑定模式
@@ -890,7 +882,6 @@ def generate_task_help(task: str) -> str:
 # 导出所有公共接口
 __all__ = [
     'Lv00Module',
-    'CodeTemplate',
     'Lv00KnowledgeBase',
     'Lv00PromptEngine',
     'get_lv00_helper',

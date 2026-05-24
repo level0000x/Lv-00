@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file normalization.c
  * @brief 图规范化引擎实现
  * @details 实现约束图的规范化处理，包括并查集合并、哈希预分组 O(n) 优化。
@@ -23,7 +23,7 @@
  *   单元测试迁移，避免引入回归。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  *
  * @dependencies
  *   - normalization.h       : 图规范化引擎公共接口定义
@@ -333,6 +333,11 @@ static int *uf_collect_merged(int *parent, int n, int *out_count) {
 /**
  * @brief 构建节点ID到索引的查找表
  *
+ * 安全检查：如果图中节点 ID 超过 NORM_MAX_ID（100万），将拒绝分配
+ * 巨大的查找表，并通过流式事件发出警告。这是防止内存耗尽的防御措施。
+ * 在实际几何约束图中，节点 ID 通常远小于此阈值（典型值 < 10000）。
+ * 如果触发此限制，表明输入数据可能存在异常（如 ID 生成器溢出）。
+ *
  * @param graph       约束图
  * @param out_max_id  输出最大节点ID的指针（可为NULL）
  * @return 查找表数组（索引从1开始，0表示不存在），失败返回NULL
@@ -343,13 +348,32 @@ static int *build_id_to_idx(ConstraintGraph *graph, int *out_max_id) {
     for (int i = 0; i < graph->node_count; i++) {
         if (graph->nodes[i]->id > max_id) max_id = graph->nodes[i]->id;
     }
+    /* 安全检查：节点 ID 超过合理阈值时拒绝分配巨大查找表。
+     * NORM_MAX_ID = 1000000，此时查找表大小约 4MB，是可接受的上限。
+     * 超过此值可能意味着 ID 生成器异常或输入数据存在问题。 */
     if (max_id < 0 || max_id > NORM_MAX_ID) {
+        /* 修复：设置全局错误状态，提供明确的错误信息 */
+        lv00_set_error(LV00_ERROR_INVALID_ARGUMENT,
+            "build_id_to_idx 安全检查失败: max_id=%d 超过阈值 NORM_MAX_ID=%d，"
+            "拒绝分配巨大查找表以防止内存耗尽", max_id, NORM_MAX_ID);
+        if (normalization_stream_ctx) {
+            char desc[NORM_DESC_BUFFER_SIZE];
+            snprintf(desc, sizeof(desc),
+                     "build_id_to_idx 安全检查失败: max_id=%d 超过阈值 NORM_MAX_ID=%d，"
+                     "拒绝分配巨大查找表以防止内存耗尽", max_id, NORM_MAX_ID);
+            stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_WARNING, desc, 0);
+        }
         if (out_max_id) *out_max_id = -1;
         return NULL;
     }
     if (out_max_id) *out_max_id = max_id;
     size_t map_size = (size_t)max_id + 1;
+    /* 防御性检查：确保 map_size * sizeof(int) 不会溢出 size_t */
     if (map_size > SIZE_MAX / sizeof(int)) {
+        if (normalization_stream_ctx) {
+            stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_WARNING,
+                "build_id_to_idx: 查找表大小溢出 size_t，分配中止", 0);
+        }
         return NULL;
     }
     int *map = lv00_calloc(map_size, sizeof(int));
@@ -1197,6 +1221,14 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
        如果两条线段的端点现在相同（点合并后节点ID一致），则合并它们。
        保留ID较小的那个，更新所有约束。 */
     int phase2 = merge_line_segments(graph, result->log);
+
+    /* 流式输出: Phase 2 线段合并完成 */
+    if (normalization_stream_ctx && phase2 > 0) {
+        char desc[NORM_DESC_BUFFER_SIZE];
+        snprintf(desc, sizeof(desc), "Phase 2 线段合并: %d 条线段合并", phase2);
+        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_MERGE,
+                           desc, 2);
+    }
     /* 将阶段2的合并记录到结果数组中 */
     if (phase2 > 0 && result->log) {
         /* 阶段2的日志条目从阶段1条目之后开始 */
@@ -1214,6 +1246,14 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
        如果两个区域的边界线段序列相同（线段合并后，相同线段ID以相同顺序排列），
        则合并它们。保留ID较小的那个。 */
     int phase3 = merge_regions(graph, result->log);
+
+    /* 流式输出: Phase 3 区域合并完成 */
+    if (normalization_stream_ctx && phase3 > 0) {
+        char desc[NORM_DESC_BUFFER_SIZE];
+        snprintf(desc, sizeof(desc), "Phase 3 区域合并: %d 个区域合并", phase3);
+        stream_emit_simple(normalization_stream_ctx, STREAM_EVENT_NORMALIZE_MERGE,
+                           desc, 3);
+    }
     /* 将阶段3的合并记录到结果数组中 */
     if (phase3 > 0 && result->log) {
         int log_start = result->log->count - phase3;

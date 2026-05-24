@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file magic.c
  * @brief 编程魔法系统实现 —— 基于 Lv-00 的咒语编程模拟器
  *
@@ -8,7 +8,7 @@
  * - 咒语系统 (基于函数块)
  *
  * @author Lv-00 Project
- * @version 3.0.1（与项目主版本保持一致）
+ * @version 3.2.0（与项目主版本保持一致）
  */
 
 #include "magic.h"
@@ -367,18 +367,115 @@ int rune_serialize_to_buffer(const Rune *rune, char *buf, int buf_size) {
 }
 
 /**
- * @brief 从字符串解析符文（简化实现）
+ * @brief 从字符串解析符文
  *
- * 当前为简化实现，始终返回 NULL 并记录警告日志。
- * 完整实现需要 JSON 解析器支持。
+ * 支持以下格式：
+ *   - "rational:num/denom:element"  例如 "rational:1/2:FIRE"
+ *   - "rational:num:element"        例如 "rational:3:FIRE" (分母默认为1)
+ *   - "algebraic:value:element"     例如 "algebraic:1.414:EARTH"
+ *   - "num/denom:element"           简写格式
+ *   - "num:element"                 简写格式（整数）
  *
  * @param str 符文的字符串表示
- * @return 始终返回 NULL
+ * @return 解析成功返回新创建的符文，失败返回 NULL
  */
 Rune *rune_parse(const char *str) {
-    LV00_UNUSED(str);
-    LV00_LOG_WARNING("rune_parse: 符文解析功能尚未实现");
-    return NULL;
+    if (!str || str[0] == '\0') {
+        LV00_LOG_WARNING("rune_parse: 输入字符串为空");
+        return NULL;
+    }
+
+    /* 跳过前导空白 */
+    while (*str == ' ' || *str == '\t') str++;
+
+    /* 解析元素类型（默认为 NONE） */
+    MagicElement element = ELEMENT_NONE;
+    const char *colon = strrchr(str, ':');
+    if (colon) {
+        /* 解析元素类型 */
+        const char *elem_str = colon + 1;
+        if (strcmp(elem_str, "FIRE") == 0 || strcmp(elem_str, "fire") == 0) {
+            element = ELEMENT_FIRE;
+        } else if (strcmp(elem_str, "WATER") == 0 || strcmp(elem_str, "water") == 0) {
+            element = ELEMENT_WATER;
+        } else if (strcmp(elem_str, "EARTH") == 0 || strcmp(elem_str, "earth") == 0) {
+            element = ELEMENT_EARTH;
+        } else if (strcmp(elem_str, "AIR") == 0 || strcmp(elem_str, "air") == 0) {
+            element = ELEMENT_AIR;
+        } else if (strcmp(elem_str, "NONE") == 0 || strcmp(elem_str, "none") == 0) {
+            element = ELEMENT_NONE;
+        }
+    }
+
+    /* 检查是否为代数数格式 */
+    if (strncmp(str, "algebraic:", 10) == 0) {
+        const char *value_start = str + 10;
+        char *end = NULL;
+        double value = strtod(value_start, &end);
+        if (end != value_start && value_start != colon) {
+            return rune_create_algebraic(value, element);
+        }
+        LV00_LOG_WARNING("rune_parse: 无法解析代数数值 '%s'", value_start);
+        return NULL;
+    }
+
+    /* 检查是否为有理数格式（带前缀） */
+    const char *num_start = str;
+    if (strncmp(str, "rational:", 9) == 0) {
+        num_start = str + 9;
+    }
+
+    /* 解析分子 */
+    char *slash = strchr(num_start, '/');
+    char *elem_colon = colon ? (char*)colon : NULL;
+
+    /* 确定数值部分的结束位置 */
+    const char *num_end = elem_colon ? elem_colon : (strchr(num_start, '\0'));
+
+    int64_t numerator = 0;
+    uint64_t denominator = 1;
+
+    if (slash && slash < num_end) {
+        /* 有分数格式: num/denom */
+        char num_buf[64];
+        size_t num_len = (size_t)(slash - num_start);
+        if (num_len >= sizeof(num_buf)) {
+            LV00_LOG_WARNING("rune_parse: 分子过长");
+            return NULL;
+        }
+        strncpy(num_buf, num_start, num_len);
+        num_buf[num_len] = '\0';
+        numerator = strtoll(num_buf, NULL, 10);
+
+        /* 解析分母 */
+        char denom_buf[64];
+        size_t denom_len = (size_t)(num_end - slash - 1);
+        if (denom_len >= sizeof(denom_buf)) {
+            LV00_LOG_WARNING("rune_parse: 分母过长");
+            return NULL;
+        }
+        strncpy(denom_buf, slash + 1, denom_len);
+        denom_buf[denom_len] = '\0';
+        denominator = strtoull(denom_buf, NULL, 10);
+
+        if (denominator == 0) {
+            LV00_LOG_WARNING("rune_parse: 分母不能为零");
+            return NULL;
+        }
+    } else {
+        /* 整数格式 */
+        char num_buf[64];
+        size_t num_len = (size_t)(num_end - num_start);
+        if (num_len >= sizeof(num_buf)) {
+            LV00_LOG_WARNING("rune_parse: 数值过长");
+            return NULL;
+        }
+        strncpy(num_buf, num_start, num_len);
+        num_buf[num_len] = '\0';
+        numerator = strtoll(num_buf, NULL, 10);
+    }
+
+    return rune_create_rational(numerator, denominator, element);
 }
 
 /**
@@ -1026,18 +1123,146 @@ char *magic_array_serialize(const MagicArray *array) {
 }
 
 /**
- * @brief 从 JSON 字符串反序列化魔法阵（简化实现）
+ * @brief 从 JSON 字符串反序列化魔法阵
  *
- * 当前为简化实现，始终返回 NULL 并记录警告日志。
- * 完整实现需要 JSON 解析器支持。
+ * 支持简化的 JSON 格式：
+ *   {"name":"阵名","runes":[{"type":"rational","num":1,"denom":2,"element":"FIRE"},...]}
  *
  * @param json JSON 格式字符串
- * @return 始终返回 NULL
+ * @return 反序列化成功返回新创建的魔法阵，失败返回 NULL
  */
 MagicArray *magic_array_deserialize(const char *json) {
-    LV00_UNUSED(json);
-    LV00_LOG_WARNING("magic_array_deserialize: 反序列化功能尚未实现");
-    return NULL;
+    if (!json || json[0] == '\0') {
+        LV00_LOG_WARNING("magic_array_deserialize: 输入 JSON 为空");
+        return NULL;
+    }
+
+    /* 跳过前导空白 */
+    while (*json == ' ' || *json == '\t' || *json == '\n' || *json == '\r') json++;
+
+    /* 检查 JSON 对象起始 */
+    if (json[0] != '{') {
+        LV00_LOG_WARNING("magic_array_deserialize: JSON 格式无效，期望 '{'");
+        return NULL;
+    }
+
+    /* 创建空的魔法阵 */
+    MagicArray *array = magic_array_create();
+    if (!array) {
+        LV00_LOG_WARNING("magic_array_deserialize: 无法创建魔法阵");
+        return NULL;
+    }
+
+    /* 简化解析：查找 runes 数组 */
+    const char *runes_key = strstr(json, "\"runes\"");
+    if (!runes_key) {
+        /* 没有 runes 字段，返回空魔法阵 */
+        return array;
+    }
+
+    /* 查找数组起始 */
+    const char *array_start = strchr(runes_key, '[');
+    if (!array_start) {
+        LV00_LOG_WARNING("magic_array_deserialize: runes 不是数组格式");
+        return array;
+    }
+
+    /* 遍历数组元素 */
+    const char *ptr = array_start + 1;
+    while (*ptr && *ptr != ']') {
+        /* 跳过空白和逗号 */
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == '\n' || *ptr == ',' || *ptr == '\r') ptr++;
+        if (*ptr == ']') break;
+
+        /* 查找对象起始 */
+        if (*ptr != '{') {
+            ptr++;
+            continue;
+        }
+
+        /* 解析单个符文对象 */
+        const char *obj_end = strchr(ptr, '}');
+        if (!obj_end) break;
+
+        /* 提取类型字段 */
+        const char *type_key = strstr(ptr, "\"type\"");
+        const char *num_key = strstr(ptr, "\"num\"");
+        const char *denom_key = strstr(ptr, "\"denom\"");
+        const char *value_key = strstr(ptr, "\"value\"");
+        const char *element_key = strstr(ptr, "\"element\"");
+
+        Rune *rune = NULL;
+        MagicElement element = ELEMENT_NONE;
+
+        /* 解析元素类型 */
+        if (element_key) {
+            const char *elem_val_start = strchr(element_key + 8, ':');
+            if (elem_val_start) {
+                elem_val_start++;
+                while (*elem_val_start == ' ' || *elem_val_start == '"') elem_val_start++;
+                if (strncmp(elem_val_start, "FIRE", 4) == 0) element = ELEMENT_FIRE;
+                else if (strncmp(elem_val_start, "WATER", 5) == 0) element = ELEMENT_WATER;
+                else if (strncmp(elem_val_start, "EARTH", 5) == 0) element = ELEMENT_EARTH;
+                else if (strncmp(elem_val_start, "AIR", 3) == 0) element = ELEMENT_AIR;
+            }
+        }
+
+        /* 根据类型创建符文 */
+        if (type_key && strstr(type_key, "\"rational\"")) {
+            /* 有理数类型 */
+            int64_t num = 0;
+            uint64_t denom = 1;
+
+            if (num_key) {
+                const char *num_val = strchr(num_key + 5, ':');
+                if (num_val) num = strtoll(num_val + 1, NULL, 10);
+            }
+            if (denom_key) {
+                const char *denom_val = strchr(denom_key + 7, ':');
+                if (denom_val) denom = strtoull(denom_val + 1, NULL, 10);
+            }
+            if (denom == 0) denom = 1;
+
+            rune = rune_create_rational(num, denom, element);
+        } else if (type_key && strstr(type_key, "\"algebraic\"")) {
+            /* 代数数类型 */
+            double value = 0.0;
+            if (value_key) {
+                const char *val_start = strchr(value_key + 7, ':');
+                if (val_start) value = strtod(val_start + 1, NULL);
+            }
+            rune = rune_create_algebraic(value, element);
+        }
+
+        if (rune) {
+            magic_array_add_rune(array, rune);
+        }
+
+        ptr = obj_end + 1;
+    }
+
+    /* 尝试解析名称字段 */
+    const char *name_key = strstr(json, "\"name\"");
+    if (name_key) {
+        const char *name_start = strchr(name_key + 6, ':');
+        if (name_start) {
+            name_start++;
+            while (*name_start == ' ' || *name_start == '"') name_start++;
+            const char *name_end = strchr(name_start, '"');
+            if (name_end && name_end > name_start) {
+                size_t name_len = (size_t)(name_end - name_start);
+                char *name_buf = (char *)lv00_malloc(name_len + 1);
+                if (name_buf) {
+                    strncpy(name_buf, name_start, name_len);
+                    name_buf[name_len] = '\0';
+                    if (array->name) lv00_free((void **)&array->name);
+                    array->name = name_buf;
+                }
+            }
+        }
+    }
+
+    return array;
 }
 
 /* ============================================================

@@ -13,7 +13,7 @@ Lv-00 理论数学研究预设函数块模块
     3. 提供完整的中文文档和 LaTeX 数学描述
     4. 遵循局部最优解原则
 
-版本：4.0.0
+版本：{__version__}
 作者：Lv-00 开发团队
 """
 
@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 from enum import Enum, auto
 from dataclasses import dataclass, field
 import math
+
+# 版本号统一引用包级 __version__
+from lv00 import __version__
 
 # 类型检查时导入，避免运行时循环依赖
 if TYPE_CHECKING:
@@ -80,6 +83,8 @@ class ComplexityLevel(Enum):
     ON3 = auto()          # O(n³)
     OEXP = auto()         # O(2^n) 或更高
     OINFINITE = auto()    # 理论计算（无穷）
+    # 修复：添加缺失的 OSQRTN 枚举成员，供 euler_totient 和 mobius_function 使用
+    OSQRTN = auto()       # O(√n)
 
 
 @dataclass

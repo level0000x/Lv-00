@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_combinatorics.c
  * @brief 组合数学预设函数块 - 实现
  *

@@ -27,7 +27,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ── 流式回调：将所有事件以 JSON-RPC 格式输出到 stdout ── */
+/**
+ * @brief 流式回调：将所有事件以 JSON-RPC 格式输出到 stdout
+ *
+ * 注册到 StreamContext 的回调函数，将接收到的流式事件序列化为
+ * JSON-RPC notification 格式并输出到标准输出，配合 Python 桥接脚本
+ * 实现实时可视化监控。
+ *
+ * @param event     流式事件指针，不允许为 NULL
+ * @param user_data 用户数据指针（未使用）
+ */
 static void stream_to_stdout_callback(const StreamEvent *event, void *user_data) {
     if (!event) return;
 
@@ -39,7 +48,18 @@ static void stream_to_stdout_callback(const StreamEvent *event, void *user_data)
     }
 }
 
-/* ── 辅助：添加有理数坐标点 ── */
+/**
+ * @brief 辅助函数：添加有理数坐标点
+ *
+ * 使用有理数坐标创建二维几何点并添加到约束图。
+ *
+ * @param g  约束图指针
+ * @param xn x 坐标分子
+ * @param xd x 坐标分母
+ * @param yn y 坐标分子
+ * @param yd y 坐标分母
+ * @return 成功返回新节点 ID（>= 0），失败返回 -1
+ */
 static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
                                                 int64_t yn, uint64_t yd) {
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
@@ -50,7 +70,12 @@ static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
     return (res == ADD_NODE_OK) ? (g->next_node_id - 1) : -1;
 }
 
-/* ── 演示1：等边三角形构造 ── */
+/**
+ * @brief 演示1：等边三角形构造
+ *
+ * 创建等边三角形 A(0,0), B(2,0), C(1,sqrt(3))，
+ * 注册流式回调后运行引擎求解，所有事件以 JSON-RPC 格式输出。
+ */
 static void demo_triangle(void) {
     fprintf(stderr, "\n========== 演示1: 等边三角形构造 ==========\n");
 
@@ -112,7 +137,12 @@ static void demo_triangle(void) {
     fprintf(stderr, "========== 演示1 完成 ==========\n");
 }
 
-/* ── 演示2：圆与线交点 ── */
+/**
+ * @brief 演示2：圆与线交点测试
+ *
+ * 构造圆心 O(0,0)、半径点 P(3,0) 以及直线上的两点 Q(-1,4)、R(7,-2)，
+ * 添加交点约束后运行引擎求解，验证流式事件输出。
+ */
 static void demo_circle_line(void) {
     fprintf(stderr, "\n========== 演示2: 圆与线交点测试 ==========\n");
 
@@ -167,7 +197,12 @@ static void demo_circle_line(void) {
     fprintf(stderr, "========== 演示2 完成 ==========\n");
 }
 
-/* ── 演示3：迭代流式事件统计 ── */
+/**
+ * @brief 演示3：迭代流式事件统计
+ *
+ * 构造多个点和线段触发多轮事件，运行引擎后输出事件统计信息，
+ * 包括总事件数、丢弃数和各类型事件的计数。
+ */
 static void demo_stream_stats(void) {
     fprintf(stderr, "\n========== 演示3: 流式事件统计 ==========\n");
 
@@ -232,10 +267,19 @@ static void demo_stream_stats(void) {
     fprintf(stderr, "========== 演示3 完成 ==========\n");
 }
 
-/* ── 主程序 ── */
+/**
+ * @brief 主程序入口
+ *
+ * 根据命令行参数选择运行特定演示或全部演示。
+ * 不带参数运行所有演示；传入数字 1/2/3 仅运行对应演示。
+ *
+ * @param argc 命令行参数个数
+ * @param argv 命令行参数数组
+ * @return 程序退出码，0 表示成功
+ */
 int main(int argc, char *argv[]) {
     fprintf(stderr, "╔════════════════════════════════════════════╗\n");
-    fprintf(stderr, "║  Lv-00 流式输出端到端演示 v3.0.1          ║\n");
+    fprintf(stderr, "║  Lv-00 流式输出端到端演示 v3.2.0          ║\n");
     fprintf(stderr, "║  JSON-RPC 事件将输出到 stdout             ║\n");
     fprintf(stderr, "╚════════════════════════════════════════════╝\n");
 

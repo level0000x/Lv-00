@@ -38,7 +38,14 @@ typedef struct ConstraintGraph ConstraintGraph;
 #define LV00_LOG_MAX_SIZE (10 * 1024 * 1024)  /* 10MB */
 #define LV00_LOG_PATH_MAX 256
 
-/* 日志级别: DEBUG < INFO < WARN < ERROR */
+/* 日志级别: DEBUG < INFO < WARN < ERROR
+ *
+ * 注意：lv00_internal.h 中定义了另一套日志级别宏（LV00_LOG_LEVEL_*），
+ * 用于内部日志函数 lv00_log_message()。该套宏为项目级权威定义。
+ * 此处 LogLevel 枚举专用于 debug.h 的日志子系统 API
+ *（debug_log / debug_set_log_level 等），两套系统相互独立。
+ * 若需修改日志级别语义，请同步检查 lv00_internal.h 中的定义。
+ */
 typedef enum {
     LOG_LEVEL_DEBUG = 0,
     LOG_LEVEL_INFO  = 1,
@@ -50,29 +57,29 @@ typedef enum {
 /* 性能计数器（第18.5节） */
 typedef struct PerformanceCounters {
     /* 节点统计 */
-    uint64_t total_nodes_created;
-    uint64_t current_nodes_alive;
-    
+    uint64_t total_nodes_created;       /* 创建的节点总数 */
+    uint64_t current_nodes_alive;       /* 当前存活节点数 */
+
     /* 约束统计 */
-    uint64_t total_constraints_created;
-    uint64_t current_constraints_alive;
-    
+    uint64_t total_constraints_created; /* 创建的约束总数 */
+    uint64_t current_constraints_alive;/* 当前存活约束数 */
+
     /* 求解器统计 */
-    uint64_t solver_call_count;
-    uint64_t solver_total_time_us;   /* 总耗时（微秒） */
-    double    solver_avg_time_us;    /* 平均耗时（微秒） */
-    
+    uint64_t solver_call_count;         /* 求解器调用次数 */
+    uint64_t solver_total_time_us;      /* 总耗时（微秒） */
+    double    solver_avg_time_us;       /* 平均耗时（微秒） */
+
     /* 重写引擎统计 */
-    uint64_t rewrite_total_steps;
-    uint64_t rewrite_rule_applications;
-    
+    uint64_t rewrite_total_steps;       /* 重写总步数 */
+    uint64_t rewrite_rule_applications; /* 规则应用次数 */
+
     /* 合一检查统计 */
-    uint64_t unify_check_count;
-    uint64_t unify_success_count;
-    
+    uint64_t unify_check_count;         /* 合一检查次数 */
+    uint64_t unify_success_count;       /* 合一成功次数 */
+
     /* 内存统计 */
-    uint64_t memory_usage_peak;
-    uint64_t memory_current;
+    uint64_t memory_usage_peak;         /* 内存使用峰值 */
+    uint64_t memory_current;            /* 当前内存使用量 */
 } PerformanceCounters;
 
 /* 调试上下文，用于断言和追踪 */

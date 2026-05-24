@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block.c
  * @brief 函数块核心实现
  * @details 实现函数块的创建、销毁、打包、深拷贝等核心管理 API。
@@ -7,7 +7,7 @@
  *          序列化/反序列化见 func_block_serialize.c。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include <limits.h>
@@ -222,6 +222,95 @@ bool func_block_set_description(FuncBlock *fb, const char *description) {
     return true;
 }
 
+/* ============== Getter 函数实现 ============== */
+
+/**
+ * @brief 获取输入端口数量
+ *
+ * 安全访问函数块的输入端口计数。支持 NULL 安全检查。
+ *
+ * @param fb 函数块指针（可为 NULL）
+ * @return 输入端口数量，fb 为 NULL 时返回 0
+ */
+int func_block_get_input_count(const FuncBlock *fb) {
+    return fb ? fb->input_count : 0;
+}
+
+/**
+ * @brief 获取输出端口数量
+ *
+ * 安全访问函数块的输出端口计数。支持 NULL 安全检查。
+ *
+ * @param fb 函数块指针（可为 NULL）
+ * @return 输出端口数量，fb 为 NULL 时返回 0
+ */
+int func_block_get_output_count(const FuncBlock *fb) {
+    return fb ? fb->output_count : 0;
+}
+
+/**
+ * @brief 获取内部节点数量
+ *
+ * 安全访问函数块的内部节点计数。支持 NULL 安全检查。
+ *
+ * @param fb 函数块指针（可为 NULL）
+ * @return 内部节点数量，fb 为 NULL 时返回 0
+ */
+int func_block_get_internal_count(const FuncBlock *fb) {
+    return fb ? fb->internal_node_count : 0;
+}
+
+/**
+ * @brief 获取函数块ID
+ *
+ * 安全访问函数块的唯一标识符。支持 NULL 安全检查。
+ *
+ * @param fb 函数块指针（可为 NULL）
+ * @return 函数块ID，fb 为 NULL 时返回 -1
+ */
+int func_block_get_id(const FuncBlock *fb) {
+    return fb ? fb->id : -1;
+}
+
+/**
+ * @brief 获取确定性状态
+ *
+ * 安全访问函数块的确定性状态。支持 NULL 安全检查。
+ * 确定性状态用于判断函数块是否产生唯一解。
+ *
+ * @param fb 函数块指针（可为 NULL）
+ * @return 确定性状态，fb 为 NULL 时返回 DETERMINISM_UNVERIFIED
+ */
+DeterminismState func_block_get_determinism(const FuncBlock *fb) {
+    return fb ? fb->determinism : DETERMINISM_UNVERIFIED;
+}
+
+/**
+ * @brief 获取函数块名称
+ *
+ * 安全访问函数块的名称字符串。返回的字符串是只读的，
+ * 调用者不应修改或释放。
+ *
+ * @param fb 函数块指针（可为 NULL）
+ * @return 名称字符串（只读），fb 为 NULL 或无名称时返回 NULL
+ */
+const char *func_block_get_name(const FuncBlock *fb) {
+    return fb ? fb->name : NULL;
+}
+
+/**
+ * @brief 获取函数块描述
+ *
+ * 安全访问函数块的描述字符串。返回的字符串是只读的，
+ * 调用者不应修改或释放。
+ *
+ * @param fb 函数块指针（可为 NULL）
+ * @return 描述字符串（只读），fb 为 NULL 或无描述时返回 NULL
+ */
+const char *func_block_get_description(const FuncBlock *fb) {
+    return fb ? fb->description : NULL;
+}
+
 /**
  * @brief 设置函数块的选择器
  *
@@ -386,10 +475,13 @@ PackResult func_block_pack(
     int conflict_count = 0;
 
     /* 合并内部节点和端口用于跨边界检测 */
-    /* 使用安全加法宏防止 total_bound 计算整数溢出 */
-    int total_bound = LV00_SAFE_ADD(
-        LV00_SAFE_ADD(internal_count, input_count, INT_MAX),
-        output_count, INT_MAX);
+    /* 使用安全加法宏防止 total_bound 计算整数溢出。
+     * 注意：嵌套调用 LV00_SAFE_ADD 时，若第一次加法溢出返回 INT_MAX，
+     * 第二次再加第三个值会再次溢出仍返回 INT_MAX，因此必须逐级检查。
+     * 修复：拆分为两次独立的安全加法，每次都检查溢出结果。 */
+    int partial = LV00_SAFE_ADD(internal_count, input_count, INT_MAX);
+    if (partial == INT_MAX) return PACK_OUT_OF_MEMORY;
+    int total_bound = LV00_SAFE_ADD(partial, output_count, INT_MAX);
     if (total_bound == INT_MAX) return PACK_OUT_OF_MEMORY;
     int *bound_ids = NULL;
     if (total_bound > 0) {
@@ -743,28 +835,6 @@ static LV00_THREAD_LOCAL CrossBoundaryCallbackContext g_cross_boundary_ctx = {NU
 void func_block_set_cross_boundary_callback(CrossBoundaryCallback cb, void *user_data) {
     g_cross_boundary_ctx.callback = cb;
     g_cross_boundary_ctx.user_data = user_data;
-}
-
-/**
- * @brief 获取全局跨边界回调函数
- *
- * @note 此函数当前未被调用，保留作为 g_cross_boundary_ctx 的访问器接口，
- *       供未来扩展使用。如需避免编译器警告，可在调用处首次引用后再启用。
- * @return 当前注册的回调函数指针，未设置时返回 NULL
- */
-static CrossBoundaryCallback func_block_get_cross_boundary_callback(void) {
-    return g_cross_boundary_ctx.callback;
-}
-
-/**
- * @brief 获取全局跨边界回调用户数据
- *
- * @note 此函数当前未被调用，保留作为 g_cross_boundary_ctx 的访问器接口，
- *       供未来扩展使用。如需避免编译器警告，可在调用处首次引用后再启用。
- * @return 当前注册的用户数据指针，未设置时返回 NULL
- */
-static void *func_block_get_cross_boundary_user_data(void) {
-    return g_cross_boundary_ctx.user_data;
 }
 
 /* ============== 深拷贝 ============== */

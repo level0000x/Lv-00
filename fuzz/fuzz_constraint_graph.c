@@ -13,7 +13,17 @@
 #include <stddef.h>
 #include <string.h>
 
-/* libFuzzer 入口点 */
+/**
+ * @brief libFuzzer 入口点：约束图模糊测试
+ *
+ * 使用 libFuzzer 提供的随机输入数据测试约束图模块的鲁棒性。
+ * 根据输入数据动态创建随机数量的点和线段，添加 betweenness 约束，
+ * 然后执行归一化操作，用于发现内存安全问题和崩溃缺陷。
+ *
+ * @param data 模糊测试输入数据指针
+ * @param size 输入数据的字节长度，至少需要 8 字节
+ * @return 固定返回 0（libFuzzer 约定）
+ */
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 8) return 0;
 

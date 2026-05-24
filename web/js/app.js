@@ -21,7 +21,7 @@
  *
  * @module app
  * @author Lv-00 Team
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 'use strict';

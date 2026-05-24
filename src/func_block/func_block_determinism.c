@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file func_block_determinism.c
  * @brief 函数块确定性检查模块
  * @details 实现函数块的静态/动态确定性检查、确定性验证流水线。
  *          包含约束统计、自由度分析、Groebner 基求解等核心逻辑。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include <limits.h>

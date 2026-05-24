@@ -19,8 +19,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_ALGEBRAIC_TOPOLOGY_H
-#define PRESET_ALGEBRAIC_TOPOLOGY_H
+#ifndef LV00_PRESET_ALGEBRAIC_TOPOLOGY_H
+#define LV00_PRESET_ALGEBRAIC_TOPOLOGY_H
 
 #include "preset_blocks.h"
 
@@ -162,4 +162,4 @@ bool preset_algebraic_topology_get_names(char ***out_names, int *out_count);
 }
 #endif
 
-#endif /* PRESET_ALGEBRAIC_TOPOLOGY_H */
+#endif /* LV00_PRESET_ALGEBRAIC_TOPOLOGY_H */

@@ -1,0 +1,467 @@
+# =============================================================================
+# Lv-00 Axiom Package: Peano Arithmetic (PA)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   First-order Peano Arithmetic (PA) — the standard first-order axiomatization
+#   of the natural numbers with addition, multiplication, and the induction
+#   schema. This is the most widely studied base theory in mathematical logic,
+#   proof theory, and computability theory.
+#
+# References:
+#   - Peano, G. (1889). "Arithmetices principia, nova methodo exposita."
+#     Turin: Bocca. (Original Latin formulation)
+#   - Dedekind, R. (1888). "Was sind und was sollen die Zahlen?"
+#     Braunschweig: Vieweg. (Equivalent axioms via successor function)
+#   - Kaye, R. (1991). "Models of Peano Arithmetic." Oxford Logic Guides 15.
+#     Oxford University Press. ISBN 0-19-853213-X.
+#   - Hájek, P. & Pudlák, P. (1993). "Metamathematics of First-Order
+#     Arithmetic." Perspectives in Mathematical Logic. Springer.
+#     ISBN 3-540-50632-X.
+#   - Mendelson, E. (2015). "Introduction to Mathematical Logic," 6th ed.
+#     CRC Press. Chapter 3.
+#   - Wikipedia: Peano axioms
+#     https://en.wikipedia.org/wiki/Peano_axioms
+#   - Wikipedia: Gödel's incompleteness theorems
+#     https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems
+#   - Wikipedia: Goodstein's theorem
+#     https://en.wikipedia.org/wiki/Goodstein%27s_theorem
+#   - Wikipedia: Paris–Harrington theorem
+#     https://en.wikipedia.org/wiki/Paris%E2%80%93Harrington_theorem
+#   - nLab: Peano arithmetic
+#     https://ncatlab.org/nlab/show/Peano+arithmetic
+#   - Stanford Encyclopedia of Philosophy: Arithmetic
+#     https://plato.stanford.edu/entries/arithmetical-hierarchy/
+#
+# Primitive Notions (5 non-logical symbols):
+#   Constant: 0 (zero)
+#   Functions: S (successor, unary), + (addition, binary), × (multiplication, binary)
+#   Relation:  < (strict less-than, binary)
+#
+# Core Axioms (8 axioms + induction schema):
+#   Group I. Successor Axioms (3):
+#     PA1: ∀x (S(x) ≠ 0)                    — 0 is not a successor
+#     PA2: ∀x∀y (S(x) = S(y) → x = y)       — S is injective
+#     PA3: ∀x (x + 0 = x)                    — 0 is additive identity (left)
+#   Group II. Addition Axioms (2):
+#     PA4: ∀x∀y (x + S(y) = S(x + y))        — recursive definition of +
+#     PA5: ∀x (0 + x = x)                    — 0 is additive identity (right)
+#   Group III. Multiplication Axioms (2):
+#     PA6: ∀x (x × 0 = 0)                    — 0 is multiplicative annihilator
+#     PA7: ∀x∀y (x × S(y) = (x × y) + x)    — recursive definition of ×
+#   Group IV. Induction Schema (1 schema):
+#     PA8: For every formula φ(x, x̄):
+#          (φ(0, x̄) ∧ ∀x (φ(x, x̄) → φ(S(x), x̄))) → ∀x φ(x, x̄)
+#
+#   Note: PA1–PA7 are the finitely many non-induction axioms.
+#         PA8 is an axiom schema with infinitely many instances (one per formula).
+#         The order relation < is definable: x < y ≡ ∃z (z ≠ 0 ∧ x + z = y).
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Gödel sentence (true but unprovable in PA)
+#   - Consistency of PA (Con(PA), by Gödel's second incompleteness theorem)
+#   - Goodstein's theorem (true but unprovable in PA)
+#   - Paris–Harrington principle (true but unprovable in PA)
+#   - Kirby–Paris hydra theorem (true but unprovable in PA)
+#   - Truth predicate for PA (Tarski's undefinability theorem)
+#   - Halting problem for PA-provable programs (reduction from Turing)
+#   - Σ₁-completeness is optimal (PA proves all true Σ₁ sentences but not all Σ₂)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "peano_arithmetic" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Core Axioms, Constructors, and Metrics)
+    # =================================================================
+    # Each template represents a fundamental arithmetic operation,
+    # relation, or derived construction in Peano Arithmetic.
+    # =================================================================
+
+    # --- Group I: Successor Axioms (3) ---
+    # PA1: 0 is not the successor of any natural number.
+    #     ∀x (S(x) ≠ 0)
+    # Params: natural number x
+    template "zero_not_successor" 1
+
+    # PA2: The successor function is injective.
+    #     ∀x∀y (S(x) = S(y) → x = y)
+    # Params: natural number x, natural number y
+    template "successor_injective" 2
+
+    # PA3: Zero is the left additive identity.
+    #     ∀x (x + 0 = x)
+    # Params: natural number x
+    template "add_zero_left" 1
+
+    # --- Group II: Addition Axioms (2) ---
+    # PA4: Recursive definition of addition (right successor).
+    #     ∀x∀y (x + S(y) = S(x + y))
+    # Params: natural number x, natural number y
+    template "add_successor_right" 2
+
+    # PA5: Zero is the right additive identity (derivable from PA3+PA4+induction).
+    #     ∀x (0 + x = x)
+    # Params: natural number x
+    template "add_zero_right" 1
+
+    # --- Group III: Multiplication Axioms (2) ---
+    # PA6: Zero is the multiplicative annihilator.
+    #     ∀x (x × 0 = 0)
+    # Params: natural number x
+    template "mul_zero" 1
+
+    # PA7: Recursive definition of multiplication (right successor).
+    #     ∀x∀y (x × S(y) = (x × y) + x)
+    # Params: natural number x, natural number y
+    template "mul_successor_right" 2
+
+    # --- Group IV: Induction Schema (1 schema + parameterized forms) ---
+    # PA8: Full first-order induction schema.
+    #     (φ(0) ∧ ∀x (φ(x) → φ(S(x)))) → ∀x φ(x)
+    # Params: property predicate φ (encoded as a constraint pattern)
+    template "induction_schema" 1
+
+    # Induction for addition-specific properties.
+    # Params: property φ involving addition
+    template "induction_on_addition" 1
+
+    # Induction for multiplication-specific properties.
+    # Params: property φ involving multiplication
+    template "induction_on_multiplication" 1
+
+    # Strong induction (complete induction / course-of-values induction).
+    #     (∀x ((∀y < x φ(y)) → φ(x))) → ∀x φ(x)
+    # Params: property φ
+    template "strong_induction" 1
+
+    # --- Group V: Order Relation (derived from addition) ---
+    # Definition: x < y ≡ ∃z (z ≠ 0 ∧ x + z = y)
+    # Params: natural number x, natural number y
+    template "less_than_definition" 2
+
+    # < is a strict total order: irreflexive, transitive, total.
+    # Params: natural number x
+    template "less_than_irreflexive" 1
+
+    # Params: natural number x, natural number y, natural number z
+    template "less_than_transitive" 3
+
+    # Params: natural number x, natural number y
+    template "less_than_total" 2
+
+    # 0 is the least element: ∀x (0 ≤ x)
+    # Params: natural number x
+    template "zero_is_least" 1
+
+    # No largest element: ∀x ∃y (x < y), witness y = S(x)
+    # Params: natural number x
+    template "no_largest_element" 1
+
+    # --- Group VI: Elementary Arithmetic Consequences (provable in PA) ---
+
+    # Successor properties
+    # ∀x (S(x) ≠ x) — no natural number is its own successor
+    template "successor_not_equal" 1
+
+    # ∀x∀y (x ≠ y → S(x) ≠ S(y)) — contrapositive of injectivity
+    template "successor_distinct" 2
+
+    # Addition is commutative: ∀x∀y (x + y = y + x)
+    template "addition_commutative" 2
+
+    # Addition is associative: ∀x∀y∀z ((x + y) + z = x + (y + z))
+    template "addition_associative" 3
+
+    # Addition is cancellative: ∀x∀y∀z (x + z = y + z → x = y)
+    template "addition_cancellative" 3
+
+    # Multiplication is commutative: ∀x∀y (x × y = y × x)
+    template "multiplication_commutative" 2
+
+    # Multiplication is associative: ∀x∀y∀z ((x × y) × z = x × (y × z))
+    template "multiplication_associative" 3
+
+    # Left distributivity: ∀x∀y∀z (x × (y + z) = (x × y) + (x × z))
+    template "distributivity_left" 3
+
+    # Right distributivity: ∀x∀y∀z ((x + y) × z = (x × z) + (y × z))
+    template "distributivity_right" 3
+
+    # S(0) = 1 is multiplicative identity: ∀x (x × 1 = x)
+    template "mul_identity_right" 1
+
+    # ∀x (1 × x = x) — left multiplicative identity
+    template "mul_identity_left" 1
+
+    # ∀x (x × 0 = 0 × x) — zero commutes with multiplication
+    template "mul_zero_commutes" 1
+
+    # ∀x∀y (x × y = 0 → x = 0 ∨ y = 0) — no zero divisors
+    template "no_zero_divisors" 2
+
+    # Order and addition: x < y → x + z < y + z
+    template "order_add_right" 3
+
+    # Order and addition: x < y → z + x < z + y
+    template "order_add_left" 3
+
+    # Order and multiplication: 0 < x ∧ 0 < y → 0 < x × y
+    template "order_mul_positive" 2
+
+    # --- Group VII: Exponentiation (definable in PA) ---
+    # x^0 = 1
+    # Params: natural number x
+    template "exp_zero" 1
+
+    # x^S(y) = x^y × x
+    # Params: natural number x, natural number y
+    template "exp_successor" 2
+
+    # Exponentiation laws (provable by induction)
+    # x^(y+z) = x^y × x^z
+    template "exp_addition_law" 3
+
+    # (x × y)^z = x^z × y^z
+    template "exp_multiplication_law" 3
+
+    # (x^y)^z = x^(y×z)
+    template "exp_power_law" 3
+
+    # --- Group VIII: Divisibility and Remainder (definable in PA) ---
+    # x | y ≡ ∃z (x × z = y)
+    # Params: natural number x, natural number y
+    template "divisibility_definition" 2
+
+    # Division algorithm: ∀a∀b (b ≠ 0 → ∃!q∃!r (a = b×q + r ∧ r < b))
+    # Params: natural number a, natural number b (b ≠ 0)
+    template "division_algorithm" 2
+
+    # Euclidean algorithm for GCD
+    # Params: natural number a, natural number b
+    template "euclidean_gcd" 2
+
+    # Bézout's identity: ∃x∃y (a×x + b×y = gcd(a,b))
+    # Params: natural number a, natural number b
+    template "bezout_identity" 2
+
+    # --- Group IX: Primality (definable in PA) ---
+    # Prime definition: p > 1 ∧ ∀x∀y (p = x×y → x = 1 ∨ y = 1)
+    # Params: natural number p
+    template "prime_definition" 1
+
+    # Fundamental theorem of arithmetic (unique prime factorization)
+    # Params: natural number n (n > 1)
+    template "unique_prime_factorization" 1
+
+    # Infinitude of primes: ∀x ∃p (p > x ∧ prime(p))
+    # Params: natural number x
+    template "infinitude_of_primes" 1
+
+    # Euclid's lemma: p | a×b → p | a ∨ p | b (for prime p)
+    # Params: natural number p, natural number a, natural number b
+    template "euclid_lemma" 3
+
+    # --- Group X: Core Constructors (elementary operations) ---
+
+    # Successor: given n, produce S(n)
+    # Params: natural number n -> natural number S(n)
+    template "successor" 1
+
+    # Predecessor: given n > 0, produce n - 1 (partial function)
+    # Params: natural number n -> natural number (n - 1) or undefined
+    template "predecessor" 1
+
+    # Addition: given a, b, produce a + b
+    # Params: natural number a, natural number b -> natural number (a + b)
+    template "add" 2
+
+    # Subtraction (truncated): given a, b, produce max(a - b, 0)
+    # Params: natural number a, natural number b -> natural number
+    template "subtract_truncated" 2
+
+    # Multiplication: given a, b, produce a × b
+    # Params: natural number a, natural number b -> natural number (a × b)
+    template "multiply" 2
+
+    # Exponentiation: given base b, exponent e, produce b^e
+    # Params: natural number b, natural number e -> natural number (b^e)
+    template "exponentiate" 2
+
+    # Less-than comparison: given a, b, determine if a < b
+    # Params: natural number a, natural number b -> boolean
+    template "less_than_compare" 2
+
+    # Less-or-equal comparison: given a, b, determine if a ≤ b
+    # Params: natural number a, natural number b -> boolean
+    template "less_or_equal_compare" 2
+
+    # Equality comparison: given a, b, determine if a = b
+    # Params: natural number a, natural number b -> boolean
+    template "equality_compare" 2
+
+    # Maximum: given a, b, produce max(a, b)
+    # Params: natural number a, natural number b -> natural number
+    template "maximum" 2
+
+    # Minimum: given a, b, produce min(a, b)
+    # Params: natural number a, natural number b -> natural number
+    template "minimum" 2
+
+    # Factorial: given n, produce n!
+    # Params: natural number n -> natural number (n!)
+    template "factorial" 1
+
+    # --- Group XI: Derived Constructors (number-theoretic operations) ---
+
+    # Quotient: given a, b (b ≠ 0), produce a div b
+    # Params: natural number a, natural number b -> natural number
+    template "quotient" 2
+
+    # Remainder: given a, b (b ≠ 0), produce a mod b
+    # Params: natural number a, natural number b -> natural number
+    template "remainder" 2
+
+    # Divisibility test: given a, b, determine if a | b
+    # Params: natural number a, natural number b -> boolean
+    template "divisibility_test" 2
+
+    # GCD: given a, b, produce gcd(a, b)
+    # Params: natural number a, natural number b -> natural number
+    template "gcd" 2
+
+    # LCM: given a, b, produce lcm(a, b)
+    # Params: natural number a, natural number b -> natural number
+    template "lcm" 2
+
+    # Primality test: given n, determine if n is prime
+    # Params: natural number n -> boolean
+    template "primality_test" 1
+
+    # Next prime: given n, produce the smallest prime > n
+    # Params: natural number n -> natural number
+    template "next_prime" 1
+
+    # Prime factorization: given n > 1, produce list of (prime, exponent) pairs
+    # Params: natural number n -> factorization
+    template "prime_factorization" 1
+
+    # Finite sequence encoding (Gödel's β-function technique)
+    # Params: sequence data, index -> element
+    template "beta_function_encode" 2
+
+    # Finite sequence decoding
+    # Params: encoded sequence, index -> element
+    template "beta_function_decode" 2
+
+    # Bounded quantifier: given property φ and bound n, check ∀x ≤ n φ(x)
+    # Params: property φ, natural number n -> boolean
+    template "bounded_forall" 2
+
+    # Bounded existential: given property φ and bound n, check ∃x ≤ n φ(x)
+    # Params: property φ, natural number n -> boolean
+    template "bounded_exists" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "godel_sentence" {
+        reduces_to "godel_first_incompleteness"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "induction_schema"
+        dependency "beta_function_encode"
+        dependency "beta_function_decode"
+        external_ref "https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems"
+        green_verified true
+    }
+
+    unconstructible "consistency_of_PA" {
+        reduces_to "godel_second_incompleteness"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "induction_schema"
+        dependency "beta_function_encode"
+        external_ref "https://en.wikipedia.org/wiki/G%C3%B6del%27s_second_incompleteness_theorem"
+        green_verified true
+    }
+
+    unconstructible "goodstein_theorem" {
+        reduces_to "transfinite_induction_up_to_epsilon_0"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "exponentiate"
+        dependency "induction_schema"
+        external_ref "https://en.wikipedia.org/wiki/Goodstein%27s_theorem"
+        green_verified true
+    }
+
+    unconstructible "paris_harrington_principle" {
+        reduces_to "independence_from_PA"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "induction_schema"
+        dependency "beta_function_encode"
+        external_ref "https://en.wikipedia.org/wiki/Paris%E2%80%93Harrington_theorem"
+        green_verified true
+    }
+
+    unconstructible "kirby_paris_hydra" {
+        reduces_to "transfinite_induction_up_to_epsilon_0"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "induction_schema"
+        external_ref "https://en.wikipedia.org/wiki/Hydra_game"
+        green_verified true
+    }
+
+    unconstructible "truth_predicate_for_PA" {
+        reduces_to "tarski_undefinability"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "induction_schema"
+        dependency "beta_function_encode"
+        external_ref "https://en.wikipedia.org/wiki/Tarski%27s_undefinability_theorem"
+        green_verified true
+    }
+
+    unconstructible "halting_problem_for_PA" {
+        reduces_to "turing_halting_problem"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "induction_schema"
+        dependency "beta_function_encode"
+        external_ref "https://en.wikipedia.org/wiki/Halting_problem"
+        green_verified true
+    }
+
+    unconstructible "epsilon_0_consistency" {
+        reduces_to "gentzen_consistency_proof"
+        dependency "successor"
+        dependency "add"
+        dependency "multiply"
+        dependency "induction_schema"
+        dependency "strong_induction"
+        external_ref "https://en.wikipedia.org/wiki/Epsilon_numbers_(mathematics)"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "peano_arithmetic_discrete"
+    negation_encoding "classical_first_order_logic"
+    contradiction_behavior "explosion_principle"
+}

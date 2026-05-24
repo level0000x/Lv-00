@@ -36,25 +36,25 @@ extern "C" {
 #include "mpz_poly.h"
 
 typedef enum {
-    RATIONAL,
-    ALGEBRAIC,
-    QUADRATIC,
-    TRANSCENDENTAL
+    RATIONAL,          /* 有理数 */
+    ALGEBRAIC,         /* 代数数 */
+    QUADRATIC,         /* 二次扩张数 */
+    TRANSCENDENTAL     /* 超越数 */
 } CoordType;
 
 typedef enum {
-    TRUST_GREEN,
-    TRUST_BLUE,
-    TRUST_YELLOW,
-    TRUST_ORANGE,
-    TRUST_LIGHT_ORANGE,
-    TRUST_RED,
-    TRUST_AMBER
+    TRUST_GREEN,            /* 绿色：完全构造性 */
+    TRUST_BLUE,             /* 蓝色：未确定 */
+    TRUST_YELLOW,           /* 黄色：条件性 */
+    TRUST_ORANGE,           /* 橙色：非构造性依赖 */
+    TRUST_LIGHT_ORANGE,     /* 浅橙色：oracle/爆炸原理 */
+    TRUST_RED,              /* 红色：已证伪 */
+    TRUST_AMBER             /* 橙黄色：含数值假设 */
 } TrustColor;
 
 typedef enum {
-    LIGHT_ORANGE_ORACLE,
-    LIGHT_ORANGE_EXPLOSION
+    LIGHT_ORANGE_ORACLE,    /* 浅橙色：oracle 依赖 */
+    LIGHT_ORANGE_EXPLOSION  /* 浅橙色：爆炸原理步骤 */
 } LightOrangeSubtype;
 
 /* Full struct definitions (not opaque) */
@@ -76,24 +76,24 @@ typedef struct Quadratic {
     unsigned int n;
 } Quadratic;
 
-/* Symbolic expression for transcendental operations (Section 1.4 of design_v2.9.md) */
+/* 超越数符号表达式类型（design_v2.9.md 第1.4节） */
 typedef enum {
-    TRANS_EXPR_CONSTANT,      /* Standalone constant (pi, e) */
-    TRANS_EXPR_ADD_RATIONAL,  /* constant + rational */
-    TRANS_EXPR_MUL_RATIONAL,  /* constant * rational */
-    TRANS_EXPR_ADD_ALGEBRAIC, /* constant + algebraic (marked out-of-scope) */
-    TRANS_EXPR_MUL_ALGEBRAIC  /* constant * algebraic (marked out-of-scope) */
+    TRANS_EXPR_CONSTANT,      /* 独立常量（pi, e） */
+    TRANS_EXPR_ADD_RATIONAL,  /* 常量 + 有理数 */
+    TRANS_EXPR_MUL_RATIONAL,  /* 常量 * 有理数 */
+    TRANS_EXPR_ADD_ALGEBRAIC, /* 常量 + 代数数（标记为超出范围） */
+    TRANS_EXPR_MUL_ALGEBRAIC  /* 常量 * 代数数（标记为超出范围） */
 } TransExprType;
 
 typedef struct TranscendentalExpr {
     TransExprType expr_type;
-    char base_name[8];           /* Base constant name ("pi" or "e") */
+    char base_name[16];          /* 基础常量名（如 "pi", "e"），最大15字符 */
     Rational *rational_operand;  /* For ADD/MUL_RATIONAL */
     bool out_of_scope;           /* True if combined with algebraic/quadratic */
 } TranscendentalExpr;
 
 typedef struct Transcendental {
-    char name[32];                 /* Constant name, e.g. "pi", "pi/2", "3*pi/4", max 31 chars */
+    char name[64];                 /* 常量名（如 "pi", "pi/2", "3*pi/4"），最大63字符 */
     TranscendentalExpr *expr;    /* Symbolic expression tree (NULL for bare constants) */
 } Transcendental;
 

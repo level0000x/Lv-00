@@ -35,7 +35,7 @@ void test_point_serialization(void) {
     assert(graph_get_node_count(restored) == 1);
     
     /* 清理 */
-    free(json);
+    lv00_free_ptr(json);
     graph_destroy(restored);
     graph_destroy(graph);
     
@@ -76,7 +76,7 @@ void test_line_segment_serialization(void) {
     printf("恢复后节点数: %d\n", graph_get_node_count(restored));
     printf("恢复后约束数: %d\n", graph_get_constraint_count(restored));
     
-    free(json);
+    lv00_free_ptr(json);
     graph_destroy(restored);
     graph_destroy(graph);
     
@@ -127,7 +127,7 @@ void test_constraint_serialization(void) {
     printf("恢复后节点数: %d\n", graph_get_node_count(restored));
     printf("恢复后约束数: %d\n", graph_get_constraint_count(restored));
     
-    free(json);
+    lv00_free_ptr(json);
     graph_destroy(restored);
     graph_destroy(graph);
     
@@ -176,9 +176,9 @@ void test_module_graph_serialization(void) {
     char *graph_json = module_serialize_graph_to_json(mod);
     assert(graph_json != NULL);
     printf("独立图序列化:\n%s\n", graph_json);
-    free(graph_json);
+    lv00_free_ptr(graph_json);
     
-    free(json);
+    lv00_free_ptr(json);
     module_destroy(restored_mod);
     module_destroy(mod);
     

@@ -8,6 +8,17 @@ Lv-00 流式输出端到端测试
 2. Python 桥接服务器 WebSocket 推送
 3. 前端事件接收和过滤
 
+框架说明：
+    本文件使用 unittest 框架而非项目其他测试文件所用的 pytest，
+    原因如下：
+    1. 本文件包含异步测试（TestAsyncStreaming），使用了
+       unittest.IsolatedAsyncioTestCase，该基类提供了内置的异步
+       事件循环管理和隔离机制，无需额外依赖 pytest-asyncio 插件。
+    2. 本文件使用了 unittest.mock（Mock, patch, MagicMock），
+       与 unittest 框架原生集成，迁移到 pytest-mock 会增加依赖。
+    3. 本文件设计为可独立运行（python test_streaming_e2e.py），
+       不依赖 pytest 的发现机制，适合作为端到端冒烟测试单独执行。
+
 运行方式:
     python test_streaming_e2e.py
 """

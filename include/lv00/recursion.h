@@ -104,6 +104,7 @@ typedef struct {
 struct MeasureSystem {
     Measure **measures;                     /* 测度数组 */
     int measure_count;                      /* 测度数量 */
+    int measure_capacity;                   /* 测度数组容量（用于指数增长策略） */
 
     /* 默认测度 */
     Measure *default_measure;               /* 默认测度 */

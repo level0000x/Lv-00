@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_geometry_3d.c
  * @brief 三维几何预设函数块 - 实现
  *
@@ -7,7 +7,7 @@
  *
  * @module Geometry3D
  * @category PRESET_CATEGORY_GEOMETRY
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 /*

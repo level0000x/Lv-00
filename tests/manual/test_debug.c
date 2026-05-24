@@ -3,6 +3,7 @@
 
 // Direct GMP test without lv00
 #include <gmp.h>
+#include "lv00_utils.h"
 
 int main() {
     printf("=== Direct GMP Test ===\n\n");
@@ -35,8 +36,8 @@ int main() {
     printf("6. Printing: %s/%s\n", num_str, den_str);
     
     printf("\n7. Freeing strings...\n");
-    free(num_str);
-    free(den_str);
+    lv00_free_ptr(num_str);
+    lv00_free_ptr(den_str);
     printf("   OK\n");
     
     printf("8. Clearing mpz...\n");

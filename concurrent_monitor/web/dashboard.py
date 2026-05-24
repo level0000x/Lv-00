@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 import threading
 import webbrowser
-from typing import Any
+from types import TracebackType
+from typing import Any, Optional, Type
 
 from ..core.engine import MonitorEngine
 from ..core.config import Config, ConfigManager
@@ -105,7 +106,6 @@ class WebDashboard:
         except KeyboardInterrupt:
             logger.info("收到中断信号，正在停止服务器...")
         finally:
-            self._running = False
             self.shutdown()
 
     def run_in_background(self, debug: bool = False) -> threading.Thread:
@@ -128,12 +128,11 @@ class WebDashboard:
         return self._server_thread
 
     def shutdown(self) -> None:
-        """关闭仪表盘"""
+        """关闭仪表盘，停止引擎并释放资源"""
         if not self._running:
             return
 
         logger.info("正在关闭 Web 仪表盘...")
-        self._running = False
 
         # 停止引擎
         try:
@@ -141,14 +140,27 @@ class WebDashboard:
         except Exception as e:
             logger.warning(f"关闭引擎时出错: {e}")
 
+        self._running = False
         logger.info("Web 仪表盘已关闭")
 
     def __enter__(self) -> WebDashboard:
-        """上下文管理器入口"""
+        """上下文管理器入口，支持 with 语法"""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """上下文管理器出口"""
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        """
+        上下文管理器出口，退出时自动关闭仪表盘
+        
+        Args:
+            exc_type: 异常类型（无异常时为 None）
+            exc_val: 异常值（无异常时为 None）
+            exc_tb: 异常回溯（无异常时为 None）
+        """
         self.shutdown()
 
 

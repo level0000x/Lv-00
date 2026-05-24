@@ -181,7 +181,7 @@ class CodeAnalyzer:
                     comment_count += 1
                 elif in_multiline_comment:
                     comment_count += 1
-                elif '#' in stripped:
+                elif self._is_python_comment(stripped):
                     comment_count += 1
         
         elif language in ["javascript", "typescript", "java", "cpp", "c", "go"]:
@@ -195,6 +195,50 @@ class CodeAnalyzer:
                     in_multiline_comment = False
         
         return comment_count
+
+    @staticmethod
+    def _is_python_comment(stripped_line: str) -> bool:
+        """
+        判断去除首尾空白的 Python 行是否为注释行
+
+        排除字符串中包含 '#' 但并非注释的情况，
+        例如: url = "https://example.com#anchor" 或 color = '#fff'
+        """
+        if not stripped_line.startswith('#'):
+            return False
+        # 如果行以 # 开头，但前面有奇数个引号，说明 # 在字符串内
+        # 简单启发式：统计行中三引号和普通引号的数量来判断
+        # 更可靠的方式：检查 # 之前是否有未闭合的字符串
+        in_string = False
+        quote_char = None
+        i = 0
+        while i < len(stripped_line):
+            ch = stripped_line[i]
+            if in_string:
+                if ch == '\\':
+                    i += 2  # 跳过转义字符
+                    continue
+                if ch == quote_char:
+                    # 检查是否是三引号
+                    if i + 2 < len(stripped_line) and stripped_line[i:i+3] == quote_char * 3:
+                        in_string = False
+                        i += 3
+                        continue
+                    in_string = False
+            else:
+                if ch in ('"', "'"):
+                    # 检查是否是三引号
+                    if i + 2 < len(stripped_line) and stripped_line[i:i+3] == ch * 3:
+                        in_string = True
+                        quote_char = ch * 3
+                        i += 3
+                        continue
+                    in_string = True
+                    quote_char = ch
+            i += 1
+        # 如果 # 不在字符串内，则是注释
+        # 由于我们已经知道行以 # 开头，如果在字符串外就是注释
+        return not in_string
     
     def _analyze_python_syntax(self, code: str) -> List[CodeIssue]:
         """分析Python语法问题"""
@@ -377,17 +421,30 @@ class CodeAnalyzer:
                         code_snippet=line.strip()[:50] + "..."
                     ))
         
-        # 检查TODO注释
+        # 检查TODO/FIXME/HACK/XXX注释
         for i, line in enumerate(lines, 1):
-            todo_match = re.search(r'#\s*TODO', line, re.IGNORECASE)
+            todo_match = re.search(r'#\s*(TODO|FIXME|HACK|XXX)', line, re.IGNORECASE)
             if todo_match:
+                tag = todo_match.group(1).upper()
+                tag_messages = {
+                    "TODO": "发现TODO注释",
+                    "FIXME": "发现FIXME注释（需要修复的问题）",
+                    "HACK": "发现HACK注释（临时解决方案）",
+                    "XXX": "发现XXX注释（需要关注的问题）",
+                }
+                tag_suggestions = {
+                    "TODO": "确保在发布前完成TODO事项",
+                    "FIXME": "尽快修复此问题",
+                    "HACK": "考虑用更规范的方案替代临时实现",
+                    "XXX": "审查并处理此标记的问题",
+                }
                 issues.append(CodeIssue(
                     line=i,
                     column=todo_match.start(),
                     severity=IssueSeverity.INFO,
                     category=IssueCategory.BEST_PRACTICE,
-                    message="发现TODO注释",
-                    suggestion="确保在发布前完成TODO事项",
+                    message=tag_messages.get(tag, f"发现{tag}注释"),
+                    suggestion=tag_suggestions.get(tag, "确保在发布前处理"),
                     code_snippet=line.strip()
                 ))
         

@@ -2,7 +2,7 @@
 # This CMake file is used with Emscripten to build for the web
 
 cmake_minimum_required(VERSION 3.15)
-project(lv00-web VERSION 3.0.1 LANGUAGES C)
+project(lv00-web VERSION 3.2.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -13,7 +13,7 @@ if(NOT EMSCRIPTEN)
 endif()
 
 # Emscripten 版本检查：建议使用 3.1.0 以上版本以获得完整的 WebAssembly 特性支持
-if(EMSCRIPTEN_VERSION VERSION_LESS "3.1.0")
+if(EMSCRIPTEN_VERSION VERSION_LESS "3.2.0")
     message(WARNING "Emscripten ${EMSCRIPTEN_VERSION} 版本较旧。"
                     "建议升级到 3.1.0+ 以获得 -s EXPORT_ES6 等特性的完整支持。")
 endif()
@@ -93,6 +93,7 @@ set(LV00_SOURCES
     ../src/preset/preset_algebraic.c
     ../src/core/type_system.c
     ../src/core/proof.c
+    ../src/core/proof_multi_strategy.c
     ../src/core/recursion.c
     ../src/utils/lv00_utils.c
     ../src/core/lv00.c

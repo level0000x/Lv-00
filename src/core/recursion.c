@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file recursion.c
  * @brief 递归与条件系统实现 —— 良基递归与测度递减验证
  *
@@ -21,7 +21,7 @@
  *          - 测度递减原则：每次递归调用必须使测度值严格递减
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  *
  * @dependencies
  *   - recursion.h          : 递归系统公共接口定义
@@ -157,6 +157,7 @@ void measure_destroy(Measure *m) {
  * @brief 向测度系统添加测度
  *
  * 将测度追加到系统的测度数组中。如果测度为自定义类型，标记系统含非符号测度。
+ * 内部使用指数增长策略（容量翻倍）管理数组内存，避免频繁 realloc。
  *
  * @param ms 测度系统指针
  * @param m  测度指针
@@ -165,14 +166,18 @@ void measure_destroy(Measure *m) {
 bool measure_system_add(MeasureSystem *ms, Measure *m) {
     if (!ms || !m) return false;
 
-    int new_count = ms->measure_count + 1;
-    Measure **new_arr = lv00_realloc(ms->measures,
-        (size_t)new_count * sizeof(Measure*));
-    if (!new_arr) return false;
+    /* 指数增长策略：当数组已满时，容量翻倍 */
+    if (ms->measure_count >= ms->measure_capacity) {
+        int new_cap = ms->measure_capacity == 0 ? 4 : ms->measure_capacity * 2;
+        Measure **new_arr = lv00_realloc(ms->measures,
+            (size_t)new_cap * sizeof(Measure*));
+        if (!new_arr) return false;
+        ms->measures = new_arr;
+        ms->measure_capacity = new_cap;
+    }
 
-    ms->measures = new_arr;
     ms->measures[ms->measure_count] = m;
-    ms->measure_count = new_count;
+    ms->measure_count++;
 
     if (m->type == MEASURE_CUSTOM) {
         ms->has_non_symbolic = true;
@@ -359,12 +364,18 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
                     }
 
                     /* 当前线段起点：(x_i, y_i) */
-                    SymbolicCoord *xi = seg_i->symbolic_coords[0];
-                    SymbolicCoord *yi = seg_i->symbolic_coords[1];
+                    SymbolicCoord *xi = seg_i->symbolic_coords ? seg_i->symbolic_coords[0] : NULL;
+                    SymbolicCoord *yi = seg_i->symbolic_coords ? seg_i->symbolic_coords[1] : NULL;
 
                     /* 下一条线段起点：(x_{i+1}, y_{i+1}) */
-                    SymbolicCoord *xi1 = seg_next->symbolic_coords[0];
-                    SymbolicCoord *yi1 = seg_next->symbolic_coords[1];
+                    SymbolicCoord *xi1 = seg_next->symbolic_coords ? seg_next->symbolic_coords[0] : NULL;
+                    SymbolicCoord *yi1 = seg_next->symbolic_coords ? seg_next->symbolic_coords[1] : NULL;
+
+                    /* 坐标空指针检查 */
+                    if (!xi || !yi || !xi1 || !yi1) {
+                        symbolic_coord_destroy(sum);
+                        return NULL;
+                    }
 
                     /* 计算叉积项：x_i * y_{i+1} - x_{i+1} * y_i */
                     SymbolicCoord *term1 = symbolic_coord_multiply(xi, yi1);

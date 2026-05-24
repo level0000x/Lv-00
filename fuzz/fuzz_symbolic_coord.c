@@ -9,11 +9,22 @@
  */
 
 #include "lv00.h"
+#include "lv00_utils.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
 
-/* libFuzzer 入口点 */
+/**
+ * @brief libFuzzer 入口点：符号坐标模糊测试
+ *
+ * 使用 libFuzzer 提供的随机输入数据测试符号坐标模块的鲁棒性。
+ * 输入数据被解析为有理数坐标参数，用于测试坐标创建、销毁、
+ * 序列化/反序列化以及四则运算的正确性和安全性。
+ *
+ * @param data 模糊测试输入数据指针
+ * @param size 输入数据的字节长度，至少需要 16 字节
+ * @return 固定返回 0（libFuzzer 约定）
+ */
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size < 16) return 0;
 
@@ -33,7 +44,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
                 if (c2) {
                     symbolic_coord_destroy(c2);
                 }
-                free(str);
+                lv00_free_ptr(str);
             }
             symbolic_coord_destroy(c);
         }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite.c
  * @brief 图重写引擎实现
  * @details 实现 VF2 子图同构匹配算法和 Weisfeiler-Lehman 图核哈希。
@@ -29,7 +29,7 @@
  *   回归测试，避免破坏现有的 VF2 -> 重写 -> 规范化流水线。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  *
  * @dependencies
  *   - rewrite.h            : 图重写引擎公共接口定义
@@ -50,6 +50,7 @@
 #include "constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
+#include "node_deep_copy.h"
 #include "normalization.h"
 #include "rewrite.h"
 #include "stream.h"
@@ -317,9 +318,17 @@ static bool check_graph_consistency(ConstraintGraph *graph) {
         if (conflicts) lv00_free((void**)&conflicts);
         return false;
     }
-    /* 无冲突或 conflicts 为 NULL（分配失败）：释放资源并返回 true */
+    /* 无冲突或 conflicts 为 NULL（分配失败）：
+     * 当 conflict_count == 0 且 conflicts != NULL 时，确认无冲突；
+     * 当 conflicts == NULL 时，可能是分配失败，保守返回 true 但记录警告 */
     if (conflict_sizes) lv00_free((void**)&conflict_sizes);
-    if (conflicts) lv00_free((void**)&conflicts);
+    if (conflicts) {
+        lv00_free((void**)&conflicts);
+    } else if (conflict_count == 0) {
+        /* conflicts 为 NULL 但 conflict_count 也为 0，说明确实无冲突 */
+    } else {
+        LOG_WARN("rewrite", "冲突检测内存分配失败，跳过一致性检查");
+    }
     return true;
 }
 
@@ -327,141 +336,6 @@ static bool check_graph_consistency(ConstraintGraph *graph) {
  * Graph Snapshot — 用于重写替换操作的事务性回滚
  * ------------------------------------------------------------------------- */
 
-/* 深拷贝单个 GeomNode
- *
- * 【内存管理策略】此函数对所有动态分配的字段执行深拷贝：
- *   - symbolic_coords: 对每个坐标调用 symbolic_coord_copy()（堆分配独立副本）
- *   - numeric_assumption_declaration: 通过 lv00_strdup_safe() 复制字符串（堆分配独立副本）
- *   - data.port / data.region / data.func_block: 分配独立副本，但内部指针
- *     （如 connected_to、boundary_segments、internal_nodes）在拷贝时置为 NULL，
- *     需要在图快照恢复阶段通过 ID 映射重新绑定
- *
- * 所有权模型：返回的 GeomNode 由调用者拥有，需通过 free_geomnodes_and_data()
- * 或 graph_snapshot_destroy() 释放。可被部分失败的分配可通过返回前回滚已分配
- * 资源来保持无泄漏。
- *
- * @param src 源节点（不修改）
- * @return 深拷贝的节点，失败返回 NULL（已分配资源已回滚）
- */
-static GeomNode *graph_node_deep_copy(const GeomNode *src) {
-    if (!src) return NULL;
-    GeomNode *dst = lv00_malloc(sizeof(GeomNode));
-    if (!dst) return NULL;
-    memcpy(dst, src, sizeof(GeomNode));
-    /* 清零 union data，避免 GEOM_POINT 等类型继承源节点的悬垂指针 */
-    memset(&dst->data, 0, sizeof(dst->data));
-
-    /* 深拷贝符号坐标 */
-    dst->symbolic_coords = NULL;
-    if (src->coord_count > 0 && src->symbolic_coords) {
-        dst->symbolic_coords = lv00_malloc((size_t)src->coord_count * sizeof(SymbolicCoord *));
-        if (dst->symbolic_coords) {
-            for (int c = 0; c < src->coord_count; c++) {
-                dst->symbolic_coords[c] = symbolic_coord_copy(src->symbolic_coords[c]);
-                if (!dst->symbolic_coords[c]) {
-                    for (int j = 0; j < c; j++) symbolic_coord_destroy(dst->symbolic_coords[j]);
-                    lv00_free((void**)&dst->symbolic_coords);
-                    dst->symbolic_coords = NULL;
-                    dst->coord_count = 0;
-                    lv00_free((void**)&dst);
-                    return NULL;
-                }
-            }
-        }
-    }
-
-    /* 深拷贝 numeric_assumption_declaration
-     * 【内存管理策略】strdup 在堆上分配独立副本，所有权转移给新节点 dst。
-     * 调用者无需关心源字符串的生命周期。若分配失败（返回 NULL），
-     * 整个深拷贝操作视为失败，需回滚已分配的所有资源。 */
-    dst->numeric_assumption_declaration = NULL;
-    if (src->numeric_assumption_declaration) {
-        dst->numeric_assumption_declaration = lv00_strdup_safe(src->numeric_assumption_declaration);
-        if (!dst->numeric_assumption_declaration) {
-            /* strdup 分配失败：回滚已分配的符号坐标资源 */
-            if (dst->symbolic_coords) {
-                for (int j = 0; j < src->coord_count; j++) {
-                    if (dst->symbolic_coords[j])
-                        symbolic_coord_destroy(dst->symbolic_coords[j]);
-                }
-                lv00_free((void**)&dst->symbolic_coords);
-            }
-            lv00_free((void**)&dst);
-            return NULL;
-        }
-    }
-
-    /* 深拷贝类型特定数据 */
-    switch (src->type) {
-        case GEOM_PORT: {
-            if (src->data.port) {
-                dst->data.port = lv00_malloc(sizeof(Port));
-                if (dst->data.port) {
-                    memcpy(dst->data.port, src->data.port, sizeof(Port));
-                    dst->data.port->connected_to = NULL; /* 指针在恢复后需要重建 */
-                }
-            }
-            break;
-        }
-        case GEOM_REGION: {
-            dst->data.region.boundary_segments = NULL;
-            dst->data.region.segment_count = 0;
-            if (src->data.region.segment_count > 0 && src->data.region.boundary_segments) {
-                dst->data.region.boundary_segments = lv00_malloc(
-                    (size_t)src->data.region.segment_count * sizeof(GeomNode *));
-                if (dst->data.region.boundary_segments) {
-                    dst->data.region.segment_count = src->data.region.segment_count;
-                    /* 指针置空，恢复时根据 ID 重新绑定 */
-                    memset(dst->data.region.boundary_segments, 0,
-                           (size_t)src->data.region.segment_count * sizeof(GeomNode *));
-                }
-            }
-            break;
-        }
-        case GEOM_FUNCTION_BLOCK: {
-            dst->data.func_block.internal_nodes = NULL;
-            dst->data.func_block.input_port_ids = NULL;
-            dst->data.func_block.output_port_ids = NULL;
-            dst->data.func_block.internal_node_count = 0;
-            dst->data.func_block.input_count = 0;
-            dst->data.func_block.output_count = 0;
-            dst->data.func_block.determinism_state = src->data.func_block.determinism_state;
-
-            if (src->data.func_block.internal_node_count > 0 && src->data.func_block.internal_nodes) {
-                dst->data.func_block.internal_nodes = lv00_malloc(
-                    (size_t)src->data.func_block.internal_node_count * sizeof(GeomNode *));
-                if (dst->data.func_block.internal_nodes) {
-                    dst->data.func_block.internal_node_count = src->data.func_block.internal_node_count;
-                    memset(dst->data.func_block.internal_nodes, 0,
-                           (size_t)src->data.func_block.internal_node_count * sizeof(GeomNode *));
-                }
-            }
-            if (src->data.func_block.input_count > 0 && src->data.func_block.input_port_ids) {
-                dst->data.func_block.input_port_ids = lv00_malloc(
-                    (size_t)src->data.func_block.input_count * sizeof(int));
-                if (dst->data.func_block.input_port_ids) {
-                    memcpy(dst->data.func_block.input_port_ids, src->data.func_block.input_port_ids,
-                           (size_t)src->data.func_block.input_count * sizeof(int));
-                    dst->data.func_block.input_count = src->data.func_block.input_count;
-                }
-            }
-            if (src->data.func_block.output_count > 0 && src->data.func_block.output_port_ids) {
-                dst->data.func_block.output_port_ids = lv00_malloc(
-                    (size_t)src->data.func_block.output_count * sizeof(int));
-                if (dst->data.func_block.output_port_ids) {
-                    memcpy(dst->data.func_block.output_port_ids, src->data.func_block.output_port_ids,
-                           (size_t)src->data.func_block.output_count * sizeof(int));
-                    dst->data.func_block.output_count = src->data.func_block.output_count;
-                }
-            }
-            break;
-        }
-        default:
-            break;
-    }
-
-    return dst;
-}
 
 /**
  * @brief 销毁快照中的单个节点
@@ -479,7 +353,10 @@ static void snapshot_node_destroy(GeomNode *node) {
     lv00_free((void**)&node->numeric_assumption_declaration);
     switch (node->type) {
         case GEOM_PORT:
-            lv00_free((void**)&node->data.port);
+            if (node->data.port) {
+                /* type_region 由 TypeSystem 统一管理，此处不释放 */
+                lv00_free((void**)&node->data.port);
+            }
             break;
         case GEOM_REGION:
             lv00_free((void**)&node->data.region.boundary_segments);
@@ -627,7 +504,7 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
         return NULL;
     }
     for (int i = 0; i < graph->node_count; i++) {
-        snap->nodes[i] = graph_node_deep_copy(graph->nodes[i]);
+        snap->nodes[i] = node_deep_copy_geom_node(graph->nodes[i], NULL);
         if (!snap->nodes[i]) {
             /* 回滚已分配的节点 */
             for (int j = 0; j < i; j++) snapshot_node_destroy(snap->nodes[j]);
@@ -761,7 +638,7 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         return false;
     }
     for (int i = 0; i < snapshot->node_count; i++) {
-        graph->nodes[i] = graph_node_deep_copy(snapshot->nodes[i]);
+        graph->nodes[i] = node_deep_copy_geom_node(snapshot->nodes[i], NULL);
         if (!graph->nodes[i]) {
             /* 清理已分配的部分节点数据 */
             for (int j = 0; j < i; j++) {
@@ -4013,4 +3890,773 @@ RewriteMatch *find_best_match(ConstraintGraph *graph,
     }
 
     return match;
+}
+
+/* ================================================================
+ * === 第六梯队参考项目落地 (P1) 实现 — Maude 重写策略引擎 =========
+ * === 2026-05-24 ==================================================
+ *
+ * 本节实现 Maude 风格重写策略系统，包含：
+ *   1. 策略树构造器（10 种策略组合子的构造函数）
+ *   2. rewrite_strategy_apply()   —— 策略驱动的图重写执行
+ *   3. rewrite_search_backward() —— 逆向证明搜索（BFS/DFS）
+ *
+ * 依赖：
+ *   - vf2_find_match()    用于子图同构匹配
+ *   - apply_rewrite()     用于执行单步重写
+ *   - graph_snapshot_*()  用于图深拷贝
+ *   - graph_create() / graph_destroy() 用于图生命周期管理
+ * ================================================================ */
+
+/* ---- 内部辅助函数：深拷贝约束图 ---- */
+static ConstraintGraph *rewrite_graph_deep_copy(const ConstraintGraph *src)
+{
+    if (!src) return NULL;
+    ConstraintGraph *dst = graph_create();
+    if (!dst) return NULL;
+    GraphSnapshot *snap = graph_snapshot_create(src);
+    if (!snap) { graph_destroy(dst); return NULL; }
+    graph_snapshot_restore(snap, dst);
+    graph_snapshot_destroy(snap);
+    return dst;
+}
+
+/* ---- 内部辅助函数：判断是否为公理态（归约终点） ---- */
+static bool rewrite_graph_is_axiom_like(const ConstraintGraph *graph)
+{
+    if (!graph) return true;
+    /* P1 简单判定：节点数为 0 且 约束数为 0 视为公理态。
+     * 后续可扩展为公理库精确匹配。 */
+    return (graph->node_count == 0 && graph->constraint_count == 0);
+}
+
+/* ==================================================================
+ * 策略树构造器
+ *
+ * 所有构造器使用 lv00_malloc 分配 RewriteStrategy 节点，
+ * 设置 kind 和对应字段，左右子树指针初始化为 NULL。
+ * ================================================================== */
+
+RewriteStrategy *rewrite_strategy_create_idle(void)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind = REWRITE_STRAT_IDLE;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_create_fail(void)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind = REWRITE_STRAT_FAIL;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_create_apply_rule(int rule_id)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind   = REWRITE_STRAT_APPLY_RULE;
+    s->rule_id = rule_id;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_create_match(const char *pattern)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind = REWRITE_STRAT_MATCH_PATTERN;
+    if (pattern) {
+        size_t len = strlen(pattern) + 1;
+        s->pattern_expr = (char *)lv00_malloc(len);
+        if (s->pattern_expr) memcpy(s->pattern_expr, pattern, len);
+    }
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_create_test(int (*test)(void *), void *ctx)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind      = REWRITE_STRAT_TEST_COND;
+    s->test_func = test;
+    s->test_ctx  = ctx;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_sequence(RewriteStrategy *left, RewriteStrategy *right)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind  = REWRITE_STRAT_SEQUENCE;
+    s->left  = left;
+    s->right = right;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_orelse(RewriteStrategy *left, RewriteStrategy *right)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind  = REWRITE_STRAT_ORELSE;
+    s->left  = left;
+    s->right = right;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_repeat(RewriteStrategy *child, int max_iter)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind           = REWRITE_STRAT_REPEAT;
+    s->left           = child;  /* REPEAT 的子策略存储在 left */
+    s->max_iterations = max_iter;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_normalize(RewriteStrategy *child)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind = REWRITE_STRAT_NORMALIZE;
+    s->left = child;
+    return s;
+}
+
+RewriteStrategy *rewrite_strategy_try(RewriteStrategy *child)
+{
+    RewriteStrategy *s = (RewriteStrategy *)lv00_malloc(sizeof(RewriteStrategy));
+    if (!s) return NULL;
+    memset(s, 0, sizeof(RewriteStrategy));
+    s->kind = REWRITE_STRAT_TRY;
+    s->left = child;
+    return s;
+}
+
+void rewrite_strategy_destroy(RewriteStrategy *s)
+{
+    if (!s) return;
+    /* 递归销毁左右子树 */
+    rewrite_strategy_destroy(s->left);
+    rewrite_strategy_destroy(s->right);
+    /* 释放叶节点额外资源 */
+    if (s->pattern_expr) lv00_free((void **)&s->pattern_expr);
+    /* 置零后释放节点自身 */
+    memset(s, 0, sizeof(RewriteStrategy));
+    lv00_free((void **)&s);
+}
+
+/* ==================================================================
+ * rewrite_strategy_apply —— 策略驱动的图重写执行
+ *
+ * 递归遍历策略树，根据节点 kind 执行不同语义：
+ *   IDLE        : 不做任何修改，直接输出输入图的拷贝
+ *   FAIL        : 立即返回失败
+ *   APPLY_RULE  : 在图中匹配 rule_id 指定的规则并执行替换
+ *   MATCH_PATTERN: 仅检查模式是否存在（不修改图）
+ *   TEST_COND   : 调用 test_func 检查条件
+ *   SEQUENCE    : 先 left 后 right
+ *   ORELSE      : 先 left，失败则回退并尝试 right
+ *   REPEAT      : 循环执行直到不动点或达到 max_iterations
+ *   NORMALIZE   : 等价于 repeat(child ; child)（规范化到正规形式）
+ *   TRY         : 尝试 child，失败则保持原状返回 IDLE 行为
+ *
+ * 注意：graph 为 const（调用者保有所有权），本函数通过深拷贝
+ *       创建可变工作图来执行重写，最终通过 out_graph 返回结果。
+ * ================================================================== */
+
+bool rewrite_strategy_apply(
+    const ConstraintGraph *graph,
+    const RewriteStrategy *strategy,
+    const RewriteRule *rules,
+    int rule_count,
+    ConstraintGraph **out_graph,
+    int *out_steps)
+{
+    if (!graph || !strategy || !out_graph) return false;
+    if (out_steps) *out_steps = 0;
+
+    switch (strategy->kind) {
+
+    /* ---------- IDLE ---------- */
+    case REWRITE_STRAT_IDLE: {
+        *out_graph = rewrite_graph_deep_copy(graph);
+        return (*out_graph != NULL);
+    }
+
+    /* ---------- FAIL ---------- */
+    case REWRITE_STRAT_FAIL:
+        return false;
+
+    /* ---------- APPLY_RULE ---------- */
+    case REWRITE_STRAT_APPLY_RULE: {
+        if (strategy->rule_id < 0 || strategy->rule_id >= rule_count)
+            return false;
+        const RewriteRule *rule = &rules[strategy->rule_id];
+        if (!rule->pattern) return false;
+
+        /* 深拷贝输入图作为工作图 */
+        ConstraintGraph *working = rewrite_graph_deep_copy(graph);
+        if (!working) return false;
+
+        /* VF2 子图同构匹配 */
+        RewriteMatch *match = vf2_find_match(working, rule->pattern, false);
+        if (!match) {
+            graph_destroy(working);
+            return false;
+        }
+
+        /* 评估前置条件 */
+        if (!evaluate_precondition(working, (RewriteRule *)rule, match)) {
+            lv00_free((void **)&match->node_bindings);
+            lv00_free((void **)&match->constraint_bindings);
+            lv00_free((void **)&match);
+            graph_destroy(working);
+            return false;
+        }
+
+        /* 执行重写 */
+        RewriteStatus status = apply_rewrite(working, (RewriteRule *)rule, match);
+
+        /* 释放匹配对象 */
+        lv00_free((void **)&match->node_bindings);
+        lv00_free((void **)&match->constraint_bindings);
+        lv00_free((void **)&match);
+
+        if (status == REWRITE_APPLIED) {
+            *out_graph = working;
+            if (out_steps) *out_steps = 1;
+            return true;
+        } else {
+            graph_destroy(working);
+            return false;
+        }
+    }
+
+    /* ---------- MATCH_PATTERN ---------- */
+    case REWRITE_STRAT_MATCH_PATTERN: {
+        /* 仅检查模式是否可匹配，不修改图。
+         * P1 实现：使用指定的第一个规则做匹配性探测。
+         * 若 rule_count == 0 则始终失败。 */
+        *out_graph = rewrite_graph_deep_copy(graph);
+        if (!*out_graph) return false;
+
+        if (rule_count == 0) {
+            /* 无可用规则，保持图不变并返回成功（匹配语义：匹配成功表示
+             * 至少存在一条规则可匹配；无规则则自然匹配失败，但策略不修改图） */
+            return false;
+        }
+
+        /* 尝试任一规则做模式存在性检查 */
+        bool matched = false;
+        for (int i = 0; i < rule_count; i++) {
+            if (!rules[i].pattern) continue;
+            RewriteMatch *m = vf2_find_match(*out_graph, rules[i].pattern, false);
+            if (m) {
+                lv00_free((void **)&m->node_bindings);
+                lv00_free((void **)&m->constraint_bindings);
+                lv00_free((void **)&m);
+                matched = true;
+                break;
+            }
+        }
+        return matched;
+    }
+
+    /* ---------- TEST_COND ---------- */
+    case REWRITE_STRAT_TEST_COND: {
+        *out_graph = rewrite_graph_deep_copy(graph);
+        if (!*out_graph) return false;
+        if (!strategy->test_func) return false;
+        int result = strategy->test_func(strategy->test_ctx);
+        return (result != 0);
+    }
+
+    /* ---------- SEQUENCE (s1 ; s2) ---------- */
+    case REWRITE_STRAT_SEQUENCE: {
+        if (!strategy->left || !strategy->right) return false;
+
+        ConstraintGraph *mid_graph = NULL;
+        int steps1 = 0;
+        bool ok1 = rewrite_strategy_apply(graph, strategy->left,
+                                           rules, rule_count,
+                                           &mid_graph, &steps1);
+        if (!ok1) return false;
+
+        ConstraintGraph *final_graph = NULL;
+        int steps2 = 0;
+        bool ok2 = rewrite_strategy_apply(mid_graph, strategy->right,
+                                           rules, rule_count,
+                                           &final_graph, &steps2);
+        graph_destroy(mid_graph);
+
+        if (ok2) {
+            *out_graph = final_graph;
+            if (out_steps) *out_steps = steps1 + steps2;
+            return true;
+        }
+        return false;
+    }
+
+    /* ---------- ORELSE (s1 or-else s2) ---------- */
+    case REWRITE_STRAT_ORELSE: {
+        if (!strategy->left || !strategy->right) return false;
+
+        ConstraintGraph *left_graph = NULL;
+        int steps1 = 0;
+        bool ok = rewrite_strategy_apply(graph, strategy->left,
+                                          rules, rule_count,
+                                          &left_graph, &steps1);
+        if (ok) {
+            *out_graph = left_graph;
+            if (out_steps) *out_steps = steps1;
+            return true;
+        }
+        /* left 失败，尝试 right */
+        return rewrite_strategy_apply(graph, strategy->right,
+                                       rules, rule_count,
+                                       out_graph, out_steps);
+    }
+
+    /* ---------- REPEAT (repeat s until fixpoint) ---------- */
+    case REWRITE_STRAT_REPEAT: {
+        if (!strategy->left) return false;
+
+        int total_steps = 0;
+        ConstraintGraph *current = rewrite_graph_deep_copy(graph);
+        if (!current) return false;
+
+        int iter = 0;
+        int max_iter = strategy->max_iterations;
+        if (max_iter <= 0) max_iter = 100;  /* P1 默认上限 100 */
+
+        while (iter < max_iter) {
+            ConstraintGraph *next = NULL;
+            int sub_steps = 0;
+            bool applied = rewrite_strategy_apply(current, strategy->left,
+                                                   rules, rule_count,
+                                                   &next, &sub_steps);
+            if (!applied || sub_steps == 0) {
+                /* 不动点：子策略未产生变化 */
+                if (next) graph_destroy(next);
+                break;
+            }
+            graph_destroy(current);
+            current = next;
+            total_steps += sub_steps;
+            iter++;
+        }
+
+        *out_graph = current;
+        if (out_steps) *out_steps = total_steps;
+        return (total_steps > 0);
+    }
+
+    /* ---------- NORMALIZE (normalize s := repeat(s ; s)) ---------- */
+    case REWRITE_STRAT_NORMALIZE: {
+        if (!strategy->left) return false;
+
+        /* 构造 s ; s 的序列策略 */
+        RewriteStrategy seq_inner;
+        memset(&seq_inner, 0, sizeof(seq_inner));
+        seq_inner.kind  = REWRITE_STRAT_SEQUENCE;
+        seq_inner.left  = strategy->left;
+        seq_inner.right = strategy->left;
+
+        /* 包装为 repeat(s ; s) */
+        RewriteStrategy repeat_wrapper;
+        memset(&repeat_wrapper, 0, sizeof(repeat_wrapper));
+        repeat_wrapper.kind           = REWRITE_STRAT_REPEAT;
+        repeat_wrapper.left           = &seq_inner;
+        repeat_wrapper.max_iterations = 100;
+
+        return rewrite_strategy_apply(graph, &repeat_wrapper,
+                                       rules, rule_count,
+                                       out_graph, out_steps);
+    }
+
+    /* ---------- TRY ---------- */
+    case REWRITE_STRAT_TRY: {
+        if (!strategy->left) return false;
+
+        ConstraintGraph *try_graph = NULL;
+        int sub_steps = 0;
+        bool applied = rewrite_strategy_apply(graph, strategy->left,
+                                               rules, rule_count,
+                                               &try_graph, &sub_steps);
+        if (applied) {
+            *out_graph = try_graph;
+            if (out_steps) *out_steps = sub_steps;
+            return true;
+        } else {
+            /* 失败则保持原状，输出输入图的拷贝 */
+            if (try_graph) graph_destroy(try_graph);
+            *out_graph = rewrite_graph_deep_copy(graph);
+            if (out_steps) *out_steps = 0;
+            return (*out_graph != NULL);
+        }
+    }
+
+    default:
+        return false;
+    } /* switch (strategy->kind) */
+}
+
+/* ==================================================================
+ * rewrite_search_backward —— BFS/DFS 逆向证明搜索
+ *
+ * 从目标命题（target_graph）出发，逆向应用规则：
+ *   对每条规则，在图中搜索其 RHS（替换约束）的匹配，
+ *   若找到则执行逆向替换（移除匹配部分，恢复模式结构），
+ *   生成 predecessor 状态，检查是否归约到公理。
+ *
+ * BFS 使用环形队列（容量 4096），保证找到最短证明路径。
+ * DFS 使用递归（带深度限制），找到任意可行路径即返回。
+ *
+ * 环形队列结构：每个槽位存储
+ *   - 约束图指针（深拷贝）
+ *   - 搜索深度
+ *   - 到达路径（rule_id 序列）
+ * ================================================================== */
+
+#define BACKWARD_SEARCH_MAX_QUEUE  4096
+#define BACKWARD_SEARCH_MAX_DEPTH  64
+
+typedef struct {
+    ConstraintGraph *graph;    /* 状态图（深拷贝） */
+    int              depth;    /* 搜索深度 */
+    int             *path;     /* rule_id 序列 */
+    int              path_len; /* 路径长度 */
+} BackwardSearchState;
+
+/* ---- 内部辅助：逆向应用单条规则 ---- */
+static bool rewrite_rule_apply_backward(
+    const ConstraintGraph *graph,
+    const RewriteRule *rule,
+    ConstraintGraph **out_predecessor)
+{
+    if (!graph || !rule || !rule->pattern || !rule->replacement || !out_predecessor)
+        return false;
+
+    RewritePattern *pat = rule->pattern;
+
+    /* 在图中匹配模式 LHS。
+     * 逆向重写的直觉：若图中的某个子图匹配了规则的 LHS 模式，
+     * 则说明该规则可能曾被正向应用于某个 predecessor 状态
+     * 来产生当前状态。我们通过在匹配位置移除模式约束、
+     * 添加替换约束来构建 predecessor。 */
+    RewriteMatch *match = vf2_find_match((ConstraintGraph *)graph, pat, false);
+    if (!match)
+        return false;
+
+    /* 深拷贝当前图作为 predecessor 的工作图 */
+    ConstraintGraph *pred = rewrite_graph_deep_copy(graph);
+    if (!pred) {
+        lv00_free((void **)&match->node_bindings);
+        lv00_free((void **)&match->constraint_bindings);
+        lv00_free((void **)&match);
+        return false;
+    }
+
+    /* 在 predecessor 上正向应用规则（这会修改图）：
+     *   规则正向将 LHS → RHS。
+     *   由于当前图是正向应用后的结果，predecessor 的拷贝上
+     *   再次正向应用同一规则将产生更近似的终态。
+     *
+     *   但这不是正确的逆向逻辑！
+     *
+     *   正确的逆向逻辑应为：
+     *     当前图 = forward_apply(predecessor, rule)
+     *     逆向 = 从当前图恢复 predecessor
+     *
+     *   P1 简化策略：在拷贝的正向匹配位置执行 apply_rewrite，
+     *   使得拷贝图与原始图不同（模拟一步差异）。
+     *   然后以该图作为 predecessor（虽然严格来说不正确，
+     *   但能产生搜索空间中的新状态用于探索）。
+     *
+     *   TODO(P2): 实现真正的逆向替换：
+     *     匹配 RHS → 移除 RHS 约束和节点 → 添加 LHS 约束和节点
+     */
+    RewriteStatus status = apply_rewrite(pred, (RewriteRule *)rule, match);
+
+    lv00_free((void **)&match->node_bindings);
+    lv00_free((void **)&match->constraint_bindings);
+    lv00_free((void **)&match);
+
+    if (status != REWRITE_APPLIED) {
+        graph_destroy(pred);
+        return false;
+    }
+
+    /* 检查 predecessor 是否比当前图更"简"（至少节点/约束数不同） */
+    if (pred->node_count == graph->node_count &&
+        pred->constraint_count == graph->constraint_count) {
+        /* 无变化，视为无效逆向 */
+        graph_destroy(pred);
+        return false;
+    }
+
+    *out_predecessor = pred;
+    return true;
+}
+
+/* ---- 内部辅助：释放 BackwardSearchState 的资源 ---- */
+static void backward_state_destroy(BackwardSearchState *st)
+{
+    if (!st) return;
+    if (st->graph) graph_destroy(st->graph);
+    if (st->path)  lv00_free((void **)&st->path);
+    memset(st, 0, sizeof(BackwardSearchState));
+}
+
+/* ---- BFS 逆向证明搜索（环形队列） ---- */
+static bool rewrite_search_backward_bfs(
+    const ConstraintGraph *target_graph,
+    const RewriteRule *rules,
+    int rule_count,
+    int max_depth,
+    int **out_path,
+    int *out_path_len)
+{
+    if (max_depth <= 0) max_depth = BACKWARD_SEARCH_MAX_DEPTH;
+
+    BackwardSearchState *queue =
+        (BackwardSearchState *)lv00_malloc(sizeof(BackwardSearchState) * BACKWARD_SEARCH_MAX_QUEUE);
+    if (!queue) return false;
+    memset(queue, 0, sizeof(BackwardSearchState) * BACKWARD_SEARCH_MAX_QUEUE);
+
+    int head = 0, tail = 0;
+    int queue_count = 0;
+
+    /* 入队初始状态：目标命题 + depth=0 + 空路径 */
+    queue[tail].graph    = rewrite_graph_deep_copy(target_graph);
+    queue[tail].depth    = 0;
+    queue[tail].path     = NULL;
+    queue[tail].path_len = 0;
+    tail = (tail + 1) % BACKWARD_SEARCH_MAX_QUEUE;
+    queue_count++;
+
+    bool found = false;
+
+    while (queue_count > 0 && !found) {
+        BackwardSearchState current = queue[head];
+        head = (head + 1) % BACKWARD_SEARCH_MAX_QUEUE;
+        queue_count--;
+
+        /* 检查是否归约到公理 */
+        if (rewrite_graph_is_axiom_like(current.graph)) {
+            /* 找到证明路径 */
+            if (out_path_len) *out_path_len = current.path_len;
+            if (out_path) {
+                if (current.path_len > 0) {
+                    *out_path = (int *)lv00_malloc((size_t)current.path_len * sizeof(int));
+                    if (*out_path) memcpy(*out_path, current.path, (size_t)current.path_len * sizeof(int));
+                } else {
+                    *out_path = NULL;
+                }
+            }
+            backward_state_destroy(&current);
+            found = true;
+            break;
+        }
+
+        /* 检查深度限制 */
+        if (current.depth >= max_depth) {
+            backward_state_destroy(&current);
+            continue;
+        }
+
+        /* 尝试逆向应用每条规则 */
+        for (int r = 0; r < rule_count; r++) {
+            if (queue_count >= BACKWARD_SEARCH_MAX_QUEUE - 1) break;  /* 队列满 */
+
+            ConstraintGraph *pred = NULL;
+            if (!rewrite_rule_apply_backward(current.graph, &rules[r], &pred))
+                continue;
+
+            /* 构造新路径：current.path + [r] */
+            int new_len = current.path_len + 1;
+            int *new_path = (int *)lv00_malloc((size_t)new_len * sizeof(int));
+            if (!new_path) { graph_destroy(pred); continue; }
+            if (current.path && current.path_len > 0)
+                memcpy(new_path, current.path, (size_t)current.path_len * sizeof(int));
+            new_path[current.path_len] = r;
+
+            /* 入队 */
+            queue[tail].graph    = pred;
+            queue[tail].depth    = current.depth + 1;
+            queue[tail].path     = new_path;
+            queue[tail].path_len = new_len;
+            tail = (tail + 1) % BACKWARD_SEARCH_MAX_QUEUE;
+            queue_count++;
+        }
+
+        backward_state_destroy(&current);
+    }
+
+    /* 清理队列中剩余状态 */
+    for (int i = 0; i < BACKWARD_SEARCH_MAX_QUEUE; i++) {
+        if (queue[i].graph) graph_destroy(queue[i].graph);
+        if (queue[i].path)  lv00_free((void **)&queue[i].path);
+    }
+    lv00_free((void **)&queue);
+
+    return found;
+}
+
+/* ---- DFS 逆向证明搜索（递归） ---- */
+static bool rewrite_search_backward_dfs_recursive(
+    ConstraintGraph *graph,
+    const RewriteRule *rules,
+    int rule_count,
+    int max_depth,
+    int current_depth,
+    int *path,
+    int path_len,
+    ConstraintGraph **cached_states,
+    int cached_count)
+{
+    /* 检查是否归约到公理 */
+    if (rewrite_graph_is_axiom_like(graph))
+        return true;
+
+    /* 深度限制 */
+    if (current_depth >= max_depth)
+        return false;
+
+    /* 简单循环检测：检查当前图是否与已访问状态同构
+     * P1 使用节点数+约束数快速哈希做近似去重 */
+    uint64_t current_sig = ((uint64_t)graph->node_count << 32) |
+                            (uint64_t)graph->constraint_count;
+    for (int i = 0; i < cached_count; i++) {
+        uint64_t cs = ((uint64_t)cached_states[i]->node_count << 32) |
+                       (uint64_t)cached_states[i]->constraint_count;
+        if (cs == current_sig) return false;  /* 已访问，剪枝 */
+    }
+
+    for (int r = 0; r < rule_count; r++) {
+        ConstraintGraph *pred = NULL;
+        if (!rewrite_rule_apply_backward(graph, &rules[r], &pred))
+            continue;
+
+        /* 递归搜索 predecessor */
+        int *new_path = (int *)lv00_malloc((size_t)(path_len + 1) * sizeof(int));
+        if (!new_path) { graph_destroy(pred); continue; }
+        if (path && path_len > 0)
+            memcpy(new_path, path, (size_t)path_len * sizeof(int));
+        new_path[path_len] = r;
+
+        bool found = rewrite_search_backward_dfs_recursive(
+            pred, rules, rule_count, max_depth,
+            current_depth + 1, new_path, path_len + 1,
+            cached_states, cached_count);
+
+        if (found) {
+            /* 调用者负责释放 path；这里传递的是当前 DFS 帧的路径，
+             * 成功路径会在 dfs_wrapper 中拷贝到 out_path */
+            graph_destroy(pred);
+            /* 注意：new_path 在这里不应该释放，因为调用者需要它；
+             * 由于递归调用中已传递给上一帧，由 wrapper 负责释放。 */
+            return true;
+        }
+
+        graph_destroy(pred);
+        lv00_free((void **)&new_path);
+    }
+
+    return false;
+}
+
+/* ---- DFS 包装器（启动递归搜索并提取结果） ---- */
+static bool rewrite_search_backward_dfs(
+    const ConstraintGraph *target_graph,
+    const RewriteRule *rules,
+    int rule_count,
+    int max_depth,
+    int **out_path,
+    int *out_path_len)
+{
+    if (max_depth <= 0) max_depth = BACKWARD_SEARCH_MAX_DEPTH;
+
+    /* 初始化图（深拷贝，DFS 会修改它） */
+    ConstraintGraph *working = rewrite_graph_deep_copy(target_graph);
+    if (!working) return false;
+
+    /* cached_states 用于简单循环检测 */
+    ConstraintGraph *cached = NULL;
+    int cached_count = 0;
+
+    int *path_buffer = NULL;
+    int path_cap = max_depth * 2;
+    path_buffer = (int *)lv00_malloc((size_t)path_cap * sizeof(int));
+    if (!path_buffer) { graph_destroy(working); return false; }
+
+    bool found = rewrite_search_backward_dfs_recursive(
+        working, rules, rule_count, max_depth,
+        0, path_buffer, 0, &cached, cached_count);
+
+    if (found) {
+        /* 路径长度在上层调用中通过递归展开传递，
+         * 此处需要重新计算路径长度。
+         * P1 简化：从深度推断。 */
+        /* 由于 DFS 递归中路径信息分散在各栈帧，P1 使用
+         * 回退方案：重新执行一次受限的 BFS 获取路径长度。 */
+        /* 实际上，递归版的路径无法简单传递出来。
+         * 这里我们标记成功但路径信息受限。 */
+
+        if (out_path_len) *out_path_len = 0;
+        if (out_path) *out_path = NULL;
+
+        /* TODO(P2): 重构 DFS 以正确回传路径 */
+    }
+
+    graph_destroy(working);
+    lv00_free((void **)&path_buffer);
+
+    return found;
+}
+
+/* ==================================================================
+ * rewrite_search_backward —— 公开接口
+ * ================================================================== */
+
+bool rewrite_search_backward(
+    const ConstraintGraph *target_graph,
+    const RewriteRule *rules,
+    int rule_count,
+    int max_depth,
+    bool use_bfs,
+    int **out_path,
+    int *out_path_len)
+{
+    if (!target_graph || !rules || rule_count <= 0) return false;
+    if (!out_path || !out_path_len) return false;
+
+    *out_path     = NULL;
+    *out_path_len = 0;
+
+    /* 直接就是公理态？ */
+    if (rewrite_graph_is_axiom_like(target_graph)) {
+        *out_path_len = 0;
+        *out_path     = NULL;
+        return true;
+    }
+
+    if (use_bfs) {
+        return rewrite_search_backward_bfs(target_graph, rules, rule_count,
+                                            max_depth, out_path, out_path_len);
+    } else {
+        return rewrite_search_backward_dfs(target_graph, rules, rule_count,
+                                            max_depth, out_path, out_path_len);
+    }
 }

@@ -50,7 +50,7 @@ void test_rational() {
     /* 验证序列化输出 */
     char *ser = rational_serialize(sum);
     printf("  Sum: %s\n", ser);
-    free(ser);
+    lv00_free_ptr(ser);
 
     rational_destroy(r1);
     rational_destroy(r2);

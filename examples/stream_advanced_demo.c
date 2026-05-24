@@ -30,7 +30,10 @@ typedef struct {
 
 /* ==================== 回调函数 ==================== */
 
-/** 通用回调：捕获事件信息 */
+/** @brief 通用回调：捕获事件信息到 CallbackCapture 结构体
+ *  @param event     流式事件指针
+ *  @param user_data 指向 CallbackCapture 结构体的指针
+ */
 static void capture_callback(const StreamEvent *event, void *user_data) {
     if (!event || !user_data) return;
     CallbackCapture *cap = (CallbackCapture *)user_data;
@@ -42,7 +45,10 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
     }
 }
 
-/** JSON 输出回调：将事件以 JSON-RPC 格式输出到 stdout */
+/** @brief JSON 输出回调：将事件以 JSON-RPC 格式输出到 stdout
+ *  @param event     流式事件指针
+ *  @param user_data 用户数据指针（未使用）
+ */
 static void jsonrpc_callback(const StreamEvent *event, void *user_data) {
     (void)user_data;
     if (!event) return;
@@ -55,7 +61,10 @@ static void jsonrpc_callback(const StreamEvent *event, void *user_data) {
     }
 }
 
-/** 错误专用回调：仅捕获 ERROR 和 WARNING 事件 */
+/** @brief 错误专用回调：仅捕获 ERROR 和 WARNING 事件并输出到 stderr
+ *  @param event     流式事件指针
+ *  @param user_data 用户数据指针（未使用）
+ */
 static void error_only_callback(const StreamEvent *event, void *user_data) {
     (void)user_data;
     if (!event) return;
@@ -67,7 +76,11 @@ static void error_only_callback(const StreamEvent *event, void *user_data) {
 /* ==================== 演示函数 ==================== */
 
 /**
- * 演示1：四种发射模式对比
+ * @brief 演示1：四种发射模式对比
+ *
+ * 依次测试 IMMEDIATE（立即触发）、BUFFERED（缓冲后手动 flush）、
+ * THROTTLED（节流间隔批量触发）、LAZY（惰性拉取）四种发射模式，
+ * 验证各模式下回调触发时机和事件计数是否符合预期。
  */
 static void demo_emit_modes(void) {
     fprintf(stderr, "\n========== 演示1: 四种发射模式对比 ==========\n");
@@ -167,7 +180,10 @@ static void demo_emit_modes(void) {
 }
 
 /**
- * 演示2：事件类型过滤
+ * @brief 演示2：事件类型过滤
+ *
+ * 注册三个回调，分别使用全量过滤、仅 ERROR/WARNING 过滤和
+ * 仅求解事件过滤，验证过滤掩码的正确性。还演示动态更新过滤掩码。
  */
 static void demo_event_filter(void) {
     fprintf(stderr, "\n========== 演示2: 事件类型过滤 ==========\n");
@@ -214,7 +230,10 @@ static void demo_event_filter(void) {
 }
 
 /**
- * 演示3：字符串过滤掩码解析
+ * @brief 演示3：字符串过滤掩码解析
+ *
+ * 测试 stream_parse_filter_mask 函数对各种输入字符串的解析结果，
+ * 包括通配符、事件类型名称、事件类别和混合指定等。
  */
 static void demo_filter_parsing(void) {
     fprintf(stderr, "\n========== 演示3: 过滤掩码解析 ==========\n");
@@ -243,7 +262,10 @@ static void demo_filter_parsing(void) {
 }
 
 /**
- * 演示4：事件统计
+ * @brief 演示4：事件统计
+ *
+ * 发射多种类型的事件后，验证总事件数、丢弃数和各类型事件计数的正确性，
+ * 最后测试统计重置功能。
  */
 static void demo_event_stats(void) {
     fprintf(stderr, "\n========== 演示4: 事件统计 ==========\n");
@@ -298,7 +320,10 @@ static void demo_event_stats(void) {
 }
 
 /**
- * 演示5：JSON 序列化
+ * @brief 演示5：JSON 序列化
+ *
+ * 测试 stream_event_to_json 和 stream_event_to_jsonrpc 的序列化输出，
+ * 包括特殊字符（引号、反斜杠、换行符）的转义处理。
  */
 static void demo_json_serialization(void) {
     fprintf(stderr, "\n========== 演示5: JSON 序列化 ==========\n");
@@ -339,7 +364,10 @@ static void demo_json_serialization(void) {
 }
 
 /**
- * 演示6：惰性模式高级用法
+ * @brief 演示6：惰性模式高级用法
+ *
+ * 演示惰性队列的逐个拉取（stream_lazy_next）和批量拉取（stream_lazy_drain），
+ * 验证拉取后队列剩余事件数的正确性。
  */
 static void demo_lazy_advanced(void) {
     fprintf(stderr, "\n========== 演示6: 惰性模式高级用法 ==========\n");
@@ -379,7 +407,10 @@ static void demo_lazy_advanced(void) {
 }
 
 /**
- * 演示7：便捷发射函数
+ * @brief 演示7：便捷发射函数
+ *
+ * 测试各种便捷事件发射函数（stream_emit_node_event、stream_emit_progress、
+ * stream_emit_numeric 等），验证回调触发次数和最后事件信息。
  */
 static void demo_emit_helpers(void) {
     fprintf(stderr, "\n========== 演示7: 便捷发射函数 ==========\n");
@@ -414,7 +445,10 @@ static void demo_emit_helpers(void) {
 }
 
 /**
- * 演示8：回调 ID 管理
+ * @brief 演示8：回调 ID 管理
+ *
+ * 测试回调注册时获取 ID、通过 ID 注销回调、获取回调过滤掩码等
+ * 回调生命周期管理功能。
  */
 static void demo_callback_management(void) {
     fprintf(stderr, "\n========== 演示8: 回调 ID 管理 ==========\n");
@@ -463,12 +497,22 @@ static void demo_callback_management(void) {
 
 /* ==================== 主程序 ==================== */
 
+/**
+ * @brief 主程序入口
+ *
+ * 依次运行全部 8 个演示：发射模式、事件过滤、过滤掩码解析、
+ * 事件统计、JSON 序列化、惰性模式、便捷函数和回调管理。
+ *
+ * @param argc 命令行参数个数（未使用）
+ * @param argv 命令行参数数组（未使用）
+ * @return 程序退出码，0 表示成功
+ */
 int main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
 
     fprintf(stderr, "╔════════════════════════════════════════════════╗\n");
-    fprintf(stderr, "║  Lv-00 流式输出高级演示 v3.1.0                 ║\n");
+    fprintf(stderr, "║  Lv-00 流式输出高级演示 v3.2.0                 ║\n");
     fprintf(stderr, "║  四种发射模式 + 惰性求值 + 过滤 + 序列化       ║\n");
     fprintf(stderr, "╚════════════════════════════════════════════════╝\n");
 

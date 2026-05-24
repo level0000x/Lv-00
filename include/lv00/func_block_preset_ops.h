@@ -285,10 +285,8 @@ typedef enum {
  * @param out_composed_name 输出组合预设名称
  * @return true 组合成功
  */
-bool preset_compose(const char *preset_a,
-                     const char *preset_b,
-                     PresetComposeMode mode,
-                     char **out_composed_name);
+/* preset_compose 已在 preset_manager.c 中声明，
+ * func_block_preset_ops.c 中的版本为 static 内部实现 */
 
 /**
  * @brief 创建递归预设

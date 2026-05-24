@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv00_web_bindings.c
  * @brief WASM 绑定 (v1) [已废弃]
  *

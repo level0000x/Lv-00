@@ -16,13 +16,17 @@ Lv-00 引擎模块
     3. 类型安全：完整的类型提示和参数验证
     4. 可扩展性：支持自定义模块和公理包加载
 
-版本：3.0.2
+版本：3.2.0
 作者：Lv-00 开发团队
 """
 
 import ctypes
 import os  # 修复：添加 os 导入，用于 os.fsencode() 处理非 UTF-8 路径
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    # 类型检查时导入 Lv00BaseError，避免运行时循环导入
+    from .core import Lv00BaseError
 
 from ._ctypes_binding import (
     _lib, _LV00Engine,
@@ -44,6 +48,9 @@ class EngineError(Exception):
     引擎操作错误基类。
 
     所有引擎相关异常的父类，当引擎操作失败时抛出。
+    注意：此类当前独立继承 Exception，保留自身的 __str__ 实现。
+    未来应统一继承 Lv00BaseError（from .core import Lv00BaseError），
+    以消除与 Lv00Error/Lv00BaseError 之间重复的 __str__ 逻辑。
 
     属性：
         message: 异常消息字符串
@@ -66,6 +73,9 @@ class EngineError(Exception):
         """
         返回人类可读的异常字符串。
 
+        注意：此方法与 Lv00BaseError.__str__ 逻辑完全一致，
+        未来统一继承后应移除此方法以复用基类实现。
+
         返回：
             str: 格式为 "EngineError(错误码): 消息" 的字符串
         """
@@ -75,22 +85,34 @@ class EngineError(Exception):
 
 
 class EngineMemoryError(EngineError):
-    """内存不足错误。"""
+    """内存不足错误。
+
+    当引擎操作因系统内存不足而失败时抛出。
+    """
     pass
 
 
 class EngineStateError(EngineError):
-    """引擎状态错误。"""
+    """引擎状态错误。
+
+    当引擎处于无效状态（如未初始化、已销毁等）时抛出。
+    """
     pass
 
 
 class EngineConflictError(EngineError):
-    """约束冲突错误。"""
+    """约束冲突错误。
+
+    当约束图中存在不可解决的约束冲突时抛出。
+    """
     pass
 
 
 class EngineModuleError(EngineError):
-    """模块加载错误。"""
+    """模块加载错误。
+
+    当模块或公理包文件加载、解析失败时抛出。
+    """
     pass
 
 
@@ -112,7 +134,7 @@ class Engine:
         >>> result = engine.solve()
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """
         创建新的引擎实例。
         
@@ -124,7 +146,7 @@ class Engine:
             raise EngineError("创建引擎失败")
         self._owns_ptr = True
     
-    def __del__(self):
+    def __del__(self) -> None:
         """
         析构函数：释放引擎资源。
 
@@ -155,7 +177,7 @@ class Engine:
         """
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """
         上下文管理器出口，自动释放引擎资源。
 
@@ -434,10 +456,101 @@ class Engine:
             raise EngineError(f"实例化函数块失败: {self.get_last_error()}")
         
         result = [result_ptr[i] for i in range(count.value)]
-        _lib.free(result_ptr)
+        _lib.lv00_free_ptr(result_ptr)
         
         return result
     
+    # ============================================================
+    # 重写规则管理
+    # ============================================================
+    
+    def add_rewrite_rule(self, rule: Any) -> bool:
+        """
+        向引擎添加重写规则。
+
+        重写规则用于几何图的等价变换，是 Lv-00 重写系统的核心。
+        规则由模式（pattern）和替换（replacement）组成。
+
+        参数：
+            rule: RewriteRule 对象或底层 C 指针（c_void_p）
+
+        返回：
+            bool: 添加成功返回 True
+
+        异常：
+            EngineError: 添加规则失败
+        """
+        # 支持 Python RewriteRule 对象和底层 C 指针
+        if hasattr(rule, '_ptr'):
+            rule_ptr = rule._ptr
+        else:
+            rule_ptr = rule
+
+        success = _lib.engine_add_rewrite_rule(self._ptr, rule_ptr)
+        if not success:
+            raise EngineError(f"添加重写规则失败: {self.get_last_error()}")
+        return True
+
+    # ============================================================
+    # 流式输出管理
+    # ============================================================
+
+    def get_stream_context(self) -> Any:
+        """
+        获取引擎的流式上下文。
+
+        引擎创建时自动创建流式上下文，可通过此方法获取其指针，
+        用于注册流式事件回调。
+
+        返回：
+            c_void_p: 流式上下文指针（不透明），引擎未初始化时返回 None
+        """
+        ctx = _lib.engine_get_stream_context(self._ptr)
+        return ctx
+
+    def set_streaming_enabled(self, enabled: bool) -> None:
+        """
+        设置流式输出开关。
+
+        启用后，引擎在执行 solve/rewrite/normalize 等操作时会持续
+        发射流式事件。默认启用。
+
+        参数：
+            enabled: True 启用流式输出，False 禁用
+        """
+        _lib.engine_set_streaming_enabled(self._ptr, enabled)
+
+    def is_streaming_enabled(self) -> bool:
+        """
+        查询流式输出是否启用。
+
+        返回：
+            bool: 启用返回 True，禁用返回 False
+        """
+        return _lib.engine_is_streaming_enabled(self._ptr)
+
+    def emit_stream_event(self, event_type: int, description: str,
+                          step_number: int = 0, node_id: int = -1,
+                          constraint_id: int = -1) -> None:
+        """
+        发射引擎流式事件。
+
+        手动发射一个流式事件，事件将通过流式上下文推送给已注册的回调。
+        如果流式上下文为 NULL，则为空操作。
+
+        参数：
+            event_type: 事件类型编码（StreamEventType）
+            description: 事件描述文本
+            step_number: 步骤编号（默认 0）
+            node_id: 相关节点 ID（默认 -1 表示无）
+            constraint_id: 相关约束 ID（默认 -1 表示无）
+        """
+        _lib.engine_emit_stream_event(
+            self._ptr, event_type,
+            description.encode('utf-8'),
+            step_number, node_id, constraint_id
+        )
+
     # ============================================================
     # 合一检查 (Unification Check)
     # ============================================================
@@ -479,9 +592,11 @@ class Engine:
             )
 
         # ---- 调用 C 层合一检查 ----
-        # C 函数签名: unify_check(ConstraintGraph*, ConstraintGraph*) -> int
-        # 内部执行三层匹配：哈希过滤 -> 拓扑特征 -> 端口精化
-        return _lib.unify_check(construction._ptr, proposition._ptr)
+        # C 函数签名: proof_unify(ConstraintGraph*, Proposition*, bool) -> int
+        # 注意：原 unify_check 函数已从 C 库移除，改用 proof_unify 实现
+        # proof_unify 内部执行三层匹配：哈希过滤 -> 拓扑特征 -> 端口精化
+        result = _lib.proof_unify(construction._ptr, proposition._ptr, True)
+        return result
 
     def unify_detailed(self, construction: Any, proposition: Any) -> Tuple[int, str]:
         """
@@ -507,16 +622,18 @@ class Engine:
         if not hasattr(proposition, '_ptr') or proposition._ptr is None:
             raise TypeError("proposition 必须具有有效的 C 指针")
 
-        # ---- 调用带详细报告的 C 合一函数 ----
-        # C 函数签名: unify_detailed(ConstraintGraph*, ConstraintGraph*, char**) -> int
-        # 第三个参数为输出参数，接收 C 引擎分配的诊断字符串
-        reason_ptr = ctypes.c_char_p()
-        result = _lib.unify_detailed(
-            construction._ptr, proposition._ptr,
-            ctypes.byref(reason_ptr)
-        )
-        reason = reason_ptr.value.decode('utf-8') if reason_ptr.value else ""
-        return (result, reason)
+        # ---- 调用基础合一检查，附带模拟的详细报告 ----
+        # unify_detailed 和 proof_unify_detailed 均已从 C 库移除，
+        # 改用 proof_unify 并在失败时提供基本的诊断信息
+        result = _lib.proof_unify(construction._ptr, proposition._ptr, True)
+        if result == UNIFY_OK:
+            return (result, "")
+        elif result == UNIFY_FAILED:
+            return (result, "构造图不满足命题模式")
+        elif result == UNIFY_TYPE_MISMATCH:
+            return (result, "图类型不匹配，无法执行合一")
+        else:
+            return (result, f"未知合一错误 (code={result})")
 
 
     # ============================================================
@@ -722,8 +839,6 @@ class Engine:
         异常：
             EngineError: 所有重试都失败时抛出
         """
-        from ._ctypes_binding import ENGINE_SOLVE_OK, ENGINE_SOLVE_CONFLICT
-        
         for attempt in range(max_retries):
             result = self.solve()
             if result == ENGINE_SOLVE_OK:

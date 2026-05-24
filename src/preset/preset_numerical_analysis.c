@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_numerical_analysis.c
  * @brief 数值分析预设函数块 - 实现
  *
@@ -7,7 +7,7 @@
  *
  * @module NumericalAnalysis
  * @category PRESET_CATEGORY_ANALYSIS
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "preset_numerical_analysis.h"

@@ -18,13 +18,14 @@ Lv-00 核心模块
     3. 类型安全：完整的类型提示和参数验证
     4. 异常处理：清晰的错误消息和错误码
 
-版本：3.0.2
+版本：3.2.0
 作者：Lv-00 开发团队
 """
 
 import ctypes
+import sys as _sys
 from fractions import Fraction
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Iterator, List, Optional, Set, Tuple, Union
 
 from ._ctypes_binding import (
     _lib, _SymbolicCoord, _ConstraintGraph, _NormalizationResult,
@@ -38,15 +39,76 @@ from ._ctypes_binding import (
 
 
 # ============================================================
+# 模块级工具函数
+# ============================================================
+
+def _is_interpreter_shutting_down() -> bool:
+    """
+    检测 Python 解释器是否正在关闭。
+    
+    当模块对象被 None 替换时为关闭状态，此时不应执行清理操作。
+    参考 PEP 442 (CPython 3.4+) 的终结机制。
+    
+    返回：
+        bool: 如果解释器正在关闭则返回 True
+    """
+    import sys as _check_sys
+    return _check_sys.modules.get(__name__) is None
+
+
+# ============================================================
 # 异常类定义
 # ============================================================
 
-class Lv00Error(Exception):
+class Lv00BaseError(Exception):
+    """
+    Lv-00 统一异常基类。
+
+    所有 Lv-00 相关异常的最顶层父类，提供统一的 message 和 error_code 属性
+    以及标准的 __str__ 格式化逻辑。其他模块的异常类（如 EngineError、
+    FuncBlockError）也应继承此基类，以保持异常体系的一致性。
+
+    属性：
+        message: 异常消息字符串
+        error_code: 可选的错误码（整数，默认为 -1）
+    """
+
+    def __init__(self, message: str = "", error_code: int = -1) -> None:
+        """
+        创建 Lv-00 基础异常。
+
+        参数：
+            message: 异常描述消息
+            error_code: 可选的错误码，用于区分具体的错误类型
+        """
+        super().__init__(message)
+        self.message: str = message
+        self.error_code: int = error_code
+
+    def __str__(self) -> str:
+        """
+        返回人类可读的异常字符串。
+
+        格式规则：
+            - 有错误码（>=0）时: "ClassName(错误码): 消息"
+            - 有消息无错误码时: "ClassName: 消息"
+            - 无消息无错误码时: "ClassName"
+
+        返回：
+            str: 格式化的异常字符串
+        """
+        if self.error_code >= 0:
+            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
+        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+
+
+class Lv00Error(Lv00BaseError):
     """
     Lv-00 异常基类。
 
     所有 Lv-00 相关异常的父类，包括库错误、参数错误、
-    约束冲突等。
+    约束冲突等。继承自 Lv00BaseError，复用统一的 message、
+    error_code 属性和 __str__ 方法。
 
     属性：
         message: 异常消息字符串
@@ -61,20 +123,7 @@ class Lv00Error(Exception):
             message: 异常描述消息
             error_code: 可选的错误码，用于区分具体的错误类型
         """
-        super().__init__(message)
-        self.message: str = message
-        self.error_code: int = error_code
-
-    def __str__(self) -> str:
-        """
-        返回人类可读的异常字符串。
-
-        返回：
-            str: 格式为 "Lv00Error(错误码): 消息" 的字符串
-        """
-        if self.error_code >= 0:
-            return f"{self.__class__.__name__}({self.error_code}): {self.message}"
-        return f"{self.__class__.__name__}: {self.message}" if self.message else self.__class__.__name__
+        super().__init__(message, error_code)
 
 
 class Lv00LibraryError(Lv00Error):
@@ -122,7 +171,7 @@ class SymbolicCoord:
         >>> print(result)  # 输出: 7/4
     """
     
-    def __init__(self, value: Union[Fraction, int, float, str, 'SymbolicCoord']):
+    def __init__(self, value: Union[Fraction, int, float, str, 'SymbolicCoord']) -> None:
         """
         创建符号坐标。
         
@@ -160,29 +209,47 @@ class SymbolicCoord:
             self._ptr = _lib.symbolic_coord_create_rational(frac.numerator, frac.denominator)
         elif isinstance(value, str):
             # 字符串类型：解析表达式
+            # 注意：C 库已移除 symbolic_coord_deserialize 导出函数，
+            # 改用 rational_parse 从字符串创建有理数坐标
             b = value.encode('utf-8')
-            self._ptr = _lib.symbolic_coord_deserialize(b)
+            self._ptr = _lib.rational_parse(b)
             if not self._ptr:
-                raise Lv00Error(f"无法解析符号坐标: {value}")
+                # rational_parse 仅支持有理数格式（如 "3/4"），
+                # 对更复杂的表达式，尝试作为整数或浮点数回退处理
+                try:
+                    int_val = int(value)
+                    self._ptr = _lib.symbolic_coord_create_rational(int_val, 1)
+                except ValueError:
+                    try:
+                        frac = Fraction(float(value)).limit_denominator(1000000)
+                        self._ptr = _lib.symbolic_coord_create_rational(
+                            frac.numerator, frac.denominator
+                        )
+                    except (ValueError, OverflowError):
+                        raise Lv00Error(f"无法解析符号坐标表达式: {value}")
         else:
             raise TypeError(f"不支持的 SymbolicCoord 类型: {type(value)}")
         
         if not self._ptr:
             raise Lv00Error("创建符号坐标失败")
     
-    def __del__(self):
+    def __del__(self) -> None:
         """
         析构函数：释放 C 分配的内存。
         
-        注意：在解释器关闭时 _lib 可能已不可用，
-        所以需要捕获异常。
+        注意：解释器关闭时 _lib 可能已不可用，因此捕获所有异常。
+        使用 module-level 弱引用来确保安全性。
         """
         try:
-            if hasattr(self, '_ptr') and self._ptr:
+            if hasattr(self, '_ptr') and self._ptr is not None:
                 _lib.symbolic_coord_destroy(self._ptr)
                 self._ptr = None
-        except Exception:
-            pass  # 解释器关闭时 _lib 可能已不可用
+        except Exception as e:
+            # 解释器关闭时模块可能已被垃圾回收，此时静默忽略
+            # 其他情况记录警告以便排查内存泄漏
+            if not _is_interpreter_shutting_down():
+                import sys
+                print(f"[Lv00] 警告：SymbolicCoord 析构失败：{e}", file=sys.stderr)
     
     def __repr__(self) -> str:
         """
@@ -194,7 +261,7 @@ class SymbolicCoord:
         s = _lib.symbolic_coord_serialize(self._ptr)
         if s:
             result = s.decode('utf-8')
-            _lib.free(s)
+            _lib.lv00_free_ptr(s)
             return f"SymbolicCoord({result!r})"
         return "SymbolicCoord(<unknown>)"
     
@@ -208,7 +275,7 @@ class SymbolicCoord:
         s = _lib.symbolic_coord_serialize(self._ptr)
         if s:
             result = s.decode('utf-8')
-            _lib.free(s)
+            _lib.lv00_free_ptr(s)
             return result
         return "<unknown>"
     
@@ -285,7 +352,15 @@ class SymbolicCoord:
         return result
     
     def __rsub__(self, other: Union[int, float, Fraction]) -> 'SymbolicCoord':
-        """减法反向运算：other - self"""
+        """
+        减法反向运算：other - self。
+
+        参数：
+            other: 左操作数
+
+        返回：
+            SymbolicCoord: other - self 的结果
+        """
         other = self._check_same_type(other)
         result = SymbolicCoord.__new__(SymbolicCoord)
         result._ptr = _lib.symbolic_coord_subtract(other._ptr, self._ptr)
@@ -368,6 +443,54 @@ class SymbolicCoord:
             return self.__neg__()
         return SymbolicCoord(self)
     
+    def __pow__(self, other: Union['SymbolicCoord', int, float, Fraction]) -> 'SymbolicCoord':
+        """
+        幂运算。
+        
+        参数：
+            other: 指数（目前仅支持整数指数）
+        
+        返回：
+            SymbolicCoord: self ** other
+        
+        异常：
+            Lv00Error: 计算失败或不支持的指数类型
+        
+        注意：
+            当前实现仅支持整数指数。对于分数指数（如平方根），
+            需要使用专门的代数数构造函数。
+        """
+        # 转换指数为整数
+        if isinstance(other, SymbolicCoord):
+            # 尝试转换为整数
+            try:
+                exp = int(other.to_fraction())
+            except (ValueError, Lv00Error):
+                raise Lv00Error("幂运算仅支持整数指数")
+        else:
+            exp = int(other)
+        
+        # 处理特殊情况
+        if exp == 0:
+            return SymbolicCoord.from_rational(1)
+        if exp == 1:
+            return SymbolicCoord(self)
+        
+        # 正整数幂：使用快速幂算法
+        if exp > 0:
+            result = SymbolicCoord.from_rational(1)
+            base = SymbolicCoord(self)
+            while exp > 0:
+                if exp % 2 == 1:
+                    result = result * base
+                base = base * base
+                exp //= 2
+            return result
+        
+        # 负整数幂：计算倒数
+        positive_result = self ** (-exp)
+        return SymbolicCoord.from_rational(1) / positive_result
+    
     # ============================================================
     # 比较运算
     # ============================================================
@@ -387,7 +510,15 @@ class SymbolicCoord:
         return _lib.symbolic_coord_compare(self._ptr, other._ptr) == 0
     
     def __lt__(self, other: Union['SymbolicCoord', int, float, Fraction]) -> bool:
-        """小于比较"""
+        """
+        小于比较。
+
+        参数：
+            other: 比较对象
+
+        返回：
+            bool: self < other 时返回 True
+        """
         other = self._check_same_type(other)
         return _lib.symbolic_coord_compare(self._ptr, other._ptr) < 0
     
@@ -405,7 +536,15 @@ class SymbolicCoord:
         return _lib.symbolic_coord_compare(self._ptr, other._ptr) <= 0
     
     def __gt__(self, other: Union['SymbolicCoord', int, float, Fraction]) -> bool:
-        """大于比较"""
+        """
+        大于比较。
+
+        参数：
+            other: 比较对象
+
+        返回：
+            bool: self > other 时返回 True
+        """
         other = self._check_same_type(other)
         return _lib.symbolic_coord_compare(self._ptr, other._ptr) > 0
     
@@ -495,7 +634,7 @@ class SymbolicCoord:
         try:
             result = Fraction(s.decode('utf-8'))
         finally:
-            _lib.free(s)
+            _lib.lv00_free_ptr(s)
         return result
     
     # ============================================================
@@ -528,12 +667,20 @@ class SymbolicCoord:
     
     @classmethod
     def zero(cls) -> 'SymbolicCoord':
-        """创建零坐标"""
+        """创建零坐标。
+
+        返回：
+            SymbolicCoord: 值为 0 的坐标
+        """
         return cls.from_rational(0)
     
     @classmethod
     def one(cls) -> 'SymbolicCoord':
-        """创建单位坐标（1）"""
+        """创建单位坐标（1）。
+
+        返回：
+            SymbolicCoord: 值为 1 的坐标
+        """
         return cls.from_rational(1)
     
     @classmethod
@@ -593,11 +740,25 @@ class Point:
         self._id = None  # Set by Graph.add_point
     
     def __repr__(self) -> str:
-        """返回点的调试表示"""
+        """返回点的调试表示。
+
+        返回：
+            str: 格式为 "Point(x, y)" 的字符串
+        """
         return f"Point({self.x}, {self.y})"
     
     def __eq__(self, other: Any) -> bool:
-        """检查两点是否相等"""
+        """
+        判断两点是否相等。
+
+        比较两个点的 x 和 y 坐标是否都相等。
+
+        参数：
+            other: 比较对象
+
+        返回：
+            bool: 坐标均相等时返回 True
+        """
         if not isinstance(other, Point):
             return False
         return self.x == other.x and self.y == other.y
@@ -606,19 +767,56 @@ class Point:
     # Point 的相等性基于可变坐标值，不适合用作哈希键，因此显式标记为不可哈希
     __hash__ = None
     
-    def distance_to(self, other: 'Point') -> SymbolicCoord:
+    def __iter__(self) -> 'Iterator[SymbolicCoord]':
         """
-        计算到另一个点的距离。
+        迭代点的坐标，支持解构：x, y = point。
+
+        返回：
+            Iterator[SymbolicCoord]: 坐标迭代器 (x, y)
+        """
+        yield self.x
+        yield self.y
+    
+    def __getitem__(self, index: int) -> 'SymbolicCoord':
+        """
+        通过索引访问坐标：point[0] 返回 x，point[1] 返回 y。
+
+        参数：
+            index: 坐标索引（0 或 1）
+
+        返回：
+            SymbolicCoord: 对应坐标
+
+        异常：
+            IndexError: 索引超出范围
+        """
+        if index == 0:
+            return self.x
+        elif index == 1:
+            return self.y
+        raise IndexError(f"Point 索引超出范围: {index}（有效范围: 0-1）")
+    
+    def distance_to(self, other: 'Point') -> 'SymbolicCoord':
+        """
+        计算到另一个点的距离平方。
         
         参数：
             other: 另一个点
         
         返回：
-            SymbolicCoord: 欧几里得距离
+            SymbolicCoord: 欧几里得距离的平方
+        
+        注意：
+            返回的是距离的平方而非距离本身，因为符号坐标系统
+            对平方根（代数数）的支持有限。如需精确的距离值，
+            请使用 C 库的代数数功能或进行数值近似。
+        
+        数学定义：
+            distance² = (x₂-x₁)² + (y₂-y₁)²
         """
         dx = self.x - other.x
         dy = self.y - other.y
-        return (dx * dx + dy * dy) ** SymbolicCoord.from_rational(1, 2)
+        return dx * dx + dy * dy
     
     def mid_point(self, other: 'Point') -> 'Point':
         """
@@ -731,7 +929,7 @@ class LineSegment:
         >>> seg = LineSegment(Point(0, 0), Point(1, 1))
     """
     
-    def __init__(self, p1: Point, p2: Point):
+    def __init__(self, p1: Point, p2: Point) -> None:
         """
         创建线段。
         
@@ -901,28 +1099,28 @@ class GeomNode:
         type_name: 节点几何类型的可读中文名称
     """
     
-    def __init__(self, ptr):
+    def __init__(self, ptr: Any) -> None:
         """
         内部构造函数。
         
         参数：
-            ptr: 底层 C 指针
+            ptr: 底层 C 指针（POINTER(_GeomNode)）
         """
         self._ptr = ptr
     
     @property
     def id(self) -> int:
-        """节点 ID"""
+        """节点 ID（在图中的唯一标识符）。"""
         return self._ptr.contents.id
     
     @property
     def type(self) -> int:
-        """节点几何类型"""
+        """节点几何类型编码（GEOM_POINT/GEOM_LINE_SEGMENT 等）。"""
         return self._ptr.contents.type
     
     @property
     def type_name(self) -> str:
-        """节点几何类型名称"""
+        """节点几何类型的可读中文名称。"""
         names = {
             GEOM_POINT: "点",
             GEOM_LINE_SEGMENT: "线段",
@@ -951,23 +1149,25 @@ class NormalizationResult:
         _ptr: 底层 C 指针（POINTER(_NormalizationResult)）
     """
     
-    def __init__(self, ptr):
+    def __init__(self, ptr: Any) -> None:
         """
         内部构造函数。
         
         参数：
-            ptr: 底层 C 指针
+            ptr: 底层 C 指针（POINTER(_NormalizationResult)）
         """
         self._ptr = ptr
     
-    def __del__(self):
-        """析构函数：释放 C 分配的内存"""
+    def __del__(self) -> None:
+        """析构函数：释放 C 分配的内存。"""
         try:
-            if hasattr(self, '_ptr') and self._ptr:
+            if hasattr(self, '_ptr') and self._ptr is not None:
                 _lib.normalization_result_destroy(self._ptr)
                 self._ptr = None
-        except Exception:
-            pass
+        except Exception as e:
+            if not _is_interpreter_shutting_down():
+                import sys
+                print(f"[Lv00] 警告：NormalizationResult 析构失败：{e}", file=sys.stderr)
 
 
 # ============================================================
@@ -993,7 +1193,7 @@ class Graph:
         >>> seg = g.add_line_segment(p1, p2)
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """
         创建新的约束图。
 
@@ -1007,21 +1207,27 @@ class Graph:
         self._segments: List[LineSegment] = []
         self._regions: List[int] = []
         self._ports: List[int] = []
+        # 辅助集合：使用 Point.id() 进行 O(1) 成员检查，替代 O(n) 的列表查找
+        # 当点数超过此阈值时自动启用加速索引
+        self._point_id_set: Set[int] = set()
+        self._THRESHOLD_SET_LOOKUP: int = 50
         # 注：Python 侧 ID 计数器仅用于辅助 Python 对象跟踪，
         # 不取代 C 层 graph_get_node_count() 的权威 ID 管理。
         # 同步策略：初始化时从 C 层获取当前节点数作为基线。
         self._next_id = _lib.graph_get_node_count(self._ptr)
     
-    def __del__(self):
+    def __del__(self) -> None:
         """
         析构函数：释放 C 分配的内存。
         """
         try:
-            if hasattr(self, '_ptr') and self._ptr:
+            if hasattr(self, '_ptr') and self._ptr is not None:
                 _lib.graph_destroy(self._ptr)
                 self._ptr = None
-        except Exception:
-            pass
+        except Exception as e:
+            if not _is_interpreter_shutting_down():
+                import sys
+                print(f"[Lv00] 警告：Graph 析构失败：{e}", file=sys.stderr)
     
     def __repr__(self) -> str:
         """
@@ -1031,6 +1237,40 @@ class Graph:
             str: 图的字符串表示
         """
         return f"Graph(points={len(self._points)}, segments={len(self._segments)})"
+    
+    def __len__(self) -> int:
+        """
+        返回图中节点总数。
+
+        返回：
+            int: 节点数量（点 + 线段 + 区域 + 端口）
+        """
+        return self.get_node_count()
+    
+    def __iter__(self) -> 'Iterator[Point]':
+        """
+        迭代图中的所有点。
+
+        返回：
+            Iterator[Point]: 点迭代器
+        """
+        return iter(self._points)
+    
+    def __contains__(self, item: Union[Point, int]) -> bool:
+        """
+        检查元素是否在图中。
+
+        参数：
+            item: 要检查的元素（Point 或节点 ID）
+
+        返回：
+            bool: 是否存在
+        """
+        if isinstance(item, Point):
+            return item in self._points
+        elif isinstance(item, int):
+            return self.get_node(item) is not None
+        return False
 
     def _sync_id_from_c(self) -> int:
         """
@@ -1086,6 +1326,8 @@ class Graph:
         point._id = self._next_id
         self._next_id += 1
         self._points.append(point)
+        # 维护 O(1) 查找加速索引
+        self._point_id_set.add(point._id)
         return point
     
     def add_line_segment(self, p1: Point, p2: Point) -> LineSegment:
@@ -1103,11 +1345,12 @@ class Graph:
             Lv00Error: 点未添加到图中或添加失败
         """
         if p1 not in self._points or p2 not in self._points:
-            # 性能说明：self._points 为 list，此处的 in 操作为 O(n)。
-            # 由于 Point 定义了 __hash__ = None（不可哈希），无法直接使用 set 加速。
-            # 当前实现适用于中小规模图（点数 < 1000）；若需支持大规模图，
-            # 可考虑引入 _point_id_set: set[int] 辅助集合，以 _id 字段进行 O(1) 查找。
-            raise Lv00Error("点必须先通过 add_point 添加到图中")
+            # 性能优化：使用 _point_id_set 进行 O(1) 成员检查
+            # 优先使用加速索引，回退到 O(n) 的列表查找（兼容旧 ID 格式）
+            p1_in = p1._id in self._point_id_set if self._point_id_set else (p1 in self._points)
+            p2_in = p2._id in self._point_id_set if self._point_id_set else (p2 in self._points)
+            if not (p1_in and p2_in):
+                raise Lv00Error("点必须先通过 add_point 添加到图中")
         
         segment = LineSegment(p1, p2)
         
@@ -1160,6 +1403,264 @@ class Graph:
         self._next_id += 1
         self._ports.append(port_id)
         return port_id
+
+    def remove_node(self, node_id: int) -> int:
+        """
+        从图中移除指定 ID 的节点及其关联约束。
+
+        参数：
+            node_id: 要移除的节点 ID
+
+        返回：
+            int: 结果码，REMOVE_NODE_OK (0) 表示成功
+
+        异常：
+            Lv00ConstraintError: 移除失败
+        """
+        from ._ctypes_binding import REMOVE_NODE_OK, REMOVE_NODE_NOT_FOUND
+        result = _lib.graph_remove_node(self._ptr, node_id)
+        if result == REMOVE_NODE_NOT_FOUND:
+            raise Lv00ConstraintError(f"移除节点失败: 节点 {node_id} 不存在")
+        if result != REMOVE_NODE_OK:
+            raise Lv00ConstraintError(f"移除节点失败: 错误码 {result}")
+        # 从 Python 追踪列表中移除
+        self._points = [p for p in self._points if p._id != node_id]
+        self._segments = [s for s in self._segments if s._id != node_id]
+        if node_id in self._point_id_set:
+            self._point_id_set.discard(node_id)
+        return result
+
+    def remove_constraint(self, constraint_id: int) -> int:
+        """
+        从图中移除指定 ID 的约束。
+
+        参数：
+            constraint_id: 要移除的约束 ID
+
+        返回：
+            int: 结果码，REMOVE_CONSTRAINT_OK (0) 表示成功
+
+        异常：
+            Lv00ConstraintError: 移除失败
+        """
+        from ._ctypes_binding import REMOVE_CONSTRAINT_OK, REMOVE_CONSTRAINT_NOT_FOUND
+        result = _lib.graph_remove_constraint(self._ptr, constraint_id)
+        if result == REMOVE_CONSTRAINT_NOT_FOUND:
+            raise Lv00ConstraintError(f"移除约束失败: 约束 {constraint_id} 不存在")
+        if result != REMOVE_CONSTRAINT_OK:
+            raise Lv00ConstraintError(f"移除约束失败: 错误码 {result}")
+        return result
+
+    def add_function_block(self, internal_ids: List[int],
+                           input_ids: List[int],
+                           output_ids: List[int]) -> int:
+        """
+        向图中添加一个函数块节点。
+
+        参数：
+            internal_ids: 内部节点 ID 列表
+            input_ids: 输入端口 ID 列表
+            output_ids: 输出端口 ID 列表
+
+        返回：
+            int: 函数块节点 ID
+
+        异常：
+            Lv00ConstraintError: 添加失败
+        """
+        internal_arr = (ctypes.c_int * len(internal_ids))(*internal_ids)
+        input_arr = (ctypes.c_int * len(input_ids))(*input_ids)
+        output_arr = (ctypes.c_int * len(output_ids))(*output_ids)
+        result = _lib.graph_add_function_block(
+            self._ptr,
+            internal_arr, len(internal_ids),
+            input_arr, len(input_ids),
+            output_arr, len(output_ids)
+        )
+        if result != ADD_NODE_OK:
+            raise Lv00ConstraintError(f"添加函数块失败: 错误码 {result}")
+        block_id = self._next_id
+        self._next_id += 1
+        return block_id
+
+    def add_node_with_id(self, node_id: int, node_type: int,
+                         coords: List) -> Any:
+        """
+        带指定 ID 添加节点（用于反序列化）。
+
+        参数：
+            node_id: 节点 ID
+            node_type: 节点几何类型（GEOM_POINT 等）
+            coords: 坐标列表（SymbolicCoord 对象列表）
+
+        返回：
+            GeomNode: 创建的几何节点对象（C 层）
+
+        异常：
+            Lv00ConstraintError: 添加失败
+        """
+        from ._ctypes_binding import _GeomNode
+        coord_ptrs = (ctypes.POINTER(_SymbolicCoord) * len(coords))()
+        for i, c in enumerate(coords):
+            coord_ptrs[i] = c._ptr if hasattr(c, '_ptr') else c
+        ptr = _lib.graph_add_node_with_id(self._ptr, node_id, node_type,
+                                          coord_ptrs, len(coords))
+        if not ptr:
+            raise Lv00ConstraintError(f"带 ID 添加节点失败: id={node_id}")
+        # 同步 Python 侧 ID 计数器
+        if node_id >= self._next_id:
+            self._next_id = node_id + 1
+        return GeomNode(ptr)
+
+    def add_constraint_with_id(self, constraint_id: int,
+                               constraint_type: int,
+                               participants: List[int]) -> Any:
+        """
+        带指定 ID 添加约束（用于反序列化）。
+
+        参数：
+            constraint_id: 约束 ID
+            constraint_type: 约束类型编码
+            participants: 参与节点 ID 列表
+
+        返回：
+            Any: 底层 C 约束指针
+
+        异常：
+            Lv00ConstraintError: 添加失败
+        """
+        arr = (ctypes.c_int * len(participants))(*participants)
+        ptr = _lib.graph_add_constraint_with_id(
+            self._ptr, constraint_id, constraint_type,
+            arr, len(participants)
+        )
+        if not ptr:
+            raise Lv00ConstraintError(f"带 ID 添加约束失败: id={constraint_id}")
+        return ptr
+
+    def set_stream_context(self, ctx: Any) -> None:
+        """
+        设置全局流式上下文。
+
+        将流式上下文关联到约束图，使图操作能够发射流式事件。
+
+        参数：
+            ctx: 流式上下文指针（c_void_p），由引擎创建
+        """
+        _lib.graph_set_stream_context(ctx)
+
+    def find_cross_boundary_constraints(self, internal_node_ids: List[int],
+                                         port_ids: List[int]) -> List[Any]:
+        """
+        查找跨边界约束。
+
+        检查内部节点是否与外部节点存在跨边界的约束关系。
+
+        参数：
+            internal_node_ids: 内部节点 ID 列表
+            port_ids: 端口 ID 列表
+
+        返回：
+            List: 跨边界约束列表
+        """
+        from ._ctypes_binding import find_cross_boundary_constraints as _find_cross
+        internal_arr = (ctypes.c_int * len(internal_node_ids))(*internal_node_ids)
+        port_arr = (ctypes.c_int * len(port_ids))(*port_ids)
+        out_count = ctypes.c_int()
+        result_ptr = _find_cross(
+            self._ptr, internal_arr, len(internal_node_ids),
+            port_arr, len(port_ids),
+            ctypes.byref(out_count)
+        )
+        if not result_ptr:
+            return []
+        result = [result_ptr[i] for i in range(out_count.value)]
+        _lib.lv00_free_ptr(result_ptr)
+        return result
+
+    def find_constraints_involving(self, node_id: int,
+                                   max_results: int = 64) -> List[int]:
+        """
+        查找涉及指定节点的所有约束。
+
+        参数：
+            node_id: 节点 ID
+            max_results: 最大返回数量（默认 64）
+
+        返回：
+            List[int]: 涉及该节点的约束索引列表
+        """
+        out_indices = (ctypes.c_int * max_results)()
+        count = _lib.graph_find_constraints_involving(
+            self._ptr, node_id, out_indices, max_results
+        )
+        if count <= 0:
+            return []
+        return [out_indices[i] for i in range(count)]
+
+    def serialize_to_json(self) -> str:
+        """
+        将图序列化为 JSON 字符串。
+
+        序列化整个约束图，包括所有节点和约束关系。
+
+        返回：
+            str: JSON 字符串
+
+        异常：
+            Lv00Error: 序列化失败
+        """
+        json_ptr = _lib.graph_serialize_to_json(self._ptr)
+        if not json_ptr:
+            raise Lv00Error("序列化图为 JSON 失败")
+        result = json_ptr.decode('utf-8')
+        _lib.lv00_free_ptr(json_ptr)
+        return result
+
+    def deserialize_from_json(self, json_str: str) -> 'Graph':
+        """
+        从 JSON 字符串反序列化图到当前实例。
+
+        参数：
+            json_str: JSON 字符串
+
+        异常：
+            Lv00Error: 反序列化失败
+        """
+        b = json_str.encode('utf-8')
+        new_ptr = _lib.graph_deserialize_from_json(b)
+        if not new_ptr:
+            raise Lv00Error("从 JSON 反序列化图失败")
+        # 替换底层 C 指针
+        if self._ptr:
+            _lib.graph_destroy(self._ptr)
+        self._ptr = new_ptr
+        self._points = []
+        self._segments = []
+        self._regions = []
+        self._ports = []
+        self._point_id_set = set()
+        self._sync_id_from_c()
+        return self
+
+    def detect_redundancy(self, constraint_type: int,
+                          participants: List[int]) -> int:
+        """
+        检测冗余（按类型和参与者）。
+
+        检查指定类型和参与者的约束是否已冗余存在。
+
+        参数：
+            constraint_type: 约束类型编码
+            participants: 参与节点 ID 列表
+
+        返回：
+            int: 1 表示存在冗余，0 表示不存在，-1 表示错误
+        """
+        arr = (ctypes.c_int * len(participants))(*participants)
+        return _lib.graph_detect_redundancy(
+            self._ptr, constraint_type, arr, len(participants)
+        )
     
     def get_node_count(self) -> int:
         """
@@ -1319,11 +1820,14 @@ class Graph:
         if not result_ptr:
             return []
         
-        redundant = [result_ptr[i] for i in range(count.value)]
-        _lib.free(result_ptr)
+        try:
+            # 修复：使用 try-finally 确保异常路径也能正确释放内存
+            redundant = [result_ptr[i] for i in range(count.value)]
+        finally:
+            _lib.lv00_free_ptr(result_ptr)
         return redundant
     
-    def detect_conflicts(self) -> 'Tuple[List[List[int]], List[int]]':
+    def detect_conflicts(self) -> Tuple[List[List[int]], List[int]]:
         """
         检测冲突约束组。
 
@@ -1334,20 +1838,25 @@ class Graph:
             若无冲突则返回 ([], [])
         """
         conflict_count = ctypes.c_int()
-        sizes_ptr = ctypes.c_int()
+        # 修复：sizes_ptr 应为指向整数数组的指针，而非单个整数
+        sizes_ptr = ctypes.POINTER(ctypes.c_int)()
         result_ptr = _lib.graph_detect_conflicts(self._ptr, ctypes.byref(conflict_count), ctypes.byref(sizes_ptr))
         if not result_ptr:
             return ([], [])
         
-        conflicts = []
-        sizes = []
-        for i in range(conflict_count.value):
-            group = [result_ptr[i][j] for j in range(sizes_ptr[i])]
-            conflicts.append(group)
-            sizes.append(sizes_ptr[i])
-        
-        _lib.free(result_ptr)
-        _lib.free(sizes_ptr)
+        try:
+            # 修复：使用 try-finally 确保异常路径也能正确释放内存
+            conflicts = []
+            sizes = []
+            for i in range(conflict_count.value):
+                # 正确访问指针数组中的元素
+                group_size = sizes_ptr[i]
+                group = [result_ptr[i][j] for j in range(group_size)]
+                conflicts.append(group)
+                sizes.append(group_size)
+        finally:
+            _lib.lv00_free_ptr(result_ptr)
+            _lib.lv00_free_ptr(sizes_ptr)
         return (conflicts, sizes)
     
     # ============================================================
@@ -1368,12 +1877,12 @@ class Graph:
     
     @property
     def points(self) -> List[Point]:
-        """获取图中所有点"""
+        """获取图中所有点的列表。"""
         return self._points
     
     @property
     def segments(self) -> List[LineSegment]:
-        """获取图中所有线段"""
+        """获取图中所有线段的列表。"""
         return self._segments
 
 
@@ -1404,8 +1913,14 @@ def get_version() -> str:
     
     返回：
         str: 版本号
+    
+    注意：
+        lv00_get_version 在 C 库中为 static inline 函数，不在 DLL 导出中。
+        此处返回 Python 包的版本号作为替代。
     """
-    return _lib.lv00_get_version().decode('utf-8')
+    # lv00_get_version 已从 DLL 导出中移除（static inline），
+    # 返回 Python 包版本作为替代
+    return "3.2.0"
 
 
 def get_last_error() -> str:
@@ -1458,6 +1973,6 @@ def get_counter_report() -> str:
     report = _lib.debug_counters_report()
     if report:
         result = report.decode('utf-8')
-        _lib.free(report)
+        _lib.lv00_free_ptr(report)
         return result
     return ""

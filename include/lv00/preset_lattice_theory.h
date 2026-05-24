@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_lattice_theory.h
  * @brief 格论预设函数块 - 头文件
  *
@@ -15,8 +15,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_LATTICE_THEORY_H
-#define PRESET_LATTICE_THEORY_H
+#ifndef LV00_PRESET_LATTICE_THEORY_H
+#define LV00_PRESET_LATTICE_THEORY_H
 
 #include "preset_blocks.h"
 
@@ -166,4 +166,4 @@ const char *preset_lattice_theory_category(void);
 }
 #endif
 
-#endif /* PRESET_LATTICE_THEORY_H */
+#endif /* LV00_PRESET_LATTICE_THEORY_H */

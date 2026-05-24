@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_functional_analysis_adv.c
  * @brief 泛函分析进阶预设函数块模块 - 实现（v2统一宏模式）
  *

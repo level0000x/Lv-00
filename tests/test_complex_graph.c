@@ -105,7 +105,7 @@ static int test_redundant_constraints(void)
     int redundant_count = 0;
     int *redundant = graph_detect_redundant_constraints(graph, &redundant_count);
     printf("  Redundant constraints found: %d\n", redundant_count);
-    free(redundant);
+    lv00_free_ptr(redundant);
 
     printf("  Redundant constraint detection: PASSED\n");
     graph_destroy(graph);
@@ -178,7 +178,7 @@ static int test_cross_boundary(void)
         graph, internal, 2, ports, 1, &out_count);
 
     printf("  Cross-boundary constraints found: %d\n", out_count);
-    free(cbc);
+    lv00_free_ptr(cbc);
 
     printf("  Cross-boundary detection: PASSED\n");
     graph_destroy(graph);

@@ -558,8 +558,8 @@ bool preset_representation_theory_get_names(char ***out_names, int *out_count)
     for (int i = 0; i < count; i++) {
         names[i] = lv00_strdup(preset_names[i]);
         if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) free(names[j]);
-            free(names);
+            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv00_free(&tmp); }
+            { void *tmp = names; lv00_free(&tmp); }
             return false;
         }
     }

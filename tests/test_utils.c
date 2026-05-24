@@ -289,7 +289,7 @@ static void test_version_management(void) {
     
     /* 测试系统版本检查 */
     assert(lv00_check_version("3.0.0") == true);
-    assert(lv00_check_version("3.1.0") == false);
+    assert(lv00_check_version("3.3.0") == false);
     assert(lv00_check_version("10.0.0") == false);
     
     printf("  PASSED\n");

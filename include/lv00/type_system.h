@@ -134,10 +134,10 @@ typedef enum {
  * 规则按优先级排序，优先级数值越小越优先。
  */
 typedef struct {
-    int source_node_type;     /* GeomType of the source node (e.g., GEOM_POINT) */
-    int target_type_kind;     /* TypeKind to infer (e.g., TYPE_KIND_POINT) */
-    int priority;             /* Rule priority (lower = higher priority) */
-    const char *description;  /* Human-readable description */
+    int source_node_type;     /* 源节点的几何类型（如 GEOM_POINT） */
+    int target_type_kind;     /* 要推断的类型种类（如 TYPE_KIND_POINT） */
+    int priority;             /* 规则优先级（数值越小优先级越高） */
+    const char *description;  /* 人类可读的规则描述 */
 } TypeInferenceRule;
 
 /* ============== 节点-类型映射条目 ============== */
@@ -208,6 +208,7 @@ const TypeRewritePath *type_system_get_rewrite_path(const TypeSystem *ts);
 struct TypeSystem {
     TypeRegion **type_regions; /* 类型区域数组 */
     int type_region_count;     /* 类型区域数量 */
+    int type_region_capacity;  /* 类型区域数组容量（用于指数扩容） */
 
     TypeVariable **type_vars;  /* 类型变量数组 */
     int type_var_count;        /* 类型变量数量 */
@@ -711,7 +712,7 @@ const ExplorerStep *path_explorer_get_steps(const PathExplorer *explorer);
  * @param explorer 探索器
  * @return 当前类型区域指针（只读），失败返回 NULL
  */
-TypeRegion *path_explorer_get_current(const PathExplorer *explorer);
+const TypeRegion *path_explorer_get_current(const PathExplorer *explorer);
 
 #ifdef __cplusplus
 }

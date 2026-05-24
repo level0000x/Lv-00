@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_category_theory.c
  * @brief 范畴论预设函数块 - 实现
  *
@@ -10,7 +10,7 @@
  *
  * @module CategoryTheory
  * @category PRESET_CATEGORY_CATEGORY_THEORY
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "preset_category_theory.h"

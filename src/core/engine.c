@@ -15,6 +15,8 @@
 #include "lv00_utils.h"
 #include "prop_verifier.h"
 #include "stream.h"
+#include "stream_context_util.h"
+#include "node_deep_copy.h"
 
 /* 错误消息缓冲区大小（用于 last_error 数组） */
 #define LV00_ERROR_MSG_SIZE 256
@@ -42,18 +44,16 @@ LV00Engine *engine_create(void) {
     engine->rewrite_step_limit = LV00_DEFAULT_REWRITE_STEP_LIMIT;  /* 默认重写步数限制 */
     engine->frozen_point = NULL;
     engine->stream_ctx = stream_context_create(); /* 创建流式上下文 */
-    /* 将流式上下文同步到各子模块 */
-    solver_set_stream_context(engine->stream_ctx);
-    rewrite_set_stream_context(engine->stream_ctx);
-    unify_set_stream_context(engine->stream_ctx);
-    func_block_set_stream_context(engine->stream_ctx);
-    type_system_set_stream_context(engine->stream_ctx);
-    proof_set_stream_context(engine->stream_ctx);
-    recursion_set_stream_context(engine->stream_ctx);
-    normalization_set_stream_context(engine->stream_ctx);
-    prop_verifier_set_stream_context(engine->stream_ctx); /* 命题验证器信任颜色桥接 */
+
+    /* 通过注册/分发机制将流式上下文同步到各子模块。
+     * stream_context_register_builtins() 一次性注册所有内置模块的 setter，
+     * stream_context_dispatch_all() 统一分发流式上下文到所有已注册模块。
+     * 新增模块时只需在 stream_context_util.c 中添加注册行，
+     * 无需修改此处的引擎初始化代码。 */
+    stream_context_register_builtins();
+    stream_context_dispatch_all(engine->stream_ctx);
+
     engine->main_graph = graph_create();
-    graph_set_stream_context(engine->stream_ctx); /* 将流式上下文传递给约束图模块 */
     if (!engine->main_graph) {
         stream_context_destroy(engine->stream_ctx);
         lv00_free((void **)&engine);
@@ -291,391 +291,6 @@ bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int intern
         }
     }
     return true;
-}
-
-/**
- * @brief 深拷贝符号坐标（SymbolicCoord）
- *
- * 创建原始 SymbolicCoord 的完全独立副本。根据坐标类型（RATIONAL、
- * ALGEBRAIC、QUADRATIC、TRANSCENDENTAL）采取不同的拷贝策略：
- *
- *   - RATIONAL: 使用 mpq_set 进行精确的有理数值拷贝，避免
- *     mpz_get_si/mpz_get_ui 截断问题。新分配的 Rational 结构体
- *     完全独立于原始结构体。
- *   - QUADRATIC: 深拷贝 a、b 两个有理数分量和 n 整数值。
- *     如果 a 或 b 拷贝失败，回滚已分配的内存并返回 NULL。
- *   - ALGEBRAIC: 通过 algebraic_create 重建，包含最小多项式和
- *     区间边界的完整拷贝。
- *   - TRANSCENDENTAL: 深拷贝表达式树（TranscendentalExpr），
- *     包括表达式类型、基名和有理操作数。
- *
- * 【所有权语义】
- *   调用者获得返回的 SymbolicCoord* 的独占所有权。
- *   返回的坐标对象与原始对象无任何共享状态（完全独立）。
- *   调用者负责在不再需要时调用 symbolic_coord_destroy 释放。
- *   如果本函数返回 NULL（内存不足），调用者无需做任何释放操作。
- *
- * @param orig 原始符号坐标指针（可为 NULL，此时返回 NULL）
- * @return 新分配且完全独立的符号坐标副本，失败返回 NULL
- */
-static SymbolicCoord *deep_copy_symbolic_coord(const SymbolicCoord *orig) {
-    if (!orig) return NULL;
-    
-    SymbolicCoord *copy = lv00_malloc(sizeof(SymbolicCoord));  /* 统一内存分配器 */
-    if (!copy) return NULL;
-    
-    copy->type = orig->type;
-    copy->trust = orig->trust;
-    
-    switch (orig->type) {
-        case RATIONAL:
-            if (orig->data.rational) {
-                /* 通过 mpq_set 深拷贝，避免 mpz_get_si/mpz_get_ui 截断问题 */
-                copy->data.rational = lv00_malloc(sizeof(Rational));
-                if (!copy->data.rational) {
-                    lv00_free((void **)&copy);
-                    return NULL;
-                }
-                mpq_init(copy->data.rational->value);
-                mpq_set(copy->data.rational->value, orig->data.rational->value);
-            } else {
-                copy->data.rational = NULL;
-            }
-            break;
-        case ALGEBRAIC:
-            if (orig->data.algebraic) {
-                copy->data.algebraic = algebraic_create(
-                    &orig->data.algebraic->minimal_poly,
-                    orig->data.algebraic->left_bound,
-                    orig->data.algebraic->right_bound
-                );
-            } else {
-                copy->data.algebraic = NULL;
-            }
-            break;
-        case QUADRATIC:
-            if (orig->data.quadratic) {
-                /* 通过 mpq_set 深拷贝有理数分量，避免截断问题 */
-                Rational *a_copy = lv00_malloc(sizeof(Rational));
-                if (!a_copy) { lv00_free((void **)&copy); return NULL; }
-                mpq_init(a_copy->value);
-                mpq_set(a_copy->value, orig->data.quadratic->a->value);
-                Rational *b_copy = lv00_malloc(sizeof(Rational));
-                if (!b_copy) {
-                    mpq_clear(a_copy->value);
-                    lv00_free((void **)&a_copy);
-                    lv00_free((void **)&copy);
-                    return NULL;
-                }
-                mpq_init(b_copy->value);
-                mpq_set(b_copy->value, orig->data.quadratic->b->value);
-                copy->data.quadratic = quadratic_create(a_copy, b_copy, orig->data.quadratic->n);
-            } else {
-                copy->data.quadratic = NULL;
-            }
-            break;
-        case TRANSCENDENTAL:
-            if (orig->data.transcendental) {
-                copy->data.transcendental = transcendental_create(
-                    orig->data.transcendental->name
-                );
-                /* 深拷贝表达式树 */
-                if (copy->data.transcendental && orig->data.transcendental->expr) {
-                    TranscendentalExpr *src_expr = orig->data.transcendental->expr;
-                    TranscendentalExpr *dst_expr = lv00_malloc(sizeof(TranscendentalExpr));
-                    if (dst_expr) {
-                        dst_expr->expr_type = src_expr->expr_type;
-                        if (src_expr->base_name) {
-                            lv00_strlcpy(dst_expr->base_name, src_expr->base_name,
-                                         sizeof(dst_expr->base_name));
-                        } else {
-                            dst_expr->base_name[0] = '\0';
-                        }
-                        dst_expr->rational_operand = src_expr->rational_operand
-                            ? rational_copy(src_expr->rational_operand) : NULL;
-                        dst_expr->out_of_scope = src_expr->out_of_scope;
-                        copy->data.transcendental->expr = dst_expr;
-                    }
-                }
-            } else {
-                copy->data.transcendental = NULL;
-            }
-            break;
-        default:
-            copy->data.rational = NULL;
-            break;
-    }
-    
-    return copy;
-}
-
-/**
- * deep_copy_port - 深拷贝一个端口(Port)。
- *
- * 创建一个新的 Port，复制所有标量字段。注意：
- * - connected_to 指针被置为 NULL，后续需要通过 ID 映射更新。
- * - type_region 执行的是浅拷贝（指针赋值），这意味着拷贝后的端口
- *   与原始端口共享同一个 type_region 对象。
- *
- * 【type_region 所有权语义 —— 规划说明】
- *
- * 当前 type_region 的所有权语义尚未完全明确，因此浅拷贝是有意为之的临时方案。
- * 已排查的情况如下：
- *
- *   现状分析：
- *   - type_system.c 中存在 type_region_deep_copy() 静态函数（第2274行），
- *     完整实现了 TypeRegion 及其子类型的递归深拷贝。
- *   - 该函数当前为 static 作用域，仅供 type_system.c 内部使用
- *     （如类型浏览器快照、类型预览等场景）。
- *   - Port 结构体中的 type_region 字段定义为 TypeRegion* 指针，
- *     不携带所有权标志，无法在运行时判断应使用浅拷贝还是深拷贝。
- *
- *   无法简单实现的原因：
- *   1. 深拷贝后需要明确内存所有权：拷贝者获得所有权，销毁时需释放；
- *      浅拷贝者不持有所有权，销毁时不应释放。当前 Port 没有区分机制。
- *   2. 如果统一改为深拷贝，需要配套改动 Port 的销毁逻辑
- *      （添加 type_region_destroy 调用），可能破坏现有的 TypeSystem 注册表
- *      管理假设（type_regions 数组中的条目由 TypeSystem 统一释放）。
- *   3. type_region 可能包含大量子类型（递归引用链），深拷贝的成本
- *      在频繁端口拷贝场景下可能不可接受。
- *
- *   规划方案（分阶段实施）：
- *   第一阶段（低风险）：
- *     - 为 Port 添加 ownership 标志字段（bool owns_type_region），
- *       标记该端口是否持有 type_region 的所有权。
- *     - 在 deep_copy_port 中根据 ownership 决定浅拷贝或深拷贝。
- *     - 在 Port 销毁时根据 ownership 决定是否调用 type_region_destroy。
- *   第二阶段（接口导出）：
- *     - 将 type_region_deep_copy() 从 static 提升为公共API：
- *       TypeRegion *type_system_deep_copy_type_region(const TypeRegion *src);
- *     - 与 type_region_destroy() 配对，提供清晰的深拷贝/销毁契约。
- *   第三阶段（默认策略切换）：
- *     - 将 deep_copy_port 的默认行为切换为深拷贝（owns_type_region = true），
- *       但保留传入标志位以支持浅拷贝（用于 TypeSystem 内部拷贝场景）。
- *
- * @param orig 原始端口
- * @return 新分配的端口副本，失败返回 NULL
- */
-static Port *deep_copy_port(const Port *orig) {
-    if (!orig) return NULL;
-
-    Port *copy = lv00_malloc(sizeof(Port));  /* 统一内存分配器 */
-    if (!copy) return NULL;
-
-    copy->id = orig->id;
-    copy->type = orig->type;
-    copy->namespace_depth = orig->namespace_depth;
-    copy->parent_block_id = orig->parent_block_id;
-    copy->is_formal_param = orig->is_formal_param;
-    copy->is_polymorphic = orig->is_polymorphic;
-    /* 浅拷贝警告：type_region 仅复制指针，不复制底层对象。
-     * 拷贝后的 Port 与原始 Port 共享同一个 type_region。
-     * 如果 type_region 是动态分配的，销毁时需确保不会双重释放。
-     * 当前 type_region 所有权语义未确定，此处浅拷贝为临时方案。 */
-    copy->type_region = orig->type_region;
-    copy->connected_to = NULL;  /* 后续通过 ID 映射更新连接关系 */
-
-    return copy;
-}
-
-/**
- * @brief 深拷贝几何节点
- *
- * 创建指定节点及其所有持有数据的深拷贝副本。
- *
- * @param orig   原始节点
- * @param id_map 旧节点ID到新节点ID的映射（可为空）
- * @return 深拷贝后的新节点，失败返回 NULL
- */
-static GeomNode *deep_copy_geom_node(const GeomNode *orig, const int *id_map) {
-    if (!orig) return NULL;
-    
-    GeomNode *copy = lv00_malloc(sizeof(GeomNode));  /* 统一内存分配器 */
-    if (!copy) return NULL;
-    
-    /* 拷贝标量字段 */
-    copy->id = orig->id;
-    copy->type = orig->type;
-    copy->coord_count = orig->coord_count;
-    copy->trust = orig->trust;
-    copy->lo_subtype = orig->lo_subtype;
-    copy->numeric_precision = orig->numeric_precision;
-    copy->namespace_depth = orig->namespace_depth;
-    copy->parent_block_id = orig->parent_block_id;
-    
-    /* 深拷贝 numeric_assumption_declaration 字符串 */
-    if (orig->numeric_assumption_declaration) {
-        copy->numeric_assumption_declaration = lv00_strdup_safe(orig->numeric_assumption_declaration);
-        if (!copy->numeric_assumption_declaration) {
-            lv00_free((void **)&copy);  /* 统一内存释放器 */
-            return NULL;
-        }
-    } else {
-        copy->numeric_assumption_declaration = NULL;
-    }
-    
-    /* 深拷贝符号坐标数组 */
-    if (orig->symbolic_coords && orig->coord_count > 0) {
-        copy->symbolic_coords = lv00_malloc(orig->coord_count * sizeof(SymbolicCoord*));
-        if (!copy->symbolic_coords) {
-            lv00_free((void **)&copy->numeric_assumption_declaration);
-            lv00_free((void **)&copy);
-            return NULL;
-        }
-        for (int i = 0; i < orig->coord_count; i++) {
-            copy->symbolic_coords[i] = deep_copy_symbolic_coord(orig->symbolic_coords[i]);
-            if (!copy->symbolic_coords[i] && orig->symbolic_coords[i]) {
-                /* 失败时清理 */
-                for (int j = 0; j < i; j++) {
-                    symbolic_coord_destroy(copy->symbolic_coords[j]);
-                }
-                lv00_free((void **)&copy->symbolic_coords);
-                lv00_free((void **)&copy->numeric_assumption_declaration);
-                lv00_free((void **)&copy);
-                return NULL;
-            }
-        }
-    } else {
-        copy->symbolic_coords = NULL;
-    }
-    
-    /* 拷贝类型特定数据 */
-    switch (orig->type) {
-        case GEOM_PORT:
-            copy->data.port = deep_copy_port(orig->data.port);
-            if (!copy->data.port && orig->data.port) {
-                /* 失败时清理 */
-                if (copy->symbolic_coords) {
-                    for (int i = 0; i < copy->coord_count; i++) {
-                        symbolic_coord_destroy(copy->symbolic_coords[i]);
-                    }
-                    lv00_free((void **)&copy->symbolic_coords);
-                }
-                lv00_free((void **)&copy->numeric_assumption_declaration);
-                lv00_free((void **)&copy);
-                return NULL;
-            }
-            break;
-            
-        case GEOM_REGION:
-            /* Region类型：分配边界线段数组（引用共享，非拥有） */
-            copy->data.region.segment_count = orig->data.region.segment_count;
-            if (orig->data.region.boundary_segments && orig->data.region.segment_count > 0) {
-                copy->data.region.boundary_segments = lv00_malloc(
-                    orig->data.region.segment_count * sizeof(GeomNode*)
-                );
-                if (!copy->data.region.boundary_segments) {
-                    if (copy->symbolic_coords) {
-                        for (int i = 0; i < copy->coord_count; i++) {
-                            symbolic_coord_destroy(copy->symbolic_coords[i]);
-                        }
-                        lv00_free((void **)&copy->symbolic_coords);
-                    }
-                    lv00_free((void **)&copy->numeric_assumption_declaration);
-                    lv00_free((void **)&copy);
-                    return NULL;
-                }
-                /* 拷贝线段引用（线段由图拥有，区域仅持有引用） */
-                for (int i = 0; i < orig->data.region.segment_count; i++) {
-                    if (id_map && orig->data.region.boundary_segments[i]) {
-                        /* 如提供id_map，引用更新将在所有节点拷贝完成后进行 */
-                        copy->data.region.boundary_segments[i] = orig->data.region.boundary_segments[i];
-                    } else {
-                        copy->data.region.boundary_segments[i] = orig->data.region.boundary_segments[i];
-                    }
-                }
-            } else {
-                copy->data.region.boundary_segments = NULL;
-            }
-            break;
-            
-        case GEOM_FUNCTION_BLOCK:
-            /* FunctionBlock类型：分配内部节点和端口ID数组 */
-            copy->data.func_block.internal_node_count = orig->data.func_block.internal_node_count;
-            copy->data.func_block.input_count = orig->data.func_block.input_count;
-            copy->data.func_block.output_count = orig->data.func_block.output_count;
-            copy->data.func_block.determinism_state = orig->data.func_block.determinism_state;
-            
-            /* 分配并拷贝内部节点数组（引用，非拥有） */
-            if (orig->data.func_block.internal_nodes && orig->data.func_block.internal_node_count > 0) {
-                copy->data.func_block.internal_nodes = lv00_malloc(
-                    orig->data.func_block.internal_node_count * sizeof(GeomNode*)
-                );
-                if (!copy->data.func_block.internal_nodes) {
-                    if (copy->symbolic_coords) {
-                        for (int i = 0; i < copy->coord_count; i++) {
-                            symbolic_coord_destroy(copy->symbolic_coords[i]);
-                        }
-                        lv00_free((void **)&copy->symbolic_coords);
-                    }
-                    lv00_free((void **)&copy->numeric_assumption_declaration);
-                    lv00_free((void **)&copy);
-                    return NULL;
-                }
-                for (int i = 0; i < orig->data.func_block.internal_node_count; i++) {
-                    copy->data.func_block.internal_nodes[i] = orig->data.func_block.internal_nodes[i];
-                }
-            } else {
-                copy->data.func_block.internal_nodes = NULL;
-            }
-            
-            /* 分配并拷贝输入端口ID数组 */
-            if (orig->data.func_block.input_port_ids && orig->data.func_block.input_count > 0) {
-                copy->data.func_block.input_port_ids = lv00_malloc(
-                    orig->data.func_block.input_count * sizeof(int)
-                );
-                if (!copy->data.func_block.input_port_ids) {
-                    lv00_free((void **)&copy->data.func_block.internal_nodes);
-                    if (copy->symbolic_coords) {
-                        for (int i = 0; i < copy->coord_count; i++) {
-                            symbolic_coord_destroy(copy->symbolic_coords[i]);
-                        }
-                        lv00_free((void **)&copy->symbolic_coords);
-                    }
-                    lv00_free((void **)&copy->numeric_assumption_declaration);
-                    lv00_free((void **)&copy);
-                    return NULL;
-                }
-                memcpy(copy->data.func_block.input_port_ids,
-                       orig->data.func_block.input_port_ids,
-                       orig->data.func_block.input_count * sizeof(int));
-            } else {
-                copy->data.func_block.input_port_ids = NULL;
-            }
-            
-            /* 分配并拷贝输出端口ID数组 */
-            if (orig->data.func_block.output_port_ids && orig->data.func_block.output_count > 0) {
-                copy->data.func_block.output_port_ids = lv00_malloc(
-                    orig->data.func_block.output_count * sizeof(int)
-                );
-                if (!copy->data.func_block.output_port_ids) {
-                    lv00_free((void **)&copy->data.func_block.input_port_ids);
-                    lv00_free((void **)&copy->data.func_block.internal_nodes);
-                    if (copy->symbolic_coords) {
-                        for (int i = 0; i < copy->coord_count; i++) {
-                            symbolic_coord_destroy(copy->symbolic_coords[i]);
-                        }
-                        lv00_free((void **)&copy->symbolic_coords);
-                    }
-                    lv00_free((void **)&copy->numeric_assumption_declaration);
-                    lv00_free((void **)&copy);
-                    return NULL;
-                }
-                memcpy(copy->data.func_block.output_port_ids,
-                       orig->data.func_block.output_port_ids,
-                       orig->data.func_block.output_count * sizeof(int));
-            } else {
-                copy->data.func_block.output_port_ids = NULL;
-            }
-            break;
-            
-        default:
-            /* GEOM_POINT 和 GEOM_LINE_SEGMENT 类型无额外数据需要拷贝 */
-            memset(&copy->data, 0, sizeof(copy->data));
-            break;
-    }
-    
-    return copy;
 }
 
 int *engine_instantiate_function(LV00Engine *engine, int func_block_id,
@@ -1430,7 +1045,7 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
     }
     for (int i = 0; i < src->node_count; i++) {
         GeomNode *orig = src->nodes[i];
-        GeomNode *copy = deep_copy_geom_node(orig, NULL);
+        GeomNode *copy = node_deep_copy_geom_node(orig, NULL);
         if (!copy) {
             /* 失败时清理 */
             graph_destroy(dst);
@@ -1663,25 +1278,12 @@ void engine_set_streaming_enabled(LV00Engine *engine, bool enabled) {
         /* 禁用时销毁流式上下文，同步清空子模块 */
         stream_context_destroy(engine->stream_ctx);
         engine->stream_ctx = NULL;
-        solver_set_stream_context(NULL);
-        rewrite_set_stream_context(NULL);
-        unify_set_stream_context(NULL);
-        func_block_set_stream_context(NULL);
-        type_system_set_stream_context(NULL);
-        proof_set_stream_context(NULL);
-        recursion_set_stream_context(NULL);
-        prop_verifier_set_stream_context(NULL);
+        /* 通过分发机制统一清空所有已注册子模块的流式上下文 */
+        stream_context_dispatch_all(NULL);
     } else if (enabled && !engine->stream_ctx) {
-        /* 启用时重新创建流式上下文，同步到子模块 */
+        /* 启用时重新创建流式上下文，通过分发机制同步到所有子模块 */
         engine->stream_ctx = stream_context_create();
-        solver_set_stream_context(engine->stream_ctx);
-        rewrite_set_stream_context(engine->stream_ctx);
-        unify_set_stream_context(engine->stream_ctx);
-        func_block_set_stream_context(engine->stream_ctx);
-        type_system_set_stream_context(engine->stream_ctx);
-        proof_set_stream_context(engine->stream_ctx);
-        recursion_set_stream_context(engine->stream_ctx);
-        prop_verifier_set_stream_context(engine->stream_ctx);
+        stream_context_dispatch_all(engine->stream_ctx);
     }
 }
 

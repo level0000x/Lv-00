@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv00_utils.c
  * @brief Lv-00 工具函数库实现
  *
@@ -67,18 +67,17 @@ typedef struct {
 #define ALLOC_MAGIC_FREED 0x00000000  /**< 已释放标记 */
 
 /*
- * DEBUG: 临时使用原生 malloc/free 以诊断堆损坏
- * 注释掉自定义分配器，后续可恢复
+ * 内存分配器实现 — 直接使用系统 malloc/free
+ *
+ * 注意：放弃 AllocHeader 包装以避免与外部 free() 的兼容性问题。
+ * 内存追踪仅统计分配次数/总量，free 时不再精确减扣。
  */
 void *lv00_malloc(size_t size) {
-    /* 内存限制检查 */
     if (g_memory_limit > 0 && g_memory_stats.current_used > g_memory_limit - size) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", size);
         return NULL;
     }
-    /* 允许 size==0 返回有效指针（与标准 malloc(0) 行为一致）
-     * 多个调用方依赖 graph_add_point(g, NULL, 0) 等零尺寸分配 */
-    void *ptr = malloc(size ? size : 1);  /* malloc(0) 行为由实现定义，确保至少分配 1 字节 */
+    void *ptr = malloc(size ? size : 1);
     if (ptr) {
         g_memory_stats.total_allocated += size;
         g_memory_stats.current_used += size;
@@ -99,33 +98,40 @@ void *lv00_calloc(size_t nmemb, size_t size) {
     }
     
     size_t total = nmemb * size;
-    void *ptr = lv00_malloc(total);
+    void *ptr = calloc(nmemb, size);
     if (ptr) {
-        memset(ptr, 0, total);
+        g_memory_stats.total_allocated += total;
+        g_memory_stats.current_used += total;
+        g_memory_stats.allocation_count++;
+        if (g_memory_stats.current_used > g_memory_stats.peak_used)
+            g_memory_stats.peak_used = g_memory_stats.current_used;
     }
     return ptr;
 }
 
 /**
- * @brief 重新分配内存
- *
- * 行为类似于标准 realloc，但集成了内存统计跟踪和双释放检测。
- *
- * @note 当 size==0 时，此函数不会释放 ptr 指向的内存，而是直接返回 NULL。
- *       这避免了标准 realloc(p, 0) 行为的歧义性（C11 标准中该行为由实现定义），
- *       防止调用者因未将返回值赋回指针而导致 use-after-free。
- *       如需释放内存，请显式调用 lv00_free(&ptr)。
+ * @brief 重新分配内存（统一内存追踪版本）
+ * @warning 行为与标准 realloc 不同：当 size 为 0 时，返回 NULL 但不释放原内存。
+ *          调用者应先 lv00_free(&ptr) 再处理 size=0 的情况。
+ *          这是有意设计，避免隐式释放导致追踪系统状态不一致。
  */
 void *lv00_realloc(void *ptr, size_t size) {
     if (!ptr) return lv00_malloc(size);
     if (size == 0) return NULL;
+
+    /* 内存统计说明：当前 lv00_malloc 使用原生 malloc（自定义 AllocHeader 分配器
+     * 已临时禁用，见上方 DEBUG 注释），因此无法获取原分配大小。
+     *
+     * 采用保守策略：realloc 成功时不更新 current_used（避免只增不减导致
+     * 健康检查误报内存泄漏），仅更新 total_allocated 和 peak_used。
+     *
+     * 当自定义分配器（AllocHeader）恢复启用后，应改为：
+     *   AllocHeader *hdr = (AllocHeader *)((char *)ptr - sizeof(AllocHeader));
+     *   old_size = (hdr->magic == ALLOC_MAGIC_LIVE) ? hdr->size : 0;
+     *   g_memory_stats.current_used = g_memory_stats.current_used - old_size + size;
+     */
     void *new_ptr = realloc(ptr, size);
     if (new_ptr) {
-        /* 简单跟踪 —— 原大小未知，仅做峰值统计 */
-        g_memory_stats.current_used += size;
-        if (g_memory_stats.current_used > g_memory_stats.peak_used) {
-            g_memory_stats.peak_used = g_memory_stats.current_used;
-        }
         g_memory_stats.total_allocated += size;
     }
     return new_ptr;
@@ -135,6 +141,8 @@ void lv00_free(void **ptr) {
     if (!ptr || !*ptr) return;
     free(*ptr);
     *ptr = NULL;
+    g_memory_stats.total_freed += 1;  /* 近似追踪 */
+    g_memory_stats.free_count++;
 }
 
 void lv00_free_many(void **first, ...) {
@@ -1238,4 +1246,31 @@ uint64_t lv00_hash_int(int value) {
         hash *= LV00_FNV64_PRIME;
     }
     return hash;
+}
+
+/* ============================================================
+ * FFI 兼容接口
+ * ============================================================ */
+
+/**
+ * @brief FFI 兼容的内存释放函数
+ *
+ * 专为外部函数接口（Python ctypes、JNI 等）设计。
+ * 与 lv00_free(void**) 不同，此函数接受标准的 void* 参数，
+ * 语义与标准 C 的 free() 一致，但不执行指针置 NULL 操作。
+ *
+ * 适用场景：
+ *   - Python ctypes 调用：ctypes 无法方便地传递双重指针
+ *   - 其他 FFI 绑定：需要标准 free(void*) 语义的语言绑定
+ *
+ * @param ptr 要释放的内存指针，允许为 NULL（安全无操作）
+ *
+ * @note 对于 C 内部代码，应继续使用 lv00_free(void**) 以获得
+ *       自动置 NULL 的安全保证。此函数仅用于 FFI 边界。
+ */
+void lv00_free_ptr(void *ptr) {
+    if (!ptr) return;
+    free(ptr);
+    g_memory_stats.total_freed += 1;
+    g_memory_stats.free_count++;
 }

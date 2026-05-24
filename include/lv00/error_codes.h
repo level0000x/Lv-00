@@ -6,7 +6,7 @@
  *          所有模块的错误码都应在此定义，确保错误处理的一致性和可追溯性。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #ifndef LV00_ERROR_CODES_H
@@ -227,6 +227,14 @@ void lv00_clear_error(void);
  * @return true 表排序正确，false 检测到违规（已通过 lv00_set_error 记录详情）
  */
 bool lv00_error_table_validate(void);
+
+/**
+ * @brief 从错误名称字符串反向查找错误码
+ * 
+ * @param name 错误名称（如 "LV00_OK"、"LV00_ERROR_OUT_OF_MEMORY"）
+ * @return 对应的错误码枚举值，未找到时返回 LV00_ERROR_UNKNOWN
+ */
+Lv00ErrorCode lv00_error_code_from_string(const char *name);
 
 /* ============================================================
  * 便捷错误处理宏

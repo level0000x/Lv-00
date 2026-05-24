@@ -18,7 +18,7 @@ Lv-00 几何元编程库的 Python 接口。
     - formula: 公式编程（解析、渲染、转换）
     - _ctypes_binding: 底层 C 库的 ctypes 绑定
 
-版本：3.0.2
+版本：3.2.0
 作者：Lv-00 开发团队
 
 示例：
@@ -46,7 +46,7 @@ Lv-00 几何元编程库的 Python 接口。
 
 import logging
 
-__version__ = "3.0.2"
+__version__ = "3.2.0"
 __author__ = "Lv-00 开发团队"
 __description__ = "Lv-00 几何元编程库 Python 接口"
 
@@ -189,13 +189,20 @@ except ImportError as e:
 # 公式模块依赖较多，采用惰性导入模式以加快包加载速度。
 # 首次访问 lv00.FormulaParser 等属性时才会触发实际导入。
 
+# 公式模块的导出名称集合（模块级常量，避免每次 __getattr__ 调用时重建）
+_FORMULA_NAMES: frozenset = frozenset({
+    'FormulaParser', 'FormulaAST', 'FormulaRenderer', 'FormulaConverter',
+    'FormulaParseError', 'SyntaxType', 'OutputFormat',
+    'parse', 'render', 'to_graph', 'from_graph',
+})
+
 _formula_exports = {}
 
 def __getattr__(name: str):
     """
-    惰性加载公式模块和预设函数块模块的属性和类。
+    惰性加载公式模块、预设函数块模块和异步流模块的属性和类。
 
-    当首次访问公式相关导出或预设函数块时，才真正导入对应子模块，
+    当首次访问公式相关导出、预设函数块或异步流接口时，才真正导入对应子模块，
     避免在包初始化时加载重量级的依赖。
 
     参数：
@@ -212,16 +219,16 @@ def __getattr__(name: str):
     if preset_result is not None:
         return preset_result
     
+    # 尝试异步流模块
+    async_stream_result = _get_async_stream_attr(name)
+    if async_stream_result is not None:
+        return async_stream_result
+    
     # 公式模块的导出名称列表
-    _formula_names = {
-        'FormulaParser', 'FormulaAST', 'FormulaRenderer', 'FormulaConverter',
-        'FormulaParseError', 'SyntaxType', 'OutputFormat',
-        'parse', 'render', 'to_graph', 'from_graph',
-    }
-    if name in _formula_names:
+    if name in _FORMULA_NAMES:
         if name not in _formula_exports:
             from . import formula as _formula_mod
-            for attr_name in _formula_names:
+            for attr_name in _FORMULA_NAMES:
                 if hasattr(_formula_mod, attr_name):
                     _formula_exports[attr_name] = getattr(_formula_mod, attr_name)
         return _formula_exports[name]
@@ -232,6 +239,24 @@ def __getattr__(name: str):
 # ============================================================
 # 预设函数块模块提供常用几何构造的预设函数块。
 # 采用惰性导入模式以加快包加载速度。
+
+# 预设函数块模块的导出名称集合（模块级常量，避免每次 _get_preset_attr 调用时重建）
+_PRESET_NAMES: frozenset = frozenset({
+    'create_midpoint', 'create_perpendicular_bisector',
+    'create_centroid', 'create_circumcenter', 'create_incenter', 'create_orthocenter',
+    'create_reflection', 'create_translation', 'create_rotation',
+    'create_distance', 'create_area',
+    'create_square', 'create_equilateral_triangle', 'create_triangle_centroid',
+    'PresetFuncBlockCategory', 'DeterminismLevel', 'FuncBlockSpec',
+    'get_preset_info', 'list_all_presets', 'validate_preset_inputs',
+})
+
+# 异步流模块的导出名称集合
+_ASYNC_STREAM_NAMES: frozenset = frozenset({
+    'StreamEvent', 'StreamEventQueue', 'AsyncStreamIterator',
+    'AsyncStreamContext', 'BufferedStreamCollector', 'StreamState',
+    'stream_events', 'collect_events', 'wait_for_event',
+})
 
 _preset_exports = {}
 
@@ -248,22 +273,35 @@ def _get_preset_attr(name: str):
     异常：
         AttributeError: 属性名不在预设模块的导出列表中
     """
-    _preset_names = {
-        'create_midpoint', 'create_perpendicular_bisector',
-        'create_centroid', 'create_circumcenter', 'create_incenter', 'create_orthocenter',
-        'create_reflection', 'create_translation', 'create_rotation',
-        'create_distance', 'create_area',
-        'create_square', 'create_equilateral_triangle', 'create_triangle_centroid',
-        'PresetFuncBlockCategory', 'DeterminismLevel', 'FuncBlockSpec',
-        'get_preset_info', 'list_all_presets', 'validate_preset_inputs',
-    }
-    if name in _preset_names:
+    if name in _PRESET_NAMES:
         if name not in _preset_exports:
             from . import preset_func_blocks as _preset_mod
-            for attr_name in _preset_names:
+            for attr_name in _PRESET_NAMES:
                 if hasattr(_preset_mod, attr_name):
                     _preset_exports[attr_name] = getattr(_preset_mod, attr_name)
         return _preset_exports[name]
+    return None
+
+
+_async_stream_exports = {}
+
+def _get_async_stream_attr(name: str):
+    """
+    惰性加载异步流模块的属性。
+
+    参数：
+        name: 属性名称
+
+    返回：
+        Any: 对应的类或函数对象
+    """
+    if name in _ASYNC_STREAM_NAMES:
+        if name not in _async_stream_exports:
+            from . import async_stream as _async_stream_mod
+            for attr_name in _ASYNC_STREAM_NAMES:
+                if hasattr(_async_stream_mod, attr_name):
+                    _async_stream_exports[attr_name] = getattr(_async_stream_mod, attr_name)
+        return _async_stream_exports[name]
     return None
 
 
@@ -355,6 +393,17 @@ __all__ = [
     "get_preset_info",
     "list_all_presets",
     "validate_preset_inputs",
+    
+    # 异步流模块（通过惰性导入）
+    "StreamEvent",
+    "StreamEventQueue",
+    "AsyncStreamIterator",
+    "AsyncStreamContext",
+    "BufferedStreamCollector",
+    "StreamState",
+    "stream_events",
+    "collect_events",
+    "wait_for_event",
 ]
 
 

@@ -13,7 +13,7 @@
  *          当构造的外部端口通过合一匹配命题的几何模式时，命题被验证。
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 3.2.0
  */
 
 #ifndef LV00_PROP_VERIFIER_H
@@ -71,17 +71,17 @@ struct PropFormula {
  * ============================================================ */
 
 typedef enum {
-    VERIFY_PROVEN,          /* 证明成功（合一匹配） */
-    VERIFY_DISPROVEN,       /* 证伪（找到反例） */
-    VERIFY_FAILED,          /* 未能证明（搜索空间耗尽） */
-    VERIFY_INVALID_INPUT,   /* 输入无效 */
-    VERIFY_TIMEOUT,         /* 超时 */
-    VERIFY_ERROR            /* 内部错误 */
-} VerifyResult;
+    PV_VERIFY_PROVEN,          /* 证明成功（合一匹配） */
+    PV_VERIFY_DISPROVEN,       /* 证伪（找到反例） */
+    PV_VERIFY_FAILED,          /* 未能证明（搜索空间耗尽） */
+    PV_VERIFY_INVALID_INPUT,   /* 输入无效 */
+    PV_VERIFY_TIMEOUT,         /* 超时 */
+    PV_VERIFY_ERROR            /* 内部错误 */
+} PropVerifyResult;
 
 /* 验证详情 */
 typedef struct {
-    VerifyResult result;
+    PropVerifyResult result;
     int steps_used;             /* 使用的推理步数 */
     int max_steps;              /* 最大步数限制 */
     char error_message[256];    /* 错误信息 */
@@ -208,7 +208,7 @@ typedef struct {
 /**
  * @brief 分析命题的不可构造性
  *
- * 当 prop_verifier_verify 返回 VERIFY_FAILED 时，可调用此函数
+ * 当 prop_verifier_verify 返回 PV_VERIFY_FAILED 时，可调用此函数
  * 获取详细的不可构造性分析报告。分析包括：
  *   - 失败的子目标列表及其描述
  *   - 不可构造性的原因分类（直觉主义限制、缺少前提等）
@@ -293,12 +293,12 @@ void prop_verifier_free_bhk_result(BHKVerificationResult *result);
  * 运行 BHK 验证并基于验证结果自动设置约束图中所有节点的符号坐标信任颜色。
  *
  * 映射规则（从 BHK 验证到 TrustColor）：
- *   - VERIFY_PROVEN + missing_constructions == 0 → TRUST_GREEN（完全构造性，可信）
- *   - VERIFY_PROVEN + missing_constructions <= 2 → TRUST_YELLOW（少量缺失，条件可信）
- *   - VERIFY_PROVEN + missing_constructions >= 3 → TRUST_AMBER（显著缺失，需关注）
- *   - VERIFY_FAILED（搜索耗尽但未证伪）→ TRUST_BLUE（未确定）
- *   - VERIFY_DISPROVEN → TRUST_RED（已证伪，不可信）
- *   - VERIFY_TIMEOUT / VERIFY_ERROR → TRUST_BLUE（未确定）
+ *   - PV_VERIFY_PROVEN + missing_constructions == 0 → TRUST_GREEN（完全构造性，可信）
+ *   - PV_VERIFY_PROVEN + missing_constructions <= 2 → TRUST_YELLOW（少量缺失，条件可信）
+ *   - PV_VERIFY_PROVEN + missing_constructions >= 3 → TRUST_AMBER（显著缺失，需关注）
+ *   - PV_VERIFY_FAILED（搜索耗尽但未证伪）→ TRUST_BLUE（未确定）
+ *   - PV_VERIFY_DISPROVEN → TRUST_RED（已证伪，不可信）
+ *   - PV_VERIFY_TIMEOUT / PV_VERIFY_ERROR → TRUST_BLUE（未确定）
  *
  * 对于每个节点，其所有坐标被设置为相同的信任颜色（节点级信任色）。
  * 每个颜色变更通过流式系统发射 STREAM_EVENT_PROOF_COLOR_UPDATE 事件。

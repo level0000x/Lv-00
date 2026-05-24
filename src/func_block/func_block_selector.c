@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file func_block_selector.c
  * @brief 多解选择器实现
  * @details 提供从多个候选解中选择特定解的策略，包括正根/负根选择、
  *          区域内选择（射线法）、最近点选择和自定义选择函数。
  *
  * @author Lv-00 Project
- * @version 3.0.1
+ * @version 3.2.0
  */
 
 #include <math.h>

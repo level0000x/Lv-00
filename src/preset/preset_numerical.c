@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_numerical.c
  * @brief 数值分析预设函数块 - 实现
  *
@@ -7,7 +7,7 @@
  *
  * @module Numerical
  * @category PRESET_CATEGORY_NUMERICAL
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "preset_numerical.h"

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_calculus.h
  * @brief 微积分预设函数块 - 头文件
  *
@@ -17,8 +17,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_CALCULUS_H
-#define PRESET_CALCULUS_H
+#ifndef LV00_PRESET_CALCULUS_H
+#define LV00_PRESET_CALCULUS_H
 
 #include "preset_blocks.h"
 
@@ -170,4 +170,4 @@ PresetCategory preset_calculus_category(void);
 }
 #endif
 
-#endif /* PRESET_CALCULUS_H */
+#endif /* LV00_PRESET_CALCULUS_H */

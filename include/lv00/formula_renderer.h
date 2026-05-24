@@ -8,7 +8,7 @@
  *          - DSL: 用于 Lv-00 几何元语言系统
  *
  * @author Lv-00 Project
- * @version 3.0.0
+ * @version 3.2.0
  */
 
 #ifndef LV00_FORMULA_RENDERER_H

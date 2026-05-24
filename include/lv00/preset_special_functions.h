@@ -17,8 +17,8 @@
  * @author Lv-00 开发团队
  */
 
-#ifndef PRESET_SPECIAL_FUNCTIONS_H
-#define PRESET_SPECIAL_FUNCTIONS_H
+#ifndef LV00_PRESET_SPECIAL_FUNCTIONS_H
+#define LV00_PRESET_SPECIAL_FUNCTIONS_H
 
 #include "preset_blocks.h"
 
@@ -147,4 +147,4 @@ bool preset_special_functions_get_names(char ***out_names, int *out_count);
 }
 #endif
 
-#endif /* PRESET_SPECIAL_FUNCTIONS_H */
+#endif /* LV00_PRESET_SPECIAL_FUNCTIONS_H */

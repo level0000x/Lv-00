@@ -9,8 +9,8 @@
  * @author Lv-00 Project
  */
 
-#ifndef PRESET_CORE_H
-#define PRESET_CORE_H
+#ifndef LV00_PRESET_CORE_H
+#define LV00_PRESET_CORE_H
 
 #include "preset_common.h"
 #include "func_block.h"
@@ -568,4 +568,4 @@ void preset_release(PresetEntryHandle entry);
 }
 #endif
 
-#endif /* PRESET_CORE_H */
+#endif /* LV00_PRESET_CORE_H */

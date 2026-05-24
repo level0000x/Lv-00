@@ -171,8 +171,8 @@ static FuncBlock* pack_triangle_constructor(ConstraintGraph *g, int a, int b, in
         return NULL;
     }
 
-    fb->name = strdup("EquilateralTriangle");
-    fb->description = strdup("构造一个等边三角形，给定边长");
+    fb->name = lv00_strdup_safe("EquilateralTriangle");
+    fb->description = lv00_strdup_safe("构造一个等边三角形，给定边长");
 
     printf("  函数块 '%s' 创建成功 (ID=%d)\n", fb->name, fb->id);
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_logic_advanced.c
  * @brief 高级逻辑预设函数块 - 实现
  *
@@ -9,7 +9,7 @@
  *
  * @module LogicAdvanced
  * @category PRESET_CATEGORY_LOGIC
- * @version 4.0.0
+ * @version 3.2.0
  */
 
 #include "preset_logic_advanced.h"
