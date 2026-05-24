@@ -10,6 +10,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@/stores';
 import { useDebounce } from '@/hooks/useDebounce';
 import { SEARCH_DEBOUNCE_MS, MAX_SEARCH_RESULTS } from '@/utils/constants';
+import ContextMenu from '@/components/common/ContextMenu';
 import type { Point } from '@/types';
 
 /** 搜索防抖延迟（毫秒）：在用户停止输入后执行过滤 / Search debounce delay (ms) */
@@ -211,26 +212,7 @@ const CanvasOverlay: React.FC = () => {
       )}
 
       {/* 右键上下文菜单 */}
-      {contextMenu && (
-        <div
-          className="context-menu"
-          id="contextMenu"
-          style={{ left: contextMenu.x, top: contextMenu.y, display: 'block' }}
-        >
-          {contextMenu.items.map((item) => (
-            <button
-              key={item.id}
-              className="context-menu-item"
-              data-action={item.id}
-              onClick={() => {
-                hideContextMenu();
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <ContextMenu />
     </>
   );
 };

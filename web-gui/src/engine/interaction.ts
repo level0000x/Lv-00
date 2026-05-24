@@ -271,6 +271,7 @@ export class InteractionManager {
         );
         if (radius < 1) {
           this.callbacks.setStatusMessage('RADIUS TOO SMALL / 半径太小');
+          this.compassCenter = null;
           this.callbacks.requestRender();
           return;
         }

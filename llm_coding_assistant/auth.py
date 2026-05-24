@@ -14,6 +14,7 @@ LLM编程辅助系统 - JWT 认证模块
 
 from __future__ import annotations
 
+import os
 import hmac
 import hashlib
 import json
@@ -45,7 +46,7 @@ class User:
         id: 用户唯一标识
         username: 用户名
         role: 用户角色（admin 或 user）
-        password_hash: SHA256 哈希后的密码（不直接存储明文）
+        password_hash: PBKDF2-HMAC-SHA256 加盐哈希后的密码（格式: salt:hash）
     """
     id: str
     username: str
@@ -59,6 +60,60 @@ class User:
             "username": self.username,
             "role": self.role,
         }
+
+
+# ============================================================
+# 密码哈希工具（PBKDF2-HMAC-SHA256，加盐）
+# ============================================================
+
+def hash_password(password: str) -> str:
+    """
+    使用 PBKDF2-HMAC-SHA256 加盐哈希密码
+
+    返回格式为 "salt:hash" 的字符串，salt 和 hash 均为十六进制编码。
+    迭代次数为 100000，符合 OWASP 推荐。
+
+    Args:
+        password: 明文密码
+
+    Returns:
+        格式为 "salt:hash" 的密码哈希字符串
+    """
+    salt = os.urandom(32).hex()
+    key = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode('utf-8'),
+        salt.encode('utf-8'),
+        100000,
+    )
+    return salt + ':' + key.hex()
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """
+    验证密码是否与存储的哈希匹配
+
+    从 password_hash 中提取 salt，使用相同的 PBKDF2-HMAC-SHA256
+    算法重新计算哈希，并使用 hmac.compare_digest 进行时间恒定比较。
+
+    Args:
+        password: 待验证的明文密码
+        password_hash: 存储的密码哈希（格式: salt:hash）
+
+    Returns:
+        True 表示密码匹配
+    """
+    try:
+        salt, hash_value = password_hash.split(':', 1)
+        key = hashlib.pbkdf2_hmac(
+            'sha256',
+            password.encode('utf-8'),
+            salt.encode('utf-8'),
+            100000,
+        )
+        return hmac.compare_digest(key.hex(), hash_value)
+    except (ValueError, AttributeError):
+        return False
 
 
 # ============================================================

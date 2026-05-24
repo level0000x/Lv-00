@@ -272,34 +272,434 @@ FloatInterval interval_log(FloatInterval a) {
 }
 
 /* ========================================================================
- * 涓€闃舵嘲鍕掑睍寮€锛堟湁闄愬樊鍒嗚繎浼硷級
+ * 表达式求值器 —— Shunting-yard 算法实现
+ * ======================================================================== */
+
+/** @brief RPN（逆波兰表示）运算符编码宏 */
+#define RPN_OP_ADD   (-1)   /**< 加法 + */
+#define RPN_OP_SUB   (-2)   /**< 减法 - */
+#define RPN_OP_MUL   (-3)   /**< 乘法 * */
+#define RPN_OP_DIV   (-4)   /**< 除法 / */
+#define RPN_OP_POW   (-5)   /**< 幂运算 ^ */
+#define RPN_OP_SQRT  (-10)  /**< sqrt 函数 */
+#define RPN_OP_SIN   (-11)  /**< sin 函数 */
+#define RPN_OP_COS   (-12)  /**< cos 函数 */
+#define RPN_OP_EXP   (-13)  /**< exp 函数 */
+#define RPN_OP_LOG   (-14)  /**< log 函数 */
+#define RPN_OP_NEG   (-20)  /**< 一元负号 */
+
+/** @brief 表达式求值栈的最大深度 */
+#define EXPR_STACK_MAX  128
+/** @brief RPN 输出队列的最大长度 */
+#define EXPR_RPN_MAX    256
+
+/**
+ * @brief 获取运算符优先级（值越大优先级越高）
+ *
+ * +、- 优先级 1；*、/ 优先级 2；一元负号 3；^ 优先级 4（右结合）。
+ *
+ * @param[in] op 运算符编码（RPN_OP_* 宏）
+ * @return 优先级数值；若无法识别返回 0
+ */
+static int expr_op_precedence(int op) {
+    switch (op) {
+        case RPN_OP_ADD: case RPN_OP_SUB: return 1;
+        case RPN_OP_MUL: case RPN_OP_DIV: return 2;
+        case RPN_OP_NEG: return 3;
+        case RPN_OP_POW: return 4;
+        default: return 0;
+    }
+}
+
+/**
+ * @brief 数学表达式求值器 —— 调度场（Shunting-yard）算法
+ *
+ * 基于 Edsger Dijkstra 的调度场算法，将中缀数学表达式转换为逆波兰表示
+ * （RPN），然后在给定变量取值下逐项求值。该求值器为有限差分偏导数计算
+ * 提供核心数学能力。
+ *
+ * 支持的语法元素：
+ *   - 二元运算符：+（加）、-（减）、*（乘）、/（除）、^（幂，右结合）
+ *   - 一元函数：sqrt(expr)、sin(expr)、cos(expr)、exp(expr)、log(expr)
+ *   - 变量：x0、x1、x2、...、xN，对应 var_values[0..N-1]
+ *   - 数值常量：整数和浮点数（支持科学记数法如 1.5e-3）
+ *   - 括号：() 用于控制运算优先级
+ *   - 一元负号：-expr 作为独立的取负操作处理
+ *
+ * 运算符优先级（从低到高）：
+ *   +、- (1) < *、/ (2) < 一元负号 (3) < ^ (4)
+ * 除 ^ 为右结合外，其余二元运算符均为左结合。
+ *
+ * 算法流程：
+ *   阶段 1 —— 词法分析 + 调度场转换：读入中缀 token 流，按优先级将
+ *           运算符压入操作符栈，操作数直接送入 RPN 输出队列。
+ *   阶段 2 —— RPN 求值：遍历 RPN 队列，操作数入求值栈，运算符从
+ *           栈顶弹出所需数量的操作数进行计算后压回结果。
+ *
+ * @param[in] expr       以 null 结尾的中缀表达式字符串
+ * @param[in] var_values 变量值数组，var_values[i] 对应变量 xi
+ * @param[in] var_count  变量数量
+ * @return 表达式在给定变量值下的计算结果；若 expr 为 NULL、解析失败
+ *         或数学域错误（如 log(非正数)）则返回 NaN
+ */
+static double evaluate_expression(const char *expr, const double *var_values, int var_count) {
+    if (!expr || !var_values || var_count <= 0) {
+        return NAN;
+    }
+
+    /*
+     * RPN 输出队列：
+     *   rpn_op[i] == 0  → 操作数，值在 rpn_val[i] 中
+     *   rpn_op[i] != 0  → 运算符，编码为 RPN_OP_* 宏
+     */
+    int rpn_op[EXPR_RPN_MAX];
+    double rpn_val[EXPR_RPN_MAX];
+    int rpn_len = 0;
+
+    /* 操作符栈（调度场核心数据结构） */
+    int op_stack[EXPR_STACK_MAX];
+    int op_top = 0;
+
+    const char *p = expr;
+    int expect_operand = 1; /**< 标记当前期望读入操作数（1）还是运算符（0） */
+
+    while (*p) {
+        /* 跳过空白字符 */
+        if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+            p++;
+            continue;
+        }
+
+        if (expect_operand) {
+            /*
+             * ============================================================
+             * 解析操作数：数值常量 | 变量 | 一元函数 | 左括号 | 一元负号
+             * ============================================================
+             */
+
+            /* 数值常量（含科学记数法，如 3.14、-2.5e-3、.5） */
+            if ((*p >= '0' && *p <= '9') ||
+                (*p == '.' && (*(p + 1) >= '0' && *(p + 1) <= '9'))) {
+                char *end = NULL;
+                double val = strtod(p, &end);
+                if (end == p || rpn_len >= EXPR_RPN_MAX) return NAN;
+                rpn_op[rpn_len] = 0;
+                rpn_val[rpn_len] = val;
+                rpn_len++;
+                p = end;
+                expect_operand = 0;
+                continue;
+            }
+
+            /* 变量 xN 或 XN */
+            if (*p == 'x' || *p == 'X') {
+                const char *digits = p + 1;
+                if (*digits < '0' || *digits > '9') return NAN;
+                char *end = NULL;
+                long idx = strtol(digits, &end, 10);
+                if (idx < 0 || idx >= var_count || rpn_len >= EXPR_RPN_MAX)
+                    return NAN;
+                rpn_op[rpn_len] = 0;
+                rpn_val[rpn_len] = var_values[idx];
+                rpn_len++;
+                p = end;
+                expect_operand = 0;
+                continue;
+            }
+
+            /* 一元函数：sqrt、sin、cos、exp、log */
+            if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z')) {
+                char name[8] = {0};
+                int nl = 0;
+                const char *q = p;
+                while (nl < 7 &&
+                       ((*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z'))) {
+                    name[nl++] = *q++;
+                }
+                name[nl] = '\0';
+
+                int func_op = 0;
+                if (strcmp(name, "sqrt") == 0)      func_op = RPN_OP_SQRT;
+                else if (strcmp(name, "sin") == 0)  func_op = RPN_OP_SIN;
+                else if (strcmp(name, "cos") == 0)  func_op = RPN_OP_COS;
+                else if (strcmp(name, "exp") == 0)  func_op = RPN_OP_EXP;
+                else if (strcmp(name, "log") == 0)  func_op = RPN_OP_LOG;
+                else return NAN; /* 无法识别的标识符 */
+
+                if (op_top >= EXPR_STACK_MAX) return NAN;
+                op_stack[op_top++] = func_op;
+                p = q;
+                /* 仍期望操作数（函数参数） */
+                continue;
+            }
+
+            /* 左括号 ( */
+            if (*p == '(') {
+                if (op_top >= EXPR_STACK_MAX) return NAN;
+                op_stack[op_top++] = 0; /* 0 作为左括号哨兵值 */
+                p++;
+                continue;
+            }
+
+            /* 一元负号（在期望操作数的位置出现的 '-'） */
+            if (*p == '-') {
+                if (op_top >= EXPR_STACK_MAX) return NAN;
+                op_stack[op_top++] = RPN_OP_NEG;
+                p++;
+                continue;
+            }
+
+            /* 一元正号（忽略） */
+            if (*p == '+') {
+                p++;
+                continue;
+            }
+
+            /* 无法识别的 token */
+            return NAN;
+        } else {
+            /*
+             * ============================================================
+             * 解析运算符：二元运算符 | 右括号 | 逗号
+             * ============================================================
+             */
+
+            int cur_op = 0;
+
+            switch (*p) {
+                case '+': cur_op = RPN_OP_ADD; break;
+                case '-': cur_op = RPN_OP_SUB; break;
+                case '*': cur_op = RPN_OP_MUL; break;
+                case '/': cur_op = RPN_OP_DIV; break;
+                case '^': cur_op = RPN_OP_POW; break;
+
+                case ')':
+                    /* 弹出直到遇到左括号哨兵 */
+                    while (op_top > 0 && op_stack[op_top - 1] != 0) {
+                        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                        rpn_op[rpn_len] = op_stack[op_top - 1];
+                        rpn_val[rpn_len] = 0.0;
+                        rpn_len++;
+                        op_top--;
+                    }
+                    if (op_top == 0) return NAN; /* 括号不匹配 */
+                    op_top--; /* 弹出左括号哨兵 */
+                    /* 若栈顶是函数，将其弹出到 RPN */
+                    if (op_top > 0) {
+                        int top = op_stack[op_top - 1];
+                        if (top == RPN_OP_SQRT || top == RPN_OP_SIN ||
+                            top == RPN_OP_COS || top == RPN_OP_EXP ||
+                            top == RPN_OP_LOG) {
+                            if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                            rpn_op[rpn_len] = top;
+                            rpn_val[rpn_len] = 0.0;
+                            rpn_len++;
+                            op_top--;
+                        }
+                    }
+                    p++;
+                    expect_operand = 0;
+                    continue;
+
+                case ',':
+                    /* 函数参数分隔符：弹出直到遇到左括号哨兵 */
+                    while (op_top > 0 && op_stack[op_top - 1] != 0) {
+                        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                        rpn_op[rpn_len] = op_stack[op_top - 1];
+                        rpn_val[rpn_len] = 0.0;
+                        rpn_len++;
+                        op_top--;
+                    }
+                    if (op_top == 0) return NAN;
+                    p++;
+                    expect_operand = 1;
+                    continue;
+
+                default:
+                    return NAN; /* 未知字符 */
+            }
+
+            /* 二元运算符：按优先级弹出栈中运算符 */
+            if (cur_op != 0) {
+                int cur_prec = expr_op_precedence(cur_op);
+                while (op_top > 0 && op_stack[op_top - 1] != 0) {
+                    int top_op = op_stack[op_top - 1];
+                    int top_prec = expr_op_precedence(top_op);
+                    /*
+                     * 左结合：top_prec >= cur_prec 时弹出
+                     * 右结合（^）：仅 top_prec > cur_prec 时弹出
+                     */
+                    if (top_prec > cur_prec ||
+                        (top_prec == cur_prec && cur_op != RPN_OP_POW)) {
+                        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+                        rpn_op[rpn_len] = top_op;
+                        rpn_val[rpn_len] = 0.0;
+                        rpn_len++;
+                        op_top--;
+                    } else {
+                        break;
+                    }
+                }
+                if (op_top >= EXPR_STACK_MAX) return NAN;
+                op_stack[op_top++] = cur_op;
+                p++;
+                expect_operand = 1;
+                continue;
+            }
+        }
+    }
+
+    /* 将栈中剩余运算符全部弹出到 RPN */
+    while (op_top > 0) {
+        int top = op_stack[--op_top];
+        if (top == 0) return NAN; /* 括号不匹配 */
+        if (rpn_len >= EXPR_RPN_MAX) return NAN;
+        rpn_op[rpn_len] = top;
+        rpn_val[rpn_len] = 0.0;
+        rpn_len++;
+    }
+
+    if (rpn_len == 0) return NAN;
+
+    /* ---- 阶段 2：RPN 求值 ---- */
+    double eval_stack[EXPR_STACK_MAX];
+    int eval_top = 0;
+
+    for (int i = 0; i < rpn_len; i++) {
+        int op = rpn_op[i];
+
+        if (op == 0) {
+            /* 操作数：直接压入求值栈 */
+            if (eval_top >= EXPR_STACK_MAX) return NAN;
+            eval_stack[eval_top++] = rpn_val[i];
+        } else {
+            /* 运算符：从求值栈弹出操作数并计算 */
+            switch (op) {
+                case RPN_OP_ADD:
+                    if (eval_top < 2) return NAN;
+                    eval_stack[eval_top - 2] += eval_stack[eval_top - 1];
+                    eval_top--;
+                    break;
+                case RPN_OP_SUB:
+                    if (eval_top < 2) return NAN;
+                    eval_stack[eval_top - 2] -= eval_stack[eval_top - 1];
+                    eval_top--;
+                    break;
+                case RPN_OP_MUL:
+                    if (eval_top < 2) return NAN;
+                    eval_stack[eval_top - 2] *= eval_stack[eval_top - 1];
+                    eval_top--;
+                    break;
+                case RPN_OP_DIV:
+                    if (eval_top < 2) return NAN;
+                    if (fabs(eval_stack[eval_top - 1]) < 1e-308)
+                        return NAN; /* 除零保护 */
+                    eval_stack[eval_top - 2] /= eval_stack[eval_top - 1];
+                    eval_top--;
+                    break;
+                case RPN_OP_POW:
+                    if (eval_top < 2) return NAN;
+                    eval_stack[eval_top - 2] =
+                        pow(eval_stack[eval_top - 2], eval_stack[eval_top - 1]);
+                    eval_top--;
+                    break;
+                case RPN_OP_NEG:
+                    if (eval_top < 1) return NAN;
+                    eval_stack[eval_top - 1] = -eval_stack[eval_top - 1];
+                    break;
+                case RPN_OP_SQRT:
+                    if (eval_top < 1) return NAN;
+                    if (eval_stack[eval_top - 1] < 0.0) return NAN;
+                    eval_stack[eval_top - 1] =
+                        sqrt(eval_stack[eval_top - 1]);
+                    break;
+                case RPN_OP_SIN:
+                    if (eval_top < 1) return NAN;
+                    eval_stack[eval_top - 1] =
+                        sin(eval_stack[eval_top - 1]);
+                    break;
+                case RPN_OP_COS:
+                    if (eval_top < 1) return NAN;
+                    eval_stack[eval_top - 1] =
+                        cos(eval_stack[eval_top - 1]);
+                    break;
+                case RPN_OP_EXP:
+                    if (eval_top < 1) return NAN;
+                    eval_stack[eval_top - 1] =
+                        exp(eval_stack[eval_top - 1]);
+                    break;
+                case RPN_OP_LOG:
+                    if (eval_top < 1) return NAN;
+                    if (eval_stack[eval_top - 1] <= 0.0) return NAN;
+                    eval_stack[eval_top - 1] =
+                        log(eval_stack[eval_top - 1]);
+                    break;
+                default:
+                    return NAN;
+            }
+        }
+    }
+
+    return (eval_top == 1) ? eval_stack[0] : NAN;
+}
+
+/* ========================================================================
+ * 一阶泰勒展开（有限差分近似）
  * ======================================================================== */
 
 /**
- * @brief 浣跨敤鏈夐檺宸垎璁＄畻涓€闃跺亸瀵兼暟
+ * @brief 使用有限差分计算一阶偏导数
  *
- * 瀵硅〃杈惧紡 f(x0,...,xn) 鍦?center 鐐瑰璁＄畻 df/dxi锛? *   df/dxi ~= (f(... xi+h ...) - f(... xi-h ...)) / (2h)
+ * 对表达式 f(x0,...,xn) 在 center 点处计算 df/dxi，
+ *   df/dxi ~= (f(... xi+h ...) - f(... xi-h ...)) / (2h)
  *
- * 姝ラ暱 h 鍙?sqrt(DBL_EPSILON) 浠ュ钩琛℃埅鏂宸拰鑸嶅叆璇樊銆? *
- * @param[in] expr      琛ㄨ揪寮忓瓧绗︿覆锛堝綋鍓嶆敮鎸佸熀鏈畻鏈級
- * @param[in] var_bounds 鍙橀噺鍖洪棿
- * @param[in] var_count  鍙橀噺鏁伴噺
- * @param[in] var_idx    姹傚鐨勫彉閲忕储寮? * @param[in] center_vals 涓績鐐瑰€? * @return 鍋忓鏁拌繎浼煎€? */
+ * 采用中心差分格式，截断误差为 O(h^2)。步长 h = sqrt(DBL_EPSILON)
+ * 以平衡截断误差与浮点舍入误差（对 double 约 1.49e-8）。
+ *
+ * 该函数通过 evaluate_expression() 在扰动后的变量值上两次求值，
+ * 然后按中心差分公式计算偏导数近似值。变量值在栈上的临时缓冲区中
+ * 进行扰动，避免修改原始的 center_vals 数组，确保内存安全。
+ *
+ * @param[in] expr        表达式字符串
+ * @param[in] var_bounds  变量区间（本函数仅用于签名兼容，内部不直接使用）
+ * @param[in] var_count   变量数量
+ * @param[in] var_idx     求导的变量索引（针对 x_{var_idx} 求偏导）
+ * @param[in] center_vals 中心点处各变量的值
+ * @return 偏导数近似值；若表达式求值失败或参数无效则返回 NaN
+ */
 static double finite_difference_partial(const char *expr, const FloatInterval *var_bounds, int var_count, int var_idx,
                                         const double *center_vals) {
-    (void) expr;
-    (void) var_bounds;
-    (void) var_count;
+    (void) var_bounds; /* 签名兼容：区间边界在此函数中未直接使用 */
 
-    /* 姝ラ暱锛氱害 1.5e-8 for double */
+    if (!expr || !center_vals || var_count <= 0 ||
+        var_idx < 0 || var_idx >= var_count) {
+        return NAN;
+    }
+
+    /* 步长：约 1.49e-8 for double，平衡截断与舍入误差 */
     double h = sqrt(DBL_EPSILON);
-    double x = center_vals[var_idx];
+    double x_c = center_vals[var_idx];
 
-    /* TODO: 瀹屾暣瀹炵幇闇€瑕佽〃杈惧紡瑙ｆ瀽鍣ㄥ拰姹傚€煎櫒銆?     * 褰撳墠妗╋細杩斿洖鍋囪瀵兼暟鍊?1.0锛堢嚎鎬ц繎浼硷級 */
-    (void) x;
-    (void) h;
+    /* 扰动后的变量值缓冲区：在栈上分配，最多 MAX_EQUATIONS 个变量 */
+    double perturbed[MAX_EQUATIONS];
+    if (var_count > MAX_EQUATIONS) return NAN;
 
-    return 1.0;
+    /* 计算 f(..., xi+h, ...) */
+    memcpy(perturbed, center_vals, (size_t)var_count * sizeof(double));
+    perturbed[var_idx] = x_c + h;
+    double f_plus = evaluate_expression(expr, perturbed, var_count);
+
+    /* 计算 f(..., xi-h, ...) */
+    perturbed[var_idx] = x_c - h;
+    double f_minus = evaluate_expression(expr, perturbed, var_count);
+
+    /* 若任一求值失败，返回 NaN */
+    if (isnan(f_plus) || isnan(f_minus)) {
+        return NAN;
+    }
+
+    /* 中心差分公式：(f(x+h) - f(x-h)) / (2h) */
+    return (f_plus - f_minus) / (2.0 * h);
 }
 
 /**
@@ -334,9 +734,8 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
         tf->deriv_var_ids[i] = i;
     }
 
-    /* 璁＄畻涓績鐐瑰鐨勫嚱鏁板€?*/
-    /* TODO: 闇€瑕佽〃杈惧紡瑙ｆ瀽鍣ㄦ潵姹傚€?f(center) */
-    tf->center_val = center_vals[0]; /* 妗╋細鍋囪 f(x) = x */
+    /* 计算中心点处的函数值 —— 通过表达式求值器实际计算 f(center) */
+    tf->center_val = evaluate_expression(expr, center_vals, var_count);
 
     /* 瀵规瘡涓彉閲忚绠楀亸瀵兼暟锛堟湁闄愬樊鍒嗭級 */
     for (int i = 0; i < var_count; i++) {

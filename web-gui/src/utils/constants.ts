@@ -8,8 +8,8 @@
 // Version / 版本
 // ================================================================
 
-/** 应用程序版本号 / Application version string */
-export const APP_VERSION = '3.0.1';
+/** 应用程序版本号（需与 lv00.h 中 LV00_VERSION_STRING 保持一致） / Application version string (must match LV00_VERSION_STRING in lv00.h) */
+export const APP_VERSION = '3.2.0';
 
 /** 应用程序名称 / Application name */
 export const APP_NAME = 'Lv-00';
@@ -232,3 +232,16 @@ export const ENGINE_DEFAULT_WS_URL = 'ws://localhost:3456';
 
 /** 有理数分母精度 / Rational number denominator precision */
 export const RATIONAL_DENOMINATOR = 1000000;
+
+// ================================================================
+// Rendering - Ports & Function Blocks / 端口和函数块渲染
+// ================================================================
+
+/** 端口半径（CSS 像素） / Port radius in CSS pixels */
+export const PORT_RADIUS = 5;
+
+/** 函数块端口半径（CSS 像素） / Function block port radius in CSS pixels */
+export const FUNC_BLOCK_PORT_RADIUS = 4;
+
+/** 关联标记大小（CSS 像素） / Incidence marker size in CSS pixels */
+export const INCIDENCE_MARKER_SIZE = 5;

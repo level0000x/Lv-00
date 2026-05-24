@@ -150,6 +150,40 @@ set(LV00_HEADERS
     include/lv00/stream_context_util.h
     include/lv00/func_block_registry.h
     include/lv00/func_block_preset_ops.h
+    # v3.3.0 新增模块头文件（第一轮：核心计算模块）
+    include/lv00/groebner_engine.h
+    include/lv00/engine_scheduler.h
+    include/lv00/euclidean_geometry.h
+    include/lv00/geometry_compress.h
+    include/lv00/sparse_linear_algebra.h
+    include/lv00/float_error.h
+    include/lv00/smt_backend.h
+    include/lv00/bdd_encoding.h
+    include/lv00/approx_counter.h
+    # v3.3.0 新增模块头文件（第二轮：计算后端与数值模块）
+    include/lv00/atp_backend.h
+    include/lv00/solver_core.h
+    include/lv00/sat_encoding.h
+    include/lv00/relation_model.h
+    include/lv00/numerical_backend.h
+    include/lv00/geom_evol.h
+    include/lv00/geo_event_detect.h
+    include/lv00/lv00_numeric.h
+    include/lv00/probabilistic_constraint.h
+    # v3.3.0 新增模块头文件（第三轮：几何构造与交互模块）
+    include/lv00/algebra_mode.h
+    include/lv00/dsl_compiler.h
+    include/lv00/interactive_geo.h
+    include/lv00/tikz_export.h
+    include/lv00/math_input.h
+    include/lv00/math_protocol.h
+    include/lv00/ecosystem.h
+    # v3.3.0 新增模块头文件（第四轮：证明与规约模块）
+    include/lv00/mini_kernel.h
+    include/lv00/gc_language.h
+    include/lv00/geo_spec.h
+    include/lv00/proof_widget.h
+    include/lv00/path_type.h
     # 模块化预设函数块系统
     include/lv00/preset_blocks.h
     include/lv00/preset_basic_geometry.h
@@ -216,14 +250,17 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "geometric_algebra\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "crypto_hash\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "ref_count\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
-# -- 2026-05-24 落地集成 -- 以下模块现已编入：
-#   preset_algebraic_geometry.c (20个代数几何预设)
-#   proof_multi_strategy.c (8种证明策略引擎)
-#   proof_optimize.c (证明步骤优化)
-#   interop/interop.c (互操作 + GeoJSON导入)
+# -- v3.3.0 新增模块（2026-05-24）-- 以下模块已实现并编入：
+#   groebner_engine.c (Gröbner基引擎：多项式环、Buchberger算法、理想操作、代数簇求解)
+#   engine_scheduler.c (多后端调度引擎：特征分析、路由规则、回退链、分发求解)
+#   euclidean_geometry.c (欧几里得几何公理体系：Hilbert五大公理组、Birkhoff/Tarski双体系)
+# -- v3.3.0 功能修复 --
+#   float_error.c (已实现Shunting-yard表达式解析器与求值器，修复有限差分/泰勒展开存根)
+#   sparse_linear_algebra.c (已移除10×10矩阵限制，稠密回退求解器支持任意规模)
+#   geometry_compress.c (已实现完整Huffman熵编解码器，替换pass-through存根)
 # -- 已知排除项 --
 #   magic/magic.c (类型系统重构待完成)
-#   approx_counter.c / bdd_encoding.c / float_error.c 等 (API未对齐)
+#   approx_counter.c / bdd_encoding.c (API未对齐，编译但功能为桩)
 
 
 # ============================================================

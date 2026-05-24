@@ -35,6 +35,7 @@ export function resetIdGenerator(): void {
   _counter = 0;
 }
 
-// === 向后兼容别名 / Backward-compatible aliases ===
-/** @deprecated 请使用 generateUniqueId / Please use generateUniqueId */
+// === 内部别名（推荐新代码使用 generateUniqueId）
+// 所有内部调用方逐步迁移至 generateUniqueId，当前保留别名确保兼容
+// TODO(v3.3): 将所有 60+ 处 generateId() 调用替换为 generateUniqueId()
 export const generateId = generateUniqueId;

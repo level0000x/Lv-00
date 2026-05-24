@@ -364,19 +364,335 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
 }
 
 /* ========================================================================
- * 鐔电紪鐮侊紙妗╁疄鐜帮級
+ * Huffman 鐔电紪鐮佸櫒
+ * ======================================================================== */
+
+/** Huffman鏍戞渶澶ц妭鐐规暟锛?56涓彾瀛?+ 鏈€澶?55涓唴閮ㄨ妭鐐?*/
+#define HUFFMAN_MAX_NODES 511
+
+/** Huffman缂栫爜鏈€澶ч暱搴︼紙鏈€鍧忔儏鍐碉細鎵€鏈夐鐜囩浉绛夋椂鐨勫亸鏂滄爲锛?*/
+#define HUFFMAN_MAX_CODE_LEN 256
+
+/* ========================================================================
+ * 鍐呴儴鏁版嵁缁撴瀯
  * ======================================================================== */
 
 /**
- * @brief 妗╃喌缂栫爜鍣?鈥斺€?鍦ㄥ畬鏁村疄鐜板墠鐩存帴澶嶅埗鍘熷鏁版嵁
- *
- * TODO: 瀹炵幇鐪熸鐨?rANS / 绠楁湳 / Huffman 缂栫爜鍣ㄣ€? *
- * @param[in]  raw_data   鍘熷鏁版嵁
- * @param[in]  raw_size   鍘熷鏁版嵁澶у皬
- * @param[out] out_data   缂栫爜鍚庢暟鎹紙褰撳墠涓虹洿鎺ュ鍒讹級
- * @param[out] out_size   杈撳嚭澶у皬
- * @return true 鎴愬姛
+ * @brief Huffman鏍戣妭鐐? *
+ * 鍖呭惈宸﹀彸瀛愯妭鐐圭储寮曘€佺埗鑺傜偣绱㈠紩銆侀鐜囨潈閲嶅強鍙跺瓙鑺傜偣瀵瑰簲鐨勫瓧鑺傚€笺€?*/
+typedef struct {
+    int left;           /**< 宸﹀瓙鑺傜偣绱㈠紩锛?-1琛ㄧず鏃?*/
+    int right;          /**< 鍙冲瓙鑺傜偣绱㈠紩锛?-1琛ㄧず鏃?*/
+    int parent;         /**< 鐖惰妭鐐圭储寮曪紝-1琛ㄧず鏍硅妭鐐?*/
+    uint32_t freq;      /**< 鑺傜偣棰戠巼鏉冮噸 */
+    uint8_t byte_val;   /**< 鍙跺瓙鑺傜偣瀵瑰簲鐨勫瓧鑺傚€硷紙鍐呴儴鑺傜偣鏃犳晥锛?*/
+} HuffmanNode;
+
+/**
+ * @brief Huffman缂栫爜鏌ユ壘琛ㄦ潯鐩? *
+ * 瀛樺偍姣忎釜瀛楄妭鍊煎搴旂殑鍙橀暱缂栫爜銆?
+ * - code: 缂栫爜姣旂壒搴忓垪锛堜綆浣嶅榻愶紝鍗崇紪鐮佺殑绗竴涓瘮鐗瑰湪鏈€楂樹綅锛? * - length: 缂栫爜姣旂壒闀垮害
  */
+typedef struct {
+    uint32_t code;      /**< 缂栫爜姣旂壒搴忓垪 */
+    int length;         /**< 缂栫爜姣旂壒闀垮害 */
+} HuffmanCode;
+
+/**
+ * @brief 鏈€灏忓爢缁撴瀯锛堢敤浜庢瀯寤篐uffman鏍戯級
+ *
+ * 鍩轰簬鏁扮粍瀹炵幇鐨勪簩鍙夊爢锛岀敤浜庨噸澶嶆彁鍙栨渶灏忛鐜囪妭鐐广€? * 鍫嗕腑瀛樺偍鐨勬槸Huffman鑺傜偣鏁扮粍涓殑绱㈠紩銆?
+ */
+typedef struct {
+    int *nodes;             /**< 鍫嗕腑瀛樺偍鐨凥uffman鑺傜偣绱㈠紩 */
+    int size;               /**< 褰撳墠鍫嗗ぇ灏?*/
+    int capacity;           /**< 鍫嗗閲?*/
+    HuffmanNode *hnodes;    /**< 鎸囧悜Huffman鑺傜偣鏁扮粍鐨勬寚閽堬紙鐢ㄤ簬姣旇緝棰戠巼锛?*/
+} MinHeap;
+
+/**
+ * @brief 浣嶅啓鍏ュ櫒 鈥斺€?鏀寔姣旂壒绾у啓鍏ヨ緭鍑虹紦鍐插尯
+ *
+ * 姣忎釜瀛楄妭鍐呬粠楂樹綅(bit 7)鍒颁綆浣?bit 0)渚濇濉厖銆?*/
+typedef struct {
+    uint8_t *buf;       /**< 杈撳嚭缂撳啿鍖?*/
+    size_t capacity;    /**< 缂撳啿鍖哄閲忥紙瀛楄妭锛?*/
+    size_t byte_pos;    /**< 褰撳墠鍐欏叆瀛楄妭浣嶇疆 */
+    int bit_pos;        /**< 褰撳墠瀛楄妭鍐呯殑浣嶄綅缃紙7=鏈€楂樹綅锛?=鏈€浣庝綅锛?*/
+} BitWriter;
+
+/**
+ * @brief 浣嶈鍙栧櫒 鈥斺€?鏀寔浠庤緭鍏ョ紦鍐插尯閫愪綅璇诲彇
+ */
+typedef struct {
+    const uint8_t *buf; /**< 杈撳叆缂撳啿鍖?*/
+    size_t size;        /**< 缂撳啿鍖哄ぇ灏忥紙瀛楄妭锛?*/
+    size_t byte_pos;    /**< 褰撳墠璇诲彇瀛楄妭浣嶇疆 */
+    int bit_pos;        /**< 褰撳墠瀛楄妭鍐呯殑浣嶄綅缃紙7=鏈€楂樹綅锛?=鏈€浣庝綅锛?*/
+} BitReader;
+
+/* ========================================================================
+ * 浣嶅啓鍏ュ櫒鎿嶄綔
+ * ======================================================================== */
+
+/**
+ * @brief 鍒濆鍖栦綅鍐欏叆鍣? *
+ * 鍒嗛厤缂撳啿鍖哄苟灏嗗啓鍏ヤ綅缃綊闆躲€? *
+ * @param[out] bw                浣嶅啓鍏ュ櫒鎸囬拡
+ * @param[in]  initial_capacity  鍒濆缂撳啿鍖哄閲忥紙瀛楄妭锛? * @return true 鎴愬姛锛宖alse 鍐呭瓨涓嶈冻
+ */
+static bool bitwriter_init(BitWriter *bw, size_t initial_capacity) {
+    bw->buf = (uint8_t *) lv00_malloc(initial_capacity);
+    if (!bw->buf)
+        return false;
+    bw->capacity = initial_capacity;
+    bw->byte_pos = 0;
+    bw->bit_pos = 7;
+    bw->buf[0] = 0;
+    return true;
+}
+
+/**
+ * @brief 鍚戜綅鍐欏叆鍣ㄥ啓鍏?涓瘮鐗? *
+ * 灏嗘寚瀹氭瘮鐗瑰啓鍏ュ綋鍓嶅瓧鑺傜殑褰撳墠浣嶄綅缃紝骞舵洿鏂颁綅鎸囬拡銆? * 褰撳墠瀛楄妭鍐欐弧鍚庤嚜鍔ㄥ垏鎹㈠埌涓嬩竴涓瓧鑺傦紝蹇呰鏃惰嚜鍔ㄦ墿瀹广€? *
+ * @param[in,out] bw   浣嶅啓鍏ュ櫒鎸囬拡
+ * @param[in]     bit  瑕佸啓鍏ョ殑姣旂壒锛?-鎴?)
+ * @return true 鎴愬姛锛宖alse 鎵╁澶辫触
+ */
+static bool bitwriter_write_bit(BitWriter *bw, int bit) {
+    if (bit) {
+        bw->buf[bw->byte_pos] |= (uint8_t) (1 << bw->bit_pos);
+    }
+    bw->bit_pos--;
+    if (bw->bit_pos < 0) {
+        bw->bit_pos = 7;
+        bw->byte_pos++;
+        if (bw->byte_pos >= bw->capacity) {
+            size_t new_cap = bw->capacity * 2;
+            uint8_t *new_buf = (uint8_t *) lv00_realloc(bw->buf, new_cap);
+            if (!new_buf)
+                return false;
+            bw->buf = new_buf;
+            bw->capacity = new_cap;
+        }
+        bw->buf[bw->byte_pos] = 0;
+    }
+    return true;
+}
+
+/**
+ * @brief 鍚戜綅鍐欏叆鍣ㄥ啓鍏ュ涓瘮鐗? *
+ * 鎸変粠楂樹綅鍒颁綆浣嶇殑椤哄簭渚濇鍐欏叆鎸囧畾鏁扮洰鐨勬瘮鐗广€? *
+ * @param[in,out] bw         浣嶅啓鍏ュ櫒鎸囬拡
+ * @param[in]     code       瑕佸啓鍏ョ殑姣旂壒搴忓垪
+ * @param[in]     bit_count  瑕佸啓鍏ョ殑姣旂壒鏁伴噺
+ * @return true 鎴愬姛锛宖alse 鎵╁澶辫触
+ */
+static bool bitwriter_write_bits(BitWriter *bw, uint32_t code, int bit_count) {
+    for (int i = bit_count - 1; i >= 0; i--) {
+        if (!bitwriter_write_bit(bw, (code >> i) & 1))
+            return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 鍒锋柊浣嶅啓鍏ュ櫒骞惰繑鍥炲疄闄呰緭鍑哄瓧鑺傛暟
+ *
+ * 鏈€鍚庝竴涓瓧鑺傚鏋滄湭鍐欐弧锛屼粛璁″叆杈撳嚭锛坆it_pos < 7 鏃讹級銆? *
+ * @param[in] bw 浣嶅啓鍏ュ櫒鎸囬拡
+ * @return 瀹為檯鍐欏叆鐨勫瓧鑺傛暟
+ */
+static size_t bitwriter_flush(const BitWriter *bw) {
+    return (bw->bit_pos < 7) ? bw->byte_pos + 1 : bw->byte_pos;
+}
+
+/* ========================================================================
+ * 浣嶈鍙栧櫒鎿嶄綔
+ * ======================================================================== */
+
+/**
+ * @brief 鍒濆鍖栦綅璇诲彇鍣? *
+ * @param[out] br   浣嶈鍙栧櫒鎸囬拡
+ * @param[in]  buf  杈撳叆缂撳啿鍖? * @param[in]  size 杈撳叆缂撳啿鍖哄ぇ灏忥紙瀛楄妭锛?*/
+static void bitreader_init(BitReader *br, const uint8_t *buf, size_t size) {
+    br->buf = buf;
+    br->size = size;
+    br->byte_pos = 0;
+    br->bit_pos = 7;
+}
+
+/**
+ * @brief 浠庝綅璇诲彇鍣ㄨ鍙?涓瘮鐗? *
+ * 浠庡綋鍓嶅瓧鑺傜殑褰撳墠浣嶄綅缃鍙栦竴涓瘮鐗癸紝骞惰嚜鍔ㄦ洿鏂颁綅鎸囬拡銆? * 瀛楄妭璇诲畬鍚庤嚜鍔ㄥ垏鎹㈠埌涓嬩竴涓瓧鑺傘€? *
+ * @param[in,out] br 浣嶈鍙栧櫒鎸囬拡
+ * @return 璇诲彇鐨勬瘮鐗癸紙0鎴?锛夛紝宸茶揪缂撳啿鍖烘湯灏炬椂杩斿洖 -1
+ */
+static int bitreader_read_bit(BitReader *br) {
+    if (br->byte_pos >= br->size)
+        return -1;
+    int bit = (br->buf[br->byte_pos] >> br->bit_pos) & 1;
+    br->bit_pos--;
+    if (br->bit_pos < 0) {
+        br->bit_pos = 7;
+        br->byte_pos++;
+    }
+    return bit;
+}
+
+/* ========================================================================
+ * 鏈€灏忓爢鎿嶄綔锛堢敤浜庢瀯寤篐uffman鏍戯級
+ * ======================================================================== */
+
+/**
+ * @brief 浜ゆ崲鍫嗕腑涓や釜鍏冪礌
+ */
+static void heap_swap(MinHeap *h, int i, int j) {
+    int tmp = h->nodes[i];
+    h->nodes[i] = h->nodes[j];
+    h->nodes[j] = tmp;
+}
+
+/**
+ * @brief 鍚戜笂璋冩暣鍫嗭紙涓婃护锛? *
+ * 灏嗘寚瀹氫綅缃殑鍏冪礌鍚戜笂绉诲姩锛岀洿鍒版弧瓒虫渶灏忓爢鎬ц川銆? *
+ * @param[in,out] h   鏈€灏忓爢鎸囬拡
+ * @param[in]     idx 闇€瑕佽皟鏁寸殑鍏冪礌绱㈠紩
+ */
+static void heap_sift_up(MinHeap *h, int idx) {
+    while (idx > 0) {
+        int parent = (idx - 1) / 2;
+        if (h->hnodes[h->nodes[idx]].freq < h->hnodes[h->nodes[parent]].freq) {
+            heap_swap(h, idx, parent);
+            idx = parent;
+        } else {
+            break;
+        }
+    }
+}
+
+/**
+ * @brief 鍚戜笅璋冩暣鍫嗭紙涓嬫护锛? *
+ * 灏嗘寚瀹氫綅缃殑鍏冪礌鍚戜笅绉诲姩锛岀洿鍒版弧瓒虫渶灏忓爢鎬ц川銆? *
+ * @param[in,out] h   鏈€灏忓爢鎸囬拡
+ * @param[in]     idx 闇€瑕佽皟鏁寸殑鍏冪礌绱㈠紩
+ */
+static void heap_sift_down(MinHeap *h, int idx) {
+    int size = h->size;
+    while (1) {
+        int smallest = idx;
+        int left = 2 * idx + 1;
+        int right = 2 * idx + 2;
+        if (left < size && h->hnodes[h->nodes[left]].freq < h->hnodes[h->nodes[smallest]].freq)
+            smallest = left;
+        if (right < size && h->hnodes[h->nodes[right]].freq < h->hnodes[h->nodes[smallest]].freq)
+            smallest = right;
+        if (smallest == idx)
+            break;
+        heap_swap(h, idx, smallest);
+        idx = smallest;
+    }
+}
+
+/**
+ * @brief 灏嗚妭鐐圭储寮曟帹鍏ユ渶灏忓爢
+ *
+ * @param[in,out] h        鏈€灏忓爢鎸囬拡
+ * @param[in]     node_idx 瑕佹彃鍏ョ殑Huffman鑺傜偣绱㈠紩
+ * @return true 鎴愬姛锛宖alse 鍫嗗凡婊?*/
+static bool heap_push(MinHeap *h, int node_idx) {
+    if (h->size >= h->capacity)
+        return false;
+    h->nodes[h->size] = node_idx;
+    heap_sift_up(h, h->size);
+    h->size++;
+    return true;
+}
+
+/**
+ * @brief 浠庢渶灏忓爢寮瑰嚭棰戠巼鏈€灏忕殑鑺傜偣绱㈠紩
+ *
+ * @param[in,out] h 鏈€灏忓爢鎸囬拡
+ * @return 棰戠巼鏈€灏忕殑鑺傜偣绱㈠紩锛屽爢绌烘椂杩斿洖 -1
+ */
+static int heap_pop(MinHeap *h) {
+    if (h->size <= 0)
+        return -1;
+    int result = h->nodes[0];
+    h->size--;
+    if (h->size > 0) {
+        h->nodes[0] = h->nodes[h->size];
+        heap_sift_down(h, 0);
+    }
+    return result;
+}
+
+/* ========================================================================
+ * Huffman缂栫爜琛ㄧ敓鎴? * ======================================================================== */
+
+/**
+ * @brief 閫掑綊閬嶅巻Huffman鏍戯紝涓烘瘡涓彾瀛愯妭鐐圭敓鎴愮紪鐮? *
+ * 浣跨敤鎵嬪姩鏍堢殑杩唬鏂瑰紡閬嶅巻鏍戯紝閬垮厤娣卞害閫掑綊瀵艰嚧鐨勬爤婧㈠嚭銆? * 閬嶅巻褰撲腑锛氬線宸︽椂缂栫爜鏈熬杩藉姞0锛屽線鍙虫椂杩藉姞1銆? *
+ * @param[in]  hnodes Huffman鑺傜偣鏁扮粍
+ * @param[in]  root   鏍硅妭鐐圭储寮? * @param[out] codes  杈撳嚭鐨凥uffman缂栫爜鏌ユ壘琛紙256椤癸紝姣忛」瀵瑰簲0-255瀛楄妭鍊硷級
+ */
+static void huffman_generate_codes(const HuffmanNode *hnodes, int root, HuffmanCode *codes) {
+    /* 鎵嬪姩鏍堬細姣忎釜鍏冪礌瀛樺偍 (node_index, current_code, current_length) */
+    int stack[HUFFMAN_MAX_NODES];
+    uint32_t code_stack[HUFFMAN_MAX_NODES];
+    int len_stack[HUFFMAN_MAX_NODES];
+    int top = 0;
+
+    stack[0] = root;
+    code_stack[0] = 0;
+    len_stack[0] = 0;
+    top = 1;
+
+    while (top > 0) {
+        top--;
+        int node = stack[top];
+        uint32_t code = code_stack[top];
+        int len = len_stack[top];
+
+        if (hnodes[node].left < 0 && hnodes[node].right < 0) {
+            /* 鍙跺瓙鑺傜偣锛氳褰曠紪鐮?*/
+            codes[hnodes[node].byte_val].code = code;
+            codes[hnodes[node].byte_val].length = len;
+        } else {
+            /* 鍐呴儴鑺傜偣锛氬帇鍏ュ乏鍙冲瓙鑺傜偣 */
+            if (hnodes[node].left >= 0) {
+                stack[top] = hnodes[node].left;
+                code_stack[top] = (code << 1) | 0;
+                len_stack[top] = len + 1;
+                top++;
+            }
+            if (hnodes[node].right >= 0) {
+                stack[top] = hnodes[node].right;
+                code_stack[top] = (code << 1) | 1;
+                len_stack[top] = len + 1;
+                top++;
+            }
+        }
+    }
+}
+
+/* ========================================================================
+ * Huffman 缂栫爜锛堟浛鎹㈠師 entropy_encode_stub锛? * ======================================================================== */
+
+/**
+ * @brief Huffman鐔电紪鐮佸櫒
+ *
+ * 鍥涢亶鎵弿瀹炵幇瀹屾暣鐨凥uffman鍘嬬缉缂栫爜锛? *   1. 缁熻256涓瓧鑺傚€肩殑鍑虹幇棰戠巼
+ *   2. 浣跨敤鏈€灏忓爢鏋勫缓Huffman鏍? *   3. 閬嶅巻Huffman鏍戠敓鎴愭瘡涓瓧鑺傚€肩殑鍙橀暱缂栫爜
+ *   4. 瀵瑰師濮嬫暟鎹繘琛屾瘮鐗圭紪鐮佽緭鍑? *
+ * 杈撳嚭鏍煎紡锛? *   [棰戠巼琛? 256 脳 4 瀛楄妭锛寀int32_t 灏忕搴廬 +
+ *   [鍘熷澶у皬: 4 瀛楄妭锛寀int32_t 灏忕搴廬 +
+ *   [缂栫爜鍚庢瘮鐗规祦: 鍙橀暱]
+ *
+ * 棰戠巼琛ㄥ缁堝寘鍚?56椤癸紝鍗充娇鏌愪簺瀛楄妭鍊奸鐜囦负0锛? * 浠ョ‘淇濊В鐮佺鑳藉姝ｇ‘閲嶅缓Huffman鏍戙€? *
+ * @param[in]  raw_data   鍘熷鏁版嵁
+ * @param[in]  raw_size   鍘熷鏁版嵁澶у皬锛堝瓧鑺傦級
+ * @param[out] out_data   缂栫爜鍚庢暟鎹紙璋冪敤鑰呰礋璐ree锛? * @param[out] out_size   缂栫爜鍚庢暟鎹ぇ灏忥紙瀛楄妭锛? * @return true 鎴愬姛锛宖alse 澶辫触锛堝唴瀛樹笉瓒崇瓑锛?*/
 static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_t **out_data, size_t *out_size) {
     if (!raw_data || raw_size == 0) {
         *out_data = NULL;
@@ -384,18 +700,152 @@ static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_
         return true;
     }
 
-    *out_data = (uint8_t *) lv00_malloc(raw_size);
-    if (!*out_data)
+    /* 鈹€鈹€ 绗竴閬嶏細缁熻瀛楄妭棰戠巼 鈹€鈹€ */
+    uint32_t freq[256];
+    memset(freq, 0, sizeof(freq));
+    for (size_t i = 0; i < raw_size; i++) {
+        freq[raw_data[i]]++;
+    }
+
+    /* 鈹€鈹€ 绗簩閬嶏細鏋勫缓Huffman鏍?鈹€鈹€ */
+    HuffmanNode hnodes[HUFFMAN_MAX_NODES];
+    memset(hnodes, 0, sizeof(hnodes));
+    int node_count = 0;
+
+    /* 鍒濆鍖栧彾瀛愯妭鐐癸細姣忎釜鍑虹幇杩囩殑瀛楄妭鍊煎垱寤轰竴涓彾瀛愯妭鐐?*/
+    for (int i = 0; i < 256; i++) {
+        if (freq[i] > 0) {
+            hnodes[node_count].left = -1;
+            hnodes[node_count].right = -1;
+            hnodes[node_count].parent = -1;
+            hnodes[node_count].freq = freq[i];
+            hnodes[node_count].byte_val = (uint8_t) i;
+            node_count++;
+        }
+    }
+
+    /* 澶勭悊鐗规畩鎯呭喌锛氭暟鎹彧鏈変竴绉嶅瓧鑺傚€?*/
+    if (node_count == 1) {
+        /* 鍗曞瓧绗︾紪鐮侊細鍒涘缓涓€涓唴閮ㄨ妭鐐逛綔涓烘牴锛屽崟杈圭殑鏍?*/
+        hnodes[node_count].left = 0;
+        hnodes[node_count].right = -1;
+        hnodes[node_count].parent = -1;
+        hnodes[node_count].freq = hnodes[0].freq;
+        hnodes[node_count].byte_val = 0;
+        hnodes[0].parent = node_count;
+        node_count++;
+    }
+
+    /* 浣跨敤鏈€灏忓爢鏋勫缓Huffman鏍?*/
+    int heap_nodes[HUFFMAN_MAX_NODES];
+    MinHeap heap;
+    heap.nodes = heap_nodes;
+    heap.size = 0;
+    heap.capacity = HUFFMAN_MAX_NODES;
+    heap.hnodes = hnodes;
+
+    for (int i = 0; i < node_count; i++) {
+        heap_push(&heap, i);
+    }
+
+    /* 鍚堝苟鑺傜偣鐩村埌鍫嗕腑鍙墿涓€涓妭鐐癸紙Huffman鏍戠殑鏍癸級 */
+    while (heap.size > 1) {
+        int left = heap_pop(&heap);
+        int right = heap_pop(&heap);
+
+        hnodes[node_count].left = left;
+        hnodes[node_count].right = right;
+        hnodes[node_count].parent = -1;
+        hnodes[node_count].freq = hnodes[left].freq + hnodes[right].freq;
+        hnodes[node_count].byte_val = 0;
+        hnodes[left].parent = node_count;
+        hnodes[right].parent = node_count;
+
+        heap_push(&heap, node_count);
+        node_count++;
+    }
+
+    int root = heap_pop(&heap);
+
+    /* 鈹€鈹€ 绗笁閬嶏細鐢熸垚Huffman缂栫爜琛?鈹€鈹€ */
+    HuffmanCode codes[256];
+    memset(codes, 0, sizeof(codes));
+    huffman_generate_codes(hnodes, root, codes);
+
+    /* 鈹€鈹€ 绗洓閬嶏細缂栫爜杈撳嚭 鈹€鈹€ */
+
+    /* 璁＄畻杈撳嚭澶у皬骞跺垎閰嶇紦鍐插尯 */
+    /* 棰戠巼琛? 256 * 4, 鍘熷澶у皬: 4, 姣旂壒娴? 鏈€鍧忔儏鍐?raw_size * 8 bit + 7 bit 濉厖 */
+    size_t header_size = 256 * sizeof(uint32_t) + sizeof(uint32_t); /* 1024 + 4 = 1028 */
+    size_t bitstream_capacity = (raw_size * 8 + 7) / 8 + 16;       /* 棰濆16瀛楄妭瀹夊叏浣欓噺 */
+    size_t total_capacity = header_size + bitstream_capacity;
+
+    uint8_t *output = (uint8_t *) lv00_malloc(total_capacity);
+    if (!output)
         return false;
 
-    memcpy(*out_data, raw_data, raw_size);
-    *out_size = raw_size;
+    /* 鍐欏叆棰戠巼琛紙256涓猽int32_t锛屽皬绔簭锛?*/
+    for (int i = 0; i < 256; i++) {
+        uint32_t f = freq[i];
+        output[i * 4 + 0] = (uint8_t) (f & 0xFF);
+        output[i * 4 + 1] = (uint8_t) ((f >> 8) & 0xFF);
+        output[i * 4 + 2] = (uint8_t) ((f >> 16) & 0xFF);
+        output[i * 4 + 3] = (uint8_t) ((f >> 24) & 0xFF);
+    }
+
+    /* 鍐欏叆鍘熷澶у皬 */
+    size_t offset = 256 * sizeof(uint32_t);
+    uint32_t raw_sz = (uint32_t) raw_size;
+    output[offset + 0] = (uint8_t) (raw_sz & 0xFF);
+    output[offset + 1] = (uint8_t) ((raw_sz >> 8) & 0xFF);
+    output[offset + 2] = (uint8_t) ((raw_sz >> 16) & 0xFF);
+    output[offset + 3] = (uint8_t) ((raw_sz >> 24) & 0xFF);
+    offset += sizeof(uint32_t);
+
+    /* 浣跨敤浣嶅啓鍏ュ櫒缂栫爜鏁版嵁 */
+    BitWriter bw;
+    bw.buf = output + offset;
+    bw.capacity = bitstream_capacity;
+    bw.byte_pos = 0;
+    bw.bit_pos = 7;
+    bw.buf[0] = 0;
+
+    for (size_t i = 0; i < raw_size; i++) {
+        uint8_t byte_val = raw_data[i];
+        HuffmanCode *hc = &codes[byte_val];
+        if (hc->length == 0) {
+            /* 鐞嗚涓婁笉浼氬彂鐢燂細鎵€鏈夊嚭鐜板湪鏁版嵁涓殑瀛楄妭閮芥湁缂栫爜 */
+            free(output);
+            return false;
+        }
+        if (!bitwriter_write_bits(&bw, hc->code, hc->length)) {
+            free(output);
+            return false;
+        }
+    }
+
+    size_t bitstream_bytes = bitwriter_flush(&bw);
+    *out_data = output;
+    *out_size = offset + bitstream_bytes;
     return true;
 }
 
+/* ========================================================================
+ * Huffman 瑙ｇ爜锛堟浛鎹㈠師 entropy_decode_stub锛? * ======================================================================== */
+
 /**
- * @brief 妗╃喌瑙ｇ爜鍣? *
- * TODO: 瀹炵幇鐪熸鐨?rANS / 绠楁湳 / Huffman 瑙ｇ爜鍣ㄣ€? */
+ * @brief Huffman鐔佃В鐮佸櫒
+ *
+ * 浠庡帇缂╂瘮鐗规祦涓噸寤哄師濮嬫暟鎹細
+ *   1. 璇诲彇棰戠巼琛紙256 脳 uint32_t锛夊苟閲嶅缓Huffman鏍? *   2. 璇诲彇鍘熷鏁版嵁澶у皬
+ *   3. 浣跨敤Huffman鏍戦€愪綅瑙ｇ爜姣旂壒娴侊紝杈撳嚭鍘熷瀛楄妭
+ *
+ * 杈撳叆鏍煎紡涓?entropy_encode_stub 杈撳嚭鏍煎紡瀹屽叏鍖归厤锛? *   [棰戠巼琛? 256 脳 4 瀛楄妭] + [鍘熷澶у皬: 4 瀛楄妭] + [缂栫爜姣旂壒娴乚
+ *
+ * @param[in]  data      鍘嬬缉鏁版嵁
+ * @param[in]  size      鍘嬬缉鏁版嵁澶у皬锛堝瓧鑺傦級
+ * @param[out] out_data  瑙ｅ帇鍚庣殑鍘熷鏁版嵁锛堣皟鐢ㄨ€呰礋璐ree锛? * @param[out] out_size  瑙ｅ帇鍚庢暟鎹ぇ灏忥紙瀛楄妭锛? * @return true 鎴愬姛锛宖alse 澶辫触
+ */
 static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size) {
     if (!data || size == 0) {
         *out_data = NULL;
@@ -403,12 +853,128 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_
         return true;
     }
 
-    *out_data = (uint8_t *) lv00_malloc(size);
-    if (!*out_data)
+    /* 鏈€灏忔湁鏁堝ぇ灏忥細棰戠巼琛?1024) + 鍘熷澶у皬(4) + 鑷冲皯1瀛楄妭姣旂壒娴?*/
+    size_t min_size = 256 * sizeof(uint32_t) + sizeof(uint32_t);
+    if (size < min_size)
         return false;
 
-    memcpy(*out_data, data, size);
-    *out_size = size;
+    /* 鈹€鈹€ 姝ラ1锛氳鍙栭鐜囪〃骞堕噸寤篐uffman鏍?鈹€鈹€ */
+    uint32_t freq[256];
+    for (int i = 0; i < 256; i++) {
+        freq[i] = ((uint32_t) data[i * 4 + 0]) | ((uint32_t) data[i * 4 + 1] << 8)
+                | ((uint32_t) data[i * 4 + 2] << 16) | ((uint32_t) data[i * 4 + 3] << 24);
+    }
+
+    /* 璇诲彇鍘熷澶у皬 */
+    size_t offset = 256 * sizeof(uint32_t);
+    uint32_t raw_sz = ((uint32_t) data[offset + 0]) | ((uint32_t) data[offset + 1] << 8)
+                    | ((uint32_t) data[offset + 2] << 16) | ((uint32_t) data[offset + 3] << 24);
+    offset += sizeof(uint32_t);
+
+    if (raw_sz == 0) {
+        *out_data = NULL;
+        *out_size = 0;
+        return true;
+    }
+
+    /* 鍒嗛厤杈撳嚭缂撳啿鍖?*/
+    uint8_t *output = (uint8_t *) lv00_malloc(raw_sz);
+    if (!output)
+        return false;
+
+    /* 閲嶅缓Huffman鏍?*/
+    HuffmanNode hnodes[HUFFMAN_MAX_NODES];
+    memset(hnodes, 0, sizeof(hnodes));
+    int node_count = 0;
+
+    for (int i = 0; i < 256; i++) {
+        if (freq[i] > 0) {
+            hnodes[node_count].left = -1;
+            hnodes[node_count].right = -1;
+            hnodes[node_count].parent = -1;
+            hnodes[node_count].freq = freq[i];
+            hnodes[node_count].byte_val = (uint8_t) i;
+            node_count++;
+        }
+    }
+
+    /* 澶勭悊鍗曞瓧绗︽儏鍐?*/
+    if (node_count == 1) {
+        hnodes[node_count].left = 0;
+        hnodes[node_count].right = -1;
+        hnodes[node_count].parent = -1;
+        hnodes[node_count].freq = hnodes[0].freq;
+        hnodes[node_count].byte_val = 0;
+        hnodes[0].parent = node_count;
+        node_count++;
+    }
+
+    /* 浣跨敤鏈€灏忓爢閲嶅缓Huffman鏍?*/
+    int heap_nodes[HUFFMAN_MAX_NODES];
+    MinHeap heap;
+    heap.nodes = heap_nodes;
+    heap.size = 0;
+    heap.capacity = HUFFMAN_MAX_NODES;
+    heap.hnodes = hnodes;
+
+    for (int i = 0; i < node_count; i++) {
+        heap_push(&heap, i);
+    }
+
+    while (heap.size > 1) {
+        int left = heap_pop(&heap);
+        int right = heap_pop(&heap);
+        hnodes[node_count].left = left;
+        hnodes[node_count].right = right;
+        hnodes[node_count].parent = -1;
+        hnodes[node_count].freq = hnodes[left].freq + hnodes[right].freq;
+        hnodes[node_count].byte_val = 0;
+        hnodes[left].parent = node_count;
+        hnodes[right].parent = node_count;
+        heap_push(&heap, node_count);
+        node_count++;
+    }
+
+    int root = heap_pop(&heap);
+
+    /* 鈹€鈹€ 姝ラ2锛氶€愪綅瑙ｇ爜 鈹€鈹€ */
+    BitReader br;
+    bitreader_init(&br, data + offset, size - offset);
+
+    size_t decoded = 0;
+
+    if (node_count == 2 && hnodes[root].right < 0) {
+        /* 鍗曞瓧绗︾壒娈婃儏鍐碉細鎵€鏈夋瘮鐗归兘鏄?锛岀洿鎺ュ～鍏呰瀛楃 */
+        uint8_t byte_val = hnodes[hnodes[root].left].byte_val;
+        for (size_t i = 0; i < raw_sz; i++) {
+            output[i] = byte_val;
+        }
+    } else {
+        while (decoded < raw_sz) {
+            int node = root;
+            /* 娌挎爲閬嶅巻鐩村埌鍙跺瓙 */
+            while (hnodes[node].left >= 0 || hnodes[node].right >= 0) {
+                int bit = bitreader_read_bit(&br);
+                if (bit < 0) {
+                    free(output);
+                    return false;
+                }
+                if (bit == 0) {
+                    node = hnodes[node].left;
+                } else {
+                    node = hnodes[node].right;
+                }
+                if (node < 0) {
+                    free(output);
+                    return false;
+                }
+            }
+            output[decoded++] = hnodes[node].byte_val;
+        }
+    }
+
+    *out_data = output;
+    *out_size = raw_sz;
     return true;
 }
 

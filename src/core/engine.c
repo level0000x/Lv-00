@@ -273,7 +273,7 @@ bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int intern
     }
     for (int i = 0; i < input_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, input_port_ids[i]);
-        if (n && n->type == GEOM_PORT) {
+        if (n && n->type == GEOM_PORT && n->data.port != NULL) {
             n->data.port->parent_block_id = new_func_block_id;
             n->data.port->is_formal_param = true;
             n->data.port->namespace_depth = n->data.port->namespace_depth - context_depth + 1;
@@ -283,7 +283,7 @@ bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int intern
     }
     for (int i = 0; i < output_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, output_port_ids[i]);
-        if (n && n->type == GEOM_PORT) {
+        if (n && n->type == GEOM_PORT && n->data.port != NULL) {
             n->data.port->parent_block_id = new_func_block_id;
             n->data.port->is_formal_param = false;
             n->data.port->namespace_depth = n->data.port->namespace_depth - context_depth + 1;
@@ -906,15 +906,30 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
                         (int64_t) (approx * LV00_DOWNGRADE_DENOMINATOR), LV00_DOWNGRADE_DENOMINATOR);
                     if (new_coord) {
                         symbolic_coord_set_trust(new_coord, TRUST_AMBER);
-                        /* 原地替换：先释放 overflow_coord 的旧数据，
-                         * 再将 new_coord 的数据转移过来，最后释放 new_coord 外壳。
-                         * 这样所有持有 overflow_coord 指针的引用者都能看到新值。 */
-                        symbolic_coord_destroy(overflow_coord);
+                        /* 原地替换：先释放 overflow_coord 的内部数据（但不释放
+                         * overflow_coord 结构体本身，因为外部仍持有其指针），
+                         * 再将 new_coord 的数据转移过来，最后仅释放 new_coord 外壳。
+                         * 注意：不能调用 symbolic_coord_destroy(overflow_coord)，
+                         * 因为它会 free(coord) 整个结构体，导致后续写入为 use-after-free。 */
+                        switch (overflow_coord->type) {
+                            case RATIONAL:
+                                rational_destroy(overflow_coord->data.rational);
+                                break;
+                            case ALGEBRAIC:
+                                algebraic_destroy(overflow_coord->data.algebraic);
+                                break;
+                            case QUADRATIC:
+                                quadratic_destroy(overflow_coord->data.quadratic);
+                                break;
+                            case TRANSCENDENTAL:
+                                transcendental_destroy(overflow_coord->data.transcendental);
+                                break;
+                        }
                         overflow_coord->type = new_coord->type;
                         overflow_coord->data = new_coord->data;
                         overflow_coord->trust = new_coord->trust;
-                        /* 仅释放 new_coord 的外壳，不释放其 data（已转移） */
-                        lv00_free((void **) &new_coord);
+                        /* 仅释放 new_coord 的外壳，不释放其内部数据（已转移至 overflow_coord） */
+                        free(new_coord);
                     } else {
                         /* new_coord 创建失败，仅标记琥珀色作为降级 */
                         symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);

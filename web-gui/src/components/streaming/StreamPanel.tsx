@@ -144,6 +144,7 @@ const StreamPanel: React.FC = () => {
             className={`stream-panel-tool-btn ${viewMode === 'timeline' ? 'active' : ''}`}
             onClick={handleToggleView}
             title={viewMode === 'list' ? 'Timeline / 时间线' : 'List / 列表'}
+            aria-label={viewMode === 'list' ? 'Timeline / 时间线' : 'List / 列表'}
           >
             {viewMode === 'list' ? '\u23F0' : '\u2630'}
           </button>
@@ -152,6 +153,7 @@ const StreamPanel: React.FC = () => {
             className={`stream-panel-tool-btn ${searchVisible ? 'active' : ''}`}
             onClick={handleToggleSearch}
             title="Search / 搜索"
+            aria-label="Search / 搜索"
           >
             {'\uD83D\uDD0D'}
           </button>
@@ -166,6 +168,7 @@ const StreamPanel: React.FC = () => {
             className="stream-panel-tool-btn"
             onClick={handleTogglePause}
             title={paused ? 'Resume / 继续' : 'Pause / 暂停'}
+            aria-label={paused ? 'Resume / 继续' : 'Pause / 暂停'}
           >
             {paused ? '\u25B6' : '\u23F8'}
           </button>
@@ -174,6 +177,7 @@ const StreamPanel: React.FC = () => {
             className={`stream-panel-tool-btn ${autoScroll ? 'active' : ''}`}
             onClick={handleToggleAutoScroll}
             title="Auto-scroll / 自动滚动"
+            aria-label="Auto-scroll / 自动滚动"
           >
             {'\u21E9'}
           </button>
@@ -182,6 +186,7 @@ const StreamPanel: React.FC = () => {
             className="stream-panel-tool-btn"
             onClick={handleClear}
             title="Clear / 清除"
+            aria-label="Clear / 清除"
           >
             {'\u2715'}
           </button>
@@ -204,6 +209,7 @@ const StreamPanel: React.FC = () => {
             className={`stream-filter-btn ${filter.enabled ? 'active' : 'disabled'}`}
             onClick={() => toggleStreamFilter(filter.category)}
             title={`${filter.label} / ${filter.labelZh}`}
+            aria-pressed={filter.enabled}
             style={filter.enabled ? { borderColor: filter.color } : undefined}
           >
             <span
@@ -224,6 +230,7 @@ const StreamPanel: React.FC = () => {
       <div className="stream-panel-events" ref={scrollRef}>
         {filteredEvents.length === 0 ? (
           <div className="stream-panel-empty">
+            <span aria-hidden="true" className="stream-panel-empty-icon">{'\u2139\uFE0F'}</span>
             {totalEvents === 0
               ? 'No events / 暂无事件'
               : 'All events filtered / 所有事件已过滤'}

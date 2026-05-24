@@ -495,6 +495,12 @@ bool lv00_config_set_string(const char *key, const char *value) {
  * 内存管理便捷API实现
  * ============================================================ */
 
+/* ===== 向后兼容保留的别名（已弃用）=====
+ * 本函数纯做 1:1 转发到 lv00_get_memory_stats()，仅为旧版调用方提供兼容。
+ * 新代码请直接使用 lv00_get_memory_stats()。
+ * 该函数计划在后续主版本中移除。
+ */
+LV00_DEPRECATED("use lv00_get_memory_stats instead")
 /**
  * @brief 获取扩展内存统计信息（便捷封装）
  *
@@ -510,22 +516,22 @@ bool lv00_get_memory_stats_ex(MemoryStats *stats) {
     return true;
 }
 
-/**
- * @brief 设置扩展内存上限（便捷封装）
- *
- * @param limit_bytes  内存上限值（单位：字节）
- * @note 内部委托 lv00_set_memory_limit() 完成实际设置
+/* ===== 向后兼容保留的别名（已弃用）=====
+ * 本函数纯做 1:1 转发到 lv00_set_memory_limit()，仅为旧版调用方提供兼容。
+ * 新代码请直接使用 lv00_set_memory_limit()。
+ * 该函数计划在后续主版本中移除。
  */
+LV00_DEPRECATED("use lv00_set_memory_limit instead")
 void lv00_set_memory_limit_ex(size_t limit_bytes) {
     lv00_set_memory_limit(limit_bytes);
 }
 
-/**
- * @brief 获取扩展内存上限（便捷封装）
- *
- * @return 当前内存上限值（单位：字节）
- * @note 内部委托 lv00_get_memory_limit() 完成实际查询
+/* ===== 向后兼容保留的别名（已弃用）=====
+ * 本函数纯做 1:1 转发到 lv00_get_memory_limit()，仅为旧版调用方提供兼容。
+ * 新代码请直接使用 lv00_get_memory_limit()。
+ * 该函数计划在后续主版本中移除。
  */
+LV00_DEPRECATED("use lv00_get_memory_limit instead")
 size_t lv00_get_memory_limit_ex(void) {
     return lv00_get_memory_limit();
 }

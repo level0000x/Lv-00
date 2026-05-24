@@ -102,18 +102,28 @@
  * ==================================================================== */
 
 /* ── 引擎配置默认值 ── */
+
+/** @brief 引擎最大迭代次数默认值（求解器/重写循环的迭代上限） */
 #define LV00_DEFAULT_MAX_ITERATIONS 1000
+/** @brief 默认符号精度位数（symbolic_coord 精度，单位：比特） */
 #define LV00_DEFAULT_PRECISION_BITS 64
+/** @brief 默认重写步数上限（每次 solve 调用中的重写步数限制） */
 #define LV00_DEFAULT_REWRITE_STEP_LIMIT 1000
-#define LV00_DEFAULT_MEMORY_LIMIT_MB 0 /* 0 = 无限制 */
+/** @brief 默认内存使用上限（单位：MB，0 表示无限制） */
+#define LV00_DEFAULT_MEMORY_LIMIT_MB 0
 
 /* ── 动态数组初始容量与增长因子 ── */
+/** @brief 动态数组的初始容量（引擎中 module/axiom/rule 数组的起始大小） */
 #define LV00_INITIAL_ARRAY_CAPACITY 4
+/** @brief 动态数组增长因子（容量不足时乘以该因子进行扩容） */
 #define LV00_ARRAY_GROWTH_FACTOR 2
 
 /* ── 哈希索引参数 ── */
+/** @brief 节点哈希索引初始桶数量（约束图中按节点 ID 快速查找） */
 #define LV00_NODE_INDEX_INITIAL_SIZE 64
+/** @brief 约束哈希索引初始桶数量（约束图中按约束 ID 快速查找） */
 #define LV00_CONSTRAINT_INDEX_INITIAL_SIZE 64
+/** @brief 哈希索引负载因子上限（超过此值触发 rehash 扩容） */
 #define LV00_INDEX_LOAD_FACTOR 0.75
 
 /* ── FNV-1a 哈希常量 ── */
@@ -128,81 +138,105 @@
 #define LV00_FNV_HASH_MULTIPLIER 2654435769u
 
 /* ── 位数熔断阈值 ── */
+/** @brief 位数熔断阈值：当坐标值的位数超过此值，触发降级或熔断保护 */
 #define LV00_BIT_CUTOFF_THRESHOLD 1000000
+/** @brief 符号坐标系统支持的最大精度位数（超过此值的操作将被拒绝） */
 #define LV00_MAX_PRECISION_BITS 100
 
 /* ── 电路溢出阈值 ── */
+/** @brief 位电路溢出容错次数：连续溢出超过此次数触发回滚/降级策略 */
 #define LV00_CIRCUIT_OVERFLOW_THRESHOLD 3
 
 /* ── 健康检查阈值 ── */
+/** @brief 健康检查满分值（lv00_health_check 返回的最高分） */
 #define LV00_HEALTH_SCORE_MAX 100
+/** @brief 内存使用率告警阈值（占总内存上限的比率，超过触发扣分） */
 #define LV00_HEALTH_MEMORY_USAGE_RATIO 0.9
+/** @brief 内存泄漏率阈值（泄漏内存占总分配的比率，超过触发扣分） */
 #define LV00_HEALTH_MEMORY_LEAK_RATIO 0.5
+/** @brief 近期错误惩罚分值（每次近期错误从满分中扣除的分数） */
 #define LV00_HEALTH_RECENT_ERROR_PENALTY 15
+/** @brief 内存使用告警惩罚分值（内存使用率超阈值的扣分） */
 #define LV00_HEALTH_MEMORY_WARNING_PENALTY 20
+/** @brief 内存泄漏惩罚分值（检测到泄漏时的扣分） */
 #define LV00_HEALTH_MEMORY_LEAK_PENALTY 10
 
 /* ── 数值计算容差 ── */
+/** @brief 双精度浮点通用容差（用于一般性的浮点比较） */
 #define LV00_EPSILON_DOUBLE 1e-12
+/** @brief 数值比较容差（用于坐标和几何量的相等比较） */
 #define LV00_EPSILON_NUMERIC_COMPARE 1e-10
+/** @brief 牛顿迭代法收敛容差（用于根细化求解的终止条件） */
 #define LV00_EPSILON_NEWTON 1e-15
+/** @brief 线段内部点判定容差（判断点是否在线段内部的区间容差） */
 #define LV00_EPSILON_SEGMENT_INTERIOR 1e-9
+/** @brief 分数零值判定容差（分母接近零时的下限阈值） */
 #define LV00_EPSILON_FRACTION_ZERO 1e-300
 
 /* ── 连分数迭代上限 ── */
+/** @brief 连分数展开的最大迭代次数（超限后使用最后的近似值） */
 #define LV00_CONTINUED_FRACTION_MAX_ITER 1000
 
 /* ── 根隔离参数 ── */
+/** @brief 根隔离最大子区间数（Sturm 序列/二分法划分子区间的上限） */
 #define LV00_MAX_SUBINTERVALS 256
+/** @brief 根隔离容差（子区间宽度小于此值时认为包含单根） */
 #define LV00_ROOT_EPSILON 1e-12
 
 /* ── 牛顿/代数数细化 ── */
+/** @brief 牛顿法细化迭代次数（对近似数值根进行高精度修正的迭代上限） */
 #define LV00_NEWTON_REFINE_ITERATIONS 10
 
 /* ── 代数数比较/细化迭代 ── */
+/** @brief 代数数比较/细化迭代上限（代数数化简与比较的最大轮次） */
 #define LV00_ALGEBRAIC_REFINE_ITERATIONS 100
 
 /* ── 降级近似分母基数 ── */
+/** @brief 降级近似分母基数（将符号坐标以有理数近似时的分母上限） */
 #define LV00_DOWNGRADE_DENOMINATOR 1000000000
 
 /* ── 坐标值过大阈值（用于降级判断） ── */
+/** @brief 坐标值过大阈值：当坐标绝对值超过此值时触发降级策略 */
 #define LV00_VALUE_TOO_LARGE 9.2e9
 
 /* ── 二次根式化简循环 ── */
+/** @brief 二次根式化简最大尝试次数（移除外层平方因子的循环上限） */
 #define LV00_SQRT_REMOVE_MAX_TRIES 100000
 
 /* ── 求解器 (solver.c) 模块级常量 ── */
-/** 缩放因子 —— 提供约6位十进制精度，用于有理数转换，未来应使用mpq直接运算 */
+/** @brief 缩放因子 —— 提供约6位十进制精度，用于有理数转换，未来应使用mpq直接运算 */
 #define LV00_SOLVER_SCALE_FACTOR 1000000
-/** 质数搜索上限 —— 平方因子分解时的最大质数搜索范围 */
+/** @brief 质数搜索上限 —— 平方因子分解时的最大质数搜索范围 */
 #define LV00_SOLVER_PRIME_LIMIT 100000
-/** Buchberger算法步数限制 —— Groebner基计算的迭代上限 */
+/** @brief Buchberger算法步数限制 —— Groebner基计算的迭代上限 */
 #define LV00_SOLVER_BUCHBERGER_STEP_LIMIT 10000
 
 /* ── 重写引擎 (rewrite.c) 模块级常量 ── */
-/** Weisfeiler-Lehman 图哈希乘法器 */
+/** @brief Weisfeiler-Lehman 图哈希乘法器（用于重写规则匹配时的图结构哈希计算） */
 #define LV00_REWRITE_WL_HASH_MULTIPLIER 65599
 
 /* ── 函数块 (func_block.c) 模块级常量 ── */
-/** 函数块ID起始偏移量 —— 避免与普通节点ID冲突 */
+/** @brief 函数块ID起始偏移量 —— 避免与普通节点ID冲突 */
 #define LV00_FUNC_BLOCK_ID_OFFSET 10000
-/** 距离平方的默认值，当无法计算有效距离时返回（func_block.c 和 func_block_selector.c 共用） */
+/** @brief 距离平方的默认值，当无法计算有效距离时返回（func_block.c 和 func_block_selector.c 共用） */
 #define LV00_DEFAULT_DISTANCE_SQUARED 1e30
 
 /* ── 递归 (recursion.c) 模块级常量 ── */
-/** 递归深度硬上限 —— 防止栈溢出 */
+/** @brief 递归深度硬上限 —— 防止栈溢出 */
 #define LV00_MAX_RECURSION_DEPTH_LIMIT 100000
 
 /* ── 预设函数块 (func_block_preset.c) 模块级常量 ── */
-/** 预设函数块库版本 */
+/** @brief 预设函数块库版本主版本号 */
 #define LV00_PRESET_LIBRARY_VERSION_MAJOR 5
+/** @brief 预设函数块库版本次版本号 */
 #define LV00_PRESET_LIBRARY_VERSION_MINOR 0
+/** @brief 预设函数块库版本补丁版本号 */
 #define LV00_PRESET_LIBRARY_VERSION_PATCH 0
-/** 最大预设数量 */
+/** @brief 预设函数块最大数量（注册表中可注册的预设上限） */
 #define LV00_PRESET_MAX_COUNT 1024
-/** 最大参数数量 */
+/** @brief 预设函数块最大参数数量（单个预设的最大形参个数） */
 #define LV00_PRESET_MAX_PARAMS 16
-/** 预设ID起始偏移 */
+/** @brief 预设ID起始偏移量（预设函数块的节点ID从此值开始分配） */
 #define LV00_PRESET_ID_OFFSET 60000
 
 /* ── 编译期日志级别过滤 ──
@@ -218,43 +252,52 @@
 #define LV00_LOG_LEVEL_COMPILE 4 /* 默认编译全部日志级别 */
 #endif
 
-#define LV00_COMPILE_LOG_LEVEL_ERROR 1
-#define LV00_COMPILE_LOG_LEVEL_WARN 2
-#define LV00_COMPILE_LOG_LEVEL_INFO 3
-#define LV00_COMPILE_LOG_LEVEL_DEBUG 4
+#define LV00_COMPILE_LOG_LEVEL_ERROR 1   /**< 编译期日志级别：仅错误 */
+#define LV00_COMPILE_LOG_LEVEL_WARN 2    /**< 编译期日志级别：错误 + 警告 */
+#define LV00_COMPILE_LOG_LEVEL_INFO 3    /**< 编译期日志级别：错误 + 警告 + 信息 */
+#define LV00_COMPILE_LOG_LEVEL_DEBUG 4   /**< 编译期日志级别：全部日志（包括调试信息） */
 
-/* ── 日志级别 ── */
-#define LV00_LOG_LEVEL_ERROR 1
-#define LV00_LOG_LEVEL_WARNING 2
-#define LV00_LOG_LEVEL_INFO 3
-#define LV00_LOG_LEVEL_DEBUG 4
+/* ── 运行时日志级别 ── */
+#define LV00_LOG_LEVEL_ERROR 1    /**< 运行时日志级别：错误 */
+#define LV00_LOG_LEVEL_WARNING 2  /**< 运行时日志级别：警告 */
+#define LV00_LOG_LEVEL_INFO 3     /**< 运行时日志级别：信息 */
+#define LV00_LOG_LEVEL_DEBUG 4    /**< 运行时日志级别：调试 */
 
 /* ── 日志宏（带编译期过滤） ── */
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_ERROR
+/** @brief 错误日志宏：输出错误级别日志，附带文件名和行号 */
 #define LV00_LOG_ERROR(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
 #define LV00_LOG_ERROR(fmt, ...) ((void) 0)
 #endif
 
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_WARN
+/** @brief 警告日志宏：输出警告级别日志，附带文件名和行号 */
 #define LV00_LOG_WARNING(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_WARNING, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
 #define LV00_LOG_WARNING(fmt, ...) ((void) 0)
 #endif
 
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_INFO
+/** @brief 信息日志宏：输出信息级别日志，附带文件名和行号 */
 #define LV00_LOG_INFO(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_INFO, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
 #define LV00_LOG_INFO(fmt, ...) ((void) 0)
 #endif
 
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_DEBUG
+/** @brief 调试日志宏：输出调试级别日志，附带文件名和行号 */
 #define LV00_LOG_DEBUG(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
 #define LV00_LOG_DEBUG(fmt, ...) ((void) 0)
 #endif
 
-/* 日志函数声明（在lv00_utils.c中实现） */
+/** @brief 统一日志函数声明（在 lv00_utils.c 中实现）
+ *  @param level 日志级别（LV00_LOG_LEVEL_ERROR ~ LV00_LOG_LEVEL_DEBUG）
+ *  @param file  源文件名（通常传入 __FILE__）
+ *  @param line  源代码行号（通常传入 __LINE__）
+ *  @param fmt   printf 风格的格式化字符串
+ *  @param ...   可变参数列表 */
 void lv00_log_message(int level, const char *file, int line, const char *fmt, ...);
 
 #endif /* LV00_INTERNAL_H */

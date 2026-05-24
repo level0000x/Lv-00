@@ -16,8 +16,31 @@
 
 /**
  * AI 提供商标识符
+ * ⚠️ 此类型与 types/index.ts 中的 AIProviderId 保持一致
+ *    统一定义：'openai' | 'deepseek' | 'dashscope' | 'anthropic' | 'gemini' | 'ollama' | 'custom'
+ *    本地映射：'claude' → 'anthropic', 'local' → 'ollama'
  */
 export type AIProviderId = 'openai' | 'deepseek' | 'claude' | 'gemini' | 'local';
+
+/** 将本地 AIProviderId 映射到 types/index.ts 中的标准 AIProviderId */
+export const AI_PROVIDER_ID_MAP: Record<AIProviderId, import('@/types').AIProviderId> = {
+  openai: 'openai',
+  deepseek: 'deepseek',
+  claude: 'anthropic',  // Claude 映射到 Anthropic
+  gemini: 'gemini',
+  local: 'ollama',      // 本地模型映射到 Ollama
+};
+
+/** 将标准 AIProviderId 映射回本地 AIProviderId */
+export const AI_PROVIDER_ID_REVERSE_MAP: Record<string, AIProviderId> = {
+  openai: 'openai',
+  deepseek: 'deepseek',
+  anthropic: 'claude',
+  gemini: 'gemini',
+  ollama: 'local',
+  dashscope: 'local',
+  custom: 'local',
+};
 
 /**
  * AI 提供商配置

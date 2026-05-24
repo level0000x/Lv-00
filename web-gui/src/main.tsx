@@ -28,6 +28,7 @@ import './styles/global.css';
 import './styles/components.css';
 import './styles/animations.css';
 import './styles/panel-forms.css';
+import './services/logger';
 
 /**
  * 应用入口函数

@@ -167,14 +167,22 @@ const AssistantPanel: React.FC = () => {
 
   const handleTemperatureChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setModelTemperature(parseFloat(e.target.value));
+      const value = parseFloat(e.target.value);
+      // 防御性检查：NaN 或无效值时不更新状态
+      if (!Number.isNaN(value)) {
+        setModelTemperature(value);
+      }
     },
     [setModelTemperature],
   );
 
   const handleMaxTokensChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setModelMaxTokens(parseInt(e.target.value, 10));
+      const value = parseInt(e.target.value, 10);
+      // 防御性检查：NaN 或无效值时不更新状态
+      if (!Number.isNaN(value)) {
+        setModelMaxTokens(value);
+      }
     },
     [setModelMaxTokens],
   );
@@ -249,7 +257,7 @@ const AssistantPanel: React.FC = () => {
                 <input
                   type="range"
                   min="64"
-                  max="8192"
+                  max="32768"
                   step="64"
                   value={modelMaxTokens}
                   onChange={handleMaxTokensChange}

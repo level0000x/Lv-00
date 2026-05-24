@@ -2,6 +2,7 @@
   "name": "lv00-gui",
   "private": true,
   "version": "3.2.0",
+  "_comment": "版本号需与 lv00.h LV00_VERSION_STRING 及 CMakeLists.txt project(VERSION) 保持一致",
   "type": "module",
   "description": "Lv-00 Symbolic Geometry Engine - React GUI",
   "scripts": {

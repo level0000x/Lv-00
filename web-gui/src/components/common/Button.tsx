@@ -39,6 +39,8 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   tooltip?: string;
   /** 键盘快捷键标识，以 keycap 样式展示 / Keyboard shortcut label, rendered as a keycap badge */
   shortcut?: string;
+  /** ARIA 标签（无障碍访问） / ARIA label for accessibility */
+  ariaLabel?: string;
 }
 
 /**
@@ -61,6 +63,7 @@ const Button = React.memo(React.forwardRef<HTMLButtonElement, ButtonProps>(
     tooltip,
     shortcut,
     title,
+    ariaLabel,
     ...rest
   }, ref) {
     const internalRef = useRef<HTMLButtonElement>(null);
@@ -102,6 +105,9 @@ const Button = React.memo(React.forwardRef<HTMLButtonElement, ButtonProps>(
     // 组合 title：优先使用显式 title，其次使用 tooltip / Merge title: explicit title first, then tooltip
     const resolvedTitle = title ?? tooltip;
 
+    // 组合 aria-label：优先使用显式 ariaLabel，其次使用 resolvedTitle / Merge aria-label: explicit ariaLabel first, then resolvedTitle
+    const resolvedAriaLabel = ariaLabel ?? resolvedTitle;
+
     return (
       <button
         ref={buttonRef}
@@ -109,6 +115,8 @@ const Button = React.memo(React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled}
         onClick={handleClick}
         title={resolvedTitle}
+        aria-label={resolvedAriaLabel}
+        aria-disabled={disabled}
         {...rest}
       >
         {children}

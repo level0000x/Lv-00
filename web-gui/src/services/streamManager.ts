@@ -18,6 +18,7 @@ import type {
   EngineStreamCategory,
   EngineStreamCategoryFilter,
 } from '@/types';
+import { DEFAULT_STREAM_FILTERS } from '@/stores/aiStore';
 
 // ================================================================
 // 类型定义 / Type Definitions
@@ -97,82 +98,11 @@ export interface StreamStats {
 }
 
 /**
- * 默认类别过滤器配置
+ * 默认类别过滤器配置（已统一使用 stores/aiStore.ts 中的 DEFAULT_STREAM_FILTERS）
+ * 此处保留引用以确保向后兼容，但推荐直接导入 DEFAULT_STREAM_FILTERS
+ * @deprecated 请直接使用 DEFAULT_STREAM_FILTERS from '@/stores/aiStore'
  */
-const DEFAULT_CATEGORY_FILTERS: EngineStreamCategoryFilter[] = [
-  {
-    category: 'engine',
-    label: 'Engine',
-    labelZh: '引擎',
-    enabled: true,
-    color: '#3fb950',
-    count: 0,
-    eventTypes: ['ENGINE_START', 'ENGINE_DONE', 'ENGINE_PAUSED'],
-  },
-  {
-    category: 'normalize',
-    label: 'Normalize',
-    labelZh: '归一化',
-    enabled: true,
-    color: '#58a6ff',
-    count: 0,
-    eventTypes: ['NORMALIZE_START', 'NORMALIZE_MERGE', 'NORMALIZE_DONE'],
-  },
-  {
-    category: 'rewrite',
-    label: 'Rewrite',
-    labelZh: '重写',
-    enabled: true,
-    color: '#a371f7',
-    count: 0,
-    eventTypes: ['REWRITE_START', 'REWRITE_RULE_LOADED', 'REWRITE_MATCH_FOUND', 'REWRITE_APPLIED', 'REWRITE_ROLLBACK', 'REWRITE_DONE'],
-  },
-  {
-    category: 'solve',
-    label: 'Solve',
-    labelZh: '求解',
-    enabled: true,
-    color: '#f0883e',
-    count: 0,
-    eventTypes: ['SOLVE_START', 'SOLVE_EQUATION_EXTRACTED', 'SOLVE_GROEBNER_STEP', 'SOLVE_VARIABLE_RESOLVED', 'SOLVE_DONE'],
-  },
-  {
-    category: 'proof',
-    label: 'Proof',
-    labelZh: '证明',
-    enabled: true,
-    color: '#f778ba',
-    count: 0,
-    eventTypes: ['PROOF_STEP_ADDED', 'PROOF_STEP_APPLIED', 'PROOF_UNIFY', 'PROOF_COLOR_UPDATE', 'PROOF_DEPENDENCY_CHANGE'],
-  },
-  {
-    category: 'func_block',
-    label: 'Function',
-    labelZh: '函数块',
-    enabled: true,
-    color: '#39d353',
-    count: 0,
-    eventTypes: ['FUNC_BLOCK_PACK_START', 'FUNC_BLOCK_PACK_DONE', 'FUNC_BLOCK_INSTANTIATE_START', 'FUNC_BLOCK_INSTANTIATE_DONE', 'FUNC_BLOCK_PARTIAL_APPLY', 'FUNC_BLOCK_DETERMINISM_CHECK', 'FUNC_BLOCK_CAPTURE_AVOID', 'FUNC_BLOCK_CROSS_BOUNDARY'],
-  },
-  {
-    category: 'conflict',
-    label: 'Conflict',
-    labelZh: '冲突',
-    enabled: true,
-    color: '#f85149',
-    count: 0,
-    eventTypes: ['CONFLICT_DETECTED'],
-  },
-  {
-    category: 'info',
-    label: 'Info',
-    labelZh: '信息',
-    enabled: true,
-    color: '#8b949e',
-    count: 0,
-    eventTypes: ['INFO', 'PROGRESS', 'GRAPH_SNAPSHOT', 'NODE_ADDED', 'CONSTRAINT_ADDED', 'WARNING', 'ERROR', 'CIRCUIT_TRIP'],
-  },
-];
+const DEFAULT_CATEGORY_FILTERS = DEFAULT_STREAM_FILTERS;
 
 // ================================================================
 // 流式管理器类 / Stream Manager Class

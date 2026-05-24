@@ -87,6 +87,7 @@ typedef struct GeoConstructionSpec {
     int step_capacity;        /**< 步骤数组容量 */
     char **invariants;        /**< 不变式（命题表达式字符串数组） */
     int invariant_count;      /**< 不变式数量 */
+    int invariant_capacity;   /**< 不变式数组容量 */
 } GeoConstructionSpec;
 
 /**

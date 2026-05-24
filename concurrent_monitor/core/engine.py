@@ -812,6 +812,48 @@ class MonitorEngine:
         """
         await self.run_process(process_id)
 
+    async def run_process(self, process_id: str) -> None:
+        """运行单个进程
+
+        为指定进程创建 ProcessExecutor 并执行。该方法可被
+        restart_process 及外部调用者使用，用于启动单个进程。
+
+        Args:
+            process_id: 要运行的进程ID
+        """
+        proc_info = self.get_process(process_id)
+        if proc_info is None:
+            logger.warning("进程不存在，无法运行: %s", process_id)
+            return
+
+        # 将进程状态重置为 PENDING（如果不是已结束状态）
+        if proc_info.status not in (ProcessStatus.PENDING, ProcessStatus.FAILED,
+                                     ProcessStatus.COMPLETED, ProcessStatus.TIMEOUT):
+            return
+
+        proc_info.status = ProcessStatus.PENDING
+        proc_info.output_lines.clear()
+        proc_info.error_count = 0
+        proc_info.exit_code = None
+        proc_info._start_time = None
+        proc_info._end_time = None
+
+        executor = ProcessExecutor(
+            process_id=process_id,
+            command=proc_info.command,
+            engine=self,
+            timeout=self.config.engine.default_timeout,
+        )
+
+        with self._lock:
+            self._executors[process_id] = executor
+
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self._max_concurrency)
+
+        async with self._semaphore:
+            await executor.execute()
+
     def clear_output(self, process_id: str) -> bool:
         """
         清空指定进程的输出缓冲区

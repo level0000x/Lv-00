@@ -25,25 +25,25 @@ extern "C" {
 
 /* ── 引擎状态码（必须在 LV00Engine 结构体之前定义）── */
 typedef enum {
-    ENGINE_OK,
-    ENGINE_OUT_OF_MEMORY,
-    ENGINE_INVALID_STATE,
-    ENGINE_INVALID_ARGUMENT,
-    ENGINE_CONSTRAINT_CONFLICT,
-    ENGINE_MODULE_ERROR
+    ENGINE_OK,                /**< 操作成功完成 */
+    ENGINE_OUT_OF_MEMORY,     /**< 内存分配失败 */
+    ENGINE_INVALID_STATE,     /**< 引擎处于无效状态（如未初始化即调用） */
+    ENGINE_INVALID_ARGUMENT,  /**< 传入参数无效（空指针、越界等） */
+    ENGINE_CONSTRAINT_CONFLICT, /**< 约束冲突：无法满足的约束条件 */
+    ENGINE_MODULE_ERROR       /**< 模块加载/执行错误 */
 } EngineStatus;
 
 typedef struct LV00Engine {
-    ConstraintGraph *main_graph;
-    Module **loaded_modules;
-    int module_count;
-    int module_capacity; /* 指数增长容量 */
-    AxiomPackage **axiom_packages;
-    int axiom_package_count;
-    int axiom_package_capacity; /* 指数增长容量 */
-    RewriteRule **rewrite_rules;
-    int rewrite_rule_count;
-    int rewrite_rule_capacity; /* 指数增长容量 */
+    ConstraintGraph *main_graph;    /**< 主约束图指针 —— 引擎的核心数据结构，所有几何元素与约束的容器 */
+    Module **loaded_modules;        /**< 已加载模块的动态数组（指针数组） */
+    int module_count;               /**< 已加载模块数量 */
+    int module_capacity;            /**< 模块数组当前容量（指数增长，初始 LV00_INITIAL_ARRAY_CAPACITY） */
+    AxiomPackage **axiom_packages;  /**< 已加载公理包的动态数组（指针数组） */
+    int axiom_package_count;        /**< 已加载公理包数量 */
+    int axiom_package_capacity;     /**< 公理包数组当前容量（指数增长） */
+    RewriteRule **rewrite_rules;    /**< 重写规则的动态数组（指针数组） */
+    int rewrite_rule_count;         /**< 已注册重写规则数量 */
+    int rewrite_rule_capacity;      /**< 重写规则数组当前容量（指数增长） */
 
     /* 可配置的重写步数上限（默认: 1000） */
     int rewrite_step_limit;
@@ -62,11 +62,60 @@ typedef struct LV00Engine {
     StreamContext *stream_ctx;
 } LV00Engine;
 
+/**
+ * @brief 创建并初始化一个 Lv-00 引擎实例。
+ *
+ * 分配 LV00Engine 结构体，初始化约束图、模块/公理/规则数组，
+ * 设置默认步数上限（1000），并为流式输出创建 StreamContext。
+ *
+ * @return 指向新引擎的指针；内存分配失败时返回 NULL。
+ */
 LV00Engine *engine_create(void);
+
+/**
+ * @brief 销毁引擎实例，释放所有关联资源。
+ *
+ * 依次释放：约束图、所有已加载模块、所有公理包、所有重写规则、
+ * 冻结点快照（如果存在）、流式上下文，最后释放引擎结构体本身。
+ *
+ * @param engine 要销毁的引擎指针（可为 NULL，此时为空操作）。
+ */
 void engine_destroy(LV00Engine *engine);
 
+/**
+ * @brief 向引擎注册一条重写规则。
+ *
+ * 将规则加入引擎的重写规则数组，后续调用 engine_solve() 时会按注册顺序
+ * 依次尝试匹配并应用这些规则。
+ *
+ * @param engine 引擎实例。
+ * @param rule   要注册的重写规则指针（所有权转移给引擎，调用者不应再释放）。
+ * @return true 成功，false 失败（内存不足或参数无效）。
+ */
 bool engine_add_rewrite_rule(LV00Engine *engine, RewriteRule *rule);
+
+/**
+ * @brief 从指定文件路径加载一个模块到引擎。
+ *
+ * 解析模块文件（.lvmod 格式），将其中定义的几何元素、约束和规则
+ * 加载到引擎的约束图中。
+ *
+ * @param engine   引擎实例。
+ * @param filepath 模块文件的绝对或相对路径。
+ * @return ModuleLoadStatus 枚举值，指示加载结果。
+ */
 ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath);
+
+/**
+ * @brief 从指定文件路径加载一个公理包到引擎。
+ *
+ * 解析公理包文件（.lvax 格式），将公理系统中定义的定理和推导规则
+ * 注册到引擎，供后续求解过程引用。
+ *
+ * @param engine   引擎实例。
+ * @param filepath 公理包文件的绝对或相对路径。
+ * @return AxiomLoadStatus 枚举值，指示加载结果。
+ */
 AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepath);
 
 bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int internal_count, int *input_port_ids,

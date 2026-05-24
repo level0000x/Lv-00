@@ -8,16 +8,18 @@
  *              关注点分离和可测试性。导入逻辑保留在组件内（涉及 UI 交互）。
  */
 
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect, useState } from 'react';
 import Header from './Header';
 import SidebarLeft from './SidebarLeft';
 import SidebarRight from './SidebarRight';
 import StatusBar from './StatusBar';
 import GeometryCanvas from '@/components/canvas/GeometryCanvas';
+import ShortcutHelp from '@/components/common/ShortcutHelp';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useExport } from '@/hooks/useExport';
 import { useEngineStream } from '@/hooks/useEngineStream';
 import { useAppStore } from '@/stores';
+import { logger } from '@/services/logger';
 
 /**
  * Layout - 应用程序主外壳
@@ -33,6 +35,9 @@ import { useAppStore } from '@/stores';
 const Layout: React.FC = () => {
   // 注册全局键盘快捷键
   useKeyboard();
+
+  /** 快捷键帮助面板显示状态 / Shortcut help panel visibility */
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
   // 初始化引擎流式事件管理器（应用级单例）
   // 当后端 WebSocket 服务可用时，引擎事件会自动同步到 aiStore
@@ -115,6 +120,42 @@ const Layout: React.FC = () => {
   const handleImport = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
+
+  /**
+   * 全局键盘快捷键处理 —— 监听 ? 键或 Ctrl+/ 打开快捷键帮助面板
+   * 注意：仅在非输入框焦点状态下触发，避免干扰文本输入。
+   */
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement;
+      const isInputFocused =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+
+      // 当焦点在输入框/文本域中时不触发快捷键面板
+      if (isInputFocused) return;
+
+      // ? 键或 Ctrl+/(Cmd+/) 打开快捷键帮助
+      if (e.key === '?' || ((e.ctrlKey || e.metaKey) && e.key === '/')) {
+        e.preventDefault();
+        setShowShortcutHelp((prev) => {
+          const next = !prev;
+          logger.debug(next ? '快捷键帮助面板已打开' : '快捷键帮助面板已关闭');
+          return next;
+        });
+      }
+      // Escape 键关闭
+      if (e.key === 'Escape' && showShortcutHelp) {
+        setShowShortcutHelp(false);
+        logger.debug('快捷键帮助面板已通过 Esc 关闭');
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [showShortcutHelp]);
 
   /**
    * 处理文件选择变更事件。
@@ -250,6 +291,12 @@ const Layout: React.FC = () => {
         style={{ display: 'none' }}
         onChange={handleFileChange}
         aria-hidden="true"
+      />
+
+      {/* 快捷键帮助面板 —— 按 ? 或 Ctrl+/ 打开/关闭 */}
+      <ShortcutHelp
+        isVisible={showShortcutHelp}
+        onClose={() => setShowShortcutHelp(false)}
       />
 
       <div className="main-container">

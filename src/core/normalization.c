@@ -1338,10 +1338,6 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
         }
     }
 
-    (void) phase1;
-    (void) phase2;
-    (void) phase3;
-
     if (!scope_aware && !result->user_confirmed) {
         result->user_confirmed = false;
     }

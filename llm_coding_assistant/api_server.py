@@ -71,6 +71,8 @@ from .auth import (
     create_access_token,
     verify_access_token,
     get_current_user,
+    hash_password,
+    verify_password,
     User,
 )
 
@@ -83,24 +85,27 @@ __version__ = "1.0.0"
 # 认证配置
 # ============================================================
 
-# JWT 签名密钥（生产环境务必通过环境变量覆盖）
-SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "lv00-dev-secret-key-change-in-production")
+# JWT 签名密钥（必须通过环境变量设置，未设置则拒绝启动）
+_SECRET_KEY_ENV: str = os.getenv("JWT_SECRET_KEY", "")
+if not _SECRET_KEY_ENV:
+    raise RuntimeError(
+        "环境变量 JWT_SECRET_KEY 未设置。出于安全考虑，"
+        "生产环境必须通过 JWT_SECRET_KEY 环境变量设置签名密钥后重新启动服务。"
+    )
+SECRET_KEY: str = _SECRET_KEY_ENV
 
 # 令牌过期时间（秒），默认 24 小时
 ACCESS_TOKEN_EXPIRE_SECONDS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "86400"))
 
 # 用户存储（生产环境应使用数据库）
 # 默认包含 admin 用户（密码: admin123）
-def _hash_password(password: str) -> str:
-    """SHA256 密码哈希"""
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
-
+# 密码使用 PBKDF2-HMAC-SHA256 加盐哈希（参见 auth.hash_password）
 USERS: Dict[str, User] = {
     "admin": User(
         id="user-001",
         username="admin",
         role="admin",
-        password_hash=_hash_password("admin123"),
+        password_hash=hash_password("admin123"),
     ),
 }
 
@@ -684,7 +689,7 @@ async def login(request: LoginRequest):
         )
 
     # 验证密码哈希
-    if user.password_hash != _hash_password(request.password):
+    if not verify_password(request.password, user.password_hash):
         raise HTTPException(
             status_code=401,
             detail="用户名或密码错误",
@@ -728,7 +733,7 @@ async def register(request: RegisterRequest):
         id=user_id,
         username=request.username,
         role=request.role,
-        password_hash=_hash_password(request.password),
+        password_hash=hash_password(request.password),
     )
     USERS[request.username] = new_user
     logger.info("新用户注册: %s (role=%s)", request.username, request.role)
@@ -1017,7 +1022,7 @@ async def websocket_chat(websocket: WebSocket):
     except Exception:
         logger.error("WebSocket异常: %s", traceback.format_exc())
     finally:
-        ws_manager.disconnect(websocket)
+        await ws_manager.disconnect(websocket)
 
 
 # ============================================================

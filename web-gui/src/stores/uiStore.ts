@@ -256,7 +256,9 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   /**
    * 追加一条日志条目。
-   * 自动限制日志总数不超过 500 条，防止内存溢出。
+   * 自动限制日志总数不超过 MAX_GLOBAL_LOG_ENTRIES 条，防止内存溢出。
+   * slice(-(MAX_GLOBAL_LOG_ENTRIES - 1)) 保留最近 499 条旧日志，
+   * 外加 1 条新日志，始终保持总共 500 条。
    */
   appendLog: (message, level) =>
     set((state) => ({

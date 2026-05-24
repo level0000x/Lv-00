@@ -148,12 +148,7 @@
     pointer-events: none;
 }
 
-@keyframes ripple-effect {
-    to {
-        transform: scale(4);
-        opacity: 0;
-    }
-}
+/* ripple-effect 动画定义已统一迁移至 animations.css，此处仅保留引用 */
 
 /* === INPUT / 输入框 === */
 .input-row {

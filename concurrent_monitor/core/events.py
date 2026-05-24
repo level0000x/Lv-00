@@ -88,7 +88,7 @@ class Event:
         self.type: EventType = type
         self.process_id: str = process_id
         self.data: Any = data
-        self.timestamp: float = timestamp or time.time()
+        self.timestamp: float = timestamp if timestamp is not None else time.time()
 
     def __repr__(self) -> str:
         """返回事件的简短字符串表示"""

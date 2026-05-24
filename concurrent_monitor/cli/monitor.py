@@ -507,7 +507,7 @@ class CLIMonitor:
             if processes and 0 <= self._selected_idx < len(processes):
                 pid = processes[self._selected_idx].process_id
                 logger.info("用户杀死进程: %s", pid)
-                self.engine.kill_process(pid)
+                self.engine.stop_process(pid)
 
         elif key == 'r':
             if processes and 0 <= self._selected_idx < len(processes):

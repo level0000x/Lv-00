@@ -104,30 +104,61 @@ class Lv00BaseError(Exception):
 
 class Lv00Error(Lv00BaseError):
     """
-    Lv-00 异常基类。
+    Lv-00 异常基类，所有核心模块异常的通用父类。
 
-    所有 Lv-00 相关异常的父类，包括库错误、参数错误、
-    约束冲突等。继承自 Lv00BaseError，复用统一的 message、
-    error_code 属性和 __str__ 方法。
+    所有 Lv-00 相关异常的父类，涵盖库错误、参数错误、
+    约束冲突、求解失败等场景。继承自 Lv00BaseError，复用统一的
+    message、error_code 属性和人类可读的 __str__ 格式化逻辑。
 
-    属性：
-        message: 异常消息字符串
-        error_code: 可选的错误码（整数，默认为 -1）
+    子类包括：
+        - Lv00LibraryError：库加载或初始化失败
+        - Lv00ArgumentError：参数无效或类型不兼容
+        - Lv00ConstraintError：几何约束冲突
+        - Lv00SolverError：方程求解失败
+
+    属性（继承自 Lv00BaseError）：
+        message (str): 异常描述消息，供上层捕获和展示
+        error_code (int): 可选的错误码（默认为 -1），大于等于 0 时会被纳入
+                          __str__ 输出，便于日志和自动化处理
+
+    使用示例：
+        >>> raise Lv00Error("创建符号坐标失败", error_code=1001)
+        Lv00Error(1001): 创建符号坐标失败
     """
 
     def __init__(self, message: str = "", error_code: int = -1) -> None:
         """
-        创建 Lv-00 异常。
+        创建 Lv-00 核心异常实例。
 
         参数：
-            message: 异常描述消息
-            error_code: 可选的错误码，用于区分具体的错误类型
+            message (str): 异常描述消息，说明错误原因和上下文
+            error_code (int): 可选的错误码，用于区分具体的错误类型。
+                              大于等于 0 时会在 __str__ 输出中展示，
+                              负值表示未设置错误码。
         """
         super().__init__(message, error_code)
 
 
 class Lv00LibraryError(Lv00Error):
-    """库加载或初始化失败异常。"""
+    """
+    库加载或初始化失败异常。
+
+    当 Lv-00 底层 C 动态库（DLL/SO）无法加载、符号解析失败、
+    或初始化例程返回错误时抛出。此类异常通常意味着运行环境不兼容
+    或缺少必要的系统依赖。
+
+    常见触发场景：
+        - C 动态库文件缺失或路径不正确
+        - 缺少所需的运行时（如 MSVC 运行时、glibc 版本不匹配）
+        - 平台架构不匹配（如 32 位/64 位混淆）
+        - lv00_init() 调用失败
+
+    使用示例：
+        >>> try:
+        ...     g = Graph()
+        ... except Lv00LibraryError as e:
+        ...     print(f"库加载失败：{e}")
+    """
     pass
 
 
@@ -152,23 +183,52 @@ class Lv00SolverError(Lv00Error):
 
 class SymbolicCoord:
     """
-    符号坐标类。
-    
-    支持四种坐标类型：
-    - RATIONAL：有理数，精确表示
-    - ALGEBRAIC：代数数，通过最小多项式定义
-    - QUADRATIC：二次根式，a + b*sqrt(n) 形式
-    - TRANSCENDENTAL：超越数（π、e 等）
-    
-    属性：
-        type: 坐标类型（字符串）
-        trust: 信任颜色（green/blue/yellow/orange/amber）
-    
-    示例：
-        >>> coord = SymbolicCoord(1, 2)  # 创建 1/2
-        >>> coord2 = SymbolicCoord(Fraction(3, 4))  # 创建 3/4
-        >>> result = coord + coord2  # 加法
-        >>> print(result)  # 输出: 7/4
+    符号坐标类，Lv-00 精确几何计算的基础数值类型。
+
+    提供任意精度的坐标表示，支持有理数、代数数和超越数之间的
+    精确算术运算。所有运算保持符号精度，避免浮点舍入误差，
+    确保几何计算的可证明正确性。
+
+    支持的坐标类型（type 属性）：
+        - RATIONAL：有理数（如 3/4），精确分数表示，无限精度运算
+        - ALGEBRAIC：代数数（如 sqrt(2)），通过最小多项式定义
+        - QUADRATIC：二次根式，a + b*sqrt(n) 形式的特化代数数
+        - TRANSCENDENTAL：超越数（π、e 等），符号形式保留
+
+    核心属性：
+        _ptr: 底层 C 指针，指向 C 语言的 SymbolicCoord 结构体，
+              所有运算均通过此指针委托给 C 库执行
+        type (str): 坐标类型字符串，由 C 库在序列化时返回
+        trust (str): 信任颜色（green/blue/yellow/orange/amber），
+                     表示从基准点推导至此坐标所需的信任链长度
+
+    支持的算术运算：
+        - 加法/减法：+, -, __radd__, __rsub__
+        - 乘法/除法：*, /, __rmul__
+        - 取负/绝对值：-, abs()
+        - 幂运算：**（仅整数指数）
+        - 比较运算：==, !=, <, <=, >, >=
+
+    工厂方法：
+        - SymbolicCoord.from_rational(num, den)：从分子分母创建有理数
+        - SymbolicCoord.zero()：零值坐标
+        - SymbolicCoord.one()：单位坐标
+        - SymbolicCoord.parse(s)：从字符串解析
+
+    内存管理：
+        通过 __del__ 析构函数自动释放 C 层分配的内存。
+        在 Python 解释器关闭期间会安全跳过清理操作，避免崩溃。
+
+    使用示例：
+        >>> from lv00.core import SymbolicCoord
+        >>> from fractions import Fraction
+        >>>
+        >>> a = SymbolicCoord(1, 2)          # 创建 1/2
+        >>> b = SymbolicCoord(Fraction(3, 4)) # 创建 3/4
+        >>> c = a + b                         # 精确加法 → 5/4
+        >>> d = SymbolicCoord.parse("3/4")    # 字符串解析
+        >>> print(a < b)                      # 比较 → True
+        >>> print(a.to_double())              # 近似值 → 0.5
     """
     
     def __init__(self, value: Union[Fraction, int, float, str, 'SymbolicCoord']) -> None:
@@ -703,18 +763,35 @@ class SymbolicCoord:
 
 class Point:
     """
-    几何点类。
-    
-    表示二维平面上的一个点，由 x 和 y 坐标定义。
-    
+    二维几何点类，表示平面上的一个精确坐标位置。
+
+    点由 x 和 y 两个 SymbolicCoord 坐标组成，支持精确坐标运算。
+    可被解构（x, y = point）、索引（point[0]）、迭代，并提供了
+    丰富的几何变换和判断方法。
+
     属性：
-        x: X 坐标（SymbolicCoord）
-        y: Y 坐标（SymbolicCoord）
-        _id: 在 Graph 中的节点 ID（内部使用）
-    
-    示例：
-        >>> p = Point(SymbolicCoord(0), SymbolicCoord(0))  # 原点
-        >>> p2 = Point(1, 2)  # 坐标 (1, 2)
+        x (SymbolicCoord): X 坐标，精确符号值
+        y (SymbolicCoord): Y 坐标，精确符号值
+        _id (int 或 None): 在关联 Graph 中的节点 ID，由 Graph.add_point()
+                           自动分配，None 表示尚未添加到图中
+
+    支持的几何操作：
+        - distance_to(other)：计算到另一点的距离平方
+        - mid_point(other)：计算中点
+        - translate(dx, dy)：平移点
+        - reflect_over_point(center)：关于另一点的中心对称
+        - is_collinear_with(p2, p3)：判断三点是否共线
+        - vector_to(other)：计算方向向量
+
+    使用示例：
+        >>> from lv00.core import Point, SymbolicCoord
+        >>>
+        >>> p = Point(0, 0)                         # 原点
+        >>> p2 = Point(SymbolicCoord(1), SymbolicCoord(2))  # 精确坐标
+        >>> x, y = p2                               # 解构
+        >>> dist = p.distance_to(p2)                # 距离平方
+        >>> mid = p.mid_point(p2)                   # 中点
+        >>> print(p.is_collinear_with(p2, Point(2, 4)))  # 共线 → True
     """
     
     def __init__(self, x: Union[SymbolicCoord, int, float], 
@@ -916,17 +993,40 @@ class Point:
 
 class LineSegment:
     """
-    线段类。
-    
-    表示连接两个点之间的线段。
-    
+    线段类，表示连接两个点之间的有向几何线段。
+
+    封装起点 p1 和终点 p2，提供长度计算、中点、方向向量、
+    垂直方向、斜率、共线性判断、平行/垂直判断等几何分析方法。
+
     属性：
-        p1: 起点（Point）
-        p2: 终点（Point）
-        _id: 在 Graph 中的节点 ID（内部使用）
-    
-    示例：
-        >>> seg = LineSegment(Point(0, 0), Point(1, 1))
+        p1 (Point): 线段起点
+        p2 (Point): 线段终点
+        _id (int 或 None): 在关联 Graph 中的节点 ID，由
+                           Graph.add_line_segment() 自动分配，
+                           None 表示尚未添加到图中
+
+    支持的几何分析：
+        - length()：线段长度（返回距离平方的 SymbolicCoord）
+        - midpoint()：线段中点
+        - direction_vector()：方向向量 (dx, dy)
+        - perpendicular_direction()：垂直方向向量 (-dy, dx)
+        - slope()：斜率，垂直线返回 None
+        - contains_point(point)：判断点是否在线段上
+        - is_parallel_to(other)：判断与另一线段是否平行
+        - is_perpendicular_to(other)：判断与另一线段是否垂直
+
+    数学基础：
+        所有坐标运算基于 SymbolicCoord 的精确符号计算，
+        方向向量判断使用叉积（平行）和点积（垂直）的零值检测。
+
+    使用示例：
+        >>> from lv00.core import Point, LineSegment
+        >>>
+        >>> seg = LineSegment(Point(0, 0), Point(3, 4))
+        >>> print(seg.midpoint())              # Point(3/2, 2)
+        >>> print(seg.slope())                 # 4/3
+        >>> seg2 = LineSegment(Point(1, 1), Point(2, 2))
+        >>> print(seg.is_parallel_to(seg2))    # True
     """
     
     def __init__(self, p1: Point, p2: Point) -> None:
@@ -1136,17 +1236,31 @@ class GeomNode:
 
 class NormalizationResult:
     """
-    规范化结果类。
+    图规范化操作的结果封装类。
 
-    表示图规范化操作的结果，由 Graph.normalize() 方法返回。
-    封装底层 C 结构的 _NormalizationResult，自动管理 C 内存生命周期。
+    表示对约束图执行 normalize() 操作后产生的结果，包含合并统计、
+    等价类映射等规范化信息。封装底层 C 结构的 _NormalizationResult，
+    自动管理 C 内存生命周期。
 
     注意：
-        此对象由 normalization.py 作为薄层重新导出，
-        以保持向后兼容性。新代码应直接从 lv00.core 导入。
+        此对象由 Graph.normalize() 创建并返回，不应直接实例化。
+        同时由 normalization.py 作为薄层重新导出，以保持向后兼容性。
+        新代码应直接从 lv00.core 导入。
 
     属性：
-        _ptr: 底层 C 指针（POINTER(_NormalizationResult)）
+        _ptr: 底层 C 指针（POINTER(_NormalizationResult)），
+              指向 C 层的规范化结果结构体，内含合并计数、
+              等价类分组等数据。
+
+    生命周期：
+        创建后由 __del__ 析构函数自动释放 C 层内存。
+        在 Python 解释器关闭期安全跳过清理，避免崩溃。
+
+    使用示例：
+        >>> g = Graph()
+        >>> # ... 添加节点和约束 ...
+        >>> result = g.normalize()
+        >>> # result 内部已包含合并统计信息
     """
     
     def __init__(self, ptr: Any) -> None:
@@ -1176,29 +1290,53 @@ class NormalizationResult:
 
 class Graph:
     """
-    约束图类。
-    
-    表示几何约束图，包含节点（点、线段、区域等）
-    和约束（关联、中间、等距等）。
-    
+    约束图类，Lv-00 几何构造的核心数据结构。
+
+    表示一个完整的几何约束图，包含节点（点、线段、区域、端口、
+    函数块等）和约束（关联、中间、相交、包含、连接等）。
+    通过 ctypes 封装底层 C 库的 ConstraintGraph 结构体，
+    自动管理 C 对象的生命周期。
+
+    核心职责：
+        1. 节点管理：添加/移除点、线段、区域、端口、函数块
+        2. 约束管理：添加各种几何约束（关联、中间、相交等）
+        3. 图分析：规范化、冲突检测、冗余检测
+        4. 序列化：JSON 格式的导入导出
+
     属性：
-        _ptr: 底层 C 指针
-        _points: 添加的点列表
-        _segments: 添加的线段列表
-    
-    示例：
+        _ptr: 底层 C 指针，指向 C 层的 ConstraintGraph 结构体
+        _points (List[Point]): Python 侧追踪的点列表
+        _segments (List[LineSegment]): Python 侧追踪的线段列表
+        _point_id_set (Set[int]): O(1) 点 ID 查找加速索引
+        _next_id (int): Python 侧下一个可用的节点 ID，从 C 层同步
+
+    节点 ID 管理：
+        Python 侧的 _next_id 仅用于辅助对象跟踪，不取代 C 层
+        graph_get_node_count() 的权威 ID 管理。初始化时从 C 层获取
+        当前节点数作为基线，并通过 _sync_id_from_c() 按需对齐。
+
+    使用示例：
+        >>> from lv00.core import Graph
+        >>>
         >>> g = Graph()
-        >>> p1 = g.add_point(0, 0)
-        >>> p2 = g.add_point(1, 0)
-        >>> seg = g.add_line_segment(p1, p2)
+        >>> p1 = g.add_point(0, 0)            # 添加原点
+        >>> p2 = g.add_point(3, 4)            # 添加点 (3, 4)
+        >>> seg = g.add_line_segment(p1, p2)  # 添加线段
+        >>> print(g.get_node_count())         # 节点总数
+        >>> print(g.to_dsl())                 # 导出为 DSL 文本
     """
     
     def __init__(self) -> None:
         """
-        创建新的约束图。
+        创建新的空约束图实例。
+
+        通过 C 库 graph_create() 分配底层 ConstraintGraph 结构体，
+        并初始化 Python 侧的追踪列表（_points、_segments 等）和
+        ID 计数器。从 C 层同步当前节点数作为 _next_id 的初始基线。
 
         异常：
-            Lv00LibraryError: 创建失败
+            Lv00LibraryError: C 库创建失败时抛出。通常由 DLL 加载失败、
+                               内存不足或平台不兼容引起。
         """
         self._ptr = _lib.graph_create()
         if not self._ptr:
@@ -1294,17 +1432,32 @@ class Graph:
     def add_point(self, x: Union[SymbolicCoord, int, float], 
                   y: Union[SymbolicCoord, int, float]) -> Point:
         """
-        向图中添加一个点。
-        
+        向约束图中添加一个点节点。
+
+        将坐标自动转换为 SymbolicCoord（如需要），通过 C 库
+        graph_add_point() 注册到约束图，并在 Python 侧追踪点对象。
+        返回的 Point 对象携带分配的节点 ID（_id 属性），后续可通过
+        该 ID 引用此节点来添加约束或线段。
+
         参数：
-            x: X 坐标
-            y: Y 坐标
-        
+            x (SymbolicCoord | int | float): X 坐标。整数和浮点数
+                                             自动转为有理数坐标
+            y (SymbolicCoord | int | float): Y 坐标，同上
+
         返回：
-            Point: 创建的点对象
-        
+            Point: 已注册到约束图的新建点对象，_id 已分配且可追溯
+
         异常：
-            Lv00Error: 添加失败
+            Lv00ConstraintError: C 层 graph_add_point() 返回非 OK 错误码时抛出，
+                                  包含具体的错误码信息。常见原因：
+                                  - 坐标类型不被 C 库支持
+                                  - 底层图结构损坏
+                                  - 内存分配失败
+
+        副作用：
+            - 增加 self._points 列表
+            - 更新 self._point_id_set 加速索引
+            - self._next_id 自增
         """
         # 转换为 SymbolicCoord
         if not isinstance(x, SymbolicCoord):
@@ -1332,17 +1485,32 @@ class Graph:
     
     def add_line_segment(self, p1: Point, p2: Point) -> LineSegment:
         """
-        向图中添加一条线段。
-        
+        向约束图中添加一条线段节点。
+
+        验证两个端点已通过 add_point() 注册到图中，然后通过 C 库
+        graph_add_line_segment() 在约束图中注册节点，返回携带 ID 的
+        LineSegment 对象。
+
         参数：
-            p1: 起点
-            p2: 终点
-        
+            p1 (Point): 线段起点，必须已通过 add_point() 添加到图中
+            p2 (Point): 线段终点，必须已通过 add_point() 添加到图中
+
         返回：
-            LineSegment: 创建的线段对象
-        
+            LineSegment: 已注册到约束图的新建线段对象，_id 已分配
+
         异常：
-            Lv00Error: 点未添加到图中或添加失败
+            Lv00Error: p1 或 p2 尚未添加到图中时抛出，
+                       消息为 "点必须先通过 add_point 添加到图中"
+            Lv00ConstraintError: C 层 graph_add_line_segment() 返回
+                                  非 OK 错误码时抛出
+
+        性能说明：
+            使用 _point_id_set 进行 O(1) 的端点成员检查，
+            当点数超过阈值 _THRESHOLD_SET_LOOKUP 时自动启用加速索引。
+
+        副作用：
+            - 增加 self._segments 列表
+            - self._next_id 自增
         """
         if p1 not in self._points or p2 not in self._points:
             # 性能优化：使用 _point_id_set 进行 O(1) 成员检查
@@ -1701,14 +1869,30 @@ class Graph:
     
     def add_incidence(self, point_id: int, line_or_region_id: int) -> None:
         """
-        添加关联约束（点在线/区域上）。
+        添加关联约束：约束一个点位于某条线段或某个区域的边界上。
+
+        关联约束是几何构造中最基础的约束类型之一，表示点与线/面
+        之间的从属关系。例如，"点 P 在线段 AB 上"或"点 P 在区域 R 的边界上"。
+        添加成功后，约束求解器会确保该点的位置满足关联条件。
 
         参数：
-            point_id: 点 ID
-            line_or_region_id: 线段或区域 ID
+            point_id (int): 被约束的点节点 ID，必须已通过 add_point() 注册
+            line_or_region_id (int): 目标线段或区域节点 ID，必须已注册到图中
 
         异常：
-            Lv00ConstraintError: 添加关联约束失败时抛出
+            Lv00ConstraintError: C 层 graph_add_incidence() 返回非 OK 错误码时抛出。
+                                  常见原因：
+                                  - 节点 ID 不存在
+                                  - 约束与已有约束冲突
+                                  - 目标类型不支持关联约束
+
+        使用示例：
+            >>> g = Graph()
+            >>> p1 = g.add_point(0, 0)
+            >>> p2 = g.add_point(4, 0)
+            >>> seg = g.add_line_segment(p1, p2)
+            >>> p3 = g.add_point(2, 0)
+            >>> g.add_incidence(p3._id, seg._id)  # p3 在线段 seg 上
         """
         result = _lib.graph_add_incidence(self._ptr, point_id, line_or_region_id)
         if result != ADD_CONSTRAINT_OK:
@@ -1716,15 +1900,29 @@ class Graph:
     
     def add_betweenness(self, p1_id: int, p2_id: int, p3_id: int) -> None:
         """
-        添加中间约束（p1-p2-p3 共线且 p2 在中间）。
+        添加中间约束：约束三个共线点中，p2 位于 p1 和 p3 之间。
+
+        中间约束是共线三点之间的顺序约束，确保 p2 严格位于 p1 和 p3
+        之间（包括端点重合的情况）。约束求解器会据此调整点的位置。
 
         参数：
-            p1_id: 第一个点 ID
-            p2_id: 中间点 ID
-            p3_id: 第三个点 ID
+            p1_id (int): 第一个端点节点 ID
+            p2_id (int): 中间点节点 ID（约束目标，必须位于 p1 和 p3 之间）
+            p3_id (int): 第二个端点节点 ID
 
         异常：
-            Lv00ConstraintError: 添加中间约束失败时抛出
+            Lv00ConstraintError: C 层 graph_add_betweenness() 返回非 OK 错误码时抛出。
+                                  常见原因：
+                                  - 节点 ID 不存在
+                                  - 三点不可能共线（与已有约束冲突）
+                                  - p2_id 为 p1_id 或 p3_id（退化为端点）
+
+        使用示例：
+            >>> g = Graph()
+            >>> p1 = g.add_point(0, 0)
+            >>> p2 = g.add_point(1, 0)
+            >>> p3 = g.add_point(2, 0)
+            >>> g.add_betweenness(p1._id, p2._id, p3._id)  # p2 在 p1-p3 之间
         """
         result = _lib.graph_add_betweenness(self._ptr, p1_id, p2_id, p3_id)
         if result != ADD_CONSTRAINT_OK:
@@ -1733,15 +1931,32 @@ class Graph:
     def add_intersection(self, line1_id: int, line2_id: int, 
                          result_point_id: int) -> None:
         """
-        添加相交约束（两线交于一点）。
+        添加相交约束：约束两条线段交于指定点。
+
+        在约束图中注册两条线段的相交关系，要求 line1 和 line2
+        的交点恰好为 result_point。约束求解器会在求解过程中
+        强制保持此相交关系。
 
         参数：
-            line1_id: 第一条线段 ID
-            line2_id: 第二条线段 ID
-            result_point_id: 交点 ID
+            line1_id (int): 第一条线段节点 ID
+            line2_id (int): 第二条线段节点 ID
+            result_point_id (int): 交点节点 ID，必须已注册到图中
 
         异常：
-            Lv00ConstraintError: 添加相交约束失败时抛出
+            Lv00ConstraintError: C 层 graph_add_intersection() 返回非 OK 错误码时抛出。
+                                  常见原因：
+                                  - 节点 ID 不存在
+                                  - 两线段平行（无交点）或重合（无穷多交点）
+                                  - 交点与已有约束冲突
+
+        使用示例：
+            >>> g = Graph()
+            >>> p1 = g.add_point(0, 0); p2 = g.add_point(4, 0)
+            >>> p3 = g.add_point(2, 2); p4 = g.add_point(2, -2)
+            >>> seg1 = g.add_line_segment(p1, p2)
+            >>> seg2 = g.add_line_segment(p3, p4)
+            >>> inter = g.add_point(2, 0)
+            >>> g.add_intersection(seg1._id, seg2._id, inter._id)
         """
         result = _lib.graph_add_intersection(self._ptr, line1_id, line2_id, result_point_id)
         if result != ADD_CONSTRAINT_OK:
@@ -1749,14 +1964,21 @@ class Graph:
     
     def add_containment(self, inner_id: int, outer_id: int) -> None:
         """
-        添加包含约束（内区域在外区域内）。
+        添加包含约束：约束一个区域完全位于另一个区域内部。
+
+        在约束图中注册区域之间的包含关系（嵌套），约束求解器
+        确保 inner 区域的边界始终位于 outer 区域内部。
 
         参数：
-            inner_id: 内区域 ID
-            outer_id: 外区域 ID
+            inner_id (int): 内区域节点 ID，必须已通过 add_region() 注册
+            outer_id (int): 外区域节点 ID，必须已通过 add_region() 注册
 
         异常：
-            Lv00ConstraintError: 添加包含约束失败时抛出
+            Lv00ConstraintError: C 层 graph_add_containment() 返回非 OK 错误码时抛出。
+                                  常见原因：
+                                  - 节点 ID 不存在或非区域类型
+                                  - 内区域无法被外区域完全包含
+                                  - 与已有约束冲突（如循环包含）
         """
         result = _lib.graph_add_containment(self._ptr, inner_id, outer_id)
         if result != ADD_CONSTRAINT_OK:
@@ -1764,14 +1986,21 @@ class Graph:
     
     def add_connection(self, src_port_id: int, dst_port_id: int) -> None:
         """
-        添加连接约束（端口连接）。
+        添加连接约束：约束两个端口之间建立连接关系。
+
+        用于函数块之间的数据流/信号流连接。连接约束在约束图中
+        注册端口间的有向关联，约束求解器在合成时据此传播信号。
 
         参数：
-            src_port_id: 源端口 ID
-            dst_port_id: 目标端口 ID
+            src_port_id (int): 源端口节点 ID（输出端），必须已通过 add_port() 注册
+            dst_port_id (int): 目标端口节点 ID（输入端），必须已通过 add_port() 注册
 
         异常：
-            Lv00ConstraintError: 添加连接约束失败时抛出
+            Lv00ConstraintError: C 层 graph_add_connection() 返回非 OK 错误码时抛出。
+                                  常见原因：
+                                  - 节点 ID 不存在或非端口类型
+                                  - 端口类型不匹配（如输出→输出）
+                                  - 连接与已有约束冲突
         """
         result = _lib.graph_add_connection(self._ptr, src_port_id, dst_port_id)
         if result != ADD_CONSTRAINT_OK:

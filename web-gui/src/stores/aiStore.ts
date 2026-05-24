@@ -16,7 +16,7 @@ import type {
   EngineStreamCategoryFilter,
   StreamingEntry,
 } from '@/types';
-import { generateUniqueId as generateId } from '@/utils/idGenerator';
+import { generateUniqueId } from '@/utils/idGenerator';
 import {
   MAX_CHAT_MESSAGES,
   MAX_STREAMING_EVENTS,
@@ -112,7 +112,8 @@ export interface AIState {
 // 默认流式过滤器（8 类别，与 C 核心 stream.h 对齐） / Default Stream Filters
 // ================================================================
 
-const DEFAULT_STREAM_FILTERS: EngineStreamCategoryFilter[] = [
+/** 导出的默认流式过滤器，供 streamManager.ts 等其他模块复用 */
+export const DEFAULT_STREAM_FILTERS: EngineStreamCategoryFilter[] = [
   {
     category: 'engine',
     label: 'Engine',
@@ -356,7 +357,7 @@ export const useAIStore = create<AIState>((set, get) => ({
     try {
     // 1. 添加用户消息
     const userMsg: ChatMessage = {
-      id: `user-${generateId()}`,
+      id: `user-${generateUniqueId()}`,
       role: 'user',
       content,
       timestamp: Date.now(),
@@ -365,7 +366,7 @@ export const useAIStore = create<AIState>((set, get) => ({
 
     // 2. 创建空的 assistant 消息（流式占位）
     const assistantMsg: ChatMessage = {
-      id: `assistant-${generateId()}`,
+      id: `assistant-${generateUniqueId()}`,
       role: 'assistant',
       content: '',
       timestamp: Date.now(),

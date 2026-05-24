@@ -30,6 +30,7 @@
     --color-danger: #f85149;
     --color-danger-hover: #994444;
     --color-danger-border: #663333;
+    --color-danger-rgb: 248, 81, 73;   /* 用于 rgba(var(--color-danger-rgb), alpha) 场景 */
 
     /* === 状态色 / Status Colors (success/warning/info) === */
     --color-success: #3fb950;

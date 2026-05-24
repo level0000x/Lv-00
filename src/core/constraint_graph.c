@@ -53,10 +53,16 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
-/* ── 静态错误处理辅助函数（内部兼容层）──
- * 部分模块的旧版代码直接调用 set_error/clear_error 而非标准 lv00_set_error/lv00_clear_error。
- * 这些静态包装函数提供向后兼容性。 */
+/* ===== 遗留双轨错误系统兼容层 =====
+ * set_error() / clear_error() 是旧版错误处理接口，仅存在于 constraint_graph.c 内部。
+ * 这两者构成一套独立的内部错误轨道（g_internal_error），与全局 lv00_set_error() 系列并存。
+ *
+ * 新代码应统一使用标准的 lv00_set_error() / lv00_clear_error() 系列函数。
+ * 保留此兼容层仅为向后兼容旧版模块中的遗留调用点，计划在后续主版本中移除。
+ */
 static char g_internal_error[256] = {0};
+
+/* 旧版兼容层：set_error —— 将内部错误信息同步写入 g_internal_error 并转发到全局错误 API */
 static void set_error(const char *msg) {
     if (msg) {
         lv00_strlcpy(g_internal_error, msg, sizeof(g_internal_error));
