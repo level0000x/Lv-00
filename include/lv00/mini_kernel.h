@@ -178,21 +178,11 @@ struct MiniKernel {
     bool is_sealed; /**< 内核是否已封存（封存后不允许添加新公理） */
 };
 
-/* ============== 极简验证器配置 ============== */
+/* ============== 极简验证结果基类 ============== */
 
 /**
- * @brief 极简验证内核的配置参数
- *
- * 控制验证行为的资源限制和功能开关。
+ * @brief 极简验证器的验证结果摘要
  */
-struct MiniKernelConfig {
-    int max_statements;          /**< 最大语句数量（0 = 无限制） */
-    int max_proof_depth;         /**< 最大证明深度（防止无限递归，0 = 无限制） */
-    bool trust_colors_enabled;   /**< 是否启用信任颜色跟踪（借鉴 Lv-00 颜色系统） */
-    int substitution_cache_size; /**< 替换缓存大小（条目数，0 = 不缓存） */
-    bool strict_mode;            /**< 严格模式：额外检查变量作用域和类型一致性 */
-    int verification_timeout_ms; /**< 验证超时（毫秒），0 = 无超时 */
-};
 
 /* ============== 证明验证器结构体 ============== */
 
