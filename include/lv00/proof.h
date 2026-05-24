@@ -903,6 +903,9 @@ typedef enum {
     PROOF_STRATEGY_COUNT                 /**< 策略总数（用于数组大小） */
 } ProofStrategyType;
 
+/* Forward declaration: ProofMultiStrategy 结构体在下方完整定义 */
+struct ProofMultiStrategy;
+
 /**
  * @brief 证明策略状态
  */

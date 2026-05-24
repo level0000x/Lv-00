@@ -501,6 +501,54 @@ bool rewrite_search_backward(
     int **out_path,
     int *out_path_len);
 
+/* ================================================================
+ * === 第六梯队参考项目落地 (P1) — Herbie 数值精度优化 ==============
+ * === 2026-05-24 ==================================================
+ *
+ * 借鉴 Herbie (herbie.uwplse.org) 的数值精度优化方法：
+ *   - Herbie 使用 Pareto 最优搜索发现数值更稳定的等价表达式
+ *   - 通过随机采样检测灾难性抵消、条件数恶化等数值问题
+ *   - Lv-00 将 Herbie 的浮点优化思想适配到精确有理数/代数数领域
+ * ================================================================ */
+
+/* ============== 数值精度优化规则（Herbie 风格） ============== */
+
+/** 数值精度优化规则优先级（借鉴 Herbie Pareto 最优重写搜索） */
+typedef enum {
+    REWRITE_NUM_CRITICAL = 0,  /**< 关键：消除灾难性抵消 */
+    REWRITE_NUM_HIGH     = 1,  /**< 高：改善条件数 */
+    REWRITE_NUM_MEDIUM   = 2,  /**< 中：重组表达式 */
+    REWRITE_NUM_LOW      = 3   /**< 低：微调不影响正确性 */
+} RewriteNumPriority;
+
+/** 数值重写规则（Herbie 风格 — 自动发现数值更稳定的等价表达式） */
+typedef struct RewriteNumRule {
+    char *name;                    /**< 规则名称（如 "sqrt-diff-recip"） */
+    char *pattern_expr;            /**< 模式表达式（如 "sqrt(x+1) - sqrt(x)"） */
+    char *replacement_expr;        /**< 替换表达式（如 "1/(sqrt(x+1)+sqrt(x))"） */
+    RewriteNumPriority priority;   /**< 优先级 */
+    double accuracy_improvement;   /**< 精度改进倍数（估计值） */
+    char *condition_desc;          /**< 触发条件描述（如 "x > 100 时有效"） */
+    bool (*condition)(double *vars, int n); /**< 条件检测函数 */
+} RewriteNumRule;
+
+/** 创建数值重写规则 */
+RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern,
+    const char *replacement, RewriteNumPriority pri, double improvement);
+
+/** 销毁数值重写规则 */
+void rewrite_num_rule_destroy(RewriteNumRule *rule);
+
+/** 在表达式上应用数值优化规则（返回优化后的表达式字符串，调用者释放） */
+char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules, int rule_count,
+    double *out_improvement);
+
+/** 注册内置数值优化规则集（含 sqrt-diff-recip, quadratic-formula-avoid-cancel 等 6 条） */
+int rewrite_num_register_builtins(void);
+
+/** 获取已注册的数值规则数量 */
+int rewrite_num_rule_count(void);
+
 #ifdef __cplusplus
 }
 #endif

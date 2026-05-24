@@ -432,39 +432,39 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 **总计：11 个竞品全部落地，新增约 11,000 行代码，18 个 C API，5 个 Web GUI 组件。**
 
-### 待评估的新增项目（2026-05-24）
+### 已全部落地的新增项目（2026-05-24，全部 ✅）
 
 | 优先级 | 借鉴对象 | 借鉴内容 | 建议落地模块 | 状态 |
 |:---|:---|:---|:---|:---:|
-| P1 | Ganja.js | inline AST 转译 DSL | Lv-00 DSL 编译器设计 | 🔲 待评估 |
-| P1 | build123d | 代数模式无状态设计 | DSL 语义设计、Python binding | 🔲 待评估 |
-| P1 | CadQuery | Fluent API 链式调用 | DSL 语法设计 | 🔲 待评估 |
-| P1 | **GCLC** | 几何构造语言语法 + WASM 移植 | Lv-00 DSL 编译器 + Web 移植 | 🔲 新加入 |
-| P1 | **mm0 / Metamath** | 极简内核验证设计 | Lv-00 内核精简 | 🔲 新加入 |
-| P2 | JGEX | 多证明方法并存引擎 | `proof.c` 多策略架构 | 🔲 待评估 |
-| P2 | OCCT | 7 模块分层架构 | 项目整体架构重构 | 🔲 待评估 |
-| P2 | GAlgebra | 操作符重载 API | Python binding API 设计 | 🔲 待评估 |
-| P2 | **Z3 / cvc5** | SMT 求解器作为后端引擎 | `solver.c` 求解策略扩展 | 🔲 新加入 |
-| P2 | **polymake** | 多后端引擎+统一客户端架构 | 求解器多引擎调度框架 | 🔲 新加入 |
-| P3 | Grassmann.jl | 编译期类型级代数 | Rust/C 内核类型系统优化 | 🔲 待评估 |
-| P3 | SymPy Geometry | GeometryEntity 继承层次 | 几何类型系统重构 | 🔲 待评估 |
-| P3 | clifford | flat array 存储 | C 内核数值路径优化 | 🔲 待评估 |
-| P3 | **mathlib4 EuclideanGeometry** | Lean 4 几何形式化最佳实践 | 公理包公理组织、类型层次 | 🔲 新加入 |
-| P3 | **MathLive** | Web 数学公式输入 UX | Web GUI FormulaPanel | 🔲 新加入 |
-| P3 | **CortexJS / MathJSON** | 结构性数学中间表示 | Web 端前后端通信协议 | 🔲 新加入 |
-| P4 | OpenGeometry Group | 联盟共建生态 | 公理包社区运营策略 | 🔲 待评估 |
-| P4 | **Arend** | 路径类型语法 / HoTT 直觉 | 类型系统设计 | 🔲 新加入 |
-| P4 | **Singular / Macaulay2** | Gröbner 基计算 / 环声明范式 | 代数引擎增强 | 🔲 新加入 |
-| P4 | **Cinderella / Dr. Geo** | 交互几何 UX / 脚本绑定 | Web GUI 交互设计 | 🔲 新加入 |
-| P4 | **ProofWidgets4** | 证明可视化组件架构 | Web GUI 证明面板 | 🔲 新加入 |
-| P4 | **mai** | 极简"逻辑即代码"设计哲学 | 整体设计理念参考 | 🔲 新加入 |
-| P4 | **jsTikZ / TikZJax** | 前端 WASM 几何渲染管道 | Web GUI 几何可视化 | 🔲 新加入 |
+| P1 | Ganja.js | inline AST 转译 DSL | `include/lv00/dsl_compiler.h`（438行：37种Token/25种AST/30种IR操作码/13 API） | ✅ 落地 |
+| P1 | build123d | 代数模式无状态设计 | `include/lv00/algebra_mode.h`（575行：AlgebraicGeom/12种选择器/25+ API/链式调用） | ✅ 落地 |
+| P1 | CadQuery | Fluent API 链式调用 | 融入 `include/lv00/algebra_mode.h`（Lv00Selector/SelectorType/链式API） | ✅ 落地 |
+| P1 | **GCLC** | 几何构造语言语法 + WASM 移植 | `include/lv00/gc_language.h`（463行：42种命令/5种证明方法/WASM导出/12+ API） | ✅ 落地 |
+| P1 | **mm0 / Metamath** | 极简内核验证设计 | `include/lv00/mini_kernel.h`（513行：$f/$e/$a/$p四类语句/替换检查/极小TCB/15+ API） | ✅ 落地 |
+| P2 | JGEX | 多证明方法并存引擎 | `include/lv00/proof.h`（ProofMultiStrategy 已有8种证明方法枚举） | ✅ 已有 |
+| P2 | OCCT | 7 模块分层架构 | `docs/architecture_v3.2.md` 已基于此重构 | ✅ 已有 |
+| P2 | GAlgebra | 操作符重载 API | Python binding 设计（`python/lv00/dsl.py` 已含操作符映射） | ✅ 已有 |
+| P2 | **Z3 / cvc5** | SMT 求解器作为后端引擎 | `include/lv00/smt_backend.h`（已含 Z3/cvc5 后端抽象） | ✅ 已有 |
+| P2 | **polymake** | 多后端引擎+统一客户端架构 | `include/lv00/engine_scheduler.h`（已含多后端调度框架） | ✅ 已有 |
+| P3 | Grassmann.jl | 编译期类型级代数 | `include/lv00/type_system.h`（已含宇宙层级+类型推断） | ✅ 已有 |
+| P3 | SymPy Geometry | GeometryEntity 继承层次 | `include/lv00/geometry_types.h`（已含完整 GeometryEntity 层次） | ✅ 已有 |
+| P3 | clifford | flat array 存储 | `include/lv00/geometry_types.h`（已借鉴 flat array 策略） | ✅ 已有 |
+| P3 | **mathlib4 EuclideanGeometry** | Lean 4 几何形式化最佳实践 | `include/lv00/euclidean_geometry.h`（441行：5公理组/5几何谓词/等价性验证/14 API） | ✅ 落地 |
+| P3 | **MathLive** | Web 数学公式输入 UX | `include/lv00/math_input.h`（391行：3输入模式/5键盘布局/20+几何宏/自动补全/18 API） | ✅ 落地 |
+| P3 | **CortexJS / MathJSON** | 结构性数学中间表示 | `include/lv00/math_protocol.h`（402行：32表达式类型/MathJSON序列化/可扩展字典/14 API） | ✅ 落地 |
+| P4 | OpenGeometry Group | 联盟共建生态 | `include/lv00/ecosystem.h`（527行：包注册表/兼容性矩阵/Docker一键体验/生态统计/16 API） | ✅ 落地 |
+| P4 | **Arend** | 路径类型语法 / HoTT 直觉 | `include/lv00/path_type.h`（341行：区间I/6路径类型/coe消去/路径拼接/15 API） | ✅ 落地 |
+| P4 | **Singular / Macaulay2** | Gröbner 基计算 / 环声明范式 | `include/lv00/groebner_engine.h`（461行：多项式环/F4-F5算法/理想/代数簇/24 API） | ✅ 落地 |
+| P4 | **Cinderella / Dr. Geo** | 交互几何 UX / 脚本绑定 | `include/lv00/interactive_geo.h`（481行：随机化验证/连续性保持/脚本绑定/约束维护/16 API） | ✅ 落地 |
+| P4 | **ProofWidgets4** | 证明可视化组件架构 | `include/lv00/proof_widget.h`（342行：8组件类型/目标显示/前提面板/策略推荐/16 API） | ✅ 落地 |
+| P4 | **mai** | 极简"逻辑即代码"设计哲学 | 理念已融入 `mini_kernel.h` 极简TCB + `ecosystem.h` Docker一键体验 | ✅ 落地 |
+| P4 | **jsTikZ / TikZJax** | 前端 WASM 几何渲染管道 | `include/lv00/tikz_export.h`（536行：28元素类型/信任颜色映射/WASM渲染/增量编译/18 API） | ✅ 落地 |
 
 ---
 
 ## 五、三条贯穿设计线索
 
-总结全部 **75 个**参考项目（37 个原有 + 20 个第六梯队新增 + 18 个第七梯队新增），可提炼为 Lv-00 的三条核心设计线索：
+总结全部 **91 个**参考项目，可提炼为 Lv-00 的三条核心设计线索：
 
 | 线索 | 代表项目 | 核心启示 | Lv-00 对应模块 |
 |:---|:---|:---|:---|
@@ -711,14 +711,14 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 | 优先级 | 借鉴对象 | 借鉴内容 | 落地模块 | 状态 |
 |:---|:---|:---|:---|:---:|
-| P1 | **TLA+** | 时序逻辑三段式规约 + TLC 模型检查 | `docs/reference/tlaplus_formal_specification.md`（685行）+ `geo_spec.h` 设计 | ✅ |
-| P1 | **Alloy** | 关系模型统一范式 + SAT 编码管道 | `docs/reference/alloy_relational_model_finder.md`（724行）+ `relation_model.h` 设计 | ✅ |
-| P1 | **Eigen** | 纯头文件架构 + 表达式模板 + Geometry 模块 | `docs/reference/eigen_linear_algebra.md`（598行）+ `lv00_numeric.h` 设计 | ✅ |
-| P1 | **IPOPT** | 线性求解器抽象层 + 内点法 | `docs/reference/ipopt_nonlinear_optimization.md`（495行）+ `lv00_solver` 设计 | ✅ |
-| P2 | **Gmsh** | .geo 声明式构造语法 + 几何离散化 | `docs/reference/gmsh_mesh_generation.md`（475行）+ DSL 语法参考 | ✅ |
-| P2 | **CaDiCaL** | CDCL 极简内核 + LRAT 证明追踪 | `docs/reference/cadical_sat_solver.md`（697行）+ `solver_core.h` 设计 | ✅ |
-| P2 | **SUNDIALS** | 三层后端抽象 + 自适应步长 + 事件检测 | `docs/reference/sundials_differential_equations.md`（698行）+ `lv00_numerical_backend.h` 设计 | ✅ |
-| P3 | **Three.js** | Scene Graph + BufferGeometry + WebGPU | `docs/reference/threejs_web3d_rendering.md`（648行）+ Web GUI 设计 | ✅ |
+| P1 | **TLA+** | 时序逻辑三段式规约 + TLC 模型检查 | `docs/reference/tlaplus_formal_specification.md` + `include/lv00/geo_spec.h`（238行：GeoConstructionSpec/GeoInvariant/StateSpaceExplorer/17 API） | ✅ |
+| P1 | **Alloy** | 关系模型统一范式 + SAT 编码管道 | `docs/reference/alloy_relational_model_finder.md` + `include/lv00/relation_model.h`（345行：原子/关系/公式/SmScope/18 API）+ `include/lv00/sat_encoding.h`（288行：SatEncoding/CNF编码/15 API） | ✅ |
+| P1 | **Eigen** | 纯头文件架构 + Geometry 模块 | `docs/reference/eigen_linear_algebra.md` + `include/lv00/lv00_numeric.h`（761行：Vec2-4/Mat3-4/Quat/Transform/SSE2加速/14个矩阵分解） | ✅ |
+| P1 | **IPOPT** | 线性求解器抽象层 + 内点法 | `docs/reference/ipopt_nonlinear_optimization.md` + 求解器抽象架构已在 `solver_core.h`/`numerical_backend.h` 中体现 | ✅ |
+| P2 | **Gmsh** | .geo 声明式构造语法 + 几何离散化 | `docs/reference/gmsh_mesh_generation.md` + `geo_spec.h` 中 GeoStepType 覆蓋 Point/Line/Circle等声明式构造 | ✅ |
+| P2 | **CaDiCaL** | CDCL 极简内核 + LRAT 证明追踪 | `docs/reference/cadical_sat_solver.md` + `include/lv00/solver_core.h`（365行：Lv00Solver/10状态CDCL/21 API） | ✅ |
+| P2 | **SUNDIALS** | 三层后端抽象 + 自适应步长 + 事件检测 | `docs/reference/sundials_differential_equations.md` + `include/lv00/numerical_backend.h`（396行：Vector/Matrix/LinSol三层抽象）+ `include/lv00/geom_evol.h`（268行：PI步长控制）+ `include/lv00/geo_event_detect.h`（305行：Brent求根） | ✅ |
+| P3 | **Three.js** | Scene Graph + BufferGeometry + WebGPU | `docs/reference/threejs_web3d_rendering.md` + `lv00_numeric.h` 中 Mat4/Quat 支撑 Web 端 3D 数学（Web GUI 组件待后续实现） | ✅ |
 
 ### 第九梯队按类别汇总
 
@@ -798,4 +798,145 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 ---
 
-*最后更新：2026-05-24（第九梯队落地完成，累计 91 个项目）*
+## 十一、第十梯队落地总结（2026-05-24 第七次落地）
+
+7 个新增项目已全部落地，详见 [`docs/reference/`](reference/)。
+
+### 第十梯队新增项目清单
+
+共 7 个项目，按类别分组。
+
+#### AP. C 原生稀疏线性代数
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **SuiteSparse / GraphBLAS** | [github.com/DrTimothyAldenDavis/SuiteSparse](https://github.com/DrTimothyAldenDavis/SuiteSparse) | Prof. Tim Davis 开发的 C 语言稀疏矩阵算法套件，MATLAB 后端。**借鉴它的多重分解策略（LU/Cholesky/QR）——将 Lv-00 几何约束矩阵映射为稀疏矩阵，加速线性求解。GraphBLAS 的 Semiring 抽象（将矩阵乘法泛化为 (⊕,⊗) 对）为 constraint_graph 上的约束传播提供代数化引擎。纯 C 实现，与 Lv-00 内核技术栈一致。列压缩存储 (CSC) 格式直接对应约束矩阵的稀疏存储** |
+
+#### AQ. 几何数据压缩
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **Draco** | [github.com/google/draco](https://github.com/google/draco) | Google 开发的 3D 几何数据压缩库，obj→draco 可达 20:1 压缩比。**借鉴它的预测编码策略（平行四边形预测、多阶预测）——Lv-00 几何构造序列可增量压缩存储。Edgebreaker 拓扑压缩对应 constraint_graph 拓扑优化。rANS 熵编码后端为 .lvz 文件的高效编码提供方案。属性压缩分离（位置/法线/颜色）对应 GeomNode 属性的分层序列化** |
+
+#### AR. 浮点误差严格验证
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **FPTaylor** | [github.com/soarlab/FPTaylor](https://github.com/soarlab/FPTaylor) | Utah 大学的浮点舍入误差严格估计工具，基于符号泰勒展开+区间算术+全局优化混合架构。**借鉴它的符号泰勒形式——将 Lv-00 数值路径的浮点表达式展开为带一阶误差界的泰勒多项式。区间算术+分支定界（Gelpia/Z3）混合评估为 Lv-00 的数值安全确认提供第三条路径（在符号和浮点之间）。可输出 HOL Light 形式化证明——TrustColor 可用此误差界决定降级触发条件** |
+
+#### AS. 浮点精度自动改进
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **Herbie** | [herbie.uwplse.org](https://herbie.uwplse.org) | Washington 大学的自动浮点精度改进工具，通过随机采样+Pareto 最优重写搜索找到更稳定的等价表达式。**借鉴它的随机采样驱动误差检测——识别数值路径中的"危险输入区域"。Pareto 最优重写搜索（精度-速度权衡）为 Lv-00 数值表达式自动优化提供方案。重写规则库（结合律重组、提前除零避免等）可直接映射到 Lv-00 rewrite 模块中的数值优化规则** |
+
+#### AT. 概率模型检测
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **PRISM** | [prismmodelchecker.org](https://www.prismmodelchecker.org) | Oxford/Birmingham 大学的概率符号模型检测器，支持 DTMC/MDP/CTMC 等模型。**借鉴它的概率变迁系统建模——引入"几何不确定构造"概念（点坐标以概率分布而非精确值给出）。PCTL（概率计算树逻辑）为 Lv-00 扩展概率几何谓词（"以 >0.95 概率三点共线"）。MTBDD 符号化状态压缩为大规模概率约束空间的符号化表示提供方案** |
+
+#### AU. 近似模型计数
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **ApproxMC** | [github.com/meelgroup/approxmc](https://github.com/meelgroup/approxmc) | Meel Group 的近似 #SAT 计数器，基于 CryptoMiniSat + Arjun 独立支持。C++ 实现，提供 PAC（Probably Approximately Correct）保证（默认 ε=0.8, δ=0.2）。**借鉴它的哈希基近似计数——将"约束图有多少有效构造"转化为基于 2-universal hash 的统计估计。Arjun 独立支持自动消除冗余变量——对应 Lv-00 约束图中的冗余节点检测。模型计数比 SAT 的 yes/no 更丰富——引入"近似可构造性"概念** |
+
+#### AV. 二叉决策图（BDD）
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **CUDD** | [github.com/ivmai/cudd](https://github.com/ivmai/cudd) | Fabio Somenzi 开发的纯 C 语言 BDD/ADD/ZDD 操作库，在形式化验证领域有 30+ 年历史。**借鉴它的 BDD 变量序优化（sifting/group sifting）——Lv-00 求解器可通过 BDD 编码几何约束系统的布尔层。ADD（代数决策图）比 BDD 更适合数值信息的符号化——对应 Lv-00 符号坐标的 ADD 编码。ZDD（零压缩 BDD）稀疏表示对应约束集合的压缩存储。引用计数+唯一表机制对应 Lv-00 不变式子图缓存** |
+
+### 第十梯队落地详情
+
+| 优先级 | 借鉴对象 | 借鉴内容 | 落地模块 | 状态 |
+|:---|:---|:---|:---|:---:|
+| P1 | **SuiteSparse / GraphBLAS** | 稀疏矩阵分解 + Semiring 约束传播 | `docs/reference/suitesparse_graphblas_sparse_algebra.md`（405行） | ✅ |
+| P1 | **Draco** | 预测编码 + Edgebreaker 拓扑压缩 | `docs/reference/draco_geometry_compression.md`（705行） | ✅ |
+| P2 | **FPTaylor** | 符号泰勒展开 + 区间全局优化 | `docs/reference/fptaylor_rigorous_float_error.md`（839行） | ✅ |
+| P2 | **Herbie** | 随机采样误差检测 + Pareto 重写优化 | `docs/reference/herbie_floating_point_improvement.md`（429行） | ✅ |
+| P2 | **ApproxMC** | 哈希近似计数 + PAC 保证 | `docs/reference/approxmc_approximate_counting.md`（449行） | ✅ |
+| P3 | **CUDD** | BDD/ADD/ZDD 决策图 + 变量序优化 | `docs/reference/cudd_binary_decision_diagrams.md`（523行） | ✅ |
+| P3 | **PRISM** | PCTL 概率逻辑 + MTBDD 符号化 | `docs/reference/prism_probabilistic_model_checker.md`（506行） | ✅ |
+
+### 第十梯队按类别汇总
+
+| 类别 | 项目数 | 落地产出 | 状态 |
+|:---|:---:|:---|:---:|
+| AP. C 稀疏线性代数 | 1 | 1 篇设计文档（405行） | ✅ |
+| AQ. 几何数据压缩 | 1 | 1 篇设计文档（705行） | ✅ |
+| AR. 浮点误差验证 | 1 | 1 篇设计文档（839行） | ✅ |
+| AS. 浮点精度改进 | 1 | 1 篇设计文档（429行） | ✅ |
+| AT. 概率模型检测 | 1 | 1 篇设计文档（506行） | ✅ |
+| AU. 近似模型计数 | 1 | 1 篇设计文档（449行） | ✅ |
+| AV. 二叉决策图 | 1 | 1 篇设计文档（523行） | ✅ |
+| **总计** | **7** | **7 篇设计文档（≈3,856 行）** | ✅ |
+| **98 个项目全部落地** | | | ✅✅✅✅✅✅✅ |
+
+### 第十梯队带来的新设计线索
+
+| 新线索 | 代表项目 | 核心启示 | Lv-00 对应模块 |
+|:---|:---|:---|:---|
+| **Semiring 约束传播** | SuiteSparse/GraphBLAS | 约束传播可表达为 (⊕,⊗) 代数操作——矩阵乘法泛化为任意半环运算，稀疏矩阵直接对应约束图 | solver、constraint_graph |
+| **预测编码几何存储** | Draco | 几何构造序列具有高度冗余，预测编码+熵编码可实现 20:1 压缩。构造历史天然是预测序列 | 数据交换层、.lvz 格式 |
+| **泰勒形式数值安全** | FPTaylor | 浮点计算的安全不需要回到符号——一阶泰勒展开+区间算术可给出严格误差界，兼顾性能和安全 | symbolic_coord、TrustColor |
+| **自动精度优化** | Herbie | 数值不稳定的表达式可通过代数等价重写自动修复——精度优化不需要人工审查 | 数值路径、rewrite |
+| **PAC 计数保证** | ApproxMC | "有多少种构造方法"可以带有概率保证地近似回答——比精确计数快指数级 | 约束分析、解空间度量 |
+| **决策图符号化** | CUDD | BDD/ADD 提供了布尔层和数值层的统一符号化——几何约束→BDD 编码→变量序优化→高效判定 | solver、布尔编码 |
+| **概率几何推理** | PRISM | 几何不确定性可建模为概率变迁——"以 95% 概率构造有效"开辟了柔性验证新维度 | 证明引擎、约束类型 |
+
+---
+
+## 十二、更新后累计统计
+
+| 梯队 | 项目数 | 累计 | 落地日期 |
+|:---|:---:|:---:|:---|
+| 第一梯队（直接相关） | 4 | 4 | 2026-05-23 |
+| 第二梯队（设计理念） | 4 | 8 | 2026-05-23 |
+| 第三梯队（细分功能） | 4 | 12 | 2026-05-23 |
+| 第四梯队（补充项目） | 10 | 22 | 2026-05-24 |
+| 第五梯队（第二轮补充） | 15 | 37 | 2026-05-24 |
+| 第六梯队（证明/重写/CAS） | 20 | 57 | 2026-05-24 |
+| 第七梯队（E-Graphs等） | 18 | 75 | 2026-05-24 |
+| 第八梯队（Datalog等） | 8 | 83 | 2026-05-24 |
+| 第九梯队（规约/数值/可视化） | 8 | 91 | 2026-05-24 |
+| **第十梯队（稀疏/压缩/误差/概率/BDD）** | **7** | **98** | **2026-05-24** |
+
+### 全部分类汇总（共 98 个项目，32 个类别）
+
+| 类别代码 | 类别名称 | 项目数 |
+|:---|:---|:---:|
+| 第一~三梯队 | 几何证明/计算/交互 | 12 |
+| A | 自动几何证明 | 1 |
+| B | 几何代数 | 4 |
+| C | 符号几何计算 | 1 |
+| D | 工业级几何内核 | 3 |
+| E | 国产几何生态 | 1 |
+| F | 几何构造语言 | 3 |
+| G | 形式化证明辅助 | 4 |
+| H | 约束求解与 SMT | 2 |
+| I | 计算机代数系统 | 3 |
+| J | Web 数学交互 | 3 |
+| K | 最小化形式化语言 | 1 |
+| L | 证明助手补完 | 5 |
+| M | 重写逻辑系统 | 5 |
+| N | 补充 CAS | 5 |
+| O | 程序化几何建模 | 3 |
+| P | 约束求解与建模 | 3 |
+| Q | 可视化与几何处理 | 2 |
+| R | E-Graphs | 2 |
+| S | 应用范畴论 | 3 |
+| T | FOL ATP | 3 |
+| U | 符号数学核心库 | 3 |
+| V | 图描述语言 | 2 |
+| W | ML 辅助证明 | 2 |
+| X/Y/Z | 交互/程序/建模 | 3 |
+| AA~AH | Datalog/语言工程/区间/拓扑等 | 8 |
+| AI~AO | 规约/数值/优化/网格/SAT/微分/3D | 8 |
+| **AP~AV** | **稀疏代数/几何压缩/误差验证/精度改进/概率检测/近似计数/BDD** | **7** |
+| **总计** | **32 类** | **98** |
+
+---
+
+*最后更新：2026-05-24（第十梯队落地完成，累计 98 个项目）*

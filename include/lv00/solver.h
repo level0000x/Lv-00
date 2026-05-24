@@ -20,6 +20,8 @@ extern "C" {
 #include "stream.h"
 #include <stdint.h>
 
+/* 稀疏矩阵求解器（sparse_linear_algebra.h）在 solver_sparse_solve 中按需引用 */
+
 /**
  * @brief 求解器中变量 ID 的最大值
  * @details 防止稀疏 ID 导致 OOM。此值与 solver.c 中保持严格一致，
@@ -336,6 +338,18 @@ void solver_feedback_destroy(SolverFeedback *feedback);
 SolverFeedback *solver_feedback_solve(ConstraintGraph *graph,
                                        const int *dirty_vars,
                                        int dirty_count);
+
+/* ============== 稀疏矩阵求解后端（SuiteSparse/GraphBLAS） ============== */
+
+/**
+ * @brief 使用稀疏矩阵方法求解约束系统（替代密集 GMP 求解器）
+ * 借鉴 SuiteSparse CHOLMOD/UMFPACK 的稀疏 Cholesky/LU 分解
+ * 用于加速线性约束和二次约束的数值求解路径
+ * @param graph 约束图
+ * @param out_result 接收 GroebnerResult（调用者释放）
+ * @return 求解器状态
+ */
+SolverStatus solver_sparse_solve(ConstraintGraph *graph, GroebnerResult **out_result);
 
 #ifdef __cplusplus
 }

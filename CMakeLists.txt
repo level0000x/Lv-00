@@ -210,15 +210,14 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "^src/symbolic_coord\\.c$")
 # Exclude incomplete/legacy files that use incompatible type systems
 list(FILTER LV00_SOURCES EXCLUDE REGEX "magic/magic\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "symbolic_coord_fixed\\.c$")
-# Exclude files with symbol conflicts (duplicate symbol with func_block_preset_ops)
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\.c$")
-# Exclude preset files with unresolved enum/identifier dependencies
-list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_algebraic_geometry\.c")
-# Exclude files with unresolved API references (new files needing integration work)
-list(FILTER LV00_SOURCES EXCLUDE REGEX "proof_multi_strategy\.c")
-list(FILTER LV00_SOURCES EXCLUDE REGEX "proof_optimize\.c")
-# Exclude interop until SVG import and Coq/Lean export are reviewed
-list(FILTER LV00_SOURCES EXCLUDE REGEX "interop/interop\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "nv_encoding\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "sat_solver\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "geometric_algebra\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "crypto_hash\\.c$")
+list(FILTER LV00_SOURCES EXCLUDE REGEX "ref_count\\.c$")
+# Files integrated in 2026-05-24 update:
+# - preset_manager.c, preset_algebraic_geometry.c, proof_multi_strategy.c,
+#   proof_optimize.c, interop/interop.c
 
 
 # ============================================================

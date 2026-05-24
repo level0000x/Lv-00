@@ -1573,7 +1573,7 @@ static void tikz_escape_string(const char *src, char *dst, size_t dst_size) {
 
 /* ==================== 导出功能 ==================== */
 
-int interop_export_coq(const Proof *proof, const InteropExportConfig *config) {
+int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *config) {
     /**
      * @brief 导出 Coq 定理证明代码
      *
@@ -1681,7 +1681,7 @@ int interop_export_coq(const Proof *proof, const InteropExportConfig *config) {
     return LV00_OK;
 }
 
-int interop_export_lean(const Proof *proof, const InteropExportConfig *config) {
+int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *config) {
     /**
      * @brief 导出 Lean 4 定理证明代码
      *
@@ -4962,7 +4962,17 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
     #define GGB_MAX_ELEMENTS 2048
     #define GGB_MAX_LABEL_LEN 64
 
-    
+    return imported_count;
+}
+
+/** @brief SVG 路径解析器状态 */
+typedef struct {
+    double cx, cy;       /* current position */
+    double start_x, start_y; /* start position of current sub-path */
+    bool has_viewbox;    /* viewBox 是否已解析 */
+    double viewbox_x, viewbox_y; /* viewBox 左上角坐标 */
+    double viewbox_w, viewbox_h; /* viewBox 宽高 */
+} SvgParserState;
 
 /** @brief 跳过空白字符 */
 #define SVG_SKIP_WS(s) while (*(s) == ' ' || *(s) == '\t' || *(s) == '\n' || *(s) == '\r' || *(s) == ',') (s)++

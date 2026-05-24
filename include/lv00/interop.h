@@ -19,7 +19,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "constraint_graph.h"`n#include "proof.h"
+#include "constraint_graph.h"
+#include "proof.h"
 
 /* 前向声明 —— 避免引入 lv00.h 的 16+ 传递依赖 */
 struct LV00Engine;
@@ -277,7 +278,7 @@ int interop_execute_command(LV00Engine *engine,
  * @param config 导出配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_coq(const Proof *proof, const InteropExportConfig *config);
+int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *config);
 
 /**
  * @brief 导出证明到Lean格式
@@ -285,7 +286,7 @@ int interop_export_coq(const Proof *proof, const InteropExportConfig *config);
  * @param config 导出配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_lean(const Proof *proof, const InteropExportConfig *config);
+int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *config);
 
 /**
  * @brief 导出为独立HTML演示包

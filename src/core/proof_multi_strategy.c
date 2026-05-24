@@ -55,7 +55,7 @@ static bool area_method_applicability_check(
     /* 检查命题模式中是否包含 REGION 类型节点 */
     if (prop->pattern) {
         for (int i = 0; i < prop->pattern->node_count; i++) {
-            if (prop->pattern->nodes[i].type == GEOM_REGION) {
+            if (prop->pattern->nodes[i]->type == GEOM_REGION) {
                 return true;
             }
         }
@@ -103,12 +103,12 @@ static bool execute_direct_construction(
         /* 添加证明步骤 */
         ProofStep *step = proof_step_create(PROOF_STEP_UNIFY);
         if (step) {
-            step->color = (status == UNIFY_OK)
+            step->color = (status == UNIFY_STATUS_OK)
                 ? PROOF_COLOR_GREEN : PROOF_COLOR_YELLOW;
             proof_navigator_add_step(nav, step);
         }
 
-        success = (status == UNIFY_OK);
+        success = (status == UNIFY_STATUS_OK);
     }
 
     return success;
@@ -159,12 +159,12 @@ static bool execute_area_method(
 
         ProofStep *unify_step = proof_step_create(PROOF_STEP_UNIFY);
         if (unify_step) {
-            unify_step->color = (status == UNIFY_OK)
+            unify_step->color = (status == UNIFY_STATUS_OK)
                 ? PROOF_COLOR_GREEN : PROOF_COLOR_BLUE_UNEXPLORED;
             proof_navigator_add_step(nav, unify_step);
         }
 
-        return (status == UNIFY_OK);
+        return (status == UNIFY_STATUS_OK);
     }
 
     return false;

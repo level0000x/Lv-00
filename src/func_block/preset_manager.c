@@ -1873,8 +1873,14 @@ error:
  */
 bool preset_export_to_file(const char *name, const char *filepath)
 {
-    PRESET_CHECK_STRING(name, error);
-    PRESET_CHECK_STRING(filepath, error);
+    if (!name || name[0] == '\0') {
+        set_error("无效字符串: name");
+        return false;
+    }
+    if (!filepath || filepath[0] == '\0') {
+        set_error("无效字符串: filepath");
+        return false;
+    }
 
     /* 查找预设 */
     PresetEntryHandle entry = preset_find(name);
@@ -1914,10 +1920,6 @@ bool preset_export_to_file(const char *name, const char *filepath)
     }
 
     return true;
-}
-
-error:
-    return false;
 }
 
 /**
