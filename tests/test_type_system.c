@@ -12,16 +12,16 @@
  * - 非良基模式
  */
 
-#include "lv00.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00.h"
+
 /* ============== 测试：类型系统生命周期 ============== */
 
-static int test_type_system_lifecycle(void)
-{
+static int test_type_system_lifecycle(void) {
     printf("Test: type system lifecycle...\n");
 
     TypeSystem *ts = type_system_create();
@@ -39,8 +39,7 @@ static int test_type_system_lifecycle(void)
 
 /* ============== 测试：类型系统设置 ============== */
 
-static int test_type_system_settings(void)
-{
+static int test_type_system_settings(void) {
     printf("Test: type system settings...\n");
 
     TypeSystem *ts = type_system_create();
@@ -71,8 +70,7 @@ static int test_type_system_settings(void)
 
 /* ============== 测试：基本类型创建 ============== */
 
-static int test_basic_type_creation(void)
-{
+static int test_basic_type_creation(void) {
     printf("Test: basic type creation...\n");
 
     TypeSystem *ts = type_system_create();
@@ -108,8 +106,7 @@ static int test_basic_type_creation(void)
 
 /* ============== 测试：复合类型创建 ============== */
 
-static int test_composite_type_creation(void)
-{
+static int test_composite_type_creation(void) {
     printf("Test: composite type creation...\n");
 
     TypeSystem *ts = type_system_create();
@@ -148,8 +145,7 @@ static int test_composite_type_creation(void)
 
 /* ============== 测试：类型变量 ============== */
 
-static int test_type_variables(void)
-{
+static int test_type_variables(void) {
     printf("Test: type variables...\n");
 
     TypeSystem *ts = type_system_create();
@@ -179,8 +175,7 @@ static int test_type_variables(void)
 
 /* ============== 测试：依赖类型 ============== */
 
-static int test_dependent_types(void)
-{
+static int test_dependent_types(void) {
     printf("Test: dependent types...\n");
 
     TypeSystem *ts = type_system_create();
@@ -204,8 +199,7 @@ static int test_dependent_types(void)
 
 /* ============== 测试：底部类型 ============== */
 
-static int test_bottom_type(void)
-{
+static int test_bottom_type(void) {
     printf("Test: bottom type...\n");
 
     TypeSystem *ts = type_system_create();
@@ -223,8 +217,7 @@ static int test_bottom_type(void)
 
 /* ============== 测试：宇宙层级检查 ============== */
 
-static int test_universe_level(void)
-{
+static int test_universe_level(void) {
     printf("Test: universe level checking...\n");
 
     TypeSystem *ts = type_system_create();
@@ -258,8 +251,7 @@ static int test_universe_level(void)
 
 /* ============== 测试：累积性检查 ============== */
 
-static int test_cumulative_checking(void)
-{
+static int test_cumulative_checking(void) {
     printf("Test: cumulative checking...\n");
 
     TypeSystem *ts = type_system_create();
@@ -279,8 +271,7 @@ static int test_cumulative_checking(void)
 
 /* ============== 测试：类型等价检查 ============== */
 
-static int test_type_equivalence(void)
-{
+static int test_type_equivalence(void) {
     printf("Test: type equivalence...\n");
 
     TypeSystem *ts = type_system_create();
@@ -292,16 +283,12 @@ static int test_type_equivalence(void)
 
     /* 检查等价 */
     TypeEquivResult equiv = type_check_equivalence(ts, point1, point2, false);
-    printf("  两个点类型等价: %s\n", 
-           equiv == TYPE_EQUIV_OK ? "是" : 
-           equiv == TYPE_EQUIV_NOT_EQUIV ? "否" : "未知");
+    printf("  两个点类型等价: %s\n", equiv == TYPE_EQUIV_OK ? "是" : equiv == TYPE_EQUIV_NOT_EQUIV ? "否" : "未知");
 
     /* 创建不同类型 */
     TypeRegion *segment = type_create_line_segment(ts);
     TypeEquivResult equiv2 = type_check_equivalence(ts, point1, segment, false);
-    printf("  点与线段等价: %s\n",
-           equiv2 == TYPE_EQUIV_OK ? "是" :
-           equiv2 == TYPE_EQUIV_NOT_EQUIV ? "否" : "未知");
+    printf("  点与线段等价: %s\n", equiv2 == TYPE_EQUIV_OK ? "是" : equiv2 == TYPE_EQUIV_NOT_EQUIV ? "否" : "未知");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
@@ -310,8 +297,7 @@ static int test_type_equivalence(void)
 
 /* ============== 测试：类型推断 ============== */
 
-static int test_type_inference(void)
-{
+static int test_type_inference(void) {
     printf("Test: type inference...\n");
 
     TypeSystem *ts = type_system_create();
@@ -342,8 +328,7 @@ static int test_type_inference(void)
 
 /* ============== 测试：类型别名 ============== */
 
-static int test_type_alias(void)
-{
+static int test_type_alias(void) {
     printf("Test: type alias...\n");
 
     TypeSystem *ts = type_system_create();
@@ -366,8 +351,7 @@ static int test_type_alias(void)
 
 /* ============== 测试：类型变量实例化 ============== */
 
-static int test_type_instantiation(void)
-{
+static int test_type_instantiation(void) {
     printf("Test: type variable instantiation...\n");
 
     TypeSystem *ts = type_system_create();
@@ -391,8 +375,7 @@ static int test_type_instantiation(void)
 
 /* ============== 测试：非良基模式 ============== */
 
-static int test_non_well_founded(void)
-{
+static int test_non_well_founded(void) {
     printf("Test: non-well-founded mode...\n");
 
     TypeSystem *ts = type_system_create();
@@ -418,8 +401,7 @@ static int test_non_well_founded(void)
 
 /* ============== 测试：辅助函数 ============== */
 
-static int test_helper_functions(void)
-{
+static int test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 测试类型种类转字符串 */
@@ -459,8 +441,7 @@ static int test_helper_functions(void)
 
 /* ============== 测试：类型附加到节点 ============== */
 
-static int test_type_attach_to_node(void)
-{
+static int test_type_attach_to_node(void) {
     printf("Test: type attach to node...\n");
 
     TypeSystem *ts = type_system_create();
@@ -530,8 +511,7 @@ static int test_type_attach_to_node(void)
 
 /* ============== 测试：累积性层级检查 ============== */
 
-static int test_cumulative_level_check(void)
-{
+static int test_cumulative_level_check(void) {
     printf("Test: cumulative universe level check...\n");
 
     TypeSystem *ts = type_system_create();
@@ -571,8 +551,7 @@ static int test_cumulative_level_check(void)
     /* 第0层累积到第2层 */
     cumulative = type_check_cumulative(ts, point, func_type);
     assert(cumulative == true);
-    printf("  第0层累积到第%d层: %s\n", func_type->level,
-           cumulative ? "是" : "否");
+    printf("  第0层累积到第%d层: %s\n", func_type->level, cumulative ? "是" : "否");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
@@ -581,8 +560,7 @@ static int test_cumulative_level_check(void)
 
 /* ============== 测试：依赖类型检查 ============== */
 
-static int test_dependent_type_check(void)
-{
+static int test_dependent_type_check(void) {
     printf("Test: dependent type check...\n");
 
     TypeSystem *ts = type_system_create();
@@ -668,8 +646,7 @@ static int test_dependent_type_check(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Type System Test Suite ===\n\n");
 
     test_type_system_lifecycle();

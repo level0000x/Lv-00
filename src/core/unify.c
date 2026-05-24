@@ -68,6 +68,8 @@
  *   - stream.h              : 流式事件输出
  */
 
+#include "unify.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,13 +78,12 @@
 #include "constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
-#include "lv00_utils.h"       /* lv00_strdup_safe, lv00_malloc 等统一内存管理 */
+#include "lv00_utils.h" /* lv00_strdup_safe, lv00_malloc 等统一内存管理 */
 #include "normalization.h"
 #include "proof.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "type_system.h"
-#include "unify.h"
 
 LV00_DECLARE_STREAM_CTX(unify)
 
@@ -128,12 +129,14 @@ LV00_DECLARE_STREAM_CTX(unify)
  * @return 1 表示所有坐标均相等，0 表示存在差异或参数无效
  */
 static inline int coords_equal_by_type(GeomNode *a, GeomNode *b) {
-    if (!a || !b) return 0;
-    if (a->coord_count != b->coord_count) return 0;
+    if (!a || !b)
+        return 0;
+    if (a->coord_count != b->coord_count)
+        return 0;
     for (int c = 0; c < a->coord_count; c++) {
-        if (!a->symbolic_coords[c] || !b->symbolic_coords[c]) return 0;
-        if (symbolic_coord_compare(a->symbolic_coords[c],
-                                   b->symbolic_coords[c]) != 0) {
+        if (!a->symbolic_coords[c] || !b->symbolic_coords[c])
+            return 0;
+        if (symbolic_coord_compare(a->symbolic_coords[c], b->symbolic_coords[c]) != 0) {
             return 0;
         }
     }
@@ -141,50 +144,56 @@ static inline int coords_equal_by_type(GeomNode *a, GeomNode *b) {
 }
 
 static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
-    if (!a || !b) return 0;
-    if (a->type != b->type) return 0;
+    if (!a || !b)
+        return 0;
+    if (a->type != b->type)
+        return 0;
 
     switch (a->type) {
-    case GEOM_POINT:
-    case GEOM_PORT:
-    case GEOM_LINE_SEGMENT:
-        /* POINT / PORT / LINE_SEGMENT: 委托给内联辅助函数统一比较坐标 */
-        return coords_equal_by_type(a, b);
+        case GEOM_POINT:
+        case GEOM_PORT:
+        case GEOM_LINE_SEGMENT:
+            /* POINT / PORT / LINE_SEGMENT: 委托给内联辅助函数统一比较坐标 */
+            return coords_equal_by_type(a, b);
 
-    case GEOM_REGION:
-        /* REGION: 比较边界线段数量和每条线段的坐标哈希 */
-        if (a->data.region.segment_count != b->data.region.segment_count)
+        case GEOM_REGION:
+            /* REGION: 比较边界线段数量和每条线段的坐标哈希 */
+            if (a->data.region.segment_count != b->data.region.segment_count)
+                return 0;
+            if (a->data.region.segment_count == 0)
+                return 1; /* 两个空区域视为相等 */
+            /* 逐个比较边界线段 */
+            for (int s = 0; s < a->data.region.segment_count; s++) {
+                GeomNode *seg_a = a->data.region.boundary_segments[s];
+                GeomNode *seg_b = b->data.region.boundary_segments[s];
+                if (!seg_a || !seg_b)
+                    return 0;
+                if (seg_a->type != seg_b->type)
+                    return 0;
+                /* 比较线段的坐标：委托给内联辅助函数 */
+                if (!coords_equal_by_type(seg_a, seg_b))
+                    return 0;
+            }
+            return 1;
+
+        case GEOM_FUNCTION_BLOCK:
+            /* FUNCTION_BLOCK: 比较内部节点数量 */
+            if (a->data.func_block.internal_node_count != b->data.func_block.internal_node_count)
+                return 0;
+            /* 逐个比较内部节点的坐标 */
+            for (int n = 0; n < a->data.func_block.internal_node_count; n++) {
+                GeomNode *na = a->data.func_block.internal_nodes[n];
+                GeomNode *nb = b->data.func_block.internal_nodes[n];
+                if (!na || !nb)
+                    return 0;
+                /* 比较内部节点的坐标：委托给内联辅助函数 */
+                if (!coords_equal_by_type(na, nb))
+                    return 0;
+            }
+            return 1;
+
+        default:
             return 0;
-        if (a->data.region.segment_count == 0)
-            return 1; /* 两个空区域视为相等 */
-        /* 逐个比较边界线段 */
-        for (int s = 0; s < a->data.region.segment_count; s++) {
-            GeomNode *seg_a = a->data.region.boundary_segments[s];
-            GeomNode *seg_b = b->data.region.boundary_segments[s];
-            if (!seg_a || !seg_b) return 0;
-            if (seg_a->type != seg_b->type) return 0;
-            /* 比较线段的坐标：委托给内联辅助函数 */
-            if (!coords_equal_by_type(seg_a, seg_b)) return 0;
-        }
-        return 1;
-
-    case GEOM_FUNCTION_BLOCK:
-        /* FUNCTION_BLOCK: 比较内部节点数量 */
-        if (a->data.func_block.internal_node_count !=
-            b->data.func_block.internal_node_count)
-            return 0;
-        /* 逐个比较内部节点的坐标 */
-        for (int n = 0; n < a->data.func_block.internal_node_count; n++) {
-            GeomNode *na = a->data.func_block.internal_nodes[n];
-            GeomNode *nb = b->data.func_block.internal_nodes[n];
-            if (!na || !nb) return 0;
-            /* 比较内部节点的坐标：委托给内联辅助函数 */
-            if (!coords_equal_by_type(na, nb)) return 0;
-        }
-        return 1;
-
-    default:
-        return 0;
     }
 }
 
@@ -207,60 +216,60 @@ static uint64_t compute_node_coord_hash(GeomNode *node) {
     uint64_t h = 0;
 
     switch (node->type) {
-    case GEOM_POINT:
-    case GEOM_PORT:
-        for (int c = 0; c < node->coord_count; c++) {
-            if (node->symbolic_coords[c]) {
-                h ^= (uint64_t)symbolic_coord_hash(node->symbolic_coords[c]);
-            }
-        }
-        return h;
-
-    case GEOM_LINE_SEGMENT:
-        /* 混入类型标记以区分相同坐标但不同类型的节点 */
-        h ^= (uint64_t)0x5E5E5E5E5E5E5E5EULL;
-        for (int c = 0; c < node->coord_count; c++) {
-            if (node->symbolic_coords[c]) {
-                h ^= (uint64_t)symbolic_coord_hash(node->symbolic_coords[c]);
-            }
-        }
-        return h;
-
-    case GEOM_REGION:
-        /* 对所有边界线段的坐标计算哈希 */
-        h ^= (uint64_t)0x3A3A3A3A3A3A3A3AULL;
-        for (int s = 0; s < node->data.region.segment_count; s++) {
-            GeomNode *seg = node->data.region.boundary_segments[s];
-            if (seg) {
-                for (int c = 0; c < seg->coord_count; c++) {
-                    if (seg->symbolic_coords[c]) {
-                        h ^= (uint64_t)symbolic_coord_hash(seg->symbolic_coords[c]);
-                    }
+        case GEOM_POINT:
+        case GEOM_PORT:
+            for (int c = 0; c < node->coord_count; c++) {
+                if (node->symbolic_coords[c]) {
+                    h ^= (uint64_t) symbolic_coord_hash(node->symbolic_coords[c]);
                 }
-                /* 混入线段索引以区分不同线段 */
-                h ^= (uint64_t)(s + 1) * 0x9E3779B97F4A7C15ULL;
             }
-        }
-        return h;
+            return h;
 
-    case GEOM_FUNCTION_BLOCK:
-        /* 对所有内部节点的坐标计算哈希 */
-        h ^= (uint64_t)0x7B7B7B7B7B7B7B7BULL;
-        for (int n = 0; n < node->data.func_block.internal_node_count; n++) {
-            GeomNode *inner = node->data.func_block.internal_nodes[n];
-            if (inner) {
-                for (int c = 0; c < inner->coord_count; c++) {
-                    if (inner->symbolic_coords[c]) {
-                        h ^= (uint64_t)symbolic_coord_hash(inner->symbolic_coords[c]);
-                    }
+        case GEOM_LINE_SEGMENT:
+            /* 混入类型标记以区分相同坐标但不同类型的节点 */
+            h ^= (uint64_t) 0x5E5E5E5E5E5E5E5EULL;
+            for (int c = 0; c < node->coord_count; c++) {
+                if (node->symbolic_coords[c]) {
+                    h ^= (uint64_t) symbolic_coord_hash(node->symbolic_coords[c]);
                 }
-                h ^= (uint64_t)(n + 1) * 0x9E3779B97F4A7C15ULL;
             }
-        }
-        return h;
+            return h;
 
-    default:
-        return 0;
+        case GEOM_REGION:
+            /* 对所有边界线段的坐标计算哈希 */
+            h ^= (uint64_t) 0x3A3A3A3A3A3A3A3AULL;
+            for (int s = 0; s < node->data.region.segment_count; s++) {
+                GeomNode *seg = node->data.region.boundary_segments[s];
+                if (seg) {
+                    for (int c = 0; c < seg->coord_count; c++) {
+                        if (seg->symbolic_coords[c]) {
+                            h ^= (uint64_t) symbolic_coord_hash(seg->symbolic_coords[c]);
+                        }
+                    }
+                    /* 混入线段索引以区分不同线段 */
+                    h ^= (uint64_t) (s + 1) * 0x9E3779B97F4A7C15ULL;
+                }
+            }
+            return h;
+
+        case GEOM_FUNCTION_BLOCK:
+            /* 对所有内部节点的坐标计算哈希 */
+            h ^= (uint64_t) 0x7B7B7B7B7B7B7B7BULL;
+            for (int n = 0; n < node->data.func_block.internal_node_count; n++) {
+                GeomNode *inner = node->data.func_block.internal_nodes[n];
+                if (inner) {
+                    for (int c = 0; c < inner->coord_count; c++) {
+                        if (inner->symbolic_coords[c]) {
+                            h ^= (uint64_t) symbolic_coord_hash(inner->symbolic_coords[c]);
+                        }
+                    }
+                    h ^= (uint64_t) (n + 1) * 0x9E3779B97F4A7C15ULL;
+                }
+            }
+            return h;
+
+        default:
+            return 0;
     }
 }
 
@@ -286,29 +295,37 @@ static uint64_t compute_node_coord_hash(GeomNode *node) {
  * @return true  所有命题端口均找到匹配
  * @return false 存在无法匹配的命题端口（调用者负责清理资源）
  */
-static bool match_ports(const ConstraintGraph *construction,
-                        const ConstraintGraph *proposition,
-                        int *used_construction_ports,
-                        TypeSystem *ts)
-{
+static bool match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition,
+                        int *used_construction_ports, TypeSystem *ts) {
     for (int i = 0; i < proposition->node_count; i++) {
         GeomNode *pn = proposition->nodes[i];
-        if (pn->type != GEOM_PORT) continue;
+        if (pn->type != GEOM_PORT)
+            continue;
         Port *pp = pn->data.port;
         bool found_match = false;
         int cidx = 0;
         for (int j = 0; j < construction->node_count; j++) {
             GeomNode *cn = construction->nodes[j];
-            if (cn->type != GEOM_PORT) continue;
-            if (used_construction_ports[cidx]) { cidx++; continue; }
+            if (cn->type != GEOM_PORT)
+                continue;
+            if (used_construction_ports[cidx]) {
+                cidx++;
+                continue;
+            }
             Port *cp = cn->data.port;
-            if (pp->type != cp->type) { cidx++; continue; }
-            if (pp->namespace_depth != cp->namespace_depth) { cidx++; continue; }
+            if (pp->type != cp->type) {
+                cidx++;
+                continue;
+            }
+            if (pp->namespace_depth != cp->namespace_depth) {
+                cidx++;
+                continue;
+            }
             if (pp->type_region && cp->type_region && ts) {
-                TypeEquivResult equiv = type_check_equivalence(
-                    ts, pp->type_region, cp->type_region, false);
+                TypeEquivResult equiv = type_check_equivalence(ts, pp->type_region, cp->type_region, false);
                 if (equiv == TYPE_EQUIV_NOT_EQUIV) {
-                    cidx++; continue;
+                    cidx++;
+                    continue;
                 }
             }
             used_construction_ports[cidx] = 1;
@@ -328,14 +345,15 @@ static bool match_ports(const ConstraintGraph *construction,
 
 UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, ConstraintGraph *proposition) {
     if (unify_stream_ctx) {
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-            "合一检查开始", 0);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "合一检查开始", 0);
     }
     NormalizationResult *nc = graph_normalize(construction, true);
     NormalizationResult *np = graph_normalize(proposition, true);
     if (!nc || !np) {
-        if (nc) normalization_result_destroy(nc);
-        if (np) normalization_result_destroy(np);
+        if (nc)
+            normalization_result_destroy(nc);
+        if (np)
+            normalization_result_destroy(np);
         return UNIFY_STATUS_FAILED;
     }
     if (nc->merged_count != np->merged_count) {
@@ -346,7 +364,8 @@ UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, C
     /* 跟踪已匹配的构造端口，防止多对一匹配 */
     int construction_port_count = 0;
     for (int j = 0; j < construction->node_count; j++) {
-        if (construction->nodes[j]->type == GEOM_PORT) construction_port_count++;
+        if (construction->nodes[j]->type == GEOM_PORT)
+            construction_port_count++;
     }
     /* 【安全性修复】避免 lv00_calloc(0, sizeof(int)) 的实现定义行为。
      * C标准规定 calloc(0, N) 可能返回 NULL 或一个不可解引用的非NULL指针。
@@ -367,25 +386,28 @@ UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, C
     TypeSystem *ts = type_system_create();
 
     if (!match_ports(construction, proposition, used_construction_ports, ts)) {
-        lv00_free((void **)&used_construction_ports);
-        if (ts) type_system_destroy(ts);
+        lv00_free((void **) &used_construction_ports);
+        if (ts)
+            type_system_destroy(ts);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         if (unify_stream_ctx) {
-            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                "合一检查失败：端口类型不匹配", 0);
+            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "合一检查失败：端口类型不匹配", 0);
         }
         return UNIFY_STATUS_PORT_TYPE_MISMATCH;
     }
-    lv00_free((void **)&used_construction_ports);
-    if (ts) type_system_destroy(ts);
+    lv00_free((void **) &used_construction_ports);
+    if (ts)
+        type_system_destroy(ts);
     for (int i = 0; i < proposition->constraint_count; i++) {
         Constraint *pc = proposition->constraints[i];
         bool found_match = false;
         for (int j = 0; j < construction->constraint_count; j++) {
             Constraint *cc = construction->constraints[j];
-            if (pc->type != cc->type) continue;
-            if (pc->participant_count != cc->participant_count) continue;
+            if (pc->type != cc->type)
+                continue;
+            if (pc->participant_count != cc->participant_count)
+                continue;
             bool same = true;
             for (int k = 0; k < pc->participant_count; k++) {
                 if (pc->participants[k] != cc->participants[k]) {
@@ -402,8 +424,7 @@ UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, C
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
             if (unify_stream_ctx) {
-                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                "合一检查失败：约束不匹配", 0);
+                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "合一检查失败：约束不匹配", 0);
             }
             return UNIFY_STATUS_CONSTRAINT_MISMATCH;
         }
@@ -411,8 +432,7 @@ UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, C
     normalization_result_destroy(nc);
     normalization_result_destroy(np);
     if (unify_stream_ctx) {
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-            "合一检查成功", 0);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "合一检查成功", 0);
     }
     return UNIFY_STATUS_OK;
 }
@@ -448,8 +468,10 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
     NormalizationResult *nc = graph_normalize(construction, true);
     NormalizationResult *np = graph_normalize(proposition, true);
     if (!nc || !np) {
-        if (nc) normalization_result_destroy(nc);
-        if (np) normalization_result_destroy(np);
+        if (nc)
+            normalization_result_destroy(nc);
+        if (np)
+            normalization_result_destroy(np);
         return UNIFY_STATUS_FAILED;
     }
     if (nc->merged_count != np->merged_count) {
@@ -461,7 +483,8 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
     /* 跟踪已匹配的构造端口（防止多对一匹配） */
     int construction_port_count = 0;
     for (int j = 0; j < construction->node_count; j++) {
-        if (construction->nodes[j]->type == GEOM_PORT) construction_port_count++;
+        if (construction->nodes[j]->type == GEOM_PORT)
+            construction_port_count++;
     }
     int *used_construction_ports = lv00_calloc(construction_port_count > 0 ? construction_port_count : 1, sizeof(int));
     if (!used_construction_ports) {
@@ -475,14 +498,16 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
 
     /* 阶段B：端口类型匹配 —— 调用公共 match_ports() 辅助函数 */
     if (!match_ports(construction, proposition, used_construction_ports, ts)) {
-        lv00_free((void **)&used_construction_ports);
-        if (ts) type_system_destroy(ts);
+        lv00_free((void **) &used_construction_ports);
+        if (ts)
+            type_system_destroy(ts);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         return UNIFY_STATUS_PORT_TYPE_MISMATCH;
     }
-    lv00_free((void **)&used_construction_ports);
-    if (ts) type_system_destroy(ts);
+    lv00_free((void **) &used_construction_ports);
+    if (ts)
+        type_system_destroy(ts);
 
     /* 阶段C：约束匹配 + 坐标级别判等
      * 在归一化约束匹配成功后，验证所有参与节点的符号坐标相等 */
@@ -491,8 +516,10 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
         bool found_match = false;
         for (int j = 0; j < construction->constraint_count; j++) {
             Constraint *cc = construction->constraints[j];
-            if (pc->type != cc->type) continue;
-            if (pc->participant_count != cc->participant_count) continue;
+            if (pc->type != cc->type)
+                continue;
+            if (pc->participant_count != cc->participant_count)
+                continue;
             bool same = true;
             for (int k = 0; k < pc->participant_count; k++) {
                 if (pc->participants[k] != cc->participants[k]) {
@@ -500,7 +527,8 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
                     break;
                 }
             }
-            if (!same) continue;
+            if (!same)
+                continue;
 
             /* 坐标级别相等检查：验证对应参与者的符号坐标 */
             bool coords_ok = true;
@@ -510,15 +538,15 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
                 if (!nodes_coords_equal(p_node, c_node)) {
                     /* 如果两个节点都不是 POINT 类型或都没有坐标，
                      * 则跳过坐标检查（不视为不匹配） */
-                    if (p_node && c_node &&
-                        p_node->type == GEOM_POINT && c_node->type == GEOM_POINT &&
+                    if (p_node && c_node && p_node->type == GEOM_POINT && c_node->type == GEOM_POINT &&
                         p_node->coord_count > 0 && c_node->coord_count > 0) {
                         coords_ok = false;
                         break;
                     }
                 }
             }
-            if (!coords_ok) continue;
+            if (!coords_ok)
+                continue;
 
             found_match = true;
             break;
@@ -543,12 +571,15 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
  * 不必要的约束匹配次数。
  * ------------------------------------------------------------------------- */
 
-UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *construction, ConstraintGraph *proposition) {
+UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *construction,
+                                                              ConstraintGraph *proposition) {
     NormalizationResult *nc = graph_normalize(construction, true);
     NormalizationResult *np = graph_normalize(proposition, true);
     if (!nc || !np) {
-        if (nc) normalization_result_destroy(nc);
-        if (np) normalization_result_destroy(np);
+        if (nc)
+            normalization_result_destroy(nc);
+        if (np)
+            normalization_result_destroy(np);
         return UNIFY_STATUS_FAILED;
     }
     if (nc->merged_count != np->merged_count) {
@@ -558,7 +589,7 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
     }
 
     /* 计算命题图中所有节点的坐标哈希 */
-    uint64_t *prop_hashes = lv00_malloc((size_t)proposition->node_count * sizeof(uint64_t));
+    uint64_t *prop_hashes = lv00_malloc((size_t) proposition->node_count * sizeof(uint64_t));
     if (!prop_hashes) {
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
@@ -569,9 +600,9 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
     }
 
     /* 计算构造图中所有节点的坐标哈希 */
-    uint64_t *con_hashes = lv00_malloc((size_t)construction->node_count * sizeof(uint64_t));
+    uint64_t *con_hashes = lv00_malloc((size_t) construction->node_count * sizeof(uint64_t));
     if (!con_hashes) {
-        lv00_free((void **)&prop_hashes);
+        lv00_free((void **) &prop_hashes);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         return UNIFY_STATUS_FAILED;
@@ -581,10 +612,10 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
     }
 
     /* 防止多个命题端口匹配到同一个构造端口 */
-    bool *used_construction_ports = lv00_calloc((size_t)construction->node_count, sizeof(bool));
+    bool *used_construction_ports = lv00_calloc((size_t) construction->node_count, sizeof(bool));
     if (!used_construction_ports && construction->node_count > 0) {
-        lv00_free((void **)&prop_hashes);
-        lv00_free((void **)&con_hashes);
+        lv00_free((void **) &prop_hashes);
+        lv00_free((void **) &con_hashes);
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         return UNIFY_STATUS_FAILED;
@@ -596,15 +627,18 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
     /* 端口类型匹配（使用哈希预过滤：只比较相同哈希组的端口） */
     for (int i = 0; i < proposition->node_count; i++) {
         GeomNode *pn = proposition->nodes[i];
-        if (pn->type != GEOM_PORT) continue;
+        if (pn->type != GEOM_PORT)
+            continue;
         Port *pp = pn->data.port;
         bool found_match = false;
         for (int j = 0; j < construction->node_count; j++) {
             GeomNode *cn = construction->nodes[j];
-            if (cn->type != GEOM_PORT) continue;
+            if (cn->type != GEOM_PORT)
+                continue;
 
             /* 跳过已被其他命题端口匹配的构造端口，防止多对一 */
-            if (used_construction_ports[j]) continue;
+            if (used_construction_ports[j])
+                continue;
 
             Port *cp = cn->data.port;
 
@@ -612,20 +646,21 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
              * 端口节点的 coord_count=0，所以我们哈希端口属性
              *（类型 + namespace_depth）而不是坐标。 */
             {
-                uint64_t p_port_hash = ((uint64_t)pp->type << 32) |
-                                       ((uint64_t)pp->namespace_depth << 16);
-                uint64_t c_port_hash = ((uint64_t)cp->type << 32) |
-                                       ((uint64_t)cp->namespace_depth << 16);
-                if (p_port_hash != c_port_hash) continue;
+                uint64_t p_port_hash = ((uint64_t) pp->type << 32) | ((uint64_t) pp->namespace_depth << 16);
+                uint64_t c_port_hash = ((uint64_t) cp->type << 32) | ((uint64_t) cp->namespace_depth << 16);
+                if (p_port_hash != c_port_hash)
+                    continue;
             }
-            if (pp->type != cp->type) continue;
-            if (pp->namespace_depth != cp->namespace_depth) continue;
+            if (pp->type != cp->type)
+                continue;
+            if (pp->namespace_depth != cp->namespace_depth)
+                continue;
 
             /* 类型等价检查（TypeSystem） */
             if (pp->type_region && cp->type_region && ts) {
-                TypeEquivResult equiv = type_check_equivalence(
-                    ts, pp->type_region, cp->type_region, false);
-                if (equiv == TYPE_EQUIV_NOT_EQUIV) continue;
+                TypeEquivResult equiv = type_check_equivalence(ts, pp->type_region, cp->type_region, false);
+                if (equiv == TYPE_EQUIV_NOT_EQUIV)
+                    continue;
             }
 
             /* 匹配成功，标记该构造端口为已使用 */
@@ -634,17 +669,19 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
             break;
         }
         if (!found_match) {
-            lv00_free((void **)&used_construction_ports);
-            if (ts) type_system_destroy(ts);
-            lv00_free((void **)&prop_hashes);
-            lv00_free((void **)&con_hashes);
+            lv00_free((void **) &used_construction_ports);
+            if (ts)
+                type_system_destroy(ts);
+            lv00_free((void **) &prop_hashes);
+            lv00_free((void **) &con_hashes);
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
             return UNIFY_STATUS_PORT_TYPE_MISMATCH;
         }
     }
-    lv00_free((void **)&used_construction_ports);
-    if (ts) type_system_destroy(ts);
+    lv00_free((void **) &used_construction_ports);
+    if (ts)
+        type_system_destroy(ts);
 
     /* 约束匹配：使用哈希预过滤加速 */
     for (int i = 0; i < proposition->constraint_count; i++) {
@@ -662,8 +699,10 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
 
         for (int j = 0; j < construction->constraint_count; j++) {
             Constraint *cc = construction->constraints[j];
-            if (pc->type != cc->type) continue;
-            if (pc->participant_count != cc->participant_count) continue;
+            if (pc->type != cc->type)
+                continue;
+            if (pc->participant_count != cc->participant_count)
+                continue;
 
             /* 哈希预过滤：计算构造约束的哈希签名，
              * 如果签名不同则跳过详细比较 */
@@ -674,7 +713,8 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
                     c_sig ^= compute_node_coord_hash(c_node);
                 }
             }
-            if (p_sig != c_sig) continue;
+            if (p_sig != c_sig)
+                continue;
 
             /* 详细匹配：检查参与者 ID */
             bool same = true;
@@ -690,16 +730,16 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
             }
         }
         if (!found_match) {
-            lv00_free((void **)&prop_hashes);
-            lv00_free((void **)&con_hashes);
+            lv00_free((void **) &prop_hashes);
+            lv00_free((void **) &con_hashes);
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
             return UNIFY_STATUS_CONSTRAINT_MISMATCH;
         }
     }
 
-    lv00_free((void **)&prop_hashes);
-    lv00_free((void **)&con_hashes);
+    lv00_free((void **) &prop_hashes);
+    lv00_free((void **) &con_hashes);
     normalization_result_destroy(nc);
     normalization_result_destroy(np);
     return UNIFY_STATUS_OK;
@@ -710,23 +750,24 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
  * ------------------------------------------------------------------------- */
 
 SimpleProposition *simple_proposition_create(const char *name, int *input_port_ids, int input_count,
-                               int *output_port_ids, int output_count) {
+                                             int *output_port_ids, int output_count) {
     SimpleProposition *prop = lv00_malloc(sizeof(SimpleProposition));
-    if (!prop) return NULL;
+    if (!prop)
+        return NULL;
 
     /* 使用 lv00_strdup_safe 替代裸 strdup，统一内存管理，
      * 确保内存统计正确且避免混用标准 free 与 lv00_free。
      * 当 name 为 NULL 时，使用空字符串作为默认值。 */
     prop->name = name ? lv00_strdup_safe(name) : lv00_strdup_safe("");
     if (!prop->name) {
-        lv00_free((void **)&prop);
+        lv00_free((void **) &prop);
         return NULL;
     }
 
     prop->pattern = graph_create();
     if (!prop->pattern) {
-        lv00_free((void **)&prop->name);
-        lv00_free((void **)&prop);
+        lv00_free((void **) &prop->name);
+        lv00_free((void **) &prop);
         return NULL;
     }
 
@@ -734,18 +775,18 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
      * 当 count > 0 但对应数组为 NULL 时，视为参数错误，返回 NULL。 */
     if ((input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
         graph_destroy(prop->pattern);
-        lv00_free((void **)&prop->name);
-        lv00_free((void **)&prop);
+        lv00_free((void **) &prop->name);
+        lv00_free((void **) &prop);
         return NULL;
     }
 
-    prop->input_port_ids = input_count > 0 ? lv00_malloc((size_t)input_count * sizeof(int)) : NULL;
+    prop->input_port_ids = input_count > 0 ? lv00_malloc((size_t) input_count * sizeof(int)) : NULL;
     if (input_count > 0 && prop->input_port_ids) {
-        memcpy(prop->input_port_ids, input_port_ids, (size_t)input_count * sizeof(int));
+        memcpy(prop->input_port_ids, input_port_ids, (size_t) input_count * sizeof(int));
     }
-    prop->output_port_ids = output_count > 0 ? lv00_malloc((size_t)output_count * sizeof(int)) : NULL;
+    prop->output_port_ids = output_count > 0 ? lv00_malloc((size_t) output_count * sizeof(int)) : NULL;
     if (output_count > 0 && prop->output_port_ids) {
-        memcpy(prop->output_port_ids, output_port_ids, (size_t)output_count * sizeof(int));
+        memcpy(prop->output_port_ids, output_port_ids, (size_t) output_count * sizeof(int));
     }
     prop->input_count = input_count;
     prop->output_count = output_count;
@@ -754,17 +795,18 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
 
 void simple_proposition_destroy(SimpleProposition *prop) {
     if (prop) {
-        lv00_free((void **)&prop->name);
-        lv00_free((void **)&prop->input_port_ids);
-        lv00_free((void **)&prop->output_port_ids);
+        lv00_free((void **) &prop->name);
+        lv00_free((void **) &prop->input_port_ids);
+        lv00_free((void **) &prop->output_port_ids);
         graph_destroy(prop->pattern);
-        lv00_free((void **)&prop);
+        lv00_free((void **) &prop);
     }
 }
 
 SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *construction) {
     SimpleProof *proof = lv00_malloc(sizeof(SimpleProof));
-    if (!proof) return NULL;
+    if (!proof)
+        return NULL;
     proof->proposition = prop;
     proof->construction = construction;
     proof->normalized = false;
@@ -775,7 +817,7 @@ SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *const
 void simple_proof_destroy(SimpleProof *proof) {
     if (proof) {
         graph_destroy(proof->construction);
-        lv00_free((void **)&proof);
+        lv00_free((void **) &proof);
     }
 }
 
@@ -785,8 +827,7 @@ bool simple_proof_check(SimpleProof *proof) {
     }
 
     /* 层级1：基本构造-命题合一 */
-    UnifyStatus status = unify_construction_with_proposition(
-        proof->construction, proof->proposition->pattern);
+    UnifyStatus status = unify_construction_with_proposition(proof->construction, proof->proposition->pattern);
 
     if (status != UNIFY_STATUS_OK) {
         proof->passed = false;
@@ -796,8 +837,8 @@ bool simple_proof_check(SimpleProof *proof) {
     /* 层级2：坐标级别的等价验证。
      * 根据 design_v2.9.md Section 10.2：基本匹配通过后，
      * 验证坐标是否代数等价。 */
-    UnifyStatus coord_status = unify_construction_with_proposition_coord(
-        proof->construction, proof->proposition->pattern);
+    UnifyStatus coord_status =
+        unify_construction_with_proposition_coord(proof->construction, proof->proposition->pattern);
 
     proof->passed = (coord_status == UNIFY_STATUS_OK);
     return proof->passed;
@@ -817,7 +858,7 @@ void simple_proof_normalize(SimpleProof *proof) {
 
 void unify_failure_info_destroy(UnifyFailureInfo *info) {
     if (info) {
-        lv00_free((void **)&info->description);
+        lv00_free((void **) &info->description);
     }
 }
 
@@ -847,16 +888,16 @@ static void failure_info_init(UnifyFailureInfo *info) {
  * @param fmt            格式字符串
  * @param ...            可变参数
  */
-static void failure_info_set(UnifyFailureInfo *info, UnifyStatus status,
-                              int constraint_id, int node_id, int port_index,
-                              const char *fmt, ...) {
-    if (!info) return;
+static void failure_info_set(UnifyFailureInfo *info, UnifyStatus status, int constraint_id, int node_id, int port_index,
+                             const char *fmt, ...) {
+    if (!info)
+        return;
     info->status = status;
     info->failed_constraint_id = constraint_id;
     info->failed_node_id = node_id;
     info->failed_port_index = port_index;
     if (info->description) {
-        lv00_free((void **)&info->description);
+        lv00_free((void **) &info->description);
     }
     if (fmt) {
         va_list args;
@@ -864,34 +905,29 @@ static void failure_info_set(UnifyFailureInfo *info, UnifyStatus status,
         int len = vsnprintf(NULL, 0, fmt, args);
         va_end(args);
         if (len > 0) {
-            info->description = lv00_malloc((size_t)len + 1);
+            info->description = lv00_malloc((size_t) len + 1);
             if (info->description) {
                 va_start(args, fmt);
-                vsnprintf(info->description, (size_t)len + 1, fmt, args);
+                vsnprintf(info->description, (size_t) len + 1, fmt, args);
                 va_end(args);
             }
         }
     }
 }
 
-UnifyStatus unify_construction_with_proposition_detailed(
-    ConstraintGraph *construction,
-    ConstraintGraph *pattern,
-    UnifyFailureInfo *out_failure)
-{
-    if (out_failure) failure_info_init(out_failure);
+UnifyStatus unify_construction_with_proposition_detailed(ConstraintGraph *construction, ConstraintGraph *pattern,
+                                                         UnifyFailureInfo *out_failure) {
+    if (out_failure)
+        failure_info_init(out_failure);
 
     if (unify_stream_ctx) {
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-            "详细合一检查开始", 0);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "详细合一检查开始", 0);
     }
 
     if (!construction || !pattern) {
-        failure_info_set(out_failure, UNIFY_STATUS_FAILED, -1, -1, -1,
-            "NULL graph argument");
+        failure_info_set(out_failure, UNIFY_STATUS_FAILED, -1, -1, -1, "NULL graph argument");
         if (unify_stream_ctx) {
-            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                "详细合一检查失败：图参数为空", 0);
+            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "详细合一检查失败：图参数为空", 0);
         }
         return UNIFY_STATUS_FAILED;
     }
@@ -899,13 +935,13 @@ UnifyStatus unify_construction_with_proposition_detailed(
     NormalizationResult *nc = graph_normalize(construction, true);
     NormalizationResult *np = graph_normalize(pattern, true);
     if (!nc || !np) {
-        if (nc) normalization_result_destroy(nc);
-        if (np) normalization_result_destroy(np);
-        failure_info_set(out_failure, UNIFY_STATUS_FAILED, -1, -1, -1,
-            "Normalization failed");
+        if (nc)
+            normalization_result_destroy(nc);
+        if (np)
+            normalization_result_destroy(np);
+        failure_info_set(out_failure, UNIFY_STATUS_FAILED, -1, -1, -1, "Normalization failed");
         if (unify_stream_ctx) {
-            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                "详细合一检查失败：归一化失败", 0);
+            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "详细合一检查失败：归一化失败", 0);
         }
         return UNIFY_STATUS_FAILED;
     }
@@ -914,11 +950,10 @@ UnifyStatus unify_construction_with_proposition_detailed(
         normalization_result_destroy(nc);
         normalization_result_destroy(np);
         failure_info_set(out_failure, UNIFY_STATUS_COORD_MISMATCH, -1, -1, -1,
-            "Merged node count mismatch: construction has %d, pattern has %d",
-            nc->merged_count, np->merged_count);
+                         "Merged node count mismatch: construction has %d, pattern has %d", nc->merged_count,
+                         np->merged_count);
         if (unify_stream_ctx) {
-            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                "详细合一检查失败：合并节点数量不匹配", 0);
+            stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "详细合一检查失败：合并节点数量不匹配", 0);
         }
         return UNIFY_STATUS_COORD_MISMATCH;
     }
@@ -926,11 +961,11 @@ UnifyStatus unify_construction_with_proposition_detailed(
     /* 跟踪已匹配的 construction 端口 */
     int construction_port_count = 0;
     for (int j = 0; j < construction->node_count; j++) {
-        if (construction->nodes[j]->type == GEOM_PORT) construction_port_count++;
+        if (construction->nodes[j]->type == GEOM_PORT)
+            construction_port_count++;
     }
-    int *used_construction_ports = lv00_calloc(
-        construction_port_count > 0 ? (size_t)construction_port_count : 1,
-        sizeof(int));
+    int *used_construction_ports =
+        lv00_calloc(construction_port_count > 0 ? (size_t) construction_port_count : 1, sizeof(int));
 
     TypeSystem *ts = type_system_create();
 
@@ -938,22 +973,33 @@ UnifyStatus unify_construction_with_proposition_detailed(
     int prop_port_index = 0;
     for (int i = 0; i < pattern->node_count; i++) {
         GeomNode *pn = pattern->nodes[i];
-        if (pn->type != GEOM_PORT) continue;
+        if (pn->type != GEOM_PORT)
+            continue;
         Port *pp = pn->data.port;
         bool found_match = false;
         int cidx = 0;
         for (int j = 0; j < construction->node_count; j++) {
             GeomNode *cn = construction->nodes[j];
-            if (cn->type != GEOM_PORT) continue;
-            if (used_construction_ports[cidx]) { cidx++; continue; }
+            if (cn->type != GEOM_PORT)
+                continue;
+            if (used_construction_ports[cidx]) {
+                cidx++;
+                continue;
+            }
             Port *cp = cn->data.port;
-            if (pp->type != cp->type) { cidx++; continue; }
-            if (pp->namespace_depth != cp->namespace_depth) { cidx++; continue; }
+            if (pp->type != cp->type) {
+                cidx++;
+                continue;
+            }
+            if (pp->namespace_depth != cp->namespace_depth) {
+                cidx++;
+                continue;
+            }
             if (pp->type_region && cp->type_region && ts) {
-                TypeEquivResult equiv = type_check_equivalence(
-                    ts, pp->type_region, cp->type_region, false);
+                TypeEquivResult equiv = type_check_equivalence(ts, pp->type_region, cp->type_region, false);
                 if (equiv == TYPE_EQUIV_NOT_EQUIV) {
-                    cidx++; continue;
+                    cidx++;
+                    continue;
                 }
             }
             used_construction_ports[cidx] = 1;
@@ -961,25 +1007,25 @@ UnifyStatus unify_construction_with_proposition_detailed(
             break;
         }
         if (!found_match) {
-            lv00_free((void **)&used_construction_ports);
-            if (ts) type_system_destroy(ts);
+            lv00_free((void **) &used_construction_ports);
+            if (ts)
+                type_system_destroy(ts);
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
-            failure_info_set(out_failure, UNIFY_STATUS_PORT_TYPE_MISMATCH,
-                -1, pn->id, prop_port_index,
-                "No matching port in construction for pattern port %d "
-                "(type=%d, namespace_depth=%d)",
-                pn->id, (int)pp->type, pp->namespace_depth);
+            failure_info_set(out_failure, UNIFY_STATUS_PORT_TYPE_MISMATCH, -1, pn->id, prop_port_index,
+                             "No matching port in construction for pattern port %d "
+                             "(type=%d, namespace_depth=%d)",
+                             pn->id, (int) pp->type, pp->namespace_depth);
             if (unify_stream_ctx) {
-                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                    "详细合一检查失败：端口类型不匹配", 0);
+                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "详细合一检查失败：端口类型不匹配", 0);
             }
             return UNIFY_STATUS_PORT_TYPE_MISMATCH;
         }
         prop_port_index++;
     }
-    lv00_free((void **)&used_construction_ports);
-    if (ts) type_system_destroy(ts);
+    lv00_free((void **) &used_construction_ports);
+    if (ts)
+        type_system_destroy(ts);
 
     /* 约束匹配（带详细失败报告） */
     for (int i = 0; i < pattern->constraint_count; i++) {
@@ -987,8 +1033,10 @@ UnifyStatus unify_construction_with_proposition_detailed(
         bool found_match = false;
         for (int j = 0; j < construction->constraint_count; j++) {
             Constraint *cc = construction->constraints[j];
-            if (pc->type != cc->type) continue;
-            if (pc->participant_count != cc->participant_count) continue;
+            if (pc->type != cc->type)
+                continue;
+            if (pc->participant_count != cc->participant_count)
+                continue;
             bool same = true;
             for (int k = 0; k < pc->participant_count; k++) {
                 if (pc->participants[k] != cc->participants[k]) {
@@ -1004,14 +1052,12 @@ UnifyStatus unify_construction_with_proposition_detailed(
         if (!found_match) {
             normalization_result_destroy(nc);
             normalization_result_destroy(np);
-            failure_info_set(out_failure, UNIFY_STATUS_CONSTRAINT_MISMATCH,
-                pc->id, -1, -1,
-                "No matching constraint in construction for pattern "
-                "constraint %d (type=%d, participants=%d)",
-                pc->id, (int)pc->type, pc->participant_count);
+            failure_info_set(out_failure, UNIFY_STATUS_CONSTRAINT_MISMATCH, pc->id, -1, -1,
+                             "No matching constraint in construction for pattern "
+                             "constraint %d (type=%d, participants=%d)",
+                             pc->id, (int) pc->type, pc->participant_count);
             if (unify_stream_ctx) {
-                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                    "详细合一检查失败：约束不匹配", 0);
+                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "详细合一检查失败：约束不匹配", 0);
             }
             return UNIFY_STATUS_CONSTRAINT_MISMATCH;
         }
@@ -1020,8 +1066,7 @@ UnifyStatus unify_construction_with_proposition_detailed(
     normalization_result_destroy(nc);
     normalization_result_destroy(np);
     if (unify_stream_ctx) {
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-            "详细合一检查成功", 0);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "详细合一检查成功", 0);
     }
     return UNIFY_STATUS_OK;
 }
@@ -1036,11 +1081,7 @@ UnifyStatus unify_construction_with_proposition_detailed(
 static LV00_THREAD_LOCAL PropositionEquivalence g_equivalences[MAX_EQUIVALENCES];
 static LV00_THREAD_LOCAL int g_equivalence_count = 0;
 
-bool unify_declare_proposition_equivalence(
-    int prop_a_id,
-    int prop_b_id,
-    ConstraintGraph *transformation_rule)
-{
+bool unify_declare_proposition_equivalence(int prop_a_id, int prop_b_id, ConstraintGraph *transformation_rule) {
     if (g_equivalence_count >= MAX_EQUIVALENCES) {
         LOG_WARN("unify", "Proposition equivalence table full (max %d), cannot add more", MAX_EQUIVALENCES);
         return false;
@@ -1048,10 +1089,8 @@ bool unify_declare_proposition_equivalence(
 
     /* 检查是否已存在相同的等价声明 */
     for (int i = 0; i < g_equivalence_count; i++) {
-        if ((g_equivalences[i].prop_a_id == prop_a_id &&
-             g_equivalences[i].prop_b_id == prop_b_id) ||
-            (g_equivalences[i].prop_a_id == prop_b_id &&
-             g_equivalences[i].prop_b_id == prop_a_id)) {
+        if ((g_equivalences[i].prop_a_id == prop_a_id && g_equivalences[i].prop_b_id == prop_b_id) ||
+            (g_equivalences[i].prop_a_id == prop_b_id && g_equivalences[i].prop_b_id == prop_a_id)) {
             /* 已存在，更新变换规则 */
             if (g_equivalences[i].transformation) {
                 graph_destroy(g_equivalences[i].transformation);
@@ -1069,7 +1108,8 @@ bool unify_declare_proposition_equivalence(
 }
 
 int unify_find_equivalent_proposition(int prop_id, int *equivalent_ids, int max_count) {
-    if (!equivalent_ids || max_count <= 0) return 0;
+    if (!equivalent_ids || max_count <= 0)
+        return 0;
 
     int found = 0;
     for (int i = 0; i < g_equivalence_count && found < max_count; i++) {
@@ -1102,17 +1142,17 @@ void unify_clear_equivalences(void) {
  * 用于在深拷贝过程中建立旧ID到新ID的映射关系
  */
 typedef struct {
-    int old_id;     /**< 源图中的节点ID */
-    int new_id;     /**< 目标图中的节点ID */
+    int old_id; /**< 源图中的节点ID */
+    int new_id; /**< 目标图中的节点ID */
 } IdMappingEntry;
 
 /**
  * @brief ID映射表结构
  */
 typedef struct {
-    IdMappingEntry *entries;    /**< 映射条目数组 */
-    int count;                  /**< 当前条目数量 */
-    int capacity;               /**< 数组容量 */
+    IdMappingEntry *entries; /**< 映射条目数组 */
+    int count;               /**< 当前条目数量 */
+    int capacity;            /**< 数组容量 */
 } IdMappingTable;
 
 /**
@@ -1131,7 +1171,7 @@ typedef struct {
  * @return true 初始化成功，false 内存分配失败
  */
 static bool id_mapping_init(IdMappingTable *table, int initial_capacity) {
-    table->entries = (IdMappingEntry *)lv00_malloc((size_t)initial_capacity * sizeof(IdMappingEntry));
+    table->entries = (IdMappingEntry *) lv00_malloc((size_t) initial_capacity * sizeof(IdMappingEntry));
     if (!table->entries) {
         table->capacity = 0;
         table->count = 0;
@@ -1148,7 +1188,7 @@ static bool id_mapping_init(IdMappingTable *table, int initial_capacity) {
  */
 static void id_mapping_destroy(IdMappingTable *table) {
     if (table->entries) {
-        lv00_free((void **)&table->entries);
+        lv00_free((void **) &table->entries);
         table->entries = NULL;
     }
     table->count = 0;
@@ -1164,12 +1204,13 @@ static void id_mapping_destroy(IdMappingTable *table) {
  */
 static bool id_mapping_add(IdMappingTable *table, int old_id, int new_id) {
     /* 检查表是否已初始化（init 失败时 entries 为 NULL） */
-    if (!table->entries) return false;
+    if (!table->entries)
+        return false;
     if (table->count >= table->capacity) {
         int new_capacity = table->capacity * 2;
-        IdMappingEntry *new_entries = lv00_realloc(table->entries,
-                                              new_capacity * sizeof(IdMappingEntry));
-        if (!new_entries) return false;
+        IdMappingEntry *new_entries = lv00_realloc(table->entries, new_capacity * sizeof(IdMappingEntry));
+        if (!new_entries)
+            return false;
         table->entries = new_entries;
         table->capacity = new_capacity;
     }
@@ -1221,10 +1262,12 @@ static int id_mapping_find(const IdMappingTable *table, int old_id) {
  * @return 深拷贝后的约束图，失败返回NULL
  */
 static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
 
     ConstraintGraph *dst = graph_create();
-    if (!dst) return NULL;
+    if (!dst)
+        return NULL;
 
     /* 创建ID映射表 */
     IdMappingTable id_map;
@@ -1255,9 +1298,9 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 
         switch (src_node->type) {
             case GEOM_POINT: {
-                AddNodeResult r = graph_add_point(dst,
-                    src_node->symbolic_coords, src_node->coord_count);
-                if (r != ADD_NODE_OK) goto fail;
+                AddNodeResult r = graph_add_point(dst, src_node->symbolic_coords, src_node->coord_count);
+                if (r != ADD_NODE_OK)
+                    goto fail;
                 new_id = dst->nodes[dst->node_count - 1]->id;
                 break;
             }
@@ -1271,18 +1314,16 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
                     parent_id = src_node->data.port->parent_block_id;
                 }
                 AddNodeResult r = graph_add_port(dst, pt, ns_depth, parent_id);
-                if (r != ADD_NODE_OK) goto fail;
+                if (r != ADD_NODE_OK)
+                    goto fail;
                 new_id = dst->nodes[dst->node_count - 1]->id;
 
                 /* 复制端口属性到新节点 */
                 GeomNode *new_node = dst->nodes[dst->node_count - 1];
                 if (new_node && new_node->data.port && src_node->data.port) {
-                    new_node->data.port->is_formal_param =
-                        src_node->data.port->is_formal_param;
-                    new_node->data.port->is_polymorphic =
-                        src_node->data.port->is_polymorphic;
-                    new_node->data.port->type_region =
-                        src_node->data.port->type_region;
+                    new_node->data.port->is_formal_param = src_node->data.port->is_formal_param;
+                    new_node->data.port->is_polymorphic = src_node->data.port->is_polymorphic;
+                    new_node->data.port->type_region = src_node->data.port->type_region;
                     /* 注意：type_region 不做深拷贝，共享引用 */
                 }
                 break;
@@ -1296,7 +1337,8 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 
         /* 记录ID映射 */
         if (new_id >= 0) {
-            if (!id_mapping_add(&id_map, old_id, new_id)) goto fail;
+            if (!id_mapping_add(&id_map, old_id, new_id))
+                goto fail;
         }
     }
 
@@ -1309,7 +1351,8 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
      */
     for (int i = 0; i < src->node_count; i++) {
         GeomNode *src_node = src->nodes[i];
-        if (src_node->type != GEOM_LINE_SEGMENT) continue;
+        if (src_node->type != GEOM_LINE_SEGMENT)
+            continue;
 
         int old_id = src_node->id;
 
@@ -1319,10 +1362,12 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int endpoint1_old = -1, endpoint2_old = -1;
         if (src_node->coord_count >= 2) {
             /* 使用符号坐标哈希值作为临时ID（实际ID存储在节点中） */
-            endpoint1_old = (int)(src_node->symbolic_coords[0] ?
-                (symbolic_coord_hash(src_node->symbolic_coords[0]) & UNIFY_HASH_TO_ID_MASK) : -1);
-            endpoint2_old = (int)(src_node->symbolic_coords[1] ?
-                (symbolic_coord_hash(src_node->symbolic_coords[1]) & UNIFY_HASH_TO_ID_MASK) : -1);
+            endpoint1_old = (int) (src_node->symbolic_coords[0]
+                                       ? (symbolic_coord_hash(src_node->symbolic_coords[0]) & UNIFY_HASH_TO_ID_MASK)
+                                       : -1);
+            endpoint2_old = (int) (src_node->symbolic_coords[1]
+                                       ? (symbolic_coord_hash(src_node->symbolic_coords[1]) & UNIFY_HASH_TO_ID_MASK)
+                                       : -1);
         }
 
         /* 查找端点的新ID */
@@ -1330,14 +1375,18 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int endpoint2_new = id_mapping_find(&id_map, endpoint2_old);
 
         /* 如果找不到映射，使用-1（占位符） */
-        if (endpoint1_new < 0) endpoint1_new = -1;
-        if (endpoint2_new < 0) endpoint2_new = -1;
+        if (endpoint1_new < 0)
+            endpoint1_new = -1;
+        if (endpoint2_new < 0)
+            endpoint2_new = -1;
 
         AddNodeResult r = graph_add_line_segment(dst, endpoint1_new, endpoint2_new);
-        if (r != ADD_NODE_OK) goto fail;
+        if (r != ADD_NODE_OK)
+            goto fail;
 
         int new_id = dst->nodes[dst->node_count - 1]->id;
-        if (!id_mapping_add(&id_map, old_id, new_id)) goto fail;
+        if (!id_mapping_add(&id_map, old_id, new_id))
+            goto fail;
     }
 
     /*
@@ -1349,7 +1398,8 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
      */
     for (int i = 0; i < src->node_count; i++) {
         GeomNode *src_node = src->nodes[i];
-        if (src_node->type != GEOM_REGION) continue;
+        if (src_node->type != GEOM_REGION)
+            continue;
 
         int old_id = src_node->id;
 
@@ -1357,10 +1407,10 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         int *new_boundary_ids = NULL;
         int new_segment_count = 0;
 
-        if (src_node->data.region.boundary_segments &&
-            src_node->data.region.segment_count > 0) {
+        if (src_node->data.region.boundary_segments && src_node->data.region.segment_count > 0) {
             new_boundary_ids = lv00_malloc(src_node->data.region.segment_count * sizeof(int));
-            if (!new_boundary_ids) goto fail;
+            if (!new_boundary_ids)
+                goto fail;
 
             for (int j = 0; j < src_node->data.region.segment_count; j++) {
                 int old_seg_id = src_node->data.region.boundary_segments[j]->id;
@@ -1372,11 +1422,14 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         }
 
         AddNodeResult r = graph_add_region(dst, new_boundary_ids, new_segment_count);
-        if (new_boundary_ids) lv00_free((void **)&new_boundary_ids);
-        if (r != ADD_NODE_OK) goto fail;
+        if (new_boundary_ids)
+            lv00_free((void **) &new_boundary_ids);
+        if (r != ADD_NODE_OK)
+            goto fail;
 
         int new_id = dst->nodes[dst->node_count - 1]->id;
-        if (!id_mapping_add(&id_map, old_id, new_id)) goto fail;
+        if (!id_mapping_add(&id_map, old_id, new_id))
+            goto fail;
     }
 
     /*
@@ -1391,17 +1444,18 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
      */
     for (int i = 0; i < src->node_count; i++) {
         GeomNode *src_node = src->nodes[i];
-        if (src_node->type != GEOM_FUNCTION_BLOCK) continue;
+        if (src_node->type != GEOM_FUNCTION_BLOCK)
+            continue;
 
         int old_id = src_node->id;
 
         /* 转换内部节点ID */
         int *new_internal_ids = NULL;
         int new_internal_count = 0;
-        if (src_node->data.func_block.internal_nodes &&
-            src_node->data.func_block.internal_node_count > 0) {
+        if (src_node->data.func_block.internal_nodes && src_node->data.func_block.internal_node_count > 0) {
             new_internal_ids = lv00_malloc(src_node->data.func_block.internal_node_count * sizeof(int));
-            if (!new_internal_ids) goto fail;
+            if (!new_internal_ids)
+                goto fail;
 
             for (int j = 0; j < src_node->data.func_block.internal_node_count; j++) {
                 int old_internal_id = src_node->data.func_block.internal_nodes[j]->id;
@@ -1415,11 +1469,10 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         /* 转换端口ID */
         int *new_input_ids = NULL;
         int new_input_count = 0;
-        if (src_node->data.func_block.input_port_ids &&
-            src_node->data.func_block.input_count > 0) {
+        if (src_node->data.func_block.input_port_ids && src_node->data.func_block.input_count > 0) {
             new_input_ids = lv00_malloc(src_node->data.func_block.input_count * sizeof(int));
             if (!new_input_ids) {
-                lv00_free((void **)&new_internal_ids);
+                lv00_free((void **) &new_internal_ids);
                 goto fail;
             }
             for (int j = 0; j < src_node->data.func_block.input_count; j++) {
@@ -1433,12 +1486,11 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 
         int *new_output_ids = NULL;
         int new_output_count = 0;
-        if (src_node->data.func_block.output_port_ids &&
-            src_node->data.func_block.output_count > 0) {
+        if (src_node->data.func_block.output_port_ids && src_node->data.func_block.output_count > 0) {
             new_output_ids = lv00_malloc(src_node->data.func_block.output_count * sizeof(int));
             if (!new_output_ids) {
-                lv00_free((void **)&new_internal_ids);
-                lv00_free((void **)&new_input_ids);
+                lv00_free((void **) &new_internal_ids);
+                lv00_free((void **) &new_input_ids);
                 goto fail;
             }
             for (int j = 0; j < src_node->data.func_block.output_count; j++) {
@@ -1450,26 +1502,25 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
             }
         }
 
-        AddNodeResult r = graph_add_function_block(dst,
-            new_internal_ids, new_internal_count,
-            new_input_ids, new_input_count,
-            new_output_ids, new_output_count);
+        AddNodeResult r = graph_add_function_block(dst, new_internal_ids, new_internal_count, new_input_ids,
+                                                   new_input_count, new_output_ids, new_output_count);
 
-        lv00_free((void **)&new_internal_ids);
-        lv00_free((void **)&new_input_ids);
-        lv00_free((void **)&new_output_ids);
+        lv00_free((void **) &new_internal_ids);
+        lv00_free((void **) &new_input_ids);
+        lv00_free((void **) &new_output_ids);
 
-        if (r != ADD_NODE_OK) goto fail;
+        if (r != ADD_NODE_OK)
+            goto fail;
 
         /* 复制确定性状态 */
         GeomNode *new_node = dst->nodes[dst->node_count - 1];
         if (new_node && new_node->type == GEOM_FUNCTION_BLOCK) {
-            new_node->data.func_block.determinism_state =
-                src_node->data.func_block.determinism_state;
+            new_node->data.func_block.determinism_state = src_node->data.func_block.determinism_state;
         }
 
         int new_id = new_node->id;
-        if (!id_mapping_add(&id_map, old_id, new_id)) goto fail;
+        if (!id_mapping_add(&id_map, old_id, new_id))
+            goto fail;
     }
 
     /*
@@ -1489,7 +1540,8 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
 
         /* 转换约束中的参与者ID */
         int *new_participants = lv00_malloc(sc->participant_count * sizeof(int));
-        if (!new_participants) goto fail;
+        if (!new_participants)
+            goto fail;
         int new_participant_count = 0;
 
         for (int j = 0; j < sc->participant_count; j++) {
@@ -1505,42 +1557,45 @@ static ConstraintGraph *deep_copy_graph(const ConstraintGraph *src) {
         switch (sc->type) {
             case INCIDENCE:
                 if (new_participant_count >= 2) {
-                    r = graph_add_incidence(dst,
-                        new_participants[0], new_participants[1]);
-                } else { r = ADD_CONSTRAINT_CONFLICT; }
+                    r = graph_add_incidence(dst, new_participants[0], new_participants[1]);
+                } else {
+                    r = ADD_CONSTRAINT_CONFLICT;
+                }
                 break;
             case BETWEENNESS:
                 if (new_participant_count >= 3) {
-                    r = graph_add_betweenness(dst,
-                        new_participants[0], new_participants[1],
-                        new_participants[2]);
-                } else { r = ADD_CONSTRAINT_CONFLICT; }
+                    r = graph_add_betweenness(dst, new_participants[0], new_participants[1], new_participants[2]);
+                } else {
+                    r = ADD_CONSTRAINT_CONFLICT;
+                }
                 break;
             case INTERSECTION:
                 if (new_participant_count >= 3) {
-                    r = graph_add_intersection(dst,
-                        new_participants[0], new_participants[1],
-                        new_participants[2]);
-                } else { r = ADD_CONSTRAINT_CONFLICT; }
+                    r = graph_add_intersection(dst, new_participants[0], new_participants[1], new_participants[2]);
+                } else {
+                    r = ADD_CONSTRAINT_CONFLICT;
+                }
                 break;
             case CONTAINMENT:
                 if (new_participant_count >= 2) {
-                    r = graph_add_containment(dst,
-                        new_participants[0], new_participants[1]);
-                } else { r = ADD_CONSTRAINT_CONFLICT; }
+                    r = graph_add_containment(dst, new_participants[0], new_participants[1]);
+                } else {
+                    r = ADD_CONSTRAINT_CONFLICT;
+                }
                 break;
             case CONNECTION:
                 if (new_participant_count >= 2) {
-                    r = graph_add_connection(dst,
-                        new_participants[0], new_participants[1]);
-                } else { r = ADD_CONSTRAINT_CONFLICT; }
+                    r = graph_add_connection(dst, new_participants[0], new_participants[1]);
+                } else {
+                    r = ADD_CONSTRAINT_CONFLICT;
+                }
                 break;
             default:
                 r = ADD_CONSTRAINT_CONFLICT;
                 break;
         }
-        (void)r; /* 约束添加失败不视为致命错误 */
-        lv00_free((void **)&new_participants);
+        (void) r; /* 约束添加失败不视为致命错误 */
+        lv00_free((void **) &new_participants);
     }
 
     /* 清理ID映射表 */
@@ -1596,19 +1651,17 @@ fail:
  * @param out_instantiated 输出：实例化后的命题图（调用者获得所有权）
  * @return true 表示实例化成功，false 表示失败（参数无效或内存不足）
  */
-bool unify_instantiate_proposition(
-    ConstraintGraph *proposition,
-    int type_var_node_id,
-    const TypeRegion *concrete_type,
-    ConstraintGraph **out_instantiated)
-{
-    if (!proposition || !concrete_type || !out_instantiated) return false;
+bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_node_id, const TypeRegion *concrete_type,
+                                   ConstraintGraph **out_instantiated) {
+    if (!proposition || !concrete_type || !out_instantiated)
+        return false;
 
     *out_instantiated = NULL;
 
     /* 深拷贝命题图 */
     ConstraintGraph *inst = deep_copy_graph(proposition);
-    if (!inst) return false;
+    if (!inst)
+        return false;
 
     /* 查找类型变量节点 */
     GeomNode *type_var_node = NULL;
@@ -1619,8 +1672,7 @@ bool unify_instantiate_proposition(
         }
     }
 
-    if (type_var_node && type_var_node->type == GEOM_PORT &&
-        type_var_node->data.port) {
+    if (type_var_node && type_var_node->type == GEOM_PORT && type_var_node->data.port) {
         /*
          * 【类型区域赋值 —— 引用语义安全性说明】
          *
@@ -1661,19 +1713,20 @@ bool unify_instantiate_proposition(
          *      生命周期内有效（详见函数头部的生命周期管理规则文档）。
          *    - 调试模式断言：以下检查在调试模式下警告调用者注意生命周期：
           */
-         if (debug_is_debug_mode()) {
-             if (!concrete_type->alias_name && !concrete_type->variable_name &&
-                 concrete_type->kind == 0 && concrete_type->level == 0) {
-                 /* 如果 concrete_type 的所有可识别字段均为零/空，可能是已被销毁
+        if (debug_is_debug_mode()) {
+            if (!concrete_type->alias_name && !concrete_type->variable_name && concrete_type->kind == 0 &&
+                concrete_type->level == 0) {
+                /* 如果 concrete_type 的所有可识别字段均为零/空，可能是已被销毁
                   * 或未初始化的对象。仅在调试模式下记录警告，不中断执行，
                   * 因为某些合法的类型区域可能确实全部为零值。 */
-                 debug_log(LOG_LEVEL_WARN, "unify",
-                     "unify_instantiate_proposition: concrete_type at %p appears "
-                     "to be zero-initialized or destroyed — possible dangling pointer "
-                     "risk for node %d", (const void *)concrete_type, type_var_node_id);
-             }
-         }
-        type_var_node->data.port->type_region = (TypeRegion *)concrete_type;
+                debug_log(LOG_LEVEL_WARN, "unify",
+                          "unify_instantiate_proposition: concrete_type at %p appears "
+                          "to be zero-initialized or destroyed — possible dangling pointer "
+                          "risk for node %d",
+                          (const void *) concrete_type, type_var_node_id);
+            }
+        }
+        type_var_node->data.port->type_region = (TypeRegion *) concrete_type;
         type_var_node->data.port->is_polymorphic = false;
     }
 
@@ -1700,26 +1753,25 @@ bool unify_instantiate_proposition(
  * 流式输出: 匹配每对端口时发出 PROOF_UNIFY 事件，
  * 包含端口类型和命名空间深度的 JSON 详细信息。
  */
-int unify_match_ports(const ConstraintGraph *construction,
-                       const ConstraintGraph *proposition,
-                       int *out_port_bindings)
-{
-    if (!construction || !proposition) return -1;
+int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition, int *out_port_bindings) {
+    if (!construction || !proposition)
+        return -1;
 
     if (unify_stream_ctx) {
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-            "精细端口匹配开始", 0);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "精细端口匹配开始", 0);
     }
 
     /* 统计命题端口节点数量 */
     int prop_port_count = 0;
     for (int i = 0; i < proposition->node_count; i++) {
-        if (proposition->nodes[i]->type == GEOM_PORT) prop_port_count++;
+        if (proposition->nodes[i]->type == GEOM_PORT)
+            prop_port_count++;
     }
 
     /* 跟踪已匹配的构造端口 */
-    bool *used = lv00_calloc((size_t)construction->node_count, sizeof(bool));
-    if (!used && construction->node_count > 0) return -1;
+    bool *used = lv00_calloc((size_t) construction->node_count, sizeof(bool));
+    if (!used && construction->node_count > 0)
+        return -1;
 
     /* 创建 TypeSystem 用于端口类型等价检查 */
     TypeSystem *ts = type_system_create();
@@ -1728,27 +1780,34 @@ int unify_match_ports(const ConstraintGraph *construction,
 
     for (int i = 0; i < proposition->node_count; i++) {
         GeomNode *pn = proposition->nodes[i];
-        if (pn->type != GEOM_PORT) continue;
+        if (pn->type != GEOM_PORT)
+            continue;
         Port *pp = pn->data.port;
-        if (!pp) continue;
+        if (!pp)
+            continue;
 
         bool found = false;
         for (int j = 0; j < construction->node_count; j++) {
             GeomNode *cn = construction->nodes[j];
-            if (cn->type != GEOM_PORT) continue;
-            if (used[j]) continue;
+            if (cn->type != GEOM_PORT)
+                continue;
+            if (used[j])
+                continue;
             Port *cp = cn->data.port;
-            if (!cp) continue;
+            if (!cp)
+                continue;
 
             /* 类型和命名空间深度匹配 */
-            if (pp->type != cp->type) continue;
-            if (pp->namespace_depth != cp->namespace_depth) continue;
+            if (pp->type != cp->type)
+                continue;
+            if (pp->namespace_depth != cp->namespace_depth)
+                continue;
 
             /* TypeSystem 等价检查 */
             if (pp->type_region && cp->type_region && ts) {
-                TypeEquivResult equiv = type_check_equivalence(
-                    ts, pp->type_region, cp->type_region, false);
-                if (equiv == TYPE_EQUIV_NOT_EQUIV) continue;
+                TypeEquivResult equiv = type_check_equivalence(ts, pp->type_region, cp->type_region, false);
+                if (equiv == TYPE_EQUIV_NOT_EQUIV)
+                    continue;
             }
 
             /* 找到匹配 */
@@ -1774,7 +1833,7 @@ int unify_match_ports(const ConstraintGraph *construction,
                 snprintf(detail, sizeof(detail),
                          "{\"prop_port_id\":%d,\"const_port_id\":%d,"
                          "\"port_type\":%d,\"namespace_depth\":%d}",
-                         pn->id, cn->id, (int)pp->type, pp->namespace_depth);
+                         pn->id, cn->id, (int) pp->type, pp->namespace_depth);
                 ev.detail_json = detail;
                 stream_emit(unify_stream_ctx, &ev);
             }
@@ -1783,22 +1842,22 @@ int unify_match_ports(const ConstraintGraph *construction,
 
         if (!found) {
             /* 此命题端口没有匹配的 construction 端口 */
-            lv00_free((void **)&used);
-            if (ts) type_system_destroy(ts);
+            lv00_free((void **) &used);
+            if (ts)
+                type_system_destroy(ts);
             if (unify_stream_ctx) {
                 char msg[128];
-                snprintf(msg, sizeof(msg),
-                         "端口匹配失败: 命题端口 %d (type=%d) 无对应构造端口",
-                         pn->id, pp ? (int)pp->type : -1);
-                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                    msg, match_count);
+                snprintf(msg, sizeof(msg), "端口匹配失败: 命题端口 %d (type=%d) 无对应构造端口", pn->id,
+                         pp ? (int) pp->type : -1);
+                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, match_count);
             }
             return -1;
         }
     }
 
-    lv00_free((void **)&used);
-    if (ts) type_system_destroy(ts);
+    lv00_free((void **) &used);
+    if (ts)
+        type_system_destroy(ts);
 
     if (unify_stream_ctx) {
         char msg[128];
@@ -1817,37 +1876,40 @@ int unify_match_ports(const ConstraintGraph *construction,
  *
  * 流式输出: 匹配每对约束时发出 PROOF_UNIFY 事件。
  */
-int unify_match_constraints(const ConstraintGraph *construction,
-                             const ConstraintGraph *proposition,
-                             int *out_constraint_bindings)
-{
-    if (!construction || !proposition) return -1;
+int unify_match_constraints(const ConstraintGraph *construction, const ConstraintGraph *proposition,
+                            int *out_constraint_bindings) {
+    if (!construction || !proposition)
+        return -1;
 
     if (unify_stream_ctx) {
-        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-            "精细约束匹配开始", 0);
+        stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "精细约束匹配开始", 0);
     }
 
     int match_count = 0;
 
     /* 跟踪已匹配的构造约束 */
-    bool *used = lv00_calloc((size_t)construction->constraint_count, sizeof(bool));
-    if (!used && construction->constraint_count > 0) return -1;
+    bool *used = lv00_calloc((size_t) construction->constraint_count, sizeof(bool));
+    if (!used && construction->constraint_count > 0)
+        return -1;
 
     for (int i = 0; i < proposition->constraint_count; i++) {
         const Constraint *pc = proposition->constraints[i];
-        if (!pc) continue;
+        if (!pc)
+            continue;
 
         bool found = false;
         for (int j = 0; j < construction->constraint_count; j++) {
             const Constraint *cc = construction->constraints[j];
-            if (!cc || used[j]) continue;
+            if (!cc || used[j])
+                continue;
 
             /* 约束类型必须匹配 */
-            if (pc->type != cc->type) continue;
+            if (pc->type != cc->type)
+                continue;
 
             /* 参与者数量必须匹配 */
-            if (pc->participant_count != cc->participant_count) continue;
+            if (pc->participant_count != cc->participant_count)
+                continue;
 
             /* 检查参与者 ID */
             bool same = true;
@@ -1880,7 +1942,7 @@ int unify_match_constraints(const ConstraintGraph *construction,
                     snprintf(detail, sizeof(detail),
                              "{\"prop_constraint_id\":%d,\"const_constraint_id\":%d,"
                              "\"type\":%d,\"participants\":%d}",
-                             pc->id, cc->id, (int)pc->type, pc->participant_count);
+                             pc->id, cc->id, (int) pc->type, pc->participant_count);
                     ev.detail_json = detail;
                     stream_emit(unify_stream_ctx, &ev);
                 }
@@ -1889,20 +1951,18 @@ int unify_match_constraints(const ConstraintGraph *construction,
         }
 
         if (!found) {
-            lv00_free((void **)&used);
+            lv00_free((void **) &used);
             if (unify_stream_ctx) {
                 char msg[128];
-                snprintf(msg, sizeof(msg),
-                         "约束匹配失败: 命题约束 %d (type=%d) 无对应构造约束",
-                         pc->id, (int)pc->type);
-                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY,
-                    msg, match_count);
+                snprintf(msg, sizeof(msg), "约束匹配失败: 命题约束 %d (type=%d) 无对应构造约束", pc->id,
+                         (int) pc->type);
+                stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, match_count);
             }
             return -1;
         }
     }
 
-    lv00_free((void **)&used); /* 使用 lv00_calloc/lv00_free 统一内存管理 */
+    lv00_free((void **) &used); /* 使用 lv00_calloc/lv00_free 统一内存管理 */
 
     if (unify_stream_ctx) {
         char msg[128];
@@ -1923,10 +1983,11 @@ int unify_match_constraints(const ConstraintGraph *construction,
  *
  * 流式输出: 仅在结果不相等时发出 PROOF_UNIFY 事件（含详细差异信息）。
  */
-int unify_match_coords(const SymbolicCoord *c1, const SymbolicCoord *c2)
-{
-    if (!c1 && !c2) return 0;     /* 两者均为 NULL 视为相等 */
-    if (!c1 || !c2) return -1;    /* 仅一个为 NULL：不相等 */
+int unify_match_coords(const SymbolicCoord *c1, const SymbolicCoord *c2) {
+    if (!c1 && !c2)
+        return 0; /* 两者均为 NULL 视为相等 */
+    if (!c1 || !c2)
+        return -1; /* 仅一个为 NULL：不相等 */
 
     int result = symbolic_coord_compare(c1, c2);
 
@@ -1934,12 +1995,10 @@ int unify_match_coords(const SymbolicCoord *c1, const SymbolicCoord *c2)
         char *s1 = symbolic_coord_serialize(c1);
         char *s2 = symbolic_coord_serialize(c2);
         char msg[256];
-        snprintf(msg, sizeof(msg),
-                 "坐标不相等: \"%s\" vs \"%s\"",
-                 s1 ? s1 : "(null)", s2 ? s2 : "(null)");
+        snprintf(msg, sizeof(msg), "坐标不相等: \"%s\" vs \"%s\"", s1 ? s1 : "(null)", s2 ? s2 : "(null)");
         stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, msg, 0);
-        lv00_free((void **)&s1);
-        lv00_free((void **)&s2);
+        lv00_free((void **) &s1);
+        lv00_free((void **) &s2);
     }
 
     return result;

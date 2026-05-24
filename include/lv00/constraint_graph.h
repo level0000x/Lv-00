@@ -13,12 +13,13 @@
 extern "C" {
 #endif
 
-#include "symbolic_coord.h"
-#include "stream.h"
-#include "error_codes.h"
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+
+#include "error_codes.h"
+#include "stream.h"
+#include "symbolic_coord.h"
 
 /* LV00_DEPRECATED 宏统一由 lv00.h 定义，此处不再重复声明。 */
 
@@ -31,11 +32,11 @@ typedef struct TypeRegion TypeRegion;
  * 标识约束图中节点的几何类型，决定了节点的数据字段和可用的操作。
  */
 typedef enum {
-    GEOM_POINT,            /* 几何点：零维对象，用符号坐标表示位置 */
-    GEOM_LINE_SEGMENT,     /* 线段：一维对象，由两个端点定义 */
-    GEOM_REGION,           /* 区域：二维对象，由边界线段围成的封闭区域 */
-    GEOM_PORT,             /* 端口：函数块的输入/输出接口，支持多态类型 */
-    GEOM_FUNCTION_BLOCK    /* 函数块：封装的几何构造单元，含内部节点和端口 */
+    GEOM_POINT,         /* 几何点：零维对象，用符号坐标表示位置 */
+    GEOM_LINE_SEGMENT,  /* 线段：一维对象，由两个端点定义 */
+    GEOM_REGION,        /* 区域：二维对象，由边界线段围成的封闭区域 */
+    GEOM_PORT,          /* 端口：函数块的输入/输出接口，支持多态类型 */
+    GEOM_FUNCTION_BLOCK /* 函数块：封装的几何构造单元，含内部节点和端口 */
 } GeomType;
 
 /**
@@ -44,8 +45,8 @@ typedef enum {
  * 标识端口是函数块的输入还是输出。
  */
 typedef enum {
-    PORT_INPUT,            /* 输入端口：接收外部数据 */
-    PORT_OUTPUT            /* 输出端口：输出计算结果 */
+    PORT_INPUT, /* 输入端口：接收外部数据 */
+    PORT_OUTPUT /* 输出端口：输出计算结果 */
 } PortType;
 
 /**
@@ -55,11 +56,11 @@ typedef enum {
  * 约束是 Lv-00 系统的核心概念，用于表达几何构造的规则和条件。
  */
 typedef enum {
-    INCIDENCE,             /* 关联约束：点在线段上（点属于线段） */
-    BETWEENNESS,           /* 之间约束：点B在点A和点C之间（共线有序） */
-    INTERSECTION,          /* 相交约束：两个几何对象在某点相交 */
-    CONTAINMENT,           /* 包含约束：一个对象完全包含在另一个对象内 */
-    CONNECTION             /* 连接约束：端口之间的数据流连接 */
+    INCIDENCE,    /* 关联约束：点在线段上（点属于线段） */
+    BETWEENNESS,  /* 之间约束：点B在点A和点C之间（共线有序） */
+    INTERSECTION, /* 相交约束：两个几何对象在某点相交 */
+    CONTAINMENT,  /* 包含约束：一个对象完全包含在另一个对象内 */
+    CONNECTION    /* 连接约束：端口之间的数据流连接 */
 } ConstraintType;
 
 typedef struct GeomNode GeomNode;
@@ -73,8 +74,8 @@ struct Port {
     int namespace_depth;
     int parent_block_id;
     bool is_formal_param;
-    bool is_polymorphic;       /* 是否为多态端口（如爆炸原理的输出） */
-    TypeRegion *type_region;   /* 端口类型区域（多态实例化后设置） */
+    bool is_polymorphic;     /* 是否为多态端口（如爆炸原理的输出） */
+    TypeRegion *type_region; /* 端口类型区域（多态实例化后设置） */
     GeomNode *connected_to;
 };
 
@@ -92,25 +93,25 @@ struct GeomNode {
     int parent_block_id;
 
     union {
-        Port *port;                /* 端口数据（GEOM_PORT 类型使用） */
+        Port *port; /* 端口数据（GEOM_PORT 类型使用） */
         struct {
-            GeomNode **boundary_segments;  /* 边界线段数组 */
-            int segment_count;             /* 边界线段数量 */
-        } region;                 /* 区域数据（GEOM_REGION 类型使用） */
+            GeomNode **boundary_segments; /* 边界线段数组 */
+            int segment_count;            /* 边界线段数量 */
+        } region;                         /* 区域数据（GEOM_REGION 类型使用） */
         struct {
-            GeomNode **internal_nodes;     /* 内部节点数组 */
-            int *input_port_ids;           /* 输入端口 ID 数组 */
-            int *output_port_ids;          /* 输出端口 ID 数组 */
-            int internal_node_count;       /* 内部节点数量 */
-            int input_count;               /* 输入端口数量 */
-            int output_count;              /* 输出端口数量 */
+            GeomNode **internal_nodes; /* 内部节点数组 */
+            int *input_port_ids;       /* 输入端口 ID 数组 */
+            int *output_port_ids;      /* 输出端口 ID 数组 */
+            int internal_node_count;   /* 内部节点数量 */
+            int input_count;           /* 输入端口数量 */
+            int output_count;          /* 输出端口数量 */
             enum {
-                UNVERIFIED,                /* 未验证 */
-                VERIFIED,                  /* 已验证 */
-                NON_DETERMINISTIC,         /* 非确定性 */
-                PARTIALLY_VERIFIED         /* 部分验证 */
-            } determinism_state;           /* 确定性状态 */
-        } func_block;             /* 函数块数据（GEOM_FUNCTION_BLOCK 类型使用） */
+                UNVERIFIED,        /* 未验证 */
+                VERIFIED,          /* 已验证 */
+                NON_DETERMINISTIC, /* 非确定性 */
+                PARTIALLY_VERIFIED /* 部分验证 */
+            } determinism_state;   /* 确定性状态 */
+        } func_block;              /* 函数块数据（GEOM_FUNCTION_BLOCK 类型使用） */
     } data;
 };
 
@@ -131,20 +132,20 @@ struct Constraint {
 struct ConstraintGraph {
     /** 节点数组 —— 动态扩容，按 node_id 顺序存储 */
     GeomNode **nodes;
-    int node_count;             /**< 当前节点数量 */
-    int node_capacity;          /**< 节点数组容量 */
+    int node_count;    /**< 当前节点数量 */
+    int node_capacity; /**< 节点数组容量 */
 
     /** 约束数组 —— 动态扩容，按 constraint_id 顺序存储 */
     Constraint **constraints;
-    int constraint_count;       /**< 当前约束数量 */
-    int constraint_capacity;    /**< 约束数组容量 */
+    int constraint_count;    /**< 当前约束数量 */
+    int constraint_capacity; /**< 约束数组容量 */
 
-    int next_node_id;           /**< 下一个可分配的节点 ID */
-    int next_constraint_id;     /**< 下一个可分配的约束 ID */
+    int next_node_id;       /**< 下一个可分配的节点 ID */
+    int next_constraint_id; /**< 下一个可分配的约束 ID */
 
     /** O(1) 节点哈希索引 —— node_id -> GeomNode* */
     GeomNode **node_index;
-    int node_index_capacity;    /**< 哈希表大小（2 的幂） */
+    int node_index_capacity; /**< 哈希表大小（2 的幂） */
 
     /** O(1) 约束哈希索引 —— constraint_id -> Constraint* */
     Constraint **constraint_index;
@@ -152,28 +153,16 @@ struct ConstraintGraph {
 };
 
 typedef enum {
-    ADD_NODE_OK,               /* 添加成功 */
-    ADD_NODE_CONFLICT,         /* 添加冲突 */
-    ADD_NODE_INVALID_REGION    /* 无效区域 */
+    ADD_NODE_OK,            /* 添加成功 */
+    ADD_NODE_CONFLICT,      /* 添加冲突 */
+    ADD_NODE_INVALID_REGION /* 无效区域 */
 } AddNodeResult;
 
-typedef enum {
-    ADD_CONSTRAINT_OK,
-    ADD_CONSTRAINT_DUPLICATE,
-    ADD_CONSTRAINT_CONFLICT
-} AddConstraintResult;
+typedef enum { ADD_CONSTRAINT_OK, ADD_CONSTRAINT_DUPLICATE, ADD_CONSTRAINT_CONFLICT } AddConstraintResult;
 
-typedef enum {
-    REMOVE_NODE_OK,
-    REMOVE_NODE_NOT_FOUND,
-    REMOVE_NODE_ERROR
-} RemoveNodeResult;
+typedef enum { REMOVE_NODE_OK, REMOVE_NODE_NOT_FOUND, REMOVE_NODE_ERROR } RemoveNodeResult;
 
-typedef enum {
-    REMOVE_CONSTRAINT_OK,
-    REMOVE_CONSTRAINT_NOT_FOUND,
-    REMOVE_CONSTRAINT_ERROR
-} RemoveConstraintResult;
+typedef enum { REMOVE_CONSTRAINT_OK, REMOVE_CONSTRAINT_NOT_FOUND, REMOVE_CONSTRAINT_ERROR } RemoveConstraintResult;
 
 /** @brief 将 AddNodeResult 转换为 Lv00ErrorCode */
 Lv00ErrorCode lv00_add_node_result_to_error(AddNodeResult result);
@@ -200,8 +189,7 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
  *
  */
 AddNodeResult graph_add_function_block(ConstraintGraph *graph, int *internal_node_ids, int internal_count,
-                                       int *input_port_ids, int input_count,
-                                       int *output_port_ids, int output_count);
+                                       int *input_port_ids, int input_count, int *output_port_ids, int output_count);
 
 /**
  * @brief 获取最近一次通过 graph_add_* 成功添加的节点 ID
@@ -228,7 +216,7 @@ int graph_get_node_count(const ConstraintGraph *graph);
 int graph_get_constraint_count(const ConstraintGraph *graph);
 
 /* @deprecated Use graph_get_node() instead */
-GeomNode* graph_get_node_by_id(const ConstraintGraph *graph, int node_id);
+GeomNode *graph_get_node_by_id(const ConstraintGraph *graph, int node_id);
 
 /* 推荐的节点查询 API：通过节点 ID 在 O(1) 时间内获取节点指针。 */
 GeomNode *graph_get_node(const ConstraintGraph *graph, int node_id);
@@ -239,10 +227,10 @@ void graph_node_index_insert(ConstraintGraph *graph, GeomNode *node);
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 
 /* 带指定ID添加节点和约束（用于反序列化） */
-GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type,
-                                  SymbolicCoord **coords, int coord_count);
-Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id,
-                                          ConstraintType type, int *participants, int participant_count);
+GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType type, SymbolicCoord **coords,
+                                 int coord_count);
+Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id, ConstraintType type,
+                                         int *participants, int participant_count);
 
 ConstraintGraph *graph_create(void);
 void graph_destroy(ConstraintGraph *graph);
@@ -257,9 +245,8 @@ typedef struct {
     int node_count;
 } CrossBoundaryConstraint;
 
-CrossBoundaryConstraint* find_cross_boundary_constraints(ConstraintGraph *graph,
-                                                         const int *internal_node_ids, int internal_count,
-                                                         const int *port_ids, int port_count,
+CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph, const int *internal_node_ids,
+                                                         int internal_count, const int *port_ids, int port_count,
                                                          int *out_count);
 
 /**
@@ -349,30 +336,30 @@ const char *graph_get_serialize_error(void);
 
 /** DOT 导出选项 */
 typedef enum {
-    DOT_LAYOUT_HIERARCHY  = 0,  /**< dot 层级布局（适合树形约束） */
-    DOT_LAYOUT_SPRING     = 1,  /**< neato 弹簧模型（适合一般图） */
-    DOT_LAYOUT_FORCE      = 2,  /**< fdp 力导向（适合稠密图） */
-    DOT_LAYOUT_SCALABLE   = 3,  /**< sfdp 大规模力导向 */
-    DOT_LAYOUT_CIRCULAR   = 4,  /**< circo 环形布局 */
-    DOT_LAYOUT_RADIAL     = 5,  /**< twopi 径向布局 */
+    DOT_LAYOUT_HIERARCHY = 0, /**< dot 层级布局（适合树形约束） */
+    DOT_LAYOUT_SPRING = 1,    /**< neato 弹簧模型（适合一般图） */
+    DOT_LAYOUT_FORCE = 2,     /**< fdp 力导向（适合稠密图） */
+    DOT_LAYOUT_SCALABLE = 3,  /**< sfdp 大规模力导向 */
+    DOT_LAYOUT_CIRCULAR = 4,  /**< circo 环形布局 */
+    DOT_LAYOUT_RADIAL = 5,    /**< twopi 径向布局 */
 } DOTLayoutEngine;
 
 /** DOT 导出配置 */
 typedef struct {
-    DOTLayoutEngine layout;       /**< 布局引擎 */
-    bool show_node_ids;           /**< 是否显示节点 ID */
-    bool show_coords;             /**< 是否显示坐标信息 */
-    bool show_dimensions;         /**< 是否显示维度信息 */
-    bool show_trust_colors;       /**< 是否显示信任颜色（GREEN/BLUE/YELLOW/...） */
-    bool show_namespace_depth;    /**< 是否显示命名空间深度 */
-    bool show_constraint_labels;  /**< 是否显示约束标签 */
-    bool cluster_by_namespace;    /**< 是否按命名空间分簇（subgraph cluster） */
-    bool html_labels;             /**< 使用 HTML-like labels（丰富样式） */
-    const char *graph_label;      /**< 图标题（NULL = 无标题） */
-    const char *font_name;        /**< 字体名（NULL = 默认） */
-    int font_size;                /**< 字体大小（0 = 默认 12） */
-    double node_margin;           /**< 节点边距（0 = 默认 0.1） */
-    double edge_len;              /**< 理想边长（0 = 默认，仅 neato/fdp） */
+    DOTLayoutEngine layout;      /**< 布局引擎 */
+    bool show_node_ids;          /**< 是否显示节点 ID */
+    bool show_coords;            /**< 是否显示坐标信息 */
+    bool show_dimensions;        /**< 是否显示维度信息 */
+    bool show_trust_colors;      /**< 是否显示信任颜色（GREEN/BLUE/YELLOW/...） */
+    bool show_namespace_depth;   /**< 是否显示命名空间深度 */
+    bool show_constraint_labels; /**< 是否显示约束标签 */
+    bool cluster_by_namespace;   /**< 是否按命名空间分簇（subgraph cluster） */
+    bool html_labels;            /**< 使用 HTML-like labels（丰富样式） */
+    const char *graph_label;     /**< 图标题（NULL = 无标题） */
+    const char *font_name;       /**< 字体名（NULL = 默认） */
+    int font_size;               /**< 字体大小（0 = 默认 12） */
+    double node_margin;          /**< 节点边距（0 = 默认 0.1） */
+    double edge_len;             /**< 理想边长（0 = 默认，仅 neato/fdp） */
 } DOTExportConfig;
 
 /**
@@ -413,9 +400,7 @@ char *graph_export_dot(const ConstraintGraph *graph, const DOTExportConfig *conf
  *
  * @note 内部调用 graph_export_dot() 后写入文件
  */
-int graph_export_dot_file(const ConstraintGraph *graph,
-                          const DOTExportConfig *config,
-                          const char *filepath);
+int graph_export_dot_file(const ConstraintGraph *graph, const DOTExportConfig *config, const char *filepath);
 
 /**
  * @brief 快捷导出：约束图 → DOT → 渲染为 SVG（需系统安装 graphviz）
@@ -433,9 +418,7 @@ int graph_export_dot_file(const ConstraintGraph *graph,
  *
  * @note 需系统 PATH 中有 graphviz 的 dot 命令
  */
-int graph_export_dot_to_svg(const ConstraintGraph *graph,
-                            const DOTExportConfig *config,
-                            const char *output_svg);
+int graph_export_dot_to_svg(const ConstraintGraph *graph, const DOTExportConfig *config, const char *output_svg);
 
 #ifdef __cplusplus
 }

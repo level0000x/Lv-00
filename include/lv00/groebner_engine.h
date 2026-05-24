@@ -23,10 +23,11 @@
 #ifndef LV00_GROEBNER_ENGINE_H
 #define LV00_GROEBNER_ENGINE_H
 
-#include "constraint_graph.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,13 +37,13 @@ extern "C" {
  *  前向声明
  * ================================================================ */
 
-typedef struct Lv00PolynomialRing   Lv00PolynomialRing;
-typedef struct Lv00Polynomial       Lv00Polynomial;
-typedef struct Lv00Ideal            Lv00Ideal;
-typedef struct Lv00GroebnerBasis    Lv00GroebnerBasis;
-typedef struct Lv00Variety          Lv00Variety;
-typedef struct Lv00RingRegistry     Lv00RingRegistry;
-typedef struct ConstraintGraph      ConstraintGraph;
+typedef struct Lv00PolynomialRing Lv00PolynomialRing;
+typedef struct Lv00Polynomial Lv00Polynomial;
+typedef struct Lv00Ideal Lv00Ideal;
+typedef struct Lv00GroebnerBasis Lv00GroebnerBasis;
+typedef struct Lv00Variety Lv00Variety;
+typedef struct Lv00RingRegistry Lv00RingRegistry;
+typedef struct ConstraintGraph ConstraintGraph;
 
 /* ================================================================
  *  第一部分：系数域与单项式序枚举
@@ -59,11 +60,11 @@ typedef struct ConstraintGraph      ConstraintGraph;
  * - RING_FIELD_INTEGER：整数环 Z（非域，但可作为系数环）
  */
 typedef enum {
-    RING_FIELD_RATIONAL = 0,  /**< 有理数域 Q */
-    RING_FIELD_REAL     = 1,  /**< 实数域 R */
-    RING_FIELD_COMPLEX  = 2,  /**< 复数域 C */
-    RING_FIELD_FINITE   = 3,  /**< 有限域 GF(p) */
-    RING_FIELD_INTEGER  = 4   /**< 整数环 Z（非域） */
+    RING_FIELD_RATIONAL = 0, /**< 有理数域 Q */
+    RING_FIELD_REAL = 1,     /**< 实数域 R */
+    RING_FIELD_COMPLEX = 2,  /**< 复数域 C */
+    RING_FIELD_FINITE = 3,   /**< 有限域 GF(p) */
+    RING_FIELD_INTEGER = 4   /**< 整数环 Z（非域） */
 } Lv00RingFieldType;
 
 /**
@@ -77,11 +78,11 @@ typedef enum {
  * - MONOMIAL_WEIGHT：权重序，用户自定义各变量权重
  */
 typedef enum {
-    MONOMIAL_LEX     = 0,  /**< 纯字典序（lexicographic） */
-    MONOMIAL_GRLEX   = 1,  /**< 分次字典序（graded lex） */
-    MONOMIAL_GREVLEX = 2,  /**< 分次反字典序（graded reverse lex，默认推荐） */
-    MONOMIAL_ELIM    = 3,  /**< 消去序（elimination order） */
-    MONOMIAL_WEIGHT  = 4   /**< 权重序（用户自定义权重向量） */
+    MONOMIAL_LEX = 0,     /**< 纯字典序（lexicographic） */
+    MONOMIAL_GRLEX = 1,   /**< 分次字典序（graded lex） */
+    MONOMIAL_GREVLEX = 2, /**< 分次反字典序（graded reverse lex，默认推荐） */
+    MONOMIAL_ELIM = 3,    /**< 消去序（elimination order） */
+    MONOMIAL_WEIGHT = 4   /**< 权重序（用户自定义权重向量） */
 } Lv00MonomialOrder;
 
 /* ================================================================
@@ -100,17 +101,17 @@ typedef enum {
  * - 所有 f 上的操作都发生在 r 的上下文中
  */
 struct Lv00PolynomialRing {
-    int                ring_id;            /**< 环的唯一标识符 */
-    char             **var_names;          /**< 变量名字符串数组 */
-    int                var_count;          /**< 变量数量 */
-    Lv00RingFieldType  field;              /**< 系数域类型 */
-    Lv00MonomialOrder  order;              /**< 单项式序 */
-    int               *elim_vars;          /**< 消去序指定的优先消去变量索引（仅 MONOMIAL_ELIM） */
-    int                elim_var_count;     /**< 消去变量数量 */
-    double            *weights;            /**< 权重向量（仅 MONOMIAL_WEIGHT） */
-    int                finite_field_char;  /**< 有限域特征 p（仅 RING_FIELD_FINITE，0 表示不适用） */
-    char              *label;              /**< 环的标签（人类可读，可为 NULL） */
-    bool               is_commutative;     /**< 是否为交换环（当前版本固定为 true） */
+    int ring_id;             /**< 环的唯一标识符 */
+    char **var_names;        /**< 变量名字符串数组 */
+    int var_count;           /**< 变量数量 */
+    Lv00RingFieldType field; /**< 系数域类型 */
+    Lv00MonomialOrder order; /**< 单项式序 */
+    int *elim_vars;          /**< 消去序指定的优先消去变量索引（仅 MONOMIAL_ELIM） */
+    int elim_var_count;      /**< 消去变量数量 */
+    double *weights;         /**< 权重向量（仅 MONOMIAL_WEIGHT） */
+    int finite_field_char;   /**< 有限域特征 p（仅 RING_FIELD_FINITE，0 表示不适用） */
+    char *label;             /**< 环的标签（人类可读，可为 NULL） */
+    bool is_commutative;     /**< 是否为交换环（当前版本固定为 true） */
 };
 
 /* ================================================================
@@ -129,15 +130,15 @@ struct Lv00PolynomialRing {
  * 每个多项式对象深知自己所属的环，操作时保证环一致性。
  */
 struct Lv00Polynomial {
-    int                poly_id;            /**< 多项式唯一标识符 */
-    int                ring_id;            /**< 所属环 ID */
-    int               *powers;            /**< 幂次扁平数组：powers[i * var_count + j] 表示第 i 项第 j 变量的幂 */
-    void              *coeffs;             /**< 系数数组（类型依系数域而定：double* 或 mpq_t* 或 mpz_t*） */
-    int                term_count;         /**< 项数量 */
-    int                term_capacity;      /**< 项数组容量 */
-    int                total_degree;       /**< 多项式总次数（单项式次数最大值） */
-    bool               is_homogeneous;     /**< 是否为齐次多项式 */
-    char              *label;              /**< 多项式标签（可为 NULL） */
+    int poly_id;         /**< 多项式唯一标识符 */
+    int ring_id;         /**< 所属环 ID */
+    int *powers;         /**< 幂次扁平数组：powers[i * var_count + j] 表示第 i 项第 j 变量的幂 */
+    void *coeffs;        /**< 系数数组（类型依系数域而定：double* 或 mpq_t* 或 mpz_t*） */
+    int term_count;      /**< 项数量 */
+    int term_capacity;   /**< 项数组容量 */
+    int total_degree;    /**< 多项式总次数（单项式次数最大值） */
+    bool is_homogeneous; /**< 是否为齐次多项式 */
+    char *label;         /**< 多项式标签（可为 NULL） */
 };
 
 /* ================================================================
@@ -155,11 +156,11 @@ struct Lv00Polynomial {
  * - GROEBNER_AUTO：自动选择最优算法（默认）
  */
 typedef enum {
-    GROEBNER_BUCHBERGER = 0,  /**< 经典 Buchberger 算法 */
-    GROEBNER_F4         = 1,  /**< Faugere F4 算法（矩阵化） */
-    GROEBNER_F5         = 2,  /**< Faugere F5 算法（签名基） */
-    GROEBNER_SIGNATURE  = 3,  /**< 基于签名的 Gröbner 基（GVW 等） */
-    GROEBNER_AUTO       = 4   /**< 自动选择最优算法（默认） */
+    GROEBNER_BUCHBERGER = 0, /**< 经典 Buchberger 算法 */
+    GROEBNER_F4 = 1,         /**< Faugere F4 算法（矩阵化） */
+    GROEBNER_F5 = 2,         /**< Faugere F5 算法（签名基） */
+    GROEBNER_SIGNATURE = 3,  /**< 基于签名的 Gröbner 基（GVW 等） */
+    GROEBNER_AUTO = 4        /**< 自动选择最优算法（默认） */
 } Lv00GroebnerAlgorithm;
 
 /**
@@ -174,14 +175,14 @@ typedef enum {
  * - 根理想判定
  */
 struct Lv00Ideal {
-    int                  ideal_id;          /**< 理想唯一标识符 */
-    int                  ring_id;           /**< 所属环 ID */
-    Lv00Polynomial     **generators;        /**< 生成元多项式数组 */
-    int                  generator_count;   /**< 生成元数量 */
-    int                  generator_capacity; /**< 生成元数组容量 */
-    Lv00GroebnerBasis   *cached_basis;      /**< 缓存的 Gröbner 基（惰性计算，可为 NULL） */
-    bool                 basis_valid;       /**< 缓存基是否有效 */
-    char                *label;             /**< 理想标签（可为 NULL） */
+    int ideal_id;                    /**< 理想唯一标识符 */
+    int ring_id;                     /**< 所属环 ID */
+    Lv00Polynomial **generators;     /**< 生成元多项式数组 */
+    int generator_count;             /**< 生成元数量 */
+    int generator_capacity;          /**< 生成元数组容量 */
+    Lv00GroebnerBasis *cached_basis; /**< 缓存的 Gröbner 基（惰性计算，可为 NULL） */
+    bool basis_valid;                /**< 缓存基是否有效 */
+    char *label;                     /**< 理想标签（可为 NULL） */
 };
 
 /**
@@ -195,14 +196,14 @@ struct Lv00Ideal {
  * - is_reduced：是否是约化 Gröbner 基（前项系数为 1 且各项不可被其他前项约化）
  */
 struct Lv00GroebnerBasis {
-    Lv00Polynomial      **basis_polys;      /**< 基多项式数组 */
-    int                   bases_count;      /**< 基多项式数量 */
-    int                   bases_capacity;   /**< 基数组容量 */
-    int                   reducing_degree;  /**< 约化后的最大次数 */
-    Lv00GroebnerAlgorithm algorithm_used;   /**< 使用的算法 */
-    int64_t               computation_time_us; /**< 计算耗时（微秒） */
-    bool                  is_minimal;       /**< 是否为最小 Gröbner 基 */
-    bool                  is_reduced;       /**< 是否为约化 Gröbner 基 */
+    Lv00Polynomial **basis_polys;         /**< 基多项式数组 */
+    int bases_count;                      /**< 基多项式数量 */
+    int bases_capacity;                   /**< 基数组容量 */
+    int reducing_degree;                  /**< 约化后的最大次数 */
+    Lv00GroebnerAlgorithm algorithm_used; /**< 使用的算法 */
+    int64_t computation_time_us;          /**< 计算耗时（微秒） */
+    bool is_minimal;                      /**< 是否为最小 Gröbner 基 */
+    bool is_reduced;                      /**< 是否为约化 Gröbner 基 */
 };
 
 /* ================================================================
@@ -222,15 +223,15 @@ struct Lv00GroebnerBasis {
  * - 正维簇对应连续的解空间（曲线、曲面等）
  */
 struct Lv00Variety {
-    int                variety_id;          /**< 簇的唯一标识符 */
-    int                ideal_id;            /**< 定义理想的 ID */
-    double           **solution_points;     /**< 解点数组（每个点是一个坐标向量） */
-    int                solution_count;      /**< 解点数量 */
-    int                solution_capacity;   /**< 解点数组容量 */
-    int                variety_dimension;   /**< 簇的维数（Krull 维数） */
-    int                degree_of_freedom;   /**< 自由度（参数化维度） */
-    bool               is_zero_dimensional; /**< 是否为有限点集（零维簇） */
-    char              *label;               /**< 簇标签（可为 NULL） */
+    int variety_id;           /**< 簇的唯一标识符 */
+    int ideal_id;             /**< 定义理想的 ID */
+    double **solution_points; /**< 解点数组（每个点是一个坐标向量） */
+    int solution_count;       /**< 解点数量 */
+    int solution_capacity;    /**< 解点数组容量 */
+    int variety_dimension;    /**< 簇的维数（Krull 维数） */
+    int degree_of_freedom;    /**< 自由度（参数化维度） */
+    bool is_zero_dimensional; /**< 是否为有限点集（零维簇） */
+    char *label;              /**< 簇标签（可为 NULL） */
 };
 
 /* ================================================================
@@ -248,11 +249,11 @@ struct Lv00Variety {
  * 环注册表确保对象的环归属始终正确。
  */
 struct Lv00RingRegistry {
-    Lv00PolynomialRing **rings;             /**< 已注册的环数组 */
-    int                  ring_count;        /**< 当前环数量 */
-    int                  ring_capacity;     /**< 环数组容量 */
-    int                  active_ring_id;    /**< 当前活动环 ID（-1 表示无） */
-    bool                 is_initialized;    /**< 注册表初始化状态 */
+    Lv00PolynomialRing **rings; /**< 已注册的环数组 */
+    int ring_count;             /**< 当前环数量 */
+    int ring_capacity;          /**< 环数组容量 */
+    int active_ring_id;         /**< 当前活动环 ID（-1 表示无） */
+    bool is_initialized;        /**< 注册表初始化状态 */
 };
 
 /* ================================================================
@@ -288,12 +289,8 @@ void ring_registry_destroy(Lv00RingRegistry *registry);
  * @param label       环标签（可为 NULL）
  * @return 成功返回环 ID（>= 0），失败返回 -1
  */
-int ring_create(Lv00RingRegistry *registry,
-                const char *var_names[],
-                int var_count,
-                Lv00RingFieldType field,
-                Lv00MonomialOrder order,
-                const char *label);
+int ring_create(Lv00RingRegistry *registry, const char *var_names[], int var_count, Lv00RingFieldType field,
+                Lv00MonomialOrder order, const char *label);
 
 /**
  * @brief 销毁一个多项式环及其所有关联对象
@@ -382,8 +379,8 @@ int poly_multiply(Lv00RingRegistry *registry, int poly_id_f, int poly_id_g, cons
  * @param result_label 结果标签（可为 NULL）
  * @return 成功返回结果多项式 ID（>= 0），失败返回 -1
  */
-int poly_substitute(Lv00RingRegistry *registry, int poly_id, int var_index,
-                    int subst_poly_id, const char *result_label);
+int poly_substitute(Lv00RingRegistry *registry, int poly_id, int var_index, int subst_poly_id,
+                    const char *result_label);
 
 /**
  * @brief 获取多项式实例
@@ -439,8 +436,7 @@ int ideal_add_generator(Lv00RingRegistry *registry, int ideal_id, int poly_id);
  * @param algorithm 算法选择
  * @return 成功返回 0，失败返回负值错误码
  */
-int groebner_compute(Lv00RingRegistry *registry, int ideal_id,
-                     Lv00GroebnerAlgorithm algorithm);
+int groebner_compute(Lv00RingRegistry *registry, int ideal_id, Lv00GroebnerAlgorithm algorithm);
 
 /**
  * @brief 增量式 Gröbner 基计算
@@ -477,8 +473,7 @@ bool ideal_membership(Lv00RingRegistry *registry, int ideal_id, int poly_id);
  * @param result_label 结果理想标签（可为 NULL）
  * @return 成功返回结果理想 ID（>= 0），失败返回 -1
  */
-int ideal_intersection(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_b,
-                       const char *result_label);
+int ideal_intersection(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_b, const char *result_label);
 
 /**
  * @brief 理想商：计算 I : J = { f | f*g in I for all g in J }
@@ -489,8 +484,7 @@ int ideal_intersection(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_
  * @param result_label 结果理想标签（可为 NULL）
  * @return 成功返回结果理想 ID（>= 0），失败返回 -1
  */
-int ideal_quotient(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_b,
-                   const char *result_label);
+int ideal_quotient(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_b, const char *result_label);
 
 /* ================================================================
  *  第十部分：API —— 代数簇
@@ -546,10 +540,8 @@ bool variety_is_zero_dimensional(const Lv00RingRegistry *registry, int variety_i
  * @param result_label 结果理想标签（可为 NULL）
  * @return 成功返回理想 ID（>= 0），失败返回 -1
  */
-int constraint_graph_to_ideal(Lv00RingRegistry *registry,
-                               const ConstraintGraph *graph,
-                               int ring_id,
-                               const char *result_label);
+int constraint_graph_to_ideal(Lv00RingRegistry *registry, const ConstraintGraph *graph, int ring_id,
+                              const char *result_label);
 
 #ifdef __cplusplus
 }

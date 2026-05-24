@@ -11,15 +11,15 @@
  * 独立测试确保工具函数本身的正确性。
  */
 
-#include "func_block_utils.h"
-#include "lv00.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
-static int test_is_id_in_array_basic(void)
-{
+#include "func_block_utils.h"
+#include "lv00.h"
+
+static int test_is_id_in_array_basic(void) {
     printf("Test: is_id_in_array basic...\n");
 
     int arr[] = {10, 20, 30, 40, 50};
@@ -36,8 +36,7 @@ static int test_is_id_in_array_basic(void)
     return 0;
 }
 
-static int test_is_id_in_array_edge_cases(void)
-{
+static int test_is_id_in_array_edge_cases(void) {
     printf("Test: is_id_in_array edge cases...\n");
 
     assert(is_id_in_array(42, NULL, 0) == false);
@@ -50,8 +49,7 @@ static int test_is_id_in_array_edge_cases(void)
     assert(is_id_in_array(100, single, 1) == true);
     assert(is_id_in_array(200, single, 1) == false);
 
-    int large_arr[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-                       11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+    int large_arr[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
     assert(is_id_in_array(20, large_arr, 20) == true);
     assert(is_id_in_array(21, large_arr, 20) == false);
 
@@ -59,8 +57,7 @@ static int test_is_id_in_array_edge_cases(void)
     return 0;
 }
 
-static int test_dup_int_array_basic(void)
-{
+static int test_dup_int_array_basic(void) {
     printf("Test: dup_int_array basic...\n");
 
     int src[] = {10, 20, 30, 40, 50};
@@ -81,8 +78,7 @@ static int test_dup_int_array_basic(void)
     return 0;
 }
 
-static int test_dup_int_array_edge_cases(void)
-{
+static int test_dup_int_array_edge_cases(void) {
     printf("Test: dup_int_array edge cases...\n");
 
     int src[] = {1, 2, 3};
@@ -105,8 +101,7 @@ static int test_dup_int_array_edge_cases(void)
     return 0;
 }
 
-static int test_merge_int_arrays_basic(void)
-{
+static int test_merge_int_arrays_basic(void) {
     printf("Test: merge_int_arrays basic...\n");
 
     int a[] = {1, 2, 3};
@@ -129,8 +124,7 @@ static int test_merge_int_arrays_basic(void)
     return 0;
 }
 
-static int test_merge_int_arrays_edge_cases(void)
-{
+static int test_merge_int_arrays_edge_cases(void) {
     printf("Test: merge_int_arrays edge cases...\n");
 
     int a[] = {1, 2, 3};
@@ -184,8 +178,7 @@ static int test_merge_int_arrays_edge_cases(void)
     return 0;
 }
 
-static int test_memory_independence(void)
-{
+static int test_memory_independence(void) {
     printf("Test: memory independence...\n");
 
     int src[] = {10, 20, 30};
@@ -215,8 +208,7 @@ static int test_memory_independence(void)
     return 0;
 }
 
-static int test_large_arrays(void)
-{
+static int test_large_arrays(void) {
     printf("Test: large arrays...\n");
 
     const int SIZE = 10000;
@@ -263,8 +255,7 @@ static int test_large_arrays(void)
     return 0;
 }
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 func_block_utils Test Suite ===\n\n");
 
     test_is_id_in_array_basic();

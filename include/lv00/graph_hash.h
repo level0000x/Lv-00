@@ -21,17 +21,18 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
 #include <stdint.h>
+
+#include "constraint_graph.h"
 
 /* ================================================================
  *  GraphHash 结构体 —— 约束图的 FNV-1a 结构指纹
  * ================================================================ */
 
 typedef struct GraphHash {
-    uint64_t hash;          /**< 整个图的聚合 FNV-1a 哈希值 */
-    uint64_t *node_hashes;  /**< 每个节点的哈希值（已分配数组，共 node_count 个元素） */
-    int node_count;         /**< 图中节点的数量 */
+    uint64_t hash;         /**< 整个图的聚合 FNV-1a 哈希值 */
+    uint64_t *node_hashes; /**< 每个节点的哈希值（已分配数组，共 node_count 个元素） */
+    int node_count;        /**< 图中节点的数量 */
 } GraphHash;
 
 /**

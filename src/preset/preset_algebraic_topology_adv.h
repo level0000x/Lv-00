@@ -29,32 +29,32 @@ extern "C" {
 /* -------------------- 同伦论 -------------------- */
 
 /** 基本群：计算拓扑空间 X 在基点 x0 处的基本群 π₁(X, x₀) */
-#define PRESET_AT_FUNDAMENTAL_GROUP         "fundamental_group"
+#define PRESET_AT_FUNDAMENTAL_GROUP "fundamental_group"
 
 /** 覆盖空间：构造或验证覆盖映射 p: Ỹ → Y */
-#define PRESET_AT_COVERING_SPACE            "covering_space"
+#define PRESET_AT_COVERING_SPACE "covering_space"
 
 /** 万有覆盖：构造拓扑空间的万有覆盖空间 */
-#define PRESET_AT_UNIVERSAL_COVERING        "universal_covering"
+#define PRESET_AT_UNIVERSAL_COVERING "universal_covering"
 
 /* -------------------- 同调理论 -------------------- */
 
 /** 同调群：计算拓扑空间的奇异同调群 Hₙ(X) */
-#define PRESET_AT_HOMOLOGY_GROUP            "homology_group"
+#define PRESET_AT_HOMOLOGY_GROUP "homology_group"
 
 /** 上同调群：计算拓扑空间的上同调群 Hⁿ(X) */
-#define PRESET_AT_COHOMOLOGY_GROUP          "cohomology_group"
+#define PRESET_AT_COHOMOLOGY_GROUP "cohomology_group"
 
 /** Mayer-Vietoris序列：利用空间分解计算同调群 */
-#define PRESET_AT_MAYER_VIETORIS_SEQUENCE   "mayer_vietoris_sequence"
+#define PRESET_AT_MAYER_VIETORIS_SEQUENCE "mayer_vietoris_sequence"
 
 /* -------------------- 序列与结构 -------------------- */
 
 /** 正合序列：验证或构造正合序列 */
-#define PRESET_AT_EXACT_SEQUENCE             "exact_sequence"
+#define PRESET_AT_EXACT_SEQUENCE "exact_sequence"
 
 /** Euler特征数：计算拓扑空间的Euler特征数 χ(X) */
-#define PRESET_AT_EULER_CHARACTERISTIC      "euler_characteristic"
+#define PRESET_AT_EULER_CHARACTERISTIC "euler_characteristic"
 
 /* ============================================================
  * 模块注册函数

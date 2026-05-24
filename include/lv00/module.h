@@ -14,10 +14,11 @@
 extern "C" {
 #endif
 
-#include "axiom_pkg.h"
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+
+#include "axiom_pkg.h"
 
 /* MAX_MODULE_DEPTH —— 权威定义在 symbolic_coord.h 中
  * 此处使用 #ifndef 守卫防止重复定义。若需修改此值，请修改
@@ -53,9 +54,9 @@ typedef enum {
 } ModuleLoadStatus;
 
 typedef enum {
-    MODULE_SAVE_OK,          /* 保存成功 */
-    MODULE_SAVE_FILE_ERROR,  /* 文件错误 */
-    MODULE_SAVE_WRITE_ERROR  /* 写入错误 */
+    MODULE_SAVE_OK,         /* 保存成功 */
+    MODULE_SAVE_FILE_ERROR, /* 文件错误 */
+    MODULE_SAVE_WRITE_ERROR /* 写入错误 */
 } ModuleSaveStatus;
 
 Module *module_create(const char *name, const char *version);
@@ -126,8 +127,8 @@ int module_compare_versions(const char *v1, const char *v2);
  * @brief 模块文件格式
  */
 typedef enum {
-    MODULE_FORMAT_LVZ,         /* 文本格式（默认） */
-    MODULE_FORMAT_MSGPACK      /* MessagePack 二进制格式 */
+    MODULE_FORMAT_LVZ,    /* 文本格式（默认） */
+    MODULE_FORMAT_MSGPACK /* MessagePack 二进制格式 */
 } ModuleFormat;
 
 /* ============== MessagePack 二进制格式支持 ============== */
@@ -181,10 +182,10 @@ bool module_deserialize_graph_from_json(Module *mod, const char *json);
  * @brief 模块自动保存配置
  */
 typedef struct {
-    bool enabled;               /* 是否启用自动保存 */
-    int interval_seconds;       /* 保存间隔（秒） */
-    char *backup_directory;     /* 备份目录路径 */
-    int max_backups;            /* 最大备份数 */
+    bool enabled;           /* 是否启用自动保存 */
+    int interval_seconds;   /* 保存间隔（秒） */
+    char *backup_directory; /* 备份目录路径 */
+    int max_backups;        /* 最大备份数 */
 } AutoSaveConfig;
 
 /**
@@ -210,8 +211,8 @@ ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **ou
  * 与完整序列化不同，增量快照仅记录自上次快照以来的变化。
  */
 typedef struct ModuleDelta {
-    uint64_t base_version_hash;    /* 基线版本哈希 */
-    char *delta_data;              /* 增量数据（JSON 格式） */
+    uint64_t base_version_hash; /* 基线版本哈希 */
+    char *delta_data;           /* 增量数据（JSON 格式） */
     size_t delta_size;
 } ModuleDelta;
 

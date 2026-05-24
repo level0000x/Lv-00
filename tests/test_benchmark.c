@@ -10,31 +10,29 @@
  * - 内存使用统计
  */
 
-#include "lv00.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
+#include "lv00.h"
+#include "test_helpers.h"
+
 /* ============== 计时辅助函数 ============== */
 
-static double get_time_ms(void)
-{
+static double get_time_ms(void) {
     clock_t t = clock();
-    return (double)t * 1000.0 / CLOCKS_PER_SEC;
+    return (double) t * 1000.0 / CLOCKS_PER_SEC;
 }
 
-static void print_result(const char *name, double time_ms, int iterations, const char *unit)
-{
+static void print_result(const char *name, double time_ms, int iterations, const char *unit) {
     printf("  %-40s %8.2f ms (%d %s)\n", name, time_ms, iterations, unit);
 }
 
 /* ============== 测试：大规模图创建 ============== */
 
-static int test_large_graph_creation(void)
-{
+static int test_large_graph_creation(void) {
     printf("Test: large graph creation...\n");
 
     int sizes[] = {100, 500, 1000};
@@ -73,8 +71,7 @@ static int test_large_graph_creation(void)
 
 /* ============== 测试：大规模归一化 ============== */
 
-static int test_large_normalization(void)
-{
+static int test_large_normalization(void) {
     printf("Test: large graph normalization...\n");
 
     int sizes[] = {50, 100, 200};
@@ -89,7 +86,7 @@ static int test_large_normalization(void)
         for (int i = 0; i < n; i++) {
             /* 每对点有相同的坐标 */
             add_point(g, i, 1, i, 1);
-            add_point(g, i, 1, i, 1);  /* 重复 */
+            add_point(g, i, 1, i, 1); /* 重复 */
         }
 
         int node_count_before = g->node_count;
@@ -102,7 +99,7 @@ static int test_large_normalization(void)
         print_result("Normalize duplicate points", elapsed, n * 2, "nodes");
 
         assert(result != NULL);
-        assert(result->merged_count >= n);  /* 至少合并了 n 对 */
+        assert(result->merged_count >= n); /* 至少合并了 n 对 */
 
         normalization_result_destroy(result);
         graph_destroy(g);
@@ -114,8 +111,7 @@ static int test_large_normalization(void)
 
 /* ============== 测试：约束添加性能 ============== */
 
-static int test_constraint_addition_performance(void)
-{
+static int test_constraint_addition_performance(void) {
     printf("Test: constraint addition performance...\n");
 
     int sizes[] = {100, 500, 1000};
@@ -151,8 +147,7 @@ static int test_constraint_addition_performance(void)
 
 /* ============== 测试：函数块打包性能 ============== */
 
-static int test_func_block_pack_performance(void)
-{
+static int test_func_block_pack_performance(void) {
     printf("Test: function block pack performance...\n");
 
     int sizes[] = {10, 50, 100};
@@ -182,9 +177,7 @@ static int test_func_block_pack_performance(void)
         double start = get_time_ms();
 
         FuncBlock *fb = NULL;
-        PackResult result = func_block_pack(
-            g, internal_ids, n, &in_port_id, 1, &out_port_id, 1,
-            NULL, 0, &fb);
+        PackResult result = func_block_pack(g, internal_ids, n, &in_port_id, 1, &out_port_id, 1, NULL, 0, &fb);
 
         double elapsed = get_time_ms() - start;
         print_result("Pack function block", elapsed, n, "internal nodes");
@@ -203,8 +196,7 @@ static int test_func_block_pack_performance(void)
 
 /* ============== 测试：统一化性能 ============== */
 
-static int test_unification_performance(void)
-{
+static int test_unification_performance(void) {
     printf("Test: unification performance...\n");
 
     int sizes[] = {10, 50, 100};
@@ -245,8 +237,7 @@ static int test_unification_performance(void)
 
 /* ============== 测试：内存使用估算 ============== */
 
-static int test_memory_usage(void)
-{
+static int test_memory_usage(void) {
     printf("Test: memory usage estimation...\n");
 
     /* 测试不同规模图的内存使用 */
@@ -299,8 +290,7 @@ static int test_memory_usage(void)
 
 /* ============== 测试：复杂场景综合性能 ============== */
 
-static int test_complex_scenario(void)
-{
+static int test_complex_scenario(void) {
     printf("Test: complex scenario performance...\n");
 
     double total_start = get_time_ms();
@@ -358,9 +348,7 @@ static int test_complex_scenario(void)
     int out_port = g->next_node_id - 1;
 
     FuncBlock *fb = NULL;
-    PackResult pack_result = func_block_pack(
-        g, internal_nodes, 50, &in_port, 1, &out_port, 1,
-        NULL, 0, &fb);
+    PackResult pack_result = func_block_pack(g, internal_nodes, 50, &in_port, 1, &out_port, 1, NULL, 0, &fb);
     printf("  Pack function block: %.2f ms\n", get_time_ms() - start);
     assert(pack_result == PACK_OK);
     func_block_destroy(fb);
@@ -375,8 +363,7 @@ static int test_complex_scenario(void)
 
 /* ============== 测试：符号坐标操作性能 ============== */
 
-static int test_symbolic_coord_performance(void)
-{
+static int test_symbolic_coord_performance(void) {
     printf("Test: symbolic coordinate performance...\n");
 
     int iterations = 10000;
@@ -415,12 +402,11 @@ static int test_symbolic_coord_performance(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Performance Benchmark Suite ===\n\n");
 
     printf("Platform: Windows\n");
-    printf("Timer resolution: CLOCKS_PER_SEC = %ld\n\n", (long)CLOCKS_PER_SEC);
+    printf("Timer resolution: CLOCKS_PER_SEC = %ld\n\n", (long) CLOCKS_PER_SEC);
 
     /* 大规模操作测试 */
     test_large_graph_creation();

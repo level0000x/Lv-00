@@ -13,28 +13,25 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
-#include "symbolic_coord.h"
-#include "stream.h"
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
-typedef enum {
-    CONSTRUCTIVE,
-    NON_CONSTRUCTIVE_ORACLE,
-    EXPLOSION_PRINCIPLE
-} PropositionKind;
+#include "constraint_graph.h"
+#include "stream.h"
+#include "symbolic_coord.h"
+
+typedef enum { CONSTRUCTIVE, NON_CONSTRUCTIVE_ORACLE, EXPLOSION_PRINCIPLE } PropositionKind;
 
 typedef struct AxiomPackage AxiomPackage;
 
 typedef struct KnownUnconstructible {
     char *name;
-    char *reduces_to;           /* 目标问题名称 */
-    char **dependency_chain;    /* 依赖项数组 */
-    int dependency_count;       /* 依赖项数量 */
-    char *external_ref;         /* 外部引用URL或标识符 */
-    bool green_verified;        /* 是否已验证 */
+    char *reduces_to;        /* 目标问题名称 */
+    char **dependency_chain; /* 依赖项数组 */
+    int dependency_count;    /* 依赖项数量 */
+    char *external_ref;      /* 外部引用URL或标识符 */
+    bool green_verified;     /* 是否已验证 */
 } KnownUnconstructible;
 
 AxiomPackage *axiom_package_create(const char *name, const char *version);
@@ -55,11 +52,7 @@ typedef enum {
     AXIOM_LOAD_VALIDATION_ERROR
 } AxiomLoadStatus;
 
-typedef enum {
-    AXIOM_SAVE_OK,
-    AXIOM_SAVE_FILE_ERROR,
-    AXIOM_SAVE_WRITE_ERROR
-} AxiomSaveStatus;
+typedef enum { AXIOM_SAVE_OK, AXIOM_SAVE_FILE_ERROR, AXIOM_SAVE_WRITE_ERROR } AxiomSaveStatus;
 
 /* 获取最后一次加载错误的详细信息 */
 const char *axiom_package_get_last_error(void);
@@ -84,12 +77,7 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
 /* ============== ConstraintTemplate 增强 ============== */
 
 /* 参数类型 */
-typedef enum {
-    PARAM_POINT,
-    PARAM_LINE_SEGMENT,
-    PARAM_REGION,
-    PARAM_SCALAR
-} TemplateParamType;
+typedef enum { PARAM_POINT, PARAM_LINE_SEGMENT, PARAM_REGION, PARAM_SCALAR } TemplateParamType;
 
 typedef struct {
     TemplateParamType type;
@@ -98,8 +86,8 @@ typedef struct {
 
 /* 正则形式描述 */
 typedef struct {
-    int expected_node_types[8];        /* 期望的节点类型序列 */
-    int expected_constraint_types[8];  /* 期望的约束类型序列 */
+    int expected_node_types[8];       /* 期望的节点类型序列 */
+    int expected_constraint_types[8]; /* 期望的约束类型序列 */
     int node_type_count;
     int constraint_type_count;
 } NormalFormDesc;
@@ -111,18 +99,16 @@ typedef struct ConstraintTemplate {
     bool verified;
 
     /* 增强字段 */
-    TemplateParam *params;             /* 参数描述数组 */
-    int param_desc_count;              /* 参数描述数量 */
-    NormalFormDesc normal_form;        /* 正则形式描述 */
+    TemplateParam *params;      /* 参数描述数组 */
+    int param_desc_count;       /* 参数描述数量 */
+    NormalFormDesc normal_form; /* 正则形式描述 */
 } ConstraintTemplate;
 
 bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl);
 ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *name);
 
-bool axiom_template_validate_normal_form(
-    const ConstraintTemplate *tmpl,
-    const ConstraintGraph *expanded_graph,
-    const char *canonical_form);
+bool axiom_template_validate_normal_form(const ConstraintTemplate *tmpl, const ConstraintGraph *expanded_graph,
+                                         const char *canonical_form);
 
 /* ============== 双层测试集 ============== */
 
@@ -131,9 +117,9 @@ bool axiom_template_validate_normal_form(
  */
 typedef struct {
     char name[128];
-    SymbolicCoord **param_values;  /* 参数值 */
+    SymbolicCoord **param_values; /* 参数值 */
     int param_count;
-    bool expected_pass;            /* 预期结果 */
+    bool expected_pass; /* 预期结果 */
 } TemplateTestCase;
 
 /**
@@ -157,13 +143,9 @@ typedef struct {
  * @param user_count    用户测试用例数量
  * @return 测试结果
  */
-TemplateTestResult axiom_template_run_tests(
-    AxiomPackage *pkg,
-    const char *template_name,
-    TemplateTestCase *factory_tests,
-    int factory_count,
-    TemplateTestCase *user_tests,
-    int user_count);
+TemplateTestResult axiom_template_run_tests(AxiomPackage *pkg, const char *template_name,
+                                            TemplateTestCase *factory_tests, int factory_count,
+                                            TemplateTestCase *user_tests, int user_count);
 
 /**
  * @brief 释放测试结果
@@ -177,28 +159,21 @@ void axiom_template_test_result_destroy(TemplateTestResult *result);
  */
 typedef struct {
     uint64_t param_hash;
-    char *template_name;          /* 关联的模板名称 */
+    char *template_name; /* 关联的模板名称 */
     ConstraintGraph *expanded_graph;
 } TemplateExpansionCache;
 
 /**
  * @brief 在缓存中查找匹配的展开图
  */
-ConstraintGraph *axiom_package_lookup_expansion_cache(
-    AxiomPackage *pkg,
-    const char *template_name,
-    SymbolicCoord **params,
-    int param_count);
+ConstraintGraph *axiom_package_lookup_expansion_cache(AxiomPackage *pkg, const char *template_name,
+                                                      SymbolicCoord **params, int param_count);
 
 /**
  * @brief 将展开结果存入缓存
  */
-bool axiom_package_store_expansion_cache(
-    AxiomPackage *pkg,
-    const char *template_name,
-    SymbolicCoord **params,
-    int param_count,
-    ConstraintGraph *expanded_graph);
+bool axiom_package_store_expansion_cache(AxiomPackage *pkg, const char *template_name, SymbolicCoord **params,
+                                         int param_count, ConstraintGraph *expanded_graph);
 
 /**
  * @brief 清空模板展开缓存
@@ -208,18 +183,18 @@ void axiom_package_clear_expansion_cache(AxiomPackage *pkg);
 /* ============== 依赖引用追踪 ============== */
 
 /* 信任颜色常量（用于 original_color 字段） */
-#define DEP_TRUST_GREEN  0
-#define DEP_TRUST_BLUE   1
+#define DEP_TRUST_GREEN 0
+#define DEP_TRUST_BLUE 1
 #define DEP_TRUST_YELLOW 2
 
 /* 追踪一个依赖引用（内部或外部） */
 typedef struct {
-    char ref_id[64];          /* 引用标识符 */
-    char content_hash[65];    /* 引用内容的 SHA-256 哈希（十六进制字符串）
+    char ref_id[64];       /* 引用标识符 */
+    char content_hash[65]; /* 引用内容的 SHA-256 哈希（十六进制字符串）
                                * 注意：调用者须确保传入的哈希字符串长度恰好为 64 字符
                                *（不含终止符），超出部分将被截断，不足则未定义行为。 */
-    int dependent_node_id;    /* 依赖此引用的节点 ID */
-    int original_color;       /* 原始信任颜色 (0=GREEN 等) */
+    int dependent_node_id; /* 依赖此引用的节点 ID */
+    int original_color;    /* 原始信任颜色 (0=GREEN 等) */
 } DependencyRef;
 
 /* ============== AxiomPackage 结构体 ============== */
@@ -239,7 +214,7 @@ struct AxiomPackage {
     TemplateExpansionCache *expansion_cache;
     int expansion_cache_count;
     int expansion_cache_capacity;
-    int max_expansion_depth;    /* 默认 8 */
+    int max_expansion_depth; /* 默认 8 */
 
     /* 依赖引用追踪 */
     DependencyRef *dep_refs;
@@ -261,12 +236,8 @@ struct AxiomPackage {
  * @param[in] dependent_node_id 依赖此引用的节点 ID
  * @return 0 成功，-1 参数无效，-2 内存分配失败
  */
-int axiom_package_register_dependency_ref(
-    AxiomPackage *pkg,
-    const char *ref_id,
-    const char *content_hash,
-    int dependent_node_id
-);
+int axiom_package_register_dependency_ref(AxiomPackage *pkg, const char *ref_id, const char *content_hash,
+                                          int dependent_node_id);
 
 /**
  * @brief 验证所有依赖引用，返回失效的引用
@@ -279,11 +250,8 @@ int axiom_package_register_dependency_ref(
  * @param[out] invalidated_count 输出失效引用数量
  * @return 失效引用数量，-1 表示参数无效
  */
-int axiom_package_validate_dependencies_with_hashes(
-    AxiomPackage *pkg,
-    DependencyRef **invalidated_refs,
-    int *invalidated_count
-);
+int axiom_package_validate_dependencies_with_hashes(AxiomPackage *pkg, DependencyRef **invalidated_refs,
+                                                    int *invalidated_count);
 
 /**
  * @brief 执行失效依赖的自动降级
@@ -297,10 +265,7 @@ int axiom_package_validate_dependencies_with_hashes(
  * @param[in] graph 约束图（用于更新节点颜色）
  * @return 被降级的节点数量
  */
-int axiom_package_auto_degrade_invalidated(
-    AxiomPackage *pkg,
-    ConstraintGraph *graph
-);
+int axiom_package_auto_degrade_invalidated(AxiomPackage *pkg, ConstraintGraph *graph);
 
 #ifdef __cplusplus
 }

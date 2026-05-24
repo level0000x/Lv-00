@@ -31,102 +31,102 @@ extern "C" {
 /* -------------------- 算术运算 -------------------- */
 
 /** 加法运算：a + b */
-#define PRESET_ARITHMETIC_ADD            "arithmetic_add"
+#define PRESET_ARITHMETIC_ADD "arithmetic_add"
 
 /** 减法运算：a - b */
-#define PRESET_ARITHMETIC_SUBTRACT       "arithmetic_subtract"
+#define PRESET_ARITHMETIC_SUBTRACT "arithmetic_subtract"
 
 /** 乘法运算：a * b */
-#define PRESET_ARITHMETIC_MULTIPLY       "arithmetic_multiply"
+#define PRESET_ARITHMETIC_MULTIPLY "arithmetic_multiply"
 
 /** 除法运算：a / b */
-#define PRESET_ARITHMETIC_DIVIDE         "arithmetic_divide"
+#define PRESET_ARITHMETIC_DIVIDE "arithmetic_divide"
 
 /** 幂运算：a^n */
-#define PRESET_ARITHMETIC_POWER          "arithmetic_power"
+#define PRESET_ARITHMETIC_POWER "arithmetic_power"
 
 /** 开方运算：n√a */
-#define PRESET_ARITHMETIC_ROOT           "arithmetic_root"
+#define PRESET_ARITHMETIC_ROOT "arithmetic_root"
 
 /** 对数运算：log_b(a) */
-#define PRESET_ARITHMETIC_LOGARITHM      "arithmetic_logarithm"
+#define PRESET_ARITHMETIC_LOGARITHM "arithmetic_logarithm"
 
 /** 模运算：a mod n */
-#define PRESET_ARITHMETIC_MODULAR        "arithmetic_modular"
+#define PRESET_ARITHMETIC_MODULAR "arithmetic_modular"
 
 /* -------------------- 数论基础 -------------------- */
 
 /** 最大公约数：gcd(a, b) */
-#define PRESET_NUMBER_GCD                "number_gcd"
+#define PRESET_NUMBER_GCD "number_gcd"
 
 /** 最小公倍数：lcm(a, b) */
-#define PRESET_NUMBER_LCM                "number_lcm"
+#define PRESET_NUMBER_LCM "number_lcm"
 
 /** 素性检测 */
-#define PRESET_NUMBER_PRIME_CHECK        "number_prime_check"
+#define PRESET_NUMBER_PRIME_CHECK "number_prime_check"
 
 /** 质因数分解 */
 #define PRESET_NUMBER_PRIME_FACTORIZATION "number_prime_factorization"
 
 /** 欧拉函数：phi(n) */
-#define PRESET_NUMBER_EULER_TOTIENT      "number_euler_totient"
+#define PRESET_NUMBER_EULER_TOTIENT "number_euler_totient"
 
 /** 模逆元 */
-#define PRESET_NUMBER_MODULAR_INVERSE    "number_modular_inverse"
+#define PRESET_NUMBER_MODULAR_INVERSE "number_modular_inverse"
 
 /* -------------------- 组合计数 -------------------- */
 
 /** 排列数：P(n, k) */
-#define PRESET_COMBIN_PERMUTATION        "combin_permutation"
+#define PRESET_COMBIN_PERMUTATION "combin_permutation"
 
 /** 组合数：C(n, k) */
-#define PRESET_COMBIN_COMBINATION        "combin_combination"
+#define PRESET_COMBIN_COMBINATION "combin_combination"
 
 /** 第一类Stirling数 */
-#define PRESET_COMBIN_STIRLING_FIRST     "combin_stirling_first"
+#define PRESET_COMBIN_STIRLING_FIRST "combin_stirling_first"
 
 /** 第二类Stirling数 */
-#define PRESET_COMBIN_STIRLING_SECOND    "combin_stirling_second"
+#define PRESET_COMBIN_STIRLING_SECOND "combin_stirling_second"
 
 /** 整数分拆数 */
-#define PRESET_COMBIN_PARTITION          "combin_partition"
+#define PRESET_COMBIN_PARTITION "combin_partition"
 
 /** Catalan数 */
-#define PRESET_COMBIN_CATALAN            "combin_catalan"
+#define PRESET_COMBIN_CATALAN "combin_catalan"
 
 /* -------------------- 数列与级数 -------------------- */
 
 /** 等差数列求和 */
-#define PRESET_SEQUENCE_ARITHMETIC_SUM   "sequence_arithmetic_sum"
+#define PRESET_SEQUENCE_ARITHMETIC_SUM "sequence_arithmetic_sum"
 
 /** 等比数列求和 */
-#define PRESET_SEQUENCE_GEOMETRIC_SUM    "sequence_geometric_sum"
+#define PRESET_SEQUENCE_GEOMETRIC_SUM "sequence_geometric_sum"
 
 /** Fibonacci数列第n项 */
-#define PRESET_SEQUENCE_FIBONACCI        "sequence_fibonacci"
+#define PRESET_SEQUENCE_FIBONACCI "sequence_fibonacci"
 
 /** 二项式系数 */
 #define PRESET_SEQUENCE_BINOMIAL_COEFFICIENT "sequence_binomial_coefficient"
 
 /** 调和数H_n */
-#define PRESET_SEQUENCE_HARMONIC_NUMBER  "sequence_harmonic_number"
+#define PRESET_SEQUENCE_HARMONIC_NUMBER "sequence_harmonic_number"
 
 /* -------------------- 特殊函数 -------------------- */
 
 /** 阶乘：n! */
-#define PRESET_SPECIAL_FACTORIAL         "special_factorial"
+#define PRESET_SPECIAL_FACTORIAL "special_factorial"
 
 /** Gamma函数：Gamma(z) */
-#define PRESET_SPECIAL_GAMMA             "special_gamma"
+#define PRESET_SPECIAL_GAMMA "special_gamma"
 
 /** Beta函数：B(x, y) */
-#define PRESET_SPECIAL_BETA              "special_beta"
+#define PRESET_SPECIAL_BETA "special_beta"
 
 /** Bernoulli数 */
-#define PRESET_SPECIAL_BERNOULLI         "special_bernoulli"
+#define PRESET_SPECIAL_BERNOULLI "special_bernoulli"
 
 /** Legendre多项式 */
-#define PRESET_SPECIAL_LEGENDRE          "special_legendre"
+#define PRESET_SPECIAL_LEGENDRE "special_legendre"
 
 /* ============================================================
  * 模块注册函数

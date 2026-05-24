@@ -28,9 +28,10 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
 
 /* ========================================================================
  * 概率分布类型
@@ -39,10 +40,10 @@ extern "C" {
 /** 概率分布类型枚举 */
 typedef enum {
     PROB_DIST_UNIFORM = 0,  /**< 均匀分布 U(a, b) */
-    PROB_DIST_NORMAL  = 1,  /**< 正态分布 N(mu, sigma^2) */
+    PROB_DIST_NORMAL = 1,   /**< 正态分布 N(mu, sigma^2) */
     PROB_DIST_DISCRETE = 2, /**< 离散分布（自定义概率质量函数） */
-    PROB_DIST_BETA    = 3,  /**< Beta 分布 Beta(alpha, beta) */
-    PROB_DIST_CUSTOM  = 4   /**< 自定义分布（用户提供 PDF/CDF） */
+    PROB_DIST_BETA = 3,     /**< Beta 分布 Beta(alpha, beta) */
+    PROB_DIST_CUSTOM = 4    /**< 自定义分布（用户提供 PDF/CDF） */
 } ProbDistType;
 
 /** 概率分布结构体 */
@@ -107,11 +108,11 @@ typedef struct {
 
 /** PCTL 公式类型枚举 */
 typedef enum {
-    PCTL_PROB_BOUND  = 0,  /**< P~p [ phi ] — 概率边界 */
-    PCTL_NEXT        = 1,  /**< X phi — 下一状态满足 phi */
-    PCTL_UNTIL       = 2,  /**< phi U psi — phi 一直成立直到 psi */
-    PCTL_EVENTUALLY  = 3,  /**< F phi — 最终满足 phi */
-    PCTL_ALWAYS      = 4,  /**< G phi — 总是满足 phi */
+    PCTL_PROB_BOUND = 0,  /**< P~p [ phi ] — 概率边界 */
+    PCTL_NEXT = 1,        /**< X phi — 下一状态满足 phi */
+    PCTL_UNTIL = 2,       /**< phi U psi — phi 一直成立直到 psi */
+    PCTL_EVENTUALLY = 3,  /**< F phi — 最终满足 phi */
+    PCTL_ALWAYS = 4,      /**< G phi — 总是满足 phi */
     PCTL_STEADY_STATE = 5 /**< S~p [ phi ] — 稳态概率满足 phi */
 } PCTLFormulaType;
 
@@ -148,9 +149,7 @@ typedef struct PCTLFormula {
  * @param[in] param_count 参数数量
  * @return 新分布，失败返回 NULL
  */
-ProbDistribution *prob_dist_create(ProbDistType type,
-                                    double *params,
-                                    int param_count);
+ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_count);
 
 /**
  * @brief 销毁概率分布
@@ -175,9 +174,7 @@ double prob_dist_cdf(ProbDistribution *dist, double x);
  * @param[out] out_samples 输出样本数组（调用者负责 free）
  * @return 实际采样数量，失败返回 -1
  */
-int prob_dist_sample(ProbDistribution *dist,
-                      int n_samples,
-                      double **out_samples);
+int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples);
 
 /* ========================================================================
  * 概率约束管理
@@ -190,8 +187,7 @@ int prob_dist_sample(ProbDistribution *dist,
  * @param[in] dist    坐标概率分布（可为 NULL，表示确定性坐标）
  * @return 新概率约束节点，失败返回 NULL
  */
-ProbConstraintNode *prob_constraint_create(int node_id,
-                                            ProbDistribution *dist);
+ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist);
 
 /**
  * @brief 销毁概率约束节点
@@ -208,9 +204,7 @@ void prob_constraint_destroy(ProbConstraintNode *node);
  * @param[out] out_samples 输出样本数组（n_samples 个 double，调用者负责 free）
  * @return 采样数量，失败返回 -1
  */
-int prob_constraint_sample(ProbConstraintNode *node,
-                            int n_samples,
-                            double **out_samples);
+int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out_samples);
 
 /* ========================================================================
  * PCTL 评估
@@ -227,9 +221,7 @@ int prob_constraint_sample(ProbConstraintNode *node,
  * @param[out] out_probability 输出：满足公式的概率（0.0 ~ 1.0）
  * @return true 评估成功，false 失败
  */
-bool pctl_evaluate(const ConstraintGraph *graph,
-                   const PCTLFormula *formula,
-                   double *out_probability);
+bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, double *out_probability);
 
 /**
  * @brief PCTL 构造性检查
@@ -242,8 +234,7 @@ bool pctl_evaluate(const ConstraintGraph *graph,
  * @param[in] confidence  置信度阈值（如 0.95）
  * @return true 以 probability >= confidence 的概率可构造，false 不可
  */
-bool pctl_check_constructibility(const ConstraintGraph *graph,
-                                  double confidence);
+bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence);
 
 /* ========================================================================
  * 概率推理
@@ -262,11 +253,8 @@ bool pctl_check_constructibility(const ConstraintGraph *graph,
  * @param[out] out_conf      输出：推断置信度（0.0 ~ 1.0）
  * @return true 推理成功，false 失败
  */
-bool prob_constraint_infer(const ConstraintGraph *graph,
-                            int target_var,
-                            ProbConstraintNode **constraints,
-                            int n,
-                            double *out_conf);
+bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbConstraintNode **constraints, int n,
+                           double *out_conf);
 
 #ifdef __cplusplus
 }

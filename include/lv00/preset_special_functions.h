@@ -33,70 +33,70 @@ extern "C" {
 /* -------------------- 第一组：Gamma & Beta 函数 -------------------- */
 
 /** Gamma函数 Γ(z) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_GAMMA              "sf_gamma"
+#define PRESET_SF_GAMMA "sf_gamma"
 
 /** 对数Gamma函数 ln(Γ(z)) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_LOG_GAMMA          "sf_log_gamma"
+#define PRESET_SF_LOG_GAMMA "sf_log_gamma"
 
 /** Digamma函数 ψ(z) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_DIGAMMA            "sf_digamma"
+#define PRESET_SF_DIGAMMA "sf_digamma"
 
 /** Beta函数 B(a,b) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_BETA               "sf_beta"
+#define PRESET_SF_BETA "sf_beta"
 
 /** 不完全Beta函数 B(x;a,b) — 3个标量输入，1个标量输出 */
-#define PRESET_SF_INCOMPLETE_BETA    "sf_incomplete_beta"
+#define PRESET_SF_INCOMPLETE_BETA "sf_incomplete_beta"
 
 /* -------------------- 第二组：误差与指数积分 -------------------- */
 
 /** 误差函数 erf(x) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_ERF                "sf_erf"
+#define PRESET_SF_ERF "sf_erf"
 
 /** 补误差函数 erfc(x) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_ERFC               "sf_erfc"
+#define PRESET_SF_ERFC "sf_erfc"
 
 /** 指数积分 Ei(x) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_EXP_INTEGRAL       "sf_exp_integral"
+#define PRESET_SF_EXP_INTEGRAL "sf_exp_integral"
 
 /** 对数积分 li(x) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_LOG_INTEGRAL       "sf_log_integral"
+#define PRESET_SF_LOG_INTEGRAL "sf_log_integral"
 
 /** 正弦/余弦积分 Si(x)/Ci(x) — 1个标量输入，输出元组（2值） */
-#define PRESET_SF_SIN_COS_INTEGRAL   "sf_sin_cos_integral"
+#define PRESET_SF_SIN_COS_INTEGRAL "sf_sin_cos_integral"
 
 /* -------------------- 第三组：Bessel 与相关函数 -------------------- */
 
 /** 第一类Bessel函数 J_ν(x) — 2个标量输入（阶数ν, 自变量x），1个标量输出 */
-#define PRESET_SF_BESSEL_J           "sf_bessel_j"
+#define PRESET_SF_BESSEL_J "sf_bessel_j"
 
 /** 第二类Bessel函数 Y_ν(x) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_BESSEL_Y           "sf_bessel_y"
+#define PRESET_SF_BESSEL_Y "sf_bessel_y"
 
 /** 修正Bessel函数 I_ν(x) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_MODIFIED_BESSEL_I  "sf_modified_bessel_i"
+#define PRESET_SF_MODIFIED_BESSEL_I "sf_modified_bessel_i"
 
 /** 修正Bessel函数 K_ν(x) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_MODIFIED_BESSEL_K  "sf_modified_bessel_k"
+#define PRESET_SF_MODIFIED_BESSEL_K "sf_modified_bessel_k"
 
 /** 球Bessel函数 j_n(x) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_SPHERICAL_BESSEL   "sf_spherical_bessel"
+#define PRESET_SF_SPHERICAL_BESSEL "sf_spherical_bessel"
 
 /* -------------------- 第四组：正交多项式与其他 -------------------- */
 
 /** Legendre多项式 P_n(x) — 2个标量输入（阶数n, 自变量x），1个标量输出 */
-#define PRESET_SF_LEGENDRE_P         "sf_legendre_p"
+#define PRESET_SF_LEGENDRE_P "sf_legendre_p"
 
 /** Hermite多项式 H_n(x) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_HERMITE_H          "sf_hermite_h"
+#define PRESET_SF_HERMITE_H "sf_hermite_h"
 
 /** Laguerre多项式 L_n(x) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_LAGUERRE_L         "sf_laguerre_l"
+#define PRESET_SF_LAGUERRE_L "sf_laguerre_l"
 
 /** Chebyshev多项式 T_n(x) — 2个标量输入，1个标量输出 */
-#define PRESET_SF_CHEBYSHEV_T        "sf_chebyshev_t"
+#define PRESET_SF_CHEBYSHEV_T "sf_chebyshev_t"
 
 /** Riemann Zeta函数 ζ(s) — 1个标量输入，1个标量输出 */
-#define PRESET_SF_ZETA               "sf_zeta"
+#define PRESET_SF_ZETA "sf_zeta"
 
 /* ============================================================
  * 模块注册函数

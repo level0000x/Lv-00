@@ -12,11 +12,12 @@
 #ifndef LV00_MAGIC_H
 #define LV00_MAGIC_H
 
+#include <stdbool.h>
+#include <stddef.h>
+
 #include "constraint_graph.h"
 #include "func_block.h"
 #include "symbolic_coord.h"
-#include <stdbool.h>
-#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,20 +28,20 @@ extern "C" {
  * ============================================================ */
 
 typedef enum {
-    ELEMENT_FIRE,     /* 火元素 - 释放与热效应 */
-    ELEMENT_WATER,    /* 水元素 - 流动与相态调节 */
-    ELEMENT_AIR,      /* 风元素 - 运动与压差 */
-    ELEMENT_EARTH,    /* 土元素 - 结构与承载 */
-    ELEMENT_ETHER,    /* 以太 - 第五元素 */
-    ELEMENT_NONE      /* 无属性 */
+    ELEMENT_FIRE,  /* 火元素 - 释放与热效应 */
+    ELEMENT_WATER, /* 水元素 - 流动与相态调节 */
+    ELEMENT_AIR,   /* 风元素 - 运动与压差 */
+    ELEMENT_EARTH, /* 土元素 - 结构与承载 */
+    ELEMENT_ETHER, /* 以太 - 第五元素 */
+    ELEMENT_NONE   /* 无属性 */
 } MagicElement;
 
 /* 元素反应矩阵 */
 typedef enum {
-    ELEMENT_REACTION_NONE,     /* 无反应 */
-    ELEMENT_REACTION_ENHANCE,  /* 协同增强 */
-    ELEMENT_REACTION_WEAKEN,   /* 相互削弱 */
-    ELEMENT_REACTION_CONFLICT  /* 对立冲突 */
+    ELEMENT_REACTION_NONE,    /* 无反应 */
+    ELEMENT_REACTION_ENHANCE, /* 协同增强 */
+    ELEMENT_REACTION_WEAKEN,  /* 相互削弱 */
+    ELEMENT_REACTION_CONFLICT /* 对立冲突 */
 } ElementReaction;
 
 /* ============================================================
@@ -60,11 +61,11 @@ typedef struct RuneSequence RuneSequence;
  * - 超越数符文：π、e 等
  */
 struct Rune {
-    SymbolicCoord *coord;      /* 符文位置/值 */
-    MagicElement element;       /* 符文元素属性 */
-    char *name;               /* 符文名称 */
-    char *symbol;             /* 符文符号 */
-    int power_level;          /* 符文强度等级 1-10 */
+    SymbolicCoord *coord; /* 符文位置/值 */
+    MagicElement element; /* 符文元素属性 */
+    char *name;           /* 符文名称 */
+    char *symbol;         /* 符文符号 */
+    int power_level;      /* 符文强度等级 1-10 */
 };
 
 /* 符文序列 - 多个符文的组合 */
@@ -116,14 +117,14 @@ typedef struct MagicArray MagicArray;
 
 /* 魔法阵约束类型 */
 typedef enum {
-    ARRAY_CONNECTION,      /* 连接：能量流动路径 */
-    ARRAY_ENHANCEMENT,     /* 增强：元素协同 */
-    ARRAY_CONFLICT,       /* 冲突：元素对立 */
-    ARRAY_INTERSECTION,   /* 相交：能量汇聚 */
-    ARRAY_CONTAINMENT,    /* 包含：区域包围 */
-    ARRAY_BOUNDARY,       /* 边界：结界边缘 */
-    ARRAY_CHANNEL,        /* 通道：能量传输线 */
-    ARRAY_FOCUS           /* 焦点：能量集中点 */
+    ARRAY_CONNECTION,   /* 连接：能量流动路径 */
+    ARRAY_ENHANCEMENT,  /* 增强：元素协同 */
+    ARRAY_CONFLICT,     /* 冲突：元素对立 */
+    ARRAY_INTERSECTION, /* 相交：能量汇聚 */
+    ARRAY_CONTAINMENT,  /* 包含：区域包围 */
+    ARRAY_BOUNDARY,     /* 边界：结界边缘 */
+    ARRAY_CHANNEL,      /* 通道：能量传输线 */
+    ARRAY_FOCUS         /* 焦点：能量集中点 */
 } ArrayConstraintType;
 
 /* 魔法阵创建/销毁 */
@@ -137,16 +138,15 @@ Rune *magic_array_get_rune(const MagicArray *array, int rune_index);
 int magic_array_get_rune_count(const MagicArray *array);
 
 /* 约束操作 */
-int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type,
-                               int rune1_index, int rune2_index);
+int magic_array_add_constraint(MagicArray *array, ArrayConstraintType type, int rune1_index, int rune2_index);
 bool magic_array_remove_constraint(MagicArray *array, int constraint_index);
 int magic_array_get_constraint_count(const MagicArray *array);
 
 /* 魔法阵分析 */
-bool magic_array_check_balance(const MagicArray *array);  /* 检查元素平衡 */
+bool magic_array_check_balance(const MagicArray *array); /* 检查元素平衡 */
 ElementReaction array_check_element_reaction(MagicElement e1, MagicElement e2);
 int array_count_elements(const MagicArray *array, MagicElement element);
-double array_calculate_stability(const MagicArray *array);  /* 稳定性评分 0-1 */
+double array_calculate_stability(const MagicArray *array); /* 稳定性评分 0-1 */
 
 /* 魔法阵操作 */
 bool magic_array_merge(MagicArray *dest, const MagicArray *src);
@@ -160,19 +160,19 @@ MagicArray *magic_array_deserialize(const char *json);
 
 /* 施法四阶段 */
 typedef enum {
-    SPELL_STAGE_MOLDING,    /* 开模：定义法术形态 */
-    SPELL_STAGE_PURIFYING,  /* 提纯：元素纯化 */
-    SPELL_STAGE_INFUSING,   /* 灌注：能量注入 */
-    SPELL_STAGE_RELEASING   /* 释放：效果投射 */
+    SPELL_STAGE_MOLDING,   /* 开模：定义法术形态 */
+    SPELL_STAGE_PURIFYING, /* 提纯：元素纯化 */
+    SPELL_STAGE_INFUSING,  /* 灌注：能量注入 */
+    SPELL_STAGE_RELEASING  /* 释放：效果投射 */
 } SpellStage;
 
 /* 施法状态 */
 typedef enum {
-    SPELL_STATUS_IDLE,      /* 空闲 */
-    SPELL_STATUS_CASTING,   /* 施法中 */
-    SPELL_STATUS_SUCCESS,   /* 施法成功 */
-    SPELL_STATUS_FAILED,    /* 施法失败 */
-    SPELL_STATUS_BACKLASH   /* 反噬 */
+    SPELL_STATUS_IDLE,    /* 空闲 */
+    SPELL_STATUS_CASTING, /* 施法中 */
+    SPELL_STATUS_SUCCESS, /* 施法成功 */
+    SPELL_STATUS_FAILED,  /* 施法失败 */
+    SPELL_STATUS_BACKLASH /* 反噬 */
 } SpellStatus;
 
 /* ============================================================
@@ -199,7 +199,7 @@ void spell_destroy(Spell *spell);
 bool spell_set_input_count(Spell *spell, int count);
 bool spell_set_output_count(Spell *spell, int count);
 bool spell_set_description(Spell *spell, const char *desc);
-bool spell_set_difficulty(Spell *spell, int difficulty);  /* 1-10 */
+bool spell_set_difficulty(Spell *spell, int difficulty); /* 1-10 */
 
 /* 符文序列配置 */
 bool spell_configure_molding(Spell *spell, const RuneSequence *seq);
@@ -217,8 +217,7 @@ SpellStage spell_get_current_stage(const Spell *spell);
 SpellStatus spell_get_status(const Spell *spell);
 
 /* 咒语执行 */
-SpellStatus spell_cast(Spell *spell, MagicArray *array,
-                       SymbolicCoord **inputs, int input_count,
+SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, int input_count,
                        SymbolicCoord **outputs, int output_count);
 
 /* 咒语验证 */
@@ -230,21 +229,21 @@ bool spell_check_element_compatibility(const Spell *spell, MagicElement element)
  * ============================================================ */
 
 typedef enum {
-    PURITY_RAW,         /* 原始混合 < 30% */
-    PURITY_COARSE,      /* 粗提纯 30-60% */
-    PURITY_STANDARD,     /* 标准纯 60-85% */
-    PURITY_HIGH,         /* 高纯 85-95% */
-    PURITY_ULTRA,        /* 极纯 95-99% */
-    PURITY_THEORETICAL   /* 理论纯 > 99% */
+    PURITY_RAW,        /* 原始混合 < 30% */
+    PURITY_COARSE,     /* 粗提纯 30-60% */
+    PURITY_STANDARD,   /* 标准纯 60-85% */
+    PURITY_HIGH,       /* 高纯 85-95% */
+    PURITY_ULTRA,      /* 极纯 95-99% */
+    PURITY_THEORETICAL /* 理论纯 > 99% */
 } PurityLevel;
 
 typedef enum {
-    THRESHOLD_T1,   /* 微效 1-10 E_u */
-    THRESHOLD_T2,   /* 弱效 10-100 E_u */
-    THRESHOLD_T3,   /* 中效 100-1k E_u */
-    THRESHOLD_T4,   /* 强效 1k-10k E_u */
-    THRESHOLD_T5,   /* 极效 10k-100k E_u */
-    THRESHOLD_T6    /* 超限 > 100k E_u */
+    THRESHOLD_T1, /* 微效 1-10 E_u */
+    THRESHOLD_T2, /* 弱效 10-100 E_u */
+    THRESHOLD_T3, /* 中效 100-1k E_u */
+    THRESHOLD_T4, /* 强效 1k-10k E_u */
+    THRESHOLD_T5, /* 极效 10k-100k E_u */
+    THRESHOLD_T6  /* 超限 > 100k E_u */
 } EnergyThreshold;
 
 /* 纯度转换 */
@@ -272,18 +271,18 @@ char **spellbook_list_spells(const SpellBook *book, int *count);
  * ============================================================ */
 
 typedef enum {
-    INCANTATION_INSTANT,   /* 瞬发 0词 */
-    INCANTATION_SHORT,     /* 短咏 1-3词 */
-    INCANTATION_STANDARD,  /* 标准咏 4-7词 */
-    INCANTATION_LONG,      /* 长咏 8-15词 */
-    INCANTATION_RITUAL     /* 仪式咏 >15词 */
+    INCANTATION_INSTANT,  /* 瞬发 0词 */
+    INCANTATION_SHORT,    /* 短咏 1-3词 */
+    INCANTATION_STANDARD, /* 标准咏 4-7词 */
+    INCANTATION_LONG,     /* 长咏 8-15词 */
+    INCANTATION_RITUAL    /* 仪式咏 >15词 */
 } IncantationLength;
 
 typedef struct {
     IncantationLength length;
-    double precision;      /* 精度 0-1 */
-    double speed;          /* 速度 0-1 */
-    double stealth;        /* 隐蔽性 0-1 */
+    double precision; /* 精度 0-1 */
+    double speed;     /* 速度 0-1 */
+    double stealth;   /* 隐蔽性 0-1 */
 } IncantationProfile;
 
 IncantationProfile incantation_optimize(const char *goal, double target_value);
@@ -294,21 +293,20 @@ double incantation_calculate_power(const IncantationProfile *profile);
  * ============================================================ */
 
 typedef enum {
-    RESTRICTION_NONE,      /* 无限制 */
-    RESTRICTION_LIMITED,   /* 限制级 */
+    RESTRICTION_NONE,       /* 无限制 */
+    RESTRICTION_LIMITED,    /* 限制级 */
     RESTRICTION_CONTROLLED, /* 管制级 */
     RESTRICTION_FORBIDDEN,  /* 禁术级 */
-    RESTRICTION_ABSOLUTE   /* 绝对禁术 */
+    RESTRICTION_ABSOLUTE    /* 绝对禁术 */
 } RestrictionLevel;
 
 typedef struct {
-    bool external_cost_unacceptable;   /* 外部代价不可承受 */
-    bool self_damage_too_high;         /* 施术者自损过高 */
-    bool governance_uncontrollable;    /* 治理不可控 */
+    bool external_cost_unacceptable; /* 外部代价不可承受 */
+    bool self_damage_too_high;       /* 施术者自损过高 */
+    bool governance_uncontrollable;  /* 治理不可控 */
 } ForbiddenSpellCriteria;
 
-RestrictionLevel spell_check_restriction(const Spell *spell,
-                                        const ForbiddenSpellCriteria *criteria);
+RestrictionLevel spell_check_restriction(const Spell *spell, const ForbiddenSpellCriteria *criteria);
 const char *restriction_to_string(RestrictionLevel level);
 
 /* ============================================================

@@ -22,8 +22,8 @@
 #ifndef LV00_ATP_BACKEND_H
 #define LV00_ATP_BACKEND_H
 
-#include "lv00.h"
 #include "constraint_graph.h"
+#include "lv00.h"
 #include "proof.h"
 
 #ifdef __cplusplus
@@ -36,27 +36,27 @@ extern "C" {
 
 /** ATP 求解器后端类型 */
 typedef enum {
-    ATP_BACKEND_VAMPIRE   = 0,  /**< Vampire — superposition calculus，CASC 冠军 */
-    ATP_BACKEND_EPROVER   = 1,  /**< E Prover — 高性能模块化 ATP */
-    ATP_BACKEND_IPROVER   = 2,  /**< iProver — Inst-Gen，量词友好 */
-    ATP_BACKEND_CUSTOM    = 3,  /**< 自定义后端 */
-    ATP_BACKEND_COUNT           /**< 后端总数 */
+    ATP_BACKEND_VAMPIRE = 0, /**< Vampire — superposition calculus，CASC 冠军 */
+    ATP_BACKEND_EPROVER = 1, /**< E Prover — 高性能模块化 ATP */
+    ATP_BACKEND_IPROVER = 2, /**< iProver — Inst-Gen，量词友好 */
+    ATP_BACKEND_CUSTOM = 3,  /**< 自定义后端 */
+    ATP_BACKEND_COUNT        /**< 后端总数 */
 } ATPBackendType;
 
 /** ATP 输入格式 */
 typedef enum {
-    ATP_FORMAT_TPTP_FOF   = 0,  /**< TPTP FOF（一阶公式）— 最通用 */
-    ATP_FORMAT_TPTP_CNF   = 1,  /**< TPTP CNF（子句范式）— 适合 superposition */
-    ATP_FORMAT_TPTP_TFF   = 2,  /**< TPTP TFF（带类型的一阶公式） */
-    ATP_FORMAT_SMTLIB2    = 3,  /**< SMT-LIB2 — 与 SMT 后端共用格式 */
+    ATP_FORMAT_TPTP_FOF = 0, /**< TPTP FOF（一阶公式）— 最通用 */
+    ATP_FORMAT_TPTP_CNF = 1, /**< TPTP CNF（子句范式）— 适合 superposition */
+    ATP_FORMAT_TPTP_TFF = 2, /**< TPTP TFF（带类型的一阶公式） */
+    ATP_FORMAT_SMTLIB2 = 3,  /**< SMT-LIB2 — 与 SMT 后端共用格式 */
 } ATPInputFormat;
 
 /** ATP 求解结果 */
 typedef enum {
-    ATP_RESULT_SAT        = 0,  /**< 可满足 */
-    ATP_RESULT_UNSAT      = 1,  /**< 不可满足（对应"证明成功"） */
-    ATP_RESULT_UNKNOWN    = 2,  /**< 未知（超时/资源耗尽） */
-    ATP_RESULT_ERROR      = 3,  /**< 错误 */
+    ATP_RESULT_SAT = 0,     /**< 可满足 */
+    ATP_RESULT_UNSAT = 1,   /**< 不可满足（对应"证明成功"） */
+    ATP_RESULT_UNKNOWN = 2, /**< 未知（超时/资源耗尽） */
+    ATP_RESULT_ERROR = 3,   /**< 错误 */
 } ATPResult;
 
 /* ========================================================================
@@ -66,69 +66,69 @@ typedef enum {
 /** ATP 求解器配置 */
 typedef struct {
     /** 基本配置 */
-    ATPInputFormat input_format;  /**< 输入编码格式 */
-    double timeout_seconds;       /**< 求解超时（秒），0 = 无限制 */
-    int memory_limit_mb;          /**< 内存限制（MB），0 = 无限制 */
+    ATPInputFormat input_format; /**< 输入编码格式 */
+    double timeout_seconds;      /**< 求解超时（秒），0 = 无限制 */
+    int memory_limit_mb;         /**< 内存限制（MB），0 = 无限制 */
 
     /** 策略配置（借鉴 Vampire strategy scheduling） */
-    bool auto_strategy;           /**< 自动策略选择（推荐） */
-    const char *strategy_name;    /**< 手动指定策略名（NULL = 默认） */
+    bool auto_strategy;        /**< 自动策略选择（推荐） */
+    const char *strategy_name; /**< 手动指定策略名（NULL = 默认） */
 
     /** 输出配置 */
-    bool produce_proof;           /**< 输出证明（TSTP 格式） */
-    bool produce_unsat_core;      /**< 输出 unsat core */
+    bool produce_proof;      /**< 输出证明（TSTP 格式） */
+    bool produce_unsat_core; /**< 输出 unsat core */
 
     /** 高级配置 */
-    bool use_avatar;              /**< Vampire AVATAR 模式（SAT+superposition） */
-    int clause_weight_limit;      /**< 子句权重上限（0 = 默认） */
-    const char *custom_options;   /**< 自定义命令行选项（NULL = 无） */
+    bool use_avatar;            /**< Vampire AVATAR 模式（SAT+superposition） */
+    int clause_weight_limit;    /**< 子句权重上限（0 = 默认） */
+    const char *custom_options; /**< 自定义命令行选项（NULL = 无） */
 
     /** 调试 */
-    int verbosity;                /**< 详细级别（0-3） */
-    const char *log_file;         /**< 日志文件路径（NULL = 无） */
+    int verbosity;        /**< 详细级别（0-3） */
+    const char *log_file; /**< 日志文件路径（NULL = 无） */
 } ATPConfig;
 
 /** ATP 子句分配（变量绑定） */
 typedef struct {
-    int variable_id;              /**< 变量序号 */
-    char *variable_name;          /**< 变量名（如 "X", "Y"） */
-    char *term;                   /**< 绑定的项（TPTP 语法） */
+    int variable_id;     /**< 变量序号 */
+    char *variable_name; /**< 变量名（如 "X", "Y"） */
+    char *term;          /**< 绑定的项（TPTP 语法） */
 } ATPBinding;
 
 /** ATP 证明步骤 */
 typedef struct {
-    int step_id;                  /**< 步骤序号 */
-    char *clause;                 /**< 子句（TPTP 语法） */
-    char *inference_rule;         /**< 推理规则名（resolution/superposition/...） */
-    char *justification;          /**< 引用（parent step id） */
-    bool is_axiom;                /**< 是否为公理步骤 */
-    bool is_goal;                 /**< 是否为结论步骤 */
+    int step_id;          /**< 步骤序号 */
+    char *clause;         /**< 子句（TPTP 语法） */
+    char *inference_rule; /**< 推理规则名（resolution/superposition/...） */
+    char *justification;  /**< 引用（parent step id） */
+    bool is_axiom;        /**< 是否为公理步骤 */
+    bool is_goal;         /**< 是否为结论步骤 */
 } ATPProofStep;
 
 /** ATP 求解结果 */
 typedef struct {
-    ATPResult result;             /**< 求解结果 */
-    ATPBackendType backend;       /**< 使用的后端 */
-    double solve_time_seconds;    /**< 求解耗时（秒） */
-    int generated_clauses;        /**< 生成的子句数 */
-    int processed_clauses;        /**< 处理的子句数 */
-    int kept_clauses;             /**< 保留的子句数 */
+    ATPResult result;          /**< 求解结果 */
+    ATPBackendType backend;    /**< 使用的后端 */
+    double solve_time_seconds; /**< 求解耗时（秒） */
+    int generated_clauses;     /**< 生成的子句数 */
+    int processed_clauses;     /**< 处理的子句数 */
+    int kept_clauses;          /**< 保留的子句数 */
 
     /** 证明（UNSAT 时有意义） */
-    ATPProofStep *proof_steps;    /**< 证明步骤数组 */
-    int proof_step_count;         /**< 证明步骤数 */
+    ATPProofStep *proof_steps; /**< 证明步骤数组 */
+    int proof_step_count;      /**< 证明步骤数 */
 
     /** Unsat Core（如果 produce_unsat_core=true） */
-    int *unsat_core_clause_ids;   /**< Unsat core 子句 ID 数组 */
-    int unsat_core_count;         /**< Unsat core 大小 */
+    int *unsat_core_clause_ids; /**< Unsat core 子句 ID 数组 */
+    int unsat_core_count;       /**< Unsat core 大小 */
 
     /** 错误信息 */
-    int error_code;               /**< 错误码 */
-    char error_message[512];      /**< 错误消息 */
+    int error_code;          /**< 错误码 */
+    char error_message[512]; /**< 错误消息 */
 
     /** 原始输出（调试用） */
-    char *raw_output;             /**< 求解器原始 stdout */
-    int raw_output_length;        /**< 原始输出长度 */
+    char *raw_output;      /**< 求解器原始 stdout */
+    int raw_output_length; /**< 原始输出长度 */
 } ATPResultInfo;
 
 /* ========================================================================
@@ -156,11 +156,8 @@ typedef struct {
  * @param[in] target_prop 待证明的命题（NULL = 跳过）
  * @return TPTP 格式字符串（调用者负责 free），失败返回 NULL
  */
-char *atp_encode_constraint_graph(const ConstraintGraph *graph,
-                                   ATPInputFormat format,
-                                   const char *problem_name,
-                                   bool include_proof_goal,
-                                   const Proposition *target_prop);
+char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat format, const char *problem_name,
+                                  bool include_proof_goal, const Proposition *target_prop);
 
 /* ========================================================================
  * ATP 求解器生命周期
@@ -176,17 +173,17 @@ typedef ATPBackendSolver *(*ATPBackendCreateFunc)(const ATPConfig *config);
 
 /** 后端注册条目 */
 typedef struct {
-    ATPBackendType type;          /**< 后端类型 */
-    bool available;               /**< 系统上是否可用 */
-    ATPBackendCreateFunc create;  /**< 创建函数 */
-    int priority;                 /**< 默认优先级（低=优先） */
-    const char *description;      /**< 描述 */
+    ATPBackendType type;         /**< 后端类型 */
+    bool available;              /**< 系统上是否可用 */
+    ATPBackendCreateFunc create; /**< 创建函数 */
+    int priority;                /**< 默认优先级（低=优先） */
+    const char *description;     /**< 描述 */
 } ATPBackendEntry;
 
 /** ATP 后端注册表 */
 typedef struct {
     ATPBackendEntry entries[ATP_BACKEND_COUNT]; /**< 注册条目数组 */
-    int count;                                   /**< 已注册数 */
+    int count;                                  /**< 已注册数 */
 } ATPBackendRegistry;
 
 /**
@@ -251,12 +248,8 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result);
  * @param result       输出结果
  * @return LV00_OK 成功
  */
-int atp_solver_solve_graph(ATPBackendSolver *solver,
-                           const ConstraintGraph *graph,
-                           ATPInputFormat format,
-                           const char *problem_name,
-                           bool include_goal,
-                           const Proposition *target_prop,
+int atp_solver_solve_graph(ATPBackendSolver *solver, const ConstraintGraph *graph, ATPInputFormat format,
+                           const char *problem_name, bool include_goal, const Proposition *target_prop,
                            ATPResultInfo *result);
 
 /* ========================================================================
@@ -286,9 +279,7 @@ void atp_result_init(ATPResultInfo *result);
  *
  * @note 当前仅支持 TSTP（Vampire/E Prover 输出格式）
  */
-int atp_proof_to_lv00(const ATPResultInfo *result,
-                      Proof *proof,
-                      int *step_count);
+int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count);
 
 /* ========================================================================
  * 后端注册与发现
@@ -367,9 +358,7 @@ int atp_register_all_to_scheduler(void);
  * @param result 输出结果
  * @return LV00_OK 成功
  */
-int atp_auto_solve(const ConstraintGraph *graph,
-                   const ATPConfig *config,
-                   ATPResultInfo *result);
+int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config, ATPResultInfo *result);
 
 /* ========================================================================
  * 字符串工具

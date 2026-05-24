@@ -30,8 +30,8 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* ============== 常量 ============== */
 
@@ -45,10 +45,10 @@ extern "C" {
 #define STREAM_EVENT_TYPE_COUNT 47
 
 /** 全部事件掩码（接收所有事件） */
-#define STREAM_FILTER_ALL  ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+#define STREAM_FILTER_ALL ((uint64_t) 0xFFFFFFFFFFFFFFFFULL)
 
 /** 无事件掩码（不接收任何事件） */
-#define STREAM_FILTER_NONE ((uint64_t)0x0000000000000000ULL)
+#define STREAM_FILTER_NONE ((uint64_t) 0x0000000000000000ULL)
 
 /** 异步事件队列默认容量 */
 #define STREAM_ASYNC_QUEUE_DEFAULT_CAPACITY 1024
@@ -57,7 +57,7 @@ extern "C" {
 #define STREAM_JSON_BUFFER_DEFAULT_SIZE 4096
 
 /** 事件类型掩码位运算宏（使用 64 位以支持 >32 种事件类型） */
-#define STREAM_EVENT_MASK(type) ((uint64_t)1ULL << (uint64_t)(type))
+#define STREAM_EVENT_MASK(type) ((uint64_t) 1ULL << (uint64_t) (type))
 
 /* ============== 发射模式 ============== */
 
@@ -65,79 +65,79 @@ extern "C" {
  * @brief 事件发射策略
  */
 typedef enum {
-    STREAM_EMIT_IMMEDIATE = 0,  /**< 立即同步发射（默认） */
-    STREAM_EMIT_BUFFERED,       /**< 缓冲模式：事件入队，等待 stream_flush() 手动刷新 */
-    STREAM_EMIT_THROTTLED,      /**< 节流模式：事件入队，按时间间隔自动批量刷新 */
-    STREAM_EMIT_LAZY            /**< 惰性模式：事件入队，仅在消费者请求时才序列化和分发 */
+    STREAM_EMIT_IMMEDIATE = 0, /**< 立即同步发射（默认） */
+    STREAM_EMIT_BUFFERED,      /**< 缓冲模式：事件入队，等待 stream_flush() 手动刷新 */
+    STREAM_EMIT_THROTTLED,     /**< 节流模式：事件入队，按时间间隔自动批量刷新 */
+    STREAM_EMIT_LAZY           /**< 惰性模式：事件入队，仅在消费者请求时才序列化和分发 */
 } StreamEmitMode;
 
 /* ============== 流式事件类型 ============== */
 
 typedef enum {
     /* ---- 引擎生命周期 ---- */
-    STREAM_EVENT_ENGINE_START = 0,     /* 引擎开始工作 */
-    STREAM_EVENT_ENGINE_DONE,          /* 引擎完成工作 */
-    STREAM_EVENT_ENGINE_PAUSED,        /* 引擎暂停（断点触发） */
+    STREAM_EVENT_ENGINE_START = 0, /* 引擎开始工作 */
+    STREAM_EVENT_ENGINE_DONE,      /* 引擎完成工作 */
+    STREAM_EVENT_ENGINE_PAUSED,    /* 引擎暂停（断点触发） */
 
     /* ---- 归一化 ---- */
-    STREAM_EVENT_NORMALIZE_START,      /* 归一化阶段开始 */
-    STREAM_EVENT_NORMALIZE_MERGE,      /* 节点合并事件（含合并前后 ID） */
-    STREAM_EVENT_NORMALIZE_DONE,       /* 归一化完成（含合并计数） */
+    STREAM_EVENT_NORMALIZE_START, /* 归一化阶段开始 */
+    STREAM_EVENT_NORMALIZE_MERGE, /* 节点合并事件（含合并前后 ID） */
+    STREAM_EVENT_NORMALIZE_DONE,  /* 归一化完成（含合并计数） */
 
     /* ---- 重写引擎 ---- */
-    STREAM_EVENT_REWRITE_START,        /* 重写阶段开始 */
-    STREAM_EVENT_REWRITE_RULE_LOADED,  /* 规则加载成功 */
-    STREAM_EVENT_REWRITE_MATCH_FOUND,  /* 找到匹配 */
-    STREAM_EVENT_REWRITE_APPLIED,      /* 规则应用成功 */
-    STREAM_EVENT_REWRITE_ROLLBACK,     /* 规则回滚 */
-    STREAM_EVENT_REWRITE_DONE,         /* 重写阶段完成 */
+    STREAM_EVENT_REWRITE_START,       /* 重写阶段开始 */
+    STREAM_EVENT_REWRITE_RULE_LOADED, /* 规则加载成功 */
+    STREAM_EVENT_REWRITE_MATCH_FOUND, /* 找到匹配 */
+    STREAM_EVENT_REWRITE_APPLIED,     /* 规则应用成功 */
+    STREAM_EVENT_REWRITE_ROLLBACK,    /* 规则回滚 */
+    STREAM_EVENT_REWRITE_DONE,        /* 重写阶段完成 */
 
     /* ---- 代数求解 ---- */
-    STREAM_EVENT_SOLVE_START,          /* 求解阶段开始 */
+    STREAM_EVENT_SOLVE_START,              /* 求解阶段开始 */
     STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, /* 提取到方程 */
-    STREAM_EVENT_SOLVE_GROEBNER_STEP,  /* Gröbner 基计算步骤 */
-    STREAM_EVENT_SOLVE_VARIABLE_RESOLVED, /* 变量解得 */
-    STREAM_EVENT_SOLVE_DONE,           /* 求解完成 */
+    STREAM_EVENT_SOLVE_GROEBNER_STEP,      /* Gröbner 基计算步骤 */
+    STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,  /* 变量解得 */
+    STREAM_EVENT_SOLVE_DONE,               /* 求解完成 */
 
     /* ---- 证明系统 ---- */
-    STREAM_EVENT_PROOF_STEP_ADDED,      /* 证明步骤添加 */
-    STREAM_EVENT_PROOF_STEP_APPLIED,    /* 证明步骤应用 */
-    STREAM_EVENT_PROOF_UNIFY,           /* 合一检查 */
-    STREAM_EVENT_PROOF_COLOR_UPDATE,    /* 颜色更新 */
+    STREAM_EVENT_PROOF_STEP_ADDED,        /* 证明步骤添加 */
+    STREAM_EVENT_PROOF_STEP_APPLIED,      /* 证明步骤应用 */
+    STREAM_EVENT_PROOF_UNIFY,             /* 合一检查 */
+    STREAM_EVENT_PROOF_COLOR_UPDATE,      /* 颜色更新 */
     STREAM_EVENT_PROOF_DEPENDENCY_CHANGE, /* 依赖链变化 */
 
     /* ---- 函数块系统 ---- */
-    STREAM_EVENT_FUNC_BLOCK_PACK_START,      /* 函数打包开始 */
-    STREAM_EVENT_FUNC_BLOCK_PACK_DONE,       /* 函数打包完成 */
+    STREAM_EVENT_FUNC_BLOCK_PACK_START,        /* 函数打包开始 */
+    STREAM_EVENT_FUNC_BLOCK_PACK_DONE,         /* 函数打包完成 */
     STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START, /* 函数实例化开始 */
     STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE,  /* 函数实例化完成 */
-    STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY,   /* 部分应用 */
+    STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY,     /* 部分应用 */
     STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK, /* 确定性检查 */
-    STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID,    /* 捕获避免 */
-    STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY,   /* 跨边界操作 */
+    STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID,     /* 捕获避免 */
+    STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY,    /* 跨边界操作 */
 
     /* ---- 预设函数块系统（v12.0 新增）---- */
-    STREAM_EVENT_PRESET_REGISTER_START,      /* 预设注册开始 */
-    STREAM_EVENT_PRESET_REGISTER_DONE,       /* 预设注册完成 */
-    STREAM_EVENT_PRESET_REGISTER_FAILED,     /* 预设注册失败 */
-    STREAM_EVENT_PRESET_LOOKUP,              /* 预设查找 */
-    STREAM_EVENT_PRESET_INSTANTIATE,         /* 预设实例化 */
-    STREAM_EVENT_PRESET_VALIDATE,            /* 预设验证 */
-    STREAM_EVENT_PRESET_CATEGORY_LOADED,     /* 预设类别加载完成 */
-    STREAM_EVENT_PRESET_MODULE_LOADED,       /* 预设模块加载完成 */
+    STREAM_EVENT_PRESET_REGISTER_START,  /* 预设注册开始 */
+    STREAM_EVENT_PRESET_REGISTER_DONE,   /* 预设注册完成 */
+    STREAM_EVENT_PRESET_REGISTER_FAILED, /* 预设注册失败 */
+    STREAM_EVENT_PRESET_LOOKUP,          /* 预设查找 */
+    STREAM_EVENT_PRESET_INSTANTIATE,     /* 预设实例化 */
+    STREAM_EVENT_PRESET_VALIDATE,        /* 预设验证 */
+    STREAM_EVENT_PRESET_CATEGORY_LOADED, /* 预设类别加载完成 */
+    STREAM_EVENT_PRESET_MODULE_LOADED,   /* 预设模块加载完成 */
 
     /* ---- 冲突与错误 ---- */
-    STREAM_EVENT_CONFLICT_DETECTED,    /* 冲突检测到 */
-    STREAM_EVENT_CONSTRAINT_ADDED,     /* 约束添加 */
-    STREAM_EVENT_NODE_ADDED,           /* 节点添加 */
-    STREAM_EVENT_CIRCUIT_TRIP,         /* 位数熔断触发 */
-    STREAM_EVENT_ERROR,                /* 错误 */
-    STREAM_EVENT_WARNING,              /* 警告 */
+    STREAM_EVENT_CONFLICT_DETECTED, /* 冲突检测到 */
+    STREAM_EVENT_CONSTRAINT_ADDED,  /* 约束添加 */
+    STREAM_EVENT_NODE_ADDED,        /* 节点添加 */
+    STREAM_EVENT_CIRCUIT_TRIP,      /* 位数熔断触发 */
+    STREAM_EVENT_ERROR,             /* 错误 */
+    STREAM_EVENT_WARNING,           /* 警告 */
 
     /* ---- 信息 ---- */
-    STREAM_EVENT_INFO,                 /* 一般信息 */
-    STREAM_EVENT_PROGRESS,             /* 进度更新（百分比） */
-    STREAM_EVENT_GRAPH_SNAPSHOT,       /* 图快照（用于前端同步） */
+    STREAM_EVENT_INFO,           /* 一般信息 */
+    STREAM_EVENT_PROGRESS,       /* 进度更新（百分比） */
+    STREAM_EVENT_GRAPH_SNAPSHOT, /* 图快照（用于前端同步） */
 } StreamEventType;
 
 /* 编译期校验：确保 STREAM_EVENT_TYPE_COUNT 与枚举值数量一致 */
@@ -150,8 +150,8 @@ _Static_assert(STREAM_EVENT_TYPE_COUNT == 47,
  * @brief 合并节点对信息
  */
 typedef struct {
-    int from_node_id;       /* 被合并的节点 ID */
-    int to_node_id;         /* 保留的节点 ID */
+    int from_node_id; /* 被合并的节点 ID */
+    int to_node_id;   /* 保留的节点 ID */
 } StreamMergePair;
 
 /**
@@ -161,7 +161,7 @@ typedef struct {
  * 未使用的字段设为 0 / NULL / -1。
  */
 typedef struct StreamEvent {
-    StreamEventType type;           /* 事件类型 */
+    StreamEventType type; /* 事件类型 */
 
     /**
      * 事件时间戳（毫秒）。
@@ -173,31 +173,31 @@ typedef struct StreamEvent {
     long timestamp_ms;
 
     /* 步骤信息 */
-    int step_number;                /* 当前步骤编号（从 0 开始） */
-    int total_steps;                /* 预估总步数（-1 表示未知） */
+    int step_number; /* 当前步骤编号（从 0 开始） */
+    int total_steps; /* 预估总步数（-1 表示未知） */
 
     /* 节点/约束/规则/变量 ID */
-    int node_id;                    /* 相关节点 ID（-1 表示无） */
-    int constraint_id;              /* 相关约束 ID（-1 表示无） */
-    int rule_id;                    /* 相关规则 ID（-1 表示无） */
-    int var_id;                     /* 相关变量 ID（-1 表示无） */
+    int node_id;       /* 相关节点 ID（-1 表示无） */
+    int constraint_id; /* 相关约束 ID（-1 表示无） */
+    int rule_id;       /* 相关规则 ID（-1 表示无） */
+    int var_id;        /* 相关变量 ID（-1 表示无） */
 
     /* 合并信息 */
-    StreamMergePair *merge_pairs;   /* 合并节点对数组（NORMALIZE_MERGE 时使用） */
-    int merge_count;                /* 合并对数量 */
+    StreamMergePair *merge_pairs; /* 合并节点对数组（NORMALIZE_MERGE 时使用） */
+    int merge_count;              /* 合并对数量 */
 
     /* 描述文本 */
-    const char *description;        /* 人类可读描述 */
-    const char *detail_json;        /* 详细数据（JSON 格式，可选） */
+    const char *description; /* 人类可读描述 */
+    const char *detail_json; /* 详细数据（JSON 格式，可选） */
 
     /* 进度 */
-    double progress;                /* 0.0 ~ 1.0 进度（PROGRESS 事件时使用） */
+    double progress; /* 0.0 ~ 1.0 进度（PROGRESS 事件时使用） */
 
     /* 数值结果 */
-    double numeric_value;           /* 数值结果（如求解得到的坐标值） */
+    double numeric_value; /* 数值结果（如求解得到的坐标值） */
 
     /* 图快照数据（GRAPH_SNAPSHOT 时使用） */
-    const char *graph_json;         /* 图数据的 JSON 序列化 */
+    const char *graph_json; /* 图数据的 JSON 序列化 */
 } StreamEvent;
 
 /* ============== 回调类型 ============== */
@@ -269,8 +269,7 @@ bool stream_register_callback(StreamContext *ctx, StreamCallback callback, void 
  * @param filter_mask  事件类型位掩码（STREAM_FILTER_ALL 表示接收全部）
  * @return >=0 成功，返回回调 ID（用于后续注销）；<0 失败
  */
-int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback,
-                                 void *user_data, uint64_t filter_mask);
+int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback, void *user_data, uint64_t filter_mask);
 
 /**
  * @brief 注销流式事件回调
@@ -349,8 +348,7 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event);
  * @param description  描述文本（可为 NULL）
  * @param step_number  步骤编号
  */
-void stream_emit_simple(StreamContext *ctx, StreamEventType type,
-                         const char *description, int step_number);
+void stream_emit_simple(StreamContext *ctx, StreamEventType type, const char *description, int step_number);
 
 /* ==================== 便捷发射函数 ==================== */
 
@@ -365,8 +363,8 @@ void stream_emit_simple(StreamContext *ctx, StreamEventType type,
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-void stream_emit_node_event(StreamContext *ctx, StreamEventType type,
-                             int node_id, const char *description, int step_number);
+void stream_emit_node_event(StreamContext *ctx, StreamEventType type, int node_id, const char *description,
+                            int step_number);
 
 /**
  * @brief 发射约束相关事件
@@ -379,8 +377,8 @@ void stream_emit_node_event(StreamContext *ctx, StreamEventType type,
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type,
-                                   int constraint_id, const char *description, int step_number);
+void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type, int constraint_id, const char *description,
+                                  int step_number);
 
 /**
  * @brief 发射进度事件
@@ -393,8 +391,8 @@ void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type,
  * @param step_number 当前步骤
  * @param total_steps 总步骤数
  */
-void stream_emit_progress(StreamContext *ctx, double progress,
-                           const char *description, int step_number, int total_steps);
+void stream_emit_progress(StreamContext *ctx, double progress, const char *description, int step_number,
+                          int total_steps);
 
 /**
  * @brief 发射带数值结果的事件
@@ -407,8 +405,8 @@ void stream_emit_progress(StreamContext *ctx, double progress,
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-void stream_emit_numeric(StreamContext *ctx, StreamEventType type,
-                          double numeric_value, const char *description, int step_number);
+void stream_emit_numeric(StreamContext *ctx, StreamEventType type, double numeric_value, const char *description,
+                         int step_number);
 
 /**
  * @brief 发射带图快照的事件
@@ -421,8 +419,8 @@ void stream_emit_numeric(StreamContext *ctx, StreamEventType type,
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type,
-                                 const char *graph_json, const char *description, int step_number);
+void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type, const char *graph_json,
+                                const char *description, int step_number);
 
 /**
  * @brief 发射合并事件
@@ -447,8 +445,8 @@ void stream_emit_merge(StreamContext *ctx, int from_id, int to_id, int step_numb
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-void stream_emit_variable_resolved(StreamContext *ctx, int var_id,
-                                    double value, const char *description, int step_number);
+void stream_emit_variable_resolved(StreamContext *ctx, int var_id, double value, const char *description,
+                                   int step_number);
 
 /**
  * @brief 发射错误事件
@@ -496,8 +494,7 @@ void stream_emit_info(StreamContext *ctx, const char *description, int step_numb
  * @param success      是否注册成功
  * @param step_number  步骤编号
  */
-void stream_emit_preset_register(StreamContext *ctx, const char *name,
-                                  bool success, int step_number);
+void stream_emit_preset_register(StreamContext *ctx, const char *name, bool success, int step_number);
 
 /**
  * @brief 发射预设实例化事件
@@ -509,8 +506,7 @@ void stream_emit_preset_register(StreamContext *ctx, const char *name,
  * @param instance_id  实例化后的函数块 ID
  * @param step_number  步骤编号
  */
-void stream_emit_preset_instantiate(StreamContext *ctx, const char *name,
-                                     int instance_id, int step_number);
+void stream_emit_preset_instantiate(StreamContext *ctx, const char *name, int instance_id, int step_number);
 
 /**
  * @brief 发射预设验证事件
@@ -523,8 +519,8 @@ void stream_emit_preset_instantiate(StreamContext *ctx, const char *name,
  * @param detail       验证详情（可为 NULL）
  * @param step_number  步骤编号
  */
-void stream_emit_preset_validate(StreamContext *ctx, const char *name,
-                                  bool is_valid, const char *detail, int step_number);
+void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_valid, const char *detail,
+                                 int step_number);
 
 /**
  * @brief 发射预设模块加载完成事件
@@ -536,8 +532,7 @@ void stream_emit_preset_validate(StreamContext *ctx, const char *name,
  * @param count        该模块注册的预设数量
  * @param step_number  步骤编号
  */
-void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name,
-                                       int count, int step_number);
+void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name, int count, int step_number);
 
 /* ============== 异步模式 API ============== */
 

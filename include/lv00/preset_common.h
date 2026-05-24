@@ -12,11 +12,11 @@
 #ifndef LV00_PRESET_COMMON_H
 #define LV00_PRESET_COMMON_H
 
+#include <stdio.h>
+
 #include "func_block_preset.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-
-#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,8 +114,7 @@ typedef _Atomic int PresetAtomicCounter;
  * @param dest_size 目标缓冲区大小
  * @return 实际复制的字节数
  */
-#define PRESET_SAFE_STRCPY(dest, src, dest_size) \
-    lv00_safe_strncpy((dest), (src), (dest_size))
+#define PRESET_SAFE_STRCPY(dest, src, dest_size) lv00_safe_strncpy((dest), (src), (dest_size))
 
 /**
  * @brief 安全字符串拼接
@@ -124,8 +123,7 @@ typedef _Atomic int PresetAtomicCounter;
  * @param dest_size 目标缓冲区大小
  * @return 拼接后的字符串长度
  */
-#define PRESET_SAFE_STRCAT(dest, src, dest_size) \
-    lv00_safe_strncat((dest), (src), (dest_size))
+#define PRESET_SAFE_STRCAT(dest, src, dest_size) lv00_safe_strncat((dest), (src), (dest_size))
 
 /**
  * @brief 安全格式化输出
@@ -135,8 +133,7 @@ typedef _Atomic int PresetAtomicCounter;
  * @param ... 可变参数
  * @return 实际写入的字符数（不含终止符）
  */
-#define PRESET_SAFE_SNPRINTF(dest, dest_size, fmt, ...) \
-    lv00_safe_snprintf((dest), (dest_size), (fmt), ##__VA_ARGS__)
+#define PRESET_SAFE_SNPRINTF(dest, dest_size, fmt, ...) lv00_safe_snprintf((dest), (dest_size), (fmt), ##__VA_ARGS__)
 
 /* ============================================================
  * 内存管理宏
@@ -148,14 +145,13 @@ typedef _Atomic int PresetAtomicCounter;
  * @param size 分配大小
  * @param label 错误处理标签
  */
-#define PRESET_SAFE_MALLOC(ptr, size, label) \
-    do { \
-        (ptr) = lv00_malloc(size); \
-        if ((ptr) == NULL) { \
-            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, \
-                          "内存分配失败: %s", #ptr); \
-            goto label; \
-        } \
+#define PRESET_SAFE_MALLOC(ptr, size, label)                                        \
+    do {                                                                            \
+        (ptr) = lv00_malloc(size);                                                  \
+        if ((ptr) == NULL) {                                                        \
+            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, "内存分配失败: %s", #ptr); \
+            goto label;                                                             \
+        }                                                                           \
     } while (0)
 
 /**
@@ -165,14 +161,13 @@ typedef _Atomic int PresetAtomicCounter;
  * @param size 元素大小
  * @param label 错误处理标签
  */
-#define PRESET_SAFE_CALLOC(ptr, count, size, label) \
-    do { \
-        (ptr) = lv00_calloc(count, size); \
-        if ((ptr) == NULL) { \
-            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, \
-                          "内存分配失败: %s", #ptr); \
-            goto label; \
-        } \
+#define PRESET_SAFE_CALLOC(ptr, count, size, label)                                 \
+    do {                                                                            \
+        (ptr) = lv00_calloc(count, size);                                           \
+        if ((ptr) == NULL) {                                                        \
+            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, "内存分配失败: %s", #ptr); \
+            goto label;                                                             \
+        }                                                                           \
     } while (0)
 
 /**
@@ -181,15 +176,14 @@ typedef _Atomic int PresetAtomicCounter;
  * @param size 新大小
  * @param label 错误处理标签
  */
-#define PRESET_SAFE_REALLOC(ptr, size, label) \
-    do { \
-        void *_tmp = lv00_realloc((ptr), (size)); \
-        if (_tmp == NULL && (size) > 0) { \
-            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, \
-                          "内存重新分配失败: %s", #ptr); \
-            goto label; \
-        } \
-        (ptr) = _tmp; \
+#define PRESET_SAFE_REALLOC(ptr, size, label)                                           \
+    do {                                                                                \
+        void *_tmp = lv00_realloc((ptr), (size));                                       \
+        if (_tmp == NULL && (size) > 0) {                                               \
+            LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, "内存重新分配失败: %s", #ptr); \
+            goto label;                                                                 \
+        }                                                                               \
+        (ptr) = _tmp;                                                                   \
     } while (0)
 
 /**
@@ -199,11 +193,11 @@ typedef _Atomic int PresetAtomicCounter;
  * 注意：lv00_free 签名为 void lv00_free(void **ptr)，因此必须传入指针的地址。
  * 此宏封装了 NULL 检查和正确的调用约定，防止 use-after-free。
  */
-#define PRESET_SAFE_FREE(ptr) \
-    do { \
-        if ((ptr) != NULL) { \
-            lv00_free((void **)&(ptr)); \
-        } \
+#define PRESET_SAFE_FREE(ptr)            \
+    do {                                 \
+        if ((ptr) != NULL) {             \
+            lv00_free((void **) &(ptr)); \
+        }                                \
     } while (0)
 
 /* ============================================================
@@ -217,12 +211,12 @@ typedef _Atomic int PresetAtomicCounter;
  * @param fmt 错误消息格式
  * @param label 跳转标签
  */
-#define PRESET_CHECK(condition, error_code, fmt, label, ...) \
-    do { \
-        if (!(condition)) { \
+#define PRESET_CHECK(condition, error_code, fmt, label, ...)    \
+    do {                                                        \
+        if (!(condition)) {                                     \
             LV00_ERROR_SET((error_code), (fmt), ##__VA_ARGS__); \
-            goto label; \
-        } \
+            goto label;                                         \
+        }                                                       \
     } while (0)
 
 /**
@@ -230,9 +224,7 @@ typedef _Atomic int PresetAtomicCounter;
  * @param ptr 指针
  * @param label 跳转标签
  */
-#define PRESET_CHECK_NULL(ptr, label) \
-    PRESET_CHECK((ptr) != NULL, LV00_ERROR_NULL_POINTER, \
-                "空指针: %s", label, #ptr)
+#define PRESET_CHECK_NULL(ptr, label) PRESET_CHECK((ptr) != NULL, LV00_ERROR_NULL_POINTER, "空指针: %s", label, #ptr)
 
 /**
  * @brief 检查字符串非空且非空字符串
@@ -240,9 +232,7 @@ typedef _Atomic int PresetAtomicCounter;
  * @param label 跳转标签
  */
 #define PRESET_CHECK_STRING(str, label) \
-    PRESET_CHECK((str) != NULL && (str)[0] != '\0', \
-                LV00_ERROR_INVALID_ARGUMENT, \
-                "无效字符串: %s", label, #str)
+    PRESET_CHECK((str) != NULL && (str)[0] != '\0', LV00_ERROR_INVALID_ARGUMENT, "无效字符串: %s", label, #str)
 
 /**
  * @brief 检查索引范围
@@ -250,11 +240,9 @@ typedef _Atomic int PresetAtomicCounter;
  * @param max 最大值（不包含）
  * @param label 跳转标签
  */
-#define PRESET_CHECK_INDEX(index, max, label) \
-    PRESET_CHECK((index) >= 0 && (index) < (max), \
-                LV00_ERROR_INDEX_OUT_OF_RANGE, \
-                "索引越界: %d (范围: 0-%d)", label, \
-                (int)(index), (int)(max) - 1)
+#define PRESET_CHECK_INDEX(index, max, label)                                                                        \
+    PRESET_CHECK((index) >= 0 && (index) < (max), LV00_ERROR_INDEX_OUT_OF_RANGE, "索引越界: %d (范围: 0-%d)", label, \
+                 (int) (index), (int) (max) - 1)
 
 /**
  * @brief 检查数值范围
@@ -263,11 +251,9 @@ typedef _Atomic int PresetAtomicCounter;
  * @param max 最大值
  * @param label 跳转标签
  */
-#define PRESET_CHECK_RANGE(value, min, max, label) \
-    PRESET_CHECK((value) >= (min) && (value) <= (max), \
-                LV00_ERROR_VALUE_OUT_OF_RANGE, \
-                "数值越界: %g (范围: %g-%g)", label, \
-                (double)(value), (double)(min), (double)(max))
+#define PRESET_CHECK_RANGE(value, min, max, label)                                                                  \
+    PRESET_CHECK((value) >= (min) && (value) <= (max), LV00_ERROR_VALUE_OUT_OF_RANGE, "数值越界: %g (范围: %g-%g)", \
+                 label, (double) (value), (double) (min), (double) (max))
 
 /* ============================================================
  * 预设注册辅助宏
@@ -278,14 +264,15 @@ typedef _Atomic int PresetAtomicCounter;
  * @param ... 类型列表
  */
 #define PRESET_INPUTS(...) \
-    (PresetType[]){__VA_ARGS__}
+    (PresetType[]) {       \
+        __VA_ARGS__        \
+    }
 
 /**
  * @brief 定义预设输入数量
  * @param ... 类型列表
  */
-#define PRESET_INPUT_COUNT(...) \
-    (sizeof((PresetType[]){__VA_ARGS__}) / sizeof(PresetType))
+#define PRESET_INPUT_COUNT(...) (sizeof((PresetType[]) {__VA_ARGS__}) / sizeof(PresetType))
 
 /**
  * @brief 简化预设注册调用（带类别参数）
@@ -301,18 +288,15 @@ typedef _Atomic int PresetAtomicCounter;
  * @param constructive 是否构造性
  * @param reversible 是否可逆
  */
-#define PRESET_REGISTER_EX(name, desc, cat, inputs, input_count, output, \
-                           math_def, complexity, constructive, reversible) \
-    do { \
-        if (preset_blocks_register_simple( \
-                (name), (desc), (cat), \
-                (inputs), (input_count), (output), \
-                (math_def), (complexity), (constructive), (reversible))) { \
-            success_count++; \
-        } else { \
-            LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, \
-                          "预设注册失败: %s", (name)); \
-        } \
+#define PRESET_REGISTER_EX(name, desc, cat, inputs, input_count, output, math_def, complexity, constructive,    \
+                           reversible)                                                                          \
+    do {                                                                                                        \
+        if (preset_blocks_register_simple((name), (desc), (cat), (inputs), (input_count), (output), (math_def), \
+                                          (complexity), (constructive), (reversible))) {                        \
+            success_count++;                                                                                    \
+        } else {                                                                                                \
+            LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, "预设注册失败: %s", (name));                  \
+        }                                                                                                       \
     } while (0)
 
 /**
@@ -331,27 +315,24 @@ typedef _Atomic int PresetAtomicCounter;
  * @note 推荐使用 PRESET_REGISTER_EX 以指定正确的类别。
  *       此宏保留仅为向后兼容，默认使用 PRESET_CATEGORY_CONSTRUCTION。
  */
-#define PRESET_REGISTER(name, desc, inputs, input_count, output, \
-                       math_def, complexity, constructive, reversible) \
-    PRESET_REGISTER_EX(name, desc, PRESET_CATEGORY_CONSTRUCTION, \
-                       inputs, input_count, output, \
-                       math_def, complexity, constructive, reversible)
+#define PRESET_REGISTER(name, desc, inputs, input_count, output, math_def, complexity, constructive, reversible)    \
+    PRESET_REGISTER_EX(name, desc, PRESET_CATEGORY_CONSTRUCTION, inputs, input_count, output, math_def, complexity, \
+                       constructive, reversible)
 
 /**
  * @brief 批量注册预设的辅助宏
  * @param category 预设类别
  */
-#define PRESET_REGISTER_BEGIN(category) \
-    int success_count = 0; \
+#define PRESET_REGISTER_BEGIN(category)                  \
+    int success_count = 0;                               \
     const PresetCategory _current_category = (category); \
-    (void)_current_category; /* 避免未使用警告 */
+    (void) _current_category; /* 避免未使用警告 */
 
 /**
  * @brief 结束批量注册并返回结果
  * @param expected_count 预期注册数量
  */
-#define PRESET_REGISTER_END(expected_count) \
-    return success_count == (expected_count)
+#define PRESET_REGISTER_END(expected_count) return success_count == (expected_count)
 
 /* ============================================================
  * 预设元数据定义辅助宏
@@ -371,25 +352,22 @@ typedef _Atomic int PresetAtomicCounter;
  * @param _post_count 后置条件数量
  * @param _rel_count 相关预设数量
  */
-#define PRESET_METADATA_DEFINE( \
-    _name, _desc, _math_def, _category, _props, _complexity, \
-    _in_count, _out_count, _pre_count, _post_count, _rel_count) \
-    { \
-        .name = (_name), \
-        .description = (_desc), \
-        .mathematical_def = (_math_def), \
-        .category = (_category), \
-        .properties = (_props), \
-        .complexity = (_complexity), \
-        .input_count = (_in_count), \
-        .output_count = (_out_count), \
-        .precondition_count = (_pre_count), \
-        .postcondition_count = (_post_count), \
-        .related_count = (_rel_count), \
-        .version_major = PRESET_SYSTEM_VERSION_MAJOR, \
-        .version_minor = PRESET_SYSTEM_VERSION_MINOR, \
-        .version_patch = PRESET_SYSTEM_VERSION_PATCH \
-    }
+#define PRESET_METADATA_DEFINE(_name, _desc, _math_def, _category, _props, _complexity, _in_count, _out_count, \
+                               _pre_count, _post_count, _rel_count)                                            \
+    {.name = (_name),                                                                                          \
+     .description = (_desc),                                                                                   \
+     .mathematical_def = (_math_def),                                                                          \
+     .category = (_category),                                                                                  \
+     .properties = (_props),                                                                                   \
+     .complexity = (_complexity),                                                                              \
+     .input_count = (_in_count),                                                                               \
+     .output_count = (_out_count),                                                                             \
+     .precondition_count = (_pre_count),                                                                       \
+     .postcondition_count = (_post_count),                                                                     \
+     .related_count = (_rel_count),                                                                            \
+     .version_major = PRESET_SYSTEM_VERSION_MAJOR,                                                             \
+     .version_minor = PRESET_SYSTEM_VERSION_MINOR,                                                             \
+     .version_patch = PRESET_SYSTEM_VERSION_PATCH}
 
 /* ============================================================
  * 工具函数声明
@@ -439,8 +417,7 @@ uint32_t lv00_hash_int_array(const int *arr, int count);
  * @param count_b B的元素数量
  * @return true 相等
  */
-bool lv00_int_arrays_equal(const int *a, int count_a,
-                           const int *b, int count_b);
+bool lv00_int_arrays_equal(const int *a, int count_a, const int *b, int count_b);
 
 /**
  * @brief 复制整型数组
@@ -448,7 +425,7 @@ bool lv00_int_arrays_equal(const int *a, int count_a,
  * @param count 元素数量
  * @return 新分配的数组（需调用者释放）
  */
-int* lv00_dup_int_array(const int *src, int count);
+int *lv00_dup_int_array(const int *src, int count);
 
 /**
  * @brief 验证预设名称格式
@@ -471,16 +448,14 @@ bool preset_validate_description(const char *description);
  * @param output_type 输出类型
  * @return true 有效
  */
-bool preset_validate_type_combination(const PresetType *input_types,
-                                      int input_count,
-                                      PresetType output_type);
+bool preset_validate_type_combination(const PresetType *input_types, int input_count, PresetType output_type);
 
 /**
  * @brief 获取预设类别的显示名称
  * @param category 类别
  * @return 显示名称（静态字符串）
  */
-const char* preset_category_to_string(PresetCategory category);
+const char *preset_category_to_string(PresetCategory category);
 
 /**
  * @brief 从字符串解析预设类别
@@ -495,7 +470,7 @@ bool preset_category_from_string(const char *str, PresetCategory *category);
  * @param type 类型
  * @return 显示名称（静态字符串）
  */
-const char* preset_type_to_string(PresetType type);
+const char *preset_type_to_string(PresetType type);
 
 /**
  * @brief 从字符串解析预设类型
@@ -510,7 +485,7 @@ bool preset_type_from_string(const char *str, PresetType *type);
  * @param complexity 复杂度
  * @return 显示名称（静态字符串）
  */
-const char* preset_complexity_to_string(const char *complexity);
+const char *preset_complexity_to_string(const char *complexity);
 
 /**
  * @brief 获取属性标志的字符串表示
@@ -519,8 +494,7 @@ const char* preset_complexity_to_string(const char *complexity);
  * @param buffer_size 缓冲区大小
  * @return 实际写入的字符数
  */
-int preset_properties_to_string(PresetProperty properties,
-                                char *buffer, size_t buffer_size);
+int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size);
 
 /**
  * @brief 解析属性标志字符串
@@ -528,8 +502,7 @@ int preset_properties_to_string(PresetProperty properties,
  * @param properties 输出属性
  * @return true 解析成功
  */
-bool preset_properties_from_string(const char *str,
-                                   PresetProperty *properties);
+bool preset_properties_from_string(const char *str, PresetProperty *properties);
 
 /* ============================================================
  * 类型验证与边界检查函数（v12.0 新增）
@@ -618,7 +591,7 @@ bool preset_type_is_topological(PresetType type);
  * @param type 预设类型
  * @return 类别字符串（"几何"、"代数"、"分析"、"拓扑"、"逻辑"、"通用"）
  */
-const char* preset_type_get_domain(PresetType type);
+const char *preset_type_get_domain(PresetType type);
 
 /**
  * @brief 检查两个类型是否兼容
@@ -642,9 +615,7 @@ bool preset_types_compatible(PresetType source_type, PresetType target_type);
  * @param output_type 输出类型
  * @return 签名哈希值
  */
-uint32_t preset_compute_signature_hash(const PresetType *input_types,
-                                       int input_count,
-                                       PresetType output_type);
+uint32_t preset_compute_signature_hash(const PresetType *input_types, int input_count, PresetType output_type);
 
 /* ============================================================
  * 预设元数据验证函数（v12.0 新增）
@@ -661,9 +632,7 @@ uint32_t preset_compute_signature_hash(const PresetType *input_types,
  * @return true 元数据有效
  * @return false 元数据无效
  */
-bool preset_validate_metadata(const PresetMetadata *metadata,
-                              char *out_error_msg,
-                              size_t error_msg_size);
+bool preset_validate_metadata(const PresetMetadata *metadata, char *out_error_msg, size_t error_msg_size);
 
 /**
  * @brief 验证数学定义格式
@@ -693,36 +662,31 @@ bool preset_validate_complexity(const char *complexity);
 /**
  * @brief 调试日志
  */
-#define PRESET_DEBUG_LOG(fmt, ...) \
-    lv00_log_debug("[PRESET] " fmt, ##__VA_ARGS__)
+#define PRESET_DEBUG_LOG(fmt, ...) lv00_log_debug("[PRESET] " fmt, ##__VA_ARGS__)
 
 /**
  * @brief 跟踪日志
  */
-#define PRESET_TRACE_LOG(fmt, ...) \
-    lv00_log_trace("[PRESET] " fmt, ##__VA_ARGS__)
+#define PRESET_TRACE_LOG(fmt, ...) lv00_log_trace("[PRESET] " fmt, ##__VA_ARGS__)
 #else
-#define PRESET_DEBUG_LOG(fmt, ...) ((void)0)
-#define PRESET_TRACE_LOG(fmt, ...) ((void)0)
+#define PRESET_DEBUG_LOG(fmt, ...) ((void) 0)
+#define PRESET_TRACE_LOG(fmt, ...) ((void) 0)
 #endif
 
 /**
  * @brief 错误日志
  */
-#define PRESET_ERROR_LOG(fmt, ...) \
-    fprintf(stderr, "[PRESET ERROR] " fmt "\n", ##__VA_ARGS__)
+#define PRESET_ERROR_LOG(fmt, ...) fprintf(stderr, "[PRESET ERROR] " fmt "\n", ##__VA_ARGS__)
 
 /**
  * @brief 警告日志
  */
-#define PRESET_WARN_LOG(fmt, ...) \
-    fprintf(stderr, "[PRESET WARN] " fmt "\n", ##__VA_ARGS__)
+#define PRESET_WARN_LOG(fmt, ...) fprintf(stderr, "[PRESET WARN] " fmt "\n", ##__VA_ARGS__)
 
 /**
  * @brief 信息日志
  */
-#define PRESET_INFO_LOG(fmt, ...) \
-    lv00_log_info("[PRESET] " fmt, ##__VA_ARGS__)
+#define PRESET_INFO_LOG(fmt, ...) lv00_log_info("[PRESET] " fmt, ##__VA_ARGS__)
 
 #ifdef __cplusplus
 }

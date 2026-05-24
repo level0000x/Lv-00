@@ -11,13 +11,15 @@
  * @version 5.0.0
  */
 
+#include "preset_lattice_theory.h"
+
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_lattice_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
-#include <stdlib.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -44,16 +46,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_lattice_theory_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_ALGEBRAIC,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_lattice_theory_preset(const char *name, const char *description, const PresetType *input_types,
+                                           int input_count, PresetType output_type, const char *math_def,
+                                           const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ALGEBRAIC, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== v2统一注册宏 ==================== */
@@ -74,21 +71,19 @@ static bool register_lattice_theory_preset(
  * @param cons       是否构造性
  * @param rev        是否可逆
  */
-#define REGISTER_LATTICE(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_lattice_theory_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_LATTICE(name, desc, inputs, in_count, output, math, comp, cons, rev)                              \
+    do {                                                                                                           \
+        if (register_lattice_theory_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), \
+                                           (rev))) {                                                               \
+            success_count++;                                                                                       \
+        } else {                                                                                                   \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                    \
+        }                                                                                                          \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_lattice_theory_register(void)
-{
+bool preset_lattice_theory_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -112,11 +107,9 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_join",
-            "上确界（并）：计算格中两个元素的最小上界 a ∨ b",
-            inputs, 2, PRESET_TYPE_ALGEBRA,
-            "a \\vee b = \\min\\{c \\in L : c \\geq a \\land c \\geq b\\}",
-            "O(1)", true, false);
+        REGISTER_LATTICE("lattice_join", "上确界（并）：计算格中两个元素的最小上界 a ∨ b", inputs, 2,
+                         PRESET_TYPE_ALGEBRA, "a \\vee b = \\min\\{c \\in L : c \\geq a \\land c \\geq b\\}", "O(1)",
+                         true, false);
     }
 
     /**
@@ -136,11 +129,9 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_meet",
-            "下确界（交）：计算格中两个元素的最大下界 a ∧ b",
-            inputs, 2, PRESET_TYPE_ALGEBRA,
-            "a \\wedge b = \\max\\{c \\in L : c \\leq a \\land c \\leq b\\}",
-            "O(1)", true, false);
+        REGISTER_LATTICE("lattice_meet", "下确界（交）：计算格中两个元素的最大下界 a ∧ b", inputs, 2,
+                         PRESET_TYPE_ALGEBRA, "a \\wedge b = \\max\\{c \\in L : c \\leq a \\land c \\leq b\\}", "O(1)",
+                         true, false);
     }
 
     /**
@@ -159,11 +150,8 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_top",
-            "最大元（顶）：获取有界格L的最大元 ⊤",
-            inputs, 1, PRESET_TYPE_ALGEBRA,
-            "\\top \\in L, \\quad \\forall a \\in L: a \\leq \\top",
-            "O(1)", true, false);
+        REGISTER_LATTICE("lattice_top", "最大元（顶）：获取有界格L的最大元 ⊤", inputs, 1, PRESET_TYPE_ALGEBRA,
+                         "\\top \\in L, \\quad \\forall a \\in L: a \\leq \\top", "O(1)", true, false);
     }
 
     /**
@@ -182,11 +170,8 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_bottom",
-            "最小元（底）：获取有界格L的最小元 ⊥",
-            inputs, 1, PRESET_TYPE_ALGEBRA,
-            "\\bot \\in L, \\quad \\forall a \\in L: \\bot \\leq a",
-            "O(1)", true, false);
+        REGISTER_LATTICE("lattice_bottom", "最小元（底）：获取有界格L的最小元 ⊥", inputs, 1, PRESET_TYPE_ALGEBRA,
+                         "\\bot \\in L, \\quad \\forall a \\in L: \\bot \\leq a", "O(1)", true, false);
     }
 
     /**
@@ -206,11 +191,9 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_complement",
-            "补元：计算有界格中元素a的补元a'，满足 a ∨ a' = ⊤ 且 a ∧ a' = ⊥",
-            inputs, 2, PRESET_TYPE_ALGEBRA,
-            "a' \\in L, \\quad a \\vee a' = \\top \\land a \\wedge a' = \\bot",
-            "O(n)", true, true);
+        REGISTER_LATTICE("lattice_complement", "补元：计算有界格中元素a的补元a'，满足 a ∨ a' = ⊤ 且 a ∧ a' = ⊥", inputs,
+                         2, PRESET_TYPE_ALGEBRA, "a' \\in L, \\quad a \\vee a' = \\top \\land a \\wedge a' = \\bot",
+                         "O(n)", true, true);
     }
 
     /**
@@ -230,11 +213,10 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_FUNCTION};
-        REGISTER_LATTICE("lattice_partial_order",
-            "偏序关系判定：判定集合L上的关系≤是否构成偏序（自反、反对称、传递）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "(L, \\leq) \\text{ 是偏序集} \\Leftrightarrow \\leq \\text{ 满足自反性、反对称性、传递性}",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("lattice_partial_order", "偏序关系判定：判定集合L上的关系≤是否构成偏序（自反、反对称、传递）",
+                         inputs, 2, PRESET_TYPE_BOOLEAN,
+                         "(L, \\leq) \\text{ 是偏序集} \\Leftrightarrow \\leq \\text{ 满足自反性、反对称性、传递性}",
+                         "O(n^2)", false, false);
     }
 
     /**
@@ -254,11 +236,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_FUNCTION};
-        REGISTER_LATTICE("lattice_check",
-            "格结构判定：判定偏序集(L, ≤)是否构成格（任意两元素的上确界和下确界存在）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "(L, \\leq) \\text{ 是格} \\Leftrightarrow \\forall a, b \\in L: a \\vee b \\in L \\land a \\wedge b \\in L",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("lattice_check", "格结构判定：判定偏序集(L, ≤)是否构成格（任意两元素的上确界和下确界存在）",
+                         inputs, 2, PRESET_TYPE_BOOLEAN,
+                         "(L, \\leq) \\text{ 是格} \\Leftrightarrow \\forall a, b \\in L: a \\vee b \\in L \\land a "
+                         "\\wedge b \\in L",
+                         "O(n^2)", false, false);
     }
 
     /**
@@ -277,11 +259,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_bounded_check",
-            "有界格判定：判定格L是否为有界格（存在最大元⊤和最小元⊥）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 是有界格} \\Leftrightarrow \\exists \\top, \\bot \\in L: \\bot \\leq a \\leq \\top \\; \\forall a \\in L",
-            "O(n)", false, false);
+        REGISTER_LATTICE("lattice_bounded_check", "有界格判定：判定格L是否为有界格（存在最大元⊤和最小元⊥）", inputs, 1,
+                         PRESET_TYPE_BOOLEAN,
+                         "L \\text{ 是有界格} \\Leftrightarrow \\exists \\top, \\bot \\in L: \\bot \\leq a \\leq \\top "
+                         "\\; \\forall a \\in L",
+                         "O(n)", false, false);
     }
 
     /**
@@ -300,11 +282,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_distributive_check",
-            "分配格判定：判定格L是否为分配格（交对并满足分配律）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 是分配格} \\Leftrightarrow \\forall a, b, c \\in L: a \\wedge (b \\vee c) = (a \\wedge b) \\vee (a \\wedge c)",
-            "O(n^3)", false, false);
+        REGISTER_LATTICE("lattice_distributive_check", "分配格判定：判定格L是否为分配格（交对并满足分配律）", inputs, 1,
+                         PRESET_TYPE_BOOLEAN,
+                         "L \\text{ 是分配格} \\Leftrightarrow \\forall a, b, c \\in L: a \\wedge (b \\vee c) = (a "
+                         "\\wedge b) \\vee (a \\wedge c)",
+                         "O(n^3)", false, false);
     }
 
     /**
@@ -324,10 +306,11 @@ bool preset_lattice_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
         REGISTER_LATTICE("lattice_modular_check",
-            "模格判定：判定格L是否为模格（Dedekind格），若 a ≤ c 则 a ∨ (b ∧ c) = (a ∨ b) ∧ c",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 是模格} \\Leftrightarrow \\forall a, b, c \\in L: a \\leq c \\Rightarrow a \\vee (b \\wedge c) = (a \\vee b) \\wedge c",
-            "O(n^3)", false, false);
+                         "模格判定：判定格L是否为模格（Dedekind格），若 a ≤ c 则 a ∨ (b ∧ c) = (a ∨ b) ∧ c", inputs, 1,
+                         PRESET_TYPE_BOOLEAN,
+                         "L \\text{ 是模格} \\Leftrightarrow \\forall a, b, c \\in L: a \\leq c \\Rightarrow a \\vee "
+                         "(b \\wedge c) = (a \\vee b) \\wedge c",
+                         "O(n^3)", false, false);
     }
 
     /* ============================================================
@@ -350,11 +333,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("boolean_algebra_check",
-            "布尔代数判定：判定有界分配格L是否为布尔代数（每个元素都有补元）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 是布尔代数} \\Leftrightarrow L \\text{ 是有界分配格} \\land \\forall a \\in L, \\exists a': a \\vee a' = \\top \\land a \\wedge a' = \\bot",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("boolean_algebra_check", "布尔代数判定：判定有界分配格L是否为布尔代数（每个元素都有补元）",
+                         inputs, 1, PRESET_TYPE_BOOLEAN,
+                         "L \\text{ 是布尔代数} \\Leftrightarrow L \\text{ 是有界分配格} \\land \\forall a \\in L, "
+                         "\\exists a': a \\vee a' = \\top \\land a \\wedge a' = \\bot",
+                         "O(n^2)", false, false);
     }
 
     /**
@@ -376,10 +359,10 @@ bool preset_lattice_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA, PRESET_TYPE_INTEGER};
         REGISTER_LATTICE("boolean_algebra_operations",
-            "布尔代数运算：执行并(∨)、交(∧)、补(')、蕴含(→)、异或(⊕)、等价(↔)运算",
-            inputs, 3, PRESET_TYPE_ALGEBRA,
-            "a \\vee b, \\; a \\wedge b, \\; a', \\; a \\to b, \\; a \\oplus b, \\; a \\leftrightarrow b",
-            "O(1)", true, true);
+                         "布尔代数运算：执行并(∨)、交(∧)、补(')、蕴含(→)、异或(⊕)、等价(↔)运算", inputs, 3,
+                         PRESET_TYPE_ALGEBRA,
+                         "a \\vee b, \\; a \\wedge b, \\; a', \\; a \\to b, \\; a \\oplus b, \\; a \\leftrightarrow b",
+                         "O(1)", true, true);
     }
 
     /**
@@ -400,10 +383,11 @@ bool preset_lattice_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
         REGISTER_LATTICE("heyting_algebra_check",
-            "Heyting代数判定：判定有界格L是否为Heyting代数（任意两元素存在相对伪补）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 是Heyting代数} \\Leftrightarrow \\forall a, b \\in L, \\exists a \\to b: c \\leq a \\to b \\Leftrightarrow c \\wedge a \\leq b",
-            "O(n^3)", false, false);
+                         "Heyting代数判定：判定有界格L是否为Heyting代数（任意两元素存在相对伪补）", inputs, 1,
+                         PRESET_TYPE_BOOLEAN,
+                         "L \\text{ 是Heyting代数} \\Leftrightarrow \\forall a, b \\in L, \\exists a \\to b: c \\leq a "
+                         "\\to b \\Leftrightarrow c \\wedge a \\leq b",
+                         "O(n^3)", false, false);
     }
 
     /**
@@ -423,11 +407,9 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("heyting_implication",
-            "Heyting蕴涵：计算相对伪补 a → b = max{x : x ∧ a ≤ b}",
-            inputs, 2, PRESET_TYPE_ALGEBRA,
-            "a \\to b = \\max\\{x \\in L : x \\wedge a \\leq b\\}",
-            "O(n)", true, false);
+        REGISTER_LATTICE("heyting_implication", "Heyting蕴涵：计算相对伪补 a → b = max{x : x ∧ a ≤ b}", inputs, 2,
+                         PRESET_TYPE_ALGEBRA, "a \\to b = \\max\\{x \\in L : x \\wedge a \\leq b\\}", "O(n)", true,
+                         false);
     }
 
     /**
@@ -446,11 +428,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("complete_lattice_check",
-            "完备格判定：判定格L是否为完备格（任意子集都有上确界和下确界）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 是完备格} \\Leftrightarrow \\forall S \\subseteq L: \\bigvee S \\in L \\land \\bigwedge S \\in L",
-            "O(2^n)", false, false);
+        REGISTER_LATTICE("complete_lattice_check", "完备格判定：判定格L是否为完备格（任意子集都有上确界和下确界）",
+                         inputs, 1, PRESET_TYPE_BOOLEAN,
+                         "L \\text{ 是完备格} \\Leftrightarrow \\forall S \\subseteq L: \\bigvee S \\in L \\land "
+                         "\\bigwedge S \\in L",
+                         "O(2^n)", false, false);
     }
 
     /**
@@ -469,11 +451,9 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("complete_lattice_sup",
-            "完备格上确界：计算完备格中子集S的上确界 ∨S",
-            inputs, 2, PRESET_TYPE_ALGEBRA,
-            "\\bigvee S = \\min\\{c \\in L : \\forall s \\in S, s \\leq c\\}",
-            "O(n^2)", true, false);
+        REGISTER_LATTICE("complete_lattice_sup", "完备格上确界：计算完备格中子集S的上确界 ∨S", inputs, 2,
+                         PRESET_TYPE_ALGEBRA, "\\bigvee S = \\min\\{c \\in L : \\forall s \\in S, s \\leq c\\}",
+                         "O(n^2)", true, false);
     }
 
     /**
@@ -492,11 +472,9 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("complete_lattice_inf",
-            "完备格下确界：计算完备格中子集S的下确界 ∧S",
-            inputs, 2, PRESET_TYPE_ALGEBRA,
-            "\\bigwedge S = \\max\\{c \\in L : \\forall s \\in S, c \\leq s\\}",
-            "O(n^2)", true, false);
+        REGISTER_LATTICE("complete_lattice_inf", "完备格下确界：计算完备格中子集S的下确界 ∧S", inputs, 2,
+                         PRESET_TYPE_ALGEBRA, "\\bigwedge S = \\max\\{c \\in L : \\forall s \\in S, c \\leq s\\}",
+                         "O(n^2)", true, false);
     }
 
     /**
@@ -517,11 +495,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_ideal",
-            "格理想：由格L的子集S生成格理想（对∧封闭的下集）",
-            inputs, 2, PRESET_TYPE_IDEAL,
-            "I \\trianglelefteq L \\Leftrightarrow I \\neq \\emptyset \\land (a, b \\in I \\Rightarrow a \\wedge b \\in I) \\land (a \\in I, b \\leq a \\Rightarrow b \\in I)",
-            "O(n^2)", true, false);
+        REGISTER_LATTICE("lattice_ideal", "格理想：由格L的子集S生成格理想（对∧封闭的下集）", inputs, 2,
+                         PRESET_TYPE_IDEAL,
+                         "I \\trianglelefteq L \\Leftrightarrow I \\neq \\emptyset \\land (a, b \\in I \\Rightarrow a "
+                         "\\wedge b \\in I) \\land (a \\in I, b \\leq a \\Rightarrow b \\in I)",
+                         "O(n^2)", true, false);
     }
 
     /* ============================================================
@@ -546,11 +524,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA, PRESET_TYPE_FUNCTION};
-        REGISTER_LATTICE("lattice_homomorphism",
-            "格同态：验证映射 f: L1 -> L2 是否为格同态（保持∨和∧运算）",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "f: L_1 \\to L_2 \\text{ 是格同态} \\Leftrightarrow f(a \\vee b) = f(a) \\vee f(b) \\land f(a \\wedge b) = f(a) \\wedge f(b)",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("lattice_homomorphism", "格同态：验证映射 f: L1 -> L2 是否为格同态（保持∨和∧运算）", inputs, 3,
+                         PRESET_TYPE_BOOLEAN,
+                         "f: L_1 \\to L_2 \\text{ 是格同态} \\Leftrightarrow f(a \\vee b) = f(a) \\vee f(b) \\land f(a "
+                         "\\wedge b) = f(a) \\wedge f(b)",
+                         "O(n^2)", false, false);
     }
 
     /**
@@ -571,11 +549,10 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA, PRESET_TYPE_FUNCTION};
-        REGISTER_LATTICE("lattice_embedding",
-            "格嵌入：验证映射 f: L1 -> L2 是否为格嵌入（单射格同态）",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "f: L_1 \\hookrightarrow L_2 \\text{ 是格嵌入} \\Leftrightarrow f \\text{ 是单射格同态}",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("lattice_embedding", "格嵌入：验证映射 f: L1 -> L2 是否为格嵌入（单射格同态）", inputs, 3,
+                         PRESET_TYPE_BOOLEAN,
+                         "f: L_1 \\hookrightarrow L_2 \\text{ 是格嵌入} \\Leftrightarrow f \\text{ 是单射格同态}",
+                         "O(n^2)", false, false);
     }
 
     /**
@@ -595,11 +572,10 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_isomorphism_check",
-            "格同构判定：判定两个格L1和L2是否同构（存在双射格同态）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "L_1 \\cong L_2 \\Leftrightarrow \\exists f: L_1 \\to L_2 \\text{ 双射，且为格同态}",
-            "O(n!)", false, false);
+        REGISTER_LATTICE("lattice_isomorphism_check", "格同构判定：判定两个格L1和L2是否同构（存在双射格同态）", inputs,
+                         2, PRESET_TYPE_BOOLEAN,
+                         "L_1 \\cong L_2 \\Leftrightarrow \\exists f: L_1 \\to L_2 \\text{ 双射，且为格同态}", "O(n!)",
+                         false, false);
     }
 
     /**
@@ -618,11 +594,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_SET};
-        REGISTER_LATTICE("lattice_sublattice_check",
-            "子格判定：判定格L的子集S是否构成子格（对∨和∧封闭）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "S \\le L \\Leftrightarrow S \\neq \\emptyset \\land (\\forall a, b \\in S: a \\vee_L b \\in S \\land a \\wedge_L b \\in S)",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("lattice_sublattice_check", "子格判定：判定格L的子集S是否构成子格（对∨和∧封闭）", inputs, 2,
+                         PRESET_TYPE_BOOLEAN,
+                         "S \\le L \\Leftrightarrow S \\neq \\emptyset \\land (\\forall a, b \\in S: a \\vee_L b \\in "
+                         "S \\land a \\wedge_L b \\in S)",
+                         "O(n^2)", false, false);
     }
 
     /**
@@ -642,11 +618,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA, PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_product",
-            "格直积：计算两个格L1和L2的直积 L1 × L2（分量逐点偏序）",
-            inputs, 2, PRESET_TYPE_ALGEBRA,
-            "L_1 \\times L_2 = \\{(a_1, a_2) : a_1 \\in L_1, a_2 \\in L_2\\}, \\quad (a_1, a_2) \\leq (b_1, b_2) \\Leftrightarrow a_1 \\leq b_1 \\land a_2 \\leq b_2",
-            "O(n_1 \\cdot n_2)", true, false);
+        REGISTER_LATTICE("lattice_product", "格直积：计算两个格L1和L2的直积 L1 × L2（分量逐点偏序）", inputs, 2,
+                         PRESET_TYPE_ALGEBRA,
+                         "L_1 \\times L_2 = \\{(a_1, a_2) : a_1 \\in L_1, a_2 \\in L_2\\}, \\quad (a_1, a_2) \\leq "
+                         "(b_1, b_2) \\Leftrightarrow a_1 \\leq b_1 \\land a_2 \\leq b_2",
+                         "O(n_1 \\cdot n_2)", true, false);
     }
 
     /**
@@ -665,11 +641,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_duality",
-            "格对偶性：将格L转化为对偶格L^op（偏序取反，∨与∧互换）",
-            inputs, 1, PRESET_TYPE_ALGEBRA,
-            "L^{op}: a \\leq_{op} b \\Leftrightarrow b \\leq a, \\quad a \\vee_{op} b = a \\wedge b, \\quad a \\wedge_{op} b = a \\vee b",
-            "O(n)", true, true);
+        REGISTER_LATTICE("lattice_duality", "格对偶性：将格L转化为对偶格L^op（偏序取反，∨与∧互换）", inputs, 1,
+                         PRESET_TYPE_ALGEBRA,
+                         "L^{op}: a \\leq_{op} b \\Leftrightarrow b \\leq a, \\quad a \\vee_{op} b = a \\wedge b, "
+                         "\\quad a \\wedge_{op} b = a \\vee b",
+                         "O(n)", true, true);
     }
 
     /**
@@ -688,11 +664,10 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("stone_representation",
-            "Stone表示定理：构造布尔代数B到幂集代数 P(Spec(B)) 的同构表示",
-            inputs, 1, PRESET_TYPE_FUNCTION,
-            "B \\cong \\mathcal{P}(\\text{Spec}(B)), \\quad \\text{其中 Spec}(B) \\text{ 是B的素理想集合}",
-            "O(2^n)", true, false);
+        REGISTER_LATTICE("stone_representation", "Stone表示定理：构造布尔代数B到幂集代数 P(Spec(B)) 的同构表示", inputs,
+                         1, PRESET_TYPE_FUNCTION,
+                         "B \\cong \\mathcal{P}(\\text{Spec}(B)), \\quad \\text{其中 Spec}(B) \\text{ 是B的素理想集合}",
+                         "O(2^n)", true, false);
     }
 
     /* ============================================================
@@ -716,11 +691,9 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_FUNCTION};
-        REGISTER_LATTICE("hasse_diagram",
-            "Hasse图：由偏序集(P, ≤)构造Hasse图（覆盖关系图）",
-            inputs, 2, PRESET_TYPE_GRAPH,
-            "\\text{Hasse}(P, \\leq): a \\to b \\text{ 当且仅当 } b \\text{ 覆盖 } a",
-            "O(n^2)", true, false);
+        REGISTER_LATTICE("hasse_diagram", "Hasse图：由偏序集(P, ≤)构造Hasse图（覆盖关系图）", inputs, 2,
+                         PRESET_TYPE_GRAPH, "\\text{Hasse}(P, \\leq): a \\to b \\text{ 当且仅当 } b \\text{ 覆盖 } a",
+                         "O(n^2)", true, false);
     }
 
     /**
@@ -741,11 +714,10 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_FUNCTION};
-        REGISTER_LATTICE("chain_check",
-            "链判定（全序）：判定偏序集的子集S是否构成链（任意两元素可比较）",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "S \\text{ 是链} \\Leftrightarrow \\forall a, b \\in S: a \\leq b \\lor b \\leq a",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("chain_check", "链判定（全序）：判定偏序集的子集S是否构成链（任意两元素可比较）", inputs, 3,
+                         PRESET_TYPE_BOOLEAN,
+                         "S \\text{ 是链} \\Leftrightarrow \\forall a, b \\in S: a \\leq b \\lor b \\leq a", "O(n^2)",
+                         false, false);
     }
 
     /**
@@ -766,11 +738,11 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_FUNCTION};
-        REGISTER_LATTICE("antichain_check",
-            "反链判定：判定偏序集的子集S是否构成反链（任意两不同元素不可比较）",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "S \\text{ 是反链} \\Leftrightarrow \\forall a, b \\in S: a \\neq b \\Rightarrow a \\not\\leq b \\land b \\not\\leq a",
-            "O(n^2)", false, false);
+        REGISTER_LATTICE("antichain_check", "反链判定：判定偏序集的子集S是否构成反链（任意两不同元素不可比较）", inputs,
+                         3, PRESET_TYPE_BOOLEAN,
+                         "S \\text{ 是反链} \\Leftrightarrow \\forall a, b \\in S: a \\neq b \\Rightarrow a \\not\\leq "
+                         "b \\land b \\not\\leq a",
+                         "O(n^2)", false, false);
     }
 
     /**
@@ -789,11 +761,8 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_height",
-            "格的高度：计算格L的高度（最长链的长度）",
-            inputs, 1, PRESET_TYPE_INTEGER,
-            "h(L) = \\max\\{|C| - 1 : C \\text{ 是 } L \\text{ 中的链}\\}",
-            "O(n^2)", true, false);
+        REGISTER_LATTICE("lattice_height", "格的高度：计算格L的高度（最长链的长度）", inputs, 1, PRESET_TYPE_INTEGER,
+                         "h(L) = \\max\\{|C| - 1 : C \\text{ 是 } L \\text{ 中的链}\\}", "O(n^2)", true, false);
     }
 
     /**
@@ -812,11 +781,8 @@ bool preset_lattice_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_ALGEBRA};
-        REGISTER_LATTICE("lattice_width",
-            "格的宽度：计算格L的宽度（最大反链的大小）",
-            inputs, 1, PRESET_TYPE_INTEGER,
-            "w(L) = \\max\\{|A| : A \\text{ 是 } L \\text{ 中的反链}\\}",
-            "O(n^2)", true, false);
+        REGISTER_LATTICE("lattice_width", "格的宽度：计算格L的宽度（最大反链的大小）", inputs, 1, PRESET_TYPE_INTEGER,
+                         "w(L) = \\max\\{|A| : A \\text{ 是 } L \\text{ 中的反链}\\}", "O(n^2)", true, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -828,8 +794,7 @@ bool preset_lattice_theory_register(void)
  *
  * @return int 格论模块预设函数块总数
  */
-int preset_lattice_theory_count(void)
-{
+int preset_lattice_theory_count(void) {
     return LATTICE_THEORY_PRESET_COUNT;
 }
 
@@ -841,8 +806,7 @@ int preset_lattice_theory_count(void)
  * @return true 获取成功
  * @return false 获取失败
  */
-bool preset_lattice_theory_get_names(char ***out_names, int *out_count)
-{
+bool preset_lattice_theory_get_names(char ***out_names, int *out_count) {
     if (out_names == NULL || out_count == NULL) {
         return false;
     }
@@ -850,7 +814,7 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count)
     *out_count = LATTICE_THEORY_PRESET_COUNT;
 
     /* 分配名称数组（使用项目统一的内存管理函数） */
-    char **names = (char **)lv00_malloc(LATTICE_THEORY_PRESET_COUNT * sizeof(char *));
+    char **names = (char **) lv00_malloc(LATTICE_THEORY_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
         return false;
     }
@@ -858,40 +822,16 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count)
     /* 填充预设名称列表 */
     const char *preset_names[] = {
         /* 格基础运算 */
-        "lattice_join",
-        "lattice_meet",
-        "lattice_top",
-        "lattice_bottom",
-        "lattice_complement",
-        "lattice_partial_order",
-        "lattice_check",
-        "lattice_bounded_check",
-        "lattice_distributive_check",
-        "lattice_modular_check",
+        "lattice_join", "lattice_meet", "lattice_top", "lattice_bottom", "lattice_complement", "lattice_partial_order",
+        "lattice_check", "lattice_bounded_check", "lattice_distributive_check", "lattice_modular_check",
         /* 特殊格 */
-        "boolean_algebra_check",
-        "boolean_algebra_operations",
-        "heyting_algebra_check",
-        "heyting_implication",
-        "complete_lattice_check",
-        "complete_lattice_sup",
-        "complete_lattice_inf",
-        "lattice_ideal",
+        "boolean_algebra_check", "boolean_algebra_operations", "heyting_algebra_check", "heyting_implication",
+        "complete_lattice_check", "complete_lattice_sup", "complete_lattice_inf", "lattice_ideal",
         /* 格同态与表示 */
-        "lattice_homomorphism",
-        "lattice_embedding",
-        "lattice_isomorphism_check",
-        "lattice_sublattice_check",
-        "lattice_product",
-        "lattice_duality",
-        "stone_representation",
+        "lattice_homomorphism", "lattice_embedding", "lattice_isomorphism_check", "lattice_sublattice_check",
+        "lattice_product", "lattice_duality", "stone_representation",
         /* 格与序 */
-        "hasse_diagram",
-        "chain_check",
-        "antichain_check",
-        "lattice_height",
-        "lattice_width"
-    };
+        "hasse_diagram", "chain_check", "antichain_check", "lattice_height", "lattice_width"};
 
     for (int i = 0; i < LATTICE_THEORY_PRESET_COUNT; i++) {
         names[i] = lv00_strdup(preset_names[i]);
@@ -901,7 +841,7 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count)
                 void *tmp = names[j];
                 lv00_free(&tmp);
             }
-            lv00_free((void **)&names);
+            lv00_free((void **) &names);
             return false;
         }
     }
@@ -915,7 +855,6 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count)
  *
  * @return 类别名称字符串
  */
-const char *preset_lattice_theory_category(void)
-{
+const char *preset_lattice_theory_category(void) {
     return "格论";
 }

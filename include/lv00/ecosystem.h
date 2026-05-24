@@ -94,58 +94,58 @@ extern "C" {
  * 不仅是公理包，所有可共享的生态组件都可以注册和发现。
  */
 typedef enum {
-    ECO_ENTITY_AXIOM_PACKAGE   = 0,  /**< 公理包：一组公理/定理的集合 */
-    ECO_ENTITY_PRESET_BLOCK    = 1,  /**< 预设函数块：可复用的几何构造单元 */
-    ECO_ENTITY_PROOF_STRATEGY  = 2,  /**< 证明策略：证明搜索启发式方法 */
-    ECO_ENTITY_EXPORT_FORMAT   = 3,  /**< 导出格式插件：新增输出格式 */
-    ECO_ENTITY_WEB_COMPONENT   = 4,  /**< Web 组件：前端可视化组件 */
-    ECO_ENTITY_DSL_EXTENSION   = 5,  /**< DSL 扩展：语法/语义扩展模块 */
+    ECO_ENTITY_AXIOM_PACKAGE = 0,  /**< 公理包：一组公理/定理的集合 */
+    ECO_ENTITY_PRESET_BLOCK = 1,   /**< 预设函数块：可复用的几何构造单元 */
+    ECO_ENTITY_PROOF_STRATEGY = 2, /**< 证明策略：证明搜索启发式方法 */
+    ECO_ENTITY_EXPORT_FORMAT = 3,  /**< 导出格式插件：新增输出格式 */
+    ECO_ENTITY_WEB_COMPONENT = 4,  /**< Web 组件：前端可视化组件 */
+    ECO_ENTITY_DSL_EXTENSION = 5,  /**< DSL 扩展：语法/语义扩展模块 */
 } Lv00EcosystemEntity;
 
 /**
  * @brief 开源许可证类型
  */
 typedef enum {
-    ECO_LICENSE_MIT      = 0,  /**< MIT License */
-    ECO_LICENSE_APACHE2  = 1,  /**< Apache License 2.0 */
-    ECO_LICENSE_GPL2     = 2,  /**< GNU General Public License v2 */
-    ECO_LICENSE_GPL3     = 3,  /**< GNU General Public License v3 */
-    ECO_LICENSE_BSD3     = 4,  /**< BSD 3-Clause License */
-    ECO_LICENSE_CUSTOM   = 99, /**< 自定义许可证 */
+    ECO_LICENSE_MIT = 0,     /**< MIT License */
+    ECO_LICENSE_APACHE2 = 1, /**< Apache License 2.0 */
+    ECO_LICENSE_GPL2 = 2,    /**< GNU General Public License v2 */
+    ECO_LICENSE_GPL3 = 3,    /**< GNU General Public License v3 */
+    ECO_LICENSE_BSD3 = 4,    /**< BSD 3-Clause License */
+    ECO_LICENSE_CUSTOM = 99, /**< 自定义许可证 */
 } Lv00EcoLicense;
 
 /**
  * @brief 排序方式 —— 用于包搜索结果的排序
  */
 typedef enum {
-    ECO_SORT_RELEVANCE  = 0,  /**< 按相关性排序（默认） */
-    ECO_SORT_STARS      = 1,  /**< 按星标数量排序（最受欢迎） */
-    ECO_SORT_DATE       = 2,  /**< 按发布日期排序（最新优先） */
-    ECO_SORT_NAME       = 3,  /**< 按名称字母序排序 */
+    ECO_SORT_RELEVANCE = 0, /**< 按相关性排序（默认） */
+    ECO_SORT_STARS = 1,     /**< 按星标数量排序（最受欢迎） */
+    ECO_SORT_DATE = 2,      /**< 按发布日期排序（最新优先） */
+    ECO_SORT_NAME = 3,      /**< 按名称字母序排序 */
 } Lv00EcoSortBy;
 
 /**
  * @brief 包安装状态
  */
 typedef enum {
-    ECO_INSTALL_OK               = 0,  /**< 安装成功 */
-    ECO_INSTALL_NOT_FOUND        = 1,  /**< 包未在注册表中找到 */
+    ECO_INSTALL_OK = 0,                /**< 安装成功 */
+    ECO_INSTALL_NOT_FOUND = 1,         /**< 包未在注册表中找到 */
     ECO_INSTALL_VERSION_CONFLICT = 2,  /**< 版本不兼容 */
-    ECO_INSTALL_DEP_MISSING      = 3,  /**< 依赖项缺失 */
-    ECO_INSTALL_DISK_FULL        = 4,  /**< 磁盘空间不足 */
-    ECO_INSTALL_NETWORK_ERROR    = 5,  /**< 网络错误 */
-    ECO_INSTALL_ALREADY_INSTALLED= 6,  /**< 已安装相同版本 */
-    ECO_INSTALL_CHECKSUM_MISMATCH= 7,  /**< 校验和不匹配 */
+    ECO_INSTALL_DEP_MISSING = 3,       /**< 依赖项缺失 */
+    ECO_INSTALL_DISK_FULL = 4,         /**< 磁盘空间不足 */
+    ECO_INSTALL_NETWORK_ERROR = 5,     /**< 网络错误 */
+    ECO_INSTALL_ALREADY_INSTALLED = 6, /**< 已安装相同版本 */
+    ECO_INSTALL_CHECKSUM_MISMATCH = 7, /**< 校验和不匹配 */
 } Lv00EcoInstallStatus;
 
 /**
  * @brief 兼容性判定结果
  */
 typedef enum {
-    ECO_COMPAT_FULLY       = 0,  /**< 完全兼容 */
-    ECO_COMPAT_PARTIAL     = 1,  /**< 部分兼容（需指定版本范围） */
-    ECO_COMPAT_INCOMPATIBLE= 2,  /**< 不兼容 */
-    ECO_COMPAT_UNKNOWN     = 3,  /**< 未知（缺乏兼容性数据） */
+    ECO_COMPAT_FULLY = 0,        /**< 完全兼容 */
+    ECO_COMPAT_PARTIAL = 1,      /**< 部分兼容（需指定版本范围） */
+    ECO_COMPAT_INCOMPATIBLE = 2, /**< 不兼容 */
+    ECO_COMPAT_UNKNOWN = 3,      /**< 未知（缺乏兼容性数据） */
 } Lv00EcoCompatibilityLevel;
 
 /* ==================== 结构体定义 ==================== */
@@ -158,35 +158,35 @@ typedef enum {
  */
 typedef struct Lv00EcoPackage {
     /* ── 身份信息 ── */
-    char   package_id[LV00_ECO_NAME_MAX];       /**< 包唯一标识符 */
-    char   name[LV00_ECO_NAME_MAX];             /**< 包名称（人类可读） */
-    char   version[LV00_ECO_VERSION_MAX];       /**< 语义化版本号 */
-    char   author[LV00_ECO_AUTHOR_MAX];         /**< 作者/组织名称 */
+    char package_id[LV00_ECO_NAME_MAX]; /**< 包唯一标识符 */
+    char name[LV00_ECO_NAME_MAX];       /**< 包名称（人类可读） */
+    char version[LV00_ECO_VERSION_MAX]; /**< 语义化版本号 */
+    char author[LV00_ECO_AUTHOR_MAX];   /**< 作者/组织名称 */
 
     /* ── 许可证 ── */
-    Lv00EcoLicense license_type;                /**< 许可证类型 */
-    char   custom_license_text[LV00_ECO_DESC_MAX]; /**< 自定义许可证全文（CUSTOM 时使用） */
+    Lv00EcoLicense license_type;                 /**< 许可证类型 */
+    char custom_license_text[LV00_ECO_DESC_MAX]; /**< 自定义许可证全文（CUSTOM 时使用） */
 
     /* ── 描述 ── */
-    char   description[LV00_ECO_DESC_MAX];      /**< 包的功能描述 */
-    char   source_url[LV00_ECO_URL_MAX];        /**< 源代码仓库 URL */
+    char description[LV00_ECO_DESC_MAX]; /**< 包的功能描述 */
+    char source_url[LV00_ECO_URL_MAX];   /**< 源代码仓库 URL */
 
     /* ── 依赖项 ── */
-    char   dependencies[LV00_ECO_MAX_DEPENDENCIES][LV00_ECO_NAME_MAX]; /**< 依赖包 ID 列表 */
-    int    dep_count;                            /**< 依赖项数量 */
+    char dependencies[LV00_ECO_MAX_DEPENDENCIES][LV00_ECO_NAME_MAX]; /**< 依赖包 ID 列表 */
+    int dep_count;                                                   /**< 依赖项数量 */
 
     /* ── 实体类型 ── */
-    Lv00EcosystemEntity entity_type;            /**< 实体类型 */
+    Lv00EcosystemEntity entity_type; /**< 实体类型 */
 
     /* ── 安装信息 ── */
-    uint64_t install_date;                      /**< 安装时间戳（Unix epoch） */
-    int     star_count;                         /**< 星标数量 */
-    bool    verified;                           /**< 官方认证标志 */
-    char    min_lv00_version[LV00_ECO_MIN_VERSION_MAX]; /**< 最低兼容 Lv-00 版本 */
+    uint64_t install_date;                           /**< 安装时间戳（Unix epoch） */
+    int star_count;                                  /**< 星标数量 */
+    bool verified;                                   /**< 官方认证标志 */
+    char min_lv00_version[LV00_ECO_MIN_VERSION_MAX]; /**< 最低兼容 Lv-00 版本 */
 
     /* ── 安装后路径 ── */
-    char   install_path[LV00_ECO_URL_MAX];      /**< 本地安装路径 */
-    bool   is_installed;                        /**< 是否已安装 */
+    char install_path[LV00_ECO_URL_MAX]; /**< 本地安装路径 */
+    bool is_installed;                   /**< 是否已安装 */
 } Lv00EcoPackage;
 
 /**
@@ -198,20 +198,20 @@ typedef struct Lv00EcoPackage {
 typedef struct Lv00EcoRegistry {
     /* ── 包列表 ── */
     Lv00EcoPackage packages[LV00_ECO_MAX_PACKAGES]; /**< 已注册的包数组 */
-    int             package_count;                  /**< 已注册包数量 */
+    int package_count;                              /**< 已注册包数量 */
 
     /* ── 注册表元数据 ── */
-    char   registry_url[LV00_ECO_REGISTRY_URL_MAX]; /**< 远程注册表 URL */
-    uint64_t last_sync;                             /**< 上次同步时间戳（0 = 从未同步） */
+    char registry_url[LV00_ECO_REGISTRY_URL_MAX]; /**< 远程注册表 URL */
+    uint64_t last_sync;                           /**< 上次同步时间戳（0 = 从未同步） */
 
     /* ── 更新策略 ── */
-    bool   auto_update;                        /**< 是否自动同步注册表索引 */
+    bool auto_update; /**< 是否自动同步注册表索引 */
 
     /* ── 统计缓存 ── */
-    int    total_packages_remote;              /**< 远程包总数 */
-    int    verified_packages;                  /**< 已验证包数量 */
-    int    recently_updated;                   /**< 最近 30 天更新的包数量 */
-    int    installed_count;                    /**< 已安装包数量 */
+    int total_packages_remote; /**< 远程包总数 */
+    int verified_packages;     /**< 已验证包数量 */
+    int recently_updated;      /**< 最近 30 天更新的包数量 */
+    int installed_count;       /**< 已安装包数量 */
 } Lv00EcoRegistry;
 
 /**
@@ -222,15 +222,15 @@ typedef struct Lv00EcoRegistry {
  */
 typedef struct Lv00EcoCompatibility {
     /* ── 涉及的包 ── */
-    char   package_id_a[LV00_ECO_NAME_MAX];     /**< 包 A 的标识符 */
-    char   package_id_b[LV00_ECO_NAME_MAX];     /**< 包 B 的标识符 */
+    char package_id_a[LV00_ECO_NAME_MAX]; /**< 包 A 的标识符 */
+    char package_id_b[LV00_ECO_NAME_MAX]; /**< 包 B 的标识符 */
 
     /* ── 兼容性 ── */
-    Lv00EcoCompatibilityLevel level;            /**< 兼容性级别 */
+    Lv00EcoCompatibilityLevel level; /**< 兼容性级别 */
 
     /* ── 冲突详情 ── */
-    char   conflict_reason[LV00_ECO_DESC_MAX];  /**< 不兼容原因（人类可读） */
-    char   resolution[LV00_ECO_DESC_MAX];       /**< 建议的解决方案 */
+    char conflict_reason[LV00_ECO_DESC_MAX]; /**< 不兼容原因（人类可读） */
+    char resolution[LV00_ECO_DESC_MAX];      /**< 建议的解决方案 */
 } Lv00EcoCompatibility;
 
 /**
@@ -241,15 +241,15 @@ typedef struct Lv00EcoCompatibility {
  */
 typedef struct Lv00EcoSearchQuery {
     /* ── 查询条件 ── */
-    char   query_text[LV00_ECO_QUERY_MAX];     /**< 搜索关键词 */
-    Lv00EcosystemEntity entity_type_filter;    /**< 实体类型过滤（ECO_ENTITY_AXIOM_PACKAGE = 不过滤） */
+    char query_text[LV00_ECO_QUERY_MAX];    /**< 搜索关键词 */
+    Lv00EcosystemEntity entity_type_filter; /**< 实体类型过滤（ECO_ENTITY_AXIOM_PACKAGE = 不过滤） */
 
     /* ── 排序 ── */
-    Lv00EcoSortBy sort_by;                     /**< 排序方式 */
+    Lv00EcoSortBy sort_by; /**< 排序方式 */
 
     /* ── 分页 ── */
-    int    page_size;                          /**< 每页结果数 */
-    int    page_offset;                        /**< 偏移量 */
+    int page_size;   /**< 每页结果数 */
+    int page_offset; /**< 偏移量 */
 } Lv00EcoSearchQuery;
 
 /**
@@ -261,37 +261,37 @@ typedef struct Lv00EcoSearchQuery {
  */
 typedef struct Lv00OneClick {
     /* ── 镜像配置 ── */
-    char   docker_image[LV00_ECO_IMAGE_NAME_MAX];  /**< Docker/Podman 镜像名 */
-    char   container_name[LV00_ECO_NAME_MAX];      /**< 容器名称 */
-    bool   use_podman;                             /**< 是否使用 Podman（替代 Docker） */
+    char docker_image[LV00_ECO_IMAGE_NAME_MAX]; /**< Docker/Podman 镜像名 */
+    char container_name[LV00_ECO_NAME_MAX];     /**< 容器名称 */
+    bool use_podman;                            /**< 是否使用 Podman（替代 Docker） */
 
     /* ── 预配置内容 ── */
-    char   required_axiom_packages[LV00_ECO_MAX_DEPENDENCIES][LV00_ECO_NAME_MAX]; /**< 预装公理包 */
-    int    axiom_package_count;                    /**< 预装公理包数量 */
-    char   sample_proofs[LV00_ECO_MAX_SAMPLE_PROOFS][LV00_ECO_DESC_MAX];          /**< 样例证明 */
-    int    sample_proof_count;                     /**< 样例证明数量 */
+    char required_axiom_packages[LV00_ECO_MAX_DEPENDENCIES][LV00_ECO_NAME_MAX]; /**< 预装公理包 */
+    int axiom_package_count;                                                    /**< 预装公理包数量 */
+    char sample_proofs[LV00_ECO_MAX_SAMPLE_PROOFS][LV00_ECO_DESC_MAX];          /**< 样例证明 */
+    int sample_proof_count;                                                     /**< 样例证明数量 */
 
     /* ── 端口转发 ── */
     struct {
-        int  host_port;                            /**< 主机端口 */
-        int  container_port;                       /**< 容器端口 */
+        int host_port;                             /**< 主机端口 */
+        int container_port;                        /**< 容器端口 */
         char protocol[8];                          /**< 协议：tcp/udp */
     } port_forwarding[LV00_ECO_MAX_PORT_FORWARDS]; /**< 端口转发规则 */
-    int  port_forward_count;                       /**< 转发规则数量 */
+    int port_forward_count;                        /**< 转发规则数量 */
 
     /* ── 环境变量 ── */
-    char  **env_vars;                              /**< 环境变量（KEY=VALUE 格式） */
-    int     env_var_count;                         /**< 环境变量数量 */
+    char **env_vars;   /**< 环境变量（KEY=VALUE 格式） */
+    int env_var_count; /**< 环境变量数量 */
 
     /* ── 挂载卷 ── */
-    char  **volumes;                               /**< 卷挂载（host_path:container_path 格式） */
-    int     volume_count;                          /**< 卷数量 */
+    char **volumes;   /**< 卷挂载（host_path:container_path 格式） */
+    int volume_count; /**< 卷数量 */
 
     /* ── GPU 支持 ── */
-    bool   enable_gpu;                             /**< 启用 GPU 加速 */
+    bool enable_gpu; /**< 启用 GPU 加速 */
 
     /* ── 镜像标签 ── */
-    char   image_tag[LV00_ECO_VERSION_MAX];        /**< 镜像标签 */
+    char image_tag[LV00_ECO_VERSION_MAX]; /**< 镜像标签 */
 } Lv00OneClick;
 
 /**
@@ -300,16 +300,16 @@ typedef struct Lv00OneClick {
  * 汇总注册表的关键统计指标。
  */
 typedef struct Lv00EcoStats {
-    int    total_packages;                    /**< 总包数量 */
-    int    verified_count;                     /**< 已验证包数量 */
-    int    recently_updated_count;            /**< 最近 30 天更新数 */
-    int    installed_count;                   /**< 已安装包数量 */
-    int    total_stars;                       /**< 总星标数 */
-    int    unique_authors;                    /**< 不同作者数量 */
-    int    avg_deps_per_package;              /**< 每个包的依赖项平均数 */
-    char   most_popular_package[LV00_ECO_NAME_MAX]; /**< 最受欢迎包名称 */
-    int    most_popular_stars;                 /**< 最受欢迎包星标数 */
-    uint64_t last_full_sync;                  /**< 上次全量同步时间戳 */
+    int total_packages;                           /**< 总包数量 */
+    int verified_count;                           /**< 已验证包数量 */
+    int recently_updated_count;                   /**< 最近 30 天更新数 */
+    int installed_count;                          /**< 已安装包数量 */
+    int total_stars;                              /**< 总星标数 */
+    int unique_authors;                           /**< 不同作者数量 */
+    int avg_deps_per_package;                     /**< 每个包的依赖项平均数 */
+    char most_popular_package[LV00_ECO_NAME_MAX]; /**< 最受欢迎包名称 */
+    int most_popular_stars;                       /**< 最受欢迎包星标数 */
+    uint64_t last_full_sync;                      /**< 上次全量同步时间戳 */
 } Lv00EcoStats;
 
 /**
@@ -318,14 +318,14 @@ typedef struct Lv00EcoStats {
  * 聚合注册表、兼容性矩阵和贡献指南的顶层结构。
  */
 typedef struct Lv00Ecosystem {
-    Lv00EcoRegistry   registry;                /**< 注册表 */
-    Lv00EcoCompatibility *compat_matrix;        /**< 兼容性矩阵数组 */
-    int                 compat_matrix_count;    /**< 兼容性条目数量 */
-    Lv00OneClick        one_click;              /**< 一键体验配置 */
+    Lv00EcoRegistry registry;            /**< 注册表 */
+    Lv00EcoCompatibility *compat_matrix; /**< 兼容性矩阵数组 */
+    int compat_matrix_count;             /**< 兼容性条目数量 */
+    Lv00OneClick one_click;              /**< 一键体验配置 */
 
     /* ── 贡献指南 ── */
-    char   contribution_guidelines[LV00_ECO_GUIDELINES_MAX]; /**< 贡献指南 Markdown 文本 */
-    int    guidelines_length;                   /**< 指南文本长度 */
+    char contribution_guidelines[LV00_ECO_GUIDELINES_MAX]; /**< 贡献指南 Markdown 文本 */
+    int guidelines_length;                                 /**< 指南文本长度 */
 } Lv00Ecosystem;
 
 /* ==================== 生命周期 ==================== */
@@ -338,7 +338,7 @@ typedef struct Lv00Ecosystem {
  *
  * @return 新分配的生态系统上下文，失败返回 NULL
  */
-Lv00Ecosystem* eco_init(void);
+Lv00Ecosystem *eco_init(void);
 
 /**
  * @brief 销毁生态系统并释放所有关联资源
@@ -385,10 +385,8 @@ int eco_package_unregister(Lv00Ecosystem *eco, const char *package_id);
  * @param[out] out_count 输出：结果数量
  * @return 成功返回 0，失败返回 -1
  */
-int eco_package_search(const Lv00Ecosystem *eco,
-                        const Lv00EcoSearchQuery *query,
-                        Lv00EcoPackage **results,
-                        int *out_count);
+int eco_package_search(const Lv00Ecosystem *eco, const Lv00EcoSearchQuery *query, Lv00EcoPackage **results,
+                       int *out_count);
 
 /* ==================== 安装管理 ==================== */
 
@@ -409,10 +407,7 @@ int eco_package_search(const Lv00Ecosystem *eco,
  * @param[in]     force      强制重新安装（即使已存在）
  * @return 安装状态码
  */
-Lv00EcoInstallStatus eco_package_install(Lv00Ecosystem *eco,
-                                          const char *package_id,
-                                          const char *version,
-                                          bool force);
+Lv00EcoInstallStatus eco_package_install(Lv00Ecosystem *eco, const char *package_id, const char *version, bool force);
 
 /**
  * @brief 卸载已安装的包
@@ -433,9 +428,7 @@ int eco_package_uninstall(Lv00Ecosystem *eco, const char *package_id);
  * @param[out] out_count 输出：已安装包数量
  * @return 成功返回 0，失败返回 -1
  */
-int eco_package_list_installed(const Lv00Ecosystem *eco,
-                                Lv00EcoPackage **out_pkgs,
-                                int *out_count);
+int eco_package_list_installed(const Lv00Ecosystem *eco, Lv00EcoPackage **out_pkgs, int *out_count);
 
 /* ==================== 兼容性检查 ==================== */
 
@@ -451,11 +444,8 @@ int eco_package_list_installed(const Lv00Ecosystem *eco,
  * @param[out] out_result   输出：兼容性结果（调用者可选择 NULL）
  * @return 兼容性级别
  */
-Lv00EcoCompatibilityLevel eco_check_compatibility(
-    const Lv00Ecosystem *eco,
-    const char *package_id_a,
-    const char *package_id_b,
-    Lv00EcoCompatibility *out_result);
+Lv00EcoCompatibilityLevel eco_check_compatibility(const Lv00Ecosystem *eco, const char *package_id_a,
+                                                  const char *package_id_b, Lv00EcoCompatibility *out_result);
 
 /**
  * @brief 解决所有已安装包之间的冲突
@@ -468,9 +458,7 @@ Lv00EcoCompatibilityLevel eco_check_compatibility(
  * @param[out]    out_count     输出：冲突数量
  * @return 成功返回 0，失败返回 -1
  */
-int eco_resolve_conflicts(Lv00Ecosystem *eco,
-                           Lv00EcoCompatibility **out_conflicts,
-                           int *out_count);
+int eco_resolve_conflicts(Lv00Ecosystem *eco, Lv00EcoCompatibility **out_conflicts, int *out_count);
 
 /* ==================== 注册表同步 ==================== */
 
@@ -504,10 +492,7 @@ int eco_registry_sync(Lv00Ecosystem *eco, bool full_sync);
  * @param[out] one_click    输出：一键体验配置
  * @return 成功返回 0，失败返回 -1
  */
-int eco_one_click_create(const Lv00Ecosystem *eco,
-                          const char *image_name,
-                          bool use_podman,
-                          Lv00OneClick *one_click);
+int eco_one_click_create(const Lv00Ecosystem *eco, const char *image_name, bool use_podman, Lv00OneClick *one_click);
 
 /**
  * @brief 导出一键体验配置为 Dockerfile
@@ -523,8 +508,7 @@ int eco_one_click_create(const Lv00Ecosystem *eco,
  * @param[out] output    输出：Dockerfile 内容（调用者负责 free）
  * @return Dockerfile 字符数，失败返回 -1
  */
-int eco_one_click_export_dockerfile(const Lv00OneClick *one_click,
-                                     char **output);
+int eco_one_click_export_dockerfile(const Lv00OneClick *one_click, char **output);
 
 /* ==================== 贡献指南 ==================== */
 
@@ -563,7 +547,7 @@ int eco_stats(const Lv00Ecosystem *eco, Lv00EcoStats *stats);
  * @param[in] entity 实体类型
  * @return 类型名称字符串
  */
-const char* eco_entity_type_name(Lv00EcosystemEntity entity);
+const char *eco_entity_type_name(Lv00EcosystemEntity entity);
 
 /**
  * @brief 获取许可证名称
@@ -571,7 +555,7 @@ const char* eco_entity_type_name(Lv00EcosystemEntity entity);
  * @param[in] license 许可证类型
  * @return 许可证名称字符串（如 "MIT"）
  */
-const char* eco_license_name(Lv00EcoLicense license);
+const char *eco_license_name(Lv00EcoLicense license);
 
 /**
  * @brief 获取安装状态名称
@@ -579,7 +563,7 @@ const char* eco_license_name(Lv00EcoLicense license);
  * @param[in] status 安装状态
  * @return 状态名称字符串
  */
-const char* eco_install_status_name(Lv00EcoInstallStatus status);
+const char *eco_install_status_name(Lv00EcoInstallStatus status);
 
 /**
  * @brief 获取兼容性级别名称
@@ -587,7 +571,7 @@ const char* eco_install_status_name(Lv00EcoInstallStatus status);
  * @param[in] level 兼容性级别
  * @return 级别名称字符串
  */
-const char* eco_compatibility_name(Lv00EcoCompatibilityLevel level);
+const char *eco_compatibility_name(Lv00EcoCompatibilityLevel level);
 
 /**
  * @brief 验证语义化版本号格式
@@ -612,7 +596,7 @@ int eco_compare_versions(const char *v1, const char *v2);
  * @param[in] sort_by 排序方式
  * @return 排序方式名称字符串
  */
-const char* eco_sort_name(Lv00EcoSortBy sort_by);
+const char *eco_sort_name(Lv00EcoSortBy sort_by);
 
 #ifdef __cplusplus
 }

@@ -48,11 +48,11 @@ extern "C" {
  * Lv-00 在运行时通过枚举选择，允许同一可执行文件混用多个后端。
  */
 typedef enum {
-    LV00_BACKEND_SERIAL  = 0,   /**< 串行 CPU（默认实现） */
-    LV00_BACKEND_OPENMP  = 1,   /**< OpenMP 多核 CPU 并行 */
-    LV00_BACKEND_CUDA    = 2,   /**< NVIDIA CUDA GPU */
-    LV00_BACKEND_HIP     = 3,   /**< AMD HIP GPU（ROCm 平台） */
-    LV00_BACKEND_CUSTOM  = 99   /**< 用户自定义后端（使用自定义操作表） */
+    LV00_BACKEND_SERIAL = 0, /**< 串行 CPU（默认实现） */
+    LV00_BACKEND_OPENMP = 1, /**< OpenMP 多核 CPU 并行 */
+    LV00_BACKEND_CUDA = 2,   /**< NVIDIA CUDA GPU */
+    LV00_BACKEND_HIP = 3,    /**< AMD HIP GPU（ROCm 平台） */
+    LV00_BACKEND_CUSTOM = 99 /**< 用户自定义后端（使用自定义操作表） */
 } Lv00BackendType;
 
 /* ==================== 误差码 ==================== */
@@ -61,13 +61,13 @@ typedef enum {
  * @brief 数值后端操作返回码
  */
 typedef enum {
-    LV00_BACKEND_OK              =  0,  /**< 成功 */
-    LV00_BACKEND_MEM_ERROR       = -1,  /**< 内存分配失败 */
-    LV00_BACKEND_UNSUPPORTED     = -2,  /**< 不支持的操作 */
-    LV00_BACKEND_INVALID_ARGS    = -3,  /**< 无效参数 */
-    LV00_BACKEND_LINSOL_FAILED   = -4,  /**< 线性求解失败 */
-    LV00_BACKEND_MATVEC_FAILED   = -5,  /**< 矩阵-向量乘法失败 */
-    LV00_BACKEND_NOT_INITIALIZED = -6   /**< 未初始化 */
+    LV00_BACKEND_OK = 0,              /**< 成功 */
+    LV00_BACKEND_MEM_ERROR = -1,      /**< 内存分配失败 */
+    LV00_BACKEND_UNSUPPORTED = -2,    /**< 不支持的操作 */
+    LV00_BACKEND_INVALID_ARGS = -3,   /**< 无效参数 */
+    LV00_BACKEND_LINSOL_FAILED = -4,  /**< 线性求解失败 */
+    LV00_BACKEND_MATVEC_FAILED = -5,  /**< 矩阵-向量乘法失败 */
+    LV00_BACKEND_NOT_INITIALIZED = -6 /**< 未初始化 */
 } Lv00BackendError;
 
 /* ==================== 第一部分：Lv00Vector + 操作表 ==================== */
@@ -90,7 +90,7 @@ struct Lv00VectorOps {
      * @param[in] v  源向量
      * @return 新分配的克隆向量，失败返回 NULL
      */
-    Lv00Vector* (*clone)(const Lv00Vector *v);
+    Lv00Vector *(*clone)(const Lv00Vector *v);
 
     /**
      * @brief 销毁向量并释放所有关联资源
@@ -133,9 +133,7 @@ struct Lv00VectorOps {
      * @param[in]  y  向量 y
      * @param[out] z  结果向量
      */
-    void (*linear_sum)(double a, const Lv00Vector *x,
-                       double b, const Lv00Vector *y,
-                       Lv00Vector *z);
+    void (*linear_sum)(double a, const Lv00Vector *x, double b, const Lv00Vector *y, Lv00Vector *z);
 
     /**
      * @brief 点积（内积）：返回 dot(x, y)
@@ -199,7 +197,7 @@ struct Lv00VectorOps {
      * @param[in] v  向量
      * @return 数据指针，无直接访问时返回 NULL
      */
-    double* (*data_ptr)(Lv00Vector *v);
+    double *(*data_ptr)(Lv00Vector *v);
 };
 
 /**
@@ -209,11 +207,11 @@ struct Lv00VectorOps {
  * 具体后端的向量实现可以通过扩展此结构来附加额外字段。
  */
 struct Lv00Vector {
-    int64_t length;                  /**< 向量长度（元素个数） */
-    Lv00BackendType backend;         /**< 所属后端类型 */
-    double *data;                    /**< 数据数组（序列后端直接使用） */
-    void *backend_data;              /**< 后端私有不透明数据（GPU 指针等） */
-    const Lv00VectorOps *ops;        /**< 操作表 */
+    int64_t length;           /**< 向量长度（元素个数） */
+    Lv00BackendType backend;  /**< 所属后端类型 */
+    double *data;             /**< 数据数组（序列后端直接使用） */
+    void *backend_data;       /**< 后端私有不透明数据（GPU 指针等） */
+    const Lv00VectorOps *ops; /**< 操作表 */
 };
 
 /* ==================== 第二部分：Lv00Matrix + 操作表 ==================== */
@@ -227,11 +225,11 @@ typedef struct Lv00MatrixOps Lv00MatrixOps;
  * @brief 矩阵存储格式 —— 借鉴 SUNDIALS SUNMatrix 存储类型
  */
 typedef enum {
-    LV00_MATRIX_DENSE       = 0,  /**< 稠密矩阵（列主序） */
-    LV00_MATRIX_SPARSE_CSR  = 1,  /**< CSR 格式稀疏矩阵 */
-    LV00_MATRIX_SPARSE_CSC  = 2,  /**< CSC 格式稀疏矩阵 */
-    LV00_MATRIX_BANDED      = 3,  /**< 带状矩阵 */
-    LV00_MATRIX_CUSTOM      = 4   /**< 自定义格式 */
+    LV00_MATRIX_DENSE = 0,      /**< 稠密矩阵（列主序） */
+    LV00_MATRIX_SPARSE_CSR = 1, /**< CSR 格式稀疏矩阵 */
+    LV00_MATRIX_SPARSE_CSC = 2, /**< CSC 格式稀疏矩阵 */
+    LV00_MATRIX_BANDED = 3,     /**< 带状矩阵 */
+    LV00_MATRIX_CUSTOM = 4      /**< 自定义格式 */
 } Lv00MatrixFormat;
 
 /**
@@ -243,7 +241,7 @@ struct Lv00MatrixOps {
      * @param[in] A  源矩阵
      * @return 新分配的克隆矩阵
      */
-    Lv00Matrix* (*clone)(const Lv00Matrix *A);
+    Lv00Matrix *(*clone)(const Lv00Matrix *A);
 
     /**
      * @brief 销毁矩阵并释放所有关联资源
@@ -319,14 +317,14 @@ struct Lv00MatrixOps {
  * @brief Lv00Matrix 结构体 —— 借鉴 SUNDIALS SUNMatrix 内容结构
  */
 struct Lv00Matrix {
-    int64_t rows;                    /**< 行数 */
-    int64_t cols;                    /**< 列数 */
-    bool sparse;                     /**< 是否稀疏矩阵 */
-    Lv00MatrixFormat format;         /**< 存储格式 */
-    Lv00BackendType backend;         /**< 所属后端 */
-    void *data;                      /**< 矩阵数据（稠密时为 double*，CSR 为自定义结构） */
-    void *backend_data;              /**< 后端私有不透明数据 */
-    const Lv00MatrixOps *ops;        /**< 操作表 */
+    int64_t rows;             /**< 行数 */
+    int64_t cols;             /**< 列数 */
+    bool sparse;              /**< 是否稀疏矩阵 */
+    Lv00MatrixFormat format;  /**< 存储格式 */
+    Lv00BackendType backend;  /**< 所属后端 */
+    void *data;               /**< 矩阵数据（稠密时为 double*，CSR 为自定义结构） */
+    void *backend_data;       /**< 后端私有不透明数据 */
+    const Lv00MatrixOps *ops; /**< 操作表 */
 };
 
 /* ==================== 第三部分：Lv00LinearSolver + 操作表 ==================== */
@@ -340,13 +338,13 @@ typedef struct Lv00LinearSolverOps Lv00LinearSolverOps;
  * @brief 线性求解方法 —— 借鉴 SUNDIALS SUNLinearSolver 类型
  */
 typedef enum {
-    LV00_LINSOL_DIRECT_DENSE   = 0,  /**< 直接法：稠密 LU */
-    LV00_LINSOL_DIRECT_BAND    = 1,  /**< 直接法：带状 LU */
-    LV00_LINSOL_DIRECT_SPARSE  = 2,  /**< 直接法：稀疏 LU */
-    LV00_LINSOL_ITERATIVE_GMRES = 3, /**< 迭代法：GMRES */
+    LV00_LINSOL_DIRECT_DENSE = 0,       /**< 直接法：稠密 LU */
+    LV00_LINSOL_DIRECT_BAND = 1,        /**< 直接法：带状 LU */
+    LV00_LINSOL_DIRECT_SPARSE = 2,      /**< 直接法：稀疏 LU */
+    LV00_LINSOL_ITERATIVE_GMRES = 3,    /**< 迭代法：GMRES */
     LV00_LINSOL_ITERATIVE_BICGSTAB = 4, /**< 迭代法：BiCGSTAB */
-    LV00_LINSOL_ITERATIVE_CG   = 5,  /**< 迭代法：共轭梯度 */
-    LV00_LINSOL_CUSTOM         = 99  /**< 自定义求解器 */
+    LV00_LINSOL_ITERATIVE_CG = 5,       /**< 迭代法：共轭梯度 */
+    LV00_LINSOL_CUSTOM = 99             /**< 自定义求解器 */
 } Lv00LinearSolverMethod;
 
 /**
@@ -369,8 +367,7 @@ struct Lv00LinearSolverOps {
      * @param[out] x   解向量
      * @return 成功返回 LV00_BACKEND_OK
      */
-    int (*solve)(Lv00LinearSolver *LS, const Lv00Matrix *A,
-                 const Lv00Vector *b, Lv00Vector *x);
+    int (*solve)(Lv00LinearSolver *LS, const Lv00Matrix *A, const Lv00Vector *b, Lv00Vector *x);
 
     /**
      * @brief 销毁线性求解器并释放所有关联资源
@@ -383,11 +380,11 @@ struct Lv00LinearSolverOps {
  * @brief Lv00LinearSolver 结构体 —— 借鉴 SUNDIALS SUNLinearSolver 内容结构
  */
 struct Lv00LinearSolver {
-    Lv00LinearSolverMethod method;   /**< 求解方法 */
-    Lv00BackendType backend;         /**< 所属后端 */
-    void *solver_data;               /**< 求解器私有数据 */
-    void *backend_data;              /**< 后端私有不透明数据 */
-    const Lv00LinearSolverOps *ops;  /**< 操作表 */
+    Lv00LinearSolverMethod method;  /**< 求解方法 */
+    Lv00BackendType backend;        /**< 所属后端 */
+    void *solver_data;              /**< 求解器私有数据 */
+    void *backend_data;             /**< 后端私有不透明数据 */
+    const Lv00LinearSolverOps *ops; /**< 操作表 */
 };
 
 /* ==================== 第四部分：工厂函数 ==================== */
@@ -401,7 +398,7 @@ struct Lv00LinearSolver {
  *
  * @note 具体实现在各后端的 .c 文件中，此处仅为接口声明。
  */
-Lv00Vector* lv00_vector_create(Lv00BackendType backend, int64_t n);
+Lv00Vector *lv00_vector_create(Lv00BackendType backend, int64_t n);
 
 /**
  * @brief 创建矩阵（指定后端、维度和格式）
@@ -414,8 +411,7 @@ Lv00Vector* lv00_vector_create(Lv00BackendType backend, int64_t n);
  *
  * @note 具体实现在各后端的 .c 文件中，此处仅为接口声明。
  */
-Lv00Matrix* lv00_matrix_create(Lv00BackendType backend, int64_t rows,
-                                int64_t cols, bool sparse);
+Lv00Matrix *lv00_matrix_create(Lv00BackendType backend, int64_t rows, int64_t cols, bool sparse);
 
 /**
  * @brief 创建线性求解器（指定后端和求解方法）
@@ -426,8 +422,7 @@ Lv00Matrix* lv00_matrix_create(Lv00BackendType backend, int64_t rows,
  *
  * @note 具体实现在各后端的 .c 文件中，此处仅为接口声明。
  */
-Lv00LinearSolver* lv00_linsol_create(Lv00BackendType backend,
-                                      Lv00LinearSolverMethod method);
+Lv00LinearSolver *lv00_linsol_create(Lv00BackendType backend, Lv00LinearSolverMethod method);
 
 /**
  * @brief 获取后端名称字符串
@@ -435,14 +430,20 @@ Lv00LinearSolver* lv00_linsol_create(Lv00BackendType backend,
  * @param[in] backend  后端类型
  * @return 后端名称（如 "SERIAL"、"CUDA" 等）
  */
-static inline const char* lv00_backend_name(Lv00BackendType backend) {
+static inline const char *lv00_backend_name(Lv00BackendType backend) {
     switch (backend) {
-        case LV00_BACKEND_SERIAL:  return "SERIAL";
-        case LV00_BACKEND_OPENMP:  return "OpenMP";
-        case LV00_BACKEND_CUDA:    return "CUDA";
-        case LV00_BACKEND_HIP:     return "HIP";
-        case LV00_BACKEND_CUSTOM:  return "CUSTOM";
-        default:                   return "UNKNOWN";
+        case LV00_BACKEND_SERIAL:
+            return "SERIAL";
+        case LV00_BACKEND_OPENMP:
+            return "OpenMP";
+        case LV00_BACKEND_CUDA:
+            return "CUDA";
+        case LV00_BACKEND_HIP:
+            return "HIP";
+        case LV00_BACKEND_CUSTOM:
+            return "CUSTOM";
+        default:
+            return "UNKNOWN";
     }
 }
 
@@ -452,16 +453,24 @@ static inline const char* lv00_backend_name(Lv00BackendType backend) {
  * @param[in] method  求解方法
  * @return 方法名称
  */
-static inline const char* lv00_linsol_method_name(Lv00LinearSolverMethod method) {
+static inline const char *lv00_linsol_method_name(Lv00LinearSolverMethod method) {
     switch (method) {
-        case LV00_LINSOL_DIRECT_DENSE:    return "Direct-Dense-LU";
-        case LV00_LINSOL_DIRECT_BAND:     return "Direct-Band-LU";
-        case LV00_LINSOL_DIRECT_SPARSE:   return "Direct-Sparse-LU";
-        case LV00_LINSOL_ITERATIVE_GMRES: return "Iterative-GMRES";
-        case LV00_LINSOL_ITERATIVE_BICGSTAB: return "Iterative-BiCGSTAB";
-        case LV00_LINSOL_ITERATIVE_CG:    return "Iterative-CG";
-        case LV00_LINSOL_CUSTOM:          return "Custom";
-        default:                           return "Unknown";
+        case LV00_LINSOL_DIRECT_DENSE:
+            return "Direct-Dense-LU";
+        case LV00_LINSOL_DIRECT_BAND:
+            return "Direct-Band-LU";
+        case LV00_LINSOL_DIRECT_SPARSE:
+            return "Direct-Sparse-LU";
+        case LV00_LINSOL_ITERATIVE_GMRES:
+            return "Iterative-GMRES";
+        case LV00_LINSOL_ITERATIVE_BICGSTAB:
+            return "Iterative-BiCGSTAB";
+        case LV00_LINSOL_ITERATIVE_CG:
+            return "Iterative-CG";
+        case LV00_LINSOL_CUSTOM:
+            return "Custom";
+        default:
+            return "Unknown";
     }
 }
 

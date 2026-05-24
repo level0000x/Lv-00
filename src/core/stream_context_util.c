@@ -15,6 +15,7 @@
  */
 
 #include "stream_context_util.h"
+
 #include <stddef.h>
 
 /* ---- 依赖前向声明：内置模块的 setter 函数 ---- */
@@ -23,16 +24,16 @@
  * 由于 StreamContextSetter 的签名就是 void (*)(StreamContext *)，各 setter
  * 函数与此类型完全兼容，无需强制转换。 */
 
-#include "solver.h"        /* solver_set_stream_context     */
-#include "rewrite.h"       /* rewrite_set_stream_context    */
-#include "unify.h"         /* unify_set_stream_context      */
-#include "func_block.h"    /* func_block_set_stream_context */
-#include "type_system.h"   /* type_system_set_stream_context*/
-#include "proof.h"         /* proof_set_stream_context      */
-#include "recursion.h"     /* recursion_set_stream_context  */
-#include "normalization.h" /* normalization_set_stream_context*/
-#include "prop_verifier.h" /* prop_verifier_set_stream_context*/
 #include "constraint_graph.h" /* graph_set_stream_context   */
+#include "func_block.h"       /* func_block_set_stream_context */
+#include "normalization.h"    /* normalization_set_stream_context*/
+#include "proof.h"            /* proof_set_stream_context      */
+#include "prop_verifier.h"    /* prop_verifier_set_stream_context*/
+#include "recursion.h"        /* recursion_set_stream_context  */
+#include "rewrite.h"          /* rewrite_set_stream_context    */
+#include "solver.h"           /* solver_set_stream_context     */
+#include "type_system.h"      /* type_system_set_stream_context*/
+#include "unify.h"            /* unify_set_stream_context      */
 
 /* ================================================================
  * 全局注册表（编译期初始化，运行期只读追加）
@@ -53,7 +54,8 @@ static int registered_count = 0;
 
 void stream_context_register_setter(StreamContextSetter setter) {
     /* 参数校验：setter 不能为空 */
-    if (!setter) return;
+    if (!setter)
+        return;
 
     /* 去重检查：避免重复注册同一个 setter */
     for (int i = 0; i < registered_count; i++) {
@@ -73,7 +75,7 @@ void stream_context_register_setter(StreamContextSetter setter) {
 
 void stream_context_dispatch_all(void *ctx) {
     /* 将 void * 转为 StreamContext *，与 setter 签名匹配 */
-    StreamContext *sc = (StreamContext *)ctx;
+    StreamContext *sc = (StreamContext *) ctx;
     /* 遍历已注册的 setter 数组，依次调用 */
     for (int i = 0; i < registered_count; i++) {
         if (registered_setters[i]) {
@@ -108,7 +110,8 @@ void stream_context_dispatch_all(void *ctx) {
 void stream_context_register_builtins(void) {
     /* 使用 static 标志确保只注册一次 */
     static int builtins_registered = 0;
-    if (builtins_registered) return;
+    if (builtins_registered)
+        return;
     builtins_registered = 1;
 
     /* ---- 核心求解/变换模块 ---- */

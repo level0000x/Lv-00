@@ -38,50 +38,50 @@ extern "C" {
  * 线程局部存储宏（跨平台统一，避免各模块各自定义）
  * ==================================================================== */
 #if defined(_MSC_VER)
-    #define LV00_THREAD_LOCAL __declspec(thread)
+#define LV00_THREAD_LOCAL __declspec(thread)
 #elif defined(__GNUC__) || defined(__clang__)
-    #define LV00_THREAD_LOCAL __thread
+#define LV00_THREAD_LOCAL __thread
 #else
-    #if __STDC_VERSION__ >= 201112L
-        #define LV00_THREAD_LOCAL _Thread_local
-    #else
-        #define LV00_THREAD_LOCAL /* 不支持：回退到全局变量 */
-        #warning "Thread-local storage not supported on this compiler"
-    #endif
+#if __STDC_VERSION__ >= 201112L
+#define LV00_THREAD_LOCAL _Thread_local
+#else
+#define LV00_THREAD_LOCAL /* 不支持：回退到全局变量 */
+#warning "Thread-local storage not supported on this compiler"
+#endif
 #endif
 
 /* strdup 兼容性（非标准C函数） */
 #if defined(_MSC_VER)
-    #define lv00_strdup _strdup
+#define lv00_strdup _strdup
 #else
-    #define lv00_strdup strdup
+#define lv00_strdup strdup
 #endif
 
 /* localtime 线程安全包装 */
 #if defined(_WIN32)
-    #define LV00_LOCALTIME(time_ptr, tm_buf) localtime_s(tm_buf, time_ptr)
+#define LV00_LOCALTIME(time_ptr, tm_buf) localtime_s(tm_buf, time_ptr)
 #else
-    #define LV00_LOCALTIME(time_ptr, tm_buf) localtime_r(time_ptr, tm_buf)
+#define LV00_LOCALTIME(time_ptr, tm_buf) localtime_r(time_ptr, tm_buf)
 #endif
 
 /* 函数废弃标记（跨编译器统一） */
 #ifndef LV00_DEPRECATED
-    #if defined(__GNUC__) || defined(__clang__)
-        #define LV00_DEPRECATED(msg) __attribute__((deprecated(msg)))
-    #elif defined(_MSC_VER)
-        #define LV00_DEPRECATED(msg) __declspec(deprecated(msg))
-    #else
-        #define LV00_DEPRECATED(msg) /* 不支持废弃标记 */
-    #endif
+#if defined(__GNUC__) || defined(__clang__)
+#define LV00_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#elif defined(_MSC_VER)
+#define LV00_DEPRECATED(msg) __declspec(deprecated(msg))
+#else
+#define LV00_DEPRECATED(msg) /* 不支持废弃标记 */
+#endif
 #endif
 
 /* ── 路径分隔符（跨平台） ── */
 #ifdef _WIN32
-    #define LV00_PATH_SEPARATOR_CHAR '\\'
-    #define LV00_PATH_SEPARATOR_STR  "\\"
+#define LV00_PATH_SEPARATOR_CHAR '\\'
+#define LV00_PATH_SEPARATOR_STR "\\"
 #else
-    #define LV00_PATH_SEPARATOR_CHAR '/'
-    #define LV00_PATH_SEPARATOR_STR  "/"
+#define LV00_PATH_SEPARATOR_CHAR '/'
+#define LV00_PATH_SEPARATOR_STR "/"
 #endif
 /* 向后兼容：旧宏名 LV00_PATH_SEPARATOR 保留 */
 #define LV00_PATH_SEPARATOR LV00_PATH_SEPARATOR_CHAR
@@ -97,50 +97,49 @@ extern "C" {
 #endif
 
 /* 基础模块（必须在其他模块之前） */
-#include "error_codes.h"      /* 统一错误码系统 */
+#include "error_codes.h" /* 统一错误码系统 */
 
 /* 核心模块 */
-#include "symbolic_coord.h"   /* 符号坐标系统 */
 #include "constraint_graph.h" /* 约束图核心 */
+#include "graph_hash.h"       /* 图结构哈希 */
 #include "normalization.h"    /* 图规范化遍引擎 */
-#include "graph_hash.h"        /* 图结构哈希 */
-#include "solver.h"           /* 符号代数求解器 */
 #include "rewrite.h"          /* 图重写引擎 */
+#include "solver.h"           /* 符号代数求解器 */
+#include "symbolic_coord.h"   /* 符号坐标系统 */
 #include "unify.h"            /* 合一检查 */
 
 /* 公理系统 */
-#include "axiom_pkg.h"        /* 公理系统包 */
-#include "module.h"           /* 模块系统 */
+#include "axiom_pkg.h" /* 公理系统包 */
+#include "module.h"    /* 模块系统 */
 
 /* 高级功能 */
-#include "func_block.h"           /* 函数块系统 */
-#include "func_block_registry.h"  /* 预设函数块注册系统 */
-#include "func_block_preset.h"    /* 预设函数块库 */
+#include "func_block.h"          /* 函数块系统 */
+#include "func_block_preset.h"   /* 预设函数块库 */
+#include "func_block_registry.h" /* 预设函数块注册系统 */
 
 /* 模块化预设函数块系统 */
-#include "preset_blocks.h"        /* 模块化预设函数块主系统 */
+#include "preset_algebraic.h"       /* 代数运算模块 */
 #include "preset_basic_geometry.h"  /* 基础几何构造模块 */
-#include "preset_transformations.h" /* 几何变换模块 */
+#include "preset_blocks.h"          /* 模块化预设函数块主系统 */
 #include "preset_measurements.h"    /* 度量计算模块 */
 #include "preset_polygons.h"        /* 多边形构造模块 */
-#include "preset_algebraic.h"       /* 代数运算模块 */
-
-#include "type_system.h"          /* 类型系统 */
-#include "proof.h"                /* 命题与证明系统 */
-#include "recursion.h"            /* 递归与条件 */
+#include "preset_transformations.h" /* 几何变换模块 */
+#include "proof.h"                  /* 命题与证明系统 */
+#include "recursion.h"              /* 递归与条件 */
+#include "type_system.h"            /* 类型系统 */
 
 /* 引擎 */
-#include "engine.h"           /* 主引擎 */
+#include "engine.h" /* 主引擎 */
 
 /* 调试 */
-#include "debug.h"            /* 调试工具 */
+#include "debug.h" /* 调试工具 */
 
 /* 工具函数库 */
-#include "lv00_utils.h"       /* 通用工具函数 */
+#include "lv00_utils.h" /* 通用工具函数 */
 
 /* 流式输出 */
-#include "stream.h"           /* 流式事件系统 */
-#include "stream_context_util.h"  /* 流式上下文工具宏 */
+#include "stream.h"              /* 流式事件系统 */
+#include "stream_context_util.h" /* 流式上下文工具宏 */
 
 /* ============================================================
  * 系统生命周期管理
@@ -210,8 +209,7 @@ void lv00_engine_destroy(LV00Engine *engine);
  * @param y_den  Y 坐标分母
  * @return 新节点的 ID（>= 0），失败返回 -1
  */
-int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den,
-                   int64_t y_num, uint64_t y_den);
+int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, int64_t y_num, uint64_t y_den);
 
 /**
  * @brief 快速创建线段（便捷函数）

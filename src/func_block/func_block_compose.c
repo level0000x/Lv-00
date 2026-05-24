@@ -13,9 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "error_codes.h"
 #include "func_block.h"
 #include "lv00_utils.h"
-#include "error_codes.h"
 
 /* ==================== 命名常量 ==================== */
 
@@ -45,21 +45,19 @@
  * @return true  组合成功
  * @return false 组合失败（参数无效、端口数不匹配或内存不足）
  */
-bool func_block_compose(
-    FuncBlock *f,
-    FuncBlock *g,
-    ConstraintGraph *graph,
-    FuncBlock **out_composed)
-{
-    if (!f || !g || !graph || !out_composed) return false;
-    if (f->output_count != g->input_count) return false;
+bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_composed) {
+    if (!f || !g || !graph || !out_composed)
+        return false;
+    if (f->output_count != g->input_count)
+        return false;
 
     /* 使用 graph->next_node_id 生成全局唯一 ID，避免 ID 冲突 */
     int composed_id = graph->next_node_id++;
     bool success = false;
 
     FuncBlock *composed = func_block_create(composed_id);
-    if (!composed) goto compose_cleanup;
+    if (!composed)
+        goto compose_cleanup;
 
     /*
      * 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ f 的输出端口 ∪ g 的输入端口
@@ -68,15 +66,14 @@ bool func_block_compose(
      * 不再暴露为外部端口，因此需要纳入内部节点集合。
      */
     /* 整数溢出检查 */
-    if (f->internal_node_count > INT_MAX - g->internal_node_count -
-        f->output_count - g->input_count) {
+    if (f->internal_node_count > INT_MAX - g->internal_node_count - f->output_count - g->input_count) {
         fprintf(stderr, "[ERROR] 函数块组合失败：内部节点总数溢出\n");
         return NULL;
     }
-    int total_internal = f->internal_node_count + g->internal_node_count +
-                         f->output_count + g->input_count;
-    int *internal_ids = lv00_malloc((size_t)total_internal * sizeof(int));
-    if (!internal_ids) goto compose_cleanup;
+    int total_internal = f->internal_node_count + g->internal_node_count + f->output_count + g->input_count;
+    int *internal_ids = lv00_malloc((size_t) total_internal * sizeof(int));
+    if (!internal_ids)
+        goto compose_cleanup;
     int idx = 0;
     for (int i = 0; i < f->internal_node_count; i++)
         internal_ids[idx++] = f->internal_node_ids[i];
@@ -88,10 +85,10 @@ bool func_block_compose(
         internal_ids[idx++] = g->input_port_ids[i];
 
     if (!func_block_set_internal_nodes(composed, internal_ids, idx)) {
-        lv00_free((void **)&internal_ids);
+        lv00_free((void **) &internal_ids);
         goto compose_cleanup;
     }
-    lv00_free((void **)&internal_ids);
+    lv00_free((void **) &internal_ids);
 
     /* 输入端口 = f 的输入端口（组合后的外部输入来自 f） */
     if (!func_block_set_input_ports(composed, f->input_port_ids, f->input_count)) {
@@ -126,10 +123,10 @@ bool func_block_compose(
         composed->name = lv00_malloc(name_len);
         if (composed->name) {
             int written = snprintf(composed->name, name_len, "(%s >> %s)", g->name, f->name);
-            if (written < 0 || (size_t)written >= name_len) {
+            if (written < 0 || (size_t) written >= name_len) {
                 lv00_set_error(LV00_ERROR_BUFFER_TOO_SMALL,
-                    "func_block_compose: 组合函数块名称截断（需要%zu字节，已分配%zu字节）",
-                    strlen(f->name) + strlen(g->name) + COMPOSE_NAME_EXTRA_CHARS, name_len);
+                               "func_block_compose: 组合函数块名称截断（需要%zu字节，已分配%zu字节）",
+                               strlen(f->name) + strlen(g->name) + COMPOSE_NAME_EXTRA_CHARS, name_len);
             }
         }
     }
@@ -139,8 +136,9 @@ bool func_block_compose(
 
 compose_cleanup:
     if (!success) {
-        graph->next_node_id--;  /* 回滚 ID */
-        if (composed) func_block_destroy(composed);
+        graph->next_node_id--; /* 回滚 ID */
+        if (composed)
+            func_block_destroy(composed);
     }
     if (success) {
         *out_composed = composed;
@@ -164,20 +162,17 @@ compose_cleanup:
  * @return true  乘积成功
  * @return false 乘积失败（参数无效或内存不足）
  */
-bool func_block_product(
-    FuncBlock *f,
-    FuncBlock *g,
-    ConstraintGraph *graph,
-    FuncBlock **out_product)
-{
-    if (!f || !g || !graph || !out_product) return false;
+bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_product) {
+    if (!f || !g || !graph || !out_product)
+        return false;
 
     /* 使用 graph->next_node_id 生成全局唯一 ID */
     int product_id = graph->next_node_id++;
     bool success = false;
 
     FuncBlock *product = func_block_create(product_id);
-    if (!product) goto product_cleanup;
+    if (!product)
+        goto product_cleanup;
 
     /*
      * 内部节点 = f 的内部节点 ∪ g 的内部节点
@@ -186,48 +181,42 @@ bool func_block_product(
      * 需要检查返回值是否为 NULL，防止内存分配失败。
      */
     int total_internal = 0;
-    int *internal_ids = merge_int_arrays(
-        f->internal_node_ids, f->internal_node_count,
-        g->internal_node_ids, g->internal_node_count,
-        &total_internal);
+    int *internal_ids = merge_int_arrays(f->internal_node_ids, f->internal_node_count, g->internal_node_ids,
+                                         g->internal_node_count, &total_internal);
 
     if (total_internal > 0) {
         if (!internal_ids || !func_block_set_internal_nodes(product, internal_ids, total_internal)) {
-            lv00_free((void **)&internal_ids);
+            lv00_free((void **) &internal_ids);
             goto product_cleanup;
         }
     }
-    lv00_free((void **)&internal_ids);
+    lv00_free((void **) &internal_ids);
 
     /* 输入端口 = f 的输入端口 ∪ g 的输入端口 */
     int total_input = 0;
-    int *input_ids = merge_int_arrays(
-        f->input_port_ids, f->input_count,
-        g->input_port_ids, g->input_count,
-        &total_input);
+    int *input_ids =
+        merge_int_arrays(f->input_port_ids, f->input_count, g->input_port_ids, g->input_count, &total_input);
 
     if (total_input > 0) {
         if (!input_ids || !func_block_set_input_ports(product, input_ids, total_input)) {
-            lv00_free((void **)&input_ids);
+            lv00_free((void **) &input_ids);
             goto product_cleanup;
         }
     }
-    lv00_free((void **)&input_ids);
+    lv00_free((void **) &input_ids);
 
     /* 输出端口 = f 的输出端口 ∪ g 的输出端口 */
     int total_output = 0;
-    int *output_ids = merge_int_arrays(
-        f->output_port_ids, f->output_count,
-        g->output_port_ids, g->output_count,
-        &total_output);
+    int *output_ids =
+        merge_int_arrays(f->output_port_ids, f->output_count, g->output_port_ids, g->output_count, &total_output);
 
     if (total_output > 0) {
         if (!output_ids || !func_block_set_output_ports(product, output_ids, total_output)) {
-            lv00_free((void **)&output_ids);
+            lv00_free((void **) &output_ids);
             goto product_cleanup;
         }
     }
-    lv00_free((void **)&output_ids);
+    lv00_free((void **) &output_ids);
 
     /* 设置乘积函数块的名称，格式为 "(f_name * g_name)" */
     if (f->name && g->name) {
@@ -235,10 +224,10 @@ bool func_block_product(
         product->name = lv00_malloc(name_len);
         if (product->name) {
             int written = snprintf(product->name, name_len, "(%s * %s)", f->name, g->name);
-            if (written < 0 || (size_t)written >= name_len) {
+            if (written < 0 || (size_t) written >= name_len) {
                 lv00_set_error(LV00_ERROR_BUFFER_TOO_SMALL,
-                    "func_block_product: 乘积函数块名称截断（需要%zu字节，已分配%zu字节）",
-                    strlen(f->name) + strlen(g->name) + PRODUCT_NAME_EXTRA_CHARS, name_len);
+                               "func_block_product: 乘积函数块名称截断（需要%zu字节，已分配%zu字节）",
+                               strlen(f->name) + strlen(g->name) + PRODUCT_NAME_EXTRA_CHARS, name_len);
             }
         }
     }
@@ -248,8 +237,9 @@ bool func_block_product(
 
 product_cleanup:
     if (!success) {
-        graph->next_node_id--;  /* 回滚 ID */
-        if (product) func_block_destroy(product);
+        graph->next_node_id--; /* 回滚 ID */
+        if (product)
+            func_block_destroy(product);
     }
     if (success) {
         *out_product = product;

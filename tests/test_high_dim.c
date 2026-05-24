@@ -1,9 +1,10 @@
-#include "high_dim.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "high_dim.h"
+#include "test_helpers.h"
 
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -443,7 +444,7 @@ void test_high_dim_serialization() {
 
 int main() {
     printf("=== Lv-00 High Dimension Module Test Suite ===\n\n");
-    
+
     test_high_dim_manager_lifecycle();
     test_high_dim_block_registration();
     test_high_dim_projection_preset();
@@ -454,7 +455,7 @@ int main() {
     test_high_dim_multi_projection_view();
     test_high_dim_link_highlight();
     test_high_dim_serialization();
-    
+
     printf("\n=== All high_dim tests PASSED! ===\n");
     return 0;
 }

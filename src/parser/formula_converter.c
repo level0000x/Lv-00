@@ -16,15 +16,17 @@
  */
 
 #include "formula_converter.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "formula_renderer.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
 /* ============================================================
  * 内部常量和宏
@@ -65,8 +67,9 @@ static LV00_THREAD_LOCAL int g_var_map_count = 0;
  * @return 节点 ID，未找到返回 -1
  */
 int formula_get_node_id(const char *var_name) {
-    if (!var_name) return -1;
-    
+    if (!var_name)
+        return -1;
+
     for (int i = 0; i < g_var_map_count; i++) {
         if (strcmp(g_var_map[i].name, var_name) == 0) {
             return g_var_map[i].node_id;
@@ -82,8 +85,9 @@ int formula_get_node_id(const char *var_name) {
  * @param node_id  节点 ID
  */
 void formula_set_node_id(const char *var_name, int node_id) {
-    if (!var_name) return;
-    
+    if (!var_name)
+        return;
+
     /* 检查是否已存在 */
     for (int i = 0; i < g_var_map_count; i++) {
         if (strcmp(g_var_map[i].name, var_name) == 0) {
@@ -91,10 +95,10 @@ void formula_set_node_id(const char *var_name, int node_id) {
             return;
         }
     }
-    
+
     /* 添加新条目 */
     if (g_var_map_count < MAX_VAR_MAP_SIZE) {
-        /* 使用 lv00_strlcpy 替代不安全的 strncpy，自动保证零终止 */ 
+        /* 使用 lv00_strlcpy 替代不安全的 strncpy，自动保证零终止 */
         lv00_strlcpy(g_var_map[g_var_map_count].name, var_name, MAX_NAME_LENGTH);
         g_var_map[g_var_map_count].node_id = node_id;
         g_var_map_count++;
@@ -122,22 +126,21 @@ SymbolicCoord *formula_number_to_coord(const FormulaNode *node) {
     if (!node || node->type != NODE_NUMBER) {
         return NULL;
     }
-    
+
     if (node->data.number.is_integer) {
         return symbolic_coord_create_rational(node->data.number.numerator, 1);
     } else {
         /* 简化分数 */
         int64_t num = node->data.number.numerator;
         uint64_t denom = node->data.number.denominator;
-        
+
         /* 计算 GCD（最大公约数）
          * 修复 INT64_MIN 取反溢出：当 num == INT64_MIN 时，
          * -num 会导致有符号整数溢出（未定义行为）。
          * 解决方案：使用 uint64_t 接收绝对值。
          * INT64_MIN 的绝对值 = -(INT64_MIN) = 2^63，
          * 在 uint64_t 中安全表示为 (uint64_t)INT64_MAX + 1。 */
-        uint64_t a = (num == INT64_MIN) ? ((uint64_t)INT64_MAX + 1)
-                                        : (uint64_t)(num < 0 ? -num : num);
+        uint64_t a = (num == INT64_MIN) ? ((uint64_t) INT64_MAX + 1) : (uint64_t) (num < 0 ? -num : num);
         uint64_t b = denom;
         while (b != 0) {
             uint64_t t = b;
@@ -146,27 +149,28 @@ SymbolicCoord *formula_number_to_coord(const FormulaNode *node) {
         }
         /* 当 GCD > 1 时约分分子和分母 */
         if (a > 1) {
-            num /= (int64_t)a;
+            num /= (int64_t) a;
             denom /= a;
         }
-        
+
         return symbolic_coord_create_rational(num, denom);
     }
 }
 
 SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *out_count) {
     if (!out_count || !coord_list || coord_list->type != NODE_COORDINATE_LIST) {
-        if (out_count) *out_count = 0;
+        if (out_count)
+            *out_count = 0;
         return NULL;
     }
-    
+
     int count = coord_list->data.coord_list.coord_count;
-    SymbolicCoord **coords = (SymbolicCoord **)lv00_malloc(sizeof(SymbolicCoord *) * count);  /* 统一内存分配器 */
+    SymbolicCoord **coords = (SymbolicCoord **) lv00_malloc(sizeof(SymbolicCoord *) * count); /* 统一内存分配器 */
     if (!coords) {
         *out_count = 0;
         return NULL;
     }
-    
+
     for (int i = 0; i < count; i++) {
         coords[i] = formula_number_to_coord(coord_list->data.coord_list.coords[i]);
         if (!coords[i]) {
@@ -174,7 +178,7 @@ SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *o
             coords[i] = symbolic_coord_create_rational(0, 1);
         }
     }
-    
+
     *out_count = count;
     return coords;
 }
@@ -191,7 +195,7 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
     if (!node || !out_name || buf_size == 0) {
         return false;
     }
-    
+
     /* 根据节点类型生成名称 */
     switch (node->type) {
         case GEOM_POINT:
@@ -213,7 +217,7 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
             snprintf(out_name, buf_size, "N%d", node->id);
             break;
     }
-    
+
     return true;
 }
 
@@ -233,54 +237,54 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
     if (!point_node || point_node->type != NODE_GEOM_POINT || !graph || !out_node_id) {
         return false;
     }
-    
+
     /* 获取坐标 */
     int coord_count = 0;
     SymbolicCoord **coords = NULL;
-    
+
     if (point_node->data.geom_point.coords) {
         coords = formula_coords_to_symbolic(point_node->data.geom_point.coords, &coord_count);
     }
-    
+
     /* 如果没有坐标，创建默认坐标 (0, 0) */
     if (!coords || coord_count < 2) {
         if (coords) {
             for (int i = 0; i < coord_count; i++) {
                 symbolic_coord_destroy(coords[i]);
             }
-            lv00_free((void **)&coords);  /* 统一内存释放器 */
+            lv00_free((void **) &coords); /* 统一内存释放器 */
         }
-        coords = (SymbolicCoord **)lv00_malloc(sizeof(SymbolicCoord *) * 2);  /* 统一内存分配器 */
+        coords = (SymbolicCoord **) lv00_malloc(sizeof(SymbolicCoord *) * 2); /* 统一内存分配器 */
         coords[0] = symbolic_coord_create_rational(0, 1);
         coords[1] = symbolic_coord_create_rational(0, 1);
         coord_count = 2;
     }
-    
+
     /* 添加点到图 */
     AddNodeResult result = graph_add_point(graph, coords, coord_count);
-    
+
     /* 释放坐标数组（节点已复制） */
     for (int i = 0; i < coord_count; i++) {
         symbolic_coord_destroy(coords[i]);
     }
-    lv00_free((void **)&coords);  /* 统一内存释放器 */
-    
+    lv00_free((void **) &coords); /* 统一内存释放器 */
+
     if (result != ADD_NODE_OK) {
         return false;
     }
-    
+
     /* 获取新创建的节点 ID */
     *out_node_id = graph_get_node_count(graph) - 1;
     GeomNode *new_node = graph_get_node_by_id(graph, *out_node_id);
     if (new_node) {
         *out_node_id = new_node->id;
     }
-    
+
     /* 记录变量名映射 */
     if (point_node->data.geom_point.name) {
         formula_set_node_id(point_node->data.geom_point.name, *out_node_id);
     }
-    
+
     return true;
 }
 
@@ -296,10 +300,10 @@ bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *g
     if (!segment_node || segment_node->type != NODE_GEOM_SEGMENT || !graph || !out_node_id) {
         return false;
     }
-    
+
     /* 获取端点 ID */
     int ep1_id = -1, ep2_id = -1;
-    
+
     if (segment_node->data.geom_segment.endpoint1) {
         if (segment_node->data.geom_segment.endpoint1->type == NODE_IDENTIFIER) {
             ep1_id = formula_get_node_id(segment_node->data.geom_segment.endpoint1->data.identifier.name);
@@ -311,41 +315,40 @@ bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *g
             }
         }
     }
-    
+
     if (segment_node->data.geom_segment.endpoint2) {
         if (segment_node->data.geom_segment.endpoint2->type == NODE_IDENTIFIER) {
             ep2_id = formula_get_node_id(segment_node->data.geom_segment.endpoint2->data.identifier.name);
-        }
-        else if (segment_node->data.geom_segment.endpoint2->type == NODE_GEOM_POINT) {
+        } else if (segment_node->data.geom_segment.endpoint2->type == NODE_GEOM_POINT) {
             if (!formula_convert_point(segment_node->data.geom_segment.endpoint2, graph, &ep2_id)) {
                 ep2_id = -1;
             }
         }
     }
-    
+
     if (ep1_id < 0 || ep2_id < 0) {
         return false;
     }
-    
+
     /* 添加线段到图 */
     AddNodeResult result = graph_add_line_segment(graph, ep1_id, ep2_id);
-    
+
     if (result != ADD_NODE_OK) {
         return false;
     }
-    
+
     /* 获取新创建的节点 ID */
     *out_node_id = graph_get_node_count(graph) - 1;
     GeomNode *new_node = graph_get_node_by_id(graph, *out_node_id);
     if (new_node) {
         *out_node_id = new_node->id;
     }
-    
+
     /* 记录变量名映射 */
     if (segment_node->data.geom_segment.name) {
         formula_set_node_id(segment_node->data.geom_segment.name, *out_node_id);
     }
-    
+
     return true;
 }
 
@@ -361,85 +364,84 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
     if (!circle_node || circle_node->type != NODE_GEOM_CIRCLE || !graph || !out_node_id) {
         return false;
     }
-    
+
     /* 获取圆心 ID */
     int center_id = -1;
-    
+
     if (circle_node->data.geom_circle.center) {
         if (circle_node->data.geom_circle.center->type == NODE_IDENTIFIER) {
             center_id = formula_get_node_id(circle_node->data.geom_circle.center->data.identifier.name);
-        }
-        else if (circle_node->data.geom_circle.center->type == NODE_GEOM_POINT) {
+        } else if (circle_node->data.geom_circle.center->type == NODE_GEOM_POINT) {
             if (!formula_convert_point(circle_node->data.geom_circle.center, graph, &center_id)) {
                 center_id = -1;
             }
         }
     }
-    
+
     /* 如果没有圆心，创建一个默认圆心点 */
     if (center_id < 0) {
         SymbolicCoord *coords[2];
         coords[0] = symbolic_coord_create_rational(0, 1);
         coords[1] = symbolic_coord_create_rational(0, 1);
-        
+
         AddNodeResult result = graph_add_point(graph, coords, 2);
         symbolic_coord_destroy(coords[0]);
         symbolic_coord_destroy(coords[1]);
-        
+
         if (result != ADD_NODE_OK) {
             return false;
         }
-        
+
         center_id = graph_get_node_count(graph) - 1;
         GeomNode *center_node = graph_get_node_by_id(graph, center_id);
         if (center_node) {
             center_id = center_node->id;
         }
     }
-    
+
     /* 获取半径 */
     double radius = 1.0;
     if (circle_node->data.geom_circle.radius) {
         if (circle_node->data.geom_circle.radius->type == NODE_NUMBER) {
             if (circle_node->data.geom_circle.radius->data.number.is_integer) {
-                radius = (double)circle_node->data.geom_circle.radius->data.number.numerator;
+                radius = (double) circle_node->data.geom_circle.radius->data.number.numerator;
             } else {
-                radius = (double)circle_node->data.geom_circle.radius->data.number.numerator /
-                        (double)circle_node->data.geom_circle.radius->data.number.denominator;
+                radius = (double) circle_node->data.geom_circle.radius->data.number.numerator /
+                         (double) circle_node->data.geom_circle.radius->data.number.denominator;
             }
         }
     }
-    
+
     /* 创建圆周上的一个点（用于表示半径） */
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_create_rational((int64_t)(radius * 1000), 1000);  /* 圆心 x + radius */
-    radius_coords[1] = symbolic_coord_create_rational(0, 1);  /* 圆心 y */
-    
+    radius_coords[0] = symbolic_coord_create_rational((int64_t) (radius * 1000), 1000); /* 圆心 x + radius */
+    radius_coords[1] = symbolic_coord_create_rational(0, 1);                            /* 圆心 y */
+
     AddNodeResult result = graph_add_point(graph, radius_coords, 2);
     symbolic_coord_destroy(radius_coords[0]);
     symbolic_coord_destroy(radius_coords[1]);
-    
+
     if (result != ADD_NODE_OK) {
-        *out_node_id = center_id;  /* 至少返回圆心 */
+        *out_node_id = center_id; /* 至少返回圆心 */
         return true;
     }
-    
+
     int radius_point_id = graph_get_node_count(graph) - 1;
     GeomNode *radius_node = graph_get_node_by_id(graph, radius_point_id);
     if (radius_node) {
         radius_point_id = radius_node->id;
     }
-    
+
     /* 创建半径线段 */
     result = graph_add_line_segment(graph, center_id, radius_point_id);
-    
-    *out_node_id = center_id;  /* 返回圆心作为圆的标识 */
-    
+
+    *out_node_id = center_id; /* 返回圆心作为圆的标识 */
+
     /* 记录变量名映射 */
     if (circle_node->data.geom_circle.name) {
         formula_set_node_id(circle_node->data.geom_circle.name, center_id);
     }
-    
+
     return true;
 }
 
@@ -452,71 +454,67 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
  * @param[out] out_count    输出参数，接收节点数量
  * @return true 成功，false 失败
  */
-bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph *graph,
-                              int *out_node_ids, int *out_count) {
-    if (!triangle_node || triangle_node->type != NODE_GEOM_TRIANGLE || !graph || 
-        !out_node_ids || !out_count) {
+bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph *graph, int *out_node_ids,
+                              int *out_count) {
+    if (!triangle_node || triangle_node->type != NODE_GEOM_TRIANGLE || !graph || !out_node_ids || !out_count) {
         return false;
     }
-    
+
     /* 获取三个顶点 ID */
     int v1_id = -1, v2_id = -1, v3_id = -1;
-    
+
     if (triangle_node->data.geom_triangle.vertex1) {
         if (triangle_node->data.geom_triangle.vertex1->type == NODE_IDENTIFIER) {
             v1_id = formula_get_node_id(triangle_node->data.geom_triangle.vertex1->data.identifier.name);
-        }
-        else if (triangle_node->data.geom_triangle.vertex1->type == NODE_GEOM_POINT) {
+        } else if (triangle_node->data.geom_triangle.vertex1->type == NODE_GEOM_POINT) {
             formula_convert_point(triangle_node->data.geom_triangle.vertex1, graph, &v1_id);
         }
     }
-    
+
     if (triangle_node->data.geom_triangle.vertex2) {
         if (triangle_node->data.geom_triangle.vertex2->type == NODE_IDENTIFIER) {
             v2_id = formula_get_node_id(triangle_node->data.geom_triangle.vertex2->data.identifier.name);
-        }
-        else if (triangle_node->data.geom_triangle.vertex2->type == NODE_GEOM_POINT) {
+        } else if (triangle_node->data.geom_triangle.vertex2->type == NODE_GEOM_POINT) {
             formula_convert_point(triangle_node->data.geom_triangle.vertex2, graph, &v2_id);
         }
     }
-    
+
     if (triangle_node->data.geom_triangle.vertex3) {
         if (triangle_node->data.geom_triangle.vertex3->type == NODE_IDENTIFIER) {
             v3_id = formula_get_node_id(triangle_node->data.geom_triangle.vertex3->data.identifier.name);
-        }
-        else if (triangle_node->data.geom_triangle.vertex3->type == NODE_GEOM_POINT) {
+        } else if (triangle_node->data.geom_triangle.vertex3->type == NODE_GEOM_POINT) {
             formula_convert_point(triangle_node->data.geom_triangle.vertex3, graph, &v3_id);
         }
     }
-    
+
     if (v1_id < 0 || v2_id < 0 || v3_id < 0) {
         return false;
     }
-    
+
     /* 记录顶点 */
     out_node_ids[0] = v1_id;
     out_node_ids[1] = v2_id;
     out_node_ids[2] = v3_id;
     *out_count = 3;
-    
+
     /* 创建三条边 */
     AddNodeResult result;
-    
+
     result = graph_add_line_segment(graph, v1_id, v2_id);
     if (result == ADD_NODE_OK) {
         out_node_ids[(*out_count)++] = graph_get_node_count(graph) - 1;
     }
-    
+
     result = graph_add_line_segment(graph, v2_id, v3_id);
     if (result == ADD_NODE_OK) {
         out_node_ids[(*out_count)++] = graph_get_node_count(graph) - 1;
     }
-    
+
     result = graph_add_line_segment(graph, v3_id, v1_id);
     if (result == ADD_NODE_OK) {
         out_node_ids[(*out_count)++] = graph_get_node_count(graph) - 1;
     }
-    
+
     return true;
 }
 
@@ -536,10 +534,9 @@ bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph 
  * @param[out] out_count    输出节点数量
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *graph,
-                              int *out_node_ids, int *out_count) {
-    if (!polygon_node || polygon_node->type != NODE_GEOM_POLYGON || !graph ||
-        !out_node_ids || !out_count) {
+bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *graph, int *out_node_ids,
+                             int *out_count) {
+    if (!polygon_node || polygon_node->type != NODE_GEOM_POLYGON || !graph || !out_node_ids || !out_count) {
         return false;
     }
 
@@ -547,12 +544,13 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
 
     int vert_count = polygon_node->data.geom_polygon.vertex_count;
     if (vert_count < 3) {
-        return false;  /* 多边形至少需要3个顶点 */
+        return false; /* 多边形至少需要3个顶点 */
     }
 
     /* 第一步：创建所有顶点 */
-    int *vertex_ids = (int *)lv00_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
-    if (!vertex_ids) return false;
+    int *vertex_ids = (int *) lv00_malloc(sizeof(int) * vert_count); /* 统一内存分配器 */
+    if (!vertex_ids)
+        return false;
 
     for (int i = 0; i < vert_count; i++) {
         FormulaNode *v = polygon_node->data.geom_polygon.vertices[i];
@@ -577,7 +575,8 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
             if (r == ADD_NODE_OK) {
                 v_id = graph_get_node_count(graph) - 1;
                 GeomNode *n = graph_get_node_by_id(graph, v_id);
-                if (n) v_id = n->id;
+                if (n)
+                    v_id = n->id;
             }
         }
 
@@ -588,9 +587,9 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
     }
 
     /* 第二步：创建边（首尾相连） */
-    int *segment_ids = (int *)lv00_malloc(sizeof(int) * vert_count);  /* 统一内存分配器 */
+    int *segment_ids = (int *) lv00_malloc(sizeof(int) * vert_count); /* 统一内存分配器 */
     if (!segment_ids) {
-        lv00_free((void **)&vertex_ids);  /* 统一内存释放器 */
+        lv00_free((void **) &vertex_ids); /* 统一内存释放器 */
         return false;
     }
     int seg_count = 0;
@@ -601,7 +600,8 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         if (r == ADD_NODE_OK) {
             int seg_id = graph_get_node_count(graph) - 1;
             GeomNode *n = graph_get_node_by_id(graph, seg_id);
-            if (n) seg_id = n->id;
+            if (n)
+                seg_id = n->id;
             segment_ids[seg_count++] = seg_id;
             if (*out_count < 64) {
                 out_node_ids[(*out_count)++] = seg_id;
@@ -615,7 +615,8 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         if (r == ADD_NODE_OK) {
             int region_id = graph_get_node_count(graph) - 1;
             GeomNode *n = graph_get_node_by_id(graph, region_id);
-            if (n) region_id = n->id;
+            if (n)
+                region_id = n->id;
             if (*out_count < 64) {
                 out_node_ids[(*out_count)++] = region_id;
             }
@@ -626,8 +627,8 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         }
     }
 
-    lv00_free((void **)&vertex_ids);   /* 统一内存释放器 */
-    lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
+    lv00_free((void **) &vertex_ids);  /* 统一内存释放器 */
+    lv00_free((void **) &segment_ids); /* 统一内存释放器 */
     return true;
 }
 
@@ -642,8 +643,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
  * @param[out] out_node_id 输出节点ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *graph,
-                             int *out_node_id) {
+bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *graph, int *out_node_id) {
     if (!region_node || region_node->type != NODE_GEOM_REGION || !graph || !out_node_id) {
         return false;
     }
@@ -652,12 +652,13 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
 
     int seg_count = region_node->data.geom_region.segment_count;
     if (seg_count < 3) {
-        return false;  /* 区域至少需要3条边界线段 */
+        return false; /* 区域至少需要3条边界线段 */
     }
 
     /* 从子节点中提取边界线段 ID */
-    int *segment_ids = (int *)lv00_malloc(sizeof(int) * seg_count);  /* 统一内存分配器 */
-    if (!segment_ids) return false;
+    int *segment_ids = (int *) lv00_malloc(sizeof(int) * seg_count); /* 统一内存分配器 */
+    if (!segment_ids)
+        return false;
 
     int valid_count = 0;
     for (int i = 0; i < seg_count; i++) {
@@ -678,7 +679,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
     }
 
     if (valid_count < 3) {
-        lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
+        lv00_free((void **) &segment_ids); /* 统一内存释放器 */
         return false;
     }
 
@@ -697,7 +698,7 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
         }
     }
 
-    lv00_free((void **)&segment_ids);  /* 统一内存释放器 */
+    lv00_free((void **) &segment_ids); /* 统一内存释放器 */
     return (*out_node_id >= 0);
 }
 
@@ -716,10 +717,8 @@ bool formula_convert_region(const FormulaNode *region_node, ConstraintGraph *gra
  * @param[out] out_count    输出节点数量
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
-                          int *out_node_ids, int *out_count) {
-    if (!arc_node || arc_node->type != NODE_GEOM_ARC || !graph ||
-        !out_node_ids || !out_count) {
+bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, int *out_node_ids, int *out_count) {
+    if (!arc_node || arc_node->type != NODE_GEOM_ARC || !graph || !out_node_ids || !out_count) {
         return false;
     }
 
@@ -746,11 +745,13 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
         if (r == ADD_NODE_OK) {
             center_id = graph_get_node_count(graph) - 1;
             GeomNode *n = graph_get_node_by_id(graph, center_id);
-            if (n) center_id = n->id;
+            if (n)
+                center_id = n->id;
         }
     }
 
-    if (center_id < 0) return false;
+    if (center_id < 0)
+        return false;
     out_node_ids[(*out_count)++] = center_id;
 
     /* 获取半径 */
@@ -758,26 +759,25 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
     if (arc_node->data.geom_arc.radius) {
         if (arc_node->data.geom_arc.radius->type == NODE_NUMBER) {
             if (arc_node->data.geom_arc.radius->data.number.is_integer) {
-                radius = (double)arc_node->data.geom_arc.radius->data.number.numerator;
+                radius = (double) arc_node->data.geom_arc.radius->data.number.numerator;
             } else {
-                radius = (double)arc_node->data.geom_arc.radius->data.number.numerator /
-                        (double)arc_node->data.geom_arc.radius->data.number.denominator;
+                radius = (double) arc_node->data.geom_arc.radius->data.number.numerator /
+                         (double) arc_node->data.geom_arc.radius->data.number.denominator;
             }
         }
     }
 
     /* 获取起止角度（弧度） */
     double start_angle = 0.0;
-    double end_angle = M_PI;  /* 默认半圆 */
+    double end_angle = M_PI; /* 默认半圆 */
 
     if (arc_node->data.geom_arc.start_angle) {
         if (arc_node->data.geom_arc.start_angle->type == NODE_NUMBER) {
             FormulaNode *sa = arc_node->data.geom_arc.start_angle;
             if (sa->data.number.is_integer) {
-                start_angle = (double)sa->data.number.numerator;
+                start_angle = (double) sa->data.number.numerator;
             } else {
-                start_angle = (double)sa->data.number.numerator /
-                             (double)sa->data.number.denominator;
+                start_angle = (double) sa->data.number.numerator / (double) sa->data.number.denominator;
             }
         }
     }
@@ -786,10 +786,9 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
         if (arc_node->data.geom_arc.end_angle->type == NODE_NUMBER) {
             FormulaNode *ea = arc_node->data.geom_arc.end_angle;
             if (ea->data.number.is_integer) {
-                end_angle = (double)ea->data.number.numerator;
+                end_angle = (double) ea->data.number.numerator;
             } else {
-                end_angle = (double)ea->data.number.numerator /
-                           (double)ea->data.number.denominator;
+                end_angle = (double) ea->data.number.numerator / (double) ea->data.number.denominator;
             }
         }
     }
@@ -798,8 +797,8 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
     double rx = radius * cos(start_angle);
     double ry = radius * sin(start_angle);
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_create_rational((int64_t)(rx * 1000), 1000);
-    radius_coords[1] = symbolic_coord_create_rational((int64_t)(ry * 1000), 1000);
+    radius_coords[0] = symbolic_coord_create_rational((int64_t) (rx * 1000), 1000);
+    radius_coords[1] = symbolic_coord_create_rational((int64_t) (ry * 1000), 1000);
 
     AddNodeResult r = graph_add_point(graph, radius_coords, 2);
     symbolic_coord_destroy(radius_coords[0]);
@@ -808,7 +807,8 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
     if (r == ADD_NODE_OK) {
         int rp_id = graph_get_node_count(graph) - 1;
         GeomNode *n = graph_get_node_by_id(graph, rp_id);
-        if (n) rp_id = n->id;
+        if (n)
+            rp_id = n->id;
         out_node_ids[(*out_count)++] = rp_id;
 
         /* 创建半径线段 */
@@ -816,7 +816,8 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
         if (r == ADD_NODE_OK) {
             int seg_id = graph_get_node_count(graph) - 1;
             n = graph_get_node_by_id(graph, seg_id);
-            if (n) seg_id = n->id;
+            if (n)
+                seg_id = n->id;
             out_node_ids[(*out_count)++] = seg_id;
         }
     }
@@ -833,20 +834,18 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph,
  * 约束转换
  * ============================================================ */
 
-bool formula_convert_perpendicular(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                                   int *out_constraint_id) {
-    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_PERPENDICULAR || 
-        !graph || !out_constraint_id) {
+bool formula_convert_perpendicular(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id) {
+    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_PERPENDICULAR || !graph || !out_constraint_id) {
         return false;
     }
-    
+
     if (constraint_node->data.constraint.participant_count < 3) {
         return false;
     }
-    
+
     /* 获取三个点 ID */
     int p1_id = -1, p2_id = -1, p3_id = -1;
-    
+
     if (constraint_node->data.constraint.participants[0]->type == NODE_IDENTIFIER) {
         p1_id = formula_get_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name);
     }
@@ -856,75 +855,71 @@ bool formula_convert_perpendicular(const FormulaNode *constraint_node, Constrain
     if (constraint_node->data.constraint.participants[2]->type == NODE_IDENTIFIER) {
         p3_id = formula_get_node_id(constraint_node->data.constraint.participants[2]->data.identifier.name);
     }
-    
+
     if (p1_id < 0 || p2_id < 0 || p3_id < 0) {
         return false;
     }
-    
+
     /* 添加 betweenness 约束（简化处理） */
     AddConstraintResult result = graph_add_betweenness(graph, p1_id, p2_id, p3_id);
-    
+
     if (result != ADD_CONSTRAINT_OK) {
         return false;
     }
-    
+
     *out_constraint_id = graph_get_constraint_count(graph) - 1;
-    
+
     return true;
 }
 
-bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                              int *out_constraint_id) {
-    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_PARALLEL || 
-        !graph || !out_constraint_id) {
+bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id) {
+    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_PARALLEL || !graph || !out_constraint_id) {
         return false;
     }
-    
+
     if (constraint_node->data.constraint.participant_count < 2) {
         return false;
     }
-    
+
     /* 获取两条线 ID */
     int l1_id = -1, l2_id = -1;
-    
+
     if (constraint_node->data.constraint.participants[0]->type == NODE_IDENTIFIER) {
         l1_id = formula_get_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name);
     }
     if (constraint_node->data.constraint.participants[1]->type == NODE_IDENTIFIER) {
         l2_id = formula_get_node_id(constraint_node->data.constraint.participants[1]->data.identifier.name);
     }
-    
+
     if (l1_id < 0 || l2_id < 0) {
         return false;
     }
-    
+
     /* 平行约束目前使用 containment 简化表示 */
     /* 注意：实际实现可能需要扩展 ConstraintType */
     AddConstraintResult result = graph_add_containment(graph, l1_id, l2_id);
-    
+
     if (result != ADD_CONSTRAINT_OK) {
         return false;
     }
-    
+
     *out_constraint_id = graph_get_constraint_count(graph) - 1;
-    
+
     return true;
 }
 
-bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                              int *out_node_id) {
-    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_MIDPOINT || 
-        !graph || !out_node_id) {
+bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_node_id) {
+    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_MIDPOINT || !graph || !out_node_id) {
         return false;
     }
-    
+
     if (constraint_node->data.constraint.participant_count < 3) {
         return false;
     }
-    
+
     /* 获取中点 M 和端点 A, B */
     int m_id = -1, a_id = -1, b_id = -1;
-    
+
     if (constraint_node->data.constraint.participants[0]->type == NODE_IDENTIFIER) {
         m_id = formula_get_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name);
     }
@@ -934,49 +929,47 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
     if (constraint_node->data.constraint.participants[2]->type == NODE_IDENTIFIER) {
         b_id = formula_get_node_id(constraint_node->data.constraint.participants[2]->data.identifier.name);
     }
-    
+
     if (a_id < 0 || b_id < 0) {
         return false;
     }
-    
+
     /* 获取 A 和 B 的坐标，计算中点 */
     GeomNode *node_a = graph_get_node_by_id(graph, a_id);
     GeomNode *node_b = graph_get_node_by_id(graph, b_id);
-    
+
     if (!node_a || !node_b) {
         return false;
     }
-    
+
     /* 计算中点坐标 */
     SymbolicCoord *mid_coords[2] = {NULL, NULL};
-    
-    if (node_a->symbolic_coords && node_b->symbolic_coords &&
-        node_a->coord_count >= 2 && node_b->coord_count >= 2) {
-        
+
+    if (node_a->symbolic_coords && node_b->symbolic_coords && node_a->coord_count >= 2 && node_b->coord_count >= 2) {
         mid_coords[0] = symbolic_coord_add(node_a->symbolic_coords[0], node_b->symbolic_coords[0]);
         mid_coords[1] = symbolic_coord_add(node_a->symbolic_coords[1], node_b->symbolic_coords[1]);
-        
+
         /* 除以 2 */
         SymbolicCoord *half = symbolic_coord_create_rational(1, 2);
         SymbolicCoord *tmp;
-        
+
         tmp = symbolic_coord_multiply(mid_coords[0], half);
         symbolic_coord_destroy(mid_coords[0]);
         mid_coords[0] = tmp;
-        
+
         tmp = symbolic_coord_multiply(mid_coords[1], half);
         symbolic_coord_destroy(mid_coords[1]);
         mid_coords[1] = tmp;
-        
+
         symbolic_coord_destroy(half);
     }
-    
+
     if (!mid_coords[0] || !mid_coords[1]) {
         /* 使用默认坐标 */
         mid_coords[0] = symbolic_coord_create_rational(0, 1);
         mid_coords[1] = symbolic_coord_create_rational(0, 1);
     }
-    
+
     /* 如果中点 M 已存在，更新其坐标 */
     if (m_id >= 0) {
         GeomNode *node_m = graph_get_node_by_id(graph, m_id);
@@ -1005,18 +998,18 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
             if (new_node) {
                 *out_node_id = new_node->id;
             }
-            
+
             /* 如果有中点名，记录映射 */
             if (constraint_node->data.constraint.participants[0]->type == NODE_IDENTIFIER) {
-                formula_set_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name, 
-                                   *out_node_id);
+                formula_set_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name,
+                                    *out_node_id);
             }
         }
-        
+
         symbolic_coord_destroy(mid_coords[0]);
         symbolic_coord_destroy(mid_coords[1]);
     }
-    
+
     return true;
 }
 
@@ -1036,10 +1029,8 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
  * @param[out] out_constraint_id 输出约束ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                           int *out_constraint_id) {
-    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_ANGLE ||
-        !graph || !out_constraint_id) {
+bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id) {
+    if (!constraint_node || constraint_node->type != NODE_CONSTRAINT_ANGLE || !graph || !out_constraint_id) {
         return false;
     }
 
@@ -1059,16 +1050,13 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
     int a_id = -1, b_id = -1, c_id = -1;
 
     if (constraint_node->data.constraint.participants[0]->type == NODE_IDENTIFIER) {
-        a_id = formula_get_node_id(
-            constraint_node->data.constraint.participants[0]->data.identifier.name);
+        a_id = formula_get_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name);
     }
     if (constraint_node->data.constraint.participants[1]->type == NODE_IDENTIFIER) {
-        b_id = formula_get_node_id(
-            constraint_node->data.constraint.participants[1]->data.identifier.name);
+        b_id = formula_get_node_id(constraint_node->data.constraint.participants[1]->data.identifier.name);
     }
     if (constraint_node->data.constraint.participants[2]->type == NODE_IDENTIFIER) {
-        c_id = formula_get_node_id(
-            constraint_node->data.constraint.participants[2]->data.identifier.name);
+        c_id = formula_get_node_id(constraint_node->data.constraint.participants[2]->data.identifier.name);
     }
 
     if (a_id < 0 || b_id < 0 || c_id < 0) {
@@ -1083,10 +1071,9 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
         if (angle_node && angle_node->type == NODE_NUMBER) {
             double angle_deg;
             if (angle_node->data.number.is_integer) {
-                angle_deg = (double)angle_node->data.number.numerator;
+                angle_deg = (double) angle_node->data.number.numerator;
             } else {
-                angle_deg = (double)angle_node->data.number.numerator /
-                           (double)angle_node->data.number.denominator;
+                angle_deg = (double) angle_node->data.number.numerator / (double) angle_node->data.number.denominator;
             }
             angle_rad = angle_deg * M_PI / 180.0;
         }
@@ -1105,8 +1092,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
      */
 
     if (formula_converter_stream_ctx) {
-        stream_emit_warning(formula_converter_stream_ctx,
-            "角度约束转换为近似实现（使用 betweenness 占位）", 0);
+        stream_emit_warning(formula_converter_stream_ctx, "角度约束转换为近似实现（使用 betweenness 占位）", 0);
     }
 
     AddConstraintResult result = graph_add_betweenness(graph, a_id, b_id, c_id);
@@ -1134,10 +1120,8 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
 
         /* 使用两个坐标存储 cos(θ) 和 sin(θ) */
         SymbolicCoord *angle_coords[2];
-        angle_coords[0] = symbolic_coord_create_rational(
-            (int64_t)(cos_theta * 1000000), 1000000);
-        angle_coords[1] = symbolic_coord_create_rational(
-            (int64_t)(sin_theta * 1000000), 1000000);
+        angle_coords[0] = symbolic_coord_create_rational((int64_t) (cos_theta * 1000000), 1000000);
+        angle_coords[1] = symbolic_coord_create_rational((int64_t) (sin_theta * 1000000), 1000000);
 
         AddNodeResult add_result = graph_add_point(graph, angle_coords, 2);
         symbolic_coord_destroy(angle_coords[0]);
@@ -1148,7 +1132,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
             GeomNode *aux_node = graph_get_node(graph, aux_id);
             if (aux_node) {
                 if (aux_node->numeric_assumption_declaration) {
-                lv00_free((void **)&aux_node->numeric_assumption_declaration);  /* 统一内存释放器 */
+                    lv00_free((void **) &aux_node->numeric_assumption_declaration); /* 统一内存释放器 */
                     aux_node->numeric_assumption_declaration = NULL;
                 }
                 /*
@@ -1156,9 +1140,8 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
                  * 求解器可解析此字符串获取完整的角度约束信息。
                  */
                 char buf[256];
-                snprintf(buf, sizeof(buf),
-                         "ANGLE_CONSTRAINT:%d:%d:%d:%.10g:%.10g:%.10g",
-                         a_id, b_id, c_id, angle_rad, cos_theta, sin_theta);
+                snprintf(buf, sizeof(buf), "ANGLE_CONSTRAINT:%d:%d:%d:%.10g:%.10g:%.10g", a_id, b_id, c_id, angle_rad,
+                         cos_theta, sin_theta);
                 aux_node->numeric_assumption_declaration = lv00_strdup_safe(buf);
             }
         }
@@ -1187,9 +1170,8 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
 #define MAX_CREATED_NODES 256
 #define MAX_CREATED_CONSTRAINTS 64
 
-static bool formula_to_graph_process_statement(const FormulaNode *stmt,
-                                                ConstraintGraph *graph,
-                                                FormulaToGraphResult *result) {
+static bool formula_to_graph_process_statement(const FormulaNode *stmt, ConstraintGraph *graph,
+                                               FormulaToGraphResult *result) {
     int node_id = -1;
     int constraint_id = -1;
 
@@ -1251,16 +1233,15 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
             }
             return true;
 
-        case NODE_GEOM_POLYGON:
-            {
-                int node_ids[64];
-                int count = 0;
-                if (formula_convert_polygon(stmt, graph, node_ids, &count)) {
-                    for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
-                        result->created_node_ids[result->created_node_count++] = node_ids[j];
-                    }
+        case NODE_GEOM_POLYGON: {
+            int node_ids[64];
+            int count = 0;
+            if (formula_convert_polygon(stmt, graph, node_ids, &count)) {
+                for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
+                    result->created_node_ids[result->created_node_count++] = node_ids[j];
                 }
             }
+        }
             return true;
 
         case NODE_GEOM_REGION:
@@ -1270,16 +1251,15 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
             }
             return true;
 
-        case NODE_GEOM_ARC:
-            {
-                int node_ids[10];
-                int count = 0;
-                if (formula_convert_arc(stmt, graph, node_ids, &count)) {
-                    for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
-                        result->created_node_ids[result->created_node_count++] = node_ids[j];
-                    }
+        case NODE_GEOM_ARC: {
+            int node_ids[10];
+            int count = 0;
+            if (formula_convert_arc(stmt, graph, node_ids, &count)) {
+                for (int j = 0; j < count && result->created_node_count < MAX_CREATED_NODES; j++) {
+                    result->created_node_ids[result->created_node_count++] = node_ids[j];
                 }
             }
+        }
             return true;
 
         default:
@@ -1297,11 +1277,12 @@ static bool formula_to_graph_process_statement(const FormulaNode *stmt,
  * @return 转换结果结构体指针，失败返回 NULL
  */
 FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *graph) {
-    FormulaToGraphResult *result = (FormulaToGraphResult *)lv00_calloc(1, sizeof(FormulaToGraphResult));  /* 统一内存分配器 */
+    FormulaToGraphResult *result =
+        (FormulaToGraphResult *) lv00_calloc(1, sizeof(FormulaToGraphResult)); /* 统一内存分配器 */
     if (!result) {
         return NULL;
     }
-    
+
     if (!ast || !graph) {
         result->success = false;
         snprintf(result->error_message, sizeof(result->error_message), "NULL input");
@@ -1311,15 +1292,15 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
     if (formula_converter_stream_ctx) {
         stream_emit_info(formula_converter_stream_ctx, "公式转换开始：AST → 约束图", 0);
     }
-    
+
     /* 分配节点和约束 ID 数组 */
-    result->created_node_ids = (int *)lv00_malloc(sizeof(int) * 256);          /* 统一内存分配器 */
-    result->created_constraint_ids = (int *)lv00_malloc(sizeof(int) * 64);     /* 统一内存分配器 */
+    result->created_node_ids = (int *) lv00_malloc(sizeof(int) * 256);      /* 统一内存分配器 */
+    result->created_constraint_ids = (int *) lv00_malloc(sizeof(int) * 64); /* 统一内存分配器 */
 
     if (!result->created_node_ids || !result->created_constraint_ids) {
         /* 修复：分配失败时释放已成功分配的数组，避免内存泄漏 */
-        lv00_free((void **)&result->created_node_ids);       /* 统一内存释放器 */
-        lv00_free((void **)&result->created_constraint_ids); /* 统一内存释放器 */
+        lv00_free((void **) &result->created_node_ids);       /* 统一内存释放器 */
+        lv00_free((void **) &result->created_constraint_ids); /* 统一内存释放器 */
         result->created_node_ids = NULL;
         result->created_constraint_ids = NULL;
         result->success = false;
@@ -1330,14 +1311,13 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
     /* 处理复合语句：使用公共函数逐个处理每条子语句 */
     if (ast->type == NODE_COMPOUND) {
         for (int i = 0; i < ast->data.compound.statement_count; i++) {
-            formula_to_graph_process_statement(ast->data.compound.statements[i],
-                                               graph, result);
+            formula_to_graph_process_statement(ast->data.compound.statements[i], graph, result);
         }
     } else {
         /* 单个语句：直接使用公共函数处理 */
         formula_to_graph_process_statement(ast, graph, result);
     }
-    
+
     result->success = true;
 
     if (formula_converter_stream_ctx) {
@@ -1360,265 +1340,244 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
  * @return 转换结果结构体指针，失败返回 NULL
  */
 GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
-    GraphToFormulaResult *result = (GraphToFormulaResult *)lv00_calloc(1, sizeof(GraphToFormulaResult));  /* 统一内存分配器 */
+    GraphToFormulaResult *result =
+        (GraphToFormulaResult *) lv00_calloc(1, sizeof(GraphToFormulaResult)); /* 统一内存分配器 */
     if (!result) {
         return NULL;
     }
-    
+
     if (!graph) {
         result->success = false;
         snprintf(result->error_message, sizeof(result->error_message), "NULL graph");
         return result;
     }
-    
+
     /* 计算所需缓冲区大小 */
     size_t latex_size = 4096;
     size_t python_size = 4096;
     size_t dsl_size = 4096;
-    
-    result->latex_output = (char *)lv00_malloc(latex_size);  /* 统一内存分配器 */
-    result->python_output = (char *)lv00_malloc(python_size); /* 统一内存分配器 */
-    result->dsl_output = (char *)lv00_malloc(dsl_size);       /* 统一内存分配器 */
-    
+
+    result->latex_output = (char *) lv00_malloc(latex_size);   /* 统一内存分配器 */
+    result->python_output = (char *) lv00_malloc(python_size); /* 统一内存分配器 */
+    result->dsl_output = (char *) lv00_malloc(dsl_size);       /* 统一内存分配器 */
+
     if (!result->latex_output || !result->python_output || !result->dsl_output) {
         graph_to_formula_result_destroy(result);
         return NULL;
     }
-    
+
     result->latex_output[0] = '\0';
     result->python_output[0] = '\0';
     result->dsl_output[0] = '\0';
-    
+
     /* 修复：使用偏移量变量跟踪当前写入位置，替代反复调用 strlen 的 strncat 模式，
      * 避免每次拼接时的 O(n) strlen 扫描和潜在的缓冲区溢出风险 */
     size_t latex_len = 0;
     size_t python_len = 0;
     size_t dsl_len = 0;
-    
+
     char latex_buf[512];
     char python_buf[512];
     char dsl_buf[512];
-    
+
     /* 遍历所有节点 */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
-        
+        if (!node)
+            continue;
+
         char name[64];
         formula_node_to_name(node, name, sizeof(name));
-        
+
         switch (node->type) {
-            case GEOM_POINT:
-                {
-                    /* 获取坐标 */
-                    double x = 0, y = 0;
-                    if (node->symbolic_coords && node->coord_count >= 2) {
-                        x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                        y = symbolic_coord_to_double(node->symbolic_coords[1]);
+            case GEOM_POINT: {
+                /* 获取坐标 */
+                double x = 0, y = 0;
+                if (node->symbolic_coords && node->coord_count >= 2) {
+                    x = symbolic_coord_to_double(node->symbolic_coords[0]);
+                    y = symbolic_coord_to_double(node->symbolic_coords[1]);
+                }
+
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
+                if (n > 0 && latex_len + (size_t) n < latex_size) {
+                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
+                    latex_len += (size_t) n;
+                    result->latex_output[latex_len] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Point(%.2f, %.2f)\n", name, x, y);
+                if (n > 0 && python_len + (size_t) n < python_size) {
+                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
+                    python_len += (size_t) n;
+                    result->python_output[python_len] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "point %s(%.2f, %.2f); ", name, x, y);
+                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
+                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
+                    dsl_len += (size_t) n;
+                    result->dsl_output[dsl_len] = '\0';
+                }
+            } break;
+
+            case GEOM_LINE_SEGMENT: {
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "\\overline{%s}\\\\\n", name);
+                if (n > 0 && latex_len + (size_t) n < latex_size) {
+                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
+                    latex_len += (size_t) n;
+                    result->latex_output[latex_len] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Segment()\n", name);
+                if (n > 0 && python_len + (size_t) n < python_size) {
+                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
+                    python_len += (size_t) n;
+                    result->python_output[python_len] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "segment %s(); ", name);
+                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
+                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
+                    dsl_len += (size_t) n;
+                    result->dsl_output[dsl_len] = '\0';
+                }
+            } break;
+
+            case GEOM_REGION: {
+                /* 获取边界线段信息 */
+                int seg_count = node->data.region.segment_count;
+                char seg_list[256] = "";
+                size_t seg_list_len = 0;
+                for (int j = 0; j < seg_count && j < 10; j++) {
+                    char seg_name[64];
+                    if (node->data.region.boundary_segments && node->data.region.boundary_segments[j]) {
+                        formula_node_to_name(node->data.region.boundary_segments[j], seg_name, sizeof(seg_name));
+                    } else {
+                        snprintf(seg_name, sizeof(seg_name), "S?");
                     }
-                    
-                    /* LaTeX */
-                    int n = snprintf(latex_buf, sizeof(latex_buf), 
-                            "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
-                    if (n > 0 && latex_len + (size_t)n < latex_size) {
-                        memcpy(result->latex_output + latex_len, latex_buf, (size_t)n);
-                        latex_len += (size_t)n;
-                        result->latex_output[latex_len] = '\0';
+                    /* 修复：使用偏移量替代 strncat + strlen */
+                    if (j > 0 && seg_list_len + 2 < sizeof(seg_list)) {
+                        memcpy(seg_list + seg_list_len, ", ", 2);
+                        seg_list_len += 2;
                     }
-                    
-                    /* Python */
-                    n = snprintf(python_buf, sizeof(python_buf), 
-                            "%s = Point(%.2f, %.2f)\n", name, x, y);
-                    if (n > 0 && python_len + (size_t)n < python_size) {
-                        memcpy(result->python_output + python_len, python_buf, (size_t)n);
-                        python_len += (size_t)n;
-                        result->python_output[python_len] = '\0';
-                    }
-                    
-                    /* DSL */
-                    n = snprintf(dsl_buf, sizeof(dsl_buf), 
-                            "point %s(%.2f, %.2f); ", name, x, y);
-                    if (n > 0 && dsl_len + (size_t)n < dsl_size) {
-                        memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t)n);
-                        dsl_len += (size_t)n;
-                        result->dsl_output[dsl_len] = '\0';
+                    size_t sn_len = strlen(seg_name);
+                    if (seg_list_len + sn_len < sizeof(seg_list)) {
+                        memcpy(seg_list + seg_list_len, seg_name, sn_len);
+                        seg_list_len += sn_len;
                     }
                 }
-                break;
-                
-            case GEOM_LINE_SEGMENT:
-                {
-                    /* LaTeX */
-                    int n = snprintf(latex_buf, sizeof(latex_buf), 
-                            "\\overline{%s}\\\\\n", name);
-                    if (n > 0 && latex_len + (size_t)n < latex_size) {
-                        memcpy(result->latex_output + latex_len, latex_buf, (size_t)n);
-                        latex_len += (size_t)n;
-                        result->latex_output[latex_len] = '\0';
-                    }
-                    
-                    /* Python */
-                    n = snprintf(python_buf, sizeof(python_buf), 
-                            "%s = Segment()\n", name);
-                    if (n > 0 && python_len + (size_t)n < python_size) {
-                        memcpy(result->python_output + python_len, python_buf, (size_t)n);
-                        python_len += (size_t)n;
-                        result->python_output[python_len] = '\0';
-                    }
-                    
-                    /* DSL */
-                    n = snprintf(dsl_buf, sizeof(dsl_buf), 
-                            "segment %s(); ", name);
-                    if (n > 0 && dsl_len + (size_t)n < dsl_size) {
-                        memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t)n);
-                        dsl_len += (size_t)n;
-                        result->dsl_output[dsl_len] = '\0';
-                    }
+                seg_list[seg_list_len] = '\0';
+
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
+                if (n > 0 && latex_len + (size_t) n < latex_size) {
+                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
+                    latex_len += (size_t) n;
+                    result->latex_output[latex_len] = '\0';
                 }
-                break;
 
-            case GEOM_REGION:
-                {
-                    /* 获取边界线段信息 */
-                    int seg_count = node->data.region.segment_count;
-                    char seg_list[256] = "";
-                    size_t seg_list_len = 0;
-                    for (int j = 0; j < seg_count && j < 10; j++) {
-                        char seg_name[64];
-                        if (node->data.region.boundary_segments &&
-                            node->data.region.boundary_segments[j]) {
-                            formula_node_to_name(node->data.region.boundary_segments[j],
-                                                seg_name, sizeof(seg_name));
-                        } else {
-                            snprintf(seg_name, sizeof(seg_name), "S?");
-                        }
-                        /* 修复：使用偏移量替代 strncat + strlen */
-                        if (j > 0 && seg_list_len + 2 < sizeof(seg_list)) {
-                            memcpy(seg_list + seg_list_len, ", ", 2);
-                            seg_list_len += 2;
-                        }
-                        size_t sn_len = strlen(seg_name);
-                        if (seg_list_len + sn_len < sizeof(seg_list)) {
-                            memcpy(seg_list + seg_list_len, seg_name, sn_len);
-                            seg_list_len += sn_len;
-                        }
-                    }
-                    seg_list[seg_list_len] = '\0';
-
-                    /* LaTeX */
-                    int n = snprintf(latex_buf, sizeof(latex_buf),
-                            "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
-                    if (n > 0 && latex_len + (size_t)n < latex_size) {
-                        memcpy(result->latex_output + latex_len, latex_buf, (size_t)n);
-                        latex_len += (size_t)n;
-                        result->latex_output[latex_len] = '\0';
-                    }
-
-                    /* Python */
-                    n = snprintf(python_buf, sizeof(python_buf),
-                            "%s = Region([%s])\n", name, seg_list);
-                    if (n > 0 && python_len + (size_t)n < python_size) {
-                        memcpy(result->python_output + python_len, python_buf, (size_t)n);
-                        python_len += (size_t)n;
-                        result->python_output[python_len] = '\0';
-                    }
-
-                    /* DSL */
-                    n = snprintf(dsl_buf, sizeof(dsl_buf),
-                            "region %s(%s); ", name, seg_list);
-                    if (n > 0 && dsl_len + (size_t)n < dsl_size) {
-                        memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t)n);
-                        dsl_len += (size_t)n;
-                        result->dsl_output[dsl_len] = '\0';
-                    }
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Region([%s])\n", name, seg_list);
+                if (n > 0 && python_len + (size_t) n < python_size) {
+                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
+                    python_len += (size_t) n;
+                    result->python_output[python_len] = '\0';
                 }
-                break;
 
-            case GEOM_PORT:
-                {
-                    const char *port_type_str = "unknown";
-                    if (node->data.port) {
-                        port_type_str = (node->data.port->type == PORT_INPUT) ? "input" : "output";
-                    }
-
-                    /* LaTeX */
-                    int n = snprintf(latex_buf, sizeof(latex_buf),
-                            "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
-                    if (n > 0 && latex_len + (size_t)n < latex_size) {
-                        memcpy(result->latex_output + latex_len, latex_buf, (size_t)n);
-                        latex_len += (size_t)n;
-                        result->latex_output[latex_len] = '\0';
-                    }
-
-                    /* Python */
-                    n = snprintf(python_buf, sizeof(python_buf),
-                            "%s = Port('%s')\n", name, port_type_str);
-                    if (n > 0 && python_len + (size_t)n < python_size) {
-                        memcpy(result->python_output + python_len, python_buf, (size_t)n);
-                        python_len += (size_t)n;
-                        result->python_output[python_len] = '\0';
-                    }
-
-                    /* DSL */
-                    n = snprintf(dsl_buf, sizeof(dsl_buf),
-                            "port %s(%s); ", name, port_type_str);
-                    if (n > 0 && dsl_len + (size_t)n < dsl_size) {
-                        memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t)n);
-                        dsl_len += (size_t)n;
-                        result->dsl_output[dsl_len] = '\0';
-                    }
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "region %s(%s); ", name, seg_list);
+                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
+                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
+                    dsl_len += (size_t) n;
+                    result->dsl_output[dsl_len] = '\0';
                 }
-                break;
+            } break;
 
-            case GEOM_FUNCTION_BLOCK:
-                {
-                    /* 获取函数块信息 */
-                    int in_count = node->data.func_block.input_count;
-                    int out_count = node->data.func_block.output_count;
-
-                    /* LaTeX */
-                    int n = snprintf(latex_buf, sizeof(latex_buf),
-                            "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n",
-                            name, in_count, out_count);
-                    if (n > 0 && latex_len + (size_t)n < latex_size) {
-                        memcpy(result->latex_output + latex_len, latex_buf, (size_t)n);
-                        latex_len += (size_t)n;
-                        result->latex_output[latex_len] = '\0';
-                    }
-
-                    /* Python */
-                    n = snprintf(python_buf, sizeof(python_buf),
-                            "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count, out_count);
-                    if (n > 0 && python_len + (size_t)n < python_size) {
-                        memcpy(result->python_output + python_len, python_buf, (size_t)n);
-                        python_len += (size_t)n;
-                        result->python_output[python_len] = '\0';
-                    }
-
-                    /* DSL */
-                    n = snprintf(dsl_buf, sizeof(dsl_buf),
-                            "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
-                    if (n > 0 && dsl_len + (size_t)n < dsl_size) {
-                        memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t)n);
-                        dsl_len += (size_t)n;
-                        result->dsl_output[dsl_len] = '\0';
-                    }
+            case GEOM_PORT: {
+                const char *port_type_str = "unknown";
+                if (node->data.port) {
+                    port_type_str = (node->data.port->type == PORT_INPUT) ? "input" : "output";
                 }
-                break;
-                
+
+                /* LaTeX */
+                int n =
+                    snprintf(latex_buf, sizeof(latex_buf), "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
+                if (n > 0 && latex_len + (size_t) n < latex_size) {
+                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
+                    latex_len += (size_t) n;
+                    result->latex_output[latex_len] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = Port('%s')\n", name, port_type_str);
+                if (n > 0 && python_len + (size_t) n < python_size) {
+                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
+                    python_len += (size_t) n;
+                    result->python_output[python_len] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "port %s(%s); ", name, port_type_str);
+                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
+                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
+                    dsl_len += (size_t) n;
+                    result->dsl_output[dsl_len] = '\0';
+                }
+            } break;
+
+            case GEOM_FUNCTION_BLOCK: {
+                /* 获取函数块信息 */
+                int in_count = node->data.func_block.input_count;
+                int out_count = node->data.func_block.output_count;
+
+                /* LaTeX */
+                int n = snprintf(latex_buf, sizeof(latex_buf),
+                                 "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n", name, in_count,
+                                 out_count);
+                if (n > 0 && latex_len + (size_t) n < latex_size) {
+                    memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
+                    latex_len += (size_t) n;
+                    result->latex_output[latex_len] = '\0';
+                }
+
+                /* Python */
+                n = snprintf(python_buf, sizeof(python_buf), "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count,
+                             out_count);
+                if (n > 0 && python_len + (size_t) n < python_size) {
+                    memcpy(result->python_output + python_len, python_buf, (size_t) n);
+                    python_len += (size_t) n;
+                    result->python_output[python_len] = '\0';
+                }
+
+                /* DSL */
+                n = snprintf(dsl_buf, sizeof(dsl_buf), "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
+                if (n > 0 && dsl_len + (size_t) n < dsl_size) {
+                    memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
+                    dsl_len += (size_t) n;
+                    result->dsl_output[dsl_len] = '\0';
+                }
+            } break;
+
             default:
                 break;
         }
     }
-    
+
     /* 遍历所有约束 */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *constraint = graph->constraints[i];
-        if (!constraint) continue;
-        
+        if (!constraint)
+            continue;
+
         const char *constraint_name = NULL;
         const char *constraint_latex = NULL;
-        
+
         switch (constraint->type) {
             case INCIDENCE:
                 constraint_name = "incidence";
@@ -1645,35 +1604,32 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
                 constraint_latex = "\\text{unknown}";
                 break;
         }
-        
+
         /* LaTeX */
-        int n = snprintf(latex_buf, sizeof(latex_buf), 
-                "\\text{Constraint: } %s\\\\\n", constraint_latex);
-        if (n > 0 && latex_len + (size_t)n < latex_size) {
-            memcpy(result->latex_output + latex_len, latex_buf, (size_t)n);
-            latex_len += (size_t)n;
+        int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{Constraint: } %s\\\\\n", constraint_latex);
+        if (n > 0 && latex_len + (size_t) n < latex_size) {
+            memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
+            latex_len += (size_t) n;
             result->latex_output[latex_len] = '\0';
         }
-        
+
         /* Python */
-        n = snprintf(python_buf, sizeof(python_buf), 
-                "# Constraint: %s\n", constraint_name);
-        if (n > 0 && python_len + (size_t)n < python_size) {
-            memcpy(result->python_output + python_len, python_buf, (size_t)n);
-            python_len += (size_t)n;
+        n = snprintf(python_buf, sizeof(python_buf), "# Constraint: %s\n", constraint_name);
+        if (n > 0 && python_len + (size_t) n < python_size) {
+            memcpy(result->python_output + python_len, python_buf, (size_t) n);
+            python_len += (size_t) n;
             result->python_output[python_len] = '\0';
         }
-        
+
         /* DSL */
-        n = snprintf(dsl_buf, sizeof(dsl_buf), 
-                "# constraint %s; ", constraint_name);
-        if (n > 0 && dsl_len + (size_t)n < dsl_size) {
-            memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t)n);
-            dsl_len += (size_t)n;
+        n = snprintf(dsl_buf, sizeof(dsl_buf), "# constraint %s; ", constraint_name);
+        if (n > 0 && dsl_len + (size_t) n < dsl_size) {
+            memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
+            dsl_len += (size_t) n;
             result->dsl_output[dsl_len] = '\0';
         }
     }
-    
+
     result->success = true;
     return result;
 }
@@ -1688,30 +1644,32 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
  * @param result 转换结果指针（可为 NULL）
  */
 void formula_to_graph_result_destroy(FormulaToGraphResult *result) {
-    if (!result) return;
-    
+    if (!result)
+        return;
+
     if (result->created_node_ids) {
-        lv00_free((void **)&result->created_node_ids);  /* 统一内存释放器 */
+        lv00_free((void **) &result->created_node_ids); /* 统一内存释放器 */
     }
     if (result->created_constraint_ids) {
-        lv00_free((void **)&result->created_constraint_ids);  /* 统一内存释放器 */
+        lv00_free((void **) &result->created_constraint_ids); /* 统一内存释放器 */
     }
-    lv00_free((void **)&result);  /* 统一内存释放器 */
+    lv00_free((void **) &result); /* 统一内存释放器 */
 }
 
 void graph_to_formula_result_destroy(GraphToFormulaResult *result) {
-    if (!result) return;
-    
+    if (!result)
+        return;
+
     if (result->latex_output) {
-        lv00_free((void **)&result->latex_output);  /* 统一内存释放器 */
+        lv00_free((void **) &result->latex_output); /* 统一内存释放器 */
     }
     if (result->python_output) {
-        lv00_free((void **)&result->python_output);  /* 统一内存释放器 */
+        lv00_free((void **) &result->python_output); /* 统一内存释放器 */
     }
     if (result->dsl_output) {
-        lv00_free((void **)&result->dsl_output);  /* 统一内存释放器 */
+        lv00_free((void **) &result->dsl_output); /* 统一内存释放器 */
     }
-    lv00_free((void **)&result);  /* 统一内存释放器 */
+    lv00_free((void **) &result); /* 统一内存释放器 */
 }
 
 /* ============================================================
@@ -1722,12 +1680,13 @@ void graph_to_formula_result_destroy(GraphToFormulaResult *result) {
  * 销毁方程曲线转换结果
  */
 void equation_curve_result_destroy(EquationCurveResult *result) {
-    if (!result) return;
+    if (!result)
+        return;
 
     if (result->points) {
-        lv00_free((void **)&result->points);  /* 统一内存释放器 */
+        lv00_free((void **) &result->points); /* 统一内存释放器 */
     }
-    lv00_free((void **)&result);  /* 统一内存释放器 */
+    lv00_free((void **) &result); /* 统一内存释放器 */
 }
 
 /**
@@ -1740,15 +1699,15 @@ static double eval_node(const FormulaNode *node, double x, double y);
  * 评估公式节点在特定点的值
  */
 static double eval_node(const FormulaNode *node, double x, double y) {
-    if (!node) return 0.0;
+    if (!node)
+        return 0.0;
 
     switch (node->type) {
         case NODE_NUMBER:
             if (node->data.number.is_integer) {
-                return (double)node->data.number.numerator;
+                return (double) node->data.number.numerator;
             } else {
-                return (double)node->data.number.numerator /
-                       (double)node->data.number.denominator;
+                return (double) node->data.number.numerator / (double) node->data.number.denominator;
             }
 
         case NODE_VARIABLE: {
@@ -1855,8 +1814,7 @@ static double eval_node(const FormulaNode *node, double x, double y) {
         case NODE_GEOM_POINT: {
             /* 点: 返回坐标值的组合 (x + y) */
             double px = 0.0, py = 0.0;
-            if (node->data.geom_point.coords &&
-                node->data.geom_point.coords->type == NODE_COORDINATE_LIST &&
+            if (node->data.geom_point.coords && node->data.geom_point.coords->type == NODE_COORDINATE_LIST &&
                 node->data.geom_point.coords->data.coord_list.coord_count >= 2) {
                 px = eval_node(node->data.geom_point.coords->data.coord_list.coords[0], x, y);
                 py = eval_node(node->data.geom_point.coords->data.coord_list.coords[1], x, y);
@@ -1867,20 +1825,16 @@ static double eval_node(const FormulaNode *node, double x, double y) {
         case NODE_GEOM_SEGMENT: {
             /* 线段: 返回长度 */
             double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0;
-            if (node->data.geom_segment.endpoint1 &&
-                node->data.geom_segment.endpoint1->type == NODE_GEOM_POINT) {
+            if (node->data.geom_segment.endpoint1 && node->data.geom_segment.endpoint1->type == NODE_GEOM_POINT) {
                 FormulaNode *coords = node->data.geom_segment.endpoint1->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST &&
-                    coords->data.coord_list.coord_count >= 2) {
+                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
                     x1 = eval_node(coords->data.coord_list.coords[0], x, y);
                     y1 = eval_node(coords->data.coord_list.coords[1], x, y);
                 }
             }
-            if (node->data.geom_segment.endpoint2 &&
-                node->data.geom_segment.endpoint2->type == NODE_GEOM_POINT) {
+            if (node->data.geom_segment.endpoint2 && node->data.geom_segment.endpoint2->type == NODE_GEOM_POINT) {
                 FormulaNode *coords = node->data.geom_segment.endpoint2->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST &&
-                    coords->data.coord_list.coord_count >= 2) {
+                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
                     x2 = eval_node(coords->data.coord_list.coords[0], x, y);
                     y2 = eval_node(coords->data.coord_list.coords[1], x, y);
                 }
@@ -1899,29 +1853,23 @@ static double eval_node(const FormulaNode *node, double x, double y) {
         case NODE_GEOM_TRIANGLE: {
             /* 三角形: 返回面积 (使用海伦公式) */
             double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0, x3 = 0.0, y3 = 0.0;
-            if (node->data.geom_triangle.vertex1 &&
-                node->data.geom_triangle.vertex1->type == NODE_GEOM_POINT) {
+            if (node->data.geom_triangle.vertex1 && node->data.geom_triangle.vertex1->type == NODE_GEOM_POINT) {
                 FormulaNode *coords = node->data.geom_triangle.vertex1->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST &&
-                    coords->data.coord_list.coord_count >= 2) {
+                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
                     x1 = eval_node(coords->data.coord_list.coords[0], x, y);
                     y1 = eval_node(coords->data.coord_list.coords[1], x, y);
                 }
             }
-            if (node->data.geom_triangle.vertex2 &&
-                node->data.geom_triangle.vertex2->type == NODE_GEOM_POINT) {
+            if (node->data.geom_triangle.vertex2 && node->data.geom_triangle.vertex2->type == NODE_GEOM_POINT) {
                 FormulaNode *coords = node->data.geom_triangle.vertex2->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST &&
-                    coords->data.coord_list.coord_count >= 2) {
+                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
                     x2 = eval_node(coords->data.coord_list.coords[0], x, y);
                     y2 = eval_node(coords->data.coord_list.coords[1], x, y);
                 }
             }
-            if (node->data.geom_triangle.vertex3 &&
-                node->data.geom_triangle.vertex3->type == NODE_GEOM_POINT) {
+            if (node->data.geom_triangle.vertex3 && node->data.geom_triangle.vertex3->type == NODE_GEOM_POINT) {
                 FormulaNode *coords = node->data.geom_triangle.vertex3->data.geom_point.coords;
-                if (coords && coords->type == NODE_COORDINATE_LIST &&
-                    coords->data.coord_list.coord_count >= 2) {
+                if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
                     x3 = eval_node(coords->data.coord_list.coords[0], x, y);
                     y3 = eval_node(coords->data.coord_list.coords[1], x, y);
                 }
@@ -1934,23 +1882,22 @@ static double eval_node(const FormulaNode *node, double x, double y) {
             /* 多边形: 返回面积 (使用鞋带公式) */
             double area = 0.0;
             int n = node->data.geom_polygon.vertex_count;
-            if (n < 3) return 0.0;
+            if (n < 3)
+                return 0.0;
             for (int i = 0; i < n; i++) {
                 FormulaNode *vi = node->data.geom_polygon.vertices[i];
                 FormulaNode *vj = node->data.geom_polygon.vertices[(i + 1) % n];
                 double xi = 0.0, yi = 0.0, xj = 0.0, yj = 0.0;
                 if (vi && vi->type == NODE_GEOM_POINT) {
                     FormulaNode *coords = vi->data.geom_point.coords;
-                    if (coords && coords->type == NODE_COORDINATE_LIST &&
-                        coords->data.coord_list.coord_count >= 2) {
+                    if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
                         xi = eval_node(coords->data.coord_list.coords[0], x, y);
                         yi = eval_node(coords->data.coord_list.coords[1], x, y);
                     }
                 }
                 if (vj && vj->type == NODE_GEOM_POINT) {
                     FormulaNode *coords = vj->data.geom_point.coords;
-                    if (coords && coords->type == NODE_COORDINATE_LIST &&
-                        coords->data.coord_list.coord_count >= 2) {
+                    if (coords && coords->type == NODE_COORDINATE_LIST && coords->data.coord_list.coord_count >= 2) {
                         xj = eval_node(coords->data.coord_list.coords[0], x, y);
                         yj = eval_node(coords->data.coord_list.coords[1], x, y);
                     }
@@ -1997,19 +1944,18 @@ static double eval_node(const FormulaNode *node, double x, double y) {
  * 将公式节点渲染为字符串（简化版）
  */
 static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) {
-    if (!node || !buf || buf_size == 0) return;
+    if (!node || !buf || buf_size == 0)
+        return;
 
     buf[0] = '\0';
 
     switch (node->type) {
         case NODE_NUMBER:
             if (node->data.number.is_integer) {
-                snprintf(buf, buf_size, "%lld",
-                         (long long)node->data.number.numerator);
+                snprintf(buf, buf_size, "%lld", (long long) node->data.number.numerator);
             } else {
-                snprintf(buf, buf_size, "%lld/%llu",
-                         (long long)node->data.number.numerator,
-                         (unsigned long long)node->data.number.denominator);
+                snprintf(buf, buf_size, "%lld/%llu", (long long) node->data.number.numerator,
+                         (unsigned long long) node->data.number.denominator);
             }
             break;
 
@@ -2032,7 +1978,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s + %s)", left, right);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 /* 缓冲区不足时使用安全截断标记 */
                 lv00_strlcpy(buf, "(... + ...)", buf_size);
             }
@@ -2044,7 +1990,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s - %s)", left, right);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "(... - ...)", buf_size);
             }
             break;
@@ -2055,7 +2001,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s * %s)", left, right);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "(... * ...)", buf_size);
             }
             break;
@@ -2066,7 +2012,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s / %s)", left, right);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "(... / ...)", buf_size);
             }
             break;
@@ -2077,7 +2023,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s ^ %s)", left, right);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "(... ^ ...)", buf_size);
             }
             break;
@@ -2088,7 +2034,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
             node_to_string(node->data.equation.lhs, left, sizeof(left));
             node_to_string(node->data.equation.rhs, right, sizeof(right));
             int n = snprintf(buf, buf_size, "(%s = %s)", left, right);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "(... = ...)", buf_size);
             }
             break;
@@ -2097,7 +2043,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         case NODE_GEOM_POINT: {
             const char *name = node->data.geom_point.name ? node->data.geom_point.name : "?";
             int n = snprintf(buf, buf_size, "point(%s)", name);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "point(...)", buf_size);
             }
             break;
@@ -2106,7 +2052,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         case NODE_GEOM_SEGMENT: {
             const char *name = node->data.geom_segment.name ? node->data.geom_segment.name : "?";
             int n = snprintf(buf, buf_size, "segment(%s)", name);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "segment(...)", buf_size);
             }
             break;
@@ -2119,7 +2065,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
                 node_to_string(node->data.geom_circle.radius, r, sizeof(r));
             }
             int n = snprintf(buf, buf_size, "circle(%s, r=%s)", name, r);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "circle(...)", buf_size);
             }
             break;
@@ -2128,7 +2074,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
         case NODE_GEOM_TRIANGLE: {
             const char *name = node->data.geom_triangle.name ? node->data.geom_triangle.name : "?";
             int n = snprintf(buf, buf_size, "triangle(%s)", name);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "triangle(...)", buf_size);
             }
             break;
@@ -2136,9 +2082,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
 
         case NODE_GEOM_POLYGON: {
             const char *name = node->data.geom_polygon.name ? node->data.geom_polygon.name : "?";
-            int n = snprintf(buf, buf_size, "polygon(%s, %d vertices)", name,
-                             node->data.geom_polygon.vertex_count);
-            if (n < 0 || (size_t)n >= buf_size) {
+            int n = snprintf(buf, buf_size, "polygon(%s, %d vertices)", name, node->data.geom_polygon.vertex_count);
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "polygon(...)", buf_size);
             }
             break;
@@ -2146,9 +2091,8 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
 
         case NODE_GEOM_REGION: {
             const char *name = node->data.geom_region.name ? node->data.geom_region.name : "?";
-            int n = snprintf(buf, buf_size, "region(%s, %d segments)", name,
-                             node->data.geom_region.segment_count);
-            if (n < 0 || (size_t)n >= buf_size) {
+            int n = snprintf(buf, buf_size, "region(%s, %d segments)", name, node->data.geom_region.segment_count);
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "region(...)", buf_size);
             }
             break;
@@ -2167,7 +2111,7 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
                 node_to_string(node->data.geom_arc.end_angle, t2, sizeof(t2));
             }
             int n = snprintf(buf, buf_size, "arc(%s, r=%s, %s, %s)", name, r, t1, t2);
-            if (n < 0 || (size_t)n >= buf_size) {
+            if (n < 0 || (size_t) n >= buf_size) {
                 lv00_strlcpy(buf, "arc(...)", buf_size);
             }
             break;
@@ -2184,13 +2128,10 @@ static void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) 
  * 使用行进正方形算法（Marching Squares）采样隐式曲线
  * 这是计算机图形学中用于提取等值线的标准算法
  */
-EquationCurveResult *formula_convert_equation_to_curve(
-    const FormulaNode *equation_node,
-    int sample_count,
-    double x_min, double x_max,
-    double y_min, double y_max
-) {
-    EquationCurveResult *result = (EquationCurveResult *)lv00_calloc(1, sizeof(EquationCurveResult));  /* 统一内存分配器 */
+EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equation_node, int sample_count, double x_min,
+                                                       double x_max, double y_min, double y_max) {
+    EquationCurveResult *result =
+        (EquationCurveResult *) lv00_calloc(1, sizeof(EquationCurveResult)); /* 统一内存分配器 */
     if (!result) {
         return NULL;
     }
@@ -2198,23 +2139,20 @@ EquationCurveResult *formula_convert_equation_to_curve(
     /* 参数验证 */
     if (!equation_node || sample_count <= 0) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message),
-                 "Invalid parameters");
+        snprintf(result->error_message, sizeof(result->error_message), "Invalid parameters");
         return result;
     }
 
     /* 分配采样点数组 */
-    result->points = (CurveSamplePoint *)lv00_calloc(sample_count, sizeof(CurveSamplePoint));  /* 统一内存分配器 */
+    result->points = (CurveSamplePoint *) lv00_calloc(sample_count, sizeof(CurveSamplePoint)); /* 统一内存分配器 */
     if (!result->points) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message),
-                 "Memory allocation failed");
+        snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed");
         return result;
     }
 
     /* 生成方程字符串表示 */
-    node_to_string(equation_node, result->equation_str,
-                   sizeof(result->equation_str));
+    node_to_string(equation_node, result->equation_str, sizeof(result->equation_str));
 
     /* 设置边界框 */
     result->bbox_min_x = x_min;
@@ -2229,18 +2167,19 @@ EquationCurveResult *formula_convert_equation_to_curve(
      * 3. 在这些区域进行精细采样
      */
 
-    int grid_size = (int)sqrt((double)sample_count * 2);
-    if (grid_size < 10) grid_size = 10;
+    int grid_size = (int) sqrt((double) sample_count * 2);
+    if (grid_size < 10)
+        grid_size = 10;
 
     double dx = (x_max - x_min) / grid_size;
     double dy = (y_max - y_min) / grid_size;
 
     /* 第一阶段：粗采样，计算网格点上的函数值 */
-    double *grid_values = (double *)lv00_malloc((grid_size + 1) * (grid_size + 1) * sizeof(double));  /* 统一内存分配器 */
+    double *grid_values =
+        (double *) lv00_malloc((grid_size + 1) * (grid_size + 1) * sizeof(double)); /* 统一内存分配器 */
     if (!grid_values) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message),
-                 "Memory allocation failed for grid");
+        snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed for grid");
         return result;
     }
 
@@ -2265,12 +2204,11 @@ EquationCurveResult *formula_convert_equation_to_curve(
             double v11 = grid_values[(i + 1) * (grid_size + 1) + (j + 1)];
 
             /* 检查是否穿越等值线（变号） */
-            bool crosses = (v00 * v10 < 0) || (v00 * v01 < 0) ||
-                          (v10 * v11 < 0) || (v01 * v11 < 0);
+            bool crosses = (v00 * v10 < 0) || (v00 * v01 < 0) || (v10 * v11 < 0) || (v01 * v11 < 0);
 
             /* 或者值接近零 */
-            bool near_zero = (fabs(v00) < threshold) || (fabs(v10) < threshold) ||
-                            (fabs(v01) < threshold) || (fabs(v11) < threshold);
+            bool near_zero = (fabs(v00) < threshold) || (fabs(v10) < threshold) || (fabs(v01) < threshold) ||
+                             (fabs(v11) < threshold);
 
             if (crosses || near_zero) {
                 /* 在单元格中心添加一个采样点 */
@@ -2288,7 +2226,8 @@ EquationCurveResult *formula_convert_equation_to_curve(
                     double fy = (eval_node(equation_node, x, y + h) - f) / h;
 
                     double grad_sq = fx * fx + fy * fy;
-                    if (grad_sq < 1e-12) break;
+                    if (grad_sq < 1e-12)
+                        break;
 
                     x -= f * fx / grad_sq;
                     y -= f * fy / grad_sq;
@@ -2303,14 +2242,13 @@ EquationCurveResult *formula_convert_equation_to_curve(
         }
     }
 
-    lv00_free((void **)&grid_values);  /* 统一内存释放器 */
+    lv00_free((void **) &grid_values); /* 统一内存释放器 */
 
     result->point_count = point_idx;
     result->success = (point_idx > 0);
 
     if (!result->success) {
-        snprintf(result->error_message, sizeof(result->error_message),
-                 "No curve points found in the specified region");
+        snprintf(result->error_message, sizeof(result->error_message), "No curve points found in the specified region");
     }
 
     return result;
@@ -2332,9 +2270,9 @@ EquationCurveResult *formula_convert_equation_to_curve(
 #define IMPLICIT_MAX_DEG 4
 #define IMPLICIT_COEFFS_SIZE (IMPLICIT_MAX_DEG * IMPLICIT_MAX_DEG)
 
-static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
-                                  int coeffs_size, int max_deg) {
-    if (!node) return false;
+static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
+    if (!node)
+        return false;
 
     memset(coeffs, 0, sizeof(double) * coeffs_size);
 
@@ -2370,90 +2308,135 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
     double rhs[IMPLICIT_COEFFS_SIZE];
 
     switch (node->type) {
-    case NODE_NUMBER: {
-        double val;
-        if (node->data.number.is_integer) {
-            val = (double)node->data.number.numerator;
-        } else {
-            val = (double)node->data.number.numerator / (double)node->data.number.denominator;
-        }
-        coeffs[0] = val;
-        return true;
-    }
-
-    case NODE_VARIABLE: {
-        if (node->data.variable.name) {
-            if (strcmp(node->data.variable.name, "x") == 0) {
-                if (max_deg >= 1) coeffs[1 * max_deg + 0] = 1.0; /* x^1 * y^0 */
-                return true;
-            } else if (strcmp(node->data.variable.name, "y") == 0) {
-                if (max_deg >= 1) coeffs[0 * max_deg + 1] = 1.0; /* x^0 * y^1 */
-                return true;
+        case NODE_NUMBER: {
+            double val;
+            if (node->data.number.is_integer) {
+                val = (double) node->data.number.numerator;
+            } else {
+                val = (double) node->data.number.numerator / (double) node->data.number.denominator;
             }
+            coeffs[0] = val;
+            return true;
         }
-        /* 未知变量视为常量 0（或可扩展为参数） */
-        return false;
-    }
 
-    case NODE_BINARY_OP_ADD: {
-        if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
+        case NODE_VARIABLE: {
+            if (node->data.variable.name) {
+                if (strcmp(node->data.variable.name, "x") == 0) {
+                    if (max_deg >= 1)
+                        coeffs[1 * max_deg + 0] = 1.0; /* x^1 * y^0 */
+                    return true;
+                } else if (strcmp(node->data.variable.name, "y") == 0) {
+                    if (max_deg >= 1)
+                        coeffs[0 * max_deg + 1] = 1.0; /* x^0 * y^1 */
+                    return true;
+                }
+            }
+            /* 未知变量视为常量 0（或可扩展为参数） */
             return false;
-        if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
-            return false;
-        for (int i = 0; i < coeffs_size; i++) coeffs[i] = lhs[i] + rhs[i];
-        return true;
-    }
+        }
 
-    case NODE_BINARY_OP_SUB: {
-        if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
-            return false;
-        if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
-            return false;
-        for (int i = 0; i < coeffs_size; i++) coeffs[i] = lhs[i] - rhs[i];
-        return true;
-    }
+        case NODE_BINARY_OP_ADD: {
+            if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
+                return false;
+            if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
+                return false;
+            for (int i = 0; i < coeffs_size; i++)
+                coeffs[i] = lhs[i] + rhs[i];
+            return true;
+        }
 
-    case NODE_BINARY_OP_MUL: {
-        if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
-            return false;
-        if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
-            return false;
-        /* 多项式乘法（卷积），截断到 max_deg */
-        memset(coeffs, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            coeffs[ci] += lhs[ai] * rhs[bi];
+        case NODE_BINARY_OP_SUB: {
+            if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
+                return false;
+            if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
+                return false;
+            for (int i = 0; i < coeffs_size; i++)
+                coeffs[i] = lhs[i] - rhs[i];
+            return true;
+        }
+
+        case NODE_BINARY_OP_MUL: {
+            if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
+                return false;
+            if (!flatten_to_polynomial(node->data.binary_op.right, rhs, coeffs_size, max_deg))
+                return false;
+            /* 多项式乘法（卷积），截断到 max_deg */
+            memset(coeffs, 0, sizeof(double) * coeffs_size);
+            for (int i = 0; i < max_deg; i++) {
+                for (int j = 0; j < max_deg; j++) {
+                    int ai = i * max_deg + j;
+                    for (int k = 0; k < max_deg; k++) {
+                        for (int l = 0; l < max_deg; l++) {
+                            int bi = k * max_deg + l;
+                            int ci = (i + k) * max_deg + (j + l);
+                            if (i + k < max_deg && j + l < max_deg) {
+                                coeffs[ci] += lhs[ai] * rhs[bi];
+                            }
                         }
                     }
                 }
             }
+            return true;
         }
-        return true;
-    }
 
-    case NODE_BINARY_OP_POW: {
-        if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
-            return false;
-        /* 指数必须为非负整数 */
-        int exp_val = 0;
-        if (node->data.binary_op.right && node->data.binary_op.right->type == NODE_NUMBER) {
-            if (node->data.binary_op.right->data.number.is_integer) {
-                exp_val = (int)node->data.binary_op.right->data.number.numerator;
+        case NODE_BINARY_OP_POW: {
+            if (!flatten_to_polynomial(node->data.binary_op.left, lhs, coeffs_size, max_deg))
+                return false;
+            /* 指数必须为非负整数 */
+            int exp_val = 0;
+            if (node->data.binary_op.right && node->data.binary_op.right->type == NODE_NUMBER) {
+                if (node->data.binary_op.right->data.number.is_integer) {
+                    exp_val = (int) node->data.binary_op.right->data.number.numerator;
+                }
             }
+            if (exp_val < 0)
+                return false;
+
+            /* 初始化结果为 1（即 x^0*y^0 = 1） */
+            memset(coeffs, 0, sizeof(double) * coeffs_size);
+            coeffs[0] = 1.0;
+
+            for (int e = 0; e < exp_val; e++) {
+                memset(tmp, 0, sizeof(double) * coeffs_size);
+                for (int i = 0; i < max_deg; i++) {
+                    for (int j = 0; j < max_deg; j++) {
+                        int ai = i * max_deg + j;
+                        for (int k = 0; k < max_deg; k++) {
+                            for (int l = 0; l < max_deg; l++) {
+                                int bi = k * max_deg + l;
+                                int ci = (i + k) * max_deg + (j + l);
+                                if (i + k < max_deg && j + l < max_deg) {
+                                    tmp[ci] += coeffs[ai] * lhs[bi];
+                                }
+                            }
+                        }
+                    }
+                }
+                memcpy(coeffs, tmp, sizeof(double) * coeffs_size);
+            }
+            return true;
         }
-        if (exp_val < 0) return false;
 
-        /* 初始化结果为 1（即 x^0*y^0 = 1） */
-        memset(coeffs, 0, sizeof(double) * coeffs_size);
-        coeffs[0] = 1.0;
+        case NODE_UNARY_OP_NEG: {
+            if (!flatten_to_polynomial(node->data.unary_op.operand, coeffs, coeffs_size, max_deg))
+                return false;
+            for (int i = 0; i < coeffs_size; i++)
+                coeffs[i] = -coeffs[i];
+            return true;
+        }
 
-        for (int e = 0; e < exp_val; e++) {
+        case NODE_UNARY_OP_SIN: {
+            /* 泰勒展开 sin(x) ≈ x - x^3/3! + x^5/5!
+         * 先递归展开操作数为多项式 P(x)，然后计算 P - P^3/6 + P^5/120
+         * 注意：这是近似多项式，仅在小范围 |x| < pi/2 内有效 */
+            if (!flatten_to_polynomial(node->data.unary_op.operand, lhs, coeffs_size, max_deg))
+                return false;
+            /* coeffs = P(x) */
+            memcpy(coeffs, lhs, sizeof(double) * coeffs_size);
+
+            /* 计算 P^3 / 6 */
+            memset(rhs, 0, sizeof(double) * coeffs_size);
+            /* P^2 = P * P */
             memset(tmp, 0, sizeof(double) * coeffs_size);
             for (int i = 0; i < max_deg; i++) {
                 for (int j = 0; j < max_deg; j++) {
@@ -2463,210 +2446,177 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs,
                             int bi = k * max_deg + l;
                             int ci = (i + k) * max_deg + (j + l);
                             if (i + k < max_deg && j + l < max_deg) {
-                                tmp[ci] += coeffs[ai] * lhs[bi];
+                                tmp[ci] += lhs[ai] * lhs[bi];
                             }
                         }
                     }
                 }
             }
-            memcpy(coeffs, tmp, sizeof(double) * coeffs_size);
-        }
-        return true;
-    }
-
-    case NODE_UNARY_OP_NEG: {
-        if (!flatten_to_polynomial(node->data.unary_op.operand, coeffs, coeffs_size, max_deg))
-            return false;
-        for (int i = 0; i < coeffs_size; i++) coeffs[i] = -coeffs[i];
-        return true;
-    }
-
-    case NODE_UNARY_OP_SIN: {
-        /* 泰勒展开 sin(x) ≈ x - x^3/3! + x^5/5!
-         * 先递归展开操作数为多项式 P(x)，然后计算 P - P^3/6 + P^5/120
-         * 注意：这是近似多项式，仅在小范围 |x| < pi/2 内有效 */
-        if (!flatten_to_polynomial(node->data.unary_op.operand, lhs, coeffs_size, max_deg))
-            return false;
-        /* coeffs = P(x) */
-        memcpy(coeffs, lhs, sizeof(double) * coeffs_size);
-
-        /* 计算 P^3 / 6 */
-        memset(rhs, 0, sizeof(double) * coeffs_size);
-        /* P^2 = P * P */
-        memset(tmp, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            tmp[ci] += lhs[ai] * lhs[bi];
+            /* P^3 = P^2 * P */
+            double p3[IMPLICIT_COEFFS_SIZE];
+            memset(p3, 0, sizeof(double) * coeffs_size);
+            for (int i = 0; i < max_deg; i++) {
+                for (int j = 0; j < max_deg; j++) {
+                    int ai = i * max_deg + j;
+                    for (int k = 0; k < max_deg; k++) {
+                        for (int l = 0; l < max_deg; l++) {
+                            int bi = k * max_deg + l;
+                            int ci = (i + k) * max_deg + (j + l);
+                            if (i + k < max_deg && j + l < max_deg) {
+                                p3[ci] += tmp[ai] * lhs[bi];
+                            }
                         }
                     }
                 }
             }
-        }
-        /* P^3 = P^2 * P */
-        double p3[IMPLICIT_COEFFS_SIZE];
-        memset(p3, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            p3[ci] += tmp[ai] * lhs[bi];
+            /* 保存 P^3 的副本用于后续 P^5 计算 */
+            double p3_raw[IMPLICIT_COEFFS_SIZE];
+            memcpy(p3_raw, p3, sizeof(double) * coeffs_size);
+            /* P^3 / 6 */
+            for (int i = 0; i < coeffs_size; i++)
+                p3[i] /= 6.0;
+            /* coeffs = P - P^3/6 */
+            for (int i = 0; i < coeffs_size; i++)
+                coeffs[i] -= p3[i];
+
+            /* 计算 P^5 / 120 */
+            /* P^4 = P^3 * P (使用未除以6的 P^3) */
+            double p4[IMPLICIT_COEFFS_SIZE];
+            memset(p4, 0, sizeof(double) * coeffs_size);
+            for (int i = 0; i < max_deg; i++) {
+                for (int j = 0; j < max_deg; j++) {
+                    int ai = i * max_deg + j;
+                    for (int k = 0; k < max_deg; k++) {
+                        for (int l = 0; l < max_deg; l++) {
+                            int bi = k * max_deg + l;
+                            int ci = (i + k) * max_deg + (j + l);
+                            if (i + k < max_deg && j + l < max_deg) {
+                                p4[ci] += p3_raw[ai] * lhs[bi];
+                            }
                         }
                     }
                 }
             }
-        }
-        /* 保存 P^3 的副本用于后续 P^5 计算 */
-        double p3_raw[IMPLICIT_COEFFS_SIZE];
-        memcpy(p3_raw, p3, sizeof(double) * coeffs_size);
-        /* P^3 / 6 */
-        for (int i = 0; i < coeffs_size; i++) p3[i] /= 6.0;
-        /* coeffs = P - P^3/6 */
-        for (int i = 0; i < coeffs_size; i++) coeffs[i] -= p3[i];
-
-        /* 计算 P^5 / 120 */
-        /* P^4 = P^3 * P (使用未除以6的 P^3) */
-        double p4[IMPLICIT_COEFFS_SIZE];
-        memset(p4, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            p4[ci] += p3_raw[ai] * lhs[bi];
+            /* P^5 = P^4 * P */
+            double p5[IMPLICIT_COEFFS_SIZE];
+            memset(p5, 0, sizeof(double) * coeffs_size);
+            for (int i = 0; i < max_deg; i++) {
+                for (int j = 0; j < max_deg; j++) {
+                    int ai = i * max_deg + j;
+                    for (int k = 0; k < max_deg; k++) {
+                        for (int l = 0; l < max_deg; l++) {
+                            int bi = k * max_deg + l;
+                            int ci = (i + k) * max_deg + (j + l);
+                            if (i + k < max_deg && j + l < max_deg) {
+                                p5[ci] += p4[ai] * lhs[bi];
+                            }
                         }
                     }
                 }
             }
-        }
-        /* P^5 = P^4 * P */
-        double p5[IMPLICIT_COEFFS_SIZE];
-        memset(p5, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            p5[ci] += p4[ai] * lhs[bi];
-                        }
-                    }
-                }
-            }
-        }
-        /* P^5 / 120 */
-        for (int i = 0; i < coeffs_size; i++) p5[i] /= 120.0;
-        /* coeffs = P - P^3/6 + P^5/120 */
-        for (int i = 0; i < coeffs_size; i++) coeffs[i] += p5[i];
+            /* P^5 / 120 */
+            for (int i = 0; i < coeffs_size; i++)
+                p5[i] /= 120.0;
+            /* coeffs = P - P^3/6 + P^5/120 */
+            for (int i = 0; i < coeffs_size; i++)
+                coeffs[i] += p5[i];
 
-        return true;
-    }
+            return true;
+        }
 
-    case NODE_UNARY_OP_COS: {
-        /* 泰勒展开 cos(x) ≈ 1 - x^2/2! + x^4/4!
+        case NODE_UNARY_OP_COS: {
+            /* 泰勒展开 cos(x) ≈ 1 - x^2/2! + x^4/4!
          * 先递归展开操作数为多项式 P(x)，然后计算 1 - P^2/2 + P^4/24 */
-        if (!flatten_to_polynomial(node->data.unary_op.operand, lhs, coeffs_size, max_deg))
+            if (!flatten_to_polynomial(node->data.unary_op.operand, lhs, coeffs_size, max_deg))
+                return false;
+            /* coeffs = 1 (常数项) */
+            memset(coeffs, 0, sizeof(double) * coeffs_size);
+            coeffs[0] = 1.0;
+
+            /* 计算 P^2 / 2 */
+            memset(tmp, 0, sizeof(double) * coeffs_size);
+            for (int i = 0; i < max_deg; i++) {
+                for (int j = 0; j < max_deg; j++) {
+                    int ai = i * max_deg + j;
+                    for (int k = 0; k < max_deg; k++) {
+                        for (int l = 0; l < max_deg; l++) {
+                            int bi = k * max_deg + l;
+                            int ci = (i + k) * max_deg + (j + l);
+                            if (i + k < max_deg && j + l < max_deg) {
+                                tmp[ci] += lhs[ai] * lhs[bi];
+                            }
+                        }
+                    }
+                }
+            }
+            /* coeffs = 1 - P^2/2 */
+            for (int i = 0; i < coeffs_size; i++)
+                coeffs[i] -= tmp[i] / 2.0;
+
+            /* 计算 P^4 / 24 */
+            /* P^3 = P^2 * P */
+            double p3[IMPLICIT_COEFFS_SIZE];
+            memset(p3, 0, sizeof(double) * coeffs_size);
+            for (int i = 0; i < max_deg; i++) {
+                for (int j = 0; j < max_deg; j++) {
+                    int ai = i * max_deg + j;
+                    for (int k = 0; k < max_deg; k++) {
+                        for (int l = 0; l < max_deg; l++) {
+                            int bi = k * max_deg + l;
+                            int ci = (i + k) * max_deg + (j + l);
+                            if (i + k < max_deg && j + l < max_deg) {
+                                p3[ci] += tmp[ai] * lhs[bi];
+                            }
+                        }
+                    }
+                }
+            }
+            /* P^4 = P^3 * P */
+            double p4[IMPLICIT_COEFFS_SIZE];
+            memset(p4, 0, sizeof(double) * coeffs_size);
+            for (int i = 0; i < max_deg; i++) {
+                for (int j = 0; j < max_deg; j++) {
+                    int ai = i * max_deg + j;
+                    for (int k = 0; k < max_deg; k++) {
+                        for (int l = 0; l < max_deg; l++) {
+                            int bi = k * max_deg + l;
+                            int ci = (i + k) * max_deg + (j + l);
+                            if (i + k < max_deg && j + l < max_deg) {
+                                p4[ci] += p3[ai] * lhs[bi];
+                            }
+                        }
+                    }
+                }
+            }
+            /* coeffs = 1 - P^2/2 + P^4/24 */
+            for (int i = 0; i < coeffs_size; i++)
+                coeffs[i] += p4[i] / 24.0;
+
+            return true;
+        }
+
+        case NODE_UNARY_OP_SQRT: {
+            /* 如果参数是常数，直接计算平方根 */
+            const FormulaNode *operand = node->data.unary_op.operand;
+            if (operand && operand->type == NODE_NUMBER) {
+                double val;
+                if (operand->data.number.is_integer) {
+                    val = (double) operand->data.number.numerator;
+                } else {
+                    val = (double) operand->data.number.numerator / (double) operand->data.number.denominator;
+                }
+                if (val >= 0.0) {
+                    memset(coeffs, 0, sizeof(double) * coeffs_size);
+                    coeffs[0] = sqrt(val);
+                    return true;
+                }
+            }
+            /* 非常数参数的 sqrt 不支持多项式展开 */
             return false;
-        /* coeffs = 1 (常数项) */
-        memset(coeffs, 0, sizeof(double) * coeffs_size);
-        coeffs[0] = 1.0;
-
-        /* 计算 P^2 / 2 */
-        memset(tmp, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            tmp[ci] += lhs[ai] * lhs[bi];
-                        }
-                    }
-                }
-            }
         }
-        /* coeffs = 1 - P^2/2 */
-        for (int i = 0; i < coeffs_size; i++) coeffs[i] -= tmp[i] / 2.0;
 
-        /* 计算 P^4 / 24 */
-        /* P^3 = P^2 * P */
-        double p3[IMPLICIT_COEFFS_SIZE];
-        memset(p3, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            p3[ci] += tmp[ai] * lhs[bi];
-                        }
-                    }
-                }
-            }
-        }
-        /* P^4 = P^3 * P */
-        double p4[IMPLICIT_COEFFS_SIZE];
-        memset(p4, 0, sizeof(double) * coeffs_size);
-        for (int i = 0; i < max_deg; i++) {
-            for (int j = 0; j < max_deg; j++) {
-                int ai = i * max_deg + j;
-                for (int k = 0; k < max_deg; k++) {
-                    for (int l = 0; l < max_deg; l++) {
-                        int bi = k * max_deg + l;
-                        int ci = (i + k) * max_deg + (j + l);
-                        if (i + k < max_deg && j + l < max_deg) {
-                            p4[ci] += p3[ai] * lhs[bi];
-                        }
-                    }
-                }
-            }
-        }
-        /* coeffs = 1 - P^2/2 + P^4/24 */
-        for (int i = 0; i < coeffs_size; i++) coeffs[i] += p4[i] / 24.0;
-
-        return true;
-    }
-
-    case NODE_UNARY_OP_SQRT: {
-        /* 如果参数是常数，直接计算平方根 */
-        const FormulaNode *operand = node->data.unary_op.operand;
-        if (operand && operand->type == NODE_NUMBER) {
-            double val;
-            if (operand->data.number.is_integer) {
-                val = (double)operand->data.number.numerator;
-            } else {
-                val = (double)operand->data.number.numerator / (double)operand->data.number.denominator;
-            }
-            if (val >= 0.0) {
-                memset(coeffs, 0, sizeof(double) * coeffs_size);
-                coeffs[0] = sqrt(val);
-                return true;
-            }
-        }
-        /* 非常数参数的 sqrt 不支持多项式展开 */
-        return false;
-    }
-
-    default:
-        return false;
+        default:
+            return false;
     }
 }
 
@@ -2697,9 +2647,9 @@ static bool identify_circle(const double *coeffs, double *cx, double *cy, double
     double c_xy = coeffs[1 * IMPLICIT_MAX_DEG + 1]; /* xy 项 */
     double c_x2 = coeffs[2 * IMPLICIT_MAX_DEG + 0]; /* x^2 项 */
     double c_y2 = coeffs[0 * IMPLICIT_MAX_DEG + 2]; /* y^2 项 */
-    double c_x  = coeffs[1 * IMPLICIT_MAX_DEG + 0]; /* x 项 */
-    double c_y  = coeffs[0 * IMPLICIT_MAX_DEG + 1]; /* y 项 */
-    double c_0  = coeffs[0 * IMPLICIT_MAX_DEG + 0]; /* 常数项 */
+    double c_x = coeffs[1 * IMPLICIT_MAX_DEG + 0];  /* x 项 */
+    double c_y = coeffs[0 * IMPLICIT_MAX_DEG + 1];  /* y 项 */
+    double c_0 = coeffs[0 * IMPLICIT_MAX_DEG + 0];  /* 常数项 */
 
     /* 检查：x^2 和 y^2 系数相同且非零，xy 系数为零 */
     if (fabs(c_x2 - c_y2) > 1e-9 || fabs(c_x2) < 1e-9 || fabs(c_xy) > 1e-9) {
@@ -2716,7 +2666,8 @@ static bool identify_circle(const double *coeffs, double *cx, double *cy, double
     *cy = -E / 2.0;
     double r_sq = (D * D + E * E) / 4.0 - F;
 
-    if (r_sq < 0) return false; /* 半径为虚数，不是有效的圆 */
+    if (r_sq < 0)
+        return false; /* 半径为虚数，不是有效的圆 */
     *r = sqrt(r_sq);
     return true;
 }
@@ -2758,9 +2709,7 @@ static bool identify_line(const double *coeffs, double *a, double *b, double *c)
  * 将代数方程节点添加到约束图
  * 创建隐式曲线表示
  */
-bool formula_convert_equation(const FormulaNode *equation_node,
-                              ConstraintGraph *graph,
-                              int *out_node_id) {
+bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph *graph, int *out_node_id) {
     if (!equation_node || !graph || !out_node_id) {
         return false;
     }
@@ -2819,8 +2768,8 @@ bool formula_convert_equation(const FormulaNode *equation_node,
         if (identify_circle(coeffs, &cx, &cy, &r)) {
             /* 创建圆心点 (cx, cy) */
             SymbolicCoord *center_coords[2];
-            center_coords[0] = symbolic_coord_create_rational((int64_t)(cx * 1000), 1000);
-            center_coords[1] = symbolic_coord_create_rational((int64_t)(cy * 1000), 1000);
+            center_coords[0] = symbolic_coord_create_rational((int64_t) (cx * 1000), 1000);
+            center_coords[1] = symbolic_coord_create_rational((int64_t) (cy * 1000), 1000);
 
             AddNodeResult add_result = graph_add_point(graph, center_coords, 2);
             symbolic_coord_destroy(center_coords[0]);
@@ -2834,10 +2783,8 @@ bool formula_convert_equation(const FormulaNode *equation_node,
 
             /* 创建圆周上的一个点表示半径 */
             SymbolicCoord *radius_coords[2];
-            radius_coords[0] = symbolic_coord_create_rational(
-                (int64_t)((cx + r) * 1000), 1000);
-            radius_coords[1] = symbolic_coord_create_rational(
-                (int64_t)(cy * 1000), 1000);
+            radius_coords[0] = symbolic_coord_create_rational((int64_t) ((cx + r) * 1000), 1000);
+            radius_coords[1] = symbolic_coord_create_rational((int64_t) (cy * 1000), 1000);
 
             add_result = graph_add_point(graph, radius_coords, 2);
             symbolic_coord_destroy(radius_coords[0]);
@@ -2851,15 +2798,15 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             /* 标记为圆类型 */
             GeomNode *node = graph_get_node(graph, *out_node_id);
             if (node && node->numeric_assumption_declaration) {
-            lv00_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
+                lv00_free((void **) &node->numeric_assumption_declaration); /* 统一内存释放器 */
                 node->numeric_assumption_declaration = NULL;
             }
             if (node) {
                 char buf[256];
                 int n = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:CIRCLE:%.6f:%.6f:%.6f", cx, cy, r);
                 /* 检查snprintf返回值：尺寸安全（CIRCLE格式最大约60字节），但防御性检查不可省略 */
-                if (n < 0 || (size_t)n >= sizeof(buf)) {
-                    buf[sizeof(buf) - 1] = '\0';  /* 确保零终止 */
+                if (n < 0 || (size_t) n >= sizeof(buf)) {
+                    buf[sizeof(buf) - 1] = '\0'; /* 确保零终止 */
                 }
                 node->numeric_assumption_declaration = lv00_strdup_safe(buf);
             }
@@ -2879,15 +2826,15 @@ bool formula_convert_equation(const FormulaNode *equation_node,
                 double y0 = -c / b;
                 double y1 = -(a + c) / b;
                 p1_coords[0] = symbolic_coord_create_rational(0, 1);
-                p1_coords[1] = symbolic_coord_create_rational((int64_t)(y0 * 1000), 1000);
+                p1_coords[1] = symbolic_coord_create_rational((int64_t) (y0 * 1000), 1000);
                 p2_coords[0] = symbolic_coord_create_rational(1000, 1000);
-                p2_coords[1] = symbolic_coord_create_rational((int64_t)(y1 * 1000), 1000);
+                p2_coords[1] = symbolic_coord_create_rational((int64_t) (y1 * 1000), 1000);
             } else {
                 /* 垂直线 x = -C/A，取 y=0 和 y=1 */
                 double x0 = -c / a;
-                p1_coords[0] = symbolic_coord_create_rational((int64_t)(x0 * 1000), 1000);
+                p1_coords[0] = symbolic_coord_create_rational((int64_t) (x0 * 1000), 1000);
                 p1_coords[1] = symbolic_coord_create_rational(0, 1);
-                p2_coords[0] = symbolic_coord_create_rational((int64_t)(x0 * 1000), 1000);
+                p2_coords[0] = symbolic_coord_create_rational((int64_t) (x0 * 1000), 1000);
                 p2_coords[1] = symbolic_coord_create_rational(1000, 1000);
             }
 
@@ -2917,14 +2864,14 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             /* 标记为直线类型 */
             GeomNode *node = graph_get_node(graph, *out_node_id);
             if (node && node->numeric_assumption_declaration) {
-                lv00_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
+                lv00_free((void **) &node->numeric_assumption_declaration); /* 统一内存释放器 */
                 node->numeric_assumption_declaration = NULL;
             }
             if (node) {
                 char buf[256];
                 int n = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:LINE:%.6f:%.6f:%.6f", a, b, c);
                 /* 防御性检查：确保snprintf输出零终止 */
-                if (n < 0 || (size_t)n >= sizeof(buf)) {
+                if (n < 0 || (size_t) n >= sizeof(buf)) {
                     buf[sizeof(buf) - 1] = '\0';
                 }
                 node->numeric_assumption_declaration = lv00_strdup_safe(buf);
@@ -2956,7 +2903,7 @@ bool formula_convert_equation(const FormulaNode *equation_node,
     GeomNode *node = graph_get_node(graph, *out_node_id);
     if (node) {
         if (node->numeric_assumption_declaration) {
-            lv00_free((void **)&node->numeric_assumption_declaration);  /* 统一内存释放器 */
+            lv00_free((void **) &node->numeric_assumption_declaration); /* 统一内存释放器 */
             node->numeric_assumption_declaration = NULL;
         }
 
@@ -2978,13 +2925,12 @@ bool formula_convert_equation(const FormulaNode *equation_node,
             if (offset < 0) {
                 offset = 0;
                 buf[0] = '\0';
-            } else if (offset >= (int)sizeof(buf)) {
-                offset = (int)sizeof(buf) - 1;
+            } else if (offset >= (int) sizeof(buf)) {
+                offset = (int) sizeof(buf) - 1;
             }
-            for (int i = 0; i < IMPLICIT_COEFFS_SIZE && offset < (int)sizeof(buf) - 1; i++) {
+            for (int i = 0; i < IMPLICIT_COEFFS_SIZE && offset < (int) sizeof(buf) - 1; i++) {
                 if (fabs(coeffs[i]) > 1e-12) {
-                    int added = snprintf(buf + offset, sizeof(buf) - offset,
-                                       ":%d:%.10g", i, coeffs[i]);
+                    int added = snprintf(buf + offset, sizeof(buf) - offset, ":%d:%.10g", i, coeffs[i]);
                     if (added > 0) {
                         offset += added;
                     }

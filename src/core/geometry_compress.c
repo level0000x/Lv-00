@@ -17,16 +17,17 @@
  *   - lv00_utils.h         : 缁熶竴鍐呭瓨鍒嗛厤鍣? *   - lv00_internal.h      : 鍐呴儴甯搁噺涓庡伐鍏峰畯
  */
 
+#include "geometry_compress.h"
+
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#include "geometry_compress.h"
 #include "constraint_graph.h"
-#include "symbolic_coord.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "symbolic_coord.h"
 
 /* ========================================================================
  * 鍐呴儴甯搁噺
@@ -53,8 +54,8 @@
  * @brief 杈圭粨鏋勪綋 鈥斺€?鐢ㄤ簬 Edgebreaker 閬嶅巻
  */
 typedef struct {
-    int v0;       /**< 杈硅捣鐐硅妭鐐?ID */
-    int v1;       /**< 杈圭粓鐐硅妭鐐?ID */
+    int v0; /**< 杈硅捣鐐硅妭鐐?ID */
+    int v1; /**< 杈圭粓鐐硅妭鐐?ID */
 } Edge;
 
 /**
@@ -71,11 +72,11 @@ typedef struct {
 
 static CompressConfig compress_config_default(void) {
     CompressConfig cfg;
-    cfg.pred_mode         = PREDICT_PARALLELOGRAM;
-    cfg.entropy           = ENTROPY_RANS;
+    cfg.pred_mode = PREDICT_PARALLELOGRAM;
+    cfg.entropy = ENTROPY_RANS;
     cfg.quantization_bits = 0;
-    cfg.lossless          = true;
-    cfg.max_error         = 0.0;
+    cfg.lossless = true;
+    cfg.max_error = 0.0;
     return cfg;
 }
 
@@ -92,21 +93,26 @@ static CompressConfig compress_config_default(void) {
  * @param[in,out] graph 绾︽潫鍥? * @return true 鎴愬姛锛宖alse 澶辫触
  */
 static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
-    if (!graph) return false;
+    if (!graph)
+        return false;
 
     int node_count = graph->node_count;
-    if (node_count < 3) return true; /* 灏戜簬 3 涓妭鐐癸紝鏃犳硶鏋勬垚涓夎褰?*/
+    if (node_count < 3)
+        return true; /* 灏戜簬 3 涓妭鐐癸紝鏃犳硶鏋勬垚涓夎褰?*/
 
     /* 浣跨敤绠€鍗曠殑宸茶闂爣璁版暟缁?*/
-    bool *visited = (bool *)lv00_malloc(node_count * sizeof(bool));
-    if (!visited) return false;
+    bool *visited = (bool *) lv00_malloc(node_count * sizeof(bool));
+    if (!visited)
+        return false;
     memset(visited, 0, node_count * sizeof(bool));
 
     /* 閬嶅巻鑺傜偣锛氭煡鎵炬湁鍧愭爣鐨勫嚑浣曠偣 */
     for (int i = 0; i < node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || !node->symbolic_coords || node->coord_count < COORD_DIM) continue;
-        if (visited[node->id]) continue;
+        if (!node || !node->symbolic_coords || node->coord_count < COORD_DIM)
+            continue;
+        if (visited[node->id])
+            continue;
         visited[node->id] = true;
     }
 
@@ -122,24 +128,25 @@ static bool predictive_encode_parallelogram(ConstraintGraph *graph) {
  * @param[in,out] graph 绾︽潫鍥? * @return true 鎴愬姛锛宖alse 澶辫触
  */
 static bool predictive_encode_delta(ConstraintGraph *graph) {
-    if (!graph) return false;
+    if (!graph)
+        return false;
 
     int node_count = graph->node_count;
-    if (node_count < 2) return true;
+    if (node_count < 2)
+        return true;
 
     /* 淇濆瓨绗竴涓妭鐐圭殑鍧愭爣浣滀负鍙傝€冨€?*/
     GeomNode *prev = NULL;
 
     for (int i = 0; i < node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || !node->symbolic_coords || node->coord_count < COORD_DIM) continue;
+        if (!node || !node->symbolic_coords || node->coord_count < COORD_DIM)
+            continue;
 
         if (prev) {
             /* 璁＄畻宸€硷細node - prev锛屽瓨鍌ㄥ埌 node */
             for (int d = 0; d < COORD_DIM; d++) {
-                SymbolicCoord *diff = symbolic_coord_subtract(
-                    node->symbolic_coords[d],
-                    prev->symbolic_coords[d]);
+                SymbolicCoord *diff = symbolic_coord_subtract(node->symbolic_coords[d], prev->symbolic_coords[d]);
                 if (diff) {
                     symbolic_coord_destroy(node->symbolic_coords[d]);
                     node->symbolic_coords[d] = diff;
@@ -157,25 +164,26 @@ static bool predictive_encode_delta(ConstraintGraph *graph) {
  * ======================================================================== */
 
 bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
-    if (!graph) return false;
+    if (!graph)
+        return false;
 
     switch (mode) {
-    case PREDICT_PARALLELOGRAM:
-        return predictive_encode_parallelogram(graph);
+        case PREDICT_PARALLELOGRAM:
+            return predictive_encode_parallelogram(graph);
 
-    case PREDICT_MULTI_PARALLELOGRAM:
-        /* TODO: 澶氶樁骞宠鍥涜竟褰㈤娴?鈥斺€?鍔犳潈骞冲潎澶氫釜閭婚潰 */
-        return predictive_encode_parallelogram(graph);
+        case PREDICT_MULTI_PARALLELOGRAM:
+            /* TODO: 澶氶樁骞宠鍥涜竟褰㈤娴?鈥斺€?鍔犳潈骞冲潎澶氫釜閭婚潰 */
+            return predictive_encode_parallelogram(graph);
 
-    case PREDICT_DELTA:
-        return predictive_encode_delta(graph);
+        case PREDICT_DELTA:
+            return predictive_encode_delta(graph);
 
-    case PREDICT_NONE:
-        /* 鏃犻娴嬶細鐩存帴淇濈暀鍘熷鍧愭爣 */
-        return true;
+        case PREDICT_NONE:
+            /* 鏃犻娴嬶細鐩存帴淇濈暀鍘熷鍧愭爣 */
+            return true;
 
-    default:
-        return false;
+        default:
+            return false;
     }
 }
 
@@ -183,22 +191,20 @@ bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode) {
  * Edgebreaker 缂栫爜瀹炵幇
  * ======================================================================== */
 
-bool edgebreaker_encode(const ConstraintGraph *graph,
-                        EdgebreakerMode **modes,
-                        int *seq_len) {
-    if (!graph || !modes || !seq_len) return false;
+bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len) {
+    if (!graph || !modes || !seq_len)
+        return false;
 
     /* 鍒濆鍖?CLERS 搴忓垪缂撳啿鍖?*/
     int capacity = CLERS_SEQUENCE_INITIAL;
-    EdgebreakerMode *seq = (EdgebreakerMode *)lv00_malloc(
-        capacity * sizeof(EdgebreakerMode));
-    if (!seq) return false;
+    EdgebreakerMode *seq = (EdgebreakerMode *) lv00_malloc(capacity * sizeof(EdgebreakerMode));
+    if (!seq)
+        return false;
 
     int len = 0;
 
     /* 杈圭晫鏍堬細浣跨敤绠€鍗曟暟缁勬ā鎷?*/
-    Edge *boundary = (Edge *)lv00_malloc(
-        BOUNDARY_STACK_INITIAL * sizeof(Edge));
+    Edge *boundary = (Edge *) lv00_malloc(BOUNDARY_STACK_INITIAL * sizeof(Edge));
     if (!boundary) {
         free(seq);
         return false;
@@ -207,8 +213,7 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
     int boundary_capacity = BOUNDARY_STACK_INITIAL;
 
     /* 鑺傜偣璁块棶鏍囪 */
-    bool *visited = (bool *)lv00_malloc(
-        graph->node_count * sizeof(bool));
+    bool *visited = (bool *) lv00_malloc(graph->node_count * sizeof(bool));
     if (!visited) {
         free(seq);
         free(boundary);
@@ -220,7 +225,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
     int start_v0 = -1, start_v1 = -1;
     for (int i = 0; i < graph->node_count && start_v1 < 0; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
         if (node->type == GEOM_POINT) {
             if (start_v0 < 0) {
                 start_v0 = node->id;
@@ -258,7 +264,8 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
 
         for (int ci = 0; ci < constr_count && !found_opposite; ci++) {
             Constraint *c = graph->constraints[ci];
-            if (!c) continue;
+            if (!c)
+                continue;
 
             /* 鏌ユ壘鍚屾椂鍖呭惈 cur.v0 鍜?cur.v1 鐨勭害鏉?*/
             bool has_v0 = false, has_v1 = false;
@@ -266,12 +273,16 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
 
             for (int pi = 0; pi < c->participant_count; pi++) {
                 int pid = c->participants[pi];
-                if (pid == cur.v0) has_v0 = true;
-                else if (pid == cur.v1) has_v1 = true;
-                else opposite_id = pid;
+                if (pid == cur.v0)
+                    has_v0 = true;
+                else if (pid == cur.v1)
+                    has_v1 = true;
+                else
+                    opposite_id = pid;
             }
 
-            if (!has_v0 || !has_v1) continue;
+            if (!has_v0 || !has_v1)
+                continue;
 
             /* 鎵惧埌浜嗗椤剁偣 */
             found_opposite = true;
@@ -280,9 +291,10 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
                 /* 瀵归《鐐规湭璁块棶 鈫?C 妯″紡 */
                 if (len >= capacity) {
                     capacity *= 2;
-                    EdgebreakerMode *new_seq = (EdgebreakerMode *)
-                        lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                    if (!new_seq) break;
+                    EdgebreakerMode *new_seq =
+                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                    if (!new_seq)
+                        break;
                     seq = new_seq;
                 }
                 seq[len++] = EDGEBREAKER_C;
@@ -291,9 +303,9 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
                 /* 灏嗘柊杈瑰帇鍏ヨ竟鐣屾爤 */
                 if (boundary_top >= boundary_capacity) {
                     boundary_capacity *= 2;
-                    Edge *new_b = (Edge *)lv00_realloc(
-                        boundary, boundary_capacity * sizeof(Edge));
-                    if (!new_b) break;
+                    Edge *new_b = (Edge *) lv00_realloc(boundary, boundary_capacity * sizeof(Edge));
+                    if (!new_b)
+                        break;
                     boundary = new_b;
                 }
                 boundary[boundary_top].v0 = cur.v1;
@@ -309,9 +321,10 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
                 /* 妗╁疄鐜帮細榛樿褰掔被涓?L */
                 if (len >= capacity) {
                     capacity *= 2;
-                    EdgebreakerMode *new_seq = (EdgebreakerMode *)
-                        lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                    if (!new_seq) break;
+                    EdgebreakerMode *new_seq =
+                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                    if (!new_seq)
+                        break;
                     seq = new_seq;
                 }
                 seq[len++] = EDGEBREAKER_L;
@@ -319,9 +332,10 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
                 /* 鏃犺竟鍙帹 鈫?E 妯″紡 */
                 if (len >= capacity) {
                     capacity *= 2;
-                    EdgebreakerMode *new_seq = (EdgebreakerMode *)
-                        lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                    if (!new_seq) break;
+                    EdgebreakerMode *new_seq =
+                        (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                    if (!new_seq)
+                        break;
                     seq = new_seq;
                 }
                 seq[len++] = EDGEBREAKER_E;
@@ -332,9 +346,9 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
             /* 鏃犵浉鍏崇害鏉?鈫?鏍囪涓?E */
             if (len >= capacity) {
                 capacity *= 2;
-                EdgebreakerMode *new_seq = (EdgebreakerMode *)
-                    lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
-                if (!new_seq) break;
+                EdgebreakerMode *new_seq = (EdgebreakerMode *) lv00_realloc(seq, capacity * sizeof(EdgebreakerMode));
+                if (!new_seq)
+                    break;
                 seq = new_seq;
             }
             seq[len++] = EDGEBREAKER_E;
@@ -363,18 +377,16 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
  * @param[out] out_size   杈撳嚭澶у皬
  * @return true 鎴愬姛
  */
-static bool entropy_encode_stub(const uint8_t *raw_data,
-                                 size_t raw_size,
-                                 uint8_t **out_data,
-                                 size_t *out_size) {
+static bool entropy_encode_stub(const uint8_t *raw_data, size_t raw_size, uint8_t **out_data, size_t *out_size) {
     if (!raw_data || raw_size == 0) {
         *out_data = NULL;
         *out_size = 0;
         return true;
     }
 
-    *out_data = (uint8_t *)lv00_malloc(raw_size);
-    if (!*out_data) return false;
+    *out_data = (uint8_t *) lv00_malloc(raw_size);
+    if (!*out_data)
+        return false;
 
     memcpy(*out_data, raw_data, raw_size);
     *out_size = raw_size;
@@ -384,16 +396,16 @@ static bool entropy_encode_stub(const uint8_t *raw_data,
 /**
  * @brief 妗╃喌瑙ｇ爜鍣? *
  * TODO: 瀹炵幇鐪熸鐨?rANS / 绠楁湳 / Huffman 瑙ｇ爜鍣ㄣ€? */
-static bool entropy_decode_stub(const uint8_t *data, size_t size,
-                                 uint8_t **out_data, size_t *out_size) {
+static bool entropy_decode_stub(const uint8_t *data, size_t size, uint8_t **out_data, size_t *out_size) {
     if (!data || size == 0) {
         *out_data = NULL;
         *out_size = 0;
         return true;
     }
 
-    *out_data = (uint8_t *)lv00_malloc(size);
-    if (!*out_data) return false;
+    *out_data = (uint8_t *) lv00_malloc(size);
+    if (!*out_data)
+        return false;
 
     memcpy(*out_data, data, size);
     *out_size = size;
@@ -408,7 +420,8 @@ static bool entropy_decode_stub(const uint8_t *data, size_t size,
  * @brief 璁＄畻绾︽潫鍥句腑鍑犱綍鏁版嵁鐨勫師濮嬪瓧鑺傚ぇ灏忥紙浼板€硷級
  */
 static size_t estimate_original_size(const ConstraintGraph *graph) {
-    if (!graph) return 0;
+    if (!graph)
+        return 0;
 
     size_t total = 0;
     /* 姣忎釜鑺傜偣锛歩d(4) + type(4) + coord_count(4) + coords(N * sizeof(SymbolicCoord*)) */
@@ -430,7 +443,8 @@ static size_t estimate_original_size(const ConstraintGraph *graph) {
  * 鏍煎紡锛歯ode_count(4B) + [node_id(4B) + coord_count(4B) + coord_doubles(8B*coord_count*dim)]*
  */
 static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_size) {
-    if (!graph || !out_size) return NULL;
+    if (!graph || !out_size)
+        return NULL;
 
     /* 鍏堣绠楀ぇ灏?*/
     size_t header = sizeof(int32_t); /* node_count */
@@ -438,7 +452,8 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
 
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
         body += 2 * sizeof(int32_t); /* node_id, coord_count */
         if (node->symbolic_coords) {
             body += node->coord_count * sizeof(double);
@@ -446,39 +461,43 @@ static uint8_t *serialize_coords_raw(const ConstraintGraph *graph, size_t *out_s
     }
 
     size_t total = header + body;
-    uint8_t *buf = (uint8_t *)lv00_malloc(total);
-    if (!buf) return NULL;
+    uint8_t *buf = (uint8_t *) lv00_malloc(total);
+    if (!buf)
+        return NULL;
 
     /* 鍐欏叆鏁版嵁 */
     uint8_t *ptr = buf;
-    int32_t count = (int32_t)graph->node_count;
-    memcpy(ptr, &count, sizeof(int32_t)); ptr += sizeof(int32_t);
+    int32_t count = (int32_t) graph->node_count;
+    memcpy(ptr, &count, sizeof(int32_t));
+    ptr += sizeof(int32_t);
 
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
 
-        int32_t nid = (int32_t)node->id;
-        int32_t cc  = (int32_t)node->coord_count;
-        memcpy(ptr, &nid, sizeof(int32_t)); ptr += sizeof(int32_t);
-        memcpy(ptr, &cc,  sizeof(int32_t)); ptr += sizeof(int32_t);
+        int32_t nid = (int32_t) node->id;
+        int32_t cc = (int32_t) node->coord_count;
+        memcpy(ptr, &nid, sizeof(int32_t));
+        ptr += sizeof(int32_t);
+        memcpy(ptr, &cc, sizeof(int32_t));
+        ptr += sizeof(int32_t);
 
         for (int d = 0; d < node->coord_count; d++) {
             double val = symbolic_coord_to_double(node->symbolic_coords[d]);
-            memcpy(ptr, &val, sizeof(double)); ptr += sizeof(double);
+            memcpy(ptr, &val, sizeof(double));
+            ptr += sizeof(double);
         }
     }
 
-    *out_size = (size_t)(ptr - buf);
+    *out_size = (size_t) (ptr - buf);
     return buf;
 }
 
-bool geometry_compress(const ConstraintGraph *graph,
-                       const CompressConfig *config,
-                       uint8_t **out_data,
-                       size_t *out_size,
+bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *config, uint8_t **out_data, size_t *out_size,
                        CompressMetadata *out_meta) {
-    if (!graph || !out_data || !out_size) return false;
+    if (!graph || !out_data || !out_size)
+        return false;
 
     CompressConfig cfg = config ? *config : compress_config_default();
 
@@ -523,15 +542,13 @@ bool geometry_compress(const ConstraintGraph *graph,
 
     /* 濉厖鍏冩暟鎹?*/
     if (out_meta) {
-        out_meta->original_size        = original_sz;
-        out_meta->compressed_size      = encoded_size;
-        out_meta->compression_ratio    = (encoded_size > 0)
-            ? (double)original_sz / (double)encoded_size
-            : 1.0;
-        out_meta->node_count           = graph->node_count;
-        out_meta->constraint_count     = graph->constraint_count;
+        out_meta->original_size = original_sz;
+        out_meta->compressed_size = encoded_size;
+        out_meta->compression_ratio = (encoded_size > 0) ? (double) original_sz / (double) encoded_size : 1.0;
+        out_meta->node_count = graph->node_count;
+        out_meta->constraint_count = graph->constraint_count;
         out_meta->edgebreaker_sequence = clers_seq;
-        out_meta->sequence_len         = clers_len;
+        out_meta->sequence_len = clers_len;
     } else {
         free(clers_seq);
     }
@@ -543,10 +560,9 @@ bool geometry_compress(const ConstraintGraph *graph,
  * 鍑犱綍瑙ｅ帇涓?API
  * ======================================================================== */
 
-bool geometry_decompress(const uint8_t *data,
-                         size_t size,
-                         ConstraintGraph **out_graph) {
-    if (!data || size == 0 || !out_graph) return false;
+bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out_graph) {
+    if (!data || size == 0 || !out_graph)
+        return false;
 
     /* 姝ラ 1: 鐔佃В鐮?*/
     uint8_t *decoded = NULL;
@@ -576,17 +592,17 @@ bool geometry_decompress(const uint8_t *data,
 /**
  * @brief 灏?uint32 浠ュ皬绔簭鍐欏叆缂撳啿鍖? */
 static void write_uint32_le(uint8_t *buf, uint32_t val) {
-    buf[0] = (uint8_t)(val & 0xFF);
-    buf[1] = (uint8_t)((val >> 8) & 0xFF);
-    buf[2] = (uint8_t)((val >> 16) & 0xFF);
-    buf[3] = (uint8_t)((val >> 24) & 0xFF);
+    buf[0] = (uint8_t) (val & 0xFF);
+    buf[1] = (uint8_t) ((val >> 8) & 0xFF);
+    buf[2] = (uint8_t) ((val >> 16) & 0xFF);
+    buf[3] = (uint8_t) ((val >> 24) & 0xFF);
 }
 
 /**
  * @brief 灏?uint64 浠ュ皬绔簭鍐欏叆缂撳啿鍖? */
 static void write_uint64_le(uint8_t *buf, uint64_t val) {
     for (int i = 0; i < 8; i++) {
-        buf[i] = (uint8_t)((val >> (i * 8)) & 0xFF);
+        buf[i] = (uint8_t) ((val >> (i * 8)) & 0xFF);
     }
 }
 
@@ -594,10 +610,7 @@ static void write_uint64_le(uint8_t *buf, uint64_t val) {
  * @brief 浠庣紦鍐插尯浠ュ皬绔簭璇诲彇 uint32
  */
 static uint32_t read_uint32_le(const uint8_t *buf) {
-    return ((uint32_t)buf[0])
-        | ((uint32_t)buf[1] << 8)
-        | ((uint32_t)buf[2] << 16)
-        | ((uint32_t)buf[3] << 24);
+    return ((uint32_t) buf[0]) | ((uint32_t) buf[1] << 8) | ((uint32_t) buf[2] << 16) | ((uint32_t) buf[3] << 24);
 }
 
 /**
@@ -606,28 +619,28 @@ static uint32_t read_uint32_le(const uint8_t *buf) {
 static uint64_t read_uint64_le(const uint8_t *buf) {
     uint64_t val = 0;
     for (int i = 0; i < 8; i++) {
-        val |= ((uint64_t)buf[i]) << (i * 8);
+        val |= ((uint64_t) buf[i]) << (i * 8);
     }
     return val;
 }
 
-bool compress_write_lvzd(const uint8_t *data,
-                         size_t size,
-                         const char *filename) {
-    if (!data || size == 0 || !filename) return false;
+bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename) {
+    if (!data || size == 0 || !filename)
+        return false;
 
     FILE *fp = fopen(filename, "wb");
-    if (!fp) return false;
+    if (!fp)
+        return false;
 
     /* 鏋勫缓鏂囦欢澶?*/
     uint8_t header[LVZD_HEADER_SIZE];
     memset(header, 0, LVZD_HEADER_SIZE);
 
-    write_uint32_le(header,      LVZD_MAGIC);
-    write_uint32_le(header + 4,  LVZD_VERSION_MAJOR);
-    write_uint32_le(header + 8,  LVZD_VERSION_MINOR);
-    write_uint64_le(header + 12, (uint64_t)size); /* original_size = compressed_size for stub */
-    write_uint64_le(header + 20, (uint64_t)size); /* compressed_size */
+    write_uint32_le(header, LVZD_MAGIC);
+    write_uint32_le(header + 4, LVZD_VERSION_MAJOR);
+    write_uint32_le(header + 8, LVZD_VERSION_MINOR);
+    write_uint64_le(header + 12, (uint64_t) size); /* original_size = compressed_size for stub */
+    write_uint64_le(header + 20, (uint64_t) size); /* compressed_size */
 
     /* 鍐欏叆鏂囦欢澶?*/
     size_t written = fwrite(header, 1, LVZD_HEADER_SIZE, fp);
@@ -642,13 +655,13 @@ bool compress_write_lvzd(const uint8_t *data,
     return (written == size);
 }
 
-bool compress_read_lvzd(const char *filename,
-                        uint8_t **out_data,
-                        size_t *out_size) {
-    if (!filename || !out_data || !out_size) return false;
+bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_size) {
+    if (!filename || !out_data || !out_size)
+        return false;
 
     FILE *fp = fopen(filename, "rb");
-    if (!fp) return false;
+    if (!fp)
+        return false;
 
     /* 璇诲彇鏂囦欢澶?*/
     uint8_t header[LVZD_HEADER_SIZE];
@@ -673,7 +686,7 @@ bool compress_read_lvzd(const char *filename,
         fclose(fp);
         return false;
     }
-    (void)ver_minor; /* 娆＄増鏈悜鍓嶅吋瀹?*/
+    (void) ver_minor; /* 娆＄増鏈悜鍓嶅吋瀹?*/
 
     /* 璇诲彇鍘嬬缉鏁版嵁澶у皬 */
     uint64_t comp_size = read_uint64_le(header + 20);
@@ -685,21 +698,21 @@ bool compress_read_lvzd(const char *filename,
     }
 
     /* 鍒嗛厤缂撳啿鍖哄苟璇诲彇鍘嬬缉鏁版嵁 */
-    uint8_t *buf = (uint8_t *)lv00_malloc((size_t)comp_size);
+    uint8_t *buf = (uint8_t *) lv00_malloc((size_t) comp_size);
     if (!buf) {
         fclose(fp);
         return false;
     }
 
-    read_bytes = fread(buf, 1, (size_t)comp_size, fp);
+    read_bytes = fread(buf, 1, (size_t) comp_size, fp);
     fclose(fp);
 
-    if (read_bytes != (size_t)comp_size) {
+    if (read_bytes != (size_t) comp_size) {
         free(buf);
         return false;
     }
 
     *out_data = buf;
-    *out_size = (size_t)comp_size;
+    *out_size = (size_t) comp_size;
     return true;
 }

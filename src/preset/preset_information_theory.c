@@ -11,13 +11,15 @@
  * @version 5.0.0
  */
 
+#include "preset_information_theory.h"
+
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_information_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
-#include <stdlib.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -44,16 +46,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_information_theory_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_ANALYSIS,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_information_theory_preset(const char *name, const char *description, const PresetType *input_types,
+                                               int input_count, PresetType output_type, const char *math_def,
+                                               const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ANALYSIS, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== v2统一注册宏 ==================== */
@@ -74,21 +71,19 @@ static bool register_information_theory_preset(
  * @param cons       是否构造性
  * @param rev        是否可逆
  */
-#define REGISTER_IT(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_information_theory_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_IT(name, desc, inputs, in_count, output, math, comp, cons, rev)                                       \
+    do {                                                                                                               \
+        if (register_information_theory_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), \
+                                               (rev))) {                                                               \
+            success_count++;                                                                                           \
+        } else {                                                                                                       \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                        \
+        }                                                                                                              \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_information_theory_register(void)
-{
+bool preset_information_theory_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -112,11 +107,8 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION};
-        REGISTER_IT("it_entropy",
-            "Shannon熵：计算离散随机变量X的熵 H(X) = -Σ p(x) log₂ p(x)",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "H(X) = -\\sum_{x \\in \\mathcal{X}} p(x) \\log_2 p(x)",
-            "O(n)", true, false);
+        REGISTER_IT("it_entropy", "Shannon熵：计算离散随机变量X的熵 H(X) = -Σ p(x) log₂ p(x)", inputs, 1,
+                    PRESET_TYPE_SCALAR, "H(X) = -\\sum_{x \\in \\mathcal{X}} p(x) \\log_2 p(x)", "O(n)", true, false);
     }
 
     /**
@@ -135,11 +127,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION};
-        REGISTER_IT("it_joint_entropy",
-            "联合熵：计算两个离散随机变量X和Y的联合熵 H(X,Y) = -Σ p(x,y) log₂ p(x,y)",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "H(X,Y) = -\\sum_{x,y} p(x,y) \\log_2 p(x,y)",
-            "O(n^2)", true, false);
+        REGISTER_IT("it_joint_entropy", "联合熵：计算两个离散随机变量X和Y的联合熵 H(X,Y) = -Σ p(x,y) log₂ p(x,y)",
+                    inputs, 1, PRESET_TYPE_SCALAR, "H(X,Y) = -\\sum_{x,y} p(x,y) \\log_2 p(x,y)", "O(n^2)", true,
+                    false);
     }
 
     /**
@@ -160,11 +150,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_DISTRIBUTION};
-        REGISTER_IT("it_conditional_entropy",
-            "条件熵：计算条件熵 H(Y|X) = H(X,Y) - H(X)，已知X时Y的平均不确定性",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "H(Y|X) = H(X,Y) - H(X) = \\sum_x p(x) H(Y|X=x)",
-            "O(n^2)", true, false);
+        REGISTER_IT("it_conditional_entropy", "条件熵：计算条件熵 H(Y|X) = H(X,Y) - H(X)，已知X时Y的平均不确定性",
+                    inputs, 2, PRESET_TYPE_SCALAR, "H(Y|X) = H(X,Y) - H(X) = \\sum_x p(x) H(Y|X=x)", "O(n^2)", true,
+                    false);
     }
 
     /**
@@ -186,11 +174,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_DISTRIBUTION};
-        REGISTER_IT("it_mutual_information",
-            "互信息：计算互信息 I(X;Y) = H(X) - H(X|Y)，度量X和Y的统计依赖程度",
-            inputs, 3, PRESET_TYPE_SCALAR,
-            "I(X;Y) = \\sum_{x,y} p(x,y) \\log_2 \\frac{p(x,y)}{p(x)p(y)}",
-            "O(n^2)", true, true);
+        REGISTER_IT("it_mutual_information", "互信息：计算互信息 I(X;Y) = H(X) - H(X|Y)，度量X和Y的统计依赖程度",
+                    inputs, 3, PRESET_TYPE_SCALAR, "I(X;Y) = \\sum_{x,y} p(x,y) \\log_2 \\frac{p(x,y)}{p(x)p(y)}",
+                    "O(n^2)", true, true);
     }
 
     /**
@@ -211,11 +197,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_DISTRIBUTION};
-        REGISTER_IT("it_relative_entropy",
-            "相对熵（KL散度）：计算 D(P||Q) = Σ p(x) log₂(p(x)/q(x))，度量分布差异",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "D(P \\| Q) = \\sum_{x} p(x) \\log_2 \\frac{p(x)}{q(x)}",
-            "O(n)", true, false);
+        REGISTER_IT("it_relative_entropy", "相对熵（KL散度）：计算 D(P||Q) = Σ p(x) log₂(p(x)/q(x))，度量分布差异",
+                    inputs, 2, PRESET_TYPE_SCALAR, "D(P \\| Q) = \\sum_{x} p(x) \\log_2 \\frac{p(x)}{q(x)}", "O(n)",
+                    true, false);
     }
 
     /**
@@ -236,11 +220,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_DISTRIBUTION};
-        REGISTER_IT("it_cross_entropy",
-            "交叉熵：计算 H(P,Q) = -Σ p(x) log₂ q(x)，使用Q编码P所需的平均比特数",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "H(P,Q) = -\\sum_{x} p(x) \\log_2 q(x) = H(P) + D(P \\| Q)",
-            "O(n)", true, false);
+        REGISTER_IT("it_cross_entropy", "交叉熵：计算 H(P,Q) = -Σ p(x) log₂ q(x)，使用Q编码P所需的平均比特数", inputs,
+                    2, PRESET_TYPE_SCALAR, "H(P,Q) = -\\sum_{x} p(x) \\log_2 q(x) = H(P) + D(P \\| Q)", "O(n)", true,
+                    false);
     }
 
     /* ============================================================
@@ -264,11 +246,10 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX};
-        REGISTER_IT("it_channel_capacity",
-            "信道容量：计算离散无记忆信道的容量 C = max I(X;Y)，可靠传输的最大速率",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "C = \\max_{p(x)} I(X;Y) = \\max_{p(x)} \\sum_{x,y} p(x) p(y|x) \\log_2 \\frac{p(y|x)}{p(y)}",
-            "O(n^3)", true, false);
+        REGISTER_IT("it_channel_capacity", "信道容量：计算离散无记忆信道的容量 C = max I(X;Y)，可靠传输的最大速率",
+                    inputs, 1, PRESET_TYPE_SCALAR,
+                    "C = \\max_{p(x)} I(X;Y) = \\max_{p(x)} \\sum_{x,y} p(x) p(y|x) \\log_2 \\frac{p(y|x)}{p(y)}",
+                    "O(n^3)", true, false);
     }
 
     /**
@@ -288,11 +269,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR};
-        REGISTER_IT("it_binary_symmetric_channel",
-            "二元对称信道：分析BSC(p)的容量 C = 1 - H(p) 和错误概率",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "C_{BSC}(p) = 1 - H(p) = 1 + p \\log_2 p + (1-p) \\log_2(1-p)",
-            "O(1)", true, false);
+        REGISTER_IT("it_binary_symmetric_channel", "二元对称信道：分析BSC(p)的容量 C = 1 - H(p) 和错误概率", inputs, 1,
+                    PRESET_TYPE_SCALAR, "C_{BSC}(p) = 1 - H(p) = 1 + p \\log_2 p + (1-p) \\log_2(1-p)", "O(1)", true,
+                    false);
     }
 
     /**
@@ -312,11 +291,8 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR};
-        REGISTER_IT("it_binary_erasure_channel",
-            "二元删除信道：分析BEC(ε)的容量 C = 1 - ε",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "C_{BEC}(\\varepsilon) = 1 - \\varepsilon",
-            "O(1)", true, false);
+        REGISTER_IT("it_binary_erasure_channel", "二元删除信道：分析BEC(ε)的容量 C = 1 - ε", inputs, 1,
+                    PRESET_TYPE_SCALAR, "C_{BEC}(\\varepsilon) = 1 - \\varepsilon", "O(1)", true, false);
     }
 
     /**
@@ -337,9 +313,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_IT("it_channel_coding_theorem",
-            "信道编码定理：判定给定速率R是否可达（R < C则存在可靠码）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
+        REGISTER_IT(
+            "it_channel_coding_theorem", "信道编码定理：判定给定速率R是否可达（R < C则存在可靠码）", inputs, 2,
+            PRESET_TYPE_BOOLEAN,
             "R < C \\Rightarrow \\exists \\text{ 码使 } P_e \\to 0; \\quad R > C \\Rightarrow P_e \\text{ 有下界}",
             "O(1)", false, false);
     }
@@ -362,11 +338,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_SCALAR};
-        REGISTER_IT("it_source_coding_theorem",
-            "信源编码定理：判定无损压缩是否满足极限 H(X) <= L < H(X) + 1",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "H(X) \\leq L < H(X) + 1, \\quad \\text{Huffman编码最优}",
-            "O(n)", false, false);
+        REGISTER_IT("it_source_coding_theorem", "信源编码定理：判定无损压缩是否满足极限 H(X) <= L < H(X) + 1", inputs,
+                    2, PRESET_TYPE_BOOLEAN, "H(X) \\leq L < H(X) + 1, \\quad \\text{Huffman编码最优}", "O(n)", false,
+                    false);
     }
 
     /* ============================================================
@@ -392,11 +366,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_SCALAR, PRESET_TYPE_MATRIX};
-        REGISTER_IT("it_rate_distortion_function",
-            "率失真函数：计算 R(D) = min I(X;X̂)，失真不超过D时的最低编码速率",
-            inputs, 3, PRESET_TYPE_SCALAR,
-            "R(D) = \\min_{p(\\hat{x}|x): E[d(X,\\hat{X})] \\leq D} I(X;\\hat{X})",
-            "O(n^3)", true, false);
+        REGISTER_IT("it_rate_distortion_function", "率失真函数：计算 R(D) = min I(X;X̂)，失真不超过D时的最低编码速率",
+                    inputs, 3, PRESET_TYPE_SCALAR,
+                    "R(D) = \\min_{p(\\hat{x}|x): E[d(X,\\hat{X})] \\leq D} I(X;\\hat{X})", "O(n^3)", true, false);
     }
 
     /**
@@ -417,11 +389,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_SCALAR, PRESET_TYPE_MATRIX};
-        REGISTER_IT("it_distortion_rate_function",
-            "失真率函数：计算 D(R) = min E[d(X,X̂)]，给定速率R时的最小可达失真",
-            inputs, 3, PRESET_TYPE_SCALAR,
-            "D(R) = \\min_{p(\\hat{x}|x): I(X;\\hat{X}) \\leq R} E[d(X,\\hat{X})]",
-            "O(n^3)", true, false);
+        REGISTER_IT("it_distortion_rate_function", "失真率函数：计算 D(R) = min E[d(X,X̂)]，给定速率R时的最小可达失真",
+                    inputs, 3, PRESET_TYPE_SCALAR,
+                    "D(R) = \\min_{p(\\hat{x}|x): I(X;\\hat{X}) \\leq R} E[d(X,\\hat{X})]", "O(n^3)", true, false);
     }
 
     /**
@@ -443,9 +413,8 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_SCALAR, PRESET_TYPE_INTEGER};
-        REGISTER_IT("it_quantization",
-            "量化误差分析：分析标量/矢量量化的率失真性能和量化失真",
-            inputs, 3, PRESET_TYPE_SCALAR,
+        REGISTER_IT(
+            "it_quantization", "量化误差分析：分析标量/矢量量化的率失真性能和量化失真", inputs, 3, PRESET_TYPE_SCALAR,
             "D_{SQ} \\approx \\frac{\\pi e}{6} \\sigma^2 2^{-2R}, \\quad D_{VQ} \\to R^{-1}(R) \\text{（高维）}",
             "O(n^2)", true, false);
     }
@@ -468,11 +437,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_INTEGER};
-        REGISTER_IT("it_data_compression",
-            "数据压缩：分析Huffman编码、算术编码的压缩率和平均码长",
-            inputs, 2, PRESET_TYPE_TUPLE,
-            "L_{Huffman} \\in [H(X), H(X)+1), \\quad L_{Arithmetic} \\to H(X)",
-            "O(n log n)", true, false);
+        REGISTER_IT("it_data_compression", "数据压缩：分析Huffman编码、算术编码的压缩率和平均码长", inputs, 2,
+                    PRESET_TYPE_TUPLE, "L_{Huffman} \\in [H(X), H(X)+1), \\quad L_{Arithmetic} \\to H(X)", "O(n log n)",
+                    true, false);
     }
 
     /* ============================================================
@@ -497,10 +464,8 @@ bool preset_information_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_STRING};
         REGISTER_IT("it_kolmogorov_complexity",
-            "Kolmogorov复杂度：计算字符串s的最短描述长度 K(s) = min{|p| : U(p) = s}（上界估计）",
-            inputs, 1, PRESET_TYPE_INTEGER,
-            "K(s) = \\min\\{|p| : U(p) = s\\}",
-            "不可计算", false, false);
+                    "Kolmogorov复杂度：计算字符串s的最短描述长度 K(s) = min{|p| : U(p) = s}（上界估计）", inputs, 1,
+                    PRESET_TYPE_INTEGER, "K(s) = \\min\\{|p| : U(p) = s\\}", "不可计算", false, false);
     }
 
     /**
@@ -520,11 +485,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE};
-        REGISTER_IT("it_algorithmic_entropy",
-            "算法熵：计算随机变量的Kolmogorov复杂度期望 H_K(X) = E[K(X)]（近似估计）",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "H_K(X) = E[K(X)] \\approx nH(X) + O(\\log n)",
-            "不可计算", false, false);
+        REGISTER_IT("it_algorithmic_entropy", "算法熵：计算随机变量的Kolmogorov复杂度期望 H_K(X) = E[K(X)]（近似估计）",
+                    inputs, 1, PRESET_TYPE_SCALAR, "H_K(X) = E[K(X)] \\approx nH(X) + O(\\log n)", "不可计算", false,
+                    false);
     }
 
     /**
@@ -545,11 +508,9 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_INTEGER};
-        REGISTER_IT("it_fano_inequality",
-            "Fano不等式：由条件熵推导最小错误概率下界 H(Pe) + Pe log(|X|-1) >= H(X|Y)",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "H(P_e) + P_e \\log_2(|\\mathcal{X}|-1) \\geq H(X|Y)",
-            "O(1)", true, false);
+        REGISTER_IT("it_fano_inequality", "Fano不等式：由条件熵推导最小错误概率下界 H(Pe) + Pe log(|X|-1) >= H(X|Y)",
+                    inputs, 2, PRESET_TYPE_SCALAR, "H(P_e) + P_e \\log_2(|\\mathcal{X}|-1) \\geq H(X|Y)", "O(1)", true,
+                    false);
     }
 
     /**
@@ -570,11 +531,10 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_IT("it_data_processing_inequality",
-            "数据处理不等式：验证马尔可夫链 X→Y→Z 是否满足 I(X;Z) <= I(X;Y)",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "X \\to Y \\to Z \\Rightarrow I(X;Z) \\leq I(X;Y) \\leq \\min\\{H(X), H(Y)\\}",
-            "O(1)", false, false);
+        REGISTER_IT("it_data_processing_inequality", "数据处理不等式：验证马尔可夫链 X→Y→Z 是否满足 I(X;Z) <= I(X;Y)",
+                    inputs, 2, PRESET_TYPE_BOOLEAN,
+                    "X \\to Y \\to Z \\Rightarrow I(X;Z) \\leq I(X;Y) \\leq \\min\\{H(X), H(Y)\\}", "O(1)", false,
+                    false);
     }
 
     /**
@@ -595,11 +555,10 @@ bool preset_information_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_LIST, PRESET_TYPE_SET};
-        REGISTER_IT("it_entropy_maximization",
-            "最大熵原理：在约束条件下最大化熵，求最无偏的概率分布（指数族）",
-            inputs, 2, PRESET_TYPE_DISTRIBUTION,
-            "\\max_{p} H(p) \\text{ s.t. } \\sum_x p(x) f_i(x) = c_i, \\; \\sum_x p(x) = 1",
-            "O(n^2)", true, false);
+        REGISTER_IT("it_entropy_maximization", "最大熵原理：在约束条件下最大化熵，求最无偏的概率分布（指数族）", inputs,
+                    2, PRESET_TYPE_DISTRIBUTION,
+                    "\\max_{p} H(p) \\text{ s.t. } \\sum_x p(x) f_i(x) = c_i, \\; \\sum_x p(x) = 1", "O(n^2)", true,
+                    false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -611,8 +570,7 @@ bool preset_information_theory_register(void)
  *
  * @return int 信息论模块预设函数块总数
  */
-int preset_information_theory_count(void)
-{
+int preset_information_theory_count(void) {
     return INFORMATION_THEORY_PRESET_COUNT;
 }
 
@@ -624,8 +582,7 @@ int preset_information_theory_count(void)
  * @return true 获取成功
  * @return false 获取失败
  */
-bool preset_information_theory_get_names(char ***out_names, int *out_count)
-{
+bool preset_information_theory_get_names(char ***out_names, int *out_count) {
     if (out_names == NULL || out_count == NULL) {
         return false;
     }
@@ -633,7 +590,7 @@ bool preset_information_theory_get_names(char ***out_names, int *out_count)
     *out_count = INFORMATION_THEORY_PRESET_COUNT;
 
     /* 分配名称数组（使用项目统一的内存管理函数） */
-    char **names = (char **)lv00_malloc(INFORMATION_THEORY_PRESET_COUNT * sizeof(char *));
+    char **names = (char **) lv00_malloc(INFORMATION_THEORY_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
         return false;
     }
@@ -641,30 +598,16 @@ bool preset_information_theory_get_names(char ***out_names, int *out_count)
     /* 填充预设名称列表 */
     const char *preset_names[] = {
         /* 信息度量 */
-        "it_entropy",
-        "it_joint_entropy",
-        "it_conditional_entropy",
-        "it_mutual_information",
-        "it_relative_entropy",
+        "it_entropy", "it_joint_entropy", "it_conditional_entropy", "it_mutual_information", "it_relative_entropy",
         "it_cross_entropy",
         /* 信道理论 */
-        "it_channel_capacity",
-        "it_binary_symmetric_channel",
-        "it_binary_erasure_channel",
-        "it_channel_coding_theorem",
+        "it_channel_capacity", "it_binary_symmetric_channel", "it_binary_erasure_channel", "it_channel_coding_theorem",
         "it_source_coding_theorem",
         /* 率失真理论 */
-        "it_rate_distortion_function",
-        "it_distortion_rate_function",
-        "it_quantization",
-        "it_data_compression",
+        "it_rate_distortion_function", "it_distortion_rate_function", "it_quantization", "it_data_compression",
         /* 信息论应用 */
-        "it_kolmogorov_complexity",
-        "it_algorithmic_entropy",
-        "it_fano_inequality",
-        "it_data_processing_inequality",
-        "it_entropy_maximization"
-    };
+        "it_kolmogorov_complexity", "it_algorithmic_entropy", "it_fano_inequality", "it_data_processing_inequality",
+        "it_entropy_maximization"};
 
     for (int i = 0; i < INFORMATION_THEORY_PRESET_COUNT; i++) {
         names[i] = lv00_strdup(preset_names[i]);
@@ -674,7 +617,7 @@ bool preset_information_theory_get_names(char ***out_names, int *out_count)
                 void *tmp = names[j];
                 lv00_free(&tmp);
             }
-            lv00_free((void **)&names);
+            lv00_free((void **) &names);
             return false;
         }
     }
@@ -688,7 +631,6 @@ bool preset_information_theory_get_names(char ***out_names, int *out_count)
  *
  * @return 类别名称字符串
  */
-const char *preset_information_theory_category(void)
-{
+const char *preset_information_theory_category(void) {
     return "信息论";
 }

@@ -25,12 +25,13 @@
  * ============================================================
  */
 #include "preset_algebraic.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
 
 #include <string.h>
+
+#include "lv00_internal.h"
+#include "lv00_utils.h"
+#include "preset_blocks.h"
+#include "preset_common.h"
 
 /* ==================== 代数模块预设函数块总数 ==================== */
 
@@ -54,23 +55,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_algebraic_preset(
-    const char *name,
-    const char *description,
-    const PresetType *input_types,
-    int input_count,
-    PresetType output_type,
-    const char *math_def,
-    const char *complexity,
-    bool is_constructive,
-    bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description,
-        PRESET_CATEGORY_ALGEBRAIC,
-        input_types, input_count, output_type,
-        math_def, complexity,
-        is_constructive, is_reversible);
+static bool register_algebraic_preset(const char *name, const char *description, const PresetType *input_types,
+                                      int input_count, PresetType output_type, const char *math_def,
+                                      const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ALGEBRAIC, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== 注册辅助宏 ==================== */
@@ -81,23 +70,19 @@ static bool register_algebraic_preset(
  * 封装单个代数学预设的注册调用，自动累加 success_count，
  * 并在失败时记录错误日志。
  */
-#define REGISTER_ALGEBRAIC(name, desc, inputs, input_count, output,    \
-                          math_def, complexity, constructive, reversible) \
-    do {                                                               \
-        if (register_algebraic_preset(                                 \
-                (name), (desc), (inputs), (input_count), (output),     \
-                (math_def), (complexity),                              \
-                (constructive), (reversible))) {                       \
-            success_count++;                                           \
-        } else {                                                       \
-            PRESET_ERROR_LOG("代数预设注册失败: %s", (name));           \
-        }                                                              \
+#define REGISTER_ALGEBRAIC(name, desc, inputs, input_count, output, math_def, complexity, constructive, reversible) \
+    do {                                                                                                            \
+        if (register_algebraic_preset((name), (desc), (inputs), (input_count), (output), (math_def), (complexity),  \
+                                      (constructive), (reversible))) {                                              \
+            success_count++;                                                                                        \
+        } else {                                                                                                    \
+            PRESET_ERROR_LOG("代数预设注册失败: %s", (name));                                                       \
+        }                                                                                                           \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_algebraic_register(void)
-{
+bool preset_algebraic_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -107,70 +92,47 @@ bool preset_algebraic_register(void)
     /* -------------------- 向量加法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_VECTOR_ADD,
-            "向量加法：给定向量OA和OB，构造和向量OC = OA + OB",
-            inputs, 3, PRESET_TYPE_POINT,
-            "\\vec{OC} = \\vec{OA} + \\vec{OB}",
-            "O(1)", true, true);
+        REGISTER_ALGEBRAIC(PRESET_VECTOR_ADD, "向量加法：给定向量OA和OB，构造和向量OC = OA + OB", inputs, 3,
+                           PRESET_TYPE_POINT, "\\vec{OC} = \\vec{OA} + \\vec{OB}", "O(1)", true, true);
     }
 
     /* -------------------- 向量减法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_VECTOR_SUB,
-            "向量减法：给定向量OA和OB，构造差向量OC = OA - OB",
-            inputs, 3, PRESET_TYPE_POINT,
-            "\\vec{OC} = \\vec{OA} - \\vec{OB}",
-            "O(1)", true, true);
+        REGISTER_ALGEBRAIC(PRESET_VECTOR_SUB, "向量减法：给定向量OA和OB，构造差向量OC = OA - OB", inputs, 3,
+                           PRESET_TYPE_POINT, "\\vec{OC} = \\vec{OA} - \\vec{OB}", "O(1)", true, true);
     }
 
     /* -------------------- 向量数乘 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR};
-        REGISTER_ALGEBRAIC(
-            PRESET_VECTOR_SCALE,
-            "向量数乘：给定向量OA和标量k，构造数乘向量OB = k·OA",
-            inputs, 3, PRESET_TYPE_POINT,
-            "\\vec{OB} = k \\cdot \\vec{OA}",
-            "O(1)", true, true);
+        REGISTER_ALGEBRAIC(PRESET_VECTOR_SCALE, "向量数乘：给定向量OA和标量k，构造数乘向量OB = k·OA", inputs, 3,
+                           PRESET_TYPE_POINT, "\\vec{OB} = k \\cdot \\vec{OA}", "O(1)", true, true);
     }
 
     /* -------------------- 向量线性组合 -------------------- */
     {
-        PresetType inputs[] = {
-            PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR,
-            PRESET_TYPE_POINT, PRESET_TYPE_SCALAR};
-        REGISTER_ALGEBRAIC(
-            PRESET_VECTOR_LINEAR_COMB,
-            "向量线性组合：k1·OA1 + k2·OA2 = OB",
-            inputs, 5, PRESET_TYPE_POINT,
-            "\\vec{OB} = k_1 \\vec{OA_1} + k_2 \\vec{OA_2}",
-            "O(1)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR, PRESET_TYPE_POINT,
+                               PRESET_TYPE_SCALAR};
+        REGISTER_ALGEBRAIC(PRESET_VECTOR_LINEAR_COMB, "向量线性组合：k1·OA1 + k2·OA2 = OB", inputs, 5,
+                           PRESET_TYPE_POINT, "\\vec{OB} = k_1 \\vec{OA_1} + k_2 \\vec{OA_2}", "O(1)", true, false);
     }
 
     /* -------------------- 向量归一化 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_VECTOR_NORMALIZE,
-            "构造单位向量：将向量OA归一化为单位向量OB = OA/|OA|",
-            inputs, 2, PRESET_TYPE_POINT,
-            "\\vec{OB} = \\frac{\\vec{OA}}{|\\vec{OA}|}",
-            "O(1)", true, false);
+        REGISTER_ALGEBRAIC(PRESET_VECTOR_NORMALIZE, "构造单位向量：将向量OA归一化为单位向量OB = OA/|OA|", inputs, 2,
+                           PRESET_TYPE_POINT, "\\vec{OB} = \\frac{\\vec{OA}}{|\\vec{OA}|}", "O(1)", true, false);
     }
 
     /* -------------------- 向量投影 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_VECTOR_PROJECT,
-            "向量投影：计算向量OA在向量OB方向上的投影向量OP",
-            inputs, 3, PRESET_TYPE_POINT,
-            "\\vec{OP} = \\text{proj}_{\\vec{OB}} \\vec{OA} = "
-            "\\frac{\\vec{OA} \\cdot \\vec{OB}}{|\\vec{OB}|^2} \\vec{OB}",
-            "O(1)", true, false);
+        REGISTER_ALGEBRAIC(PRESET_VECTOR_PROJECT, "向量投影：计算向量OA在向量OB方向上的投影向量OP", inputs, 3,
+                           PRESET_TYPE_POINT,
+                           "\\vec{OP} = \\text{proj}_{\\vec{OB}} \\vec{OA} = "
+                           "\\frac{\\vec{OA} \\cdot \\vec{OB}}{|\\vec{OB}|^2} \\vec{OB}",
+                           "O(1)", true, false);
     }
 
     /* ============================================================
@@ -180,36 +142,24 @@ bool preset_algebraic_register(void)
     /* -------------------- 标准正交基 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_STANDARD_BASIS,
-            "构造标准正交基：给定原点O和x轴方向点X，构造y轴单位向量OY",
-            inputs, 2, PRESET_TYPE_POINT,
-            "\\vec{OY} \\perp \\vec{OX}, \\quad |\\vec{OY}| = 1",
-            "O(1)", true, false);
+        REGISTER_ALGEBRAIC(PRESET_STANDARD_BASIS, "构造标准正交基：给定原点O和x轴方向点X，构造y轴单位向量OY", inputs, 2,
+                           PRESET_TYPE_POINT, "\\vec{OY} \\perp \\vec{OX}, \\quad |\\vec{OY}| = 1", "O(1)", true,
+                           false);
     }
 
     /* -------------------- 坐标变换 -------------------- */
     {
-        PresetType inputs[] = {
-            PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT,
-            PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_COORDINATE_TRANSFORM,
-            "坐标变换：将点P从旧坐标系变换到新坐标系下，得到P_new",
-            inputs, 5, PRESET_TYPE_POINT,
-            "P' = T(P), \\quad T: (x, y) \\mapsto (x', y')",
-            "O(1)", true, true);
+        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT,
+                               PRESET_TYPE_POINT};
+        REGISTER_ALGEBRAIC(PRESET_COORDINATE_TRANSFORM, "坐标变换：将点P从旧坐标系变换到新坐标系下，得到P_new", inputs,
+                           5, PRESET_TYPE_POINT, "P' = T(P), \\quad T: (x, y) \\mapsto (x', y')", "O(1)", true, true);
     }
 
     /* -------------------- 极坐标转直角坐标 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_ALGEBRAIC(
-            PRESET_POLAR_TO_CARTESIAN,
-            "极坐标转直角坐标：(r, θ) → (r·cosθ, r·sinθ)",
-            inputs, 3, PRESET_TYPE_POINT,
-            "(r \\cos \\theta, \\, r \\sin \\theta)",
-            "O(1)", true, false);
+        REGISTER_ALGEBRAIC(PRESET_POLAR_TO_CARTESIAN, "极坐标转直角坐标：(r, θ) → (r·cosθ, r·sinθ)", inputs, 3,
+                           PRESET_TYPE_POINT, "(r \\cos \\theta, \\, r \\sin \\theta)", "O(1)", true, false);
     }
 
     /* ============================================================
@@ -219,45 +169,32 @@ bool preset_algebraic_register(void)
     /* -------------------- 复数乘法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_COMPLEX_MULTIPLY,
-            "复数乘法的几何表示：z1·z2 的几何构造",
-            inputs, 3, PRESET_TYPE_POINT,
-            "z_1 \\cdot z_2 = (x_1 x_2 - y_1 y_2) + i(x_1 y_2 + x_2 y_1)",
-            "O(1)", true, true);
+        REGISTER_ALGEBRAIC(PRESET_COMPLEX_MULTIPLY, "复数乘法的几何表示：z1·z2 的几何构造", inputs, 3,
+                           PRESET_TYPE_POINT, "z_1 \\cdot z_2 = (x_1 x_2 - y_1 y_2) + i(x_1 y_2 + x_2 y_1)", "O(1)",
+                           true, true);
     }
 
     /* -------------------- 复数除法 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        REGISTER_ALGEBRAIC(
-            PRESET_COMPLEX_DIVIDE,
-            "复数除法的几何表示：z1/z2 的几何构造",
-            inputs, 3, PRESET_TYPE_POINT,
-            "z_1 / z_2 = \\frac{z_1 \\overline{z_2}}{|z_2|^2}",
-            "O(1)", true, true);
+        REGISTER_ALGEBRAIC(PRESET_COMPLEX_DIVIDE, "复数除法的几何表示：z1/z2 的几何构造", inputs, 3, PRESET_TYPE_POINT,
+                           "z_1 / z_2 = \\frac{z_1 \\overline{z_2}}{|z_2|^2}", "O(1)", true, true);
     }
 
     /* -------------------- 复数幂运算 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_INTEGER};
-        REGISTER_ALGEBRAIC(
-            PRESET_COMPLEX_POWER,
-            "复数的n次幂：zⁿ 的几何构造",
-            inputs, 3, PRESET_TYPE_POINT,
-            "z^n = r^n (\\cos n\\theta + i\\sin n\\theta)",
-            "O(\\log n)", true, false);
+        REGISTER_ALGEBRAIC(PRESET_COMPLEX_POWER, "复数的n次幂：zⁿ 的几何构造", inputs, 3, PRESET_TYPE_POINT,
+                           "z^n = r^n (\\cos n\\theta + i\\sin n\\theta)", "O(\\log n)", true, false);
     }
 
     /* -------------------- 复数开方 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_INTEGER};
-        REGISTER_ALGEBRAIC(
-            PRESET_COMPLEX_ROOT,
-            "复数的n次方根：ⁿ√z 的几何构造（主值支）",
-            inputs, 3, PRESET_TYPE_POINT,
-            "\\sqrt[n]{z} = \\sqrt[n]{r}\\left(\\cos\\frac{\\theta+2k\\pi}{n} + i\\sin\\frac{\\theta+2k\\pi}{n}\\right)",
-            "O(1)", true, false);
+        REGISTER_ALGEBRAIC(PRESET_COMPLEX_ROOT, "复数的n次方根：ⁿ√z 的几何构造（主值支）", inputs, 3, PRESET_TYPE_POINT,
+                           "\\sqrt[n]{z} = \\sqrt[n]{r}\\left(\\cos\\frac{\\theta+2k\\pi}{n} + "
+                           "i\\sin\\frac{\\theta+2k\\pi}{n}\\right)",
+                           "O(1)", true, false);
     }
 
     /* ============================================================
@@ -266,26 +203,16 @@ bool preset_algebraic_register(void)
 
     /* -------------------- 抛物线上的点 -------------------- */
     {
-        PresetType inputs[] = {
-            PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR};
-        REGISTER_ALGEBRAIC(
-            PRESET_PARABOLA_POINT,
-            "抛物线上的点：给定焦点和准线，构造抛物线上参数t对应的点",
-            inputs, 4, PRESET_TYPE_POINT,
-            "|PF| = |Pl|, \\quad P \\in \\text{抛物线}",
-            "O(1)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR};
+        REGISTER_ALGEBRAIC(PRESET_PARABOLA_POINT, "抛物线上的点：给定焦点和准线，构造抛物线上参数t对应的点", inputs, 4,
+                           PRESET_TYPE_POINT, "|PF| = |Pl|, \\quad P \\in \\text{抛物线}", "O(1)", true, false);
     }
 
     /* -------------------- 椭圆上的点 -------------------- */
     {
-        PresetType inputs[] = {
-            PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_ALGEBRAIC(
-            PRESET_ELLIPSE_POINT,
-            "椭圆上的点：给定两焦点和长轴长度，构造椭圆上参数t对应的点",
-            inputs, 4, PRESET_TYPE_POINT,
-            "|PF_1| + |PF_2| = 2a, \\quad P \\in \\text{椭圆}",
-            "O(1)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
+        REGISTER_ALGEBRAIC(PRESET_ELLIPSE_POINT, "椭圆上的点：给定两焦点和长轴长度，构造椭圆上参数t对应的点", inputs, 4,
+                           PRESET_TYPE_POINT, "|PF_1| + |PF_2| = 2a, \\quad P \\in \\text{椭圆}", "O(1)", true, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -297,8 +224,7 @@ bool preset_algebraic_register(void)
  *
  * @return int 代数模块预设函数块总数
  */
-int preset_algebraic_count(void)
-{
+int preset_algebraic_count(void) {
     return ALGEBRAIC_PRESET_COUNT;
 }
 
@@ -307,8 +233,7 @@ int preset_algebraic_count(void)
  *
  * @return PresetCategory 始终返回 PRESET_CATEGORY_ALGEBRAIC
  */
-PresetCategory preset_algebraic_category(void)
-{
+PresetCategory preset_algebraic_category(void) {
     return PRESET_CATEGORY_ALGEBRAIC;
 }
 
@@ -323,13 +248,14 @@ PresetCategory preset_algebraic_category(void)
  * @return true 成功获取
  * @return false 参数为空或内存分配失败
  */
-bool preset_algebraic_get_names(char ***out_names, int *out_count)
-{
-    if (!out_names || !out_count) return false;
+bool preset_algebraic_get_names(char ***out_names, int *out_count) {
+    if (!out_names || !out_count)
+        return false;
 
     /* 分配名称数组 */
-    char **names = (char**)lv00_malloc(ALGEBRAIC_PRESET_COUNT * sizeof(char*));
-    if (!names) return false;
+    char **names = (char **) lv00_malloc(ALGEBRAIC_PRESET_COUNT * sizeof(char *));
+    if (!names)
+        return false;
 
     /* 填充预设名称列表 */
     const char *preset_names[] = {
@@ -354,14 +280,20 @@ bool preset_algebraic_get_names(char ***out_names, int *out_count)
         PRESET_ELLIPSE_POINT,
     };
 
-    int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
+    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
         names[i] = lv00_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
-            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv00_free(&tmp); }
-            { void *tmp = names; lv00_free(&tmp); }
+            for (int j = 0; j < i; j++) {
+                void *tmp = names[j];
+                lv00_free(&tmp);
+            }
+            {
+                void *tmp = names;
+                lv00_free(&tmp);
+            }
             return false;
         }
     }

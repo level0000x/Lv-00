@@ -10,17 +10,17 @@
  * - 超范围分析
  */
 
-#include "lv00.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00.h"
+#include "test_helpers.h"
+
 /* ============== 测试：自由度计算 ============== */
 
-static int test_degrees_of_freedom(void)
-{
+static int test_degrees_of_freedom(void) {
     printf("Test: degrees of freedom calculation...\n");
 
     ConstraintGraph *g = graph_create();
@@ -36,7 +36,8 @@ static int test_degrees_of_freedom(void)
     /* 两个点 = 4个自由度（每个点2个坐标分量） */
     assert(dof == 4);
 
-    if (free_vars) lv00_free_ptr(free_vars);
+    if (free_vars)
+        lv00_free_ptr(free_vars);
 
     /* 添加线段约束 */
     graph_add_line_segment(g, p1, p2);
@@ -45,7 +46,8 @@ static int test_degrees_of_freedom(void)
     int dof2 = count_degrees_of_freedom(g, &free_vars2);
     printf("  添加线段后: 自由度 = %d\n", dof2);
 
-    if (free_vars2) lv00_free_ptr(free_vars2);
+    if (free_vars2)
+        lv00_free_ptr(free_vars2);
 
     graph_destroy(g);
     printf("  PASSED\n");
@@ -54,8 +56,7 @@ static int test_degrees_of_freedom(void)
 
 /* ============== 测试：冲突方程检测 ============== */
 
-static int test_conflict_detection(void)
-{
+static int test_conflict_detection(void) {
     printf("Test: conflict equation detection...\n");
 
     ConstraintGraph *g = graph_create();
@@ -79,8 +80,7 @@ static int test_conflict_detection(void)
 
 /* ============== 测试：代数系统求解 ============== */
 
-static int test_algebraic_solve(void)
-{
+static int test_algebraic_solve(void) {
     printf("Test: algebraic system solving...\n");
 
     ConstraintGraph *g = graph_create();
@@ -112,8 +112,7 @@ static int test_algebraic_solve(void)
 
 /* ============== 测试：变量消元 ============== */
 
-static int test_variable_elimination(void)
-{
+static int test_variable_elimination(void) {
     printf("Test: variable elimination...\n");
 
     ConstraintGraph *g = graph_create();
@@ -140,8 +139,7 @@ static int test_variable_elimination(void)
 
 /* ============== 测试：超范围分析 ============== */
 
-static int test_out_of_scope_analysis(void)
-{
+static int test_out_of_scope_analysis(void) {
     printf("Test: out of scope analysis...\n");
 
     ConstraintGraph *g = graph_create();
@@ -168,8 +166,7 @@ static int test_out_of_scope_analysis(void)
 
 /* ============== 测试：复杂约束系统 ============== */
 
-static int test_complex_constraint_system(void)
-{
+static int test_complex_constraint_system(void) {
     printf("Test: complex constraint system...\n");
 
     ConstraintGraph *g = graph_create();
@@ -189,7 +186,8 @@ static int test_complex_constraint_system(void)
     int dof = count_degrees_of_freedom(g, &free_vars);
     printf("  三角形自由度: %d\n", dof);
 
-    if (free_vars) lv00_free_ptr(free_vars);
+    if (free_vars)
+        lv00_free_ptr(free_vars);
 
     /* 检测冲突 */
     bool has_conflict = check_conflict_equations(g);
@@ -202,8 +200,7 @@ static int test_complex_constraint_system(void)
 
 /* ============== 测试：过约束系统 ============== */
 
-static int test_overconstrained_system(void)
-{
+static int test_overconstrained_system(void) {
     printf("Test: overconstrained system...\n");
 
     ConstraintGraph *g = graph_create();
@@ -227,7 +224,8 @@ static int test_overconstrained_system(void)
     int dof = count_degrees_of_freedom(g, &free_vars);
     printf("  自由度: %d\n", dof);
 
-    if (free_vars) lv00_free_ptr(free_vars);
+    if (free_vars)
+        lv00_free_ptr(free_vars);
 
     graph_destroy(g);
     printf("  PASSED\n");
@@ -236,8 +234,7 @@ static int test_overconstrained_system(void)
 
 /* ============== 测试：增量求解 ============== */
 
-static int test_incremental_solve(void)
-{
+static int test_incremental_solve(void) {
     printf("Test: incremental solve...\n");
 
     ConstraintGraph *g = graph_create();
@@ -277,8 +274,7 @@ static int test_incremental_solve(void)
 
 /* ============== 测试：增强方程提取 ============== */
 
-static int test_extract_equations_full(void)
-{
+static int test_extract_equations_full(void) {
     printf("Test: extract equations full...\n");
 
     ConstraintGraph *g = graph_create();
@@ -321,8 +317,7 @@ static int test_extract_equations_full(void)
 
 /* ============== 测试：Groebner 基计算 ============== */
 
-static int test_groebner_basis_compute(void)
-{
+static int test_groebner_basis_compute(void) {
     printf("Test: Groebner basis compute...\n");
 
     /* 测试1: 空系统 */
@@ -387,8 +382,7 @@ static int test_groebner_basis_compute(void)
 
 /* ============== 测试：方程系统生命周期 ============== */
 
-static int test_equation_system_lifecycle(void)
-{
+static int test_equation_system_lifecycle(void) {
     printf("Test: equation system lifecycle...\n");
 
     /* 创建和销毁 */
@@ -416,8 +410,7 @@ static int test_equation_system_lifecycle(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Solver Module Test Suite ===\n\n");
 
     test_degrees_of_freedom();

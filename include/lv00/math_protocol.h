@@ -22,9 +22,9 @@
 #ifndef LV00_MATH_PROTOCOL_H
 #define LV00_MATH_PROTOCOL_H
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,49 +53,49 @@ extern "C" {
  */
 typedef enum {
     /* ---- 原子类型 ---- */
-    MATH_EXPR_NUMBER,          /**< 数值字面量：整数或浮点数 */
-    MATH_EXPR_SYMBOL,          /**< 符号变量：如 x, y, a */
-    MATH_EXPR_STRING,          /**< 字符串字面量 */
+    MATH_EXPR_NUMBER, /**< 数值字面量：整数或浮点数 */
+    MATH_EXPR_SYMBOL, /**< 符号变量：如 x, y, a */
+    MATH_EXPR_STRING, /**< 字符串字面量 */
 
     /* ---- 基本算术 ---- */
-    MATH_EXPR_ADD,             /**< 加法：["Add", a, b, ...] */
-    MATH_EXPR_SUBTRACT,        /**< 减法：["Subtract", a, b] */
-    MATH_EXPR_MULTIPLY,        /**< 乘法：["Multiply", a, b, ...] */
-    MATH_EXPR_DIVIDE,          /**< 除法：["Divide", a, b] */
-    MATH_EXPR_POWER,           /**< 幂：["Power", base, exponent] */
-    MATH_EXPR_NEGATE,          /**< 取反：["Negate", x] */
-    MATH_EXPR_SQRT,            /**< 平方根：["Sqrt", x] */
-    MATH_EXPR_ABS,             /**< 绝对值：["Abs", x] */
+    MATH_EXPR_ADD,      /**< 加法：["Add", a, b, ...] */
+    MATH_EXPR_SUBTRACT, /**< 减法：["Subtract", a, b] */
+    MATH_EXPR_MULTIPLY, /**< 乘法：["Multiply", a, b, ...] */
+    MATH_EXPR_DIVIDE,   /**< 除法：["Divide", a, b] */
+    MATH_EXPR_POWER,    /**< 幂：["Power", base, exponent] */
+    MATH_EXPR_NEGATE,   /**< 取反：["Negate", x] */
+    MATH_EXPR_SQRT,     /**< 平方根：["Sqrt", x] */
+    MATH_EXPR_ABS,      /**< 绝对值：["Abs", x] */
 
     /* ---- 三角函数 ---- */
-    MATH_EXPR_SIN,             /**< 正弦：["Sin", x] */
-    MATH_EXPR_COS,             /**< 余弦：["Cos", x] */
-    MATH_EXPR_TAN,             /**< 正切：["Tan", x] */
-    MATH_EXPR_ARCSIN,          /**< 反正弦：["Arcsin", x] */
-    MATH_EXPR_ARCCOS,          /**< 反余弦：["Arccos", x] */
-    MATH_EXPR_ARCTAN,          /**< 反正切：["Arctan", x] */
+    MATH_EXPR_SIN,    /**< 正弦：["Sin", x] */
+    MATH_EXPR_COS,    /**< 余弦：["Cos", x] */
+    MATH_EXPR_TAN,    /**< 正切：["Tan", x] */
+    MATH_EXPR_ARCSIN, /**< 反正弦：["Arcsin", x] */
+    MATH_EXPR_ARCCOS, /**< 反余弦：["Arccos", x] */
+    MATH_EXPR_ARCTAN, /**< 反正切：["Arctan", x] */
 
     /* ---- 关系运算 ---- */
-    MATH_EXPR_EQUAL,           /**< 等于：["Equal", a, b] */
-    MATH_EXPR_LESS,            /**< 小于：["Less", a, b] */
-    MATH_EXPR_GREATER,         /**< 大于：["Greater", a, b] */
-    MATH_EXPR_LESS_EQUAL,      /**< 小于等于：["LessEqual", a, b] */
-    MATH_EXPR_GREATER_EQUAL,   /**< 大于等于：["GreaterEqual", a, b] */
-    MATH_EXPR_NOT_EQUAL,       /**< 不等于：["NotEqual", a, b] */
+    MATH_EXPR_EQUAL,         /**< 等于：["Equal", a, b] */
+    MATH_EXPR_LESS,          /**< 小于：["Less", a, b] */
+    MATH_EXPR_GREATER,       /**< 大于：["Greater", a, b] */
+    MATH_EXPR_LESS_EQUAL,    /**< 小于等于：["LessEqual", a, b] */
+    MATH_EXPR_GREATER_EQUAL, /**< 大于等于：["GreaterEqual", a, b] */
+    MATH_EXPR_NOT_EQUAL,     /**< 不等于：["NotEqual", a, b] */
 
     /* ---- 通用函数 ---- */
-    MATH_EXPR_FUNCTION,        /**< 通用函数调用：["Function", name, arg1, arg2, ...] */
+    MATH_EXPR_FUNCTION, /**< 通用函数调用：["Function", name, arg1, arg2, ...] */
 
     /* ---- 几何专用 ---- */
-    MATH_EXPR_GEOM_POINT,      /**< 几何点：["GeomPoint", x_coord, y_coord] */
-    MATH_EXPR_GEOM_LINE,       /**< 几何线：["GeomLine", pointA, pointB] */
-    MATH_EXPR_GEOM_CIRCLE,     /**< 几何圆：["GeomCircle", center, radius] */
-    MATH_EXPR_DISTANCE,        /**< 距离：["Distance", pointA, pointB] */
-    MATH_EXPR_MIDPOINT,        /**< 中点：["Midpoint", pointA, pointB] */
-    MATH_EXPR_COLLINEAR,       /**< 共线：["Collinear", p1, p2, p3] */
-    MATH_EXPR_PARALLEL,        /**< 平行：["Parallel", lineA, lineB] */
-    MATH_EXPR_PERPENDICULAR,   /**< 垂直：["Perpendicular", lineA, lineB] */
-    MATH_EXPR_UNKNOWN          /**< 未知/待解析表达式 */
+    MATH_EXPR_GEOM_POINT,    /**< 几何点：["GeomPoint", x_coord, y_coord] */
+    MATH_EXPR_GEOM_LINE,     /**< 几何线：["GeomLine", pointA, pointB] */
+    MATH_EXPR_GEOM_CIRCLE,   /**< 几何圆：["GeomCircle", center, radius] */
+    MATH_EXPR_DISTANCE,      /**< 距离：["Distance", pointA, pointB] */
+    MATH_EXPR_MIDPOINT,      /**< 中点：["Midpoint", pointA, pointB] */
+    MATH_EXPR_COLLINEAR,     /**< 共线：["Collinear", p1, p2, p3] */
+    MATH_EXPR_PARALLEL,      /**< 平行：["Parallel", lineA, lineB] */
+    MATH_EXPR_PERPENDICULAR, /**< 垂直：["Perpendicular", lineA, lineB] */
+    MATH_EXPR_UNKNOWN        /**< 未知/待解析表达式 */
 } MathExprType;
 
 /* ========================================================================
@@ -127,22 +127,22 @@ typedef enum {
  *     ] }
  */
 typedef struct MathExpr {
-    MathExprType type;               /**< 节点类型 */
-    struct MathExpr **args;          /**< 子表达式数组（动态分配） */
-    int arg_count;                   /**< 当前子表达式数量 */
-    int arg_capacity;                /**< 子表达式数组容量 */
+    MathExprType type;      /**< 节点类型 */
+    struct MathExpr **args; /**< 子表达式数组（动态分配） */
+    int arg_count;          /**< 当前子表达式数量 */
+    int arg_capacity;       /**< 子表达式数组容量 */
 
     /* 叶子节点数据（仅当 arg_count == 0 时有效） */
-    double number_value;             /**< 数值（MATH_EXPR_NUMBER） */
-    char *symbol_name;               /**< 符号名（MATH_EXPR_SYMBOL） */
-    char *string_value;              /**< 字符串值（MATH_EXPR_STRING） */
-    char *function_name;             /**< 函数名（MATH_EXPR_FUNCTION） */
+    double number_value; /**< 数值（MATH_EXPR_NUMBER） */
+    char *symbol_name;   /**< 符号名（MATH_EXPR_SYMBOL） */
+    char *string_value;  /**< 字符串值（MATH_EXPR_STRING） */
+    char *function_name; /**< 函数名（MATH_EXPR_FUNCTION） */
 
     /* 元数据 */
-    int id;                          /**< 节点唯一 ID（用于缓存和引用） */
-    bool is_simplified;              /**< 是否已化简 */
-    bool is_evaluated;               /**< 是否已求值 */
-    double evaluated_value;          /**< 求值结果（数值模式下有效） */
+    int id;                 /**< 节点唯一 ID（用于缓存和引用） */
+    bool is_simplified;     /**< 是否已化简 */
+    bool is_evaluated;      /**< 是否已求值 */
+    double evaluated_value; /**< 求值结果（数值模式下有效） */
 } MathExpr;
 
 /* ========================================================================
@@ -157,9 +157,9 @@ typedef struct MathExpr {
  * @brief 字典条目类型枚举
  */
 typedef enum {
-    MATH_DICT_FUNCTION,          /**< 函数：接收参数返回表达式 */
-    MATH_DICT_SYMBOL,            /**< 符号：命名常量或变量 */
-    MATH_DICT_PREDICATE          /**< 谓词：返回布尔值的函数（几何关系等） */
+    MATH_DICT_FUNCTION, /**< 函数：接收参数返回表达式 */
+    MATH_DICT_SYMBOL,   /**< 符号：命名常量或变量 */
+    MATH_DICT_PREDICATE /**< 谓词：返回布尔值的函数（几何关系等） */
 } MathDictEntryType;
 
 /**
@@ -169,11 +169,11 @@ typedef enum {
  * 扩展函数（如同构函子 Hom、函子组合 ∘）通过此机制注册。
  */
 typedef struct MathDictEntry {
-    char *name;                  /**< 条目名称（如 "distance", "midpoint", "collinear"） */
-    MathDictEntryType entry_type;/**< 条目类型 */
-    int arity;                   /**< 元数（-1 表示可变参数） */
-    char *description;           /**< 描述文本 */
-    int id;                      /**< 条目在字典内的唯一 ID */
+    char *name;                   /**< 条目名称（如 "distance", "midpoint", "collinear"） */
+    MathDictEntryType entry_type; /**< 条目类型 */
+    int arity;                    /**< 元数（-1 表示可变参数） */
+    char *description;            /**< 描述文本 */
+    int id;                       /**< 条目在字典内的唯一 ID */
 } MathDictEntry;
 
 /**
@@ -184,11 +184,11 @@ typedef struct MathDictEntry {
  * 在字典中查找对应的函数定义以确定求值策略。
  */
 typedef struct MathDictionary {
-    MathDictEntry *entries;      /**< 字典条目数组 */
-    int entry_count;             /**< 当前条目数 */
-    int entry_capacity;          /**< 条目数组容量 */
-    char *name;                  /**< 字典名称（如 "lv00_geometry"） */
-    bool is_readonly;            /**< 是否只读（预定义字典不可修改） */
+    MathDictEntry *entries; /**< 字典条目数组 */
+    int entry_count;        /**< 当前条目数 */
+    int entry_capacity;     /**< 条目数组容量 */
+    char *name;             /**< 字典名称（如 "lv00_geometry"） */
+    bool is_readonly;       /**< 是否只读（预定义字典不可修改） */
 } MathDictionary;
 
 /* ========================================================================
@@ -199,20 +199,20 @@ typedef struct MathDictionary {
  * @brief 数学表达式序列化格式枚举
  */
 typedef enum {
-    MATH_FORMAT_JSON,            /**< MathJSON 兼容格式：["Add", "x", 2] */
-    MATH_FORMAT_BINARY,          /**< 二进制紧凑格式：类型标签 + 长度前缀 */
-    MATH_FORMAT_S_EXPR           /**< S-表达式格式：(Add x 2) */
+    MATH_FORMAT_JSON,   /**< MathJSON 兼容格式：["Add", "x", 2] */
+    MATH_FORMAT_BINARY, /**< 二进制紧凑格式：类型标签 + 长度前缀 */
+    MATH_FORMAT_S_EXPR  /**< S-表达式格式：(Add x 2) */
 } MathSerializationFormat;
 
 /**
  * @brief 协议消息类型
  */
 typedef enum {
-    MATH_MSG_EXPRESSION,         /**< 数学表达式 */
-    MATH_MSG_DICTIONARY_ENTRY,   /**< 字典条目注册 */
-    MATH_MSG_EVALUATE_REQUEST,   /**< 求值请求 */
-    MATH_MSG_EVALUATE_RESULT,    /**< 求值结果 */
-    MATH_MSG_ERROR               /**< 错误消息 */
+    MATH_MSG_EXPRESSION,       /**< 数学表达式 */
+    MATH_MSG_DICTIONARY_ENTRY, /**< 字典条目注册 */
+    MATH_MSG_EVALUATE_REQUEST, /**< 求值请求 */
+    MATH_MSG_EVALUATE_RESULT,  /**< 求值结果 */
+    MATH_MSG_ERROR             /**< 错误消息 */
 } MathProtocolMessageType;
 
 /**
@@ -340,10 +340,8 @@ bool math_expr_simplify(MathExpr *expr);
  * @param binding_count 绑定数量
  * @return 求值结果表达式（调用者负责释放），求值失败返回 NULL
  */
-MathExpr *math_expr_evaluate(MathExpr *expr,
-                              const char **binding_names,
-                              MathExpr * const *binding_values,
-                              int binding_count);
+MathExpr *math_expr_evaluate(MathExpr *expr, const char **binding_names, MathExpr *const *binding_values,
+                             int binding_count);
 
 /* ========================================================================
  * 第八部分：核心 API —— 字典管理
@@ -377,9 +375,8 @@ void math_dict_destroy(MathDictionary *dict);
  * @param description 可选的描述文本（可为 NULL）
  * @return true 注册成功，false 名称冲突或字典只读
  */
-bool math_dict_register(MathDictionary *dict, const char *name,
-                         MathDictEntryType entry_type, int arity,
-                         const char *description);
+bool math_dict_register(MathDictionary *dict, const char *name, MathDictEntryType entry_type, int arity,
+                        const char *description);
 
 /**
  * @brief 在字典中查找条目
@@ -388,8 +385,7 @@ bool math_dict_register(MathDictionary *dict, const char *name,
  * @param name  要查找的条目名称
  * @return 找到的条目指针（借引用），未找到返回 NULL
  */
-const MathDictEntry *math_dict_lookup(const MathDictionary *dict,
-                                       const char *name);
+const MathDictEntry *math_dict_lookup(const MathDictionary *dict, const char *name);
 
 /**
  * @brief 从字典中移除条目
@@ -413,10 +409,8 @@ bool math_dict_unregister(MathDictionary *dict, const char *name);
  * @param length   负载长度
  * @return 新分配的消息帧，失败返回 NULL
  */
-MathProtocolMessage *math_protocol_create_message(
-    MathProtocolMessageType msg_type,
-    MathSerializationFormat format,
-    uint8_t *payload, size_t length);
+MathProtocolMessage *math_protocol_create_message(MathProtocolMessageType msg_type, MathSerializationFormat format,
+                                                  uint8_t *payload, size_t length);
 
 /**
  * @brief 销毁协议消息帧

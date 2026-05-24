@@ -76,35 +76,35 @@ extern "C" {
  * 每个枚举值对应一个 TikZ 绘制命令或组合。
  */
 typedef enum {
-    TIKZ_POINT          = 0,   /**< 点：\fill 填充小圆 */
-    TIKZ_LINE           = 1,   /**< 直线：\draw (A) -- (B) */
-    TIKZ_CIRCLE         = 2,   /**< 圆：\draw circle */
-    TIKZ_ARC            = 3,   /**< 圆弧：\draw arc */
-    TIKZ_POLYGON        = 4,   /**< 多边形：\draw (A) -- (B) -- ... -- cycle */
-    TIKZ_LABEL          = 5,   /**< 标签：\node at (A) {text} */
-    TIKZ_FILL           = 6,   /**< 填充区域：\fill */
-    TIKZ_ARROW          = 7,   /**< 箭头线：\draw[->] */
-    TIKZ_ANGLE_ARC      = 8,   /**< 角度弧：\draw angle 标注 */
-    TIKZ_MARK_RIGHTANGLE= 9,   /**< 直角标记：\draw 小正方形 */
-    TIKZ_DASHED         = 10,  /**< 虚线：\draw[dashed] */
-    TIKZ_DOTTED         = 11,  /**< 点线：\draw[dotted] */
-    TIKZ_GRID           = 12,  /**< 网格：\draw[help lines] grid */
-    TIKZ_AXES           = 13,  /**< 坐标轴：\draw[->] 带箭头 */
-    TIKZ_NODE            = 14,  /**< 节点：\node 带形状 */
-    TIKZ_PATH            = 15,  /**< 路径：\path 通用路径 */
-    TIKZ_SCOPE           = 16,  /**< 作用域：\begin{scope}...\end{scope} */
-    TIKZ_CLIP            = 17,  /**< 裁剪：\clip 裁剪区域 */
-    TIKZ_SHADE           = 18,  /**< 渐变：\shade 阴影填充 */
-    TIKZ_PATTERN         = 19,  /**< 图案填充：\fill[pattern=...] */
-    TIKZ_PLOT            = 20,  /**< 函数图：\draw plot 函数曲线 */
-    TIKZ_BEZIER          = 21,  /**< 贝塞尔曲线：\draw .. controls .. */
-    TIKZ_ELLIPSE         = 22,  /**< 椭圆：\draw ellipse */
-    TIKZ_RECTANGLE       = 23,  /**< 矩形：\draw rectangle */
-    TIKZ_COORDINATE      = 24,  /**< 坐标点（不可见图元）：\coordinate */
-    TIKZ_TANGENT         = 25,  /**< 切线标记 */
-    TIKZ_PARALLEL_MARK   = 26,  /**< 平行线标记 */
-    TIKZ_EQUAL_LENGTH    = 27,  /**< 等长标记（线段上的短划线） */
-    TIKZ_CUSTOM          = 99   /**< 自定义元素（原始 TikZ 代码） */
+    TIKZ_POINT = 0,           /**< 点：\fill 填充小圆 */
+    TIKZ_LINE = 1,            /**< 直线：\draw (A) -- (B) */
+    TIKZ_CIRCLE = 2,          /**< 圆：\draw circle */
+    TIKZ_ARC = 3,             /**< 圆弧：\draw arc */
+    TIKZ_POLYGON = 4,         /**< 多边形：\draw (A) -- (B) -- ... -- cycle */
+    TIKZ_LABEL = 5,           /**< 标签：\node at (A) {text} */
+    TIKZ_FILL = 6,            /**< 填充区域：\fill */
+    TIKZ_ARROW = 7,           /**< 箭头线：\draw[->] */
+    TIKZ_ANGLE_ARC = 8,       /**< 角度弧：\draw angle 标注 */
+    TIKZ_MARK_RIGHTANGLE = 9, /**< 直角标记：\draw 小正方形 */
+    TIKZ_DASHED = 10,         /**< 虚线：\draw[dashed] */
+    TIKZ_DOTTED = 11,         /**< 点线：\draw[dotted] */
+    TIKZ_GRID = 12,           /**< 网格：\draw[help lines] grid */
+    TIKZ_AXES = 13,           /**< 坐标轴：\draw[->] 带箭头 */
+    TIKZ_NODE = 14,           /**< 节点：\node 带形状 */
+    TIKZ_PATH = 15,           /**< 路径：\path 通用路径 */
+    TIKZ_SCOPE = 16,          /**< 作用域：\begin{scope}...\end{scope} */
+    TIKZ_CLIP = 17,           /**< 裁剪：\clip 裁剪区域 */
+    TIKZ_SHADE = 18,          /**< 渐变：\shade 阴影填充 */
+    TIKZ_PATTERN = 19,        /**< 图案填充：\fill[pattern=...] */
+    TIKZ_PLOT = 20,           /**< 函数图：\draw plot 函数曲线 */
+    TIKZ_BEZIER = 21,         /**< 贝塞尔曲线：\draw .. controls .. */
+    TIKZ_ELLIPSE = 22,        /**< 椭圆：\draw ellipse */
+    TIKZ_RECTANGLE = 23,      /**< 矩形：\draw rectangle */
+    TIKZ_COORDINATE = 24,     /**< 坐标点（不可见图元）：\coordinate */
+    TIKZ_TANGENT = 25,        /**< 切线标记 */
+    TIKZ_PARALLEL_MARK = 26,  /**< 平行线标记 */
+    TIKZ_EQUAL_LENGTH = 27,   /**< 等长标记（线段上的短划线） */
+    TIKZ_CUSTOM = 99          /**< 自定义元素（原始 TikZ 代码） */
 } Lv00TikZElementType;
 
 /**
@@ -114,56 +114,56 @@ typedef enum {
  * TikZ -> DVI -> SVG 的完整转换。Lv-00 支持三种渲染后端。
  */
 typedef enum {
-    RENDER_VIA_LATEX    = 0,  /**< 传统 LaTeX 渲染（需系统安装 TeX Live） */
-    RENDER_VIA_WASM     = 1,  /**< WebAssembly 渲染（TikZJax 风格，浏览器端） */
-    RENDER_VIA_DVISVGM  = 2   /**< dvisvgm 渲染（服务端，DVI 转 SVG） */
+    RENDER_VIA_LATEX = 0,  /**< 传统 LaTeX 渲染（需系统安装 TeX Live） */
+    RENDER_VIA_WASM = 1,   /**< WebAssembly 渲染（TikZJax 风格，浏览器端） */
+    RENDER_VIA_DVISVGM = 2 /**< dvisvgm 渲染（服务端，DVI 转 SVG） */
 } Lv00TikZRenderBackend;
 
 /**
  * @brief 箭头样式枚举
  */
 typedef enum {
-    ARROW_NONE        = 0,  /**< 无箭头 */
-    ARROW_STANDARD    = 1,  /**< 标准箭头 -> */
-    ARROW_REVERSE     = 2,  /**< 反向箭头 <- */
-    ARROW_DOUBLE      = 3,  /**< 双向箭头 <-> */
-    ARROW_STEALTH     = 4,  /**< stealth 风格箭头 */
-    ARROW_LATEX       = 5,  /**< LaTeX 风格箭头 */
-    ARROW_HARPOON     = 6,  /**< 鱼叉箭头 |-> */
+    ARROW_NONE = 0,     /**< 无箭头 */
+    ARROW_STANDARD = 1, /**< 标准箭头 -> */
+    ARROW_REVERSE = 2,  /**< 反向箭头 <- */
+    ARROW_DOUBLE = 3,   /**< 双向箭头 <-> */
+    ARROW_STEALTH = 4,  /**< stealth 风格箭头 */
+    ARROW_LATEX = 5,    /**< LaTeX 风格箭头 */
+    ARROW_HARPOON = 6,  /**< 鱼叉箭头 |-> */
 } Lv00TikZArrowStyle;
 
 /**
  * @brief 破折线样式枚举
  */
 typedef enum {
-    DASH_SOLID        = 0,  /**< 实线 */
-    DASH_DASHED       = 1,  /**< 虚线 */
-    DASH_DOTTED       = 2,  /**< 点线 */
-    DASH_DASHDOT      = 3,  /**< 点划线 */
-    DASH_DASHDOTDOT   = 4,  /**< 双点划线 */
+    DASH_SOLID = 0,          /**< 实线 */
+    DASH_DASHED = 1,         /**< 虚线 */
+    DASH_DOTTED = 2,         /**< 点线 */
+    DASH_DASHDOT = 3,        /**< 点划线 */
+    DASH_DASHDOTDOT = 4,     /**< 双点划线 */
     DASH_LOOSELY_DASHED = 5, /**< 稀疏虚线 */
     DASH_DENSELY_DASHED = 6, /**< 密集虚线 */
-    DASH_LOOSELY_DOTTED  = 7, /**< 稀疏点线 */
-    DASH_DENSELY_DOTTED  = 8, /**< 密集点线 */
-    DASH_CUSTOM       = 99, /**< 自定义破折线模式 */
+    DASH_LOOSELY_DOTTED = 7, /**< 稀疏点线 */
+    DASH_DENSELY_DOTTED = 8, /**< 密集点线 */
+    DASH_CUSTOM = 99,        /**< 自定义破折线模式 */
 } Lv00TikZDashPattern;
 
 /**
  * @brief TikZ 编译步骤
  */
 typedef enum {
-    TIKZ_COMPILE_STEP_LATEX      = 0,  /**< LaTeX 编译：.tex -> .dvi */
-    TIKZ_COMPILE_STEP_DVI_TO_SVG = 1,  /**< DVI 转 SVG：.dvi -> .svg */
-    TIKZ_COMPILE_STEP_DVI_TO_PDF = 2,  /**< DVI 转 PDF：.dvi -> .pdf */
-    TIKZ_COMPILE_STEP_WASM       = 3,  /**< WASM 内联编译（单步完成） */
+    TIKZ_COMPILE_STEP_LATEX = 0,      /**< LaTeX 编译：.tex -> .dvi */
+    TIKZ_COMPILE_STEP_DVI_TO_SVG = 1, /**< DVI 转 SVG：.dvi -> .svg */
+    TIKZ_COMPILE_STEP_DVI_TO_PDF = 2, /**< DVI 转 PDF：.dvi -> .pdf */
+    TIKZ_COMPILE_STEP_WASM = 3,       /**< WASM 内联编译（单步完成） */
 } Lv00TikZCompileStep;
 
 /**
  * @brief 坐标维度模式
  */
 typedef enum {
-    COORD_2D  = 0,  /**< 二维坐标 (x, y) */
-    COORD_3D  = 1,  /**< 三维坐标 (x, y, z) */
+    COORD_2D = 0,    /**< 二维坐标 (x, y) */
+    COORD_3D = 1,    /**< 三维坐标 (x, y, z) */
     COORD_POLAR = 2, /**< 极坐标 (theta:radius) */
 } Lv00TikZCoordMode;
 
@@ -177,21 +177,21 @@ typedef enum {
  */
 typedef struct Lv00TikZStyle {
     /* ── 线条样式 ── */
-    double  line_width;                         /**< 线条宽度（pt） */
-    char    line_color[LV00_TIKZ_COLOR_LEN];    /**< 线条颜色（TikZ 颜色名或 #RRGGBB） */
-    char    fill_color[LV00_TIKZ_COLOR_LEN];    /**< 填充颜色 */
-    Lv00TikZDashPattern dash_pattern;           /**< 破折线模式 */
-    double  opacity;                            /**< 透明度 [0.0, 1.0] */
+    double line_width;                    /**< 线条宽度（pt） */
+    char line_color[LV00_TIKZ_COLOR_LEN]; /**< 线条颜色（TikZ 颜色名或 #RRGGBB） */
+    char fill_color[LV00_TIKZ_COLOR_LEN]; /**< 填充颜色 */
+    Lv00TikZDashPattern dash_pattern;     /**< 破折线模式 */
+    double opacity;                       /**< 透明度 [0.0, 1.0] */
 
     /* ── 箭头 ── */
-    Lv00TikZArrowStyle arrow_style;             /**< 箭头样式 */
+    Lv00TikZArrowStyle arrow_style; /**< 箭头样式 */
 
     /* ── 标签 ── */
-    int     label_font_size;                    /**< 标签字体大小（pt） */
+    int label_font_size; /**< 标签字体大小（pt） */
 
     /* ── 补充 ── */
-    char    style_name[LV00_TIKZ_STYLE_NAME_LEN]; /**< 样式名称（用于 \tikzset） */
-    char    custom_options[128];                /**< 自定义 TikZ 选项字符串 */
+    char style_name[LV00_TIKZ_STYLE_NAME_LEN]; /**< 样式名称（用于 \tikzset） */
+    char custom_options[128];                  /**< 自定义 TikZ 选项字符串 */
 
     /* ── trust_color 自动映射 ── */
     /** 映射规则：
@@ -201,7 +201,7 @@ typedef struct Lv00TikZStyle {
      *  ORANGE -> dotted
      *  RED    -> red, thick
      */
-    int     trust_color_mapping;                /**< 信任颜色映射值 */
+    int trust_color_mapping; /**< 信任颜色映射值 */
 } Lv00TikZStyle;
 
 /**
@@ -212,33 +212,33 @@ typedef struct Lv00TikZStyle {
  */
 typedef struct Lv00TikZElement {
     /* ── 标识 ── */
-    char    element_id[LV00_TIKZ_MAX_ID_LEN];   /**< 元素唯一标识符 */
-    Lv00TikZElementType tikz_type;              /**< TikZ 元素类型 */
+    char element_id[LV00_TIKZ_MAX_ID_LEN]; /**< 元素唯一标识符 */
+    Lv00TikZElementType tikz_type;         /**< TikZ 元素类型 */
 
     /* ── 坐标数据 ── */
-    Lv00TikZCoordMode coord_mode;               /**< 坐标维度模式 */
-    double *coords;                             /**< 坐标数组（每 2 或 3 个值为一组） */
-    int     coord_count;                        /**< 坐标值总数 */
-    int     point_count;                        /**< 点数 = coord_count / (2 或 3) */
+    Lv00TikZCoordMode coord_mode; /**< 坐标维度模式 */
+    double *coords;               /**< 坐标数组（每 2 或 3 个值为一组） */
+    int coord_count;              /**< 坐标值总数 */
+    int point_count;              /**< 点数 = coord_count / (2 或 3) */
 
     /* ── 点标签 ── */
-    char  **point_labels;                       /**< 点标签数组（如 "A", "B", "C"） */
-    int     point_label_count;                  /**< 标签数量 */
+    char **point_labels;   /**< 点标签数组（如 "A", "B", "C"） */
+    int point_label_count; /**< 标签数量 */
 
     /* ── 通用标签 ── */
-    char    label_text[LV00_TIKZ_LABEL_LEN];    /**< 通用标签文本 */
+    char label_text[LV00_TIKZ_LABEL_LEN]; /**< 通用标签文本 */
 
     /* ── 样式引用 ── */
-    int     style_ref;                          /**< 样式索引（-1 = 使用默认样式） */
+    int style_ref; /**< 样式索引（-1 = 使用默认样式） */
 
     /* ── 父子关系 ── */
-    int     parent_element_id;                  /**< 父元素索引（-1 = 顶层） */
+    int parent_element_id; /**< 父元素索引（-1 = 顶层） */
 
     /* ── 约束图关联 ── */
-    int     constraint_graph_node_id;           /**< 对应约束图节点 ID（-1 = 无关联） */
+    int constraint_graph_node_id; /**< 对应约束图节点 ID（-1 = 无关联） */
 
     /* ── 原始 TikZ 代码（自定义元素专用） ── */
-    char   *raw_tikz_code;                      /**< 原始 TikZ 代码字符串（TIKZ_CUSTOM 使用） */
+    char *raw_tikz_code; /**< 原始 TikZ 代码字符串（TIKZ_CUSTOM 使用） */
 } Lv00TikZElement;
 
 /**
@@ -250,34 +250,34 @@ typedef struct Lv00TikZElement {
 typedef struct Lv00TikZContext {
     /* ── 元素与样式 ── */
     Lv00TikZElement elements[LV00_TIKZ_MAX_ELEMENTS]; /**< TikZ 元素数组 */
-    int              element_count;                   /**< 已注册元素数量 */
-    Lv00TikZStyle   styles[LV00_TIKZ_MAX_STYLES];    /**< 样式数组 */
-    int              style_count;                     /**< 已注册样式数量 */
+    int element_count;                                /**< 已注册元素数量 */
+    Lv00TikZStyle styles[LV00_TIKZ_MAX_STYLES];       /**< 样式数组 */
+    int style_count;                                  /**< 已注册样式数量 */
 
     /* ── LaTeX 前导区 ── */
-    char  preamble_packages[LV00_TIKZ_PREAMBLE_BUFFER_SIZE]; /**< 前导区包列表 */
+    char preamble_packages[LV00_TIKZ_PREAMBLE_BUFFER_SIZE]; /**< 前导区包列表 */
     /** 默认包括：tikz, calc, angles, quotes, patterns, intersections,
      *          arrows.meta, decorations.markings, backgrounds, fit */
-    int   preamble_custom_flags;                           /**< 自定义前导区标志 */
+    int preamble_custom_flags; /**< 自定义前导区标志 */
 
     /* ── 图片属性 ── */
-    double scale;                                   /**< 全局缩放（TikZ scale 选项） */
-    double bounding_box_xmin;                       /**< 包围盒 X 最小值 */
-    double bounding_box_ymin;                       /**< 包围盒 Y 最小值 */
-    double bounding_box_xmax;                       /**< 包围盒 X 最大值 */
-    double bounding_box_ymax;                       /**< 包围盒 Y 最大值 */
+    double scale;             /**< 全局缩放（TikZ scale 选项） */
+    double bounding_box_xmin; /**< 包围盒 X 最小值 */
+    double bounding_box_ymin; /**< 包围盒 Y 最小值 */
+    double bounding_box_xmax; /**< 包围盒 X 最大值 */
+    double bounding_box_ymax; /**< 包围盒 Y 最大值 */
 
     /* ── 文档模式 ── */
-    bool   standalone_mode;                         /**< 是否生成完整 LaTeX 文档 */
+    bool standalone_mode; /**< 是否生成完整 LaTeX 文档 */
     /** standalone_mode = true：
      *  输出完整 \documentclass[tikz]{standalone} ... \end{document}
      *  standalone_mode = false：
      *  仅输出 \begin{tikzpicture}...\end{tikzpicture} 片段 */
 
     /* ── 调试选项 ── */
-    bool   show_construction_lines;                /**< 显示辅助构造线 */
-    bool   show_point_labels;                      /**< 显示点标签 */
-    bool   show_coordinates;                       /**< 显示坐标文本 */
+    bool show_construction_lines; /**< 显示辅助构造线 */
+    bool show_point_labels;       /**< 显示点标签 */
+    bool show_coordinates;        /**< 显示坐标文本 */
 } Lv00TikZContext;
 
 /**
@@ -288,33 +288,33 @@ typedef struct Lv00TikZContext {
  */
 typedef struct Lv00TikZRenderConfig {
     /* ── 渲染后端 ── */
-    Lv00TikZRenderBackend backend;            /**< 渲染后端选择 */
+    Lv00TikZRenderBackend backend; /**< 渲染后端选择 */
 
     /* ── 输出质量 ── */
-    int    dpi;                               /**< 输出 DPI（用于位图渲染） */
-    bool   antialias;                         /**< 是否启用抗锯齿 */
+    int dpi;        /**< 输出 DPI（用于位图渲染） */
+    bool antialias; /**< 是否启用抗锯齿 */
 
     /* ── 增量编译 ── */
-    bool   incremental;                       /**< 启用增量编译模式 */
+    bool incremental; /**< 启用增量编译模式 */
     /** 增量编译流程：
      *  1. 首次编译生成 .fmt 格式文件（预编译宏包集合）
      *  2. 后续编译加载 .fmt 直接跳入 tikzpicture 渲染
      *  3. 大幅缩短编译时间（典型加速比 5x-20x） */
-    char   fmt_cache_path[LV00_TIKZ_PATH_MAX]; /**< .fmt 格式文件缓存路径 */
+    char fmt_cache_path[LV00_TIKZ_PATH_MAX]; /**< .fmt 格式文件缓存路径 */
 
     /* ── LaTeX 配置 ── */
-    char   latex_engine[32];                  /**< LaTeX 引擎：pdflatex / xelatex / lualatex */
-    char   texlive_path[LV00_TIKZ_PATH_MAX];  /**< TeX Live 安装路径 */
+    char latex_engine[32];                 /**< LaTeX 引擎：pdflatex / xelatex / lualatex */
+    char texlive_path[LV00_TIKZ_PATH_MAX]; /**< TeX Live 安装路径 */
 
     /* ── WASM 配置 ── */
-    char   wasm_module_path[LV00_TIKZ_PATH_MAX];  /**< TikZJax WASM 模块路径 */
+    char wasm_module_path[LV00_TIKZ_PATH_MAX]; /**< TikZJax WASM 模块路径 */
 
     /* ── 超时 ── */
-    int    compile_timeout_ms;                /**< 编译超时（毫秒），0 = 无超时 */
+    int compile_timeout_ms; /**< 编译超时（毫秒），0 = 无超时 */
 
     /* ── 缓存 ── */
-    bool   use_element_cache;                 /**< 使用元素级渲染缓存 */
-    int    cache_max_entries;                 /**< 缓存最大条目数 */
+    bool use_element_cache; /**< 使用元素级渲染缓存 */
+    int cache_max_entries;  /**< 缓存最大条目数 */
 } Lv00TikZRenderConfig;
 
 /* ==================== 生命周期 ==================== */
@@ -327,7 +327,7 @@ typedef struct Lv00TikZRenderConfig {
  *
  * @return 新分配的 TikZ 上下文，失败返回 NULL
  */
-Lv00TikZContext* tikz_init(void);
+Lv00TikZContext *tikz_init(void);
 
 /**
  * @brief 销毁 TikZ 渲染上下文并释放所有关联资源
@@ -351,8 +351,7 @@ void tikz_destroy(Lv00TikZContext *ctx);
  * @param[in]     style_ref 样式索引（-1 = 默认样式）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_point(Lv00TikZContext *ctx, double x, double y,
-                    const char *label, int style_ref);
+int tikz_add_point(Lv00TikZContext *ctx, double x, double y, const char *label, int style_ref);
 
 /**
  * @brief 添加直线到 TikZ 上下文
@@ -363,9 +362,7 @@ int tikz_add_point(Lv00TikZContext *ctx, double x, double y,
  * @param[in]     style_ref  样式索引（-1 = 默认样式）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_line(Lv00TikZContext *ctx,
-                   double x1, double y1, double x2, double y2,
-                   int style_ref);
+int tikz_add_line(Lv00TikZContext *ctx, double x1, double y1, double x2, double y2, int style_ref);
 
 /**
  * @brief 添加圆到 TikZ 上下文
@@ -376,9 +373,7 @@ int tikz_add_line(Lv00TikZContext *ctx,
  * @param[in]     style_ref  样式索引（-1 = 默认样式）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_circle(Lv00TikZContext *ctx,
-                     double cx, double cy, double radius,
-                     int style_ref);
+int tikz_add_circle(Lv00TikZContext *ctx, double cx, double cy, double radius, int style_ref);
 
 /**
  * @brief 添加圆弧到 TikZ 上下文
@@ -391,10 +386,8 @@ int tikz_add_circle(Lv00TikZContext *ctx,
  * @param[in]     style_ref     样式索引（-1 = 默认样式）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_arc(Lv00TikZContext *ctx,
-                  double cx, double cy,
-                  double start_angle, double end_angle, double radius,
-                  int style_ref);
+int tikz_add_arc(Lv00TikZContext *ctx, double cx, double cy, double start_angle, double end_angle, double radius,
+                 int style_ref);
 
 /**
  * @brief 添加多边形到 TikZ 上下文
@@ -407,10 +400,8 @@ int tikz_add_arc(Lv00TikZContext *ctx,
  * @param[in]     style_ref     样式索引（-1 = 默认样式）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_polygon(Lv00TikZContext *ctx,
-                      const double *xs, const double *ys,
-                      int vertex_count, const char **labels,
-                      bool closed, int style_ref);
+int tikz_add_polygon(Lv00TikZContext *ctx, const double *xs, const double *ys, int vertex_count, const char **labels,
+                     bool closed, int style_ref);
 
 /**
  * @brief 添加文本标签到 TikZ 上下文
@@ -422,8 +413,7 @@ int tikz_add_polygon(Lv00TikZContext *ctx,
  * @param[in]     font_size 字体大小（0 = 默认）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_label(Lv00TikZContext *ctx, double x, double y,
-                    const char *text, const char *position, int font_size);
+int tikz_add_label(Lv00TikZContext *ctx, double x, double y, const char *text, const char *position, int font_size);
 
 /**
  * @brief 添加角度标记到 TikZ 上下文
@@ -438,11 +428,8 @@ int tikz_add_label(Lv00TikZContext *ctx, double x, double y,
  * @param[in]     style_ref 样式索引（-1 = 默认）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_angle_mark(Lv00TikZContext *ctx,
-                         double ax, double ay,
-                         double bx, double by,
-                         double cx, double cy,
-                         const char *label, int style_ref);
+int tikz_add_angle_mark(Lv00TikZContext *ctx, double ax, double ay, double bx, double by, double cx, double cy,
+                        const char *label, int style_ref);
 
 /**
  * @brief 添加直角标记到 TikZ 上下文
@@ -457,11 +444,8 @@ int tikz_add_angle_mark(Lv00TikZContext *ctx,
  * @param[in]     style_ref         样式索引（-1 = 默认）
  * @return 新元素的索引，失败返回 -1
  */
-int tikz_add_right_angle(Lv00TikZContext *ctx,
-                          double vertex_x, double vertex_y,
-                          double leg1_x, double leg1_y,
-                          double leg2_x, double leg2_y,
-                          double size, int style_ref);
+int tikz_add_right_angle(Lv00TikZContext *ctx, double vertex_x, double vertex_y, double leg1_x, double leg1_y,
+                         double leg2_x, double leg2_y, double size, int style_ref);
 
 /* ==================== 样式管理 ==================== */
 
@@ -520,9 +504,7 @@ int tikz_render(const Lv00TikZContext *ctx, char **output);
  * @param[out] output 输出：SVG 字符串（调用者负责 free）
  * @return SVG 字符串的字符数，失败返回 -1
  */
-int tikz_render_svg(const Lv00TikZContext *ctx,
-                     const Lv00TikZRenderConfig *config,
-                     char **output);
+int tikz_render_svg(const Lv00TikZContext *ctx, const Lv00TikZRenderConfig *config, char **output);
 
 /**
  * @brief 完整 LaTeX 编译流程：.tex -> .dvi -> .svg / .pdf
@@ -541,9 +523,7 @@ int tikz_render_svg(const Lv00TikZContext *ctx,
  *
  * @note WASM 后端不经过文件系统，直接返回 tikz_render_svg()
  */
-int tikz_compile(const Lv00TikZContext *ctx,
-                  const Lv00TikZRenderConfig *config,
-                  const char *output_path);
+int tikz_compile(const Lv00TikZContext *ctx, const Lv00TikZRenderConfig *config, const char *output_path);
 
 /* ==================== 从约束图生成 ==================== */
 
@@ -593,8 +573,7 @@ int tikz_export_file(const Lv00TikZContext *ctx, const char *filepath);
  * @param[in]  config 渲染配置（fmt_cache_path 决定输出路径）
  * @return 成功返回 0，编译失败返回 -1
  */
-int tikz_cache_fmt(const Lv00TikZContext *ctx,
-                    const Lv00TikZRenderConfig *config);
+int tikz_cache_fmt(const Lv00TikZContext *ctx, const Lv00TikZRenderConfig *config);
 
 /* ==================== 辅助函数 ==================== */
 
@@ -624,7 +603,7 @@ void tikz_compute_bounding_box(Lv00TikZContext *ctx);
  * @param[in] type TikZ 元素类型
  * @return 类型名称字符串（如 "TIKZ_LINE"）
  */
-const char* tikz_element_type_name(Lv00TikZElementType type);
+const char *tikz_element_type_name(Lv00TikZElementType type);
 
 /**
  * @brief 获取渲染后端名称
@@ -632,7 +611,7 @@ const char* tikz_element_type_name(Lv00TikZElementType type);
  * @param[in] backend 渲染后端
  * @return 后端名称字符串（如 "RENDER_VIA_LATEX"）
  */
-const char* tikz_render_backend_name(Lv00TikZRenderBackend backend);
+const char *tikz_render_backend_name(Lv00TikZRenderBackend backend);
 
 /**
  * @brief 清除上下文中的所有元素

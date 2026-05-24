@@ -12,11 +12,11 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
-#include "type_system.h"
 #include <stdbool.h>
 
+#include "constraint_graph.h"
 #include "stream.h"
+#include "type_system.h"
 
 /**
  * @brief 设置合一检查器的流式输出上下文
@@ -26,13 +26,13 @@ void unify_set_stream_context(StreamContext *ctx);
 
 /* 合一检查状态枚举 */
 typedef enum {
-    UNIFY_STATUS_OK,                     /* 合一成功 */
-    UNIFY_STATUS_PORT_TYPE_MISMATCH,     /* 端口类型不匹配 */
-    UNIFY_STATUS_CONSTRAINT_MISMATCH,    /* 约束不匹配 */
-    UNIFY_STATUS_COORD_MISMATCH,         /* 坐标不匹配 */
-    UNIFY_STATUS_STRUCTURE_MISMATCH,     /* 结构不匹配 */
-    UNIFY_STATUS_SCOPE_MISMATCH,         /* 作用域不匹配 */
-    UNIFY_STATUS_FAILED                  /* 合一失败 */
+    UNIFY_STATUS_OK,                  /* 合一成功 */
+    UNIFY_STATUS_PORT_TYPE_MISMATCH,  /* 端口类型不匹配 */
+    UNIFY_STATUS_CONSTRAINT_MISMATCH, /* 约束不匹配 */
+    UNIFY_STATUS_COORD_MISMATCH,      /* 坐标不匹配 */
+    UNIFY_STATUS_STRUCTURE_MISMATCH,  /* 结构不匹配 */
+    UNIFY_STATUS_SCOPE_MISMATCH,      /* 作用域不匹配 */
+    UNIFY_STATUS_FAILED               /* 合一失败 */
 } UnifyStatus;
 
 /**
@@ -43,14 +43,14 @@ typedef enum {
  * 不匹配的具体位置和原因。
  */
 typedef enum {
-    PORT_TYPE_MISMATCH,                     /* 端口类型不匹配 */
-    PORT_NAMESPACE_MISMATCH,                /* 端口命名空间深度不匹配 */
-    PORT_TYPE_REGION_MISMATCH,              /* 端口类型区域（TypeRegion）不匹配 */
-    CONSTRAINT_TYPE_MISMATCH,               /* 约束类型不匹配 */
-    CONSTRAINT_PARTICIPANT_COUNT_MISMATCH,  /* 约束参与者数量不匹配 */
-    CONSTRAINT_PARTICIPANT_ID_MISMATCH,     /* 约束参与者 ID 不匹配 */
-    COORD_VALUE_MISMATCH,                   /* 坐标值不匹配 */
-    COORD_TYPE_MISMATCH                     /* 坐标类型不匹配 */
+    PORT_TYPE_MISMATCH,                    /* 端口类型不匹配 */
+    PORT_NAMESPACE_MISMATCH,               /* 端口命名空间深度不匹配 */
+    PORT_TYPE_REGION_MISMATCH,             /* 端口类型区域（TypeRegion）不匹配 */
+    CONSTRAINT_TYPE_MISMATCH,              /* 约束类型不匹配 */
+    CONSTRAINT_PARTICIPANT_COUNT_MISMATCH, /* 约束参与者数量不匹配 */
+    CONSTRAINT_PARTICIPANT_ID_MISMATCH,    /* 约束参与者 ID 不匹配 */
+    COORD_VALUE_MISMATCH,                  /* 坐标值不匹配 */
+    COORD_TYPE_MISMATCH                    /* 坐标类型不匹配 */
 } MismatchReason;
 
 UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, ConstraintGraph *proposition);
@@ -64,7 +64,8 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
 /* 带哈希预过滤的合一（优化版）
  * 在约束匹配前，使用 symbolic_coord_hash() 对节点分组，
  * 只比较相同哈希组的节点，加速匹配过程。 */
-UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *construction, ConstraintGraph *proposition);
+UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *construction,
+                                                              ConstraintGraph *proposition);
 
 /* ============== 精细化匹配函数（供外部精细控制） ============== */
 
@@ -81,9 +82,7 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *c
  *                                调用者需分配并传入（可为 NULL 以仅计数）。
  * @return 匹配成功的端口对数（>=0），或 -1 表示错误
  */
-int unify_match_ports(const ConstraintGraph *construction,
-                       const ConstraintGraph *proposition,
-                       int *out_port_bindings);
+int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition, int *out_port_bindings);
 
 /**
  * @brief 单独执行约束匹配
@@ -98,9 +97,8 @@ int unify_match_ports(const ConstraintGraph *construction,
  *                                      调用者需分配并传入（可为 NULL 以仅计数）。
  * @return 匹配成功的约束对数（>=0），或 -1 表示错误
  */
-int unify_match_constraints(const ConstraintGraph *construction,
-                             const ConstraintGraph *proposition,
-                             int *out_constraint_bindings);
+int unify_match_constraints(const ConstraintGraph *construction, const ConstraintGraph *proposition,
+                            int *out_constraint_bindings);
 
 /**
  * @brief 单独执行符号坐标判等
@@ -119,13 +117,13 @@ int unify_match_coords(const SymbolicCoord *c1, const SymbolicCoord *c2);
  * @brief 合一失败详细信息
  */
 typedef struct {
-    UnifyStatus status;           /* 失败类型 */
-    int failed_constraint_id;     /* 失败的约束 ID（-1 表示无） */
-    int failed_node_id;           /* 失败的节点 ID（-1 表示无） */
-    int failed_port_index;        /* 失败的端口索引（-1 表示无） */
-    char *description;            /* 人类可读的失败描述 */
+    UnifyStatus status;             /* 失败类型 */
+    int failed_constraint_id;       /* 失败的约束 ID（-1 表示无） */
+    int failed_node_id;             /* 失败的节点 ID（-1 表示无） */
+    int failed_port_index;          /* 失败的端口索引（-1 表示无） */
+    char *description;              /* 人类可读的失败描述 */
     MismatchReason mismatch_reason; /* 不匹配的具体原因（精细化分类） */
-    char reason_detail[256];      /* 不匹配原因的详细说明文本 */
+    char reason_detail[256];        /* 不匹配原因的详细说明文本 */
 } UnifyFailureInfo;
 
 /**
@@ -145,10 +143,8 @@ void unify_failure_info_destroy(UnifyFailureInfo *info);
  * @param out_failure 输出的失败信息（可为 NULL）
  * @return 合一状态
  */
-UnifyStatus unify_construction_with_proposition_detailed(
-    ConstraintGraph *construction,
-    ConstraintGraph *pattern,
-    UnifyFailureInfo *out_failure);
+UnifyStatus unify_construction_with_proposition_detailed(ConstraintGraph *construction, ConstraintGraph *pattern,
+                                                         UnifyFailureInfo *out_failure);
 
 /* ============== 命题的等价变换 ============== */
 
@@ -164,10 +160,7 @@ UnifyStatus unify_construction_with_proposition_detailed(
  * @param transformation_rule 变换规则（可为 NULL，表示纯等价声明）
  * @return 是否成功声明
  */
-bool unify_declare_proposition_equivalence(
-    int prop_a_id,
-    int prop_b_id,
-    ConstraintGraph *transformation_rule);
+bool unify_declare_proposition_equivalence(int prop_a_id, int prop_b_id, ConstraintGraph *transformation_rule);
 
 /**
  * @brief 查找命题的等价命题
@@ -197,11 +190,8 @@ void unify_clear_equivalences(void);
  * @param out_instantiated 输出的实例化命题（调用者负责销毁）
  * @return 是否成功实例化
  */
-bool unify_instantiate_proposition(
-    ConstraintGraph *proposition,
-    int type_var_node_id,
-    const TypeRegion *concrete_type,
-    ConstraintGraph **out_instantiated);
+bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_node_id, const TypeRegion *concrete_type,
+                                   ConstraintGraph **out_instantiated);
 
 /* 简化的命题结构（用于底层合一检查） */
 typedef struct SimpleProposition {
@@ -223,7 +213,7 @@ typedef struct SimpleProof {
 } SimpleProof;
 
 SimpleProposition *simple_proposition_create(const char *name, int *input_port_ids, int input_count,
-                                 int *output_port_ids, int output_count);
+                                             int *output_port_ids, int output_count);
 void simple_proposition_destroy(SimpleProposition *prop);
 SimpleProof *simple_proof_create(SimpleProposition *prop, ConstraintGraph *construction);
 void simple_proof_destroy(SimpleProof *proof);

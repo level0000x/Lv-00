@@ -32,25 +32,25 @@ extern "C" {
 /* -------------------- 偏序与全序 -------------------- */
 
 /** 偏序关系构造：给定集合和关系对，构造偏序集 (P, ≤) */
-#define PRESET_ORDER_PARTIAL_ORDER_RELATION  "partial_order_relation"
+#define PRESET_ORDER_PARTIAL_ORDER_RELATION "partial_order_relation"
 
 /** 格的上确界（join/并）：a ∨ b */
-#define PRESET_ORDER_LATTICE_JOIN            "order_lattice_join"
+#define PRESET_ORDER_LATTICE_JOIN "order_lattice_join"
 
 /** 格的下确界（meet/交）：a ∧ b */
-#define PRESET_ORDER_LATTICE_MEET            "order_lattice_meet"
+#define PRESET_ORDER_LATTICE_MEET "order_lattice_meet"
 
 /** 链分解（Dilworth定理）：将偏序集分解为链的最小划分 */
-#define PRESET_ORDER_CHAIN_DECOMPOSITION     "chain_decomposition"
+#define PRESET_ORDER_CHAIN_DECOMPOSITION "chain_decomposition"
 
 /** Zorn引理应用：在偏序集中应用Zorn引理证明极大元存在 */
-#define PRESET_ORDER_ZORN_LEMMA_APPLICATION  "zorn_lemma_application"
+#define PRESET_ORDER_ZORN_LEMMA_APPLICATION "zorn_lemma_application"
 
 /** 不动点定理（Tarski/Knaster）：完备格上保序映射的不动点 */
-#define PRESET_ORDER_FIXED_POINT_THEOREM     "fixed_point_theorem"
+#define PRESET_ORDER_FIXED_POINT_THEOREM "fixed_point_theorem"
 
 /** Galois连接：构造或判定两个偏序集之间的Galois连接 */
-#define PRESET_ORDER_GALOIS_CONNECTION       "galois_connection"
+#define PRESET_ORDER_GALOIS_CONNECTION "galois_connection"
 
 /** 完备化：将偏序集嵌入到其Dedekind-MacNeille完备化中 */
 #define PRESET_ORDER_COMPLETE_LATTICE_COMPLETION "complete_lattice_completion"

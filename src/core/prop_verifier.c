@@ -17,13 +17,15 @@
  */
 
 #include "prop_verifier.h"
-#include "lv00_utils.h"
-#include "stream_context_util.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "lv00_utils.h"
+#include "stream_context_util.h"
 
 LV00_DECLARE_STREAM_CTX(prop_verifier)
 
@@ -31,52 +33,52 @@ LV00_DECLARE_STREAM_CTX(prop_verifier)
  * 内部常量
  * ============================================================ */
 
-#define MAX_PREMISES     64    /**< 最大前提数 */
-#define MAX_GOALS        64    /**< 最大子目标数 */
-#define MAX_MEMO_ENTRIES 1024  /**< 记忆化表大小 */
-#define MAX_FORMULA_STR  2048  /**< 公式字符串最大长度 */
-#define MAX_COPY_DEPTH   200   /**< 公式深拷贝最大递归深度（防止栈溢出） */
-#define MAX_DESTROY_DEPTH 200  /**< 公式销毁最大递归深度（防止栈溢出） */
+#define MAX_PREMISES 64       /**< 最大前提数 */
+#define MAX_GOALS 64          /**< 最大子目标数 */
+#define MAX_MEMO_ENTRIES 1024 /**< 记忆化表大小 */
+#define MAX_FORMULA_STR 2048  /**< 公式字符串最大长度 */
+#define MAX_COPY_DEPTH 200    /**< 公式深拷贝最大递归深度（防止栈溢出） */
+#define MAX_DESTROY_DEPTH 200 /**< 公式销毁最大递归深度（防止栈溢出） */
 
 /* ---- 析构栈容量 ---- */
-#define PROP_DESTROY_STACK_INIT_CAP   64   /* 销毁时栈的初始容量 */
-#define PROP_DESTROY_STACK_GROWTH     2    /* 销毁栈扩容倍数 */
+#define PROP_DESTROY_STACK_INIT_CAP 64 /* 销毁时栈的初始容量 */
+#define PROP_DESTROY_STACK_GROWTH 2    /* 销毁栈扩容倍数 */
 
 /* ---- 运算符优先级 ---- */
-#define PROP_PREC_ATOM          100   /* 原子命题优先级 */
-#define PROP_PREC_NEGATION      80    /* 否定联结词优先级 */
-#define PROP_PREC_CONJUNCTION   60    /* 合取联结词优先级 */
-#define PROP_PREC_DISJUNCTION   50    /* 析取联结词优先级 */
-#define PROP_PREC_IMPLICATION   40    /* 蕴涵联结词优先级 */
-#define PROP_PREC_DEFAULT       0     /* 默认最低优先级 */
+#define PROP_PREC_ATOM 100       /* 原子命题优先级 */
+#define PROP_PREC_NEGATION 80    /* 否定联结词优先级 */
+#define PROP_PREC_CONJUNCTION 60 /* 合取联结词优先级 */
+#define PROP_PREC_DISJUNCTION 50 /* 析取联结词优先级 */
+#define PROP_PREC_IMPLICATION 40 /* 蕴涵联结词优先级 */
+#define PROP_PREC_DEFAULT 0      /* 默认最低优先级 */
 
 /* ---- 哈希函数常量 ---- */
-#define PROP_HASH_TYPE_MULTIPLIER      2654435761U  /* 黄金比例常数（Knuth推荐） */
-#define PROP_HASH_STRING_MULTIPLIER    31           /* 字符串哈希乘数 */
-#define PROP_HASH_LEFT_MULTIPLIER      0x9e3779b9U  /* 左子公式哈希乘数 */
-#define PROP_HASH_RIGHT_MULTIPLIER     0x517cc1b7U  /* 右子公式哈希乘数 */
-#define PROP_HASH_PTR_MULTIPLIER       0x45d9f3bU   /* 指针哈希乘数 */
-#define PROP_HASH_BIT_SHIFT            16           /* 哈希位混合偏移量 */
-#define PROP_HASH_PREMISES_MULTIPLIER  31           /* 前提集合哈希乘数 */
+#define PROP_HASH_TYPE_MULTIPLIER 2654435761U  /* 黄金比例常数（Knuth推荐） */
+#define PROP_HASH_STRING_MULTIPLIER 31         /* 字符串哈希乘数 */
+#define PROP_HASH_LEFT_MULTIPLIER 0x9e3779b9U  /* 左子公式哈希乘数 */
+#define PROP_HASH_RIGHT_MULTIPLIER 0x517cc1b7U /* 右子公式哈希乘数 */
+#define PROP_HASH_PTR_MULTIPLIER 0x45d9f3bU    /* 指针哈希乘数 */
+#define PROP_HASH_BIT_SHIFT 16                 /* 哈希位混合偏移量 */
+#define PROP_HASH_PREMISES_MULTIPLIER 31       /* 前提集合哈希乘数 */
 
 /* ---- 时间转换 ---- */
-#define PROP_TIME_MS_PER_SEC           1000         /* 秒到毫秒的转换因子 */
+#define PROP_TIME_MS_PER_SEC 1000 /* 秒到毫秒的转换因子 */
 
 /* ---- 烟测与缓冲区常量 ---- */
-#define PROP_SMOKE_TEST_COUNT          13           /* 内置烟测数量 */
-#define PROP_SMOKE_MAX_PREM_PTRS       8            /* 烟测中前提指针临时数组大小 */
-#define PROP_SMOKE_CLEANUP_MAX_PTRS    16           /* 烟测清理时最大引用指针数 */
-#define PROP_ATOM_NAME_MAX_LEN         64           /* 原子命题名称最大长度 */
-#define PROP_ATOM_COLLECT_MAX          32           /* 收集原子命题最大数 */
-#define PROP_PATTERN_DESC_BUFSIZE      256          /* 模式描述缓冲区大小 */
-#define PROP_ANALYSIS_DESC_BUFSIZE     512          /* 分析描述缓冲区大小 */
-#define PROP_MISSING_LIST_BUFSIZE      512          /* 缺失列表缓冲区大小 */
-#define PROP_STREAM_EVENT_BUFSIZE      256          /* 流式事件描述缓冲区大小 */
-#define PROP_JSON_DETAIL_BUFSIZE       192          /* JSON详情缓冲区大小 */
+#define PROP_SMOKE_TEST_COUNT 13       /* 内置烟测数量 */
+#define PROP_SMOKE_MAX_PREM_PTRS 8     /* 烟测中前提指针临时数组大小 */
+#define PROP_SMOKE_CLEANUP_MAX_PTRS 16 /* 烟测清理时最大引用指针数 */
+#define PROP_ATOM_NAME_MAX_LEN 64      /* 原子命题名称最大长度 */
+#define PROP_ATOM_COLLECT_MAX 32       /* 收集原子命题最大数 */
+#define PROP_PATTERN_DESC_BUFSIZE 256  /* 模式描述缓冲区大小 */
+#define PROP_ANALYSIS_DESC_BUFSIZE 512 /* 分析描述缓冲区大小 */
+#define PROP_MISSING_LIST_BUFSIZE 512  /* 缺失列表缓冲区大小 */
+#define PROP_STREAM_EVENT_BUFSIZE 256  /* 流式事件描述缓冲区大小 */
+#define PROP_JSON_DETAIL_BUFSIZE 192   /* JSON详情缓冲区大小 */
 
 /* ---- 信任颜色判定阈值 ---- */
-#define PROP_TRUST_YELLOW_THRESHOLD    2            /* 黄色信任的缺失构造上限 */
-#define PROP_TRUST_AMBER_MIN           3            /* 琥珀色信任的缺失构造下限 */
+#define PROP_TRUST_YELLOW_THRESHOLD 2 /* 黄色信任的缺失构造上限 */
+#define PROP_TRUST_AMBER_MIN 3        /* 琥珀色信任的缺失构造下限 */
 
 /* ============================================================
  * 公式构造/销毁
@@ -89,9 +91,11 @@ LV00_DECLARE_STREAM_CTX(prop_verifier)
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_atom(const char *name) {
-    if (!name) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!name)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv00_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_ATOM;
     snprintf(f->data.atom.name, sizeof(f->data.atom.name), "%s", name);
     return f;
@@ -105,9 +109,11 @@ PropFormula *prop_formula_create_atom(const char *name) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *right) {
-    if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!left || !right)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv00_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_CONJUNCTION;
     f->data.binary.left = left;
     f->data.binary.right = right;
@@ -122,9 +128,11 @@ PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *rig
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *right) {
-    if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!left || !right)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv00_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_DISJUNCTION;
     f->data.binary.left = left;
     f->data.binary.right = right;
@@ -139,9 +147,11 @@ PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *rig
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *right) {
-    if (!left || !right) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!left || !right)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv00_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_IMPLICATION;
     f->data.binary.left = left;
     f->data.binary.right = right;
@@ -155,9 +165,11 @@ PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *rig
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_negation(PropFormula *operand) {
-    if (!operand) return NULL;
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    if (!operand)
+        return NULL;
+    PropFormula *f = (PropFormula *) lv00_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_NEGATION;
     f->data.unary.operand = operand;
     return f;
@@ -169,8 +181,9 @@ PropFormula *prop_formula_create_negation(PropFormula *operand) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_bottom(void) {
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    PropFormula *f = (PropFormula *) lv00_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_BOTTOM;
     return f;
 }
@@ -181,8 +194,9 @@ PropFormula *prop_formula_create_bottom(void) {
  * @return 新分配的公式指针，失败返回 NULL
  */
 PropFormula *prop_formula_create_true(void) {
-    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* 零初始化分配 */
-    if (!f) return NULL;
+    PropFormula *f = (PropFormula *) lv00_calloc(1, sizeof(PropFormula)); /* 零初始化分配 */
+    if (!f)
+        return NULL;
     f->type = PROP_TRUE;
     return f;
 }
@@ -210,7 +224,8 @@ PropFormula *prop_formula_copy(const PropFormula *f) {
  * @return 副本公式指针，超深度返回 NULL
  */
 static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
     if (depth > MAX_COPY_DEPTH) {
         /* 递归深度超限，防止栈溢出 */
         return NULL;
@@ -219,20 +234,16 @@ static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
         case PROP_ATOM:
             return prop_formula_create_atom(f->data.atom.name);
         case PROP_CONJUNCTION:
-            return prop_formula_create_conjunction(
-                prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+            return prop_formula_create_conjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
         case PROP_DISJUNCTION:
-            return prop_formula_create_disjunction(
-                prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+            return prop_formula_create_disjunction(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
         case PROP_IMPLICATION:
-            return prop_formula_create_implication(
-                prop_formula_copy_depth(f->data.binary.left, depth + 1),
-                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+            return prop_formula_create_implication(prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                                                   prop_formula_copy_depth(f->data.binary.right, depth + 1));
         case PROP_NEGATION:
-            return prop_formula_create_negation(
-                prop_formula_copy_depth(f->data.unary.operand, depth + 1));
+            return prop_formula_create_negation(prop_formula_copy_depth(f->data.unary.operand, depth + 1));
         case PROP_BOTTOM:
             return prop_formula_create_bottom();
         case PROP_TRUE:
@@ -261,14 +272,14 @@ void prop_formula_destroy(PropFormula *f) {
  * @param depth 未使用（保留参数以兼容函数签名）
  */
 static void prop_formula_destroy_depth(PropFormula *f, int depth) {
-    (void)depth; /* 迭代实现不使用深度参数 */
-    if (!f) return;
+    (void) depth; /* 迭代实现不使用深度参数 */
+    if (!f)
+        return;
 
     /* 显式栈：存储待销毁的公式节点 */
     int stack_capacity = PROP_DESTROY_STACK_INIT_CAP;
     int stack_top = 0;
-    PropFormula **stack = (PropFormula **)lv00_malloc(
-        (size_t)stack_capacity * sizeof(PropFormula *));
+    PropFormula **stack = (PropFormula **) lv00_malloc((size_t) stack_capacity * sizeof(PropFormula *));
     if (!stack) {
         /* 内存分配失败：使用非递归的简单释放策略
          * 注意：不调用 prop_formula_destroy() 以避免无限递归 */
@@ -280,7 +291,7 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 case PROP_DISJUNCTION:
                 case PROP_IMPLICATION:
                     next = cur->data.binary.left;
-                    lv00_free((void **)&cur->data.binary.right);
+                    lv00_free((void **) &cur->data.binary.right);
                     break;
                 case PROP_NEGATION:
                     next = cur->data.unary.operand;
@@ -288,7 +299,7 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 default:
                     break;
             }
-            lv00_free((void **)&cur);
+            lv00_free((void **) &cur);
             cur = next;
         }
         return;
@@ -307,9 +318,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 if (current->data.binary.right) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity) break; /* 溢出保护 */
-                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
-                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (new_cap <= stack_capacity)
+                            break; /* 溢出保护 */
+                        PropFormula **new_stack =
+                            (PropFormula **) lv00_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             /* 栈扩容失败：尝试直接递归销毁剩余子节点 */
                             if (current->data.binary.left)
@@ -328,9 +340,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 if (current->data.binary.left) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity) break;
-                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
-                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (new_cap <= stack_capacity)
+                            break;
+                        PropFormula **new_stack =
+                            (PropFormula **) lv00_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             if (current->data.binary.left)
                                 prop_formula_destroy(current->data.binary.left);
@@ -350,9 +363,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
                 if (current->data.unary.operand) {
                     if (stack_top >= stack_capacity) {
                         int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
-                        if (new_cap <= stack_capacity) break;
-                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
-                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (new_cap <= stack_capacity)
+                            break;
+                        PropFormula **new_stack =
+                            (PropFormula **) lv00_realloc(stack, (size_t) new_cap * sizeof(PropFormula *));
                         if (!new_stack) {
                             if (current->data.unary.operand)
                                 prop_formula_destroy(current->data.unary.operand);
@@ -372,11 +386,11 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
         }
 
         /* 释放当前节点 */
-        lv00_free((void **)&current);
+        lv00_free((void **) &current);
     }
 
     /* 释放栈 */
-    lv00_free((void **)&stack);
+    lv00_free((void **) &stack);
 }
 
 /* ============================================================
@@ -397,8 +411,10 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
  * @return true 表示结构相等，false 表示不同
  */
 static bool formula_equal(const PropFormula *a, const PropFormula *b) {
-    if (!a || !b) return a == b;
-    if (a->type != b->type) return false;
+    if (!a || !b)
+        return a == b;
+    if (a->type != b->type)
+        return false;
     switch (a->type) {
         case PROP_ATOM:
             return strcmp(a->data.atom.name, b->data.atom.name) == 0;
@@ -428,38 +444,46 @@ static bool formula_equal(const PropFormula *a, const PropFormula *b) {
  */
 static int formula_precedence(const PropFormula *f) {
     switch (f->type) {
-        case PROP_ATOM:     return PROP_PREC_ATOM;
-        case PROP_NEGATION: return PROP_PREC_NEGATION;
-        case PROP_CONJUNCTION: return PROP_PREC_CONJUNCTION;
-        case PROP_DISJUNCTION: return PROP_PREC_DISJUNCTION;
-        case PROP_IMPLICATION: return PROP_PREC_IMPLICATION;
-        case PROP_BOTTOM:   return PROP_PREC_ATOM;
-        case PROP_TRUE:     return PROP_PREC_ATOM;
+        case PROP_ATOM:
+            return PROP_PREC_ATOM;
+        case PROP_NEGATION:
+            return PROP_PREC_NEGATION;
+        case PROP_CONJUNCTION:
+            return PROP_PREC_CONJUNCTION;
+        case PROP_DISJUNCTION:
+            return PROP_PREC_DISJUNCTION;
+        case PROP_IMPLICATION:
+            return PROP_PREC_IMPLICATION;
+        case PROP_BOTTOM:
+            return PROP_PREC_ATOM;
+        case PROP_TRUE:
+            return PROP_PREC_ATOM;
     }
     return PROP_PREC_DEFAULT;
 }
 
 /* 内部递归序列化 */
-static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
-                                   int parent_prec) {
-    if (!f || size == 0) return;
-    
+static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+    if (!f || size == 0)
+        return;
+
     /* 使用游标跟踪写入位置，避免每次 strncat 都调用 strlen 导致 O(n²) */
     size_t pos = strlen(buf);
     int prec = formula_precedence(f);
     bool need_parens = (parent_prec > prec);
 
-    /* 辅助宏：安全追加字符串到缓冲区 */
-    #define BUF_APPEND(s) do { \
-        size_t slen = strlen(s); \
-        if (pos + slen < size - 1) { \
-            memcpy(buf + pos, (s), slen); \
-            pos += slen; \
-        } else { \
+/* 辅助宏：安全追加字符串到缓冲区 */
+#define BUF_APPEND(s)                          \
+    do {                                       \
+        size_t slen = strlen(s);               \
+        if (pos + slen < size - 1) {           \
+            memcpy(buf + pos, (s), slen);      \
+            pos += slen;                       \
+        } else {                               \
             strncat(buf, (s), size - pos - 1); \
-            pos = size - 1; \
-        } \
-    } while(0)
+            pos = size - 1;                    \
+        }                                      \
+    } while (0)
 
     if (need_parens) {
         BUF_APPEND("(");
@@ -499,8 +523,8 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
     if (need_parens) {
         BUF_APPEND(")");
     }
-    
-    #undef BUF_APPEND
+
+#undef BUF_APPEND
 }
 
 /**
@@ -510,17 +534,19 @@ static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
  * @return 新分配的字符串指针，失败返回 NULL
  */
 char *prop_formula_to_string(const PropFormula *f) {
-    if (!f) return NULL;
-    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
-    if (!buf) return NULL;
+    if (!f)
+        return NULL;
+    char *buf = (char *) lv00_calloc(MAX_FORMULA_STR, sizeof(char)); /* 零初始化分配 */
+    if (!buf)
+        return NULL;
     formula_to_string_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
 }
 
 /* LaTeX 序列化 */
-static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
-                                  int parent_prec) {
-    if (!f || size == 0) return;
+static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size, int parent_prec) {
+    if (!f || size == 0)
+        return;
     int prec = formula_precedence(f);
     bool need_parens = (parent_prec > prec);
 
@@ -571,9 +597,11 @@ static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
  * @return 新分配的 LaTeX 字符串指针，失败返回 NULL
  */
 char *prop_formula_to_latex(const PropFormula *f) {
-    if (!f) return NULL;
-    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* 零初始化分配 */
-    if (!buf) return NULL;
+    if (!f)
+        return NULL;
+    char *buf = (char *) lv00_calloc(MAX_FORMULA_STR, sizeof(char)); /* 零初始化分配 */
+    if (!buf)
+        return NULL;
     formula_to_latex_buf(f, buf, MAX_FORMULA_STR, 0);
     return buf;
 }
@@ -587,16 +615,16 @@ typedef struct {
     const PropFormula *goal;
     /* 用前提集合的位图来标识（简化版：用前提指针数组哈希） */
     uint64_t premises_hash;
-    bool proven;         /* 该组合是否已证明 */
-    bool searched;       /* 是否已搜索过 */
+    bool proven;   /* 该组合是否已证明 */
+    bool searched; /* 是否已搜索过 */
 } MemoEntry;
 
 /* 证明搜索上下文 */
 typedef struct {
-    const PropFormula **premises;   /* 原始前提 */
+    const PropFormula **premises; /* 原始前提 */
     int premise_count;
     const VerifierConfig *config;
-    int steps;                       /* 已用步数 */
+    int steps; /* 已用步数 */
     bool timed_out;
     /* 超时基准时间 */
     uint64_t start_time_ms;
@@ -627,15 +655,15 @@ static uint64_t get_time_ms(void) {
 #ifdef _WIN32
     LARGE_INTEGER freq, count;
     if (QueryPerformanceFrequency(&freq) && QueryPerformanceCounter(&count)) {
-        return (uint64_t)((double)count.QuadPart / (double)freq.QuadPart * 1000.0);
+        return (uint64_t) ((double) count.QuadPart / (double) freq.QuadPart * 1000.0);
     }
-    return (uint64_t)time(NULL) * PROP_TIME_MS_PER_SEC;  /* 回退到秒级精度 */
+    return (uint64_t) time(NULL) * PROP_TIME_MS_PER_SEC; /* 回退到秒级精度 */
 #else
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
-        return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL;
+        return (uint64_t) ts.tv_sec * 1000ULL + (uint64_t) ts.tv_nsec / 1000000ULL;
     }
-    return (uint64_t)time(NULL) * PROP_TIME_MS_PER_SEC;  /* 回退到秒级精度 */
+    return (uint64_t) time(NULL) * PROP_TIME_MS_PER_SEC; /* 回退到秒级精度 */
 #endif
 }
 
@@ -652,7 +680,7 @@ static uint64_t get_time_ms(void) {
  * @return 64 位哈希值
  */
 static uint64_t hash_ptr(const void *p) {
-    uint64_t x = (uint64_t)(uintptr_t)p;
+    uint64_t x = (uint64_t) (uintptr_t) p;
     x = ((x >> PROP_HASH_BIT_SHIFT) ^ x) * PROP_HASH_PTR_MULTIPLIER;
     x = ((x >> PROP_HASH_BIT_SHIFT) ^ x) * PROP_HASH_PTR_MULTIPLIER;
     x = (x >> PROP_HASH_BIT_SHIFT) ^ x;
@@ -673,12 +701,13 @@ static uint64_t hash_ptr(const void *p) {
  * @return 64 位哈希值（NULL 公式返回 0）
  */
 static uint64_t formula_hash(const PropFormula *f) {
-    if (!f) return 0;
-    uint64_t h = (uint64_t)f->type * PROP_HASH_TYPE_MULTIPLIER;
+    if (!f)
+        return 0;
+    uint64_t h = (uint64_t) f->type * PROP_HASH_TYPE_MULTIPLIER;
     switch (f->type) {
         case PROP_ATOM: {
             for (const char *s = f->data.atom.name; *s; s++)
-                h = h * PROP_HASH_STRING_MULTIPLIER + (uint64_t)(unsigned char)*s;
+                h = h * PROP_HASH_STRING_MULTIPLIER + (uint64_t) (unsigned char) *s;
             break;
         }
         case PROP_CONJUNCTION:
@@ -719,12 +748,10 @@ static uint64_t premises_hash(const PropFormula **premises, int count) {
  * ============================================================ */
 
 /* 在记忆化表中查找 */
-static int memo_find(ProofContext *ctx, const PropFormula *goal,
-                      uint64_t phash) {
+static int memo_find(ProofContext *ctx, const PropFormula *goal, uint64_t phash) {
     uint64_t ghash = formula_hash(goal);
     for (int i = 0; i < ctx->memo_count; i++) {
-        if (ctx->memo[i].goal == goal &&
-            ctx->memo[i].premises_hash == phash) {
+        if (ctx->memo[i].goal == goal && ctx->memo[i].premises_hash == phash) {
             return i;
         }
     }
@@ -732,9 +759,9 @@ static int memo_find(ProofContext *ctx, const PropFormula *goal,
 }
 
 /* 添加记忆化条目 */
-static void memo_add(ProofContext *ctx, const PropFormula *goal,
-                      uint64_t phash, bool proven) {
-    if (ctx->memo_count >= MAX_MEMO_ENTRIES) return;
+static void memo_add(ProofContext *ctx, const PropFormula *goal, uint64_t phash, bool proven) {
+    if (ctx->memo_count >= MAX_MEMO_ENTRIES)
+        return;
     ctx->memo[ctx->memo_count].goal = goal;
     ctx->memo[ctx->memo_count].premises_hash = phash;
     ctx->memo[ctx->memo_count].proven = proven;
@@ -747,10 +774,10 @@ static void memo_add(ProofContext *ctx, const PropFormula *goal,
  * ============================================================ */
 
 /* 在前提列表中查找公式 */
-static bool premise_contains(const PropFormula **premises, int count,
-                              const PropFormula *f) {
+static bool premise_contains(const PropFormula **premises, int count, const PropFormula *f) {
     for (int i = 0; i < count; i++) {
-        if (formula_equal(premises[i], f)) return true;
+        if (formula_equal(premises[i], f))
+            return true;
     }
     return false;
 }
@@ -772,8 +799,8 @@ static bool premise_contains(const PropFormula **premises, int count,
  * @param max_output 输出数组最大容量
  * @return 输出的前提公式数量
  */
-static int forward_chain_conjunctions(const PropFormula **input, int input_count,
-                                       const PropFormula **output, int max_output) {
+static int forward_chain_conjunctions(const PropFormula **input, int input_count, const PropFormula **output,
+                                      int max_output) {
     int out_count = 0;
     /* 先复制所有输入 */
     for (int i = 0; i < input_count && out_count < max_output; i++) {
@@ -806,15 +833,15 @@ static int forward_chain_conjunctions(const PropFormula **input, int input_count
  * ============================================================ */
 
 /* 前向声明 */
-static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count,
-                   const PropFormula *goal);
+static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, const PropFormula *goal);
 
 /* 检查是否超时或超步数 */
 static bool check_limits(ProofContext *ctx) {
-    if (ctx->steps >= ctx->config->max_steps) return true;
+    if (ctx->steps >= ctx->config->max_steps)
+        return true;
     if (ctx->config->timeout_ms > 0) {
         uint64_t now = get_time_ms();
-        if (now - ctx->start_time_ms >= (uint64_t)ctx->config->timeout_ms) {
+        if (now - ctx->start_time_ms >= (uint64_t) ctx->config->timeout_ms) {
             ctx->timed_out = true;
             return true;
         }
@@ -823,8 +850,8 @@ static bool check_limits(ProofContext *ctx) {
 }
 
 /* 尝试 modus ponens：从前提中找到 A→B 和 A，推出 B */
-static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises,
-                              int premise_count, const PropFormula *goal) {
+static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises, int premise_count,
+                             const PropFormula *goal) {
     for (int i = 0; i < premise_count; i++) {
         if (premises[i]->type == PROP_IMPLICATION) {
             const PropFormula *impl = premises[i];
@@ -850,14 +877,12 @@ static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises,
 }
 
 /* 尝试从前提中直接匹配目标 */
-static bool try_direct_match(const PropFormula **premises, int premise_count,
-                              const PropFormula *goal) {
+static bool try_direct_match(const PropFormula **premises, int premise_count, const PropFormula *goal) {
     return premise_contains(premises, premise_count, goal);
 }
 
 /* 尝试 ?-消去：从 ?A 和 A 推出 ⊥ */
-static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises,
-                          int premise_count) {
+static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises, int premise_count) {
     /* 目标是 ⊥：检查是否有 ?A 和 A 同时作为前提 */
     for (int i = 0; i < premise_count; i++) {
         if (premises[i]->type == PROP_NEGATION) {
@@ -892,11 +917,10 @@ static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises,
  * @param goal          待证明的目标公式
  * @return true 表示证明成功，false 表示证明失败或超时/超步数
  */
-static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count,
-                   const PropFormula *goal) {
+static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, const PropFormula *goal) {
     /* 检查递归深度限制，防止栈溢出 */
     ++ctx->recursion_depth;
-    if (ctx->recursion_depth > MAX_MEMO_ENTRIES) {  /* 最大递归深度 = 记忆化表容量 */
+    if (ctx->recursion_depth > MAX_MEMO_ENTRIES) { /* 最大递归深度 = 记忆化表容量 */
         goto prove_depth_exceeded;
     }
 
@@ -938,8 +962,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         if (impl->data.binary.right->type == PROP_BOTTOM) {
                             /* 有 A→⊥ = ?A，尝试证明 A */
                             ctx->steps++;
-                            result = prove(ctx, premises, premise_count,
-                                           impl->data.binary.left);
+                            result = prove(ctx, premises, premise_count, impl->data.binary.left);
                         }
                     }
                 }
@@ -947,8 +970,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
             /* 前向链：展开合取和应用 modus ponens，然后重试 ?-消去 */
             if (!result) {
                 const PropFormula *expanded[MAX_PREMISES];
-                int exp_count = forward_chain_conjunctions(premises, premise_count,
-                                                            expanded, MAX_PREMISES);
+                int exp_count = forward_chain_conjunctions(premises, premise_count, expanded, MAX_PREMISES);
                 /* 多步前向推理 */
                 {
                     bool changed = true;
@@ -956,10 +978,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         changed = false;
                         for (int i = 0; i < exp_count && !changed; i++) {
                             if (expanded[i]->type == PROP_IMPLICATION) {
-                                const PropFormula *antecedent =
-                                    expanded[i]->data.binary.left;
-                                const PropFormula *consequent =
-                                    expanded[i]->data.binary.right;
+                                const PropFormula *antecedent = expanded[i]->data.binary.left;
+                                const PropFormula *consequent = expanded[i]->data.binary.right;
                                 if (premise_contains(expanded, exp_count, antecedent) &&
                                     !premise_contains(expanded, exp_count, consequent)) {
                                     expanded[exp_count++] = consequent;
@@ -995,18 +1015,15 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
             }
             /* 前向链：展开合取并尝试 modus ponens 链 */
             if (!result) {
-                int exp_count = forward_chain_conjunctions(premises, premise_count,
-                                                            expanded, MAX_PREMISES);
+                int exp_count = forward_chain_conjunctions(premises, premise_count, expanded, MAX_PREMISES);
                 /* 多步前向推理：反复应用 modus ponens 直到无法推导新事实 */
                 bool changed = true;
                 while (changed && exp_count < MAX_PREMISES) {
                     changed = false;
                     for (int i = 0; i < exp_count && !changed; i++) {
                         if (expanded[i]->type == PROP_IMPLICATION) {
-                            const PropFormula *antecedent =
-                                expanded[i]->data.binary.left;
-                            const PropFormula *consequent =
-                                expanded[i]->data.binary.right;
+                            const PropFormula *antecedent = expanded[i]->data.binary.left;
+                            const PropFormula *consequent = expanded[i]->data.binary.right;
                             if (premise_contains(expanded, exp_count, antecedent) &&
                                 !premise_contains(expanded, exp_count, consequent)) {
                                 expanded[exp_count++] = consequent;
@@ -1021,8 +1038,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
             }
             /* 尝试 ∨-消去：如果有 A∨B，且 A→goal, B→goal */
             if (!result) {
-                int fc_count = forward_chain_conjunctions(premises, premise_count,
-                                                            fc_expanded, MAX_PREMISES);
+                int fc_count = forward_chain_conjunctions(premises, premise_count, fc_expanded, MAX_PREMISES);
                 /* 多步前向推理 */
                 {
                     bool changed = true;
@@ -1030,10 +1046,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         changed = false;
                         for (int i = 0; i < fc_count && !changed; i++) {
                             if (fc_expanded[i]->type == PROP_IMPLICATION) {
-                                const PropFormula *antecedent =
-                                    fc_expanded[i]->data.binary.left;
-                                const PropFormula *consequent =
-                                    fc_expanded[i]->data.binary.right;
+                                const PropFormula *antecedent = fc_expanded[i]->data.binary.left;
+                                const PropFormula *consequent = fc_expanded[i]->data.binary.right;
                                 if (premise_contains(fc_expanded, fc_count, antecedent) &&
                                     !premise_contains(fc_expanded, fc_count, consequent)) {
                                     fc_expanded[fc_count++] = consequent;
@@ -1052,8 +1066,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                         ctx->steps++;
                         {
                             int new_count = fc_count;
-                            memcpy((void *)new_premises_l, fc_expanded,
-                                   sizeof(const PropFormula *) * (size_t)fc_count);
+                            memcpy((void *) new_premises_l, fc_expanded,
+                                   sizeof(const PropFormula *) * (size_t) fc_count);
                             if (new_count < MAX_PREMISES) {
                                 new_premises_l[new_count++] = disj->data.binary.left;
                             }
@@ -1066,8 +1080,8 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
                             ctx->steps++;
                             {
                                 int new_count = fc_count;
-                                memcpy((void *)new_premises_r, fc_expanded,
-                                       sizeof(const PropFormula *) * (size_t)fc_count);
+                                memcpy((void *) new_premises_r, fc_expanded,
+                                       sizeof(const PropFormula *) * (size_t) fc_count);
                                 if (new_count < MAX_PREMISES) {
                                     new_premises_r[new_count++] = disj->data.binary.right;
                                 }
@@ -1167,8 +1181,7 @@ static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_c
     /* 额外尝试：使用前向链展开合取前提后重试 */
     if (!result && goal->type == PROP_ATOM) {
         const PropFormula *expanded[MAX_PREMISES];
-        int exp_count = forward_chain_conjunctions(premises, premise_count,
-                                                    expanded, MAX_PREMISES);
+        int exp_count = forward_chain_conjunctions(premises, premise_count, expanded, MAX_PREMISES);
         if (exp_count > premise_count) {
             /* 有新的前提被提取 */
             result = try_direct_match(expanded, exp_count, goal);
@@ -1194,37 +1207,32 @@ prove_depth_exceeded:
  * 公共 API
  * ============================================================ */
 
-VerifyDetail prop_verifier_verify(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config)
-{
+VerifyDetail prop_verifier_verify(const PropFormula **premises, int premise_count, const PropFormula *goal,
+                                  const VerifierConfig *config) {
     VerifyDetail detail;
     memset(&detail, 0, sizeof(detail));
 
     /* 默认配置 */
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     detail.max_steps = config->max_steps;
 
     /* 输入验证 */
     if (!goal) {
         detail.result = PV_VERIFY_INVALID_INPUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "目标公式为 NULL");
+        snprintf(detail.error_message, sizeof(detail.error_message), "目标公式为 NULL");
         return detail;
     }
     if (premise_count < 0) {
         detail.result = PV_VERIFY_INVALID_INPUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "前提数量为负数: %d", premise_count);
+        snprintf(detail.error_message, sizeof(detail.error_message), "前提数量为负数: %d", premise_count);
         return detail;
     }
     if (premise_count > 0 && !premises) {
         detail.result = PV_VERIFY_INVALID_INPUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "前提数量 > 0 但前提数组为 NULL");
+        snprintf(detail.error_message, sizeof(detail.error_message), "前提数量 > 0 但前提数组为 NULL");
         return detail;
     }
 
@@ -1238,10 +1246,7 @@ VerifyDetail prop_verifier_verify(
 
     /* 流式事件：验证开始 */
     if (prop_verifier_stream_ctx) {
-        stream_emit_simple(prop_verifier_stream_ctx,
-                           STREAM_EVENT_PROOF_STEP_ADDED,
-                           "命题验证开始，启动证明搜索",
-                           0);
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_STEP_ADDED, "命题验证开始，启动证明搜索", 0);
     }
 
     /* 执行证明搜索 */
@@ -1251,17 +1256,14 @@ VerifyDetail prop_verifier_verify(
 
     if (ctx.timed_out) {
         detail.result = PV_VERIFY_TIMEOUT;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "证明搜索超时 (%d ms)", config->timeout_ms);
+        snprintf(detail.error_message, sizeof(detail.error_message), "证明搜索超时 (%d ms)", config->timeout_ms);
     } else if (proven) {
         detail.result = PV_VERIFY_PROVEN;
-        snprintf(detail.construction_summary,
-                 sizeof(detail.construction_summary),
-                 "证明成功: 使用 %d 步推理完成验证", ctx.steps);
+        snprintf(detail.construction_summary, sizeof(detail.construction_summary), "证明成功: 使用 %d 步推理完成验证",
+                 ctx.steps);
     } else {
         detail.result = PV_VERIFY_FAILED;
-        snprintf(detail.error_message, sizeof(detail.error_message),
-                 "搜索空间耗尽，未能证明 (%d 步)", ctx.steps);
+        snprintf(detail.error_message, sizeof(detail.error_message), "搜索空间耗尽，未能证明 (%d 步)", ctx.steps);
     }
 
     return detail;
@@ -1273,8 +1275,10 @@ VerifyDetail prop_verifier_verify(
 
 /* 检查 child 是否是 parent 的子节点（递归） */
 static bool formula_is_descendant(const PropFormula *child, const PropFormula *parent) {
-    if (!child || !parent) return false;
-    if (child == parent) return true;
+    if (!child || !parent)
+        return false;
+    if (child == parent)
+        return true;
     switch (parent->type) {
         case PROP_CONJUNCTION:
         case PROP_DISJUNCTION:
@@ -1291,11 +1295,11 @@ static bool formula_is_descendant(const PropFormula *child, const PropFormula *p
 /* 烟测辅助宏：创建原子命题 */
 #define ATOM(name) prop_formula_create_atom(name)
 #define AND(a, b) prop_formula_create_conjunction((a), (b))
-#define OR(a, b)  prop_formula_create_disjunction((a), (b))
+#define OR(a, b) prop_formula_create_disjunction((a), (b))
 #define IMPL(a, b) prop_formula_create_implication((a), (b))
-#define NEG(a)    prop_formula_create_negation(a)
-#define BOT()     prop_formula_create_bottom()
-#define TOP()     prop_formula_create_true()
+#define NEG(a) prop_formula_create_negation(a)
+#define BOT() prop_formula_create_bottom()
+#define TOP() prop_formula_create_true()
 
 int prop_verifier_builtin_smoke_test_count(void) {
     return PROP_SMOKE_TEST_COUNT;
@@ -1401,10 +1405,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
 
     /* 测试 8: (P→Q)→(?Q→?P) (contraposition - intuitionistic) */
     {
-        PropFormula *contra = IMPL(
-            IMPL(ATOM("P"), ATOM("Q")),
-            IMPL(NEG(ATOM("Q")), NEG(ATOM("P")))
-        );
+        PropFormula *contra = IMPL(IMPL(ATOM("P"), ATOM("Q")), IMPL(NEG(ATOM("Q")), NEG(ATOM("P"))));
         tests[7].premise_count = 0;
         tests[7].goal = contra;
         tests[7].expected_provable = true;
@@ -1415,8 +1416,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
      * 左右两侧使用完全独立的原子命题 */
     {
         PropFormula *pqorr = AND(ATOM("P"), OR(ATOM("Q"), ATOM("R")));
-        PropFormula *pqorpr = OR(AND(ATOM("P"), ATOM("Q")),
-                                  AND(ATOM("P"), ATOM("R")));
+        PropFormula *pqorpr = OR(AND(ATOM("P"), ATOM("Q")), AND(ATOM("P"), ATOM("R")));
         tests[8].premises[0] = pqorr;
         tests[8].premise_count = 1;
         tests[8].goal = pqorpr;
@@ -1478,16 +1478,24 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
             /* 去重：跳过已存在的指针 */
             bool dup = false;
             for (int d = 0; d < ptr_count; d++) {
-                if (ptrs[d] == tests[i].premises[j]) { dup = true; break; }
+                if (ptrs[d] == tests[i].premises[j]) {
+                    dup = true;
+                    break;
+                }
             }
-            if (!dup) ptrs[ptr_count++] = tests[i].premises[j];
+            if (!dup)
+                ptrs[ptr_count++] = tests[i].premises[j];
         }
         if (tests[i].goal) {
             bool dup = false;
             for (int d = 0; d < ptr_count; d++) {
-                if (ptrs[d] == tests[i].goal) { dup = true; break; }
+                if (ptrs[d] == tests[i].goal) {
+                    dup = true;
+                    break;
+                }
             }
-            if (!dup) ptrs[ptr_count++] = tests[i].goal;
+            if (!dup)
+                ptrs[ptr_count++] = tests[i].goal;
         }
 
         /* 第一遍：识别哪些是"根"（不是其他公式的子节点） */
@@ -1495,8 +1503,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         memset(is_root, true, sizeof(is_root));
         for (int k = 0; k < ptr_count; k++) {
             for (int m = 0; m < ptr_count; m++) {
-                if (k != m && ptrs[k] != ptrs[m] &&
-                    formula_is_descendant(ptrs[k], ptrs[m])) {
+                if (k != m && ptrs[k] != ptrs[m] && formula_is_descendant(ptrs[k], ptrs[m])) {
                     is_root[k] = false;
                     break;
                 }
@@ -1506,7 +1513,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         /* 第二遍：只释放根公式 */
         for (int k = 0; k < ptr_count; k++) {
             if (is_root[k]) {
-                prop_formula_destroy((PropFormula *)ptrs[k]);
+                prop_formula_destroy((PropFormula *) ptrs[k]);
             }
         }
     }
@@ -1525,13 +1532,16 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
  * 用于分析证明失败时哪些原子命题缺少构造。
  */
 static int collect_atoms(const PropFormula *f, char atoms[][PROP_ATOM_NAME_MAX_LEN], int max_atoms) {
-    if (!f) return 0;
+    if (!f)
+        return 0;
     switch (f->type) {
         case PROP_ATOM: {
             /* 去重检查 */
             for (int i = 0; i < max_atoms; i++) {
-                if (atoms[i][0] == '\0') break;
-                if (strcmp(atoms[i], f->data.atom.name) == 0) return 0;
+                if (atoms[i][0] == '\0')
+                    break;
+                if (strcmp(atoms[i], f->data.atom.name) == 0)
+                    return 0;
             }
             for (int i = 0; i < max_atoms; i++) {
                 if (atoms[i][0] == '\0') {
@@ -1564,30 +1574,25 @@ static int collect_atoms(const PropFormula *f, char atoms[][PROP_ATOM_NAME_MAX_L
  *   - 反证法（RAA）：(~A → ⊥) → A
  */
 static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size_t desc_size) {
-    if (!f) return false;
+    if (!f)
+        return false;
 
     /* 检查排中律：A ∨ ~A 或 ~A ∨ A */
     if (f->type == PROP_DISJUNCTION) {
         const PropFormula *left = f->data.binary.left;
         const PropFormula *right = f->data.binary.right;
         /* A ∨ ~A */
-        if (left->type == PROP_NEGATION &&
-            formula_equal(left->data.unary.operand, right)) {
+        if (left->type == PROP_NEGATION && formula_equal(left->data.unary.operand, right)) {
             char *s = prop_formula_to_string(right);
-            snprintf(pattern_desc, desc_size,
-                     "排中律 (LEM): %s \\/ ~%s（直觉主义逻辑中不可证）",
-                     s, s);
-            lv00_free((void **)&s);
+            snprintf(pattern_desc, desc_size, "排中律 (LEM): %s \\/ ~%s（直觉主义逻辑中不可证）", s, s);
+            lv00_free((void **) &s);
             return true;
         }
         /* ~A ∨ A */
-        if (right->type == PROP_NEGATION &&
-            formula_equal(right->data.unary.operand, left)) {
+        if (right->type == PROP_NEGATION && formula_equal(right->data.unary.operand, left)) {
             char *s = prop_formula_to_string(left);
-            snprintf(pattern_desc, desc_size,
-                     "排中律 (LEM): ~%s \\/ %s（直觉主义逻辑中不可证）",
-                     s, s);
-            lv00_free((void **)&s);
+            snprintf(pattern_desc, desc_size, "排中律 (LEM): ~%s \\/ %s（直觉主义逻辑中不可证）", s, s);
+            lv00_free((void **) &s);
             return true;
         }
     }
@@ -1596,26 +1601,20 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
     if (f->type == PROP_IMPLICATION) {
         const PropFormula *antecedent = f->data.binary.left;
         const PropFormula *consequent = f->data.binary.right;
-        if (antecedent->type == PROP_NEGATION &&
-            antecedent->data.unary.operand->type == PROP_NEGATION &&
+        if (antecedent->type == PROP_NEGATION && antecedent->data.unary.operand->type == PROP_NEGATION &&
             formula_equal(antecedent->data.unary.operand->data.unary.operand, consequent)) {
             char *s = prop_formula_to_string(consequent);
-            snprintf(pattern_desc, desc_size,
-                     "双重否定消去: ~~%s → %s（直觉主义逻辑中不可证）",
-                     s, s);
-            lv00_free((void **)&s);
+            snprintf(pattern_desc, desc_size, "双重否定消去: ~~%s → %s（直觉主义逻辑中不可证）", s, s);
+            lv00_free((void **) &s);
             return true;
         }
         /* 反证法 (RAA): (~A → ⊥) → A */
-        if (antecedent->type == PROP_IMPLICATION &&
-            antecedent->data.binary.left->type == PROP_NEGATION &&
+        if (antecedent->type == PROP_IMPLICATION && antecedent->data.binary.left->type == PROP_NEGATION &&
             antecedent->data.binary.right->type == PROP_BOTTOM &&
             formula_equal(antecedent->data.binary.left->data.unary.operand, consequent)) {
             char *s = prop_formula_to_string(consequent);
-            snprintf(pattern_desc, desc_size,
-                     "反证法 (RAA): (~%s → _|_) → %s（直觉主义逻辑中不可证）",
-                     s, s);
-            lv00_free((void **)&s);
+            snprintf(pattern_desc, desc_size, "反证法 (RAA): (~%s → _|_) → %s（直觉主义逻辑中不可证）", s, s);
+            lv00_free((void **) &s);
             return true;
         }
     }
@@ -1647,24 +1646,22 @@ static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size
     return false;
 }
 
-InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config)
-{
+InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFormula **premises, int premise_count,
+                                                                    const PropFormula *goal,
+                                                                    const VerifierConfig *config) {
     InconstructibilityAnalysis analysis;
     memset(&analysis, 0, sizeof(analysis));
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* 先执行验证 */
     VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
 
     if (detail.result == PV_VERIFY_PROVEN) {
         analysis.is_inconstructible = false;
-        snprintf(analysis.reason, sizeof(analysis.reason),
-                 "命题已证明为可构造，无需不可构造性分析");
+        snprintf(analysis.reason, sizeof(analysis.reason), "命题已证明为可构造，无需不可构造性分析");
         return analysis;
     }
 
@@ -1672,8 +1669,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
 
     /* 检查是否包含经典逻辑模式 */
     char pattern_desc[PROP_PATTERN_DESC_BUFSIZE] = {0};
-    if (config->use_intuitionistic &&
-        has_classical_pattern(goal, pattern_desc, sizeof(pattern_desc))) {
+    if (config->use_intuitionistic && has_classical_pattern(goal, pattern_desc, sizeof(pattern_desc))) {
         snprintf(analysis.reason, sizeof(analysis.reason),
                  "直觉主义限制: %s。在直觉主义逻辑中，证明必须提供显式构造，"
                  "不能依赖排中律或双重否定消去等经典推理规则。",
@@ -1695,8 +1691,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
             for (int j = 0; j < premise_count; j++) {
-                if (premises[j]->type == PROP_ATOM &&
-                    strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
                     found = true;
                     break;
                 }
@@ -1726,14 +1721,12 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
 
     /* 生成失败子目标描述 */
     analysis.failed_subgoals = 1;
-    analysis.subgoal_descriptions = (char **)lv00_malloc(sizeof(char *));  /* 分配内存 */
+    analysis.subgoal_descriptions = (char **) lv00_malloc(sizeof(char *)); /* 分配内存 */
     if (analysis.subgoal_descriptions) {
-        analysis.subgoal_descriptions[0] = (char *)lv00_malloc(512);  /* 分配内存 */
+        analysis.subgoal_descriptions[0] = (char *) lv00_malloc(512); /* 分配内存 */
         if (analysis.subgoal_descriptions[0]) {
-            snprintf(analysis.subgoal_descriptions[0], 512,
-                     "目标: %s | 状态: %s | 步数: %d/%d",
-                     prop_formula_to_string(goal),
-                     detail.result == PV_VERIFY_TIMEOUT ? "超时" : "搜索空间耗尽",
+            snprintf(analysis.subgoal_descriptions[0], 512, "目标: %s | 状态: %s | 步数: %d/%d",
+                     prop_formula_to_string(goal), detail.result == PV_VERIFY_TIMEOUT ? "超时" : "搜索空间耗尽",
                      detail.steps_used, detail.max_steps);
         }
         analysis.subgoal_desc_count = 1;
@@ -1743,12 +1736,13 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
 }
 
 void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis) {
-    if (!analysis) return;
+    if (!analysis)
+        return;
     if (analysis->subgoal_descriptions) {
         for (int i = 0; i < analysis->subgoal_desc_count; i++) {
-            lv00_free((void**)&analysis->subgoal_descriptions[i]);  /* 释放并置NULL */
+            lv00_free((void **) &analysis->subgoal_descriptions[i]); /* 释放并置NULL */
         }
-        lv00_free((void**)&analysis->subgoal_descriptions);  /* 释放并置NULL */
+        lv00_free((void **) &analysis->subgoal_descriptions); /* 释放并置NULL */
     }
     analysis->subgoal_desc_count = 0;
 }
@@ -1761,11 +1755,11 @@ void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis) {
  * @brief 获取公式类型的 BHK 解释描述
  */
 static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
-    if (!f || size == 0) return;
+    if (!f || size == 0)
+        return;
     switch (f->type) {
         case PROP_ATOM:
-            snprintf(buf, size, "原子命题 %s 需要一个几何证物（点、线段或区域）",
-                     f->data.atom.name);
+            snprintf(buf, size, "原子命题 %s 需要一个几何证物（点、线段或区域）", f->data.atom.name);
             break;
         case PROP_CONJUNCTION:
             snprintf(buf, size,
@@ -1790,8 +1784,7 @@ static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
             snprintf(buf, size,
                      "否定 %s 的证物是一个将 %s 的证物转换为 ⊥ 的构造，"
                      "对应几何中的函数块（输入→空输出端口）",
-                     prop_formula_to_string(f),
-                     prop_formula_to_string(f->data.unary.operand));
+                     prop_formula_to_string(f), prop_formula_to_string(f->data.unary.operand));
             break;
         case PROP_BOTTOM:
             snprintf(buf, size,
@@ -1810,7 +1803,8 @@ static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
  * @brief 获取公式类型的几何映射描述
  */
 static void get_geometric_mapping(const PropFormula *f, char *buf, size_t size) {
-    if (!f || size == 0) return;
+    if (!f || size == 0)
+        return;
     switch (f->type) {
         case PROP_ATOM:
             snprintf(buf, size, "GEOM_POINT / GEOM_REGION（证物节点）");
@@ -1836,16 +1830,14 @@ static void get_geometric_mapping(const PropFormula *f, char *buf, size_t size) 
     }
 }
 
-BHKVerificationResult prop_verifier_bhk_verify(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config)
-{
+BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int premise_count, const PropFormula *goal,
+                                               const VerifierConfig *config) {
     BHKVerificationResult result;
     memset(&result, 0, sizeof(result));
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* 先执行命题逻辑验证 */
     VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
@@ -1873,37 +1865,35 @@ BHKVerificationResult prop_verifier_bhk_verify(
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
             for (int j = 0; j < premise_count; j++) {
-                if (premises[j]->type == PROP_ATOM &&
-                    strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
                     found = true;
                     break;
                 }
             }
-            if (!found) missing++;
+            if (!found)
+                missing++;
         }
 
         result.missing_constructions = missing;
         result.missing_count = missing;
 
         if (missing > 0) {
-            result.missing_descriptions = (char **)lv00_malloc(sizeof(char *) * (size_t)missing);  /* 分配内存 */
+            result.missing_descriptions = (char **) lv00_malloc(sizeof(char *) * (size_t) missing); /* 分配内存 */
             if (result.missing_descriptions) {
                 int idx = 0;
                 for (int i = 0; i < atom_count && idx < missing; i++) {
                     bool found = false;
                     for (int j = 0; j < premise_count; j++) {
-                        if (premises[j]->type == PROP_ATOM &&
-                            strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                        if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
                             found = true;
                             break;
                         }
                     }
                     if (!found) {
                         char desc[256];
-                        snprintf(desc, sizeof(desc),
-                                 "缺少原子命题 '%s' 的几何证物（需要对应的点、线段或区域节点）",
+                        snprintf(desc, sizeof(desc), "缺少原子命题 '%s' 的几何证物（需要对应的点、线段或区域节点）",
                                  goal_atoms[i]);
-                        result.missing_descriptions[idx] = lv00_strdup_safe(desc);  /* 复制字符串 */
+                        result.missing_descriptions[idx] = lv00_strdup_safe(desc); /* 复制字符串 */
                         idx++;
                     }
                 }
@@ -1912,12 +1902,11 @@ BHKVerificationResult prop_verifier_bhk_verify(
             result.missing_descriptions = NULL;
             /* 有原子前提但无法构造：可能是推理规则组合问题 */
             result.missing_count = 1;
-            result.missing_descriptions = (char **)lv00_malloc(sizeof(char *));  /* 分配内存 */
+            result.missing_descriptions = (char **) lv00_malloc(sizeof(char *)); /* 分配内存 */
             if (result.missing_descriptions) {
                 char desc[256];
-                snprintf(desc, sizeof(desc),
-                         "无法通过现有前提的组合构造目标（推理规则链不完整）");
-                result.missing_descriptions[0] = lv00_strdup_safe(desc);  /* 复制字符串 */
+                snprintf(desc, sizeof(desc), "无法通过现有前提的组合构造目标（推理规则链不完整）");
+                result.missing_descriptions[0] = lv00_strdup_safe(desc); /* 复制字符串 */
             }
         }
     }
@@ -1926,12 +1915,13 @@ BHKVerificationResult prop_verifier_bhk_verify(
 }
 
 void prop_verifier_free_bhk_result(BHKVerificationResult *result) {
-    if (!result) return;
+    if (!result)
+        return;
     if (result->missing_descriptions) {
         for (int i = 0; i < result->missing_count; i++) {
-            lv00_free((void**)&result->missing_descriptions[i]);  /* 释放并置NULL */
+            lv00_free((void **) &result->missing_descriptions[i]); /* 释放并置NULL */
         }
-        lv00_free((void**)&result->missing_descriptions);  /* 释放并置NULL */
+        lv00_free((void **) &result->missing_descriptions); /* 释放并置NULL */
     }
     result->missing_count = 0;
 }
@@ -1951,30 +1941,29 @@ void prop_verifier_free_bhk_result(BHKVerificationResult *result) {
  *   - 已证伪（PV_VERIFY_DISPROVEN）→ TRUST_RED
  *   - 超时/错误 → TRUST_BLUE
  */
-static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk,
-                                          PropVerifyResult verify_result) {
+static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk, PropVerifyResult verify_result) {
     switch (verify_result) {
-    case PV_VERIFY_PROVEN:
-        if (!bhk->verified) {
-            /* BHK层未通过但命题层通过：条件性可信 */
-            return TRUST_YELLOW;
-        }
-        if (bhk->missing_constructions == 0) {
-            return TRUST_GREEN;
-        } else if (bhk->missing_constructions <= 2) {
-            return TRUST_YELLOW;
-        } else {
-            return TRUST_AMBER;
-        }
-    case PV_VERIFY_DISPROVEN:
-        return TRUST_RED;
-    case PV_VERIFY_FAILED:
-        return TRUST_BLUE;
-    case PV_VERIFY_TIMEOUT:
-    case PV_VERIFY_INVALID_INPUT:
-    case PV_VERIFY_ERROR:
-    default:
-        return TRUST_BLUE;
+        case PV_VERIFY_PROVEN:
+            if (!bhk->verified) {
+                /* BHK层未通过但命题层通过：条件性可信 */
+                return TRUST_YELLOW;
+            }
+            if (bhk->missing_constructions == 0) {
+                return TRUST_GREEN;
+            } else if (bhk->missing_constructions <= 2) {
+                return TRUST_YELLOW;
+            } else {
+                return TRUST_AMBER;
+            }
+        case PV_VERIFY_DISPROVEN:
+            return TRUST_RED;
+        case PV_VERIFY_FAILED:
+            return TRUST_BLUE;
+        case PV_VERIFY_TIMEOUT:
+        case PV_VERIFY_INVALID_INPUT:
+        case PV_VERIFY_ERROR:
+        default:
+            return TRUST_BLUE;
     }
 }
 
@@ -1983,33 +1972,38 @@ static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk,
  */
 static const char *trust_color_name(TrustColor color) {
     switch (color) {
-    case TRUST_GREEN:  return "绿色（完全可信）";
-    case TRUST_BLUE:   return "蓝色（未确定）";
-    case TRUST_YELLOW: return "黄色（条件性可信）";
-    case TRUST_ORANGE: return "橙色（需关注）";
-    case TRUST_LIGHT_ORANGE: return "浅橙色";
-    case TRUST_RED:    return "红色（不可信/已证伪）";
-    case TRUST_AMBER:  return "琥珀色（显著缺失）";
-    default:           return "未知";
+        case TRUST_GREEN:
+            return "绿色（完全可信）";
+        case TRUST_BLUE:
+            return "蓝色（未确定）";
+        case TRUST_YELLOW:
+            return "黄色（条件性可信）";
+        case TRUST_ORANGE:
+            return "橙色（需关注）";
+        case TRUST_LIGHT_ORANGE:
+            return "浅橙色";
+        case TRUST_RED:
+            return "红色（不可信/已证伪）";
+        case TRUST_AMBER:
+            return "琥珀色（显著缺失）";
+        default:
+            return "未知";
     }
 }
 
-int prop_verifier_apply_trust_colors(
-    ConstraintGraph *graph,
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config,
-    BHKVerificationResult *out_result)
-{
-    if (!graph) return -1;
+int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula **premises, int premise_count,
+                                     const PropFormula *goal, const VerifierConfig *config,
+                                     BHKVerificationResult *out_result) {
+    if (!graph)
+        return -1;
 
     /* 步骤1: 执行 BHK 验证 */
-    BHKVerificationResult bhk = prop_verifier_bhk_verify(
-        premises, premise_count, goal, config);
+    BHKVerificationResult bhk = prop_verifier_bhk_verify(premises, premise_count, goal, config);
 
     /* 同时获取原始验证结果以判断 DISPROVEN 等状态 */
     VerifierConfig default_cfg = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_cfg;
+    if (!config)
+        config = &default_cfg;
     VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
 
     /* 步骤2: 映射信任颜色 */
@@ -2018,27 +2012,25 @@ int prop_verifier_apply_trust_colors(
     /* 流式输出: 验证开始 */
     if (prop_verifier_stream_ctx) {
         char desc[256];
-        snprintf(desc, sizeof(desc),
-                 "信任颜色桥接: BHK验证=%s, 缺失构造=%d, 目标颜色=%s",
-                 bhk.verified ? "通过" : "未通过",
-                 bhk.missing_constructions,
-                 trust_color_name(target_color));
-        stream_emit_simple(prop_verifier_stream_ctx,
-                           STREAM_EVENT_PROOF_COLOR_UPDATE, desc, 0);
+        snprintf(desc, sizeof(desc), "信任颜色桥接: BHK验证=%s, 缺失构造=%d, 目标颜色=%s",
+                 bhk.verified ? "通过" : "未通过", bhk.missing_constructions, trust_color_name(target_color));
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, desc, 0);
     }
 
     /* 步骤3: 遍历约束图中的所有节点，设置信任颜色 */
     int updated_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
 
         bool node_updated = false;
 
         /* 对节点的每个符号坐标设置信任颜色 */
         for (int c = 0; c < node->coord_count; c++) {
             SymbolicCoord *coord = node->symbolic_coords[c];
-            if (!coord) continue;
+            if (!coord)
+                continue;
 
             TrustColor old_color = symbolic_coord_get_trust(coord);
             if (old_color != target_color) {
@@ -2064,13 +2056,10 @@ int prop_verifier_apply_trust_colors(
                 snprintf(detail_json, sizeof(detail_json),
                          "{\"node_id\":%d,\"type\":%d,\"old_color\":%d,\"new_color\":%d,"
                          "\"verified\":%s,\"missing\":%d}",
-                         node->id, (int)node->type,
-                         (int)symbolic_coord_get_trust(
-                             node->coord_count > 0 && node->symbolic_coords[0]
-                                 ? node->symbolic_coords[0] : NULL),
-                         (int)target_color,
-                         bhk.verified ? "true" : "false",
-                         bhk.missing_constructions);
+                         node->id, (int) node->type,
+                         (int) symbolic_coord_get_trust(
+                             node->coord_count > 0 && node->symbolic_coords[0] ? node->symbolic_coords[0] : NULL),
+                         (int) target_color, bhk.verified ? "true" : "false", bhk.missing_constructions);
                 ev.detail_json = detail_json;
                 stream_emit(prop_verifier_stream_ctx, &ev);
             }
@@ -2080,11 +2069,9 @@ int prop_verifier_apply_trust_colors(
     /* 流式输出: 完成统计 */
     if (prop_verifier_stream_ctx) {
         char done_desc[128];
-        snprintf(done_desc, sizeof(done_desc),
-                 "信任颜色应用完成: 更新了 %d/%d 个节点",
-                 updated_count, graph->node_count);
-        stream_emit_simple(prop_verifier_stream_ctx,
-                           STREAM_EVENT_PROOF_COLOR_UPDATE, done_desc, 0);
+        snprintf(done_desc, sizeof(done_desc), "信任颜色应用完成: 更新了 %d/%d 个节点", updated_count,
+                 graph->node_count);
+        stream_emit_simple(prop_verifier_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, done_desc, 0);
     }
 
     /* 步骤4: 输出结果（如果调用者需要） */
@@ -2104,21 +2091,21 @@ int prop_verifier_apply_trust_colors(
  * 命题等价性检查
  * ============================================================ */
 
-bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
-                                      const VerifierConfig *config) {
-    if (!a || !b) return false;
+bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b, const VerifierConfig *config) {
+    if (!a || !b)
+        return false;
 
     /* 结构相等性快速路径 */
-    if (formula_equal(a, b)) return true;
+    if (formula_equal(a, b))
+        return true;
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* 检查 a → b 和 b → a 是否都可证 */
-    PropFormula *a_impl_b = prop_formula_create_implication(
-        prop_formula_copy(a), prop_formula_copy(b));
-    PropFormula *b_impl_a = prop_formula_create_implication(
-        prop_formula_copy(b), prop_formula_copy(a));
+    PropFormula *a_impl_b = prop_formula_create_implication(prop_formula_copy(a), prop_formula_copy(b));
+    PropFormula *b_impl_a = prop_formula_create_implication(prop_formula_copy(b), prop_formula_copy(a));
 
     VerifyDetail d1 = prop_verifier_verify(NULL, 0, a_impl_b, config);
     VerifyDetail d2 = prop_verifier_verify(NULL, 0, b_impl_a, config);
@@ -2131,20 +2118,20 @@ bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
     return result;
 }
 
-bool prop_verifier_check_tautology(const PropFormula *f,
-                                    const VerifierConfig *config) {
-    if (!f) return false;
+bool prop_verifier_check_tautology(const PropFormula *f, const VerifierConfig *config) {
+    if (!f)
+        return false;
 
     VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
-    if (!config) config = &default_config;
+    if (!config)
+        config = &default_config;
 
     /* 永真式 = 无前提即可证 */
     VerifyDetail detail = prop_verifier_verify(NULL, 0, f, config);
     return detail.result == PV_VERIFY_PROVEN;
 }
 
-int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
-                                   VerifyDetail *results) {
+int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count, VerifyDetail *results) {
     int passed = 0;
 
     for (int i = 0; i < test_count; i++) {
@@ -2154,8 +2141,7 @@ int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
         VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
         /* 对于预期不可证的测试，使用直觉主义模式 */
         /* 对于测试 13（爆炸原理），启用 ex_falso */
-        if (t->expected_provable && t->premise_count == 1 &&
-            t->premises[0] && t->premises[0]->type == PROP_BOTTOM &&
+        if (t->expected_provable && t->premise_count == 1 && t->premises[0] && t->premises[0]->type == PROP_BOTTOM &&
             t->goal && t->goal->type == PROP_ATOM) {
             config.enable_ex_falso = true;
         }
@@ -2166,16 +2152,17 @@ int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
             prem_ptrs[j] = t->premises[j];
         }
 
-        results[i] = prop_verifier_verify(prem_ptrs, t->premise_count,
-                                           t->goal, &config);
+        results[i] = prop_verifier_verify(prem_ptrs, t->premise_count, t->goal, &config);
 
         bool actually_proven = (results[i].result == PV_VERIFY_PROVEN);
 
         /* 对于预期不可证的测试：检查是否确实不可证 */
         if (t->expected_provable) {
-            if (actually_proven) passed++;
+            if (actually_proven)
+                passed++;
         } else {
-            if (!actually_proven) passed++;
+            if (!actually_proven)
+                passed++;
         }
     }
 

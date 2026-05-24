@@ -22,9 +22,10 @@
 #ifndef LV00_MINI_KERNEL_H
 #define LV00_MINI_KERNEL_H
 
-#include "constraint_graph.h"
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "constraint_graph.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,11 +54,11 @@ typedef struct ConstraintGraph ConstraintGraph;
  * 只需要验证替换的一致性。
  */
 typedef enum {
-    MINI_STMT_VAR      = 0,  /**< $f —— 浮动假设/变量声明（Floating Hypothesis） */
-    MINI_STMT_HYP      = 1,  /**< $e —— 前提/必要假设（Essential Hypothesis） */
-    MINI_STMT_AXIOM    = 2,  /**< $a —— 公理（Axiom），无需证明 */
-    MINI_STMT_THEOREM  = 3,  /**< $p —— 定理（Provable），需从前驱推导 */
-    MINI_STMT_COMMENT  = 4   /**< $= —— 注释/元数据 */
+    MINI_STMT_VAR = 0,     /**< $f —— 浮动假设/变量声明（Floating Hypothesis） */
+    MINI_STMT_HYP = 1,     /**< $e —— 前提/必要假设（Essential Hypothesis） */
+    MINI_STMT_AXIOM = 2,   /**< $a —— 公理（Axiom），无需证明 */
+    MINI_STMT_THEOREM = 3, /**< $p —— 定理（Provable），需从前驱推导 */
+    MINI_STMT_COMMENT = 4  /**< $= —— 注释/元数据 */
 } MiniStmtType;
 
 /* ============== 验证结果枚举 ============== */
@@ -69,13 +70,13 @@ typedef enum {
  * 失败原因也仅与替换检查的机制相关，而非与数学语义相关。
  */
 typedef enum {
-    MINI_VERIFY_OK                = 0,   /**< 验证通过 */
-    MINI_VERIFY_FAIL_SUBSTITUTION = 1,   /**< 验证失败 —— 替换不一致 */
-    MINI_VERIFY_FAIL_STACK        = 2,   /**< 验证失败 —— 假设栈不匹配 */
-    MINI_VERIFY_FAIL_UNBOUND_VAR  = 3,   /**< 验证失败 —— 存在未绑定变量 */
-    MINI_VERIFY_FAIL_CYCLE        = 4,   /**< 验证失败 —— 检测到循环引用 */
-    MINI_VERIFY_FAIL_TIMEOUT      = 5,   /**< 验证失败 —— 超时 */
-    MINI_VERIFY_FAIL_MEMORY       = 6    /**< 验证失败 —— 内存不足 */
+    MINI_VERIFY_OK = 0,                /**< 验证通过 */
+    MINI_VERIFY_FAIL_SUBSTITUTION = 1, /**< 验证失败 —— 替换不一致 */
+    MINI_VERIFY_FAIL_STACK = 2,        /**< 验证失败 —— 假设栈不匹配 */
+    MINI_VERIFY_FAIL_UNBOUND_VAR = 3,  /**< 验证失败 —— 存在未绑定变量 */
+    MINI_VERIFY_FAIL_CYCLE = 4,        /**< 验证失败 —— 检测到循环引用 */
+    MINI_VERIFY_FAIL_TIMEOUT = 5,      /**< 验证失败 —— 超时 */
+    MINI_VERIFY_FAIL_MEMORY = 6        /**< 验证失败 —— 内存不足 */
 } MiniVerifyResult;
 
 /* ============== 替换结构体 ============== */
@@ -89,9 +90,9 @@ typedef enum {
  * 同一变量在同一替换上下文中必须映射到相同的表达式。
  */
 struct Substitution {
-    char variable_name[128];        /**< 被替换的变量名 */
-    char replacement_term[512];     /**< 替换目标表达式（符号形式） */
-    int replacement_node_id;        /**< 替换目标在约束图中的节点 ID（-1 表示纯符号） */
+    char variable_name[128];    /**< 被替换的变量名 */
+    char replacement_term[512]; /**< 替换目标表达式（符号形式） */
+    int replacement_node_id;    /**< 替换目标在约束图中的节点 ID（-1 表示纯符号） */
 };
 
 /* ============== 极简语句结构体 ============== */
@@ -103,19 +104,19 @@ struct Substitution {
  * 语句可引用其他语句作为证明的依据（仅 $p 类型）。
  */
 struct MiniStatement {
-    int id;                          /**< 语句唯一 ID */
-    MiniStmtType type;               /**< 语句类型（$f / $e / $a / $p） */
-    char label[256];                 /**< 语句标签（如 "ax-mp", "pm2.21"） */
-    char formula_text[1024];         /**< 语句公式的文本表示 */
+    int id;                  /**< 语句唯一 ID */
+    MiniStmtType type;       /**< 语句类型（$f / $e / $a / $p） */
+    char label[256];         /**< 语句标签（如 "ax-mp", "pm2.21"） */
+    char formula_text[1024]; /**< 语句公式的文本表示 */
 
     /* 证明引用（仅 $p 类型有效） */
-    int proof_refs[64];              /**< 证明所引用的前驱语句 ID 列表 */
-    int ref_count;                   /**< 实际引用数量 */
+    int proof_refs[64]; /**< 证明所引用的前驱语句 ID 列表 */
+    int ref_count;      /**< 实际引用数量 */
 
-    bool verified;                   /**< 是否已通过验证 */
+    bool verified; /**< 是否已通过验证 */
 
     /* 约束图关联 */
-    int constraint_node_id;          /**< 关联的约束图节点 ID（-1 表示无关联） */
+    int constraint_node_id; /**< 关联的约束图节点 ID（-1 表示无关联） */
 };
 
 /* ============== 极简验证内核结构体 ============== */
@@ -135,30 +136,30 @@ struct MiniStatement {
  * 4. 定理验证调度
  */
 struct MiniKernel {
-    MiniStatement **statements;      /**< 语句数组（动态扩容） */
-    int statement_count;             /**< 当前语句数量 */
-    int statement_capacity;          /**< 语句数组容量 */
+    MiniStatement **statements; /**< 语句数组（动态扩容） */
+    int statement_count;        /**< 当前语句数量 */
+    int statement_capacity;     /**< 语句数组容量 */
 
     /* 符号表（变量名 → 语句 ID 映射） */
-    char **symbol_names;             /**< 已注册的符号名称列表 */
-    int *symbol_stmt_ids;            /**< 对应的语句 ID */
-    int symbol_count;                /**< 符号数量 */
-    int symbol_capacity;             /**< 符号表容量 */
+    char **symbol_names;  /**< 已注册的符号名称列表 */
+    int *symbol_stmt_ids; /**< 对应的语句 ID */
+    int symbol_count;     /**< 符号数量 */
+    int symbol_capacity;  /**< 符号表容量 */
 
     /* 约束图映射 */
-    int *stmt_to_node_map;           /**< 语句 ID → 约束图节点 ID 的映射 */
-    int map_count;                   /**< 映射条目数 */
+    int *stmt_to_node_map; /**< 语句 ID → 约束图节点 ID 的映射 */
+    int map_count;         /**< 映射条目数 */
 
     /* 内核配置 */
-    MiniKernelConfig config;         /**< 内核配置参数 */
+    MiniKernelConfig config; /**< 内核配置参数 */
 
     /* 统计信息 */
-    int total_verified;              /**< 已验证通过的定理数 */
-    int total_failed;                /**< 验证失败的定理数 */
-    int tcb_line_count;              /**< TCB 实现行数（自报告） */
+    int total_verified; /**< 已验证通过的定理数 */
+    int total_failed;   /**< 验证失败的定理数 */
+    int tcb_line_count; /**< TCB 实现行数（自报告） */
 
     /* 状态 */
-    bool is_sealed;                  /**< 内核是否已封存（封存后不允许添加新公理） */
+    bool is_sealed; /**< 内核是否已封存（封存后不允许添加新公理） */
 };
 
 /* ============== 极简验证器配置 ============== */
@@ -169,12 +170,12 @@ struct MiniKernel {
  * 控制验证行为的资源限制和功能开关。
  */
 struct MiniKernelConfig {
-    int max_statements;              /**< 最大语句数量（0 = 无限制） */
-    int max_proof_depth;             /**< 最大证明深度（防止无限递归，0 = 无限制） */
-    bool trust_colors_enabled;       /**< 是否启用信任颜色跟踪（借鉴 Lv-00 颜色系统） */
-    int substitution_cache_size;     /**< 替换缓存大小（条目数，0 = 不缓存） */
-    bool strict_mode;                /**< 严格模式：额外检查变量作用域和类型一致性 */
-    int verification_timeout_ms;     /**< 验证超时（毫秒），0 = 无超时 */
+    int max_statements;          /**< 最大语句数量（0 = 无限制） */
+    int max_proof_depth;         /**< 最大证明深度（防止无限递归，0 = 无限制） */
+    bool trust_colors_enabled;   /**< 是否启用信任颜色跟踪（借鉴 Lv-00 颜色系统） */
+    int substitution_cache_size; /**< 替换缓存大小（条目数，0 = 不缓存） */
+    bool strict_mode;            /**< 严格模式：额外检查变量作用域和类型一致性 */
+    int verification_timeout_ms; /**< 验证超时（毫秒），0 = 无超时 */
 };
 
 /* ============== 证明验证器结构体 ============== */
@@ -192,30 +193,30 @@ struct MiniKernelConfig {
  */
 struct MiniProofVerifier {
     /* 假设栈 */
-    int *hypothesis_stack;           /**< 假设栈（存储语句 ID） */
-    int stack_top;                   /**< 栈顶索引（-1 = 空栈） */
-    int stack_capacity;              /**< 栈容量 */
+    int *hypothesis_stack; /**< 假设栈（存储语句 ID） */
+    int stack_top;         /**< 栈顶索引（-1 = 空栈） */
+    int stack_capacity;    /**< 栈容量 */
 
     /* 目标公式 */
-    char target_formula[1024];       /**< 当前验证的目标公式文本 */
+    char target_formula[1024]; /**< 当前验证的目标公式文本 */
 
     /* 替换上下文 */
-    Substitution *active_substitutions;  /**< 当前步的活跃替换列表 */
-    int subst_count;                     /**< 替换数量 */
-    int subst_capacity;                  /**< 替换列表容量 */
+    Substitution *active_substitutions; /**< 当前步的活跃替换列表 */
+    int subst_count;                    /**< 替换数量 */
+    int subst_capacity;                 /**< 替换列表容量 */
 
     /* 验证进度 */
-    int verified_step_count;         /**< 已验证的步骤计数 */
-    int max_steps;                   /**< 最大步骤限制 */
-    int current_depth;               /**< 当前证明深度 */
+    int verified_step_count; /**< 已验证的步骤计数 */
+    int max_steps;           /**< 最大步骤限制 */
+    int current_depth;       /**< 当前证明深度 */
 
     /* 验证状态 */
-    MiniVerifyResult last_result;    /**< 最近一次验证的结果 */
-    char error_detail[1024];         /**< 最近验证失败的详细描述 */
+    MiniVerifyResult last_result; /**< 最近一次验证的结果 */
+    char error_detail[1024];      /**< 最近验证失败的详细描述 */
 
     /* 关联的内核和语句 */
-    MiniKernel *kernel;              /**< 所属的极简内核 */
-    int target_stmt_id;              /**< 当前验证的目标语句 ID */
+    MiniKernel *kernel; /**< 所属的极简内核 */
+    int target_stmt_id; /**< 当前验证的目标语句 ID */
 };
 
 /* ============== 内核生命周期 ============== */
@@ -296,8 +297,8 @@ int mini_kernel_add_axiom(MiniKernel *kernel, const char *label, const char *for
  * @param ref_count  引用数量
  * @return 新语句的 ID，失败返回 -1
  */
-int mini_kernel_add_theorem(MiniKernel *kernel, const char *label, const char *formula,
-                            const int *proof_refs, int ref_count);
+int mini_kernel_add_theorem(MiniKernel *kernel, const char *label, const char *formula, const int *proof_refs,
+                            int ref_count);
 
 /* ============== 替换检查（核心功能） ============== */
 
@@ -320,12 +321,8 @@ int mini_kernel_add_theorem(MiniKernel *kernel, const char *label, const char *f
  * @param out_result    输出：替换后的公式文本（调用者需释放）
  * @return 验证结果状态码
  */
-MiniVerifyResult mini_kernel_check_substitution(
-    MiniKernel *kernel,
-    const Substitution *substitutions,
-    int subst_count,
-    const char *base_formula,
-    char **out_result);
+MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel, const Substitution *substitutions, int subst_count,
+                                                const char *base_formula, char **out_result);
 
 /* ============== 定理证明与验证 ============== */
 
@@ -420,14 +417,8 @@ MiniVerifyResult mini_kernel_self_check(MiniKernel *kernel);
  * @param out_verified     输出：已验证通过的定理数
  * @param out_tcb_lines    输出：TCB 实现行数
  */
-void mini_kernel_stats(const MiniKernel *kernel,
-                       int *out_total_stmts,
-                       int *out_vars,
-                       int *out_hyps,
-                       int *out_axioms,
-                       int *out_theorems,
-                       int *out_verified,
-                       int *out_tcb_lines);
+void mini_kernel_stats(const MiniKernel *kernel, int *out_total_stmts, int *out_vars, int *out_hyps, int *out_axioms,
+                       int *out_theorems, int *out_verified, int *out_tcb_lines);
 
 /* ============== 约束图集成 ============== */
 

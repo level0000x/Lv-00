@@ -25,9 +25,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "constraint_graph.h"  /* ConstraintGraph 类型（用于信任颜色桥接） */
-#include "symbolic_coord.h"    /* TrustColor 枚举（用于信任颜色桥接） */
-#include "stream.h"            /* StreamContext（用于流式输出设置） */
+#include "constraint_graph.h" /* ConstraintGraph 类型（用于信任颜色桥接） */
+#include "stream.h"           /* StreamContext（用于流式输出设置） */
+#include "symbolic_coord.h"   /* TrustColor 枚举（用于信任颜色桥接） */
 
 /* 确保结构体使用默认对齐（防止 MSYS2/MinGW CRT 头文件的 pragma pack 影响） */
 #pragma pack(push, 8)
@@ -43,13 +43,13 @@ void prop_verifier_set_stream_context(StreamContext *ctx);
  * ============================================================ */
 
 typedef enum {
-    PROP_ATOM,          /* 原子命题 P, Q, R, ... */
-    PROP_CONJUNCTION,   /* A ∧ B */
-    PROP_DISJUNCTION,   /* A ∨ B */
-    PROP_IMPLICATION,   /* A → B */
-    PROP_NEGATION,      /* ¬A */
-    PROP_BOTTOM,        /* ⊥ (矛盾) */
-    PROP_TRUE           /* ⊤ (真) */
+    PROP_ATOM,        /* 原子命题 P, Q, R, ... */
+    PROP_CONJUNCTION, /* A ∧ B */
+    PROP_DISJUNCTION, /* A ∨ B */
+    PROP_IMPLICATION, /* A → B */
+    PROP_NEGATION,    /* ¬A */
+    PROP_BOTTOM,      /* ⊥ (矛盾) */
+    PROP_TRUE         /* ⊤ (真) */
 } PropFormulaType;
 
 /* 前向声明 */
@@ -59,9 +59,15 @@ typedef struct PropFormula PropFormula;
 struct PropFormula {
     PropFormulaType type;
     union {
-        struct { char name[64]; } atom;              /* PROP_ATOM */
-        struct { PropFormula *left, *right; } binary; /* CONJ/DISJ/IMPL */
-        struct { PropFormula *operand; } unary;       /* NEGATION */
+        struct {
+            char name[64];
+        } atom; /* PROP_ATOM */
+        struct {
+            PropFormula *left, *right;
+        } binary; /* CONJ/DISJ/IMPL */
+        struct {
+            PropFormula *operand;
+        } unary; /* NEGATION */
         /* PROP_BOTTOM, PROP_TRUE: 无额外数据 */
     } data;
 };
@@ -71,20 +77,20 @@ struct PropFormula {
  * ============================================================ */
 
 typedef enum {
-    PV_VERIFY_PROVEN,          /* 证明成功（合一匹配） */
-    PV_VERIFY_DISPROVEN,       /* 证伪（找到反例） */
-    PV_VERIFY_FAILED,          /* 未能证明（搜索空间耗尽） */
-    PV_VERIFY_INVALID_INPUT,   /* 输入无效 */
-    PV_VERIFY_TIMEOUT,         /* 超时 */
-    PV_VERIFY_ERROR            /* 内部错误 */
+    PV_VERIFY_PROVEN,        /* 证明成功（合一匹配） */
+    PV_VERIFY_DISPROVEN,     /* 证伪（找到反例） */
+    PV_VERIFY_FAILED,        /* 未能证明（搜索空间耗尽） */
+    PV_VERIFY_INVALID_INPUT, /* 输入无效 */
+    PV_VERIFY_TIMEOUT,       /* 超时 */
+    PV_VERIFY_ERROR          /* 内部错误 */
 } PropVerifyResult;
 
 /* 验证详情 */
 typedef struct {
     PropVerifyResult result;
-    int steps_used;             /* 使用的推理步数 */
-    int max_steps;              /* 最大步数限制 */
-    char error_message[256];    /* 错误信息 */
+    int steps_used;          /* 使用的推理步数 */
+    int max_steps;           /* 最大步数限制 */
+    char error_message[256]; /* 错误信息 */
     /* 证明成功时的构造摘要 */
     char construction_summary[512];
 } VerifyDetail;
@@ -94,13 +100,13 @@ typedef struct {
  * ============================================================ */
 
 typedef struct {
-    int max_steps;              /* 最大推理步数 (默认 10000) */
-    bool use_intuitionistic;    /* 使用直觉主义逻辑 (默认 true) */
-    bool enable_ex_falso;       /* 启用爆炸原理 (默认 false) */
-    int timeout_ms;             /* 超时毫秒数 (默认 30000) */
+    int max_steps;           /* 最大推理步数 (默认 10000) */
+    bool use_intuitionistic; /* 使用直觉主义逻辑 (默认 true) */
+    bool enable_ex_falso;    /* 启用爆炸原理 (默认 false) */
+    int timeout_ms;          /* 超时毫秒数 (默认 30000) */
 } VerifierConfig;
 
-#define VERIFIER_CONFIG_DEFAULT { 10000, true, false, 30000 }
+#define VERIFIER_CONFIG_DEFAULT {10000, true, false, 30000}
 
 /* ============================================================
  * 核心验证函数
@@ -119,11 +125,8 @@ typedef struct {
  * @param config        验证器配置（可为 NULL 使用默认值）
  * @return VerifyDetail 验证结果详情
  */
-VerifyDetail prop_verifier_verify(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config
-);
+VerifyDetail prop_verifier_verify(const PropFormula **premises, int premise_count, const PropFormula *goal,
+                                  const VerifierConfig *config);
 
 /* ============================================================
  * 命题构造/销毁
@@ -163,7 +166,7 @@ typedef struct {
     const PropFormula *premises[8];
     int premise_count;
     const PropFormula *goal;
-    bool expected_provable;  /* 预期是否可证 */
+    bool expected_provable; /* 预期是否可证 */
     const char *description;
 } SmokeTest;
 
@@ -174,8 +177,7 @@ typedef struct {
  * @param results    输出结果数组（至少 test_count 个元素）
  * @return 通过的测试数
  */
-int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
-                                   VerifyDetail *results);
+int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count, VerifyDetail *results);
 
 /**
  * @brief 运行内置烟测集
@@ -220,11 +222,9 @@ typedef struct {
  * @param config        验证器配置（可为 NULL 使用默认值）
  * @return InconstructibilityAnalysis 分析结果（调用者负责释放 subgoal_descriptions）
  */
-InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config
-);
+InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFormula **premises, int premise_count,
+                                                                    const PropFormula *goal,
+                                                                    const VerifierConfig *config);
 
 /**
  * @brief 释放不可构造性分析结果
@@ -249,7 +249,7 @@ void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis);
  *   - ⊥ 的证物：不存在（不可构造）
  */
 typedef struct {
-    bool verified;               /* 是否通过 BHK 验证 */
+    bool verified;                /* 是否通过 BHK 验证 */
     char bhk_interpretation[512]; /* BHK 解释描述 */
     char geometric_mapping[512];  /* 几何映射描述（函数块类型） */
     int missing_constructions;    /* 缺少的构造数量 */
@@ -270,11 +270,8 @@ typedef struct {
  * @param config        验证器配置（可为 NULL 使用默认值）
  * @return BHKVerificationResult BHK 验证结果（调用者负责释放 missing_descriptions）
  */
-BHKVerificationResult prop_verifier_bhk_verify(
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config
-);
+BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int premise_count, const PropFormula *goal,
+                                               const VerifierConfig *config);
 
 /**
  * @brief 释放 BHK 验证结果
@@ -311,12 +308,9 @@ void prop_verifier_free_bhk_result(BHKVerificationResult *result);
  * @param out_result     输出 BHK 验证详细结果（可为 NULL，调用者负责释放）
  * @return 成功更新的节点数（>=0），-1 表示参数错误
  */
-int prop_verifier_apply_trust_colors(
-    ConstraintGraph *graph,
-    const PropFormula **premises, int premise_count,
-    const PropFormula *goal,
-    const VerifierConfig *config,
-    BHKVerificationResult *out_result);
+int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula **premises, int premise_count,
+                                     const PropFormula *goal, const VerifierConfig *config,
+                                     BHKVerificationResult *out_result);
 
 /* ============================================================
  * 命题等价性检查
@@ -330,8 +324,7 @@ int prop_verifier_apply_trust_colors(
  * @param config  验证器配置（可为 NULL 使用默认值）
  * @return true 两个公式逻辑等价
  */
-bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
-                                      const VerifierConfig *config);
+bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b, const VerifierConfig *config);
 
 /**
  * @brief 检查公式是否为永真式（无前提即可证）
@@ -340,8 +333,7 @@ bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
  * @param config  验证器配置（可为 NULL 使用默认值）
  * @return true 公式是永真式
  */
-bool prop_verifier_check_tautology(const PropFormula *f,
-                                    const VerifierConfig *config);
+bool prop_verifier_check_tautology(const PropFormula *f, const VerifierConfig *config);
 
 /* 恢复默认对齐 */
 #pragma pack(pop)

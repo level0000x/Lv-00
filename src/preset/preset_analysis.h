@@ -32,100 +32,100 @@ extern "C" {
 /* -------------------- 极限运算 -------------------- */
 
 /** 数列极限 */
-#define PRESET_SEQUENCE_LIMIT          "sequence_limit"
+#define PRESET_SEQUENCE_LIMIT "sequence_limit"
 
 /** 函数极限 */
-#define PRESET_FUNCTION_LIMIT          "function_limit"
+#define PRESET_FUNCTION_LIMIT "function_limit"
 
 /** 左极?*/
-#define PRESET_LEFT_LIMIT              "left_limit"
+#define PRESET_LEFT_LIMIT "left_limit"
 
 /** 右极?*/
-#define PRESET_RIGHT_LIMIT             "right_limit"
+#define PRESET_RIGHT_LIMIT "right_limit"
 
 /** 无穷极限 */
-#define PRESET_INFINITE_LIMIT          "infinite_limit"
+#define PRESET_INFINITE_LIMIT "infinite_limit"
 
 /** 上极?*/
-#define PRESET_LIMIT_SUPERIOR          "limit_superior"
+#define PRESET_LIMIT_SUPERIOR "limit_superior"
 
 /** 下极?*/
-#define PRESET_LIMIT_INFERIOR          "limit_inferior"
+#define PRESET_LIMIT_INFERIOR "limit_inferior"
 
 /** 极限存在性判?*/
-#define PRESET_LIMIT_EXISTS_TEST       "limit_exists_test"
+#define PRESET_LIMIT_EXISTS_TEST "limit_exists_test"
 
 /* -------------------- 连续?-------------------- */
 
 /** 连续性判?*/
-#define PRESET_CONTINUITY_TEST         "continuity_test"
+#define PRESET_CONTINUITY_TEST "continuity_test"
 
 /** 一致连续判?*/
 #define PRESET_UNIFORM_CONTINUITY_TEST "uniform_continuity_test"
 
 /** 间断点分?*/
-#define PRESET_DISCONTINUITY_CLASSIFY  "discontinuity_classify"
+#define PRESET_DISCONTINUITY_CLASSIFY "discontinuity_classify"
 
 /** Lipschitz 连续判定 */
-#define PRESET_LIPSCHITZ_TEST          "lipschitz_test"
+#define PRESET_LIPSCHITZ_TEST "lipschitz_test"
 
 /* -------------------- 微分运算 -------------------- */
 
 /** 导数计算 */
-#define PRESET_DERIVATIVE              "derivative"
+#define PRESET_DERIVATIVE "derivative"
 
 /** 高阶导数 */
-#define PRESET_HIGHER_DERIVATIVE       "higher_derivative"
+#define PRESET_HIGHER_DERIVATIVE "higher_derivative"
 
 /** 偏导?*/
-#define PRESET_PARTIAL_DERIVATIVE      "partial_derivative"
+#define PRESET_PARTIAL_DERIVATIVE "partial_derivative"
 
 /** 方向导数 */
-#define PRESET_DIRECTIONAL_DERIVATIVE  "directional_derivative"
+#define PRESET_DIRECTIONAL_DERIVATIVE "directional_derivative"
 
 /** 梯度 */
-#define PRESET_GRADIENT                "gradient"
+#define PRESET_GRADIENT "gradient"
 
 /** 散度 */
-#define PRESET_DIVERGENCE              "divergence"
+#define PRESET_DIVERGENCE "divergence"
 
 /** 旋度 */
-#define PRESET_CURL                    "curl"
+#define PRESET_CURL "curl"
 
 /** 拉普拉斯算子 */
-#define PRESET_LAPLACIAN               "laplacian"
+#define PRESET_LAPLACIAN "laplacian"
 
 /** 可微性判?*/
-#define PRESET_DIFFERENTIABILITY_TEST  "differentiability_test"
+#define PRESET_DIFFERENTIABILITY_TEST "differentiability_test"
 
 /** 泰勒展开 */
-#define PRESET_TAYLOR_EXPANSION        "taylor_expansion"
+#define PRESET_TAYLOR_EXPANSION "taylor_expansion"
 
 /* -------------------- 积分运算 -------------------- */
 
 /** 不定积分 */
-#define PRESET_INDEFINITE_INTEGRAL     "indefinite_integral"
+#define PRESET_INDEFINITE_INTEGRAL "indefinite_integral"
 
 /** 定积?*/
-#define PRESET_DEFINITE_INTEGRAL       "definite_integral"
+#define PRESET_DEFINITE_INTEGRAL "definite_integral"
 
 /** 广义积分 */
-#define PRESET_IMPROPER_INTEGRAL       "improper_integral"
+#define PRESET_IMPROPER_INTEGRAL "improper_integral"
 
 /** 重积?*/
-#define PRESET_MULTIPLE_INTEGRAL       "multiple_integral"
+#define PRESET_MULTIPLE_INTEGRAL "multiple_integral"
 
 /** 曲线积分 */
-#define PRESET_LINE_INTEGRAL           "line_integral"
+#define PRESET_LINE_INTEGRAL "line_integral"
 
 /** 曲面积分 */
-#define PRESET_SURFACE_INTEGRAL        "surface_integral"
+#define PRESET_SURFACE_INTEGRAL "surface_integral"
 
 /** 可积性判?*/
-#define PRESET_INTEGRABILITY_TEST      "integrability_test"
+#define PRESET_INTEGRABILITY_TEST "integrability_test"
 
 /** 积分中值定理应?*/
-#define PRESET_MEAN_VALUE_THEOREM      "mean_value_theorem"
+#define PRESET_MEAN_VALUE_THEOREM "mean_value_theorem"
 
 /* -------------------- 级数运算 -------------------- */
 
@@ -133,64 +133,64 @@ extern "C" {
 #define PRESET_SERIES_CONVERGENCE_TEST "series_convergence_test"
 
 /** 绝对收敛判定 */
-#define PRESET_ABSOLUTE_CONVERGENCE    "absolute_convergence"
+#define PRESET_ABSOLUTE_CONVERGENCE "absolute_convergence"
 
 /** 条件收敛判定 */
 #define PRESET_CONDITIONAL_CONVERGENCE "conditional_convergence"
 
 /** 幂级数收敛半?*/
-#define PRESET_POWER_SERIES_RADIUS     "power_series_radius"
+#define PRESET_POWER_SERIES_RADIUS "power_series_radius"
 
 /** 级数求和 */
-#define PRESET_SERIES_SUM              "series_sum"
+#define PRESET_SERIES_SUM "series_sum"
 
 /** 傅里叶级?*/
-#define PRESET_FOURIER_SERIES          "fourier_series"
+#define PRESET_FOURIER_SERIES "fourier_series"
 
 /* -------------------- 函数空间 -------------------- */
 
 /** L^p 空间范数 */
-#define PRESET_LP_NORM                 "lp_norm"
+#define PRESET_LP_NORM "lp_norm"
 
 /** 一致范?*/
-#define PRESET_SUP_NORM                "sup_norm"
+#define PRESET_SUP_NORM "sup_norm"
 
 /** 完备?*/
-#define PRESET_COMPLETION              "completion"
+#define PRESET_COMPLETION "completion"
 
 /** 紧致性判定（Arzelà-Ascoli?*/
-#define PRESET_COMPACTNESS_TEST        "compactness_test"
+#define PRESET_COMPACTNESS_TEST "compactness_test"
 
 /* -------------------- 度量空间 -------------------- */
 
 /** 度量空间判定 */
-#define PRESET_METRIC_SPACE_TEST       "metric_space_test"
+#define PRESET_METRIC_SPACE_TEST "metric_space_test"
 
 /** 柯西序列判定 */
-#define PRESET_CAUCHY_SEQUENCE_TEST    "cauchy_sequence_test"
+#define PRESET_CAUCHY_SEQUENCE_TEST "cauchy_sequence_test"
 
 /** 完备度量空间判定 */
-#define PRESET_COMPLETE_SPACE_TEST     "complete_space_test"
+#define PRESET_COMPLETE_SPACE_TEST "complete_space_test"
 
 /** 压缩映射 */
-#define PRESET_CONTRACTION_MAPPING     "contraction_mapping"
+#define PRESET_CONTRACTION_MAPPING "contraction_mapping"
 
 /** 不动点定?*/
-#define PRESET_FIXED_POINT_THEOREM     "fixed_point_theorem"
+#define PRESET_FIXED_POINT_THEOREM "fixed_point_theorem"
 
 /* -------------------- 特殊函数 -------------------- */
 
 /** Γ 函数 */
-#define PRESET_GAMMA_FUNCTION          "gamma_function"
+#define PRESET_GAMMA_FUNCTION "gamma_function"
 
 /** B 函数 */
-#define PRESET_BETA_FUNCTION           "beta_function"
+#define PRESET_BETA_FUNCTION "beta_function"
 
 /** 黎曼 ζ 函数 */
-#define PRESET_ZETA_FUNCTION           "zeta_function"
+#define PRESET_ZETA_FUNCTION "zeta_function"
 
 /** 误差函数 */
-#define PRESET_ERROR_FUNCTION          "error_function"
+#define PRESET_ERROR_FUNCTION "error_function"
 
 /* ============================================================
  * 模块注册函数

@@ -12,12 +12,14 @@
  */
 
 #include "lv00.h"
-#include "lv00_internal.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 #include "func_block_registry.h"
+#include "lv00_internal.h"
 
 /* ============================================================
  * 全局状态管理
@@ -109,35 +111,35 @@ bool lv00_init(void) {
         g_init_count++;
         return true;
     }
-    
+
     /* 检查状态：防止在初始化过程中重复调用 */
     if (g_system_state == SYSTEM_STATE_INITIALIZING) {
         lv00_set_error(LV00_ERROR_INVALID_STATE, "系统正在初始化中");
         return false;
     }
-    
+
     set_system_state(SYSTEM_STATE_INITIALIZING);
-    
+
     /* 初始化日志系统 */
     if (debug_log_init() != 0) {
         fprintf(stderr, "[Lv-00] 警告: 日志系统初始化失败\n");
         /* 继续，不视为致命错误 */
     }
-    
+
     LOG_INFO("lv00", "Lv-00 v%s 系统初始化开始", LV00_VERSION_STRING);
-    
+
     /* 运行时验证错误码查找表排序正确性 */
     if (!lv00_error_table_validate()) {
         LOG_WARN("lv00", "错误码查找表排序自检失败，错误查找可能返回错误结果");
         /* 这是警告而非致命错误——系统仍可运行，但错误信息可能不准确 */
     }
-    
+
     /* 初始化内存统计 */
     lv00_reset_memory_stats();
-    
+
     /* 初始化随机数生成器 */
-    lv00_random_init((uint64_t)time(NULL));
-    
+    lv00_random_init((uint64_t) time(NULL));
+
     /* 加载默认配置 */
     g_config = config_manager_create(NULL);
     if (!g_config) {
@@ -145,31 +147,31 @@ bool lv00_init(void) {
         set_system_state(SYSTEM_STATE_ERROR);
         return false;
     }
-    
+
     /* 设置默认配置值（魔术数字全部定义在 lv00_internal.h 中） */
     config_set_int(g_config, "solver.max_iterations", LV00_DEFAULT_MAX_ITERATIONS);
     config_set_int(g_config, "solver.precision_bits", LV00_DEFAULT_PRECISION_BITS);
     config_set_bool(g_config, "debug.assertions_enabled", true);
     config_set_bool(g_config, "debug.trace_enabled", false);
     config_set_int(g_config, "rewrite.step_limit", LV00_DEFAULT_REWRITE_STEP_LIMIT);
-    config_set_int(g_config, "memory.limit_mb", LV00_DEFAULT_MEMORY_LIMIT_MB);  /* 0 = 无限制 */
-    
+    config_set_int(g_config, "memory.limit_mb", LV00_DEFAULT_MEMORY_LIMIT_MB); /* 0 = 无限制 */
+
     /* 应用内存限制 */
     int mem_limit_mb = config_get_int(g_config, "memory.limit_mb", 0);
     if (mem_limit_mb > 0) {
         /* 添加溢出检查：确保内存限制值不会溢出 size_t */
-        if ((size_t)mem_limit_mb <= SIZE_MAX / (1024 * 1024)) {
-            lv00_set_memory_limit((size_t)mem_limit_mb * 1024 * 1024);
+        if ((size_t) mem_limit_mb <= SIZE_MAX / (1024 * 1024)) {
+            lv00_set_memory_limit((size_t) mem_limit_mb * 1024 * 1024);
         } else {
             LOG_WARN("lv00", "内存限制值 %d MB 过大，已忽略", mem_limit_mb);
         }
     }
-    
+
     g_init_count = 1;
     set_system_state(SYSTEM_STATE_INITIALIZED);
-    
+
     LOG_INFO("lv00", "Lv-00 v%s 系统初始化完成", LV00_VERSION_STRING);
-    
+
     return true;
 }
 
@@ -179,26 +181,26 @@ void lv00_cleanup(void) {
         g_init_count--;
         return;
     }
-    
+
     if (g_init_count == 0) {
         /* 未初始化或已清理 */
         return;
     }
-    
+
     if (g_system_state != SYSTEM_STATE_INITIALIZED) {
         return;
     }
-    
+
     set_system_state(SYSTEM_STATE_SHUTTING_DOWN);
-    
+
     LOG_INFO("lv00", "Lv-00 系统清理开始");
-    
+
     /* 清理全局引擎 */
     if (g_global_engine) {
         engine_destroy(g_global_engine);
         g_global_engine = NULL;
     }
-    
+
     /* 清理配置管理器 */
     if (g_config) {
         config_manager_destroy(g_config);
@@ -214,12 +216,12 @@ void lv00_cleanup(void) {
     if (stats.current_used > 0) {
         LOG_WARN("lv00", "检测到内存泄漏: 当前使用 %zu 字节", stats.current_used);
     }
-    LOG_INFO("lv00", "内存统计 - 总分配: %zu, 总释放: %zu, 峰值: %zu",
-             stats.total_allocated, stats.total_freed, stats.peak_used);
-    
+    LOG_INFO("lv00", "内存统计 - 总分配: %zu, 总释放: %zu, 峰值: %zu", stats.total_allocated, stats.total_freed,
+             stats.peak_used);
+
     /* 关闭日志系统 */
     debug_log_shutdown();
-    
+
     g_init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);
 }
@@ -242,16 +244,18 @@ bool lv00_is_initialized(void) {
  *         若 info 为 NULL 或 size == 0 则返回 0
  */
 int lv00_get_system_info(char *info, size_t size) {
-    if (!info || size == 0) return 0;
-    
+    if (!info || size == 0)
+        return 0;
+
     MemoryStats mem_stats;
     lv00_get_memory_stats(&mem_stats);
-    
+
     PerformanceCounters perf;
     debug_get_counters(&perf);
-    
+
     int written;
-    LV00_SAFE_SNPRINTF(written, info, size,
+    LV00_SAFE_SNPRINTF(
+        written, info, size,
         "=== Lv-00 系统信息 ===\n"
         "版本: %s\n"
         "状态: %s\n"
@@ -268,21 +272,13 @@ int lv00_get_system_info(char *info, size_t size) {
         "  求解器调用: %llu\n"
         "  重写步数: %llu\n"
         "  合一检查: %llu\n",
-        LV00_VERSION_STRING,
-        is_system_initialized() ? "已初始化" : "未初始化",
-        g_init_count,
-        (double)mem_stats.current_used / (1024.0 * 1024.0),
-        (double)mem_stats.peak_used / (1024.0 * 1024.0),
-        (double)mem_stats.total_allocated / (1024.0 * 1024.0),
-        (double)mem_stats.total_freed / (1024.0 * 1024.0),
-        mem_stats.allocation_count,
-        (unsigned long long)perf.total_nodes_created,
-        (unsigned long long)perf.total_constraints_created,
-        (unsigned long long)perf.solver_call_count,
-        (unsigned long long)perf.rewrite_total_steps,
-        (unsigned long long)perf.unify_check_count
-    );
-    
+        LV00_VERSION_STRING, is_system_initialized() ? "已初始化" : "未初始化", g_init_count,
+        (double) mem_stats.current_used / (1024.0 * 1024.0), (double) mem_stats.peak_used / (1024.0 * 1024.0),
+        (double) mem_stats.total_allocated / (1024.0 * 1024.0), (double) mem_stats.total_freed / (1024.0 * 1024.0),
+        mem_stats.allocation_count, (unsigned long long) perf.total_nodes_created,
+        (unsigned long long) perf.total_constraints_created, (unsigned long long) perf.solver_call_count,
+        (unsigned long long) perf.rewrite_total_steps, (unsigned long long) perf.unify_check_count);
+
     return written;
 }
 
@@ -302,32 +298,34 @@ int lv00_health_check(void) {
     if (!is_system_initialized()) {
         return 0;
     }
-    
+
     int score = LV00_HEALTH_SCORE_MAX;
-    
+
     /* 检查内存使用 */
     MemoryStats mem_stats;
     lv00_get_memory_stats(&mem_stats);
-    
+
     size_t mem_limit = lv00_get_memory_limit();
-    if (mem_limit > 0 && mem_stats.current_used > (size_t)((double)mem_limit * LV00_HEALTH_MEMORY_USAGE_RATIO)) {
-        score -= LV00_HEALTH_MEMORY_WARNING_PENALTY;  /* 内存使用超过阈值 */
+    if (mem_limit > 0 && mem_stats.current_used > (size_t) ((double) mem_limit * LV00_HEALTH_MEMORY_USAGE_RATIO)) {
+        score -= LV00_HEALTH_MEMORY_WARNING_PENALTY; /* 内存使用超过阈值 */
     }
-    
+
     /* 检查内存泄漏 */
-    if (mem_stats.current_used > (size_t)((double)mem_stats.peak_used * LV00_HEALTH_MEMORY_LEAK_RATIO)) {
-        score -= LV00_HEALTH_MEMORY_LEAK_PENALTY;  /* 可能存在内存泄漏 */
+    if (mem_stats.current_used > (size_t) ((double) mem_stats.peak_used * LV00_HEALTH_MEMORY_LEAK_RATIO)) {
+        score -= LV00_HEALTH_MEMORY_LEAK_PENALTY; /* 可能存在内存泄漏 */
     }
-    
+
     /* 检查错误状态 */
     if (lv00_get_last_error_code() != LV00_OK) {
         score -= LV00_HEALTH_RECENT_ERROR_PENALTY;
     }
-    
+
     /* 确保分数在合理范围 */
-    if (score < 0) score = 0;
-    if (score > LV00_HEALTH_SCORE_MAX) score = LV00_HEALTH_SCORE_MAX;
-    
+    if (score < 0)
+        score = 0;
+    if (score > LV00_HEALTH_SCORE_MAX)
+        score = LV00_HEALTH_SCORE_MAX;
+
     return score;
 }
 
@@ -359,37 +357,39 @@ void lv00_engine_destroy(LV00Engine *engine) {
 /**
  * @brief 快速创建点（便捷函数）
  */
-int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, 
-                   int64_t y_num, uint64_t y_den) {
-    if (!engine || !engine->main_graph) return -1;
+int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, int64_t y_num, uint64_t y_den) {
+    if (!engine || !engine->main_graph)
+        return -1;
     /* 参数校验：分母不能为零 */
     if (x_den == 0 || y_den == 0) {
-        LOG_ERROR("lv00", "lv00_add_point: 分母不能为零 (x_den=%llu, y_den=%llu)",
-                  (unsigned long long)x_den, (unsigned long long)y_den);
+        LOG_ERROR("lv00", "lv00_add_point: 分母不能为零 (x_den=%llu, y_den=%llu)", (unsigned long long) x_den,
+                  (unsigned long long) y_den);
         return -1;
     }
-    
+
     SymbolicCoord *x = symbolic_coord_create_rational(x_num, x_den);
     SymbolicCoord *y = symbolic_coord_create_rational(y_num, y_den);
-    
+
     if (!x || !y) {
-        if (x) symbolic_coord_destroy(x);
-        if (y) symbolic_coord_destroy(y);
+        if (x)
+            symbolic_coord_destroy(x);
+        if (y)
+            symbolic_coord_destroy(y);
         return -1;
     }
-    
+
     /* 二维坐标维度常量 */
     const int coord_dim = 2;
     SymbolicCoord *coords[] = {x, y};
     AddNodeResult result = graph_add_point(engine->main_graph, coords, coord_dim);
-    
+
     symbolic_coord_destroy(x);
     symbolic_coord_destroy(y);
-    
+
     if (result != ADD_NODE_OK) {
         return -1;
     }
-    
+
     return engine->main_graph->next_node_id - 1;
 }
 
@@ -397,13 +397,14 @@ int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den,
  * @brief 快速创建线段（便捷函数）
  */
 int lv00_add_line_segment(LV00Engine *engine, int point1_id, int point2_id) {
-    if (!engine || !engine->main_graph) return -1;
-    
+    if (!engine || !engine->main_graph)
+        return -1;
+
     AddNodeResult result = graph_add_line_segment(engine->main_graph, point1_id, point2_id);
     if (result != ADD_NODE_OK) {
         return -1;
     }
-    
+
     return engine->main_graph->next_node_id - 1;
 }
 
@@ -411,8 +412,9 @@ int lv00_add_line_segment(LV00Engine *engine, int point1_id, int point2_id) {
  * @brief 快速添加约束（便捷函数）
  */
 bool lv00_add_constraint_incidence(LV00Engine *engine, int point_id, int line_id) {
-    if (!engine || !engine->main_graph) return false;
-    
+    if (!engine || !engine->main_graph)
+        return false;
+
     AddConstraintResult result = graph_add_incidence(engine->main_graph, point_id, line_id);
     return result == ADD_CONSTRAINT_OK;
 }
@@ -421,7 +423,8 @@ bool lv00_add_constraint_incidence(LV00Engine *engine, int point_id, int line_id
  * @brief 执行归一化（便捷函数）
  */
 NormalizationResult *lv00_normalize(LV00Engine *engine, bool scope_aware) {
-    if (!engine || !engine->main_graph) return NULL;
+    if (!engine || !engine->main_graph)
+        return NULL;
     return graph_normalize(engine->main_graph, scope_aware);
 }
 
@@ -429,7 +432,8 @@ NormalizationResult *lv00_normalize(LV00Engine *engine, bool scope_aware) {
  * @brief 执行求解（便捷函数）
  */
 EngineSolveResult lv00_solve(LV00Engine *engine) {
-    if (!engine) return ENGINE_SOLVE_ERROR;
+    if (!engine)
+        return ENGINE_SOLVE_ERROR;
     return engine_solve(engine);
 }
 
@@ -437,22 +441,26 @@ EngineSolveResult lv00_solve(LV00Engine *engine) {
  * @brief 获取配置值（便捷函数）
  */
 int lv00_config_get_int(const char *key, int default_val) {
-    if (!g_config) return default_val;
+    if (!g_config)
+        return default_val;
     return config_get_int(g_config, key, default_val);
 }
 
 bool lv00_config_get_bool(const char *key, bool default_val) {
-    if (!g_config) return default_val;
+    if (!g_config)
+        return default_val;
     return config_get_bool(g_config, key, default_val);
 }
 
 double lv00_config_get_double(const char *key, double default_val) {
-    if (!g_config) return default_val;
+    if (!g_config)
+        return default_val;
     return config_get_double(g_config, key, default_val);
 }
 
 const char *lv00_config_get_string(const char *key, const char *default_val) {
-    if (!g_config) return default_val;
+    if (!g_config)
+        return default_val;
     return config_get_string(g_config, key, default_val);
 }
 
@@ -460,22 +468,26 @@ const char *lv00_config_get_string(const char *key, const char *default_val) {
  * @brief 设置配置值（便捷函数）
  */
 bool lv00_config_set_int(const char *key, int value) {
-    if (!g_config) return false;
+    if (!g_config)
+        return false;
     return config_set_int(g_config, key, value);
 }
 
 bool lv00_config_set_bool(const char *key, bool value) {
-    if (!g_config) return false;
+    if (!g_config)
+        return false;
     return config_set_bool(g_config, key, value);
 }
 
 bool lv00_config_set_double(const char *key, double value) {
-    if (!g_config) return false;
+    if (!g_config)
+        return false;
     return config_set_double(g_config, key, value);
 }
 
 bool lv00_config_set_string(const char *key, const char *value) {
-    if (!g_config) return false;
+    if (!g_config)
+        return false;
     return config_set_string(g_config, key, value);
 }
 
@@ -492,7 +504,8 @@ bool lv00_config_set_string(const char *key, const char *value) {
  * @note 内部委托 lv00_get_memory_stats() 完成实际统计
  */
 bool lv00_get_memory_stats_ex(MemoryStats *stats) {
-    if (!stats) return false;
+    if (!stats)
+        return false;
     lv00_get_memory_stats(stats);
     return true;
 }

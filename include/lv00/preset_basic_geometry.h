@@ -19,7 +19,7 @@
 #ifndef LV00_PRESET_BASIC_GEOMETRY_H
 #define LV00_PRESET_BASIC_GEOMETRY_H
 
-#include "func_block_registry.h"  /* PresetCategory 枚举定义 */
+#include "func_block_registry.h" /* PresetCategory 枚举定义 */
 
 #ifdef __cplusplus
 extern "C" {

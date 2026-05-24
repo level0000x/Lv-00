@@ -10,17 +10,17 @@
  * 5. 打包为可复用的函数块
  */
 
-#include "lv00.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv00.h"
 
 /**
  * 辅助函数：添加一个点
  * 使用有理数坐标创建点，返回新节点的ID
  */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd)
-{
+static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     if (!g || xd == 0 || yd == 0) {
         fprintf(stderr, "add_point: 无效参数\n");
         return -1;
@@ -50,8 +50,7 @@ static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, ui
  *
  * 这是一个等边三角形，边长为2
  */
-static void construct_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *out_c)
-{
+static void construct_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *out_c) {
     printf("  创建顶点 A(0, 0)...\n");
     int a = add_point(g, 0, 1, 0, 1);
 
@@ -84,8 +83,7 @@ static void construct_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *
 /**
  * 步骤2: 添加边和约束
  */
-static void add_triangle_constraints(ConstraintGraph *g, int a, int b, int c)
-{
+static void add_triangle_constraints(ConstraintGraph *g, int a, int b, int c) {
     printf("  添加边 AB...\n");
     AddNodeResult res = graph_add_line_segment(g, a, b);
     if (res != ADD_NODE_OK) {
@@ -114,7 +112,9 @@ static void add_triangle_constraints(ConstraintGraph *g, int a, int b, int c)
     /* 使用 betweenness 约束表示点的顺序关系 */
     graph_add_betweenness(g, a, b, c);
 
-    (void)ab; (void)bc; (void)ca; /* 暂时未使用 */
+    (void) ab;
+    (void) bc;
+    (void) ca; /* 暂时未使用 */
 }
 
 /**
@@ -122,8 +122,7 @@ static void add_triangle_constraints(ConstraintGraph *g, int a, int b, int c)
  *
  * 命题：如果三角形的三条边长度相等，则它是等边三角形
  */
-static ConstraintGraph* create_equilateral_proposition(void)
-{
+static ConstraintGraph *create_equilateral_proposition(void) {
     printf("  创建命题图...\n");
     ConstraintGraph *prop = graph_create();
 
@@ -146,8 +145,7 @@ static ConstraintGraph* create_equilateral_proposition(void)
 /**
  * 步骤4: 将三角形构造打包为函数块
  */
-static FuncBlock* pack_triangle_constructor(ConstraintGraph *g, int a, int b, int c)
-{
+static FuncBlock *pack_triangle_constructor(ConstraintGraph *g, int a, int b, int c) {
     printf("  创建输入端口（边长参数）...\n");
     graph_add_port(g, PORT_INPUT, -1, -1);
     int in_port = g->next_node_id - 1;
@@ -162,9 +160,7 @@ static FuncBlock* pack_triangle_constructor(ConstraintGraph *g, int a, int b, in
     int output_ports[] = {out_port};
 
     FuncBlock *fb = NULL;
-    PackResult result = func_block_pack(
-        g, internal_nodes, 3, input_ports, 1, output_ports, 1,
-        NULL, 0, &fb);
+    PackResult result = func_block_pack(g, internal_nodes, 3, input_ports, 1, output_ports, 1, NULL, 0, &fb);
 
     if (result != PACK_OK) {
         printf("  打包失败: %s\n", pack_result_to_string(result));
@@ -182,8 +178,7 @@ static FuncBlock* pack_triangle_constructor(ConstraintGraph *g, int a, int b, in
 /**
  * 步骤5: 执行确定性检查
  */
-static void check_determinism(FuncBlock *fb, ConstraintGraph *g)
-{
+static void check_determinism(FuncBlock *fb, ConstraintGraph *g) {
     printf("  执行静态确定性检查...\n");
     /*
      * 参数 max_iterations=1000 表示确定性检查的最大迭代次数。
@@ -214,8 +209,7 @@ static void check_determinism(FuncBlock *fb, ConstraintGraph *g)
 /**
  * 主示例流程
  */
-int main(void)
-{
+int main(void) {
     printf("========================================\n");
     printf("  Lv-00 几何构造与证明示例\n");
     printf("  等边三角形构造与验证\n");
@@ -231,14 +225,12 @@ int main(void)
     /* 添加约束 */
     printf("[2/5] 添加几何约束...\n");
     add_triangle_constraints(construction, a, b, c);
-    printf("  当前节点数: %d, 约束数: %d\n\n",
-           construction->node_count, construction->constraint_count);
+    printf("  当前节点数: %d, 约束数: %d\n\n", construction->node_count, construction->constraint_count);
 
     /* 创建命题 */
     printf("[3/5] 创建等边三角形判定命题...\n");
     ConstraintGraph *proposition = create_equilateral_proposition();
-    printf("  命题图节点数: %d, 约束数: %d\n\n",
-           proposition->node_count, proposition->constraint_count);
+    printf("  命题图节点数: %d, 约束数: %d\n\n", proposition->node_count, proposition->constraint_count);
 
     /* 统一化验证 */
     printf("[4/5] 执行统一化验证...\n");

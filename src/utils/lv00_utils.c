@@ -38,16 +38,18 @@
  */
 
 #include "lv00_utils.h"
-#include "lv00_internal.h"
-#include "error_codes.h"
-#include "lv00.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <time.h>
+
 #include <ctype.h>
 #include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include "error_codes.h"
+#include "lv00.h"
+#include "lv00_internal.h"
 
 /* ============================================================
  * 内存统计跟踪
@@ -58,13 +60,13 @@ static LV00_THREAD_LOCAL size_t g_memory_limit = 0;
 
 /* 包装malloc以跟踪内存使用 */
 typedef struct {
-    uint32_t magic;    /**< 魔数，用于检测double-free */
+    uint32_t magic; /**< 魔数，用于检测double-free */
     size_t size;
     char data[];
 } AllocHeader;
 
-#define ALLOC_MAGIC_LIVE  0xADBEEF01  /**< 存活标记 */
-#define ALLOC_MAGIC_FREED 0x00000000  /**< 已释放标记 */
+#define ALLOC_MAGIC_LIVE 0xADBEEF01  /**< 存活标记 */
+#define ALLOC_MAGIC_FREED 0x00000000 /**< 已释放标记 */
 
 /*
  * 内存分配器实现 — 直接使用系统 malloc/free
@@ -89,14 +91,15 @@ void *lv00_malloc(size_t size) {
 }
 
 void *lv00_calloc(size_t nmemb, size_t size) {
-    if (nmemb == 0 || size == 0) return NULL;
-    
+    if (nmemb == 0 || size == 0)
+        return NULL;
+
     /* 检查溢出 */
     if (nmemb > SIZE_MAX / size) {
         lv00_set_error(LV00_ERROR_OVERFLOW, "calloc 溢出: %zu * %zu", nmemb, size);
         return NULL;
     }
-    
+
     size_t total = nmemb * size;
     void *ptr = calloc(nmemb, size);
     if (ptr) {
@@ -116,8 +119,10 @@ void *lv00_calloc(size_t nmemb, size_t size) {
  *          这是有意设计，避免隐式释放导致追踪系统状态不一致。
  */
 void *lv00_realloc(void *ptr, size_t size) {
-    if (!ptr) return lv00_malloc(size);
-    if (size == 0) return NULL;
+    if (!ptr)
+        return lv00_malloc(size);
+    if (size == 0)
+        return NULL;
 
     /* 内存统计说明：当前 lv00_malloc 使用原生 malloc（自定义 AllocHeader 分配器
      * 已临时禁用，见上方 DEBUG 注释），因此无法获取原分配大小。
@@ -138,23 +143,24 @@ void *lv00_realloc(void *ptr, size_t size) {
 }
 
 void lv00_free(void **ptr) {
-    if (!ptr || !*ptr) return;
+    if (!ptr || !*ptr)
+        return;
     free(*ptr);
     *ptr = NULL;
-    g_memory_stats.total_freed += 1;  /* 近似追踪 */
+    g_memory_stats.total_freed += 1; /* 近似追踪 */
     g_memory_stats.free_count++;
 }
 
 void lv00_free_many(void **first, ...) {
     va_list args;
     va_start(args, first);
-    
+
     void **ptr = first;
     while (ptr) {
         lv00_free(ptr);
         ptr = va_arg(args, void **);
     }
-    
+
     va_end(args);
 }
 
@@ -175,12 +181,13 @@ void lv00_free_many(void **first, ...) {
  * @note 此函数不应被直接调用，仅供编译器 cleanup 机制间接使用。
  */
 void lv00_auto_free(void *p) {
-    void **ptr = (void **)p;
+    void **ptr = (void **) p;
     lv00_free(ptr);
 }
 
 void lv00_get_memory_stats(MemoryStats *stats) {
-    if (!stats) return;
+    if (!stats)
+        return;
     *stats = g_memory_stats;
 }
 
@@ -197,7 +204,8 @@ size_t lv00_get_memory_limit(void) {
 }
 
 bool lv00_memory_limit_exceeded(void) {
-    if (g_memory_limit == 0) return false;
+    if (g_memory_limit == 0)
+        return false;
     return g_memory_stats.current_used > g_memory_limit;
 }
 
@@ -206,8 +214,9 @@ bool lv00_memory_limit_exceeded(void) {
  * ============================================================ */
 
 size_t lv00_strlcpy(char *dest, const char *src, size_t dest_size) {
-    if (!dest || !src || dest_size == 0) return 0;
-    
+    if (!dest || !src || dest_size == 0)
+        return 0;
+
     size_t src_len = strlen(src);
     if (src_len < dest_size) {
         memcpy(dest, src, src_len + 1);
@@ -219,14 +228,16 @@ size_t lv00_strlcpy(char *dest, const char *src, size_t dest_size) {
 }
 
 size_t lv00_strlcat(char *dest, const char *src, size_t dest_size) {
-    if (!dest || !src || dest_size == 0) return 0;
-    
+    if (!dest || !src || dest_size == 0)
+        return 0;
+
     size_t dest_len = strlen(dest);
-    if (dest_len >= dest_size) return dest_len + strlen(src);
-    
+    if (dest_len >= dest_size)
+        return dest_len + strlen(src);
+
     size_t remaining = dest_size - dest_len - 1;
     size_t src_len = strlen(src);
-    
+
     if (src_len < remaining) {
         memcpy(dest + dest_len, src, src_len + 1);
     } else {
@@ -237,7 +248,8 @@ size_t lv00_strlcat(char *dest, const char *src, size_t dest_size) {
 }
 
 char *lv00_strdup_safe(const char *str) {
-    if (!str) return NULL;
+    if (!str)
+        return NULL;
     size_t len = strlen(str);
     char *copy = lv00_malloc(len + 1);
     if (copy) {
@@ -247,22 +259,25 @@ char *lv00_strdup_safe(const char *str) {
 }
 
 char *lv00_asprintf(const char *fmt, ...) {
-    if (!fmt) return NULL;
-    
+    if (!fmt)
+        return NULL;
+
     va_list args;
     va_start(args, fmt);
     int len = vsnprintf(NULL, 0, fmt, args);
     va_end(args);
-    
-    if (len < 0) return NULL;
-    
-    char *buf = lv00_malloc((size_t)len + 1);
-    if (!buf) return NULL;
-    
+
+    if (len < 0)
+        return NULL;
+
+    char *buf = lv00_malloc((size_t) len + 1);
+    if (!buf)
+        return NULL;
+
     va_start(args, fmt);
-    vsnprintf(buf, (size_t)len + 1, fmt, args);
+    vsnprintf(buf, (size_t) len + 1, fmt, args);
     va_end(args);
-    
+
     return buf;
 }
 
@@ -277,9 +292,11 @@ char *lv00_asprintf(const char *fmt, ...) {
  *         false 字符串包含至少一个非空白字符。
  */
 bool lv00_str_is_blank(const char *str) {
-    if (!str) return true;
+    if (!str)
+        return true;
     while (*str) {
-        if (!isspace((unsigned char)*str)) return false;
+        if (!isspace((unsigned char) *str))
+            return false;
         str++;
     }
     return true;
@@ -300,18 +317,22 @@ bool lv00_str_is_blank(const char *str) {
  *       若字符串全部为空白字符，返回指向末尾 '\0' 的指针。
  */
 char *lv00_str_trim(char *str) {
-    if (!str) return NULL;
-    
+    if (!str)
+        return NULL;
+
     /* 去除前导空白 */
-    while (isspace((unsigned char)*str)) str++;
-    
-    if (*str == '\0') return str;
-    
+    while (isspace((unsigned char) *str))
+        str++;
+
+    if (*str == '\0')
+        return str;
+
     /* 去除尾部空白 */
     char *end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char)*end)) end--;
+    while (end > str && isspace((unsigned char) *end))
+        end--;
     end[1] = '\0';
-    
+
     return str;
 }
 
@@ -321,29 +342,32 @@ char *lv00_str_trim(char *str) {
 
 LV00Array *lv00_array_create(size_t initial_capacity, size_t elem_size) {
     /* 修复：验证 elem_size，避免后续操作中出现除零或无意义的零大小元素 */
-    if (elem_size == 0) return NULL;
-    
+    if (elem_size == 0)
+        return NULL;
+
     LV00Array *arr = lv00_malloc(sizeof(LV00Array));
-    if (!arr) return NULL;
-    
+    if (!arr)
+        return NULL;
+
     arr->count = 0;
     arr->capacity = initial_capacity > 0 ? initial_capacity : LV00_INITIAL_ARRAY_CAPACITY;
     arr->elem_size = elem_size;
-    arr->store_pointers = false;  /* 修复：elem_size 已验证非零，不再需要 store_pointers 回退逻辑 */
-    
+    arr->store_pointers = false; /* 修复：elem_size 已验证非零，不再需要 store_pointers 回退逻辑 */
+
     arr->data = lv00_calloc(arr->capacity, sizeof(void *));
     if (!arr->data) {
         /* 修复：lv00_calloc 失败时释放已分配的 arr，防止资源泄漏 */
-        lv00_free((void **)&arr);
+        lv00_free((void **) &arr);
         return NULL;
     }
-    
+
     return arr;
 }
 
 void lv00_array_destroy(LV00Array *arr, bool free_elements) {
-    if (!arr) return;
-    
+    if (!arr)
+        return;
+
     if (free_elements && arr->data) {
         for (size_t i = 0; i < arr->count; i++) {
             if (arr->data[i]) {
@@ -351,83 +375,94 @@ void lv00_array_destroy(LV00Array *arr, bool free_elements) {
             }
         }
     }
-    
-    lv00_free((void **)&arr->data);
-    lv00_free((void **)&arr);
+
+    lv00_free((void **) &arr->data);
+    lv00_free((void **) &arr);
 }
 
 static bool lv00_array_ensure_capacity(LV00Array *arr, size_t min_capacity) {
-    if (!arr) return false;
+    if (!arr)
+        return false;
     /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
-    if (min_capacity == 0) min_capacity = 1;
-    if (arr->capacity >= min_capacity) return true;
-    
+    if (min_capacity == 0)
+        min_capacity = 1;
+    if (arr->capacity >= min_capacity)
+        return true;
+
     size_t new_capacity = arr->capacity;
     while (new_capacity < min_capacity) {
         /* 修复：检查两步溢出
          * 1. new_capacity * LV00_ARRAY_GROWTH_FACTOR 不能超过 SIZE_MAX
          * 2. new_capacity * sizeof(void*) 不能超过 SIZE_MAX（分配时使用） */
-        if (new_capacity > SIZE_MAX / LV00_ARRAY_GROWTH_FACTOR) return false;
+        if (new_capacity > SIZE_MAX / LV00_ARRAY_GROWTH_FACTOR)
+            return false;
         new_capacity *= LV00_ARRAY_GROWTH_FACTOR;
     }
-    
+
     /* 修复：检查 new_capacity * sizeof(void*) 是否溢出 */
-    if (new_capacity > SIZE_MAX / sizeof(void *)) return false;
+    if (new_capacity > SIZE_MAX / sizeof(void *))
+        return false;
     size_t alloc_size = new_capacity * sizeof(void *);
-    
+
     void **new_data = lv00_realloc(arr->data, alloc_size);
-    if (!new_data) return false;
-    
+    if (!new_data)
+        return false;
+
     /* 清零新分配的部分 */
     memset(new_data + arr->capacity, 0, (new_capacity - arr->capacity) * sizeof(void *));
-    
+
     arr->data = new_data;
     arr->capacity = new_capacity;
     return true;
 }
 
 bool lv00_array_push(LV00Array *arr, void *elem) {
-    if (!arr) return false;
-    
+    if (!arr)
+        return false;
+
     if (!lv00_array_ensure_capacity(arr, arr->count + 1)) {
         return false;
     }
-    
+
     arr->data[arr->count++] = elem;
     return true;
 }
 
 bool lv00_array_remove(LV00Array *arr, size_t index, bool free_elem) {
-    if (!arr || index >= arr->count) return false;
-    
+    if (!arr || index >= arr->count)
+        return false;
+
     if (free_elem && arr->data[index]) {
         lv00_free(&arr->data[index]);
     }
-    
+
     /* 移动后续元素 */
     for (size_t i = index; i < arr->count - 1; i++) {
         arr->data[i] = arr->data[i + 1];
     }
     arr->count--;
     arr->data[arr->count] = NULL;
-    
+
     return true;
 }
 
 void *lv00_array_get(const LV00Array *arr, size_t index) {
-    if (!arr || index >= arr->count) return NULL;
+    if (!arr || index >= arr->count)
+        return NULL;
     return arr->data[index];
 }
 
 bool lv00_array_set(LV00Array *arr, size_t index, void *elem) {
-    if (!arr || index >= arr->count) return false;
+    if (!arr || index >= arr->count)
+        return false;
     arr->data[index] = elem;
     return true;
 }
 
 void lv00_array_clear(LV00Array *arr, bool free_elements) {
-    if (!arr) return;
-    
+    if (!arr)
+        return;
+
     if (free_elements) {
         for (size_t i = 0; i < arr->count; i++) {
             if (arr->data[i]) {
@@ -435,20 +470,23 @@ void lv00_array_clear(LV00Array *arr, bool free_elements) {
             }
         }
     }
-    
+
     memset(arr->data, 0, arr->capacity * sizeof(void *));
     arr->count = 0;
 }
 
 void lv00_array_sort(LV00Array *arr, int (*cmp)(const void *, const void *)) {
-    if (!arr || !cmp || arr->count < 2) return;
+    if (!arr || !cmp || arr->count < 2)
+        return;
     qsort(arr->data, arr->count, sizeof(void *), cmp);
 }
 
 int lv00_array_find(const LV00Array *arr, const void *elem) {
-    if (!arr) return -1;
+    if (!arr)
+        return -1;
     for (size_t i = 0; i < arr->count; i++) {
-        if (arr->data[i] == elem) return (int)i;
+        if (arr->data[i] == elem)
+            return (int) i;
     }
     return -1;
 }
@@ -459,55 +497,65 @@ int lv00_array_find(const LV00Array *arr, const void *elem) {
 
 IntArray *int_array_create(size_t initial_capacity) {
     IntArray *arr = lv00_malloc(sizeof(IntArray));
-    if (!arr) return NULL;
-    
+    if (!arr)
+        return NULL;
+
     arr->count = 0;
     arr->capacity = initial_capacity > 0 ? initial_capacity : LV00_INITIAL_ARRAY_CAPACITY;
     arr->data = lv00_calloc(arr->capacity, sizeof(int));
-    
+
     if (!arr->data) {
-        lv00_free((void **)&arr);
+        lv00_free((void **) &arr);
         return NULL;
     }
-    
+
     return arr;
 }
 
 void int_array_destroy(IntArray *arr) {
-    if (!arr) return;
-    lv00_free((void **)&arr->data);
-    lv00_free((void **)&arr);
+    if (!arr)
+        return;
+    lv00_free((void **) &arr->data);
+    lv00_free((void **) &arr);
 }
 
 static bool int_array_ensure_capacity(IntArray *arr, size_t min_capacity) {
-    if (!arr) return false;
+    if (!arr)
+        return false;
     /* 输入验证：容量为0时按最小默认容量处理，避免死循环 */
-    if (min_capacity == 0) min_capacity = 1;
-    if (arr->capacity >= min_capacity) return true;
-    
+    if (min_capacity == 0)
+        min_capacity = 1;
+    if (arr->capacity >= min_capacity)
+        return true;
+
     size_t new_capacity = arr->capacity;
     while (new_capacity < min_capacity) {
         /* 修复：检查两步溢出（与 lv00_array_ensure_capacity 相同） */
-        if (new_capacity > SIZE_MAX / LV00_ARRAY_GROWTH_FACTOR) return false;
+        if (new_capacity > SIZE_MAX / LV00_ARRAY_GROWTH_FACTOR)
+            return false;
         new_capacity *= LV00_ARRAY_GROWTH_FACTOR;
     }
-    
+
     /* 修复：检查 new_capacity * sizeof(int) 是否溢出 */
-    if (new_capacity > SIZE_MAX / sizeof(int)) return false;
+    if (new_capacity > SIZE_MAX / sizeof(int))
+        return false;
     size_t alloc_size = new_capacity * sizeof(int);
-    
+
     int *new_data = lv00_realloc(arr->data, alloc_size);
-    if (!new_data) return false;
-    
+    if (!new_data)
+        return false;
+
     arr->data = new_data;
     arr->capacity = new_capacity;
     return true;
 }
 
 bool int_array_push(IntArray *arr, int value) {
-    if (!arr) return false;
-    if (!int_array_ensure_capacity(arr, arr->count + 1)) return false;
-    
+    if (!arr)
+        return false;
+    if (!int_array_ensure_capacity(arr, arr->count + 1))
+        return false;
+
     arr->data[arr->count++] = value;
     return true;
 }
@@ -525,9 +573,11 @@ bool int_array_push(IntArray *arr, int value) {
  *         false 参数无效或内存扩容失败。
  */
 bool int_array_push_many(IntArray *arr, const int *values, size_t count) {
-    if (!arr || !values) return false;
-    if (!int_array_ensure_capacity(arr, arr->count + count)) return false;
-    
+    if (!arr || !values)
+        return false;
+    if (!int_array_ensure_capacity(arr, arr->count + count))
+        return false;
+
     memcpy(arr->data + arr->count, values, count * sizeof(int));
     arr->count += count;
     return true;
@@ -545,9 +595,11 @@ bool int_array_push_many(IntArray *arr, const int *values, size_t count) {
  * @note 时间复杂度为 O(n)，不适用于对性能敏感的频繁查找场景。
  */
 bool int_array_contains(const IntArray *arr, int value) {
-    if (!arr) return false;
+    if (!arr)
+        return false;
     for (size_t i = 0; i < arr->count; i++) {
-        if (arr->data[i] == value) return true;
+        if (arr->data[i] == value)
+            return true;
     }
     return false;
 }
@@ -564,9 +616,11 @@ bool int_array_contains(const IntArray *arr, int value) {
  * @note 时间复杂度为 O(n)。若数组中存在多个匹配项，仅返回第一个的索引。
  */
 int int_array_index_of(const IntArray *arr, int value) {
-    if (!arr) return -1;
+    if (!arr)
+        return -1;
     for (size_t i = 0; i < arr->count; i++) {
-        if (arr->data[i] == value) return (int)i;
+        if (arr->data[i] == value)
+            return (int) i;
     }
     return -1;
 }
@@ -584,12 +638,14 @@ int int_array_index_of(const IntArray *arr, int value) {
  *       移除操作的时间复杂度为 O(n)（含查找和元素前移）。
  */
 bool int_array_remove(IntArray *arr, int value) {
-    if (!arr) return false;
+    if (!arr)
+        return false;
     int idx = int_array_index_of(arr, value);
-    if (idx < 0) return false;
-    
+    if (idx < 0)
+        return false;
+
     /* 移动后续元素 */
-    for (size_t i = (size_t)idx; i < arr->count - 1; i++) {
+    for (size_t i = (size_t) idx; i < arr->count - 1; i++) {
         arr->data[i] = arr->data[i + 1];
     }
     arr->count--;
@@ -607,34 +663,41 @@ bool int_array_remove(IntArray *arr, int value) {
  * @return 负数（a < b）、零（a == b）、正数（a > b）
  */
 static int compare_int(const void *a, const void *b) {
-    int ia = *(const int *)a;
-    int ib = *(const int *)b;
+    int ia = *(const int *) a;
+    int ib = *(const int *) b;
     /* 使用分支而非算术运算，避免有符号整数溢出风险 */
-    if (ia < ib) return -1;
-    if (ia > ib) return 1;
+    if (ia < ib)
+        return -1;
+    if (ia > ib)
+        return 1;
     return 0;
 }
 
 void int_array_sort(IntArray *arr) {
-    if (!arr || arr->count < 2) return;
+    if (!arr || arr->count < 2)
+        return;
     qsort(arr->data, arr->count, sizeof(int), compare_int);
 }
 
 IntArray *int_array_copy(const IntArray *arr) {
-    if (!arr) return NULL;
+    if (!arr)
+        return NULL;
     IntArray *copy = int_array_create(arr->capacity);
-    if (!copy) return NULL;
-    
+    if (!copy)
+        return NULL;
+
     memcpy(copy->data, arr->data, arr->count * sizeof(int));
     copy->count = arr->count;
     return copy;
 }
 
 IntArray *int_array_from_carray(const int *data, size_t count) {
-    if (!data) return NULL;
+    if (!data)
+        return NULL;
     IntArray *arr = int_array_create(count);
-    if (!arr) return NULL;
-    
+    if (!arr)
+        return NULL;
+
     memcpy(arr->data, data, count * sizeof(int));
     arr->count = count;
     return arr;
@@ -645,15 +708,16 @@ IntArray *int_array_from_carray(const int *data, size_t count) {
  * ============================================================ */
 
 /* 消除魔术数字，用宏定义替代字面量 */
-#define CONFIG_LINE_BUFFER_SIZE 1024  /**< 配置文件每行读取缓冲区大小 */
+#define CONFIG_LINE_BUFFER_SIZE 1024 /**< 配置文件每行读取缓冲区大小 */
 
 static ConfigItem *config_item_create(const char *key, ConfigType type) {
     ConfigItem *item = lv00_calloc(1, sizeof(ConfigItem));
-    if (!item) return NULL;
-    
+    if (!item)
+        return NULL;
+
     item->key = lv00_strdup_safe(key);
     if (!item->key) {
-        lv00_free((void **)&item);
+        lv00_free((void **) &item);
         return NULL;
     }
     item->type = type;
@@ -661,51 +725,54 @@ static ConfigItem *config_item_create(const char *key, ConfigType type) {
 }
 
 static void config_item_destroy(ConfigItem *item) {
-    if (!item) return;
-    
-    lv00_free((void **)&item->key);
-    
+    if (!item)
+        return;
+
+    lv00_free((void **) &item->key);
+
     switch (item->type) {
         case CONFIG_TYPE_STRING:
-            lv00_free((void **)&item->value.string_val);
+            lv00_free((void **) &item->value.string_val);
             break;
         case CONFIG_TYPE_ARRAY:
             for (size_t i = 0; i < item->array_count; i++) {
                 config_item_destroy(item->value.array_val[i]);
             }
-            lv00_free((void **)&item->value.array_val);
+            lv00_free((void **) &item->value.array_val);
             break;
         default:
             break;
     }
-    
-    lv00_free((void **)&item);
+
+    lv00_free((void **) &item);
 }
 
 ConfigManager *config_manager_create(const char *config_file) {
     ConfigManager *mgr = lv00_calloc(1, sizeof(ConfigManager));
-    if (!mgr) return NULL;
-    
+    if (!mgr)
+        return NULL;
+
     if (config_file) {
         mgr->config_file = lv00_strdup_safe(config_file);
     }
     mgr->auto_save = false;
-    
+
     return mgr;
 }
 
 void config_manager_destroy(ConfigManager *mgr) {
-    if (!mgr) return;
-    
+    if (!mgr)
+        return;
+
     ConfigItem *item = mgr->items;
     while (item) {
         ConfigItem *next = item->next;
         config_item_destroy(item);
         item = next;
     }
-    
-    lv00_free((void **)&mgr->config_file);
-    lv00_free((void **)&mgr);
+
+    lv00_free((void **) &mgr->config_file);
+    lv00_free((void **) &mgr);
 }
 
 /**
@@ -719,11 +786,13 @@ void config_manager_destroy(ConfigManager *mgr) {
  * @note 此为内部静态函数，仅供配置管理模块内部使用。
  */
 static ConfigItem *config_find_item(const ConfigManager *mgr, const char *key) {
-    if (!mgr || !key) return NULL;
-    
+    if (!mgr || !key)
+        return NULL;
+
     ConfigItem *item = mgr->items;
     while (item) {
-        if (strcmp(item->key, key) == 0) return item;
+        if (strcmp(item->key, key) == 0)
+            return item;
         item = item->next;
     }
     return NULL;
@@ -746,48 +815,54 @@ static ConfigItem *config_find_item(const ConfigManager *mgr, const char *key) {
  */
 #define DEFINE_CONFIG_SET_SCALAR(func_name, cfg_type, val_type, val_member) \
     bool func_name(ConfigManager *mgr, const char *key, val_type value) {   \
-        if (!mgr || !key) return false;                                     \
-                                                                           \
+        if (!mgr || !key)                                                   \
+            return false;                                                   \
+                                                                            \
         ConfigItem *item = config_find_item(mgr, key);                      \
         if (item) {                                                         \
             item->type = cfg_type;                                          \
             item->value.val_member = value;                                 \
         } else {                                                            \
             item = config_item_create(key, cfg_type);                       \
-            if (!item) return false;                                        \
+            if (!item)                                                      \
+                return false;                                               \
             item->value.val_member = value;                                 \
             item->next = mgr->items;                                        \
             mgr->items = item;                                              \
         }                                                                   \
-                                                                           \
-        if (mgr->auto_save) config_save(mgr);                               \
+                                                                            \
+        if (mgr->auto_save)                                                 \
+            config_save(mgr);                                               \
         return true;                                                        \
     }
 
 /* 使用宏生成 int、bool、double 三种标量类型的配置设置函数 */
-DEFINE_CONFIG_SET_SCALAR(config_set_int,    CONFIG_TYPE_INT,    int,    int_val)
-DEFINE_CONFIG_SET_SCALAR(config_set_bool,   CONFIG_TYPE_BOOL,   bool,   bool_val)
+DEFINE_CONFIG_SET_SCALAR(config_set_int, CONFIG_TYPE_INT, int, int_val)
+DEFINE_CONFIG_SET_SCALAR(config_set_bool, CONFIG_TYPE_BOOL, bool, bool_val)
 DEFINE_CONFIG_SET_SCALAR(config_set_double, CONFIG_TYPE_DOUBLE, double, double_val)
 
 bool config_set_string(ConfigManager *mgr, const char *key, const char *value) {
-    if (!mgr || !key) return false;
-    
+    if (!mgr || !key)
+        return false;
+
     ConfigItem *item = config_find_item(mgr, key);
     if (item) {
         if (item->type == CONFIG_TYPE_STRING) {
-            lv00_free((void **)&item->value.string_val);
+            lv00_free((void **) &item->value.string_val);
         }
         item->type = CONFIG_TYPE_STRING;
         item->value.string_val = lv00_strdup_safe(value);
     } else {
         item = config_item_create(key, CONFIG_TYPE_STRING);
-        if (!item) return false;
+        if (!item)
+            return false;
         item->value.string_val = lv00_strdup_safe(value);
         item->next = mgr->items;
         mgr->items = item;
     }
-    
-    if (mgr->auto_save) config_save(mgr);
+
+    if (mgr->auto_save)
+        config_save(mgr);
     return true;
 }
 
@@ -836,15 +911,17 @@ bool config_has_key(const ConfigManager *mgr, const char *key) {
 }
 
 bool config_remove(ConfigManager *mgr, const char *key) {
-    if (!mgr || !key) return false;
-    
+    if (!mgr || !key)
+        return false;
+
     ConfigItem **current = &mgr->items;
     while (*current) {
         if (strcmp((*current)->key, key) == 0) {
             ConfigItem *to_remove = *current;
             *current = to_remove->next;
             config_item_destroy(to_remove);
-            if (mgr->auto_save) config_save(mgr);
+            if (mgr->auto_save)
+                config_save(mgr);
             return true;
         }
         current = &(*current)->next;
@@ -854,31 +931,35 @@ bool config_remove(ConfigManager *mgr, const char *key) {
 
 /* 简化的配置文件格式：key = value */
 bool config_load(ConfigManager *mgr) {
-    if (!mgr || !mgr->config_file) return false;
-    
+    if (!mgr || !mgr->config_file)
+        return false;
+
     FILE *f = fopen(mgr->config_file, "r");
-    if (!f) return false;
-    
+    if (!f)
+        return false;
+
     char line[CONFIG_LINE_BUFFER_SIZE];
     while (fgets(line, sizeof(line), f)) {
         char *trimmed = lv00_str_trim(line);
-        if (*trimmed == '\0' || *trimmed == '#') continue;
-        
+        if (*trimmed == '\0' || *trimmed == '#')
+            continue;
+
         char *eq = strchr(trimmed, '=');
-        if (!eq) continue;
-        
+        if (!eq)
+            continue;
+
         *eq = '\0';
         char *key = lv00_str_trim(trimmed);
         char *value = lv00_str_trim(eq + 1);
-        
+
         /* 尝试解析为整数 */
         char *endptr;
         long int_val = strtol(value, &endptr, 10);
         if (*endptr == '\0') {
-            config_set_int(mgr, key, (int)int_val);
+            config_set_int(mgr, key, (int) int_val);
             continue;
         }
-        
+
         /* 尝试解析为布尔值 */
         if (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0) {
             config_set_bool(mgr, key, true);
@@ -888,31 +969,33 @@ bool config_load(ConfigManager *mgr) {
             config_set_bool(mgr, key, false);
             continue;
         }
-        
+
         /* 尝试解析为浮点数 */
         double double_val = strtod(value, &endptr);
         if (*endptr == '\0') {
             config_set_double(mgr, key, double_val);
             continue;
         }
-        
+
         /* 否则作为字符串 */
         config_set_string(mgr, key, value);
     }
-    
+
     fclose(f);
     return true;
 }
 
 bool config_save(const ConfigManager *mgr) {
-    if (!mgr || !mgr->config_file) return false;
-    
+    if (!mgr || !mgr->config_file)
+        return false;
+
     FILE *f = fopen(mgr->config_file, "w");
-    if (!f) return false;
-    
+    if (!f)
+        return false;
+
     fprintf(f, "# Lv-00 Configuration File\n");
     fprintf(f, "# Auto-generated\n\n");
-    
+
     ConfigItem *item = mgr->items;
     while (item) {
         switch (item->type) {
@@ -933,7 +1016,8 @@ bool config_save(const ConfigManager *mgr) {
                 fprintf(f, "%s = [", item->key);
                 if (item->value.array_val && item->array_count > 0) {
                     for (size_t ai = 0; ai < item->array_count; ai++) {
-                        if (ai > 0) fprintf(f, ", ");
+                        if (ai > 0)
+                            fprintf(f, ", ");
                         ConfigItem *elem_item = item->value.array_val[ai];
                         if (elem_item && elem_item->key) {
                             fprintf(f, "\"%s\"", elem_item->key);
@@ -949,7 +1033,7 @@ bool config_save(const ConfigManager *mgr) {
         }
         item = item->next;
     }
-    
+
     fclose(f);
     return true;
 }
@@ -959,30 +1043,33 @@ bool config_save(const ConfigManager *mgr) {
  * ============================================================ */
 
 LV00Version *version_parse(const char *version_str) {
-    if (!version_str) return NULL;
-    
+    if (!version_str)
+        return NULL;
+
     LV00Version *ver = lv00_calloc(1, sizeof(LV00Version));
-    if (!ver) return NULL;
-    
+    if (!ver)
+        return NULL;
+
     /* 解析主版本.次版本.修订版本 */
     int parsed = sscanf(version_str, "%d.%d.%d", &ver->major, &ver->minor, &ver->patch);
     if (parsed < 2) {
-        lv00_free((void **)&ver);
+        lv00_free((void **) &ver);
         return NULL;
     }
-    if (parsed == 2) ver->patch = 0;
-    
+    if (parsed == 2)
+        ver->patch = 0;
+
     /* 解析预发布标识 */
     char *dash = strchr(version_str, '-');
     if (dash) {
         char *plus = strchr(dash, '+');
         if (plus) {
             /* 添加 plus > dash 边界条件检查，防止指针运算溢出 */
-            if (plus > dash && (size_t)(plus - dash) > 1) {
-                ver->prerelease = lv00_malloc((size_t)(plus - dash));
+            if (plus > dash && (size_t) (plus - dash) > 1) {
+                ver->prerelease = lv00_malloc((size_t) (plus - dash));
                 if (ver->prerelease) {
                     /* 使用 memcpy 进行精确长度复制（已分配精确内存，手动零终止） */
-                    memcpy(ver->prerelease, dash + 1, (size_t)(plus - dash - 1));
+                    memcpy(ver->prerelease, dash + 1, (size_t) (plus - dash - 1));
                     ver->prerelease[plus - dash - 1] = '\0';
                 }
             } else {
@@ -994,23 +1081,24 @@ LV00Version *version_parse(const char *version_str) {
             ver->prerelease = lv00_strdup_safe(dash + 1);
         }
     }
-    
+
     return ver;
 }
 
 void version_destroy(LV00Version *ver) {
-    if (!ver) return;
-    lv00_free((void **)&ver->prerelease);
-    lv00_free((void **)&ver->build);
-    lv00_free((void **)&ver);
+    if (!ver)
+        return;
+    lv00_free((void **) &ver->prerelease);
+    lv00_free((void **) &ver->build);
+    lv00_free((void **) &ver);
 }
 
 char *version_to_string(const LV00Version *ver) {
-    if (!ver) return NULL;
-    
+    if (!ver)
+        return NULL;
+
     if (ver->prerelease && ver->build) {
-        return lv00_asprintf("%d.%d.%d-%s+%s", ver->major, ver->minor, ver->patch,
-                            ver->prerelease, ver->build);
+        return lv00_asprintf("%d.%d.%d-%s+%s", ver->major, ver->minor, ver->patch, ver->prerelease, ver->build);
     } else if (ver->prerelease) {
         return lv00_asprintf("%d.%d.%d-%s", ver->major, ver->minor, ver->patch, ver->prerelease);
     } else if (ver->build) {
@@ -1021,44 +1109,54 @@ char *version_to_string(const LV00Version *ver) {
 }
 
 int version_compare(const LV00Version *v1, const LV00Version *v2) {
-    if (!v1 || !v2) return 0;
-    
-    if (v1->major != v2->major) return (v1->major > v2->major) ? 1 : -1;
-    if (v1->minor != v2->minor) return (v1->minor > v2->minor) ? 1 : -1;
-    if (v1->patch != v2->patch) return (v1->patch > v2->patch) ? 1 : -1;
-    
+    if (!v1 || !v2)
+        return 0;
+
+    if (v1->major != v2->major)
+        return (v1->major > v2->major) ? 1 : -1;
+    if (v1->minor != v2->minor)
+        return (v1->minor > v2->minor) ? 1 : -1;
+    if (v1->patch != v2->patch)
+        return (v1->patch > v2->patch) ? 1 : -1;
+
     /* 预发布版本小于正式版本 */
-    if (v1->prerelease && !v2->prerelease) return -1;
-    if (!v1->prerelease && v2->prerelease) return 1;
+    if (v1->prerelease && !v2->prerelease)
+        return -1;
+    if (!v1->prerelease && v2->prerelease)
+        return 1;
     if (v1->prerelease && v2->prerelease) {
         int cmp = strcmp(v1->prerelease, v2->prerelease);
-        if (cmp != 0) return (cmp > 0) ? 1 : -1;
+        if (cmp != 0)
+            return (cmp > 0) ? 1 : -1;
     }
-    
+
     return 0;
 }
 
 bool version_compatible(const LV00Version *required, const LV00Version *actual) {
-    if (!required || !actual) return false;
-    
+    if (!required || !actual)
+        return false;
+
     /* 主版本必须相同 */
-    if (required->major != actual->major) return false;
-    
+    if (required->major != actual->major)
+        return false;
+
     /* 实际版本必须大于等于要求版本 */
     return version_compare(actual, required) >= 0;
 }
 
 bool lv00_check_version(const char *min_version) {
     LV00Version *min = version_parse(min_version);
-    if (!min) return false;
-    
+    if (!min)
+        return false;
+
     LV00Version current;
     current.major = LV00_VERSION_MAJOR;
     current.minor = LV00_VERSION_MINOR;
     current.patch = LV00_VERSION_PATCH;
     current.prerelease = NULL;
     current.build = NULL;
-    
+
     bool compatible = version_compatible(min, &current);
     version_destroy(min);
     return compatible;
@@ -1069,9 +1167,9 @@ bool lv00_check_version(const char *min_version) {
  * ============================================================ */
 
 /* 时间单位转换常量 */
-#define LV00_US_PER_MS  1000   /**< 微秒转毫秒 */
-#define LV00_MS_PER_S   1000   /**< 毫秒转秒 */
-#define LV00_US_PER_S   1000000  /**< 微秒转秒 */
+#define LV00_US_PER_MS 1000   /**< 微秒转毫秒 */
+#define LV00_MS_PER_S 1000    /**< 毫秒转秒 */
+#define LV00_US_PER_S 1000000 /**< 微秒转秒 */
 
 #ifdef _WIN32
 #include <windows.h>
@@ -1080,7 +1178,7 @@ uint64_t lv00_get_time_us(void) {
     LARGE_INTEGER freq, count;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&count);
-    return (uint64_t)(count.QuadPart * (LONGLONG)LV00_US_PER_S / freq.QuadPart);
+    return (uint64_t) (count.QuadPart * (LONGLONG) LV00_US_PER_S / freq.QuadPart);
 }
 
 #else
@@ -1089,7 +1187,7 @@ uint64_t lv00_get_time_us(void) {
 uint64_t lv00_get_time_us(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (uint64_t)tv.tv_sec * LV00_US_PER_S + (uint64_t)tv.tv_usec;
+    return (uint64_t) tv.tv_sec * LV00_US_PER_S + (uint64_t) tv.tv_usec;
 }
 #endif
 
@@ -1098,13 +1196,14 @@ uint64_t lv00_get_time_ms(void) {
 }
 
 const char *lv00_format_time(uint64_t timestamp_us, char *buf, size_t buf_size) {
-    if (!buf || buf_size == 0) return NULL;
-    
-    time_t sec = (time_t)(timestamp_us / LV00_US_PER_S);
+    if (!buf || buf_size == 0)
+        return NULL;
+
+    time_t sec = (time_t) (timestamp_us / LV00_US_PER_S);
     /* 修复：使用线程安全的 LV00_LOCALTIME 宏替代非线程安全的 localtime */
     struct tm tm_buf;
     LV00_LOCALTIME(&sec, &tm_buf);
-    
+
     strftime(buf, buf_size, "%Y-%m-%d %H:%M:%S", &tm_buf);
     return buf;
 }
@@ -1114,20 +1213,20 @@ const char *lv00_format_time(uint64_t timestamp_us, char *buf, size_t buf_size) 
  * ============================================================ */
 
 /* xorshift64* 伪随机数生成器参数 */
-#define LV00_XORSHIFT_SHIFT_A  12    /**< 第一段右移位数 */
-#define LV00_XORSHIFT_SHIFT_B  25    /**< 左移位数 */
-#define LV00_XORSHIFT_SHIFT_C  27    /**< 第二段右移位数 */
-#define LV00_XORSHIFT_MULTIPLIER 0x2545F4914F6CDD1DULL  /**< 乘法常数（来自 Marsaglia 论文） */
+#define LV00_XORSHIFT_SHIFT_A 12                       /**< 第一段右移位数 */
+#define LV00_XORSHIFT_SHIFT_B 25                       /**< 左移位数 */
+#define LV00_XORSHIFT_SHIFT_C 27                       /**< 第二段右移位数 */
+#define LV00_XORSHIFT_MULTIPLIER 0x2545F4914F6CDD1DULL /**< 乘法常数（来自 Marsaglia 论文） */
 
 /* 双精度随机数生成参数 */
-#define LV00_DOUBLE_RAND_HI_BITS   53   /**< 高位位数（double 尾数精度） */
-#define LV00_DOUBLE_RAND_LO_BITS   11   /**< 低位位数（附加精度） */
-#define LV00_DOUBLE_RAND_MAX_SAFE  0.9999999999999999  /**< [0,1) 区间安全上界 */
+#define LV00_DOUBLE_RAND_HI_BITS 53                  /**< 高位位数（double 尾数精度） */
+#define LV00_DOUBLE_RAND_LO_BITS 11                  /**< 低位位数（附加精度） */
+#define LV00_DOUBLE_RAND_MAX_SAFE 0.9999999999999999 /**< [0,1) 区间安全上界 */
 
 static LV00_THREAD_LOCAL uint64_t g_random_state = 0;
 
 void lv00_random_init(uint64_t seed) {
-    g_random_state = seed ? seed : (uint64_t)time(NULL);
+    g_random_state = seed ? seed : (uint64_t) time(NULL);
 }
 
 /* xorshift64* 伪随机数生成器（Marsaglia, 2003） */
@@ -1139,8 +1238,9 @@ static uint64_t xorshift64star(void) {
 }
 
 int lv00_random_int(int min, int max) {
-    if (min >= max) return min;
-    uint64_t range = (uint64_t)(max - min);
+    if (min >= max)
+        return min;
+    uint64_t range = (uint64_t) (max - min);
     /* 拒绝采样法：消除模偏差。
      * 当 range 不是 2^64 的约数时，xorshift64star() % range 会使较小值
      * 的出现概率略高于较大值。通过计算阈值并拒绝超出范围的采样值来保证均匀性。 */
@@ -1149,11 +1249,12 @@ int lv00_random_int(int min, int max) {
     do {
         r = xorshift64star();
     } while (r >= threshold);
-    return min + (int)(r % range);
+    return min + (int) (r % range);
 }
 
 double lv00_random_double(double min, double max) {
-    if (min >= max) return min;
+    if (min >= max)
+        return min;
     uint64_t r = xorshift64star();
     /* 修复：使用双精度拆分法生成 [0.0, 1.0) 区间内的均匀随机数。
      *
@@ -1165,17 +1266,18 @@ double lv00_random_double(double min, double max) {
      *
      * 修复方案：将 64 位随机数拆分为高 53 位（提供 double 的完整尾数精度）
      * 和低 11 位（作为附加精度），避免浮点转换时的精度丢失。 */
-    uint64_t hi53 = r >> LV00_DOUBLE_RAND_LO_BITS;                     /* 高 53 位作为主尾数 */
-    uint64_t lo11 = r & ((1u << LV00_DOUBLE_RAND_LO_BITS) - 1);         /* 低 11 位作为补充精度 */
+    uint64_t hi53 = r >> LV00_DOUBLE_RAND_LO_BITS;              /* 高 53 位作为主尾数 */
+    uint64_t lo11 = r & ((1u << LV00_DOUBLE_RAND_LO_BITS) - 1); /* 低 11 位作为补充精度 */
     /* 构造 [0.0, 1.0) 的均匀随机数：
      *   normalized = hi53/2^53 + lo11/2^64
      * 使用 2^53 作为主除数（double 的 53 位尾数可精确表示），
      * 低 11 位作为微小扰动，确保所有 64 位都对结果有贡献。 */
-    double normalized = (double)hi53 / 9007199254740992.0     /* 2^53 */
-                      + (double)lo11 / 18446744073709551616.0; /* 2^64 */
+    double normalized = (double) hi53 / 9007199254740992.0        /* 2^53 */
+                        + (double) lo11 / 18446744073709551616.0; /* 2^64 */
     /* 钳制到 [0.0, 1.0) 以确保安全（理论上 normalized < 1.0，但浮点运算
      * 的舍入可能导致极微小的超出） */
-    if (normalized >= 1.0) normalized = LV00_DOUBLE_RAND_MAX_SAFE;
+    if (normalized >= 1.0)
+        normalized = LV00_DOUBLE_RAND_MAX_SAFE;
     return min + normalized * (max - min);
 }
 
@@ -1184,12 +1286,13 @@ double lv00_random_double(double min, double max) {
  * ============================================================ */
 
 uint64_t lv00_hash_string(const char *str) {
-    if (!str) return 0;
-    
+    if (!str)
+        return 0;
+
     /* FNV-1a 哈希算法（使用 lv00_internal.h 中的统一定义） */
     uint64_t hash = LV00_FNV64_OFFSET_BASIS;
     while (*str) {
-        hash ^= (uint64_t)(unsigned char)*str++;
+        hash ^= (uint64_t) (unsigned char) *str++;
         hash *= LV00_FNV64_PRIME;
     }
     return hash;
@@ -1212,10 +1315,9 @@ uint64_t lv00_hash_string(const char *str) {
  * @param fmt   printf 风格格式字符串
  * @param ...   可变参数
  */
-void lv00_log_message(int level, const char *file, int line, const char *fmt, ...)
-{
-    (void)level;
-    (void)line;
+void lv00_log_message(int level, const char *file, int line, const char *fmt, ...) {
+    (void) level;
+    (void) line;
     fprintf(stderr, "[%s:%d] ", file ? file : "?", line);
     va_list args;
     va_start(args, fmt);
@@ -1225,13 +1327,14 @@ void lv00_log_message(int level, const char *file, int line, const char *fmt, ..
 }
 
 uint64_t lv00_hash_bytes(const void *data, size_t len) {
-    if (!data || len == 0) return 0;
-    
-    const uint8_t *bytes = (const uint8_t *)data;
+    if (!data || len == 0)
+        return 0;
+
+    const uint8_t *bytes = (const uint8_t *) data;
     uint64_t hash = LV00_FNV64_OFFSET_BASIS;
-    
+
     for (size_t i = 0; i < len; i++) {
-        hash ^= (uint64_t)bytes[i];
+        hash ^= (uint64_t) bytes[i];
         hash *= LV00_FNV64_PRIME;
     }
     return hash;
@@ -1242,7 +1345,7 @@ uint64_t lv00_hash_int(int value) {
     uint64_t hash = LV00_FNV64_OFFSET_BASIS;
     /* 逐字节哈希 int 值（sizeof(int) 通常为 4） */
     for (size_t i = 0; i < sizeof(int); i++) {
-        hash ^= (uint64_t)((value >> (i * 8)) & 0xFF);
+        hash ^= (uint64_t) ((value >> (i * 8)) & 0xFF);
         hash *= LV00_FNV64_PRIME;
     }
     return hash;
@@ -1269,7 +1372,8 @@ uint64_t lv00_hash_int(int value) {
  *       自动置 NULL 的安全保证。此函数仅用于 FFI 边界。
  */
 void lv00_free_ptr(void *ptr) {
-    if (!ptr) return;
+    if (!ptr)
+        return;
     free(ptr);
     g_memory_stats.total_freed += 1;
     g_memory_stats.free_count++;

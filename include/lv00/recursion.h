@@ -13,10 +13,11 @@
 #ifndef LV00_RECURSION_H
 #define LV00_RECURSION_H
 
-#include "constraint_graph.h"
-#include "symbolic_coord.h"
-#include "stream.h"
 #include <stdbool.h>
+
+#include "constraint_graph.h"
+#include "stream.h"
+#include "symbolic_coord.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,36 +33,36 @@ typedef struct RecursionContext RecursionContext;
 
 /* ============== 测度类型 ============== */
 typedef enum {
-    MEASURE_SYMBOLIC,   /* 符号测度：可归约到符号坐标上的代数表达式 */
-    MEASURE_CUSTOM      /* 非符号测度：公理包定义的抽象序结构 */
+    MEASURE_SYMBOLIC, /* 符号测度：可归约到符号坐标上的代数表达式 */
+    MEASURE_CUSTOM    /* 非符号测度：公理包定义的抽象序结构 */
 } MeasureType;
 
 /* ============== 测度比较结果 ============== */
 typedef enum {
-    MEASURE_LESS,       /* a < b */
-    MEASURE_EQUAL,      /* a = b */
-    MEASURE_GREATER,    /* a > b */
-    MEASURE_UNKNOWN,    /* 无法比较 */
-    MEASURE_ERROR       /* 比较出错 */
+    MEASURE_LESS,    /* a < b */
+    MEASURE_EQUAL,   /* a = b */
+    MEASURE_GREATER, /* a > b */
+    MEASURE_UNKNOWN, /* 无法比较 */
+    MEASURE_ERROR    /* 比较出错 */
 } MeasureCompareResult;
 
 /* ============== 测度定义 ============== */
 struct Measure {
-    int id;                     /* 测度ID */
-    MeasureType type;           /* 测度类型 */
-    char *name;                 /* 测度名称 */
+    int id;           /* 测度ID */
+    MeasureType type; /* 测度类型 */
+    char *name;       /* 测度名称 */
 
     /* 符号测度 —— 基于几何实体的直接度量 */
-    int reference_node_id;      /* 参考节点 ID */
+    int reference_node_id; /* 参考节点 ID */
 
     /** @brief 测度种类枚举
      *  描述符号测度的具体归类类型，决定 compare 语义。 */
     enum {
-        MEASURE_KIND_LENGTH,    /* 线段长度 —— 端点间的欧氏距离 */
-        MEASURE_KIND_AREA,      /* 区域面积 —— 封闭几何图形的面积 */
-        MEASURE_KIND_ANGLE,     /* 角度 —— 两条线段之间的夹角 */
-        MEASURE_KIND_DEPTH,     /* 嵌套深度 —— 几何体在构造树中的层级 */
-        MEASURE_KIND_CUSTOM     /* 自定义 —— 用户定义的测度函数 */
+        MEASURE_KIND_LENGTH, /* 线段长度 —— 端点间的欧氏距离 */
+        MEASURE_KIND_AREA,   /* 区域面积 —— 封闭几何图形的面积 */
+        MEASURE_KIND_ANGLE,  /* 角度 —— 两条线段之间的夹角 */
+        MEASURE_KIND_DEPTH,  /* 嵌套深度 —— 几何体在构造树中的层级 */
+        MEASURE_KIND_CUSTOM  /* 自定义 —— 用户定义的测度函数 */
     } kind;
 
     /* 非符号测度 */
@@ -69,7 +70,7 @@ struct Measure {
     void *user_data;
 
     /* 良基关系 */
-    bool is_well_founded;       /* 是否为良基关系 */
+    bool is_well_founded; /* 是否为良基关系 */
 };
 
 /* ============== 非符号测度元数据（修改6） ============== */
@@ -86,9 +87,9 @@ typedef bool (*NonSymbolicComparator)(const SymbolicCoord *a, const SymbolicCoor
  * @brief 非符号测度元数据结构
  */
 typedef struct {
-    int measure_type_id;                /* 测度类型ID */
-    NonSymbolicComparator comparator;   /* 比较函数 */
-    bool is_well_founded;               /* 是否为良基关系 */
+    int measure_type_id;              /* 测度类型ID */
+    NonSymbolicComparator comparator; /* 比较函数 */
+    bool is_well_founded;             /* 是否为良基关系 */
 } NonSymbolicMeasureMeta;
 
 /**
@@ -96,62 +97,62 @@ typedef struct {
  * 用于将非符号测度与公理包模板展开关联
  */
 typedef struct {
-    int measure_id;                   /* 测度ID */
-    char validation_template[128];    /* 验证模板名称 */
+    int measure_id;                /* 测度ID */
+    char validation_template[128]; /* 验证模板名称 */
 } NonSymbolicMeasureValidationMeta;
 
 /* ============== 测度系统 ============== */
 struct MeasureSystem {
-    Measure **measures;                     /* 测度数组 */
-    int measure_count;                      /* 测度数量 */
-    int measure_capacity;                   /* 测度数组容量（用于指数增长策略） */
+    Measure **measures;   /* 测度数组 */
+    int measure_count;    /* 测度数量 */
+    int measure_capacity; /* 测度数组容量（用于指数增长策略） */
 
     /* 默认测度 */
-    Measure *default_measure;               /* 默认测度 */
+    Measure *default_measure; /* 默认测度 */
 
     /* 非符号测度提示 */
-    bool has_non_symbolic;                  /* 是否包含非符号测度 */
+    bool has_non_symbolic; /* 是否包含非符号测度 */
 
     /* 非符号测度元数据（修改6） */
-    NonSymbolicMeasureMeta *non_symbolic_metas;  /* 非符号测度元数据数组 */
-    int non_symbolic_meta_count;            /* 非符号测度元数据数量 */
+    NonSymbolicMeasureMeta *non_symbolic_metas; /* 非符号测度元数据数组 */
+    int non_symbolic_meta_count;                /* 非符号测度元数据数量 */
 
     /* 非符号测度验证模板（Feature 2） */
     NonSymbolicMeasureValidationMeta *validation_metas; /* 验证模板元数据数组 */
-    int validation_meta_count;              /* 验证模板元数据数量 */
+    int validation_meta_count;                          /* 验证模板元数据数量 */
 };
 
 /* ============== 选择器块分支状态 ============== */
 typedef enum {
-    BRANCH_INACTIVE,            /* 不活跃（灰色虚影） */
-    BRANCH_ACTIVE,              /* 活跃（实线） */
-    BRANCH_PENDING,             /* 待定（半透明） */
-    BRANCH_SHADOWED             /* 虚影状态（被遮蔽的分支） */
+    BRANCH_INACTIVE, /* 不活跃（灰色虚影） */
+    BRANCH_ACTIVE,   /* 活跃（实线） */
+    BRANCH_PENDING,  /* 待定（半透明） */
+    BRANCH_SHADOWED  /* 虚影状态（被遮蔽的分支） */
 } BranchState;
 
 /* ============== 选择器块 ============== */
 struct SelectorBlock {
-    int id;                     /* 选择器块ID */
+    int id; /* 选择器块ID */
 
     /* 判定条件 */
-    int test_point_id;          /* 测试点ID */
-    int test_region_id;         /* 测试区域ID */
+    int test_point_id;  /* 测试点ID */
+    int test_region_id; /* 测试区域ID */
 
     /* 分支 */
-    int true_branch_root_id;    /* 真分支根节点ID */
-    int false_branch_root_id;   /* 假分支根节点ID */
+    int true_branch_root_id;  /* 真分支根节点ID */
+    int false_branch_root_id; /* 假分支根节点ID */
 
-    BranchState true_state;     /* 真分支状态 */
-    BranchState false_state;    /* 假分支状态 */
+    BranchState true_state;  /* 真分支状态 */
+    BranchState false_state; /* 假分支状态 */
 
     /* 分支子图节点管理（修改3） */
-    int *true_branch_node_ids;      /* 真分支子图的节点ID数组 */
-    int true_branch_node_count;     /* 真分支节点数量 */
-    int *false_branch_node_ids;     /* 假分支子图的节点ID数组 */
-    int false_branch_node_count;    /* 假分支节点数量 */
+    int *true_branch_node_ids;   /* 真分支子图的节点ID数组 */
+    int true_branch_node_count;  /* 真分支节点数量 */
+    int *false_branch_node_ids;  /* 假分支子图的节点ID数组 */
+    int false_branch_node_count; /* 假分支节点数量 */
 
     /* 约束图引用 */
-    ConstraintGraph *graph;     /* 所属约束图 */
+    ConstraintGraph *graph; /* 所属约束图 */
 };
 
 /* ============== 递归深度超限回调（修改5） ============== */
@@ -160,8 +161,8 @@ struct SelectorBlock {
  * @brief 递归深度超限时的动作
  */
 typedef enum {
-    RECURSION_ACTION_CONTINUE,   /* 继续执行 */
-    RECURSION_ACTION_STOP        /* 停止递归 */
+    RECURSION_ACTION_CONTINUE, /* 继续执行 */
+    RECURSION_ACTION_STOP      /* 停止递归 */
 } RecursionAction;
 
 /**
@@ -175,34 +176,34 @@ typedef RecursionAction (*RecursionDepthCallback)(int current_depth, int max_dep
 
 /* ============== 递归上下文 ============== */
 struct RecursionContext {
-    int current_depth;          /* 当前递归深度 */
-    int max_depth;              /* 最大递归深度（默认10000） */
+    int current_depth; /* 当前递归深度 */
+    int max_depth;     /* 最大递归深度（默认10000） */
 
-    Measure *active_measure;    /* 活动测度 */
+    Measure *active_measure;        /* 活动测度 */
     SymbolicCoord **measure_values; /* 测度值历史 */
-    int measure_value_count;    /* 测度值数量 */
+    int measure_value_count;        /* 测度值数量 */
 
     /* 递归调用栈 */
-    int *call_stack;            /* 调用栈（函数块ID） */
-    int call_stack_size;        /* 调用栈大小 */
+    int *call_stack;     /* 调用栈（函数块ID） */
+    int call_stack_size; /* 调用栈大小 */
 
     /* 状态 */
-    bool is_terminated;         /* 是否已终止 */
-    char *termination_reason;   /* 终止原因 */
+    bool is_terminated;       /* 是否已终止 */
+    char *termination_reason; /* 终止原因 */
 
     /* 深度超限回调（修改5） */
-    RecursionDepthCallback depth_callback;  /* 深度超限回调函数 */
-    void *depth_callback_user_data;         /* 回调用户数据 */
+    RecursionDepthCallback depth_callback; /* 深度超限回调函数 */
+    void *depth_callback_user_data;        /* 回调用户数据 */
 };
 
 /* ============== 递归检查结果 ============== */
 typedef enum {
-    RECURSION_OK,               /* 递归有效 */
-    RECURSION_NOT_DECREASING,   /* 测度未递减 */
-    RECURSION_DEPTH_EXCEEDED,   /* 深度超限 */
-    RECURSION_CYCLE_DETECTED,   /* 检测到循环 */
-    RECURSION_MEASURE_UNKNOWN,  /* 测度未知 */
-    RECURSION_ERROR             /* 检查出错 */
+    RECURSION_OK,              /* 递归有效 */
+    RECURSION_NOT_DECREASING,  /* 测度未递减 */
+    RECURSION_DEPTH_EXCEEDED,  /* 深度超限 */
+    RECURSION_CYCLE_DETECTED,  /* 检测到循环 */
+    RECURSION_MEASURE_UNKNOWN, /* 测度未知 */
+    RECURSION_ERROR            /* 检查出错 */
 } RecursionCheckResult;
 
 /* ============== 测度系统API ============== */
@@ -225,9 +226,8 @@ Measure *measure_create_symbolic(const char *name, int kind, int ref_node_id);
 /**
  * 创建非符号测度
  */
-Measure *measure_create_custom(const char *name,
-    int (*compare_func)(GeomNode *a, GeomNode *b, void *user_data),
-    void *user_data);
+Measure *measure_create_custom(const char *name, int (*compare_func)(GeomNode *a, GeomNode *b, void *user_data),
+                               void *user_data);
 
 /**
  * 销毁测度
@@ -288,7 +288,8 @@ void recursion_context_set_measure(RecursionContext *ctx, Measure *m);
 /**
  * 进入递归调用
  */
-RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_block_id, const GeomNode *input, ConstraintGraph *graph);
+RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_block_id, const GeomNode *input,
+                                             ConstraintGraph *graph);
 
 /**
  * 退出递归调用
@@ -317,9 +318,7 @@ void recursion_context_reset(RecursionContext *ctx);
  * @param callback 回调函数
  * @param user_data 用户数据
  */
-void recursion_context_set_depth_callback(RecursionContext *ctx,
-                                           RecursionDepthCallback callback,
-                                           void *user_data);
+void recursion_context_set_depth_callback(RecursionContext *ctx, RecursionDepthCallback callback, void *user_data);
 
 /* ============== 选择器块API ============== */
 
@@ -351,9 +350,7 @@ bool selector_block_set_branches(SelectorBlock *sb, int true_root, int false_roo
  * @param false_ids 假分支子图的节点ID数组
  * @param false_count 假分支节点数量
  */
-void selector_block_set_branch_nodes(SelectorBlock *sb,
-                                      int *true_ids, int true_count,
-                                      int *false_ids, int false_count);
+void selector_block_set_branch_nodes(SelectorBlock *sb, int *true_ids, int true_count, int *false_ids, int false_count);
 
 /**
  * 获取指定分支的节点列表（修改3）
@@ -362,9 +359,7 @@ void selector_block_set_branch_nodes(SelectorBlock *sb,
  * @param out_count 输出节点数量
  * @return 节点ID数组（只读），失败返回 NULL
  */
-const int* selector_block_get_branch_nodes(SelectorBlock *sb,
-                                            bool is_true_branch,
-                                            int *out_count);
+const int *selector_block_get_branch_nodes(SelectorBlock *sb, bool is_true_branch, int *out_count);
 
 /**
  * 评估选择器块
@@ -391,7 +386,7 @@ void selector_block_update_states(SelectorBlock *sb, BranchState true_state, Bra
  * @return RECURSION_OK 严格递减，RECURSION_NOT_DECREASING 未递减，RECURSION_ERROR 出错
  */
 RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, const Measure *measure,
-                               const ConstraintGraph *graph, int node_id);
+                                                const ConstraintGraph *graph, int node_id);
 
 /**
  * 统计选择器块各分支的节点数量
@@ -400,8 +395,7 @@ RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, con
  * @param out_false_count 输出假分支节点数量
  * @return 0 成功，-1 失败
  */
-int selector_block_count_branch_nodes(const SelectorBlock *sb,
-                                      int *out_true_count, int *out_false_count);
+int selector_block_count_branch_nodes(const SelectorBlock *sb, int *out_true_count, int *out_false_count);
 
 /**
  * 验证选择器块的两个分支是否互斥
@@ -441,10 +435,8 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
  * @param is_well_founded 是否为良基关系
  * @return 注册是否成功
  */
-bool measure_system_register_non_symbolic(MeasureSystem *ms,
-                                           int measure_type_id,
-                                           NonSymbolicComparator comparator,
-                                           bool is_well_founded);
+bool measure_system_register_non_symbolic(MeasureSystem *ms, int measure_type_id, NonSymbolicComparator comparator,
+                                          bool is_well_founded);
 
 /**
  * 验证所有已注册的非符号测度
@@ -466,11 +458,9 @@ bool measure_system_validate_non_symbolic(MeasureSystem *ms);
  * @param comparator 非符号测度比较器（由公理包提供）
  * @return RECURSION_OK 递减，RECURSION_NOT_DECREASING 未递减，RECURSION_MEASURE_UNKNOWN 未知
  */
-RecursionCheckResult recursion_validate_non_symbolic_measure(
-    const Measure *measure,
-    SymbolicCoord *before_value,
-    SymbolicCoord *after_value,
-    NonSymbolicComparator comparator);
+RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *measure, SymbolicCoord *before_value,
+                                                             SymbolicCoord *after_value,
+                                                             NonSymbolicComparator comparator);
 
 /* ============== 递归内置测试结果 ============== */
 
@@ -478,9 +468,9 @@ RecursionCheckResult recursion_validate_non_symbolic_measure(
  * @brief 递归模块内置测试的结果
  */
 typedef struct {
-    char name[64];            /* 测试名称 */
-    bool passed;              /* 是否通过 */
-    char error_msg[128];      /* 错误信息（passed为false时有效） */
+    char name[64];       /* 测试名称 */
+    bool passed;         /* 是否通过 */
+    char error_msg[128]; /* 错误信息（passed为false时有效） */
 } RecursionTestResult;
 
 /* ============== 加载时验证的完整测试集 ============== */
@@ -489,9 +479,9 @@ typedef struct {
  * @brief 测度验证测试结果
  */
 typedef struct {
-    bool passed;            /* 是否通过 */
-    char *test_name;        /* 测试名称 */
-    char *error_message;    /* 错误信息（passed为false时有效） */
+    bool passed;         /* 是否通过 */
+    char *test_name;     /* 测试名称 */
+    char *error_message; /* 错误信息（passed为false时有效） */
 } MeasureTestResult;
 
 /**
@@ -505,12 +495,8 @@ typedef struct {
  * @param results 测试结果输出数组（由调用者分配，至少 test_count 个元素）
  * @return 是否全部通过
  */
-bool recursion_run_measure_tests(
-    const Measure *measure,
-    int test_count,
-    SymbolicCoord ***test_before_values,
-    SymbolicCoord ***test_after_values,
-    MeasureTestResult *results);
+bool recursion_run_measure_tests(const Measure *measure, int test_count, SymbolicCoord ***test_before_values,
+                                 SymbolicCoord ***test_after_values, MeasureTestResult *results);
 
 /* ============== 辅助函数 ============== */
 
@@ -546,10 +532,7 @@ const char *branch_state_to_string(BranchState state);
  * @param result_count 输出：测试结果数量
  * @return 通过的测试数量（负数表示致命错误）
  */
-int recursion_run_builtin_tests(
-    MeasureSystem *sys,
-    RecursionTestResult **results,
-    int *result_count);
+int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **results, int *result_count);
 
 /* ============== Feature 2: 非符号测度模板展开集成 ============== */
 
@@ -563,11 +546,8 @@ int recursion_run_builtin_tests(
  * @param axiom_pkg AxiomPackage指针（不透明指针，避免循环包含）
  * @return 0 成功，-1 测度未找到或非非符号测度
  */
-int recursion_validate_non_symbolic_with_axiom(
-    MeasureSystem *sys,
-    int measure_id,
-    const char *axiom_template_name,
-    void *axiom_pkg);
+int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_id, const char *axiom_template_name,
+                                               void *axiom_pkg);
 
 /**
  * @brief 获取与非符号测度关联的公理模板名称
@@ -576,9 +556,7 @@ int recursion_validate_non_symbolic_with_axiom(
  * @param measure_id 测度ID
  * @return 模板名称字符串（只读），未设置或测度为符号测度时返回NULL
  */
-const char *recursion_get_measure_validation_template(
-    MeasureSystem *sys,
-    int measure_id);
+const char *recursion_get_measure_validation_template(MeasureSystem *sys, int measure_id);
 
 #ifdef __cplusplus
 }

@@ -25,12 +25,13 @@
  * ============================================================
  */
 #include "preset_probability_statistics.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
 
 #include <string.h>
+
+#include "lv00_internal.h"
+#include "lv00_utils.h"
+#include "preset_blocks.h"
+#include "preset_common.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -53,22 +54,13 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_ps_preset(
-    const char *name,
-    const char *description,
-    int input_count,
-    int output_count)
-{
-    return preset_blocks_register_by_category(
-        name, description,
-        PRESET_EXT_ANALYSIS,
-        input_count, output_count);
+static bool register_ps_preset(const char *name, const char *description, int input_count, int output_count) {
+    return preset_blocks_register_by_category(name, description, PRESET_EXT_ANALYSIS, input_count, output_count);
 }
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_probability_statistics_register(void)
-{
+bool preset_probability_statistics_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -91,11 +83,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_PROBABILITY_SPACE_CREATE,
-                "概率空间：构造概率空间 (Omega, F, P)，"
-                "由样本空间、sigma-代数和概率测量组成",
-                1, 1)) {
+        if (register_ps_preset(PRESET_PROBABILITY_SPACE_CREATE,
+                               "概率空间：构造概率空间 (Omega, F, P)，"
+                               "由样本空间、sigma-代数和概率测量组成",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -110,11 +101,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_PROBABILITY_EVENT,
-                "事件概率：计算事件 A 的概率 P(A)，"
-                "满足 Kolmogorov 公理",
-                2, 1)) {
+        if (register_ps_preset(PRESET_PROBABILITY_EVENT,
+                               "事件概率：计算事件 A 的概率 P(A)，"
+                               "满足 Kolmogorov 公理",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -129,10 +119,7 @@ bool preset_probability_statistics_register(void)
      * @reversible true
      */
     {
-        if (register_ps_preset(
-                PRESET_PROBABILITY_COMPLEMENT,
-                "对立事件：计算 P(A^c) = 1 - P(A)",
-                1, 1)) {
+        if (register_ps_preset(PRESET_PROBABILITY_COMPLEMENT, "对立事件：计算 P(A^c) = 1 - P(A)", 1, 1)) {
             success_count++;
         }
     }
@@ -147,10 +134,7 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_PROBABILITY_UNION,
-                "概率加法公式：计算 P(A∪B) = P(A) + P(B) - P(A∩B)",
-                2, 1)) {
+        if (register_ps_preset(PRESET_PROBABILITY_UNION, "概率加法公式：计算 P(A∪B) = P(A) + P(B) - P(A∩B)", 2, 1)) {
             success_count++;
         }
     }
@@ -165,10 +149,7 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_PROBABILITY_INTERSECTION,
-                "交集概率：计算 P(A∩B) = P(A) · P(B|A)",
-                2, 1)) {
+        if (register_ps_preset(PRESET_PROBABILITY_INTERSECTION, "交集概率：计算 P(A∩B) = P(A) · P(B|A)", 2, 1)) {
             success_count++;
         }
     }
@@ -184,11 +165,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_CONDITIONAL_PROBABILITY,
-                "条件概率：计算 P(A|B) = P(A∩B) / P(B)，"
-                "在事件B发生前提下事件A的概率",
-                2, 1)) {
+        if (register_ps_preset(PRESET_CONDITIONAL_PROBABILITY,
+                               "条件概率：计算 P(A|B) = P(A∩B) / P(B)，"
+                               "在事件B发生前提下事件A的概率",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -204,11 +184,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_BAYES_THEOREM,
-                "Bayes定理：由先验概率和似然函数计算后验概率，"
-                "P(A|B) = P(B|A)P(A) / P(B)",
-                3, 1)) {
+        if (register_ps_preset(PRESET_BAYES_THEOREM,
+                               "Bayes定理：由先验概率和似然函数计算后验概率，"
+                               "P(A|B) = P(B|A)P(A) / P(B)",
+                               3, 1)) {
             success_count++;
         }
     }
@@ -224,10 +203,8 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_TOTAL_PROBABILITY,
-                "全概率公式：利用完备事件组分解计算 P(B) = Σ P(B|A_i)P(A_i)",
-                2, 1)) {
+        if (register_ps_preset(PRESET_TOTAL_PROBABILITY, "全概率公式：利用完备事件组分解计算 P(B) = Σ P(B|A_i)P(A_i)",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -251,11 +228,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_RANDOM_VARIABLE_EXPECTATION,
-                "期望：计算随机变量 X 的数学期望 E[X]，"
-                "离散情形为加权求和，连续情形为积分",
-                1, 1)) {
+        if (register_ps_preset(PRESET_RANDOM_VARIABLE_EXPECTATION,
+                               "期望：计算随机变量 X 的数学期望 E[X]，"
+                               "离散情形为加权求和，连续情形为积分",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -271,11 +247,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_RANDOM_VARIABLE_VARIANCE,
-                "方差：计算 Var(X) = E[(X-μ)²] = E[X²] - (E[X])²，"
-                "度量随机变量偏离期望的程度",
-                1, 1)) {
+        if (register_ps_preset(PRESET_RANDOM_VARIABLE_VARIANCE,
+                               "方差：计算 Var(X) = E[(X-μ)²] = E[X²] - (E[X])²，"
+                               "度量随机变量偏离期望的程度",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -291,10 +266,7 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_RANDOM_VARIABLE_STD,
-                "标准差：计算 σ(X) = √Var(X)，方差的算术平方根",
-                1, 1)) {
+        if (register_ps_preset(PRESET_RANDOM_VARIABLE_STD, "标准差：计算 σ(X) = √Var(X)，方差的算术平方根", 1, 1)) {
             success_count++;
         }
     }
@@ -309,10 +281,7 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_RANDOM_VARIABLE_MOMENT,
-                "矩：计算随机变量 X 的 n 阶矩 E[X^n]",
-                2, 1)) {
+        if (register_ps_preset(PRESET_RANDOM_VARIABLE_MOMENT, "矩：计算随机变量 X 的 n 阶矩 E[X^n]", 2, 1)) {
             success_count++;
         }
     }
@@ -328,11 +297,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_RANDOM_VARIABLE_COVARIANCE,
-                "协方差：计算 Cov(X,Y) = E[(X-μ_X)(Y-μ_Y)]，"
-                "度量两个随机变量的线性相关性方向",
-                2, 1)) {
+        if (register_ps_preset(PRESET_RANDOM_VARIABLE_COVARIANCE,
+                               "协方差：计算 Cov(X,Y) = E[(X-μ_X)(Y-μ_Y)]，"
+                               "度量两个随机变量的线性相关性方向",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -348,11 +316,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_RANDOM_VARIABLE_CORRELATION,
-                "相关系数：计算 Pearson 相关系数 ρ(X,Y) = Cov(X,Y)/(σ_X·σ_Y)，"
-                "取值范围 [-1, 1]",
-                2, 1)) {
+        if (register_ps_preset(PRESET_RANDOM_VARIABLE_CORRELATION,
+                               "相关系数：计算 Pearson 相关系数 ρ(X,Y) = Cov(X,Y)/(σ_X·σ_Y)，"
+                               "取值范围 [-1, 1]",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -368,11 +335,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_MOMENT_GENERATING_FUNCTION,
-                "矩母函数：计算 M_X(t) = E[e^{tX}]，"
-                "可由其导数得到各阶矩",
-                1, 1)) {
+        if (register_ps_preset(PRESET_MOMENT_GENERATING_FUNCTION,
+                               "矩母函数：计算 M_X(t) = E[e^{tX}]，"
+                               "可由其导数得到各阶矩",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -388,11 +354,10 @@ bool preset_probability_statistics_register(void)
      * @reversible true（由逆 Fourier 变换可恢复分布）
      */
     {
-        if (register_ps_preset(
-                PRESET_CHARACTERISTIC_FUNCTION,
-                "特征函数：计算 φ_X(t) = E[e^{itX}]，"
-                "矩母函数的Fourier变换形式，始终存在",
-                1, 1)) {
+        if (register_ps_preset(PRESET_CHARACTERISTIC_FUNCTION,
+                               "特征函数：计算 φ_X(t) = E[e^{itX}]，"
+                               "矩母函数的Fourier变换形式，始终存在",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -416,11 +381,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_NORMAL,
-                "正态分布 N(μ, σ²)：高斯分布，概率密度函数为钟形曲线，"
-                "由中心极限定理保证其普遍性",
-                2, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_NORMAL,
+                               "正态分布 N(μ, σ²)：高斯分布，概率密度函数为钟形曲线，"
+                               "由中心极限定理保证其普遍性",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -435,10 +399,8 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_UNIFORM,
-                "均匀分布 U(a,b)：在区间 [a,b] 上等概率取值的连续分布",
-                2, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_UNIFORM, "均匀分布 U(a,b)：在区间 [a,b] 上等概率取值的连续分布", 2,
+                               1)) {
             success_count++;
         }
     }
@@ -454,10 +416,8 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_EXPONENTIAL,
-                "指数分布 Exp(λ)：描述事件等待时间，具有无记忆性",
-                1, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_EXPONENTIAL, "指数分布 Exp(λ)：描述事件等待时间，具有无记忆性", 1,
+                               1)) {
             success_count++;
         }
     }
@@ -472,10 +432,8 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_POISSON,
-                "泊松分布 Poisson(λ)：描述单位时间内稀有事件发生次数",
-                1, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_POISSON, "泊松分布 Poisson(λ)：描述单位时间内稀有事件发生次数", 1,
+                               1)) {
             success_count++;
         }
     }
@@ -490,10 +448,8 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_BINOMIAL,
-                "二项分布 B(n,p)：n 次独立伯努利试验中成功次数的分布",
-                2, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_BINOMIAL, "二项分布 B(n,p)：n 次独立伯努利试验中成功次数的分布", 2,
+                               1)) {
             success_count++;
         }
     }
@@ -509,10 +465,8 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_GEOMETRIC,
-                "几何分布 Geo(p)：首次成功所需的试验次数，具有无记忆性",
-                1, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_GEOMETRIC, "几何分布 Geo(p)：首次成功所需的试验次数，具有无记忆性",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -527,10 +481,7 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_GAMMA,
-                "Gamma分布 Γ(α,β)：指数分布与卡方分布的推广",
-                2, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_GAMMA, "Gamma分布 Γ(α,β)：指数分布与卡方分布的推广", 2, 1)) {
             success_count++;
         }
     }
@@ -546,11 +497,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_BETA,
-                "Beta分布 Beta(α,β)：定义在 [0,1] 上的灵活分布，"
-                "常用于贝叶斯推断中的先验分布",
-                2, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_BETA,
+                               "Beta分布 Beta(α,β)：定义在 [0,1] 上的灵活分布，"
+                               "常用于贝叶斯推断中的先验分布",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -566,11 +516,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_CHI_SQUARED,
-                "卡方分布 χ²(k)：k 个独立标准正态变量平方和的分布，"
-                "用于拟合优度检验",
-                1, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_CHI_SQUARED,
+                               "卡方分布 χ²(k)：k 个独立标准正态变量平方和的分布，"
+                               "用于拟合优度检验",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -586,11 +535,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_DISTRIBUTION_STUDENT_T,
-                "t分布 t(k)：小样本下总体均值推断的分布，"
-                "自由度趋于无穷时趋于标准正态分布",
-                1, 1)) {
+        if (register_ps_preset(PRESET_DISTRIBUTION_STUDENT_T,
+                               "t分布 t(k)：小样本下总体均值推断的分布，"
+                               "自由度趋于无穷时趋于标准正态分布",
+                               1, 1)) {
             success_count++;
         }
     }
@@ -615,11 +563,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_MLE_ESTIMATE,
-                "最大似然估计：选择使观测数据似然函数最大的参数值 "
-                "θ_MLE = argmax L(θ)",
-                2, 1)) {
+        if (register_ps_preset(PRESET_MLE_ESTIMATE,
+                               "最大似然估计：选择使观测数据似然函数最大的参数值 "
+                               "θ_MLE = argmax L(θ)",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -635,11 +582,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_BAYESIAN_ESTIMATE,
-                "贝叶斯估计：由先验分布 π(θ) 结合似然函数 L(x|θ) "
-                "得到后验分布 π(θ|x)",
-                3, 1)) {
+        if (register_ps_preset(PRESET_BAYESIAN_ESTIMATE,
+                               "贝叶斯估计：由先验分布 π(θ) 结合似然函数 L(x|θ) "
+                               "得到后验分布 π(θ|x)",
+                               3, 1)) {
             success_count++;
         }
     }
@@ -655,11 +601,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_CONFIDENCE_INTERVAL,
-                "置信区间：计算参数的 (1-α) 置信区间，"
-                "以指定置信水平包含真实参数值",
-                3, 1)) {
+        if (register_ps_preset(PRESET_CONFIDENCE_INTERVAL,
+                               "置信区间：计算参数的 (1-α) 置信区间，"
+                               "以指定置信水平包含真实参数值",
+                               3, 1)) {
             success_count++;
         }
     }
@@ -675,11 +620,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_HYPOTHESIS_TEST_Z,
-                "Z检验：大样本下总体均值的假设检验，"
-                "检验统计量 Z = (X̄ - μ₀) / (σ/√n)",
-                3, 1)) {
+        if (register_ps_preset(PRESET_HYPOTHESIS_TEST_Z,
+                               "Z检验：大样本下总体均值的假设检验，"
+                               "检验统计量 Z = (X̄ - μ₀) / (σ/√n)",
+                               3, 1)) {
             success_count++;
         }
     }
@@ -695,11 +639,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_HYPOTHESIS_TEST_T,
-                "t检验：小样本下总体均值的假设检验，"
-                "检验统计量 t = (X̄ - μ₀) / (S/√n)",
-                3, 1)) {
+        if (register_ps_preset(PRESET_HYPOTHESIS_TEST_T,
+                               "t检验：小样本下总体均值的假设检验，"
+                               "检验统计量 t = (X̄ - μ₀) / (S/√n)",
+                               3, 1)) {
             success_count++;
         }
     }
@@ -714,11 +657,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_HYPOTHESIS_TEST_CHI2,
-                "卡方检验：分类数据的拟合优度检验或独立性检验，"
-                "χ² = Σ(O_i - E_i)² / E_i",
-                2, 1)) {
+        if (register_ps_preset(PRESET_HYPOTHESIS_TEST_CHI2,
+                               "卡方检验：分类数据的拟合优度检验或独立性检验，"
+                               "χ² = Σ(O_i - E_i)² / E_i",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -734,11 +676,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_KS_TEST,
-                "KS检验：基于经验分布函数与理论分布函数最大偏差的"
-                "非参数检验，D_n = sup|F_n(x) - F_0(x)|",
-                2, 1)) {
+        if (register_ps_preset(PRESET_KS_TEST,
+                               "KS检验：基于经验分布函数与理论分布函数最大偏差的"
+                               "非参数检验，D_n = sup|F_n(x) - F_0(x)|",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -754,11 +695,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_REGRESSION_LINEAR,
-                "线性回归：建立因变量与自变量的线性模型，"
-                "使用最小二乘法估计回归系数 β = (X^TX)^{-1}X^TY",
-                2, 1)) {
+        if (register_ps_preset(PRESET_REGRESSION_LINEAR,
+                               "线性回归：建立因变量与自变量的线性模型，"
+                               "使用最小二乘法估计回归系数 β = (X^TX)^{-1}X^TY",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -774,11 +714,10 @@ bool preset_probability_statistics_register(void)
      * @reversible false
      */
     {
-        if (register_ps_preset(
-                PRESET_ANOVA,
-                "方差分析（ANOVA）：比较多组均值差异，"
-                "F = MSB/MSW，将总变异分解为组间与组内变异",
-                2, 1)) {
+        if (register_ps_preset(PRESET_ANOVA,
+                               "方差分析（ANOVA）：比较多组均值差异，"
+                               "F = MSB/MSW，将总变异分解为组间与组内变异",
+                               2, 1)) {
             success_count++;
         }
     }
@@ -788,9 +727,8 @@ bool preset_probability_statistics_register(void)
      * ============================================================ */
 
     if (success_count < PROBABILITY_STATISTICS_PRESET_COUNT) {
-        LV00_LOG_WARNING(
-            "概率论与数理统计模块：共 %d 个预设，成功注册 %d 个",
-            PROBABILITY_STATISTICS_PRESET_COUNT, success_count);
+        LV00_LOG_WARNING("概率论与数理统计模块：共 %d 个预设，成功注册 %d 个", PROBABILITY_STATISTICS_PRESET_COUNT,
+                         success_count);
     }
 
     return success_count == PROBABILITY_STATISTICS_PRESET_COUNT;
@@ -803,8 +741,7 @@ bool preset_probability_statistics_register(void)
  *
  * @return int 预设函数块总数（35）
  */
-int preset_probability_statistics_count(void)
-{
+int preset_probability_statistics_count(void) {
     return PROBABILITY_STATISTICS_PRESET_COUNT;
 }
 
@@ -816,12 +753,12 @@ int preset_probability_statistics_count(void)
  * @return true 成功
  * @return false 失败
  */
-bool preset_probability_statistics_get_names(char ***out_names, int *out_count)
-{
-    if (!out_names || !out_count) return false;
+bool preset_probability_statistics_get_names(char ***out_names, int *out_count) {
+    if (!out_names || !out_count)
+        return false;
 
     *out_count = PROBABILITY_STATISTICS_PRESET_COUNT;
-    *out_names = (char **)lv00_malloc((size_t)PROBABILITY_STATISTICS_PRESET_COUNT * sizeof(char *));
+    *out_names = (char **) lv00_malloc((size_t) PROBABILITY_STATISTICS_PRESET_COUNT * sizeof(char *));
     if (!*out_names) {
         *out_count = 0;
         return false;
@@ -830,54 +767,30 @@ bool preset_probability_statistics_get_names(char ***out_names, int *out_count)
     /* 按头文件中定义的顺序列出所有预设名称 */
     const char *names[PROBABILITY_STATISTICS_PRESET_COUNT] = {
         /* 概率基础 */
-        PRESET_PROBABILITY_SPACE_CREATE,
-        PRESET_PROBABILITY_EVENT,
-        PRESET_PROBABILITY_COMPLEMENT,
-        PRESET_PROBABILITY_UNION,
-        PRESET_PROBABILITY_INTERSECTION,
-        PRESET_CONDITIONAL_PROBABILITY,
-        PRESET_BAYES_THEOREM,
+        PRESET_PROBABILITY_SPACE_CREATE, PRESET_PROBABILITY_EVENT, PRESET_PROBABILITY_COMPLEMENT,
+        PRESET_PROBABILITY_UNION, PRESET_PROBABILITY_INTERSECTION, PRESET_CONDITIONAL_PROBABILITY, PRESET_BAYES_THEOREM,
         PRESET_TOTAL_PROBABILITY,
         /* 随机变量 */
-        PRESET_RANDOM_VARIABLE_EXPECTATION,
-        PRESET_RANDOM_VARIABLE_VARIANCE,
-        PRESET_RANDOM_VARIABLE_STD,
-        PRESET_RANDOM_VARIABLE_MOMENT,
-        PRESET_RANDOM_VARIABLE_COVARIANCE,
-        PRESET_RANDOM_VARIABLE_CORRELATION,
-        PRESET_MOMENT_GENERATING_FUNCTION,
-        PRESET_CHARACTERISTIC_FUNCTION,
+        PRESET_RANDOM_VARIABLE_EXPECTATION, PRESET_RANDOM_VARIABLE_VARIANCE, PRESET_RANDOM_VARIABLE_STD,
+        PRESET_RANDOM_VARIABLE_MOMENT, PRESET_RANDOM_VARIABLE_COVARIANCE, PRESET_RANDOM_VARIABLE_CORRELATION,
+        PRESET_MOMENT_GENERATING_FUNCTION, PRESET_CHARACTERISTIC_FUNCTION,
         /* 概率分布 */
-        PRESET_DISTRIBUTION_NORMAL,
-        PRESET_DISTRIBUTION_UNIFORM,
-        PRESET_DISTRIBUTION_EXPONENTIAL,
-        PRESET_DISTRIBUTION_POISSON,
-        PRESET_DISTRIBUTION_BINOMIAL,
-        PRESET_DISTRIBUTION_GEOMETRIC,
-        PRESET_DISTRIBUTION_GAMMA,
-        PRESET_DISTRIBUTION_BETA,
-        PRESET_DISTRIBUTION_CHI_SQUARED,
+        PRESET_DISTRIBUTION_NORMAL, PRESET_DISTRIBUTION_UNIFORM, PRESET_DISTRIBUTION_EXPONENTIAL,
+        PRESET_DISTRIBUTION_POISSON, PRESET_DISTRIBUTION_BINOMIAL, PRESET_DISTRIBUTION_GEOMETRIC,
+        PRESET_DISTRIBUTION_GAMMA, PRESET_DISTRIBUTION_BETA, PRESET_DISTRIBUTION_CHI_SQUARED,
         PRESET_DISTRIBUTION_STUDENT_T,
         /* 统计推断 */
-        PRESET_MLE_ESTIMATE,
-        PRESET_BAYESIAN_ESTIMATE,
-        PRESET_CONFIDENCE_INTERVAL,
-        PRESET_HYPOTHESIS_TEST_Z,
-        PRESET_HYPOTHESIS_TEST_T,
-        PRESET_HYPOTHESIS_TEST_CHI2,
-        PRESET_KS_TEST,
-        PRESET_REGRESSION_LINEAR,
-        PRESET_ANOVA
-    };
+        PRESET_MLE_ESTIMATE, PRESET_BAYESIAN_ESTIMATE, PRESET_CONFIDENCE_INTERVAL, PRESET_HYPOTHESIS_TEST_Z,
+        PRESET_HYPOTHESIS_TEST_T, PRESET_HYPOTHESIS_TEST_CHI2, PRESET_KS_TEST, PRESET_REGRESSION_LINEAR, PRESET_ANOVA};
 
     for (int i = 0; i < PROBABILITY_STATISTICS_PRESET_COUNT; i++) {
         (*out_names)[i] = lv00_strdup(names[i]);
         if (!(*out_names)[i]) {
             /* 内存分配失败，释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                lv00_free((void **)&(*out_names)[j]);
+                lv00_free((void **) &(*out_names)[j]);
             }
-            lv00_free((void **)out_names);
+            lv00_free((void **) out_names);
             *out_names = NULL;
             *out_count = 0;
             return false;
@@ -892,7 +805,6 @@ bool preset_probability_statistics_get_names(char ***out_names, int *out_count)
  *
  * @return 预设类别（PRESET_EXT_ANALYSIS）
  */
-PresetCategory preset_probability_statistics_category(void)
-{
+PresetCategory preset_probability_statistics_category(void) {
     return PRESET_CATEGORY_ANALYSIS;
 }

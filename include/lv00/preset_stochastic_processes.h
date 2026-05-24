@@ -31,25 +31,25 @@ extern "C" {
 /* -------------------- 马尔可夫链（8个） -------------------- */
 
 /** 马尔可夫链构造：由状态空间和转移概率矩阵构造离散时间马尔可夫链 */
-#define PRESET_SP_MARKOV_CHAIN_CONSTRUCT    "sp_markov_chain_construct"
+#define PRESET_SP_MARKOV_CHAIN_CONSTRUCT "sp_markov_chain_construct"
 
 /** 转移概率计算：计算n步转移概率 P^n(i,j) */
-#define PRESET_SP_MARKOV_CHAIN_TRANSITION   "sp_markov_chain_transition"
+#define PRESET_SP_MARKOV_CHAIN_TRANSITION "sp_markov_chain_transition"
 
 /** 平稳分布计算：求马尔可夫链的平稳分布 π */
-#define PRESET_SP_MARKOV_CHAIN_STATIONARY   "sp_markov_chain_stationary"
+#define PRESET_SP_MARKOV_CHAIN_STATIONARY "sp_markov_chain_stationary"
 
 /** 不可约性判定：判定马尔可夫链是否不可约 */
-#define PRESET_SP_MARKOV_CHAIN_IRREDUCIBLE  "sp_markov_chain_irreducible"
+#define PRESET_SP_MARKOV_CHAIN_IRREDUCIBLE "sp_markov_chain_irreducible"
 
 /** 非周期性判定：判定马尔可夫链是否非周期 */
-#define PRESET_SP_MARKOV_CHAIN_APERIODIC    "sp_markov_chain_aperiodic"
+#define PRESET_SP_MARKOV_CHAIN_APERIODIC "sp_markov_chain_aperiodic"
 
 /** 常返性判定：判定状态是否常返 */
-#define PRESET_SP_MARKOV_CHAIN_RECURRENT    "sp_markov_chain_recurrent"
+#define PRESET_SP_MARKOV_CHAIN_RECURRENT "sp_markov_chain_recurrent"
 
 /** 吸收性判定：判定马尔可夫链是否有吸收状态 */
-#define PRESET_SP_MARKOV_CHAIN_ABSORBING    "sp_markov_chain_absorbing"
+#define PRESET_SP_MARKOV_CHAIN_ABSORBING "sp_markov_chain_absorbing"
 
 /** 期望到达时间：计算首次到达某状态的期望步数 */
 #define PRESET_SP_MARKOV_CHAIN_EXPECTED_TIME "sp_markov_chain_expected_time"
@@ -57,16 +57,16 @@ extern "C" {
 /* -------------------- 泊松过程（5个） -------------------- */
 
 /** 泊松过程构造：由强度λ构造齐次泊松过程 */
-#define PRESET_SP_POISSON_PROCESS_CONSTRUCT    "sp_poisson_process_construct"
+#define PRESET_SP_POISSON_PROCESS_CONSTRUCT "sp_poisson_process_construct"
 
 /** 计数分布：P(N(t)=k) = (λt)^k e^(-λt) / k! */
-#define PRESET_SP_POISSON_PROCESS_COUNTING     "sp_poisson_process_counting"
+#define PRESET_SP_POISSON_PROCESS_COUNTING "sp_poisson_process_counting"
 
 /** 等待时间分布：第k个事件的等待时间服从Gamma(k, λ) */
-#define PRESET_SP_POISSON_PROCESS_WAITING      "sp_poisson_process_waiting"
+#define PRESET_SP_POISSON_PROCESS_WAITING "sp_poisson_process_waiting"
 
 /** 泊松过程稀疏化：以概率p独立删除事件 */
-#define PRESET_SP_POISSON_PROCESS_THINNING     "sp_poisson_process_thinning"
+#define PRESET_SP_POISSON_PROCESS_THINNING "sp_poisson_process_thinning"
 
 /** 泊松过程叠加：独立泊松过程的和 */
 #define PRESET_SP_POISSON_PROCESS_SUPERPOSITION "sp_poisson_process_superposition"
@@ -74,44 +74,44 @@ extern "C" {
 /* -------------------- 布朗运动（5个） -------------------- */
 
 /** 布朗运动构造：构造标准布朗运动 W(t) */
-#define PRESET_SP_BROWNIAN_MOTION_CONSTRUCT    "sp_brownian_motion_construct"
+#define PRESET_SP_BROWNIAN_MOTION_CONSTRUCT "sp_brownian_motion_construct"
 
 /** 增量分布：W(t)-W(s) ~ N(0, t-s) */
-#define PRESET_SP_BROWNIAN_MOTION_INCREMENT    "sp_brownian_motion_increment"
+#define PRESET_SP_BROWNIAN_MOTION_INCREMENT "sp_brownian_motion_increment"
 
 /** 反射原理：P(max W(s) >= a) */
-#define PRESET_SP_BROWNIAN_MOTION_REFLECTION   "sp_brownian_motion_reflection"
+#define PRESET_SP_BROWNIAN_MOTION_REFLECTION "sp_brownian_motion_reflection"
 
 /** 首达时间：τ_a = inf{t : W(t) = a} */
-#define PRESET_SP_BROWNIAN_MOTION_HITTING      "sp_brownian_motion_hitting"
+#define PRESET_SP_BROWNIAN_MOTION_HITTING "sp_brownian_motion_hitting"
 
 /** 布朗桥：W_0(t) = W(t) - tW(1) */
-#define PRESET_SP_BROWNIAN_MOTION_BRIDGE       "sp_brownian_motion_bridge"
+#define PRESET_SP_BROWNIAN_MOTION_BRIDGE "sp_brownian_motion_bridge"
 
 /* -------------------- 鞅论（4个） -------------------- */
 
 /** 鞅判定：判定随机过程是否为鞅 */
-#define PRESET_SP_MARTINGALE_CHECK             "sp_martingale_check"
+#define PRESET_SP_MARTINGALE_CHECK "sp_martingale_check"
 
 /** 停时定理（可选停时定理）：E[X_τ] = E[X_0] */
-#define PRESET_SP_MARTINGALE_STOPPING          "sp_martingale_stopping"
+#define PRESET_SP_MARTINGALE_STOPPING "sp_martingale_stopping"
 
 /** 鞅收敛定理：L^2有界鞅几乎必然收敛 */
-#define PRESET_SP_MARTINGALE_CONVERGENCE       "sp_martingale_convergence"
+#define PRESET_SP_MARTINGALE_CONVERGENCE "sp_martingale_convergence"
 
 /** Doob分解：X_n = M_n + A_n（鞅部分+可料部分） */
-#define PRESET_SP_MARTINGALE_DECOMPOSITION     "sp_martingale_decomposition"
+#define PRESET_SP_MARTINGALE_DECOMPOSITION "sp_martingale_decomposition"
 
 /* -------------------- 随机游走（3个） -------------------- */
 
 /** 随机游走构造：由步长分布构造随机游走 */
-#define PRESET_SP_RANDOM_WALK_CONSTRUCT        "sp_random_walk_construct"
+#define PRESET_SP_RANDOM_WALK_CONSTRUCT "sp_random_walk_construct"
 
 /** 回归概率：对称随机游走回归原点的概率 */
-#define PRESET_SP_RANDOM_WALK_RETURN           "sp_random_walk_return"
+#define PRESET_SP_RANDOM_WALK_RETURN "sp_random_walk_return"
 
 /** 赌徒破产问题：计算破产概率 */
-#define PRESET_SP_RANDOM_WALK_GAMBLER_RUIN     "sp_random_walk_gambler_ruin"
+#define PRESET_SP_RANDOM_WALK_GAMBLER_RUIN "sp_random_walk_gambler_ruin"
 
 /* ============================================================
  * 模块注册函数

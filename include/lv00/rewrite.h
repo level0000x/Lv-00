@@ -12,11 +12,12 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "constraint_graph.h"
 #include "graph_hash.h"
 #include "stream.h"
-#include <stdbool.h>
-#include <stdint.h>
 
 /**
  * @brief 设置重写引擎的流式输出上下文
@@ -38,7 +39,7 @@ typedef struct RewriteReplacement {
     int replacement_constraint_count;
     int *new_nodes;
     int new_node_count;
-    GeomType *new_node_types;    /* 新节点的几何类型（与 new_nodes 一一对应） */
+    GeomType *new_node_types; /* 新节点的几何类型（与 new_nodes 一一对应） */
 } RewriteReplacement;
 
 typedef struct RewriteMatch {
@@ -48,9 +49,7 @@ typedef struct RewriteMatch {
 } RewriteMatch;
 
 /* 前置条件评估回调类型 */
-typedef bool (*RewritePrecondition)(ConstraintGraph *graph,
-                                     RewriteMatch *match,
-                                     void *user_data);
+typedef bool (*RewritePrecondition)(ConstraintGraph *graph, RewriteMatch *match, void *user_data);
 
 /* 扩展的重写规则，支持前置条件 */
 typedef struct RewriteRule {
@@ -64,31 +63,31 @@ typedef struct RewriteRule {
 } RewriteRule;
 
 typedef enum {
-    REWRITE_OK,                  /* 重写成功（无操作） */
-    REWRITE_NO_MATCH,            /* 未找到匹配 */
-    REWRITE_APPLIED,             /* 规则已应用 */
-    REWRITE_CONFLUENCE_ISSUE,    /* 汇流性问题 */
-    REWRITE_TERMINATED           /* 重写终止 */
+    REWRITE_OK,               /* 重写成功（无操作） */
+    REWRITE_NO_MATCH,         /* 未找到匹配 */
+    REWRITE_APPLIED,          /* 规则已应用 */
+    REWRITE_CONFLUENCE_ISSUE, /* 汇流性问题 */
+    REWRITE_TERMINATED        /* 重写终止 */
 } RewriteStatus;
 
 /* VF2 子图同构匹配状态 */
 typedef struct {
-    int *core_1;        /* core_1[pattern_node] = target_node 或 -1 */
-    int *core_2;        /* core_2[target_node] = pattern_node 或 -1 */
-    int core_count;     /* 已匹配对数 */
-    int *in_1;          /* in_1[pattern_node]: 1 表示在 M_1 中（前驱已映射） */
-    int *out_1;         /* out_1[pattern_node]: 1 表示在 T_1 中（后继未映射） */
-    int *in_2;          /* in_2[target_node]: 1 表示在 M_2 中 */
-    int *out_2;         /* out_2[target_node]: 1 表示在 T_2 中 */
-    int pattern_size;   /* 模式图节点数 */
-    int target_size;    /* 目标图节点数 */
+    int *core_1;      /* core_1[pattern_node] = target_node 或 -1 */
+    int *core_2;      /* core_2[target_node] = pattern_node 或 -1 */
+    int core_count;   /* 已匹配对数 */
+    int *in_1;        /* in_1[pattern_node]: 1 表示在 M_1 中（前驱已映射） */
+    int *out_1;       /* out_1[pattern_node]: 1 表示在 T_1 中（后继未映射） */
+    int *in_2;        /* in_2[target_node]: 1 表示在 M_2 中 */
+    int *out_2;       /* out_2[target_node]: 1 表示在 T_2 中 */
+    int pattern_size; /* 模式图节点数 */
+    int target_size;  /* 目标图节点数 */
     /* in/out 集合：用于 VF2 剪枝优化 */
-    int *in_set;        /* 已匹配的目标节点索引集合 */
-    int in_count;       /* in_set 中的元素数量 */
-    int *out_set;       /* 已排除的目标节点索引集合 */
-    int out_count;      /* out_set 中的元素数量 */
-    int in_capacity;    /* in_set 的容量 */
-    int out_capacity;   /* out_set 的容量 */
+    int *in_set;      /* 已匹配的目标节点索引集合 */
+    int in_count;     /* in_set 中的元素数量 */
+    int *out_set;     /* 已排除的目标节点索引集合 */
+    int out_count;    /* out_set 中的元素数量 */
+    int in_capacity;  /* in_set 的容量 */
+    int out_capacity; /* out_set 的容量 */
 } VF2State;
 
 /* WL (Weisfeiler-Lehman) 图核哈希历史 */
@@ -118,38 +117,38 @@ typedef struct {
 
 /* PORT 节点的 connected_to 交叉引用（保存为节点 ID） */
 typedef struct {
-    int port_node_index;    /* 快照中 PORT 节点的索引 */
-    int connected_to_id;    /* 原始 connected_to 目标的节点 ID（-1 表示无连接） */
+    int port_node_index; /* 快照中 PORT 节点的索引 */
+    int connected_to_id; /* 原始 connected_to 目标的节点 ID（-1 表示无连接） */
 } PortRef;
 
 /* REGION 节点的 boundary_segments 交叉引用（保存为节点 ID） */
 typedef struct {
-    int region_node_index;  /* 快照中 REGION 节点的索引 */
-    int *segment_ids;       /* boundary_segments 中每个元素的节点 ID 数组 */
-    int segment_count;      /* boundary_segments 数量 */
+    int region_node_index; /* 快照中 REGION 节点的索引 */
+    int *segment_ids;      /* boundary_segments 中每个元素的节点 ID 数组 */
+    int segment_count;     /* boundary_segments 数量 */
 } RegionRef;
 
 /* FUNCTION_BLOCK 节点的 internal_nodes 交叉引用（保存为节点 ID） */
 typedef struct {
-    int fb_node_index;      /* 快照中 FUNCTION_BLOCK 节点的索引 */
-    int *internal_node_ids; /* internal_nodes 中每个元素的节点 ID 数组 */
+    int fb_node_index;       /* 快照中 FUNCTION_BLOCK 节点的索引 */
+    int *internal_node_ids;  /* internal_nodes 中每个元素的节点 ID 数组 */
     int internal_node_count; /* internal_nodes 数量 */
 } FBRef;
 
 typedef struct GraphSnapshot {
-    GeomNode **nodes;              /* 节点数组的深拷贝 */
+    GeomNode **nodes; /* 节点数组的深拷贝 */
     int node_count;
     int node_capacity;
-    Constraint **constraints;      /* 约束数组的深拷贝 */
+    Constraint **constraints; /* 约束数组的深拷贝 */
     int constraint_count;
     int constraint_capacity;
     int next_node_id;
     int next_constraint_id;
-    PortRef *port_refs;            /* PORT 节点的 connected_to ID 信息 */
+    PortRef *port_refs; /* PORT 节点的 connected_to ID 信息 */
     int port_ref_count;
-    RegionRef *region_refs;        /* REGION 节点的 boundary_segments ID 信息 */
+    RegionRef *region_refs; /* REGION 节点的 boundary_segments ID 信息 */
     int region_ref_count;
-    FBRef *fb_refs;                /* FUNCTION_BLOCK 节点的 internal_nodes ID 信息 */
+    FBRef *fb_refs; /* FUNCTION_BLOCK 节点的 internal_nodes ID 信息 */
     int fb_ref_count;
 } GraphSnapshot;
 
@@ -195,9 +194,7 @@ void graph_snapshot_destroy(GraphSnapshot *snapshot);
  * @param[out] out_count  接收加载的规则数量
  * @return 加载的规则数量（>=0），或 -1 表示错误
  */
-int rewrite_rules_load_from_file(const char *filepath,
-                                  RewriteRule ***out_rules,
-                                  int *out_count);
+int rewrite_rules_load_from_file(const char *filepath, RewriteRule ***out_rules, int *out_count);
 
 /**
  * @brief 卸载指定名称的重写规则
@@ -210,8 +207,7 @@ int rewrite_rules_load_from_file(const char *filepath,
  * @param[in]     rule_name  要卸载的规则名称
  * @return true 卸载成功，false 未找到或失败
  */
-bool rewrite_rule_unload(RewriteRule ***rules, int *count,
-                          const char *rule_name);
+bool rewrite_rule_unload(RewriteRule ***rules, int *count, const char *rule_name);
 
 /* ---- 基础重写 API ---- */
 
@@ -226,7 +222,8 @@ bool rewrite_rule_unload(RewriteRule ***rules, int *count,
  * @param[in] measure    归约度量值（用于循环检测）
  * @return 新创建的重写规则（调用者负责释放），失败返回 NULL
  */
-RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern, RewriteReplacement *replacement, int measure);
+RewriteRule *rewrite_rule_create(const char *name, RewritePattern *pattern, RewriteReplacement *replacement,
+                                 int measure);
 
 /**
  * @brief 销毁重写规则
@@ -279,9 +276,7 @@ RewriteStatus rewrite_with_rules(ConstraintGraph *graph, RewriteRule **rules, in
  * @param[in] local_equivalence_tolerant 是否容忍局部等价
  * @return 匹配的节点绑定信息（调用者负责释放），失败返回 NULL
  */
-RewriteMatch *vf2_find_match(ConstraintGraph *target_graph,
-                              RewritePattern *pattern,
-                              bool local_equivalence_tolerant);
+RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *pattern, bool local_equivalence_tolerant);
 
 /* ---- WL 图核哈希循环检测 ---- */
 
@@ -320,9 +315,7 @@ void wl_history_destroy(WLHashHistory *hist);
  * @param[in] local_equivalence_tolerant  是否容忍局部等价
  * @return 最佳匹配（调用者负责释放），失败返回 NULL
  */
-RewriteMatch *find_best_match(ConstraintGraph *graph,
-                              RewriteRule *rule,
-                              bool local_equivalence_tolerant);
+RewriteMatch *find_best_match(ConstraintGraph *graph, RewriteRule *rule, bool local_equivalence_tolerant);
 
 /* ---- 重写度量验证 ---- */
 
@@ -375,11 +368,8 @@ uint64_t rewrite_compute_wl_hash(const ConstraintGraph *graph);
  * @param[out] out_match_count 接收找到的匹配数量
  * @return 0 成功，-1 参数错误或内存不足
  */
-int find_all_non_overlapping_matches(
-    ConstraintGraph *graph,
-    RewriteRule *rule,
-    const int *used_node_ids, int used_count,
-    RewriteMatch ***out_matches, int *out_match_count);
+int find_all_non_overlapping_matches(ConstraintGraph *graph, RewriteRule *rule, const int *used_node_ids,
+                                     int used_count, RewriteMatch ***out_matches, int *out_match_count);
 
 /**
  * @brief 批量应用非重叠匹配
@@ -394,11 +384,8 @@ int find_all_non_overlapping_matches(
  * @param[out] out_applied_count 接收成功应用的替换数量
  * @return 0 成功，-1 参数错误或内存不足
  */
-int rewrite_apply_all_matches(
-    ConstraintGraph *graph,
-    RewriteRule *rule,
-    RewriteMatch *matches, int match_count,
-    int *out_applied_count);
+int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *matches, int match_count,
+                              int *out_applied_count);
 
 /* ================================================================
  * === 第六梯队参考项目落地 (P1) — Maude 重写策略引擎 ==============
@@ -431,14 +418,14 @@ typedef enum {
 typedef struct RewriteStrategy {
     RewriteStrategyKind kind;
     /* --- 叶节点数据（用于 APPLY_RULE / MATCH_PATTERN / TEST_COND）--- */
-    int   rule_id;              /* APPLY_RULE: 规则索引 */
-    char *pattern_expr;         /* MATCH_PATTERN: 模式表达式 */
-    int (*test_func)(void *);   /* TEST_COND: 条件测试函数 */
-    void *test_ctx;             /* TEST_COND: 上下文 */
+    int rule_id;              /* APPLY_RULE: 规则索引 */
+    char *pattern_expr;       /* MATCH_PATTERN: 模式表达式 */
+    int (*test_func)(void *); /* TEST_COND: 条件测试函数 */
+    void *test_ctx;           /* TEST_COND: 上下文 */
     /* --- 内部节点数据（用于 SEQUENCE / ORELSE / REPEAT 等）--- */
     struct RewriteStrategy *left;
     struct RewriteStrategy *right;
-    int max_iterations;         /* REPEAT: 最大迭代次数（0 = 不限） */
+    int max_iterations; /* REPEAT: 最大迭代次数（0 = 不限） */
 } RewriteStrategy;
 
 /* ---- 策略树构造与销毁 ---- */
@@ -469,13 +456,8 @@ void rewrite_strategy_destroy(RewriteStrategy *s);
  * @param out_steps      输出：实际执行的重写步数
  * @return 是否至少成功了一步
  */
-bool rewrite_strategy_apply(
-    const ConstraintGraph *graph,
-    const RewriteStrategy *strategy,
-    const RewriteRule *rules,
-    int rule_count,
-    ConstraintGraph **out_graph,
-    int *out_steps);
+bool rewrite_strategy_apply(const ConstraintGraph *graph, const RewriteStrategy *strategy, const RewriteRule *rules,
+                            int rule_count, ConstraintGraph **out_graph, int *out_steps);
 
 /**
  * @brief BFS/DFS 逆向证明搜索（Maude `search =>*` 的 Lv-00 对应）
@@ -492,14 +474,8 @@ bool rewrite_strategy_apply(
  * @param out_path_len  输出：路径长度
  * @return 是否找到证明路径
  */
-bool rewrite_search_backward(
-    const ConstraintGraph *target_graph,
-    const RewriteRule *rules,
-    int rule_count,
-    int max_depth,
-    bool use_bfs,
-    int **out_path,
-    int *out_path_len);
+bool rewrite_search_backward(const ConstraintGraph *target_graph, const RewriteRule *rules, int rule_count,
+                             int max_depth, bool use_bfs, int **out_path, int *out_path_len);
 
 /* ================================================================
  * === 第六梯队参考项目落地 (P1) — Herbie 数值精度优化 ==============
@@ -515,33 +491,32 @@ bool rewrite_search_backward(
 
 /** 数值精度优化规则优先级（借鉴 Herbie Pareto 最优重写搜索） */
 typedef enum {
-    REWRITE_NUM_CRITICAL = 0,  /**< 关键：消除灾难性抵消 */
-    REWRITE_NUM_HIGH     = 1,  /**< 高：改善条件数 */
-    REWRITE_NUM_MEDIUM   = 2,  /**< 中：重组表达式 */
-    REWRITE_NUM_LOW      = 3   /**< 低：微调不影响正确性 */
+    REWRITE_NUM_CRITICAL = 0, /**< 关键：消除灾难性抵消 */
+    REWRITE_NUM_HIGH = 1,     /**< 高：改善条件数 */
+    REWRITE_NUM_MEDIUM = 2,   /**< 中：重组表达式 */
+    REWRITE_NUM_LOW = 3       /**< 低：微调不影响正确性 */
 } RewriteNumPriority;
 
 /** 数值重写规则（Herbie 风格 — 自动发现数值更稳定的等价表达式） */
 typedef struct RewriteNumRule {
-    char *name;                    /**< 规则名称（如 "sqrt-diff-recip"） */
-    char *pattern_expr;            /**< 模式表达式（如 "sqrt(x+1) - sqrt(x)"） */
-    char *replacement_expr;        /**< 替换表达式（如 "1/(sqrt(x+1)+sqrt(x))"） */
-    RewriteNumPriority priority;   /**< 优先级 */
-    double accuracy_improvement;   /**< 精度改进倍数（估计值） */
-    char *condition_desc;          /**< 触发条件描述（如 "x > 100 时有效"） */
+    char *name;                             /**< 规则名称（如 "sqrt-diff-recip"） */
+    char *pattern_expr;                     /**< 模式表达式（如 "sqrt(x+1) - sqrt(x)"） */
+    char *replacement_expr;                 /**< 替换表达式（如 "1/(sqrt(x+1)+sqrt(x))"） */
+    RewriteNumPriority priority;            /**< 优先级 */
+    double accuracy_improvement;            /**< 精度改进倍数（估计值） */
+    char *condition_desc;                   /**< 触发条件描述（如 "x > 100 时有效"） */
     bool (*condition)(double *vars, int n); /**< 条件检测函数 */
 } RewriteNumRule;
 
 /** 创建数值重写规则 */
-RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern,
-    const char *replacement, RewriteNumPriority pri, double improvement);
+RewriteNumRule *rewrite_num_rule_create(const char *name, const char *pattern, const char *replacement,
+                                        RewriteNumPriority pri, double improvement);
 
 /** 销毁数值重写规则 */
 void rewrite_num_rule_destroy(RewriteNumRule *rule);
 
 /** 在表达式上应用数值优化规则（返回优化后的表达式字符串，调用者释放） */
-char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules, int rule_count,
-    double *out_improvement);
+char *rewrite_num_optimize(const char *expr, RewriteNumRule **rules, int rule_count, double *out_improvement);
 
 /** 注册内置数值优化规则集（含 sqrt-diff-recip, quadratic-formula-avoid-cancel 等 6 条） */
 int rewrite_num_register_builtins(void);

@@ -14,10 +14,10 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
+#include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <gmp.h>
+#include <stdint.h>
 
 /* MAX_MODULE_DEPTH —— 与 module.h 中的定义保持同步
  * 使用 #ifndef 守卫防止重复定义。若需修改此值，请同时修改
@@ -36,25 +36,25 @@ extern "C" {
 #include "mpz_poly.h"
 
 typedef enum {
-    RATIONAL,          /* 有理数 */
-    ALGEBRAIC,         /* 代数数 */
-    QUADRATIC,         /* 二次扩张数 */
-    TRANSCENDENTAL     /* 超越数 */
+    RATIONAL,      /* 有理数 */
+    ALGEBRAIC,     /* 代数数 */
+    QUADRATIC,     /* 二次扩张数 */
+    TRANSCENDENTAL /* 超越数 */
 } CoordType;
 
 typedef enum {
-    TRUST_GREEN,            /* 绿色：完全构造性 */
-    TRUST_BLUE,             /* 蓝色：未确定 */
-    TRUST_YELLOW,           /* 黄色：条件性 */
-    TRUST_ORANGE,           /* 橙色：非构造性依赖 */
-    TRUST_LIGHT_ORANGE,     /* 浅橙色：oracle/爆炸原理 */
-    TRUST_RED,              /* 红色：已证伪 */
-    TRUST_AMBER             /* 橙黄色：含数值假设 */
+    TRUST_GREEN,        /* 绿色：完全构造性 */
+    TRUST_BLUE,         /* 蓝色：未确定 */
+    TRUST_YELLOW,       /* 黄色：条件性 */
+    TRUST_ORANGE,       /* 橙色：非构造性依赖 */
+    TRUST_LIGHT_ORANGE, /* 浅橙色：oracle/爆炸原理 */
+    TRUST_RED,          /* 红色：已证伪 */
+    TRUST_AMBER         /* 橙黄色：含数值假设 */
 } TrustColor;
 
 typedef enum {
-    LIGHT_ORANGE_ORACLE,    /* 浅橙色：oracle 依赖 */
-    LIGHT_ORANGE_EXPLOSION  /* 浅橙色：爆炸原理步骤 */
+    LIGHT_ORANGE_ORACLE,   /* 浅橙色：oracle 依赖 */
+    LIGHT_ORANGE_EXPLOSION /* 浅橙色：爆炸原理步骤 */
 } LightOrangeSubtype;
 
 /* Full struct definitions (not opaque) */
@@ -87,14 +87,14 @@ typedef enum {
 
 typedef struct TranscendentalExpr {
     TransExprType expr_type;
-    char base_name[16];          /* 基础常量名（如 "pi", "e"），最大15字符 */
-    Rational *rational_operand;  /* For ADD/MUL_RATIONAL */
-    bool out_of_scope;           /* True if combined with algebraic/quadratic */
+    char base_name[16];         /* 基础常量名（如 "pi", "e"），最大15字符 */
+    Rational *rational_operand; /* For ADD/MUL_RATIONAL */
+    bool out_of_scope;          /* True if combined with algebraic/quadratic */
 } TranscendentalExpr;
 
 typedef struct Transcendental {
-    char name[64];                 /* 常量名（如 "pi", "pi/2", "3*pi/4"），最大63字符 */
-    TranscendentalExpr *expr;    /* Symbolic expression tree (NULL for bare constants) */
+    char name[64];            /* 常量名（如 "pi", "pi/2", "3*pi/4"），最大63字符 */
+    TranscendentalExpr *expr; /* Symbolic expression tree (NULL for bare constants) */
 } Transcendental;
 
 typedef struct SymbolicCoord {
@@ -434,9 +434,9 @@ double symbolic_coord_to_double(const SymbolicCoord *coord);
  * 用于位电路（位数熔断）系统的状态管理。
  */
 typedef enum {
-    CIRCUIT_STATUS_OK,       /**< 正常：数值未溢出 */
-    CIRCUIT_STATUS_WARNED,    /**< 警告：数值接近溢出阈值 */
-    CIRCUIT_STATUS_TRIPPED    /**< 跳闸：数值溢出，触发熔断 */
+    CIRCUIT_STATUS_OK,     /**< 正常：数值未溢出 */
+    CIRCUIT_STATUS_WARNED, /**< 警告：数值接近溢出阈值 */
+    CIRCUIT_STATUS_TRIPPED /**< 跳闸：数值溢出，触发熔断 */
 } CircuitStatus;
 
 /* 位电路（digit cutoff）函数 - Section 1.5 of design_v2.9.md */
@@ -479,7 +479,7 @@ int circuit_get_overflow_count(void);
  * @param[in] declaration 数值假设声明
  * @return 降级后的符号坐标（调用者负责释放）
  */
-SymbolicCoord* symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, double precision, const char *declaration);
+SymbolicCoord *symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, double precision, const char *declaration);
 
 /**
  * @brief 检查符号坐标是否为 AMBER 信任级别
@@ -602,8 +602,7 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
  * @param[in] left_type 左操作数类型
  * @param[in] right_type 右操作数类型
  */
-void circuit_set_context(SymbolicCoord *result, const char *operation,
-                          CoordType left_type, CoordType right_type);
+void circuit_set_context(SymbolicCoord *result, const char *operation, CoordType left_type, CoordType right_type);
 
 /**
  * @brief 获取上一次的位电路结果
@@ -650,8 +649,8 @@ struct OverflowContext {
  * 用于控制代数数的处理策略。
  */
 typedef enum {
-    PLAN_A_FULL_ALGEBRAIC,    /**< 完整代数数支持 */
-    PLAN_B_QUADRATIC_ONLY     /**< 仅二次扩张，高次降级处理 */
+    PLAN_A_FULL_ALGEBRAIC, /**< 完整代数数支持 */
+    PLAN_B_QUADRATIC_ONLY  /**< 仅二次扩张，高次降级处理 */
 } AlgebraicPlan;
 
 /**
@@ -674,10 +673,10 @@ void algebraic_set_plan(AlgebraicPlan plan);
  * 用于记录代数数压力测试的各项指标。
  */
 typedef struct {
-    bool precision_stable;       /**< 精度衰减是否稳定（100次操作后 <=1 bit） */
-    bool performance_stable;     /**< 性能是否稳定（100次操作后最大位数 <= 10^6） */
-    int max_precision_decay;     /**< 观察到的最大精度衰减 */
-    int max_bits_observed;       /**< 观察到的最大位数 */
+    bool precision_stable;   /**< 精度衰减是否稳定（100次操作后 <=1 bit） */
+    bool performance_stable; /**< 性能是否稳定（100次操作后最大位数 <= 10^6） */
+    int max_precision_decay; /**< 观察到的最大精度衰减 */
+    int max_bits_observed;   /**< 观察到的最大位数 */
 } StressTestResult;
 
 /**
@@ -701,9 +700,9 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree);
  * @brief 位电路跳闸用户响应类型
  */
 typedef enum {
-    CIRCUIT_RESPONSE_IGNORE,        /**< 忽略：接受为数值辅助 */
-    CIRCUIT_RESPONSE_ROLLBACK,      /**< 回滚：恢复到冻结点 */
-    CIRCUIT_RESPONSE_DOWNGRADE       /**< 降级：永久降级为 AMBER */
+    CIRCUIT_RESPONSE_IGNORE,   /**< 忽略：接受为数值辅助 */
+    CIRCUIT_RESPONSE_ROLLBACK, /**< 回滚：恢复到冻结点 */
+    CIRCUIT_RESPONSE_DOWNGRADE /**< 降级：永久降级为 AMBER */
 } CircuitResponse;
 
 /**
@@ -716,10 +715,9 @@ typedef enum {
  * @param[in] user_data       用户数据
  * @return 用户选择的响应类型
  */
-typedef CircuitResponse (*CircuitTripCallback)(
-    const SymbolicCoord *coord,     /**< 触发跳闸的符号坐标 */
-    int overflow_count,             /**< 跳闸次数 */
-    void *user_data                /**< 用户数据 */
+typedef CircuitResponse (*CircuitTripCallback)(const SymbolicCoord *coord, /**< 触发跳闸的符号坐标 */
+                                               int overflow_count,         /**< 跳闸次数 */
+                                               void *user_data             /**< 用户数据 */
 );
 
 /**

@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "proof.h"
 
@@ -54,32 +55,32 @@ extern "C" {
  * @brief 互操作接口类型
  */
 typedef enum {
-    INTEROP_INTERFACE_STDIO = 0,    /**< 标准输入输出接口 */
-    INTEROP_INTERFACE_WEBSOCKET,    /**< WebSocket接口 */
-    INTEROP_INTERFACE_PIPE          /**< 管道接口 */
+    INTEROP_INTERFACE_STDIO = 0, /**< 标准输入输出接口 */
+    INTEROP_INTERFACE_WEBSOCKET, /**< WebSocket接口 */
+    INTEROP_INTERFACE_PIPE       /**< 管道接口 */
 } InteropInterfaceType;
 
 /**
  * @brief 导出格式类型
  */
 typedef enum {
-    INTEROP_EXPORT_COQ = 0,         /**< Coq格式 */
-    INTEROP_EXPORT_LEAN,            /**< Lean格式 */
-    INTEROP_EXPORT_HTML,            /**< 独立HTML */
-    INTEROP_EXPORT_SVG,             /**< SVG矢量图 */
-    INTEROP_EXPORT_PDF,             /**< PDF文档 */
-    INTEROP_EXPORT_TIKZ,            /**< LaTeX TikZ */
-    INTEROP_EXPORT_GEOJSON,         /**< GeoJSON格式 */
-    INTEROP_EXPORT_CANONICAL        /**< 规范表示 */
+    INTEROP_EXPORT_COQ = 0,  /**< Coq格式 */
+    INTEROP_EXPORT_LEAN,     /**< Lean格式 */
+    INTEROP_EXPORT_HTML,     /**< 独立HTML */
+    INTEROP_EXPORT_SVG,      /**< SVG矢量图 */
+    INTEROP_EXPORT_PDF,      /**< PDF文档 */
+    INTEROP_EXPORT_TIKZ,     /**< LaTeX TikZ */
+    INTEROP_EXPORT_GEOJSON,  /**< GeoJSON格式 */
+    INTEROP_EXPORT_CANONICAL /**< 规范表示 */
 } InteropExportFormat;
 
 /**
  * @brief 导入格式类型
  */
 typedef enum {
-    INTEROP_IMPORT_GEOGEBRA = 0,    /**< GeoGebra格式 */
-    INTEROP_IMPORT_GEOJSON,         /**< GeoJSON格式 */
-    INTEROP_IMPORT_SVG              /**< SVG格式 */
+    INTEROP_IMPORT_GEOGEBRA = 0, /**< GeoGebra格式 */
+    INTEROP_IMPORT_GEOJSON,      /**< GeoJSON格式 */
+    INTEROP_IMPORT_SVG           /**< SVG格式 */
 } InteropImportFormat;
 
 /**
@@ -87,107 +88,107 @@ typedef enum {
  */
 typedef enum {
     /* 节点操作 */
-    INTEROP_CMD_ADD_NODE = 0,       /**< 添加节点 */
-    INTEROP_CMD_REMOVE_NODE,        /**< 删除节点 */
-    INTEROP_CMD_GET_NODE,           /**< 获取节点信息 */
+    INTEROP_CMD_ADD_NODE = 0, /**< 添加节点 */
+    INTEROP_CMD_REMOVE_NODE,  /**< 删除节点 */
+    INTEROP_CMD_GET_NODE,     /**< 获取节点信息 */
 
     /* 约束操作 */
-    INTEROP_CMD_ADD_CONSTRAINT,     /**< 添加约束 */
-    INTEROP_CMD_REMOVE_CONSTRAINT,  /**< 删除约束 */
-    INTEROP_CMD_GET_CONSTRAINT,     /**< 获取约束信息 */
+    INTEROP_CMD_ADD_CONSTRAINT,    /**< 添加约束 */
+    INTEROP_CMD_REMOVE_CONSTRAINT, /**< 删除约束 */
+    INTEROP_CMD_GET_CONSTRAINT,    /**< 获取约束信息 */
 
     /* 函数块操作 */
-    INTEROP_CMD_PACK_FUNCTION,      /**< 打包函数 */
-    INTEROP_CMD_INSTANTIATE,        /**< 实例化函数 */
+    INTEROP_CMD_PACK_FUNCTION, /**< 打包函数 */
+    INTEROP_CMD_INSTANTIATE,   /**< 实例化函数 */
 
     /* 求解与重写 */
-    INTEROP_CMD_SOLVE,              /**< 求解 */
-    INTEROP_CMD_REWRITE,            /**< 重写 */
-    INTEROP_CMD_UNIFY,              /**< 合一检查 */
+    INTEROP_CMD_SOLVE,   /**< 求解 */
+    INTEROP_CMD_REWRITE, /**< 重写 */
+    INTEROP_CMD_UNIFY,   /**< 合一检查 */
 
     /* 查询 */
-    INTEROP_CMD_GET_GRAPH,          /**< 获取完整图 */
-    INTEROP_CMD_EXPORT_GRAPH,       /**< 导出图 */
-    INTEROP_CMD_GET_STATUS,         /**< 获取状态 */
+    INTEROP_CMD_GET_GRAPH,    /**< 获取完整图 */
+    INTEROP_CMD_EXPORT_GRAPH, /**< 导出图 */
+    INTEROP_CMD_GET_STATUS,   /**< 获取状态 */
 
     /* 系统 */
-    INTEROP_CMD_PING,               /**< 心跳检测 */
-    INTEROP_CMD_SHUTDOWN,           /**< 关闭服务 */
+    INTEROP_CMD_PING,     /**< 心跳检测 */
+    INTEROP_CMD_SHUTDOWN, /**< 关闭服务 */
 
     /* 流式输出 */
-    INTEROP_CMD_STREAM_START,       /**< 启用流式输出 */
-    INTEROP_CMD_STREAM_STOP,        /**< 禁用流式输出 */
-    INTEROP_CMD_STREAM_FILTER,      /**< 设置流式事件过滤 */
-    INTEROP_CMD_STREAM_STATS,       /**< 获取流式事件统计 */
-    INTEROP_CMD_STREAM_FLUSH        /**< 刷新异步队列 */
+    INTEROP_CMD_STREAM_START,  /**< 启用流式输出 */
+    INTEROP_CMD_STREAM_STOP,   /**< 禁用流式输出 */
+    INTEROP_CMD_STREAM_FILTER, /**< 设置流式事件过滤 */
+    INTEROP_CMD_STREAM_STATS,  /**< 获取流式事件统计 */
+    INTEROP_CMD_STREAM_FLUSH   /**< 刷新异步队列 */
 } InteropCommandType;
 
 /**
  * @brief 命令结构
  */
 typedef struct {
-    InteropCommandType type;                    /**< 命令类型 */
-    char params[INTEROP_MAX_PARAMS][256];       /**< 参数数组 */
-    int param_count;                            /**< 参数数量 */
-    int request_id;                             /**< 请求ID */
+    InteropCommandType type;              /**< 命令类型 */
+    char params[INTEROP_MAX_PARAMS][256]; /**< 参数数组 */
+    int param_count;                      /**< 参数数量 */
+    int request_id;                       /**< 请求ID */
 } InteropCommand;
 
 /**
  * @brief 响应结构
  */
 typedef struct {
-    int request_id;                             /**< 对应请求ID */
-    int status_code;                            /**< 状态码（0=成功） */
-    char data[INTEROP_RESP_BUFFER_SIZE];        /**< 响应数据 */
-    size_t data_len;                            /**< 数据长度 */
+    int request_id;                      /**< 对应请求ID */
+    int status_code;                     /**< 状态码（0=成功） */
+    char data[INTEROP_RESP_BUFFER_SIZE]; /**< 响应数据 */
+    size_t data_len;                     /**< 数据长度 */
 } InteropResponse;
 
 /**
  * @brief 互操作服务器
  */
 typedef struct {
-    InteropInterfaceType type;      /**< 接口类型 */
-    int port;                       /**< 端口号（WebSocket） */
-    bool running;                   /**< 运行状态 */
-    void *internal_data;            /**< 内部数据 */
+    InteropInterfaceType type; /**< 接口类型 */
+    int port;                  /**< 端口号（WebSocket） */
+    bool running;              /**< 运行状态 */
+    void *internal_data;       /**< 内部数据 */
 
     /* 流式输出 */
-    bool stream_enabled;            /**< 流式输出是否启用 */
-    int stream_callback_id;         /**< 流式回调注册 ID（-1 表示未注册） */
-    uint64_t stream_filter_mask;    /**< 当前事件过滤掩码 */
-    long stream_events_sent;        /**< 已发送的流式事件总数 */
+    bool stream_enabled;         /**< 流式输出是否启用 */
+    int stream_callback_id;      /**< 流式回调注册 ID（-1 表示未注册） */
+    uint64_t stream_filter_mask; /**< 当前事件过滤掩码 */
+    long stream_events_sent;     /**< 已发送的流式事件总数 */
 } InteropServer;
 
 /**
  * @brief 导出配置
  */
 typedef struct {
-    InteropExportFormat format;                 /**< 导出格式 */
-    char output_path[INTEROP_MAX_PATH_LEN];     /**< 输出路径 */
-    bool include_proofs;                        /**< 包含证明 */
-    bool include_metadata;                      /**< 包含元数据 */
-    bool pretty_print;                          /**< 美化输出 */
-    int compression_level;                      /**< 压缩级别 */
+    InteropExportFormat format;             /**< 导出格式 */
+    char output_path[INTEROP_MAX_PATH_LEN]; /**< 输出路径 */
+    bool include_proofs;                    /**< 包含证明 */
+    bool include_metadata;                  /**< 包含元数据 */
+    bool pretty_print;                      /**< 美化输出 */
+    int compression_level;                  /**< 压缩级别 */
 } InteropExportConfig;
 
 /**
  * @brief 导入配置
  */
 typedef struct {
-    InteropImportFormat format;                 /**< 导入格式 */
-    char input_path[INTEROP_MAX_PATH_LEN];      /**< 输入路径 */
-    bool preserve_ids;                          /**< 保留原始ID */
-    bool validate_geometry;                     /**< 验证几何 */
+    InteropImportFormat format;            /**< 导入格式 */
+    char input_path[INTEROP_MAX_PATH_LEN]; /**< 输入路径 */
+    bool preserve_ids;                     /**< 保留原始ID */
+    bool validate_geometry;                /**< 验证几何 */
 } InteropImportConfig;
 
 /**
  * @brief 定理交换上下文
  */
 typedef struct {
-    char trust_base_name[64];       /**< 信任基名称 */
-    char trust_base_version[32];    /**< 信任基版本 */
-    char* exported_calls;           /**< 导出的调用序列 */
-    size_t calls_len;               /**< 调用序列长度 */
+    char trust_base_name[64];    /**< 信任基名称 */
+    char trust_base_version[32]; /**< 信任基版本 */
+    char *exported_calls;        /**< 导出的调用序列 */
+    size_t calls_len;            /**< 调用序列长度 */
 } InteropTheoremContext;
 
 /* ==================== 服务器管理 ==================== */
@@ -197,7 +198,7 @@ typedef struct {
  * @param type 接口类型
  * @return 服务器指针，失败返回NULL
  */
-InteropServer* interop_server_create(InteropInterfaceType type);
+InteropServer *interop_server_create(InteropInterfaceType type);
 
 /**
  * @brief 销毁互操作服务器
@@ -228,9 +229,7 @@ int interop_server_stop(InteropServer *server);
  * @param output_size 缓冲区大小
  * @return 成功返回0，失败返回错误码
  */
-int interop_server_process_command(InteropServer *server,
-                                   const char *input,
-                                   char *output, size_t output_size);
+int interop_server_process_command(InteropServer *server, const char *input, char *output, size_t output_size);
 
 /**
  * @brief 运行服务器主循环（阻塞）
@@ -256,8 +255,7 @@ int interop_parse_command(const char *input, InteropCommand *cmd);
  * @param output_size 缓冲区大小
  * @return 成功返回0，失败返回错误码
  */
-int interop_serialize_response(const InteropResponse *resp,
-                               char *output, size_t output_size);
+int interop_serialize_response(const InteropResponse *resp, char *output, size_t output_size);
 
 /**
  * @brief 执行命令
@@ -266,9 +264,7 @@ int interop_serialize_response(const InteropResponse *resp,
  * @param resp 输出响应
  * @return 成功返回0，失败返回错误码
  */
-int interop_execute_command(LV00Engine *engine,
-                            const InteropCommand *cmd,
-                            InteropResponse *resp);
+int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, InteropResponse *resp);
 
 /* ==================== 导出功能 ==================== */
 
@@ -375,8 +371,7 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config);
  * @param trust_base_version 信任基版本
  * @return 上下文指针，失败返回NULL
  */
-InteropTheoremContext* interop_theorem_context_create(const char *trust_base_name,
-                                                      const char *trust_base_version);
+InteropTheoremContext *interop_theorem_context_create(const char *trust_base_name, const char *trust_base_version);
 
 /**
  * @brief 销毁定理交换上下文
@@ -392,9 +387,8 @@ void interop_theorem_context_destroy(InteropTheoremContext *ctx);
  * @param param_count 参数数量
  * @return 成功返回0，失败返回错误码
  */
-int interop_theorem_add_call(InteropTheoremContext *ctx,
-                             const char *theorem_name,
-                             const char **params, int param_count);
+int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_name, const char **params,
+                             int param_count);
 
 /**
  * @brief 导出定理调用序列
@@ -404,9 +398,8 @@ int interop_theorem_add_call(InteropTheoremContext *ctx,
  * @param output_size 缓冲区大小
  * @return 成功返回0，失败返回错误码
  */
-int interop_theorem_export_calls(const InteropTheoremContext *ctx,
-                                 InteropExportFormat format,
-                                 char *output, size_t output_size);
+int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExportFormat format, char *output,
+                                 size_t output_size);
 
 /**
  * @brief 导入外部定理为可信基块
@@ -417,11 +410,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx,
  * @param block_id 输出块ID
  * @return 成功返回0，失败返回错误码
  */
-int interop_import_external_theorem(LV00Engine *engine,
-                                    const char *trust_base_name,
-                                    const char *content_hash,
-                                    const char *description,
-                                    int *block_id);
+int interop_import_external_theorem(LV00Engine *engine, const char *trust_base_name, const char *content_hash,
+                                    const char *description, int *block_id);
 
 /* ==================== 工具函数 ==================== */
 
@@ -430,14 +420,14 @@ int interop_import_external_theorem(LV00Engine *engine,
  * @param format 导出格式
  * @return 格式名称字符串
  */
-const char* interop_export_format_name(InteropExportFormat format);
+const char *interop_export_format_name(InteropExportFormat format);
 
 /**
  * @brief 获取导入格式名称
  * @param format 导入格式
  * @return 格式名称字符串
  */
-const char* interop_import_format_name(InteropImportFormat format);
+const char *interop_import_format_name(InteropImportFormat format);
 
 /**
  * @brief 从字符串解析导出格式
@@ -465,7 +455,7 @@ int interop_validate_path(const char *path);
  * @param path 文件路径
  * @return 扩展名字符串（不含点）
  */
-const char* interop_get_file_extension(const char *path);
+const char *interop_get_file_extension(const char *path);
 
 #ifdef __cplusplus
 }

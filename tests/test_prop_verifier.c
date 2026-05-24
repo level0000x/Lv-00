@@ -18,32 +18,34 @@
  *   因此，每个测试只销毁"根"公式（不被其他公式包含的公式）。
  */
 
-#include "prop_verifier.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+
 #include "lv00_utils.h"
+#include "prop_verifier.h"
 
 /* ============================================================
  * 测试辅助宏
  * ============================================================ */
 
 #define TEST(name) static void name(void)
-#define RUN_TEST(name) do { \
-    printf("  %-50s ", #name); \
-    name(); \
-    printf("PASSED\n"); \
-} while(0)
+#define RUN_TEST(name)             \
+    do {                           \
+        printf("  %-50s ", #name); \
+        name();                    \
+        printf("PASSED\n");        \
+    } while (0)
 
 /* 公式构造快捷宏 */
 #define ATOM(name) prop_formula_create_atom(name)
 #define AND(a, b) prop_formula_create_conjunction((a), (b))
-#define OR(a, b)  prop_formula_create_disjunction((a), (b))
+#define OR(a, b) prop_formula_create_disjunction((a), (b))
 #define IMPL(a, b) prop_formula_create_implication((a), (b))
-#define NEG(a)    prop_formula_create_negation(a)
-#define BOT()     prop_formula_create_bottom()
-#define TOP()     prop_formula_create_true()
+#define NEG(a) prop_formula_create_negation(a)
+#define BOT() prop_formula_create_bottom()
+#define TOP() prop_formula_create_true()
 
 /*
  * 安全销毁宏：只销毁不被其他公式包含的"根"公式。
@@ -52,12 +54,14 @@
  * 用法：DESTROY_ROOT(root1, root2, ..., NULL);
  * 传入所有不属于其他公式子树的顶层公式指针。
  */
-#define DESTROY_ROOT(...) do { \
-    PropFormula *_roots[] = {__VA_ARGS__}; \
-    for (size_t _i = 0; _i < sizeof(_roots)/sizeof(_roots[0]); _i++) { \
-        if (_roots[_i]) prop_formula_destroy(_roots[_i]); \
-    } \
-} while(0)
+#define DESTROY_ROOT(...)                                                    \
+    do {                                                                     \
+        PropFormula *_roots[] = {__VA_ARGS__};                               \
+        for (size_t _i = 0; _i < sizeof(_roots) / sizeof(_roots[0]); _i++) { \
+            if (_roots[_i])                                                  \
+                prop_formula_destroy(_roots[_i]);                            \
+        }                                                                    \
+    } while (0)
 
 /* ============================================================
  * 测试 1: 公式构造与销毁
@@ -75,7 +79,7 @@ TEST(test_formula_create_destroy) {
     PropFormula *ab = AND(ATOM("A"), ATOM("B"));
     assert(ab != NULL);
     assert(ab->type == PROP_CONJUNCTION);
-    prop_formula_destroy(ab);  /* 递归销毁 A 和 B */
+    prop_formula_destroy(ab); /* 递归销毁 A 和 B */
 
     /* 析取 */
     PropFormula *aob = OR(ATOM("A"), ATOM("B"));
@@ -395,7 +399,7 @@ TEST(test_builtin_smoke_tests) {
     int count = prop_verifier_builtin_smoke_test_count();
     assert(count == 13);
 
-    VerifyDetail *results = (VerifyDetail *)calloc(count, sizeof(VerifyDetail));
+    VerifyDetail *results = (VerifyDetail *) calloc(count, sizeof(VerifyDetail));
     assert(results != NULL);
 
     int passed = prop_verifier_run_builtin_smoke_tests(results);
@@ -561,8 +565,7 @@ TEST(test_distribution) {
     /* 左侧 */
     PropFormula *pandqorr = AND(ATOM("P"), OR(ATOM("Q"), ATOM("R")));
     /* 右侧 */
-    PropFormula *pandqorpandr = OR(AND(ATOM("P"), ATOM("Q")),
-                                    AND(ATOM("P"), ATOM("R")));
+    PropFormula *pandqorpandr = OR(AND(ATOM("P"), ATOM("Q")), AND(ATOM("P"), ATOM("R")));
 
     const PropFormula *premises[] = {pandqorr};
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
@@ -580,10 +583,7 @@ TEST(test_distribution) {
 
 TEST(test_contraposition) {
     /* ⊢ (P→Q)→(¬Q→¬P) */
-    PropFormula *contraposition = IMPL(
-        IMPL(ATOM("P"), ATOM("Q")),
-        IMPL(NEG(ATOM("Q")), NEG(ATOM("P")))
-    );
+    PropFormula *contraposition = IMPL(IMPL(ATOM("P"), ATOM("Q")), IMPL(NEG(ATOM("Q")), NEG(ATOM("P"))));
 
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
     VerifyDetail detail = prop_verifier_verify(NULL, 0, contraposition, &config);

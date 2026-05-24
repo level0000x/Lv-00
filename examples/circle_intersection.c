@@ -15,10 +15,11 @@
  * - 本例中圆: x² + y² = 9, 线段: y = 2, 交点: x = ±√5
  */
 
-#include "lv00.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv00.h"
 
 /**
  * @brief 辅助函数：添加一个有理数坐标点
@@ -32,15 +33,17 @@
  * @param yd y 坐标分母，不允许为 0
  * @return 成功返回新节点的 ID（>= 0），失败返回 -1
  */
-static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd)
-{
-    if (!g || xd == 0 || yd == 0) return -1;
+static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
+    if (!g || xd == 0 || yd == 0)
+        return -1;
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
-    if (!cx || !cy) return -1;
+    if (!cx || !cy)
+        return -1;
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult res = graph_add_point(g, coords, 2);
-    if (res != ADD_NODE_OK) return -1;
+    if (res != ADD_NODE_OK)
+        return -1;
     return g->next_node_id - 1;
 }
 
@@ -53,8 +56,7 @@ static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, ui
  *   交点: 线段AB 与 圆心O 相交于 (±√5, 2)
  *         其中交点也通过关联约束绑定到线段AB上
  */
-int main(void)
-{
+int main(void) {
     printf("========================================\n");
     printf("  Lv-00 圆与线段相交示例\n");
     printf("========================================\n\n");
@@ -229,7 +231,8 @@ int main(void)
     int *free_vars = NULL;
     int dof = count_degrees_of_freedom(g, &free_vars);
     printf("  自由度: %d\n", dof);
-    if (free_vars) free(free_vars);
+    if (free_vars)
+        free(free_vars);
 
     /* 清理 */
     printf("\n清理资源...\n");

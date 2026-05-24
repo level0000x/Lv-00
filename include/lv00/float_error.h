@@ -35,8 +35,8 @@
 #ifndef LV00_FLOAT_ERROR_H
 #define LV00_FLOAT_ERROR_H
 
-#include "lv00.h"
 #include "constraint_graph.h"
+#include "lv00.h"
 #include "symbolic_coord.h"
 
 #ifdef __cplusplus
@@ -60,13 +60,13 @@ extern "C" {
  * 用于误差界分析时将变量不确定性传播为结果不确定性。
  */
 typedef struct {
-    double   center_val;      /**< 中心点处的函数值 f(center) */
-    double  *first_derivs;    /**< 一阶偏导数数组 df/dxi|center */
-    int     *deriv_var_ids;   /**< 导数对应的变量 ID 数组 */
-    int      deriv_count;     /**< 偏导数数量（= 变量数） */
-    double   interval_lo;     /**< 区间下界（含泰勒余项） */
-    double   interval_hi;     /**< 区间上界（含泰勒余项） */
-    int      order;           /**< 泰勒展开阶数（1 = 一阶，2 = 二阶，...） */
+    double center_val;    /**< 中心点处的函数值 f(center) */
+    double *first_derivs; /**< 一阶偏导数数组 df/dxi|center */
+    int *deriv_var_ids;   /**< 导数对应的变量 ID 数组 */
+    int deriv_count;      /**< 偏导数数量（= 变量数） */
+    double interval_lo;   /**< 区间下界（含泰勒余项） */
+    double interval_hi;   /**< 区间上界（含泰勒余项） */
+    int order;            /**< 泰勒展开阶数（1 = 一阶，2 = 二阶，...） */
 } TaylorForm;
 
 /* ========================================================================
@@ -83,9 +83,9 @@ typedef struct {
  * 区间算术遵循 IEEE 1788 标准的基本操作定义。
  */
 typedef struct {
-    double lo;        /**< 区间下界 */
-    double hi;        /**< 区间上界 */
-    bool   is_exact;  /**< 是否为精确值（lo == hi） */
+    double lo;     /**< 区间下界 */
+    double hi;     /**< 区间上界 */
+    bool is_exact; /**< 是否为精确值（lo == hi） */
 } FloatInterval;
 
 /* ========================================================================
@@ -203,10 +203,10 @@ FloatInterval interval_log(FloatInterval a);
  * proof_text 提供形式化的误差证明文本（如 FPTaylor 输出的证书）。
  */
 typedef struct {
-    double      absolute_error;  /**< 绝对误差上界 */
-    double      relative_error;  /**< 相对误差上界 */
-    TrustColor  trust_level;     /**< 信任颜色等级 */
-    char       *proof_text;      /**< 误差证明文本（调用者负责 free） */
+    double absolute_error;  /**< 绝对误差上界 */
+    double relative_error;  /**< 相对误差上界 */
+    TrustColor trust_level; /**< 信任颜色等级 */
+    char *proof_text;       /**< 误差证明文本（调用者负责 free） */
 } ErrorBound;
 
 /* ========================================================================
@@ -219,10 +219,10 @@ typedef struct {
  * 控制泰勒展开、优化、和分支切割行为的参数。
  */
 typedef struct {
-    bool   use_optimization;       /**< 是否启用优化模式（减少误差过估） */
-    int    taylor_order;           /**< 泰勒展开阶数（默认 1，支持 1-3） */
-    bool   use_z3_opt;             /**< 是否使用 Z3 优化后端（精确区间收缩） */
-    bool   use_gelpia;             /**< 是否使用 GELPIA 多面体区间算术 */
+    bool use_optimization;         /**< 是否启用优化模式（减少误差过估） */
+    int taylor_order;              /**< 泰勒展开阶数（默认 1，支持 1-3） */
+    bool use_z3_opt;               /**< 是否使用 Z3 优化后端（精确区间收缩） */
+    bool use_gelpia;               /**< 是否使用 GELPIA 多面体区间算术 */
     double branch_bound_threshold; /**< 分支切割阈值（区间宽度超过此值时进行二分） */
 } FPTaylorConfig;
 
@@ -251,10 +251,7 @@ typedef struct {
  * @param[out] out        输出的误差界
  * @return true 成功，false 失败
  */
-bool fptaylor_evaluate_expr(const char *expr,
-                            const FloatInterval *var_bounds,
-                            int var_count,
-                            const FPTaylorConfig *cfg,
+bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
                             ErrorBound *out);
 
 /**
@@ -278,10 +275,7 @@ bool fptaylor_evaluate_expr(const char *expr,
  * @param[out] out     输出的误差界
  * @return true 成功，false 失败
  */
-bool fptaylor_evaluate_graph(const ConstraintGraph *graph,
-                             int var_id,
-                             const FPTaylorConfig *cfg,
-                             ErrorBound *out);
+bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out);
 
 /**
  * @brief 验证误差界是否在安全容差范围内

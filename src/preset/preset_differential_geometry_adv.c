@@ -26,12 +26,13 @@
  * ============================================================
  */
 #include "preset_differential_geometry_adv.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
 
 #include <string.h>
+
+#include "lv00_internal.h"
+#include "lv00_utils.h"
+#include "preset_blocks.h"
+#include "preset_common.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -54,22 +55,14 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_dg_adv_preset(
-    const char *name,
-    const char *description,
-    int input_count,
-    int output_count)
-{
-    return preset_blocks_register_by_category(
-        name, description,
-        PRESET_EXT_DIFFERENTIAL_GEOMETRY,
-        input_count, output_count);
+static bool register_dg_adv_preset(const char *name, const char *description, int input_count, int output_count) {
+    return preset_blocks_register_by_category(name, description, PRESET_EXT_DIFFERENTIAL_GEOMETRY, input_count,
+                                              output_count);
 }
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_differential_geometry_adv_register(void)
-{
+bool preset_differential_geometry_adv_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -96,11 +89,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible false
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_TANGENT_SPACE,
-                "切空间：计算光滑流形 M 在点 p 处的切空间 T_pM，"
-                "由经过 p 的光滑曲线的速度向量构成",
-                2, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_TANGENT_SPACE,
+                                   "切空间：计算光滑流形 M 在点 p 处的切空间 T_pM，"
+                                   "由经过 p 的光滑曲线的速度向量构成",
+                                   2, 1)) {
             success_count++;
         }
     }
@@ -120,11 +112,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible false
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_RIEMANNIAN_METRIC,
-                "Riemann度量：在光滑流形上定义正定对称双线性形式 g，"
-                "赋予流形内积结构与距离函数",
-                1, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_RIEMANNIAN_METRIC,
+                                   "Riemann度量：在光滑流形上定义正定对称双线性形式 g，"
+                                   "赋予流形内积结构与距离函数",
+                                   1, 1)) {
             success_count++;
         }
     }
@@ -156,11 +147,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible false
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_GEODESIC,
-                "测地线：求解Riemann流形上的测地线方程 "
-                "nabla_{dot_gamma} dot_gamma = 0，给定初始点和切向量",
-                3, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_GEODESIC,
+                                   "测地线：求解Riemann流形上的测地线方程 "
+                                   "nabla_{dot_gamma} dot_gamma = 0，给定初始点和切向量",
+                                   3, 1)) {
             success_count++;
         }
     }
@@ -182,11 +172,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible false
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_CONNECTION_LEVI_CIVITA,
-                "Levi-Civita连接：计算Riemann流形上唯一的无挠度量相容联络，"
-                "由Koszul公式确定Christoffel符号",
-                2, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_CONNECTION_LEVI_CIVITA,
+                                   "Levi-Civita连接：计算Riemann流形上唯一的无挠度量相容联络，"
+                                   "由Koszul公式确定Christoffel符号",
+                                   2, 1)) {
             success_count++;
         }
     }
@@ -208,11 +197,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible true（在法邻域内可逆，逆为对数映射 log_p）
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_EXPONENTIAL_MAP,
-                "指数映射：exp_p: T_pM -> M，将切向量沿测地线映射到流形上的点，"
-                "在法邻域内为微分同胚",
-                2, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_EXPONENTIAL_MAP,
+                                   "指数映射：exp_p: T_pM -> M，将切向量沿测地线映射到流形上的点，"
+                                   "在法邻域内为微分同胚",
+                                   2, 1)) {
             success_count++;
         }
     }
@@ -233,11 +221,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible true（反向沿曲线平行移动可恢复原向量）
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_PARALLEL_TRANSPORT,
-                "平行移动：沿光滑曲线将切向量按Levi-Civita联络平行移动，"
-                "保持协变导数为零",
-                2, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_PARALLEL_TRANSPORT,
+                                   "平行移动：沿光滑曲线将切向量按Levi-Civita联络平行移动，"
+                                   "保持协变导数为零",
+                                   2, 1)) {
             success_count++;
         }
     }
@@ -268,11 +255,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible false
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_CURVATURE_TENSOR,
-                "曲率张量：计算Riemann曲率张量 R(X,Y)Z，"
-                "度量平行移动的路径依赖性与流形的内蕴弯曲",
-                2, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_CURVATURE_TENSOR,
+                                   "曲率张量：计算Riemann曲率张量 R(X,Y)Z，"
+                                   "度量平行移动的路径依赖性与流形的内蕴弯曲",
+                                   2, 1)) {
             success_count++;
         }
     }
@@ -294,11 +280,10 @@ bool preset_differential_geometry_adv_register(void)
      * @reversible false
      */
     {
-        if (register_dg_adv_preset(
-                PRESET_DG_GAUSS_BONNET,
-                "Gauss-Bonnet定理：计算闭曲面上Gauss曲率的积分，"
-                "等于 2pi 乘以 Euler 示性数，连接曲率与拓扑",
-                2, 1)) {
+        if (register_dg_adv_preset(PRESET_DG_GAUSS_BONNET,
+                                   "Gauss-Bonnet定理：计算闭曲面上Gauss曲率的积分，"
+                                   "等于 2pi 乘以 Euler 示性数，连接曲率与拓扑",
+                                   2, 1)) {
             success_count++;
         }
     }
@@ -308,9 +293,8 @@ bool preset_differential_geometry_adv_register(void)
      * ============================================================ */
 
     if (success_count < DIFFERENTIAL_GEOMETRY_ADV_PRESET_COUNT) {
-        LV00_LOG_WARNING(
-            "微分几何进阶模块：共 %d 个预设，成功注册 %d 个",
-            DIFFERENTIAL_GEOMETRY_ADV_PRESET_COUNT, success_count);
+        LV00_LOG_WARNING("微分几何进阶模块：共 %d 个预设，成功注册 %d 个", DIFFERENTIAL_GEOMETRY_ADV_PRESET_COUNT,
+                         success_count);
     }
 
     return success_count == DIFFERENTIAL_GEOMETRY_ADV_PRESET_COUNT;
@@ -323,7 +307,6 @@ bool preset_differential_geometry_adv_register(void)
  *
  * @return int 预设函数块总数（8）
  */
-int preset_differential_geometry_adv_count(void)
-{
+int preset_differential_geometry_adv_count(void) {
     return DIFFERENTIAL_GEOMETRY_ADV_PRESET_COUNT;
 }

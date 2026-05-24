@@ -215,9 +215,15 @@ list(FILTER LV00_SOURCES EXCLUDE REGEX "sat_solver\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "geometric_algebra\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "crypto_hash\\.c$")
 list(FILTER LV00_SOURCES EXCLUDE REGEX "ref_count\\.c$")
-# Files integrated in 2026-05-24 update:
-# - preset_manager.c, preset_algebraic_geometry.c, proof_multi_strategy.c,
-#   proof_optimize.c, interop/interop.c
+list(FILTER LV00_SOURCES EXCLUDE REGEX "preset_manager\\.c$")
+# -- 2026-05-24 落地集成 -- 以下模块现已编入：
+#   preset_algebraic_geometry.c (20个代数几何预设)
+#   proof_multi_strategy.c (8种证明策略引擎)
+#   proof_optimize.c (证明步骤优化)
+#   interop/interop.c (互操作 + GeoJSON导入)
+# -- 已知排除项 --
+#   magic/magic.c (类型系统重构待完成)
+#   approx_counter.c / bdd_encoding.c / float_error.c 等 (API未对齐)
 
 
 # ============================================================

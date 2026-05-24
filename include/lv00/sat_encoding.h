@@ -21,8 +21,8 @@
 #ifndef LV00_SAT_ENCODING_H
 #define LV00_SAT_ENCODING_H
 
-#include "lv00.h"
 #include "constraint_graph.h"
+#include "lv00.h"
 #include "relation_model.h"
 
 #ifdef __cplusplus
@@ -37,10 +37,10 @@ extern "C" {
  * 以 Kodkod 的求解结果为基准，统一 SAT 求解器的输出语义。
  */
 typedef enum {
-    SAT_OK      = 0,  /**< 可满足，已获得解 */
-    SAT_UNSAT   = 1,  /**< 不可满足，已获得证明 */
-    SAT_UNKNOWN = 2,  /**< 未知（超时/内存不足） */
-    SAT_ERROR   = 3   /**< 内部错误 */
+    SAT_OK = 0,      /**< 可满足，已获得解 */
+    SAT_UNSAT = 1,   /**< 不可满足，已获得证明 */
+    SAT_UNKNOWN = 2, /**< 未知（超时/内存不足） */
+    SAT_ERROR = 3    /**< 内部错误 */
 } SatResult;
 
 /**
@@ -51,11 +51,16 @@ typedef enum {
  */
 static inline const char *sat_result_to_string(SatResult result) {
     switch (result) {
-        case SAT_OK:      return "SAT_OK";
-        case SAT_UNSAT:   return "SAT_UNSAT";
-        case SAT_UNKNOWN: return "SAT_UNKNOWN";
-        case SAT_ERROR:   return "SAT_ERROR";
-        default:          return "SAT_?";
+        case SAT_OK:
+            return "SAT_OK";
+        case SAT_UNSAT:
+            return "SAT_UNSAT";
+        case SAT_UNKNOWN:
+            return "SAT_UNKNOWN";
+        case SAT_ERROR:
+            return "SAT_ERROR";
+        default:
+            return "SAT_?";
     }
 }
 
@@ -70,7 +75,7 @@ static inline const char *sat_result_to_string(SatResult result) {
  *
  * 正文字（literal）为 var_id 的正负号表示。
  */
-typedef int SatLiteral;  /**< 正文字：正值为 var_id，负值为 ~var_id */
+typedef int SatLiteral; /**< 正文字：正值为 var_id，负值为 ~var_id */
 
 /**
  * @brief SAT 变量映射表条目
@@ -78,9 +83,9 @@ typedef int SatLiteral;  /**< 正文字：正值为 var_id，负值为 ~var_id *
  * 每条记录映射一个关系元组到唯一的 SAT 变量 ID。
  */
 typedef struct SatVarEntry {
-    int  var_id;          /**< SAT 变量 ID（>= 1） */
-    int  arity;           /**< 元组的元数 */
-    int  atom_ids[8];     /**< 元组中的原子 ID */
+    int var_id;      /**< SAT 变量 ID（>= 1） */
+    int arity;       /**< 元组的元数 */
+    int atom_ids[8]; /**< 元组中的原子 ID */
 } SatVarEntry;
 
 /**
@@ -89,24 +94,24 @@ typedef struct SatVarEntry {
  * 维护关系元组→SAT变量映射、CNF子句缓冲区以及编码统计。
  */
 typedef struct SatEncoding {
-    SatVarEntry  *var_map;         /**< 变量映射表（动态数组） */
-    int           var_count;       /**< 当前变量数量 */
-    int           var_capacity;    /**< 映射表容量 */
-    int           next_var_id;     /**< 下一个可分配变量 ID */
+    SatVarEntry *var_map; /**< 变量映射表（动态数组） */
+    int var_count;        /**< 当前变量数量 */
+    int var_capacity;     /**< 映射表容量 */
+    int next_var_id;      /**< 下一个可分配变量 ID */
 
-    int         **clauses;         /**< CNF 子句缓冲区（每个子句是 literal 数组） */
-    int          *clause_sizes;    /**< 每个子句的大小 */
-    int           clause_count;    /**< 当前子句数量 */
-    int           clause_capacity; /**< 子句缓冲区容量 */
+    int **clauses;       /**< CNF 子句缓冲区（每个子句是 literal 数组） */
+    int *clause_sizes;   /**< 每个子句的大小 */
+    int clause_count;    /**< 当前子句数量 */
+    int clause_capacity; /**< 子句缓冲区容量 */
 
     /* 编码统计 */
-    int           total_vars;      /**< 总变量数 */
-    int           total_clauses;   /**< 总子句数 */
-    double        encode_time_ms;  /**< 编码耗时（毫秒） */
+    int total_vars;        /**< 总变量数 */
+    int total_clauses;     /**< 总子句数 */
+    double encode_time_ms; /**< 编码耗时（毫秒） */
 
     /* 关联的约束图和关系模型引用（只读） */
-    const ConstraintGraph *graph;    /**< 源约束图 */
-    const RelModel        *rel_model; /**< 关系模型（可空） */
+    const ConstraintGraph *graph; /**< 源约束图 */
+    const RelModel *rel_model;    /**< 关系模型（可空） */
 } SatEncoding;
 
 /**
@@ -115,13 +120,13 @@ typedef struct SatEncoding {
  * 从 SAT 解反译回约束图状态的中间结构。
  */
 typedef struct SatModel {
-    int  *true_vars;       /**< 赋值为真的变量 ID 数组 */
-    int   true_count;      /**< 真变量数量 */
-    int   var_count;       /**< 变量总数 */
+    int *true_vars; /**< 赋值为真的变量 ID 数组 */
+    int true_count; /**< 真变量数量 */
+    int var_count;  /**< 变量总数 */
 
     /* 解码后的几何结构 */
     ConstraintGraph *decoded_graph; /**< 解码后的约束图（可空 = 未解码） */
-    RelInstance     *decoded_instance; /**< 解码后的关系实例（可空 = 未解码） */
+    RelInstance *decoded_instance;  /**< 解码后的关系实例（可空 = 未解码） */
 } SatModel;
 
 /* ── 约束→CNF 编码规则 ──
@@ -201,8 +206,7 @@ int sat_encode_distance_eq(SatEncoding *enc, int p1_id, int p2_id, int p3_id, in
  * @param p6_id  角2边端点
  * @return 编码的子句数量，失败返回 -1
  */
-int sat_encode_angle_eq(SatEncoding *enc, int p1_id, int p2_id, int p3_id,
-                         int p4_id, int p5_id, int p6_id);
+int sat_encode_angle_eq(SatEncoding *enc, int p1_id, int p2_id, int p3_id, int p4_id, int p5_id, int p6_id);
 
 /**
  * @brief 包含关系约束编码
@@ -236,7 +240,7 @@ int sat_encode_constraint(SatEncoding *enc, int constraint_id);
  * @param initial_clause_capacity  CNF 子句缓冲区初始容量
  * @return 新分配的编码上下文，失败返回 NULL
  */
-SatEncoding* sat_encoding_create(int initial_var_capacity, int initial_clause_capacity);
+SatEncoding *sat_encoding_create(int initial_var_capacity, int initial_clause_capacity);
 
 /**
  * @brief 销毁 SAT 编码上下文
@@ -354,7 +358,7 @@ SatResult sat_solve_incremental(SatEncoding *enc, const SatLiteral *literals, in
  * @param model  SAT 模型
  * @return 解码后的约束图（调用者负责 graph_destroy），失败返回 NULL
  */
-ConstraintGraph* sat_model_to_graph(const SatModel *model);
+ConstraintGraph *sat_model_to_graph(const SatModel *model);
 
 /**
  * @brief 将 SAT 模型解码回关系实例
@@ -363,7 +367,7 @@ ConstraintGraph* sat_model_to_graph(const SatModel *model);
  * @param model SAT 模型
  * @return 解码后的关系实例（调用者负责销毁），失败返回 NULL
  */
-RelInstance* sat_model_to_instance(const SatEncoding *enc, const SatModel *model);
+RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model);
 
 /**
  * @brief 销毁 SAT 模型
@@ -383,7 +387,7 @@ void sat_model_destroy(SatModel *model);
  * @param out_count  输出：核心子句数量
  * @return 子句索引数组（调用者负责 free），失败返回 NULL
  */
-int* sat_get_unsat_core(const SatEncoding *enc, int *out_count);
+int *sat_get_unsat_core(const SatEncoding *enc, int *out_count);
 
 /**
  * @brief 导出 SAT 编码为 DIMACS CNF 格式

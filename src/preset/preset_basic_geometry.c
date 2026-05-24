@@ -25,12 +25,13 @@
  * ============================================================
  */
 #include "preset_basic_geometry.h"
-#include "preset_blocks.h"
-#include "preset_common.h"     /* 预设公共宏与辅助函数 */
-#include "lv00_internal.h"
-#include "lv00_utils.h"
 
 #include <string.h>
+
+#include "lv00_internal.h"
+#include "lv00_utils.h"
+#include "preset_blocks.h"
+#include "preset_common.h" /* 预设公共宏与辅助函数 */
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -56,29 +57,16 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_geometry_preset(
-    const char *name,
-    const char *description,
-    const PresetType *input_types,
-    int input_count,
-    PresetType output_type,
-    const char *math_def,
-    const char *complexity,
-    bool is_constructive,
-    bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description,
-        PRESET_CATEGORY_CONSTRUCTION,
-        input_types, input_count, output_type,
-        math_def, complexity,
-        is_constructive, is_reversible);
+static bool register_geometry_preset(const char *name, const char *description, const PresetType *input_types,
+                                     int input_count, PresetType output_type, const char *math_def,
+                                     const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_CONSTRUCTION, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_basic_geometry_register(void)
-{
+bool preset_basic_geometry_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -88,12 +76,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 通过直角坐标构造点 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        if (register_geometry_preset(
-                PRESET_POINT_FROM_COORDS,
-                "通过笛卡尔直角坐标构造点 P(x, y)",
-                inputs, 2, PRESET_TYPE_POINT,
-                "P = (x, y)",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_POINT_FROM_COORDS, "通过笛卡尔直角坐标构造点 P(x, y)", inputs, 2,
+                                     PRESET_TYPE_POINT, "P = (x, y)", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -101,12 +85,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 中点构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_MIDPOINT,
-                "构造两点之间的中点 M = (A+B)/2",
-                inputs, 2, PRESET_TYPE_POINT,
-                "M = \\frac{A + B}{2}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_MIDPOINT, "构造两点之间的中点 M = (A+B)/2", inputs, 2, PRESET_TYPE_POINT,
+                                     "M = \\frac{A + B}{2}", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -114,12 +94,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 重心构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_CENTROID,
-                "构造三角形的重心 G = (A+B+C)/3",
-                inputs, 3, PRESET_TYPE_POINT,
-                "G = \\frac{A + B + C}{3}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_CENTROID, "构造三角形的重心 G = (A+B+C)/3", inputs, 3, PRESET_TYPE_POINT,
+                                     "G = \\frac{A + B + C}{3}", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -127,12 +103,9 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 外心构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_CIRCUMCENTER,
-                "构造三角形的外心（外接圆圆心）",
-                inputs, 3, PRESET_TYPE_POINT,
-                "O = \\text{外心}(\\triangle ABC): OA = OB = OC",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_CIRCUMCENTER, "构造三角形的外心（外接圆圆心）", inputs, 3,
+                                     PRESET_TYPE_POINT, "O = \\text{外心}(\\triangle ABC): OA = OB = OC", "O(1)", true,
+                                     false)) {
             success_count++;
         }
     }
@@ -140,12 +113,9 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 内心构造 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_INCENTER,
-                "构造三角形的内心（内切圆圆心）",
-                inputs, 3, PRESET_TYPE_POINT,
-                "I = \\frac{aA + bB + cC}{a + b + c}, \\ a = |BC|, b = |CA|, c = |AB|",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_INCENTER, "构造三角形的内心（内切圆圆心）", inputs, 3, PRESET_TYPE_POINT,
+                                     "I = \\frac{aA + bB + cC}{a + b + c}, \\ a = |BC|, b = |CA|, c = |AB|", "O(1)",
+                                     true, false)) {
             success_count++;
         }
     }
@@ -154,9 +124,7 @@ bool preset_basic_geometry_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
         if (register_geometry_preset(
-                PRESET_ORTHOCENTER,
-                "构造三角形的垂心（三条高线的交点）",
-                inputs, 3, PRESET_TYPE_POINT,
+                PRESET_ORTHOCENTER, "构造三角形的垂心（三条高线的交点）", inputs, 3, PRESET_TYPE_POINT,
                 "H = \\text{垂心}(\\triangle ABC): \\overrightarrow{AH} \\perp \\overrightarrow{BC}, "
                 "\\overrightarrow{BH} \\perp \\overrightarrow{CA}, \\overrightarrow{CH} \\perp \\overrightarrow{AB}",
                 "O(1)", true, false)) {
@@ -171,12 +139,9 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 通过两点构造线段 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_SEGMENT_FROM_POINTS,
-                "通过两点构造线段 AB",
-                inputs, 2, PRESET_TYPE_LINE_SEGMENT,
-                "\\overline{AB} = \\{A + t(B - A) \\mid t \\in [0, 1]\\}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_SEGMENT_FROM_POINTS, "通过两点构造线段 AB", inputs, 2,
+                                     PRESET_TYPE_LINE_SEGMENT,
+                                     "\\overline{AB} = \\{A + t(B - A) \\mid t \\in [0, 1]\\}", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -184,12 +149,9 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 垂直平分线 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_PERPENDICULAR_BISECTOR,
-                "构造线段的垂直平分线",
-                inputs, 2, PRESET_TYPE_LINE,
-                "\\ell: (X - M) \\cdot (B - A) = 0, \\quad M = \\frac{A + B}{2}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_PERPENDICULAR_BISECTOR, "构造线段的垂直平分线", inputs, 2, PRESET_TYPE_LINE,
+                                     "\\ell: (X - M) \\cdot (B - A) = 0, \\quad M = \\frac{A + B}{2}", "O(1)", true,
+                                     false)) {
             success_count++;
         }
     }
@@ -198,9 +160,7 @@ bool preset_basic_geometry_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR};
         if (register_geometry_preset(
-                PRESET_POINT_ON_PERP_BISECTOR,
-                "在中垂线上构造距离中点为 d 的点",
-                inputs, 3, PRESET_TYPE_POINT,
+                PRESET_POINT_ON_PERP_BISECTOR, "在中垂线上构造距离中点为 d 的点", inputs, 3, PRESET_TYPE_POINT,
                 "P = M \\pm d \\cdot \\hat{n}, \\quad M = \\frac{A + B}{2}, \\ \\hat{n} \\perp \\overrightarrow{AB}",
                 "O(1)", true, false)) {
             success_count++;
@@ -214,12 +174,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 通过两点构造直线 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_LINE_FROM_POINTS,
-                "通过两点构造无限直线",
-                inputs, 2, PRESET_TYPE_LINE,
-                "\\ell: A + t(B - A), \\quad t \\in \\mathbb{R}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_LINE_FROM_POINTS, "通过两点构造无限直线", inputs, 2, PRESET_TYPE_LINE,
+                                     "\\ell: A + t(B - A), \\quad t \\in \\mathbb{R}", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -227,12 +183,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 平行线 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_PARALLEL_LINE,
-                "过点作平行于给定线段的直线",
-                inputs, 3, PRESET_TYPE_LINE,
-                "\\ell': P + t(B - A), \\quad t \\in \\mathbb{R}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_PARALLEL_LINE, "过点作平行于给定线段的直线", inputs, 3, PRESET_TYPE_LINE,
+                                     "\\ell': P + t(B - A), \\quad t \\in \\mathbb{R}", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -240,12 +192,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 垂线 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_PERPENDICULAR_LINE,
-                "过点作垂直于给定线段的直线",
-                inputs, 3, PRESET_TYPE_LINE,
-                "\\ell': (X - P) \\cdot (B - A) = 0",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_PERPENDICULAR_LINE, "过点作垂直于给定线段的直线", inputs, 3,
+                                     PRESET_TYPE_LINE, "\\ell': (X - P) \\cdot (B - A) = 0", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -253,12 +201,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 射线 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_RAY_FROM_POINTS,
-                "通过起点和方向点构造射线",
-                inputs, 2, PRESET_TYPE_RAY,
-                "\\overrightarrow{AB} = \\{A + t(B - A) \\mid t \\ge 0\\}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_RAY_FROM_POINTS, "通过起点和方向点构造射线", inputs, 2, PRESET_TYPE_RAY,
+                                     "\\overrightarrow{AB} = \\{A + t(B - A) \\mid t \\ge 0\\}", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -270,12 +214,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 圆心和半径构造圆 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_CIRCLE_CENTER_RADIUS,
-                "通过圆心和半径点构造圆",
-                inputs, 2, PRESET_TYPE_CIRCLE,
-                "\\odot(O, P): |X - O| = |P - O|",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_CIRCLE_CENTER_RADIUS, "通过圆心和半径点构造圆", inputs, 2,
+                                     PRESET_TYPE_CIRCLE, "\\odot(O, P): |X - O| = |P - O|", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -283,12 +223,9 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 三点定圆 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_CIRCLE_THREE_POINTS,
-                "通过三点构造外接圆",
-                inputs, 3, PRESET_TYPE_CIRCLE,
-                "\\odot(ABC): |X - O| = R, \\quad O = \\text{外心}(\\triangle ABC)",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_CIRCLE_THREE_POINTS, "通过三点构造外接圆", inputs, 3, PRESET_TYPE_CIRCLE,
+                                     "\\odot(ABC): |X - O| = R, \\quad O = \\text{外心}(\\triangle ABC)", "O(1)", true,
+                                     false)) {
             success_count++;
         }
     }
@@ -296,13 +233,10 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 切线 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_TANGENT_FROM_POINT,
-                "从外部点向圆作切线",
-                inputs, 3, PRESET_TYPE_LINE,
-                "\\ell: (X - T) \\cdot (T - O) = 0, \\quad |T - O| = |P - O|, \\ "
-                "(O - T) \\perp (P - T)",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_TANGENT_FROM_POINT, "从外部点向圆作切线", inputs, 3, PRESET_TYPE_LINE,
+                                     "\\ell: (X - T) \\cdot (T - O) = 0, \\quad |T - O| = |P - O|, \\ "
+                                     "(O - T) \\perp (P - T)",
+                                     "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -313,44 +247,33 @@ bool preset_basic_geometry_register(void)
 
     /* -------------------- 两直线交点 -------------------- */
     {
-        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT,
-                                PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_LINE_INTERSECTION,
-                "计算两条直线的交点",
-                inputs, 4, PRESET_TYPE_POINT,
-                "\\ell_1 \\cap \\ell_2 = \\{P\\}, \\quad "
-                "\\ell_1 = \\overline{A_1A_2}, \\ \\ell_2 = \\overline{B_1B_2}",
-                "O(1)", true, false)) {
+        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
+        if (register_geometry_preset(PRESET_LINE_INTERSECTION, "计算两条直线的交点", inputs, 4, PRESET_TYPE_POINT,
+                                     "\\ell_1 \\cap \\ell_2 = \\{P\\}, \\quad "
+                                     "\\ell_1 = \\overline{A_1A_2}, \\ \\ell_2 = \\overline{B_1B_2}",
+                                     "O(1)", true, false)) {
             success_count++;
         }
     }
 
     /* -------------------- 直线与圆交点 -------------------- */
     {
-        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT,
-                                PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_LINE_CIRCLE_INTERSECTION,
-                "计算直线与圆的交点",
-                inputs, 4, PRESET_TYPE_POINT,
-                "\\ell \\cap \\odot(O, r) = \\{P_1, P_2\\}, \\quad "
-                "\\ell = \\overline{A_1A_2}",
-                "O(1)", true, false)) {
+        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
+        if (register_geometry_preset(PRESET_LINE_CIRCLE_INTERSECTION, "计算直线与圆的交点", inputs, 4,
+                                     PRESET_TYPE_POINT,
+                                     "\\ell \\cap \\odot(O, r) = \\{P_1, P_2\\}, \\quad "
+                                     "\\ell = \\overline{A_1A_2}",
+                                     "O(1)", true, false)) {
             success_count++;
         }
     }
 
     /* -------------------- 两圆交点 -------------------- */
     {
-        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT,
-                                PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_CIRCLE_CIRCLE_INTERSECTION,
-                "计算两个圆的交点",
-                inputs, 4, PRESET_TYPE_POINT,
-                "\\odot_1(O_1, r_1) \\cap \\odot_2(O_2, r_2) = \\{P_1, P_2\\}",
-                "O(1)", true, false)) {
+        PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
+        if (register_geometry_preset(PRESET_CIRCLE_CIRCLE_INTERSECTION, "计算两个圆的交点", inputs, 4,
+                                     PRESET_TYPE_POINT, "\\odot_1(O_1, r_1) \\cap \\odot_2(O_2, r_2) = \\{P_1, P_2\\}",
+                                     "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -362,13 +285,11 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 点关于直线的反射 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_REFLECT_POINT_OVER_LINE,
-                "点关于直线的反射（对称点）",
-                inputs, 3, PRESET_TYPE_POINT,
-                "P' = P - 2\\frac{(P - A) \\cdot n}{|n|^2}n, \\quad "
-                "n \\perp \\overrightarrow{AB}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_REFLECT_POINT_OVER_LINE, "点关于直线的反射（对称点）", inputs, 3,
+                                     PRESET_TYPE_POINT,
+                                     "P' = P - 2\\frac{(P - A) \\cdot n}{|n|^2}n, \\quad "
+                                     "n \\perp \\overrightarrow{AB}",
+                                     "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -376,12 +297,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 点关于点的反射 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_REFLECT_POINT_OVER_POINT,
-                "点关于点的中心对称",
-                inputs, 2, PRESET_TYPE_POINT,
-                "P' = 2C - P",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_REFLECT_POINT_OVER_POINT, "点关于点的中心对称", inputs, 2,
+                                     PRESET_TYPE_POINT, "P' = 2C - P", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -393,12 +310,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 按比例分割线段 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SCALAR};
-        if (register_geometry_preset(
-                PRESET_POINT_DIVIDE_SEGMENT,
-                "按比例分割线段的点",
-                inputs, 3, PRESET_TYPE_POINT,
-                "P = A + t(B - A), \\quad t \\in \\mathbb{R}",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_POINT_DIVIDE_SEGMENT, "按比例分割线段的点", inputs, 3, PRESET_TYPE_POINT,
+                                     "P = A + t(B - A), \\quad t \\in \\mathbb{R}", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -406,12 +319,8 @@ bool preset_basic_geometry_register(void)
     /* -------------------- 调和共轭点 -------------------- */
     {
         PresetType inputs[] = {PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_POINT};
-        if (register_geometry_preset(
-                PRESET_HARMONIC_CONJUGATE,
-                "构造调和共轭点",
-                inputs, 3, PRESET_TYPE_POINT,
-                "(A, B; C, D) = -1, \\quad D = \\text{调和共轭}(A, B, C)",
-                "O(1)", true, false)) {
+        if (register_geometry_preset(PRESET_HARMONIC_CONJUGATE, "构造调和共轭点", inputs, 3, PRESET_TYPE_POINT,
+                                     "(A, B; C, D) = -1, \\quad D = \\text{调和共轭}(A, B, C)", "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -428,8 +337,7 @@ bool preset_basic_geometry_register(void)
  *
  * @return int 基础几何模块预设函数块总数
  */
-int preset_basic_geometry_count(void)
-{
+int preset_basic_geometry_count(void) {
     return BASIC_GEOMETRY_PRESET_COUNT;
 }
 
@@ -440,8 +348,7 @@ int preset_basic_geometry_count(void)
  *
  * @return PresetCategory 始终返回 PRESET_CATEGORY_CONSTRUCTION
  */
-PresetCategory preset_basic_geometry_category(void)
-{
+PresetCategory preset_basic_geometry_category(void) {
     return PRESET_CATEGORY_CONSTRUCTION;
 }
 
@@ -456,13 +363,14 @@ PresetCategory preset_basic_geometry_category(void)
  * @return true 成功获取名称列表
  * @return false 参数无效或内存分配失败
  */
-bool preset_basic_geometry_get_names(char ***out_names, int *out_count)
-{
-    if (!out_names || !out_count) return false;
+bool preset_basic_geometry_get_names(char ***out_names, int *out_count) {
+    if (!out_names || !out_count)
+        return false;
 
     /* 分配名称数组 */
-    char **names = (char**)lv00_malloc(BASIC_GEOMETRY_PRESET_COUNT * sizeof(char*));
-    if (!names) return false;
+    char **names = (char **) lv00_malloc(BASIC_GEOMETRY_PRESET_COUNT * sizeof(char *));
+    if (!names)
+        return false;
 
     /* 预设名称列表（与注册顺序一致） */
     const char *preset_names[] = {
@@ -498,14 +406,20 @@ bool preset_basic_geometry_get_names(char ***out_names, int *out_count)
         PRESET_HARMONIC_CONJUGATE,
     };
 
-    int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
+    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
         names[i] = lv00_strdup(preset_names[i]);
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
-            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv00_free(&tmp); }
-            { void *tmp = names; lv00_free(&tmp); }
+            for (int j = 0; j < i; j++) {
+                void *tmp = names[j];
+                lv00_free(&tmp);
+            }
+            {
+                void *tmp = names;
+                lv00_free(&tmp);
+            }
             return false;
         }
     }

@@ -9,17 +9,17 @@
  * - 多规则重写
  */
 
-#include "lv00.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00.h"
+#include "test_helpers.h"
+
 /* ============== 测试：重写规则生命周期 ============== */
 
-static int test_rewrite_rule_lifecycle(void)
-{
+static int test_rewrite_rule_lifecycle(void) {
     printf("Test: rewrite rule lifecycle...\n");
 
     /* 创建模式 */
@@ -27,7 +27,7 @@ static int test_rewrite_rule_lifecycle(void)
     assert(pattern != NULL);
     memset(pattern, 0, sizeof(RewritePattern));
 
-    int var_ids[] = {-1, -2};  /* 模式变量使用负ID */
+    int var_ids[] = {-1, -2}; /* 模式变量使用负ID */
     pattern->variable_node_ids = malloc(2 * sizeof(int));
     memcpy(pattern->variable_node_ids, var_ids, 2 * sizeof(int));
     pattern->var_count = 2;
@@ -60,8 +60,7 @@ static int test_rewrite_rule_lifecycle(void)
 
 /* ============== 测试：模式匹配 ============== */
 
-static int test_pattern_matching(void)
-{
+static int test_pattern_matching(void) {
     printf("Test: pattern matching...\n");
 
     ConstraintGraph *g = graph_create();
@@ -110,8 +109,7 @@ static int test_pattern_matching(void)
 
 /* ============== 测试：规则应用 ============== */
 
-static int test_rule_application(void)
-{
+static int test_rule_application(void) {
     printf("Test: rule application...\n");
 
     ConstraintGraph *g = graph_create();
@@ -153,8 +151,7 @@ static int test_rule_application(void)
 
 /* ============== 测试：多规则重写 ============== */
 
-static int test_multi_rule_rewrite(void)
-{
+static int test_multi_rule_rewrite(void) {
     printf("Test: multi-rule rewrite...\n");
 
     ConstraintGraph *g = graph_create();
@@ -199,8 +196,7 @@ static int test_multi_rule_rewrite(void)
 
 /* ============== 测试：重写终止 ============== */
 
-static int test_rewrite_termination(void)
-{
+static int test_rewrite_termination(void) {
     printf("Test: rewrite termination...\n");
 
     ConstraintGraph *g = graph_create();
@@ -235,8 +231,7 @@ static int test_rewrite_termination(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Rewrite System Test Suite ===\n\n");
 
     test_rewrite_rule_lifecycle();

@@ -11,13 +11,15 @@
  * @version 5.0.0
  */
 
+#include "preset_coding_theory.h"
+
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_coding_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
-#include <stdlib.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -44,16 +46,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_coding_theory_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_ALGEBRAIC,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_coding_theory_preset(const char *name, const char *description, const PresetType *input_types,
+                                          int input_count, PresetType output_type, const char *math_def,
+                                          const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ALGEBRAIC, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== v2统一注册宏 ==================== */
@@ -74,21 +71,19 @@ static bool register_coding_theory_preset(
  * @param cons       是否构造性
  * @param rev        是否可逆
  */
-#define REGISTER_CT(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_coding_theory_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_CT(name, desc, inputs, in_count, output, math, comp, cons, rev)                                  \
+    do {                                                                                                          \
+        if (register_coding_theory_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), \
+                                          (rev))) {                                                               \
+            success_count++;                                                                                      \
+        } else {                                                                                                  \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                   \
+        }                                                                                                         \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_coding_theory_register(void)
-{
+bool preset_coding_theory_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -113,11 +108,10 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_linear_code_construct",
-            "线性码构造：由生成矩阵G构造线性码 [n, k]，码字空间 C = {xG}",
-            inputs, 2, PRESET_TYPE_TUPLE,
-            "\\mathcal{C} = \\{xG : x \\in \\mathbb{F}_q^k\\}, \\quad |\\mathcal{C}| = q^k",
-            "O(n^3)", true, false);
+        REGISTER_CT("ct_linear_code_construct", "线性码构造：由生成矩阵G构造线性码 [n, k]，码字空间 C = {xG}", inputs,
+                    2, PRESET_TYPE_TUPLE,
+                    "\\mathcal{C} = \\{xG : x \\in \\mathbb{F}_q^k\\}, \\quad |\\mathcal{C}| = q^k", "O(n^3)", true,
+                    false);
     }
 
     /**
@@ -137,11 +131,9 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_hamming_code",
-            "Hamming码构造：构造Ham(r,2)码，参数 [2^r-1, 2^r-1-r, 3]，完备单纠错码",
-            inputs, 1, PRESET_TYPE_TUPLE,
-            "\\text{Ham}(r, 2): n = 2^r - 1, \\; k = 2^r - 1 - r, \\; d = 3",
-            "O(2^r)", true, false);
+        REGISTER_CT("ct_hamming_code", "Hamming码构造：构造Ham(r,2)码，参数 [2^r-1, 2^r-1-r, 3]，完备单纠错码", inputs,
+                    1, PRESET_TYPE_TUPLE, "\\text{Ham}(r, 2): n = 2^r - 1, \\; k = 2^r - 1 - r, \\; d = 3", "O(2^r)",
+                    true, false);
     }
 
     /**
@@ -162,11 +154,9 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_parity_check",
-            "奇偶校验矩阵：由生成矩阵G计算校验矩阵H，满足 GH^T = 0",
-            inputs, 2, PRESET_TYPE_MATRIX,
-            "GH^T = 0, \\quad c \\in \\mathcal{C} \\Leftrightarrow Hc^T = 0",
-            "O(n^3)", true, false);
+        REGISTER_CT("ct_parity_check", "奇偶校验矩阵：由生成矩阵G计算校验矩阵H，满足 GH^T = 0", inputs, 2,
+                    PRESET_TYPE_MATRIX, "GH^T = 0, \\quad c \\in \\mathcal{C} \\Leftrightarrow Hc^T = 0", "O(n^3)",
+                    true, false);
     }
 
     /**
@@ -188,11 +178,10 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_VECTOR, PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX};
-        REGISTER_CT("ct_syndrome_decode",
-            "伴随式译码：计算伴随式 s = H·r^T 并查表译码，纠正不超过t个错误",
-            inputs, 3, PRESET_TYPE_VECTOR,
-            "s = Hr^T, \\quad \\hat{c} = r - e(s), \\quad \\text{wt}(e) \\leq t = \\lfloor(d-1)/2\\rfloor",
-            "O(n^2)", true, false);
+        REGISTER_CT("ct_syndrome_decode", "伴随式译码：计算伴随式 s = H·r^T 并查表译码，纠正不超过t个错误", inputs, 3,
+                    PRESET_TYPE_VECTOR,
+                    "s = Hr^T, \\quad \\hat{c} = r - e(s), \\quad \\text{wt}(e) \\leq t = \\lfloor(d-1)/2\\rfloor",
+                    "O(n^2)", true, false);
     }
 
     /**
@@ -213,11 +202,9 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_code_distance",
-            "码距计算：计算线性码的最小Hamming距离 d = min{wt(c) : c ≠ 0}",
-            inputs, 2, PRESET_TYPE_INTEGER,
-            "d = \\min\\{\\text{wt}(c) : c \\in \\mathcal{C}, c \\neq 0\\}",
-            "O(q^k \\cdot n)", true, false);
+        REGISTER_CT("ct_code_distance", "码距计算：计算线性码的最小Hamming距离 d = min{wt(c) : c ≠ 0}", inputs, 2,
+                    PRESET_TYPE_INTEGER, "d = \\min\\{\\text{wt}(c) : c \\in \\mathcal{C}, c \\neq 0\\}",
+                    "O(q^k \\cdot n)", true, false);
     }
 
     /**
@@ -237,11 +224,8 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX};
-        REGISTER_CT("ct_code_dimension",
-            "码的维数：计算线性码的维数 k = rank(G) 和信息率 R = k/n",
-            inputs, 1, PRESET_TYPE_TUPLE,
-            "k = \\text{rank}(G), \\quad R = k/n",
-            "O(n^3)", true, false);
+        REGISTER_CT("ct_code_dimension", "码的维数：计算线性码的维数 k = rank(G) 和信息率 R = k/n", inputs, 1,
+                    PRESET_TYPE_TUPLE, "k = \\text{rank}(G), \\quad R = k/n", "O(n^3)", true, false);
     }
 
     /* ============================================================
@@ -266,11 +250,10 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_POLYNOMIAL, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_cyclic_code_construct",
-            "循环码构造：由生成多项式g(x)构造循环码，g(x) | (x^n - 1)",
-            inputs, 2, PRESET_TYPE_TUPLE,
-            "g(x) \\mid (x^n - 1), \\quad \\mathcal{C} = \\langle g(x) \\rangle, \\quad k = n - \\deg(g)",
-            "O(n^2)", true, false);
+        REGISTER_CT("ct_cyclic_code_construct", "循环码构造：由生成多项式g(x)构造循环码，g(x) | (x^n - 1)", inputs, 2,
+                    PRESET_TYPE_TUPLE,
+                    "g(x) \\mid (x^n - 1), \\quad \\mathcal{C} = \\langle g(x) \\rangle, \\quad k = n - \\deg(g)",
+                    "O(n^2)", true, false);
     }
 
     /**
@@ -293,8 +276,8 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_bch_code_construct",
-            "BCH码构造：构造设计距离δ的BCH码，最小距离 d >= δ，纠错能力 t = floor((δ-1)/2)",
+        REGISTER_CT(
+            "ct_bch_code_construct", "BCH码构造：构造设计距离δ的BCH码，最小距离 d >= δ，纠错能力 t = floor((δ-1)/2)",
             inputs, 3, PRESET_TYPE_TUPLE,
             "g(x) = \\text{lcm}(m_{\\alpha^b}(x), \\ldots, m_{\\alpha^{b+\\delta-2}}(x)), \\quad d \\geq \\delta",
             "O(n^2 \\log n)", true, false);
@@ -320,10 +303,9 @@ bool preset_coding_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
         REGISTER_CT("ct_reed_solomon_construct",
-            "Reed-Solomon码构造：构造RS(n,k)码，d = n-k+1（MDS码），广泛应用于纠错",
-            inputs, 3, PRESET_TYPE_TUPLE,
-            "\\text{RS}(n, k): d = n - k + 1 \\text{（MDS码）}, \\quad n = q - 1",
-            "O(n^2)", true, false);
+                    "Reed-Solomon码构造：构造RS(n,k)码，d = n-k+1（MDS码），广泛应用于纠错", inputs, 3,
+                    PRESET_TYPE_TUPLE, "\\text{RS}(n, k): d = n - k + 1 \\text{（MDS码）}, \\quad n = q - 1", "O(n^2)",
+                    true, false);
     }
 
     /**
@@ -345,11 +327,9 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_convolutional_code",
-            "卷积码构造：由生成器序列构造(n,k,L)卷积码，Viterbi算法译码",
-            inputs, 2, PRESET_TYPE_TUPLE,
-            "(n, k, L) \\text{ 卷积码}, \\quad d_{free} = \\min_{c \\neq 0} \\text{wt}(c)",
-            "O(2^{kL})", true, false);
+        REGISTER_CT("ct_convolutional_code", "卷积码构造：由生成器序列构造(n,k,L)卷积码，Viterbi算法译码", inputs, 2,
+                    PRESET_TYPE_TUPLE, "(n, k, L) \\text{ 卷积码}, \\quad d_{free} = \\min_{c \\neq 0} \\text{wt}(c)",
+                    "O(2^{kL})", true, false);
     }
 
     /* ============================================================
@@ -375,11 +355,10 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_hamming_bound",
-            "Hamming界（球填充界）：验证 Σ C(n,i) <= 2^(n-k)，等号成立为完备码",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "\\sum_{i=0}^{t} \\binom{n}{i} \\leq 2^{n-k}, \\quad t = \\lfloor(d-1)/2\\rfloor",
-            "O(n)", false, false);
+        REGISTER_CT("ct_hamming_bound", "Hamming界（球填充界）：验证 Σ C(n,i) <= 2^(n-k)，等号成立为完备码", inputs, 3,
+                    PRESET_TYPE_BOOLEAN,
+                    "\\sum_{i=0}^{t} \\binom{n}{i} \\leq 2^{n-k}, \\quad t = \\lfloor(d-1)/2\\rfloor", "O(n)", false,
+                    false);
     }
 
     /**
@@ -401,11 +380,9 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_singleton_bound",
-            "Singleton界：验证 d <= n - k + 1，等号成立为MDS码（如RS码）",
-            inputs, 3, PRESET_TYPE_BOOLEAN,
-            "d \\leq n - k + 1, \\quad \\text{等号成立} \\Leftrightarrow \\text{MDS码}",
-            "O(1)", false, false);
+        REGISTER_CT("ct_singleton_bound", "Singleton界：验证 d <= n - k + 1，等号成立为MDS码（如RS码）", inputs, 3,
+                    PRESET_TYPE_BOOLEAN, "d \\leq n - k + 1, \\quad \\text{等号成立} \\Leftrightarrow \\text{MDS码}",
+                    "O(1)", false, false);
     }
 
     /**
@@ -427,11 +404,8 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_gilbert_varshamov_bound",
-            "Gilbert-Varshamov界：计算满足存在性条件的最大维数k的下界",
-            inputs, 3, PRESET_TYPE_INTEGER,
-            "\\sum_{i=0}^{d-2} \\binom{n-1}{i}(q-1)^i < q^{n-k}",
-            "O(n)", false, false);
+        REGISTER_CT("ct_gilbert_varshamov_bound", "Gilbert-Varshamov界：计算满足存在性条件的最大维数k的下界", inputs, 3,
+                    PRESET_TYPE_INTEGER, "\\sum_{i=0}^{d-2} \\binom{n-1}{i}(q-1)^i < q^{n-k}", "O(n)", false, false);
     }
 
     /**
@@ -453,11 +427,10 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_plotkin_bound",
-            "Plotkin界：计算大距离码的码大小上界（d > n(1-1/q)时有效）",
-            inputs, 3, PRESET_TYPE_INTEGER,
-            "|\\mathcal{C}| \\leq \\left\\lfloor \\frac{d}{d - n(1-1/q)} \\right\\rfloor, \\quad d > n(1-1/q)",
-            "O(1)", false, false);
+        REGISTER_CT("ct_plotkin_bound", "Plotkin界：计算大距离码的码大小上界（d > n(1-1/q)时有效）", inputs, 3,
+                    PRESET_TYPE_INTEGER,
+                    "|\\mathcal{C}| \\leq \\left\\lfloor \\frac{d}{d - n(1-1/q)} \\right\\rfloor, \\quad d > n(1-1/q)",
+                    "O(1)", false, false);
     }
 
     /* ============================================================
@@ -481,11 +454,9 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_error_correction_capability",
-            "纠错能力：计算码的纠错能力 t = floor((d-1)/2) 和检错能力 d-1",
-            inputs, 1, PRESET_TYPE_INTEGER,
-            "t = \\lfloor(d-1)/2\\rfloor, \\quad \\text{检错能力} = d - 1",
-            "O(1)", true, false);
+        REGISTER_CT("ct_error_correction_capability", "纠错能力：计算码的纠错能力 t = floor((d-1)/2) 和检错能力 d-1",
+                    inputs, 1, PRESET_TYPE_INTEGER, "t = \\lfloor(d-1)/2\\rfloor, \\quad \\text{检错能力} = d - 1",
+                    "O(1)", true, false);
     }
 
     /**
@@ -507,10 +478,9 @@ bool preset_coding_theory_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER};
         REGISTER_CT("ct_code_weight_enumerator",
-            "重量枚举器：计算码的重量分布 [A_0, A_1, ..., A_n]，A_i为重量i的码字数",
-            inputs, 2, PRESET_TYPE_LIST,
-            "W_{\\mathcal{C}}(x, y) = \\sum_{i=0}^{n} A_i x^{n-i} y^i",
-            "O(q^k \\cdot n)", true, false);
+                    "重量枚举器：计算码的重量分布 [A_0, A_1, ..., A_n]，A_i为重量i的码字数", inputs, 2,
+                    PRESET_TYPE_LIST, "W_{\\mathcal{C}}(x, y) = \\sum_{i=0}^{n} A_i x^{n-i} y^i", "O(q^k \\cdot n)",
+                    true, false);
     }
 
     /**
@@ -532,11 +502,9 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_LIST, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_macwilliams_identity",
-            "MacWilliams恒等式：由码C的重量枚举器计算对偶码C^⊥的重量枚举器",
-            inputs, 3, PRESET_TYPE_LIST,
-            "W_{C^\\perp}(x,y) = \\frac{1}{|\\mathcal{C}|} W_C(x+y, x-y)",
-            "O(n^2)", true, true);
+        REGISTER_CT("ct_macwilliams_identity", "MacWilliams恒等式：由码C的重量枚举器计算对偶码C^⊥的重量枚举器", inputs,
+                    3, PRESET_TYPE_LIST, "W_{C^\\perp}(x,y) = \\frac{1}{|\\mathcal{C}|} W_C(x+y, x-y)", "O(n^2)", true,
+                    true);
     }
 
     /**
@@ -559,11 +527,10 @@ bool preset_coding_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_CT("ct_turbo_code",
-            "Turbo码：分析并行级联卷积码的迭代译码性能，接近Shannon极限",
-            inputs, 3, PRESET_TYPE_TUPLE,
-            "\\text{BER} \\approx f(\\text{SNR}, L, N, I_{\\text{iter}}), \\quad \\text{接近Shannon极限}",
-            "O(N \\cdot L \\cdot 2^L \\cdot I_{iter})", true, false);
+        REGISTER_CT("ct_turbo_code", "Turbo码：分析并行级联卷积码的迭代译码性能，接近Shannon极限", inputs, 3,
+                    PRESET_TYPE_TUPLE,
+                    "\\text{BER} \\approx f(\\text{SNR}, L, N, I_{\\text{iter}}), \\quad \\text{接近Shannon极限}",
+                    "O(N \\cdot L \\cdot 2^L \\cdot I_{iter})", true, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -575,8 +542,7 @@ bool preset_coding_theory_register(void)
  *
  * @return int 编码理论模块预设函数块总数
  */
-int preset_coding_theory_count(void)
-{
+int preset_coding_theory_count(void) {
     return CODING_THEORY_PRESET_COUNT;
 }
 
@@ -588,8 +554,7 @@ int preset_coding_theory_count(void)
  * @return true 获取成功
  * @return false 获取失败
  */
-bool preset_coding_theory_get_names(char ***out_names, int *out_count)
-{
+bool preset_coding_theory_get_names(char ***out_names, int *out_count) {
     if (out_names == NULL || out_count == NULL) {
         return false;
     }
@@ -597,7 +562,7 @@ bool preset_coding_theory_get_names(char ***out_names, int *out_count)
     *out_count = CODING_THEORY_PRESET_COUNT;
 
     /* 分配名称数组（使用项目统一的内存管理函数） */
-    char **names = (char **)lv00_malloc(CODING_THEORY_PRESET_COUNT * sizeof(char *));
+    char **names = (char **) lv00_malloc(CODING_THEORY_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
         return false;
     }
@@ -605,28 +570,14 @@ bool preset_coding_theory_get_names(char ***out_names, int *out_count)
     /* 填充预设名称列表 */
     const char *preset_names[] = {
         /* 线性码 */
-        "ct_linear_code_construct",
-        "ct_hamming_code",
-        "ct_parity_check",
-        "ct_syndrome_decode",
-        "ct_code_distance",
+        "ct_linear_code_construct", "ct_hamming_code", "ct_parity_check", "ct_syndrome_decode", "ct_code_distance",
         "ct_code_dimension",
         /* 循环码与BCH码 */
-        "ct_cyclic_code_construct",
-        "ct_bch_code_construct",
-        "ct_reed_solomon_construct",
-        "ct_convolutional_code",
+        "ct_cyclic_code_construct", "ct_bch_code_construct", "ct_reed_solomon_construct", "ct_convolutional_code",
         /* 码的界与性能 */
-        "ct_hamming_bound",
-        "ct_singleton_bound",
-        "ct_gilbert_varshamov_bound",
-        "ct_plotkin_bound",
+        "ct_hamming_bound", "ct_singleton_bound", "ct_gilbert_varshamov_bound", "ct_plotkin_bound",
         /* 编码应用 */
-        "ct_error_correction_capability",
-        "ct_code_weight_enumerator",
-        "ct_macwilliams_identity",
-        "ct_turbo_code"
-    };
+        "ct_error_correction_capability", "ct_code_weight_enumerator", "ct_macwilliams_identity", "ct_turbo_code"};
 
     for (int i = 0; i < CODING_THEORY_PRESET_COUNT; i++) {
         names[i] = lv00_strdup(preset_names[i]);
@@ -636,7 +587,7 @@ bool preset_coding_theory_get_names(char ***out_names, int *out_count)
                 void *tmp = names[j];
                 lv00_free(&tmp);
             }
-            lv00_free((void **)&names);
+            lv00_free((void **) &names);
             return false;
         }
     }
@@ -650,7 +601,6 @@ bool preset_coding_theory_get_names(char ***out_names, int *out_count)
  *
  * @return 类别名称字符串
  */
-const char *preset_coding_theory_category(void)
-{
+const char *preset_coding_theory_category(void) {
     return "编码理论";
 }

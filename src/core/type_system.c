@@ -37,6 +37,8 @@
  *   - stream.h             : 流式事件输出
  */
 
+#include "type_system.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +47,6 @@
 #include "lv00_utils.h"
 #include "rewrite.h"
 #include "stream.h"
-#include "type_system.h"
 
 LV00_DECLARE_STREAM_CTX(type_system)
 
@@ -66,13 +67,8 @@ LV00_DECLARE_STREAM_CTX(type_system)
 #define TYPE_INFER_MAX_DEPTH 100
 
 /* 前向声明：用于辅助函数 */
-static TypeEquivResult type_check_equivalence_internal(
-    TypeSystem *ts,
-    TypeRegion *type1,
-    TypeRegion *type2,
-    bool use_rewrite,
-    int depth
-);
+static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                                       bool use_rewrite, int depth);
 
 /**
  * @brief 类型推断的内部实现（带递归深度参数）
@@ -88,13 +84,8 @@ static TypeEquivResult type_check_equivalence_internal(
  * @param depth   当前递归深度
  * @return true 推断成功，false 推断失败或超过递归深度限制
  */
-static bool type_infer_node_internal(
-    TypeSystem *ts,
-    ConstraintGraph *graph,
-    int node_id,
-    TypeRegion **out_type,
-    int depth
-);
+static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int node_id, TypeRegion **out_type,
+                                     int depth);
 
 /**
  * 递归检查两个类型的等价性（用于二元复合类型）
@@ -111,20 +102,14 @@ static bool type_infer_node_internal(
  * @param d        递归深度
  * @return 类型等价结果
  */
-static inline TypeEquivResult check_binary_type_equiv(
-    TypeSystem *ts,
-    TypeRegion *type1,
-    TypeRegion *type2,
-    TypeRegion *sub1,
-    TypeRegion *sub2,
-    TypeRegion *other1,
-    TypeRegion *other2,
-    bool use_rw,
-    int d
-) {
+static inline TypeEquivResult check_binary_type_equiv(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                                      TypeRegion *sub1, TypeRegion *sub2, TypeRegion *other1,
+                                                      TypeRegion *other2, bool use_rw, int d) {
     TypeEquivResult first = type_check_equivalence_internal(ts, sub1, other1, use_rw, d + 1);
-    if (first == TYPE_EQUIV_NOT_EQUIV) return TYPE_EQUIV_NOT_EQUIV;
-    if (first != TYPE_EQUIV_OK) return first;
+    if (first == TYPE_EQUIV_NOT_EQUIV)
+        return TYPE_EQUIV_NOT_EQUIV;
+    if (first != TYPE_EQUIV_OK)
+        return first;
     return type_check_equivalence_internal(ts, sub2, other2, use_rw, d + 1);
 }
 
@@ -140,25 +125,29 @@ static inline TypeEquivResult check_binary_type_equiv(
  */
 TypeSystem *type_system_create(void) {
     TypeSystem *ts = lv00_calloc(1, sizeof(TypeSystem));
-    if (!ts) return NULL;
+    if (!ts)
+        return NULL;
 
-    ts->well_founded = true;  /* 默认启用良基模式 */
-    ts->cumulative = true;    /* 默认启用累积性 */
-    ts->max_universe_level = UNIVERSE_TYPE_1 + 1;  /* 默认最大层级为2，但整数层级无上限 */
+    ts->well_founded = true;                      /* 默认启用良基模式 */
+    ts->cumulative = true;                        /* 默认启用累积性 */
+    ts->max_universe_level = UNIVERSE_TYPE_1 + 1; /* 默认最大层级为2，但整数层级无上限 */
 
     /* 初始化重写路径 */
     ts->rewrite_path = type_rewrite_path_create();
     if (!ts->rewrite_path) {
-        lv00_free((void **)&ts);
+        lv00_free((void **) &ts);
         return NULL;
     }
 
     /* 注册默认类型推断规则 */
-    type_system_register_inference_rule(ts, GEOM_POINT,         TYPE_KIND_POINT,         0, "Point node -> Point type");
-    type_system_register_inference_rule(ts, GEOM_LINE_SEGMENT,  TYPE_KIND_LINE_SEGMENT, 0, "LineSegment node -> LineSegment type");
-    type_system_register_inference_rule(ts, GEOM_REGION,        TYPE_KIND_REGION,        0, "Region node -> Region type");
-    type_system_register_inference_rule(ts, GEOM_FUNCTION_BLOCK,TYPE_KIND_FUNCTION,      0, "FunctionBlock node -> Function type");
-    type_system_register_inference_rule(ts, GEOM_PORT,          TYPE_KIND_VARIABLE,      0, "Port node -> Variable type (unconnected)");
+    type_system_register_inference_rule(ts, GEOM_POINT, TYPE_KIND_POINT, 0, "Point node -> Point type");
+    type_system_register_inference_rule(ts, GEOM_LINE_SEGMENT, TYPE_KIND_LINE_SEGMENT, 0,
+                                        "LineSegment node -> LineSegment type");
+    type_system_register_inference_rule(ts, GEOM_REGION, TYPE_KIND_REGION, 0, "Region node -> Region type");
+    type_system_register_inference_rule(ts, GEOM_FUNCTION_BLOCK, TYPE_KIND_FUNCTION, 0,
+                                        "FunctionBlock node -> Function type");
+    type_system_register_inference_rule(ts, GEOM_PORT, TYPE_KIND_VARIABLE, 0,
+                                        "Port node -> Variable type (unconnected)");
 
     return ts;
 }
@@ -173,7 +162,8 @@ TypeSystem *type_system_create(void) {
  * @param ts 类型系统指针（可为 NULL）
  */
 void type_system_destroy(TypeSystem *ts) {
-    if (!ts) return;
+    if (!ts)
+        return;
 
     /* 在释放 type_regions 之前，先扫描所有 type_vars 的 bound_type，
      * 将指向已注册 type_regions 的 bound_type 置 NULL，避免后续 double-free。
@@ -193,7 +183,7 @@ void type_system_destroy(TypeSystem *ts) {
     for (int i = 0; i < ts->type_region_count; i++) {
         type_region_destroy(ts->type_regions[i]);
     }
-    lv00_free((void **)&ts->type_regions);
+    lv00_free((void **) &ts->type_regions);
 
     for (int i = 0; i < ts->type_var_count; i++) {
         if (ts->type_vars[i]) {
@@ -202,23 +192,23 @@ void type_system_destroy(TypeSystem *ts) {
                 type_region_destroy(ts->type_vars[i]->bound_type);
                 ts->type_vars[i]->bound_type = NULL;
             }
-            lv00_free((void **)&ts->type_vars[i]->name);
-            lv00_free((void **)&ts->type_vars[i]);
+            lv00_free((void **) &ts->type_vars[i]->name);
+            lv00_free((void **) &ts->type_vars[i]);
         }
     }
-    lv00_free((void **)&ts->type_vars);
+    lv00_free((void **) &ts->type_vars);
 
     /* 释放节点-类型映射 */
-    lv00_free((void **)&ts->node_type_mappings);
+    lv00_free((void **) &ts->node_type_mappings);
 
     /* 释放重写路径 */
     type_rewrite_path_destroy(ts->rewrite_path);
     ts->rewrite_path = NULL;
 
     /* 释放推断规则 */
-    lv00_free((void **)&ts->inference_rules);
+    lv00_free((void **) &ts->inference_rules);
 
-    lv00_free((void **)&ts);
+    lv00_free((void **) &ts);
 }
 
 /**
@@ -231,7 +221,8 @@ void type_system_destroy(TypeSystem *ts) {
  * @param well_founded 是否启用良基模式
  */
 void type_system_set_well_founded(TypeSystem *ts, bool well_founded) {
-    if (ts) ts->well_founded = well_founded;
+    if (ts)
+        ts->well_founded = well_founded;
 }
 
 /**
@@ -244,7 +235,8 @@ void type_system_set_well_founded(TypeSystem *ts, bool well_founded) {
  * @param cumulative 是否启用累积性模式
  */
 void type_system_set_cumulative(TypeSystem *ts, bool cumulative) {
-    if (ts) ts->cumulative = cumulative;
+    if (ts)
+        ts->cumulative = cumulative;
 }
 
 /* ============== 类型区域管理 ============== */
@@ -261,21 +253,27 @@ void type_system_set_cumulative(TypeSystem *ts, bool cumulative) {
  */
 static TypeRegion *type_region_create(TypeSystem *ts, TypeKind kind) {
     TypeRegion *tr = lv00_calloc(1, sizeof(TypeRegion));
-    if (!tr) return NULL;
+    if (!tr)
+        return NULL;
 
     tr->kind = kind;
 
     /* 添加到类型系统 */
-    if (ts->type_region_count >= INT_MAX) { lv00_free((void **)&tr); return NULL; }
-    /* 指数扩容策略：避免 O(n²) 的逐次 realloc */
-    int new_capacity = ts->type_region_capacity == 0
-        ? LV00_INITIAL_ARRAY_CAPACITY
-        : ts->type_region_capacity * LV00_ARRAY_GROWTH_FACTOR;
-    if (new_capacity <= ts->type_region_count) {
-        new_capacity = ts->type_region_count + 1;  /* 防止容量不足 */
+    if (ts->type_region_count >= INT_MAX) {
+        lv00_free((void **) &tr);
+        return NULL;
     }
-    TypeRegion **new_arr = (TypeRegion **)lv00_realloc(ts->type_regions, (size_t)new_capacity * sizeof(TypeRegion*));
-    if (!new_arr) { lv00_free((void **)&tr); return NULL; }
+    /* 指数扩容策略：避免 O(n²) 的逐次 realloc */
+    int new_capacity = ts->type_region_capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY
+                                                     : ts->type_region_capacity * LV00_ARRAY_GROWTH_FACTOR;
+    if (new_capacity <= ts->type_region_count) {
+        new_capacity = ts->type_region_count + 1; /* 防止容量不足 */
+    }
+    TypeRegion **new_arr = (TypeRegion **) lv00_realloc(ts->type_regions, (size_t) new_capacity * sizeof(TypeRegion *));
+    if (!new_arr) {
+        lv00_free((void **) &tr);
+        return NULL;
+    }
     ts->type_regions = new_arr;
     ts->type_region_capacity = new_capacity;
     ts->type_region_count++;
@@ -331,7 +329,8 @@ TypeRegion *type_create_line_segment(TypeSystem *ts) {
  */
 TypeRegion *type_create_region(TypeSystem *ts, int *contained_ids, int count) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_REGION);
-    if (!tr) return NULL;
+    if (!tr)
+        return NULL;
 
     tr->level = UNIVERSE_TYPE_1;
 
@@ -358,7 +357,8 @@ TypeRegion *type_create_region(TypeSystem *ts, int *contained_ids, int count) {
  */
 TypeRegion *type_create_function(TypeSystem *ts, TypeRegion *input, TypeRegion *output) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_FUNCTION);
-    if (!tr) return NULL;
+    if (!tr)
+        return NULL;
 
     tr->input_type = input;
     tr->output_type = output;
@@ -383,7 +383,8 @@ TypeRegion *type_create_function(TypeSystem *ts, TypeRegion *input, TypeRegion *
  */
 TypeRegion *type_create_product(TypeSystem *ts, TypeRegion *left, TypeRegion *right) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_PRODUCT);
-    if (!tr) return NULL;
+    if (!tr)
+        return NULL;
 
     tr->left_type = left;
     tr->right_type = right;
@@ -408,7 +409,8 @@ TypeRegion *type_create_product(TypeSystem *ts, TypeRegion *left, TypeRegion *ri
  */
 TypeRegion *type_create_sum(TypeSystem *ts, TypeRegion *first, TypeRegion *second) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_SUM);
-    if (!tr) return NULL;
+    if (!tr)
+        return NULL;
 
     tr->first_type = first;
     tr->second_type = second;
@@ -434,7 +436,8 @@ TypeRegion *type_create_sum(TypeSystem *ts, TypeRegion *first, TypeRegion *secon
  */
 TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_VARIABLE);
-    if (!tr) return NULL;
+    if (!tr)
+        return NULL;
 
     if (name) {
         tr->variable_name = lv00_strdup(name);
@@ -444,18 +447,18 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
     TypeVariable *tv = lv00_calloc(1, sizeof(TypeVariable));
     if (tv) {
         int new_count = ts->type_var_count + 1;
-        TypeVariable **new_arr = (TypeVariable **)lv00_realloc(ts->type_vars, new_count * sizeof(TypeVariable*));
+        TypeVariable **new_arr = (TypeVariable **) lv00_realloc(ts->type_vars, new_count * sizeof(TypeVariable *));
         if (!new_arr) {
             /* 修复：realloc 失败时，需清理已分配的 TypeVariable 和已创建的 TypeRegion，
              * 防止内存泄漏 */
-            lv00_free((void **)&tv);
-            lv00_free((void **)&tr->variable_name);
+            lv00_free((void **) &tv);
+            lv00_free((void **) &tr->variable_name);
             /* 从类型系统的 type_regions 数组中移除 tr，避免悬空指针 */
             if (ts->type_region_count > 0) {
                 ts->type_regions[ts->type_region_count - 1] = NULL;
                 ts->type_region_count--;
             }
-            lv00_free((void **)&tr);
+            lv00_free((void **) &tr);
             return NULL;
         }
         ts->type_vars = new_arr;
@@ -485,7 +488,8 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
  */
 TypeRegion *type_create_dependent(TypeSystem *ts, int param_id, TypeRegion *body) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_DEPENDENT);
-    if (!tr) return NULL;
+    if (!tr)
+        return NULL;
 
     tr->param_node_id = param_id;
     tr->body_type = body;
@@ -523,15 +527,16 @@ TypeRegion *type_create_bottom(TypeSystem *ts) {
  * @param tr 类型区域指针（可为 NULL）
  */
 void type_region_destroy(TypeRegion *tr) {
-    if (!tr) return;
+    if (!tr)
+        return;
 
-    lv00_free((void **)&tr->contained_node_ids);
-    lv00_free((void **)&tr->variable_name);
-    lv00_free((void **)&tr->alias_name);
-    lv00_free((void **)&tr->constraint_ids);
+    lv00_free((void **) &tr->contained_node_ids);
+    lv00_free((void **) &tr->variable_name);
+    lv00_free((void **) &tr->alias_name);
+    lv00_free((void **) &tr->constraint_ids);
 
     /* 注意：不递归销毁关联的类型，因为它们可能被共享 */
-    lv00_free((void **)&tr);
+    lv00_free((void **) &tr);
 }
 
 /**
@@ -544,9 +549,10 @@ void type_region_destroy(TypeRegion *tr) {
  * @return true 设置成功，false 参数无效或内存分配失败
  */
 bool type_add_alias(TypeRegion *tr, const char *alias) {
-    if (!tr || !alias) return false;
+    if (!tr || !alias)
+        return false;
 
-    lv00_free((void **)&tr->alias_name);
+    lv00_free((void **) &tr->alias_name);
     tr->alias_name = lv00_strdup(alias);
     return tr->alias_name != NULL;
 }
@@ -576,18 +582,19 @@ UniverseLevel type_get_level(TypeRegion *tr) {
  * @return true 层级合法，false 层级违规或参数无效
  */
 bool type_check_level_validity(TypeSystem *ts, TypeRegion *container, TypeRegion *contained) {
-    if (!ts || !container || !contained) return false;
+    if (!ts || !container || !contained)
+        return false;
 
     /* 非良基模式下跳过层级检查 */
-    if (!ts->well_founded) return true;
+    if (!ts->well_founded)
+        return true;
 
     /* 区域只能包含严格低于其层级的几何体 */
     if (container->kind == TYPE_KIND_REGION) {
         if (contained->level >= container->level) {
             /* 流式事件：层级错误 */
             if (type_system_stream_ctx != NULL) {
-                stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING,
-                    "宇宙层级检查失败: 包含层级不合法", 0);
+                stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, "宇宙层级检查失败: 包含层级不合法", 0);
             }
             return false;
         }
@@ -615,7 +622,8 @@ bool type_check_level_validity(TypeSystem *ts, TypeRegion *container, TypeRegion
  * @return true 兼容，false 不兼容或参数无效
  */
 bool type_check_cumulative(TypeSystem *ts, TypeRegion *lower, TypeRegion *higher) {
-    if (!ts || !lower || !higher) return false;
+    if (!ts || !lower || !higher)
+        return false;
 
     if (!ts->cumulative) {
         /* 非累积模式：层级必须严格相等 */
@@ -626,7 +634,8 @@ bool type_check_cumulative(TypeSystem *ts, TypeRegion *lower, TypeRegion *higher
     int lower_level = type_get_level(lower);
     int higher_level = type_get_level(higher);
 
-    if (lower_level <= higher_level) return true;
+    if (lower_level <= higher_level)
+        return true;
 
     /* 函数类型的递归检查：
      * (A -> B) : (i+1) 要求 A : i, B : (i+1)
@@ -664,20 +673,16 @@ bool type_check_cumulative(TypeSystem *ts, TypeRegion *lower, TypeRegion *higher
 
 /* qsort 比较函数：按 int 升序排列 */
 static int compare_ints(const void *a, const void *b) {
-    int ia = *(const int *)a;
-    int ib = *(const int *)b;
+    int ia = *(const int *) a;
+    int ib = *(const int *) b;
     return (ia > ib) - (ia < ib);
 }
 
 /* 内部递归辅助函数，带深度限制 */
-static TypeEquivResult type_check_equivalence_internal(
-    TypeSystem *ts,
-    TypeRegion *type1,
-    TypeRegion *type2,
-    bool use_rewrite,
-    int depth
-) {
-    if (!ts || !type1 || !type2) return TYPE_EQUIV_ERROR;
+static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
+                                                       bool use_rewrite, int depth) {
+    if (!ts || !type1 || !type2)
+        return TYPE_EQUIV_ERROR;
 
     /* 递归深度限制检查 */
     if (depth >= TYPE_EQUIV_MAX_DEPTH) {
@@ -685,7 +690,8 @@ static TypeEquivResult type_check_equivalence_internal(
     }
 
     /* 相同指针 */
-    if (type1 == type2) return TYPE_EQUIV_OK;
+    if (type1 == type2)
+        return TYPE_EQUIV_OK;
 
     /* 使用重写引擎进行归一化比较 */
     if (use_rewrite && ts->rewrite_rules && ts->rewrite_rule_count > 0) {
@@ -704,24 +710,18 @@ static TypeEquivResult type_check_equivalence_internal(
             switch (type1->kind) {
                 case TYPE_KIND_FUNCTION:
                     /* 函数类型：递归比较输入和输出类型的等价性 */
-                    return check_binary_type_equiv(ts, type1, type2,
-                        type1->input_type, type1->output_type,
-                        type2->input_type, type2->output_type,
-                        use_rewrite, depth);
+                    return check_binary_type_equiv(ts, type1, type2, type1->input_type, type1->output_type,
+                                                   type2->input_type, type2->output_type, use_rewrite, depth);
 
                 case TYPE_KIND_PRODUCT:
                     /* 乘积类型：递归比较各分量类型的等价性 */
-                    return check_binary_type_equiv(ts, type1, type2,
-                        type1->left_type, type1->right_type,
-                        type2->left_type, type2->right_type,
-                        use_rewrite, depth);
+                    return check_binary_type_equiv(ts, type1, type2, type1->left_type, type1->right_type,
+                                                   type2->left_type, type2->right_type, use_rewrite, depth);
 
                 case TYPE_KIND_SUM:
                     /* 和类型：递归比较各分量类型的等价性 */
-                    return check_binary_type_equiv(ts, type1, type2,
-                        type1->first_type, type1->second_type,
-                        type2->first_type, type2->second_type,
-                        use_rewrite, depth);
+                    return check_binary_type_equiv(ts, type1, type2, type1->first_type, type1->second_type,
+                                                   type2->first_type, type2->second_type, use_rewrite, depth);
 
                 default:
                     /* 非复合类型，种类相同，继续执行下面的结构比较逻辑 */
@@ -741,8 +741,7 @@ static TypeEquivResult type_check_equivalence_internal(
                 TypeVariable *tv = ts->type_vars[var_type->variable_id];
                 if (tv && tv->bound_type) {
                     /* 变量已实例化，递归检查 bound_type 与目标类型的等价性 */
-                    return type_check_equivalence_internal(ts, tv->bound_type, other_type,
-                                                           use_rewrite, depth + 1);
+                    return type_check_equivalence_internal(ts, tv->bound_type, other_type, use_rewrite, depth + 1);
                 }
             }
             /* 变量未被实例化（自由类型变量），可以匹配任意类型 */
@@ -773,8 +772,7 @@ static TypeEquivResult type_check_equivalence_internal(
                 TypeVariable *tv = ts->type_vars[var_type->variable_id];
                 if (tv && tv->bound_type) {
                     /* 变量已实例化，递归检查 bound_type 与目标类型的等价性 */
-                    return type_check_equivalence_internal(ts, tv->bound_type, other_type,
-                                                           use_rewrite, depth + 1);
+                    return type_check_equivalence_internal(ts, tv->bound_type, other_type, use_rewrite, depth + 1);
                 }
             }
             /* 变量未被实例化（自由类型变量），可以匹配任意类型 */
@@ -811,8 +809,8 @@ static TypeEquivResult type_check_equivalence_internal(
                     int *sorted1 = lv00_malloc(count * sizeof(int));
                     int *sorted2 = lv00_malloc(count * sizeof(int));
                     if (!sorted1 || !sorted2) {
-                        lv00_free((void **)&sorted1);
-                        lv00_free((void **)&sorted2);
+                        lv00_free((void **) &sorted1);
+                        lv00_free((void **) &sorted2);
                         return TYPE_EQUIV_ERROR;
                     }
                     memcpy(sorted1, type1->contained_node_ids, count * sizeof(int));
@@ -825,7 +823,8 @@ static TypeEquivResult type_check_equivalence_internal(
                     int i = 0, j = 0;
                     while (i < count && j < count) {
                         if (sorted1[i] == sorted2[j]) {
-                            i++; j++;
+                            i++;
+                            j++;
                         } else if (sorted1[i] < sorted2[j]) {
                             equiv = false;
                             break;
@@ -838,24 +837,24 @@ static TypeEquivResult type_check_equivalence_internal(
                         equiv = false;
                     }
 
-                    lv00_free((void **)&sorted1);
-                    lv00_free((void **)&sorted2);
+                    lv00_free((void **) &sorted1);
+                    lv00_free((void **) &sorted2);
                     return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
                 }
-                
+
                 /* 情况2：检查约束条件是否等价 */
                 if (type1->constraint_ids && type2->constraint_ids) {
                     if (type1->constraint_count != type2->constraint_count) {
                         return TYPE_EQUIV_NOT_EQUIV;
                     }
-                    
+
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->constraint_count;
                     int *sorted1 = lv00_malloc(count * sizeof(int));
                     int *sorted2 = lv00_malloc(count * sizeof(int));
                     if (!sorted1 || !sorted2) {
-                        lv00_free((void **)&sorted1);
-                        lv00_free((void **)&sorted2);
+                        lv00_free((void **) &sorted1);
+                        lv00_free((void **) &sorted2);
                         return TYPE_EQUIV_ERROR;
                     }
                     memcpy(sorted1, type1->constraint_ids, count * sizeof(int));
@@ -868,7 +867,8 @@ static TypeEquivResult type_check_equivalence_internal(
                     int i = 0, j = 0;
                     while (i < count && j < count) {
                         if (sorted1[i] == sorted2[j]) {
-                            i++; j++;
+                            i++;
+                            j++;
                         } else if (sorted1[i] < sorted2[j]) {
                             equiv = false;
                             break;
@@ -881,18 +881,18 @@ static TypeEquivResult type_check_equivalence_internal(
                         equiv = false;
                     }
 
-                    lv00_free((void **)&sorted1);
-                    lv00_free((void **)&sorted2);
+                    lv00_free((void **) &sorted1);
+                    lv00_free((void **) &sorted2);
                     return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
                 }
-                
+
                 /* 情况3：都没有额外信息，检查层级是否相同 */
-                if (!type1->contained_node_ids && !type2->contained_node_ids &&
-                    !type1->constraint_ids && !type2->constraint_ids) {
+                if (!type1->contained_node_ids && !type2->contained_node_ids && !type1->constraint_ids &&
+                    !type2->constraint_ids) {
                     /* 两个空区域，层级相同则等价 */
                     return type1->level == type2->level ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
                 }
-                
+
                 /* 情况4：一个有信息一个没有，无法确定 */
                 return TYPE_EQUIV_UNKNOWN;
             }
@@ -900,34 +900,37 @@ static TypeEquivResult type_check_equivalence_internal(
         case TYPE_KIND_FUNCTION:
             /* 函数类型：递归检查输入和输出 */
             {
-                TypeEquivResult input_result = type_check_equivalence_internal(
-                    ts, type1->input_type, type2->input_type, use_rewrite, depth + 1);
-                if (input_result != TYPE_EQUIV_OK) return input_result;
+                TypeEquivResult input_result =
+                    type_check_equivalence_internal(ts, type1->input_type, type2->input_type, use_rewrite, depth + 1);
+                if (input_result != TYPE_EQUIV_OK)
+                    return input_result;
 
-                return type_check_equivalence_internal(
-                    ts, type1->output_type, type2->output_type, use_rewrite, depth + 1);
+                return type_check_equivalence_internal(ts, type1->output_type, type2->output_type, use_rewrite,
+                                                       depth + 1);
             }
 
         case TYPE_KIND_PRODUCT:
             /* 乘积类型：递归检查左右类型 */
             {
-                TypeEquivResult left_result = type_check_equivalence_internal(
-                    ts, type1->left_type, type2->left_type, use_rewrite, depth + 1);
-                if (left_result != TYPE_EQUIV_OK) return left_result;
+                TypeEquivResult left_result =
+                    type_check_equivalence_internal(ts, type1->left_type, type2->left_type, use_rewrite, depth + 1);
+                if (left_result != TYPE_EQUIV_OK)
+                    return left_result;
 
-                return type_check_equivalence_internal(
-                    ts, type1->right_type, type2->right_type, use_rewrite, depth + 1);
+                return type_check_equivalence_internal(ts, type1->right_type, type2->right_type, use_rewrite,
+                                                       depth + 1);
             }
 
         case TYPE_KIND_SUM:
             /* 和类型：递归检查两个分支 */
             {
-                TypeEquivResult first_result = type_check_equivalence_internal(
-                    ts, type1->first_type, type2->first_type, use_rewrite, depth + 1);
-                if (first_result != TYPE_EQUIV_OK) return first_result;
+                TypeEquivResult first_result =
+                    type_check_equivalence_internal(ts, type1->first_type, type2->first_type, use_rewrite, depth + 1);
+                if (first_result != TYPE_EQUIV_OK)
+                    return first_result;
 
-                return type_check_equivalence_internal(
-                    ts, type1->second_type, type2->second_type, use_rewrite, depth + 1);
+                return type_check_equivalence_internal(ts, type1->second_type, type2->second_type, use_rewrite,
+                                                       depth + 1);
             }
 
         case TYPE_KIND_VARIABLE:
@@ -954,24 +957,25 @@ static TypeEquivResult type_check_equivalence_internal(
                     /* 参数节点无效，无法进行完整检查 */
                     return TYPE_EQUIV_UNKNOWN;
                 }
-                
+
                 /* 检查体类型是否存在 */
                 if (!type1->body_type || !type2->body_type) {
                     return TYPE_EQUIV_ERROR;
                 }
-                
+
                 /* 对于依赖类型，我们需要检查体类型的等价性
                  * 由于参数可能不同（alpha等价），我们采用以下策略：
                  * 
                  * 1. 如果两个依赖类型有相同的参数节点ID，直接比较体类型
                  * 2. 否则，检查体类型结构是否相同（忽略参数名称差异）
                  */
-                
+
                 /* 策略1：相同参数节点ID */
                 if (type1->param_node_id == type2->param_node_id) {
-                    return type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
+                    return type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite,
+                                                           depth + 1);
                 }
-                
+
                 /* 策略2：不同参数节点ID，进行结构等价检查
                  * 这需要将type2的参数节点ID替换为type1的参数节点ID，
                  * 然后比较两个体类型
@@ -979,35 +983,34 @@ static TypeEquivResult type_check_equivalence_internal(
                  * 由于完整的替换需要遍历整个类型树，这里我们采用
                  * 一个简化的方法：检查体类型的结构是否相同
                  */
-                
+
                 /* 创建一个临时替换，将type2的参数映射到type1的参数 */
                 TypeRegion *substituted_body = NULL;
-                if (type_substitute_variable(ts, type2->body_type, 
-                        type2->param_node_id, 
-                        type1->body_type,  /* 使用type1的体类型作为参考 */
-                        &substituted_body)) {
+                if (type_substitute_variable(ts, type2->body_type, type2->param_node_id,
+                                             type1->body_type, /* 使用type1的体类型作为参考 */
+                                             &substituted_body)) {
                     /* 替换成功，比较体类型 */
-                    TypeEquivResult body_result = type_check_equivalence_internal(
-                        ts, type1->body_type, substituted_body, use_rewrite, depth + 1);
+                    TypeEquivResult body_result =
+                        type_check_equivalence_internal(ts, type1->body_type, substituted_body, use_rewrite, depth + 1);
                     return body_result;
                 }
-                
+
                 /* 替换失败，回退到结构比较 */
                 /* 检查体类型的种类是否相同 */
                 if (type1->body_type->kind != type2->body_type->kind) {
                     return TYPE_EQUIV_NOT_EQUIV;
                 }
-                
+
                 /* 对于简单情况，直接比较体类型（忽略参数差异） */
                 /* 这是一种保守策略，可能产生假阴性结果 */
-                TypeEquivResult body_result = type_check_equivalence_internal(
-                    ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
-                
+                TypeEquivResult body_result =
+                    type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
+
                 /* 如果体类型直接等价，则依赖类型等价 */
                 if (body_result == TYPE_EQUIV_OK) {
                     return TYPE_EQUIV_OK;
                 }
-                
+
                 /* 否则返回未知，让更高级的类型检查器处理 */
                 return TYPE_EQUIV_UNKNOWN;
             }
@@ -1030,16 +1033,10 @@ static TypeEquivResult type_check_equivalence_internal(
  * @param use_rewrite 是否使用重写引擎进行归一化
  * @return 类型等价结果（OK/NOT_EQUIV/UNKNOWN/ERROR）
  */
-TypeEquivResult type_check_equivalence(
-    TypeSystem *ts,
-    TypeRegion *type1,
-    TypeRegion *type2,
-    bool use_rewrite
-) {
+TypeEquivResult type_check_equivalence(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2, bool use_rewrite) {
     /* 流式事件：等价检查开始 */
     if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-            "类型等价检查开始", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "类型等价检查开始", 0);
     }
 
     TypeEquivResult result = type_check_equivalence_internal(ts, type1, type2, use_rewrite, 0);
@@ -1071,17 +1068,13 @@ TypeEquivResult type_check_equivalence(
  * @param target_type  目标端口类型
  * @return 类型检查结果（OK/MISMATCH/INCOMPATIBLE/ERROR）
  */
-TypeCheckResult type_check_port_compatibility(
-    TypeSystem *ts,
-    TypeRegion *source_type,
-    TypeRegion *target_type
-) {
-    if (!ts || !source_type || !target_type) return TYPE_CHECK_ERROR;
+TypeCheckResult type_check_port_compatibility(TypeSystem *ts, TypeRegion *source_type, TypeRegion *target_type) {
+    if (!ts || !source_type || !target_type)
+        return TYPE_CHECK_ERROR;
 
     /* 流式事件：端口兼容性检查开始 */
     if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-            "端口兼容性检查开始", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "端口兼容性检查开始", 0);
     }
 
     /* 检查类型等价 */
@@ -1134,14 +1127,10 @@ TypeCheckResult type_check_port_compatibility(
      * 当递归深度超过 TYPE_INFER_MAX_DEPTH 时返回 false，防止无限递归。
      * 在约束图中存在循环连接时（例如函数块 A 的输出连接到函数块 B 的输入，
      * 而 B 的输出又连接到 A 的输入），递归推断可能无限循环。 */
-static bool type_infer_node_internal(
-    TypeSystem *ts,
-    ConstraintGraph *graph,
-    int node_id,
-    TypeRegion **out_type,
-    int depth
-) {
-    if (!ts || !graph || !out_type) return false;
+static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int node_id, TypeRegion **out_type,
+                                     int depth) {
+    if (!ts || !graph || !out_type)
+        return false;
 
     /* 递归深度限制检查。
      * 超过最大深度时返回 false，避免在循环依赖的约束图中无限递归。 */
@@ -1150,7 +1139,8 @@ static bool type_infer_node_internal(
     }
 
     GeomNode *node = graph_get_node(graph, node_id);
-    if (!node) return false;
+    if (!node)
+        return false;
 
     switch (node->type) {
         case GEOM_POINT:
@@ -1231,12 +1221,12 @@ static bool type_infer_node_internal(
      */
     {
         int constraint_indices[64];
-        int found_count = graph_find_constraints_involving(graph, node_id,
-            constraint_indices, 64);
+        int found_count = graph_find_constraints_involving(graph, node_id, constraint_indices, 64);
 
         for (int i = 0; i < found_count; i++) {
             Constraint *c = graph_get_constraint(graph, constraint_indices[i]);
-            if (!c) continue;
+            if (!c)
+                continue;
 
             if (c->type == CONTAINMENT && c->participant_count >= 2) {
                 /* 查找包含此节点的区域 */
@@ -1262,7 +1252,8 @@ static bool type_infer_node_internal(
                          */
                         *out_type = type_create_variable(ts, NULL);
                         if (*out_type) {
-                            (*out_type)->level = container_type->level > UNIVERSE_BASE ? container_type->level - 1 : UNIVERSE_BASE;
+                            (*out_type)->level =
+                                container_type->level > UNIVERSE_BASE ? container_type->level - 1 : UNIVERSE_BASE;
                         }
                         return (*out_type) != NULL;
                     }
@@ -1280,12 +1271,12 @@ static bool type_infer_node_internal(
      */
     {
         int constraint_indices[64];
-        int found_count = graph_find_constraints_involving(graph, node_id,
-            constraint_indices, 64);
+        int found_count = graph_find_constraints_involving(graph, node_id, constraint_indices, 64);
 
         for (int i = 0; i < found_count; i++) {
             Constraint *c = graph_get_constraint(graph, constraint_indices[i]);
-            if (!c) continue;
+            if (!c)
+                continue;
 
             if (c->type == CONNECTION && c->participant_count >= 2) {
                 /* 查找连接到此节点的源端口 */
@@ -1331,16 +1322,10 @@ static bool type_infer_node_internal(
  * @param out_type 输出参数，接收推断的类型
  * @return true 推断成功，false 推断失败
  */
-bool type_infer_node(
-    TypeSystem *ts,
-    ConstraintGraph *graph,
-    int node_id,
-    TypeRegion **out_type
-) {
+bool type_infer_node(TypeSystem *ts, ConstraintGraph *graph, int node_id, TypeRegion **out_type) {
     /* 流式事件：入口 */
     if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-            "类型推断开始", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "类型推断开始", 0);
     }
 
     bool result = type_infer_node_internal(ts, graph, node_id, out_type, 0);
@@ -1349,35 +1334,28 @@ bool type_infer_node(
     if (type_system_stream_ctx != NULL) {
         if (result && out_type && *out_type) {
             char buf[128];
-            snprintf(buf, sizeof(buf), "类型推断完成: %s",
-                type_kind_to_string((*out_type)->kind));
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-                buf, 0);
+            snprintf(buf, sizeof(buf), "类型推断完成: %s", type_kind_to_string((*out_type)->kind));
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
         } else {
-            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING,
-                "类型推断失败", 0);
+            stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, "类型推断失败", 0);
         }
     }
 
     return result;
 }
 
-bool type_infer_port(
-    TypeSystem *ts,
-    ConstraintGraph *graph,
-    int port_id,
-    TypeRegion **out_type
-) {
+bool type_infer_port(TypeSystem *ts, ConstraintGraph *graph, int port_id, TypeRegion **out_type) {
     /* 流式事件：入口 */
     if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-            "端口类型推断开始", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "端口类型推断开始", 0);
     }
 
-    if (!ts || !graph || !out_type) return false;
+    if (!ts || !graph || !out_type)
+        return false;
 
     GeomNode *port = graph_get_node(graph, port_id);
-    if (!port || port->type != GEOM_PORT) return false;
+    if (!port || port->type != GEOM_PORT)
+        return false;
 
     bool result;
 
@@ -1386,8 +1364,7 @@ bool type_infer_port(
         /* 使用内部版本并传入 depth + 1 以跟踪递归深度。
          * 注意：type_infer_port 自身不直接跟踪深度，但通过调用
          * type_infer_node_internal 间接利用深度限制机制。 */
-        result = type_infer_node_internal(ts, graph,
-            port->data.port->connected_to->id, out_type, 1);
+        result = type_infer_node_internal(ts, graph, port->data.port->connected_to->id, out_type, 1);
     } else {
         /* 否则，创建类型变量 */
         *out_type = type_create_variable(ts, NULL);
@@ -1396,8 +1373,7 @@ bool type_infer_port(
 
     /* 流式事件：完成 */
     if (type_system_stream_ctx != NULL && result) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-            "端口类型推断完成", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "端口类型推断完成", 0);
     }
 
     return result;
@@ -1405,12 +1381,9 @@ bool type_infer_port(
 
 /* ============== 类型变量实例化 ============== */
 
-bool type_instantiate_variable(
-    TypeSystem *ts,
-    int var_id,
-    TypeRegion *concrete_type
-) {
-    if (!ts || !concrete_type) return false;
+bool type_instantiate_variable(TypeSystem *ts, int var_id, TypeRegion *concrete_type) {
+    if (!ts || !concrete_type)
+        return false;
 
     /* 查找类型变量 */
     TypeVariable *var = NULL;
@@ -1421,7 +1394,8 @@ bool type_instantiate_variable(
         }
     }
 
-    if (!var) return false;
+    if (!var)
+        return false;
 
     var->bound_type = concrete_type;
     var->is_polymorphic = false;
@@ -1429,22 +1403,17 @@ bool type_instantiate_variable(
     /* 流式事件：变量实例化完成 */
     if (type_system_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "类型变量实例化: var_id=%d -> %s",
-            var_id, type_kind_to_string(concrete_type->kind));
+        snprintf(buf, sizeof(buf), "类型变量实例化: var_id=%d -> %s", var_id, type_kind_to_string(concrete_type->kind));
         stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
     }
 
     return true;
 }
 
-bool type_substitute_variable(
-    TypeSystem *ts,
-    TypeRegion *type,
-    int var_id,
-    TypeRegion *replacement,
-    TypeRegion **out_result
-) {
-    if (!ts || !type || !replacement || !out_result) return false;
+bool type_substitute_variable(TypeSystem *ts, TypeRegion *type, int var_id, TypeRegion *replacement,
+                              TypeRegion **out_result) {
+    if (!ts || !type || !replacement || !out_result)
+        return false;
 
     /* 引用语义说明。
      * 当 type 是目标类型变量时，此函数直接将 replacement 指针赋值给
@@ -1463,53 +1432,50 @@ bool type_substitute_variable(
 
     /* 递归替换 */
     switch (type->kind) {
-        case TYPE_KIND_FUNCTION:
-            {
-                TypeRegion *new_input = NULL;
-                TypeRegion *new_output = NULL;
+        case TYPE_KIND_FUNCTION: {
+            TypeRegion *new_input = NULL;
+            TypeRegion *new_output = NULL;
 
-                if (type->input_type) {
-                    type_substitute_variable(ts, type->input_type, var_id, replacement, &new_input);
-                }
-                if (type->output_type) {
-                    type_substitute_variable(ts, type->output_type, var_id, replacement, &new_output);
-                }
-
-                *out_result = type_create_function(ts, new_input, new_output);
-                return true;
+            if (type->input_type) {
+                type_substitute_variable(ts, type->input_type, var_id, replacement, &new_input);
+            }
+            if (type->output_type) {
+                type_substitute_variable(ts, type->output_type, var_id, replacement, &new_output);
             }
 
-        case TYPE_KIND_PRODUCT:
-            {
-                TypeRegion *new_left = NULL;
-                TypeRegion *new_right = NULL;
+            *out_result = type_create_function(ts, new_input, new_output);
+            return true;
+        }
 
-                if (type->left_type) {
-                    type_substitute_variable(ts, type->left_type, var_id, replacement, &new_left);
-                }
-                if (type->right_type) {
-                    type_substitute_variable(ts, type->right_type, var_id, replacement, &new_right);
-                }
+        case TYPE_KIND_PRODUCT: {
+            TypeRegion *new_left = NULL;
+            TypeRegion *new_right = NULL;
 
-                *out_result = type_create_product(ts, new_left, new_right);
-                return true;
+            if (type->left_type) {
+                type_substitute_variable(ts, type->left_type, var_id, replacement, &new_left);
+            }
+            if (type->right_type) {
+                type_substitute_variable(ts, type->right_type, var_id, replacement, &new_right);
             }
 
-        case TYPE_KIND_SUM:
-            {
-                TypeRegion *new_first = NULL;
-                TypeRegion *new_second = NULL;
+            *out_result = type_create_product(ts, new_left, new_right);
+            return true;
+        }
 
-                if (type->first_type) {
-                    type_substitute_variable(ts, type->first_type, var_id, replacement, &new_first);
-                }
-                if (type->second_type) {
-                    type_substitute_variable(ts, type->second_type, var_id, replacement, &new_second);
-                }
+        case TYPE_KIND_SUM: {
+            TypeRegion *new_first = NULL;
+            TypeRegion *new_second = NULL;
 
-                *out_result = type_create_sum(ts, new_first, new_second);
-                return true;
+            if (type->first_type) {
+                type_substitute_variable(ts, type->first_type, var_id, replacement, &new_first);
             }
+            if (type->second_type) {
+                type_substitute_variable(ts, type->second_type, var_id, replacement, &new_second);
+            }
+
+            *out_result = type_create_sum(ts, new_first, new_second);
+            return true;
+        }
 
         case TYPE_KIND_DEPENDENT:
             /* 依赖类型：递归替换体类型中的变量 */
@@ -1520,9 +1486,7 @@ bool type_substitute_variable(
                     type_substitute_variable(ts, type->body_type, var_id, replacement, &new_body);
                 }
 
-                *out_result = type_create_dependent(ts,
-                    type->param_node_id,
-                    new_body ? new_body : type->body_type);
+                *out_result = type_create_dependent(ts, type->param_node_id, new_body ? new_body : type->body_type);
                 return true;
             }
 
@@ -1533,8 +1497,8 @@ bool type_substitute_variable(
                 if (type_substitute_variable(ts, type->aliased_type, var_id, replacement, &new_aliased)) {
                     if (new_aliased != type->aliased_type) {
                         /* 创建新的区域类型，保留原有属性但替换被别名类型 */
-                        TypeRegion *new_region = type_create_region(ts,
-                            type->contained_node_ids, type->contained_count);
+                        TypeRegion *new_region =
+                            type_create_region(ts, type->contained_node_ids, type->contained_count);
                         if (new_region) {
                             new_region->aliased_type = new_aliased;
                             if (type->alias_name) {
@@ -1567,13 +1531,9 @@ bool type_substitute_variable(
  * @param on_stack 当前DFS路径上的类型（用于检测回边）
  * @return 是否检测到循环
  */
-static bool type_detect_cycle_dfs(
-    TypeSystem *ts,
-    TypeRegion *current,
-    bool *visited,
-    bool *on_stack
-) {
-    if (!current) return false;
+static bool type_detect_cycle_dfs(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
+    if (!current)
+        return false;
 
     /* 边界检查：防止 id 越界访问 visited/on_stack 数组 */
     if (current->id < 0 || current->id >= ts->type_region_count) {
@@ -1648,8 +1608,7 @@ static bool type_detect_cycle_dfs(
                 for (int i = 0; i < ts->type_var_count; i++) {
                     if (ts->type_vars[i] && ts->type_vars[i]->id == current->variable_id) {
                         if (ts->type_vars[i]->bound_type) {
-                            has_cycle = type_detect_cycle_dfs(
-                                ts, ts->type_vars[i]->bound_type, visited, on_stack);
+                            has_cycle = type_detect_cycle_dfs(ts, ts->type_vars[i]->bound_type, visited, on_stack);
                         }
                         break;
                     }
@@ -1669,29 +1628,30 @@ static bool type_detect_cycle_dfs(
 }
 
 bool type_detect_cycle(TypeSystem *ts, TypeRegion *type) {
-    if (!ts || !type) return false;
+    if (!ts || !type)
+        return false;
 
     /* 分配访问标记数组 */
     bool *visited = lv00_calloc(ts->type_region_count + 1, sizeof(bool));
-    if (!visited) return false;
+    if (!visited)
+        return false;
 
     /* 分配当前路径标记数组 */
     bool *on_stack = lv00_calloc(ts->type_region_count + 1, sizeof(bool));
     if (!on_stack) {
-        lv00_free((void **)&visited);
+        lv00_free((void **) &visited);
         return false;
     }
 
     /* 执行DFS检测循环 */
     bool has_cycle = type_detect_cycle_dfs(ts, type, visited, on_stack);
 
-    lv00_free((void **)&visited);
-    lv00_free((void **)&on_stack);
+    lv00_free((void **) &visited);
+    lv00_free((void **) &on_stack);
 
     /* 流式事件：循环检测结果 */
     if (type_system_stream_ctx != NULL && has_cycle) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING,
-            "类型循环检测: 发现循环依赖", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_WARNING, "类型循环检测: 发现循环依赖", 0);
     }
 
     return has_cycle;
@@ -1707,7 +1667,8 @@ bool type_detect_cycle(TypeSystem *ts, TypeRegion *type) {
  * @return true 兼容，false 存在循环依赖或参数无效
  */
 bool type_check_non_well_founded_compatibility(TypeSystem *ts, TypeRegion *type) {
-    if (!ts || !type) return false;
+    if (!ts || !type)
+        return false;
 
     /* 非良基模式下允许循环包含 */
     if (ts->well_founded) {
@@ -1733,17 +1694,13 @@ bool type_check_non_well_founded_compatibility(TypeSystem *ts, TypeRegion *type)
  * @param out_normalized 输出参数，接收规范化后的类型
  * @return true 规范化成功，false 参数无效或失败
  */
-bool type_normalize(
-    TypeSystem *ts,
-    TypeRegion *type,
-    TypeRegion **out_normalized
-) {
-    if (!ts || !type || !out_normalized) return false;
+bool type_normalize(TypeSystem *ts, TypeRegion *type, TypeRegion **out_normalized) {
+    if (!ts || !type || !out_normalized)
+        return false;
 
     /* 流式事件：规范化开始 */
     if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_NORMALIZE_START,
-            "类型规范化开始", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_NORMALIZE_START, "类型规范化开始", 0);
     }
 
     /* 规范化规则：
@@ -1770,27 +1727,25 @@ bool type_normalize(
 
     /* 递归规范化复合类型 */
     switch (type->kind) {
-        case TYPE_KIND_FUNCTION:
-            {
-                TypeRegion *norm_input = NULL;
-                TypeRegion *norm_output = NULL;
+        case TYPE_KIND_FUNCTION: {
+            TypeRegion *norm_input = NULL;
+            TypeRegion *norm_output = NULL;
 
-                if (type->input_type) {
-                    type_normalize(ts, type->input_type, &norm_input);
-                }
-                if (type->output_type) {
-                    type_normalize(ts, type->output_type, &norm_output);
-                }
-
-                if (norm_input || norm_output) {
-                    *out_normalized = type_create_function(ts,
-                        norm_input ? norm_input : type->input_type,
-                        norm_output ? norm_output : type->output_type);
-                } else {
-                    *out_normalized = type;
-                }
-                return true;
+            if (type->input_type) {
+                type_normalize(ts, type->input_type, &norm_input);
             }
+            if (type->output_type) {
+                type_normalize(ts, type->output_type, &norm_output);
+            }
+
+            if (norm_input || norm_output) {
+                *out_normalized = type_create_function(ts, norm_input ? norm_input : type->input_type,
+                                                       norm_output ? norm_output : type->output_type);
+            } else {
+                *out_normalized = type;
+            }
+            return true;
+        }
 
         case TYPE_KIND_PRODUCT:
             /* 乘积类型：规范化每个分量 */
@@ -1806,9 +1761,8 @@ bool type_normalize(
                 }
 
                 if (norm_left || norm_right) {
-                    *out_normalized = type_create_product(ts,
-                        norm_left ? norm_left : type->left_type,
-                        norm_right ? norm_right : type->right_type);
+                    *out_normalized = type_create_product(ts, norm_left ? norm_left : type->left_type,
+                                                          norm_right ? norm_right : type->right_type);
                 } else {
                     *out_normalized = type;
                 }
@@ -1825,8 +1779,7 @@ bool type_normalize(
                 }
 
                 if (norm_body) {
-                    *out_normalized = type_create_dependent(ts,
-                        type->param_node_id, norm_body);
+                    *out_normalized = type_create_dependent(ts, type->param_node_id, norm_body);
                 } else {
                     *out_normalized = type;
                 }
@@ -1856,7 +1809,8 @@ bool type_normalize(
  * @return true 附加成功，false 参数无效或内存不足
  */
 bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
-    if (!ts || !type || node_id <= 0) return false;
+    if (!ts || !type || node_id <= 0)
+        return false;
 
     /* 检查是否已存在该节点的映射，若存在则更新 */
     for (int i = 0; i < ts->node_type_mapping_count; i++) {
@@ -1868,12 +1822,12 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
 
     /* 需要扩容 */
     if (ts->node_type_mapping_count >= ts->node_type_mapping_capacity) {
-        int new_capacity = ts->node_type_mapping_capacity == 0
-            ? NODE_TYPE_MAPPING_INITIAL_CAPACITY
-            : ts->node_type_mapping_capacity * 2;
-        NodeTypeMapping *new_mappings = (NodeTypeMapping *)lv00_realloc(ts->node_type_mappings,
-            new_capacity * sizeof(NodeTypeMapping));
-        if (!new_mappings) return false;
+        int new_capacity = ts->node_type_mapping_capacity == 0 ? NODE_TYPE_MAPPING_INITIAL_CAPACITY
+                                                               : ts->node_type_mapping_capacity * 2;
+        NodeTypeMapping *new_mappings =
+            (NodeTypeMapping *) lv00_realloc(ts->node_type_mappings, new_capacity * sizeof(NodeTypeMapping));
+        if (!new_mappings)
+            return false;
         ts->node_type_mappings = new_mappings;
         ts->node_type_mapping_capacity = new_capacity;
     }
@@ -1886,8 +1840,7 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
     /* 流式事件：类型附加到节点 */
     if (type_system_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "类型附加到节点: node_id=%d, type=%s",
-            node_id, type_kind_to_string(type->kind));
+        snprintf(buf, sizeof(buf), "类型附加到节点: node_id=%d, type=%s", node_id, type_kind_to_string(type->kind));
         stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_NODE_ADDED, buf, 0);
     }
 
@@ -1902,7 +1855,8 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
  * @return 关联的类型区域指针，未找到返回 NULL
  */
 TypeRegion *type_get_node_type(const TypeSystem *ts, int node_id) {
-    if (!ts || node_id <= 0) return NULL;
+    if (!ts || node_id <= 0)
+        return NULL;
 
     for (int i = 0; i < ts->node_type_mapping_count; i++) {
         if (ts->node_type_mappings[i].node_id == node_id) {
@@ -1924,19 +1878,19 @@ TypeRegion *type_get_node_type(const TypeSystem *ts, int node_id) {
  * @return true 解除成功，false 未找到或参数无效
  */
 bool type_detach_node_type(TypeSystem *ts, int node_id) {
-    if (!ts || node_id <= 0) return false;
+    if (!ts || node_id <= 0)
+        return false;
 
     for (int i = 0; i < ts->node_type_mapping_count; i++) {
         if (ts->node_type_mappings[i].node_id == node_id) {
             /* 将最后一个条目移到当前位置，保持数组紧凑 */
-            ts->node_type_mappings[i] =
-                ts->node_type_mappings[ts->node_type_mapping_count - 1];
+            ts->node_type_mappings[i] = ts->node_type_mappings[ts->node_type_mapping_count - 1];
             ts->node_type_mapping_count--;
             return true;
         }
     }
 
-    return false;  /* 未找到 */
+    return false; /* 未找到 */
 }
 
 /* ============== 依赖类型检查 ============== */
@@ -1953,13 +1907,10 @@ bool type_detach_node_type(TypeSystem *ts, int node_id) {
  * @param input_values 输入值的符号坐标数组
  * @return true 兼容，false 不兼容或参数无效
  */
-bool type_check_dependent(
-    const TypeSystem *ts,
-    const TypeRegion *output_type,
-    const TypeRegion *input_type,
-    const SymbolicCoord **input_values
-) {
-    if (!ts || !output_type || !input_type) return false;
+bool type_check_dependent(const TypeSystem *ts, const TypeRegion *output_type, const TypeRegion *input_type,
+                          const SymbolicCoord **input_values) {
+    if (!ts || !output_type || !input_type)
+        return false;
 
     /*
      * 依赖类型检查的简化实现：
@@ -1974,14 +1925,12 @@ bool type_check_dependent(
      */
 
     /* 类型变量与任何类型兼容 */
-    if (output_type->kind == TYPE_KIND_VARIABLE ||
-        input_type->kind == TYPE_KIND_VARIABLE) {
+    if (output_type->kind == TYPE_KIND_VARIABLE || input_type->kind == TYPE_KIND_VARIABLE) {
         return true;
     }
 
     /* 底部类型与任何类型兼容 */
-    if (output_type->kind == TYPE_KIND_BOTTOM ||
-        input_type->kind == TYPE_KIND_BOTTOM) {
+    if (output_type->kind == TYPE_KIND_BOTTOM || input_type->kind == TYPE_KIND_BOTTOM) {
         return true;
     }
 
@@ -1992,18 +1941,15 @@ bool type_check_dependent(
             if (input_values && input_type->param_node_id >= 0) {
                 /* 创建体类型的替换版本，将参数变量替换为实际输入值的类型 */
                 TypeRegion *substituted = NULL;
-                bool sub_ok = type_substitute_variable(
-                    (TypeSystem *)ts, (TypeRegion *)input_type->body_type,
-                    input_type->param_node_id, NULL, &substituted);
+                bool sub_ok = type_substitute_variable((TypeSystem *) ts, (TypeRegion *) input_type->body_type,
+                                                       input_type->param_node_id, NULL, &substituted);
                 if (sub_ok && substituted) {
-                    bool result = type_check_dependent(ts, output_type,
-                        substituted, NULL);
+                    bool result = type_check_dependent(ts, output_type, substituted, NULL);
                     type_region_destroy(substituted);
                     return result;
                 }
             }
-            return type_check_dependent(ts, output_type,
-                input_type->body_type, input_values);
+            return type_check_dependent(ts, output_type, input_type->body_type, input_values);
         }
         return false;
     }
@@ -2011,8 +1957,7 @@ bool type_check_dependent(
     /* 如果 output_type 是依赖类型，检查 input_type 与其体类型的兼容性 */
     if (output_type->kind == TYPE_KIND_DEPENDENT) {
         if (output_type->body_type) {
-            return type_check_dependent(ts, output_type->body_type,
-                input_type, input_values);
+            return type_check_dependent(ts, output_type->body_type, input_type, input_values);
         }
         return false;
     }
@@ -2047,14 +1992,11 @@ bool type_check_dependent(
             {
                 bool input_ok = true, output_ok = true;
                 if (output_type->input_type && input_type->input_type) {
-                    input_ok = type_check_dependent(ts,
-                        output_type->input_type, input_type->input_type,
-                        input_values);
+                    input_ok = type_check_dependent(ts, output_type->input_type, input_type->input_type, input_values);
                 }
                 if (input_ok && output_type->output_type && input_type->output_type) {
-                    output_ok = type_check_dependent(ts,
-                        output_type->output_type, input_type->output_type,
-                        input_values);
+                    output_ok =
+                        type_check_dependent(ts, output_type->output_type, input_type->output_type, input_values);
                 }
                 return (input_ok && output_ok);
             }
@@ -2064,14 +2006,10 @@ bool type_check_dependent(
             {
                 bool left_ok = true, right_ok = true;
                 if (output_type->left_type && input_type->left_type) {
-                    left_ok = type_check_dependent(ts,
-                        output_type->left_type, input_type->left_type,
-                        input_values);
+                    left_ok = type_check_dependent(ts, output_type->left_type, input_type->left_type, input_values);
                 }
                 if (left_ok && output_type->right_type && input_type->right_type) {
-                    right_ok = type_check_dependent(ts,
-                        output_type->right_type, input_type->right_type,
-                        input_values);
+                    right_ok = type_check_dependent(ts, output_type->right_type, input_type->right_type, input_values);
                 }
                 return (left_ok && right_ok);
             }
@@ -2081,14 +2019,11 @@ bool type_check_dependent(
             {
                 bool first_ok = true, second_ok = true;
                 if (output_type->first_type && input_type->first_type) {
-                    first_ok = type_check_dependent(ts,
-                        output_type->first_type, input_type->first_type,
-                        input_values);
+                    first_ok = type_check_dependent(ts, output_type->first_type, input_type->first_type, input_values);
                 }
                 if (first_ok && output_type->second_type && input_type->second_type) {
-                    second_ok = type_check_dependent(ts,
-                        output_type->second_type, input_type->second_type,
-                        input_values);
+                    second_ok =
+                        type_check_dependent(ts, output_type->second_type, input_type->second_type, input_values);
                 }
                 return (first_ok && second_ok);
             }
@@ -2106,16 +2041,26 @@ bool type_check_dependent(
 
 const char *type_kind_to_string(TypeKind kind) {
     switch (kind) {
-        case TYPE_KIND_POINT: return "Point";
-        case TYPE_KIND_LINE_SEGMENT: return "LineSegment";
-        case TYPE_KIND_REGION: return "Region";
-        case TYPE_KIND_FUNCTION: return "Function";
-        case TYPE_KIND_PRODUCT: return "Product";
-        case TYPE_KIND_SUM: return "Sum";
-        case TYPE_KIND_VARIABLE: return "Variable";
-        case TYPE_KIND_DEPENDENT: return "Dependent";
-        case TYPE_KIND_BOTTOM: return "Bottom";
-        default: return "Unknown";
+        case TYPE_KIND_POINT:
+            return "Point";
+        case TYPE_KIND_LINE_SEGMENT:
+            return "LineSegment";
+        case TYPE_KIND_REGION:
+            return "Region";
+        case TYPE_KIND_FUNCTION:
+            return "Function";
+        case TYPE_KIND_PRODUCT:
+            return "Product";
+        case TYPE_KIND_SUM:
+            return "Sum";
+        case TYPE_KIND_VARIABLE:
+            return "Variable";
+        case TYPE_KIND_DEPENDENT:
+            return "Dependent";
+        case TYPE_KIND_BOTTOM:
+            return "Bottom";
+        default:
+            return "Unknown";
     }
 }
 
@@ -2130,32 +2075,47 @@ const char *universe_level_to_string(UniverseLevel level) {
     /* 由于层级现在是任意整数，使用静态缓冲区格式化 */
     /* WARNING: static buffer – not thread-safe */
     static char buf[32];
-    if (level == UNIVERSE_BASE) return "Base";
-    if (level == UNIVERSE_TYPE_1) return "Type1";
+    if (level == UNIVERSE_BASE)
+        return "Base";
+    if (level == UNIVERSE_TYPE_1)
+        return "Type1";
     snprintf(buf, sizeof(buf), "Type%d", level);
     return buf;
 }
 
 const char *type_equiv_result_to_string(TypeEquivResult result) {
     switch (result) {
-        case TYPE_EQUIV_OK: return "Equivalent";
-        case TYPE_EQUIV_NOT_EQUIV: return "NotEquivalent";
-        case TYPE_EQUIV_UNKNOWN: return "Unknown";
-        case TYPE_EQUIV_ERROR: return "Error";
-        case TYPE_EQUIV_NEEDS_INTERACTION: return "NeedsInteraction";
-        default: return "Unknown";
+        case TYPE_EQUIV_OK:
+            return "Equivalent";
+        case TYPE_EQUIV_NOT_EQUIV:
+            return "NotEquivalent";
+        case TYPE_EQUIV_UNKNOWN:
+            return "Unknown";
+        case TYPE_EQUIV_ERROR:
+            return "Error";
+        case TYPE_EQUIV_NEEDS_INTERACTION:
+            return "NeedsInteraction";
+        default:
+            return "Unknown";
     }
 }
 
 const char *type_check_result_to_string(TypeCheckResult result) {
     switch (result) {
-        case TYPE_CHECK_OK: return "OK";
-        case TYPE_CHECK_MISMATCH: return "Mismatch";
-        case TYPE_CHECK_LEVEL_ERROR: return "LevelError";
-        case TYPE_CHECK_CYCLE: return "Cycle";
-        case TYPE_CHECK_INFERRED: return "Inferred";
-        case TYPE_CHECK_ERROR: return "Error";
-        default: return "Unknown";
+        case TYPE_CHECK_OK:
+            return "OK";
+        case TYPE_CHECK_MISMATCH:
+            return "Mismatch";
+        case TYPE_CHECK_LEVEL_ERROR:
+            return "LevelError";
+        case TYPE_CHECK_CYCLE:
+            return "Cycle";
+        case TYPE_CHECK_INFERRED:
+            return "Inferred";
+        case TYPE_CHECK_ERROR:
+            return "Error";
+        default:
+            return "Unknown";
     }
 }
 
@@ -2168,14 +2128,13 @@ const char *type_check_result_to_string(TypeCheckResult result) {
  * @param indent 缩进层级（空格数）
  */
 void type_print(TypeRegion *tr, int indent) {
-    if (!tr) return;
+    if (!tr)
+        return;
 
-    for (int i = 0; i < indent; i++) printf("  ");
+    for (int i = 0; i < indent; i++)
+        printf("  ");
 
-    printf("Type[%d]: %s (Level: %s)",
-        tr->id,
-        type_kind_to_string(tr->kind),
-        universe_level_to_string(tr->level));
+    printf("Type[%d]: %s (Level: %s)", tr->id, type_kind_to_string(tr->kind), universe_level_to_string(tr->level));
 
     if (tr->alias_name) {
         printf(" (alias: %s)", tr->alias_name);
@@ -2185,22 +2144,26 @@ void type_print(TypeRegion *tr, int indent) {
 
     /* 递归打印子类型 */
     if (tr->input_type) {
-        for (int i = 0; i < indent + 1; i++) printf("  ");
+        for (int i = 0; i < indent + 1; i++)
+            printf("  ");
         printf("Input:\n");
         type_print(tr->input_type, indent + 2);
     }
     if (tr->output_type) {
-        for (int i = 0; i < indent + 1; i++) printf("  ");
+        for (int i = 0; i < indent + 1; i++)
+            printf("  ");
         printf("Output:\n");
         type_print(tr->output_type, indent + 2);
     }
     if (tr->left_type) {
-        for (int i = 0; i < indent + 1; i++) printf("  ");
+        for (int i = 0; i < indent + 1; i++)
+            printf("  ");
         printf("Left:\n");
         type_print(tr->left_type, indent + 2);
     }
     if (tr->right_type) {
-        for (int i = 0; i < indent + 1; i++) printf("  ");
+        for (int i = 0; i < indent + 1; i++)
+            printf("  ");
         printf("Right:\n");
         type_print(tr->right_type, indent + 2);
     }
@@ -2212,11 +2175,12 @@ void type_print(TypeRegion *tr, int indent) {
 
 TypeRewritePath *type_rewrite_path_create(void) {
     TypeRewritePath *path = lv00_calloc(1, sizeof(TypeRewritePath));
-    if (!path) return NULL;
+    if (!path)
+        return NULL;
 
     path->steps = lv00_calloc(REWRITE_PATH_INITIAL_CAPACITY, sizeof(TypeRewriteStep));
     if (!path->steps) {
-        lv00_free((void **)&path);
+        lv00_free((void **) &path);
         return NULL;
     }
     path->step_count = 0;
@@ -2234,15 +2198,16 @@ TypeRewritePath *type_rewrite_path_create(void) {
  * @param path 重写路径指针（可为 NULL）
  */
 void type_rewrite_path_destroy(TypeRewritePath *path) {
-    if (!path) return;
+    if (!path)
+        return;
 
     for (int i = 0; i < path->step_count; i++) {
-        lv00_free((void **)&path->steps[i].rule_name);
+        lv00_free((void **) &path->steps[i].rule_name);
         /* 注意：不销毁 before/after 指向的 TypeRegion，
          * 因为它们由类型系统管理，可能被共享引用 */
     }
-    lv00_free((void **)&path->steps);
-    lv00_free((void **)&path);
+    lv00_free((void **) &path->steps);
+    lv00_free((void **) &path);
 }
 
 /**
@@ -2255,19 +2220,20 @@ void type_rewrite_path_destroy(TypeRewritePath *path) {
  * @param before    重写前的类型
  * @param after     重写后的类型
  */
-void type_rewrite_path_record(TypeRewritePath *path,
-                               const char *rule_name,
-                               const TypeRegion *before,
-                               const TypeRegion *after) {
-    if (!path) return;
+void type_rewrite_path_record(TypeRewritePath *path, const char *rule_name, const TypeRegion *before,
+                              const TypeRegion *after) {
+    if (!path)
+        return;
 
     /* 检查是否需要扩容 */
     if (path->step_count >= path->capacity) {
-        if (path->capacity > INT_MAX / 2) return;  /* 防止溢出 */
+        if (path->capacity > INT_MAX / 2)
+            return; /* 防止溢出 */
         int new_capacity = path->capacity * 2;
-        TypeRewriteStep *new_steps = (TypeRewriteStep *)lv00_realloc(path->steps,
-            new_capacity * sizeof(TypeRewriteStep));
-        if (!new_steps) return;
+        TypeRewriteStep *new_steps =
+            (TypeRewriteStep *) lv00_realloc(path->steps, new_capacity * sizeof(TypeRewriteStep));
+        if (!new_steps)
+            return;
         path->steps = new_steps;
         path->capacity = new_capacity;
     }
@@ -2276,8 +2242,8 @@ void type_rewrite_path_record(TypeRewritePath *path,
     TypeRewriteStep *step = &path->steps[path->step_count];
     step->step_number = path->step_count;
     step->rule_name = rule_name ? lv00_strdup(rule_name) : NULL;
-    step->before = (TypeRegion *)before;
-    step->after = (TypeRegion *)after;
+    step->before = (TypeRegion *) before;
+    step->after = (TypeRegion *) after;
     path->step_count++;
 }
 
@@ -2291,7 +2257,8 @@ void type_rewrite_path_record(TypeRewritePath *path,
  * @return true 回放成功，false 参数无效或目标步骤超出范围
  */
 bool type_rewrite_path_replay(TypeRewritePath *path, int target_step) {
-    if (!path) return false;
+    if (!path)
+        return false;
 
     /* 验证目标步骤在有效范围内 */
     if (target_step < 0 || target_step >= path->step_count) {
@@ -2312,15 +2279,14 @@ bool type_rewrite_path_replay(TypeRewritePath *path, int target_step) {
 
         /* 验证连续性：当前步骤的 before 应与上一步骤的 after 相同 */
         /* 按结构比较类型区域，而非通过指针比较 */
-        bool types_match = (prev->after == curr->before);  /* fast path: same pointer */
+        bool types_match = (prev->after == curr->before); /* fast path: same pointer */
         if (!types_match && prev->after && curr->before) {
-            types_match = (prev->after->kind == curr->before->kind &&
-                           prev->after->level == curr->before->level);
+            types_match = (prev->after->kind == curr->before->kind && prev->after->level == curr->before->level);
             /* 如果两者都有别名则比较别名 */
             if (types_match && prev->after->alias_name && curr->before->alias_name) {
                 types_match = (strcmp(prev->after->alias_name, curr->before->alias_name) == 0);
             } else if (types_match && (prev->after->alias_name || curr->before->alias_name)) {
-                types_match = false;  /* one has alias_name, other doesn't */
+                types_match = false; /* one has alias_name, other doesn't */
             }
         }
         if (!types_match) {
@@ -2333,7 +2299,8 @@ bool type_rewrite_path_replay(TypeRewritePath *path, int target_step) {
 }
 
 const TypeRewritePath *type_system_get_rewrite_path(const TypeSystem *ts) {
-    if (!ts) return NULL;
+    if (!ts)
+        return NULL;
     return ts->rewrite_path;
 }
 
@@ -2367,23 +2334,19 @@ static void inference_rules_sort_by_priority(TypeInferenceRule *rules, int count
  * @param description      规则描述（可为 NULL）
  * @return 规则 ID（>= 0），失败返回 -1
  */
-int type_system_register_inference_rule(
-    TypeSystem *ts,
-    int source_node_type,
-    int target_type_kind,
-    int priority,
-    const char *description
-) {
-    if (!ts) return -1;
+int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, int target_type_kind, int priority,
+                                        const char *description) {
+    if (!ts)
+        return -1;
 
     /* 需要扩容 */
     if (ts->inference_rule_count >= ts->inference_rule_capacity) {
-        int new_capacity = ts->inference_rule_capacity == 0
-            ? INFERENCE_RULE_INITIAL_CAPACITY
-            : ts->inference_rule_capacity * 2;
-        TypeInferenceRule *new_arr = (TypeInferenceRule *)lv00_realloc(ts->inference_rules,
-            new_capacity * sizeof(TypeInferenceRule));
-        if (!new_arr) return -1;
+        int new_capacity =
+            ts->inference_rule_capacity == 0 ? INFERENCE_RULE_INITIAL_CAPACITY : ts->inference_rule_capacity * 2;
+        TypeInferenceRule *new_arr =
+            (TypeInferenceRule *) lv00_realloc(ts->inference_rules, new_capacity * sizeof(TypeInferenceRule));
+        if (!new_arr)
+            return -1;
         ts->inference_rules = new_arr;
         ts->inference_rule_capacity = new_capacity;
     }
@@ -2401,8 +2364,7 @@ int type_system_register_inference_rule(
 
     /* 流式事件：注册成功 */
     if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-            "推理规则注册成功", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "推理规则注册成功", 0);
     }
 
     return 0;
@@ -2415,15 +2377,14 @@ int type_system_register_inference_rule(
  * @param rule_count 输出参数，接收规则数量
  * @return 规则数组指针（只读），失败返回 NULL
  */
-const TypeInferenceRule *type_system_get_inference_rules(
-    TypeSystem *ts,
-    int *rule_count
-) {
+const TypeInferenceRule *type_system_get_inference_rules(TypeSystem *ts, int *rule_count) {
     if (!ts) {
-        if (rule_count) *rule_count = 0;
+        if (rule_count)
+            *rule_count = 0;
         return NULL;
     }
-    if (rule_count) *rule_count = ts->inference_rule_count;
+    if (rule_count)
+        *rule_count = ts->inference_rule_count;
     return ts->inference_rules;
 }
 
@@ -2433,7 +2394,8 @@ const TypeInferenceRule *type_system_get_inference_rules(
  * @param ts 类型系统指针（可为 NULL）
  */
 void type_system_clear_inference_rules(TypeSystem *ts) {
-    if (!ts) return;
+    if (!ts)
+        return;
     ts->inference_rule_count = 0;
     /* 不释放内存，保留容量以供后续注册使用 */
 }
@@ -2448,22 +2410,20 @@ void type_system_clear_inference_rules(TypeSystem *ts) {
  * @param node_id 待推断的节点 ID
  * @return 类型等价结果
  */
-TypeEquivResult type_infer_by_rules(
-    TypeSystem *ts,
-    ConstraintGraph *graph,
-    int node_id
-) {
-    if (!ts || !graph) return TYPE_EQUIV_NOT_EQUIV;
+TypeEquivResult type_infer_by_rules(TypeSystem *ts, ConstraintGraph *graph, int node_id) {
+    if (!ts || !graph)
+        return TYPE_EQUIV_NOT_EQUIV;
 
     GeomNode *node = graph_get_node(graph, node_id);
-    if (!node) return TYPE_EQUIV_NOT_EQUIV;
+    if (!node)
+        return TYPE_EQUIV_NOT_EQUIV;
 
     /* 遍历已排序的规则表（按优先级升序） */
     for (int i = 0; i < ts->inference_rule_count; i++) {
         const TypeInferenceRule *rule = &ts->inference_rules[i];
 
         /* 检查规则是否匹配当前节点类型 */
-        if (rule->source_node_type != (int)node->type) {
+        if (rule->source_node_type != (int) node->type) {
             continue;
         }
 
@@ -2500,7 +2460,8 @@ TypeEquivResult type_infer_by_rules(
                 continue;
         }
 
-        if (!type) return TYPE_EQUIV_NOT_EQUIV;
+        if (!type)
+            return TYPE_EQUIV_NOT_EQUIV;
 
         /* 将推断出的类型附加到节点 */
         if (!type_attach_to_node(ts, node_id, type)) {
@@ -2510,8 +2471,7 @@ TypeEquivResult type_infer_by_rules(
         /* 流式事件：规则推断成功 */
         if (type_system_stream_ctx != NULL) {
             char buf[128];
-            snprintf(buf, sizeof(buf), "规则推断成功: 节点 %d -> %s",
-                node_id, type_kind_to_string(type->kind));
+            snprintf(buf, sizeof(buf), "规则推断成功: 节点 %d -> %s", node_id, type_kind_to_string(type->kind));
             stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
         }
 
@@ -2522,8 +2482,7 @@ TypeEquivResult type_infer_by_rules(
     /* 流式事件：规则表推断完成，无匹配规则 */
     if (type_system_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "规则表推断完成: 节点 %d 无匹配规则",
-            node_id);
+        snprintf(buf, sizeof(buf), "规则表推断完成: 节点 %d 无匹配规则", node_id);
         stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
     }
 
@@ -2542,19 +2501,19 @@ TypeEquivResult type_infer_by_rules(
 #define EXPLORER_HISTORY_INITIAL_CAPACITY 16
 
 struct PathExplorer {
-    TypeSystem *ts;              /* 类型系统（不拥有） */
-    TypeRegion *current;         /* 当前类型区域（探索器拥有副本） */
-    TypeRegion *target;          /* 目标类型区域（不拥有，外部引用） */
+    TypeSystem *ts;      /* 类型系统（不拥有） */
+    TypeRegion *current; /* 当前类型区域（探索器拥有副本） */
+    TypeRegion *target;  /* 目标类型区域（不拥有，外部引用） */
 
     /* 探索历史 */
-    ExplorerStep *steps;         /* 已执行步骤数组 */
-    int step_count;              /* 当前步骤数 */
-    int step_capacity;           /* 步骤数组容量 */
+    ExplorerStep *steps; /* 已执行步骤数组 */
+    int step_count;      /* 当前步骤数 */
+    int step_capacity;   /* 步骤数组容量 */
 
     /* 撤销栈：每步应用前保存当前类型的深拷贝 */
-    TypeRegion **undo_stack;     /* 撤销栈（每个元素为 TypeRegion 深拷贝） */
-    int undo_count;              /* 撤销栈深度 */
-    int undo_capacity;           /* 撤销栈容量 */
+    TypeRegion **undo_stack; /* 撤销栈（每个元素为 TypeRegion 深拷贝） */
+    int undo_count;          /* 撤销栈深度 */
+    int undo_capacity;       /* 撤销栈容量 */
 };
 
 /**
@@ -2567,10 +2526,12 @@ struct PathExplorer {
  * @return 新分配的深拷贝，失败返回 NULL
  */
 TypeRegion *type_region_deep_copy(const TypeRegion *src) {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
 
-    TypeRegion *dst = (TypeRegion *)lv00_calloc(1, sizeof(TypeRegion));
-    if (!dst) return NULL;
+    TypeRegion *dst = (TypeRegion *) lv00_calloc(1, sizeof(TypeRegion));
+    if (!dst)
+        return NULL;
 
     /* 复制基本字段 */
     dst->id = src->id;
@@ -2580,20 +2541,18 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
 
     /* 复制 contained_node_ids */
     if (src->contained_count > 0 && src->contained_node_ids) {
-        dst->contained_node_ids = (int *)lv00_calloc(src->contained_count, sizeof(int));
+        dst->contained_node_ids = (int *) lv00_calloc(src->contained_count, sizeof(int));
         if (dst->contained_node_ids) {
-            memcpy(dst->contained_node_ids, src->contained_node_ids,
-                   src->contained_count * sizeof(int));
+            memcpy(dst->contained_node_ids, src->contained_node_ids, src->contained_count * sizeof(int));
             dst->contained_count = src->contained_count;
         }
     }
 
     /* 复制 constraint_ids */
     if (src->constraint_count > 0 && src->constraint_ids) {
-        dst->constraint_ids = (int *)lv00_calloc(src->constraint_count, sizeof(int));
+        dst->constraint_ids = (int *) lv00_calloc(src->constraint_count, sizeof(int));
         if (dst->constraint_ids) {
-            memcpy(dst->constraint_ids, src->constraint_ids,
-                   src->constraint_count * sizeof(int));
+            memcpy(dst->constraint_ids, src->constraint_ids, src->constraint_count * sizeof(int));
             dst->constraint_count = src->constraint_count;
         }
     }
@@ -2643,7 +2602,8 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src) {
  * @param tr 要释放的类型区域
  */
 void type_region_deep_free(TypeRegion *tr) {
-    if (!tr) return;
+    if (!tr)
+        return;
 
     /* 递归释放子类型 */
     type_region_deep_free(tr->input_type);
@@ -2656,21 +2616,23 @@ void type_region_deep_free(TypeRegion *tr) {
     type_region_deep_free(tr->aliased_type);
 
     /* 释放数组 */
-    lv00_free((void **)&tr->contained_node_ids);
-    lv00_free((void **)&tr->constraint_ids);
+    lv00_free((void **) &tr->contained_node_ids);
+    lv00_free((void **) &tr->constraint_ids);
 
     /* 释放字符串 */
-    lv00_free((void **)&tr->alias_name);
-    lv00_free((void **)&tr->variable_name);
+    lv00_free((void **) &tr->alias_name);
+    lv00_free((void **) &tr->variable_name);
 
-    lv00_free((void **)&tr);
+    lv00_free((void **) &tr);
 }
 
 PathExplorer *path_explorer_create(TypeSystem *ts, TypeRegion *current, TypeRegion *target) {
-    if (!ts || !current || !target) return NULL;
+    if (!ts || !current || !target)
+        return NULL;
 
-    PathExplorer *explorer = (PathExplorer *)lv00_calloc(1, sizeof(PathExplorer));
-    if (!explorer) return NULL;
+    PathExplorer *explorer = (PathExplorer *) lv00_calloc(1, sizeof(PathExplorer));
+    if (!explorer)
+        return NULL;
 
     explorer->ts = ts;
     explorer->target = target;
@@ -2678,27 +2640,27 @@ PathExplorer *path_explorer_create(TypeSystem *ts, TypeRegion *current, TypeRegi
     /* 深拷贝当前类型区域（探索器拥有副本） */
     explorer->current = type_region_deep_copy(current);
     if (!explorer->current) {
-        lv00_free((void **)&explorer);
+        lv00_free((void **) &explorer);
         return NULL;
     }
 
     /* 初始化步骤数组 */
     explorer->step_capacity = EXPLORER_INITIAL_CAPACITY;
-    explorer->steps = (ExplorerStep *)lv00_calloc(explorer->step_capacity, sizeof(ExplorerStep));
+    explorer->steps = (ExplorerStep *) lv00_calloc(explorer->step_capacity, sizeof(ExplorerStep));
     if (!explorer->steps) {
         type_region_deep_free(explorer->current);
-        lv00_free((void **)&explorer);
+        lv00_free((void **) &explorer);
         return NULL;
     }
     explorer->step_count = 0;
 
     /* 初始化撤销栈 */
     explorer->undo_capacity = EXPLORER_HISTORY_INITIAL_CAPACITY;
-    explorer->undo_stack = (TypeRegion **)lv00_calloc(explorer->undo_capacity, sizeof(TypeRegion *));
+    explorer->undo_stack = (TypeRegion **) lv00_calloc(explorer->undo_capacity, sizeof(TypeRegion *));
     if (!explorer->undo_stack) {
-        lv00_free((void **)&explorer->steps);
+        lv00_free((void **) &explorer->steps);
         type_region_deep_free(explorer->current);
-        lv00_free((void **)&explorer);
+        lv00_free((void **) &explorer);
         return NULL;
     }
     explorer->undo_count = 0;
@@ -2707,49 +2669,51 @@ PathExplorer *path_explorer_create(TypeSystem *ts, TypeRegion *current, TypeRegi
 }
 
 void path_explorer_destroy(PathExplorer *explorer) {
-    if (!explorer) return;
+    if (!explorer)
+        return;
 
     /* 释放当前类型副本 */
     type_region_deep_free(explorer->current);
 
     /* 释放步骤记录 */
     for (int i = 0; i < explorer->step_count; i++) {
-        lv00_free((void **)&explorer->steps[i].rule_name);
+        lv00_free((void **) &explorer->steps[i].rule_name);
     }
-    lv00_free((void **)&explorer->steps);
+    lv00_free((void **) &explorer->steps);
 
     /* 释放撤销栈 */
     for (int i = 0; i < explorer->undo_count; i++) {
         type_region_deep_free(explorer->undo_stack[i]);
     }
-    lv00_free((void **)&explorer->undo_stack);
+    lv00_free((void **) &explorer->undo_stack);
 
-    lv00_free((void **)&explorer);
+    lv00_free((void **) &explorer);
 }
 
-ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer,
-                                                   int **rule_indices, int *count) {
-    if (!explorer || !rule_indices || !count) return EXPLORER_ERROR;
+ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, int **rule_indices, int *count) {
+    if (!explorer || !rule_indices || !count)
+        return EXPLORER_ERROR;
 
     *rule_indices = NULL;
     *count = 0;
 
     /* 先检查是否已达到目标 */
     bool reached = false;
-    TypeEquivResult equiv = type_check_equivalence(explorer->ts, explorer->current,
-                                                    explorer->target, true);
+    TypeEquivResult equiv = type_check_equivalence(explorer->ts, explorer->current, explorer->target, true);
     if (equiv == TYPE_EQUIV_OK) {
         return EXPLORER_GOAL_REACHED;
     }
 
     /* 遍历所有重写规则，检查哪些可以匹配当前类型 */
-    int *indices = (int *)lv00_calloc(explorer->ts->rewrite_rule_count, sizeof(int));
-    if (!indices) return EXPLORER_ERROR;
+    int *indices = (int *) lv00_calloc(explorer->ts->rewrite_rule_count, sizeof(int));
+    if (!indices)
+        return EXPLORER_ERROR;
 
     int applicable = 0;
     for (int i = 0; i < explorer->ts->rewrite_rule_count; i++) {
         RewriteRule *rule = explorer->ts->rewrite_rules[i];
-        if (!rule || !rule->pattern) continue;
+        if (!rule || !rule->pattern)
+            continue;
 
         /*
          * 简化的可应用性检查：
@@ -2765,7 +2729,7 @@ ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer,
     }
 
     if (applicable == 0) {
-        lv00_free((void **)&indices);
+        lv00_free((void **) &indices);
         return EXPLORER_NO_RULES;
     }
 
@@ -2774,9 +2738,9 @@ ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer,
     return EXPLORER_OK;
 }
 
-ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index,
-                                          TypeRegion **preview_result) {
-    if (!explorer || !preview_result) return EXPLORER_ERROR;
+ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index, TypeRegion **preview_result) {
+    if (!explorer || !preview_result)
+        return EXPLORER_ERROR;
     *preview_result = NULL;
 
     /* 验证规则索引有效 */
@@ -2796,15 +2760,15 @@ ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index
      * 调用者可据此判断规则是否值得应用。
      */
     TypeRegion *preview = type_region_deep_copy(explorer->current);
-    if (!preview) return EXPLORER_ERROR;
+    if (!preview)
+        return EXPLORER_ERROR;
 
     *preview_result = preview;
 
     /* 流式事件：预览规则 */
     if (type_system_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 预览规则 '%s'",
-            rule->name ? rule->name : "?");
+        snprintf(buf, sizeof(buf), "路径探索: 预览规则 '%s'", rule->name ? rule->name : "?");
         stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
     }
 
@@ -2812,7 +2776,8 @@ ExplorerResult path_explorer_preview_rule(PathExplorer *explorer, int rule_index
 }
 
 ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) {
-    if (!explorer) return EXPLORER_ERROR;
+    if (!explorer)
+        return EXPLORER_ERROR;
 
     /* 验证规则索引有效 */
     if (rule_index < 0 || rule_index >= explorer->ts->rewrite_rule_count) {
@@ -2827,15 +2792,16 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
     /* 应用前：将当前类型压入撤销栈 */
     if (explorer->undo_count >= explorer->undo_capacity) {
         int new_cap = explorer->undo_capacity * 2;
-        TypeRegion **new_stack = (TypeRegion **)lv00_realloc(
-            explorer->undo_stack, new_cap * sizeof(TypeRegion *));
-        if (!new_stack) return EXPLORER_ERROR;
+        TypeRegion **new_stack = (TypeRegion **) lv00_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
+        if (!new_stack)
+            return EXPLORER_ERROR;
         explorer->undo_stack = new_stack;
         explorer->undo_capacity = new_cap;
     }
 
     TypeRegion *snapshot = type_region_deep_copy(explorer->current);
-    if (!snapshot) return EXPLORER_ERROR;
+    if (!snapshot)
+        return EXPLORER_ERROR;
     explorer->undo_stack[explorer->undo_count++] = snapshot;
 
     /*
@@ -2857,8 +2823,7 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
     /* 记录步骤 */
     if (explorer->step_count >= explorer->step_capacity) {
         int new_cap = explorer->step_capacity * 2;
-        ExplorerStep *new_steps = (ExplorerStep *)lv00_realloc(
-            explorer->steps, new_cap * sizeof(ExplorerStep));
+        ExplorerStep *new_steps = (ExplorerStep *) lv00_realloc(explorer->steps, new_cap * sizeof(ExplorerStep));
         if (!new_steps) {
             /* 步骤记录失败，但状态已改变，仍返回成功 */
             return EXPLORER_OK;
@@ -2876,16 +2841,15 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
     /* 流式事件：规则应用成功 */
     if (type_system_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s' (步骤 %d)",
-            rule->name ? rule->name : "?", explorer->step_count - 1);
+        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s' (步骤 %d)", rule->name ? rule->name : "?",
+                 explorer->step_count - 1);
         stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_REWRITE_APPLIED, buf, 0);
     }
 
     /* 流式事件：路径探索应用规则信息 */
     if (type_system_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s'",
-            rule->name ? rule->name : "?");
+        snprintf(buf, sizeof(buf), "路径探索: 应用规则 '%s'", rule->name ? rule->name : "?");
         stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, buf, 0);
     }
 
@@ -2893,7 +2857,8 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 }
 
 ExplorerResult path_explorer_undo(PathExplorer *explorer) {
-    if (!explorer) return EXPLORER_ERROR;
+    if (!explorer)
+        return EXPLORER_ERROR;
 
     if (explorer->undo_count == 0) {
         return EXPLORER_UNDO_EMPTY;
@@ -2911,42 +2876,41 @@ ExplorerResult path_explorer_undo(PathExplorer *explorer) {
     /* 移除最后一步记录 */
     if (explorer->step_count > 0) {
         explorer->step_count--;
-        lv00_free((void **)&explorer->steps[explorer->step_count].rule_name);
+        lv00_free((void **) &explorer->steps[explorer->step_count].rule_name);
         explorer->steps[explorer->step_count].rule_name = NULL;
     }
 
     /* 流式事件：撤销操作 */
     if (type_system_stream_ctx != NULL) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_REWRITE_ROLLBACK,
-            "路径探索: 撤销上一步操作", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_REWRITE_ROLLBACK, "路径探索: 撤销上一步操作", 0);
     }
 
     return EXPLORER_OK;
 }
 
 ExplorerResult path_explorer_check_goal(const PathExplorer *explorer, bool *reached) {
-    if (!explorer || !reached) return EXPLORER_ERROR;
+    if (!explorer || !reached)
+        return EXPLORER_ERROR;
 
-    TypeEquivResult equiv = type_check_equivalence(explorer->ts, explorer->current,
-                                                    explorer->target, true);
+    TypeEquivResult equiv = type_check_equivalence(explorer->ts, explorer->current, explorer->target, true);
     *reached = (equiv == TYPE_EQUIV_OK);
 
     /* 流式事件：目标检查结果 */
     if (type_system_stream_ctx != NULL && *reached) {
-        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO,
-            "路径探索: 已达到目标类型", 0);
+        stream_emit_simple(type_system_stream_ctx, STREAM_EVENT_INFO, "路径探索: 已达到目标类型", 0);
     }
 
     return EXPLORER_OK;
 }
 
-ExplorerResult path_explorer_save_path(const PathExplorer *explorer,
-                                        TypeRewritePath **out_path) {
-    if (!explorer || !out_path) return EXPLORER_ERROR;
+ExplorerResult path_explorer_save_path(const PathExplorer *explorer, TypeRewritePath **out_path) {
+    if (!explorer || !out_path)
+        return EXPLORER_ERROR;
     *out_path = NULL;
 
     TypeRewritePath *path = type_rewrite_path_create();
-    if (!path) return EXPLORER_ERROR;
+    if (!path)
+        return EXPLORER_ERROR;
 
     /* 将每一步记录到重写路径中 */
     for (int i = 0; i < explorer->step_count; i++) {
@@ -2957,9 +2921,8 @@ ExplorerResult path_explorer_save_path(const PathExplorer *explorer,
          * （简化实现），这里使用当前类型作为 after，
          * before 设为 NULL。
          */
-        type_rewrite_path_record(path, step->rule_name,
-                                  NULL,  /* before: 简化实现中不可用 */
-                                  explorer->current);
+        type_rewrite_path_record(path, step->rule_name, NULL, /* before: 简化实现中不可用 */
+                                 explorer->current);
     }
 
     *out_path = path;
@@ -2967,16 +2930,19 @@ ExplorerResult path_explorer_save_path(const PathExplorer *explorer,
 }
 
 int path_explorer_get_step_count(const PathExplorer *explorer) {
-    if (!explorer) return 0;
+    if (!explorer)
+        return 0;
     return explorer->step_count;
 }
 
 const ExplorerStep *path_explorer_get_steps(const PathExplorer *explorer) {
-    if (!explorer || explorer->step_count == 0) return NULL;
+    if (!explorer || explorer->step_count == 0)
+        return NULL;
     return explorer->steps;
 }
 
 const TypeRegion *path_explorer_get_current(const PathExplorer *explorer) {
-    if (!explorer) return NULL;
+    if (!explorer)
+        return NULL;
     return explorer->current;
 }

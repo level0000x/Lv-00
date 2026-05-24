@@ -15,12 +15,13 @@
 #ifndef LV00_PROOF_H
 #define LV00_PROOF_H
 
+#include <stdbool.h>
+
 #include "constraint_graph.h"
 #include "normalization.h"
+#include "stream.h"
 #include "type_system.h"
 #include "unify.h"
-#include "stream.h"
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,25 +40,25 @@ typedef struct ProofNavigator ProofNavigator;
 typedef struct ProofDependency ProofDependency;
 typedef struct PropositionEquivalence PropositionEquivalence;
 typedef struct BottomDefinition BottomDefinition;
-typedef struct LV00Engine LV00Engine;  /* 引擎前向声明 */
+typedef struct LV00Engine LV00Engine; /* 引擎前向声明 */
 
 /* ============== 证明状态颜色 ============== */
 typedef enum {
-    PROOF_COLOR_GREEN,          /* 全构造，无任何非常规依赖 */
-    PROOF_COLOR_BLUE_UNEXPLORED, /* 蓝色（未探索） */
-    PROOF_COLOR_BLUE_RESOURCE,   /* 蓝色（资源受限） */
+    PROOF_COLOR_GREEN,             /* 全构造，无任何非常规依赖 */
+    PROOF_COLOR_BLUE_UNEXPLORED,   /* 蓝色（未探索） */
+    PROOF_COLOR_BLUE_RESOURCE,     /* 蓝色（资源受限） */
     PROOF_COLOR_BLUE_OUT_OF_RANGE, /* 蓝色（超出范围） */
-    PROOF_COLOR_GREEN_VERIFIED,  /* 绿色实框：已证不可构造 */
-    PROOF_COLOR_YELLOW,          /* 黄色虚线框：条件性不可构造 */
-    PROOF_COLOR_ORANGE_ORACLE,   /* 浅橙色实心端口：依赖非构造性oracle */
-    PROOF_COLOR_ORANGE_EX_FALSO, /* 浅橙色虚线箭头：爆炸原理步骤 */
-    PROOF_COLOR_AMBER,           /* 橙黄色：含数值假设 */
-    PROOF_COLOR_DARK_ORANGE      /* 深橙色：非构造性依赖与数值假设叠加 */
+    PROOF_COLOR_GREEN_VERIFIED,    /* 绿色实框：已证不可构造 */
+    PROOF_COLOR_YELLOW,            /* 黄色虚线框：条件性不可构造 */
+    PROOF_COLOR_ORANGE_ORACLE,     /* 浅橙色实心端口：依赖非构造性oracle */
+    PROOF_COLOR_ORANGE_EX_FALSO,   /* 浅橙色虚线箭头：爆炸原理步骤 */
+    PROOF_COLOR_AMBER,             /* 橙黄色：含数值假设 */
+    PROOF_COLOR_DARK_ORANGE        /* 深橙色：非构造性依赖与数值假设叠加 */
 } ProofColor;
 
 /* ============== 命题类型 ============== */
 typedef enum {
-    PROPOSITION_ATOMIC,     /* 原子命题 */
+    PROPOSITION_ATOMIC,      /* 原子命题 */
     PROPOSITION_CONJUNCTION, /* 合取 ∧ */
     PROPOSITION_DISJUNCTION, /* 析取 ∨ */
     PROPOSITION_IMPLICATION, /* 蕴含 → */
@@ -69,19 +70,19 @@ typedef enum {
 
 /* ============== 命题模式 ============== */
 struct Proposition {
-    int id;                     /* 命题ID */
-    PropositionType type;       /* 命题类型 */
-    ProofColor color;           /* 证明状态颜色 */
-    char *label;                /* 命题标签（可空） */
+    int id;               /* 命题ID */
+    PropositionType type; /* 命题类型 */
+    ProofColor color;     /* 证明状态颜色 */
+    char *label;          /* 命题标签（可空） */
 
     /* 输入/输出端口 */
-    int *input_port_ids;        /* 输入端口ID数组 */
-    int input_count;            /* 输入端口数量 */
-    int *output_port_ids;       /* 输出端口ID数组 */
-    int output_count;           /* 输出端口数量 */
+    int *input_port_ids;  /* 输入端口ID数组 */
+    int input_count;      /* 输入端口数量 */
+    int *output_port_ids; /* 输出端口ID数组 */
+    int output_count;     /* 输出端口数量 */
 
     /* 几何模式（虚线框内的约束骨架） */
-    ConstraintGraph *pattern;   /* 命题模式图 */
+    ConstraintGraph *pattern; /* 命题模式图 */
 
     /* 前置条件区域 */
     int *precondition_region_ids; /* 前置条件区域ID */
@@ -89,85 +90,85 @@ struct Proposition {
 
     /* 后置条件 */
     int *postcondition_constraint_ids; /* 后置条件约束ID */
-    int postcondition_count;          /* 后置条件数量 */
+    int postcondition_count;           /* 后置条件数量 */
 
     /* 子命题（用于复合命题） */
-    Proposition **sub_props;    /* 子命题数组 */
-    int sub_prop_count;         /* 子命题数量 */
+    Proposition **sub_props; /* 子命题数组 */
+    int sub_prop_count;      /* 子命题数量 */
 
     /* 类型信息 */
-    TypeRegion *prop_type;      /* 命题类型 */
+    TypeRegion *prop_type; /* 命题类型 */
 
     /* 元数据 */
-    char *name;                 /* 命题名称 */
-    char *description;          /* 描述 */
+    char *name;        /* 命题名称 */
+    char *description; /* 描述 */
 };
 
 /* ============== 证明步骤类型 ============== */
 typedef enum {
-    PROOF_STEP_ADD_NODE,        /* 添加节点 */
-    PROOF_STEP_ADD_CONSTRAINT,  /* 添加约束 */
-    PROOF_STEP_REWRITE,         /* 重写步骤 */
-    PROOF_STEP_FUNCTION_APP,    /* 函数应用 */
-    PROOF_STEP_PACK_FUNCTION,   /* 打包函数块 */
-    PROOF_STEP_NORMALIZATION,   /* 自动规范化 */
-    PROOF_STEP_UNIFY,           /* 合一检查 */
-    PROOF_STEP_EX_FALSO,        /* 爆炸原理步骤 */
-    PROOF_STEP_ORACLE           /* Oracle依赖 */
+    PROOF_STEP_ADD_NODE,       /* 添加节点 */
+    PROOF_STEP_ADD_CONSTRAINT, /* 添加约束 */
+    PROOF_STEP_REWRITE,        /* 重写步骤 */
+    PROOF_STEP_FUNCTION_APP,   /* 函数应用 */
+    PROOF_STEP_PACK_FUNCTION,  /* 打包函数块 */
+    PROOF_STEP_NORMALIZATION,  /* 自动规范化 */
+    PROOF_STEP_UNIFY,          /* 合一检查 */
+    PROOF_STEP_EX_FALSO,       /* 爆炸原理步骤 */
+    PROOF_STEP_ORACLE          /* Oracle依赖 */
 } ProofStepType;
 
 /* ============== 证明步骤 ============== */
 struct ProofStep {
-    int id;                     /* 步骤ID */
-    ProofStepType type;         /* 步骤类型 */
-    ProofColor color;           /* 步骤颜色 */
+    int id;             /* 步骤ID */
+    ProofStepType type; /* 步骤类型 */
+    ProofColor color;   /* 步骤颜色 */
 
     /* 步骤数据 */
-    int node_id;                /* 相关节点ID */
-    int constraint_id;          /* 相关约束ID */
-    int rule_id;                /* 相关规则ID */
-    int func_block_id;          /* 相关函数块ID */
+    int node_id;       /* 相关节点ID */
+    int constraint_id; /* 相关约束ID */
+    int rule_id;       /* 相关规则ID */
+    int func_block_id; /* 相关函数块ID */
 
     /* 规范化步骤数据 */
-    int *merged_node_ids;       /* 被合并的节点ID */
-    int merged_count;           /* 被合并的节点数量 */
-    int retained_node_id;       /* 保留的节点ID */
+    int *merged_node_ids; /* 被合并的节点ID */
+    int merged_count;     /* 被合并的节点数量 */
+    int retained_node_id; /* 保留的节点ID */
 
     /* 依赖关系 */
-    int *dependency_step_ids;   /* 依赖的前驱步骤ID */
-    int dependency_count;       /* 依赖数量 */
-    int *dependent_step_ids;    /* 被依赖的后继步骤ID */
-    int dependent_count;        /* 被依赖数量 */
+    int *dependency_step_ids; /* 依赖的前驱步骤ID */
+    int dependency_count;     /* 依赖数量 */
+    int *dependent_step_ids;  /* 被依赖的后继步骤ID */
+    int dependent_count;      /* 被依赖数量 */
 
     /* 状态 */
-    bool is_breakpoint;         /* 是否为断点 */
-    bool is_completed;          /* 是否完成 */
-    char *note;                 /* 用户注释 */
+    bool is_breakpoint; /* 是否为断点 */
+    bool is_completed;  /* 是否完成 */
+    char *note;         /* 用户注释 */
 
     /* 时间戳 */
-    int64_t timestamp;          /* 步骤时间戳 */
+    int64_t timestamp; /* 步骤时间戳 */
 };
 
 /* ============== 证明依赖链 ============== */
 struct ProofDependency {
-    int id;                     /* 依赖ID */
-    ProofColor color;           /* 依赖颜色 */
+    int id;           /* 依赖ID */
+    ProofColor color; /* 依赖颜色 */
 
     /* 依赖来源 */
     enum {
-        DEP_SOURCE_DIRECT,      /* 直接构造 */
-        DEP_SOURCE_LEMMA,       /* 引理引用 */
-        DEP_SOURCE_ORACLE,      /* 非构造性Oracle */
-        DEP_SOURCE_EX_FALSO,    /* 爆炸原理 */
-        DEP_SOURCE_NUMERIC      /* 数值假设 */
+        DEP_SOURCE_DIRECT,   /* 直接构造 */
+        DEP_SOURCE_LEMMA,    /* 引理引用 */
+        DEP_SOURCE_ORACLE,   /* 非构造性Oracle */
+        DEP_SOURCE_EX_FALSO, /* 爆炸原理 */
+        DEP_SOURCE_NUMERIC   /* 数值假设 */
     } source;
 
     /* 引理引用 */
-    int lemma_id;               /* 引理ID */
-    char *content_hash;         /* 内容哈希 */
+    int lemma_id;       /* 引理ID */
+    char *content_hash; /* 内容哈希 */
 
     /* 外部引用 */
-    char *external_ref;         /* 外部引用字符串 */
+    char *external_ref; /* 外部引用字符串 */
 
     /* 数值假设声明 */
     char *numeric_declaration;  /* 数值假设声明 */
@@ -184,48 +185,48 @@ struct ProofDependency {
  * @brief 引理视图状态
  */
 typedef enum {
-    LEMMA_VIEW_EXPANDED,         /* 展开 */
-    LEMMA_VIEW_COLLAPSED         /* 折叠 */
+    LEMMA_VIEW_EXPANDED, /* 展开 */
+    LEMMA_VIEW_COLLAPSED /* 折叠 */
 } LemmaViewState;
 
 /* ============== 证明导航器 ============== */
 struct ProofNavigator {
-    ProofStep **steps;          /* 证明步骤数组 */
-    int step_count;             /* 步骤数量 */
-    int current_step;           /* 当前步骤索引 */
+    ProofStep **steps; /* 证明步骤数组 */
+    int step_count;    /* 步骤数量 */
+    int current_step;  /* 当前步骤索引 */
 
-    Proposition *target_prop;   /* 目标命题 */
+    Proposition *target_prop;      /* 目标命题 */
     ConstraintGraph *construction; /* 构造图 */
 
-    ProofDependency *dep_tree;  /* 依赖树 */
+    ProofDependency *dep_tree; /* 依赖树 */
 
     /* 导航状态 */
-    bool is_complete;           /* 证明是否完成 */
-    ProofColor final_color;     /* 最终颜色 */
+    bool is_complete;       /* 证明是否完成 */
+    ProofColor final_color; /* 最终颜色 */
 
     /* 断点管理 */
-    int *breakpoint_indices;    /* 断点索引数组 */
-    int breakpoint_count;       /* 断点数量 */
+    int *breakpoint_indices; /* 断点索引数组 */
+    int breakpoint_count;    /* 断点数量 */
 
     /* 命题等价表 */
     PropositionEquivalence *equivalences; /* 等价命题数组 */
-    int equivalence_count;      /* 等价命题数量 */
-    int equivalence_capacity;   /* 等价命题容量 */
+    int equivalence_count;                /* 等价命题数量 */
+    int equivalence_capacity;             /* 等价命题容量 */
 
     /* ⊥ 的定义 */
     BottomDefinition *bottom_def; /* 矛盾定义（动态分配） */
 
     /* 引理视图状态 */
-    int *lemma_view_step_ids;   /* 引理步骤ID数组 */
+    int *lemma_view_step_ids;          /* 引理步骤ID数组 */
     LemmaViewState *lemma_view_states; /* 引理视图状态数组 */
-    int lemma_view_count;       /* 引理视图状态数量 */
-    int lemma_view_capacity;    /* 引理视图状态容量 */
+    int lemma_view_count;              /* 引理视图状态数量 */
+    int lemma_view_capacity;           /* 引理视图状态容量 */
 
     /* 引擎上下文（用于访问已加载的公理包等） */
     LV00Engine *engine;
 
     /* 证明策略注释（LeanGeo风格：先展示总体策略，再展开细节） */
-    char *strategy_note;        /* 总体策略描述 */
+    char *strategy_note; /* 总体策略描述 */
 };
 
 /* Proof 类型——与 ProofNavigator 相同 */
@@ -282,11 +283,7 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child);
  * @param normalize_first 是否先执行图规范化遍
  * @return 合一结果
  */
-UnifyStatus proof_unify(
-    ConstraintGraph *construction,
-    Proposition *proposition,
-    bool normalize_first
-);
+UnifyStatus proof_unify(ConstraintGraph *construction, Proposition *proposition, bool normalize_first);
 
 /**
  * 合一检查（详细版）
@@ -295,11 +292,7 @@ UnifyStatus proof_unify(
  * @param out_mismatch_info 输出不匹配信息
  * @return 合一结果
  */
-UnifyStatus proof_unify_detailed(
-    ConstraintGraph *construction,
-    Proposition *proposition,
-    char **out_mismatch_info
-);
+UnifyStatus proof_unify_detailed(ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info);
 
 /* ============== 证明步骤管理 ============== */
 
@@ -411,11 +404,7 @@ bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id);
  * @param target_prop 目标命题
  * @return 是否成功
  */
-bool proof_apply_ex_falso(
-    ProofNavigator *nav,
-    ConstraintGraph *bottom_proof,
-    Proposition *target_prop
-);
+bool proof_apply_ex_falso(ProofNavigator *nav, ConstraintGraph *bottom_proof, Proposition *target_prop);
 
 /**
  * 交互式证明步骤
@@ -468,8 +457,8 @@ bool proof_export_coq(ProofNavigator *nav, const char *filepath);
  * @brief 自然语言证明输出语言
  */
 typedef enum {
-    PROOF_NL_LANG_ZH_CN,    /**< 简体中文 */
-    PROOF_NL_LANG_EN_US     /**< 英文 */
+    PROOF_NL_LANG_ZH_CN, /**< 简体中文 */
+    PROOF_NL_LANG_EN_US  /**< 英文 */
 } ProofNaturalLanguage;
 
 /**
@@ -545,24 +534,18 @@ bool proof_step_set_note(ProofStep *step, const char *note);
 typedef struct PropositionEquivalence {
     int prop_a_id;
     int prop_b_id;
-    ConstraintGraph *transformation;  /* 双向变换规则 */
+    ConstraintGraph *transformation; /* 双向变换规则 */
 } PropositionEquivalence;
 
 /**
  * @brief 声明两个命题等价
  */
-void proof_declare_proposition_equivalence(
-    ProofNavigator *nav,
-    int prop_a_id, int prop_b_id);
+void proof_declare_proposition_equivalence(ProofNavigator *nav, int prop_a_id, int prop_b_id);
 
 /**
  * @brief 查找命题的等价命题
  */
-int proof_find_equivalent_proposition(
-    const ProofNavigator *nav,
-    int prop_id,
-    int *equivalent_ids,
-    int max_count);
+int proof_find_equivalent_proposition(const ProofNavigator *nav, int prop_id, int *equivalent_ids, int max_count);
 
 /* ============== 依赖链断裂自动降级 ============== */
 
@@ -582,10 +565,7 @@ typedef struct {
 /**
  * @brief 验证并更新所有依赖链
  */
-int proof_validate_dependencies(
-    ProofNavigator *nav,
-    DependencyUpdateResult *results,
-    int max_results);
+int proof_validate_dependencies(ProofNavigator *nav, DependencyUpdateResult *results, int max_results);
 
 /* ============== ⊥ 的公理包可定义性 ============== */
 
@@ -593,9 +573,9 @@ int proof_validate_dependencies(
  * @brief 配置矛盾（⊥）的定义
  */
 typedef struct BottomDefinition {
-    bool has_input_ports;          /* 是否有输入端口 */
+    bool has_input_ports; /* 是否有输入端口 */
     int input_port_count;
-    bool allow_explosion;          /* 是否允许爆炸原理 */
+    bool allow_explosion; /* 是否允许爆炸原理 */
 } BottomDefinition;
 
 /**
@@ -666,10 +646,7 @@ bool proof_has_type_variables(const Proposition *prop);
  * @param mapping_count      映射条目数量（数组长度 = mapping_count * 2）
  * @return 新的已实例化命题，失败返回 NULL
  */
-Proposition *proof_instantiate_proposition(
-    const Proposition *prop,
-    const int *type_var_to_concrete,
-    int mapping_count);
+Proposition *proof_instantiate_proposition(const Proposition *prop, const int *type_var_to_concrete, int mapping_count);
 
 /* ============== 不可构造性证明流程 ============== */
 
@@ -687,12 +664,12 @@ typedef enum {
  * @brief 不可构造性证明详细信息
  */
 typedef struct {
-    UnconstructResult result;           /**< 证明结果 */
-    const char *matched_problem;        /**< 匹配到的已知不可构造问题名 */
-    const char *matched_theory;         /**< 匹配到的问题所属理论域 */
-    const char *proof_strategy;         /**< 使用的证明策略描述 */
-    char *detailed_report;              /**< 详细报告字符串（调用者需用lv00_free释放） */
-    int reduction_steps;                /**< 归约步数 */
+    UnconstructResult result;    /**< 证明结果 */
+    const char *matched_problem; /**< 匹配到的已知不可构造问题名 */
+    const char *matched_theory;  /**< 匹配到的问题所属理论域 */
+    const char *proof_strategy;  /**< 使用的证明策略描述 */
+    char *detailed_report;       /**< 详细报告字符串（调用者需用lv00_free释放） */
+    int reduction_steps;         /**< 归约步数 */
 } UnconstructInfo;
 
 /**
@@ -708,11 +685,8 @@ typedef struct {
  * @param info   输出：不可构造性信息（调用者需用 unconstruct_info_destroy 释放）
  * @return 检查结果
  */
-UnconstructResult proof_check_unconstructibility(
-    ProofNavigator *nav,
-    const ConstraintGraph *graph,
-    const Proposition *prop,
-    UnconstructInfo *info);
+UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const ConstraintGraph *graph,
+                                                 const Proposition *prop, UnconstructInfo *info);
 
 /**
  * @brief 尝试系统性地证明不可构造性
@@ -729,11 +703,8 @@ UnconstructResult proof_check_unconstructibility(
  * @param info     输出：不可构造性信息
  * @return 证明结果
  */
-UnconstructResult proof_attempt_unconstructibility(
-    ProofNavigator *nav,
-    const ConstraintGraph *graph,
-    const Proposition *prop,
-    UnconstructInfo *info);
+UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const ConstraintGraph *graph,
+                                                   const Proposition *prop, UnconstructInfo *info);
 
 /**
  * @brief 释放不可构造性信息结构体
@@ -751,10 +722,10 @@ void unconstruct_info_destroy(UnconstructInfo *info);
  * @brief 回溯点类型
  */
 typedef enum {
-    BACKTRACK_CHOICE_POINT,     /**< 选择点：多个策略分支 */
-    BACKTRACK_FAILURE,          /**< 失败点：此路径不可行 */
-    BACKTRACK_SUCCESS,          /**< 成功点：此路径到达目标 */
-    BACKTRACK_PRUNE             /**< 剪枝点：启发式跳过 */
+    BACKTRACK_CHOICE_POINT, /**< 选择点：多个策略分支 */
+    BACKTRACK_FAILURE,      /**< 失败点：此路径不可行 */
+    BACKTRACK_SUCCESS,      /**< 成功点：此路径到达目标 */
+    BACKTRACK_PRUNE         /**< 剪枝点：启发式跳过 */
 } BacktrackNodeType;
 
 /**
@@ -766,12 +737,12 @@ typedef enum {
  * - 支持在不同搜索策略之间切换观察效果
  */
 typedef struct BacktrackNode {
-    int id;                          /**< 节点ID */
-    BacktrackNodeType type;          /**< 节点类型 */
-    int step_index;                  /**< 关联的证明步骤索引（-1 = 无关联） */
-    char *label;                     /**< 节点标签（如"尝试辅助线AD"） */
-    char *strategy_name;             /**< 使用的策略名称 */
-    bool is_backtrack_point;         /**< 是否为回溯点 */
+    int id;                  /**< 节点ID */
+    BacktrackNodeType type;  /**< 节点类型 */
+    int step_index;          /**< 关联的证明步骤索引（-1 = 无关联） */
+    char *label;             /**< 节点标签（如"尝试辅助线AD"） */
+    char *strategy_name;     /**< 使用的策略名称 */
+    bool is_backtrack_point; /**< 是否为回溯点 */
 
     /* 树结构 */
     struct BacktrackNode *parent;    /**< 父节点 */
@@ -780,30 +751,30 @@ typedef struct BacktrackNode {
     int child_capacity;              /**< 子节点容量 */
 
     /* 颜色/状态 */
-    bool explored;                   /**< 是否已探索 */
-    ProofColor color;                /**< 节点信任颜色 */
+    bool explored;    /**< 是否已探索 */
+    ProofColor color; /**< 节点信任颜色 */
 } BacktrackNode;
 
 /**
  * @brief 证明搜索树（Newclid风格）
  */
 typedef struct {
-    BacktrackNode *root;             /**< 根节点 */
-    BacktrackNode **all_nodes;       /**< 所有节点（用于遍历） */
-    int node_count;                  /**< 节点总数 */
-    int node_capacity;               /**< 节点容量 */
+    BacktrackNode *root;       /**< 根节点 */
+    BacktrackNode **all_nodes; /**< 所有节点（用于遍历） */
+    int node_count;            /**< 节点总数 */
+    int node_capacity;         /**< 节点容量 */
 
     /* 统计信息 */
-    int success_paths;              /**< 成功路径数 */
-    int failure_paths;              /**< 失败路径数 */
-    int backtrack_count;            /**< 回溯次数 */
-    int pruned_branches;            /**< 剪枝分支数 */
-    int max_depth;                  /**< 最大搜索深度 */
+    int success_paths;   /**< 成功路径数 */
+    int failure_paths;   /**< 失败路径数 */
+    int backtrack_count; /**< 回溯次数 */
+    int pruned_branches; /**< 剪枝分支数 */
+    int max_depth;       /**< 最大搜索深度 */
 
     /* 策略信息 */
-    char *current_strategy;          /**< 当前使用的搜索策略名称 */
-    char **available_strategies;    /**< 可用策略名称列表 */
-    int strategy_count;             /**< 策略数量 */
+    char *current_strategy;      /**< 当前使用的搜索策略名称 */
+    char **available_strategies; /**< 可用策略名称列表 */
+    int strategy_count;          /**< 策略数量 */
 } ProofSearchTree;
 
 /* --- API --- */
@@ -892,15 +863,15 @@ bool proof_search_tree_export_dot(const ProofSearchTree *tree, const char *filep
  * @brief 证明策略类型（借鉴 JGEX 的六种方法）
  */
 typedef enum {
-    PROOF_STRATEGY_DIRECT_CONSTRUCTION,  /**< 直接构造法：通过几何构造直接满足命题模式 */
-    PROOF_STRATEGY_AREA_METHOD,          /**< 面积法：利用面积关系和消点法（借鉴 JGEX Area Method） */
-    PROOF_STRATEGY_GROEBNER_BASIS,       /**< Groebner 基法：代数方程求解（借鉴 JGEX/Wu's Method） */
-    PROOF_STRATEGY_VECTOR_METHOD,        /**< 向量法：矢量代数推导 */
-    PROOF_STRATEGY_FULL_ANGLE_METHOD,    /**< 全角法：利用全角关系进行角度推理 */
-    PROOF_STRATEGY_DEDUCTIVE_DATABASE,   /**< 演绎数据库法：前向链推理 */
-    PROOF_STRATEGY_COORDINATE,           /**< 坐标法：解析几何坐标计算 */
-    PROOF_STRATEGY_ORACLE,               /**< Oracle 法：外部求解器辅助（不可构造性） */
-    PROOF_STRATEGY_COUNT                 /**< 策略总数（用于数组大小） */
+    PROOF_STRATEGY_DIRECT_CONSTRUCTION, /**< 直接构造法：通过几何构造直接满足命题模式 */
+    PROOF_STRATEGY_AREA_METHOD,         /**< 面积法：利用面积关系和消点法（借鉴 JGEX Area Method） */
+    PROOF_STRATEGY_GROEBNER_BASIS,      /**< Groebner 基法：代数方程求解（借鉴 JGEX/Wu's Method） */
+    PROOF_STRATEGY_VECTOR_METHOD,       /**< 向量法：矢量代数推导 */
+    PROOF_STRATEGY_FULL_ANGLE_METHOD,   /**< 全角法：利用全角关系进行角度推理 */
+    PROOF_STRATEGY_DEDUCTIVE_DATABASE,  /**< 演绎数据库法：前向链推理 */
+    PROOF_STRATEGY_COORDINATE,          /**< 坐标法：解析几何坐标计算 */
+    PROOF_STRATEGY_ORACLE,              /**< Oracle 法：外部求解器辅助（不可构造性） */
+    PROOF_STRATEGY_COUNT                /**< 策略总数（用于数组大小） */
 } ProofStrategyType;
 
 /* Forward declaration: ProofMultiStrategy 结构体在下方完整定义 */
@@ -910,11 +881,11 @@ struct ProofMultiStrategy;
  * @brief 证明策略状态
  */
 typedef enum {
-    PROOF_STRATEGY_AVAILABLE,            /**< 可用（已加载所需公理包） */
-    PROOF_STRATEGY_UNAVAILABLE,          /**< 不可用（缺少公理包） */
-    PROOF_STRATEGY_ACTIVE,               /**< 当前激活 */
-    PROOF_STRATEGY_COMPLETED,            /**< 已完成 */
-    PROOF_STRATEGY_FAILED                /**< 失败 */
+    PROOF_STRATEGY_AVAILABLE,   /**< 可用（已加载所需公理包） */
+    PROOF_STRATEGY_UNAVAILABLE, /**< 不可用（缺少公理包） */
+    PROOF_STRATEGY_ACTIVE,      /**< 当前激活 */
+    PROOF_STRATEGY_COMPLETED,   /**< 已完成 */
+    PROOF_STRATEGY_FAILED       /**< 失败 */
 } ProofStrategyStatus;
 
 /**
@@ -927,27 +898,25 @@ typedef enum {
  * - 产生的证明步骤
  */
 typedef struct ProofStrategyDescriptor {
-    ProofStrategyType type;              /**< 策略类型 */
-    ProofStrategyStatus status;          /**< 当前状态 */
-    char *name;                          /**< 策略名称（如"面积法"） */
-    char *description;                   /**< 策略描述 */
-    char **required_axiom_packages;      /**< 依赖的公理包名称列表 */
-    int axiom_package_count;             /**< 公理包数量 */
+    ProofStrategyType type;         /**< 策略类型 */
+    ProofStrategyStatus status;     /**< 当前状态 */
+    char *name;                     /**< 策略名称（如"面积法"） */
+    char *description;              /**< 策略描述 */
+    char **required_axiom_packages; /**< 依赖的公理包名称列表 */
+    int axiom_package_count;        /**< 公理包数量 */
 
     /* 适用性评估 */
-    bool (*applicability_check)(         /**< 适用性检查函数 */
-        const struct ProofMultiStrategy *mse,
-        const ConstraintGraph *graph,
-        const Proposition *prop);
+    bool (*applicability_check)(/**< 适用性检查函数 */
+                                const struct ProofMultiStrategy *mse, const ConstraintGraph *graph,
+                                const Proposition *prop);
 
     /* 策略执行 */
-    bool (*execute)(                     /**< 策略执行函数 */
-        struct ProofMultiStrategy *mse,
-        ProofNavigator *nav);
+    bool (*execute)(/**< 策略执行函数 */
+                    struct ProofMultiStrategy *mse, ProofNavigator *nav);
 
     /* 生成的证明步骤 */
-    int generated_step_count;            /**< 生成的步骤数 */
-    int *generated_step_ids;             /**< 生成的步骤ID列表 */
+    int generated_step_count; /**< 生成的步骤数 */
+    int *generated_step_ids;  /**< 生成的步骤ID列表 */
 } ProofStrategyDescriptor;
 
 /**
@@ -963,18 +932,18 @@ typedef struct ProofStrategyDescriptor {
  */
 typedef struct ProofMultiStrategy {
     ProofStrategyDescriptor strategies[PROOF_STRATEGY_COUNT]; /**< 策略数组 */
-    int active_strategy_index;           /**< 当前激活的策略索引（-1 = 未选择） */
-    ProofNavigator *shared_navigator;    /**< 共享的证明导航器 */
+    int active_strategy_index;                                /**< 当前激活的策略索引（-1 = 未选择） */
+    ProofNavigator *shared_navigator;                         /**< 共享的证明导航器 */
 
     /* 策略组合配置 */
-    bool enable_fallback;                /**< 是否启用回退（主策略失败后尝试其他） */
-    int *fallback_order;                 /**< 回退顺序（策略索引数组） */
-    int fallback_count;                  /**< 回退策略数量 */
+    bool enable_fallback; /**< 是否启用回退（主策略失败后尝试其他） */
+    int *fallback_order;  /**< 回退顺序（策略索引数组） */
+    int fallback_count;   /**< 回退策略数量 */
 
     /* 执行统计 */
-    int total_attempts;                  /**< 总尝试次数 */
-    int success_count;                   /**< 成功次数 */
-    int64_t *strategy_timings_ms;        /**< 每种策略的耗时（毫秒） */
+    int total_attempts;           /**< 总尝试次数 */
+    int success_count;            /**< 成功次数 */
+    int64_t *strategy_timings_ms; /**< 每种策略的耗时（毫秒） */
 } ProofMultiStrategy;
 
 /* --- 多策略引擎 API --- */
@@ -997,9 +966,7 @@ void proof_multi_strategy_destroy(ProofMultiStrategy *mse);
  * @param descriptor 策略描述符
  * @return 是否成功
  */
-bool proof_multi_strategy_register(
-    ProofMultiStrategy *mse,
-    const ProofStrategyDescriptor *descriptor);
+bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyDescriptor *descriptor);
 
 /**
  * @brief 激活指定策略
@@ -1007,16 +974,13 @@ bool proof_multi_strategy_register(
  * @param strategy_type 要激活的策略类型
  * @return 是否成功
  */
-bool proof_multi_strategy_activate(
-    ProofMultiStrategy *mse,
-    ProofStrategyType strategy_type);
+bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type);
 
 /**
  * @brief 获取当前激活的策略
  * @return 策略描述符指针（不可修改），无激活策略返回NULL
  */
-const ProofStrategyDescriptor *proof_multi_strategy_get_active(
-    const ProofMultiStrategy *mse);
+const ProofStrategyDescriptor *proof_multi_strategy_get_active(const ProofMultiStrategy *mse);
 
 /**
  * @brief 评估所有可用策略的适用性
@@ -1031,12 +995,9 @@ const ProofStrategyDescriptor *proof_multi_strategy_get_active(
  * @param max_count            最多返回数量
  * @return 实际返回的适用策略数量
  */
-int proof_multi_strategy_evaluate_applicability(
-    ProofMultiStrategy *mse,
-    const ConstraintGraph *graph,
-    const Proposition *prop,
-    ProofStrategyType *out_applicable_types,
-    int max_count);
+int proof_multi_strategy_evaluate_applicability(ProofMultiStrategy *mse, const ConstraintGraph *graph,
+                                                const Proposition *prop, ProofStrategyType *out_applicable_types,
+                                                int max_count);
 
 /**
  * @brief 使用当前策略执行证明
@@ -1065,10 +1026,7 @@ ProofStrategyType proof_multi_strategy_try_all(ProofMultiStrategy *mse);
  * @param pipeline_count 流水线长度
  * @return 是否全部成功
  */
-bool proof_multi_strategy_pipeline(
-    ProofMultiStrategy *mse,
-    const ProofStrategyType *pipeline,
-    int pipeline_count);
+bool proof_multi_strategy_pipeline(ProofMultiStrategy *mse, const ProofStrategyType *pipeline, int pipeline_count);
 
 /**
  * @brief 设置回退顺序
@@ -1076,10 +1034,7 @@ bool proof_multi_strategy_pipeline(
  * @param fallback_order  策略索引数组（按优先级排序）
  * @param count           回退策略数量
  */
-void proof_multi_strategy_set_fallback_order(
-    ProofMultiStrategy *mse,
-    const int *fallback_order,
-    int count);
+void proof_multi_strategy_set_fallback_order(ProofMultiStrategy *mse, const int *fallback_order, int count);
 
 /**
  * @brief 切换策略（保存当前策略状态后切换）
@@ -1087,9 +1042,7 @@ void proof_multi_strategy_set_fallback_order(
  * @param strategy_type 目标策略类型
  * @return 是否成功
  */
-bool proof_multi_strategy_switch(
-    ProofMultiStrategy *mse,
-    ProofStrategyType strategy_type);
+bool proof_multi_strategy_switch(ProofMultiStrategy *mse, ProofStrategyType strategy_type);
 
 /**
  * @brief 获取策略执行统计
@@ -1097,10 +1050,7 @@ bool proof_multi_strategy_switch(
  * @param out_total_attempts  输出：总尝试次数
  * @param out_success_count   输出：成功次数
  */
-void proof_multi_strategy_get_stats(
-    const ProofMultiStrategy *mse,
-    int *out_total_attempts,
-    int *out_success_count);
+void proof_multi_strategy_get_stats(const ProofMultiStrategy *mse, int *out_total_attempts, int *out_success_count);
 
 /**
  * @brief 策略类型转字符串
@@ -1130,10 +1080,10 @@ typedef struct ConstraintSolver ConstraintSolver;
 typedef enum { FILL_EXACT, FILL_LAMBDA, FILL_CONSTRUCTOR, FILL_CASE_SPLIT, FILL_REFINE } FillKind;
 
 typedef struct FillSuggestion {
-    FillKind          kind;
-    char             *label;           /* 建议描述 */
-    char             *code_snippet;    /* 填充代码片段 */
-    int               arity;           /* 构造器元数 */
+    FillKind kind;
+    char *label;        /* 建议描述 */
+    char *code_snippet; /* 填充代码片段 */
+    int arity;          /* 构造器元数 */
     struct FillSuggestion *next;
 } FillSuggestion;
 
@@ -1180,19 +1130,19 @@ typedef enum { ISAR_LEMMA, ISAR_HAVE, ISAR_SHOW, ISAR_QED } IsarStructureLevel;
 
 /** @brief Sledgehammer 单个策略执行结果 */
 typedef struct {
-    ProofStrategyType  strategy;
-    bool               success;
-    double             elapsed_sec;
-    char              *isar_proof_script;  /* 自动生成的 Isar 证明脚本 */
+    ProofStrategyType strategy;
+    bool success;
+    double elapsed_sec;
+    char *isar_proof_script; /* 自动生成的 Isar 证明脚本 */
 } SledgehammerStrategyResult;
 
 /** @brief Sledgehammer 批量调度报告 */
 typedef struct {
     SledgehammerStrategyResult *results;
-    int                         result_count;
-    int                         best_index;    /* 最优（最简）证明的索引 */
-    double                      total_time_sec;
-    const char                 *error_msg;
+    int result_count;
+    int best_index; /* 最优（最简）证明的索引 */
+    double total_time_sec;
+    const char *error_msg;
 } SledgehammerReport;
 
 /**
@@ -1202,10 +1152,7 @@ typedef struct {
  * @param timeout_ms   超时毫秒（0 = 不限）
  * @return 调度报告，调用者用 sledgehammer_report_destroy() 释放
  */
-SledgehammerReport *proof_sledgehammer_dispatch(
-    ProofMultiStrategy *mse,
-    SledgehammerMode mode,
-    int timeout_ms);
+SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, SledgehammerMode mode, int timeout_ms);
 void sledgehammer_report_destroy(SledgehammerReport *report);
 
 /**
@@ -1222,16 +1169,16 @@ char *proof_export_isar(const Proposition **props, int prop_count);
 
 /** @brief 验证规则类型（对应 HOL Light 10 条基本推理规则） */
 typedef enum {
-    VERIFY_ASSUME,       /* ASSUME: t |- t */
-    VERIFY_REFL,         /* REFL:   |- t = t */
-    VERIFY_BETA_CONV,    /* BETA_CONV: |- (\x.t) s = t[s/x] */
-    VERIFY_MK_COMB,      /* MK_COMB:  f=g, x=y => f x = g y */
-    VERIFY_ABS,          /* ABS:     x not free in Γ => Γ|-s=t => Γ|-(\x.s)=(\x.t) */
-    VERIFY_TRANS,        /* TRANS:   s=t, t=u => s=u */
-    VERIFY_SUBST,        /* SUBST:   substitution */
-    VERIFY_INST_TYPE,    /* INST_TYPE: type instantiation */
-    VERIFY_INST,         /* INST:    term instantiation */
-    VERIFY_DISCH         /* DISCH:   discharge assumption */
+    VERIFY_ASSUME,    /* ASSUME: t |- t */
+    VERIFY_REFL,      /* REFL:   |- t = t */
+    VERIFY_BETA_CONV, /* BETA_CONV: |- (\x.t) s = t[s/x] */
+    VERIFY_MK_COMB,   /* MK_COMB:  f=g, x=y => f x = g y */
+    VERIFY_ABS,       /* ABS:     x not free in Γ => Γ|-s=t => Γ|-(\x.s)=(\x.t) */
+    VERIFY_TRANS,     /* TRANS:   s=t, t=u => s=u */
+    VERIFY_SUBST,     /* SUBST:   substitution */
+    VERIFY_INST_TYPE, /* INST_TYPE: type instantiation */
+    VERIFY_INST,      /* INST:    term instantiation */
+    VERIFY_DISCH      /* DISCH:   discharge assumption */
 } VerifyRuleType;
 
 /** @brief 验证结果 */
@@ -1245,11 +1192,7 @@ typedef enum { VERIFY_VALID, VERIFY_INVALID, VERIFY_UNDECIDED } VerifyResult;
  * @param out_trace   输出：验证追溯（可选，成功时给出规则链）
  * @return VERIFY_VALID 如果结论可从前提通过给定规则合法推导
  */
-VerifyResult proof_minimal_verify(
-    VerifyRuleType rule,
-    const char **premises,
-    const char *conclusion,
-    char **out_trace);
+VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, const char *conclusion, char **out_trace);
 
 /* ================================================================
  * 5. F* — 精化类型 + SMT 混合验证
@@ -1260,20 +1203,20 @@ typedef enum { REFINE_OK, REFINE_SMT_UNSAT, REFINE_TYPE_ERROR, REFINE_TIMEOUT } 
 
 /** @brief 精化类型检查条目 */
 typedef struct {
-    const char *geom_object;       /* 几何对象名 */
-    const char *base_type;         /* 基础类型（如 Triangle） */
-    const char *refinement_pred;   /* 精化谓词（如 "is_right && area > 0"） */
+    const char *geom_object;     /* 几何对象名 */
+    const char *base_type;       /* 基础类型（如 Triangle） */
+    const char *refinement_pred; /* 精化谓词（如 "is_right && area > 0"） */
     RefinementCheckResult result;
-    char        *smt_counterexample; /* SMT 反例（失败时） */
-    double       elapsed_sec;
+    char *smt_counterexample; /* SMT 反例（失败时） */
+    double elapsed_sec;
 } RefinementCheckEntry;
 
 /** @brief 精化类型批量检查报告 */
 typedef struct {
     RefinementCheckEntry *entries;
-    int                   entry_count;
-    int                   passed_count;
-    int                   failed_count;
+    int entry_count;
+    int passed_count;
+    int failed_count;
 } RefinementCheckReport;
 
 /**
@@ -1283,10 +1226,7 @@ typedef struct {
  * @param count      条目数量
  * @return 批量检查报告
  */
-RefinementCheckReport *proof_refinement_check(
-    ConstraintSolver *solver,
-    RefinementCheckEntry *entries,
-    int count);
+RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, RefinementCheckEntry *entries, int count);
 void refinement_check_report_destroy(RefinementCheckReport *report);
 
 #ifdef __cplusplus

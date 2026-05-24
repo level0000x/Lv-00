@@ -11,13 +11,15 @@
  * @version 5.0.0
  */
 
+#include "preset_stochastic_processes.h"
+
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_stochastic_processes.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
-#include <stdlib.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -44,16 +46,12 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_stochastic_processes_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_PROBABILITY,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_stochastic_processes_preset(const char *name, const char *description,
+                                                 const PresetType *input_types, int input_count, PresetType output_type,
+                                                 const char *math_def, const char *complexity, bool is_constructive,
+                                                 bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_PROBABILITY, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== v2统一注册宏 ==================== */
@@ -74,21 +72,19 @@ static bool register_stochastic_processes_preset(
  * @param cons       是否构造性
  * @param rev        是否可逆
  */
-#define REGISTER_SP(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_stochastic_processes_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_SP(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
+    do {                                                                                                         \
+        if (register_stochastic_processes_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), \
+                                                 (cons), (rev))) {                                               \
+            success_count++;                                                                                     \
+        } else {                                                                                                 \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                  \
+        }                                                                                                        \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_stochastic_processes_register(void)
-{
+bool preset_stochastic_processes_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -113,10 +109,10 @@ bool preset_stochastic_processes_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_MATRIX};
         REGISTER_SP("sp_markov_chain_construct",
-            "马尔可夫链构造：由状态空间S和转移概率矩阵P构造离散时间马尔可夫链 (X_n)",
-            inputs, 2, PRESET_TYPE_FUNCTION,
-            "(X_n)_{n \\geq 0}, \\quad P(X_{n+1}=j \\mid X_n=i) = P_{ij}, \\quad \\sum_j P_{ij} = 1",
-            "O(n^2)", true, false);
+                    "马尔可夫链构造：由状态空间S和转移概率矩阵P构造离散时间马尔可夫链 (X_n)", inputs, 2,
+                    PRESET_TYPE_FUNCTION,
+                    "(X_n)_{n \\geq 0}, \\quad P(X_{n+1}=j \\mid X_n=i) = P_{ij}, \\quad \\sum_j P_{ij} = 1", "O(n^2)",
+                    true, false);
     }
 
     /**
@@ -136,11 +132,9 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER};
-        REGISTER_SP("sp_markov_chain_transition",
-            "转移概率计算：计算马尔可夫链的n步转移概率 P^n(i,j)",
-            inputs, 2, PRESET_TYPE_MATRIX,
-            "P^n(i,j) = (P^n)_{ij}, \\quad P^{m+n} = P^m \\cdot P^n",
-            "O(n^3 \\log k)", true, false);
+        REGISTER_SP("sp_markov_chain_transition", "转移概率计算：计算马尔可夫链的n步转移概率 P^n(i,j)", inputs, 2,
+                    PRESET_TYPE_MATRIX, "P^n(i,j) = (P^n)_{ij}, \\quad P^{m+n} = P^m \\cdot P^n", "O(n^3 \\log k)",
+                    true, false);
     }
 
     /**
@@ -160,11 +154,9 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX};
-        REGISTER_SP("sp_markov_chain_stationary",
-            "平稳分布计算：求马尔可夫链的平稳分布 π，满足 πP = π",
-            inputs, 1, PRESET_TYPE_DISTRIBUTION,
-            "\\pi P = \\pi, \\quad \\sum_i \\pi_i = 1, \\quad \\pi_i \\geq 0",
-            "O(n^3)", true, false);
+        REGISTER_SP("sp_markov_chain_stationary", "平稳分布计算：求马尔可夫链的平稳分布 π，满足 πP = π", inputs, 1,
+                    PRESET_TYPE_DISTRIBUTION, "\\pi P = \\pi, \\quad \\sum_i \\pi_i = 1, \\quad \\pi_i \\geq 0",
+                    "O(n^3)", true, false);
     }
 
     /**
@@ -184,11 +176,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX};
-        REGISTER_SP("sp_markov_chain_irreducible",
-            "不可约性判定：判定马尔可夫链是否不可约（任意两状态可达）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "\\text{不可约} \\Leftrightarrow \\forall i, j, \\exists n \\geq 0: P^n(i,j) > 0",
-            "O(n^2)", false, false);
+        REGISTER_SP("sp_markov_chain_irreducible", "不可约性判定：判定马尔可夫链是否不可约（任意两状态可达）", inputs,
+                    1, PRESET_TYPE_BOOLEAN,
+                    "\\text{不可约} \\Leftrightarrow \\forall i, j, \\exists n \\geq 0: P^n(i,j) > 0", "O(n^2)", false,
+                    false);
     }
 
     /**
@@ -208,11 +199,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX};
-        REGISTER_SP("sp_markov_chain_aperiodic",
-            "非周期性判定：判定马尔可夫链是否非周期（状态周期 d(i) = 1）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "d(i) = \\gcd\\{n \\geq 1 : P^n(i,i) > 0\\}, \\quad \\text{非周期} \\Leftrightarrow d(i) = 1",
-            "O(n^3)", false, false);
+        REGISTER_SP("sp_markov_chain_aperiodic", "非周期性判定：判定马尔可夫链是否非周期（状态周期 d(i) = 1）", inputs,
+                    1, PRESET_TYPE_BOOLEAN,
+                    "d(i) = \\gcd\\{n \\geq 1 : P^n(i,i) > 0\\}, \\quad \\text{非周期} \\Leftrightarrow d(i) = 1",
+                    "O(n^3)", false, false);
     }
 
     /**
@@ -233,11 +223,9 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER};
-        REGISTER_SP("sp_markov_chain_recurrent",
-            "常返性判定：判定马尔可夫链的状态i是否常返（从i出发几乎必然回到i）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "f_{ii} = P(\\tau_i < \\infty \\mid X_0 = i) = 1 \\text{（常返）}",
-            "O(n^3)", false, false);
+        REGISTER_SP("sp_markov_chain_recurrent", "常返性判定：判定马尔可夫链的状态i是否常返（从i出发几乎必然回到i）",
+                    inputs, 2, PRESET_TYPE_BOOLEAN, "f_{ii} = P(\\tau_i < \\infty \\mid X_0 = i) = 1 \\text{（常返）}",
+                    "O(n^3)", false, false);
     }
 
     /**
@@ -257,11 +245,8 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX};
-        REGISTER_SP("sp_markov_chain_absorbing",
-            "吸收性判定：判定马尔可夫链是否有吸收状态（P(i,i) = 1）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "\\text{吸收状态} \\Leftrightarrow P(i,i) = 1",
-            "O(n)", false, false);
+        REGISTER_SP("sp_markov_chain_absorbing", "吸收性判定：判定马尔可夫链是否有吸收状态（P(i,i) = 1）", inputs, 1,
+                    PRESET_TYPE_BOOLEAN, "\\text{吸收状态} \\Leftrightarrow P(i,i) = 1", "O(n)", false, false);
     }
 
     /**
@@ -283,11 +268,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_MATRIX, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER};
-        REGISTER_SP("sp_markov_chain_expected_time",
-            "期望到达时间：计算从状态i首次到达状态j的期望步数 E_i[τ_j]",
-            inputs, 3, PRESET_TYPE_SCALAR,
-            "m_i = E_i[\\tau_j] = 1 + \\sum_{k \\neq j} P(i,k) \\cdot m_k, \\quad m_j = 0",
-            "O(n^3)", true, false);
+        REGISTER_SP("sp_markov_chain_expected_time", "期望到达时间：计算从状态i首次到达状态j的期望步数 E_i[τ_j]",
+                    inputs, 3, PRESET_TYPE_SCALAR,
+                    "m_i = E_i[\\tau_j] = 1 + \\sum_{k \\neq j} P(i,k) \\cdot m_k, \\quad m_j = 0", "O(n^3)", true,
+                    false);
     }
 
     /* ============================================================
@@ -310,11 +294,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR};
-        REGISTER_SP("sp_poisson_process_construct",
-            "泊松过程构造：由强度λ构造齐次泊松过程 {N(t), t >= 0}",
-            inputs, 1, PRESET_TYPE_FUNCTION,
-            "\\{N(t), t \\geq 0\\}, \\quad N(0) = 0, \\quad N(t+s) - N(s) \\sim \\text{Poisson}(\\lambda t)",
-            "O(1)", true, false);
+        REGISTER_SP("sp_poisson_process_construct", "泊松过程构造：由强度λ构造齐次泊松过程 {N(t), t >= 0}", inputs, 1,
+                    PRESET_TYPE_FUNCTION,
+                    "\\{N(t), t \\geq 0\\}, \\quad N(0) = 0, \\quad N(t+s) - N(s) \\sim \\text{Poisson}(\\lambda t)",
+                    "O(1)", true, false);
     }
 
     /**
@@ -336,11 +319,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_INTEGER};
-        REGISTER_SP("sp_poisson_process_counting",
-            "计数分布：计算泊松过程在时间t内恰好发生k个事件的概率 P(N(t)=k)",
-            inputs, 3, PRESET_TYPE_PROBABILITY,
-            "P(N(t) = k) = \\frac{(\\lambda t)^k e^{-\\lambda t}}{k!}, \\quad k = 0, 1, 2, \\ldots",
-            "O(k)", true, false);
+        REGISTER_SP("sp_poisson_process_counting", "计数分布：计算泊松过程在时间t内恰好发生k个事件的概率 P(N(t)=k)",
+                    inputs, 3, PRESET_TYPE_PROBABILITY,
+                    "P(N(t) = k) = \\frac{(\\lambda t)^k e^{-\\lambda t}}{k!}, \\quad k = 0, 1, 2, \\ldots", "O(k)",
+                    true, false);
     }
 
     /**
@@ -362,11 +344,11 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_SP("sp_poisson_process_waiting",
-            "等待时间分布：第k个事件的等待时间 S_k ~ Gamma(k, λ)",
-            inputs, 3, PRESET_TYPE_PROBABILITY,
-            "S_k \\sim \\text{Gamma}(k, \\lambda), \\quad f_{S_k}(t) = \\frac{\\lambda^k t^{k-1} e^{-\\lambda t}}{(k-1)!}",
-            "O(k)", true, false);
+        REGISTER_SP("sp_poisson_process_waiting", "等待时间分布：第k个事件的等待时间 S_k ~ Gamma(k, λ)", inputs, 3,
+                    PRESET_TYPE_PROBABILITY,
+                    "S_k \\sim \\text{Gamma}(k, \\lambda), \\quad f_{S_k}(t) = \\frac{\\lambda^k t^{k-1} e^{-\\lambda "
+                    "t}}{(k-1)!}",
+                    "O(k)", true, false);
     }
 
     /**
@@ -387,8 +369,8 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_PROBABILITY};
-        REGISTER_SP("sp_poisson_process_thinning",
-            "泊松过程稀疏化：以概率p独立删除事件，保留的事件构成强度为λp的泊松过程",
+        REGISTER_SP(
+            "sp_poisson_process_thinning", "泊松过程稀疏化：以概率p独立删除事件，保留的事件构成强度为λp的泊松过程",
             inputs, 2, PRESET_TYPE_FUNCTION,
             "N_1(t) \\sim \\text{PP}(\\lambda p), \\quad N_2(t) \\sim \\text{PP}(\\lambda(1-p)), \\quad N_1 \\perp N_2",
             "O(n)", true, false);
@@ -411,11 +393,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_LIST};
-        REGISTER_SP("sp_poisson_process_superposition",
-            "泊松过程叠加：独立泊松过程的和仍为泊松过程，强度为各强度之和",
-            inputs, 1, PRESET_TYPE_FUNCTION,
-            "\\sum_{i=1}^{k} N_i(t) \\sim \\text{PP}\\left(\\sum_{i=1}^{k} \\lambda_i\\right)",
-            "O(k)", true, false);
+        REGISTER_SP("sp_poisson_process_superposition", "泊松过程叠加：独立泊松过程的和仍为泊松过程，强度为各强度之和",
+                    inputs, 1, PRESET_TYPE_FUNCTION,
+                    "\\sum_{i=1}^{k} N_i(t) \\sim \\text{PP}\\left(\\sum_{i=1}^{k} \\lambda_i\\right)", "O(k)", true,
+                    false);
     }
 
     /* ============================================================
@@ -439,11 +420,9 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR};
-        REGISTER_SP("sp_brownian_motion_construct",
-            "布朗运动构造：构造标准布朗运动（维纳过程）{W(t), t >= 0}",
-            inputs, 1, PRESET_TYPE_FUNCTION,
-            "W(0) = 0, \\quad W(t) - W(s) \\sim N(0, t-s), \\quad t > s \\geq 0",
-            "O(n)", true, false);
+        REGISTER_SP("sp_brownian_motion_construct", "布朗运动构造：构造标准布朗运动（维纳过程）{W(t), t >= 0}", inputs,
+                    1, PRESET_TYPE_FUNCTION, "W(0) = 0, \\quad W(t) - W(s) \\sim N(0, t-s), \\quad t > s \\geq 0",
+                    "O(n)", true, false);
     }
 
     /**
@@ -463,11 +442,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_SP("sp_brownian_motion_increment",
-            "增量分布：计算布朗运动增量 W(t)-W(s) ~ N(0, t-s) 的分布",
-            inputs, 2, PRESET_TYPE_DISTRIBUTION,
-            "W(t) - W(s) \\sim N(0, t-s), \\quad E[W(t)-W(s)] = 0, \\quad \\text{Var}[W(t)-W(s)] = t-s",
-            "O(1)", true, false);
+        REGISTER_SP("sp_brownian_motion_increment", "增量分布：计算布朗运动增量 W(t)-W(s) ~ N(0, t-s) 的分布", inputs,
+                    2, PRESET_TYPE_DISTRIBUTION,
+                    "W(t) - W(s) \\sim N(0, t-s), \\quad E[W(t)-W(s)] = 0, \\quad \\text{Var}[W(t)-W(s)] = t-s", "O(1)",
+                    true, false);
     }
 
     /**
@@ -488,11 +466,11 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_SP("sp_brownian_motion_reflection",
-            "反射原理：计算 P(max_{0<=s<=t} W(s) >= a) = 2P(W(t) >= a)",
-            inputs, 2, PRESET_TYPE_PROBABILITY,
-            "P\\left(\\max_{0 \\leq s \\leq t} W(s) \\geq a\\right) = 2 \\cdot P(W(t) \\geq a) = 2\\left(1 - \\Phi\\left(\\frac{a}{\\sqrt{t}}\\right)\\right)",
-            "O(1)", true, false);
+        REGISTER_SP("sp_brownian_motion_reflection", "反射原理：计算 P(max_{0<=s<=t} W(s) >= a) = 2P(W(t) >= a)",
+                    inputs, 2, PRESET_TYPE_PROBABILITY,
+                    "P\\left(\\max_{0 \\leq s \\leq t} W(s) \\geq a\\right) = 2 \\cdot P(W(t) \\geq a) = 2\\left(1 - "
+                    "\\Phi\\left(\\frac{a}{\\sqrt{t}}\\right)\\right)",
+                    "O(1)", true, false);
     }
 
     /**
@@ -513,11 +491,11 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_SP("sp_brownian_motion_hitting",
-            "首达时间：计算布朗运动首次到达水平线a的时间 τ_a 的分布",
-            inputs, 2, PRESET_TYPE_PROBABILITY,
-            "\\tau_a = \\inf\\{t > 0 : W(t) = a\\}, \\quad P(\\tau_a \\leq t) = 2\\left(1 - \\Phi\\left(\\frac{a}{\\sqrt{t}}\\right)\\right)",
-            "O(1)", true, false);
+        REGISTER_SP("sp_brownian_motion_hitting", "首达时间：计算布朗运动首次到达水平线a的时间 τ_a 的分布", inputs, 2,
+                    PRESET_TYPE_PROBABILITY,
+                    "\\tau_a = \\inf\\{t > 0 : W(t) = a\\}, \\quad P(\\tau_a \\leq t) = 2\\left(1 - "
+                    "\\Phi\\left(\\frac{a}{\\sqrt{t}}\\right)\\right)",
+                    "O(1)", true, false);
     }
 
     /**
@@ -537,9 +515,9 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        REGISTER_SP("sp_brownian_motion_bridge",
-            "布朗桥：构造布朗桥 W_0(t) = W(t) - tW(1)，满足 W_0(0) = W_0(1) = 0",
-            inputs, 1, PRESET_TYPE_FUNCTION,
+        REGISTER_SP(
+            "sp_brownian_motion_bridge", "布朗桥：构造布朗桥 W_0(t) = W(t) - tW(1)，满足 W_0(0) = W_0(1) = 0", inputs,
+            1, PRESET_TYPE_FUNCTION,
             "W_0(t) = W(t) - t \\cdot W(1), \\quad t \\in [0, 1], \\quad \\text{Cov}(W_0(s), W_0(t)) = \\min(s,t) - st",
             "O(n)", true, false);
     }
@@ -566,11 +544,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION};
-        REGISTER_SP("sp_martingale_check",
-            "鞅判定：判定随机过程 {X_n} 是否为鞅（E[X_{n+1}|F_n] = X_n）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "E[X_{n+1} \\mid \\mathcal{F}_n] = X_n \\quad \\text{a.s.}, \\quad E[|X_n|] < \\infty",
-            "O(n)", false, false);
+        REGISTER_SP("sp_martingale_check", "鞅判定：判定随机过程 {X_n} 是否为鞅（E[X_{n+1}|F_n] = X_n）", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "E[X_{n+1} \\mid \\mathcal{F}_n] = X_n \\quad \\text{a.s.}, \\quad E[|X_n|] < \\infty", "O(n)",
+                    false, false);
     }
 
     /**
@@ -592,11 +569,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION};
-        REGISTER_SP("sp_martingale_stopping",
-            "停时定理（可选停时定理）：验证 E[X_τ] = E[X_0] 的条件并给出结论",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "E[X_\\tau] = E[X_0], \\quad \\text{其中 } \\tau \\text{ 是停时，满足有界或一致可积条件}",
-            "O(n)", false, false);
+        REGISTER_SP("sp_martingale_stopping", "停时定理（可选停时定理）：验证 E[X_τ] = E[X_0] 的条件并给出结论", inputs,
+                    2, PRESET_TYPE_BOOLEAN,
+                    "E[X_\\tau] = E[X_0], \\quad \\text{其中 } \\tau \\text{ 是停时，满足有界或一致可积条件}", "O(n)",
+                    false, false);
     }
 
     /**
@@ -616,11 +592,11 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        REGISTER_SP("sp_martingale_convergence",
-            "鞅收敛定理：验证L^2有界鞅几乎必然且L^2收敛的条件",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "\\sup_n E[X_n^2] < \\infty \\Rightarrow X_n \\xrightarrow{a.s.} X_\\infty, \\quad E[X_n^2] \\to E[X_\\infty^2]",
-            "O(n)", false, false);
+        REGISTER_SP("sp_martingale_convergence", "鞅收敛定理：验证L^2有界鞅几乎必然且L^2收敛的条件", inputs, 1,
+                    PRESET_TYPE_BOOLEAN,
+                    "\\sup_n E[X_n^2] < \\infty \\Rightarrow X_n \\xrightarrow{a.s.} X_\\infty, \\quad E[X_n^2] \\to "
+                    "E[X_\\infty^2]",
+                    "O(n)", false, false);
     }
 
     /**
@@ -639,11 +615,10 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        REGISTER_SP("sp_martingale_decomposition",
-            "Doob分解：将下鞅 X_n 分解为鞅部分 M_n 和可料增部分 A_n",
-            inputs, 1, PRESET_TYPE_TUPLE,
-            "X_n = M_n + A_n, \\quad M_0 = 0, \\quad A_0 = 0, \\quad A_n \\text{ 可料且递增}",
-            "O(n)", true, false);
+        REGISTER_SP("sp_martingale_decomposition", "Doob分解：将下鞅 X_n 分解为鞅部分 M_n 和可料增部分 A_n", inputs, 1,
+                    PRESET_TYPE_TUPLE,
+                    "X_n = M_n + A_n, \\quad M_0 = 0, \\quad A_0 = 0, \\quad A_n \\text{ 可料且递增}", "O(n)", true,
+                    false);
     }
 
     /* ============================================================
@@ -668,11 +643,9 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_INTEGER};
-        REGISTER_SP("sp_random_walk_construct",
-            "随机游走构造：由步长分布构造随机游走 S_n = X_1 + X_2 + ... + X_n",
-            inputs, 2, PRESET_TYPE_FUNCTION,
-            "S_n = \\sum_{i=1}^{n} X_i, \\quad X_i \\text{ i.i.d.}, \\quad S_0 = 0",
-            "O(n)", true, false);
+        REGISTER_SP("sp_random_walk_construct", "随机游走构造：由步长分布构造随机游走 S_n = X_1 + X_2 + ... + X_n",
+                    inputs, 2, PRESET_TYPE_FUNCTION,
+                    "S_n = \\sum_{i=1}^{n} X_i, \\quad X_i \\text{ i.i.d.}, \\quad S_0 = 0", "O(n)", true, false);
     }
 
     /**
@@ -693,11 +666,11 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER};
-        REGISTER_SP("sp_random_walk_return",
-            "回归概率：计算d维对称随机游走回归原点的概率（Polya定理）",
-            inputs, 1, PRESET_TYPE_PROBABILITY,
-            "f_d = P(\\exists n \\geq 1: S_n = 0 \\mid S_0 = 0) = \\begin{cases} 1 & d = 1, 2 \\\\ < 1 & d \\geq 3 \\end{cases}",
-            "O(1)", true, false);
+        REGISTER_SP("sp_random_walk_return", "回归概率：计算d维对称随机游走回归原点的概率（Polya定理）", inputs, 1,
+                    PRESET_TYPE_PROBABILITY,
+                    "f_d = P(\\exists n \\geq 1: S_n = 0 \\mid S_0 = 0) = \\begin{cases} 1 & d = 1, 2 \\\\ < 1 & d "
+                    "\\geq 3 \\end{cases}",
+                    "O(1)", true, false);
     }
 
     /**
@@ -719,11 +692,11 @@ bool preset_stochastic_processes_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_PROBABILITY};
-        REGISTER_SP("sp_random_walk_gambler_ruin",
-            "赌徒破产问题：计算初始资本a、目标N、赢概率p下的破产概率",
-            inputs, 3, PRESET_TYPE_PROBABILITY,
-            "P(\\text{破产}) = \\begin{cases} \\frac{(q/p)^a - (q/p)^N}{1 - (q/p)^N} & p \\neq q \\\\ 1 - \\frac{a}{N} & p = q = \\frac{1}{2} \\end{cases}",
-            "O(1)", true, false);
+        REGISTER_SP("sp_random_walk_gambler_ruin", "赌徒破产问题：计算初始资本a、目标N、赢概率p下的破产概率", inputs, 3,
+                    PRESET_TYPE_PROBABILITY,
+                    "P(\\text{破产}) = \\begin{cases} \\frac{(q/p)^a - (q/p)^N}{1 - (q/p)^N} & p \\neq q \\\\ 1 - "
+                    "\\frac{a}{N} & p = q = \\frac{1}{2} \\end{cases}",
+                    "O(1)", true, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -735,8 +708,7 @@ bool preset_stochastic_processes_register(void)
  *
  * @return int 随机过程模块预设函数块总数
  */
-int preset_stochastic_processes_count(void)
-{
+int preset_stochastic_processes_count(void) {
     return STOCHASTIC_PROCESSES_PRESET_COUNT;
 }
 
@@ -748,8 +720,7 @@ int preset_stochastic_processes_count(void)
  * @return true 获取成功
  * @return false 获取失败
  */
-bool preset_stochastic_processes_get_names(char ***out_names, int *out_count)
-{
+bool preset_stochastic_processes_get_names(char ***out_names, int *out_count) {
     if (out_names == NULL || out_count == NULL) {
         return false;
     }
@@ -757,7 +728,7 @@ bool preset_stochastic_processes_get_names(char ***out_names, int *out_count)
     *out_count = STOCHASTIC_PROCESSES_PRESET_COUNT;
 
     /* 分配名称数组（使用项目统一的内存管理函数） */
-    char **names = (char **)lv00_malloc(STOCHASTIC_PROCESSES_PRESET_COUNT * sizeof(char *));
+    char **names = (char **) lv00_malloc(STOCHASTIC_PROCESSES_PRESET_COUNT * sizeof(char *));
     if (names == NULL) {
         return false;
     }
@@ -765,36 +736,19 @@ bool preset_stochastic_processes_get_names(char ***out_names, int *out_count)
     /* 填充预设名称列表 */
     const char *preset_names[] = {
         /* 马尔可夫链 */
-        "sp_markov_chain_construct",
-        "sp_markov_chain_transition",
-        "sp_markov_chain_stationary",
-        "sp_markov_chain_irreducible",
-        "sp_markov_chain_aperiodic",
-        "sp_markov_chain_recurrent",
-        "sp_markov_chain_absorbing",
-        "sp_markov_chain_expected_time",
+        "sp_markov_chain_construct", "sp_markov_chain_transition", "sp_markov_chain_stationary",
+        "sp_markov_chain_irreducible", "sp_markov_chain_aperiodic", "sp_markov_chain_recurrent",
+        "sp_markov_chain_absorbing", "sp_markov_chain_expected_time",
         /* 泊松过程 */
-        "sp_poisson_process_construct",
-        "sp_poisson_process_counting",
-        "sp_poisson_process_waiting",
-        "sp_poisson_process_thinning",
-        "sp_poisson_process_superposition",
+        "sp_poisson_process_construct", "sp_poisson_process_counting", "sp_poisson_process_waiting",
+        "sp_poisson_process_thinning", "sp_poisson_process_superposition",
         /* 布朗运动 */
-        "sp_brownian_motion_construct",
-        "sp_brownian_motion_increment",
-        "sp_brownian_motion_reflection",
-        "sp_brownian_motion_hitting",
-        "sp_brownian_motion_bridge",
+        "sp_brownian_motion_construct", "sp_brownian_motion_increment", "sp_brownian_motion_reflection",
+        "sp_brownian_motion_hitting", "sp_brownian_motion_bridge",
         /* 鞅论 */
-        "sp_martingale_check",
-        "sp_martingale_stopping",
-        "sp_martingale_convergence",
-        "sp_martingale_decomposition",
+        "sp_martingale_check", "sp_martingale_stopping", "sp_martingale_convergence", "sp_martingale_decomposition",
         /* 随机游走 */
-        "sp_random_walk_construct",
-        "sp_random_walk_return",
-        "sp_random_walk_gambler_ruin"
-    };
+        "sp_random_walk_construct", "sp_random_walk_return", "sp_random_walk_gambler_ruin"};
 
     for (int i = 0; i < STOCHASTIC_PROCESSES_PRESET_COUNT; i++) {
         names[i] = lv00_strdup(preset_names[i]);
@@ -804,7 +758,7 @@ bool preset_stochastic_processes_get_names(char ***out_names, int *out_count)
                 void *tmp = names[j];
                 lv00_free(&tmp);
             }
-            lv00_free((void **)&names);
+            lv00_free((void **) &names);
             return false;
         }
     }
@@ -818,7 +772,6 @@ bool preset_stochastic_processes_get_names(char ***out_names, int *out_count)
  *
  * @return 类别名称字符串
  */
-const char *preset_stochastic_processes_category(void)
-{
+const char *preset_stochastic_processes_category(void) {
     return "随机过程";
 }

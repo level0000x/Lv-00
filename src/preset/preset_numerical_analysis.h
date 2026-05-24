@@ -32,16 +32,16 @@ extern "C" {
 /* -------------------- 数值积分 -------------------- */
 
 /** 梯形法则 */
-#define PRESET_NUMERICAL_INTEGRAL_TRAPEZOID  "numerical_integral_trapezoid"
+#define PRESET_NUMERICAL_INTEGRAL_TRAPEZOID "numerical_integral_trapezoid"
 
 /** 辛普森法则 */
-#define PRESET_NUMERICAL_INTEGRAL_SIMPSON    "numerical_integral_simpson"
+#define PRESET_NUMERICAL_INTEGRAL_SIMPSON "numerical_integral_simpson"
 
 /** 高斯求积 */
-#define PRESET_NUMERICAL_INTEGRAL_GAUSS      "numerical_integral_gauss"
+#define PRESET_NUMERICAL_INTEGRAL_GAUSS "numerical_integral_gauss"
 
 /** 龙贝格积分 */
-#define PRESET_NUMERICAL_INTEGRAL_ROMBERG    "numerical_integral_romberg"
+#define PRESET_NUMERICAL_INTEGRAL_ROMBERG "numerical_integral_romberg"
 
 /** 蒙特卡洛积分 */
 #define PRESET_NUMERICAL_INTEGRAL_MONTE_CARLO "numerical_integral_monte_carlo"
@@ -49,72 +49,72 @@ extern "C" {
 /* -------------------- 方程求解 -------------------- */
 
 /** 二分法求根 */
-#define PRESET_ROOT_BISECTION                "root_bisection"
+#define PRESET_ROOT_BISECTION "root_bisection"
 
 /** 牛顿法求根 */
-#define PRESET_ROOT_NEWTON                   "root_newton"
+#define PRESET_ROOT_NEWTON "root_newton"
 
 /** 割线法求根 */
-#define PRESET_ROOT_SECANT                   "root_secant"
+#define PRESET_ROOT_SECANT "root_secant"
 
 /** 不动点迭代 */
-#define PRESET_ROOT_FIXED_POINT              "root_fixed_point"
+#define PRESET_ROOT_FIXED_POINT "root_fixed_point"
 
 /** 非线性方程组牛顿法 */
-#define PRESET_SYSTEM_NEWTON                 "system_newton"
+#define PRESET_SYSTEM_NEWTON "system_newton"
 
 /* -------------------- 插值方法 -------------------- */
 
 /** 拉格朗日插值 */
-#define PRESET_INTERPOLATION_LAGRANGE        "interpolation_lagrange"
+#define PRESET_INTERPOLATION_LAGRANGE "interpolation_lagrange"
 
 /** 牛顿均差插值 */
-#define PRESET_INTERPOLATION_NEWTON          "interpolation_newton"
+#define PRESET_INTERPOLATION_NEWTON "interpolation_newton"
 
 /** 线性样条插值 */
-#define PRESET_INTERPOLATION_SPLINE_LINEAR   "interpolation_spline_linear"
+#define PRESET_INTERPOLATION_SPLINE_LINEAR "interpolation_spline_linear"
 
 /** 三次样条插值 */
-#define PRESET_INTERPOLATION_SPLINE_CUBIC    "interpolation_spline_cubic"
+#define PRESET_INTERPOLATION_SPLINE_CUBIC "interpolation_spline_cubic"
 
 /** 切比雪夫插值 */
-#define PRESET_INTERPOLATION_CHEBYSHEV       "interpolation_chebyshev"
+#define PRESET_INTERPOLATION_CHEBYSHEV "interpolation_chebyshev"
 
 /* -------------------- 数值微分 -------------------- */
 
 /** 前向差分 */
-#define PRESET_DIFFERENTIATION_FORWARD       "differentiation_forward"
+#define PRESET_DIFFERENTIATION_FORWARD "differentiation_forward"
 
 /** 后向差分 */
-#define PRESET_DIFFERENTIATION_BACKWARD      "differentiation_backward"
+#define PRESET_DIFFERENTIATION_BACKWARD "differentiation_backward"
 
 /** 中心差分 */
-#define PRESET_DIFFERENTIATION_CENTRAL       "differentiation_central"
+#define PRESET_DIFFERENTIATION_CENTRAL "differentiation_central"
 
 /** 理查森外推 */
-#define PRESET_DIFFERENTIATION_RICHARDSON    "differentiation_richardson"
+#define PRESET_DIFFERENTIATION_RICHARDSON "differentiation_richardson"
 
 /* -------------------- 常微分方程 -------------------- */
 
 /** 欧拉方法 */
-#define PRESET_ODE_EULER                     "ode_euler"
+#define PRESET_ODE_EULER "ode_euler"
 
 /** 四阶龙格-库塔方法 */
-#define PRESET_ODE_RK4                       "ode_rk4"
+#define PRESET_ODE_RK4 "ode_rk4"
 
 /** 自适应步长方法 */
-#define PRESET_ODE_ADAPTIVE                  "ode_adaptive"
+#define PRESET_ODE_ADAPTIVE "ode_adaptive"
 
 /** ODE方程组求解 */
-#define PRESET_ODE_SYSTEM                    "ode_system"
+#define PRESET_ODE_SYSTEM "ode_system"
 
 /* -------------------- 矩阵运算 -------------------- */
 
 /** LU分解 */
-#define PRESET_MATRIX_LU_DECOMPOSE           "matrix_lu_decompose"
+#define PRESET_MATRIX_LU_DECOMPOSE "matrix_lu_decompose"
 
 /** 特征值计算 */
-#define PRESET_MATRIX_EIGENVALUES            "matrix_eigenvalues"
+#define PRESET_MATRIX_EIGENVALUES "matrix_eigenvalues"
 
 /* ============================================================
  * 模块注册函数

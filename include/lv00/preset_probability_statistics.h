@@ -32,121 +32,121 @@ extern "C" {
 /* -------------------- 概率基础 -------------------- */
 
 /** 概率空间 (Ω, F, P) */
-#define PRESET_PROBABILITY_SPACE_CREATE     "probability_space_create"
+#define PRESET_PROBABILITY_SPACE_CREATE "probability_space_create"
 
 /** 事件概率 P(A) */
-#define PRESET_PROBABILITY_EVENT            "probability_event"
+#define PRESET_PROBABILITY_EVENT "probability_event"
 
 /** 对立事件 P(A^c) = 1 - P(A) */
-#define PRESET_PROBABILITY_COMPLEMENT       "probability_complement"
+#define PRESET_PROBABILITY_COMPLEMENT "probability_complement"
 
 /** 概率加法公式 P(A∪B) */
-#define PRESET_PROBABILITY_UNION            "probability_union"
+#define PRESET_PROBABILITY_UNION "probability_union"
 
 /** 交集概率 P(A∩B) */
-#define PRESET_PROBABILITY_INTERSECTION     "probability_intersection"
+#define PRESET_PROBABILITY_INTERSECTION "probability_intersection"
 
 /** 条件概率 P(A|B) */
 #ifndef PRESET_CONDITIONAL_PROBABILITY
-#define PRESET_CONDITIONAL_PROBABILITY      "conditional_probability"
+#define PRESET_CONDITIONAL_PROBABILITY "conditional_probability"
 #endif
 
 /** Bayes定理 */
 #ifndef PRESET_BAYES_THEOREM
-#define PRESET_BAYES_THEOREM                "bayes_theorem"
+#define PRESET_BAYES_THEOREM "bayes_theorem"
 #endif
 
 /** 全概率公式 */
 #ifndef PRESET_TOTAL_PROBABILITY
-#define PRESET_TOTAL_PROBABILITY            "total_probability"
+#define PRESET_TOTAL_PROBABILITY "total_probability"
 #endif
 
 /* -------------------- 随机变量 -------------------- */
 
 /** 期望 E[X] */
-#define PRESET_RANDOM_VARIABLE_EXPECTATION  "random_variable_expectation"
+#define PRESET_RANDOM_VARIABLE_EXPECTATION "random_variable_expectation"
 
 /** 方差 Var(X) */
-#define PRESET_RANDOM_VARIABLE_VARIANCE     "random_variable_variance"
+#define PRESET_RANDOM_VARIABLE_VARIANCE "random_variable_variance"
 
 /** 标准差 σ(X) */
-#define PRESET_RANDOM_VARIABLE_STD          "random_variable_std"
+#define PRESET_RANDOM_VARIABLE_STD "random_variable_std"
 
 /** 矩 E[X^n] */
-#define PRESET_RANDOM_VARIABLE_MOMENT       "random_variable_moment"
+#define PRESET_RANDOM_VARIABLE_MOMENT "random_variable_moment"
 
 /** 协方差 Cov(X,Y) */
-#define PRESET_RANDOM_VARIABLE_COVARIANCE   "random_variable_covariance"
+#define PRESET_RANDOM_VARIABLE_COVARIANCE "random_variable_covariance"
 
 /** 相关系数 ρ(X,Y) */
-#define PRESET_RANDOM_VARIABLE_CORRELATION  "random_variable_correlation"
+#define PRESET_RANDOM_VARIABLE_CORRELATION "random_variable_correlation"
 
 /** 矩母函数 M_X(t) */
-#define PRESET_MOMENT_GENERATING_FUNCTION   "moment_generating_function"
+#define PRESET_MOMENT_GENERATING_FUNCTION "moment_generating_function"
 
 /** 特征函数 φ_X(t) */
-#define PRESET_CHARACTERISTIC_FUNCTION      "characteristic_function"
+#define PRESET_CHARACTERISTIC_FUNCTION "characteristic_function"
 
 /* -------------------- 概率分布 -------------------- */
 
 /** 正态分布 N(μ, σ²) */
-#define PRESET_DISTRIBUTION_NORMAL          "distribution_normal"
+#define PRESET_DISTRIBUTION_NORMAL "distribution_normal"
 
 /** 均匀分布 U(a,b) */
-#define PRESET_DISTRIBUTION_UNIFORM         "distribution_uniform"
+#define PRESET_DISTRIBUTION_UNIFORM "distribution_uniform"
 
 /** 指数分布 Exp(λ) */
-#define PRESET_DISTRIBUTION_EXPONENTIAL     "distribution_exponential"
+#define PRESET_DISTRIBUTION_EXPONENTIAL "distribution_exponential"
 
 /** 泊松分布 Poisson(λ) */
-#define PRESET_DISTRIBUTION_POISSON         "distribution_poisson"
+#define PRESET_DISTRIBUTION_POISSON "distribution_poisson"
 
 /** 二项分布 B(n,p) */
-#define PRESET_DISTRIBUTION_BINOMIAL        "distribution_binomial"
+#define PRESET_DISTRIBUTION_BINOMIAL "distribution_binomial"
 
 /** 几何分布 Geo(p) */
-#define PRESET_DISTRIBUTION_GEOMETRIC       "distribution_geometric"
+#define PRESET_DISTRIBUTION_GEOMETRIC "distribution_geometric"
 
 /** Gamma分布 Γ(α,β) */
-#define PRESET_DISTRIBUTION_GAMMA           "distribution_gamma"
+#define PRESET_DISTRIBUTION_GAMMA "distribution_gamma"
 
 /** Beta分布 Beta(α,β) */
-#define PRESET_DISTRIBUTION_BETA            "distribution_beta"
+#define PRESET_DISTRIBUTION_BETA "distribution_beta"
 
 /** 卡方分布 χ²(k) */
-#define PRESET_DISTRIBUTION_CHI_SQUARED     "distribution_chi_squared"
+#define PRESET_DISTRIBUTION_CHI_SQUARED "distribution_chi_squared"
 
 /** t分布 t(k) */
-#define PRESET_DISTRIBUTION_STUDENT_T       "distribution_student_t"
+#define PRESET_DISTRIBUTION_STUDENT_T "distribution_student_t"
 
 /* -------------------- 统计推断 -------------------- */
 
 /** 最大似然估计 */
-#define PRESET_MLE_ESTIMATE                 "mle_estimate"
+#define PRESET_MLE_ESTIMATE "mle_estimate"
 
 /** 贝叶斯估计 */
-#define PRESET_BAYESIAN_ESTIMATE            "bayesian_estimate"
+#define PRESET_BAYESIAN_ESTIMATE "bayesian_estimate"
 
 /** 置信区间 */
-#define PRESET_CONFIDENCE_INTERVAL          "confidence_interval"
+#define PRESET_CONFIDENCE_INTERVAL "confidence_interval"
 
 /** Z检验 */
-#define PRESET_HYPOTHESIS_TEST_Z            "hypothesis_test_z"
+#define PRESET_HYPOTHESIS_TEST_Z "hypothesis_test_z"
 
 /** t检验 */
-#define PRESET_HYPOTHESIS_TEST_T            "hypothesis_test_t"
+#define PRESET_HYPOTHESIS_TEST_T "hypothesis_test_t"
 
 /** 卡方检验 */
-#define PRESET_HYPOTHESIS_TEST_CHI2         "hypothesis_test_chi2"
+#define PRESET_HYPOTHESIS_TEST_CHI2 "hypothesis_test_chi2"
 
 /** Kolmogorov-Smirnov检验 */
-#define PRESET_KS_TEST                      "ks_test"
+#define PRESET_KS_TEST "ks_test"
 
 /** 线性回归 */
-#define PRESET_REGRESSION_LINEAR            "regression_linear"
+#define PRESET_REGRESSION_LINEAR "regression_linear"
 
 /** 方差分析 */
-#define PRESET_ANOVA                        "anova"
+#define PRESET_ANOVA "anova"
 
 /* ============================================================
  * 模块注册函数

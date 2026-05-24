@@ -11,14 +11,15 @@
  * - 坐标双精度浮点转换
  */
 
-#include "symbolic_coord.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
 #include "lv00_utils.h"
+#include "symbolic_coord.h"
+#include "test_helpers.h"
 
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -148,19 +149,19 @@ void test_symbolic_coord_arithmetic() {
 
     SymbolicCoord *sum = symbolic_coord_add(a, b);
     double sum_val = symbolic_coord_to_double(sum);
-    assert(fabs(sum_val - 5.0/6.0) < 1e-9);
+    assert(fabs(sum_val - 5.0 / 6.0) < 1e-9);
     symbolic_coord_destroy(sum);
     printf("  Addition: PASSED\n");
 
     SymbolicCoord *diff = symbolic_coord_subtract(a, b);
     double diff_val = symbolic_coord_to_double(diff);
-    assert(fabs(diff_val - 1.0/6.0) < 1e-9);
+    assert(fabs(diff_val - 1.0 / 6.0) < 1e-9);
     symbolic_coord_destroy(diff);
     printf("  Subtraction: PASSED\n");
 
     SymbolicCoord *prod = symbolic_coord_multiply(a, b);
     double prod_val = symbolic_coord_to_double(prod);
-    assert(fabs(prod_val - 1.0/6.0) < 1e-9);
+    assert(fabs(prod_val - 1.0 / 6.0) < 1e-9);
     symbolic_coord_destroy(prod);
     printf("  Multiplication: PASSED\n");
 
@@ -191,7 +192,7 @@ void test_bit_circuit() {
     assert(count == 0);
     printf("  Get overflow count: PASSED\n");
 
-    circuit_set_frozen_point((void*)0x1234);
+    circuit_set_frozen_point((void *) 0x1234);
     assert(circuit_has_frozen_point() == true);
     printf("  Set frozen point: PASSED\n");
 
@@ -298,7 +299,7 @@ void test_symbolic_coord_misc() {
     printf("Testing symbolic coord misc functions...\n");
 
     SymbolicCoord *coord = symbolic_coord_create_rational(4, 1);
-    
+
     SymbolicCoord *sqrt_coord = symbolic_coord_sqrt(coord);
     double sqrt_val = symbolic_coord_to_double(sqrt_coord);
     assert(fabs(sqrt_val - 2.0) < 1e-9);
@@ -341,7 +342,7 @@ void test_circuit_context() {
 
 int main() {
     printf("=== Lv-00 Symbolic Coordinate Test Suite ===\n\n");
-    
+
     test_rational_arithmetic();
     test_symbolic_coord_rational();
     test_symbolic_coord_arithmetic();
@@ -352,7 +353,7 @@ int main() {
     test_symbolic_coord_trust_color();
     test_symbolic_coord_misc();
     test_circuit_context();
-    
+
     printf("\n=== All symbolic_coord tests PASSED! ===\n");
     return 0;
 }

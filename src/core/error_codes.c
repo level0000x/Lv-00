@@ -11,16 +11,18 @@
  */
 
 #include "error_codes.h"
-#include "lv00.h"
-#include "lv00_internal.h"
-#include <stdio.h>
+
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
+#include "lv00.h"
+#include "lv00_internal.h"
+
 /* 命名常量 */
-#define LV00_ERROR_MSG_BUFFER_SIZE 512  /**< 线程局部错误消息缓冲区大小 */
-#define LV00_ERROR_CTX_FORMAT_SIZE 64   /**< 上下文格式前缀大小 */
-#define LV00_ERROR_FILE_BUFFER_SIZE 128 /**< 错误上下文（文件名/函数名）缓冲区大小 */
+#define LV00_ERROR_MSG_BUFFER_SIZE 512   /**< 线程局部错误消息缓冲区大小 */
+#define LV00_ERROR_CTX_FORMAT_SIZE 64    /**< 上下文格式前缀大小 */
+#define LV00_ERROR_FILE_BUFFER_SIZE 128  /**< 错误上下文（文件名/函数名）缓冲区大小 */
 #define LV00_ERROR_VALIDATE_BUF_SIZE 256 /**< 错误表验证消息缓冲区大小 */
 
 /* ============================================================
@@ -163,7 +165,7 @@ static const ErrorInfo g_error_table[] = {
  */
 static const ErrorInfo *find_error_info(Lv00ErrorCode code) {
     int left = 0;
-    int right = (int)ERROR_TABLE_SIZE - 1;
+    int right = (int) ERROR_TABLE_SIZE - 1;
 
     while (left <= right) {
         int mid = left + (right - left) / 2;
@@ -227,10 +229,10 @@ bool lv00_error_table_validate(void) {
             /* 检测到排序违规：记录详细错误信息 */
             char buf[LV00_ERROR_VALIDATE_BUF_SIZE];
             snprintf(buf, sizeof(buf),
-                 "错误表排序违规: 索引 %zu (code=%d, name=%s) "
-                 "小于索引 %zu (code=%d, name=%s)",
-                 i, (int)g_error_table[i].code, g_error_table[i].name,
-                 i - 1, (int)g_error_table[i - 1].code, g_error_table[i - 1].name);
+                     "错误表排序违规: 索引 %zu (code=%d, name=%s) "
+                     "小于索引 %zu (code=%d, name=%s)",
+                     i, (int) g_error_table[i].code, g_error_table[i].name, i - 1, (int) g_error_table[i - 1].code,
+                     g_error_table[i - 1].name);
             lv00_set_error(LV00_ERROR_INVALID_STATE, "%s", buf);
             return false;
         }
@@ -263,40 +265,34 @@ int lv00_get_error_description(char *buf, size_t buf_size) {
     if (!buf || buf_size == 0) {
         return -1;
     }
-    
+
     const char *name = lv00_error_name(g_last_error_code);
     const char *message = lv00_get_last_error_message();
     const char *category = lv00_error_category(g_last_error_code);
-    
+
     /* 修复：添加 g_error_file、g_error_line 和 g_error_func 的有效性检查。
      * 只有当文件名非空、行号大于0、且函数名非空时，才认为上下文信息完整，
      * 否则回退到无上下文的格式，避免输出中包含空的文件名或函数名。 */
     int written;
     bool has_valid_context = (g_error_line > 0 && g_error_file[0] != '\0');
     bool has_valid_func = (g_error_func[0] != '\0');
-    
+
     if (has_valid_context) {
         /* 有上下文信息 */
         if (has_valid_func) {
             /* 文件名、行号、函数名均有效：输出完整上下文 */
-            LV00_SAFE_SNPRINTF(written, buf, buf_size,
-                "[%s] %s (0x%08X): %s\n  位置: %s:%d (%s)",
-                category, name, g_last_error_code, message,
-                g_error_file, g_error_line, g_error_func);
+            LV00_SAFE_SNPRINTF(written, buf, buf_size, "[%s] %s (0x%08X): %s\n  位置: %s:%d (%s)", category, name,
+                               g_last_error_code, message, g_error_file, g_error_line, g_error_func);
         } else {
             /* 函数名无效：仅输出文件名和行号 */
-            LV00_SAFE_SNPRINTF(written, buf, buf_size,
-                "[%s] %s (0x%08X): %s\n  位置: %s:%d",
-                category, name, g_last_error_code, message,
-                g_error_file, g_error_line);
+            LV00_SAFE_SNPRINTF(written, buf, buf_size, "[%s] %s (0x%08X): %s\n  位置: %s:%d", category, name,
+                               g_last_error_code, message, g_error_file, g_error_line);
         }
     } else {
         /* 无上下文信息 */
-        LV00_SAFE_SNPRINTF(written, buf, buf_size,
-            "[%s] %s (0x%08X): %s",
-            category, name, g_last_error_code, message);
+        LV00_SAFE_SNPRINTF(written, buf, buf_size, "[%s] %s (0x%08X): %s", category, name, g_last_error_code, message);
     }
-    
+
     return written;
 }
 
@@ -311,15 +307,14 @@ void lv00_set_error(Lv00ErrorCode code, const char *format, ...) {
     } else {
         lv00_strlcpy(g_error_message, lv00_error_string(code), LV00_ERROR_MSG_BUFFER_SIZE);
     }
-    
+
     /* 清除上下文信息 */
     g_error_file[0] = '\0';
     g_error_line = 0;
     g_error_func[0] = '\0';
 }
 
-void lv00_set_error_ctx(Lv00ErrorCode code, const char *file, int line, 
-                        const char *func, const char *format, ...) {
+void lv00_set_error_ctx(Lv00ErrorCode code, const char *file, int line, const char *func, const char *format, ...) {
     g_last_error_code = code;
 
     /* 保存上下文信息 */
@@ -364,7 +359,8 @@ void lv00_clear_error(void) {
  * @return 对应的错误码枚举值，未找到时返回 LV00_ERROR_UNKNOWN
  */
 Lv00ErrorCode lv00_error_code_from_string(const char *name) {
-    if (!name) return LV00_ERROR_UNKNOWN;
+    if (!name)
+        return LV00_ERROR_UNKNOWN;
 
     for (size_t i = 0; i < ERROR_TABLE_SIZE; i++) {
         if (strcmp(g_error_table[i].name, name) == 0) {

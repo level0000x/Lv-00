@@ -12,12 +12,13 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
-#include "symbolic_coord.h"
-#include "graph_hash.h"
-#include "stream.h"
 #include <stddef.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
+#include "graph_hash.h"
+#include "stream.h"
+#include "symbolic_coord.h"
 
 /**
  * @brief 设置规范化模块的流式上下文
@@ -45,10 +46,8 @@ void normalization_set_stream_context(StreamContext *ctx);
  * @param user_data       用户数据
  * @return true 接受合并，false 拒绝
  */
-typedef bool (*MergeConfirmCallback)(int node_a_id, int node_b_id,
-                                      int scope_a_depth, int scope_b_depth,
-                                      int parent_a, int parent_b,
-                                      void *user_data);
+typedef bool (*MergeConfirmCallback)(int node_a_id, int node_b_id, int scope_a_depth, int scope_b_depth, int parent_a,
+                                     int parent_b, void *user_data);
 
 /**
  * @brief 设置合并确认回调及其用户数据
@@ -69,8 +68,8 @@ MergeConfirmCallback normalization_get_merge_callback(void);
  * 记录单次合并事件。
  */
 typedef struct NormalizationLogEntry {
-    int old_id;      /**< 被合并的节点 ID */
-    int new_id;      /**< 保留的代表节点 ID */
+    int old_id;       /**< 被合并的节点 ID */
+    int new_id;       /**< 保留的代表节点 ID */
     bool auto_merged; /**< true 表示自动合并，false 表示用户确认 */
 } NormalizationLogEntry;
 
@@ -81,8 +80,8 @@ typedef struct NormalizationLogEntry {
  */
 typedef struct NormalizationLog {
     NormalizationLogEntry *entries; /**< 日志条目数组 */
-    int count;                    /**< 条目数量 */
-    int capacity;                  /**< 数组容量 */
+    int count;                      /**< 条目数量 */
+    int capacity;                   /**< 数组容量 */
 } NormalizationLog;
 
 /**
@@ -110,11 +109,11 @@ void normalization_log_record(NormalizationLog *log, int old_id, int new_id, boo
 typedef struct NormalizationResult {
     int *merged_node_ids;
     int merged_count;
-    int merged_capacity;     /**< 预分配的合并记录数组容量（用于边界检查） */
+    int merged_capacity; /**< 预分配的合并记录数组容量（用于边界检查） */
     int *original_ids;
     int *representative_ids;
     bool user_confirmed;
-    NormalizationLog *log;  /**< 详细合并日志（结果拥有所有权） */
+    NormalizationLog *log; /**< 详细合并日志（结果拥有所有权） */
 } NormalizationResult;
 
 /**
@@ -160,12 +159,12 @@ int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log);
 int merge_regions(ConstraintGraph *graph, NormalizationLog *log);
 
 typedef struct NodeMergeCandidate {
-    int node_a_id;            /* 候选节点 A 的 ID */
-    int node_b_id;            /* 候选节点 B 的 ID */
-    SymbolicCoord *coord_a;   /* 节点 A 的符号坐标 */
-    SymbolicCoord *coord_b;   /* 节点 B 的符号坐标 */
-    long long scope_a;        /* 节点 A 的作用域深度 */
-    long long scope_b;        /* 节点 B 的作用域深度 */
+    int node_a_id;          /* 候选节点 A 的 ID */
+    int node_b_id;          /* 候选节点 B 的 ID */
+    SymbolicCoord *coord_a; /* 节点 A 的符号坐标 */
+    SymbolicCoord *coord_b; /* 节点 B 的符号坐标 */
+    long long scope_a;      /* 节点 A 的作用域深度 */
+    long long scope_b;      /* 节点 B 的作用域深度 */
 } NodeMergeCandidate;
 
 NodeMergeCandidate *find_merge_candidates(ConstraintGraph *graph, int *out_count);
@@ -203,9 +202,9 @@ void graph_topological_sort_stable(ConstraintGraph *graph);
  * 记录图哈希的历史，用于循环检测。
  */
 typedef struct RewriteHistory {
-    GraphHash** history; /**< 历史哈希数组 */
-    int count;          /**< 历史记录数量 */
-    int capacity;       /**< 数组容量 */
+    GraphHash **history; /**< 历史哈希数组 */
+    int count;           /**< 历史记录数量 */
+    int capacity;        /**< 数组容量 */
 } RewriteHistory;
 
 /**
@@ -213,13 +212,13 @@ typedef struct RewriteHistory {
  * @param[in] capacity 初始容量
  * @return 新创建的重写历史记录，失败返回 NULL
  */
-RewriteHistory* rewrite_history_create(int capacity);
+RewriteHistory *rewrite_history_create(int capacity);
 
 /**
  * @brief 销毁重写历史记录
  * @param[in,out] history 要销毁的历史记录
  */
-void rewrite_history_destroy(RewriteHistory* history);
+void rewrite_history_destroy(RewriteHistory *history);
 
 /**
  * @brief 检查图哈希是否已存在于历史记录中（循环检测）
@@ -228,14 +227,14 @@ void rewrite_history_destroy(RewriteHistory* history);
  * @param[in] graph   约束图
  * @return true 检测到循环，false 无循环
  */
-bool rewrite_history_check_cycle(RewriteHistory* history, ConstraintGraph* graph);
+bool rewrite_history_check_cycle(RewriteHistory *history, ConstraintGraph *graph);
 
 /**
  * @brief 添加图到历史记录
  * @param[in,out] history 历史记录
  * @param[in] graph   约束图
  */
-void rewrite_history_add(RewriteHistory* history, ConstraintGraph* graph);
+void rewrite_history_add(RewriteHistory *history, ConstraintGraph *graph);
 
 #ifdef __cplusplus
 }

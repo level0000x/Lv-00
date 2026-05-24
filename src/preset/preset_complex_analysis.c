@@ -14,12 +14,13 @@
  */
 
 #include "preset_complex_analysis.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
 
 #include <string.h>
+
+#include "lv00_internal.h"
+#include "lv00_utils.h"
+#include "preset_blocks.h"
+#include "preset_common.h"
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -46,16 +47,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_complex_analysis_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_ANALYSIS,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_complex_analysis_preset(const char *name, const char *description, const PresetType *input_types,
+                                             int input_count, PresetType output_type, const char *math_def,
+                                             const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ANALYSIS, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /**
@@ -64,21 +60,19 @@ static bool register_complex_analysis_preset(
  * 减少重复代码，提高可维护性。
  * 注册成功时递增 success_count，失败时输出错误日志。
  */
-#define REGISTER_CA(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_complex_analysis_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_CA(name, desc, inputs, in_count, output, math, comp, cons, rev)                                     \
+    do {                                                                                                             \
+        if (register_complex_analysis_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), \
+                                             (rev))) {                                                               \
+            success_count++;                                                                                         \
+        } else {                                                                                                     \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                      \
+        }                                                                                                            \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_complex_analysis_register(void)
-{
+bool preset_complex_analysis_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -101,12 +95,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_function_eval",
-            "复变函数求值：给定复变函数 f 和复数 z，计算 f(z)",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "w = f(z), \\quad z \\in \\mathbb{C}",
-            "O(1)", true, false);
+        REGISTER_CA("complex_function_eval", "复变函数求值：给定复变函数 f 和复数 z，计算 f(z)", inputs, 2,
+                    PRESET_TYPE_SCALAR, "w = f(z), \\quad z \\in \\mathbb{C}", "O(1)", true, false);
     }
 
     /* -------------------- 2. 复极限 -------------------- */
@@ -125,12 +115,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_limit",
-            "复极限：计算 lim(z->z0) f(z)，z 沿任意路径趋近 z0",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "L = \\lim_{z \\to z_0} f(z), \\quad z \\in \\mathbb{C}",
-            "O(1)", true, false);
+        REGISTER_CA("complex_limit", "复极限：计算 lim(z->z0) f(z)，z 沿任意路径趋近 z0", inputs, 2, PRESET_TYPE_SCALAR,
+                    "L = \\lim_{z \\to z_0} f(z), \\quad z \\in \\mathbb{C}", "O(1)", true, false);
     }
 
     /* -------------------- 3. 复连续性判定 -------------------- */
@@ -150,13 +136,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_continuity_check",
-            "复连续性判定：f 在 z0 处连续当且仅当 lim(z->z0) f(z) = f(z0)",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "f \\text{ 在 } z_0 \\text{ 连续} \\Leftrightarrow "
-            "\\lim_{z \\to z_0} f(z) = f(z_0)",
-            "O(1)", true, false);
+        REGISTER_CA("complex_continuity_check", "复连续性判定：f 在 z0 处连续当且仅当 lim(z->z0) f(z) = f(z0)", inputs,
+                    2, PRESET_TYPE_BOOLEAN,
+                    "f \\text{ 在 } z_0 \\text{ 连续} \\Leftrightarrow "
+                    "\\lim_{z \\to z_0} f(z) = f(z_0)",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 4. 复可微性判定 -------------------- */
@@ -176,13 +160,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_differentiable_check",
-            "复可微性判定：验证 Cauchy-Riemann 条件及偏导数连续性",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "f'(z_0) = \\lim_{\\Delta z \\to 0} "
-            "\\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z} \\text{ 存在}",
-            "O(1)", true, false);
+        REGISTER_CA("complex_differentiable_check", "复可微性判定：验证 Cauchy-Riemann 条件及偏导数连续性", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "f'(z_0) = \\lim_{\\Delta z \\to 0} "
+                    "\\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z} \\text{ 存在}",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 5. 复导数 -------------------- */
@@ -201,13 +183,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_derivative",
-            "复导数：f'(z0) = lim(Dz->0) [f(z0+Dz) - f(z0)] / Dz",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "f'(z_0) = \\lim_{\\Delta z \\to 0} "
-            "\\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z}",
-            "O(1)", true, false);
+        REGISTER_CA("complex_derivative", "复导数：f'(z0) = lim(Dz->0) [f(z0+Dz) - f(z0)] / Dz", inputs, 2,
+                    PRESET_TYPE_SCALAR,
+                    "f'(z_0) = \\lim_{\\Delta z \\to 0} "
+                    "\\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z}",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 6. Cauchy-Riemann方程验证 -------------------- */
@@ -227,13 +207,10 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "cauchy_riemann_check",
-            "Cauchy-Riemann方程验证：ux=vy, uy=-vx",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\frac{\\partial u}{\\partial x} = \\frac{\\partial v}{\\partial y}, "
-            "\\quad \\frac{\\partial u}{\\partial y} = -\\frac{\\partial v}{\\partial x}",
-            "O(1)", true, false);
+        REGISTER_CA("cauchy_riemann_check", "Cauchy-Riemann方程验证：ux=vy, uy=-vx", inputs, 2, PRESET_TYPE_BOOLEAN,
+                    "\\frac{\\partial u}{\\partial x} = \\frac{\\partial v}{\\partial y}, "
+                    "\\quad \\frac{\\partial u}{\\partial y} = -\\frac{\\partial v}{\\partial x}",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 7. 调和函数判定 -------------------- */
@@ -253,13 +230,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "harmonic_function_check",
-            "调和函数判定：Delta(u) = u_xx + u_yy = 0",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\Delta u = \\frac{\\partial^2 u}{\\partial x^2} + "
-            "\\frac{\\partial^2 u}{\\partial y^2} = 0",
-            "O(1)", true, false);
+        REGISTER_CA("harmonic_function_check", "调和函数判定：Delta(u) = u_xx + u_yy = 0", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "\\Delta u = \\frac{\\partial^2 u}{\\partial x^2} + "
+                    "\\frac{\\partial^2 u}{\\partial y^2} = 0",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 8. 调和共轭 -------------------- */
@@ -278,12 +253,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        REGISTER_CA(
-            "harmonic_conjugate",
-            "调和共轭：给定调和函数 u，求 v 使得 f = u + iv 解析",
-            inputs, 1, PRESET_TYPE_FUNCTION,
-            "f(z) = u(x,y) + iv(x,y) \\text{ 解析}",
-            "O(1)", true, false);
+        REGISTER_CA("harmonic_conjugate", "调和共轭：给定调和函数 u，求 v 使得 f = u + iv 解析", inputs, 1,
+                    PRESET_TYPE_FUNCTION, "f(z) = u(x,y) + iv(x,y) \\text{ 解析}", "O(1)", true, false);
     }
 
     /* -------------------- 9. 解析函数判定 -------------------- */
@@ -303,13 +274,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "analytic_function_check",
-            "解析函数判定：f 在 z0 的某邻域内处处复可微",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "f \\text{ 在 } z_0 \\text{ 解析} \\Leftrightarrow "
-            "f \\text{ 在 } z_0 \\text{ 的某邻域内复可微}",
-            "O(1)", true, false);
+        REGISTER_CA("analytic_function_check", "解析函数判定：f 在 z0 的某邻域内处处复可微", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "f \\text{ 在 } z_0 \\text{ 解析} \\Leftrightarrow "
+                    "f \\text{ 在 } z_0 \\text{ 的某邻域内复可微}",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 10. 整函数判定 -------------------- */
@@ -328,13 +297,10 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(inf)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        REGISTER_CA(
-            "entire_function_check",
-            "整函数判定：f(z) 在复平面 C 上处处解析",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "f \\text{ 是整函数} \\Leftrightarrow "
-            "f \\text{ 在 } \\mathbb{C} \\text{ 上处处解析}",
-            "O(\\infty)", true, false);
+        REGISTER_CA("entire_function_check", "整函数判定：f(z) 在复平面 C 上处处解析", inputs, 1, PRESET_TYPE_BOOLEAN,
+                    "f \\text{ 是整函数} \\Leftrightarrow "
+                    "f \\text{ 在 } \\mathbb{C} \\text{ 上处处解析}",
+                    "O(\\infty)", true, false);
     }
 
     /* ============================================================
@@ -357,12 +323,9 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_PATH};
-        REGISTER_CA(
-            "complex_line_integral",
-            "复线积分：int_gamma f(z) dz，沿有向曲线 gamma 的复积分",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "\\int_{\\gamma} f(z) \\, dz = \\int_a^b f(\\gamma(t)) \\gamma'(t) \\, dt",
-            "O(n)", true, false);
+        REGISTER_CA("complex_line_integral", "复线积分：int_gamma f(z) dz，沿有向曲线 gamma 的复积分", inputs, 2,
+                    PRESET_TYPE_SCALAR, "\\int_{\\gamma} f(z) \\, dz = \\int_a^b f(\\gamma(t)) \\gamma'(t) \\, dt",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 12. Cauchy积分公式 -------------------- */
@@ -382,15 +345,12 @@ bool preset_complex_analysis_register(void)
          *
          * 复杂度：O(n)
          */
-        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR,
-                               PRESET_TYPE_PATH};
-        REGISTER_CA(
-            "cauchy_integral_formula",
-            "Cauchy积分公式：f(z0) = (1/2*pi*i) oint f(z)/(z-z0) dz",
-            inputs, 3, PRESET_TYPE_SCALAR,
-            "f(z_0) = \\frac{1}{2\\pi i} \\oint_{\\gamma} "
-            "\\frac{f(z)}{z - z_0} \\, dz",
-            "O(n)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR, PRESET_TYPE_PATH};
+        REGISTER_CA("cauchy_integral_formula", "Cauchy积分公式：f(z0) = (1/2*pi*i) oint f(z)/(z-z0) dz", inputs, 3,
+                    PRESET_TYPE_SCALAR,
+                    "f(z_0) = \\frac{1}{2\\pi i} \\oint_{\\gamma} "
+                    "\\frac{f(z)}{z - z_0} \\, dz",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 13. Cauchy积分公式求导 -------------------- */
@@ -411,15 +371,13 @@ bool preset_complex_analysis_register(void)
          *
          * 复杂度：O(n)
          */
-        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR,
-                               PRESET_TYPE_PATH, PRESET_TYPE_INTEGER};
-        REGISTER_CA(
-            "cauchy_integral_derivative",
-            "Cauchy积分公式求导：f^(n)(z0) = n!/(2*pi*i) oint f(z)/(z-z0)^(n+1) dz",
-            inputs, 4, PRESET_TYPE_SCALAR,
-            "f^{(n)}(z_0) = \\frac{n!}{2\\pi i} \\oint_{\\gamma} "
-            "\\frac{f(z)}{(z - z_0)^{n+1}} \\, dz",
-            "O(n)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR, PRESET_TYPE_PATH, PRESET_TYPE_INTEGER};
+        REGISTER_CA("cauchy_integral_derivative",
+                    "Cauchy积分公式求导：f^(n)(z0) = n!/(2*pi*i) oint f(z)/(z-z0)^(n+1) dz", inputs, 4,
+                    PRESET_TYPE_SCALAR,
+                    "f^{(n)}(z_0) = \\frac{n!}{2\\pi i} \\oint_{\\gamma} "
+                    "\\frac{f(z)}{(z - z_0)^{n+1}} \\, dz",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 14. Cauchy定理验证 -------------------- */
@@ -439,12 +397,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_PATH};
-        REGISTER_CA(
-            "cauchy_theorem",
-            "Cauchy定理验证：f 在 gamma 及其内部解析 => oint_gamma f(z) dz = 0",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\oint_{\\gamma} f(z) \\, dz = 0",
-            "O(n)", true, false);
+        REGISTER_CA("cauchy_theorem", "Cauchy定理验证：f 在 gamma 及其内部解析 => oint_gamma f(z) dz = 0", inputs, 2,
+                    PRESET_TYPE_BOOLEAN, "\\oint_{\\gamma} f(z) \\, dz = 0", "O(n)", true, false);
     }
 
     /* -------------------- 15. Morera定理验证 -------------------- */
@@ -465,13 +419,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(inf)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_REGION};
-        REGISTER_CA(
-            "morera_theorem",
-            "Morera定理验证：f 连续且沿任意三角形积分为零 => f 解析",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\oint_{\\Delta} f(z) \\, dz = 0, \\forall \\Delta \\subset \\Omega "
-            "\\Rightarrow f \\text{ 在 } \\Omega \\text{ 内解析}",
-            "O(\\infty)", true, false);
+        REGISTER_CA("morera_theorem", "Morera定理验证：f 连续且沿任意三角形积分为零 => f 解析", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "\\oint_{\\Delta} f(z) \\, dz = 0, \\forall \\Delta \\subset \\Omega "
+                    "\\Rightarrow f \\text{ 在 } \\Omega \\text{ 内解析}",
+                    "O(\\infty)", true, false);
     }
 
     /* -------------------- 16. 绕数 -------------------- */
@@ -491,13 +443,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_PATH, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "winding_number",
-            "绕数：n(gamma, z0) = (1/2*pi*i) oint_gamma dz/(z-z0)",
-            inputs, 2, PRESET_TYPE_INTEGER,
-            "n(\\gamma, z_0) = \\frac{1}{2\\pi i} "
-            "\\oint_{\\gamma} \\frac{dz}{z - z_0}",
-            "O(n)", true, false);
+        REGISTER_CA("winding_number", "绕数：n(gamma, z0) = (1/2*pi*i) oint_gamma dz/(z-z0)", inputs, 2,
+                    PRESET_TYPE_INTEGER,
+                    "n(\\gamma, z_0) = \\frac{1}{2\\pi i} "
+                    "\\oint_{\\gamma} \\frac{dz}{z - z_0}",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 17. 留数积分 -------------------- */
@@ -518,15 +468,12 @@ bool preset_complex_analysis_register(void)
          *
          * 复杂度：O(n)
          */
-        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_TUPLE,
-                               PRESET_TYPE_PATH};
-        REGISTER_CA(
-            "residue_integral",
-            "留数积分：oint_gamma f(z) dz = 2*pi*i * sum Res(f, zk)",
-            inputs, 3, PRESET_TYPE_SCALAR,
-            "\\oint_{\\gamma} f(z) \\, dz = "
-            "2\\pi i \\sum_{k} \\text{Res}(f, z_k)",
-            "O(n)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_TUPLE, PRESET_TYPE_PATH};
+        REGISTER_CA("residue_integral", "留数积分：oint_gamma f(z) dz = 2*pi*i * sum Res(f, zk)", inputs, 3,
+                    PRESET_TYPE_SCALAR,
+                    "\\oint_{\\gamma} f(z) \\, dz = "
+                    "2\\pi i \\sum_{k} \\text{Res}(f, z_k)",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 18. 围道积分参数化 -------------------- */
@@ -546,13 +493,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_PATH};
-        REGISTER_CA(
-            "contour_integral_param",
-            "围道积分参数化：int_gamma f(z) dz = int_a^b f(gamma(t)) gamma'(t) dt",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "\\int_{\\gamma} f(z) \\, dz = "
-            "\\int_a^b f(\\gamma(t)) \\, \\gamma'(t) \\, dt",
-            "O(n)", true, false);
+        REGISTER_CA("contour_integral_param", "围道积分参数化：int_gamma f(z) dz = int_a^b f(gamma(t)) gamma'(t) dt",
+                    inputs, 2, PRESET_TYPE_EXPRESSION,
+                    "\\int_{\\gamma} f(z) \\, dz = "
+                    "\\int_a^b f(\\gamma(t)) \\, \\gamma'(t) \\, dt",
+                    "O(n)", true, false);
     }
 
     /* ============================================================
@@ -576,15 +521,12 @@ bool preset_complex_analysis_register(void)
          *
          * 复杂度：O(n)
          */
-        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR,
-                               PRESET_TYPE_INTEGER};
-        REGISTER_CA(
-            "taylor_series_complex",
-            "复Taylor级数：f(z) = sum f^(n)(z0)/n! * (z-z0)^n",
-            inputs, 3, PRESET_TYPE_TUPLE,
-            "f(z) = \\sum_{n=0}^{\\infty} "
-            "\\frac{f^{(n)}(z_0)}{n!} (z - z_0)^n",
-            "O(n)", true, false);
+        PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR, PRESET_TYPE_INTEGER};
+        REGISTER_CA("taylor_series_complex", "复Taylor级数：f(z) = sum f^(n)(z0)/n! * (z-z0)^n", inputs, 3,
+                    PRESET_TYPE_TUPLE,
+                    "f(z) = \\sum_{n=0}^{\\infty} "
+                    "\\frac{f^{(n)}(z_0)}{n!} (z - z_0)^n",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 20. Laurent级数 -------------------- */
@@ -604,13 +546,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "laurent_series",
-            "Laurent级数：f(z) = sum a_n (z-z0)^n，n 从 -inf 到 +inf",
-            inputs, 2, PRESET_TYPE_TUPLE,
-            "f(z) = \\sum_{n=-\\infty}^{\\infty} a_n (z - z_0)^n, "
-            "\\quad 0 < |z - z_0| < R",
-            "O(n)", true, false);
+        REGISTER_CA("laurent_series", "Laurent级数：f(z) = sum a_n (z-z0)^n，n 从 -inf 到 +inf", inputs, 2,
+                    PRESET_TYPE_TUPLE,
+                    "f(z) = \\sum_{n=-\\infty}^{\\infty} a_n (z - z_0)^n, "
+                    "\\quad 0 < |z - z_0| < R",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 21. 幂级数收敛半径 -------------------- */
@@ -630,12 +570,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_TUPLE, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "power_series_radius",
-            "幂级数收敛半径：1/R = limsup |a_n|^(1/n)（Hadamard公式）",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "\\frac{1}{R} = \\limsup_{n \\to \\infty} |a_n|^{1/n}",
-            "O(n)", true, false);
+        REGISTER_CA("power_series_radius", "幂级数收敛半径：1/R = limsup |a_n|^(1/n)（Hadamard公式）", inputs, 2,
+                    PRESET_TYPE_SCALAR, "\\frac{1}{R} = \\limsup_{n \\to \\infty} |a_n|^{1/n}", "O(n)", true, false);
     }
 
     /* -------------------- 22. Laurent级数主部 -------------------- */
@@ -656,13 +592,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "laurent_series_principal_part",
-            "Laurent级数主部：提取负幂次部分 sum a_{-n} (z-z0)^{-n}",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "\\text{PP}(f, z_0) = \\sum_{n=1}^{\\infty} "
-            "a_{-n} (z - z_0)^{-n}",
-            "O(n)", true, false);
+        REGISTER_CA("laurent_series_principal_part", "Laurent级数主部：提取负幂次部分 sum a_{-n} (z-z0)^{-n}", inputs,
+                    2, PRESET_TYPE_EXPRESSION,
+                    "\\text{PP}(f, z_0) = \\sum_{n=1}^{\\infty} "
+                    "a_{-n} (z - z_0)^{-n}",
+                    "O(n)", true, false);
     }
 
     /* -------------------- 23. 留数计算 -------------------- */
@@ -682,13 +616,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "residue_compute",
-            "留数计算：Res(f, z0) = a_{-1}（Laurent级数 (z-z0)^{-1} 项系数）",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "\\text{Res}(f, z_0) = a_{-1} = "
-            "\\frac{1}{2\\pi i} \\oint_{\\gamma} f(z) \\, dz",
-            "O(1)", true, false);
+        REGISTER_CA("residue_compute", "留数计算：Res(f, z0) = a_{-1}（Laurent级数 (z-z0)^{-1} 项系数）", inputs, 2,
+                    PRESET_TYPE_SCALAR,
+                    "\\text{Res}(f, z_0) = a_{-1} = "
+                    "\\frac{1}{2\\pi i} \\oint_{\\gamma} f(z) \\, dz",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 24. 极点阶数判定 -------------------- */
@@ -708,13 +640,10 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "pole_order",
-            "极点阶数判定：确定孤立奇点 z0 处极点的阶数 m",
-            inputs, 2, PRESET_TYPE_INTEGER,
-            "\\lim_{z \\to z_0} (z - z_0)^m f(z) \\neq 0, "
-            "\\lim_{z \\to z_0} (z - z_0)^{m+1} f(z) = 0",
-            "O(1)", true, false);
+        REGISTER_CA("pole_order", "极点阶数判定：确定孤立奇点 z0 处极点的阶数 m", inputs, 2, PRESET_TYPE_INTEGER,
+                    "\\lim_{z \\to z_0} (z - z_0)^m f(z) \\neq 0, "
+                    "\\lim_{z \\to z_0} (z - z_0)^{m+1} f(z) = 0",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 25. 本性奇点判定 -------------------- */
@@ -735,13 +664,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "essential_singular_check",
-            "本性奇点判定：Laurent级数主部有无穷多项（非极点、非可去）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\text{本性奇点} \\Leftrightarrow "
-            "\\text{Laurent级数主部有无穷多项}",
-            "O(1)", true, false);
+        REGISTER_CA("essential_singular_check", "本性奇点判定：Laurent级数主部有无穷多项（非极点、非可去）", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "\\text{本性奇点} \\Leftrightarrow "
+                    "\\text{Laurent级数主部有无穷多项}",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 26. 可去奇点判定 -------------------- */
@@ -762,13 +689,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "removable_singular_check",
-            "可去奇点判定：lim(z->z0) f(z) 存在且有限",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\lim_{z \\to z_0} f(z) \\text{ 存在且有限} "
-            "\\Leftrightarrow \\text{Laurent级数主部为零}",
-            "O(1)", true, false);
+        REGISTER_CA("removable_singular_check", "可去奇点判定：lim(z->z0) f(z) 存在且有限", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "\\lim_{z \\to z_0} f(z) \\text{ 存在且有限} "
+                    "\\Leftrightarrow \\text{Laurent级数主部为零}",
+                    "O(1)", true, false);
     }
 
     /* ============================================================
@@ -792,13 +717,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "conformal_map_check",
-            "共形映射判定：f'(z0) != 0 时 f 在 z0 处保持角度和定向",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "f \\text{ 在 } z_0 \\text{ 共形} \\Leftrightarrow "
-            "f'(z_0) \\neq 0",
-            "O(1)", true, false);
+        REGISTER_CA("conformal_map_check", "共形映射判定：f'(z0) != 0 时 f 在 z0 处保持角度和定向", inputs, 2,
+                    PRESET_TYPE_BOOLEAN,
+                    "f \\text{ 在 } z_0 \\text{ 共形} \\Leftrightarrow "
+                    "f'(z_0) \\neq 0",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 28. Mobius变换 -------------------- */
@@ -817,15 +740,10 @@ bool preset_complex_analysis_register(void)
          *
          * 复杂度：O(1)
          */
-        PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR,
-                               PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR,
+        PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR,
                                PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "mobius_transform",
-            "Mobius变换：T(z) = (az + b) / (cz + d)，ad - bc != 0",
-            inputs, 5, PRESET_TYPE_SCALAR,
-            "T(z) = \\frac{az + b}{cz + d}, \\quad ad - bc \\neq 0",
-            "O(1)", true, true);
+        REGISTER_CA("mobius_transform", "Mobius变换：T(z) = (az + b) / (cz + d)，ad - bc != 0", inputs, 5,
+                    PRESET_TYPE_SCALAR, "T(z) = \\frac{az + b}{cz + d}, \\quad ad - bc \\neq 0", "O(1)", true, true);
     }
 
     /* -------------------- 29. Mobius变换复合 -------------------- */
@@ -845,12 +763,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_TUPLE, PRESET_TYPE_TUPLE};
-        REGISTER_CA(
-            "mobius_compose",
-            "Mobius变换复合：计算 T1 o T2 的参数",
-            inputs, 2, PRESET_TYPE_TUPLE,
-            "T_1 \\circ T_2(z) = T_1(T_2(z))",
-            "O(1)", true, false);
+        REGISTER_CA("mobius_compose", "Mobius变换复合：计算 T1 o T2 的参数", inputs, 2, PRESET_TYPE_TUPLE,
+                    "T_1 \\circ T_2(z) = T_1(T_2(z))", "O(1)", true, false);
     }
 
     /* -------------------- 30. Mobius变换逆 -------------------- */
@@ -869,12 +783,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_TUPLE};
-        REGISTER_CA(
-            "mobius_inverse",
-            "Mobius变换逆：T^{-1}(w) = (dw - b) / (-cw + a)",
-            inputs, 1, PRESET_TYPE_TUPLE,
-            "T^{-1}(w) = \\frac{dw - b}{-cw + a}",
-            "O(1)", true, true);
+        REGISTER_CA("mobius_inverse", "Mobius变换逆：T^{-1}(w) = (dw - b) / (-cw + a)", inputs, 1, PRESET_TYPE_TUPLE,
+                    "T^{-1}(w) = \\frac{dw - b}{-cw + a}", "O(1)", true, true);
     }
 
     /* -------------------- 31. Riemann映射 -------------------- */
@@ -894,13 +804,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(inf)
          */
         PresetType inputs[] = {PRESET_TYPE_REGION};
-        REGISTER_CA(
-            "riemann_mapping",
-            "Riemann映射定理：验证单连通区域到单位圆盘的共形映射存在性",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "\\exists f: \\Omega \\to \\mathbb{D} \\text{ 共形双射}, "
-            "\\Omega \\text{ 单连通开集}",
-            "O(\\infty)", false, false);
+        REGISTER_CA("riemann_mapping", "Riemann映射定理：验证单连通区域到单位圆盘的共形映射存在性", inputs, 1,
+                    PRESET_TYPE_BOOLEAN,
+                    "\\exists f: \\Omega \\to \\mathbb{D} \\text{ 共形双射}, "
+                    "\\Omega \\text{ 单连通开集}",
+                    "O(\\infty)", false, false);
     }
 
     /* ============================================================
@@ -923,12 +831,8 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_exp",
-            "复指数函数：e^z = e^x (cos y + i sin y)，z = x + iy",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "e^z = e^x (\\cos y + i\\sin y), \\quad z = x + iy",
-            "O(1)", true, false);
+        REGISTER_CA("complex_exp", "复指数函数：e^z = e^x (cos y + i sin y)，z = x + iy", inputs, 1, PRESET_TYPE_SCALAR,
+                    "e^z = e^x (\\cos y + i\\sin y), \\quad z = x + iy", "O(1)", true, false);
     }
 
     /* -------------------- 33. 复对数函数 -------------------- */
@@ -947,13 +851,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_log",
-            "复对数函数：Log(z) = ln|z| + i Arg(z)，Arg(z) in (-pi, pi]",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "\\text{Log}(z) = \\ln r + i\\Theta, \\quad "
-            "\\Theta \\in (-\\pi, \\pi]",
-            "O(1)", true, false);
+        REGISTER_CA("complex_log", "复对数函数：Log(z) = ln|z| + i Arg(z)，Arg(z) in (-pi, pi]", inputs, 1,
+                    PRESET_TYPE_SCALAR,
+                    "\\text{Log}(z) = \\ln r + i\\Theta, \\quad "
+                    "\\Theta \\in (-\\pi, \\pi]",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 34. 复三角函数 -------------------- */
@@ -975,13 +877,10 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(1)
          */
         PresetType inputs[] = {PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "complex_trig",
-            "复三角函数：sin(z), cos(z), tan(z) 等，z in C",
-            inputs, 2, PRESET_TYPE_SCALAR,
-            "\\sin z = \\frac{e^{iz} - e^{-iz}}{2i}, \\quad "
-            "\\cos z = \\frac{e^{iz} + e^{-iz}}{2}",
-            "O(1)", true, false);
+        REGISTER_CA("complex_trig", "复三角函数：sin(z), cos(z), tan(z) 等，z in C", inputs, 2, PRESET_TYPE_SCALAR,
+                    "\\sin z = \\frac{e^{iz} - e^{-iz}}{2i}, \\quad "
+                    "\\cos z = \\frac{e^{iz} + e^{-iz}}{2}",
+                    "O(1)", true, false);
     }
 
     /* -------------------- 35. Gamma函数 -------------------- */
@@ -1001,13 +900,11 @@ bool preset_complex_analysis_register(void)
          * 复杂度：O(n)
          */
         PresetType inputs[] = {PRESET_TYPE_SCALAR};
-        REGISTER_CA(
-            "gamma_function",
-            "Gamma函数：Gamma(z) = int_0^inf t^{z-1} e^{-t} dt，Re(z) > 0",
-            inputs, 1, PRESET_TYPE_SCALAR,
-            "\\Gamma(z) = \\int_0^{\\infty} t^{z-1} e^{-t} \\, dt, "
-            "\\quad \\text{Re}(z) > 0",
-            "O(n)", true, false);
+        REGISTER_CA("gamma_function", "Gamma函数：Gamma(z) = int_0^inf t^{z-1} e^{-t} dt，Re(z) > 0", inputs, 1,
+                    PRESET_TYPE_SCALAR,
+                    "\\Gamma(z) = \\int_0^{\\infty} t^{z-1} e^{-t} \\, dt, "
+                    "\\quad \\text{Re}(z) > 0",
+                    "O(n)", true, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -1018,20 +915,20 @@ bool preset_complex_analysis_register(void)
 /**
  * @brief 获取复分析预设函数块数量
  */
-int preset_complex_analysis_count(void)
-{
+int preset_complex_analysis_count(void) {
     return COMPLEX_ANALYSIS_PRESET_COUNT;
 }
 
 /**
  * @brief 获取复分析预设名称列表
  */
-bool preset_complex_analysis_get_names(char ***out_names, int *out_count)
-{
-    if (!out_names || !out_count) return false;
+bool preset_complex_analysis_get_names(char ***out_names, int *out_count) {
+    if (!out_names || !out_count)
+        return false;
 
-    char **names = (char **)lv00_malloc(COMPLEX_ANALYSIS_PRESET_COUNT * sizeof(char *));
-    if (!names) return false;
+    char **names = (char **) lv00_malloc(COMPLEX_ANALYSIS_PRESET_COUNT * sizeof(char *));
+    if (!names)
+        return false;
 
     const char *preset_names[] = {
         "complex_function_eval",
@@ -1071,13 +968,19 @@ bool preset_complex_analysis_get_names(char ***out_names, int *out_count)
         "gamma_function",
     };
 
-    int count = (int)(sizeof(preset_names) / sizeof(preset_names[0]));
+    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
 
     for (int i = 0; i < count; i++) {
         names[i] = lv00_strdup(preset_names[i]);
         if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) { void *tmp = names[j]; lv00_free(&tmp); }
-            { void *tmp = names; lv00_free(&tmp); }
+            for (int j = 0; j < i; j++) {
+                void *tmp = names[j];
+                lv00_free(&tmp);
+            }
+            {
+                void *tmp = names;
+                lv00_free(&tmp);
+            }
             return false;
         }
     }
@@ -1087,7 +990,6 @@ bool preset_complex_analysis_get_names(char ***out_names, int *out_count)
     return true;
 }
 
-PresetCategory preset_complex_analysis_category(void)
-{
+PresetCategory preset_complex_analysis_category(void) {
     return PRESET_CATEGORY_ANALYSIS;
 }

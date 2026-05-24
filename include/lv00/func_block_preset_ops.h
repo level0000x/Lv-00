@@ -17,9 +17,10 @@
 #ifndef LV00_FUNC_BLOCK_PRESET_OPS_H
 #define LV00_FUNC_BLOCK_PRESET_OPS_H
 
+#include <stdbool.h>
+
 #include "func_block.h"
 #include "preset_blocks.h"
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,9 +59,7 @@ void preset_chain_destroy(PresetChain *chain);
  * @param input_mapping 输入映射（指定前一输出到本输入的对应关系）
  * @return true 添加成功
  */
-bool preset_chain_add(PresetChain *chain,
-                       const char *preset_name,
-                       const int *input_mapping);
+bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *input_mapping);
 
 /**
  * @brief 执行预设链
@@ -73,12 +72,8 @@ bool preset_chain_add(PresetChain *chain,
  * @param out_output_count 输出结果数量
  * @return true 执行成功
  */
-bool preset_chain_execute(PresetChain *chain,
-                           ConstraintGraph *graph,
-                           const int *initial_args,
-                           int arg_count,
-                           int **out_final_outputs,
-                           int *out_output_count);
+bool preset_chain_execute(PresetChain *chain, ConstraintGraph *graph, const int *initial_args, int arg_count,
+                          int **out_final_outputs, int *out_output_count);
 
 /* ================================================================
  * 预设批量操作
@@ -97,12 +92,8 @@ bool preset_chain_execute(PresetChain *chain,
  * @param out_results 输出结果数组（每个实例的输出节点ID）
  * @return true 批量实例化成功
  */
-bool preset_batch_instantiate(const char *preset_name,
-                               ConstraintGraph *graph,
-                               const int **arg_sets,
-                               int set_count,
-                               int args_per_set,
-                               int ***out_results);
+bool preset_batch_instantiate(const char *preset_name, ConstraintGraph *graph, const int **arg_sets, int set_count,
+                              int args_per_set, int ***out_results);
 
 /**
  * @brief 批量应用预设到节点集合
@@ -116,11 +107,8 @@ bool preset_batch_instantiate(const char *preset_name,
  * @param out_results 输出结果数组
  * @return true 批量应用成功
  */
-bool preset_batch_apply(const char *preset_name,
-                         ConstraintGraph *graph,
-                         const int *target_nodes,
-                         int node_count,
-                         int ***out_results);
+bool preset_batch_apply(const char *preset_name, ConstraintGraph *graph, const int *target_nodes, int node_count,
+                        int ***out_results);
 
 /* ================================================================
  * 预设验证与测试
@@ -130,11 +118,11 @@ bool preset_batch_apply(const char *preset_name,
  * @brief 预设验证结果
  */
 typedef struct {
-    bool is_valid;                        /* 预设是否有效 */
-    bool has_valid_inputs;                /* 输入定义是否有效 */
-    bool has_valid_outputs;               /* 输出定义是否有效 */
-    bool determinism_check_passed;        /* 确定性检查是否通过 */
-    char *error_message;                  /* 错误信息（如果有） */
+    bool is_valid;                 /* 预设是否有效 */
+    bool has_valid_inputs;         /* 输入定义是否有效 */
+    bool has_valid_outputs;        /* 输出定义是否有效 */
+    bool determinism_check_passed; /* 确定性检查是否通过 */
+    char *error_message;           /* 错误信息（如果有） */
 } PresetValidationResult;
 
 /**
@@ -163,10 +151,7 @@ void preset_validation_result_free(PresetValidationResult *result);
  * @param arg_count 参数数量
  * @return true 测试通过
  */
-bool preset_test_instantiation(const char *preset_name,
-                                ConstraintGraph *graph,
-                                const int *test_args,
-                                int arg_count);
+bool preset_test_instantiation(const char *preset_name, ConstraintGraph *graph, const int *test_args, int arg_count);
 
 /* ================================================================
  * 预设参数操作
@@ -176,9 +161,9 @@ bool preset_test_instantiation(const char *preset_name,
  * @brief 预设参数绑定结构
  */
 typedef struct {
-    int param_index;                      /* 参数索引 */
-    int bound_node_id;                    /* 绑定的节点ID */
-    bool is_bound;                        /* 是否已绑定 */
+    int param_index;   /* 参数索引 */
+    int bound_node_id; /* 绑定的节点ID */
+    bool is_bound;     /* 是否已绑定 */
 } PresetParamBinding;
 
 /**
@@ -189,9 +174,7 @@ typedef struct {
  * @param out_count 输出绑定数量
  * @return true 创建成功
  */
-bool preset_create_bindings(const char *preset_name,
-                             PresetParamBinding **out_bindings,
-                             int *out_count);
+bool preset_create_bindings(const char *preset_name, PresetParamBinding **out_bindings, int *out_count);
 
 /**
  * @brief 释放参数绑定数组
@@ -209,10 +192,8 @@ void preset_bindings_free(PresetParamBinding *bindings);
  * @param out_new_preset_name 输出新预设名称（自动生成）
  * @return true 创建成功
  */
-bool preset_partial_bind(const char *preset_name,
-                          const PresetParamBinding *bindings,
-                          int binding_count,
-                          char **out_new_preset_name);
+bool preset_partial_bind(const char *preset_name, const PresetParamBinding *bindings, int binding_count,
+                         char **out_new_preset_name);
 
 /* ================================================================
  * 预设搜索与推荐
@@ -222,9 +203,9 @@ bool preset_partial_bind(const char *preset_name,
  * @brief 预设搜索结果
  */
 typedef struct {
-    char **names;                         /* 预设名称数组 */
-    double *relevance_scores;             /* 相关度分数 */
-    int count;                            /* 结果数量 */
+    char **names;             /* 预设名称数组 */
+    double *relevance_scores; /* 相关度分数 */
+    int count;                /* 结果数量 */
 } PresetSearchResult;
 
 /**
@@ -237,9 +218,7 @@ typedef struct {
  * @param out_result 搜索结果
  * @return 找到的结果数量
  */
-int preset_search_by_signature(int input_count,
-                                int output_count,
-                                PresetSearchResult *out_result);
+int preset_search_by_signature(int input_count, int output_count, PresetSearchResult *out_result);
 
 /**
  * @brief 基于类别的预设推荐
@@ -250,8 +229,7 @@ int preset_search_by_signature(int input_count,
  * @param out_result 推荐结果
  * @return 推荐数量
  */
-int preset_recommend_related(const char *preset_name,
-                              PresetSearchResult *out_result);
+int preset_recommend_related(const char *preset_name, PresetSearchResult *out_result);
 
 /**
  * @brief 释放搜索结果
@@ -268,10 +246,10 @@ void preset_search_result_free(PresetSearchResult *result);
  * @brief 预设组合模式
  */
 typedef enum {
-    PRESET_COMPOSE_SEQUENCE,              /* 顺序组合：f -> g */
-    PRESET_COMPOSE_PARALLEL,              /* 并行组合：f | g */
-    PRESET_COMPOSE_FEEDBACK,              /* 反馈组合：f 的输出反馈到输入 */
-    PRESET_COMPOSE_BRANCH                 /* 分支组合：条件选择 f 或 g */
+    PRESET_COMPOSE_SEQUENCE, /* 顺序组合：f -> g */
+    PRESET_COMPOSE_PARALLEL, /* 并行组合：f | g */
+    PRESET_COMPOSE_FEEDBACK, /* 反馈组合：f 的输出反馈到输入 */
+    PRESET_COMPOSE_BRANCH    /* 分支组合：条件选择 f 或 g */
 } PresetComposeMode;
 
 /**
@@ -298,9 +276,7 @@ typedef enum {
  * @param out_recursive_name 输出递归预设名称
  * @return true 创建成功
  */
-bool preset_make_recursive(const char *base_preset,
-                            int max_iterations,
-                            char **out_recursive_name);
+bool preset_make_recursive(const char *base_preset, int max_iterations, char **out_recursive_name);
 
 #ifdef __cplusplus
 }

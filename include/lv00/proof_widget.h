@@ -21,11 +21,12 @@
 #ifndef LV00_PROOF_WIDGET_H
 #define LV00_PROOF_WIDGET_H
 
-#include "constraint_graph.h"
-#include "proof.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
+#include "proof.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,13 +36,13 @@ extern "C" {
  *  前向声明
  * ================================================================ */
 
-typedef struct Lv00WidgetLayout       Lv00WidgetLayout;
-typedef struct Lv00GoalDisplay        Lv00GoalDisplay;
-typedef struct Lv00HypothesisEntry    Lv00HypothesisEntry;
+typedef struct Lv00WidgetLayout Lv00WidgetLayout;
+typedef struct Lv00GoalDisplay Lv00GoalDisplay;
+typedef struct Lv00HypothesisEntry Lv00HypothesisEntry;
 typedef struct Lv00ProofStepHighlight Lv00ProofStepHighlight;
-typedef struct ProofWidgetState       ProofWidgetState;
-typedef struct ProofNavigator         ProofNavigator;
-typedef struct ConstraintGraph        ConstraintGraph;
+typedef struct ProofWidgetState ProofWidgetState;
+typedef struct ProofNavigator ProofNavigator;
+typedef struct ConstraintGraph ConstraintGraph;
 
 /* ================================================================
  *  第一部分：Widget 类型与状态枚举
@@ -63,14 +64,14 @@ typedef struct ConstraintGraph        ConstraintGraph;
  * - WIDGET_TACTIC_HISTORY：策略历史记录，展示已经应用的策略序列
  */
 typedef enum {
-    WIDGET_GOAL_DISPLAY      = 0,  /**< 目标显示组件 */
-    WIDGET_HYPOTHESIS_PANEL  = 1,  /**< 前提面板组件 */
-    WIDGET_APPLY_BUTTON      = 2,  /**< 策略按钮组件 */
-    WIDGET_STEP_NAVIGATOR    = 3,  /**< 步骤导航组件 */
-    WIDGET_SEARCH_TREE       = 4,  /**< 搜索树组件 */
-    WIDGET_TIMELINE          = 5,  /**< 证明时间线组件 */
-    WIDGET_DEPENDENCY_GRAPH  = 6,  /**< 依赖图组件 */
-    WIDGET_TACTIC_HISTORY    = 7   /**< 策略历史组件 */
+    WIDGET_GOAL_DISPLAY = 0,     /**< 目标显示组件 */
+    WIDGET_HYPOTHESIS_PANEL = 1, /**< 前提面板组件 */
+    WIDGET_APPLY_BUTTON = 2,     /**< 策略按钮组件 */
+    WIDGET_STEP_NAVIGATOR = 3,   /**< 步骤导航组件 */
+    WIDGET_SEARCH_TREE = 4,      /**< 搜索树组件 */
+    WIDGET_TIMELINE = 5,         /**< 证明时间线组件 */
+    WIDGET_DEPENDENCY_GRAPH = 6, /**< 依赖图组件 */
+    WIDGET_TACTIC_HISTORY = 7    /**< 策略历史组件 */
 } ProofWidgetType;
 
 /**
@@ -83,10 +84,10 @@ typedef enum {
  * - TABBED：标签页布局（同一区域切换显示）
  */
 typedef enum {
-    LAYOUT_GRID       = 0,  /**< 网格布局 */
-    LAYOUT_HORIZONTAL = 1,  /**< 水平排列 */
-    LAYOUT_VERTICAL   = 2,  /**< 垂直排列 */
-    LAYOUT_TABBED     = 3   /**< 标签页布局 */
+    LAYOUT_GRID = 0,       /**< 网格布局 */
+    LAYOUT_HORIZONTAL = 1, /**< 水平排列 */
+    LAYOUT_VERTICAL = 2,   /**< 垂直排列 */
+    LAYOUT_TABBED = 3      /**< 标签页布局 */
 } Lv00LayoutType;
 
 /**
@@ -100,11 +101,11 @@ typedef enum {
  * - SEARCHING：自动搜索中的步骤（动画效果）
  */
 typedef enum {
-    HIGHLIGHT_NORMAL    = 0,  /**< 默认状态 */
-    HIGHLIGHT_ACTIVE    = 1,  /**< 激活（当前步骤） */
-    HIGHLIGHT_COMPLETED = 2,  /**< 已完成 */
-    HIGHLIGHT_FAILED    = 3,  /**< 失败 */
-    HIGHLIGHT_SEARCHING = 4   /**< 搜索中（带动画） */
+    HIGHLIGHT_NORMAL = 0,    /**< 默认状态 */
+    HIGHLIGHT_ACTIVE = 1,    /**< 激活（当前步骤） */
+    HIGHLIGHT_COMPLETED = 2, /**< 已完成 */
+    HIGHLIGHT_FAILED = 3,    /**< 失败 */
+    HIGHLIGHT_SEARCHING = 4  /**< 搜索中（带动画） */
 } Lv00HighlightState;
 
 /* ================================================================
@@ -119,13 +120,13 @@ typedef enum {
  * 用户交互数据以 JSON 字符串形式存储，供前端 React 组件消费。
  */
 typedef struct ProofWidgetState {
-    int              widget_id;        /**< Widget 唯一标识符 */
-    ProofWidgetType  widget_type;      /**< Widget 类型 */
-    bool             is_active;        /**< 是否处于活动状态 */
-    bool             is_enabled;       /**< 是否启用（禁用则灰显） */
-    char            *display_label;    /**< 显示标签（人类可读标题） */
-    int              bound_step_id;    /**< 绑定的证明步骤 ID（-1 表示无绑定） */
-    char            *interaction_data; /**< 用户交互数据 JSON 字符串（可为 NULL） */
+    int widget_id;               /**< Widget 唯一标识符 */
+    ProofWidgetType widget_type; /**< Widget 类型 */
+    bool is_active;              /**< 是否处于活动状态 */
+    bool is_enabled;             /**< 是否启用（禁用则灰显） */
+    char *display_label;         /**< 显示标签（人类可读标题） */
+    int bound_step_id;           /**< 绑定的证明步骤 ID（-1 表示无绑定） */
+    char *interaction_data;      /**< 用户交互数据 JSON 字符串（可为 NULL） */
 } ProofWidgetState;
 
 /**
@@ -137,12 +138,12 @@ typedef struct ProofWidgetState {
  * 前端渲染为可选择的前提卡片，用户点击后可用于策略应用。
  */
 struct Lv00HypothesisEntry {
-    int    hyp_id;          /**< 前提唯一标识符 */
-    char  *name;            /**< 前提名称（如 "h1", "h_AB_is_line"） */
-    char  *type_text;       /**< 前提类型文本（如 "Point A lies on Line l"） */
-    char  *value_text;      /**< 前提值文本（具体命题内容，可为 NULL） */
-    int    source_step;     /**< 来源步骤 ID（此前提由哪个步骤引入，-1 为原始前提） */
-    bool   is_selected;     /**< 是否被用户选中（前端交互状态） */
+    int hyp_id;       /**< 前提唯一标识符 */
+    char *name;       /**< 前提名称（如 "h1", "h_AB_is_line"） */
+    char *type_text;  /**< 前提类型文本（如 "Point A lies on Line l"） */
+    char *value_text; /**< 前提值文本（具体命题内容，可为 NULL） */
+    int source_step;  /**< 来源步骤 ID（此前提由哪个步骤引入，-1 为原始前提） */
+    bool is_selected; /**< 是否被用户选中（前端交互状态） */
 };
 
 /**
@@ -153,13 +154,13 @@ struct Lv00HypothesisEntry {
  * 前端根据此结构体渲染证明目标的 HTML 树。
  */
 struct Lv00GoalDisplay {
-    Lv00HypothesisEntry  *hypotheses;      /**< 前提条目数组 */
-    int                   hyp_count;       /**< 前提数量 */
-    char                 *goal_text;       /**< 目标文本（如 "Prove: triangle ABC is equilateral"） */
-    char                **context_terms;   /**< 上下文中可用的项名称数组 */
-    int                   context_count;   /**< 上下文项数量 */
-    int                   depth;           /**< 目标嵌套深度（含嵌套中的证明为 0） */
-    bool                  is_solved;       /**< 目标是否已解决 */
+    Lv00HypothesisEntry *hypotheses; /**< 前提条目数组 */
+    int hyp_count;                   /**< 前提数量 */
+    char *goal_text;                 /**< 目标文本（如 "Prove: triangle ABC is equilateral"） */
+    char **context_terms;            /**< 上下文中可用的项名称数组 */
+    int context_count;               /**< 上下文项数量 */
+    int depth;                       /**< 目标嵌套深度（含嵌套中的证明为 0） */
+    bool is_solved;                  /**< 目标是否已解决 */
 };
 
 /**
@@ -169,11 +170,11 @@ struct Lv00GoalDisplay {
  * 前端根据此结构体为每个步骤渲染对应的视觉效果。
  */
 struct Lv00ProofStepHighlight {
-    int                step_id;        /**< 证明步骤 ID */
-    Lv00HighlightState color;          /**< 高亮颜色/状态 */
-    bool               is_animated;    /**< 是否需要动画效果（如搜索中闪烁） */
-    float              progress;       /**< 动画进度（0.0 ~ 1.0，仅 SEARCHING 状态使用） */
-    char              *tooltip_text;   /**< 工具提示文本（鼠标悬停显示） */
+    int step_id;              /**< 证明步骤 ID */
+    Lv00HighlightState color; /**< 高亮颜色/状态 */
+    bool is_animated;         /**< 是否需要动画效果（如搜索中闪烁） */
+    float progress;           /**< 动画进度（0.0 ~ 1.0，仅 SEARCHING 状态使用） */
+    char *tooltip_text;       /**< 工具提示文本（鼠标悬停显示） */
 };
 
 /**
@@ -186,14 +187,14 @@ struct Lv00ProofStepHighlight {
  * 前端 React 渲染器读取此布局定义，在面板中排列各 Widget。
  */
 struct Lv00WidgetLayout {
-    ProofWidgetState   *widgets;          /**< Widget 状态数组 */
-    int                 widget_count;     /**< Widget 数量 */
-    int                 widget_capacity;  /**< Widget 容量 */
-    Lv00LayoutType      layout_type;      /**< 布局类型 */
-    int                 columns;          /**< 列数（仅 GRID 布局有效，其他布局忽略） */
-    int                 rows;             /**< 行数（仅 GRID 布局有效，其他布局忽略） */
-    int                *order_indices;    /**< Widget 顺序索引数组（可为 NULL 表示默认顺序） */
-    char               *persistence_key;  /**< 持久化 key（用于保存/恢复布局状态） */
+    ProofWidgetState *widgets;  /**< Widget 状态数组 */
+    int widget_count;           /**< Widget 数量 */
+    int widget_capacity;        /**< Widget 容量 */
+    Lv00LayoutType layout_type; /**< 布局类型 */
+    int columns;                /**< 列数（仅 GRID 布局有效，其他布局忽略） */
+    int rows;                   /**< 行数（仅 GRID 布局有效，其他布局忽略） */
+    int *order_indices;         /**< Widget 顺序索引数组（可为 NULL 表示默认顺序） */
+    char *persistence_key;      /**< 持久化 key（用于保存/恢复布局状态） */
 };
 
 /* ================================================================
@@ -232,10 +233,7 @@ void proof_widget_destroy(Lv00WidgetLayout *layout);
  * @param bound_step   绑定的证明步骤 ID（-1 表示无绑定）
  * @return 成功返回分配的 Widget ID（>= 0），失败返回 -1
  */
-int proof_widget_register(Lv00WidgetLayout *layout,
-                           ProofWidgetType widget_type,
-                           const char *label,
-                           int bound_step);
+int proof_widget_register(Lv00WidgetLayout *layout, ProofWidgetType widget_type, const char *label, int bound_step);
 
 /**
  * @brief 更新 Widget 状态
@@ -252,13 +250,8 @@ int proof_widget_register(Lv00WidgetLayout *layout,
  * @param interaction_json 新的交互数据 JSON（NULL 表示不变）
  * @return 成功返回 0，失败返回负值错误码
  */
-int proof_widget_update(Lv00WidgetLayout *layout,
-                         int widget_id,
-                         bool is_active,
-                         bool is_enabled,
-                         const char *display_label,
-                         int bound_step_id,
-                         const char *interaction_json);
+int proof_widget_update(Lv00WidgetLayout *layout, int widget_id, bool is_active, bool is_enabled,
+                        const char *display_label, int bound_step_id, const char *interaction_json);
 
 /* ================================================================
  *  第五部分：API —— 证明状态查询
@@ -286,9 +279,7 @@ int proof_widget_get_goal(const ProofNavigator *navigator, Lv00GoalDisplay *out_
  * @param max_count      数组最大容量
  * @return 实际填充的前提数量（>= 0），或 -1 表示错误
  */
-int proof_widget_get_hypotheses(const ProofNavigator *navigator,
-                                 Lv00HypothesisEntry *out_hypotheses,
-                                 int max_count);
+int proof_widget_get_hypotheses(const ProofNavigator *navigator, Lv00HypothesisEntry *out_hypotheses, int max_count);
 
 /**
  * @brief 释放目标显示数据的内存
@@ -313,10 +304,8 @@ void goal_display_free(Lv00GoalDisplay *goal);
  * @param max_count         最大推荐数量
  * @return 实际推荐的策略数量（>= 0），或 -1 表示错误
  */
-int proof_widget_suggest_tactic(const ProofNavigator *navigator,
-                                 char **out_suggestions,
-                                 double *out_confidences,
-                                 int max_count);
+int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_suggestions, double *out_confidences,
+                                int max_count);
 
 /**
  * @brief 获取所有证明步骤的高亮状态
@@ -329,9 +318,8 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator,
  * @param max_count       最大步骤数量
  * @return 实际填充的步骤数量（>= 0），或 -1 表示错误
  */
-int proof_widget_get_step_highlights(const ProofNavigator *navigator,
-                                      Lv00ProofStepHighlight *out_highlights,
-                                      int max_count);
+int proof_widget_get_step_highlights(const ProofNavigator *navigator, Lv00ProofStepHighlight *out_highlights,
+                                     int max_count);
 
 /**
  * @brief 获取搜索树数据（JSON 格式）
@@ -393,11 +381,8 @@ char *proof_widget_export_layout(const Lv00WidgetLayout *layout);
  * @param out_feedback  输出：反馈信息 JSON 字符串
  * @return 成功返回 0（即使策略本身失败），系统错误返回负值错误码
  */
-int proof_widget_apply_tactic(ProofNavigator *navigator,
-                               const char *tactic_name,
-                               const char *tactic_args,
-                               bool *out_success,
-                               char **out_feedback);
+int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name, const char *tactic_args,
+                              bool *out_success, char **out_feedback);
 
 /* ================================================================
  *  第八部分：API —— 布局管理
@@ -411,10 +396,7 @@ int proof_widget_apply_tactic(ProofNavigator *navigator,
  * @param columns     列数（仅 GRID 有效，其他布局忽略）
  * @param rows        行数（仅 GRID 有效，其他布局忽略）
  */
-void proof_widget_set_layout_type(Lv00WidgetLayout *layout,
-                                   Lv00LayoutType layout_type,
-                                   int columns,
-                                   int rows);
+void proof_widget_set_layout_type(Lv00WidgetLayout *layout, Lv00LayoutType layout_type, int columns, int rows);
 
 /**
  * @brief 设置布局持久化 key

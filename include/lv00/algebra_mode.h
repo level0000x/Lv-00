@@ -20,9 +20,9 @@
 #ifndef LV00_ALGEBRA_MODE_H
 #define LV00_ALGEBRA_MODE_H
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,7 +33,7 @@ extern "C" {
  * ================================================================ */
 
 typedef struct ConstraintGraph ConstraintGraph;
-typedef struct DslIR       DslIR;
+typedef struct DslIR DslIR;
 
 /* ================================================================
  *  第一部分：平面与变换定义
@@ -46,10 +46,10 @@ typedef struct DslIR       DslIR;
  * PLANE_CUSTOM 允许用户通过法向量和原点定义任意平面。
  */
 typedef enum {
-    PLANE_XY,                    /**< XY 平面（默认） */
-    PLANE_XZ,                    /**< XZ 平面 */
-    PLANE_YZ,                    /**< YZ 平面 */
-    PLANE_CUSTOM                 /**< 自定义平面（由法向量和原点定义） */
+    PLANE_XY,    /**< XY 平面（默认） */
+    PLANE_XZ,    /**< XZ 平面 */
+    PLANE_YZ,    /**< YZ 平面 */
+    PLANE_CUSTOM /**< 自定义平面（由法向量和原点定义） */
 } Lv00Plane;
 
 /**
@@ -59,11 +59,11 @@ typedef enum {
  * 复合变换通过矩阵乘法累积。支持平移、旋转、缩放、镜像和投影。
  */
 typedef enum {
-    TRANSFORM_TRANSLATE,         /**< 平移变换 */
-    TRANSFORM_ROTATE,            /**< 旋转变换 */
-    TRANSFORM_SCALE,             /**< 缩放变换 */
-    TRANSFORM_MIRROR,            /**< 镜像变换 */
-    TRANSFORM_PROJECT            /**< 投影变换（到指定平面） */
+    TRANSFORM_TRANSLATE, /**< 平移变换 */
+    TRANSFORM_ROTATE,    /**< 旋转变换 */
+    TRANSFORM_SCALE,     /**< 缩放变换 */
+    TRANSFORM_MIRROR,    /**< 镜像变换 */
+    TRANSFORM_PROJECT    /**< 投影变换（到指定平面） */
 } Lv00TransformOp;
 
 /* ================================================================
@@ -78,18 +78,18 @@ typedef enum {
  * 共 12 种类型。
  */
 typedef enum {
-    SELECTOR_ALL,                /**< 选择所有子实体 */
-    SELECTOR_BY_DIRECTION,       /**< 按方向选择（如 ">Z" 表示法向朝 +Z 的面） */
-    SELECTOR_BY_TAG,             /**< 按标签选择 */
-    SELECTOR_BY_TYPE,            /**< 按实体类型选择（faces/edges/vertices） */
-    SELECTOR_NEAREST,            /**< 选择最近子实体（按距离排序） */
-    SELECTOR_LARGEST,            /**< 选择最大子实体（按面积/长度排序） */
-    SELECTOR_SMALLEST,           /**< 选择最小子实体 */
-    SELECTOR_PARALLEL_TO,        /**< 选择与给定方向平行的子实体 */
-    SELECTOR_PERPENDICULAR_TO,   /**< 选择与给定方向垂直的子实体 */
-    SELECTOR_AT_LOCATION,        /**< 选择包含指定位置的子实体 */
-    SELECTOR_BY_INDEX,           /**< 按索引选择 */
-    SELECTOR_COMPOSITE           /**< 复合选择器（AND/OR/NOT 组合） */
+    SELECTOR_ALL,              /**< 选择所有子实体 */
+    SELECTOR_BY_DIRECTION,     /**< 按方向选择（如 ">Z" 表示法向朝 +Z 的面） */
+    SELECTOR_BY_TAG,           /**< 按标签选择 */
+    SELECTOR_BY_TYPE,          /**< 按实体类型选择（faces/edges/vertices） */
+    SELECTOR_NEAREST,          /**< 选择最近子实体（按距离排序） */
+    SELECTOR_LARGEST,          /**< 选择最大子实体（按面积/长度排序） */
+    SELECTOR_SMALLEST,         /**< 选择最小子实体 */
+    SELECTOR_PARALLEL_TO,      /**< 选择与给定方向平行的子实体 */
+    SELECTOR_PERPENDICULAR_TO, /**< 选择与给定方向垂直的子实体 */
+    SELECTOR_AT_LOCATION,      /**< 选择包含指定位置的子实体 */
+    SELECTOR_BY_INDEX,         /**< 按索引选择 */
+    SELECTOR_COMPOSITE         /**< 复合选择器（AND/OR/NOT 组合） */
 } Lv00SelectorType;
 
 /**
@@ -99,9 +99,9 @@ typedef enum {
  * 示例：">Z" 选择法向朝 +Z 的面，"|X" 选择与 X 轴平行的边。
  */
 typedef enum {
-    SEL_DIR_GREATER,             /**< > 方向算符（法向指向正方向） */
-    SEL_DIR_LESS,                /**< < 方向算符（法向指向负方向） */
-    SEL_DIR_PARALLEL             /**< | 方向算符（与指定轴平行） */
+    SEL_DIR_GREATER, /**< > 方向算符（法向指向正方向） */
+    SEL_DIR_LESS,    /**< < 方向算符（法向指向负方向） */
+    SEL_DIR_PARALLEL /**< | 方向算符（与指定轴平行） */
 } Lv00SelectorDirOp;
 
 /**
@@ -115,18 +115,18 @@ typedef enum {
  *   // 选择所有法向朝 +Z 的面
  */
 typedef struct Lv00Selector {
-    Lv00SelectorType   type;     /**< 选择器类型 */
-    char              *expr;     /**< 选择器表达式字符串（拥有所有权） */
-    Lv00SelectorDirOp   dir_op;  /**< 方向运算符（BY_DIRECTION 时有效） */
-    char               axis;     /**< 目标轴 'X'/'Y'/'Z'（BY_DIRECTION/PARALLEL_TO/PERPENDICULAR_TO 时有效） */
-    int                index;    /**< 索引值（BY_INDEX 时有效） */
-    double             distance; /**< 距离参数（NEAREST 时有效） */
+    Lv00SelectorType type;          /**< 选择器类型 */
+    char *expr;                     /**< 选择器表达式字符串（拥有所有权） */
+    Lv00SelectorDirOp dir_op;       /**< 方向运算符（BY_DIRECTION 时有效） */
+    char axis;                      /**< 目标轴 'X'/'Y'/'Z'（BY_DIRECTION/PARALLEL_TO/PERPENDICULAR_TO 时有效） */
+    int index;                      /**< 索引值（BY_INDEX 时有效） */
+    double distance;                /**< 距离参数（NEAREST 时有效） */
     struct Lv00Selector **children; /**< 子选择器（COMPOSITE 时有效） */
-    int                child_count;     /**< 子选择器数量 */
-    int                child_capacity;  /**< 子选择器容量 */
+    int child_count;                /**< 子选择器数量 */
+    int child_capacity;             /**< 子选择器容量 */
     /* 复合选择器的组合操作 */
-    bool               is_union;        /**< true=OR, false=AND（COMPOSITE 时有效） */
-    bool               is_negated;      /**< 是否取反（NOT 语义） */
+    bool is_union;   /**< true=OR, false=AND（COMPOSITE 时有效） */
+    bool is_negated; /**< 是否取反（NOT 语义） */
 } Lv00Selector;
 
 /* ================================================================
@@ -140,13 +140,13 @@ typedef struct Lv00Selector {
  * 以及约束系统的可满足性状态。
  */
 typedef enum {
-    ALGEBRA_OK,                  /**< 操作成功，约束系统一致 */
-    ALGEBRA_OVERCONSTRAINED,     /**< 约束过多，系统超定 */
-    ALGEBRA_AMBIGUOUS,           /**< 结果不唯一，存在多解 */
-    ALGEBRA_INFEASIBLE,          /**< 约束不可满足（矛盾） */
-    ALGEBRA_DEGENERATE,          /**< 退化情况（如三点共线构造三角形） */
-    ALGEBRA_OUT_OF_MEMORY,       /**< 内存不足 */
-    ALGEBRA_INVALID_ARGUMENT     /**< 无效参数（NULL 指针、非法值） */
+    ALGEBRA_OK,              /**< 操作成功，约束系统一致 */
+    ALGEBRA_OVERCONSTRAINED, /**< 约束过多，系统超定 */
+    ALGEBRA_AMBIGUOUS,       /**< 结果不唯一，存在多解 */
+    ALGEBRA_INFEASIBLE,      /**< 约束不可满足（矛盾） */
+    ALGEBRA_DEGENERATE,      /**< 退化情况（如三点共线构造三角形） */
+    ALGEBRA_OUT_OF_MEMORY,   /**< 内存不足 */
+    ALGEBRA_INVALID_ARGUMENT /**< 无效参数（NULL 指针、非法值） */
 } AlgebraOpResult;
 
 /* ================================================================
@@ -171,27 +171,27 @@ typedef enum {
  *     ->algebra_build();
  */
 typedef struct AlgebraicGeom {
-    ConstraintGraph *graph;           /**< 关联的约束图 */
-    int              current_entity;  /**< 最近创建实体的图节点 ID */
-    int              plane;           /**< 当前工作平面（Lv00Plane 值） */
+    ConstraintGraph *graph; /**< 关联的约束图 */
+    int current_entity;     /**< 最近创建实体的图节点 ID */
+    int plane;              /**< 当前工作平面（Lv00Plane 值） */
     /* 变换链（累积的 4x4 齐次变换矩阵） */
-    double           transform[16];   /**< 变换矩阵（列主序，4x4） */
-    bool             has_transform;   /**< 是否有待应用变换 */
+    double transform[16]; /**< 变换矩阵（列主序，4x4） */
+    bool has_transform;   /**< 是否有待应用变换 */
     /* 构造历史（用于 undo/redo） */
-    int             *history;         /**< 构造步骤记录 */
-    int              history_count;   /**< 历史记录数量 */
-    int              history_capacity; /**< 历史记录容量 */
+    int *history;         /**< 构造步骤记录 */
+    int history_count;    /**< 历史记录数量 */
+    int history_capacity; /**< 历史记录容量 */
     /* 快照栈（用于 snapshot/restore） */
     struct AlgebraicGeom **snapshots; /**< 快照栈 */
-    int                    snapshot_count;   /**< 快照数量 */
-    int                    snapshot_capacity; /**< 快照容量 */
+    int snapshot_count;               /**< 快照数量 */
+    int snapshot_capacity;            /**< 快照容量 */
     /* 重做栈 */
-    int             *redo_stack;      /**< 重做操作栈 */
-    int              redo_count;      /**< 重做操作数量 */
-    int              redo_capacity;   /**< 重做栈容量 */
+    int *redo_stack;   /**< 重做操作栈 */
+    int redo_count;    /**< 重做操作数量 */
+    int redo_capacity; /**< 重做栈容量 */
     /* 元信息 */
-    int              id;              /**< 几何体唯一标识 */
-    char            *name;            /**< 可选名称 */
+    int id;     /**< 几何体唯一标识 */
+    char *name; /**< 可选名称 */
 } AlgebraicGeom;
 
 /* ================================================================
@@ -352,8 +352,7 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
  * @param param_count 参数数量
  * @return geom 自身，失败返回 NULL
  */
-AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op,
-                                  const double *params, int param_count);
+AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op, const double *params, int param_count);
 
 /**
  * @brief 绕指定轴旋转
@@ -365,8 +364,7 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op,
  * @param axis_z    旋转轴 Z 分量
  * @return geom 自身，失败返回 NULL
  */
-AlgebraicGeom *algebra_rotate(AlgebraicGeom *geom, double angle_deg,
-                               double axis_x, double axis_y, double axis_z);
+AlgebraicGeom *algebra_rotate(AlgebraicGeom *geom, double angle_deg, double axis_x, double axis_y, double axis_z);
 
 /**
  * @brief 平移
@@ -419,8 +417,7 @@ void algebra_selector_destroy(Lv00Selector *sel);
  * @param out_count 输出：实体数量
  * @return geom 自身，失败返回 NULL
  */
-AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel,
-                               int **out_ids, int *out_count);
+AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel, int **out_ids, int *out_count);
 
 /* ---- 约束与证明 ---- */
 
@@ -433,8 +430,7 @@ AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel,
  * @param count       ID 数量
  * @return geom 自身，失败返回 NULL
  */
-AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_type,
-                                  const int *entity_ids, int count);
+AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_type, const int *entity_ids, int count);
 
 /**
  * @brief 启动证明

@@ -31,111 +31,111 @@ extern "C" {
 
 /** 矩阵加法：A + B */
 #ifndef PRESET_MATRIX_ADD
-#define PRESET_MATRIX_ADD                 "matrix_add"
+#define PRESET_MATRIX_ADD "matrix_add"
 #endif
 
 /** 矩阵减法：A - B */
 #ifndef PRESET_MATRIX_SUBTRACT
-#define PRESET_MATRIX_SUBTRACT            "matrix_subtract"
+#define PRESET_MATRIX_SUBTRACT "matrix_subtract"
 #endif
 
 /** 标量乘法：kA */
-#define PRESET_MATRIX_SCALAR_MULTIPLY     "matrix_scalar_multiply"
+#define PRESET_MATRIX_SCALAR_MULTIPLY "matrix_scalar_multiply"
 
 /** 矩阵乘法：AB */
 #ifndef PRESET_MATRIX_MULTIPLY
-#define PRESET_MATRIX_MULTIPLY            "matrix_multiply"
+#define PRESET_MATRIX_MULTIPLY "matrix_multiply"
 #endif
 
 /** 矩阵转置：A^T */
 #ifndef PRESET_MATRIX_TRANSPOSE
-#define PRESET_MATRIX_TRANSPOSE           "matrix_transpose"
+#define PRESET_MATRIX_TRANSPOSE "matrix_transpose"
 #endif
 
 /** 矩阵迹：tr(A) */
 #ifndef PRESET_MATRIX_TRACE
-#define PRESET_MATRIX_TRACE               "matrix_trace"
+#define PRESET_MATRIX_TRACE "matrix_trace"
 #endif
 
 /** 矩阵行列式：det(A) */
 #ifndef PRESET_MATRIX_DETERMINANT
-#define PRESET_MATRIX_DETERMINANT         "matrix_determinant"
+#define PRESET_MATRIX_DETERMINANT "matrix_determinant"
 #endif
 
 /** 矩阵逆：A^{-1} */
 #ifndef PRESET_MATRIX_INVERSE
-#define PRESET_MATRIX_INVERSE             "matrix_inverse"
+#define PRESET_MATRIX_INVERSE "matrix_inverse"
 #endif
 
 /* -------------------- 线性代数 -------------------- */
 
 /** 矩阵秩：rank(A) */
 #ifndef PRESET_MATRIX_RANK
-#define PRESET_MATRIX_RANK                "matrix_rank"
+#define PRESET_MATRIX_RANK "matrix_rank"
 #endif
 
 /** 零化度：nullity(A) */
 #ifndef PRESET_MATRIX_NULLITY
-#define PRESET_MATRIX_NULLITY             "matrix_nullity"
+#define PRESET_MATRIX_NULLITY "matrix_nullity"
 #endif
 
 /** 特征值：lambda_i */
-#define PRESET_MATRIX_EIGENVALUES         "matrix_eigenvalues"
+#define PRESET_MATRIX_EIGENVALUES "matrix_eigenvalues"
 
 /** 特征向量 */
-#define PRESET_MATRIX_EIGENVECTORS        "matrix_eigenvectors"
+#define PRESET_MATRIX_EIGENVECTORS "matrix_eigenvectors"
 
 /** 特征多项式：p(lambda) = det(lambdaI - A) */
 #define PRESET_MATRIX_CHARACTERISTIC_POLY "matrix_characteristic_poly"
 
 /** 最小多项式 */
-#define PRESET_MATRIX_MINIMAL_POLY        "matrix_minimal_poly"
+#define PRESET_MATRIX_MINIMAL_POLY "matrix_minimal_poly"
 
 /** 核空间：ker(A) */
-#define PRESET_MATRIX_KERNEL              "matrix_kernel"
+#define PRESET_MATRIX_KERNEL "matrix_kernel"
 
 /** 像空间：Im(A) */
-#define PRESET_MATRIX_IMAGE               "matrix_image"
+#define PRESET_MATRIX_IMAGE "matrix_image"
 
 /* -------------------- 矩阵分解 -------------------- */
 
 /** LU分解 */
-#define PRESET_MATRIX_LU_DECOMPOSITION    "matrix_lu_decomposition"
+#define PRESET_MATRIX_LU_DECOMPOSITION "matrix_lu_decomposition"
 
 /** QR分解 */
-#define PRESET_MATRIX_QR_DECOMPOSITION    "matrix_qr_decomposition"
+#define PRESET_MATRIX_QR_DECOMPOSITION "matrix_qr_decomposition"
 
 /** 奇异值分解：A = U Sigma V^T */
-#define PRESET_MATRIX_SVD                 "matrix_svd"
+#define PRESET_MATRIX_SVD "matrix_svd"
 
 /** Cholesky分解 */
-#define PRESET_MATRIX_CHOLESKY            "matrix_cholesky"
+#define PRESET_MATRIX_CHOLESKY "matrix_cholesky"
 
 /** Jordan标准形 */
-#define PRESET_MATRIX_JORDAN_FORM         "matrix_jordan_form"
+#define PRESET_MATRIX_JORDAN_FORM "matrix_jordan_form"
 
 /** 谱分解 */
-#define PRESET_MATRIX_SPECTRAL            "matrix_spectral"
+#define PRESET_MATRIX_SPECTRAL "matrix_spectral"
 
 /* -------------------- 特殊矩阵 -------------------- */
 
 /** 单位矩阵：I_n */
-#define PRESET_MATRIX_IDENTITY            "matrix_identity"
+#define PRESET_MATRIX_IDENTITY "matrix_identity"
 
 /** 零矩阵：O_{m x n} */
-#define PRESET_MATRIX_ZERO                "matrix_zero"
+#define PRESET_MATRIX_ZERO "matrix_zero"
 
 /** 对角矩阵 */
-#define PRESET_MATRIX_DIAGONAL            "matrix_diagonal"
+#define PRESET_MATRIX_DIAGONAL "matrix_diagonal"
 
 /** 初等行变换矩阵 */
-#define PRESET_MATRIX_ELEMENTARY_ROW      "matrix_elementary_row"
+#define PRESET_MATRIX_ELEMENTARY_ROW "matrix_elementary_row"
 
 /** Vandermonde矩阵 */
-#define PRESET_MATRIX_VANDERMONDE         "matrix_vandermonde"
+#define PRESET_MATRIX_VANDERMONDE "matrix_vandermonde"
 
 /** Hilbert矩阵 */
-#define PRESET_MATRIX_HILBERT             "matrix_hilbert"
+#define PRESET_MATRIX_HILBERT "matrix_hilbert"
 
 /* ============================================================
  * 模块注册函数

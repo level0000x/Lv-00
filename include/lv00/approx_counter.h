@@ -25,9 +25,10 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
 
 /* ========================================================================
  * PAC 配置与计数结果
@@ -101,9 +102,7 @@ typedef struct {
  * @param[out] out    计数结果（非 NULL，调用者用 approx_count_result_free 释放）
  * @return true 计数成功，false 失败（参数错误或内存不足）
  */
-bool approx_count_solutions(const ConstraintGraph *graph,
-                             const PacConfig *cfg,
-                             ApproxCountResult *out);
+bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, ApproxCountResult *out);
 
 /**
  * @brief 投影模型计数（只计指定变量的不同赋值）
@@ -118,11 +117,8 @@ bool approx_count_solutions(const ConstraintGraph *graph,
  * @param[out] out          计数结果
  * @return true 成功，false 失败
  */
-bool approx_count_projected(const ConstraintGraph *graph,
-                             int *proj_vars,
-                             int proj_count,
-                             const PacConfig *cfg,
-                             ApproxCountResult *out);
+bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int proj_count, const PacConfig *cfg,
+                            ApproxCountResult *out);
 
 /**
  * @brief 将约束图编码为 DIMACS CNF 格式字符串
@@ -138,8 +134,7 @@ bool approx_count_projected(const ConstraintGraph *graph,
  * @param[out] out_cnf_vars   输出：CNF 变量数量（可为 NULL）
  * @return DIMACS CNF 格式字符串（调用者负责 free），失败返回 NULL
  */
-char *approx_count_to_sat(const ConstraintGraph *graph,
-                           int *out_cnf_vars);
+char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars);
 
 /**
  * @brief 计算指定配置和结果下的 PAC 置信度
@@ -151,8 +146,7 @@ char *approx_count_to_sat(const ConstraintGraph *graph,
  * @param[in] res  计数结果
  * @return 置信度下界（0.0 ~ 1.0）
  */
-double approx_count_get_pac_bound(const PacConfig *cfg,
-                                   const ApproxCountResult *res);
+double approx_count_get_pac_bound(const PacConfig *cfg, const ApproxCountResult *res);
 
 /**
  * @brief 释放 ApproxCountResult 占用的资源
@@ -176,8 +170,7 @@ void approx_count_result_free(ApproxCountResult *res);
  * @param[in] min_prob   最小概率阈值（如 0.95 表示至少 95% 置信度要求可构造）
  * @return true 近似可构造，false 不可构造或无法判定
  */
-bool is_approximately_constructible(const ConstraintGraph *graph,
-                                     double min_prob);
+bool is_approximately_constructible(const ConstraintGraph *graph, double min_prob);
 
 #ifdef __cplusplus
 }

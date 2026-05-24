@@ -13,15 +13,15 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
-#include "normalization.h"
-#include "solver.h"
-#include "rewrite.h"
-#include "unify.h"
 #include "axiom_pkg.h"
-#include "module.h"
+#include "constraint_graph.h"
 #include "func_block.h"
+#include "module.h"
+#include "normalization.h"
+#include "rewrite.h"
+#include "solver.h"
 #include "stream.h"
+#include "unify.h"
 
 /* ── 引擎状态码（必须在 LV00Engine 结构体之前定义）── */
 typedef enum {
@@ -37,13 +37,13 @@ typedef struct LV00Engine {
     ConstraintGraph *main_graph;
     Module **loaded_modules;
     int module_count;
-    int module_capacity;        /* 指数增长容量 */
+    int module_capacity; /* 指数增长容量 */
     AxiomPackage **axiom_packages;
     int axiom_package_count;
     int axiom_package_capacity; /* 指数增长容量 */
     RewriteRule **rewrite_rules;
     int rewrite_rule_count;
-    int rewrite_rule_capacity;  /* 指数增长容量 */
+    int rewrite_rule_capacity; /* 指数增长容量 */
 
     /* 可配置的重写步数上限（默认: 1000） */
     int rewrite_step_limit;
@@ -55,8 +55,8 @@ typedef struct LV00Engine {
     int last_unify_status;
 
     /* ── 引擎级别的错误状态（每个引擎实例独立隔离）── */
-    EngineStatus last_status;           /* 最近一次操作的状态码 */
-    char          last_error[256];      /**< 最近一次操作的错误描述文本（固定 256 字节，长消息会被截断） */
+    EngineStatus last_status; /* 最近一次操作的状态码 */
+    char last_error[256];     /**< 最近一次操作的错误描述文本（固定 256 字节，长消息会被截断） */
 
     /* 流式输出上下文（可选，为 NULL 时不发射事件） */
     StreamContext *stream_ctx;
@@ -69,24 +69,15 @@ bool engine_add_rewrite_rule(LV00Engine *engine, RewriteRule *rule);
 ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath);
 AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepath);
 
-bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int internal_count,
-                          int *input_port_ids, int input_count,
-                          int *output_port_ids, int output_count,
-                          int *out_func_block_id);
+bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int internal_count, int *input_port_ids,
+                          int input_count, int *output_port_ids, int output_count, int *out_func_block_id);
 
-int *engine_instantiate_function(LV00Engine *engine, int func_block_id,
-                                  int *arg_mappings, int arg_count,
-                                  int *out_result_count);
+int *engine_instantiate_function(LV00Engine *engine, int func_block_id, int *arg_mappings, int arg_count,
+                                 int *out_result_count);
 
-UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction,
-                        ConstraintGraph *proposition);
+UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, ConstraintGraph *proposition);
 
-typedef enum {
-    ENGINE_SOLVE_OK,
-    ENGINE_SOLVE_CONFLICT,
-    ENGINE_SOLVE_TIMEOUT,
-    ENGINE_SOLVE_ERROR
-} EngineSolveResult;
+typedef enum { ENGINE_SOLVE_OK, ENGINE_SOLVE_CONFLICT, ENGINE_SOLVE_TIMEOUT, ENGINE_SOLVE_ERROR } EngineSolveResult;
 
 typedef enum {
     ENGINE_CIRCUIT_IGNORE,
@@ -97,9 +88,9 @@ typedef enum {
 
 /** @brief 位电路跳闸时的用户动作 */
 typedef enum {
-    ENGINE_CIRCUIT_ACTION_IGNORE,     /**< 忽略，接受当前结果 */
-    ENGINE_CIRCUIT_ACTION_ROLLBACK,   /**< 回滚到冻结点快照 */
-    ENGINE_CIRCUIT_ACTION_DOWNGRADE   /**< 永久降级为 AMBER */
+    ENGINE_CIRCUIT_ACTION_IGNORE,   /**< 忽略，接受当前结果 */
+    ENGINE_CIRCUIT_ACTION_ROLLBACK, /**< 回滚到冻结点快照 */
+    ENGINE_CIRCUIT_ACTION_DOWNGRADE /**< 永久降级为 AMBER */
 } EngineCircuitAction;
 
 EngineStatus engine_get_last_status(const LV00Engine *engine);
@@ -234,9 +225,8 @@ bool engine_is_streaming_enabled(const LV00Engine *engine);
  * @param node_id      相关节点 ID（-1 表示无）
  * @param constraint_id 相关约束 ID（-1 表示无）
  */
-void engine_emit_stream_event(LV00Engine *engine, StreamEventType type,
-                               const char *description, int step_number,
-                               int node_id, int constraint_id);
+void engine_emit_stream_event(LV00Engine *engine, StreamEventType type, const char *description, int step_number,
+                              int node_id, int constraint_id);
 
 #ifdef __cplusplus
 }

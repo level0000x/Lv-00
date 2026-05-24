@@ -25,8 +25,9 @@
 #ifndef LV00_FUNC_BLOCK_REGISTRY_H
 #define LV00_FUNC_BLOCK_REGISTRY_H
 
-#include "func_block.h"
 #include <stdbool.h>
+
+#include "func_block.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,32 +41,32 @@ extern "C" {
  * 用于对内置预设函数块进行分类管理，支持按类别筛选查找。
  */
 typedef enum {
-    PRESET_CATEGORY_CONSTRUCTION,   /* 几何构造 */
-    PRESET_CATEGORY_MEASUREMENT,    /* 度量计算 */
-    PRESET_CATEGORY_TRANSFORMATION, /* 几何变换 */
-    PRESET_CATEGORY_ALGEBRAIC,      /* 代数运算 */
-    PRESET_CATEGORY_LOGIC,          /* 逻辑推导 */
-    PRESET_CATEGORY_ANALYSIS,       /* 分析运算 */
-    PRESET_CATEGORY_NUMBER_THEORY,  /* 数论运算 */
-    PRESET_CATEGORY_GROUP_THEORY,   /* 群论运算 */
-    PRESET_CATEGORY_RING_THEORY,    /* 环论运算 */
-    PRESET_CATEGORY_FIELD_THEORY,   /* 域论运算 */
-    PRESET_CATEGORY_TOPOLOGY,       /* 拓扑构造 */
-    PRESET_CATEGORY_LINEAR_ALGEBRA, /* 线性代数 */
-    PRESET_CATEGORY_COMBINATORICS,  /* 组合数学 */
-    PRESET_CATEGORY_COMPLEX_ANALYSIS, /* 复分析 */
-    PRESET_CATEGORY_PROBABILITY,    /* 概率统计 */
-    PRESET_CATEGORY_GEOMETRY,       /* 几何（含三维/高级几何） */
-    PRESET_CATEGORY_ALGEBRA,        /* 代数（含线性代数/多项式） */
-    PRESET_CATEGORY_CATEGORY_THEORY, /* 范畴论 */
-    PRESET_CATEGORY_SET_THEORY,     /* 集合论 */
-    PRESET_CATEGORY_CUSTOM,         /* 自定义/扩展类别 */
-    PRESET_CATEGORY_GRAPH_THEORY,   /* 图论 */
+    PRESET_CATEGORY_CONSTRUCTION,          /* 几何构造 */
+    PRESET_CATEGORY_MEASUREMENT,           /* 度量计算 */
+    PRESET_CATEGORY_TRANSFORMATION,        /* 几何变换 */
+    PRESET_CATEGORY_ALGEBRAIC,             /* 代数运算 */
+    PRESET_CATEGORY_LOGIC,                 /* 逻辑推导 */
+    PRESET_CATEGORY_ANALYSIS,              /* 分析运算 */
+    PRESET_CATEGORY_NUMBER_THEORY,         /* 数论运算 */
+    PRESET_CATEGORY_GROUP_THEORY,          /* 群论运算 */
+    PRESET_CATEGORY_RING_THEORY,           /* 环论运算 */
+    PRESET_CATEGORY_FIELD_THEORY,          /* 域论运算 */
+    PRESET_CATEGORY_TOPOLOGY,              /* 拓扑构造 */
+    PRESET_CATEGORY_LINEAR_ALGEBRA,        /* 线性代数 */
+    PRESET_CATEGORY_COMBINATORICS,         /* 组合数学 */
+    PRESET_CATEGORY_COMPLEX_ANALYSIS,      /* 复分析 */
+    PRESET_CATEGORY_PROBABILITY,           /* 概率统计 */
+    PRESET_CATEGORY_GEOMETRY,              /* 几何（含三维/高级几何） */
+    PRESET_CATEGORY_ALGEBRA,               /* 代数（含线性代数/多项式） */
+    PRESET_CATEGORY_CATEGORY_THEORY,       /* 范畴论 */
+    PRESET_CATEGORY_SET_THEORY,            /* 集合论 */
+    PRESET_CATEGORY_CUSTOM,                /* 自定义/扩展类别 */
+    PRESET_CATEGORY_GRAPH_THEORY,          /* 图论 */
     PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY, /* 微分几何 */
-    PRESET_CATEGORY_NUMERICAL,      /* 数值分析 */
-    PRESET_CATEGORY_OPTIMIZATION,   /* 优化理论 */
-    PRESET_CATEGORY_MATH_LOGIC,     /* 数理逻辑 */
-    PRESET_CATEGORY_COUNT           /* 类别总数（哨兵值） */
+    PRESET_CATEGORY_NUMERICAL,             /* 数值分析 */
+    PRESET_CATEGORY_OPTIMIZATION,          /* 优化理论 */
+    PRESET_CATEGORY_MATH_LOGIC,            /* 数理逻辑 */
+    PRESET_CATEGORY_COUNT                  /* 类别总数（哨兵值） */
 } PresetCategory;
 
 /* ============== 预设函数块条目 ============== */
@@ -92,10 +93,10 @@ typedef struct {
  * 用户可通过 register 接口添加自定义预设。
  */
 typedef struct {
-    PresetEntry *entries;    /* 条目数组 */
-    int count;               /* 当前条目数 */
-    int capacity;            /* 数组容量 */
-    bool initialized;        /* 是否已初始化内置预设 */
+    PresetEntry *entries; /* 条目数组 */
+    int count;            /* 当前条目数 */
+    int capacity;         /* 数组容量 */
+    bool initialized;     /* 是否已初始化内置预设 */
 } FuncBlockRegistry;
 
 /* ============== 注册表生命周期 ============== */
@@ -133,8 +134,7 @@ void func_block_registry_cleanup(void);
  * @param fb          模板函数块（不可为 NULL，注册后由注册表接管管理）
  * @return true 注册成功，false 参数无效或同名已存在或内存不足
  */
-bool func_block_register(const char *name, const char *description,
-                         PresetCategory category, FuncBlock *fb);
+bool func_block_register(const char *name, const char *description, PresetCategory category, FuncBlock *fb);
 
 /**
  * @brief 按名称查找预设函数块并返回深拷贝
@@ -174,9 +174,7 @@ PresetEntry *func_block_registry_find(const char *name);
  * @param max_count   输出数组的最大容量
  * @return 实际找到的条目数量（可能超过 max_count，此时仅返回前 max_count 个）
  */
-int func_block_registry_find_by_category(PresetCategory category,
-                                         PresetEntry **out_entries,
-                                         int max_count);
+int func_block_registry_find_by_category(PresetCategory category, PresetEntry **out_entries, int max_count);
 
 /* ============== 辅助函数 ============== */
 

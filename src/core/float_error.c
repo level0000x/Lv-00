@@ -18,17 +18,18 @@
  *   - lv00_utils.h         : 缁熶竴鍐呭瓨鍒嗛厤鍣? *   - lv00_internal.h      : 鍐呴儴甯搁噺涓庡伐鍏峰畯
  */
 
+#include "float_error.h"
+
+#include <float.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <float.h>
 
-#include "float_error.h"
 #include "constraint_graph.h"
-#include "symbolic_coord.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "symbolic_coord.h"
 
 /* ========================================================================
  * 鍐呴儴甯搁噺
@@ -51,10 +52,14 @@
  * 鍐呴儴杈呭姪瀹? * ======================================================================== */
 
 /** 杩斿洖 a 鍜?b 鐨勬渶灏忓€?*/
-static double double_min(double a, double b) { return (a < b) ? a : b; }
+static double double_min(double a, double b) {
+    return (a < b) ? a : b;
+}
 
 /** 杩斿洖 a 鍜?b 鐨勬渶澶у€?*/
-static double double_max(double a, double b) { return (a > b) ? a : b; }
+static double double_max(double a, double b) {
+    return (a > b) ? a : b;
+}
 
 /**
  * @brief 鍚戜笅鑸嶅叆锛堜繚瀹堜笅鐣屼及璁★級
@@ -187,7 +192,7 @@ FloatInterval interval_sin(FloatInterval a) {
         /* 妫€鏌?pi/2 + 2k*pi 鍜?3pi/2 + 2k*pi 鏄惁鍦ㄥ尯闂村唴 */
         double pi_half = M_PI / 2.0;
         double k_start = ceil((a.lo - pi_half) / (2.0 * M_PI));
-        double k_end   = floor((a.hi - pi_half) / (2.0 * M_PI));
+        double k_end = floor((a.hi - pi_half) / (2.0 * M_PI));
         for (double k = k_start; k <= k_end; k += 1.0) {
             double peak = pi_half + k * 2.0 * M_PI;
             if (peak >= a.lo && peak <= a.hi) {
@@ -221,7 +226,7 @@ FloatInterval interval_cos(FloatInterval a) {
     } else {
         /* 妫€鏌?k*pi锛坈os 鐨勬瀬鍊肩偣锛夋槸鍚﹀湪鍖洪棿鍐?*/
         double k_start = ceil(a.lo / M_PI);
-        double k_end   = floor(a.hi / M_PI);
+        double k_end = floor(a.hi / M_PI);
         for (double k = k_start; k <= k_end; k += 1.0) {
             double peak = k * M_PI;
             if (peak >= a.lo && peak <= a.hi) {
@@ -280,22 +285,19 @@ FloatInterval interval_log(FloatInterval a) {
  * @param[in] var_bounds 鍙橀噺鍖洪棿
  * @param[in] var_count  鍙橀噺鏁伴噺
  * @param[in] var_idx    姹傚鐨勫彉閲忕储寮? * @param[in] center_vals 涓績鐐瑰€? * @return 鍋忓鏁拌繎浼煎€? */
-static double finite_difference_partial(const char *expr,
-                                         const FloatInterval *var_bounds,
-                                         int var_count,
-                                         int var_idx,
-                                         const double *center_vals) {
-    (void)expr;
-    (void)var_bounds;
-    (void)var_count;
+static double finite_difference_partial(const char *expr, const FloatInterval *var_bounds, int var_count, int var_idx,
+                                        const double *center_vals) {
+    (void) expr;
+    (void) var_bounds;
+    (void) var_count;
 
     /* 姝ラ暱锛氱害 1.5e-8 for double */
     double h = sqrt(DBL_EPSILON);
     double x = center_vals[var_idx];
 
     /* TODO: 瀹屾暣瀹炵幇闇€瑕佽〃杈惧紡瑙ｆ瀽鍣ㄥ拰姹傚€煎櫒銆?     * 褰撳墠妗╋細杩斿洖鍋囪瀵兼暟鍊?1.0锛堢嚎鎬ц繎浼硷級 */
-    (void)x;
-    (void)h;
+    (void) x;
+    (void) h;
 
     return 1.0;
 }
@@ -310,17 +312,15 @@ static double finite_difference_partial(const char *expr,
  * @param[in]  var_count  鍙橀噺鏁伴噺
  * @param[out] tf         杈撳嚭鐨勬嘲鍕掑舰寮? * @return true 鎴愬姛
  */
-static bool basic_taylor_expand(const char *expr,
-                                 const FloatInterval *var_bounds,
-                                 int var_count,
-                                 TaylorForm *tf) {
-    if (!expr || !var_bounds || var_count <= 0 || !tf) return false;
+static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bounds, int var_count, TaylorForm *tf) {
+    if (!expr || !var_bounds || var_count <= 0 || !tf)
+        return false;
 
     tf->deriv_count = var_count;
     tf->order = 1;
 
-    tf->first_derivs = (double *)lv00_malloc(var_count * sizeof(double));
-    tf->deriv_var_ids = (int *)lv00_malloc(var_count * sizeof(int));
+    tf->first_derivs = (double *) lv00_malloc(var_count * sizeof(double));
+    tf->deriv_var_ids = (int *) lv00_malloc(var_count * sizeof(int));
     if (!tf->first_derivs || !tf->deriv_var_ids) {
         free(tf->first_derivs);
         free(tf->deriv_var_ids);
@@ -340,8 +340,7 @@ static bool basic_taylor_expand(const char *expr,
 
     /* 瀵规瘡涓彉閲忚绠楀亸瀵兼暟锛堟湁闄愬樊鍒嗭級 */
     for (int i = 0; i < var_count; i++) {
-        tf->first_derivs[i] = finite_difference_partial(
-            expr, var_bounds, var_count, i, center_vals);
+        tf->first_derivs[i] = finite_difference_partial(expr, var_bounds, var_count, i, center_vals);
     }
 
     /* 鍖洪棿浼犳挱锛氬熀鏈及璁?*/
@@ -381,26 +380,26 @@ static bool basic_taylor_expand(const char *expr,
  * @param[out] equations   杈撳嚭鐨勮〃杈惧紡瀛楃涓叉暟缁? * @param[out] eq_count    鏂圭▼鏁伴噺
  * @return true 鎴愬姛
  */
-static bool extract_equations(const ConstraintGraph *graph,
-                               int var_id,
-                               char ***equations,
-                               int *eq_count) {
-    if (!graph || !equations || !eq_count) return false;
+static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***equations, int *eq_count) {
+    if (!graph || !equations || !eq_count)
+        return false;
 
     *eq_count = 0;
     *equations = NULL;
 
-    if (graph->constraint_count == 0) return true;
+    if (graph->constraint_count == 0)
+        return true;
 
     /* 鍒嗛厤琛ㄨ揪寮忔暟缁?*/
-    int alloc_count = (graph->constraint_count < MAX_EQUATIONS)
-                      ? graph->constraint_count : MAX_EQUATIONS;
-    char **eqs = (char **)lv00_malloc(alloc_count * sizeof(char *));
-    if (!eqs) return false;
+    int alloc_count = (graph->constraint_count < MAX_EQUATIONS) ? graph->constraint_count : MAX_EQUATIONS;
+    char **eqs = (char **) lv00_malloc(alloc_count * sizeof(char *));
+    if (!eqs)
+        return false;
 
     for (int ci = 0; ci < graph->constraint_count && *eq_count < alloc_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        if (!c) continue;
+        if (!c)
+            continue;
 
         /* 妫€鏌?var_id 鏄惁鍦?participants 涓?*/
         bool involves_var = false;
@@ -410,26 +409,36 @@ static bool extract_equations(const ConstraintGraph *graph,
                 break;
             }
         }
-        if (!involves_var) continue;
+        if (!involves_var)
+            continue;
 
         /* 鏋勯€犺〃杈惧紡鎻忚堪瀛楃涓?*/
         /* 鏍煎紡锛?constraint_N: type=X, vars=[a,b,c]" */
         const char *type_str = "UNKNOWN";
         switch (c->type) {
-        case INCIDENCE:    type_str = "INCIDENCE";    break;
-        case BETWEENNESS:  type_str = "BETWEENNESS";  break;
-        case INTERSECTION: type_str = "INTERSECTION"; break;
-        case CONTAINMENT:  type_str = "CONTAINMENT";  break;
-        case CONNECTION:   type_str = "CONNECTION";   break;
-        default:                                      break;
+            case INCIDENCE:
+                type_str = "INCIDENCE";
+                break;
+            case BETWEENNESS:
+                type_str = "BETWEENNESS";
+                break;
+            case INTERSECTION:
+                type_str = "INTERSECTION";
+                break;
+            case CONTAINMENT:
+                type_str = "CONTAINMENT";
+                break;
+            case CONNECTION:
+                type_str = "CONNECTION";
+                break;
+            default:
+                break;
         }
 
         char buf[EXPR_BUFFER_INITIAL];
-        int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[",
-                           c->id, type_str);
-        for (int pi = 0; pi < c->participant_count && off < (int)sizeof(buf) - 20; pi++) {
-            off += snprintf(buf + off, sizeof(buf) - off, "%s%d",
-                            (pi > 0) ? "," : "", c->participants[pi]);
+        int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[", c->id, type_str);
+        for (int pi = 0; pi < c->participant_count && off < (int) sizeof(buf) - 20; pi++) {
+            off += snprintf(buf + off, sizeof(buf) - off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
         }
         snprintf(buf + off, sizeof(buf) - off, "]");
 
@@ -441,15 +450,14 @@ static bool extract_equations(const ConstraintGraph *graph,
     return true;
 }
 
-bool fptaylor_evaluate_graph(const ConstraintGraph *graph,
-                             int var_id,
-                             const FPTaylorConfig *cfg,
-                             ErrorBound *out) {
-    if (!graph || !out) return false;
+bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out) {
+    if (!graph || !out)
+        return false;
 
     /* 楠岃瘉 var_id 鏄惁鏈夋晥 */
     GeomNode *target_node = graph_get_node(graph, var_id);
-    if (!target_node) return false;
+    if (!target_node)
+        return false;
 
     /* 姝ラ 1: 浠庣害鏉熷浘涓彁鍙栨秹鍙?var_id 鐨勬柟绋?*/
     char **equations = NULL;
@@ -464,12 +472,14 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph,
 
     if (target_node->symbolic_coords && target_node->coord_count > 0) {
         int coord_count = target_node->coord_count;
-        if (coord_count > 2) coord_count = 2;
+        if (coord_count > 2)
+            coord_count = 2;
 
         for (int d = 0; d < coord_count; d++) {
             double val = symbolic_coord_to_double(target_node->symbolic_coords[d]);
             double eps = fabs(val) * DBL_EPSILON * 10.0; /* 10 ulp 瀹瑰繊 */
-            if (eps < DBL_MIN) eps = DBL_EPSILON;
+            if (eps < DBL_MIN)
+                eps = DBL_EPSILON;
             var_bounds[d] = interval_make(val - eps, val + eps, false);
         }
         var_count = coord_count;
@@ -483,8 +493,7 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph,
         TaylorForm tf;
         memset(&tf, 0, sizeof(TaylorForm));
 
-        if (var_count > 0 && basic_taylor_expand(equations[ei], var_bounds,
-                                                   var_count, &tf)) {
+        if (var_count > 0 && basic_taylor_expand(equations[ei], var_bounds, var_count, &tf)) {
             /* 璁＄畻缁濆璇樊 = (interval_hi - interval_lo) / 2 */
             double half_width = (tf.interval_hi - tf.interval_lo) / 2.0;
             if (half_width > max_abs_err) {
@@ -494,7 +503,8 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph,
             double abs_center = fabs(tf.center_val);
             if (abs_center > DBL_MIN) {
                 double rel = half_width / abs_center;
-                if (rel > max_rel_err) max_rel_err = rel;
+                if (rel > max_rel_err)
+                    max_rel_err = rel;
             }
 
             free(tf.first_derivs);
@@ -508,20 +518,17 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph,
         snprintf(proof_buf, sizeof(proof_buf),
                  "FPTaylor analysis for var_id=%d: %d constraint equations, "
                  "taylor_order=%d, abs_err=%.6e, rel_err=%.6e",
-                 var_id, eq_count,
-                 cfg ? cfg->taylor_order : 1,
-                 max_abs_err, max_rel_err);
+                 var_id, eq_count, cfg ? cfg->taylor_order : 1, max_abs_err, max_rel_err);
     } else {
-        snprintf(proof_buf, sizeof(proof_buf),
-                 "FPTaylor analysis for var_id=%d: no relevant constraints found",
+        snprintf(proof_buf, sizeof(proof_buf), "FPTaylor analysis for var_id=%d: no relevant constraints found",
                  var_id);
     }
 
     /* 姝ラ 5: 娓呯悊骞惰緭鍑?*/
     out->absolute_error = max_abs_err;
     out->relative_error = max_rel_err;
-    out->trust_level  = (max_abs_err > 0.0) ? TRUST_BLUE : TRUST_GREEN;
-    out->proof_text   = lv00_strdup(proof_buf);
+    out->trust_level = (max_abs_err > 0.0) ? TRUST_BLUE : TRUST_GREEN;
+    out->proof_text = lv00_strdup(proof_buf);
 
     for (int ei = 0; ei < eq_count; ei++) {
         free(equations[ei]);
@@ -535,12 +542,10 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph,
  * fptaylor_evaluate_expr 瀹炵幇
  * ======================================================================== */
 
-bool fptaylor_evaluate_expr(const char *expr,
-                            const FloatInterval *var_bounds,
-                            int var_count,
-                            const FPTaylorConfig *cfg,
+bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, int var_count, const FPTaylorConfig *cfg,
                             ErrorBound *out) {
-    if (!expr || !var_bounds || var_count <= 0 || !out) return false;
+    if (!expr || !var_bounds || var_count <= 0 || !out)
+        return false;
 
     FPTaylorConfig config = cfg ? *cfg : fptaylor_config_default();
 
@@ -557,19 +562,16 @@ bool fptaylor_evaluate_expr(const char *expr,
     double abs_center = fabs(tf.center_val);
 
     out->absolute_error = half_width;
-    out->relative_error = (abs_center > DBL_MIN)
-                          ? half_width / abs_center
-                          : half_width;
-    out->trust_level  = TRUST_BLUE;
+    out->relative_error = (abs_center > DBL_MIN) ? half_width / abs_center : half_width;
+    out->trust_level = TRUST_BLUE;
 
     /* 鏋勯€犺瘉鏄庢枃鏈?*/
     char proof_buf[512];
     snprintf(proof_buf, sizeof(proof_buf),
              "expr=\"%s\", order=%d, center=%.6e, interval=[%.6e, %.6e], "
              "abs_err=%.6e, rel_err=%.6e",
-             expr, config.taylor_order, tf.center_val,
-             tf.interval_lo, tf.interval_hi,
-             out->absolute_error, out->relative_error);
+             expr, config.taylor_order, tf.center_val, tf.interval_lo, tf.interval_hi, out->absolute_error,
+             out->relative_error);
     out->proof_text = lv00_strdup(proof_buf);
 
     free(tf.first_derivs);
@@ -583,7 +585,8 @@ bool fptaylor_evaluate_expr(const char *expr,
  * ======================================================================== */
 
 TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance) {
-    if (!bound) return TRUST_RED;
+    if (!bound)
+        return TRUST_RED;
 
     double abs_err = bound->absolute_error;
 
@@ -622,16 +625,17 @@ TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance) {
 
 FPTaylorConfig fptaylor_config_default(void) {
     FPTaylorConfig cfg;
-    cfg.use_optimization       = true;
-    cfg.taylor_order           = 1;
-    cfg.use_z3_opt             = false;
-    cfg.use_gelpia             = false;
+    cfg.use_optimization = true;
+    cfg.taylor_order = 1;
+    cfg.use_z3_opt = false;
+    cfg.use_gelpia = false;
     cfg.branch_bound_threshold = 1e-6;
     return cfg;
 }
 
 void error_bound_free(ErrorBound *bound) {
-    if (!bound) return;
+    if (!bound)
+        return;
     if (bound->proof_text) {
         free(bound->proof_text);
         bound->proof_text = NULL;

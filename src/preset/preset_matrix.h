@@ -37,7 +37,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX
  *       输出: PRESET_TYPE_MATRIX | 复杂度: O(mn) | 可逆: 是
  */
-#define PRESET_MATRIX_ADD                 "matrix_add"
+#define PRESET_MATRIX_ADD "matrix_add"
 
 /**
  * @brief 矩阵减法 C = A - B
@@ -47,7 +47,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX
  *       输出: PRESET_TYPE_MATRIX | 复杂度: O(mn) | 可逆: 是
  */
-#define PRESET_MATRIX_SUBTRACT            "matrix_subtract"
+#define PRESET_MATRIX_SUBTRACT "matrix_subtract"
 
 /**
  * @brief 标量乘法 B = k * A
@@ -57,7 +57,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MATRIX, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_MATRIX | 复杂度: O(mn)
  */
-#define PRESET_MATRIX_SCALAR_MULTIPLY     "matrix_scalar_multiply"
+#define PRESET_MATRIX_SCALAR_MULTIPLY "matrix_scalar_multiply"
 
 /**
  * @brief 矩阵乘法 C = A * B
@@ -68,7 +68,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MATRIX, PRESET_TYPE_MATRIX
  *       输出: PRESET_TYPE_MATRIX | 复杂度: O(mnp)（朴素），O(n^{log_2 7})（Strassen）
  */
-#define PRESET_MATRIX_MULTIPLY            "matrix_multiply"
+#define PRESET_MATRIX_MULTIPLY "matrix_multiply"
 
 /**
  * @brief 矩阵转置 B = A^T，B_{ij} = A_{ji}
@@ -77,7 +77,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_MATRIX | 复杂度: O(mn) | 可逆: 是
  */
-#define PRESET_MATRIX_TRANSPOSE           "matrix_transpose"
+#define PRESET_MATRIX_TRANSPOSE "matrix_transpose"
 
 /**
  * @brief 矩阵迹 tr(A) = sum_i A_{ii}
@@ -86,7 +86,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_MATRIX_TRACE               "matrix_trace"
+#define PRESET_MATRIX_TRACE "matrix_trace"
 
 /**
  * @brief 矩阵行列式 det(A) = |A|
@@ -96,7 +96,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n^3)（LU分解）
  */
-#define PRESET_MATRIX_DETERMINANT         "matrix_determinant"
+#define PRESET_MATRIX_DETERMINANT "matrix_determinant"
 
 /**
  * @brief 矩阵逆 B = A^{-1}，满足 A * A^{-1} = I
@@ -106,7 +106,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_MATRIX | 复杂度: O(n^3) | 可逆: 是
  */
-#define PRESET_MATRIX_INVERSE             "matrix_inverse"
+#define PRESET_MATRIX_INVERSE "matrix_inverse"
 
 /* -------------------- 线性代数 -------------------- */
 
@@ -118,7 +118,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_INTEGER | 复杂度: O(mn^2)
  */
-#define PRESET_MATRIX_RANK                "matrix_rank"
+#define PRESET_MATRIX_RANK "matrix_rank"
 
 /**
  * @brief 零化度 nullity(A) = dim(ker(A)) = n - rank(A)
@@ -128,7 +128,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_INTEGER | 复杂度: O(mn^2)
  */
-#define PRESET_MATRIX_NULLITY             "matrix_nullity"
+#define PRESET_MATRIX_NULLITY "matrix_nullity"
 
 /**
  * @brief 矩阵特征值 det(A - lambda*I) = 0 的根
@@ -138,7 +138,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_TUPLE | 复杂度: O(n^3)
  */
-#define PRESET_MATRIX_EIGENVALUES         "matrix_eigenvalues"
+#define PRESET_MATRIX_EIGENVALUES "matrix_eigenvalues"
 
 /**
  * @brief 特征向量 A*v = lambda*v，v ≠ 0
@@ -149,7 +149,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MATRIX, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n^3)
  */
-#define PRESET_MATRIX_EIGENVECTORS        "matrix_eigenvectors"
+#define PRESET_MATRIX_EIGENVECTORS "matrix_eigenvectors"
 
 /**
  * @brief 特征多项式 p(lambda) = det(lambda*I - A)
@@ -168,7 +168,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_POLYNOMIAL | 复杂度: O(n^4)
  */
-#define PRESET_MATRIX_MINIMAL_POLY        "matrix_minimal_poly"
+#define PRESET_MATRIX_MINIMAL_POLY "matrix_minimal_poly"
 
 /**
  * @brief 核空间 ker(A) = {x | A*x = 0}
@@ -177,7 +177,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_SET | 复杂度: O(mn^2)
  */
-#define PRESET_MATRIX_KERNEL              "matrix_kernel"
+#define PRESET_MATRIX_KERNEL "matrix_kernel"
 
 /**
  * @brief 像空间 Im(A) = {A*x | x in F^n}
@@ -186,7 +186,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_SET | 复杂度: O(mn^2)
  */
-#define PRESET_MATRIX_IMAGE               "matrix_image"
+#define PRESET_MATRIX_IMAGE "matrix_image"
 
 /* -------------------- 矩阵分解 -------------------- */
 
@@ -198,7 +198,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_TUPLE (L, U) | 复杂度: O(n^3)
  */
-#define PRESET_MATRIX_LU_DECOMPOSITION    "matrix_lu_decomposition"
+#define PRESET_MATRIX_LU_DECOMPOSITION "matrix_lu_decomposition"
 
 /**
  * @brief QR 分解 A = Q * R
@@ -208,7 +208,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_TUPLE (Q, R) | 复杂度: O(mn^2)
  */
-#define PRESET_MATRIX_QR_DECOMPOSITION    "matrix_qr_decomposition"
+#define PRESET_MATRIX_QR_DECOMPOSITION "matrix_qr_decomposition"
 
 /**
  * @brief 奇异值分解 A = U * Sigma * V^T
@@ -218,7 +218,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_TUPLE (U, Sigma, V) | 复杂度: O(mn^2)
  */
-#define PRESET_MATRIX_SVD                 "matrix_svd"
+#define PRESET_MATRIX_SVD "matrix_svd"
 
 /**
  * @brief Cholesky 分解 A = L * L^T（对称正定矩阵）
@@ -228,7 +228,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_MATRIX | 复杂度: O(n^3)
  */
-#define PRESET_MATRIX_CHOLESKY            "matrix_cholesky"
+#define PRESET_MATRIX_CHOLESKY "matrix_cholesky"
 
 /**
  * @brief Jordan 标准形 A = P * J * P^{-1}
@@ -238,7 +238,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_TUPLE (P, J) | 复杂度: O(n^4)
  */
-#define PRESET_MATRIX_JORDAN_FORM         "matrix_jordan_form"
+#define PRESET_MATRIX_JORDAN_FORM "matrix_jordan_form"
 
 /**
  * @brief 谱分解 A = sum_i lambda_i * P_i（正规矩阵）
@@ -248,7 +248,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MATRIX | 输出: PRESET_TYPE_TUPLE | 复杂度: O(n^3)
  */
-#define PRESET_MATRIX_SPECTRAL            "matrix_spectral"
+#define PRESET_MATRIX_SPECTRAL "matrix_spectral"
 
 /* -------------------- 特殊矩阵 -------------------- */
 
@@ -260,7 +260,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_INTEGER | 输出: PRESET_TYPE_MATRIX | 复杂度: O(n^2)
  */
-#define PRESET_MATRIX_IDENTITY            "matrix_identity"
+#define PRESET_MATRIX_IDENTITY "matrix_identity"
 
 /**
  * @brief 零矩阵 O_{m*n}: 所有元素均为 0 的 m*n 矩阵
@@ -270,7 +270,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER
  *       输出: PRESET_TYPE_MATRIX | 复杂度: O(mn)
  */
-#define PRESET_MATRIX_ZERO                "matrix_zero"
+#define PRESET_MATRIX_ZERO "matrix_zero"
 
 /**
  * @brief 对角矩阵 diag(d_1, d_2, ..., d_n)
@@ -279,7 +279,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_LIST | 输出: PRESET_TYPE_MATRIX | 复杂度: O(n)
  */
-#define PRESET_MATRIX_DIAGONAL            "matrix_diagonal"
+#define PRESET_MATRIX_DIAGONAL "matrix_diagonal"
 
 /**
  * @brief 初等行变换矩阵 E，左乘 E*A 实现行变换
@@ -290,7 +290,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER
  *       输出: PRESET_TYPE_MATRIX | 复杂度: O(1)
  */
-#define PRESET_MATRIX_ELEMENTARY_ROW      "matrix_elementary_row"
+#define PRESET_MATRIX_ELEMENTARY_ROW "matrix_elementary_row"
 
 /**
  * @brief Vandermonde 矩阵 V_{ij} = x_i^{j-1}
@@ -300,7 +300,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_LIST | 输出: PRESET_TYPE_MATRIX | 复杂度: O(n^2)
  */
-#define PRESET_MATRIX_VANDERMONDE         "matrix_vandermonde"
+#define PRESET_MATRIX_VANDERMONDE "matrix_vandermonde"
 
 /**
  * @brief Hilbert 矩阵 H_{ij} = 1/(i+j-1)
@@ -310,7 +310,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_INTEGER | 输出: PRESET_TYPE_MATRIX | 复杂度: O(n^2)
  */
-#define PRESET_MATRIX_HILBERT             "matrix_hilbert"
+#define PRESET_MATRIX_HILBERT "matrix_hilbert"
 
 /* ============================================================
  * 模块注册函数

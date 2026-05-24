@@ -44,24 +44,24 @@
 
 /* ── 数学常量 ── */
 #ifndef M_PI
-    #define M_PI 3.14159265358979323846
+#define M_PI 3.14159265358979323846
 #endif
 
 /* ── 自然对数底数 e ── */
 #ifndef M_E
-    #define M_E  2.71828182845904523536
+#define M_E 2.71828182845904523536
 #endif
 
 /* ── 抑制"未使用变量"警告 ── */
 #ifndef LV00_UNUSED
-    #define LV00_UNUSED(x) ((void)(x))
+#define LV00_UNUSED(x) ((void) (x))
 #endif
 
 /* ── 数组元素计数 ──
  * 注意：此宏仅适用于编译期数组，传入指针会产生错误结果。
  * 编译时可通过 _Generic 或 static_assert 进行基本检查。 */
 #ifndef LV00_ARRAY_COUNT
-    #define LV00_ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define LV00_ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
 
 /* ── 安全加法（防溢出） ──
@@ -73,14 +73,14 @@
 /* MSVC 不支持 __typeof__ 和语句表达式，使用 __int64 作为通用类型。
  * 注意：此分支下参数 a、b、limit 会被求值多次，请避免传入含副作用的表达式。 */
 #define LV00_SAFE_ADD(a, b, limit) \
-    ((__int64)(a) > (__int64)(limit) - (__int64)(b) ? (__int64)(limit) : ((__int64)(a) + (__int64)(b)))
+    ((__int64) (a) > (__int64) (limit) - (__int64) (b) ? (__int64) (limit) : ((__int64) (a) + (__int64) (b)))
 #else
 /* GCC/Clang 实现：使用 __typeof__ 推导参数类型 */
-#define LV00_SAFE_ADD(a, b, limit) \
-    (__extension__({ \
-        __typeof__(a) _sa_a = (a); \
-        __typeof__(b) _sa_b = (b); \
-        __typeof__(limit) _sa_l = (limit); \
+#define LV00_SAFE_ADD(a, b, limit)                         \
+    (__extension__({                                       \
+        __typeof__(a) _sa_a = (a);                         \
+        __typeof__(b) _sa_b = (b);                         \
+        __typeof__(limit) _sa_l = (limit);                 \
         (_sa_a > _sa_l - _sa_b) ? _sa_l : (_sa_a + _sa_b); \
     }))
 #endif
@@ -88,11 +88,11 @@
 
 /* ── 安全 snprintf：确保返回值非负且不超过 buf_size-1 ── */
 #ifndef LV00_SAFE_SNPRINTF
-    #define LV00_SAFE_SNPRINTF(written, buf, buf_size, ...) \
-        do { \
-            int _sn = snprintf((buf), (buf_size), __VA_ARGS__); \
-            (written) = (_sn < 0) ? 0 : ((size_t)(_sn) >= (buf_size) ? (int)((buf_size) - 1) : _sn); \
-        } while (0)
+#define LV00_SAFE_SNPRINTF(written, buf, buf_size, ...)                                            \
+    do {                                                                                           \
+        int _sn = snprintf((buf), (buf_size), __VA_ARGS__);                                        \
+        (written) = (_sn < 0) ? 0 : ((size_t) (_sn) >= (buf_size) ? (int) ((buf_size) - 1) : _sn); \
+    } while (0)
 #endif
 
 /* ====================================================================
@@ -102,80 +102,80 @@
  * ==================================================================== */
 
 /* ── 引擎配置默认值 ── */
-#define LV00_DEFAULT_MAX_ITERATIONS        1000
-#define LV00_DEFAULT_PRECISION_BITS        64
-#define LV00_DEFAULT_REWRITE_STEP_LIMIT    1000
-#define LV00_DEFAULT_MEMORY_LIMIT_MB       0       /* 0 = 无限制 */
+#define LV00_DEFAULT_MAX_ITERATIONS 1000
+#define LV00_DEFAULT_PRECISION_BITS 64
+#define LV00_DEFAULT_REWRITE_STEP_LIMIT 1000
+#define LV00_DEFAULT_MEMORY_LIMIT_MB 0 /* 0 = 无限制 */
 
 /* ── 动态数组初始容量与增长因子 ── */
-#define LV00_INITIAL_ARRAY_CAPACITY        4
-#define LV00_ARRAY_GROWTH_FACTOR           2
+#define LV00_INITIAL_ARRAY_CAPACITY 4
+#define LV00_ARRAY_GROWTH_FACTOR 2
 
 /* ── 哈希索引参数 ── */
-#define LV00_NODE_INDEX_INITIAL_SIZE       64
+#define LV00_NODE_INDEX_INITIAL_SIZE 64
 #define LV00_CONSTRAINT_INDEX_INITIAL_SIZE 64
-#define LV00_INDEX_LOAD_FACTOR             0.75
+#define LV00_INDEX_LOAD_FACTOR 0.75
 
 /* ── FNV-1a 哈希常量 ── */
 /** FNV-1a 64 位哈希参数（项目统一使用 64 位） */
-#define LV00_FNV64_OFFSET_BASIS            0xcbf29ce484222325ULL
-#define LV00_FNV64_PRIME                   0x100000001b3ULL
+#define LV00_FNV64_OFFSET_BASIS 0xcbf29ce484222325ULL
+#define LV00_FNV64_PRIME 0x100000001b3ULL
 /** FNV-1a 32 位哈希参数（仅在需要 32 位哈希时使用） */
-#define LV00_FNV32_OFFSET_BASIS            2166136261u
-#define LV00_FNV32_PRIME                   16777619u
+#define LV00_FNV32_OFFSET_BASIS 2166136261u
+#define LV00_FNV32_PRIME 16777619u
 /* 简化版乘法器：2654435769 = 0x9E3779B9（黄金比例 phi 的 2^32 倍），
    用于快速位混合，非标准 FNV 参数，仅在特定路径使用 */
-#define LV00_FNV_HASH_MULTIPLIER           2654435769u
+#define LV00_FNV_HASH_MULTIPLIER 2654435769u
 
 /* ── 位数熔断阈值 ── */
-#define LV00_BIT_CUTOFF_THRESHOLD          1000000
-#define LV00_MAX_PRECISION_BITS            100
+#define LV00_BIT_CUTOFF_THRESHOLD 1000000
+#define LV00_MAX_PRECISION_BITS 100
 
 /* ── 电路溢出阈值 ── */
-#define LV00_CIRCUIT_OVERFLOW_THRESHOLD    3
+#define LV00_CIRCUIT_OVERFLOW_THRESHOLD 3
 
 /* ── 健康检查阈值 ── */
-#define LV00_HEALTH_SCORE_MAX              100
-#define LV00_HEALTH_MEMORY_USAGE_RATIO     0.9
-#define LV00_HEALTH_MEMORY_LEAK_RATIO      0.5
-#define LV00_HEALTH_RECENT_ERROR_PENALTY   15
+#define LV00_HEALTH_SCORE_MAX 100
+#define LV00_HEALTH_MEMORY_USAGE_RATIO 0.9
+#define LV00_HEALTH_MEMORY_LEAK_RATIO 0.5
+#define LV00_HEALTH_RECENT_ERROR_PENALTY 15
 #define LV00_HEALTH_MEMORY_WARNING_PENALTY 20
-#define LV00_HEALTH_MEMORY_LEAK_PENALTY    10
+#define LV00_HEALTH_MEMORY_LEAK_PENALTY 10
 
 /* ── 数值计算容差 ── */
-#define LV00_EPSILON_DOUBLE                1e-12
-#define LV00_EPSILON_NUMERIC_COMPARE       1e-10
-#define LV00_EPSILON_NEWTON                1e-15
-#define LV00_EPSILON_SEGMENT_INTERIOR      1e-9
-#define LV00_EPSILON_FRACTION_ZERO         1e-300
+#define LV00_EPSILON_DOUBLE 1e-12
+#define LV00_EPSILON_NUMERIC_COMPARE 1e-10
+#define LV00_EPSILON_NEWTON 1e-15
+#define LV00_EPSILON_SEGMENT_INTERIOR 1e-9
+#define LV00_EPSILON_FRACTION_ZERO 1e-300
 
 /* ── 连分数迭代上限 ── */
-#define LV00_CONTINUED_FRACTION_MAX_ITER   1000
+#define LV00_CONTINUED_FRACTION_MAX_ITER 1000
 
 /* ── 根隔离参数 ── */
-#define LV00_MAX_SUBINTERVALS              256
-#define LV00_ROOT_EPSILON                  1e-12
+#define LV00_MAX_SUBINTERVALS 256
+#define LV00_ROOT_EPSILON 1e-12
 
 /* ── 牛顿/代数数细化 ── */
-#define LV00_NEWTON_REFINE_ITERATIONS      10
+#define LV00_NEWTON_REFINE_ITERATIONS 10
 
 /* ── 代数数比较/细化迭代 ── */
-#define LV00_ALGEBRAIC_REFINE_ITERATIONS   100
+#define LV00_ALGEBRAIC_REFINE_ITERATIONS 100
 
 /* ── 降级近似分母基数 ── */
-#define LV00_DOWNGRADE_DENOMINATOR         1000000000
+#define LV00_DOWNGRADE_DENOMINATOR 1000000000
 
 /* ── 坐标值过大阈值（用于降级判断） ── */
-#define LV00_VALUE_TOO_LARGE              9.2e9
+#define LV00_VALUE_TOO_LARGE 9.2e9
 
 /* ── 二次根式化简循环 ── */
-#define LV00_SQRT_REMOVE_MAX_TRIES         100000
+#define LV00_SQRT_REMOVE_MAX_TRIES 100000
 
 /* ── 求解器 (solver.c) 模块级常量 ── */
 /** 缩放因子 —— 提供约6位十进制精度，用于有理数转换，未来应使用mpq直接运算 */
-#define LV00_SOLVER_SCALE_FACTOR         1000000
+#define LV00_SOLVER_SCALE_FACTOR 1000000
 /** 质数搜索上限 —— 平方因子分解时的最大质数搜索范围 */
-#define LV00_SOLVER_PRIME_LIMIT          100000
+#define LV00_SOLVER_PRIME_LIMIT 100000
 /** Buchberger算法步数限制 —— Groebner基计算的迭代上限 */
 #define LV00_SOLVER_BUCHBERGER_STEP_LIMIT 10000
 
@@ -215,43 +215,43 @@
  * 未定义时默认为 4（全部启用），保持向后兼容
  */
 #ifndef LV00_LOG_LEVEL_COMPILE
-#define LV00_LOG_LEVEL_COMPILE 4  /* 默认编译全部日志级别 */
+#define LV00_LOG_LEVEL_COMPILE 4 /* 默认编译全部日志级别 */
 #endif
 
 #define LV00_COMPILE_LOG_LEVEL_ERROR 1
-#define LV00_COMPILE_LOG_LEVEL_WARN  2
-#define LV00_COMPILE_LOG_LEVEL_INFO  3
+#define LV00_COMPILE_LOG_LEVEL_WARN 2
+#define LV00_COMPILE_LOG_LEVEL_INFO 3
 #define LV00_COMPILE_LOG_LEVEL_DEBUG 4
 
 /* ── 日志级别 ── */
-#define LV00_LOG_LEVEL_ERROR   1
+#define LV00_LOG_LEVEL_ERROR 1
 #define LV00_LOG_LEVEL_WARNING 2
-#define LV00_LOG_LEVEL_INFO    3
-#define LV00_LOG_LEVEL_DEBUG   4
+#define LV00_LOG_LEVEL_INFO 3
+#define LV00_LOG_LEVEL_DEBUG 4
 
 /* ── 日志宏（带编译期过滤） ── */
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_ERROR
-#define LV00_LOG_ERROR(fmt, ...)   lv00_log_message(LV00_LOG_LEVEL_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LV00_LOG_ERROR(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
-#define LV00_LOG_ERROR(fmt, ...)   ((void)0)
+#define LV00_LOG_ERROR(fmt, ...) ((void) 0)
 #endif
 
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_WARN
 #define LV00_LOG_WARNING(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_WARNING, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
-#define LV00_LOG_WARNING(fmt, ...) ((void)0)
+#define LV00_LOG_WARNING(fmt, ...) ((void) 0)
 #endif
 
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_INFO
-#define LV00_LOG_INFO(fmt, ...)    lv00_log_message(LV00_LOG_LEVEL_INFO, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LV00_LOG_INFO(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_INFO, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
-#define LV00_LOG_INFO(fmt, ...)    ((void)0)
+#define LV00_LOG_INFO(fmt, ...) ((void) 0)
 #endif
 
 #if LV00_LOG_LEVEL_COMPILE >= LV00_COMPILE_LOG_LEVEL_DEBUG
-#define LV00_LOG_DEBUG(fmt, ...)   lv00_log_message(LV00_LOG_LEVEL_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LV00_LOG_DEBUG(fmt, ...) lv00_log_message(LV00_LOG_LEVEL_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #else
-#define LV00_LOG_DEBUG(fmt, ...)   ((void)0)
+#define LV00_LOG_DEBUG(fmt, ...) ((void) 0)
 #endif
 
 /* 日志函数声明（在lv00_utils.c中实现） */

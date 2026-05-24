@@ -37,7 +37,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MANIFOLD, PRESET_TYPE_POINT
  *       输出: PRESET_TYPE_SET | 复杂度: O(n)
  */
-#define PRESET_DG_TANGENT_SPACE             "tangent_space"
+#define PRESET_DG_TANGENT_SPACE "tangent_space"
 
 /**
  * @brief Riemann 度量 g
@@ -47,7 +47,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MANIFOLD | 输出: PRESET_TYPE_TENSOR | 复杂度: O(n^2)
  */
-#define PRESET_DG_RIEMANNIAN_METRIC         "riemannian_metric"
+#define PRESET_DG_RIEMANNIAN_METRIC "riemannian_metric"
 
 /* -------------------- 测地线与连接 -------------------- */
 
@@ -60,7 +60,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MANIFOLD, PRESET_TYPE_POINT, PRESET_TYPE_VECTOR
  *       输出: PRESET_TYPE_CURVE | 复杂度: O(n)
  */
-#define PRESET_DG_GEODESIC                  "geodesic"
+#define PRESET_DG_GEODESIC "geodesic"
 
 /**
  * @brief Levi-Civita 连接
@@ -71,7 +71,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MANIFOLD | 输出: PRESET_TYPE_TENSOR (Christoffel 符号) | 复杂度: O(n^3)
  */
-#define PRESET_DG_CONNECTION_LEVI_CIVITA    "connection_levi_civita"
+#define PRESET_DG_CONNECTION_LEVI_CIVITA "connection_levi_civita"
 
 /**
  * @brief 指数映射 exp_p: T_pM → M
@@ -82,7 +82,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MANIFOLD, PRESET_TYPE_POINT, PRESET_TYPE_VECTOR
  *       输出: PRESET_TYPE_POINT | 复杂度: O(n)
  */
-#define PRESET_DG_EXPONENTIAL_MAP           "exponential_map"
+#define PRESET_DG_EXPONENTIAL_MAP "exponential_map"
 
 /**
  * @brief 平行移动
@@ -94,7 +94,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_MANIFOLD, PRESET_TYPE_CURVE, PRESET_TYPE_VECTOR
  *       输出: PRESET_TYPE_VECTOR | 复杂度: O(n)
  */
-#define PRESET_DG_PARALLEL_TRANSPORT        "parallel_transport"
+#define PRESET_DG_PARALLEL_TRANSPORT "parallel_transport"
 
 /* -------------------- 曲率理论 -------------------- */
 
@@ -107,7 +107,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_MANIFOLD | 输出: PRESET_TYPE_TENSOR | 复杂度: O(n^4)
  */
-#define PRESET_DG_CURVATURE_TENSOR          "curvature_tensor"
+#define PRESET_DG_CURVATURE_TENSOR "curvature_tensor"
 
 /**
  * @brief Gauss-Bonnet 定理
@@ -118,7 +118,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n^2)
  */
-#define PRESET_DG_GAUSS_BONNET              "gauss_bonnet"
+#define PRESET_DG_GAUSS_BONNET "gauss_bonnet"
 
 /* ============================================================
  * 模块注册函数

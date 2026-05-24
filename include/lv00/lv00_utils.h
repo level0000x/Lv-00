@@ -18,10 +18,11 @@
 extern "C" {
 #endif
 
-#include "error_codes.h"
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+
+#include "error_codes.h"
 
 /* ============================================================
  * 内存管理辅助
@@ -132,10 +133,10 @@ char *lv00_str_trim(char *str);
  * @brief 动态数组结构
  */
 typedef struct {
-    void **data;        /* 元素指针数组 */
-    size_t count;       /* 当前元素数 */
-    size_t capacity;    /* 容量 */
-    size_t elem_size;   /* 元素大小（用于值类型数组） */
+    void **data;         /* 元素指针数组 */
+    size_t count;        /* 当前元素数 */
+    size_t capacity;     /* 容量 */
+    size_t elem_size;    /* 元素大小（用于值类型数组） */
     bool store_pointers; /* 是否存储指针 */
 } LV00Array;
 
@@ -359,8 +360,8 @@ typedef struct {
     int major;
     int minor;
     int patch;
-    char *prerelease;  /* 预发布标识，如 "alpha", "beta" */
-    char *build;       /* 构建元数据 */
+    char *prerelease; /* 预发布标识，如 "alpha", "beta" */
+    char *build;      /* 构建元数据 */
 } LV00Version;
 
 /**
@@ -416,7 +417,12 @@ bool lv00_check_version(const char *min_version);
 /**
  * @brief 安全释放指针并将指针置NULL
  */
-#define LV00_SAFE_FREE(ptr) do { if (ptr) { lv00_free((void **)&(ptr)); } } while(0)
+#define LV00_SAFE_FREE(ptr)              \
+    do {                                 \
+        if (ptr) {                       \
+            lv00_free((void **) &(ptr)); \
+        }                                \
+    } while (0)
 
 /**
  * @brief 字符串化宏
@@ -430,13 +436,21 @@ bool lv00_check_version(const char *min_version);
 #define LV00_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
 
 /** 返回两个整数中的较小值 */
-static inline int lv00_min_i(int a, int b) { return a < b ? a : b; }
+static inline int lv00_min_i(int a, int b) {
+    return a < b ? a : b;
+}
 /** 返回两个整数中的较大值 */
-static inline int lv00_max_i(int a, int b) { return a > b ? a : b; }
+static inline int lv00_max_i(int a, int b) {
+    return a > b ? a : b;
+}
 /** 返回两个 size_t 中的较小值 */
-static inline size_t lv00_min_z(size_t a, size_t b) { return a < b ? a : b; }
+static inline size_t lv00_min_z(size_t a, size_t b) {
+    return a < b ? a : b;
+}
 /** 返回两个 size_t 中的较大值 */
-static inline size_t lv00_max_z(size_t a, size_t b) { return a > b ? a : b; }
+static inline size_t lv00_max_z(size_t a, size_t b) {
+    return a > b ? a : b;
+}
 
 /**
  * @brief 确保数组容量足够——通用动态数组扩容辅助宏
@@ -454,19 +468,19 @@ static inline size_t lv00_max_z(size_t a, size_t b) { return a > b ? a : b; }
  * @param ret_on_fail 失败时的返回值（典型为 false 或 NULL）
  * @warning 初始化容量为 8，增长因子为 2；失败时自动设置 LV00_ERROR_OUT_OF_MEMORY
  */
-#define LV00_ENSURE_ARRAY_CAP(arr, count, cap, ret_on_fail) \
-    do { \
-        if ((count) >= (cap)) { \
-            size_t _new_cap = (cap) == 0 ? 8 : (cap) * 2; \
+#define LV00_ENSURE_ARRAY_CAP(arr, count, cap, ret_on_fail)                  \
+    do {                                                                     \
+        if ((count) >= (cap)) {                                              \
+            size_t _new_cap = (cap) == 0 ? 8 : (cap) * 2;                    \
             void *_new_arr = lv00_realloc((arr), _new_cap * sizeof(*(arr))); \
-            if (!_new_arr) { \
-                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "数组扩容失败"); \
-                return (ret_on_fail); \
-            } \
-            (arr) = _new_arr; \
-            (cap) = _new_cap; \
-        } \
-    } while(0)
+            if (!_new_arr) {                                                 \
+                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "数组扩容失败");    \
+                return (ret_on_fail);                                        \
+            }                                                                \
+            (arr) = _new_arr;                                                \
+            (cap) = _new_cap;                                                \
+        }                                                                    \
+    } while (0)
 
 /** 通用最小/最大值宏（保留向后兼容，类型安全请使用 lv00_min_i/lv00_max_i） */
 #ifndef LV00_MIN
@@ -484,41 +498,57 @@ static inline size_t lv00_max_z(size_t a, size_t b) { return a > b ? a : b; }
 /**
  * @brief 交换两个同类型变量
  */
-#define LV00_SWAP(type, a, b) do { type _tmp = (a); (a) = (b); (b) = _tmp; } while(0)
+#define LV00_SWAP(type, a, b) \
+    do {                      \
+        type _tmp = (a);      \
+        (a) = (b);            \
+        (b) = _tmp;           \
+    } while (0)
 
 /**
  * @brief 检查指针是否为NULL，如果是则返回指定值
  */
-#define LV00_RETURN_IF_NULL(ptr, ret) \
-    do { if (!(ptr)) { lv00_set_error(LV00_ERROR_NULL_POINTER, \
-        "Null pointer: " #ptr " at " __FILE__ ":" LV00_TOSTRING(__LINE__)); \
-        return (ret); } } while(0)
+#define LV00_RETURN_IF_NULL(ptr, ret)                                                          \
+    do {                                                                                       \
+        if (!(ptr)) {                                                                          \
+            lv00_set_error(LV00_ERROR_NULL_POINTER,                                            \
+                           "Null pointer: " #ptr " at " __FILE__ ":" LV00_TOSTRING(__LINE__)); \
+            return (ret);                                                                      \
+        }                                                                                      \
+    } while (0)
 
 /**
  * @brief 检查条件，不满足则返回错误
  */
-#define LV00_RETURN_IF_FALSE(cond, err_code, ret) \
-    do { if (!(cond)) { lv00_set_error((err_code), \
-        "Condition failed: " #cond " at " __FILE__ ":" LV00_TOSTRING(__LINE__)); \
-        return (ret); } } while(0)
+#define LV00_RETURN_IF_FALSE(cond, err_code, ret)                                                               \
+    do {                                                                                                        \
+        if (!(cond)) {                                                                                          \
+            lv00_set_error((err_code), "Condition failed: " #cond " at " __FILE__ ":" LV00_TOSTRING(__LINE__)); \
+            return (ret);                                                                                       \
+        }                                                                                                       \
+    } while (0)
 
 /**
  * @brief 安全调用函数并检查返回值
  */
-#define LV00_SAFE_CALL(func, ret_val, ret) \
-    do { ret_val = (func); if (lv00_is_error(lv00_get_last_error_code())) return (ret); } while(0)
+#define LV00_SAFE_CALL(func, ret_val, ret)             \
+    do {                                               \
+        ret_val = (func);                              \
+        if (lv00_is_error(lv00_get_last_error_code())) \
+            return (ret);                              \
+    } while (0)
 
 /* ============================================================
  * 内存使用统计
  * ============================================================ */
 
 typedef struct {
-    size_t total_allocated;    /* 总分配内存 */
-    size_t total_freed;        /* 总释放内存 */
-    size_t current_used;       /* 当前使用内存 */
-    size_t peak_used;          /* 峰值使用内存 */
-    size_t allocation_count;   /* 分配次数 */
-    size_t free_count;         /* 释放次数 */
+    size_t total_allocated;  /* 总分配内存 */
+    size_t total_freed;      /* 总释放内存 */
+    size_t current_used;     /* 当前使用内存 */
+    size_t peak_used;        /* 峰值使用内存 */
+    size_t allocation_count; /* 分配次数 */
+    size_t free_count;       /* 释放次数 */
 } MemoryStats;
 
 /**

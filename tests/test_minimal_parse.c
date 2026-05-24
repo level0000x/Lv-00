@@ -12,10 +12,11 @@
  *       运行时需在项目根目录下执行。
  */
 
-#include "lv00.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "lv00.h"
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -50,23 +51,24 @@ int main(void) {
     }
 
     if (s != AXIOM_LOAD_OK) {
-        printf("ERROR: Failed to load axiom package (status=%d)\n", (int)s);
+        printf("ERROR: Failed to load axiom package (status=%d)\n", (int) s);
         const char *err = axiom_package_get_last_error();
-        if (err) printf("  Last error: %s\n", err);
+        if (err)
+            printf("  Last error: %s\n", err);
         axiom_package_destroy(pkg);
         return 1;
     }
 
-    printf("Load: %d, Tmpl: %d, UC: %d, Bottom: %s\n",
-        (int)s, pkg->template_count, pkg->unconstructible_count,
-        pkg->bottom_geometry ? pkg->bottom_geometry : "(null)");
+    printf("Load: %d, Tmpl: %d, UC: %d, Bottom: %s\n", (int) s, pkg->template_count, pkg->unconstructible_count,
+           pkg->bottom_geometry ? pkg->bottom_geometry : "(null)");
     const char *err = axiom_package_get_last_error();
-    if (err) printf("Error: %s\n", err);
+    if (err)
+        printf("Error: %s\n", err);
 
     for (int i = 0; i < pkg->unconstructible_count; i++) {
         KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
-        printf("  UC[%d]: %s -> %s (deps=%d, verified=%d)\n", i,
-               uc->name, uc->reduces_to, uc->dependency_count, uc->green_verified);
+        printf("  UC[%d]: %s -> %s (deps=%d, verified=%d)\n", i, uc->name, uc->reduces_to, uc->dependency_count,
+               uc->green_verified);
     }
     axiom_package_destroy(pkg);
 

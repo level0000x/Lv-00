@@ -12,17 +12,17 @@
  * - 导出功能
  */
 
-#include "lv00.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00.h"
+#include "test_helpers.h"
+
 /* ============== 测试：命题生命周期 ============== */
 
-static int test_proposition_lifecycle(void)
-{
+static int test_proposition_lifecycle(void) {
     printf("Test: proposition lifecycle...\n");
 
     Proposition *prop = proposition_create(1, PROPOSITION_ATOMIC);
@@ -41,8 +41,7 @@ static int test_proposition_lifecycle(void)
 
 /* ============== 测试：复合命题 ============== */
 
-static int test_composite_propositions(void)
-{
+static int test_composite_propositions(void) {
     printf("Test: composite propositions...\n");
 
     /* 创建合取命题 */
@@ -94,8 +93,7 @@ static int test_composite_propositions(void)
 
 /* ============== 测试：命题端口设置 ============== */
 
-static int test_proposition_ports(void)
-{
+static int test_proposition_ports(void) {
     printf("Test: proposition port configuration...\n");
 
     ConstraintGraph *g = graph_create();
@@ -136,8 +134,7 @@ static int test_proposition_ports(void)
 
 /* ============== 测试：子命题 ============== */
 
-static int test_sub_propositions(void)
-{
+static int test_sub_propositions(void) {
     printf("Test: sub-propositions...\n");
 
     /* 创建父命题 */
@@ -168,8 +165,7 @@ static int test_sub_propositions(void)
 
 /* ============== 测试：证明步骤 ============== */
 
-static int test_proof_steps(void)
-{
+static int test_proof_steps(void) {
     printf("Test: proof steps...\n");
 
     /* 创建不同类型的证明步骤 */
@@ -210,8 +206,7 @@ static int test_proof_steps(void)
 
 /* ============== 测试：证明导航器 ============== */
 
-static int test_proof_navigator(void)
-{
+static int test_proof_navigator(void) {
     printf("Test: proof navigator...\n");
 
     /* 创建目标命题 */
@@ -265,8 +260,7 @@ static int test_proof_navigator(void)
 
 /* ============== 测试：合一检查 ============== */
 
-static int test_unify_check(void)
-{
+static int test_unify_check(void) {
     printf("Test: unify check...\n");
 
     /* 创建构造图 */
@@ -310,8 +304,7 @@ static int test_unify_check(void)
 
 /* ============== 测试：证明依赖链 ============== */
 
-static int test_proof_dependencies(void)
-{
+static int test_proof_dependencies(void) {
     printf("Test: proof dependencies...\n");
 
     /* 创建依赖 */
@@ -337,8 +330,7 @@ static int test_proof_dependencies(void)
 
 /* ============== 测试：爆炸原理 ============== */
 
-static int test_ex_falso(void)
-{
+static int test_ex_falso(void) {
     printf("Test: explosion principle (ex falso)...\n");
 
     ConstraintGraph *g = graph_create();
@@ -370,38 +362,20 @@ static int test_ex_falso(void)
 
 /* ============== 测试：证明颜色 ============== */
 
-static int test_proof_colors(void)
-{
+static int test_proof_colors(void) {
     printf("Test: proof colors...\n");
 
     /* 测试所有证明颜色 */
-    ProofColor colors[] = {
-        PROOF_COLOR_GREEN,
-        PROOF_COLOR_BLUE_UNEXPLORED,
-        PROOF_COLOR_BLUE_RESOURCE,
-        PROOF_COLOR_BLUE_OUT_OF_RANGE,
-        PROOF_COLOR_GREEN_VERIFIED,
-        PROOF_COLOR_YELLOW,
-        PROOF_COLOR_ORANGE_ORACLE,
-        PROOF_COLOR_ORANGE_EX_FALSO,
-        PROOF_COLOR_AMBER,
-        PROOF_COLOR_DARK_ORANGE
-    };
+    ProofColor colors[] = {PROOF_COLOR_GREEN,          PROOF_COLOR_BLUE_UNEXPLORED,
+                           PROOF_COLOR_BLUE_RESOURCE,  PROOF_COLOR_BLUE_OUT_OF_RANGE,
+                           PROOF_COLOR_GREEN_VERIFIED, PROOF_COLOR_YELLOW,
+                           PROOF_COLOR_ORANGE_ORACLE,  PROOF_COLOR_ORANGE_EX_FALSO,
+                           PROOF_COLOR_AMBER,          PROOF_COLOR_DARK_ORANGE};
 
-    const char *expected[] = {
-        "Green",
-        "BlueUnexplored",
-        "BlueResource",
-        "BlueOutOfRange",
-        "GreenVerified",
-        "Yellow",
-        "OrangeOracle",
-        "OrangeExFalso",
-        "Amber",
-        "DarkOrange"
-    };
+    const char *expected[] = {"Green",  "BlueUnexplored", "BlueResource",  "BlueOutOfRange", "GreenVerified",
+                              "Yellow", "OrangeOracle",   "OrangeExFalso", "Amber",          "DarkOrange"};
 
-    for (int i = 0; i < sizeof(colors)/sizeof(colors[0]); i++) {
+    for (int i = 0; i < sizeof(colors) / sizeof(colors[0]); i++) {
         const char *str = proof_color_to_string(colors[i]);
         printf("  %s -> %s\n", expected[i], str);
     }
@@ -412,8 +386,7 @@ static int test_proof_colors(void)
 
 /* ============== 测试：辅助函数 ============== */
 
-static int test_helper_functions(void)
-{
+static int test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 命题类型转字符串 */
@@ -452,8 +425,7 @@ static int test_helper_functions(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Proof System Test Suite ===\n\n");
 
     test_proposition_lifecycle();

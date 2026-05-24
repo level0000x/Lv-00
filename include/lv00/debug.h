@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 /* [C5 修复] 使用前向声明替代完整包含 engine.h，
  * 减少编译依赖链。仅需要 LV00Engine 和 ConstraintGraph 指针类型。 */
@@ -35,7 +35,7 @@ typedef struct ConstraintGraph ConstraintGraph;
 
 /* 日志轮转设置 */
 #define LV00_LOG_MAX_FILES 5
-#define LV00_LOG_MAX_SIZE (10 * 1024 * 1024)  /* 10MB */
+#define LV00_LOG_MAX_SIZE (10 * 1024 * 1024) /* 10MB */
 #define LV00_LOG_PATH_MAX 256
 
 /* 日志级别: DEBUG < INFO < WARN < ERROR
@@ -48,38 +48,38 @@ typedef struct ConstraintGraph ConstraintGraph;
  */
 typedef enum {
     LOG_LEVEL_DEBUG = 0,
-    LOG_LEVEL_INFO  = 1,
-    LOG_LEVEL_WARN  = 2,
+    LOG_LEVEL_INFO = 1,
+    LOG_LEVEL_WARN = 2,
     LOG_LEVEL_ERROR = 3,
-    LOG_LEVEL_NONE  = 4  /* 禁用所有日志 */
+    LOG_LEVEL_NONE = 4 /* 禁用所有日志 */
 } LogLevel;
 
 /* 性能计数器（第18.5节） */
 typedef struct PerformanceCounters {
     /* 节点统计 */
-    uint64_t total_nodes_created;       /* 创建的节点总数 */
-    uint64_t current_nodes_alive;       /* 当前存活节点数 */
+    uint64_t total_nodes_created; /* 创建的节点总数 */
+    uint64_t current_nodes_alive; /* 当前存活节点数 */
 
     /* 约束统计 */
     uint64_t total_constraints_created; /* 创建的约束总数 */
-    uint64_t current_constraints_alive;/* 当前存活约束数 */
+    uint64_t current_constraints_alive; /* 当前存活约束数 */
 
     /* 求解器统计 */
-    uint64_t solver_call_count;         /* 求解器调用次数 */
-    uint64_t solver_total_time_us;      /* 总耗时（微秒） */
-    double    solver_avg_time_us;       /* 平均耗时（微秒） */
+    uint64_t solver_call_count;    /* 求解器调用次数 */
+    uint64_t solver_total_time_us; /* 总耗时（微秒） */
+    double solver_avg_time_us;     /* 平均耗时（微秒） */
 
     /* 重写引擎统计 */
     uint64_t rewrite_total_steps;       /* 重写总步数 */
     uint64_t rewrite_rule_applications; /* 规则应用次数 */
 
     /* 合一检查统计 */
-    uint64_t unify_check_count;         /* 合一检查次数 */
-    uint64_t unify_success_count;       /* 合一成功次数 */
+    uint64_t unify_check_count;   /* 合一检查次数 */
+    uint64_t unify_success_count; /* 合一成功次数 */
 
     /* 内存统计 */
-    uint64_t memory_usage_peak;         /* 内存使用峰值 */
-    uint64_t memory_current;            /* 当前内存使用量 */
+    uint64_t memory_usage_peak; /* 内存使用峰值 */
+    uint64_t memory_current;    /* 当前内存使用量 */
 } PerformanceCounters;
 
 /* 调试上下文，用于断言和追踪 */
@@ -156,8 +156,8 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...);
  * @brief 各级别日志的便捷宏。
  */
 #define LOG_DEBUG(module, fmt, ...) debug_log(LOG_LEVEL_DEBUG, module, fmt, ##__VA_ARGS__)
-#define LOG_INFO(module, fmt, ...)  debug_log(LOG_LEVEL_INFO, module, fmt, ##__VA_ARGS__)
-#define LOG_WARN(module, fmt, ...)  debug_log(LOG_LEVEL_WARN, module, fmt, ##__VA_ARGS__)
+#define LOG_INFO(module, fmt, ...) debug_log(LOG_LEVEL_INFO, module, fmt, ##__VA_ARGS__)
+#define LOG_WARN(module, fmt, ...) debug_log(LOG_LEVEL_WARN, module, fmt, ##__VA_ARGS__)
 #define LOG_ERROR(module, fmt, ...) debug_log(LOG_LEVEL_ERROR, module, fmt, ##__VA_ARGS__)
 
 /*=== 性能计数器 ===*/
@@ -278,11 +278,11 @@ int ref_count_get(const void *obj);
  * 将当前引擎状态、性能计数器、日志缓冲区等保存到文件。
  */
 typedef struct {
-    char *filepath;             /* 保存路径 */
-    bool include_graph;         /* 是否包含约束图快照 */
-    bool include_counters;      /* 是否包含性能计数器 */
-    bool include_log_buffer;    /* 是否包含日志缓冲区 */
-    bool include_memory_map;    /* 是否包含内存分配映射 */
+    char *filepath;          /* 保存路径 */
+    bool include_graph;      /* 是否包含约束图快照 */
+    bool include_counters;   /* 是否包含性能计数器 */
+    bool include_log_buffer; /* 是否包含日志缓冲区 */
+    bool include_memory_map; /* 是否包含内存分配映射 */
 } EmergencySaveConfig;
 
 /**
@@ -331,11 +331,7 @@ void debug_port_invariant_result_destroy(PortInvariantResult *result);
 /**
  * @brief 追踪事件类型
  */
-typedef enum {
-    TRACE_NORMALIZATION,
-    TRACE_REWRITE,
-    TRACE_SOLVER
-} TraceEventType;
+typedef enum { TRACE_NORMALIZATION, TRACE_REWRITE, TRACE_SOLVER } TraceEventType;
 
 /**
  * @brief 追踪事件
@@ -345,7 +341,7 @@ typedef struct {
     double timestamp;
     int step_number;
     char *description;
-    char *details;              /* JSON 格式的详细信息 */
+    char *details; /* JSON 格式的详细信息 */
 } TraceEvent;
 
 /**
@@ -371,8 +367,8 @@ void trace_session_destroy(TraceSession *session);
 /**
  * @brief 记录追踪事件
  */
-void trace_record_event(TraceSession *session, TraceEventType type,
-                         int step, const char *description, const char *details);
+void trace_record_event(TraceSession *session, TraceEventType type, int step, const char *description,
+                        const char *details);
 
 /**
  * @brief 导出追踪会话为 JSON

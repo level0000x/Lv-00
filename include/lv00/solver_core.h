@@ -49,9 +49,9 @@ typedef struct Lv00Solver Lv00Solver;
  * 借鉴 CaDiCaL 的三值语义，对应 MiniSat 的 l_True/l_False/l_Undef。
  */
 typedef enum {
-    LV00_SOLVER_SAT     = 10,  /**< 可满足：已找到一组赋值 */
-    LV00_SOLVER_UNSAT   = 20,  /**< 不可满足：问题无解 */
-    LV00_SOLVER_UNKNOWN = 0    /**< 未知：资源耗尽（超时/内存） */
+    LV00_SOLVER_SAT = 10,   /**< 可满足：已找到一组赋值 */
+    LV00_SOLVER_UNSAT = 20, /**< 不可满足：问题无解 */
+    LV00_SOLVER_UNKNOWN = 0 /**< 未知：资源耗尽（超时/内存） */
 } Lv00SolverResult;
 
 /**
@@ -62,10 +62,14 @@ typedef enum {
  */
 static inline const char *lv00_solver_result_string(Lv00SolverResult result) {
     switch (result) {
-        case LV00_SOLVER_SAT:     return "SAT";
-        case LV00_SOLVER_UNSAT:   return "UNSAT";
-        case LV00_SOLVER_UNKNOWN: return "UNKNOWN";
-        default:                  return "?";
+        case LV00_SOLVER_SAT:
+            return "SAT";
+        case LV00_SOLVER_UNSAT:
+            return "UNSAT";
+        case LV00_SOLVER_UNKNOWN:
+            return "UNKNOWN";
+        default:
+            return "?";
     }
 }
 
@@ -150,16 +154,16 @@ static inline bool lv00_lit_sign(Lv00SolverLit lit) {
  * 借鉴 CaDiCaL 的搜索状态机，每个状态对应求解流程的一个阶段。
  */
 typedef enum {
-    CDCL_IDLE         = 0,  /**< 空闲：等待 solve() 调用 */
-    CDCL_PROPAGATING  = 1,  /**< 传播：执行单元传播（BCP） */
-    CDCL_CONFLICT     = 2,  /**< 冲突：检测到冲突子句 */
-    CDCL_ANALYZING    = 3,  /**< 分析：分析冲突生成学习子句 */
-    CDCL_BACKJUMPING  = 4,  /**< 回跳：非时序回溯到决策层 */
-    CDCL_LEARNING     = 5,  /**< 学习：将学习子句加入子句库 */
-    CDCL_DECIDING     = 6,  /**< 决策：做出新的变量赋值决策 */
-    CDCL_RESTARTING   = 7,  /**< 重启：放弃当前决策栈重启搜索 */
-    CDCL_SATISFIED    = 8,  /**< 满足：所有变量已赋值且无冲突 */
-    CDCL_UNSAT        = 9   /**< 不可满足：推导出空子句 */
+    CDCL_IDLE = 0,        /**< 空闲：等待 solve() 调用 */
+    CDCL_PROPAGATING = 1, /**< 传播：执行单元传播（BCP） */
+    CDCL_CONFLICT = 2,    /**< 冲突：检测到冲突子句 */
+    CDCL_ANALYZING = 3,   /**< 分析：分析冲突生成学习子句 */
+    CDCL_BACKJUMPING = 4, /**< 回跳：非时序回溯到决策层 */
+    CDCL_LEARNING = 5,    /**< 学习：将学习子句加入子句库 */
+    CDCL_DECIDING = 6,    /**< 决策：做出新的变量赋值决策 */
+    CDCL_RESTARTING = 7,  /**< 重启：放弃当前决策栈重启搜索 */
+    CDCL_SATISFIED = 8,   /**< 满足：所有变量已赋值且无冲突 */
+    CDCL_UNSAT = 9        /**< 不可满足：推导出空子句 */
 } CDCLState;
 
 /**
@@ -173,48 +177,48 @@ typedef enum {
  */
 typedef struct CDCLContext {
     /** 当前 CDCL 状态 */
-    CDCLState  state;
+    CDCLState state;
 
     /* ── 变量赋值 ── */
     /** 变量赋值数组：0 = 未赋值，ABS(lit) 对应变量 ID */
-    int       *assigns;        /**< 赋值数组（0 = 未赋值） */
-    int       *levels;         /**< 每个变量的决策层级 */
-    int       *reasons;        /**< 每个赋值的归因子句索引（-1 = 决策） */
-    int        var_count;      /**< 变量数量 */
-    int        var_capacity;   /**< 赋值数组容量 */
+    int *assigns;     /**< 赋值数组（0 = 未赋值） */
+    int *levels;      /**< 每个变量的决策层级 */
+    int *reasons;     /**< 每个赋值的归因子句索引（-1 = 决策） */
+    int var_count;    /**< 变量数量 */
+    int var_capacity; /**< 赋值数组容量 */
 
     /* ── 决策栈 ── */
-    int       *trail;          /**< 赋值路径（文字序列） */
-    int       *trail_lim;      /**< 每个决策层级在trail中的起始位置 */
-    int        trail_size;     /**< trail 当前大小 */
-    int        trail_capacity; /**< trail 容量 */
-    int        decision_level; /**< 当前决策层级 */
+    int *trail;         /**< 赋值路径（文字序列） */
+    int *trail_lim;     /**< 每个决策层级在trail中的起始位置 */
+    int trail_size;     /**< trail 当前大小 */
+    int trail_capacity; /**< trail 容量 */
+    int decision_level; /**< 当前决策层级 */
 
     /* ── 子句数据库 ── */
-    int      **clauses;        /**< 原始子句 + 学习子句 */
-    int       *clause_sizes;   /**< 每个子句的大小 */
-    int        orig_clause_count;  /**< 原始子句数量 */
-    int        learn_clause_count; /**< 学习子句数量 */
-    int        clause_capacity;    /**< 子句数组容量 */
+    int **clauses;          /**< 原始子句 + 学习子句 */
+    int *clause_sizes;      /**< 每个子句的大小 */
+    int orig_clause_count;  /**< 原始子句数量 */
+    int learn_clause_count; /**< 学习子句数量 */
+    int clause_capacity;    /**< 子句数组容量 */
 
     /* ── 监视文字 ── */
-    int      **watches;        /**< 每个文字的监视列表 */
-    int       *watch_sizes;    /**< 每个文字的监视列表大小 */
-    int       *watch_capacities; /**< 每个文字的监视列表容量 */
+    int **watches;         /**< 每个文字的监视列表 */
+    int *watch_sizes;      /**< 每个文字的监视列表大小 */
+    int *watch_capacities; /**< 每个文字的监视列表容量 */
 
     /* ── 冲突分析 ── */
-    int       *conflict_clause;  /**< 当前冲突子句 */
-    int        conflict_size;    /**< 冲突子句大小 */
-    int        conflict_capacity; /**< 冲突子句容量 */
-    int        backtrack_level;  /**< 回跳目标层级 */
+    int *conflict_clause;  /**< 当前冲突子句 */
+    int conflict_size;     /**< 冲突子句大小 */
+    int conflict_capacity; /**< 冲突子句容量 */
+    int backtrack_level;   /**< 回跳目标层级 */
 
     /* ── 统计 ── */
-    int64_t    propagations;    /**< 单元传播次数 */
-    int64_t    conflicts;       /**< 冲突次数 */
-    int64_t    decisions;       /**< 决策次数 */
-    int64_t    restarts;        /**< 重启次数 */
-    int64_t    learned_literals; /**< 学习到的文字总数 */
-    double     time_ms;         /**< 累计耗时（毫秒） */
+    int64_t propagations;     /**< 单元传播次数 */
+    int64_t conflicts;        /**< 冲突次数 */
+    int64_t decisions;        /**< 决策次数 */
+    int64_t restarts;         /**< 重启次数 */
+    int64_t learned_literals; /**< 学习到的文字总数 */
+    double time_ms;           /**< 累计耗时（毫秒） */
 } CDCLContext;
 
 /* ── 配置 ── */
@@ -226,24 +230,24 @@ typedef struct CDCLContext {
  */
 typedef struct Lv00SolverConfig {
     /** CDCL 核心参数 */
-    bool   enable_cdcl;           /**< 是否启用 CDCL（默认 true） */
-    bool   enable_restarts;       /**< 是否启用重启（默认 true） */
-    bool   enable_phase_saving;   /**< 是否保存阶段值（默认 true） */
-    bool   enable_luby_restarts;  /**< 使用 Luby 序列重启（默认 true） */
-    int    restart_interval;      /**< 初始重启间隔（冲突数，默认 100） */
-    double restart_multiplier;    /**< 重启间隔倍增因子（默认 1.5） */
-    double clause_decay;          /**< 子句活性衰减因子（默认 0.999） */
-    double var_decay;             /**< 变量活性衰减因子（默认 0.95） */
+    bool enable_cdcl;          /**< 是否启用 CDCL（默认 true） */
+    bool enable_restarts;      /**< 是否启用重启（默认 true） */
+    bool enable_phase_saving;  /**< 是否保存阶段值（默认 true） */
+    bool enable_luby_restarts; /**< 使用 Luby 序列重启（默认 true） */
+    int restart_interval;      /**< 初始重启间隔（冲突数，默认 100） */
+    double restart_multiplier; /**< 重启间隔倍增因子（默认 1.5） */
+    double clause_decay;       /**< 子句活性衰减因子（默认 0.999） */
+    double var_decay;          /**< 变量活性衰减因子（默认 0.95） */
 
     /** 资源限制 */
-    int64_t  max_conflicts;       /**< 最大冲突数限制（0 = 无限） */
-    int64_t  max_decisions;       /**< 最大决策数限制（0 = 无限） */
-    double   max_time_sec;        /**< 最大求解时间限制（0 = 无限） */
-    int64_t  max_memory_mb;       /**< 最大内存限制（0 = 无限） */
+    int64_t max_conflicts; /**< 最大冲突数限制（0 = 无限） */
+    int64_t max_decisions; /**< 最大决策数限制（0 = 无限） */
+    double max_time_sec;   /**< 最大求解时间限制（0 = 无限） */
+    int64_t max_memory_mb; /**< 最大内存限制（0 = 无限） */
 
     /** 代数求解器协同 */
-    bool   enable_groebner_fallback; /**< SAT 无解时回退 Groebner 基（默认 true） */
-    bool   enable_smt_combination;   /**< SMT 组合求解（默认 false） */
+    bool enable_groebner_fallback; /**< SAT 无解时回退 Groebner 基（默认 true） */
+    bool enable_smt_combination;   /**< SMT 组合求解（默认 false） */
 } Lv00SolverConfig;
 
 /**
@@ -255,20 +259,20 @@ typedef struct Lv00SolverConfig {
  */
 static inline Lv00SolverConfig lv00_solver_config_default(void) {
     Lv00SolverConfig cfg;
-    cfg.enable_cdcl              = true;
-    cfg.enable_restarts          = true;
-    cfg.enable_phase_saving      = true;
-    cfg.enable_luby_restarts     = true;
-    cfg.restart_interval         = 100;
-    cfg.restart_multiplier       = 1.5;
-    cfg.clause_decay             = 0.999;
-    cfg.var_decay                = 0.95;
-    cfg.max_conflicts            = 0;
-    cfg.max_decisions            = 0;
-    cfg.max_time_sec             = 0.0;
-    cfg.max_memory_mb            = 0;
+    cfg.enable_cdcl = true;
+    cfg.enable_restarts = true;
+    cfg.enable_phase_saving = true;
+    cfg.enable_luby_restarts = true;
+    cfg.restart_interval = 100;
+    cfg.restart_multiplier = 1.5;
+    cfg.clause_decay = 0.999;
+    cfg.var_decay = 0.95;
+    cfg.max_conflicts = 0;
+    cfg.max_decisions = 0;
+    cfg.max_time_sec = 0.0;
+    cfg.max_memory_mb = 0;
     cfg.enable_groebner_fallback = true;
-    cfg.enable_smt_combination   = false;
+    cfg.enable_smt_combination = false;
     return cfg;
 }
 
@@ -281,7 +285,7 @@ static inline Lv00SolverConfig lv00_solver_config_default(void) {
  *
  * @return 求解器句柄，失败返回 NULL
  */
-Lv00Solver* lv00_solver_create(void);
+Lv00Solver *lv00_solver_create(void);
 
 /**
  * @brief 使用指定配置创建求解器实例
@@ -289,7 +293,7 @@ Lv00Solver* lv00_solver_create(void);
  * @param config  配置（按值复制）
  * @return 求解器句柄，失败返回 NULL
  */
-Lv00Solver* lv00_solver_create_with_config(const Lv00SolverConfig *config);
+Lv00Solver *lv00_solver_create_with_config(const Lv00SolverConfig *config);
 
 /**
  * @brief 销毁求解器实例
@@ -420,7 +424,7 @@ bool lv00_solver_failed_assumption(const Lv00Solver *solver, Lv00SolverLit assum
  * @param out_count  输出：冲突集大小
  * @return 假设文字数组（调用者负责 free），失败返回 NULL
  */
-Lv00SolverLit* lv00_solver_conflict_set(const Lv00Solver *solver, int *out_count);
+Lv00SolverLit *lv00_solver_conflict_set(const Lv00Solver *solver, int *out_count);
 
 /* ── 查询赋值 API ── */
 
@@ -467,7 +471,7 @@ CDCLState lv00_solver_cdcl_state(const Lv00Solver *solver);
  * @param out_restarts     输出：重启次数
  */
 void lv00_solver_cdcl_stats(const Lv00Solver *solver, int64_t *out_conflicts, int64_t *out_decisions,
-                             int64_t *out_propagations, int64_t *out_restarts);
+                            int64_t *out_propagations, int64_t *out_restarts);
 
 /**
  * @brief 获取 CDCL 上下文（用于外部诊断）
@@ -477,7 +481,7 @@ void lv00_solver_cdcl_stats(const Lv00Solver *solver, int64_t *out_conflicts, in
  *
  * @note 返回的指针属于求解器，调用者不应修改或释放。
  */
-const CDCLContext* lv00_solver_cdcl_context(const Lv00Solver *solver);
+const CDCLContext *lv00_solver_cdcl_context(const Lv00Solver *solver);
 
 /* ── 协同求解 API ──
  *
@@ -515,7 +519,7 @@ void lv00_solver_set_constraint_graph(Lv00Solver *solver, const struct Constrain
  * @param solver  原求解器
  * @return 克隆的求解器，失败返回 NULL
  */
-Lv00Solver* lv00_solver_clone(const Lv00Solver *solver);
+Lv00Solver *lv00_solver_clone(const Lv00Solver *solver);
 
 /**
  * @brief 重置求解器

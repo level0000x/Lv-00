@@ -15,16 +15,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 #include "lv00.h"
 #include "test_helpers.h"
 
 /* 测试基本的点合并 */
-static int test_basic_point_merge(void)
-{
+static int test_basic_point_merge(void) {
     printf("\n=== Testing Basic Point Merge ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     add_point(graph, 3, 1, 4, 1);
     add_point(graph, 3, 1, 4, 1);
@@ -32,7 +35,11 @@ static int test_basic_point_merge(void)
     printf("  Before normalization: %d nodes\n", graph->node_count);
 
     NormalizationResult *result = graph_normalize(graph, false);
-    if (!result) { printf("  FAILED: normalize returned NULL\n"); graph_destroy(graph); return -1; }
+    if (!result) {
+        printf("  FAILED: normalize returned NULL\n");
+        graph_destroy(graph);
+        return -1;
+    }
 
     printf("  After normalization: %d nodes, merged %d\n", graph->node_count, result->merged_count);
 
@@ -57,14 +64,17 @@ static int test_basic_point_merge(void)
 }
 
 /* 测试幂等性 */
-static int test_idempotence(void)
-{
+static int test_idempotence(void) {
     printf("\n=== Testing Idempotence ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
-    for (int i = 0; i < 5; i++) add_point(graph, 1, 1, 2, 1);
+    for (int i = 0; i < 5; i++)
+        add_point(graph, 1, 1, 2, 1);
 
     NormalizationResult *r1 = graph_normalize(graph, false);
     int count1 = graph->node_count;
@@ -97,12 +107,14 @@ static int test_idempotence(void)
 }
 
 /* 测试传递闭包 */
-static int test_transitive_closure(void)
-{
+static int test_transitive_closure(void) {
     printf("\n=== Testing Transitive Closure ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     add_point(graph, 5, 1, 5, 1);
     add_point(graph, 5, 1, 5, 1);
@@ -125,12 +137,14 @@ static int test_transitive_closure(void)
 }
 
 /* 测试不同坐标不合并 */
-static int test_no_merge_different_coords(void)
-{
+static int test_no_merge_different_coords(void) {
     printf("\n=== Testing No Merge for Different Coords ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     add_point(graph, 0, 1, 0, 1);
     add_point(graph, 1, 1, 0, 1);
@@ -158,12 +172,14 @@ static int test_no_merge_different_coords(void)
 }
 
 /* 测试大规模合并性能 */
-static int test_large_scale_merge(void)
-{
+static int test_large_scale_merge(void) {
     printf("\n=== Testing Large Scale Merge ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     const int NUM_GROUPS = 10;
     const int PER_GROUP = 10;
@@ -179,9 +195,8 @@ static int test_large_scale_merge(void)
     NormalizationResult *result = graph_normalize(graph, false);
     clock_t end = clock();
 
-    printf("  After: %d nodes, merged %d, time %.4fs\n",
-           graph->node_count, result->merged_count,
-           ((double)(end - start)) / CLOCKS_PER_SEC);
+    printf("  After: %d nodes, merged %d, time %.4fs\n", graph->node_count, result->merged_count,
+           ((double) (end - start)) / CLOCKS_PER_SEC);
 
     if (graph->node_count != NUM_GROUPS) {
         printf("  FAILED: Expected %d nodes, got %d\n", NUM_GROUPS, graph->node_count);
@@ -197,12 +212,14 @@ static int test_large_scale_merge(void)
 }
 
 /* 测试规范化后线段合并 */
-static int test_segment_merge_after_normalize(void)
-{
+static int test_segment_merge_after_normalize(void) {
     printf("\n=== Testing Segment Merge After Normalize ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     int p0a = add_point(graph, 0, 1, 0, 1);
     int p1a = add_point(graph, 3, 1, 4, 1);
@@ -223,8 +240,7 @@ static int test_segment_merge_after_normalize(void)
     return 0;
 }
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Normalization Test Suite ===\n");
     int failures = 0;
     failures += test_basic_point_merge();
@@ -235,7 +251,9 @@ int main(void)
     failures += test_segment_merge_after_normalize();
 
     printf("\n=== Test Summary ===\n");
-    if (failures == 0) printf("All normalization tests PASSED!\n");
-    else printf("%d test(s) FAILED\n", failures);
+    if (failures == 0)
+        printf("All normalization tests PASSED!\n");
+    else
+        printf("%d test(s) FAILED\n", failures);
     return failures ? 1 : 0;
 }

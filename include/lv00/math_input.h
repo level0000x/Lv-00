@@ -22,9 +22,9 @@
 #ifndef LV00_MATH_INPUT_H
 #define LV00_MATH_INPUT_H
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* 前向声明 MathExpr（来自 math_protocol.h） */
 typedef struct MathExpr MathExpr;
@@ -41,20 +41,20 @@ extern "C" {
  * @brief 数学输入模式枚举
  */
 typedef enum {
-    INPUT_MODE_LATEX,          /**< LaTeX 输入模式：用户输入 LaTeX 源码，实时渲染 */
-    INPUT_MODE_PLAINTEXT,      /**< 纯文本输入模式：类似 ASCIIMath 的文本表示 */
-    INPUT_MODE_VISUAL          /**< 可视化输入模式：点选虚拟键盘/菜单构建表达式 */
+    INPUT_MODE_LATEX,     /**< LaTeX 输入模式：用户输入 LaTeX 源码，实时渲染 */
+    INPUT_MODE_PLAINTEXT, /**< 纯文本输入模式：类似 ASCIIMath 的文本表示 */
+    INPUT_MODE_VISUAL     /**< 可视化输入模式：点选虚拟键盘/菜单构建表达式 */
 } MathInputMode;
 
 /**
  * @brief 虚拟键盘布局枚举
  */
 typedef enum {
-    KEYBOARD_STANDARD,         /**< 标准数学键盘：数字、基本运算符、希腊字母 */
-    KEYBOARD_GEOMETRY,         /**< 几何键盘：\point, \line, \circle, \triangle 等宏按钮 */
-    KEYBOARD_PROOF,            /**< 证明键盘：\implies, \forall, \exists, \vdash 等逻辑符号 */
-    KEYBOARD_GREEK,            /**< 希腊字母键盘：\alpha, \beta, \gamma, ... */
-    KEYBOARD_CUSTOM            /**< 用户自定义键盘布局 */
+    KEYBOARD_STANDARD, /**< 标准数学键盘：数字、基本运算符、希腊字母 */
+    KEYBOARD_GEOMETRY, /**< 几何键盘：\point, \line, \circle, \triangle 等宏按钮 */
+    KEYBOARD_PROOF,    /**< 证明键盘：\implies, \forall, \exists, \vdash 等逻辑符号 */
+    KEYBOARD_GREEK,    /**< 希腊字母键盘：\alpha, \beta, \gamma, ... */
+    KEYBOARD_CUSTOM    /**< 用户自定义键盘布局 */
 } MathKeyboardLayout;
 
 /* ========================================================================
@@ -69,10 +69,10 @@ typedef enum {
  * @brief 宏的分类
  */
 typedef enum {
-    MACRO_CAT_GEOMETRY,        /**< 几何：\point, \line, \circle, \segment, \angle, \triangle 等 */
-    MACRO_CAT_ALGEBRA,         /**< 代数：\frac, \sqrt, \sum, \prod, \int 等 */
-    MACRO_CAT_PROOF,           /**< 证明：\implies, \therefore, \forall, \exists 等 */
-    MACRO_CAT_CUSTOM           /**< 用户自定义 */
+    MACRO_CAT_GEOMETRY, /**< 几何：\point, \line, \circle, \segment, \angle, \triangle 等 */
+    MACRO_CAT_ALGEBRA,  /**< 代数：\frac, \sqrt, \sum, \prod, \int 等 */
+    MACRO_CAT_PROOF,    /**< 证明：\implies, \therefore, \forall, \exists 等 */
+    MACRO_CAT_CUSTOM    /**< 用户自定义 */
 } MathMacroCategory;
 
 /**
@@ -84,13 +84,13 @@ typedef enum {
  *   \similar 展开为 \sim
  */
 typedef struct MathMacro {
-    char *macro_name;              /**< 宏名称（不含反斜杠，如 "point"） */
-    char *expansion;               /**< 展开后的 LaTeX 模板（如 "\\text{点 }{#1}") */
-    MathMacroCategory category;    /**< 宏分类 */
-    int arg_count;                 /**< 参数数量（0 = 无参数） */
-    char *keyboard_hint;           /**< 虚拟键盘上的显示提示（如 "P" 或图标名） */
-    char *description;             /**< 宏的描述文本 */
-    int id;                        /**< 宏在库中的唯一 ID */
+    char *macro_name;           /**< 宏名称（不含反斜杠，如 "point"） */
+    char *expansion;            /**< 展开后的 LaTeX 模板（如 "\\text{点 }{#1}") */
+    MathMacroCategory category; /**< 宏分类 */
+    int arg_count;              /**< 参数数量（0 = 无参数） */
+    char *keyboard_hint;        /**< 虚拟键盘上的显示提示（如 "P" 或图标名） */
+    char *description;          /**< 宏的描述文本 */
+    int id;                     /**< 宏在库中的唯一 ID */
 } MathMacro;
 
 /* ========================================================================
@@ -107,10 +107,10 @@ typedef struct MathMacro {
  *   \centroid \orthocenter \collinear \concurrent
  */
 typedef struct MathMacroLibrary {
-    MathMacro *macros;             /**< 宏数组 */
-    int macro_count;               /**< 当前宏数量 */
-    int macro_capacity;            /**< 宏数组容量 */
-    char *library_name;            /**< 库名称（便于调试和导出） */
+    MathMacro *macros;  /**< 宏数组 */
+    int macro_count;    /**< 当前宏数量 */
+    int macro_capacity; /**< 宏数组容量 */
+    char *library_name; /**< 库名称（便于调试和导出） */
 } MathMacroLibrary;
 
 /* ========================================================================
@@ -124,10 +124,10 @@ typedef struct MathMacroLibrary {
  * @brief 命令补全候选
  */
 typedef struct MathCompletionCandidate {
-    char *name;                    /**< 补全字符串（如 "angle"） */
-    char *display;                 /**< 显示文本（如 "\\angle{#1}"） */
-    MathMacroCategory category;    /**< 分类 */
-    int score;                     /**< 匹配分数（越高越相关） */
+    char *name;                 /**< 补全字符串（如 "angle"） */
+    char *display;              /**< 显示文本（如 "\\angle{#1}"） */
+    MathMacroCategory category; /**< 分类 */
+    int score;                  /**< 匹配分数（越高越相关） */
 } MathCompletionCandidate;
 
 /**
@@ -136,13 +136,13 @@ typedef struct MathCompletionCandidate {
  * 维护前缀、候选列表和触发字符。
  */
 typedef struct MathAutocomplete {
-    char *prefix;                  /**< 用户已输入的前缀（含反斜杠，如 "\\ang"） */
+    char *prefix;                        /**< 用户已输入的前缀（含反斜杠，如 "\\ang"） */
     MathCompletionCandidate *candidates; /**< 匹配的候选列表 */
-    int candidate_count;           /**< 候选数量 */
-    int candidate_capacity;        /**< 候选列表容量 */
-    int max_candidates;            /**< 最大候选数（默认 10） */
-    char trigger_char;             /**< 触发字符（默认 '\\'） */
-    int selected_index;            /**< 当前选中的候选索引（-1 = 无选中） */
+    int candidate_count;                 /**< 候选数量 */
+    int candidate_capacity;              /**< 候选列表容量 */
+    int max_candidates;                  /**< 最大候选数（默认 10） */
+    char trigger_char;                   /**< 触发字符（默认 '\\'） */
+    int selected_index;                  /**< 当前选中的候选索引（-1 = 无选中） */
 } MathAutocomplete;
 
 /* ========================================================================
@@ -162,37 +162,37 @@ typedef struct MathAutocomplete {
  */
 typedef struct MathInputState {
     /* 当前文本 */
-    char *input_text;              /**< 当前输入缓冲区的完整文本 */
-    int text_length;               /**< 文本长度 */
-    int text_capacity;             /**< 文本缓冲区容量 */
+    char *input_text;  /**< 当前输入缓冲区的完整文本 */
+    int text_length;   /**< 文本长度 */
+    int text_capacity; /**< 文本缓冲区容量 */
 
     /* 光标与选区 */
-    int cursor_position;           /**< 光标位置（字符偏移） */
-    int selection_start;           /**< 选区起始（= cursor_position 表示无选区） */
-    int selection_end;             /**< 选区结束 */
+    int cursor_position; /**< 光标位置（字符偏移） */
+    int selection_start; /**< 选区起始（= cursor_position 表示无选区） */
+    int selection_end;   /**< 选区结束 */
 
     /* 模式 */
-    MathInputMode current_mode;    /**< 当前输入模式 */
+    MathInputMode current_mode;         /**< 当前输入模式 */
     MathKeyboardLayout active_keyboard; /**< 活跃键盘布局 */
 
     /* 宏 */
     MathMacroLibrary *macro_library; /**< 关联的宏库 */
-    int *active_macro_ids;         /**< 当前活跃的宏 ID 数组 */
-    int active_macro_count;        /**< 活跃宏数量 */
+    int *active_macro_ids;           /**< 当前活跃的宏 ID 数组 */
+    int active_macro_count;          /**< 活跃宏数量 */
 
     /* 历史记录 */
     char *history[MATH_INPUT_HISTORY_MAX]; /**< 文本历史（undo 栈） */
-    int history_index;             /**< 当前历史位置 */
-    int history_count;             /**< 历史条目总数 */
+    int history_index;                     /**< 当前历史位置 */
+    int history_count;                     /**< 历史条目总数 */
 
     /* 双向绑定 */
-    bool dirty;                    /**< 是否有未同步的更改 */
-    MathExpr *parsed_expr;         /**< 缓存的解析结果（MathExpr 树） */
-    char *rendered_output;         /**< 渲染输出字符串 */
+    bool dirty;            /**< 是否有未同步的更改 */
+    MathExpr *parsed_expr; /**< 缓存的解析结果（MathExpr 树） */
+    char *rendered_output; /**< 渲染输出字符串 */
 
     /* 错误信息 */
-    bool has_error;                /**< 是否存在解析/渲染错误 */
-    char error_message[256];       /**< 错误描述 */
+    bool has_error;          /**< 是否存在解析/渲染错误 */
+    char error_message[256]; /**< 错误描述 */
 } MathInputState;
 
 /* ========================================================================
@@ -256,12 +256,8 @@ MathInputMode math_input_get_mode(const MathInputState *state);
  * @param keyboard_hint 键盘显示提示（如 "Pt"）
  * @return 注册的宏 ID（>= 0），失败返回 -1
  */
-int math_input_register_macro(MathInputState *state,
-                               const char *name,
-                               const char *expansion,
-                               MathMacroCategory category,
-                               int arg_count,
-                               const char *keyboard_hint);
+int math_input_register_macro(MathInputState *state, const char *name, const char *expansion,
+                              MathMacroCategory category, int arg_count, const char *keyboard_hint);
 
 /**
  * @brief 获取所有已注册的宏
@@ -270,8 +266,7 @@ int math_input_register_macro(MathInputState *state,
  * @param out_count 输出：宏的数量
  * @return 宏数组指针（借引用，不释放），state 为 NULL 返回 NULL
  */
-const MathMacro *math_input_get_macros(const MathInputState *state,
-                                        int *out_count);
+const MathMacro *math_input_get_macros(const MathInputState *state, int *out_count);
 
 /**
  * @brief 创建预定义的几何宏库（20+ 预设）
@@ -310,9 +305,7 @@ void math_input_destroy_macro_library(MathMacroLibrary *library);
  * @return true  找到至少一个候选
  *         false 无匹配候选或参数无效
  */
-bool math_input_autocomplete(MathInputState *state,
-                              const char *prefix,
-                              MathAutocomplete **out_auto_complete);
+bool math_input_autocomplete(MathInputState *state, const char *prefix, MathAutocomplete **out_auto_complete);
 
 /**
  * @brief 销毁命令补全上下文
@@ -428,8 +421,7 @@ void math_input_destroy_keyboard_layout(const char **layout);
  * @param state  输入状态
  * @param layout 目标键盘布局
  */
-void math_input_set_keyboard_layout(MathInputState *state,
-                                      MathKeyboardLayout layout);
+void math_input_set_keyboard_layout(MathInputState *state, MathKeyboardLayout layout);
 
 /* ========================================================================
  * 第十二部分：核心 API —— 文本编辑与历史

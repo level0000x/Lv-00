@@ -14,10 +14,11 @@
  * 运行: build\example_stream_advanced.exe
  */
 
-#include "stream.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "stream.h"
 
 /* ==================== 回调捕获结构 ==================== */
 
@@ -35,10 +36,11 @@ typedef struct {
  *  @param user_data 指向 CallbackCapture 结构体的指针
  */
 static void capture_callback(const StreamEvent *event, void *user_data) {
-    if (!event || !user_data) return;
-    CallbackCapture *cap = (CallbackCapture *)user_data;
+    if (!event || !user_data)
+        return;
+    CallbackCapture *cap = (CallbackCapture *) user_data;
     cap->call_count++;
-    cap->last_type = (int)event->type;
+    cap->last_type = (int) event->type;
     cap->last_timestamp = event->timestamp_ms;
     if (event->description) {
         snprintf(cap->last_description, sizeof(cap->last_description), "%s", event->description);
@@ -50,8 +52,9 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
  *  @param user_data 用户数据指针（未使用）
  */
 static void jsonrpc_callback(const StreamEvent *event, void *user_data) {
-    (void)user_data;
-    if (!event) return;
+    (void) user_data;
+    if (!event)
+        return;
 
     char buf[STREAM_JSON_BUFFER_DEFAULT_SIZE + 256];
     int len = stream_event_to_jsonrpc(event, buf, sizeof(buf));
@@ -66,10 +69,10 @@ static void jsonrpc_callback(const StreamEvent *event, void *user_data) {
  *  @param user_data 用户数据指针（未使用）
  */
 static void error_only_callback(const StreamEvent *event, void *user_data) {
-    (void)user_data;
-    if (!event) return;
-    fprintf(stderr, "  [错误监控] 类型=%s 描述=%s\n",
-            stream_event_type_name(event->type),
+    (void) user_data;
+    if (!event)
+        return;
+    fprintf(stderr, "  [错误监控] 类型=%s 描述=%s\n", stream_event_type_name(event->type),
             event->description ? event->description : "(null)");
 }
 
@@ -100,7 +103,7 @@ static void demo_emit_modes(void) {
         stream_emit_simple(ctx, STREAM_EVENT_ENGINE_DONE, "引擎完成", 2);
 
         fprintf(stderr, "    回调触发次数: %d (预期: 3)\n", cap.call_count);
-        fprintf(stderr, "    最后事件类型: %s\n", stream_event_type_name((StreamEventType)cap.last_type));
+        fprintf(stderr, "    最后事件类型: %s\n", stream_event_type_name((StreamEventType) cap.last_type));
 
         stream_context_destroy(ctx);
     }
@@ -199,14 +202,13 @@ static void demo_event_filter(void) {
     stream_register_callback(ctx, capture_callback, &all_cap);
 
     /* 仅接收 ERROR 和 WARNING */
-    uint64_t error_mask = STREAM_EVENT_MASK(STREAM_EVENT_ERROR)
-                        | STREAM_EVENT_MASK(STREAM_EVENT_WARNING);
+    uint64_t error_mask = STREAM_EVENT_MASK(STREAM_EVENT_ERROR) | STREAM_EVENT_MASK(STREAM_EVENT_WARNING);
     int error_cb_id = stream_register_callback_ex(ctx, error_only_callback, NULL, error_mask);
 
     /* 仅接收求解相关事件 */
-    uint64_t solve_mask = STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START)
-                        | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED)
-                        | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_DONE);
+    uint64_t solve_mask = STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START) |
+                          STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) |
+                          STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_DONE);
     stream_register_callback_ex(ctx, capture_callback, &solve_cap, solve_mask);
 
     /* 发射混合事件 */
@@ -238,24 +240,27 @@ static void demo_event_filter(void) {
 static void demo_filter_parsing(void) {
     fprintf(stderr, "\n========== 演示3: 过滤掩码解析 ==========\n");
 
-    struct { const char *input; const char *desc; } cases[] = {
-        {"all",        "接收全部事件"},
-        {"*",          "通配符接收全部"},
-        {"none",       "不接收任何事件"},
+    struct {
+        const char *input;
+        const char *desc;
+    } cases[] = {
+        {"all", "接收全部事件"},
+        {"*", "通配符接收全部"},
+        {"none", "不接收任何事件"},
         {"ENGINE_START", "仅引擎启动"},
-        {"engine",     "引擎生命周期事件"},
-        {"solve",      "求解相关事件"},
+        {"engine", "引擎生命周期事件"},
+        {"solve", "求解相关事件"},
         {"engine,solve", "引擎+求解事件"},
         {"ENGINE_START,ENGINE_DONE,ERROR", "混合指定事件"},
         {"rewrite,proof", "重写+证明事件"},
         {"func_block", "函数块事件"},
-        {"normalize",  "归一化事件"},
+        {"normalize", "归一化事件"},
     };
 
-    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+    for (int i = 0; i < (int) (sizeof(cases) / sizeof(cases[0])); i++) {
         uint64_t mask = stream_parse_filter_mask(cases[i].input);
-        fprintf(stderr, "  \"%-40s\" => mask=0x%016llX  (%s)\n",
-                cases[i].input, (unsigned long long)mask, cases[i].desc);
+        fprintf(stderr, "  \"%-40s\" => mask=0x%016llX  (%s)\n", cases[i].input, (unsigned long long) mask,
+                cases[i].desc);
     }
 
     fprintf(stderr, "========== 演示3 完成 ==========\n");
@@ -294,19 +299,21 @@ static void demo_event_stats(void) {
 
     /* 按类型统计 */
     fprintf(stderr, "  按类型统计:\n");
-    const StreamEventType stat_types[] = {
-        STREAM_EVENT_ENGINE_START, STREAM_EVENT_ENGINE_DONE,
-        STREAM_EVENT_NODE_ADDED, STREAM_EVENT_CONSTRAINT_ADDED,
-        STREAM_EVENT_NORMALIZE_START, STREAM_EVENT_NORMALIZE_MERGE,
-        STREAM_EVENT_NORMALIZE_DONE,
-        STREAM_EVENT_SOLVE_START, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,
-        STREAM_EVENT_SOLVE_DONE, STREAM_EVENT_ERROR
-    };
-    for (int i = 0; i < (int)(sizeof(stat_types) / sizeof(stat_types[0])); i++) {
+    const StreamEventType stat_types[] = {STREAM_EVENT_ENGINE_START,
+                                          STREAM_EVENT_ENGINE_DONE,
+                                          STREAM_EVENT_NODE_ADDED,
+                                          STREAM_EVENT_CONSTRAINT_ADDED,
+                                          STREAM_EVENT_NORMALIZE_START,
+                                          STREAM_EVENT_NORMALIZE_MERGE,
+                                          STREAM_EVENT_NORMALIZE_DONE,
+                                          STREAM_EVENT_SOLVE_START,
+                                          STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,
+                                          STREAM_EVENT_SOLVE_DONE,
+                                          STREAM_EVENT_ERROR};
+    for (int i = 0; i < (int) (sizeof(stat_types) / sizeof(stat_types[0])); i++) {
         long count = stream_get_event_count(ctx, stat_types[i]);
         if (count > 0) {
-            fprintf(stderr, "    %-30s: %ld\n",
-                    stream_event_type_name(stat_types[i]), count);
+            fprintf(stderr, "    %-30s: %ld\n", stream_event_type_name(stat_types[i]), count);
         }
     }
 
@@ -435,8 +442,7 @@ static void demo_emit_helpers(void) {
     fprintf(stderr, "  便捷函数回调触发次数: %d (预期: 9)\n", cap.call_count);
 
     /* 验证最后一个事件 */
-    fprintf(stderr, "  最后事件: type=%s desc=\"%s\"\n",
-            stream_event_type_name((StreamEventType)cap.last_type),
+    fprintf(stderr, "  最后事件: type=%s desc=\"%s\"\n", stream_event_type_name((StreamEventType) cap.last_type),
             cap.last_description);
 
     stream_context_destroy(ctx);
@@ -469,8 +475,7 @@ static void demo_callback_management(void) {
 
     /* 发射事件 */
     stream_emit_simple(ctx, STREAM_EVENT_INFO, "测试事件", 0);
-    fprintf(stderr, "  3个回调各触发1次: cap1=%d cap2=%d cap3=%d\n",
-            cap1.call_count, cap2.call_count, cap3.call_count);
+    fprintf(stderr, "  3个回调各触发1次: cap1=%d cap2=%d cap3=%d\n", cap1.call_count, cap2.call_count, cap3.call_count);
 
     /* 通过 ID 注销第2个回调 */
     stream_unregister_callback_by_id(ctx, id2);
@@ -479,16 +484,16 @@ static void demo_callback_management(void) {
     memset(&cap3, 0, sizeof(cap3));
 
     stream_emit_simple(ctx, STREAM_EVENT_INFO, "注销后测试", 1);
-    fprintf(stderr, "  注销id2后: cap1=%d cap2=%d(预期:0) cap3=%d\n",
-            cap1.call_count, cap2.call_count, cap3.call_count);
+    fprintf(stderr, "  注销id2后: cap1=%d cap2=%d(预期:0) cap3=%d\n", cap1.call_count, cap2.call_count,
+            cap3.call_count);
 
     /* 获取过滤掩码 */
     uint64_t mask = stream_get_callback_filter(ctx, id1);
-    fprintf(stderr, "  id1 过滤掩码: 0x%016llX (预期: ALL)\n", (unsigned long long)mask);
+    fprintf(stderr, "  id1 过滤掩码: 0x%016llX (预期: ALL)\n", (unsigned long long) mask);
 
     /* 获取不存在的 ID 的过滤掩码 */
     uint64_t invalid_mask = stream_get_callback_filter(ctx, 999);
-    fprintf(stderr, "  无效ID过滤掩码: 0x%016llX (预期: NONE)\n", (unsigned long long)invalid_mask);
+    fprintf(stderr, "  无效ID过滤掩码: 0x%016llX (预期: NONE)\n", (unsigned long long) invalid_mask);
 
     stream_context_destroy(ctx);
 
@@ -508,8 +513,8 @@ static void demo_callback_management(void) {
  * @return 程序退出码，0 表示成功
  */
 int main(int argc, char *argv[]) {
-    (void)argc;
-    (void)argv;
+    (void) argc;
+    (void) argv;
 
     fprintf(stderr, "╔════════════════════════════════════════════════╗\n");
     fprintf(stderr, "║  Lv-00 流式输出高级演示 v3.2.0                 ║\n");

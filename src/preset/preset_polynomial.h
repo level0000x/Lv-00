@@ -28,44 +28,44 @@ extern "C" {
 /* ==================== 预设函数块名称常量 ==================== */
 
 /** 多项式加法：对两个多项式进行加法运算 */
-#define PRESET_POLY_ADD          "polynomial_add"
+#define PRESET_POLY_ADD "polynomial_add"
 /** 多项式减法：对两个多项式进行减法运算 */
-#define PRESET_POLY_SUBTRACT     "polynomial_subtract"
+#define PRESET_POLY_SUBTRACT "polynomial_subtract"
 /** 多项式乘法：对两个多项式进行乘法运算（卷积） */
-#define PRESET_POLY_MULTIPLY     "polynomial_multiply"
+#define PRESET_POLY_MULTIPLY "polynomial_multiply"
 /** 多项式除法：对两个多项式进行带余除法 */
-#define PRESET_POLY_DIVIDE       "polynomial_divide"
+#define PRESET_POLY_DIVIDE "polynomial_divide"
 /** 多项式最大公因式：计算两个多项式的 GCD */
-#define PRESET_POLY_GCD          "polynomial_gcd"
+#define PRESET_POLY_GCD "polynomial_gcd"
 /** 多项式最小公倍式：计算两个多项式的 LCM */
-#define PRESET_POLY_LCM          "polynomial_lcm"
+#define PRESET_POLY_LCM "polynomial_lcm"
 
 /** 多项式次数：获取多项式的最高次数 */
-#define PRESET_POLY_DEGREE       "polynomial_degree"
+#define PRESET_POLY_DEGREE "polynomial_degree"
 /** 多项式求值：在给定点 x 处计算多项式值 P(x) */
-#define PRESET_POLY_EVALUATE     "polynomial_evaluate"
+#define PRESET_POLY_EVALUATE "polynomial_evaluate"
 /** 多项式求导：计算多项式的一阶导数 */
-#define PRESET_POLY_DERIVATIVE   "polynomial_derivative"
+#define PRESET_POLY_DERIVATIVE "polynomial_derivative"
 /** 多项式积分：计算多项式的不定积分 */
-#define PRESET_POLY_INTEGRAL     "polynomial_integral"
+#define PRESET_POLY_INTEGRAL "polynomial_integral"
 /** 多项式复合：计算两个多项式的复合 P(Q(x)) */
-#define PRESET_POLY_COMPOSE      "polynomial_compose"
+#define PRESET_POLY_COMPOSE "polynomial_compose"
 
 /** 二次方程求根：求解 ax^2 + bx + c = 0（判别式法） */
-#define PRESET_POLY_ROOTS_QUADRATIC  "polynomial_roots_quadratic"
+#define PRESET_POLY_ROOTS_QUADRATIC "polynomial_roots_quadratic"
 /** 三次方程求根：求解 ax^3 + bx^2 + cx + d = 0（卡尔丹公式） */
-#define PRESET_POLY_ROOTS_CUBIC      "polynomial_roots_cubic"
+#define PRESET_POLY_ROOTS_CUBIC "polynomial_roots_cubic"
 /** 四次方程求根：求解四次多项式方程（费拉里法） */
-#define PRESET_POLY_ROOTS_QUARTIC    "polynomial_roots_quartic"
+#define PRESET_POLY_ROOTS_QUARTIC "polynomial_roots_quartic"
 /** 多项式因式分解：将多项式分解为不可约因式的乘积 */
-#define PRESET_POLY_FACTOR           "polynomial_factor"
+#define PRESET_POLY_FACTOR "polynomial_factor"
 
 /** 多项式结式：计算两个多项式的结式（Sylvester 结式） */
-#define PRESET_POLY_RESULTANT        "polynomial_resultant"
+#define PRESET_POLY_RESULTANT "polynomial_resultant"
 /** 多项式判别式：计算多项式的判别式 */
-#define PRESET_POLY_DISCRIMINANT     "polynomial_discriminant"
+#define PRESET_POLY_DISCRIMINANT "polynomial_discriminant"
 /** 拉格朗日插值：通过给定点集构造插值多项式 */
-#define PRESET_POLY_INTERPOLATION    "polynomial_interpolation"
+#define PRESET_POLY_INTERPOLATION "polynomial_interpolation"
 
 /* ==================== 模块注册接口 ==================== */
 

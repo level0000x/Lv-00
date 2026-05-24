@@ -15,17 +15,17 @@
  *        python stream_bridge.py
  */
 
-#include "lv00.h"
-#include "stream.h"
-#include "engine.h"
-#include "constraint_graph.h"
-#include "symbolic_coord.h"
-#include "error_codes.h"
-#include "interop.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "constraint_graph.h"
+#include "engine.h"
+#include "error_codes.h"
+#include "interop.h"
+#include "lv00.h"
+#include "stream.h"
+#include "symbolic_coord.h"
 
 /**
  * @brief 流式回调：将所有事件以 JSON-RPC 格式输出到 stdout
@@ -38,7 +38,8 @@
  * @param user_data 用户数据指针（未使用）
  */
 static void stream_to_stdout_callback(const StreamEvent *event, void *user_data) {
-    if (!event) return;
+    if (!event)
+        return;
 
     char buf[STREAM_JSON_BUFFER_DEFAULT_SIZE + 256];
     int len = stream_event_to_jsonrpc(event, buf, sizeof(buf));
@@ -60,11 +61,11 @@ static void stream_to_stdout_callback(const StreamEvent *event, void *user_data)
  * @param yd y 坐标分母
  * @return 成功返回新节点 ID（>= 0），失败返回 -1
  */
-static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
-                                                int64_t yn, uint64_t yd) {
+static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
-    if (!cx || !cy) return -1;
+    if (!cx || !cy)
+        return -1;
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult res = graph_add_point(g, coords, 2);
     return (res == ADD_NODE_OK) ? (g->next_node_id - 1) : -1;
@@ -80,14 +81,16 @@ static void demo_triangle(void) {
     fprintf(stderr, "\n========== 演示1: 等边三角形构造 ==========\n");
 
     LV00Engine *engine = engine_create();
-    if (!engine) { fprintf(stderr, "  engine_create 失败\n"); return; }
+    if (!engine) {
+        fprintf(stderr, "  engine_create 失败\n");
+        return;
+    }
 
     /* 注册流式回调 */
     StreamContext *sctx = engine_get_stream_context(engine);
     int cb_id = -1;
     if (sctx) {
-        cb_id = stream_register_callback_ex(sctx, stream_to_stdout_callback,
-                                             NULL, STREAM_FILTER_ALL);
+        cb_id = stream_register_callback_ex(sctx, stream_to_stdout_callback, NULL, STREAM_FILTER_ALL);
         fprintf(stderr, "  流式回调已注册 (id=%d)\n", cb_id);
     }
 
@@ -147,13 +150,15 @@ static void demo_circle_line(void) {
     fprintf(stderr, "\n========== 演示2: 圆与线交点测试 ==========\n");
 
     LV00Engine *engine = engine_create();
-    if (!engine) { fprintf(stderr, "  engine_create 失败\n"); return; }
+    if (!engine) {
+        fprintf(stderr, "  engine_create 失败\n");
+        return;
+    }
 
     StreamContext *sctx = engine_get_stream_context(engine);
     int cb_id = -1;
     if (sctx) {
-        cb_id = stream_register_callback_ex(sctx, stream_to_stdout_callback,
-                                             NULL, STREAM_FILTER_ALL);
+        cb_id = stream_register_callback_ex(sctx, stream_to_stdout_callback, NULL, STREAM_FILTER_ALL);
     }
 
     ConstraintGraph *g = engine->main_graph;
@@ -207,13 +212,13 @@ static void demo_stream_stats(void) {
     fprintf(stderr, "\n========== 演示3: 流式事件统计 ==========\n");
 
     LV00Engine *engine = engine_create();
-    if (!engine) return;
+    if (!engine)
+        return;
 
     StreamContext *sctx = engine_get_stream_context(engine);
     int cb_id = -1;
     if (sctx) {
-        cb_id = stream_register_callback_ex(sctx, stream_to_stdout_callback,
-                                             NULL, STREAM_FILTER_ALL);
+        cb_id = stream_register_callback_ex(sctx, stream_to_stdout_callback, NULL, STREAM_FILTER_ALL);
     }
 
     ConstraintGraph *g = engine->main_graph;
@@ -243,18 +248,15 @@ static void demo_stream_stats(void) {
         fprintf(stderr, "    总事件数: %ld\n", stream_get_total_event_count(sctx));
         fprintf(stderr, "    丢弃数:   %ld\n", stream_get_dropped_count(sctx));
 
-        const StreamEventType stats_types[] = {
-            STREAM_EVENT_ENGINE_START, STREAM_EVENT_ENGINE_DONE,
-            STREAM_EVENT_NODE_ADDED, STREAM_EVENT_CONSTRAINT_ADDED,
-            STREAM_EVENT_NORMALIZE_START, STREAM_EVENT_NORMALIZE_DONE,
-            STREAM_EVENT_NORMALIZE_MERGE, STREAM_EVENT_SOLVE_START,
-            STREAM_EVENT_SOLVE_DONE, STREAM_EVENT_CONFLICT_DETECTED
-        };
+        const StreamEventType stats_types[] = {STREAM_EVENT_ENGINE_START,    STREAM_EVENT_ENGINE_DONE,
+                                               STREAM_EVENT_NODE_ADDED,      STREAM_EVENT_CONSTRAINT_ADDED,
+                                               STREAM_EVENT_NORMALIZE_START, STREAM_EVENT_NORMALIZE_DONE,
+                                               STREAM_EVENT_NORMALIZE_MERGE, STREAM_EVENT_SOLVE_START,
+                                               STREAM_EVENT_SOLVE_DONE,      STREAM_EVENT_CONFLICT_DETECTED};
         for (int i = 0; i < 10; i++) {
             long count = stream_get_event_count(sctx, stats_types[i]);
             if (count > 0) {
-                fprintf(stderr, "    %s: %ld\n",
-                        stream_event_type_name(stats_types[i]), count);
+                fprintf(stderr, "    %s: %ld\n", stream_event_type_name(stats_types[i]), count);
             }
         }
     }
@@ -288,9 +290,12 @@ int main(int argc, char *argv[]) {
         demo = atoi(argv[1]);
     }
 
-    if (demo == 0 || demo == 1) demo_triangle();
-    if (demo == 0 || demo == 2) demo_circle_line();
-    if (demo == 0 || demo == 3) demo_stream_stats();
+    if (demo == 0 || demo == 1)
+        demo_triangle();
+    if (demo == 0 || demo == 2)
+        demo_circle_line();
+    if (demo == 0 || demo == 3)
+        demo_stream_stats();
 
     fprintf(stderr, "\n所有演示完成。\n");
     return 0;

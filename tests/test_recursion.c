@@ -12,17 +12,17 @@
  * - 互递归支持
  */
 
-#include "lv00.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00.h"
+#include "test_helpers.h"
+
 /* ============== 测试：测度系统生命周期 ============== */
 
-static int test_measure_system_lifecycle(void)
-{
+static int test_measure_system_lifecycle(void) {
     printf("Test: measure system lifecycle...\n");
 
     MeasureSystem *ms = measure_system_create();
@@ -40,8 +40,7 @@ static int test_measure_system_lifecycle(void)
 
 /* ============== 测试：符号测度创建 ============== */
 
-static int test_symbolic_measure(void)
-{
+static int test_symbolic_measure(void) {
     printf("Test: symbolic measure creation...\n");
 
     /* 创建长度测度 */
@@ -71,16 +70,14 @@ static int test_symbolic_measure(void)
 
 /* ============== 测试：非符号测度 ============== */
 
-static int custom_compare(GeomNode *a, GeomNode *b, void *user_data)
-{
-    (void)a;
-    (void)b;
-    (void)user_data;
+static int custom_compare(GeomNode *a, GeomNode *b, void *user_data) {
+    (void) a;
+    (void) b;
+    (void) user_data;
     return 0; /* 相等 */
 }
 
-static int test_custom_measure(void)
-{
+static int test_custom_measure(void) {
     printf("Test: custom measure creation...\n");
 
     int user_data = 42;
@@ -99,8 +96,7 @@ static int test_custom_measure(void)
 
 /* ============== 测试：测度系统管理 ============== */
 
-static int test_measure_system_management(void)
-{
+static int test_measure_system_management(void) {
     printf("Test: measure system management...\n");
 
     MeasureSystem *ms = measure_system_create();
@@ -131,8 +127,7 @@ static int test_measure_system_management(void)
 
 /* ============== 测试：测度比较 ============== */
 
-static int test_measure_comparison(void)
-{
+static int test_measure_comparison(void) {
     printf("Test: measure comparison...\n");
 
     ConstraintGraph *g = graph_create();
@@ -170,8 +165,7 @@ static int test_measure_comparison(void)
 
 /* ============== 测试：递归上下文 ============== */
 
-static int test_recursion_context(void)
-{
+static int test_recursion_context(void) {
     printf("Test: recursion context...\n");
 
     /* 创建递归上下文 */
@@ -202,8 +196,7 @@ static int test_recursion_context(void)
 
 /* ============== 测试：递归进入/退出 ============== */
 
-static int test_recursion_enter_exit(void)
-{
+static int test_recursion_enter_exit(void) {
     printf("Test: recursion enter/exit...\n");
 
     ConstraintGraph *g = graph_create();
@@ -237,8 +230,7 @@ static int test_recursion_enter_exit(void)
 
 /* ============== 测试：递归深度超限 ============== */
 
-static int test_recursion_depth_exceeded(void)
-{
+static int test_recursion_depth_exceeded(void) {
     printf("Test: recursion depth exceeded...\n");
 
     ConstraintGraph *g = graph_create();
@@ -252,9 +244,7 @@ static int test_recursion_depth_exceeded(void)
     /* 连续进入递归 */
     for (int i = 0; i < 5; i++) {
         RecursionCheckResult result = recursion_context_enter(ctx, 1, input, g);
-        printf("  第 %d 次进入: %s (深度: %d)\n", 
-               i + 1, 
-               recursion_check_result_to_string(result),
+        printf("  第 %d 次进入: %s (深度: %d)\n", i + 1, recursion_check_result_to_string(result),
                recursion_context_get_depth(ctx));
 
         if (result == RECURSION_DEPTH_EXCEEDED) {
@@ -272,8 +262,7 @@ static int test_recursion_depth_exceeded(void)
 
 /* ============== 测试：测度递减检查 ============== */
 
-static int test_measure_decreasing(void)
-{
+static int test_measure_decreasing(void) {
     printf("Test: measure decreasing check...\n");
 
     RecursionContext *ctx = recursion_context_create(100);
@@ -305,8 +294,7 @@ static int test_measure_decreasing(void)
 
 /* ============== 测试：选择器块 ============== */
 
-static int test_selector_block(void)
-{
+static int test_selector_block(void) {
     printf("Test: selector block...\n");
 
     ConstraintGraph *g = graph_create();
@@ -317,8 +305,7 @@ static int test_selector_block(void)
     assert(sb->id == 1);
     assert(sb->graph == g);
     /* 注意：selector_block_create 使用 calloc，状态初始为 0 (BRANCH_INACTIVE) */
-    printf("  初始状态 - 真分支: %s, 假分支: %s\n", 
-           branch_state_to_string(sb->true_state),
+    printf("  初始状态 - 真分支: %s, 假分支: %s\n", branch_state_to_string(sb->true_state),
            branch_state_to_string(sb->false_state));
 
     printf("  选择器块创建成功 (ID=%d)\n", sb->id);
@@ -355,21 +342,12 @@ static int test_selector_block(void)
 
 /* ============== 测试：分支状态 ============== */
 
-static int test_branch_states(void)
-{
+static int test_branch_states(void) {
     printf("Test: branch states...\n");
 
-    BranchState states[] = {
-        BRANCH_INACTIVE,
-        BRANCH_ACTIVE,
-        BRANCH_PENDING
-    };
+    BranchState states[] = {BRANCH_INACTIVE, BRANCH_ACTIVE, BRANCH_PENDING};
 
-    const char *expected[] = {
-        "Inactive",
-        "Active",
-        "Pending"
-    };
+    const char *expected[] = {"Inactive", "Active", "Pending"};
 
     for (int i = 0; i < 3; i++) {
         const char *str = branch_state_to_string(states[i]);
@@ -382,8 +360,7 @@ static int test_branch_states(void)
 
 /* ============== 测试：互递归 ============== */
 
-static int test_mutual_recursion(void)
-{
+static int test_mutual_recursion(void) {
     printf("Test: mutual recursion...\n");
 
     MeasureSystem *ms = measure_system_create();
@@ -408,8 +385,7 @@ static int test_mutual_recursion(void)
 
 /* ============== 测试：辅助函数 ============== */
 
-static int test_helper_functions(void)
-{
+static int test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 测度类型转字符串 */
@@ -438,8 +414,7 @@ static int test_helper_functions(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Recursion System Test Suite ===\n\n");
 
     test_measure_system_lifecycle();

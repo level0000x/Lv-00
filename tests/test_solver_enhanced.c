@@ -13,16 +13,17 @@
  * 运行: build\test_solver_enhanced.exe
  */
 
-#include "lv00.h"
-#include "stream.h"
-#include "solver.h"
-#include "engine.h"
-#include "constraint_graph.h"
-#include "symbolic_coord.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "constraint_graph.h"
+#include "engine.h"
+#include "lv00.h"
+#include "solver.h"
+#include "stream.h"
+#include "symbolic_coord.h"
 
 /* ==================== 流式事件收集器 ==================== */
 
@@ -56,8 +57,9 @@ static EventCollector g_collector;
  * @brief 流式事件回调：收集所有事件到全局收集器
  */
 static void collect_events_callback(const StreamEvent *event, void *user_data) {
-    (void)user_data;
-    if (!event || g_collector.count >= MAX_COLLECTED_EVENTS) return;
+    (void) user_data;
+    if (!event || g_collector.count >= MAX_COLLECTED_EVENTS)
+        return;
 
     CollectedEvent *ce = &g_collector.events[g_collector.count];
     ce->type = event->type;
@@ -113,7 +115,8 @@ static void reset_collector(void) {
  */
 static bool has_event_type(StreamEventType type) {
     for (int i = 0; i < g_collector.count; i++) {
-        if (g_collector.events[i].type == type) return true;
+        if (g_collector.events[i].type == type)
+            return true;
     }
     return false;
 }
@@ -124,7 +127,8 @@ static bool has_event_type(StreamEventType type) {
 static int count_event_type(StreamEventType type) {
     int count = 0;
     for (int i = 0; i < g_collector.count; i++) {
-        if (g_collector.events[i].type == type) count++;
+        if (g_collector.events[i].type == type)
+            count++;
     }
     return count;
 }
@@ -134,7 +138,8 @@ static int count_event_type(StreamEventType type) {
  */
 static bool has_event_with_description(const char *desc) {
     for (int i = 0; i < g_collector.count; i++) {
-        if (strstr(g_collector.events[i].description, desc)) return true;
+        if (strstr(g_collector.events[i].description, desc))
+            return true;
     }
     return false;
 }
@@ -144,11 +149,11 @@ static bool has_event_with_description(const char *desc) {
 /**
  * @brief 添加有理数坐标点
  */
-static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
-                                                int64_t yn, uint64_t yd) {
+static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
-    if (!cx || !cy) return -1;
+    if (!cx || !cy)
+        return -1;
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult res = graph_add_point(g, coords, 2);
     return (res == ADD_NODE_OK) ? (g->next_node_id - 1) : -1;
@@ -164,7 +169,10 @@ static int test_groebner_auto_reduction_stream(void) {
     /* 构造一个会产生 Gröbner 基计算的约束系统
      * 使用三个点形成三角形，添加距离约束 */
     ConstraintGraph *g = graph_create();
-    if (!g) { printf("  FAILED: graph_create returned NULL\n"); return 1; }
+    if (!g) {
+        printf("  FAILED: graph_create returned NULL\n");
+        return 1;
+    }
 
     /* 注册流式回调 */
     StreamContext *sctx = stream_context_create();
@@ -174,14 +182,15 @@ static int test_groebner_auto_reduction_stream(void) {
     }
 
     /* 创建三个点 */
-    int p1 = add_rational_point(g, 0, 1, 0, 1);   /* A(0, 0) */
-    int p2 = add_rational_point(g, 3, 1, 0, 1);   /* B(3, 0) */
-    int p3 = add_rational_point(g, 0, 1, 4, 1);   /* C(0, 4) */
+    int p1 = add_rational_point(g, 0, 1, 0, 1); /* A(0, 0) */
+    int p2 = add_rational_point(g, 3, 1, 0, 1); /* B(3, 0) */
+    int p3 = add_rational_point(g, 0, 1, 4, 1); /* C(0, 4) */
 
     if (p1 < 0 || p2 < 0 || p3 < 0) {
         printf("  FAILED: add_rational_point failed\n");
         graph_destroy(g);
-        if (sctx) stream_context_destroy(sctx);
+        if (sctx)
+            stream_context_destroy(sctx);
         return 1;
     }
 
@@ -235,7 +244,8 @@ static int test_groebner_auto_reduction_stream(void) {
     assert(has_summary);
 
     /* 清理 */
-    if (result) groebner_result_free(result);
+    if (result)
+        groebner_result_free(result);
     graph_destroy(g);
     if (sctx) {
         solver_set_stream_context(NULL);
@@ -278,8 +288,7 @@ static int test_variable_resolve_detail_events(void) {
         if (g_collector.events[i].type == STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) {
             if (strstr(g_collector.events[i].detail_json, "method")) {
                 found_method_info = true;
-                printf("  ✓ 变量求解事件含方法信息: %s\n",
-                       g_collector.events[i].detail_json);
+                printf("  ✓ 变量求解事件含方法信息: %s\n", g_collector.events[i].detail_json);
             }
         }
     }
@@ -306,7 +315,8 @@ static int test_variable_resolve_detail_events(void) {
         printf("  ⚠ 变量求解事件未包含 var_node_id（当前引擎版本限制）\n");
     }
 
-    if (result) groebner_result_free(result);
+    if (result)
+        groebner_result_free(result);
     graph_destroy(g);
     if (sctx) {
         solver_set_stream_context(NULL);
@@ -325,7 +335,10 @@ static int test_engine_solve_stream_integration(void) {
     reset_collector();
 
     LV00Engine *engine = engine_create();
-    if (!engine) { printf("  FAILED: engine_create returned NULL\n"); return 1; }
+    if (!engine) {
+        printf("  FAILED: engine_create returned NULL\n");
+        return 1;
+    }
 
     /* 注册流式回调 */
     StreamContext *sctx = engine_get_stream_context(engine);
@@ -393,8 +406,7 @@ static int test_engine_solve_stream_integration(void) {
     /* 打印事件流概要 */
     printf("\n  事件流概要:\n");
     for (int i = 0; i < g_collector.count && i < 30; i++) {
-        printf("    [%02d] %-25s %s\n", i,
-               stream_event_type_id(g_collector.events[i].type),
+        printf("    [%02d] %-25s %s\n", i, stream_event_type_id(g_collector.events[i].type),
                g_collector.events[i].description);
     }
     if (g_collector.count > 30) {
@@ -425,7 +437,7 @@ static int test_multiple_solutions_stream(void) {
      * 两个点 P1(0,0), P2(0,y)，线段 P1P2 长度为 3
      * 则 y = ±3，产生两个解 */
     int p1 = add_rational_point(g, 0, 1, 0, 1);
-    int p2 = add_rational_point(g, 0, 1, 3, 1);  /* 初始猜测 y=3 */
+    int p2 = add_rational_point(g, 0, 1, 3, 1); /* 初始猜测 y=3 */
     int seg = graph_add_line_segment(g, p1, p2);
     graph_add_incidence(g, p1, seg);
     graph_add_incidence(g, p2, seg);
@@ -451,7 +463,8 @@ static int test_multiple_solutions_stream(void) {
     assert(g_collector.total_progress_events > 0);
     printf("  ✓ 进度事件: %d 个\n", g_collector.total_progress_events);
 
-    if (result) groebner_result_free(result);
+    if (result)
+        groebner_result_free(result);
     graph_destroy(g);
     if (sctx) {
         solver_set_stream_context(NULL);
@@ -520,7 +533,8 @@ static int test_groebner_step_detail_events(void) {
         printf("  ✓ 自约化事件存在\n");
     }
 
-    if (result) groebner_result_free(result);
+    if (result)
+        groebner_result_free(result);
     graph_destroy(g);
     if (sctx) {
         solver_set_stream_context(NULL);
@@ -647,7 +661,8 @@ static int test_solve_summary_content(void) {
     }
     assert(found_summary);
 
-    if (result) groebner_result_free(result);
+    if (result)
+        groebner_result_free(result);
     graph_destroy(g);
     if (sctx) {
         solver_set_stream_context(NULL);
@@ -675,8 +690,7 @@ int main(void) {
     failed += test_stream_statistics_completeness();
     failed += test_solve_summary_content();
 
-    printf("\n=== 增强功能测试结果: %s ===\n",
-           failed == 0 ? "全部通过 ✓" : "有失败 ✗");
+    printf("\n=== 增强功能测试结果: %s ===\n", failed == 0 ? "全部通过 ✓" : "有失败 ✗");
 
     return failed;
 }

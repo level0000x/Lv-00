@@ -33,99 +33,99 @@ extern "C" {
 /* -------------------- 极限运算 -------------------- */
 
 /** 数列极限：lim_{n->inf} a_n */
-#define PRESET_LIMIT_SEQUENCE          "limit_sequence"
+#define PRESET_LIMIT_SEQUENCE "limit_sequence"
 
 /** 函数极限：lim_{x->a} f(x) */
-#define PRESET_LIMIT_FUNCTION          "limit_function"
+#define PRESET_LIMIT_FUNCTION "limit_function"
 
 /** 左极限：lim_{x->a^-} f(x) */
-#define PRESET_LIMIT_LEFT              "limit_left"
+#define PRESET_LIMIT_LEFT "limit_left"
 
 /** 右极限：lim_{x->a^+} f(x) */
-#define PRESET_LIMIT_RIGHT             "limit_right"
+#define PRESET_LIMIT_RIGHT "limit_right"
 
 /** 无穷极限：lim_{x->inf} f(x) */
-#define PRESET_LIMIT_INFINITY          "limit_infinity"
+#define PRESET_LIMIT_INFINITY "limit_infinity"
 
 /** 不定式极限（L'Hopital法则） */
-#define PRESET_LIMIT_INDETERMINATE     "limit_indeterminate"
+#define PRESET_LIMIT_INDETERMINATE "limit_indeterminate"
 
 /* -------------------- 微分运算 -------------------- */
 
 /** 导数定义：f'(x) = lim_{h->0} [f(x+h)-f(x)]/h */
-#define PRESET_DERIVATIVE_DEFINITION   "derivative_definition"
+#define PRESET_DERIVATIVE_DEFINITION "derivative_definition"
 
 /** 幂函数导数：d/dx[x^n] = nx^{n-1} */
-#define PRESET_DERIVATIVE_POWER        "derivative_power"
+#define PRESET_DERIVATIVE_POWER "derivative_power"
 
 /** 链式法则：d/dx[f(g(x))] = f'(g(x))g'(x) */
-#define PRESET_DERIVATIVE_CHAIN        "derivative_chain"
+#define PRESET_DERIVATIVE_CHAIN "derivative_chain"
 
 /** 乘积法则：(fg)' = f'g + fg' */
-#define PRESET_DERIVATIVE_PRODUCT      "derivative_product"
+#define PRESET_DERIVATIVE_PRODUCT "derivative_product"
 
 /** 商法则：(f/g)' = (f'g - fg')/g^2 */
-#define PRESET_DERIVATIVE_QUOTIENT     "derivative_quotient"
+#define PRESET_DERIVATIVE_QUOTIENT "derivative_quotient"
 
 /** 隐函数求导 */
-#define PRESET_DERIVATIVE_IMPLICIT     "derivative_implicit"
+#define PRESET_DERIVATIVE_IMPLICIT "derivative_implicit"
 
 /** 参数方程求导 */
-#define PRESET_DERIVATIVE_PARAMETRIC   "derivative_parametric"
+#define PRESET_DERIVATIVE_PARAMETRIC "derivative_parametric"
 
 /** 偏导数：df/dx */
-#define PRESET_DERIVATIVE_PARTIAL      "derivative_partial"
+#define PRESET_DERIVATIVE_PARTIAL "derivative_partial"
 
 /* -------------------- 积分运算 -------------------- */
 
 /** 不定积分：int f(x)dx */
-#define PRESET_INTEGRAL_INDEFINITE     "integral_indefinite"
+#define PRESET_INTEGRAL_INDEFINITE "integral_indefinite"
 
 /** 定积分：int_a^b f(x)dx */
-#define PRESET_INTEGRAL_DEFINITE       "integral_definite"
+#define PRESET_INTEGRAL_DEFINITE "integral_definite"
 
 /** 换元积分法 */
-#define PRESET_INTEGRAL_SUBSTITUTION   "integral_substitution"
+#define PRESET_INTEGRAL_SUBSTITUTION "integral_substitution"
 
 /** 分部积分法：int u dv = uv - int v du */
-#define PRESET_INTEGRAL_BY_PARTS       "integral_by_parts"
+#define PRESET_INTEGRAL_BY_PARTS "integral_by_parts"
 
 /** 部分分式积分 */
 #define PRESET_INTEGRAL_PARTIAL_FRACTION "integral_partial_fraction"
 
 /** 三角积分 */
-#define PRESET_INTEGRAL_TRIGONOMETRIC  "integral_trigonometric"
+#define PRESET_INTEGRAL_TRIGONOMETRIC "integral_trigonometric"
 
 /** 反常积分 */
-#define PRESET_INTEGRAL_IMPROPER       "integral_improper"
+#define PRESET_INTEGRAL_IMPROPER "integral_improper"
 
 /** 曲线积分 */
-#define PRESET_INTEGRAL_LINE           "integral_line"
+#define PRESET_INTEGRAL_LINE "integral_line"
 
 /* -------------------- 级数展开 -------------------- */
 
 /** Taylor级数展开 */
-#define PRESET_SERIES_TAYLOR           "series_taylor"
+#define PRESET_SERIES_TAYLOR "series_taylor"
 
 /** Maclaurin级数展开 */
-#define PRESET_SERIES_MACLAURIN        "series_maclaurin"
+#define PRESET_SERIES_MACLAURIN "series_maclaurin"
 
 /** Fourier级数展开 */
-#define PRESET_SERIES_FOURIER          "series_fourier"
+#define PRESET_SERIES_FOURIER "series_fourier"
 
 /** 幂级数展开 */
-#define PRESET_SERIES_POWER            "series_power"
+#define PRESET_SERIES_POWER "series_power"
 
 /* -------------------- 多元微积分 -------------------- */
 
 /** 梯度：nabla f */
-#define PRESET_MULTIVARIABLE_GRADIENT  "multivariable_gradient"
+#define PRESET_MULTIVARIABLE_GRADIENT "multivariable_gradient"
 
 /** 散度：nabla . F */
 #define PRESET_MULTIVARIABLE_DIVERGENCE "multivariable_divergence"
 
 /** 旋度：nabla x F */
-#define PRESET_MULTIVARIABLE_CURL      "multivariable_curl"
+#define PRESET_MULTIVARIABLE_CURL "multivariable_curl"
 
 /** Laplace算子：nabla^2 f */
 #define PRESET_MULTIVARIABLE_LAPLACIAN "multivariable_laplacian"

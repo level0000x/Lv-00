@@ -99,9 +99,6 @@ temp/
 # 日志文件（运行时产生）
 /lv00.log*
 
-# 归档的构建目录
-_archived_builds/
-
 # 测试输出归档
 test_outputs/
 
@@ -113,8 +110,8 @@ test_outputs/
 *.vcxproj.filters
 *.vcxproj.user
 
-# 根目录下 clangd 或构建系统生成的 compile_commands.json 软链接
-/compile_commands.json
+# compile_commands.json（clangd / CMake 生成）
+compile_commands.json
 
 # Node.js
 node_modules/
@@ -123,7 +120,7 @@ node_modules/
 /test_output*.txt
 /test_*.txt
 
-# Build directories（包括 build/, build2/, build_final/, build_verify/, build_tmp/ 等所有构建目录）
+# Build directories（所有构建目录变体）
 build/
 build_*/
 build2/
@@ -131,4 +128,10 @@ build_final/
 build_verify/
 build_tmp/
 _archived_builds/
+
+# 归档文档和报告历史版本
+docs/reports/_archive/
+benchmark_results/_archive/
+
+# 分支原型目录（非正式源码）
 branches/

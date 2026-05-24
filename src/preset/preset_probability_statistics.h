@@ -41,7 +41,7 @@ extern "C" {
  *       输出: PRESET_TYPE_TUPLE
  *       复杂度: O(1)
  */
-#define PRESET_PROBABILITY_SPACE_CREATE     "probability_space_create"
+#define PRESET_PROBABILITY_SPACE_CREATE "probability_space_create"
 
 /**
  * @brief 事件概率 P(A)
@@ -51,7 +51,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SET, PRESET_TYPE_SET | 输出: PRESET_TYPE_SCALAR | 复杂度: O(1)
  */
-#define PRESET_PROBABILITY_EVENT            "probability_event"
+#define PRESET_PROBABILITY_EVENT "probability_event"
 
 /**
  * @brief 对立事件概率 P(A^c) = 1 - P(A)
@@ -60,7 +60,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SCALAR | 输出: PRESET_TYPE_SCALAR | 复杂度: O(1) | 可逆: 是
  */
-#define PRESET_PROBABILITY_COMPLEMENT       "probability_complement"
+#define PRESET_PROBABILITY_COMPLEMENT "probability_complement"
 
 /**
  * @brief 概率加法公式 P(A union B)
@@ -71,7 +71,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(1)
  */
-#define PRESET_PROBABILITY_UNION            "probability_union"
+#define PRESET_PROBABILITY_UNION "probability_union"
 
 /**
  * @brief 交集概率 P(A ∩ B)
@@ -80,7 +80,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR | 输出: PRESET_TYPE_SCALAR | 复杂度: O(1)
  */
-#define PRESET_PROBABILITY_INTERSECTION     "probability_intersection"
+#define PRESET_PROBABILITY_INTERSECTION "probability_intersection"
 
 /**
  * @brief 条件概率 P(A|B) = P(A∩B) / P(B)
@@ -91,7 +91,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(1)
  */
-#define PRESET_CONDITIONAL_PROBABILITY      "conditional_probability"
+#define PRESET_CONDITIONAL_PROBABILITY "conditional_probability"
 
 /**
  * @brief Bayes 定理
@@ -102,7 +102,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_LIST, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_BAYES_THEOREM                "bayes_theorem"
+#define PRESET_BAYES_THEOREM "bayes_theorem"
 
 /**
  * @brief 全概率公式
@@ -112,7 +112,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_LIST | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_TOTAL_PROBABILITY            "total_probability"
+#define PRESET_TOTAL_PROBABILITY "total_probability"
 
 /* -------------------- 随机变量 -------------------- */
 
@@ -123,7 +123,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_RANDOM_VARIABLE_EXPECTATION  "random_variable_expectation"
+#define PRESET_RANDOM_VARIABLE_EXPECTATION "random_variable_expectation"
 
 /**
  * @brief 方差 Var(X) = E[(X - mu)^2] = E[X^2] - (E[X])^2
@@ -132,7 +132,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_RANDOM_VARIABLE_VARIANCE     "random_variable_variance"
+#define PRESET_RANDOM_VARIABLE_VARIANCE "random_variable_variance"
 
 /**
  * @brief 标准差 sigma(X) = sqrt(Var(X))
@@ -141,7 +141,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_RANDOM_VARIABLE_STD          "random_variable_std"
+#define PRESET_RANDOM_VARIABLE_STD "random_variable_std"
 
 /**
  * @brief k 阶矩 E[X^k]
@@ -152,7 +152,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE, PRESET_TYPE_INTEGER
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_RANDOM_VARIABLE_MOMENT       "random_variable_moment"
+#define PRESET_RANDOM_VARIABLE_MOMENT "random_variable_moment"
 
 /**
  * @brief 协方差 Cov(X,Y) = E[(X - E[X])(Y - E[Y])]
@@ -163,7 +163,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE, PRESET_TYPE_RANDOM_VARIABLE
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_RANDOM_VARIABLE_COVARIANCE   "random_variable_covariance"
+#define PRESET_RANDOM_VARIABLE_COVARIANCE "random_variable_covariance"
 
 /**
  * @brief 相关系数 rho(X,Y) = Cov(X,Y) / (sigma_X * sigma_Y)
@@ -174,7 +174,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE, PRESET_TYPE_RANDOM_VARIABLE
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_RANDOM_VARIABLE_CORRELATION  "random_variable_correlation"
+#define PRESET_RANDOM_VARIABLE_CORRELATION "random_variable_correlation"
 
 /**
  * @brief 矩母函数 M_X(t) = E[e^{tX}]
@@ -184,7 +184,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE | 输出: PRESET_TYPE_FUNCTION | 复杂度: O(n)
  */
-#define PRESET_MOMENT_GENERATING_FUNCTION   "moment_generating_function"
+#define PRESET_MOMENT_GENERATING_FUNCTION "moment_generating_function"
 
 /**
  * @brief 特征函数 phi_X(t) = E[e^{itX}]
@@ -194,7 +194,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_RANDOM_VARIABLE | 输出: PRESET_TYPE_FUNCTION | 复杂度: O(n)
  */
-#define PRESET_CHARACTERISTIC_FUNCTION      "characteristic_function"
+#define PRESET_CHARACTERISTIC_FUNCTION "characteristic_function"
 
 /* -------------------- 概率分布 -------------------- */
 
@@ -206,7 +206,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR | 输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_NORMAL          "distribution_normal"
+#define PRESET_DISTRIBUTION_NORMAL "distribution_normal"
 
 /**
  * @brief 均匀分布 U(a,b)，PDF: f(x) = 1/(b-a)，x in [a,b]
@@ -216,7 +216,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR | 输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_UNIFORM         "distribution_uniform"
+#define PRESET_DISTRIBUTION_UNIFORM "distribution_uniform"
 
 /**
  * @brief 指数分布 Exp(lambda)，PDF: f(x) = lambda * e^{-lambda x}, x >= 0
@@ -226,7 +226,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SCALAR | 输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_EXPONENTIAL     "distribution_exponential"
+#define PRESET_DISTRIBUTION_EXPONENTIAL "distribution_exponential"
 
 /**
  * @brief 泊松分布 Poisson(lambda)，PMF: P(X=k) = (lambda^k * e^{-lambda}) / k!
@@ -236,7 +236,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SCALAR | 输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_POISSON         "distribution_poisson"
+#define PRESET_DISTRIBUTION_POISSON "distribution_poisson"
 
 /**
  * @brief 二项分布 B(n,p)，PMF: P(X=k) = C(n,k) * p^k * (1-p)^{n-k}
@@ -247,7 +247,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_INTEGER, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_BINOMIAL        "distribution_binomial"
+#define PRESET_DISTRIBUTION_BINOMIAL "distribution_binomial"
 
 /**
  * @brief 几何分布 Geo(p)，PMF: P(X=k) = (1-p)^{k-1} * p, k >= 1
@@ -257,7 +257,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SCALAR | 输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_GEOMETRIC       "distribution_geometric"
+#define PRESET_DISTRIBUTION_GEOMETRIC "distribution_geometric"
 
 /**
  * @brief Gamma 分布 Gamma(alpha, beta)，PDF: f(x) = (beta^alpha / Gamma(alpha)) * x^{alpha-1} * e^{-beta x}
@@ -268,7 +268,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_GAMMA           "distribution_gamma"
+#define PRESET_DISTRIBUTION_GAMMA "distribution_gamma"
 
 /**
  * @brief Beta 分布 Beta(alpha, beta)，PDF: f(x) = (x^{alpha-1} * (1-x)^{beta-1}) / B(alpha, beta), x in [0,1]
@@ -279,7 +279,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_BETA            "distribution_beta"
+#define PRESET_DISTRIBUTION_BETA "distribution_beta"
 
 /**
  * @brief 卡方分布 chi^2(k)，PDF: f(x) = (x^{k/2-1} * e^{-x/2}) / (2^{k/2} * Gamma(k/2)), x >= 0
@@ -289,7 +289,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_INTEGER | 输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_CHI_SQUARED     "distribution_chi_squared"
+#define PRESET_DISTRIBUTION_CHI_SQUARED "distribution_chi_squared"
 
 /**
  * @brief Student's t 分布 t(k)，PDF: f(x) ~ (1 + x^2/k)^{-(k+1)/2}
@@ -299,7 +299,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_INTEGER | 输出: PRESET_TYPE_DISTRIBUTION | 复杂度: O(1)
  */
-#define PRESET_DISTRIBUTION_STUDENT_T       "distribution_student_t"
+#define PRESET_DISTRIBUTION_STUDENT_T "distribution_student_t"
 
 /* -------------------- 统计推断 -------------------- */
 
@@ -312,7 +312,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_LIST
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n * k)，k 为迭代次数
  */
-#define PRESET_MLE_ESTIMATE                 "mle_estimate"
+#define PRESET_MLE_ESTIMATE "mle_estimate"
 
 /**
  * @brief 贝叶斯估计
@@ -323,7 +323,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_DISTRIBUTION, PRESET_TYPE_LIST
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n)
  */
-#define PRESET_BAYESIAN_ESTIMATE            "bayesian_estimate"
+#define PRESET_BAYESIAN_ESTIMATE "bayesian_estimate"
 
 /**
  * @brief 置信区间
@@ -334,7 +334,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n)
  */
-#define PRESET_CONFIDENCE_INTERVAL          "confidence_interval"
+#define PRESET_CONFIDENCE_INTERVAL "confidence_interval"
 
 /**
  * @brief Z 检验
@@ -345,7 +345,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_SCALAR, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n)
  */
-#define PRESET_HYPOTHESIS_TEST_Z            "hypothesis_test_z"
+#define PRESET_HYPOTHESIS_TEST_Z "hypothesis_test_z"
 
 /**
  * @brief Student's t 检验
@@ -356,7 +356,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_SCALAR
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n)
  */
-#define PRESET_HYPOTHESIS_TEST_T            "hypothesis_test_t"
+#define PRESET_HYPOTHESIS_TEST_T "hypothesis_test_t"
 
 /**
  * @brief 卡方检验
@@ -367,7 +367,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_LIST
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n)
  */
-#define PRESET_HYPOTHESIS_TEST_CHI2         "hypothesis_test_chi2"
+#define PRESET_HYPOTHESIS_TEST_CHI2 "hypothesis_test_chi2"
 
 /**
  * @brief Kolmogorov-Smirnov 检验
@@ -378,7 +378,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_DISTRIBUTION
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n log n)
  */
-#define PRESET_KS_TEST                      "ks_test"
+#define PRESET_KS_TEST "ks_test"
 
 /**
  * @brief 线性回归
@@ -389,7 +389,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_LIST, PRESET_TYPE_LIST
  *       输出: PRESET_TYPE_TUPLE | 复杂度: O(n)
  */
-#define PRESET_REGRESSION_LINEAR            "regression_linear"
+#define PRESET_REGRESSION_LINEAR "regression_linear"
 
 /**
  * @brief 方差分析（ANOVA）
@@ -399,7 +399,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_LIST | 输出: PRESET_TYPE_TUPLE | 复杂度: O(n * k)
  */
-#define PRESET_ANOVA                        "anova"
+#define PRESET_ANOVA "anova"
 
 /* ============================================================
  * 模块注册函数

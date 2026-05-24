@@ -17,9 +17,9 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* ============================================================
  * AST 节点类型枚举 (扁平设计，运算符编码在类型中)
@@ -27,54 +27,54 @@ extern "C" {
 
 typedef enum {
     /* 基本类型 */
-    NODE_NUMBER,                /* 数值常量 (有理数) */
-    NODE_VARIABLE,              /* 变量 */
-    NODE_IDENTIFIER,            /* 标识符 (函数名等) */
+    NODE_NUMBER,     /* 数值常量 (有理数) */
+    NODE_VARIABLE,   /* 变量 */
+    NODE_IDENTIFIER, /* 标识符 (函数名等) */
 
     /* 二元运算 (每种运算符一个类型) */
-    NODE_BINARY_OP_ADD,         /* 加法 + */
-    NODE_BINARY_OP_SUB,         /* 减法 - */
-    NODE_BINARY_OP_MUL,         /* 乘法 * */
-    NODE_BINARY_OP_DIV,         /* 除法 / */
-    NODE_BINARY_OP_POW,         /* 幂运算 ^ */
+    NODE_BINARY_OP_ADD, /* 加法 + */
+    NODE_BINARY_OP_SUB, /* 减法 - */
+    NODE_BINARY_OP_MUL, /* 乘法 * */
+    NODE_BINARY_OP_DIV, /* 除法 / */
+    NODE_BINARY_OP_POW, /* 幂运算 ^ */
 
     /* 一元运算 (每种运算符一个类型) */
-    NODE_UNARY_OP_NEG,          /* 取负 - */
-    NODE_UNARY_OP_SQRT,         /* 平方根 sqrt */
-    NODE_UNARY_OP_SIN,          /* 正弦 sin */
-    NODE_UNARY_OP_COS,          /* 余弦 cos */
-    NODE_UNARY_OP_TAN,          /* 正切 tan */
-    NODE_UNARY_OP_ABS,          /* 绝对值 abs */
-    NODE_UNARY_OP_LN,           /* 自然对数 ln */
-    NODE_UNARY_OP_LOG,          /* 常用对数 log */
+    NODE_UNARY_OP_NEG,  /* 取负 - */
+    NODE_UNARY_OP_SQRT, /* 平方根 sqrt */
+    NODE_UNARY_OP_SIN,  /* 正弦 sin */
+    NODE_UNARY_OP_COS,  /* 余弦 cos */
+    NODE_UNARY_OP_TAN,  /* 正切 tan */
+    NODE_UNARY_OP_ABS,  /* 绝对值 abs */
+    NODE_UNARY_OP_LN,   /* 自然对数 ln */
+    NODE_UNARY_OP_LOG,  /* 常用对数 log */
 
     /* 方程与坐标 */
-    NODE_EQUATION,              /* 方程 lhs = rhs */
-    NODE_COORDINATE_LIST,       /* 坐标列表 (x, y, ...) */
+    NODE_EQUATION,        /* 方程 lhs = rhs */
+    NODE_COORDINATE_LIST, /* 坐标列表 (x, y, ...) */
 
     /* 几何对象 */
-    NODE_GEOM_POINT,            /* 几何点 point A(x, y) */
-    NODE_GEOM_SEGMENT,          /* 几何线段 segment AB(A, B) */
-    NODE_GEOM_LINE,             /* 几何直线 line l(A, B, eq) */
-    NODE_GEOM_CIRCLE,           /* 几何圆 circle O(center, radius, eq) */
-    NODE_GEOM_TRIANGLE,         /* 几何三角形 triangle ABC(A, B, C) */
-    NODE_GEOM_POLYGON,          /* 几何多边形 polygon P(v1, v2, ...) */
-    NODE_GEOM_REGION,           /* 几何区域 region R(seg1, seg2, ...) */
-    NODE_GEOM_ARC,              /* 几何弧 arc A(center, radius, start_angle, end_angle) */
-    NODE_GEOM_VECTOR,           /* 几何向量 vector v(start, end) */
+    NODE_GEOM_POINT,    /* 几何点 point A(x, y) */
+    NODE_GEOM_SEGMENT,  /* 几何线段 segment AB(A, B) */
+    NODE_GEOM_LINE,     /* 几何直线 line l(A, B, eq) */
+    NODE_GEOM_CIRCLE,   /* 几何圆 circle O(center, radius, eq) */
+    NODE_GEOM_TRIANGLE, /* 几何三角形 triangle ABC(A, B, C) */
+    NODE_GEOM_POLYGON,  /* 几何多边形 polygon P(v1, v2, ...) */
+    NODE_GEOM_REGION,   /* 几何区域 region R(seg1, seg2, ...) */
+    NODE_GEOM_ARC,      /* 几何弧 arc A(center, radius, start_angle, end_angle) */
+    NODE_GEOM_VECTOR,   /* 几何向量 vector v(start, end) */
 
     /* 几何约束 (每种约束一个类型) */
-    NODE_CONSTRAINT_PERPENDICULAR,  /* 垂直约束 */
-    NODE_CONSTRAINT_PARALLEL,       /* 平行约束 */
-    NODE_CONSTRAINT_MIDPOINT,       /* 中点约束 */
-    NODE_CONSTRAINT_BISECTOR,       /* 角平分线约束 */
-    NODE_CONSTRAINT_COLLINEAR,      /* 共线约束 */
-    NODE_CONSTRAINT_TANGENT,        /* 切线约束 */
-    NODE_CONSTRAINT_CONGRUENT,      /* 全等约束 */
-    NODE_CONSTRAINT_ANGLE,          /* 角度约束 ∠ABC = θ */
+    NODE_CONSTRAINT_PERPENDICULAR, /* 垂直约束 */
+    NODE_CONSTRAINT_PARALLEL,      /* 平行约束 */
+    NODE_CONSTRAINT_MIDPOINT,      /* 中点约束 */
+    NODE_CONSTRAINT_BISECTOR,      /* 角平分线约束 */
+    NODE_CONSTRAINT_COLLINEAR,     /* 共线约束 */
+    NODE_CONSTRAINT_TANGENT,       /* 切线约束 */
+    NODE_CONSTRAINT_CONGRUENT,     /* 全等约束 */
+    NODE_CONSTRAINT_ANGLE,         /* 角度约束 ∠ABC = θ */
 
     /* 复合语句 */
-    NODE_COMPOUND               /* 复合语句 (分号分隔) */
+    NODE_COMPOUND /* 复合语句 (分号分隔) */
 } NodeType;
 
 /* ============================================================
@@ -85,8 +85,8 @@ typedef struct FormulaNode FormulaNode;
 
 struct FormulaNode {
     NodeType type;
-    int line;                   /* 源码行号 */
-    int column;                 /* 源码列号 */
+    int line;   /* 源码行号 */
+    int column; /* 源码列号 */
     union {
         /* NUMBER: 有理数 */
         struct {
@@ -392,7 +392,8 @@ FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments
  * @param[in] end_angle   结束角度
  * @return 新的 AST 节点，失败返回 NULL
  */
-FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, FormulaNode *radius, FormulaNode *start_angle, FormulaNode *end_angle);
+FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, FormulaNode *radius,
+                                     FormulaNode *start_angle, FormulaNode *end_angle);
 
 /**
  * @brief 创建约束节点

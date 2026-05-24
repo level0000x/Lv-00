@@ -41,11 +41,11 @@ extern "C" {
  * 被 axiom_pkg 和 module 的解析器共同使用。
  */
 typedef struct {
-    const char *source;   /**< 输入源字符串（以 null 终止） */
-    const char *pos;      /**< 当前解析位置指针 */
-    int         line;     /**< 当前行号（从 1 开始） */
-    int         col;      /**< 当前列号（从 1 开始） */
-    char       *error_msg; /**< 错误消息（堆分配，调用者负责释放） */
+    const char *source; /**< 输入源字符串（以 null 终止） */
+    const char *pos;    /**< 当前解析位置指针 */
+    int line;           /**< 当前行号（从 1 开始） */
+    int col;            /**< 当前列号（从 1 开始） */
+    char *error_msg;    /**< 错误消息（堆分配，调用者负责释放） */
 } Lv00Lexer;
 
 /* ================================================================

@@ -10,16 +10,16 @@
  * - 依赖验证
  */
 
-#include "lv00.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00.h"
+
 /* ============== 测试：公理包生命周期 ============== */
 
-static int test_axiom_package_lifecycle(void)
-{
+static int test_axiom_package_lifecycle(void) {
     printf("Test: axiom package lifecycle...\n");
 
     AxiomPackage *pkg = axiom_package_create("Euclidean", "1.0.0");
@@ -38,8 +38,7 @@ static int test_axiom_package_lifecycle(void)
 
 /* ============== 测试：已知不可构造项 ============== */
 
-static int test_known_unconstructible(void)
-{
+static int test_known_unconstructible(void) {
     printf("Test: known unconstructible items...\n");
 
     AxiomPackage *pkg = axiom_package_create("TestPkg", "1.0");
@@ -79,15 +78,13 @@ static int test_known_unconstructible(void)
 
 /* ============== 测试：约束模板 ============== */
 
-static void test_expand_func(SymbolicCoord **params, ConstraintGraph *target)
-{
+static void test_expand_func(SymbolicCoord **params, ConstraintGraph *target) {
     /* 测试用的模板展开函数 */
-    (void)params;
-    (void)target;
+    (void) params;
+    (void) target;
 }
 
-static int test_constraint_templates(void)
-{
+static int test_constraint_templates(void) {
     printf("Test: constraint templates...\n");
 
     AxiomPackage *pkg = axiom_package_create("TemplatePkg", "1.0");
@@ -126,8 +123,7 @@ static int test_constraint_templates(void)
 
 /* ============== 测试：内容哈希 ============== */
 
-static int test_content_hash(void)
-{
+static int test_content_hash(void) {
     printf("Test: content hash computation...\n");
 
     AxiomPackage *pkg = axiom_package_create("HashTest", "1.0");
@@ -157,8 +153,7 @@ static int test_content_hash(void)
 
 /* ============== 测试：依赖验证 ============== */
 
-static int test_dependency_validation(void)
-{
+static int test_dependency_validation(void) {
     printf("Test: dependency validation...\n");
 
     AxiomPackage *pkg1 = axiom_package_create("BasePkg", "1.0");
@@ -178,8 +173,7 @@ static int test_dependency_validation(void)
 
 /* ============== 测试：命题种类 ============== */
 
-static int test_proposition_kinds(void)
-{
+static int test_proposition_kinds(void) {
     printf("Test: proposition kinds...\n");
 
     /* 测试不同种类的命题 */
@@ -193,8 +187,7 @@ static int test_proposition_kinds(void)
 
 /* ============== 测试：辅助函数 ============== */
 
-static int test_helper_functions(void)
-{
+static int test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 测试加载状态字符串 */
@@ -207,8 +200,7 @@ static int test_helper_functions(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Axiom Package Test Suite ===\n\n");
 
     test_axiom_package_lifecycle();

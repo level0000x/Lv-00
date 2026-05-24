@@ -24,11 +24,12 @@
 #ifndef LV00_PATH_TYPE_H
 #define LV00_PATH_TYPE_H
 
-#include "constraint_graph.h"
-#include "unify.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
+#include "unify.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,10 +39,10 @@ extern "C" {
  *  前向声明
  * ================================================================ */
 
-typedef struct Lv00Interval     Lv00Interval;
-typedef struct Lv00Path         Lv00Path;
-typedef struct Lv00PathSystem   Lv00PathSystem;
-typedef struct ConstraintGraph  ConstraintGraph;
+typedef struct Lv00Interval Lv00Interval;
+typedef struct Lv00Path Lv00Path;
+typedef struct Lv00PathSystem Lv00PathSystem;
+typedef struct ConstraintGraph ConstraintGraph;
 
 /* ================================================================
  *  第一部分：HoTT 区间类型（Interval）
@@ -55,8 +56,8 @@ typedef struct ConstraintGraph  ConstraintGraph;
  * - DIRECTION_BACKWARD：从终点到起点（路径求逆）
  */
 typedef enum {
-    DIRECTION_FORWARD  = 0,  /**< 正向路径：从端点 A 到端点 B */
-    DIRECTION_BACKWARD = 1   /**< 逆向路径：从端点 B 到端点 A */
+    DIRECTION_FORWARD = 0, /**< 正向路径：从端点 A 到端点 B */
+    DIRECTION_BACKWARD = 1 /**< 逆向路径：从端点 B 到端点 A */
 } Lv00PathDirection;
 
 /**
@@ -70,11 +71,11 @@ typedef enum {
  * 通过 coe 进行消去（消除）。
  */
 struct Lv00Interval {
-    int    interval_id;       /**< 区间实例的唯一标识符 */
-    double left;              /**< 左端点值（对应 HoTT 端点 0） */
-    double right;             /**< 右端点值（对应 HoTT 端点 1） */
-    bool   is_degenerate;     /**< 退化区间标记（left == right，对应 refl） */
-    char  *label;             /**< 可选标签（用于调试/显示） */
+    int interval_id;    /**< 区间实例的唯一标识符 */
+    double left;        /**< 左端点值（对应 HoTT 端点 0） */
+    double right;       /**< 右端点值（对应 HoTT 端点 1） */
+    bool is_degenerate; /**< 退化区间标记（left == right，对应 refl） */
+    char *label;        /**< 可选标签（用于调试/显示） */
 };
 
 /* ================================================================
@@ -93,12 +94,12 @@ struct Lv00Interval {
  * - PATH_EQUIVALENCE：等价路径，表示两个类型/空间之间的等价关系
  */
 typedef enum {
-    PATH_IDENTITY      = 0,  /**< 恒等路径（refl），a = a */
-    PATH_CONSTRUCTION  = 1,  /**< 构造路径，由几何构造步骤 a |- b 产生 */
-    PATH_COMPOSITE     = 2,  /**< 合成路径，p @ q : a = c */
-    PATH_INVERSE       = 3,  /**< 逆路径，p^{-1} : b = a */
-    PATH_TRANSPORT     = 4,  /**< 传输路径，coe——沿路径传输类型/属性 */
-    PATH_EQUIVALENCE   = 5   /**< 等价路径，表示类型/空间之间的等价 */
+    PATH_IDENTITY = 0,     /**< 恒等路径（refl），a = a */
+    PATH_CONSTRUCTION = 1, /**< 构造路径，由几何构造步骤 a |- b 产生 */
+    PATH_COMPOSITE = 2,    /**< 合成路径，p @ q : a = c */
+    PATH_INVERSE = 3,      /**< 逆路径，p^{-1} : b = a */
+    PATH_TRANSPORT = 4,    /**< 传输路径，coe——沿路径传输类型/属性 */
+    PATH_EQUIVALENCE = 5   /**< 等价路径，表示类型/空间之间的等价 */
 } Lv00PathType;
 
 /**
@@ -110,9 +111,9 @@ typedef enum {
  * - TRANSPORT_ALONG_CONSTRUCTION：沿构造路径传输（与 Lv-00 构造图联动）
  */
 typedef enum {
-    TRANSPORT_ALONG_PATH         = 0,  /**< 沿单条路径传输属性或类型 */
-    TRANSPORT_ALONG_EQUIV        = 1,  /**< 沿类型等价（equivalence）传输 */
-    TRANSPORT_ALONG_CONSTRUCTION = 2   /**< 沿构造路径传输（联动构造图） */
+    TRANSPORT_ALONG_PATH = 0,        /**< 沿单条路径传输属性或类型 */
+    TRANSPORT_ALONG_EQUIV = 1,       /**< 沿类型等价（equivalence）传输 */
+    TRANSPORT_ALONG_CONSTRUCTION = 2 /**< 沿构造路径传输（联动构造图） */
 } Lv00TransportMode;
 
 /* ================================================================
@@ -136,19 +137,19 @@ typedef enum {
  * 构造的组合对应于 PATH_COMPOSITE 路径拼接。
  */
 struct Lv00Path {
-    int                path_id;           /**< 路径唯一标识符 */
-    Lv00PathType       type;              /**< 路径类型分类 */
-    Lv00PathDirection  direction;         /**< 路径方向（正向/逆向） */
-    int                endpoint_a;        /**< 起点端点（对应 HoTT 起点 a） */
-    int                endpoint_b;        /**< 终点端点（对应 HoTT 终点 b） */
-    int                interval_id;       /**< 关联的区间实例 ID */
-    char              *label;             /**< 路径标签（人类可读，用于显示/调试） */
-    ConstraintGraph   *construction;      /**< 关联的几何构造图（构造路径专有） */
-    double           (*path_func)(double t, void *user_data); /**< 路径映射函数 f: I -> Space */
-    void              *func_user_data;    /**< 映射函数的用户数据 */
-    bool               is_constant;       /**< 是否为恒等路径（端点 A == 端点 B） */
-    int                source_step_id;    /**< 产生此路径的构造步骤 ID（溯源） */
-    int64_t            created_at_us;     /**< 路径创建时间（微秒，用于排序/调试） */
+    int path_id;                                    /**< 路径唯一标识符 */
+    Lv00PathType type;                              /**< 路径类型分类 */
+    Lv00PathDirection direction;                    /**< 路径方向（正向/逆向） */
+    int endpoint_a;                                 /**< 起点端点（对应 HoTT 起点 a） */
+    int endpoint_b;                                 /**< 终点端点（对应 HoTT 终点 b） */
+    int interval_id;                                /**< 关联的区间实例 ID */
+    char *label;                                    /**< 路径标签（人类可读，用于显示/调试） */
+    ConstraintGraph *construction;                  /**< 关联的几何构造图（构造路径专有） */
+    double (*path_func)(double t, void *user_data); /**< 路径映射函数 f: I -> Space */
+    void *func_user_data;                           /**< 映射函数的用户数据 */
+    bool is_constant;                               /**< 是否为恒等路径（端点 A == 端点 B） */
+    int source_step_id;                             /**< 产生此路径的构造步骤 ID（溯源） */
+    int64_t created_at_us;                          /**< 路径创建时间（微秒，用于排序/调试） */
 };
 
 /* ================================================================
@@ -166,14 +167,14 @@ struct Lv00Path {
  *   则 coe 将 P(a) 传输到 P(b) —— 得到 b 点也满足该属性的证明。
  */
 typedef struct {
-    int           context_id;             /**< 消去上下文的唯一 ID */
-    int           source_type_id;         /**< 源类型族 ID */
-    Lv00TransportMode mode;               /**< 传输模式 */
-    int           along_path_id;          /**< 沿此路径传输（路径 ID） */
-    int           along_equiv_id;         /**< 沿此等价传输（等价 ID，仅 TRANSPORT_ALONG_EQUIV） */
-    void         *transported_term;       /**< 传输后的项（结果） */
-    bool          preserve_structure;     /**< 是否保留结构不变性 */
-    char          error_msg[256];         /**< 传输失败时的错误信息 */
+    int context_id;          /**< 消去上下文的唯一 ID */
+    int source_type_id;      /**< 源类型族 ID */
+    Lv00TransportMode mode;  /**< 传输模式 */
+    int along_path_id;       /**< 沿此路径传输（路径 ID） */
+    int along_equiv_id;      /**< 沿此等价传输（等价 ID，仅 TRANSPORT_ALONG_EQUIV） */
+    void *transported_term;  /**< 传输后的项（结果） */
+    bool preserve_structure; /**< 是否保留结构不变性 */
+    char error_msg[256];     /**< 传输失败时的错误信息 */
 } Lv00PathCoercionContext;
 
 /**
@@ -194,17 +195,17 @@ typedef struct {
  * 6. 调用 path_system_destroy() 清理
  */
 struct Lv00PathSystem {
-    Lv00Path               *paths;              /**< 路径动态数组 */
-    int                     path_count;         /**< 当前路径数量 */
-    int                     path_capacity;      /**< 路径数组容量 */
-    Lv00Interval           *intervals;          /**< 区间实例池 */
-    int                     interval_count;     /**< 当前区间数量 */
-    int                     interval_capacity;  /**< 区间池容量 */
-    Lv00PathCoercionContext *coe_contexts;      /**< 路径消去上下文数组 */
-    int                     coe_count;          /**< 当前消去上下文数量 */
-    int                     coe_capacity;       /**< 消去上下文容量 */
-    bool                    is_initialized;     /**< 系统初始化状态 */
-    int64_t                 init_time_us;       /**< 系统初始化时间戳 */
+    Lv00Path *paths;                       /**< 路径动态数组 */
+    int path_count;                        /**< 当前路径数量 */
+    int path_capacity;                     /**< 路径数组容量 */
+    Lv00Interval *intervals;               /**< 区间实例池 */
+    int interval_count;                    /**< 当前区间数量 */
+    int interval_capacity;                 /**< 区间池容量 */
+    Lv00PathCoercionContext *coe_contexts; /**< 路径消去上下文数组 */
+    int coe_count;                         /**< 当前消去上下文数量 */
+    int coe_capacity;                      /**< 消去上下文容量 */
+    bool is_initialized;                   /**< 系统初始化状态 */
+    int64_t init_time_us;                  /**< 系统初始化时间戳 */
 };
 
 /* ================================================================
@@ -252,13 +253,8 @@ void path_system_destroy(Lv00PathSystem *sys);
  * @param source_step  产生此路径的构造步骤 ID（-1 表示无溯源）
  * @return 成功返回新路径 ID（>= 0），失败返回 -1
  */
-int path_create(Lv00PathSystem *sys,
-                int endpoint_a,
-                int endpoint_b,
-                const char *label,
-                double (*path_func)(double t, void *user_data),
-                void *user_data,
-                int source_step);
+int path_create(Lv00PathSystem *sys, int endpoint_a, int endpoint_b, const char *label,
+                double (*path_func)(double t, void *user_data), void *user_data, int source_step);
 
 /**
  * @brief 创建恒等路径（refl）
@@ -316,11 +312,7 @@ int path_compose(Lv00PathSystem *sys, int path_id_p, int path_id_q, const char *
  * @param transported    输入：源端点处的项；输出：传输后的项
  * @return 成功返回 0，失败返回负值错误码
  */
-int path_transport(Lv00PathSystem *sys,
-                   int path_id,
-                   int source_type_id,
-                   Lv00TransportMode mode,
-                   void **transported);
+int path_transport(Lv00PathSystem *sys, int path_id, int source_type_id, Lv00TransportMode mode, void **transported);
 
 /* ================================================================
  *  第七部分：API —— 路径查询与变换
@@ -389,11 +381,8 @@ int path_to_constraint_graph(Lv00PathSystem *sys, int path_id, ConstraintGraph *
  * @param max_count     数组最大容量
  * @return 找到的路径数量（>= 0），或 -1 表示错误
  */
-int path_system_get_all_paths_between(const Lv00PathSystem *sys,
-                                       int endpoint_a,
-                                       int endpoint_b,
-                                       int *out_path_ids,
-                                       int max_count);
+int path_system_get_all_paths_between(const Lv00PathSystem *sys, int endpoint_a, int endpoint_b, int *out_path_ids,
+                                      int max_count);
 
 /* ================================================================
  *  第八部分：API —— 区间操作

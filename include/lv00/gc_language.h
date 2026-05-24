@@ -23,10 +23,11 @@
 #ifndef LV00_GC_LANGUAGE_H
 #define LV00_GC_LANGUAGE_H
 
-#include "constraint_graph.h"
-#include "symbolic_coord.h"
 #include <stdbool.h>
 #include <stddef.h>
+
+#include "constraint_graph.h"
+#include "symbolic_coord.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,11 +52,11 @@ typedef struct ConstraintGraph ConstraintGraph;
  * - 向量法：矢量代数推导，直观性强
  */
 typedef enum {
-    GCL_PROOF_AREA       = 0,   /**< 面积法 —— 利用面积关系和消点法进行几何证明 */
-    GCL_PROOF_WU         = 1,   /**< 吴方法 —— 基于代数消元的机器证明方法 */
-    GCL_PROOF_GROEBNER   = 2,   /**< Gröbner基法 —— 代数方程系统的完备求解 */
-    GCL_PROOF_FULL_ANGLE = 3,   /**< 全角法 —— 利用全角关系进行角度推理 */
-    GCL_PROOF_VECTOR     = 4    /**< 向量法 —— 基于矢量代数的几何推导 */
+    GCL_PROOF_AREA = 0,       /**< 面积法 —— 利用面积关系和消点法进行几何证明 */
+    GCL_PROOF_WU = 1,         /**< 吴方法 —— 基于代数消元的机器证明方法 */
+    GCL_PROOF_GROEBNER = 2,   /**< Gröbner基法 —— 代数方程系统的完备求解 */
+    GCL_PROOF_FULL_ANGLE = 3, /**< 全角法 —— 利用全角关系进行角度推理 */
+    GCL_PROOF_VECTOR = 4      /**< 向量法 —— 基于矢量代数的几何推导 */
 } GCLProofMethod;
 
 /* ============== GCL 命令类型枚举 ============== */
@@ -69,60 +70,60 @@ typedef enum {
  */
 typedef enum {
     /* 基本声明 */
-    GCL_CMD_POINT         = 0,   /**< 点声明：point A 10 20 */
-    GCL_CMD_LINE          = 1,   /**< 线声明：line a A B */
-    GCL_CMD_CIRCLE        = 2,   /**< 圆声明：circle k A B */
-    GCL_CMD_SEGMENT       = 3,   /**< 线段声明：segment s A B */
-    GCL_CMD_RAY           = 4,   /**< 射线声明：ray r A B */
-    GCL_CMD_ARC           = 5,   /**< 弧声明：arc a A B C */
-    GCL_CMD_POLYGON       = 6,   /**< 多边形声明：polygon P A B C D ... */
-    GCL_CMD_TRIANGLE      = 7,   /**< 三角形声明：triangle T A B C */
+    GCL_CMD_POINT = 0,    /**< 点声明：point A 10 20 */
+    GCL_CMD_LINE = 1,     /**< 线声明：line a A B */
+    GCL_CMD_CIRCLE = 2,   /**< 圆声明：circle k A B */
+    GCL_CMD_SEGMENT = 3,  /**< 线段声明：segment s A B */
+    GCL_CMD_RAY = 4,      /**< 射线声明：ray r A B */
+    GCL_CMD_ARC = 5,      /**< 弧声明：arc a A B C */
+    GCL_CMD_POLYGON = 6,  /**< 多边形声明：polygon P A B C D ... */
+    GCL_CMD_TRIANGLE = 7, /**< 三角形声明：triangle T A B C */
 
     /* 构造命令 */
-    GCL_CMD_INTERSECT     = 8,   /**< 交点：intersection C a b */
-    GCL_CMD_MIDPOINT      = 9,   /**< 中点：midpoint M A B */
-    GCL_CMD_BISECTOR      = 10,  /**< 角平分线：bisector b A B C */
-    GCL_CMD_PERPENDICULAR = 11,  /**< 垂线：perpendicular p l A */
-    GCL_CMD_PARALLEL      = 12,  /**< 平行线：parallel p l A */
-    GCL_CMD_MEDIATRIX     = 13,  /**< 垂直平分线：mediatrix m A B */
-    GCL_CMD_ORTHOCENTER   = 14,  /**< 垂心：orthocenter H A B C */
-    GCL_CMD_CENTROID      = 15,  /**< 重心：centroid G A B C */
-    GCL_CMD_CIRCUMCENTER  = 16,  /**< 外心：circumcenter O A B C */
-    GCL_CMD_INCENTER      = 17,  /**< 内心：incenter I A B C */
-    GCL_CMD_FOOT          = 18,  /**< 垂足：foot F A l */
-    GCL_CMD_REFLECTION    = 19,  /**< 对称点：reflection A' A l */
-    GCL_CMD_ROTATION      = 20,  /**< 旋转：rotation B' B A angle */
-    GCL_CMD_TRANSLATION   = 21,  /**< 平移：translation C' C v */
-    GCL_CMD_SCALE         = 22,  /**< 缩放：scale S P k */
+    GCL_CMD_INTERSECT = 8,      /**< 交点：intersection C a b */
+    GCL_CMD_MIDPOINT = 9,       /**< 中点：midpoint M A B */
+    GCL_CMD_BISECTOR = 10,      /**< 角平分线：bisector b A B C */
+    GCL_CMD_PERPENDICULAR = 11, /**< 垂线：perpendicular p l A */
+    GCL_CMD_PARALLEL = 12,      /**< 平行线：parallel p l A */
+    GCL_CMD_MEDIATRIX = 13,     /**< 垂直平分线：mediatrix m A B */
+    GCL_CMD_ORTHOCENTER = 14,   /**< 垂心：orthocenter H A B C */
+    GCL_CMD_CENTROID = 15,      /**< 重心：centroid G A B C */
+    GCL_CMD_CIRCUMCENTER = 16,  /**< 外心：circumcenter O A B C */
+    GCL_CMD_INCENTER = 17,      /**< 内心：incenter I A B C */
+    GCL_CMD_FOOT = 18,          /**< 垂足：foot F A l */
+    GCL_CMD_REFLECTION = 19,    /**< 对称点：reflection A' A l */
+    GCL_CMD_ROTATION = 20,      /**< 旋转：rotation B' B A angle */
+    GCL_CMD_TRANSLATION = 21,   /**< 平移：translation C' C v */
+    GCL_CMD_SCALE = 22,         /**< 缩放：scale S P k */
 
     /* 测量命令 */
-    GCL_CMD_MEASURE       = 23,  /**< 测量：measure d A B (距离/角度/面积) */
-    GCL_CMD_ANGLE         = 24,  /**< 角度计算：angle a A B C */
-    GCL_CMD_CALC          = 25,  /**< 表达式计算：calc val = expr */
-    GCL_CMD_DISTANCE      = 26,  /**< 距离计算：distance d A B */
-    GCL_CMD_AREA          = 27,  /**< 面积计算：area s P */
+    GCL_CMD_MEASURE = 23,  /**< 测量：measure d A B (距离/角度/面积) */
+    GCL_CMD_ANGLE = 24,    /**< 角度计算：angle a A B C */
+    GCL_CMD_CALC = 25,     /**< 表达式计算：calc val = expr */
+    GCL_CMD_DISTANCE = 26, /**< 距离计算：distance d A B */
+    GCL_CMD_AREA = 27,     /**< 面积计算：area s P */
 
     /* 证明命令 */
-    GCL_CMD_PROVE         = 28,  /**< 证明命题：prove theorem_name */
-    GCL_CMD_ASSUME        = 29,  /**< 假设声明：assume condition */
-    GCL_CMD_LEMMA         = 30,  /**< 引理引用：lemma lemma_name */
-    GCL_CMD_CONJECTURE    = 31,  /**< 猜想：conjecture statement (待证明) */
+    GCL_CMD_PROVE = 28,          /**< 证明命题：prove theorem_name */
+    GCL_CMD_ASSUME = 29,         /**< 假设声明：assume condition */
+    GCL_CMD_LEMMA = 30,          /**< 引理引用：lemma lemma_name */
+    GCL_CMD_CONJECTURE = 31,     /**< 猜想：conjecture statement (待证明) */
     GCL_CMD_COUNTEREXAMPLE = 32, /**< 反例构造：counterexample condition */
 
     /* 模块/文件命令 */
-    GCL_CMD_LOAD          = 33,  /**< 加载文件：load "filename.geo" */
-    GCL_CMD_INCLUDE       = 34,  /**< 包含头文件：include "defs.geo" */
-    GCL_CMD_EXPORT        = 35,  /**< 导出：export "output.tex" */
-    GCL_CMD_SAVE          = 36,  /**< 保存状态：save "checkpoint.geo" */
+    GCL_CMD_LOAD = 33,    /**< 加载文件：load "filename.geo" */
+    GCL_CMD_INCLUDE = 34, /**< 包含头文件：include "defs.geo" */
+    GCL_CMD_EXPORT = 35,  /**< 导出：export "output.tex" */
+    GCL_CMD_SAVE = 36,    /**< 保存状态：save "checkpoint.geo" */
 
     /* 元命令 */
-    GCL_CMD_COMMENT       = 37,  /**< 注释：% 或 // 开头 */
-    GCL_CMD_SET           = 38,  /**< 设置参数：set param value */
-    GCL_CMD_ECHO          = 39,  /**< 输出文本：echo message */
-    GCL_CMD_DUMP          = 40,  /**< 调试输出：dump context */
+    GCL_CMD_COMMENT = 37, /**< 注释：% 或 // 开头 */
+    GCL_CMD_SET = 38,     /**< 设置参数：set param value */
+    GCL_CMD_ECHO = 39,    /**< 输出文本：echo message */
+    GCL_CMD_DUMP = 40,    /**< 调试输出：dump context */
 
     /* 计数 */
-    GCL_CMD_COUNT         = 41   /**< 命令类型总数（用于数组大小） */
+    GCL_CMD_COUNT = 41 /**< 命令类型总数（用于数组大小） */
 } GCLCommandType;
 
 /* ============== WASM 导出格式枚举 ============== */
@@ -134,9 +135,9 @@ typedef enum {
  * 支持三种导出级别以适应不同的 Web 部署场景。
  */
 typedef enum {
-    WASM_GCL_DEFAULT  = 0,    /**< 默认导出 —— 包含解析+执行，不含可视化 */
-    WASM_GCL_MINIMAL  = 1,    /**< 最小导出 —— 仅解析，最小包体 */
-    WASM_GCL_FULL     = 2     /**< 完整导出 —— 解析+执行+可视化+证明输出 */
+    WASM_GCL_DEFAULT = 0, /**< 默认导出 —— 包含解析+执行，不含可视化 */
+    WASM_GCL_MINIMAL = 1, /**< 最小导出 —— 仅解析，最小包体 */
+    WASM_GCL_FULL = 2     /**< 完整导出 —— 解析+执行+可视化+证明输出 */
 } WasmExportFormat;
 
 /* ============== WASM 导出配置结构体 ============== */
@@ -148,17 +149,17 @@ typedef enum {
  * 编译管道的输出参数。
  */
 struct WasmExportConfig {
-    int memory_size;              /**< WASM 线性内存大小（字节），默认 64MB */
-    bool enable_proof;            /**< 是否编译证明引擎到 WASM */
-    bool enable_visualization;    /**< 是否编译可视化模块到 WASM */
-    bool enable_latex_export;     /**< 是否编译 LaTeX 导出模块 */
-    bool enable_html_export;      /**< 是否编译 HTML 导出模块 */
-    bool enable_file_system;      /**< 是否启用 WASI 文件系统支持 */
-    bool enable_multithreading;   /**< 是否启用 Web Workers 多线程 */
+    int memory_size;                /**< WASM 线性内存大小（字节），默认 64MB */
+    bool enable_proof;              /**< 是否编译证明引擎到 WASM */
+    bool enable_visualization;      /**< 是否编译可视化模块到 WASM */
+    bool enable_latex_export;       /**< 是否编译 LaTeX 导出模块 */
+    bool enable_html_export;        /**< 是否编译 HTML 导出模块 */
+    bool enable_file_system;        /**< 是否启用 WASI 文件系统支持 */
+    bool enable_multithreading;     /**< 是否启用 Web Workers 多线程 */
     WasmExportFormat export_format; /**< 导出格式级别 */
-    int stack_size;               /**< WASM 栈大小（字节），默认 1MB */
-    const char *module_name;      /**< WASM 模块名称（用于 TypeScript 绑定） */
-    const char *output_dir;       /**< 编译输出目录 */
+    int stack_size;                 /**< WASM 栈大小（字节），默认 1MB */
+    const char *module_name;        /**< WASM 模块名称（用于 TypeScript 绑定） */
+    const char *output_dir;         /**< 编译输出目录 */
 };
 
 /* ============== GCL 命令结构体 ============== */
@@ -170,11 +171,11 @@ struct WasmExportConfig {
  * 借鉴 GCLC 的命令解析和执行的命令行参数风格。
  */
 struct GCLCommand {
-    GCLCommandType type;          /**< 命令类型 */
-    char label[128];              /**< 命令标签（如点名 A、线名 a） */
-    char params[4][256];          /**< 参数列表（最多4个参数，每个最长255字符） */
-    int param_count;              /**< 实际参数数量 */
-    char description[512];        /**< 命令描述/注释文本 */
+    GCLCommandType type;   /**< 命令类型 */
+    char label[128];       /**< 命令标签（如点名 A、线名 a） */
+    char params[4][256];   /**< 参数列表（最多4个参数，每个最长255字符） */
+    int param_count;       /**< 实际参数数量 */
+    char description[512]; /**< 命令描述/注释文本 */
 };
 
 /* ============== GCL 上下文结构体 ============== */
@@ -187,31 +188,31 @@ struct GCLCommand {
  * 一个上下文对应于一个 .geo 文件的完整解析结果。
  */
 struct GCLContext {
-    GCLCommand **commands;             /**< 命令列表（动态数组） */
-    int command_count;                 /**< 已解析的命令数量 */
-    int command_capacity;              /**< 命令数组容量 */
+    GCLCommand **commands; /**< 命令列表（动态数组） */
+    int command_count;     /**< 已解析的命令数量 */
+    int command_capacity;  /**< 命令数组容量 */
 
-    GCLProofMethod proof_method;       /**< 当前激活的证明方法 */
-    bool proof_method_explicit;        /**< 证明方法是否由用户显式设定 */
+    GCLProofMethod proof_method; /**< 当前激活的证明方法 */
+    bool proof_method_explicit;  /**< 证明方法是否由用户显式设定 */
 
     /* 符号表 */
-    char **symbol_names;               /**< 已注册的符号名称列表 */
-    int *symbol_node_ids;              /**< 对应的约束图节点 ID */
-    int symbol_count;                  /**< 符号数量 */
-    int symbol_capacity;               /**< 符号表容量 */
+    char **symbol_names;  /**< 已注册的符号名称列表 */
+    int *symbol_node_ids; /**< 对应的约束图节点 ID */
+    int symbol_count;     /**< 符号数量 */
+    int symbol_capacity;  /**< 符号表容量 */
 
     /* 关联的约束图（命令执行的目标） */
-    ConstraintGraph *graph;            /**< 执行结果写入的约束图 */
+    ConstraintGraph *graph; /**< 执行结果写入的约束图 */
 
     /* WASM 导出配置 */
-    WasmExportConfig wasm_config;      /**< WASM 编译管道配置 */
+    WasmExportConfig wasm_config; /**< WASM 编译管道配置 */
 
     /* 状态 */
-    bool is_parsed;                    /**< 是否已完成解析 */
-    bool has_errors;                   /**< 是否存在解析/执行错误 */
-    char error_message[1024];          /**< 最近的错误信息 */
-    int current_line;                  /**< 当前解析行号（1-based） */
-    const char *source_file;           /**< 源文件名 */
+    bool is_parsed;           /**< 是否已完成解析 */
+    bool has_errors;          /**< 是否存在解析/执行错误 */
+    char error_message[1024]; /**< 最近的错误信息 */
+    int current_line;         /**< 当前解析行号（1-based） */
+    const char *source_file;  /**< 源文件名 */
 };
 
 /* ============== GCL 证明结果 ============== */
@@ -220,12 +221,12 @@ struct GCLContext {
  * @brief GCL 证明结果状态
  */
 typedef enum {
-    GCL_PROVE_OK              = 0,  /**< 证明成功 */
-    GCL_PROVE_FAIL_UNKNOWN    = 1,  /**< 证明失败 —— 原因未知 */
-    GCL_PROVE_FAIL_TIMEOUT    = 2,  /**< 证明超时 */
-    GCL_PROVE_FAIL_NOT_A_THM  = 3,  /**< 非定理 —— 找到了反例 */
-    GCL_PROVE_FAIL_RESOURCES  = 4,  /**< 资源耗尽（内存/步骤限制） */
-    GCL_PROVE_FAIL_UNDECIDED  = 5   /**< 不可判定 —— 超出证明方法能力 */
+    GCL_PROVE_OK = 0,             /**< 证明成功 */
+    GCL_PROVE_FAIL_UNKNOWN = 1,   /**< 证明失败 —— 原因未知 */
+    GCL_PROVE_FAIL_TIMEOUT = 2,   /**< 证明超时 */
+    GCL_PROVE_FAIL_NOT_A_THM = 3, /**< 非定理 —— 找到了反例 */
+    GCL_PROVE_FAIL_RESOURCES = 4, /**< 资源耗尽（内存/步骤限制） */
+    GCL_PROVE_FAIL_UNDECIDED = 5  /**< 不可判定 —— 超出证明方法能力 */
 } GCLProveResult;
 
 /* ============== 上下文管理 API ============== */

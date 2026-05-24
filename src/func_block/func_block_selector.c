@@ -13,8 +13,8 @@
 #include <string.h>
 
 #include "func_block.h"
-#include "lv00_utils.h"
 #include "lv00_internal.h"
+#include "lv00_utils.h"
 
 /* ============== 内部几何辅助函数 ============== */
 
@@ -31,9 +31,12 @@
  * @return false 点不在区域内或参数无效
  */
 static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *graph) {
-    if (!point || !region || region->type != GEOM_REGION) return false;
-    if (point->coord_count < 2 || !point->symbolic_coords) return false;
-    if (!point->symbolic_coords[0] || !point->symbolic_coords[1]) return false;
+    if (!point || !region || region->type != GEOM_REGION)
+        return false;
+    if (point->coord_count < 2 || !point->symbolic_coords)
+        return false;
+    if (!point->symbolic_coords[0] || !point->symbolic_coords[1])
+        return false;
 
     /* 将候选点的符号坐标转换为浮点数用于射线法计算 */
     double px = symbolic_coord_to_double(point->symbolic_coords[0]);
@@ -98,11 +101,13 @@ static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *
      *     "穿过"了，但方向不对，不应计入。
      */
     /* 【修复】检查 boundary_segments 数组指针是否为空，防止空指针解引用崩溃 */
-    if (!region->data.region.boundary_segments) return false;
+    if (!region->data.region.boundary_segments)
+        return false;
 
     for (int i = 0; i < region->data.region.segment_count; i++) {
         GeomNode *seg = region->data.region.boundary_segments[i];
-        if (!seg || seg->type != GEOM_LINE_SEGMENT) continue;
+        if (!seg || seg->type != GEOM_LINE_SEGMENT)
+            continue;
 
         if (seg->coord_count >= 4 && seg->symbolic_coords) {
             double x1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
@@ -113,7 +118,8 @@ static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *
             /* 检查水平射线 (px, py) -> (+inf, py) 是否与线段相交 */
             double dy = y2 - y1;
             /* 【修复】使用 fabs 统一做除零检查，避免浮点数直接用 == 比较的不可靠性 */
-            if (fabs(dy) < 1e-12) continue;
+            if (fabs(dy) < 1e-12)
+                continue;
             if ((y1 <= py && y2 > py) || (y2 <= py && y1 > py)) {
                 double t = (py - y1) / dy;
                 double x_intersect = x1 + t * (x2 - x1);
@@ -137,8 +143,10 @@ static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *
  * @return 距离平方，无法计算时返回 LV00_DEFAULT_DISTANCE_SQUARED
  */
 static double point_distance(GeomNode *a, GeomNode *b) {
-    if (!a || !b || a->coord_count < 2 || b->coord_count < 2) return LV00_DEFAULT_DISTANCE_SQUARED;
-    if (!a->symbolic_coords || !b->symbolic_coords) return LV00_DEFAULT_DISTANCE_SQUARED;
+    if (!a || !b || a->coord_count < 2 || b->coord_count < 2)
+        return LV00_DEFAULT_DISTANCE_SQUARED;
+    if (!a->symbolic_coords || !b->symbolic_coords)
+        return LV00_DEFAULT_DISTANCE_SQUARED;
 
     /* 提取两个点的二维符号坐标并转换为浮点数 */
     double ax = symbolic_coord_to_double(a->symbolic_coords[0]);
@@ -167,7 +175,8 @@ static double point_distance(GeomNode *a, GeomNode *b) {
  */
 SolutionSelector *selector_create(SelectorType type) {
     SolutionSelector *sel = lv00_malloc(sizeof(SolutionSelector));
-    if (!sel) return NULL;
+    if (!sel)
+        return NULL;
     memset(sel, 0, sizeof(SolutionSelector));
     sel->type = type;
     sel->reference_node_id = -1;
@@ -186,7 +195,8 @@ SolutionSelector *selector_create(SelectorType type) {
  */
 SolutionSelector *selector_create_with_reference(SelectorType type, int reference_node_id) {
     SolutionSelector *sel = selector_create(type);
-    if (!sel) return NULL;
+    if (!sel)
+        return NULL;
     sel->reference_node_id = reference_node_id;
     return sel;
 }
@@ -199,10 +209,12 @@ SolutionSelector *selector_create_with_reference(SelectorType type, int referenc
  * @return 新创建的选择器指针，失败返回 NULL
  */
 SolutionSelector *selector_create_custom(SelectorFunction func, void *user_data) {
-    if (!func) return NULL;
+    if (!func)
+        return NULL;
     /* 复用 selector_create 避免初始化代码重复 */
     SolutionSelector *sel = selector_create(SELECTOR_CUSTOM);
-    if (!sel) return NULL;
+    if (!sel)
+        return NULL;
     sel->custom_func = func;
     sel->user_data = user_data;
     return sel;
@@ -218,8 +230,9 @@ SolutionSelector *selector_create_custom(SelectorFunction func, void *user_data)
  * @param selector 选择器指针
  */
 void selector_destroy(SolutionSelector *selector) {
-    if (!selector) return;
-    lv00_free((void **)&selector);
+    if (!selector)
+        return;
+    lv00_free((void **) &selector);
 }
 
 /**
@@ -231,7 +244,8 @@ void selector_destroy(SolutionSelector *selector) {
  * @param graph    约束图指针
  */
 void selector_set_graph(SolutionSelector *selector, ConstraintGraph *graph) {
-    if (!selector) return;
+    if (!selector)
+        return;
     selector->graph = graph;
 }
 
@@ -245,12 +259,7 @@ void selector_set_graph(SolutionSelector *selector, ConstraintGraph *graph) {
  * @return true  选择成功
  * @return false 选择失败（参数无效或无法找到有效解）
  */
-bool selector_apply(
-    SolutionSelector *selector,
-    GeomNode **candidates,
-    int count,
-    int *out_selected_index)
-{
+bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count, int *out_selected_index) {
     if (!selector || !candidates || count <= 0 || !out_selected_index) {
         return false;
     }
@@ -264,8 +273,7 @@ bool selector_apply(
         /* 策略1：选择正根 - 遍历候选解，取第一个 x 坐标大于 0 的解 */
         case SELECTOR_POSITIVE_ROOT:
             for (int i = 0; i < count; i++) {
-                if (candidates[i] && candidates[i]->coord_count > 0 &&
-                    candidates[i]->symbolic_coords &&
+                if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
                     candidates[i]->symbolic_coords[0]) {
                     double val = symbolic_coord_to_double(candidates[i]->symbolic_coords[0]);
                     /* 检查返回值有效性：纯符号坐标可能无法转换为数值（返回 NaN） */
@@ -281,8 +289,7 @@ bool selector_apply(
         /* 策略2：选择负根 - 遍历候选解，取第一个 x 坐标小于 0 的解 */
         case SELECTOR_NEGATIVE_ROOT:
             for (int i = 0; i < count; i++) {
-                if (candidates[i] && candidates[i]->coord_count > 0 &&
-                    candidates[i]->symbolic_coords &&
+                if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
                     candidates[i]->symbolic_coords[0]) {
                     double val = symbolic_coord_to_double(candidates[i]->symbolic_coords[0]);
                     /* 检查返回值有效性：纯符号坐标可能无法转换为数值（返回 NaN） */
@@ -334,7 +341,8 @@ bool selector_apply(
             int best_idx = -1;
             double best_dist = LV00_DEFAULT_DISTANCE_SQUARED;
             for (int i = 0; i < count; i++) {
-                if (!candidates[i]) continue;
+                if (!candidates[i])
+                    continue;
                 double dist = point_distance(candidates[i], ref_point);
                 if (dist < best_dist) {
                     best_dist = dist;
@@ -352,8 +360,7 @@ bool selector_apply(
         /* 策略5：自定义选择 - 委托给用户提供的回调函数 */
         case SELECTOR_CUSTOM:
             if (selector->custom_func) {
-                return selector->custom_func(candidates, count, out_selected_index,
-                                             selector->user_data);
+                return selector->custom_func(candidates, count, out_selected_index, selector->user_data);
             }
             return false;
 

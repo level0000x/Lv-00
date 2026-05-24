@@ -17,8 +17,8 @@
 #define LV00_FUNC_BLOCK_INTERNAL_H
 
 /* 首先包含 lv00.h 以获取 LV00_THREAD_LOCAL 宏定义 */
-#include "lv00.h"
 #include "func_block.h"
+#include "lv00.h"
 #include "stream.h"
 
 #ifdef __cplusplus
@@ -43,12 +43,12 @@ extern "C" {
  *     func_block_determinism_check_static 之间的重复逻辑。
  */
 typedef struct {
-    int linear_count;      /**< 线性约束计数（INCIDENCE / BETWEENNESS / CONTAINMENT） */
-    int quadratic_count;   /**< 二次约束计数（INTERSECTION） */
-    int connection_count;  /**< 连接约束计数（CONNECTION，不影响确定性） */
-    int steps;             /**< 实际执行的检查步数 */
-    int free_dof;          /**< 自由度数（仅在线性系统中有效） */
-    int total_dof;         /**< 总自由度数 */
+    int linear_count;     /**< 线性约束计数（INCIDENCE / BETWEENNESS / CONTAINMENT） */
+    int quadratic_count;  /**< 二次约束计数（INTERSECTION） */
+    int connection_count; /**< 连接约束计数（CONNECTION，不影响确定性） */
+    int steps;            /**< 实际执行的检查步数 */
+    int free_dof;         /**< 自由度数（仅在线性系统中有效） */
+    int total_dof;        /**< 总自由度数 */
 } DeterminismStaticStats;
 
 /* ==================== 共享函数声明 ==================== */
@@ -68,10 +68,7 @@ typedef struct {
  * @param out_count    输出数量
  * @return true 成功，false 失败或无节点
  */
-bool collect_all_block_ids(
-    const FuncBlock *fb,
-    int **out_ids,
-    int *out_count);
+bool collect_all_block_ids(const FuncBlock *fb, int **out_ids, int *out_count);
 
 /**
  * @brief 收集节点ID列表并统计涉及内部节点的约束类型
@@ -87,11 +84,8 @@ bool collect_all_block_ids(
  * @param stats        输出参数：填充统计结果
  * @return 分配的 all_ids 数组（调用者负责释放），失败返回 NULL
  */
-int* determinism_collect_constraint_stats(
-    const FuncBlock *fb,
-    const ConstraintGraph *graph,
-    int step_limit,
-    DeterminismStaticStats *stats);
+int *determinism_collect_constraint_stats(const FuncBlock *fb, const ConstraintGraph *graph, int step_limit,
+                                          DeterminismStaticStats *stats);
 
 /**
  * @brief 根据线性系统的自由度分析结果判定确定性

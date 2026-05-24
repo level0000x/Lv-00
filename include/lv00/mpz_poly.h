@@ -18,9 +18,9 @@ extern "C" {
 #endif
 
 #include <gmp.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 #ifndef MPZ_POLY_T_DEFINED
 #define MPZ_POLY_T_DEFINED
@@ -62,10 +62,13 @@ static inline void mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
 }
 
 static inline int mpz_poly_equal(const mpz_poly_t *a, const mpz_poly_t *b) {
-    if (a->degree != b->degree) return 0;
-    if (a->degree < 0) return 1;  /* 两个零多项式相等 */
+    if (a->degree != b->degree)
+        return 0;
+    if (a->degree < 0)
+        return 1; /* 两个零多项式相等 */
     for (int i = 0; i <= a->degree; i++) {
-        if (mpz_cmp(a->coeffs[i], b->coeffs[i]) != 0) return 0;
+        if (mpz_cmp(a->coeffs[i], b->coeffs[i]) != 0)
+            return 0;
     }
     return 1;
 }
@@ -78,7 +81,7 @@ static inline bool mpz_poly_alloc_result(mpz_poly_t *result, int max_deg) {
         result->coeffs = NULL;
         return true;
     }
-    result->coeffs = malloc((size_t)(max_deg + 1) * sizeof(mpz_t));
+    result->coeffs = malloc((size_t) (max_deg + 1) * sizeof(mpz_t));
     if (!result->coeffs) {
         result->degree = -1;
         return false;
@@ -93,7 +96,7 @@ static inline bool mpz_poly_alloc_result(mpz_poly_t *result, int max_deg) {
 /* 内部辅助：归一化结果（移除尾部零，正确清理GMP内存） */
 static inline void mpz_poly_normalize(mpz_poly_t *result) {
     while (result->degree >= 0 && mpz_cmp_si(result->coeffs[result->degree], 0) == 0) {
-        mpz_clear(result->coeffs[result->degree]);  /* 防止GMP内存泄漏 */
+        mpz_clear(result->coeffs[result->degree]); /* 防止GMP内存泄漏 */
         result->degree--;
     }
     if (result->degree < 0) {
@@ -107,19 +110,20 @@ static inline void mpz_poly_normalize(mpz_poly_t *result) {
  * 警告：此宏内部包含 return 语句，因此只能在返回类型为 void 的函数中使用。
  * 在非 void 函数中展开此宏将导致编译错误或未定义行为。
  */
-#define MPZ_POLY_BINARY_OP(result, a, b, op) \
-    do { \
-        mpz_poly_clear(result); \
+#define MPZ_POLY_BINARY_OP(result, a, b, op)                                 \
+    do {                                                                     \
+        mpz_poly_clear(result);                                              \
         int max_deg = (a)->degree > (b)->degree ? (a)->degree : (b)->degree; \
-        if (!mpz_poly_alloc_result(result, max_deg)) return; \
-        for (int i = 0; i <= (a)->degree; i++) { \
-            mpz_set(result->coeffs[i], (a)->coeffs[i]); \
-        } \
-        for (int i = 0; i <= (b)->degree; i++) { \
-            op(result->coeffs[i], result->coeffs[i], (b)->coeffs[i]); \
-        } \
-        mpz_poly_normalize(result); \
-    } while(0)
+        if (!mpz_poly_alloc_result(result, max_deg))                         \
+            return;                                                          \
+        for (int i = 0; i <= (a)->degree; i++) {                             \
+            mpz_set(result->coeffs[i], (a)->coeffs[i]);                      \
+        }                                                                    \
+        for (int i = 0; i <= (b)->degree; i++) {                             \
+            op(result->coeffs[i], result->coeffs[i], (b)->coeffs[i]);        \
+        }                                                                    \
+        mpz_poly_normalize(result);                                          \
+    } while (0)
 
 static inline void mpz_poly_add(mpz_poly_t *result, const mpz_poly_t *a, const mpz_poly_t *b) {
     MPZ_POLY_BINARY_OP(result, a, b, mpz_add);
@@ -141,7 +145,7 @@ static inline void mpz_poly_mul(mpz_poly_t *result, const mpz_poly_t *a, const m
         return;
     }
     int new_degree = a->degree + b->degree;
-    size_t coeff_count = (size_t)new_degree + 1;
+    size_t coeff_count = (size_t) new_degree + 1;
     if (coeff_count > SIZE_MAX / sizeof(mpz_t)) {
         result->degree = -1;
         return;
@@ -217,11 +221,11 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
     }
 }
 
-static inline char* mpz_poly_get_str(const mpz_poly_t *p) {
+static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
     if (p->degree < 0) {
         return strdup("0");
     }
-    char **coeff_strs = malloc((p->degree + 1) * sizeof(char*));
+    char **coeff_strs = malloc((p->degree + 1) * sizeof(char *));
     size_t total_len = 0;
     for (int i = 0; i <= p->degree; i++) {
         coeff_strs[i] = mpz_get_str(NULL, 10, p->coeffs[i]);
@@ -230,7 +234,8 @@ static inline char* mpz_poly_get_str(const mpz_poly_t *p) {
     char *result = malloc(total_len + 1);
     result[0] = '\0';
     for (int i = 0; i <= p->degree; i++) {
-        if (i > 0) strcat(result, ",");
+        if (i > 0)
+            strcat(result, ",");
         strcat(result, coeff_strs[i]);
     }
     for (int i = 0; i <= p->degree; i++) {
@@ -246,8 +251,8 @@ static inline char* mpz_poly_get_str(const mpz_poly_t *p) {
  * @brief 代数数运算类型枚举
  */
 typedef enum {
-    ALG_OP_SUM,      /**< 加法运算 */
-    ALG_OP_PRODUCT   /**< 乘法运算 */
+    ALG_OP_SUM,    /**< 加法运算 */
+    ALG_OP_PRODUCT /**< 乘法运算 */
 } AlgebraicOp;
 
 /**
@@ -263,8 +268,7 @@ typedef enum {
  * @param[out] result 结果多项式（调用者需用 mpz_poly_clear 释放）
  * @return true 成功，false 失败（度数超过 4 或其他错误）
  */
-bool mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q,
-                        AlgebraicOp op, mpz_poly_t *result);
+bool mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op, mpz_poly_t *result);
 
 #ifdef __cplusplus
 }

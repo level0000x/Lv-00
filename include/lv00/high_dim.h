@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "constraint_graph.h"
 #include "symbolic_coord.h"
 
@@ -52,39 +53,39 @@ extern "C" {
  * 定义高维坐标轴如何映射到二维画布
  */
 typedef enum {
-    HIGH_DIM_MAP_TO_X = 0,      /**< 映射到X轴 */
-    HIGH_DIM_MAP_TO_Y,          /**< 映射到Y轴 */
-    HIGH_DIM_MAP_FOLD,          /**< 折叠（不显示） */
-    HIGH_DIM_MAP_DISCARD        /**< 丢弃 */
+    HIGH_DIM_MAP_TO_X = 0, /**< 映射到X轴 */
+    HIGH_DIM_MAP_TO_Y,     /**< 映射到Y轴 */
+    HIGH_DIM_MAP_FOLD,     /**< 折叠（不显示） */
+    HIGH_DIM_MAP_DISCARD   /**< 丢弃 */
 } HighDimMappingType;
 
 /**
  * @brief 高维坐标轴映射配置
  */
 typedef struct {
-    int axis_index;                     /**< 高维坐标轴索引 */
-    HighDimMappingType mapping_type;    /**< 映射类型 */
-    double scale;                       /**< 缩放因子 */
-    double offset;                      /**< 偏移量 */
+    int axis_index;                  /**< 高维坐标轴索引 */
+    HighDimMappingType mapping_type; /**< 映射类型 */
+    double scale;                    /**< 缩放因子 */
+    double offset;                   /**< 偏移量 */
 } HighDimAxisMapping;
 
 /**
  * @brief 线性变换矩阵（2x2，用于投影旋转和缩放）
  */
 typedef struct {
-    double m[2][2];     /**< 2x2矩阵元素 */
+    double m[2][2]; /**< 2x2矩阵元素 */
 } HighDimTransform2D;
 
 /**
  * @brief 投影预设配置
  */
 typedef struct {
-    char name[HIGH_DIM_PROJECTION_NAME_MAX];  /**< 投影名称 */
-    int dimension_count;                        /**< 高维对象的维度数 */
-    int mapping_count;                          /**< 映射配置数量 */
-    HighDimAxisMapping mappings[HIGH_DIM_MAX_DIMENSIONS];  /**< 轴映射配置 */
-    HighDimTransform2D transform;               /**< 2D变换矩阵 */
-    bool is_default;                            /**< 是否为默认投影 */
+    char name[HIGH_DIM_PROJECTION_NAME_MAX];              /**< 投影名称 */
+    int dimension_count;                                  /**< 高维对象的维度数 */
+    int mapping_count;                                    /**< 映射配置数量 */
+    HighDimAxisMapping mappings[HIGH_DIM_MAX_DIMENSIONS]; /**< 轴映射配置 */
+    HighDimTransform2D transform;                         /**< 2D变换矩阵 */
+    bool is_default;                                      /**< 是否为默认投影 */
 } HighDimProjectionPreset;
 
 /**
@@ -93,42 +94,42 @@ typedef struct {
  * 四维及以上数学对象的抽象表示
  */
 typedef struct {
-    int block_id;                               /**< 关联的函数块ID */
-    int dimension_count;                        /**< 维度数 */
-    int preset_count;                           /**< 投影预设数量 */
-    HighDimProjectionPreset presets[HIGH_DIM_MAX_PROJECTION_PRESETS];  /**< 投影预设数组 */
-    int current_preset_index;                   /**< 当前使用的预设索引 */
-    double fidelity_ratio;                      /**< 当前保真度比例 */
+    int block_id;                                                     /**< 关联的函数块ID */
+    int dimension_count;                                              /**< 维度数 */
+    int preset_count;                                                 /**< 投影预设数量 */
+    HighDimProjectionPreset presets[HIGH_DIM_MAX_PROJECTION_PRESETS]; /**< 投影预设数组 */
+    int current_preset_index;                                         /**< 当前使用的预设索引 */
+    double fidelity_ratio;                                            /**< 当前保真度比例 */
 } HighDimAbstractBlock;
 
 /**
  * @brief 高维块管理器
  */
 typedef struct {
-    HighDimAbstractBlock *blocks;   /**< 高维块数组 */
-    int block_count;                /**< 块数量 */
-    int block_capacity;             /**< 数组容量 */
-    int perspective_depth;          /**< 当前语义缩放透视深度 */
-    int perspective_stack[HIGH_DIM_MAX_DEPTH];  /**< 语义缩放深度栈，记录各级进入的block_id */
+    HighDimAbstractBlock *blocks;              /**< 高维块数组 */
+    int block_count;                           /**< 块数量 */
+    int block_capacity;                        /**< 数组容量 */
+    int perspective_depth;                     /**< 当前语义缩放透视深度 */
+    int perspective_stack[HIGH_DIM_MAX_DEPTH]; /**< 语义缩放深度栈，记录各级进入的block_id */
 } HighDimManager;
 
 /**
  * @brief 可见关系统计
  */
 typedef struct {
-    int total_relations;            /**< 总关系数 */
-    int visible_relations;          /**< 可见关系数 */
-    double fidelity_ratio;          /**< 保真度比例 */
+    int total_relations;   /**< 总关系数 */
+    int visible_relations; /**< 可见关系数 */
+    double fidelity_ratio; /**< 保真度比例 */
 } HighDimVisibilityStats;
 
 /**
  * @brief 投影坐标结果
  */
 typedef struct {
-    double x;           /**< 投影后的X坐标 */
-    double y;           /**< 投影后的Y坐标 */
-    bool is_valid;      /**< 投影是否有效 */
-    char folded_info[256];  /**< 被折叠维度的信息标注 */
+    double x;              /**< 投影后的X坐标 */
+    double y;              /**< 投影后的Y坐标 */
+    bool is_valid;         /**< 投影是否有效 */
+    char folded_info[256]; /**< 被折叠维度的信息标注 */
 } HighDimProjectedCoord;
 
 /* ==================== 生命周期管理 ==================== */
@@ -137,7 +138,7 @@ typedef struct {
  * @brief 创建高维管理器
  * @return 高维管理器指针，失败返回NULL
  */
-HighDimManager* high_dim_manager_create(void);
+HighDimManager *high_dim_manager_create(void);
 
 /**
  * @brief 销毁高维管理器
@@ -180,7 +181,7 @@ int high_dim_unregister_block(HighDimManager *manager, int block_id);
  * @param block_id 函数块ID
  * @return 高维块指针，未找到返回NULL
  */
-HighDimAbstractBlock* high_dim_get_block(HighDimManager *manager, int block_id);
+HighDimAbstractBlock *high_dim_get_block(HighDimManager *manager, int block_id);
 
 /* ==================== 投影预设管理 ==================== */
 
@@ -194,8 +195,7 @@ HighDimAbstractBlock* high_dim_get_block(HighDimManager *manager, int block_id);
  * @param preset 投影预设配置
  * @return 成功返回预设索引，失败返回错误码
  */
-int high_dim_add_projection_preset(HighDimManager *manager, int block_id,
-                                   const HighDimProjectionPreset *preset);
+int high_dim_add_projection_preset(HighDimManager *manager, int block_id, const HighDimProjectionPreset *preset);
 
 /**
  * @brief 删除投影预设
@@ -221,7 +221,7 @@ int high_dim_set_current_preset(HighDimManager *manager, int block_id, int prese
  * @param block_id 函数块ID
  * @return 当前预设指针，失败返回NULL
  */
-const HighDimProjectionPreset* high_dim_get_current_preset(const HighDimManager *manager, int block_id);
+const HighDimProjectionPreset *high_dim_get_current_preset(const HighDimManager *manager, int block_id);
 
 /**
  * @brief 创建默认投影预设
@@ -248,9 +248,8 @@ int high_dim_create_default_preset(int dimension_count, HighDimProjectionPreset 
  * @param projected 输出投影坐标
  * @return 成功返回0，失败返回错误码
  */
-int high_dim_project_coordinates(HighDimManager *manager, int block_id,
-                                 const SymbolicCoord **high_dim_coords, int coord_count,
-                                 HighDimProjectedCoord *projected);
+int high_dim_project_coordinates(HighDimManager *manager, int block_id, const SymbolicCoord **high_dim_coords,
+                                 int coord_count, HighDimProjectedCoord *projected);
 
 /**
  * @brief 应用2D变换
@@ -262,8 +261,7 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id,
  * @param result 输出变换后的坐标
  * @return 成功返回0，失败返回错误码
  */
-int high_dim_apply_transform(const HighDimProjectedCoord *coord,
-                             const HighDimTransform2D *transform,
+int high_dim_apply_transform(const HighDimProjectedCoord *coord, const HighDimTransform2D *transform,
                              HighDimProjectedCoord *result);
 
 /**
@@ -296,8 +294,7 @@ int high_dim_create_scale_transform(double scale_x, double scale_y, HighDimTrans
  * @param stats 输出统计信息
  * @return 成功返回0，失败返回错误码
  */
-int high_dim_calculate_fidelity(HighDimManager *manager, int block_id,
-                                const ConstraintGraph *constraint_graph,
+int high_dim_calculate_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *constraint_graph,
                                 HighDimVisibilityStats *stats);
 
 /**
@@ -320,8 +317,7 @@ int high_dim_is_fidelity_below_threshold(const HighDimManager *manager, int bloc
  * @param buffer_size 缓冲区大小
  * @return 成功返回0，失败返回错误码
  */
-int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id,
-                                  char *buffer, size_t buffer_size);
+int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id, char *buffer, size_t buffer_size);
 
 /* ==================== 语义缩放 ==================== */
 
@@ -364,9 +360,8 @@ int high_dim_get_current_depth(const HighDimManager *manager);
  * @param view_ids 输出视图ID数组
  * @return 成功返回0，失败返回错误码
  */
-int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id,
-                                          const int *preset_indices, int preset_count,
-                                          int *view_ids);
+int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id, const int *preset_indices,
+                                          int preset_count, int *view_ids);
 
 /**
  * @brief 销毁多投影视图
@@ -398,8 +393,7 @@ int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int vi
  * @param buffer_size 缓冲区大小
  * @return 成功返回写入字节数，失败返回错误码
  */
-int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset,
-                                   char *buffer, size_t buffer_size);
+int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size);
 
 /**
  * @brief 从JSON反序列化投影预设
@@ -433,8 +427,7 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
  * @param coord_3d 输出的3D坐标数组（长度>=3，调用者分配）
  * @return LV00_OK 成功，LV00_ERROR_INVALID_PARAM 参数无效
  */
-int high_dim_project_to_3d(const double *coord_4d, int dim_count,
-                           double camera_distance, int projection_mode,
+int high_dim_project_to_3d(const double *coord_4d, int dim_count, double camera_distance, int projection_mode,
                            double *coord_3d);
 
 /* ==================== 保真度计算（增强版） ==================== */
@@ -458,18 +451,17 @@ int high_dim_project_to_3d(const double *coord_4d, int dim_count,
  * @param stats 输出统计信息
  * @return LV00_OK 成功，错误码见返回值
  */
-int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
-                              const ConstraintGraph *constraint_graph,
+int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *constraint_graph,
                               HighDimVisibilityStats *stats);
 
 /* ==================== 多视图管理（统一接口） ==================== */
 
 /** 多视图管理操作：列出所有活跃视图 */
-#define MULTIVIEW_OP_LIST   0
+#define MULTIVIEW_OP_LIST 0
 /** 多视图管理操作：获取活跃视图数量 */
-#define MULTIVIEW_OP_COUNT  1
+#define MULTIVIEW_OP_COUNT 1
 /** 多视图管理操作：清除所有视图 */
-#define MULTIVIEW_OP_CLEAR  2
+#define MULTIVIEW_OP_CLEAR 2
 /** 多视图管理操作：按block_id过滤列出活跃视图（count复用为block_id输入） */
 #define MULTIVIEW_OP_LIST_BY_BLOCK 3
 /** 多视图管理操作：视图状态JSON导出（view_ids作为字符缓冲区） */
@@ -491,8 +483,7 @@ int high_dim_compute_fidelity(HighDimManager *manager, int block_id,
  * @param count 输入/输出参数（语义随operation变化）
  * @return LV00_OK 成功，错误码见返回值
  */
-int high_dim_manage_multi_views(HighDimManager *manager, int operation,
-                                int *view_ids, int *count);
+int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *view_ids, int *count);
 
 /* ==================== 工具函数 ==================== */
 
@@ -503,16 +494,14 @@ int high_dim_manage_multi_views(HighDimManager *manager, int operation,
  * @param mapping_count 映射数量
  * @return 有效返回1，无效返回0
  */
-int high_dim_validate_mapping(int dimension_count,
-                              const HighDimAxisMapping *mappings,
-                              int mapping_count);
+int high_dim_validate_mapping(int dimension_count, const HighDimAxisMapping *mappings, int mapping_count);
 
 /**
  * @brief 获取映射类型字符串
  * @param mapping_type 映射类型
  * @return 类型字符串
  */
-const char* high_dim_mapping_type_to_string(HighDimMappingType mapping_type);
+const char *high_dim_mapping_type_to_string(HighDimMappingType mapping_type);
 
 /**
  * @brief 从字符串解析映射类型
@@ -528,13 +517,10 @@ HighDimMappingType high_dim_mapping_type_from_string(const char *str);
  * @param buffer_size 缓冲区大小
  * @return 成功返回0，失败返回错误码
  */
-int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset,
-                                        char *buffer, size_t buffer_size);
+int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* LV00_HIGH_DIM_H */
-
-

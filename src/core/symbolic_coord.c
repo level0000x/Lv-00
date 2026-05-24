@@ -12,16 +12,18 @@
  */
 
 #include "symbolic_coord.h"
-#include "lv00_internal.h"
-#include "mpz_poly.h"
-#include "debug.h"
+
 #include <gmp.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
+
+#include "debug.h"
+#include "lv00_internal.h"
+#include "mpz_poly.h"
 
 /*
  * BIT_CUTOFF_THRESHOLD 和 MAX_PRECISION_BITS 现在定义在 lv00_internal.h 中，
@@ -110,9 +112,11 @@ static LV00_THREAD_LOCAL void *g_circuit_user_data = NULL;
  * @return 新创建的有理数对象，失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_create(int64_t numerator, uint64_t denominator) {
-    if (denominator == 0) return NULL;
+    if (denominator == 0)
+        return NULL;
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     /* 修复：使用 mpz_set_str 通过字符串中转，避免 int64_t 到 long 的截断。
      * 在 Windows 64 位 (LLP64) 下 long 为 32 位，
@@ -120,8 +124,8 @@ Rational *rational_create(int64_t numerator, uint64_t denominator) {
     {
         char numer_str[21]; /* int64_t 最大值为 9223372036854775807，占 19 位 + 符号 + '\0' */
         char denom_str[21]; /* uint64_t 最大值为 18446744073709551615，占 20 位 + '\0' */
-        snprintf(numer_str, sizeof(numer_str), "%" PRId64, (int64_t)numerator);
-        snprintf(denom_str, sizeof(denom_str), "%" PRIu64, (uint64_t)denominator);
+        snprintf(numer_str, sizeof(numer_str), "%" PRId64, (int64_t) numerator);
+        snprintf(denom_str, sizeof(denom_str), "%" PRIu64, (uint64_t) denominator);
         /* 防御性检查：mpq_numref/mpq_denref 在 GMP 中理论上不会返回 NULL
          * （mpq_init 后已分配内部存储），但为健壮性仍做检查，
          * 防止在极端环境下出现未定义行为。 */
@@ -129,7 +133,7 @@ Rational *rational_create(int64_t numerator, uint64_t denominator) {
         mpz_ptr den_ptr = mpq_denref(r->value);
         if (!num_ptr || !den_ptr) {
             mpq_clear(r->value);
-            lv00_free((void **)&r);
+            lv00_free((void **) &r);
             return NULL;
         }
         mpz_set_str(num_ptr, numer_str, 10);
@@ -148,7 +152,8 @@ Rational *rational_create(int64_t numerator, uint64_t denominator) {
  */
 Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominator) {
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     mpq_set_num(r->value, numerator);
     mpq_set_den(r->value, denominator);
@@ -157,9 +162,11 @@ Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominato
 }
 
 Rational *rational_copy(const Rational *src) {
-    if (!src) return NULL;
+    if (!src)
+        return NULL;
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     mpq_set(r->value, src->value);
     return r;
@@ -168,7 +175,7 @@ Rational *rational_copy(const Rational *src) {
 void rational_destroy(Rational *r) {
     if (r) {
         mpq_clear(r->value);
-        lv00_free((void **)&r);
+        lv00_free((void **) &r);
     }
 }
 
@@ -185,7 +192,8 @@ int rational_compare(const Rational *a, const Rational *b) {
  */
 Rational *rational_add(const Rational *a, const Rational *b) {
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     mpq_add(r->value, a->value, b->value);
     return r;
@@ -193,7 +201,8 @@ Rational *rational_add(const Rational *a, const Rational *b) {
 
 Rational *rational_subtract(const Rational *a, const Rational *b) {
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     mpq_sub(r->value, a->value, b->value);
     return r;
@@ -208,7 +217,8 @@ Rational *rational_subtract(const Rational *a, const Rational *b) {
  */
 Rational *rational_multiply(const Rational *a, const Rational *b) {
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     mpq_mul(r->value, a->value, b->value);
     return r;
@@ -222,9 +232,11 @@ Rational *rational_multiply(const Rational *a, const Rational *b) {
  * @return 新的有理数对象表示 a / b，除数为零或失败时返回 NULL；调用者需负责释放
  */
 Rational *rational_divide(const Rational *a, const Rational *b) {
-    if (mpq_cmp_ui(b->value, 0, 1) == 0) return NULL;
+    if (mpq_cmp_ui(b->value, 0, 1) == 0)
+        return NULL;
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     mpq_div(r->value, a->value, b->value);
     return r;
@@ -241,7 +253,8 @@ Rational *rational_divide(const Rational *a, const Rational *b) {
  */
 char *rational_serialize(const Rational *r) {
     /* 空指针检查：调用者不得传入 NULL */
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
 
     /* 获取分子和分母的十进制位数。
      * mpz_sizeinbase 返回的是 size_t，两个大值相加可能溢出。
@@ -250,8 +263,7 @@ char *rational_serialize(const Rational *r) {
     size_t den_digits = mpz_sizeinbase(mpq_denref(r->value), 10);
 
     /* 溢出检查：防止 num_digits + den_digits + 8 超过 SIZE_MAX */
-    if (num_digits > SIZE_MAX - den_digits ||
-        num_digits + den_digits > SIZE_MAX - 8) {
+    if (num_digits > SIZE_MAX - den_digits || num_digits + den_digits > SIZE_MAX - 8) {
         return NULL; /* 数值过大，无法安全分配缓冲区 */
     }
 
@@ -259,7 +271,8 @@ char *rational_serialize(const Rational *r) {
      * 防止边界情况下的缓冲区溢出 */
     size_t buf_size = num_digits + den_digits + 4 + 4;
     char *buf = lv00_malloc(buf_size);
-    if (!buf) return NULL;
+    if (!buf)
+        return NULL;
     char *num_str = mpz_get_str(NULL, 10, mpq_numref(r->value));
     char *den_str = mpz_get_str(NULL, 10, mpq_denref(r->value));
     snprintf(buf, buf_size, "%s/%s", num_str, den_str);
@@ -270,11 +283,12 @@ char *rational_serialize(const Rational *r) {
 
 Rational *rational_parse(const char *str) {
     Rational *r = lv00_malloc(sizeof(Rational));
-    if (!r) return NULL;
+    if (!r)
+        return NULL;
     mpq_init(r->value);
     if (mpq_set_str(r->value, str, 10) != 0) {
         mpq_clear(r->value);
-        lv00_free((void **)&r);
+        lv00_free((void **) &r);
         return NULL;
     }
     mpq_canonicalize(r->value);
@@ -303,7 +317,8 @@ static double rational_to_double(const Rational *r) {
  * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
  */
 static CircuitStatus check_rational_circuit(const Rational *r) {
-    if (!r) return CIRCUIT_STATUS_OK;
+    if (!r)
+        return CIRCUIT_STATUS_OK;
     size_t num_bits = mpz_sizeinbase(mpq_numref(r->value), 2);
     size_t den_bits = mpz_sizeinbase(mpq_denref(r->value), 2);
     if (num_bits + den_bits > LV00_BIT_CUTOFF_THRESHOLD) {
@@ -321,12 +336,14 @@ static CircuitStatus check_rational_circuit(const Rational *r) {
  * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
  */
 static CircuitStatus check_algebraic_circuit(const Algebraic *a) {
-    if (!a) return CIRCUIT_STATUS_OK;
+    if (!a)
+        return CIRCUIT_STATUS_OK;
 
     /* 检查缓存的有理数（如果存在） */
     if (a->cached_rational) {
         CircuitStatus status = check_rational_circuit(a->cached_rational);
-        if (status == CIRCUIT_STATUS_TRIPPED) return CIRCUIT_STATUS_TRIPPED;
+        if (status == CIRCUIT_STATUS_TRIPPED)
+            return CIRCUIT_STATUS_TRIPPED;
     }
 
     /* 检查多项式系数 */
@@ -336,7 +353,7 @@ static CircuitStatus check_algebraic_circuit(const Algebraic *a) {
             return CIRCUIT_STATUS_TRIPPED;
         }
     }
-    
+
     return CIRCUIT_STATUS_OK;
 }
 
@@ -347,7 +364,8 @@ static CircuitStatus check_algebraic_circuit(const Algebraic *a) {
  * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
  */
 static CircuitStatus check_quadratic_circuit(const Quadratic *q) {
-    if (!q) return CIRCUIT_STATUS_OK;
+    if (!q)
+        return CIRCUIT_STATUS_OK;
     CircuitStatus status_a = check_rational_circuit(q->a);
     CircuitStatus status_b = check_rational_circuit(q->b);
     if (status_a == CIRCUIT_STATUS_TRIPPED || status_b == CIRCUIT_STATUS_TRIPPED) {
@@ -367,7 +385,8 @@ static CircuitStatus check_quadratic_circuit(const Quadratic *q) {
  * @return CIRCUIT_STATUS_OK 表示正常，CIRCUIT_STATUS_TRIPPED 表示超过阈值
  */
 CircuitStatus check_digit_circuit(const SymbolicCoord *coord) {
-    if (!coord) return CIRCUIT_STATUS_OK;
+    if (!coord)
+        return CIRCUIT_STATUS_OK;
 
     switch (coord->type) {
         case RATIONAL:
@@ -377,7 +396,7 @@ CircuitStatus check_digit_circuit(const SymbolicCoord *coord) {
         case QUADRATIC:
             return check_quadratic_circuit(coord->data.quadratic);
         case TRANSCENDENTAL:
-            return CIRCUIT_STATUS_OK;  /* 超越数没有比特位需要检查 */
+            return CIRCUIT_STATUS_OK; /* 超越数没有比特位需要检查 */
     }
     return CIRCUIT_STATUS_OK;
 }
@@ -395,8 +414,8 @@ void circuit_handle_overflow(void) {
 
     /* 记录溢出事件 */
     LOG_WARN("[BIT CIRCUIT TRIPPED] Operation: %s, Count: %d\n",
-            g_overflow_context.last_operation ? g_overflow_context.last_operation : "unknown",
-            g_overflow_context.overflow_count);
+             g_overflow_context.last_operation ? g_overflow_context.last_operation : "unknown",
+             g_overflow_context.overflow_count);
 
     /* 连续3次触发后，建议永久降级 */
     if (g_overflow_context.overflow_count >= LV00_CIRCUIT_OVERFLOW_THRESHOLD) {
@@ -450,7 +469,8 @@ int circuit_get_overflow_count(void) {
  * @return 多项式在 x 处的值
  */
 static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
-    if (poly->degree < 0) return 0.0;
+    if (poly->degree < 0)
+        return 0.0;
     double result = 0.0;
     double x_pow = 1.0;
     for (int i = 0; i <= poly->degree; i++) {
@@ -469,19 +489,20 @@ static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
  * @param iterations 迭代次数
  */
 static void refine_algebraic_bounds(Algebraic *a, int iterations) {
-    if (a->minimal_poly.degree < 1) return;
-    
+    if (a->minimal_poly.degree < 1)
+        return;
+
     for (int iter = 0; iter < iterations; iter++) {
         double mid = (a->left_bound + a->right_bound) / 2.0;
         double val_mid = evaluate_poly_at_double(&a->minimal_poly, mid);
         double val_left = evaluate_poly_at_double(&a->minimal_poly, a->left_bound);
-        
+
         if (fabs(val_mid) < LV00_EPSILON_NEWTON) {
             a->left_bound = mid - LV00_EPSILON_NEWTON;
             a->right_bound = mid + LV00_EPSILON_NEWTON;
             return;
         }
-        
+
         if (val_left * val_mid < 0) {
             a->right_bound = mid;
         } else {
@@ -507,7 +528,7 @@ static void evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly,
 
     /* Horner 法则：从最高次项系数开始 */
     for (int i = poly->degree; i >= 0; i--) {
-        if (i == (int)poly->degree) {
+        if (i == (int) poly->degree) {
             mpq_set_z(val, poly->coeffs[i]);
         } else {
             mpq_mul(val, val, r->value);
@@ -538,13 +559,17 @@ static void evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly,
  * @return 找到合适近似返回 true，否则返回 false
  */
 static bool continued_fraction_approx(double value, double epsilon, mpq_t result) {
-    if (epsilon <= 0.0) return false;
+    if (epsilon <= 0.0)
+        return false;
 
     mpz_t h_prev, h_curr, k_prev, k_curr;
     mpz_t h_next, k_next, a;
-    mpz_init(h_prev); mpz_init(h_curr);
-    mpz_init(k_prev); mpz_init(k_curr);
-    mpz_init(h_next); mpz_init(k_next);
+    mpz_init(h_prev);
+    mpz_init(h_curr);
+    mpz_init(k_prev);
+    mpz_init(k_curr);
+    mpz_init(h_next);
+    mpz_init(k_next);
     mpz_init(a);
 
     /* found 必须在任何 goto cleanup 之前初始化，避免通过 cleanup: 返回未定义值。
@@ -553,16 +578,20 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
 
     /* 单独处理符号 */
     bool negative = (value < 0.0);
-    if (negative) value = -value;
+    if (negative)
+        value = -value;
 
     /* 检查 value 是否过大，避免 unsigned long long 转换截断。
      * 使用 ULLONG_MAX（来自 <limits.h>）转为 double 进行安全比较。 */
-    double max_ull_as_double = (double)ULLONG_MAX;
+    double max_ull_as_double = (double) ULLONG_MAX;
     if (value > max_ull_as_double) {
         /* 值过大，无法用 unsigned long long 表示，直接返回失败 */
-        mpz_clear(h_prev); mpz_clear(h_curr);
-        mpz_clear(k_prev); mpz_clear(k_curr);
-        mpz_clear(h_next); mpz_clear(k_next);
+        mpz_clear(h_prev);
+        mpz_clear(h_curr);
+        mpz_clear(k_prev);
+        mpz_clear(k_curr);
+        mpz_clear(h_next);
+        mpz_clear(k_next);
         mpz_clear(a);
         return false;
     }
@@ -577,7 +606,7 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
      */
     mpz_set_ui(h_prev, 1);
     mpz_set_ui(k_prev, 0);
-    mpz_set_ui(h_curr, (unsigned long long)int_part_d);
+    mpz_set_ui(h_curr, (unsigned long long) int_part_d);
     mpz_set_ui(k_curr, 1);
 
     size_t bit_limit = LV00_BIT_CUTOFF_THRESHOLD / 2;
@@ -585,7 +614,8 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
     /* 检查整数部分本身是否已经是足够好的近似 */
     mpq_set_num(result, h_curr);
     mpq_set_den(result, k_curr);
-    if (negative) mpq_neg(result, result);
+    if (negative)
+        mpq_neg(result, result);
     double approx = mpq_get_d(result);
     if (fabs(approx - (negative ? -value : value)) < epsilon) {
         found = true;
@@ -598,7 +628,8 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
      *                      k_{n+1} = a_{n+1}*k_n + k_{n-1}
      */
     for (int iter = 0; iter < LV00_CONTINUED_FRACTION_MAX_ITER; iter++) {
-        if (frac < LV00_EPSILON_FRACTION_ZERO) break; /* 分数部分实际上为0 */
+        if (frac < LV00_EPSILON_FRACTION_ZERO)
+            break; /* 分数部分实际上为0 */
 
         double inv_frac = 1.0 / frac;
         double a_d;
@@ -608,9 +639,9 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
          * 检查 a_d 是否在 unsigned long long 范围内，避免转换截断。
          * 使用 ULLONG_MAX（来自 <limits.h>）转为 double 进行安全比较。 */
         if (a_d < 0.0 || a_d > max_ull_as_double) {
-            break;  /* 部分商超出范围，终止迭代 */
+            break; /* 部分商超出范围，终止迭代 */
         }
-        mpz_set_ui(a, (unsigned long long)a_d);
+        mpz_set_ui(a, (unsigned long long) a_d);
 
         /* h_{n+1} = a * h_curr + h_prev */
         mpz_mul(h_next, a, h_curr);
@@ -636,7 +667,8 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
         /* 检查近似质量 */
         mpq_set_num(result, h_curr);
         mpq_set_den(result, k_curr);
-        if (negative) mpq_neg(result, result);
+        if (negative)
+            mpq_neg(result, result);
         approx = mpq_get_d(result);
         if (fabs(approx - (negative ? -value : value)) < epsilon) {
             found = true;
@@ -645,9 +677,12 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
     }
 
 cleanup:
-    mpz_clear(h_prev); mpz_clear(h_curr);
-    mpz_clear(k_prev); mpz_clear(k_curr);
-    mpz_clear(h_next); mpz_clear(k_next);
+    mpz_clear(h_prev);
+    mpz_clear(h_curr);
+    mpz_clear(k_prev);
+    mpz_clear(k_curr);
+    mpz_clear(h_next);
+    mpz_clear(k_next);
     mpz_clear(a);
     return found;
 }
@@ -662,12 +697,14 @@ cleanup:
  * @param a 代数数对象（不能为 NULL）
  * @return 仍然是传入的代数数对象，若成功缓存有理数则内部状态改变
  */
-static Algebraic* try_priority_rationalization(Algebraic *a) {
-    if (!a) return NULL;
+static Algebraic *try_priority_rationalization(Algebraic *a) {
+    if (!a)
+        return NULL;
 
     /* 策略1：检查中点值（原始逻辑）*/
-    Rational *approx = rational_create((int64_t)((a->left_bound + a->right_bound) / 2), 1);
-    if (!approx) return a;
+    Rational *approx = rational_create((int64_t) ((a->left_bound + a->right_bound) / 2), 1);
+    if (!approx)
+        return a;
     mpz_t eval;
     mpz_init(eval);
     evaluate_algebraic_at_rational(eval, &a->minimal_poly, approx);
@@ -704,8 +741,7 @@ static Algebraic* try_priority_rationalization(Algebraic *a) {
             /* 候选值是极小多项式的精确根 */
             mpz_clear(cf_eval);
             mpq_clear(candidate.value);
-            Rational *cached_rational = rational_create_from_mpz(
-                mpq_numref(cf_result), mpq_denref(cf_result));
+            Rational *cached_rational = rational_create_from_mpz(mpq_numref(cf_result), mpq_denref(cf_result));
             if (cached_rational) {
                 a->cached_rational = cached_rational;
             }
@@ -737,7 +773,8 @@ static Algebraic* try_priority_rationalization(Algebraic *a) {
  * 返回值: 多项式在 x 处的近似值
  */
 static double poly_eval_double(const mpz_poly_t *poly, double x) {
-    if (poly->degree < 0) return 0.0;
+    if (poly->degree < 0)
+        return 0.0;
 
     /* 使用 Horner 法则从最高次项开始计算 */
     double result = mpz_get_d(poly->coeffs[poly->degree]);
@@ -766,7 +803,8 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
         /* 常数多项式或零多项式没有根 */
         return 0;
     }
-    if (a >= b) return -1;
+    if (a >= b)
+        return -1;
 
     /*
      * 使用递归二分法计数实根。
@@ -776,12 +814,14 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
      */
 
     /* 使用栈模拟递归，避免栈溢出 */
-    typedef struct { double lo, hi; } Interval;
+    typedef struct {
+        double lo, hi;
+    } Interval;
     Interval stack[LV00_MAX_SUBINTERVALS];
     int stack_top = 0;
     int root_count = 0;
 
-    stack[stack_top++] = (Interval){a, b};
+    stack[stack_top++] = (Interval) {a, b};
 
     while (stack_top > 0) {
         Interval cur = stack[--stack_top];
@@ -793,14 +833,16 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
             root_count++;
             /* 将左端点稍微右移，避免重复计数 */
             cur.lo += LV00_ROOT_EPSILON;
-            if (cur.lo >= cur.hi) continue;
+            if (cur.lo >= cur.hi)
+                continue;
             fa = poly_eval_double(poly, cur.lo);
         }
         if (fabs(fb) < LV00_ROOT_EPSILON) {
             root_count++;
             /* 将右端点稍微左移，避免重复计数 */
             cur.hi -= LV00_ROOT_EPSILON;
-            if (cur.lo >= cur.hi) continue;
+            if (cur.lo >= cur.hi)
+                continue;
             fb = poly_eval_double(poly, cur.hi);
         }
 
@@ -819,8 +861,8 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
         /* 二分 */
         double mid = (cur.lo + cur.hi) * 0.5;
         if (stack_top + 2 <= LV00_MAX_SUBINTERVALS) {
-            stack[stack_top++] = (Interval){cur.lo, mid};
-            stack[stack_top++] = (Interval){mid, cur.hi};
+            stack[stack_top++] = (Interval) {cur.lo, mid};
+            stack[stack_top++] = (Interval) {mid, cur.hi};
         }
     }
 
@@ -848,12 +890,15 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
  *  -1  - 错误（参数无效等）
  */
 static int verify_unique_real_root(const mpz_poly_t *poly, double left, double right) {
-    if (!poly || poly->degree < 1) return -1;
-    if (left >= right) return -1;
+    if (!poly || poly->degree < 1)
+        return -1;
+    if (left >= right)
+        return -1;
 
     /* 步骤1：检查 [left, right] 内的根数量 */
     int count = count_roots_in_interval(poly, left, right);
-    if (count < 0) return -1;
+    if (count < 0)
+        return -1;
 
     if (count != 1) {
         /* 无根或多个根 */
@@ -865,14 +910,15 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
      * 使用与区间宽度成比例的探测距离。
      */
     double width = right - left;
-    double probe = width * 0.5;  /* 探测距离为区间宽度的一半 */
+    double probe = width * 0.5; /* 探测距离为区间宽度的一半 */
 
     /* 检查左侧是否有其他根 */
     double left_probe_left = left - probe;
     double left_probe_right = left;
     if (left_probe_left < left_probe_right) {
         int left_count = count_roots_in_interval(poly, left_probe_left, left_probe_right);
-        if (left_count < 0) return -1;
+        if (left_count < 0)
+            return -1;
         if (left_count > 0) {
             /* 左侧有根，可能存在区间重叠 */
             return 1;
@@ -884,7 +930,8 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
     double right_probe_right = right + probe;
     if (right_probe_left < right_probe_right) {
         int right_count = count_roots_in_interval(poly, right_probe_left, right_probe_right);
-        if (right_count < 0) return -1;
+        if (right_count < 0)
+            return -1;
         if (right_count > 0) {
             /* 右侧有根，可能存在区间重叠 */
             return 1;
@@ -897,7 +944,8 @@ static int verify_unique_real_root(const mpz_poly_t *poly, double left, double r
 
 Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
     Algebraic *a = lv00_malloc(sizeof(Algebraic));
-    if (!a) return NULL;
+    if (!a)
+        return NULL;
     mpz_poly_init(&a->minimal_poly);
     mpz_poly_set(&a->minimal_poly, poly);
     a->left_bound = left;
@@ -911,19 +959,21 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
     int verify_result = verify_unique_real_root(poly, left, right);
     if (verify_result != 0) {
         if (verify_result < 0) {
-            fprintf(stderr, "[ALGEBRAIC CREATE] Error: unique real root verification "
+            fprintf(stderr,
+                    "[ALGEBRAIC CREATE] Error: unique real root verification "
                     "failed (internal error) for interval [%.15g, %.15g], degree %d. "
                     "Returning NULL.\n",
                     left, right, poly->degree);
         } else {
-            fprintf(stderr, "[ALGEBRAIC CREATE] Error: interval [%.15g, %.15g] does not "
+            fprintf(stderr,
+                    "[ALGEBRAIC CREATE] Error: interval [%.15g, %.15g] does not "
                     "contain exactly one isolated real root (degree %d). "
                     "Returning NULL.\n",
                     left, right, poly->degree);
         }
         /* 验证失败：释放已分配的资源并返回 NULL */
         mpz_poly_clear(&a->minimal_poly);
-        lv00_free((void **)&a);
+        lv00_free((void **) &a);
         return NULL;
     }
 
@@ -940,15 +990,20 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
  */
 static Algebraic *algebraic_from_rational(const Rational *r) {
     Algebraic *a = lv00_malloc(sizeof(Algebraic));
-    if (!a) return NULL;
-    
+    if (!a)
+        return NULL;
+
     mpz_poly_init(&a->minimal_poly);
     a->minimal_poly.degree = 0;
     a->minimal_poly.coeffs = lv00_malloc(sizeof(mpz_t));
-    if (!a->minimal_poly.coeffs) { mpz_poly_clear(&a->minimal_poly); lv00_free((void **)&a); return NULL; }
+    if (!a->minimal_poly.coeffs) {
+        mpz_poly_clear(&a->minimal_poly);
+        lv00_free((void **) &a);
+        return NULL;
+    }
     mpz_init(a->minimal_poly.coeffs[0]);
     mpz_set(a->minimal_poly.coeffs[0], mpq_numref(r->value));
-    
+
     /* Handle denominator by storing numerator only; actual value is num/den */
     /* For simplicity, we'll use the double approximation for bounds */
     double val = rational_to_double(r);
@@ -956,22 +1011,23 @@ static Algebraic *algebraic_from_rational(const Rational *r) {
     a->right_bound = val + LV00_EPSILON_NEWTON;
     a->precision_bits = 53;
     a->cached_rational = rational_copy(r);
-    
+
     return a;
 }
 
 /* Create algebraic from quadratic: a + b*sqrt(n) */
 static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     Algebraic *alg = lv00_malloc(sizeof(Algebraic));
-    if (!alg) return NULL;
-    
+    if (!alg)
+        return NULL;
+
     mpz_poly_init(&alg->minimal_poly);
-    
+
     /* For quadratic a + b*sqrt(n), the minimal polynomial is:
      * (x - a)^2 - b^2*n = 0
      * => x^2 - 2ax + (a^2 - b^2*n) = 0
      */
-    
+
     /* Get a and b as doubles for bounds calculation.
      *
      * 【精度限制说明】此处使用 rational_to_double() 将有理数转换为 double，
@@ -987,38 +1043,42 @@ static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
      * 此处的 double 精度仅影响隔离区间的宽度，不影响代数运算的正确性。 */
     double a_val = rational_to_double(q->a);
     double b_val = rational_to_double(q->b);
-    double sqrt_n = sqrt((double)q->n);
-    
+    double sqrt_n = sqrt((double) q->n);
+
     /* The actual value is a + b*sqrt(n) */
     double actual_val = a_val + b_val * sqrt_n;
-    
+
     alg->minimal_poly.degree = 2;
     alg->minimal_poly.coeffs = malloc(3 * sizeof(mpz_t));
-    if (!alg->minimal_poly.coeffs) { mpz_poly_clear(&alg->minimal_poly); free(alg); return NULL; }
-    
+    if (!alg->minimal_poly.coeffs) {
+        mpz_poly_clear(&alg->minimal_poly);
+        free(alg);
+        return NULL;
+    }
+
     /* Coefficients: x^2 - 2ax + (a^2 - b^2*n) */
     mpz_init(alg->minimal_poly.coeffs[0]); /* constant: a^2 - b^2*n */
     mpz_init(alg->minimal_poly.coeffs[1]); /* linear: -2a */
     mpz_init(alg->minimal_poly.coeffs[2]); /* quadratic: 1 */
-    
+
     mpz_set_ui(alg->minimal_poly.coeffs[2], 1);
-    
+
     /* -2a: need to handle rational a */
     mpq_t two_a;
     mpq_init(two_a);
     mpq_mul_2exp(two_a, q->a->value, 1); /* 2*a */
-    
+
     /* a^2 - b^2*n */
     mpq_t a_sq, b_sq, b_sq_n;
     mpq_init(a_sq);
     mpq_init(b_sq);
     mpq_init(b_sq_n);
-    
+
     mpq_mul(a_sq, q->a->value, q->a->value);
     mpq_mul(b_sq, q->b->value, q->b->value);
     mpq_set_ui(b_sq_n, q->n, 1);
     mpq_mul(b_sq_n, b_sq_n, b_sq);
-    
+
     mpq_sub(a_sq, a_sq, b_sq_n);
     /* Clear integer coefficients and set from rational: multiply by common denominator */
     mpq_t denom;
@@ -1031,12 +1091,12 @@ static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     mpz_neg(alg->minimal_poly.coeffs[1], alg->minimal_poly.coeffs[1]);
     mpz_set(alg->minimal_poly.coeffs[2], mpq_denref(denom));
     mpq_clear(denom);
-    
+
     mpq_clear(two_a);
     mpq_clear(a_sq);
     mpq_clear(b_sq);
     mpq_clear(b_sq_n);
-    
+
     /* Set bounds */
     /* 使用更宽的隔离区间（10倍 LV00_EPSILON_NUMERIC_COMPARE），
      * 确保在 double 近似误差下区间仍包含实际根。
@@ -1046,7 +1106,7 @@ static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     alg->right_bound = actual_val + isolation_width;
     alg->precision_bits = 53;
     alg->cached_rational = NULL;
-    
+
     return alg;
 }
 
@@ -1058,8 +1118,9 @@ static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
 void algebraic_destroy(Algebraic *a) {
     if (a) {
         mpz_poly_clear(&a->minimal_poly);
-        if (a->cached_rational) rational_destroy(a->cached_rational);
-        lv00_free((void **)&a);
+        if (a->cached_rational)
+            rational_destroy(a->cached_rational);
+        lv00_free((void **) &a);
     }
 }
 
@@ -1099,30 +1160,36 @@ int algebraic_compare(const Algebraic *a, const Algebraic *b) {
 
         if (refine_result == 1) {
             /* 不同根：使用细化后的区间确定顺序 */
-            if (a_copy.right_bound < b_copy.left_bound) return -1;
-            if (b_copy.right_bound < a_copy.left_bound) return 1;
+            if (a_copy.right_bound < b_copy.left_bound)
+                return -1;
+            if (b_copy.right_bound < a_copy.left_bound)
+                return 1;
         }
 
         /* 不确定（-1）：回退到中点比较 */
         double a_val = (a_copy.left_bound + a_copy.right_bound) / 2.0;
         double b_val = (b_copy.left_bound + b_copy.right_bound) / 2.0;
-        if (a_val < b_val) return -1;
-        if (a_val > b_val) return 1;
+        if (a_val < b_val)
+            return -1;
+        if (a_val > b_val)
+            return 1;
         return 0;
     }
-    
+
     /* 使用数值近似进行比较 */
     double a_val = (a->left_bound + a->right_bound) / 2.0;
     double b_val = (b->left_bound + b->right_bound) / 2.0;
-    
-    if (a_val < b_val - LV00_EPSILON_NUMERIC_COMPARE) return -1;
-    if (a_val > b_val + LV00_EPSILON_NUMERIC_COMPARE) return 1;
-    
+
+    if (a_val < b_val - LV00_EPSILON_NUMERIC_COMPARE)
+        return -1;
+    if (a_val > b_val + LV00_EPSILON_NUMERIC_COMPARE)
+        return 1;
+
     /* 如果区间重叠，它们可能相等 */
     if (a->left_bound <= b->right_bound && b->left_bound <= a->right_bound) {
         return 0;
     }
-    
+
     return (a_val < b_val) ? -1 : 1;
 }
 
@@ -1151,9 +1218,10 @@ static double algebraic_to_double(const Algebraic *a) {
  * @param b 第二个代数数（不能为 NULL）
  * @return 计算得到的极小多项式，失败时返回空多项式
  */
-static mpz_poly_t* compute_sum_minimal_poly(const Algebraic *a, const Algebraic *b) {
+static mpz_poly_t *compute_sum_minimal_poly(const Algebraic *a, const Algebraic *b) {
     mpz_poly_t *result = lv00_malloc(sizeof(mpz_poly_t));
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
     mpz_poly_init(result);
 
     int deg_a = a->minimal_poly.degree;
@@ -1165,8 +1233,7 @@ static mpz_poly_t* compute_sum_minimal_poly(const Algebraic *a, const Algebraic 
 
     /* Use exact resultant computation */
     mpz_poly_t resultant;
-    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly,
-                            ALG_OP_SUM, &resultant)) {
+    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_SUM, &resultant)) {
         /* Fallback: return empty polynomial on failure */
         return result;
     }
@@ -1184,9 +1251,10 @@ static mpz_poly_t* compute_sum_minimal_poly(const Algebraic *a, const Algebraic 
  *
  * Uses the exact Sylvester matrix resultant from mpz_poly_resultant().
  */
-static mpz_poly_t* compute_product_minimal_poly(const Algebraic *a, const Algebraic *b) {
+static mpz_poly_t *compute_product_minimal_poly(const Algebraic *a, const Algebraic *b) {
     mpz_poly_t *result = lv00_malloc(sizeof(mpz_poly_t));
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
     mpz_poly_init(result);
 
     int deg_a = a->minimal_poly.degree;
@@ -1198,8 +1266,7 @@ static mpz_poly_t* compute_product_minimal_poly(const Algebraic *a, const Algebr
 
     /* Use exact resultant computation */
     mpz_poly_t resultant;
-    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly,
-                            ALG_OP_PRODUCT, &resultant)) {
+    if (!mpz_poly_resultant(&a->minimal_poly, &b->minimal_poly, ALG_OP_PRODUCT, &resultant)) {
         /* Fallback: return empty polynomial on failure */
         return result;
     }
@@ -1227,7 +1294,8 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
         /* a is rational, just add to b's bounds */
         double a_val = rational_to_double(a->cached_rational);
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &b->minimal_poly);
         result->left_bound = b->left_bound + a_val;
@@ -1236,11 +1304,12 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
         result->cached_rational = NULL;
         return result;
     }
-    
+
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
         result->left_bound = a->left_bound + b_val;
@@ -1249,33 +1318,34 @@ Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b) {
         result->cached_rational = NULL;
         return result;
     }
-    
+
     /* General case: compute resultant-based minimal polynomial */
     mpz_poly_t *sum_poly = compute_sum_minimal_poly(a, b);
-    if (!sum_poly) return NULL;
+    if (!sum_poly)
+        return NULL;
     double new_left = a->left_bound + b->left_bound;
     double new_right = a->right_bound + b->right_bound;
-    
+
     /* Expand bounds to ensure unique root isolation */
     double width = new_right - new_left;
     new_left -= width * 0.5;
     new_right += width * 0.5;
-    
+
     Algebraic *result = algebraic_create(sum_poly, new_left, new_right);
     mpz_poly_clear(sum_poly);
-    lv00_free((void **)&sum_poly);
-    
+    lv00_free((void **) &sum_poly);
+
     if (!result) {
         /* Failed to create algebraic number - likely due to root isolation failure */
         return NULL;
     }
-    
+
     /* Refine bounds */
     refine_algebraic_bounds(result, 10);
-    
+
     /* Auto-trigger priority rationalization (Section 1.2) */
     algebraic_try_rationalize(result);
-    
+
     return result;
 }
 
@@ -1291,15 +1361,16 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         double a_val = rational_to_double(a->cached_rational);
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
-        if (!result) return NULL;
-        
+        if (!result)
+            return NULL;
+
         /* For subtraction, negate b's polynomial */
         mpz_poly_init(&result->minimal_poly);
         result->minimal_poly.degree = b->minimal_poly.degree;
         if (b->minimal_poly.degree >= 0) {
             result->minimal_poly.coeffs = lv00_malloc((b->minimal_poly.degree + 1) * sizeof(mpz_t));
             if (!result->minimal_poly.coeffs) {
-                lv00_free((void **)&result);
+                lv00_free((void **) &result);
                 return NULL;
             }
             for (int i = 0; i <= b->minimal_poly.degree; i++) {
@@ -1311,18 +1382,19 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
                 }
             }
         }
-        
+
         result->left_bound = a_val - b->right_bound;
         result->right_bound = a_val - b->left_bound;
         result->precision_bits = b->precision_bits;
         result->cached_rational = NULL;
         return result;
     }
-    
+
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
         result->left_bound = a->left_bound - b_val;
@@ -1331,7 +1403,7 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
         result->cached_rational = NULL;
         return result;
     }
-    
+
     /* General case: alpha - beta = alpha + (-beta).
      * We construct the minimal polynomial of -beta by substituting y -> -y
      * in beta's minimal polynomial, then compute the sum resultant. */
@@ -1356,36 +1428,38 @@ Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b) {
     }
 
     mpz_poly_t *diff_poly = lv00_malloc(sizeof(mpz_poly_t));
-    if (!diff_poly) { mpz_poly_clear(&neg_b_poly); return NULL; }
+    if (!diff_poly) {
+        mpz_poly_clear(&neg_b_poly);
+        return NULL;
+    }
     mpz_poly_init(diff_poly);
     mpz_poly_t resultant;
-    if (mpz_poly_resultant(&a->minimal_poly, &neg_b_poly,
-                           ALG_OP_SUM, &resultant)) {
+    if (mpz_poly_resultant(&a->minimal_poly, &neg_b_poly, ALG_OP_SUM, &resultant)) {
         mpz_poly_set(diff_poly, &resultant);
         mpz_poly_clear(&resultant);
     }
     mpz_poly_clear(&neg_b_poly);
     double new_left = a->left_bound - b->right_bound;
     double new_right = a->right_bound - b->left_bound;
-    
+
     /* Expand bounds to ensure unique root isolation */
     double width = new_right - new_left;
     new_left -= width * 0.5;
     new_right += width * 0.5;
-    
+
     Algebraic *result = algebraic_create(diff_poly, new_left, new_right);
     mpz_poly_clear(diff_poly);
-    lv00_free((void **)&diff_poly);
-    
+    lv00_free((void **) &diff_poly);
+
     if (!result) {
         return NULL;
     }
-    
+
     refine_algebraic_bounds(result, 10);
-    
+
     /* Auto-trigger priority rationalization (Section 1.2) */
     algebraic_try_rationalize(result);
-    
+
     return result;
 }
 
@@ -1394,10 +1468,11 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
     if (a->minimal_poly.degree == 0 && a->cached_rational) {
         double a_val = rational_to_double(a->cached_rational);
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &b->minimal_poly);
-        
+
         /* Scale bounds by a_val */
         if (a_val >= 0) {
             result->left_bound = b->left_bound * a_val;
@@ -1410,14 +1485,15 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
         result->cached_rational = NULL;
         return result;
     }
-    
+
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
-        
+
         if (b_val >= 0) {
             result->left_bound = a->left_bound * b_val;
             result->right_bound = a->right_bound * b_val;
@@ -1429,43 +1505,43 @@ Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b) {
         result->cached_rational = NULL;
         return result;
     }
-    
+
     /* General case */
     mpz_poly_t *prod_poly = compute_product_minimal_poly(a, b);
-    if (!prod_poly) return NULL;
-    
+    if (!prod_poly)
+        return NULL;
+
     /* Compute product bounds (need to consider sign) */
-    double products[4] = {
-        a->left_bound * b->left_bound,
-        a->left_bound * b->right_bound,
-        a->right_bound * b->left_bound,
-        a->right_bound * b->right_bound
-    };
+    double products[4] = {a->left_bound * b->left_bound, a->left_bound * b->right_bound, a->right_bound * b->left_bound,
+                          a->right_bound * b->right_bound};
     double new_left = products[0], new_right = products[0];
     for (int i = 1; i < 4; i++) {
-        if (products[i] < new_left) new_left = products[i];
-        if (products[i] > new_right) new_right = products[i];
+        if (products[i] < new_left)
+            new_left = products[i];
+        if (products[i] > new_right)
+            new_right = products[i];
     }
-    
+
     /* Expand bounds to ensure unique root isolation */
     double width = new_right - new_left;
-    if (width < LV00_EPSILON_NUMERIC_COMPARE) width = LV00_EPSILON_NUMERIC_COMPARE;
+    if (width < LV00_EPSILON_NUMERIC_COMPARE)
+        width = LV00_EPSILON_NUMERIC_COMPARE;
     new_left -= width * 0.5;
     new_right += width * 0.5;
-    
+
     Algebraic *result = algebraic_create(prod_poly, new_left, new_right);
     mpz_poly_clear(prod_poly);
-    lv00_free((void **)&prod_poly);
-    
+    lv00_free((void **) &prod_poly);
+
     if (!result) {
         return NULL;
     }
-    
+
     refine_algebraic_bounds(result, 10);
-    
+
     /* Auto-trigger priority rationalization (Section 1.2) */
     algebraic_try_rationalize(result);
-    
+
     return result;
 }
 
@@ -1474,17 +1550,19 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     if (b->left_bound <= 0 && b->right_bound >= 0) {
         return NULL;
     }
-    
+
     /* Special case: if b is effectively a rational */
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        if (b_val == 0) return NULL;
-        
+        if (b_val == 0)
+            return NULL;
+
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
         mpz_poly_init(&result->minimal_poly);
         mpz_poly_set(&result->minimal_poly, &a->minimal_poly);
-        
+
         if (b_val > 0) {
             result->left_bound = a->left_bound / b_val;
             result->right_bound = a->right_bound / b_val;
@@ -1496,28 +1574,33 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
         result->cached_rational = NULL;
         return result;
     }
-    
+
     /* General case: compute reciprocal of b, then multiply */
     /* For division, we need to compute the minimal polynomial of 1/beta */
     /* If beta has minpoly P(x), then 1/beta has minpoly x^n * P(1/x) */
-    
+
     mpz_poly_t *result_poly = lv00_malloc(sizeof(mpz_poly_t));
-    if (!result_poly) return NULL;
+    if (!result_poly)
+        return NULL;
     mpz_poly_init(result_poly);
-    
+
     int deg_b = b->minimal_poly.degree;
     if (deg_b >= 0) {
         result_poly->degree = deg_b;
         result_poly->coeffs = lv00_malloc((deg_b + 1) * sizeof(mpz_t));
-        if (!result_poly->coeffs) { mpz_poly_clear(result_poly); lv00_free((void **)&result_poly); return NULL; }
-        
+        if (!result_poly->coeffs) {
+            mpz_poly_clear(result_poly);
+            lv00_free((void **) &result_poly);
+            return NULL;
+        }
+
         /* Reverse coefficients for reciprocal polynomial */
         for (int i = 0; i <= deg_b; i++) {
             mpz_init(result_poly->coeffs[i]);
             mpz_set(result_poly->coeffs[i], b->minimal_poly.coeffs[deg_b - i]);
         }
     }
-    
+
     /* Compute division bounds */
     double quotients[4];
     if (b->left_bound != 0 && b->right_bound != 0) {
@@ -1527,25 +1610,27 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
         quotients[3] = a->right_bound / b->right_bound;
     } else {
         mpz_poly_clear(result_poly);
-        lv00_free((void **)&result_poly);
+        lv00_free((void **) &result_poly);
         return NULL;
     }
-    
+
     double new_left = quotients[0], new_right = quotients[0];
     for (int i = 1; i < 4; i++) {
-        if (quotients[i] < new_left) new_left = quotients[i];
-        if (quotients[i] > new_right) new_right = quotients[i];
+        if (quotients[i] < new_left)
+            new_left = quotients[i];
+        if (quotients[i] > new_right)
+            new_right = quotients[i];
     }
-    
+
     Algebraic *result = algebraic_create(result_poly, new_left, new_right);
     mpz_poly_clear(result_poly);
-    lv00_free((void **)&result_poly);
-    
+    lv00_free((void **) &result_poly);
+
     refine_algebraic_bounds(result, 10);
-    
+
     /* Auto-trigger priority rationalization (Section 1.2) */
     algebraic_try_rationalize(result);
-    
+
     return result;
 }
 
@@ -1553,7 +1638,10 @@ char *algebraic_serialize(const Algebraic *a) {
     char *poly_str = mpz_poly_get_str(&a->minimal_poly);
     size_t len = strlen(poly_str) + 128;
     char *result = lv00_malloc(len);
-    if (!result) { free(poly_str); return NULL; }
+    if (!result) {
+        free(poly_str);
+        return NULL;
+    }
     snprintf(result, len, "poly:%s left:%.15g right:%.15g", poly_str, a->left_bound, a->right_bound);
     free(poly_str);
     return result;
@@ -1571,7 +1659,7 @@ char *algebraic_serialize(const Algebraic *a) {
  */
 static unsigned int remove_square_factors(unsigned int n) {
     /* Remove perfect square factors */
-    for (unsigned int i = 2; i * i <= n; ) {
+    for (unsigned int i = 2; i * i <= n;) {
         if (n % (i * i) == 0) {
             n /= (i * i);
         } else {
@@ -1603,22 +1691,25 @@ static bool is_rational_zero(const Rational *r) {
  * @return 新创建的二次根式对象，失败时返回 NULL；调用者需负责释放
  */
 Quadratic *quadratic_create(Rational *a, Rational *b, unsigned int n) {
-    if (!a) return NULL;
-    
+    if (!a)
+        return NULL;
+
     Quadratic *q = lv00_malloc(sizeof(Quadratic));
-    if (!q) return NULL;
-    
+    if (!q)
+        return NULL;
+
     n = remove_square_factors(n);
     q->a = a;
     q->n = n;
-    
+
     if (b && !is_rational_zero(b)) {
         q->b = b;
     } else {
-        if (b) rational_destroy(b);
+        if (b)
+            rational_destroy(b);
         q->b = rational_create(0, 1);
     }
-    
+
     return q;
 }
 
@@ -1654,16 +1745,19 @@ int quadratic_compare(const Quadratic *a, const Quadratic *b) {
     /* If same sqrt(n), compare directly */
     if (quadratic_same_n(a, b)) {
         int cmp_a = rational_compare(a->a, b->a);
-        if (cmp_a != 0) return cmp_a;
+        if (cmp_a != 0)
+            return cmp_a;
         return rational_compare(a->b, b->b);
     }
-    
+
     /* Otherwise, compare numerically */
-    double a_val = rational_to_double(a->a) + rational_to_double(a->b) * sqrt((double)a->n);
-    double b_val = rational_to_double(b->a) + rational_to_double(b->b) * sqrt((double)b->n);
-    
-    if (a_val < b_val - LV00_EPSILON_NUMERIC_COMPARE) return -1;
-    if (a_val > b_val + LV00_EPSILON_NUMERIC_COMPARE) return 1;
+    double a_val = rational_to_double(a->a) + rational_to_double(a->b) * sqrt((double) a->n);
+    double b_val = rational_to_double(b->a) + rational_to_double(b->b) * sqrt((double) b->n);
+
+    if (a_val < b_val - LV00_EPSILON_NUMERIC_COMPARE)
+        return -1;
+    if (a_val > b_val + LV00_EPSILON_NUMERIC_COMPARE)
+        return 1;
     return 0;
 }
 
@@ -1677,7 +1771,7 @@ int quadratic_compare(const Quadratic *a, const Quadratic *b) {
  * @return 二次根式的双精度浮点数近似值
  */
 static double quadratic_to_double(const Quadratic *q) {
-    return rational_to_double(q->a) + rational_to_double(q->b) * sqrt((double)q->n);
+    return rational_to_double(q->a) + rational_to_double(q->b) * sqrt((double) q->n);
 }
 
 /**
@@ -1688,7 +1782,7 @@ static double quadratic_to_double(const Quadratic *q) {
  * @param val 整数值
  * @return 新创建的有理数对象；调用者需负责释放
  */
-static Rational* rational_from_int(int64_t val) {
+static Rational *rational_from_int(int64_t val) {
     return rational_create(val, 1);
 }
 
@@ -1702,7 +1796,8 @@ static Rational* rational_from_int(int64_t val) {
  * @return 新的二次根式对象，n 值不同时返回 NULL；调用者需负责释放
  */
 Quadratic *quadratic_add(const Quadratic *a, const Quadratic *b) {
-    if (a->n != b->n) return NULL;
+    if (a->n != b->n)
+        return NULL;
     Rational *new_a = rational_add(a->a, b->a);
     Rational *new_b = rational_add(a->b, b->b);
     return quadratic_create(new_a, new_b, a->n);
@@ -1718,56 +1813,65 @@ Quadratic *quadratic_add(const Quadratic *a, const Quadratic *b) {
  * @return 新的二次根式对象，n 值不同时返回 NULL；调用者需负责释放
  */
 Quadratic *quadratic_subtract(const Quadratic *a, const Quadratic *b) {
-    if (a->n != b->n) return NULL;
+    if (a->n != b->n)
+        return NULL;
     Rational *new_a = rational_subtract(a->a, b->a);
     Rational *new_b = rational_subtract(a->b, b->b);
     return quadratic_create(new_a, new_b, a->n);
 }
 
 Quadratic *quadratic_multiply(const Quadratic *a, const Quadratic *b) {
-    if (a->n != b->n) return NULL;
-    
+    if (a->n != b->n)
+        return NULL;
+
     /* (a1 + b1*sqrt(n)) * (a2 + b2*sqrt(n)) = (a1*a2 + b1*b2*n) + (a1*b2 + a2*b1)*sqrt(n) */
     Rational *a1 = rational_copy(a->a);
     Rational *a2 = rational_copy(b->a);
     Rational *b1 = rational_copy(a->b);
     Rational *b2 = rational_copy(b->b);
-    
+
     Rational *term1 = rational_multiply(a1, a2);
     Rational *b1b2 = rational_multiply(b1, b2);
     Rational *n_rat = rational_create(a->n, 1);
     Rational *term2 = rational_multiply(b1b2, n_rat);
     Rational *new_a = rational_add(term1, term2);
-    
+
     Rational *a1b2 = rational_multiply(a1, b2);
     Rational *a2b1 = rational_multiply(a2, b1);
     Rational *new_b = rational_add(a1b2, a2b1);
-    
-    rational_destroy(a1); rational_destroy(a2);
-    rational_destroy(b1); rational_destroy(b2);
-    rational_destroy(term1); rational_destroy(term2);
-    rational_destroy(b1b2); rational_destroy(n_rat);
-    rational_destroy(a1b2); rational_destroy(a2b1);
-    
+
+    rational_destroy(a1);
+    rational_destroy(a2);
+    rational_destroy(b1);
+    rational_destroy(b2);
+    rational_destroy(term1);
+    rational_destroy(term2);
+    rational_destroy(b1b2);
+    rational_destroy(n_rat);
+    rational_destroy(a1b2);
+    rational_destroy(a2b1);
+
     return quadratic_create(new_a, new_b, a->n);
 }
 
 Quadratic *quadratic_divide(const Quadratic *a, const Quadratic *b) {
-    if (a->n != b->n) return NULL;
-    
+    if (a->n != b->n)
+        return NULL;
+
     Rational *zero = rational_create(0, 1);
     bool b_is_zero = (rational_compare(b->a, zero) == 0 && rational_compare(b->b, zero) == 0);
     rational_destroy(zero);
-    
-    if (b_is_zero) return NULL;
-    
+
+    if (b_is_zero)
+        return NULL;
+
     /* (a1 + b1*sqrt(n)) / (a2 + b2*sqrt(n)) 
      * = (a1 + b1*sqrt(n)) * (a2 - b2*sqrt(n)) / (a2^2 - b2^2*n)
      */
     Rational *c = rational_copy(b->a);
     Rational *d = rational_copy(b->b);
     Rational *n_rat = rational_create(a->n, 1);
-    
+
     Rational *c2 = rational_multiply(c, c);
     Rational *d2 = rational_multiply(d, d);
     Rational *d2n = rational_multiply(d2, n_rat);
@@ -1777,57 +1881,77 @@ Quadratic *quadratic_divide(const Quadratic *a, const Quadratic *b) {
     Rational *zero2 = rational_create(0, 1);
     if (rational_compare(denom, zero2) == 0) {
         rational_destroy(zero2);
-        rational_destroy(c); rational_destroy(d);
-        rational_destroy(c2); rational_destroy(d2);
-        rational_destroy(d2n); rational_destroy(denom);
+        rational_destroy(c);
+        rational_destroy(d);
+        rational_destroy(c2);
+        rational_destroy(d2);
+        rational_destroy(d2n);
+        rational_destroy(denom);
         rational_destroy(n_rat);
         return NULL;
     }
     rational_destroy(zero2);
-    
+
     Rational *a1 = rational_copy(a->a);
     Rational *b1 = rational_copy(a->b);
-    
+
     /* Numerator for a: a1*c + b1*d*n */
     Rational *a1c = rational_multiply(a1, c);
     Rational *b1d = rational_multiply(b1, d);
     Rational *b1dn = rational_multiply(b1d, n_rat);
     Rational *num_a = rational_add(a1c, b1dn);
-    
+
     /* Numerator for b: b1*c - a1*d */
     Rational *b1c = rational_multiply(b1, c);
     Rational *a1d = rational_multiply(a1, d);
     Rational *num_b = rational_subtract(b1c, a1d);
-    
+
     Rational *new_a = rational_divide(num_a, denom);
     Rational *new_b = rational_divide(num_b, denom);
-    
-    rational_destroy(c); rational_destroy(d);
-    rational_destroy(c2); rational_destroy(d2);
-    rational_destroy(d2n); rational_destroy(denom);
+
+    rational_destroy(c);
+    rational_destroy(d);
+    rational_destroy(c2);
+    rational_destroy(d2);
+    rational_destroy(d2n);
+    rational_destroy(denom);
     rational_destroy(n_rat);
-    rational_destroy(a1); rational_destroy(b1);
-    rational_destroy(a1c); rational_destroy(b1d);
-    rational_destroy(b1dn); rational_destroy(num_a);
-    rational_destroy(b1c); rational_destroy(a1d);
+    rational_destroy(a1);
+    rational_destroy(b1);
+    rational_destroy(a1c);
+    rational_destroy(b1d);
+    rational_destroy(b1dn);
+    rational_destroy(num_a);
+    rational_destroy(b1c);
+    rational_destroy(a1d);
     rational_destroy(num_b);
-    
+
     if (!new_a || !new_b) {
-        if (new_a) rational_destroy(new_a);
-        if (new_b) rational_destroy(new_b);
+        if (new_a)
+            rational_destroy(new_a);
+        if (new_b)
+            rational_destroy(new_b);
         return NULL;
     }
-    
+
     return quadratic_create(new_a, new_b, a->n);
 }
 
 char *quadratic_serialize(const Quadratic *q) {
     char *a_str = rational_serialize(q->a);
     char *b_str = rational_serialize(q->b);
-    if (!a_str || !b_str) { free(a_str); free(b_str); return NULL; }
+    if (!a_str || !b_str) {
+        free(a_str);
+        free(b_str);
+        return NULL;
+    }
     size_t len = strlen(a_str) + strlen(b_str) + 32;
     char *result = malloc(len);
-    if (!result) { free(a_str); free(b_str); return NULL; }
+    if (!result) {
+        free(a_str);
+        free(b_str);
+        return NULL;
+    }
     snprintf(result, len, "%s + %s*sqrt(%u)", a_str, b_str, q->n);
     free(a_str);
     free(b_str);
@@ -1848,14 +1972,15 @@ char *quadratic_serialize(const Quadratic *q) {
  * @return 新创建的超越数对象，解析失败时返回 NULL；调用者需负责释放
  */
 Transcendental *transcendental_create(const char *name) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
 
     /* 支持基础常量 "pi" 和 "e"，以及复合表达式如 "pi/2", "pi/3",
      * "pi/4", "pi/6", "3*pi/4", "5*pi/6", "2*pi/3" 及其负数形式 */
     const char *base = NULL;
-    int64_t coeff_num = 1;   /* 系数分子（默认为 1） */
-    int64_t coeff_den = 1;   /* 系数分母（默认为 1） */
-    bool is_mul = false;     /* true = coeff*base, false = base/coeff */
+    int64_t coeff_num = 1; /* 系数分子（默认为 1） */
+    int64_t coeff_den = 1; /* 系数分母（默认为 1） */
+    bool is_mul = false;   /* true = coeff*base, false = base/coeff */
 
     if (strcmp(name, "pi") == 0 || strcmp(name, "e") == 0) {
         /* 裸常量 */
@@ -1867,14 +1992,16 @@ Transcendental *transcendental_create(const char *name) {
         if (name[3] == '/') {
             is_mul = false;
             coeff_den = atol(name + 4);
-            if (coeff_den <= 0) return NULL;
+            if (coeff_den <= 0)
+                return NULL;
         }
     } else if (strncmp(name, "pi/", 3) == 0) {
         /* pi/N 形式 */
         base = "pi";
         is_mul = false;
         coeff_den = atol(name + 3);
-        if (coeff_den <= 0) return NULL;
+        if (coeff_den <= 0)
+            return NULL;
     } else if (strncmp(name, "-pi/", 4) == 0) {
         /* 已在上面处理 */
         return NULL;
@@ -1886,36 +2013,43 @@ Transcendental *transcendental_create(const char *name) {
             base = "pi";
             is_mul = true;
             coeff_num = atol(name);
-            if (coeff_num <= 0) return NULL;
+            if (coeff_num <= 0)
+                return NULL;
             const char *after = star_pos + 3; /* skip "*pi" */
             if (*after == '/') {
                 coeff_den = atol(after + 1);
-                if (coeff_den <= 0) return NULL;
+                if (coeff_den <= 0)
+                    return NULL;
             }
         } else if (star_pos && star_pos == name + 2 && name[0] == '-') {
             /* -N*pi 或 -N*pi/M */
             base = "pi";
             is_mul = true;
             coeff_num = atol(name);
-            if (coeff_num >= 0) return NULL;
+            if (coeff_num >= 0)
+                return NULL;
             const char *after = star_pos + 3;
             if (*after == '/') {
                 coeff_den = atol(after + 1);
-                if (coeff_den <= 0) return NULL;
+                if (coeff_den <= 0)
+                    return NULL;
             }
         } else {
             return NULL;
         }
     }
 
-    if (!base) return NULL;
+    if (!base)
+        return NULL;
 
     Transcendental *t = lv00_malloc(sizeof(Transcendental));
-    if (!t) return NULL;
+    if (!t)
+        return NULL;
     /* 安全字符串复制：确保以 null 终止 */
     {
         size_t name_len = strlen(name);
-        if (name_len >= sizeof(t->name)) name_len = sizeof(t->name) - 1;
+        if (name_len >= sizeof(t->name))
+            name_len = sizeof(t->name) - 1;
         memcpy(t->name, name, name_len);
         t->name[name_len] = '\0';
     }
@@ -1927,13 +2061,14 @@ Transcendental *transcendental_create(const char *name) {
         /* 构造表达式树 */
         TranscendentalExpr *expr = calloc(1, sizeof(TranscendentalExpr));
         if (!expr) {
-            lv00_free((void **)&t);
+            lv00_free((void **) &t);
             return NULL;
         }
         /* 安全字符串复制：确保以 null 终止 */
         {
             size_t base_len = strlen(base);
-            if (base_len >= sizeof(expr->base_name)) base_len = sizeof(expr->base_name) - 1;
+            if (base_len >= sizeof(expr->base_name))
+                base_len = sizeof(expr->base_name) - 1;
             memcpy(expr->base_name, base, base_len);
             expr->base_name[base_len] = '\0';
         }
@@ -1941,16 +2076,16 @@ Transcendental *transcendental_create(const char *name) {
 
         if (is_mul) {
             expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
-            expr->rational_operand = rational_create(coeff_num, (uint64_t)coeff_den);
+            expr->rational_operand = rational_create(coeff_num, (uint64_t) coeff_den);
         } else {
             /* base/coeff 等价于 base * (1/coeff) */
             expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
-            expr->rational_operand = rational_create(coeff_num, (uint64_t)coeff_den);
+            expr->rational_operand = rational_create(coeff_num, (uint64_t) coeff_den);
         }
 
         if (!expr->rational_operand) {
             free(expr);
-            lv00_free((void **)&t);
+            lv00_free((void **) &t);
             return NULL;
         }
 
@@ -1961,14 +2096,15 @@ Transcendental *transcendental_create(const char *name) {
 }
 
 void transcendental_destroy(Transcendental *t) {
-    if (!t) return;
+    if (!t)
+        return;
     if (t->expr) {
         if (t->expr->rational_operand) {
             rational_destroy(t->expr->rational_operand);
         }
         free(t->expr);
     }
-    lv00_free((void **)&t);
+    lv00_free((void **) &t);
 }
 
 /**
@@ -1981,13 +2117,17 @@ void transcendental_destroy(Transcendental *t) {
 int transcendental_compare(const Transcendental *a, const Transcendental *b) {
     /* Compare base names first */
     int name_cmp = strcmp(a->name, b->name);
-    if (name_cmp != 0) return name_cmp;
+    if (name_cmp != 0)
+        return name_cmp;
 
     /* Both NULL expr means bare constants with same name -> equal */
-    if (!a->expr && !b->expr) return 0;
+    if (!a->expr && !b->expr)
+        return 0;
     /* NULL expr vs non-NULL expr: bare constant vs expression */
-    if (!a->expr) return -1;
-    if (!b->expr) return 1;
+    if (!a->expr)
+        return -1;
+    if (!b->expr)
+        return 1;
 
     /* Both have expr: compare expression trees */
     if (a->expr->expr_type != b->expr->expr_type) {
@@ -1998,8 +2138,10 @@ int transcendental_compare(const Transcendental *a, const Transcendental *b) {
     if (a->expr->rational_operand && b->expr->rational_operand) {
         return rational_compare(a->expr->rational_operand, b->expr->rational_operand);
     }
-    if (a->expr->rational_operand) return 1;
-    if (b->expr->rational_operand) return -1;
+    if (a->expr->rational_operand)
+        return 1;
+    if (b->expr->rational_operand)
+        return -1;
 
     return 0;
 }
@@ -2013,28 +2155,42 @@ char *transcendental_serialize(const Transcendental *t) {
     /* Serialize expression tree */
     const char *op_str = NULL;
     switch (t->expr->expr_type) {
-        case TRANS_EXPR_ADD_RATIONAL:    op_str = "+"; break;
-        case TRANS_EXPR_MUL_RATIONAL:    op_str = "*"; break;
-        case TRANS_EXPR_ADD_ALGEBRAIC:   op_str = "+"; break;
-        case TRANS_EXPR_MUL_ALGEBRAIC:   op_str = "*"; break;
-        default:                         return strdup(t->name);
+        case TRANS_EXPR_ADD_RATIONAL:
+            op_str = "+";
+            break;
+        case TRANS_EXPR_MUL_RATIONAL:
+            op_str = "*";
+            break;
+        case TRANS_EXPR_ADD_ALGEBRAIC:
+            op_str = "+";
+            break;
+        case TRANS_EXPR_MUL_ALGEBRAIC:
+            op_str = "*";
+            break;
+        default:
+            return strdup(t->name);
     }
 
     if (t->expr->out_of_scope) {
         /* Out-of-scope expression: mark clearly */
         size_t len = strlen(t->name) + strlen(op_str) + 32;
         char *buf = malloc(len);
-        if (!buf) return NULL;
+        if (!buf)
+            return NULL;
         snprintf(buf, len, "[%s %s <out-of-scope>]", t->name, op_str);
         return buf;
     }
 
     if (t->expr->rational_operand) {
         char *rat_str = rational_serialize(t->expr->rational_operand);
-        if (!rat_str) return strdup(t->name);
+        if (!rat_str)
+            return strdup(t->name);
         size_t len = strlen(t->name) + strlen(op_str) + strlen(rat_str) + 8;
         char *buf = malloc(len);
-        if (!buf) { free(rat_str); return strdup(t->name); }
+        if (!buf) {
+            free(rat_str);
+            return strdup(t->name);
+        }
         snprintf(buf, len, "(%s %s %s)", t->name, op_str, rat_str);
         free(rat_str);
         return buf;
@@ -2094,8 +2250,7 @@ static double transcendental_to_double(const Transcendental *t) {
      * Note: for expressions like "e + pi", the name may not match any known
      * pattern, so the fallback below would return 0.0. Returning base_val here
      * is a better approximation. */
-    if (t->expr->expr_type == TRANS_EXPR_ADD_ALGEBRAIC ||
-        t->expr->expr_type == TRANS_EXPR_MUL_ALGEBRAIC) {
+    if (t->expr->expr_type == TRANS_EXPR_ADD_ALGEBRAIC || t->expr->expr_type == TRANS_EXPR_MUL_ALGEBRAIC) {
         /* Approximate: return the base constant value.
          * This is an approximation for out_of_scope expressions. */
         return base_val;
@@ -2119,20 +2274,22 @@ static double transcendental_to_double(const Transcendental *t) {
                 coeff_den = atol(after + 1);
             }
             if (coeff_den > 0) {
-                return M_PI * (double)coeff_num / (double)coeff_den;
+                return M_PI * (double) coeff_num / (double) coeff_den;
             }
         }
 
         /* Try pi/N form */
         if (strncmp(name, "pi/", 3) == 0) {
             int64_t den = atol(name + 3);
-            if (den > 0) return M_PI / (double)den;
+            if (den > 0)
+                return M_PI / (double) den;
         }
 
         /* Try -pi/N form */
         if (strncmp(name, "-pi/", 4) == 0) {
             int64_t den = atol(name + 4);
-            if (den > 0) return -M_PI / (double)den;
+            if (den > 0)
+                return -M_PI / (double) den;
         }
 
         /* Try -N*pi/M form */
@@ -2145,7 +2302,7 @@ static double transcendental_to_double(const Transcendental *t) {
                 coeff_den = atol(after + 1);
             }
             if (coeff_den > 0) {
-                return M_PI * (double)coeff_num / (double)coeff_den;
+                return M_PI * (double) coeff_num / (double) coeff_den;
             }
         }
     }
@@ -2159,7 +2316,8 @@ static double transcendental_to_double(const Transcendental *t) {
 
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
     SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
-    if (!coord) return NULL;
+    if (!coord)
+        return NULL;
     coord->type = RATIONAL;
     coord->trust = TRUST_GREEN;
     coord->data.rational = rational_create(num, denom);
@@ -2180,7 +2338,8 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
  */
 SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, double right) {
     SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
-    if (!coord) return NULL;
+    if (!coord)
+        return NULL;
     coord->type = ALGEBRAIC;
     coord->trust = TRUST_GREEN;
     coord->data.algebraic = algebraic_create(poly, left, right);
@@ -2201,7 +2360,8 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
  */
 SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigned int n) {
     SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
-    if (!coord) return NULL;
+    if (!coord)
+        return NULL;
     coord->type = QUADRATIC;
     coord->trust = TRUST_GREEN;
     coord->data.quadratic = quadratic_create(a, b, n);
@@ -2214,7 +2374,8 @@ SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigne
 
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
     SymbolicCoord *coord = malloc(sizeof(SymbolicCoord));
-    if (!coord) return NULL;
+    if (!coord)
+        return NULL;
     coord->type = TRANSCENDENTAL;
     coord->trust = TRUST_BLUE;
     coord->data.transcendental = transcendental_create(name);
@@ -2231,7 +2392,8 @@ SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
  * @param coord 符号坐标对象，可为 NULL（空操作）
  */
 void symbolic_coord_destroy(SymbolicCoord *coord) {
-    if (!coord) return;
+    if (!coord)
+        return;
     switch (coord->type) {
         case RATIONAL:
             rational_destroy(coord->data.rational);
@@ -2262,7 +2424,8 @@ void symbolic_coord_destroy(SymbolicCoord *coord) {
  * @return 转换后的双精度浮点数值
  */
 double symbolic_coord_to_double(const SymbolicCoord *coord) {
-    if (!coord) return 0.0;
+    if (!coord)
+        return 0.0;
     switch (coord->type) {
         case RATIONAL:
             return rational_to_double(coord->data.rational);
@@ -2318,7 +2481,7 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
             return rational_compare(alg->cached_rational, b->data.rational);
         }
     }
-    
+
     /* 策略2：如果一方是有理数而另一方是二次根式，
      * 检查二次根式是否实际上是有理数（b == 0）。 */
     if (a->type == RATIONAL && b->type == QUADRATIC) {
@@ -2333,7 +2496,7 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
             return rational_compare(q->a, b->data.rational);
         }
     }
-    
+
     /* 策略3：代数数与其他类型的隔离区间交叉检查。
      * 如果操作数之一是代数数，使用其隔离区间来确定
      * 差值的符号，而无需进行完整的 double 计算。 */
@@ -2341,50 +2504,61 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
         const Algebraic *alg = a->data.algebraic;
         double b_val = symbolic_coord_to_double(b);
         /* If the entire isolation interval of a is strictly on one side of b_val */
-        if (alg->right_bound < b_val - LV00_EPSILON_NUMERIC_COMPARE) return -1;
-        if (alg->left_bound > b_val + LV00_EPSILON_NUMERIC_COMPARE) return 1;
+        if (alg->right_bound < b_val - LV00_EPSILON_NUMERIC_COMPARE)
+            return -1;
+        if (alg->left_bound > b_val + LV00_EPSILON_NUMERIC_COMPARE)
+            return 1;
         /* Intervals overlap: refine and retry */
-        refine_algebraic_bounds((Algebraic *)alg, 5);
-        if (alg->right_bound < b_val - LV00_EPSILON_NUMERIC_COMPARE) return -1;
-        if (alg->left_bound > b_val + LV00_EPSILON_NUMERIC_COMPARE) return 1;
+        refine_algebraic_bounds((Algebraic *) alg, 5);
+        if (alg->right_bound < b_val - LV00_EPSILON_NUMERIC_COMPARE)
+            return -1;
+        if (alg->left_bound > b_val + LV00_EPSILON_NUMERIC_COMPARE)
+            return 1;
     }
     if (b->type == ALGEBRAIC) {
         const Algebraic *alg = b->data.algebraic;
         double a_val = symbolic_coord_to_double(a);
-        if (alg->right_bound < a_val - LV00_EPSILON_NUMERIC_COMPARE) return 1;
-        if (alg->left_bound > a_val + LV00_EPSILON_NUMERIC_COMPARE) return -1;
-        refine_algebraic_bounds((Algebraic *)alg, 5);
-        if (alg->right_bound < a_val - LV00_EPSILON_NUMERIC_COMPARE) return 1;
-        if (alg->left_bound > a_val + LV00_EPSILON_NUMERIC_COMPARE) return -1;
+        if (alg->right_bound < a_val - LV00_EPSILON_NUMERIC_COMPARE)
+            return 1;
+        if (alg->left_bound > a_val + LV00_EPSILON_NUMERIC_COMPARE)
+            return -1;
+        refine_algebraic_bounds((Algebraic *) alg, 5);
+        if (alg->right_bound < a_val - LV00_EPSILON_NUMERIC_COMPARE)
+            return 1;
+        if (alg->left_bound > a_val + LV00_EPSILON_NUMERIC_COMPARE)
+            return -1;
     }
-    
+
     /* 策略4：对于二次根式 vs 有理数（b != 0 的情况），
      * 使用连分数近似以获得更高精度。 */
-    if ((a->type == RATIONAL && b->type == QUADRATIC) ||
-        (b->type == RATIONAL && a->type == QUADRATIC)) {
+    if ((a->type == RATIONAL && b->type == QUADRATIC) || (b->type == RATIONAL && a->type == QUADRATIC)) {
         const SymbolicCoord *rat_coord = (a->type == RATIONAL) ? a : b;
         const SymbolicCoord *quad_coord = (a->type == QUADRATIC) ? a : b;
         const Quadratic *q = quad_coord->data.quadratic;
-        double q_val = rational_to_double(q->a) + rational_to_double(q->b) * sqrt((double)q->n);
+        double q_val = rational_to_double(q->a) + rational_to_double(q->b) * sqrt((double) q->n);
         double r_val = rational_to_double(rat_coord->data.rational);
-        
+
         /* Use tighter tolerance for cross-type comparison */
         double tight_eps = LV00_EPSILON_NUMERIC_COMPARE * 0.01;
-        if (q_val < r_val - tight_eps) return (a->type == QUADRATIC) ? -1 : 1;
-        if (q_val > r_val + tight_eps) return (a->type == QUADRATIC) ? 1 : -1;
+        if (q_val < r_val - tight_eps)
+            return (a->type == QUADRATIC) ? -1 : 1;
+        if (q_val > r_val + tight_eps)
+            return (a->type == QUADRATIC) ? 1 : -1;
         /* Within tight epsilon: values are effectively equal */
         return 0;
     }
-    
+
     /* 策略5：最后手段——使用更严格容差的 double 近似比较 */
     double a_val = symbolic_coord_to_double(a);
     double b_val = symbolic_coord_to_double(b);
-    
+
     /* Use stricter tolerance: 1/100 of the normal epsilon */
     double strict_eps = LV00_EPSILON_NUMERIC_COMPARE * 0.01;
-    
-    if (a_val < b_val - strict_eps) return -1;
-    if (a_val > b_val + strict_eps) return 1;
+
+    if (a_val < b_val - strict_eps)
+        return -1;
+    if (a_val > b_val + strict_eps)
+        return 1;
     return 0;
 }
 
@@ -2400,8 +2574,9 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
  */
 static SymbolicCoord *rational_to_algebraic(const SymbolicCoord *r) {
     Algebraic *alg = algebraic_from_rational(r->data.rational);
-    if (!alg) return NULL;
-    
+    if (!alg)
+        return NULL;
+
     SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
     if (!result) {
         algebraic_destroy(alg);
@@ -2423,7 +2598,7 @@ static SymbolicCoord *rational_to_algebraic(const SymbolicCoord *r) {
 static SymbolicCoord *rational_to_quadratic_with_n(const SymbolicCoord *r, unsigned int n) {
     Rational *a = rational_copy(r->data.rational);
     Rational *b = rational_create(0, 1);
-    
+
     SymbolicCoord *result = symbolic_coord_create_quadratic(a, b, n);
     if (result) {
         result->trust = r->trust;
@@ -2441,8 +2616,9 @@ static SymbolicCoord *rational_to_quadratic(const SymbolicCoord *r) {
 /* Promote Quadratic to Algebraic */
 static SymbolicCoord *quadratic_to_algebraic(const SymbolicCoord *q) {
     Algebraic *alg = algebraic_from_quadratic(q->data.quadratic);
-    if (!alg) return NULL;
-    
+    if (!alg)
+        return NULL;
+
     SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
     if (!result) {
         algebraic_destroy(alg);
@@ -2475,7 +2651,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "add";
-    
+
     /* Transcendental + anything */
     if (a->type == TRANSCENDENTAL || b->type == TRANSCENDENTAL) {
         const SymbolicCoord *trans_coord = (a->type == TRANSCENDENTAL) ? a : b;
@@ -2484,10 +2660,14 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
         if (other_coord->type == RATIONAL) {
             /* Transcendental + Rational -> TRANS_EXPR_ADD_RATIONAL */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_ADD_RATIONAL;
             /* 使用 lv00_strlcpy 替代不安全的 strncpy（自动保证零终止） */
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
@@ -2497,7 +2677,10 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = trans_coord->trust;
             result->data.transcendental = t;
@@ -2507,10 +2690,14 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
             /* Transcendental + Algebraic/Quadratic -> out_of_scope */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
 
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
@@ -2520,7 +2707,10 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = TRUST_AMBER;
             result->data.transcendental = t;
@@ -2535,32 +2725,37 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
             Transcendental *t = transcendental_create(base_a);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
-            expr->out_of_scope = false;            lv00_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
+            expr->out_of_scope = false;
+            lv00_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             if (strcmp(base_a, base_b) == 0) {
                 /* 相同底数：检查两者是否都是纯乘法形式（MUL 或裸常量）*/
-                bool a_is_mul = !ta->expr ||
-                    ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
-                bool b_is_mul = !tb->expr ||
-                    tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
+                bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
+                bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
                 if (a_is_mul && b_is_mul) {
                     /* 两者都是系数*底数形式：(ca*base) + (cb*base) = (ca+cb)*base */
-                    Rational *rat_a = (ta->expr && ta->expr->rational_operand)
-                        ? ta->expr->rational_operand : rational_create(1, 1);
-                    Rational *rat_b = (tb->expr && tb->expr->rational_operand)
-                        ? tb->expr->rational_operand : rational_create(1, 1);
+                    Rational *rat_a =
+                        (ta->expr && ta->expr->rational_operand) ? ta->expr->rational_operand : rational_create(1, 1);
+                    Rational *rat_b =
+                        (tb->expr && tb->expr->rational_operand) ? tb->expr->rational_operand : rational_create(1, 1);
                     Rational *own_a = (!ta->expr) ? rat_a : NULL;
                     Rational *own_b = (!tb->expr) ? rat_b : NULL;
 
                     expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
                     expr->rational_operand = rational_add(rat_a, rat_b);
 
-                    if (own_a) rational_destroy(own_a);
-                    if (own_b) rational_destroy(own_b);
+                    if (own_a)
+                        rational_destroy(own_a);
+                    if (own_b)
+                        rational_destroy(own_b);
 
                     if (!expr->rational_operand) {
                         free(expr);
@@ -2583,20 +2778,24 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE;
             result->data.transcendental = t;
             return result;
         }
     }
-    
+
     /* Same type operations */
     if (a->type == b->type) {
         switch (a->type) {
             case RATIONAL: {
                 Rational *r = rational_add(a->data.rational, b->data.rational);
-                if (!r) return NULL;
+                if (!r)
+                    return NULL;
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (!result) {
                     rational_destroy(r);
@@ -2605,7 +2804,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                 rational_destroy(result->data.rational);
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                
+
                 /* Check for overflow */
                 if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
                     g_overflow_context.last_result = result;
@@ -2615,11 +2814,13 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
             }
             case ALGEBRAIC: {
                 Algebraic *alg = algebraic_add(a->data.algebraic, b->data.algebraic);
-                if (!alg) return NULL;
-                SymbolicCoord *result = symbolic_coord_create_algebraic(&alg->minimal_poly, 
-                                                                        alg->left_bound, alg->right_bound);
+                if (!alg)
+                    return NULL;
+                SymbolicCoord *result =
+                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
                 algebraic_destroy(alg);
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             case QUADRATIC: {
@@ -2629,8 +2830,10 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                     SymbolicCoord *a_alg = quadratic_to_algebraic(a);
                     SymbolicCoord *b_alg = quadratic_to_algebraic(b);
                     if (!a_alg || !b_alg) {
-                        if (a_alg) symbolic_coord_destroy(a_alg);
-                        if (b_alg) symbolic_coord_destroy(b_alg);
+                        if (a_alg)
+                            symbolic_coord_destroy(a_alg);
+                        if (b_alg)
+                            symbolic_coord_destroy(b_alg);
                         return NULL;
                     }
                     SymbolicCoord *result = symbolic_coord_add(a_alg, b_alg);
@@ -2640,37 +2843,41 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
                 free(q); /* quadratic_create copies the rationals */
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             default:
                 return NULL;
         }
     }
-    
+
     /* Cross-type operations */
-    
+
     /* Rational + Algebraic = Algebraic */
     if (a->type == RATIONAL && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_add(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == RATIONAL) {
         SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_add(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     /* Rational + Quadratic = Quadratic */
     if (a->type == RATIONAL && b->type == QUADRATIC) {
         /* Convert rational to quadratic with same n as b */
         SymbolicCoord *a_quad = rational_to_quadratic_with_n(a, b->data.quadratic->n);
-        if (!a_quad) return NULL;
+        if (!a_quad)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_add(a_quad, b);
         symbolic_coord_destroy(a_quad);
         return result;
@@ -2678,28 +2885,31 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
     if (a->type == QUADRATIC && b->type == RATIONAL) {
         /* Convert rational to quadratic with same n as a */
         SymbolicCoord *b_quad = rational_to_quadratic_with_n(b, a->data.quadratic->n);
-        if (!b_quad) return NULL;
+        if (!b_quad)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_add(a, b_quad);
         symbolic_coord_destroy(b_quad);
         return result;
     }
-    
+
     /* Quadratic + Algebraic = Algebraic (promote Quadratic) */
     if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_add(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
         SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_add(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     return NULL;
 }
 
@@ -2708,30 +2918,37 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "subtract";
-    
+
     /* Transcendental - anything */
     if (a->type == TRANSCENDENTAL || b->type == TRANSCENDENTAL) {
         const SymbolicCoord *trans_coord = (a->type == TRANSCENDENTAL) ? a : b;
         const SymbolicCoord *other_coord = (a->type == TRANSCENDENTAL) ? b : a;
-        bool inverted = (b->type == TRANSCENDENTAL);  /* true: a - transcendental */
+        bool inverted = (b->type == TRANSCENDENTAL); /* true: a - transcendental */
 
         if (other_coord->type == RATIONAL) {
             if (inverted) {
                 /* rational - transcendental: 无法精确表示，标记为 out_of_scope */
                 Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-                if (!t) return NULL;
+                if (!t)
+                    return NULL;
 
                 TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-                if (!expr) { transcendental_destroy(t); return NULL; }
+                if (!expr) {
+                    transcendental_destroy(t);
+                    return NULL;
+                }
                 expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
-            lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
-            expr->rational_operand = NULL;
+                lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
+                expr->rational_operand = NULL;
                 expr->out_of_scope = true;
 
                 t->expr = expr;
 
                 SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-                if (!result) { transcendental_destroy(t); return NULL; }
+                if (!result) {
+                    transcendental_destroy(t);
+                    return NULL;
+                }
                 result->type = TRANSCENDENTAL;
                 result->trust = TRUST_AMBER;
                 result->data.transcendental = t;
@@ -2740,10 +2957,14 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
 
             /* Transcendental - Rational -> TRANS_EXPR_ADD_RATIONAL with negated rational */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_ADD_RATIONAL;
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             Rational *neg_r = rational_create(0, 1);
@@ -2754,7 +2975,10 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = trans_coord->trust;
             result->data.transcendental = t;
@@ -2764,10 +2988,14 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
             /* Transcendental - Algebraic/Quadratic -> out_of_scope */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_ADD_ALGEBRAIC;
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = NULL;
@@ -2776,7 +3004,10 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = TRUST_AMBER;
             result->data.transcendental = t;
@@ -2791,32 +3022,37 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
             Transcendental *t = transcendental_create(base_a);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
-            expr->out_of_scope = false;            lv00_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
+            expr->out_of_scope = false;
+            lv00_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             if (strcmp(base_a, base_b) == 0) {
                 /* Same base: check if both are pure multiplicative (MUL or bare) */
-                bool a_is_mul = !ta->expr ||
-                    ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
-                bool b_is_mul = !tb->expr ||
-                    tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
+                bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
+                bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
                 if (a_is_mul && b_is_mul) {
                     /* Both are coeff*base form: (ca*base) - (cb*base) = (ca-cb)*base */
-                    Rational *rat_a = (ta->expr && ta->expr->rational_operand)
-                        ? ta->expr->rational_operand : rational_create(1, 1);
-                    Rational *rat_b = (tb->expr && tb->expr->rational_operand)
-                        ? tb->expr->rational_operand : rational_create(1, 1);
+                    Rational *rat_a =
+                        (ta->expr && ta->expr->rational_operand) ? ta->expr->rational_operand : rational_create(1, 1);
+                    Rational *rat_b =
+                        (tb->expr && tb->expr->rational_operand) ? tb->expr->rational_operand : rational_create(1, 1);
                     Rational *own_a = (!ta->expr) ? rat_a : NULL;
                     Rational *own_b = (!tb->expr) ? rat_b : NULL;
 
                     expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
                     expr->rational_operand = rational_subtract(rat_a, rat_b);
 
-                    if (own_a) rational_destroy(own_a);
-                    if (own_b) rational_destroy(own_b);
+                    if (own_a)
+                        rational_destroy(own_a);
+                    if (own_b)
+                        rational_destroy(own_b);
 
                     if (!expr->rational_operand) {
                         free(expr);
@@ -2839,20 +3075,24 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = expr->out_of_scope ? TRUST_AMBER : TRUST_BLUE;
             result->data.transcendental = t;
             return result;
         }
     }
-    
+
     /* Same type operations */
     if (a->type == b->type) {
         switch (a->type) {
             case RATIONAL: {
                 Rational *r = rational_subtract(a->data.rational, b->data.rational);
-                if (!r) return NULL;
+                if (!r)
+                    return NULL;
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (!result) {
                     rational_destroy(r);
@@ -2861,7 +3101,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 rational_destroy(result->data.rational);
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                
+
                 if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
                     g_overflow_context.last_result = result;
                     circuit_handle_overflow();
@@ -2870,11 +3110,13 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
             }
             case ALGEBRAIC: {
                 Algebraic *alg = algebraic_subtract(a->data.algebraic, b->data.algebraic);
-                if (!alg) return NULL;
-                SymbolicCoord *result = symbolic_coord_create_algebraic(&alg->minimal_poly, 
-                                                                        alg->left_bound, alg->right_bound);
+                if (!alg)
+                    return NULL;
+                SymbolicCoord *result =
+                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
                 algebraic_destroy(alg);
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             case QUADRATIC: {
@@ -2884,8 +3126,10 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                     SymbolicCoord *a_alg = quadratic_to_algebraic(a);
                     SymbolicCoord *b_alg = quadratic_to_algebraic(b);
                     if (!a_alg || !b_alg) {
-                        if (a_alg) symbolic_coord_destroy(a_alg);
-                        if (b_alg) symbolic_coord_destroy(b_alg);
+                        if (a_alg)
+                            symbolic_coord_destroy(a_alg);
+                        if (b_alg)
+                            symbolic_coord_destroy(b_alg);
                         return NULL;
                     }
                     SymbolicCoord *result = symbolic_coord_subtract(a_alg, b_alg);
@@ -2895,64 +3139,71 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
                 free(q);
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             default:
                 return NULL;
         }
     }
-    
+
     /* Cross-type operations */
-    
+
     /* Rational - Algebraic = Algebraic */
     if (a->type == RATIONAL && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_subtract(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == RATIONAL) {
         SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_subtract(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     /* Rational - Quadratic = Quadratic */
     if (a->type == RATIONAL && b->type == QUADRATIC) {
         SymbolicCoord *a_quad = rational_to_quadratic_with_n(a, b->data.quadratic->n);
-        if (!a_quad) return NULL;
+        if (!a_quad)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_subtract(a_quad, b);
         symbolic_coord_destroy(a_quad);
         return result;
     }
     if (a->type == QUADRATIC && b->type == RATIONAL) {
         SymbolicCoord *b_quad = rational_to_quadratic_with_n(b, a->data.quadratic->n);
-        if (!b_quad) return NULL;
+        if (!b_quad)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_subtract(a, b_quad);
         symbolic_coord_destroy(b_quad);
         return result;
     }
-    
+
     /* Quadratic - Algebraic = Algebraic */
     if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_subtract(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
         SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_subtract(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     return NULL;
 }
 
@@ -2961,7 +3212,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "multiply";
-    
+
     /* Transcendental * anything */
     if (a->type == TRANSCENDENTAL || b->type == TRANSCENDENTAL) {
         const SymbolicCoord *trans_coord = (a->type == TRANSCENDENTAL) ? a : b;
@@ -2970,10 +3221,14 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
         if (other_coord->type == RATIONAL) {
             /* Transcendental * Rational -> TRANS_EXPR_MUL_RATIONAL */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = rational_copy(other_coord->data.rational);
@@ -2982,7 +3237,10 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = trans_coord->trust;
             result->data.transcendental = t;
@@ -2992,10 +3250,14 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
             /* Transcendental * Algebraic/Quadratic -> out_of_scope */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = NULL;
@@ -3004,7 +3266,10 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = TRUST_AMBER;
             result->data.transcendental = t;
@@ -3019,10 +3284,14 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
             Transcendental *t = transcendental_create(base_a);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
             lv00_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             expr->rational_operand = NULL;
@@ -3031,20 +3300,24 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = TRUST_AMBER;
             result->data.transcendental = t;
             return result;
         }
     }
-    
+
     /* Same type operations */
     if (a->type == b->type) {
         switch (a->type) {
             case RATIONAL: {
                 Rational *r = rational_multiply(a->data.rational, b->data.rational);
-                if (!r) return NULL;
+                if (!r)
+                    return NULL;
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (!result) {
                     rational_destroy(r);
@@ -3053,7 +3326,7 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                 rational_destroy(result->data.rational);
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                
+
                 if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
                     g_overflow_context.last_result = result;
                     circuit_handle_overflow();
@@ -3062,11 +3335,13 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
             }
             case ALGEBRAIC: {
                 Algebraic *alg = algebraic_multiply(a->data.algebraic, b->data.algebraic);
-                if (!alg) return NULL;
-                SymbolicCoord *result = symbolic_coord_create_algebraic(&alg->minimal_poly, 
-                                                                        alg->left_bound, alg->right_bound);
+                if (!alg)
+                    return NULL;
+                SymbolicCoord *result =
+                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
                 algebraic_destroy(alg);
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             case QUADRATIC: {
@@ -3076,8 +3351,10 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                     SymbolicCoord *a_alg = quadratic_to_algebraic(a);
                     SymbolicCoord *b_alg = quadratic_to_algebraic(b);
                     if (!a_alg || !b_alg) {
-                        if (a_alg) symbolic_coord_destroy(a_alg);
-                        if (b_alg) symbolic_coord_destroy(b_alg);
+                        if (a_alg)
+                            symbolic_coord_destroy(a_alg);
+                        if (b_alg)
+                            symbolic_coord_destroy(b_alg);
                         return NULL;
                     }
                     SymbolicCoord *result = symbolic_coord_multiply(a_alg, b_alg);
@@ -3087,65 +3364,72 @@ SymbolicCoord *symbolic_coord_multiply(const SymbolicCoord *a, const SymbolicCoo
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
                 free(q);
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             default:
                 return NULL;
         }
     }
-    
+
     /* Cross-type operations */
-    
+
     /* Rational * Algebraic = Algebraic */
     if (a->type == RATIONAL && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_multiply(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == RATIONAL) {
         SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_multiply(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     /* Rational * Quadratic = Quadratic */
     if (a->type == RATIONAL && b->type == QUADRATIC) {
         /* r * (a + b*sqrt(n)) = r*a + r*b*sqrt(n) */
         Rational *new_a = rational_multiply(a->data.rational, b->data.quadratic->a);
         Rational *new_b = rational_multiply(a->data.rational, b->data.quadratic->b);
         SymbolicCoord *result = symbolic_coord_create_quadratic(new_a, new_b, b->data.quadratic->n);
-        if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+        if (result)
+            result->trust = (a->trust < b->trust) ? a->trust : b->trust;
         return result;
     }
     if (a->type == QUADRATIC && b->type == RATIONAL) {
         Rational *new_a = rational_multiply(a->data.quadratic->a, b->data.rational);
         Rational *new_b = rational_multiply(a->data.quadratic->b, b->data.rational);
         SymbolicCoord *result = symbolic_coord_create_quadratic(new_a, new_b, a->data.quadratic->n);
-        if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+        if (result)
+            result->trust = (a->trust < b->trust) ? a->trust : b->trust;
         return result;
     }
-    
+
     /* Quadratic * Algebraic = Algebraic */
     if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_multiply(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
         SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_multiply(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     return NULL;
 }
 
@@ -3163,7 +3447,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
     g_overflow_context.left_type = a->type;
     g_overflow_context.right_type = b->type;
     g_overflow_context.last_operation = "divide";
-    
+
     /* Transcendental / anything */
     if (a->type == TRANSCENDENTAL || b->type == TRANSCENDENTAL) {
         const SymbolicCoord *trans_coord = (a->type == TRANSCENDENTAL) ? a : b;
@@ -3173,10 +3457,14 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
         if (other_coord->type == RATIONAL) {
             /* Transcendental / Rational -> TRANS_EXPR_MUL_RATIONAL with inverted rational */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_MUL_RATIONAL;
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             if (inverted) {
@@ -3186,8 +3474,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                 return NULL;
             } else {
                 /* a is transcendental, b is rational: t / r = t * (1/r) */
-                expr->rational_operand = rational_divide(
-                    rational_create(1, 1), other_coord->data.rational);
+                expr->rational_operand = rational_divide(rational_create(1, 1), other_coord->data.rational);
                 if (!expr->rational_operand) {
                     transcendental_destroy(t);
                     free(expr);
@@ -3199,7 +3486,10 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = trans_coord->trust;
             result->data.transcendental = t;
@@ -3209,10 +3499,14 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
         if (other_coord->type == ALGEBRAIC || other_coord->type == QUADRATIC) {
             /* Transcendental / Algebraic/Quadratic -> out_of_scope */
             Transcendental *t = transcendental_create(trans_coord->data.transcendental->name);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
             lv00_strlcpy(expr->base_name, trans_coord->data.transcendental->name, sizeof(expr->base_name));
             expr->rational_operand = NULL;
@@ -3221,7 +3515,10 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = TRUST_AMBER;
             result->data.transcendental = t;
@@ -3237,25 +3534,26 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             if (strcmp(base_a, base_b) == 0) {
                 /* Same base: (ca*base) / (cb*base) = ca/cb (rational) */
-                bool a_is_mul = !ta->expr ||
-                    ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
-                bool b_is_mul = !tb->expr ||
-                    tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
+                bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
+                bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
                 if (a_is_mul && b_is_mul) {
-                    Rational *rat_a = (ta->expr && ta->expr->rational_operand)
-                        ? ta->expr->rational_operand : rational_create(1, 1);
-                    Rational *rat_b = (tb->expr && tb->expr->rational_operand)
-                        ? tb->expr->rational_operand : rational_create(1, 1);
+                    Rational *rat_a =
+                        (ta->expr && ta->expr->rational_operand) ? ta->expr->rational_operand : rational_create(1, 1);
+                    Rational *rat_b =
+                        (tb->expr && tb->expr->rational_operand) ? tb->expr->rational_operand : rational_create(1, 1);
                     Rational *own_a = (!ta->expr) ? rat_a : NULL;
                     Rational *own_b = (!tb->expr) ? rat_b : NULL;
 
                     Rational *result_rat = rational_divide(rat_a, rat_b);
 
-                    if (own_a) rational_destroy(own_a);
-                    if (own_b) rational_destroy(own_b);
+                    if (own_a)
+                        rational_destroy(own_a);
+                    if (own_b)
+                        rational_destroy(own_b);
 
-                    if (!result_rat) return NULL;
+                    if (!result_rat)
+                        return NULL;
 
                     SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                     if (!result) {
@@ -3271,10 +3569,14 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
 
             /* Different base or non-mul form: out_of_scope */
             Transcendental *t = transcendental_create(base_a);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->expr_type = TRANS_EXPR_MUL_ALGEBRAIC;
             lv00_strlcpy(expr->base_name, base_a, sizeof(expr->base_name));
             expr->rational_operand = NULL;
@@ -3283,20 +3585,24 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = TRUST_AMBER;
             result->data.transcendental = t;
             return result;
         }
     }
-    
+
     /* Same type operations */
     if (a->type == b->type) {
         switch (a->type) {
             case RATIONAL: {
                 Rational *r = rational_divide(a->data.rational, b->data.rational);
-                if (!r) return NULL;
+                if (!r)
+                    return NULL;
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (!result) {
                     rational_destroy(r);
@@ -3305,7 +3611,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                 rational_destroy(result->data.rational);
                 result->data.rational = r;
                 result->trust = (a->trust < b->trust) ? a->trust : b->trust;
-                
+
                 if (check_digit_circuit(result) == CIRCUIT_STATUS_TRIPPED) {
                     g_overflow_context.last_result = result;
                     circuit_handle_overflow();
@@ -3314,11 +3620,13 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             }
             case ALGEBRAIC: {
                 Algebraic *alg = algebraic_divide(a->data.algebraic, b->data.algebraic);
-                if (!alg) return NULL;
-                SymbolicCoord *result = symbolic_coord_create_algebraic(&alg->minimal_poly, 
-                                                                        alg->left_bound, alg->right_bound);
+                if (!alg)
+                    return NULL;
+                SymbolicCoord *result =
+                    symbolic_coord_create_algebraic(&alg->minimal_poly, alg->left_bound, alg->right_bound);
                 algebraic_destroy(alg);
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             case QUADRATIC: {
@@ -3328,8 +3636,10 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                     SymbolicCoord *a_alg = quadratic_to_algebraic(a);
                     SymbolicCoord *b_alg = quadratic_to_algebraic(b);
                     if (!a_alg || !b_alg) {
-                        if (a_alg) symbolic_coord_destroy(a_alg);
-                        if (b_alg) symbolic_coord_destroy(b_alg);
+                        if (a_alg)
+                            symbolic_coord_destroy(a_alg);
+                        if (b_alg)
+                            symbolic_coord_destroy(b_alg);
                         return NULL;
                     }
                     SymbolicCoord *result = symbolic_coord_divide(a_alg, b_alg);
@@ -3339,37 +3649,41 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
                 }
                 SymbolicCoord *result = symbolic_coord_create_quadratic(q->a, q->b, q->n);
                 free(q);
-                if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+                if (result)
+                    result->trust = (a->trust < b->trust) ? a->trust : b->trust;
                 return result;
             }
             default:
                 return NULL;
         }
     }
-    
+
     /* Cross-type operations */
-    
+
     /* Rational / Algebraic = Algebraic */
     if (a->type == RATIONAL && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = rational_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_divide(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == RATIONAL) {
         SymbolicCoord *b_alg = rational_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_divide(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     /* Rational / Quadratic = Quadratic */
     if (a->type == RATIONAL && b->type == QUADRATIC) {
         /* r / (a + b*sqrt(n)) = r * (a - b*sqrt(n)) / (a^2 - b^2*n) */
         SymbolicCoord *r_quad = rational_to_quadratic_with_n(a, b->data.quadratic->n);
-        if (!r_quad) return NULL;
+        if (!r_quad)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_divide(r_quad, b);
         symbolic_coord_destroy(r_quad);
         return result;
@@ -3379,31 +3693,36 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
         Rational *new_a = rational_divide(a->data.quadratic->a, b->data.rational);
         Rational *new_b = rational_divide(a->data.quadratic->b, b->data.rational);
         if (!new_a || !new_b) {
-            if (new_a) rational_destroy(new_a);
-            if (new_b) rational_destroy(new_b);
+            if (new_a)
+                rational_destroy(new_a);
+            if (new_b)
+                rational_destroy(new_b);
             return NULL;
         }
         SymbolicCoord *result = symbolic_coord_create_quadratic(new_a, new_b, a->data.quadratic->n);
-        if (result) result->trust = (a->trust < b->trust) ? a->trust : b->trust;
+        if (result)
+            result->trust = (a->trust < b->trust) ? a->trust : b->trust;
         return result;
     }
-    
+
     /* Quadratic / Algebraic = Algebraic */
     if (a->type == QUADRATIC && b->type == ALGEBRAIC) {
         SymbolicCoord *a_alg = quadratic_to_algebraic(a);
-        if (!a_alg) return NULL;
+        if (!a_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_divide(a_alg, b);
         symbolic_coord_destroy(a_alg);
         return result;
     }
     if (a->type == ALGEBRAIC && b->type == QUADRATIC) {
         SymbolicCoord *b_alg = quadratic_to_algebraic(b);
-        if (!b_alg) return NULL;
+        if (!b_alg)
+            return NULL;
         SymbolicCoord *result = symbolic_coord_divide(a, b_alg);
         symbolic_coord_destroy(b_alg);
         return result;
     }
-    
+
     return NULL;
 }
 
@@ -3433,24 +3752,23 @@ char *symbolic_coord_serialize(const SymbolicCoord *coord) {
 
 /* Create a deep copy of a SymbolicCoord */
 SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
-    if (!src) return NULL;
-    
+    if (!src)
+        return NULL;
+
     SymbolicCoord *dst = malloc(sizeof(SymbolicCoord));
-    if (!dst) return NULL;
-    
+    if (!dst)
+        return NULL;
+
     dst->type = src->type;
     dst->trust = src->trust;
-    
+
     switch (src->type) {
         case RATIONAL:
             dst->data.rational = rational_copy(src->data.rational);
             break;
         case ALGEBRAIC: {
-            dst->data.algebraic = algebraic_create(
-                (mpz_poly_t*)&src->data.algebraic->minimal_poly,
-                src->data.algebraic->left_bound,
-                src->data.algebraic->right_bound
-            );
+            dst->data.algebraic = algebraic_create((mpz_poly_t *) &src->data.algebraic->minimal_poly,
+                                                   src->data.algebraic->left_bound, src->data.algebraic->right_bound);
             if (dst->data.algebraic && src->data.algebraic->cached_rational) {
                 dst->data.algebraic->cached_rational = rational_copy(src->data.algebraic->cached_rational);
             }
@@ -3471,9 +3789,9 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
                 if (dst_expr) {
                     dst_expr->expr_type = src_expr->expr_type;
                     /* 使用 lv00_strlcpy 替代不安全的 strncpy（自动保证零终止） */
-            lv00_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
-                    dst_expr->rational_operand = src_expr->rational_operand
-                        ? rational_copy(src_expr->rational_operand) : NULL;
+                    lv00_strlcpy(dst_expr->base_name, src_expr->base_name, sizeof(dst_expr->base_name));
+                    dst_expr->rational_operand =
+                        src_expr->rational_operand ? rational_copy(src_expr->rational_operand) : NULL;
                     dst_expr->out_of_scope = src_expr->out_of_scope;
                     dst->data.transcendental->expr = dst_expr;
                 }
@@ -3481,19 +3799,27 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
             break;
         }
     }
-    
+
     bool copy_ok = false;
     switch (src->type) {
-        case RATIONAL: copy_ok = (dst->data.rational != NULL); break;
-        case ALGEBRAIC: copy_ok = (dst->data.algebraic != NULL); break;
-        case QUADRATIC: copy_ok = (dst->data.quadratic != NULL); break;
-        case TRANSCENDENTAL: copy_ok = (dst->data.transcendental != NULL); break;
+        case RATIONAL:
+            copy_ok = (dst->data.rational != NULL);
+            break;
+        case ALGEBRAIC:
+            copy_ok = (dst->data.algebraic != NULL);
+            break;
+        case QUADRATIC:
+            copy_ok = (dst->data.quadratic != NULL);
+            break;
+        case TRANSCENDENTAL:
+            copy_ok = (dst->data.transcendental != NULL);
+            break;
     }
     if (!copy_ok) {
         symbolic_coord_destroy(dst);
         return NULL;
     }
-    
+
     return dst;
 }
 
@@ -3504,7 +3830,8 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
  * @return true 表示为零，false 表示非零
  */
 bool symbolic_coord_is_zero(const SymbolicCoord *coord) {
-    if (!coord) return true;
+    if (!coord)
+        return true;
     switch (coord->type) {
         case RATIONAL:
             return mpq_cmp_ui(coord->data.rational->value, 0, 1) == 0;
@@ -3565,26 +3892,29 @@ bool symbolic_coord_is_negative(const SymbolicCoord *coord) {
  * @param declaration 声明信息（可为 NULL）
  * @return 降级后的新符号坐标对象，失败时返回 NULL；调用者需负责释放
  */
-SymbolicCoord* symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, double precision, const char *declaration) {
-    if (!coord) return NULL;
-    
+SymbolicCoord *symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, double precision,
+                                                 const char *declaration) {
+    if (!coord)
+        return NULL;
+
     /* Create a new coordinate with AMBER trust level */
     SymbolicCoord *result = symbolic_coord_copy(coord);
-    if (!result) return NULL;
-    
+    if (!result)
+        return NULL;
+
     /* Mark as AMBER (numerical assumption) */
     result->trust = TRUST_AMBER;
-    
+
     /* Store the precision threshold */
     /* Note: In a full implementation, this would be stored in a dedicated field */
     /* For now, we log it */
-    fprintf(stderr, "[AMBER DOWNGRADE] Precision: %.15g, Declaration: %s\n", 
-            precision, declaration ? declaration : "(none)");
-    
+    fprintf(stderr, "[AMBER DOWNGRADE] Precision: %.15g, Declaration: %s\n", precision,
+            declaration ? declaration : "(none)");
+
     /* The numerical value is accessible via symbolic_coord_to_double() */
     double numerical_value = symbolic_coord_to_double(result);
     fprintf(stderr, "[AMBER DOWNGRADE] Numerical value: %.15g\n", numerical_value);
-    
+
     return result;
 }
 
@@ -3595,7 +3925,8 @@ SymbolicCoord* symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, dou
  * @return true 表示为 AMBER，false 表示其他
  */
 bool symbolic_coord_is_amber(const SymbolicCoord *coord) {
-    if (!coord) return false;
+    if (!coord)
+        return false;
     return coord->trust == TRUST_AMBER;
 }
 
@@ -3603,7 +3934,8 @@ bool symbolic_coord_is_amber(const SymbolicCoord *coord) {
  * Get the trust color of a coordinate
  */
 TrustColor symbolic_coord_get_trust(const SymbolicCoord *coord) {
-    if (!coord) return TRUST_GREEN;
+    if (!coord)
+        return TRUST_GREEN;
     return coord->trust;
 }
 
@@ -3624,7 +3956,8 @@ void symbolic_coord_set_trust(SymbolicCoord *coord, TrustColor trust) {
  * ============================================================ */
 
 SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
-    if (!coord) return NULL;
+    if (!coord)
+        return NULL;
 
     switch (coord->type) {
         case RATIONAL: {
@@ -3650,7 +3983,10 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             if (a->minimal_poly.degree >= 0) {
                 neg_poly.degree = a->minimal_poly.degree;
                 neg_poly.coeffs = malloc((neg_poly.degree + 1) * sizeof(mpz_t));
-                if (!neg_poly.coeffs) { mpz_poly_clear(&neg_poly); return NULL; }
+                if (!neg_poly.coeffs) {
+                    mpz_poly_clear(&neg_poly);
+                    return NULL;
+                }
                 for (int i = 0; i <= neg_poly.degree; i++) {
                     mpz_init(neg_poly.coeffs[i]);
                     if (i % 2 == 1) {
@@ -3666,7 +4002,8 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
 
             SymbolicCoord *result = symbolic_coord_create_algebraic(&neg_poly, new_left, new_right);
             mpz_poly_clear(&neg_poly);
-            if (result) result->trust = coord->trust;
+            if (result)
+                result->trust = coord->trust;
             return result;
         }
         case QUADRATIC: {
@@ -3676,7 +4013,8 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             Rational *neg_b = rational_create(0, 1);
             mpq_neg(neg_b->value, q->b->value);
             SymbolicCoord *result = symbolic_coord_create_quadratic(neg_a, neg_b, q->n);
-            if (result) result->trust = coord->trust;
+            if (result)
+                result->trust = coord->trust;
             return result;
         }
         case TRANSCENDENTAL: {
@@ -3685,10 +4023,14 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             const char *base = src_t->expr ? src_t->expr->base_name : src_t->name;
 
             Transcendental *t = transcendental_create(base);
-            if (!t) return NULL;
+            if (!t)
+                return NULL;
 
             TranscendentalExpr *expr = malloc(sizeof(TranscendentalExpr));
-            if (!expr) { transcendental_destroy(t); return NULL; }
+            if (!expr) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             expr->out_of_scope = src_t->expr ? src_t->expr->out_of_scope : false;
             /* 使用 lv00_strlcpy 替代不安全的 strncpy（自动保证零终止） */
             lv00_strlcpy(expr->base_name, base, sizeof(expr->base_name));
@@ -3718,7 +4060,10 @@ SymbolicCoord *symbolic_coord_negate(const SymbolicCoord *coord) {
             t->expr = expr;
 
             SymbolicCoord *result = malloc(sizeof(SymbolicCoord));
-            if (!result) { transcendental_destroy(t); return NULL; }
+            if (!result) {
+                transcendental_destroy(t);
+                return NULL;
+            }
             result->type = TRANSCENDENTAL;
             result->trust = coord->trust;
             result->data.transcendental = t;
@@ -3745,7 +4090,8 @@ static mpz_t *mpz_perfect_sqrt(mpz_t n);
  * TRANSCENDENTAL: Marked as out_of_scope, returns NULL.
  */
 SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int exponent) {
-    if (!base) return NULL;
+    if (!base)
+        return NULL;
 
     /* base^0 = 1 for any type */
     if (exponent == 0) {
@@ -3772,7 +4118,8 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             mpz_clear(num_pow);
             mpz_clear(den_pow);
 
-            if (!result_r) return NULL;
+            if (!result_r)
+                return NULL;
 
             SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
             if (result) {
@@ -3859,7 +4206,8 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             rational_destroy(cur_b);
 
             SymbolicCoord *result = symbolic_coord_create_quadratic(res_a, res_b, res_n);
-            if (result) result->trust = base->trust;
+            if (result)
+                result->trust = base->trust;
             else {
                 rational_destroy(res_a);
                 rational_destroy(res_b);
@@ -3966,7 +4314,10 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     mpz_t *c0_ptr = &a->minimal_poly.coeffs[0];
 
                     mpz_t c2_sq, c1_sq, c0_sq, term_mid;
-                    mpz_init(c2_sq); mpz_init(c1_sq); mpz_init(c0_sq); mpz_init(term_mid);
+                    mpz_init(c2_sq);
+                    mpz_init(c1_sq);
+                    mpz_init(c0_sq);
+                    mpz_init(term_mid);
                     mpz_mul(c2_sq, *c2_ptr, *c2_ptr);
                     mpz_mul(c1_sq, *c1_ptr, *c1_ptr);
                     mpz_mul(c0_sq, *c0_ptr, *c0_ptr);
@@ -3988,10 +4339,11 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
 
                         double result_val = val * val;
                         double margin = fabs(result_val) * LV00_EPSILON_NEWTON * 100.0;
-                        if (margin < LV00_EPSILON_NEWTON) margin = LV00_EPSILON_NEWTON;
+                        if (margin < LV00_EPSILON_NEWTON)
+                            margin = LV00_EPSILON_NEWTON;
 
-                        SymbolicCoord *result = symbolic_coord_create_algebraic(&sq_poly,
-                            result_val - margin, result_val + margin);
+                        SymbolicCoord *result =
+                            symbolic_coord_create_algebraic(&sq_poly, result_val - margin, result_val + margin);
                         mpz_poly_clear(&sq_poly);
                         if (result) {
                             result->trust = base->trust;
@@ -4004,7 +4356,10 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                                     rat_result->data.rational = rational_copy(result->data.algebraic->cached_rational);
                                     rat_result->trust = result->trust;
                                     symbolic_coord_destroy(result);
-                                    mpz_clear(c2_sq); mpz_clear(c1_sq); mpz_clear(c0_sq); mpz_clear(term_mid);
+                                    mpz_clear(c2_sq);
+                                    mpz_clear(c1_sq);
+                                    mpz_clear(c0_sq);
+                                    mpz_clear(term_mid);
                                     return rat_result;
                                 }
                             }
@@ -4012,19 +4367,23 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                     } else {
                         mpz_poly_clear(&sq_poly);
                     }
-                    mpz_clear(c2_sq); mpz_clear(c1_sq); mpz_clear(c0_sq); mpz_clear(term_mid);
+                    mpz_clear(c2_sq);
+                    mpz_clear(c1_sq);
+                    mpz_clear(c0_sq);
+                    mpz_clear(term_mid);
                     /* Fall through to numerical approach if resultant method failed */
                 }
             }
 
             /* General case: numerical approach with rationalization attempt */
-            double result_val = pow(val, (double)exponent);
+            double result_val = pow(val, (double) exponent);
 
             /* Try rationalization: check if the result is actually a rational number */
             {
                 /* Use continued fraction on the numerical value to find a candidate */
                 double margin_cf = fabs(result_val) * 1e-10;
-                if (margin_cf < 1e-15) margin_cf = 1e-15;
+                if (margin_cf < 1e-15)
+                    margin_cf = 1e-15;
 
                 /* Try mpq_set_d as a quick rationality check */
                 mpq_t approx;
@@ -4034,7 +4393,8 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
 
                 /* Verify: check if the rational approximation is close enough */
                 double approx_val = mpq_get_d(approx);
-                if (fabs(approx_val - result_val) < LV00_EPSILON_NUMERIC_COMPARE * fabs(result_val) + LV00_EPSILON_NUMERIC_COMPARE) {
+                if (fabs(approx_val - result_val) <
+                    LV00_EPSILON_NUMERIC_COMPARE * fabs(result_val) + LV00_EPSILON_NUMERIC_COMPARE) {
                     /* Create an algebraic number with this rational value and try rationalization */
                     mpz_poly_t check_poly;
                     mpz_poly_init(&check_poly);
@@ -4047,10 +4407,11 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                         mpz_set(check_poly.coeffs[1], mpq_denref(approx));
 
                         double tight_margin = fabs(result_val) * LV00_EPSILON_NEWTON;
-                        if (tight_margin < LV00_EPSILON_NEWTON) tight_margin = LV00_EPSILON_NEWTON;
+                        if (tight_margin < LV00_EPSILON_NEWTON)
+                            tight_margin = LV00_EPSILON_NEWTON;
 
-                        SymbolicCoord *result = symbolic_coord_create_algebraic(&check_poly,
-                            result_val - tight_margin, result_val + tight_margin);
+                        SymbolicCoord *result = symbolic_coord_create_algebraic(&check_poly, result_val - tight_margin,
+                                                                                result_val + tight_margin);
                         mpz_poly_clear(&check_poly);
                         if (result) {
                             result->trust = base->trust;
@@ -4079,13 +4440,17 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
 
             /* Final fallback: create algebraic number from numerical value */
             double margin = fabs(result_val) * LV00_EPSILON_NUMERIC_COMPARE;
-            if (margin < LV00_EPSILON_NUMERIC_COMPARE) margin = LV00_EPSILON_NUMERIC_COMPARE;
+            if (margin < LV00_EPSILON_NUMERIC_COMPARE)
+                margin = LV00_EPSILON_NUMERIC_COMPARE;
 
             mpz_poly_t poly;
             mpz_poly_init(&poly);
             poly.degree = 1;
             poly.coeffs = malloc(2 * sizeof(mpz_t));
-            if (!poly.coeffs) { mpz_poly_clear(&poly); return NULL; }
+            if (!poly.coeffs) {
+                mpz_poly_clear(&poly);
+                return NULL;
+            }
             mpz_init(poly.coeffs[0]);
             mpz_init(poly.coeffs[1]);
 
@@ -4096,10 +4461,10 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
             mpz_set(poly.coeffs[1], mpq_denref(approx));
             mpq_clear(approx);
 
-            SymbolicCoord *result = symbolic_coord_create_algebraic(&poly,
-                result_val - margin, result_val + margin);
+            SymbolicCoord *result = symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
             mpz_poly_clear(&poly);
-            if (result) result->trust = base->trust;
+            if (result)
+                result->trust = base->trust;
             return result;
         }
 
@@ -4110,14 +4475,17 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
              * value pow(transcendental_to_double(t), exponent). */
             {
                 double base_val = transcendental_to_double(base->data.transcendental);
-                double result_val = pow(base_val, (double)exponent);
+                double result_val = pow(base_val, (double) exponent);
 
                 /* Create an algebraic number from the numerical value */
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 1;
                 poly.coeffs = malloc(2 * sizeof(mpz_t));
-                if (!poly.coeffs) { mpz_poly_clear(&poly); return NULL; }
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    return NULL;
+                }
                 mpz_init(poly.coeffs[0]);
                 mpz_init(poly.coeffs[1]);
 
@@ -4129,12 +4497,14 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
                 mpq_clear(approx);
 
                 double margin = fabs(result_val) * LV00_EPSILON_NEWTON * 100.0;
-                if (margin < LV00_EPSILON_NEWTON) margin = LV00_EPSILON_NEWTON;
+                if (margin < LV00_EPSILON_NEWTON)
+                    margin = LV00_EPSILON_NEWTON;
 
-                SymbolicCoord *result = symbolic_coord_create_algebraic(&poly,
-                    result_val - margin, result_val + margin);
+                SymbolicCoord *result =
+                    symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
                 mpz_poly_clear(&poly);
-                if (result) result->trust = TRUST_AMBER;
+                if (result)
+                    result->trust = TRUST_AMBER;
                 return result;
             }
         }
@@ -4156,7 +4526,8 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
  * TRANSCENDENTAL: Marked as out_of_scope, returns NULL.
  */
 SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
-    if (!coord) return NULL;
+    if (!coord)
+        return NULL;
 
     switch (coord->type) {
         case RATIONAL: {
@@ -4169,7 +4540,8 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             int num_sign = mpz_sgn(num);
             if (num_sign < 0) {
                 /* 负有理数：sqrt 不是实数 */
-                mpz_clear(num); mpz_clear(den);
+                mpz_clear(num);
+                mpz_clear(den);
                 return NULL;
             }
 
@@ -4179,10 +4551,16 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             if (num_sqrt && den_sqrt) {
                 /* Both are perfect squares: return exact rational */
                 Rational *result_r = rational_create_from_mpz(*num_sqrt, *den_sqrt);
-                mpz_clear(*num_sqrt); free(num_sqrt);
-                mpz_clear(*den_sqrt); free(den_sqrt);
+                mpz_clear(*num_sqrt);
+                free(num_sqrt);
+                mpz_clear(*den_sqrt);
+                free(den_sqrt);
 
-                if (!result_r) { mpz_clear(num); mpz_clear(den); return NULL; }
+                if (!result_r) {
+                    mpz_clear(num);
+                    mpz_clear(den);
+                    return NULL;
+                }
 
                 SymbolicCoord *result = symbolic_coord_create_rational(0, 1);
                 if (result) {
@@ -4196,8 +4574,14 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             }
 
             /* 清理任何非 NULL 的结果 */
-            if (num_sqrt) { mpz_clear(*num_sqrt); free(num_sqrt); }
-            if (den_sqrt) { mpz_clear(*den_sqrt); free(den_sqrt); }
+            if (num_sqrt) {
+                mpz_clear(*num_sqrt);
+                free(num_sqrt);
+            }
+            if (den_sqrt) {
+                mpz_clear(*den_sqrt);
+                free(den_sqrt);
+            }
 
             /* 不是完全平方数：尝试表示为二次根式 a + b*sqrt(n)
              * sqrt(p/q) = sqrt(p*q) / q
@@ -4225,7 +4609,9 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
              * 或者如果 remaining > 1，则有 sqrt(product) = square_part * sqrt(remaining) */
             if (mpz_cmp_si(remaining, 1) == 0) {
                 /* Should have been caught above, but handle gracefully */
-                mpz_clear(product); mpz_clear(remaining); mpz_clear(square_part);
+                mpz_clear(product);
+                mpz_clear(remaining);
+                mpz_clear(square_part);
                 return NULL;
             }
 
@@ -4235,7 +4621,9 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
 
             /* Check if remaining fits in unsigned int */
             if (!mpz_fits_uint_p(remaining)) {
-                mpz_clear(product); mpz_clear(remaining); mpz_clear(square_part);
+                mpz_clear(product);
+                mpz_clear(remaining);
+                mpz_clear(square_part);
                 return NULL;
             }
 
@@ -4246,10 +4634,13 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             Rational *a = rational_create(0, 1);
             Rational *b = rational_create_from_mpz(square_part, den);
 
-            mpz_clear(product); mpz_clear(remaining); mpz_clear(square_part);
+            mpz_clear(product);
+            mpz_clear(remaining);
+            mpz_clear(square_part);
 
             SymbolicCoord *result = symbolic_coord_create_quadratic(a, b, n);
-            if (result) result->trust = coord->trust;
+            if (result)
+                result->trust = coord->trust;
             else {
                 rational_destroy(a);
                 rational_destroy(b);
@@ -4304,7 +4695,10 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
 
             /* disc = a^2 - b^2*n must be non-negative for real sqrt */
             if (mpq_sgn(disc) < 0) {
-                mpq_clear(a_sq); mpq_clear(b_sq); mpq_clear(b_sq_n); mpq_clear(disc);
+                mpq_clear(a_sq);
+                mpq_clear(b_sq);
+                mpq_clear(b_sq_n);
+                mpq_clear(disc);
                 return NULL;
             }
 
@@ -4354,9 +4748,13 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                     mpq_mul_2exp(two_c->value, two_c->value, 1); /* 2c */
                     d_rat = rational_divide(q->b, two_c);
                     rational_destroy(two_c);
-                    mpz_clear(*c_sqrt); free(c_sqrt);
+                    mpz_clear(*c_sqrt);
+                    free(c_sqrt);
                 } else {
-                    if (c_sqrt) { mpz_clear(*c_sqrt); free(c_sqrt); }
+                    if (c_sqrt) {
+                        mpz_clear(*c_sqrt);
+                        free(c_sqrt);
+                    }
 
                     /* Try c_sq_neg */
                     mpz_mul(csq_product, mpq_numref(c_sq_neg), mpq_denref(c_sq_neg));
@@ -4368,37 +4766,56 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                         mpq_mul_2exp(two_c->value, two_c->value, 1);
                         d_rat = rational_divide(q->b, two_c);
                         rational_destroy(two_c);
-                        mpz_clear(*c_sqrt); free(c_sqrt);
+                        mpz_clear(*c_sqrt);
+                        free(c_sqrt);
                     } else {
-                        if (c_sqrt) { mpz_clear(*c_sqrt); free(c_sqrt); }
+                        if (c_sqrt) {
+                            mpz_clear(*c_sqrt);
+                            free(c_sqrt);
+                        }
                     }
                 }
 
                 mpz_clear(csq_product);
-                mpq_clear(c_sq); mpq_clear(c_sq_neg); mpq_clear(k);
+                mpq_clear(c_sq);
+                mpq_clear(c_sq_neg);
+                mpq_clear(k);
 
                 if (c_rat && d_rat) {
                     /* Result: c + d*sqrt(n) */
                     SymbolicCoord *result = symbolic_coord_create_quadratic(c_rat, d_rat, q->n);
-                    if (result) result->trust = coord->trust;
+                    if (result)
+                        result->trust = coord->trust;
                     else {
                         rational_destroy(c_rat);
                         rational_destroy(d_rat);
                     }
-                    mpz_clear(*disc_sqrt); free(disc_sqrt);
-                    mpq_clear(a_sq); mpq_clear(b_sq); mpq_clear(b_sq_n); mpq_clear(disc);
-                    mpz_clear(disc_num_sq); mpz_clear(disc_product);
+                    mpz_clear(*disc_sqrt);
+                    free(disc_sqrt);
+                    mpq_clear(a_sq);
+                    mpq_clear(b_sq);
+                    mpq_clear(b_sq_n);
+                    mpq_clear(disc);
+                    mpz_clear(disc_num_sq);
+                    mpz_clear(disc_product);
                     return result;
                 }
 
-                if (c_rat) rational_destroy(c_rat);
-                if (d_rat) rational_destroy(d_rat);
-                mpz_clear(*disc_sqrt); free(disc_sqrt);
+                if (c_rat)
+                    rational_destroy(c_rat);
+                if (d_rat)
+                    rational_destroy(d_rat);
+                mpz_clear(*disc_sqrt);
+                free(disc_sqrt);
             } else {
-                mpz_clear(disc_num_sq); mpz_clear(disc_product);
+                mpz_clear(disc_num_sq);
+                mpz_clear(disc_product);
             }
 
-            mpq_clear(a_sq); mpq_clear(b_sq); mpq_clear(b_sq_n); mpq_clear(disc);
+            mpq_clear(a_sq);
+            mpq_clear(b_sq);
+            mpq_clear(b_sq_n);
+            mpq_clear(disc);
 
             /* Cannot expand exactly: fall back to algebraic representation
              * sqrt(a + b*sqrt(n)) has minimal polynomial obtained by
@@ -4414,10 +4831,11 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             {
                 double a_val = rational_to_double(q->a);
                 double b_val = rational_to_double(q->b);
-                double sqrt_n = sqrt((double)q->n);
+                double sqrt_n = sqrt((double) q->n);
                 double inner = a_val + b_val * sqrt_n;
 
-                if (inner < 0) return NULL;
+                if (inner < 0)
+                    return NULL;
 
                 double result_val = sqrt(inner);
 
@@ -4426,12 +4844,14 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_init(&poly);
                 poly.degree = 4;
                 poly.coeffs = malloc(5 * sizeof(mpz_t));
-                if (!poly.coeffs) { mpz_poly_clear(&poly); return NULL; }
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    return NULL;
+                }
 
                 /* coeffs[0] = a^2 - b^2*n (constant term) */
                 mpz_init(poly.coeffs[0]);
-                mpz_mul(poly.coeffs[0],
-                        mpq_numref(q->a->value), mpq_numref(q->a->value));
+                mpz_mul(poly.coeffs[0], mpq_numref(q->a->value), mpq_numref(q->a->value));
                 mpz_t den_a_sq;
                 mpz_init(den_a_sq);
                 mpz_mul(den_a_sq, mpq_denref(q->a->value), mpq_denref(q->a->value));
@@ -4474,16 +4894,22 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 /* coeffs[4] = den_a^2 * b_sq_n_den (leading coefficient for x^4) */
                 mpz_init_set(poly.coeffs[4], lcd);
 
-                mpz_clear(den_a_sq); mpz_clear(b_sq_n_num); mpz_clear(b_sq_n_den);
-                mpz_clear(lcd); mpz_clear(term1); mpz_clear(term2);
+                mpz_clear(den_a_sq);
+                mpz_clear(b_sq_n_num);
+                mpz_clear(b_sq_n_den);
+                mpz_clear(lcd);
+                mpz_clear(term1);
+                mpz_clear(term2);
 
                 double margin = fabs(result_val) * LV00_EPSILON_NEWTON * 10.0;
-                if (margin < LV00_EPSILON_NEWTON) margin = LV00_EPSILON_NEWTON;
+                if (margin < LV00_EPSILON_NEWTON)
+                    margin = LV00_EPSILON_NEWTON;
 
-                SymbolicCoord *result = symbolic_coord_create_algebraic(&poly,
-                    result_val - margin, result_val + margin);
+                SymbolicCoord *result =
+                    symbolic_coord_create_algebraic(&poly, result_val - margin, result_val + margin);
                 mpz_poly_clear(&poly);
-                if (result) result->trust = coord->trust;
+                if (result)
+                    result->trust = coord->trust;
                 return result;
             }
         }
@@ -4498,7 +4924,8 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
 
             /* Check if the algebraic number is negative (no real sqrt) */
             double mid = (a->left_bound + a->right_bound) / 2.0;
-            if (mid < -LV00_EPSILON_NUMERIC_COMPARE) return NULL;
+            if (mid < -LV00_EPSILON_NUMERIC_COMPARE)
+                return NULL;
 
             /* Try rationalization first: if the algebraic number is actually rational */
             if (a->cached_rational) {
@@ -4535,7 +4962,10 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             mpz_poly_init(&sqrt_poly);
             sqrt_poly.degree = new_deg;
             sqrt_poly.coeffs = malloc((new_deg + 1) * sizeof(mpz_t));
-            if (!sqrt_poly.coeffs) { mpz_poly_clear(&sqrt_poly); return NULL; }
+            if (!sqrt_poly.coeffs) {
+                mpz_poly_clear(&sqrt_poly);
+                return NULL;
+            }
 
             for (int i = 0; i <= new_deg; i++) {
                 mpz_init(sqrt_poly.coeffs[i]);
@@ -4555,12 +4985,13 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
             double sqrt_val = sqrt(fabs(val));
 
             double margin = fabs(sqrt_val) * LV00_EPSILON_NEWTON * 10.0;
-            if (margin < LV00_EPSILON_NEWTON) margin = LV00_EPSILON_NEWTON;
+            if (margin < LV00_EPSILON_NEWTON)
+                margin = LV00_EPSILON_NEWTON;
 
-            SymbolicCoord *result = symbolic_coord_create_algebraic(&sqrt_poly,
-                sqrt_val - margin, sqrt_val + margin);
+            SymbolicCoord *result = symbolic_coord_create_algebraic(&sqrt_poly, sqrt_val - margin, sqrt_val + margin);
             mpz_poly_clear(&sqrt_poly);
-            if (result) result->trust = coord->trust;
+            if (result)
+                result->trust = coord->trust;
             return result;
         }
 
@@ -4570,7 +5001,8 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
              * sqrt(transcendental_to_double(t)). */
             {
                 double base_val = transcendental_to_double(coord->data.transcendental);
-                if (base_val < 0.0) return NULL; /* sqrt of negative transcendental is not real */
+                if (base_val < 0.0)
+                    return NULL; /* sqrt of negative transcendental is not real */
 
                 double sqrt_val = sqrt(base_val);
 
@@ -4579,7 +5011,10 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpz_poly_init(&poly);
                 poly.degree = 1;
                 poly.coeffs = malloc(2 * sizeof(mpz_t));
-                if (!poly.coeffs) { mpz_poly_clear(&poly); return NULL; }
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    return NULL;
+                }
                 mpz_init(poly.coeffs[0]);
                 mpz_init(poly.coeffs[1]);
 
@@ -4591,12 +5026,13 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
                 mpq_clear(approx);
 
                 double margin = fabs(sqrt_val) * LV00_EPSILON_NEWTON * 100.0;
-                if (margin < LV00_EPSILON_NEWTON) margin = LV00_EPSILON_NEWTON;
+                if (margin < LV00_EPSILON_NEWTON)
+                    margin = LV00_EPSILON_NEWTON;
 
-                SymbolicCoord *result = symbolic_coord_create_algebraic(&poly,
-                    sqrt_val - margin, sqrt_val + margin);
+                SymbolicCoord *result = symbolic_coord_create_algebraic(&poly, sqrt_val - margin, sqrt_val + margin);
                 mpz_poly_clear(&poly);
-                if (result) result->trust = TRUST_AMBER;
+                if (result)
+                    result->trust = TRUST_AMBER;
                 return result;
             }
         }
@@ -4619,19 +5055,20 @@ SymbolicCoord *symbolic_coord_sqrt(const SymbolicCoord *coord) {
 
 static uint64_t fnv1a_update(uint64_t hash, const char *data, size_t len) {
     for (size_t i = 0; i < len; i++) {
-        hash ^= (uint64_t)(unsigned char)data[i];
+        hash ^= (uint64_t) (unsigned char) data[i];
         hash *= FNV_PRIME_64;
     }
     return hash;
 }
 
 uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
-    if (!coord) return 0;
+    if (!coord)
+        return 0;
 
     uint64_t hash = FNV_OFFSET_64;
 
     /* Hash the type */
-    hash = fnv1a_update(hash, (const char *)&coord->type, sizeof(coord->type));
+    hash = fnv1a_update(hash, (const char *) &coord->type, sizeof(coord->type));
 
     switch (coord->type) {
         case RATIONAL: {
@@ -4654,22 +5091,27 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
                 }
             }
             /* Hash bounds for distinguishing different roots */
-            hash = fnv1a_update(hash, (const char *)&a->left_bound, sizeof(double));
-            hash = fnv1a_update(hash, (const char *)&a->right_bound, sizeof(double));
+            hash = fnv1a_update(hash, (const char *) &a->left_bound, sizeof(double));
+            hash = fnv1a_update(hash, (const char *) &a->right_bound, sizeof(double));
             break;
         }
         case QUADRATIC: {
             Quadratic *q = coord->data.quadratic;
             char *a_ser = rational_serialize(q->a);
             char *b_ser = rational_serialize(q->b);
-            if (a_ser) { hash = fnv1a_update(hash, a_ser, strlen(a_ser)); free(a_ser); }
-            if (b_ser) { hash = fnv1a_update(hash, b_ser, strlen(b_ser)); free(b_ser); }
-            hash = fnv1a_update(hash, (const char *)&q->n, sizeof(q->n));
+            if (a_ser) {
+                hash = fnv1a_update(hash, a_ser, strlen(a_ser));
+                free(a_ser);
+            }
+            if (b_ser) {
+                hash = fnv1a_update(hash, b_ser, strlen(b_ser));
+                free(b_ser);
+            }
+            hash = fnv1a_update(hash, (const char *) &q->n, sizeof(q->n));
             break;
         }
         case TRANSCENDENTAL: {
-            hash = fnv1a_update(hash, coord->data.transcendental->name,
-                                strlen(coord->data.transcendental->name));
+            hash = fnv1a_update(hash, coord->data.transcendental->name, strlen(coord->data.transcendental->name));
             break;
         }
     }
@@ -4694,7 +5136,8 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
  */
 static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double precision) {
     double val = algebraic_to_double(a);
-    if (precision <= 0) precision = 1e-15;
+    if (precision <= 0)
+        precision = 1e-15;
 
     /* Use GMP mpq for exact continued fraction computation */
     mpq_t approx;
@@ -4716,14 +5159,17 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
 
     double remaining = val;
     for (int i = 0; i < 100 && n_terms < 100; i++) {
-        if (remaining < 1e-300 || remaining > 1e300) break;
+        if (remaining < 1e-300 || remaining > 1e300)
+            break;
 
-        int64_t int_part = (int64_t)remaining;
-        terms[n_terms++] = (int)int_part;
-        remaining = remaining - (double)int_part;
+        int64_t int_part = (int64_t) remaining;
+        terms[n_terms++] = (int) int_part;
+        remaining = remaining - (double) int_part;
 
-        if (remaining < precision / 2.0) break;
-        if (remaining < 1e-300) break;
+        if (remaining < precision / 2.0)
+            break;
+        if (remaining < 1e-300)
+            break;
 
         remaining = 1.0 / remaining;
     }
@@ -4766,17 +5212,21 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
  * Returns: true if rationalization succeeded, false otherwise
  */
 bool algebraic_try_rationalize(Algebraic *a) {
-    if (!a) return false;
-    if (a->cached_rational) return true; /* Already rationalized */
+    if (!a)
+        return false;
+    if (a->cached_rational)
+        return true; /* Already rationalized */
 
     /* Step 1: Compute precision target */
     double interval_width = a->right_bound - a->left_bound;
     double precision = interval_width / 4.0;
-    if (precision < 1e-15) precision = 1e-15;
+    if (precision < 1e-15)
+        precision = 1e-15;
 
     /* Step 2: Generate continued fraction approximation */
     Rational *candidate = algebraic_continued_fraction_approx(a, precision);
-    if (!candidate) return false;
+    if (!candidate)
+        return false;
 
     /* Step 3: Evaluate minimal polynomial at candidate exactly */
     mpz_t eval_result;
@@ -4814,7 +5264,8 @@ bool algebraic_try_rationalize(Algebraic *a) {
  * Returns: 0 = same algebraic number, 1 = different, -1 = inconclusive
  */
 int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations) {
-    if (!a || !b) return -1;
+    if (!a || !b)
+        return -1;
 
     /* If minimal polynomials are different, they are definitely not equal */
     if (!mpz_poly_equal(&a->minimal_poly, &b->minimal_poly)) {
@@ -4842,8 +5293,7 @@ int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations
         b->precision_bits = (b->precision_bits > 0) ? b->precision_bits * 2 : 1;
 
         /* Hard limit check */
-        if (a->precision_bits > LV00_MAX_PRECISION_BITS ||
-            b->precision_bits > LV00_MAX_PRECISION_BITS) {
+        if (a->precision_bits > LV00_MAX_PRECISION_BITS || b->precision_bits > LV00_MAX_PRECISION_BITS) {
             break;
         }
 
@@ -4868,10 +5318,12 @@ int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations
  * Returns the square root if perfect, NULL otherwise.
  */
 static mpz_t *mpz_perfect_sqrt(mpz_t n) {
-    if (mpz_cmp_si(n, 0) < 0) return NULL;
+    if (mpz_cmp_si(n, 0) < 0)
+        return NULL;
     if (mpz_cmp_si(n, 0) == 0) {
         mpz_t *result = malloc(sizeof(mpz_t));
-        if (!result) return NULL;
+        if (!result)
+            return NULL;
         mpz_init_set_ui(*result, 0);
         return result;
     }
@@ -4889,7 +5341,10 @@ static mpz_t *mpz_perfect_sqrt(mpz_t n) {
 
     if (is_perfect) {
         mpz_t *result = malloc(sizeof(mpz_t));
-        if (!result) { mpz_clear(root); return NULL; }
+        if (!result) {
+            mpz_clear(root);
+            return NULL;
+        }
         mpz_init_set(*result, root);
         mpz_clear(root);
         return result;
@@ -4911,12 +5366,14 @@ static mpz_t *mpz_perfect_sqrt(mpz_t n) {
  * Returns: new SymbolicCoord if expansion succeeds, NULL otherwise
  */
 SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord) {
-    if (!coord || coord->type != ALGEBRAIC) return NULL;
+    if (!coord || coord->type != ALGEBRAIC)
+        return NULL;
 
     Algebraic *a = coord->data.algebraic;
 
     /* Check if this is a quadratic algebraic number (degree 2 minimal poly) */
-    if (a->minimal_poly.degree != 2) return NULL;
+    if (a->minimal_poly.degree != 2)
+        return NULL;
 
     /* For a quadratic x^2 + px + q = 0:
      * x = (-p ± sqrt(p^2 - 4q)) / 2
@@ -4981,7 +5438,17 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
             mpq_canonicalize(q1);
             rational_destroy(r1);
             r1 = lv00_malloc(sizeof(Rational));
-            if (!r1) { mpz_clear(num1); mpz_clear(neg_c1); mpz_clear(c0); mpz_clear(c1); mpz_clear(c2); mpz_clear(D); mpz_clear(*k); free(k); return NULL; }
+            if (!r1) {
+                mpz_clear(num1);
+                mpz_clear(neg_c1);
+                mpz_clear(c0);
+                mpz_clear(c1);
+                mpz_clear(c2);
+                mpz_clear(D);
+                mpz_clear(*k);
+                free(k);
+                return NULL;
+            }
             mpq_init(r1->value);
             mpq_set(r1->value, q1);
             mpq_clear(q1);
@@ -4996,7 +5463,19 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
             mpz_set_ui(mpq_denref(q2), 2);
             mpq_canonicalize(q2);
             Rational *r2 = lv00_malloc(sizeof(Rational));
-            if (!r2) { rational_destroy(r1); mpz_clear(num1); mpz_clear(num2); mpz_clear(neg_c1); mpz_clear(c0); mpz_clear(c1); mpz_clear(c2); mpz_clear(D); mpz_clear(*k); free(k); return NULL; }
+            if (!r2) {
+                rational_destroy(r1);
+                mpz_clear(num1);
+                mpz_clear(num2);
+                mpz_clear(neg_c1);
+                mpz_clear(c0);
+                mpz_clear(c1);
+                mpz_clear(c2);
+                mpz_clear(D);
+                mpz_clear(*k);
+                free(k);
+                return NULL;
+            }
             mpq_init(r2->value);
             mpq_set(r2->value, q2);
             mpq_clear(q2);
@@ -5023,18 +5502,23 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
                 rational_destroy(chosen);
             }
 
-            mpz_clear(c0); mpz_clear(c1); mpz_clear(c2);
-            mpz_clear(D); mpz_clear(neg_c1);
-            mpz_clear(num1); mpz_clear(num2);
-            mpz_clear(*k); free(k);
+            mpz_clear(c0);
+            mpz_clear(c1);
+            mpz_clear(c2);
+            mpz_clear(D);
+            mpz_clear(neg_c1);
+            mpz_clear(num1);
+            mpz_clear(num2);
+            mpz_clear(*k);
+            free(k);
             return result;
         }
 
-        /* D is not a perfect square: check if D/n is a perfect square for some n */
-        /* Try to express D as k^2 * m where m is square-free */
+/* D is not a perfect square: check if D/n is a perfect square for some n */
+/* Try to express D as k^2 * m where m is square-free */
 
-        /** 有理数近似中平方因子分解的上限 */
-        #define RATIONAL_SQ_FACTOR_LIMIT 10000
+/** 有理数近似中平方因子分解的上限 */
+#define RATIONAL_SQ_FACTOR_LIMIT 10000
 
         mpz_t remaining;
         mpz_init_set(remaining, D);
@@ -5055,7 +5539,7 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
             /* Can express as: x = (-c1 ± square_factor*sqrt(remaining)) / 2 */
             double mid = (a->left_bound + a->right_bound) / 2.0;
             double sqrt_remaining = sqrt(mpz_get_d(remaining));
-            double sf = (double)square_factor;
+            double sf = (double) square_factor;
 
             /* Root 1: (-c1 + sf*sqrt(remaining)) / 2 */
             double v1 = (mpz_get_d(c1) * (-1.0) + sf * sqrt_remaining) / 2.0;
@@ -5076,40 +5560,49 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
             /* Use rational approximation for a_val and b_val */
             if (fabs(a_val) > 9.2e12 || fabs(b_val) > 9.2e12) {
                 /* Value too large for exact rational representation */
-                mpz_clear(c0); mpz_clear(c1); mpz_clear(c2);
-                mpz_clear(D); mpz_clear(remaining);
+                mpz_clear(c0);
+                mpz_clear(c1);
+                mpz_clear(c2);
+                mpz_clear(D);
+                mpz_clear(remaining);
                 return NULL;
             }
-            Rational *q_a = rational_create((int64_t)(a_val * (double)LV00_BIT_CUTOFF_THRESHOLD), 
-                                           LV00_BIT_CUTOFF_THRESHOLD);
-            Rational *q_b = rational_create((int64_t)(b_val * (double)LV00_BIT_CUTOFF_THRESHOLD), 
-                                           LV00_BIT_CUTOFF_THRESHOLD);
+            Rational *q_a =
+                rational_create((int64_t) (a_val * (double) LV00_BIT_CUTOFF_THRESHOLD), LV00_BIT_CUTOFF_THRESHOLD);
+            Rational *q_b =
+                rational_create((int64_t) (b_val * (double) LV00_BIT_CUTOFF_THRESHOLD), LV00_BIT_CUTOFF_THRESHOLD);
 
             /* Remove square factors from remaining */
             /* R03: 先检查 remaining 是否在 unsigned int 范围内 */
             unsigned int m;
             if (mpz_fits_uint_p(remaining)) {
-                m = (unsigned int)mpz_get_ui(remaining);
+                m = (unsigned int) mpz_get_ui(remaining);
             } else {
                 /* remaining 超出 unsigned int 范围，取低32位作为截断近似。
                  * 注意：此处截断可能导致平方因子移除不完整，但实际应用中
                  * algebraic_simplify_to_quadratic 的主要用例不会产生超大 remaining 值。 */
-                m = (unsigned int)mpz_get_ui(remaining);
+                m = (unsigned int) mpz_get_ui(remaining);
             }
             m = remove_square_factors(m);
 
             SymbolicCoord *result = symbolic_coord_create_quadratic(q_a, q_b, m);
-            if (result) result->trust = coord->trust;
+            if (result)
+                result->trust = coord->trust;
 
-            mpz_clear(c0); mpz_clear(c1); mpz_clear(c2);
-            mpz_clear(D); mpz_clear(remaining);
+            mpz_clear(c0);
+            mpz_clear(c1);
+            mpz_clear(c2);
+            mpz_clear(D);
+            mpz_clear(remaining);
             return result;
         }
 
         mpz_clear(remaining);
     }
 
-    mpz_clear(c0); mpz_clear(c1); mpz_clear(c2);
+    mpz_clear(c0);
+    mpz_clear(c1);
+    mpz_clear(c2);
     mpz_clear(D);
     return NULL;
 }
@@ -5151,10 +5644,15 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_init(&poly);
     poly.degree = 2;
     poly.coeffs = malloc(3 * sizeof(mpz_t));
-    if (!poly.coeffs) { mpz_poly_clear(&poly); result.precision_stable = false; result.performance_stable = false; return result; }
-    mpz_init_set_si(poly.coeffs[0], -2);  /* constant term */
-    mpz_init_set_si(poly.coeffs[1], 0);   /* linear term */
-    mpz_init_set_si(poly.coeffs[2], 1);   /* quadratic term */
+    if (!poly.coeffs) {
+        mpz_poly_clear(&poly);
+        result.precision_stable = false;
+        result.performance_stable = false;
+        return result;
+    }
+    mpz_init_set_si(poly.coeffs[0], -2); /* constant term */
+    mpz_init_set_si(poly.coeffs[1], 0);  /* linear term */
+    mpz_init_set_si(poly.coeffs[2], 1);  /* quadratic term */
 
     Algebraic *current = algebraic_create(&poly, 1.4, 1.5);
     mpz_poly_clear(&poly);
@@ -5173,7 +5671,13 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
     mpz_poly_init(&poly2);
     poly2.degree = 2;
     poly2.coeffs = malloc(3 * sizeof(mpz_t));
-    if (!poly2.coeffs) { mpz_poly_clear(&poly2); algebraic_destroy(current); result.precision_stable = false; result.performance_stable = false; return result; }
+    if (!poly2.coeffs) {
+        mpz_poly_clear(&poly2);
+        algebraic_destroy(current);
+        result.precision_stable = false;
+        result.performance_stable = false;
+        return result;
+    }
     mpz_init_set_si(poly2.coeffs[0], -3);
     mpz_init_set_si(poly2.coeffs[1], 0);
     mpz_init_set_si(poly2.coeffs[2], 1);
@@ -5209,8 +5713,9 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
         double current_width = next->right_bound - next->left_bound;
         if (current_width > 0 && initial_width > 0) {
             double ratio = current_width / initial_width;
-            int decay_bits = (int)(log2(ratio) + 0.5);
-            if (decay_bits < 0) decay_bits = 0;
+            int decay_bits = (int) (log2(ratio) + 0.5);
+            if (decay_bits < 0)
+                decay_bits = 0;
             if (decay_bits > result.max_precision_decay) {
                 result.max_precision_decay = decay_bits;
             }
@@ -5218,7 +5723,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
 
         /* Check maximum polynomial coefficient bits */
         for (int j = 0; j <= next->minimal_poly.degree; j++) {
-            int bits = (int)mpz_sizeinbase(next->minimal_poly.coeffs[j], 2);
+            int bits = (int) mpz_sizeinbase(next->minimal_poly.coeffs[j], 2);
             if (bits > result.max_bits_observed) {
                 result.max_bits_observed = bits;
             }
@@ -5249,8 +5754,7 @@ void circuit_set_trip_callback(CircuitTripCallback cb, void *user_data) {
 
 CircuitResponse circuit_handle_trip_interactive(const SymbolicCoord *coord) {
     if (g_circuit_callback) {
-        return g_circuit_callback(coord, g_overflow_context.overflow_count,
-                                  g_circuit_user_data);
+        return g_circuit_callback(coord, g_overflow_context.overflow_count, g_circuit_user_data);
     }
 
     /* Default behavior when no callback is set: return IGNORE */
@@ -5265,8 +5769,7 @@ CircuitResponse circuit_handle_trip_interactive(const SymbolicCoord *coord) {
  * 提供对线程局部溢出上下文的访问，供外部模块使用。
  * ============================================================ */
 
-void circuit_set_context(SymbolicCoord *result, const char *operation,
-                          CoordType left_type, CoordType right_type) {
+void circuit_set_context(SymbolicCoord *result, const char *operation, CoordType left_type, CoordType right_type) {
     g_overflow_context.last_result = result;
     g_overflow_context.last_operation = operation;
     g_overflow_context.left_type = left_type;

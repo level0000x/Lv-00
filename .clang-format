@@ -13,7 +13,6 @@ ColumnLimit: 120
 
 # 大括号
 BreakBeforeBraces: Attach
-IndentBraces: false
 
 # 函数/控制流
 AllowShortFunctionsOnASingleLine: Inline

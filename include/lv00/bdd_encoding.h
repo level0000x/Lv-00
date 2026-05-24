@@ -28,10 +28,11 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
-#include "symbolic_coord.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
+#include "symbolic_coord.h"
 
 /* ========================================================================
  * BDD/ADD 基础类型
@@ -39,29 +40,29 @@ extern "C" {
 
 /** BDD 变量在决策图中的类型 */
 typedef enum {
-    BDD_BOOLEAN = 0,  /**< 布尔变量（0/1） */
-    BDD_INT_BIT = 1,  /**< 整数位变量（bit-blast 中的某一位） */
-    BDD_ENUM    = 2   /**< 枚举类型变量（多值编码为多位） */
+    BDD_BOOLEAN = 0, /**< 布尔变量（0/1） */
+    BDD_INT_BIT = 1, /**< 整数位变量（bit-blast 中的某一位） */
+    BDD_ENUM = 2     /**< 枚举类型变量（多值编码为多位） */
 } BDDVarType;
 
 /** BDD 节点（二叉决策图节点） */
 typedef struct BDDNode {
-    int var_id;               /**< 决策变量 ID（终端节点为 -1） */
-    struct BDDNode *low;      /**< 变量=0 时的子图 */
-    struct BDDNode *high;     /**< 变量=1 时的子图 */
-    uint64_t ref_count;       /**< 引用计数（用于垃圾回收） */
-    bool complemented;        /**< 是否为补边（CUDD 风格 complemented edges） */
+    int var_id;           /**< 决策变量 ID（终端节点为 -1） */
+    struct BDDNode *low;  /**< 变量=0 时的子图 */
+    struct BDDNode *high; /**< 变量=1 时的子图 */
+    uint64_t ref_count;   /**< 引用计数（用于垃圾回收） */
+    bool complemented;    /**< 是否为补边（CUDD 风格 complemented edges） */
 } BDDNode;
 
 /** BDD 管理器（唯一表 + 变量序 + 缓存） */
 typedef struct BDDManager {
-    BDDNode *true_node;       /**< 终端 T 节点（常量 1） */
-    BDDNode *false_node;      /**< 终端 F 节点（常量 0） */
-    BDDNode **unique_table;   /**< 唯一表（哈希桶数组，用于节点去重） */
-    int unique_table_size;    /**< 唯一表哈希桶数 */
-    int *var_order;           /**< 变量序数组（var_order[i] = 第 i 层的变量 ID） */
-    int var_count;            /**< 已注册变量总数 */
-    uint64_t node_count;      /**< 当前存活节点数（不含终端节点） */
+    BDDNode *true_node;     /**< 终端 T 节点（常量 1） */
+    BDDNode *false_node;    /**< 终端 F 节点（常量 0） */
+    BDDNode **unique_table; /**< 唯一表（哈希桶数组，用于节点去重） */
+    int unique_table_size;  /**< 唯一表哈希桶数 */
+    int *var_order;         /**< 变量序数组（var_order[i] = 第 i 层的变量 ID） */
+    int var_count;          /**< 已注册变量总数 */
+    uint64_t node_count;    /**< 当前存活节点数（不含终端节点） */
 } BDDManager;
 
 /* ========================================================================
@@ -70,22 +71,22 @@ typedef struct BDDManager {
 
 /** ADD 节点（代数决策图，叶子为 double） */
 typedef struct ADDNode {
-    int var_id;               /**< 决策变量 ID（常量叶子为 -1） */
-    struct ADDNode *low;      /**< 变量=0 时的子图 */
-    struct ADDNode *high;     /**< 变量=1 时的子图 */
-    double constant;          /**< 常量值（仅 is_constant=true 时有效） */
-    bool is_constant;         /**< 是否为常量叶子节点 */
+    int var_id;           /**< 决策变量 ID（常量叶子为 -1） */
+    struct ADDNode *low;  /**< 变量=0 时的子图 */
+    struct ADDNode *high; /**< 变量=1 时的子图 */
+    double constant;      /**< 常量值（仅 is_constant=true 时有效） */
+    bool is_constant;     /**< 是否为常量叶子节点 */
 } ADDNode;
 
 /** ADD 管理器 */
 typedef struct ADDManager {
-    ADDNode *zero_node;       /**< 常量 0 节点 */
-    ADDNode *one_node;        /**< 常量 1 节点 */
-    ADDNode **unique_table;   /**< 唯一表 */
-    int unique_table_size;    /**< 唯一表大小 */
-    int *var_order;           /**< 变量序 */
-    int var_count;            /**< 变量数 */
-    uint64_t node_count;      /**< 节点数 */
+    ADDNode *zero_node;     /**< 常量 0 节点 */
+    ADDNode *one_node;      /**< 常量 1 节点 */
+    ADDNode **unique_table; /**< 唯一表 */
+    int unique_table_size;  /**< 唯一表大小 */
+    int *var_order;         /**< 变量序 */
+    int var_count;          /**< 变量数 */
+    uint64_t node_count;    /**< 节点数 */
 } ADDManager;
 
 /* ========================================================================
@@ -220,8 +221,7 @@ int bdd_reorder_sift(BDDManager *mgr);
  * @param[in] mgr   BDD 管理器
  * @return 表示约束图可满足赋值的 BDD 节点，失败返回 NULL
  */
-BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph,
-                                  BDDManager *mgr);
+BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr);
 
 /**
  * @brief 将符号坐标编码为 BDD 变量组
@@ -235,9 +235,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph,
  * @param[in]  base_var 起始变量 ID（编码占用 base_var ~ base_var+63 共 64 位）
  * @return 成功分配的位数（通常为 64），失败返回 -1
  */
-int coord_to_bdd_var(const SymbolicCoord *coord,
-                      BDDManager *mgr,
-                      int base_var);
+int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
 
 /* ========================================================================
  * BDD → CNF 转换

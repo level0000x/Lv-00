@@ -31,19 +31,21 @@
  */
 
 #include "stream.h"
-#include "lv00_utils.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
+
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include "lv00_utils.h"
 #ifdef _WIN32
 #include <windows.h>
 #define strcasecmp _stricmp
 #define strtok_r strtok_s
 #else
-#include <sys/time.h>   /* gettimeofday：高精度墙上时钟（非处理器时间） */
-#include <strings.h>    /* strcasecmp：不区分大小写的字符串比较 */
+#include <strings.h>  /* strcasecmp：不区分大小写的字符串比较 */
+#include <sys/time.h> /* gettimeofday：高精度墙上时钟（非处理器时间） */
 #endif
 
 /* ── 平台线程支持 ── */
@@ -51,7 +53,7 @@
 #include <process.h>
 #define LV00_THREAD_HANDLE HANDLE
 #define LV00_MUTEX HANDLE
-#define LV00_CONDVAR HANDLE (CONDITION_VARIABLE*)
+#define LV00_CONDVAR HANDLE(CONDITION_VARIABLE *)
 /* Windows 线程函数返回 unsigned, 需要适配 */
 #else
 #include <pthread.h>
@@ -63,112 +65,122 @@
 /* ==================== 内部常量 ==================== */
 
 /* ── 回调容量配置 ── */
-#define STREAM_INITIAL_CALLBACKS 16   /**< 初始回调容量 */
-#define STREAM_MAX_CALLBACKS     64   /**< 硬上限：防止无限内存消耗 */
+#define STREAM_INITIAL_CALLBACKS 16 /**< 初始回调容量 */
+#define STREAM_MAX_CALLBACKS 64     /**< 硬上限：防止无限内存消耗 */
 
 /* ── 事件缓冲区配置 ── */
-#define STREAM_INITIAL_BUFFER    64   /**< 初始事件缓冲区容量 */
-#define STREAM_MAX_BUFFER       4096  /**< 硬上限：缓冲区最大事件数 */
-#define STREAM_MAX_LAZY         8192  /**< 惰性队列最大容量 */
-#define STREAM_DEFAULT_THROTTLE  50   /**< 默认节流间隔（毫秒） */
+#define STREAM_INITIAL_BUFFER 64   /**< 初始事件缓冲区容量 */
+#define STREAM_MAX_BUFFER 4096     /**< 硬上限：缓冲区最大事件数 */
+#define STREAM_MAX_LAZY 8192       /**< 惰性队列最大容量 */
+#define STREAM_DEFAULT_THROTTLE 50 /**< 默认节流间隔（毫秒） */
 
 /* ── JSON 序列化配置 ── */
-#define STREAM_JSON_INT_BUF      64   /**< 整数转字符串的临时缓冲区大小 */
+#define STREAM_JSON_INT_BUF 64 /**< 整数转字符串的临时缓冲区大小 */
 
 /* ==================== 事件颜色常量 ==================== */
 
-#define STREAM_COLOR_GREEN      "#3fb950"  /**< 绿色：成功/开始/完成 */
-#define STREAM_COLOR_RED        "#f85149"  /**< 红色：错误 */
-#define STREAM_COLOR_YELLOW     "#d29922"  /**< 黄色：警告 */
-#define STREAM_COLOR_ORANGE     "#f0883e"  /**< 橙色：位数熔断 */
-#define STREAM_COLOR_BLUE       "#58a6ff"  /**< 蓝色：进度 */
-#define STREAM_COLOR_GRAY       "#8b949e"  /**< 灰色：一般信息 */
-#define STREAM_COLOR_LIGHT_GRAY "#c9d1d9"  /**< 浅灰：图快照/默认 */
-#define STREAM_COLOR_PURPLE     "#a371f7"  /**< 紫色：重写/求解/证明步骤 */
-#define STREAM_COLOR_TEAL       "#39d353"  /**< 青绿色：函数块系统 */
-#define STREAM_COLOR_CYAN       "#56d4dd"  /**< 青色：递归系统 */
-#define STREAM_COLOR_PINK       "#f778ba"  /**< 粉色：选择器分支 */
+#define STREAM_COLOR_GREEN "#3fb950"      /**< 绿色：成功/开始/完成 */
+#define STREAM_COLOR_RED "#f85149"        /**< 红色：错误 */
+#define STREAM_COLOR_YELLOW "#d29922"     /**< 黄色：警告 */
+#define STREAM_COLOR_ORANGE "#f0883e"     /**< 橙色：位数熔断 */
+#define STREAM_COLOR_BLUE "#58a6ff"       /**< 蓝色：进度 */
+#define STREAM_COLOR_GRAY "#8b949e"       /**< 灰色：一般信息 */
+#define STREAM_COLOR_LIGHT_GRAY "#c9d1d9" /**< 浅灰：图快照/默认 */
+#define STREAM_COLOR_PURPLE "#a371f7"     /**< 紫色：重写/求解/证明步骤 */
+#define STREAM_COLOR_TEAL "#39d353"       /**< 青绿色：函数块系统 */
+#define STREAM_COLOR_CYAN "#56d4dd"       /**< 青色：递归系统 */
+#define STREAM_COLOR_PINK "#f778ba"       /**< 粉色：选择器分支 */
 
 /* ==================== 平台线程抽象 ==================== */
 
 static void *lv00_mutex_create(void) {
 #ifdef _WIN32
-    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)lv00_malloc(sizeof(CRITICAL_SECTION));
-    if (cs) InitializeCriticalSection(cs);
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *) lv00_malloc(sizeof(CRITICAL_SECTION));
+    if (cs)
+        InitializeCriticalSection(cs);
     return cs;
 #else
-    pthread_mutex_t *m = (pthread_mutex_t *)lv00_malloc(sizeof(pthread_mutex_t));
-    if (m) pthread_mutex_init(m, NULL);
+    pthread_mutex_t *m = (pthread_mutex_t *) lv00_malloc(sizeof(pthread_mutex_t));
+    if (m)
+        pthread_mutex_init(m, NULL);
     return m;
 #endif
 }
 
 static void lv00_mutex_destroy(void *mutex) {
-    if (!mutex) return;
+    if (!mutex)
+        return;
 #ifdef _WIN32
-    DeleteCriticalSection((CRITICAL_SECTION *)mutex);
+    DeleteCriticalSection((CRITICAL_SECTION *) mutex);
 #else
-    pthread_mutex_destroy((pthread_mutex_t *)mutex);
+    pthread_mutex_destroy((pthread_mutex_t *) mutex);
 #endif
-    lv00_free((void **)&mutex);
+    lv00_free((void **) &mutex);
 }
 
 static void lv00_mutex_lock(void *mutex) {
-    if (!mutex) return;
+    if (!mutex)
+        return;
 #ifdef _WIN32
-    EnterCriticalSection((CRITICAL_SECTION *)mutex);
+    EnterCriticalSection((CRITICAL_SECTION *) mutex);
 #else
-    pthread_mutex_lock((pthread_mutex_t *)mutex);
+    pthread_mutex_lock((pthread_mutex_t *) mutex);
 #endif
 }
 
 static void lv00_mutex_unlock(void *mutex) {
-    if (!mutex) return;
+    if (!mutex)
+        return;
 #ifdef _WIN32
-    LeaveCriticalSection((CRITICAL_SECTION *)mutex);
+    LeaveCriticalSection((CRITICAL_SECTION *) mutex);
 #else
-    pthread_mutex_unlock((pthread_mutex_t *)mutex);
+    pthread_mutex_unlock((pthread_mutex_t *) mutex);
 #endif
 }
 
 static void *lv00_condvar_create(void) {
 #ifdef _WIN32
     /* Windows CONDITION_VARIABLE 是栈分配的，用堆包装 */
-    CONDITION_VARIABLE *cv = (CONDITION_VARIABLE *)lv00_malloc(sizeof(CONDITION_VARIABLE));
-    if (cv) InitializeConditionVariable(cv);
+    CONDITION_VARIABLE *cv = (CONDITION_VARIABLE *) lv00_malloc(sizeof(CONDITION_VARIABLE));
+    if (cv)
+        InitializeConditionVariable(cv);
     return cv;
 #else
-    pthread_cond_t *cv = (pthread_cond_t *)lv00_malloc(sizeof(pthread_cond_t));
-    if (cv) pthread_cond_init(cv, NULL);
+    pthread_cond_t *cv = (pthread_cond_t *) lv00_malloc(sizeof(pthread_cond_t));
+    if (cv)
+        pthread_cond_init(cv, NULL);
     return cv;
 #endif
 }
 
 static void lv00_condvar_destroy(void *cv) {
-    if (!cv) return;
+    if (!cv)
+        return;
 #ifdef _WIN32
     /* Windows CONDITION_VARIABLE 不需要销毁 */
 #else
-    pthread_cond_destroy((pthread_cond_t *)cv);
+    pthread_cond_destroy((pthread_cond_t *) cv);
 #endif
-    lv00_free((void **)&cv);
+    lv00_free((void **) &cv);
 }
 
 static void lv00_condvar_signal(void *cv) {
-    if (!cv) return;
+    if (!cv)
+        return;
 #ifdef _WIN32
-    WakeConditionVariable((CONDITION_VARIABLE *)cv);
+    WakeConditionVariable((CONDITION_VARIABLE *) cv);
 #else
-    pthread_cond_signal((pthread_cond_t *)cv);
+    pthread_cond_signal((pthread_cond_t *) cv);
 #endif
 }
 
 static void lv00_condvar_wait(void *cv, void *mutex) {
-    if (!cv || !mutex) return;
+    if (!cv || !mutex)
+        return;
 #ifdef _WIN32
-    SleepConditionVariableCS((CONDITION_VARIABLE *)cv, (CRITICAL_SECTION *)mutex, INFINITE);
+    SleepConditionVariableCS((CONDITION_VARIABLE *) cv, (CRITICAL_SECTION *) mutex, INFINITE);
 #else
-    pthread_cond_wait((pthread_cond_t *)cv, (pthread_mutex_t *)mutex);
+    pthread_cond_wait((pthread_cond_t *) cv, (pthread_mutex_t *) mutex);
 #endif
 }
 
@@ -181,10 +193,10 @@ static void lv00_condvar_wait(void *cv, void *mutex) {
  * 自增回调 ID 和事件类型过滤掩码。
  */
 typedef struct {
-    StreamCallback callback;  /**< 回调函数指针 */
-    void *user_data;          /**< 回调透传数据 */
-    int id;                   /**< 自增回调 ID（>= 1），用于按 ID 注销和更新过滤 */
-    uint64_t filter_mask;     /**< 事件类型过滤掩码（位与运算） */
+    StreamCallback callback; /**< 回调函数指针 */
+    void *user_data;         /**< 回调透传数据 */
+    int id;                  /**< 自增回调 ID（>= 1），用于按 ID 注销和更新过滤 */
+    uint64_t filter_mask;    /**< 事件类型过滤掩码（位与运算） */
 } CallbackEntry;
 
 /**
@@ -200,42 +212,42 @@ typedef struct {
  * 事件统计数组记录每种事件类型的发射次数。
  */
 struct StreamContext {
-    CallbackEntry *callbacks;   /**< 已注册回调数组（堆分配，支持动态扩容） */
-    int callback_count;         /**< 当前回调数量 */
-    int callback_capacity;      /**< 当前数组容量 */
+    CallbackEntry *callbacks; /**< 已注册回调数组（堆分配，支持动态扩容） */
+    int callback_count;       /**< 当前回调数量 */
+    int callback_capacity;    /**< 当前数组容量 */
 
     /* ── 事件缓冲 / 发射策略 ── */
-    StreamEmitMode emit_mode;   /**< 当前发射策略 */
-    long throttle_ms;           /**< 节流间隔（毫秒） */
-    StreamEvent *buffer;        /**< 事件缓冲区（环形队列） */
-    int buffer_count;           /**< 缓冲区中当前事件数 */
-    int buffer_capacity;        /**< 缓冲区容量 */
-    int buffer_head;            /**< 缓冲区读头（flush 位置） */
-    long last_emit_ms;          /**< 上次发射时间戳（节流用） */
+    StreamEmitMode emit_mode; /**< 当前发射策略 */
+    long throttle_ms;         /**< 节流间隔（毫秒） */
+    StreamEvent *buffer;      /**< 事件缓冲区（环形队列） */
+    int buffer_count;         /**< 缓冲区中当前事件数 */
+    int buffer_capacity;      /**< 缓冲区容量 */
+    int buffer_head;          /**< 缓冲区读头（flush 位置） */
+    long last_emit_ms;        /**< 上次发射时间戳（节流用） */
 
     /* ── 回调 ID 管理 ── */
-    int next_callback_id;       /**< 下一个可用的回调 ID（自增，从 1 开始） */
+    int next_callback_id; /**< 下一个可用的回调 ID（自增，从 1 开始） */
 
     /* ── 事件统计 ── */
     long event_counts[STREAM_EVENT_TYPE_COUNT]; /**< 各事件类型发射计数 */
-    long total_count;           /**< 事件发射总数 */
-    long dropped_count;         /**< 丢弃的事件数（缓冲区满时） */
+    long total_count;                           /**< 事件发射总数 */
+    long dropped_count;                         /**< 丢弃的事件数（缓冲区满时） */
 
     /* ── 惰性队列（LAZY 模式专用） ── */
-    StreamEvent *lazy_queue;    /**< 惰性事件队列（环形缓冲区） */
-    int lazy_count;             /**< 惰性队列中当前事件数 */
-    int lazy_capacity;          /**< 惰性队列容量 */
-    int lazy_head;              /**< 惰性队列读头 */
-    int lazy_threshold;         /**< 惰性自动刷新阈值（0=禁用） */
+    StreamEvent *lazy_queue; /**< 惰性事件队列（环形缓冲区） */
+    int lazy_count;          /**< 惰性队列中当前事件数 */
+    int lazy_capacity;       /**< 惰性队列容量 */
+    int lazy_head;           /**< 惰性队列读头 */
+    int lazy_threshold;      /**< 惰性自动刷新阈值（0=禁用） */
 
     /* ── 异步模式（多线程） ── */
-    bool  async_enabled;          /**< 是否启用了真正的异步模式 */
-    bool  async_running;          /**< 消费者线程运行标志 */
-    void *async_thread;           /**< 消费者线程句柄 (pthread_t / HANDLE) */
-    void *async_mutex;            /**< 保护环形缓冲区的互斥锁 */
-    void *async_cond_not_empty;   /**< 条件变量：缓冲区非空时通知消费者 */
-    void *async_cond_flushed;     /**< 条件变量：队列排空时通知 flush 等待者 */
-    int   async_flush_waiters;    /**< 等待 flush 完成的线程数 */
+    bool async_enabled;         /**< 是否启用了真正的异步模式 */
+    bool async_running;         /**< 消费者线程运行标志 */
+    void *async_thread;         /**< 消费者线程句柄 (pthread_t / HANDLE) */
+    void *async_mutex;          /**< 保护环形缓冲区的互斥锁 */
+    void *async_cond_not_empty; /**< 条件变量：缓冲区非空时通知消费者 */
+    void *async_cond_flushed;   /**< 条件变量：队列排空时通知 flush 等待者 */
+    int async_flush_waiters;    /**< 等待 flush 完成的线程数 */
 };
 
 /* ==================== 内部辅助函数（前向声明） ==================== */
@@ -258,15 +270,15 @@ static void stream_lazy_enqueue(StreamContext *ctx, const StreamEvent *event);
  * @return 新上下文指针，内存不足返回 NULL
  */
 StreamContext *stream_context_create(void) {
-    StreamContext *ctx = (StreamContext *)lv00_malloc(sizeof(StreamContext));
-    if (!ctx) return NULL;
+    StreamContext *ctx = (StreamContext *) lv00_malloc(sizeof(StreamContext));
+    if (!ctx)
+        return NULL;
     memset(ctx, 0, sizeof(StreamContext));
 
     /* 预分配初始容量的回调数组 */
-    ctx->callbacks = (CallbackEntry *)lv00_malloc(
-        sizeof(CallbackEntry) * STREAM_INITIAL_CALLBACKS);
+    ctx->callbacks = (CallbackEntry *) lv00_malloc(sizeof(CallbackEntry) * STREAM_INITIAL_CALLBACKS);
     if (!ctx->callbacks) {
-        lv00_free((void **)&ctx);
+        lv00_free((void **) &ctx);
         return NULL;
     }
     ctx->callback_capacity = STREAM_INITIAL_CALLBACKS;
@@ -315,7 +327,8 @@ StreamContext *stream_context_create(void) {
  * @param ctx 流式上下文指针
  */
 void stream_context_destroy(StreamContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     /* 如果异步模式已启用，先停止消费者线程 */
     if (ctx->async_enabled && ctx->async_running) {
@@ -338,14 +351,14 @@ void stream_context_destroy(StreamContext *ctx) {
 
     /* 释放事件缓冲区 */
     if (ctx->buffer) {
-        lv00_free((void **)&ctx->buffer);
+        lv00_free((void **) &ctx->buffer);
     }
     /* 释放惰性队列 */
     if (ctx->lazy_queue) {
-        lv00_free((void **)&ctx->lazy_queue);
+        lv00_free((void **) &ctx->lazy_queue);
     }
-    lv00_free((void **)&ctx->callbacks);
-    lv00_free((void **)&ctx);
+    lv00_free((void **) &ctx->callbacks);
+    lv00_free((void **) &ctx);
 }
 
 /**
@@ -356,8 +369,10 @@ void stream_context_destroy(StreamContext *ctx) {
  * @return true 容量足够或扩容成功，false 扩容失败或在硬上限
  */
 static bool stream_ensure_capacity(StreamContext *ctx, int min_capacity) {
-    if (min_capacity <= ctx->callback_capacity) return true;
-    if (min_capacity > STREAM_MAX_CALLBACKS) return false;  /* 超过硬上限 */
+    if (min_capacity <= ctx->callback_capacity)
+        return true;
+    if (min_capacity > STREAM_MAX_CALLBACKS)
+        return false; /* 超过硬上限 */
 
     int new_cap = ctx->callback_capacity;
     while (new_cap < min_capacity) {
@@ -368,11 +383,12 @@ static bool stream_ensure_capacity(StreamContext *ctx, int min_capacity) {
         new_cap *= 2;
     }
     /* 钳制到硬上限 */
-    if (new_cap > STREAM_MAX_CALLBACKS) new_cap = STREAM_MAX_CALLBACKS;
+    if (new_cap > STREAM_MAX_CALLBACKS)
+        new_cap = STREAM_MAX_CALLBACKS;
 
-    CallbackEntry *new_arr = (CallbackEntry *)lv00_realloc(
-        ctx->callbacks, (size_t)new_cap * sizeof(CallbackEntry));
-    if (!new_arr) return false;
+    CallbackEntry *new_arr = (CallbackEntry *) lv00_realloc(ctx->callbacks, (size_t) new_cap * sizeof(CallbackEntry));
+    if (!new_arr)
+        return false;
 
     ctx->callbacks = new_arr;
     ctx->callback_capacity = new_cap;
@@ -392,11 +408,12 @@ static bool stream_ensure_capacity(StreamContext *ctx, int min_capacity) {
  * @return true 注册成功，false 参数无效或回调已满
  */
 bool stream_register_callback(StreamContext *ctx, StreamCallback callback, void *user_data) {
-    if (!ctx || !callback) return false;
+    if (!ctx || !callback)
+        return false;
 
     /* 动态扩容确保足够容量 */
     if (!stream_ensure_capacity(ctx, ctx->callback_count + 1)) {
-        return false;  /* 超过硬上限或内存分配失败 */
+        return false; /* 超过硬上限或内存分配失败 */
     }
 
     ctx->callbacks[ctx->callback_count].callback = callback;
@@ -417,13 +434,13 @@ bool stream_register_callback(StreamContext *ctx, StreamCallback callback, void 
  * @param filter_mask  事件类型位掩码（STREAM_FILTER_ALL 表示接收全部）
  * @return >=0 成功，返回回调 ID；<0 失败
  */
-int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback,
-                                 void *user_data, uint64_t filter_mask) {
-    if (!ctx || !callback) return -1;
+int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback, void *user_data, uint64_t filter_mask) {
+    if (!ctx || !callback)
+        return -1;
 
     /* 动态扩容确保足够容量 */
     if (!stream_ensure_capacity(ctx, ctx->callback_count + 1)) {
-        return -1;  /* 超过硬上限或内存分配失败 */
+        return -1; /* 超过硬上限或内存分配失败 */
     }
 
     int assigned_id = ctx->next_callback_id++;
@@ -444,7 +461,8 @@ int stream_register_callback_ex(StreamContext *ctx, StreamCallback callback,
  * @return true 移除成功，false 未找到或参数无效
  */
 bool stream_unregister_callback(StreamContext *ctx, StreamCallback callback) {
-    if (!ctx || !callback) return false;
+    if (!ctx || !callback)
+        return false;
 
     for (int i = 0; i < ctx->callback_count; i++) {
         if (ctx->callbacks[i].callback == callback) {
@@ -467,7 +485,8 @@ bool stream_unregister_callback(StreamContext *ctx, StreamCallback callback) {
  * @return true 成功，false 未找到或 ctx 为 NULL
  */
 bool stream_unregister_callback_by_id(StreamContext *ctx, int callback_id) {
-    if (!ctx || callback_id <= 0) return false;
+    if (!ctx || callback_id <= 0)
+        return false;
 
     for (int i = 0; i < ctx->callback_count; i++) {
         if (ctx->callbacks[i].id == callback_id) {
@@ -491,7 +510,8 @@ bool stream_unregister_callback_by_id(StreamContext *ctx, int callback_id) {
  * @return true 成功，false 未找到对应回调
  */
 bool stream_set_callback_filter(StreamContext *ctx, int callback_id, uint64_t filter_mask) {
-    if (!ctx || callback_id <= 0) return false;
+    if (!ctx || callback_id <= 0)
+        return false;
 
     for (int i = 0; i < ctx->callback_count; i++) {
         if (ctx->callbacks[i].id == callback_id) {
@@ -509,7 +529,8 @@ bool stream_set_callback_filter(StreamContext *ctx, int callback_id, uint64_t fi
  * @return 过滤掩码，未找到时返回 STREAM_FILTER_NONE
  */
 uint64_t stream_get_callback_filter(StreamContext *ctx, int callback_id) {
-    if (!ctx || callback_id <= 0) return STREAM_FILTER_NONE;
+    if (!ctx || callback_id <= 0)
+        return STREAM_FILTER_NONE;
 
     for (int i = 0; i < ctx->callback_count; i++) {
         if (ctx->callbacks[i].id == callback_id) {
@@ -531,17 +552,18 @@ uint64_t stream_get_callback_filter(StreamContext *ctx, int callback_id) {
  * @return true 容量足够或扩容成功，false 缓冲区已满或分配失败
  */
 static bool stream_ensure_buffer(StreamContext *ctx) {
-    if (ctx->buffer_count < ctx->buffer_capacity) return true;
-    if (ctx->buffer_capacity >= STREAM_MAX_BUFFER) return false;
+    if (ctx->buffer_count < ctx->buffer_capacity)
+        return true;
+    if (ctx->buffer_capacity >= STREAM_MAX_BUFFER)
+        return false;
 
-    int new_cap = ctx->buffer_capacity == 0
-        ? STREAM_INITIAL_BUFFER
-        : ctx->buffer_capacity * 2;
-    if (new_cap > STREAM_MAX_BUFFER) new_cap = STREAM_MAX_BUFFER;
+    int new_cap = ctx->buffer_capacity == 0 ? STREAM_INITIAL_BUFFER : ctx->buffer_capacity * 2;
+    if (new_cap > STREAM_MAX_BUFFER)
+        new_cap = STREAM_MAX_BUFFER;
 
-    StreamEvent *new_buf = (StreamEvent *)lv00_realloc(
-        ctx->buffer, (size_t)new_cap * sizeof(StreamEvent));
-    if (!new_buf) return false;
+    StreamEvent *new_buf = (StreamEvent *) lv00_realloc(ctx->buffer, (size_t) new_cap * sizeof(StreamEvent));
+    if (!new_buf)
+        return false;
 
     ctx->buffer = new_buf;
     ctx->buffer_capacity = new_cap;
@@ -584,9 +606,9 @@ static void stream_dispatch(StreamContext *ctx, const StreamEvent *event) {
     int saved_count = ctx->callback_count;
     for (int i = 0; i < saved_count; i++) {
         /* 检查索引是否仍然有效（回调可能已被注销导致前移） */
-        if (i >= ctx->callback_count) break;
-        if (ctx->callbacks[i].callback &&
-            (ctx->callbacks[i].filter_mask & event_bit) != 0) {
+        if (i >= ctx->callback_count)
+            break;
+        if (ctx->callbacks[i].callback && (ctx->callbacks[i].filter_mask & event_bit) != 0) {
             ctx->callbacks[i].callback(event, ctx->callbacks[i].user_data);
         }
     }
@@ -603,8 +625,7 @@ static void stream_dispatch(StreamContext *ctx, const StreamEvent *event) {
  */
 static bool stream_throttle_expired(StreamContext *ctx) {
     long now = stream_timestamp_ms();
-    if (ctx->last_emit_ms == 0 ||
-        (now - ctx->last_emit_ms) >= ctx->throttle_ms) {
+    if (ctx->last_emit_ms == 0 || (now - ctx->last_emit_ms) >= ctx->throttle_ms) {
         ctx->last_emit_ms = now;
         return true;
     }
@@ -620,8 +641,9 @@ static bool stream_throttle_expired(StreamContext *ctx) {
  * @param event 事件数据
  */
 static void stream_update_stats(StreamContext *ctx, const StreamEvent *event) {
-    if (!ctx) return;
-    int type_idx = (int)event->type;
+    if (!ctx)
+        return;
+    int type_idx = (int) event->type;
     if (type_idx >= 0 && type_idx < STREAM_EVENT_TYPE_COUNT) {
         ctx->event_counts[type_idx]++;
     }
@@ -644,7 +666,8 @@ static void stream_update_stats(StreamContext *ctx, const StreamEvent *event) {
  * @param event 事件数据指针
  */
 void stream_emit(StreamContext *ctx, const StreamEvent *event) {
-    if (!ctx || !event) return;
+    if (!ctx || !event)
+        return;
 
     /* 更新事件统计（无论哪种发射模式都计数） */
     stream_update_stats(ctx, event);
@@ -685,8 +708,7 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
              * 由消费者通过 stream_lazy_next / stream_lazy_drain 主动拉取。
              * 当队列达到阈值时自动触发刷新。 */
             stream_lazy_enqueue(ctx, event);
-            if (ctx->lazy_threshold > 0 &&
-                ctx->lazy_count >= ctx->lazy_threshold) {
+            if (ctx->lazy_threshold > 0 && ctx->lazy_count >= ctx->lazy_threshold) {
                 stream_flush(ctx);
             }
             break;
@@ -717,8 +739,8 @@ void stream_emit(StreamContext *ctx, const StreamEvent *event) {
  * @param description 事件描述字符串
  * @param step_number 当前步骤编号
  */
-static inline void stream_event_init(StreamEvent *event, StreamEventType type,
-                                      const char *description, int step_number) {
+static inline void stream_event_init(StreamEvent *event, StreamEventType type, const char *description,
+                                     int step_number) {
     memset(event, 0, sizeof(*event));
     event->type = type;
     event->timestamp_ms = stream_timestamp_ms();
@@ -733,9 +755,9 @@ static inline void stream_event_init(StreamEvent *event, StreamEventType type,
     event->progress = -1.0;
 }
 
-void stream_emit_simple(StreamContext *ctx, StreamEventType type,
-                         const char *description, int step_number) {
-    if (!ctx) return;
+void stream_emit_simple(StreamContext *ctx, StreamEventType type, const char *description, int step_number) {
+    if (!ctx)
+        return;
     StreamEvent event;
     stream_event_init(&event, type, description, step_number);
     stream_emit(ctx, &event);
@@ -752,9 +774,10 @@ void stream_emit_simple(StreamContext *ctx, StreamEventType type,
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-void stream_emit_node_event(StreamContext *ctx, StreamEventType type,
-                             int node_id, const char *description, int step_number) {
-    if (!ctx) return;
+void stream_emit_node_event(StreamContext *ctx, StreamEventType type, int node_id, const char *description,
+                            int step_number) {
+    if (!ctx)
+        return;
     StreamEvent event;
     stream_event_init(&event, type, description, step_number);
     event.node_id = node_id;
@@ -772,9 +795,10 @@ void stream_emit_node_event(StreamContext *ctx, StreamEventType type,
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type,
-                                   int constraint_id, const char *description, int step_number) {
-    if (!ctx) return;
+void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type, int constraint_id, const char *description,
+                                  int step_number) {
+    if (!ctx)
+        return;
     StreamEvent event;
     stream_event_init(&event, type, description, step_number);
     event.constraint_id = constraint_id;
@@ -792,9 +816,10 @@ void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type,
  * @param step_number 当前步骤
  * @param total_steps 总步骤数
  */
-void stream_emit_progress(StreamContext *ctx, double progress,
-                           const char *description, int step_number, int total_steps) {
-    if (!ctx) return;
+void stream_emit_progress(StreamContext *ctx, double progress, const char *description, int step_number,
+                          int total_steps) {
+    if (!ctx)
+        return;
     StreamEvent event;
     stream_event_init(&event, STREAM_EVENT_PROGRESS, description, step_number);
     event.total_steps = total_steps;
@@ -813,9 +838,10 @@ void stream_emit_progress(StreamContext *ctx, double progress,
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-void stream_emit_numeric(StreamContext *ctx, StreamEventType type,
-                          double numeric_value, const char *description, int step_number) {
-    if (!ctx) return;
+void stream_emit_numeric(StreamContext *ctx, StreamEventType type, double numeric_value, const char *description,
+                         int step_number) {
+    if (!ctx)
+        return;
     StreamEvent event;
     stream_event_init(&event, type, description, step_number);
     event.numeric_value = numeric_value;
@@ -833,9 +859,10 @@ void stream_emit_numeric(StreamContext *ctx, StreamEventType type,
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type,
-                                 const char *graph_json, const char *description, int step_number) {
-    if (!ctx) return;
+void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type, const char *graph_json,
+                                const char *description, int step_number) {
+    if (!ctx)
+        return;
     StreamEvent event;
     stream_event_init(&event, type, description, step_number);
     event.graph_json = graph_json;
@@ -853,12 +880,13 @@ void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type,
  * @param step_number 步骤编号
  */
 void stream_emit_merge(StreamContext *ctx, int from_id, int to_id, int step_number) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     StreamEvent event;
     stream_event_init(&event, STREAM_EVENT_NORMALIZE_MERGE, NULL, step_number);
     event.node_id = to_id;
-    event.constraint_id = from_id;  /* 复用字段存储 from_id */
+    event.constraint_id = from_id; /* 复用字段存储 from_id */
 
     /* 构建描述字符串（使用线程局部静态缓冲区，避免堆分配导致悬空指针风险）
      * 注意：之前使用 lv00_malloc 分配堆内存，在 BUFFERED/THROTTLED/LAZY 模式下
@@ -883,9 +911,10 @@ void stream_emit_merge(StreamContext *ctx, int from_id, int to_id, int step_numb
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-void stream_emit_variable_resolved(StreamContext *ctx, int var_id,
-                                    double value, const char *description, int step_number) {
-    if (!ctx) return;
+void stream_emit_variable_resolved(StreamContext *ctx, int var_id, double value, const char *description,
+                                   int step_number) {
+    if (!ctx)
+        return;
     StreamEvent event;
     stream_event_init(&event, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED, description, step_number);
     event.var_id = var_id;
@@ -940,21 +969,19 @@ void stream_emit_info(StreamContext *ctx, const char *description, int step_numb
  * 根据注册结果自动选择 PRESET_REGISTER_DONE 或 PRESET_REGISTER_FAILED 事件类型，
  * 并在描述中包含预设名称和结果信息。
  */
-void stream_emit_preset_register(StreamContext *ctx, const char *name,
-                                  bool success, int step_number) {
-    if (!ctx || !name) return;
+void stream_emit_preset_register(StreamContext *ctx, const char *name, bool success, int step_number) {
+    if (!ctx || !name)
+        return;
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
-    ev.type = success ? STREAM_EVENT_PRESET_REGISTER_DONE
-                      : STREAM_EVENT_PRESET_REGISTER_FAILED;
+    ev.type = success ? STREAM_EVENT_PRESET_REGISTER_DONE : STREAM_EVENT_PRESET_REGISTER_FAILED;
     ev.timestamp_ms = stream_timestamp_ms();
     ev.step_number = step_number;
 
     /* 构造描述文本：包含预设名称和结果 */
     char desc[512];
-    snprintf(desc, sizeof(desc), "预设 '%s' 注册%s",
-             name, success ? "成功" : "失败");
+    snprintf(desc, sizeof(desc), "预设 '%s' 注册%s", name, success ? "成功" : "失败");
     ev.description = desc;
 
     stream_emit(ctx, &ev);
@@ -965,16 +992,16 @@ void stream_emit_preset_register(StreamContext *ctx, const char *name,
  *
  * 发射 PRESET_INSTANTIATE 事件，附带预设名称和实例 ID。
  */
-void stream_emit_preset_instantiate(StreamContext *ctx, const char *name,
-                                     int instance_id, int step_number) {
-    if (!ctx || !name) return;
+void stream_emit_preset_instantiate(StreamContext *ctx, const char *name, int instance_id, int step_number) {
+    if (!ctx || !name)
+        return;
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
     ev.type = STREAM_EVENT_PRESET_INSTANTIATE;
     ev.timestamp_ms = stream_timestamp_ms();
     ev.step_number = step_number;
-    ev.node_id = instance_id;  /* 复用 node_id 字段存储实例 ID */
+    ev.node_id = instance_id; /* 复用 node_id 字段存储实例 ID */
 
     char desc[512];
     snprintf(desc, sizeof(desc), "预设 '%s' 实例化 (ID=%d)", name, instance_id);
@@ -988,21 +1015,20 @@ void stream_emit_preset_instantiate(StreamContext *ctx, const char *name,
  *
  * 发射 PRESET_VALIDATE 事件，附带验证结果和详情。
  */
-void stream_emit_preset_validate(StreamContext *ctx, const char *name,
-                                  bool is_valid, const char *detail, int step_number) {
-    if (!ctx || !name) return;
+void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_valid, const char *detail,
+                                 int step_number) {
+    if (!ctx || !name)
+        return;
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
     ev.type = STREAM_EVENT_PRESET_VALIDATE;
     ev.timestamp_ms = stream_timestamp_ms();
     ev.step_number = step_number;
-    ev.detail_json = detail;  /* 复用 detail_json 字段存储验证详情 */
+    ev.detail_json = detail; /* 复用 detail_json 字段存储验证详情 */
 
     char desc[512];
-    snprintf(desc, sizeof(desc), "预设 '%s' 验证%s%s",
-             name, is_valid ? "通过" : "失败",
-             detail ? "" : "");
+    snprintf(desc, sizeof(desc), "预设 '%s' 验证%s%s", name, is_valid ? "通过" : "失败", detail ? "" : "");
     ev.description = desc;
 
     stream_emit(ctx, &ev);
@@ -1013,20 +1039,19 @@ void stream_emit_preset_validate(StreamContext *ctx, const char *name,
  *
  * 发射 PRESET_MODULE_LOADED 事件，附带模块名称和注册数量。
  */
-void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name,
-                                       int count, int step_number) {
-    if (!ctx || !module_name) return;
+void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_name, int count, int step_number) {
+    if (!ctx || !module_name)
+        return;
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
     ev.type = STREAM_EVENT_PRESET_MODULE_LOADED;
     ev.timestamp_ms = stream_timestamp_ms();
     ev.step_number = step_number;
-    ev.numeric_value = (double)count;  /* 复用 numeric_value 存储注册数量 */
+    ev.numeric_value = (double) count; /* 复用 numeric_value 存储注册数量 */
 
     char desc[512];
-    snprintf(desc, sizeof(desc), "模块 '%s' 加载完成，共 %d 个预设",
-             module_name, count);
+    snprintf(desc, sizeof(desc), "模块 '%s' 加载完成，共 %d 个预设", module_name, count);
     ev.description = desc;
 
     stream_emit(ctx, &ev);
@@ -1042,7 +1067,8 @@ void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_nam
  * @param throttle_ms  节流间隔毫秒数（仅 THROTTLED 模式生效，0 使用默认值 50ms）
  */
 void stream_set_emit_mode(StreamContext *ctx, StreamEmitMode mode, long throttle_ms) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     /* 异步模式优先：如果已启用异步，不允许切换发射模式 */
     if (ctx->async_enabled) {
@@ -1074,7 +1100,8 @@ void stream_set_emit_mode(StreamContext *ctx, StreamEmitMode mode, long throttle
  * @return 当前发射模式，ctx 为 NULL 时返回 STREAM_EMIT_IMMEDIATE
  */
 StreamEmitMode stream_get_emit_mode(const StreamContext *ctx) {
-    if (!ctx) return STREAM_EMIT_IMMEDIATE;
+    if (!ctx)
+        return STREAM_EMIT_IMMEDIATE;
     return ctx->emit_mode;
 }
 
@@ -1088,7 +1115,7 @@ static unsigned __stdcall async_consumer_thread(void *arg)
 static void *async_consumer_thread(void *arg)
 #endif
 {
-    StreamContext *ctx = (StreamContext *)arg;
+    StreamContext *ctx = (StreamContext *) arg;
 
     while (true) {
         lv00_mutex_lock(ctx->async_mutex);
@@ -1158,20 +1185,23 @@ static void *async_consumer_thread(void *arg)
  * @return true 成功，false 失败（ctx 为 NULL 或内存不足）
  */
 bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
-    if (!ctx) return false;
+    if (!ctx)
+        return false;
 
     if (enabled) {
         /* 如果已经启用，不重复创建 */
-        if (ctx->async_enabled && ctx->async_running) return true;
+        if (ctx->async_enabled && ctx->async_running)
+            return true;
 
         /* 确保缓冲区已分配 */
         int buf_cap = capacity > 0 ? capacity : STREAM_ASYNC_QUEUE_DEFAULT_CAPACITY;
-        if (buf_cap > STREAM_MAX_BUFFER) buf_cap = STREAM_MAX_BUFFER;
+        if (buf_cap > STREAM_MAX_BUFFER)
+            buf_cap = STREAM_MAX_BUFFER;
 
         if (!ctx->buffer || ctx->buffer_capacity < buf_cap) {
-            StreamEvent *new_buf = (StreamEvent *)lv00_realloc(
-                ctx->buffer, (size_t)buf_cap * sizeof(StreamEvent));
-            if (!new_buf) return false;
+            StreamEvent *new_buf = (StreamEvent *) lv00_realloc(ctx->buffer, (size_t) buf_cap * sizeof(StreamEvent));
+            if (!new_buf)
+                return false;
             ctx->buffer = new_buf;
             ctx->buffer_capacity = buf_cap;
             ctx->buffer_count = 0;
@@ -1181,7 +1211,8 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
         /* 创建同步原语 */
         if (!ctx->async_mutex) {
             ctx->async_mutex = lv00_mutex_create();
-            if (!ctx->async_mutex) return false;
+            if (!ctx->async_mutex)
+                return false;
         }
         if (!ctx->async_cond_not_empty) {
             ctx->async_cond_not_empty = lv00_condvar_create();
@@ -1207,7 +1238,7 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
         ctx->async_flush_waiters = 0;
 
 #ifdef _WIN32
-        HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, async_consumer_thread, ctx, 0, NULL);
+        HANDLE thread = (HANDLE) _beginthreadex(NULL, 0, async_consumer_thread, ctx, 0, NULL);
         if (!thread) {
             ctx->async_running = false;
             lv00_condvar_destroy(ctx->async_cond_flushed);
@@ -1218,7 +1249,7 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
             ctx->async_mutex = NULL;
             return false;
         }
-        ctx->async_thread = (void *)thread;
+        ctx->async_thread = (void *) thread;
 #else
         pthread_t thread;
         int ret = pthread_create(&thread, NULL, async_consumer_thread, ctx);
@@ -1233,7 +1264,7 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
             return false;
         }
         /* For pthread, store the thread in a heap-allocated buffer */
-        pthread_t *thread_ptr = (pthread_t *)lv00_malloc(sizeof(pthread_t));
+        pthread_t *thread_ptr = (pthread_t *) lv00_malloc(sizeof(pthread_t));
         if (thread_ptr) {
             *thread_ptr = thread;
             ctx->async_thread = thread_ptr;
@@ -1246,7 +1277,8 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
         return true;
     } else {
         /* 禁用异步模式 */
-        if (!ctx->async_enabled) return true;
+        if (!ctx->async_enabled)
+            return true;
 
         /* 通知消费者线程停止 */
         lv00_mutex_lock(ctx->async_mutex);
@@ -1257,14 +1289,14 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
         /* 等待消费者线程退出 */
 #ifdef _WIN32
         if (ctx->async_thread) {
-            WaitForSingleObject((HANDLE)ctx->async_thread, INFINITE);
-            CloseHandle((HANDLE)ctx->async_thread);
+            WaitForSingleObject((HANDLE) ctx->async_thread, INFINITE);
+            CloseHandle((HANDLE) ctx->async_thread);
         }
 #else
         if (ctx->async_thread) {
-            pthread_t *thread_ptr = (pthread_t *)ctx->async_thread;
+            pthread_t *thread_ptr = (pthread_t *) ctx->async_thread;
             pthread_join(*thread_ptr, NULL);
-            lv00_free((void **)&thread_ptr);
+            lv00_free((void **) &thread_ptr);
         }
 #endif
         ctx->async_thread = NULL;
@@ -1296,7 +1328,8 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
  * @param ctx 流式上下文
  */
 void stream_flush(StreamContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     /* 异步模式：阻塞等待消费者线程排空队列 */
     if (ctx->async_enabled && ctx->async_running) {
@@ -1311,7 +1344,8 @@ void stream_flush(StreamContext *ctx) {
     }
 
     /* 同步模式：直接分发 */
-    if (ctx->buffer_count == 0) return;
+    if (ctx->buffer_count == 0)
+        return;
 
     while (ctx->buffer_count > 0) {
         StreamEvent *ev = &ctx->buffer[ctx->buffer_head];
@@ -1329,7 +1363,8 @@ void stream_flush(StreamContext *ctx) {
  * @return 待处理事件数，ctx 为 NULL 时返回 0
  */
 int stream_pending_count(StreamContext *ctx) {
-    if (!ctx) return 0;
+    if (!ctx)
+        return 0;
     return ctx->buffer_count;
 }
 
@@ -1342,7 +1377,8 @@ int stream_pending_count(StreamContext *ctx) {
  * @return 被清除的事件数
  */
 int stream_clear_buffer(StreamContext *ctx) {
-    if (!ctx) return 0;
+    if (!ctx)
+        return 0;
     int cleared = ctx->buffer_count;
     ctx->buffer_count = 0;
     ctx->buffer_head = 0;
@@ -1356,7 +1392,8 @@ int stream_clear_buffer(StreamContext *ctx) {
  * @return 缓冲区事件数
  */
 int stream_buffer_size(const StreamContext *ctx) {
-    if (!ctx) return 0;
+    if (!ctx)
+        return 0;
     return ctx->buffer_count;
 }
 
@@ -1374,33 +1411,39 @@ int stream_buffer_size(const StreamContext *ctx) {
  * @return 写入的字符数（不含终止符）
  */
 static int stream_json_escape(char *dest, const char *src, size_t dest_size) {
-    if (!src || dest_size == 0) return 0;
+    if (!src || dest_size == 0)
+        return 0;
 
     size_t written = 0;
     while (*src && written + 1 < dest_size) {
         switch (*src) {
             case '"':
-                if (written + 2 >= dest_size) goto done;
+                if (written + 2 >= dest_size)
+                    goto done;
                 dest[written++] = '\\';
                 dest[written++] = '"';
                 break;
             case '\\':
-                if (written + 2 >= dest_size) goto done;
+                if (written + 2 >= dest_size)
+                    goto done;
                 dest[written++] = '\\';
                 dest[written++] = '\\';
                 break;
             case '\n':
-                if (written + 2 >= dest_size) goto done;
+                if (written + 2 >= dest_size)
+                    goto done;
                 dest[written++] = '\\';
                 dest[written++] = 'n';
                 break;
             case '\r':
-                if (written + 2 >= dest_size) goto done;
+                if (written + 2 >= dest_size)
+                    goto done;
                 dest[written++] = '\\';
                 dest[written++] = 'r';
                 break;
             case '\t':
-                if (written + 2 >= dest_size) goto done;
+                if (written + 2 >= dest_size)
+                    goto done;
                 dest[written++] = '\\';
                 dest[written++] = 't';
                 break;
@@ -1411,8 +1454,9 @@ static int stream_json_escape(char *dest, const char *src, size_t dest_size) {
         src++;
     }
 done:
-    if (written < dest_size) dest[written] = '\0';
-    return (int)written;
+    if (written < dest_size)
+        dest[written] = '\0';
+    return (int) written;
 }
 
 /**
@@ -1428,17 +1472,18 @@ done:
  * @return 新的偏移量（可能超过 size，表示截断）
  */
 static int stream_buf_append(char *buf, size_t size, int offset, const char *fmt, ...) {
-    if (offset < 0) return offset;
+    if (offset < 0)
+        return offset;
 
     va_list args;
     va_start(args, fmt);
-    int written = vsnprintf(buf ? buf + offset : NULL,
-                            (buf && (size_t)offset < size) ? size - (size_t)offset : 0,
-                            fmt, args);
+    int written =
+        vsnprintf(buf ? buf + offset : NULL, (buf && (size_t) offset < size) ? size - (size_t) offset : 0, fmt, args);
     va_end(args);
 
     /* vsnprintf 返回期望写入的字符数（不含终止符），可能超过剩余空间 */
-    if (written < 0) written = 0;
+    if (written < 0)
+        written = 0;
     return offset + written;
 }
 
@@ -1456,7 +1501,8 @@ static int stream_buf_append(char *buf, size_t size, int offset, const char *fmt
  */
 int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     if (!event) {
-        if (buffer && size > 0) buffer[0] = '\0';
+        if (buffer && size > 0)
+            buffer[0] = '\0';
         return 0;
     }
 
@@ -1508,7 +1554,8 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     needed = stream_buf_append(NULL, 0, needed, "}");
 
     /* 如果没有提供缓冲区或缓冲区太小，返回所需大小 */
-    if (!buffer || size == 0) return needed;
+    if (!buffer || size == 0)
+        return needed;
 
     /* 写入实际数据 */
     int pos = 0;
@@ -1533,7 +1580,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     pos = stream_buf_append(buffer, size, pos, "}");
 
     /* 确保终止符 */
-    if ((size_t)pos < size) {
+    if ((size_t) pos < size) {
         buffer[pos] = '\0';
     } else if (size > 0) {
         buffer[size - 1] = '\0';
@@ -1555,7 +1602,8 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
  */
 int stream_event_to_jsonrpc(const StreamEvent *event, char *buffer, size_t size) {
     if (!event) {
-        if (buffer && size > 0) buffer[0] = '\0';
+        if (buffer && size > 0)
+            buffer[0] = '\0';
         return 0;
     }
 
@@ -1565,12 +1613,13 @@ int stream_event_to_jsonrpc(const StreamEvent *event, char *buffer, size_t size)
 
     /* 如果事件 JSON 太长，使用动态分配 */
     char *event_json_ptr = event_json;
-    if (event_json_len >= (int)sizeof(event_json)) {
+    if (event_json_len >= (int) sizeof(event_json)) {
         /* 需要更大的缓冲区 */
-        size_t needed = (size_t)event_json_len + 1;
-        event_json_ptr = (char *)lv00_malloc(needed);
+        size_t needed = (size_t) event_json_len + 1;
+        event_json_ptr = (char *) lv00_malloc(needed);
         if (!event_json_ptr) {
-            if (buffer && size > 0) buffer[0] = '\0';
+            if (buffer && size > 0)
+                buffer[0] = '\0';
             return 0;
         }
         stream_event_to_json(event, event_json_ptr, needed);
@@ -1578,13 +1627,12 @@ int stream_event_to_jsonrpc(const StreamEvent *event, char *buffer, size_t size)
 
     /* 构建 JSON-RPC 外壳 */
     int pos = 0;
-    pos = stream_buf_append(buffer, size, pos,
-        "{\"jsonrpc\":\"2.0\",\"method\":\"stream.event\",\"params\":");
+    pos = stream_buf_append(buffer, size, pos, "{\"jsonrpc\":\"2.0\",\"method\":\"stream.event\",\"params\":");
     pos = stream_buf_append(buffer, size, pos, "%s", event_json_ptr);
     pos = stream_buf_append(buffer, size, pos, "}");
 
     /* 确保终止符 */
-    if ((size_t)pos < size) {
+    if ((size_t) pos < size) {
         buffer[pos] = '\0';
     } else if (size > 0) {
         buffer[size - 1] = '\0';
@@ -1592,7 +1640,7 @@ int stream_event_to_jsonrpc(const StreamEvent *event, char *buffer, size_t size)
 
     /* 释放动态分配的临时缓冲区 */
     if (event_json_ptr != event_json) {
-        lv00_free((void **)&event_json_ptr);
+        lv00_free((void **) &event_json_ptr);
     }
 
     return pos;
@@ -1607,7 +1655,8 @@ int stream_event_to_jsonrpc(const StreamEvent *event, char *buffer, size_t size)
  * @param ctx 流式上下文
  */
 void stream_reset_stats(StreamContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
     memset(ctx->event_counts, 0, sizeof(ctx->event_counts));
     ctx->total_count = 0;
     ctx->dropped_count = 0;
@@ -1621,8 +1670,9 @@ void stream_reset_stats(StreamContext *ctx) {
  * @return 发射次数，ctx 为 NULL 或类型越界时返回 0
  */
 long stream_get_event_count(StreamContext *ctx, StreamEventType type) {
-    if (!ctx) return 0;
-    int idx = (int)type;
+    if (!ctx)
+        return 0;
+    int idx = (int) type;
     if (idx >= 0 && idx < STREAM_EVENT_TYPE_COUNT) {
         return ctx->event_counts[idx];
     }
@@ -1636,7 +1686,8 @@ long stream_get_event_count(StreamContext *ctx, StreamEventType type) {
  * @return 总发射次数，ctx 为 NULL 时返回 0
  */
 long stream_get_total_event_count(StreamContext *ctx) {
-    if (!ctx) return 0;
+    if (!ctx)
+        return 0;
     return ctx->total_count;
 }
 
@@ -1647,7 +1698,8 @@ long stream_get_total_event_count(StreamContext *ctx) {
  * @return 丢弃的事件数，ctx 为 NULL 时返回 0
  */
 long stream_get_dropped_count(StreamContext *ctx) {
-    if (!ctx) return 0;
+    if (!ctx)
+        return 0;
     return ctx->dropped_count;
 }
 
@@ -1670,16 +1722,16 @@ long stream_timestamp_ms(void) {
 #ifdef _WIN32
     LARGE_INTEGER freq, counter;
     if (QueryPerformanceFrequency(&freq) && QueryPerformanceCounter(&counter)) {
-        return (long)((counter.QuadPart * 1000) / freq.QuadPart);
+        return (long) ((counter.QuadPart * 1000) / freq.QuadPart);
     }
 #else
     struct timeval tv;
     if (gettimeofday(&tv, NULL) == 0) {
-        return (long)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+        return (long) (tv.tv_sec * 1000 + tv.tv_usec / 1000);
     }
 #endif
     /* 终极回退：使用 time(NULL) */
-    return (long)(time(NULL) * 1000);
+    return (long) (time(NULL) * 1000);
 }
 
 /**
@@ -1690,46 +1742,86 @@ long stream_timestamp_ms(void) {
  */
 const char *stream_event_type_name(StreamEventType type) {
     switch (type) {
-        case STREAM_EVENT_ENGINE_START:          return "引擎启动";
-        case STREAM_EVENT_ENGINE_DONE:           return "引擎完成";
-        case STREAM_EVENT_ENGINE_PAUSED:         return "引擎暂停";
-        case STREAM_EVENT_NORMALIZE_START:       return "归一化开始";
-        case STREAM_EVENT_NORMALIZE_MERGE:       return "节点合并";
-        case STREAM_EVENT_NORMALIZE_DONE:        return "归一化完成";
-        case STREAM_EVENT_REWRITE_START:         return "重写开始";
-        case STREAM_EVENT_REWRITE_RULE_LOADED:   return "规则加载";
-        case STREAM_EVENT_REWRITE_MATCH_FOUND:   return "匹配找到";
-        case STREAM_EVENT_REWRITE_APPLIED:       return "规则应用";
-        case STREAM_EVENT_REWRITE_ROLLBACK:      return "规则回滚";
-        case STREAM_EVENT_REWRITE_DONE:          return "重写完成";
-        case STREAM_EVENT_SOLVE_START:           return "求解开始";
-        case STREAM_EVENT_SOLVE_EQUATION_EXTRACTED: return "方程提取";
-        case STREAM_EVENT_SOLVE_GROEBNER_STEP:   return "Gröbner基步骤";
-        case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED: return "变量解得";
-        case STREAM_EVENT_SOLVE_DONE:            return "求解完成";
-        case STREAM_EVENT_PROOF_STEP_ADDED:      return "证明步骤添加";
-        case STREAM_EVENT_PROOF_STEP_APPLIED:    return "证明步骤应用";
-        case STREAM_EVENT_PROOF_UNIFY:           return "合一检查";
-        case STREAM_EVENT_PROOF_COLOR_UPDATE:    return "颜色更新";
-        case STREAM_EVENT_PROOF_DEPENDENCY_CHANGE: return "依赖链变化";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_START:      return "函数打包开始";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_DONE:       return "函数打包完成";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START: return "函数实例化开始";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE:  return "函数实例化完成";
-        case STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY:   return "部分应用";
-        case STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK: return "确定性检查";
-        case STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID:    return "捕获避免";
-        case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:   return "跨边界操作";
-        case STREAM_EVENT_CONFLICT_DETECTED:     return "冲突检测";
-        case STREAM_EVENT_CONSTRAINT_ADDED:      return "约束添加";
-        case STREAM_EVENT_NODE_ADDED:            return "节点添加";
-        case STREAM_EVENT_CIRCUIT_TRIP:          return "位数熔断";
-        case STREAM_EVENT_ERROR:                 return "错误";
-        case STREAM_EVENT_WARNING:               return "警告";
-        case STREAM_EVENT_INFO:                  return "信息";
-        case STREAM_EVENT_PROGRESS:              return "进度";
-        case STREAM_EVENT_GRAPH_SNAPSHOT:        return "图快照";
-        default:                                 return "未知事件";
+        case STREAM_EVENT_ENGINE_START:
+            return "引擎启动";
+        case STREAM_EVENT_ENGINE_DONE:
+            return "引擎完成";
+        case STREAM_EVENT_ENGINE_PAUSED:
+            return "引擎暂停";
+        case STREAM_EVENT_NORMALIZE_START:
+            return "归一化开始";
+        case STREAM_EVENT_NORMALIZE_MERGE:
+            return "节点合并";
+        case STREAM_EVENT_NORMALIZE_DONE:
+            return "归一化完成";
+        case STREAM_EVENT_REWRITE_START:
+            return "重写开始";
+        case STREAM_EVENT_REWRITE_RULE_LOADED:
+            return "规则加载";
+        case STREAM_EVENT_REWRITE_MATCH_FOUND:
+            return "匹配找到";
+        case STREAM_EVENT_REWRITE_APPLIED:
+            return "规则应用";
+        case STREAM_EVENT_REWRITE_ROLLBACK:
+            return "规则回滚";
+        case STREAM_EVENT_REWRITE_DONE:
+            return "重写完成";
+        case STREAM_EVENT_SOLVE_START:
+            return "求解开始";
+        case STREAM_EVENT_SOLVE_EQUATION_EXTRACTED:
+            return "方程提取";
+        case STREAM_EVENT_SOLVE_GROEBNER_STEP:
+            return "Gröbner基步骤";
+        case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
+            return "变量解得";
+        case STREAM_EVENT_SOLVE_DONE:
+            return "求解完成";
+        case STREAM_EVENT_PROOF_STEP_ADDED:
+            return "证明步骤添加";
+        case STREAM_EVENT_PROOF_STEP_APPLIED:
+            return "证明步骤应用";
+        case STREAM_EVENT_PROOF_UNIFY:
+            return "合一检查";
+        case STREAM_EVENT_PROOF_COLOR_UPDATE:
+            return "颜色更新";
+        case STREAM_EVENT_PROOF_DEPENDENCY_CHANGE:
+            return "依赖链变化";
+        case STREAM_EVENT_FUNC_BLOCK_PACK_START:
+            return "函数打包开始";
+        case STREAM_EVENT_FUNC_BLOCK_PACK_DONE:
+            return "函数打包完成";
+        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START:
+            return "函数实例化开始";
+        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE:
+            return "函数实例化完成";
+        case STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY:
+            return "部分应用";
+        case STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK:
+            return "确定性检查";
+        case STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID:
+            return "捕获避免";
+        case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
+            return "跨边界操作";
+        case STREAM_EVENT_CONFLICT_DETECTED:
+            return "冲突检测";
+        case STREAM_EVENT_CONSTRAINT_ADDED:
+            return "约束添加";
+        case STREAM_EVENT_NODE_ADDED:
+            return "节点添加";
+        case STREAM_EVENT_CIRCUIT_TRIP:
+            return "位数熔断";
+        case STREAM_EVENT_ERROR:
+            return "错误";
+        case STREAM_EVENT_WARNING:
+            return "警告";
+        case STREAM_EVENT_INFO:
+            return "信息";
+        case STREAM_EVENT_PROGRESS:
+            return "进度";
+        case STREAM_EVENT_GRAPH_SNAPSHOT:
+            return "图快照";
+        default:
+            return "未知事件";
     }
 }
 
@@ -1741,46 +1833,86 @@ const char *stream_event_type_name(StreamEventType type) {
  */
 const char *stream_event_type_id(StreamEventType type) {
     switch (type) {
-        case STREAM_EVENT_ENGINE_START:          return "ENGINE_START";
-        case STREAM_EVENT_ENGINE_DONE:           return "ENGINE_DONE";
-        case STREAM_EVENT_ENGINE_PAUSED:         return "ENGINE_PAUSED";
-        case STREAM_EVENT_NORMALIZE_START:       return "NORMALIZE_START";
-        case STREAM_EVENT_NORMALIZE_MERGE:       return "NORMALIZE_MERGE";
-        case STREAM_EVENT_NORMALIZE_DONE:        return "NORMALIZE_DONE";
-        case STREAM_EVENT_REWRITE_START:         return "REWRITE_START";
-        case STREAM_EVENT_REWRITE_RULE_LOADED:   return "REWRITE_RULE_LOADED";
-        case STREAM_EVENT_REWRITE_MATCH_FOUND:   return "REWRITE_MATCH_FOUND";
-        case STREAM_EVENT_REWRITE_APPLIED:       return "REWRITE_APPLIED";
-        case STREAM_EVENT_REWRITE_ROLLBACK:      return "REWRITE_ROLLBACK";
-        case STREAM_EVENT_REWRITE_DONE:          return "REWRITE_DONE";
-        case STREAM_EVENT_SOLVE_START:           return "SOLVE_START";
-        case STREAM_EVENT_SOLVE_EQUATION_EXTRACTED: return "SOLVE_EQUATION_EXTRACTED";
-        case STREAM_EVENT_SOLVE_GROEBNER_STEP:   return "SOLVE_GROEBNER_STEP";
-        case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED: return "SOLVE_VARIABLE_RESOLVED";
-        case STREAM_EVENT_SOLVE_DONE:            return "SOLVE_DONE";
-        case STREAM_EVENT_PROOF_STEP_ADDED:      return "PROOF_STEP_ADDED";
-        case STREAM_EVENT_PROOF_STEP_APPLIED:    return "PROOF_STEP_APPLIED";
-        case STREAM_EVENT_PROOF_UNIFY:           return "PROOF_UNIFY";
-        case STREAM_EVENT_PROOF_COLOR_UPDATE:    return "PROOF_COLOR_UPDATE";
-        case STREAM_EVENT_PROOF_DEPENDENCY_CHANGE: return "PROOF_DEPENDENCY_CHANGE";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_START:      return "FUNC_BLOCK_PACK_START";
-        case STREAM_EVENT_FUNC_BLOCK_PACK_DONE:       return "FUNC_BLOCK_PACK_DONE";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START: return "FUNC_BLOCK_INSTANTIATE_START";
-        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE:  return "FUNC_BLOCK_INSTANTIATE_DONE";
-        case STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY:   return "FUNC_BLOCK_PARTIAL_APPLY";
-        case STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK: return "FUNC_BLOCK_DETERMINISM_CHECK";
-        case STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID:    return "FUNC_BLOCK_CAPTURE_AVOID";
-        case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:   return "FUNC_BLOCK_CROSS_BOUNDARY";
-        case STREAM_EVENT_CONFLICT_DETECTED:     return "CONFLICT_DETECTED";
-        case STREAM_EVENT_CONSTRAINT_ADDED:      return "CONSTRAINT_ADDED";
-        case STREAM_EVENT_NODE_ADDED:            return "NODE_ADDED";
-        case STREAM_EVENT_CIRCUIT_TRIP:          return "CIRCUIT_TRIP";
-        case STREAM_EVENT_ERROR:                 return "ERROR";
-        case STREAM_EVENT_WARNING:               return "WARNING";
-        case STREAM_EVENT_INFO:                  return "INFO";
-        case STREAM_EVENT_PROGRESS:              return "PROGRESS";
-        case STREAM_EVENT_GRAPH_SNAPSHOT:        return "GRAPH_SNAPSHOT";
-        default:                                 return "UNKNOWN_EVENT";
+        case STREAM_EVENT_ENGINE_START:
+            return "ENGINE_START";
+        case STREAM_EVENT_ENGINE_DONE:
+            return "ENGINE_DONE";
+        case STREAM_EVENT_ENGINE_PAUSED:
+            return "ENGINE_PAUSED";
+        case STREAM_EVENT_NORMALIZE_START:
+            return "NORMALIZE_START";
+        case STREAM_EVENT_NORMALIZE_MERGE:
+            return "NORMALIZE_MERGE";
+        case STREAM_EVENT_NORMALIZE_DONE:
+            return "NORMALIZE_DONE";
+        case STREAM_EVENT_REWRITE_START:
+            return "REWRITE_START";
+        case STREAM_EVENT_REWRITE_RULE_LOADED:
+            return "REWRITE_RULE_LOADED";
+        case STREAM_EVENT_REWRITE_MATCH_FOUND:
+            return "REWRITE_MATCH_FOUND";
+        case STREAM_EVENT_REWRITE_APPLIED:
+            return "REWRITE_APPLIED";
+        case STREAM_EVENT_REWRITE_ROLLBACK:
+            return "REWRITE_ROLLBACK";
+        case STREAM_EVENT_REWRITE_DONE:
+            return "REWRITE_DONE";
+        case STREAM_EVENT_SOLVE_START:
+            return "SOLVE_START";
+        case STREAM_EVENT_SOLVE_EQUATION_EXTRACTED:
+            return "SOLVE_EQUATION_EXTRACTED";
+        case STREAM_EVENT_SOLVE_GROEBNER_STEP:
+            return "SOLVE_GROEBNER_STEP";
+        case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
+            return "SOLVE_VARIABLE_RESOLVED";
+        case STREAM_EVENT_SOLVE_DONE:
+            return "SOLVE_DONE";
+        case STREAM_EVENT_PROOF_STEP_ADDED:
+            return "PROOF_STEP_ADDED";
+        case STREAM_EVENT_PROOF_STEP_APPLIED:
+            return "PROOF_STEP_APPLIED";
+        case STREAM_EVENT_PROOF_UNIFY:
+            return "PROOF_UNIFY";
+        case STREAM_EVENT_PROOF_COLOR_UPDATE:
+            return "PROOF_COLOR_UPDATE";
+        case STREAM_EVENT_PROOF_DEPENDENCY_CHANGE:
+            return "PROOF_DEPENDENCY_CHANGE";
+        case STREAM_EVENT_FUNC_BLOCK_PACK_START:
+            return "FUNC_BLOCK_PACK_START";
+        case STREAM_EVENT_FUNC_BLOCK_PACK_DONE:
+            return "FUNC_BLOCK_PACK_DONE";
+        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START:
+            return "FUNC_BLOCK_INSTANTIATE_START";
+        case STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE:
+            return "FUNC_BLOCK_INSTANTIATE_DONE";
+        case STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY:
+            return "FUNC_BLOCK_PARTIAL_APPLY";
+        case STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK:
+            return "FUNC_BLOCK_DETERMINISM_CHECK";
+        case STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID:
+            return "FUNC_BLOCK_CAPTURE_AVOID";
+        case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
+            return "FUNC_BLOCK_CROSS_BOUNDARY";
+        case STREAM_EVENT_CONFLICT_DETECTED:
+            return "CONFLICT_DETECTED";
+        case STREAM_EVENT_CONSTRAINT_ADDED:
+            return "CONSTRAINT_ADDED";
+        case STREAM_EVENT_NODE_ADDED:
+            return "NODE_ADDED";
+        case STREAM_EVENT_CIRCUIT_TRIP:
+            return "CIRCUIT_TRIP";
+        case STREAM_EVENT_ERROR:
+            return "ERROR";
+        case STREAM_EVENT_WARNING:
+            return "WARNING";
+        case STREAM_EVENT_INFO:
+            return "INFO";
+        case STREAM_EVENT_PROGRESS:
+            return "PROGRESS";
+        case STREAM_EVENT_GRAPH_SNAPSHOT:
+            return "GRAPH_SNAPSHOT";
+        default:
+            return "UNKNOWN_EVENT";
     }
 }
 
@@ -1795,27 +1927,27 @@ const char *stream_event_color(StreamEventType type) {
     switch (type) {
         case STREAM_EVENT_ENGINE_START:
         case STREAM_EVENT_ENGINE_DONE:
-            return STREAM_COLOR_GREEN;  /* 绿色 */
+            return STREAM_COLOR_GREEN; /* 绿色 */
         case STREAM_EVENT_ERROR:
-            return STREAM_COLOR_RED;  /* 红色 */
+            return STREAM_COLOR_RED; /* 红色 */
         case STREAM_EVENT_WARNING:
-            return STREAM_COLOR_YELLOW;  /* 黄色 */
+            return STREAM_COLOR_YELLOW; /* 黄色 */
         case STREAM_EVENT_CIRCUIT_TRIP:
-            return STREAM_COLOR_ORANGE;  /* 橙色 */
+            return STREAM_COLOR_ORANGE; /* 橙色 */
         case STREAM_EVENT_PROGRESS:
-            return STREAM_COLOR_BLUE;  /* 蓝色 */
+            return STREAM_COLOR_BLUE; /* 蓝色 */
         case STREAM_EVENT_INFO:
-            return STREAM_COLOR_GRAY;  /* 灰色 */
+            return STREAM_COLOR_GRAY; /* 灰色 */
         case STREAM_EVENT_GRAPH_SNAPSHOT:
-            return STREAM_COLOR_LIGHT_GRAY;  /* 浅灰 */
+            return STREAM_COLOR_LIGHT_GRAY; /* 浅灰 */
         case STREAM_EVENT_NORMALIZE_MERGE:
         case STREAM_EVENT_REWRITE_MATCH_FOUND:
         case STREAM_EVENT_REWRITE_APPLIED:
         case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
         case STREAM_EVENT_PROOF_STEP_APPLIED:
-            return STREAM_COLOR_PURPLE;  /* 紫色 */
+            return STREAM_COLOR_PURPLE; /* 紫色 */
         default:
-            return STREAM_COLOR_LIGHT_GRAY;  /* 默认浅灰 */
+            return STREAM_COLOR_LIGHT_GRAY; /* 默认浅灰 */
     }
 }
 
@@ -1828,11 +1960,12 @@ const char *stream_event_color(StreamEventType type) {
  * @return 事件类型枚举值，未找到时返回 -1
  */
 static int stream_find_event_type_by_id(const char *id_str) {
-    if (!id_str) return -1;
+    if (!id_str)
+        return -1;
 
     /* 遍历所有事件类型，通过 stream_event_type_id 反向查找 */
     for (int i = 0; i < STREAM_EVENT_TYPE_COUNT; i++) {
-        const char *eid = stream_event_type_id((StreamEventType)i);
+        const char *eid = stream_event_type_id((StreamEventType) i);
         if (eid && strcmp(eid, id_str) == 0) {
             return i;
         }
@@ -1856,58 +1989,49 @@ static int stream_find_event_type_by_id(const char *id_str) {
  * @return 对应的事件类型位掩码，未识别时返回 STREAM_FILTER_NONE
  */
 static uint64_t stream_parse_category(const char *category) {
-    if (!category) return STREAM_FILTER_NONE;
+    if (!category)
+        return STREAM_FILTER_NONE;
 
     /* 不区分大小写比较 */
     if (strcasecmp(category, "engine") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)
-             | STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE)
-             | STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_PAUSED);
+        return STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START) | STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE) |
+               STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_PAUSED);
     }
     if (strcasecmp(category, "normalize") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_START)
-             | STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_MERGE)
-             | STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_DONE);
+        return STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_START) | STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_MERGE) |
+               STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_DONE);
     }
     if (strcasecmp(category, "rewrite") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START)
-             | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_RULE_LOADED)
-             | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_MATCH_FOUND)
-             | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_APPLIED)
-             | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_ROLLBACK)
-             | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_DONE);
+        return STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START) | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_RULE_LOADED) |
+               STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_MATCH_FOUND) | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_APPLIED) |
+               STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_ROLLBACK) | STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_DONE);
     }
     if (strcasecmp(category, "solve") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START)
-             | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_EQUATION_EXTRACTED)
-             | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_GROEBNER_STEP)
-             | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED)
-             | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_DONE);
+        return STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START) | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_EQUATION_EXTRACTED) |
+               STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_GROEBNER_STEP) |
+               STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) | STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_DONE);
     }
     if (strcasecmp(category, "proof") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_ADDED)
-             | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_APPLIED)
-             | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_UNIFY)
-             | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_COLOR_UPDATE)
-             | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_DEPENDENCY_CHANGE);
+        return STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_ADDED) | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_APPLIED) |
+               STREAM_EVENT_MASK(STREAM_EVENT_PROOF_UNIFY) | STREAM_EVENT_MASK(STREAM_EVENT_PROOF_COLOR_UPDATE) |
+               STREAM_EVENT_MASK(STREAM_EVENT_PROOF_DEPENDENCY_CHANGE);
     }
     if (strcasecmp(category, "func_block") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_START)
-             | STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_DONE)
-             | STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START)
-             | STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE)
-             | STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY)
-             | STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK)
-             | STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID)
-             | STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY);
+        return STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_START) |
+               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_DONE) |
+               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_START) |
+               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE) |
+               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PARTIAL_APPLY) |
+               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_DETERMINISM_CHECK) |
+               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CAPTURE_AVOID) |
+               STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY);
     }
     if (strcasecmp(category, "conflict") == 0) {
         return STREAM_EVENT_MASK(STREAM_EVENT_CONFLICT_DETECTED);
     }
     if (strcasecmp(category, "info") == 0) {
-        return STREAM_EVENT_MASK(STREAM_EVENT_INFO)
-             | STREAM_EVENT_MASK(STREAM_EVENT_PROGRESS)
-             | STREAM_EVENT_MASK(STREAM_EVENT_GRAPH_SNAPSHOT);
+        return STREAM_EVENT_MASK(STREAM_EVENT_INFO) | STREAM_EVENT_MASK(STREAM_EVENT_PROGRESS) |
+               STREAM_EVENT_MASK(STREAM_EVENT_GRAPH_SNAPSHOT);
     }
 
     return STREAM_FILTER_NONE;
@@ -1929,11 +2053,14 @@ static uint64_t stream_parse_category(const char *category) {
  * @return 解析后的位掩码，解析失败返回 STREAM_FILTER_NONE
  */
 uint64_t stream_parse_filter_mask(const char *str) {
-    if (!str) return STREAM_FILTER_NONE;
+    if (!str)
+        return STREAM_FILTER_NONE;
 
     /* 去除首尾空白 */
-    while (*str == ' ' || *str == '\t' || *str == '\r' || *str == '\n') str++;
-    if (*str == '\0') return STREAM_FILTER_NONE;
+    while (*str == ' ' || *str == '\t' || *str == '\r' || *str == '\n')
+        str++;
+    if (*str == '\0')
+        return STREAM_FILTER_NONE;
 
     /* 检查特殊值 "all" 或 "*" */
     if (strcmp(str, "all") == 0 || strcmp(str, "*") == 0) {
@@ -1948,8 +2075,9 @@ uint64_t stream_parse_filter_mask(const char *str) {
 
     /* 复制字符串用于分词（避免修改原始字符串） */
     size_t len = strlen(str);
-    char *buf = (char *)lv00_malloc(len + 1);
-    if (!buf) return STREAM_FILTER_NONE;
+    char *buf = (char *) lv00_malloc(len + 1);
+    if (!buf)
+        return STREAM_FILTER_NONE;
     lv00_strlcpy(buf, str, len + 1);
 
     /* 按逗号分词 */
@@ -1958,7 +2086,8 @@ uint64_t stream_parse_filter_mask(const char *str) {
 
     while (token) {
         /* 去除 token 首尾空白 */
-        while (*token == ' ' || *token == '\t') token++;
+        while (*token == ' ' || *token == '\t')
+            token++;
         char *end = token + strlen(token) - 1;
         while (end > token && (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')) {
             *end = '\0';
@@ -1974,7 +2103,7 @@ uint64_t stream_parse_filter_mask(const char *str) {
                 /* 再尝试按事件 ID 解析 */
                 int type_idx = stream_find_event_type_by_id(token);
                 if (type_idx >= 0 && type_idx < STREAM_EVENT_TYPE_COUNT) {
-                    mask |= STREAM_EVENT_MASK((StreamEventType)type_idx);
+                    mask |= STREAM_EVENT_MASK((StreamEventType) type_idx);
                 }
                 /* 无法识别的 token 静默忽略 */
             }
@@ -1983,7 +2112,7 @@ uint64_t stream_parse_filter_mask(const char *str) {
         token = strtok_r(NULL, ",", &saveptr);
     }
 
-    lv00_free((void **)&buf);
+    lv00_free((void **) &buf);
     return mask;
 }
 
@@ -2005,8 +2134,7 @@ uint64_t stream_parse_filter_mask(const char *str) {
 static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
     if (ctx->lazy_capacity == 0) {
         ctx->lazy_capacity = 64;
-        ctx->lazy_queue = (StreamEvent *)lv00_malloc(
-            sizeof(StreamEvent) * (size_t)ctx->lazy_capacity);
+        ctx->lazy_queue = (StreamEvent *) lv00_malloc(sizeof(StreamEvent) * (size_t) ctx->lazy_capacity);
         return ctx->lazy_queue != NULL;
     }
     if (ctx->lazy_count >= ctx->lazy_capacity) {
@@ -2015,15 +2143,15 @@ static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
             ctx->dropped_count++;
             return false;
         }
-        StreamEvent *new_queue = (StreamEvent *)lv00_malloc(
-            sizeof(StreamEvent) * (size_t)new_cap);
-        if (!new_queue) return false;
+        StreamEvent *new_queue = (StreamEvent *) lv00_malloc(sizeof(StreamEvent) * (size_t) new_cap);
+        if (!new_queue)
+            return false;
         /* 拷贝环形缓冲区到线性数组 */
         for (int i = 0; i < ctx->lazy_count; i++) {
             int src = (ctx->lazy_head + i) % ctx->lazy_capacity;
             memcpy(&new_queue[i], &ctx->lazy_queue[src], sizeof(StreamEvent));
         }
-        lv00_free((void **)&ctx->lazy_queue);
+        lv00_free((void **) &ctx->lazy_queue);
         ctx->lazy_queue = new_queue;
         ctx->lazy_capacity = new_cap;
         ctx->lazy_head = 0;
@@ -2035,8 +2163,10 @@ static bool stream_lazy_ensure_capacity(StreamContext *ctx) {
  * @brief 事件入队到惰性队列
  */
 static void stream_lazy_enqueue(StreamContext *ctx, const StreamEvent *event) {
-    if (!ctx || !event) return;
-    if (!stream_lazy_ensure_capacity(ctx)) return;
+    if (!ctx || !event)
+        return;
+    if (!stream_lazy_ensure_capacity(ctx))
+        return;
     int tail = (ctx->lazy_head + ctx->lazy_count) % ctx->lazy_capacity;
     memcpy(&ctx->lazy_queue[tail], event, sizeof(StreamEvent));
     ctx->lazy_count++;
@@ -2051,9 +2181,9 @@ static void stream_lazy_enqueue(StreamContext *ctx, const StreamEvent *event) {
  * @param ctx 流式上下文
  * @return 队列头部事件指针（属于队列内部内存），队列为空返回NULL
  */
-const StreamEvent *stream_lazy_next(StreamContext *ctx)
-{
-    if (!ctx || ctx->lazy_count == 0) return NULL;
+const StreamEvent *stream_lazy_next(StreamContext *ctx) {
+    if (!ctx || ctx->lazy_count == 0)
+        return NULL;
     return &ctx->lazy_queue[ctx->lazy_head];
 }
 
@@ -2069,13 +2199,13 @@ const StreamEvent *stream_lazy_next(StreamContext *ctx)
  * @param max_count 最大处理事件数（<=0 表示无限制，但不推荐超过队列大小）
  * @return 实际处理的事件数
  */
-int stream_lazy_drain(StreamContext *ctx, StreamCallback callback,
-                      void *user_data, int max_count)
-{
-    if (!ctx || !callback || ctx->lazy_count == 0) return 0;
+int stream_lazy_drain(StreamContext *ctx, StreamCallback callback, void *user_data, int max_count) {
+    if (!ctx || !callback || ctx->lazy_count == 0)
+        return 0;
 
     int limit = max_count > 0 ? max_count : ctx->lazy_count;
-    if (limit > ctx->lazy_count) limit = ctx->lazy_count;
+    if (limit > ctx->lazy_count)
+        limit = ctx->lazy_count;
 
     int drained = 0;
     for (int i = 0; i < limit; i++) {
@@ -2097,9 +2227,9 @@ int stream_lazy_drain(StreamContext *ctx, StreamCallback callback,
 /**
  * @brief 获取惰性队列中的待处理事件数
  */
-int stream_lazy_pending(const StreamContext *ctx)
-{
-    if (!ctx) return 0;
+int stream_lazy_pending(const StreamContext *ctx) {
+    if (!ctx)
+        return 0;
     return ctx->lazy_count;
 }
 
@@ -2112,8 +2242,8 @@ int stream_lazy_pending(const StreamContext *ctx)
  * @param ctx       流式上下文
  * @param threshold 事件数阈值（0 禁用自动刷新）
  */
-void stream_set_lazy_threshold(StreamContext *ctx, int threshold)
-{
-    if (!ctx) return;
+void stream_set_lazy_threshold(StreamContext *ctx, int threshold) {
+    if (!ctx)
+        return;
     ctx->lazy_threshold = (threshold > 0) ? threshold : 0;
 }

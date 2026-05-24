@@ -32,11 +32,12 @@
 extern "C" {
 #endif
 
-#include "constraint_graph.h"
-#include "error_codes.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "constraint_graph.h"
+#include "error_codes.h"
 
 /* ============================================================
  * 前向声明
@@ -81,11 +82,11 @@ typedef struct SMTAssignmentMap SMTAssignmentMap;
  *          - COUNT 用作数组大小标记，便于静态表查找
  */
 typedef enum {
-    GROEBNER = 0,         /**< Gröbner 基方法（度数≤2，内置实现） */
-    SMT_Z3,               /**< Z3 SMT 求解器（Microsoft Research） */
-    SMT_CVC5,             /**< cvc5 SMT 求解器（Stanford/Waterloo） */
-    SMT_SINGULAR,         /**< Singular 代数系统（含 SMT 接口） */
-    COUNT                 /**< 后端类型计数（用于数组大小） */
+    GROEBNER = 0, /**< Gröbner 基方法（度数≤2，内置实现） */
+    SMT_Z3,       /**< Z3 SMT 求解器（Microsoft Research） */
+    SMT_CVC5,     /**< cvc5 SMT 求解器（Stanford/Waterloo） */
+    SMT_SINGULAR, /**< Singular 代数系统（含 SMT 接口） */
+    COUNT         /**< 后端类型计数（用于数组大小） */
 } SolverBackendType;
 
 /**
@@ -96,24 +97,24 @@ typedef enum {
  * 偏向符号代数。
  */
 typedef enum {
-    SMT_LOGIC_QF_NRA = 0,     /**< 无量词非线性实数算术 */
-    SMT_LOGIC_QF_LRA,         /**< 无量词线性实数算术 */
-    SMT_LOGIC_QF_NIA,         /**< 无量词非线性整数算术 */
-    SMT_LOGIC_QF_LIA,         /**< 无量词线性整数算术 */
-    SMT_LOGIC_QF_UFLRA,       /**< 无量词未解释函数 + 线性实数算术 */
-    SMT_LOGIC_QF_UFNRA,       /**< 无量词未解释函数 + 非线性实数算术 */
-    SMT_LOGIC_QF_BV,          /**< 无量词位向量 */
-    SMT_LOGIC_AUTO            /**< 由后端自动检测最合适的逻辑 */
+    SMT_LOGIC_QF_NRA = 0, /**< 无量词非线性实数算术 */
+    SMT_LOGIC_QF_LRA,     /**< 无量词线性实数算术 */
+    SMT_LOGIC_QF_NIA,     /**< 无量词非线性整数算术 */
+    SMT_LOGIC_QF_LIA,     /**< 无量词线性整数算术 */
+    SMT_LOGIC_QF_UFLRA,   /**< 无量词未解释函数 + 线性实数算术 */
+    SMT_LOGIC_QF_UFNRA,   /**< 无量词未解释函数 + 非线性实数算术 */
+    SMT_LOGIC_QF_BV,      /**< 无量词位向量 */
+    SMT_LOGIC_AUTO        /**< 由后端自动检测最合适的逻辑 */
 } SMTLogic;
 
 /**
  * @brief SMT 求解器的可满足性结果
  */
 typedef enum {
-    SMT_RESULT_SAT = 0,       /**< 可满足（至少存在一个模型） */
-    SMT_RESULT_UNSAT,         /**< 不可满足（无模型） */
-    SMT_RESULT_UNKNOWN,       /**< 未知（超时、内存不足或超出理论范围） */
-    SMT_RESULT_ERROR          /**< 求解器内部错误 */
+    SMT_RESULT_SAT = 0, /**< 可满足（至少存在一个模型） */
+    SMT_RESULT_UNSAT,   /**< 不可满足（无模型） */
+    SMT_RESULT_UNKNOWN, /**< 未知（超时、内存不足或超出理论范围） */
+    SMT_RESULT_ERROR    /**< 求解器内部错误 */
 } SMTSatResult;
 
 /**
@@ -122,15 +123,15 @@ typedef enum {
  * 从 Lv00 统一错误码系统扩展的后端专用错误码。
  */
 typedef enum {
-    SMT_ERROR_NONE = 0,                 /**< 无错误 */
-    SMT_ERROR_BACKEND_UNAVAILABLE,      /**< 请求的后端不可用（未编译链接） */
-    SMT_ERROR_ENCODING_FAILED,          /**< SMT-LIB2 编码失败 */
-    SMT_ERROR_PARSE_FAILED,             /**< 求解器输出解析失败 */
-    SMT_ERROR_SOLVER_CRASHED,           /**< 外部求解器进程崩溃 */
-    SMT_ERROR_MEMORY_EXHAUSTED,         /**< 超出配置的内存限制 */
-    SMT_ERROR_TIMEOUT_REACHED,          /**< 超出配置的时间限制 */
-    SMT_ERROR_UNSUPPORTED_THEORY,       /**< 后端不支持请求的逻辑理论 */
-    SMT_ERROR_INVALID_MODEL             /**< 返回的模型无效或不一致 */
+    SMT_ERROR_NONE = 0,            /**< 无错误 */
+    SMT_ERROR_BACKEND_UNAVAILABLE, /**< 请求的后端不可用（未编译链接） */
+    SMT_ERROR_ENCODING_FAILED,     /**< SMT-LIB2 编码失败 */
+    SMT_ERROR_PARSE_FAILED,        /**< 求解器输出解析失败 */
+    SMT_ERROR_SOLVER_CRASHED,      /**< 外部求解器进程崩溃 */
+    SMT_ERROR_MEMORY_EXHAUSTED,    /**< 超出配置的内存限制 */
+    SMT_ERROR_TIMEOUT_REACHED,     /**< 超出配置的时间限制 */
+    SMT_ERROR_UNSUPPORTED_THEORY,  /**< 后端不支持请求的逻辑理论 */
+    SMT_ERROR_INVALID_MODEL        /**< 返回的模型无效或不一致 */
 } SMTErrorCode;
 
 /* ============================================================
@@ -145,16 +146,16 @@ typedef enum {
  * proof mode 等）。
  */
 typedef struct SMTSolverConfig {
-    int64_t timeout_ms;                 /**< 求解超时时间（毫秒），0 表示无限制 */
-    int64_t memory_limit_mb;            /**< 内存上限（MB），0 表示无限制 */
-    SMTLogic logic;                     /**< 使用的逻辑理论片段 */
-    bool produce_models;                /**< 是否为 SAT 结果生成模型 */
-    bool produce_unsat_cores;           /**< 是否为 UNSAT 结果生成核心 */
-    bool produce_proofs;                /**< 是否生成证明对象 */
-    bool incremental;                   /**< 是否启用增量求解模式 */
-    int random_seed;                    /**< 随机种子（-1 表示使用时间戳） */
-    int verbosity;                      /**< 日志详细级别（0=静默，3=最高） */
-    void *custom_config;                /**< 后端特定的扩展配置（可为 NULL） */
+    int64_t timeout_ms;       /**< 求解超时时间（毫秒），0 表示无限制 */
+    int64_t memory_limit_mb;  /**< 内存上限（MB），0 表示无限制 */
+    SMTLogic logic;           /**< 使用的逻辑理论片段 */
+    bool produce_models;      /**< 是否为 SAT 结果生成模型 */
+    bool produce_unsat_cores; /**< 是否为 UNSAT 结果生成核心 */
+    bool produce_proofs;      /**< 是否生成证明对象 */
+    bool incremental;         /**< 是否启用增量求解模式 */
+    int random_seed;          /**< 随机种子（-1 表示使用时间戳） */
+    int verbosity;            /**< 日志详细级别（0=静默，3=最高） */
+    void *custom_config;      /**< 后端特定的扩展配置（可为 NULL） */
 } SMTSolverConfig;
 
 /**
@@ -164,17 +165,17 @@ typedef struct SMTSolverConfig {
  * 支持有理数赋值（分子/分母）和布尔赋值两种模式。
  */
 typedef struct SMTVariableAssignment {
-    int var_node_id;                    /**< 约束图中的变量节点 ID */
+    int var_node_id;                     /**< 约束图中的变量节点 ID */
     char var_name[SMT_VAR_NAME_MAX_LEN]; /**< 变量名（与 SMT-LIB2 编码一致） */
-    bool is_boolean;                    /**< 是否为布尔变量 */
+    bool is_boolean;                     /**< 是否为布尔变量 */
     union {
         struct {
-            int64_t numerator;          /**< 有理数分子 */
-            uint64_t denominator;       /**< 有理数分母（0 表示十进制近似值） */
-            bool is_approx;             /**< 分母=0 时，此值为近似十进制标记 */
-            double approx_value;        /**< 近似十进制值 */
+            int64_t numerator;    /**< 有理数分子 */
+            uint64_t denominator; /**< 有理数分母（0 表示十进制近似值） */
+            bool is_approx;       /**< 分母=0 时，此值为近似十进制标记 */
+            double approx_value;  /**< 近似十进制值 */
         } rational;
-        bool bool_value;                /**< 布尔值 */
+        bool bool_value; /**< 布尔值 */
     } value;
 } SMTVariableAssignment;
 
@@ -186,21 +187,21 @@ typedef struct SMTVariableAssignment {
  * 对于 UNSAT 结果，可查询 unsat_core。
  */
 typedef struct SMTSolverResult {
-    SMTSatResult sat_result;            /**< 可满足性结论 */
-    SolverBackendType backend_used;     /**< 实际使用的后端类型 */
-    int64_t solve_time_ms;              /**< 求解耗时（毫秒，含编码+检查+解码） */
+    SMTSatResult sat_result;        /**< 可满足性结论 */
+    SolverBackendType backend_used; /**< 实际使用的后端类型 */
+    int64_t solve_time_ms;          /**< 求解耗时（毫秒，含编码+检查+解码） */
 
     /* SAT 结果：变量赋值 */
     SMTVariableAssignment *assignments; /**< 变量赋值数组 */
     int assignment_count;               /**< 赋值数量 */
 
     /* UNSAT 结果：不可满足核心 */
-    int *unsat_core_ids;                /**< UNSAT 核心中的约束 ID 数组 */
-    int unsat_core_size;                /**< 核心大小 */
+    int *unsat_core_ids; /**< UNSAT 核心中的约束 ID 数组 */
+    int unsat_core_size; /**< 核心大小 */
 
     /* 错误信息（SAT_RESULT_ERROR 时有效） */
-    SMTErrorCode error_code;            /**< 后端错误码 */
-    char error_message[512];            /**< 人类可读的错误信息 */
+    SMTErrorCode error_code; /**< 后端错误码 */
+    char error_message[512]; /**< 人类可读的错误信息 */
 } SMTSolverResult;
 
 /* ============================================================
@@ -293,11 +294,8 @@ const char *smtsolver_get_last_error_message(const SMTSolver *solver);
  * @return 实际写入的字符数（不含终止符），失败返回 -1。
  *         如果缓冲区不足，返回所需的总字符数。
  */
-int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph,
-                                          SMTLogic logic,
-                                          bool produce_unsat_cores,
-                                          char *out_smtlib2,
-                                          size_t buffer_size);
+int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic logic, bool produce_unsat_cores,
+                                          char *out_smtlib2, size_t buffer_size);
 
 /**
  * @brief 将 SMT-LIB2 脚本加载到求解器内部表示中
@@ -341,9 +339,7 @@ SMTSatResult smtsolver_check(SMTSolver *solver);
  *         即使成功，如果 sat_result 为 SMT_RESULT_UNSAT 或
  *         SMT_RESULT_UNKNOWN，out_result->assignments 可能为空。
  */
-int smtsolver_decode_result(SMTSolver *solver,
-                            SMTSatResult sat_result,
-                            SMTSolverResult *out_result);
+int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result, SMTSolverResult *out_result);
 
 /**
  * @brief 完整的求解管线：编码、检查、解码一条龙
@@ -360,9 +356,7 @@ int smtsolver_decode_result(SMTSolver *solver,
  * @return 求解器状态码（参考 SolverStatus）。
  *         成功时 out_result 已填充完整结果。
  */
-int smtsolver_solve(SMTSolver *solver,
-                    const ConstraintGraph *graph,
-                    SMTSolverResult *out_result);
+int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverResult *out_result);
 
 /* ============================================================
  * 结果管理
@@ -397,8 +391,7 @@ void smtsolver_result_free(SMTSolverResult *result);
  * @param[in] var_node_id  变量节点 ID
  * @return 找到的赋值指针，未找到返回 NULL。
  */
-const SMTVariableAssignment *smtsolver_result_find_assignment(
-    const SMTSolverResult *result, int var_node_id);
+const SMTVariableAssignment *smtsolver_result_find_assignment(const SMTSolverResult *result, int var_node_id);
 
 /**
  * @brief 检查求解结果是否为有效解
@@ -486,11 +479,11 @@ typedef SMTSolver *(*SMTSolverCreateFunc)(const SMTSolverConfig *config);
  * 存储已注册后端的元数据，供引擎调度器查询和路由。
  */
 typedef struct SMTBackendEntry {
-    SolverBackendType type;             /**< 后端类型 */
-    bool available;                     /**< 是否已链接可用 */
-    SMTSolverCreateFunc create_func;    /**< 工厂创建函数 */
-    int priority;                       /**< 调度优先级（数值越低越优先） */
-    const char *description;            /**< 后端描述文本 */
+    SolverBackendType type;          /**< 后端类型 */
+    bool available;                  /**< 是否已链接可用 */
+    SMTSolverCreateFunc create_func; /**< 工厂创建函数 */
+    int priority;                    /**< 调度优先级（数值越低越优先） */
+    const char *description;         /**< 后端描述文本 */
 } SMTBackendEntry;
 
 /**
@@ -501,7 +494,7 @@ typedef struct SMTBackendEntry {
  */
 typedef struct SMTBackendRegistry {
     SMTBackendEntry entries[SMT_BACKEND_REGISTRY_CAPACITY];
-    int count;                          /**< 当前已注册的后端数量 */
+    int count; /**< 当前已注册的后端数量 */
 } SMTBackendRegistry;
 
 /**
@@ -518,8 +511,7 @@ SMTBackendRegistry *smtsolver_get_registry(void);
  * @param[in]     entry     后端条目
  * @return 成功返回 0，注册表已满返回 -1。
  */
-int smtsolver_register_backend(SMTBackendRegistry *registry,
-                               const SMTBackendEntry *entry);
+int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEntry *entry);
 
 /**
  * @brief 在注册表中查找指定类型的后端条目
@@ -528,8 +520,7 @@ int smtsolver_register_backend(SMTBackendRegistry *registry,
  * @param[in] type      后端类型
  * @return 找到的条目指针，未找到返回 NULL。
  */
-const SMTBackendEntry *smtsolver_find_backend(const SMTBackendRegistry *registry,
-                                              SolverBackendType type);
+const SMTBackendEntry *smtsolver_find_backend(const SMTBackendRegistry *registry, SolverBackendType type);
 
 #ifdef __cplusplus
 }

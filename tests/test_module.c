@@ -11,17 +11,17 @@
  * - 版本哈希计算
  */
 
-#include "lv00.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv00.h"
+#include "test_helpers.h"
+
 /* ============== 测试：模块生命周期 ============== */
 
-static int test_module_lifecycle(void)
-{
+static int test_module_lifecycle(void) {
     printf("Test: module lifecycle...\n");
 
     Module *mod = module_create("Geometry", "1.0.0");
@@ -39,8 +39,7 @@ static int test_module_lifecycle(void)
 
 /* ============== 测试：依赖管理 ============== */
 
-static int test_dependency_management(void)
-{
+static int test_dependency_management(void) {
     printf("Test: dependency management...\n");
 
     Module *mod = module_create("TestModule", "1.0");
@@ -65,8 +64,7 @@ static int test_dependency_management(void)
 
 /* ============== 测试：公理包添加 ============== */
 
-static int test_axiom_package_addition(void)
-{
+static int test_axiom_package_addition(void) {
     printf("Test: axiom package addition...\n");
 
     Module *mod = module_create("GeoModule", "1.0");
@@ -89,8 +87,7 @@ static int test_axiom_package_addition(void)
 
 /* ============== 测试：函数块导出 ============== */
 
-static int test_function_block_export(void)
-{
+static int test_function_block_export(void) {
     printf("Test: function block export...\n");
 
     Module *mod = module_create("ExportModule", "1.0");
@@ -114,10 +111,8 @@ static int test_function_block_export(void)
     int outputs[] = {out_port};
 
     FuncBlock *fb = NULL;
-    PackResult result = func_block_pack(
-        g, internal, 2, inputs, 1, outputs, 1,
-        NULL, 0, &fb);
-    
+    PackResult result = func_block_pack(g, internal, 2, inputs, 1, outputs, 1, NULL, 0, &fb);
+
     if (result == PACK_OK && fb) {
         /* 导出函数块 */
         bool ok = module_export_function_block(mod, fb->id);
@@ -135,8 +130,7 @@ static int test_function_block_export(void)
 
 /* ============== 测试：类型导出 ============== */
 
-static int test_type_export(void)
-{
+static int test_type_export(void) {
     printf("Test: type region export...\n");
 
     Module *mod = module_create("TypeModule", "1.0");
@@ -158,8 +152,7 @@ static int test_type_export(void)
 
 /* ============== 测试：循环依赖检测 ============== */
 
-static int test_circular_dependency(void)
-{
+static int test_circular_dependency(void) {
     printf("Test: circular dependency detection...\n");
 
     Module *mod1 = module_create("ModuleA", "1.0");
@@ -184,8 +177,7 @@ static int test_circular_dependency(void)
 
 /* ============== 测试：版本哈希 ============== */
 
-static int test_version_hash(void)
-{
+static int test_version_hash(void) {
     printf("Test: version hash computation...\n");
 
     Module *mod = module_create("HashModule", "1.0.0");
@@ -207,8 +199,7 @@ static int test_version_hash(void)
 
 /* ============== 测试：依赖链验证 ============== */
 
-static int test_dependency_chain_validation(void)
-{
+static int test_dependency_chain_validation(void) {
     printf("Test: dependency chain validation...\n");
 
     Module *base = module_create("Base", "1.0");
@@ -231,8 +222,7 @@ static int test_dependency_chain_validation(void)
 
 /* ============== 测试：模块深度限制 ============== */
 
-static int test_module_depth_limit(void)
-{
+static int test_module_depth_limit(void) {
     printf("Test: module depth limit...\n");
 
     printf("  最大模块深度: %d\n", MAX_MODULE_DEPTH);
@@ -244,8 +234,7 @@ static int test_module_depth_limit(void)
 
 /* ============== 测试：辅助函数 ============== */
 
-static int test_helper_functions(void)
-{
+static int test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 测试错误信息 */
@@ -258,8 +247,7 @@ static int test_helper_functions(void)
 
 /* ============== 主函数 ============== */
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Module System Test Suite ===\n\n");
 
     test_module_lifecycle();

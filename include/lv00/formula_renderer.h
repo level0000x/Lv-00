@@ -25,9 +25,9 @@ extern "C" {
  * ============================================================ */
 
 typedef enum {
-    OUTPUT_LATEX,       /* LaTeX 格式 */
-    OUTPUT_PYTHON,      /* Python 代码格式 */
-    OUTPUT_DSL          /* Lv-00 DSL 格式 */
+    OUTPUT_LATEX,  /* LaTeX 格式 */
+    OUTPUT_PYTHON, /* Python 代码格式 */
+    OUTPUT_DSL     /* Lv-00 DSL 格式 */
 } OutputFormat;
 
 /* ============================================================
@@ -35,15 +35,15 @@ typedef enum {
  * ============================================================ */
 
 typedef struct {
-    bool implicit_multiplication;   /* LaTeX: 隐式乘法 (ab 而非 a \cdot b) */
-    bool display_mode;              /* LaTeX: 显示模式 (独立行) */
-    bool fraction_mode;             /* Python: 分数模式 (Fraction) 或浮点数 */
-    bool simplify_output;           /* 是否简化输出 */
-    int precision;                  /* 浮点数精度 */
+    bool implicit_multiplication; /* LaTeX: 隐式乘法 (ab 而非 a \cdot b) */
+    bool display_mode;            /* LaTeX: 显示模式 (独立行) */
+    bool fraction_mode;           /* Python: 分数模式 (Fraction) 或浮点数 */
+    bool simplify_output;         /* 是否简化输出 */
+    int precision;                /* 浮点数精度 */
 } RenderOptions;
 
 /* 默认渲染选项 */
-#define RENDER_OPTIONS_DEFAULT { false, true, true, true, 6 }
+#define RENDER_OPTIONS_DEFAULT {false, true, true, true, 6}
 
 /* ============================================================
  * 核心 API
@@ -74,8 +74,7 @@ char *formula_render_ex(const FormulaNode *node, OutputFormat format, const Rend
  * @param[in]  size   缓冲区大小（字节数）
  * @return 实际写入的字符数（不含终止符），失败返回负数
  */
-int formula_render_to_buffer(const FormulaNode *node, OutputFormat format, 
-                             char *buffer, size_t size);
+int formula_render_to_buffer(const FormulaNode *node, OutputFormat format, char *buffer, size_t size);
 
 /**
  * @brief 将 AST 渲染到已有缓冲区（带自定义选项）
@@ -86,8 +85,7 @@ int formula_render_to_buffer(const FormulaNode *node, OutputFormat format,
  * @param[in]  size    缓冲区大小（字节数）
  * @return 实际写入的字符数（不含终止符），失败返回负数
  */
-int formula_render_to_buffer_ex(const FormulaNode *node, OutputFormat format,
-                                const RenderOptions *options,
+int formula_render_to_buffer_ex(const FormulaNode *node, OutputFormat format, const RenderOptions *options,
                                 char *buffer, size_t size);
 
 /**

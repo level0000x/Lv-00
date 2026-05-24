@@ -22,6 +22,7 @@
  *   - 仅引入 stream.h 获取 StreamContext 类型
  */
 #include <stddef.h>
+
 #include "lv00.h"
 #include "stream.h"
 
@@ -109,10 +110,10 @@ void stream_context_register_builtins(void);
  *
  * @param prefix 模块前缀（如 solver, rewrite, proof）
  */
-#define LV00_DECLARE_STREAM_CTX(prefix) \
+#define LV00_DECLARE_STREAM_CTX(prefix)                                 \
     static LV00_THREAD_LOCAL StreamContext *prefix##_stream_ctx = NULL; \
-    void prefix##_set_stream_context(StreamContext *ctx) { \
-        prefix##_stream_ctx = ctx; \
+    void prefix##_set_stream_context(StreamContext *ctx) {              \
+        prefix##_stream_ctx = ctx;                                      \
     }
 
 /**
@@ -127,8 +128,7 @@ void stream_context_register_builtins(void);
  *
  * @param prefix 模块前缀（必须与 LV00_DECLARE_STREAM_CTX 的 prefix 一致）
  */
-#define LV00_REGISTER_STREAM_CTX(prefix) \
-    stream_context_register_setter(prefix##_set_stream_context)
+#define LV00_REGISTER_STREAM_CTX(prefix) stream_context_register_setter(prefix##_set_stream_context)
 
 /**
  * @brief 在头文件中声明 extern 版本的流式上下文变量

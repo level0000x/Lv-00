@@ -75,15 +75,15 @@ extern "C" {
  * 借鉴 Cinderella 的模态交互设计——每种工具模式有独立的操作语义。
  */
 typedef enum {
-    GEO_MODE_POINT      = 0,   /**< 点模式：点击画布创建新点 */
-    GEO_MODE_LINE       = 1,   /**< 线模式：拖拽创建直线 */
-    GEO_MODE_CIRCLE     = 2,   /**< 圆模式：点击圆心后拖拽确定半径 */
-    GEO_MODE_SEGMENT    = 3,   /**< 线段模式：点击两端点创建线段 */
-    GEO_MODE_SELECT     = 4,   /**< 选择模式：点击选中/取消选中几何对象 */
-    GEO_MODE_DRAG       = 5,   /**< 拖拽模式：自由拖拽移动几何对象 */
-    GEO_MODE_CONSTRUCT  = 6,   /**< 构造模式：通过预设构造规则创建几何体 */
-    GEO_MODE_MEASURE    = 7,   /**< 测量模式：点击显示距离/角度/面积 */
-    GEO_MODE_PROVE      = 8    /**< 证明模式：选择几何体并启动自动证明 */
+    GEO_MODE_POINT = 0,     /**< 点模式：点击画布创建新点 */
+    GEO_MODE_LINE = 1,      /**< 线模式：拖拽创建直线 */
+    GEO_MODE_CIRCLE = 2,    /**< 圆模式：点击圆心后拖拽确定半径 */
+    GEO_MODE_SEGMENT = 3,   /**< 线段模式：点击两端点创建线段 */
+    GEO_MODE_SELECT = 4,    /**< 选择模式：点击选中/取消选中几何对象 */
+    GEO_MODE_DRAG = 5,      /**< 拖拽模式：自由拖拽移动几何对象 */
+    GEO_MODE_CONSTRUCT = 6, /**< 构造模式：通过预设构造规则创建几何体 */
+    GEO_MODE_MEASURE = 7,   /**< 测量模式：点击显示距离/角度/面积 */
+    GEO_MODE_PROVE = 8      /**< 证明模式：选择几何体并启动自动证明 */
 } InteractiveGeoMode;
 
 /**
@@ -93,9 +93,9 @@ typedef enum {
  * 防止出现平行线相交、三角形退化等奇异状态。
  */
 typedef enum {
-    CONFIG_NORMAL     = 0,      /**< 正常配置：所有对象位置与约束一致 */
-    CONFIG_SINGULAR   = 1,      /**< 奇异配置：触发退化条件（如平行线相交） */
-    CONFIG_DEGENERATE = 2       /**< 退化配置：维度降低（如三角形三点共线） */
+    CONFIG_NORMAL = 0,    /**< 正常配置：所有对象位置与约束一致 */
+    CONFIG_SINGULAR = 1,  /**< 奇异配置：触发退化条件（如平行线相交） */
+    CONFIG_DEGENERATE = 2 /**< 退化配置：维度降低（如三角形三点共线） */
 } ConfigClassification;
 
 /**
@@ -105,30 +105,30 @@ typedef enum {
  * Lv-00 扩展为支持多种目标脚本语言。
  */
 typedef enum {
-    SCRIPT_LANG_LV00_DSL = 0,   /**< Lv-00 原生 DSL */
-    SCRIPT_LANG_PYTHON   = 1,   /**< Python 脚本 */
-    SCRIPT_LANG_LUA      = 2    /**< Lua 脚本 */
+    SCRIPT_LANG_LV00_DSL = 0, /**< Lv-00 原生 DSL */
+    SCRIPT_LANG_PYTHON = 1,   /**< Python 脚本 */
+    SCRIPT_LANG_LUA = 2       /**< Lua 脚本 */
 } ScriptLanguage;
 
 /**
  * @brief 随机化验证结果
  */
 typedef enum {
-    RAND_CHECK_PASSED            = 0,  /**< 所有样本通过，定理在该容差下成立 */
-    RAND_CHECK_FAILED            = 1,  /**< 至少一个样本失败 */
-    RAND_CHECK_INCONCLUSIVE      = 2,  /**< 无法判定（样本数不足或容差过严格） */
-    RAND_CHECK_PROBABILISTICALLY_TRUE = 3  /**< 高概率成立（但非严格证明） */
+    RAND_CHECK_PASSED = 0,                /**< 所有样本通过，定理在该容差下成立 */
+    RAND_CHECK_FAILED = 1,                /**< 至少一个样本失败 */
+    RAND_CHECK_INCONCLUSIVE = 2,          /**< 无法判定（样本数不足或容差过严格） */
+    RAND_CHECK_PROBABILISTICALLY_TRUE = 3 /**< 高概率成立（但非严格证明） */
 } RandomizedCheckResult;
 
 /**
  * @brief 约束维护状态
  */
 typedef enum {
-    CONSTRAINT_OK                = 0,  /**< 约束维护成功 */
-    CONSTRAINT_OVER_CONSTRAINED  = 1,  /**< 过度约束，存在冗余或冲突约束 */
-    CONSTRAINT_UNDER_CONSTRAINED = 2,  /**< 约束不足，存在自由度 */
-    CONSTRAINT_SINGULAR_AVOIDED  = 3,  /**< 检测到奇异配置并自动避开 */
-    CONSTRAINT_FAILED            = 4,  /**< 约束维护失败 */
+    CONSTRAINT_OK = 0,                /**< 约束维护成功 */
+    CONSTRAINT_OVER_CONSTRAINED = 1,  /**< 过度约束，存在冗余或冲突约束 */
+    CONSTRAINT_UNDER_CONSTRAINED = 2, /**< 约束不足，存在自由度 */
+    CONSTRAINT_SINGULAR_AVOIDED = 3,  /**< 检测到奇异配置并自动避开 */
+    CONSTRAINT_FAILED = 4,            /**< 约束维护失败 */
 } ConstraintMaintainStatus;
 
 /* ==================== 结构体定义 ==================== */
@@ -141,37 +141,37 @@ typedef enum {
  */
 typedef struct Lv00GeoCanvasState {
     /* ── 几何对象 ── */
-    int   *active_object_ids;                   /**< 所有活跃几何对象 ID 列表 */
-    int    active_object_count;                 /**< 活跃对象数量 */
+    int *active_object_ids;  /**< 所有活跃几何对象 ID 列表 */
+    int active_object_count; /**< 活跃对象数量 */
 
     /* ── 拖拽状态 ── */
-    int    drag_target_id;                      /**< 当前被拖拽的对象 ID（-1 = 无拖拽） */
-    double drag_start_x;                        /**< 拖拽起始 X 坐标 */
-    double drag_start_y;                        /**< 拖拽起始 Y 坐标 */
-    double drag_current_x;                      /**< 拖拽当前 X 坐标 */
-    double drag_current_y;                      /**< 拖拽当前 Y 坐标 */
+    int drag_target_id;    /**< 当前被拖拽的对象 ID（-1 = 无拖拽） */
+    double drag_start_x;   /**< 拖拽起始 X 坐标 */
+    double drag_start_y;   /**< 拖拽起始 Y 坐标 */
+    double drag_current_x; /**< 拖拽当前 X 坐标 */
+    double drag_current_y; /**< 拖拽当前 Y 坐标 */
 
     /* ── 选中状态 ── */
-    int   *selected_ids;                        /**< 当前选中对象 ID 列表 */
-    int    selected_count;                      /**< 选中对象数量 */
-    int    primary_selected_id;                 /**< 主选中对象 ID（菜单/属性面板目标） */
+    int *selected_ids;       /**< 当前选中对象 ID 列表 */
+    int selected_count;      /**< 选中对象数量 */
+    int primary_selected_id; /**< 主选中对象 ID（菜单/属性面板目标） */
 
     /* ── 当前构造模式 ── */
-    InteractiveGeoMode current_mode;            /**< 当前交互模式 */
-    int    construction_partials[4];            /**< 构造模式部分结果（如圆：先点圆心再拖半径） */
-    int    construction_partial_count;          /**< 部分构造步骤计数 */
+    InteractiveGeoMode current_mode; /**< 当前交互模式 */
+    int construction_partials[4];    /**< 构造模式部分结果（如圆：先点圆心再拖半径） */
+    int construction_partial_count;  /**< 部分构造步骤计数 */
 
     /* ── 视口变换 ── */
-    double viewport_matrix[3][3];               /**< 视口变换矩阵（平移+缩放） */
-    double zoom_level;                          /**< 当前缩放级别（1.0 = 100%） */
-    double viewport_offset_x;                   /**< 视口 X 偏移 */
-    double viewport_offset_y;                   /**< 视口 Y 偏移 */
+    double viewport_matrix[3][3]; /**< 视口变换矩阵（平移+缩放） */
+    double zoom_level;            /**< 当前缩放级别（1.0 = 100%） */
+    double viewport_offset_x;     /**< 视口 X 偏移 */
+    double viewport_offset_y;     /**< 视口 Y 偏移 */
 
     /* ── 元数据 ── */
-    bool   grid_visible;                        /**< 是否显示网格 */
-    bool   snap_to_grid;                        /**< 是否吸附到网格 */
-    double grid_spacing;                        /**< 网格间距 */
-    bool   modified;                            /**< 自上次保存后是否有修改 */
+    bool grid_visible;   /**< 是否显示网格 */
+    bool snap_to_grid;   /**< 是否吸附到网格 */
+    double grid_spacing; /**< 网格间距 */
+    bool modified;       /**< 自上次保存后是否有修改 */
 } Lv00GeoCanvasState;
 
 /**
@@ -185,19 +185,19 @@ typedef struct Lv00GeoCanvasState {
  * 这不是严格的形式化证明，但在实践中对于排除错误猜想非常高效。
  */
 typedef struct Lv00RandomizedCheck {
-    int    sample_count;                        /**< 随机采样次数 */
-    double tolerance;                           /**< 数值容差 */
+    int sample_count; /**< 随机采样次数 */
+    double tolerance; /**< 数值容差 */
 
-    int    passed_samples;                      /**< 通过的样本数 */
-    int    failed_samples;                      /**< 失败的样本数 */
+    int passed_samples; /**< 通过的样本数 */
+    int failed_samples; /**< 失败的样本数 */
 
-    bool   is_probabilistically_true;           /**< 概率真值判定 */
-    double confidence_level;                    /**< 置信水平 [0.0, 1.0] */
+    bool is_probabilistically_true; /**< 概率真值判定 */
+    double confidence_level;        /**< 置信水平 [0.0, 1.0] */
 
     /* ── 调试信息 ── */
-    double *failed_sample_params;               /**< 失败样本的参数数组 */
-    int     failed_sample_param_count;          /**< 失败样本参数数量 */
-    double  elapsed_time_ms;                    /**< 验证耗时（毫秒） */
+    double *failed_sample_params;  /**< 失败样本的参数数组 */
+    int failed_sample_param_count; /**< 失败样本参数数量 */
+    double elapsed_time_ms;        /**< 验证耗时（毫秒） */
 } Lv00RandomizedCheck;
 
 /**
@@ -212,19 +212,19 @@ typedef struct Lv00RandomizedCheck {
  */
 typedef struct Lv00GeoScriptBinding {
     /* ── 对象→脚本映射表 ── */
-    int   *object_ids;                          /**< 几何对象 ID 列表 */
-    char **script_snippets;                     /**< 对应脚本代码片段（字符串数组） */
-    int    binding_count;                       /**< 绑定数量 */
+    int *object_ids;        /**< 几何对象 ID 列表 */
+    char **script_snippets; /**< 对应脚本代码片段（字符串数组） */
+    int binding_count;      /**< 绑定数量 */
 
     /* ── 脚本语言配置 ── */
-    ScriptLanguage current_language;            /**< 当前目标脚本语言 */
+    ScriptLanguage current_language; /**< 当前目标脚本语言 */
 
     /* ── 自动生成 ── */
-    bool   auto_generate;                       /**< 自动生成脚本标志（true = 每次构造自动追加） */
+    bool auto_generate; /**< 自动生成脚本标志（true = 每次构造自动追加） */
 
     /* ── 脚本缓冲区 ── */
-    char   full_script[LV00_GEO_SCRIPT_BUFFER_SIZE]; /**< 完整构造脚本 */
-    int    script_length;                       /**< 脚本当前长度 */
+    char full_script[LV00_GEO_SCRIPT_BUFFER_SIZE]; /**< 完整构造脚本 */
+    int script_length;                             /**< 脚本当前长度 */
 } Lv00GeoScriptBinding;
 
 /**
@@ -240,26 +240,26 @@ typedef struct Lv00GeoScriptBinding {
  */
 typedef struct Lv00ContinuityTracker {
     /* ── 上次配置快照 ── */
-    double *last_config;                        /**< 上次配置的参数向量 */
-    int     last_config_dim;                    /**< 参数向量维度 */
+    double *last_config; /**< 上次配置的参数向量 */
+    int last_config_dim; /**< 参数向量维度 */
 
     /* ── 奇异检测 ── */
-    bool    parallel_lines_detected;            /**< 平行线异常相交检测 */
-    bool    degenerate_triangle;                /**< 三角形退化（三点共线）检测 */
-    bool    zero_denominator;                   /**< 分母为零检测 */
-    bool    near_singular;                      /**< 接近奇异（数值不稳定）的预警 */
+    bool parallel_lines_detected; /**< 平行线异常相交检测 */
+    bool degenerate_triangle;     /**< 三角形退化（三点共线）检测 */
+    bool zero_denominator;        /**< 分母为零检测 */
+    bool near_singular;           /**< 接近奇异（数值不稳定）的预警 */
 
     /* ── 配置分类 ── */
-    ConfigClassification current_config;        /**< 当前配置分类 */
-    ConfigClassification previous_config;       /**< 上次配置分类 */
+    ConfigClassification current_config;  /**< 当前配置分类 */
+    ConfigClassification previous_config; /**< 上次配置分类 */
 
     /* ── 容差配置 ── */
-    double  singular_threshold;                 /**< 奇异判定阈值 */
-    double  degenerate_threshold;               /**< 退化判定阈值 */
+    double singular_threshold;   /**< 奇异判定阈值 */
+    double degenerate_threshold; /**< 退化判定阈值 */
 
     /* ── 统计 ── */
-    int     singular_encounters;                /**< 奇异配置累计遭遇次数 */
-    int     singular_avoidances;                /**< 奇异配置成功避开次数 */
+    int singular_encounters; /**< 奇异配置累计遭遇次数 */
+    int singular_avoidances; /**< 奇异配置成功避开次数 */
 } Lv00ContinuityTracker;
 
 /**
@@ -276,21 +276,21 @@ typedef struct Lv00ContinuityTracker {
  */
 typedef struct Lv00ConstraintMaintainer {
     /* ── 约束条目 ── */
-    int   *constraint_ids;                      /**< 约束 ID 列表 */
-    int   *constraint_subjects;                 /**< 约束主体对象 ID 列表 */
-    int    constraint_count;                    /**< 约束数量 */
+    int *constraint_ids;      /**< 约束 ID 列表 */
+    int *constraint_subjects; /**< 约束主体对象 ID 列表 */
+    int constraint_count;     /**< 约束数量 */
 
     /* ── 影响链 ── */
-    int   *affected_objects;                    /**< 当前受影响的对象（拖拽时填充） */
-    int    affected_count;                      /**< 受影响对象数量 */
+    int *affected_objects; /**< 当前受影响的对象（拖拽时填充） */
+    int affected_count;    /**< 受影响对象数量 */
 
     /* ── 求解器引用 ── */
-    void  *solver_handle;                       /**< 约束求解器句柄（内部使用） */
+    void *solver_handle; /**< 约束求解器句柄（内部使用） */
 
     /* ── 维护策略 ── */
-    bool   use_projective_method;               /**< 使用投影几何方法（Cinderella 风格） */
-    double convergence_epsilon;                 /**< 收敛判定阈值 */
-    int    max_iterations;                      /**< 约束求解最大迭代次数 */
+    bool use_projective_method; /**< 使用投影几何方法（Cinderella 风格） */
+    double convergence_epsilon; /**< 收敛判定阈值 */
+    int max_iterations;         /**< 约束求解最大迭代次数 */
 } Lv00ConstraintMaintainer;
 
 /**
@@ -299,23 +299,23 @@ typedef struct Lv00ConstraintMaintainer {
  * 聚合所有交互几何子系统的顶层结构，是交互几何模块的入口。
  */
 typedef struct Lv00InteractiveGeo {
-    Lv00GeoCanvasState      canvas_state;       /**< 画布状态 */
-    Lv00RandomizedCheck     rand_check;         /**< 随机化验证 */
-    Lv00GeoScriptBinding    script_binding;     /**< 脚本绑定 */
-    Lv00ContinuityTracker   continuity;         /**< 连续性跟踪 */
-    Lv00ConstraintMaintainer constraint_maint;  /**< 约束保持 */
+    Lv00GeoCanvasState canvas_state;           /**< 画布状态 */
+    Lv00RandomizedCheck rand_check;            /**< 随机化验证 */
+    Lv00GeoScriptBinding script_binding;       /**< 脚本绑定 */
+    Lv00ContinuityTracker continuity;          /**< 连续性跟踪 */
+    Lv00ConstraintMaintainer constraint_maint; /**< 约束保持 */
 
     /* ── 快照系统 ── */
-    char *snapshots[LV00_GEO_MAX_SNAPSHOTS];    /**< 状态快照 JSON 数组 */
-    int   snapshot_count;                       /**< 快照数量 */
-    int   current_snapshot_index;               /**< 当前快照索引（用于撤销/重做） */
+    char *snapshots[LV00_GEO_MAX_SNAPSHOTS]; /**< 状态快照 JSON 数组 */
+    int snapshot_count;                      /**< 快照数量 */
+    int current_snapshot_index;              /**< 当前快照索引（用于撤销/重做） */
 
     /* ── 引擎引用 ── */
-    void *engine_handle;                        /**< 关联的 LV00Engine 句柄 */
+    void *engine_handle; /**< 关联的 LV00Engine 句柄 */
 
     /* ── 回调 ── */
-    void (*on_mode_changed)(InteractiveGeoMode new_mode);  /**< 模式变更回调 */
-    void (*on_selection_changed)(int selected_id);          /**< 选中变更回调 */
+    void (*on_mode_changed)(InteractiveGeoMode new_mode);       /**< 模式变更回调 */
+    void (*on_selection_changed)(int selected_id);              /**< 选中变更回调 */
     void (*on_drag_updated)(int object_id, double x, double y); /**< 拖拽更新回调 */
 } Lv00InteractiveGeo;
 
@@ -330,7 +330,7 @@ typedef struct Lv00InteractiveGeo {
  * @param[in] engine_handle 关联的 LV00Engine 句柄（可为 NULL 延迟绑定）
  * @return 新分配的交互几何上下文，失败返回 NULL
  */
-Lv00InteractiveGeo* interactive_geo_init(void *engine_handle);
+Lv00InteractiveGeo *interactive_geo_init(void *engine_handle);
 
 /**
  * @brief 销毁交互几何系统并释放所有关联资源
@@ -399,8 +399,7 @@ void interactive_geo_deselect(Lv00InteractiveGeo *geo, int object_id);
  * @param[in]     y         拖拽起始 Y 坐标（世界坐标）
  * @return 成功返回 0，对象不存在返回 -1
  */
-int interactive_geo_drag_start(Lv00InteractiveGeo *geo, int object_id,
-                                double x, double y);
+int interactive_geo_drag_start(Lv00InteractiveGeo *geo, int object_id, double x, double y);
 
 /**
  * @brief 拖拽移动
@@ -413,8 +412,7 @@ int interactive_geo_drag_start(Lv00InteractiveGeo *geo, int object_id,
  * @param[in]     y    当前拖拽 Y 坐标（世界坐标）
  * @return 约束维护状态码
  */
-ConstraintMaintainStatus interactive_geo_drag_move(Lv00InteractiveGeo *geo,
-                                                    double x, double y);
+ConstraintMaintainStatus interactive_geo_drag_move(Lv00InteractiveGeo *geo, double x, double y);
 
 /**
  * @brief 结束拖拽操作
@@ -426,8 +424,7 @@ ConstraintMaintainStatus interactive_geo_drag_move(Lv00InteractiveGeo *geo,
  * @param[in]     y    最终 Y 坐标（世界坐标）
  * @return 约束维护状态码
  */
-ConstraintMaintainStatus interactive_geo_drag_end(Lv00InteractiveGeo *geo,
-                                                   double x, double y);
+ConstraintMaintainStatus interactive_geo_drag_end(Lv00InteractiveGeo *geo, double x, double y);
 
 /* ==================== 随机化定理验证 ==================== */
 
@@ -446,12 +443,8 @@ ConstraintMaintainStatus interactive_geo_drag_end(Lv00InteractiveGeo *geo,
  * @param[out]    result       输出：验证结果详情
  * @return 随机化验证结果状态码
  */
-RandomizedCheckResult interactive_geo_randomized_check(
-    Lv00InteractiveGeo *geo,
-    int sample_count,
-    double tolerance,
-    const char *theorem_expr,
-    Lv00RandomizedCheck *result);
+RandomizedCheckResult interactive_geo_randomized_check(Lv00InteractiveGeo *geo, int sample_count, double tolerance,
+                                                       const char *theorem_expr, Lv00RandomizedCheck *result);
 
 /* ==================== 构造脚本生成 ==================== */
 
@@ -470,9 +463,7 @@ RandomizedCheckResult interactive_geo_randomized_check(
  * @note 生成会覆盖 geo->script_binding.full_script 缓冲区。
  *       如需保留旧脚本，请先调用 interactive_geo_export_state 备份。
  */
-int interactive_geo_generate_script(Lv00InteractiveGeo *geo,
-                                     ScriptLanguage language,
-                                     char **output);
+int interactive_geo_generate_script(Lv00InteractiveGeo *geo, ScriptLanguage language, char **output);
 
 /* ==================== 奇异配置检测 ==================== */
 
@@ -489,8 +480,7 @@ int interactive_geo_generate_script(Lv00InteractiveGeo *geo,
  * @param[out] classification 输出：配置分类
  * @return 是否是奇异配置（true = 奇异，false = 正常）
  */
-bool interactive_geo_detect_singularity(Lv00InteractiveGeo *geo,
-                                         ConfigClassification *classification);
+bool interactive_geo_detect_singularity(Lv00InteractiveGeo *geo, ConfigClassification *classification);
 
 /* ==================== 约束实时维护 ==================== */
 
@@ -512,10 +502,8 @@ bool interactive_geo_detect_singularity(Lv00InteractiveGeo *geo,
  * @param[in]     new_y      新 Y 坐标
  * @return 约束维护状态码
  */
-ConstraintMaintainStatus interactive_geo_maintain_constraints(
-    Lv00InteractiveGeo *geo,
-    int moved_id,
-    double new_x, double new_y);
+ConstraintMaintainStatus interactive_geo_maintain_constraints(Lv00InteractiveGeo *geo, int moved_id, double new_x,
+                                                              double new_y);
 
 /* ==================== 状态导入/导出 ==================== */
 
@@ -528,7 +516,7 @@ ConstraintMaintainStatus interactive_geo_maintain_constraints(
  * @param[in] geo 交互几何上下文
  * @return JSON 字符串（调用者负责 free），失败返回 NULL
  */
-char* interactive_geo_export_state(const Lv00InteractiveGeo *geo);
+char *interactive_geo_export_state(const Lv00InteractiveGeo *geo);
 
 /**
  * @brief 从 JSON 字符串导入交互几何状态
@@ -551,8 +539,7 @@ int interactive_geo_import_state(Lv00InteractiveGeo *geo, const char *json);
  * @param[out] out_count  输出：对象数量
  * @return 对象 ID 数组（内部数据，切勿 free；geo 销毁后失效）
  */
-const int* interactive_geo_get_all_objects(const Lv00InteractiveGeo *geo,
-                                            int *out_count);
+const int *interactive_geo_get_all_objects(const Lv00InteractiveGeo *geo, int *out_count);
 
 /* ==================== 快照/恢复 ==================== */
 

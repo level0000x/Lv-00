@@ -19,9 +19,10 @@
 #ifndef LV00_GEOMETRY_TYPES_H
 #define LV00_GEOMETRY_TYPES_H
 
-#include "symbolic_coord.h"
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
+#include "symbolic_coord.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,14 +52,14 @@ extern "C" {
  * - 信任颜色
  */
 typedef enum {
-    GEOM_ENTITY_POINT,       /**< 点：零维，无长度 */
-    GEOM_ENTITY_LINE,        /**< 直线：一维，无限延伸 */
-    GEOM_ENTITY_RAY,         /**< 射线：一维，单向无限 */
-    GEOM_ENTITY_SEGMENT,     /**< 线段：一维，有限长度 */
-    GEOM_ENTITY_CIRCLE,      /**< 圆：一维曲线 */
-    GEOM_ENTITY_POLYGON,     /**< 多边形：二维区域 */
-    GEOM_ENTITY_TRIANGLE,    /**< 三角形：特殊多边形 */
-    GEOM_ENTITY_MESH         /**< 网格：复合二维区域 */
+    GEOM_ENTITY_POINT,    /**< 点：零维，无长度 */
+    GEOM_ENTITY_LINE,     /**< 直线：一维，无限延伸 */
+    GEOM_ENTITY_RAY,      /**< 射线：一维，单向无限 */
+    GEOM_ENTITY_SEGMENT,  /**< 线段：一维，有限长度 */
+    GEOM_ENTITY_CIRCLE,   /**< 圆：一维曲线 */
+    GEOM_ENTITY_POLYGON,  /**< 多边形：二维区域 */
+    GEOM_ENTITY_TRIANGLE, /**< 三角形：特殊多边形 */
+    GEOM_ENTITY_MESH      /**< 网格：复合二维区域 */
 } GeomEntityKind;
 
 /**
@@ -68,9 +69,9 @@ typedef enum {
  * 通过 kind 字段区分具体类型，提供统一的操作接口。
  */
 typedef struct GeomEntity {
-    GeomEntityKind kind;         /**< 实体类型 */
-    int dimension;               /**< 维度（0/1/2） */
-    TrustColor trust;            /**< 信任颜色 */
+    GeomEntityKind kind; /**< 实体类型 */
+    int dimension;       /**< 维度（0/1/2） */
+    TrustColor trust;    /**< 信任颜色 */
 
     /* 包围盒（轴对齐，用于快速碰撞检测和空间索引） */
     struct {
@@ -89,12 +90,12 @@ typedef struct GeomEntity {
  * @brief 点实体（0 维）
  */
 typedef struct PointEntity {
-    GeomEntity base;             /**< 基类 */
-    SymbolicCoord *x;            /**< X 坐标 */
-    SymbolicCoord *y;            /**< Y 坐标 */
+    GeomEntity base;  /**< 基类 */
+    SymbolicCoord *x; /**< X 坐标 */
+    SymbolicCoord *y; /**< Y 坐标 */
     /* 在更高维度中可有 z, w 等 */
-    int dimension;               /**< 坐标维度 */
-    SymbolicCoord **coords;      /**< 坐标数组（含 x, y, z, ...） */
+    int dimension;          /**< 坐标维度 */
+    SymbolicCoord **coords; /**< 坐标数组（含 x, y, z, ...） */
 } PointEntity;
 
 /**
@@ -103,14 +104,14 @@ typedef struct PointEntity {
  * 借鉴 SymPy LinearEntity 设计——Line/Ray/Segment 的公共基类。
  */
 typedef struct LinearEntity {
-    GeomEntity base;             /**< 基类 */
-    PointEntity *p1;             /**< 起点 */
-    PointEntity *p2;             /**< 终点/方向点 */
+    GeomEntity base; /**< 基类 */
+    PointEntity *p1; /**< 起点 */
+    PointEntity *p2; /**< 终点/方向点 */
     /* 预计算的派生量（用于加速计算） */
     struct {
-        double dx, dy;           /**< 方向向量（浮点近似） */
-        double length;           /**< 长度（浮点近似） */
-        bool valid;              /**< 是否有效 */
+        double dx, dy; /**< 方向向量（浮点近似） */
+        double length; /**< 长度（浮点近似） */
+        bool valid;    /**< 是否有效 */
     } _cache;
 } LinearEntity;
 
@@ -118,31 +119,31 @@ typedef struct LinearEntity {
  * @brief 圆形实体（1 维曲线）
  */
 typedef struct CircularEntity {
-    GeomEntity base;             /**< 基类 */
-    PointEntity *center;         /**< 圆心 */
-    SymbolicCoord *radius;       /**< 半径 */
+    GeomEntity base;       /**< 基类 */
+    PointEntity *center;   /**< 圆心 */
+    SymbolicCoord *radius; /**< 半径 */
 } CircularEntity;
 
 /**
  * @brief 多边形实体（2 维区域）
  */
 typedef struct PolygonEntity {
-    GeomEntity base;             /**< 基类 */
-    PointEntity **vertices;      /**< 顶点数组 */
-    int vertex_count;            /**< 顶点数量 */
-    bool is_convex;              /**< 是否为凸多边形 */
+    GeomEntity base;        /**< 基类 */
+    PointEntity **vertices; /**< 顶点数组 */
+    int vertex_count;       /**< 顶点数量 */
+    bool is_convex;         /**< 是否为凸多边形 */
 } PolygonEntity;
 
 /**
  * @brief 三角形实体（特殊多边形，提供丰富的便捷方法）
  */
 typedef struct TriangleEntity {
-    PolygonEntity base;          /**< 继承多边形（顶点数为3） */
+    PolygonEntity base; /**< 继承多边形（顶点数为3） */
     /* 预计算的特殊点 */
-    PointEntity *_centroid;      /**< 重心缓存 */
-    PointEntity *_circumcenter;  /**< 外心缓存 */
-    PointEntity *_incenter;      /**< 内心缓存 */
-    PointEntity *_orthocenter;   /**< 垂心缓存 */
+    PointEntity *_centroid;     /**< 重心缓存 */
+    PointEntity *_circumcenter; /**< 外心缓存 */
+    PointEntity *_incenter;     /**< 内心缓存 */
+    PointEntity *_orthocenter;  /**< 垂心缓存 */
 } TriangleEntity;
 
 /* ========================================================================
@@ -174,20 +175,20 @@ typedef struct TriangleEntity {
  *   multivector.flat = [scalar, e1, e2, e3, e12, e13, e23, I]
  */
 typedef struct FlatStorage {
-    double *components;          /**< 扁平分量数组 */
-    int component_count;         /**< 分量总数 */
-    bool *is_symbolic;           /**< 符号标记（true = 需要 SymbolicCoord 精确值） */
+    double *components;  /**< 扁平分量数组 */
+    int component_count; /**< 分量总数 */
+    bool *is_symbolic;   /**< 符号标记（true = 需要 SymbolicCoord 精确值） */
 
     /* SIMD 友好的元数据 */
-    int alignment;               /**< 内存对齐（通常 32 或 64 字节） */
-    bool owns_memory;            /**< 是否拥有内存（需释放） */
+    int alignment;    /**< 内存对齐（通常 32 或 64 字节） */
+    bool owns_memory; /**< 是否拥有内存（需释放） */
 
     /* 分量→几何实体反向映射 */
     struct {
-        int entity_index;        /**< 实体索引 */
-        int offset;              /**< 在该实体内的偏移 */
-    } *mapping;                  /**< 映射数组 */
-    int mapping_count;           /**< 映射数量 */
+        int entity_index; /**< 实体索引 */
+        int offset;       /**< 在该实体内的偏移 */
+    } *mapping;           /**< 映射数组 */
+    int mapping_count;    /**< 映射数量 */
 } FlatStorage;
 
 /* ========================================================================
@@ -227,11 +228,7 @@ bool geom_entity_contains(const GeomEntity *a, const GeomEntity *b);
  * @param out_count  输出：交点数量
  * @return true 成功
  */
-bool geom_entity_intersect(
-    const GeomEntity *a,
-    const GeomEntity *b,
-    PointEntity ***out_points,
-    int *out_count);
+bool geom_entity_intersect(const GeomEntity *a, const GeomEntity *b, PointEntity ***out_points, int *out_count);
 
 /* --- 点实体 API --- */
 
@@ -340,11 +337,7 @@ int flat_storage_write_polygon(FlatStorage *fs, int offset, const PolygonEntity 
  * @param angle_deg  旋转角度（度）
  * @param sx, sy   缩放因子
  */
-void flat_storage_batch_transform(
-    FlatStorage *fs,
-    double tx, double ty,
-    double angle_deg,
-    double sx, double sy);
+void flat_storage_batch_transform(FlatStorage *fs, double tx, double ty, double angle_deg, double sx, double sy);
 
 /**
  * @brief 批量计算距离：计算扁平存储中所有点对的距离
@@ -355,10 +348,7 @@ void flat_storage_batch_transform(
  * @param distances   输出：距离数组（调用者分配，长度 = point_count * (point_count-1) / 2）
  * @param point_count 点的数量
  */
-void flat_storage_batch_distances(
-    const FlatStorage *fs,
-    double *distances,
-    int point_count);
+void flat_storage_batch_distances(const FlatStorage *fs, double *distances, int point_count);
 
 /**
  * @brief 将扁平存储中的分量加载到几何实体
@@ -378,28 +368,33 @@ void flat_storage_read_point(const FlatStorage *fs, int offset, PointEntity *out
 
 /** @brief CSG 节点类型 */
 typedef enum {
-    CSG_NODE_PRIMITIVE,        /* 图元：cube/sphere/cylinder */
-    CSG_NODE_UNION,            /* 布尔并集 */
-    CSG_NODE_DIFFERENCE,       /* 布尔差集（第一个子节点减其余） */
-    CSG_NODE_INTERSECTION,     /* 布尔交集 */
-    CSG_NODE_TRANSFORM,        /* 变换：translate/rotate/scale */
-    CSG_NODE_EXTRUDE_LINEAR,   /* 线性拉伸（2D→3D） */
-    CSG_NODE_EXTRUDE_ROTATE,   /* 旋转拉伸 */
-    CSG_NODE_HULL,             /* 凸包 */
-    CSG_NODE_MINKOWSKI         /* Minkowski 和 */
+    CSG_NODE_PRIMITIVE,      /* 图元：cube/sphere/cylinder */
+    CSG_NODE_UNION,          /* 布尔并集 */
+    CSG_NODE_DIFFERENCE,     /* 布尔差集（第一个子节点减其余） */
+    CSG_NODE_INTERSECTION,   /* 布尔交集 */
+    CSG_NODE_TRANSFORM,      /* 变换：translate/rotate/scale */
+    CSG_NODE_EXTRUDE_LINEAR, /* 线性拉伸（2D→3D） */
+    CSG_NODE_EXTRUDE_ROTATE, /* 旋转拉伸 */
+    CSG_NODE_HULL,           /* 凸包 */
+    CSG_NODE_MINKOWSKI       /* Minkowski 和 */
 } CSGNodeKind;
 
 /** @brief CSG 构造树节点 — 对应 OpenSCAD CSG 操作树 */
 typedef struct CSGNode {
-    CSGNodeKind  kind;
+    CSGNodeKind kind;
     /* 图元数据（PRIMITIVE） */
-    union { struct { int type; double params[6]; } prim; } data;
+    union {
+        struct {
+            int type;
+            double params[6];
+        } prim;
+    } data;
     /* 变换数据（TRANSFORM） */
-    double transform[4][4];    /* 4x4 齐次变换矩阵 */
+    double transform[4][4]; /* 4x4 齐次变换矩阵 */
     /* 子树（UNION/DIFFERENCE/INTERSECTION 的内部子节点） */
     struct CSGNode **children;
-    int              child_count;
-    int              child_capacity;
+    int child_count;
+    int child_capacity;
     /* 包围盒 */
     double bbox_min[3];
     double bbox_max[3];

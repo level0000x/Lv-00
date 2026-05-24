@@ -9,12 +9,13 @@
  */
 
 #include "preset_common.h"
-#include "error_codes.h"
 
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "error_codes.h"
 
 /* ============================================================
  * 字符串操作实现
@@ -23,23 +24,23 @@
 size_t lv00_safe_strncpy(char *dest, const char *src, size_t dest_size) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(src, error);
-    
+
     if (dest_size == 0) {
         return 0;
     }
-    
+
     size_t i;
     for (i = 0; i < dest_size - 1 && src[i] != '\0'; i++) {
         dest[i] = src[i];
     }
     dest[i] = '\0';
-    
+
     /* 返回源字符串长度（不含终止符） */
     while (src[i] != '\0') {
         i++;
     }
     return i;
-    
+
 error:
     return 0;
 }
@@ -47,30 +48,30 @@ error:
 size_t lv00_safe_strncat(char *dest, const char *src, size_t dest_size) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(src, error);
-    
+
     if (dest_size == 0) {
         return 0;
     }
-    
+
     /* 找到 dest 的末尾 */
     size_t dest_len = 0;
     while (dest_len < dest_size && dest[dest_len] != '\0') {
         dest_len++;
     }
-    
+
     if (dest_len >= dest_size - 1) {
         return dest_len; /* 缓冲区已满 */
     }
-    
+
     /* 追加 src */
     size_t i;
     for (i = 0; dest_len + i < dest_size - 1 && src[i] != '\0'; i++) {
         dest[dest_len + i] = src[i];
     }
     dest[dest_len + i] = '\0';
-    
+
     return dest_len + i;
-    
+
 error:
     return 0;
 }
@@ -78,21 +79,21 @@ error:
 int lv00_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(fmt, error);
-    
+
     if (dest_size == 0) {
         return 0;
     }
-    
+
     va_list args;
     va_start(args, fmt);
     int result = vsnprintf(dest, dest_size, fmt, args);
     va_end(args);
-    
+
     /* 确保终止 */
     dest[dest_size - 1] = '\0';
-    
+
     return result;
-    
+
 error:
     return -1;
 }
@@ -105,26 +106,25 @@ uint32_t lv00_hash_int_array(const int *arr, int count) {
     if (arr == NULL || count <= 0) {
         return 0;
     }
-    
+
     /* FNV-1a 哈希算法 */
     uint32_t hash = 2166136261U;
     for (int i = 0; i < count; i++) {
-        hash ^= (uint32_t)arr[i];
+        hash ^= (uint32_t) arr[i];
         hash *= 16777619U;
     }
     return hash;
 }
 
-bool lv00_int_arrays_equal(const int *a, int count_a,
-                           const int *b, int count_b) {
+bool lv00_int_arrays_equal(const int *a, int count_a, const int *b, int count_b) {
     if (a == NULL || b == NULL) {
         return a == b; /* 都为空则相等 */
     }
-    
+
     if (count_a != count_b) {
         return false;
     }
-    
+
     for (int i = 0; i < count_a; i++) {
         if (a[i] != b[i]) {
             return false;
@@ -133,26 +133,24 @@ bool lv00_int_arrays_equal(const int *a, int count_a,
     return true;
 }
 
-int* lv00_dup_int_array(const int *src, int count) {
+int *lv00_dup_int_array(const int *src, int count) {
     if (src == NULL || count <= 0) {
         return NULL;
     }
-    
+
     /* 检查整数溢出 */
-    if (count > INT_MAX / (int)sizeof(int)) {
-        LV00_ERROR_SET(LV00_ERROR_OVERFLOW,
-                      "数组大小溢出: count=%d", count);
+    if (count > INT_MAX / (int) sizeof(int)) {
+        LV00_ERROR_SET(LV00_ERROR_OVERFLOW, "数组大小溢出: count=%d", count);
         return NULL;
     }
-    
-    size_t size = (size_t)count * sizeof(int);
-    int *dup = (int*)lv00_malloc(size);
+
+    size_t size = (size_t) count * sizeof(int);
+    int *dup = (int *) lv00_malloc(size);
     if (dup == NULL) {
-        LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED,
-                      "数组内存分配失败");
+        LV00_ERROR_SET(LV00_ERROR_ALLOCATION_FAILED, "数组内存分配失败");
         return NULL;
     }
-    
+
     memcpy(dup, src, size);
     return dup;
 }
@@ -163,29 +161,30 @@ int* lv00_dup_int_array(const int *src, int count) {
 
 bool preset_validate_name(const char *name) {
     /* NULL 指针保护：必须在任何解引用之前检查 */
-    if (!name) return false;
+    if (!name)
+        return false;
     if (name[0] == '\0') {
         return false;
     }
-    
+
     size_t len = strlen(name);
     if (len > PRESET_MAX_NAME_LENGTH) {
         return false;
     }
-    
+
     /* 名称必须以字母开头 */
-    if (!isalpha((unsigned char)name[0])) {
+    if (!isalpha((unsigned char) name[0])) {
         return false;
     }
-    
+
     /* 只能包含字母、数字、下划线和连字符 */
     for (size_t i = 1; i < len; i++) {
         char c = name[i];
-        if (!isalnum((unsigned char)c) && c != '_' && c != '-') {
+        if (!isalnum((unsigned char) c) && c != '_' && c != '-') {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -193,38 +192,36 @@ bool preset_validate_description(const char *description) {
     if (description == NULL) {
         return false;
     }
-    
+
     size_t len = strlen(description);
     if (len > PRESET_MAX_DESC_LENGTH) {
         return false;
     }
-    
+
     return true;
 }
 
-bool preset_validate_type_combination(const PresetType *input_types,
-                                      int input_count,
-                                      PresetType output_type) {
+bool preset_validate_type_combination(const PresetType *input_types, int input_count, PresetType output_type) {
     if (input_count < 0 || input_count > PRESET_MAX_INPUTS) {
         return false;
     }
-    
+
     if (input_count > 0 && input_types == NULL) {
         return false;
     }
-    
+
     /* 验证输入类型 */
     for (int i = 0; i < input_count; i++) {
         if (input_types[i] < 0 || input_types[i] >= PRESET_TYPE_COUNT) {
             return false;
         }
     }
-    
+
     /* 验证输出类型 */
     if (output_type < 0 || output_type >= PRESET_TYPE_COUNT) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -371,7 +368,7 @@ static const struct {
     {PRESET_TYPE_ANY, "any"},
 };
 
-const char* preset_type_to_string(PresetType type) {
+const char *preset_type_to_string(PresetType type) {
     for (size_t i = 0; i < sizeof(g_type_map) / sizeof(g_type_map[0]); i++) {
         if (g_type_map[i].type == type) {
             return g_type_map[i].name;
@@ -384,18 +381,18 @@ bool preset_type_from_string(const char *str, PresetType *type) {
     if (str == NULL || type == NULL) {
         return false;
     }
-    
+
     for (size_t i = 0; i < sizeof(g_type_map) / sizeof(g_type_map[0]); i++) {
         if (strcmp(g_type_map[i].name, str) == 0) {
             *type = g_type_map[i].type;
             return true;
         }
     }
-    
+
     return false;
 }
 
-const char* preset_complexity_to_string(const char *complexity) {
+const char *preset_complexity_to_string(const char *complexity) {
     /* 复杂度已经是字符串形式，直接返回 */
     return complexity ? complexity : "unknown";
 }
@@ -407,25 +404,21 @@ typedef struct {
 } PresetPropertyMapEntry;
 
 static const PresetPropertyMapEntry g_property_map[] = {
-    {PRESET_PROPERTY_DETERMINISTIC, "deterministic"},
-    {PRESET_PROPERTY_CONTINUOUS, "continuous"},
-    {PRESET_PROPERTY_CONSTRUCTIVE, "constructive"},
-    {PRESET_PROPERTY_INVOLUTIVE, "reversible"},
-    {PRESET_PROPERTY_IDEMPOTENT, "idempotent"},
-    {PRESET_PROPERTY_ASSOCIATIVE, "associative"},
+    {PRESET_PROPERTY_DETERMINISTIC, "deterministic"}, {PRESET_PROPERTY_CONTINUOUS, "continuous"},
+    {PRESET_PROPERTY_CONSTRUCTIVE, "constructive"},   {PRESET_PROPERTY_INVOLUTIVE, "reversible"},
+    {PRESET_PROPERTY_IDEMPOTENT, "idempotent"},       {PRESET_PROPERTY_ASSOCIATIVE, "associative"},
     {PRESET_PROPERTY_COMMUTATIVE, "commutative"},
 };
 
-int preset_properties_to_string(PresetProperty properties,
-                                char *buffer, size_t buffer_size) {
+int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size) {
     if (buffer == NULL || buffer_size == 0) {
         return -1;
     }
-    
+
     buffer[0] = '\0';
     size_t pos = 0;
     bool first = true;
-    
+
     for (size_t i = 0; i < sizeof(g_property_map) / sizeof(g_property_map[0]); i++) {
         if (properties & g_property_map[i].flag) {
             if (!first) {
@@ -435,10 +428,10 @@ int preset_properties_to_string(PresetProperty properties,
                 }
             }
             first = false;
-            
+
             const char *name = g_property_map[i].name;
             size_t name_len = strlen(name);
-            
+
             if (pos + name_len < buffer_size - 1) {
                 memcpy(buffer + pos, name, name_len);
                 pos += name_len;
@@ -446,24 +439,23 @@ int preset_properties_to_string(PresetProperty properties,
             }
         }
     }
-    
-    return (int)pos;
+
+    return (int) pos;
 }
 
-bool preset_properties_from_string(const char *str,
-                                   PresetProperty *properties) {
+bool preset_properties_from_string(const char *str, PresetProperty *properties) {
     if (str == NULL || properties == NULL) {
         return false;
     }
-    
+
     *properties = 0;
-    
+
     /* 复制字符串以便分割 */
     char *copy = lv00_strdup(str);
     if (copy == NULL) {
         return false;
     }
-    
+
     /* 跨平台字符串分割：Windows 使用 strtok_s，POSIX 使用 strtok_r */
 #ifdef _WIN32
     char *context = NULL;
@@ -472,7 +464,7 @@ bool preset_properties_from_string(const char *str,
     char *saveptr = NULL;
     char *token = strtok_r(copy, "|,& ", &saveptr);
 #endif
-    
+
     while (token != NULL) {
         bool found = false;
         for (size_t i = 0; i < sizeof(g_property_map) / sizeof(g_property_map[0]); i++) {
@@ -482,19 +474,19 @@ bool preset_properties_from_string(const char *str,
                 break;
             }
         }
-        
+
         if (!found) {
             free(copy);
             return false;
         }
-        
+
 #ifdef _WIN32
         token = strtok_s(NULL, "|,& ", &context);
 #else
         token = strtok_r(NULL, "|,& ", &saveptr);
 #endif
     }
-    
+
     free(copy);
     return true;
 }

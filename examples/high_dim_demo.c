@@ -10,8 +10,9 @@
 #include <string.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include "lv00.h"
+
 #include "high_dim.h"
+#include "lv00.h"
 #include "lv00_utils.h"
 
 /**
@@ -58,8 +59,7 @@ int main() {
         printf("   维度数: %d\n", preset->dimension_count);
         printf("   映射配置:\n");
         for (int i = 0; i < preset->mapping_count; i++) {
-            printf("     轴%d -> %s\n",
-                   preset->mappings[i].axis_index,
+            printf("     轴%d -> %s\n", preset->mappings[i].axis_index,
                    high_dim_mapping_type_to_string(preset->mappings[i].mapping_type));
         }
     }
@@ -141,7 +141,7 @@ int main() {
 
     /* 创建多投影视图 */
     printf("\n7. 创建多投影视图\n");
-    int preset_indices[] = {0, 1};  /* 默认预设和自定义预设 */
+    int preset_indices[] = {0, 1}; /* 默认预设和自定义预设 */
     int view_ids[2] = {-1, -1};
     result = high_dim_create_multi_projection_view(manager, block_id, preset_indices, 2, view_ids);
     if (result == LV00_OK) {

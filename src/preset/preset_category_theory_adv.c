@@ -11,13 +11,15 @@
  * @version 10.0.0
  */
 
+#include "preset_category_theory_adv.h"
+
+#include <stdlib.h>
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_category_theory_adv.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
-#include <stdlib.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -43,16 +45,11 @@
  * @param is_reversible 是否可逆（输入能否从输出唯一恢复）
  * @return true 注册成功，false 注册失败
  */
-static bool register_cat_adv_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_CATEGORY_THEORY,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_cat_adv_preset(const char *name, const char *description, const PresetType *input_types,
+                                    int input_count, PresetType output_type, const char *math_def,
+                                    const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_CATEGORY_THEORY, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== 模块注册实现 ==================== */
@@ -69,8 +66,7 @@ static bool register_cat_adv_preset(
  *
  * @return true 全部（20个）注册成功，false 部分注册失败
  */
-bool preset_category_theory_adv_register(void)
-{
+bool preset_category_theory_adv_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -94,14 +90,14 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_HOM_FUNCTOR,
-                "Hom函子构造：对范畴C中的两个对象X、Y，构造它们之间的态射集Hom_C(X, Y)，"
-                "具有对第一变元反变、对第二变元协变的函子性质",
-                inputs, 2, PRESET_TYPE_SET,
-                "\\mathrm{Hom}_\\mathcal{C}(-, -): \\mathcal{C}^{\\mathrm{op}} \\times \\mathcal{C} \\to \\mathbf{Set}, \\quad "
-                "(X, Y) \\mapsto \\mathrm{Hom}_\\mathcal{C}(X, Y)",
-                "O(|\\mathrm{Mor}(C)|)", true, false)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_HOM_FUNCTOR,
+                                    "Hom函子构造：对范畴C中的两个对象X、Y，构造它们之间的态射集Hom_C(X, Y)，"
+                                    "具有对第一变元反变、对第二变元协变的函子性质",
+                                    inputs, 2, PRESET_TYPE_SET,
+                                    "\\mathrm{Hom}_\\mathcal{C}(-, -): \\mathcal{C}^{\\mathrm{op}} \\times "
+                                    "\\mathcal{C} \\to \\mathbf{Set}, \\quad "
+                                    "(X, Y) \\mapsto \\mathrm{Hom}_\\mathcal{C}(X, Y)",
+                                    "O(|\\mathrm{Mor}(C)|)", true, false)) {
             success_count++;
         }
     }
@@ -182,14 +178,13 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_YONEDA_LEMMA,
-                "Yoneda引理应用：建立自然变换集Nat(Hom(-,A), F)与F(A)之间的双射，"
-                "φ ↦ φ_A(id_A)是其核心对应",
-                inputs, 2, PRESET_TYPE_SET,
-                "\\mathrm{Nat}(\\mathrm{Hom}_\\mathcal{C}(-, A), F) \\cong F(A), \\quad "
-                "\\Phi \\mapsto \\Phi_A(\\mathrm{id}_A)",
-                "O(1)", true, true)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_YONEDA_LEMMA,
+                                    "Yoneda引理应用：建立自然变换集Nat(Hom(-,A), F)与F(A)之间的双射，"
+                                    "φ ↦ φ_A(id_A)是其核心对应",
+                                    inputs, 2, PRESET_TYPE_SET,
+                                    "\\mathrm{Nat}(\\mathrm{Hom}_\\mathcal{C}(-, A), F) \\cong F(A), \\quad "
+                                    "\\Phi \\mapsto \\Phi_A(\\mathrm{id}_A)",
+                                    "O(1)", true, true)) {
             success_count++;
         }
     }
@@ -272,14 +267,13 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_FILTERED_COLIMIT,
-                "滤过余极限：在滤过范畴J上构造余极限colim_D。滤过余极限在Set中与有限极限交换，"
-                "是层论和模型论中的重要工具",
-                inputs, 1, PRESET_TYPE_SET,
-                "\\varinjlim_{j \\in J} D(j), \\quad J \\text{ 滤过} \\Leftrightarrow "
-                "\\forall i,j \\; \\exists k, i \\to k, j \\to k",
-                "O(|\\mathcal{J}| \\cdot |\\mathcal{C}|)", true, false)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_FILTERED_COLIMIT,
+                                    "滤过余极限：在滤过范畴J上构造余极限colim_D。滤过余极限在Set中与有限极限交换，"
+                                    "是层论和模型论中的重要工具",
+                                    inputs, 1, PRESET_TYPE_SET,
+                                    "\\varinjlim_{j \\in J} D(j), \\quad J \\text{ 滤过} \\Leftrightarrow "
+                                    "\\forall i,j \\; \\exists k, i \\to k, j \\to k",
+                                    "O(|\\mathcal{J}| \\cdot |\\mathcal{C}|)", true, false)) {
             success_count++;
         }
     }
@@ -301,14 +295,13 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_KAN_EXTENSION,
-                "左Kan扩张：对函子F: C→D沿K: C→E做左Kan扩张Lan_K F: E→D。"
-                "这是函子层面的最优延拓，推广了极限和余极限的概念",
-                inputs, 2, PRESET_TYPE_FUNCTION,
-                "(\\mathrm{Lan}_K F)(e) = \\mathrm{colim}\\left((K \\downarrow e) \\to "
-                "\\mathcal{C} \\xrightarrow{F} \\mathcal{D}\\right)",
-                "O(|\\mathcal{E}| \\cdot |\\mathcal{C}| \\cdot |\\mathcal{D}|)", true, false)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_KAN_EXTENSION,
+                                    "左Kan扩张：对函子F: C→D沿K: C→E做左Kan扩张Lan_K F: E→D。"
+                                    "这是函子层面的最优延拓，推广了极限和余极限的概念",
+                                    inputs, 2, PRESET_TYPE_FUNCTION,
+                                    "(\\mathrm{Lan}_K F)(e) = \\mathrm{colim}\\left((K \\downarrow e) \\to "
+                                    "\\mathcal{C} \\xrightarrow{F} \\mathcal{D}\\right)",
+                                    "O(|\\mathcal{E}| \\cdot |\\mathcal{C}| \\cdot |\\mathcal{D}|)", true, false)) {
             success_count++;
         }
     }
@@ -460,14 +453,13 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_PRESHEAF,
-                "预层构造：在基范畴C上构造预层（反变函子F: C^op → Set）。"
-                "预层是层论的基础，其范畴[Open(X)^op, Set]是Grothendieck topos",
-                inputs, 1, PRESET_TYPE_FUNCTION,
-                "\\mathcal{F}: \\mathcal{C}^{\\mathrm{op}} \\to \\mathbf{Set}, \\quad "
-                "\\text{预层为每个对象（开集）分配一个截面集合}",
-                "O(|\\mathcal{C}|)", true, false)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_PRESHEAF,
+                                    "预层构造：在基范畴C上构造预层（反变函子F: C^op → Set）。"
+                                    "预层是层论的基础，其范畴[Open(X)^op, Set]是Grothendieck topos",
+                                    inputs, 1, PRESET_TYPE_FUNCTION,
+                                    "\\mathcal{F}: \\mathcal{C}^{\\mathrm{op}} \\to \\mathbf{Set}, \\quad "
+                                    "\\text{预层为每个对象（开集）分配一个截面集合}",
+                                    "O(|\\mathcal{C}|)", true, false)) {
             success_count++;
         }
     }
@@ -556,15 +548,14 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_ADJOINT_UNIT_COUNIT,
-                "伴随的单位与余单位：从伴随对F⊣G中提取单位η: 1_C→GF和余单位ε: FG→1_D，"
-                "它们满足三角恒等式：εF∘Fη=1_F, Gε∘ηG=1_G",
-                inputs, 2, PRESET_TYPE_STRUCTURE,
-                "F \\dashv G: \\; \\eta: 1_\\mathcal{C} \\Rightarrow GF, \\; "
-                "\\varepsilon: FG \\Rightarrow 1_\\mathcal{D}, \\quad "
-                "\\varepsilon F \\circ F\\eta = 1_F, \\; G\\varepsilon \\circ \\eta G = 1_G",
-                "O(1)", true, false)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_ADJOINT_UNIT_COUNIT,
+                                    "伴随的单位与余单位：从伴随对F⊣G中提取单位η: 1_C→GF和余单位ε: FG→1_D，"
+                                    "它们满足三角恒等式：εF∘Fη=1_F, Gε∘ηG=1_G",
+                                    inputs, 2, PRESET_TYPE_STRUCTURE,
+                                    "F \\dashv G: \\; \\eta: 1_\\mathcal{C} \\Rightarrow GF, \\; "
+                                    "\\varepsilon: FG \\Rightarrow 1_\\mathcal{D}, \\quad "
+                                    "\\varepsilon F \\circ F\\eta = 1_F, \\; G\\varepsilon \\circ \\eta G = 1_G",
+                                    "O(1)", true, false)) {
             success_count++;
         }
     }
@@ -587,14 +578,13 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_STRUCTURE, PRESET_TYPE_EXPRESSION};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_UNIVERSAL_PROPERTY,
-                "泛性质验证：验证一个构造是否满足指定的泛性质（即存在唯一的态射使图表交换）。"
-                "泛性质是范畴论的核心工具，刻画了对象'在同构意义下唯一'",
-                inputs, 2, PRESET_TYPE_BOOLEAN,
-                "\\forall X, \\; \\exists! f: A \\to X \\text{ s.t. diagram commutes} \\Rightarrow "
-                "A \\text{ satisfies universal property}",
-                "O(|\\mathcal{C}| \\cdot |P|)", true, false)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_UNIVERSAL_PROPERTY,
+                                    "泛性质验证：验证一个构造是否满足指定的泛性质（即存在唯一的态射使图表交换）。"
+                                    "泛性质是范畴论的核心工具，刻画了对象'在同构意义下唯一'",
+                                    inputs, 2, PRESET_TYPE_BOOLEAN,
+                                    "\\forall X, \\; \\exists! f: A \\to X \\text{ s.t. diagram commutes} \\Rightarrow "
+                                    "A \\text{ satisfies universal property}",
+                                    "O(|\\mathcal{C}| \\cdot |P|)", true, false)) {
             success_count++;
         }
     }
@@ -617,14 +607,13 @@ bool preset_category_theory_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        if (register_cat_adv_preset(
-                PRESET_CAT_ADV_FREE_FUNCTOR,
-                "自由函子：从基对象构造自由代数结构。自由函子是遗忘函子的左伴随F⊣U，"
-                "体现了'用最少约束从给定数据生成结构'的思想。例：自由群、自由向量空间",
-                inputs, 1, PRESET_TYPE_ALGEBRA,
-                "F \\dashv U, \\; F(S) \\text{ 是 } S \\text{ 上的自由结构}, \\quad "
-                "\\forall f: S \\to U(A), \\; \\exists! \\tilde{f}: F(S) \\to A",
-                "O(|S|)", true, false)) {
+        if (register_cat_adv_preset(PRESET_CAT_ADV_FREE_FUNCTOR,
+                                    "自由函子：从基对象构造自由代数结构。自由函子是遗忘函子的左伴随F⊣U，"
+                                    "体现了'用最少约束从给定数据生成结构'的思想。例：自由群、自由向量空间",
+                                    inputs, 1, PRESET_TYPE_ALGEBRA,
+                                    "F \\dashv U, \\; F(S) \\text{ 是 } S \\text{ 上的自由结构}, \\quad "
+                                    "\\forall f: S \\to U(A), \\; \\exists! \\tilde{f}: F(S) \\to A",
+                                    "O(|S|)", true, false)) {
             success_count++;
         }
     }
@@ -661,8 +650,7 @@ bool preset_category_theory_adv_register(void)
     /* ==================== 注册结果验证 ==================== */
 
     if (success_count < CATEGORY_THEORY_ADV_PRESET_COUNT) {
-        LV00_LOG_WARNING("进阶范畴论模块：仅成功注册 %d/%d 个预设",
-                         success_count, CATEGORY_THEORY_ADV_PRESET_COUNT);
+        LV00_LOG_WARNING("进阶范畴论模块：仅成功注册 %d/%d 个预设", success_count, CATEGORY_THEORY_ADV_PRESET_COUNT);
         return false;
     }
 

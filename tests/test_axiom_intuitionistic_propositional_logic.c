@@ -7,13 +7,13 @@
  * Still uses explosion_principle (EFQ is an axiom in Heyting's system).
  */
 
-#include "lv00.h"
+#include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include <ctype.h>
 
+#include "lv00.h"
 #include "test_helpers.h"
 
 int g_fail_count = 0;
@@ -22,12 +22,11 @@ int g_pass_count = 0;
 #define AXIOM_PKG_PATH "axiom_packages/intuitionistic_propositional_logic.lvz"
 #define SAVE_TEST_PATH "axiom_packages/intuitionistic_propositional_logic_test_save.lvz"
 
-#define EXPECTED_TEMPLATE_COUNT       51
-#define EXPECTED_UNCONSTRUCTIBLE_COUNT  6
+#define EXPECTED_TEMPLATE_COUNT 51
+#define EXPECTED_UNCONSTRUCTIBLE_COUNT 6
 
 /* ---------------------------------------------------------------- */
-static void test_load_from_file(void)
-{
+static void test_load_from_file(void) {
     printf("Test 1: Load intuitionistic_propositional_logic.lvz...\n");
 
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
@@ -40,105 +39,64 @@ static void test_load_from_file(void)
     }
     TEST_ASSERT(status == AXIOM_LOAD_OK, "load should return AXIOM_LOAD_OK");
 
-    TEST_ASSERT(pkg->name != NULL &&
-                strcmp(pkg->name, "intuitionistic_propositional_logic") == 0,
-        "package name should be 'intuitionistic_propositional_logic'");
-    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0,
-        "package version should be '1.0.0'");
+    TEST_ASSERT(pkg->name != NULL && strcmp(pkg->name, "intuitionistic_propositional_logic") == 0,
+                "package name should be 'intuitionistic_propositional_logic'");
+    TEST_ASSERT(pkg->version != NULL && strcmp(pkg->version, "1.0.0") == 0, "package version should be '1.0.0'");
 
     printf("  Package: '%s' v%s\n", pkg->name, pkg->version);
     axiom_package_destroy(pkg);
 }
 
 /* ---------------------------------------------------------------- */
-static void test_templates(void)
-{
+static void test_templates(void) {
     printf("Test 2: Verify constraint templates...\n");
 
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT,
-        "should have 51 constraint templates");
-    printf("  Template count: %d (expected %d)\n",
-           pkg->template_count, EXPECTED_TEMPLATE_COUNT);
+    TEST_ASSERT(pkg->template_count == EXPECTED_TEMPLATE_COUNT, "should have 51 constraint templates");
+    printf("  Template count: %d (expected %d)\n", pkg->template_count, EXPECTED_TEMPLATE_COUNT);
 
     /* All 51 templates in declaration order from the .lvz file */
     const char *expected[] = {
         /* Group I: Hilbert-style Core Axiom Schemata (9) */
-        "axiom_K_weakening",
-        "axiom_S_distribution",
-        "conjunction_left_elim",
-        "conjunction_right_elim",
-        "conjunction_intro_axiom",
-        "disjunction_left_intro",
-        "disjunction_right_intro",
-        "disjunction_elim",
+        "axiom_K_weakening", "axiom_S_distribution", "conjunction_left_elim", "conjunction_right_elim",
+        "conjunction_intro_axiom", "disjunction_left_intro", "disjunction_right_intro", "disjunction_elim",
         "ex_falso_quodlibet",
 
         /* Group II: Inference Rules (1) */
         "modus_ponens",
 
         /* Group III: Core Constructors — Primitive Connectives (5) */
-        "implication",
-        "conjunction",
-        "disjunction",
-        "falsum",
-        "negation",
+        "implication", "conjunction", "disjunction", "falsum", "negation",
 
         /* Group IV: Derived Connectives (5) */
-        "biconditional",
-        "exclusive_or",
-        "sheffer_stroke",
-        "peirce_arrow",
-        "verum",
+        "biconditional", "exclusive_or", "sheffer_stroke", "peirce_arrow", "verum",
 
         /* Group V: Derived Inference Rules (14) */
-        "hypothetical_syllogism",
-        "modus_tollens",
-        "disjunctive_syllogism",
-        "conjunction_introduction",
-        "conjunction_elimination_left",
-        "conjunction_elimination_right",
-        "disjunction_introduction_left",
-        "disjunction_introduction_right",
-        "biconditional_introduction",
-        "biconditional_elimination_left",
-        "biconditional_elimination_right",
-        "double_negation_introduction",
-        "reductio_ad_absurdum",
-        "deduction_theorem",
+        "hypothetical_syllogism", "modus_tollens", "disjunctive_syllogism", "conjunction_introduction",
+        "conjunction_elimination_left", "conjunction_elimination_right", "disjunction_introduction_left",
+        "disjunction_introduction_right", "biconditional_introduction", "biconditional_elimination_left",
+        "biconditional_elimination_right", "double_negation_introduction", "reductio_ad_absurdum", "deduction_theorem",
 
         /* Group VI: Propositional Identities (8) */
-        "de_morgan_disjunction",
-        "de_morgan_conjunction_weakened",
-        "conjunction_idempotence",
-        "disjunction_idempotence",
-        "conjunction_commutativity",
-        "disjunction_commutativity",
-        "conjunction_associativity",
+        "de_morgan_disjunction", "de_morgan_conjunction_weakened", "conjunction_idempotence", "disjunction_idempotence",
+        "conjunction_commutativity", "disjunction_commutativity", "conjunction_associativity",
         "disjunction_associativity",
 
         /* Group VII: IPL-CPL Bridge Theorems (4) */
-        "glivenko_double_negation",
-        "negative_translation",
-        "negative_translation_soundness",
-        "kuroda_translation",
+        "glivenko_double_negation", "negative_translation", "negative_translation_soundness", "kuroda_translation",
 
         /* Group VIII: Forward Contrapositive & Derived (5) */
-        "contraposition_forward",
-        "exportation",
-        "importation",
-        "proof_by_cases",
-        "triple_negation_reduction",
+        "contraposition_forward", "exportation", "importation", "proof_by_cases", "triple_negation_reduction",
 
-        NULL
-    };
+        NULL};
 
     int found = 0;
     for (int i = 0; expected[i] != NULL; i++) {
         ConstraintTemplate *tmpl = axiom_package_get_template(pkg, expected[i]);
-        if (tmpl) found++;
+        if (tmpl)
+            found++;
         else {
             printf("  MISSING: '%s'\n", expected[i]);
             g_fail_count++;
@@ -200,129 +158,124 @@ static void test_templates(void)
 }
 
 /* ---------------------------------------------------------------- */
-static void test_unconstructible_problems(void)
-{
+static void test_unconstructible_problems(void) {
     printf("Test 3: Verify known unconstructible problems...\n");
 
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT,
-        "should have 6 unconstructible problems");
-    printf("  Count: %d (expected %d)\n",
-           pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
+    TEST_ASSERT(pkg->unconstructible_count == EXPECTED_UNCONSTRUCTIBLE_COUNT, "should have 6 unconstructible problems");
+    printf("  Count: %d (expected %d)\n", pkg->unconstructible_count, EXPECTED_UNCONSTRUCTIBLE_COUNT);
 
-    struct { const char *name; const char *reduces_to; int deps; bool verified; } exp[] = {
-        {"intuitionistic_tautology_checking",    "PSPACE_complete", 7, true},
-        {"intuitionistic_satisfiability",        "PSPACE_complete", 5, true},
-        {"intuitionistic_equivalence_checking",  "PSPACE_complete", 5, true},
-        {"intuitionistic_unification_problem",   "undecidable",     6, true},
-        {"admissibility_in_IPL",                 "undecidable",     5, true},
-        {"intermediate_logic_axiomatization",    "undecidable",     6, true},
+    struct {
+        const char *name;
+        const char *reduces_to;
+        int deps;
+        bool verified;
+    } exp[] = {
+        {"intuitionistic_tautology_checking", "PSPACE_complete", 7, true},
+        {"intuitionistic_satisfiability", "PSPACE_complete", 5, true},
+        {"intuitionistic_equivalence_checking", "PSPACE_complete", 5, true},
+        {"intuitionistic_unification_problem", "undecidable", 6, true},
+        {"admissibility_in_IPL", "undecidable", 5, true},
+        {"intermediate_logic_axiomatization", "undecidable", 6, true},
     };
 
     for (int i = 0; i < 6; i++) {
         KnownUnconstructible *uc = axiom_package_lookup_unconstructible(pkg, exp[i].name);
         TEST_ASSERT(uc != NULL, exp[i].name);
         if (uc) {
-            TEST_ASSERT(uc->reduces_to &&
-                        strcmp(uc->reduces_to, exp[i].reduces_to) == 0, exp[i].name);
+            TEST_ASSERT(uc->reduces_to && strcmp(uc->reduces_to, exp[i].reduces_to) == 0, exp[i].name);
             TEST_ASSERT(uc->dependency_count == exp[i].deps, exp[i].name);
             TEST_ASSERT(uc->green_verified == exp[i].verified, exp[i].name);
-            TEST_ASSERT(uc->external_ref && strlen(uc->external_ref) > 0,
-                        "should have external_ref");
-            printf("  [%d] %s -> %s deps=%d ok\n",
-                   i, uc->name, uc->reduces_to, uc->dependency_count);
+            TEST_ASSERT(uc->external_ref && strlen(uc->external_ref) > 0, "should have external_ref");
+            printf("  [%d] %s -> %s deps=%d ok\n", i, uc->name, uc->reduces_to, uc->dependency_count);
         }
     }
 
     /* Check that PSPACE Wikipedia ref exists */
-    KnownUnconstructible *taut =
-        axiom_package_lookup_unconstructible(pkg, "intuitionistic_tautology_checking");
+    KnownUnconstructible *taut = axiom_package_lookup_unconstructible(pkg, "intuitionistic_tautology_checking");
     if (taut) {
-        TEST_ASSERT(strstr(taut->external_ref, "wikipedia.org") ||
-                    strstr(taut->external_ref, "wikipedia") ||
-                    strlen(taut->external_ref) > 10,
-            "tautology_checking should have external_ref");
+        TEST_ASSERT(strstr(taut->external_ref, "wikipedia.org") || strstr(taut->external_ref, "wikipedia") ||
+                        strlen(taut->external_ref) > 10,
+                    "tautology_checking should have external_ref");
     }
     axiom_package_destroy(pkg);
 }
 
 /* ---------------------------------------------------------------- */
-static void test_logical_framework(void)
-{
+static void test_logical_framework(void) {
     printf("Test 4: Verify logical framework config...\n");
 
     AxiomPackage *pkg = axiom_package_create("placeholder", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(pkg->bottom_geometry &&
-                strcmp(pkg->bottom_geometry, "intuitionistic_propositional_heyting") == 0,
-        "bottom_geometry: intuitionistic_propositional_heyting");
+    TEST_ASSERT(pkg->bottom_geometry && strcmp(pkg->bottom_geometry, "intuitionistic_propositional_heyting") == 0,
+                "bottom_geometry: intuitionistic_propositional_heyting");
     printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
 
-    TEST_ASSERT(pkg->negation_encoding &&
-                strcmp(pkg->negation_encoding, "implication_to_falsum") == 0,
-        "negation_encoding: implication_to_falsum");
+    TEST_ASSERT(pkg->negation_encoding && strcmp(pkg->negation_encoding, "implication_to_falsum") == 0,
+                "negation_encoding: implication_to_falsum");
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
 
     /* IPL uses explosion_principle because EFQ is an axiom in Heyting's system.
      * Constructivity comes from the ABSENCE of LEM, DNE, and Peirce. */
     TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-        "contradiction_behavior: explosion_principle (EFQ is an axiom in IPL)");
+                "contradiction_behavior: explosion_principle (EFQ is an axiom in IPL)");
     printf("  contradiction_behavior: explosion_principle\n");
     axiom_package_destroy(pkg);
 }
 
 /* ---------------------------------------------------------------- */
-static void test_content_hash(void)
-{
+static void test_content_hash(void) {
     printf("Test 5: Content hash...\n");
     AxiomPackage *pkg = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
     char *hash = axiom_package_compute_content_hash(pkg);
     TEST_ASSERT(hash && strlen(hash) == 64, "SHA-256 hash 64 hex chars");
-    if (hash) { printf("  SHA-256: %s\n", hash); lv00_free((void**)&hash); }
+    if (hash) {
+        printf("  SHA-256: %s\n", hash);
+        lv00_free((void **) &hash);
+    }
     axiom_package_destroy(pkg);
 }
 
 /* ---------------------------------------------------------------- */
-static void test_round_trip(void)
-{
+static void test_round_trip(void) {
     printf("Test 6: Round-trip save/load...\n");
     AxiomPackage *pkg1 = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg1, AXIOM_PKG_PATH);
 
-    TEST_ASSERT(axiom_package_save(pkg1, SAVE_TEST_PATH) == AXIOM_SAVE_OK,
-        "save should succeed");
+    TEST_ASSERT(axiom_package_save(pkg1, SAVE_TEST_PATH) == AXIOM_SAVE_OK, "save should succeed");
 
     AxiomPackage *pkg2 = axiom_package_create("pl", "0.0.0");
-    TEST_ASSERT(axiom_package_load(pkg2, SAVE_TEST_PATH) == AXIOM_LOAD_OK,
-        "reload should succeed");
+    TEST_ASSERT(axiom_package_load(pkg2, SAVE_TEST_PATH) == AXIOM_LOAD_OK, "reload should succeed");
 
     TEST_ASSERT(pkg2->template_count == pkg1->template_count, "tpl count match");
     TEST_ASSERT(pkg2->unconstructible_count == pkg1->unconstructible_count, "uc count match");
     TEST_ASSERT(strcmp(pkg2->name, pkg1->name) == 0, "name match");
     TEST_ASSERT(strcmp(pkg2->version, pkg1->version) == 0, "version match");
-    TEST_ASSERT(pkg2->bottom_geometry && pkg1->bottom_geometry &&
-                strcmp(pkg2->bottom_geometry, pkg1->bottom_geometry) == 0, "geom match");
+    TEST_ASSERT(
+        pkg2->bottom_geometry && pkg1->bottom_geometry && strcmp(pkg2->bottom_geometry, pkg1->bottom_geometry) == 0,
+        "geom match");
     TEST_ASSERT(pkg2->negation_encoding && pkg1->negation_encoding &&
-                strcmp(pkg2->negation_encoding, pkg1->negation_encoding) == 0, "neg match");
+                    strcmp(pkg2->negation_encoding, pkg1->negation_encoding) == 0,
+                "neg match");
     TEST_ASSERT(pkg2->contradiction_behavior == pkg1->contradiction_behavior, "behavior match");
 
     char *h1 = axiom_package_compute_content_hash(pkg1);
     char *h2 = axiom_package_compute_content_hash(pkg2);
     TEST_ASSERT(h1 && h2 && strcmp(h1, h2) == 0, "hash match after round-trip");
-    printf("  Round-trip: templates=%d unconstructibles=%d hash_match=%s\n",
-           pkg2->template_count, pkg2->unconstructible_count,
-           (h1 && h2 && strcmp(h1, h2) == 0) ? "YES" : "NO");
-    lv00_free((void**)&h1); lv00_free((void**)&h2);
-    axiom_package_destroy(pkg1); axiom_package_destroy(pkg2);
+    printf("  Round-trip: templates=%d unconstructibles=%d hash_match=%s\n", pkg2->template_count,
+           pkg2->unconstructible_count, (h1 && h2 && strcmp(h1, h2) == 0) ? "YES" : "NO");
+    lv00_free((void **) &h1);
+    lv00_free((void **) &h2);
+    axiom_package_destroy(pkg1);
+    axiom_package_destroy(pkg2);
 }
 
 /* ---------------------------------------------------------------- */
-static void test_dependency_validation(void)
-{
+static void test_dependency_validation(void) {
     printf("Test 7: Dependency validation...\n");
     AxiomPackage *pkg = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
@@ -333,8 +286,7 @@ static void test_dependency_validation(void)
 }
 
 /* ---------------------------------------------------------------- */
-static void test_negative_lookups(void)
-{
+static void test_negative_lookups(void) {
     printf("Test 8: Negative lookups...\n");
     AxiomPackage *pkg = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
@@ -343,76 +295,63 @@ static void test_negative_lookups(void)
     TEST_ASSERT(axiom_package_lookup_unconstructible(pkg, "no_such_uc") == NULL, "null uc");
 
     /* Classical-only theorems should NOT exist in IPL */
-    TEST_ASSERT(axiom_package_get_template(pkg, "double_negation_elimination") == NULL,
-        "DNE should NOT be in IPL");
-    TEST_ASSERT(axiom_package_get_template(pkg, "law_of_excluded_middle") == NULL,
-        "LEM should NOT be in IPL");
-    TEST_ASSERT(axiom_package_get_template(pkg, "peirces_law") == NULL,
-        "Peirce's law should NOT be in IPL");
+    TEST_ASSERT(axiom_package_get_template(pkg, "double_negation_elimination") == NULL, "DNE should NOT be in IPL");
+    TEST_ASSERT(axiom_package_get_template(pkg, "law_of_excluded_middle") == NULL, "LEM should NOT be in IPL");
+    TEST_ASSERT(axiom_package_get_template(pkg, "peirces_law") == NULL, "Peirce's law should NOT be in IPL");
     printf("  Negative lookups: OK (classical-only absent)\n");
     axiom_package_destroy(pkg);
 }
 
 /* ---------------------------------------------------------------- */
-static void test_constructive_character(void)
-{
+static void test_constructive_character(void) {
     printf("Test 9: Constructive vs Classical contrast...\n");
     AxiomPackage *pkg = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
     /* === Present in IPL (constructively valid) === */
     TEST_ASSERT(axiom_package_get_template(pkg, "double_negation_introduction") != NULL,
-        "DN Intro: phi -> ~~phi (valid)");
+                "DN Intro: phi -> ~~phi (valid)");
     TEST_ASSERT(axiom_package_get_template(pkg, "triple_negation_reduction") != NULL,
-        "Triple Neg: ~~~phi -> ~phi (valid)");
+                "Triple Neg: ~~~phi -> ~phi (valid)");
     TEST_ASSERT(axiom_package_get_template(pkg, "contraposition_forward") != NULL,
-        "Forward contrapositive: (phi->psi) -> (~psi->~phi) (valid)");
-    TEST_ASSERT(axiom_package_get_template(pkg, "modus_tollens") != NULL,
-        "Modus tollens (valid in IPL)");
+                "Forward contrapositive: (phi->psi) -> (~psi->~phi) (valid)");
+    TEST_ASSERT(axiom_package_get_template(pkg, "modus_tollens") != NULL, "Modus tollens (valid in IPL)");
     TEST_ASSERT(axiom_package_get_template(pkg, "disjunctive_syllogism") != NULL,
-        "Disjunctive syllogism (valid in IPL)");
-    TEST_ASSERT(axiom_package_get_template(pkg, "ex_falso_quodlibet") != NULL,
-        "EFQ: bot -> phi (axiom)");
+                "Disjunctive syllogism (valid in IPL)");
+    TEST_ASSERT(axiom_package_get_template(pkg, "ex_falso_quodlibet") != NULL, "EFQ: bot -> phi (axiom)");
 
     /* De Morgan: OR case — full equivalence, AND case — only half */
-    TEST_ASSERT(axiom_package_get_template(pkg, "de_morgan_disjunction") != NULL,
-        "De Morgan OR: both directions hold");
+    TEST_ASSERT(axiom_package_get_template(pkg, "de_morgan_disjunction") != NULL, "De Morgan OR: both directions hold");
     TEST_ASSERT(axiom_package_get_template(pkg, "de_morgan_conjunction_weakened") != NULL,
-        "De Morgan AND: only (~phi|~psi) -> ~(phi&psi) direction");
+                "De Morgan AND: only (~phi|~psi) -> ~(phi&psi) direction");
 
     /* Glivenko + Negative Translation */
-    TEST_ASSERT(axiom_package_get_template(pkg, "glivenko_double_negation") != NULL,
-        "Glivenko's theorem");
-    TEST_ASSERT(axiom_package_get_template(pkg, "negative_translation") != NULL,
-        "Gödel-Gentzen negative translation");
+    TEST_ASSERT(axiom_package_get_template(pkg, "glivenko_double_negation") != NULL, "Glivenko's theorem");
+    TEST_ASSERT(axiom_package_get_template(pkg, "negative_translation") != NULL, "Gödel-Gentzen negative translation");
     TEST_ASSERT(axiom_package_get_template(pkg, "negative_translation_soundness") != NULL,
-        "Negative translation soundness");
+                "Negative translation soundness");
 
     /* === Absent in IPL (classical only) === */
-    TEST_ASSERT(axiom_package_get_template(pkg, "double_negation_elimination") == NULL,
-        "DNE NOT present");
-    TEST_ASSERT(axiom_package_get_template(pkg, "law_of_excluded_middle") == NULL,
-        "LEM NOT present");
-    TEST_ASSERT(axiom_package_get_template(pkg, "peirces_law") == NULL,
-        "Peirce's law NOT present");
+    TEST_ASSERT(axiom_package_get_template(pkg, "double_negation_elimination") == NULL, "DNE NOT present");
+    TEST_ASSERT(axiom_package_get_template(pkg, "law_of_excluded_middle") == NULL, "LEM NOT present");
+    TEST_ASSERT(axiom_package_get_template(pkg, "peirces_law") == NULL, "Peirce's law NOT present");
 
     /* === Unconstructible entries document the PSPACE/undecidable results === */
     TEST_ASSERT(axiom_package_lookup_unconstructible(pkg, "intuitionistic_tautology_checking") != NULL,
-        "IPL tautology (PSPACE) documented");
+                "IPL tautology (PSPACE) documented");
     TEST_ASSERT(axiom_package_lookup_unconstructible(pkg, "admissibility_in_IPL") != NULL,
-        "IPL admissibility (undecidable) documented");
+                "IPL admissibility (undecidable) documented");
     TEST_ASSERT(axiom_package_lookup_unconstructible(pkg, "intermediate_logic_axiomatization") != NULL,
-        "Intermediate logic axiomatization (undecidable) documented");
+                "Intermediate logic axiomatization (undecidable) documented");
     TEST_ASSERT(axiom_package_lookup_unconstructible(pkg, "intuitionistic_unification_problem") != NULL,
-        "IPL unification (undecidable) documented");
+                "IPL unification (undecidable) documented");
 
     printf("  Constructive vs Classical: verified\n");
     axiom_package_destroy(pkg);
 }
 
 /* ---------------------------------------------------------------- */
-static void test_external_references(void)
-{
+static void test_external_references(void) {
     printf("Test 10: External references in unconstructible problems...\n");
     AxiomPackage *pkg = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
@@ -420,22 +359,20 @@ static void test_external_references(void)
     for (int i = 0; i < pkg->unconstructible_count; i++) {
         KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
         TEST_ASSERT(uc->external_ref != NULL && strlen(uc->external_ref) > 5,
-            "every unconstructible should have an external_ref");
+                    "every unconstructible should have an external_ref");
         if (uc->external_ref) {
             /* Verify URLs are proper */
-            TEST_ASSERT(strstr(uc->external_ref, "http") == uc->external_ref ||
-                        isalpha((unsigned char)uc->external_ref[0]),
+            TEST_ASSERT(
+                strstr(uc->external_ref, "http") == uc->external_ref || isalpha((unsigned char) uc->external_ref[0]),
                 uc->name);
         }
     }
-    printf("  External references: OK for all %d problems\n",
-           pkg->unconstructible_count);
+    printf("  External references: OK for all %d problems\n", pkg->unconstructible_count);
     axiom_package_destroy(pkg);
 }
 
 /* ---------------------------------------------------------------- */
-int main(void)
-{
+int main(void) {
     TEST_SUITE_BEGIN("Intuitionistic Propositional Logic");
 
     TEST_RUN(test_load_from_file);

@@ -11,12 +11,14 @@
  * @version 1.0.0
  */
 
+#include "preset_functional_analysis_adv.h"
+
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_functional_analysis_adv.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -43,16 +45,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_fa_adv_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_ANALYSIS,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_fa_adv_preset(const char *name, const char *description, const PresetType *input_types,
+                                   int input_count, PresetType output_type, const char *math_def,
+                                   const char *complexity, bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_ANALYSIS, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /* ==================== v2统一注册宏 ==================== */
@@ -73,21 +70,18 @@ static bool register_fa_adv_preset(
  * @param cons       是否构造性
  * @param rev        是否可逆
  */
-#define REGISTER_FA_ADV(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_fa_adv_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_FA_ADV(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
+    do {                                                                                                             \
+        if (register_fa_adv_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), (rev))) { \
+            success_count++;                                                                                         \
+        } else {                                                                                                     \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                      \
+        }                                                                                                            \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_functional_analysis_adv_register(void)
-{
+bool preset_functional_analysis_adv_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -113,10 +107,11 @@ bool preset_functional_analysis_adv_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_SPACE};
         REGISTER_FA_ADV(PRESET_FA_BANACH_SPACE,
-            "Banach空间验证：验证赋范线性空间是否完备，即每个Cauchy列都收敛于空间中一点",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "(X, \\|\\cdot\\|) \\text{ 是Banach空间} \\Leftrightarrow \\forall \\{x_n\\} \\text{ Cauchy}: \\exists x \\in X: \\lim_{n\\to\\infty} \\|x_n - x\\| = 0",
-            "O(∞)", false, false);
+                        "Banach空间验证：验证赋范线性空间是否完备，即每个Cauchy列都收敛于空间中一点", inputs, 1,
+                        PRESET_TYPE_BOOLEAN,
+                        "(X, \\|\\cdot\\|) \\text{ 是Banach空间} \\Leftrightarrow \\forall \\{x_n\\} \\text{ Cauchy}: "
+                        "\\exists x \\in X: \\lim_{n\\to\\infty} \\|x_n - x\\| = 0",
+                        "O(∞)", false, false);
     }
 
     /**
@@ -137,10 +132,11 @@ bool preset_functional_analysis_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SPACE};
-        REGISTER_FA_ADV(PRESET_FA_HILBERT_SPACE,
-            "Hilbert空间验证：验证内积空间是否完备，即由内积诱导的范数下每个Cauchy列收敛",
+        REGISTER_FA_ADV(
+            PRESET_FA_HILBERT_SPACE, "Hilbert空间验证：验证内积空间是否完备，即由内积诱导的范数下每个Cauchy列收敛",
             inputs, 1, PRESET_TYPE_BOOLEAN,
-            "(H, \\langle\\cdot,\\cdot\\rangle) \\text{ 是Hilbert空间} \\Leftrightarrow \\forall \\{x_n\\} \\text{ Cauchy}: \\exists x \\in H: \\lim \\|x_n - x\\| = 0, \\|x\\| = \\sqrt{\\langle x,x\\rangle}",
+            "(H, \\langle\\cdot,\\cdot\\rangle) \\text{ 是Hilbert空间} \\Leftrightarrow \\forall \\{x_n\\} \\text{ "
+            "Cauchy}: \\exists x \\in H: \\lim \\|x_n - x\\| = 0, \\|x\\| = \\sqrt{\\langle x,x\\rangle}",
             "O(∞)", false, false);
     }
 
@@ -169,10 +165,11 @@ bool preset_functional_analysis_adv_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SPACE, PRESET_TYPE_SPACE};
         REGISTER_FA_ADV(PRESET_FA_BOUNDED_OPERATOR,
-            "有界线性算子：验证线性算子T: X → Y的有界性并计算算子范数 ||T|| = sup_{||x||=1} ||Tx||",
-            inputs, 3, PRESET_TYPE_SCALAR,
-            "\\|T\\| = \\sup\\{\\|Tx\\|_Y : \\|x\\|_X = 1\\} = \\inf\\{M \\geq 0 : \\|Tx\\| \\leq M\\|x\\|, \\forall x\\}",
-            "O(∞)", true, false);
+                        "有界线性算子：验证线性算子T: X → Y的有界性并计算算子范数 ||T|| = sup_{||x||=1} ||Tx||", inputs,
+                        3, PRESET_TYPE_SCALAR,
+                        "\\|T\\| = \\sup\\{\\|Tx\\|_Y : \\|x\\|_X = 1\\} = \\inf\\{M \\geq 0 : \\|Tx\\| \\leq "
+                        "M\\|x\\|, \\forall x\\}",
+                        "O(∞)", true, false);
     }
 
     /**
@@ -194,10 +191,11 @@ bool preset_functional_analysis_adv_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
         REGISTER_FA_ADV(PRESET_FA_SPECTRAL_THEOREM,
-            "谱定理：对自伴紧算子T进行谱分解，得到特征值序列 {λₙ} 满足 Tx = Σₙ λₙ <x, eₙ> eₙ",
-            inputs, 1, PRESET_TYPE_SEQUENCE,
-            "Tx = \\sum_{n=1}^{\\infty} \\lambda_n \\langle x, e_n \\rangle e_n, \\quad T \\text{ 自伴紧算子}, \\lambda_n \\in \\mathbb{R}, \\lambda_n \\to 0",
-            "O(∞)", true, false);
+                        "谱定理：对自伴紧算子T进行谱分解，得到特征值序列 {λₙ} 满足 Tx = Σₙ λₙ <x, eₙ> eₙ", inputs, 1,
+                        PRESET_TYPE_SEQUENCE,
+                        "Tx = \\sum_{n=1}^{\\infty} \\lambda_n \\langle x, e_n \\rangle e_n, \\quad T \\text{ "
+                        "自伴紧算子}, \\lambda_n \\in \\mathbb{R}, \\lambda_n \\to 0",
+                        "O(∞)", true, false);
     }
 
     /* ============================================================
@@ -225,10 +223,9 @@ bool preset_functional_analysis_adv_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION, PRESET_TYPE_SET, PRESET_TYPE_SPACE};
         REGISTER_FA_ADV(PRESET_FA_HAHN_BANACH_THEOREM,
-            "Hahn-Banach定理：将子空间M上的有界线性泛函f保范延拓到整个赋范空间X",
-            inputs, 3, PRESET_TYPE_FUNCTION,
-            "F: X \\to \\mathbb{R}, \\quad F|_M = f, \\quad \\|F\\| = \\|f\\|",
-            "O(∞)", false, false);
+                        "Hahn-Banach定理：将子空间M上的有界线性泛函f保范延拓到整个赋范空间X", inputs, 3,
+                        PRESET_TYPE_FUNCTION, "F: X \\to \\mathbb{R}, \\quad F|_M = f, \\quad \\|F\\| = \\|f\\|",
+                        "O(∞)", false, false);
     }
 
     /**
@@ -249,11 +246,11 @@ bool preset_functional_analysis_adv_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
-        REGISTER_FA_ADV(PRESET_FA_OPEN_MAPPING_THEOREM,
-            "开映射定理：Banach空间之间的满射有界线性算子将开集映射为开集",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "T: X \\to Y \\text{ 满射}, X,Y \\text{ Banach空间} \\Rightarrow U \\subseteq X \\text{ 开} \\implies T(U) \\subseteq Y \\text{ 开}",
-            "O(∞)", false, false);
+        REGISTER_FA_ADV(PRESET_FA_OPEN_MAPPING_THEOREM, "开映射定理：Banach空间之间的满射有界线性算子将开集映射为开集",
+                        inputs, 1, PRESET_TYPE_BOOLEAN,
+                        "T: X \\to Y \\text{ 满射}, X,Y \\text{ Banach空间} \\Rightarrow U \\subseteq X \\text{ 开} "
+                        "\\implies T(U) \\subseteq Y \\text{ 开}",
+                        "O(∞)", false, false);
     }
 
     /**
@@ -276,10 +273,11 @@ bool preset_functional_analysis_adv_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
         REGISTER_FA_ADV(PRESET_FA_CLOSED_GRAPH_THEOREM,
-            "闭图像定理：线性算子T有界当且仅当其图像 G(T) = {(x, Tx)} 在X×Y中为闭集",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "G(T) = \\{(x, Tx) : x \\in X\\} \\subseteq X \\times Y \\text{ 闭} \\Leftrightarrow T \\text{ 有界}, X,Y \\text{ Banach空间}",
-            "O(∞)", false, false);
+                        "闭图像定理：线性算子T有界当且仅当其图像 G(T) = {(x, Tx)} 在X×Y中为闭集", inputs, 1,
+                        PRESET_TYPE_BOOLEAN,
+                        "G(T) = \\{(x, Tx) : x \\in X\\} \\subseteq X \\times Y \\text{ 闭} \\Leftrightarrow T \\text{ "
+                        "有界}, X,Y \\text{ Banach空间}",
+                        "O(∞)", false, false);
     }
 
     /* ============================================================
@@ -307,10 +305,11 @@ bool preset_functional_analysis_adv_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE, PRESET_TYPE_SPACE};
         REGISTER_FA_ADV(PRESET_FA_WEAK_CONVERGENCE,
-            "弱收敛判定：判定赋范空间中函数序列是否弱收敛，即对一切有界线性泛函取值收敛",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "f_n \\rightharpoonup f \\Leftrightarrow \\forall \\varphi \\in X^*: \\lim_{n\\to\\infty} \\varphi(f_n) = \\varphi(f)",
-            "O(∞)", false, false);
+                        "弱收敛判定：判定赋范空间中函数序列是否弱收敛，即对一切有界线性泛函取值收敛", inputs, 2,
+                        PRESET_TYPE_BOOLEAN,
+                        "f_n \\rightharpoonup f \\Leftrightarrow \\forall \\varphi \\in X^*: \\lim_{n\\to\\infty} "
+                        "\\varphi(f_n) = \\varphi(f)",
+                        "O(∞)", false, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -322,7 +321,6 @@ bool preset_functional_analysis_adv_register(void)
  *
  * @return int 泛函分析进阶模块预设函数块总数（8）
  */
-int preset_functional_analysis_adv_count(void)
-{
+int preset_functional_analysis_adv_count(void) {
     return FUNCTIONAL_ANALYSIS_ADV_PRESET_COUNT;
 }

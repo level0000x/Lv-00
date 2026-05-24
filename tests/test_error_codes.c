@@ -11,27 +11,36 @@
  * - 错误码判断宏
  */
 
-#include "error_codes.h"
-#include "lv00.h"
 #include <stdio.h>
 #include <string.h>
+
+#include "error_codes.h"
+#include "lv00.h"
 
 /** 统计通过的测试数 */
 static int g_passed = 0;
 /** 统计失败的测试数 */
 static int g_failed = 0;
 
-#define TEST_ASSERT(cond, msg) \
-    do { \
-        if (cond) { g_passed++; } \
-        else { g_failed++; printf("  失败 [%s:%d]: %s\n", __FILE__, __LINE__, msg); } \
-    } while(0)
+#define TEST_ASSERT(cond, msg)                                       \
+    do {                                                             \
+        if (cond) {                                                  \
+            g_passed++;                                              \
+        } else {                                                     \
+            g_failed++;                                              \
+            printf("  失败 [%s:%d]: %s\n", __FILE__, __LINE__, msg); \
+        }                                                            \
+    } while (0)
 
-#define TEST_ASSERT_EQ(a, b, msg) \
-    do { \
-        if ((a) == (b)) { g_passed++; } \
-        else { g_failed++; printf("  失败 [%s:%d]: %s (期望=%d, 实际=%d)\n", __FILE__, __LINE__, msg, (int)(b), (int)(a)); } \
-    } while(0)
+#define TEST_ASSERT_EQ(a, b, msg)                                                                             \
+    do {                                                                                                      \
+        if ((a) == (b)) {                                                                                     \
+            g_passed++;                                                                                       \
+        } else {                                                                                              \
+            g_failed++;                                                                                       \
+            printf("  失败 [%s:%d]: %s (期望=%d, 实际=%d)\n", __FILE__, __LINE__, msg, (int) (b), (int) (a)); \
+        }                                                                                                     \
+    } while (0)
 
 /* ============== 测试用例 ============== */
 
@@ -51,7 +60,7 @@ static void test_error_strings(void) {
     TEST_ASSERT(msg != NULL, "UNKNOWN 错误信息不应为 NULL");
 
     /* 无效错误码应返回回退信息 */
-    msg = lv00_error_string((Lv00ErrorCode)-1);
+    msg = lv00_error_string((Lv00ErrorCode) -1);
     TEST_ASSERT(msg != NULL, "无效错误码不应返回 NULL");
     TEST_ASSERT(strcmp(msg, "未知错误码") == 0, "无效错误码应返回'未知错误码'");
 }
@@ -71,7 +80,7 @@ static void test_error_names(void) {
     TEST_ASSERT(strcmp(name, "LV00_ERROR_PROOF_VERIFICATION_FAILED") == 0, "名称不匹配");
 
     /* 无效错误码 */
-    name = lv00_error_name((Lv00ErrorCode)-999);
+    name = lv00_error_name((Lv00ErrorCode) -999);
     TEST_ASSERT(name != NULL, "无效错误码名称不应为 NULL");
 }
 
@@ -120,8 +129,7 @@ static void test_error_table_validation(void) {
 
     bool valid = lv00_error_table_validate();
     TEST_ASSERT(valid, "错误表排序应通过自校验");
-    TEST_ASSERT_EQ(lv00_get_last_error_code(), LV00_OK,
-                   "通过校验后错误码应为 LV00_OK");
+    TEST_ASSERT_EQ(lv00_get_last_error_code(), LV00_OK, "通过校验后错误码应为 LV00_OK");
 }
 
 /** 测试错误码转换函数 */
@@ -129,8 +137,7 @@ static void test_error_code_conversion(void) {
     printf("  [错误码转换]\n");
 
     /* AddNodeResult 转换 */
-    TEST_ASSERT_EQ(lv00_add_node_result_to_error(ADD_NODE_OK), LV00_OK,
-                   "ADD_NODE_OK 应转换为 LV00_OK");
+    TEST_ASSERT_EQ(lv00_add_node_result_to_error(ADD_NODE_OK), LV00_OK, "ADD_NODE_OK 应转换为 LV00_OK");
     TEST_ASSERT_EQ(lv00_add_node_result_to_error(ADD_NODE_CONFLICT), LV00_ERROR_NODE_CONFLICT,
                    "ADD_NODE_CONFLICT 应转换为 LV00_ERROR_NODE_CONFLICT");
     TEST_ASSERT_EQ(lv00_add_node_result_to_error(ADD_NODE_INVALID_REGION), LV00_ERROR_INVALID_REGION,
@@ -143,8 +150,7 @@ static void test_error_code_conversion(void) {
                    "ADD_CONSTRAINT_DUPLICATE 应转换正确");
 
     /* RemoveNodeResult 转换 */
-    TEST_ASSERT_EQ(lv00_remove_node_result_to_error(REMOVE_NODE_OK), LV00_OK,
-                   "REMOVE_NODE_OK 应转换为 LV00_OK");
+    TEST_ASSERT_EQ(lv00_remove_node_result_to_error(REMOVE_NODE_OK), LV00_OK, "REMOVE_NODE_OK 应转换为 LV00_OK");
     TEST_ASSERT_EQ(lv00_remove_node_result_to_error(REMOVE_NODE_NOT_FOUND), LV00_ERROR_NODE_NOT_FOUND,
                    "REMOVE_NODE_NOT_FOUND 应转换正确");
 }
@@ -154,33 +160,59 @@ static void test_all_codes_mapped(void) {
     printf("  [全覆盖检查]\n");
 
     /* 抽样检查各范围的错误码 */
-    Lv00ErrorCode sample_codes[] = {
-        LV00_OK,
-        LV00_ERROR_UNKNOWN, LV00_ERROR_INVALID_PARAM, LV00_ERROR_NULL_POINTER,
-        LV00_ERROR_NOT_INITIALIZED, LV00_ERROR_ALREADY_EXISTS, LV00_ERROR_NOT_FOUND,
-        LV00_ERROR_UNSUPPORTED, LV00_ERROR_OVERFLOW, LV00_ERROR_UNDERFLOW,
-        LV00_ERROR_TIMEOUT, LV00_ERROR_CANCELLED, LV00_ERROR_IO,
-        LV00_ERROR_PARSE, LV00_ERROR_INVALID_STATE,
-        LV00_ERROR_OUT_OF_MEMORY, LV00_ERROR_ALLOCATION_FAILED,
-        LV00_ERROR_RESOURCE_EXHAUSTED, LV00_ERROR_BUFFER_TOO_SMALL,
-        LV00_ERROR_NODE_CONFLICT, LV00_ERROR_NODE_NOT_FOUND,
-        LV00_ERROR_CONSTRAINT_CONFLICT, LV00_ERROR_CONSTRAINT_DUPLICATE,
-        LV00_ERROR_INVALID_REGION, LV00_ERROR_INVALID_GEOM_TYPE,
-        LV00_ERROR_CYCLIC_DEPENDENCY, LV00_ERROR_GRAPH_CORRUPTED,
-        LV00_ERROR_COORD_INVALID, LV00_ERROR_COORD_OVERFLOW,
-        LV00_ERROR_PRECISION_LOSS, LV00_ERROR_SYMBOLIC_EVAL_FAILED,
-        LV00_ERROR_SOLVER_NO_SOLUTION, LV00_ERROR_SOLVER_INFINITE,
-        LV00_ERROR_SOLVER_NUMERIC, LV00_ERROR_SOLVER_SINGULAR,
-        LV00_ERROR_SOLVER_NOT_CONVERGED, LV00_ERROR_GROEBNER_FAILED,
-        LV00_ERROR_REWRITE_NO_MATCH, LV00_ERROR_REWRITE_CYCLE, LV00_ERROR_REWRITE_DEPTH,
-        LV00_ERROR_UNIFY_FAILED, LV00_ERROR_UNIFY_OCCUR_CHECK, LV00_ERROR_UNIFY_TYPE_MISMATCH,
-        LV00_ERROR_FUNC_BLOCK_INVALID, LV00_ERROR_FUNC_BLOCK_NON_DETERMINISTIC,
-        LV00_ERROR_FUNC_BLOCK_CIRCULAR, LV00_ERROR_FUNC_BLOCK_TYPE_ERROR,
-        LV00_ERROR_TYPE_MISMATCH, LV00_ERROR_TYPE_INFERENCE_FAILED,
-        LV00_ERROR_UNIVERSE_INCONSISTENT,
-        LV00_ERROR_PROOF_INVALID, LV00_ERROR_PROOF_INCOMPLETE,
-        LV00_ERROR_PROOF_VERIFICATION_FAILED
-    };
+    Lv00ErrorCode sample_codes[] = {LV00_OK,
+                                    LV00_ERROR_UNKNOWN,
+                                    LV00_ERROR_INVALID_PARAM,
+                                    LV00_ERROR_NULL_POINTER,
+                                    LV00_ERROR_NOT_INITIALIZED,
+                                    LV00_ERROR_ALREADY_EXISTS,
+                                    LV00_ERROR_NOT_FOUND,
+                                    LV00_ERROR_UNSUPPORTED,
+                                    LV00_ERROR_OVERFLOW,
+                                    LV00_ERROR_UNDERFLOW,
+                                    LV00_ERROR_TIMEOUT,
+                                    LV00_ERROR_CANCELLED,
+                                    LV00_ERROR_IO,
+                                    LV00_ERROR_PARSE,
+                                    LV00_ERROR_INVALID_STATE,
+                                    LV00_ERROR_OUT_OF_MEMORY,
+                                    LV00_ERROR_ALLOCATION_FAILED,
+                                    LV00_ERROR_RESOURCE_EXHAUSTED,
+                                    LV00_ERROR_BUFFER_TOO_SMALL,
+                                    LV00_ERROR_NODE_CONFLICT,
+                                    LV00_ERROR_NODE_NOT_FOUND,
+                                    LV00_ERROR_CONSTRAINT_CONFLICT,
+                                    LV00_ERROR_CONSTRAINT_DUPLICATE,
+                                    LV00_ERROR_INVALID_REGION,
+                                    LV00_ERROR_INVALID_GEOM_TYPE,
+                                    LV00_ERROR_CYCLIC_DEPENDENCY,
+                                    LV00_ERROR_GRAPH_CORRUPTED,
+                                    LV00_ERROR_COORD_INVALID,
+                                    LV00_ERROR_COORD_OVERFLOW,
+                                    LV00_ERROR_PRECISION_LOSS,
+                                    LV00_ERROR_SYMBOLIC_EVAL_FAILED,
+                                    LV00_ERROR_SOLVER_NO_SOLUTION,
+                                    LV00_ERROR_SOLVER_INFINITE,
+                                    LV00_ERROR_SOLVER_NUMERIC,
+                                    LV00_ERROR_SOLVER_SINGULAR,
+                                    LV00_ERROR_SOLVER_NOT_CONVERGED,
+                                    LV00_ERROR_GROEBNER_FAILED,
+                                    LV00_ERROR_REWRITE_NO_MATCH,
+                                    LV00_ERROR_REWRITE_CYCLE,
+                                    LV00_ERROR_REWRITE_DEPTH,
+                                    LV00_ERROR_UNIFY_FAILED,
+                                    LV00_ERROR_UNIFY_OCCUR_CHECK,
+                                    LV00_ERROR_UNIFY_TYPE_MISMATCH,
+                                    LV00_ERROR_FUNC_BLOCK_INVALID,
+                                    LV00_ERROR_FUNC_BLOCK_NON_DETERMINISTIC,
+                                    LV00_ERROR_FUNC_BLOCK_CIRCULAR,
+                                    LV00_ERROR_FUNC_BLOCK_TYPE_ERROR,
+                                    LV00_ERROR_TYPE_MISMATCH,
+                                    LV00_ERROR_TYPE_INFERENCE_FAILED,
+                                    LV00_ERROR_UNIVERSE_INCONSISTENT,
+                                    LV00_ERROR_PROOF_INVALID,
+                                    LV00_ERROR_PROOF_INCOMPLETE,
+                                    LV00_ERROR_PROOF_VERIFICATION_FAILED};
 
     int count = sizeof(sample_codes) / sizeof(sample_codes[0]);
     for (int i = 0; i < count; i++) {
@@ -188,10 +220,10 @@ static void test_all_codes_mapped(void) {
         const char *name = lv00_error_name(sample_codes[i]);
 
         if (!msg || strlen(msg) == 0) {
-            printf("  失败: 错误码 %d 的错误信息为空\n", (int)sample_codes[i]);
+            printf("  失败: 错误码 %d 的错误信息为空\n", (int) sample_codes[i]);
             g_failed++;
         } else if (!name || strlen(name) == 0) {
-            printf("  失败: 错误码 %d 的名称信息为空\n", (int)sample_codes[i]);
+            printf("  失败: 错误码 %d 的名称信息为空\n", (int) sample_codes[i]);
             g_failed++;
         } else {
             g_passed++;

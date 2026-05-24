@@ -17,12 +17,14 @@
  * @author Lv-00 开发团队
  */
 
+#include "preset_order_theory.h"
+
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_order_theory.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -49,16 +51,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_order_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_LOGIC,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_order_preset(const char *name, const char *description, const PresetType *input_types,
+                                  int input_count, PresetType output_type, const char *math_def, const char *complexity,
+                                  bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_LOGIC, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /**
@@ -67,21 +64,18 @@ static bool register_order_preset(
  * 减少重复代码，提高可维护性。
  * 注册成功时递增 success_count，失败时输出错误日志。
  */
-#define REGISTER_ORDER(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_order_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_ORDER(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
+    do {                                                                                                            \
+        if (register_order_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), (rev))) { \
+            success_count++;                                                                                        \
+        } else {                                                                                                    \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                     \
+        }                                                                                                           \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_order_theory_register(void)
-{
+bool preset_order_theory_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -99,15 +93,14 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_ORDER(
-            "partial_order_relation",
-            "偏序关系构造：验证二元关系 R 是否构成偏序（自反 ∧ 反对称 ∧ 传递），构造偏序集 (P, ≤)",
-            inputs, 2, PRESET_TYPE_SET,
-            "\\le \\text{ 是偏序} \\Leftrightarrow "
-            "\\text{自反}(\\forall a, a \\le a) \\land "
-            "\\text{反对称}(a \\le b \\land b \\le a \\Rightarrow a = b) \\land "
-            "\\text{传递}(a \\le b \\land b \\le c \\Rightarrow a \\le c)",
-            "O(|P|^2 \\cdot |R|)", true, false);
+        REGISTER_ORDER("partial_order_relation",
+                       "偏序关系构造：验证二元关系 R 是否构成偏序（自反 ∧ 反对称 ∧ 传递），构造偏序集 (P, ≤)", inputs,
+                       2, PRESET_TYPE_SET,
+                       "\\le \\text{ 是偏序} \\Leftrightarrow "
+                       "\\text{自反}(\\forall a, a \\le a) \\land "
+                       "\\text{反对称}(a \\le b \\land b \\le a \\Rightarrow a = b) \\land "
+                       "\\text{传递}(a \\le b \\land b \\le c \\Rightarrow a \\le c)",
+                       "O(|P|^2 \\cdot |R|)", true, false);
     }
 
     /* -------------------- 2. 格的上确界（join/并） -------------------- */
@@ -122,13 +115,10 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_ANY, PRESET_TYPE_ANY};
-        REGISTER_ORDER(
-            "lattice_join",
-            "格的上确界（join/并）：a ∨ b，a 和 b 的最小上界",
-            inputs, 3, PRESET_TYPE_ANY,
-            "a \\vee b = \\min\\{c \\in L : a \\le c \\land b \\le c\\}, "
-            "\\quad a \\vee a = a, \\; a \\vee b = b \\vee a",
-            "O(|L|^2)", true, false);
+        REGISTER_ORDER("lattice_join", "格的上确界（join/并）：a ∨ b，a 和 b 的最小上界", inputs, 3, PRESET_TYPE_ANY,
+                       "a \\vee b = \\min\\{c \\in L : a \\le c \\land b \\le c\\}, "
+                       "\\quad a \\vee a = a, \\; a \\vee b = b \\vee a",
+                       "O(|L|^2)", true, false);
     }
 
     /* -------------------- 3. 格的下确界（meet/交） -------------------- */
@@ -143,13 +133,10 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_ANY, PRESET_TYPE_ANY};
-        REGISTER_ORDER(
-            "lattice_meet",
-            "格的下确界（meet/交）：a ∧ b，a 和 b 的最大下界",
-            inputs, 3, PRESET_TYPE_ANY,
-            "a \\wedge b = \\max\\{c \\in L : c \\le a \\land c \\le b\\}, "
-            "\\quad a \\wedge a = a, \\; a \\wedge b = b \\wedge a",
-            "O(|L|^2)", true, false);
+        REGISTER_ORDER("lattice_meet", "格的下确界（meet/交）：a ∧ b，a 和 b 的最大下界", inputs, 3, PRESET_TYPE_ANY,
+                       "a \\wedge b = \\max\\{c \\in L : c \\le a \\land c \\le b\\}, "
+                       "\\quad a \\wedge a = a, \\; a \\wedge b = b \\wedge a",
+                       "O(|L|^2)", true, false);
     }
 
     /* ============================================================
@@ -167,13 +154,12 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_ORDER(
-            "chain_decomposition",
-            "链分解（Dilworth定理）：将有限偏序集分解为不相交链的最小划分，链数 = 最大反链大小",
-            inputs, 2, PRESET_TYPE_SET,
-            "\\text{Dilworth: } \\min\\{\\text{链划分数}\\} = "
-            "\\max\\{\\text{反链大小}\\} = \\text{width}(P)",
-            "O(|P|^3)", false, false);
+        REGISTER_ORDER("chain_decomposition",
+                       "链分解（Dilworth定理）：将有限偏序集分解为不相交链的最小划分，链数 = 最大反链大小", inputs, 2,
+                       PRESET_TYPE_SET,
+                       "\\text{Dilworth: } \\min\\{\\text{链划分数}\\} = "
+                       "\\max\\{\\text{反链大小}\\} = \\text{width}(P)",
+                       "O(|P|^3)", false, false);
     }
 
     /* -------------------- 5. Zorn引理应用 -------------------- */
@@ -188,14 +174,13 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_ORDER(
-            "zorn_lemma_application",
-            "Zorn引理应用：若非空偏序集的每条链都有上界，则存在极大元（与选择公理等价）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "(\\forall C \\subseteq P, C \\text{ 是链} \\Rightarrow "
-            "\\exists u \\in P, \\forall c \\in C, c \\le u) "
-            "\\Rightarrow \\exists m \\in P, \\forall x \\in P, m \\le x \\Rightarrow m = x",
-            "不可判定（依赖选择公理）", false, false);
+        REGISTER_ORDER("zorn_lemma_application",
+                       "Zorn引理应用：若非空偏序集的每条链都有上界，则存在极大元（与选择公理等价）", inputs, 2,
+                       PRESET_TYPE_BOOLEAN,
+                       "(\\forall C \\subseteq P, C \\text{ 是链} \\Rightarrow "
+                       "\\exists u \\in P, \\forall c \\in C, c \\le u) "
+                       "\\Rightarrow \\exists m \\in P, \\forall x \\in P, m \\le x \\Rightarrow m = x",
+                       "不可判定（依赖选择公理）", false, false);
     }
 
     /* ============================================================
@@ -214,14 +199,12 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_FUNCTION};
-        REGISTER_ORDER(
-            "fixed_point_theorem",
-            "不动点定理（Tarski/Knaster）：完备格上保序映射的不动点集构成非空完备格",
-            inputs, 2, PRESET_TYPE_SET,
-            "\\text{Fix}(f) = \\{x \\in L : f(x) = x\\} \\text{ 构成完备格}, \\quad "
-            "\\mu f = \\bigwedge\\{x : f(x) \\le x\\}, \\; "
-            "\\nu f = \\bigvee\\{x : x \\le f(x)\\}",
-            "O(|L|^2)", true, false);
+        REGISTER_ORDER("fixed_point_theorem", "不动点定理（Tarski/Knaster）：完备格上保序映射的不动点集构成非空完备格",
+                       inputs, 2, PRESET_TYPE_SET,
+                       "\\text{Fix}(f) = \\{x \\in L : f(x) = x\\} \\text{ 构成完备格}, \\quad "
+                       "\\mu f = \\bigwedge\\{x : f(x) \\le x\\}, \\; "
+                       "\\nu f = \\bigvee\\{x : x \\le f(x)\\}",
+                       "O(|L|^2)", true, false);
     }
 
     /* ============================================================
@@ -241,13 +224,12 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET, PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION};
-        REGISTER_ORDER(
-            "galois_connection",
-            "Galois连接：验证 (f, g) 是否构成偏序集间的Galois连接（伴随对），f(a) ≤ b ⟺ a ≤ g(b)",
-            inputs, 4, PRESET_TYPE_BOOLEAN,
-            "f \\dashv g \\Leftrightarrow \\forall a \\in A, \\forall b \\in B: "
-            "f(a) \\le_B b \\Leftrightarrow a \\le_A g(b)",
-            "O(|A| \\cdot |B|)", true, false);
+        REGISTER_ORDER("galois_connection",
+                       "Galois连接：验证 (f, g) 是否构成偏序集间的Galois连接（伴随对），f(a) ≤ b ⟺ a ≤ g(b)", inputs, 4,
+                       PRESET_TYPE_BOOLEAN,
+                       "f \\dashv g \\Leftrightarrow \\forall a \\in A, \\forall b \\in B: "
+                       "f(a) \\le_B b \\Leftrightarrow a \\le_A g(b)",
+                       "O(|A| \\cdot |B|)", true, false);
     }
 
     /* -------------------- 8. 完备化 -------------------- */
@@ -262,13 +244,11 @@ bool preset_order_theory_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_ORDER(
-            "complete_lattice_completion",
-            "完备化（Dedekind-MacNeille）：将偏序集嵌入到其最小完备格中",
-            inputs, 2, PRESET_TYPE_SET,
-            "DM(P) = \\{S \\subseteq P : S^{ul} = S\\}, "
-            "\\quad \\iota: P \\hookrightarrow DM(P), \\; a \\mapsto \\downarrow a",
-            "O(2^{|P|})", true, false);
+        REGISTER_ORDER("complete_lattice_completion", "完备化（Dedekind-MacNeille）：将偏序集嵌入到其最小完备格中",
+                       inputs, 2, PRESET_TYPE_SET,
+                       "DM(P) = \\{S \\subseteq P : S^{ul} = S\\}, "
+                       "\\quad \\iota: P \\hookrightarrow DM(P), \\; a \\mapsto \\downarrow a",
+                       "O(2^{|P|})", true, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -280,7 +260,6 @@ bool preset_order_theory_register(void)
  *
  * @return int 序理论模块预设函数块总数（8）
  */
-int preset_order_theory_count(void)
-{
+int preset_order_theory_count(void) {
     return ORDER_THEORY_PRESET_COUNT;
 }

@@ -16,9 +16,10 @@
 extern "C" {
 #endif
 
-#include "formula_parser.h"
-#include "constraint_graph.h"
 #include <stdbool.h>
+
+#include "constraint_graph.h"
+#include "formula_parser.h"
 
 /* ============================================================
  * 公式 → 图转换结果
@@ -26,11 +27,11 @@ extern "C" {
 
 typedef struct {
     bool success;
-    int *created_node_ids;          /* 创建的节点 ID 数组 */
-    int created_node_count;         /* 创建的节点数量 */
-    int *created_constraint_ids;    /* 创建的约束 ID 数组 */
-    int created_constraint_count;   /* 创建的约束数量 */
-    char error_message[256];        /* 错误信息 */
+    int *created_node_ids;        /* 创建的节点 ID 数组 */
+    int created_node_count;       /* 创建的节点数量 */
+    int *created_constraint_ids;  /* 创建的约束 ID 数组 */
+    int created_constraint_count; /* 创建的约束数量 */
+    char error_message[256];      /* 错误信息 */
 } FormulaToGraphResult;
 
 /* ============================================================
@@ -39,10 +40,10 @@ typedef struct {
 
 typedef struct {
     bool success;
-    char *latex_output;             /* LaTeX 格式输出 */
-    char *python_output;            /* Python 格式输出 */
-    char *dsl_output;               /* DSL 格式输出 */
-    char error_message[256];        /* 错误信息 */
+    char *latex_output;      /* LaTeX 格式输出 */
+    char *python_output;     /* Python 格式输出 */
+    char *dsl_output;        /* DSL 格式输出 */
+    char error_message[256]; /* 错误信息 */
 } GraphToFormulaResult;
 
 /* ============================================================
@@ -170,8 +171,8 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
  * @param[out] out_count     输出节点数量
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph *graph, 
-                              int *out_node_ids, int *out_count);
+bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph *graph, int *out_node_ids,
+                              int *out_count);
 
 /* ============================================================
  * 约束转换
@@ -184,8 +185,7 @@ bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph 
  * @param[out] out_constraint_id 输出约束ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_perpendicular(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                                   int *out_constraint_id);
+bool formula_convert_perpendicular(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id);
 
 /**
  * @brief 转换平行约束到约束图
@@ -194,8 +194,7 @@ bool formula_convert_perpendicular(const FormulaNode *constraint_node, Constrain
  * @param[out] out_constraint_id 输出约束ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                              int *out_constraint_id);
+bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id);
 
 /**
  * @brief 转换中点约束到约束图
@@ -204,8 +203,7 @@ bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGrap
  * @param[out] out_node_id     输出中点节点ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                              int *out_node_id);
+bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_node_id);
 
 /**
  * @brief 转换角度约束到约束图
@@ -218,8 +216,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
  * @param[out] out_constraint_id 输出约束ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *graph,
-                           int *out_constraint_id);
+bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id);
 
 /* ============================================================
  * 代数方程转换
@@ -229,9 +226,9 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
  * @brief 曲线采样点
  */
 typedef struct {
-    double x;           /**< 采样点 X 坐标 */
-    double y;           /**< 采样点 Y 坐标 */
-    bool is_valid;      /**< 此采样点是否有效 */
+    double x;      /**< 采样点 X 坐标 */
+    double y;      /**< 采样点 Y 坐标 */
+    bool is_valid; /**< 此采样点是否有效 */
 } CurveSamplePoint;
 
 /**
@@ -241,15 +238,15 @@ typedef struct {
  * 调用者须通过 equation_curve_result_destroy() 销毁。
  */
 typedef struct {
-    bool success;                    /**< 转换是否成功 */
-    char error_message[256];         /**< 错误信息（成功时为空） */
-    char equation_str[256];          /**< 方程的字符串表示 */
-    CurveSamplePoint *points;        /**< 采样点数组（malloc 分配） */
-    int point_count;                 /**< 采样点数量 */
-    double bbox_min_x;               /**< 包围盒最小 X */
-    double bbox_min_y;               /**< 包围盒最小 Y */
-    double bbox_max_x;               /**< 包围盒最大 X */
-    double bbox_max_y;               /**< 包围盒最大 Y */
+    bool success;             /**< 转换是否成功 */
+    char error_message[256];  /**< 错误信息（成功时为空） */
+    char equation_str[256];   /**< 方程的字符串表示 */
+    CurveSamplePoint *points; /**< 采样点数组（malloc 分配） */
+    int point_count;          /**< 采样点数量 */
+    double bbox_min_x;        /**< 包围盒最小 X */
+    double bbox_min_y;        /**< 包围盒最小 Y */
+    double bbox_max_x;        /**< 包围盒最大 X */
+    double bbox_max_y;        /**< 包围盒最大 Y */
 } EquationCurveResult;
 
 /**
@@ -265,12 +262,8 @@ typedef struct {
  * @param[in] y_max 采样区域 Y 最大值
  * @return 曲线转换结果，调用者负责通过 equation_curve_result_destroy() 销毁
  */
-EquationCurveResult *formula_convert_equation_to_curve(
-    const FormulaNode *equation_node,
-    int sample_count,
-    double x_min, double x_max,
-    double y_min, double y_max
-);
+EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equation_node, int sample_count, double x_min,
+                                                       double x_max, double y_min, double y_max);
 
 /**
  * @brief 销毁方程曲线转换结果
@@ -288,9 +281,7 @@ void equation_curve_result_destroy(EquationCurveResult *result);
  * @param[out] out_node_id   输出曲线节点ID
  * @return 成功返回 true，失败返回 false
  */
-bool formula_convert_equation(const FormulaNode *equation_node,
-                              ConstraintGraph *graph,
-                              int *out_node_id);
+bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph *graph, int *out_node_id);
 
 #ifdef __cplusplus
 }

@@ -21,8 +21,8 @@
 #ifndef LV00_GEO_SPEC_H
 #define LV00_GEO_SPEC_H
 
-#include "lv00.h"
 #include "constraint_graph.h"
+#include "lv00.h"
 #include "proof.h"
 
 #ifdef __cplusplus
@@ -35,9 +35,9 @@ extern "C" {
  * 表示构造过程的一个快照：当前约束图状态、指纹和从 Init 到当前的步数。
  */
 typedef struct GeoConstructionState {
-    ConstraintGraph *graph;           /**< 当前约束图状态 */
-    uint64_t         fingerprint;     /**< 状态指纹（哈希摘要） */
-    int              depth;           /**< 从 Init 到当前状态的步数 */
+    ConstraintGraph *graph; /**< 当前约束图状态 */
+    uint64_t fingerprint;   /**< 状态指纹（哈希摘要） */
+    int depth;              /**< 从 Init 到当前状态的步数 */
 } GeoConstructionState;
 
 /**
@@ -47,17 +47,17 @@ typedef struct GeoConstructionState {
  * 中点、角平分线、测量、约束施加和撤销。
  */
 typedef enum {
-    GEO_STEP_POINT,          /**< 定义点 */
-    GEO_STEP_LINE,           /**< 定义线 */
-    GEO_STEP_CIRCLE,         /**< 定义圆 */
-    GEO_STEP_INTERSECTION,   /**< 求交点 */
-    GEO_STEP_PERPENDICULAR,  /**< 作垂线 */
-    GEO_STEP_PARALLEL,       /**< 作平行线 */
-    GEO_STEP_MIDPOINT,       /**< 求中点 */
-    GEO_STEP_BISECTOR,       /**< 作角平分线 */
-    GEO_STEP_MEASURE,        /**< 测量（距离/角度） */
-    GEO_STEP_CONSTRAINT,     /**< 施加约束 */
-    GEO_STEP_UNDO            /**< 撤销 */
+    GEO_STEP_POINT,         /**< 定义点 */
+    GEO_STEP_LINE,          /**< 定义线 */
+    GEO_STEP_CIRCLE,        /**< 定义圆 */
+    GEO_STEP_INTERSECTION,  /**< 求交点 */
+    GEO_STEP_PERPENDICULAR, /**< 作垂线 */
+    GEO_STEP_PARALLEL,      /**< 作平行线 */
+    GEO_STEP_MIDPOINT,      /**< 求中点 */
+    GEO_STEP_BISECTOR,      /**< 作角平分线 */
+    GEO_STEP_MEASURE,       /**< 测量（距离/角度） */
+    GEO_STEP_CONSTRAINT,    /**< 施加约束 */
+    GEO_STEP_UNDO           /**< 撤销 */
 } GeoStepType;
 
 /**
@@ -66,12 +66,12 @@ typedef enum {
  * 单个构造操作，包含类型、涉及的节点、人类可读描述。
  */
 typedef struct GeoStep {
-    int          step_id;       /**< 步骤唯一标识符 */
-    GeoStepType  type;          /**< 步骤类型 */
-    char        *label;         /**< 步骤标签（可空） */
-    int         *node_ids;      /**< 涉及的节点 ID 数组 */
-    int          node_count;    /**< 节点数量 */
-    char        *description;   /**< 人类可读描述 */
+    int step_id;       /**< 步骤唯一标识符 */
+    GeoStepType type;  /**< 步骤类型 */
+    char *label;       /**< 步骤标签（可空） */
+    int *node_ids;     /**< 涉及的节点 ID 数组 */
+    int node_count;    /**< 节点数量 */
+    char *description; /**< 人类可读描述 */
 } GeoStep;
 
 /**
@@ -81,12 +81,12 @@ typedef struct GeoStep {
  * 对应 TLA+ 的 Spec == Init /\ [][Next]_vars /\ Invariant。
  */
 typedef struct GeoConstructionSpec {
-    ConstraintGraph *initial;       /**< 初始几何配置 */
-    GeoStep         *steps;         /**< 构造步骤列表 */
-    int              step_count;    /**< 当前步骤数量 */
-    int              step_capacity; /**< 步骤数组容量 */
-    char           **invariants;    /**< 不变式（命题表达式字符串数组） */
-    int              invariant_count; /**< 不变式数量 */
+    ConstraintGraph *initial; /**< 初始几何配置 */
+    GeoStep *steps;           /**< 构造步骤列表 */
+    int step_count;           /**< 当前步骤数量 */
+    int step_capacity;        /**< 步骤数组容量 */
+    char **invariants;        /**< 不变式（命题表达式字符串数组） */
+    int invariant_count;      /**< 不变式数量 */
 } GeoConstructionSpec;
 
 /**
@@ -112,12 +112,12 @@ typedef enum {
  * 表示构造过程中必须恒为真的命题。
  */
 typedef struct GeoInvariant {
-    int              inv_id;      /**< 不变式唯一标识符 */
-    GeoInvariantType type;        /**< 不变式类型 */
-    char            *expression;  /**< 不变式表达式字符串 */
-    int             *node_ids;    /**< 涉及的节点 ID 数组 */
-    int              node_count;  /**< 节点数量 */
-    bool             is_core;     /**< 是否为核心不变量 */
+    int inv_id;            /**< 不变式唯一标识符 */
+    GeoInvariantType type; /**< 不变式类型 */
+    char *expression;      /**< 不变式表达式字符串 */
+    int *node_ids;         /**< 涉及的节点 ID 数组 */
+    int node_count;        /**< 节点数量 */
+    bool is_core;          /**< 是否为核心不变量 */
 } GeoInvariant;
 
 /**
@@ -126,8 +126,8 @@ typedef struct GeoInvariant {
  * 模型检查器遍历状态空间的搜索顺序。
  */
 typedef enum {
-    GEO_SEARCH_BFS = 0,  /**< 广度优先搜索 */
-    GEO_SEARCH_DFS = 1   /**< 深度优先搜索 */
+    GEO_SEARCH_BFS = 0, /**< 广度优先搜索 */
+    GEO_SEARCH_DFS = 1  /**< 深度优先搜索 */
 } GeoSearchStrategy;
 
 /**
@@ -136,16 +136,16 @@ typedef enum {
  * 基于 TLC 模型检查器的穷举状态搜索，维护 BFS/DFS 队列和已见指纹集合。
  */
 typedef struct StateSpaceExplorer {
-    GeoConstructionState **queue;          /**< 状态队列（BFS/DFS） */
-    int         queue_head;                /**< 队列头指针 */
-    int         queue_tail;                /**< 队列尾指针 */
-    int         queue_capacity;            /**< 队列容量 */
-    uint64_t   *seen_fingerprints;         /**< 已见指纹数组 */
-    int         seen_count;                /**< 已见状态数量 */
-    int         seen_capacity;             /**< 指纹数组容量 */
-    int         total_states_explored;     /**< 已探索状态总数 */
-    int         max_depth;                 /**< 最大搜索深度 */
-    GeoSearchStrategy strategy;            /**< 搜索策略 */
+    GeoConstructionState **queue; /**< 状态队列（BFS/DFS） */
+    int queue_head;               /**< 队列头指针 */
+    int queue_tail;               /**< 队列尾指针 */
+    int queue_capacity;           /**< 队列容量 */
+    uint64_t *seen_fingerprints;  /**< 已见指纹数组 */
+    int seen_count;               /**< 已见状态数量 */
+    int seen_capacity;            /**< 指纹数组容量 */
+    int total_states_explored;    /**< 已探索状态总数 */
+    int max_depth;                /**< 最大搜索深度 */
+    GeoSearchStrategy strategy;   /**< 搜索策略 */
 } StateSpaceExplorer;
 
 /**
@@ -154,10 +154,10 @@ typedef struct StateSpaceExplorer {
  * 当不变式被违反时，记录从初始状态到违规状态的完整路径。
  */
 typedef struct CounterExample {
-    GeoConstructionState *states;          /**< 从 Init 到违规状态的路径 */
-    int  state_count;                      /**< 路径中的状态数量 */
-    int  violated_invariant_id;            /**< 被违反的不变式 ID */
-    char *description;                     /**< 人类可读描述 */
+    GeoConstructionState *states; /**< 从 Init 到违规状态的路径 */
+    int state_count;              /**< 路径中的状态数量 */
+    int violated_invariant_id;    /**< 被违反的不变式 ID */
+    char *description;            /**< 人类可读描述 */
 } CounterExample;
 
 /* ── 构造规约 API ── */
@@ -170,7 +170,7 @@ typedef struct CounterExample {
  * @param initial  初始约束图（规约会取得所有权，调用者不应再修改它）
  * @return 新分配的规约指针，失败返回 NULL
  */
-GeoConstructionSpec* geo_spec_create(ConstraintGraph *initial);
+GeoConstructionSpec *geo_spec_create(ConstraintGraph *initial);
 
 /**
  * @brief 销毁几何构造规约
@@ -179,7 +179,7 @@ GeoConstructionSpec* geo_spec_create(ConstraintGraph *initial);
  *
  * @param spec  规约指针（可为 NULL）
  */
-void  geo_spec_destroy(GeoConstructionSpec *spec);
+void geo_spec_destroy(GeoConstructionSpec *spec);
 
 /**
  * @brief 向规约添加构造步骤
@@ -193,8 +193,7 @@ void  geo_spec_destroy(GeoConstructionSpec *spec);
  * @param count      节点数量
  * @return 新步骤的索引（>= 0），失败返回 -1
  */
-int   geo_spec_add_step(GeoConstructionSpec *spec, GeoStepType type,
-                         const char *label, const int *node_ids, int count);
+int geo_spec_add_step(GeoConstructionSpec *spec, GeoStepType type, const char *label, const int *node_ids, int count);
 
 /**
  * @brief 向规约添加不变式
@@ -206,8 +205,7 @@ int   geo_spec_add_step(GeoConstructionSpec *spec, GeoStepType type,
  * @param expression  命题表达式字符串（内部复制）
  * @return 新不变式的索引（>= 0），失败返回 -1
  */
-int   geo_spec_add_invariant(GeoConstructionSpec *spec, GeoInvariantType type,
-                              const char *expression);
+int geo_spec_add_invariant(GeoConstructionSpec *spec, GeoInvariantType type, const char *expression);
 
 /* ── 状态空间搜索器 API ── */
 
@@ -220,7 +218,7 @@ int   geo_spec_add_invariant(GeoConstructionSpec *spec, GeoInvariantType type,
  * @param strategy   搜索策略（BFS 或 DFS）
  * @return 新分配的搜索器指针，失败返回 NULL
  */
-StateSpaceExplorer* geo_explorer_create(int capacity, GeoSearchStrategy strategy);
+StateSpaceExplorer *geo_explorer_create(int capacity, GeoSearchStrategy strategy);
 
 /**
  * @brief 销毁状态空间搜索器
@@ -229,7 +227,7 @@ StateSpaceExplorer* geo_explorer_create(int capacity, GeoSearchStrategy strategy
  *
  * @param explorer  搜索器指针（可为 NULL）
  */
-void  geo_explorer_destroy(StateSpaceExplorer *explorer);
+void geo_explorer_destroy(StateSpaceExplorer *explorer);
 
 /* ── 模型检查 API ── */
 
@@ -246,16 +244,15 @@ void  geo_explorer_destroy(StateSpaceExplorer *explorer);
  * @param out_counter   输出：反例（若检查通过则不修改）
  * @return true 所有不变式在所有可达状态下成立，false 找到反例
  */
-bool  geo_model_check(StateSpaceExplorer *explorer, GeoConstructionSpec *spec,
-                      GeoInvariant *invariants, int inv_count,
-                      CounterExample *out_counter);
+bool geo_model_check(StateSpaceExplorer *explorer, GeoConstructionSpec *spec, GeoInvariant *invariants, int inv_count,
+                     CounterExample *out_counter);
 
 /**
  * @brief 创建空反例
  *
  * @return 新分配的反例指针，失败返回 NULL
  */
-CounterExample* geo_counterexample_create(void);
+CounterExample *geo_counterexample_create(void);
 
 /**
  * @brief 销毁反例
@@ -264,7 +261,7 @@ CounterExample* geo_counterexample_create(void);
  *
  * @param ce  反例指针（可为 NULL）
  */
-void  geo_counterexample_destroy(CounterExample *ce);
+void geo_counterexample_destroy(CounterExample *ce);
 
 /**
  * @brief 检查单个不变式在给定图状态下是否成立
@@ -273,7 +270,7 @@ void  geo_counterexample_destroy(CounterExample *ce);
  * @param graph 约束图状态
  * @return true 成立，false 不成立
  */
-bool  geo_invariant_check(GeoInvariant *inv, ConstraintGraph *graph);
+bool geo_invariant_check(GeoInvariant *inv, ConstraintGraph *graph);
 
 /* ── 状态管理 API ── */
 
@@ -286,14 +283,14 @@ bool  geo_invariant_check(GeoInvariant *inv, ConstraintGraph *graph);
  * @param depth  当前构造深度
  * @return 新分配的状态，失败返回 NULL
  */
-GeoConstructionState* geo_state_create(ConstraintGraph *graph, int depth);
+GeoConstructionState *geo_state_create(ConstraintGraph *graph, int depth);
 
 /**
  * @brief 销毁几何构造状态
  *
  * @param state  状态指针（可为 NULL）
  */
-void  geo_state_destroy(GeoConstructionState *state);
+void geo_state_destroy(GeoConstructionState *state);
 
 /**
  * @brief 计算状态的指纹哈希
@@ -315,8 +312,7 @@ uint64_t geo_state_fingerprint(GeoConstructionState *state);
  * @param out_next   输出：下一个状态（调用者负责销毁）
  * @return true 步骤合法且成功应用，false 失败
  */
-bool  geo_step_apply(GeoStep *step, GeoConstructionState *state,
-                     GeoConstructionState *out_next);
+bool geo_step_apply(GeoStep *step, GeoConstructionState *state, GeoConstructionState *out_next);
 
 /* ── 导出 API ── */
 
@@ -329,7 +325,7 @@ bool  geo_step_apply(GeoStep *step, GeoConstructionState *state,
  * @param spec  构造规约
  * @return TLA+ 模块字符串（调用者负责 free），失败返回 NULL
  */
-char* geo_spec_export_tlaplus(GeoConstructionSpec *spec);
+char *geo_spec_export_tlaplus(GeoConstructionSpec *spec);
 
 #ifdef __cplusplus
 }

@@ -47,10 +47,10 @@ extern "C" {
 #define GEO_EVENT_DEFAULT_TOL 1e-12
 
 /** 事件方向过滤掩码 */
-#define GEO_EVENT_DIR_NEGATIVE  -1  /**< 仅检测负向穿越（从正到负） */
-#define GEO_EVENT_DIR_POSITIVE   1  /**< 仅检测正向穿越（从负到正） */
-#define GEO_EVENT_DIR_BOTH       2  /**< 检测双向穿越 */
-#define GEO_EVENT_DIR_ANY        3  /**< 检测任意符号变化（含触碰） */
+#define GEO_EVENT_DIR_NEGATIVE -1 /**< 仅检测负向穿越（从正到负） */
+#define GEO_EVENT_DIR_POSITIVE 1  /**< 仅检测正向穿越（从负到正） */
+#define GEO_EVENT_DIR_BOTH 2      /**< 检测双向穿越 */
+#define GEO_EVENT_DIR_ANY 3       /**< 检测任意符号变化（含触碰） */
 
 /* ==================== 类型定义 ==================== */
 
@@ -58,12 +58,12 @@ extern "C" {
  * @brief 几何事件类型 —— 借鉴 SUNDIALS 根检测类型
  */
 typedef enum {
-    LV00_EVENT_INTERSECTION = 0,  /**< 交点事件：两条曲线相交 */
-    LV00_EVENT_CONTACT      = 1,  /**< 接触事件：几何体发生接触 */
-    LV00_EVENT_CROSSING     = 2,  /**< 穿越事件：点/线穿越某个边界 */
-    LV00_EVENT_THRESHOLD    = 3,  /**< 阈值事件：某个量超过阈值 */
-    LV00_EVENT_PERIODIC     = 4,  /**< 周期性事件：在固定时间点触发 */
-    LV00_EVENT_CUSTOM       = 99  /**< 自定义事件 */
+    LV00_EVENT_INTERSECTION = 0, /**< 交点事件：两条曲线相交 */
+    LV00_EVENT_CONTACT = 1,      /**< 接触事件：几何体发生接触 */
+    LV00_EVENT_CROSSING = 2,     /**< 穿越事件：点/线穿越某个边界 */
+    LV00_EVENT_THRESHOLD = 3,    /**< 阈值事件：某个量超过阈值 */
+    LV00_EVENT_PERIODIC = 4,     /**< 周期性事件：在固定时间点触发 */
+    LV00_EVENT_CUSTOM = 99       /**< 自定义事件 */
 } Lv00EventType;
 
 /**
@@ -73,19 +73,19 @@ typedef enum {
  * 也支持 Brent 和二分法作为备选。
  */
 typedef enum {
-    LV00_ROOTFIND_BRENT     = 0,  /**< Brent 法（结合二分、割线和逆二次插值，默认推荐） */
-    LV00_ROOTFIND_ILLINOIS  = 1,  /**< Illinois 法（改进试位法，SUNDIALS 默认） */
-    LV00_ROOTFIND_BISECTION = 2   /**< 二分法（最稳健，但收敛较慢，作为备选） */
+    LV00_ROOTFIND_BRENT = 0,    /**< Brent 法（结合二分、割线和逆二次插值，默认推荐） */
+    LV00_ROOTFIND_ILLINOIS = 1, /**< Illinois 法（改进试位法，SUNDIALS 默认） */
+    LV00_ROOTFIND_BISECTION = 2 /**< 二分法（最稳健，但收敛较慢，作为备选） */
 } Lv00RootfindMethod;
 
 /**
  * @brief 事件检测结果
  */
 typedef enum {
-    LV00_EVENT_RESULT_NONE      = 0,  /**< 未检测到事件 */
-    LV00_EVENT_RESULT_DETECTED  = 1,  /**< 检测到事件，已精确定位 */
-    LV00_EVENT_RESULT_WARNING   = 2,  /**< 检测到事件但定位精度不足 */
-    LV00_EVENT_RESULT_ERROR     = 3   /**< 检测过程出错 */
+    LV00_EVENT_RESULT_NONE = 0,     /**< 未检测到事件 */
+    LV00_EVENT_RESULT_DETECTED = 1, /**< 检测到事件，已精确定位 */
+    LV00_EVENT_RESULT_WARNING = 2,  /**< 检测到事件但定位精度不足 */
+    LV00_EVENT_RESULT_ERROR = 3     /**< 检测过程出错 */
 } Lv00EventResult;
 
 /* ==================== 回调类型 ==================== */
@@ -110,8 +110,7 @@ typedef struct Lv00EventDetector Lv00EventDetector;
  * @param[in]  detector 事件检测器（可访问用户上下文）
  * @return 成功返回 0，失败返回非零
  */
-typedef int (*Lv00EventFunc)(double t, const double *param, int dim,
-                              double *g, Lv00EventDetector *detector);
+typedef int (*Lv00EventFunc)(double t, const double *param, int dim, double *g, Lv00EventDetector *detector);
 
 /**
  * @brief 事件处理回调
@@ -123,9 +122,7 @@ typedef int (*Lv00EventFunc)(double t, const double *param, int dim,
  * @param[in] t_event   事件发生的精确参数值
  * @param[in] param     事件发生时的参数向量
  */
-typedef void (*Lv00EventCallback)(Lv00EventDetector *detector,
-                                   int event_id, double t_event,
-                                   const double *param);
+typedef void (*Lv00EventCallback)(Lv00EventDetector *detector, int event_id, double t_event, const double *param);
 
 /* ==================== 事件条目 ==================== */
 
@@ -133,14 +130,14 @@ typedef void (*Lv00EventCallback)(Lv00EventDetector *detector,
  * @brief 单个事件的定义
  */
 typedef struct Lv00EventEntry {
-    int event_id;                 /**< 事件唯一 ID（在检测器内唯一） */
-    Lv00EventType type;           /**< 事件类型 */
-    Lv00EventFunc func;           /**< 事件函数 g(t, param) */
-    int direction;                /**< 方向过滤：
+    int event_id;               /**< 事件唯一 ID（在检测器内唯一） */
+    Lv00EventType type;         /**< 事件类型 */
+    Lv00EventFunc func;         /**< 事件函数 g(t, param) */
+    int direction;              /**< 方向过滤：
                                        GEO_EVENT_DIR_NEGATIVE / POSITIVE / BOTH / ANY */
-    bool enabled;                 /**< 是否活跃 */
-    bool terminal;                /**< 是否为终止事件（触发后停止演化） */
-    Lv00EventCallback callback;   /**< 事件处理回调（可为 NULL） */
+    bool enabled;               /**< 是否活跃 */
+    bool terminal;              /**< 是否为终止事件（触发后停止演化） */
+    Lv00EventCallback callback; /**< 事件处理回调（可为 NULL） */
 } Lv00EventEntry;
 
 /* ==================== 事件检测器主结构 ==================== */
@@ -153,20 +150,20 @@ typedef struct Lv00EventEntry {
  */
 struct Lv00EventDetector {
     /* ── 注册的事件 ── */
-    Lv00EventEntry events[GEO_EVENT_MAX_EVENTS];  /**< 事件数组 */
-    int num_events;                                /**< 已注册事件数量 */
+    Lv00EventEntry events[GEO_EVENT_MAX_EVENTS]; /**< 事件数组 */
+    int num_events;                              /**< 已注册事件数量 */
 
     /* ── 求根配置 ── */
-    Lv00RootfindMethod root_method;   /**< 使用的求根方法 */
-    double root_tol;                  /**< 求根容差 */
-    int max_root_iters;               /**< 求根最大迭代次数 */
+    Lv00RootfindMethod root_method; /**< 使用的求根方法 */
+    double root_tol;                /**< 求根容差 */
+    int max_root_iters;             /**< 求根最大迭代次数 */
 
     /* ── 上一步状态（用于检测符号变化）── */
-    double t_prev;                    /**< 上一步的参数值 */
+    double t_prev;                       /**< 上一步的参数值 */
     double g_prev[GEO_EVENT_MAX_EVENTS]; /**< 上一步的事件函数值 */
 
     /* ── 用户上下文 ── */
-    void *user_data;                  /**< 用户自定义数据（透传给事件函数/回调） */
+    void *user_data; /**< 用户自定义数据（透传给事件函数/回调） */
 };
 
 /* ==================== API 函数 ==================== */
@@ -176,7 +173,7 @@ struct Lv00EventDetector {
  *
  * @return 新分配的事件检测器，失败返回 NULL
  */
-Lv00EventDetector* geo_event_detector_create(void);
+Lv00EventDetector *geo_event_detector_create(void);
 
 /**
  * @brief 销毁事件检测器并释放所有关联资源
@@ -199,10 +196,8 @@ void geo_event_detector_destroy(Lv00EventDetector *detector);
  * @param[in]     callback   事件处理回调（可为 NULL）
  * @return 成功返回 0，失败（如事件已满或 ID 重复）返回非零
  */
-int geo_event_register(Lv00EventDetector *detector,
-                        int event_id, Lv00EventType type,
-                        Lv00EventFunc func, int direction,
-                        bool terminal, Lv00EventCallback callback);
+int geo_event_register(Lv00EventDetector *detector, int event_id, Lv00EventType type, Lv00EventFunc func, int direction,
+                       bool terminal, Lv00EventCallback callback);
 
 /**
  * @brief 检测事件：在演化步 [t_prev, t_curr] 间检测事件
@@ -222,10 +217,8 @@ int geo_event_register(Lv00EventDetector *detector,
  * @param[out]    t_event   输出：事件发生的精确参数值（若检测到）
  * @return 事件检测结果
  */
-Lv00EventResult geo_event_detect(Lv00EventDetector *detector,
-                                  double t_prev, const double *param_prev,
-                                  double t_curr, const double *param_curr,
-                                  int dim, int *event_id, double *t_event);
+Lv00EventResult geo_event_detect(Lv00EventDetector *detector, double t_prev, const double *param_prev, double t_curr,
+                                 const double *param_curr, int dim, int *event_id, double *t_event);
 
 /**
  * @brief 在区间 [a, b] 内精确求根定位
@@ -245,10 +238,8 @@ Lv00EventResult geo_event_detect(Lv00EventDetector *detector,
  * @param[out]    root      输出：根的精确位置
  * @return 成功返回 0，超过最大迭代返回非零
  */
-int geo_event_root_locate(Lv00EventDetector *detector, int event_id,
-                           const double *param_a, const double *param_b,
-                           int dim, double a, double b, double ga, double gb,
-                           double *root);
+int geo_event_root_locate(Lv00EventDetector *detector, int event_id, const double *param_a, const double *param_b,
+                          int dim, double a, double b, double ga, double gb, double *root);
 
 /* ==================== 辅助内联函数 ==================== */
 
@@ -260,9 +251,9 @@ int geo_event_root_locate(Lv00EventDetector *detector, int event_id,
  * @param[in] direction  方向过滤条件
  * @return 满足方向条件且有符号变化返回 true
  */
-static inline bool geo_event_check_sign(double g_prev, double g_curr,
-                                         int direction) {
-    if (g_prev == 0.0 && g_curr == 0.0) return false;
+static inline bool geo_event_check_sign(double g_prev, double g_curr, int direction) {
+    if (g_prev == 0.0 && g_curr == 0.0)
+        return false;
     /* 负向穿越（正到负） */
     if (direction == GEO_EVENT_DIR_NEGATIVE) {
         return g_prev >= 0.0 && g_curr < 0.0;
@@ -273,14 +264,11 @@ static inline bool geo_event_check_sign(double g_prev, double g_curr,
     }
     /* 双向穿越 */
     if (direction == GEO_EVENT_DIR_BOTH) {
-        return (g_prev > 0.0 && g_curr < 0.0)
-            || (g_prev < 0.0 && g_curr > 0.0);
+        return (g_prev > 0.0 && g_curr < 0.0) || (g_prev < 0.0 && g_curr > 0.0);
     }
     /* 任意符号变化（含触碰零） */
     if (direction == GEO_EVENT_DIR_ANY) {
-        return (g_prev > 0.0 && g_curr <= 0.0)
-            || (g_prev < 0.0 && g_curr >= 0.0)
-            || (g_prev != 0.0 && g_curr == 0.0);
+        return (g_prev > 0.0 && g_curr <= 0.0) || (g_prev < 0.0 && g_curr >= 0.0) || (g_prev != 0.0 && g_curr == 0.0);
     }
     return false;
 }
@@ -304,26 +292,27 @@ static inline bool geo_event_check_sign(double g_prev, double g_curr,
  * @param[out] root      输出：根的精确位置
  * @return 实际迭代次数，超过 max_iter 返回 -1
  */
-static inline int geo_event_root_brent(Lv00EventDetector *detector,
-                                        int event_id,
-                                        const double *param_a,
-                                        const double *param_b,
-                                        int dim,
-                                        double a, double b,
-                                        double ga, double gb,
-                                        double tol, int max_iter,
-                                        double *root) {
+static inline int geo_event_root_brent(Lv00EventDetector *detector, int event_id, const double *param_a,
+                                       const double *param_b, int dim, double a, double b, double ga, double gb,
+                                       double tol, int max_iter, double *root) {
     double c = b, gc = gb;
     double d = b - a, e = d;
     double m, tol_act, p, q, r, s;
 
     for (int iter = 1; iter <= max_iter; ++iter) {
         if ((gb > 0.0 && gc > 0.0) || (gb < 0.0 && gc < 0.0)) {
-            c = a; gc = ga; d = b - a; e = d;
+            c = a;
+            gc = ga;
+            d = b - a;
+            e = d;
         }
         if (fabs(gc) < fabs(gb)) {
-            a = b;  b = c;  c = a;
-            ga = gb; gb = gc; gc = ga;
+            a = b;
+            b = c;
+            c = a;
+            ga = gb;
+            gb = gc;
+            gc = ga;
         }
         tol_act = 2.0 * LV00_EPSILON * fabs(b) + 0.5 * tol;
         m = 0.5 * (c - b);
@@ -334,7 +323,8 @@ static inline int geo_event_root_brent(Lv00EventDetector *detector,
         }
 
         if (fabs(e) < tol_act || fabs(ga) <= fabs(gb)) {
-            d = m; e = m;
+            d = m;
+            e = m;
         } else {
             s = gb / ga;
             if (a == c) {
@@ -346,15 +336,21 @@ static inline int geo_event_root_brent(Lv00EventDetector *detector,
                 p = s * (2.0 * m * q * (q - r) - (b - a) * (r - 1.0));
                 q = (q - 1.0) * (r - 1.0) * (s - 1.0);
             }
-            if (p > 0.0) q = -q; else p = -p;
-            s = e; e = d;
+            if (p > 0.0)
+                q = -q;
+            else
+                p = -p;
+            s = e;
+            e = d;
             if (2.0 * p < 3.0 * m * q - fabs(tol_act * q) && p < fabs(0.5 * s * q)) {
                 d = p / q;
             } else {
-                d = m; e = m;
+                d = m;
+                e = m;
             }
         }
-        a = b; ga = gb;
+        a = b;
+        ga = gb;
         if (fabs(d) > tol_act) {
             b = b + d;
         } else {
@@ -363,11 +359,12 @@ static inline int geo_event_root_brent(Lv00EventDetector *detector,
 
         double g;
         int ret = detector->events[event_id].func(b, param_b, dim, &g, detector);
-        if (ret != 0) return -1;
+        if (ret != 0)
+            return -1;
         gb = g;
     }
     *root = b;
-    return -1;  /* 超过最大迭代 */
+    return -1; /* 超过最大迭代 */
 }
 
 /* ═══════════════════════════════════════════════════════════════

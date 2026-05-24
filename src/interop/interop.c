@@ -17,21 +17,23 @@
  */
 
 #include "interop.h"
-#include "lv00_utils.h"
-#include "lv00_internal.h"   /* LV00_SAFE_SNPRINTF, M_PI 等内部宏 */
-#include "error_codes.h"
-#include "proof.h"
-#include "symbolic_coord.h"
-#include "constraint_graph.h"
-#include "engine.h"
-#include "stream.h"
-#include "stream_context_util.h"
-#include <string.h>
+
+#include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <math.h>
+#include <string.h>
 #include <time.h>
+
+#include "constraint_graph.h"
+#include "engine.h"
+#include "error_codes.h"
+#include "lv00_internal.h" /* LV00_SAFE_SNPRINTF, M_PI 等内部宏 */
+#include "lv00_utils.h"
+#include "proof.h"
+#include "stream.h"
+#include "stream_context_util.h"
+#include "symbolic_coord.h"
 
 /* ==================== 条件编译：套接字支持 ==================== */
 
@@ -41,15 +43,15 @@
  * 仅保留基本的参数验证和状态管理（桩实现模式）。
  */
 #if defined(_WIN32) || defined(_WIN64)
-  /* 尝试包含Winsock2头文件用于套接字初始化 */
-  #if __has_include(<winsock2.h>)
-    #include <winsock2.h>
-    #define INTEROP_HAS_WINSOCK 1
-  #else
-    #define INTEROP_HAS_WINSOCK 0
-  #endif
+/* 尝试包含Winsock2头文件用于套接字初始化 */
+#if __has_include(<winsock2.h>)
+#include <winsock2.h>
+#define INTEROP_HAS_WINSOCK 1
 #else
-  #define INTEROP_HAS_WINSOCK 0
+#define INTEROP_HAS_WINSOCK 0
+#endif
+#else
+#define INTEROP_HAS_WINSOCK 0
 #endif
 
 /* ==================== 命名常量（消除魔术数字） ==================== */
@@ -114,16 +116,22 @@ static void stdout_lock_destroy(void) {
 static pthread_mutex_t g_stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /** @brief 初始化 stdout 互斥锁（pthread 版本，静态初始化，无需额外操作） */
-static void stdout_lock_init(void)    { /* 静态初始化，无需额外操作 */ }
+static void stdout_lock_init(void) { /* 静态初始化，无需额外操作 */ }
 
 /** @brief 获取 stdout 互斥锁 */
-static void stdout_lock_acquire(void)  { pthread_mutex_lock(&g_stdout_mutex); }
+static void stdout_lock_acquire(void) {
+    pthread_mutex_lock(&g_stdout_mutex);
+}
 
 /** @brief 释放 stdout 互斥锁 */
-static void stdout_lock_release(void){ pthread_mutex_unlock(&g_stdout_mutex); }
+static void stdout_lock_release(void) {
+    pthread_mutex_unlock(&g_stdout_mutex);
+}
 
 /** @brief 销毁 stdout 互斥锁 */
-static void stdout_lock_destroy(void) { pthread_mutex_destroy(&g_stdout_mutex); }
+static void stdout_lock_destroy(void) {
+    pthread_mutex_destroy(&g_stdout_mutex);
+}
 #endif
 
 /* ==================== 模块级流式上下文 ==================== */
@@ -153,14 +161,16 @@ LV00_DECLARE_STREAM_CTX(interop)
  * @param user_data  指向 InteropServer 的指针（用于统计）
  */
 static void interop_stream_callback(const StreamEvent *event, void *user_data) {
-    if (!event) return;
+    if (!event)
+        return;
 
-    InteropServer *server = (InteropServer *)user_data;
+    InteropServer *server = (InteropServer *) user_data;
 
     /* 序列化为 JSON-RPC notification */
     char json_buf[STREAM_JSON_BUFFER_DEFAULT_SIZE + 256];
     int len = stream_event_to_jsonrpc(event, json_buf, sizeof(json_buf));
-    if (len <= 0) return;
+    if (len <= 0)
+        return;
 
     /* 输出到 stdout（每行一个 JSON-RPC notification）
      * 加锁保护 printf 调用，防止多线程输出交错 */
@@ -186,10 +196,12 @@ static void interop_stream_callback(const StreamEvent *event, void *user_data) {
  * @return true 成功，false 失败
  */
 static bool interop_attach_stream_callback(InteropServer *server, LV00Engine *engine) {
-    if (!server || !engine) return false;
+    if (!server || !engine)
+        return false;
 
     StreamContext *stream_ctx = engine_get_stream_context(engine);
-    if (!stream_ctx) return false;
+    if (!stream_ctx)
+        return false;
 
     /* 如果之前已注册，先注销 */
     if (server->stream_callback_id >= 0) {
@@ -198,12 +210,9 @@ static bool interop_attach_stream_callback(InteropServer *server, LV00Engine *en
     }
 
     /* 注册带过滤的回调 */
-    int cb_id = stream_register_callback_ex(
-        stream_ctx,
-        interop_stream_callback,
-        server,  /* user_data: 传递 server 指针用于统计 */
-        server->stream_filter_mask
-    );
+    int cb_id = stream_register_callback_ex(stream_ctx, interop_stream_callback,
+                                            server, /* user_data: 传递 server 指针用于统计 */
+                                            server->stream_filter_mask);
 
     if (cb_id >= 0) {
         server->stream_callback_id = cb_id;
@@ -221,10 +230,12 @@ static bool interop_attach_stream_callback(InteropServer *server, LV00Engine *en
  * @param engine  引擎实例
  */
 static void interop_detach_stream_callback(InteropServer *server, LV00Engine *engine) {
-    if (!server || !engine) return;
+    if (!server || !engine)
+        return;
 
     StreamContext *stream_ctx = engine_get_stream_context(engine);
-    if (!stream_ctx) return;
+    if (!stream_ctx)
+        return;
 
     if (server->stream_callback_id >= 0) {
         stream_unregister_callback_by_id(stream_ctx, server->stream_callback_id);
@@ -243,16 +254,17 @@ static void interop_detach_stream_callback(InteropServer *server, LV00Engine *en
  * @param type 接口类型（WebSocket 或 STDIO）
  * @return 新分配的服务器指针，失败返回 NULL
  */
-InteropServer* interop_server_create(InteropInterfaceType type) {
+InteropServer *interop_server_create(InteropInterfaceType type) {
     /* 初始化 stdout 互斥锁（仅首次创建时生效） */
     stdout_lock_init();
-    
-    InteropServer *server = (InteropServer*)lv00_malloc(sizeof(InteropServer));
-    if (!server) return NULL;
+
+    InteropServer *server = (InteropServer *) lv00_malloc(sizeof(InteropServer));
+    if (!server)
+        return NULL;
     memset(server, 0, sizeof(InteropServer));
     server->type = type;
     server->stream_callback_id = -1;
-    server->stream_filter_mask = STREAM_FILTER_ALL;  /* 默认接收所有事件 */
+    server->stream_filter_mask = STREAM_FILTER_ALL; /* 默认接收所有事件 */
     return server;
 }
 
@@ -264,13 +276,14 @@ InteropServer* interop_server_create(InteropInterfaceType type) {
  * @param server 服务器指针（可为 NULL）
  */
 void interop_server_destroy(InteropServer *server) {
-    if (!server) return;
+    if (!server)
+        return;
 
     if (server->running) {
         interop_server_stop(server);
     }
 
-    lv00_free((void**)&server);
+    lv00_free((void **) &server);
 }
 
 int interop_server_start(InteropServer *server, int port) {
@@ -292,18 +305,17 @@ int interop_server_start(InteropServer *server, int port) {
      *         LV00_ERROR_INVALID_STATE 服务器已在运行
      *         LV00_ERROR_IO Winsock初始化失败（仅Windows）
      */
-    if (!server) return LV00_ERROR_INVALID_PARAM;
+    if (!server)
+        return LV00_ERROR_INVALID_PARAM;
 
     if (server->running) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE,
-            "服务器已在运行中，请先调用interop_server_stop停止当前服务器");
+        lv00_set_error(LV00_ERROR_INVALID_STATE, "服务器已在运行中，请先调用interop_server_stop停止当前服务器");
         return LV00_ERROR_INVALID_STATE;
     }
 
     /* 参数验证：端口号范围检查 */
     if (port < 0 || port > 65535) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM,
-            "无效的端口号=%d，端口范围为0-65535", port);
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "无效的端口号=%d，端口范围为0-65535", port);
         return LV00_ERROR_INVALID_PARAM;
     }
 
@@ -318,8 +330,9 @@ int interop_server_start(InteropServer *server, int port) {
         int wsa_result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
         if (wsa_result != 0) {
             lv00_set_error(LV00_ERROR_IO,
-                "Winsock初始化失败（错误码=%d）。"
-                "请检查网络驱动是否正常安装。", wsa_result);
+                           "Winsock初始化失败（错误码=%d）。"
+                           "请检查网络驱动是否正常安装。",
+                           wsa_result);
             return LV00_ERROR_IO;
         }
 
@@ -329,8 +342,7 @@ int interop_server_start(InteropServer *server, int port) {
             int err = WSAGetLastError();
             WSACleanup();
             /* 修复：套接字创建失败时应返回错误码，不应设置 running=true */
-            lv00_set_error(LV00_ERROR_IO,
-                "创建监听套接字失败（Winsock错误码=%d）。", err);
+            lv00_set_error(LV00_ERROR_IO, "创建监听套接字失败（Winsock错误码=%d）。", err);
             return LV00_ERROR_IO;
         }
 
@@ -339,15 +351,14 @@ int interop_server_start(InteropServer *server, int port) {
         memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
-        addr.sin_port = htons((u_short)server->port);
+        addr.sin_port = htons((u_short) server->port);
 
-        if (bind(listen_sock, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        if (bind(listen_sock, (struct sockaddr *) &addr, sizeof(addr)) == SOCKET_ERROR) {
             int err = WSAGetLastError();
             closesocket(listen_sock);
             WSACleanup();
             /* 修复：绑定失败时应返回错误码，不应设置 running=true */
-            lv00_set_error(LV00_ERROR_IO,
-                "套接字绑定失败（Winsock错误码=%d）。", err);
+            lv00_set_error(LV00_ERROR_IO, "套接字绑定失败（Winsock错误码=%d）。", err);
             return LV00_ERROR_IO;
         }
 
@@ -357,13 +368,12 @@ int interop_server_start(InteropServer *server, int port) {
             closesocket(listen_sock);
             WSACleanup();
             /* 监听失败时应返回错误码，不应设置 running=true */
-            lv00_set_error(LV00_ERROR_IO,
-                "套接字监听失败（Winsock错误码=%d）。", err);
+            lv00_set_error(LV00_ERROR_IO, "套接字监听失败（Winsock错误码=%d）。", err);
             return LV00_ERROR_IO;
         }
 
         /* 存储套接字句柄到internal_data */
-        server->internal_data = (void*)(intptr_t)listen_sock;
+        server->internal_data = (void *) (intptr_t) listen_sock;
         /* WebSocket服务器已在端口上启动成功（套接字已创建并监听） */
     }
 #else
@@ -392,11 +402,11 @@ int interop_server_stop(InteropServer *server) {
      *         LV00_ERROR_INVALID_PARAM server为NULL
      *         LV00_ERROR_INVALID_STATE 服务器未在运行
      */
-    if (!server) return LV00_ERROR_INVALID_PARAM;
+    if (!server)
+        return LV00_ERROR_INVALID_PARAM;
 
     if (!server->running) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE,
-            "服务器当前未运行，无需停止");
+        lv00_set_error(LV00_ERROR_INVALID_STATE, "服务器当前未运行，无需停止");
         return LV00_ERROR_INVALID_STATE;
     }
 
@@ -404,7 +414,7 @@ int interop_server_stop(InteropServer *server) {
 #if INTEROP_HAS_WINSOCK
     if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
         if (server->internal_data) {
-            SOCKET sock = (SOCKET)(intptr_t)server->internal_data;
+            SOCKET sock = (SOCKET) (intptr_t) server->internal_data;
             shutdown(sock, SD_BOTH);
             closesocket(sock);
             server->internal_data = NULL;
@@ -420,9 +430,7 @@ int interop_server_stop(InteropServer *server) {
     return LV00_OK;
 }
 
-int interop_server_process_command(InteropServer *server,
-                                   const char *input,
-                                   char *output, size_t output_size) {
+int interop_server_process_command(InteropServer *server, const char *input, char *output, size_t output_size) {
     /**
      * @brief 处理单个互操作命令（STDIO/WebSocket通用入口）
      *
@@ -459,9 +467,9 @@ int interop_server_process_command(InteropServer *server,
     int result = interop_parse_command(input, &cmd);
     if (result != LV00_OK) {
         snprintf(output, output_size,
-            "{\"error\": \"Parse error\", \"code\": %d, "
-            "\"input_preview\": \"%.64s\"}",
-            result, input);
+                 "{\"error\": \"Parse error\", \"code\": %d, "
+                 "\"input_preview\": \"%.64s\"}",
+                 result, input);
         return result;
     }
 
@@ -492,13 +500,10 @@ int interop_server_process_command(InteropServer *server,
     LV00Engine *engine = engine_create();
     if (!engine) {
         resp.status_code = LV00_ERROR_OUT_OF_MEMORY;
-        lv00_strlcpy(resp.data,
-            "{\"error\": \"Failed to create engine instance\"}",
-            sizeof(resp.data));
+        lv00_strlcpy(resp.data, "{\"error\": \"Failed to create engine instance\"}", sizeof(resp.data));
         resp.data_len = strlen(resp.data);
 
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-            "命令处理失败：无法创建临时引擎实例以处理命令类型=%d", cmd.type);
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "命令处理失败：无法创建临时引擎实例以处理命令类型=%d", cmd.type);
     } else {
         /* 如果服务器启用了流式输出，注册流式回调 */
         if (server->stream_enabled) {
@@ -509,7 +514,8 @@ int interop_server_process_command(InteropServer *server,
 
         /* 刷新异步队列确保所有事件已输出 */
         StreamContext *sctx = engine_get_stream_context(engine);
-        if (sctx) stream_flush(sctx);
+        if (sctx)
+            stream_flush(sctx);
 
         /* 注销流式回调 */
         if (server->stream_enabled) {
@@ -559,11 +565,11 @@ int interop_server_run(InteropServer *server) {
      *         LV00_ERROR_INVALID_PARAM server 为 NULL
      *         LV00_ERROR_INVALID_STATE 服务器未启动
      */
-    if (!server) return LV00_ERROR_INVALID_PARAM;
+    if (!server)
+        return LV00_ERROR_INVALID_PARAM;
 
     if (!server->running) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE,
-            "服务器未启动，请先调用 interop_server_start");
+        lv00_set_error(LV00_ERROR_INVALID_STATE, "服务器未启动，请先调用 interop_server_start");
         return LV00_ERROR_INVALID_STATE;
     }
 
@@ -572,19 +578,16 @@ int interop_server_run(InteropServer *server) {
         char input[INTEROP_CMD_BUFFER_SIZE];
         char output[INTEROP_RESP_BUFFER_SIZE];
 
-        lv00_set_error(LV00_OK,
-            "STDIO互操作服务器已启动，等待标准输入命令...");
+        lv00_set_error(LV00_OK, "STDIO互操作服务器已启动，等待标准输入命令...");
 
         while (server->running) {
             /* 读取输入 */
             if (!fgets(input, sizeof(input), stdin)) {
                 /* EOF 或读取错误 */
                 if (feof(stdin)) {
-                    lv00_set_error(LV00_OK,
-                        "STDIO输入流已关闭（EOF），服务器退出");
+                    lv00_set_error(LV00_OK, "STDIO输入流已关闭（EOF），服务器退出");
                 } else {
-                    lv00_set_error(LV00_ERROR_IO,
-                        "STDIO读取错误，服务器退出");
+                    lv00_set_error(LV00_ERROR_IO, "STDIO读取错误，服务器退出");
                 }
                 break;
             }
@@ -597,7 +600,8 @@ int interop_server_run(InteropServer *server) {
             }
 
             /* 跳过空行 */
-            if (len == 0) continue;
+            if (len == 0)
+                continue;
 
             /* 处理命令 */
             int result = interop_server_process_command(server, input, output, sizeof(output));
@@ -612,21 +616,20 @@ int interop_server_run(InteropServer *server) {
         }
     } else if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
         /* ====== WebSocket 模式：骨架实现 ====== */
-        lv00_set_error(LV00_OK,
-            "WebSocket服务器主循环已启动（端口=%d）", server->port);
+        lv00_set_error(LV00_OK, "WebSocket服务器主循环已启动（端口=%d）", server->port);
 
 #if INTEROP_HAS_WINSOCK
-        SOCKET listen_sock = (SOCKET)(intptr_t)server->internal_data;
+        SOCKET listen_sock = (SOCKET) (intptr_t) server->internal_data;
         if (listen_sock == INVALID_SOCKET || listen_sock == 0) {
             lv00_set_error(LV00_ERROR_IO,
-                "WebSocket循环失败：监听套接字无效（listen_sock=%p）。"
-                "请确认 interop_server_start 已成功绑定端口。",
-                (void*)(intptr_t)listen_sock);
+                           "WebSocket循环失败：监听套接字无效（listen_sock=%p）。"
+                           "请确认 interop_server_start 已成功绑定端口。",
+                           (void *) (intptr_t) listen_sock);
             return LV00_ERROR_IO;
         }
 
-        /* 客户端管理 */
-        #define WS_MAX_CLIENTS 16
+/* 客户端管理 */
+#define WS_MAX_CLIENTS 16
         SOCKET client_socks[WS_MAX_CLIENTS];
         int client_count = 0;
         memset(client_socks, 0, sizeof(client_socks));
@@ -637,9 +640,9 @@ int interop_server_run(InteropServer *server) {
         {
             char msg[160];
             snprintf(msg, sizeof(msg),
-                "WebSocket服务器正在端口%d上监听（最大%d个并发客户端），"
-                "同时接受STDIN命令",
-                server->port, WS_MAX_CLIENTS);
+                     "WebSocket服务器正在端口%d上监听（最大%d个并发客户端），"
+                     "同时接受STDIN命令",
+                     server->port, WS_MAX_CLIENTS);
             lv00_set_error(LV00_OK, "%s", msg);
         }
 
@@ -667,11 +670,10 @@ int interop_server_run(InteropServer *server) {
             tv.tv_sec = 0;
             tv.tv_usec = 100000; /* 100ms */
 
-            int sel_ret = select((int)(max_sock + 1), &readfds, NULL, NULL, &tv);
+            int sel_ret = select((int) (max_sock + 1), &readfds, NULL, NULL, &tv);
             if (sel_ret < 0) {
                 int err = WSAGetLastError();
-                lv00_set_error(LV00_ERROR_IO,
-                    "WebSocket select() 出错（Winsock错误码=%d），服务器退出", err);
+                lv00_set_error(LV00_ERROR_IO, "WebSocket select() 出错（Winsock错误码=%d），服务器退出", err);
                 break;
             }
 
@@ -679,18 +681,15 @@ int interop_server_run(InteropServer *server) {
             if (FD_ISSET(listen_sock, &readfds)) {
                 struct sockaddr_in client_addr;
                 int addr_len = sizeof(client_addr);
-                SOCKET client_sock = accept(listen_sock,
-                    (struct sockaddr*)&client_addr, &addr_len);
+                SOCKET client_sock = accept(listen_sock, (struct sockaddr *) &client_addr, &addr_len);
                 if (client_sock != INVALID_SOCKET) {
                     if (client_count < WS_MAX_CLIENTS) {
                         client_socks[client_count++] = client_sock;
-                        lv00_set_error(LV00_OK,
-                            "WebSocket客户端已连接（套接字=%p，总计%d个客户端）",
-                            (void*)client_sock, client_count);
+                        lv00_set_error(LV00_OK, "WebSocket客户端已连接（套接字=%p，总计%d个客户端）",
+                                       (void *) client_sock, client_count);
                     } else {
-                        lv00_set_error(LV00_ERROR_RESOURCE_EXHAUSTED,
-                            "WebSocket客户端连接被拒绝：已达最大客户端数%d",
-                            WS_MAX_CLIENTS);
+                        lv00_set_error(LV00_ERROR_RESOURCE_EXHAUSTED, "WebSocket客户端连接被拒绝：已达最大客户端数%d",
+                                       WS_MAX_CLIENTS);
                         closesocket(client_sock);
                     }
                 }
@@ -698,8 +697,10 @@ int interop_server_run(InteropServer *server) {
 
             /* 处理客户端消息 */
             for (int i = 0; i < client_count; i++) {
-                if (client_socks[i] == INVALID_SOCKET) continue;
-                if (!FD_ISSET(client_socks[i], &readfds)) continue;
+                if (client_socks[i] == INVALID_SOCKET)
+                    continue;
+                if (!FD_ISSET(client_socks[i], &readfds))
+                    continue;
 
                 SOCKET cs = client_socks[i];
                 int recv_len = recv(cs, input, sizeof(input) - 1, 0);
@@ -707,9 +708,8 @@ int interop_server_run(InteropServer *server) {
                 if (recv_len <= 0) {
                     /* 客户端断开连接 */
                     int err = WSAGetLastError();
-                    lv00_set_error(LV00_OK,
-                        "WebSocket客户端断开（套接字=%p，错误码=%d）",
-                        (void*)cs, (recv_len == 0 ? 0 : err));
+                    lv00_set_error(LV00_OK, "WebSocket客户端断开（套接字=%p，错误码=%d）", (void *) cs,
+                                   (recv_len == 0 ? 0 : err));
                     closesocket(cs);
                     client_socks[i] = INVALID_SOCKET;
                     continue;
@@ -719,13 +719,13 @@ int interop_server_run(InteropServer *server) {
 
                 /* 去除尾部换行符 */
                 size_t in_len = strlen(input);
-                while (in_len > 0 &&
-                       (input[in_len - 1] == '\n' || input[in_len - 1] == '\r')) {
+                while (in_len > 0 && (input[in_len - 1] == '\n' || input[in_len - 1] == '\r')) {
                     input[in_len - 1] = '\0';
                     in_len--;
                 }
 
-                if (in_len == 0) continue;
+                if (in_len == 0)
+                    continue;
 
                 /* 处理命令 */
                 int result = interop_server_process_command(server, input, output, sizeof(output));
@@ -737,7 +737,7 @@ int interop_server_run(InteropServer *server) {
                         output[out_len + 1] = '\0';
                         out_len++;
                     }
-                    send(cs, output, (int)out_len, 0);
+                    send(cs, output, (int) out_len, 0);
                 }
             }
 
@@ -763,14 +763,13 @@ int interop_server_run(InteropServer *server) {
                 closesocket(client_socks[i]);
             }
         }
-        lv00_set_error(LV00_OK,
-            "WebSocket主循环已退出，已关闭%d个客户端连接", client_count);
+        lv00_set_error(LV00_OK, "WebSocket主循环已退出，已关闭%d个客户端连接", client_count);
 
 #else
         /* 无 Winsock 支持：降级为 STDIO 输入处理 */
         lv00_set_error(LV00_WARNING,
-            "警告：未检测到Winsock2库，WebSocket服务器运行在STDIO降级模式。"
-            "请安装Windows SDK以启用完整的网络功能。");
+                       "警告：未检测到Winsock2库，WebSocket服务器运行在STDIO降级模式。"
+                       "请安装Windows SDK以启用完整的网络功能。");
 
         char input[INTEROP_CMD_BUFFER_SIZE];
         char output[INTEROP_RESP_BUFFER_SIZE];
@@ -779,14 +778,16 @@ int interop_server_run(InteropServer *server) {
             printf("Lv-00 WS (stdio fallback) > ");
             fflush(stdout);
 
-            if (!fgets(input, sizeof(input), stdin)) break;
+            if (!fgets(input, sizeof(input), stdin))
+                break;
 
             size_t len = strlen(input);
             while (len > 0 && (input[len - 1] == '\n' || input[len - 1] == '\r')) {
                 input[len - 1] = '\0';
                 len--;
             }
-            if (len == 0) continue;
+            if (len == 0)
+                continue;
 
             int result = interop_server_process_command(server, input, output, sizeof(output));
             if (result == LV00_OK) {
@@ -813,7 +814,8 @@ int interop_server_run(InteropServer *server) {
  * @return LV00_OK 成功，错误码表示失败原因
  */
 int interop_parse_command(const char *input, InteropCommand *cmd) {
-    if (!input || !cmd) return LV00_ERROR_INVALID_PARAM;
+    if (!input || !cmd)
+        return LV00_ERROR_INVALID_PARAM;
 
     memset(cmd, 0, sizeof(InteropCommand));
 
@@ -823,7 +825,8 @@ int interop_parse_command(const char *input, InteropCommand *cmd) {
 
     /* 解析命令类型 */
     char *token = strtok(buffer, " ");
-    if (!token) return LV00_ERROR_PARSE;
+    if (!token)
+        return LV00_ERROR_PARSE;
 
     if (strcmp(token, "AddNode") == 0) {
         cmd->type = INTEROP_CMD_ADD_NODE;
@@ -884,17 +887,14 @@ int interop_parse_command(const char *input, InteropCommand *cmd) {
  * @param output_size 缓冲区大小
  * @return LV00_OK 成功，LV00_ERROR_BUFFER_TOO_SMALL 缓冲区不足
  */
-int interop_serialize_response(const InteropResponse *resp,
-                               char *output, size_t output_size) {
-    if (!resp || !output || output_size == 0) return LV00_ERROR_INVALID_PARAM;
+int interop_serialize_response(const InteropResponse *resp, char *output, size_t output_size) {
+    if (!resp || !output || output_size == 0)
+        return LV00_ERROR_INVALID_PARAM;
 
-    int written = snprintf(output, output_size,
-                                "{\"request_id\": %d, \"status\": %d, \"data\": \"%s\"}",
-                                resp->request_id,
-                                resp->status_code,
-                                resp->data);
+    int written = snprintf(output, output_size, "{\"request_id\": %d, \"status\": %d, \"data\": \"%s\"}",
+                           resp->request_id, resp->status_code, resp->data);
 
-    return (written >= (int)output_size) ? LV00_ERROR_BUFFER_TOO_SMALL : LV00_OK;
+    return (written >= (int) output_size) ? LV00_ERROR_BUFFER_TOO_SMALL : LV00_OK;
 }
 
 /**
@@ -907,9 +907,7 @@ int interop_serialize_response(const InteropResponse *resp,
  * @param resp   输出参数，接收执行结果
  * @return LV00_OK 成功，错误码表示失败原因
  */
-int interop_execute_command(LV00Engine *engine,
-                            const InteropCommand *cmd,
-                            InteropResponse *resp) {
+int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     /**
      * @brief 执行互操作命令
      *
@@ -930,7 +928,8 @@ int interop_execute_command(LV00Engine *engine,
      *         LV00_ERROR_INVALID_PARAM 参数无效
      *         LV00_ERROR_UNSUPPORTED 命令类型不支持
      */
-    if (!engine || !cmd || !resp) return LV00_ERROR_INVALID_PARAM;
+    if (!engine || !cmd || !resp)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* 初始化响应状态 */
     resp->status_code = LV00_OK;
@@ -947,9 +946,8 @@ int interop_execute_command(LV00Engine *engine,
                 node_count = engine->main_graph->node_count;
                 constraint_count = engine->main_graph->constraint_count;
             }
-            snprintf(resp->data, sizeof(resp->data),
-                "{\"status\": \"running\", \"nodes\": %d, \"constraints\": %d}",
-                node_count, constraint_count);
+            snprintf(resp->data, sizeof(resp->data), "{\"status\": \"running\", \"nodes\": %d, \"constraints\": %d}",
+                     node_count, constraint_count);
             break;
         }
 
@@ -966,20 +964,18 @@ int interop_execute_command(LV00Engine *engine,
                     size_t json_len = strlen(json_str);
                     if (json_len >= sizeof(resp->data)) {
                         lv00_strlcpy(resp->data, json_str, sizeof(resp->data));
-                        snprintf(resp->data + sizeof(resp->data) - 64,
-                                         64, "...(truncated, total=%zu bytes)", json_len);
+                        snprintf(resp->data + sizeof(resp->data) - 64, 64, "...(truncated, total=%zu bytes)", json_len);
                     } else {
                         lv00_strlcpy(resp->data, json_str, sizeof(resp->data));
                     }
-                    lv00_free((void**)&json_str);
+                    lv00_free((void **) &json_str);
                 } else {
-                    lv00_strlcpy(resp->data,
-                        "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
+                    lv00_strlcpy(resp->data, "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
                 }
             } else {
                 lv00_strlcpy(resp->data,
-                    "{\"nodes\": [], \"constraints\": [], \"info\": \"Graph is empty or not loaded\"}",
-                    sizeof(resp->data));
+                             "{\"nodes\": [], \"constraints\": [], \"info\": \"Graph is empty or not loaded\"}",
+                             sizeof(resp->data));
             }
             break;
 
@@ -987,57 +983,47 @@ int interop_execute_command(LV00Engine *engine,
         case INTEROP_CMD_ADD_NODE: {
             if (cmd->param_count < 3) {
                 resp->status_code = LV00_ERROR_INVALID_PARAM;
-                lv00_strlcpy(resp->data,
-                    "Usage: AddNode <type> <x> <y> [extra...]",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Usage: AddNode <type> <x> <y> [extra...]", sizeof(resp->data));
                 break;
             }
             if (!engine->main_graph) {
                 resp->status_code = LV00_ERROR_INVALID_STATE;
-                lv00_strlcpy(resp->data,
-                    "No graph initialized - create a graph first",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "No graph initialized - create a graph first", sizeof(resp->data));
                 break;
             }
             const char *type_str = cmd->params[0];
-            if (strcmp(type_str, "Point") == 0 ||
-                strcmp(type_str, "point") == 0) {
+            if (strcmp(type_str, "Point") == 0 || strcmp(type_str, "point") == 0) {
                 /* 解析坐标字符串：支持整数(如 "3")和小数(如 "1.5")，
                  * 使用双精度转有理数近似，分母固定为1000000 */
                 SymbolicCoord *coords[3] = {NULL, NULL, NULL};
                 int coord_count = 0;
                 for (int i = 1; i < cmd->param_count && (i - 1) < 3; i++) {
                     double val = atof(cmd->params[i]);
-                    int64_t num = (int64_t)(val * 1000000.0);
+                    int64_t num = (int64_t) (val * 1000000.0);
                     coords[i - 1] = symbolic_coord_create_rational(num, 1000000UL);
-                    if (coords[i - 1]) coord_count++;
+                    if (coords[i - 1])
+                        coord_count++;
                 }
                 if (coord_count > 0) {
-                    AddNodeResult result = graph_add_point(
-                        engine->main_graph, coords, coord_count);
+                    AddNodeResult result = graph_add_point(engine->main_graph, coords, coord_count);
                     for (int i = 0; i < 3 && coords[i]; i++) {
                         symbolic_coord_destroy(coords[i]);
                     }
                     if (result == ADD_NODE_OK) {
-                        snprintf(resp->data, sizeof(resp->data),
-                            "{\"result\": \"ok\", \"node_id\": %d}",
-                            engine->main_graph->next_node_id - 1);
+                        snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d}",
+                                 engine->main_graph->next_node_id - 1);
                     } else {
                         resp->status_code = LV00_ERROR_UNSUPPORTED;
-                        snprintf(resp->data, sizeof(resp->data),
-                            "{\"result\": \"failed\", \"code\": %d}", result);
+                        snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"code\": %d}", result);
                     }
                 } else {
                     resp->status_code = LV00_ERROR_UNSUPPORTED;
-                    lv00_strlcpy(resp->data,
-                        "Failed to create coordinate objects from input",
-                        sizeof(resp->data));
+                    lv00_strlcpy(resp->data, "Failed to create coordinate objects from input", sizeof(resp->data));
                 }
             } else {
                 resp->status_code = LV00_ERROR_UNSUPPORTED;
-                lv00_strlcpy(resp->data,
-                    "Only Point type is supported for AddNode via command line",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Only Point type is supported for AddNode via command line",
+                             sizeof(resp->data));
             }
             break;
         }
@@ -1045,8 +1031,7 @@ int interop_execute_command(LV00Engine *engine,
         case INTEROP_CMD_REMOVE_NODE: {
             if (cmd->param_count < 1) {
                 resp->status_code = LV00_ERROR_INVALID_PARAM;
-                lv00_strlcpy(resp->data,
-                    "Usage: RemoveNode <node_id>", sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Usage: RemoveNode <node_id>", sizeof(resp->data));
                 break;
             }
             if (!engine->main_graph) {
@@ -1057,13 +1042,11 @@ int interop_execute_command(LV00Engine *engine,
             int node_id = atoi(cmd->params[0]);
             RemoveNodeResult result = graph_remove_node(engine->main_graph, node_id);
             if (result == REMOVE_NODE_OK) {
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"ok\", \"removed_node_id\": %d}", node_id);
+                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_node_id\": %d}", node_id);
             } else {
                 resp->status_code = LV00_ERROR_NOT_FOUND;
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"failed\", \"node_id\": %d, \"code\": %d}",
-                    node_id, result);
+                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"node_id\": %d, \"code\": %d}",
+                         node_id, result);
             }
             break;
         }
@@ -1072,9 +1055,7 @@ int interop_execute_command(LV00Engine *engine,
         case INTEROP_CMD_ADD_CONSTRAINT: {
             if (cmd->param_count < 3) {
                 resp->status_code = LV00_ERROR_INVALID_PARAM;
-                lv00_strlcpy(resp->data,
-                    "Usage: AddConstraint <type> <id1> <id2> [id3]",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Usage: AddConstraint <type> <id1> <id2> [id3]", sizeof(resp->data));
                 break;
             }
             if (!engine->main_graph) {
@@ -1091,26 +1072,20 @@ int interop_execute_command(LV00Engine *engine,
             }
             int ok = 0;
             if (strcmp(ct, "incidence") == 0 || strcmp(ct, "Incidence") == 0) {
-                ok = (graph_add_incidence(engine->main_graph,
-                    participants[0], participants[1]) == ADD_CONSTRAINT_OK);
+                ok = (graph_add_incidence(engine->main_graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK);
             } else if (strcmp(ct, "betweenness") == 0 || strcmp(ct, "Betweenness") == 0) {
-                ok = (graph_add_betweenness(engine->main_graph,
-                    participants[0], participants[1],
-                    pcount > 2 ? participants[2] : participants[1])
-                    == ADD_CONSTRAINT_OK);
+                ok = (graph_add_betweenness(engine->main_graph, participants[0], participants[1],
+                                            pcount > 2 ? participants[2] : participants[1]) == ADD_CONSTRAINT_OK);
             } else {
                 resp->status_code = LV00_ERROR_UNSUPPORTED;
-                lv00_strlcpy(resp->data,
-                    "Unsupported constraint type", sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Unsupported constraint type", sizeof(resp->data));
                 break;
             }
             if (ok) {
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"ok\"}");
+                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\"}");
             } else {
                 resp->status_code = LV00_ERROR_UNSUPPORTED;
-                lv00_strlcpy(resp->data,
-                    "{\"result\": \"failed\"}", sizeof(resp->data));
+                lv00_strlcpy(resp->data, "{\"result\": \"failed\"}", sizeof(resp->data));
             }
             break;
         }
@@ -1118,9 +1093,7 @@ int interop_execute_command(LV00Engine *engine,
         case INTEROP_CMD_REMOVE_CONSTRAINT: {
             if (cmd->param_count < 1) {
                 resp->status_code = LV00_ERROR_INVALID_PARAM;
-                lv00_strlcpy(resp->data,
-                    "Usage: RemoveConstraint <constraint_index>",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Usage: RemoveConstraint <constraint_index>", sizeof(resp->data));
                 break;
             }
             if (!engine->main_graph) {
@@ -1129,16 +1102,13 @@ int interop_execute_command(LV00Engine *engine,
                 break;
             }
             int cidx = atoi(cmd->params[0]);
-            RemoveConstraintResult rc = graph_remove_constraint(
-                engine->main_graph, cidx);
+            RemoveConstraintResult rc = graph_remove_constraint(engine->main_graph, cidx);
             if (rc == REMOVE_CONSTRAINT_OK) {
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"ok\", \"removed_index\": %d}", cidx);
+                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_index\": %d}", cidx);
             } else {
                 resp->status_code = LV00_ERROR_NOT_FOUND;
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"failed\", \"index\": %d, \"code\": %d}",
-                    cidx, rc);
+                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"failed\", \"index\": %d, \"code\": %d}", cidx,
+                         rc);
             }
             break;
         }
@@ -1151,22 +1121,19 @@ int interop_execute_command(LV00Engine *engine,
                 break;
             }
             resp->status_code = LV00_ERROR_UNSUPPORTED;
-            lv00_strlcpy(resp->data,
-                "PackFunction requires UI-level interaction for port selection",
-                sizeof(resp->data));
+            lv00_strlcpy(resp->data, "PackFunction requires UI-level interaction for port selection",
+                         sizeof(resp->data));
             break;
         }
 
         case INTEROP_CMD_INSTANTIATE: {
             if (!engine->main_graph || cmd->param_count < 2) {
                 resp->status_code = LV00_ERROR_INVALID_PARAM;
-                lv00_strlcpy(resp->data,
-                    "Usage: Instantiate <func_block_id> <arg1_id> ...",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Usage: Instantiate <func_block_id> <arg1_id> ...", sizeof(resp->data));
                 break;
             }
             int fb_id = atoi(cmd->params[0]);
-            int *arg_mappings = (int*)lv00_malloc(sizeof(int) * (cmd->param_count - 1));
+            int *arg_mappings = (int *) lv00_malloc(sizeof(int) * (cmd->param_count - 1));
             if (!arg_mappings) {
                 resp->status_code = LV00_ERROR_OUT_OF_MEMORY;
                 lv00_strlcpy(resp->data, "Out of memory", sizeof(resp->data));
@@ -1176,25 +1143,21 @@ int interop_execute_command(LV00Engine *engine,
                 arg_mappings[i - 1] = atoi(cmd->params[i]);
             }
             int result_count = 0;
-            int *results = engine_instantiate_function(engine, fb_id,
-                arg_mappings, cmd->param_count - 1, &result_count);
-            lv00_free((void**)&arg_mappings);
+            int *results =
+                engine_instantiate_function(engine, fb_id, arg_mappings, cmd->param_count - 1, &result_count);
+            lv00_free((void **) &arg_mappings);
             if (results && result_count > 0) {
-                int offset = snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"ok\", \"instantiated_ids\": [");
+                int offset = snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"instantiated_ids\": [");
                 for (int i = 0; i < result_count; i++) {
-                    offset += snprintf(resp->data + offset,
-                        sizeof(resp->data) - offset,
-                        "%s%d", (i > 0 ? ", " : ""), results[i]);
+                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "%s%d", (i > 0 ? ", " : ""),
+                                       results[i]);
                 }
-                snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                    "]}");
-                lv00_free((void**)&results);
+                snprintf(resp->data + offset, sizeof(resp->data) - offset, "]}");
+                lv00_free((void **) &results);
             } else {
                 resp->status_code = LV00_ERROR_UNSUPPORTED;
-                lv00_strlcpy(resp->data,
-                    "{\"result\": \"failed\", \"reason\": \"Instantiation failed\"}",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "{\"result\": \"failed\", \"reason\": \"Instantiation failed\"}",
+                             sizeof(resp->data));
             }
             break;
         }
@@ -1203,37 +1166,32 @@ int interop_execute_command(LV00Engine *engine,
         case INTEROP_CMD_SOLVE:
             if (!engine->main_graph) {
                 resp->status_code = LV00_ERROR_INVALID_STATE;
-                lv00_strlcpy(resp->data, "No graph loaded for solving",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "No graph loaded for solving", sizeof(resp->data));
             } else {
-                lv00_strlcpy(resp->data,
-                    "{\"result\": \"solved\", \"info\": \"Solver invoked - check engine state\"}",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "{\"result\": \"solved\", \"info\": \"Solver invoked - check engine state\"}",
+                             sizeof(resp->data));
             }
             break;
 
         case INTEROP_CMD_REWRITE:
             if (!engine->main_graph) {
                 resp->status_code = LV00_ERROR_INVALID_STATE;
-                lv00_strlcpy(resp->data, "No graph loaded for rewriting",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "No graph loaded for rewriting", sizeof(resp->data));
             } else {
                 snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"rewritten\", \"rules_applied\": 0, "
-                    "\"step_limit\": %d}",
-                    engine->rewrite_step_limit);
+                         "{\"result\": \"rewritten\", \"rules_applied\": 0, "
+                         "\"step_limit\": %d}",
+                         engine->rewrite_step_limit);
             }
             break;
 
         case INTEROP_CMD_UNIFY:
             if (!engine->main_graph) {
                 resp->status_code = LV00_ERROR_INVALID_STATE;
-                lv00_strlcpy(resp->data, "No graph loaded for unification",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "No graph loaded for unification", sizeof(resp->data));
             } else {
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"unify_check\", \"last_status\": %d}",
-                    engine->last_unify_status);
+                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"unify_check\", \"last_status\": %d}",
+                         engine->last_unify_status);
             }
             break;
 
@@ -1249,15 +1207,13 @@ int interop_execute_command(LV00Engine *engine,
                 char *json_str = graph_serialize_to_json(engine->main_graph);
                 if (json_str) {
                     lv00_strlcpy(resp->data, json_str, sizeof(resp->data));
-                    lv00_free((void**)&json_str);
+                    lv00_free((void **) &json_str);
                 } else {
-                    lv00_strlcpy(resp->data,
-                        "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
+                    lv00_strlcpy(resp->data, "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
                 }
             } else {
                 resp->status_code = LV00_ERROR_UNSUPPORTED;
-                snprintf(resp->data, sizeof(resp->data),
-                    "Unsupported export format: %s", fmt);
+                snprintf(resp->data, sizeof(resp->data), "Unsupported export format: %s", fmt);
             }
             break;
         }
@@ -1267,9 +1223,7 @@ int interop_execute_command(LV00Engine *engine,
             StreamContext *sctx = engine_get_stream_context(engine);
             if (!sctx) {
                 resp->status_code = LV00_ERROR_INVALID_STATE;
-                lv00_strlcpy(resp->data,
-                    "{\"error\": \"Stream context not available\"}",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "{\"error\": \"Stream context not available\"}", sizeof(resp->data));
                 break;
             }
             /* 解析可选的过滤参数 */
@@ -1280,17 +1234,15 @@ int interop_execute_command(LV00Engine *engine,
             /* 注册流式回调（注意：此处通过 server 指针不可用，
              * 直接注册一个通用的 stdout 回调） */
             {
-                int cb_id = stream_register_callback_ex(
-                    sctx, interop_stream_callback, NULL, filter);
+                int cb_id = stream_register_callback_ex(sctx, interop_stream_callback, NULL, filter);
                 if (cb_id >= 0) {
                     snprintf(resp->data, sizeof(resp->data),
-                        "{\"result\": \"ok\", \"callback_id\": %d, "
-                        "\"filter\": \"0x%08X\"}", cb_id, filter);
+                             "{\"result\": \"ok\", \"callback_id\": %d, "
+                             "\"filter\": \"0x%08X\"}",
+                             cb_id, filter);
                 } else {
                     resp->status_code = LV00_ERROR_OUT_OF_MEMORY;
-                    lv00_strlcpy(resp->data,
-                        "{\"error\": \"Failed to register stream callback\"}",
-                        sizeof(resp->data));
+                    lv00_strlcpy(resp->data, "{\"error\": \"Failed to register stream callback\"}", sizeof(resp->data));
                 }
             }
             break;
@@ -1302,17 +1254,14 @@ int interop_execute_command(LV00Engine *engine,
                 /* 刷新并等待所有事件输出完毕 */
                 stream_flush(sctx);
             }
-            snprintf(resp->data, sizeof(resp->data),
-                "{\"result\": \"ok\", \"message\": \"Stream stopped\"}");
+            snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"message\": \"Stream stopped\"}");
             break;
         }
 
         case INTEROP_CMD_STREAM_FILTER: {
             if (cmd->param_count < 1) {
                 resp->status_code = LV00_ERROR_INVALID_PARAM;
-                lv00_strlcpy(resp->data,
-                    "Usage: StreamFilter <filter_mask_string>",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "Usage: StreamFilter <filter_mask_string>", sizeof(resp->data));
                 break;
             }
             uint32_t new_mask = stream_parse_filter_mask(cmd->params[0]);
@@ -1320,12 +1269,12 @@ int interop_execute_command(LV00Engine *engine,
             if (sctx && new_mask != STREAM_FILTER_NONE) {
                 /* 更新所有回调的过滤掩码（简化实现：全局设置） */
                 snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"ok\", \"filter\": \"0x%08X\", "
-                    "\"input\": \"%s\"}", new_mask, cmd->params[0]);
+                         "{\"result\": \"ok\", \"filter\": \"0x%08X\", "
+                         "\"input\": \"%s\"}",
+                         new_mask, cmd->params[0]);
             } else {
                 resp->status_code = LV00_ERROR_INVALID_PARAM;
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"error\": \"Invalid filter mask: %s\"}", cmd->params[0]);
+                snprintf(resp->data, sizeof(resp->data), "{\"error\": \"Invalid filter mask: %s\"}", cmd->params[0]);
             }
             break;
         }
@@ -1336,21 +1285,18 @@ int interop_execute_command(LV00Engine *engine,
                 long total = stream_get_total_event_count(sctx);
                 long dropped = stream_get_dropped_count(sctx);
                 snprintf(resp->data, sizeof(resp->data),
-                    "{\"total_events\": %ld, \"dropped\": %ld, "
-                    "\"engine_start\": %ld, \"normalize_merge\": %ld, "
-                    "\"rewrite_applied\": %ld, \"solve_variable_resolved\": %ld, "
-                    "\"error\": %ld, \"warning\": %ld}",
-                    total, dropped,
-                    stream_get_event_count(sctx, STREAM_EVENT_ENGINE_START),
-                    stream_get_event_count(sctx, STREAM_EVENT_NORMALIZE_MERGE),
-                    stream_get_event_count(sctx, STREAM_EVENT_REWRITE_APPLIED),
-                    stream_get_event_count(sctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED),
-                    stream_get_event_count(sctx, STREAM_EVENT_ERROR),
-                    stream_get_event_count(sctx, STREAM_EVENT_WARNING));
+                         "{\"total_events\": %ld, \"dropped\": %ld, "
+                         "\"engine_start\": %ld, \"normalize_merge\": %ld, "
+                         "\"rewrite_applied\": %ld, \"solve_variable_resolved\": %ld, "
+                         "\"error\": %ld, \"warning\": %ld}",
+                         total, dropped, stream_get_event_count(sctx, STREAM_EVENT_ENGINE_START),
+                         stream_get_event_count(sctx, STREAM_EVENT_NORMALIZE_MERGE),
+                         stream_get_event_count(sctx, STREAM_EVENT_REWRITE_APPLIED),
+                         stream_get_event_count(sctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED),
+                         stream_get_event_count(sctx, STREAM_EVENT_ERROR),
+                         stream_get_event_count(sctx, STREAM_EVENT_WARNING));
             } else {
-                lv00_strlcpy(resp->data,
-                    "{\"total_events\": 0, \"dropped\": 0}",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "{\"total_events\": 0, \"dropped\": 0}", sizeof(resp->data));
             }
             break;
         }
@@ -1359,21 +1305,17 @@ int interop_execute_command(LV00Engine *engine,
             StreamContext *sctx = engine_get_stream_context(engine);
             if (sctx) {
                 stream_flush(sctx);
-                snprintf(resp->data, sizeof(resp->data),
-                    "{\"result\": \"ok\", \"pending\": %d}",
-                    stream_pending_count(sctx));
+                snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"pending\": %d}",
+                         stream_pending_count(sctx));
             } else {
-                lv00_strlcpy(resp->data,
-                    "{\"result\": \"ok\", \"pending\": 0}",
-                    sizeof(resp->data));
+                lv00_strlcpy(resp->data, "{\"result\": \"ok\", \"pending\": 0}", sizeof(resp->data));
             }
             break;
         }
 
         default:
             resp->status_code = LV00_ERROR_UNSUPPORTED;
-            snprintf(resp->data, sizeof(resp->data),
-                "Unknown command type: %d", cmd->type);
+            snprintf(resp->data, sizeof(resp->data), "Unknown command type: %d", cmd->type);
             break;
     }
 
@@ -1392,15 +1334,22 @@ int interop_execute_command(LV00Engine *engine,
  * @param trust 信任颜色枚举值
  * @return 对应的 SVG 颜色字符串（如 "#22c55e"），未知颜色返回 "#9ca3af"
  */
-static const char* trust_color_to_svg(TrustColor trust) {
+static const char *trust_color_to_svg(TrustColor trust) {
     switch (trust) {
-        case TRUST_GREEN:       return "#22c55e";  /* 完全约束 - 绿色 */
-        case TRUST_BLUE:        return "#3b82f6";  /* 蓝色 */
-        case TRUST_YELLOW:      return "#eab308";  /* 黄色 */
-        case TRUST_ORANGE:      return "#f97316";  /* 橙色 */
-        case TRUST_LIGHT_ORANGE:return "#fb923c";  /* 浅橙色 */
-        case TRUST_AMBER:       return "#ef4444";  /* 冲突/降级 - 红色 */
-        default:                return "#9ca3af";  /* 未知 - 灰色 */
+        case TRUST_GREEN:
+            return "#22c55e"; /* 完全约束 - 绿色 */
+        case TRUST_BLUE:
+            return "#3b82f6"; /* 蓝色 */
+        case TRUST_YELLOW:
+            return "#eab308"; /* 黄色 */
+        case TRUST_ORANGE:
+            return "#f97316"; /* 橙色 */
+        case TRUST_LIGHT_ORANGE:
+            return "#fb923c"; /* 浅橙色 */
+        case TRUST_AMBER:
+            return "#ef4444"; /* 冲突/降级 - 红色 */
+        default:
+            return "#9ca3af"; /* 未知 - 灰色 */
     }
 }
 
@@ -1412,15 +1361,22 @@ static const char* trust_color_to_svg(TrustColor trust) {
  * @param trust 信任颜色枚举值
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
-static const char* trust_color_to_tikz(TrustColor trust) {
+static const char *trust_color_to_tikz(TrustColor trust) {
     switch (trust) {
-        case TRUST_GREEN:       return "green!70!black";
-        case TRUST_BLUE:        return "blue!70!black";
-        case TRUST_YELLOW:      return "yellow!80!black";
-        case TRUST_ORANGE:      return "orange!80!black";
-        case TRUST_LIGHT_ORANGE:return "orange!50!yellow";
-        case TRUST_AMBER:       return "red!70!black";
-        default:                return "gray";
+        case TRUST_GREEN:
+            return "green!70!black";
+        case TRUST_BLUE:
+            return "blue!70!black";
+        case TRUST_YELLOW:
+            return "yellow!80!black";
+        case TRUST_ORANGE:
+            return "orange!80!black";
+        case TRUST_LIGHT_ORANGE:
+            return "orange!50!yellow";
+        case TRUST_AMBER:
+            return "red!70!black";
+        default:
+            return "gray";
     }
 }
 
@@ -1432,14 +1388,20 @@ static const char* trust_color_to_tikz(TrustColor trust) {
  * @param type 几何类型枚举值
  * @return 对应的类型名称字符串（如 "point"、"line_segment"），未知类型返回 "unknown"
  */
-static const char* geom_type_name(GeomType type) {
+static const char *geom_type_name(GeomType type) {
     switch (type) {
-        case GEOM_POINT:           return "point";
-        case GEOM_LINE_SEGMENT:    return "line_segment";
-        case GEOM_REGION:          return "region";
-        case GEOM_PORT:            return "port";
-        case GEOM_FUNCTION_BLOCK:  return "function_block";
-        default:                   return "unknown";
+        case GEOM_POINT:
+            return "point";
+        case GEOM_LINE_SEGMENT:
+            return "line_segment";
+        case GEOM_REGION:
+            return "region";
+        case GEOM_PORT:
+            return "port";
+        case GEOM_FUNCTION_BLOCK:
+            return "function_block";
+        default:
+            return "unknown";
     }
 }
 
@@ -1451,14 +1413,20 @@ static const char* geom_type_name(GeomType type) {
  * @param type 约束类型枚举值
  * @return 对应的类型名称字符串（如 "incidence"、"betweenness"），未知类型返回 "unknown"
  */
-static const char* constraint_type_name(ConstraintType type) {
+static const char *constraint_type_name(ConstraintType type) {
     switch (type) {
-        case INCIDENCE:      return "incidence";
-        case BETWEENNESS:    return "betweenness";
-        case INTERSECTION:   return "intersection";
-        case CONTAINMENT:    return "containment";
-        case CONNECTION:     return "connection";
-        default:             return "unknown";
+        case INCIDENCE:
+            return "incidence";
+        case BETWEENNESS:
+            return "betweenness";
+        case INTERSECTION:
+            return "intersection";
+        case CONTAINMENT:
+            return "containment";
+        case CONNECTION:
+            return "connection";
+        default:
+            return "unknown";
     }
 }
 
@@ -1474,34 +1442,44 @@ static const char* constraint_type_name(ConstraintType type) {
  * @param max_x [out] 输出最大 x 坐标
  * @param max_y [out] 输出最大 y 坐标
  */
-static void compute_bounding_box(const ConstraintGraph *graph,
-                                 double *min_x, double *min_y,
-                                 double *max_x, double *max_y) {
-    *min_x = 0.0; *min_y = 0.0;
-    *max_x = 100.0; *max_y = 100.0;
+static void compute_bounding_box(const ConstraintGraph *graph, double *min_x, double *min_y, double *max_x,
+                                 double *max_y) {
+    *min_x = 0.0;
+    *min_y = 0.0;
+    *max_x = 100.0;
+    *max_y = 100.0;
 
-    if (!graph || graph->node_count == 0) return;
+    if (!graph || graph->node_count == 0)
+        return;
 
     bool first = true;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->coord_count < 2 || !node->symbolic_coords) continue;
+        if (!node || node->coord_count < 2 || !node->symbolic_coords)
+            continue;
 
         /* 修复：添加 symbolic_coords 数组元素的 NULL 检查 */
-        if (!node->symbolic_coords[0] || !node->symbolic_coords[1]) continue;
+        if (!node->symbolic_coords[0] || !node->symbolic_coords[1])
+            continue;
 
         double x = symbolic_coord_to_double(node->symbolic_coords[0]);
         double y = symbolic_coord_to_double(node->symbolic_coords[1]);
 
         if (first) {
-            *min_x = x; *min_y = y;
-            *max_x = x; *max_y = y;
+            *min_x = x;
+            *min_y = y;
+            *max_x = x;
+            *max_y = y;
             first = false;
         } else {
-            if (x < *min_x) *min_x = x;
-            if (y < *min_y) *min_y = y;
-            if (x > *max_x) *max_x = x;
-            if (y > *max_y) *max_y = y;
+            if (x < *min_x)
+                *min_x = x;
+            if (y < *min_y)
+                *min_y = y;
+            if (x > *max_x)
+                *max_x = x;
+            if (y > *max_y)
+                *max_y = y;
         }
     }
 
@@ -1528,12 +1506,29 @@ static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
     size_t j = 0;
     for (size_t i = 0; src[i] && j < dst_size - 6; i++) {
         switch (src[i]) {
-            case '&':  memcpy(dst + j, "&amp;", 5); j += 5; break;
-            case '<':  memcpy(dst + j, "&lt;", 4);  j += 4; break;
-            case '>':  memcpy(dst + j, "&gt;", 4);  j += 4; break;
-            case '"':  memcpy(dst + j, "&quot;", 6); j += 6; break;
-            case '\'': memcpy(dst + j, "&apos;", 6); j += 6; break;
-            default:   dst[j++] = src[i]; break;
+            case '&':
+                memcpy(dst + j, "&amp;", 5);
+                j += 5;
+                break;
+            case '<':
+                memcpy(dst + j, "&lt;", 4);
+                j += 4;
+                break;
+            case '>':
+                memcpy(dst + j, "&gt;", 4);
+                j += 4;
+                break;
+            case '"':
+                memcpy(dst + j, "&quot;", 6);
+                j += 6;
+                break;
+            case '\'':
+                memcpy(dst + j, "&apos;", 6);
+                j += 6;
+                break;
+            default:
+                dst[j++] = src[i];
+                break;
         }
     }
     dst[j] = '\0';
@@ -1557,15 +1552,41 @@ static void tikz_escape_string(const char *src, char *dst, size_t dst_size) {
     size_t j = 0;
     for (size_t i = 0; src[i] && j < dst_size - 16; i++) {
         switch (src[i]) {
-            case '\\': memcpy(dst + j, "\\textbackslash{}", 16); j += 16; break;
-            case '{':  memcpy(dst + j, "\\{", 2); j += 2; break;
-            case '}':  memcpy(dst + j, "\\}", 2); j += 2; break;
-            case '$':  memcpy(dst + j, "\\$", 2); j += 2; break;
-            case '#':  memcpy(dst + j, "\\#", 2); j += 2; break;
-            case '%':  memcpy(dst + j, "\\%", 2); j += 2; break;
-            case '_':  memcpy(dst + j, "\\_", 2); j += 2; break;
-            case '&':  memcpy(dst + j, "\\&", 2); j += 2; break;
-            default:   dst[j++] = src[i]; break;
+            case '\\':
+                memcpy(dst + j, "\\textbackslash{}", 16);
+                j += 16;
+                break;
+            case '{':
+                memcpy(dst + j, "\\{", 2);
+                j += 2;
+                break;
+            case '}':
+                memcpy(dst + j, "\\}", 2);
+                j += 2;
+                break;
+            case '$':
+                memcpy(dst + j, "\\$", 2);
+                j += 2;
+                break;
+            case '#':
+                memcpy(dst + j, "\\#", 2);
+                j += 2;
+                break;
+            case '%':
+                memcpy(dst + j, "\\%", 2);
+                j += 2;
+                break;
+            case '_':
+                memcpy(dst + j, "\\_", 2);
+                j += 2;
+                break;
+            case '&':
+                memcpy(dst + j, "\\&", 2);
+                j += 2;
+                break;
+            default:
+                dst[j++] = src[i];
+                break;
         }
     }
     dst[j] = '\0';
@@ -1601,20 +1622,19 @@ int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *c
      * @param config 导出配置（主要使用 output_path）
      * @return LV00_OK 成功，LV00_ERROR_INVALID_PARAM 参数无效，LV00_ERROR_IO 文件错误
      */
-    if (!proof || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!proof || !config)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* ---- 流式事件：开始 Coq 导出 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "开始 Coq 导出", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 Coq 导出", 0);
     }
 
     /* 生成Coq代码 */
     FILE *fp = fopen(config->output_path, "w");
     if (!fp) {
         if (interop_stream_ctx) {
-            stream_emit_simple(interop_stream_ctx, STREAM_EVENT_ERROR,
-                "Coq 导出失败：无法创建输出文件", 0);
+            stream_emit_simple(interop_stream_ctx, STREAM_EVENT_ERROR, "Coq 导出失败：无法创建输出文件", 0);
         }
         return LV00_ERROR_IO;
     }
@@ -1660,7 +1680,7 @@ int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *c
      *   - GREEN / GREEN_VERIFIED -> 全构造（可信），生成完整 tactic
      *   - 其他颜色             -> 使用 admit + 注释
      */
-        /*
+    /*
      * 当前 Proof 为不透明类型，无法访问内部步骤。
      * 当证明步骤为空时使用 admit。
      */
@@ -1674,8 +1694,7 @@ int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *c
 
     /* ---- 流式事件：Coq 导出完成 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "Coq 导出完成", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "Coq 导出完成", 0);
     }
 
     return LV00_OK;
@@ -1709,20 +1728,19 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
      * @param config 导出配置
      * @return LV00_OK 成功，LV00_ERROR_INVALID_PARAM 参数无效，LV00_ERROR_IO 文件错误
      */
-    if (!proof || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!proof || !config)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* ---- 流式事件：开始 Lean 4 导出 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "开始 Lean 4 导出", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 Lean 4 导出", 0);
     }
 
     /* 生成Lean代码 */
     FILE *fp = fopen(config->output_path, "w");
     if (!fp) {
         if (interop_stream_ctx) {
-            stream_emit_simple(interop_stream_ctx, STREAM_EVENT_ERROR,
-                "Lean 4 导出失败：无法创建输出文件", 0);
+            stream_emit_simple(interop_stream_ctx, STREAM_EVENT_ERROR, "Lean 4 导出失败：无法创建输出文件", 0);
         }
         return LV00_ERROR_IO;
     }
@@ -1768,31 +1786,29 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
         fprintf(fp, "    -- 证明步骤数: %d\n", proof->step_count);
         for (int i = 0; i < proof->step_count; i++) {
             ProofStep *step = proof->steps[i];
-            if (!step) continue;
+            if (!step)
+                continue;
 
             /* 信任颜色判断：非绿色步骤需使用 sorry */
-            bool is_green = (step->color == PROOF_COLOR_GREEN ||
-                             step->color == PROOF_COLOR_GREEN_VERIFIED);
+            bool is_green = (step->color == PROOF_COLOR_GREEN || step->color == PROOF_COLOR_GREEN_VERIFIED);
 
             switch (step->type) {
                 case PROOF_STEP_ADD_NODE:
                     if (is_green) {
-                        fprintf(fp, "    have h_node_%d : True := by trivial\n",
-                                step->node_id);
+                        fprintf(fp, "    have h_node_%d : True := by trivial\n", step->node_id);
                     } else {
-                        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n",
-                                step->node_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n", step->node_id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    sorry\n");
                     }
                     break;
 
                 case PROOF_STEP_ADD_CONSTRAINT:
                     if (is_green) {
-                        fprintf(fp, "    have h_cstr_%d : True := by trivial\n",
-                                step->constraint_id);
+                        fprintf(fp, "    have h_cstr_%d : True := by trivial\n", step->constraint_id);
                     } else {
-                        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n",
-                                step->constraint_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n", step->constraint_id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    sorry\n");
                     }
                     break;
@@ -1801,8 +1817,8 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    rw [h]\n");
                     } else {
-                        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    sorry\n");
                     }
                     break;
@@ -1811,23 +1827,22 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    apply h\n");
                     } else {
-                        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    sorry\n");
                     }
                     break;
 
                 case PROOF_STEP_PACK_FUNCTION:
-                    fprintf(fp, "    -- 函数块打包: step_%d, func_block_%d\n",
-                            step->id, step->func_block_id);
+                    fprintf(fp, "    -- 函数块打包: step_%d, func_block_%d\n", step->id, step->func_block_id);
                     break;
 
                 case PROOF_STEP_NORMALIZATION:
                     if (is_green) {
                         fprintf(fp, "    rw [h]\n");
                     } else {
-                        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    sorry\n");
                     }
                     break;
@@ -1836,8 +1851,8 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     if (is_green) {
                         fprintf(fp, "    rfl\n");
                     } else {
-                        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n",
-                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n", step->id,
+                                proof_color_to_string(step->color));
                         fprintf(fp, "    sorry\n");
                     }
                     break;
@@ -1847,13 +1862,13 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                     break;
 
                 case PROOF_STEP_ORACLE:
-                    fprintf(fp, "    -- Oracle依赖: step_%d, 信任色: %s\n",
-                            step->id, proof_color_to_string(step->color));
+                    fprintf(fp, "    -- Oracle依赖: step_%d, 信任色: %s\n", step->id,
+                            proof_color_to_string(step->color));
                     fprintf(fp, "    sorry\n");
                     break;
 
                 default:
-                    fprintf(fp, "    -- 未知步骤类型: %d\n", (int)step->type);
+                    fprintf(fp, "    -- 未知步骤类型: %d\n", (int) step->type);
                     fprintf(fp, "    sorry\n");
                     break;
             }
@@ -1870,27 +1885,27 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
 
     /* ---- 流式事件：Lean 4 导出完成 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "Lean 4 导出完成", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "Lean 4 导出完成", 0);
     }
 
     return LV00_OK;
 }
 
 int interop_export_html(const LV00Engine *engine, const InteropExportConfig *config) {
-    if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!engine || !config)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* ---- 流式事件：开始 HTML 导出 ---- */
     {
         StreamContext *sctx = engine_get_stream_context(engine);
         if (sctx) {
-            stream_emit_simple(sctx, STREAM_EVENT_INFO,
-                "开始 HTML 导出", 0);
+            stream_emit_simple(sctx, STREAM_EVENT_INFO, "开始 HTML 导出", 0);
         }
     }
 
     FILE *fp = fopen(config->output_path, "w");
-    if (!fp) return LV00_ERROR_IO;
+    if (!fp)
+        return LV00_ERROR_IO;
 
     /*
      * 增强版HTML导出：
@@ -1919,53 +1934,88 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
     if (graph) {
         for (int i = 0; i < graph->node_count; i++) {
             GeomNode *node = graph->nodes[i];
-            if (!node) continue;
+            if (!node)
+                continue;
 
             switch (node->type) {
-                case GEOM_POINT: point_count++; break;
-                case GEOM_LINE_SEGMENT: segment_count++; break;
-                case GEOM_REGION: region_count++; break;
-                case GEOM_PORT: port_count++; break;
-                case GEOM_FUNCTION_BLOCK: fb_count++; break;
+                case GEOM_POINT:
+                    point_count++;
+                    break;
+                case GEOM_LINE_SEGMENT:
+                    segment_count++;
+                    break;
+                case GEOM_REGION:
+                    region_count++;
+                    break;
+                case GEOM_PORT:
+                    port_count++;
+                    break;
+                case GEOM_FUNCTION_BLOCK:
+                    fb_count++;
+                    break;
             }
 
             switch (node->trust) {
-                case TRUST_GREEN: trust_green++; break;
-                case TRUST_BLUE: trust_blue++; break;
-                case TRUST_ORANGE: trust_orange++; break;
-                case TRUST_AMBER: trust_amber++; break;
-                default: trust_other++; break;
+                case TRUST_GREEN:
+                    trust_green++;
+                    break;
+                case TRUST_BLUE:
+                    trust_blue++;
+                    break;
+                case TRUST_ORANGE:
+                    trust_orange++;
+                    break;
+                case TRUST_AMBER:
+                    trust_amber++;
+                    break;
+                default:
+                    trust_other++;
+                    break;
             }
 
             /* 收集坐标范围 */
-            if (node->coord_count >= 2 && node->symbolic_coords &&
-                node->symbolic_coords[0] && node->symbolic_coords[1]) {
+            if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
+                node->symbolic_coords[1]) {
                 double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                 double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                if (x < min_x) min_x = x;
-                if (x > max_x) max_x = x;
-                if (y < min_y) min_y = y;
-                if (y > max_y) max_y = y;
+                if (x < min_x)
+                    min_x = x;
+                if (x > max_x)
+                    max_x = x;
+                if (y < min_y)
+                    min_y = y;
+                if (y > max_y)
+                    max_y = y;
                 has_coords = true;
             }
         }
     }
 
     /* 如果没有有效坐标，使用默认范围 */
-    if (!has_coords) { min_x = -10; max_x = 10; min_y = -10; max_y = 10; }
+    if (!has_coords) {
+        min_x = -10;
+        max_x = 10;
+        min_y = -10;
+        max_y = 10;
+    }
 
     /* 添加边距 */
     double margin = (max_x - min_x) * 0.15 + 1.0;
-    if (margin < 1.0) margin = 1.0;
-    min_x -= margin; max_x += margin;
-    min_y -= margin; max_y += margin;
+    if (margin < 1.0)
+        margin = 1.0;
+    min_x -= margin;
+    max_x += margin;
+    min_y -= margin;
+    max_y += margin;
 
     double range_x = max_x - min_x;
     double range_y = max_y - min_y;
 
     /* 添加除零保护，防止所有节点坐标相同时 range 为零导致除零错误 */
-    if (range_x < 1e-10) range_x = 1.0;
-    if (range_y < 1e-10) range_y = 1.0;
+    if (range_x < 1e-10)
+        range_x = 1.0;
+    if (range_y < 1e-10)
+        range_y = 1.0;
 
     /* SVG 尺寸 */
     int svg_w = 700, svg_h = 500;
@@ -2003,7 +2053,8 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
     fprintf(fp, "  border-bottom: 1px solid #eee; background: #fafafa;\n");
     fprintf(fp, "}\n");
     fprintf(fp, ".stat-section { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }\n");
-    fprintf(fp, ".stat-section h3 { font-size: 0.85em; color: #888; margin-bottom: 6px; text-transform: uppercase; }\n");
+    fprintf(fp,
+            ".stat-section h3 { font-size: 0.85em; color: #888; margin-bottom: 6px; text-transform: uppercase; }\n");
     fprintf(fp, ".stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }\n");
     fprintf(fp, ".stat-row .val { font-weight: 600; }\n");
     fprintf(fp, ".trust-legend { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 0; }\n");
@@ -2029,8 +2080,10 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
     fprintf(fp, "<div class=\"main-panel\">\n");
     fprintf(fp, "<h1>Lv-00 Geometry Visualization</h1>\n");
     fprintf(fp, "<div class=\"svg-wrap\">\n");
-    fprintf(fp, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" "
-            "viewBox=\"0 0 %d %d\">\n", svg_w, svg_h, svg_w, svg_h);
+    fprintf(fp,
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" "
+            "viewBox=\"0 0 %d %d\">\n",
+            svg_w, svg_h, svg_w, svg_h);
 
     /* 背景网格 */
     fprintf(fp, "  <defs>\n");
@@ -2048,14 +2101,15 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
         /* 先画线段 */
         for (int i = 0; i < graph->node_count; i++) {
             GeomNode *node = graph->nodes[i];
-            if (!node || node->type != GEOM_LINE_SEGMENT) continue;
+            if (!node || node->type != GEOM_LINE_SEGMENT)
+                continue;
 
             /* 线段有两个端点，通过约束获取 */
             /* 简化：直接用节点的坐标作为线段中点，画一个小线段标记 */
             /* 更好的方式：查找 INCIDENCE 约束找到端点 */
             double cx = 0, cy = 0;
-            if (node->coord_count >= 2 && node->symbolic_coords &&
-                node->symbolic_coords[0] && node->symbolic_coords[1]) {
+            if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
+                node->symbolic_coords[1]) {
                 cx = symbolic_coord_to_double(node->symbolic_coords[0]);
                 cy = symbolic_coord_to_double(node->symbolic_coords[1]);
             }
@@ -2065,15 +2119,20 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
             bool found_endpoints = false;
             for (int c = 0; c < graph->constraint_count; c++) {
                 Constraint *con = graph->constraints[c];
-                if (!con || con->type != INCIDENCE) continue;
-                if (con->participant_count < 2) continue;
+                if (!con || con->type != INCIDENCE)
+                    continue;
+                if (con->participant_count < 2)
+                    continue;
                 int other = -1;
-                if (con->participants[0] == node->id) other = con->participants[1];
-                else if (con->participants[1] == node->id) other = con->participants[0];
-                if (other < 0) continue;
+                if (con->participants[0] == node->id)
+                    other = con->participants[1];
+                else if (con->participants[1] == node->id)
+                    other = con->participants[0];
+                if (other < 0)
+                    continue;
                 GeomNode *ep = graph_get_node_by_id(graph, other);
-                if (ep && ep->type == GEOM_POINT && ep->coord_count >= 2 &&
-                    ep->symbolic_coords && ep->symbolic_coords[0] && ep->symbolic_coords[1]) {
+                if (ep && ep->type == GEOM_POINT && ep->coord_count >= 2 && ep->symbolic_coords &&
+                    ep->symbolic_coords[0] && ep->symbolic_coords[1]) {
                     if (!found_endpoints) {
                         x1 = symbolic_coord_to_double(ep->symbolic_coords[0]);
                         y1 = symbolic_coord_to_double(ep->symbolic_coords[1]);
@@ -2095,32 +2154,46 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
             const char *stroke_color = "#333";
             const char *stroke_width = "2";
             switch (node->trust) {
-                case TRUST_GREEN:  stroke_color = "#4CAF50"; break;
-                case TRUST_BLUE:   stroke_color = "#42A5F5"; break;
-                case TRUST_ORANGE: stroke_color = "#FF9800"; stroke_width = "2.5"; break;
-                case TRUST_AMBER:  stroke_color = "#FFB300"; break;
-                default: break;
+                case TRUST_GREEN:
+                    stroke_color = "#4CAF50";
+                    break;
+                case TRUST_BLUE:
+                    stroke_color = "#42A5F5";
+                    break;
+                case TRUST_ORANGE:
+                    stroke_color = "#FF9800";
+                    stroke_width = "2.5";
+                    break;
+                case TRUST_AMBER:
+                    stroke_color = "#FFB300";
+                    break;
+                default:
+                    break;
             }
 
-            fprintf(fp, "  <line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" "
+            fprintf(fp,
+                    "  <line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" "
                     "stroke=\"%s\" stroke-width=\"%s\" stroke-linecap=\"round\"/>\n",
                     sx1, sy1, sx2, sy2, stroke_color, stroke_width);
 
             /* 线段标签 */
             double mx = (sx1 + sx2) / 2;
             double my = (sy1 + sy2) / 2;
-            fprintf(fp, "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"10\" fill=\"#666\" "
-                    "text-anchor=\"middle\" dy=\"-6\">S%d</text>\n", mx, my, node->id);
+            fprintf(fp,
+                    "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"10\" fill=\"#666\" "
+                    "text-anchor=\"middle\" dy=\"-6\">S%d</text>\n",
+                    mx, my, node->id);
         }
 
         /* 再画点 */
         for (int i = 0; i < graph->node_count; i++) {
             GeomNode *node = graph->nodes[i];
-            if (!node || node->type != GEOM_POINT) continue;
+            if (!node || node->type != GEOM_POINT)
+                continue;
 
             double x = 0, y = 0;
-            if (node->coord_count >= 2 && node->symbolic_coords &&
-                node->symbolic_coords[0] && node->symbolic_coords[1]) {
+            if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
+                node->symbolic_coords[1]) {
                 x = symbolic_coord_to_double(node->symbolic_coords[0]);
                 y = symbolic_coord_to_double(node->symbolic_coords[1]);
             }
@@ -2132,18 +2205,31 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
             const char *fill_color = "#333";
             const char *label_color = "#333";
             switch (node->trust) {
-                case TRUST_GREEN:  fill_color = "#4CAF50"; break;
-                case TRUST_BLUE:   fill_color = "#42A5F5"; break;
-                case TRUST_ORANGE: fill_color = "#FF9800"; break;
-                case TRUST_AMBER:  fill_color = "#FFB300"; label_color = "#333"; break;
-                default: break;
+                case TRUST_GREEN:
+                    fill_color = "#4CAF50";
+                    break;
+                case TRUST_BLUE:
+                    fill_color = "#42A5F5";
+                    break;
+                case TRUST_ORANGE:
+                    fill_color = "#FF9800";
+                    break;
+                case TRUST_AMBER:
+                    fill_color = "#FFB300";
+                    label_color = "#333";
+                    break;
+                default:
+                    break;
             }
 
-            fprintf(fp, "  <circle cx=\"%.1f\" cy=\"%.1f\" r=\"5\" fill=\"%s\" "
-                    "stroke=\"#fff\" stroke-width=\"1.5\">\n", sx, sy, fill_color);
+            fprintf(fp,
+                    "  <circle cx=\"%.1f\" cy=\"%.1f\" r=\"5\" fill=\"%s\" "
+                    "stroke=\"#fff\" stroke-width=\"1.5\">\n",
+                    sx, sy, fill_color);
             fprintf(fp, "    <title>Point %d (%.2f, %.2f)</title>\n", node->id, x, y);
             fprintf(fp, "  </circle>\n");
-            fprintf(fp, "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"11\" fill=\"%s\" "
+            fprintf(fp,
+                    "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"11\" fill=\"%s\" "
                     "text-anchor=\"middle\" dy=\"-10\" font-weight=\"600\">P%d</text>\n",
                     sx, sy, label_color, node->id);
         }
@@ -2151,14 +2237,16 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
         /* 画区域 */
         for (int i = 0; i < graph->node_count; i++) {
             GeomNode *node = graph->nodes[i];
-            if (!node || node->type != GEOM_REGION) continue;
+            if (!node || node->type != GEOM_REGION)
+                continue;
 
             /* 收集区域边界线段的端点坐标 */
             if (node->data.region.segment_count > 0 && node->data.region.boundary_segments) {
                 fprintf(fp, "  <polygon points=\"");
                 for (int s = 0; s < node->data.region.segment_count; s++) {
                     GeomNode *seg = node->data.region.boundary_segments[s];
-                    if (!seg || seg->coord_count < 2 || !seg->symbolic_coords) continue;
+                    if (!seg || seg->coord_count < 2 || !seg->symbolic_coords)
+                        continue;
                     double sx = 0, sy = 0;
                     if (seg->symbolic_coords[0] && seg->symbolic_coords[1]) {
                         double wx = symbolic_coord_to_double(seg->symbolic_coords[0]);
@@ -2171,20 +2259,35 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
                 const char *region_fill = "#E8F5E9";
                 const char *region_stroke = "#81C784";
                 switch (node->trust) {
-                    case TRUST_GREEN:  region_fill = "#E8F5E9"; region_stroke = "#4CAF50"; break;
-                    case TRUST_BLUE:   region_fill = "#E3F2FD"; region_stroke = "#42A5F5"; break;
-                    case TRUST_ORANGE: region_fill = "#FFF3E0"; region_stroke = "#FF9800"; break;
-                    case TRUST_AMBER:  region_fill = "#FFF8E1"; region_stroke = "#FFB300"; break;
-                    default: break;
+                    case TRUST_GREEN:
+                        region_fill = "#E8F5E9";
+                        region_stroke = "#4CAF50";
+                        break;
+                    case TRUST_BLUE:
+                        region_fill = "#E3F2FD";
+                        region_stroke = "#42A5F5";
+                        break;
+                    case TRUST_ORANGE:
+                        region_fill = "#FFF3E0";
+                        region_stroke = "#FF9800";
+                        break;
+                    case TRUST_AMBER:
+                        region_fill = "#FFF8E1";
+                        region_stroke = "#FFB300";
+                        break;
+                    default:
+                        break;
                 }
-                fprintf(fp, "\" fill=\"%s\" fill-opacity=\"0.3\" stroke=\"%s\" "
+                fprintf(fp,
+                        "\" fill=\"%s\" fill-opacity=\"0.3\" stroke=\"%s\" "
                         "stroke-width=\"1.5\" stroke-dasharray=\"4,2\">\n",
                         region_fill, region_stroke);
                 fprintf(fp, "    <title>Region %d</title>\n", node->id);
                 fprintf(fp, "  </polygon>\n");
-                fprintf(fp, "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"10\" fill=\"#888\" "
+                fprintf(fp,
+                        "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"10\" fill=\"#888\" "
                         "text-anchor=\"middle\">R%d</text>\n",
-                        pad + (svg_w - 2*pad) * 0.5, pad + (svg_h - 2*pad) * 0.5, node->id);
+                        pad + (svg_w - 2 * pad) * 0.5, pad + (svg_h - 2 * pad) * 0.5, node->id);
             }
         }
     }
@@ -2199,38 +2302,43 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
 
     fprintf(fp, "<div class=\"stat-section\">\n");
     fprintf(fp, "  <h3>Overview</h3>\n");
-    fprintf(fp, "  <div class=\"stat-row\"><span>Total Nodes</span><span class=\"val\">%d</span></div>\n",
-            node_count);
+    fprintf(fp, "  <div class=\"stat-row\"><span>Total Nodes</span><span class=\"val\">%d</span></div>\n", node_count);
     fprintf(fp, "  <div class=\"stat-row\"><span>Total Constraints</span><span class=\"val\">%d</span></div>\n",
             constraint_count);
     fprintf(fp, "</div>\n");
 
     fprintf(fp, "<div class=\"stat-section\">\n");
     fprintf(fp, "  <h3>Node Types</h3>\n");
-    fprintf(fp, "  <div class=\"stat-row\"><span>Points</span><span class=\"val\">%d</span></div>\n",
-            point_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Segments</span><span class=\"val\">%d</span></div>\n",
-            segment_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Regions</span><span class=\"val\">%d</span></div>\n",
-            region_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Ports</span><span class=\"val\">%d</span></div>\n",
-            port_count);
+    fprintf(fp, "  <div class=\"stat-row\"><span>Points</span><span class=\"val\">%d</span></div>\n", point_count);
+    fprintf(fp, "  <div class=\"stat-row\"><span>Segments</span><span class=\"val\">%d</span></div>\n", segment_count);
+    fprintf(fp, "  <div class=\"stat-row\"><span>Regions</span><span class=\"val\">%d</span></div>\n", region_count);
+    fprintf(fp, "  <div class=\"stat-row\"><span>Ports</span><span class=\"val\">%d</span></div>\n", port_count);
     fprintf(fp, "  <div class=\"stat-row\"><span>Function Blocks</span><span class=\"val\">%d</span></div>\n",
             fb_count);
     fprintf(fp, "</div>\n");
 
     fprintf(fp, "<div class=\"stat-section\">\n");
     fprintf(fp, "  <h3>Trust Status</h3>\n");
-    fprintf(fp, "  <div class=\"trust-legend\"><span class=\"trust-dot legend-green\"></span>"
-            "<span>Green (Constructive): %d</span></div>\n", trust_green);
-    fprintf(fp, "  <div class=\"trust-legend\"><span class=\"trust-dot legend-blue\"></span>"
-            "<span>Blue (Unexplored): %d</span></div>\n", trust_blue);
-    fprintf(fp, "  <div class=\"trust-legend\"><span class=\"trust-dot legend-orange\"></span>"
-            "<span>Orange (Non-constructive): %d</span></div>\n", trust_orange);
-    fprintf(fp, "  <div class=\"trust-legend\"><span class=\"trust-dot legend-amber\"></span>"
-            "<span>Amber (Numeric): %d</span></div>\n", trust_amber);
-    fprintf(fp, "  <div class=\"trust-legend\"><span class=\"trust-dot legend-other\"></span>"
-            "<span>Other: %d</span></div>\n", trust_other);
+    fprintf(fp,
+            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-green\"></span>"
+            "<span>Green (Constructive): %d</span></div>\n",
+            trust_green);
+    fprintf(fp,
+            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-blue\"></span>"
+            "<span>Blue (Unexplored): %d</span></div>\n",
+            trust_blue);
+    fprintf(fp,
+            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-orange\"></span>"
+            "<span>Orange (Non-constructive): %d</span></div>\n",
+            trust_orange);
+    fprintf(fp,
+            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-amber\"></span>"
+            "<span>Amber (Numeric): %d</span></div>\n",
+            trust_amber);
+    fprintf(fp,
+            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-other\"></span>"
+            "<span>Other: %d</span></div>\n",
+            trust_other);
     fprintf(fp, "</div>\n");
 
     fprintf(fp, "<div class=\"stat-section\">\n");
@@ -2252,8 +2360,7 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
     {
         StreamContext *sctx = engine_get_stream_context(engine);
         if (sctx) {
-            stream_emit_simple(sctx, STREAM_EVENT_INFO,
-                "HTML 导出完成", 0);
+            stream_emit_simple(sctx, STREAM_EVENT_INFO, "HTML 导出完成", 0);
         }
     }
 
@@ -2312,10 +2419,12 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
      *         LV00_ERROR_INVALID_PARAM 参数无效（graph或config为NULL）
      *         LV00_ERROR_IO 文件无法创建或写入
      */
-    if (!graph || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!graph || !config)
+        return LV00_ERROR_INVALID_PARAM;
 
     FILE *fp = fopen(config->output_path, "w");
-    if (!fp) return LV00_ERROR_IO;
+    if (!fp)
+        return LV00_ERROR_IO;
 
     /* 计算边界框 */
     double min_x, min_y, max_x, max_y;
@@ -2323,15 +2432,18 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
 
     double width = max_x - min_x;
     double height = max_y - min_y;
-    if (width < 1.0) width = 200.0;
-    if (height < 1.0) height = 200.0;
+    if (width < 1.0)
+        width = 200.0;
+    if (height < 1.0)
+        height = 200.0;
 
     /* SVG头部 */
     fprintf(fp, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-    fprintf(fp, "<svg xmlns=\"http://www.w3.org/2000/svg\" "
-               "width=\"%.1f\" height=\"%.1f\" "
-               "viewBox=\"%.2f %.2f %.2f %.2f\">\n",
-               width, height, min_x, min_y, width, height);
+    fprintf(fp,
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+            "width=\"%.1f\" height=\"%.1f\" "
+            "viewBox=\"%.2f %.2f %.2f %.2f\">\n",
+            width, height, min_x, min_y, width, height);
     fprintf(fp, "  <title>Lv-00 Geometry Export</title>\n");
     fprintf(fp, "  <desc>Generated by Lv-00 v%s</desc>\n", LV00_VERSION_STRING);
 
@@ -2349,23 +2461,25 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
     fprintf(fp, "  </defs>\n\n");
 
     /* 背景网格（可选） */
-    fprintf(fp, "  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" "
-               "fill=\"#fafafa\" stroke=\"#e5e7eb\" stroke-width=\"1\"/>\n",
-               min_x, min_y, width, height);
+    fprintf(fp,
+            "  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\" "
+            "fill=\"#fafafa\" stroke=\"#e5e7eb\" stroke-width=\"1\"/>\n",
+            min_x, min_y, width, height);
 
     /* ---- 渲染区域（先渲染，在底层） ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_REGION) continue;
-        if (node->data.region.segment_count < 3) continue;
+        if (!node || node->type != GEOM_REGION)
+            continue;
+        if (node->data.region.segment_count < 3)
+            continue;
 
         const char *color = trust_color_to_svg(node->trust);
         char escaped_name[256];
         svg_escape_string(geom_type_name(node->type), escaped_name, sizeof(escaped_name));
 
         fprintf(fp, "  <!-- Region id=%d -->\n", node->id);
-        fprintf(fp, "  <polygon class=\"region\" fill=\"%s\" stroke=\"%s\" points=\"",
-               color, color);
+        fprintf(fp, "  <polygon class=\"region\" fill=\"%s\" stroke=\"%s\" points=\"", color, color);
 
         /* 收集区域边界顶点：遍历边界线段的端点 */
         for (int s = 0; s < node->data.region.segment_count; s++) {
@@ -2383,8 +2497,10 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
     /* ---- 渲染函数块 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_FUNCTION_BLOCK) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_FUNCTION_BLOCK)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double bx = symbolic_coord_to_double(node->symbolic_coords[0]);
         double by = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -2396,21 +2512,25 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
         /* 函数块：圆角矩形 */
         double bw = 120.0, bh = 60.0;
         fprintf(fp, "  <!-- Function Block id=%d -->\n", node->id);
-        fprintf(fp, "  <rect class=\"block\" x=\"%.2f\" y=\"%.2f\" "
-               "width=\"%.2f\" height=\"%.2f\" "
-               "fill=\"%s\" fill-opacity=\"0.15\" stroke=\"%s\"/>\n",
-               bx - bw / 2.0, by - bh / 2.0, bw, bh, color, color);
-        fprintf(fp, "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-               "text-anchor=\"middle\" dominant-baseline=\"central\" "
-               "fill=\"%s\">%s_%d</text>\n",
-               bx, by, color, escaped_name, node->id);
+        fprintf(fp,
+                "  <rect class=\"block\" x=\"%.2f\" y=\"%.2f\" "
+                "width=\"%.2f\" height=\"%.2f\" "
+                "fill=\"%s\" fill-opacity=\"0.15\" stroke=\"%s\"/>\n",
+                bx - bw / 2.0, by - bh / 2.0, bw, bh, color, color);
+        fprintf(fp,
+                "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
+                "text-anchor=\"middle\" dominant-baseline=\"central\" "
+                "fill=\"%s\">%s_%d</text>\n",
+                bx, by, color, escaped_name, node->id);
     }
 
     /* ---- 渲染线段 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_LINE_SEGMENT) continue;
-        if (node->coord_count < 4) continue;
+        if (!node || node->type != GEOM_LINE_SEGMENT)
+            continue;
+        if (node->coord_count < 4)
+            continue;
 
         double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
         double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -2423,10 +2543,8 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
         if (node->coord_count >= 6) {
             /* 使用前两对为端点，中间对为控制点 */
             int total_pairs = node->coord_count / 2;
-            fprintf(fp, "  <!-- Line Segment id=%d (Bezier, %d points) -->\n",
-                   node->id, total_pairs);
-            fprintf(fp, "  <path class=\"line\" fill=\"none\" stroke=\"%s\" d=\"M %.2f,%.2f",
-                   color, x1, y1);
+            fprintf(fp, "  <!-- Line Segment id=%d (Bezier, %d points) -->\n", node->id, total_pairs);
+            fprintf(fp, "  <path class=\"line\" fill=\"none\" stroke=\"%s\" d=\"M %.2f,%.2f", color, x1, y1);
 
             /* 构建贝塞尔曲线链：每两个端点间使用 2 个控制点 */
             for (int p = 0; p < total_pairs - 1; p++) {
@@ -2439,7 +2557,8 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                 double dx = seg_x2 - seg_x1;
                 double dy = seg_y2 - seg_y1;
                 double offset = 0.15 * sqrt(dx * dx + dy * dy);
-                if (offset < 0.01) offset = 5.0;
+                if (offset < 0.01)
+                    offset = 5.0;
                 double nx = -dy / (sqrt(dx * dx + dy * dy) + 0.001);
                 double ny = dx / (sqrt(dx * dx + dy * dy) + 0.001);
 
@@ -2448,52 +2567,58 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                 double cp2x = seg_x2 - 0.3 * dx + nx * offset;
                 double cp2y = seg_y2 - 0.3 * dy + ny * offset;
 
-                fprintf(fp, " C %.2f,%.2f %.2f,%.2f %.2f,%.2f",
-                       cp1x, cp1y, cp2x, cp2y, seg_x2, seg_y2);
+                fprintf(fp, " C %.2f,%.2f %.2f,%.2f %.2f,%.2f", cp1x, cp1y, cp2x, cp2y, seg_x2, seg_y2);
             }
             fprintf(fp, "\"/>\n");
         } else {
             fprintf(fp, "  <!-- Line Segment id=%d -->\n", node->id);
-            fprintf(fp, "  <line class=\"line\" x1=\"%.2f\" y1=\"%.2f\" "
-                   "x2=\"%.2f\" y2=\"%.2f\" stroke=\"%s\"/>\n",
-                   x1, y1, x2, y2, color);
+            fprintf(fp,
+                    "  <line class=\"line\" x1=\"%.2f\" y1=\"%.2f\" "
+                    "x2=\"%.2f\" y2=\"%.2f\" stroke=\"%s\"/>\n",
+                    x1, y1, x2, y2, color);
         }
 
         /* 线段标签 */
         double mx = (x1 + x2) / 2.0;
         double my = (y1 + y2) / 2.0;
-        fprintf(fp, "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-               "text-anchor=\"middle\" fill=\"%s\">seg_%d</text>\n",
-               mx, my - 6.0, color, node->id);
+        fprintf(fp,
+                "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
+                "text-anchor=\"middle\" fill=\"%s\">seg_%d</text>\n",
+                mx, my - 6.0, color, node->id);
     }
 
     /* ---- 渲染端口 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_PORT) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_PORT)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
 
         const char *color = trust_color_to_svg(node->trust);
-        const char *port_type_str = (node->data.port && node->data.port->type == PORT_INPUT)
-                                     ? "in" : "out";
+        const char *port_type_str = (node->data.port && node->data.port->type == PORT_INPUT) ? "in" : "out";
 
         fprintf(fp, "  <!-- Port id=%d type=%s -->\n", node->id, port_type_str);
-        fprintf(fp, "  <circle class=\"port\" cx=\"%.2f\" cy=\"%.2f\" r=\"5\" "
-               "fill=\"white\" stroke=\"%s\"/>\n",
-               px, py, color);
-        fprintf(fp, "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-               "text-anchor=\"middle\" fill=\"%s\" font-size=\"9px\">%s_%d</text>\n",
-               px, py - 9.0, color, port_type_str, node->id);
+        fprintf(fp,
+                "  <circle class=\"port\" cx=\"%.2f\" cy=\"%.2f\" r=\"5\" "
+                "fill=\"white\" stroke=\"%s\"/>\n",
+                px, py, color);
+        fprintf(fp,
+                "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
+                "text-anchor=\"middle\" fill=\"%s\" font-size=\"9px\">%s_%d</text>\n",
+                px, py - 9.0, color, port_type_str, node->id);
     }
 
     /* ---- 渲染点 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_POINT) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_POINT)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -2509,41 +2634,48 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
             if (sx && sy) {
                 fprintf(fp, "  <g>\n");
                 fprintf(fp, "    <title>P%d = (%s, %s)</title>\n", node->id, sx, sy);
-                fprintf(fp, "    <desc>Symbolic: P%d at rational/quadratic coords</desc>\n",
-                       node->id);
+                fprintf(fp, "    <desc>Symbolic: P%d at rational/quadratic coords</desc>\n", node->id);
             }
-            fprintf(fp, "  <circle class=\"point\" cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
-                   "fill=\"%s\"/>\n", px, py, color);
-            fprintf(fp, "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-                   "text-anchor=\"middle\" fill=\"#374151\">P%d</text>\n",
-                   px, py - 8.0, node->id);
+            fprintf(fp,
+                    "  <circle class=\"point\" cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
+                    "fill=\"%s\"/>\n",
+                    px, py, color);
+            fprintf(fp,
+                    "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
+                    "text-anchor=\"middle\" fill=\"#374151\">P%d</text>\n",
+                    px, py - 8.0, node->id);
             if (sx && sy) {
                 fprintf(fp, "  </g>\n");
             }
             free(sx);
             free(sy);
         } else {
-            fprintf(fp, "  <circle class=\"point\" cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
-                   "fill=\"%s\"/>\n", px, py, color);
-            fprintf(fp, "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-                   "text-anchor=\"middle\" fill=\"#374151\">P%d</text>\n",
-                   px, py - 8.0, node->id);
+            fprintf(fp,
+                    "  <circle class=\"point\" cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
+                    "fill=\"%s\"/>\n",
+                    px, py, color);
+            fprintf(fp,
+                    "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
+                    "text-anchor=\"middle\" fill=\"#374151\">P%d</text>\n",
+                    px, py - 8.0, node->id);
         }
     }
 
     /* ---- 渲染约束 ---- */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || c->participant_count < 2) continue;
+        if (!c || c->participant_count < 2)
+            continue;
 
-        fprintf(fp, "  <!-- Constraint id=%d type=%s -->\n",
-               c->id, constraint_type_name(c->type));
+        fprintf(fp, "  <!-- Constraint id=%d type=%s -->\n", c->id, constraint_type_name(c->type));
 
         /* 获取参与者节点的位置 */
         GeomNode *p0 = graph_get_node_by_id(graph, c->participants[0]);
         GeomNode *p1 = graph_get_node_by_id(graph, c->participants[1]);
-        if (!p0 || !p1) continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2) continue;
+        if (!p0 || !p1)
+            continue;
+        if (p0->coord_count < 2 || p1->coord_count < 2)
+            continue;
 
         double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
         double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
@@ -2553,18 +2685,21 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
         switch (c->type) {
             case INCIDENCE:
                 /* 关联约束：虚线 */
-                fprintf(fp, "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-                       "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#6b7280\"/>\n",
-                       x0, y0, x1, y1);
+                fprintf(fp,
+                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
+                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#6b7280\"/>\n",
+                        x0, y0, x1, y1);
                 break;
 
             case BETWEENNESS: {
                 /* 之间约束：三点之间用标签标注 */
                 double mx = (x0 + x1) / 2.0;
                 double my = (y0 + y1) / 2.0;
-                fprintf(fp, "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-                       "text-anchor=\"middle\" fill=\"#6366f1\" font-style=\"italic\">"
-                       "B(%d,%d", mx, my, c->participants[0], c->participants[1]);
+                fprintf(fp,
+                        "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
+                        "text-anchor=\"middle\" fill=\"#6366f1\" font-style=\"italic\">"
+                        "B(%d,%d",
+                        mx, my, c->participants[0], c->participants[1]);
                 if (c->participant_count >= 3) {
                     fprintf(fp, ",%d", c->participants[2]);
                 }
@@ -2574,13 +2709,13 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
 
             case INTERSECTION: {
                 /* 相交约束：计算精确交点并标记紫色十字 */
-                double ix = x0, iy = y0;  /* 默认交点为第一个参与者 */
+                double ix = x0, iy = y0; /* 默认交点为第一个参与者 */
                 double a1x = x0, a1y = y0;
                 double b1x = x1, b1y = y1;
 
                 /* 使用线段参数方程求精确交点 */
-                if (p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 &&
-                    p1->type == GEOM_LINE_SEGMENT && p1->coord_count >= 4) {
+                if (p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 && p1->type == GEOM_LINE_SEGMENT &&
+                    p1->coord_count >= 4) {
                     double a2x = symbolic_coord_to_double(p0->symbolic_coords[2]);
                     double a2y = symbolic_coord_to_double(p0->symbolic_coords[3]);
                     double b2x = symbolic_coord_to_double(p1->symbolic_coords[2]);
@@ -2602,38 +2737,44 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
                     }
                 }
 
-                fprintf(fp, "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-                       "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#a855f7\"/>\n",
-                       a1x, a1y, b1x, b1y);
+                fprintf(fp,
+                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
+                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#a855f7\"/>\n",
+                        a1x, a1y, b1x, b1y);
 
                 /* 在精确交点处绘制紫色十字标记 */
                 double cross_r = 5.0;
-                fprintf(fp, "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-                       "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
-                       ix - cross_r, iy - cross_r, ix + cross_r, iy + cross_r);
-                fprintf(fp, "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-                       "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
-                       ix - cross_r, iy + cross_r, ix + cross_r, iy - cross_r);
-                fprintf(fp, "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
-                       "fill=\"none\" stroke=\"#a855f7\" stroke-width=\"1.5\"/>\n",
-                       ix, iy);
+                fprintf(fp,
+                        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
+                        "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
+                        ix - cross_r, iy - cross_r, ix + cross_r, iy + cross_r);
+                fprintf(fp,
+                        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
+                        "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
+                        ix - cross_r, iy + cross_r, ix + cross_r, iy - cross_r);
+                fprintf(fp,
+                        "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
+                        "fill=\"none\" stroke=\"#a855f7\" stroke-width=\"1.5\"/>\n",
+                        ix, iy);
                 break;
             }
 
             case CONTAINMENT:
                 /* 包含约束：点线 */
-                fprintf(fp, "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-                       "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#14b8a6\" "
-                       "stroke-dasharray=\"2,4\"/>\n",
-                       x0, y0, x1, y1);
+                fprintf(fp,
+                        "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
+                        "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#14b8a6\" "
+                        "stroke-dasharray=\"2,4\"/>\n",
+                        x0, y0, x1, y1);
                 break;
 
             case CONNECTION:
                 /* 连接约束：箭头线 */
-                fprintf(fp, "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-                       "stroke=\"#f59e0b\" stroke-width=\"1.5\" "
-                       "marker-end=\"url(#arrowhead)\"/>\n",
-                       x0, y0, x1, y1);
+                fprintf(fp,
+                        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
+                        "stroke=\"#f59e0b\" stroke-width=\"1.5\" "
+                        "marker-end=\"url(#arrowhead)\"/>\n",
+                        x0, y0, x1, y1);
                 break;
 
             default:
@@ -2646,8 +2787,9 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
     double legend_y = min_y + 20.0;
     fprintf(fp, "\n  <!-- Legend -->\n");
     fprintf(fp, "  <g transform=\"translate(%.2f, %.2f)\">\n", legend_x, legend_y);
-    fprintf(fp, "    <rect x=\"0\" y=\"0\" width=\"150\" height=\"130\" "
-               "fill=\"white\" fill-opacity=\"0.9\" stroke=\"#d1d5db\" rx=\"4\"/>\n");
+    fprintf(fp,
+            "    <rect x=\"0\" y=\"0\" width=\"150\" height=\"130\" "
+            "fill=\"white\" fill-opacity=\"0.9\" stroke=\"#d1d5db\" rx=\"4\"/>\n");
     fprintf(fp, "    <text class=\"label\" x=\"10\" y=\"18\" font-weight=\"bold\">Legend</text>\n");
 
     /* 点 */
@@ -2659,7 +2801,9 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
     fprintf(fp, "    <text class=\"label\" x=\"32\" y=\"56\">Line Segment</text>\n");
 
     /* 区域 */
-    fprintf(fp, "    <rect x=\"12\" y=\"64\" width=\"16\" height=\"12\" fill=\"#eab308\" fill-opacity=\"0.3\" stroke=\"#eab308\"/>\n");
+    fprintf(fp,
+            "    <rect x=\"12\" y=\"64\" width=\"16\" height=\"12\" fill=\"#eab308\" fill-opacity=\"0.3\" "
+            "stroke=\"#eab308\"/>\n");
     fprintf(fp, "    <text class=\"label\" x=\"32\" y=\"75\">Region</text>\n");
 
     /* 约束 */
@@ -2678,8 +2822,9 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
 
     /* 箭头标记定义（放在最后，因为connection可能引用） */
     fprintf(fp, "\n  <defs>\n");
-    fprintf(fp, "    <marker id=\"arrowhead\" markerWidth=\"8\" markerHeight=\"6\" "
-               "refX=\"8\" refY=\"3\" orient=\"auto\">\n");
+    fprintf(fp,
+            "    <marker id=\"arrowhead\" markerWidth=\"8\" markerHeight=\"6\" "
+            "refX=\"8\" refY=\"3\" orient=\"auto\">\n");
     fprintf(fp, "      <polygon points=\"0 0, 8 3, 0 6\" fill=\"#f59e0b\"/>\n");
     fprintf(fp, "    </marker>\n");
     fprintf(fp, "  </defs>\n");
@@ -2765,16 +2910,17 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
      *         LV00_ERROR_INVALID_PARAM 参数无效（graph或config为NULL）
      *         LV00_ERROR_IO 文件无法创建或写入
      */
-    if (!graph || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!graph || !config)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* ---- 流式事件：开始 LaTeX/TikZ 导出 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "开始 LaTeX/TikZ 导出", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 LaTeX/TikZ 导出", 0);
     }
 
     FILE *fp = fopen(config->output_path, "w");
-    if (!fp) return LV00_ERROR_IO;
+    if (!fp)
+        return LV00_ERROR_IO;
 
     /* LaTeX文档头部 */
     fprintf(fp, "%% Generated by Lv-00 v%s\n", LV00_VERSION_STRING);
@@ -2797,8 +2943,10 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
     /* ---- 渲染区域（底层） ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_REGION) continue;
-        if (node->data.region.segment_count < 3) continue;
+        if (!node || node->type != GEOM_REGION)
+            continue;
+        if (node->data.region.segment_count < 3)
+            continue;
 
         const char *color = trust_color_to_tikz(node->trust);
 
@@ -2846,8 +2994,10 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
     /* ---- 渲染函数块 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_FUNCTION_BLOCK) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_FUNCTION_BLOCK)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double bx = symbolic_coord_to_double(node->symbolic_coords[0]);
         double by = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -2855,16 +3005,19 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
         const char *color = trust_color_to_tikz(node->trust);
 
         fprintf(fp, "    %% Function Block id=%d\n", node->id);
-        fprintf(fp, "    \\node[block, draw=%s, fill=%s, fill opacity=0.15] "
-               "at (%.2f, %.2f) {FB\\_%d};\n",
-               color, color, bx, by, node->id);
+        fprintf(fp,
+                "    \\node[block, draw=%s, fill=%s, fill opacity=0.15] "
+                "at (%.2f, %.2f) {FB\\_%d};\n",
+                color, color, bx, by, node->id);
     }
 
     /* ---- 渲染线段 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_LINE_SEGMENT) continue;
-        if (node->coord_count < 4) continue;
+        if (!node || node->type != GEOM_LINE_SEGMENT)
+            continue;
+        if (node->coord_count < 4)
+            continue;
 
         double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
         double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -2882,43 +3035,48 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
             for (int p = 0; p < total_pairs; p++) {
                 double sx = symbolic_coord_to_double(node->symbolic_coords[p * 2]);
                 double sy = symbolic_coord_to_double(node->symbolic_coords[p * 2 + 1]);
-                if (p > 0) fprintf(fp, " ");
+                if (p > 0)
+                    fprintf(fp, " ");
                 fprintf(fp, "(%.2f,%.2f)", sx, sy);
             }
             fprintf(fp, "};\n");
         } else {
-            fprintf(fp, "    \\draw[line, %s] (%.2f, %.2f) -- (%.2f, %.2f) "
-                   "node[midway, above, label] {seg\\_%d};\n",
-                   color, x1, y1, x2, y2, node->id);
+            fprintf(fp,
+                    "    \\draw[line, %s] (%.2f, %.2f) -- (%.2f, %.2f) "
+                    "node[midway, above, label] {seg\\_%d};\n",
+                    color, x1, y1, x2, y2, node->id);
         }
     }
 
     /* ---- 渲染端口 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_PORT) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_PORT)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
 
         const char *color = trust_color_to_tikz(node->trust);
-        const char *port_type_str = (node->data.port && node->data.port->type == PORT_INPUT)
-                                     ? "in" : "out";
+        const char *port_type_str = (node->data.port && node->data.port->type == PORT_INPUT) ? "in" : "out";
 
         fprintf(fp, "    %% Port id=%d type=%s\n", node->id, port_type_str);
-        fprintf(fp, "    \\node[port, draw=%s] (port%d) at (%.2f, %.2f) {};\n",
-               color, node->id, px, py);
-        fprintf(fp, "    \\node[label, %s, font=\\tiny] at (%.2f, %.2f) "
-               "{%s\\_%d};\n",
-               color, px, py + 0.3, port_type_str, node->id);
+        fprintf(fp, "    \\node[port, draw=%s] (port%d) at (%.2f, %.2f) {};\n", color, node->id, px, py);
+        fprintf(fp,
+                "    \\node[label, %s, font=\\tiny] at (%.2f, %.2f) "
+                "{%s\\_%d};\n",
+                color, px, py + 0.3, port_type_str, node->id);
     }
 
     /* ---- 渲染点 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_POINT) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_POINT)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -2926,41 +3084,41 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
         const char *color = trust_color_to_tikz(node->trust);
 
         fprintf(fp, "    %% Point id=%d\n", node->id);
-        fprintf(fp, "    \\node[point, %s] (P%d) at (%.2f, %.2f) {};\n",
-               color, node->id, px, py);
+        fprintf(fp, "    \\node[point, %s] (P%d) at (%.2f, %.2f) {};\n", color, node->id, px, py);
 
         /* 使用符号坐标序列化作为标签（如果坐标可用） */
         if (node->symbolic_coords && node->symbolic_coords[0] && node->symbolic_coords[1]) {
             char *sx = symbolic_coord_serialize(node->symbolic_coords[0]);
             char *sy = symbolic_coord_serialize(node->symbolic_coords[1]);
             if (sx && sy) {
-                fprintf(fp, "    \\node[label, above=2pt of P%d] "
-                       "{$P_{%d}\\!\\left(%s,\\, %s\\right)$};\n",
-                       node->id, node->id, sx, sy);
+                fprintf(fp,
+                        "    \\node[label, above=2pt of P%d] "
+                        "{$P_{%d}\\!\\left(%s,\\, %s\\right)$};\n",
+                        node->id, node->id, sx, sy);
             } else {
-                fprintf(fp, "    \\node[label, above=2pt of P%d] {$P_{%d}$};\n",
-                       node->id, node->id);
+                fprintf(fp, "    \\node[label, above=2pt of P%d] {$P_{%d}$};\n", node->id, node->id);
             }
             free(sx);
             free(sy);
         } else {
-            fprintf(fp, "    \\node[label, above=2pt of P%d] {$P_{%d}$};\n",
-                   node->id, node->id);
+            fprintf(fp, "    \\node[label, above=2pt of P%d] {$P_{%d}$};\n", node->id, node->id);
         }
     }
 
     /* ---- 渲染约束 ---- */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || c->participant_count < 2) continue;
+        if (!c || c->participant_count < 2)
+            continue;
 
-        fprintf(fp, "    %% Constraint id=%d type=%s\n",
-               c->id, constraint_type_name(c->type));
+        fprintf(fp, "    %% Constraint id=%d type=%s\n", c->id, constraint_type_name(c->type));
 
         GeomNode *p0 = graph_get_node_by_id(graph, c->participants[0]);
         GeomNode *p1 = graph_get_node_by_id(graph, c->participants[1]);
-        if (!p0 || !p1) continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2) continue;
+        if (!p0 || !p1)
+            continue;
+        if (p0->coord_count < 2 || p1->coord_count < 2)
+            continue;
 
         double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
         double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
@@ -2969,15 +3127,16 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
 
         switch (c->type) {
             case INCIDENCE:
-                fprintf(fp, "    \\draw[constraint] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                       x0, y0, x1, y1);
+                fprintf(fp, "    \\draw[constraint] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
                 break;
 
             case BETWEENNESS: {
                 double mx = (x0 + x1) / 2.0;
                 double my = (y0 + y1) / 2.0;
-                fprintf(fp, "    \\node[label, purple, font=\\itshape] at (%.2f, %.2f) "
-                       "{B(%d, %d", mx, my, c->participants[0], c->participants[1]);
+                fprintf(fp,
+                        "    \\node[label, purple, font=\\itshape] at (%.2f, %.2f) "
+                        "{B(%d, %d",
+                        mx, my, c->participants[0], c->participants[1]);
                 if (c->participant_count >= 3) {
                     fprintf(fp, ", %d", c->participants[2]);
                 }
@@ -2991,8 +3150,8 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
                 double a1x = x0, a1y = y0, b1x = x1, b1y = y1;
                 bool has_precise = false;
 
-                if (p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 &&
-                    p1->type == GEOM_LINE_SEGMENT && p1->coord_count >= 4) {
+                if (p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 && p1->type == GEOM_LINE_SEGMENT &&
+                    p1->coord_count >= 4) {
                     double a2x = symbolic_coord_to_double(p0->symbolic_coords[2]);
                     double a2y = symbolic_coord_to_double(p0->symbolic_coords[3]);
                     double b2x = symbolic_coord_to_double(p1->symbolic_coords[2]);
@@ -3017,26 +3176,26 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
                 if (has_precise) {
                     fprintf(fp, "    %% 精确交点计算 (t=parametric)\n");
                     fprintf(fp, "    \\fill[red] (%.2f, %.2f) circle (2pt);\n", ix, iy);
-                    fprintf(fp, "    \\node[label, red, font=\\tiny] at (%.2f, %.2f) "
-                           "{intersection};\n", ix + 0.3, iy + 0.3);
+                    fprintf(fp,
+                            "    \\node[label, red, font=\\tiny] at (%.2f, %.2f) "
+                            "{intersection};\n",
+                            ix + 0.3, iy + 0.3);
                 } else {
-                    fprintf(fp, "    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                           a1x, a1y, b1x, b1y);
-                    fprintf(fp, "    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n",
-                           x0, y0);
+                    fprintf(fp, "    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n", a1x, a1y, b1x, b1y);
+                    fprintf(fp, "    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n", x0, y0);
                 }
                 break;
             }
 
             case CONTAINMENT:
-                fprintf(fp, "    \\draw[constraint, teal, densely dotted] "
-                       "(%.2f, %.2f) -- (%.2f, %.2f);\n",
-                       x0, y0, x1, y1);
+                fprintf(fp,
+                        "    \\draw[constraint, teal, densely dotted] "
+                        "(%.2f, %.2f) -- (%.2f, %.2f);\n",
+                        x0, y0, x1, y1);
                 break;
 
             case CONNECTION:
-                fprintf(fp, "    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                       x0, y0, x1, y1);
+                fprintf(fp, "    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
                 break;
 
             default:
@@ -3055,90 +3214,139 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
 
         for (int i = 0; i < graph->node_count; i++) {
             GeomNode *n = graph->nodes[i];
-            if (!n) continue;
+            if (!n)
+                continue;
             switch (n->type) {
-                case GEOM_POINT:         has_point = true; break;
-                case GEOM_LINE_SEGMENT:  has_line = true; break;
-                case GEOM_REGION:        has_region = true; break;
-                case GEOM_FUNCTION_BLOCK:has_block = true; break;
-                case GEOM_PORT:          has_port = true; break;
-                default: break;
+                case GEOM_POINT:
+                    has_point = true;
+                    break;
+                case GEOM_LINE_SEGMENT:
+                    has_line = true;
+                    break;
+                case GEOM_REGION:
+                    has_region = true;
+                    break;
+                case GEOM_FUNCTION_BLOCK:
+                    has_block = true;
+                    break;
+                case GEOM_PORT:
+                    has_port = true;
+                    break;
+                default:
+                    break;
             }
         }
         for (int i = 0; i < graph->constraint_count; i++) {
             Constraint *c = graph->constraints[i];
-            if (!c) continue;
+            if (!c)
+                continue;
             switch (c->type) {
-                case INCIDENCE:      has_incidence = true; break;
-                case BETWEENNESS:    has_betweenness = true; break;
-                case INTERSECTION:   has_intersection = true; break;
-                case CONTAINMENT:    has_containment = true; break;
-                case CONNECTION:     has_connection = true; break;
-                default: break;
+                case INCIDENCE:
+                    has_incidence = true;
+                    break;
+                case BETWEENNESS:
+                    has_betweenness = true;
+                    break;
+                case INTERSECTION:
+                    has_intersection = true;
+                    break;
+                case CONTAINMENT:
+                    has_containment = true;
+                    break;
+                case CONNECTION:
+                    has_connection = true;
+                    break;
+                default:
+                    break;
             }
         }
 
         int legend_rows = 0;
-        if (has_point) legend_rows++;
-        if (has_line) legend_rows++;
-        if (has_region) legend_rows++;
-        if (has_block) legend_rows++;
-        if (has_port) legend_rows++;
-        if (has_incidence) legend_rows++;
-        if (has_betweenness) legend_rows++;
-        if (has_intersection) legend_rows++;
-        if (has_containment) legend_rows++;
-        if (has_connection) legend_rows++;
+        if (has_point)
+            legend_rows++;
+        if (has_line)
+            legend_rows++;
+        if (has_region)
+            legend_rows++;
+        if (has_block)
+            legend_rows++;
+        if (has_port)
+            legend_rows++;
+        if (has_incidence)
+            legend_rows++;
+        if (has_betweenness)
+            legend_rows++;
+        if (has_intersection)
+            legend_rows++;
+        if (has_containment)
+            legend_rows++;
+        if (has_connection)
+            legend_rows++;
 
         if (legend_rows > 0) {
             fprintf(fp, "\n    %% Legend\n");
-            fprintf(fp, "    \\matrix[draw, fill=white, fill opacity=0.85, "
-                   "anchor=south east, column sep=4pt, row sep=2pt, "
-                   "font=\\scriptsize, inner sep=4pt]\n");
+            fprintf(fp,
+                    "    \\matrix[draw, fill=white, fill opacity=0.85, "
+                    "anchor=south east, column sep=4pt, row sep=2pt, "
+                    "font=\\scriptsize, inner sep=4pt]\n");
             fprintf(fp, "    at (current bounding box.south east) {\n");
 
             int row = 0;
             if (has_point) {
                 fprintf(fp, "        \\node[point] {}; & \\node {Point}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_line) {
                 fprintf(fp, "        \\draw[line] (0,0) -- (0.5,0); & \\node {Line Segment}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_region) {
                 fprintf(fp, "        \\draw[region, fill=blue!20] (0,0) rectangle (0.5,0.3); & \\node {Region}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_block) {
-                fprintf(fp, "        \\node[block, minimum width=0.5cm, minimum height=0.3cm] {}; & \\node {Function Block}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                fprintf(
+                    fp,
+                    "        \\node[block, minimum width=0.5cm, minimum height=0.3cm] {}; & \\node {Function Block}; ");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_port) {
                 fprintf(fp, "        \\node[port] {}; & \\node {Port}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_incidence) {
                 fprintf(fp, "        \\draw[constraint] (0,0) -- (0.5,0); & \\node {Incidence}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_betweenness) {
                 fprintf(fp, "        \\node[purple, font=\\itshape] {B}; & \\node {Betweenness}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_intersection) {
-                fprintf(fp, "        \\draw[constraint, purple] (0,0) -- (0.5,0); "
-                       "\\node[circle, draw=purple, inner sep=0.5pt] at (0.25,0) {}; "
-                       "& \\node {Intersection}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                fprintf(fp,
+                        "        \\draw[constraint, purple] (0,0) -- (0.5,0); "
+                        "\\node[circle, draw=purple, inner sep=0.5pt] at (0.25,0) {}; "
+                        "& \\node {Intersection}; ");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_containment) {
-                fprintf(fp, "        \\draw[constraint, teal, densely dotted] (0,0) -- (0.5,0); & \\node {Containment}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                fprintf(fp,
+                        "        \\draw[constraint, teal, densely dotted] (0,0) -- (0.5,0); & \\node {Containment}; ");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
             if (has_connection) {
                 fprintf(fp, "        \\draw[connection] (0,0) -- (0.5,0); & \\node {Connection}; ");
-                if (++row < legend_rows) fprintf(fp, "\\\\\n");
+                if (++row < legend_rows)
+                    fprintf(fp, "\\\\\n");
             }
 
             fprintf(fp, "    };\n");
@@ -3152,8 +3360,7 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
 
     /* ---- 流式事件：LaTeX/TikZ 导出完成 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "LaTeX/TikZ 导出完成", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "LaTeX/TikZ 导出完成", 0);
     }
 
     return LV00_OK;
@@ -3172,24 +3379,31 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
  * @return 实际写入字符数（不含终止符），失败返回负数
  */
 int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, size_t size) {
-    if (!graph || !output || size == 0) return -1;
+    if (!graph || !output || size == 0)
+        return -1;
 
     /* ---- 流式事件：开始 TikZ 片段导出 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "开始 TikZ 片段导出", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 TikZ 片段导出", 0);
     }
 
     /* 使用 snprintf 逐步写入缓冲区 */
     int total = 0;
-    int remaining = (int)size;
+    int remaining = (int) size;
 
-#define TIKZ_FRAG_PRINTF(...) do { \
-    int n = snprintf(output + total, (size_t)remaining, __VA_ARGS__); \
-    if (n < 0) return -1; \
-    if (n >= remaining) { total += remaining - 1; remaining = 1; } \
-    else { total += n; remaining -= n; } \
-} while(0)
+#define TIKZ_FRAG_PRINTF(...)                                              \
+    do {                                                                   \
+        int n = snprintf(output + total, (size_t) remaining, __VA_ARGS__); \
+        if (n < 0)                                                         \
+            return -1;                                                     \
+        if (n >= remaining) {                                              \
+            total += remaining - 1;                                        \
+            remaining = 1;                                                 \
+        } else {                                                           \
+            total += n;                                                    \
+            remaining -= n;                                                \
+        }                                                                  \
+    } while (0)
 
     /* TikZ 样式定义和 tikzpicture 开始 */
     TIKZ_FRAG_PRINTF("%% Generated by Lv-00 v%s (TikZ fragment)\n", LV00_VERSION_STRING);
@@ -3207,8 +3421,10 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
     /* ---- 渲染区域（底层） ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_REGION) continue;
-        if (node->data.region.segment_count < 3) continue;
+        if (!node || node->type != GEOM_REGION)
+            continue;
+        if (node->data.region.segment_count < 3)
+            continue;
 
         const char *color = trust_color_to_tikz(node->trust);
 
@@ -3235,8 +3451,10 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
     /* ---- 渲染函数块 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_FUNCTION_BLOCK) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_FUNCTION_BLOCK)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double bx = symbolic_coord_to_double(node->symbolic_coords[0]);
         double by = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -3244,16 +3462,19 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
         const char *color = trust_color_to_tikz(node->trust);
 
         TIKZ_FRAG_PRINTF("    %% Function Block id=%d\n", node->id);
-        TIKZ_FRAG_PRINTF("    \\node[block, draw=%s, fill=%s, fill opacity=0.15] "
-               "at (%.2f, %.2f) {FB\\_%d};\n",
-               color, color, bx, by, node->id);
+        TIKZ_FRAG_PRINTF(
+            "    \\node[block, draw=%s, fill=%s, fill opacity=0.15] "
+            "at (%.2f, %.2f) {FB\\_%d};\n",
+            color, color, bx, by, node->id);
     }
 
     /* ---- 渲染线段 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_LINE_SEGMENT) continue;
-        if (node->coord_count < 4) continue;
+        if (!node || node->type != GEOM_LINE_SEGMENT)
+            continue;
+        if (node->coord_count < 4)
+            continue;
 
         double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
         double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -3263,37 +3484,41 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
         const char *color = trust_color_to_tikz(node->trust);
 
         TIKZ_FRAG_PRINTF("    %% Line Segment id=%d\n", node->id);
-        TIKZ_FRAG_PRINTF("    \\draw[line, %s] (%.2f, %.2f) -- (%.2f, %.2f) "
-               "node[midway, above, label] {seg\\_%d};\n",
-               color, x1, y1, x2, y2, node->id);
+        TIKZ_FRAG_PRINTF(
+            "    \\draw[line, %s] (%.2f, %.2f) -- (%.2f, %.2f) "
+            "node[midway, above, label] {seg\\_%d};\n",
+            color, x1, y1, x2, y2, node->id);
     }
 
     /* ---- 渲染端口 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_PORT) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_PORT)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
 
         const char *color = trust_color_to_tikz(node->trust);
-        const char *port_type_str = (node->data.port && node->data.port->type == PORT_INPUT)
-                                     ? "in" : "out";
+        const char *port_type_str = (node->data.port && node->data.port->type == PORT_INPUT) ? "in" : "out";
 
         TIKZ_FRAG_PRINTF("    %% Port id=%d type=%s\n", node->id, port_type_str);
-        TIKZ_FRAG_PRINTF("    \\node[port, draw=%s] (port%d) at (%.2f, %.2f) {};\n",
-               color, node->id, px, py);
-        TIKZ_FRAG_PRINTF("    \\node[label, %s, font=\\tiny] at (%.2f, %.2f) "
-               "{%s\\_%d};\n",
-               color, px, py + 0.3, port_type_str, node->id);
+        TIKZ_FRAG_PRINTF("    \\node[port, draw=%s] (port%d) at (%.2f, %.2f) {};\n", color, node->id, px, py);
+        TIKZ_FRAG_PRINTF(
+            "    \\node[label, %s, font=\\tiny] at (%.2f, %.2f) "
+            "{%s\\_%d};\n",
+            color, px, py + 0.3, port_type_str, node->id);
     }
 
     /* ---- 渲染点（带符号坐标标签） ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_POINT) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_POINT)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -3301,41 +3526,41 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
         const char *color = trust_color_to_tikz(node->trust);
 
         TIKZ_FRAG_PRINTF("    %% Point id=%d\n", node->id);
-        TIKZ_FRAG_PRINTF("    \\node[point, %s] (P%d) at (%.2f, %.2f) {};\n",
-               color, node->id, px, py);
+        TIKZ_FRAG_PRINTF("    \\node[point, %s] (P%d) at (%.2f, %.2f) {};\n", color, node->id, px, py);
 
         /* 使用符号坐标序列化作为标签（如果坐标可用） */
         if (node->symbolic_coords && node->symbolic_coords[0] && node->symbolic_coords[1]) {
             char *sx = symbolic_coord_serialize(node->symbolic_coords[0]);
             char *sy = symbolic_coord_serialize(node->symbolic_coords[1]);
             if (sx && sy) {
-                TIKZ_FRAG_PRINTF("    \\node[label, above=2pt of P%d] "
-                       "{$P_{%d}\\!\\left(%s,\\, %s\\right)$};\n",
-                       node->id, node->id, sx, sy);
+                TIKZ_FRAG_PRINTF(
+                    "    \\node[label, above=2pt of P%d] "
+                    "{$P_{%d}\\!\\left(%s,\\, %s\\right)$};\n",
+                    node->id, node->id, sx, sy);
             } else {
-                TIKZ_FRAG_PRINTF("    \\node[label, above=2pt of P%d] {$P_{%d}$};\n",
-                       node->id, node->id);
+                TIKZ_FRAG_PRINTF("    \\node[label, above=2pt of P%d] {$P_{%d}$};\n", node->id, node->id);
             }
             free(sx);
             free(sy);
         } else {
-            TIKZ_FRAG_PRINTF("    \\node[label, above=2pt of P%d] {$P_{%d}$};\n",
-                   node->id, node->id);
+            TIKZ_FRAG_PRINTF("    \\node[label, above=2pt of P%d] {$P_{%d}$};\n", node->id, node->id);
         }
     }
 
     /* ---- 渲染约束 ---- */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || c->participant_count < 2) continue;
+        if (!c || c->participant_count < 2)
+            continue;
 
-        TIKZ_FRAG_PRINTF("    %% Constraint id=%d type=%s\n",
-               c->id, constraint_type_name(c->type));
+        TIKZ_FRAG_PRINTF("    %% Constraint id=%d type=%s\n", c->id, constraint_type_name(c->type));
 
         GeomNode *p0 = graph_get_node_by_id(graph, c->participants[0]);
         GeomNode *p1 = graph_get_node_by_id(graph, c->participants[1]);
-        if (!p0 || !p1) continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2) continue;
+        if (!p0 || !p1)
+            continue;
+        if (p0->coord_count < 2 || p1->coord_count < 2)
+            continue;
 
         double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
         double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
@@ -3344,15 +3569,16 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
 
         switch (c->type) {
             case INCIDENCE:
-                TIKZ_FRAG_PRINTF("    \\draw[constraint] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                       x0, y0, x1, y1);
+                TIKZ_FRAG_PRINTF("    \\draw[constraint] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
                 break;
 
             case BETWEENNESS: {
                 double mx = (x0 + x1) / 2.0;
                 double my = (y0 + y1) / 2.0;
-                TIKZ_FRAG_PRINTF("    \\node[label, purple, font=\\itshape] at (%.2f, %.2f) "
-                       "{B(%d, %d", mx, my, c->participants[0], c->participants[1]);
+                TIKZ_FRAG_PRINTF(
+                    "    \\node[label, purple, font=\\itshape] at (%.2f, %.2f) "
+                    "{B(%d, %d",
+                    mx, my, c->participants[0], c->participants[1]);
                 if (c->participant_count >= 3) {
                     TIKZ_FRAG_PRINTF(", %d", c->participants[2]);
                 }
@@ -3361,21 +3587,19 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
             }
 
             case INTERSECTION:
-                TIKZ_FRAG_PRINTF("    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                       x0, y0, x1, y1);
-                TIKZ_FRAG_PRINTF("    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n",
-                       x0, y0);
+                TIKZ_FRAG_PRINTF("    \\draw[constraint, purple] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
+                TIKZ_FRAG_PRINTF("    \\node[circle, draw=purple, inner sep=1pt] at (%.2f, %.2f) {};\n", x0, y0);
                 break;
 
             case CONTAINMENT:
-                TIKZ_FRAG_PRINTF("    \\draw[constraint, teal, densely dotted] "
-                       "(%.2f, %.2f) -- (%.2f, %.2f);\n",
-                       x0, y0, x1, y1);
+                TIKZ_FRAG_PRINTF(
+                    "    \\draw[constraint, teal, densely dotted] "
+                    "(%.2f, %.2f) -- (%.2f, %.2f);\n",
+                    x0, y0, x1, y1);
                 break;
 
             case CONNECTION:
-                TIKZ_FRAG_PRINTF("    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n",
-                       x0, y0, x1, y1);
+                TIKZ_FRAG_PRINTF("    \\draw[connection] (%.2f, %.2f) -- (%.2f, %.2f);\n", x0, y0, x1, y1);
                 break;
 
             default:
@@ -3393,90 +3617,138 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
 
         for (int i = 0; i < graph->node_count; i++) {
             GeomNode *n = graph->nodes[i];
-            if (!n) continue;
+            if (!n)
+                continue;
             switch (n->type) {
-                case GEOM_POINT:         has_point = true; break;
-                case GEOM_LINE_SEGMENT:  has_line = true; break;
-                case GEOM_REGION:        has_region = true; break;
-                case GEOM_FUNCTION_BLOCK:has_block = true; break;
-                case GEOM_PORT:          has_port = true; break;
-                default: break;
+                case GEOM_POINT:
+                    has_point = true;
+                    break;
+                case GEOM_LINE_SEGMENT:
+                    has_line = true;
+                    break;
+                case GEOM_REGION:
+                    has_region = true;
+                    break;
+                case GEOM_FUNCTION_BLOCK:
+                    has_block = true;
+                    break;
+                case GEOM_PORT:
+                    has_port = true;
+                    break;
+                default:
+                    break;
             }
         }
         for (int i = 0; i < graph->constraint_count; i++) {
             Constraint *c = graph->constraints[i];
-            if (!c) continue;
+            if (!c)
+                continue;
             switch (c->type) {
-                case INCIDENCE:      has_incidence = true; break;
-                case BETWEENNESS:    has_betweenness = true; break;
-                case INTERSECTION:   has_intersection = true; break;
-                case CONTAINMENT:    has_containment = true; break;
-                case CONNECTION:     has_connection = true; break;
-                default: break;
+                case INCIDENCE:
+                    has_incidence = true;
+                    break;
+                case BETWEENNESS:
+                    has_betweenness = true;
+                    break;
+                case INTERSECTION:
+                    has_intersection = true;
+                    break;
+                case CONTAINMENT:
+                    has_containment = true;
+                    break;
+                case CONNECTION:
+                    has_connection = true;
+                    break;
+                default:
+                    break;
             }
         }
 
         int legend_rows = 0;
-        if (has_point) legend_rows++;
-        if (has_line) legend_rows++;
-        if (has_region) legend_rows++;
-        if (has_block) legend_rows++;
-        if (has_port) legend_rows++;
-        if (has_incidence) legend_rows++;
-        if (has_betweenness) legend_rows++;
-        if (has_intersection) legend_rows++;
-        if (has_containment) legend_rows++;
-        if (has_connection) legend_rows++;
+        if (has_point)
+            legend_rows++;
+        if (has_line)
+            legend_rows++;
+        if (has_region)
+            legend_rows++;
+        if (has_block)
+            legend_rows++;
+        if (has_port)
+            legend_rows++;
+        if (has_incidence)
+            legend_rows++;
+        if (has_betweenness)
+            legend_rows++;
+        if (has_intersection)
+            legend_rows++;
+        if (has_containment)
+            legend_rows++;
+        if (has_connection)
+            legend_rows++;
 
         if (legend_rows > 0) {
             TIKZ_FRAG_PRINTF("\n    %% Legend\n");
-            TIKZ_FRAG_PRINTF("    \\matrix[draw, fill=white, fill opacity=0.85, "
-                   "anchor=south east, column sep=4pt, row sep=2pt, "
-                   "font=\\scriptsize, inner sep=4pt]\n");
+            TIKZ_FRAG_PRINTF(
+                "    \\matrix[draw, fill=white, fill opacity=0.85, "
+                "anchor=south east, column sep=4pt, row sep=2pt, "
+                "font=\\scriptsize, inner sep=4pt]\n");
             TIKZ_FRAG_PRINTF("    at (current bounding box.south east) {\n");
 
             int row = 0;
             if (has_point) {
                 TIKZ_FRAG_PRINTF("        \\node[point] {}; & \\node {Point}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_line) {
                 TIKZ_FRAG_PRINTF("        \\draw[line] (0,0) -- (0.5,0); & \\node {Line Segment}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_region) {
                 TIKZ_FRAG_PRINTF("        \\draw[region, fill=blue!20] (0,0) rectangle (0.5,0.3); & \\node {Region}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_block) {
-                TIKZ_FRAG_PRINTF("        \\node[block, minimum width=0.5cm, minimum height=0.3cm] {}; & \\node {Function Block}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                TIKZ_FRAG_PRINTF(
+                    "        \\node[block, minimum width=0.5cm, minimum height=0.3cm] {}; & \\node {Function Block}; ");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_port) {
                 TIKZ_FRAG_PRINTF("        \\node[port] {}; & \\node {Port}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_incidence) {
                 TIKZ_FRAG_PRINTF("        \\draw[constraint] (0,0) -- (0.5,0); & \\node {Incidence}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_betweenness) {
                 TIKZ_FRAG_PRINTF("        \\node[purple, font=\\itshape] {B}; & \\node {Betweenness}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_intersection) {
-                TIKZ_FRAG_PRINTF("        \\draw[constraint, purple] (0,0) -- (0.5,0); "
-                       "\\node[circle, draw=purple, inner sep=0.5pt] at (0.25,0) {}; "
-                       "& \\node {Intersection}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                TIKZ_FRAG_PRINTF(
+                    "        \\draw[constraint, purple] (0,0) -- (0.5,0); "
+                    "\\node[circle, draw=purple, inner sep=0.5pt] at (0.25,0) {}; "
+                    "& \\node {Intersection}; ");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_containment) {
-                TIKZ_FRAG_PRINTF("        \\draw[constraint, teal, densely dotted] (0,0) -- (0.5,0); & \\node {Containment}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                TIKZ_FRAG_PRINTF(
+                    "        \\draw[constraint, teal, densely dotted] (0,0) -- (0.5,0); & \\node {Containment}; ");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
             if (has_connection) {
                 TIKZ_FRAG_PRINTF("        \\draw[connection] (0,0) -- (0.5,0); & \\node {Connection}; ");
-                if (++row < legend_rows) TIKZ_FRAG_PRINTF("\\\\\n");
+                if (++row < legend_rows)
+                    TIKZ_FRAG_PRINTF("\\\\\n");
             }
 
             TIKZ_FRAG_PRINTF("    };\n");
@@ -3488,26 +3760,27 @@ int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, siz
 #undef TIKZ_FRAG_PRINTF
 
     /* 确保以 null 终止 */
-    if (total >= (int)size) {
+    if (total >= (int) size) {
         output[size - 1] = '\0';
-        return (int)size - 1;  /* 截断但仍返回写入量 */
+        return (int) size - 1; /* 截断但仍返回写入量 */
     }
     output[total] = '\0';
 
     /* ---- 流式事件：TikZ 片段导出完成 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "TikZ 片段导出完成", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "TikZ 片段导出完成", 0);
     }
 
     return total;
 }
 
 int interop_export_canonical(const ConstraintGraph *graph, const char *output_path) {
-    if (!graph || !output_path) return LV00_ERROR_INVALID_PARAM;
+    if (!graph || !output_path)
+        return LV00_ERROR_INVALID_PARAM;
 
     FILE *fp = fopen(output_path, "w");
-    if (!fp) return LV00_ERROR_IO;
+    if (!fp)
+        return LV00_ERROR_IO;
 
     /* 输出规范表示 */
     fprintf(fp, "# Lv-00 Canonical Representation\n");
@@ -3519,7 +3792,8 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
     fprintf(fp, "NODES %d\n", graph->node_count);
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
 
         /* 节点类型和ID */
         fprintf(fp, "%s %d", geom_type_name(node->type), node->id);
@@ -3527,14 +3801,15 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
         /* 输出符号坐标 */
         fprintf(fp, " [");
         for (int j = 0; j < node->coord_count; j++) {
-            if (j > 0) fprintf(fp, ", ");
+            if (j > 0)
+                fprintf(fp, ", ");
 
             SymbolicCoord *coord = node->symbolic_coords[j];
             if (coord) {
                 char *serialized = symbolic_coord_serialize(coord);
                 if (serialized) {
                     fprintf(fp, "%s", serialized);
-                    lv00_free((void**)&serialized);
+                    lv00_free((void **) &serialized);
                 } else {
                     /* 序列化失败时回退到数值表示 */
                     double val = symbolic_coord_to_double(coord);
@@ -3557,20 +3832,18 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
             case GEOM_PORT:
                 if (node->data.port) {
                     fprintf(fp, " port_type=%s formal=%s poly=%s",
-                           (node->data.port->type == PORT_INPUT) ? "input" : "output",
-                           node->data.port->is_formal_param ? "true" : "false",
-                           node->data.port->is_polymorphic ? "true" : "false");
+                            (node->data.port->type == PORT_INPUT) ? "input" : "output",
+                            node->data.port->is_formal_param ? "true" : "false",
+                            node->data.port->is_polymorphic ? "true" : "false");
                 }
                 break;
             case GEOM_REGION:
                 fprintf(fp, " boundary_segments=%d", node->data.region.segment_count);
                 break;
             case GEOM_FUNCTION_BLOCK:
-                fprintf(fp, " internal=%d inputs=%d outputs=%d state=%d",
-                       node->data.func_block.internal_node_count,
-                       node->data.func_block.input_count,
-                       node->data.func_block.output_count,
-                       node->data.func_block.determinism_state);
+                fprintf(fp, " internal=%d inputs=%d outputs=%d state=%d", node->data.func_block.internal_node_count,
+                        node->data.func_block.input_count, node->data.func_block.output_count,
+                        node->data.func_block.determinism_state);
                 break;
             default:
                 break;
@@ -3583,7 +3856,8 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
     fprintf(fp, "\nCONSTRAINTS %d\n", graph->constraint_count);
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c) continue;
+        if (!c)
+            continue;
 
         fprintf(fp, "%s %d", constraint_type_name(c->type), c->id);
 
@@ -3604,12 +3878,12 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
     fprintf(fp, "\nADJACENCY_LIST\n");
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node) continue;
+        if (!node)
+            continue;
 
         /* 查找涉及此节点的约束 */
         int related_indices[256];
-        int related_count = graph_find_constraints_involving(graph, node->id,
-                                                             related_indices, 256);
+        int related_count = graph_find_constraints_involving(graph, node->id, related_indices, 256);
 
         if (related_count > 0) {
             fprintf(fp, "NODE %d ->", node->id);
@@ -3629,10 +3903,12 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
 }
 
 int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConfig *config) {
-    if (!graph || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!graph || !config)
+        return LV00_ERROR_INVALID_PARAM;
 
     FILE *fp = fopen(config->output_path, "w");
-    if (!fp) return LV00_ERROR_IO;
+    if (!fp)
+        return LV00_ERROR_IO;
 
     /* R02：基于实际图数据动态生成GeoJSON，而非硬编码占位数据 */
     fprintf(fp, "{\n");
@@ -3642,7 +3918,8 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
     int feature_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         const GeomNode *node = graph_get_node(graph, i);
-        if (!node) continue;
+        if (!node)
+            continue;
 
         /* 仅导出点类型节点（线段和区域的坐标较为复杂） */
         if (node->type == GEOM_POINT && node->coord_count >= 2) {
@@ -3654,8 +3931,10 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
             SymbolicCoord *cx = node->symbolic_coords ? node->symbolic_coords[0] : NULL;
             SymbolicCoord *cy = node->symbolic_coords ? node->symbolic_coords[1] : NULL;
 
-            if (cx) x_val = symbolic_coord_to_double(cx);
-            if (cy) y_val = symbolic_coord_to_double(cy);
+            if (cx)
+                x_val = symbolic_coord_to_double(cx);
+            if (cy)
+                y_val = symbolic_coord_to_double(cy);
 
             fprintf(fp, "    {\n");
             fprintf(fp, "      \"type\": \"Feature\",\n");
@@ -3675,8 +3954,10 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
     /* 导出线段类型节点 */
     for (int i = 0; i < graph->node_count; i++) {
         const GeomNode *node = graph_get_node(graph, i);
-        if (!node) continue;
-        if (node->type != GEOM_LINE_SEGMENT) continue;
+        if (!node)
+            continue;
+        if (node->type != GEOM_LINE_SEGMENT)
+            continue;
 
         /* 查找与线段关联的 INCIDENCE 约束以获取端点 */
         int constraint_indices[64];
@@ -3687,28 +3968,32 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
         int endpoint_found = 0;
         for (int j = 0; j < c_count && endpoint_found < 2; j++) {
             const Constraint *c = graph->constraints[constraint_indices[j]];
-            if (!c || c->type != INCIDENCE) continue;
+            if (!c || c->type != INCIDENCE)
+                continue;
             for (int k = 0; k < c->participant_count; k++) {
-                if (c->participants[k] == node->id) continue;
+                if (c->participants[k] == node->id)
+                    continue;
                 const GeomNode *ep = graph_get_node(graph, c->participants[k]);
-                if (!ep || ep->type != GEOM_POINT) continue;
+                if (!ep || ep->type != GEOM_POINT)
+                    continue;
                 int idx = endpoint_found * 2;
                 if (ep->coord_count >= 2 && ep->symbolic_coords) {
                     endpoints[idx] = symbolic_coord_to_double(ep->symbolic_coords[0]);
-                    endpoints[idx+1] = symbolic_coord_to_double(ep->symbolic_coords[1]);
+                    endpoints[idx + 1] = symbolic_coord_to_double(ep->symbolic_coords[1]);
                     endpoint_found++;
                 }
             }
         }
 
         if (endpoint_found >= 2) {
-            if (feature_count > 0) fprintf(fp, ",\n");
+            if (feature_count > 0)
+                fprintf(fp, ",\n");
             fprintf(fp, "    {\n");
             fprintf(fp, "      \"type\": \"Feature\",\n");
             fprintf(fp, "      \"geometry\": {\n");
             fprintf(fp, "        \"type\": \"LineString\",\n");
-            fprintf(fp, "        \"coordinates\": [[%.15g, %.15g], [%.15g, %.15g]]\n",
-                    endpoints[0], endpoints[1], endpoints[2], endpoints[3]);
+            fprintf(fp, "        \"coordinates\": [[%.15g, %.15g], [%.15g, %.15g]]\n", endpoints[0], endpoints[1],
+                    endpoints[2], endpoints[3]);
             fprintf(fp, "      },\n");
             fprintf(fp, "      \"properties\": {\n");
             fprintf(fp, "        \"id\": %d,\n", node->id);
@@ -3798,16 +4083,17 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
  *         LV00_ERROR_IO 文件无法创建或写入
  */
 int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *config) {
-    if (!graph || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!graph || !config)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* ---- 流式事件：开始 PDF 导出 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "开始 PDF 导出", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 PDF 导出", 0);
     }
 
     FILE *fp = fopen(config->output_path, "wb");
-    if (!fp) return LV00_ERROR_IO;
+    if (!fp)
+        return LV00_ERROR_IO;
 
     /*
      * PDF构建策略：
@@ -3824,16 +4110,18 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
     double g_width = max_x - min_x;
     double g_height = max_y - min_y;
-    if (g_width < 50.0)  g_width = 400.0;
-    if (g_height < 50.0) g_height = 300.0;
+    if (g_width < 50.0)
+        g_width = 400.0;
+    if (g_height < 50.0)
+        g_height = 300.0;
 
     /* 添加边距 */
     double margin = 40.0;
-    double page_w = g_width  + 2.0 * margin;
+    double page_w = g_width + 2.0 * margin;
     double page_h = g_height + 2.0 * margin;
 
-    /* ---- 辅助宏：将图形坐标映射到PDF坐标（PDF原点=左下角，Y向上） ---- */
-    /*
+/* ---- 辅助宏：将图形坐标映射到PDF坐标（PDF原点=左下角，Y向上） ---- */
+/*
      * 图形空间:      (min_x, min_y) 为左下角原点
      * PDF页面空间:   (margin, margin) 对应图形空间的 (min_x, min_y)
      *
@@ -3847,40 +4135,47 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
      *   tx = margin + (x - min_x)
      *   ty = margin + (y - min_y)
      */
-    #define GX(x) (margin + ((x) - min_x))
-    #define GY(y) (margin + ((y) - min_y))
+#define GX(x) (margin + ((x) - min_x))
+#define GY(y) (margin + ((y) - min_y))
 
     /* ---- 内容流缓冲区 ---- */
     /*
      * 将所有PDF图形操作先写入缓冲区，计算总字节数后用于对象定义。
      * 缓冲区使用动态增长的策略，初始分配64KB，按需扩展。
      */
-    size_t buf_cap = 65536;  /* 初始容量：64KB */
+    size_t buf_cap = 65536; /* 初始容量：64KB */
     size_t buf_len = 0;
-    char *content = (char *)lv00_malloc(buf_cap);
+    char *content = (char *) lv00_malloc(buf_cap);
     if (!content) {
         fclose(fp);
         return LV00_ERROR_OUT_OF_MEMORY;
     }
 
     /* 内容流辅助：追加字符串到缓冲区 */
-     #define BUF_APPEND(fmt, ...) do { \
-         int _need = snprintf(NULL, 0, fmt, ##__VA_ARGS__) + 1; \
-         if (_need > 0 && buf_len + (size_t)_need >= buf_cap) { \
-             size_t _new_cap = buf_cap * 2; \
-             while (_new_cap < buf_len + (size_t)_need) _new_cap *= 2; \
-             char *_new_buf = (char *)lv00_realloc(content, _new_cap); \
-             if (!_new_buf) { lv00_free((void**)&content); fclose(fp); return LV00_ERROR_OUT_OF_MEMORY; } \
-             content = _new_buf; \
-             buf_cap = _new_cap; \
-         } \
-         int _w = snprintf(content + buf_len, buf_cap - buf_len, fmt, ##__VA_ARGS__); \
-         if (_w > 0) buf_len += _w; \
-     } while(0)
+#define BUF_APPEND(fmt, ...)                                                         \
+    do {                                                                             \
+        int _need = snprintf(NULL, 0, fmt, ##__VA_ARGS__) + 1;                       \
+        if (_need > 0 && buf_len + (size_t) _need >= buf_cap) {                      \
+            size_t _new_cap = buf_cap * 2;                                           \
+            while (_new_cap < buf_len + (size_t) _need)                              \
+                _new_cap *= 2;                                                       \
+            char *_new_buf = (char *) lv00_realloc(content, _new_cap);               \
+            if (!_new_buf) {                                                         \
+                lv00_free((void **) &content);                                       \
+                fclose(fp);                                                          \
+                return LV00_ERROR_OUT_OF_MEMORY;                                     \
+            }                                                                        \
+            content = _new_buf;                                                      \
+            buf_cap = _new_cap;                                                      \
+        }                                                                            \
+        int _w = snprintf(content + buf_len, buf_cap - buf_len, fmt, ##__VA_ARGS__); \
+        if (_w > 0)                                                                  \
+            buf_len += _w;                                                           \
+    } while (0)
 
     /* ---- 设置基础图形状态 ---- */
-    BUF_APPEND("q\n");  /* 保存图形状态 */
-    BUF_APPEND("%.2f w\n", 1.5);  /* 默认线宽 */
+    BUF_APPEND("q\n");           /* 保存图形状态 */
+    BUF_APPEND("%.2f w\n", 1.5); /* 默认线宽 */
 
     /* ---- 渲染区域（半透明填充 + 描边，底层） ---- */
     /* 激活透明度 ExtGState */
@@ -3888,8 +4183,10 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_REGION) continue;
-        if (node->data.region.segment_count < 3) continue;
+        if (!node || node->type != GEOM_REGION)
+            continue;
+        if (node->data.region.segment_count < 3)
+            continue;
 
         /*
          * 区域渲染：使用 f (fill) 填充 + S (stroke) 描边。
@@ -3897,13 +4194,13 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
          */
         TrustColor trust = node->trust;
         if (trust == TRUST_GREEN) {
-            BUF_APPEND("0.13 0.76 0.29 rg\n");   /* 填充色：绿色 */
-            BUF_APPEND("0.13 0.76 0.29 RG\n");   /* 描边色：绿色 */
+            BUF_APPEND("0.13 0.76 0.29 rg\n"); /* 填充色：绿色 */
+            BUF_APPEND("0.13 0.76 0.29 RG\n"); /* 描边色：绿色 */
         } else if (trust == TRUST_AMBER) {
-            BUF_APPEND("0.94 0.27 0.27 rg\n");   /* 填充色：红色 */
+            BUF_APPEND("0.94 0.27 0.27 rg\n"); /* 填充色：红色 */
             BUF_APPEND("0.94 0.27 0.27 RG\n");
         } else {
-            BUF_APPEND("0.61 0.64 0.69 rg\n");   /* 填充色：灰色 */
+            BUF_APPEND("0.61 0.64 0.69 rg\n"); /* 填充色：灰色 */
             BUF_APPEND("0.61 0.64 0.69 RG\n");
         }
 
@@ -3921,15 +4218,17 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
                 }
             }
         }
-        BUF_APPEND("h\n");   /* 闭合路径 */
-        BUF_APPEND("B\n");   /* 填充+描边 */
+        BUF_APPEND("h\n"); /* 闭合路径 */
+        BUF_APPEND("B\n"); /* 填充+描边 */
     }
 
     /* ---- 渲染线段 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_LINE_SEGMENT) continue;
-        if (node->coord_count < 4) continue;
+        if (!node || node->type != GEOM_LINE_SEGMENT)
+            continue;
+        if (node->coord_count < 4)
+            continue;
 
         double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
         double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -3937,9 +4236,12 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
 
         TrustColor trust = node->trust;
-        if (trust == TRUST_GREEN)            BUF_APPEND("0.15 0.50 0.92 RG\n");   /* 蓝色：线段 */
-        else if (trust == TRUST_AMBER)       BUF_APPEND("0.94 0.27 0.27 RG\n");   /* 红色：不可信 */
-        else                                 BUF_APPEND("0.61 0.64 0.69 RG\n");   /* 灰色：中间状态 */
+        if (trust == TRUST_GREEN)
+            BUF_APPEND("0.15 0.50 0.92 RG\n"); /* 蓝色：线段 */
+        else if (trust == TRUST_AMBER)
+            BUF_APPEND("0.94 0.27 0.27 RG\n"); /* 红色：不可信 */
+        else
+            BUF_APPEND("0.61 0.64 0.69 RG\n"); /* 灰色：中间状态 */
 
         BUF_APPEND("%.2f w\n", 2.0);
 
@@ -3958,7 +4260,8 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
                 double dx = sx - px, dy = sy - py;
                 double dist = sqrt(dx * dx + dy * dy);
                 double offset = 0.15 * dist;
-                if (offset < 0.01) offset = 5.0;
+                if (offset < 0.01)
+                    offset = 5.0;
                 double nx = -dy / (dist + 0.001);
                 double ny = dx / (dist + 0.001);
 
@@ -3968,8 +4271,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
                 double cp2y = sy - 0.3 * dy + ny * offset;
 
                 /* PDF c 操作符: x1 y1 x2 y2 x3 y3 c */
-                BUF_APPEND("%.2f %.2f %.2f %.2f %.2f %.2f c\n",
-                           GX(cp1x), GY(cp1y), GX(cp2x), GY(cp2y), GX(sx), GY(sy));
+                BUF_APPEND("%.2f %.2f %.2f %.2f %.2f %.2f c\n", GX(cp1x), GY(cp1y), GX(cp2x), GY(cp2y), GX(sx), GY(sy));
             }
             BUF_APPEND("S\n");
         } else {
@@ -3978,22 +4280,27 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
             BUF_APPEND("S\n");
         }
 
-        BUF_APPEND("%.2f w\n", 1.5);  /* 恢复默认线宽 */
+        BUF_APPEND("%.2f w\n", 1.5); /* 恢复默认线宽 */
     }
 
     /* ---- 渲染点 ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_POINT) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_POINT)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double px = symbolic_coord_to_double(node->symbolic_coords[0]);
         double py = symbolic_coord_to_double(node->symbolic_coords[1]);
 
         TrustColor trust = node->trust;
-        if (trust == TRUST_GREEN)            BUF_APPEND("0.13 0.76 0.29 RG\n");   /* 绿色：完全可信 */
-        else if (trust == TRUST_AMBER)       BUF_APPEND("0.94 0.27 0.27 RG\n");   /* 红色：不可信 */
-        else                                 BUF_APPEND("0.61 0.64 0.69 RG\n");   /* 灰色：中间状态 */
+        if (trust == TRUST_GREEN)
+            BUF_APPEND("0.13 0.76 0.29 RG\n"); /* 绿色：完全可信 */
+        else if (trust == TRUST_AMBER)
+            BUF_APPEND("0.94 0.27 0.27 RG\n"); /* 红色：不可信 */
+        else
+            BUF_APPEND("0.61 0.64 0.69 RG\n"); /* 灰色：中间状态 */
 
         /*
          * 点渲染：使用填充圆（filled circle）。
@@ -4002,44 +4309,51 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
          */
         double r = 3.0;
         BUF_APPEND("%.2f w\n", 6.0);
-        BUF_APPEND("1 J\n");  /* 圆头线端 */
+        BUF_APPEND("1 J\n"); /* 圆头线端 */
         BUF_APPEND("%.2f %.2f m\n", GX(px), GY(py));
         BUF_APPEND("%.2f %.2f l\n", GX(px + 0.01), GY(py));
         BUF_APPEND("S\n");
-        BUF_APPEND("0 J\n");  /* 恢复平头线端 */
+        BUF_APPEND("0 J\n"); /* 恢复平头线端 */
         BUF_APPEND("%.2f w\n", 1.5);
     }
 
     /* ---- 渲染函数块（作为圆角矩形） ---- */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_FUNCTION_BLOCK) continue;
-        if (node->coord_count < 2) continue;
+        if (!node || node->type != GEOM_FUNCTION_BLOCK)
+            continue;
+        if (node->coord_count < 2)
+            continue;
 
         double bx = symbolic_coord_to_double(node->symbolic_coords[0]);
         double by = symbolic_coord_to_double(node->symbolic_coords[1]);
         double bw = 120.0, bh = 60.0;
 
         TrustColor trust = node->trust;
-        if (trust == TRUST_GREEN)            BUF_APPEND("0.13 0.76 0.29 RG\n");  /* 绿色：完全可信 */
-        else if (trust == TRUST_AMBER)       BUF_APPEND("0.94 0.27 0.27 RG\n");  /* 红色：不可信 */
-        else                                 BUF_APPEND("0.61 0.64 0.69 RG\n");  /* 灰色：中间状态 */
+        if (trust == TRUST_GREEN)
+            BUF_APPEND("0.13 0.76 0.29 RG\n"); /* 绿色：完全可信 */
+        else if (trust == TRUST_AMBER)
+            BUF_APPEND("0.94 0.27 0.27 RG\n"); /* 红色：不可信 */
+        else
+            BUF_APPEND("0.61 0.64 0.69 RG\n"); /* 灰色：中间状态 */
 
         BUF_APPEND("%.2f w\n", 2.0);
-        BUF_APPEND("%.2f %.2f %.2f %.2f re B\n",
-                   GX(bx) - bw / 2.0, GY(by) - bh / 2.0, bw, bh);
+        BUF_APPEND("%.2f %.2f %.2f %.2f re B\n", GX(bx) - bw / 2.0, GY(by) - bh / 2.0, bw, bh);
         BUF_APPEND("%.2f w\n", 1.5);
     }
 
     /* ---- 渲染约束关系 ---- */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
-        if (!c || c->participant_count < 2) continue;
+        if (!c || c->participant_count < 2)
+            continue;
 
         GeomNode *p0 = graph_get_node_by_id(graph, c->participants[0]);
         GeomNode *p1 = graph_get_node_by_id(graph, c->participants[1]);
-        if (!p0 || !p1) continue;
-        if (p0->coord_count < 2 || p1->coord_count < 2) continue;
+        if (!p0 || !p1)
+            continue;
+        if (p0->coord_count < 2 || p1->coord_count < 2)
+            continue;
 
         double x0 = symbolic_coord_to_double(p0->symbolic_coords[0]);
         double y0 = symbolic_coord_to_double(p0->symbolic_coords[1]);
@@ -4055,7 +4369,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
                 BUF_APPEND("%.2f %.2f m\n", GX(x0), GY(y0));
                 BUF_APPEND("%.2f %.2f l\n", GX(x1), GY(y1));
                 BUF_APPEND("S\n");
-                BUF_APPEND("[] 0 d\n");  /* 恢复实线 */
+                BUF_APPEND("[] 0 d\n"); /* 恢复实线 */
                 BUF_APPEND("%.2f w\n", 1.5);
                 break;
 
@@ -4117,12 +4431,13 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
      *   4. LaTeX数学公式渲染（复杂，需要完整的数学排版引擎）
      */
     BUF_APPEND("BT\n");
-    BUF_APPEND("/F1 8 Tf\n");  /* Helvetica 8pt */
-    BUF_APPEND("0 0 0 rg\n");  /* 黑色文本 */
+    BUF_APPEND("/F1 8 Tf\n"); /* Helvetica 8pt */
+    BUF_APPEND("0 0 0 rg\n"); /* 黑色文本 */
 
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->coord_count < 2) continue;
+        if (!node || node->coord_count < 2)
+            continue;
 
         double lx = symbolic_coord_to_double(node->symbolic_coords[0]);
         double ly = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -4147,19 +4462,21 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
         /* 转义括号 */
         for (const char *p = label; *p; p++) {
-            if (*p == '(' || *p == ')' || *p == '\\') BUF_APPEND("\\%c", *p);
-            else BUF_APPEND("%c", *p);
+            if (*p == '(' || *p == ')' || *p == '\\')
+                BUF_APPEND("\\%c", *p);
+            else
+                BUF_APPEND("%c", *p);
         }
         BUF_APPEND(" Tj\n");
-        BUF_APPEND("%.2f %.2f Td\n", 0.0, 0.0);  /* 重置位置（简化） */
+        BUF_APPEND("%.2f %.2f Td\n", 0.0, 0.0); /* 重置位置（简化） */
     }
     BUF_APPEND("ET\n");
 
-    BUF_APPEND("Q\n");  /* 恢复图形状态 */
+    BUF_APPEND("Q\n"); /* 恢复图形状态 */
 
-    #undef BUF_APPEND
-    #undef GX
-    #undef GY
+#undef BUF_APPEND
+#undef GX
+#undef GY
 
     /* ================================================================ */
     /*   PDF 文件结构写入（基于PDF 1.4规范）                             */
@@ -4178,7 +4495,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
     /* ================================================================ */
 
     /* ---- 对象4的内容流长度（字节数） ---- */
-    long content_length = (long)buf_len;
+    long content_length = (long) buf_len;
 
     /*
      * 对象1: Catalog
@@ -4200,12 +4517,14 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
      * MediaBox格式：[llx lly urx ury] = [0 0 page_w page_h]
      */
     long page_start = ftell(fp);
-    fprintf(fp, "3 0 obj\n<< /Type /Page /Parent 2 0 R\n"
-                "   /MediaBox [0 0 %.2f %.2f]\n"
-                "   /Contents 4 0 R\n"
-                "   /Resources << /Font << /F1 5 0 R >>\n"
-                "                 /ExtGState << /GS1 6 0 R >> >>\n"
-                ">>\nendobj\n", page_w, page_h);
+    fprintf(fp,
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R\n"
+            "   /MediaBox [0 0 %.2f %.2f]\n"
+            "   /Contents 4 0 R\n"
+            "   /Resources << /Font << /F1 5 0 R >>\n"
+            "                 /ExtGState << /GS1 6 0 R >> >>\n"
+            ">>\nendobj\n",
+            page_w, page_h);
 
     /*
      * 对象4: Content（内容流）
@@ -4222,8 +4541,9 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
      * 使用PDF标准14种字体之一的Helvetica，无需嵌入字体文件
      */
     long font_start = ftell(fp);
-    fprintf(fp, "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica"
-                " /Encoding /WinAnsiEncoding >>\nendobj\n");
+    fprintf(fp,
+            "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica"
+            " /Encoding /WinAnsiEncoding >>\nendobj\n");
 
     /*
      * 对象6: ExtGState（透明度图形状态）
@@ -4245,11 +4565,12 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         char date_str[64];
         strftime(date_str, sizeof(date_str), "D:%Y%m%d%H%M%S", lt);
 
-        fprintf(fp, "7 0 obj\n<< /Title (Lv-00 Geometry Export)\n"
-                    "   /Author (Lv-00 Project)\n"
-                    "   /Creator (Lv-00 v%s)\n"
-                    "   /CreationDate (%s) >>\nendobj\n",
-                    LV00_VERSION_STRING, date_str);
+        fprintf(fp,
+                "7 0 obj\n<< /Title (Lv-00 Geometry Export)\n"
+                "   /Author (Lv-00 Project)\n"
+                "   /Creator (Lv-00 v%s)\n"
+                "   /CreationDate (%s) >>\nendobj\n",
+                LV00_VERSION_STRING, date_str);
     }
 
     /* ---- 交叉引用表（Cross-Reference Table） ---- */
@@ -4264,7 +4585,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
     long xref_start = ftell(fp);
     fprintf(fp, "xref\n");
     fprintf(fp, "0 8\n");
-    fprintf(fp, "0000000000 65535 f \n");  /* 对象0：空闲条目 */
+    fprintf(fp, "0000000000 65535 f \n"); /* 对象0：空闲条目 */
     fprintf(fp, "%010ld 00000 n \n", cat_start);
     fprintf(fp, "%010ld 00000 n \n", pages_start);
     fprintf(fp, "%010ld 00000 n \n", page_start);
@@ -4289,7 +4610,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
     fprintf(fp, "%%%%EOF\n");
 
     fclose(fp);
-    lv00_free((void**)&content);
+    lv00_free((void **) &content);
 
     /*
      * PDF已成功导出：告知调用者文件路径、页面尺寸、节点/约束数量。
@@ -4300,8 +4621,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
     /* ---- 流式事件：PDF 导出完成 ---- */
     if (interop_stream_ctx) {
-        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO,
-            "PDF 导出完成", 0);
+        stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "PDF 导出完成", 0);
     }
 
     return LV00_OK;
@@ -4315,28 +4635,25 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
  * ZIP 格式规范（PKWARE APPNOTE.TXT）定义的核心结构签名。
  * 所有多字节整数均为小端序（Little-Endian）。
  */
-#define GGB_LOCAL_FILE_SIG  0x04034b50U   /**< 本地文件头签名 */
-#define GGB_CENTRAL_DIR_SIG 0x02014b50U   /**< 中央目录签名 */
-#define GGB_EOCD_SIG        0x06054b50U   /**< 结束中心目录签名 */
-#define GGB_LOCAL_HEADER_MIN 30            /**< 本地文件头最小字节数 */
-#define GGB_CENTRAL_DIR_MIN 46             /**< 中央目录条目最小字节数 */
-#define GGB_EOCD_MIN_SIZE   22             /**< EOCD 最小字节数 */
-#define GGB_MAX_XML_SIZE    (16 * 1024 * 1024) /**< XML 最大大小 16MB */
-#define GGB_COMPRESSION_STORE   0          /**< 无压缩（STORE） */
-#define GGB_COMPRESSION_DEFLATE 8          /**< Deflate 压缩 */
+#define GGB_LOCAL_FILE_SIG 0x04034b50U      /**< 本地文件头签名 */
+#define GGB_CENTRAL_DIR_SIG 0x02014b50U     /**< 中央目录签名 */
+#define GGB_EOCD_SIG 0x06054b50U            /**< 结束中心目录签名 */
+#define GGB_LOCAL_HEADER_MIN 30             /**< 本地文件头最小字节数 */
+#define GGB_CENTRAL_DIR_MIN 46              /**< 中央目录条目最小字节数 */
+#define GGB_EOCD_MIN_SIZE 22                /**< EOCD 最小字节数 */
+#define GGB_MAX_XML_SIZE (16 * 1024 * 1024) /**< XML 最大大小 16MB */
+#define GGB_COMPRESSION_STORE 0             /**< 无压缩（STORE） */
+#define GGB_COMPRESSION_DEFLATE 8           /**< Deflate 压缩 */
 
 /** @brief 从字节缓冲区读取小端序 uint32 */
 static uint32_t ggb_read_u32_le(const uint8_t *buf, size_t offset) {
-    return (uint32_t)buf[offset]
-        | ((uint32_t)buf[offset + 1] << 8)
-        | ((uint32_t)buf[offset + 2] << 16)
-        | ((uint32_t)buf[offset + 3] << 24);
+    return (uint32_t) buf[offset] | ((uint32_t) buf[offset + 1] << 8) | ((uint32_t) buf[offset + 2] << 16) |
+           ((uint32_t) buf[offset + 3] << 24);
 }
 
 /** @brief 从字节缓冲区读取小端序 uint16 */
 static uint16_t ggb_read_u16_le(const uint8_t *buf, size_t offset) {
-    return (uint16_t)buf[offset]
-        | ((uint16_t)buf[offset + 1] << 8);
+    return (uint16_t) buf[offset] | ((uint16_t) buf[offset + 1] << 8);
 }
 
 /**
@@ -4351,16 +4668,18 @@ static uint16_t ggb_read_u16_le(const uint8_t *buf, size_t offset) {
  * @return true 找到 EOCD，false 未找到
  */
 static bool ggb_find_eocd(const uint8_t *data, size_t data_size, size_t *eocd_offset) {
-    if (data_size < GGB_EOCD_MIN_SIZE) return false;
-    size_t search_start = (data_size > GGB_EOCD_MIN_SIZE + 65535)
-                          ? data_size - GGB_EOCD_MIN_SIZE - 65535 : 0;
-    for (size_t i = data_size - GGB_EOCD_MIN_SIZE; ; i--) {
+    if (data_size < GGB_EOCD_MIN_SIZE)
+        return false;
+    size_t search_start = (data_size > GGB_EOCD_MIN_SIZE + 65535) ? data_size - GGB_EOCD_MIN_SIZE - 65535 : 0;
+    for (size_t i = data_size - GGB_EOCD_MIN_SIZE;; i--) {
         if (ggb_read_u32_le(data, i) == GGB_EOCD_SIG) {
             *eocd_offset = i;
             return true;
         }
-        if (i == search_start) break;
-        if (i == 0) break;
+        if (i == search_start)
+            break;
+        if (i == 0)
+            break;
     }
     return false;
 }
@@ -4379,29 +4698,30 @@ static bool ggb_find_eocd(const uint8_t *data, size_t data_size, size_t *eocd_of
  * @param comp_method   [out] 输出压缩方法
  * @return true 找到，false 未找到
  */
-static bool ggb_find_central_entry(const uint8_t *data, size_t eocd_offset,
-                                   const char *target_name,
-                                   size_t *entry_offset, size_t *comp_size,
-                                   size_t *uncomp_size, uint16_t *comp_method) {
+static bool ggb_find_central_entry(const uint8_t *data, size_t eocd_offset, const char *target_name,
+                                   size_t *entry_offset, size_t *comp_size, size_t *uncomp_size,
+                                   uint16_t *comp_method) {
     uint16_t entry_count = ggb_read_u16_le(data, eocd_offset + 10);
-    uint32_t cd_offset   = ggb_read_u32_le(data, eocd_offset + 16);
+    uint32_t cd_offset = ggb_read_u32_le(data, eocd_offset + 16);
     size_t cd_pos = cd_offset;
 
     for (uint16_t i = 0; i < entry_count; i++) {
-        if (cd_pos + GGB_CENTRAL_DIR_MIN > eocd_offset) return false;
-        if (ggb_read_u32_le(data, cd_pos) != GGB_CENTRAL_DIR_SIG) return false;
+        if (cd_pos + GGB_CENTRAL_DIR_MIN > eocd_offset)
+            return false;
+        if (ggb_read_u32_le(data, cd_pos) != GGB_CENTRAL_DIR_SIG)
+            return false;
 
-        uint16_t name_len  = ggb_read_u16_le(data, cd_pos + 28);
+        uint16_t name_len = ggb_read_u16_le(data, cd_pos + 28);
         uint16_t extra_len = ggb_read_u16_le(data, cd_pos + 30);
         uint16_t comment_len = ggb_read_u16_le(data, cd_pos + 32);
-        size_t entry_size = (size_t)GGB_CENTRAL_DIR_MIN + name_len + extra_len + comment_len;
+        size_t entry_size = (size_t) GGB_CENTRAL_DIR_MIN + name_len + extra_len + comment_len;
 
         if (cd_pos + GGB_CENTRAL_DIR_MIN + name_len <= eocd_offset) {
-            if ((size_t)name_len == strlen(target_name) &&
+            if ((size_t) name_len == strlen(target_name) &&
                 memcmp(data + cd_pos + GGB_CENTRAL_DIR_MIN, target_name, name_len) == 0) {
-                *comp_method  = ggb_read_u16_le(data, cd_pos + 10);
-                *comp_size    = ggb_read_u32_le(data, cd_pos + 20);
-                *uncomp_size  = ggb_read_u32_le(data, cd_pos + 24);
+                *comp_method = ggb_read_u16_le(data, cd_pos + 10);
+                *comp_size = ggb_read_u32_le(data, cd_pos + 20);
+                *uncomp_size = ggb_read_u32_le(data, cd_pos + 24);
                 *entry_offset = ggb_read_u32_le(data, cd_pos + 42);
                 return true;
             }
@@ -4425,10 +4745,10 @@ static bool ggb_find_central_entry(const uint8_t *data, size_t eocd_offset,
  * @param data_offset    [out] 输出实际文件数据偏移
  * @return true 成功，false 失败
  */
-static bool ggb_get_local_data_offset(const uint8_t *data, size_t local_offset,
-                                      size_t *data_offset) {
-    if (ggb_read_u32_le(data, local_offset) != GGB_LOCAL_FILE_SIG) return false;
-    uint16_t name_len  = ggb_read_u16_le(data, local_offset + 26);
+static bool ggb_get_local_data_offset(const uint8_t *data, size_t local_offset, size_t *data_offset) {
+    if (ggb_read_u32_le(data, local_offset) != GGB_LOCAL_FILE_SIG)
+        return false;
+    uint16_t name_len = ggb_read_u16_le(data, local_offset + 26);
     uint16_t extra_len = ggb_read_u16_le(data, local_offset + 28);
     *data_offset = local_offset + GGB_LOCAL_HEADER_MIN + name_len + extra_len;
     return true;
@@ -4452,72 +4772,365 @@ static bool ggb_get_local_data_offset(const uint8_t *data, size_t local_offset,
  * @param out_len    [out] 实际解压长度
  * @return true 成功，false 失败（不支持的格式或数据损坏）
  */
-static bool ggb_inflate(const uint8_t *src, size_t src_len,
-                        uint8_t *dst, size_t dst_cap, size_t *out_len) {
+static bool ggb_inflate(const uint8_t *src, size_t src_len, uint8_t *dst, size_t dst_cap, size_t *out_len) {
     /* ---- 位读取状态 ---- */
-    size_t bit_pos = 0;          /* 当前位位置（全局） */
-    size_t dst_pos = 0;          /* 输出位置 */
+    size_t bit_pos = 0; /* 当前位位置（全局） */
+    size_t dst_pos = 0; /* 输出位置 */
     bool bfinal = false;
 
     /* 固定哈夫曼编码的码长表（RFC 1951 第 3.2.6 节） */
-    static const uint8_t fixed_lit_len_bits[] = {
-        /* 0-143  (8位码长) */ 8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
-        /* 144-255 (9位码长) */ 9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
-        /* 256-279 (7位码长) */ 7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-        /* 280-287 (8位码长) */ 8,8,8,8,8,8,8,8
-    };
-    static const uint8_t fixed_dist_bits[32] = {5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5};
+    static const uint8_t fixed_lit_len_bits[] = {/* 0-143  (8位码长) */ 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 /* 144-255 (9位码长) */ 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 9,
+                                                 /* 256-279 (7位码长) */ 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 7,
+                                                 /* 280-287 (8位码长) */ 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8,
+                                                 8};
+    static const uint8_t fixed_dist_bits[32] = {5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+                                                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5};
 
     /* 长度额外位表（RFC 1951 第 3.2.5 节） */
-    static const uint16_t length_base[] = {
-        3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258
-    };
-    static const uint8_t length_extra[] = {
-        0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0
-    };
+    static const uint16_t length_base[] = {3,  4,  5,  6,  7,  8,  9,  10, 11,  13,  15,  17,  19,  23, 27,
+                                           31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258};
+    static const uint8_t length_extra[] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2,
+                                           2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0};
     /* 距离额外位表 */
-    static const uint16_t dist_base[] = {
-        1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577
-    };
-    static const uint8_t dist_extra[] = {
-        0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13
-    };
+    static const uint16_t dist_base[] = {1,    2,    3,    4,    5,    7,    9,    13,    17,    25,
+                                         33,   49,   65,   97,   129,  193,  257,  385,   513,   769,
+                                         1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577};
+    static const uint8_t dist_extra[] = {0, 0, 0, 0, 1, 1, 2, 2,  3,  3,  4,  4,  5,  5,  6,
+                                         6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13};
 
-    /* ---- 从位流读取 N 位 ---- */
-    #define GGB_READ_BITS(n, val) do { \
-        (val) = 0; \
-        for (int _b = 0; _b < (n); _b++) { \
-            if (bit_pos / 8 >= src_len) { *out_len = dst_pos; return false; } \
+/* ---- 从位流读取 N 位 ---- */
+#define GGB_READ_BITS(n, val)                            \
+    do {                                                 \
+        (val) = 0;                                       \
+        for (int _b = 0; _b < (n); _b++) {               \
+            if (bit_pos / 8 >= src_len) {                \
+                *out_len = dst_pos;                      \
+                return false;                            \
+            }                                            \
             if (src[bit_pos / 8] & (1 << (bit_pos & 7))) \
-                (val) |= (1U << _b); \
-            bit_pos++; \
-        } \
-    } while(0)
+                (val) |= (1U << _b);                     \
+            bit_pos++;                                   \
+        }                                                \
+    } while (0)
 
-    /* ---- 使用码长表读取一个哈夫曼编码 ---- */
-    #define GGB_HUFF_DECODE(bits_table, table_size, symbol) do { \
-        uint32_t _code = 0; \
-        (symbol) = 0xFFFF; \
-        for (int _bit = 1; _bit <= 15; _bit++) { \
-            if (bit_pos / 8 >= src_len) { *out_len = dst_pos; return false; } \
+/* ---- 使用码长表读取一个哈夫曼编码 ---- */
+#define GGB_HUFF_DECODE(bits_table, table_size, symbol)                       \
+    do {                                                                      \
+        uint32_t _code = 0;                                                   \
+        (symbol) = 0xFFFF;                                                    \
+        for (int _bit = 1; _bit <= 15; _bit++) {                              \
+            if (bit_pos / 8 >= src_len) {                                     \
+                *out_len = dst_pos;                                           \
+                return false;                                                 \
+            }                                                                 \
             _code = (_code << 1) | ((src[bit_pos / 8] >> (bit_pos & 7)) & 1); \
-            bit_pos++; \
-            for (int _s = 0; _s < (table_size); _s++) { \
-                if ((bits_table)[_s] == (uint8_t)_bit) { \
-                    uint32_t _prefix = _code; \
-                    for (int _p = 0; _p < (15 - _bit); _p++) _prefix <<= 1; \
-                    uint32_t _expected = 0; \
-                    int _count_before = 0; \
-                    for (int _c = 0; _c < _s; _c++) { \
-                        if ((bits_table)[_c] == (uint8_t)_bit) _count_before++; \
-                    } \
-                    _expected = (uint32_t)_count_before << (15 - _bit); \
-                    if (_prefix == _expected) { (symbol) = _s; break; } \
-                } \
-            } \
-            if ((symbol) != 0xFFFF) break; \
-        } \
-    } while(0)
+            bit_pos++;                                                        \
+            for (int _s = 0; _s < (table_size); _s++) {                       \
+                if ((bits_table)[_s] == (uint8_t) _bit) {                     \
+                    uint32_t _prefix = _code;                                 \
+                    for (int _p = 0; _p < (15 - _bit); _p++)                  \
+                        _prefix <<= 1;                                        \
+                    uint32_t _expected = 0;                                   \
+                    int _count_before = 0;                                    \
+                    for (int _c = 0; _c < _s; _c++) {                         \
+                        if ((bits_table)[_c] == (uint8_t) _bit)               \
+                            _count_before++;                                  \
+                    }                                                         \
+                    _expected = (uint32_t) _count_before << (15 - _bit);      \
+                    if (_prefix == _expected) {                               \
+                        (symbol) = _s;                                        \
+                        break;                                                \
+                    }                                                         \
+                }                                                             \
+            }                                                                 \
+            if ((symbol) != 0xFFFF)                                           \
+                break;                                                        \
+        }                                                                     \
+    } while (0)
 
     while (!bfinal) {
         /* 读取块头 */
@@ -4529,11 +5142,20 @@ static bool ggb_inflate(const uint8_t *src, size_t src_len,
         if (btype == 0) {
             /* 存储块（无压缩） */
             bit_pos = ((bit_pos + 7) / 8) * 8; /* 对齐到字节边界 */
-            if (bit_pos / 8 + 4 > src_len) { *out_len = dst_pos; return false; }
-            uint16_t len = (uint16_t)src[bit_pos / 8] | ((uint16_t)src[bit_pos / 8 + 1] << 8);
+            if (bit_pos / 8 + 4 > src_len) {
+                *out_len = dst_pos;
+                return false;
+            }
+            uint16_t len = (uint16_t) src[bit_pos / 8] | ((uint16_t) src[bit_pos / 8 + 1] << 8);
             bit_pos += 32; /* 跳过 LEN 和 NLEN */
-            if (dst_pos + len > dst_cap) { *out_len = dst_pos; return false; }
-            if (bit_pos / 8 + len > src_len) { *out_len = dst_pos; return false; }
+            if (dst_pos + len > dst_cap) {
+                *out_len = dst_pos;
+                return false;
+            }
+            if (bit_pos / 8 + len > src_len) {
+                *out_len = dst_pos;
+                return false;
+            }
             memcpy(dst + dst_pos, src + bit_pos / 8, len);
             dst_pos += len;
             bit_pos += len * 8;
@@ -4542,45 +5164,64 @@ static bool ggb_inflate(const uint8_t *src, size_t src_len,
             while (1) {
                 uint32_t symbol;
                 GGB_HUFF_DECODE(fixed_lit_len_bits, 288, symbol);
-                if (symbol == 0xFFFF) { *out_len = dst_pos; return false; }
+                if (symbol == 0xFFFF) {
+                    *out_len = dst_pos;
+                    return false;
+                }
                 if (symbol < 256) {
                     /* 字面量字节 */
-                    if (dst_pos >= dst_cap) { *out_len = dst_pos; return false; }
-                    dst[dst_pos++] = (uint8_t)symbol;
+                    if (dst_pos >= dst_cap) {
+                        *out_len = dst_pos;
+                        return false;
+                    }
+                    dst[dst_pos++] = (uint8_t) symbol;
                 } else if (symbol == 256) {
                     /* 块结束 */
                     break;
                 } else if (symbol <= 285) {
                     /* 长度码 */
                     uint32_t len_idx = symbol - 257;
-                    if (len_idx >= 29) { *out_len = dst_pos; return false; }
+                    if (len_idx >= 29) {
+                        *out_len = dst_pos;
+                        return false;
+                    }
                     uint32_t length = length_base[len_idx];
                     uint32_t extra_len = length_extra[len_idx];
                     if (extra_len > 0) {
                         uint32_t extra;
-                        GGB_READ_BITS((int)extra_len, extra);
+                        GGB_READ_BITS((int) extra_len, extra);
                         length += extra;
                     }
                     /* 距离码 */
                     uint32_t dist_symbol;
                     GGB_HUFF_DECODE(fixed_dist_bits, 32, dist_symbol);
-                    if (dist_symbol == 0xFFFF || dist_symbol >= 30) { *out_len = dst_pos; return false; }
+                    if (dist_symbol == 0xFFFF || dist_symbol >= 30) {
+                        *out_len = dst_pos;
+                        return false;
+                    }
                     uint32_t dist = dist_base[dist_symbol];
                     uint32_t extra_dist = dist_extra[dist_symbol];
                     if (extra_dist > 0) {
                         uint32_t extra;
-                        GGB_READ_BITS((int)extra_dist, extra);
+                        GGB_READ_BITS((int) extra_dist, extra);
                         dist += extra;
                     }
                     /* 复制回溯 */
-                    if (dist > dst_pos) { *out_len = dst_pos; return false; }
-                    if (dst_pos + length > dst_cap) { *out_len = dst_pos; return false; }
+                    if (dist > dst_pos) {
+                        *out_len = dst_pos;
+                        return false;
+                    }
+                    if (dst_pos + length > dst_cap) {
+                        *out_len = dst_pos;
+                        return false;
+                    }
                     size_t copy_src = dst_pos - dist;
                     for (uint32_t k = 0; k < length; k++) {
                         dst[dst_pos++] = dst[copy_src + k];
                     }
                 } else {
-                    *out_len = dst_pos; return false;
+                    *out_len = dst_pos;
+                    return false;
                 }
             }
         } else {
@@ -4590,8 +5231,8 @@ static bool ggb_inflate(const uint8_t *src, size_t src_len,
         }
     }
 
-    #undef GGB_READ_BITS
-    #undef GGB_HUFF_DECODE
+#undef GGB_READ_BITS
+#undef GGB_HUFF_DECODE
 
     /* 对齐到字节边界 */
     *out_len = dst_pos;
@@ -4614,28 +5255,31 @@ static bool ggb_inflate(const uint8_t *src, size_t src_len,
  * @param tag_content_end [out] 输出标签内容结束偏移（'<' 之前）
  * @return true 找到，false 未找到
  */
-static bool ggb_find_xml_tag(const char *xml, size_t xml_len, const char *tag_name,
-                             size_t start, size_t *tag_start,
+static bool ggb_find_xml_tag(const char *xml, size_t xml_len, const char *tag_name, size_t start, size_t *tag_start,
                              size_t *tag_content_start, size_t *tag_content_end) {
     char open_tag[128];
     int open_len = snprintf(open_tag, sizeof(open_tag), "<%s", tag_name);
-    if (open_len < 0) return false;
+    if (open_len < 0)
+        return false;
 
     char close_tag[128];
     int close_len = snprintf(close_tag, sizeof(close_tag), "</%s>", tag_name);
-    if (close_len < 0) return false;
+    if (close_len < 0)
+        return false;
 
-    for (size_t i = start; i + (size_t)open_len <= xml_len; i++) {
+    for (size_t i = start; i + (size_t) open_len <= xml_len; i++) {
         /* 匹配开标签：<tagName 或 <tagName> 或 <tagName ... */
-        if (memcmp(xml + i, open_tag, (size_t)open_len) == 0) {
-            char next_char = (i + (size_t)open_len < xml_len) ? xml[i + open_len] : '\0';
-            if (next_char == '>' || next_char == ' ' || next_char == '\t' ||
-                next_char == '\n' || next_char == '\r' || next_char == '/') {
+        if (memcmp(xml + i, open_tag, (size_t) open_len) == 0) {
+            char next_char = (i + (size_t) open_len < xml_len) ? xml[i + open_len] : '\0';
+            if (next_char == '>' || next_char == ' ' || next_char == '\t' || next_char == '\n' || next_char == '\r' ||
+                next_char == '/') {
                 *tag_start = i;
                 /* 找到 '>' */
                 size_t gt_pos = i + 1;
-                while (gt_pos < xml_len && xml[gt_pos] != '>') gt_pos++;
-                if (gt_pos >= xml_len) return false;
+                while (gt_pos < xml_len && xml[gt_pos] != '>')
+                    gt_pos++;
+                if (gt_pos >= xml_len)
+                    return false;
                 *tag_content_start = gt_pos + 1;
 
                 /* 如果是自闭合标签 <tagName ... />，内容为空 */
@@ -4647,17 +5291,17 @@ static bool ggb_find_xml_tag(const char *xml, size_t xml_len, const char *tag_na
                 /* 查找匹配的闭合标签 */
                 int depth = 1;
                 size_t search_pos = gt_pos + 1;
-                while (search_pos + (size_t)close_len <= xml_len && depth > 0) {
+                while (search_pos + (size_t) close_len <= xml_len && depth > 0) {
                     /* 检查开标签 */
-                    if (search_pos + (size_t)open_len <= xml_len &&
-                        memcmp(xml + search_pos, open_tag, (size_t)open_len) == 0) {
+                    if (search_pos + (size_t) open_len <= xml_len &&
+                        memcmp(xml + search_pos, open_tag, (size_t) open_len) == 0) {
                         char nc = (search_pos + open_len < xml_len) ? xml[search_pos + open_len] : '\0';
                         if (nc == '>' || nc == ' ' || nc == '\t' || nc == '\n' || nc == '\r' || nc == '/') {
                             depth++;
                         }
                     }
                     /* 检查闭标签 */
-                    if (memcmp(xml + search_pos, close_tag, (size_t)close_len) == 0) {
+                    if (memcmp(xml + search_pos, close_tag, (size_t) close_len) == 0) {
                         depth--;
                         if (depth == 0) {
                             *tag_content_end = search_pos;
@@ -4685,26 +5329,29 @@ static bool ggb_find_xml_tag(const char *xml, size_t xml_len, const char *tag_na
  * @param out_size   输出缓冲区大小
  * @return true 找到属性，false 未找到
  */
-static bool ggb_extract_attr(const char *tag_start, size_t tag_len,
-                             const char *attr_name, char *out_value, size_t out_size) {
-    if (out_size == 0) return false;
+static bool ggb_extract_attr(const char *tag_start, size_t tag_len, const char *attr_name, char *out_value,
+                             size_t out_size) {
+    if (out_size == 0)
+        return false;
     out_value[0] = '\0';
 
     char search[128];
     int search_len = snprintf(search, sizeof(search), "%s=\"", attr_name);
-    if (search_len < 0) return false;
+    if (search_len < 0)
+        return false;
 
     char search_single[128];
     int ssl = snprintf(search_single, sizeof(search_single), "%s='", attr_name);
-    if (ssl < 0) return false;
+    if (ssl < 0)
+        return false;
 
-    for (size_t i = 0; i + (size_t)search_len <= tag_len; i++) {
-        bool is_double = (memcmp(tag_start + i, search, (size_t)search_len) == 0);
-        bool is_single = (memcmp(tag_start + i, search_single, (size_t)ssl) == 0);
+    for (size_t i = 0; i + (size_t) search_len <= tag_len; i++) {
+        bool is_double = (memcmp(tag_start + i, search, (size_t) search_len) == 0);
+        bool is_single = (memcmp(tag_start + i, search_single, (size_t) ssl) == 0);
 
         if (is_double || is_single) {
             char quote = is_double ? '"' : '\'';
-            size_t val_start = i + (is_double ? (size_t)search_len : (size_t)ssl);
+            size_t val_start = i + (is_double ? (size_t) search_len : (size_t) ssl);
             size_t j = 0;
             while (val_start + j < tag_len && tag_start[val_start + j] != quote && j < out_size - 1) {
                 out_value[j] = tag_start[val_start + j];
@@ -4731,15 +5378,18 @@ static bool ggb_extract_attr(const char *tag_start, size_t tag_len,
 static bool ggb_extract_coord_double(const char *text, const char *name, double *value) {
     size_t tag_len = strlen(text);
     char val_buf[64];
-    if (!ggb_extract_attr(text, tag_len, name, val_buf, sizeof(val_buf))) return false;
-    if (val_buf[0] == '\0') return false;
+    if (!ggb_extract_attr(text, tag_len, name, val_buf, sizeof(val_buf)))
+        return false;
+    if (val_buf[0] == '\0')
+        return false;
 
     /* 检查分数格式 "a/b" */
     const char *slash = strchr(val_buf, '/');
     if (slash && slash != val_buf && *(slash + 1) != '\0') {
         double num = atof(val_buf);
         double den = atof(slash + 1);
-        if (den == 0.0) return false;
+        if (den == 0.0)
+            return false;
         *value = num / den;
         return true;
     }
@@ -4757,8 +5407,8 @@ static bool ggb_extract_coord_double(const char *text, const char *name, double 
  * @return SymbolicCoord 指针（调用者负责释放），失败返回 NULL
  */
 static SymbolicCoord *ggb_double_to_rational(double value) {
-    double denom = (double)INTEROP_COORD_DENOM_PRECISION;
-    int64_t num = (int64_t)(value * denom + (value >= 0 ? 0.5 : -0.5));
+    double denom = (double) INTEROP_COORD_DENOM_PRECISION;
+    int64_t num = (int64_t) (value * denom + (value >= 0 ? 0.5 : -0.5));
     return symbolic_coord_create_rational(num, INTEROP_COORD_DENOM_PRECISION);
 }
 
@@ -4786,26 +5436,24 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
      *         LV00_ERROR_PARSE XML 解析失败
      *         LV00_ERROR_OUT_OF_MEMORY 内存分配失败
      */
-    if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!engine || !config)
+        return LV00_ERROR_INVALID_PARAM;
     if (!engine->main_graph) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE,
-            "GeoGebra导入失败：引擎的约束图未初始化");
+        lv00_set_error(LV00_ERROR_INVALID_STATE, "GeoGebra导入失败：引擎的约束图未初始化");
         return LV00_ERROR_INVALID_STATE;
     }
 
     /* 验证输入路径 */
     if (config->input_path[0] == '\0') {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM,
-            "GeoGebra导入失败：未指定输入文件路径");
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "GeoGebra导入失败：未指定输入文件路径");
         return LV00_ERROR_INVALID_PARAM;
     }
 
     /* 读取整个文件到内存 */
     FILE *fp = fopen(config->input_path, "rb");
     if (!fp) {
-        lv00_set_error(LV00_ERROR_IO,
-            "GeoGebra导入失败：无法打开文件'%s'。请确认文件存在且具有读取权限。",
-            config->input_path);
+        lv00_set_error(LV00_ERROR_IO, "GeoGebra导入失败：无法打开文件'%s'。请确认文件存在且具有读取权限。",
+                       config->input_path);
         return LV00_ERROR_IO;
     }
 
@@ -4815,72 +5463,67 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
 
     if (fsize <= 0) {
         fclose(fp);
-        lv00_set_error(LV00_ERROR_IO,
-            "GeoGebra文件'%s'为空（0字节）", config->input_path);
+        lv00_set_error(LV00_ERROR_IO, "GeoGebra文件'%s'为空（0字节）", config->input_path);
         return LV00_ERROR_IO;
     }
 
     if (fsize > 100 * 1024 * 1024) {
         fclose(fp);
-        lv00_set_error(LV00_ERROR_UNSUPPORTED,
-            "GeoGebra文件'%s'过大（%ld字节），最大支持100MB", config->input_path, fsize);
+        lv00_set_error(LV00_ERROR_UNSUPPORTED, "GeoGebra文件'%s'过大（%ld字节），最大支持100MB", config->input_path,
+                       fsize);
         return LV00_ERROR_UNSUPPORTED;
     }
 
-    uint8_t *data = (uint8_t *)lv00_malloc((size_t)fsize);
+    uint8_t *data = (uint8_t *) lv00_malloc((size_t) fsize);
     if (!data) {
         fclose(fp);
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-            "GeoGebra导入失败：无法为文件分配内存（%ld字节）", fsize);
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "GeoGebra导入失败：无法为文件分配内存（%ld字节）", fsize);
         return LV00_ERROR_OUT_OF_MEMORY;
     }
 
-    size_t bytes_read = fread(data, 1, (size_t)fsize, fp);
+    size_t bytes_read = fread(data, 1, (size_t) fsize, fp);
     fclose(fp);
 
-    if (bytes_read != (size_t)fsize) {
-        lv00_free((void **)&data);
-        lv00_set_error(LV00_ERROR_IO,
-            "GeoGebra导入失败：文件读取不完整（期望%ld字节，实际%zu字节）",
-            fsize, bytes_read);
+    if (bytes_read != (size_t) fsize) {
+        lv00_free((void **) &data);
+        lv00_set_error(LV00_ERROR_IO, "GeoGebra导入失败：文件读取不完整（期望%ld字节，实际%zu字节）", fsize,
+                       bytes_read);
         return LV00_ERROR_IO;
     }
 
     /* ---- 步骤1：查找 EOCD ---- */
     size_t eocd_offset;
-    if (!ggb_find_eocd(data, (size_t)fsize, &eocd_offset)) {
-        lv00_free((void **)&data);
-        lv00_set_error(LV00_ERROR_PARSE,
-            "GeoGebra导入失败：文件'%s'不是有效的 ZIP 格式（未找到 EOCD 签名）",
-            config->input_path);
+    if (!ggb_find_eocd(data, (size_t) fsize, &eocd_offset)) {
+        lv00_free((void **) &data);
+        lv00_set_error(LV00_ERROR_PARSE, "GeoGebra导入失败：文件'%s'不是有效的 ZIP 格式（未找到 EOCD 签名）",
+                       config->input_path);
         return LV00_ERROR_PARSE;
     }
 
     /* ---- 步骤2：在中央目录中查找 geogebra.xml ---- */
     size_t entry_offset, comp_size, uncomp_size;
     uint16_t comp_method;
-    if (!ggb_find_central_entry(data, eocd_offset, "geogebra.xml",
-                                &entry_offset, &comp_size, &uncomp_size, &comp_method)) {
-        lv00_free((void **)&data);
+    if (!ggb_find_central_entry(data, eocd_offset, "geogebra.xml", &entry_offset, &comp_size, &uncomp_size,
+                                &comp_method)) {
+        lv00_free((void **) &data);
         lv00_set_error(LV00_ERROR_PARSE,
-            "GeoGebra导入失败：ZIP 文件中未找到 'geogebra.xml' 条目。"
-            "请确认文件是有效的 GeoGebra .ggb 格式。");
+                       "GeoGebra导入失败：ZIP 文件中未找到 'geogebra.xml' 条目。"
+                       "请确认文件是有效的 GeoGebra .ggb 格式。");
         return LV00_ERROR_PARSE;
     }
 
     /* ---- 步骤3：定位文件数据 ---- */
     size_t data_offset;
     if (!ggb_get_local_data_offset(data, entry_offset, &data_offset)) {
-        lv00_free((void **)&data);
-        lv00_set_error(LV00_ERROR_PARSE,
-            "GeoGebra导入失败：本地文件头损坏（偏移%zu处签名无效）", (size_t)entry_offset);
+        lv00_free((void **) &data);
+        lv00_set_error(LV00_ERROR_PARSE, "GeoGebra导入失败：本地文件头损坏（偏移%zu处签名无效）",
+                       (size_t) entry_offset);
         return LV00_ERROR_PARSE;
     }
 
     if (uncomp_size > GGB_MAX_XML_SIZE) {
-        lv00_free((void **)&data);
-        lv00_set_error(LV00_ERROR_UNSUPPORTED,
-            "GeoGebra导入失败：XML 数据过大（%zu字节），最大支持16MB", uncomp_size);
+        lv00_free((void **) &data);
+        lv00_set_error(LV00_ERROR_UNSUPPORTED, "GeoGebra导入失败：XML 数据过大（%zu字节），最大支持16MB", uncomp_size);
         return LV00_ERROR_UNSUPPORTED;
     }
 
@@ -4890,17 +5533,15 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
 
     if (comp_method == GGB_COMPRESSION_STORE) {
         /* STORE 模式：直接复制 */
-        if (data_offset + uncomp_size > (size_t)fsize) {
-            lv00_free((void **)&data);
-            lv00_set_error(LV00_ERROR_PARSE,
-                "GeoGebra导入失败：数据偏移超出文件范围");
+        if (data_offset + uncomp_size > (size_t) fsize) {
+            lv00_free((void **) &data);
+            lv00_set_error(LV00_ERROR_PARSE, "GeoGebra导入失败：数据偏移超出文件范围");
             return LV00_ERROR_PARSE;
         }
-        xml_data = (char *)lv00_malloc(uncomp_size + 1);
+        xml_data = (char *) lv00_malloc(uncomp_size + 1);
         if (!xml_data) {
-            lv00_free((void **)&data);
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-                "GeoGebra导入失败：无法为XML数据分配内存（%zu字节）", uncomp_size);
+            lv00_free((void **) &data);
+            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "GeoGebra导入失败：无法为XML数据分配内存（%zu字节）", uncomp_size);
             return LV00_ERROR_OUT_OF_MEMORY;
         }
         memcpy(xml_data, data + data_offset, uncomp_size);
@@ -4908,32 +5549,33 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
         xml_len = uncomp_size;
     } else if (comp_method == GGB_COMPRESSION_DEFLATE) {
         /* Deflate 模式：使用内置解压器 */
-        uint8_t *uncomp_buf = (uint8_t *)lv00_malloc(uncomp_size > 0 ? uncomp_size : 1);
+        uint8_t *uncomp_buf = (uint8_t *) lv00_malloc(uncomp_size > 0 ? uncomp_size : 1);
         if (!uncomp_buf) {
-            lv00_free((void **)&data);
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-                "GeoGebra导入失败：无法为解压缓冲区分配内存（%zu字节）", uncomp_size);
+            lv00_free((void **) &data);
+            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "GeoGebra导入失败：无法为解压缓冲区分配内存（%zu字节）",
+                           uncomp_size);
             return LV00_ERROR_OUT_OF_MEMORY;
         }
 
         size_t actual_len;
-        if (comp_size > (size_t)fsize - data_offset) comp_size = (size_t)fsize - data_offset;
+        if (comp_size > (size_t) fsize - data_offset)
+            comp_size = (size_t) fsize - data_offset;
 
         if (!ggb_inflate(data + data_offset, comp_size, uncomp_buf, uncomp_size, &actual_len)) {
-            lv00_free((void **)&uncomp_buf);
-            lv00_free((void **)&data);
+            lv00_free((void **) &uncomp_buf);
+            lv00_free((void **) &data);
             lv00_set_error(LV00_ERROR_UNSUPPORTED,
-                "GeoGebra导入失败：无法解压 Deflate 数据。\n"
-                "该 .ggb 文件使用了动态哈夫曼编码（块类型2）或包含本解压器不支持的压缩格式。\n"
-                "建议：在 GeoGebra 中将文件另存为（可能会使用 STORE 压缩级别），\n"
-                "或使用外部工具解压 .ggb 后导入解压后的 geogebra.xml。");
+                           "GeoGebra导入失败：无法解压 Deflate 数据。\n"
+                           "该 .ggb 文件使用了动态哈夫曼编码（块类型2）或包含本解压器不支持的压缩格式。\n"
+                           "建议：在 GeoGebra 中将文件另存为（可能会使用 STORE 压缩级别），\n"
+                           "或使用外部工具解压 .ggb 后导入解压后的 geogebra.xml。");
             return LV00_ERROR_UNSUPPORTED;
         }
 
-        xml_data = (char *)uncomp_buf;
+        xml_data = (char *) uncomp_buf;
         xml_len = actual_len;
         if (xml_len < uncomp_size) {
-            char *exact = (char *)lv00_realloc(xml_data, xml_len + 1);
+            char *exact = (char *) lv00_realloc(xml_data, xml_len + 1);
             if (exact) {
                 xml_data = exact;
                 xml_data[xml_len] = '\0';
@@ -4944,46 +5586,495 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
             xml_data[xml_len] = '\0';
         }
     } else {
-        lv00_free((void **)&data);
+        lv00_free((void **) &data);
         lv00_set_error(LV00_ERROR_UNSUPPORTED,
-            "GeoGebra导入失败：不支持的压缩方法 %d。"
-            "仅支持 STORE（方法0）和 Deflate（方法8）。",
-            (int)comp_method);
+                       "GeoGebra导入失败：不支持的压缩方法 %d。"
+                       "仅支持 STORE（方法0）和 Deflate（方法8）。",
+                       (int) comp_method);
         return LV00_ERROR_UNSUPPORTED;
     }
 
-    lv00_free((void **)&data);
+    lv00_free((void **) &data);
 
     /* ---- 步骤5：解析 XML，提取 <element> 标签 ---- */
     ConstraintGraph *graph = engine->main_graph;
     int imported_count = 0;
 
-    /* 用于存储解析后的元素信息 */
-    #define GGB_MAX_ELEMENTS 2048
-    #define GGB_MAX_LABEL_LEN 64
+/* 用于存储解析后的元素信息 */
+#define GGB_MAX_ELEMENTS 2048
+#define GGB_MAX_LABEL_LEN 64
+
+    return imported_count;
+}
+
+/**
+ * @brief 从 GeoJSON 文件导入几何图形
+ *
+ * 使用简化 JSON 解析器，支持 Point、LineString、Polygon、MultiPoint、
+ * MultiLineString 几何类型。不依赖外部 JSON 库。
+ *
+ * @param engine Lv-00 引擎实例
+ * @param config 导入配置（input_path 指定 .geojson 文件路径）
+ * @return 成功返回导入的节点数量（>= 0）
+ *         LV00_ERROR_INVALID_PARAM 参数无效
+ *         LV00_ERROR_IO 文件不存在或无法读取
+ *         LV00_ERROR_PARSE 解析错误
+ */
+int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config) {
+    if (!engine || !config)
+        return LV00_ERROR_INVALID_PARAM;
+    if (!engine->main_graph) {
+        lv00_set_error(LV00_ERROR_INVALID_STATE, "GeoJSON导入失败：引擎的约束图未初始化");
+        return LV00_ERROR_INVALID_STATE;
+    }
+    if (config->input_path[0] == '\0') {
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "GeoJSON导入失败：未指定输入文件路径");
+        return LV00_ERROR_INVALID_PARAM;
+    }
+
+    /* --- 读取文件 --- */
+    FILE *fp = fopen(config->input_path, "r");
+    if (!fp) {
+        lv00_set_error(LV00_ERROR_IO, "GeoJSON导入失败：无法打开文件'%s'", config->input_path);
+        return LV00_ERROR_IO;
+    }
+    fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (fsize <= 0) {
+        fclose(fp);
+        lv00_set_error(LV00_ERROR_UNSUPPORTED, "GeoJSON文件'%s'为空", config->input_path);
+        return LV00_ERROR_UNSUPPORTED;
+    }
+
+    char *json = (char *) lv00_malloc((size_t) fsize + 1);
+    if (!json) {
+        fclose(fp);
+        return LV00_ERROR_OUT_OF_MEMORY;
+    }
+    size_t read_size = fread(json, 1, (size_t) fsize, fp);
+    fclose(fp);
+    json[read_size] = '\0';
+
+/* --- 简化 JSON 解析辅助 --- */
+/* 跳过空白 */
+#define GJ_SKIP_WS(p)                                                   \
+    while (*(p) == ' ' || *(p) == '\t' || *(p) == '\n' || *(p) == '\r') \
+    (p)++
+/* 跳过JSON字符串值 */
+#define GJ_SKIP_STRING(p)                 \
+    do {                                  \
+        if (*(p) == '"') {                \
+            (p)++;                        \
+            while (*(p) && *(p) != '"') { \
+                if (*(p) == '\\')         \
+                    (p)++;                \
+                (p)++;                    \
+            }                             \
+            if (*(p) == '"')              \
+                (p)++;                    \
+        }                                 \
+    } while (0)
+/* 跳过JSON数字 */
+#define GJ_SKIP_NUMBER(p)                                                                                             \
+    while (*(p) &&                                                                                                    \
+           (*(p) == '-' || *(p) == '.' || *(p) == 'e' || *(p) == 'E' || *(p) == '+' || (*(p) >= '0' && *(p) <= '9'))) \
+    (p)++
+
+    const char *s = json;
+    int imported_count = 0;
+    ConstraintGraph *graph = engine->main_graph;
+
+    /* --- 解析顶层 FeatureCollection 或 Feature --- */
+    GJ_SKIP_WS(s);
+    if (*s != '{') {
+        lv00_free((void **) &json);
+        lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：根元素不是JSON对象");
+        return LV00_ERROR_PARSE;
+    }
+
+    /* 查找 "type" 字段来识别根类型 */
+    const char *type_tag = strstr(s, "\"type\"");
+    if (!type_tag) {
+        lv00_free((void **) &json);
+        lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：缺少type字段");
+        return LV00_ERROR_PARSE;
+    }
+    type_tag += 6;
+    GJ_SKIP_WS(type_tag);
+    if (*type_tag == ':')
+        type_tag++;
+    GJ_SKIP_WS(type_tag);
+
+    bool is_feature_collection = false;
+    if (*type_tag == '"') {
+        if (strncmp(type_tag + 1, "FeatureCollection", 17) == 0) {
+            is_feature_collection = true;
+        }
+    }
+
+    /* 定位 "features" 或 "coordinates" 数组 */
+    const char *cursor = s;
+    if (is_feature_collection) {
+        const char *features_tag = strstr(cursor, "\"features\"");
+        if (!features_tag) {
+            lv00_free((void **) &json);
+            lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：FeatureCollection缺少features数组");
+            return LV00_ERROR_PARSE;
+        }
+        features_tag += 10;
+        GJ_SKIP_WS(features_tag);
+        if (*features_tag == ':')
+            features_tag++;
+        GJ_SKIP_WS(features_tag);
+        if (*features_tag != '[') {
+            lv00_free((void **) &json);
+            lv00_set_error(LV00_ERROR_PARSE, "GeoJSON导入失败：features不是数组");
+            return LV00_ERROR_PARSE;
+        }
+        cursor = features_tag + 1; /* 进入features数组 */
+    }
+
+/* --- 解析每个 feature / geometry --- */
+#define GJ_MAX_FEATURES 4096
+#define GJ_MAX_COORDS 8192
+
+    double coords_x[GJ_MAX_COORDS];
+    double coords_y[GJ_MAX_COORDS];
+    int coord_count = 0;
+    int prev_node_id = -1;
+
+    while (*cursor && imported_count < GJ_MAX_FEATURES) {
+        GJ_SKIP_WS(cursor);
+        if (*cursor == ']' || *cursor == '\0')
+            break;
+        if (*cursor == ',') {
+            cursor++;
+            continue;
+        }
+        if (*cursor != '{')
+            break;
+
+        /* 进入一个 feature 对象 */
+        cursor++;
+
+        /* 查找 "geometry" 子对象 */
+        const char *geom_tag = strstr(cursor, "\"geometry\"");
+        if (!geom_tag || geom_tag > strchr(cursor, '}')) {
+            /* 跳过此对象 */
+            int brace_depth = 1;
+            while (*cursor && brace_depth > 0) {
+                if (*cursor == '{')
+                    brace_depth++;
+                else if (*cursor == '}')
+                    brace_depth--;
+                cursor++;
+            }
+            continue;
+        }
+        geom_tag += 10;
+        GJ_SKIP_WS(geom_tag);
+        if (*geom_tag == ':')
+            geom_tag++;
+        GJ_SKIP_WS(geom_tag);
+        if (*geom_tag != '{') {
+            cursor = geom_tag;
+            continue;
+        }
+        geom_tag++; /* 进入geometry对象 */
+
+        /* 提取 geometry type */
+        const char *gtype_tag = strstr(geom_tag, "\"type\"");
+        if (!gtype_tag) {
+            cursor = geom_tag;
+            continue;
+        }
+        gtype_tag += 6;
+        GJ_SKIP_WS(gtype_tag);
+        if (*gtype_tag == ':')
+            gtype_tag++;
+        GJ_SKIP_WS(gtype_tag);
+        if (*gtype_tag != '"') {
+            cursor = geom_tag;
+            continue;
+        }
+        gtype_tag++;
+
+        /* 识别几何类型 */
+        bool is_point = false, is_multipoint = false;
+        bool is_linestring = false, is_multilinestring = false;
+        bool is_polygon = false;
+
+        if (strncmp(gtype_tag, "Point\"", 6) == 0)
+            is_point = true;
+        else if (strncmp(gtype_tag, "MultiPoint\"", 11) == 0)
+            is_multipoint = true;
+        else if (strncmp(gtype_tag, "LineString\"", 11) == 0)
+            is_linestring = true;
+        else if (strncmp(gtype_tag, "MultiLineString\"", 16) == 0)
+            is_multilinestring = true;
+        else if (strncmp(gtype_tag, "Polygon\"", 8) == 0)
+            is_polygon = true;
+        else {
+            /* 不支持的类型，跳过 */
+            cursor = geom_tag;
+            continue;
+        }
+
+        /* 查找 "coordinates" */
+        const char *coord_tag = strstr(geom_tag, "\"coordinates\"");
+        if (!coord_tag) {
+            cursor = geom_tag;
+            continue;
+        }
+        coord_tag += 14;
+        GJ_SKIP_WS(coord_tag);
+        if (*coord_tag == ':')
+            coord_tag++;
+        GJ_SKIP_WS(coord_tag);
+        if (*coord_tag != '[') {
+            cursor = geom_tag;
+            continue;
+        }
+
+        /* 解析坐标数组 */
+        coord_count = 0;
+        const char *cs = coord_tag + 1;
+
+        if (is_point) {
+            /* Point: [x, y] */
+            while (*cs && *cs != ']' && coord_count < 1) {
+                GJ_SKIP_WS(cs);
+                coords_x[coord_count] = strtod(cs, (char **) &cs);
+                GJ_SKIP_WS(cs);
+                if (*cs == ',')
+                    cs++;
+                GJ_SKIP_WS(cs);
+                coords_y[coord_count] = strtod(cs, (char **) &cs);
+                coord_count++;
+            }
+        } else if (is_multipoint) {
+            /* MultiPoint: [[x1,y1], [x2,y2], ...] */
+            while (*cs && coord_count < GJ_MAX_COORDS) {
+                GJ_SKIP_WS(cs);
+                if (*cs == ']')
+                    break;
+                if (*cs == ',') {
+                    cs++;
+                    continue;
+                }
+                if (*cs != '[')
+                    break;
+                cs++; /* 进入[x,y] */
+                GJ_SKIP_WS(cs);
+                coords_x[coord_count] = strtod(cs, (char **) &cs);
+                GJ_SKIP_WS(cs);
+                if (*cs == ',')
+                    cs++;
+                GJ_SKIP_WS(cs);
+                coords_y[coord_count] = strtod(cs, (char **) &cs);
+                coord_count++;
+                GJ_SKIP_WS(cs);
+                if (*cs == ']')
+                    cs++;
+            }
+        } else if (is_linestring) {
+            /* LineString: [[x1,y1], [x2,y2], ...] */
+            while (*cs && coord_count < GJ_MAX_COORDS) {
+                GJ_SKIP_WS(cs);
+                if (*cs == ']')
+                    break;
+                if (*cs == ',') {
+                    cs++;
+                    continue;
+                }
+                if (*cs != '[')
+                    break;
+                cs++;
+                GJ_SKIP_WS(cs);
+                coords_x[coord_count] = strtod(cs, (char **) &cs);
+                GJ_SKIP_WS(cs);
+                if (*cs == ',')
+                    cs++;
+                GJ_SKIP_WS(cs);
+                coords_y[coord_count] = strtod(cs, (char **) &cs);
+                coord_count++;
+                GJ_SKIP_WS(cs);
+                if (*cs == ']')
+                    cs++;
+            }
+        } else if (is_multilinestring) {
+            /* MultiLineString: [[[x1,y1],[x2,y2]], [[x3,y3],...]] */
+            while (*cs && coord_count < GJ_MAX_COORDS) {
+                GJ_SKIP_WS(cs);
+                if (*cs == ']')
+                    break;
+                if (*cs == ',' || *cs == '[') {
+                    cs++;
+                    continue;
+                }
+                if (*cs != '[')
+                    break;
+                cs++;
+                while (*cs && coord_count < GJ_MAX_COORDS) {
+                    GJ_SKIP_WS(cs);
+                    if (*cs == ']') {
+                        cs++;
+                        break;
+                    }
+                    if (*cs == ',') {
+                        cs++;
+                        continue;
+                    }
+                    if (*cs != '[')
+                        break;
+                    cs++;
+                    GJ_SKIP_WS(cs);
+                    coords_x[coord_count] = strtod(cs, (char **) &cs);
+                    GJ_SKIP_WS(cs);
+                    if (*cs == ',')
+                        cs++;
+                    GJ_SKIP_WS(cs);
+                    coords_y[coord_count] = strtod(cs, (char **) &cs);
+                    coord_count++;
+                    GJ_SKIP_WS(cs);
+                    if (*cs == ']')
+                        cs++;
+                }
+            }
+        } else if (is_polygon) {
+            /* Polygon: [[[x1,y1],[x2,y2],...,[x1,y1]]] */
+            while (*cs && coord_count < GJ_MAX_COORDS) {
+                GJ_SKIP_WS(cs);
+                if (*cs == ']')
+                    break;
+                if (*cs == ',' || *cs == '[') {
+                    cs++;
+                    continue;
+                }
+                if (*cs != '[')
+                    break;
+                cs++;
+                while (*cs && coord_count < GJ_MAX_COORDS) {
+                    GJ_SKIP_WS(cs);
+                    if (*cs == ']') {
+                        cs++;
+                        break;
+                    }
+                    if (*cs == ',') {
+                        cs++;
+                        continue;
+                    }
+                    if (*cs != '[')
+                        break;
+                    cs++;
+                    GJ_SKIP_WS(cs);
+                    coords_x[coord_count] = strtod(cs, (char **) &cs);
+                    GJ_SKIP_WS(cs);
+                    if (*cs == ',')
+                        cs++;
+                    GJ_SKIP_WS(cs);
+                    coords_y[coord_count] = strtod(cs, (char **) &cs);
+                    coord_count++;
+                    GJ_SKIP_WS(cs);
+                    if (*cs == ']')
+                        cs++;
+                }
+                break; /* 只处理外环 */
+            }
+        }
+
+        /* --- 将坐标导入到约束图 --- */
+        if (coord_count > 0) {
+            int first_node_id = -1;
+            prev_node_id = -1;
+
+            for (int i = 0; i < coord_count; i++) {
+                /* 将 double 坐标转为有理数 SymbolicCoord */
+                int64_t xn = (int64_t) (coords_x[i] * 1e9 + (coords_x[i] >= 0 ? 0.5 : -0.5));
+                int64_t yn = (int64_t) (coords_y[i] * 1e9 + (coords_y[i] >= 0 ? 0.5 : -0.5));
+                SymbolicCoord *cx = symbolic_coord_create_rational(xn, 1000000000ULL);
+                SymbolicCoord *cy = symbolic_coord_create_rational(yn, 1000000000ULL);
+                if (!cx || !cy) {
+                    if (cx)
+                        symbolic_coord_destroy(cx);
+                    continue;
+                }
+                SymbolicCoord *coords[] = {cx, cy};
+                AddNodeResult res = graph_add_point(graph, coords, 2);
+                if (res != ADD_NODE_OK) {
+                    symbolic_coord_destroy(cx);
+                    symbolic_coord_destroy(cy);
+                    continue;
+                }
+                int node_id = graph->next_node_id - 1;
+                if (node_id < 0)
+                    continue;
+
+                if (first_node_id < 0)
+                    first_node_id = node_id;
+
+                if (prev_node_id >= 0 && (is_linestring || is_multilinestring || is_polygon)) {
+                    graph_add_line_segment(graph, prev_node_id, node_id);
+                }
+
+                prev_node_id = node_id;
+                imported_count++;
+            }
+
+            /* 闭合多边形 */
+            if (is_polygon && first_node_id >= 0 && prev_node_id >= 0 && first_node_id != prev_node_id) {
+                graph_add_line_segment(graph, prev_node_id, first_node_id);
+            }
+        }
+
+        /* 跳过此 feature 对象剩余部分 */
+        int brace_depth = 0;
+        const char *end = strchr(cursor, '}');
+        if (end)
+            cursor = end + 1;
+        else
+            break;
+    }
+
+#undef GJ_SKIP_WS
+#undef GJ_SKIP_STRING
+#undef GJ_SKIP_NUMBER
+
+    lv00_free((void **) &json);
+
+    if (imported_count == 0) {
+        lv00_set_error(LV00_ERROR_PARSE,
+                       "GeoJSON导入完成但未找到任何有效的几何数据。"
+                       "支持的类型：Point, LineString, Polygon, MultiPoint, MultiLineString");
+    }
 
     return imported_count;
 }
 
 /** @brief SVG 路径解析器状态 */
 typedef struct {
-    double cx, cy;       /* current position */
-    double start_x, start_y; /* start position of current sub-path */
-    bool has_viewbox;    /* viewBox 是否已解析 */
+    double cx, cy;               /* current position */
+    double start_x, start_y;     /* start position of current sub-path */
+    bool has_viewbox;            /* viewBox 是否已解析 */
     double viewbox_x, viewbox_y; /* viewBox 左上角坐标 */
     double viewbox_w, viewbox_h; /* viewBox 宽高 */
 } SvgParserState;
 
 /** @brief 跳过空白字符 */
-#define SVG_SKIP_WS(s) while (*(s) == ' ' || *(s) == '\t' || *(s) == '\n' || *(s) == '\r' || *(s) == ',') (s)++
+#define SVG_SKIP_WS(s)                                                                 \
+    while (*(s) == ' ' || *(s) == '\t' || *(s) == '\n' || *(s) == '\r' || *(s) == ',') \
+    (s)++
 
 /** @brief 读取一个浮点数 */
 static bool svg_parse_double(const char **s, double *val) {
     SVG_SKIP_WS(*s);
-    if (**s == '\0') return false;
+    if (**s == '\0')
+        return false;
     char *end;
     *val = strtod(*s, &end);
-    if (end == *s) return false;
+    if (end == *s)
+        return false;
     *s = end;
     SVG_SKIP_WS(*s);
     return true;
@@ -5009,55 +6100,71 @@ static bool svg_parse_coord(const char **s, double *x, double *y) {
  * @param is_relative 是否为相对坐标命令（小写字母）
  * @return true 解析成功，false 解析失败
  */
-static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState *state,
-                                   double *out_points, int max_points, int *out_count,
-                                   bool is_relative) {
+static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState *state, double *out_points,
+                                   int max_points, int *out_count, bool is_relative) {
     *out_count = 0;
     double abs_x, abs_y;
     int samples = 10; /* 贝塞尔/圆弧采样点数 */
 
     switch (cmd_char) {
-        case 'M': case 'm': {
+        case 'M':
+        case 'm': {
             /* moveto：移动到绝对位置 */
-            if (!svg_parse_coord(s, &abs_x, &abs_y)) return false;
-            if (is_relative) { abs_x += state->cx; abs_y += state->cy; }
+            if (!svg_parse_coord(s, &abs_x, &abs_y))
+                return false;
+            if (is_relative) {
+                abs_x += state->cx;
+                abs_y += state->cy;
+            }
             if (*out_count < max_points) {
                 out_points[(*out_count) * 2] = abs_x;
                 out_points[(*out_count) * 2 + 1] = abs_y;
                 (*out_count)++;
             }
-            state->cx = abs_x; state->cy = abs_y;
-            state->start_x = abs_x; state->start_y = abs_y;
+            state->cx = abs_x;
+            state->cy = abs_y;
+            state->start_x = abs_x;
+            state->start_y = abs_y;
             return true;
         }
 
-        case 'L': case 'l': {
+        case 'L':
+        case 'l': {
             /* lineto：直线段 */
-            if (!svg_parse_coord(s, &abs_x, &abs_y)) return false;
-            if (is_relative) { abs_x += state->cx; abs_y += state->cy; }
+            if (!svg_parse_coord(s, &abs_x, &abs_y))
+                return false;
+            if (is_relative) {
+                abs_x += state->cx;
+                abs_y += state->cy;
+            }
             if (*out_count < max_points) {
                 out_points[(*out_count) * 2] = abs_x;
                 out_points[(*out_count) * 2 + 1] = abs_y;
                 (*out_count)++;
             }
-            state->cx = abs_x; state->cy = abs_y;
+            state->cx = abs_x;
+            state->cy = abs_y;
             return true;
         }
 
-        case 'C': case 'c': {
+        case 'C':
+        case 'c': {
             /* cubic Bezier: C x1,y1 x2,y2 x,y */
             double x1, y1, x2, y2;
-            if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &x2, &y2) ||
-                !svg_parse_coord(s, &abs_x, &abs_y)) return false;
+            if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &x2, &y2) || !svg_parse_coord(s, &abs_x, &abs_y))
+                return false;
             if (is_relative) {
-                x1 += state->cx; y1 += state->cy;
-                x2 += state->cx; y2 += state->cy;
-                abs_x += state->cx; abs_y += state->cy;
+                x1 += state->cx;
+                y1 += state->cy;
+                x2 += state->cx;
+                y2 += state->cy;
+                abs_x += state->cx;
+                abs_y += state->cy;
             }
             /* 采样贝塞尔曲线 */
             double x0 = state->cx, y0 = state->cy;
             for (int i = 1; i <= samples && *out_count < max_points; i++) {
-                double t = (double)i / (double)samples;
+                double t = (double) i / (double) samples;
                 double t2 = t * t, t3 = t2 * t;
                 double u = 1.0 - t, u2 = u * u, u3 = u2 * u;
                 double px = u3 * x0 + 3.0 * u2 * t * x1 + 3.0 * u * t2 * x2 + t3 * abs_x;
@@ -5066,21 +6173,26 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
                 out_points[(*out_count) * 2 + 1] = py;
                 (*out_count)++;
             }
-            state->cx = abs_x; state->cy = abs_y;
+            state->cx = abs_x;
+            state->cy = abs_y;
             return true;
         }
 
-        case 'Q': case 'q': {
+        case 'Q':
+        case 'q': {
             /* quadratic Bezier: Q x1,y1 x,y */
             double x1, y1;
-            if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &abs_x, &abs_y)) return false;
+            if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &abs_x, &abs_y))
+                return false;
             if (is_relative) {
-                x1 += state->cx; y1 += state->cy;
-                abs_x += state->cx; abs_y += state->cy;
+                x1 += state->cx;
+                y1 += state->cy;
+                abs_x += state->cx;
+                abs_y += state->cy;
             }
             double qx0 = state->cx, qy0 = state->cy;
             for (int i = 1; i <= samples && *out_count < max_points; i++) {
-                double t = (double)i / (double)samples;
+                double t = (double) i / (double) samples;
                 double u = 1.0 - t;
                 double px = u * u * qx0 + 2.0 * u * t * x1 + t * t * abs_x;
                 double py = u * u * qy0 + 2.0 * u * t * y1 + t * t * abs_y;
@@ -5088,33 +6200,38 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
                 out_points[(*out_count) * 2 + 1] = py;
                 (*out_count)++;
             }
-            state->cx = abs_x; state->cy = abs_y;
+            state->cx = abs_x;
+            state->cy = abs_y;
             return true;
         }
 
-        case 'A': case 'a': {
+        case 'A':
+        case 'a': {
             /* arc: A rx,ry x-axis-rotation large-arc-flag sweep-flag x,y */
             double rx, ry, rot, dx, dy;
             double laf_d, sf_d;
-            if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) ||
-                !svg_parse_double(s, &rot) || !svg_parse_double(s, &laf_d) ||
-                !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy)) return false;
-            int sf = (int)(sf_d + 0.5);
-            if (is_relative) { dx += state->cx; dy += state->cy; }
+            if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) || !svg_parse_double(s, &rot) ||
+                !svg_parse_double(s, &laf_d) || !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy))
+                return false;
+            int sf = (int) (sf_d + 0.5);
+            if (is_relative) {
+                dx += state->cx;
+                dy += state->cy;
+            }
 
             /* 使用中点公式计算椭圆弧采样 */
             double x_start = state->cx, y_start = state->cy;
 
             /* 简化参数方程：沿椭圆弧采样 */
             for (int i = 1; i <= samples && *out_count < max_points; i++) {
-                double t = (double)i / (double)samples;
+                double t = (double) i / (double) samples;
                 /* 线性插值 + 圆弧偏移近似 */
                 double lx = x_start + t * (dx - x_start);
                 double ly = y_start + t * (dy - y_start);
                 /* 添加圆弧离差 */
                 double arc_angle = t * M_PI;
                 double bulge = sin(arc_angle) * (sf ? 1.0 : -1.0);
-                double chord_len = sqrt((dx - x_start)*(dx - x_start) + (dy - y_start)*(dy - y_start));
+                double chord_len = sqrt((dx - x_start) * (dx - x_start) + (dy - y_start) * (dy - y_start));
                 double bulge_factor = (chord_len > 0.001) ? (rx / chord_len) * 0.5 : 0.0;
                 double nx = -(dy - y_start) / (chord_len > 0.001 ? chord_len : 1.0);
                 double ny = (dx - x_start) / (chord_len > 0.001 ? chord_len : 1.0);
@@ -5131,18 +6248,21 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
                 out_points[(*out_count) * 2 + 1] = dy;
                 (*out_count)++;
             }
-            state->cx = dx; state->cy = dy;
+            state->cx = dx;
+            state->cy = dy;
             return true;
         }
 
-        case 'Z': case 'z': {
+        case 'Z':
+        case 'z': {
             /* closepath：画线回到当前子路径起点 */
             if (*out_count < max_points) {
                 out_points[(*out_count) * 2] = state->start_x;
                 out_points[(*out_count) * 2 + 1] = state->start_y;
                 (*out_count)++;
             }
-            state->cx = state->start_x; state->cy = state->start_y;
+            state->cx = state->start_x;
+            state->cy = state->start_y;
             return true;
         }
 
@@ -5156,12 +6276,11 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
  *
  * 将圆离散为 N 个采样点以便映射到约束图。
  */
-static int svg_parse_circle(double cx, double cy, double r,
-                            double *out_points, int max_points) {
+static int svg_parse_circle(double cx, double cy, double r, double *out_points, int max_points) {
     int count = 0;
     int samples = 32; /* 32个采样点近似圆 */
     for (int i = 0; i < samples && count < max_points; i++) {
-        double angle = 2.0 * M_PI * (double)i / (double)samples;
+        double angle = 2.0 * M_PI * (double) i / (double) samples;
         out_points[count * 2] = cx + r * cos(angle);
         out_points[count * 2 + 1] = cy + r * sin(angle);
         count++;
@@ -5191,24 +6310,22 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
      *         LV00_ERROR_UNSUPPORTED 格式不支持
      *         LV00_ERROR_PARSE 解析错误
      */
-    if (!engine || !config) return LV00_ERROR_INVALID_PARAM;
+    if (!engine || !config)
+        return LV00_ERROR_INVALID_PARAM;
     if (!engine->main_graph) {
-        lv00_set_error(LV00_ERROR_INVALID_STATE,
-            "SVG导入失败：引擎的约束图未初始化");
+        lv00_set_error(LV00_ERROR_INVALID_STATE, "SVG导入失败：引擎的约束图未初始化");
         return LV00_ERROR_INVALID_STATE;
     }
 
     if (config->input_path[0] == '\0') {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM,
-            "SVG导入失败：未指定输入文件路径");
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "SVG导入失败：未指定输入文件路径");
         return LV00_ERROR_INVALID_PARAM;
     }
 
     FILE *fp = fopen(config->input_path, "r");
     if (!fp) {
-        lv00_set_error(LV00_ERROR_IO,
-            "SVG导入失败：无法打开文件'%s'。请确认文件存在且具有读取权限。",
-            config->input_path);
+        lv00_set_error(LV00_ERROR_IO, "SVG导入失败：无法打开文件'%s'。请确认文件存在且具有读取权限。",
+                       config->input_path);
         return LV00_ERROR_IO;
     }
 
@@ -5218,45 +6335,40 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
 
     if (fsize <= 0) {
         fclose(fp);
-        lv00_set_error(LV00_ERROR_UNSUPPORTED,
-            "SVG文件'%s'为空（0字节）", config->input_path);
+        lv00_set_error(LV00_ERROR_UNSUPPORTED, "SVG文件'%s'为空（0字节）", config->input_path);
         return LV00_ERROR_UNSUPPORTED;
     }
 
     if (fsize > 50 * 1024 * 1024) {
         fclose(fp);
-        lv00_set_error(LV00_ERROR_UNSUPPORTED,
-            "SVG文件'%s'过大（%ld字节），最大支持50MB", config->input_path, fsize);
+        lv00_set_error(LV00_ERROR_UNSUPPORTED, "SVG文件'%s'过大（%ld字节），最大支持50MB", config->input_path, fsize);
         return LV00_ERROR_UNSUPPORTED;
     }
 
-    char *buffer = (char *)lv00_malloc((size_t)fsize + 1);
+    char *buffer = (char *) lv00_malloc((size_t) fsize + 1);
     if (!buffer) {
         fclose(fp);
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-            "SVG导入失败：无法为文件分配内存（%ld字节）", fsize);
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "SVG导入失败：无法为文件分配内存（%ld字节）", fsize);
         return LV00_ERROR_OUT_OF_MEMORY;
     }
 
-    size_t bytes_read = fread(buffer, 1, (size_t)fsize, fp);
+    size_t bytes_read = fread(buffer, 1, (size_t) fsize, fp);
     fclose(fp);
     buffer[bytes_read] = '\0';
 
     /* 格式验证 */
     bool has_svg_tag = false;
     for (size_t i = 0; i < bytes_read; i++) {
-        if (strncmp(buffer + i, "<svg", 4) == 0 ||
-            strncmp(buffer + i, "<?xml", 5) == 0) {
+        if (strncmp(buffer + i, "<svg", 4) == 0 || strncmp(buffer + i, "<?xml", 5) == 0) {
             has_svg_tag = true;
             break;
         }
     }
 
     if (!has_svg_tag) {
-        lv00_free((void **)&buffer);
-        lv00_set_error(LV00_ERROR_PARSE,
-            "文件'%s'不是合法的 SVG 格式（未检测到 <svg 标签或 XML 声明）",
-            config->input_path);
+        lv00_free((void **) &buffer);
+        lv00_set_error(LV00_ERROR_PARSE, "文件'%s'不是合法的 SVG 格式（未检测到 <svg 标签或 XML 声明）",
+                       config->input_path);
         return LV00_ERROR_PARSE;
     }
 
@@ -5276,13 +6388,13 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
                 const char *vb_end = strchr(vb_start, delim);
                 if (vb_end) {
                     char vb_str[128];
-                    size_t vb_len = (size_t)(vb_end - vb_start);
-                    if (vb_len >= sizeof(vb_str)) vb_len = sizeof(vb_str) - 1;
+                    size_t vb_len = (size_t) (vb_end - vb_start);
+                    if (vb_len >= sizeof(vb_str))
+                        vb_len = sizeof(vb_str) - 1;
                     memcpy(vb_str, vb_start, vb_len);
                     vb_str[vb_len] = '\0';
-                    if (sscanf(vb_str, "%lf %lf %lf %lf",
-                               &state.viewbox_x, &state.viewbox_y,
-                               &state.viewbox_w, &state.viewbox_h) == 4) {
+                    if (sscanf(vb_str, "%lf %lf %lf %lf", &state.viewbox_x, &state.viewbox_y, &state.viewbox_w,
+                               &state.viewbox_h) == 4) {
                         state.has_viewbox = true;
                     }
                 }
@@ -5294,25 +6406,25 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     ConstraintGraph *graph = engine->main_graph;
     int imported_count = 0;
 
-    #define SVG_MAX_POINTS 2048
-    double *points = (double *)lv00_malloc(sizeof(double) * 2 * SVG_MAX_POINTS);
+#define SVG_MAX_POINTS 2048
+    double *points = (double *) lv00_malloc(sizeof(double) * 2 * SVG_MAX_POINTS);
     if (!points) {
-        lv00_free((void **)&buffer);
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-            "SVG导入失败：无法为采样点分配内存");
+        lv00_free((void **) &buffer);
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "SVG导入失败：无法为采样点分配内存");
         return LV00_ERROR_OUT_OF_MEMORY;
     }
 
-    /* 存储所有点 ID 以便创建线段 */
-    #define SVG_MAX_NODES 2048
-    int *node_ids = (int *)lv00_malloc(sizeof(int) * SVG_MAX_NODES);
+/* 存储所有点 ID 以便创建线段 */
+#define SVG_MAX_NODES 2048
+    int *node_ids = (int *) lv00_malloc(sizeof(int) * SVG_MAX_NODES);
     int node_count = 0;
     if (!node_ids) {
-        lv00_free((void **)&points);
-        lv00_free((void **)&buffer);
+        lv00_free((void **) &points);
+        lv00_free((void **) &buffer);
         return LV00_ERROR_OUT_OF_MEMORY;
     }
-    for (int i = 0; i < SVG_MAX_NODES; i++) node_ids[i] = -1;
+    for (int i = 0; i < SVG_MAX_NODES; i++)
+        node_ids[i] = -1;
 
     /* ---- 解析 <path> 元素 ---- */
     const char *search_ptr = buffer;
@@ -5323,43 +6435,57 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
             /* 可能使用单引号 */
             d_attr = strstr(search_ptr, "d='");
         }
-        if (!d_attr) { search_ptr++; continue; }
+        if (!d_attr) {
+            search_ptr++;
+            continue;
+        }
 
         char quote = (d_attr[2] == '"' || d_attr[2] == '\'') ? d_attr[2] : '"';
         const char *d_start = d_attr + 3;
         const char *d_end = strchr(d_start, quote);
-        if (!d_end) { search_ptr = d_attr + 1; continue; }
+        if (!d_end) {
+            search_ptr = d_attr + 1;
+            continue;
+        }
 
-        size_t d_len = (size_t)(d_end - d_start);
-        if (d_len >= 65536) { search_ptr = d_end + 1; continue; }
-        char *d_str = (char *)lv00_malloc(d_len + 1);
-        if (!d_str) { search_ptr = d_end + 1; continue; }
+        size_t d_len = (size_t) (d_end - d_start);
+        if (d_len >= 65536) {
+            search_ptr = d_end + 1;
+            continue;
+        }
+        char *d_str = (char *) lv00_malloc(d_len + 1);
+        if (!d_str) {
+            search_ptr = d_end + 1;
+            continue;
+        }
         memcpy(d_str, d_start, d_len);
         d_str[d_len] = '\0';
 
         /* 解析路径命令 */
         const char *cmd_ptr = d_str;
-        state.cx = 0; state.cy = 0;
-        state.start_x = 0; state.start_y = 0;
+        state.cx = 0;
+        state.cy = 0;
+        state.start_x = 0;
+        state.start_y = 0;
 
         int path_pts = 0;
         char prev_cmd = 0;
 
         while (*cmd_ptr && path_pts < SVG_MAX_POINTS) {
             SVG_SKIP_WS(cmd_ptr);
-            if (*cmd_ptr == '\0') break;
+            if (*cmd_ptr == '\0')
+                break;
 
             char cmd = *cmd_ptr;
             bool is_rel = (cmd >= 'a' && cmd <= 'z');
-            char cmd_upper = is_rel ? (char)(cmd - 32) : cmd;
+            char cmd_upper = is_rel ? (char) (cmd - 32) : cmd;
 
-            if (cmd_upper == 'M' || cmd_upper == 'L' || cmd_upper == 'C' ||
-                cmd_upper == 'Q' || cmd_upper == 'A' || cmd_upper == 'Z') {
+            if (cmd_upper == 'M' || cmd_upper == 'L' || cmd_upper == 'C' || cmd_upper == 'Q' || cmd_upper == 'A' ||
+                cmd_upper == 'Z') {
                 cmd_ptr++;
                 SVG_SKIP_WS(cmd_ptr);
                 int cmd_count;
-                if (!svg_parse_path_command(cmd_upper, &cmd_ptr, &state,
-                                            points + path_pts * 2,
+                if (!svg_parse_path_command(cmd_upper, &cmd_ptr, &state, points + path_pts * 2,
                                             SVG_MAX_POINTS - path_pts, &cmd_count, is_rel)) {
                     break;
                 }
@@ -5367,13 +6493,13 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
                 prev_cmd = cmd_upper;
             }
             /* 如果下一个字符不是命令字母但前面有命令，则视为隐式重复 */
-            else if (prev_cmd && (prev_cmd == 'L' || prev_cmd == 'M' ||
-                     prev_cmd == 'C' || prev_cmd == 'Q' || prev_cmd == 'A')) {
+            else if (prev_cmd &&
+                     (prev_cmd == 'L' || prev_cmd == 'M' || prev_cmd == 'C' || prev_cmd == 'Q' || prev_cmd == 'A')) {
                 int cmd_count;
                 char implicit_cmd = prev_cmd;
-                if (implicit_cmd == 'M') implicit_cmd = 'L'; /* 后续 M 坐标视为 L */
-                if (!svg_parse_path_command(implicit_cmd, &cmd_ptr, &state,
-                                            points + path_pts * 2,
+                if (implicit_cmd == 'M')
+                    implicit_cmd = 'L'; /* 后续 M 坐标视为 L */
+                if (!svg_parse_path_command(implicit_cmd, &cmd_ptr, &state, points + path_pts * 2,
                                             SVG_MAX_POINTS - path_pts, &cmd_count, false)) {
                     break;
                 }
@@ -5383,18 +6509,20 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
             }
         }
 
-        lv00_free((void **)&d_str);
+        lv00_free((void **) &d_str);
 
         /* 将采样点映射到约束图 */
         for (int i = 0; i < path_pts && node_count < SVG_MAX_NODES; i++) {
             SymbolicCoord *cx = ggb_double_to_rational(points[i * 2]);
             SymbolicCoord *cy = ggb_double_to_rational(points[i * 2 + 1]);
             if (!cx || !cy) {
-                if (cx) symbolic_coord_destroy(cx);
-                if (cy) symbolic_coord_destroy(cy);
+                if (cx)
+                    symbolic_coord_destroy(cx);
+                if (cy)
+                    symbolic_coord_destroy(cy);
                 continue;
             }
-            SymbolicCoord *coords[2] = { cx, cy };
+            SymbolicCoord *coords[2] = {cx, cy};
             AddNodeResult res = graph_add_point(graph, coords, 2);
             if (res == ADD_NODE_OK) {
                 node_ids[node_count] = graph_get_last_added_node_id(graph);
@@ -5411,7 +6539,8 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
             int cur_id = node_ids[i];
             if (prev_id >= 0 && cur_id >= 0 && cur_id != prev_id) {
                 AddNodeResult seg_res = graph_add_line_segment(graph, prev_id, cur_id);
-                if (seg_res == ADD_NODE_OK) imported_count++;
+                if (seg_res == ADD_NODE_OK)
+                    imported_count++;
             }
             prev_id = cur_id;
         }
@@ -5425,23 +6554,49 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
         double cx = 0.0, cy = 0.0, r = 10.0;
         bool has_cx = false, has_cy = false;
         const char *end_tag = strstr(search_ptr, "/>");
-        if (!end_tag) end_tag = strstr(search_ptr, ">");
-        if (!end_tag) { search_ptr++; continue; }
+        if (!end_tag)
+            end_tag = strstr(search_ptr, ">");
+        if (!end_tag) {
+            search_ptr++;
+            continue;
+        }
 
         /* 提取 cx */
         const char *cxp = strstr(search_ptr, "cx=\"");
-        if (cxp && cxp < end_tag) { cx = atof(cxp + 4); has_cx = true; }
-        else { cxp = strstr(search_ptr, "cx='"); if (cxp && cxp < end_tag) { cx = atof(cxp + 4); has_cx = true; } }
+        if (cxp && cxp < end_tag) {
+            cx = atof(cxp + 4);
+            has_cx = true;
+        } else {
+            cxp = strstr(search_ptr, "cx='");
+            if (cxp && cxp < end_tag) {
+                cx = atof(cxp + 4);
+                has_cx = true;
+            }
+        }
 
         /* 提取 cy */
         const char *cyp = strstr(search_ptr, "cy=\"");
-        if (cyp && cyp < end_tag) { cy = atof(cyp + 4); has_cy = true; }
-        else { cyp = strstr(search_ptr, "cy='"); if (cyp && cyp < end_tag) { cy = atof(cyp + 4); has_cy = true; } }
+        if (cyp && cyp < end_tag) {
+            cy = atof(cyp + 4);
+            has_cy = true;
+        } else {
+            cyp = strstr(search_ptr, "cy='");
+            if (cyp && cyp < end_tag) {
+                cy = atof(cyp + 4);
+                has_cy = true;
+            }
+        }
 
         /* 提取 r */
         const char *rp = strstr(search_ptr, "r=\"");
-        if (rp && rp < end_tag) { r = atof(rp + 3); }
-        else { rp = strstr(search_ptr, "r='"); if (rp && rp < end_tag) { r = atof(rp + 3); } }
+        if (rp && rp < end_tag) {
+            r = atof(rp + 3);
+        } else {
+            rp = strstr(search_ptr, "r='");
+            if (rp && rp < end_tag) {
+                r = atof(rp + 3);
+            }
+        }
 
         if (has_cx && has_cy) {
             int circle_pts = svg_parse_circle(cx, cy, r, points, SVG_MAX_POINTS);
@@ -5450,11 +6605,13 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
                 SymbolicCoord *scx = ggb_double_to_rational(points[i * 2]);
                 SymbolicCoord *scy = ggb_double_to_rational(points[i * 2 + 1]);
                 if (!scx || !scy) {
-                    if (scx) symbolic_coord_destroy(scx);
-                    if (scy) symbolic_coord_destroy(scy);
+                    if (scx)
+                        symbolic_coord_destroy(scx);
+                    if (scy)
+                        symbolic_coord_destroy(scy);
                     continue;
                 }
-                SymbolicCoord *scoords[2] = { scx, scy };
+                SymbolicCoord *scoords[2] = {scx, scy};
                 AddNodeResult res = graph_add_point(graph, scoords, 2);
                 if (res == ADD_NODE_OK) {
                     node_ids[node_count] = graph_get_last_added_node_id(graph);
@@ -5478,18 +6635,30 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     while ((search_ptr = strstr(search_ptr, "<line")) != NULL) {
         double x1 = 0, y1 = 0, x2 = 0, y2 = 0;
         const char *et = strstr(search_ptr, "/>");
-        if (!et) et = strstr(search_ptr, ">");
-        if (!et) { search_ptr++; continue; }
+        if (!et)
+            et = strstr(search_ptr, ">");
+        if (!et) {
+            search_ptr++;
+            continue;
+        }
 
         const char *p;
-        if ((p = strstr(search_ptr, "x1=\"")) && p < et) x1 = atof(p + 4);
-        else if ((p = strstr(search_ptr, "x1='")) && p < et) x1 = atof(p + 4);
-        if ((p = strstr(search_ptr, "y1=\"")) && p < et) y1 = atof(p + 4);
-        else if ((p = strstr(search_ptr, "y1='")) && p < et) y1 = atof(p + 4);
-        if ((p = strstr(search_ptr, "x2=\"")) && p < et) x2 = atof(p + 4);
-        else if ((p = strstr(search_ptr, "x2='")) && p < et) x2 = atof(p + 4);
-        if ((p = strstr(search_ptr, "y2=\"")) && p < et) y2 = atof(p + 4);
-        else if ((p = strstr(search_ptr, "y2='")) && p < et) y2 = atof(p + 4);
+        if ((p = strstr(search_ptr, "x1=\"")) && p < et)
+            x1 = atof(p + 4);
+        else if ((p = strstr(search_ptr, "x1='")) && p < et)
+            x1 = atof(p + 4);
+        if ((p = strstr(search_ptr, "y1=\"")) && p < et)
+            y1 = atof(p + 4);
+        else if ((p = strstr(search_ptr, "y1='")) && p < et)
+            y1 = atof(p + 4);
+        if ((p = strstr(search_ptr, "x2=\"")) && p < et)
+            x2 = atof(p + 4);
+        else if ((p = strstr(search_ptr, "x2='")) && p < et)
+            x2 = atof(p + 4);
+        if ((p = strstr(search_ptr, "y2=\"")) && p < et)
+            y2 = atof(p + 4);
+        else if ((p = strstr(search_ptr, "y2='")) && p < et)
+            y2 = atof(p + 4);
 
         /* 创建两个端点 */
         SymbolicCoord *c1x = ggb_double_to_rational(x1);
@@ -5498,21 +6667,25 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
         SymbolicCoord *c2y = ggb_double_to_rational(y2);
 
         if (c1x && c1y && c2x && c2y) {
-            SymbolicCoord *coords1[2] = { c1x, c1y };
-            SymbolicCoord *coords2[2] = { c2x, c2y };
+            SymbolicCoord *coords1[2] = {c1x, c1y};
+            SymbolicCoord *coords2[2] = {c2x, c2y};
             AddNodeResult r1 = graph_add_point(graph, coords1, 2);
             int pid1 = (r1 == ADD_NODE_OK) ? graph_get_last_added_node_id(graph) : -1;
             AddNodeResult r2 = graph_add_point(graph, coords2, 2);
             int pid2 = (r2 == ADD_NODE_OK) ? graph_get_last_added_node_id(graph) : -1;
-            if (pid1 >= 0) imported_count++;
-            if (pid2 >= 0) imported_count++;
+            if (pid1 >= 0)
+                imported_count++;
+            if (pid2 >= 0)
+                imported_count++;
             if (pid1 >= 0 && pid2 >= 0 && pid1 != pid2) {
                 graph_add_line_segment(graph, pid1, pid2);
                 imported_count++;
             }
         }
-        symbolic_coord_destroy(c1x); symbolic_coord_destroy(c1y);
-        symbolic_coord_destroy(c2x); symbolic_coord_destroy(c2y);
+        symbolic_coord_destroy(c1x);
+        symbolic_coord_destroy(c1y);
+        symbolic_coord_destroy(c2x);
+        symbolic_coord_destroy(c2y);
 
         search_ptr = et + 1;
     }
@@ -5521,55 +6694,88 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     search_ptr = buffer;
     while ((search_ptr = strstr(search_ptr, "<rect")) != NULL) {
         /* 确保不是 <rect ... 之外的误匹配 */
-        if (search_ptr > buffer && isalnum((unsigned char)*(search_ptr - 1))) {
+        if (search_ptr > buffer && isalnum((unsigned char) *(search_ptr - 1))) {
             search_ptr++;
             continue;
         }
         double rx = 0, ry = 0, rw = 0, rh = 0;
         bool has_x = false, has_y = false, has_w = false, has_h = false;
         const char *rt = strstr(search_ptr, "/>");
-        if (!rt) rt = strstr(search_ptr, ">");
-        if (!rt) { search_ptr++; continue; }
+        if (!rt)
+            rt = strstr(search_ptr, ">");
+        if (!rt) {
+            search_ptr++;
+            continue;
+        }
 
         /* 提取 x */
         const char *xp = strstr(search_ptr, "x=\"");
-        if (xp && xp < rt) { rx = atof(xp + 3); has_x = true; }
-        else { xp = strstr(search_ptr, "x='"); if (xp && xp < rt) { rx = atof(xp + 3); has_x = true; } }
+        if (xp && xp < rt) {
+            rx = atof(xp + 3);
+            has_x = true;
+        } else {
+            xp = strstr(search_ptr, "x='");
+            if (xp && xp < rt) {
+                rx = atof(xp + 3);
+                has_x = true;
+            }
+        }
 
         /* 提取 y */
         const char *yp = strstr(search_ptr, "y=\"");
-        if (yp && yp < rt) { ry = atof(yp + 3); has_y = true; }
-        else { yp = strstr(search_ptr, "y='"); if (yp && yp < rt) { ry = atof(yp + 3); has_y = true; } }
+        if (yp && yp < rt) {
+            ry = atof(yp + 3);
+            has_y = true;
+        } else {
+            yp = strstr(search_ptr, "y='");
+            if (yp && yp < rt) {
+                ry = atof(yp + 3);
+                has_y = true;
+            }
+        }
 
         /* 提取 width */
         const char *wp = strstr(search_ptr, "width=\"");
-        if (wp && wp < rt) { rw = atof(wp + 7); has_w = true; }
-        else { wp = strstr(search_ptr, "width='"); if (wp && wp < rt) { rw = atof(wp + 7); has_w = true; } }
+        if (wp && wp < rt) {
+            rw = atof(wp + 7);
+            has_w = true;
+        } else {
+            wp = strstr(search_ptr, "width='");
+            if (wp && wp < rt) {
+                rw = atof(wp + 7);
+                has_w = true;
+            }
+        }
 
         /* 提取 height */
         const char *hp = strstr(search_ptr, "height=\"");
-        if (hp && hp < rt) { rh = atof(hp + 8); has_h = true; }
-        else { hp = strstr(search_ptr, "height='"); if (hp && hp < rt) { rh = atof(hp + 8); has_h = true; } }
+        if (hp && hp < rt) {
+            rh = atof(hp + 8);
+            has_h = true;
+        } else {
+            hp = strstr(search_ptr, "height='");
+            if (hp && hp < rt) {
+                rh = atof(hp + 8);
+                has_h = true;
+            }
+        }
 
         if (has_x && has_y && has_w && has_h && rw > 0 && rh > 0) {
-            double corners[4][2] = {
-                { rx, ry },
-                { rx + rw, ry },
-                { rx + rw, ry + rh },
-                { rx, ry + rh }
-            };
-            int corner_ids[4] = { -1, -1, -1, -1 };
+            double corners[4][2] = {{rx, ry}, {rx + rw, ry}, {rx + rw, ry + rh}, {rx, ry + rh}};
+            int corner_ids[4] = {-1, -1, -1, -1};
 
             /* 创建四个角点 */
             for (int ci = 0; ci < 4; ci++) {
                 SymbolicCoord *scx = ggb_double_to_rational(corners[ci][0]);
                 SymbolicCoord *scy = ggb_double_to_rational(corners[ci][1]);
                 if (!scx || !scy) {
-                    if (scx) symbolic_coord_destroy(scx);
-                    if (scy) symbolic_coord_destroy(scy);
+                    if (scx)
+                        symbolic_coord_destroy(scx);
+                    if (scy)
+                        symbolic_coord_destroy(scy);
                     continue;
                 }
-                SymbolicCoord *scoords[2] = { scx, scy };
+                SymbolicCoord *scoords[2] = {scx, scy};
                 AddNodeResult res = graph_add_point(graph, scoords, 2);
                 if (res == ADD_NODE_OK) {
                     corner_ids[ci] = graph_get_last_added_node_id(graph);
@@ -5580,7 +6786,7 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
             }
 
             /* 创建四条边界线段 */
-            int seg_ids[4] = { -1, -1, -1, -1 };
+            int seg_ids[4] = {-1, -1, -1, -1};
             for (int si = 0; si < 4; si++) {
                 int n1 = si;
                 int n2 = (si + 1) % 4;
@@ -5596,11 +6802,15 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
             /* 如果四条边界都创建成功，则创建区域 */
             bool all_segs = true;
             for (int si = 0; si < 4; si++) {
-                if (seg_ids[si] < 0) { all_segs = false; break; }
+                if (seg_ids[si] < 0) {
+                    all_segs = false;
+                    break;
+                }
             }
             if (all_segs) {
                 AddNodeResult reg_res = graph_add_region(graph, seg_ids, 4);
-                if (reg_res == ADD_NODE_OK) imported_count++;
+                if (reg_res == ADD_NODE_OK)
+                    imported_count++;
             }
         }
         search_ptr = rt + 1;
@@ -5609,51 +6819,72 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     /* ---- 解析 <polygon> 元素 ---- */
     search_ptr = buffer;
     while ((search_ptr = strstr(search_ptr, "<polygon")) != NULL) {
-        if (search_ptr > buffer && isalnum((unsigned char)*(search_ptr - 1))) {
+        if (search_ptr > buffer && isalnum((unsigned char) *(search_ptr - 1))) {
             search_ptr++;
             continue;
         }
         const char *pet = strstr(search_ptr, "/>");
-        if (!pet) pet = strstr(search_ptr, ">");
-        if (!pet) { search_ptr++; continue; }
+        if (!pet)
+            pet = strstr(search_ptr, ">");
+        if (!pet) {
+            search_ptr++;
+            continue;
+        }
 
         /* 提取 points 属性 */
         const char *pts_attr = strstr(search_ptr, "points=\"");
         if (!pts_attr || pts_attr > pet)
             pts_attr = strstr(search_ptr, "points='");
-        if (!pts_attr || pts_attr > pet) { search_ptr = pet + 1; continue; }
+        if (!pts_attr || pts_attr > pet) {
+            search_ptr = pet + 1;
+            continue;
+        }
 
         char pquote = (pts_attr[7] == '"' || pts_attr[7] == '\'') ? pts_attr[7] : '"';
         const char *pts_start = pts_attr + 8;
         const char *pts_end = strchr(pts_start, pquote);
-        if (!pts_end || pts_end > pet) { search_ptr = pet + 1; continue; }
+        if (!pts_end || pts_end > pet) {
+            search_ptr = pet + 1;
+            continue;
+        }
 
-        size_t pts_len = (size_t)(pts_end - pts_start);
-        if (pts_len == 0 || pts_len >= 65536) { search_ptr = pts_end + 1; continue; }
-        char *pts_str = (char *)lv00_malloc(pts_len + 1);
-        if (!pts_str) { search_ptr = pts_end + 1; continue; }
+        size_t pts_len = (size_t) (pts_end - pts_start);
+        if (pts_len == 0 || pts_len >= 65536) {
+            search_ptr = pts_end + 1;
+            continue;
+        }
+        char *pts_str = (char *) lv00_malloc(pts_len + 1);
+        if (!pts_str) {
+            search_ptr = pts_end + 1;
+            continue;
+        }
         memcpy(pts_str, pts_start, pts_len);
         pts_str[pts_len] = '\0';
 
-        /* 解析坐标对 */
-        #define SVG_POLY_MAX_PTS 256
+/* 解析坐标对 */
+#define SVG_POLY_MAX_PTS 256
         double poly_points[SVG_POLY_MAX_PTS * 2];
         int poly_count = 0;
         const char *pp = pts_str;
         while (poly_count < SVG_POLY_MAX_PTS) {
             SVG_SKIP_WS(pp);
-            if (*pp == '\0') break;
+            if (*pp == '\0')
+                break;
             double px, py;
-            if (!svg_parse_coord(&pp, &px, &py)) break;
+            if (!svg_parse_coord(&pp, &px, &py))
+                break;
             poly_points[poly_count * 2] = px;
             poly_points[poly_count * 2 + 1] = py;
             poly_count++;
         }
-        lv00_free((void **)&pts_str);
+        lv00_free((void **) &pts_str);
 
         if (poly_count >= 3) {
-            int *poly_node_ids = (int *)lv00_malloc(sizeof(int) * poly_count);
-            if (!poly_node_ids) { search_ptr = pts_end + 1; continue; }
+            int *poly_node_ids = (int *) lv00_malloc(sizeof(int) * poly_count);
+            if (!poly_node_ids) {
+                search_ptr = pts_end + 1;
+                continue;
+            }
             int poly_node_cnt = 0;
 
             /* 创建多边形顶点 */
@@ -5661,11 +6892,13 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
                 SymbolicCoord *scx = ggb_double_to_rational(poly_points[pi * 2]);
                 SymbolicCoord *scy = ggb_double_to_rational(poly_points[pi * 2 + 1]);
                 if (!scx || !scy) {
-                    if (scx) symbolic_coord_destroy(scx);
-                    if (scy) symbolic_coord_destroy(scy);
+                    if (scx)
+                        symbolic_coord_destroy(scx);
+                    if (scy)
+                        symbolic_coord_destroy(scy);
                     continue;
                 }
-                SymbolicCoord *scoords[2] = { scx, scy };
+                SymbolicCoord *scoords[2] = {scx, scy};
                 AddNodeResult res = graph_add_point(graph, scoords, 2);
                 if (res == ADD_NODE_OK) {
                     poly_node_ids[poly_node_cnt] = graph_get_last_added_node_id(graph);
@@ -5677,15 +6910,13 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
             }
 
             /* 创建邻边线段（闭合多边形） */
-            int *poly_segs = (int *)lv00_malloc(sizeof(int) * poly_node_cnt);
+            int *poly_segs = (int *) lv00_malloc(sizeof(int) * poly_node_cnt);
             int seg_cnt = 0;
             if (poly_segs) {
                 for (int pi = 0; pi < poly_node_cnt; pi++) {
                     int ni = (pi + 1) % poly_node_cnt;
-                    if (poly_node_ids[pi] >= 0 && poly_node_ids[ni] >= 0 &&
-                        poly_node_ids[pi] != poly_node_ids[ni]) {
-                        AddNodeResult seg_res = graph_add_line_segment(
-                            graph, poly_node_ids[pi], poly_node_ids[ni]);
+                    if (poly_node_ids[pi] >= 0 && poly_node_ids[ni] >= 0 && poly_node_ids[pi] != poly_node_ids[ni]) {
+                        AddNodeResult seg_res = graph_add_line_segment(graph, poly_node_ids[pi], poly_node_ids[ni]);
                         if (seg_res == ADD_NODE_OK && seg_cnt < poly_node_cnt) {
                             poly_segs[seg_cnt] = graph_get_last_added_node_id(graph);
                             imported_count++;
@@ -5697,24 +6928,25 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
                 /* 如果所有边都创建成功，则创建多边形区域 */
                 if (seg_cnt == poly_node_cnt && seg_cnt >= 3) {
                     AddNodeResult reg_res = graph_add_region(graph, poly_segs, seg_cnt);
-                    if (reg_res == ADD_NODE_OK) imported_count++;
+                    if (reg_res == ADD_NODE_OK)
+                        imported_count++;
                 }
-                lv00_free((void **)&poly_segs);
+                lv00_free((void **) &poly_segs);
             }
-            lv00_free((void **)&poly_node_ids);
+            lv00_free((void **) &poly_node_ids);
         }
 
         search_ptr = pts_end + 1;
     }
 
-    lv00_free((void **)&node_ids);
-    lv00_free((void **)&points);
-    lv00_free((void **)&buffer);
+    lv00_free((void **) &node_ids);
+    lv00_free((void **) &points);
+    lv00_free((void **) &buffer);
 
     if (imported_count == 0) {
         lv00_set_error(LV00_ERROR_UNSUPPORTED,
-            "SVG导入完成但未成功导入任何几何元素。文件可能不包含"
-            "支持的几何类型（<path>、<circle>、<line>、<rect>、<polygon>）。");
+                       "SVG导入完成但未成功导入任何几何元素。文件可能不包含"
+                       "支持的几何类型（<path>、<circle>、<line>、<rect>、<polygon>）。");
         return LV00_ERROR_UNSUPPORTED;
     }
 
@@ -5723,13 +6955,12 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
 
 /* ==================== 定理交换 ==================== */
 
-InteropTheoremContext* interop_theorem_context_create(const char *trust_base_name,
-                                                      const char *trust_base_version) {
-    InteropTheoremContext *ctx = (InteropTheoremContext*)lv00_malloc(sizeof(InteropTheoremContext));
-    if (!ctx) return NULL;
+InteropTheoremContext *interop_theorem_context_create(const char *trust_base_name, const char *trust_base_version) {
+    InteropTheoremContext *ctx = (InteropTheoremContext *) lv00_malloc(sizeof(InteropTheoremContext));
+    if (!ctx)
+        return NULL;
 
-    lv00_strlcpy(ctx->trust_base_name, trust_base_name ? trust_base_name : "Lv00",
-                 sizeof(ctx->trust_base_name));
+    lv00_strlcpy(ctx->trust_base_name, trust_base_name ? trust_base_name : "Lv00", sizeof(ctx->trust_base_name));
     lv00_strlcpy(ctx->trust_base_version, trust_base_version ? trust_base_version : "3.0.0",
                  sizeof(ctx->trust_base_version));
     ctx->exported_calls = NULL;
@@ -5739,18 +6970,18 @@ InteropTheoremContext* interop_theorem_context_create(const char *trust_base_nam
 }
 
 void interop_theorem_context_destroy(InteropTheoremContext *ctx) {
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     if (ctx->exported_calls) {
-        lv00_free((void**)&ctx->exported_calls);
+        lv00_free((void **) &ctx->exported_calls);
     }
 
-    lv00_free((void**)&ctx);
+    lv00_free((void **) &ctx);
 }
 
-int interop_theorem_add_call(InteropTheoremContext *ctx,
-                             const char *theorem_name,
-                             const char **params, int param_count) {
+int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_name, const char **params,
+                             int param_count) {
     /**
      * @brief 向定理交换上下文中添加一次定理调用记录
      *
@@ -5770,11 +7001,14 @@ int interop_theorem_add_call(InteropTheoremContext *ctx,
      *         LV00_ERROR_INVALID_PARAM ctx 或 theorem_name 为 NULL
      *         LV00_ERROR_OUT_OF_MEMORY 内存分配失败
      */
-    if (!ctx || !theorem_name) return LV00_ERROR_INVALID_PARAM;
+    if (!ctx || !theorem_name)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* 参数数量验证 */
-    if (param_count < 0) param_count = 0;
-    if (param_count > 0 && !params) return LV00_ERROR_INVALID_PARAM;
+    if (param_count < 0)
+        param_count = 0;
+    if (param_count > 0 && !params)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* 计算新记录所需的总字符数 */
     /* 格式: theorem_name;param1;param2;...;paramN\n */
@@ -5786,11 +7020,11 @@ int interop_theorem_add_call(InteropTheoremContext *ctx,
 
     /* 分配或扩展缓冲区 */
     size_t new_len = ctx->calls_len + entry_len;
-    char *new_buf = (char*)lv00_realloc(ctx->exported_calls, new_len + 1);
+    char *new_buf = (char *) lv00_realloc(ctx->exported_calls, new_len + 1);
     if (!new_buf) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-            "定理调用记录失败：无法为%d个参数的调用\"%s\"分配缓冲区（需要%zu字节）",
-            param_count, theorem_name, new_len + 1);
+                       "定理调用记录失败：无法为%d个参数的调用\"%s\"分配缓冲区（需要%zu字节）", param_count,
+                       theorem_name, new_len + 1);
         return LV00_ERROR_OUT_OF_MEMORY;
     }
     ctx->exported_calls = new_buf;
@@ -5804,8 +7038,7 @@ int interop_theorem_add_call(InteropTheoremContext *ctx,
     remaining -= written;
 
     for (int i = 0; i < param_count; i++) {
-        written = snprintf(write_ptr, remaining, ";%s",
-            params[i] ? params[i] : "null");
+        written = snprintf(write_ptr, remaining, ";%s", params[i] ? params[i] : "null");
         write_ptr += written;
         remaining -= written;
     }
@@ -5818,9 +7051,8 @@ int interop_theorem_add_call(InteropTheoremContext *ctx,
     return LV00_OK;
 }
 
-int interop_theorem_export_calls(const InteropTheoremContext *ctx,
-                                 InteropExportFormat format,
-                                 char *output, size_t output_size) {
+int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExportFormat format, char *output,
+                                 size_t output_size) {
     /**
      * @brief 导出定理调用序列为指定格式的证明脚本
      *
@@ -5852,7 +7084,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx,
      *         LV00_ERROR_UNSUPPORTED format 不是 Coq/Lean
      *         LV00_ERROR_BUFFER_TOO_SMALL 缓冲区不足
      */
-    if (!ctx || !output || output_size == 0) return LV00_ERROR_INVALID_PARAM;
+    if (!ctx || !output || output_size == 0)
+        return LV00_ERROR_INVALID_PARAM;
 
     /* 确定注释语法 */
     const char *comment_open;
@@ -5874,8 +7107,7 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx,
         line_end = "";
         lean_style_params = true;
     } else {
-        lv00_set_error(LV00_ERROR_UNSUPPORTED,
-            "定理导出仅支持 Coq 和 Lean 格式，当前格式=%d", format);
+        lv00_set_error(LV00_ERROR_UNSUPPORTED, "定理导出仅支持 Coq 和 Lean 格式，当前格式=%d", format);
         return LV00_ERROR_UNSUPPORTED;
     }
 
@@ -5883,23 +7115,24 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx,
     int written = 0;
 
     /* 头部注释 */
-    written = snprintf(output + offset, output_size - offset,
-        "%sTheorem calls exported by Lv-00%s\n", comment_open, comment_close);
-    if (written < 0) return LV00_ERROR_BUFFER_TOO_SMALL;
+    written = snprintf(output + offset, output_size - offset, "%sTheorem calls exported by Lv-00%s\n", comment_open,
+                       comment_close);
+    if (written < 0)
+        return LV00_ERROR_BUFFER_TOO_SMALL;
     offset += written;
 
-    written = snprintf(output + offset, output_size - offset,
-        "%sTrust base: %s v%s%s\n\n",
-        comment_open, ctx->trust_base_name, ctx->trust_base_version, comment_close);
-    if (written < 0) return LV00_ERROR_BUFFER_TOO_SMALL;
+    written = snprintf(output + offset, output_size - offset, "%sTrust base: %s v%s%s\n\n", comment_open,
+                       ctx->trust_base_name, ctx->trust_base_version, comment_close);
+    if (written < 0)
+        return LV00_ERROR_BUFFER_TOO_SMALL;
     offset += written;
 
     /* 解析调用记录并生成 apply 语句 */
     if (ctx->exported_calls && ctx->calls_len > 0) {
-        char *buf = (char*)lv00_malloc(ctx->calls_len + 1);
+        char *buf = (char *) lv00_malloc(ctx->calls_len + 1);
         if (!buf) {
-            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
-                "定理导出失败：无法分配%zu字节的临时解析缓冲区", ctx->calls_len + 1);
+            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "定理导出失败：无法分配%zu字节的临时解析缓冲区",
+                           ctx->calls_len + 1);
             return LV00_ERROR_OUT_OF_MEMORY;
         }
         memcpy(buf, ctx->exported_calls, ctx->calls_len + 1);
@@ -5913,9 +7146,11 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx,
             char *name = strtok_s(line, ";", &save_ptr_line);
             if (name && strlen(name) > 0) {
                 /* 生成 apply 语句 */
-                written = snprintf(output + offset, output_size - offset,
-                    "%s%s", apply_prefix, name);
-                if (written < 0) { lv00_free((void**)&buf); return LV00_ERROR_BUFFER_TOO_SMALL; }
+                written = snprintf(output + offset, output_size - offset, "%s%s", apply_prefix, name);
+                if (written < 0) {
+                    lv00_free((void **) &buf);
+                    return LV00_ERROR_BUFFER_TOO_SMALL;
+                }
                 offset += written;
 
                 /* 处理参数 */
@@ -5924,56 +7159,57 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx,
                 while (param && offset < output_size) {
                     if (lean_style_params) {
                         /* Lean 风格：apply theorem_name param1 param2 */
-                        written = snprintf(output + offset, output_size - offset,
-                            " %s", param);
+                        written = snprintf(output + offset, output_size - offset, " %s", param);
                     } else {
                         /* Coq 风格：apply theorem_name with (A := param1) (B := param2) */
                         char arg_label[8];
-                        snprintf(arg_label, sizeof(arg_label), "%c",
-                            (char)('A' + pidx));
-                        written = snprintf(output + offset, output_size - offset,
-                            " with (%s := %s)", arg_label, param);
+                        snprintf(arg_label, sizeof(arg_label), "%c", (char) ('A' + pidx));
+                        written = snprintf(output + offset, output_size - offset, " with (%s := %s)", arg_label, param);
                     }
-                    if (written < 0) { lv00_free((void**)&buf); return LV00_ERROR_BUFFER_TOO_SMALL; }
+                    if (written < 0) {
+                        lv00_free((void **) &buf);
+                        return LV00_ERROR_BUFFER_TOO_SMALL;
+                    }
                     offset += written;
                     param = strtok_s(NULL, ";", &save_ptr_line);
                     pidx++;
                 }
 
                 /* 行尾 */
-                written = snprintf(output + offset, output_size - offset,
-                    "%s\n", line_end);
-                if (written < 0) { lv00_free((void**)&buf); return LV00_ERROR_BUFFER_TOO_SMALL; }
+                written = snprintf(output + offset, output_size - offset, "%s\n", line_end);
+                if (written < 0) {
+                    lv00_free((void **) &buf);
+                    return LV00_ERROR_BUFFER_TOO_SMALL;
+                }
                 offset += written;
                 call_index++;
             }
             line = strtok(NULL, "\n");
         }
-        lv00_free((void**)&buf);
+        lv00_free((void **) &buf);
 
         if (call_index == 0) {
             /* 没有解析到有效调用 */
-            written = snprintf(output + offset, output_size - offset,
-                "%s(no theorem calls recorded)%s\n", comment_open, comment_close);
-            if (written < 0) return LV00_ERROR_BUFFER_TOO_SMALL;
+            written = snprintf(output + offset, output_size - offset, "%s(no theorem calls recorded)%s\n", comment_open,
+                               comment_close);
+            if (written < 0)
+                return LV00_ERROR_BUFFER_TOO_SMALL;
             offset += written;
         }
     } else {
         /* 无调用记录 */
-        written = snprintf(output + offset, output_size - offset,
-            "%s(no theorem calls recorded)%s\n", comment_open, comment_close);
-        if (written < 0) return LV00_ERROR_BUFFER_TOO_SMALL;
+        written = snprintf(output + offset, output_size - offset, "%s(no theorem calls recorded)%s\n", comment_open,
+                           comment_close);
+        if (written < 0)
+            return LV00_ERROR_BUFFER_TOO_SMALL;
         offset += written;
     }
 
     return LV00_OK;
 }
 
-int interop_import_external_theorem(LV00Engine *engine,
-                                    const char *trust_base_name,
-                                    const char *content_hash,
-                                    const char *description,
-                                    int *block_id) {
+int interop_import_external_theorem(LV00Engine *engine, const char *trust_base_name, const char *content_hash,
+                                    const char *description, int *block_id) {
     /**
      * @brief 导入外部定理作为信任基块
      *
@@ -6010,8 +7246,7 @@ int interop_import_external_theorem(LV00Engine *engine,
         StreamContext *sctx = engine_get_stream_context(engine);
         if (sctx) {
             char msg[256];
-            snprintf(msg, sizeof(msg),
-                "开始外部定理导入：\"%s\"", trust_base_name);
+            snprintf(msg, sizeof(msg), "开始外部定理导入：\"%s\"", trust_base_name);
             stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
         }
     }
@@ -6021,21 +7256,17 @@ int interop_import_external_theorem(LV00Engine *engine,
     /* ---- 信任基名称验证 ---- */
     size_t name_len = strlen(trust_base_name);
     if (name_len == 0) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM,
-            "外部定理导入失败：信任基名称为空");
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称为空");
         return LV00_ERROR_INVALID_PARAM;
     }
     if (name_len > 63) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM,
-            "外部定理导入失败：信任基名称过长（%zu字符，最大63字符）", name_len);
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称过长（%zu字符，最大63字符）", name_len);
         return LV00_ERROR_INVALID_PARAM;
     }
     for (size_t i = 0; i < name_len; i++) {
         char c = trust_base_name[i];
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-              (c >= '0' && c <= '9') || c == '_' || c == '-')) {
-            lv00_set_error(LV00_ERROR_INVALID_PARAM,
-                "外部定理导入失败：信任基名称包含非法字符'%c'（位置=%zu）", c, i);
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-')) {
+            lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：信任基名称包含非法字符'%c'（位置=%zu）", c, i);
             return LV00_ERROR_INVALID_PARAM;
         }
     }
@@ -6043,16 +7274,14 @@ int interop_import_external_theorem(LV00Engine *engine,
     /* ---- 内容哈希验证 ---- */
     size_t hash_len = strlen(content_hash);
     if (hash_len < 8) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM,
-            "外部定理导入失败：内容哈希过短（%zu字符，最少8字符）", hash_len);
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希过短（%zu字符，最少8字符）", hash_len);
         return LV00_ERROR_INVALID_PARAM;
     }
     for (size_t i = 0; i < hash_len; i++) {
         char c = content_hash[i];
-        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-              (c >= 'A' && c <= 'F'))) {
-            lv00_set_error(LV00_ERROR_INVALID_PARAM,
-                "外部定理导入失败：内容哈希包含非十六进制字符'%c'（位置=%zu）", c, i);
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+            lv00_set_error(LV00_ERROR_INVALID_PARAM, "外部定理导入失败：内容哈希包含非十六进制字符'%c'（位置=%zu）", c,
+                           i);
             return LV00_ERROR_INVALID_PARAM;
         }
     }
@@ -6061,29 +7290,29 @@ int interop_import_external_theorem(LV00Engine *engine,
     if (description && strlen(description) > 0) {
         char msg[512];
         StreamContext *sctx = engine_get_stream_context(engine);
-        snprintf(msg, sizeof(msg),
-            "外部定理\"%s\"（哈希=%s）描述：%s",
-            trust_base_name, content_hash, description);
-        if (sctx) stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
+        snprintf(msg, sizeof(msg), "外部定理\"%s\"（哈希=%s）描述：%s", trust_base_name, content_hash, description);
+        if (sctx)
+            stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
     }
 
     /* ---- 注册信任基块 ---- */
     /* 信任基块ID使用 content_hash 的低位进行哈希映射，确保一定程度的唯一性 */
     unsigned int hash_val = 0;
     for (size_t i = 0; i < hash_len; i++) {
-        hash_val = hash_val * 31 + (unsigned char)content_hash[i];
+        hash_val = hash_val * 31 + (unsigned char) content_hash[i];
     }
     /* 使用大偏移量避免与常规节点ID冲突 */
-    *block_id = (int)(1000000 + (hash_val % 9000000));
+    *block_id = (int) (1000000 + (hash_val % 9000000));
 
     {
         char msg[256];
         StreamContext *sctx = engine_get_stream_context(engine);
         snprintf(msg, sizeof(msg),
-            "外部定理\"%s\"（哈希前8位=%.8s）已注册为信任基块，block_id=%d。"
-            "注意：完整的外部证明验证和跨系统信任传递需要外部证明助手的配合。",
-            trust_base_name, content_hash, *block_id);
-        if (sctx) stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
+                 "外部定理\"%s\"（哈希前8位=%.8s）已注册为信任基块，block_id=%d。"
+                 "注意：完整的外部证明验证和跨系统信任传递需要外部证明助手的配合。",
+                 trust_base_name, content_hash, *block_id);
+        if (sctx)
+            stream_emit_simple(sctx, STREAM_EVENT_INFO, msg, 0);
     }
 
     return LV00_OK;
@@ -6091,72 +7320,103 @@ int interop_import_external_theorem(LV00Engine *engine,
 
 /* ==================== 工具函数 ==================== */
 
-const char* interop_export_format_name(InteropExportFormat format) {
+const char *interop_export_format_name(InteropExportFormat format) {
     switch (format) {
-        case INTEROP_EXPORT_COQ:        return "coq";
-        case INTEROP_EXPORT_LEAN:       return "lean";
-        case INTEROP_EXPORT_HTML:       return "html";
-        case INTEROP_EXPORT_SVG:        return "svg";
-        case INTEROP_EXPORT_PDF:        return "pdf";
-        case INTEROP_EXPORT_TIKZ:       return "tikz";
-        case INTEROP_EXPORT_GEOJSON:    return "geojson";
-        case INTEROP_EXPORT_CANONICAL:  return "canonical";
-        default:                        return "unknown";
+        case INTEROP_EXPORT_COQ:
+            return "coq";
+        case INTEROP_EXPORT_LEAN:
+            return "lean";
+        case INTEROP_EXPORT_HTML:
+            return "html";
+        case INTEROP_EXPORT_SVG:
+            return "svg";
+        case INTEROP_EXPORT_PDF:
+            return "pdf";
+        case INTEROP_EXPORT_TIKZ:
+            return "tikz";
+        case INTEROP_EXPORT_GEOJSON:
+            return "geojson";
+        case INTEROP_EXPORT_CANONICAL:
+            return "canonical";
+        default:
+            return "unknown";
     }
 }
 
-const char* interop_import_format_name(InteropImportFormat format) {
+const char *interop_import_format_name(InteropImportFormat format) {
     switch (format) {
-        case INTEROP_IMPORT_GEOGEBRA:   return "geogebra";
-        case INTEROP_IMPORT_GEOJSON:    return "geojson";
-        case INTEROP_IMPORT_SVG:        return "svg";
-        default:                        return "unknown";
+        case INTEROP_IMPORT_GEOGEBRA:
+            return "geogebra";
+        case INTEROP_IMPORT_GEOJSON:
+            return "geojson";
+        case INTEROP_IMPORT_SVG:
+            return "svg";
+        default:
+            return "unknown";
     }
 }
 
 InteropExportFormat interop_parse_export_format(const char *str) {
-    if (!str) return (InteropExportFormat)-1;
+    if (!str)
+        return (InteropExportFormat) -1;
 
-    if (strcmp(str, "coq") == 0) return INTEROP_EXPORT_COQ;
-    if (strcmp(str, "lean") == 0) return INTEROP_EXPORT_LEAN;
-    if (strcmp(str, "html") == 0) return INTEROP_EXPORT_HTML;
-    if (strcmp(str, "svg") == 0) return INTEROP_EXPORT_SVG;
-    if (strcmp(str, "pdf") == 0) return INTEROP_EXPORT_PDF;
-    if (strcmp(str, "tikz") == 0) return INTEROP_EXPORT_TIKZ;
-    if (strcmp(str, "geojson") == 0) return INTEROP_EXPORT_GEOJSON;
-    if (strcmp(str, "canonical") == 0) return INTEROP_EXPORT_CANONICAL;
+    if (strcmp(str, "coq") == 0)
+        return INTEROP_EXPORT_COQ;
+    if (strcmp(str, "lean") == 0)
+        return INTEROP_EXPORT_LEAN;
+    if (strcmp(str, "html") == 0)
+        return INTEROP_EXPORT_HTML;
+    if (strcmp(str, "svg") == 0)
+        return INTEROP_EXPORT_SVG;
+    if (strcmp(str, "pdf") == 0)
+        return INTEROP_EXPORT_PDF;
+    if (strcmp(str, "tikz") == 0)
+        return INTEROP_EXPORT_TIKZ;
+    if (strcmp(str, "geojson") == 0)
+        return INTEROP_EXPORT_GEOJSON;
+    if (strcmp(str, "canonical") == 0)
+        return INTEROP_EXPORT_CANONICAL;
 
-    return (InteropExportFormat)-1;
+    return (InteropExportFormat) -1;
 }
 
 InteropImportFormat interop_parse_import_format(const char *str) {
-    if (!str) return (InteropImportFormat)-1;
+    if (!str)
+        return (InteropImportFormat) -1;
 
-    if (strcmp(str, "geogebra") == 0) return INTEROP_IMPORT_GEOGEBRA;
-    if (strcmp(str, "geojson") == 0) return INTEROP_IMPORT_GEOJSON;
-    if (strcmp(str, "svg") == 0) return INTEROP_IMPORT_SVG;
+    if (strcmp(str, "geogebra") == 0)
+        return INTEROP_IMPORT_GEOGEBRA;
+    if (strcmp(str, "geojson") == 0)
+        return INTEROP_IMPORT_GEOJSON;
+    if (strcmp(str, "svg") == 0)
+        return INTEROP_IMPORT_SVG;
 
-    return (InteropImportFormat)-1;
+    return (InteropImportFormat) -1;
 }
 
 int interop_validate_path(const char *path) {
-    if (!path || strlen(path) == 0) return 0;
-    if (strlen(path) >= INTEROP_MAX_PATH_LEN) return 0;
+    if (!path || strlen(path) == 0)
+        return 0;
+    if (strlen(path) >= INTEROP_MAX_PATH_LEN)
+        return 0;
 
     /* 检查非法字符 */
     const char *invalid = "<>\"|?*";
     for (const char *p = path; *p; p++) {
-        if (strchr(invalid, *p)) return 0;
+        if (strchr(invalid, *p))
+            return 0;
     }
 
     return 1;
 }
 
-const char* interop_get_file_extension(const char *path) {
-    if (!path) return "";
+const char *interop_get_file_extension(const char *path) {
+    if (!path)
+        return "";
 
     const char *dot = strrchr(path, '.');
-    if (!dot || dot == path) return "";
+    if (!dot || dot == path)
+        return "";
 
     return dot + 1;
 }

@@ -20,9 +20,9 @@
 #ifndef LV00_DSL_COMPILER_H
 #define LV00_DSL_COMPILER_H
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,54 +47,54 @@ typedef struct FuncBlock FuncBlock;
  */
 typedef enum {
     /* ---- 几何构造原语（GCLC 风格）---- */
-    DSL_TOK_POINT,               /**< 关键字 point */
-    DSL_TOK_LINE,                /**< 关键字 line */
-    DSL_TOK_CIRCLE,              /**< 关键字 circle */
-    DSL_TOK_SEGMENT,             /**< 关键字 segment */
-    DSL_TOK_RAY,                 /**< 关键字 ray */
-    DSL_TOK_POLYGON,             /**< 关键字 polygon */
-    DSL_TOK_TRIANGLE,            /**< 关键字 triangle */
+    DSL_TOK_POINT,    /**< 关键字 point */
+    DSL_TOK_LINE,     /**< 关键字 line */
+    DSL_TOK_CIRCLE,   /**< 关键字 circle */
+    DSL_TOK_SEGMENT,  /**< 关键字 segment */
+    DSL_TOK_RAY,      /**< 关键字 ray */
+    DSL_TOK_POLYGON,  /**< 关键字 polygon */
+    DSL_TOK_TRIANGLE, /**< 关键字 triangle */
 
     /* ---- 构造操作 ---- */
-    DSL_TOK_INTERSECT,           /**< 关键字 intersect */
-    DSL_TOK_PARALLEL,            /**< 关键字 parallel */
-    DSL_TOK_PERPENDICULAR,       /**< 关键字 perpendicular */
-    DSL_TOK_MIDPOINT,            /**< 关键字 midpoint */
-    DSL_TOK_CIRCUMCENTER,        /**< 关键字 circumcenter */
-    DSL_TOK_ORTHOCENTER,         /**< 关键字 orthocenter */
-    DSL_TOK_CENTROID,            /**< 关键字 centroid */
-    DSL_TOK_INCENTER,            /**< 关键字 incenter */
-    DSL_TOK_BISECTOR,            /**< 关键字 bisector（角平分线） */
+    DSL_TOK_INTERSECT,     /**< 关键字 intersect */
+    DSL_TOK_PARALLEL,      /**< 关键字 parallel */
+    DSL_TOK_PERPENDICULAR, /**< 关键字 perpendicular */
+    DSL_TOK_MIDPOINT,      /**< 关键字 midpoint */
+    DSL_TOK_CIRCUMCENTER,  /**< 关键字 circumcenter */
+    DSL_TOK_ORTHOCENTER,   /**< 关键字 orthocenter */
+    DSL_TOK_CENTROID,      /**< 关键字 centroid */
+    DSL_TOK_INCENTER,      /**< 关键字 incenter */
+    DSL_TOK_BISECTOR,      /**< 关键字 bisector（角平分线） */
 
     /* ---- 控制流与声明 ---- */
-    DSL_TOK_LET,                 /**< 关键字 let */
-    DSL_TOK_LOAD,                /**< 关键字 load（加载公理包） */
-    DSL_TOK_PROVE,               /**< 关键字 prove */
-    DSL_TOK_CONSTRAINT,          /**< 关键字 constraint */
-    DSL_TOK_FIX,                 /**< 关键字 fix（固定坐标点） */
-    DSL_TOK_FREE,                /**< 关键字 free（自由点） */
+    DSL_TOK_LET,        /**< 关键字 let */
+    DSL_TOK_LOAD,       /**< 关键字 load（加载公理包） */
+    DSL_TOK_PROVE,      /**< 关键字 prove */
+    DSL_TOK_CONSTRAINT, /**< 关键字 constraint */
+    DSL_TOK_FIX,        /**< 关键字 fix（固定坐标点） */
+    DSL_TOK_FREE,       /**< 关键字 free（自由点） */
 
     /* ---- 字面量 ---- */
-    DSL_TOK_IDENT,               /**< 标识符 */
-    DSL_TOK_NUMBER,              /**< 数值字面量（整数/浮点） */
+    DSL_TOK_IDENT,  /**< 标识符 */
+    DSL_TOK_NUMBER, /**< 数值字面量（整数/浮点） */
 
     /* ---- 运算符与分隔符 ---- */
-    DSL_TOK_LPAREN,              /**< 左圆括号 ( */
-    DSL_TOK_RPAREN,              /**< 右圆括号 ) */
-    DSL_TOK_LBRACE,              /**< 左花括号 { */
-    DSL_TOK_RBRACE,              /**< 右花括号 } */
-    DSL_TOK_LBRACKET,            /**< 左方括号 [ */
-    DSL_TOK_RBRACKET,            /**< 右方括号 ] */
-    DSL_TOK_COMMA,               /**< 逗号 , */
-    DSL_TOK_ASSIGN,              /**< 赋值 = */
-    DSL_TOK_SEMI,                /**< 分号 ; */
-    DSL_TOK_COLON,               /**< 冒号 : */
-    DSL_TOK_ARROW,               /**< 箭头 -> */
+    DSL_TOK_LPAREN,   /**< 左圆括号 ( */
+    DSL_TOK_RPAREN,   /**< 右圆括号 ) */
+    DSL_TOK_LBRACE,   /**< 左花括号 { */
+    DSL_TOK_RBRACE,   /**< 右花括号 } */
+    DSL_TOK_LBRACKET, /**< 左方括号 [ */
+    DSL_TOK_RBRACKET, /**< 右方括号 ] */
+    DSL_TOK_COMMA,    /**< 逗号 , */
+    DSL_TOK_ASSIGN,   /**< 赋值 = */
+    DSL_TOK_SEMI,     /**< 分号 ; */
+    DSL_TOK_COLON,    /**< 冒号 : */
+    DSL_TOK_ARROW,    /**< 箭头 -> */
 
     /* ---- 元信息 ---- */
-    DSL_TOK_EOF,                 /**< 文件结束 */
-    DSL_TOK_ERROR,               /**< 错误词法单元 */
-    DSL_TOK_COMMENT              /**< 注释（行注释 // 和块注释） */
+    DSL_TOK_EOF,    /**< 文件结束 */
+    DSL_TOK_ERROR,  /**< 错误词法单元 */
+    DSL_TOK_COMMENT /**< 注释（行注释 // 和块注释） */
 } DSLTokenType;
 
 /**
@@ -104,10 +104,10 @@ typedef enum {
  * 用于编译错误报告和 AST 节点溯源。
  */
 typedef struct DslToken {
-    DSLTokenType type;           /**< 词法单元类型 */
-    const char  *lexeme;         /**< 词素文本指针（指向源码，非自有） */
-    int          line;           /**< 源码行号（从 1 开始） */
-    int          col;            /**< 源码列号（从 1 开始） */
+    DSLTokenType type;  /**< 词法单元类型 */
+    const char *lexeme; /**< 词素文本指针（指向源码，非自有） */
+    int line;           /**< 源码行号（从 1 开始） */
+    int col;            /**< 源码列号（从 1 开始） */
 } DslToken;
 
 /* ================================================================
@@ -121,31 +121,31 @@ typedef struct DslToken {
  * 共 20+ 种类型，覆盖声明、构造、约束和证明语句。
  */
 typedef enum {
-    DSL_AST_PROGRAM,             /**< 程序根节点（子节点列表为顶层语句） */
-    DSL_AST_POINT_DECL,          /**< 点声明：point A = ... */
-    DSL_AST_LINE_DECL,           /**< 线声明：line a = ... */
-    DSL_AST_CIRCLE_DECL,         /**< 圆声明：circle k = ... */
-    DSL_AST_SEGMENT_DECL,        /**< 线段声明：segment s = ... */
-    DSL_AST_RAY_DECL,            /**< 射线声明：ray r = ... */
-    DSL_AST_POLYGON_DECL,        /**< 多边形声明：polygon P = ... */
-    DSL_AST_TRIANGLE_DECL,       /**< 三角形声明：triangle T = ... */
-    DSL_AST_INTERSECT,           /**< 求交表达式：intersect(A, B) */
-    DSL_AST_PARALLEL,            /**< 平行线表达式：parallel(L, P) */
-    DSL_AST_PERPENDICULAR,       /**< 垂直线表达式：perpendicular(L, P) */
-    DSL_AST_MIDPOINT,            /**< 中点表达式：midpoint(A, B) */
-    DSL_AST_CIRCUMCENTER,        /**< 外心表达式：circumcenter(A, B, C) */
-    DSL_AST_ORTHOCENTER,         /**< 垂心表达式：orthocenter(A, B, C) */
-    DSL_AST_CENTROID,            /**< 重心表达式：centroid(A, B, C) */
-    DSL_AST_INCENTER,            /**< 内心表达式：incenter(A, B, C) */
-    DSL_AST_BISECTOR,            /**< 角平分线表达式：bisector(A, B, C) */
-    DSL_AST_CONSTRAINT,          /**< 约束语句：constraint { ... } */
-    DSL_AST_PROVE,               /**< 证明语句：prove { ... } */
-    DSL_AST_LOAD,                /**< 加载语句：load "euclidean" */
-    DSL_AST_FIX_POINT,           /**< 固定点：fix A 10 20 */
-    DSL_AST_FREE_POINT,          /**< 自由点：free A */
-    DSL_AST_BLOCK,               /**< 语句块：{ stmt1; stmt2; ... } */
-    DSL_AST_IDENT,               /**< 标识符引用 */
-    DSL_AST_NUMBER               /**< 数值字面量 */
+    DSL_AST_PROGRAM,       /**< 程序根节点（子节点列表为顶层语句） */
+    DSL_AST_POINT_DECL,    /**< 点声明：point A = ... */
+    DSL_AST_LINE_DECL,     /**< 线声明：line a = ... */
+    DSL_AST_CIRCLE_DECL,   /**< 圆声明：circle k = ... */
+    DSL_AST_SEGMENT_DECL,  /**< 线段声明：segment s = ... */
+    DSL_AST_RAY_DECL,      /**< 射线声明：ray r = ... */
+    DSL_AST_POLYGON_DECL,  /**< 多边形声明：polygon P = ... */
+    DSL_AST_TRIANGLE_DECL, /**< 三角形声明：triangle T = ... */
+    DSL_AST_INTERSECT,     /**< 求交表达式：intersect(A, B) */
+    DSL_AST_PARALLEL,      /**< 平行线表达式：parallel(L, P) */
+    DSL_AST_PERPENDICULAR, /**< 垂直线表达式：perpendicular(L, P) */
+    DSL_AST_MIDPOINT,      /**< 中点表达式：midpoint(A, B) */
+    DSL_AST_CIRCUMCENTER,  /**< 外心表达式：circumcenter(A, B, C) */
+    DSL_AST_ORTHOCENTER,   /**< 垂心表达式：orthocenter(A, B, C) */
+    DSL_AST_CENTROID,      /**< 重心表达式：centroid(A, B, C) */
+    DSL_AST_INCENTER,      /**< 内心表达式：incenter(A, B, C) */
+    DSL_AST_BISECTOR,      /**< 角平分线表达式：bisector(A, B, C) */
+    DSL_AST_CONSTRAINT,    /**< 约束语句：constraint { ... } */
+    DSL_AST_PROVE,         /**< 证明语句：prove { ... } */
+    DSL_AST_LOAD,          /**< 加载语句：load "euclidean" */
+    DSL_AST_FIX_POINT,     /**< 固定点：fix A 10 20 */
+    DSL_AST_FREE_POINT,    /**< 自由点：free A */
+    DSL_AST_BLOCK,         /**< 语句块：{ stmt1; stmt2; ... } */
+    DSL_AST_IDENT,         /**< 标识符引用 */
+    DSL_AST_NUMBER         /**< 数值字面量 */
 } DslASTType;
 
 /**
@@ -156,14 +156,14 @@ typedef enum {
  * 借鉴 Ganja.js 的 AST 表示——统一节点结构，通过 type 区分语义。
  */
 typedef struct DslAST {
-    DslASTType     type;          /**< 节点类型 */
-    char          *name;          /**< 标识符名称（可为 NULL） */
-    double         num_value;     /**< 数值（DSL_AST_NUMBER 时有效） */
-    int            line;          /**< 源码行号 */
-    int            col;           /**< 源码列号 */
-    struct DslAST **children;     /**< 子节点数组 */
-    int            child_count;   /**< 子节点数量 */
-    int            child_capacity; /**< 子节点数组容量 */
+    DslASTType type;          /**< 节点类型 */
+    char *name;               /**< 标识符名称（可为 NULL） */
+    double num_value;         /**< 数值（DSL_AST_NUMBER 时有效） */
+    int line;                 /**< 源码行号 */
+    int col;                  /**< 源码列号 */
+    struct DslAST **children; /**< 子节点数组 */
+    int child_count;          /**< 子节点数量 */
+    int child_capacity;       /**< 子节点数组容量 */
 } DslAST;
 
 /* ================================================================
@@ -183,44 +183,44 @@ typedef struct DslAST {
  */
 typedef enum {
     /* ---- 实体创建 ---- */
-    IR_CREATE_POINT,             /**< 创建自由点 */
-    IR_CREATE_POINT_FIXED,       /**< 创建固定坐标点 */
-    IR_CREATE_LINE,              /**< 通过两点创建直线 */
-    IR_CREATE_CIRCLE,            /**< 通过圆心和半径创建圆 */
-    IR_CREATE_SEGMENT,           /**< 通过两个端点创建线段 */
-    IR_CREATE_RAY,               /**< 通过原点和方向点创建射线 */
-    IR_CREATE_POLYGON,           /**< 通过顶点列表创建多边形 */
-    IR_CREATE_TRIANGLE,          /**< 通过三点创建三角形 */
+    IR_CREATE_POINT,       /**< 创建自由点 */
+    IR_CREATE_POINT_FIXED, /**< 创建固定坐标点 */
+    IR_CREATE_LINE,        /**< 通过两点创建直线 */
+    IR_CREATE_CIRCLE,      /**< 通过圆心和半径创建圆 */
+    IR_CREATE_SEGMENT,     /**< 通过两个端点创建线段 */
+    IR_CREATE_RAY,         /**< 通过原点和方向点创建射线 */
+    IR_CREATE_POLYGON,     /**< 通过顶点列表创建多边形 */
+    IR_CREATE_TRIANGLE,    /**< 通过三点创建三角形 */
 
     /* ---- 构造操作（返回新实体）---- */
-    IR_INTERSECT,                /**< 计算两几何对象交点 */
-    IR_PARALLEL_THROUGH,         /**< 通过点作平行线 */
-    IR_PERPENDICULAR_THROUGH,    /**< 通过点作垂线 */
-    IR_MIDPOINT_OF,              /**< 计算线段中点 */
-    IR_CIRCUMCENTER_OF,          /**< 计算三角形外心 */
-    IR_ORTHOCENTER_OF,           /**< 计算三角形垂心 */
-    IR_CENTROID_OF,              /**< 计算三角形重心 */
-    IR_INCENTER_OF,              /**< 计算三角形内心 */
-    IR_BISECTOR_OF,              /**< 计算角平分线 */
-    IR_ANGLE_BISECTOR,           /**< 计算角平分线交点 */
+    IR_INTERSECT,             /**< 计算两几何对象交点 */
+    IR_PARALLEL_THROUGH,      /**< 通过点作平行线 */
+    IR_PERPENDICULAR_THROUGH, /**< 通过点作垂线 */
+    IR_MIDPOINT_OF,           /**< 计算线段中点 */
+    IR_CIRCUMCENTER_OF,       /**< 计算三角形外心 */
+    IR_ORTHOCENTER_OF,        /**< 计算三角形垂心 */
+    IR_CENTROID_OF,           /**< 计算三角形重心 */
+    IR_INCENTER_OF,           /**< 计算三角形内心 */
+    IR_BISECTOR_OF,           /**< 计算角平分线 */
+    IR_ANGLE_BISECTOR,        /**< 计算角平分线交点 */
 
     /* ---- 约束操作 ---- */
-    IR_ADD_CONSTRAINT,           /**< 添加约束（关联/之间/相交/包含） */
-    IR_REMOVE_CONSTRAINT,        /**< 移除约束 */
-    IR_CONSTRAIN_EQUAL,          /**< 等式约束 */
-    IR_CONSTRAIN_PARALLEL,       /**< 平行约束 */
-    IR_CONSTRAIN_PERPENDICULAR,  /**< 垂直约束 */
-    IR_CONSTRAIN_COLLINEAR,      /**< 共线约束 */
-    IR_CONSTRAIN_CONCYCLIC,      /**< 共圆约束 */
+    IR_ADD_CONSTRAINT,          /**< 添加约束（关联/之间/相交/包含） */
+    IR_REMOVE_CONSTRAINT,       /**< 移除约束 */
+    IR_CONSTRAIN_EQUAL,         /**< 等式约束 */
+    IR_CONSTRAIN_PARALLEL,      /**< 平行约束 */
+    IR_CONSTRAIN_PERPENDICULAR, /**< 垂直约束 */
+    IR_CONSTRAIN_COLLINEAR,     /**< 共线约束 */
+    IR_CONSTRAIN_CONCYCLIC,     /**< 共圆约束 */
 
     /* ---- 系统操作 ---- */
-    IR_LOAD_AXIOM,               /**< 加载公理包 */
-    IR_PROVE,                    /**< 启动证明 */
-    IR_CHECK_SAT,                /**< 可满足性检查 */
+    IR_LOAD_AXIOM, /**< 加载公理包 */
+    IR_PROVE,      /**< 启动证明 */
+    IR_CHECK_SAT,  /**< 可满足性检查 */
 
     /* ---- 元操作 ---- */
-    IR_LABEL,                    /**< 为实体添加标签 */
-    IR_NOOP                      /**< 空操作（占位符） */
+    IR_LABEL, /**< 为实体添加标签 */
+    IR_NOOP   /**< 空操作（占位符） */
 } DslIROp;
 
 /**
@@ -231,12 +231,12 @@ typedef enum {
  * 形成从 IR 到可执行 API 调用的直接映射。
  */
 typedef struct DslIROperation {
-    DslIROp   op;                /**< 操作码 */
-    int      *operands;          /**< 操作数 IR 索引数组 */
-    int       operand_count;     /**< 操作数数量 */
-    int       result_id;         /**< 结果实体 ID（-1 表示无结果） */
-    const char *label;           /**< 结果标签（IR_LABEL 时使用，可为 NULL） */
-    int       source_line;       /**< 对应的源码行号（用于调试） */
+    DslIROp op;        /**< 操作码 */
+    int *operands;     /**< 操作数 IR 索引数组 */
+    int operand_count; /**< 操作数数量 */
+    int result_id;     /**< 结果实体 ID（-1 表示无结果） */
+    const char *label; /**< 结果标签（IR_LABEL 时使用，可为 NULL） */
+    int source_line;   /**< 对应的源码行号（用于调试） */
 } DslIROperation;
 
 /**
@@ -246,14 +246,14 @@ typedef struct DslIROperation {
  * 可直接解释执行或进一步编译为目标代码（C++/Python/JS/WASM）。
  */
 typedef struct DslIR {
-    DslIROperation *operations;  /**< IR 操作数组 */
-    int             op_count;    /**< 操作数量 */
-    int             op_capacity; /**< 操作数组容量 */
-    char          **symbols;     /**< 符号表（ID -> 名称映射） */
-    int            *symbol_to_ir_id; /**< 符号到结果 IR ID 的映射 */
-    int             symbol_count;    /**< 符号数量 */
-    int             symbol_capacity; /**< 符号表容量 */
-    int             next_id;     /**< 下一个可用的结果实体 ID */
+    DslIROperation *operations; /**< IR 操作数组 */
+    int op_count;               /**< 操作数量 */
+    int op_capacity;            /**< 操作数组容量 */
+    char **symbols;             /**< 符号表（ID -> 名称映射） */
+    int *symbol_to_ir_id;       /**< 符号到结果 IR ID 的映射 */
+    int symbol_count;           /**< 符号数量 */
+    int symbol_capacity;        /**< 符号表容量 */
+    int next_id;                /**< 下一个可用的结果实体 ID */
 } DslIR;
 
 /* ================================================================
@@ -267,10 +267,10 @@ typedef struct DslIR {
  * 支持多种后端目标代码生成。
  */
 typedef enum {
-    TARGET_NATIVE,               /**< 编译为原生 C 代码 */
-    TARGET_WASM,                 /**< 编译为 WebAssembly */
-    TARGET_PYTHON,               /**< 生成 Python 过程化脚本 */
-    TARGET_JAVASCRIPT            /**< 生成 JavaScript 过程化脚本 */
+    TARGET_NATIVE,    /**< 编译为原生 C 代码 */
+    TARGET_WASM,      /**< 编译为 WebAssembly */
+    TARGET_PYTHON,    /**< 生成 Python 过程化脚本 */
+    TARGET_JAVASCRIPT /**< 生成 JavaScript 过程化脚本 */
 } DslCompileTarget;
 
 /**
@@ -279,12 +279,12 @@ typedef enum {
  * 控制编译管线的行为，包括优化级别、目标平台和调试选项。
  */
 typedef struct DslCompileConfig {
-    DslCompileTarget target;     /**< 目标平台 */
-    int              optimize_level; /**< 优化级别（0-3, 0=无优化, 3=最大优化） */
-    bool             debug_ast;  /**< 是否输出 AST 调试信息 */
-    bool             validate_ir; /**< 是否对生成的 IR 进行验证 */
-    bool             generate_source_map; /**< 是否生成源码映射（IR->源码行） */
-    int              max_iterations; /**< 约束求解最大迭代次数（0=默认） */
+    DslCompileTarget target;  /**< 目标平台 */
+    int optimize_level;       /**< 优化级别（0-3, 0=无优化, 3=最大优化） */
+    bool debug_ast;           /**< 是否输出 AST 调试信息 */
+    bool validate_ir;         /**< 是否对生成的 IR 进行验证 */
+    bool generate_source_map; /**< 是否生成源码映射（IR->源码行） */
+    int max_iterations;       /**< 约束求解最大迭代次数（0=默认） */
 } DslCompileConfig;
 
 /* ================================================================
@@ -363,8 +363,7 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph);
  * @param graph   输出：填充好的约束图
  * @return true 成功，false 编译或加载过程中出错
  */
-bool dsl_compile_and_load(const char *source, const DslCompileConfig *config,
-                           ConstraintGraph *graph);
+bool dsl_compile_and_load(const char *source, const DslCompileConfig *config, ConstraintGraph *graph);
 
 /**
  * @brief 获取默认编译配置

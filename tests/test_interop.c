@@ -1,9 +1,10 @@
-#include "interop.h"
-#include "test_helpers.h"
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "interop.h"
+#include "test_helpers.h"
 
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -39,14 +40,14 @@ void test_interop_server_start_errors() {
     printf("Testing interop server start error handling...\n");
 
     InteropServer *server = interop_server_create(INTEROP_INTERFACE_STDIO);
-    
+
     int result = interop_server_start(NULL, 8765);
     assert(result == LV00_ERROR_INVALID_PARAM);
     printf("  NULL server check: PASSED\n");
 
     result = interop_server_start(server, 8765);
     assert(result == LV00_OK);
-    
+
     result = interop_server_start(server, 8765);
     assert(result == LV00_ERROR_INVALID_STATE);
     printf("  Double start check: PASSED\n");
@@ -116,12 +117,12 @@ void test_interop_response_serialization() {
     char output[INTEROP_RESP_BUFFER_SIZE];
     int result = interop_serialize_response(&resp, output, sizeof(output));
     assert(result == LV00_OK);
-    
+
     assert(strstr(output, "\"request_id\": 123") != NULL);
     assert(strstr(output, "\"status\": 0") != NULL);
     /* 序列化格式取决于内部实现，仅验证基本结构 */
     /* assert(strstr(output, "\"data\": \"{\\\"result\\\": \\\"ok\\\"}\"") != NULL); */
-    (void)output; /* suppress unused warning when assertion disabled */
+    (void) output; /* suppress unused warning when assertion disabled */
     printf("  Response serialization: PASSED\n");
 
     result = interop_serialize_response(NULL, output, sizeof(output));
@@ -184,7 +185,7 @@ void test_interop_formats() {
     printf("  Parse export format coq: PASSED\n");
 
     fmt = interop_parse_export_format("unknown");
-    assert(fmt == (InteropExportFormat)-1);
+    assert(fmt == (InteropExportFormat) -1);
     printf("  Parse unknown export format: PASSED\n");
 
     InteropImportFormat ifmt = interop_parse_import_format("geogebra");
@@ -192,7 +193,7 @@ void test_interop_formats() {
     printf("  Parse import format geogebra: PASSED\n");
 
     ifmt = interop_parse_import_format("unknown");
-    assert(ifmt == (InteropImportFormat)-1);
+    assert(ifmt == (InteropImportFormat) -1);
     printf("  Parse unknown import format: PASSED\n");
 
     printf("  PASSED\n");
@@ -274,7 +275,7 @@ void test_interop_import_null_path() {
 
 int main() {
     printf("=== Lv-00 Interop Module Test Suite ===\n\n");
-    
+
     test_interop_server_management();
     test_interop_server_start_errors();
     test_interop_command_parsing();
@@ -283,7 +284,7 @@ int main() {
     test_interop_formats();
     test_interop_path_validation();
     test_interop_import_null_path();
-    
+
     printf("\n=== All interop tests PASSED! ===\n");
     return 0;
 }

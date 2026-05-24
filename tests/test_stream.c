@@ -11,11 +11,12 @@
  * - 简化事件发射
  */
 
-#include "stream.h"
-#include "lv00_utils.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "lv00_utils.h"
+#include "stream.h"
 
 /* ============== 测试辅助结构 ============== */
 
@@ -26,15 +27,16 @@ typedef struct {
     int constraint_id;
     int step_number;
     char description[256];
-    int call_count;  /* 回调触发计数器 */
+    int call_count; /* 回调触发计数器 */
 } CallbackCapture;
 
 /* ============== 测试回调函数 ============== */
 
 /** 捕获事件数据的回调 */
 static void capture_callback(const StreamEvent *event, void *user_data) {
-    CallbackCapture *cap = (CallbackCapture *)user_data;
-    if (!event || !cap) return;
+    CallbackCapture *cap = (CallbackCapture *) user_data;
+    if (!event || !cap)
+        return;
 
     cap->type = event->type;
     cap->node_id = event->node_id;
@@ -48,9 +50,10 @@ static void capture_callback(const StreamEvent *event, void *user_data) {
 
 /** 仅计数的简单回调 */
 static void count_callback(const StreamEvent *event, void *user_data) {
-    (void)event;
-    int *count = (int *)user_data;
-    if (count) (*count)++;
+    (void) event;
+    int *count = (int *) user_data;
+    if (count)
+        (*count)++;
 }
 
 /* ============== 测试用例 ============== */
@@ -137,7 +140,8 @@ static int test_callback_register(void) {
 /** 测试事件发射 */
 static int test_event_emit(void) {
     StreamContext *ctx = stream_context_create();
-    if (!ctx) return 1;
+    if (!ctx)
+        return 1;
 
     CallbackCapture cap;
     memset(&cap, 0, sizeof(cap));
@@ -188,7 +192,8 @@ static int test_event_emit(void) {
 /** 测试简化事件发射 */
 static int test_emit_simple(void) {
     StreamContext *ctx = stream_context_create();
-    if (!ctx) return 1;
+    if (!ctx)
+        return 1;
 
     CallbackCapture cap;
     memset(&cap, 0, sizeof(cap));
@@ -233,22 +238,32 @@ static int test_event_type_names(void) {
 
     const char *name;
     name = stream_event_type_name(STREAM_EVENT_ENGINE_START);
-    if (!name || strlen(name) == 0) { printf("  失败: ENGINE_START 名称为空\n"); errors++; }
+    if (!name || strlen(name) == 0) {
+        printf("  失败: ENGINE_START 名称为空\n");
+        errors++;
+    }
 
     name = stream_event_type_name(STREAM_EVENT_NORMALIZE_MERGE);
-    if (!name || strlen(name) == 0) { printf("  失败: NORMALIZE_MERGE 名称为空\n"); errors++; }
+    if (!name || strlen(name) == 0) {
+        printf("  失败: NORMALIZE_MERGE 名称为空\n");
+        errors++;
+    }
 
     name = stream_event_type_name(STREAM_EVENT_ERROR);
-    if (!name || strlen(name) == 0) { printf("  失败: ERROR 名称为空\n"); errors++; }
+    if (!name || strlen(name) == 0) {
+        printf("  失败: ERROR 名称为空\n");
+        errors++;
+    }
 
     /* 未知事件类型的回退 */
-    name = stream_event_type_name((StreamEventType)999);
+    name = stream_event_type_name((StreamEventType) 999);
     if (!name || strcmp(name, "未知事件") != 0) {
         printf("  失败: 未知类型应返回'未知事件', 实际='%s'\n", name ? name : "NULL");
         errors++;
     }
 
-    if (errors == 0) printf("  通过: 事件类型名称映射正常\n");
+    if (errors == 0)
+        printf("  通过: 事件类型名称映射正常\n");
     return errors;
 }
 
@@ -276,20 +291,22 @@ static int test_event_colors(void) {
     }
 
     /* 未知类型应返回默认颜色 */
-    color = stream_event_color((StreamEventType)999);
+    color = stream_event_color((StreamEventType) 999);
     if (!color || color[0] != '#') {
         printf("  失败: 未知类型应返回默认颜色: %s\n", color ? color : "NULL");
         errors++;
     }
 
-    if (errors == 0) printf("  通过: 事件颜色映射正常\n");
+    if (errors == 0)
+        printf("  通过: 事件颜色映射正常\n");
     return errors;
 }
 
 /** 测试多个回调同时触发 */
 static int test_multiple_callbacks(void) {
     StreamContext *ctx = stream_context_create();
-    if (!ctx) return 1;
+    if (!ctx)
+        return 1;
 
     CallbackCapture cap1, cap2;
     memset(&cap1, 0, sizeof(cap1));
@@ -306,12 +323,19 @@ static int test_multiple_callbacks(void) {
     stream_emit(ctx, &ev);
 
     int errors = 0;
-    if (cap1.call_count != 1) { printf("  失败: 回调1 call_count=%d\n", cap1.call_count); errors++; }
-    if (cap2.call_count != 1) { printf("  失败: 回调2 call_count=%d\n", cap2.call_count); errors++; }
+    if (cap1.call_count != 1) {
+        printf("  失败: 回调1 call_count=%d\n", cap1.call_count);
+        errors++;
+    }
+    if (cap2.call_count != 1) {
+        printf("  失败: 回调2 call_count=%d\n", cap2.call_count);
+        errors++;
+    }
 
     stream_context_destroy(ctx);
 
-    if (errors == 0) printf("  通过: 多回调同时触发正常\n");
+    if (errors == 0)
+        printf("  通过: 多回调同时触发正常\n");
     return errors;
 }
 

@@ -19,27 +19,29 @@
  * 魔法数字常量定义
  * ============================================================ */
 
-#define MAX_COORDINATES       16  /**< 坐标列表最大元素数量 */
-#define MAX_VERTICES          32  /**< 顶点列表最大元素数量 */
-#define MAX_POLYGON_VERTICES  32  /**< 多边形顶点最大数量 */
-#define MAX_STATEMENTS        64  /**< 复合语句最大子语句数量 */
-#define MAX_ARGUMENTS         16  /**< 函数参数列表最大元素数量 */
-#define MAX_PARTICIPANTS      16  /**< 约束参与者最大数量 */
-#define MAX_BUFFER_SIZE       256 /**< 错误消息缓冲区大小 */
-#define MAX_TEMP_MSG_SIZE      128 /**< 临时错误消息/诊断缓冲区大小 */
+#define MAX_COORDINATES 16      /**< 坐标列表最大元素数量 */
+#define MAX_VERTICES 32         /**< 顶点列表最大元素数量 */
+#define MAX_POLYGON_VERTICES 32 /**< 多边形顶点最大数量 */
+#define MAX_STATEMENTS 64       /**< 复合语句最大子语句数量 */
+#define MAX_ARGUMENTS 16        /**< 函数参数列表最大元素数量 */
+#define MAX_PARTICIPANTS 16     /**< 约束参与者最大数量 */
+#define MAX_BUFFER_SIZE 256     /**< 错误消息缓冲区大小 */
+#define MAX_TEMP_MSG_SIZE 128   /**< 临时错误消息/诊断缓冲区大小 */
 
 #include "formula_parser.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
-#include "lv00.h"
-#include "error_codes.h"
-#include "stream.h"
-#include "stream_context_util.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
+
 #include <ctype.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "error_codes.h"
+#include "lv00.h"
+#include "lv00_internal.h"
+#include "lv00_utils.h"
+#include "stream.h"
+#include "stream_context_util.h"
 
 /* ============================================================
  * 解析器上下文结构
@@ -52,70 +54,53 @@ const char *formula_parser_get_last_error(void) {
 }
 
 typedef struct {
-    const char *input;              /* 输入字符串 */
-    size_t pos;                     /* 当前位置 */
-    size_t length;                  /* 输入长度 */
+    const char *input;                   /* 输入字符串 */
+    size_t pos;                          /* 当前位置 */
+    size_t length;                       /* 输入长度 */
     char error_message[MAX_BUFFER_SIZE]; /* 错误消息缓冲区 */
-    bool has_error;                 /* 是否有错误 */
-    int line;                       /* 当前行号 */
-    int column;                     /* 当前列号 */
+    bool has_error;                      /* 是否有错误 */
+    int line;                            /* 当前行号 */
+    int column;                          /* 当前列号 */
 } ParserContext;
 
 /* ============================================================
  * DSL 关键字表
  * ============================================================ */
 
-static const char *DSL_KEYWORDS[] = {
-    "point", "segment", "circle", "triangle", "line", "region",
-    "perpendicular", "parallel", "midpoint", "angle", "distance",
-    "area", "perimeter", "tangent", "intersect", "equal", "collinear",
-    "bisector", "congruent", "polygon", "vector",
-    NULL
-};
+static const char *DSL_KEYWORDS[] = {"point",         "segment",  "circle",    "triangle", "line",      "region",
+                                     "perpendicular", "parallel", "midpoint",  "angle",    "distance",  "area",
+                                     "perimeter",     "tangent",  "intersect", "equal",    "collinear", "bisector",
+                                     "congruent",     "polygon",  "vector",    NULL};
 
 /* ============================================================
  * LaTeX 命令表
  * ============================================================ */
 
 static const char *LATEX_COMMANDS[] = {
-    "\\frac", "\\sqrt", "\\sin", "\\cos", "\\tan", "\\cot",
-    "\\pi", "\\theta", "\\alpha", "\\beta", "\\gamma", "\\delta",
-    "\\epsilon", "\\lambda", "\\mu", "\\sigma", "\\omega",
-    "\\leq", "\\geq", "\\neq", "\\approx", "\\equiv",
-    "\\cdot", "\\times", "\\div",
-    "\\left", "\\right", "\\langle", "\\rangle",
-    "\\begin", "\\end", "\\text", "\\mathrm", "\\ln", "\\log",
-    NULL
-};
+    "\\frac",   "\\sqrt",   "\\sin",    "\\cos",     "\\tan",    "\\cot",    "\\pi",    "\\theta", "\\alpha",
+    "\\beta",   "\\gamma",  "\\delta",  "\\epsilon", "\\lambda", "\\mu",     "\\sigma", "\\omega", "\\leq",
+    "\\geq",    "\\neq",    "\\approx", "\\equiv",   "\\cdot",   "\\times",  "\\div",   "\\left",  "\\right",
+    "\\langle", "\\rangle", "\\begin",  "\\end",     "\\text",   "\\mathrm", "\\ln",    "\\log",   NULL};
 
 /* ============================================================
  * Python 特征表
  * ============================================================ */
 
-static const char *PYTHON_FEATURES[] = {
-    "**", "==", "!=", "<=", ">=", "and ", "or ", "not ",
-    "sqrt(", "sin(", "cos(", "tan(", "abs(", "pow(",
-    "True", "False", "None", "pi", "e)",
-    "import ", "from ", "def ", "if ", "else ", "elif ",
-    "for ", "while ", "return ", "lambda ",
-    NULL
-};
+static const char *PYTHON_FEATURES[] = {"**",    "==",   "!=",     "<=",      ">=",      "and ", "or ",  "not ",
+                                        "sqrt(", "sin(", "cos(",   "tan(",    "abs(",    "pow(", "True", "False",
+                                        "None",  "pi",   "e)",     "import ", "from ",   "def ", "if ",  "else ",
+                                        "elif ", "for ", "while ", "return ", "lambda ", NULL};
 
 /* ============================================================
  * 希腊字母表
  * ============================================================ */
 
 static const char *GREEK_LETTERS[] = {
-    "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta",
-    "theta", "iota", "kappa", "lambda", "mu", "nu", "xi",
-    "omicron", "pi", "rho", "sigma", "tau", "upsilon", "phi",
-    "chi", "psi", "omega",
-    "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta",
-    "Theta", "Iota", "Kappa", "Lambda", "Mu", "Nu", "Xi",
-    "Omicron", "Pi", "Rho", "Sigma", "Tau", "Upsilon", "Phi",
-    "Chi", "Psi", "Omega",
-    NULL
-};
+    "alpha",  "beta",  "gamma", "delta",   "epsilon", "zeta", "eta",   "theta", "iota",    "kappa",
+    "lambda", "mu",    "nu",    "xi",      "omicron", "pi",   "rho",   "sigma", "tau",     "upsilon",
+    "phi",    "chi",   "psi",   "omega",   "Alpha",   "Beta", "Gamma", "Delta", "Epsilon", "Zeta",
+    "Eta",    "Theta", "Iota",  "Kappa",   "Lambda",  "Mu",   "Nu",    "Xi",    "Omicron", "Pi",
+    "Rho",    "Sigma", "Tau",   "Upsilon", "Phi",     "Chi",  "Psi",   "Omega", NULL};
 
 /* ============================================================
  * 辅助函数实现
@@ -282,8 +267,8 @@ static bool expect_char(ParserContext *ctx, char c) {
  */
 static void set_error(ParserContext *ctx, const char *msg) {
     if (!ctx->has_error) {
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
-                 "Error at line %d, column %d: %s", ctx->line, ctx->column, msg);
+        snprintf(ctx->error_message, sizeof(ctx->error_message), "Error at line %d, column %d: %s", ctx->line,
+                 ctx->column, msg);
         ctx->has_error = true;
         lv00_set_error(LV00_ERROR_PARSE, "%s", ctx->error_message);
     }
@@ -357,7 +342,8 @@ FormulaNode *formula_create_number(int64_t numerator, uint64_t denominator) {
         return NULL;
     }
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_NUMBER;
     node->line = 1;
     node->column = 1;
@@ -374,15 +360,17 @@ FormulaNode *formula_create_number(int64_t numerator, uint64_t denominator) {
  * @return 新分配的 AST 节点指针，失败返回 NULL
  */
 FormulaNode *formula_create_variable(const char *name) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_VARIABLE;
     node->line = 1;
     node->column = 1;
     node->data.variable.name = lv00_strdup_safe(name);
     if (!node->data.variable.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     return node;
@@ -395,15 +383,17 @@ FormulaNode *formula_create_variable(const char *name) {
  * @return 新分配的 AST 节点指针，失败返回 NULL
  */
 FormulaNode *formula_create_identifier(const char *name) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_IDENTIFIER;
     node->line = 1;
     node->column = 1;
     node->data.identifier.name = lv00_strdup_safe(name);
     if (!node->data.identifier.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     return node;
@@ -419,7 +409,8 @@ FormulaNode *formula_create_identifier(const char *name) {
  */
 FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, FormulaNode *right) {
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = op_type;
     node->line = 1;
     node->column = 1;
@@ -437,7 +428,8 @@ FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, Formu
  */
 FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = op_type;
     node->line = 1;
     node->column = 1;
@@ -454,7 +446,8 @@ FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
  */
 FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_EQUATION;
     node->line = 1;
     node->column = 1;
@@ -465,32 +458,35 @@ FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
 
 FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_COORDINATE_LIST;
     node->line = 1;
     node->column = 1;
     if (count > 0 && coords) {
-        node->data.coord_list.coords = lv00_malloc(sizeof(FormulaNode*) * count);
+        node->data.coord_list.coords = lv00_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.coord_list.coords) {
-            lv00_free((void**)&node);
+            lv00_free((void **) &node);
             return NULL;
         }
-        memcpy(node->data.coord_list.coords, coords, sizeof(FormulaNode*) * count);
+        memcpy(node->data.coord_list.coords, coords, sizeof(FormulaNode *) * count);
         node->data.coord_list.coord_count = count;
     }
     return node;
 }
 
 FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_GEOM_POINT;
     node->line = 1;
     node->column = 1;
     node->data.geom_point.name = lv00_strdup_safe(name);
     if (!node->data.geom_point.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     node->data.geom_point.coords = coords;
@@ -498,15 +494,17 @@ FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
 }
 
 FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, FormulaNode *ep2) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_GEOM_SEGMENT;
     node->line = 1;
     node->column = 1;
     node->data.geom_segment.name = lv00_strdup_safe(name);
     if (!node->data.geom_segment.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     node->data.geom_segment.endpoint1 = ep1;
@@ -515,15 +513,17 @@ FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, For
 }
 
 FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, FormulaNode *radius) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_GEOM_CIRCLE;
     node->line = 1;
     node->column = 1;
     node->data.geom_circle.name = lv00_strdup_safe(name);
     if (!node->data.geom_circle.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     node->data.geom_circle.center = center;
@@ -532,15 +532,17 @@ FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, F
 }
 
 FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, FormulaNode *v2, FormulaNode *v3) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_GEOM_TRIANGLE;
     node->line = 1;
     node->column = 1;
     node->data.geom_triangle.name = lv00_strdup_safe(name);
     if (!node->data.geom_triangle.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     node->data.geom_triangle.vertex1 = v1;
@@ -550,65 +552,72 @@ FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, For
 }
 
 FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertices, int vertex_count) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_GEOM_POLYGON;
     node->line = 1;
     node->column = 1;
     node->data.geom_polygon.name = lv00_strdup_safe(name);
     if (!node->data.geom_polygon.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     if (vertex_count > 0 && vertices) {
-        node->data.geom_polygon.vertices = lv00_malloc(sizeof(FormulaNode*) * vertex_count);
+        node->data.geom_polygon.vertices = lv00_malloc(sizeof(FormulaNode *) * vertex_count);
         if (!node->data.geom_polygon.vertices) {
-            lv00_free((void**)&node->data.geom_polygon.name);
-            lv00_free((void**)&node);
+            lv00_free((void **) &node->data.geom_polygon.name);
+            lv00_free((void **) &node);
             return NULL;
         }
-        memcpy(node->data.geom_polygon.vertices, vertices, sizeof(FormulaNode*) * vertex_count);
+        memcpy(node->data.geom_polygon.vertices, vertices, sizeof(FormulaNode *) * vertex_count);
         node->data.geom_polygon.vertex_count = vertex_count;
     }
     return node;
 }
 
 FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments, int segment_count) {
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_GEOM_REGION;
     node->line = 1;
     node->column = 1;
     node->data.geom_region.name = lv00_strdup_safe(name);
     if (!node->data.geom_region.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     if (segment_count > 0 && segments) {
-        node->data.geom_region.boundary_segments = lv00_malloc(sizeof(FormulaNode*) * segment_count);
+        node->data.geom_region.boundary_segments = lv00_malloc(sizeof(FormulaNode *) * segment_count);
         if (!node->data.geom_region.boundary_segments) {
-            lv00_free((void**)&node->data.geom_region.name);
-            lv00_free((void**)&node);
+            lv00_free((void **) &node->data.geom_region.name);
+            lv00_free((void **) &node);
             return NULL;
         }
-        memcpy(node->data.geom_region.boundary_segments, segments, sizeof(FormulaNode*) * segment_count);
+        memcpy(node->data.geom_region.boundary_segments, segments, sizeof(FormulaNode *) * segment_count);
         node->data.geom_region.segment_count = segment_count;
     }
     return node;
 }
 
-FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, FormulaNode *radius, FormulaNode *start_angle, FormulaNode *end_angle) {
-    if (!name) return NULL;
+FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, FormulaNode *radius,
+                                     FormulaNode *start_angle, FormulaNode *end_angle) {
+    if (!name)
+        return NULL;
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_GEOM_ARC;
     node->line = 1;
     node->column = 1;
     node->data.geom_arc.name = lv00_strdup_safe(name);
     if (!node->data.geom_arc.name) {
-        lv00_free((void**)&node);
+        lv00_free((void **) &node);
         return NULL;
     }
     node->data.geom_arc.center = center;
@@ -620,17 +629,18 @@ FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, Form
 
 FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **participants, int count) {
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = constraint_type;
     node->line = 1;
     node->column = 1;
     if (count > 0 && participants) {
-        node->data.constraint.participants = lv00_malloc(sizeof(FormulaNode*) * count);
+        node->data.constraint.participants = lv00_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.constraint.participants) {
-            lv00_free((void**)&node);
+            lv00_free((void **) &node);
             return NULL;
         }
-        memcpy(node->data.constraint.participants, participants, sizeof(FormulaNode*) * count);
+        memcpy(node->data.constraint.participants, participants, sizeof(FormulaNode *) * count);
         node->data.constraint.participant_count = count;
     }
     return node;
@@ -638,37 +648,40 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
 
 FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
     FormulaNode *node = lv00_calloc(1, sizeof(FormulaNode));
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
     node->type = NODE_COMPOUND;
     node->line = 1;
     node->column = 1;
     if (count > 0 && statements) {
-        node->data.compound.statements = lv00_malloc(sizeof(FormulaNode*) * count);
+        node->data.compound.statements = lv00_malloc(sizeof(FormulaNode *) * count);
         if (!node->data.compound.statements) {
-            lv00_free((void**)&node);
+            lv00_free((void **) &node);
             return NULL;
         }
-        memcpy(node->data.compound.statements, statements, sizeof(FormulaNode*) * count);
+        memcpy(node->data.compound.statements, statements, sizeof(FormulaNode *) * count);
         node->data.compound.statement_count = count;
     }
     return node;
 }
 
 int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement) {
-    if (!compound || compound->type != NODE_COMPOUND || !statement) return -1;
-    
+    if (!compound || compound->type != NODE_COMPOUND || !statement)
+        return -1;
+
     int new_count = compound->data.compound.statement_count + 1;
-    FormulaNode **new_statements = lv00_realloc(compound->data.compound.statements,
-                                            sizeof(FormulaNode*) * new_count);
-    if (!new_statements) return -1;
-    
+    FormulaNode **new_statements = lv00_realloc(compound->data.compound.statements, sizeof(FormulaNode *) * new_count);
+    if (!new_statements)
+        return -1;
+
     compound->data.compound.statements = new_statements;
     compound->data.compound.statements[compound->data.compound.statement_count++] = statement;
     return 0;
 }
 
 void formula_node_destroy(FormulaNode *node) {
-    if (!node) return;
+    if (!node)
+        return;
 
     switch (node->type) {
         case NODE_NUMBER:
@@ -676,11 +689,11 @@ void formula_node_destroy(FormulaNode *node) {
             break;
 
         case NODE_VARIABLE:
-            lv00_free((void**)&node->data.variable.name);
+            lv00_free((void **) &node->data.variable.name);
             break;
 
         case NODE_IDENTIFIER:
-            lv00_free((void**)&node->data.identifier.name);
+            lv00_free((void **) &node->data.identifier.name);
             break;
 
         case NODE_BINARY_OP_ADD:
@@ -712,59 +725,59 @@ void formula_node_destroy(FormulaNode *node) {
             for (int i = 0; i < node->data.coord_list.coord_count; i++) {
                 formula_node_destroy(node->data.coord_list.coords[i]);
             }
-            lv00_free((void**)&node->data.coord_list.coords);
+            lv00_free((void **) &node->data.coord_list.coords);
             break;
 
         case NODE_GEOM_POINT:
-            lv00_free((void**)&node->data.geom_point.name);
+            lv00_free((void **) &node->data.geom_point.name);
             formula_node_destroy(node->data.geom_point.coords);
             break;
 
         case NODE_GEOM_SEGMENT:
-            lv00_free((void**)&node->data.geom_segment.name);
+            lv00_free((void **) &node->data.geom_segment.name);
             formula_node_destroy(node->data.geom_segment.endpoint1);
             formula_node_destroy(node->data.geom_segment.endpoint2);
             break;
 
         case NODE_GEOM_LINE:
-            lv00_free((void**)&node->data.geom_line.name);
+            lv00_free((void **) &node->data.geom_line.name);
             formula_node_destroy(node->data.geom_line.point1);
             formula_node_destroy(node->data.geom_line.point2);
             formula_node_destroy(node->data.geom_line.equation);
             break;
 
         case NODE_GEOM_CIRCLE:
-            lv00_free((void**)&node->data.geom_circle.name);
+            lv00_free((void **) &node->data.geom_circle.name);
             formula_node_destroy(node->data.geom_circle.center);
             formula_node_destroy(node->data.geom_circle.radius);
             formula_node_destroy(node->data.geom_circle.equation);
             break;
 
         case NODE_GEOM_TRIANGLE:
-            lv00_free((void**)&node->data.geom_triangle.name);
+            lv00_free((void **) &node->data.geom_triangle.name);
             formula_node_destroy(node->data.geom_triangle.vertex1);
             formula_node_destroy(node->data.geom_triangle.vertex2);
             formula_node_destroy(node->data.geom_triangle.vertex3);
             break;
 
         case NODE_GEOM_POLYGON:
-            lv00_free((void**)&node->data.geom_polygon.name);
+            lv00_free((void **) &node->data.geom_polygon.name);
             for (int i = 0; i < node->data.geom_polygon.vertex_count; i++) {
                 formula_node_destroy(node->data.geom_polygon.vertices[i]);
             }
-            lv00_free((void**)&node->data.geom_polygon.vertices);
+            lv00_free((void **) &node->data.geom_polygon.vertices);
             break;
 
         case NODE_GEOM_REGION:
-            lv00_free((void**)&node->data.geom_region.name);
+            lv00_free((void **) &node->data.geom_region.name);
             for (int i = 0; i < node->data.geom_region.segment_count; i++) {
                 formula_node_destroy(node->data.geom_region.boundary_segments[i]);
             }
-            lv00_free((void**)&node->data.geom_region.boundary_segments);
+            lv00_free((void **) &node->data.geom_region.boundary_segments);
             break;
 
         case NODE_GEOM_ARC:
-            lv00_free((void**)&node->data.geom_arc.name);
+            lv00_free((void **) &node->data.geom_arc.name);
             formula_node_destroy(node->data.geom_arc.center);
             formula_node_destroy(node->data.geom_arc.radius);
             formula_node_destroy(node->data.geom_arc.start_angle);
@@ -772,7 +785,7 @@ void formula_node_destroy(FormulaNode *node) {
             break;
 
         case NODE_GEOM_VECTOR:
-            lv00_free((void**)&node->data.geom_vector.name);
+            lv00_free((void **) &node->data.geom_vector.name);
             formula_node_destroy(node->data.geom_vector.start);
             formula_node_destroy(node->data.geom_vector.end);
             break;
@@ -787,25 +800,27 @@ void formula_node_destroy(FormulaNode *node) {
             for (int i = 0; i < node->data.constraint.participant_count; i++) {
                 formula_node_destroy(node->data.constraint.participants[i]);
             }
-            lv00_free((void**)&node->data.constraint.participants);
+            lv00_free((void **) &node->data.constraint.participants);
             break;
 
         case NODE_COMPOUND:
             for (int i = 0; i < node->data.compound.statement_count; i++) {
                 formula_node_destroy(node->data.compound.statements[i]);
             }
-            lv00_free((void**)&node->data.compound.statements);
+            lv00_free((void **) &node->data.compound.statements);
             break;
     }
 
-    lv00_free((void**)&node);
+    lv00_free((void **) &node);
 }
 
 FormulaNode *formula_node_copy(const FormulaNode *node) {
-    if (!node) return NULL;
+    if (!node)
+        return NULL;
 
     FormulaNode *copy = lv00_calloc(1, sizeof(FormulaNode));
-    if (!copy) return NULL;
+    if (!copy)
+        return NULL;
 
     copy->type = node->type;
     copy->line = node->line;
@@ -819,7 +834,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_VARIABLE:
             copy->data.variable.name = lv00_strdup_safe(node->data.variable.name);
             if (!copy->data.variable.name) {
-                lv00_free((void**)&copy);
+                lv00_free((void **) &copy);
                 return NULL;
             }
             break;
@@ -827,7 +842,7 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_IDENTIFIER:
             copy->data.identifier.name = lv00_strdup_safe(node->data.identifier.name);
             if (!copy->data.identifier.name) {
-                lv00_free((void**)&copy);
+                lv00_free((void **) &copy);
                 return NULL;
             }
             break;
@@ -860,14 +875,19 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_COORDINATE_LIST: {
             copy->data.coord_list.coord_count = node->data.coord_list.coord_count;
             if (node->data.coord_list.coord_count > 0) {
-                copy->data.coord_list.coords = lv00_calloc((size_t)node->data.coord_list.coord_count, sizeof(FormulaNode *));
-                if (!copy->data.coord_list.coords) { lv00_free((void**)&copy); return NULL; }
+                copy->data.coord_list.coords =
+                    lv00_calloc((size_t) node->data.coord_list.coord_count, sizeof(FormulaNode *));
+                if (!copy->data.coord_list.coords) {
+                    lv00_free((void **) &copy);
+                    return NULL;
+                }
                 for (int i = 0; i < node->data.coord_list.coord_count; i++) {
                     copy->data.coord_list.coords[i] = formula_node_copy(node->data.coord_list.coords[i]);
                     if (!copy->data.coord_list.coords[i]) {
-                        for (int j = 0; j < i; j++) formula_node_destroy(copy->data.coord_list.coords[j]);
-                        lv00_free((void**)&copy->data.coord_list.coords);
-                        lv00_free((void**)&copy);
+                        for (int j = 0; j < i; j++)
+                            formula_node_destroy(copy->data.coord_list.coords[j]);
+                        lv00_free((void **) &copy->data.coord_list.coords);
+                        lv00_free((void **) &copy);
                         return NULL;
                     }
                 }
@@ -876,12 +896,14 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         }
 
         case NODE_GEOM_POINT:
-            copy->data.geom_point.name = node->data.geom_point.name ? lv00_strdup_safe(node->data.geom_point.name) : NULL;
+            copy->data.geom_point.name =
+                node->data.geom_point.name ? lv00_strdup_safe(node->data.geom_point.name) : NULL;
             copy->data.geom_point.coords = formula_node_copy(node->data.geom_point.coords);
             break;
 
         case NODE_GEOM_SEGMENT:
-            copy->data.geom_segment.name = node->data.geom_segment.name ? lv00_strdup_safe(node->data.geom_segment.name) : NULL;
+            copy->data.geom_segment.name =
+                node->data.geom_segment.name ? lv00_strdup_safe(node->data.geom_segment.name) : NULL;
             copy->data.geom_segment.endpoint1 = formula_node_copy(node->data.geom_segment.endpoint1);
             copy->data.geom_segment.endpoint2 = formula_node_copy(node->data.geom_segment.endpoint2);
             break;
@@ -894,36 +916,41 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
             break;
 
         case NODE_GEOM_CIRCLE:
-            copy->data.geom_circle.name = node->data.geom_circle.name ? lv00_strdup_safe(node->data.geom_circle.name) : NULL;
+            copy->data.geom_circle.name =
+                node->data.geom_circle.name ? lv00_strdup_safe(node->data.geom_circle.name) : NULL;
             copy->data.geom_circle.center = formula_node_copy(node->data.geom_circle.center);
             copy->data.geom_circle.radius = formula_node_copy(node->data.geom_circle.radius);
             copy->data.geom_circle.equation = formula_node_copy(node->data.geom_circle.equation);
             break;
 
         case NODE_GEOM_TRIANGLE:
-            copy->data.geom_triangle.name = node->data.geom_triangle.name ? lv00_strdup_safe(node->data.geom_triangle.name) : NULL;
+            copy->data.geom_triangle.name =
+                node->data.geom_triangle.name ? lv00_strdup_safe(node->data.geom_triangle.name) : NULL;
             copy->data.geom_triangle.vertex1 = formula_node_copy(node->data.geom_triangle.vertex1);
             copy->data.geom_triangle.vertex2 = formula_node_copy(node->data.geom_triangle.vertex2);
             copy->data.geom_triangle.vertex3 = formula_node_copy(node->data.geom_triangle.vertex3);
             break;
 
         case NODE_GEOM_POLYGON: {
-            copy->data.geom_polygon.name = node->data.geom_polygon.name ? lv00_strdup_safe(node->data.geom_polygon.name) : NULL;
+            copy->data.geom_polygon.name =
+                node->data.geom_polygon.name ? lv00_strdup_safe(node->data.geom_polygon.name) : NULL;
             copy->data.geom_polygon.vertex_count = node->data.geom_polygon.vertex_count;
             if (node->data.geom_polygon.vertex_count > 0) {
-                copy->data.geom_polygon.vertices = lv00_calloc((size_t)node->data.geom_polygon.vertex_count, sizeof(FormulaNode *));
+                copy->data.geom_polygon.vertices =
+                    lv00_calloc((size_t) node->data.geom_polygon.vertex_count, sizeof(FormulaNode *));
                 if (!copy->data.geom_polygon.vertices) {
-                    lv00_free((void**)&copy->data.geom_polygon.name);
-                    lv00_free((void**)&copy);
+                    lv00_free((void **) &copy->data.geom_polygon.name);
+                    lv00_free((void **) &copy);
                     return NULL;
                 }
                 for (int i = 0; i < node->data.geom_polygon.vertex_count; i++) {
                     copy->data.geom_polygon.vertices[i] = formula_node_copy(node->data.geom_polygon.vertices[i]);
                     if (!copy->data.geom_polygon.vertices[i]) {
-                        for (int j = 0; j < i; j++) formula_node_destroy(copy->data.geom_polygon.vertices[j]);
-                        lv00_free((void**)&copy->data.geom_polygon.vertices);
-                        lv00_free((void**)&copy->data.geom_polygon.name);
-                        lv00_free((void**)&copy);
+                        for (int j = 0; j < i; j++)
+                            formula_node_destroy(copy->data.geom_polygon.vertices[j]);
+                        lv00_free((void **) &copy->data.geom_polygon.vertices);
+                        lv00_free((void **) &copy->data.geom_polygon.name);
+                        lv00_free((void **) &copy);
                         return NULL;
                     }
                 }
@@ -932,22 +959,26 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         }
 
         case NODE_GEOM_REGION: {
-            copy->data.geom_region.name = node->data.geom_region.name ? lv00_strdup_safe(node->data.geom_region.name) : NULL;
+            copy->data.geom_region.name =
+                node->data.geom_region.name ? lv00_strdup_safe(node->data.geom_region.name) : NULL;
             copy->data.geom_region.segment_count = node->data.geom_region.segment_count;
             if (node->data.geom_region.segment_count > 0) {
-                copy->data.geom_region.boundary_segments = lv00_calloc((size_t)node->data.geom_region.segment_count, sizeof(FormulaNode *));
+                copy->data.geom_region.boundary_segments =
+                    lv00_calloc((size_t) node->data.geom_region.segment_count, sizeof(FormulaNode *));
                 if (!copy->data.geom_region.boundary_segments) {
-                    lv00_free((void**)&copy->data.geom_region.name);
-                    lv00_free((void**)&copy);
+                    lv00_free((void **) &copy->data.geom_region.name);
+                    lv00_free((void **) &copy);
                     return NULL;
                 }
                 for (int i = 0; i < node->data.geom_region.segment_count; i++) {
-                    copy->data.geom_region.boundary_segments[i] = formula_node_copy(node->data.geom_region.boundary_segments[i]);
+                    copy->data.geom_region.boundary_segments[i] =
+                        formula_node_copy(node->data.geom_region.boundary_segments[i]);
                     if (!copy->data.geom_region.boundary_segments[i]) {
-                        for (int j = 0; j < i; j++) formula_node_destroy(copy->data.geom_region.boundary_segments[j]);
-                        lv00_free((void**)&copy->data.geom_region.boundary_segments);
-                        lv00_free((void**)&copy->data.geom_region.name);
-                        lv00_free((void**)&copy);
+                        for (int j = 0; j < i; j++)
+                            formula_node_destroy(copy->data.geom_region.boundary_segments[j]);
+                        lv00_free((void **) &copy->data.geom_region.boundary_segments);
+                        lv00_free((void **) &copy->data.geom_region.name);
+                        lv00_free((void **) &copy);
                         return NULL;
                     }
                 }
@@ -964,7 +995,8 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
             break;
 
         case NODE_GEOM_VECTOR:
-            copy->data.geom_vector.name = node->data.geom_vector.name ? lv00_strdup_safe(node->data.geom_vector.name) : NULL;
+            copy->data.geom_vector.name =
+                node->data.geom_vector.name ? lv00_strdup_safe(node->data.geom_vector.name) : NULL;
             copy->data.geom_vector.start = formula_node_copy(node->data.geom_vector.start);
             copy->data.geom_vector.end = formula_node_copy(node->data.geom_vector.end);
             break;
@@ -978,14 +1010,19 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_CONSTRAINT_CONGRUENT: {
             copy->data.constraint.participant_count = node->data.constraint.participant_count;
             if (node->data.constraint.participant_count > 0) {
-                copy->data.constraint.participants = lv00_calloc((size_t)node->data.constraint.participant_count, sizeof(FormulaNode *));
-                if (!copy->data.constraint.participants) { lv00_free((void**)&copy); return NULL; }
+                copy->data.constraint.participants =
+                    lv00_calloc((size_t) node->data.constraint.participant_count, sizeof(FormulaNode *));
+                if (!copy->data.constraint.participants) {
+                    lv00_free((void **) &copy);
+                    return NULL;
+                }
                 for (int i = 0; i < node->data.constraint.participant_count; i++) {
                     copy->data.constraint.participants[i] = formula_node_copy(node->data.constraint.participants[i]);
                     if (!copy->data.constraint.participants[i]) {
-                        for (int j = 0; j < i; j++) formula_node_destroy(copy->data.constraint.participants[j]);
-                        lv00_free((void**)&copy->data.constraint.participants);
-                        lv00_free((void**)&copy);
+                        for (int j = 0; j < i; j++)
+                            formula_node_destroy(copy->data.constraint.participants[j]);
+                        lv00_free((void **) &copy->data.constraint.participants);
+                        lv00_free((void **) &copy);
                         return NULL;
                     }
                 }
@@ -996,14 +1033,19 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_COMPOUND: {
             copy->data.compound.statement_count = node->data.compound.statement_count;
             if (node->data.compound.statement_count > 0) {
-                copy->data.compound.statements = lv00_calloc((size_t)node->data.compound.statement_count, sizeof(FormulaNode *));
-                if (!copy->data.compound.statements) { lv00_free((void**)&copy); return NULL; }
+                copy->data.compound.statements =
+                    lv00_calloc((size_t) node->data.compound.statement_count, sizeof(FormulaNode *));
+                if (!copy->data.compound.statements) {
+                    lv00_free((void **) &copy);
+                    return NULL;
+                }
                 for (int i = 0; i < node->data.compound.statement_count; i++) {
                     copy->data.compound.statements[i] = formula_node_copy(node->data.compound.statements[i]);
                     if (!copy->data.compound.statements[i]) {
-                        for (int j = 0; j < i; j++) formula_node_destroy(copy->data.compound.statements[j]);
-                        lv00_free((void**)&copy->data.compound.statements);
-                        lv00_free((void**)&copy);
+                        for (int j = 0; j < i; j++)
+                            formula_node_destroy(copy->data.compound.statements[j]);
+                        lv00_free((void **) &copy->data.compound.statements);
+                        lv00_free((void **) &copy);
                         return NULL;
                     }
                 }
@@ -1013,8 +1055,8 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
 
         default:
             /* 未知节点类型，仅拷贝基本字段（type/line/column 已拷贝） */
-            lv00_set_error(LV00_ERROR_UNSUPPORTED,
-                "formula_node_copy: 未实现的节点类型 %d，仅拷贝基本字段", (int)node->type);
+            lv00_set_error(LV00_ERROR_UNSUPPORTED, "formula_node_copy: 未实现的节点类型 %d，仅拷贝基本字段",
+                           (int) node->type);
             break;
     }
 
@@ -1055,7 +1097,7 @@ static FormulaNode *parse_number(ParserContext *ctx) {
     /* 小数部分 */
     if (peek(ctx) == '.' && is_digit(peek_next(ctx))) {
         has_dot = true;
-        consume(ctx);  /* 消费 '.' */
+        consume(ctx); /* 消费 '.' */
         while (is_digit(peek(ctx))) {
             consume(ctx);
         }
@@ -1090,7 +1132,7 @@ static FormulaNode *parse_number(ParserContext *ctx) {
 
     /* 转换为数值 */
     double value = strtod(num_str, NULL);
-    lv00_free((void**)&num_str);
+    lv00_free((void **) &num_str);
 
     /* 创建节点 */
     FormulaNode *node = NULL;
@@ -1113,11 +1155,15 @@ static FormulaNode *parse_number(ParserContext *ctx) {
         const char *p = ctx->input + start;
         const char *end = ctx->input + ctx->pos;
 
-        if (*p == '-') { negative = true; p++; }
-        else if (*p == '+') { p++; }
+        if (*p == '-') {
+            negative = true;
+            p++;
+        } else if (*p == '+') {
+            p++;
+        }
 
         /* 步骤1：解析符号后的整数部分 */
-        while (p < end && is_digit((unsigned char)*p)) {
+        while (p < end && is_digit((unsigned char) *p)) {
             int_part = int_part * 10 + (*p - '0');
             p++;
         }
@@ -1125,9 +1171,9 @@ static FormulaNode *parse_number(ParserContext *ctx) {
         /* 步骤2：解析小数点后数字并计算分母 */
         if (p < end && *p == '.') {
             p++;
-            while (p < end && is_digit((unsigned char)*p)) {
+            while (p < end && is_digit((unsigned char) *p)) {
                 frac_part = frac_part * 10 + (*p - '0');
-                frac_denom *= 10;  /* 每位小数使分母乘以10 */
+                frac_denom *= 10; /* 每位小数使分母乘以10 */
                 p++;
             }
         }
@@ -1137,9 +1183,13 @@ static FormulaNode *parse_number(ParserContext *ctx) {
             p++;
             int exp_sign = 1;
             int exp_val = 0;
-            if (p < end && *p == '-') { exp_sign = -1; p++; }
-            else if (p < end && *p == '+') { p++; }
-            while (p < end && is_digit((unsigned char)*p)) {
+            if (p < end && *p == '-') {
+                exp_sign = -1;
+                p++;
+            } else if (p < end && *p == '+') {
+                p++;
+            }
+            while (p < end && is_digit((unsigned char) *p)) {
                 exp_val = exp_val * 10 + (*p - '0');
                 p++;
             }
@@ -1152,7 +1202,10 @@ static FormulaNode *parse_number(ParserContext *ctx) {
                 /* 正指数：分母缩小，即分子乘以 10^exp */
                 for (int i = 0; i < exp_val; i++) {
                     frac_denom /= 10;
-                    if (frac_denom == 0) { frac_denom = 1; break; }
+                    if (frac_denom == 0) {
+                        frac_denom = 1;
+                        break;
+                    }
                 }
             } else {
                 /* 负指数：分母增大 */
@@ -1190,7 +1243,7 @@ static FormulaNode *parse_number(ParserContext *ctx) {
             denominator /= a;
         }
 
-        node = formula_create_number(numerator, (uint64_t)denominator);
+        node = formula_create_number(numerator, (uint64_t) denominator);
         if (node) {
             node->line = ctx->line;
             node->column = ctx->column;
@@ -1198,7 +1251,7 @@ static FormulaNode *parse_number(ParserContext *ctx) {
         }
     } else {
         /* 纯整数 */
-        node = formula_create_number((int64_t)value, 1);
+        node = formula_create_number((int64_t) value, 1);
         if (node) {
             node->line = ctx->line;
             node->column = ctx->column;
@@ -1302,8 +1355,10 @@ const char *formula_detect_syntax(const char *input) {
     const char *p = input;
     while (*p) {
         /* 跳过空白 */
-        while (*p && isspace((unsigned char)*p)) p++;
-        if (!*p) break;
+        while (*p && isspace((unsigned char) *p))
+            p++;
+        if (!*p)
+            break;
 
         /* 检查是否为关键字 */
         for (int i = 0; DSL_KEYWORDS[i] != NULL; i++) {
@@ -1311,14 +1366,15 @@ const char *formula_detect_syntax(const char *input) {
             if (strncmp(p, DSL_KEYWORDS[i], kwlen) == 0) {
                 /* 确保关键字后是空白或分隔符 */
                 char next = p[kwlen];
-                if (next == '\0' || isspace((unsigned char)next) || next == '(' || next == '{') {
+                if (next == '\0' || isspace((unsigned char) next) || next == '(' || next == '{') {
                     return "dsl";
                 }
             }
         }
 
         /* 移动到下一个单词 */
-        while (*p && !isspace((unsigned char)*p)) p++;
+        while (*p && !isspace((unsigned char) *p))
+            p++;
     }
 
     /* 检测 Python 特征 */
@@ -1372,7 +1428,7 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1387,15 +1443,17 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
 
         if (coord_count >= MAX_COORDINATES) {
             set_error(ctx, "Too many coordinates");
-            lv00_free((void**)&name);
-            for (int i = 0; i < coord_count; i++) formula_node_destroy(coords[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < coord_count; i++)
+                formula_node_destroy(coords[i]);
             return NULL;
         }
 
         coords[coord_count] = parse_dsl_expression(ctx);
         if (!coords[coord_count]) {
-            lv00_free((void**)&name);
-            for (int i = 0; i < coord_count; i++) formula_node_destroy(coords[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < coord_count; i++)
+                formula_node_destroy(coords[i]);
             return NULL;
         }
         coord_count++;
@@ -1406,24 +1464,27 @@ static FormulaNode *parse_dsl_point(ParserContext *ctx) {
             consume(ctx);
         } else if (peek(ctx) != ')') {
             set_error(ctx, "Expected ',' or ')'");
-            lv00_free((void**)&name);
-            for (int i = 0; i < coord_count; i++) formula_node_destroy(coords[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < coord_count; i++)
+                formula_node_destroy(coords[i]);
             return NULL;
         }
     }
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void**)&name);
-        for (int i = 0; i < coord_count; i++) formula_node_destroy(coords[i]);
+        lv00_free((void **) &name);
+        for (int i = 0; i < coord_count; i++)
+            formula_node_destroy(coords[i]);
         return NULL;
     }
 
     FormulaNode *coord_list = formula_create_coord_list(coords, coord_count);
-    for (int i = 0; i < coord_count; i++) formula_node_destroy(coords[i]);
+    for (int i = 0; i < coord_count; i++)
+        formula_node_destroy(coords[i]);
 
     FormulaNode *node = formula_create_geom_point(name, coord_list);
-    lv00_free((void**)&name);
+    lv00_free((void **) &name);
     return node;
 }
 
@@ -1455,7 +1516,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1464,7 +1525,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
     /* 解析起点 */
     FormulaNode *ep1 = parse_dsl_atom(ctx);
     if (!ep1) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1472,7 +1533,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(ep1);
         return NULL;
     }
@@ -1482,7 +1543,7 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
     /* 解析终点 */
     FormulaNode *ep2 = parse_dsl_atom(ctx);
     if (!ep2) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(ep1);
         return NULL;
     }
@@ -1491,14 +1552,14 @@ static FormulaNode *parse_dsl_segment(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(ep1);
         formula_node_destroy(ep2);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_segment(name, ep1, ep2);
-    lv00_free((void**)&name);
+    lv00_free((void **) &name);
     return node;
 }
 
@@ -1531,7 +1592,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1540,7 +1601,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
     /* 解析圆心 */
     FormulaNode *center = parse_dsl_atom(ctx);
     if (!center) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1548,7 +1609,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -1558,7 +1619,7 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
     /* 解析半径 */
     FormulaNode *radius = parse_dsl_expression(ctx);
     if (!radius) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -1567,14 +1628,14 @@ static FormulaNode *parse_dsl_circle(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_circle(name, center, radius);
-    lv00_free((void**)&name);
+    lv00_free((void **) &name);
     return node;
 }
 
@@ -1606,7 +1667,7 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1617,8 +1678,9 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
     for (int i = 0; i < 3; i++) {
         vertices[i] = parse_dsl_atom(ctx);
         if (!vertices[i]) {
-            lv00_free((void**)&name);
-            for (int j = 0; j < i; j++) formula_node_destroy(vertices[j]);
+            lv00_free((void **) &name);
+            for (int j = 0; j < i; j++)
+                formula_node_destroy(vertices[j]);
             set_error(ctx, "Expected vertex");
             return NULL;
         }
@@ -1627,8 +1689,9 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
 
         if (i < 2) {
             if (!expect_char(ctx, ',')) {
-                lv00_free((void**)&name);
-                for (int j = 0; j <= i; j++) formula_node_destroy(vertices[j]);
+                lv00_free((void **) &name);
+                for (int j = 0; j <= i; j++)
+                    formula_node_destroy(vertices[j]);
                 return NULL;
             }
             skip_whitespace(ctx);
@@ -1637,14 +1700,16 @@ static FormulaNode *parse_dsl_triangle(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void**)&name);
-        for (int i = 0; i < 3; i++) formula_node_destroy(vertices[i]);
+        lv00_free((void **) &name);
+        for (int i = 0; i < 3; i++)
+            formula_node_destroy(vertices[i]);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_triangle(name, vertices[0], vertices[1], vertices[2]);
-    lv00_free((void**)&name);
-    for (int i = 0; i < 3; i++) formula_node_destroy(vertices[i]);
+    lv00_free((void **) &name);
+    for (int i = 0; i < 3; i++)
+        formula_node_destroy(vertices[i]);
     return node;
 }
 
@@ -1676,7 +1741,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1685,7 +1750,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析圆心 */
     FormulaNode *center = parse_dsl_atom(ctx);
     if (!center) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1693,7 +1758,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -1703,7 +1768,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析半径 */
     FormulaNode *radius = parse_dsl_expression(ctx);
     if (!radius) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         return NULL;
     }
@@ -1712,7 +1777,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         return NULL;
@@ -1723,7 +1788,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析起始角度 */
     FormulaNode *start_angle = parse_dsl_expression(ctx);
     if (!start_angle) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         return NULL;
@@ -1733,7 +1798,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ',' */
     if (!expect_char(ctx, ',')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         formula_node_destroy(start_angle);
@@ -1745,7 +1810,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     /* 解析结束角度 */
     FormulaNode *end_angle = parse_dsl_expression(ctx);
     if (!end_angle) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         formula_node_destroy(start_angle);
@@ -1756,7 +1821,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         formula_node_destroy(center);
         formula_node_destroy(radius);
         formula_node_destroy(start_angle);
@@ -1765,7 +1830,7 @@ static FormulaNode *parse_dsl_arc(ParserContext *ctx) {
     }
 
     FormulaNode *node = formula_create_geom_arc(name, center, radius, start_angle, end_angle);
-    lv00_free((void**)&name);
+    lv00_free((void **) &name);
     formula_node_destroy(center);
     formula_node_destroy(radius);
     formula_node_destroy(start_angle);
@@ -1801,7 +1866,7 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1809,7 +1874,7 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
     /* 期望 '[' */
     if (!expect_char(ctx, '[')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1822,15 +1887,17 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
     while (!is_at_end(ctx) && peek(ctx) != ']') {
         if (vertex_count >= MAX_POLYGON_VERTICES) {
             set_error(ctx, "Too many vertices in polygon");
-            lv00_free((void**)&name);
-            for (int i = 0; i < vertex_count; i++) formula_node_destroy(vertices[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < vertex_count; i++)
+                formula_node_destroy(vertices[i]);
             return NULL;
         }
 
         vertices[vertex_count] = parse_dsl_atom(ctx);
         if (!vertices[vertex_count]) {
-            lv00_free((void**)&name);
-            for (int i = 0; i < vertex_count; i++) formula_node_destroy(vertices[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < vertex_count; i++)
+                formula_node_destroy(vertices[i]);
             return NULL;
         }
         vertex_count++;
@@ -1842,16 +1909,18 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
             skip_whitespace(ctx);
         } else if (peek(ctx) != ']') {
             set_error(ctx, "Expected ',' or ']'");
-            lv00_free((void**)&name);
-            for (int i = 0; i < vertex_count; i++) formula_node_destroy(vertices[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < vertex_count; i++)
+                formula_node_destroy(vertices[i]);
             return NULL;
         }
     }
 
     /* 期望 ']' */
     if (!expect_char(ctx, ']')) {
-        lv00_free((void**)&name);
-        for (int i = 0; i < vertex_count; i++) formula_node_destroy(vertices[i]);
+        lv00_free((void **) &name);
+        for (int i = 0; i < vertex_count; i++)
+            formula_node_destroy(vertices[i]);
         return NULL;
     }
 
@@ -1859,14 +1928,16 @@ static FormulaNode *parse_dsl_polygon(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void**)&name);
-        for (int i = 0; i < vertex_count; i++) formula_node_destroy(vertices[i]);
+        lv00_free((void **) &name);
+        for (int i = 0; i < vertex_count; i++)
+            formula_node_destroy(vertices[i]);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_polygon(name, vertices, vertex_count);
-    lv00_free((void**)&name);
-    for (int i = 0; i < vertex_count; i++) formula_node_destroy(vertices[i]);
+    lv00_free((void **) &name);
+    for (int i = 0; i < vertex_count; i++)
+        formula_node_destroy(vertices[i]);
     return node;
 }
 
@@ -1898,7 +1969,7 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
     /* 期望 '(' */
     if (!expect_char(ctx, '(')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1906,7 +1977,7 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
     /* 期望 '[' */
     if (!expect_char(ctx, '[')) {
-        lv00_free((void**)&name);
+        lv00_free((void **) &name);
         return NULL;
     }
 
@@ -1919,15 +1990,17 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
     while (!is_at_end(ctx) && peek(ctx) != ']') {
         if (segment_count >= MAX_POLYGON_VERTICES) {
             set_error(ctx, "Too many segments in region");
-            lv00_free((void**)&name);
-            for (int i = 0; i < segment_count; i++) formula_node_destroy(segments[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < segment_count; i++)
+                formula_node_destroy(segments[i]);
             return NULL;
         }
 
         segments[segment_count] = parse_dsl_atom(ctx);
         if (!segments[segment_count]) {
-            lv00_free((void**)&name);
-            for (int i = 0; i < segment_count; i++) formula_node_destroy(segments[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < segment_count; i++)
+                formula_node_destroy(segments[i]);
             return NULL;
         }
         segment_count++;
@@ -1939,16 +2012,18 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
             skip_whitespace(ctx);
         } else if (peek(ctx) != ']') {
             set_error(ctx, "Expected ',' or ']'");
-            lv00_free((void**)&name);
-            for (int i = 0; i < segment_count; i++) formula_node_destroy(segments[i]);
+            lv00_free((void **) &name);
+            for (int i = 0; i < segment_count; i++)
+                formula_node_destroy(segments[i]);
             return NULL;
         }
     }
 
     /* 期望 ']' */
     if (!expect_char(ctx, ']')) {
-        lv00_free((void**)&name);
-        for (int i = 0; i < segment_count; i++) formula_node_destroy(segments[i]);
+        lv00_free((void **) &name);
+        for (int i = 0; i < segment_count; i++)
+            formula_node_destroy(segments[i]);
         return NULL;
     }
 
@@ -1956,14 +2031,16 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        lv00_free((void**)&name);
-        for (int i = 0; i < segment_count; i++) formula_node_destroy(segments[i]);
+        lv00_free((void **) &name);
+        for (int i = 0; i < segment_count; i++)
+            formula_node_destroy(segments[i]);
         return NULL;
     }
 
     FormulaNode *node = formula_create_geom_region(name, segments, segment_count);
-    lv00_free((void**)&name);
-    for (int i = 0; i < segment_count; i++) formula_node_destroy(segments[i]);
+    lv00_free((void **) &name);
+    for (int i = 0; i < segment_count; i++)
+        formula_node_destroy(segments[i]);
     return node;
 }
 
@@ -1980,14 +2057,21 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
  * @note 返回 (NodeType)-1 时表示未知约束类型，调用方应处理此情况
  */
 static NodeType get_constraint_type(const char *name) {
-    if (strcmp(name, "perpendicular") == 0) return NODE_CONSTRAINT_PERPENDICULAR;
-    if (strcmp(name, "parallel") == 0) return NODE_CONSTRAINT_PARALLEL;
-    if (strcmp(name, "midpoint") == 0) return NODE_CONSTRAINT_MIDPOINT;
-    if (strcmp(name, "bisector") == 0) return NODE_CONSTRAINT_BISECTOR;
-    if (strcmp(name, "collinear") == 0) return NODE_CONSTRAINT_COLLINEAR;
-    if (strcmp(name, "tangent") == 0) return NODE_CONSTRAINT_TANGENT;
-    if (strcmp(name, "congruent") == 0) return NODE_CONSTRAINT_CONGRUENT;
-    return (NodeType)-1;  /* 未知约束类型，由调用方处理 */
+    if (strcmp(name, "perpendicular") == 0)
+        return NODE_CONSTRAINT_PERPENDICULAR;
+    if (strcmp(name, "parallel") == 0)
+        return NODE_CONSTRAINT_PARALLEL;
+    if (strcmp(name, "midpoint") == 0)
+        return NODE_CONSTRAINT_MIDPOINT;
+    if (strcmp(name, "bisector") == 0)
+        return NODE_CONSTRAINT_BISECTOR;
+    if (strcmp(name, "collinear") == 0)
+        return NODE_CONSTRAINT_COLLINEAR;
+    if (strcmp(name, "tangent") == 0)
+        return NODE_CONSTRAINT_TANGENT;
+    if (strcmp(name, "congruent") == 0)
+        return NODE_CONSTRAINT_CONGRUENT;
+    return (NodeType) -1; /* 未知约束类型，由调用方处理 */
 }
 
 /**
@@ -2024,14 +2108,14 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     }
 
     NodeType constraint_type = get_constraint_type(constraint_name);
-    if ((int)constraint_type < 0) {
+    if ((int) constraint_type < 0) {
         char err_buf[MAX_TEMP_MSG_SIZE];
         snprintf(err_buf, sizeof(err_buf), "未知的约束类型: %s", constraint_name);
         set_error(ctx, err_buf);
-        lv00_free((void**)&constraint_name);
+        lv00_free((void **) &constraint_name);
         return NULL;
     }
-    lv00_free((void**)&constraint_name);
+    lv00_free((void **) &constraint_name);
 
     skip_whitespace(ctx);
 
@@ -2051,13 +2135,15 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
 
         if (participant_count >= MAX_PARTICIPANTS) {
             set_error(ctx, "Too many participants");
-            for (int i = 0; i < participant_count; i++) formula_node_destroy(participants[i]);
+            for (int i = 0; i < participant_count; i++)
+                formula_node_destroy(participants[i]);
             return NULL;
         }
 
         participants[participant_count] = parse_dsl_atom(ctx);
         if (!participants[participant_count]) {
-            for (int i = 0; i < participant_count; i++) formula_node_destroy(participants[i]);
+            for (int i = 0; i < participant_count; i++)
+                formula_node_destroy(participants[i]);
             return NULL;
         }
         participant_count++;
@@ -2068,19 +2154,22 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
             consume(ctx);
         } else if (peek(ctx) != ')') {
             set_error(ctx, "Expected ',' or ')'");
-            for (int i = 0; i < participant_count; i++) formula_node_destroy(participants[i]);
+            for (int i = 0; i < participant_count; i++)
+                formula_node_destroy(participants[i]);
             return NULL;
         }
     }
 
     /* 期望 ')' */
     if (!expect_char(ctx, ')')) {
-        for (int i = 0; i < participant_count; i++) formula_node_destroy(participants[i]);
+        for (int i = 0; i < participant_count; i++)
+            formula_node_destroy(participants[i]);
         return NULL;
     }
 
     FormulaNode *node = formula_create_constraint(constraint_type, participants, participant_count);
-    for (int i = 0; i < participant_count; i++) formula_node_destroy(participants[i]);
+    for (int i = 0; i < participant_count; i++)
+        formula_node_destroy(participants[i]);
     return node;
 }
 
@@ -2101,7 +2190,8 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
     if (c == '(') {
         consume(ctx);
         FormulaNode *expr = parse_dsl_expression(ctx);
-        if (!expr) return NULL;
+        if (!expr)
+            return NULL;
         skip_whitespace(ctx);
         if (!expect_char(ctx, ')')) {
             formula_node_destroy(expr);
@@ -2114,7 +2204,8 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
     if (c == '-') {
         consume(ctx);
         FormulaNode *operand = parse_dsl_factor(ctx);
-        if (!operand) return NULL;
+        if (!operand)
+            return NULL;
         return formula_create_unary_op(NODE_UNARY_OP_NEG, operand);
     }
 
@@ -2130,43 +2221,44 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
         /* 读取标识符 */
         char *ident = parse_identifier_str(ctx);
-        if (!ident) return NULL;
+        if (!ident)
+            return NULL;
 
         skip_whitespace(ctx);
 
         /* 检查是否为关键字 */
         if (strcmp(ident, "point") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return parse_dsl_point(ctx);
         }
         if (strcmp(ident, "segment") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return parse_dsl_segment(ctx);
         }
         if (strcmp(ident, "circle") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return parse_dsl_circle(ctx);
         }
         if (strcmp(ident, "triangle") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return parse_dsl_triangle(ctx);
         }
         if (strcmp(ident, "arc") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return parse_dsl_arc(ctx);
         }
         if (strcmp(ident, "polygon") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return parse_dsl_polygon(ctx);
         }
         if (strcmp(ident, "region") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return parse_dsl_region(ctx);
         }
         if (is_dsl_keyword(ident)) {
             /* 其他约束关键字 */
-            ctx->pos = start;  /* 回退 */
-            lv00_free((void**)&ident);
+            ctx->pos = start; /* 回退 */
+            lv00_free((void **) &ident);
             return parse_dsl_constraint(ctx);
         }
 
@@ -2182,15 +2274,17 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
             while (!is_at_end(ctx) && peek(ctx) != ')') {
                 if (arg_count >= MAX_ARGUMENTS) {
                     set_error(ctx, "Too many arguments");
-                    lv00_free((void**)&ident);
-                    for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+                    lv00_free((void **) &ident);
+                    for (int i = 0; i < arg_count; i++)
+                        formula_node_destroy(args[i]);
                     return NULL;
                 }
 
                 args[arg_count] = parse_dsl_expression(ctx);
                 if (!args[arg_count]) {
-                    lv00_free((void**)&ident);
-                    for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+                    lv00_free((void **) &ident);
+                    for (int i = 0; i < arg_count; i++)
+                        formula_node_destroy(args[i]);
                     return NULL;
                 }
                 arg_count++;
@@ -2204,8 +2298,9 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
             }
 
             if (!expect_char(ctx, ')')) {
-                lv00_free((void**)&ident);
-                for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+                lv00_free((void **) &ident);
+                for (int i = 0; i < arg_count; i++)
+                    formula_node_destroy(args[i]);
                 return NULL;
             }
 
@@ -2230,14 +2325,15 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
                 node = formula_create_identifier(ident);
             }
 
-            lv00_free((void**)&ident);
-            for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+            lv00_free((void **) &ident);
+            for (int i = 0; i < arg_count; i++)
+                formula_node_destroy(args[i]);
             return node;
         }
 
         /* 普通标识符 */
         FormulaNode *node = formula_create_identifier(ident);
-        lv00_free((void**)&ident);
+        lv00_free((void **) &ident);
         return node;
     }
 
@@ -2250,7 +2346,8 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
  */
 static FormulaNode *parse_dsl_factor(ParserContext *ctx) {
     FormulaNode *left = parse_dsl_atom(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     skip_whitespace(ctx);
 
@@ -2279,7 +2376,8 @@ static FormulaNode *parse_dsl_factor(ParserContext *ctx) {
  */
 static FormulaNode *parse_dsl_term(ParserContext *ctx) {
     FormulaNode *left = parse_dsl_factor(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (true) {
         skip_whitespace(ctx);
@@ -2289,7 +2387,8 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
         bool should_continue = false;
 
         if (c == '*') {
-            if (peek_next(ctx) == '*') break;  /* 幂运算 */
+            if (peek_next(ctx) == '*')
+                break; /* 幂运算 */
             consume(ctx);
             op_type = NODE_BINARY_OP_MUL;
             should_continue = true;
@@ -2299,7 +2398,8 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
             should_continue = true;
         }
 
-        if (!should_continue) break;
+        if (!should_continue)
+            break;
 
         skip_whitespace(ctx);
         FormulaNode *right = parse_dsl_factor(ctx);
@@ -2309,7 +2409,8 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
         }
 
         left = formula_create_binary_op(op_type, left, right);
-        if (!left) return NULL;
+        if (!left)
+            return NULL;
     }
 
     return left;
@@ -2320,7 +2421,8 @@ static FormulaNode *parse_dsl_term(ParserContext *ctx) {
  */
 static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
     FormulaNode *left = parse_dsl_term(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (true) {
         skip_whitespace(ctx);
@@ -2339,7 +2441,8 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
             should_continue = true;
         }
 
-        if (!should_continue) break;
+        if (!should_continue)
+            break;
 
         skip_whitespace(ctx);
         FormulaNode *right = parse_dsl_term(ctx);
@@ -2349,7 +2452,8 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
         }
 
         left = formula_create_binary_op(op_type, left, right);
-        if (!left) return NULL;
+        if (!left)
+            return NULL;
     }
 
     return left;
@@ -2361,10 +2465,12 @@ static FormulaNode *parse_dsl_expression(ParserContext *ctx) {
 static FormulaNode *parse_dsl_statement(ParserContext *ctx) {
     skip_whitespace(ctx);
 
-    if (is_at_end(ctx)) return NULL;
+    if (is_at_end(ctx))
+        return NULL;
 
     FormulaNode *left = parse_dsl_expression(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     skip_whitespace(ctx);
 
@@ -2392,18 +2498,21 @@ static FormulaNode *parse_dsl_compound(ParserContext *ctx) {
 
     while (!is_at_end(ctx)) {
         skip_whitespace(ctx);
-        if (is_at_end(ctx)) break;
+        if (is_at_end(ctx))
+            break;
 
         if (statement_count >= MAX_STATEMENTS) {
             set_error(ctx, "Too many statements");
-            for (int i = 0; i < statement_count; i++) formula_node_destroy(statements[i]);
+            for (int i = 0; i < statement_count; i++)
+                formula_node_destroy(statements[i]);
             return NULL;
         }
 
         FormulaNode *stmt = parse_dsl_statement(ctx);
         if (!stmt) {
             if (ctx->has_error) {
-                for (int i = 0; i < statement_count; i++) formula_node_destroy(statements[i]);
+                for (int i = 0; i < statement_count; i++)
+                    formula_node_destroy(statements[i]);
                 return NULL;
             }
             break;
@@ -2452,7 +2561,8 @@ static FormulaNode *parse_latex_frac(ParserContext *ctx) {
 
     skip_whitespace(ctx);
     FormulaNode *numerator = parse_latex_expression(ctx);
-    if (!numerator) return NULL;
+    if (!numerator)
+        return NULL;
     skip_whitespace(ctx);
 
     if (!expect_char(ctx, '}')) {
@@ -2493,7 +2603,8 @@ static FormulaNode *parse_latex_sqrt(ParserContext *ctx) {
         consume(ctx);
         skip_whitespace(ctx);
         FormulaNode *operand = parse_latex_expression(ctx);
-        if (!operand) return NULL;
+        if (!operand)
+            return NULL;
         skip_whitespace(ctx);
         if (!expect_char(ctx, '}')) {
             formula_node_destroy(operand);
@@ -2503,7 +2614,8 @@ static FormulaNode *parse_latex_sqrt(ParserContext *ctx) {
     }
 
     FormulaNode *operand = parse_latex_atom(ctx);
-    if (!operand) return NULL;
+    if (!operand)
+        return NULL;
     return formula_create_unary_op(NODE_UNARY_OP_SQRT, operand);
 }
 
@@ -2521,15 +2633,15 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
     FormulaNode *result = NULL;
 
     if (strcmp(cmd, "frac") == 0) {
-        lv00_free((void**)&cmd);
+        lv00_free((void **) &cmd);
         return parse_latex_frac(ctx);
     }
     if (strcmp(cmd, "sqrt") == 0) {
-        lv00_free((void**)&cmd);
+        lv00_free((void **) &cmd);
         return parse_latex_sqrt(ctx);
     }
     if (strcmp(cmd, "sin") == 0) {
-        lv00_free((void**)&cmd);
+        lv00_free((void **) &cmd);
         skip_whitespace(ctx);
         if (peek(ctx) == '{') {
             consume(ctx);
@@ -2545,12 +2657,13 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
             }
         } else {
             FormulaNode *arg = parse_latex_atom(ctx);
-            if (arg) result = formula_create_unary_op(NODE_UNARY_OP_SIN, arg);
+            if (arg)
+                result = formula_create_unary_op(NODE_UNARY_OP_SIN, arg);
         }
         return result;
     }
     if (strcmp(cmd, "cos") == 0) {
-        lv00_free((void**)&cmd);
+        lv00_free((void **) &cmd);
         skip_whitespace(ctx);
         if (peek(ctx) == '{') {
             consume(ctx);
@@ -2566,12 +2679,13 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
             }
         } else {
             FormulaNode *arg = parse_latex_atom(ctx);
-            if (arg) result = formula_create_unary_op(NODE_UNARY_OP_COS, arg);
+            if (arg)
+                result = formula_create_unary_op(NODE_UNARY_OP_COS, arg);
         }
         return result;
     }
     if (strcmp(cmd, "tan") == 0) {
-        lv00_free((void**)&cmd);
+        lv00_free((void **) &cmd);
         skip_whitespace(ctx);
         if (peek(ctx) == '{') {
             consume(ctx);
@@ -2587,18 +2701,19 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
             }
         } else {
             FormulaNode *arg = parse_latex_atom(ctx);
-            if (arg) result = formula_create_unary_op(NODE_UNARY_OP_TAN, arg);
+            if (arg)
+                result = formula_create_unary_op(NODE_UNARY_OP_TAN, arg);
         }
         return result;
     }
     if (strcmp(cmd, "pi") == 0) {
-        lv00_free((void**)&cmd);
+        lv00_free((void **) &cmd);
         return formula_create_variable("pi");
     }
 
     /* 其他命令作为变量 */
     result = formula_create_variable(cmd);
-    lv00_free((void**)&cmd);
+    lv00_free((void **) &cmd);
     return result;
 }
 
@@ -2619,7 +2734,8 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
     if (c == '(') {
         consume(ctx);
         FormulaNode *expr = parse_latex_expression(ctx);
-        if (!expr) return NULL;
+        if (!expr)
+            return NULL;
         skip_whitespace(ctx);
         if (!expect_char(ctx, ')')) {
             formula_node_destroy(expr);
@@ -2639,7 +2755,8 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
         consume(ctx);
         skip_whitespace(ctx);
         FormulaNode *expr = parse_latex_expression(ctx);
-        if (!expr) return NULL;
+        if (!expr)
+            return NULL;
         skip_whitespace(ctx);
         if (!expect_char(ctx, '}')) {
             formula_node_destroy(expr);
@@ -2652,7 +2769,8 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
     if (c == '-') {
         consume(ctx);
         FormulaNode *operand = parse_latex_factor(ctx);
-        if (!operand) return NULL;
+        if (!operand)
+            return NULL;
         return formula_create_unary_op(NODE_UNARY_OP_NEG, operand);
     }
 
@@ -2665,10 +2783,11 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
     /* 标识符 */
     if (is_alpha(c)) {
         char *ident = parse_identifier_str(ctx);
-        if (!ident) return NULL;
+        if (!ident)
+            return NULL;
 
         FormulaNode *node = formula_create_variable(ident);
-        lv00_free((void**)&ident);
+        lv00_free((void **) &ident);
         return node;
     }
 
@@ -2681,7 +2800,8 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
  */
 static FormulaNode *parse_latex_factor(ParserContext *ctx) {
     FormulaNode *left = parse_latex_atom(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     skip_whitespace(ctx);
 
@@ -2720,7 +2840,8 @@ static FormulaNode *parse_latex_factor(ParserContext *ctx) {
  */
 static FormulaNode *parse_latex_term(ParserContext *ctx) {
     FormulaNode *left = parse_latex_factor(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (true) {
         skip_whitespace(ctx);
@@ -2745,7 +2866,8 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
             should_continue = true;
         }
 
-        if (!should_continue) break;
+        if (!should_continue)
+            break;
 
         skip_whitespace(ctx);
         FormulaNode *right = parse_latex_factor(ctx);
@@ -2755,7 +2877,8 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
         }
 
         left = formula_create_binary_op(op_type, left, right);
-        if (!left) return NULL;
+        if (!left)
+            return NULL;
     }
 
     return left;
@@ -2766,7 +2889,8 @@ static FormulaNode *parse_latex_term(ParserContext *ctx) {
  */
 static FormulaNode *parse_latex_expression(ParserContext *ctx) {
     FormulaNode *left = parse_latex_term(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (true) {
         skip_whitespace(ctx);
@@ -2785,7 +2909,8 @@ static FormulaNode *parse_latex_expression(ParserContext *ctx) {
             should_continue = true;
         }
 
-        if (!should_continue) break;
+        if (!should_continue)
+            break;
 
         skip_whitespace(ctx);
         FormulaNode *right = parse_latex_term(ctx);
@@ -2795,7 +2920,8 @@ static FormulaNode *parse_latex_expression(ParserContext *ctx) {
         }
 
         left = formula_create_binary_op(op_type, left, right);
-        if (!left) return NULL;
+        if (!left)
+            return NULL;
     }
 
     /* 检查等式 */
@@ -2841,7 +2967,8 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
         consume(ctx);
         skip_whitespace(ctx);
         FormulaNode *expr = parse_python_expression(ctx);
-        if (!expr) return NULL;
+        if (!expr)
+            return NULL;
         skip_whitespace(ctx);
         if (!expect_char(ctx, ')')) {
             formula_node_destroy(expr);
@@ -2854,7 +2981,8 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
     if (c == '-') {
         consume(ctx);
         FormulaNode *operand = parse_python_factor(ctx);
-        if (!operand) return NULL;
+        if (!operand)
+            return NULL;
         return formula_create_unary_op(NODE_UNARY_OP_NEG, operand);
     }
 
@@ -2867,22 +2995,23 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
     /* 标识符 */
     if (is_alpha(c)) {
         char *ident = parse_identifier_str(ctx);
-        if (!ident) return NULL;
+        if (!ident)
+            return NULL;
 
         skip_whitespace(ctx);
 
         /* 检查布尔值 */
         if (strcmp(ident, "True") == 0 || strcmp(ident, "False") == 0) {
             int val = (strcmp(ident, "True") == 0) ? 1 : 0;
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return formula_create_number(val, 1);
         }
         if (strcmp(ident, "None") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return formula_create_variable("None");
         }
         if (strcmp(ident, "pi") == 0) {
-            lv00_free((void**)&ident);
+            lv00_free((void **) &ident);
             return formula_create_variable("pi");
         }
 
@@ -2898,15 +3027,17 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
             while (!is_at_end(ctx) && peek(ctx) != ')') {
                 if (arg_count >= MAX_ARGUMENTS) {
                     set_error(ctx, "Too many arguments");
-                    lv00_free((void**)&ident);
-                    for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+                    lv00_free((void **) &ident);
+                    for (int i = 0; i < arg_count; i++)
+                        formula_node_destroy(args[i]);
                     return NULL;
                 }
 
                 args[arg_count] = parse_python_expression(ctx);
                 if (!args[arg_count]) {
-                    lv00_free((void**)&ident);
-                    for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+                    lv00_free((void **) &ident);
+                    for (int i = 0; i < arg_count; i++)
+                        formula_node_destroy(args[i]);
                     return NULL;
                 }
                 arg_count++;
@@ -2920,8 +3051,9 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
             }
 
             if (!expect_char(ctx, ')')) {
-                lv00_free((void**)&ident);
-                for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+                lv00_free((void **) &ident);
+                for (int i = 0; i < arg_count; i++)
+                    formula_node_destroy(args[i]);
                 return NULL;
             }
 
@@ -2943,13 +3075,14 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
                 node = formula_create_variable(ident);
             }
 
-            lv00_free((void**)&ident);
-            for (int i = 0; i < arg_count; i++) formula_node_destroy(args[i]);
+            lv00_free((void **) &ident);
+            for (int i = 0; i < arg_count; i++)
+                formula_node_destroy(args[i]);
             return node;
         }
 
         FormulaNode *node = formula_create_variable(ident);
-        lv00_free((void**)&ident);
+        lv00_free((void **) &ident);
         return node;
     }
 
@@ -2962,7 +3095,8 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
  */
 static FormulaNode *parse_python_power(ParserContext *ctx) {
     FormulaNode *left = parse_python_atom(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     skip_whitespace(ctx);
 
@@ -2994,7 +3128,8 @@ static FormulaNode *parse_python_factor(ParserContext *ctx) {
  */
 static FormulaNode *parse_python_term(ParserContext *ctx) {
     FormulaNode *left = parse_python_factor(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (true) {
         skip_whitespace(ctx);
@@ -3004,7 +3139,8 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
         bool should_continue = false;
 
         if (c == '*') {
-            if (peek_next(ctx) == '*') break;  /* 幂运算 */
+            if (peek_next(ctx) == '*')
+                break; /* 幂运算 */
             consume(ctx);
             should_continue = true;
         } else if (c == '/') {
@@ -3016,7 +3152,8 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
             should_continue = true;
         }
 
-        if (!should_continue) break;
+        if (!should_continue)
+            break;
 
         skip_whitespace(ctx);
         FormulaNode *right = parse_python_factor(ctx);
@@ -3026,7 +3163,8 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
         }
 
         left = formula_create_binary_op(op_type, left, right);
-        if (!left) return NULL;
+        if (!left)
+            return NULL;
     }
 
     return left;
@@ -3037,7 +3175,8 @@ static FormulaNode *parse_python_term(ParserContext *ctx) {
  */
 static FormulaNode *parse_python_expression(ParserContext *ctx) {
     FormulaNode *left = parse_python_term(ctx);
-    if (!left) return NULL;
+    if (!left)
+        return NULL;
 
     while (true) {
         skip_whitespace(ctx);
@@ -3056,7 +3195,8 @@ static FormulaNode *parse_python_expression(ParserContext *ctx) {
             should_continue = true;
         }
 
-        if (!should_continue) break;
+        if (!should_continue)
+            break;
 
         skip_whitespace(ctx);
         FormulaNode *right = parse_python_term(ctx);
@@ -3066,7 +3206,8 @@ static FormulaNode *parse_python_expression(ParserContext *ctx) {
         }
 
         left = formula_create_binary_op(op_type, left, right);
-        if (!left) return NULL;
+        if (!left)
+            return NULL;
     }
 
     /* 检查等式 */

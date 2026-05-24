@@ -12,14 +12,14 @@
  */
 
 #include "preset_blocks.h"
-#include "lv00_internal.h"
-#include "lv00_utils.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
+#include "lv00_internal.h"
+#include "lv00_utils.h"
 #include "preset_common.h"
 
 /* ==================== 外部模块注册函数声明 ==================== */
@@ -119,48 +119,43 @@ extern bool preset_difference_equations_register(void);
  * 存储预设的完整信息，包括元数据和模板函数块。
  */
 typedef struct {
-    char *name;                           /* 预设名称（唯一键） */
-    char *description;                    /* 中文描述 */
-    char *mathematical_definition;        /* 数学定义 */
-    PresetExtendedCategory category;      /* 扩展类别 */
-    int input_count;                      /* 输入端口数量 */
-    int output_count;                     /* 输出端口数量 */
-    bool has_selector;                    /* 是否需要多解选择器 */
-    char *preconditions;                  /* 前置条件描述 */
-    char *example_usage;                  /* 使用示例 */
-    FuncBlock *template_fb;               /* 模板函数块 */
-    int id;                               /* 预设ID */
+    char *name;                      /* 预设名称（唯一键） */
+    char *description;               /* 中文描述 */
+    char *mathematical_definition;   /* 数学定义 */
+    PresetExtendedCategory category; /* 扩展类别 */
+    int input_count;                 /* 输入端口数量 */
+    int output_count;                /* 输出端口数量 */
+    bool has_selector;               /* 是否需要多解选择器 */
+    char *preconditions;             /* 前置条件描述 */
+    char *example_usage;             /* 使用示例 */
+    FuncBlock *template_fb;          /* 模板函数块 */
+    int id;                          /* 预设ID */
 
     /* 简化注册接口扩展字段 */
-    PresetType *input_types;               /* 输入类型数组 */
-    int input_type_count;                 /* 输入类型数量 */
-    PresetType output_type;                /* 输出类型 */
-    char *complexity;                     /* 时间复杂度描述 */
-    bool is_constructive;                 /* 是否构造性 */
-    bool is_reversible;                   /* 是否可逆 */
+    PresetType *input_types; /* 输入类型数组 */
+    int input_type_count;    /* 输入类型数量 */
+    PresetType output_type;  /* 输出类型 */
+    char *complexity;        /* 时间复杂度描述 */
+    bool is_constructive;    /* 是否构造性 */
+    bool is_reversible;      /* 是否可逆 */
 } InternalPresetEntry;
 
 /**
  * @brief 扩展预设函数块注册表
  */
 typedef struct {
-    InternalPresetEntry *entries;         /* 条目数组 */
-    int count;                            /* 当前条目数 */
-    int capacity;                         /* 数组容量 */
-    bool initialized;                     /* 是否已初始化 */
-    int next_preset_id;                   /* 下一个预设ID */
+    InternalPresetEntry *entries; /* 条目数组 */
+    int count;                    /* 当前条目数 */
+    int capacity;                 /* 数组容量 */
+    bool initialized;             /* 是否已初始化 */
+    int next_preset_id;           /* 下一个预设ID */
 } ExtendedPresetRegistry;
 
 /* ==================== 全局注册表 ==================== */
 
 /** 全局扩展预设函数块注册表（单例） */
 static ExtendedPresetRegistry g_preset_registry = {
-    .entries     = NULL,
-    .count       = 0,
-    .capacity    = 0,
-    .initialized = false,
-    .next_preset_id = PRESET_FB_ID_OFFSET
-};
+    .entries = NULL, .count = 0, .capacity = 0, .initialized = false, .next_preset_id = PRESET_FB_ID_OFFSET};
 
 /* 线程安全：注册表互斥锁
  *
@@ -179,8 +174,7 @@ static volatile LONG g_preset_registry_lock_initialized = 0;
  * 使用 InterlockedCompareExchange 原子操作确保
  * 多线程环境下仅初始化一次临界区，消除 TOCTOU 竞态条件。
  */
-static void preset_registry_lock_init_once(void)
-{
+static void preset_registry_lock_init_once(void) {
     if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) == 0) {
         /* volatile 重读，避免编译器优化消除检查 */
         LONG expected = 0;
@@ -192,15 +186,15 @@ static void preset_registry_lock_init_once(void)
         } else {
             /* 其他线程正在初始化，自旋等待完成 */
             while (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) != 2) {
-                Sleep(0);  /* 让出时间片 */
+                Sleep(0); /* 让出时间片 */
             }
         }
     }
 }
 
-#define PRESET_REGISTRY_LOCK() \
-    do { \
-        preset_registry_lock_init_once(); \
+#define PRESET_REGISTRY_LOCK()                         \
+    do {                                               \
+        preset_registry_lock_init_once();              \
         EnterCriticalSection(&g_preset_registry_lock); \
     } while (0)
 #define PRESET_REGISTRY_UNLOCK() LeaveCriticalSection(&g_preset_registry_lock)
@@ -221,8 +215,7 @@ static pthread_mutex_t g_preset_registry_lock = PTHREAD_MUTEX_INITIALIZER;
  *
  * @return true 扩容成功或无需扩容，false 内存不足或溢出
  */
-static bool ensure_preset_registry_capacity(void)
-{
+static bool ensure_preset_registry_capacity(void) {
     if (g_preset_registry.count < g_preset_registry.capacity) {
         return true;
     }
@@ -234,23 +227,23 @@ static bool ensure_preset_registry_capacity(void)
     } else {
         /* 整数溢出检查：确保 capacity * PRESET_REGISTRY_GROWTH_FACTOR 不超过 INT_MAX */
         if (g_preset_registry.capacity > INT_MAX / PRESET_REGISTRY_GROWTH_FACTOR) {
-            return false;  /* 溢出，无法继续扩容 */
+            return false; /* 溢出，无法继续扩容 */
         }
         new_capacity = g_preset_registry.capacity * PRESET_REGISTRY_GROWTH_FACTOR;
     }
 
     /* 检查 new_capacity * sizeof(InternalPresetEntry) 是否超过 SIZE_MAX */
-    if ((size_t)new_capacity > SIZE_MAX / sizeof(InternalPresetEntry)) {
-        return false;  /* 内存大小溢出 */
+    if ((size_t) new_capacity > SIZE_MAX / sizeof(InternalPresetEntry)) {
+        return false; /* 内存大小溢出 */
     }
 
-    InternalPresetEntry *new_entries = lv00_realloc(
-        g_preset_registry.entries, (size_t)new_capacity * sizeof(InternalPresetEntry));
+    InternalPresetEntry *new_entries =
+        lv00_realloc(g_preset_registry.entries, (size_t) new_capacity * sizeof(InternalPresetEntry));
     if (!new_entries) {
         return false;
     }
 
-    g_preset_registry.entries  = new_entries;
+    g_preset_registry.entries = new_entries;
     g_preset_registry.capacity = new_capacity;
     return true;
 }
@@ -260,17 +253,17 @@ static bool ensure_preset_registry_capacity(void)
  *
  * @param entry 预设条目指针
  */
-static void free_internal_preset_entry(InternalPresetEntry *entry)
-{
-    if (!entry) return;
+static void free_internal_preset_entry(InternalPresetEntry *entry) {
+    if (!entry)
+        return;
 
-    lv00_free((void **)&entry->name);
-    lv00_free((void **)&entry->description);
-    lv00_free((void **)&entry->mathematical_definition);
-    lv00_free((void **)&entry->preconditions);
-    lv00_free((void **)&entry->example_usage);
-    lv00_free((void **)&entry->complexity);
-    lv00_free((void **)&entry->input_types);
+    lv00_free((void **) &entry->name);
+    lv00_free((void **) &entry->description);
+    lv00_free((void **) &entry->mathematical_definition);
+    lv00_free((void **) &entry->preconditions);
+    lv00_free((void **) &entry->example_usage);
+    lv00_free((void **) &entry->complexity);
+    lv00_free((void **) &entry->input_types);
 
     if (entry->template_fb) {
         func_block_destroy(entry->template_fb);
@@ -286,13 +279,12 @@ static void free_internal_preset_entry(InternalPresetEntry *entry)
  * @param name 预设名称
  * @return 条目索引，未找到返回 -1
  */
-static int find_preset_index(const char *name)
-{
-    if (!name) return -1;
+static int find_preset_index(const char *name) {
+    if (!name)
+        return -1;
 
     for (int i = 0; i < g_preset_registry.count; i++) {
-        if (g_preset_registry.entries[i].name &&
-            strcmp(g_preset_registry.entries[i].name, name) == 0) {
+        if (g_preset_registry.entries[i].name && strcmp(g_preset_registry.entries[i].name, name) == 0) {
             return i;
         }
     }
@@ -302,8 +294,7 @@ static int find_preset_index(const char *name)
 
 /* ==================== 公共 API 实现 ==================== */
 
-bool preset_blocks_init(void)
-{
+bool preset_blocks_init(void) {
     /* 幂等操作：已初始化则直接返回 */
     if (g_preset_registry.initialized) {
         return true;
@@ -676,8 +667,7 @@ bool preset_blocks_init(void)
     return true;
 }
 
-void preset_blocks_cleanup(void)
-{
+void preset_blocks_cleanup(void) {
     PRESET_REGISTRY_LOCK();
 
     /* 释放所有条目的资源 */
@@ -686,11 +676,11 @@ void preset_blocks_cleanup(void)
     }
 
     /* 释放条目数组本身 */
-    lv00_free((void **)&g_preset_registry.entries);
+    lv00_free((void **) &g_preset_registry.entries);
 
     /* 重置注册表状态 */
-    g_preset_registry.count       = 0;
-    g_preset_registry.capacity    = 0;
+    g_preset_registry.count = 0;
+    g_preset_registry.capacity = 0;
     g_preset_registry.initialized = false;
     g_preset_registry.next_preset_id = PRESET_FB_ID_OFFSET;
 
@@ -705,8 +695,7 @@ void preset_blocks_cleanup(void)
 #endif
 }
 
-PresetBlockMetadata *preset_blocks_get_metadata(const char *name)
-{
+PresetBlockMetadata *preset_blocks_get_metadata(const char *name) {
     PRESET_REGISTRY_LOCK();
 
     int idx = find_preset_index(name);
@@ -722,7 +711,8 @@ PresetBlockMetadata *preset_blocks_get_metadata(const char *name)
         /* 深拷贝字符串字段，确保返回的元数据生命周期独立于注册表 */
         result->name = entry->name ? lv00_strdup(entry->name) : NULL;
         result->description = entry->description ? lv00_strdup(entry->description) : NULL;
-        result->mathematical_definition = entry->mathematical_definition ? lv00_strdup(entry->mathematical_definition) : NULL;
+        result->mathematical_definition =
+            entry->mathematical_definition ? lv00_strdup(entry->mathematical_definition) : NULL;
         result->category = entry->category;
         result->input_count = entry->input_count;
         result->output_count = entry->output_count;
@@ -732,11 +722,11 @@ PresetBlockMetadata *preset_blocks_get_metadata(const char *name)
 
         /* 若关键字符串分配失败，回滚已分配的内存 */
         if (entry->name && !result->name) {
-            lv00_free((void **)&result->description);
-            lv00_free((void **)&result->mathematical_definition);
-            lv00_free((void **)&result->preconditions);
-            lv00_free((void **)&result->example_usage);
-            lv00_free((void **)&result);
+            lv00_free((void **) &result->description);
+            lv00_free((void **) &result->mathematical_definition);
+            lv00_free((void **) &result->preconditions);
+            lv00_free((void **) &result->example_usage);
+            lv00_free((void **) &result);
             result = NULL;
         }
     }
@@ -745,11 +735,9 @@ PresetBlockMetadata *preset_blocks_get_metadata(const char *name)
     return result;
 }
 
-int preset_blocks_find_by_category(PresetExtendedCategory category,
-                                    const char **out_names,
-                                    int max_count)
-{
-    if (!out_names || max_count <= 0) return 0;
+int preset_blocks_find_by_category(PresetExtendedCategory category, const char **out_names, int max_count) {
+    if (!out_names || max_count <= 0)
+        return 0;
 
     PRESET_REGISTRY_LOCK();
 
@@ -767,36 +755,62 @@ int preset_blocks_find_by_category(PresetExtendedCategory category,
     return found;
 }
 
-const char *preset_extended_category_to_string(PresetExtendedCategory cat)
-{
+const char *preset_extended_category_to_string(PresetExtendedCategory cat) {
     switch (cat) {
-        case PRESET_EXT_BASIC_CONSTRUCTION:    return "基础几何构造";
-        case PRESET_EXT_ADVANCED_CONSTRUCTION: return "高级几何构造";
-        case PRESET_EXT_POLYGON:               return "多边形";
-        case PRESET_EXT_CIRCLE:                return "圆相关";
-        case PRESET_EXT_TRANSFORMATION_BASIC:  return "基本变换";
-        case PRESET_EXT_TRANSFORMATION_ADVANCED: return "高级变换";
-        case PRESET_EXT_MEASUREMENT:           return "度量计算";
-        case PRESET_EXT_TRIGONOMETRY:          return "三角函数";
-        case PRESET_EXT_COORDINATE:            return "坐标运算";
-        case PRESET_EXT_ALGEBRA_BASIC:         return "基础代数";
-        case PRESET_EXT_ALGEBRA_ADVANCED:      return "高级代数";
-        case PRESET_EXT_LINEAR_ALGEBRA:        return "线性代数";
-        case PRESET_EXT_POLYNOMIAL:            return "多项式";
-        case PRESET_EXT_LOGIC_PROPOSITIONAL:   return "命题逻辑";
-        case PRESET_EXT_LOGIC_PREDICATE:       return "谓词逻辑";
-        case PRESET_EXT_PROOF_TACTICS:         return "证明策略";
-        case PRESET_EXT_ANALYSIS_LIMIT:        return "极限";
-        case PRESET_EXT_ANALYSIS_DIFFERENTIAL: return "微分";
-        case PRESET_EXT_ANALYSIS_INTEGRAL:     return "积分";
-        case PRESET_EXT_TOPOLOGY:              return "拓扑";
-        case PRESET_EXT_DIFFERENTIAL_GEOMETRY: return "微分几何";
-        case PRESET_EXT_NUMBER_THEORY:         return "数论";
-        case PRESET_EXT_GROUP_THEORY:          return "群论";
-        case PRESET_EXT_ANALYSIS:              return "分析学";
-        case PRESET_EXT_COMBINATORICS:         return "组合数学";
-        case PRESET_EXT_CATEGORY_COUNT:        return "类别总数";
-        default:                               return "未知类别";
+        case PRESET_EXT_BASIC_CONSTRUCTION:
+            return "基础几何构造";
+        case PRESET_EXT_ADVANCED_CONSTRUCTION:
+            return "高级几何构造";
+        case PRESET_EXT_POLYGON:
+            return "多边形";
+        case PRESET_EXT_CIRCLE:
+            return "圆相关";
+        case PRESET_EXT_TRANSFORMATION_BASIC:
+            return "基本变换";
+        case PRESET_EXT_TRANSFORMATION_ADVANCED:
+            return "高级变换";
+        case PRESET_EXT_MEASUREMENT:
+            return "度量计算";
+        case PRESET_EXT_TRIGONOMETRY:
+            return "三角函数";
+        case PRESET_EXT_COORDINATE:
+            return "坐标运算";
+        case PRESET_EXT_ALGEBRA_BASIC:
+            return "基础代数";
+        case PRESET_EXT_ALGEBRA_ADVANCED:
+            return "高级代数";
+        case PRESET_EXT_LINEAR_ALGEBRA:
+            return "线性代数";
+        case PRESET_EXT_POLYNOMIAL:
+            return "多项式";
+        case PRESET_EXT_LOGIC_PROPOSITIONAL:
+            return "命题逻辑";
+        case PRESET_EXT_LOGIC_PREDICATE:
+            return "谓词逻辑";
+        case PRESET_EXT_PROOF_TACTICS:
+            return "证明策略";
+        case PRESET_EXT_ANALYSIS_LIMIT:
+            return "极限";
+        case PRESET_EXT_ANALYSIS_DIFFERENTIAL:
+            return "微分";
+        case PRESET_EXT_ANALYSIS_INTEGRAL:
+            return "积分";
+        case PRESET_EXT_TOPOLOGY:
+            return "拓扑";
+        case PRESET_EXT_DIFFERENTIAL_GEOMETRY:
+            return "微分几何";
+        case PRESET_EXT_NUMBER_THEORY:
+            return "数论";
+        case PRESET_EXT_GROUP_THEORY:
+            return "群论";
+        case PRESET_EXT_ANALYSIS:
+            return "分析学";
+        case PRESET_EXT_COMBINATORICS:
+            return "组合数学";
+        case PRESET_EXT_CATEGORY_COUNT:
+            return "类别总数";
+        default:
+            return "未知类别";
     }
 }
 
@@ -811,37 +825,62 @@ const char *preset_extended_category_to_string(PresetExtendedCategory cat)
  * @param category 预设类别
  * @return 对应的扩展类别
  */
-static PresetExtendedCategory map_category_to_extended(PresetCategory category)
-{
+static PresetExtendedCategory map_category_to_extended(PresetCategory category) {
     switch (category) {
-        case PRESET_CATEGORY_CONSTRUCTION:       return PRESET_EXT_BASIC_CONSTRUCTION;
-        case PRESET_CATEGORY_MEASUREMENT:        return PRESET_EXT_MEASUREMENT;
-        case PRESET_CATEGORY_TRANSFORMATION:     return PRESET_EXT_TRANSFORMATION_BASIC;
-        case PRESET_CATEGORY_ALGEBRAIC:          return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_LOGIC:              return PRESET_EXT_LOGIC_PROPOSITIONAL;
-        case PRESET_CATEGORY_ANALYSIS:           return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_NUMBER_THEORY:      return PRESET_EXT_NUMBER_THEORY;
-        case PRESET_CATEGORY_GROUP_THEORY:       return PRESET_EXT_GROUP_THEORY;
-        case PRESET_CATEGORY_TOPOLOGY:           return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_RING_THEORY:        return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_FIELD_THEORY:       return PRESET_EXT_ALGEBRA_ADVANCED;
-        case PRESET_CATEGORY_LINEAR_ALGEBRA:     return PRESET_EXT_LINEAR_ALGEBRA;
-        case PRESET_CATEGORY_COMBINATORICS:      return PRESET_EXT_COMBINATORICS;
-        case PRESET_CATEGORY_COMPLEX_ANALYSIS:   return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_PROBABILITY:        return PRESET_EXT_ANALYSIS;
-        case PRESET_CATEGORY_GEOMETRY:           return PRESET_EXT_ADVANCED_CONSTRUCTION;
-        case PRESET_CATEGORY_ALGEBRA:            return PRESET_EXT_ALGEBRA_BASIC;
-        case PRESET_CATEGORY_CATEGORY_THEORY:    return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_SET_THEORY:         return PRESET_EXT_TOPOLOGY;
-        case PRESET_CATEGORY_CUSTOM:             return PRESET_EXT_BASIC_CONSTRUCTION;
+        case PRESET_CATEGORY_CONSTRUCTION:
+            return PRESET_EXT_BASIC_CONSTRUCTION;
+        case PRESET_CATEGORY_MEASUREMENT:
+            return PRESET_EXT_MEASUREMENT;
+        case PRESET_CATEGORY_TRANSFORMATION:
+            return PRESET_EXT_TRANSFORMATION_BASIC;
+        case PRESET_CATEGORY_ALGEBRAIC:
+            return PRESET_EXT_ALGEBRA_BASIC;
+        case PRESET_CATEGORY_LOGIC:
+            return PRESET_EXT_LOGIC_PROPOSITIONAL;
+        case PRESET_CATEGORY_ANALYSIS:
+            return PRESET_EXT_ANALYSIS;
+        case PRESET_CATEGORY_NUMBER_THEORY:
+            return PRESET_EXT_NUMBER_THEORY;
+        case PRESET_CATEGORY_GROUP_THEORY:
+            return PRESET_EXT_GROUP_THEORY;
+        case PRESET_CATEGORY_TOPOLOGY:
+            return PRESET_EXT_TOPOLOGY;
+        case PRESET_CATEGORY_RING_THEORY:
+            return PRESET_EXT_ALGEBRA_BASIC;
+        case PRESET_CATEGORY_FIELD_THEORY:
+            return PRESET_EXT_ALGEBRA_ADVANCED;
+        case PRESET_CATEGORY_LINEAR_ALGEBRA:
+            return PRESET_EXT_LINEAR_ALGEBRA;
+        case PRESET_CATEGORY_COMBINATORICS:
+            return PRESET_EXT_COMBINATORICS;
+        case PRESET_CATEGORY_COMPLEX_ANALYSIS:
+            return PRESET_EXT_ANALYSIS;
+        case PRESET_CATEGORY_PROBABILITY:
+            return PRESET_EXT_ANALYSIS;
+        case PRESET_CATEGORY_GEOMETRY:
+            return PRESET_EXT_ADVANCED_CONSTRUCTION;
+        case PRESET_CATEGORY_ALGEBRA:
+            return PRESET_EXT_ALGEBRA_BASIC;
+        case PRESET_CATEGORY_CATEGORY_THEORY:
+            return PRESET_EXT_TOPOLOGY;
+        case PRESET_CATEGORY_SET_THEORY:
+            return PRESET_EXT_TOPOLOGY;
+        case PRESET_CATEGORY_CUSTOM:
+            return PRESET_EXT_BASIC_CONSTRUCTION;
         /* ---- v10.0 修复：补齐"界面层-扩展类别"映射中缺失的 5 个分支 ---- */
-        case PRESET_CATEGORY_GRAPH_THEORY:       return PRESET_EXT_GRAPH_THEORY;
-        case PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY: return PRESET_EXT_DIFFERENTIAL_GEOMETRY;
-        case PRESET_CATEGORY_NUMERICAL:          return PRESET_EXT_NUMERICAL_ANALYSIS;
-        case PRESET_CATEGORY_OPTIMIZATION:       return PRESET_EXT_OPTIMIZATION_THEORY;
-        case PRESET_CATEGORY_MATH_LOGIC:         return PRESET_EXT_MATH_LOGIC;
-        case PRESET_CATEGORY_COUNT:              return PRESET_EXT_BASIC_CONSTRUCTION;
-        /* 不提供 default 分支：若未来新增 PresetCategory 而未同步更新此 switch，
+        case PRESET_CATEGORY_GRAPH_THEORY:
+            return PRESET_EXT_GRAPH_THEORY;
+        case PRESET_CATEGORY_DIFFERENTIAL_GEOMETRY:
+            return PRESET_EXT_DIFFERENTIAL_GEOMETRY;
+        case PRESET_CATEGORY_NUMERICAL:
+            return PRESET_EXT_NUMERICAL_ANALYSIS;
+        case PRESET_CATEGORY_OPTIMIZATION:
+            return PRESET_EXT_OPTIMIZATION_THEORY;
+        case PRESET_CATEGORY_MATH_LOGIC:
+            return PRESET_EXT_MATH_LOGIC;
+        case PRESET_CATEGORY_COUNT:
+            return PRESET_EXT_BASIC_CONSTRUCTION;
+            /* 不提供 default 分支：若未来新增 PresetCategory 而未同步更新此 switch，
          * 编译器将发出 -Wswitch 警告，提示开发者补充映射。这比静默回退到默认值更安全。 */
     }
     return PRESET_EXT_BASIC_CONSTRUCTION;
@@ -849,18 +888,10 @@ static PresetExtendedCategory map_category_to_extended(PresetCategory category)
 
 /* ==================== 通用简化注册 ==================== */
 
-bool preset_blocks_register_simple(
-    const char *name,
-    const char *description,
-    PresetCategory category,
-    const PresetType *input_types,
-    int input_count,
-    PresetType output_type,
-    const char *mathematical_definition,
-    const char *complexity,
-    bool is_constructive,
-    bool is_reversible)
-{
+bool preset_blocks_register_simple(const char *name, const char *description, PresetCategory category,
+                                   const PresetType *input_types, int input_count, PresetType output_type,
+                                   const char *mathematical_definition, const char *complexity, bool is_constructive,
+                                   bool is_reversible) {
     /* 参数有效性检查 */
     if (!name || !description) {
         LV00_LOG_WARNING("preset_blocks_register_simple: 名称或描述为空");
@@ -912,7 +943,7 @@ bool preset_blocks_register_simple(
 
     /* 设置输入输出端口数 */
     fb->input_count = input_count;
-    fb->output_count = 1;  /* 简化注册始终为单输出 */
+    fb->output_count = 1; /* 简化注册始终为单输出 */
 
     /* 设置确定性状态 */
     fb->determinism = DETERMINISM_VERIFIED;
@@ -934,9 +965,9 @@ bool preset_blocks_register_simple(
 
     /* 复制输入类型数组（可选） */
     if (input_types && input_count > 0) {
-        entry->input_types = lv00_malloc((size_t)input_count * sizeof(PresetType));
+        entry->input_types = lv00_malloc((size_t) input_count * sizeof(PresetType));
         if (entry->input_types) {
-            memcpy(entry->input_types, input_types, (size_t)input_count * sizeof(PresetType));
+            memcpy(entry->input_types, input_types, (size_t) input_count * sizeof(PresetType));
             entry->input_type_count = input_count;
         }
     }
@@ -984,19 +1015,19 @@ bool preset_blocks_register_simple(
  * @param output_count 输出端口数量
  * @return true 注册成功
  */
-static bool register_preset_internal(const char *name,
-                                      const char *description,
-                                      PresetExtendedCategory category,
-                                      int input_count,
-                                      int output_count)
-{
-    if (!name || !description) return false;
-    if (find_preset_index(name) >= 0) return false;
-    if (!ensure_preset_registry_capacity()) return false;
+static bool register_preset_internal(const char *name, const char *description, PresetExtendedCategory category,
+                                     int input_count, int output_count) {
+    if (!name || !description)
+        return false;
+    if (find_preset_index(name) >= 0)
+        return false;
+    if (!ensure_preset_registry_capacity())
+        return false;
 
     /* 创建模板函数块 */
     FuncBlock *fb = func_block_create(g_preset_registry.next_preset_id++);
-    if (!fb) return false;
+    if (!fb)
+        return false;
 
     if (!func_block_set_name(fb, name)) {
         func_block_destroy(fb);
@@ -1033,22 +1064,16 @@ static bool register_preset_internal(const char *name,
     return true;
 }
 
-bool preset_blocks_register_by_category(const char *name,
-                                         const char *description,
-                                         PresetExtendedCategory category,
-                                         int input_count,
-                                         int output_count)
-{
+bool preset_blocks_register_by_category(const char *name, const char *description, PresetExtendedCategory category,
+                                        int input_count, int output_count) {
     return register_preset_internal(name, description, category, input_count, output_count);
 }
 
 /* ==================== 查找函数 ==================== */
 
-int preset_blocks_find_by_prefix(const char *prefix,
-                                  const char **out_names,
-                                  int max_count)
-{
-    if (!prefix || !out_names || max_count <= 0) return 0;
+int preset_blocks_find_by_prefix(const char *prefix, const char **out_names, int max_count) {
+    if (!prefix || !out_names || max_count <= 0)
+        return 0;
 
     PRESET_REGISTRY_LOCK();
 
@@ -1056,8 +1081,7 @@ int preset_blocks_find_by_prefix(const char *prefix,
     int found = 0;
 
     for (int i = 0; i < g_preset_registry.count; i++) {
-        if (g_preset_registry.entries[i].name &&
-            strncmp(g_preset_registry.entries[i].name, prefix, prefix_len) == 0) {
+        if (g_preset_registry.entries[i].name && strncmp(g_preset_registry.entries[i].name, prefix, prefix_len) == 0) {
             if (found < max_count) {
                 out_names[found] = g_preset_registry.entries[i].name;
             }
@@ -1069,11 +1093,9 @@ int preset_blocks_find_by_prefix(const char *prefix,
     return found;
 }
 
-int preset_blocks_find_by_keyword(const char *keyword,
-                                   const char **out_names,
-                                   int max_count)
-{
-    if (!keyword || !out_names || max_count <= 0) return 0;
+int preset_blocks_find_by_keyword(const char *keyword, const char **out_names, int max_count) {
+    if (!keyword || !out_names || max_count <= 0)
+        return 0;
 
     PRESET_REGISTRY_LOCK();
 
@@ -1093,9 +1115,9 @@ int preset_blocks_find_by_keyword(const char *keyword,
     return found;
 }
 
-int preset_blocks_get_all_names(const char **out_names, int max_count)
-{
-    if (!out_names || max_count <= 0) return 0;
+int preset_blocks_get_all_names(const char **out_names, int max_count) {
+    if (!out_names || max_count <= 0)
+        return 0;
 
     PRESET_REGISTRY_LOCK();
 
@@ -1113,10 +1135,9 @@ int preset_blocks_get_all_names(const char **out_names, int max_count)
 
 /* ==================== 文档生成 ==================== */
 
-char *preset_blocks_generate_documentation(void)
-{
+char *preset_blocks_generate_documentation(void) {
     /* 计算所需缓冲区大小 */
-    size_t total_size = 4096;  /* 基础大小 */
+    size_t total_size = 4096; /* 基础大小 */
     for (int i = 0; i < g_preset_registry.count; i++) {
         if (g_preset_registry.entries[i].name) {
             total_size += strlen(g_preset_registry.entries[i].name) + 256;
@@ -1127,19 +1148,25 @@ char *preset_blocks_generate_documentation(void)
     }
 
     char *doc = lv00_malloc(total_size);
-    if (!doc) return NULL;
+    if (!doc)
+        return NULL;
 
     int written = snprintf(doc, total_size,
-        "# Lv-00 预设函数块文档\n\n"
-        "## 概述\n\n"
-        "本系统提供 %d 个预设函数块，涵盖以下数学领域：\n\n",
-        g_preset_registry.count);
-    if (written < 0) { lv00_free((void **)&doc); return NULL; }
-    if ((size_t)written >= total_size) { doc[total_size - 1] = '\0'; }
+                           "# Lv-00 预设函数块文档\n\n"
+                           "## 概述\n\n"
+                           "本系统提供 %d 个预设函数块，涵盖以下数学领域：\n\n",
+                           g_preset_registry.count);
+    if (written < 0) {
+        lv00_free((void **) &doc);
+        return NULL;
+    }
+    if ((size_t) written >= total_size) {
+        doc[total_size - 1] = '\0';
+    }
 
     /* 按类别分组输出 */
     for (int cat = 0; cat < PRESET_EXT_CATEGORY_COUNT; cat++) {
-        const char *cat_name = preset_extended_category_to_string((PresetExtendedCategory)cat);
+        const char *cat_name = preset_extended_category_to_string((PresetExtendedCategory) cat);
         int cat_count = 0;
 
         /* 统计该类别数量 */
@@ -1150,27 +1177,38 @@ char *preset_blocks_generate_documentation(void)
         }
 
         if (cat_count > 0) {
-            int w = snprintf(doc + written, total_size - written,
-                "### %s (%d个)\n\n", cat_name, cat_count);
-            if (w < 0) break;
-            if ((size_t)w >= total_size - (size_t)written) { written = (int)total_size - 1; break; }
+            int w = snprintf(doc + written, total_size - written, "### %s (%d个)\n\n", cat_name, cat_count);
+            if (w < 0)
+                break;
+            if ((size_t) w >= total_size - (size_t) written) {
+                written = (int) total_size - 1;
+                break;
+            }
             written += w;
 
             for (int i = 0; i < g_preset_registry.count; i++) {
                 if (g_preset_registry.entries[i].category == cat) {
-                    w = snprintf(doc + written, total_size - written,
-                        "- **%s**: %s\n",
-                        g_preset_registry.entries[i].name,
+                    w = snprintf(
+                        doc + written, total_size - written, "- **%s**: %s\n", g_preset_registry.entries[i].name,
                         g_preset_registry.entries[i].description ? g_preset_registry.entries[i].description : "");
-                    if (w < 0) break;
-                    if ((size_t)w >= total_size - (size_t)written) { written = (int)total_size - 1; break; }
+                    if (w < 0)
+                        break;
+                    if ((size_t) w >= total_size - (size_t) written) {
+                        written = (int) total_size - 1;
+                        break;
+                    }
                     written += w;
                 }
             }
-            if ((size_t)written >= total_size - 1) break;
+            if ((size_t) written >= total_size - 1)
+                break;
             w = snprintf(doc + written, total_size - written, "\n");
-            if (w < 0) break;
-            if ((size_t)w >= total_size - (size_t)written) { written = (int)total_size - 1; break; }
+            if (w < 0)
+                break;
+            if ((size_t) w >= total_size - (size_t) written) {
+                written = (int) total_size - 1;
+                break;
+            }
             written += w;
         }
     }
@@ -1178,8 +1216,7 @@ char *preset_blocks_generate_documentation(void)
     return doc;
 }
 
-char *preset_blocks_generate_single_doc(const char *name)
-{
+char *preset_blocks_generate_single_doc(const char *name) {
     PRESET_REGISTRY_LOCK();
 
     int idx = find_preset_index(name);
@@ -1208,24 +1245,19 @@ char *preset_blocks_generate_single_doc(const char *name)
 
     /* 在锁外执行格式化操作（不访问共享数据） */
     snprintf(doc, size,
-        "## %s\n\n"
-        "**类别**: %s\n\n"
-        "**描述**: %s\n\n"
-        "**输入端口**: %d\n\n"
-        "**输出端口**: %d\n",
-        entry_name,
-        entry_cat,
-        entry_desc,
-        entry_in,
-        entry_out);
+             "## %s\n\n"
+             "**类别**: %s\n\n"
+             "**描述**: %s\n\n"
+             "**输入端口**: %d\n\n"
+             "**输出端口**: %d\n",
+             entry_name, entry_cat, entry_desc, entry_in, entry_out);
 
     return doc;
 }
 
 /* ==================== 统计信息 ==================== */
 
-void preset_blocks_get_stats(int *total_count, int *by_category)
-{
+void preset_blocks_get_stats(int *total_count, int *by_category) {
     PRESET_REGISTRY_LOCK();
 
     if (total_count) {
@@ -1244,8 +1276,7 @@ void preset_blocks_get_stats(int *total_count, int *by_category)
     PRESET_REGISTRY_UNLOCK();
 }
 
-void preset_blocks_print_stats(void)
-{
+void preset_blocks_print_stats(void) {
     int total, by_category[PRESET_EXT_CATEGORY_COUNT];
     preset_blocks_get_stats(&total, by_category);
 
@@ -1254,9 +1285,7 @@ void preset_blocks_print_stats(void)
 
     for (int i = 0; i < PRESET_EXT_CATEGORY_COUNT; i++) {
         if (by_category[i] > 0) {
-            printf("  %s: %d 个\n",
-                   preset_extended_category_to_string((PresetExtendedCategory)i),
-                   by_category[i]);
+            printf("  %s: %d 个\n", preset_extended_category_to_string((PresetExtendedCategory) i), by_category[i]);
         }
     }
     printf("===========================\n");

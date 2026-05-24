@@ -30,8 +30,8 @@
 #ifndef LV00_GEOMETRY_COMPRESS_H
 #define LV00_GEOMETRY_COMPRESS_H
 
-#include "lv00.h"
 #include "constraint_graph.h"
+#include "lv00.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,11 +52,11 @@ extern "C" {
  * - S：对顶点是已访问顶点，但不在当前边界上（分割操作）
  */
 typedef enum {
-    EDGEBREAKER_C = 0,  /**< C 模式 —— 新顶点闭合三角形 */
-    EDGEBREAKER_L = 1,  /**< L 模式 —— 左边界顶点 */
-    EDGEBREAKER_E = 2,  /**< E 模式 —— 边结束，不生成新三角形 */
-    EDGEBREAKER_R = 3,  /**< R 模式 —— 右边界顶点 */
-    EDGEBREAKER_S = 4   /**< S 模式 —— 分割操作 */
+    EDGEBREAKER_C = 0, /**< C 模式 —— 新顶点闭合三角形 */
+    EDGEBREAKER_L = 1, /**< L 模式 —— 左边界顶点 */
+    EDGEBREAKER_E = 2, /**< E 模式 —— 边结束，不生成新三角形 */
+    EDGEBREAKER_R = 3, /**< R 模式 —— 右边界顶点 */
+    EDGEBREAKER_S = 4  /**< S 模式 —— 分割操作 */
 } EdgebreakerMode;
 
 /* ========================================================================
@@ -70,10 +70,10 @@ typedef enum {
  * 借鉴 Draco 的预测编码器分类。
  */
 typedef enum {
-    PREDICT_NONE                = 0,  /**< 无预测 —— 直接存储坐标原始值 */
-    PREDICT_PARALLELOGRAM       = 1,  /**< 平行四边形预测 —— 基于单三角形对顶点推断 */
-    PREDICT_MULTI_PARALLELOGRAM = 2,  /**< 多阶平行四边形预测 —— 利用多个邻面对顶点加权平均 */
-    PREDICT_DELTA               = 3   /**< 差分预测 —— 按遍历顺序存储相邻节点坐标差 */
+    PREDICT_NONE = 0,                /**< 无预测 —— 直接存储坐标原始值 */
+    PREDICT_PARALLELOGRAM = 1,       /**< 平行四边形预测 —— 基于单三角形对顶点推断 */
+    PREDICT_MULTI_PARALLELOGRAM = 2, /**< 多阶平行四边形预测 —— 利用多个邻面对顶点加权平均 */
+    PREDICT_DELTA = 3                /**< 差分预测 —— 按遍历顺序存储相邻节点坐标差 */
 } PredictionMode;
 
 /* ========================================================================
@@ -89,9 +89,9 @@ typedef enum {
  * - Huffman：经典前缀编码，速度最快但压缩率最低
  */
 typedef enum {
-    ENTROPY_RANS       = 0,  /**< rANS 熵编码 —— 非对称数字系统 */
-    ENTROPY_ARITHMETIC = 1,  /**< 算术编码 —— 区间编码 */
-    ENTROPY_HUFFMAN    = 2   /**< Huffman 编码 —— 前缀树编码 */
+    ENTROPY_RANS = 0,       /**< rANS 熵编码 —— 非对称数字系统 */
+    ENTROPY_ARITHMETIC = 1, /**< 算术编码 —— 区间编码 */
+    ENTROPY_HUFFMAN = 2     /**< Huffman 编码 —— 前缀树编码 */
 } EntropyCoding;
 
 /* ========================================================================
@@ -104,11 +104,11 @@ typedef enum {
  * 控制压缩管线的各项参数。
  */
 typedef struct {
-    PredictionMode pred_mode;   /**< 坐标预测模式 */
-    EntropyCoding  entropy;     /**< 熵编码器选择 */
-    int   quantization_bits;    /**< 坐标量化位数（0 = 无损，否则为定点数位宽） */
-    bool  lossless;             /**< 是否无损压缩 */
-    double max_error;           /**< 有损压缩时的最大允许误差（lossless=false 时生效） */
+    PredictionMode pred_mode; /**< 坐标预测模式 */
+    EntropyCoding entropy;    /**< 熵编码器选择 */
+    int quantization_bits;    /**< 坐标量化位数（0 = 无损，否则为定点数位宽） */
+    bool lossless;            /**< 是否无损压缩 */
+    double max_error;         /**< 有损压缩时的最大允许误差（lossless=false 时生效） */
 } CompressConfig;
 
 /**
@@ -118,13 +118,13 @@ typedef struct {
  * 压缩比 = original_size / compressed_size。
  */
 typedef struct {
-    uint64_t original_size;       /**< 压缩前数据大小（字节） */
-    uint64_t compressed_size;     /**< 压缩后数据大小（字节） */
-    double   compression_ratio;   /**< 压缩比（>= 1.0，越大压缩效果越好） */
-    int      node_count;          /**< 压缩涉及的节点数量 */
-    int      constraint_count;    /**< 压缩涉及的约束数量 */
+    uint64_t original_size;                /**< 压缩前数据大小（字节） */
+    uint64_t compressed_size;              /**< 压缩后数据大小（字节） */
+    double compression_ratio;              /**< 压缩比（>= 1.0，越大压缩效果越好） */
+    int node_count;                        /**< 压缩涉及的节点数量 */
+    int constraint_count;                  /**< 压缩涉及的约束数量 */
     EdgebreakerMode *edgebreaker_sequence; /**< Edgebreaker CLERS 编码序列 */
-    int      sequence_len;        /**< CLERS 序列长度 */
+    int sequence_len;                      /**< CLERS 序列长度 */
 } CompressMetadata;
 
 /* ========================================================================
@@ -148,10 +148,7 @@ typedef struct {
  * @param[out] out_meta  压缩元数据（可为 NULL 表示不关心元数据）
  * @return true 成功，false 失败
  */
-bool geometry_compress(const ConstraintGraph *graph,
-                       const CompressConfig *config,
-                       uint8_t **out_data,
-                       size_t *out_size,
+bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *config, uint8_t **out_data, size_t *out_size,
                        CompressMetadata *out_meta);
 
 /**
@@ -164,9 +161,7 @@ bool geometry_compress(const ConstraintGraph *graph,
  * @param[out] out_graph 重建的约束图（调用者负责 graph_destroy）
  * @return true 成功，false 失败
  */
-bool geometry_decompress(const uint8_t *data,
-                         size_t size,
-                         ConstraintGraph **out_graph);
+bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out_graph);
 
 /* ========================================================================
  * Edgebreaker 编码器
@@ -194,9 +189,7 @@ bool geometry_decompress(const uint8_t *data,
  * @param[out] seq_len 序列长度
  * @return true 成功，false 失败
  */
-bool edgebreaker_encode(const ConstraintGraph *graph,
-                        EdgebreakerMode **modes,
-                        int *seq_len);
+bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len);
 
 /* ========================================================================
  * 预测编码器
@@ -224,15 +217,14 @@ bool edgebreaker_encode(const ConstraintGraph *graph,
  * @param[in]     mode      预测模式
  * @return true 成功，false 失败
  */
-bool predictive_encode_coords(ConstraintGraph *graph,
-                              PredictionMode mode);
+bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode);
 
 /* ========================================================================
  * .lvzd 格式 I/O
  * ======================================================================== */
 
 /** .lvzd 文件魔数 */
-#define LVZD_MAGIC 0x445A564C  /**< "LVZD" 小端序：0x4C 0x56 0x5A 0x44 */
+#define LVZD_MAGIC 0x445A564C /**< "LVZD" 小端序：0x4C 0x56 0x5A 0x44 */
 
 /** .lvzd 格式版本号 */
 #define LVZD_VERSION_MAJOR 1
@@ -256,9 +248,7 @@ bool predictive_encode_coords(ConstraintGraph *graph,
  * @param[in] filename 输出文件路径
  * @return true 成功，false 失败
  */
-bool compress_write_lvzd(const uint8_t *data,
-                         size_t size,
-                         const char *filename);
+bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename);
 
 /**
  * @brief 从 .lvzd 文件中读取压缩数据
@@ -270,9 +260,7 @@ bool compress_write_lvzd(const uint8_t *data,
  * @param[out] out_size 读取的数据大小
  * @return true 成功，false 失败
  */
-bool compress_read_lvzd(const char *filename,
-                        uint8_t **out_data,
-                        size_t *out_size);
+bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_size);
 
 #ifdef __cplusplus
 }

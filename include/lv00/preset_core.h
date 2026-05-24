@@ -12,8 +12,8 @@
 #ifndef LV00_PRESET_CORE_H
 #define LV00_PRESET_CORE_H
 
-#include "preset_common.h"
 #include "func_block.h"
+#include "preset_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,17 +26,17 @@ extern "C" {
 /**
  * @brief 预设库句柄（不透明类型）
  */
-typedef struct PresetLibrary* PresetLibraryHandle;
+typedef struct PresetLibrary *PresetLibraryHandle;
 
 /**
  * @brief 预设条目句柄（不透明类型）
  */
-typedef struct PresetEntry* PresetEntryHandle;
+typedef struct PresetEntry *PresetEntryHandle;
 
 /**
  * @brief 预设实例句柄（不透明类型）
  */
-typedef struct PresetInstance* PresetInstanceHandle;
+typedef struct PresetInstance *PresetInstanceHandle;
 
 /* ============================================================
  * 核心数据结构
@@ -46,68 +46,68 @@ typedef struct PresetInstance* PresetInstanceHandle;
  * @brief 预设版本信息
  */
 typedef struct {
-    int major;      /**< 主版本号 */
-    int minor;      /**< 次版本号 */
-    int patch;      /**< 修订版本号 */
-    const char *build_info;  /**< 构建信息（可选） */
+    int major;              /**< 主版本号 */
+    int minor;              /**< 次版本号 */
+    int patch;              /**< 修订版本号 */
+    const char *build_info; /**< 构建信息（可选） */
 } PresetVersion;
 
 /**
  * @brief 预设统计信息
  */
 typedef struct {
-    int total_count;        /**< 总预设数量 */
-    int builtin_count;      /**< 内置预设数量 */
-    int custom_count;       /**< 自定义预设数量 */
-    int active_count;       /**< 活跃预设数量 */
-    int category_counts[PRESET_CATEGORY_COUNT];  /**< 各类别数量 */
+    int total_count;                            /**< 总预设数量 */
+    int builtin_count;                          /**< 内置预设数量 */
+    int custom_count;                           /**< 自定义预设数量 */
+    int active_count;                           /**< 活跃预设数量 */
+    int category_counts[PRESET_CATEGORY_COUNT]; /**< 各类别数量 */
 } PresetStatistics;
 
 /**
  * @brief 预设查询条件
  */
 typedef struct {
-    const char *name_pattern;           /**< 名称模式（支持通配符） */
-    PresetCategory category;            /**< 类别筛选 */
-    PresetProperty required_properties;   /**< 必需属性 */
-    PresetProperty forbidden_properties;  /**< 禁止属性 */
-    const char *complexity_max;         /**< 最大复杂度 */
-    int min_inputs;                     /**< 最小输入数量 */
-    int max_inputs;                     /**< 最大输入数量 */
-    int min_outputs;                    /**< 最小输出数量 */
-    int max_outputs;                    /**< 最大输出数量 */
-    bool search_description;            /**< 是否搜索描述 */
+    const char *name_pattern;            /**< 名称模式（支持通配符） */
+    PresetCategory category;             /**< 类别筛选 */
+    PresetProperty required_properties;  /**< 必需属性 */
+    PresetProperty forbidden_properties; /**< 禁止属性 */
+    const char *complexity_max;          /**< 最大复杂度 */
+    int min_inputs;                      /**< 最小输入数量 */
+    int max_inputs;                      /**< 最大输入数量 */
+    int min_outputs;                     /**< 最小输出数量 */
+    int max_outputs;                     /**< 最大输出数量 */
+    bool search_description;             /**< 是否搜索描述 */
 } PresetQueryCriteria;
 
 /**
  * @brief 预设查询结果
  */
 typedef struct {
-    const char **names;     /**< 预设名称数组 */
-    int count;              /**< 结果数量 */
-    int total_matches;      /**< 总匹配数（可能超过返回数量） */
+    const char **names; /**< 预设名称数组 */
+    int count;          /**< 结果数量 */
+    int total_matches;  /**< 总匹配数（可能超过返回数量） */
 } PresetQueryResult;
 
 /**
  * @brief 预设实例化选项
  */
 typedef struct {
-    bool validate_types;        /**< 验证类型 */
-    bool validate_constraints;  /**< 验证约束 */
-    bool auto_connect;          /**< 自动连接 */
-    bool cache_result;          /**< 缓存结果 */
-    int timeout_ms;             /**< 超时时间（毫秒，0表示无限制） */
+    bool validate_types;       /**< 验证类型 */
+    bool validate_constraints; /**< 验证约束 */
+    bool auto_connect;         /**< 自动连接 */
+    bool cache_result;         /**< 缓存结果 */
+    int timeout_ms;            /**< 超时时间（毫秒，0表示无限制） */
 } PresetInstantiateOptions;
 
 /**
  * @brief 预设执行上下文
  */
 typedef struct {
-    void *user_data;                    /**< 用户数据 */
-    int (*progress_callback)(int step, int total, void *user_data);  /**< 进度回调 */
-    bool (*cancel_callback)(void *user_data);  /**< 取消检查回调 */
-    int max_iterations;                 /**< 最大迭代次数 */
-    double precision;                   /**< 精度要求 */
+    void *user_data;                                                /**< 用户数据 */
+    int (*progress_callback)(int step, int total, void *user_data); /**< 进度回调 */
+    bool (*cancel_callback)(void *user_data);                       /**< 取消检查回调 */
+    int max_iterations;                                             /**< 最大迭代次数 */
+    double precision;                                               /**< 精度要求 */
 } PresetExecutionContext;
 
 /* ============================================================
@@ -149,7 +149,7 @@ bool preset_library_is_initialized(void);
  *
  * @return 版本信息（静态数据，无需释放）
  */
-const PresetVersion* preset_library_get_version(void);
+const PresetVersion *preset_library_get_version(void);
 
 /**
  * @brief 获取预设库统计信息
@@ -192,9 +192,7 @@ int preset_register_builtin(void);
  * @return true 注册成功
  * @return false 注册失败
  */
-bool preset_register_custom(const PresetMetadata *metadata,
-                           const FuncBlock *template_fb,
-                           PresetEntryHandle *out_entry);
+bool preset_register_custom(const PresetMetadata *metadata, const FuncBlock *template_fb, PresetEntryHandle *out_entry);
 
 /**
  * @brief 注销预设
@@ -234,7 +232,7 @@ PresetEntryHandle preset_find(const char *name);
  * @param entry 预设条目句柄
  * @return 元数据指针（只读，生命周期与条目相同）
  */
-const PresetMetadata* preset_get_metadata(PresetEntryHandle entry);
+const PresetMetadata *preset_get_metadata(PresetEntryHandle entry);
 
 /**
  * @brief 高级查询预设
@@ -244,8 +242,7 @@ const PresetMetadata* preset_get_metadata(PresetEntryHandle entry);
  * @return true 查询成功
  * @return false 查询失败
  */
-bool preset_query(const PresetQueryCriteria *criteria,
-                 PresetQueryResult **out_result);
+bool preset_query(const PresetQueryCriteria *criteria, PresetQueryResult **out_result);
 
 /**
  * @brief 释放查询结果
@@ -263,9 +260,7 @@ void preset_query_result_free(PresetQueryResult *result);
  * @return true 成功
  * @return false 失败
  */
-bool preset_list_by_category(PresetCategory category,
-                            char ***out_names,
-                            int *out_count);
+bool preset_list_by_category(PresetCategory category, char ***out_names, int *out_count);
 
 /**
  * @brief 获取所有预设名称
@@ -310,11 +305,8 @@ bool preset_is_builtin(const char *name);
  * @return true 实例化成功
  * @return false 实例化失败
  */
-bool preset_instantiate(const char *name,
-                       const int *input_nodes,
-                       int input_count,
-                       const PresetInstantiateOptions *options,
-                       PresetInstanceHandle *out_instance);
+bool preset_instantiate(const char *name, const int *input_nodes, int input_count,
+                        const PresetInstantiateOptions *options, PresetInstanceHandle *out_instance);
 
 /**
  * @brief 批量实例化预设
@@ -327,12 +319,8 @@ bool preset_instantiate(const char *name,
  * @param out_instances 输出实例句柄数组（调用者需释放）
  * @return 成功实例化的数量
  */
-int preset_instantiate_batch(const char **names,
-                            const int **input_nodes_array,
-                            const int *input_counts,
-                            int count,
-                            const PresetInstantiateOptions *options,
-                            PresetInstanceHandle **out_instances);
+int preset_instantiate_batch(const char **names, const int **input_nodes_array, const int *input_counts, int count,
+                             const PresetInstantiateOptions *options, PresetInstanceHandle **out_instances);
 
 /**
  * @brief 销毁预设实例
@@ -347,7 +335,7 @@ void preset_instance_destroy(PresetInstanceHandle instance);
  * @param instance 实例句柄
  * @return 函数块指针（只读）
  */
-const FuncBlock* preset_instance_get_func_block(PresetInstanceHandle instance);
+const FuncBlock *preset_instance_get_func_block(PresetInstanceHandle instance);
 
 /**
  * @brief 获取实例的输出节点ID
@@ -358,9 +346,7 @@ const FuncBlock* preset_instance_get_func_block(PresetInstanceHandle instance);
  * @return true 成功
  * @return false 失败
  */
-bool preset_instance_get_outputs(PresetInstanceHandle instance,
-                                int **out_output_ids,
-                                int *out_count);
+bool preset_instance_get_outputs(PresetInstanceHandle instance, int **out_output_ids, int *out_count);
 
 /* ============================================================
  * 预设执行
@@ -374,8 +360,7 @@ bool preset_instance_get_outputs(PresetInstanceHandle instance,
  * @return true 执行成功
  * @return false 执行失败
  */
-bool preset_instance_execute(PresetInstanceHandle instance,
-                            const PresetExecutionContext *context);
+bool preset_instance_execute(PresetInstanceHandle instance, const PresetExecutionContext *context);
 
 /**
  * @brief 验证预设实例
@@ -386,9 +371,7 @@ bool preset_instance_execute(PresetInstanceHandle instance,
  * @return true 验证完成
  * @return false 验证过程出错
  */
-bool preset_instance_validate(PresetInstanceHandle instance,
-                             bool *out_is_valid,
-                             char **out_error_message);
+bool preset_instance_validate(PresetInstanceHandle instance, bool *out_is_valid, char **out_error_message);
 
 /* ============================================================
  * 预设组合
@@ -398,22 +381,22 @@ bool preset_instance_validate(PresetInstanceHandle instance,
  * @brief 预设组合模式
  */
 typedef enum {
-    PRESET_COMPOSE_SEQUENCE,    /**< 顺序执行 */
-    PRESET_COMPOSE_PARALLEL,    /**< 并行执行 */
-    PRESET_COMPOSE_FEEDBACK,    /**< 反馈循环 */
-    PRESET_COMPOSE_BRANCH,      /**< 条件分支 */
-    PRESET_COMPOSE_PIPE,        /**< 管道（数据流） */
+    PRESET_COMPOSE_SEQUENCE, /**< 顺序执行 */
+    PRESET_COMPOSE_PARALLEL, /**< 并行执行 */
+    PRESET_COMPOSE_FEEDBACK, /**< 反馈循环 */
+    PRESET_COMPOSE_BRANCH,   /**< 条件分支 */
+    PRESET_COMPOSE_PIPE,     /**< 管道（数据流） */
 } PresetComposeMode;
 
 /**
  * @brief 预设组合描述
  */
 typedef struct {
-    const char **preset_names;  /**< 预设名称数组 */
-    int count;                  /**< 预设数量 */
-    PresetComposeMode mode;     /**< 组合模式 */
-    const int **mappings;       /**< 参数映射（可选） */
-    const char *new_name;       /**< 新预设名称 */
+    const char **preset_names; /**< 预设名称数组 */
+    int count;                 /**< 预设数量 */
+    PresetComposeMode mode;    /**< 组合模式 */
+    const int **mappings;      /**< 参数映射（可选） */
+    const char *new_name;      /**< 新预设名称 */
 } PresetComposition;
 
 /**
@@ -424,8 +407,7 @@ typedef struct {
  * @return true 组合成功
  * @return false 组合失败
  */
-bool preset_compose(const PresetComposition *composition,
-                   PresetEntryHandle *out_new_entry);
+bool preset_compose(const PresetComposition *composition, PresetEntryHandle *out_new_entry);
 
 /**
  * @brief 绑定预设参数
@@ -437,10 +419,7 @@ bool preset_compose(const PresetComposition *composition,
  * @return true 绑定成功
  * @return false 绑定失败
  */
-bool preset_bind_parameter(const char *preset_name,
-                          int param_index,
-                          int value,
-                          char **out_new_name);
+bool preset_bind_parameter(const char *preset_name, int param_index, int value, char **out_new_name);
 
 /* ============================================================
  * 预设文档
@@ -455,9 +434,7 @@ bool preset_bind_parameter(const char *preset_name,
  * @return true 生成成功
  * @return false 生成失败
  */
-bool preset_generate_documentation(const char *name,
-                                  const char *format,
-                                  char **out_document);
+bool preset_generate_documentation(const char *name, const char *format, char **out_document);
 
 /**
  * @brief 生成预设库完整文档
@@ -467,8 +444,7 @@ bool preset_generate_documentation(const char *name,
  * @return true 生成成功
  * @return false 生成失败
  */
-bool preset_generate_library_documentation(const char *format,
-                                          char **out_document);
+bool preset_generate_library_documentation(const char *format, char **out_document);
 
 /**
  * @brief 获取预设使用示例
@@ -478,8 +454,7 @@ bool preset_generate_library_documentation(const char *format,
  * @return true 成功
  * @return false 失败
  */
-bool preset_get_usage_example(const char *name,
-                             char **out_example);
+bool preset_get_usage_example(const char *name, char **out_example);
 
 /* ============================================================
  * 预设序列化
@@ -494,9 +469,7 @@ bool preset_get_usage_example(const char *name,
  * @return true 成功
  * @return false 失败
  */
-bool preset_serialize(PresetEntryHandle entry,
-                     uint8_t **out_data,
-                     size_t *out_size);
+bool preset_serialize(PresetEntryHandle entry, uint8_t **out_data, size_t *out_size);
 
 /**
  * @brief 反序列化预设
@@ -507,9 +480,7 @@ bool preset_serialize(PresetEntryHandle entry,
  * @return true 成功
  * @return false 失败
  */
-bool preset_deserialize(const uint8_t *data,
-                       size_t size,
-                       PresetEntryHandle *out_entry);
+bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out_entry);
 
 /**
  * @brief 导出预设到文件
@@ -540,7 +511,7 @@ bool preset_import_from_file(const char *filepath, char **out_name);
  *
  * @return 错误信息（静态字符串，无需释放）
  */
-const char* preset_get_last_error(void);
+const char *preset_get_last_error(void);
 
 /**
  * @brief 清除错误状态
@@ -553,9 +524,7 @@ void preset_clear_error(void);
  * @param callback 错误回调函数
  * @param user_data 用户数据
  */
-void preset_set_error_callback(void (*callback)(const char *error,
-                                               void *user_data),
-                              void *user_data);
+void preset_set_error_callback(void (*callback)(const char *error, void *user_data), void *user_data);
 
 /**
  * @brief 释放预设条目句柄持有的资源

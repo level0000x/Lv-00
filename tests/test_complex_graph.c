@@ -11,16 +11,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv00.h"
 #include "test_helpers.h"
 
 /* 测试多节点图 */
-static int test_many_nodes(void)
-{
+static int test_many_nodes(void) {
     printf("\n=== Testing Many Nodes ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     const int N = 100;
     for (int i = 0; i < N; i++) {
@@ -55,12 +58,14 @@ static int test_many_nodes(void)
 }
 
 /* 测试约束冲突检测 */
-static int test_constraint_conflicts(void)
-{
+static int test_constraint_conflicts(void) {
     printf("\n=== Testing Constraint Conflicts ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     int p0 = add_point(graph, 0, 1, 0, 1);
     int p1 = add_point(graph, 3, 1, 0, 1);
@@ -85,12 +90,14 @@ static int test_constraint_conflicts(void)
 }
 
 /* 测试冗余约束检测 */
-static int test_redundant_constraints(void)
-{
+static int test_redundant_constraints(void) {
     printf("\n=== Testing Redundant Constraints ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     int p0 = add_point(graph, 0, 1, 0, 1);
     int p1 = add_point(graph, 1, 1, 0, 1);
@@ -113,12 +120,14 @@ static int test_redundant_constraints(void)
 }
 
 /* 测试大规模图操作 */
-static int test_large_scale_operations(void)
-{
+static int test_large_scale_operations(void) {
     printf("\n=== Testing Large Scale Operations ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     const int G = 10;
     int ids[G][G];
@@ -154,12 +163,14 @@ static int test_large_scale_operations(void)
 }
 
 /* 测试跨边界约束检测 */
-static int test_cross_boundary(void)
-{
+static int test_cross_boundary(void) {
     printf("\n=== Testing Cross-Boundary Constraints ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     int p0 = add_point(graph, 0, 1, 0, 1);
     int p1 = add_point(graph, 1, 1, 0, 1);
@@ -174,8 +185,7 @@ static int test_cross_boundary(void)
     int internal[] = {p0, p1};
     int ports[] = {p2};
     int out_count = 0;
-    CrossBoundaryConstraint *cbc = find_cross_boundary_constraints(
-        graph, internal, 2, ports, 1, &out_count);
+    CrossBoundaryConstraint *cbc = find_cross_boundary_constraints(graph, internal, 2, ports, 1, &out_count);
 
     printf("  Cross-boundary constraints found: %d\n", out_count);
     lv00_free_ptr(cbc);
@@ -186,22 +196,28 @@ static int test_cross_boundary(void)
 }
 
 /* 测试区域验证 */
-static int test_region_validation(void)
-{
+static int test_region_validation(void) {
     printf("\n=== Testing Region Validation ===\n");
 
     ConstraintGraph *graph = graph_create();
-    if (!graph) { printf("  FAILED: Could not create graph\n"); return -1; }
+    if (!graph) {
+        printf("  FAILED: Could not create graph\n");
+        return -1;
+    }
 
     int p0 = add_point(graph, 0, 1, 0, 1);
     int p1 = add_point(graph, 1, 1, 0, 1);
     int p2 = add_point(graph, 1, 1, 1, 1);
     int p3 = add_point(graph, 0, 1, 1, 1);
 
-    int s0 = graph->next_node_id; graph_add_line_segment(graph, p0, p1);
-    int s1 = graph->next_node_id; graph_add_line_segment(graph, p1, p2);
-    int s2 = graph->next_node_id; graph_add_line_segment(graph, p2, p3);
-    int s3 = graph->next_node_id; graph_add_line_segment(graph, p3, p0);
+    int s0 = graph->next_node_id;
+    graph_add_line_segment(graph, p0, p1);
+    int s1 = graph->next_node_id;
+    graph_add_line_segment(graph, p1, p2);
+    int s2 = graph->next_node_id;
+    graph_add_line_segment(graph, p2, p3);
+    int s3 = graph->next_node_id;
+    graph_add_line_segment(graph, p3, p0);
 
     int boundary[] = {s0, s1, s2, s3};
     AddNodeResult rr = graph_add_region(graph, boundary, 4);
@@ -217,8 +233,7 @@ static int test_region_validation(void)
     return 0;
 }
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Complex Graph Test Suite ===\n");
     int failures = 0;
     failures += test_many_nodes();
@@ -229,7 +244,9 @@ int main(void)
     failures += test_region_validation();
 
     printf("\n=== Test Summary ===\n");
-    if (failures == 0) printf("All complex graph tests PASSED!\n");
-    else printf("%d test(s) FAILED\n", failures);
+    if (failures == 0)
+        printf("All complex graph tests PASSED!\n");
+    else
+        printf("%d test(s) FAILED\n", failures);
     return failures ? 1 : 0;
 }

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv00.h"
 #include "test_helpers.h"
 
@@ -64,9 +65,7 @@ int main(void) {
 
     /* Test 4: Version parsing */
     printf("T4: version parse...\n");
-    {
-        g_pass_count++;
-    }
+    { g_pass_count++; }
     printf("  OK\n");
 
     /* Test 5: Memory limits */
@@ -83,8 +82,8 @@ int main(void) {
     }
     printf("  OK\n");
 
-    printf("\n=== Results: %d passed, %d failed, %d total ===\n",
-           g_pass_count, g_fail_count, g_pass_count + g_fail_count);
+    printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
+           g_pass_count + g_fail_count);
 
     lv00_cleanup();
     return g_fail_count > 0 ? 1 : 0;

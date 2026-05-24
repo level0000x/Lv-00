@@ -38,7 +38,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION
  *       输出: PRESET_TYPE_CURVE | 复杂度: O(1)
  */
-#define PRESET_CURVE_PARAMETRIC        "curve_parametric"
+#define PRESET_CURVE_PARAMETRIC "curve_parametric"
 
 /**
  * @brief 计算曲线弧长 s = integral |gamma'(t)| dt
@@ -47,7 +47,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_CURVE | 输出: PRESET_TYPE_SCALAR | 复杂度: O(n)
  */
-#define PRESET_CURVE_ARC_LENGTH        "curve_arc_length"
+#define PRESET_CURVE_ARC_LENGTH "curve_arc_length"
 
 /**
  * @brief 计算曲线曲率 kappa = |gamma' × gamma''| / |gamma'|^3
@@ -56,7 +56,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_CURVE | 输出: PRESET_TYPE_FUNCTION | 复杂度: O(n)
  */
-#define PRESET_CURVE_CURVATURE         "curve_curvature"
+#define PRESET_CURVE_CURVATURE "curve_curvature"
 
 /**
  * @brief 计算曲线挠率 tau = (gamma' × gamma'') · gamma''' / |gamma' × gamma''|^2
@@ -66,7 +66,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_CURVE | 输出: PRESET_TYPE_FUNCTION | 复杂度: O(n)
  */
-#define PRESET_CURVE_TORSION           "curve_torsion"
+#define PRESET_CURVE_TORSION "curve_torsion"
 
 /**
  * @brief 计算 Frenet 标架 (T, N, B)
@@ -77,7 +77,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_CURVE | 输出: PRESET_TYPE_TUPLE (T, N, B) | 复杂度: O(n)
  */
-#define PRESET_CURVE_FRENET_FRAME      "curve_frenet_frame"
+#define PRESET_CURVE_FRENET_FRAME "curve_frenet_frame"
 
 /**
  * @brief 计算曲线法向量 N（Frenet 标架的主法向量）
@@ -86,7 +86,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_CURVE | 输出: PRESET_TYPE_VECTOR | 复杂度: O(n)
  */
-#define PRESET_CURVE_NORMAL_VECTOR     "curve_normal_vector"
+#define PRESET_CURVE_NORMAL_VECTOR "curve_normal_vector"
 
 /**
  * @brief 计算曲线副法向量 B = T × N
@@ -95,7 +95,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_CURVE | 输出: PRESET_TYPE_VECTOR | 复杂度: O(n)
  */
-#define PRESET_CURVE_BINORMAL_VECTOR   "curve_binormal_vector"
+#define PRESET_CURVE_BINORMAL_VECTOR "curve_binormal_vector"
 
 /**
  * @brief 计算密切圆（曲率圆）
@@ -117,7 +117,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION, PRESET_TYPE_FUNCTION
  *       输出: PRESET_TYPE_SURFACE | 复杂度: O(1)
  */
-#define PRESET_SURFACE_PARAMETRIC              "surface_parametric"
+#define PRESET_SURFACE_PARAMETRIC "surface_parametric"
 
 /**
  * @brief 计算第一基本形式 I = E*du^2 + 2F*du*dv + G*dv^2
@@ -127,7 +127,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_TUPLE (E, F, G) | 复杂度: O(n)
  */
-#define PRESET_SURFACE_FIRST_FUNDAMENTAL       "surface_first_fundamental"
+#define PRESET_SURFACE_FIRST_FUNDAMENTAL "surface_first_fundamental"
 
 /**
  * @brief 计算第二基本形式 II = L*du^2 + 2M*du*dv + N*dv^2
@@ -137,7 +137,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_TUPLE (L, M, N) | 复杂度: O(n)
  */
-#define PRESET_SURFACE_SECOND_FUNDAMENTAL      "surface_second_fundamental"
+#define PRESET_SURFACE_SECOND_FUNDAMENTAL "surface_second_fundamental"
 
 /**
  * @brief 计算高斯曲率 K = det(II)/det(I) = (LN-M^2)/(EG-F^2)
@@ -147,7 +147,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_FUNCTION | 复杂度: O(n)
  */
-#define PRESET_SURFACE_GAUSS_CURVATURE         "surface_gauss_curvature"
+#define PRESET_SURFACE_GAUSS_CURVATURE "surface_gauss_curvature"
 
 /**
  * @brief 计算平均曲率 H = (EN - 2FM + GL)/(2(EG-F^2))
@@ -157,7 +157,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_FUNCTION | 复杂度: O(n)
  */
-#define PRESET_SURFACE_MEAN_CURVATURE          "surface_mean_curvature"
+#define PRESET_SURFACE_MEAN_CURVATURE "surface_mean_curvature"
 
 /**
  * @brief 计算主曲率 kappa_1, kappa_2
@@ -167,7 +167,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_TUPLE (kappa_1, kappa_2) | 复杂度: O(n)
  */
-#define PRESET_SURFACE_PRINCIPAL_CURVATURES    "surface_principal_curvatures"
+#define PRESET_SURFACE_PRINCIPAL_CURVATURES "surface_principal_curvatures"
 
 /**
  * @brief 计算曲面单位法向量 n = (r_u × r_v) / |r_u × r_v|
@@ -176,7 +176,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_VECTOR | 复杂度: O(n)
  */
-#define PRESET_SURFACE_NORMAL                  "surface_normal"
+#define PRESET_SURFACE_NORMAL "surface_normal"
 
 /**
  * @brief 计算曲面面积 A = integral over D |r_u × r_v| du dv
@@ -186,7 +186,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_SURFACE, PRESET_TYPE_REGION
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(n^2)
  */
-#define PRESET_SURFACE_AREA                    "surface_area"
+#define PRESET_SURFACE_AREA "surface_area"
 
 /* -------------------- 测地线 -------------------- */
 
@@ -199,7 +199,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_SURFACE, PRESET_TYPE_TUPLE (起点, 方向)
  *       输出: PRESET_TYPE_CURVE | 复杂度: O(n)
  */
-#define PRESET_GEODESIC_EQUATION       "geodesic_equation"
+#define PRESET_GEODESIC_EQUATION "geodesic_equation"
 
 /**
  * @brief 计算测地线距离 d(p, q) = inf_γ length(γ)
@@ -209,7 +209,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_POINT, PRESET_TYPE_POINT, PRESET_TYPE_SURFACE
  *       输出: PRESET_TYPE_SCALAR | 复杂度: O(n^2)
  */
-#define PRESET_GEODESIC_DISTANCE       "geodesic_distance"
+#define PRESET_GEODESIC_DISTANCE "geodesic_distance"
 
 /**
  * @brief 计算测地曲率 kappa_g
@@ -220,7 +220,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_CURVE, PRESET_TYPE_SURFACE
  *       输出: PRESET_TYPE_FUNCTION | 复杂度: O(n)
  */
-#define PRESET_GEODESIC_CURVATURE      "geodesic_curvature"
+#define PRESET_GEODESIC_CURVATURE "geodesic_curvature"
 
 /**
  * @brief 指数映射 exp_p: T_pM → M
@@ -231,7 +231,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_POINT, PRESET_TYPE_VECTOR
  *       输出: PRESET_TYPE_POINT | 复杂度: O(n)
  */
-#define PRESET_EXPONENTIAL_MAP         "exponential_map"
+#define PRESET_EXPONENTIAL_MAP "exponential_map"
 
 /**
  * @brief 平行移动：沿曲线保持切向量"平行"
@@ -242,7 +242,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_CURVE, PRESET_TYPE_VECTOR
  *       输出: PRESET_TYPE_VECTOR | 复杂度: O(n)
  */
-#define PRESET_PARALLEL_TRANSPORT      "parallel_transport"
+#define PRESET_PARALLEL_TRANSPORT "parallel_transport"
 
 /* -------------------- 张量运算 -------------------- */
 
@@ -254,7 +254,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_TUPLE, PRESET_TYPE_TUPLE
  *       输出: PRESET_TYPE_TENSOR | 复杂度: O(n^p+q)
  */
-#define PRESET_TENSOR_CREATE           "tensor_create"
+#define PRESET_TENSOR_CREATE "tensor_create"
 
 /**
  * @brief 张量缩并：对上/下指标求和的运算
@@ -264,7 +264,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_TENSOR, PRESET_TYPE_INTEGER, PRESET_TYPE_INTEGER
  *       输出: PRESET_TYPE_TENSOR | 复杂度: O(n^{p+q-2})
  */
-#define PRESET_TENSOR_CONTRACT         "tensor_contract"
+#define PRESET_TENSOR_CONTRACT "tensor_contract"
 
 /**
  * @brief 张量积 (T ⊗ S)^{i_1...i_{p+r}}_{j_1...j_{q+s}} = T^{i_1...i_p}_{j_1...j_q} * S^{i_{p+1}...}_{j_{q+1}...}
@@ -274,7 +274,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_TENSOR, PRESET_TYPE_TENSOR
  *       输出: PRESET_TYPE_TENSOR | 复杂度: O(n^{p+q+r+s})
  */
-#define PRESET_TENSOR_PRODUCT          "tensor_product"
+#define PRESET_TENSOR_PRODUCT "tensor_product"
 
 /**
  * @brief 协变导数 nabla_k T^{i_1...}_{j_1...}
@@ -284,7 +284,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_TENSOR | 输出: PRESET_TYPE_TENSOR | 复杂度: O(n^{p+q+1})
  */
-#define PRESET_COVARIANT_DERIVATIVE    "covariant_derivative"
+#define PRESET_COVARIANT_DERIVATIVE "covariant_derivative"
 
 /**
  * @brief 计算 Christoffel 符号 Gamma^k_{ij} = (1/2) * g^{kl} * (partial_i g_{jl} + partial_j g_{il} - partial_l g_{ij})
@@ -294,7 +294,7 @@ extern "C" {
  *
  * @note 输入: PRESET_TYPE_SURFACE | 输出: PRESET_TYPE_TUPLE | 复杂度: O(n^3)
  */
-#define PRESET_CHRISTOFFEL_SYMBOLS     "christoffel_symbols"
+#define PRESET_CHRISTOFFEL_SYMBOLS "christoffel_symbols"
 
 /* -------------------- 流形理论 -------------------- */
 
@@ -307,7 +307,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_REGION, PRESET_TYPE_MAPPING
  *       输出: PRESET_TYPE_CHART | 复杂度: O(1)
  */
-#define PRESET_MANIFOLD_CHART          "manifold_chart"
+#define PRESET_MANIFOLD_CHART "manifold_chart"
 
 /**
  * @brief 计算转移映射 phi_j ∘ phi_i^{-1}: phi_i(U_i ∩ U_j) → phi_j(U_i ∩ U_j)
@@ -329,7 +329,7 @@ extern "C" {
  * @note 输入: PRESET_TYPE_POINT, PRESET_TYPE_MANIFOLD
  *       输出: PRESET_TYPE_SET | 复杂度: O(n)
  */
-#define PRESET_MANIFOLD_TANGENT_SPACE  "manifold_tangent_space"
+#define PRESET_MANIFOLD_TANGENT_SPACE "manifold_tangent_space"
 
 /**
  * @brief 计算余切空间 T*_pM = (T_pM)^*（切空间的对偶空间）
@@ -354,67 +354,67 @@ extern "C" {
 /* ── 曲线论 ── */
 
 /** @brief 弧长参数化：将曲线转换为弧长参数 gamma(s) */
-#define PRESET_DG_ARC_LENGTH_PARAM         "dg_arc_length_param"
+#define PRESET_DG_ARC_LENGTH_PARAM "dg_arc_length_param"
 /** @brief Frenet 标架：计算曲线的 Frenet-Serret 标架 (T, N, B) */
-#define PRESET_DG_FRENET_FRAME             "dg_frenet_frame"
+#define PRESET_DG_FRENET_FRAME "dg_frenet_frame"
 /** @brief 曲率计算：计算空间曲线的曲率 kappa(s) */
-#define PRESET_DG_CURVATURE                "dg_curvature"
+#define PRESET_DG_CURVATURE "dg_curvature"
 /** @brief 挠率计算：计算空间曲线的挠率 tau(s) */
-#define PRESET_DG_TORSION                  "dg_torsion"
+#define PRESET_DG_TORSION "dg_torsion"
 /** @brief Bertrand 曲线判定：判定一对曲线是否为 Bertrand 曲线 */
-#define PRESET_DG_BERTRAND_CURVE           "dg_bertrand_curve"
+#define PRESET_DG_BERTRAND_CURVE "dg_bertrand_curve"
 
 /* ── 曲面论 ── */
 
 /** @brief 第一基本形式：计算曲面 Riemann 度量矩阵 (E, F, G) */
-#define PRESET_DG_FIRST_FUNDAMENTAL_FORM   "dg_first_fundamental_form"
+#define PRESET_DG_FIRST_FUNDAMENTAL_FORM "dg_first_fundamental_form"
 /** @brief 第二基本形式：计算曲面弯曲度量矩阵 (L, M, N) */
-#define PRESET_DG_SECOND_FUNDAMENTAL_FORM  "dg_second_fundamental_form"
+#define PRESET_DG_SECOND_FUNDAMENTAL_FORM "dg_second_fundamental_form"
 /** @brief 高斯曲率：计算曲面 Gauss 曲率 K = kappa_1 * kappa_2 */
-#define PRESET_DG_GAUSS_CURVATURE          "dg_gauss_curvature"
+#define PRESET_DG_GAUSS_CURVATURE "dg_gauss_curvature"
 /** @brief 平均曲率：计算平均曲率 H = (kappa_1 + kappa_2) / 2 */
-#define PRESET_DG_MEAN_CURVATURE           "dg_mean_curvature"
+#define PRESET_DG_MEAN_CURVATURE "dg_mean_curvature"
 /** @brief 主曲率：计算曲面的两个主曲率 kappa_1, kappa_2 */
-#define PRESET_DG_PRINCIPAL_CURVATURES     "dg_principal_curvatures"
+#define PRESET_DG_PRINCIPAL_CURVATURES "dg_principal_curvatures"
 /** @brief Weingarten 映射：计算曲面形状算子 S = -(第一基本形式)^{-1} * (第二基本形式) */
-#define PRESET_DG_WEINGARTEN_MAP           "dg_weingarten_map"
+#define PRESET_DG_WEINGARTEN_MAP "dg_weingarten_map"
 
 /* ── 联络与曲率 ── */
 
 /** @brief Levi-Civita 联络：计算 Riemann 流形上唯一无挠度量相容联络 */
-#define PRESET_DG_LEVI_CIVITA_CONNECTION   "dg_levi_civita_connection"
+#define PRESET_DG_LEVI_CIVITA_CONNECTION "dg_levi_civita_connection"
 /** @brief Riemann 曲率张量：计算 (3,1) 型曲率张量 R^l_{ijk} */
-#define PRESET_DG_RIEMANN_CURVATURE        "dg_riemann_curvature"
+#define PRESET_DG_RIEMANN_CURVATURE "dg_riemann_curvature"
 /** @brief Ricci 曲率张量：R_{ij} = R^k_{ikj}，Riemann 张量的缩并 */
-#define PRESET_DG_RICCI_CURVATURE          "dg_ricci_curvature"
+#define PRESET_DG_RICCI_CURVATURE "dg_ricci_curvature"
 /** @brief 截面曲率：二维截面的截面曲率 K(X,Y) */
-#define PRESET_DG_SECTIONAL_CURVATURE      "dg_sectional_curvature"
+#define PRESET_DG_SECTIONAL_CURVATURE "dg_sectional_curvature"
 /** @brief 标量曲率：R = g^{ij} * R_{ij}，Ricci 曲率的进一步缩并 */
-#define PRESET_DG_SCALAR_CURVATURE         "dg_scalar_curvature"
+#define PRESET_DG_SCALAR_CURVATURE "dg_scalar_curvature"
 
 /* ── 测地线 ── */
 
 /** @brief 测地线方程：求解 nabla_{gamma'} gamma' = 0 的微分方程 */
-#define PRESET_DG_GEODESIC_EQUATION        "dg_geodesic_equation"
+#define PRESET_DG_GEODESIC_EQUATION "dg_geodesic_equation"
 /** @brief 指数映射 exp_p: T_pM → M，沿测地线映射切向量到流形 */
-#define PRESET_DG_EXPONENTIAL_MAP          "dg_exponential_map"
+#define PRESET_DG_EXPONENTIAL_MAP "dg_exponential_map"
 /** @brief Jacobi 场：沿测地线的变分向量场，满足 Jacobi 方程 */
-#define PRESET_DG_JACOBI_FIELD             "dg_jacobi_field"
+#define PRESET_DG_JACOBI_FIELD "dg_jacobi_field"
 /** @brief 共轭点：沿测地线存在非平凡 Jacobi 场的点 */
-#define PRESET_DG_CONJUGATE_POINTS         "dg_conjugate_points"
+#define PRESET_DG_CONJUGATE_POINTS "dg_conjugate_points"
 
 /* ── 张量分析 ── */
 
 /** @brief 张量积：(T ⊗ S)^{i_1...i_p i_{p+1}...}_{j_1...j_q j_{q+1}...} */
-#define PRESET_DG_TENSOR_PRODUCT           "dg_tensor_product"
+#define PRESET_DG_TENSOR_PRODUCT "dg_tensor_product"
 /** @brief 协变导数：nabla_k T^{i_1...}_{j_1...}，保持张量性的求导运算 */
-#define PRESET_DG_COVARIANT_DERIVATIVE     "dg_covariant_derivative"
+#define PRESET_DG_COVARIANT_DERIVATIVE "dg_covariant_derivative"
 /** @brief Lie 导数：L_X Y = [X, Y]，沿向量场的李导数 */
-#define PRESET_DG_LIE_DERIVATIVE           "dg_lie_derivative"
+#define PRESET_DG_LIE_DERIVATIVE "dg_lie_derivative"
 /** @brief 外微分：d(omega)，微分形式的反对称化外导算子 */
-#define PRESET_DG_EXTERIOR_DERIVATIVE      "dg_exterior_derivative"
+#define PRESET_DG_EXTERIOR_DERIVATIVE "dg_exterior_derivative"
 /** @brief Hodge 星算子：*omega，微分形式的对偶变换 */
-#define PRESET_DG_HODGE_STAR               "dg_hodge_star"
+#define PRESET_DG_HODGE_STAR "dg_hodge_star"
 
 /* ============================================================
  * 模块注册函数

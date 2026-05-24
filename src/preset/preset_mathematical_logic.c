@@ -24,12 +24,14 @@
  * @author Lv-00 开发团队
  */
 
+#include "preset_mathematical_logic.h"
+
+#include <string.h>
+
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "preset_mathematical_logic.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
-#include <string.h>
 
 /* ==================== 预设函数块数量 ==================== */
 
@@ -56,16 +58,11 @@
  * @return true 注册成功
  * @return false 注册失败
  */
-static bool register_logic_preset(
-    const char *name, const char *description,
-    const PresetType *input_types, int input_count, PresetType output_type,
-    const char *math_def, const char *complexity,
-    bool is_constructive, bool is_reversible)
-{
-    return preset_blocks_register_simple(
-        name, description, PRESET_CATEGORY_LOGIC,
-        input_types, input_count, output_type,
-        math_def, complexity, is_constructive, is_reversible);
+static bool register_logic_preset(const char *name, const char *description, const PresetType *input_types,
+                                  int input_count, PresetType output_type, const char *math_def, const char *complexity,
+                                  bool is_constructive, bool is_reversible) {
+    return preset_blocks_register_simple(name, description, PRESET_CATEGORY_LOGIC, input_types, input_count,
+                                         output_type, math_def, complexity, is_constructive, is_reversible);
 }
 
 /**
@@ -74,21 +71,18 @@ static bool register_logic_preset(
  * 减少重复代码，提高可维护性。
  * 注册成功时递增 success_count，失败时输出错误日志。
  */
-#define REGISTER_LOGIC(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    do { \
-        if (register_logic_preset( \
-                (name), (desc), (inputs), (in_count), (output), \
-                (math), (comp), (cons), (rev))) { \
-            success_count++; \
-        } else { \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */ \
-        } \
+#define REGISTER_LOGIC(name, desc, inputs, in_count, output, math, comp, cons, rev)                                 \
+    do {                                                                                                            \
+        if (register_logic_preset((name), (desc), (inputs), (in_count), (output), (math), (comp), (cons), (rev))) { \
+            success_count++;                                                                                        \
+        } else {                                                                                                    \
+            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                     \
+        }                                                                                                           \
     } while (0)
 
 /* ==================== 模块注册实现 ==================== */
 
-bool preset_mathematical_logic_register(void)
-{
+bool preset_mathematical_logic_register(void) {
     int success_count = 0;
 
     /* ============================================================
@@ -104,12 +98,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        REGISTER_LOGIC(
-            "prop_and",
-            "命题合取：P ∧ Q，当且仅当 P 和 Q 均为真时结果为真",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "P \\land Q \\equiv \\begin{cases} \\text{T} & P = \\text{T} \\land Q = \\text{T} \\\\ \\text{F} & \\text{otherwise} \\end{cases}",
-            "O(1)", true, false);
+        REGISTER_LOGIC("prop_and", "命题合取：P ∧ Q，当且仅当 P 和 Q 均为真时结果为真", inputs, 2, PRESET_TYPE_BOOLEAN,
+                       "P \\land Q \\equiv \\begin{cases} \\text{T} & P = \\text{T} \\land Q = \\text{T} \\\\ "
+                       "\\text{F} & \\text{otherwise} \\end{cases}",
+                       "O(1)", true, false);
     }
 
     /* -------------------- 2. 析取：P ∨ Q -------------------- */
@@ -121,12 +113,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        REGISTER_LOGIC(
-            "prop_or",
-            "命题析取：P ∨ Q，当 P 或 Q 至少一个为真时结果为真",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{F} \\land Q = \\text{F} \\\\ \\text{T} & \\text{otherwise} \\end{cases}",
-            "O(1)", true, false);
+        REGISTER_LOGIC("prop_or", "命题析取：P ∨ Q，当 P 或 Q 至少一个为真时结果为真", inputs, 2, PRESET_TYPE_BOOLEAN,
+                       "P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{F} \\land Q = \\text{F} \\\\ \\text{T} "
+                       "& \\text{otherwise} \\end{cases}",
+                       "O(1)", true, false);
     }
 
     /* -------------------- 3. 否定：¬P -------------------- */
@@ -139,9 +129,7 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN};
         REGISTER_LOGIC(
-            "prop_not",
-            "命题否定：¬P，当 P 为真时结果为假，反之亦然",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
+            "prop_not", "命题否定：¬P，当 P 为真时结果为假，反之亦然", inputs, 1, PRESET_TYPE_BOOLEAN,
             "\\lnot P \\equiv \\begin{cases} \\text{F} & P = \\text{T} \\\\ \\text{T} & P = \\text{F} \\end{cases}",
             "O(1)", true, true);
     }
@@ -155,12 +143,11 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        REGISTER_LOGIC(
-            "prop_implies",
-            "命题蕴涵：P → Q，等价于 ¬P ∨ Q，仅在 P 真且 Q 假时为假",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "P \\to Q \\equiv \\lnot P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{T}, Q = \\text{F} \\\\ \\text{T} & \\text{otherwise} \\end{cases}",
-            "O(1)", true, false);
+        REGISTER_LOGIC("prop_implies", "命题蕴涵：P → Q，等价于 ¬P ∨ Q，仅在 P 真且 Q 假时为假", inputs, 2,
+                       PRESET_TYPE_BOOLEAN,
+                       "P \\to Q \\equiv \\lnot P \\lor Q \\equiv \\begin{cases} \\text{F} & P = \\text{T}, Q = "
+                       "\\text{F} \\\\ \\text{T} & \\text{otherwise} \\end{cases}",
+                       "O(1)", true, false);
     }
 
     /* -------------------- 5. 等价：P ↔ Q -------------------- */
@@ -172,12 +159,8 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        REGISTER_LOGIC(
-            "prop_iff",
-            "命题等价：P ↔ Q，当 P 和 Q 真值相同时结果为真",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "P \\leftrightarrow Q \\equiv (P \\to Q) \\land (Q \\to P)",
-            "O(1)", true, true);
+        REGISTER_LOGIC("prop_iff", "命题等价：P ↔ Q，当 P 和 Q 真值相同时结果为真", inputs, 2, PRESET_TYPE_BOOLEAN,
+                       "P \\leftrightarrow Q \\equiv (P \\to Q) \\land (Q \\to P)", "O(1)", true, true);
     }
 
     /* -------------------- 6. 异或：P ⊕ Q -------------------- */
@@ -189,12 +172,8 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        REGISTER_LOGIC(
-            "prop_xor",
-            "命题异或：P ⊕ Q，当 P 和 Q 恰好一个为真时结果为真",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "P \\oplus Q \\equiv (P \\lor Q) \\land \\lnot(P \\land Q)",
-            "O(1)", true, true);
+        REGISTER_LOGIC("prop_xor", "命题异或：P ⊕ Q，当 P 和 Q 恰好一个为真时结果为真", inputs, 2, PRESET_TYPE_BOOLEAN,
+                       "P \\oplus Q \\equiv (P \\lor Q) \\land \\lnot(P \\land Q)", "O(1)", true, true);
     }
 
     /* -------------------- 7. 与非：P ↑ Q -------------------- */
@@ -206,12 +185,8 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        REGISTER_LOGIC(
-            "prop_nand",
-            "命题与非：P ↑ Q ≡ ¬(P ∧ Q)，Sheffer竖线，功能完备联结词",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "P \\uparrow Q \\equiv \\lnot(P \\land Q)",
-            "O(1)", true, false);
+        REGISTER_LOGIC("prop_nand", "命题与非：P ↑ Q ≡ ¬(P ∧ Q)，Sheffer竖线，功能完备联结词", inputs, 2,
+                       PRESET_TYPE_BOOLEAN, "P \\uparrow Q \\equiv \\lnot(P \\land Q)", "O(1)", true, false);
     }
 
     /* -------------------- 8. 或非：P ↓ Q -------------------- */
@@ -223,12 +198,8 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_BOOLEAN, PRESET_TYPE_BOOLEAN};
-        REGISTER_LOGIC(
-            "prop_nor",
-            "命题或非：P ↓ Q ≡ ¬(P ∨ Q)，Peirce箭头，功能完备联结词",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "P \\downarrow Q \\equiv \\lnot(P \\lor Q)",
-            "O(1)", true, false);
+        REGISTER_LOGIC("prop_nor", "命题或非：P ↓ Q ≡ ¬(P ∨ Q)，Peirce箭头，功能完备联结词", inputs, 2,
+                       PRESET_TYPE_BOOLEAN, "P \\downarrow Q \\equiv \\lnot(P \\lor Q)", "O(1)", true, false);
     }
 
     /* -------------------- 9. 重言式判定 -------------------- */
@@ -242,9 +213,7 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
         REGISTER_LOGIC(
-            "prop_tautology_check",
-            "重言式判定：判定命题公式是否对所有真值指派均为真",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
+            "prop_tautology_check", "重言式判定：判定命题公式是否对所有真值指派均为真", inputs, 1, PRESET_TYPE_BOOLEAN,
             "\\varphi \\text{ 是重言式} \\Leftrightarrow \\forall v \\in \\{0,1\\}^n: v(\\varphi) = \\text{T}",
             "O(2^n)，n 为命题变元数", true, false);
     }
@@ -259,9 +228,8 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
         REGISTER_LOGIC(
-            "prop_contradiction_check",
-            "矛盾式判定：判定命题公式是否对所有真值指派均为假",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
+            "prop_contradiction_check", "矛盾式判定：判定命题公式是否对所有真值指派均为假", inputs, 1,
+            PRESET_TYPE_BOOLEAN,
             "\\varphi \\text{ 是矛盾式} \\Leftrightarrow \\forall v \\in \\{0,1\\}^n: v(\\varphi) = \\text{F}",
             "O(2^n)，n 为命题变元数", true, false);
     }
@@ -275,12 +243,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "prop_satisfiable_check",
-            "可满足性判定（SAT）：判定命题公式是否存在使其为真的真值指派",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "\\varphi \\text{ 可满足} \\Leftrightarrow \\exists v \\in \\{0,1\\}^n: v(\\varphi) = \\text{T}",
-            "NP 完全（Cook-Levin 定理）", true, false);
+        REGISTER_LOGIC("prop_satisfiable_check", "可满足性判定（SAT）：判定命题公式是否存在使其为真的真值指派", inputs,
+                       1, PRESET_TYPE_BOOLEAN,
+                       "\\varphi \\text{ 可满足} \\Leftrightarrow \\exists v \\in \\{0,1\\}^n: v(\\varphi) = \\text{T}",
+                       "NP 完全（Cook-Levin 定理）", true, false);
     }
 
     /* -------------------- 12. 析取范式转换 -------------------- */
@@ -294,9 +260,7 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
         REGISTER_LOGIC(
-            "prop_dnf",
-            "析取范式转换：将命题公式转换为等价的析取范式（DNF）",
-            inputs, 1, PRESET_TYPE_EXPRESSION,
+            "prop_dnf", "析取范式转换：将命题公式转换为等价的析取范式（DNF）", inputs, 1, PRESET_TYPE_EXPRESSION,
             "\\varphi \\equiv \\bigvee_{i=1}^{m} \\bigwedge_{j=1}^{k_i} l_{ij}, \\quad l_{ij} \\in \\{p, \\lnot p\\}",
             "O(2^n)，n 为命题变元数", true, false);
     }
@@ -314,12 +278,9 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_SET};
-        REGISTER_LOGIC(
-            "fol_forall",
-            "全称量化：∀x P(x)，论域中所有元素均满足谓词 P",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "\\forall x \\in D, \\; P(x) \\Leftrightarrow \\forall d \\in D: P(d) = \\text{T}",
-            "O(|D|)，|D| 为论域大小", false, false);
+        REGISTER_LOGIC("fol_forall", "全称量化：∀x P(x)，论域中所有元素均满足谓词 P", inputs, 2, PRESET_TYPE_EXPRESSION,
+                       "\\forall x \\in D, \\; P(x) \\Leftrightarrow \\forall d \\in D: P(d) = \\text{T}",
+                       "O(|D|)，|D| 为论域大小", false, false);
     }
 
     /* -------------------- 14. 存在量化：∃x P(x) -------------------- */
@@ -331,12 +292,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_SET};
-        REGISTER_LOGIC(
-            "fol_exists",
-            "存在量化：∃x P(x)，论域中至少存在一个元素满足谓词 P",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "\\exists x \\in D, \\; P(x) \\Leftrightarrow \\exists d \\in D: P(d) = \\text{T}",
-            "O(|D|)，|D| 为论域大小", true, false);
+        REGISTER_LOGIC("fol_exists", "存在量化：∃x P(x)，论域中至少存在一个元素满足谓词 P", inputs, 2,
+                       PRESET_TYPE_EXPRESSION,
+                       "\\exists x \\in D, \\; P(x) \\Leftrightarrow \\exists d \\in D: P(d) = \\text{T}",
+                       "O(|D|)，|D| 为论域大小", true, false);
     }
 
     /* -------------------- 15. 量词否定：¬∀x P(x) ≡ ∃x ¬P(x) -------------------- */
@@ -350,12 +309,11 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "fol_negate_quantifier",
-            "量词否定：¬∀x P(x) ≡ ∃x ¬P(x)，¬∃x P(x) ≡ ∀x ¬P(x)",
-            inputs, 1, PRESET_TYPE_EXPRESSION,
-            "\\lnot\\forall x \\, P(x) \\equiv \\exists x \\, \\lnot P(x), \\quad \\lnot\\exists x \\, P(x) \\equiv \\forall x \\, \\lnot P(x)",
-            "O(n)，n 为公式长度", true, true);
+        REGISTER_LOGIC("fol_negate_quantifier", "量词否定：¬∀x P(x) ≡ ∃x ¬P(x)，¬∃x P(x) ≡ ∀x ¬P(x)", inputs, 1,
+                       PRESET_TYPE_EXPRESSION,
+                       "\\lnot\\forall x \\, P(x) \\equiv \\exists x \\, \\lnot P(x), \\quad \\lnot\\exists x \\, P(x) "
+                       "\\equiv \\forall x \\, \\lnot P(x)",
+                       "O(n)，n 为公式长度", true, true);
     }
 
     /* -------------------- 16. 项代入 -------------------- */
@@ -368,12 +326,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "fol_substitution",
-            "项代入：将公式中的自由变量 x 用项 t 代入，得到 P[x/t]",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "P[x/t] \\text{，要求 } t \\text{ 对 } x \\text{ 在 } P \\text{ 中可代入（无变元捕获）}",
-            "O(n)，n 为公式长度", true, false);
+        REGISTER_LOGIC("fol_substitution", "项代入：将公式中的自由变量 x 用项 t 代入，得到 P[x/t]", inputs, 2,
+                       PRESET_TYPE_EXPRESSION,
+                       "P[x/t] \\text{，要求 } t \\text{ 对 } x \\text{ 在 } P \\text{ 中可代入（无变元捕获）}",
+                       "O(n)，n 为公式长度", true, false);
     }
 
     /* -------------------- 17. 自由变量检查 -------------------- */
@@ -387,9 +343,8 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
         REGISTER_LOGIC(
-            "fol_free_variable_check",
-            "自由变量检查：提取一阶逻辑公式中的所有自由变量集合 FV(P)",
-            inputs, 1, PRESET_TYPE_SET,
+            "fol_free_variable_check", "自由变量检查：提取一阶逻辑公式中的所有自由变量集合 FV(P)", inputs, 1,
+            PRESET_TYPE_SET,
             "\\text{FV}(P): \\text{递归定义} \\quad \\text{FV}(\\forall x \\, Q) = \\text{FV}(Q) \\setminus \\{x\\}",
             "O(n)，n 为公式长度", true, false);
     }
@@ -405,9 +360,8 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
         REGISTER_LOGIC(
-            "fol_bound_variable_check",
-            "约束变量检查：提取一阶逻辑公式中的所有约束变量集合 BV(P)",
-            inputs, 1, PRESET_TYPE_SET,
+            "fol_bound_variable_check", "约束变量检查：提取一阶逻辑公式中的所有约束变量集合 BV(P)", inputs, 1,
+            PRESET_TYPE_SET,
             "\\text{BV}(P): \\text{递归定义} \\quad \\text{BV}(\\forall x \\, Q) = \\text{BV}(Q) \\cup \\{x\\}",
             "O(n)，n 为公式长度", true, false);
     }
@@ -421,12 +375,9 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "fol_universal_instantiation",
-            "全称实例化：从 ∀x P(x) 推出 P(t)，t 为论域中任意项",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "\\forall x \\, P(x) \\vdash P(t), \\quad t \\text{ 为任意项}",
-            "O(1)", true, false);
+        REGISTER_LOGIC("fol_universal_instantiation", "全称实例化：从 ∀x P(x) 推出 P(t)，t 为论域中任意项", inputs, 2,
+                       PRESET_TYPE_EXPRESSION, "\\forall x \\, P(x) \\vdash P(t), \\quad t \\text{ 为任意项}", "O(1)",
+                       true, false);
     }
 
     /* -------------------- 20. 存在泛化 -------------------- */
@@ -438,12 +389,9 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "fol_existential_generalization",
-            "存在泛化：从 P(t) 推出 ∃x P(x)，t 为论域中某个项",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "P(t) \\vdash \\exists x \\, P(x), \\quad t \\text{ 为某个项}",
-            "O(1)", true, false);
+        REGISTER_LOGIC("fol_existential_generalization", "存在泛化：从 P(t) 推出 ∃x P(x)，t 为论域中某个项", inputs, 2,
+                       PRESET_TYPE_EXPRESSION, "P(t) \\vdash \\exists x \\, P(x), \\quad t \\text{ 为某个项}", "O(1)",
+                       true, false);
     }
 
     /* -------------------- 21. 前束范式 -------------------- */
@@ -457,12 +405,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "fol_prenex_normal_form",
-            "前束范式转换：将一阶逻辑公式转换为等价的前束范式 Q1x1...Qnxn M",
-            inputs, 1, PRESET_TYPE_EXPRESSION,
-            "\\varphi \\equiv Q_1 x_1 \\, Q_2 x_2 \\, \\cdots \\, Q_n x_n \\, M, \\quad M \\text{ 无量词}",
-            "O(n^2)，n 为公式长度", true, false);
+        REGISTER_LOGIC("fol_prenex_normal_form", "前束范式转换：将一阶逻辑公式转换为等价的前束范式 Q1x1...Qnxn M",
+                       inputs, 1, PRESET_TYPE_EXPRESSION,
+                       "\\varphi \\equiv Q_1 x_1 \\, Q_2 x_2 \\, \\cdots \\, Q_n x_n \\, M, \\quad M \\text{ 无量词}",
+                       "O(n^2)，n 为公式长度", true, false);
     }
 
     /* -------------------- 22. Skolem范式 -------------------- */
@@ -476,12 +422,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "fol_skolem_normal_form",
-            "Skolem范式转换：通过Skolem化消除存在量词，保持可满足性",
-            inputs, 1, PRESET_TYPE_EXPRESSION,
-            "\\forall x_1 \\cdots \\forall x_m \\, M', \\quad \\text{引入Skolem函数消除 } \\exists",
-            "O(n^2)，n 为公式长度", true, false);
+        REGISTER_LOGIC("fol_skolem_normal_form", "Skolem范式转换：通过Skolem化消除存在量词，保持可满足性", inputs, 1,
+                       PRESET_TYPE_EXPRESSION,
+                       "\\forall x_1 \\cdots \\forall x_m \\, M', \\quad \\text{引入Skolem函数消除 } \\exists",
+                       "O(n^2)，n 为公式长度", true, false);
     }
 
     /* ============================================================
@@ -498,12 +442,8 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "proof_modus_ponens",
-            "假言推理（Modus Ponens）：从 P 和 P → Q 推出 Q",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "P, \\; P \\to Q \\vdash Q",
-            "O(1)", true, false);
+        REGISTER_LOGIC("proof_modus_ponens", "假言推理（Modus Ponens）：从 P 和 P → Q 推出 Q", inputs, 2,
+                       PRESET_TYPE_EXPRESSION, "P, \\; P \\to Q \\vdash Q", "O(1)", true, false);
     }
 
     /* -------------------- 24. 否定后件 -------------------- */
@@ -516,12 +456,8 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "proof_modus_tollens",
-            "否定后件（Modus Tollens）：从 P → Q 和 ¬Q 推出 ¬P",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "P \\to Q, \\; \\lnot Q \\vdash \\lnot P",
-            "O(1)", true, false);
+        REGISTER_LOGIC("proof_modus_tollens", "否定后件（Modus Tollens）：从 P → Q 和 ¬Q 推出 ¬P", inputs, 2,
+                       PRESET_TYPE_EXPRESSION, "P \\to Q, \\; \\lnot Q \\vdash \\lnot P", "O(1)", true, false);
     }
 
     /* -------------------- 25. 合取引入 -------------------- */
@@ -533,12 +469,8 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "proof_conjunction_intro",
-            "合取引入（∧I）：从 P 和 Q 推出 P ∧ Q",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "P, \\; Q \\vdash P \\land Q",
-            "O(1)", true, false);
+        REGISTER_LOGIC("proof_conjunction_intro", "合取引入（∧I）：从 P 和 Q 推出 P ∧ Q", inputs, 2,
+                       PRESET_TYPE_EXPRESSION, "P, \\; Q \\vdash P \\land Q", "O(1)", true, false);
     }
 
     /* -------------------- 26. 析取消除 -------------------- */
@@ -550,12 +482,9 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "proof_disjunction_elim",
-            "析取消除（∨E）：从 P ∨ Q，以及 P ⊢ R 和 Q ⊢ R，推出 R",
-            inputs, 3, PRESET_TYPE_EXPRESSION,
-            "P \\lor Q, \\; P \\vdash R, \\; Q \\vdash R \\vdash R",
-            "O(1)", true, false);
+        REGISTER_LOGIC("proof_disjunction_elim", "析取消除（∨E）：从 P ∨ Q，以及 P ⊢ R 和 Q ⊢ R，推出 R", inputs, 3,
+                       PRESET_TYPE_EXPRESSION, "P \\lor Q, \\; P \\vdash R, \\; Q \\vdash R \\vdash R", "O(1)", true,
+                       false);
     }
 
     /* -------------------- 27. 归谬法 -------------------- */
@@ -568,12 +497,9 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_SEQUENCE};
-        REGISTER_LOGIC(
-            "proof_reductio_ad_absurdum",
-            "归谬法：假设 P 推导出矛盾 ⊥，从而得出 ¬P",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "P \\vdash \\bot \\Rightarrow \\vdash \\lnot P",
-            "取决于推导过程", true, false);
+        REGISTER_LOGIC("proof_reductio_ad_absurdum", "归谬法：假设 P 推导出矛盾 ⊥，从而得出 ¬P", inputs, 2,
+                       PRESET_TYPE_EXPRESSION, "P \\vdash \\bot \\Rightarrow \\vdash \\lnot P", "取决于推导过程", true,
+                       false);
     }
 
     /* -------------------- 28. 条件证明 -------------------- */
@@ -586,12 +512,9 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_SEQUENCE};
-        REGISTER_LOGIC(
-            "proof_conditional_proof",
-            "条件证明：假设 P 推导出 Q，从而得出 P → Q",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "[P] \\cdots Q \\Rightarrow \\vdash P \\to Q",
-            "取决于推导过程", true, false);
+        REGISTER_LOGIC("proof_conditional_proof", "条件证明：假设 P 推导出 Q，从而得出 P → Q", inputs, 2,
+                       PRESET_TYPE_EXPRESSION, "[P] \\cdots Q \\Rightarrow \\vdash P \\to Q", "取决于推导过程", true,
+                       false);
     }
 
     /* -------------------- 29. 反证法 -------------------- */
@@ -604,12 +527,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_EXPRESSION, PRESET_TYPE_SEQUENCE};
-        REGISTER_LOGIC(
-            "proof_by_contradiction",
-            "反证法：假设 ¬P 推导出矛盾 ⊥，从而得出 P（经典逻辑特有）",
-            inputs, 2, PRESET_TYPE_EXPRESSION,
-            "\\lnot P \\vdash \\bot \\Rightarrow \\vdash P \\quad \\text{（经典逻辑）}",
-            "取决于推导过程", false, false);
+        REGISTER_LOGIC("proof_by_contradiction", "反证法：假设 ¬P 推导出矛盾 ⊥，从而得出 P（经典逻辑特有）", inputs, 2,
+                       PRESET_TYPE_EXPRESSION,
+                       "\\lnot P \\vdash \\bot \\Rightarrow \\vdash P \\quad \\text{（经典逻辑）}", "取决于推导过程",
+                       false, false);
     }
 
     /* -------------------- 30. 自然演绎系统 -------------------- */
@@ -623,12 +544,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE, PRESET_TYPE_EXPRESSION};
-        REGISTER_LOGIC(
-            "proof_natural_deduction",
-            "自然演绎系统：基于引入规则和消去规则的完整证明系统（Gentzen, 1935）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\Gamma \\vdash_{\\text{ND}} \\varphi \\quad \\text{（引入/消去规则集）}",
-            "O(2^{|\\Gamma|})，取决于策略", true, false);
+        REGISTER_LOGIC("proof_natural_deduction", "自然演绎系统：基于引入规则和消去规则的完整证明系统（Gentzen, 1935）",
+                       inputs, 2, PRESET_TYPE_BOOLEAN,
+                       "\\Gamma \\vdash_{\\text{ND}} \\varphi \\quad \\text{（引入/消去规则集）}",
+                       "O(2^{|\\Gamma|})，取决于策略", true, false);
     }
 
     /* ============================================================
@@ -646,9 +565,7 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_EXPRESSION};
         REGISTER_LOGIC(
-            "model_satisfies",
-            "模型满足关系：判定结构 M 是否满足公式 φ（M ⊨ φ）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
+            "model_satisfies", "模型满足关系：判定结构 M 是否满足公式 φ（M ⊨ φ）", inputs, 2, PRESET_TYPE_BOOLEAN,
             "M \\models \\varphi[s] \\text{，递归判定结构 } M \\text{ 在赋值 } s \\text{ 下是否满足 } \\varphi",
             "O(|M| \\cdot |\\varphi|)", true, false);
     }
@@ -665,9 +582,7 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE};
         REGISTER_LOGIC(
-            "model_theory_check",
-            "理论一致性判定：判定一阶理论 T 是否一致（无矛盾）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
+            "model_theory_check", "理论一致性判定：判定一阶理论 T 是否一致（无矛盾）", inputs, 1, PRESET_TYPE_BOOLEAN,
             "T \\text{ 一致} \\Leftrightarrow \\nexists \\varphi: T \\vdash \\varphi \\land T \\vdash \\lnot \\varphi",
             "不可判定", false, false);
     }
@@ -683,12 +598,11 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET, PRESET_TYPE_SET};
-        REGISTER_LOGIC(
-            "model_elementary_equivalence",
-            "初等等价：判定两个结构 M 和 N 是否满足 M ≡ N",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "M \\equiv N \\Leftrightarrow \\forall \\text{ 句子 } \\varphi: M \\models \\varphi \\Leftrightarrow N \\models \\varphi",
-            "不可判定（一般情况）", false, false);
+        REGISTER_LOGIC("model_elementary_equivalence", "初等等价：判定两个结构 M 和 N 是否满足 M ≡ N", inputs, 2,
+                       PRESET_TYPE_BOOLEAN,
+                       "M \\equiv N \\Leftrightarrow \\forall \\text{ 句子 } \\varphi: M \\models \\varphi "
+                       "\\Leftrightarrow N \\models \\varphi",
+                       "不可判定（一般情况）", false, false);
     }
 
     /* -------------------- 34. 紧致性定理 -------------------- */
@@ -702,12 +616,11 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE};
-        REGISTER_LOGIC(
-            "model_compactness",
-            "紧致性定理应用：Γ 有模型当且仅当 Γ 的每个有限子集都有模型",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "\\Gamma \\text{ 有模型} \\Leftrightarrow \\forall \\Gamma_0 \\subseteq_{\\text{fin}} \\Gamma: \\Gamma_0 \\text{ 有模型}",
-            "不可判定", false, false);
+        REGISTER_LOGIC("model_compactness", "紧致性定理应用：Γ 有模型当且仅当 Γ 的每个有限子集都有模型", inputs, 1,
+                       PRESET_TYPE_BOOLEAN,
+                       "\\Gamma \\text{ 有模型} \\Leftrightarrow \\forall \\Gamma_0 \\subseteq_{\\text{fin}} \\Gamma: "
+                       "\\Gamma_0 \\text{ 有模型}",
+                       "不可判定", false, false);
     }
 
     /* -------------------- 35. Lowenheim-Skolem定理 -------------------- */
@@ -722,10 +635,10 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_SEQUENCE, PRESET_TYPE_INTEGER};
         REGISTER_LOGIC(
-            "model_lowenheim_skolem",
-            "Lowenheim-Skolem定理：可满足的可数理论有可数模型，有无穷模型则有任意大无穷模型",
+            "model_lowenheim_skolem", "Lowenheim-Skolem定理：可满足的可数理论有可数模型，有无穷模型则有任意大无穷模型",
             inputs, 2, PRESET_TYPE_BOOLEAN,
-            "\\Gamma \\text{ 可满足} \\Rightarrow \\exists \\text{ 可数模型}; \\quad \\Gamma \\text{ 有无穷模型} \\Rightarrow \\forall \\kappa \\geq |L|, \\exists \\text{ 基数为 } \\kappa \\text{ 的模型}",
+            "\\Gamma \\text{ 可满足} \\Rightarrow \\exists \\text{ 可数模型}; \\quad \\Gamma \\text{ 有无穷模型} "
+            "\\Rightarrow \\forall \\kappa \\geq |L|, \\exists \\text{ 基数为 } \\kappa \\text{ 的模型}",
             "不可判定（一般情况）", false, false);
     }
 
@@ -745,9 +658,8 @@ bool preset_mathematical_logic_register(void)
     {
         PresetType inputs[] = {PRESET_TYPE_FUNCTION};
         REGISTER_LOGIC(
-            "computable_function_check",
-            "可计算函数判定：判定函数是否为可计算函数（存在图灵机计算）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
+            "computable_function_check", "可计算函数判定：判定函数是否为可计算函数（存在图灵机计算）", inputs, 1,
+            PRESET_TYPE_BOOLEAN,
             "f \\text{ 可计算} \\Leftrightarrow \\exists \\text{ 图灵机 } M: \\forall x, M(x) \\downarrow = f(x)",
             "不可判定", false, false);
     }
@@ -763,12 +675,11 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_STRING, PRESET_TYPE_STRING};
-        REGISTER_LOGIC(
-            "turing_machine_simulate",
-            "图灵机模拟：给定图灵机描述和输入带，模拟执行过程",
-            inputs, 2, PRESET_TYPE_STRING,
-            "T = (Q, \\Sigma, \\Gamma, \\delta, q_0, q_{\\text{acc}}, q_{\\text{rej}}), \\quad M \\text{ 在输入 } w \\text{ 上的逐步模拟}",
-            "取决于运行步数", true, false);
+        REGISTER_LOGIC("turing_machine_simulate", "图灵机模拟：给定图灵机描述和输入带，模拟执行过程", inputs, 2,
+                       PRESET_TYPE_STRING,
+                       "T = (Q, \\Sigma, \\Gamma, \\delta, q_0, q_{\\text{acc}}, q_{\\text{rej}}), \\quad M \\text{ "
+                       "在输入 } w \\text{ 上的逐步模拟}",
+                       "取决于运行步数", true, false);
     }
 
     /* -------------------- 38. 停机问题 -------------------- */
@@ -782,12 +693,11 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_STRING, PRESET_TYPE_STRING};
-        REGISTER_LOGIC(
-            "halting_problem",
-            "停机问题：判定图灵机 M 在输入 w 上是否停机（Turing, 1936，不可判定）",
-            inputs, 2, PRESET_TYPE_BOOLEAN,
-            "H(M, w) = \\begin{cases} 1 & M \\text{ 在 } w \\text{ 上停机} \\\\ 0 & M \\text{ 在 } w \\text{ 上不停机} \\end{cases} \\quad \\text{不可判定}",
-            "不可判定", false, false);
+        REGISTER_LOGIC("halting_problem", "停机问题：判定图灵机 M 在输入 w 上是否停机（Turing, 1936，不可判定）",
+                       inputs, 2, PRESET_TYPE_BOOLEAN,
+                       "H(M, w) = \\begin{cases} 1 & M \\text{ 在 } w \\text{ 上停机} \\\\ 0 & M \\text{ 在 } w "
+                       "\\text{ 上不停机} \\end{cases} \\quad \\text{不可判定}",
+                       "不可判定", false, false);
     }
 
     /* -------------------- 39. 递归可枚举判定 -------------------- */
@@ -801,12 +711,10 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        REGISTER_LOGIC(
-            "recursive_enumerable_check",
-            "递归可枚举判定：判定语言是否为递归可枚举集（半可判定集）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 是 r.e.} \\Leftrightarrow \\exists M: L = \\{w : M \\text{ 接受 } w\\}",
-            "不可判定", false, false);
+        REGISTER_LOGIC("recursive_enumerable_check", "递归可枚举判定：判定语言是否为递归可枚举集（半可判定集）", inputs,
+                       1, PRESET_TYPE_BOOLEAN,
+                       "L \\text{ 是 r.e.} \\Leftrightarrow \\exists M: L = \\{w : M \\text{ 接受 } w\\}", "不可判定",
+                       false, false);
     }
 
     /* -------------------- 40. 可判定性检查 -------------------- */
@@ -820,12 +728,11 @@ bool preset_mathematical_logic_register(void)
      */
     {
         PresetType inputs[] = {PRESET_TYPE_SET};
-        REGISTER_LOGIC(
-            "decidability_check",
-            "可判定性检查：判定语言是否为可判定集（递归集）",
-            inputs, 1, PRESET_TYPE_BOOLEAN,
-            "L \\text{ 可判定} \\Leftrightarrow \\exists M: \\forall w, M(w) \\downarrow \\land M \\text{ 接受 } w \\Leftrightarrow w \\in L",
-            "不可判定", false, false);
+        REGISTER_LOGIC("decidability_check", "可判定性检查：判定语言是否为可判定集（递归集）", inputs, 1,
+                       PRESET_TYPE_BOOLEAN,
+                       "L \\text{ 可判定} \\Leftrightarrow \\exists M: \\forall w, M(w) \\downarrow \\land M \\text{ "
+                       "接受 } w \\Leftrightarrow w \\in L",
+                       "不可判定", false, false);
     }
 
     /* 返回是否所有预设都注册成功 */
@@ -837,7 +744,6 @@ bool preset_mathematical_logic_register(void)
  *
  * @return int 数理逻辑模块预设函数块总数（40）
  */
-int preset_mathematical_logic_count(void)
-{
+int preset_mathematical_logic_count(void) {
     return MATH_LOGIC_PRESET_COUNT;
 }

@@ -45,10 +45,10 @@ typedef struct ConstraintGraph ConstraintGraph;
  * 支持四种标准稀疏存储格式，与 SuiteSparse 系列库兼容。
  */
 typedef enum {
-    SPARSE_CSR   = 0,  /**< 压缩稀疏行（Compressed Sparse Row）— 适合行遍历 */
-    SPARSE_CSC   = 1,  /**< 压缩稀疏列（Compressed Sparse Column）— 适合列遍历 */
-    SPARSE_COO   = 2,  /**< 坐标格式（Coordinate）— 适合增量构建 */
-    SPARSE_DENSE = 3   /**< 稠密格式 — 退化情况，小矩阵 fallback */
+    SPARSE_CSR = 0,  /**< 压缩稀疏行（Compressed Sparse Row）— 适合行遍历 */
+    SPARSE_CSC = 1,  /**< 压缩稀疏列（Compressed Sparse Column）— 适合列遍历 */
+    SPARSE_COO = 2,  /**< 坐标格式（Coordinate）— 适合增量构建 */
+    SPARSE_DENSE = 3 /**< 稠密格式 — 退化情况，小矩阵 fallback */
 } SparseFormat;
 
 /* ========================================================================
@@ -69,14 +69,14 @@ typedef enum {
  * 决定 destroy 时是否释放内存。
  */
 typedef struct {
-    int rows;            /**< 矩阵行数 */
-    int cols;            /**< 矩阵列数 */
-    int nnz;             /**< 非零元素数量 */
-    SparseFormat fmt;    /**< 存储格式 */
-    int *row_ptr;        /**< 行指针数组（CSR）/ 列指针数组（CSC），长度 rows+1 */
-    int *col_idx;        /**< 列索引数组（CSR）/ 行索引数组（CSC），长度 nnz */
-    double *values;      /**< 非零数值数组，长度 nnz。为 NULL 时表示结构矩阵 */
-    bool owns_data;      /**< 是否拥有底层数组的所有权 */
+    int rows;         /**< 矩阵行数 */
+    int cols;         /**< 矩阵列数 */
+    int nnz;          /**< 非零元素数量 */
+    SparseFormat fmt; /**< 存储格式 */
+    int *row_ptr;     /**< 行指针数组（CSR）/ 列指针数组（CSC），长度 rows+1 */
+    int *col_idx;     /**< 列索引数组（CSR）/ 行索引数组（CSC），长度 nnz */
+    double *values;   /**< 非零数值数组，长度 nnz。为 NULL 时表示结构矩阵 */
+    bool owns_data;   /**< 是否拥有底层数组的所有权 */
 } SparseMatrix;
 
 /* ========================================================================
@@ -147,12 +147,12 @@ void sparse_matrix_print(const SparseMatrix *mat, const char *name);
  * 每种类型对应一组预定义的 add_op / mul_op 函数指针和单位元。
  */
 typedef enum {
-    SEMIRING_PLUS_TIMES   = 0,  /**< (R, +, ×) — 经典实数半环，add_id=0, mul_id=1 */
-    SEMIRING_MIN_PLUS     = 1,  /**< (R∪{∞}, min, +) — 最短路径/热带半环，add_id=∞, mul_id=0 */
-    SEMIRING_MAX_TIMES    = 2,  /**< (R, max, ×) — 最大可信度传播 */
-    SEMIRING_OR_AND       = 3,  /**< ({0,1}, ∨, ∧) — 布尔半环，可达性分析 */
-    SEMIRING_BOOL         = 4,  /**< ({0,1}, ∨, ∧) — 别名，同 SEMIRING_OR_AND */
-    SEMIRING_INTERVAL     = 5   /**< (I, ∩, ⊕_interval) — 区间约束传播 */
+    SEMIRING_PLUS_TIMES = 0, /**< (R, +, ×) — 经典实数半环，add_id=0, mul_id=1 */
+    SEMIRING_MIN_PLUS = 1,   /**< (R∪{∞}, min, +) — 最短路径/热带半环，add_id=∞, mul_id=0 */
+    SEMIRING_MAX_TIMES = 2,  /**< (R, max, ×) — 最大可信度传播 */
+    SEMIRING_OR_AND = 3,     /**< ({0,1}, ∨, ∧) — 布尔半环，可达性分析 */
+    SEMIRING_BOOL = 4,       /**< ({0,1}, ∨, ∧) — 别名，同 SEMIRING_OR_AND */
+    SEMIRING_INTERVAL = 5    /**< (I, ∩, ⊕_interval) — 区间约束传播 */
 } SemiringType;
 
 /**
@@ -174,12 +174,12 @@ typedef double (*semiring_multiply_fn)(double a, double b);
  * semiring_create(SemiringType) 获取预定义的半环实例。
  */
 typedef struct {
-    semiring_add_fn add_op;         /**< 半环加法 ⊕(a, b)，如 min / max / + */
-    semiring_multiply_fn mul_op;    /**< 半环乘法 ⊗(a, b)，如 + / × / ∧ */
-    double add_identity;            /**< 加法单位元（零元），如 0 / ∞ / false */
-    double mul_identity;            /**< 乘法单位元（壹元），如 1 / 0 / true */
-    SemiringType type;              /**< 半环类型标识 */
-    const char *name;               /**< 半环名称（如 "min-plus"），调试用 */
+    semiring_add_fn add_op;      /**< 半环加法 ⊕(a, b)，如 min / max / + */
+    semiring_multiply_fn mul_op; /**< 半环乘法 ⊗(a, b)，如 + / × / ∧ */
+    double add_identity;         /**< 加法单位元（零元），如 0 / ∞ / false */
+    double mul_identity;         /**< 乘法单位元（壹元），如 1 / 0 / true */
+    SemiringType type;           /**< 半环类型标识 */
+    const char *name;            /**< 半环名称（如 "min-plus"），调试用 */
 } Semiring;
 
 /**
@@ -223,10 +223,7 @@ Semiring semiring_create(SemiringType type);
  *       大规模图建议使用 graph_to_constraint_matrix() 显式构建
  *       并复用矩阵进行多次传播。
  */
-int semiring_propagate_constraints(ConstraintGraph *g,
-                                    SemiringType semiring,
-                                    double *x,
-                                    int max_iter);
+int semiring_propagate_constraints(ConstraintGraph *g, SemiringType semiring, double *x, int max_iter);
 
 /* ========================================================================
  * 稀疏线性求解器（CHOLMOD / UMFPACK 风格接口）
@@ -251,9 +248,7 @@ int semiring_propagate_constraints(ConstraintGraph *g,
  *       2. cholmod_analyze → cholmod_factorize → cholmod_solve
  *       3. 将 cholmod_dense 结果拷贝回 x
  */
-bool sparse_cholesky_solve(const SparseMatrix *A,
-                           const double *b,
-                           double *x);
+bool sparse_cholesky_solve(const SparseMatrix *A, const double *b, double *x);
 
 /**
  * @brief 稀疏 LU 分解求解 Ax = b（非对称矩阵）
@@ -269,9 +264,7 @@ bool sparse_cholesky_solve(const SparseMatrix *A,
  *       1. 将 SparseMatrix CSR → CSC（UMFPACK 使用 CSC）
  *       2. umfpack_di_symbolic → umfpack_di_numeric → umfpack_di_solve
  */
-bool sparse_lu_solve(const SparseMatrix *A,
-                     const double *b,
-                     double *x);
+bool sparse_lu_solve(const SparseMatrix *A, const double *b, double *x);
 
 /**
  * @brief 稀疏 QR 分解求解最小二乘问题 min ||Ax - b||_2
@@ -288,9 +281,7 @@ bool sparse_lu_solve(const SparseMatrix *A,
  *       1. 将 SparseMatrix 转换为 cholmod_sparse
  *       2. SuiteSparseQR 分解并求解
  */
-bool sparse_qr_solve(const SparseMatrix *A,
-                     const double *b,
-                     double *x);
+bool sparse_qr_solve(const SparseMatrix *A, const double *b, double *x);
 
 /* ========================================================================
  * 约束图 → 稀疏矩阵转换
@@ -316,8 +307,7 @@ bool sparse_qr_solve(const SparseMatrix *A,
  * @param[out] mat   输出的稀疏矩阵（调用者需用 sparse_matrix_destroy 释放）
  * @return true 成功，false 失败（参数无效或内存不足）
  */
-bool graph_to_constraint_matrix(const ConstraintGraph *graph,
-                                SparseMatrix **mat);
+bool graph_to_constraint_matrix(const ConstraintGraph *graph, SparseMatrix **mat);
 
 /* ========================================================================
  * 稀疏矩阵运算
@@ -337,9 +327,7 @@ bool graph_to_constraint_matrix(const ConstraintGraph *graph,
  * @param[out] C 乘积矩阵（新分配，调用者释放）
  * @return true 成功，false 失败（维度不匹配或内存不足）
  */
-bool sparse_matrix_multiply(const SparseMatrix *A,
-                            const SparseMatrix *B,
-                            SparseMatrix **C);
+bool sparse_matrix_multiply(const SparseMatrix *A, const SparseMatrix *B, SparseMatrix **C);
 
 /**
  * @brief 稀疏矩阵转置
@@ -351,8 +339,7 @@ bool sparse_matrix_multiply(const SparseMatrix *A,
  * @param[out] out 转置后的矩阵（新分配，调用者释放）
  * @return true 成功，false 失败
  */
-bool sparse_matrix_transpose(const SparseMatrix *mat,
-                             SparseMatrix **out);
+bool sparse_matrix_transpose(const SparseMatrix *mat, SparseMatrix **out);
 
 /* ========================================================================
  * 约束图度分析
@@ -366,13 +353,13 @@ bool sparse_matrix_transpose(const SparseMatrix *mat,
  * 数组长度为 max_degree + 1。
  */
 typedef struct {
-    int node_count;         /**< 节点总数 */
-    int max_degree;         /**< 最大度数 */
-    int min_degree;         /**< 最小度数（非孤立节点） */
-    double avg_degree;      /**< 平均度数 */
-    int isolated_count;     /**< 孤立节点数量（度为 0） */
-    int *degree_counts;     /**< 度分布直方图：degree_counts[d] = 度为 d 的节点数，长度 max_degree+1 */
-    int *node_degrees;      /**< 每个节点的度数，长度 node_count，按 node_id 索引 */
+    int node_count;     /**< 节点总数 */
+    int max_degree;     /**< 最大度数 */
+    int min_degree;     /**< 最小度数（非孤立节点） */
+    double avg_degree;  /**< 平均度数 */
+    int isolated_count; /**< 孤立节点数量（度为 0） */
+    int *degree_counts; /**< 度分布直方图：degree_counts[d] = 度为 d 的节点数，长度 max_degree+1 */
+    int *node_degrees;  /**< 每个节点的度数，长度 node_count，按 node_id 索引 */
 } DegreeAnalysis;
 
 /**
@@ -385,8 +372,7 @@ typedef struct {
  * @param[out] analysis 度分析结果（调用者需用 degree_analysis_free 释放）
  * @return true 成功，false 失败
  */
-bool graph_degree_analysis(const ConstraintGraph *graph,
-                           DegreeAnalysis **analysis);
+bool graph_degree_analysis(const ConstraintGraph *graph, DegreeAnalysis **analysis);
 
 /**
  * @brief 释放度分析结果

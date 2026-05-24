@@ -38,11 +38,12 @@
 extern "C" {
 #endif
 
-#include "smt_backend.h"
-#include "error_codes.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "error_codes.h"
+#include "smt_backend.h"
 
 /* ============================================================
  * 前向声明
@@ -84,36 +85,36 @@ typedef struct GroebnerResult GroebnerResult;
  * 所有计数值均不含被标记为已删除的节点/约束。
  */
 typedef struct GraphFeatures {
-    int total_nodes;                /**< 节点总数 */
-    int total_constraints;          /**< 约束总数 */
+    int total_nodes;       /**< 节点总数 */
+    int total_constraints; /**< 约束总数 */
 
     /* 变量相关 */
-    int variable_nodes;             /**< 可求解变量节点数（含符号坐标的点节点） */
-    int fixed_nodes;                /**< 已确定坐标的点节点数 */
-    int port_nodes;                 /**< 端口节点数 */
-    int block_nodes;                /**< 函数块节点数 */
+    int variable_nodes; /**< 可求解变量节点数（含符号坐标的点节点） */
+    int fixed_nodes;    /**< 已确定坐标的点节点数 */
+    int port_nodes;     /**< 端口节点数 */
+    int block_nodes;    /**< 函数块节点数 */
 
     /* 约束类型分布 */
-    int incidence_constraints;      /**< INCIDENCE 约束数 */
-    int betweenness_constraints;    /**< BETWEENNESS 约束数 */
-    int intersection_constraints;   /**< INTERSECTION 约束数 */
-    int containment_constraints;    /**< CONTAINMENT 约束数 */
-    int connection_constraints;     /**< CONNECTION 约束数 */
+    int incidence_constraints;    /**< INCIDENCE 约束数 */
+    int betweenness_constraints;  /**< BETWEENNESS 约束数 */
+    int intersection_constraints; /**< INTERSECTION 约束数 */
+    int containment_constraints;  /**< CONTAINMENT 约束数 */
+    int connection_constraints;   /**< CONNECTION 约束数 */
 
     /* 非线性特征 */
-    int nonlinear_constraints;      /**< 含非线性项（degree > 1）的约束数 */
-    double nonlinear_ratio;         /**< 非线性约束占比（0.0 ~ 1.0） */
+    int nonlinear_constraints; /**< 含非线性项（degree > 1）的约束数 */
+    double nonlinear_ratio;    /**< 非线性约束占比（0.0 ~ 1.0） */
 
     /* 量词特征 */
-    bool has_quantifier_like;       /**< 含类量词约束（卷绕数、区域包含等） */
-    bool has_boolean_variables;     /**< 含布尔变量的约束 */
+    bool has_quantifier_like;   /**< 含类量词约束（卷绕数、区域包含等） */
+    bool has_boolean_variables; /**< 含布尔变量的约束 */
 
     /* 规模特征 */
-    int estimated_equation_count;   /**< 估计的方程数量 */
-    int estimated_degree_max;       /**< 估计的最高多项式度数 */
+    int estimated_equation_count; /**< 估计的方程数量 */
+    int estimated_degree_max;     /**< 估计的最高多项式度数 */
 
     /* 元数据 */
-    int64_t analysis_time_us;       /**< 特征分析耗时（微秒） */
+    int64_t analysis_time_us; /**< 特征分析耗时（微秒） */
 } GraphFeatures;
 
 /**
@@ -126,8 +127,7 @@ typedef struct GraphFeatures {
  * @param[out] features   输出的特征向量（调用者分配）
  * @return 成功返回 0，失败返回 -1（graph 或 features 为 NULL）。
  */
-int scheduler_analyze_graph(const ConstraintGraph *graph,
-                            GraphFeatures *features);
+int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *features);
 
 /**
  * @brief 初始化一个归零的 GraphFeatures 结构
@@ -144,15 +144,15 @@ void scheduler_features_init(GraphFeatures *features);
  * @brief 路由规则的匹配条件类型
  */
 typedef enum {
-    ROUTE_COND_NONE = 0,              /**< 无条件（始终匹配，作为默认/兜底规则） */
-    ROUTE_COND_VAR_COUNT_LE,          /**< 变量数 <= 阈值 */
-    ROUTE_COND_VAR_COUNT_GE,          /**< 变量数 >= 阈值 */
-    ROUTE_COND_NONLINEAR_RATIO_GE,    /**< 非线性约束占比 >= 阈值 */
-    ROUTE_COND_HAS_QUANTIFIER,        /**< 含类量词约束 */
-    ROUTE_COND_HAS_BOOLEAN,           /**< 含布尔变量 */
-    ROUTE_COND_DEGREE_GE,             /**< 最高度数 >= 阈值 */
-    ROUTE_COND_BACKEND_AVAILABLE,     /**< 指定后端可用 */
-    ROUTE_COND_ALWAYS                 /**< 始终匹配（无条件规则的另一名称） */
+    ROUTE_COND_NONE = 0,           /**< 无条件（始终匹配，作为默认/兜底规则） */
+    ROUTE_COND_VAR_COUNT_LE,       /**< 变量数 <= 阈值 */
+    ROUTE_COND_VAR_COUNT_GE,       /**< 变量数 >= 阈值 */
+    ROUTE_COND_NONLINEAR_RATIO_GE, /**< 非线性约束占比 >= 阈值 */
+    ROUTE_COND_HAS_QUANTIFIER,     /**< 含类量词约束 */
+    ROUTE_COND_HAS_BOOLEAN,        /**< 含布尔变量 */
+    ROUTE_COND_DEGREE_GE,          /**< 最高度数 >= 阈值 */
+    ROUTE_COND_BACKEND_AVAILABLE,  /**< 指定后端可用 */
+    ROUTE_COND_ALWAYS              /**< 始终匹配（无条件规则的另一名称） */
 } RouteConditionType;
 
 /**
@@ -161,8 +161,8 @@ typedef enum {
  * 当一条规则有多个条件时，指定条件之间的组合方式。
  */
 typedef enum {
-    ROUTE_COMBINE_AND,                /**< 所有条件必须同时满足 */
-    ROUTE_COMBINE_OR                  /**< 满足任意一个条件即可 */
+    ROUTE_COMBINE_AND, /**< 所有条件必须同时满足 */
+    ROUTE_COMBINE_OR   /**< 满足任意一个条件即可 */
 } RouteCombineMode;
 
 /**
@@ -171,9 +171,9 @@ typedef enum {
  * 描述一个匹配谓词，如 "变量数 <= 50" 或 "非线性占比 >= 0.3"。
  */
 typedef struct RouteCondition {
-    RouteConditionType type;          /**< 条件类型 */
-    double threshold;                 /**< 阈值（用于数值比较条件） */
-    SolverBackendType backend;        /**< 后端类型（用于 BACKEND_AVAILABLE 条件） */
+    RouteConditionType type;   /**< 条件类型 */
+    double threshold;          /**< 阈值（用于数值比较条件） */
+    SolverBackendType backend; /**< 后端类型（用于 BACKEND_AVAILABLE 条件） */
 } RouteCondition;
 
 /**
@@ -188,13 +188,13 @@ typedef struct RouteCondition {
  * - 第一个完全匹配的规则被选中
  */
 typedef struct RoutingRule {
-    char name[64];                                  /**< 规则名称（用于调试和日志） */
-    int priority;                                   /**< 优先级（数值越低越优先） */
-    bool enabled;                                   /**< 是否启用此规则 */
-    RouteCondition conditions[4];                   /**< 匹配条件数组 */
-    int condition_count;                            /**< 条件数量 */
-    RouteCombineMode combine_mode;                  /**< 条件组合方式 */
-    SolverBackendType target_backend;               /**< 满足条件时路由到的目标后端 */
+    char name[64];                    /**< 规则名称（用于调试和日志） */
+    int priority;                     /**< 优先级（数值越低越优先） */
+    bool enabled;                     /**< 是否启用此规则 */
+    RouteCondition conditions[4];     /**< 匹配条件数组 */
+    int condition_count;              /**< 条件数量 */
+    RouteCombineMode combine_mode;    /**< 条件组合方式 */
+    SolverBackendType target_backend; /**< 满足条件时路由到的目标后端 */
 } RoutingRule;
 
 /**
@@ -220,8 +220,7 @@ void scheduler_rule_destroy(RoutingRule *rule);
  * @param[in] features  图特征向量
  * @return true 匹配，false 不匹配或 rule 被禁用。
  */
-bool scheduler_rule_matches(const RoutingRule *rule,
-                            const GraphFeatures *features);
+bool scheduler_rule_matches(const RoutingRule *rule, const GraphFeatures *features);
 
 /* ============================================================
  * 引擎调度器
@@ -233,12 +232,12 @@ bool scheduler_rule_matches(const RoutingRule *rule,
  * 记录调度器的运行统计，用于性能监控和调试。
  */
 typedef struct SchedulerStats {
-    int64_t total_solves;             /**< 总求解次数 */
-    int64_t total_solve_time_us;      /**< 总求解时间（微秒） */
-    int64_t max_solve_time_us;        /**< 单次最大求解时间 */
-    int64_t fallback_count;           /**< 回退次数 */
-    int64_t selection_miss;           /**< 路由选择不理想次数 */
-    int backend_solve_counts[COUNT];  /**< 各后端的求解次数分布 */
+    int64_t total_solves;            /**< 总求解次数 */
+    int64_t total_solve_time_us;     /**< 总求解时间（微秒） */
+    int64_t max_solve_time_us;       /**< 单次最大求解时间 */
+    int64_t fallback_count;          /**< 回退次数 */
+    int64_t selection_miss;          /**< 路由选择不理想次数 */
+    int backend_solve_counts[COUNT]; /**< 各后端的求解次数分布 */
 } SchedulerStats;
 
 /**
@@ -261,25 +260,25 @@ typedef struct SchedulerStats {
  */
 typedef struct EngineScheduler {
     /* 后端注册 */
-    SMTBackendRegistry *registry;                       /**< 后端注册表 */
+    SMTBackendRegistry *registry;                              /**< 后端注册表 */
     SMTSolver *backend_cache[SCHEDULER_MAX_BACKEND_INSTANCES]; /**< 后端实例缓存 */
-    int backend_cache_count;                            /**< 当前缓存的后端实例数 */
+    int backend_cache_count;                                   /**< 当前缓存的后端实例数 */
 
     /* 路由规则 */
     RoutingRule *routing_rules[SCHEDULER_MAX_ROUTING_RULES]; /**< 路由规则表 */
-    int routing_rule_count;                             /**< 当前规则数 */
-    SolverBackendType default_backend;                  /**< 兜底后端（规则全不匹配时使用） */
+    int routing_rule_count;                                  /**< 当前规则数 */
+    SolverBackendType default_backend;                       /**< 兜底后端（规则全不匹配时使用） */
 
     /* 回退策略 */
     SolverBackendType fallback_chain[SCHEDULER_MAX_FALLBACK_DEPTH]; /**< 回退链 */
-    int fallback_depth;                                 /**< 回退链深度 */
-    bool enable_fallback;                               /**< 是否启用失败回退 */
+    int fallback_depth;                                             /**< 回退链深度 */
+    bool enable_fallback;                                           /**< 是否启用失败回退 */
 
     /* 配置 */
-    bool auto_create_backends;                          /**< 自动按需创建后端实例 */
+    bool auto_create_backends; /**< 自动按需创建后端实例 */
 
     /* 统计 */
-    SchedulerStats stats;                               /**< 运行统计 */
+    SchedulerStats stats; /**< 运行统计 */
 } EngineScheduler;
 
 /* ============================================================
@@ -340,11 +339,8 @@ void scheduler_reset(EngineScheduler *scheduler);
  * @param[in]     description  后端描述文本（可为 NULL）
  * @return 成功返回 0，失败返回 -1（type 无效或注册表已满）。
  */
-int scheduler_register_backend(EngineScheduler *scheduler,
-                               SolverBackendType type,
-                               SMTSolverCreateFunc create_func,
-                               int priority,
-                               const char *description);
+int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType type, SMTSolverCreateFunc create_func,
+                               int priority, const char *description);
 
 /**
  * @brief 从调度器注销一个后端
@@ -355,8 +351,7 @@ int scheduler_register_backend(EngineScheduler *scheduler,
  * @param[in]     type       要注销的后端类型
  * @return 成功返回 0，后端未注册返回 -1。
  */
-int scheduler_unregister_backend(EngineScheduler *scheduler,
-                                 SolverBackendType type);
+int scheduler_unregister_backend(EngineScheduler *scheduler, SolverBackendType type);
 
 /**
  * @brief 获取调度器中已注册且可用的后端列表
@@ -366,9 +361,7 @@ int scheduler_unregister_backend(EngineScheduler *scheduler,
  * @param[in]  max_count   数组容量
  * @return 实际输出的后端数量，失败返回 -1。
  */
-int scheduler_list_available_backends(const EngineScheduler *scheduler,
-                                      SolverBackendType *out_types,
-                                      int max_count);
+int scheduler_list_available_backends(const EngineScheduler *scheduler, SolverBackendType *out_types, int max_count);
 
 /* ============================================================
  * 路由规则管理
@@ -429,10 +422,8 @@ int scheduler_load_preset_rules(EngineScheduler *scheduler);
  * @param[in] reason_size  原因缓冲区大小
  * @return 选定的后端类型。如果所有后端均不可用或图无效，返回 COUNT。
  */
-SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler,
-                                           const ConstraintGraph *graph,
-                                           char *out_reason,
-                                           size_t reason_size);
+SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler, const ConstraintGraph *graph,
+                                           char *out_reason, size_t reason_size);
 
 /* ============================================================
  * 分发求解
@@ -460,9 +451,7 @@ SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler,
  *         - 非零：各种错误状态
  *         此返回值兼容现有 solve_algebraic_system() 的 SolverStatus 语义。
  */
-int scheduler_solve(EngineScheduler *scheduler,
-                    const ConstraintGraph *graph,
-                    SMTSolverResult *out_result);
+int scheduler_solve(EngineScheduler *scheduler, const ConstraintGraph *graph, SMTSolverResult *out_result);
 
 /**
  * @brief 使用指定后端分发求解
@@ -476,10 +465,8 @@ int scheduler_solve(EngineScheduler *scheduler,
  * @param[out] out_result   输出求解结果
  * @return 求解器状态。
  */
-int scheduler_solve_with_backend(EngineScheduler *scheduler,
-                                 const ConstraintGraph *graph,
-                                 SolverBackendType backend_type,
-                                 SMTSolverResult *out_result);
+int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGraph *graph,
+                                 SolverBackendType backend_type, SMTSolverResult *out_result);
 
 /* ============================================================
  * 结果转换（向后兼容）
@@ -501,9 +488,7 @@ int scheduler_solve_with_backend(EngineScheduler *scheduler,
  * @return 新分配的 GroebnerResult（调用者需用 groebner_result_free 释放）。
  *         转换失败返回 NULL。
  */
-GroebnerResult *scheduler_convert_smt_to_groebner(
-    const SMTSolverResult *smt_result,
-    const ConstraintGraph *graph);
+GroebnerResult *scheduler_convert_smt_to_groebner(const SMTSolverResult *smt_result, const ConstraintGraph *graph);
 
 /**
  * @brief 自动选择后端、求解并返回 Gröbner 兼容结果
@@ -516,8 +501,7 @@ GroebnerResult *scheduler_convert_smt_to_groebner(
  * @param[out] out_result   输出的 Gröbner 兼容结果
  * @return 求解器状态（兼容 SolverStatus）。
  */
-int scheduler_solve_groebner_compat(EngineScheduler *scheduler,
-                                    const ConstraintGraph *graph,
+int scheduler_solve_groebner_compat(EngineScheduler *scheduler, const ConstraintGraph *graph,
                                     GroebnerResult **out_result);
 
 /* ============================================================
@@ -532,8 +516,7 @@ int scheduler_solve_groebner_compat(EngineScheduler *scheduler,
  * @param[in,out] scheduler  调度器
  * @param[in]     type       默认后端类型
  */
-void scheduler_set_default_backend(EngineScheduler *scheduler,
-                                   SolverBackendType type);
+void scheduler_set_default_backend(EngineScheduler *scheduler, SolverBackendType type);
 
 /**
  * @brief 设置回退策略
@@ -543,9 +526,7 @@ void scheduler_set_default_backend(EngineScheduler *scheduler,
  * @param[in]     fallback_types  回退链（按优先级排序的数组）
  * @param[in]     depth          回退链深度
  */
-void scheduler_set_fallback_policy(EngineScheduler *scheduler,
-                                   bool enable,
-                                   const SolverBackendType *fallback_types,
+void scheduler_set_fallback_policy(EngineScheduler *scheduler, bool enable, const SolverBackendType *fallback_types,
                                    int depth);
 
 /**
@@ -569,8 +550,7 @@ void scheduler_set_auto_create(EngineScheduler *scheduler, bool auto_create);
  * @param[in]  scheduler  调度器
  * @param[out] stats      输出统计快照
  */
-void scheduler_get_stats(const EngineScheduler *scheduler,
-                         SchedulerStats *stats);
+void scheduler_get_stats(const EngineScheduler *scheduler, SchedulerStats *stats);
 
 /**
  * @brief 重置调度器统计信息
@@ -589,8 +569,7 @@ void scheduler_reset_stats(EngineScheduler *scheduler);
  * @param[in]  buf_size   缓冲区大小
  * @return 实际写入的字符数（不含终止符）。缓冲区不足返回所需大小。
  */
-int scheduler_diagnose(const EngineScheduler *scheduler,
-                       char *buf, size_t buf_size);
+int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_size);
 
 #ifdef __cplusplus
 }

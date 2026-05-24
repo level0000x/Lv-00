@@ -7,11 +7,13 @@
  * field theory and group theory.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+
 #include "lv00/axiom_pkg.h"
+
 #include "lv00_utils.h"
 
 /* Test counters */
@@ -20,76 +22,76 @@ static int tests_passed = 0;
 static int assertions_total = 0;
 
 /* Helper macros */
-#define TEST_START(name) \
-    do { \
+#define TEST_START(name)                 \
+    do {                                 \
         printf("  [TEST] %s... ", name); \
-        tests_run++; \
-    } while(0)
+        tests_run++;                     \
+    } while (0)
 
-#define TEST_PASS() \
-    do { \
+#define TEST_PASS()       \
+    do {                  \
         printf("PASS\n"); \
-        tests_passed++; \
-    } while(0)
+        tests_passed++;   \
+    } while (0)
 
-#define TEST_FAIL(msg) \
-    do { \
+#define TEST_FAIL(msg)             \
+    do {                           \
         printf("FAIL: %s\n", msg); \
-    } while(0)
+    } while (0)
 
-#define ASSERT_TRUE(cond) \
-    do { \
-        assertions_total++; \
-        if (!(cond)) { \
+#define ASSERT_TRUE(cond)                 \
+    do {                                  \
+        assertions_total++;               \
+        if (!(cond)) {                    \
             TEST_FAIL(#cond " is false"); \
-            return; \
-        } \
-    } while(0)
+            return;                       \
+        }                                 \
+    } while (0)
 
-#define ASSERT_EQ(a, b) \
-    do { \
-        assertions_total++; \
-        if ((a) != (b)) { \
+#define ASSERT_EQ(a, b)              \
+    do {                             \
+        assertions_total++;          \
+        if ((a) != (b)) {            \
             TEST_FAIL(#a " != " #b); \
-            return; \
-        } \
-    } while(0)
+            return;                  \
+        }                            \
+    } while (0)
 
-#define ASSERT_NE(a, b) \
-    do { \
-        assertions_total++; \
-        if ((a) == (b)) { \
+#define ASSERT_NE(a, b)              \
+    do {                             \
+        assertions_total++;          \
+        if ((a) == (b)) {            \
             TEST_FAIL(#a " == " #b); \
-            return; \
-        } \
-    } while(0)
+            return;                  \
+        }                            \
+    } while (0)
 
-#define ASSERT_NOT_NULL(p) \
-    do { \
-        assertions_total++; \
-        if ((p) == NULL) { \
+#define ASSERT_NOT_NULL(p)            \
+    do {                              \
+        assertions_total++;           \
+        if ((p) == NULL) {            \
             TEST_FAIL(#p " is NULL"); \
-            return; \
-        } \
-    } while(0)
+            return;                   \
+        }                             \
+    } while (0)
 
-#define ASSERT_NULL(p) \
-    do { \
-        assertions_total++; \
-        if ((p) != NULL) { \
+#define ASSERT_NULL(p)                    \
+    do {                                  \
+        assertions_total++;               \
+        if ((p) != NULL) {                \
             TEST_FAIL(#p " is not NULL"); \
-            return; \
-        } \
-    } while(0)
+            return;                       \
+        }                                 \
+    } while (0)
 
-#define ASSERT_STR_EQ(a, b) \
-    do { \
-        assertions_total++; \
-        if (strcmp((a), (b)) != 0) { \
+#define ASSERT_STR_EQ(a, b)                              \
+    do {                                                 \
+        assertions_total++;                              \
+        if (strcmp((a), (b)) != 0) {                     \
             TEST_FAIL("string mismatch: " #a " != " #b); \
-            return; \
-        } \
-    } while(0)
+            return;                                      \
+        }                                                \
+    } while (0)
 
 /* Path to axiom package file */
 static const char *AXIOM_FILE = "axiom_packages/galois_theory.lvz";
@@ -383,8 +385,8 @@ static void test_external_references(void) {
         KnownUnconstructible *uc = &pkg->known_unconstructibles[i];
         if (uc->external_ref != NULL) {
             /* Check for valid URL format */
-            bool is_url = (strncmp(uc->external_ref, "http://", 7) == 0 ||
-                          strncmp(uc->external_ref, "https://", 8) == 0);
+            bool is_url =
+                (strncmp(uc->external_ref, "http://", 7) == 0 || strncmp(uc->external_ref, "https://", 8) == 0);
             ASSERT_TRUE(is_url);
             valid_count++;
         }
@@ -422,8 +424,7 @@ int main(void) {
     /* Summary */
     printf("\n");
     printf("------------------------------------------------------------\n");
-    printf("  Summary: %d/%d tests passed, %d assertions\n",
-           tests_passed, tests_run, assertions_total);
+    printf("  Summary: %d/%d tests passed, %d assertions\n", tests_passed, tests_run, assertions_total);
     printf("------------------------------------------------------------\n");
 
     if (tests_passed == tests_run) {

@@ -35,79 +35,79 @@ extern "C" {
 /* -------------------- 同调论（8个） -------------------- */
 
 /** 单纯同调群：基于单纯复形计算同调群 H_n(K) */
-#define PRESET_AT_SIMPLICIAL_HOMOLOGY     "at_simplicial_homology"
+#define PRESET_AT_SIMPLICIAL_HOMOLOGY "at_simplicial_homology"
 
 /** 奇异同调群：计算拓扑空间的奇异同调群 H_n(X) */
-#define PRESET_AT_SINGULAR_HOMOLOGY       "at_singular_homology"
+#define PRESET_AT_SINGULAR_HOMOLOGY "at_singular_homology"
 
 /** 相对同调群：计算空间对的相对同调群 H_n(X, A) */
-#define PRESET_AT_RELATIVE_HOMOLOGY       "at_relative_homology"
+#define PRESET_AT_RELATIVE_HOMOLOGY "at_relative_homology"
 
 /** Mayer-Vietoris序列：利用空间覆盖分解计算同调群 */
-#define PRESET_AT_MAYER_VIETORIS          "at_mayer_vietoris"
+#define PRESET_AT_MAYER_VIETORIS "at_mayer_vietoris"
 
 /** 切除定理：切除子空间不改变相对同调 */
-#define PRESET_AT_EXCISION_THEOREM        "at_excision_theorem"
+#define PRESET_AT_EXCISION_THEOREM "at_excision_theorem"
 
 /** 胞腔同调：基于CW复形计算胞腔同调群 */
-#define PRESET_AT_CELLULAR_HOMOLOGY       "at_cellular_homology"
+#define PRESET_AT_CELLULAR_HOMOLOGY "at_cellular_homology"
 
 /** Betti数：计算拓扑空间的Betti数 beta_n = rank H_n(X) */
-#define PRESET_AT_BETTI_NUMBERS           "at_betti_numbers"
+#define PRESET_AT_BETTI_NUMBERS "at_betti_numbers"
 
 /** 同调正合序列：构造空间对的长正合同调序列 */
-#define PRESET_AT_HOMOLOGY_EXACT_SEQUENCE  "at_homology_exact_sequence"
+#define PRESET_AT_HOMOLOGY_EXACT_SEQUENCE "at_homology_exact_sequence"
 
 /* -------------------- 上同调论（5个） -------------------- */
 
 /** 奇异上同调群：计算拓扑空间的奇异上同调群 H^n(X) */
-#define PRESET_AT_SINGULAR_COHOMOLOGY     "at_singular_cohomology"
+#define PRESET_AT_SINGULAR_COHOMOLOGY "at_singular_cohomology"
 
 /** 上积结构：计算上同调类的上积运算 */
-#define PRESET_AT_CUP_PRODUCT             "at_cup_product"
+#define PRESET_AT_CUP_PRODUCT "at_cup_product"
 
 /** de Rham上同调：基于微分形式计算de Rham上同调群 */
-#define PRESET_AT_DE_RHAM_COHOMOLOGY      "at_de_rham_cohomology"
+#define PRESET_AT_DE_RHAM_COHOMOLOGY "at_de_rham_cohomology"
 
 /** 下积：计算同调类与上同调类的下积运算 */
-#define PRESET_AT_CAP_PRODUCT             "at_cap_product"
+#define PRESET_AT_CAP_PRODUCT "at_cap_product"
 
 /** 上同调环：构造上同调群的上积环结构 H^*(X; R) */
-#define PRESET_AT_COHOMOLOGY_RING         "at_cohomology_ring"
+#define PRESET_AT_COHOMOLOGY_RING "at_cohomology_ring"
 
 /* -------------------- 基本群推广（5个） -------------------- */
 
 /** 高阶同伦群：计算拓扑空间的n阶同伦群 pi_n(X) */
-#define PRESET_AT_HIGHER_HOMOTOPY_GROUPS  "at_higher_homotopy_groups"
+#define PRESET_AT_HIGHER_HOMOTOPY_GROUPS "at_higher_homotopy_groups"
 
 /** 相对同伦群：计算空间对的相对同伦群 pi_n(X, A) */
-#define PRESET_AT_RELATIVE_HOMOTOPY       "at_relative_homotopy"
+#define PRESET_AT_RELATIVE_HOMOTOPY "at_relative_homotopy"
 
 /** Hurewicz同态：构造从同伦群到同调群的Hurewicz同态 */
-#define PRESET_AT_HUREWICZ_HOMOMORPHISM   "at_hurewicz_homomorphism"
+#define PRESET_AT_HUREWICZ_HOMOMORPHISM "at_hurewicz_homomorphism"
 
 /** 同伦正合序列：构造空间对的同伦正合序列 */
 #define PRESET_AT_HOMOTOPY_EXACT_SEQUENCE "at_homotopy_exact_sequence"
 
 /** Whitehead定理：判定映射在CW复形上诱导同伦等价 */
-#define PRESET_AT_WHITEHEAD_THEOREM       "at_whitehead_theorem"
+#define PRESET_AT_WHITEHEAD_THEOREM "at_whitehead_theorem"
 
 /* -------------------- 单纯复形（5个） -------------------- */
 
 /** 单纯复形构造：由顶点和单形列表构造单纯复形 */
-#define PRESET_AT_SIMPLICIAL_COMPLEX      "at_simplicial_complex"
+#define PRESET_AT_SIMPLICIAL_COMPLEX "at_simplicial_complex"
 
 /** 三角剖分：对拓扑空间或多面体进行三角剖分 */
-#define PRESET_AT_TRIANGULATION           "at_triangulation"
+#define PRESET_AT_TRIANGULATION "at_triangulation"
 
 /** Euler示性数：计算单纯复形的Euler示性数 chi = sum(-1)^i n_i */
-#define PRESET_AT_EULER_CHARACTERISTIC    "at_euler_characteristic"
+#define PRESET_AT_EULER_CHARACTERISTIC "at_euler_characteristic"
 
 /** 重心重分：计算单纯复形的重心重分 */
 #define PRESET_AT_BARYCENTRIC_SUBDIVISION "at_barycentric_subdivision"
 
 /** 单纯逼近：构造连续映射的单纯逼近 */
-#define PRESET_AT_SIMPLICIAL_APPROX       "at_simplicial_approximation"
+#define PRESET_AT_SIMPLICIAL_APPROX "at_simplicial_approximation"
 
 /* ============================================================
  * 预设数量

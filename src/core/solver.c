@@ -25,7 +25,7 @@
  *   - 其他所有动态内存分配统一使用 lv00_malloc/lv00_free。
  */
 
-#include "lv00_utils.h"         /* lv00_malloc / lv00_free —— 统一内存分配器 */
+#include "solver.h"
 
 #include <float.h>
 #include <math.h>
@@ -36,8 +36,8 @@
 #include "constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
+#include "lv00_utils.h" /* lv00_malloc / lv00_free —— 统一内存分配器 */
 #include "mpz_poly.h"
-#include "solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
@@ -69,7 +69,6 @@
 #define SOLVER_QUADRATIC_COEFF_COUNT 3
 
 
-
 LV00_DECLARE_STREAM_CTX(solver)
 
 /**
@@ -81,9 +80,9 @@ LV00_DECLARE_STREAM_CTX(solver)
 /* ------------------------------------------------------------------ */
 
 typedef struct {
-    mpz_poly_t poly;       /* 一元多项式，coeffs[0]..coeffs[degree] */
-    int var_node_id;       /* 该方程约束的几何节点ID（坐标索引单独存储） */
-    int coord_index;       /* 0 = x, 1 = y */
+    mpz_poly_t poly; /* 一元多项式，coeffs[0]..coeffs[degree] */
+    int var_node_id; /* 该方程约束的几何节点ID（坐标索引单独存储） */
+    int coord_index; /* 0 = x, 1 = y */
 } PolyEquation;
 
 typedef struct EquationSystem {
@@ -117,10 +116,10 @@ static void equation_system_init(EquationSystem *sys) {
  * @param coord_index 坐标索引（0 = x, 1 = y）
  * @return 0 表示成功，-1 表示失败（内存不足或容量溢出）
  */
-static int equation_system_push(EquationSystem *sys, mpz_poly_t poly,
-                                  int var_node_id, int coord_index) {
+static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index) {
     if (sys->count >= sys->capacity) {
-        if (sys->capacity > INT_MAX / 2) return -1;
+        if (sys->capacity > INT_MAX / 2)
+            return -1;
         /* 使用临时变量计算新容量，避免 realloc 失败时 capacity 已被修改 */
         int new_capacity = sys->capacity == 0 ? SOLVER_DYNARRAY_INIT_CAP : sys->capacity * LV00_ARRAY_GROWTH_FACTOR;
         PolyEquation *new_eqs = lv00_realloc(sys->eqs, new_capacity * sizeof(PolyEquation));
@@ -129,7 +128,7 @@ static int equation_system_push(EquationSystem *sys, mpz_poly_t poly,
             return -1;
         }
         sys->eqs = new_eqs;
-        sys->capacity = new_capacity;  /* 仅在 realloc 成功后才更新容量 */
+        sys->capacity = new_capacity; /* 仅在 realloc 成功后才更新容量 */
     }
     sys->eqs[sys->count].var_node_id = var_node_id;
     sys->eqs[sys->count].coord_index = coord_index;
@@ -150,7 +149,7 @@ static void equation_system_clear(EquationSystem *sys) {
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_clear(&sys->eqs[i].poly);
     }
-    lv00_free((void **)&sys->eqs);
+    lv00_free((void **) &sys->eqs);
     sys->eqs = NULL;
     sys->count = 0;
     sys->capacity = 0;
@@ -164,7 +163,8 @@ static void equation_system_clear(EquationSystem *sys) {
    参数 c 带有 const 限定符，确保不会修改原始坐标。
    返回 true 表示成功获取近似值。 */
 static bool coord_to_double(const SymbolicCoord *c, double *out) {
-    if (!c) return false;
+    if (!c)
+        return false;
     switch (c->type) {
         case RATIONAL: {
             if (c->data.rational) {
@@ -174,24 +174,27 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
             }
             /* 回退到字符串序列化方式 */
             char *s = symbolic_coord_serialize(c);
-            if (!s) return false;
+            if (!s)
+                return false;
             *out = strtod(s, NULL);
-            lv00_free((void **)&s);
+            lv00_free((void **) &s);
             return true;
         }
         case QUADRATIC: {
             /* a + b*sqrt(n) 形式 -- 使用近似值 */
             char *s = symbolic_coord_serialize(c);
-            if (!s) return false;
+            if (!s)
+                return false;
             *out = strtod(s, NULL);
-            lv00_free((void **)&s);
+            lv00_free((void **) &s);
             return true;
         }
         case ALGEBRAIC: {
             char *s = symbolic_coord_serialize(c);
-            if (!s) return false;
+            if (!s)
+                return false;
             *out = strtod(s, NULL);
-            lv00_free((void **)&s);
+            lv00_free((void **) &s);
             return true;
         }
         case TRANSCENDENTAL: {
@@ -221,11 +224,10 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
  * @param result 输出 mpz_t 整数，结果直接写入该变量
  * @param scale  缩放系数
  */
-static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, long scale)
-{
+static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, long scale) {
     mpz_t scaled;
     mpz_init(scaled);
-    mpz_set_ui(scaled, (unsigned long)scale);
+    mpz_set_ui(scaled, (unsigned long) scale);
     mpz_mul(result, mpq_numref(val), scaled);
     mpz_fdiv_q(result, result, mpq_denref(val));
     mpz_clear(scaled);
@@ -243,20 +245,21 @@ static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, long scale)
  * @return true 表示成功（精确或近似），false 表示失败
  */
 static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, long scale) {
-    if (!c) return false;
+    if (!c)
+        return false;
 
     if (c->type == RATIONAL && c->data.rational) {
         mpq_srcptr val = c->data.rational->value;
-        
+
         /* 计算分子 * scale（只计算一次，避免重复） */
         mpz_t scaled_num;
         mpz_init(scaled_num);
-        mpz_mul_ui(scaled_num, mpq_numref(val), (unsigned long)scale);
-        
+        mpz_mul_ui(scaled_num, mpq_numref(val), (unsigned long) scale);
+
         mpz_t den;
         mpz_init(den);
         mpz_set(den, mpq_denref(val));
-        
+
         if (mpz_divisible_p(scaled_num, den)) {
             /* 精确整除：直接取商 */
             mpz_fdiv_q(result, scaled_num, den);
@@ -278,7 +281,7 @@ static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, long scale
             mpz_clear(q);
             mpz_clear(r);
         }
-        
+
         mpz_clear(scaled_num);
         mpz_clear(den);
         return true;
@@ -287,7 +290,7 @@ static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, long scale
     /* 回退：使用 double 近似值 */
     double d;
     if (coord_to_double(c, &d)) {
-        mpz_set_d(result, d * (double)scale);
+        mpz_set_d(result, d * (double) scale);
         return true;
     }
 
@@ -305,7 +308,8 @@ static void double_to_mpz_scaled(double val, mpz_t result, long scale);
  * 返回 true 表示精确转换成功，false 表示使用了近似。
  */
 static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, long scale) {
-    if (!coord) return false;
+    if (!coord)
+        return false;
 
     switch (coord->type) {
         case RATIONAL: {
@@ -376,7 +380,7 @@ static void double_to_mpz_scaled(double val, mpz_t result, long scale) {
     /* result = q * scale = (num * scale) / den */
     mpz_t scaled_num;
     mpz_init(scaled_num);
-    mpz_mul_si(scaled_num, mpq_numref(q), (long)scale);
+    mpz_mul_si(scaled_num, mpq_numref(q), (long) scale);
 
     mpz_t den;
     mpz_init(den);
@@ -437,7 +441,8 @@ static GeomNode *find_node(const ConstraintGraph *graph, int id) {
  * @return true 表示成功获取，false 表示节点类型不符或坐标不足
  */
 static bool point_coord(GeomNode *pt, int idx, double *out) {
-    if (!pt || pt->type != GEOM_POINT || pt->coord_count <= idx) return false;
+    if (!pt || pt->type != GEOM_POINT || pt->coord_count <= idx)
+        return false;
     return coord_to_double(pt->symbolic_coords[idx], out);
 }
 
@@ -451,8 +456,10 @@ typedef struct {
 
 static bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) {
     double x1, y1, x2, y2;
-    if (!point_coord(p1, 0, &x1) || !point_coord(p1, 1, &y1)) return false;
-    if (!point_coord(p2, 0, &x2) || !point_coord(p2, 1, &y2)) return false;
+    if (!point_coord(p1, 0, &x1) || !point_coord(p1, 1, &y1))
+        return false;
+    if (!point_coord(p2, 0, &x2) || !point_coord(p2, 1, &y2))
+        return false;
     /* 方向向量 (dx, dy) */
     double dx = x2 - x1;
     double dy = y2 - y1;
@@ -518,328 +525,406 @@ static bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) 
  * @param graph 约束图指针
  * @param sys   输出：存储提取方程的系统
  */
-static void extract_equations_from_constraints(const ConstraintGraph *graph,
-                                                EquationSystem *sys) {
+static void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys) {
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        if (!c || c->participant_count < 2) continue;
+        if (!c || c->participant_count < 2)
+            continue;
 
         switch (c->type) {
-        case INCIDENCE: {
-            /* participants[0] = point, participants[1] = line/region */
-            GeomNode *pt = find_node(graph, c->participants[0]);
-            GeomNode *line = find_node(graph, c->participants[1]);
-            if (!pt || !line) break;
-            if (line->type == GEOM_LINE_SEGMENT && line->coord_count >= 2) {
-                /* 线段的 symbolic_coords 存储端点坐标为 (x1,y1,x2,y2) 格式 */
-                if (line->coord_count >= 4) {
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
-                    /* 使用精确有理数路径获取端点坐标的缩放值 */
-                    mpz_t lx1_s, ly1_s, lx2_s, ly2_s;
-                    mpz_init(lx1_s); mpz_init(ly1_s);
-                    mpz_init(lx2_s); mpz_init(ly2_s);
-                    bool exact = coord_to_mpz_scaled_exact(line->symbolic_coords[0], lx1_s, scale) &&
-                                 coord_to_mpz_scaled_exact(line->symbolic_coords[1], ly1_s, scale) &&
-                                 coord_to_mpz_scaled_exact(line->symbolic_coords[2], lx2_s, scale) &&
-                                 coord_to_mpz_scaled_exact(line->symbolic_coords[3], ly2_s, scale);
+            case INCIDENCE: {
+                /* participants[0] = point, participants[1] = line/region */
+                GeomNode *pt = find_node(graph, c->participants[0]);
+                GeomNode *line = find_node(graph, c->participants[1]);
+                if (!pt || !line)
+                    break;
+                if (line->type == GEOM_LINE_SEGMENT && line->coord_count >= 2) {
+                    /* 线段的 symbolic_coords 存储端点坐标为 (x1,y1,x2,y2) 格式 */
+                    if (line->coord_count >= 4) {
+                        long scale = LV00_SOLVER_SCALE_FACTOR;
+                        /* 使用精确有理数路径获取端点坐标的缩放值 */
+                        mpz_t lx1_s, ly1_s, lx2_s, ly2_s;
+                        mpz_init(lx1_s);
+                        mpz_init(ly1_s);
+                        mpz_init(lx2_s);
+                        mpz_init(ly2_s);
+                        bool exact = coord_to_mpz_scaled_exact(line->symbolic_coords[0], lx1_s, scale) &&
+                                     coord_to_mpz_scaled_exact(line->symbolic_coords[1], ly1_s, scale) &&
+                                     coord_to_mpz_scaled_exact(line->symbolic_coords[2], lx2_s, scale) &&
+                                     coord_to_mpz_scaled_exact(line->symbolic_coords[3], ly2_s, scale);
 
-                    if (exact) {
-                        /* 精确路径：所有坐标都是有理数，在 mpz 层面计算 */
-                        mpz_t dx_s, dy_s;
-                        mpz_init(dx_s); mpz_init(dy_s);
-                        mpz_sub(dx_s, lx2_s, lx1_s);  /* dx * scale */
-                        mpz_sub(dy_s, ly2_s, ly1_s);  /* dy * scale */
+                        if (exact) {
+                            /* 精确路径：所有坐标都是有理数，在 mpz 层面计算 */
+                            mpz_t dx_s, dy_s;
+                            mpz_init(dx_s);
+                            mpz_init(dy_s);
+                            mpz_sub(dx_s, lx2_s, lx1_s); /* dx * scale */
+                            mpz_sub(dy_s, ly2_s, ly1_s); /* dy * scale */
 
-                        /* 叉积：dx*(py - ly1) - dy*(px - lx1) = 0
+                            /* 叉积：dx*(py - ly1) - dy*(px - lx1) = 0
                            => -dy*px + (dy*lx1 - dx*ly1) = 0
                            系数1 = -dy (已缩放)
                            系数0 = dy*lx1 - dx*ly1 (需要除以 scale，因为 dy_s 和 lx1_s 都已缩放) */
-                        mpz_poly_t poly;
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        /* GMP 要求使用标准分配器 */
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
-                        if (!poly.coeffs) { mpz_poly_clear(&poly); mpz_clear(dx_s); mpz_clear(dy_s);
-                                           mpz_clear(lx1_s); mpz_clear(ly1_s);
-                                           mpz_clear(lx2_s); mpz_clear(ly2_s); continue; }
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        mpz_neg(poly.coeffs[1], dy_s);
-                        /* dy*lx1 - dx*ly1 = (dy_s * lx1_s - dx_s * ly1_s) / scale */
-                        {
-                            mpz_t term1, term2;
-                            mpz_init(term1); mpz_init(term2);
-                            mpz_mul(term1, dy_s, lx1_s);
-                            mpz_mul(term2, dx_s, ly1_s);
-                            mpz_sub(term1, term1, term2);
-                            mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long)scale);
-                            mpz_clear(term1); mpz_clear(term2);
-                        }
-                        equation_system_push(sys, poly, pt->id, 0);
-                        mpz_poly_clear(&poly);
-
-                        /* y 坐标的第二个方程：
-                           dx*py + (-dx*ly1 - dy*lx1) = 0 */
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        /* GMP 要求使用标准分配器 */
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
-                        if (!poly.coeffs) { mpz_poly_clear(&poly); mpz_clear(dx_s); mpz_clear(dy_s);
-                                           mpz_clear(lx1_s); mpz_clear(ly1_s);
-                                           mpz_clear(lx2_s); mpz_clear(ly2_s); continue; }
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        mpz_set(poly.coeffs[1], dx_s);
-                        /* -dx*ly1 - dy*lx1 = -(dx_s * ly1_s + dy_s * lx1_s) / scale */
-                        {
-                            mpz_t term1, term2;
-                            mpz_init(term1); mpz_init(term2);
-                            mpz_mul(term1, dx_s, ly1_s);
-                            mpz_mul(term2, dy_s, lx1_s);
-                            mpz_add(term1, term1, term2);
-                            mpz_neg(term1, term1);
-                            mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long)scale);
-                            mpz_clear(term1); mpz_clear(term2);
-                        }
-                        equation_system_push(sys, poly, pt->id, 1);
-                        mpz_poly_clear(&poly);
-                        mpz_clear(dx_s); mpz_clear(dy_s);
-                    } else {
-                        /* 回退到 double 近似路径 */
-                        double lx1, ly1, lx2, ly2;
-                        if (coord_to_double(line->symbolic_coords[0], &lx1) &&
-                            coord_to_double(line->symbolic_coords[1], &ly1) &&
-                            coord_to_double(line->symbolic_coords[2], &lx2) &&
-                            coord_to_double(line->symbolic_coords[3], &ly2)) {
-                            double dx = lx2 - lx1;
-                            double dy = ly2 - ly1;
                             mpz_poly_t poly;
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
                             poly.coeffs = malloc(2 * sizeof(mpz_t));
-                            if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
+                            if (!poly.coeffs) {
+                                mpz_poly_clear(&poly);
+                                mpz_clear(dx_s);
+                                mpz_clear(dy_s);
+                                mpz_clear(lx1_s);
+                                mpz_clear(ly1_s);
+                                mpz_clear(lx2_s);
+                                mpz_clear(ly2_s);
+                                continue;
+                            }
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
-                            double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
-                            double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
+                            mpz_neg(poly.coeffs[1], dy_s);
+                            /* dy*lx1 - dx*ly1 = (dy_s * lx1_s - dx_s * ly1_s) / scale */
+                            {
+                                mpz_t term1, term2;
+                                mpz_init(term1);
+                                mpz_init(term2);
+                                mpz_mul(term1, dy_s, lx1_s);
+                                mpz_mul(term2, dx_s, ly1_s);
+                                mpz_sub(term1, term1, term2);
+                                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                                mpz_clear(term1);
+                                mpz_clear(term2);
+                            }
                             equation_system_push(sys, poly, pt->id, 0);
                             mpz_poly_clear(&poly);
 
+                            /* y 坐标的第二个方程：
+                           dx*py + (-dx*ly1 - dy*lx1) = 0 */
                             mpz_poly_init(&poly);
                             poly.degree = 1;
                             /* GMP 要求使用标准分配器 */
                             poly.coeffs = malloc(2 * sizeof(mpz_t));
-                            if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
+                            if (!poly.coeffs) {
+                                mpz_poly_clear(&poly);
+                                mpz_clear(dx_s);
+                                mpz_clear(dy_s);
+                                mpz_clear(lx1_s);
+                                mpz_clear(ly1_s);
+                                mpz_clear(lx2_s);
+                                mpz_clear(ly2_s);
+                                continue;
+                            }
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
-                            double_to_mpz_scaled(dx, poly.coeffs[1], scale);
-                            double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
+                            mpz_set(poly.coeffs[1], dx_s);
+                            /* -dx*ly1 - dy*lx1 = -(dx_s * ly1_s + dy_s * lx1_s) / scale */
+                            {
+                                mpz_t term1, term2;
+                                mpz_init(term1);
+                                mpz_init(term2);
+                                mpz_mul(term1, dx_s, ly1_s);
+                                mpz_mul(term2, dy_s, lx1_s);
+                                mpz_add(term1, term1, term2);
+                                mpz_neg(term1, term1);
+                                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                                mpz_clear(term1);
+                                mpz_clear(term2);
+                            }
                             equation_system_push(sys, poly, pt->id, 1);
                             mpz_poly_clear(&poly);
+                            mpz_clear(dx_s);
+                            mpz_clear(dy_s);
+                        } else {
+                            /* 回退到 double 近似路径 */
+                            double lx1, ly1, lx2, ly2;
+                            if (coord_to_double(line->symbolic_coords[0], &lx1) &&
+                                coord_to_double(line->symbolic_coords[1], &ly1) &&
+                                coord_to_double(line->symbolic_coords[2], &lx2) &&
+                                coord_to_double(line->symbolic_coords[3], &ly2)) {
+                                double dx = lx2 - lx1;
+                                double dy = ly2 - ly1;
+                                mpz_poly_t poly;
+                                mpz_poly_init(&poly);
+                                poly.degree = 1;
+                                /* GMP 要求使用标准分配器 */
+                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                if (!poly.coeffs) {
+                                    mpz_poly_clear(&poly);
+                                    break;
+                                }
+                                mpz_init(poly.coeffs[1]);
+                                mpz_init(poly.coeffs[0]);
+                                double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
+                                double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
+                                equation_system_push(sys, poly, pt->id, 0);
+                                mpz_poly_clear(&poly);
+
+                                mpz_poly_init(&poly);
+                                poly.degree = 1;
+                                /* GMP 要求使用标准分配器 */
+                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                if (!poly.coeffs) {
+                                    mpz_poly_clear(&poly);
+                                    break;
+                                }
+                                mpz_init(poly.coeffs[1]);
+                                mpz_init(poly.coeffs[0]);
+                                double_to_mpz_scaled(dx, poly.coeffs[1], scale);
+                                double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
+                                equation_system_push(sys, poly, pt->id, 1);
+                                mpz_poly_clear(&poly);
+                            }
                         }
+                        mpz_clear(lx1_s);
+                        mpz_clear(ly1_s);
+                        mpz_clear(lx2_s);
+                        mpz_clear(ly2_s);
                     }
-                    mpz_clear(lx1_s); mpz_clear(ly1_s);
-                    mpz_clear(lx2_s); mpz_clear(ly2_s);
                 }
+                break;
             }
-            break;
-        }
 
-        case INTERSECTION: {
-            /* participants[0] = line1, participants[1] = line2,
+            case INTERSECTION: {
+                /* participants[0] = line1, participants[1] = line2,
                participants[2] = result_point（交点） */
-            if (c->participant_count < 3) break;
-            GeomNode *line1 = find_node(graph, c->participants[0]);
-            GeomNode *line2 = find_node(graph, c->participants[1]);
-            GeomNode *rpt  = find_node(graph, c->participants[2]);
-            if (!line1 || !line2 || !rpt) break;
+                if (c->participant_count < 3)
+                    break;
+                GeomNode *line1 = find_node(graph, c->participants[0]);
+                GeomNode *line2 = find_node(graph, c->participants[1]);
+                GeomNode *rpt = find_node(graph, c->participants[2]);
+                if (!line1 || !line2 || !rpt)
+                    break;
 
-            long scale = LV00_SOLVER_SCALE_FACTOR;
+                long scale = LV00_SOLVER_SCALE_FACTOR;
 
-            /* 尝试精确有理数路径：直接从线段端点坐标计算直线方程 */
-            if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4 &&
-                line2->type == GEOM_LINE_SEGMENT && line2->coord_count >= 4) {
+                /* 尝试精确有理数路径：直接从线段端点坐标计算直线方程 */
+                if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4 && line2->type == GEOM_LINE_SEGMENT &&
+                    line2->coord_count >= 4) {
+                    mpz_t l1x1_s, l1y1_s, l1x2_s, l1y2_s;
+                    mpz_t l2x1_s, l2y1_s, l2x2_s, l2y2_s;
+                    mpz_init(l1x1_s);
+                    mpz_init(l1y1_s);
+                    mpz_init(l1x2_s);
+                    mpz_init(l1y2_s);
+                    mpz_init(l2x1_s);
+                    mpz_init(l2y1_s);
+                    mpz_init(l2x2_s);
+                    mpz_init(l2y2_s);
 
-                mpz_t l1x1_s, l1y1_s, l1x2_s, l1y2_s;
-                mpz_t l2x1_s, l2y1_s, l2x2_s, l2y2_s;
-                mpz_init(l1x1_s); mpz_init(l1y1_s); mpz_init(l1x2_s); mpz_init(l1y2_s);
-                mpz_init(l2x1_s); mpz_init(l2y1_s); mpz_init(l2x2_s); mpz_init(l2y2_s);
+                    bool exact1 = coord_to_mpz_scaled_exact(line1->symbolic_coords[0], l1x1_s, scale) &&
+                                  coord_to_mpz_scaled_exact(line1->symbolic_coords[1], l1y1_s, scale) &&
+                                  coord_to_mpz_scaled_exact(line1->symbolic_coords[2], l1x2_s, scale) &&
+                                  coord_to_mpz_scaled_exact(line1->symbolic_coords[3], l1y2_s, scale);
+                    bool exact2 = coord_to_mpz_scaled_exact(line2->symbolic_coords[0], l2x1_s, scale) &&
+                                  coord_to_mpz_scaled_exact(line2->symbolic_coords[1], l2y1_s, scale) &&
+                                  coord_to_mpz_scaled_exact(line2->symbolic_coords[2], l2x2_s, scale) &&
+                                  coord_to_mpz_scaled_exact(line2->symbolic_coords[3], l2y2_s, scale);
 
-                bool exact1 = coord_to_mpz_scaled_exact(line1->symbolic_coords[0], l1x1_s, scale) &&
-                              coord_to_mpz_scaled_exact(line1->symbolic_coords[1], l1y1_s, scale) &&
-                              coord_to_mpz_scaled_exact(line1->symbolic_coords[2], l1x2_s, scale) &&
-                              coord_to_mpz_scaled_exact(line1->symbolic_coords[3], l1y2_s, scale);
-                bool exact2 = coord_to_mpz_scaled_exact(line2->symbolic_coords[0], l2x1_s, scale) &&
-                              coord_to_mpz_scaled_exact(line2->symbolic_coords[1], l2y1_s, scale) &&
-                              coord_to_mpz_scaled_exact(line2->symbolic_coords[2], l2x2_s, scale) &&
-                              coord_to_mpz_scaled_exact(line2->symbolic_coords[3], l2y2_s, scale);
+                    if (exact1 && exact2) {
+                        /* 精确路径：在 mpz 层面计算直线方程和交点 */
 
-                if (exact1 && exact2) {
-                    /* 精确路径：在 mpz 层面计算直线方程和交点 */
-
-                    /* 直线1: a1*x + b1*y + c1 = 0
+                        /* 直线1: a1*x + b1*y + c1 = 0
                        a1 = dy1 = (l1y2 - l1y1), b1 = -dx1 = -(l1x2 - l1x1)
                        c1 = -(a1*l1x1 + b1*l1y1) (需要除以 scale) */
-                    mpz_t a1_s, b1_s, c1_s, a2_s, b2_s, c2_s;
-                    mpz_t dx1_s, dy1_s, dx2_s, dy2_s;
-                    mpz_init(a1_s); mpz_init(b1_s); mpz_init(c1_s);
-                    mpz_init(a2_s); mpz_init(b2_s); mpz_init(c2_s);
-                    mpz_init(dx1_s); mpz_init(dy1_s); mpz_init(dx2_s); mpz_init(dy2_s);
+                        mpz_t a1_s, b1_s, c1_s, a2_s, b2_s, c2_s;
+                        mpz_t dx1_s, dy1_s, dx2_s, dy2_s;
+                        mpz_init(a1_s);
+                        mpz_init(b1_s);
+                        mpz_init(c1_s);
+                        mpz_init(a2_s);
+                        mpz_init(b2_s);
+                        mpz_init(c2_s);
+                        mpz_init(dx1_s);
+                        mpz_init(dy1_s);
+                        mpz_init(dx2_s);
+                        mpz_init(dy2_s);
 
-                    mpz_sub(dx1_s, l1x2_s, l1x1_s);
-                    mpz_sub(dy1_s, l1y2_s, l1y1_s);
-                    mpz_set(a1_s, dy1_s);
-                    mpz_neg(b1_s, dx1_s);
-                    /* c1 = -(a1*l1x1 + b1*l1y1) / scale */
-                    {
-                        mpz_t t1, t2;
-                        mpz_init(t1); mpz_init(t2);
-                        mpz_mul(t1, a1_s, l1x1_s);
-                        mpz_mul(t2, b1_s, l1y1_s);
-                        mpz_add(t1, t1, t2);
-                        mpz_neg(t1, t1);
-                        mpz_fdiv_q_ui(c1_s, t1, (unsigned long)scale);
-                        mpz_clear(t1); mpz_clear(t2);
-                    }
-
-                    mpz_sub(dx2_s, l2x2_s, l2x1_s);
-                    mpz_sub(dy2_s, l2y2_s, l2y1_s);
-                    mpz_set(a2_s, dy2_s);
-                    mpz_neg(b2_s, dx2_s);
-                    /* c2 = -(a2*l2x1 + b2*l2y1) / scale */
-                    {
-                        mpz_t t1, t2;
-                        mpz_init(t1); mpz_init(t2);
-                        mpz_mul(t1, a2_s, l2x1_s);
-                        mpz_mul(t2, b2_s, l2y1_s);
-                        mpz_add(t1, t1, t2);
-                        mpz_neg(t1, t1);
-                        mpz_fdiv_q_ui(c2_s, t1, (unsigned long)scale);
-                        mpz_clear(t1); mpz_clear(t2);
-                    }
-
-                    /* D = a1*b2 - a2*b1 (已缩放: a1,b1 已缩放，a2,b2 已缩放 => D 缩放^2) */
-                    mpz_t D_s, x_num_s, y_num_s;
-                    mpz_init(D_s); mpz_init(x_num_s); mpz_init(y_num_s);
-                    {
-                        mpz_t t1, t2;
-                        mpz_init(t1); mpz_init(t2);
-                        mpz_mul(t1, a1_s, b2_s);
-                        mpz_mul(t2, a2_s, b1_s);
-                        mpz_sub(D_s, t1, t2);
-                        mpz_clear(t1); mpz_clear(t2);
-                    }
-
-                    /* 检查是否平行：D_s == 0 */
-                    if (mpz_sgn(D_s) != 0) {
-                        /* x_num = b1*c2 - b2*c1 (b1,b2 缩放, c1,c2 缩放 => x_num 缩放^2) */
+                        mpz_sub(dx1_s, l1x2_s, l1x1_s);
+                        mpz_sub(dy1_s, l1y2_s, l1y1_s);
+                        mpz_set(a1_s, dy1_s);
+                        mpz_neg(b1_s, dx1_s);
+                        /* c1 = -(a1*l1x1 + b1*l1y1) / scale */
                         {
                             mpz_t t1, t2;
-                            mpz_init(t1); mpz_init(t2);
-                            mpz_mul(t1, b1_s, c2_s);
-                            mpz_mul(t2, b2_s, c1_s);
-                            mpz_sub(x_num_s, t1, t2);
-                            mpz_clear(t1); mpz_clear(t2);
-                        }
-                        /* y_num = a2*c1 - a1*c2 */
-                        {
-                            mpz_t t1, t2;
-                            mpz_init(t1); mpz_init(t2);
-                            mpz_mul(t1, a2_s, c1_s);
-                            mpz_mul(t2, a1_s, c2_s);
-                            mpz_sub(y_num_s, t1, t2);
-                            mpz_clear(t1); mpz_clear(t2);
+                            mpz_init(t1);
+                            mpz_init(t2);
+                            mpz_mul(t1, a1_s, l1x1_s);
+                            mpz_mul(t2, b1_s, l1y1_s);
+                            mpz_add(t1, t1, t2);
+                            mpz_neg(t1, t1);
+                            mpz_fdiv_q_ui(c1_s, t1, (unsigned long) scale);
+                            mpz_clear(t1);
+                            mpz_clear(t2);
                         }
 
-                        /*
+                        mpz_sub(dx2_s, l2x2_s, l2x1_s);
+                        mpz_sub(dy2_s, l2y2_s, l2y1_s);
+                        mpz_set(a2_s, dy2_s);
+                        mpz_neg(b2_s, dx2_s);
+                        /* c2 = -(a2*l2x1 + b2*l2y1) / scale */
+                        {
+                            mpz_t t1, t2;
+                            mpz_init(t1);
+                            mpz_init(t2);
+                            mpz_mul(t1, a2_s, l2x1_s);
+                            mpz_mul(t2, b2_s, l2y1_s);
+                            mpz_add(t1, t1, t2);
+                            mpz_neg(t1, t1);
+                            mpz_fdiv_q_ui(c2_s, t1, (unsigned long) scale);
+                            mpz_clear(t1);
+                            mpz_clear(t2);
+                        }
+
+                        /* D = a1*b2 - a2*b1 (已缩放: a1,b1 已缩放，a2,b2 已缩放 => D 缩放^2) */
+                        mpz_t D_s, x_num_s, y_num_s;
+                        mpz_init(D_s);
+                        mpz_init(x_num_s);
+                        mpz_init(y_num_s);
+                        {
+                            mpz_t t1, t2;
+                            mpz_init(t1);
+                            mpz_init(t2);
+                            mpz_mul(t1, a1_s, b2_s);
+                            mpz_mul(t2, a2_s, b1_s);
+                            mpz_sub(D_s, t1, t2);
+                            mpz_clear(t1);
+                            mpz_clear(t2);
+                        }
+
+                        /* 检查是否平行：D_s == 0 */
+                        if (mpz_sgn(D_s) != 0) {
+                            /* x_num = b1*c2 - b2*c1 (b1,b2 缩放, c1,c2 缩放 => x_num 缩放^2) */
+                            {
+                                mpz_t t1, t2;
+                                mpz_init(t1);
+                                mpz_init(t2);
+                                mpz_mul(t1, b1_s, c2_s);
+                                mpz_mul(t2, b2_s, c1_s);
+                                mpz_sub(x_num_s, t1, t2);
+                                mpz_clear(t1);
+                                mpz_clear(t2);
+                            }
+                            /* y_num = a2*c1 - a1*c2 */
+                            {
+                                mpz_t t1, t2;
+                                mpz_init(t1);
+                                mpz_init(t2);
+                                mpz_mul(t1, a2_s, c1_s);
+                                mpz_mul(t2, a1_s, c2_s);
+                                mpz_sub(y_num_s, t1, t2);
+                                mpz_clear(t1);
+                                mpz_clear(t2);
+                            }
+
+                            /*
                          * 方程: D*x = x_num, D*y = y_num
                          * D_s 和 x_num_s/y_num_s 都缩放了 scale^2，
                          * 两边同时除以 scale^2 后等价。
                          * 直接用 D_s 和 x_num_s 作为系数（公共因子 scale^2 约掉）。
                          */
-                        mpz_poly_t poly;
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        /* GMP 要求使用标准分配器 */
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
-                        if (poly.coeffs) {
-                            mpz_init(poly.coeffs[1]);
-                            mpz_init(poly.coeffs[0]);
-                            mpz_set(poly.coeffs[1], D_s);
-                            mpz_neg(poly.coeffs[0], x_num_s);
-                            equation_system_push(sys, poly, rpt->id, 0);
-                            mpz_poly_clear(&poly);
-                        } else {
-                            mpz_poly_clear(&poly);
+                            mpz_poly_t poly;
+                            mpz_poly_init(&poly);
+                            poly.degree = 1;
+                            /* GMP 要求使用标准分配器 */
+                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            if (poly.coeffs) {
+                                mpz_init(poly.coeffs[1]);
+                                mpz_init(poly.coeffs[0]);
+                                mpz_set(poly.coeffs[1], D_s);
+                                mpz_neg(poly.coeffs[0], x_num_s);
+                                equation_system_push(sys, poly, rpt->id, 0);
+                                mpz_poly_clear(&poly);
+                            } else {
+                                mpz_poly_clear(&poly);
+                            }
+
+                            mpz_poly_init(&poly);
+                            poly.degree = 1;
+                            /* GMP 要求使用标准分配器 */
+                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            if (poly.coeffs) {
+                                mpz_init(poly.coeffs[1]);
+                                mpz_init(poly.coeffs[0]);
+                                mpz_set(poly.coeffs[1], D_s);
+                                mpz_neg(poly.coeffs[0], y_num_s);
+                                equation_system_push(sys, poly, rpt->id, 1);
+                                mpz_poly_clear(&poly);
+                            } else {
+                                mpz_poly_clear(&poly);
+                            }
                         }
 
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        /* GMP 要求使用标准分配器 */
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
-                        if (poly.coeffs) {
-                            mpz_init(poly.coeffs[1]);
-                            mpz_init(poly.coeffs[0]);
-                            mpz_set(poly.coeffs[1], D_s);
-                            mpz_neg(poly.coeffs[0], y_num_s);
-                            equation_system_push(sys, poly, rpt->id, 1);
-                            mpz_poly_clear(&poly);
-                        } else {
-                            mpz_poly_clear(&poly);
-                        }
+                        mpz_clear(D_s);
+                        mpz_clear(x_num_s);
+                        mpz_clear(y_num_s);
+                        mpz_clear(a1_s);
+                        mpz_clear(b1_s);
+                        mpz_clear(c1_s);
+                        mpz_clear(a2_s);
+                        mpz_clear(b2_s);
+                        mpz_clear(c2_s);
+                        mpz_clear(dx1_s);
+                        mpz_clear(dy1_s);
+                        mpz_clear(dx2_s);
+                        mpz_clear(dy2_s);
+                        mpz_clear(l1x1_s);
+                        mpz_clear(l1y1_s);
+                        mpz_clear(l1x2_s);
+                        mpz_clear(l1y2_s);
+                        mpz_clear(l2x1_s);
+                        mpz_clear(l2y1_s);
+                        mpz_clear(l2x2_s);
+                        mpz_clear(l2y2_s);
+                        break;
                     }
 
-                    mpz_clear(D_s); mpz_clear(x_num_s); mpz_clear(y_num_s);
-                    mpz_clear(a1_s); mpz_clear(b1_s); mpz_clear(c1_s);
-                    mpz_clear(a2_s); mpz_clear(b2_s); mpz_clear(c2_s);
-                    mpz_clear(dx1_s); mpz_clear(dy1_s); mpz_clear(dx2_s); mpz_clear(dy2_s);
-                    mpz_clear(l1x1_s); mpz_clear(l1y1_s); mpz_clear(l1x2_s); mpz_clear(l1y2_s);
-                    mpz_clear(l2x1_s); mpz_clear(l2y1_s); mpz_clear(l2x2_s); mpz_clear(l2y2_s);
-                    break;
+                    mpz_clear(l1x1_s);
+                    mpz_clear(l1y1_s);
+                    mpz_clear(l1x2_s);
+                    mpz_clear(l1y2_s);
+                    mpz_clear(l2x1_s);
+                    mpz_clear(l2y1_s);
+                    mpz_clear(l2x2_s);
+                    mpz_clear(l2y2_s);
                 }
 
-                mpz_clear(l1x1_s); mpz_clear(l1y1_s); mpz_clear(l1x2_s); mpz_clear(l1y2_s);
-                mpz_clear(l2x1_s); mpz_clear(l2y1_s); mpz_clear(l2x2_s); mpz_clear(l2y2_s);
-            }
+                /* 回退到 double 近似路径 */
+                {
+                    /* 从两条线段中提取直线方程 */
+                    LineEquation le1, le2;
+                    bool got1 = false, got2 = false;
 
-            /* 回退到 double 近似路径 */
-            {
-                /* 从两条线段中提取直线方程 */
-                LineEquation le1, le2;
-                bool got1 = false, got2 = false;
+                    if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4) {
+                        GeomNode ep1_storage, ep2_storage;
+                        memset(&ep1_storage, 0, sizeof(GeomNode));
+                        memset(&ep2_storage, 0, sizeof(GeomNode));
+                        GeomNode *ep1 = &ep1_storage;
+                        GeomNode *ep2 = &ep2_storage;
+                        ep1->type = GEOM_POINT;
+                        ep1->coord_count = 2;
+                        ep1->symbolic_coords = &line1->symbolic_coords[0];
+                        ep2->type = GEOM_POINT;
+                        ep2->coord_count = 2;
+                        ep2->symbolic_coords = &line1->symbolic_coords[2];
+                        got1 = line_from_two_points(ep1, ep2, &le1);
+                    }
+                    if (line2->type == GEOM_LINE_SEGMENT && line2->coord_count >= 4) {
+                        GeomNode ep1_storage, ep2_storage;
+                        memset(&ep1_storage, 0, sizeof(GeomNode));
+                        memset(&ep2_storage, 0, sizeof(GeomNode));
+                        GeomNode *ep1 = &ep1_storage;
+                        GeomNode *ep2 = &ep2_storage;
+                        ep1->type = GEOM_POINT;
+                        ep1->coord_count = 2;
+                        ep1->symbolic_coords = &line2->symbolic_coords[0];
+                        ep2->type = GEOM_POINT;
+                        ep2->coord_count = 2;
+                        ep2->symbolic_coords = &line2->symbolic_coords[2];
+                        got2 = line_from_two_points(ep1, ep2, &le2);
+                    }
 
-                if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4) {
-                    GeomNode ep1_storage, ep2_storage;
-                    memset(&ep1_storage, 0, sizeof(GeomNode));
-                    memset(&ep2_storage, 0, sizeof(GeomNode));
-                    GeomNode *ep1 = &ep1_storage;
-                    GeomNode *ep2 = &ep2_storage;
-                    ep1->type = GEOM_POINT;
-                    ep1->coord_count = 2;
-                    ep1->symbolic_coords = &line1->symbolic_coords[0];
-                    ep2->type = GEOM_POINT;
-                    ep2->coord_count = 2;
-                    ep2->symbolic_coords = &line1->symbolic_coords[2];
-                    got1 = line_from_two_points(ep1, ep2, &le1);
-                }
-                if (line2->type == GEOM_LINE_SEGMENT && line2->coord_count >= 4) {
-                    GeomNode ep1_storage, ep2_storage;
-                    memset(&ep1_storage, 0, sizeof(GeomNode));
-                    memset(&ep2_storage, 0, sizeof(GeomNode));
-                    GeomNode *ep1 = &ep1_storage;
-                    GeomNode *ep2 = &ep2_storage;
-                    ep1->type = GEOM_POINT;
-                    ep1->coord_count = 2;
-                    ep1->symbolic_coords = &line2->symbolic_coords[0];
-                    ep2->type = GEOM_POINT;
-                    ep2->coord_count = 2;
-                    ep2->symbolic_coords = &line2->symbolic_coords[2];
-                    got2 = line_from_two_points(ep1, ep2, &le2);
-                }
-
-                if (got1 && got2) {
-                    /*
+                    if (got1 && got2) {
+                        /*
                      * 正确计算两条直线的交点
                      *
                      * 两条直线方程为:
@@ -860,306 +945,349 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph,
                      *   0*x + D*y - (a2*c1 - a1*c2) = 0  =>  y 坐标的约束
                      */
 
-                    double D = le1.a * le2.b - le2.a * le1.b;
+                        double D = le1.a * le2.b - le2.a * le1.b;
 
-                    /* 检查是否平行（行列式接近零） */
-                    if (fabs(D) < LV00_EPSILON_NUMERIC_COMPARE) {
-                        /* 直线平行或重合，无法确定唯一交点 */
-                        break;
+                        /* 检查是否平行（行列式接近零） */
+                        if (fabs(D) < LV00_EPSILON_NUMERIC_COMPARE) {
+                            /* 直线平行或重合，无法确定唯一交点 */
+                            break;
+                        }
+
+                        double x_numerator = le1.b * le2.c - le2.b * le1.c; /* b1*c2 - b2*c1 */
+                        double y_numerator = le2.a * le1.c - le1.a * le2.c; /* a2*c1 - a1*c2 */
+
+                        /* x 坐标方程: D*x - x_numerator = 0 */
+                        mpz_poly_t poly;
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        /* GMP 要求使用标准分配器 */
+                        poly.coeffs = malloc(SOLVER_LINEAR_COEFF_COUNT * sizeof(mpz_t));
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                            break;
+                        }
+                        mpz_init(poly.coeffs[1]);
+                        mpz_init(poly.coeffs[0]);
+                        double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* x 的系数 */
+                        double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale); /* 常数项 */
+                        equation_system_push(sys, poly, rpt->id, 0);
+                        mpz_poly_clear(&poly);
+
+                        /* y 坐标方程: D*y - y_numerator = 0 */
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        /* GMP 要求使用标准分配器 */
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                            break;
+                        }
+                        mpz_init(poly.coeffs[1]);
+                        mpz_init(poly.coeffs[0]);
+                        double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* y 的系数 */
+                        double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale); /* 常数项 */
+                        equation_system_push(sys, poly, rpt->id, 1);
+                        mpz_poly_clear(&poly);
                     }
-
-                    double x_numerator = le1.b * le2.c - le2.b * le1.c;   /* b1*c2 - b2*c1 */
-                    double y_numerator = le2.a * le1.c - le1.a * le2.c;   /* a2*c1 - a1*c2 */
-
-                    /* x 坐标方程: D*x - x_numerator = 0 */
-                    mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    /* GMP 要求使用标准分配器 */
-                    poly.coeffs = malloc(SOLVER_LINEAR_COEFF_COUNT * sizeof(mpz_t));
-                    if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
-                    double_to_mpz_scaled(D, poly.coeffs[1], scale);           /* x 的系数 */
-                    double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale); /* 常数项 */
-                    equation_system_push(sys, poly, rpt->id, 0);
-                    mpz_poly_clear(&poly);
-
-                    /* y 坐标方程: D*y - y_numerator = 0 */
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    /* GMP 要求使用标准分配器 */
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
-                    if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
-                    double_to_mpz_scaled(D, poly.coeffs[1], scale);           /* y 的系数 */
-                    double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale); /* 常数项 */
-                    equation_system_push(sys, poly, rpt->id, 1);
-                    mpz_poly_clear(&poly);
                 }
+                break;
             }
-            break;
-        }
 
-        case BETWEENNESS: {
-            /* participants[0]=p1, participants[1]=p2, participants[2]=p3
+            case BETWEENNESS: {
+                /* participants[0]=p1, participants[1]=p2, participants[2]=p3
                p2 is between p1 and p3 => collinear + 0 <= t <= 1 */
-            if (c->participant_count < 3) break;
-            GeomNode *p1 = find_node(graph, c->participants[0]);
-            GeomNode *p2 = find_node(graph, c->participants[1]);
-            GeomNode *p3 = find_node(graph, c->participants[2]);
-            if (!p1 || !p2 || !p3) break;
-            if (p1->type != GEOM_POINT || p3->type != GEOM_POINT) break;
+                if (c->participant_count < 3)
+                    break;
+                GeomNode *p1 = find_node(graph, c->participants[0]);
+                GeomNode *p2 = find_node(graph, c->participants[1]);
+                GeomNode *p3 = find_node(graph, c->participants[2]);
+                if (!p1 || !p2 || !p3)
+                    break;
+                if (p1->type != GEOM_POINT || p3->type != GEOM_POINT)
+                    break;
 
-            /* 共线性判断：向量 (p2-p1) 和 (p3-p1) 的叉积 = 0
+                /* 共线性判断：向量 (p2-p1) 和 (p3-p1) 的叉积 = 0
                (x2-x1)*(y3-y1) - (y2-y1)*(x3-x1) = 0
                展开: dy13*x2 - dx13*y2 + (dx13*y1 - dy13*x1) = 0
                使用精确有理数路径避免 double 精度损失 */
-            long scale = LV00_SOLVER_SCALE_FACTOR;
-            mpz_t x1_s, y1_s, x3_s, y3_s;
-            mpz_init(x1_s); mpz_init(y1_s);
-            mpz_init(x3_s); mpz_init(y3_s);
+                long scale = LV00_SOLVER_SCALE_FACTOR;
+                mpz_t x1_s, y1_s, x3_s, y3_s;
+                mpz_init(x1_s);
+                mpz_init(y1_s);
+                mpz_init(x3_s);
+                mpz_init(y3_s);
 
-            if (p1->symbolic_coords && p3->symbolic_coords &&
-                p1->coord_count >= 2 && p3->coord_count >= 2 &&
-                coord_to_mpz_scaled_exact(p1->symbolic_coords[0], x1_s, scale) &&
-                coord_to_mpz_scaled_exact(p1->symbolic_coords[1], y1_s, scale) &&
-                coord_to_mpz_scaled_exact(p3->symbolic_coords[0], x3_s, scale) &&
-                coord_to_mpz_scaled_exact(p3->symbolic_coords[1], y3_s, scale)) {
+                if (p1->symbolic_coords && p3->symbolic_coords && p1->coord_count >= 2 && p3->coord_count >= 2 &&
+                    coord_to_mpz_scaled_exact(p1->symbolic_coords[0], x1_s, scale) &&
+                    coord_to_mpz_scaled_exact(p1->symbolic_coords[1], y1_s, scale) &&
+                    coord_to_mpz_scaled_exact(p3->symbolic_coords[0], x3_s, scale) &&
+                    coord_to_mpz_scaled_exact(p3->symbolic_coords[1], y3_s, scale)) {
+                    /* dx = x3 - x1, dy = y3 - y1 (均缩放 scale 倍) */
+                    mpz_t dx_s, dy_s;
+                    mpz_init(dx_s);
+                    mpz_init(dy_s);
+                    mpz_sub(dx_s, x3_s, x1_s);
+                    mpz_sub(dy_s, y3_s, y1_s);
 
-                /* dx = x3 - x1, dy = y3 - y1 (均缩放 scale 倍) */
-                mpz_t dx_s, dy_s;
-                mpz_init(dx_s); mpz_init(dy_s);
-                mpz_sub(dx_s, x3_s, x1_s);
-                mpz_sub(dy_s, y3_s, y1_s);
-
-                /* x2 方程: dy*x2 + (y1*dx - x1*dy) = 0
+                    /* x2 方程: dy*x2 + (y1*dx - x1*dy) = 0
                    coeff = dy_s, const = (y1_s * dx_s - x1_s * dy_s) / scale */
-                {
-                    mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
-                    if (poly.coeffs) {
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        mpz_set(poly.coeffs[1], dy_s);
-                        mpz_t term1, term2;
-                        mpz_init(term1); mpz_init(term2);
-                        mpz_mul(term1, y1_s, dx_s);
-                        mpz_mul(term2, x1_s, dy_s);
-                        mpz_sub(term1, term1, term2);
-                        mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long)scale);
-                        mpz_clear(term1); mpz_clear(term2);
-                        equation_system_push(sys, poly, p2->id, 0);
+                    {
+                        mpz_poly_t poly;
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        if (poly.coeffs) {
+                            mpz_init(poly.coeffs[1]);
+                            mpz_init(poly.coeffs[0]);
+                            mpz_set(poly.coeffs[1], dy_s);
+                            mpz_t term1, term2;
+                            mpz_init(term1);
+                            mpz_init(term2);
+                            mpz_mul(term1, y1_s, dx_s);
+                            mpz_mul(term2, x1_s, dy_s);
+                            mpz_sub(term1, term1, term2);
+                            mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                            mpz_clear(term1);
+                            mpz_clear(term2);
+                            equation_system_push(sys, poly, p2->id, 0);
+                        }
+                        mpz_poly_clear(&poly);
                     }
-                    mpz_poly_clear(&poly);
-                }
 
-                /* y2 方程: -dx*y2 + (dy*x1 - dx*y1) = 0
+                    /* y2 方程: -dx*y2 + (dy*x1 - dx*y1) = 0
                    coeff = -dx_s, const = (dy_s * x1_s - dx_s * y1_s) / scale */
-                {
-                    mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
-                    if (poly.coeffs) {
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        mpz_neg(poly.coeffs[1], dx_s);
-                        mpz_t term1, term2;
-                        mpz_init(term1); mpz_init(term2);
-                        mpz_mul(term1, dy_s, x1_s);
-                        mpz_mul(term2, dx_s, y1_s);
-                        mpz_sub(term1, term1, term2);
-                        mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long)scale);
-                        mpz_clear(term1); mpz_clear(term2);
-                        equation_system_push(sys, poly, p2->id, 1);
+                    {
+                        mpz_poly_t poly;
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        if (poly.coeffs) {
+                            mpz_init(poly.coeffs[1]);
+                            mpz_init(poly.coeffs[0]);
+                            mpz_neg(poly.coeffs[1], dx_s);
+                            mpz_t term1, term2;
+                            mpz_init(term1);
+                            mpz_init(term2);
+                            mpz_mul(term1, dy_s, x1_s);
+                            mpz_mul(term2, dx_s, y1_s);
+                            mpz_sub(term1, term1, term2);
+                            mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                            mpz_clear(term1);
+                            mpz_clear(term2);
+                            equation_system_push(sys, poly, p2->id, 1);
+                        }
+                        mpz_poly_clear(&poly);
                     }
-                    mpz_poly_clear(&poly);
+
+                    mpz_clear(dx_s);
+                    mpz_clear(dy_s);
                 }
-
-                mpz_clear(dx_s); mpz_clear(dy_s);
+                mpz_clear(x1_s);
+                mpz_clear(y1_s);
+                mpz_clear(x3_s);
+                mpz_clear(y3_s);
+                break;
             }
-            mpz_clear(x1_s); mpz_clear(y1_s);
-            mpz_clear(x3_s); mpz_clear(y3_s);
-            break;
-        }
 
-        case CONTAINMENT: {
-            /* 点/区域包含约束: inner 几何体位于 outer 区域内。
+            case CONTAINMENT: {
+                /* 点/区域包含约束: inner 几何体位于 outer 区域内。
                对多边形区域的每条边界边，点必须在边的"内侧"。
                使用精确有理数路径避免 double 精度损失。 */
-            if (c->participant_count < 2) break;
-            GeomNode *inner = find_node(graph, c->participants[0]);
-            GeomNode *outer = find_node(graph, c->participants[1]);
-            if (!inner || !outer) break;
+                if (c->participant_count < 2)
+                    break;
+                GeomNode *inner = find_node(graph, c->participants[0]);
+                GeomNode *outer = find_node(graph, c->participants[1]);
+                if (!inner || !outer)
+                    break;
 
-            /* 当前仅处理点-区域包含 */
-            if (inner->type != GEOM_POINT || outer->type != GEOM_REGION) break;
-            if (outer->data.region.segment_count <= 0 ||
-                !outer->data.region.boundary_segments) break;
+                /* 当前仅处理点-区域包含 */
+                if (inner->type != GEOM_POINT || outer->type != GEOM_REGION)
+                    break;
+                if (outer->data.region.segment_count <= 0 || !outer->data.region.boundary_segments)
+                    break;
 
-            {
-                long scale = LV00_SOLVER_SCALE_FACTOR;
-                int seg_count = outer->data.region.segment_count;
+                {
+                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    int seg_count = outer->data.region.segment_count;
 
-                for (int si = 0; si < seg_count; si++) {
-                    GeomNode *seg = outer->data.region.boundary_segments[si];
-                    if (!seg || seg->type != GEOM_LINE_SEGMENT) continue;
-                    if (seg->coord_count < 4 || !seg->symbolic_coords) continue;
+                    for (int si = 0; si < seg_count; si++) {
+                        GeomNode *seg = outer->data.region.boundary_segments[si];
+                        if (!seg || seg->type != GEOM_LINE_SEGMENT)
+                            continue;
+                        if (seg->coord_count < 4 || !seg->symbolic_coords)
+                            continue;
 
-                    /* 精确有理数路径：获取边界线段端点坐标的缩放整数值 */
-                    mpz_t sx1_s, sy1_s, sx2_s, sy2_s;
-                    mpz_init(sx1_s); mpz_init(sy1_s);
-                    mpz_init(sx2_s); mpz_init(sy2_s);
+                        /* 精确有理数路径：获取边界线段端点坐标的缩放整数值 */
+                        mpz_t sx1_s, sy1_s, sx2_s, sy2_s;
+                        mpz_init(sx1_s);
+                        mpz_init(sy1_s);
+                        mpz_init(sx2_s);
+                        mpz_init(sy2_s);
 
-                    if (coord_to_mpz_scaled_exact(seg->symbolic_coords[0], sx1_s, scale) &&
-                        coord_to_mpz_scaled_exact(seg->symbolic_coords[1], sy1_s, scale) &&
-                        coord_to_mpz_scaled_exact(seg->symbolic_coords[2], sx2_s, scale) &&
-                        coord_to_mpz_scaled_exact(seg->symbolic_coords[3], sy2_s, scale)) {
+                        if (coord_to_mpz_scaled_exact(seg->symbolic_coords[0], sx1_s, scale) &&
+                            coord_to_mpz_scaled_exact(seg->symbolic_coords[1], sy1_s, scale) &&
+                            coord_to_mpz_scaled_exact(seg->symbolic_coords[2], sx2_s, scale) &&
+                            coord_to_mpz_scaled_exact(seg->symbolic_coords[3], sy2_s, scale)) {
+                            /* 边方向向量 (均缩放 scale 倍) */
+                            mpz_t dx_s, dy_s;
+                            mpz_init(dx_s);
+                            mpz_init(dy_s);
+                            mpz_sub(dx_s, sx2_s, sx1_s);
+                            mpz_sub(dy_s, sy2_s, sy1_s);
 
-                        /* 边方向向量 (均缩放 scale 倍) */
-                        mpz_t dx_s, dy_s;
-                        mpz_init(dx_s); mpz_init(dy_s);
-                        mpz_sub(dx_s, sx2_s, sx1_s);
-                        mpz_sub(dy_s, sy2_s, sy1_s);
-
-                        /* x-分量方程: dy*px + (-dy*sx1 + dx*sy1) = 0
+                            /* x-分量方程: dy*px + (-dy*sx1 + dx*sy1) = 0
                            coeff = dy_s, const = (dx_s * sy1_s - dy_s * sx1_s) / scale */
-                        {
-                            mpz_poly_t poly;
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
-                            if (poly.coeffs) {
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                mpz_set(poly.coeffs[1], dy_s);
-                                mpz_t term1, term2;
-                                mpz_init(term1); mpz_init(term2);
-                                mpz_mul(term1, dx_s, sy1_s);
-                                mpz_mul(term2, dy_s, sx1_s);
-                                mpz_sub(term1, term1, term2);
-                                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long)scale);
-                                mpz_clear(term1); mpz_clear(term2);
-                                equation_system_push(sys, poly, inner->id, 0);
+                            {
+                                mpz_poly_t poly;
+                                mpz_poly_init(&poly);
+                                poly.degree = 1;
+                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                if (poly.coeffs) {
+                                    mpz_init(poly.coeffs[1]);
+                                    mpz_init(poly.coeffs[0]);
+                                    mpz_set(poly.coeffs[1], dy_s);
+                                    mpz_t term1, term2;
+                                    mpz_init(term1);
+                                    mpz_init(term2);
+                                    mpz_mul(term1, dx_s, sy1_s);
+                                    mpz_mul(term2, dy_s, sx1_s);
+                                    mpz_sub(term1, term1, term2);
+                                    mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                                    mpz_clear(term1);
+                                    mpz_clear(term2);
+                                    equation_system_push(sys, poly, inner->id, 0);
+                                }
+                                mpz_poly_clear(&poly);
                             }
-                            mpz_poly_clear(&poly);
-                        }
 
-                        /* y-分量方程: -dx*py + (dy*sx1 - dx*sy1) = 0
+                            /* y-分量方程: -dx*py + (dy*sx1 - dx*sy1) = 0
                            coeff = -dx_s, const = (dy_s * sx1_s - dx_s * sy1_s) / scale */
-                        {
-                            mpz_poly_t poly;
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
-                            if (poly.coeffs) {
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                mpz_neg(poly.coeffs[1], dx_s);
-                                mpz_t term1, term2;
-                                mpz_init(term1); mpz_init(term2);
-                                mpz_mul(term1, dy_s, sx1_s);
-                                mpz_mul(term2, dx_s, sy1_s);
-                                mpz_sub(term1, term1, term2);
-                                mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long)scale);
-                                mpz_clear(term1); mpz_clear(term2);
-                                equation_system_push(sys, poly, inner->id, 1);
+                            {
+                                mpz_poly_t poly;
+                                mpz_poly_init(&poly);
+                                poly.degree = 1;
+                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                if (poly.coeffs) {
+                                    mpz_init(poly.coeffs[1]);
+                                    mpz_init(poly.coeffs[0]);
+                                    mpz_neg(poly.coeffs[1], dx_s);
+                                    mpz_t term1, term2;
+                                    mpz_init(term1);
+                                    mpz_init(term2);
+                                    mpz_mul(term1, dy_s, sx1_s);
+                                    mpz_mul(term2, dx_s, sy1_s);
+                                    mpz_sub(term1, term1, term2);
+                                    mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
+                                    mpz_clear(term1);
+                                    mpz_clear(term2);
+                                    equation_system_push(sys, poly, inner->id, 1);
+                                }
+                                mpz_poly_clear(&poly);
                             }
-                            mpz_poly_clear(&poly);
+
+                            mpz_clear(dx_s);
+                            mpz_clear(dy_s);
                         }
 
-                        mpz_clear(dx_s); mpz_clear(dy_s);
+                        mpz_clear(sx1_s);
+                        mpz_clear(sy1_s);
+                        mpz_clear(sx2_s);
+                        mpz_clear(sy2_s);
                     }
-
-                    mpz_clear(sx1_s); mpz_clear(sy1_s);
-                    mpz_clear(sx2_s); mpz_clear(sy2_s);
                 }
+                break;
             }
-            break;
-        }
 
-        case CONNECTION: {
-            /* 端口之间的连接。从关联节点的数值假设声明中提取距离约束。
+            case CONNECTION: {
+                /* 端口之间的连接。从关联节点的数值假设声明中提取距离约束。
                如果两个节点都有坐标且其中一个编码了距离，
                生成方程：(xA-xB)^2 + (yA-yB)^2 = d^2。 */
-            if (c->participant_count < 2) break;
-            GeomNode *nodeA = find_node(graph, c->participants[0]);
-            GeomNode *nodeB = find_node(graph, c->participants[1]);
-            if (!nodeA || !nodeB) break;
-
-            /* 尝试从任一节点的数值假设声明中提取距离值 */
-            double dist_val = -1.0;
-            GeomNode *dist_node = NULL;
-            const char *prefix = "distance=";
-            size_t prefix_len = strlen(prefix);  /* 缓存前缀长度，避免循环内重复计算 */
-            for (int ni = 0; ni < 2; ni++) {
-                GeomNode *n = (ni == 0) ? nodeA : nodeB;
-                if (!n || !n->numeric_assumption_declaration) continue;
-                const char *decl = n->numeric_assumption_declaration;
-                if (strncmp(decl, prefix, prefix_len) == 0) {
-                    dist_val = strtod(decl + prefix_len, NULL);
-                    dist_node = n;
+                if (c->participant_count < 2)
                     break;
+                GeomNode *nodeA = find_node(graph, c->participants[0]);
+                GeomNode *nodeB = find_node(graph, c->participants[1]);
+                if (!nodeA || !nodeB)
+                    break;
+
+                /* 尝试从任一节点的数值假设声明中提取距离值 */
+                double dist_val = -1.0;
+                GeomNode *dist_node = NULL;
+                const char *prefix = "distance=";
+                size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免循环内重复计算 */
+                for (int ni = 0; ni < 2; ni++) {
+                    GeomNode *n = (ni == 0) ? nodeA : nodeB;
+                    if (!n || !n->numeric_assumption_declaration)
+                        continue;
+                    const char *decl = n->numeric_assumption_declaration;
+                    if (strncmp(decl, prefix, prefix_len) == 0) {
+                        dist_val = strtod(decl + prefix_len, NULL);
+                        dist_node = n;
+                        break;
+                    }
                 }
-            }
 
-            if (dist_val < 0) break;
+                if (dist_val < 0)
+                    break;
 
-            /* 两个节点均需要至少 2 个坐标 (x, y) */
-            if (nodeA->coord_count < 2 || nodeB->coord_count < 2) break;
-            if (!nodeA->symbolic_coords || !nodeB->symbolic_coords) break;
+                /* 两个节点均需要至少 2 个坐标 (x, y) */
+                if (nodeA->coord_count < 2 || nodeB->coord_count < 2)
+                    break;
+                if (!nodeA->symbolic_coords || !nodeB->symbolic_coords)
+                    break;
 
-            double ax, ay, bx, by;
-            if (!coord_to_double(nodeA->symbolic_coords[0], &ax) ||
-                !coord_to_double(nodeA->symbolic_coords[1], &ay) ||
-                !coord_to_double(nodeB->symbolic_coords[0], &bx) ||
-                !coord_to_double(nodeB->symbolic_coords[1], &by))
-                break;
+                double ax, ay, bx, by;
+                if (!coord_to_double(nodeA->symbolic_coords[0], &ax) ||
+                    !coord_to_double(nodeA->symbolic_coords[1], &ay) ||
+                    !coord_to_double(nodeB->symbolic_coords[0], &bx) ||
+                    !coord_to_double(nodeB->symbolic_coords[1], &by))
+                    break;
 
-            double dist_sq = dist_val * dist_val;
-            long scale = LV00_SOLVER_SCALE_FACTOR;
+                double dist_sq = dist_val * dist_val;
+                long scale = LV00_SOLVER_SCALE_FACTOR;
 
-            /* (xA-xB)^2 + (yA-yB)^2 = d^2
+                /* (xA-xB)^2 + (yA-yB)^2 = d^2
                Expand for nodeB as variable (nodeA as fixed):
                xB^2 - 2*ax*xB + (ax^2 + ay^2 - 2*ay*yB + yB^2 - dist_sq) = 0
                Simplified as univariate in xB:
                xB^2 - 2*ax*xB + (ax^2 + ay^2 - dist_sq) = 0
                (ignoring y coupling terms, consistent with existing approach) */
-            mpz_poly_t poly;
-            mpz_poly_init(&poly);
-            poly.degree = 2;
-            /* GMP 要求使用标准分配器 */
-            poly.coeffs = malloc(SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
-            if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-            mpz_init(poly.coeffs[2]);
-            mpz_init(poly.coeffs[1]);
-            mpz_init(poly.coeffs[0]);
-            mpz_set_si(poly.coeffs[2], scale);
-            double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
-            double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-            equation_system_push(sys, poly, nodeB->id, 0);
-            mpz_poly_clear(&poly);
+                mpz_poly_t poly;
+                mpz_poly_init(&poly);
+                poly.degree = 2;
+                /* GMP 要求使用标准分配器 */
+                poly.coeffs = malloc(SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    break;
+                }
+                mpz_init(poly.coeffs[2]);
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_set_si(poly.coeffs[2], scale);
+                double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
+                double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+                equation_system_push(sys, poly, nodeB->id, 0);
+                mpz_poly_clear(&poly);
 
-            /* 同理对 yB 建立方程：yB^2 - 2*ay*yB + (ax^2 + ay^2 - dist_sq) = 0 */
-            mpz_poly_init(&poly);
-            poly.degree = 2;
-            /* GMP 要求使用标准分配器 */
-            poly.coeffs = malloc(3 * sizeof(mpz_t));
-            if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-            mpz_init(poly.coeffs[2]);
-            mpz_init(poly.coeffs[1]);
-            mpz_init(poly.coeffs[0]);
-            mpz_set_si(poly.coeffs[2], scale);
-            double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
-            double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-            equation_system_push(sys, poly, nodeB->id, 1);
-            mpz_poly_clear(&poly);
-            break;
-        }
+                /* 同理对 yB 建立方程：yB^2 - 2*ay*yB + (ax^2 + ay^2 - dist_sq) = 0 */
+                mpz_poly_init(&poly);
+                poly.degree = 2;
+                /* GMP 要求使用标准分配器 */
+                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    break;
+                }
+                mpz_init(poly.coeffs[2]);
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_set_si(poly.coeffs[2], scale);
+                double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
+                double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+                equation_system_push(sys, poly, nodeB->id, 1);
+                mpz_poly_clear(&poly);
+                break;
+            }
         }
     }
 
@@ -1167,8 +1295,10 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph,
        （编码平方距离 = d^2）。 */
     for (int ni = 0; ni < graph->node_count; ni++) {
         GeomNode *node = graph->nodes[ni];
-        if (!node || !node->numeric_assumption_declaration) continue;
-        if (node->type != GEOM_LINE_SEGMENT) continue;
+        if (!node || !node->numeric_assumption_declaration)
+            continue;
+        if (node->type != GEOM_LINE_SEGMENT)
+            continue;
 
         /* 检查声明是否编码了距离约束。
            格式："distance=<value>" 或仅为数值。 */
@@ -1177,7 +1307,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph,
 
         /* 尝试解析为 "distance=<value>" 格式 */
         const char *prefix = "distance=";
-        size_t prefix_len = strlen(prefix);  /* 缓存前缀长度，避免重复计算 */
+        size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免重复计算 */
         if (strncmp(decl, prefix, prefix_len) == 0) {
             dist_sq = strtod(decl + prefix_len, NULL);
             dist_sq = dist_sq * dist_sq; /* 存储平方值 */
@@ -1190,15 +1320,15 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph,
             }
         }
 
-        if (dist_sq < 0) continue;
+        if (dist_sq < 0)
+            continue;
 
         /* 线段在 symbolic_coords 中存储了端点坐标。
            为第二个端点建立距离方程
           （第一个端点通常已固定）。 */
         if (node->coord_count >= 4) {
             double x1, y1;
-            if (coord_to_double(node->symbolic_coords[0], &x1) &&
-                coord_to_double(node->symbolic_coords[1], &y1)) {
+            if (coord_to_double(node->symbolic_coords[0], &x1) && coord_to_double(node->symbolic_coords[1], &y1)) {
                 /* (x - x1)^2 + (y - y1)^2 = dist_sq
                    => x^2 - 2*x1*x + x1^2 + y^2 - 2*y1*y + y1^2 - dist_sq = 0
                    这是一个关于 x 和 y 的二次方程。将其存储为两个独立的一元方程
@@ -1216,14 +1346,17 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph,
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
                 poly.degree = 2;
-            /* GMP 要求使用标准分配器 */
-            poly.coeffs = malloc(SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
-            if (!poly.coeffs) { mpz_poly_clear(&poly); continue; }
-            mpz_init(poly.coeffs[2]);
-            mpz_init(poly.coeffs[1]);
-            mpz_init(poly.coeffs[0]);
-            mpz_set_si(poly.coeffs[2], scale);           /* x^2 系数 */
-                double_to_mpz_scaled(-2.0 * x1, poly.coeffs[1], scale); /* x 系数 */
+                /* GMP 要求使用标准分配器 */
+                poly.coeffs = malloc(SOLVER_QUADRATIC_COEFF_COUNT * sizeof(mpz_t));
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    continue;
+                }
+                mpz_init(poly.coeffs[2]);
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_set_si(poly.coeffs[2], scale);                                        /* x^2 系数 */
+                double_to_mpz_scaled(-2.0 * x1, poly.coeffs[1], scale);                   /* x 系数 */
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
                 equation_system_push(sys, poly, node->id, 0);
                 mpz_poly_clear(&poly);
@@ -1233,7 +1366,10 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph,
                 poly.degree = 2;
                 /* GMP 要求使用标准分配器 */
                 poly.coeffs = malloc(3 * sizeof(mpz_t));
-                if (!poly.coeffs) { mpz_poly_clear(&poly); continue; }
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    continue;
+                }
                 mpz_init(poly.coeffs[2]);
                 mpz_init(poly.coeffs[1]);
                 mpz_init(poly.coeffs[0]);
@@ -1260,8 +1396,7 @@ typedef struct {
 /* 统计方程系统中每个变量节点对应的方程数量和最高次数。
    返回 VarInfo 数组，通过 out_var_count 输出变量数量。
    如果方程系统为空（var_count == 0），直接返回 NULL。 */
-static VarInfo *build_var_info(EquationSystem *sys, int node_count,
-                                int *out_var_count) {
+static VarInfo *build_var_info(EquationSystem *sys, int node_count, int *out_var_count) {
     /* 收集所有不重复的变量节点 id */
     int *var_ids = lv00_malloc(sys->count * sizeof(int));
     int var_count = 0;
@@ -1269,20 +1404,25 @@ static VarInfo *build_var_info(EquationSystem *sys, int node_count,
         int vid = sys->eqs[i].var_node_id;
         bool found = false;
         for (int j = 0; j < var_count; j++) {
-            if (var_ids[j] == vid) { found = true; break; }
+            if (var_ids[j] == vid) {
+                found = true;
+                break;
+            }
         }
-        if (!found) var_ids[var_count++] = vid;
+        if (!found)
+            var_ids[var_count++] = vid;
     }
 
     /* 提前返回：如果没有变量，避免 calloc(0, ...) 的未定义行为 */
     if (var_count == 0) {
-        lv00_free((void **)&var_ids);
+        lv00_free((void **) &var_ids);
         *out_var_count = 0;
         return NULL;
     }
 
-    VarInfo *info = lv00_malloc((size_t)var_count * sizeof(VarInfo));
-    if (info) memset(info, 0, (size_t)var_count * sizeof(VarInfo));
+    VarInfo *info = lv00_malloc((size_t) var_count * sizeof(VarInfo));
+    if (info)
+        memset(info, 0, (size_t) var_count * sizeof(VarInfo));
     for (int i = 0; i < var_count; i++) {
         info[i].node_id = var_ids[i];
         info[i].eq_count = 0;
@@ -1294,12 +1434,13 @@ static VarInfo *build_var_info(EquationSystem *sys, int node_count,
             if (info[j].node_id == vid) {
                 info[j].eq_count++;
                 int deg = sys->eqs[i].poly.degree;
-                if (deg > info[j].max_degree) info[j].max_degree = deg;
+                if (deg > info[j].max_degree)
+                    info[j].max_degree = deg;
                 break;
             }
         }
     }
-    lv00_free((void **)&var_ids);
+    lv00_free((void **) &var_ids);
     *out_var_count = var_count;
     return info;
 }
@@ -1318,10 +1459,12 @@ static VarInfo *build_var_info(EquationSystem *sys, int node_count,
  * @return true 表示成功求解，false 表示次数不为 1 或 a 近似为 0
  */
 static bool solve_linear(mpz_poly_t *poly, double *x_out) {
-    if (poly->degree != 1) return false;
+    if (poly->degree != 1)
+        return false;
     double a = mpz_get_d(poly->coeffs[1]);
     double b = mpz_get_d(poly->coeffs[0]);
-    if (fabs(a) < LV00_EPSILON_NEWTON) return false;
+    if (fabs(a) < LV00_EPSILON_NEWTON)
+        return false;
     *x_out = -b / a;
     return true;
 }
@@ -1347,13 +1490,15 @@ typedef struct {
  * @return true 表示成功（含无实根情况），false 表示输入的次数不是 2
  */
 static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
-    if (poly->degree != 2) return false;
+    if (poly->degree != 2)
+        return false;
     double a = mpz_get_d(poly->coeffs[2]);
     double b = mpz_get_d(poly->coeffs[1]);
     double c = mpz_get_d(poly->coeffs[0]);
     if (fabs(a) < LV00_EPSILON_NEWTON) {
         /* 坍缩为一元一次方程 */
-        if (fabs(b) < LV00_EPSILON_NEWTON) return false;
+        if (fabs(b) < LV00_EPSILON_NEWTON)
+            return false;
         out->roots[0] = -c / b;
         out->root_count = 1;
         return true;
@@ -1364,7 +1509,8 @@ static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
         out->root_count = 0;
         return true;
     }
-    if (disc < 0) disc = 0.0;
+    if (disc < 0)
+        disc = 0.0;
     double sq = sqrt(disc);
     out->roots[0] = (-b - sq) / (2.0 * a);
     out->roots[1] = (-b + sq) / (2.0 * a);
@@ -1402,12 +1548,9 @@ static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
  * @param max_solutions 最大解数量（通常为 2）
  * @return 实际解的数量（0、1 或 2）
  */
-static int solve_quadratic_exact(
-    const mpz_poly_t *poly,
-    SymbolicCoord **solutions,
-    int max_solutions) {
-
-    if (!poly || poly->degree != 2 || !solutions || max_solutions <= 0) return 0;
+static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
+    if (!poly || poly->degree != 2 || !solutions || max_solutions <= 0)
+        return 0;
 
     /* 提取系数 a, b, c (使用 GMP 精确整数) */
     /* 多项式: a*x^2 + b*x + c = 0 */
@@ -1420,42 +1563,47 @@ static int solve_quadratic_exact(
     if (mpz_cmp_si(a_mpz, 0) == 0) {
         /* 退化为线性方程: b*x + c = 0 => x = -c/b */
         if (mpz_cmp_si(b_mpz, 0) == 0) {
-            mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
+            mpz_clear(a_mpz);
+            mpz_clear(b_mpz);
+            mpz_clear(c_mpz);
             return 0;
         }
         /* x = -c/b，用 RATIONAL 表示 */
         mpq_t x_val;
         mpq_init(x_val);
-        mpz_neg(mpq_numref(x_val), c_mpz);  /* numerator = -c */
-        mpz_set(mpq_denref(x_val), b_mpz);  /* denominator = b */
+        mpz_neg(mpq_numref(x_val), c_mpz); /* numerator = -c */
+        mpz_set(mpq_denref(x_val), b_mpz); /* denominator = b */
         mpq_canonicalize(x_val);
 
         if (mpz_fits_slong_p(mpq_numref(x_val)) && mpz_fits_ulong_p(mpq_denref(x_val))) {
-            solutions[0] = symbolic_coord_create_rational(
-                (int64_t)mpz_get_si(mpq_numref(x_val)),
-                (uint64_t)mpz_get_ui(mpq_denref(x_val)));
+            solutions[0] = symbolic_coord_create_rational((int64_t) mpz_get_si(mpq_numref(x_val)),
+                                                          (uint64_t) mpz_get_ui(mpq_denref(x_val)));
         } else {
             /* 超出 int64/uint64 范围，无法精确表示 */
             mpq_clear(x_val);
-            mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
+            mpz_clear(a_mpz);
+            mpz_clear(b_mpz);
+            mpz_clear(c_mpz);
             return 0;
         }
 
         mpq_clear(x_val);
-        mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
         return 1;
     }
 
     /* 计算判别式 D = b^2 - 4ac (使用 GMP 精确运算) */
     mpz_t D;
     mpz_init(D);
-    mpz_mul(D, b_mpz, b_mpz);       /* D = b^2 */
+    mpz_mul(D, b_mpz, b_mpz); /* D = b^2 */
 
     mpz_t four_ac;
     mpz_init(four_ac);
-    mpz_mul_si(four_ac, a_mpz, 4);   /* 4a */
+    mpz_mul_si(four_ac, a_mpz, 4);    /* 4a */
     mpz_mul(four_ac, four_ac, c_mpz); /* 4ac */
-    mpz_sub(D, D, four_ac);          /* D = b^2 - 4ac */
+    mpz_sub(D, D, four_ac);           /* D = b^2 - 4ac */
     mpz_clear(four_ac);
 
     /* 判断 D 的符号 */
@@ -1463,7 +1611,10 @@ static int solve_quadratic_exact(
 
     if (D_sign < 0) {
         /* D < 0: 无实数解 */
-        mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz); mpz_clear(D);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
+        mpz_clear(D);
         return 0;
     }
 
@@ -1471,23 +1622,28 @@ static int solve_quadratic_exact(
         /* D == 0: 唯一解 x = -b / (2a) */
         mpq_t x_val;
         mpq_init(x_val);
-        mpz_neg(mpq_numref(x_val), b_mpz);    /* numerator = -b */
+        mpz_neg(mpq_numref(x_val), b_mpz);       /* numerator = -b */
         mpz_mul_si(mpq_denref(x_val), a_mpz, 2); /* denominator = 2a */
         mpq_canonicalize(x_val);
 
         if (mpz_fits_slong_p(mpq_numref(x_val)) && mpz_fits_ulong_p(mpq_denref(x_val))) {
-            solutions[0] = symbolic_coord_create_rational(
-                (int64_t)mpz_get_si(mpq_numref(x_val)),
-                (uint64_t)mpz_get_ui(mpq_denref(x_val)));
+            solutions[0] = symbolic_coord_create_rational((int64_t) mpz_get_si(mpq_numref(x_val)),
+                                                          (uint64_t) mpz_get_ui(mpq_denref(x_val)));
         } else {
             /* 超出 int64/uint64 范围，无法精确表示 */
             mpq_clear(x_val);
-            mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz); mpz_clear(D);
+            mpz_clear(a_mpz);
+            mpz_clear(b_mpz);
+            mpz_clear(c_mpz);
+            mpz_clear(D);
             return 0;
         }
 
         mpq_clear(x_val);
-        mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz); mpz_clear(D);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
+        mpz_clear(D);
         return 1;
     }
 
@@ -1528,15 +1684,18 @@ static int solve_quadratic_exact(
         mpq_canonicalize(x1);
 
         if (mpz_fits_slong_p(mpq_numref(x1)) && mpz_fits_ulong_p(mpq_denref(x1))) {
-            solutions[0] = symbolic_coord_create_rational(
-                (int64_t)mpz_get_si(mpq_numref(x1)),
-                (uint64_t)mpz_get_ui(mpq_denref(x1)));
+            solutions[0] = symbolic_coord_create_rational((int64_t) mpz_get_si(mpq_numref(x1)),
+                                                          (uint64_t) mpz_get_ui(mpq_denref(x1)));
         } else {
             /* 超出 int64/uint64 范围，无法精确表示 */
             mpq_clear(x1);
-            mpz_clear(num1); mpz_clear(denom);
-            mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
-            mpz_clear(D); mpz_clear(sqrt_D);
+            mpz_clear(num1);
+            mpz_clear(denom);
+            mpz_clear(a_mpz);
+            mpz_clear(b_mpz);
+            mpz_clear(c_mpz);
+            mpz_clear(D);
+            mpz_clear(sqrt_D);
             return 0;
         }
         mpq_clear(x1);
@@ -1555,23 +1714,32 @@ static int solve_quadratic_exact(
             mpq_canonicalize(x2);
 
             if (mpz_fits_slong_p(mpq_numref(x2)) && mpz_fits_ulong_p(mpq_denref(x2))) {
-                solutions[1] = symbolic_coord_create_rational(
-                    (int64_t)mpz_get_si(mpq_numref(x2)),
-                    (uint64_t)mpz_get_ui(mpq_denref(x2)));
+                solutions[1] = symbolic_coord_create_rational((int64_t) mpz_get_si(mpq_numref(x2)),
+                                                              (uint64_t) mpz_get_ui(mpq_denref(x2)));
             } else {
                 /* 超出 int64/uint64 范围，解2 无法精确表示，仅返回解1 */
                 mpq_clear(x2);
-                mpz_clear(num1); mpz_clear(num2); mpz_clear(denom);
-                mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
-                mpz_clear(D); mpz_clear(sqrt_D);
+                mpz_clear(num1);
+                mpz_clear(num2);
+                mpz_clear(denom);
+                mpz_clear(a_mpz);
+                mpz_clear(b_mpz);
+                mpz_clear(c_mpz);
+                mpz_clear(D);
+                mpz_clear(sqrt_D);
                 return 1;
             }
             mpq_clear(x2);
         }
 
-        mpz_clear(num1); mpz_clear(num2); mpz_clear(denom);
-        mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
-        mpz_clear(D); mpz_clear(sqrt_D);
+        mpz_clear(num1);
+        mpz_clear(num2);
+        mpz_clear(denom);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
+        mpz_clear(D);
+        mpz_clear(sqrt_D);
         return (max_solutions >= 2) ? 2 : 1;
     }
 
@@ -1595,7 +1763,8 @@ static int solve_quadratic_exact(
         mpz_init_set_si(p_mpz, p);
         mpz_init(p2_mpz);
         mpz_mul(p2_mpz, p_mpz, p_mpz);
-        mpz_init(q); mpz_init(r);
+        mpz_init(q);
+        mpz_init(r);
 
         while (mpz_cmp(p2_mpz, n_part) <= 0) {
             mpz_fdiv_qr(q, r, n_part, p2_mpz);
@@ -1608,8 +1777,10 @@ static int solve_quadratic_exact(
             }
         }
 
-        mpz_clear(p_mpz); mpz_clear(p2_mpz);
-        mpz_clear(q); mpz_clear(r);
+        mpz_clear(p_mpz);
+        mpz_clear(p2_mpz);
+        mpz_clear(q);
+        mpz_clear(r);
 
         /* 如果 p^2 > n_part，则 n_part 已无平方因子 */
         mpz_t p2_check;
@@ -1659,16 +1830,18 @@ static int solve_quadratic_exact(
         mpq_t q_approx;
         mpq_init(q_approx);
         mpq_set_d(q_approx, approx1);
-        int64_t num1 = (int64_t)mpz_get_d(mpq_numref(q_approx));
-        uint64_t den1 = (uint64_t)mpz_get_d(mpq_denref(q_approx));
-        if (den1 == 0) den1 = 1;
+        int64_t num1 = (int64_t) mpz_get_d(mpq_numref(q_approx));
+        uint64_t den1 = (uint64_t) mpz_get_d(mpq_denref(q_approx));
+        if (den1 == 0)
+            den1 = 1;
         solutions[0] = symbolic_coord_create_rational(num1, den1);
 
         if (max_solutions >= 2) {
             mpq_set_d(q_approx, approx2);
-            int64_t num2 = (int64_t)mpz_get_d(mpq_numref(q_approx));
-            uint64_t den2 = (uint64_t)mpz_get_d(mpq_denref(q_approx));
-            if (den2 == 0) den2 = 1;
+            int64_t num2 = (int64_t) mpz_get_d(mpq_numref(q_approx));
+            uint64_t den2 = (uint64_t) mpz_get_d(mpq_denref(q_approx));
+            if (den2 == 0)
+                den2 = 1;
             solutions[1] = symbolic_coord_create_rational(num2, den2);
         }
         mpq_clear(q_approx);
@@ -1676,25 +1849,27 @@ static int solve_quadratic_exact(
         /* 清理中间变量 */
         mpq_clear(rational_part);
         mpq_clear(sqrt_coeff);
-        mpz_clear(n_part); mpz_clear(k_part);
+        mpz_clear(n_part);
+        mpz_clear(k_part);
         mpz_clear(two_a);
-        mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
-        mpz_clear(D); mpz_clear(sqrt_D);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
+        mpz_clear(D);
+        mpz_clear(sqrt_D);
 
         return (max_solutions >= 2) ? 2 : 1;
     }
 
     /* 创建 QUADRATIC 类型的解 */
-    Rational *qa = rational_create_from_mpz(
-        mpq_numref(rational_part), mpq_denref(rational_part));
+    Rational *qa = rational_create_from_mpz(mpq_numref(rational_part), mpq_denref(rational_part));
 
     /* 解1: a + (-sqrt_coeff)*sqrt(n) -- 负的 sqrt 系数 */
     {
         mpz_t neg_num;
         mpz_init(neg_num);
         mpz_neg(neg_num, mpq_numref(sqrt_coeff));
-        Rational *qb1 = rational_create_from_mpz(
-            neg_num, mpq_denref(sqrt_coeff));
+        Rational *qb1 = rational_create_from_mpz(neg_num, mpq_denref(sqrt_coeff));
         mpz_clear(neg_num);
 
         /* solutions[0] 获取 qa 的所有权 */
@@ -1703,8 +1878,7 @@ static int solve_quadratic_exact(
 
     /* 解2: a + sqrt_coeff*sqrt(n) -- 正的 sqrt 系数 */
     if (max_solutions >= 2) {
-        Rational *qb2 = rational_create_from_mpz(
-            mpq_numref(sqrt_coeff), mpq_denref(sqrt_coeff));
+        Rational *qb2 = rational_create_from_mpz(mpq_numref(sqrt_coeff), mpq_denref(sqrt_coeff));
         /* solutions[1] 需要 qa 的独立拷贝，避免 double-free */
         Rational *qa_copy = rational_copy(qa);
         solutions[1] = symbolic_coord_create_quadratic(qa_copy, qb2, n_val);
@@ -1714,10 +1888,14 @@ static int solve_quadratic_exact(
 
     mpq_clear(rational_part);
     mpq_clear(sqrt_coeff);
-    mpz_clear(n_part); mpz_clear(k_part);
+    mpz_clear(n_part);
+    mpz_clear(k_part);
     mpz_clear(two_a);
-    mpz_clear(a_mpz); mpz_clear(b_mpz); mpz_clear(c_mpz);
-    mpz_clear(D); mpz_clear(sqrt_D);
+    mpz_clear(a_mpz);
+    mpz_clear(b_mpz);
+    mpz_clear(c_mpz);
+    mpz_clear(D);
+    mpz_clear(sqrt_D);
 
     return (max_solutions >= 2) ? 2 : 1;
 }
@@ -1751,12 +1929,9 @@ static int solve_quadratic_exact(
  * @param max_solutions 最大解数量（通常为 3）
  * @return 实际解的数量（1 到 3），或 0 表示失败
  */
-static int solve_cubic_exact(
-    const mpz_poly_t *poly,
-    SymbolicCoord **solutions,
-    int max_solutions) {
-
-    if (!poly || poly->degree != 3 || !solutions || max_solutions <= 0) return 0;
+static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
+    if (!poly || poly->degree != 3 || !solutions || max_solutions <= 0)
+        return 0;
 
     /* 提取系数: a*x^3 + b*x^2 + c*x + d = 0 */
     mpz_t a_mpz, b_mpz, c_mpz, d_mpz;
@@ -1767,8 +1942,10 @@ static int solve_cubic_exact(
 
     /* 检查 a != 0 */
     if (mpz_cmp_si(a_mpz, 0) == 0) {
-        mpz_clear(a_mpz); mpz_clear(b_mpz);
-        mpz_clear(c_mpz); mpz_clear(d_mpz);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
+        mpz_clear(d_mpz);
         return 0;
     }
 
@@ -1780,8 +1957,10 @@ static int solve_cubic_exact(
 
     /* 归一化: x^3 + px^2 + qx + r = 0 */
     if (fabs(a_val) < LV00_EPSILON_NEWTON) {
-        mpz_clear(a_mpz); mpz_clear(b_mpz);
-        mpz_clear(c_mpz); mpz_clear(d_mpz);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
+        mpz_clear(d_mpz);
         return 0;
     }
     double p_val = b_val / a_val;
@@ -1809,10 +1988,10 @@ static int solve_cubic_exact(
         double x_root = y_root - p_over_3;
 
         if (sol_count < max_solutions) {
-            solutions[sol_count] = symbolic_coord_create_rational(
-                (int64_t)(x_root * LV00_SOLVER_SCALE_FACTOR),
-                (uint64_t)LV00_SOLVER_SCALE_FACTOR);
-            if (solutions[sol_count]) sol_count++;
+            solutions[sol_count] = symbolic_coord_create_rational((int64_t) (x_root * LV00_SOLVER_SCALE_FACTOR),
+                                                                  (uint64_t) LV00_SOLVER_SCALE_FACTOR);
+            if (solutions[sol_count])
+                sol_count++;
         }
     } else if (fabs(D) < LV00_EPSILON_DOUBLE) {
         /* 三个实根（至少两个相等）:
@@ -1825,16 +2004,16 @@ static int solve_cubic_exact(
         double x2 = y2 - p_over_3;
 
         if (sol_count < max_solutions) {
-            solutions[sol_count] = symbolic_coord_create_rational(
-                (int64_t)(x1 * LV00_SOLVER_SCALE_FACTOR),
-                (uint64_t)LV00_SOLVER_SCALE_FACTOR);
-            if (solutions[sol_count]) sol_count++;
+            solutions[sol_count] = symbolic_coord_create_rational((int64_t) (x1 * LV00_SOLVER_SCALE_FACTOR),
+                                                                  (uint64_t) LV00_SOLVER_SCALE_FACTOR);
+            if (solutions[sol_count])
+                sol_count++;
         }
         if (sol_count < max_solutions && fabs(x1 - x2) > LV00_EPSILON_DOUBLE) {
-            solutions[sol_count] = symbolic_coord_create_rational(
-                (int64_t)(x2 * LV00_SOLVER_SCALE_FACTOR),
-                (uint64_t)LV00_SOLVER_SCALE_FACTOR);
-            if (solutions[sol_count]) sol_count++;
+            solutions[sol_count] = symbolic_coord_create_rational((int64_t) (x2 * LV00_SOLVER_SCALE_FACTOR),
+                                                                  (uint64_t) LV00_SOLVER_SCALE_FACTOR);
+            if (solutions[sol_count])
+                sol_count++;
         }
     } else {
         /* 三个不等实根 (casus irreducibilis): 使用三角函数
@@ -1842,18 +2021,20 @@ static int solve_cubic_exact(
         double sqrt_term = sqrt(-P / 3.0);
         double phi = acos(3.0 * Q / (2.0 * P) * sqrt(-3.0 / P));
         for (int k = 0; k < 3 && sol_count < max_solutions; k++) {
-            double angle = (phi + 2.0 * M_PI * (double)k) / 3.0;
+            double angle = (phi + 2.0 * M_PI * (double) k) / 3.0;
             double y_k = 2.0 * sqrt_term * cos(angle);
             double x_k = y_k - p_over_3;
-            solutions[sol_count] = symbolic_coord_create_rational(
-                (int64_t)(x_k * LV00_SOLVER_SCALE_FACTOR),
-                (uint64_t)LV00_SOLVER_SCALE_FACTOR);
-            if (solutions[sol_count]) sol_count++;
+            solutions[sol_count] = symbolic_coord_create_rational((int64_t) (x_k * LV00_SOLVER_SCALE_FACTOR),
+                                                                  (uint64_t) LV00_SOLVER_SCALE_FACTOR);
+            if (solutions[sol_count])
+                sol_count++;
         }
     }
 
-    mpz_clear(a_mpz); mpz_clear(b_mpz);
-    mpz_clear(c_mpz); mpz_clear(d_mpz);
+    mpz_clear(a_mpz);
+    mpz_clear(b_mpz);
+    mpz_clear(c_mpz);
+    mpz_clear(d_mpz);
     return sol_count;
 }
 
@@ -1872,7 +2053,8 @@ static int solve_cubic_exact(
  * @return true 表示转换成功，false 表示失败（非 RATIONAL 类型）
  */
 static bool symbolic_coord_to_mpq(const SymbolicCoord *c, mpq_t out) {
-    if (!c) return false;
+    if (!c)
+        return false;
     if (c->type == RATIONAL && c->data.rational) {
         mpq_set(out, c->data.rational->value);
         return true;
@@ -1896,11 +2078,9 @@ static SymbolicCoord *symbolic_coord_from_mpq(const mpq_t val) {
     mpq_canonicalize(canonical);
 
     SymbolicCoord *result = NULL;
-    if (mpz_fits_slong_p(mpq_numref(canonical)) &&
-        mpz_fits_ulong_p(mpq_denref(canonical))) {
-        result = symbolic_coord_create_rational(
-            (int64_t)mpz_get_si(mpq_numref(canonical)),
-            (uint64_t)mpz_get_ui(mpq_denref(canonical)));
+    if (mpz_fits_slong_p(mpq_numref(canonical)) && mpz_fits_ulong_p(mpq_denref(canonical))) {
+        result = symbolic_coord_create_rational((int64_t) mpz_get_si(mpq_numref(canonical)),
+                                                (uint64_t) mpz_get_ui(mpq_denref(canonical)));
     }
     mpq_clear(canonical);
     return result;
@@ -1917,9 +2097,9 @@ static SymbolicCoord *symbolic_coord_from_mpq(const mpq_t val) {
  * @param value 符号坐标求值点
  * @return 求值结果（新的 SymbolicCoord），调用者负责释放；失败返回 NULL
  */
-static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly,
-                                          const SymbolicCoord *value) {
-    if (!poly || !value || poly->degree < 0 || !poly->coeffs) return NULL;
+static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value) {
+    if (!poly || !value || poly->degree < 0 || !poly->coeffs)
+        return NULL;
 
     /* 从常数项开始：coeff[0] * value^0 = coeff[0] */
     mpq_t c0;
@@ -1934,7 +2114,7 @@ static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly,
     if (!result) {
         /* 回退方案：尝试从 double 创建 */
         double d = mpz_get_d(poly->coeffs[0]);
-        result = symbolic_coord_create_rational((int64_t)(d * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
+        result = symbolic_coord_create_rational((int64_t) (d * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
     }
 
     /* 霍纳法则：result = result * value + coeff[i] */
@@ -1956,7 +2136,7 @@ static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly,
 
         if (!term) {
             double d = mpz_get_d(poly->coeffs[i]);
-            term = symbolic_coord_create_rational((int64_t)(d * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
+            term = symbolic_coord_create_rational((int64_t) (d * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
         }
 
         SymbolicCoord *sum = symbolic_coord_add(result, term);
@@ -1979,17 +2159,16 @@ static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly,
  * @param value     变量的符号坐标值
  * @return 新分配的 PolyEquation（调用者需释放多项式），失败返回 NULL
  */
-static PolyEquation *substitute_symbolic_into_equation(
-    const PolyEquation *eq,
-    int var_index,
-    const SymbolicCoord *value) {
-
-    if (!eq || !value) return NULL;
+static PolyEquation *substitute_symbolic_into_equation(const PolyEquation *eq, int var_index,
+                                                       const SymbolicCoord *value) {
+    if (!eq || !value)
+        return NULL;
 
     /* 对于一元多项式方程，代入即在给定符号值处求值多项式。
      * 结果为一个常数（0次）方程，期望等于零。 */
     PolyEquation *result = lv00_malloc(sizeof(PolyEquation));
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
 
     result->var_node_id = eq->var_node_id;
     result->coord_index = eq->coord_index;
@@ -2075,7 +2254,8 @@ static PolyEquation *substitute_symbolic_into_equation(
  * @return 求解出的 SymbolicCoord 指针（调用者负责释放），失败返回 NULL
  */
 static SymbolicCoord *solve_linear_exact(const mpz_poly_t *poly) {
-    if (!poly || poly->degree != 1) return NULL;
+    if (!poly || poly->degree != 1)
+        return NULL;
 
     /* a*x + b = 0 => x = -b/a */
     mpz_t a_mpz, b_mpz;
@@ -2091,8 +2271,8 @@ static SymbolicCoord *solve_linear_exact(const mpz_poly_t *poly) {
     /* x = -b / a, exact rational */
     mpq_t x_val;
     mpq_init(x_val);
-    mpz_neg(mpq_numref(x_val), b_mpz);  /* numerator = -b */
-    mpz_set(mpq_denref(x_val), a_mpz);  /* denominator = a */
+    mpz_neg(mpq_numref(x_val), b_mpz); /* numerator = -b */
+    mpz_set(mpq_denref(x_val), a_mpz); /* denominator = a */
     mpq_canonicalize(x_val);
 
     SymbolicCoord *result = symbolic_coord_from_mpq(x_val);
@@ -2120,12 +2300,10 @@ static SymbolicCoord *solve_linear_exact(const mpz_poly_t *poly) {
  * @param coord_index 坐标索引（0 = x，1 = y）
  * @param value       变量的符号坐标解
  */
-static void substitute_solved_symbolic(EquationSystem *sys, int var_node_id,
-                                        int coord_index,
-                                        const SymbolicCoord *value) {
+static void substitute_solved_symbolic(EquationSystem *sys, int var_node_id, int coord_index,
+                                       const SymbolicCoord *value) {
     for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].var_node_id == var_node_id &&
-            sys->eqs[i].coord_index == coord_index) {
+        if (sys->eqs[i].var_node_id == var_node_id && sys->eqs[i].coord_index == coord_index) {
             /* 在给定值处符号求值多项式 */
             SymbolicCoord *eval_result = poly_eval_symbolic(&sys->eqs[i].poly, value);
             if (eval_result) {
@@ -2175,18 +2353,16 @@ static void substitute_solved_symbolic(EquationSystem *sys, int var_node_id,
  * @return 所有变量的 SymbolicCoord* 数组（调用者负责释放），
  *         未求解变量对应 NULL。失败返回 NULL。
  */
-SymbolicCoord **back_substitute_symbolic(
-    PolyEquation **equations, int eq_count,
-    int n_vars,
-    SymbolicCoord **solved_values,
-    int *solved_indices, int solved_count) {
-
-    if (n_vars <= 0) return NULL;
+SymbolicCoord **back_substitute_symbolic(PolyEquation **equations, int eq_count, int n_vars,
+                                         SymbolicCoord **solved_values, int *solved_indices, int solved_count) {
+    if (n_vars <= 0)
+        return NULL;
 
     /* 分配结果数组：每个变量一个 SymbolicCoord* */
-    SymbolicCoord **all_values = lv00_malloc((size_t)n_vars * sizeof(SymbolicCoord *));
-    if (!all_values) return NULL;
-    memset(all_values, 0, (size_t)n_vars * sizeof(SymbolicCoord *));
+    SymbolicCoord **all_values = lv00_malloc((size_t) n_vars * sizeof(SymbolicCoord *));
+    if (!all_values)
+        return NULL;
+    memset(all_values, 0, (size_t) n_vars * sizeof(SymbolicCoord *));
 
     /* 将已求解的值复制到结果数组中。
      * solved_indices 映射到 all_values 中的位置。 */
@@ -2207,11 +2383,14 @@ SymbolicCoord **back_substitute_symbolic(
 
         for (int eq_idx = 0; eq_idx < eq_count; eq_idx++) {
             PolyEquation *eq = equations[eq_idx];
-            if (!eq || eq->poly.degree < 0) continue;
+            if (!eq || eq->poly.degree < 0)
+                continue;
 
             int var_id = eq->var_node_id;
-            if (var_id < 0 || var_id >= n_vars) continue;
-            if (all_values[var_id] != NULL) continue; /* already solved */
+            if (var_id < 0 || var_id >= n_vars)
+                continue;
+            if (all_values[var_id] != NULL)
+                continue; /* already solved */
 
             /* 多变量方程依赖分析：
              * 当前 PolyEquation 为单变量多项式结构（仅绑定一个 var_node_id
@@ -2265,11 +2444,10 @@ SymbolicCoord **back_substitute_symbolic(
 /*  (Delegates to mpz_poly_resultant in mpz_poly_resultant.c)          */
 /* ------------------------------------------------------------------ */
 
-bool compute_algebraic_resultant(
-    const mpz_poly_t *p,       /* Minimal polynomial of alpha (in y) */
-    const mpz_poly_t *q,       /* Minimal polynomial of beta (in y) */
-    AlgebraicOp op,            /* SUM or PRODUCT */
-    mpz_poly_t *result         /* Output: minimal polynomial of result */
+bool compute_algebraic_resultant(const mpz_poly_t *p, /* Minimal polynomial of alpha (in y) */
+                                 const mpz_poly_t *q, /* Minimal polynomial of beta (in y) */
+                                 AlgebraicOp op,      /* SUM or PRODUCT */
+                                 mpz_poly_t *result   /* Output: minimal polynomial of result */
 ) {
     return mpz_poly_resultant(p, q, op, result);
 }
@@ -2285,16 +2463,14 @@ bool compute_algebraic_resultant(
  * @param coord_index 坐标索引
  * @param value       变量的数值
  */
-static void substitute_solved(EquationSystem *sys, int var_node_id,
-                               int coord_index, double value) {
+static void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, double value) {
     /* For each equation that references this variable, substitute the
        known value and simplify. In our univariate representation, if
        an equation targets this exact (node_id, coord_index), we can
        verify it; equations for other variables that depend on this one
        would need bivariate handling. */
     for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].var_node_id == var_node_id &&
-            sys->eqs[i].coord_index == coord_index) {
+        if (sys->eqs[i].var_node_id == var_node_id && sys->eqs[i].coord_index == coord_index) {
             /* Evaluate polynomial at the given value and check if ~0 */
             double val = 0.0;
             mpz_poly_t *p = &sys->eqs[i].poly;
@@ -2336,17 +2512,17 @@ static bool is_out_of_scope(const mpz_poly_t *poly) {
  * @param factor2 输出：第二个因式
  * @return true 表示分解成功，false 表示失败
  */
-static bool try_factor_polynomial(const mpz_poly_t *poly,
-                                   mpz_poly_t *factor1,
-                                   mpz_poly_t *factor2) {
+static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, mpz_poly_t *factor2) {
     /* Try rational root theorem: test divisors of constant term / leading coeff */
-    if (poly->degree < 3) return false;
+    if (poly->degree < 3)
+        return false;
 
     mpz_t const_term, lead_coeff;
     mpz_init(const_term);
     mpz_init(lead_coeff);
 
-    if (poly->degree >= 0) mpz_set(const_term, poly->coeffs[0]);
+    if (poly->degree >= 0)
+        mpz_set(const_term, poly->coeffs[0]);
     mpz_set(lead_coeff, poly->coeffs[poly->degree]);
 
     /* If constant term is 0, factor out x */
@@ -2357,8 +2533,10 @@ static bool try_factor_polynomial(const mpz_poly_t *poly,
         /* GMP 要求使用标准分配器 */
         factor1->coeffs = malloc(2 * sizeof(mpz_t));
         if (!factor1->coeffs) {
-            mpz_poly_clear(factor1); mpz_poly_clear(factor2);
-            mpz_clear(const_term); mpz_clear(lead_coeff);
+            mpz_poly_clear(factor1);
+            mpz_poly_clear(factor2);
+            mpz_clear(const_term);
+            mpz_clear(lead_coeff);
             return false;
         }
         mpz_init_set_si(factor1->coeffs[0], 0);
@@ -2369,8 +2547,10 @@ static bool try_factor_polynomial(const mpz_poly_t *poly,
         /* GMP 要求使用标准分配器 */
         factor2->coeffs = malloc((factor2->degree + 1) * sizeof(mpz_t));
         if (!factor2->coeffs) {
-            mpz_poly_clear(factor1); mpz_poly_clear(factor2);
-            mpz_clear(const_term); mpz_clear(lead_coeff);
+            mpz_poly_clear(factor1);
+            mpz_poly_clear(factor2);
+            mpz_clear(const_term);
+            mpz_clear(lead_coeff);
             return false;
         }
         for (int i = 0; i <= factor2->degree; i++) {
@@ -2391,7 +2571,8 @@ static bool try_factor_polynomial(const mpz_poly_t *poly,
         max_root = mpz_cmp_si(const_term, 1000) > 0 ? 1000 : mpz_get_si(const_term);
     }
     for (long r = -max_root; r <= max_root; r++) {
-        if (r == 0) continue;
+        if (r == 0)
+            continue;
         /* Evaluate poly(r) using GMP exact arithmetic */
         mpz_t val;
         mpz_init(val);
@@ -2420,9 +2601,9 @@ static bool try_factor_polynomial(const mpz_poly_t *poly,
             mpz_poly_t quotient;
             mpz_poly_init(&quotient);
             quotient.degree = poly->degree - 1;
-                if (quotient.degree >= 0) {
-                    /* GMP 要求使用标准分配器 */
-                    quotient.coeffs = malloc((quotient.degree + 1) * sizeof(mpz_t));
+            if (quotient.degree >= 0) {
+                /* GMP 要求使用标准分配器 */
+                quotient.coeffs = malloc((quotient.degree + 1) * sizeof(mpz_t));
                 if (!quotient.coeffs) {
                     mpz_clear(const_term);
                     mpz_clear(lead_coeff);
@@ -2430,14 +2611,11 @@ static bool try_factor_polynomial(const mpz_poly_t *poly,
                     return false;
                 }
                 /* Copy leading coefficient */
-                mpz_init_set(quotient.coeffs[quotient.degree],
-                             poly->coeffs[poly->degree]);
+                mpz_init_set(quotient.coeffs[quotient.degree], poly->coeffs[poly->degree]);
                 for (int i = quotient.degree - 1; i >= 0; i--) {
                     mpz_init(quotient.coeffs[i]);
-                    mpz_mul(quotient.coeffs[i], quotient.coeffs[i + 1],
-                            poly->coeffs[poly->degree]);
-                    mpz_add(quotient.coeffs[i], quotient.coeffs[i],
-                            poly->coeffs[i + 1]);
+                    mpz_mul(quotient.coeffs[i], quotient.coeffs[i + 1], poly->coeffs[poly->degree]);
+                    mpz_add(quotient.coeffs[i], quotient.coeffs[i], poly->coeffs[i + 1]);
                 }
                 /* Normalize: divide by leading coeff */
                 mpz_t lc;
@@ -2453,8 +2631,10 @@ static bool try_factor_polynomial(const mpz_poly_t *poly,
             /* GMP 要求使用标准分配器 */
             factor1->coeffs = malloc(2 * sizeof(mpz_t));
             if (!factor1->coeffs) {
-                mpz_poly_clear(factor1); mpz_poly_clear(factor2);
-                mpz_clear(const_term); mpz_clear(lead_coeff);
+                mpz_poly_clear(factor1);
+                mpz_poly_clear(factor2);
+                mpz_clear(const_term);
+                mpz_clear(lead_coeff);
                 return false;
             }
             mpz_init_set_si(factor1->coeffs[0], -r);
@@ -2484,36 +2664,46 @@ static bool check_incompatible_distances(const ConstraintGraph *graph) {
     /* We use a simple O(n^2) scan */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *ni = graph->nodes[i];
-        if (!ni || !ni->numeric_assumption_declaration) continue;
-        if (ni->type != GEOM_LINE_SEGMENT) continue;
+        if (!ni || !ni->numeric_assumption_declaration)
+            continue;
+        if (ni->type != GEOM_LINE_SEGMENT)
+            continue;
 
         const char *di = ni->numeric_assumption_declaration;
         double dist_i = -1.0;
         const char *prefix = "distance=";
-        size_t prefix_len = strlen(prefix);  /* 缓存前缀长度，避免循环内重复计算 */
+        size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免循环内重复计算 */
         if (strncmp(di, prefix, prefix_len) == 0) {
             dist_i = strtod(di + prefix_len, NULL);
         } else {
             char *end = NULL;
             dist_i = strtod(di, &end);
-            if (end == di) dist_i = -1.0;
+            if (end == di)
+                dist_i = -1.0;
         }
-        if (dist_i < 0) continue;
+        if (dist_i < 0)
+            continue;
 
         for (int j = i + 1; j < graph->node_count; j++) {
             GeomNode *nj = graph->nodes[j];
-            if (!nj || !nj->numeric_assumption_declaration) continue;
-            if (nj->type != GEOM_LINE_SEGMENT) continue;
+            if (!nj || !nj->numeric_assumption_declaration)
+                continue;
+            if (nj->type != GEOM_LINE_SEGMENT)
+                continue;
 
             /* Check if they share the same endpoints */
-            if (ni->coord_count < 4 || nj->coord_count < 4) continue;
+            if (ni->coord_count < 4 || nj->coord_count < 4)
+                continue;
             bool same_endpoints = true;
             for (int k = 0; k < 4; k++) {
-                int cmp = symbolic_coord_compare(ni->symbolic_coords[k],
-                                                  nj->symbolic_coords[k]);
-                if (cmp != 0) { same_endpoints = false; break; }
+                int cmp = symbolic_coord_compare(ni->symbolic_coords[k], nj->symbolic_coords[k]);
+                if (cmp != 0) {
+                    same_endpoints = false;
+                    break;
+                }
             }
-            if (!same_endpoints) continue;
+            if (!same_endpoints)
+                continue;
 
             const char *dj = nj->numeric_assumption_declaration;
             double dist_j = -1.0;
@@ -2522,9 +2712,11 @@ static bool check_incompatible_distances(const ConstraintGraph *graph) {
             } else {
                 char *end = NULL;
                 dist_j = strtod(dj, &end);
-                if (end == dj) dist_j = -1.0;
+                if (end == dj)
+                    dist_j = -1.0;
             }
-            if (dist_j < 0) continue;
+            if (dist_j < 0)
+                continue;
 
             /* Same segment pair, different distances => conflict */
             if (fabs(dist_i - dist_j) > 1e-9) {
@@ -2542,7 +2734,8 @@ static bool check_incompatible_distances(const ConstraintGraph *graph) {
 static bool check_contradiction_after_substitution(EquationSystem *sys) {
     for (int i = 0; i < sys->count; i++) {
         mpz_poly_t *p = &sys->eqs[i].poly;
-        if (p->degree < 0) continue; /* already solved / trivial */
+        if (p->degree < 0)
+            continue; /* already solved / trivial */
         if (p->degree == 0) {
             /* Constant equation: coeff[0] = 0 */
             if (mpz_cmp_si(p->coeffs[0], 0) != 0) {
@@ -2561,12 +2754,18 @@ static bool check_contradiction_after_substitution(EquationSystem *sys) {
  */
 static int constraint_weight(const Constraint *c) {
     switch (c->type) {
-        case INCIDENCE:    return 1;  /* one linear equation (point on line) */
-        case BETWEENNESS:  return 2;  /* collinearity + ratio bound */
-        case INTERSECTION: return 2;  /* point on line1 AND line2 */
-        case CONTAINMENT:  return 1;  /* at least one boundary constraint */
-        case CONNECTION:   return 1;  /* port connectivity */
-        default:           return 1;
+        case INCIDENCE:
+            return 1; /* one linear equation (point on line) */
+        case BETWEENNESS:
+            return 2; /* collinearity + ratio bound */
+        case INTERSECTION:
+            return 2; /* point on line1 AND line2 */
+        case CONTAINMENT:
+            return 1; /* at least one boundary constraint */
+        case CONNECTION:
+            return 1; /* port connectivity */
+        default:
+            return 1;
     }
 }
 
@@ -2584,7 +2783,8 @@ static int constraint_weight(const Constraint *c) {
 static int count_point_variables(ConstraintGraph *graph, int **out_ids) {
     int count = 0;
     for (int i = 0; i < graph->node_count; i++) {
-        if (graph->nodes[i]->type == GEOM_POINT) count++;
+        if (graph->nodes[i]->type == GEOM_POINT)
+            count++;
     }
     if (out_ids) {
         *out_ids = lv00_malloc(count * sizeof(int));
@@ -2612,9 +2812,10 @@ static int count_point_variables(ConstraintGraph *graph, int **out_ids) {
  * @return 0 表示成功，-1 表示失败（内存不足）
  */
 static int append_solution(GroebnerResult *result, SymbolicCoord *sol) {
-    if (!result || !sol) return -1;
-    SymbolicCoord **new_arr = lv00_realloc(result->solutions,
-        (size_t)(result->solution_count + 1) * sizeof(SymbolicCoord *));
+    if (!result || !sol)
+        return -1;
+    SymbolicCoord **new_arr =
+        lv00_realloc(result->solutions, (size_t) (result->solution_count + 1) * sizeof(SymbolicCoord *));
     if (!new_arr) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "append_solution: 扩容失败");
         symbolic_coord_destroy(sol);
@@ -2641,17 +2842,20 @@ static int append_solution(GroebnerResult *result, SymbolicCoord *sol) {
  * @param no_solution        输出：检测到无解时设为 true
  * @param do_substitute      是否在每次求解后进行回代
  */
-static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
-                                  int *solved_count, int *multiple_solutions,
-                                  bool *no_solution, bool do_substitute) {
+static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solved_count,
+                                 int *multiple_solutions, bool *no_solution, bool do_substitute) {
     /* Pass 0: linear, Pass 1: quadratic, Pass 2: cubic */
     for (int pass = 0; pass < 3; pass++) {
         for (int i = 0; i < sys->count; i++) {
             mpz_poly_t *p = &sys->eqs[i].poly;
-            if (p->degree < 0) continue;
-            if (pass == 0 && p->degree != 1) continue;
-            if (pass == 1 && p->degree != 2) continue;
-            if (pass == 2 && p->degree != 3) continue;
+            if (p->degree < 0)
+                continue;
+            if (pass == 0 && p->degree != 1)
+                continue;
+            if (pass == 1 && p->degree != 2)
+                continue;
+            if (pass == 2 && p->degree != 3)
+                continue;
 
             if (p->degree == 1) {
                 /* Use exact rational arithmetic instead of double->rational
@@ -2677,11 +2881,10 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                             char detail[160];
                             int _snw_lv;
                             LV00_SAFE_SNPRINTF(_snw_lv, detail, sizeof(detail),
-                                     "{\"method\":\"linear_exact\","
-                                     "\"var_node_id\":%d,\"coord_index\":%d,"
-                                     "\"pass\":%d,\"total_solved\":%d}",
-                                     sys->eqs[i].var_node_id,
-                                     sys->eqs[i].coord_index, pass, *solved_count);
+                                               "{\"method\":\"linear_exact\","
+                                               "\"var_node_id\":%d,\"coord_index\":%d,"
+                                               "\"pass\":%d,\"total_solved\":%d}",
+                                               sys->eqs[i].var_node_id, sys->eqs[i].coord_index, pass, *solved_count);
                             LV00_UNUSED(_snw_lv);
                             ev.detail_json = detail;
                             stream_emit(solver_stream_ctx, &ev);
@@ -2689,13 +2892,11 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                     }
                     if (do_substitute && sol) {
                         /* Use symbolic back-substitution for exact propagation */
-                        substitute_solved_symbolic(sys, sys->eqs[i].var_node_id,
-                                                    sys->eqs[i].coord_index, sol);
+                        substitute_solved_symbolic(sys, sys->eqs[i].var_node_id, sys->eqs[i].coord_index, sol);
                     }
                 } else {
                     /* solve_linear_exact failed: check for contradiction */
-                    if (mpz_cmp_si(p->coeffs[1], 0) == 0 &&
-                        mpz_cmp_si(p->coeffs[0], 0) != 0) {
+                    if (mpz_cmp_si(p->coeffs[1], 0) == 0 && mpz_cmp_si(p->coeffs[0], 0) != 0) {
                         *no_solution = true;
                     }
                 }
@@ -2707,10 +2908,10 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                 if (exact_count == 0) {
                     *no_solution = true;
                 } else {
-                    if (exact_count > 1) (*multiple_solutions)++;
+                    if (exact_count > 1)
+                        (*multiple_solutions)++;
                     for (int r = 0; r < exact_count; r++) {
-                        if (exact_solutions[r] &&
-                            append_solution(result, exact_solutions[r]) == 0) {
+                        if (exact_solutions[r] && append_solution(result, exact_solutions[r]) == 0) {
                             (*solved_count)++;
                             /* 流式输出: 变量解得（含详细元数据） */
                             if (solver_stream_ctx) {
@@ -2724,13 +2925,12 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                                 char detail[192];
                                 int _snw_qv;
                                 LV00_SAFE_SNPRINTF(_snw_qv, detail, sizeof(detail),
-                                         "{\"method\":\"quadratic_exact\","
-                                         "\"var_node_id\":%d,\"coord_index\":%d,"
-                                         "\"root_index\":%d,\"root_count\":%d,"
-                                         "\"pass\":%d,\"total_solved\":%d}",
-                                         sys->eqs[i].var_node_id,
-                                         sys->eqs[i].coord_index, r,
-                                         exact_count, pass, *solved_count);
+                                                   "{\"method\":\"quadratic_exact\","
+                                                   "\"var_node_id\":%d,\"coord_index\":%d,"
+                                                   "\"root_index\":%d,\"root_count\":%d,"
+                                                   "\"pass\":%d,\"total_solved\":%d}",
+                                                   sys->eqs[i].var_node_id, sys->eqs[i].coord_index, r, exact_count,
+                                                   pass, *solved_count);
                                 LV00_UNUSED(_snw_qv);
                                 ev.detail_json = detail;
                                 stream_emit(solver_stream_ctx, &ev);
@@ -2741,9 +2941,8 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                         }
                         /* Use symbolic back-substitution for exact propagation */
                         if (do_substitute && exact_solutions[r]) {
-                            substitute_solved_symbolic(sys, sys->eqs[i].var_node_id,
-                                                        sys->eqs[i].coord_index,
-                                                        exact_solutions[r]);
+                            substitute_solved_symbolic(sys, sys->eqs[i].var_node_id, sys->eqs[i].coord_index,
+                                                       exact_solutions[r]);
                         }
                     }
                 }
@@ -2755,10 +2954,10 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                 if (cubic_count == 0) {
                     *no_solution = true;
                 } else {
-                    if (cubic_count > 1) (*multiple_solutions)++;
+                    if (cubic_count > 1)
+                        (*multiple_solutions)++;
                     for (int r = 0; r < cubic_count; r++) {
-                        if (cubic_solutions[r] &&
-                            append_solution(result, cubic_solutions[r]) == 0) {
+                        if (cubic_solutions[r] && append_solution(result, cubic_solutions[r]) == 0) {
                             (*solved_count)++;
                             /* 流式输出: 变量解得（含详细元数据） */
                             if (solver_stream_ctx) {
@@ -2772,13 +2971,12 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                                 char detail[192];
                                 int _snw_cv;
                                 LV00_SAFE_SNPRINTF(_snw_cv, detail, sizeof(detail),
-                                         "{\"method\":\"cubic_cardano\","
-                                         "\"var_node_id\":%d,\"coord_index\":%d,"
-                                         "\"root_index\":%d,\"root_count\":%d,"
-                                         "\"pass\":%d,\"total_solved\":%d}",
-                                         sys->eqs[i].var_node_id,
-                                         sys->eqs[i].coord_index, r,
-                                         cubic_count, pass, *solved_count);
+                                                   "{\"method\":\"cubic_cardano\","
+                                                   "\"var_node_id\":%d,\"coord_index\":%d,"
+                                                   "\"root_index\":%d,\"root_count\":%d,"
+                                                   "\"pass\":%d,\"total_solved\":%d}",
+                                                   sys->eqs[i].var_node_id, sys->eqs[i].coord_index, r, cubic_count,
+                                                   pass, *solved_count);
                                 LV00_UNUSED(_snw_cv);
                                 ev.detail_json = detail;
                                 stream_emit(solver_stream_ctx, &ev);
@@ -2787,9 +2985,8 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
                             cubic_solutions[r] = NULL;
                         }
                         if (do_substitute && cubic_solutions[r]) {
-                            substitute_solved_symbolic(sys, sys->eqs[i].var_node_id,
-                                                        sys->eqs[i].coord_index,
-                                                        cubic_solutions[r]);
+                            substitute_solved_symbolic(sys, sys->eqs[i].var_node_id, sys->eqs[i].coord_index,
+                                                       cubic_solutions[r]);
                         }
                     }
                 }
@@ -2802,43 +2999,37 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result,
  * Free all solutions in a GroebnerResult and reset it.
  */
 static void cleanup_groebner_result(GroebnerResult *result) {
-    if (!result) return;
+    if (!result)
+        return;
     for (int i = 0; i < result->solution_count; i++) {
         symbolic_coord_destroy(result->solutions[i]);
     }
-    lv00_free((void **)&result->solutions);
+    lv00_free((void **) &result->solutions);
     result->solutions = NULL;
     result->solution_count = 0;
 }
 
 /* 前向声明：order_variables_by_dependency（定义见下文） */
-static int *order_variables_by_dependency(
-    const ConstraintGraph *graph,
-    const int *var_ids, int var_count,
-    const int *dirty_var_ids, int dirty_count,
-    int *out_count);
+static int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
+                                          const int *dirty_var_ids, int dirty_count, int *out_count);
 
 /* ================================================================== */
 /*  PUBLIC API: solve_algebraic_system                                 */
 /* ================================================================== */
 
-SolverStatus solve_algebraic_system(ConstraintGraph *graph,
-                                     const int *dirty_variable_ids,
-                                     int dirty_count,
-                                     GroebnerResult **out_result) {
+SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_variable_ids, int dirty_count,
+                                    GroebnerResult **out_result) {
     if (!graph || !out_result) {
-        debug_log(LOG_LEVEL_ERROR, "solver",
-            "solve_algebraic_system: 无效参数 graph=%p out_result=%p",
-            (const void *)graph, (const void *)out_result);
+        debug_log(LOG_LEVEL_ERROR, "solver", "solve_algebraic_system: 无效参数 graph=%p out_result=%p",
+                  (const void *) graph, (const void *) out_result);
         return SOLVER_TIMEOUT;
     }
 
     /* 分配结果内存 */
     GroebnerResult *result = lv00_malloc(sizeof(GroebnerResult));
     if (!result) {
-        debug_log(LOG_LEVEL_ERROR, "solver",
-            "solve_algebraic_system: 无法分配 GroebnerResult（大小 %zu 字节）",
-            sizeof(GroebnerResult));
+        debug_log(LOG_LEVEL_ERROR, "solver", "solve_algebraic_system: 无法分配 GroebnerResult（大小 %zu 字节）",
+                  sizeof(GroebnerResult));
         return SOLVER_TIMEOUT;
     }
     memset(result, 0, sizeof(GroebnerResult));
@@ -2866,8 +3057,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
         ev.description = "方程提取完成";
         char detail[128];
         int _snw_eq;
-        LV00_SAFE_SNPRINTF(_snw_eq, detail, sizeof(detail),
-                 "{\"equation_count\":%d,\"phase\":\"extraction\"}", sys.count);
+        LV00_SAFE_SNPRINTF(_snw_eq, detail, sizeof(detail), "{\"equation_count\":%d,\"phase\":\"extraction\"}",
+                           sys.count);
         LV00_UNUSED(_snw_eq);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -2877,7 +3068,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
     int total_eqs = 0;
     int max_degree_global = 0;
     for (int i = 0; i < sys.count; i++) {
-        if (sys.eqs[i].poly.degree >= 0) total_eqs++;
+        if (sys.eqs[i].poly.degree >= 0)
+            total_eqs++;
         if (sys.eqs[i].poly.degree > max_degree_global)
             max_degree_global = sys.eqs[i].poly.degree;
     }
@@ -2885,7 +3077,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
     int *point_ids = NULL;
     int point_count = count_point_variables(graph, &point_ids);
     int scalar_vars = point_count * 2; /* x and y for each point */
-    lv00_free((void **)&point_ids);
+    lv00_free((void **) &point_ids);
 
     if (total_eqs > scalar_vars) {
         result->overdetermined = true;
@@ -2928,13 +3120,18 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
         }
         int all_var_count = 0;
         for (int i = 0; i < sys.count; i++) {
-            if (sys.eqs[i].poly.degree < 0) continue;
+            if (sys.eqs[i].poly.degree < 0)
+                continue;
             int vid = sys.eqs[i].var_node_id;
             bool found = false;
             for (int j = 0; j < all_var_count; j++) {
-                if (all_var_ids[j] == vid) { found = true; break; }
+                if (all_var_ids[j] == vid) {
+                    found = true;
+                    break;
+                }
             }
-            if (!found) all_var_ids[all_var_count++] = vid;
+            if (!found)
+                all_var_ids[all_var_count++] = vid;
         }
 
         if (all_var_count > 0) {
@@ -2948,18 +3145,16 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
                 ev.description = "开始变量依赖拓扑排序";
                 char detail[96];
                 int _snw_ts;
-                LV00_SAFE_SNPRINTF(_snw_ts, detail, sizeof(detail),
-                         "{\"phase\":\"topology_sort\",\"var_count\":%d}", all_var_count);
+                LV00_SAFE_SNPRINTF(_snw_ts, detail, sizeof(detail), "{\"phase\":\"topology_sort\",\"var_count\":%d}",
+                                   all_var_count);
                 LV00_UNUSED(_snw_ts);
                 ev.detail_json = detail;
                 stream_emit(solver_stream_ctx, &ev);
             }
 
             int ordered_count = 0;
-            int *ordered_ids = order_variables_by_dependency(
-                graph, all_var_ids, all_var_count,
-                dirty_variable_ids, dirty_count,
-                &ordered_count);
+            int *ordered_ids = order_variables_by_dependency(graph, all_var_ids, all_var_count, dirty_variable_ids,
+                                                             dirty_count, &ordered_count);
 
             if (ordered_ids && ordered_count > 0) {
                 /* 按拓扑排序重排方程系统中的方程顺序。
@@ -2967,14 +3162,15 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
                 /* 构建排序映射: var_id -> priority (越小越优先) */
                 int *priority = lv00_malloc(sys.count * sizeof(int));
                 if (!priority) {
-                    lv00_free((void **)&ordered_ids);
-                    lv00_free((void **)&all_var_ids);
+                    lv00_free((void **) &ordered_ids);
+                    lv00_free((void **) &all_var_ids);
                     equation_system_clear(&sys);
                     *out_result = result;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解错误: 内存分配失败", 0);
                     return SOLVER_TIMEOUT;
                 }
-                for (int i = 0; i < sys.count; i++) priority[i] = INT_MAX;
+                for (int i = 0; i < sys.count; i++)
+                    priority[i] = INT_MAX;
 
                 for (int i = 0; i < ordered_count; i++) {
                     for (int j = 0; j < all_var_count; j++) {
@@ -3016,11 +3212,11 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
                     }
                 }
 
-                lv00_free((void **)&priority);
-                lv00_free((void **)&ordered_ids);
+                lv00_free((void **) &priority);
+                lv00_free((void **) &ordered_ids);
             }
         }
-        lv00_free((void **)&all_var_ids);
+        lv00_free((void **) &all_var_ids);
     }
 
     /* 流式事件: 拓扑排序完成，开始方程消元 */
@@ -3039,8 +3235,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
     int multiple_solutions = 0;
     bool no_solution = false;
 
-    solve_equations_pass(&sys, result, &solved_count, &multiple_solutions,
-                         &no_solution, true);
+    solve_equations_pass(&sys, result, &solved_count, &multiple_solutions, &no_solution, true);
 
     /* Step 6: After elimination, check for contradictions */
     if (no_solution || check_contradiction_after_substitution(&sys)) {
@@ -3058,7 +3253,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
     {
         int remaining_before_gb = 0;
         for (int i = 0; i < sys.count; i++) {
-            if (sys.eqs[i].poly.degree >= 0) remaining_before_gb++;
+            if (sys.eqs[i].poly.degree >= 0)
+                remaining_before_gb++;
         }
 
         if (remaining_before_gb > 0) {
@@ -3074,8 +3270,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
                 char detail[96];
                 int _snw_gb_prog;
                 LV00_SAFE_SNPRINTF(_snw_gb_prog, detail, sizeof(detail),
-                         "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}",
-                         remaining_before_gb, solved_count);
+                                   "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}", remaining_before_gb,
+                                   solved_count);
                 LV00_UNUSED(_snw_gb_prog);
                 ev.detail_json = detail;
                 stream_emit(solver_stream_ctx, &ev);
@@ -3098,7 +3294,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
                 /* Gröbner basis returned out-of-scope (degree > 4) */
                 char *suggestion = NULL;
                 analyze_out_of_scope(graph, -1, &suggestion);
-                lv00_free((void **)&suggestion);
+                lv00_free((void **) &suggestion);
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 高次方程无法处理", 0);
@@ -3112,7 +3308,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
                 /* Gröbner basis computation found degree > 4 */
                 char *suggestion = NULL;
                 analyze_out_of_scope(graph, -1, &suggestion);
-                lv00_free((void **)&suggestion);
+                lv00_free((void **) &suggestion);
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基计算超出范围", 0);
@@ -3121,8 +3317,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
 
             if (gb_status == SOLVER_OK) {
                 /* Try to solve the Gröbner basis equations */
-                solve_equations_pass(&sys, result, &solved_count, &multiple_solutions,
-                                     &no_solution, true);
+                solve_equations_pass(&sys, result, &solved_count, &multiple_solutions, &no_solution, true);
 
                 /* Check for contradictions after Gröbner basis solving */
                 if (no_solution || check_contradiction_after_substitution(&sys)) {
@@ -3146,7 +3341,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
     /* Check remaining unsolved equations */
     int remaining = 0;
     for (int i = 0; i < sys.count; i++) {
-        if (sys.eqs[i].poly.degree >= 0) remaining++;
+        if (sys.eqs[i].poly.degree >= 0)
+            remaining++;
     }
 
     equation_system_clear(&sys);
@@ -3164,17 +3360,15 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
         char detail[320];
         int _snw_sum;
         LV00_SAFE_SNPRINTF(_snw_sum, detail, sizeof(detail),
-                 "{\"phase\":\"solve_summary\","
-                 "\"solved_variables\":%d,"
-                 "\"remaining_equations\":%d,"
-                 "\"multiple_solutions\":%d,"
-                 "\"unique\":%s,"
-                 "\"overdetermined\":%s,"
-                 "\"max_degree\":%d}",
-                 solved_count, remaining, multiple_solutions,
-                 result->unique ? "true" : "false",
-                 result->overdetermined ? "true" : "false",
-                 max_degree_global);
+                           "{\"phase\":\"solve_summary\","
+                           "\"solved_variables\":%d,"
+                           "\"remaining_equations\":%d,"
+                           "\"multiple_solutions\":%d,"
+                           "\"unique\":%s,"
+                           "\"overdetermined\":%s,"
+                           "\"max_degree\":%d}",
+                           solved_count, remaining, multiple_solutions, result->unique ? "true" : "false",
+                           result->overdetermined ? "true" : "false", max_degree_global);
         LV00_UNUSED(_snw_sum);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -3219,10 +3413,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph,
 /**
  * @brief 创建求解器反馈
  */
-SolverFeedback *solver_feedback_create(SolverFeedbackType type,
-                                        const char *message) {
+SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *message) {
     SolverFeedback *fb = lv00_calloc(1, sizeof(SolverFeedback));
-    if (!fb) return NULL;
+    if (!fb)
+        return NULL;
 
     fb->type = type;
     fb->affected_var_id = -1;
@@ -3233,7 +3427,7 @@ SolverFeedback *solver_feedback_create(SolverFeedbackType type,
     if (message && message[0] != '\0') {
         fb->message = lv00_malloc(strlen(message) + 1);
         if (!fb->message) {
-            lv00_free((void **)&fb);
+            lv00_free((void **) &fb);
             return NULL;
         }
         strcpy(fb->message, message);
@@ -3246,36 +3440,36 @@ SolverFeedback *solver_feedback_create(SolverFeedbackType type,
  * @brief 销毁求解器反馈
  */
 void solver_feedback_destroy(SolverFeedback *feedback) {
-    if (!feedback) return;
-    lv00_free((void **)&feedback->message);
-    lv00_free((void **)&feedback->free_var_ids);
-    lv00_free((void **)&feedback->overconstrained_ids);
-    lv00_free((void **)&feedback);
+    if (!feedback)
+        return;
+    lv00_free((void **) &feedback->message);
+    lv00_free((void **) &feedback->free_var_ids);
+    lv00_free((void **) &feedback->overconstrained_ids);
+    lv00_free((void **) &feedback);
 }
 
 /**
  * @brief 增量求解并返回交互反馈（Solvespace 风格拖拽-实时反馈）
  */
-SolverFeedback *solver_feedback_solve(ConstraintGraph *graph,
-                                       const int *dirty_vars,
-                                       int dirty_count) {
-    if (!graph) return NULL;
+SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_vars, int dirty_count) {
+    if (!graph)
+        return NULL;
 
-    SolverFeedback *fb = solver_feedback_create(
-        SOLVER_FEEDBACK_CONSTRAINT_ADDED,
-        dirty_count > 0 ? "约束已添加，增量求解开始"
-                        : "执行全量求解");
+    SolverFeedback *fb = solver_feedback_create(SOLVER_FEEDBACK_CONSTRAINT_ADDED,
+                                                dirty_count > 0 ? "约束已添加，增量求解开始" : "执行全量求解");
 
-    if (!fb) return NULL;
+    if (!fb)
+        return NULL;
 
     /* Step 1: 执行增量求解 */
     GroebnerResult *result = solver_incremental_solve(graph, dirty_vars, dirty_count);
 
     if (!result) {
         fb->type = SOLVER_FEEDBACK_CONFLICT_DETECTED;
-        lv00_free((void **)&fb->message);
+        lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(64);
-        if (fb->message) strcpy(fb->message, "求解失败：约束系统无解或超出范围");
+        if (fb->message)
+            strcpy(fb->message, "求解失败：约束系统无解或超出范围");
         return fb;
     }
 
@@ -3285,35 +3479,36 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph,
     fb->degrees_of_freedom = (dof >= 0) ? dof : -1;
 
     if (free_var_ids && dof > 0) {
-        fb->free_var_ids = lv00_malloc((size_t)dof * sizeof(int));
+        fb->free_var_ids = lv00_malloc((size_t) dof * sizeof(int));
         if (fb->free_var_ids) {
-            memcpy(fb->free_var_ids, free_var_ids, (size_t)dof * sizeof(int));
+            memcpy(fb->free_var_ids, free_var_ids, (size_t) dof * sizeof(int));
             fb->free_var_count = dof;
         }
-        lv00_free((void **)&free_var_ids);
+        lv00_free((void **) &free_var_ids);
     }
 
     /* Step 3: 判断反馈类型 */
     if (result->overdetermined) {
         fb->type = SOLVER_FEEDBACK_OVERCONSTRAINED;
-        lv00_free((void **)&fb->message);
+        lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(64);
-        if (fb->message) strcpy(fb->message, "检测到过约束：某些变量被过多方程约束");
+        if (fb->message)
+            strcpy(fb->message, "检测到过约束：某些变量被过多方程约束");
 
         /* 标记过约束变量（简化处理：标记脏变量为过约束候选） */
         if (dirty_count > 0 && dirty_vars) {
-            fb->overconstrained_ids = lv00_malloc((size_t)dirty_count * sizeof(int));
+            fb->overconstrained_ids = lv00_malloc((size_t) dirty_count * sizeof(int));
             if (fb->overconstrained_ids) {
-                memcpy(fb->overconstrained_ids, dirty_vars,
-                       (size_t)dirty_count * sizeof(int));
+                memcpy(fb->overconstrained_ids, dirty_vars, (size_t) dirty_count * sizeof(int));
                 fb->overconstrained_count = dirty_count;
             }
         }
     } else if (dof == 0) {
         fb->type = SOLVER_FEEDBACK_VARIABLE_SOLVED;
-        lv00_free((void **)&fb->message);
+        lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(64);
-        if (fb->message) strcpy(fb->message, "所有变量已唯一确定（零自由度）");
+        if (fb->message)
+            strcpy(fb->message, "所有变量已唯一确定（零自由度）");
         if (dirty_count > 0 && dirty_vars) {
             fb->affected_var_id = dirty_vars[0];
         }
@@ -3321,9 +3516,10 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph,
         fb->type = SOLVER_FEEDBACK_DOF_CHANGED;
         char buf[128];
         snprintf(buf, sizeof(buf), "当前仍有 %d 个自由度", dof);
-        lv00_free((void **)&fb->message);
+        lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(strlen(buf) + 1);
-        if (fb->message) strcpy(fb->message, buf);
+        if (fb->message)
+            strcpy(fb->message, buf);
         if (dirty_count > 0 && dirty_vars) {
             fb->affected_var_id = dirty_vars[0];
         }
@@ -3340,13 +3536,13 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph,
         char detail[256];
         int _snw_fb;
         LV00_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
-                 "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
-                 (fb->type == SOLVER_FEEDBACK_VARIABLE_SOLVED) ? "solved" :
-                 (fb->type == SOLVER_FEEDBACK_OVERCONSTRAINED) ? "overconstrained" :
-                 (fb->type == SOLVER_FEEDBACK_DOF_CHANGED) ? "dof_changed" :
-                 (fb->type == SOLVER_FEEDBACK_CONFLICT_DETECTED) ? "conflict" :
-                 "constraint_added",
-                 fb->degrees_of_freedom, fb->free_var_count, fb->overconstrained_count);
+                           "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
+                           (fb->type == SOLVER_FEEDBACK_VARIABLE_SOLVED)     ? "solved"
+                           : (fb->type == SOLVER_FEEDBACK_OVERCONSTRAINED)   ? "overconstrained"
+                           : (fb->type == SOLVER_FEEDBACK_DOF_CHANGED)       ? "dof_changed"
+                           : (fb->type == SOLVER_FEEDBACK_CONFLICT_DETECTED) ? "conflict"
+                                                                             : "constraint_added",
+                           fb->degrees_of_freedom, fb->free_var_count, fb->overconstrained_count);
         LV00_UNUSED(_snw_fb);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -3381,11 +3577,9 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
  * @return SOLVER_OK 表示成功消元，SOLVER_OUT_OF_SCOPE 表示超出范围
  */
 
-SolverStatus eliminate_geometry(ConstraintGraph *graph,
-                                 int target_var_id,
-                                 int *eliminate_ids,
-                                 int elim_count) {
-    if (!graph || elim_count <= 0) return SOLVER_OK;
+SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, int *eliminate_ids, int elim_count) {
+    if (!graph || elim_count <= 0)
+        return SOLVER_OK;
 
     /* Build equation system from constraints */
     EquationSystem sys;
@@ -3393,8 +3587,9 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
     extract_equations_from_constraints(graph, &sys);
 
     /* Identify which variables appear linearly */
-    bool *is_linear = lv00_malloc((size_t)sys.count * sizeof(bool));
-    if (is_linear) memset(is_linear, 0, (size_t)sys.count * sizeof(bool));
+    bool *is_linear = lv00_malloc((size_t) sys.count * sizeof(bool));
+    if (is_linear)
+        memset(is_linear, 0, (size_t) sys.count * sizeof(bool));
     for (int i = 0; i < sys.count; i++) {
         is_linear[i] = (sys.eqs[i].poly.degree <= 1);
     }
@@ -3408,7 +3603,8 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
         bool found_linear = false;
 
         for (int i = 0; i < sys.count; i++) {
-            if (sys.eqs[i].var_node_id != eid) continue;
+            if (sys.eqs[i].var_node_id != eid)
+                continue;
             if (!is_linear[i]) {
                 if (sys.eqs[i].poly.degree > 2) {
                     out_of_scope_found = true;
@@ -3430,10 +3626,9 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
                         /* Value too large for exact rational representation, skip */
                     } else {
                         SymbolicCoord *new_coord = symbolic_coord_create_rational(
-                            (int64_t)(val * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
+                            (int64_t) (val * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
                         if (new_coord) {
-                            symbolic_coord_destroy(
-                                node->symbolic_coords[sys.eqs[i].coord_index]);
+                            symbolic_coord_destroy(node->symbolic_coords[sys.eqs[i].coord_index]);
                             node->symbolic_coords[sys.eqs[i].coord_index] = new_coord;
                         }
                     }
@@ -3441,8 +3636,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
                 found_linear = true;
                 any_eliminated = true;
                 /* 流式输出: 变量解得 */
-                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED,
-                                   "变量解得 (几何消元)", eid);
+                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED, "变量解得 (几何消元)", eid);
             }
         }
 
@@ -3451,8 +3645,10 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
         if (!found_linear) {
             for (int ci = 0; ci < graph->constraint_count; ci++) {
                 Constraint *c = graph->constraints[ci];
-                if (c->type != BETWEENNESS) continue;
-                if (c->participant_count < 3) continue;
+                if (c->type != BETWEENNESS)
+                    continue;
+                if (c->participant_count < 3)
+                    continue;
                 /* Check if this variable is the middle point */
                 if (c->participants[1] == eid) {
                     /* Betweenness gives us a ratio constraint:
@@ -3462,8 +3658,8 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
                     GeomNode *p3 = find_node(graph, c->participants[2]);
                     if (p1 && p3 && p1->coord_count >= 2 && p3->coord_count >= 2) {
                         double x1, y1, x3, y3;
-                        if (point_coord(p1, 0, &x1) && point_coord(p1, 1, &y1) &&
-                            point_coord(p3, 0, &x3) && point_coord(p3, 1, &y3)) {
+                        if (point_coord(p1, 0, &x1) && point_coord(p1, 1, &y1) && point_coord(p3, 0, &x3) &&
+                            point_coord(p3, 1, &y3)) {
                             /* The variable is constrained to the segment.
                                We can't determine a unique value without more info,
                                but we can narrow the range. */
@@ -3471,12 +3667,11 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
                                numeric_assumption_declaration */
                             GeomNode *target = find_node(graph, eid);
                             if (target) {
-                                lv00_free((void **)&target->numeric_assumption_declaration);
+                                lv00_free((void **) &target->numeric_assumption_declaration);
                                 char buf[256];
                                 int _snw;
-                                LV00_SAFE_SNPRINTF(_snw, buf, sizeof(buf),
-                                         "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
-                                         x1, y1, x3, y3);
+                                LV00_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
+                                                   x1, y1, x3, y3);
                                 LV00_UNUSED(_snw);
                                 target->numeric_assumption_declaration = strdup(buf);
                             }
@@ -3487,7 +3682,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
         }
     }
 
-    lv00_free((void **)&is_linear);
+    lv00_free((void **) &is_linear);
     equation_system_clear(&sys);
 
     /* Apply geometry reasoning templates to generate additional equations.
@@ -3507,8 +3702,10 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
             for (int e = 0; e < elim_count; e++) {
                 int eid = eliminate_ids[e];
                 for (int i = 0; i < tmpl_sys.count; i++) {
-                    if (tmpl_sys.eqs[i].var_node_id != eid) continue;
-                    if (tmpl_sys.eqs[i].poly.degree != 1) continue;
+                    if (tmpl_sys.eqs[i].var_node_id != eid)
+                        continue;
+                    if (tmpl_sys.eqs[i].poly.degree != 1)
+                        continue;
 
                     double val;
                     if (solve_linear(&tmpl_sys.eqs[i].poly, &val)) {
@@ -3518,10 +3715,9 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
                                 /* Value too large for exact rational representation, skip */
                             } else {
                                 SymbolicCoord *new_coord = symbolic_coord_create_rational(
-                                    (int64_t)(val * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
+                                    (int64_t) (val * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
                                 if (new_coord) {
-                                    symbolic_coord_destroy(
-                                        node->symbolic_coords[tmpl_sys.eqs[i].coord_index]);
+                                    symbolic_coord_destroy(node->symbolic_coords[tmpl_sys.eqs[i].coord_index]);
                                     node->symbolic_coords[tmpl_sys.eqs[i].coord_index] = new_coord;
                                     any_eliminated = true;
                                     /* 流式输出: 变量解得 */
@@ -3538,8 +3734,10 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
         equation_system_clear(&tmpl_sys);
     }
 
-    if (out_of_scope_found) return SOLVER_OUT_OF_SCOPE;
-    if (any_eliminated) return SOLVER_OK;
+    if (out_of_scope_found)
+        return SOLVER_OUT_OF_SCOPE;
+    if (any_eliminated)
+        return SOLVER_OK;
     return SOLVER_OK; /* No variables eliminated, but not an error */
 }
 
@@ -3547,10 +3745,9 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph,
 /*  PUBLIC API: analyze_out_of_scope                                   */
 /* ================================================================== */
 
-SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
-                                   int var_id,
-                                   char **suggestion) {
-    if (!graph || !suggestion) return SOLVER_OUT_OF_SCOPE;
+SolverStatus analyze_out_of_scope(ConstraintGraph *graph, int var_id, char **suggestion) {
+    if (!graph || !suggestion)
+        return SOLVER_OUT_OF_SCOPE;
 
     /* 流式事件: 开始超出范围分析 */
     if (solver_stream_ctx) {
@@ -3562,8 +3759,8 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
         ev.description = "开始超出代数范围分析";
         char detail[128];
         int _snw_diag;
-        LV00_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail),
-                 "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}", var_id);
+        LV00_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}",
+                           var_id);
         LV00_UNUSED(_snw_diag);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -3629,8 +3826,8 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
         ev.description = "发现高次方程，尝试因式分解";
         char detail[128];
         int _snw_found;
-        LV00_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail),
-                 "{\"degree\":%d,\"var_id\":%d}", target_poly->degree, var_id);
+        LV00_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree,
+                           var_id);
         LV00_UNUSED(_snw_found);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -3648,11 +3845,11 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
         *suggestion = lv00_malloc(needed);
         int _snw;
         LV00_SAFE_SNPRINTF(_snw, *suggestion, needed,
-                 "Polynomial factors into (%s) * (%s). "
-                 "Split into multiple quadratic steps with auxiliary lines: "
-                 "solve each factor separately and combine solutions. "
-                 "Each factor of degree <= 2 is within constructible scope.",
-                 f1_str, f2_str);
+                           "Polynomial factors into (%s) * (%s). "
+                           "Split into multiple quadratic steps with auxiliary lines: "
+                           "solve each factor separately and combine solutions. "
+                           "Each factor of degree <= 2 is within constructible scope.",
+                           f1_str, f2_str);
         LV00_UNUSED(_snw);
 
         /* 流式事件: 因式分解成功 */
@@ -3665,16 +3862,17 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
             ev.description = "因式分解成功，可通过拆分求解";
             char detail[512];
             int _snw_fact;
-            LV00_SAFE_SNPRINTF(_snw_fact, detail, sizeof(detail),
-                     "{\"diagnosis\":\"factorable\",\"resolvable\":true,\"factor1\":\"%s\",\"factor2\":\"%s\"}",
-                     f1_str, f2_str);
+            LV00_SAFE_SNPRINTF(
+                _snw_fact, detail, sizeof(detail),
+                "{\"diagnosis\":\"factorable\",\"resolvable\":true,\"factor1\":\"%s\",\"factor2\":\"%s\"}", f1_str,
+                f2_str);
             LV00_UNUSED(_snw_fact);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
         }
 
-        lv00_free((void **)&f1_str);
-        lv00_free((void **)&f2_str);
+        lv00_free((void **) &f1_str);
+        lv00_free((void **) &f2_str);
         mpz_poly_clear(&factor1);
         mpz_poly_clear(&factor2);
         equation_system_clear(&sys);
@@ -3706,8 +3904,9 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
                 ev.timestamp_ms = stream_timestamp_ms();
                 ev.var_id = var_id;
                 ev.description = "双二次方程，可通过变量替换 u=x² 归约为二次方程求解";
-                ev.detail_json = "{\"diagnosis\":\"biquadratic\",\"resolvable\":true,"
-                                 "\"method\":\"substitute_u_equals_x_squared\"}";
+                ev.detail_json =
+                    "{\"diagnosis\":\"biquadratic\",\"resolvable\":true,"
+                    "\"method\":\"substitute_u_equals_x_squared\"}";
                 stream_emit(solver_stream_ctx, &ev);
             }
 
@@ -3722,14 +3921,14 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
     *suggestion = lv00_malloc(needed);
     int _snw2;
     LV00_SAFE_SNPRINTF(_snw2, *suggestion, needed,
-             "Irreducible polynomial of degree %d with coefficients [%s]. "
-             "Exceeds quadratic coverage. "
-             "Consider: (1) adding auxiliary construction lines to decompose "
-             "into quadratic sub-problems, (2) checking if the problem "
-             "reduces to a known unconstructible problem (angle trisection, "
-             "cube duplication, circle squaring), or (3) using numerical "
-             "approximation with Neusis construction.",
-             target_poly->degree, poly_str);
+                       "Irreducible polynomial of degree %d with coefficients [%s]. "
+                       "Exceeds quadratic coverage. "
+                       "Consider: (1) adding auxiliary construction lines to decompose "
+                       "into quadratic sub-problems, (2) checking if the problem "
+                       "reduces to a known unconstructible problem (angle trisection, "
+                       "cube duplication, circle squaring), or (3) using numerical "
+                       "approximation with Neusis construction.",
+                       target_poly->degree, poly_str);
     LV00_UNUSED(_snw2);
 
     /* 流式事件: 一般不可约高次多项式 */
@@ -3743,15 +3942,15 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
         char detail[512];
         int _snw_irr;
         LV00_SAFE_SNPRINTF(_snw_irr, detail, sizeof(detail),
-                 "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,"
-                 "\"polynomial\":\"%s\",\"resolvable\":false}",
-                 target_poly->degree, poly_str);
+                           "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,"
+                           "\"polynomial\":\"%s\",\"resolvable\":false}",
+                           target_poly->degree, poly_str);
         LV00_UNUSED(_snw_irr);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
-    lv00_free((void **)&poly_str);
+    lv00_free((void **) &poly_str);
 
     equation_system_clear(&sys);
     return SOLVER_OUT_OF_SCOPE;
@@ -3777,8 +3976,9 @@ SolverStatus analyze_out_of_scope(ConstraintGraph *graph,
 
 int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids) {
     if (!graph) {
-        if (out_free_var_ids) *out_free_var_ids = NULL;
-        return -1;  /* 返回 -1 明确表示参数错误，区别于 0 自由度 */
+        if (out_free_var_ids)
+            *out_free_var_ids = NULL;
+        return -1; /* 返回 -1 明确表示参数错误，区别于 0 自由度 */
     }
 
     /* Count point variables */
@@ -3801,16 +4001,19 @@ int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids) {
     }
 
     int dof = total_vars - total_constraints;
-    if (dof < 0) dof = 0;
+    if (dof < 0)
+        dof = 0;
 
     /* Identify which specific variables are free.
        A variable is "free" if it has fewer equations than unknowns.
        We track this per-point: each point has 2 coords (x, y).
        A point is fully determined if it has >= 2 independent equations. */
-    int *eq_per_point = lv00_malloc((size_t)pt_count * sizeof(int));
-    if (eq_per_point) memset(eq_per_point, 0, (size_t)pt_count * sizeof(int));
-    bool *point_has_quadratic = lv00_malloc((size_t)pt_count * sizeof(bool));
-    if (point_has_quadratic) memset(point_has_quadratic, 0, (size_t)pt_count * sizeof(bool));
+    int *eq_per_point = lv00_malloc((size_t) pt_count * sizeof(int));
+    if (eq_per_point)
+        memset(eq_per_point, 0, (size_t) pt_count * sizeof(int));
+    bool *point_has_quadratic = lv00_malloc((size_t) pt_count * sizeof(bool));
+    if (point_has_quadratic)
+        memset(point_has_quadratic, 0, (size_t) pt_count * sizeof(bool));
 
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
@@ -3823,7 +4026,8 @@ int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids) {
             if (n && n->type == GEOM_POINT) {
                 for (int k = 0; k < pt_count; k++) {
                     if (pt_ids[k] == n->id) {
-                        if (first_pt_idx < 0) first_pt_idx = k;
+                        if (first_pt_idx < 0)
+                            first_pt_idx = k;
                         point_participants++;
                         break;
                     }
@@ -3855,14 +4059,17 @@ int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids) {
     /* Distance constraints: assign to the line segment's endpoints */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
-        if (!n || !n->numeric_assumption_declaration) continue;
-        if (n->type != GEOM_LINE_SEGMENT) continue;
+        if (!n || !n->numeric_assumption_declaration)
+            continue;
+        if (n->type != GEOM_LINE_SEGMENT)
+            continue;
         /* Add one equation to each endpoint */
         if (n->coord_count >= 2) {
             /* Find the endpoint point nodes */
             for (int j = 0; j < graph->constraint_count; j++) {
                 Constraint *c = graph->constraints[j];
-                if (c->type != INCIDENCE) continue;
+                if (c->type != INCIDENCE)
+                    continue;
                 for (int p = 0; p < c->participant_count; p++) {
                     if (c->participants[p] == n->id) {
                         int other = c->participants[1 - p];
@@ -3902,9 +4109,9 @@ int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids) {
         }
     }
 
-    lv00_free((void **)&eq_per_point);
-    lv00_free((void **)&point_has_quadratic);
-    lv00_free((void **)&pt_ids);
+    lv00_free((void **) &eq_per_point);
+    lv00_free((void **) &point_has_quadratic);
+    lv00_free((void **) &pt_ids);
 
     *out_free_var_ids = free_ids;
     return dof;
@@ -3930,7 +4137,8 @@ int count_degrees_of_freedom(ConstraintGraph *graph, int **out_free_var_ids) {
  */
 
 bool check_conflict_equations(const ConstraintGraph *graph) {
-    if (!graph) return false;
+    if (!graph)
+        return false;
 
     /* Check 1: Incompatible distance constraints on same segment pair */
     if (check_incompatible_distances(graph)) {
@@ -3955,8 +4163,7 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
        nonzero constant (0*x + b = 0, b != 0) */
     for (int i = 0; i < sys.count; i++) {
         mpz_poly_t *p = &sys.eqs[i].poly;
-        if (p->degree == 1 && mpz_cmp_si(p->coeffs[1], 0) == 0 &&
-            mpz_cmp_si(p->coeffs[0], 0) != 0) {
+        if (p->degree == 1 && mpz_cmp_si(p->coeffs[1], 0) == 0 && mpz_cmp_si(p->coeffs[0], 0) != 0) {
             equation_system_clear(&sys);
             return true;
         }
@@ -3989,7 +4196,8 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
     int *eq_count_per_point = NULL;
     int max_id = 0;
     for (int i = 0; i < graph->node_count; i++) {
-        if (graph->nodes[i]->id > max_id) max_id = graph->nodes[i]->id;
+        if (graph->nodes[i]->id > max_id)
+            max_id = graph->nodes[i]->id;
     }
     if (max_id > SOLVER_MAX_VAR_ID) {
         /* Too sparse, use a different approach
@@ -3997,8 +4205,9 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
         max_id = SOLVER_MAX_VAR_ID;
     }
     if (max_id > 0) {
-        eq_count_per_point = lv00_malloc((size_t)(max_id + 1) * sizeof(int));
-        if (eq_count_per_point) memset(eq_count_per_point, 0, (size_t)(max_id + 1) * sizeof(int));
+        eq_count_per_point = lv00_malloc((size_t) (max_id + 1) * sizeof(int));
+        if (eq_count_per_point)
+            memset(eq_count_per_point, 0, (size_t) (max_id + 1) * sizeof(int));
         for (int i = 0; i < sys.count; i++) {
             int vid = sys.eqs[i].var_node_id;
             if (vid >= 0 && vid <= max_id) {
@@ -4014,8 +4223,7 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
                 int pid = c->participants[j];
                 GeomNode *n = find_node(graph, pid);
                 if (n && n->type == GEOM_POINT && pid <= max_id) {
-                    eq_count_per_point[pid] += constraint_weight(c) /
-                                                c->participant_count;
+                    eq_count_per_point[pid] += constraint_weight(c) / c->participant_count;
                 }
             }
         }
@@ -4028,14 +4236,14 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
                        is inconsistent with the first two, it's a conflict */
                     /* For now, just flag if > 3 (definitely overconstrained) */
                     if (eq_count_per_point[n->id] > 3) {
-                        lv00_free((void **)&eq_count_per_point);
+                        lv00_free((void **) &eq_count_per_point);
                         equation_system_clear(&sys);
                         return true;
                     }
                 }
             }
         }
-        lv00_free((void **)&eq_count_per_point);
+        lv00_free((void **) &eq_count_per_point);
     }
 
     /* Check 6: Duplicate constraints with different parameters */
@@ -4043,8 +4251,10 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
         for (int j = i + 1; j < graph->constraint_count; j++) {
             Constraint *ci = graph->constraints[i];
             Constraint *cj = graph->constraints[j];
-            if (ci->type != cj->type) continue;
-            if (ci->participant_count != cj->participant_count) continue;
+            if (ci->type != cj->type)
+                continue;
+            if (ci->participant_count != cj->participant_count)
+                continue;
 
             /* Same type, same participant count -- check if same participants */
             bool same_participants = true;
@@ -4054,8 +4264,7 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
                     break;
                 }
             }
-            if (same_participants && ci->type == BETWEENNESS &&
-                ci->participant_count >= 3) {
+            if (same_participants && ci->type == BETWEENNESS && ci->participant_count >= 3) {
                 /* Two betweenness constraints on the same triple with
                    different orderings could conflict */
                 /* e.g., B(A,C,B) and B(B,A,C) cannot both hold */
@@ -4081,15 +4290,15 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
  */
 
 typedef struct {
-    int *exponents;   /* 每个变量的幂次数组, 长度 = var_count */
-    mpz_t coeff;      /* GMP 精确系数 */
+    int *exponents; /* 每个变量的幂次数组, 长度 = var_count */
+    mpz_t coeff;    /* GMP 精确系数 */
 } MVMonomial;
 
 typedef struct {
-    MVMonomial *terms;  /* 单项式数组 */
-    int term_count;     /* 单项式数量 */
-    int capacity;       /* 分配容量 */
-    int var_count;      /* 变量个数 */
+    MVMonomial *terms; /* 单项式数组 */
+    int term_count;    /* 单项式数量 */
+    int capacity;      /* 分配容量 */
+    int var_count;     /* 变量个数 */
 } MVPolynomial;
 
 /* 初始化多变量多项式 */
@@ -4103,19 +4312,19 @@ static void mv_poly_init(MVPolynomial *p, int var_count) {
 /* 清理多变量多项式 */
 static void mv_poly_clear(MVPolynomial *p) {
     for (int i = 0; i < p->term_count; i++) {
-        lv00_free((void **)&p->terms[i].exponents);
+        lv00_free((void **) &p->terms[i].exponents);
         mpz_clear(p->terms[i].coeff);
     }
-    lv00_free((void **)&p->terms);
+    lv00_free((void **) &p->terms);
     p->terms = NULL;
     p->term_count = 0;
     p->capacity = 0;
 }
 
 /* 添加一个单项式到多变量多项式 (合并同类项) */
-static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff,
-                              const int *exponents) {
-    if (mpz_cmp_si(coeff, 0) == 0) return;
+static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
+    if (mpz_cmp_si(coeff, 0) == 0)
+        return;
 
     /* 检查是否已有同类项 */
     for (int i = 0; i < p->term_count; i++) {
@@ -4178,11 +4387,11 @@ static int mv_monomial_total_degree(const MVMonomial *m, int var_count) {
 }
 
 /* 比较两个单项式的次数 (grlex序: 先比全次数, 再比字典序) */
-static int mv_monomial_compare_grlex(const MVMonomial *a, const MVMonomial *b,
-                                      int var_count) {
+static int mv_monomial_compare_grlex(const MVMonomial *a, const MVMonomial *b, int var_count) {
     int deg_a = mv_monomial_total_degree(a, var_count);
     int deg_b = mv_monomial_total_degree(b, var_count);
-    if (deg_a != deg_b) return deg_b - deg_a; /* 降序: 高次在前 */
+    if (deg_a != deg_b)
+        return deg_b - deg_a; /* 降序: 高次在前 */
     /* 字典序比较 (从第一个变量开始) */
     for (int v = 0; v < var_count; v++) {
         if (a->exponents[v] != b->exponents[v]) {
@@ -4198,8 +4407,7 @@ static void mv_poly_sort(MVPolynomial *p) {
     for (int i = 1; i < p->term_count; i++) {
         MVMonomial key = p->terms[i];
         int j = i - 1;
-        while (j >= 0 &&
-               mv_monomial_compare_grlex(&p->terms[j], &key, p->var_count) > 0) {
+        while (j >= 0 && mv_monomial_compare_grlex(&p->terms[j], &key, p->var_count) > 0) {
             p->terms[j + 1] = p->terms[j];
             j--;
         }
@@ -4212,10 +4420,11 @@ static void mv_poly_remove_zeros(MVPolynomial *p) {
     int write = 0;
     for (int i = 0; i < p->term_count; i++) {
         if (mpz_cmp_si(p->terms[i].coeff, 0) != 0) {
-            if (write != i) p->terms[write] = p->terms[i];
+            if (write != i)
+                p->terms[write] = p->terms[i];
             write++;
         } else {
-            lv00_free((void **)&p->terms[i].exponents);
+            lv00_free((void **) &p->terms[i].exponents);
             mpz_clear(p->terms[i].coeff);
         }
     }
@@ -4224,42 +4433,39 @@ static void mv_poly_remove_zeros(MVPolynomial *p) {
 
 /* 获取多项式的首项 (leading term, grlex序下最大的单项式) */
 static const MVMonomial *mv_poly_leading_term(const MVPolynomial *p) {
-    if (p->term_count == 0) return NULL;
+    if (p->term_count == 0)
+        return NULL;
     return &p->terms[0]; /* 已排序, 第一个即为首项 */
 }
 
 /* 获取首项的首单项式指数 (LCM of leading monomials) */
-static void mv_monomial_lcm(const MVMonomial *a, const MVMonomial *b,
-                             int var_count, int *out_lcm) {
+static void mv_monomial_lcm(const MVMonomial *a, const MVMonomial *b, int var_count, int *out_lcm) {
     for (int v = 0; v < var_count; v++) {
-        out_lcm[v] = (a->exponents[v] > b->exponents[v])
-                     ? a->exponents[v] : b->exponents[v];
+        out_lcm[v] = (a->exponents[v] > b->exponents[v]) ? a->exponents[v] : b->exponents[v];
     }
 }
 
 /* 检查单项式 m 是否能被单项式 d 整除 (即 m 的每个变量幂次 >= d 的) */
-static bool mv_monomial_divisible(const MVMonomial *m, const MVMonomial *d,
-                                   int var_count) {
+static bool mv_monomial_divisible(const MVMonomial *m, const MVMonomial *d, int var_count) {
     for (int v = 0; v < var_count; v++) {
-        if (m->exponents[v] < d->exponents[v]) return false;
+        if (m->exponents[v] < d->exponents[v])
+            return false;
     }
     return true;
 }
 
 /* 检查单项式 d 能否整除 LCM 单项式 (用 exponents 数组表示) */
-static bool mv_monomial_divisible_lcm(const MVMonomial *d,
-                                       const int *lcm_exp,
-                                       int var_count) {
+static bool mv_monomial_divisible_lcm(const MVMonomial *d, const int *lcm_exp, int var_count) {
     for (int v = 0; v < var_count; v++) {
-        if (d->exponents[v] > lcm_exp[v]) return false;
+        if (d->exponents[v] > lcm_exp[v])
+            return false;
     }
     return true;
 }
 
 /* 多变量多项式乘以单项式 (in-place: result = p * monomial) */
-static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
-                                  const int *mono_exp, const mpz_t mono_coeff,
-                                  int var_count) {
+static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, const int *mono_exp,
+                                 const mpz_t mono_coeff, int var_count) {
     mv_poly_clear(result);
     mv_poly_init(result, var_count);
     for (int i = 0; i < p->term_count; i++) {
@@ -4273,14 +4479,13 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p,
         }
         mv_poly_add_term(result, new_coeff, new_exp);
         mpz_clear(new_coeff);
-        lv00_free((void **)&new_exp);
+        lv00_free((void **) &new_exp);
     }
     mv_poly_sort(result);
 }
 
 /* 多变量多项式减法: result = a - b */
-static void mv_poly_sub(MVPolynomial *result, const MVPolynomial *a,
-                         const MVPolynomial *b) {
+static void mv_poly_sub(MVPolynomial *result, const MVPolynomial *a, const MVPolynomial *b) {
     mv_poly_clear(result);
     mv_poly_init(result, a->var_count);
     for (int i = 0; i < a->term_count; i++) {
@@ -4321,21 +4526,29 @@ static bool mv_poly_is_zero(const MVPolynomial *p) {
  * 其中 LCM 是首项的最小公倍单项式, LT 是首项。
  * 限制: 只处理全次数 <= 2 的多项式系统。
  */
-static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g,
-                          int var_count, MVPolynomial *result) {
+static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_count, MVPolynomial *result) {
     mv_poly_init(result, var_count);
 
     const MVMonomial *lt_f = mv_poly_leading_term(f);
     const MVMonomial *lt_g = mv_poly_leading_term(g);
-    if (!lt_f || !lt_g) return;
+    if (!lt_f || !lt_g)
+        return;
 
     /* 检查次数限制: S-多项式的次数可能超过 2, 但输入限制在 degree <= 2 */
     int *lcm_exp = lv00_malloc(var_count * sizeof(int));
-    if (!lcm_exp) return;
+    if (!lcm_exp)
+        return;
     int *quo_f_exp = lv00_malloc(var_count * sizeof(int));
-    if (!quo_f_exp) { lv00_free((void **)&lcm_exp); return; }
+    if (!quo_f_exp) {
+        lv00_free((void **) &lcm_exp);
+        return;
+    }
     int *quo_g_exp = lv00_malloc(var_count * sizeof(int));
-    if (!quo_g_exp) { lv00_free((void **)&lcm_exp); lv00_free((void **)&quo_f_exp); return; }
+    if (!quo_g_exp) {
+        lv00_free((void **) &lcm_exp);
+        lv00_free((void **) &quo_f_exp);
+        return;
+    }
 
     mv_monomial_lcm(lt_f, lt_g, var_count, lcm_exp);
 
@@ -4360,9 +4573,9 @@ static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g,
 
     mv_poly_clear(&term1);
     mv_poly_clear(&term2);
-    lv00_free((void **)&lcm_exp);
-    lv00_free((void **)&quo_f_exp);
-    lv00_free((void **)&quo_g_exp);
+    lv00_free((void **) &lcm_exp);
+    lv00_free((void **) &quo_f_exp);
+    lv00_free((void **) &quo_g_exp);
 }
 
 /* ================================================================== */
@@ -4374,8 +4587,7 @@ static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g,
  * 反复用 G 中的多项式约化 p, 直到无法继续约化。
  * 返回约化后的余式。
  */
-static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G,
-                               int g_count, MVPolynomial *remainder) {
+static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_count, MVPolynomial *remainder) {
     mv_poly_copy(remainder, p);
 
     bool changed = true;
@@ -4387,16 +4599,17 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G,
         safety++;
 
         for (int i = 0; i < g_count; i++) {
-            if (mv_poly_is_zero(G[i])) continue;
+            if (mv_poly_is_zero(G[i]))
+                continue;
 
             const MVMonomial *lt_g = mv_poly_leading_term(G[i]);
-            if (!lt_g) continue;
+            if (!lt_g)
+                continue;
 
             /* 在 remainder 中找到能被 lt_g 整除的首项 */
             bool reduced = false;
             for (int j = 0; j < remainder->term_count && !reduced; j++) {
-                if (mv_monomial_divisible(&remainder->terms[j], lt_g,
-                                           remainder->var_count)) {
+                if (mv_monomial_divisible(&remainder->terms[j], lt_g, remainder->var_count)) {
                     /* 计算商单项式 */
                     int *quo_exp = lv00_malloc(remainder->var_count * sizeof(int));
                     if (!quo_exp) {
@@ -4406,17 +4619,14 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G,
                         break;
                     }
                     for (int v = 0; v < remainder->var_count; v++) {
-                        quo_exp[v] = remainder->terms[j].exponents[v]
-                                     - lt_g->exponents[v];
+                        quo_exp[v] = remainder->terms[j].exponents[v] - lt_g->exponents[v];
                     }
 
                     /* 约化: new_remainder = LC(g)*remainder - coeff_j*quo*G[i]
                      * 使用精确整数运算避免分数 */
                     MVPolynomial sub_term;
                     mv_poly_init(&sub_term, G[i]->var_count);
-                    mv_poly_mul_monomial(&sub_term, G[i], quo_exp,
-                                          remainder->terms[j].coeff,
-                                          remainder->var_count);
+                    mv_poly_mul_monomial(&sub_term, G[i], quo_exp, remainder->terms[j].coeff, remainder->var_count);
 
                     MVPolynomial new_remainder;
                     mv_poly_init(&new_remainder, remainder->var_count);
@@ -4426,16 +4636,14 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G,
                         mpz_t scaled;
                         mpz_init(scaled);
                         mpz_mul(scaled, remainder->terms[k].coeff, lt_g->coeff);
-                        mv_poly_add_term(&new_remainder, scaled,
-                                          remainder->terms[k].exponents);
+                        mv_poly_add_term(&new_remainder, scaled, remainder->terms[k].exponents);
                         mpz_clear(scaled);
                     }
                     for (int k = 0; k < sub_term.term_count; k++) {
                         mpz_t neg;
                         mpz_init(neg);
                         mpz_neg(neg, sub_term.terms[k].coeff);
-                        mv_poly_add_term(&new_remainder, neg,
-                                          sub_term.terms[k].exponents);
+                        mv_poly_add_term(&new_remainder, neg, sub_term.terms[k].exponents);
                         mpz_clear(neg);
                     }
 
@@ -4444,7 +4652,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G,
                     mv_poly_clear(remainder);
                     *remainder = new_remainder;
                     mv_poly_clear(&sub_term);
-                    lv00_free((void **)&quo_exp);
+                    lv00_free((void **) &quo_exp);
 
                     changed = true;
                     reduced = true;
@@ -4474,10 +4682,8 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G,
  * @param step_limit  最大计算步数（防止无限循环）
  * @return SOLVER_OK 表示成功，SOLVER_TIMEOUT 表示超时，SOLVER_OUT_OF_SCOPE 表示次数超限
  */
-static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
-                                         MVPolynomial ***out_G,
-                                         int *out_g_count,
-                                         int step_limit) {
+static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynomial ***out_G, int *out_g_count,
+                                        int step_limit) {
     if (f_count == 0 || !F || !out_G || !out_g_count) {
         *out_G = NULL;
         *out_g_count = 0;
@@ -4512,9 +4718,9 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
             /* 清理已分配的资源 */
             for (int j = 0; j < i; j++) {
                 mv_poly_clear(G[j]);
-                lv00_free((void **)&G[j]);
+                lv00_free((void **) &G[j]);
             }
-            lv00_free((void **)&G);
+            lv00_free((void **) &G);
             *out_G = NULL;
             *out_g_count = 0;
             return SOLVER_TIMEOUT;
@@ -4526,15 +4732,18 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
     /* Buchberger 链式判据: 跟踪已处理的配对。
      * pair_processed[i][j] = true 表示配对 (i,j) 已经处理过。
      * 使用指针数组 + 单次 malloc 分配以减少碎片。 */
-    bool *pair_data = lv00_malloc((size_t)(g_capacity * g_capacity) * sizeof(bool));
+    bool *pair_data = lv00_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
     if (!pair_data) {
-        for (int i = 0; i < g_count; i++) { mv_poly_clear(G[i]); lv00_free((void **)&G[i]); }
-        lv00_free((void **)&G);
+        for (int i = 0; i < g_count; i++) {
+            mv_poly_clear(G[i]);
+            lv00_free((void **) &G[i]);
+        }
+        lv00_free((void **) &G);
         *out_G = NULL;
         *out_g_count = 0;
         return SOLVER_TIMEOUT;
     }
-    memset(pair_data, 0, (size_t)(g_capacity * g_capacity) * sizeof(bool));
+    memset(pair_data, 0, (size_t) (g_capacity * g_capacity) * sizeof(bool));
 
     int steps = 0;
 
@@ -4558,15 +4767,14 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
                         ev.timestamp_ms = stream_timestamp_ms();
                         ev.step_number = steps;
                         ev.total_steps = g_count * (g_count - 1) / 2;
-                        ev.progress = (double)steps / (double)(g_count * (g_count - 1) / 2);
+                        ev.progress = (double) steps / (double) (g_count * (g_count - 1) / 2);
                         ev.description = "Buchberger S-多项式约化";
                         char detail[192];
                         int _snw_gb;
                         LV00_SAFE_SNPRINTF(_snw_gb, detail, sizeof(detail),
-                                 "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
-                                 "\"basis_size\":%d,\"step\":%d,\"total_pairs\":%d}",
-                                 i, j, g_count, steps,
-                                 g_count * (g_count - 1) / 2);
+                                           "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
+                                           "\"basis_size\":%d,\"step\":%d,\"total_pairs\":%d}",
+                                           i, j, g_count, steps, g_count * (g_count - 1) / 2);
                         LV00_UNUSED(_snw_gb);
                         ev.detail_json = detail;
                         stream_emit(solver_stream_ctx, &ev);
@@ -4577,17 +4785,20 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
                  * 则 S-多项式约化为零, 跳过 */
                 const MVMonomial *lt_i = mv_poly_leading_term(G[i]);
                 const MVMonomial *lt_j = mv_poly_leading_term(G[j]);
-                if (!lt_i || !lt_j) continue;
+                if (!lt_i || !lt_j)
+                    continue;
 
                 int *lcm_exp = lv00_malloc(var_count * sizeof(int));
                 mv_monomial_lcm(lt_i, lt_j, var_count, lcm_exp);
 
                 bool lcm_is_lt_i = true, lcm_is_lt_j = true;
                 for (int v = 0; v < var_count; v++) {
-                    if (lcm_exp[v] != lt_i->exponents[v]) lcm_is_lt_i = false;
-                    if (lcm_exp[v] != lt_j->exponents[v]) lcm_is_lt_j = false;
+                    if (lcm_exp[v] != lt_i->exponents[v])
+                        lcm_is_lt_i = false;
+                    if (lcm_exp[v] != lt_j->exponents[v])
+                        lcm_is_lt_j = false;
                 }
-                lv00_free((void **)&lcm_exp);
+                lv00_free((void **) &lcm_exp);
 
                 if (lcm_is_lt_i || lcm_is_lt_j) {
                     /* 标记为已处理（虽然跳过，但配对已检查） */
@@ -4605,19 +4816,20 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
                  * 是 Buchberger 算法的重要优化。 */
                 bool skip_by_chain = false;
                 for (int k = 0; k < g_count && k < i && !skip_by_chain; k++) {
-                    if (!pair_data[k * g_capacity + i] ||
-                        !pair_data[k * g_capacity + j]) continue;
+                    if (!pair_data[k * g_capacity + i] || !pair_data[k * g_capacity + j])
+                        continue;
 
                     const MVMonomial *lt_k = mv_poly_leading_term(G[k]);
-                    if (!lt_k) continue;
+                    if (!lt_k)
+                        continue;
 
                     /* 重新计算 lcm(G[i], G[j]) 用于链式判据 */
                     int *lcm_chain = lv00_malloc(var_count * sizeof(int));
-                    if (!lcm_chain) continue;
+                    if (!lcm_chain)
+                        continue;
                     mv_monomial_lcm(lt_i, lt_j, var_count, lcm_chain);
-                    bool lt_k_divides_lcm = mv_monomial_divisible_lcm(
-                        lt_k, lcm_chain, var_count);
-                    lv00_free((void **)&lcm_chain);
+                    bool lt_k_divides_lcm = mv_monomial_divisible_lcm(lt_k, lcm_chain, var_count);
+                    lv00_free((void **) &lcm_chain);
 
                     if (lt_k_divides_lcm) {
                         skip_by_chain = true;
@@ -4650,8 +4862,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
                      * 暂时产生更高次的中间结果。在添加前尝试内容约化降次。 */
                     bool within_limit = true;
                     for (int k = 0; k < remainder.term_count; k++) {
-                        int td = mv_monomial_total_degree(&remainder.terms[k],
-                                                          var_count);
+                        int td = mv_monomial_total_degree(&remainder.terms[k], var_count);
                         if (td > 4) {
                             /* S-多项式产生高次项：检查是否可以因式分解降次。
                              * 如果余式多项式中单个变量的最大次数 ≤ 4，
@@ -4683,20 +4894,20 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
                             }
                             G = new_G;
                             /* 扩容 pair_data 矩阵: 将旧数据复制到更大的矩阵 */
-                            bool *new_pair = lv00_malloc((size_t)(g_capacity * g_capacity) * sizeof(bool));
+                            bool *new_pair = lv00_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
                             if (!new_pair) {
                                 lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "buchberger_groebner: pair矩阵扩容失败");
                                 mv_poly_clear(&remainder);
                                 break;
                             }
-                            memset(new_pair, 0, (size_t)(g_capacity * g_capacity) * sizeof(bool));
+                            memset(new_pair, 0, (size_t) (g_capacity * g_capacity) * sizeof(bool));
                             /* 复制旧数据 */
                             for (int pi = 0; pi < old_capacity; pi++) {
                                 for (int pj = 0; pj < old_capacity; pj++) {
                                     new_pair[pi * g_capacity + pj] = pair_data[pi * old_capacity + pj];
                                 }
                             }
-                            lv00_free((void **)&pair_data);
+                            lv00_free((void **) &pair_data);
                             pair_data = new_pair;
                         }
                         G[g_count] = lv00_malloc(sizeof(MVPolynomial));
@@ -4733,21 +4944,21 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
             /* 构建排除 g_i 的临时基 */
             MVPolynomial **temp_G = NULL;
             if (g_count > 1) {
-                temp_G = lv00_malloc((size_t)(g_count - 1) * sizeof(MVPolynomial *));
+                temp_G = lv00_malloc((size_t) (g_count - 1) * sizeof(MVPolynomial *));
                 if (temp_G) {
                     int idx = 0;
                     for (int j = 0; j < g_count; j++) {
-                        if (j != i) temp_G[idx++] = G[j];
+                        if (j != i)
+                            temp_G[idx++] = G[j];
                     }
                 }
             }
 
             /* 约化 g_i */
             MVPolynomial remainder;
-            polynomial_reduce(G[i], temp_G ? temp_G : NULL,
-                              temp_G ? (g_count - 1) : 0, &remainder);
+            polynomial_reduce(G[i], temp_G ? temp_G : NULL, temp_G ? (g_count - 1) : 0, &remainder);
 
-            lv00_free((void **)&temp_G);
+            lv00_free((void **) &temp_G);
 
             if (!mv_poly_is_zero(&remainder)) {
                 /* 用约化后的余式替换原多项式 */
@@ -4781,9 +4992,9 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
             char detail[128];
             int _snw_ar;
             LV00_SAFE_SNPRINTF(_snw_ar, detail, sizeof(detail),
-                     "{\"phase\":\"auto_reduction\",\"reduced_count\":%d,"
-                     "\"final_basis_size\":%d,\"total_steps\":%d}",
-                     reduced_count, g_count, steps);
+                               "{\"phase\":\"auto_reduction\",\"reduced_count\":%d,"
+                               "\"final_basis_size\":%d,\"total_steps\":%d}",
+                               reduced_count, g_count, steps);
             LV00_UNUSED(_snw_ar);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -4794,11 +5005,12 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
     int write = 0;
     for (int i = 0; i < g_count; i++) {
         if (!mv_poly_is_zero(G[i])) {
-            if (write != i) G[write] = G[i];
+            if (write != i)
+                G[write] = G[i];
             write++;
         } else {
             mv_poly_clear(G[i]);
-            lv00_free((void **)&G[i]);
+            lv00_free((void **) &G[i]);
         }
     }
     g_count = write;
@@ -4808,7 +5020,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
         mv_poly_sort(G[i]);
     }
 
-    lv00_free((void **)&pair_data);
+    lv00_free((void **) &pair_data);
 
     *out_G = G;
     *out_g_count = g_count;
@@ -4833,19 +5045,22 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count,
  * @param out_var_count  输出：唯一变量数量
  * @return 多变量多项式指针，失败返回 NULL
  */
-static MVPolynomial *build_mv_polynomials(EquationSystem *sys,
-                                           int **var_id_map,
-                                           int **out_coord_map,
-                                           int *out_var_count) {
+static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map, int **out_coord_map,
+                                          int *out_var_count) {
     /* 收集所有唯一的 (var_node_id, coord_index) 对 */
     int *vids = lv00_malloc(sys->count * 2 * sizeof(int));
-    if (!vids) return NULL;
+    if (!vids)
+        return NULL;
     int *cids = lv00_malloc(sys->count * 2 * sizeof(int));
-    if (!cids) { lv00_free((void **)&vids); return NULL; }
+    if (!cids) {
+        lv00_free((void **) &vids);
+        return NULL;
+    }
     int vcount = 0;
 
     for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0) continue;
+        if (sys->eqs[i].poly.degree < 0)
+            continue;
         int vid = sys->eqs[i].var_node_id;
         int cid = sys->eqs[i].coord_index;
         bool found = false;
@@ -4868,31 +5083,37 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys,
 
     /* 为每个方程构建多变量多项式 */
     MVPolynomial *polys = lv00_malloc(sys->count * sizeof(MVPolynomial));
-    if (!polys) { lv00_free((void **)&vids); lv00_free((void **)&cids); return NULL; }
+    if (!polys) {
+        lv00_free((void **) &vids);
+        lv00_free((void **) &cids);
+        return NULL;
+    }
     for (int i = 0; i < sys->count; i++) {
         mv_poly_init(&polys[i], vcount);
 
-        if (sys->eqs[i].poly.degree < 0) continue;
+        if (sys->eqs[i].poly.degree < 0)
+            continue;
 
         /* 找到这个方程对应的变量索引 */
         int var_idx = -1;
         for (int j = 0; j < vcount; j++) {
-            if (vids[j] == sys->eqs[i].var_node_id &&
-                cids[j] == sys->eqs[i].coord_index) {
+            if (vids[j] == sys->eqs[i].var_node_id && cids[j] == sys->eqs[i].coord_index) {
                 var_idx = j;
                 break;
             }
         }
-        if (var_idx < 0) continue;
+        if (var_idx < 0)
+            continue;
 
         /* 将单变量多项式转换为多变量形式 */
         mpz_poly_t *p = &sys->eqs[i].poly;
         for (int d = 0; d <= p->degree; d++) {
-            int *exponents = lv00_malloc((size_t)vcount * sizeof(int));
-            if (exponents) memset(exponents, 0, (size_t)vcount * sizeof(int));
+            int *exponents = lv00_malloc((size_t) vcount * sizeof(int));
+            if (exponents)
+                memset(exponents, 0, (size_t) vcount * sizeof(int));
             exponents[var_idx] = d;
             mv_poly_add_term(&polys[i], p->coeffs[d], exponents);
-            lv00_free((void **)&exponents);
+            lv00_free((void **) &exponents);
         }
         mv_poly_sort(&polys[i]);
     }
@@ -4919,9 +5140,9 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys,
  * @param sys   方程系统指针（用于存储生成的方程）
  * @return 生成的方程数量
  */
-static int template_similar_triangles(ConstraintGraph *graph,
-                                       EquationSystem *sys) {
-    if (!graph || !sys) return 0;
+static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
+    if (!graph || !sys)
+        return 0;
     int added = 0;
 
     /* 收集所有点 */
@@ -4929,9 +5150,14 @@ static int template_similar_triangles(ConstraintGraph *graph,
     int pt_count = count_point_variables(graph, &point_ids);
 
     /* 收集所有线段及其端点 */
-    typedef struct { int id; int p1; int p2; } SegInfo;
+    typedef struct {
+        int id;
+        int p1;
+        int p2;
+    } SegInfo;
     SegInfo *segs = lv00_malloc(graph->node_count * sizeof(SegInfo));
-    if (!segs) return 0;
+    if (!segs)
+        return 0;
     int seg_count = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -4949,13 +5175,16 @@ static int template_similar_triangles(ConstraintGraph *graph,
     /* 通过 INCIDENCE 约束找到线段的端点 */
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        if (c->type != INCIDENCE || c->participant_count < 2) continue;
+        if (c->type != INCIDENCE || c->participant_count < 2)
+            continue;
         int pt_id = c->participants[0];
         int seg_id = c->participants[1];
         for (int s = 0; s < seg_count; s++) {
             if (segs[s].id == seg_id) {
-                if (segs[s].p1 < 0) segs[s].p1 = pt_id;
-                else if (segs[s].p2 < 0) segs[s].p2 = pt_id;
+                if (segs[s].p1 < 0)
+                    segs[s].p1 = pt_id;
+                else if (segs[s].p2 < 0)
+                    segs[s].p2 = pt_id;
                 break;
             }
         }
@@ -4970,14 +5199,15 @@ static int template_similar_triangles(ConstraintGraph *graph,
                 /* 检查三条边是否存在 */
                 bool has_ab = false, has_bc = false, has_ac = false;
                 for (int s = 0; s < seg_count; s++) {
-                    if ((segs[s].p1 == pa && segs[s].p2 == pb) ||
-                        (segs[s].p1 == pb && segs[s].p2 == pa)) has_ab = true;
-                    if ((segs[s].p1 == pb && segs[s].p2 == pc) ||
-                        (segs[s].p1 == pc && segs[s].p2 == pb)) has_bc = true;
-                    if ((segs[s].p1 == pa && segs[s].p2 == pc) ||
-                        (segs[s].p1 == pc && segs[s].p2 == pa)) has_ac = true;
+                    if ((segs[s].p1 == pa && segs[s].p2 == pb) || (segs[s].p1 == pb && segs[s].p2 == pa))
+                        has_ab = true;
+                    if ((segs[s].p1 == pb && segs[s].p2 == pc) || (segs[s].p1 == pc && segs[s].p2 == pb))
+                        has_bc = true;
+                    if ((segs[s].p1 == pa && segs[s].p2 == pc) || (segs[s].p1 == pc && segs[s].p2 == pa))
+                        has_ac = true;
                 }
-                if (!has_ab || !has_bc || !has_ac) continue;
+                if (!has_ab || !has_bc || !has_ac)
+                    continue;
 
                 /* 找到一个三角形 ABC。
                  * 计算边长比例, 检查是否有距离约束。
@@ -4987,25 +5217,24 @@ static int template_similar_triangles(ConstraintGraph *graph,
                 GeomNode *nodeA = find_node(graph, pa);
                 GeomNode *nodeB = find_node(graph, pb);
                 GeomNode *nodeC = find_node(graph, pc);
-                if (!nodeA || !nodeB || !nodeC) continue;
+                if (!nodeA || !nodeB || !nodeC)
+                    continue;
 
                 /* 检查是否有 numeric_assumption_declaration (距离约束) */
                 /* 如果三角形有距离约束, 生成余弦定理方程:
                  * c^2 = a^2 + b^2 - 2ab*cos(C)
                  * 这是二次方程, 可以用于消元 */
                 double xa, ya, xb, yb, xc, yc;
-                bool has_coords = point_coord(nodeA, 0, &xa) &&
-                                  point_coord(nodeA, 1, &ya) &&
-                                  point_coord(nodeB, 0, &xb) &&
-                                  point_coord(nodeB, 1, &yb) &&
-                                  point_coord(nodeC, 0, &xc) &&
-                                  point_coord(nodeC, 1, &yc);
-                if (!has_coords) continue;
+                bool has_coords = point_coord(nodeA, 0, &xa) && point_coord(nodeA, 1, &ya) &&
+                                  point_coord(nodeB, 0, &xb) && point_coord(nodeB, 1, &yb) &&
+                                  point_coord(nodeC, 0, &xc) && point_coord(nodeC, 1, &yc);
+                if (!has_coords)
+                    continue;
 
                 /* 计算已知边长 */
-                double ab_len = sqrt((xb-xa)*(xb-xa) + (yb-ya)*(yb-ya));
-                double bc_len = sqrt((xc-xb)*(xc-xb) + (yc-yb)*(yc-yb));
-                double ac_len = sqrt((xc-xa)*(xc-xa) + (yc-ya)*(yc-ya));
+                double ab_len = sqrt((xb - xa) * (xb - xa) + (yb - ya) * (yb - ya));
+                double bc_len = sqrt((xc - xb) * (xc - xb) + (yc - yb) * (yc - yb));
+                double ac_len = sqrt((xc - xa) * (xc - xa) + (yc - ya) * (yc - ya));
 
                 if (ab_len < LV00_EPSILON_DOUBLE || bc_len < LV00_EPSILON_DOUBLE || ac_len < LV00_EPSILON_DOUBLE)
                     continue;
@@ -5018,7 +5247,9 @@ static int template_similar_triangles(ConstraintGraph *graph,
                 /* 生成: AB^2/BC^2 的精确比例 (用 GMP 整数) */
                 long scale = LV00_SOLVER_SCALE_FACTOR;
                 mpz_t ab2_mpz, bc2_mpz, ac2_mpz;
-                mpz_init(ab2_mpz); mpz_init(bc2_mpz); mpz_init(ac2_mpz);
+                mpz_init(ab2_mpz);
+                mpz_init(bc2_mpz);
+                mpz_init(ac2_mpz);
                 double_to_mpz_scaled(ab_len * ab_len, ab2_mpz, scale);
                 double_to_mpz_scaled(bc_len * bc_len, bc2_mpz, scale);
                 double_to_mpz_scaled(ac_len * ac_len, ac2_mpz, scale);
@@ -5026,13 +5257,15 @@ static int template_similar_triangles(ConstraintGraph *graph,
                 /* 比例方程: ab2 * BC^2 - bc2 * AB^2 = 0
                  * 这确保了三角形的边长比例一致性 */
                 /* (仅当存在距离约束时才有意义, 否则跳过) */
-                mpz_clear(ab2_mpz); mpz_clear(bc2_mpz); mpz_clear(ac2_mpz);
+                mpz_clear(ab2_mpz);
+                mpz_clear(bc2_mpz);
+                mpz_clear(ac2_mpz);
             }
         }
     }
 
-    lv00_free((void **)&point_ids);
-    lv00_free((void **)&segs);
+    lv00_free((void **) &point_ids);
+    lv00_free((void **) &segs);
     return added;
 }
 
@@ -5052,9 +5285,9 @@ static int template_similar_triangles(ConstraintGraph *graph,
  * @param sys   方程系统指针（用于存储生成的方程）
  * @return 生成的方程数量
  */
-static int template_pythagorean(ConstraintGraph *graph,
-                                 EquationSystem *sys) {
-    if (!graph || !sys) return 0;
+static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
+    if (!graph || !sys)
+        return 0;
     int added = 0;
 
     /* 收集所有点 */
@@ -5062,9 +5295,14 @@ static int template_pythagorean(ConstraintGraph *graph,
     int pt_count = count_point_variables(graph, &point_ids);
 
     /* 收集所有线段 */
-    typedef struct { int id; int p1; int p2; } SegInfo;
+    typedef struct {
+        int id;
+        int p1;
+        int p2;
+    } SegInfo;
     SegInfo *segs = lv00_malloc(graph->node_count * sizeof(SegInfo));
-    if (!segs) return 0;
+    if (!segs)
+        return 0;
     int seg_count = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -5080,13 +5318,16 @@ static int template_pythagorean(ConstraintGraph *graph,
     /* 通过 INCIDENCE 约束找到线段端点 */
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        if (c->type != INCIDENCE || c->participant_count < 2) continue;
+        if (c->type != INCIDENCE || c->participant_count < 2)
+            continue;
         int pt_id = c->participants[0];
         int seg_id = c->participants[1];
         for (int s = 0; s < seg_count; s++) {
             if (segs[s].id == seg_id) {
-                if (segs[s].p1 < 0) segs[s].p1 = pt_id;
-                else if (segs[s].p2 < 0) segs[s].p2 = pt_id;
+                if (segs[s].p1 < 0)
+                    segs[s].p1 = pt_id;
+                else if (segs[s].p2 < 0)
+                    segs[s].p2 = pt_id;
                 break;
             }
         }
@@ -5101,28 +5342,28 @@ static int template_pythagorean(ConstraintGraph *graph,
                 /* 检查三条边 */
                 bool has_ab = false, has_bc = false, has_ac = false;
                 for (int s = 0; s < seg_count; s++) {
-                    if ((segs[s].p1 == pa && segs[s].p2 == pb) ||
-                        (segs[s].p1 == pb && segs[s].p2 == pa)) has_ab = true;
-                    if ((segs[s].p1 == pb && segs[s].p2 == pc) ||
-                        (segs[s].p1 == pc && segs[s].p2 == pb)) has_bc = true;
-                    if ((segs[s].p1 == pa && segs[s].p2 == pc) ||
-                        (segs[s].p1 == pc && segs[s].p2 == pa)) has_ac = true;
+                    if ((segs[s].p1 == pa && segs[s].p2 == pb) || (segs[s].p1 == pb && segs[s].p2 == pa))
+                        has_ab = true;
+                    if ((segs[s].p1 == pb && segs[s].p2 == pc) || (segs[s].p1 == pc && segs[s].p2 == pb))
+                        has_bc = true;
+                    if ((segs[s].p1 == pa && segs[s].p2 == pc) || (segs[s].p1 == pc && segs[s].p2 == pa))
+                        has_ac = true;
                 }
-                if (!has_ab || !has_bc || !has_ac) continue;
+                if (!has_ab || !has_bc || !has_ac)
+                    continue;
 
                 GeomNode *nodeA = find_node(graph, pa);
                 GeomNode *nodeB = find_node(graph, pb);
                 GeomNode *nodeC = find_node(graph, pc);
-                if (!nodeA || !nodeB || !nodeC) continue;
+                if (!nodeA || !nodeB || !nodeC)
+                    continue;
 
                 double xa, ya, xb, yb, xc, yc;
-                bool has_coords = point_coord(nodeA, 0, &xa) &&
-                                  point_coord(nodeA, 1, &ya) &&
-                                  point_coord(nodeB, 0, &xb) &&
-                                  point_coord(nodeB, 1, &yb) &&
-                                  point_coord(nodeC, 0, &xc) &&
-                                  point_coord(nodeC, 1, &yc);
-                if (!has_coords) continue;
+                bool has_coords = point_coord(nodeA, 0, &xa) && point_coord(nodeA, 1, &ya) &&
+                                  point_coord(nodeB, 0, &xb) && point_coord(nodeB, 1, &yb) &&
+                                  point_coord(nodeC, 0, &xc) && point_coord(nodeC, 1, &yc);
+                if (!has_coords)
+                    continue;
 
                 /* 检查是否有直角 (通过点积为零判断) */
                 /* 向量 CA = A - C, 向量 CB = B - C */
@@ -5131,8 +5372,7 @@ static int template_pythagorean(ConstraintGraph *graph,
                 double dot = cax * cbx + cay * cby;
 
                 /* 如果 C 处近似直角 (点积接近零) */
-                if (fabs(dot) < 1e-6 * (sqrt(cax*cax+cay*cay) *
-                                         sqrt(cbx*cbx+cby*cby) + 1.0)) {
+                if (fabs(dot) < 1e-6 * (sqrt(cax * cax + cay * cay) * sqrt(cbx * cbx + cby * cby) + 1.0)) {
                     /* 勾股定理: AB^2 = AC^2 + BC^2
                      * (xa-xb)^2 + (ya-yb)^2 = (xa-xc)^2 + (ya-yc)^2 + (xb-xc)^2 + (yb-yc)^2
                      * 展开后得到一个关于坐标的二次方程。
@@ -5144,23 +5384,28 @@ static int template_pythagorean(ConstraintGraph *graph,
                     long scale = LV00_SOLVER_SCALE_FACTOR;
                     /* AB^2 = (xa-xb)^2 + (ya-yb)^2 */
                     mpz_t ab2_x_mpz, ab2_y_mpz;
-                    mpz_init(ab2_x_mpz); mpz_init(ab2_y_mpz);
+                    mpz_init(ab2_x_mpz);
+                    mpz_init(ab2_y_mpz);
                     double_to_mpz_scaled((xa - xb) * (xa - xb), ab2_x_mpz, scale);
                     double_to_mpz_scaled((ya - yb) * (ya - yb), ab2_y_mpz, scale);
                     /* AC^2 = (xa-xc)^2 + (ya-yc)^2 */
                     mpz_t ac2_x_mpz, ac2_y_mpz;
-                    mpz_init(ac2_x_mpz); mpz_init(ac2_y_mpz);
+                    mpz_init(ac2_x_mpz);
+                    mpz_init(ac2_y_mpz);
                     double_to_mpz_scaled((xa - xc) * (xa - xc), ac2_x_mpz, scale);
                     double_to_mpz_scaled((ya - yc) * (ya - yc), ac2_y_mpz, scale);
                     /* BC^2 = (xb-xc)^2 + (yb-yc)^2 */
                     mpz_t bc2_x_mpz, bc2_y_mpz;
-                    mpz_init(bc2_x_mpz); mpz_init(bc2_y_mpz);
+                    mpz_init(bc2_x_mpz);
+                    mpz_init(bc2_y_mpz);
                     double_to_mpz_scaled((xb - xc) * (xb - xc), bc2_x_mpz, scale);
                     double_to_mpz_scaled((yb - yc) * (yb - yc), bc2_y_mpz, scale);
 
                     /* 验证: AB^2 ≈ AC^2 + BC^2 */
                     mpz_t lhs_mpz, rhs_mpz, diff_mpz;
-                    mpz_init(lhs_mpz); mpz_init(rhs_mpz); mpz_init(diff_mpz);
+                    mpz_init(lhs_mpz);
+                    mpz_init(rhs_mpz);
+                    mpz_init(diff_mpz);
                     mpz_add(lhs_mpz, ab2_x_mpz, ab2_y_mpz);
                     mpz_add(rhs_mpz, ac2_x_mpz, ac2_y_mpz);
                     mpz_add(rhs_mpz, rhs_mpz, bc2_x_mpz);
@@ -5180,25 +5425,33 @@ static int template_pythagorean(ConstraintGraph *graph,
                         poly.degree = 0;
                         poly.coeffs = malloc(sizeof(mpz_t));
                         /* 内存安全修复：添加 NULL 检查，防止 malloc 失败后解引用空指针 */
-                        if (!poly.coeffs) { mpz_poly_clear(&poly); continue; }
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                            continue;
+                        }
                         mpz_init_set(poly.coeffs[0], diff_mpz);
                         /* 不添加零方程, 只计数 */
                         mpz_poly_clear(&poly);
                         added++;
                     }
 
-                    mpz_clear(ab2_x_mpz); mpz_clear(ab2_y_mpz);
-                    mpz_clear(ac2_x_mpz); mpz_clear(ac2_y_mpz);
-                    mpz_clear(bc2_x_mpz); mpz_clear(bc2_y_mpz);
-                    mpz_clear(lhs_mpz); mpz_clear(rhs_mpz);
-                    mpz_clear(diff_mpz); mpz_clear(threshold);
+                    mpz_clear(ab2_x_mpz);
+                    mpz_clear(ab2_y_mpz);
+                    mpz_clear(ac2_x_mpz);
+                    mpz_clear(ac2_y_mpz);
+                    mpz_clear(bc2_x_mpz);
+                    mpz_clear(bc2_y_mpz);
+                    mpz_clear(lhs_mpz);
+                    mpz_clear(rhs_mpz);
+                    mpz_clear(diff_mpz);
+                    mpz_clear(threshold);
                 }
             }
         }
     }
 
-    lv00_free((void **)&point_ids);
-    lv00_free((void **)&segs);
+    lv00_free((void **) &point_ids);
+    lv00_free((void **) &segs);
     return added;
 }
 
@@ -5222,18 +5475,19 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
     /* Find pairs of line segments that are parallel (same direction vector) */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *li = graph->nodes[i];
-        if (li->type != GEOM_LINE_SEGMENT || li->coord_count < 4) continue;
+        if (li->type != GEOM_LINE_SEGMENT || li->coord_count < 4)
+            continue;
 
         double x1_i, y1_i, x2_i, y2_i;
-        if (!coord_to_double(li->symbolic_coords[0], &x1_i) ||
-            !coord_to_double(li->symbolic_coords[1], &y1_i) ||
-            !coord_to_double(li->symbolic_coords[2], &x2_i) ||
-            !coord_to_double(li->symbolic_coords[3], &y2_i)) continue;
+        if (!coord_to_double(li->symbolic_coords[0], &x1_i) || !coord_to_double(li->symbolic_coords[1], &y1_i) ||
+            !coord_to_double(li->symbolic_coords[2], &x2_i) || !coord_to_double(li->symbolic_coords[3], &y2_i))
+            continue;
 
         double dx_i = x2_i - x1_i;
         double dy_i = y2_i - y1_i;
         double len_i = sqrt(dx_i * dx_i + dy_i * dy_i);
-        if (len_i < LV00_EPSILON_DOUBLE) continue;
+        if (len_i < LV00_EPSILON_DOUBLE)
+            continue;
 
         /* Normalize direction */
         double nx_i = dx_i / len_i;
@@ -5241,53 +5495,61 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
 
         for (int j = i + 1; j < graph->node_count; j++) {
             GeomNode *lj = graph->nodes[j];
-            if (lj->type != GEOM_LINE_SEGMENT || lj->coord_count < 4) continue;
+            if (lj->type != GEOM_LINE_SEGMENT || lj->coord_count < 4)
+                continue;
 
             double x1_j, y1_j, x2_j, y2_j;
-            if (!coord_to_double(lj->symbolic_coords[0], &x1_j) ||
-                !coord_to_double(lj->symbolic_coords[1], &y1_j) ||
-                !coord_to_double(lj->symbolic_coords[2], &x2_j) ||
-                !coord_to_double(lj->symbolic_coords[3], &y2_j)) continue;
+            if (!coord_to_double(lj->symbolic_coords[0], &x1_j) || !coord_to_double(lj->symbolic_coords[1], &y1_j) ||
+                !coord_to_double(lj->symbolic_coords[2], &x2_j) || !coord_to_double(lj->symbolic_coords[3], &y2_j))
+                continue;
 
             double dx_j = x2_j - x1_j;
             double dy_j = y2_j - y1_j;
             double len_j = sqrt(dx_j * dx_j + dy_j * dy_j);
-            if (len_j < LV00_EPSILON_DOUBLE) continue;
+            if (len_j < LV00_EPSILON_DOUBLE)
+                continue;
 
             double nx_j = dx_j / len_j;
             double ny_j = dy_j / len_j;
 
             /* Check if parallel: cross product of direction vectors ≈ 0 */
             double cross = nx_i * ny_j - ny_i * nx_j;
-            if (fabs(cross) > 1e-6) continue;
+            if (fabs(cross) > 1e-6)
+                continue;
 
             /* Lines i and j are parallel. Now find a transversal that
              * intersects both. Look for INCIDENCE constraints involving
              * points on both lines. */
             for (int ci = 0; ci < graph->constraint_count; ci++) {
                 Constraint *c = graph->constraints[ci];
-                if (c->type != INCIDENCE || c->participant_count < 2) continue;
+                if (c->type != INCIDENCE || c->participant_count < 2)
+                    continue;
 
                 /* Check if this incidence involves a point on line i */
-                GeomNode *pt = find_node((ConstraintGraph *)graph, c->participants[0]);
-                GeomNode *seg = find_node((ConstraintGraph *)graph, c->participants[1]);
-                if (!pt || pt->type != GEOM_POINT) continue;
+                GeomNode *pt = find_node((ConstraintGraph *) graph, c->participants[0]);
+                GeomNode *seg = find_node((ConstraintGraph *) graph, c->participants[1]);
+                if (!pt || pt->type != GEOM_POINT)
+                    continue;
 
                 int on_line_i = (seg && seg->id == li->id);
                 int on_line_j = (seg && seg->id == lj->id);
-                if (!on_line_i && !on_line_j) continue;
+                if (!on_line_i && !on_line_j)
+                    continue;
 
                 /* If the point is on line i, look for another point on line j
                  * that is collinear with this point (same transversal) */
                 if (on_line_i && pt->coord_count >= 2) {
                     for (int cj = ci + 1; cj < graph->constraint_count; cj++) {
                         Constraint *c2 = graph->constraints[cj];
-                        if (c2->type != INCIDENCE || c2->participant_count < 2) continue;
+                        if (c2->type != INCIDENCE || c2->participant_count < 2)
+                            continue;
 
-                        GeomNode *pt2 = find_node((ConstraintGraph *)graph, c2->participants[0]);
-                        GeomNode *seg2 = find_node((ConstraintGraph *)graph, c2->participants[1]);
-                        if (!pt2 || pt2->type != GEOM_POINT || pt2->coord_count < 2) continue;
-                        if (!seg2 || seg2->id != lj->id) continue;
+                        GeomNode *pt2 = find_node((ConstraintGraph *) graph, c2->participants[0]);
+                        GeomNode *seg2 = find_node((ConstraintGraph *) graph, c2->participants[1]);
+                        if (!pt2 || pt2->type != GEOM_POINT || pt2->coord_count < 2)
+                            continue;
+                        if (!seg2 || seg2->id != lj->id)
+                            continue;
 
                         /* pt is on li, pt2 is on lj. Check if they are on the
                          * same transversal (collinear with some reference).
@@ -5296,17 +5558,17 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
                          * This is a linear relationship. */
                         double px, py;
                         if (!coord_to_double(pt->symbolic_coords[0], &px) ||
-                            !coord_to_double(pt->symbolic_coords[1], &py)) continue;
+                            !coord_to_double(pt->symbolic_coords[1], &py))
+                            continue;
 
-                        double t_i = ((px - x1_i) * dx_i + (py - y1_i) * dy_i) /
-                                    (len_i * len_i);
+                        double t_i = ((px - x1_i) * dx_i + (py - y1_i) * dy_i) / (len_i * len_i);
 
                         double px2, py2;
                         if (!coord_to_double(pt2->symbolic_coords[0], &px2) ||
-                            !coord_to_double(pt2->symbolic_coords[1], &py2)) continue;
+                            !coord_to_double(pt2->symbolic_coords[1], &py2))
+                            continue;
 
-                        double t_j = ((px2 - x1_j) * dx_j + (py2 - y1_j) * dy_j) /
-                                    (len_j * len_j);
+                        double t_j = ((px2 - x1_j) * dx_j + (py2 - y1_j) * dy_j) / (len_j * len_j);
 
                         /* Proportion: t_i * len_j = t_j * len_i
                          * => t_i * len_j - t_j * len_i = 0 (linear equation) */
@@ -5315,7 +5577,10 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
                         mpz_poly_init(&poly);
                         poly.degree = 1;
                         poly.coeffs = malloc(2 * sizeof(mpz_t));
-                        if (!poly.coeffs) { mpz_poly_clear(&poly); continue; }
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                            continue;
+                        }
                         mpz_init(poly.coeffs[1]);
                         mpz_init(poly.coeffs[0]);
 
@@ -5361,9 +5626,9 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
  * @param sys   方程系统指针（用于存储生成的方程）
  * @return 生成的方程数量
  */
-static int template_parallel_intercept(ConstraintGraph *graph,
-                                        EquationSystem *sys) {
-    if (!graph || !sys) return 0;
+static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *sys) {
+    if (!graph || !sys)
+        return 0;
     int added = 0;
 
     /* 收集所有线段 */
@@ -5390,13 +5655,16 @@ static int template_parallel_intercept(ConstraintGraph *graph,
     /* 通过 INCIDENCE 约束找到线段端点 */
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        if (c->type != INCIDENCE || c->participant_count < 2) continue;
+        if (c->type != INCIDENCE || c->participant_count < 2)
+            continue;
         int pt_id = c->participants[0];
         int seg_id = c->participants[1];
         for (int s = 0; s < seg_count; s++) {
             if (segs[s].id == seg_id) {
-                if (segs[s].p1 < 0) segs[s].p1 = pt_id;
-                else if (segs[s].p2 < 0) segs[s].p2 = pt_id;
+                if (segs[s].p1 < 0)
+                    segs[s].p1 = pt_id;
+                else if (segs[s].p2 < 0)
+                    segs[s].p2 = pt_id;
                 break;
             }
         }
@@ -5404,13 +5672,14 @@ static int template_parallel_intercept(ConstraintGraph *graph,
 
     /* 计算每条线段的方向向量 */
     for (int s = 0; s < seg_count; s++) {
-        if (segs[s].p1 < 0 || segs[s].p2 < 0) continue;
+        if (segs[s].p1 < 0 || segs[s].p2 < 0)
+            continue;
         GeomNode *n1 = find_node(graph, segs[s].p1);
         GeomNode *n2 = find_node(graph, segs[s].p2);
-        if (!n1 || !n2) continue;
+        if (!n1 || !n2)
+            continue;
         double x1, y1, x2, y2;
-        if (point_coord(n1, 0, &x1) && point_coord(n1, 1, &y1) &&
-            point_coord(n2, 0, &x2) && point_coord(n2, 1, &y2)) {
+        if (point_coord(n1, 0, &x1) && point_coord(n1, 1, &y1) && point_coord(n2, 0, &x2) && point_coord(n2, 1, &y2)) {
             segs[s].dx = x2 - x1;
             segs[s].dy = y2 - y1;
         }
@@ -5436,8 +5705,10 @@ static int template_parallel_intercept(ConstraintGraph *graph,
 
                 /* 搜索与这两条平行线都相交的截线 */
                 for (int k = 0; k < seg_count && added < 10; k++) {
-                    if (k == i || k == j) continue;
-                    if (segs[k].p1 < 0) continue;
+                    if (k == i || k == j)
+                        continue;
+                    if (segs[k].p1 < 0)
+                        continue;
 
                     /* 检查截线 k 是否与线段 i 和 j 都相交 */
                     /* 简化: 检查截线的端点是否分别在两条平行线上 */
@@ -5445,7 +5716,8 @@ static int template_parallel_intercept(ConstraintGraph *graph,
 
                     GeomNode *kp1 = find_node(graph, segs[k].p1);
                     GeomNode *kp2 = find_node(graph, segs[k].p2);
-                    if (!kp1 || !kp2) continue;
+                    if (!kp1 || !kp2)
+                        continue;
 
                     /* 检查 kp1 是否在线段 i 上, kp2 是否在线段 j 上
                      * (或反之) */
@@ -5458,10 +5730,14 @@ static int template_parallel_intercept(ConstraintGraph *graph,
                             continue;
                         int pt = c->participants[0];
                         int seg = c->participants[1];
-                        if (pt == segs[k].p1 && seg == segs[i].id) k1_on_i = true;
-                        if (pt == segs[k].p2 && seg == segs[j].id) k2_on_j = true;
-                        if (pt == segs[k].p1 && seg == segs[j].id) k1_on_j = true;
-                        if (pt == segs[k].p2 && seg == segs[i].id) k2_on_i = true;
+                        if (pt == segs[k].p1 && seg == segs[i].id)
+                            k1_on_i = true;
+                        if (pt == segs[k].p2 && seg == segs[j].id)
+                            k2_on_j = true;
+                        if (pt == segs[k].p1 && seg == segs[j].id)
+                            k1_on_j = true;
+                        if (pt == segs[k].p2 && seg == segs[i].id)
+                            k2_on_i = true;
                     }
 
                     if ((k1_on_i && k2_on_j) || (k1_on_j && k2_on_i)) {
@@ -5483,7 +5759,10 @@ static int template_parallel_intercept(ConstraintGraph *graph,
                         poly.degree = 0;
                         poly.coeffs = malloc(sizeof(mpz_t));
                         /* 内存安全修复：添加 NULL 检查，防止 malloc 失败后解引用空指针 */
-                        if (!poly.coeffs) { mpz_poly_clear(&poly); continue; }
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                            continue;
+                        }
                         mpz_init(poly.coeffs[0]);
                         double_to_mpz_scaled(cross, poly.coeffs[0], scale);
                         /* 验证平行条件 */
@@ -5495,7 +5774,7 @@ static int template_parallel_intercept(ConstraintGraph *graph,
         }
     }
 
-    lv00_free((void **)&segs);
+    lv00_free((void **) &segs);
     return added;
 }
 
@@ -5513,9 +5792,9 @@ static int template_parallel_intercept(ConstraintGraph *graph,
  * @param sys   方程系统指针（用于存储生成的方程）
  * @return 总共生成的额外方程数量
  */
-static int apply_geometry_templates(ConstraintGraph *graph,
-                                     EquationSystem *sys) {
-    if (!graph || !sys) return 0;
+static int apply_geometry_templates(ConstraintGraph *graph, EquationSystem *sys) {
+    if (!graph || !sys)
+        return 0;
     int total = 0;
 
     /* 1. 相似三角形比例模板 */
@@ -5541,9 +5820,9 @@ static int apply_geometry_templates(ConstraintGraph *graph,
 
 /* 脏变量集合结构体 */
 typedef struct {
-    int *dirty_ids;      /* dirty variable IDs */
-    int dirty_count;     /* number of dirty variables */
-    int capacity;        /* allocated capacity */
+    int *dirty_ids;  /* dirty variable IDs */
+    int dirty_count; /* number of dirty variables */
+    int capacity;    /* allocated capacity */
 } DirtyVariableSet;
 
 /* 初始化脏变量集合 */
@@ -5556,7 +5835,8 @@ static void dirty_set_init(DirtyVariableSet *ds) {
 /* 检查变量 ID 是否在脏集合中 */
 static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
     for (int i = 0; i < ds->dirty_count; i++) {
-        if (ds->dirty_ids[i] == var_id) return true;
+        if (ds->dirty_ids[i] == var_id)
+            return true;
     }
     return false;
 }
@@ -5564,16 +5844,19 @@ static bool dirty_set_contains(DirtyVariableSet *ds, int var_id) {
 /* 添加一个脏变量 ID */
 static void dirty_set_add(DirtyVariableSet *ds, int var_id) {
     /* 检查是否已存在 */
-    if (dirty_set_contains(ds, var_id)) return;
+    if (dirty_set_contains(ds, var_id))
+        return;
 
     if (ds->dirty_count >= ds->capacity) {
         /* 内存安全修复：检查整数溢出，防止 capacity * LV00_ARRAY_GROWTH_FACTOR 超过 INT_MAX */
         int new_cap = ds->capacity == 0 ? 16 : ds->capacity;
-        if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) return; /* 溢出，跳过 */
+        if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR)
+            return; /* 溢出，跳过 */
         new_cap = new_cap == 0 ? 16 : new_cap * LV00_ARRAY_GROWTH_FACTOR;
         ds->capacity = new_cap;
         int *new_ids = lv00_realloc(ds->dirty_ids, ds->capacity * sizeof(int));
-        if (!new_ids) return; /* allocation failed, skip */
+        if (!new_ids)
+            return; /* allocation failed, skip */
         ds->dirty_ids = new_ids;
     }
     ds->dirty_ids[ds->dirty_count++] = var_id;
@@ -5587,7 +5870,7 @@ static void dirty_set_clear(DirtyVariableSet *ds) {
 
 /* 释放脏变量集合资源 */
 static void dirty_set_free(DirtyVariableSet *ds) {
-    lv00_free((void **)&ds->dirty_ids);
+    lv00_free((void **) &ds->dirty_ids);
     ds->dirty_ids = NULL;
     ds->dirty_count = 0;
     ds->capacity = 0;
@@ -5605,20 +5888,18 @@ static void dirty_set_free(DirtyVariableSet *ds) {
  * 传播规则: 如果一个方程涉及的变量与脏变量共享约束,
  * 则该方程也间接相关。
  */
-static void filter_equations_for_dirty(EquationSystem *sys,
-                                        DirtyVariableSet *ds,
-                                        EquationSystem *filtered) {
+static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered) {
     equation_system_init(filtered);
 
-    if (!sys || !ds || ds->dirty_count == 0) return;
+    if (!sys || !ds || ds->dirty_count == 0)
+        return;
 
     /* 第一遍: 直接筛选涉及脏变量的方程 */
     for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0) continue;
+        if (sys->eqs[i].poly.degree < 0)
+            continue;
         if (dirty_set_contains(ds, sys->eqs[i].var_node_id)) {
-            equation_system_push(filtered, sys->eqs[i].poly,
-                                  sys->eqs[i].var_node_id,
-                                  sys->eqs[i].coord_index);
+            equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index);
         }
     }
 
@@ -5632,7 +5913,8 @@ static void filter_equations_for_dirty(EquationSystem *sys,
     /* 第三遍: 添加与相关变量共享同一节点的方程
      * (同一节点的 x 和 y 坐标是耦合的) */
     for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0) continue;
+        if (sys->eqs[i].poly.degree < 0)
+            continue;
         if (dirty_set_contains(&related, sys->eqs[i].var_node_id)) {
             /* 检查是否已在 filtered 中 */
             bool found = false;
@@ -5644,9 +5926,7 @@ static void filter_equations_for_dirty(EquationSystem *sys,
                 }
             }
             if (!found) {
-                equation_system_push(filtered, sys->eqs[i].poly,
-                                      sys->eqs[i].var_node_id,
-                                      sys->eqs[i].coord_index);
+                equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index);
             }
         }
     }
@@ -5673,39 +5953,44 @@ static void filter_equations_for_dirty(EquationSystem *sys,
  *       调用者负责 lv00_free() 释放返回的数组。
  *       若 dirty_var_ids 非空，仅对脏变量子集排序，其余变量追加在末尾。
  */
-static int *order_variables_by_dependency(
-    const ConstraintGraph *graph,
-    const int *var_ids, int var_count,
-    const int *dirty_var_ids, int dirty_count,
-    int *out_count) {
-
+static int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
+                                          const int *dirty_var_ids, int dirty_count, int *out_count) {
     *out_count = 0;
-    if (!graph || var_count == 0) return NULL;
+    if (!graph || var_count == 0)
+        return NULL;
 
     /* 构建变量 ID 到索引的映射 */
     int *id_to_idx = lv00_malloc(var_count * sizeof(int));
-    for (int i = 0; i < var_count; i++) id_to_idx[i] = -1;
+    for (int i = 0; i < var_count; i++)
+        id_to_idx[i] = -1;
     for (int i = 0; i < var_count; i++) {
         /* 线性搜索 var_ids 中是否有重复 */
         bool dup = false;
         for (int j = 0; j < i; j++) {
-            if (var_ids[j] == var_ids[i]) { dup = true; break; }
+            if (var_ids[j] == var_ids[i]) {
+                dup = true;
+                break;
+            }
         }
-        if (!dup) id_to_idx[i] = i;
+        if (!dup)
+            id_to_idx[i] = i;
     }
 
     /* 构建邻接矩阵：变量 A 依赖变量 B 当且仅当
      * 存在约束同时涉及 A 和 B，且 B 已有已知值或更少自由度 */
-    bool **adj = lv00_malloc((size_t)var_count * sizeof(bool *));
-    if (adj) memset(adj, 0, (size_t)var_count * sizeof(bool *));
+    bool **adj = lv00_malloc((size_t) var_count * sizeof(bool *));
+    if (adj)
+        memset(adj, 0, (size_t) var_count * sizeof(bool *));
     for (int i = 0; i < var_count; i++) {
-        adj[i] = lv00_malloc((size_t)var_count * sizeof(bool));
-        if (adj[i]) memset(adj[i], 0, (size_t)var_count * sizeof(bool));
+        adj[i] = lv00_malloc((size_t) var_count * sizeof(bool));
+        if (adj[i])
+            memset(adj[i], 0, (size_t) var_count * sizeof(bool));
     }
 
     /* 统计每个变量的约束参与度 (用于确定依赖方向) */
-    int *participation = lv00_malloc((size_t)var_count * sizeof(int));
-    if (participation) memset(participation, 0, (size_t)var_count * sizeof(int));
+    int *participation = lv00_malloc((size_t) var_count * sizeof(int));
+    if (participation)
+        memset(participation, 0, (size_t) var_count * sizeof(int));
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         const Constraint *c = graph->constraints[ci];
         for (int p = 0; p < c->participant_count; p++) {
@@ -5751,17 +6036,20 @@ static int *order_variables_by_dependency(
     }
 
     /* 计算入度 */
-    int *in_degree = lv00_malloc((size_t)var_count * sizeof(int));
-    if (in_degree) memset(in_degree, 0, (size_t)var_count * sizeof(int));
+    int *in_degree = lv00_malloc((size_t) var_count * sizeof(int));
+    if (in_degree)
+        memset(in_degree, 0, (size_t) var_count * sizeof(int));
     for (int i = 0; i < var_count; i++) {
         for (int j = 0; j < var_count; j++) {
-            if (adj[i][j]) in_degree[j]++;
+            if (adj[i][j])
+                in_degree[j]++;
         }
     }
 
     /* 确定排序子集：若有脏变量列表，仅对脏变量子集排序 */
-    bool *in_subset = lv00_malloc((size_t)var_count * sizeof(bool));
-    if (in_subset) memset(in_subset, 0, (size_t)var_count * sizeof(bool));
+    bool *in_subset = lv00_malloc((size_t) var_count * sizeof(bool));
+    if (in_subset)
+        memset(in_subset, 0, (size_t) var_count * sizeof(bool));
     bool use_subset = (dirty_var_ids != NULL && dirty_count > 0);
     if (use_subset) {
         for (int i = 0; i < dirty_count; i++) {
@@ -5773,31 +6061,34 @@ static int *order_variables_by_dependency(
             }
         }
     } else {
-        for (int i = 0; i < var_count; i++) in_subset[i] = true;
+        for (int i = 0; i < var_count; i++)
+            in_subset[i] = true;
     }
 
     /* Kahn 拓扑排序，优先选择被依赖度最高的节点 */
     int *order = lv00_malloc(var_count * sizeof(int));
     int order_count = 0;
-    bool *visited = lv00_malloc((size_t)var_count * sizeof(bool));
-    if (visited) memset(visited, 0, (size_t)var_count * sizeof(bool));
+    bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
+    if (visited)
+        memset(visited, 0, (size_t) var_count * sizeof(bool));
 
     while (order_count < var_count) {
         int best = -1;
         int best_participation = -1;
 
         for (int i = 0; i < var_count; i++) {
-            if (visited[i]) continue;
+            if (visited[i])
+                continue;
             if (!in_subset[i] && order_count < var_count - (use_subset ? (var_count - dirty_count) : 0)) {
                 /* 跳过不在子集中的变量 (留到后面追加) */
                 continue;
             }
-            if (in_degree[i] > 0) continue;
+            if (in_degree[i] > 0)
+                continue;
 
             /* 选择参与度最高的 (被依赖最多的) */
             if (participation[i] > best_participation ||
-                (participation[i] == best_participation &&
-                 var_ids[i] < var_ids[best])) {
+                (participation[i] == best_participation && var_ids[i] < var_ids[best])) {
                 best = i;
                 best_participation = participation[i];
             }
@@ -5807,10 +6098,13 @@ static int *order_variables_by_dependency(
             /* 有环或子集已排完，添加剩余变量 */
             int unvisited = 0;
             for (int i = 0; i < var_count; i++) {
-                if (!visited[i]) unvisited++;
+                if (!visited[i])
+                    unvisited++;
             }
-            fprintf(stderr, "order_variables_by_dependency: cycle detected in constraint graph, "
-                    "%d variables remain unscheduled\n", unvisited);
+            fprintf(stderr,
+                    "order_variables_by_dependency: cycle detected in constraint graph, "
+                    "%d variables remain unscheduled\n",
+                    unvisited);
             for (int i = 0; i < var_count; i++) {
                 if (!visited[i]) {
                     order[order_count++] = var_ids[i];
@@ -5832,13 +6126,14 @@ static int *order_variables_by_dependency(
     }
 
     /* 清理 */
-    for (int i = 0; i < var_count; i++) lv00_free((void **)&adj[i]);
-    lv00_free((void **)&adj);
-    lv00_free((void **)&participation);
-    lv00_free((void **)&in_degree);
-    lv00_free((void **)&visited);
-    lv00_free((void **)&in_subset);
-    lv00_free((void **)&id_to_idx);
+    for (int i = 0; i < var_count; i++)
+        lv00_free((void **) &adj[i]);
+    lv00_free((void **) &adj);
+    lv00_free((void **) &participation);
+    lv00_free((void **) &in_degree);
+    lv00_free((void **) &visited);
+    lv00_free((void **) &in_subset);
+    lv00_free((void **) &id_to_idx);
 
     *out_count = order_count;
     return order;
@@ -5860,36 +6155,42 @@ static int *order_variables_by_dependency(
  * @param out_order_count 输出：消元顺序数组长度
  * @return 消元顺序数组（变量 ID 列表），调用者负责释放
  */
-static int *compute_elimination_order(ConstraintGraph *graph,
-                                       EquationSystem *sys,
-                                       int *out_order_count) {
+static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sys, int *out_order_count) {
     *out_order_count = 0;
 
-    if (!graph || !sys) return NULL;
+    if (!graph || !sys)
+        return NULL;
 
     /* 收集所有唯一的变量 ID (来自方程系统) */
     int *var_ids = lv00_malloc(sys->count * sizeof(int));
     int var_count = 0;
     for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0) continue;
+        if (sys->eqs[i].poly.degree < 0)
+            continue;
         int vid = sys->eqs[i].var_node_id;
         bool found = false;
         for (int j = 0; j < var_count; j++) {
-            if (var_ids[j] == vid) { found = true; break; }
+            if (var_ids[j] == vid) {
+                found = true;
+                break;
+            }
         }
-        if (!found) var_ids[var_count++] = vid;
+        if (!found)
+            var_ids[var_count++] = vid;
     }
 
     if (var_count == 0) {
-        lv00_free((void **)&var_ids);
+        lv00_free((void **) &var_ids);
         return NULL;
     }
 
     /* 统计每个变量的方程数量 (被依赖度) */
-    int *eq_count = lv00_malloc((size_t)var_count * sizeof(int));
-    if (eq_count) memset(eq_count, 0, (size_t)var_count * sizeof(int));
+    int *eq_count = lv00_malloc((size_t) var_count * sizeof(int));
+    if (eq_count)
+        memset(eq_count, 0, (size_t) var_count * sizeof(int));
     for (int i = 0; i < sys->count; i++) {
-        if (sys->eqs[i].poly.degree < 0) continue;
+        if (sys->eqs[i].poly.degree < 0)
+            continue;
         for (int j = 0; j < var_count; j++) {
             if (var_ids[j] == sys->eqs[i].var_node_id) {
                 eq_count[j]++;
@@ -5899,8 +6200,9 @@ static int *compute_elimination_order(ConstraintGraph *graph,
     }
 
     /* 统计每个变量的约束参与度 (来自约束图) */
-    int *constraint_count = lv00_malloc((size_t)var_count * sizeof(int));
-    if (constraint_count) memset(constraint_count, 0, (size_t)var_count * sizeof(int));
+    int *constraint_count = lv00_malloc((size_t) var_count * sizeof(int));
+    if (constraint_count)
+        memset(constraint_count, 0, (size_t) var_count * sizeof(int));
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
         for (int p = 0; p < c->participant_count; p++) {
@@ -5923,11 +6225,13 @@ static int *compute_elimination_order(ConstraintGraph *graph,
 
     /* 构建邻接表 (变量之间的依赖关系) */
     /* 两个变量相邻当且仅当它们共享至少一个约束 */
-    bool **adj = lv00_malloc((size_t)var_count * sizeof(bool *));
-    if (adj) memset(adj, 0, (size_t)var_count * sizeof(bool *));
+    bool **adj = lv00_malloc((size_t) var_count * sizeof(bool *));
+    if (adj)
+        memset(adj, 0, (size_t) var_count * sizeof(bool *));
     for (int i = 0; i < var_count; i++) {
-        adj[i] = lv00_malloc((size_t)var_count * sizeof(bool));
-        if (adj[i]) memset(adj[i], 0, (size_t)var_count * sizeof(bool));
+        adj[i] = lv00_malloc((size_t) var_count * sizeof(bool));
+        if (adj[i])
+            memset(adj[i], 0, (size_t) var_count * sizeof(bool));
     }
 
     for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -5951,25 +6255,28 @@ static int *compute_elimination_order(ConstraintGraph *graph,
                 adj[participants[b]][participants[a]] = true;
             }
         }
-        lv00_free((void **)&participants);
+        lv00_free((void **) &participants);
     }
 
     /* 计算每个变量的入度 (用于拓扑排序) */
     /* 在依赖图中, 如果变量 A 依赖变量 B (A 的求解需要 B 的值),
      * 则有一条边 B -> A。被依赖最多的变量 (入度最高) 优先消元。 */
-    int *in_degree = lv00_malloc((size_t)var_count * sizeof(int));
-    if (in_degree) memset(in_degree, 0, (size_t)var_count * sizeof(int));
+    int *in_degree = lv00_malloc((size_t) var_count * sizeof(int));
+    if (in_degree)
+        memset(in_degree, 0, (size_t) var_count * sizeof(int));
     for (int i = 0; i < var_count; i++) {
         for (int j = 0; j < var_count; j++) {
-            if (adj[i][j]) in_degree[j]++;
+            if (adj[i][j])
+                in_degree[j]++;
         }
     }
 
     /* 拓扑排序 (Kahn 算法), 优先选择权重高的节点 */
     int *order = lv00_malloc(var_count * sizeof(int));
     int order_count = 0;
-    bool *visited = lv00_malloc((size_t)var_count * sizeof(bool));
-    if (visited) memset(visited, 0, (size_t)var_count * sizeof(bool));
+    bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
+    if (visited)
+        memset(visited, 0, (size_t) var_count * sizeof(bool));
 
     /* 使用优先队列 (简化: 每次选择权重最高的未访问节点) */
     while (order_count < var_count) {
@@ -5977,13 +6284,13 @@ static int *compute_elimination_order(ConstraintGraph *graph,
         int best_weight = -1;
 
         for (int i = 0; i < var_count; i++) {
-            if (visited[i]) continue;
-            if (in_degree[i] > 0) continue; /* 还有依赖未消除 */
+            if (visited[i])
+                continue;
+            if (in_degree[i] > 0)
+                continue; /* 还有依赖未消除 */
 
             /* 选择权重最高的 */
-            if (weight[i] > best_weight ||
-                (weight[i] == best_weight &&
-                 var_ids[i] < var_ids[best])) {
+            if (weight[i] > best_weight || (weight[i] == best_weight && var_ids[i] < var_ids[best])) {
                 best = i;
                 best_weight = weight[i];
             }
@@ -5993,10 +6300,13 @@ static int *compute_elimination_order(ConstraintGraph *graph,
             /* 有环存在 (循环依赖), 按权重降序添加剩余节点 */
             int unvisited = 0;
             for (int i = 0; i < var_count; i++) {
-                if (!visited[i]) unvisited++;
+                if (!visited[i])
+                    unvisited++;
             }
-            fprintf(stderr, "compute_elimination_order: cycle detected in constraint graph, "
-                    "%d variables remain unscheduled\n", unvisited);
+            fprintf(stderr,
+                    "compute_elimination_order: cycle detected in constraint graph, "
+                    "%d variables remain unscheduled\n",
+                    unvisited);
             for (int i = 0; i < var_count; i++) {
                 if (!visited[i]) {
                     order[order_count++] = var_ids[i];
@@ -6019,15 +6329,15 @@ static int *compute_elimination_order(ConstraintGraph *graph,
 
     /* 清理 */
     for (int i = 0; i < var_count; i++) {
-        lv00_free((void **)&adj[i]);
+        lv00_free((void **) &adj[i]);
     }
-    lv00_free((void **)&adj);
-    lv00_free((void **)&eq_count);
-    lv00_free((void **)&constraint_count);
-    lv00_free((void **)&weight);
-    lv00_free((void **)&in_degree);
-    lv00_free((void **)&visited);
-    lv00_free((void **)&var_ids);
+    lv00_free((void **) &adj);
+    lv00_free((void **) &eq_count);
+    lv00_free((void **) &constraint_count);
+    lv00_free((void **) &weight);
+    lv00_free((void **) &in_degree);
+    lv00_free((void **) &visited);
+    lv00_free((void **) &var_ids);
 
     *out_order_count = order_count;
     return order;
@@ -6042,9 +6352,10 @@ static int *compute_elimination_order(ConstraintGraph *graph,
  *
  * @return 新分配的 EquationSystem 指针，失败返回 NULL
  */
-EquationSystem* equation_system_create(void) {
+EquationSystem *equation_system_create(void) {
     EquationSystem *sys = lv00_malloc(sizeof(EquationSystem));
-    if (!sys) return NULL;
+    if (!sys)
+        return NULL;
     equation_system_init(sys);
     return sys;
 }
@@ -6055,9 +6366,10 @@ EquationSystem* equation_system_create(void) {
  * @param sys 方程系统指针（可为 NULL，内部会检查）
  */
 void equation_system_destroy(EquationSystem *sys) {
-    if (!sys) return;
+    if (!sys)
+        return;
     equation_system_clear(sys);
-    lv00_free((void **)&sys);
+    lv00_free((void **) &sys);
 }
 
 /**
@@ -6067,22 +6379,26 @@ void equation_system_destroy(EquationSystem *sys) {
  * @return 方程数量，sys 为 NULL 时返回 0
  */
 int equation_system_count(const EquationSystem *sys) {
-    if (!sys) return 0;
+    if (!sys)
+        return 0;
     return sys->count;
 }
 
-const mpz_poly_t* equation_system_get_poly(const EquationSystem *sys, int index) {
-    if (!sys || index < 0 || index >= sys->count) return NULL;
+const mpz_poly_t *equation_system_get_poly(const EquationSystem *sys, int index) {
+    if (!sys || index < 0 || index >= sys->count)
+        return NULL;
     return &sys->eqs[index].poly;
 }
 
 int equation_system_get_var_id(const EquationSystem *sys, int index) {
-    if (!sys || index < 0 || index >= sys->count) return -1;
+    if (!sys || index < 0 || index >= sys->count)
+        return -1;
     return sys->eqs[index].var_node_id;
 }
 
 int equation_system_get_coord_index(const EquationSystem *sys, int index) {
-    if (!sys || index < 0 || index >= sys->count) return -1;
+    if (!sys || index < 0 || index >= sys->count)
+        return -1;
     return sys->eqs[index].coord_index;
 }
 
@@ -6106,16 +6422,15 @@ int equation_system_get_coord_index(const EquationSystem *sys, int index) {
  *   var_id   - 起始脏变量 ID
  *   affected - 受影响变量标记数组 (大小 >= graph->node_count)
  */
-static void propagate_dependency(const ConstraintGraph *graph,
-                                  int var_id,
-                                  bool *affected) {
-    if (!graph || !affected || var_id < 0) return;
+static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool *affected) {
+    if (!graph || !affected || var_id < 0)
+        return;
 
     /* BFS 队列 */
     int alloc_size = graph->node_count;
-    int *queue = lv00_malloc((size_t)alloc_size * sizeof(int));
+    int *queue = lv00_malloc((size_t) alloc_size * sizeof(int));
     if (!queue) {
-        lv00_free((void **)&affected);
+        lv00_free((void **) &affected);
         return;
     }
     int queue_head = 0, queue_tail = 0;
@@ -6129,7 +6444,7 @@ static void propagate_dependency(const ConstraintGraph *graph,
         }
     }
     if (start_idx < 0) {
-        lv00_free((void **)&queue);
+        lv00_free((void **) &queue);
         return;
     }
 
@@ -6143,7 +6458,8 @@ static void propagate_dependency(const ConstraintGraph *graph,
         /* 找到当前变量参与的所有约束 */
         for (int ci = 0; ci < graph->constraint_count; ci++) {
             const Constraint *c = graph->constraints[ci];
-            if (!c) continue;
+            if (!c)
+                continue;
 
             bool participates = false;
             for (int p = 0; p < c->participant_count; p++) {
@@ -6152,7 +6468,8 @@ static void propagate_dependency(const ConstraintGraph *graph,
                     break;
                 }
             }
-            if (!participates) continue;
+            if (!participates)
+                continue;
 
             /* 将此约束的所有参与者标记为 affected */
             for (int p = 0; p < c->participant_count; p++) {
@@ -6170,7 +6487,7 @@ static void propagate_dependency(const ConstraintGraph *graph,
         }
     }
 
-    lv00_free((void **)&queue);
+    lv00_free((void **) &queue);
 }
 
 /* ================================================================== */
@@ -6193,10 +6510,9 @@ static void propagate_dependency(const ConstraintGraph *graph,
  * @param n_dirty_vars  脏变量数量
  * @return GroebnerResult 指针（调用者负责释放），失败返回 NULL
  */
-GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
-                                          const int *dirty_var_ids,
-                                          int n_dirty_vars) {
-    if (!graph) return NULL;
+GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirty_var_ids, int n_dirty_vars) {
+    if (!graph)
+        return NULL;
 
     /* 流式事件: 增量求解开始 */
     if (solver_stream_ctx) {
@@ -6208,8 +6524,8 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
         ev.description = "增量求解开始";
         char detail[128];
         int _snw_inc;
-        LV00_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail),
-                 "{\"phase\":\"incremental\",\"dirty_count\":%d}", n_dirty_vars);
+        LV00_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}",
+                           n_dirty_vars);
         LV00_UNUSED(_snw_inc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -6223,8 +6539,9 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
     }
 
     /* Step 2: 构建脏变量的依赖子图 (BFS 传播) */
-    bool *affected = lv00_malloc((size_t)graph->node_count * sizeof(bool));
-    if (affected) memset(affected, 0, (size_t)graph->node_count * sizeof(bool));
+    bool *affected = lv00_malloc((size_t) graph->node_count * sizeof(bool));
+    if (affected)
+        memset(affected, 0, (size_t) graph->node_count * sizeof(bool));
     for (int i = 0; i < n_dirty_vars; i++) {
         propagate_dependency(graph, dirty_var_ids[i], affected);
     }
@@ -6234,14 +6551,13 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
     int affected_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         if (affected[i]) {
-            affected_ids = lv00_realloc(affected_ids,
-                (size_t)(affected_count + 1) * sizeof(int));
+            affected_ids = lv00_realloc(affected_ids, (size_t) (affected_count + 1) * sizeof(int));
             if (affected_ids) {
                 affected_ids[affected_count++] = graph->nodes[i]->id;
             }
         }
     }
-    lv00_free((void **)&affected);
+    lv00_free((void **) &affected);
 
     /* 流式事件: 依赖传播完成 */
     if (solver_stream_ctx) {
@@ -6254,18 +6570,19 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
         ev.description = "依赖传播完成";
         char detail[96];
         int _snw_dep;
-        LV00_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail),
-                 "{\"phase\":\"dependency_propagation\",\"affected\":%d}", affected_count);
+        LV00_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}",
+                           affected_count);
         LV00_UNUSED(_snw_dep);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
     if (affected_count == 0 || !affected_ids) {
-        lv00_free((void **)&affected_ids);
+        lv00_free((void **) &affected_ids);
         /* 没有受影响的变量，返回空结果 */
         GroebnerResult *result = lv00_malloc(sizeof(GroebnerResult));
-        if (result) memset(result, 0, sizeof(GroebnerResult));
+        if (result)
+            memset(result, 0, sizeof(GroebnerResult));
         return result;
     }
 
@@ -6290,7 +6607,8 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
 
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        if (!c) continue;
+        if (!c)
+            continue;
         bool involves_affected = false;
         for (int p = 0; p < c->participant_count; p++) {
             if (dirty_set_contains(&ds, c->participants[p])) {
@@ -6312,7 +6630,7 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
     dirty_set_free(&ds);
     dirty_set_free(&expanded);
     equation_system_clear(&full_sys);
-    lv00_free((void **)&affected_ids);
+    lv00_free((void **) &affected_ids);
 
     /* 流式事件: 方程过滤完成 */
     if (solver_stream_ctx) {
@@ -6325,8 +6643,8 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
         ev.description = "增量求解方程过滤完成";
         char detail[96];
         int _snw_filt;
-        LV00_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail),
-                 "{\"phase\":\"filter\",\"filtered_eq_count\":%d}", filtered_sys.count);
+        LV00_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
+                           filtered_sys.count);
         LV00_UNUSED(_snw_filt);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -6334,7 +6652,8 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
 
     /* Step 5: Solve the filtered subsystem */
     GroebnerResult *result = lv00_malloc(sizeof(GroebnerResult));
-    if (!result) return NULL;
+    if (!result)
+        return NULL;
     memset(result, 0, sizeof(GroebnerResult));
     result->solutions = NULL;
     result->solution_count = 0;
@@ -6360,8 +6679,7 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
     bool no_solution = false;
 
     if (!has_oos) {
-        solve_equations_pass(&filtered_sys, result, &solved_count,
-                             &multiple_solutions, &no_solution, false);
+        solve_equations_pass(&filtered_sys, result, &solved_count, &multiple_solutions, &no_solution, false);
     }
 
     if (no_solution) {
@@ -6372,15 +6690,15 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
     if (!no_solution && !has_oos) {
         int remaining = 0;
         for (int i = 0; i < filtered_sys.count; i++) {
-            if (filtered_sys.eqs[i].poly.degree >= 0) remaining++;
+            if (filtered_sys.eqs[i].poly.degree >= 0)
+                remaining++;
         }
 
         if (remaining > 0) {
             SolverStatus gb_status = groebner_basis_compute(&filtered_sys);
 
             if (gb_status != SOLVER_OUT_OF_SCOPE) {
-                solve_equations_pass(&filtered_sys, result, &solved_count,
-                                     &multiple_solutions, &no_solution, false);
+                solve_equations_pass(&filtered_sys, result, &solved_count, &multiple_solutions, &no_solution, false);
             }
         }
     }
@@ -6401,13 +6719,13 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
         ev.timestamp_ms = stream_timestamp_ms();
         ev.step_number = solved_count;
         ev.description = multiple_solutions > 0 ? "增量求解完成: 多解"
-                      : solved_count > 0 ? "增量求解完成: 唯一解"
-                      : "增量求解完成: 部分求解";
+                         : solved_count > 0     ? "增量求解完成: 唯一解"
+                                                : "增量求解完成: 部分求解";
         char detail[96];
         int _snw_inc_done;
         LV00_SAFE_SNPRINTF(_snw_inc_done, detail, sizeof(detail),
-                 "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}",
-                 solved_count, multiple_solutions, result->unique ? 1 : 0);
+                           "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}", solved_count,
+                           multiple_solutions, result->unique ? 1 : 0);
         LV00_UNUSED(_snw_inc_done);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
@@ -6421,14 +6739,15 @@ GroebnerResult* solver_incremental_solve(ConstraintGraph *graph,
 /* ================================================================== */
 
 void groebner_result_free(GroebnerResult *result) {
-    if (!result) return;
+    if (!result)
+        return;
     if (result->solutions) {
         for (int i = 0; i < result->solution_count; i++) {
             symbolic_coord_destroy(result->solutions[i]);
         }
-        lv00_free((void **)&result->solutions);
+        lv00_free((void **) &result->solutions);
     }
-    lv00_free((void **)&result);
+    lv00_free((void **) &result);
 }
 
 /* ================================================================== */
@@ -6450,19 +6769,20 @@ void groebner_result_free(GroebnerResult *result) {
  * @param out_system 输出：提取的方程系统
  * @return 提取的方程数量，-1 表示参数错误
  */
-int solver_extract_equations_full(const ConstraintGraph *graph,
-                                   EquationSystem *out_system) {
-    if (!graph || !out_system) return -1;
+int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *out_system) {
+    if (!graph || !out_system)
+        return -1;
 
     int count = 0;
 
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         const Constraint *c = graph->constraints[ci];
-        if (!c || c->participant_count < 2) continue;
+        if (!c || c->participant_count < 2)
+            continue;
 
         switch (c->type) {
-        case INCIDENCE: {
-            /*
+            case INCIDENCE: {
+                /*
              * 关联约束：点 P 在线段 AB 上。
              * 叉积方程 (P - A) x (B - A) = 0
              * => (px - ax)*(by - ay) - (py - ay)*(bx - ax) = 0
@@ -6478,91 +6798,98 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
              * 如果未来需要更强的精度保证，可参考 BETWEENNESS 的实现模式添加
              * coord_to_mpz_scaled 精确路径。
              */
-            GeomNode *pt = find_node((ConstraintGraph *)graph, c->participants[0]);
-            GeomNode *line = find_node((ConstraintGraph *)graph, c->participants[1]);
-            if (!pt || !line) break;
-            if (line->type == GEOM_LINE_SEGMENT) {
-                double lx1, ly1, lx2, ly2;
-                bool got_coords = false;
+                GeomNode *pt = find_node((ConstraintGraph *) graph, c->participants[0]);
+                GeomNode *line = find_node((ConstraintGraph *) graph, c->participants[1]);
+                if (!pt || !line)
+                    break;
+                if (line->type == GEOM_LINE_SEGMENT) {
+                    double lx1, ly1, lx2, ly2;
+                    bool got_coords = false;
 
-                if (line->coord_count >= 4) {
-                    got_coords = coord_to_double(line->symbolic_coords[0], &lx1) &&
-                                 coord_to_double(line->symbolic_coords[1], &ly1) &&
-                                 coord_to_double(line->symbolic_coords[2], &lx2) &&
-                                 coord_to_double(line->symbolic_coords[3], &ly2);
-                } else if (line->coord_count >= 2) {
-                    /* Line segment stores endpoint x-coords in symbolic_coords.
+                    if (line->coord_count >= 4) {
+                        got_coords = coord_to_double(line->symbolic_coords[0], &lx1) &&
+                                     coord_to_double(line->symbolic_coords[1], &ly1) &&
+                                     coord_to_double(line->symbolic_coords[2], &lx2) &&
+                                     coord_to_double(line->symbolic_coords[3], &ly2);
+                    } else if (line->coord_count >= 2) {
+                        /* Line segment stores endpoint x-coords in symbolic_coords.
                      * Find endpoint nodes via INCIDENCE constraints to get full coords. */
-                    GeomNode *ep1 = NULL, *ep2 = NULL;
-                    for (int cj = 0; cj < graph->constraint_count; cj++) {
-                        const Constraint *c2 = graph->constraints[cj];
-                        if (c2->type != INCIDENCE || c2->participant_count < 2) continue;
-                        if (c2->participants[1] == line->id) {
-                            GeomNode *candidate = find_node((ConstraintGraph *)graph,
-                                                            c2->participants[0]);
-                            if (candidate && candidate->type == GEOM_POINT) {
-                                if (!ep1) ep1 = candidate;
-                                else if (!ep2) ep2 = candidate;
+                        GeomNode *ep1 = NULL, *ep2 = NULL;
+                        for (int cj = 0; cj < graph->constraint_count; cj++) {
+                            const Constraint *c2 = graph->constraints[cj];
+                            if (c2->type != INCIDENCE || c2->participant_count < 2)
+                                continue;
+                            if (c2->participants[1] == line->id) {
+                                GeomNode *candidate = find_node((ConstraintGraph *) graph, c2->participants[0]);
+                                if (candidate && candidate->type == GEOM_POINT) {
+                                    if (!ep1)
+                                        ep1 = candidate;
+                                    else if (!ep2)
+                                        ep2 = candidate;
+                                }
                             }
                         }
+                        if (ep1 && ep2) {
+                            got_coords = point_coord(ep1, 0, &lx1) && point_coord(ep1, 1, &ly1) &&
+                                         point_coord(ep2, 0, &lx2) && point_coord(ep2, 1, &ly2);
+                        }
                     }
-                    if (ep1 && ep2) {
-                        got_coords = point_coord(ep1, 0, &lx1) &&
-                                     point_coord(ep1, 1, &ly1) &&
-                                     point_coord(ep2, 0, &lx2) &&
-                                     point_coord(ep2, 1, &ly2);
-                    }
-                }
 
-                if (got_coords) {
-                    double dx = lx2 - lx1;
-                    double dy = ly2 - ly1;
+                    if (got_coords) {
+                        double dx = lx2 - lx1;
+                        double dy = ly2 - ly1;
 
-                    /* Equation for x-coordinate of point:
+                        /* Equation for x-coordinate of point:
                      * dy*(px - lx1) - dx*(py - ly1) = 0
                      * => dy*px - dx*py + (dx*ly1 - dy*lx1) = 0
                      * As univariate in px: dy*px + (dx*ly1 - dy*lx1 - dx*py) = 0
                      * We store the x-component: dy*px + (dx*ly1 - dy*lx1) = 0
                      * (the y-dependent part is handled via the second equation) */
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
-                    mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
-                    /* 内存安全修复：添加 NULL 检查，防止分配失败后解引用空指针 */
-                    if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
-                    double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
-                    double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
-                    equation_system_push(out_system, poly, pt->id, 0);
-                    mpz_poly_clear(&poly);
-                    count++;
-                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                       "提取方程: 关联约束 (x)", count);
+                        long scale = LV00_SOLVER_SCALE_FACTOR;
+                        mpz_poly_t poly;
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        /* 内存安全修复：添加 NULL 检查，防止分配失败后解引用空指针 */
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                            break;
+                        }
+                        mpz_init(poly.coeffs[1]);
+                        mpz_init(poly.coeffs[0]);
+                        double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
+                        double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
+                        equation_system_push(out_system, poly, pt->id, 0);
+                        mpz_poly_clear(&poly);
+                        count++;
+                        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                           "提取方程: 关联约束 (x)", count);
 
-                    /* 方程 for y-coordinate of point */
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
-                    /* 内存安全修复：添加 NULL 检查，防止分配失败后解引用空指针 */
-                    if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
-                    double_to_mpz_scaled(dx, poly.coeffs[1], scale);
-                    double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
-                    equation_system_push(out_system, poly, pt->id, 1);
-                    mpz_poly_clear(&poly);
-                    count++;
-                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                       "提取方程: 关联约束 (y)", count);
-                }
-            } /* if (line->type == GEOM_LINE_SEGMENT) */
-            break;
-        }
+                        /* 方程 for y-coordinate of point */
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        /* 内存安全修复：添加 NULL 检查，防止分配失败后解引用空指针 */
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                            break;
+                        }
+                        mpz_init(poly.coeffs[1]);
+                        mpz_init(poly.coeffs[0]);
+                        double_to_mpz_scaled(dx, poly.coeffs[1], scale);
+                        double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
+                        equation_system_push(out_system, poly, pt->id, 1);
+                        mpz_poly_clear(&poly);
+                        count++;
+                        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                           "提取方程: 关联约束 (y)", count);
+                    }
+                } /* if (line->type == GEOM_LINE_SEGMENT) */
+                break;
+            }
 
-        case INTERSECTION: {
-            /*
+            case INTERSECTION: {
+                /*
              * 交点约束：两条线段 L1 和 L2 相交于点 R。
              * R 在 L1 上且 R 在 L2 上，产生一个 2x2 参数方程组：
              *   R = A + s*(B-A),  R = C + t*(D-C)
@@ -6577,80 +6904,82 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
              * 出现精度损失。未来可考虑将 LineEquation 的 a/b/c 字段改为
              * mpz_t 类型以彻底消除 double 中间表示。
              */
-            if (c->participant_count < 3) break;
-            GeomNode *line1 = find_node((ConstraintGraph *)graph, c->participants[0]);
-            GeomNode *line2 = find_node((ConstraintGraph *)graph, c->participants[1]);
-            GeomNode *rpt  = find_node((ConstraintGraph *)graph, c->participants[2]);
-            if (!line1 || !line2 || !rpt) break;
+                if (c->participant_count < 3)
+                    break;
+                GeomNode *line1 = find_node((ConstraintGraph *) graph, c->participants[0]);
+                GeomNode *line2 = find_node((ConstraintGraph *) graph, c->participants[1]);
+                GeomNode *rpt = find_node((ConstraintGraph *) graph, c->participants[2]);
+                if (!line1 || !line2 || !rpt)
+                    break;
 
-            LineEquation le1, le2;
-            bool got1 = false, got2 = false;
+                LineEquation le1, le2;
+                bool got1 = false, got2 = false;
 
-            if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4) {
-                GeomNode ep1_storage, ep2_storage;
-                memset(&ep1_storage, 0, sizeof(GeomNode));
-                memset(&ep2_storage, 0, sizeof(GeomNode));
-                GeomNode *ep1 = &ep1_storage;
-                GeomNode *ep2 = &ep2_storage;
-                ep1->type = GEOM_POINT;
-                ep1->coord_count = 2;
-                ep1->symbolic_coords = &line1->symbolic_coords[0];
-                ep2->type = GEOM_POINT;
-                ep2->coord_count = 2;
-                ep2->symbolic_coords = &line1->symbolic_coords[2];
-                got1 = line_from_two_points(ep1, ep2, &le1);
+                if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4) {
+                    GeomNode ep1_storage, ep2_storage;
+                    memset(&ep1_storage, 0, sizeof(GeomNode));
+                    memset(&ep2_storage, 0, sizeof(GeomNode));
+                    GeomNode *ep1 = &ep1_storage;
+                    GeomNode *ep2 = &ep2_storage;
+                    ep1->type = GEOM_POINT;
+                    ep1->coord_count = 2;
+                    ep1->symbolic_coords = &line1->symbolic_coords[0];
+                    ep2->type = GEOM_POINT;
+                    ep2->coord_count = 2;
+                    ep2->symbolic_coords = &line1->symbolic_coords[2];
+                    got1 = line_from_two_points(ep1, ep2, &le1);
+                }
+                if (line2->type == GEOM_LINE_SEGMENT && line2->coord_count >= 4) {
+                    GeomNode ep1_storage, ep2_storage;
+                    memset(&ep1_storage, 0, sizeof(GeomNode));
+                    memset(&ep2_storage, 0, sizeof(GeomNode));
+                    GeomNode *ep1 = &ep1_storage;
+                    GeomNode *ep2 = &ep2_storage;
+                    ep1->type = GEOM_POINT;
+                    ep1->coord_count = 2;
+                    ep1->symbolic_coords = &line2->symbolic_coords[0];
+                    ep2->type = GEOM_POINT;
+                    ep2->coord_count = 2;
+                    ep2->symbolic_coords = &line2->symbolic_coords[2];
+                    got2 = line_from_two_points(ep1, ep2, &le2);
+                }
+
+                if (got1 && got2) {
+                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    /* Line1: a1*x + b1*y + c1 = 0 */
+                    mpz_poly_t poly;
+                    mpz_poly_init(&poly);
+                    poly.degree = 1;
+                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                    mpz_init(poly.coeffs[1]);
+                    mpz_init(poly.coeffs[0]);
+                    double_to_mpz_scaled(le1.a, poly.coeffs[1], scale);
+                    double_to_mpz_scaled(le1.b, poly.coeffs[0], scale);
+                    equation_system_push(out_system, poly, rpt->id, 0);
+                    mpz_poly_clear(&poly);
+                    count++;
+                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                       "提取方程: 交点约束 (x)", count);
+
+                    /* Line2: a2*x + b2*y + c2 = 0 */
+                    mpz_poly_init(&poly);
+                    poly.degree = 1;
+                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                    mpz_init(poly.coeffs[1]);
+                    mpz_init(poly.coeffs[0]);
+                    double_to_mpz_scaled(le2.a, poly.coeffs[1], scale);
+                    double_to_mpz_scaled(le2.b, poly.coeffs[0], scale);
+                    equation_system_push(out_system, poly, rpt->id, 1);
+                    mpz_poly_clear(&poly);
+                    count++;
+                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                       "提取方程: 交点约束 (y)", count);
+                }
+                break;
             }
-            if (line2->type == GEOM_LINE_SEGMENT && line2->coord_count >= 4) {
-                GeomNode ep1_storage, ep2_storage;
-                memset(&ep1_storage, 0, sizeof(GeomNode));
-                memset(&ep2_storage, 0, sizeof(GeomNode));
-                GeomNode *ep1 = &ep1_storage;
-                GeomNode *ep2 = &ep2_storage;
-                ep1->type = GEOM_POINT;
-                ep1->coord_count = 2;
-                ep1->symbolic_coords = &line2->symbolic_coords[0];
-                ep2->type = GEOM_POINT;
-                ep2->coord_count = 2;
-                ep2->symbolic_coords = &line2->symbolic_coords[2];
-                got2 = line_from_two_points(ep1, ep2, &le2);
-            }
 
-            if (got1 && got2) {
-                long scale = LV00_SOLVER_SCALE_FACTOR;
-                /* Line1: a1*x + b1*y + c1 = 0 */
-                mpz_poly_t poly;
-                mpz_poly_init(&poly);
-                poly.degree = 1;
-                poly.coeffs = malloc(2 * sizeof(mpz_t));
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
-                double_to_mpz_scaled(le1.a, poly.coeffs[1], scale);
-                double_to_mpz_scaled(le1.b, poly.coeffs[0], scale);
-                equation_system_push(out_system, poly, rpt->id, 0);
-                mpz_poly_clear(&poly);
-                count++;
-                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                   "提取方程: 交点约束 (x)", count);
-
-                /* Line2: a2*x + b2*y + c2 = 0 */
-                mpz_poly_init(&poly);
-                poly.degree = 1;
-                poly.coeffs = malloc(2 * sizeof(mpz_t));
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
-                double_to_mpz_scaled(le2.a, poly.coeffs[1], scale);
-                double_to_mpz_scaled(le2.b, poly.coeffs[0], scale);
-                equation_system_push(out_system, poly, rpt->id, 1);
-                mpz_poly_clear(&poly);
-                count++;
-                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                   "提取方程: 交点约束 (y)", count);
-            }
-            break;
-        }
-
-        case CONTAINMENT: {
-            /*
+            case CONTAINMENT: {
+                /*
              * 包容约束：内部几何体位于外部区域内。
              * 对凸多边形区域，点必须在每条边的"内侧"。
              * 对每条边界线段生成线性不等式/方程，使用叉积符号判定。
@@ -6670,177 +6999,181 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
              *
              * 注：当前仅处理"点在区域内"的包容约束。
              */
-            if (c->participant_count < 2) break;
-            GeomNode *inner = find_node((ConstraintGraph *)graph, c->participants[0]);
-            GeomNode *outer = find_node((ConstraintGraph *)graph, c->participants[1]);
-            if (!inner || !outer) break;
+                if (c->participant_count < 2)
+                    break;
+                GeomNode *inner = find_node((ConstraintGraph *) graph, c->participants[0]);
+                GeomNode *outer = find_node((ConstraintGraph *) graph, c->participants[1]);
+                if (!inner || !outer)
+                    break;
 
-            /* Only handle point-in-region containment for now */
-            if (inner->type != GEOM_POINT || outer->type != GEOM_REGION) break;
-            if (outer->data.region.segment_count <= 0 ||
-                !outer->data.region.boundary_segments) break;
+                /* Only handle point-in-region containment for now */
+                if (inner->type != GEOM_POINT || outer->type != GEOM_REGION)
+                    break;
+                if (outer->data.region.segment_count <= 0 || !outer->data.region.boundary_segments)
+                    break;
 
-            {
-                long scale = LV00_SOLVER_SCALE_FACTOR;
-                int seg_count = outer->data.region.segment_count;
+                {
+                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    int seg_count = outer->data.region.segment_count;
 
-                for (int si = 0; si < seg_count; si++) {
-                    GeomNode *seg = outer->data.region.boundary_segments[si];
-                    if (!seg || seg->type != GEOM_LINE_SEGMENT) continue;
-                    if (seg->coord_count < 4 || !seg->symbolic_coords) continue;
+                    for (int si = 0; si < seg_count; si++) {
+                        GeomNode *seg = outer->data.region.boundary_segments[si];
+                        if (!seg || seg->type != GEOM_LINE_SEGMENT)
+                            continue;
+                        if (seg->coord_count < 4 || !seg->symbolic_coords)
+                            continue;
 
-                    /*
+                        /*
                      * 精度路径选择：检查边界线段的四个端点坐标是否都是 RATIONAL 类型。
                      * 如果是，走精确有理数路径；否则走 double 近似路径。
                      */
-                    bool seg_is_rational = (seg->symbolic_coords[0] &&
-                        seg->symbolic_coords[0]->type == RATIONAL &&
-                        seg->symbolic_coords[1] &&
-                        seg->symbolic_coords[1]->type == RATIONAL &&
-                        seg->symbolic_coords[2] &&
-                        seg->symbolic_coords[2]->type == RATIONAL &&
-                        seg->symbolic_coords[3] &&
-                        seg->symbolic_coords[3]->type == RATIONAL);
+                        bool seg_is_rational = (seg->symbolic_coords[0] && seg->symbolic_coords[0]->type == RATIONAL &&
+                                                seg->symbolic_coords[1] && seg->symbolic_coords[1]->type == RATIONAL &&
+                                                seg->symbolic_coords[2] && seg->symbolic_coords[2]->type == RATIONAL &&
+                                                seg->symbolic_coords[3] && seg->symbolic_coords[3]->type == RATIONAL);
 
-                    if (seg_is_rational) {
-                        /*
+                        if (seg_is_rational) {
+                            /*
                          * 路径1（精确有理数路径）：
                          * 使用 coord_to_mpz_scaled 提取缩放后的整数坐标，
                          * 再用 mpz 算术计算 dx, dy 和常数项系数。
                          */
-                        mpz_t sx1_s, sy1_s, sx2_s, sy2_s;
-                        mpz_init(sx1_s);
-                        mpz_init(sy1_s);
-                        mpz_init(sx2_s);
-                        mpz_init(sy2_s);
+                            mpz_t sx1_s, sy1_s, sx2_s, sy2_s;
+                            mpz_init(sx1_s);
+                            mpz_init(sy1_s);
+                            mpz_init(sx2_s);
+                            mpz_init(sy2_s);
 
-                        if (coord_to_mpz_scaled(seg->symbolic_coords[0], sx1_s, scale) &&
-                            coord_to_mpz_scaled(seg->symbolic_coords[1], sy1_s, scale) &&
-                            coord_to_mpz_scaled(seg->symbolic_coords[2], sx2_s, scale) &&
-                            coord_to_mpz_scaled(seg->symbolic_coords[3], sy2_s, scale)) {
+                            if (coord_to_mpz_scaled(seg->symbolic_coords[0], sx1_s, scale) &&
+                                coord_to_mpz_scaled(seg->symbolic_coords[1], sy1_s, scale) &&
+                                coord_to_mpz_scaled(seg->symbolic_coords[2], sx2_s, scale) &&
+                                coord_to_mpz_scaled(seg->symbolic_coords[3], sy2_s, scale)) {
+                                mpz_t dx_s, dy_s;
+                                mpz_init(dx_s);
+                                mpz_init(dy_s);
+                                /* 精确缩放差量: dx_s = (sx2 - sx1) * scale */
+                                mpz_sub(dx_s, sx2_s, sx1_s);
+                                mpz_sub(dy_s, sy2_s, sy1_s);
 
-                            mpz_t dx_s, dy_s;
-                            mpz_init(dx_s);
-                            mpz_init(dy_s);
-                            /* 精确缩放差量: dx_s = (sx2 - sx1) * scale */
-                            mpz_sub(dx_s, sx2_s, sx1_s);
-                            mpz_sub(dy_s, sy2_s, sy1_s);
+                                /* 中间变量 */
+                                mpz_t term1, term2;
+                                mpz_init(term1);
+                                mpz_init(term2);
 
-                            /* 中间变量 */
-                            mpz_t term1, term2;
-                            mpz_init(term1);
-                            mpz_init(term2);
-
-                            /* 方程1（x-分量）: dy_s * px + (-dy_s*sx1_s + dx_s*sy1_s) = 0 */
-                            {
-                                mpz_poly_t poly;
-                                mpz_poly_init(&poly);
-                                poly.degree = 1;
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
-                                if (!poly.coeffs) { mpz_poly_clear(&poly); }
-                                else {
-                                    mpz_init(poly.coeffs[1]);
-                                    mpz_init(poly.coeffs[0]);
-                                    mpz_set(poly.coeffs[1], dy_s);
-                                    mpz_mul(term1, dy_s, sx1_s);
-                                    mpz_mul(term2, dx_s, sy1_s);
-                                    mpz_sub(poly.coeffs[0], term2, term1);
-                                    equation_system_push(out_system, poly, inner->id, 0);
-                                    mpz_poly_clear(&poly);
-                                    count++;
-                                    stream_emit_simple(solver_stream_ctx,
-                                        STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                        "提取方程: 包容约束 [精确] (x)", count);
+                                /* 方程1（x-分量）: dy_s * px + (-dy_s*sx1_s + dx_s*sy1_s) = 0 */
+                                {
+                                    mpz_poly_t poly;
+                                    mpz_poly_init(&poly);
+                                    poly.degree = 1;
+                                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                    if (!poly.coeffs) {
+                                        mpz_poly_clear(&poly);
+                                    } else {
+                                        mpz_init(poly.coeffs[1]);
+                                        mpz_init(poly.coeffs[0]);
+                                        mpz_set(poly.coeffs[1], dy_s);
+                                        mpz_mul(term1, dy_s, sx1_s);
+                                        mpz_mul(term2, dx_s, sy1_s);
+                                        mpz_sub(poly.coeffs[0], term2, term1);
+                                        equation_system_push(out_system, poly, inner->id, 0);
+                                        mpz_poly_clear(&poly);
+                                        count++;
+                                        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                                           "提取方程: 包容约束 [精确] (x)", count);
+                                    }
                                 }
-                            }
 
-                            /* 方程2（y-分量）: -dx_s * py + (dy_s*sx1_s - dx_s*sy1_s) = 0 */
-                            {
-                                mpz_poly_t poly;
-                                mpz_poly_init(&poly);
-                                poly.degree = 1;
-                                poly.coeffs = malloc(2 * sizeof(mpz_t));
-                                if (!poly.coeffs) { mpz_poly_clear(&poly); }
-                                else {
-                                    mpz_init(poly.coeffs[1]);
-                                    mpz_init(poly.coeffs[0]);
-                                    mpz_neg(poly.coeffs[1], dx_s);
-                                    mpz_mul(term1, dy_s, sx1_s);
-                                    mpz_mul(term2, dx_s, sy1_s);
-                                    mpz_sub(poly.coeffs[0], term1, term2);
-                                    equation_system_push(out_system, poly, inner->id, 1);
-                                    mpz_poly_clear(&poly);
-                                    count++;
-                                    stream_emit_simple(solver_stream_ctx,
-                                        STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                        "提取方程: 包容约束 [精确] (y)", count);
+                                /* 方程2（y-分量）: -dx_s * py + (dy_s*sx1_s - dx_s*sy1_s) = 0 */
+                                {
+                                    mpz_poly_t poly;
+                                    mpz_poly_init(&poly);
+                                    poly.degree = 1;
+                                    poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                    if (!poly.coeffs) {
+                                        mpz_poly_clear(&poly);
+                                    } else {
+                                        mpz_init(poly.coeffs[1]);
+                                        mpz_init(poly.coeffs[0]);
+                                        mpz_neg(poly.coeffs[1], dx_s);
+                                        mpz_mul(term1, dy_s, sx1_s);
+                                        mpz_mul(term2, dx_s, sy1_s);
+                                        mpz_sub(poly.coeffs[0], term1, term2);
+                                        equation_system_push(out_system, poly, inner->id, 1);
+                                        mpz_poly_clear(&poly);
+                                        count++;
+                                        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                                           "提取方程: 包容约束 [精确] (y)", count);
+                                    }
                                 }
+                                mpz_clear(term1);
+                                mpz_clear(term2);
+                                mpz_clear(dx_s);
+                                mpz_clear(dy_s);
                             }
-                            mpz_clear(term1);
-                            mpz_clear(term2);
-                            mpz_clear(dx_s);
-                            mpz_clear(dy_s);
-                        }
-                        mpz_clear(sx1_s);
-                        mpz_clear(sy1_s);
-                        mpz_clear(sx2_s);
-                        mpz_clear(sy2_s);
-                    } else {
-                        /*
+                            mpz_clear(sx1_s);
+                            mpz_clear(sy1_s);
+                            mpz_clear(sx2_s);
+                            mpz_clear(sy2_s);
+                        } else {
+                            /*
                          * 路径2（double 近似路径）：
                          * 使用 coord_to_double 获取浮点近似值，通过 double_to_mpz_scaled
                          * 转换为缩放后的整数系数。此路径可能引入舍入误差。
                          */
-                        double sx1, sy1, sx2, sy2;
-                        if (!coord_to_double(seg->symbolic_coords[0], &sx1) ||
-                            !coord_to_double(seg->symbolic_coords[1], &sy1) ||
-                            !coord_to_double(seg->symbolic_coords[2], &sx2) ||
-                            !coord_to_double(seg->symbolic_coords[3], &sy2))
-                            continue;
+                            double sx1, sy1, sx2, sy2;
+                            if (!coord_to_double(seg->symbolic_coords[0], &sx1) ||
+                                !coord_to_double(seg->symbolic_coords[1], &sy1) ||
+                                !coord_to_double(seg->symbolic_coords[2], &sx2) ||
+                                !coord_to_double(seg->symbolic_coords[3], &sy2))
+                                continue;
 
-                        double dx = sx2 - sx1;
-                        double dy = sy2 - sy1;
+                            double dx = sx2 - sx1;
+                            double dy = sy2 - sy1;
 
-                        /* x-component equation: dy*px + (-dy*sx1 + dx*sy1) = 0 */
-                        mpz_poly_t poly;
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
-                        if (!poly.coeffs) { mpz_poly_clear(&poly); continue; }
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        double_to_mpz_scaled(dy, poly.coeffs[1], scale);
-                        double_to_mpz_scaled(-dy * sx1 + dx * sy1, poly.coeffs[0], scale);
-                        equation_system_push(out_system, poly, inner->id, 0);
-                        mpz_poly_clear(&poly);
-                        count++;
-                        stream_emit_simple(solver_stream_ctx,
-                            STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                            "提取方程: 包容约束 [近似] (x)", count);
+                            /* x-component equation: dy*px + (-dy*sx1 + dx*sy1) = 0 */
+                            mpz_poly_t poly;
+                            mpz_poly_init(&poly);
+                            poly.degree = 1;
+                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            if (!poly.coeffs) {
+                                mpz_poly_clear(&poly);
+                                continue;
+                            }
+                            mpz_init(poly.coeffs[1]);
+                            mpz_init(poly.coeffs[0]);
+                            double_to_mpz_scaled(dy, poly.coeffs[1], scale);
+                            double_to_mpz_scaled(-dy * sx1 + dx * sy1, poly.coeffs[0], scale);
+                            equation_system_push(out_system, poly, inner->id, 0);
+                            mpz_poly_clear(&poly);
+                            count++;
+                            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                               "提取方程: 包容约束 [近似] (x)", count);
 
-                        /* y-component equation: -dx*py + (dy*sx1 - dx*sy1) = 0 */
-                        mpz_poly_init(&poly);
-                        poly.degree = 1;
-                        poly.coeffs = malloc(2 * sizeof(mpz_t));
-                        if (!poly.coeffs) { mpz_poly_clear(&poly); continue; }
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        double_to_mpz_scaled(-dx, poly.coeffs[1], scale);
-                        double_to_mpz_scaled(dy * sx1 - dx * sy1, poly.coeffs[0], scale);
-                        equation_system_push(out_system, poly, inner->id, 1);
-                        mpz_poly_clear(&poly);
-                        count++;
-                        stream_emit_simple(solver_stream_ctx,
-                            STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                            "提取方程: 包容约束 [近似] (y)", count);
+                            /* y-component equation: -dx*py + (dy*sx1 - dx*sy1) = 0 */
+                            mpz_poly_init(&poly);
+                            poly.degree = 1;
+                            poly.coeffs = malloc(2 * sizeof(mpz_t));
+                            if (!poly.coeffs) {
+                                mpz_poly_clear(&poly);
+                                continue;
+                            }
+                            mpz_init(poly.coeffs[1]);
+                            mpz_init(poly.coeffs[0]);
+                            double_to_mpz_scaled(-dx, poly.coeffs[1], scale);
+                            double_to_mpz_scaled(dy * sx1 - dx * sy1, poly.coeffs[0], scale);
+                            equation_system_push(out_system, poly, inner->id, 1);
+                            mpz_poly_clear(&poly);
+                            count++;
+                            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                               "提取方程: 包容约束 [近似] (y)", count);
+                        }
                     }
                 }
+                break;
             }
-            break;
-        }
 
-        case BETWEENNESS: {
-            /*
+            case BETWEENNESS: {
+                /*
              * B 在 A 和 C 之间：不产生独立的代数方程。
              * 仅用于解的选择（0 <= t <= 1）。
              * 我们生成共线性方程作为线性约束。
@@ -6856,33 +7189,35 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
              *   或 TRANSCENDENTAL 类型时，回退到 coord_to_double +
              *   double_to_mpz_scaled 的近似路径。此路径可能引入浮点舍入误差。
              */
-            if (c->participant_count < 3) break;
-            GeomNode *p1 = find_node((ConstraintGraph *)graph, c->participants[0]);
-            GeomNode *p2 = find_node((ConstraintGraph *)graph, c->participants[1]);
-            GeomNode *p3 = find_node((ConstraintGraph *)graph, c->participants[2]);
-            if (!p1 || !p2 || !p3) break;
+                if (c->participant_count < 3)
+                    break;
+                GeomNode *p1 = find_node((ConstraintGraph *) graph, c->participants[0]);
+                GeomNode *p2 = find_node((ConstraintGraph *) graph, c->participants[1]);
+                GeomNode *p3 = find_node((ConstraintGraph *) graph, c->participants[2]);
+                if (!p1 || !p2 || !p3)
+                    break;
 
-            /*
+                /*
              * 检查 p1 和 p3 的符号坐标是否存在且均非空。
              * BETWEENNESS 约束只使用端点 p1 和 p3，中间点 p2 是目标变量。
              */
-            if (!p1->symbolic_coords || !p3->symbolic_coords) break;
+                if (!p1->symbolic_coords || !p3->symbolic_coords)
+                    break;
 
-            bool exact_mode = false;
-            mpz_t dx13_s, dy13_s, x1_s, y1_s;
-            /* 精确有理数路径：检查 p1 和 p3 的四个坐标是否都是 RATIONAL 类型 */
-            if (p1->symbolic_coords[0] && p1->symbolic_coords[0]->type == RATIONAL &&
-                p1->symbolic_coords[1] && p1->symbolic_coords[1]->type == RATIONAL &&
-                p3->symbolic_coords[0] && p3->symbolic_coords[0]->type == RATIONAL &&
-                p3->symbolic_coords[1] && p3->symbolic_coords[1]->type == RATIONAL) {
+                bool exact_mode = false;
+                mpz_t dx13_s, dy13_s, x1_s, y1_s;
+                /* 精确有理数路径：检查 p1 和 p3 的四个坐标是否都是 RATIONAL 类型 */
+                if (p1->symbolic_coords[0] && p1->symbolic_coords[0]->type == RATIONAL && p1->symbolic_coords[1] &&
+                    p1->symbolic_coords[1]->type == RATIONAL && p3->symbolic_coords[0] &&
+                    p3->symbolic_coords[0]->type == RATIONAL && p3->symbolic_coords[1] &&
+                    p3->symbolic_coords[1]->type == RATIONAL) {
+                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    mpz_init(dx13_s);
+                    mpz_init(dy13_s);
+                    mpz_init(x1_s);
+                    mpz_init(y1_s);
 
-                long scale = LV00_SOLVER_SCALE_FACTOR;
-                mpz_init(dx13_s);
-                mpz_init(dy13_s);
-                mpz_init(x1_s);
-                mpz_init(y1_s);
-
-                /*
+                    /*
                  * 精确路径 —— 使用 coord_to_mpz_scaled（精确有理数转缩放整数）。
                  * 计算步骤（使用 GMP 多精度整数算术，无精度损失）：
                  *   1. 提取缩放后的端点坐标: x1_s, y1_s, x3_s, y3_s
@@ -6893,155 +7228,151 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
                  *         （需要除以 scale 恢复真实系数）
                  *      - y 方程: coeffs[1] = -dx13_s, coeffs[0] = -dx13_s*y1_s + dy13_s*x1_s
                  */
-                if (coord_to_mpz_scaled(p1->symbolic_coords[0], x1_s, scale) &&
-                    coord_to_mpz_scaled(p1->symbolic_coords[1], y1_s, scale)) {
+                    if (coord_to_mpz_scaled(p1->symbolic_coords[0], x1_s, scale) &&
+                        coord_to_mpz_scaled(p1->symbolic_coords[1], y1_s, scale)) {
+                        mpz_t x3_s, y3_s;
+                        mpz_init(x3_s);
+                        mpz_init(y3_s);
 
-                    mpz_t x3_s, y3_s;
-                    mpz_init(x3_s);
-                    mpz_init(y3_s);
+                        if (coord_to_mpz_scaled(p3->symbolic_coords[0], x3_s, scale) &&
+                            coord_to_mpz_scaled(p3->symbolic_coords[1], y3_s, scale)) {
+                            /* 缩放差量: dx13_s = (x3 - x1) * scale */
+                            mpz_sub(dx13_s, x3_s, x1_s);
+                            mpz_sub(dy13_s, y3_s, y1_s);
 
-                    if (coord_to_mpz_scaled(p3->symbolic_coords[0], x3_s, scale) &&
-                        coord_to_mpz_scaled(p3->symbolic_coords[1], y3_s, scale)) {
+                            /* 中间结果：dx13_s * y1_s 和 dy13_s * x1_s */
+                            mpz_t term1, term2;
+                            mpz_init(term1);
+                            mpz_init(term2);
 
-                        /* 缩放差量: dx13_s = (x3 - x1) * scale */
-                        mpz_sub(dx13_s, x3_s, x1_s);
-                        mpz_sub(dy13_s, y3_s, y1_s);
-
-                        /* 中间结果：dx13_s * y1_s 和 dy13_s * x1_s */
-                        mpz_t term1, term2;
-                        mpz_init(term1);
-                        mpz_init(term2);
-
-                        /*
+                            /*
                          * 方程1（x-分量，变量为 p2 的 x 坐标）：
                          *   coeffs[1] * x + coeffs[0] = 0
                          *   其中 coeffs[1] = dy13_s / scale（缩放后的 dy13）
                          *         coeffs[0] = (dx13_s*y1_s - dy13_s*x1_s) / scale
                          */
-                        {
-                            mpz_poly_t poly;
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
-                            if (!poly.coeffs) { mpz_poly_clear(&poly); }
-                            else {
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                mpz_set(poly.coeffs[1], dy13_s);
-                                mpz_mul(term1, dx13_s, y1_s);
-                                mpz_mul(term2, dy13_s, x1_s);
-                                mpz_sub(poly.coeffs[0], term1, term2);
-                                equation_system_push(out_system, poly, p2->id, 0);
-                                mpz_poly_clear(&poly);
-                                count++;
-                                stream_emit_simple(solver_stream_ctx,
-                                    STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                    "提取方程: 介于约束 [精确] (x)", count);
+                            {
+                                mpz_poly_t poly;
+                                mpz_poly_init(&poly);
+                                poly.degree = 1;
+                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                if (!poly.coeffs) {
+                                    mpz_poly_clear(&poly);
+                                } else {
+                                    mpz_init(poly.coeffs[1]);
+                                    mpz_init(poly.coeffs[0]);
+                                    mpz_set(poly.coeffs[1], dy13_s);
+                                    mpz_mul(term1, dx13_s, y1_s);
+                                    mpz_mul(term2, dy13_s, x1_s);
+                                    mpz_sub(poly.coeffs[0], term1, term2);
+                                    equation_system_push(out_system, poly, p2->id, 0);
+                                    mpz_poly_clear(&poly);
+                                    count++;
+                                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                                       "提取方程: 介于约束 [精确] (x)", count);
+                                }
                             }
-                        }
 
-                        /*
+                            /*
                          * 方程2（y-分量，变量为 p2 的 y 坐标）：
                          *   coeffs[1] * y + coeffs[0] = 0
                          *   其中 coeffs[1] = -dx13_s / scale
                          *         coeffs[0] = (dy13_s*x1_s - dx13_s*y1_s) / scale
                          */
-                        {
-                            mpz_poly_t poly;
-                            mpz_poly_init(&poly);
-                            poly.degree = 1;
-                            poly.coeffs = malloc(2 * sizeof(mpz_t));
-                            if (!poly.coeffs) { mpz_poly_clear(&poly); }
-                            else {
-                                mpz_init(poly.coeffs[1]);
-                                mpz_init(poly.coeffs[0]);
-                                mpz_neg(poly.coeffs[1], dx13_s);
-                                mpz_mul(term1, dy13_s, x1_s);
-                                mpz_mul(term2, dx13_s, y1_s);
-                                mpz_sub(poly.coeffs[0], term1, term2);
-                                equation_system_push(out_system, poly, p2->id, 1);
-                                mpz_poly_clear(&poly);
-                                count++;
-                                stream_emit_simple(solver_stream_ctx,
-                                    STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                    "提取方程: 介于约束 [精确] (y)", count);
+                            {
+                                mpz_poly_t poly;
+                                mpz_poly_init(&poly);
+                                poly.degree = 1;
+                                poly.coeffs = malloc(2 * sizeof(mpz_t));
+                                if (!poly.coeffs) {
+                                    mpz_poly_clear(&poly);
+                                } else {
+                                    mpz_init(poly.coeffs[1]);
+                                    mpz_init(poly.coeffs[0]);
+                                    mpz_neg(poly.coeffs[1], dx13_s);
+                                    mpz_mul(term1, dy13_s, x1_s);
+                                    mpz_mul(term2, dx13_s, y1_s);
+                                    mpz_sub(poly.coeffs[0], term1, term2);
+                                    equation_system_push(out_system, poly, p2->id, 1);
+                                    mpz_poly_clear(&poly);
+                                    count++;
+                                    stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                                       "提取方程: 介于约束 [精确] (y)", count);
+                                }
                             }
+
+                            mpz_clear(term1);
+                            mpz_clear(term2);
+                            exact_mode = true;
                         }
-
-                        mpz_clear(term1);
-                        mpz_clear(term2);
-                        exact_mode = true;
+                        mpz_clear(x3_s);
+                        mpz_clear(y3_s);
                     }
-                    mpz_clear(x3_s);
-                    mpz_clear(y3_s);
+                    /* 精确路径结束，无论成功与否都释放临时 mpz_t */
+                    if (!exact_mode) {
+                        mpz_clear(dx13_s);
+                        mpz_clear(dy13_s);
+                        mpz_clear(x1_s);
+                        mpz_clear(y1_s);
+                    }
                 }
-                /* 精确路径结束，无论成功与否都释放临时 mpz_t */
-                if (!exact_mode) {
-                    mpz_clear(dx13_s);
-                    mpz_clear(dy13_s);
-                    mpz_clear(x1_s);
-                    mpz_clear(y1_s);
-                }
-            }
 
-            /*
+                /*
              * 路径2（double 近似路径）：精确路径未启用或失败时回退。
              * 使用 coord_to_double 获取浮点近似值，再通过 double_to_mpz_scaled
              * 转换为缩放后的整数系数。注意此路径可能引入舍入误差。
              */
-            if (!exact_mode) {
-                double x1, y1, x2, y2, x3, y3;
-                bool ok = point_coord(p1, 0, &x1) && point_coord(p1, 1, &y1) &&
-                          point_coord(p3, 0, &x3) && point_coord(p3, 1, &y3);
-                if (ok) {
-                    double dx13 = x3 - x1;
-                    double dy13 = y3 - y1;
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                if (!exact_mode) {
+                    double x1, y1, x2, y2, x3, y3;
+                    bool ok = point_coord(p1, 0, &x1) && point_coord(p1, 1, &y1) && point_coord(p3, 0, &x3) &&
+                              point_coord(p3, 1, &y3);
+                    if (ok) {
+                        double dx13 = x3 - x1;
+                        double dy13 = y3 - y1;
+                        long scale = LV00_SOLVER_SCALE_FACTOR;
 
-                    /* Collinearity: (x2-x1)*dy13 - (y2-y1)*dx13 = 0 */
-                    mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
-                    if (!poly.coeffs) {
-                        mpz_poly_clear(&poly);
-                    } else {
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        double_to_mpz_scaled(dy13, poly.coeffs[1], scale);
-                        double_to_mpz_scaled(dx13 * y1 - dy13 * x1, poly.coeffs[0], scale);
-                        equation_system_push(out_system, poly, p2->id, 0);
-                        mpz_poly_clear(&poly);
-                        count++;
-                        stream_emit_simple(solver_stream_ctx,
-                            STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                            "提取方程: 介于约束 [近似] (x)", count);
-                    }
+                        /* Collinearity: (x2-x1)*dy13 - (y2-y1)*dx13 = 0 */
+                        mpz_poly_t poly;
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                        } else {
+                            mpz_init(poly.coeffs[1]);
+                            mpz_init(poly.coeffs[0]);
+                            double_to_mpz_scaled(dy13, poly.coeffs[1], scale);
+                            double_to_mpz_scaled(dx13 * y1 - dy13 * x1, poly.coeffs[0], scale);
+                            equation_system_push(out_system, poly, p2->id, 0);
+                            mpz_poly_clear(&poly);
+                            count++;
+                            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                               "提取方程: 介于约束 [近似] (x)", count);
+                        }
 
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = malloc(2 * sizeof(mpz_t));
-                    if (!poly.coeffs) {
-                        mpz_poly_clear(&poly);
-                    } else {
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
-                        double_to_mpz_scaled(-dx13, poly.coeffs[1], scale);
-                        double_to_mpz_scaled(-dx13 * y1 + dy13 * x1, poly.coeffs[0], scale);
-                        equation_system_push(out_system, poly, p2->id, 1);
-                        mpz_poly_clear(&poly);
-                        count++;
-                        stream_emit_simple(solver_stream_ctx,
-                            STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                            "提取方程: 介于约束 [近似] (y)", count);
+                        mpz_poly_init(&poly);
+                        poly.degree = 1;
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
+                        if (!poly.coeffs) {
+                            mpz_poly_clear(&poly);
+                        } else {
+                            mpz_init(poly.coeffs[1]);
+                            mpz_init(poly.coeffs[0]);
+                            double_to_mpz_scaled(-dx13, poly.coeffs[1], scale);
+                            double_to_mpz_scaled(-dx13 * y1 + dy13 * x1, poly.coeffs[0], scale);
+                            equation_system_push(out_system, poly, p2->id, 1);
+                            mpz_poly_clear(&poly);
+                            count++;
+                            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
+                                               "提取方程: 介于约束 [近似] (y)", count);
+                        }
                     }
                 }
+                break;
             }
-            break;
-        }
 
-        case CONNECTION: {
-            /*
+            case CONNECTION: {
+                /*
              * 连接约束：端口之间的连接。
              * 从连通节点的 numeric_assumption_declaration 中提取距离约束。
              * 如果两个节点都有坐标且其中一个编码了距离值，则生成方程：
@@ -7057,96 +7388,110 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
              * 可考虑使用 coord_to_mpz_scaled 精确路径来减少系数整数化时的
              * 舍入误差。此优化可参考 BETWEENNESS 的实现模式。
              */
-            if (c->participant_count < 2) break;
-            GeomNode *nodeA = find_node((ConstraintGraph *)graph, c->participants[0]);
-            GeomNode *nodeB = find_node((ConstraintGraph *)graph, c->participants[1]);
-            if (!nodeA || !nodeB) break;
-
-            /* 尝试从任一节点的 numeric_assumption_declaration 中提取距离值 */
-            double dist_val = -1.0;
-            GeomNode *dist_node = NULL;
-            const char *prefix = "distance=";
-            size_t prefix_len = strlen(prefix);  /* 缓存前缀长度，避免循环内重复计算 */
-            for (int ni = 0; ni < 2; ni++) {
-                GeomNode *n = (ni == 0) ? nodeA : nodeB;
-                if (!n || !n->numeric_assumption_declaration) continue;
-                const char *decl = n->numeric_assumption_declaration;
-                if (strncmp(decl, prefix, prefix_len) == 0) {
-                    dist_val = strtod(decl + prefix_len, NULL);
-                    dist_node = n;
+                if (c->participant_count < 2)
                     break;
+                GeomNode *nodeA = find_node((ConstraintGraph *) graph, c->participants[0]);
+                GeomNode *nodeB = find_node((ConstraintGraph *) graph, c->participants[1]);
+                if (!nodeA || !nodeB)
+                    break;
+
+                /* 尝试从任一节点的 numeric_assumption_declaration 中提取距离值 */
+                double dist_val = -1.0;
+                GeomNode *dist_node = NULL;
+                const char *prefix = "distance=";
+                size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免循环内重复计算 */
+                for (int ni = 0; ni < 2; ni++) {
+                    GeomNode *n = (ni == 0) ? nodeA : nodeB;
+                    if (!n || !n->numeric_assumption_declaration)
+                        continue;
+                    const char *decl = n->numeric_assumption_declaration;
+                    if (strncmp(decl, prefix, prefix_len) == 0) {
+                        dist_val = strtod(decl + prefix_len, NULL);
+                        dist_node = n;
+                        break;
+                    }
                 }
-            }
 
-            if (dist_val < 0) break;
+                if (dist_val < 0)
+                    break;
 
-            /* Both nodes need at least 2 coordinates (x, y) */
-            if (nodeA->coord_count < 2 || nodeB->coord_count < 2) break;
-            if (!nodeA->symbolic_coords || !nodeB->symbolic_coords) break;
+                /* Both nodes need at least 2 coordinates (x, y) */
+                if (nodeA->coord_count < 2 || nodeB->coord_count < 2)
+                    break;
+                if (!nodeA->symbolic_coords || !nodeB->symbolic_coords)
+                    break;
 
-            double ax, ay, bx, by;
-            if (!coord_to_double(nodeA->symbolic_coords[0], &ax) ||
-                !coord_to_double(nodeA->symbolic_coords[1], &ay) ||
-                !coord_to_double(nodeB->symbolic_coords[0], &bx) ||
-                !coord_to_double(nodeB->symbolic_coords[1], &by))
-                break;
+                double ax, ay, bx, by;
+                if (!coord_to_double(nodeA->symbolic_coords[0], &ax) ||
+                    !coord_to_double(nodeA->symbolic_coords[1], &ay) ||
+                    !coord_to_double(nodeB->symbolic_coords[0], &bx) ||
+                    !coord_to_double(nodeB->symbolic_coords[1], &by))
+                    break;
 
-            double dist_sq = dist_val * dist_val;
-            long scale = LV00_SOLVER_SCALE_FACTOR;
+                double dist_sq = dist_val * dist_val;
+                long scale = LV00_SOLVER_SCALE_FACTOR;
 
-            /* (xA-xB)^2 + (yA-yB)^2 = d^2
+                /* (xA-xB)^2 + (yA-yB)^2 = d^2
                Expand for nodeB as variable (nodeA as fixed):
                xB^2 - 2*ax*xB + (ax^2 + ay^2 - dist_sq) = 0 */
-            mpz_poly_t poly;
-            mpz_poly_init(&poly);
-            poly.degree = 2;
-            poly.coeffs = malloc(3 * sizeof(mpz_t));
-            if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-            mpz_init(poly.coeffs[2]);
-            mpz_init(poly.coeffs[1]);
-            mpz_init(poly.coeffs[0]);
-            mpz_set_si(poly.coeffs[2], scale);
-            double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
-            double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-            equation_system_push(out_system, poly, nodeB->id, 0);
-            mpz_poly_clear(&poly);
-            count++;
-            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                               "提取方程: 连接约束 (x)", count);
+                mpz_poly_t poly;
+                mpz_poly_init(&poly);
+                poly.degree = 2;
+                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    break;
+                }
+                mpz_init(poly.coeffs[2]);
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_set_si(poly.coeffs[2], scale);
+                double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
+                double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+                equation_system_push(out_system, poly, nodeB->id, 0);
+                mpz_poly_clear(&poly);
+                count++;
+                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 连接约束 (x)",
+                                   count);
 
-            /* Similarly for yB: yB^2 - 2*ay*yB + (ax^2 + ay^2 - dist_sq) = 0 */
-            mpz_poly_init(&poly);
-            poly.degree = 2;
-            poly.coeffs = malloc(3 * sizeof(mpz_t));
-            if (!poly.coeffs) { mpz_poly_clear(&poly); break; }
-            mpz_init(poly.coeffs[2]);
-            mpz_init(poly.coeffs[1]);
-            mpz_init(poly.coeffs[0]);
-            mpz_set_si(poly.coeffs[2], scale);
-            double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
-            double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-            equation_system_push(out_system, poly, nodeB->id, 1);
-            mpz_poly_clear(&poly);
-            count++;
-            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                               "提取方程: 连接约束 (y)", count);
-            break;
-        }
-    }  /* closes switch(c->type) */
-    }  /* closes for(ci) - first pass */
+                /* Similarly for yB: yB^2 - 2*ay*yB + (ax^2 + ay^2 - dist_sq) = 0 */
+                mpz_poly_init(&poly);
+                poly.degree = 2;
+                poly.coeffs = malloc(3 * sizeof(mpz_t));
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    break;
+                }
+                mpz_init(poly.coeffs[2]);
+                mpz_init(poly.coeffs[1]);
+                mpz_init(poly.coeffs[0]);
+                mpz_set_si(poly.coeffs[2], scale);
+                double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
+                double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+                equation_system_push(out_system, poly, nodeB->id, 1);
+                mpz_poly_clear(&poly);
+                count++;
+                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 连接约束 (y)",
+                                   count);
+                break;
+            }
+        } /* closes switch(c->type) */
+    } /* closes for(ci) - first pass */
 
     /* Second pass: extract distance constraints from nodes that have
        numeric_assumption_declaration set (encoding squared-distance = d^2). */
     for (int ni = 0; ni < graph->node_count; ni++) {
         GeomNode *node = graph->nodes[ni];
-        if (!node || !node->numeric_assumption_declaration) continue;
-        if (node->type != GEOM_LINE_SEGMENT) continue;
+        if (!node || !node->numeric_assumption_declaration)
+            continue;
+        if (node->type != GEOM_LINE_SEGMENT)
+            continue;
 
         const char *decl = node->numeric_assumption_declaration;
         double dist_sq = -1.0;
 
         const char *prefix = "distance=";
-        size_t prefix_len = strlen(prefix);  /* 缓存前缀长度，避免重复计算 */
+        size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免重复计算 */
         if (strncmp(decl, prefix, prefix_len) == 0) {
             dist_sq = strtod(decl + prefix_len, NULL);
             dist_sq = dist_sq * dist_sq;
@@ -7158,12 +7503,12 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
             }
         }
 
-        if (dist_sq < 0) continue;
+        if (dist_sq < 0)
+            continue;
 
         if (node->coord_count >= 4) {
             double x1, y1;
-            if (coord_to_double(node->symbolic_coords[0], &x1) &&
-                coord_to_double(node->symbolic_coords[1], &y1)) {
+            if (coord_to_double(node->symbolic_coords[0], &x1) && coord_to_double(node->symbolic_coords[1], &y1)) {
                 long scale = LV00_SOLVER_SCALE_FACTOR;
 
                 mpz_poly_t poly;
@@ -7179,8 +7524,8 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
                 equation_system_push(out_system, poly, node->id, 0);
                 mpz_poly_clear(&poly);
                 count++;
-                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                   "提取方程: 距离约束 (x)", count);
+                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 距离约束 (x)",
+                                   count);
 
                 mpz_poly_init(&poly);
                 poly.degree = 2;
@@ -7194,8 +7539,8 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
                 equation_system_push(out_system, poly, node->id, 1);
                 mpz_poly_clear(&poly);
                 count++;
-                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
-                                   "提取方程: 距离约束 (y)", count);
+                stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 距离约束 (y)",
+                                   count);
             }
         }
     }
@@ -7221,7 +7566,8 @@ int solver_extract_equations_full(const ConstraintGraph *graph,
  *         SOLVER_TIMEOUT 表示计算超出步数限制
  */
 SolverStatus groebner_basis_compute(EquationSystem *system) {
-    if (!system || system->count == 0) return SOLVER_OK;
+    if (!system || system->count == 0)
+        return SOLVER_OK;
 
     /* Step 1: Check degree limit first (fast path) */
     for (int i = 0; i < system->count; i++) {
@@ -7237,8 +7583,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     MVPolynomial *mv_polys = build_mv_polynomials(system, &var_id_map, &coord_map, &var_count);
 
     if (var_count == 0 || !mv_polys) {
-        lv00_free((void **)&var_id_map);
-        lv00_free((void **)&coord_map);
+        lv00_free((void **) &var_id_map);
+        lv00_free((void **) &coord_map);
         return SOLVER_OK;
     }
 
@@ -7254,18 +7600,19 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         for (int i = 0; i < system->count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
-        lv00_free((void **)&mv_polys);
-        lv00_free((void **)&var_id_map);
-        lv00_free((void **)&coord_map);
+        lv00_free((void **) &mv_polys);
+        lv00_free((void **) &var_id_map);
+        lv00_free((void **) &coord_map);
         return SOLVER_OK;
     }
 
     MVPolynomial **active = lv00_malloc(active_count * sizeof(MVPolynomial *));
     if (!active) {
-        for (int i = 0; i < system->count; i++) mv_poly_clear(&mv_polys[i]);
-        lv00_free((void **)&mv_polys);
-        lv00_free((void **)&var_id_map);
-        lv00_free((void **)&coord_map);
+        for (int i = 0; i < system->count; i++)
+            mv_poly_clear(&mv_polys[i]);
+        lv00_free((void **) &mv_polys);
+        lv00_free((void **) &var_id_map);
+        lv00_free((void **) &coord_map);
         return SOLVER_TIMEOUT;
     }
     int idx = 0;
@@ -7278,8 +7625,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     /* Step 4: Run Buchberger's algorithm */
     MVPolynomial **G = NULL;
     int g_count = 0;
-    SolverStatus status = buchberger_groebner(active, active_count,
-                                               &G, &g_count, LV00_SOLVER_BUCHBERGER_STEP_LIMIT);
+    SolverStatus status = buchberger_groebner(active, active_count, &G, &g_count, LV00_SOLVER_BUCHBERGER_STEP_LIMIT);
 
     /* 流式输出: Groebner 基计算步骤完成（含详细统计） */
     if (solver_stream_ctx) {
@@ -7292,26 +7638,27 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         char detail[256];
         int _snw_gc;
         LV00_SAFE_SNPRINTF(_snw_gc, detail, sizeof(detail),
-                 "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
-                 "\"input_equations\":%d,\"active_equations\":%d,"
-                 "\"basis_size\":%d,\"variables\":%d}",
-                 (status == SOLVER_OK) ? "ok" :
-                 (status == SOLVER_OUT_OF_SCOPE) ? "out_of_scope" : "timeout",
-                 system->count, active_count, g_count, var_count);
+                           "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
+                           "\"input_equations\":%d,\"active_equations\":%d,"
+                           "\"basis_size\":%d,\"variables\":%d}",
+                           (status == SOLVER_OK)             ? "ok"
+                           : (status == SOLVER_OUT_OF_SCOPE) ? "out_of_scope"
+                                                             : "timeout",
+                           system->count, active_count, g_count, var_count);
         LV00_UNUSED(_snw_gc);
         ev.detail_json = detail;
         stream_emit(solver_stream_ctx, &ev);
     }
 
-    lv00_free((void **)&active);
+    lv00_free((void **) &active);
 
     if (status == SOLVER_OUT_OF_SCOPE) {
         for (int i = 0; i < system->count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
-        lv00_free((void **)&mv_polys);
-        lv00_free((void **)&var_id_map);
-        lv00_free((void **)&coord_map);
+        lv00_free((void **) &mv_polys);
+        lv00_free((void **) &var_id_map);
+        lv00_free((void **) &coord_map);
         return SOLVER_OUT_OF_SCOPE;
     }
 
@@ -7328,7 +7675,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
     if (G) {
         for (int i = 0; i < g_count; i++) {
-            if (mv_poly_is_zero(G[i])) continue;
+            if (mv_poly_is_zero(G[i]))
+                continue;
 
             /* Find the variable with the highest degree in this polynomial */
             int best_var = -1;
@@ -7347,7 +7695,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
                 }
             }
 
-            if (best_var < 0 || best_degree < 0) continue;
+            if (best_var < 0 || best_degree < 0)
+                continue;
 
             /* Extract univariate polynomial for best_var.
              * Collect terms, treating other variables as constants.
@@ -7368,8 +7717,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
             for (int t = 0; t < G[i]->term_count; t++) {
                 int power = G[i]->terms[t].exponents[best_var];
                 if (power <= best_degree) {
-                    mpz_add(poly.coeffs[power], poly.coeffs[power],
-                            G[i]->terms[t].coeff);
+                    mpz_add(poly.coeffs[power], poly.coeffs[power], G[i]->terms[t].coeff);
                 }
             }
 
@@ -7384,9 +7732,9 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         /* Clean up Groebner basis */
         for (int i = 0; i < g_count; i++) {
             mv_poly_clear(G[i]);
-            lv00_free((void **)&G[i]);
+            lv00_free((void **) &G[i]);
         }
-        lv00_free((void **)&G);
+        lv00_free((void **) &G);
     }
 
     /* Clean up original multivariate polynomials.
@@ -7395,9 +7743,9 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     for (int i = 0; i < original_eq_count; i++) {
         mv_poly_clear(&mv_polys[i]);
     }
-    lv00_free((void **)&mv_polys);
-    lv00_free((void **)&var_id_map);
-    lv00_free((void **)&coord_map);
+    lv00_free((void **) &mv_polys);
+    lv00_free((void **) &var_id_map);
+    lv00_free((void **) &coord_map);
 
     return (status == SOLVER_TIMEOUT) ? SOLVER_TIMEOUT : SOLVER_OK;
 }
@@ -7427,13 +7775,10 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
  * @return SOLVER_UNIQUE 表示唯一解，SOLVER_NO_SOLUTION 表示无解，
  *         SOLVER_OK 表示多解，SOLVER_TIMEOUT 表示内存不足
  */
-SolverStatus solver_handle_multiple_solutions(
-    const GroebnerResult *result,
-    const EquationSystem *system,
-    SymbolicCoord ***out_branches,
-    int *out_branch_count)
-{
-    if (!out_branches || !out_branch_count) return SOLVER_TIMEOUT;
+SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, const EquationSystem *system,
+                                              SymbolicCoord ***out_branches, int *out_branch_count) {
+    if (!out_branches || !out_branch_count)
+        return SOLVER_TIMEOUT;
     *out_branches = NULL;
     *out_branch_count = 0;
 
@@ -7447,34 +7792,36 @@ SolverStatus solver_handle_multiple_solutions(
      *   root = (-b ± sqrt(D)) / (2*a)  where D = b^2 - 4*a*c
      * We collect the two possible values for each quadratic variable. */
     struct BranchVariable {
-        int var_node_id;          /* variable node ID */
-        int coord_index;          /* 0=x, 1=y */
-        int eq_index;             /* index in system->eqs */
-        double root1;             /* first root ( -b + sqrt(D) ) / (2a) */
-        double root2;             /* second root ( -b - sqrt(D) ) / (2a) */
-        bool valid;               /* has two distinct real roots */
+        int var_node_id; /* variable node ID */
+        int coord_index; /* 0=x, 1=y */
+        int eq_index;    /* index in system->eqs */
+        double root1;    /* first root ( -b + sqrt(D) ) / (2a) */
+        double root2;    /* second root ( -b - sqrt(D) ) / (2a) */
+        bool valid;      /* has two distinct real roots */
     };
 
     int max_branch_vars = system->count;
-    struct BranchVariable *branch_vars = lv00_malloc((size_t)max_branch_vars
-                                                   * sizeof(struct BranchVariable));
-    if (!branch_vars) return SOLVER_TIMEOUT;
-    memset(branch_vars, 0, (size_t)max_branch_vars * sizeof(struct BranchVariable));
+    struct BranchVariable *branch_vars = lv00_malloc((size_t) max_branch_vars * sizeof(struct BranchVariable));
+    if (!branch_vars)
+        return SOLVER_TIMEOUT;
+    memset(branch_vars, 0, (size_t) max_branch_vars * sizeof(struct BranchVariable));
 
     /* Also need a mapping from variable (node_id, coord) to which equations
      * constrain it, for later contradiction checking */
     int branch_count = 0;
 
     for (int i = 0; i < system->count; i++) {
-        if (system->eqs[i].poly.degree != 2) continue;
-        if (mpz_cmp_si(system->eqs[i].poly.coeffs[2], 0) == 0) continue;
+        if (system->eqs[i].poly.degree != 2)
+            continue;
+        if (mpz_cmp_si(system->eqs[i].poly.coeffs[2], 0) == 0)
+            continue;
 
         /* Extract coefficients a, b, c using GMP's mpz_get_d which
          * converts mpz_t directly to double. */
         double a_val = mpz_get_d(system->eqs[i].poly.coeffs[2]) / LV00_SOLVER_SCALE_FACTOR;
         double b_val = (system->eqs[i].poly.degree >= 1)
-            ? mpz_get_d(system->eqs[i].poly.coeffs[1]) / LV00_SOLVER_SCALE_FACTOR
-            : 0.0;
+                           ? mpz_get_d(system->eqs[i].poly.coeffs[1]) / LV00_SOLVER_SCALE_FACTOR
+                           : 0.0;
         double c_val = mpz_get_d(system->eqs[i].poly.coeffs[0]) / LV00_SOLVER_SCALE_FACTOR;
 
         double discriminant = b_val * b_val - 4.0 * a_val * c_val;
@@ -7512,10 +7859,9 @@ SolverStatus solver_handle_multiple_solutions(
             char detail[256];
             int _snw3;
             LV00_SAFE_SNPRINTF(_snw3, detail, sizeof(detail),
-                     "{\"var_id\":%d,\"coord\":%d,\"root1\":%.6f,\"root2\":%.6f,\"D\":%.6f}",
-                     system->eqs[i].var_node_id, system->eqs[i].coord_index,
-                     branch_vars[branch_count].root1, branch_vars[branch_count].root2,
-                     discriminant);
+                               "{\"var_id\":%d,\"coord\":%d,\"root1\":%.6f,\"root2\":%.6f,\"D\":%.6f}",
+                               system->eqs[i].var_node_id, system->eqs[i].coord_index, branch_vars[branch_count].root1,
+                               branch_vars[branch_count].root2, discriminant);
             LV00_UNUSED(_snw3);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -7528,7 +7874,7 @@ SolverStatus solver_handle_multiple_solutions(
      * For k quadratic equations, there are 2^k possible branches.
      * We cap at 2^12 = 4096 to avoid combinatorial explosion. */
     if (branch_count == 0) {
-        lv00_free((void **)&branch_vars);
+        lv00_free((void **) &branch_vars);
         return SOLVER_UNIQUE; /* No quadratic equations with distinct roots */
     }
 
@@ -7546,31 +7892,28 @@ SolverStatus solver_handle_multiple_solutions(
     /* Step 3: Allocate flat 2D array for all branch coordinates.
      * branch_coords[b * branch_count + v] = v-th coordinate of branch b */
     int total_coords = total_branches * branch_count;
-    SymbolicCoord **branch_coords = lv00_malloc((size_t)total_coords
-                                              * sizeof(SymbolicCoord *));
+    SymbolicCoord **branch_coords = lv00_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
     if (!branch_coords) {
-        lv00_free((void **)&branch_vars);
+        lv00_free((void **) &branch_vars);
         return SOLVER_TIMEOUT;
     }
-    memset(branch_coords, 0, (size_t)total_coords * sizeof(SymbolicCoord *));
+    memset(branch_coords, 0, (size_t) total_coords * sizeof(SymbolicCoord *));
 
     for (int b = 0; b < total_branches; b++) {
         for (int v = 0; v < branch_count; v++) {
             /* Bit v of b determines which root: 0 = root1, 1 = root2 */
-            double chosen = (b & (1 << v)) ? branch_vars[v].root2
-                                           : branch_vars[v].root1;
+            double chosen = (b & (1 << v)) ? branch_vars[v].root2 : branch_vars[v].root1;
 
             /* Create a rational coordinate from the double value. */
-            int64_t num_val = (int64_t)(chosen * LV00_SOLVER_SCALE_FACTOR);
-            SymbolicCoord *coord = symbolic_coord_create_rational(
-                num_val, (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+            int64_t num_val = (int64_t) (chosen * LV00_SOLVER_SCALE_FACTOR);
+            SymbolicCoord *coord = symbolic_coord_create_rational(num_val, (uint64_t) LV00_SOLVER_SCALE_FACTOR);
             if (!coord) {
                 /* Cleanup: destroy all coords created so far */
                 for (int i = 0; i < b * branch_count + v; i++) {
                     symbolic_coord_destroy(branch_coords[i]);
                 }
-                lv00_free((void **)&branch_coords);
-                lv00_free((void **)&branch_vars);
+                lv00_free((void **) &branch_coords);
+                lv00_free((void **) &branch_vars);
                 return SOLVER_TIMEOUT;
             }
             branch_coords[b * branch_count + v] = coord;
@@ -7580,16 +7923,16 @@ SolverStatus solver_handle_multiple_solutions(
     /* Step 4: Validate each branch against remaining equations.
      * A branch is valid if it doesn't contradict any of the other equations
      * in the system when the quadratic values are substituted. */
-    bool *branch_valid = lv00_malloc((size_t)total_branches * sizeof(bool));
+    bool *branch_valid = lv00_malloc((size_t) total_branches * sizeof(bool));
     if (!branch_valid) {
         for (int i = 0; i < total_coords; i++) {
             symbolic_coord_destroy(branch_coords[i]);
         }
-        lv00_free((void **)&branch_coords);
-        lv00_free((void **)&branch_vars);
+        lv00_free((void **) &branch_coords);
+        lv00_free((void **) &branch_vars);
         return SOLVER_TIMEOUT;
     }
-    memset(branch_valid, 0, (size_t)total_branches * sizeof(bool));
+    memset(branch_valid, 0, (size_t) total_branches * sizeof(bool));
 
     for (int b = 0; b < total_branches; b++) {
         bool valid = true;
@@ -7605,7 +7948,8 @@ SolverStatus solver_handle_multiple_solutions(
                     break;
                 }
             }
-            if (is_branch_eq) continue;
+            if (is_branch_eq)
+                continue;
 
             /* For linear equations (degree=1): check if the branch value
              * satisfies the equation. For now we do a simple linear check:
@@ -7621,9 +7965,9 @@ SolverStatus solver_handle_multiple_solutions(
                         placeholder_skip_count++;
                         if (placeholder_skip_count == 1 || placeholder_skip_count % 100 == 0) {
                             debug_log(LOG_LEVEL_DEBUG, "solver",
-                                "跳过占位符方程 #%d（var_node_id=0），"
-                                "当前累计跳过 %d 个占位符方程",
-                                eq, placeholder_skip_count);
+                                      "跳过占位符方程 #%d（var_node_id=0），"
+                                      "当前累计跳过 %d 个占位符方程",
+                                      eq, placeholder_skip_count);
                         }
                     }
                     continue;
@@ -7633,20 +7977,20 @@ SolverStatus solver_handle_multiple_solutions(
                 double branch_val = 0.0;
                 bool found = false;
                 /* 安全检查：确保分支数不超过 unsigned int 位数，避免位移未定义行为 */
-                if (branch_count > (int)(sizeof(unsigned int) * 8)) {
+                if (branch_count > (int) (sizeof(unsigned int) * 8)) {
                     valid = false;
                     break;
                 }
                 for (int v = 0; v < branch_count; v++) {
                     if (branch_vars[v].var_node_id == system->eqs[eq].var_node_id &&
                         branch_vars[v].coord_index == system->eqs[eq].coord_index) {
-                        branch_val = (b & (1u << v)) ? branch_vars[v].root2
-                                                     : branch_vars[v].root1;
+                        branch_val = (b & (1u << v)) ? branch_vars[v].root2 : branch_vars[v].root1;
                         found = true;
                         break;
                     }
                 }
-                if (!found) continue; /* Different variable, skip */
+                if (!found)
+                    continue; /* Different variable, skip */
 
                 /* Verify: a*x + c ≈ 0
                  * 使用符号坐标多项式求值进行精确验证，避免 double 精度丢失。
@@ -7659,12 +8003,10 @@ SolverStatus solver_handle_multiple_solutions(
                     for (int v = 0; v < branch_count; v++) {
                         if (branch_vars[v].var_node_id == system->eqs[eq].var_node_id &&
                             branch_vars[v].coord_index == system->eqs[eq].coord_index) {
-                            SymbolicCoord *branch_coord =
-                                branch_coords[b * branch_count + v];
+                            SymbolicCoord *branch_coord = branch_coords[b * branch_count + v];
                             if (branch_coord) {
                                 /* 用符号坐标在多项式上求值 */
-                                SymbolicCoord *poly_val = poly_eval_symbolic(
-                                    &system->eqs[eq].poly, branch_coord);
+                                SymbolicCoord *poly_val = poly_eval_symbolic(&system->eqs[eq].poly, branch_coord);
                                 if (poly_val) {
                                     /* 检查求值结果是否为零 */
                                     double eval_d = 0.0;
@@ -7681,10 +8023,8 @@ SolverStatus solver_handle_multiple_solutions(
 
                 /* 回退到 double 近似验证 */
                 if (!equation_satisfied) {
-                    double a_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[1])
-                                     / LV00_SOLVER_SCALE_FACTOR;
-                    double c_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[0])
-                                     / LV00_SOLVER_SCALE_FACTOR;
+                    double a_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[1]) / LV00_SOLVER_SCALE_FACTOR;
+                    double c_coeff = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / LV00_SOLVER_SCALE_FACTOR;
                     double lhs = a_coeff * branch_val + c_coeff;
                     equation_satisfied = (fabs(lhs) < 1e-6);
                 }
@@ -7697,8 +8037,7 @@ SolverStatus solver_handle_multiple_solutions(
             }
             /* For degree 0: check constant = 0 (contradiction if non-zero) */
             if (system->eqs[eq].poly.degree == 0) {
-                double const_val = mpz_get_d(system->eqs[eq].poly.coeffs[0])
-                                   / LV00_SOLVER_SCALE_FACTOR;
+                double const_val = mpz_get_d(system->eqs[eq].poly.coeffs[0]) / LV00_SOLVER_SCALE_FACTOR;
                 if (fabs(const_val) > LV00_EPSILON_DOUBLE) {
                     valid = false;
                     break;
@@ -7707,7 +8046,8 @@ SolverStatus solver_handle_multiple_solutions(
         }
 
         branch_valid[b] = valid;
-        if (valid) valid_branches++;
+        if (valid)
+            valid_branches++;
 
         /* Stream: progress */
         if (solver_stream_ctx && (b % 100 == 0 || b == total_branches - 1)) {
@@ -7715,13 +8055,12 @@ SolverStatus solver_handle_multiple_solutions(
             memset(&ev, 0, sizeof(ev));
             ev.type = STREAM_EVENT_PROGRESS;
             ev.timestamp_ms = stream_timestamp_ms();
-            ev.progress = (double)(b + 1) / (double)total_branches;
+            ev.progress = (double) (b + 1) / (double) total_branches;
             ev.description = "多解分支验证中";
             char detail[128];
             int _snw4;
-            LV00_SAFE_SNPRINTF(_snw4, detail, sizeof(detail),
-                     "{\"checked\":%d,\"total\":%d,\"valid\":%d}",
-                     b + 1, total_branches, valid_branches);
+            LV00_SAFE_SNPRINTF(_snw4, detail, sizeof(detail), "{\"checked\":%d,\"total\":%d,\"valid\":%d}", b + 1,
+                               total_branches, valid_branches);
             LV00_UNUSED(_snw4);
             ev.detail_json = detail;
             stream_emit(solver_stream_ctx, &ev);
@@ -7731,22 +8070,22 @@ SolverStatus solver_handle_multiple_solutions(
     /* Step 5: Build output array of valid branches.
      * Each valid branch is a newly-allocated SymbolicCoord* array of branch_count entries,
      * copied from the flat branch_coords. */
-    SymbolicCoord **out_branch_arr = lv00_malloc((size_t)(valid_branches * branch_count)
-                                               * sizeof(SymbolicCoord *));
+    SymbolicCoord **out_branch_arr = lv00_malloc((size_t) (valid_branches * branch_count) * sizeof(SymbolicCoord *));
     if (!out_branch_arr) {
         for (int i = 0; i < total_coords; i++) {
             symbolic_coord_destroy(branch_coords[i]);
         }
-        lv00_free((void **)&branch_coords);
-        lv00_free((void **)&branch_valid);
-        lv00_free((void **)&branch_vars);
+        lv00_free((void **) &branch_coords);
+        lv00_free((void **) &branch_valid);
+        lv00_free((void **) &branch_vars);
         return SOLVER_TIMEOUT;
     }
-    memset(out_branch_arr, 0, (size_t)(valid_branches * branch_count) * sizeof(SymbolicCoord *));
+    memset(out_branch_arr, 0, (size_t) (valid_branches * branch_count) * sizeof(SymbolicCoord *));
 
     int out_idx = 0;
     for (int b = 0; b < total_branches; b++) {
-        if (!branch_valid[b]) continue;
+        if (!branch_valid[b])
+            continue;
 
         /* Copy this branch's coordinates to the output array */
         int dst_base = out_idx * branch_count;
@@ -7766,21 +8105,20 @@ SolverStatus solver_handle_multiple_solutions(
             ev.description = "有效多解分支";
             char detail[256];
             int pos;
-            LV00_SAFE_SNPRINTF(pos, detail, sizeof(detail),
-                     "{\"branch\":%d,\"valid\":true,\"values\":[", out_idx);
-            for (int v = 0; v < branch_count && pos < (int)sizeof(detail) - 30; v++) {
+            LV00_SAFE_SNPRINTF(pos, detail, sizeof(detail), "{\"branch\":%d,\"valid\":true,\"values\":[", out_idx);
+            for (int v = 0; v < branch_count && pos < (int) sizeof(detail) - 30; v++) {
                 char *coord_str = symbolic_coord_serialize(branch_coords[src_base + v]);
                 if (coord_str) {
                     int _sn_tmp;
-                    LV00_SAFE_SNPRINTF(_sn_tmp, detail + pos, (size_t)(sizeof(detail) - pos - 5),
-                                    "%s\"%s\"", (v > 0 ? "," : ""), coord_str);
+                    LV00_SAFE_SNPRINTF(_sn_tmp, detail + pos, (size_t) (sizeof(detail) - pos - 5), "%s\"%s\"",
+                                       (v > 0 ? "," : ""), coord_str);
                     pos += _sn_tmp;
-                    lv00_free((void **)&coord_str);
+                    lv00_free((void **) &coord_str);
                 }
             }
             {
                 int _sn_tmp2;
-                LV00_SAFE_SNPRINTF(_sn_tmp2, detail + pos, (size_t)(sizeof(detail) - pos - 3), "]}");
+                LV00_SAFE_SNPRINTF(_sn_tmp2, detail + pos, (size_t) (sizeof(detail) - pos - 3), "]}");
                 LV00_UNUSED(_sn_tmp2);
                 LV00_UNUSED(pos);
             }
@@ -7801,17 +8139,16 @@ SolverStatus solver_handle_multiple_solutions(
     /* Free temporary working arrays.
      * branch_coords entries for valid branches were MOVED to out_branch_arr;
      * don't double-free them. */
-    lv00_free((void **)&branch_coords);
-    lv00_free((void **)&branch_valid);
-    lv00_free((void **)&branch_vars);
+    lv00_free((void **) &branch_coords);
+    lv00_free((void **) &branch_valid);
+    lv00_free((void **) &branch_vars);
 
     if (valid_branches == 0) {
-        lv00_free((void **)&out_branch_arr);
+        lv00_free((void **) &out_branch_arr);
         *out_branches = NULL;
         *out_branch_count = 0;
         if (solver_stream_ctx) {
-            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR,
-                               "多解分支处理: 所有分支均无效", 0);
+            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "多解分支处理: 所有分支均无效", 0);
         }
         return SOLVER_NO_SOLUTION;
     }
@@ -7821,8 +8158,8 @@ SolverStatus solver_handle_multiple_solutions(
 
     if (valid_branches == 1) {
         if (solver_stream_ctx) {
-            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE,
-                               "多解分支处理: 过滤后仅剩唯一有效解", valid_branches);
+            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "多解分支处理: 过滤后仅剩唯一有效解",
+                               valid_branches);
         }
         return SOLVER_UNIQUE;
     }
@@ -7831,7 +8168,7 @@ SolverStatus solver_handle_multiple_solutions(
         char msg[128];
         int _snw5;
         LV00_SAFE_SNPRINTF(_snw5, msg, sizeof(msg), "多解分支处理: 生成 %d 个有效分支 (共 %d 个理论组合)",
-                 valid_branches, total_branches);
+                           valid_branches, total_branches);
         LV00_UNUSED(_snw5);
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, msg, valid_branches);
     }

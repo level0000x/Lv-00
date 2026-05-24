@@ -31,100 +31,100 @@ extern "C" {
 /* -------------------- 格基础运算 -------------------- */
 
 /** 上确界（并）：a ∨ b */
-#define PRESET_LATTICE_JOIN                "lattice_join"
+#define PRESET_LATTICE_JOIN "lattice_join"
 
 /** 下确界（交）：a ∧ b */
-#define PRESET_LATTICE_MEET                "lattice_meet"
+#define PRESET_LATTICE_MEET "lattice_meet"
 
 /** 最大元（顶）：⊤ */
-#define PRESET_LATTICE_TOP                 "lattice_top"
+#define PRESET_LATTICE_TOP "lattice_top"
 
 /** 最小元（底）：⊥ */
-#define PRESET_LATTICE_BOTTOM              "lattice_bottom"
+#define PRESET_LATTICE_BOTTOM "lattice_bottom"
 
 /** 补元：a' */
-#define PRESET_LATTICE_COMPLEMENT          "lattice_complement"
+#define PRESET_LATTICE_COMPLEMENT "lattice_complement"
 
 /** 偏序关系判定 */
-#define PRESET_LATTICE_PARTIAL_ORDER       "lattice_partial_order"
+#define PRESET_LATTICE_PARTIAL_ORDER "lattice_partial_order"
 
 /** 格结构判定 */
-#define PRESET_LATTICE_CHECK               "lattice_check"
+#define PRESET_LATTICE_CHECK "lattice_check"
 
 /** 有界格判定 */
-#define PRESET_LATTICE_BOUNDED_CHECK       "lattice_bounded_check"
+#define PRESET_LATTICE_BOUNDED_CHECK "lattice_bounded_check"
 
 /** 分配格判定 */
-#define PRESET_LATTICE_DISTRIBUTIVE_CHECK  "lattice_distributive_check"
+#define PRESET_LATTICE_DISTRIBUTIVE_CHECK "lattice_distributive_check"
 
 /** 模格判定 */
-#define PRESET_LATTICE_MODULAR_CHECK       "lattice_modular_check"
+#define PRESET_LATTICE_MODULAR_CHECK "lattice_modular_check"
 
 /* -------------------- 特殊格 -------------------- */
 
 /** 布尔代数判定 */
-#define PRESET_BOOLEAN_ALGEBRA_CHECK       "boolean_algebra_check"
+#define PRESET_BOOLEAN_ALGEBRA_CHECK "boolean_algebra_check"
 
 /** 布尔代数运算 */
-#define PRESET_BOOLEAN_ALGEBRA_OPERATIONS  "boolean_algebra_operations"
+#define PRESET_BOOLEAN_ALGEBRA_OPERATIONS "boolean_algebra_operations"
 
 /** Heyting代数判定 */
-#define PRESET_HEYTING_ALGEBRA_CHECK       "heyting_algebra_check"
+#define PRESET_HEYTING_ALGEBRA_CHECK "heyting_algebra_check"
 
 /** Heyting蕴涵 */
-#define PRESET_HEYTING_IMPLICATION         "heyting_implication"
+#define PRESET_HEYTING_IMPLICATION "heyting_implication"
 
 /** 完备格判定 */
-#define PRESET_COMPLETE_LATTICE_CHECK      "complete_lattice_check"
+#define PRESET_COMPLETE_LATTICE_CHECK "complete_lattice_check"
 
 /** 完备格上确界 */
-#define PRESET_COMPLETE_LATTICE_SUP        "complete_lattice_sup"
+#define PRESET_COMPLETE_LATTICE_SUP "complete_lattice_sup"
 
 /** 完备格下确界 */
-#define PRESET_COMPLETE_LATTICE_INF        "complete_lattice_inf"
+#define PRESET_COMPLETE_LATTICE_INF "complete_lattice_inf"
 
 /** 格理想 */
-#define PRESET_LATTICE_IDEAL               "lattice_ideal"
+#define PRESET_LATTICE_IDEAL "lattice_ideal"
 
 /* -------------------- 格同态与表示 -------------------- */
 
 /** 格同态 */
-#define PRESET_LATTICE_HOMOMORPHISM        "lattice_homomorphism"
+#define PRESET_LATTICE_HOMOMORPHISM "lattice_homomorphism"
 
 /** 格嵌入 */
-#define PRESET_LATTICE_EMBEDDING           "lattice_embedding"
+#define PRESET_LATTICE_EMBEDDING "lattice_embedding"
 
 /** 格同构判定 */
-#define PRESET_LATTICE_ISOMORPHISM_CHECK   "lattice_isomorphism_check"
+#define PRESET_LATTICE_ISOMORPHISM_CHECK "lattice_isomorphism_check"
 
 /** 子格判定 */
-#define PRESET_LATTICE_SUBLATTICE_CHECK    "lattice_sublattice_check"
+#define PRESET_LATTICE_SUBLATTICE_CHECK "lattice_sublattice_check"
 
 /** 格直积 */
-#define PRESET_LATTICE_PRODUCT             "lattice_product"
+#define PRESET_LATTICE_PRODUCT "lattice_product"
 
 /** 格对偶性 */
-#define PRESET_LATTICE_DUALITY             "lattice_duality"
+#define PRESET_LATTICE_DUALITY "lattice_duality"
 
 /** Stone表示定理 */
-#define PRESET_STONE_REPRESENTATION        "stone_representation"
+#define PRESET_STONE_REPRESENTATION "stone_representation"
 
 /* -------------------- 格与序 -------------------- */
 
 /** Hasse图 */
-#define PRESET_HASSE_DIAGRAM               "hasse_diagram"
+#define PRESET_HASSE_DIAGRAM "hasse_diagram"
 
 /** 链判定（全序） */
-#define PRESET_CHAIN_CHECK                 "chain_check"
+#define PRESET_CHAIN_CHECK "chain_check"
 
 /** 反链判定 */
-#define PRESET_ANTICHAIN_CHECK             "antichain_check"
+#define PRESET_ANTICHAIN_CHECK "antichain_check"
 
 /** 格的高度 */
-#define PRESET_LATTICE_HEIGHT              "lattice_height"
+#define PRESET_LATTICE_HEIGHT "lattice_height"
 
 /** 格的宽度 */
-#define PRESET_LATTICE_WIDTH               "lattice_width"
+#define PRESET_LATTICE_WIDTH "lattice_width"
 
 /* ============================================================
  * 模块注册函数

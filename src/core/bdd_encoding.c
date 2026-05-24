@@ -7,29 +7,29 @@
  */
 
 #include "bdd_encoding.h"
+
+#include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <math.h>
 
 /* ========================================================================
  * 鍐呴儴锛氬敮涓€琛ㄥ搱甯? * ======================================================================== */
 
 /** 鑺傜偣涓夊厓缁勫搱甯?(var_id, low, high) 鈫?鍞竴琛ㄧ储寮?*/
-static int bdd_unique_hash(int var_id, BDDNode *low, BDDNode *high,
-                            int table_size) {
-    unsigned long h = (unsigned long)var_id;
-    h = h * 31 + (unsigned long)(uintptr_t)low;
-    h = h * 31 + (unsigned long)(uintptr_t)high;
-    return (int)(h % (unsigned long)table_size);
+static int bdd_unique_hash(int var_id, BDDNode *low, BDDNode *high, int table_size) {
+    unsigned long h = (unsigned long) var_id;
+    h = h * 31 + (unsigned long) (uintptr_t) low;
+    h = h * 31 + (unsigned long) (uintptr_t) high;
+    return (int) (h % (unsigned long) table_size);
 }
 
 /** 鍦ㄥ敮涓€琛ㄤ腑鏌ユ壘鎴栨彃鍏ヨ妭鐐?*/
-static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id,
-                                   BDDNode *low, BDDNode *high) {
+static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDDNode *high) {
     /* 绠€鍖栧疄鐜帮細杩斿洖鏂拌妭鐐癸紙妗╋紝涓嶄娇鐢ㄧ湡姝ｅ敮涓€琛ㄧ紦瀛橈級 */
-    BDDNode *node = (BDDNode *)malloc(sizeof(BDDNode));
-    if (!node) return NULL;
+    BDDNode *node = (BDDNode *) malloc(sizeof(BDDNode));
+    if (!node)
+        return NULL;
     node->var_id = var_id;
     node->low = low;
     node->high = high;
@@ -43,44 +43,54 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id,
  * BDD 绠＄悊鍣ㄧ敓鍛藉懆鏈? * ======================================================================== */
 
 BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
-    BDDManager *mgr = (BDDManager *)malloc(sizeof(BDDManager));
-    if (!mgr) return NULL;
+    BDDManager *mgr = (BDDManager *) malloc(sizeof(BDDManager));
+    if (!mgr)
+        return NULL;
 
     /* 鍒涘缓缁堢 T 鑺傜偣 */
-    mgr->true_node = (BDDNode *)malloc(sizeof(BDDNode));
-    if (!mgr->true_node) { free(mgr); return NULL; }
+    mgr->true_node = (BDDNode *) malloc(sizeof(BDDNode));
+    if (!mgr->true_node) {
+        free(mgr);
+        return NULL;
+    }
     mgr->true_node->var_id = -1;
     mgr->true_node->low = NULL;
     mgr->true_node->high = NULL;
-    mgr->true_node->ref_count = 1;  /* 鎸佷箙寮曠敤 */
+    mgr->true_node->ref_count = 1; /* 鎸佷箙寮曠敤 */
     mgr->true_node->complemented = false;
 
     /* 鍒涘缓缁堢 F 鑺傜偣 */
-    mgr->false_node = (BDDNode *)malloc(sizeof(BDDNode));
+    mgr->false_node = (BDDNode *) malloc(sizeof(BDDNode));
     if (!mgr->false_node) {
-        free(mgr->true_node); free(mgr); return NULL;
+        free(mgr->true_node);
+        free(mgr);
+        return NULL;
     }
     mgr->false_node->var_id = -1;
     mgr->false_node->low = NULL;
     mgr->false_node->high = NULL;
-    mgr->false_node->ref_count = 1;  /* 鎸佷箙寮曠敤 */
+    mgr->false_node->ref_count = 1; /* 鎸佷箙寮曠敤 */
     mgr->false_node->complemented = false;
 
     /* 鍒嗛厤鍞竴琛紙妗╁疄鐜颁腑涓嶄娇鐢ㄥ搱甯岋紝浠呭崰浣嶏級 */
-    if (unique_table_size < 1024) unique_table_size = 1024;
-    mgr->unique_table = (BDDNode **)calloc((size_t)unique_table_size,
-                                            sizeof(BDDNode *));
+    if (unique_table_size < 1024)
+        unique_table_size = 1024;
+    mgr->unique_table = (BDDNode **) calloc((size_t) unique_table_size, sizeof(BDDNode *));
     if (!mgr->unique_table) {
-        free(mgr->false_node); free(mgr->true_node); free(mgr);
+        free(mgr->false_node);
+        free(mgr->true_node);
+        free(mgr);
         return NULL;
     }
     mgr->unique_table_size = unique_table_size;
 
     /* 鍙橀噺搴忔暟缁?*/
-    mgr->var_order = (int *)malloc((size_t)var_count * sizeof(int));
+    mgr->var_order = (int *) malloc((size_t) var_count * sizeof(int));
     if (!mgr->var_order) {
-        free(mgr->unique_table); free(mgr->false_node);
-        free(mgr->true_node); free(mgr);
+        free(mgr->unique_table);
+        free(mgr->false_node);
+        free(mgr->true_node);
+        free(mgr);
         return NULL;
     }
     for (int i = 0; i < var_count; i++) {
@@ -93,7 +103,8 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
 }
 
 void bdd_manager_destroy(BDDManager *mgr) {
-    if (!mgr) return;
+    if (!mgr)
+        return;
     /* 娉細妗╁疄鐜颁腑涓嶉亶鍘嗗洖鏀舵墍鏈夎妭鐐癸紙瀹屾暣瀹炵幇闇€瑕?GC锛?*/
     free(mgr->true_node);
     free(mgr->false_node);
@@ -103,9 +114,10 @@ void bdd_manager_destroy(BDDManager *mgr) {
 }
 
 int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
-    (void)name;
-    (void)type;
-    if (!mgr) return -1;
+    (void) name;
+    (void) type;
+    if (!mgr)
+        return -1;
     /* 妗╋細鐩存帴杩斿洖涓嬩竴涓彲鐢ㄥ彉閲?ID */
     int id = mgr->var_count;
     mgr->var_count++;
@@ -124,7 +136,8 @@ BDDNode *bdd_false(BDDManager *mgr) {
 }
 
 BDDNode *bdd_literal(BDDManager *mgr, int var_id) {
-    if (!mgr) return NULL;
+    if (!mgr)
+        return NULL;
     if (var_id > 0) {
         /* 姝ｆ枃瀛楋細var 鈫?high=T, low=F */
         return bdd_unique_lookup(mgr, var_id, mgr->false_node, mgr->true_node);
@@ -135,7 +148,8 @@ BDDNode *bdd_literal(BDDManager *mgr, int var_id) {
 }
 
 void bdd_ref(BDDNode *node) {
-    if (node) node->ref_count++;
+    if (node)
+        node->ref_count++;
 }
 
 void bdd_deref(BDDNode *node) {
@@ -159,7 +173,8 @@ void bdd_deref(BDDNode *node) {
  * 涓€鑸儏鍐碉細閫夋嫨 F, G, H 涓渶灏忕殑鍙橀噺锛岄€掑綊灞曞紑銆? * ======================================================================== */
 
 BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h) {
-    if (!mgr || !f || !g || !h) return NULL;
+    if (!mgr || !f || !g || !h)
+        return NULL;
 
     /* 缁堢鏉′欢 */
     if (f == mgr->true_node) {
@@ -251,12 +266,14 @@ BDDNode *bdd_nand(BDDManager *mgr, BDDNode *f, BDDNode *g) {
  * 2. 杩斿洖鏈€缁堢殑鑺傜偣鏁? * ======================================================================== */
 
 int bdd_reorder_sift(BDDManager *mgr) {
-    if (!mgr || mgr->var_count <= 0) return -1;
+    if (!mgr || mgr->var_count <= 0)
+        return -1;
 
     int n = mgr->var_count;
-    int *best_order = (int *)malloc((size_t)n * sizeof(int));
-    if (!best_order) return -1;
-    memcpy(best_order, mgr->var_order, (size_t)n * sizeof(int));
+    int *best_order = (int *) malloc((size_t) n * sizeof(int));
+    if (!best_order)
+        return -1;
+    memcpy(best_order, mgr->var_order, (size_t) n * sizeof(int));
 
     int improved = 0;
 
@@ -269,7 +286,8 @@ int bdd_reorder_sift(BDDManager *mgr) {
                 break;
             }
         }
-        if (orig_pos < 0) continue;
+        if (orig_pos < 0)
+            continue;
 
         /* 璁板綍褰撳墠浣嶇疆鐨勮妭鐐规暟 */
         uint64_t orig_nodes = mgr->node_count;
@@ -296,9 +314,8 @@ int bdd_reorder_sift(BDDManager *mgr) {
                 est_nodes = orig_nodes;
             } else {
                 /* 绂诲師浣嶇疆瓒婅繙锛屾儵缃氳秺澶э紙绠€鍖栧惎鍙戝紡锛?*/
-                int dist = (insert_pos > orig_pos) ?
-                    (insert_pos - orig_pos) : (orig_pos - insert_pos);
-                est_nodes = orig_nodes + (uint64_t)dist * 2;
+                int dist = (insert_pos > orig_pos) ? (insert_pos - orig_pos) : (orig_pos - insert_pos);
+                est_nodes = orig_nodes + (uint64_t) dist * 2;
             }
 
             if (est_nodes < best_nodes) {
@@ -332,20 +349,22 @@ int bdd_reorder_sift(BDDManager *mgr) {
  *
  * 鏋氫妇鎵€鏈夊竷灏旂粍鍚堬紝鏋勫缓 BDD銆? * 瀵逛簬绾︽潫鍥句腑 n 涓妭鐐癸紝鏈?2^n 绉嶅竷灏旇祴鍊笺€? * 姣忕璧嬪€煎搴?BDD 鐨勪竴涓弧瓒宠矾寰勩€? * ======================================================================== */
 
-BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph,
-                                  BDDManager *mgr) {
-    if (!graph || !mgr) return NULL;
+BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) {
+    if (!graph || !mgr)
+        return NULL;
 
     int n = graph->node_count;
-    if (n <= 0) return bdd_true(mgr);
+    if (n <= 0)
+        return bdd_true(mgr);
 
     /* 绠€鍖栨々锛氬鎵€鏈夎妭鐐瑰彉閲忓仛 AND 鐨?BDD */
     BDDNode *result = bdd_true(mgr);
 
     for (int i = 0; i < n; i++) {
-        int var_id = i + 1;  /* 鍙橀噺 ID 浠?1 寮€濮?*/
+        int var_id = i + 1; /* 鍙橀噺 ID 浠?1 寮€濮?*/
         BDDNode *lit = bdd_literal(mgr, var_id);
-        if (!lit) continue;
+        if (!lit)
+            continue;
 
         BDDNode *new_result = bdd_and(mgr, result, lit);
         bdd_deref(result);
@@ -361,13 +380,12 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph,
  *
  * IEEE 754 鍙岀簿搴︿綅琛ㄧず锛? 浣嶇鍙?+ 11 浣嶆寚鏁?+ 52 浣嶅熬鏁?= 64 浣嶃€? * 姣忎綅缂栫爜涓轰竴涓?BDD 鍙橀噺銆? * ======================================================================== */
 
-int coord_to_bdd_var(const SymbolicCoord *coord,
-                      BDDManager *mgr,
-                      int base_var) {
-    if (!coord || !mgr) return -1;
+int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) {
+    if (!coord || !mgr)
+        return -1;
 
-    /* 64 浣?IEEE 754 鍙岀簿搴︾紪鐮?*/
-    #define IEEE754_DOUBLE_BITS 64
+/* 64 浣?IEEE 754 鍙岀簿搴︾紪鐮?*/
+#define IEEE754_DOUBLE_BITS 64
 
     /* 鎻愬彇鍧愭爣鐨勬暟鍊艰繎浼硷紙浣跨敤 double锛?*/
     double value = 0.0;
@@ -394,7 +412,7 @@ int coord_to_bdd_var(const SymbolicCoord *coord,
 
     return IEEE754_DOUBLE_BITS;
 
-    #undef IEEE754_DOUBLE_BITS
+#undef IEEE754_DOUBLE_BITS
 }
 
 /* ========================================================================
@@ -404,12 +422,14 @@ int coord_to_bdd_var(const SymbolicCoord *coord,
  * ======================================================================== */
 
 bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
-    if (!bdd || !out_cnf) return false;
+    if (!bdd || !out_cnf)
+        return false;
 
     /* 妗╁疄鐜帮細鐢熸垚妗嗘灦 CNF */
     size_t buf_size = 4096;
-    char *buf = (char *)malloc(buf_size);
-    if (!buf) return false;
+    char *buf = (char *) malloc(buf_size);
+    if (!buf)
+        return false;
 
     /* DIMACS 澶撮儴 */
     int offset = snprintf(buf, buf_size,
@@ -425,20 +445,26 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
  * ======================================================================== */
 
 ADDManager *add_manager_create(int var_count, int unique_table_size) {
-    ADDManager *mgr = (ADDManager *)malloc(sizeof(ADDManager));
-    if (!mgr) return NULL;
+    ADDManager *mgr = (ADDManager *) malloc(sizeof(ADDManager));
+    if (!mgr)
+        return NULL;
 
-    mgr->zero_node = (ADDNode *)malloc(sizeof(ADDNode));
-    if (!mgr->zero_node) { free(mgr); return NULL; }
+    mgr->zero_node = (ADDNode *) malloc(sizeof(ADDNode));
+    if (!mgr->zero_node) {
+        free(mgr);
+        return NULL;
+    }
     mgr->zero_node->var_id = -1;
     mgr->zero_node->low = NULL;
     mgr->zero_node->high = NULL;
     mgr->zero_node->constant = 0.0;
     mgr->zero_node->is_constant = true;
 
-    mgr->one_node = (ADDNode *)malloc(sizeof(ADDNode));
+    mgr->one_node = (ADDNode *) malloc(sizeof(ADDNode));
     if (!mgr->one_node) {
-        free(mgr->zero_node); free(mgr); return NULL;
+        free(mgr->zero_node);
+        free(mgr);
+        return NULL;
     }
     mgr->one_node->var_id = -1;
     mgr->one_node->low = NULL;
@@ -451,16 +477,18 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     mgr->var_count = var_count;
     mgr->node_count = 0;
 
-    mgr->var_order = (int *)malloc((size_t)var_count * sizeof(int));
+    mgr->var_order = (int *) malloc((size_t) var_count * sizeof(int));
     if (mgr->var_order) {
-        for (int i = 0; i < var_count; i++) mgr->var_order[i] = i;
+        for (int i = 0; i < var_count; i++)
+            mgr->var_order[i] = i;
     }
 
     return mgr;
 }
 
 void add_manager_destroy(ADDManager *mgr) {
-    if (!mgr) return;
+    if (!mgr)
+        return;
     free(mgr->zero_node);
     free(mgr->one_node);
     free(mgr->unique_table);
@@ -469,9 +497,11 @@ void add_manager_destroy(ADDManager *mgr) {
 }
 
 ADDNode *add_constant(ADDManager *mgr, double value) {
-    if (!mgr) return NULL;
-    ADDNode *node = (ADDNode *)malloc(sizeof(ADDNode));
-    if (!node) return NULL;
+    if (!mgr)
+        return NULL;
+    ADDNode *node = (ADDNode *) malloc(sizeof(ADDNode));
+    if (!node)
+        return NULL;
     node->var_id = -1;
     node->low = NULL;
     node->high = NULL;
@@ -482,15 +512,17 @@ ADDNode *add_constant(ADDManager *mgr, double value) {
 
 /* ADD 杩愮畻鈥斺€旀々瀹炵幇 */
 ADDNode *add_add(ADDManager *mgr, ADDNode *a, ADDNode *b) {
-    if (!mgr || !a || !b) return NULL;
+    if (!mgr || !a || !b)
+        return NULL;
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, a->constant + b->constant);
     }
-    return add_constant(mgr, 0.0);  /* 妗?*/
+    return add_constant(mgr, 0.0); /* 妗?*/
 }
 
 ADDNode *add_sub(ADDManager *mgr, ADDNode *a, ADDNode *b) {
-    if (!mgr || !a || !b) return NULL;
+    if (!mgr || !a || !b)
+        return NULL;
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, a->constant - b->constant);
     }
@@ -498,7 +530,8 @@ ADDNode *add_sub(ADDManager *mgr, ADDNode *a, ADDNode *b) {
 }
 
 ADDNode *add_mul(ADDManager *mgr, ADDNode *a, ADDNode *b) {
-    if (!mgr || !a || !b) return NULL;
+    if (!mgr || !a || !b)
+        return NULL;
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, a->constant * b->constant);
     }
@@ -506,7 +539,8 @@ ADDNode *add_mul(ADDManager *mgr, ADDNode *a, ADDNode *b) {
 }
 
 ADDNode *add_div(ADDManager *mgr, ADDNode *a, ADDNode *b) {
-    if (!mgr || !a || !b) return NULL;
+    if (!mgr || !a || !b)
+        return NULL;
     if (a->is_constant && b->is_constant && b->constant != 0.0) {
         return add_constant(mgr, a->constant / b->constant);
     }
@@ -514,19 +548,19 @@ ADDNode *add_div(ADDManager *mgr, ADDNode *a, ADDNode *b) {
 }
 
 ADDNode *add_max(ADDManager *mgr, ADDNode *a, ADDNode *b) {
-    if (!mgr || !a || !b) return NULL;
+    if (!mgr || !a || !b)
+        return NULL;
     if (a->is_constant && b->is_constant) {
-        return add_constant(mgr,
-            (a->constant > b->constant) ? a->constant : b->constant);
+        return add_constant(mgr, (a->constant > b->constant) ? a->constant : b->constant);
     }
     return add_constant(mgr, 0.0);
 }
 
 ADDNode *add_min(ADDManager *mgr, ADDNode *a, ADDNode *b) {
-    if (!mgr || !a || !b) return NULL;
+    if (!mgr || !a || !b)
+        return NULL;
     if (a->is_constant && b->is_constant) {
-        return add_constant(mgr,
-            (a->constant < b->constant) ? a->constant : b->constant);
+        return add_constant(mgr, (a->constant < b->constant) ? a->constant : b->constant);
     }
     return add_constant(mgr, 0.0);
 }

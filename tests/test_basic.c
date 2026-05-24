@@ -12,11 +12,12 @@
  * - 引擎生命周期与端口/功能块
  */
 
-#include "lv00.h"
-#include "test_helpers.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "lv00.h"
+#include "test_helpers.h"
 
 /* 全局测试计数器 */
 int g_pass_count = 0;

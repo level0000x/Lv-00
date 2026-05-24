@@ -11,14 +11,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "lv00.h"
 #include "test_helpers.h"
 
 /* 创建简单构造：两点一线 */
-static ConstraintGraph* create_line_graph(void)
-{
+static ConstraintGraph *create_line_graph(void) {
     ConstraintGraph *g = graph_create();
-    if (!g) return NULL;
+    if (!g)
+        return NULL;
     int p0 = add_point(g, 0, 1, 0, 1);
     int p1 = add_point(g, 3, 1, 4, 1);
     graph_add_line_segment(g, p0, p1);
@@ -26,8 +27,7 @@ static ConstraintGraph* create_line_graph(void)
 }
 
 /* 测试命题创建 */
-static int test_proposition_create(void)
-{
+static int test_proposition_create(void) {
     printf("\n=== Testing Simple Proposition Create ===\n");
 
     int inputs[] = {0, 1};
@@ -38,8 +38,8 @@ static int test_proposition_create(void)
         return -1;
     }
 
-    printf("  Proposition created: name='%s', inputs=%d, outputs=%d\n",
-           prop->name, prop->input_count, prop->output_count);
+    printf("  Proposition created: name='%s', inputs=%d, outputs=%d\n", prop->name, prop->input_count,
+           prop->output_count);
 
     /* 设置模式 */
     prop->pattern = create_line_graph();
@@ -50,12 +50,14 @@ static int test_proposition_create(void)
 }
 
 /* 测试成功的合一 */
-static int test_successful_unify(void)
-{
+static int test_successful_unify(void) {
     printf("\n=== Testing Successful Unify ===\n");
 
     ConstraintGraph *construction = create_line_graph();
-    if (!construction) { printf("  FAILED: Could not create construction\n"); return -1; }
+    if (!construction) {
+        printf("  FAILED: Could not create construction\n");
+        return -1;
+    }
 
     ConstraintGraph *pattern = create_line_graph();
 
@@ -76,8 +78,7 @@ static int test_successful_unify(void)
 }
 
 /* 测试约束缺失 */
-static int test_constraint_missing(void)
-{
+static int test_constraint_missing(void) {
     printf("\n=== Testing Constraint Missing ===\n");
 
     /* 构造：两个点，没有线段 */
@@ -103,8 +104,7 @@ static int test_constraint_missing(void)
 }
 
 /* 测试坐标不匹配 */
-static int test_coord_mismatch(void)
-{
+static int test_coord_mismatch(void) {
     printf("\n=== Testing Coordinate Mismatch ===\n");
 
     /* 构造：点在 (0,0) 和 (1,1) */
@@ -127,8 +127,7 @@ static int test_coord_mismatch(void)
 }
 
 /* 测试简单证明创建和检查 */
-static int test_simple_proof(void)
-{
+static int test_simple_proof(void) {
     printf("\n=== Testing Simple Proof ===\n");
 
     int inputs[] = {0, 1};
@@ -146,8 +145,7 @@ static int test_simple_proof(void)
         return -1;
     }
 
-    printf("  Proof created: normalized=%d, passed=%d\n",
-           proof->normalized, proof->passed);
+    printf("  Proof created: normalized=%d, passed=%d\n", proof->normalized, proof->passed);
 
     /* 检查证明 */
     bool passed = simple_proof_check(proof);
@@ -163,8 +161,7 @@ static int test_simple_proof(void)
 }
 
 /* 测试证明规范化 */
-static int test_proof_normalize(void)
-{
+static int test_proof_normalize(void) {
     printf("\n=== Testing Proof Normalize ===\n");
 
     int inputs[] = {0, 1};
@@ -175,7 +172,7 @@ static int test_proof_normalize(void)
     /* 构造包含重复点 */
     ConstraintGraph *construction = graph_create();
     add_point(construction, 0, 1, 0, 1);
-    add_point(construction, 0, 1, 0, 1);  /* 重复 */
+    add_point(construction, 0, 1, 0, 1); /* 重复 */
     int p2 = add_point(construction, 3, 1, 4, 1);
     graph_add_line_segment(construction, 0, p2);
 
@@ -197,8 +194,7 @@ static int test_proof_normalize(void)
 }
 
 /* 测试复杂构造合一 */
-static int test_complex_construction_unify(void)
-{
+static int test_complex_construction_unify(void) {
     printf("\n=== Testing Complex Construction Unify ===\n");
 
     /* 构造：三角形 */
@@ -229,8 +225,7 @@ static int test_complex_construction_unify(void)
 }
 
 /* 测试空图合一 */
-static int test_empty_graph_unify(void)
-{
+static int test_empty_graph_unify(void) {
     printf("\n=== Testing Empty Graph Unify ===\n");
 
     ConstraintGraph *empty1 = graph_create();
@@ -245,8 +240,7 @@ static int test_empty_graph_unify(void)
     return 0;
 }
 
-int main(void)
-{
+int main(void) {
     printf("=== Lv-00 Unify Test Suite ===\n");
     int failures = 0;
     failures += test_proposition_create();
@@ -259,7 +253,9 @@ int main(void)
     failures += test_empty_graph_unify();
 
     printf("\n=== Test Summary ===\n");
-    if (failures == 0) printf("All unify tests PASSED!\n");
-    else printf("%d test(s) FAILED\n", failures);
+    if (failures == 0)
+        printf("All unify tests PASSED!\n");
+    else
+        printf("%d test(s) FAILED\n", failures);
     return failures ? 1 : 0;
 }
