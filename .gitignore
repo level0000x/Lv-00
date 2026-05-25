@@ -119,6 +119,11 @@ node_modules/
 # Test result files（测试输出已统一放入 test_outputs/ 目录）
 /test_output*.txt
 /test_*.txt
+/test_results.*
+
+# Test save files（测试产物，不应提交）
+*_test_save.lvz
+module/axiom_packages/test_saves/
 
 # Build directories（所有构建目录变体）
 build/

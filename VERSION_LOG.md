@@ -72,3 +72,39 @@
 - CI 流水线适配 main 分支
 - 新增 PR 模板
 - 版本号统一为 3.4.0
+
+---
+
+## v3.5.0 -- 2026-05-26 五层架构迁移与仓库深度清理
+
+### 架构迁移
+- 完成五层架构源码迁移：layer1_parser → layer2_resource → layer3_geometry → layer4_reasoning → layer5_output
+- 共 355 个源文件（178 .c + 177 .h），总计约 9.87 MB
+- 删除旧扁平目录结构（core/src/core/ 等 8 个子目录，约 180 个文件）
+- CMakeLists.txt 完全适配五层构建系统
+
+### 新增核心模块
+- equiv_class：等价类管理器（并查集，5 种等价来源）
+- meta_proof：元证明系统（WFC 剪枝合法性，L1/L2/L3 三层策略）
+- propagation：约束传播引擎（AC-3 弧相容性，熵最小化）
+- expr_canon：代数表达式规范形式
+
+### 仓库深度清理
+- 删除 23 个散落 *_test_save.lvz 测试产物
+- 删除 3 个根目录 test_results.* 文件
+- 删除 core/src/_deprecated/ 和 module/concurrent_monitor/_deprecated/ 废弃代码
+- 删除 doc/reports/current/ 中 31 个重复/过时报告
+- 删除 doc/reports/_archive/ 整个深度归档目录
+- 合并 docs/ 到 doc/docs/，消除文档目录歧义
+- 根目录论文移至 doc/papers/
+
+### .gitignore 增强
+- 新增 test_results.* 忽略规则
+- 新增 *_test_save.lvz 忽略规则
+- 新增 module/axiom_packages/test_saves/ 忽略规则
+
+### 验证记录
+- git status：工作目录干净
+- CI workflow 检查：5 个 workflow 均使用 main/dev 分支
+- 无自动提交脚本存在
+- CONTRIBUTING.md 已禁止空提交

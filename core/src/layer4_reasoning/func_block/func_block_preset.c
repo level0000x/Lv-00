@@ -1499,21 +1499,15 @@ int func_block_preset_list(const char **out_names, int max_count, PresetCategory
         return 0;
 
     preset_library_lock();
-    fprintf(stderr, "  [DEBUG] func_block_preset_list: count=%d, category=%d, initialized=%d\n",
-            g_preset_library.count, (int)category, (int)g_preset_library.initialized);
     int count = 0;
     for (int i = 0; i < g_preset_library.count && count < max_count; i++) {
-        fprintf(stderr, "  [DEBUG]   entry[%d]: is_active=%d, name=%s\n",
-                i, (int)g_preset_library.entries[i].is_active,
-                g_preset_library.entries[i].metadata.name ? g_preset_library.entries[i].metadata.name : "(null)");
         if (!g_preset_library.entries[i].is_active)
             continue;
 
-        if (category < 0 || g_preset_library.entries[i].metadata.category == category) {
+        if ((int)category < 0 || g_preset_library.entries[i].metadata.category == category) {
             out_names[count++] = g_preset_library.entries[i].metadata.name;
         }
     }
-    fprintf(stderr, "  [DEBUG] func_block_preset_list: returning count=%d\n", count);
     preset_library_unlock();
 
     return count;
