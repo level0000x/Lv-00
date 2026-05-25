@@ -62,7 +62,7 @@ typedef void (*StreamContextSetter)(StreamContext *ctx);
  *
  * @param setter  模块的流式上下文设置函数指针（不可为 NULL）
  */
-void stream_context_register_setter(StreamContextSetter setter);
+LV00_PUBLIC_API void stream_context_register_setter(StreamContextSetter setter);
 
 /**
  * @brief 向所有已注册模块分发流式上下文
@@ -73,7 +73,7 @@ void stream_context_register_setter(StreamContextSetter setter);
  *
  * @param ctx  要分发的 StreamContext 指针（可为 NULL 以清空所有模块）
  */
-void stream_context_dispatch_all(void *ctx);
+LV00_PUBLIC_API void stream_context_dispatch_all(void *ctx);
 
 /**
  * @brief 注册所有内置模块的流式上下文 setter（一次性初始化）
@@ -85,7 +85,7 @@ void stream_context_dispatch_all(void *ctx);
  * 使用 static 标志确保多次调用只执行一次注册。
  * 新增模块时在此函数的实现中追加对应的注册行即可。
  */
-void stream_context_register_builtins(void);
+LV00_PUBLIC_API void stream_context_register_builtins(void);
 
 /* ================================================================
  * 模块级流式上下文宏

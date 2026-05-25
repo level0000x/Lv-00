@@ -15,9 +15,9 @@
  *   - module_export_svg / tikz / pdf                — 可视化导出
  *
  * 使用示例：
- *   Module *mod = module_create("euclidean", "1.0.0");
- *   module_add_dependency(mod, "base", ">=1.0.0");
- *   ModuleLoadStatus s = module_load(mod, "euclidean.lvz", NULL, 0);
+ LV00_PUBLIC_API *   Module *mod = module_create("euclidean", "1.0.0");
+ LV00_PUBLIC_API *   module_add_dependency(mod, "base", ">=1.0.0");
+ LV00_PUBLIC_API *   ModuleLoadStatus s = module_load(mod, "euclidean.lvz", NULL, 0);
  *
  * ======================================================================== */
 
@@ -80,8 +80,8 @@ typedef enum {
     MODULE_SAVE_WRITE_ERROR /* 写入错误 */
 } ModuleSaveStatus;
 
-Module *module_create(const char *name, const char *version);
-void module_destroy(Module *mod);
+LV00_PUBLIC_API Module *module_create(const char *name, const char *version);
+LV00_PUBLIC_API void module_destroy(Module *mod);
 
 /* ============== 属性访问器 ============== */
 
@@ -89,58 +89,58 @@ void module_destroy(Module *mod);
  * @brief 获取模块名称
  * @return 模块名称字符串（不可修改，与模块同生命周期）
  */
-const char *module_get_name(const Module *mod);
+LV00_PUBLIC_API const char *module_get_name(const Module *mod);
 
 /**
  * @brief 获取模块版本
  * @return 版本字符串（不可修改，与模块同生命周期）
  */
-const char *module_get_version(const Module *mod);
+LV00_PUBLIC_API const char *module_get_version(const Module *mod);
 
 /**
  * @brief 获取模块依赖数量
  * @return 依赖数量
  */
-int module_get_dependency_count(const Module *mod);
+LV00_PUBLIC_API int module_get_dependency_count(const Module *mod);
 
 /**
  * @brief 获取模块公理包数量
  * @return 公理包数量
  */
-int module_get_axiom_package_count(const Module *mod);
+LV00_PUBLIC_API int module_get_axiom_package_count(const Module *mod);
 
 /**
  * @brief 获取模块的约束图
  * @return 约束图指针（所有权归模块所有，不可释放），无图时返回 NULL
  */
-const ConstraintGraph *module_get_graph(const Module *mod);
+LV00_PUBLIC_API const ConstraintGraph *module_get_graph(const Module *mod);
 
 /**
  * @brief 设置模块的约束图
  * @param mod 模块
  * @param graph 约束图（所有权转移给模块，模块负责释放）
  */
-void module_set_graph(Module *mod, ConstraintGraph *graph);
+LV00_PUBLIC_API void module_set_graph(Module *mod, ConstraintGraph *graph);
 
 /* 流式上下文设置 */
-void module_set_stream_context(StreamContext *ctx);
-bool module_add_dependency(Module *mod, const char *dep_name, const char *version_constraint);
-bool module_add_axiom_package(Module *mod, AxiomPackage *pkg);
-bool module_export_function_block(Module *mod, int func_block_id);
-bool module_export_type_region(Module *mod, int type_region_id);
+LV00_PUBLIC_API void module_set_stream_context(StreamContext *ctx);
+LV00_PUBLIC_API bool module_add_dependency(Module *mod, const char *dep_name, const char *version_constraint);
+LV00_PUBLIC_API bool module_add_axiom_package(Module *mod, AxiomPackage *pkg);
+LV00_PUBLIC_API bool module_export_function_block(Module *mod, int func_block_id);
+LV00_PUBLIC_API bool module_export_type_region(Module *mod, int type_region_id);
 
-ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_modules, int module_count);
-ModuleSaveStatus module_save(const Module *mod, const char *filepath);
+LV00_PUBLIC_API ModuleLoadStatus module_load(Module *mod, const char *filepath, Module **loaded_modules, int module_count);
+LV00_PUBLIC_API ModuleSaveStatus module_save(const Module *mod, const char *filepath);
 
-const char *module_get_last_error(void);
+LV00_PUBLIC_API const char *module_get_last_error(void);
 
-char *module_compute_version_hash(const Module *mod);
+LV00_PUBLIC_API char *module_compute_version_hash(const Module *mod);
 
-bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count);
-bool module_detect_circular_dependency(Module *mod, Module **visited, int visited_count);
+LV00_PUBLIC_API bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count);
+LV00_PUBLIC_API bool module_detect_circular_dependency(Module *mod, Module **visited, int visited_count);
 
-bool module_parse_version_constraint(const char *constraint, const char *version);
-int module_compare_versions(const char *v1, const char *v2);
+LV00_PUBLIC_API bool module_parse_version_constraint(const char *constraint, const char *version);
+LV00_PUBLIC_API int module_compare_versions(const char *v1, const char *v2);
 
 /* ============== 模块文件格式 ============== */
 
@@ -157,24 +157,24 @@ typedef enum {
 /**
  * @brief 从二进制数据加载模块（MessagePack 格式）
  */
-ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Module **out_module);
+LV00_PUBLIC_API ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Module **out_module);
 
 /**
  * @brief 将模块序列化为二进制数据（MessagePack 格式）
  */
-ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, size_t *out_size);
+LV00_PUBLIC_API ModuleSaveStatus module_save_to_binary(const Module *mod, uint8_t **out_data, size_t *out_size);
 
 /* ============== 完整序列化 ============== */
 
 /**
  * @brief 将模块序列化为 JSON 字符串
  */
-char *module_serialize_to_json(const Module *mod);
+LV00_PUBLIC_API char *module_serialize_to_json(const Module *mod);
 
 /**
  * @brief 从 JSON 字符串反序列化模块
  */
-ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_module);
+LV00_PUBLIC_API ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_module);
 
 /* ============== 图序列化支持 ============== */
 
@@ -186,7 +186,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
  * @param[in] mod 模块
  * @return JSON 字符串（调用者负责 free），失败返回 NULL
  */
-char *module_serialize_graph_to_json(const Module *mod);
+LV00_PUBLIC_API char *module_serialize_graph_to_json(const Module *mod);
 
 /**
  * @brief 从 JSON 字符串反序列化图并设置到模块
@@ -195,7 +195,7 @@ char *module_serialize_graph_to_json(const Module *mod);
  * @param[in] json JSON 字符串
  * @return 成功返回 true，失败返回 false
  */
-bool module_deserialize_graph_from_json(Module *mod, const char *json);
+LV00_PUBLIC_API bool module_deserialize_graph_from_json(Module *mod, const char *json);
 
 /* ============== 自动保存与崩溃恢复 ============== */
 
@@ -212,17 +212,17 @@ typedef struct {
 /**
  * @brief 设置模块的自动保存配置
  */
-void module_set_autosave_config(Module *mod, const AutoSaveConfig *config);
+LV00_PUBLIC_API void module_set_autosave_config(Module *mod, const AutoSaveConfig *config);
 
 /**
  * @brief 执行自动保存
  */
-ModuleSaveStatus module_autosave(const Module *mod);
+LV00_PUBLIC_API ModuleSaveStatus module_autosave(const Module *mod);
 
 /**
  * @brief 从最近的备份恢复模块
  */
-ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **out_module);
+LV00_PUBLIC_API ModuleLoadStatus module_recover_from_backup(const char *module_name, Module **out_module);
 
 /* ============== 增量存储 ============== */
 
@@ -240,17 +240,17 @@ typedef struct ModuleDelta {
 /**
  * @brief 计算模块的增量快照
  */
-ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash);
+LV00_PUBLIC_API ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash);
 
 /**
  * @brief 应用增量快照到模块
  */
-bool module_apply_delta(Module *mod, const ModuleDelta *delta);
+LV00_PUBLIC_API bool module_apply_delta(Module *mod, const ModuleDelta *delta);
 
 /**
  * @brief 销毁增量快照
  */
-void module_delta_destroy(ModuleDelta *delta);
+LV00_PUBLIC_API void module_delta_destroy(ModuleDelta *delta);
 
 /* ============== 可视化导出 ============== */
 
@@ -264,7 +264,7 @@ void module_delta_destroy(ModuleDelta *delta);
  * @param filepath 输出文件路径（.svg）
  * @return true 成功，false 失败
  */
-bool module_export_svg(const Module *mod, const char *filepath);
+LV00_PUBLIC_API bool module_export_svg(const Module *mod, const char *filepath);
 
 /**
  * @brief 将模块的约束图导出为 TikZ 代码文件
@@ -276,7 +276,7 @@ bool module_export_svg(const Module *mod, const char *filepath);
  * @param filepath 输出文件路径（.tex）
  * @return true 成功，false 失败
  */
-bool module_export_tikz(const Module *mod, const char *filepath);
+LV00_PUBLIC_API bool module_export_tikz(const Module *mod, const char *filepath);
 
 /**
  * @brief 将模块的约束图导出为可编译的 LaTeX/PDF 文件
@@ -288,7 +288,7 @@ bool module_export_tikz(const Module *mod, const char *filepath);
  * @param filepath 输出文件路径（.tex）
  * @return true 成功，false 失败
  */
-bool module_export_pdf(const Module *mod, const char *filepath);
+LV00_PUBLIC_API bool module_export_pdf(const Module *mod, const char *filepath);
 
 #ifdef __cplusplus
 }

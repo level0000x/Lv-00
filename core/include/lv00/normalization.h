@@ -29,7 +29,7 @@ extern "C" {
  *
  * @param ctx  流式上下文（可为 NULL）
  */
-void normalization_set_stream_context(StreamContext *ctx);
+LV00_PUBLIC_API void normalization_set_stream_context(StreamContext *ctx);
 
 /**
  * @brief 合并确认回调函数类型
@@ -54,13 +54,13 @@ typedef bool (*MergeConfirmCallback)(int node_a_id, int node_b_id, int scope_a_d
  * @param[in] cb        回调函数
  * @param[in] user_data 用户数据
  */
-void normalization_set_merge_callback(MergeConfirmCallback cb, void *user_data);
+LV00_PUBLIC_API void normalization_set_merge_callback(MergeConfirmCallback cb, void *user_data);
 
 /**
  * @brief 获取当前的合并确认回调
  * @return 回调函数指针，未设置返回 NULL
  */
-MergeConfirmCallback normalization_get_merge_callback(void);
+LV00_PUBLIC_API MergeConfirmCallback normalization_get_merge_callback(void);
 
 /**
  * @brief 归一化日志条目
@@ -89,13 +89,13 @@ typedef struct NormalizationLog {
  * @param[in] initial_capacity 初始容量
  * @return 新创建的归一化日志，失败返回 NULL
  */
-NormalizationLog *normalization_log_create(int initial_capacity);
+LV00_PUBLIC_API NormalizationLog *normalization_log_create(int initial_capacity);
 
 /**
  * @brief 销毁归一化日志
  * @param[in,out] log 要销毁的日志
  */
-void normalization_log_destroy(NormalizationLog *log);
+LV00_PUBLIC_API void normalization_log_destroy(NormalizationLog *log);
 
 /**
  * @brief 记录合并事件
@@ -104,7 +104,7 @@ void normalization_log_destroy(NormalizationLog *log);
  * @param[in] new_id         保留的节点 ID
  * @param[in] auto_merged    是否自动合并
  */
-void normalization_log_record(NormalizationLog *log, int old_id, int new_id, bool auto_merged);
+LV00_PUBLIC_API void normalization_log_record(NormalizationLog *log, int old_id, int new_id, bool auto_merged);
 
 typedef struct NormalizationResult {
     int *merged_node_ids;
@@ -122,13 +122,13 @@ typedef struct NormalizationResult {
  * @param[in] scope_aware     是否考虑作用域
  * @return 归一化结果，失败返回 NULL
  */
-NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware);
+LV00_PUBLIC_API NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware);
 
 /**
  * @brief 销毁归一化结果
  * @param[in,out] result 要销毁的结果
  */
-void normalization_result_destroy(NormalizationResult *result);
+LV00_PUBLIC_API void normalization_result_destroy(NormalizationResult *result);
 
 /**
  * @brief 验证归一化的幂等性
@@ -138,7 +138,7 @@ void normalization_result_destroy(NormalizationResult *result);
  * @param[in] graph 约束图
  * @return true 幂等，false 非幂等
  */
-bool normalization_verify_idempotency(ConstraintGraph *graph);
+LV00_PUBLIC_API bool normalization_verify_idempotency(ConstraintGraph *graph);
 
 /**
  * @brief 合并图中共线的线段
@@ -147,7 +147,7 @@ bool normalization_verify_idempotency(ConstraintGraph *graph);
  * @param[in,out] log   合并日志（可为 NULL）
  * @return 执行的合并数量，出错返回 -1
  */
-int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log);
+LV00_PUBLIC_API int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log);
 
 /**
  * @brief 合并图中重叠或相邻的区域
@@ -156,7 +156,7 @@ int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log);
  * @param[in,out] log   合并日志（可为 NULL）
  * @return 执行的合并数量，出错返回 -1
  */
-int merge_regions(ConstraintGraph *graph, NormalizationLog *log);
+LV00_PUBLIC_API int merge_regions(ConstraintGraph *graph, NormalizationLog *log);
 
 /**
  * @brief 节点合并候选 —— 描述两个可能需要合并的节点及其上下文信息
@@ -184,14 +184,14 @@ typedef struct NodeMergeCandidate {
     long long scope_b;      /* 节点 B 的作用域深度 */
 } NodeMergeCandidate;
 
-NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out_count);
+LV00_PUBLIC_API NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out_count);
 
 /**
  * @brief 销毁合并候选数组
  * @param[in,out] candidates 合并候选数组
  * @param[in] count 数组长度
  */
-void merge_candidates_destroy(NodeMergeCandidate *candidates, int count);
+LV00_PUBLIC_API void merge_candidates_destroy(NodeMergeCandidate *candidates, int count);
 
 /**
  * @brief 应用合并候选列表
@@ -202,13 +202,13 @@ void merge_candidates_destroy(NodeMergeCandidate *candidates, int count);
  * @param[out] user_confirmed      用户是否确认了任何合并
  * @return 执行的合并数量，出错返回 -1
  */
-int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates, int count, bool *user_confirmed);
+LV00_PUBLIC_API int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates, int count, bool *user_confirmed);
 
 /**
  * @brief 对图进行稳定的拓扑排序
  * @param[in,out] graph 约束图
  */
-void graph_topological_sort_stable(ConstraintGraph *graph);
+LV00_PUBLIC_API void graph_topological_sort_stable(ConstraintGraph *graph);
 
 /* GraphHash, compute_complete_graph_hash, graph_hash_equal, graph_hash_destroy
  * are defined in graph_hash.h (included above). */
@@ -229,13 +229,13 @@ typedef struct RewriteHistory {
  * @param[in] capacity 初始容量
  * @return 新创建的重写历史记录，失败返回 NULL
  */
-RewriteHistory *rewrite_history_create(int capacity);
+LV00_PUBLIC_API RewriteHistory *rewrite_history_create(int capacity);
 
 /**
  * @brief 销毁重写历史记录
  * @param[in,out] history 要销毁的历史记录
  */
-void rewrite_history_destroy(RewriteHistory *history);
+LV00_PUBLIC_API void rewrite_history_destroy(RewriteHistory *history);
 
 /**
  * @brief 检查图哈希是否已存在于历史记录中（循环检测）
@@ -244,14 +244,14 @@ void rewrite_history_destroy(RewriteHistory *history);
  * @param[in] graph   约束图
  * @return true 检测到循环，false 无循环
  */
-bool rewrite_history_check_cycle(const RewriteHistory *history, const ConstraintGraph *graph);
+LV00_PUBLIC_API bool rewrite_history_check_cycle(const RewriteHistory *history, const ConstraintGraph *graph);
 
 /**
  * @brief 添加图到历史记录
  * @param[in,out] history 历史记录
  * @param[in] graph   约束图
  */
-void rewrite_history_add(RewriteHistory *history, ConstraintGraph *graph);
+LV00_PUBLIC_API void rewrite_history_add(RewriteHistory *history, ConstraintGraph *graph);
 
 #ifdef __cplusplus
 }

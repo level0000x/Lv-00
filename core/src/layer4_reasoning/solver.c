@@ -1236,7 +1236,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
                         if (poly.coeffs) {
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
@@ -1261,7 +1261,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
-                        poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
+                        poly.coeffs = malloc(2 * sizeof(mpz_t));
                         if (poly.coeffs) {
                             mpz_init(poly.coeffs[1]);
                             mpz_init(poly.coeffs[0]);
@@ -3951,7 +3951,10 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                                 LV00_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
                                                    x1, y1, x3, y3);
                                 LV00_UNUSED(_snw);
-                                target->numeric_assumption_declaration = strdup(buf);
+                                target->numeric_assumption_declaration = lv00_malloc(strlen(buf) + 1);
+                                if (target->numeric_assumption_declaration) {
+                                    lv00_strlcpy(target->numeric_assumption_declaration, buf, strlen(buf) + 1);
+                                }
                             }
                         }
                     }
@@ -4270,11 +4273,11 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
         total_constraints += constraint_weight(graph->constraints[i]);
     }
 
-    /* Also count distance constraints embedded in nodes */
+    /* 线段本身表示两个端点之间的一条连接/距离关系，计作一个独立约束。 */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
-        if (n && n->numeric_assumption_declaration && n->type == GEOM_LINE_SEGMENT) {
-            total_constraints += 1; /* one distance equation */
+        if (n && n->type == GEOM_LINE_SEGMENT) {
+            total_constraints += 1;
         }
     }
 
@@ -4334,12 +4337,10 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
         }
     }
 
-    /* Distance constraints: assign to the line segment's endpoints */
+    /* 线段约束：分配到端点，用于自由变量明细。 */
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
-        if (!n || !n->numeric_assumption_declaration)
-            continue;
-        if (n->type != GEOM_LINE_SEGMENT)
+        if (!n || n->type != GEOM_LINE_SEGMENT)
             continue;
         /* Add one equation to each endpoint */
         if (n->coord_count >= 2) {
@@ -4424,9 +4425,12 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
     }
 
     /* Check 2: Extract equations and look for contradictions */
+    fprintf(stderr, "[TRACE check] init sys\n");
     EquationSystem sys;
     equation_system_init(&sys);
+    fprintf(stderr, "[TRACE check] extract start\n");
     extract_equations_from_constraints(graph, &sys);
+    fprintf(stderr, "[TRACE check] extract done count=%d\n", sys.count);
 
     /* Check for 0 = nonzero (constant contradictions) */
     for (int i = 0; i < sys.count; i++) {
@@ -4553,7 +4557,9 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
         }
     }
 
+    fprintf(stderr, "[TRACE check] clear sys\n");
     equation_system_clear(&sys);
+    fprintf(stderr, "[TRACE check] return false\n");
     return false;
 }
 

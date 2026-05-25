@@ -393,7 +393,7 @@ LV00_PUBLIC_API void stream_emit_node_event(StreamContext *ctx, StreamEventType 
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-LV00_PUBLIC_API void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type, int constraint_id, const char *description,
+void stream_emit_constraint_event(StreamContext *ctx, StreamEventType type, int constraint_id, const char *description,
                                   int step_number);
 
 /**
@@ -407,7 +407,7 @@ LV00_PUBLIC_API void stream_emit_constraint_event(StreamContext *ctx, StreamEven
  * @param step_number 当前步骤
  * @param total_steps 总步骤数
  */
-LV00_PUBLIC_API void stream_emit_progress(StreamContext *ctx, double progress, const char *description, int step_number,
+void stream_emit_progress(StreamContext *ctx, double progress, const char *description, int step_number,
                           int total_steps);
 
 /**
@@ -421,7 +421,7 @@ LV00_PUBLIC_API void stream_emit_progress(StreamContext *ctx, double progress, c
  * @param description   事件描述
  * @param step_number   步骤编号
  */
-LV00_PUBLIC_API void stream_emit_numeric(StreamContext *ctx, StreamEventType type, double numeric_value, const char *description,
+void stream_emit_numeric(StreamContext *ctx, StreamEventType type, double numeric_value, const char *description,
                          int step_number);
 
 /**
@@ -435,7 +435,7 @@ LV00_PUBLIC_API void stream_emit_numeric(StreamContext *ctx, StreamEventType typ
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-LV00_PUBLIC_API void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type, const char *graph_json,
+void stream_emit_graph_snapshot(StreamContext *ctx, StreamEventType type, const char *graph_json,
                                 const char *description, int step_number);
 
 /**
@@ -461,7 +461,7 @@ LV00_PUBLIC_API void stream_emit_merge(StreamContext *ctx, int from_id, int to_i
  * @param description 事件描述
  * @param step_number 步骤编号
  */
-LV00_PUBLIC_API void stream_emit_variable_resolved(StreamContext *ctx, int var_id, double value, const char *description,
+void stream_emit_variable_resolved(StreamContext *ctx, int var_id, double value, const char *description,
                                    int step_number);
 
 /**
@@ -535,7 +535,7 @@ LV00_PUBLIC_API void stream_emit_preset_instantiate(StreamContext *ctx, const ch
  * @param detail       验证详情（可为 NULL）
  * @param step_number  步骤编号
  */
-LV00_PUBLIC_API void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_valid, const char *detail,
+void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_valid, const char *detail,
                                  int step_number);
 
 /**

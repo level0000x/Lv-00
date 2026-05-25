@@ -865,12 +865,11 @@ int high_dim_exit_block_perspective(HighDimManager *manager) {
 
     /* 检查深度栈是否已空 */
     if (manager->perspective_depth <= 0) {
-        /* T-NEW-19: 已在最外层，返回当前状态信息而非错误 */
-        lv00_set_error(LV00_OK,
-                       "当前已在最外层透视（深度=0），无需退出。当前状态：block_count=%d",
+        lv00_set_error(LV00_ERROR_UNSUPPORTED,
+                       "当前已在最外层透视（深度=0），无法继续退出。当前状态：block_count=%d",
                        manager->block_count);
-        LOG_DEBUG("high_dim", "退出透视请求被忽略：已在最外层，当前block_count=%d", manager->block_count);
-        return LV00_OK;
+        LOG_DEBUG("high_dim", "退出透视请求失败：已在最外层，当前block_count=%d", manager->block_count);
+        return LV00_ERROR_UNSUPPORTED;
     }
 
     /* 获取即将退出的block_id并pop栈 */

@@ -159,26 +159,26 @@ typedef struct Lv00GuardContext {
  * @param guard 守卫上下文指针（非 NULL）
  * @return true 成功，false 失败
  */
-bool lv00_guard_init(Lv00GuardContext *guard);
+LV00_PUBLIC_API bool lv00_guard_init(Lv00GuardContext *guard);
 
 /**
  * @brief 销毁运行时守卫上下文
  * @param guard 守卫上下文指针（非 NULL）
  */
-void lv00_guard_destroy(Lv00GuardContext *guard);
+LV00_PUBLIC_API void lv00_guard_destroy(Lv00GuardContext *guard);
 
 /**
  * @brief 获取运行时保护统计信息快照
  * @param guard  守卫上下文指针（非 NULL）
  * @param stats  输出统计信息（非 NULL）
  */
-void lv00_guard_get_stats(const Lv00GuardContext *guard, Lv00GuardStats *stats);
+LV00_PUBLIC_API void lv00_guard_get_stats(const Lv00GuardContext *guard, Lv00GuardStats *stats);
 
 /**
  * @brief 重置运行时保护统计信息
  * @param guard 守卫上下文指针（非 NULL）
  */
-void lv00_guard_reset_stats(Lv00GuardContext *guard);
+LV00_PUBLIC_API void lv00_guard_reset_stats(Lv00GuardContext *guard);
 
 /* ============================================================
  * 核心宏：LV00_RUNTIME_LOCK / LV00_RUNTIME_UNLOCK
@@ -415,7 +415,7 @@ void lv00_guard_reset_stats(Lv00GuardContext *guard);
  * @return true 数据完整性校验通过，false 检测到不一致
  * ============================================================ */
 
-bool lv00_verify_data_integrity(struct Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_verify_data_integrity(struct Lv00Context *ctx);
 
 #else /* !LV00_ENABLE_RUNTIME_GUARDS */
 

@@ -117,7 +117,7 @@ typedef enum {
  * @param state 上下文状态枚举值
  * @return 状态的中文名称字符串（静态存储，无需释放）
  */
-const char *lv00_context_state_name(Lv00ContextState state);
+LV00_PUBLIC_API const char *lv00_context_state_name(Lv00ContextState state);
 
 /**
  * @brief 检查状态转移是否合法
@@ -125,7 +125,7 @@ const char *lv00_context_state_name(Lv00ContextState state);
  * @param to   目标状态
  * @return true 如果转移合法，false 如果不允许
  */
-bool lv00_context_state_transition_valid(Lv00ContextState from, Lv00ContextState to);
+LV00_PUBLIC_API bool lv00_context_state_transition_valid(Lv00ContextState from, Lv00ContextState to);
 
 /* ============================================================
  * 第二部分：推理分支栈
@@ -364,22 +364,22 @@ typedef struct CircuitBreaker {
  *
  * @code
  *   // 1. 创建上下文
- *   Lv00Context *ctx = lv00_context_create();
+ LV00_PUBLIC_API *   Lv00Context *ctx = lv00_context_create();
  *
  *   // 2. 配置参数
  *   lv00_context_set_timeout(ctx, 30000);  // 30 秒超时
  *   lv00_context_set_max_depth(ctx, 50);   // 最大推理深度 50
  *
  *   // 3. 进入解析状态
- *   lv00_context_set_state(ctx, LV00_CONTEXT_PARSING);
+ LV00_PUBLIC_API *   lv00_context_set_state(ctx, LV00_CONTEXT_PARSING);
  *   // ... 添加几何对象和约束到 ctx->main_graph ...
  *
  *   // 4. 进入推理状态
- *   lv00_context_set_state(ctx, LV00_CONTEXT_REASONING);
+ LV00_PUBLIC_API *   lv00_context_set_state(ctx, LV00_CONTEXT_REASONING);
  *
  *   // 5. 分支推理（如反证法）
- *   Lv00Context *snapshot = lv00_context_snapshot(ctx);
- *   lv00_context_push_reasoning(ctx, REASONING_BRANCH_CONTRADICTION, ...);
+ LV00_PUBLIC_API *   Lv00Context *snapshot = lv00_context_snapshot(ctx);
+ LV00_PUBLIC_API *   lv00_context_push_reasoning(ctx, REASONING_BRANCH_CONTRADICTION, ...);
  *   // ... 尝试推导矛盾 ...
  *   bool proved = ...;
  *   if (!proved) {
@@ -387,13 +387,13 @@ typedef struct CircuitBreaker {
  *   }
  *
  *   // 6. 完成
- *   lv00_context_set_state(ctx, LV00_CONTEXT_COMPLETE);
+ LV00_PUBLIC_API *   lv00_context_set_state(ctx, LV00_CONTEXT_COMPLETE);
  *
  *   // 7. 为下一个问题重置
- *   lv00_context_reset(ctx);
+ LV00_PUBLIC_API *   lv00_context_reset(ctx);
  *
  *   // 8. 销毁
- *   lv00_context_destroy(ctx);
+ LV00_PUBLIC_API *   lv00_context_destroy(ctx);
  * @endcode
  *
  * @note 上下文不拥有其引用的外部资源（如模块注册表、公理系统）。
@@ -765,7 +765,7 @@ typedef struct Lv00Context {
  *
  * @note 上下文创建是线程安全的：每个线程可以独立创建自己的上下文实例。
  */
-Lv00Context *lv00_context_create(void);
+LV00_PUBLIC_API Lv00Context *lv00_context_create(void);
 
 /**
  * @brief 销毁上下文，释放所有关联资源
@@ -789,7 +789,7 @@ Lv00Context *lv00_context_create(void);
  *       销毁会触发断言或警告，因为这意味着存在悬空指针。建议先
  *       销毁所有子快照或通过 rollback 整合后再销毁父上下文。
  */
-void lv00_context_destroy(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_destroy(Lv00Context *ctx);
 
 /**
  * @brief 创建当前上下文的完整快照（深拷贝）
@@ -817,7 +817,7 @@ void lv00_context_destroy(Lv00Context *ctx);
  * @warning 快照是深拷贝操作，对于大规模约束图可能开销较大。
  *          未来版本可能实现写时复制（Copy-on-Write）优化。
  */
-Lv00Context *lv00_context_snapshot(Lv00Context *ctx);
+LV00_PUBLIC_API Lv00Context *lv00_context_snapshot(Lv00Context *ctx);
 
 /**
  * @brief 将上下文状态回滚到指定的快照
@@ -846,7 +846,7 @@ Lv00Context *lv00_context_snapshot(Lv00Context *ctx);
  *          回滚可能导致不一致状态。调用者应确保 snapshot 是
  *          ctx 或 ctx 祖先的直接快照。
  */
-bool lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot);
+LV00_PUBLIC_API bool lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot);
 
 /**
  * @brief 重置上下文，清除所有问题特定状态
@@ -872,7 +872,7 @@ bool lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot);
  *
  * @note 这是推荐的在问题之间切换的方式，比销毁再创建更高效。
  */
-void lv00_context_reset(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_reset(Lv00Context *ctx);
 
 /* ============================================================
  * 第七部分：状态机管理 API
@@ -883,7 +883,7 @@ void lv00_context_reset(Lv00Context *ctx);
  * @param ctx 上下文（可为 NULL，返回 LV00_CONTEXT_IDLE）
  * @return 当前状态机状态
  */
-Lv00ContextState lv00_context_get_state(const Lv00Context *ctx);
+LV00_PUBLIC_API Lv00ContextState lv00_context_get_state(const Lv00Context *ctx);
 
 /**
  * @brief 尝试将上下文转移到指定状态
@@ -895,7 +895,7 @@ Lv00ContextState lv00_context_get_state(const Lv00Context *ctx);
  * @param new_state 目标状态
  * @return LV00_OK 成功，LV00_ERROR_INVALID_STATE 非法转移
  */
-Lv00ErrorCode lv00_context_set_state(Lv00Context *ctx, Lv00ContextState new_state);
+LV00_PUBLIC_API Lv00ErrorCode lv00_context_set_state(Lv00Context *ctx, Lv00ContextState new_state);
 
 /* ============================================================
  * 第八部分：推理栈 API
@@ -912,7 +912,7 @@ Lv00ErrorCode lv00_context_set_state(Lv00Context *ctx, Lv00ContextState new_stat
  * @param timeout_ms  该分支的独立超时（0 = 继承父上下文超时）
  * @return LV00_OK 成功，其他错误码表示失败
  */
-Lv00ErrorCode lv00_context_push_reasoning(Lv00Context *ctx, ReasoningBranchType branch_type, uint64_t timeout_ms);
+LV00_PUBLIC_API Lv00ErrorCode lv00_context_push_reasoning(Lv00Context *ctx, ReasoningBranchType branch_type, uint64_t timeout_ms);
 
 /**
  * @brief 从推理栈弹出栈顶帧（分支闭合）
@@ -923,21 +923,21 @@ Lv00ErrorCode lv00_context_push_reasoning(Lv00Context *ctx, ReasoningBranchType 
  * @param ctx 上下文（非 NULL）
  * @return LV00_OK 成功，LV00_ERROR_INVALID_STATE 栈为空时失败
  */
-Lv00ErrorCode lv00_context_pop_reasoning(Lv00Context *ctx);
+LV00_PUBLIC_API Lv00ErrorCode lv00_context_pop_reasoning(Lv00Context *ctx);
 
 /**
  * @brief 获取当前推理栈深度
  * @param ctx 上下文（可为 NULL，返回 0）
  * @return 栈中帧的数量（0 = 主推理线，>= 1 = 至少一个分支）
  */
-int lv00_context_get_reasoning_depth(const Lv00Context *ctx);
+LV00_PUBLIC_API int lv00_context_get_reasoning_depth(const Lv00Context *ctx);
 
 /**
  * @brief 获取当前活跃的推理分支帧（栈顶）
  * @param ctx 上下文（非 NULL）
  * @return 栈顶帧指针（栈为空时返回 NULL）
  */
-ReasoningFrame *lv00_context_get_current_reasoning_frame(Lv00Context *ctx);
+LV00_PUBLIC_API ReasoningFrame *lv00_context_get_current_reasoning_frame(Lv00Context *ctx);
 
 /* ============================================================
  * 第九部分：熔断器 API
@@ -952,7 +952,7 @@ ReasoningFrame *lv00_context_get_current_reasoning_frame(Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  * @return true 熔断器打开（应停止操作），false 正常工作
  */
-bool lv00_context_is_circuit_open(const Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_is_circuit_open(const Lv00Context *ctx);
 
 /**
  * @brief 开始一次可熔断操作（设置操作开始时间）
@@ -962,7 +962,7 @@ bool lv00_context_is_circuit_open(const Lv00Context *ctx);
  *
  * @param ctx 上下文（非 NULL）
  */
-void lv00_context_begin_operation(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_begin_operation(Lv00Context *ctx);
 
 /**
  * @brief 检查当前操作是否超时
@@ -972,7 +972,7 @@ void lv00_context_begin_operation(Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  * @return true 已超时（熔断器已打开），false 正常
  */
-bool lv00_context_check_timeout(Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_check_timeout(Lv00Context *ctx);
 
 /**
  * @brief 进入不可取消区域（uncancellable section）
@@ -982,13 +982,13 @@ bool lv00_context_check_timeout(Lv00Context *ctx);
  *
  * @param ctx 上下文（非 NULL）
  */
-void lv00_context_enter_uncancellable(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_enter_uncancellable(Lv00Context *ctx);
 
 /**
  * @brief 离开不可取消区域
  * @param ctx 上下文（非 NULL）
  */
-void lv00_context_leave_uncancellable(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_leave_uncancellable(Lv00Context *ctx);
 
 /**
  * @brief 记录一次推理步骤
@@ -998,13 +998,13 @@ void lv00_context_leave_uncancellable(Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  * @return true 步骤在限制内，false 超限触发熔断
  */
-bool lv00_context_record_step(Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_record_step(Lv00Context *ctx);
 
 /**
  * @brief 记录一次成功操作（重置连续错误计数）
  * @param ctx 上下文（非 NULL）
  */
-void lv00_context_record_success(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_record_success(Lv00Context *ctx);
 
 /**
  * @brief 记录一次错误操作（递增连续错误计数）
@@ -1014,7 +1014,7 @@ void lv00_context_record_success(Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  * @return true 正常，false 连续错误超限触发熔断
  */
-bool lv00_context_record_error(Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_record_error(Lv00Context *ctx);
 
 /* ============================================================
  * 第十部分：参数配置 API
@@ -1025,63 +1025,63 @@ bool lv00_context_record_error(Lv00Context *ctx);
  * @param ctx        上下文（非 NULL）
  * @param timeout_ms 超时时间（毫秒），0 = 不限制
  */
-void lv00_context_set_timeout(Lv00Context *ctx, uint64_t timeout_ms);
+LV00_PUBLIC_API void lv00_context_set_timeout(Lv00Context *ctx, uint64_t timeout_ms);
 
 /**
  * @brief 获取上下文超时时间
  * @param ctx 上下文（可为 NULL，返回 0）
  * @return 超时时间（毫秒）
  */
-uint64_t lv00_context_get_timeout(const Lv00Context *ctx);
+LV00_PUBLIC_API uint64_t lv00_context_get_timeout(const Lv00Context *ctx);
 
 /**
  * @brief 设置递归/推理深度上限
  * @param ctx      上下文（非 NULL）
  * @param max_depth 最大深度（必须 >= 1，<= LV00_CONTEXT_MAX_RECURSION_DEPTH）
  */
-void lv00_context_set_max_depth(Lv00Context *ctx, int max_depth);
+LV00_PUBLIC_API void lv00_context_set_max_depth(Lv00Context *ctx, int max_depth);
 
 /**
  * @brief 获取递归/推理深度上限
  * @param ctx 上下文（可为 NULL，返回默认值）
  * @return 最大深度
  */
-int lv00_context_get_max_depth(const Lv00Context *ctx);
+LV00_PUBLIC_API int lv00_context_get_max_depth(const Lv00Context *ctx);
 
 /**
  * @brief 设置最大推理步骤数
  * @param ctx       上下文（非 NULL）
  * @param max_steps 最大步骤数，0 = 不限制
  */
-void lv00_context_set_max_steps(Lv00Context *ctx, int64_t max_steps);
+LV00_PUBLIC_API void lv00_context_set_max_steps(Lv00Context *ctx, int64_t max_steps);
 
 /**
  * @brief 获取最大推理步骤数
  * @param ctx 上下文（可为 NULL，返回 0）
  * @return 最大步骤数
  */
-int64_t lv00_context_get_max_steps(const Lv00Context *ctx);
+LV00_PUBLIC_API int64_t lv00_context_get_max_steps(const Lv00Context *ctx);
 
 /**
  * @brief 设置上下文名称（用于日志标识）
  * @param ctx  上下文（非 NULL）
  * @param name 名称字符串（内部复制）
  */
-void lv00_context_set_name(Lv00Context *ctx, const char *name);
+LV00_PUBLIC_API void lv00_context_set_name(Lv00Context *ctx, const char *name);
 
 /**
  * @brief 获取上下文名称
  * @param ctx 上下文（可为 NULL，返回 "null"）
  * @return 名称字符串（内部存储，勿释放）
  */
-const char *lv00_context_get_name(const Lv00Context *ctx);
+LV00_PUBLIC_API const char *lv00_context_get_name(const Lv00Context *ctx);
 
 /**
  * @brief 获取上下文 ID
  * @param ctx 上下文（可为 NULL，返回 0）
  * @return 上下文唯一 ID
  */
-uint64_t lv00_context_get_id(const Lv00Context *ctx);
+LV00_PUBLIC_API uint64_t lv00_context_get_id(const Lv00Context *ctx);
 
 /* ============================================================
  * 第十一部分：缓存管理 API
@@ -1095,20 +1095,20 @@ uint64_t lv00_context_get_id(const Lv00Context *ctx);
  *
  * @param ctx 上下文（非 NULL）
  */
-void lv00_context_invalidate_cache(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_invalidate_cache(Lv00Context *ctx);
 
 /**
  * @brief 检查缓存是否有效
  * @param ctx 上下文（非 NULL）
  * @return true 缓存有效可用，false 需要重新计算
  */
-bool lv00_context_is_cache_valid(const Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_is_cache_valid(const Lv00Context *ctx);
 
 /**
  * @brief 清除所有缓存内容（释放内存但保留缓存结构）
  * @param ctx 上下文（非 NULL）
  */
-void lv00_context_clear_cache(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_clear_cache(Lv00Context *ctx);
 
 /* ============================================================
  * 第十二部分：错误管理 API
@@ -1124,7 +1124,7 @@ void lv00_context_clear_cache(Lv00Context *ctx);
  * @param fmt   错误描述格式字符串
  * @param ...   格式参数
  */
-void lv00_context_set_error(Lv00Context *ctx, Lv00ErrorCode code, const char *fmt, ...);
+LV00_PUBLIC_API void lv00_context_set_error(Lv00Context *ctx, Lv00ErrorCode code, const char *fmt, ...);
 
 /**
  * @brief 清除上下文的错误状态
@@ -1134,21 +1134,21 @@ void lv00_context_set_error(Lv00Context *ctx, Lv00ErrorCode code, const char *fm
  *
  * @param ctx 上下文（非 NULL）
  */
-void lv00_context_clear_error(Lv00Context *ctx);
+LV00_PUBLIC_API void lv00_context_clear_error(Lv00Context *ctx);
 
 /**
  * @brief 获取上下文的错误码
  * @param ctx 上下文（可为 NULL）
  * @return 错误码（ctx 为 NULL 时返回 LV00_ERROR_NULL_POINTER）
  */
-Lv00ErrorCode lv00_context_get_error_code(const Lv00Context *ctx);
+LV00_PUBLIC_API Lv00ErrorCode lv00_context_get_error_code(const Lv00Context *ctx);
 
 /**
  * @brief 获取上下文的错误消息
  * @param ctx 上下文（可为 NULL）
  * @return 错误消息字符串（内部存储，勿释放。ctx 为 NULL 时返回 "null context"）
  */
-const char *lv00_context_get_error_message(const Lv00Context *ctx);
+LV00_PUBLIC_API const char *lv00_context_get_error_message(const Lv00Context *ctx);
 
 /* ============================================================
  * 第十三部分：流式输出 API
@@ -1159,21 +1159,21 @@ const char *lv00_context_get_error_message(const Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  * @return 流式上下文指针
  */
-struct StreamContext *lv00_context_get_stream(Lv00Context *ctx);
+LV00_PUBLIC_API struct StreamContext *lv00_context_get_stream(Lv00Context *ctx);
 
 /**
  * @brief 设置流式输出的启用状态
  * @param ctx     上下文（非 NULL）
  * @param enabled true 启用，false 禁用
  */
-void lv00_context_set_streaming_enabled(Lv00Context *ctx, bool enabled);
+LV00_PUBLIC_API void lv00_context_set_streaming_enabled(Lv00Context *ctx, bool enabled);
 
 /**
  * @brief 检查流式输出是否启用
  * @param ctx 上下文（可为 NULL，返回 false）
  * @return true 启用
  */
-bool lv00_context_is_streaming_enabled(const Lv00Context *ctx);
+LV00_PUBLIC_API bool lv00_context_is_streaming_enabled(const Lv00Context *ctx);
 
 /* ============================================================
  * 第十四部分：统计与调试 API
@@ -1197,14 +1197,14 @@ bool lv00_context_is_streaming_enabled(const Lv00Context *ctx);
  * @param buf_size 缓冲区大小（建议至少 1024 字节）
  * @return 实际写入的字符数（不含终止符）
  */
-int lv00_context_get_stats(const Lv00Context *ctx, char *buf, size_t buf_size);
+LV00_PUBLIC_API int lv00_context_get_stats(const Lv00Context *ctx, char *buf, size_t buf_size);
 
 /**
  * @brief 获取上下文的运行时间（微秒）
  * @param ctx 上下文（非 NULL）
  * @return 自创建或最近一次 reset 以来的微秒数
  */
-uint64_t lv00_context_get_uptime_us(const Lv00Context *ctx);
+LV00_PUBLIC_API uint64_t lv00_context_get_uptime_us(const Lv00Context *ctx);
 
 #ifdef __cplusplus
 }
