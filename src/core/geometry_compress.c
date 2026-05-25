@@ -61,6 +61,12 @@
 /** Maximum number of adjacent faces for multi-parallelogram prediction */
 #define MAX_ADJACENT_FACES 16
 
+/** Huffman tree maximum node count (256 leaves + max 255 internal nodes) */
+#define HUFFMAN_MAX_NODES 511
+
+/** Huffman encoding maximum length */
+#define HUFFMAN_MAX_CODE_LEN 256
+
 /* ========================================================================
  * Internal helper structures
  * ======================================================================== */
@@ -80,6 +86,43 @@ typedef struct {
     int verts[3]; /**< Three vertex node IDs */
     bool visited; /**< Whether visited during traversal */
 } TriangleFace;
+
+/**
+ * @brief Huffman tree node
+ */
+typedef struct {
+    int left;           /**< Left child index, -1 = none */
+    int right;          /**< Right child index, -1 = none */
+    int parent;         /**< Parent index, -1 = root */
+    uint32_t freq;      /**< Node frequency weight */
+    uint8_t byte_val;   /**< Leaf byte value (invalid for internal nodes) */
+} HuffmanNode;
+
+/**
+ * @brief Min-heap structure (for building Huffman tree)
+ */
+typedef struct {
+    int *nodes;             /**< Heap-stored Huffman node indices */
+    int size;               /**< Current heap size */
+    int capacity;           /**< Heap capacity */
+    HuffmanNode *hnodes;    /**< Pointer to Huffman node array (for frequency comparison) */
+} MinHeap;
+
+/**
+ * @brief Huffman encoding lookup table entry
+ */
+typedef struct {
+    uint32_t code;      /**< Encoding bit sequence */
+    int length;         /**< Encoding bit length */
+} HuffmanCode;
+
+/* Forward declarations for Huffman functions */
+static void heap_swap(MinHeap *h, int i, int j);
+static void heap_sift_up(MinHeap *h, int idx);
+static void heap_sift_down(MinHeap *h, int idx);
+static bool heap_push(MinHeap *h, int node_idx);
+static int heap_pop(MinHeap *h);
+static void huffman_generate_codes(const HuffmanNode *hnodes, int root, HuffmanCode *codes);
 
 /* ========================================================================
  * Default compression config factory (internal)
@@ -975,45 +1018,6 @@ bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, i
 /* ========================================================================
  * Huffman encoder/decoder
  * ======================================================================== */
-
-/** Huffman tree maximum node count (256 leaves + max 255 internal nodes) */
-#define HUFFMAN_MAX_NODES 511
-
-/** Huffman encoding maximum length */
-#define HUFFMAN_MAX_CODE_LEN 256
-
-/* ========================================================================
- * Internal data structures
- * ======================================================================== */
-
-/**
- * @brief Huffman tree node
- */
-typedef struct {
-    int left;           /**< Left child index, -1 = none */
-    int right;          /**< Right child index, -1 = none */
-    int parent;         /**< Parent index, -1 = root */
-    uint32_t freq;      /**< Node frequency weight */
-    uint8_t byte_val;   /**< Leaf byte value (invalid for internal nodes) */
-} HuffmanNode;
-
-/**
- * @brief Huffman encoding lookup table entry
- */
-typedef struct {
-    uint32_t code;      /**< Encoding bit sequence */
-    int length;         /**< Encoding bit length */
-} HuffmanCode;
-
-/**
- * @brief Min-heap structure (for building Huffman tree)
- */
-typedef struct {
-    int *nodes;             /**< Heap-stored Huffman node indices */
-    int size;               /**< Current heap size */
-    int capacity;           /**< Heap capacity */
-    HuffmanNode *hnodes;    /**< Pointer to Huffman node array (for frequency comparison) */
-} MinHeap;
 
 /**
  * @brief Bit writer - supports bit-level writing to output buffer

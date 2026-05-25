@@ -33,12 +33,13 @@
  *   - error_codes.h           : 错误码定义
  */
 
-#include "lv00/proof_engine_enhanced.h"
-#include "lv00/proof.h"
-#include "lv00/axiom_rule_engine.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/error_codes.h"
-#include "lv00/three_valued_logic.h"
+#include "proof_engine_enhanced.h"
+#include "proof.h"
+#include "axiom_rule_engine.h"
+#include "constraint_graph.h"
+#include "error_codes.h"
+#include "three_valued_logic.h"
+#include "lv00.h"              /* LV00_THREAD_LOCAL 宏定义 */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +47,11 @@
 #include <stdarg.h>
 #include <math.h>
 
-#include "lv00/lv00_utils.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include "lv00_utils.h"
 
 /* ============== 内部常量与宏 ============== */
 
@@ -1157,7 +1162,7 @@ bool lv00_detect_contradiction(const ConstraintGraph *graph,
  * @param path 矛盾路径
  * @return true 路径有效，false 路径无效或参数为 NULL
  */
-bool lv00_contradiction_path_validate(const Lv00ContradictionPath *path) {
+bool lv00_contradiction_path_validate(Lv00ContradictionPath *path) {
     if (!path) {
         lv00_set_error(LV00_ERROR_NULL_POINTER,
                        "验证矛盾路径时参数为 NULL");
@@ -1223,7 +1228,7 @@ bool lv00_contradiction_path_validate(const Lv00ContradictionPath *path) {
  * @param out_path  输出矛盾路径（调用者负责释放）
  * @return true 反证法成功（发现矛盾），false 失败
  */
-bool lv00_proof_by_contradiction(Lv00ProofEngine *engine,
+bool lv00_engine_proof_by_contradiction(Lv00ProofEngine *engine,
                                   const Proposition *goal,
                                   uint32_t max_steps,
                                   Lv00ContradictionPath **out_path) {
@@ -1640,7 +1645,7 @@ static bool execute_strategy_direct(Lv00ProofEngine *engine,
         if (engine->graph) {
             UnifyStatus unify_result = proof_unify(
                 engine->graph, (Proposition *)goal, true);
-            if (unify_result == UNIFY_SUCCESS) {
+            if (unify_result == UNIFY_STATUS_OK) {
                 /* 合一成功，证明完成 */
                 Lv00ProofTraceNode *proved_node = lv00_trace_node_create(
                     TRACE_NODE_DERIVATION, "Unification Success");
@@ -1873,7 +1878,7 @@ static bool execute_strategy_construction(Lv00ProofEngine *engine,
 
     /* 构造步骤节点 */
     Lv00ProofTraceNode *construct_node = lv00_trace_node_create(
-        TRACE_NODE_CONSTRUCTION, "Explicit Construction");
+        TRACE_NODE_DEFINITION, "Explicit Construction");
     if (!construct_node) return false;
 
     safe_strncpy(construct_node->description,
@@ -2051,7 +2056,7 @@ static bool execute_strategy_forward(Lv00ProofEngine *engine,
         if (engine->graph) {
             UnifyStatus result = proof_unify(
                 engine->graph, (Proposition *)goal, false);
-            if (result == UNIFY_SUCCESS) {
+            if (result == UNIFY_STATUS_OK) {
                 Lv00ProofTraceNode *final_node = lv00_trace_node_create(
                     TRACE_NODE_DERIVATION, "Goal Reached");
                 if (final_node) {
@@ -2158,7 +2163,7 @@ static bool execute_strategy_hybrid(Lv00ProofEngine *engine,
     }
 
     Lv00ContradictionPath *contra_path = NULL;
-    bool contra_ok = lv00_proof_by_contradiction(
+    bool contra_ok = lv00_engine_proof_by_contradiction(
         engine, goal, engine->config.max_depth, &contra_path);
 
     if (contra_ok) {
@@ -2197,7 +2202,7 @@ static bool dispatch_strategy(Lv00ProofEngine *engine,
             return execute_strategy_direct(engine, goal, tree);
         case STRATEGY_CONTRADICTION: {
             Lv00ContradictionPath *path = NULL;
-            bool ok = lv00_proof_by_contradiction(
+            bool ok = lv00_engine_proof_by_contradiction(
                 engine, goal, engine->config.max_depth, &path);
             if (path) lv00_contradiction_path_destroy(path);
             return ok;
@@ -2474,14 +2479,14 @@ Lv00VerifyResult lv00_verify_proof(const Lv00ProofTraceTree *trace,
         if (out_error) {
             snprintf(out_error, 512, "溯源树为 NULL");
         }
-        return VERIFY_ERROR;
+        return LV00_VERIFY_ERROR;
     }
 
     if (!trace->root) {
         if (out_error) {
             snprintf(out_error, 512, "溯源树缺少根节点");
         }
-        return VERIFY_ERROR;
+        return LV00_VERIFY_ERROR;
     }
 
     /* 检查根节点状态 */
@@ -2491,7 +2496,7 @@ Lv00VerifyResult lv00_verify_proof(const Lv00ProofTraceTree *trace,
                      "根节点状态为 %d（期望 PROVED=%d）",
                      (int)trace->root->status, (int)TRACE_STATUS_PROVED);
         }
-        return VERIFY_INCOMPLETE;
+        return LV00_VERIFY_INCOMPLETE;
     }
 
     /* 检查所有节点 */
@@ -2505,7 +2510,7 @@ Lv00VerifyResult lv00_verify_proof(const Lv00ProofTraceTree *trace,
                          "推导节点 %u ('%s') 没有子节点（缺少推导依据）",
                          node->id, node->label);
             }
-            return VERIFY_INVALID;
+            return LV00_VERIFY_INVALID;
         }
 
         /* 检查未完成的子目标 */
@@ -2516,7 +2521,7 @@ Lv00VerifyResult lv00_verify_proof(const Lv00ProofTraceTree *trace,
                          "子目标节点 %u ('%s') 未被探索",
                          node->id, node->label);
             }
-            return VERIFY_INCOMPLETE;
+            return LV00_VERIFY_INCOMPLETE;
         }
     }
 
@@ -2531,7 +2536,7 @@ Lv00VerifyResult lv00_verify_proof(const Lv00ProofTraceTree *trace,
         }
     }
 
-    return VERIFY_VALID;
+    return LV00_VERIFY_VALID;
 }
 
 /**
@@ -2555,7 +2560,7 @@ Lv00VerifyResult lv00_verify_proof_step(const ProofStep *step,
         if (out_error) {
             snprintf(out_error, 512, "证明步骤为 NULL");
         }
-        return VERIFY_ERROR;
+        return LV00_VERIFY_ERROR;
     }
 
     /* 检查步骤类型 */
@@ -2565,7 +2570,7 @@ Lv00VerifyResult lv00_verify_proof_step(const ProofStep *step,
                      "步骤 %d 的类型 %d 无效",
                      step->id, (int)step->type);
         }
-        return VERIFY_INVALID;
+        return LV00_VERIFY_INVALID;
     }
 
     /* 检查步骤是否完成 */
@@ -2575,7 +2580,7 @@ Lv00VerifyResult lv00_verify_proof_step(const ProofStep *step,
                      "步骤 %d 尚未完成",
                      step->id);
         }
-        return VERIFY_INCOMPLETE;
+        return LV00_VERIFY_INCOMPLETE;
     }
 
     /* 检查关联的约束是否存在 */
@@ -2590,11 +2595,11 @@ Lv00VerifyResult lv00_verify_proof_step(const ProofStep *step,
                          "步骤 %d 引用的约束 %d 在约束图中不存在",
                          step->id, step->constraint_id);
             }
-            return VERIFY_INVALID;
+            return LV00_VERIFY_INVALID;
         }
     }
 
-    return VERIFY_VALID;
+    return LV00_VERIFY_VALID;
 }
 
 /* ============== 证明优化 ============== */

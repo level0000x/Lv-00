@@ -29,6 +29,21 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+/* ============== 安全计算常量 ============== */
+
+/** 浮点除零保护阈值 (1e-15)。
+ *  当分母绝对值小于此值时视为零，避免除零错误。 */
+#ifndef LV00_EPSILON
+#define LV00_EPSILON 1e-15
+#endif
+
+/** 三角函数角度归模上限。
+ *  超过此值的角度需进行周期归模：angle = fmod(angle, 2.0 * M_PI)，
+ *  防止大角度导致精度损失。 */
+#ifndef LV00_TRIG_ANGLE_MAX
+#define LV00_TRIG_ANGLE_MAX 1e6
+#endif
+
 /* ============== 前向声明 ============== */
 
 typedef struct Lv00Expr Lv00Expr;
@@ -543,6 +558,54 @@ bool lv00_continued_fraction_approx(const mpz_t num, const mpz_t denom,
  */
 void lv00_best_rational_approx(const mpz_t num, const mpz_t denom,
                                 const mpz_t max_denom, mpz_t out_num, mpz_t out_denom);
+
+/* ============== 三角函数安全工具 ============== */
+
+/**
+ * @brief 三角函数角度周期归模（浮点版本）
+ *
+ * 将输入角度归一化到 [-pi, pi] 范围内，使用 2pi 取模。
+ * 当角度绝对值超过 LV00_TRIG_ANGLE_MAX 时返回 0.0 作为安全值。
+ *
+ * @param angle 原始角度（弧度）
+ * @return 规范化后的角度（[-pi, pi]）
+ */
+double lv00_trig_normalize_angle(double angle);
+
+/**
+ * @brief 三角函数角度周期归模（GMP 有理数版本）
+ *
+ * 对于以 GMP 有理数表示的角度，使用精确的 2pi 周期归模。
+ * 将角度归入 [0, 2pi) 区间。
+ *
+ * @param[in,out] angle_mpq 角度（GMP 有理数），原地归模后写入
+ */
+void lv00_trig_normalize_angle_mpq(mpq_t angle_mpq);
+
+/**
+ * @brief 安全浮点除法
+ *
+ * 检查分母绝对值是否小于 LV00_EPSILON，防止浮点除零错误。
+ * 分母接近零时返回 false 并将 result 设为 HUGE_VAL 作为无穷大标记。
+ *
+ * @param[out] result      结果（仅在成功时写入）
+ * @param[in]  numerator   分子
+ * @param[in]  denominator 分母
+ * @return true 除法成功，false 分母接近零
+ */
+bool lv00_safe_fp_div(double *result, double numerator, double denominator);
+
+/**
+ * @brief 安全 GMP 有理数除法
+ *
+ * 使用 mpz_sgn() 检查除数分子是否为 0，防止除零错误。
+ *
+ * @param[out] result 结果（仅在成功时写入）
+ * @param[in]  a      被除数
+ * @param[in]  b      除数
+ * @return true 除法成功，false 除数为零
+ */
+bool lv00_safe_mpq_div(mpq_t result, const mpq_t a, const mpq_t b);
 
 #ifdef __cplusplus
 }

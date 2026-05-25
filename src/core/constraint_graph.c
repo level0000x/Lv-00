@@ -47,6 +47,7 @@
 #include <assert.h>
 #include <gmp.h>
 #include <math.h>
+#include <stdatomic.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,11 +55,13 @@
 
 #include "debug.h"
 #include "error_codes.h"
+#include "context.h"      /* v3.4.0: Lv00Context 用于统一错误系统 */
 #include "lv00_internal.h"
 #include "lv00_utils.h" /* lv00_malloc / lv00_free —— 统一内存分配器 */
 #include "solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "constraint_graph_safe.h"  /* v3.4.2: 安全操作辅助函数 */
 
 LV00_DECLARE_STREAM_CTX(graph)
 
@@ -70,29 +73,21 @@ static void node_index_remove(ConstraintGraph *graph, int node_id);
 void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 
 /**
- * @brief 通用数组扩容辅助函数
+ * @brief 安全数组扩容辅助函数（委托给统一的 lv00_ensure_capacity）
  * @param arr 当前数组指针
  * @param count 当前元素数量
  * @param capacity 当前容量指针
  * @param elem_size 单个元素大小
  * @param min_growth 最小增长量
  * @return 扩容后的数组指针，失败返回 NULL
+ * @note 内部委托给 lv00_ensure_capacity
  */
 static void *graph_ensure_capacity(void *arr, int count, int *capacity,
                                     size_t elem_size, int min_growth) {
-    if (count < *capacity) return arr;
-    /* 溢出检查：确保 new_cap 不会超过 INT_MAX */
-    if (*capacity > INT_MAX / 2) {
+    void *arr_ptr = arr;
+    if (!lv00_ensure_capacity(&arr_ptr, count, capacity, elem_size, min_growth))
         return NULL;
-    }
-    int new_cap = *capacity * 2;
-    if (new_cap < count + min_growth) new_cap = count + min_growth;
-    if (new_cap < 0 || (size_t)new_cap > SIZE_MAX / elem_size) {
-        return NULL;
-    }
-    void *new_arr = lv00_realloc(arr, (size_t)new_cap * elem_size);
-    if (new_arr) *capacity = new_cap;
-    return new_arr;
+    return arr_ptr;
 }
 
 /**
@@ -111,7 +106,8 @@ static GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type) {
     if (!node)
         return NULL;
     memset(node, 0, sizeof(GeomNode));
-    node->id = graph->next_node_id++;
+    /* v3.4.1: 使用原子操作分配节点ID，确保多线程安全 */
+    node->id = GRAPH_ATOMIC_NODE_ID_INCREMENT(graph);
     node->type = type;
     node->trust = TRUST_GREEN;
     node->namespace_depth = 0;
@@ -145,8 +141,10 @@ static Constraint *graph_alloc_constraint(ConstraintGraph *graph, ConstraintType
     if (!con)
         return NULL;
     memset(con, 0, sizeof(Constraint));
-    con->id = graph->next_constraint_id++;
+    /* v3.4.1: 使用原子操作分配约束ID，确保多线程安全 */
+    con->id = GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph);
     con->type = type;
+    con->is_active = true;   /* v3.5.0: 新约束默认活跃 */
     Constraint **new_constraints = (Constraint **)graph_ensure_capacity(
         graph->constraints, graph->constraint_count, &graph->constraint_capacity,
         sizeof(Constraint *), 1);
@@ -231,9 +229,17 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
     graph->nodes[graph->node_count++] = node;
     graph_node_index_insert(graph, node);
 
-    /* 更新 next_node_id 以确保新节点ID不会冲突 */
+    /* 更新 next_node_id 以确保新节点ID不会冲突（使用原子 CAS 循环保证线程安全） */
     if (node_id >= graph->next_node_id) {
-        graph->next_node_id = node_id + 1;
+        int expected = graph->next_node_id;
+        int desired = node_id + 1;
+        while (expected < desired) {
+            desired = node_id + 1;
+            if (atomic_compare_exchange_weak((atomic_int *)&graph->next_node_id, &expected, desired)) {
+                break;
+            }
+            /* expected 已被更新为当前值，循环重试直到成功或当前值已 >= desired */
+        }
     }
 
     /* 流式事件: 节点添加 */
@@ -267,6 +273,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
 
     con->id = constraint_id;
     con->type = type;
+    con->is_active = true;   /* v3.5.0: 新约束默认活跃 */
     con->participant_count = participant_count;
     con->participants = lv00_malloc(participant_count * sizeof(int));
     if (!con->participants) {
@@ -333,6 +340,8 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
 static bool constraint_exists(ConstraintGraph *graph, ConstraintType type, int *participants, int count) {
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
+        if (!c->is_active)                    /* v3.5.0: 跳过不活跃约束 */
+            continue;
         if (c->type != type || c->participant_count != count)
             continue;
         bool same = true;
@@ -705,22 +714,59 @@ static bool check_incremental_conflict(const ConstraintGraph *graph, const Const
          * 但3条或更多条线且没有相交约束则是冲突 */
             if (incident_count >= 2) {
                 /* 检查是否有任意一对关联线之间有 INTERSECTION 约束 */
-                int lines[LV00_ADJ_MAX_PER_NODE]; /* 与 LV00_ADJ_MAX_PER_NODE 保持一致，避免静默截断 */
+                /* v3.4.2: 使用动态分配替代固定大小数组，避免缓冲区溢出风险 */
+                int *lines = NULL;
                 int line_count = 0;
+                int lines_capacity = 8;  /* 初始容量 */
+
+                lines = (int *)lv00_malloc(sizeof(int) * lines_capacity);
+                if (!lines) {
+                    LV00_LOG_ERROR("check_incremental_conflict: 内存分配失败");
+                    return false;  /* 内存不足，保守返回无冲突 */
+                }
+
                 for (int i = 0; i < graph->constraint_count; i++) {
                     Constraint *c = graph->constraints[i];
                     if (c->type == INCIDENCE && c->participants[0] == point_id) {
-                        if (line_count < LV00_ADJ_MAX_PER_NODE)
-                            lines[line_count++] = c->participants[1];
+                        /* v3.4.2: 动态扩容 */
+                        if (line_count >= lines_capacity) {
+                            int new_cap = lines_capacity * 2;
+                            if (new_cap < lines_capacity) {  /* 溢出检查 */
+                                lv00_free((void**)&lines);
+                                return false;
+                            }
+                            int *new_lines = (int *)lv00_realloc(lines, sizeof(int) * new_cap);
+                            if (!new_lines) {
+                                lv00_free((void**)&lines);
+                                return false;
+                            }
+                            lines = new_lines;
+                            lines_capacity = new_cap;
+                        }
+                        lines[line_count++] = c->participants[1];
                     }
                 }
                 /* 包含新添加的线 */
-                if (line_count < LV00_ADJ_MAX_PER_NODE)
-                    lines[line_count++] = line_id;
+                if (line_count >= lines_capacity) {
+                    int new_cap = lines_capacity * 2;
+                    if (new_cap < lines_capacity) {
+                        lv00_free((void**)&lines);
+                        return false;
+                    }
+                    int *new_lines = (int *)lv00_realloc(lines, sizeof(int) * new_cap);
+                    if (!new_lines) {
+                        lv00_free((void**)&lines);
+                        return false;
+                    }
+                    lines = new_lines;
+                    lines_capacity = new_cap;
+                }
+                lines[line_count++] = line_id;
 
                 /* 检查所有线对的相交约束 */
-                for (int a = 0; a < line_count; a++) {
-                    for (int b = a + 1; b < line_count; b++) {
+                bool conflict_found = false;
+                for (int a = 0; a < line_count && !conflict_found; a++) {
+                    for (int b = a + 1; b < line_count && !conflict_found; b++) {
                         bool has_intersection = false;
                         for (int i = 0; i < graph->constraint_count; i++) {
                             Constraint *c = graph->constraints[i];
@@ -734,9 +780,16 @@ static bool check_incremental_conflict(const ConstraintGraph *graph, const Const
                         }
                         if (!has_intersection) {
                             /* 两条线共点但没有相交约束 - 如果线平行则是潜在冲突 */
-                            return true;
+                            conflict_found = true;
                         }
                     }
+                }
+
+                /* v3.4.2: 释放动态分配的数组 */
+                lv00_free((void**)&lines);
+
+                if (conflict_found) {
+                    return true;
                 }
             }
             break;
@@ -815,6 +868,12 @@ static bool check_incremental_conflict(const ConstraintGraph *graph, const Const
         case CONTAINMENT:
         case CONNECTION:
             /* No simple algebraic conflict check for these types */
+            break;
+        default:
+            /* v3.5.0: 未知约束类型，记录错误 */
+            lv00_set_error(LV00_ERROR_UNKNOWN,
+                           "check_incremental_conflict: 未知约束类型 %d (constraint id=%d)",
+                           (int)new_constraint->type, new_constraint->id);
             break;
     }
     return false;
@@ -1292,6 +1351,7 @@ AddConstraintResult graph_add_incidence(ConstraintGraph *graph, int point_id, in
         snprintf(buf, sizeof(buf), "添加关联约束: id=%d, point=%d, target=%d", con->id, point_id, line_or_region_id);
         stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONSTRAINT_ADDED, buf, 0);
     }
+    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -1337,6 +1397,7 @@ AddConstraintResult graph_add_betweenness(ConstraintGraph *graph, int p1_id, int
                  "(点 %d-%d-%d 不共线)",
                  con->id, p1_id, p2_id, p3_id);
     }
+    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -1383,6 +1444,7 @@ AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id,
                  "(线 %d 和 %d 已在不同点相交)",
                  con->id, line1_id, line2_id);
     }
+    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -1421,6 +1483,7 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
     con->participants[0] = inner_id;
     con->participants[1] = outer_id;
     con->participant_count = 2;
+    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -1469,6 +1532,7 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
     /* 建立双向连接关系 */
     dst_port->connected_to = src;
     src_port->connected_to = dst;
+    graph->dirty = true;  /* v3.5.0: 约束被添加，标记脏状态 */
     return ADD_CONSTRAINT_OK;
 }
 
@@ -1581,6 +1645,7 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
                 graph->constraints[k] = graph->constraints[k + 1];
             }
             graph->constraint_count--;
+            graph->dirty = true;  /* v3.5.0: 约束被移除，标记脏状态 */
         }
     }
 
@@ -1636,12 +1701,129 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
         graph->constraints[i] = graph->constraints[i + 1];
     }
     graph->constraint_count--;
+    graph->dirty = true;  /* v3.5.0: 约束被移除，标记脏状态 */
     if (graph_stream_ctx) {
         char buf[128];
         snprintf(buf, sizeof(buf), "移除约束: id=%d", cid);
         stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO, cid, buf, 0);
     }
     return REMOVE_CONSTRAINT_OK;
+}
+
+/* ============================================================
+ * v3.5.0: 脏标记传播与约束生命周期管理
+ * ============================================================ */
+
+/**
+ * @brief 标记约束图为脏状态
+ *
+ * 约束被修改（添加/删除/废弃）时调用，设置 dirty 标记。
+ * 后续 graph_sync_nodes() 会遍历受影响节点并刷新属性。
+ *
+ * @param graph 约束图指针
+ */
+void graph_mark_dirty(ConstraintGraph *graph) {
+    if (!graph)
+        return;
+    graph->dirty = true;
+}
+
+/**
+ * @brief 同步约束图中所有受影响节点的属性
+ *
+ * 遍历所有节点，刷新受约束影响的属性（如 trust 等级、
+ * 数值精度等）。同步完成后重置 dirty 标记。
+ *
+ * @param graph 约束图指针
+ */
+void graph_sync_nodes(ConstraintGraph *graph) {
+    if (!graph)
+        return;
+    if (!graph->dirty)
+        return;  /* 无变更，无需同步 */
+
+    /* 遍历所有活跃约束，传播约束信息到受影响节点 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c || !c->is_active)
+            continue;
+
+        /* 刷新每个参与节点：根据约束类型调整 trust 等级 */
+        for (int j = 0; j < c->participant_count; j++) {
+            GeomNode *node = graph_get_node(graph, c->participants[j]);
+            if (!node)
+                continue;
+
+            /* 基于约束类型调整信任等级 */
+            switch (c->type) {
+                case INCIDENCE:
+                case BETWEENNESS:
+                case INTERSECTION:
+                    /* 几何约束对精度要求高，保持或提升 trust */
+                    if (node->trust > TRUST_GREEN)
+                        node->trust = TRUST_GREEN;
+                    break;
+                case CONTAINMENT:
+                case CONNECTION:
+                    /* 拓扑约束允许较低的 trust */
+                    break;
+                default:
+                    LV00_LOG_ERROR("graph_sync_nodes: 未知约束类型 %d (id=%d)",
+                                   (int)c->type, c->id);
+                    break;
+            }
+        }
+    }
+
+    graph->dirty = false;
+}
+
+/**
+ * @brief 废弃约束（惰性删除）
+ *
+ * 将约束标记为不活跃（is_active = false），从活跃约束索引中移除，
+ * 但保留其数据以便审计跟踪。活跃约束迭代时自动跳过不活跃约束。
+ *
+ * @param graph         约束图指针
+ * @param constraint_id 要废弃的约束 ID
+ * @return LV00_OK 成功，其他错误码表示失败
+ */
+int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id) {
+    if (!graph)
+        return LV00_ERROR_INVALID_PARAM;
+
+    Constraint *con = graph_get_constraint(graph, constraint_id);
+    if (!con) {
+        lv00_set_error(LV00_ERROR_NOT_FOUND,
+                       "graph_deactivate_constraint: 约束 #%d 未找到", constraint_id);
+        return LV00_ERROR_NOT_FOUND;
+    }
+    if (!con->is_active) {
+        lv00_set_error(LV00_ERROR_UNKNOWN,
+                       "graph_deactivate_constraint: 约束 #%d 已经是不活跃状态", constraint_id);
+        return LV00_ERROR_UNKNOWN;
+    }
+
+    /* 标记为不活跃 */
+    con->is_active = false;
+
+    /* 从哈希索引中移除（保留约束数据用于审计） */
+    constraint_index_remove(graph, constraint_id);
+
+    /* 标记图为脏状态，需要同步 */
+    graph_mark_dirty(graph);
+
+    LOG_INFO("constraint_graph",
+             "约束 #%d (类型=%d) 已废弃，保留数据用于审计跟踪",
+             constraint_id, (int)con->type);
+
+    if (graph_stream_ctx) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "废弃约束: id=%d (已停用，保留审计数据)", constraint_id);
+        stream_emit_constraint_event(graph_stream_ctx, STREAM_EVENT_INFO, constraint_id, buf, 0);
+    }
+
+    return LV00_OK;
 }
 
 /**
@@ -1659,6 +1841,8 @@ int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, 
     int count = 0;
     for (int i = 0; i < graph->constraint_count && count < max_results; i++) {
         Constraint *c = graph->constraints[i];
+        if (!c->is_active)                    /* v3.5.0: 跳过不活跃约束 */
+            continue;
         for (int j = 0; j < c->participant_count; j++) {
             if (c->participants[j] == node_id) {
                 out_indices[count++] = i;
@@ -1683,6 +1867,8 @@ int graph_detect_redundancy(const ConstraintGraph *graph, ConstraintType type, c
         return -1;
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
+        if (!c->is_active)                    /* v3.5.0: 跳过不活跃约束 */
+            continue;
         if (c->type != type || c->participant_count != n_parts)
             continue;
         bool same = true;
@@ -1791,15 +1977,25 @@ ConstraintGraph *graph_create(void) {
     memset(graph, 0, sizeof(ConstraintGraph));
     graph->next_node_id = 0;
     graph->next_constraint_id = 0;
+    graph->dirty = false;  /* v3.5.0: 脏标记初始化为 false */
 
-    /* TODO(v3.4.0): 清理遗留错误系统 —— error_buffer 和 serialize_buffer
-     * 应在迁移到 Lv00Context 统一错误系统后移除。
-     * 当前保留仅为向后兼容。 */
-    /* 为每图级的错误缓冲区分配堆内存（v3.3.0：替代旧版静态全局变量） */
+    /* ============================================================================
+     * 遗留缓冲区说明 (v3.4.0 计划清理)
+     * ============================================================================
+     * error_buffer 和 serialize_buffer 是 v3.3.0 引入的每图级错误缓冲区，
+     * 用于替代旧版静态全局变量，提升并发安全性。
+     *
+     * 迁移计划 (v3.4.0):
+     * - 当 Lv00Context 统一错误系统完全就绪后，这些缓冲区将逐步迁移
+     *   到 context->error_message[] 数组中统一管理。
+     * - graph_set_error() / graph_get_error() 已优先使用 context 错误存储，
+     *   这些缓冲区仅作为 fallback 保留。
+     * - 当前保留是为了向后兼容，避免破坏已有调用代码。
+     *
+     * 风险评估: 无运行时风险，仅为架构演进预留的占位代码。
+     * ============================================================================ */
     graph->error_buffer = lv00_malloc(256);
-    /* TODO(v3.4.0): 迁移到 Lv00Context 后移除此缓冲区 */
     graph->serialize_buffer = lv00_malloc(256);
-    /* TODO(v3.4.0): 迁移到 Lv00Context 后移除此缓冲区 */
     if (!graph->error_buffer || !graph->serialize_buffer) {
         /* 缓冲区分配失败：清理已分配资源，返回 NULL */
         lv00_free((void **) &graph->error_buffer);
@@ -1860,6 +2056,72 @@ Lv00ErrorCode lv00_remove_node_result_to_error(RemoveNodeResult result) {
         default:
             return LV00_ERROR_UNKNOWN;
     }
+}
+
+/* ============================================================
+ * 统一错误系统实现 (v3.4.0: 迁移到 Lv00Context)
+ *
+ * 优先使用 graph->context->error_message，fallback 到
+ * graph->error_buffer。
+ * ============================================================ */
+
+/**
+ * @brief 设置约束图的错误信息 (v3.4.0: 支持 Lv00Context)
+ *
+ * 优先将错误信息存储到 graph->context->error_message 中
+ * (如果有 context)，fallback 到 graph->error_buffer。
+ *
+ * @param graph 约束图（可以为 NULL，但错误信息不会被存储）
+ * @param fmt   printf 风格的格式字符串
+ * @param ...   可变参数列表
+ */
+void graph_set_error(ConstraintGraph *graph, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    if (graph) {
+        /* 优先使用 context 错误存储 */
+        if (graph->context) {
+            vsnprintf(graph->context->error_message, sizeof(graph->context->error_message), fmt, args);
+        } else if (graph->error_buffer) {
+            /* Fallback 到 error_buffer */
+            vsnprintf(graph->error_buffer, 256, fmt, args);
+        } else {
+            /* 两者都不可用，记录到全局错误 API */
+            char fallback[256];
+            vsnprintf(fallback, sizeof(fallback), fmt, args);
+            lv00_set_error(LV00_ERROR_UNKNOWN, "%s", fallback);
+        }
+    }
+
+    va_end(args);
+}
+
+/**
+ * @brief 获取约束图的错误信息 (v3.4.0: 支持 Lv00Context)
+ *
+ * 优先从 graph->context->error_message 读取错误信息
+ * (如果有 context 且有错误)，fallback 到 graph->error_buffer。
+ *
+ * @param graph 约束图（可以为 NULL，返回 "NULL graph"）
+ * @return 错误信息字符串（内部存储，勿 free）
+ */
+const char *graph_get_error(const ConstraintGraph *graph) {
+    if (!graph) {
+        return "NULL graph";
+    }
+
+    /* 优先从 context 读取错误信息 */
+    if (graph->context && graph->context->error_message[0]) {
+        return graph->context->error_message;
+    }
+
+    /* Fallback 到 error_buffer */
+    if (graph->error_buffer && graph->error_buffer[0]) {
+        return graph->error_buffer;
+    }
+
+    return "";
 }
 
 /**
@@ -2591,9 +2853,9 @@ static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_
     bool conflict = false;
 
     /* 检查求解器状态以判断冲突条件 */
-    if (status == SOLVER_NO_SOLUTION) {
+    if (status == SOLVER_STATUS_NO_SOLUTION) {
         conflict = true; /* 检测到冲突 - 无解 */
-    } else if (status == SOLVER_OVERCONSTRAINED) {
+    } else if (status == SOLVER_STATUS_OVERCONSTRAINED) {
         /* 使用冲突检查器检查是否有实际冲突 */
         conflict = check_conflict_equations(graph);
     }

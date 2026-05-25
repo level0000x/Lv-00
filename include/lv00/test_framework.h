@@ -93,7 +93,7 @@ typedef void (*Lv00TestSetupFunc)(void);
 typedef void (*Lv00TestTeardownFunc)(void);
 
 /**
- * @brief 测试用例结构
+ * @brief 测试用例结构 —— 描述单个测试的名称、函数和生命周期回调
  */
 struct Lv00TestCase {
     char name[LV00_TEST_NAME_MAX_LEN];  /**< 测试名称 */
@@ -122,7 +122,7 @@ struct Lv00TestCase {
 };
 
 /**
- * @brief 测试套件结构
+ * @brief 测试套件结构 —— 包含多个相关测试用例的集合
  */
 struct Lv00TestSuite {
     char name[LV00_TEST_SUITE_MAX_LEN]; /**< 套件名称 */
@@ -153,7 +153,7 @@ typedef struct {
 } Lv00AssertionFailure;
 
 /**
- * @brief 测试结果
+ * @brief 测试结果结构 —— 记录单个测试用例的执行状态和失败详情
  */
 struct Lv00TestResult {
     Lv00TestCase *test_case;            /**< 关联测试用例 */

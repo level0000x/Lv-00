@@ -23,27 +23,37 @@
  * 时间戳实现
  * ======================================================================== */
 
+#ifdef _WIN32
+/* Windows: QPC 高精度单调时钟的静态状态和初始化回调 */
+static LARGE_INTEGER s_qpc_freq = { 0 };
+static INIT_ONCE s_qpc_init_once = INIT_ONCE_STATIC_INIT;
+
+/**
+ * @brief QPC 一次性初始化回调
+ * @note 由 InitOnceExecuteOnce 保证仅执行一次，消除竞态条件
+ */
+static BOOL CALLBACK qpc_init_callback(PINIT_ONCE init_once, PVOID param, PVOID *context) {
+    (void)init_once;
+    (void)param;
+    (void)context;
+    return QueryPerformanceFrequency(&s_qpc_freq);
+}
+#endif
+
 Lv00Timestamp lv00_timestamp_now(void) {
     Lv00Timestamp ts;
     ts.seconds = 0;
     ts.nanoseconds = 0;
 
 #ifdef _WIN32
-    /* Windows: 使用 QueryPerformanceCounter 实现高精度单调时钟 */
-    static LARGE_INTEGER qpc_freq = { 0 };
-    static volatile LONG qpc_initialized = 0;
-
-    /* 使用 InterlockedCompareExchange 保证多线程下只初始化一次（线程安全） */
-    if (InterlockedCompareExchange(&qpc_initialized, 1, 0) == 0) {
-        QueryPerformanceFrequency(&qpc_freq);
-    }
+    InitOnceExecuteOnce(&s_qpc_init_once, qpc_init_callback, NULL, NULL);
 
     LARGE_INTEGER counter;
-    if (qpc_freq.QuadPart > 0 && QueryPerformanceCounter(&counter)) {
-        ts.seconds = counter.QuadPart / qpc_freq.QuadPart;
-        int64_t remainder = counter.QuadPart % qpc_freq.QuadPart;
+    if (s_qpc_freq.QuadPart > 0 && QueryPerformanceCounter(&counter)) {
+        ts.seconds = counter.QuadPart / s_qpc_freq.QuadPart;
+        int64_t remainder = counter.QuadPart % s_qpc_freq.QuadPart;
         /* 将余数转换为纳秒 */
-        ts.nanoseconds = (remainder * 1000000000LL) / qpc_freq.QuadPart;
+        ts.nanoseconds = (remainder * 1000000000LL) / s_qpc_freq.QuadPart;
     } else {
         /* 回退: 使用 GetSystemTimePreciseAsFileTime */
         FILETIME ft;

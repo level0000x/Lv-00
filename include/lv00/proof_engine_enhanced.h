@@ -163,6 +163,7 @@ typedef struct {
 struct Lv00ContradictionPath {
     Lv00ContradictionPathNode *nodes;   /**< 节点数组 */
     uint32_t node_count;                /**< 节点数量 */
+    uint32_t node_capacity;             /**< 节点容量 */
 
     Lv00ContradictionType type;         /**< 矛盾类型 */
     char contradiction_desc[512];       /**< 矛盾描述 */
@@ -359,7 +360,7 @@ char *lv00_trace_tree_to_json(const Lv00ProofTraceTree *tree);
  * @param out_path 输出矛盾路径
  * @return 是否成功
  */
-bool lv00_proof_by_contradiction(Lv00ProofEngine *engine,
+bool lv00_engine_proof_by_contradiction(Lv00ProofEngine *engine,
                                   const Proposition *goal,
                                   uint32_t max_steps,
                                   Lv00ContradictionPath **out_path);
@@ -407,7 +408,7 @@ bool lv00_detect_contradiction(const ConstraintGraph *graph,
  * @param path 矛盾路径
  * @return 是否有效
  */
-bool lv00_contradiction_path_validate(const Lv00ContradictionPath *path);
+bool lv00_contradiction_path_validate(Lv00ContradictionPath *path);
 
 /* ============== 证明引擎 ============== */
 
@@ -502,10 +503,10 @@ void lv00_proof_engine_get_stats(const Lv00ProofEngine *engine,
  * @brief 验证结果
  */
 typedef enum {
-    VERIFY_VALID,                /**< 有效 */
-    VERIFY_INVALID,              /**< 无效 */
-    VERIFY_INCOMPLETE,           /**< 不完整 */
-    VERIFY_ERROR                 /**< 验证错误 */
+    LV00_VERIFY_VALID,                /**< 有效 */
+    LV00_VERIFY_INVALID,              /**< 无效 */
+    LV00_VERIFY_INCOMPLETE,           /**< 不完整 */
+    LV00_VERIFY_ERROR                 /**< 验证错误 */
 } Lv00VerifyResult;
 
 /**

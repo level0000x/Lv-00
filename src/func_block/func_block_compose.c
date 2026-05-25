@@ -9,6 +9,7 @@
  */
 
 #include <limits.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,8 +52,8 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     if (f->output_count != g->input_count)
         return false;
 
-    /* 使用 graph->next_node_id 生成全局唯一 ID，避免 ID 冲突 */
-    int composed_id = graph->next_node_id++;
+    /* 使用原子操作生成全局唯一 ID，确保多线程安全（与 func_block_instantiate.c 一致） */
+    int composed_id = atomic_fetch_add_explicit(&graph->next_node_id, 1, memory_order_relaxed);
     bool success = false;
 
     FuncBlock *composed = func_block_create(composed_id);
@@ -68,7 +69,7 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     /* 整数溢出检查 */
     if (f->internal_node_count > INT_MAX - g->internal_node_count - f->output_count - g->input_count) {
         fprintf(stderr, "[ERROR] 函数块组合失败：内部节点总数溢出\n");
-        graph->next_node_id--; /* 回滚之前递增的节点ID */
+        atomic_fetch_sub_explicit(&graph->next_node_id, 1, memory_order_relaxed); /* 回滚之前递增的节点ID */
         return false;
     }
     int total_internal = f->internal_node_count + g->internal_node_count + f->output_count + g->input_count;
@@ -132,12 +133,12 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
         }
     }
 
-    composed->determinism = DETERMINISM_UNVERIFIED;
+    composed->determinism = DETERMINISM_STATE_UNVERIFIED;
     success = true;
 
 compose_cleanup:
     if (!success) {
-        graph->next_node_id--; /* 回滚 ID */
+        atomic_fetch_sub_explicit(&graph->next_node_id, 1, memory_order_relaxed); /* 回滚 ID */
         if (composed)
             func_block_destroy(composed);
     }
@@ -167,8 +168,8 @@ bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     if (!f || !g || !graph || !out_product)
         return false;
 
-    /* 使用 graph->next_node_id 生成全局唯一 ID */
-    int product_id = graph->next_node_id++;
+    /* 使用原子操作生成全局唯一 ID，确保多线程安全（与 func_block_instantiate.c 一致） */
+    int product_id = atomic_fetch_add_explicit(&graph->next_node_id, 1, memory_order_relaxed);
     bool success = false;
 
     FuncBlock *product = func_block_create(product_id);
@@ -233,12 +234,12 @@ bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
         }
     }
 
-    product->determinism = DETERMINISM_UNVERIFIED;
+    product->determinism = DETERMINISM_STATE_UNVERIFIED;
     success = true;
 
 product_cleanup:
     if (!success) {
-        graph->next_node_id--; /* 回滚 ID */
+        atomic_fetch_sub_explicit(&graph->next_node_id, 1, memory_order_relaxed); /* 回滚 ID */
         if (product)
             func_block_destroy(product);
     }

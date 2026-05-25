@@ -175,7 +175,7 @@ static void demo_recursion_context(void) {
                recursion_check_result_to_string(result),
                recursion_context_get_depth(ctx));
 
-        if (result != RECURSION_OK) {
+        if (result != RECURSION_CHECK_RESULT_OK) {
             printf("    递归终止: %s\n",
                    recursion_check_result_to_string(result));
             break;
@@ -264,9 +264,9 @@ static RecursionAction depth_callback(int current_depth, int max_depth, void *us
     /* 如果深度超过最大值的80%，建议停止 */
     if (current_depth >= max_depth * 8 / 10) {
         printf("    [回调] 建议停止递归（深度已达上限的80%%）\n");
-        return RECURSION_ACTION_STOP;
+        return RECURSION_DEPTH_ACTION_STOP;
     }
-    return RECURSION_ACTION_CONTINUE;
+    return RECURSION_DEPTH_ACTION_CONTINUE;
 }
 
 static void demo_depth_callback(void) {

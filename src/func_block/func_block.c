@@ -28,10 +28,14 @@
 
 /* ==================== 命名常量 ==================== */
 
-/** 函数块数组扩容的增长因子（与 LV00_ARRAY_GROWTH_FACTOR 保持一致） */
-#define FUNC_BLOCK_ARRAY_GROWTH_FACTOR 2
-/** 函数块默认容量 */
+/** 函数块默认容量（使用 LV00_ARRAY_GROWTH_FACTOR 作为扩容增长因子） */
 #define FUNC_BLOCK_DEFAULT_CAPACITY 8
+/**
+ * 最大函数块局部变量数量上限，用于防止 VLA / 栈分配数组溢出。
+ * 当打包操作中 internal_count + input_count + output_count 的总和
+ * 超过此上限时，拒绝分配，返回 PACK_RESULT_OUT_OF_MEMORY。
+ */
+#define LV00_MAX_FB_LOCAL_VARS 1024
 
 /*
  * 流式上下文定义（非 static，供其他子模块文件 extern 引用）
@@ -96,29 +100,63 @@ static bool func_block_set_int_array(int **target, int *count,
  * @brief 创建函数块
  *
  * 分配并初始化一个 FuncBlock 结构体。新块的初始状态：
- * - 确定性状态设为 DETERMINISM_UNVERIFIED（未经检验）
+ * - 确定性状态设为 DETERMINISM_STATE_UNVERIFIED（未经检验）
  * - 内部节点数组、输入/输出端口数组、端口依赖数组均为空
  * - 选择器、名称、描述、测度比较函数均为 NULL
- * - 视图状态设为 FB_VIEW_EXPANDED（展开）
+ * - 视图状态设为 FB_VIEW_STATE_EXPANDED（展开）
+ *
+ * @param id 函数块唯一标识符
+ * @return 成功返回 FuncBlock 指针（调用方负责通过 func_block_destroy 释放），
+ *         内存不足时返回 NULL
+ */
+/**
+ * @brief 创建函数块（v3.4.2 增强版）
+ *
+ * 分配并初始化一个 FuncBlock 结构体。新块的初始状态：
+ * - 确定性状态设为 DETERMINISM_STATE_UNVERIFIED（未经检验）
+ * - 内部节点数组、输入/输出端口数组、端口依赖数组均为空
+ * - 选择器、名称、描述、测度比较函数均为 NULL
+ * - 视图状态设为 FB_VIEW_STATE_EXPANDED（展开）
+ * - 版本号设为当前库版本（v3.4.2）
  *
  * @param id 函数块唯一标识符
  * @return 成功返回 FuncBlock 指针（调用方负责通过 func_block_destroy 释放），
  *         内存不足时返回 NULL
  */
 FuncBlock *func_block_create(int id) {
-    FuncBlock *fb = lv00_malloc(sizeof(FuncBlock));
-    if (!fb)
+    FuncBlock *fb = (FuncBlock *)lv00_malloc(sizeof(FuncBlock));
+    if (!fb) {
+        LV00_LOG_ERROR("func_block_create: 内存分配失败 (id=%d)", id);
         return NULL;
+    }
+
+    /* 清零所有字段 */
     memset(fb, 0, sizeof(FuncBlock));
+
+    /* 设置基本属性 */
     fb->id = id;
-    fb->determinism = DETERMINISM_UNVERIFIED;
-    fb->selector = NULL;
-    fb->name = NULL;
-    fb->description = NULL;
+    fb->determinism = DETERMINISM_STATE_UNVERIFIED;
+    fb->view_state = FB_VIEW_STATE_EXPANDED;
+
+    /* 初始化测度相关字段 */
     fb->has_measure = false;
     fb->measure_node_id = -1;
     fb->measure_compare = NULL;
-    fb->view_state = FB_VIEW_EXPANDED;
+
+    /* v3.4.2: 设置版本号 */
+    fb->version_major = 3;
+    fb->version_minor = 4;
+    fb->version_patch = 2;
+
+    /* v3.4.2: 初始化生命周期追踪字段 */
+    fb->is_instantiated = false;
+
+    /* 初始化容量字段 */
+    fb->port_dep_capacity = 0;
+
+    LV00_LOG_DEBUG("func_block_create: 创建函数块 id=%d, version=%d.%d.%d",
+                   id, fb->version_major, fb->version_minor, fb->version_patch);
+
     return fb;
 }
 
@@ -332,10 +370,10 @@ int func_block_get_id(const FuncBlock *fb) {
  * 确定性状态用于判断函数块是否产生唯一解。
  *
  * @param fb 函数块指针（可为 NULL）
- * @return 确定性状态，fb 为 NULL 时返回 DETERMINISM_UNVERIFIED
+ * @return 确定性状态，fb 为 NULL 时返回 DETERMINISM_STATE_UNVERIFIED
  */
 DeterminismState func_block_get_determinism(const FuncBlock *fb) {
-    return fb ? fb->determinism : DETERMINISM_UNVERIFIED;
+    return fb ? fb->determinism : DETERMINISM_STATE_UNVERIFIED;
 }
 
 /**
@@ -390,24 +428,74 @@ bool func_block_set_selector(FuncBlock *fb, SolutionSelector *selector) {
  * @return true  添加成功
  * @return false 失败
  */
+/**
+ * @brief 添加端口依赖（v3.4.2 安全增强版）
+ *
+ * @param fb  函数块指针（不可为 NULL）
+ * @param dep 端口依赖指针（不可为 NULL）
+ * @return true  添加成功
+ * @return false 失败
+ *
+ * @note v3.4.2 改进：
+ * - 使用安全整数运算防止溢出
+ * - 改进错误处理和日志记录
+ * - 添加 size_t 溢出检查
+ */
 bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
-    if (!fb || !dep)
+    if (!fb || !dep) {
+        LV00_LOG_ERROR("func_block_add_port_dependency: 无效参数 (fb=%p, dep=%p)",
+                       (void*)fb, (void*)dep);
         return false;
+    }
+
     /* 使用指数扩容策略，避免每次添加依赖都触发 realloc */
     if (fb->port_dep_count >= fb->port_dep_capacity) {
-        int new_cap = fb->port_dep_capacity == 0 ? 4 : fb->port_dep_capacity * 2;
-        /* 整数溢出保护：乘以2后可能溢出 INT_MAX */
-        if (fb->port_dep_capacity != 0 && new_cap < fb->port_dep_capacity) {
-            LV00_LOG_ERROR("func_block_add_port_dependency: 容量扩容溢出 (capacity=%d)", fb->port_dep_capacity);
+        /* v3.4.2: 使用安全计算确定新容量 */
+        int new_cap;
+        if (fb->port_dep_capacity == 0) {
+            new_cap = 4;
+        } else {
+            /* 检查乘法溢出 */
+            if (fb->port_dep_capacity > INT_MAX / 2) {
+                LV00_LOG_ERROR("func_block_add_port_dependency: 容量溢出 (capacity=%d)",
+                               fb->port_dep_capacity);
+                return false;
+            }
+            new_cap = fb->port_dep_capacity * 2;
+        }
+
+        /* 确保满足最小需求 */
+        int min_required = fb->port_dep_count + 1;
+        if (min_required < fb->port_dep_count) {  /* 加法溢出检查 */
+            LV00_LOG_ERROR("func_block_add_port_dependency: 计数溢出 (count=%d)",
+                           fb->port_dep_count);
             return false;
         }
-        if (new_cap < fb->port_dep_count + 1) new_cap = fb->port_dep_count + 1;
-        PortDependency *new_deps = lv00_realloc(fb->port_deps, (size_t) new_cap * sizeof(PortDependency));
-        if (!new_deps)
+
+        if (new_cap < min_required) {
+            new_cap = min_required;
+        }
+
+        /* v3.4.2: 检查 size_t 溢出 */
+        size_t alloc_size;
+        if (new_cap > (int)(SIZE_MAX / sizeof(PortDependency))) {
+            LV00_LOG_ERROR("func_block_add_port_dependency: 分配大小溢出 (new_cap=%d)",
+                           new_cap);
             return false;
+        }
+        alloc_size = (size_t)new_cap * sizeof(PortDependency);
+
+        PortDependency *new_deps = (PortDependency *)lv00_realloc(fb->port_deps, alloc_size);
+        if (!new_deps) {
+            LV00_LOG_ERROR("func_block_add_port_dependency: 内存分配失败 (size=%zu)",
+                           alloc_size);
+            return false;
+        }
+
         fb->port_deps = new_deps;
         fb->port_dep_capacity = new_cap;
     }
+
     fb->port_deps[fb->port_dep_count] = *dep;
     fb->port_dep_count++;
     return true;
@@ -489,7 +577,7 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
                            CrossBoundaryAction *cross_boundary_actions, int cross_boundary_count,
                            FuncBlock **out_func_block) {
     if (!graph || !out_func_block)
-        return PACK_INVALID_NODES;
+        return PACK_RESULT_INVALID_NODES;
 
     /* 流式事件：函数块打包开始 */
     if (func_block_stream_ctx) {
@@ -498,31 +586,31 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
 
     /* 参数基本验证 */
     if (internal_count > 0 && !internal_node_ids)
-        return PACK_INVALID_NODES;
+        return PACK_RESULT_INVALID_NODES;
     if (input_count > 0 && !input_port_ids)
-        return PACK_INVALID_PORTS;
+        return PACK_RESULT_INVALID_PORTS;
     if (output_count > 0 && !output_port_ids)
-        return PACK_INVALID_PORTS;
+        return PACK_RESULT_INVALID_PORTS;
 
     /* 验证所有内部节点存在 */
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(graph, internal_node_ids[i]);
         if (!n)
-            return PACK_INVALID_NODES;
+            return PACK_RESULT_INVALID_NODES;
     }
 
     /* 验证输入端口 */
     for (int i = 0; i < input_count; i++) {
         GeomNode *n = graph_get_node(graph, input_port_ids[i]);
         if (!n || n->type != GEOM_PORT)
-            return PACK_INVALID_PORTS;
+            return PACK_RESULT_INVALID_PORTS;
     }
 
     /* 验证输出端口 */
     for (int i = 0; i < output_count; i++) {
         GeomNode *n = graph_get_node(graph, output_port_ids[i]);
         if (!n || n->type != GEOM_PORT)
-            return PACK_INVALID_PORTS;
+            return PACK_RESULT_INVALID_PORTS;
     }
 
     /* 检测跨边界约束 */
@@ -536,15 +624,23 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
      * 修复：拆分为两次独立的安全加法，每次都检查溢出结果。 */
     int partial = LV00_SAFE_ADD(internal_count, input_count, INT_MAX);
     if (partial == INT_MAX)
-        return PACK_OUT_OF_MEMORY;
+        return PACK_RESULT_OUT_OF_MEMORY;
     int total_bound = LV00_SAFE_ADD(partial, output_count, INT_MAX);
     if (total_bound == INT_MAX)
-        return PACK_OUT_OF_MEMORY;
+        return PACK_RESULT_OUT_OF_MEMORY;
+
+    /* 【修复】局部变量栈空间保护：防止打包规模超出系统安全上限，
+     * 避免在后续处理中因 VLA 或栈数组过大导致栈溢出。 */
+    if (total_bound > LV00_MAX_FB_LOCAL_VARS) {
+        LV00_LOG_ERROR("func_block_pack: 局部变量总数 %d 超过上限 %d",
+                       total_bound, LV00_MAX_FB_LOCAL_VARS);
+        return PACK_RESULT_OUT_OF_MEMORY;
+    }
     int *bound_ids = NULL;
     if (total_bound > 0) {
         bound_ids = lv00_malloc((size_t) total_bound * sizeof(int));
         if (!bound_ids)
-            return PACK_OUT_OF_MEMORY;
+            return PACK_RESULT_OUT_OF_MEMORY;
         int bidx = 0;
         for (int i = 0; i < internal_count; i++)
             bound_ids[bidx++] = internal_node_ids[i];
@@ -570,7 +666,7 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
             /* 存在跨边界约束但未提供足够的处理方式 */
             lv00_free((void **) &conflicts);
             lv00_free((void **) &bound_ids);
-            return PACK_CROSS_BOUNDARY_CONFLICT;
+            return PACK_RESULT_CROSS_BOUNDARY_CONFLICT;
         }
 
         /* 处理每条跨边界约束 */
@@ -580,7 +676,7 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
                 case CROSS_BOUNDARY_CANCEL:
                     lv00_free((void **) &conflicts);
                     lv00_free((void **) &bound_ids);
-                    return PACK_CANCELLED;
+                    return PACK_RESULT_CANCELLED;
 
                 case CROSS_BOUNDARY_DISCONNECT:
                     /* 断开：删除该约束 */
@@ -605,7 +701,7 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
     AddNodeResult add_result = graph_add_function_block(graph, internal_node_ids, internal_count, input_port_ids,
                                                         input_count, output_port_ids, output_count);
     if (add_result != ADD_NODE_OK) {
-        return PACK_OUT_OF_MEMORY;
+        return PACK_RESULT_OUT_OF_MEMORY;
     }
 
     /* 函数块ID = 新创建节点的ID
@@ -617,32 +713,32 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
     int fb_id = graph_get_last_added_node_id(graph);
     if (fb_id < 0) {
         LV00_LOG_ERROR("func_block_pack: graph_get_last_added_node_id() 返回 %d，无法推断函数块ID", fb_id);
-        return PACK_OUT_OF_MEMORY;
+        return PACK_RESULT_OUT_OF_MEMORY;
     }
 
     /* 创建 FuncBlock 结构 */
-    PackResult pack_result = PACK_OK; /* 统一错误处理：记录最终返回值 */
+    PackResult pack_result = PACK_RESULT_OK; /* 统一错误处理：记录最终返回值 */
     FuncBlock *fb = func_block_create(fb_id);
     if (!fb) {
-        pack_result = PACK_OUT_OF_MEMORY;
+        pack_result = PACK_RESULT_OUT_OF_MEMORY;
         goto pack_cleanup;
     }
 
     if (!func_block_set_internal_nodes(fb, internal_node_ids, internal_count)) {
-        pack_result = PACK_OUT_OF_MEMORY;
+        pack_result = PACK_RESULT_OUT_OF_MEMORY;
         goto pack_cleanup;
     }
     if (!func_block_set_input_ports(fb, input_port_ids, input_count)) {
-        pack_result = PACK_OUT_OF_MEMORY;
+        pack_result = PACK_RESULT_OUT_OF_MEMORY;
         goto pack_cleanup;
     }
     if (!func_block_set_output_ports(fb, output_port_ids, output_count)) {
-        pack_result = PACK_OUT_OF_MEMORY;
+        pack_result = PACK_RESULT_OUT_OF_MEMORY;
         goto pack_cleanup;
     }
 
 pack_cleanup:
-    if (pack_result != PACK_OK) {
+    if (pack_result != PACK_RESULT_OK) {
         /* 统一错误处理：从图中移除已添加的节点，销毁函数块 */
         if (graph_remove_node(graph, fb_id) != REMOVE_NODE_OK) {
             LV00_LOG_WARNING("func_block_pack: graph_remove_node(%d) 失败，图中可能残留无主节点", fb_id);
@@ -710,7 +806,7 @@ pack_cleanup:
         stream_emit_simple(func_block_stream_ctx, STREAM_EVENT_FUNC_BLOCK_PACK_DONE, "函数块打包完成", 0);
     }
     *out_func_block = fb;
-    return PACK_OK;
+    return PACK_RESULT_OK;
 }
 
 /* ============== 辅助函数 ============== */
@@ -723,13 +819,13 @@ pack_cleanup:
  */
 const char *determinism_state_to_string(DeterminismState state) {
     switch (state) {
-        case DETERMINISM_UNVERIFIED:
+        case DETERMINISM_STATE_UNVERIFIED:
             return "UNVERIFIED";
-        case DETERMINISM_VERIFIED:
+        case DETERMINISM_STATE_VERIFIED:
             return "VERIFIED";
-        case DETERMINISM_NON_DETERMINISTIC:
+        case DETERMINISM_STATE_NON_DETERMINISTIC:
             return "NON_DETERMINISTIC";
-        case DETERMINISM_PARTIALLY_VERIFIED:
+        case DETERMINISM_STATE_PARTIALLY_VERIFIED:
             return "PARTIALLY_VERIFIED";
         default:
             return "UNKNOWN";
@@ -744,17 +840,17 @@ const char *determinism_state_to_string(DeterminismState state) {
  */
 const char *pack_result_to_string(PackResult result) {
     switch (result) {
-        case PACK_OK:
+        case PACK_RESULT_OK:
             return "OK";
-        case PACK_CROSS_BOUNDARY_CONFLICT:
+        case PACK_RESULT_CROSS_BOUNDARY_CONFLICT:
             return "CROSS_BOUNDARY_CONFLICT";
-        case PACK_INVALID_NODES:
+        case PACK_RESULT_INVALID_NODES:
             return "INVALID_NODES";
-        case PACK_INVALID_PORTS:
+        case PACK_RESULT_INVALID_PORTS:
             return "INVALID_PORTS";
-        case PACK_OUT_OF_MEMORY:
+        case PACK_RESULT_OUT_OF_MEMORY:
             return "OUT_OF_MEMORY";
-        case PACK_CANCELLED:
+        case PACK_RESULT_CANCELLED:
             return "CANCELLED";
         default:
             return "UNKNOWN";
@@ -808,7 +904,7 @@ void func_block_set_view_state(FuncBlock *fb, FuncBlockViewState state) {
  */
 FuncBlockViewState func_block_get_view_state(const FuncBlock *fb) {
     if (!fb)
-        return FB_VIEW_EXPANDED;
+        return FB_VIEW_STATE_EXPANDED;
     return fb->view_state;
 }
 
@@ -828,24 +924,24 @@ FuncBlockViewState func_block_get_view_state(const FuncBlock *fb) {
 PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, FuncBlock **out_func_block) {
     /* 参数验证 */
     if (!graph || !config || !out_func_block) {
-        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_INVALID_NODES,
+        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_NODES,
                           "无效参数: graph=%p, config=%p, out_func_block=%p", (void *) graph, (void *) config,
                           (void *) out_func_block);
     }
 
     /* 验证必需参数 */
     if (!config->internal_node_ids || config->internal_count <= 0) {
-        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_INVALID_NODES, "无效的内部节点: ids=%p, count=%d",
+        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_NODES, "无效的内部节点: ids=%p, count=%d",
                           (void *) config->internal_node_ids, config->internal_count);
     }
 
     if (!config->input_port_ids || config->input_count < 0) {
-        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_INVALID_PORTS, "无效的输入端口: ids=%p, count=%d",
+        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_PORTS, "无效的输入端口: ids=%p, count=%d",
                           (void *) config->input_port_ids, config->input_count);
     }
 
     if (!config->output_port_ids || config->output_count < 0) {
-        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_INVALID_PORTS, "无效的输出端口: ids=%p, count=%d",
+        LV00_ERROR_RETURN(LV00_ERROR_INVALID_PARAM, PACK_RESULT_INVALID_PORTS, "无效的输出端口: ids=%p, count=%d",
                           (void *) config->output_port_ids, config->output_count);
     }
 
@@ -856,7 +952,7 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
                                         config->cross_boundary_count, out_func_block);
 
     /* 设置名称和描述（如果提供了） */
-    if (result == PACK_OK && *out_func_block) {
+    if (result == PACK_RESULT_OK && *out_func_block) {
         if (config->name && config->name[0] != '\0') {
             func_block_set_name(*out_func_block, config->name);
         }
@@ -954,14 +1050,60 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     dst->port_dep_count = src->port_dep_count;
     dst->port_dep_capacity = src->port_dep_capacity;
 
-    /* 深拷贝选择器 */
+    /* 深拷贝选择器 - 改进版：正确处理回调函数和 user_data */
     if (src->selector) {
         dst->selector = lv00_malloc(sizeof(SolutionSelector));
         if (!dst->selector)
             goto fail;
-        memcpy(dst->selector, src->selector, sizeof(SolutionSelector));
-        /* 选择器中的函数指针和 user_data 直接复制（浅拷贝），
-         * 因为 user_data 的生命周期由外部管理 */
+        
+        /* 复制基本字段 */
+        dst->selector->solution_count = src->selector->solution_count;
+        dst->selector->current_index = src->selector->current_index;
+        dst->selector->compare = src->selector->compare;
+        dst->selector->on_select = src->selector->on_select;
+        dst->selector->on_change = src->selector->on_change;
+        
+        /* 深拷贝选择器名称 */
+        if (src->selector->name) {
+            dst->selector->name = lv00_strdup(src->selector->name);
+            if (!dst->selector->name) {
+                lv00_free((void **)&dst->selector);
+                dst->selector = NULL;
+                goto fail;
+            }
+        } else {
+            dst->selector->name = NULL;
+        }
+        
+        /* 深拷贝 solution_values 数组 */
+        if (src->selector->solution_count > 0 && src->selector->solution_values) {
+            dst->selector->solution_values = lv00_malloc(
+                (size_t)src->selector->solution_count * sizeof(double));
+            if (!dst->selector->solution_values) {
+                lv00_free((void **)&dst->selector->name);
+                lv00_free((void **)&dst->selector);
+                dst->selector = NULL;
+                goto fail;
+            }
+            memcpy(dst->selector->solution_values, src->selector->solution_values,
+                   (size_t)src->selector->solution_count * sizeof(double));
+        } else {
+            dst->selector->solution_count = 0;
+            dst->selector->solution_values = NULL;
+        }
+        
+        /* user_data 处理：使用深拷贝回调（如果提供）否则浅拷贝 */
+        if (src->selector->copy_user_data && src->selector->user_data) {
+            /* 使用自定义深拷贝函数 */
+            dst->selector->user_data = src->selector->copy_user_data(src->selector->user_data);
+            dst->selector->free_user_data = src->selector->free_user_data;
+            dst->selector->copy_user_data = src->selector->copy_user_data;
+        } else {
+            /* 浅拷贝 user_data，但记录原始指针用于追踪 */
+            dst->selector->user_data = src->selector->user_data;
+            dst->selector->free_user_data = NULL;
+            dst->selector->copy_user_data = NULL;
+        }
     }
 
     /* 深拷贝名称字符串 */

@@ -64,22 +64,33 @@ typedef struct MeasureSystem MeasureSystem;
 typedef struct SelectorBlock SelectorBlock;
 typedef struct RecursionContext RecursionContext;
 
-/* ============== 测度类型 ============== */
+/* ============== 测度类型 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    MEASURE_SYMBOLIC, /* 符号测度：可归约到符号坐标上的代数表达式 */
-    MEASURE_CUSTOM    /* 非符号测度：公理包定义的抽象序结构 */
+    MEASURE_TYPE_SYMBOLIC, /**< 符号测度：可归约到符号坐标上的代数表达式 */
+    MEASURE_TYPE_CUSTOM    /**< 非符号测度：公理包定义的抽象序结构 */
 } MeasureType;
 
-/* ============== 测度比较结果 ============== */
+/* ============== 测度比较结果 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    MEASURE_LESS,    /* a < b */
-    MEASURE_EQUAL,   /* a = b */
-    MEASURE_GREATER, /* a > b */
-    MEASURE_UNKNOWN, /* 无法比较 */
-    MEASURE_ERROR    /* 比较出错 */
+    MEASURE_COMPARE_LESS,    /**< a < b */
+    MEASURE_COMPARE_EQUAL,   /**< a = b */
+    MEASURE_COMPARE_GREATER, /**< a > b */
+    MEASURE_COMPARE_UNKNOWN, /**< 无法比较 */
+    MEASURE_COMPARE_ERROR    /**< 比较出错 */
 } MeasureCompareResult;
 
 /* ============== 测度定义 ============== */
+/**
+ * @brief 测度 —— 定义递归终止判定的度量方式
+ *
+ * 每个测度包含名称、类型（符号/自定义）、参考节点等信息。
+ * 符号测度基于几何实体的直接度量（如长度、角度、面积、深度），
+ * 自定义测度使用用户提供的比较函数进行非几何递归终止判定。
+ */
 struct Measure {
     int id;           /* 测度ID */
     MeasureType type; /* 测度类型 */
@@ -135,6 +146,13 @@ typedef struct {
 } NonSymbolicMeasureValidationMeta;
 
 /* ============== 测度系统 ============== */
+/**
+ * @brief 测度系统 —— 管理递归终止条件的测度集合
+ *
+ * 测度系统包含多个测度（Measure），每个测度定义了一种递归终止判定方式。
+ * 支持符号测度（基于几何性质）和自定义测度（用户提供的比较函数）。
+ * 每次递归调用必须使至少一个测度值严格递减，以保证递归终止。
+ */
 struct MeasureSystem {
     Measure **measures;   /* 测度数组 */
     int measure_count;    /* 测度数量 */
@@ -192,10 +210,11 @@ struct SelectorBlock {
 
 /**
  * @brief 递归深度超限时的动作
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    RECURSION_ACTION_CONTINUE, /* 继续执行 */
-    RECURSION_ACTION_STOP      /* 停止递归 */
+    RECURSION_DEPTH_ACTION_CONTINUE, /**< 继续执行 */
+    RECURSION_DEPTH_ACTION_STOP      /**< 停止递归 */
 } RecursionAction;
 
 /**
@@ -229,14 +248,16 @@ struct RecursionContext {
     void *depth_callback_user_data;        /* 回调用户数据 */
 };
 
-/* ============== 递归检查结果 ============== */
+/* ============== 递归检查结果 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    RECURSION_OK,              /* 递归有效 */
-    RECURSION_NOT_DECREASING,  /* 测度未递减 */
-    RECURSION_DEPTH_EXCEEDED,  /* 深度超限 */
-    RECURSION_CYCLE_DETECTED,  /* 检测到循环 */
-    RECURSION_MEASURE_UNKNOWN, /* 测度未知 */
-    RECURSION_ERROR            /* 检查出错 */
+    RECURSION_CHECK_RESULT_OK,              /**< 递归有效 */
+    RECURSION_CHECK_RESULT_NOT_DECREASING,  /**< 测度未递减 */
+    RECURSION_CHECK_RESULT_DEPTH_EXCEEDED,  /**< 深度超限 */
+    RECURSION_CHECK_RESULT_CYCLE_DETECTED,  /**< 检测到循环 */
+    RECURSION_CHECK_RESULT_MEASURE_UNKNOWN, /**< 测度未知 */
+    RECURSION_CHECK_RESULT_ERROR            /**< 检查出错 */
 } RecursionCheckResult;
 
 /* ============== 测度系统API ============== */
@@ -472,7 +493,7 @@ void selector_block_update_states(SelectorBlock *sb, BranchState true_state, Bra
  * @param measure 测度定义
  * @param graph 约束图
  * @param node_id 要计算测度的节点ID
- * @return RECURSION_OK 严格递减，RECURSION_NOT_DECREASING 未递减，RECURSION_ERROR 出错
+ * @return RECURSION_CHECK_RESULT_OK 严格递减，RECURSION_CHECK_RESULT_NOT_DECREASING 未递减，RECURSION_CHECK_RESULT_ERROR 出错
  */
 RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, const Measure *measure,
                                                 const ConstraintGraph *graph, int node_id);
@@ -545,7 +566,7 @@ bool measure_system_validate_non_symbolic(MeasureSystem *ms);
  * @param before_value 递归前的测度值
  * @param after_value 递归后的测度值
  * @param comparator 非符号测度比较器（由公理包提供）
- * @return RECURSION_OK 递减，RECURSION_NOT_DECREASING 未递减，RECURSION_MEASURE_UNKNOWN 未知
+ * @return RECURSION_CHECK_RESULT_OK 递减，RECURSION_CHECK_RESULT_NOT_DECREASING 未递减，RECURSION_CHECK_RESULT_MEASURE_UNKNOWN 未知
  */
 RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *measure, SymbolicCoord *before_value,
                                                              SymbolicCoord *after_value,

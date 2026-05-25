@@ -72,15 +72,16 @@ typedef struct GroebnerResult {
 
 /**
  * @brief 求解器状态
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    SOLVER_OK,              /**< 成功 */
-    SOLVER_UNIQUE,          /**< 唯一解 */
-    SOLVER_MULTIPLE,        /**< 多解 */
-    SOLVER_NO_SOLUTION,     /**< 无解 */
-    SOLVER_OVERCONSTRAINED, /**< 过度约束 */
-    SOLVER_OUT_OF_SCOPE,    /**< 超出范围 */
-    SOLVER_TIMEOUT          /**< 超时 */
+    SOLVER_STATUS_OK,              /**< 成功 */
+    SOLVER_STATUS_UNIQUE,          /**< 唯一解 */
+    SOLVER_STATUS_MULTIPLE,        /**< 多解 */
+    SOLVER_STATUS_NO_SOLUTION,     /**< 无解 */
+    SOLVER_STATUS_OVERCONSTRAINED, /**< 过度约束 */
+    SOLVER_STATUS_OUT_OF_SCOPE,    /**< 超出范围 */
+    SOLVER_STATUS_TIMEOUT          /**< 超时 */
 } SolverStatus;
 
 /* AlgebraicOp is now defined in mpz_poly.h (included above) */
@@ -302,19 +303,15 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
 
 /**
  * @brief 求解器交互事件类型（借鉴 Solvespace 的拖拽约束实时反馈设计）
- *
- * Solvespace 的核心交互理念：
- * - 用户拖拽几何元素 → 约束图变化 → 求解器增量重解 → 实时视觉反馈
- * - 明确告诉用户：哪些变量已确定（绿色）、哪些可拖动（蓝色）、哪些过约束（红色）
- * - 自由度可视化：每个可拖动元素高亮，过约束元素警告
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    SOLVER_FEEDBACK_CONSTRAINT_ADDED, /**< 约束已添加，增量求解开始 */
-    SOLVER_FEEDBACK_VARIABLE_SOLVED,  /**< 变量被唯一确定（变绿） */
-    SOLVER_FEEDBACK_VARIABLE_FREE,    /**< 变量仍有自由度（保持蓝） */
-    SOLVER_FEEDBACK_OVERCONSTRAINED,  /**< 检测到过约束（变红） */
-    SOLVER_FEEDBACK_DOF_CHANGED,      /**< 自由度数量变化 */
-    SOLVER_FEEDBACK_CONFLICT_DETECTED /**< 约束冲突：上次解不满足新约束 */
+    SOLVER_FEEDBACK_TYPE_CONSTRAINT_ADDED, /**< 约束已添加，增量求解开始 */
+    SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED,  /**< 变量被唯一确定（变绿） */
+    SOLVER_FEEDBACK_TYPE_VARIABLE_FREE,    /**< 变量仍有自由度（保持蓝） */
+    SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED,  /**< 检测到过约束（变红） */
+    SOLVER_FEEDBACK_TYPE_DOF_CHANGED,      /**< 自由度数量变化 */
+    SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED /**< 约束冲突：上次解不满足新约束 */
 } SolverFeedbackType;
 
 /**

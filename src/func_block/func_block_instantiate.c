@@ -5,11 +5,18 @@
  *          以及捕获避免替换（Capture-Avoiding Substitution）和 Alpha-重命名。
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 3.4.1
+ *
+ * @changelog v3.4.1
+ *   - 多线程安全修复：next_node_id 和 next_constraint_id
+ *     现已声明为 _Atomic int 类型，使用原子操作进行 ID 分配，
+ *     确保在多线程环境下不会出现数据竞争。
  */
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdatomic.h> /* v3.4.1: 原子操作支持 */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +27,18 @@
 #include "lv00_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
+
+/* ============== 编译器属性：未使用返回值警告 ============== */
+#ifndef LV00_WARN_UNUSED_RESULT
+#if defined(__GNUC__) || defined(__clang__)
+#define LV00_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#elif defined(_MSC_VER)
+/* MSVC: _Check_return_ 注解提示调用者必须检查返回值 */
+#define LV00_WARN_UNUSED_RESULT _Check_return_
+#else
+#define LV00_WARN_UNUSED_RESULT /* 编译器不支持 */
+#endif
+#endif
 
 /* ============== 例化操作 ============== */
 
@@ -107,13 +126,13 @@ static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, Constrai
         memcpy(copy, orig, sizeof(GeomNode));
         memset(&copy->data, 0, sizeof(copy->data));
 
-        /* 分配新ID */
-        /* TODO(v3.4.0): 在多线程环境下，next_node_id++ 不是原子操作。
-         * 当前约束图操作假设在单线程或外部同步下进行。
-         * 实现策略：将 next_node_id 改为 _Atomic int 或 stdatomic.h 的 atomic_int，
-         * 使用 atomic_fetch_add(&graph->next_node_id, 1) 替代普通递增。
-         * 注意：需同步修改 constraint_graph.h 中的类型声明。 */
-        copy->id = graph->next_node_id++;
+        /* 分配新ID（v3.4.1: 多线程安全实现完成）
+         * ============================================================================
+         * constraint_graph.h 中 next_node_id 已声明为 _Atomic int 类型。
+         * 此处使用 atomic_fetch_add_explicit() 实现原子递增，确保多线程安全。
+         * ============================================================================
+         */
+        copy->id = atomic_fetch_add_explicit(&graph->next_node_id, 1, memory_order_relaxed);
         /* namespace_depth 恢复到外层 */
         copy->namespace_depth = orig->namespace_depth > 0 ? orig->namespace_depth - 1 : 0;
         copy->parent_block_id = -1;
@@ -635,7 +654,8 @@ static void instantiate_copy_connection_constraints(FuncBlock *fb, ConstraintGra
  * @param out_new_node_count 输出新节点数量
  * @return 例化结果
  */
-InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, int *arg_mappings, int arg_count,
+LV00_WARN_UNUSED_RESULT
+InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, const int *arg_mappings, int arg_count,
                                          int **out_new_node_ids, int *out_new_node_count) {
     if (!fb || !graph || !out_new_node_ids || !out_new_node_count) {
         return INSTANTIATE_NO_SOLUTION;
@@ -764,7 +784,7 @@ InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, 
  * @param out_new_fb      输出新函数块
  * @return true  成功，false 失败
  */
-bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, int *fixed_arg_mappings, int fixed_count,
+bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *graph, const int *fixed_arg_mappings, int fixed_count,
                               FuncBlock **out_new_fb) {
     if (!fb || !graph || !out_new_fb)
         return false;
@@ -1233,6 +1253,7 @@ static bool collect_all_graph_node_ids(const ConstraintGraph *graph, int **out_i
  * @param output_node_count 输出：映射数量
  * @return INSTANTIATE_OK 成功，其他值表示失败
  */
+LV00_WARN_UNUSED_RESULT
 InstantiateResult func_block_instantiate_capture_avoiding(FuncBlock *block, const int *actual_arg_nodes, int arg_count,
                                                           ConstraintGraph *target_graph, int **output_node_ids,
                                                           int *output_node_count) {
@@ -1286,8 +1307,8 @@ InstantiateResult func_block_instantiate_capture_avoiding(FuncBlock *block, cons
                 all_occupied[idx++] = block->output_port_ids[i];
             total_occupied = idx;
 
-            /* 以 target_graph->next_node_id 为基数生成新鲜 ID */
-            int base = target_graph->next_node_id;
+            /* v3.4.1: 使用原子加载获取当前 next_node_id，确保多线程安全 */
+            int base = atomic_load_explicit(&target_graph->next_node_id, memory_order_relaxed);
 
             for (int i = 0; i < captured_count; i++) {
                 int old_id = captured_vars[i];

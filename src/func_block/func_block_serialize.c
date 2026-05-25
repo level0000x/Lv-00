@@ -139,10 +139,10 @@ char *func_block_serialize_state(const FuncBlock *fb) {
     {
         const char *vs = "EXPANDED";
         switch (fb->view_state) {
-            case FB_VIEW_COLLAPSED:
+            case FB_VIEW_STATE_COLLAPSED:
                 vs = "COLLAPSED";
                 break;
-            case FB_VIEW_PINNED:
+            case FB_VIEW_STATE_PINNED:
                 vs = "PINNED";
                 break;
             default:
@@ -467,16 +467,16 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 p++;
                 p = skip_whitespace(p);
                 if (strncmp(p, "VERIFIED", 8) == 0) {
-                    fb->determinism = DETERMINISM_VERIFIED;
+                    fb->determinism = DETERMINISM_STATE_VERIFIED;
                     p += 8;
                 } else if (strncmp(p, "NON_DETERMINISTIC", 17) == 0) {
-                    fb->determinism = DETERMINISM_NON_DETERMINISTIC;
+                    fb->determinism = DETERMINISM_STATE_NON_DETERMINISTIC;
                     p += 17;
                 } else if (strncmp(p, "PARTIALLY_VERIFIED", 19) == 0) {
-                    fb->determinism = DETERMINISM_PARTIALLY_VERIFIED;
+                    fb->determinism = DETERMINISM_STATE_PARTIALLY_VERIFIED;
                     p += 19;
                 } else if (strncmp(p, "UNVERIFIED", 10) == 0) {
-                    fb->determinism = DETERMINISM_UNVERIFIED;
+                    fb->determinism = DETERMINISM_STATE_UNVERIFIED;
                     p += 10;
                 } else {
                     /* 跳过未知值到行尾 */
@@ -491,13 +491,13 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
                 p++;
                 p = skip_whitespace(p);
                 if (strncmp(p, "COLLAPSED", 9) == 0) {
-                    fb->view_state = FB_VIEW_COLLAPSED;
+                    fb->view_state = FB_VIEW_STATE_COLLAPSED;
                     p += 9;
                 } else if (strncmp(p, "PINNED", 6) == 0) {
-                    fb->view_state = FB_VIEW_PINNED;
+                    fb->view_state = FB_VIEW_STATE_PINNED;
                     p += 6;
                 } else {
-                    fb->view_state = FB_VIEW_EXPANDED;
+                    fb->view_state = FB_VIEW_STATE_EXPANDED;
                     while (*p && *p != '\n')
                         p++;
                 }

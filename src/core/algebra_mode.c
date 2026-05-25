@@ -53,6 +53,70 @@
 /** @brief 最大迭代计数 */
 #define ALG_MAX_ITERATIONS 100
 
+/* ========================================================================
+ * 步骤ID编码枚举 - 消除魔术数字
+ * 采用分层编码方案：每类操作占用100的区间，子类型在此区间内递增
+ * ======================================================================== */
+
+typedef enum {
+    /* 点构造操作 (100-199) */
+    ALG_STEP_POINT_BASE         = 100,  /**< 点构造基础值 */
+    ALG_STEP_POINT_ON           = 110,  /**< 在实体上构造点 */
+    ALG_STEP_MIDPOINT           = 120,  /**< 中点构造 */
+    ALG_STEP_INTERSECT          = 130,  /**< 交点构造 */
+    /* 140-199: 预留其他点操作 */
+
+    /* 线构造操作 (200-299) */
+    ALG_STEP_LINE_BASE          = 200,  /**< 直线构造基础值 */
+    ALG_STEP_SEGMENT            = 210,  /**< 线段构造 */
+    ALG_STEP_RAY                = 220,  /**< 射线构造 */
+    /* 230-299: 预留其他线操作 */
+
+    /* 圆构造操作 (300-399) */
+    ALG_STEP_CIRCLE_RADIUS      = 300,  /**< 半径圆构造 */
+    ALG_STEP_CIRCLE_2P          = 310,  /**< 两点圆构造 */
+    /* 320-399: 预留其他圆操作 */
+
+    /* 特殊线构造 (400-499) */
+    ALG_STEP_PARALLEL           = 400,  /**< 平行线构造 */
+    ALG_STEP_PERPENDICULAR      = 410,  /**< 垂线构造 */
+    /* 420-499: 预留其他特殊线操作 */
+
+    /* 变换操作 (500-599) */
+    ALG_STEP_TRANSFORM_BASE     = 500,  /**< 变换操作基础值 */
+    /* 510-599: 预留具体变换类型 */
+
+    /* 约束操作 (600-699) */
+    ALG_STEP_CONSTRAINT_BASE    = 600,  /**< 约束操作基础值 */
+    /* 610-699: 预留具体约束类型 */
+
+    /* 证明操作 (700-799) */
+    ALG_STEP_PROVE_BASE         = 700,  /**< 证明操作基础值 */
+    /* 710-799: 预留具体证明操作 */
+
+    /* 工作平面操作 (800-899) */
+    ALG_STEP_WORKPLANE_BASE     = 800,  /**< 工作平面操作基础值 */
+    ALG_STEP_WORKPLANE_OFFSET   = 810,  /**< 偏移工作平面 */
+    ALG_STEP_WORKPLANE_ROTATE   = 820,  /**< 旋转工作平面 */
+    /* 830-899: 预留其他工作平面操作 */
+
+    /* 选择器操作 (900-999) */
+    ALG_STEP_SELECTOR_BASE      = 900,  /**< 选择器操作基础值 */
+    /* 910-999: 预留具体选择器操作 */
+
+    ALG_STEP_MAX                = 1000  /**< 最大值上限 */
+} AlgStepIdBase;
+
+/** @brief 计算完整的步骤ID
+ *
+ * @param base  步骤类型基础值 (AlgStepIdBase)
+ * @param count 当前历史计数
+ * @return 完整的步骤ID
+ */
+static inline int alg_step_id(int base, int count) {
+    return base + count;
+}
+
 /** @brief 自动递增的几何体 ID 计数器 */
 static LV00_THREAD_LOCAL int g_geom_id_counter = 0;
 
@@ -162,7 +226,7 @@ AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z) 
     LV00_CHECK_NULL(geom, NULL);
 
     /* 记录当前 entity 作为历史步骤 */
-    int step_id = 100 + geom->history_count; /* step_id 编码：100+ = 点构造 */
+    int step_id = alg_step_id(ALG_STEP_POINT_BASE, geom->history_count);
     algebra_history_push(geom, step_id);
 
     /* 简单的实体 ID 分配策略 */
@@ -189,7 +253,7 @@ AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
         return NULL;
     }
 
-    int step_id = 110 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_POINT_ON, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
     LV00_UNUSED(entity_id);
@@ -213,7 +277,7 @@ AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b) {
         return NULL;
     }
 
-    int step_id = 120 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_MIDPOINT, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -236,7 +300,7 @@ AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b) {
         return NULL;
     }
 
-    int step_id = 130 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_INTERSECT, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -263,7 +327,7 @@ AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b) {
         return NULL;
     }
 
-    int step_id = 200 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_LINE_BASE, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -286,7 +350,7 @@ AlgebraicGeom *algebra_segment(AlgebraicGeom *geom, int id_a, int id_b) {
         return NULL;
     }
 
-    int step_id = 210 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_SEGMENT, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -311,7 +375,7 @@ AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id) {
         return NULL;
     }
 
-    int step_id = 220 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_RAY, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -338,7 +402,7 @@ AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double 
         return NULL;
     }
 
-    int step_id = 300 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_CIRCLE_RADIUS, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -361,7 +425,7 @@ AlgebraicGeom *algebra_circle(AlgebraicGeom *geom, int center_id, int on_circle_
         return NULL;
     }
 
-    int step_id = 310 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_CIRCLE_2P, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -390,7 +454,7 @@ AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id) 
         return NULL;
     }
 
-    int step_id = 400 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_PARALLEL, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -415,7 +479,7 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
         return NULL;
     }
 
-    int step_id = 410 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_PERPENDICULAR, geom->history_count);
     algebra_history_push(geom, step_id);
     geom->current_entity = geom->history_count;
 
@@ -450,7 +514,7 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op,
     algebra_apply_transform_to_matrix(geom->transform, op, params, param_count);
     geom->has_transform = true;
 
-    int step_id = 500 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_TRANSFORM_BASE, geom->history_count);
     algebra_history_push(geom, step_id);
 
     return geom;
@@ -673,7 +737,7 @@ AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_typ
         return NULL;
     }
 
-    int step_id = 600 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_CONSTRAINT_BASE, geom->history_count);
     algebra_history_push(geom, step_id);
 
     LV00_UNUSED(constraint_type);
@@ -694,7 +758,7 @@ AlgebraicGeom *algebra_prove(AlgebraicGeom *geom, const char *proposition) {
     LV00_CHECK_NULL(geom, NULL);
     LV00_CHECK_NULL(proposition, NULL);
 
-    int step_id = 700 + geom->history_count;
+    int step_id = alg_step_id(ALG_STEP_PROVE_BASE, geom->history_count);
     algebra_history_push(geom, step_id);
 
     LV00_UNUSED(proposition);

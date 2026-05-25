@@ -208,7 +208,7 @@ void *lv00_malloc_tracked(size_t size, const char *file, int line) {
     if (total > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
     total += ALLOC_TAIL_MAGIC_SIZE;
 
-    AllocHeader *hdr = (AllocHeader *)lv00_malloc(total);
+    AllocHeader *hdr = (AllocHeader *)malloc(total);
     if (!hdr)
         return NULL;
 
@@ -327,7 +327,7 @@ void *lv00_realloc(void *ptr, size_t size) {
         /* 从追踪链表中移除旧节点 */
         untrack_allocation(old_hdr);
 
-        AllocHeader *new_hdr = (AllocHeader *)lv00_realloc(old_hdr, new_total);
+        AllocHeader *new_hdr = (AllocHeader *)realloc(old_hdr, new_total);
         if (!new_hdr) {
             /* realloc 失败：旧分配仍然有效，重新加入追踪链表 */
             track_allocation(old_hdr);
@@ -389,7 +389,7 @@ realloc_overflow:
     return NULL;
 }
 
-void lv00_free((void **) &void **ptr) {
+void lv00_free(void **ptr) {
     if (!ptr || !*ptr)
         return;
 
@@ -417,11 +417,11 @@ void lv00_free((void **) &void **ptr) {
         g_memory_stats.total_freed += freed_size;
         g_memory_stats.free_count++;
 
-        lv00_free((void **) &hdr);
+        free(hdr);
     } else {
         /* 非本分配器指针或已释放（魔数不匹配）：
          * 仍然释放内存以防泄漏，但不更新统计。 */
-        lv00_free((void **) &*ptr);
+        free(*ptr);
     }
 
     *ptr = NULL;
@@ -438,6 +438,17 @@ void lv00_free_many(void **first, ...) {
     }
 
     va_end(args);
+}
+
+void lv00_free_external(void **ptr) {
+    if (!ptr || !*ptr)
+        return;
+
+    /* 直接调用系统free释放外部库（如GMP）分配的内存
+     * GMP的mpz_get_str等函数使用系统malloc分配内存
+     * 不能用lv00_free释放，因为lv00_free期望AllocHeader头部 */
+    free(*ptr);
+    *ptr = NULL;
 }
 
 /**
@@ -620,163 +631,6 @@ int lv00_memory_leak_report(FILE *output) {
     fprintf(output, "==========================================\n\n");
 
     return leak_count;
-}
-
-/* ============================================================
- * 内存池实现
- * ============================================================ */
-
-/**
- * @brief 内存池内部块头 —— 空闲链表节点
- *
- * 每个块在空闲时，其前 sizeof(void*) 字节存储 next_free 指针。
- * 分配后该区域由调用者使用，归还时恢复 next_free 指针。
- */
-typedef struct Lv00PoolBlock {
-    struct Lv00PoolBlock *next_free; /**< 空闲链表的下一个块 */
-    /* 用户数据紧随其后，大小为 pool->block_size */
-} Lv00PoolBlock;
-
-/**
- * @brief 内存池结构
- */
-struct Lv00MemoryPool {
-    size_t block_size;       /**< 每个块的用户数据大小（字节） */
-    size_t internal_size;    /**< 内部实际块大小 = block_size + sizeof(header) */
-    size_t total_blocks;     /**< 从创建至今累计分配的块数 */
-    size_t free_blocks;      /**< 当前空闲块数 */
-    Lv00PoolBlock *free_list; /**< 空闲链表头 */
-
-    /* 大块分配追踪，用于销毁时批量释放 */
-    void **chunks;           /**< 每次批量分配的大块指针数组 */
-    size_t chunk_count;      /**< 当前大块数量 */
-    size_t chunk_capacity;   /**< chunks 数组容量 */
-};
-
-/** 内存池大块数组初始容量 & 增长因子 */
-#define LV00_POOL_CHUNK_INITIAL 8
-#define LV00_POOL_CHUNK_GROWTH  2
-
-Lv00MemoryPool *lv00_pool_create(size_t block_size, size_t initial_blocks) {
-    if (block_size == 0 || initial_blocks == 0) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM,
-                       "pool_create: block_size=%zu initial_blocks=%zu 无效",
-                       block_size, initial_blocks);
-        return NULL;
-    }
-
-    /* 计算内部实际块大小：用户数据 + 链表指针头部 */
-    size_t internal_size = block_size + sizeof(Lv00PoolBlock *);
-
-    /* 分配池结构 */
-    Lv00MemoryPool *pool = (Lv00MemoryPool *)lv00_calloc(1, sizeof(Lv00MemoryPool));
-    if (!pool)
-        return NULL;
-
-    pool->block_size = block_size;
-    pool->internal_size = internal_size;
-    pool->chunk_capacity = LV00_POOL_CHUNK_INITIAL;
-    pool->chunks = (void **)lv00_calloc(pool->chunk_capacity, sizeof(void *));
-    if (!pool->chunks) {
-        lv00_free((void **) &pool);
-        return NULL;
-    }
-
-    /* 批量分配初始块 */
-    size_t total_data = internal_size * initial_blocks;
-    char *raw = (char *)lv00_malloc(total_data);
-    if (!raw) {
-        lv00_free((void **) &pool->chunks);
-        lv00_free((void **) &pool);
-        return NULL;
-    }
-
-    /* 记录大块用于销毁 */
-    pool->chunks[0] = raw;
-    pool->chunk_count = 1;
-
-    /* 将每个块串入空闲链表 */
-    for (size_t i = 0; i < initial_blocks; i++) {
-        Lv00PoolBlock *blk = (Lv00PoolBlock *)(raw + i * internal_size);
-        blk->next_free = pool->free_list;
-        pool->free_list = blk;
-    }
-    pool->total_blocks = initial_blocks;
-    pool->free_blocks = initial_blocks;
-
-    return pool;
-}
-
-void *lv00_pool_alloc(Lv00MemoryPool *pool) {
-    if (!pool)
-        return NULL;
-
-    /* 若空闲链表为空，自动扩容一个块 */
-    if (!pool->free_list) {
-        /* 扩容 chunks 数组 */
-        if (pool->chunk_count >= pool->chunk_capacity) {
-            size_t new_cap = pool->chunk_capacity * LV00_POOL_CHUNK_GROWTH;
-            void **new_chunks = (void **)lv00_realloc(pool->chunks, new_cap * sizeof(void *));
-            if (!new_chunks)
-                return NULL;
-            pool->chunks = new_chunks;
-            pool->chunk_capacity = new_cap;
-        }
-
-        char *raw = (char *)lv00_malloc(pool->internal_size);
-        if (!raw)
-            return NULL;
-
-        pool->chunks[pool->chunk_count++] = raw;
-
-        Lv00PoolBlock *blk = (Lv00PoolBlock *)raw;
-        blk->next_free = NULL;
-        pool->free_list = blk;
-        pool->total_blocks++;
-        pool->free_blocks++;
-    }
-
-    /* 取空闲链表头 */
-    Lv00PoolBlock *blk = pool->free_list;
-    pool->free_list = blk->next_free;
-    pool->free_blocks--;
-
-    /* 返回用户数据区（跳过 next_free 指针头部） */
-    return (void *)((char *)blk + sizeof(Lv00PoolBlock *));
-}
-
-void lv00_pool_free(Lv00MemoryPool *pool, void *ptr) {
-    if (!pool || !ptr)
-        return;
-
-    /* 还原块头指针（用户指针前方为 next_free 区域） */
-    Lv00PoolBlock *blk = (Lv00PoolBlock *)((char *)ptr - sizeof(Lv00PoolBlock *));
-
-    /* 插入空闲链表头部 */
-    blk->next_free = pool->free_list;
-    pool->free_list = blk;
-    pool->free_blocks++;
-}
-
-void lv00_pool_destroy(Lv00MemoryPool *pool) {
-    if (!pool)
-        return;
-
-    /* 释放所有批量分配的大块 */
-    for (size_t i = 0; i < pool->chunk_count; i++) {
-        lv00_free((void **) &pool->chunks[i]);
-    }
-    lv00_free((void **) &pool->chunks);
-    lv00_free((void **) &pool);
-}
-
-void lv00_pool_stats(const Lv00MemoryPool *pool, size_t *total_blocks, size_t *free_blocks) {
-    if (!pool)
-        return;
-    if (total_blocks)
-        *total_blocks = pool->total_blocks;
-    if (free_blocks)
-        *free_blocks = pool->free_blocks;
 }
 
 /* ============================================================
@@ -2010,6 +1864,82 @@ uint64_t lv00_hash_int(int value) {
     /* 逐字节哈希 int 值（sizeof(int) 通常为 4） */
     for (size_t i = 0; i < sizeof(int); i++) {
         hash ^= (uint64_t) ((value >> (i * 8)) & 0xFF);
+        hash *= LV00_FNV64_PRIME;
+    }
+    return hash;
+}
+
+/* ============================================================
+ * 统一数组扩容函数
+ * ============================================================ */
+
+/**
+ * @brief 确保动态数组有足够的容量
+ * @param arr 当前数组指针（可能被 realloc）
+ * @param count 当前元素数量
+ * @param capacity 当前容量指针（会被更新）
+ * @param elem_size 每个元素的大小
+ * @param min_growth 最小增长量
+ * @return 成功返回 true，失败返回 false
+ * @note 使用 LV00_ARRAY_GROWTH_FACTOR 倍增策略
+ */
+bool lv00_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, int min_growth) {
+    if (!arr || !capacity || elem_size == 0)
+        return false;
+
+    /* 无需扩容 */
+    if (count < *capacity)
+        return true;
+
+    /* 溢出检查 */
+    if (count < 0 || *capacity < 0)
+        return false;
+
+    /* 计算最小需求容量 */
+    int min_required = count + min_growth;
+    if (min_required < count)  /* 溢出检测 */
+        return false;
+
+    /* 计算新容量 */
+    if (*capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR)
+        return false;
+    int new_cap = (*capacity == 0) ? LV00_INITIAL_ARRAY_CAPACITY : *capacity * LV00_ARRAY_GROWTH_FACTOR;
+    if (new_cap < min_required) {
+        if (min_required > INT_MAX / LV00_ARRAY_GROWTH_FACTOR)
+            return false;
+        new_cap = min_required * LV00_ARRAY_GROWTH_FACTOR;
+    }
+
+    /* 分配前检查 size_t 溢出 */
+    if ((size_t)new_cap > SIZE_MAX / elem_size)
+        return false;
+
+    void *new_arr = lv00_realloc(*arr, (size_t)new_cap * elem_size);
+    if (!new_arr)
+        return false;
+
+    *arr = new_arr;
+    *capacity = new_cap;
+    return true;
+}
+
+/* ============================================================
+ * 统一 FNV-1a 哈希函数
+ * ============================================================ */
+
+/**
+ * @brief FNV-1a 哈希函数
+ * @param data 输入数据
+ * @param len 数据长度
+ * @return 64位哈希值
+ */
+uint64_t lv00_fnv1a_hash(const void *data, size_t len) {
+    if (!data || len == 0)
+        return 0;
+    const uint8_t *p = (const uint8_t *)data;
+    uint64_t hash = LV00_FNV64_OFFSET_BASIS;
+    for (size_t i = 0; i < len; i++) {
+        hash ^= p[i];
         hash *= LV00_FNV64_PRIME;
     }
     return hash;

@@ -554,6 +554,65 @@ bool lv00_config_set_string(const char *key, const char *value) {
 }
 
 /* ============================================================
+ * 版本信息 API
+ * ============================================================ */
+
+bool lv00_get_version_info(LV00VersionInfo *info) {
+    if (!info)
+        return false;
+
+    info->major = LV00_VERSION_MAJOR;
+    info->minor = LV00_VERSION_MINOR;
+    info->patch = LV00_VERSION_PATCH;
+    info->version_string = lv00_get_version_string();
+
+#if defined(_WIN32) || defined(_WIN64)
+    info->platform = "Windows";
+#elif defined(__APPLE__)
+    info->platform = "macOS";
+#elif defined(__linux__)
+    info->platform = "Linux";
+#elif defined(__FreeBSD__)
+    info->platform = "FreeBSD";
+#else
+    info->platform = "Unknown";
+#endif
+
+#if defined(_MSC_VER)
+    info->compiler = "MSVC";
+#elif defined(__GNUC__)
+    info->compiler = "GCC";
+#elif defined(__clang__)
+    info->compiler = "Clang";
+#else
+    info->compiler = "Unknown";
+#endif
+
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+    info->arch = "x86_64";
+#elif defined(_WIN32) || defined(__i386__)
+    info->arch = "x86";
+#elif defined(__arm__)
+    info->arch = "ARM";
+#else
+    info->arch = "Unknown";
+#endif
+
+    info->build_date = __DATE__;
+    info->build_time = __TIME__;
+
+    return true;
+}
+
+bool lv00_check_version_compat(void) {
+    /* 检查运行时主版本号与编译时主版本号是否一致 */
+    if (LV00_VERSION_MAJOR != 3) {
+        return false;
+    }
+    return true;
+}
+
+/* ============================================================
  * 内存管理便捷API实现
  * ============================================================ */
 

@@ -946,7 +946,7 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
     fb->output_count = 1; /* 简化注册始终为单输出 */
 
     /* 设置确定性状态 */
-    fb->determinism = DETERMINISM_VERIFIED;
+    fb->determinism = DETERMINISM_STATE_VERIFIED;
 
     /* 填充条目 */
     InternalPresetEntry *entry = &g_preset_registry.entries[g_preset_registry.count];
@@ -1041,7 +1041,7 @@ static bool register_preset_internal(const char *name, const char *description, 
 
     fb->input_count = input_count;
     fb->output_count = output_count;
-    fb->determinism = DETERMINISM_VERIFIED;
+    fb->determinism = DETERMINISM_STATE_VERIFIED;
 
     /* 填充条目 */
     InternalPresetEntry *entry = &g_preset_registry.entries[g_preset_registry.count];

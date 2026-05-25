@@ -21,7 +21,15 @@ extern "C" {
 #include "stream.h"
 #include "symbolic_coord.h"
 
-typedef enum { CONSTRUCTIVE, NON_CONSTRUCTIVE_ORACLE, EXPLOSION_PRINCIPLE } PropositionKind;
+/**
+ * @brief 命题类型枚举 —— 标识公理包中命题的类型
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
+typedef enum {
+    PROPOSITION_KIND_CONSTRUCTIVE,            /**< 构造性命题：可直接构造证明 */
+    PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE, /**< 非构造性预言：需要外部Oracle */
+    PROPOSITION_KIND_EXPLOSION_PRINCIPLE     /**< 爆炸原理：反证法适用 */
+} PropositionKind;
 
 typedef struct AxiomPackage AxiomPackage;
 
@@ -49,7 +57,9 @@ typedef enum {
     AXIOM_LOAD_PARSE_ERROR,
     AXIOM_LOAD_CIRCULAR_DEPENDENCY,
     AXIOM_LOAD_DEPTH_EXCEEDED,
-    AXIOM_LOAD_VALIDATION_ERROR
+    AXIOM_LOAD_VALIDATION_ERROR,
+    AXIOM_LOAD_NULL_POINTER,  /* 空指针参数 */
+    AXIOM_LOAD_MEMORY_ERROR   /* 内存分配失败 */
 } AxiomLoadStatus;
 
 typedef enum { AXIOM_SAVE_OK, AXIOM_SAVE_FILE_ERROR, AXIOM_SAVE_WRITE_ERROR } AxiomSaveStatus;
@@ -76,8 +86,15 @@ bool axiom_package_validate_dependencies(AxiomPackage *pkg, AxiomPackage **loade
 
 /* ============== ConstraintTemplate 增强 ============== */
 
-/* 参数类型 */
-typedef enum { PARAM_POINT, PARAM_LINE_SEGMENT, PARAM_REGION, PARAM_SCALAR } TemplateParamType;
+/* 参数类型
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
+typedef enum {
+    TEMPLATE_PARAM_TYPE_POINT,       /**< 点参数 */
+    TEMPLATE_PARAM_TYPE_LINE_SEGMENT, /**< 线段参数 */
+    TEMPLATE_PARAM_TYPE_REGION,       /**< 区域参数 */
+    TEMPLATE_PARAM_TYPE_SCALAR       /**< 标量参数 */
+} TemplateParamType;
 
 typedef struct {
     TemplateParamType type;

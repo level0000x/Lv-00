@@ -301,8 +301,8 @@ char *rational_serialize(const Rational *r) {
     char *num_str = mpz_get_str(NULL, 10, mpq_numref(r->value));
     char *den_str = mpz_get_str(NULL, 10, mpq_denref(r->value));
     snprintf(buf, buf_size, "%s/%s", num_str, den_str);
-    lv00_free((void **) &num_str);
-    lv00_free((void **) &den_str);
+    lv00_free_external((void **) &num_str);
+    lv00_free_external((void **) &den_str);
     return buf;
 }
 
@@ -2351,6 +2351,8 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
         return NULL;
     coord->type = RATIONAL;
     coord->trust = TRUST_GREEN;
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
     coord->data.rational = rational_create(num, denom);
     if (!coord->data.rational) {
         lv00_free((void**)&coord);  /* lv00_malloc分配 */
@@ -2373,6 +2375,8 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
         return NULL;
     coord->type = ALGEBRAIC;
     coord->trust = TRUST_GREEN;
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
     coord->data.algebraic = algebraic_create(poly, left, right);
     if (!coord->data.algebraic) {
         lv00_free((void**)&coord);  /* lv00_malloc分配 */
@@ -2395,6 +2399,8 @@ SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigne
         return NULL;
     coord->type = QUADRATIC;
     coord->trust = TRUST_GREEN;
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
     coord->data.quadratic = quadratic_create(a, b, n);
     if (!coord->data.quadratic) {
         lv00_free((void**)&coord);  /* lv00_malloc分配 */
@@ -2409,6 +2415,8 @@ SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
         return NULL;
     coord->type = TRANSCENDENTAL;
     coord->trust = TRUST_BLUE;
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
     coord->data.transcendental = transcendental_create(name);
     if (!coord->data.transcendental) {
         lv00_free((void**)&coord);  /* lv00_malloc分配 */
@@ -2420,30 +2428,55 @@ SymbolicCoord *symbolic_coord_create_transcendental(const char *name) {
 /**
  * 销毁符号坐标对象并释放内存。
  *
+ * 销毁操作包括：
+ * 1. 根据坐标类型调用对应的类型销毁函数，释放底层 GMP 变量和动态内存
+ * 2. 递归清理嵌套数据结构（如 algebraic 的 cached_rational、
+ *    quadratic 的子有理数、transcendental 的表达式树等）
+ * 3. 使数值缓存失效，防止悬空引用
+ * 4. 将所有指针置 NULL，防止悬空指针
+ *
  * @param coord 符号坐标对象，可为 NULL（空操作）
  */
 void symbolic_coord_destroy(SymbolicCoord *coord) {
     if (!coord)
         return;
+
+    /* 使数值缓存失效 */
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
+
     switch (coord->type) {
         case RATIONAL:
             rational_destroy(coord->data.rational);
+            coord->data.rational = NULL;
             break;
         case ALGEBRAIC:
             algebraic_destroy(coord->data.algebraic);
+            coord->data.algebraic = NULL;
             break;
         case QUADRATIC:
             quadratic_destroy(coord->data.quadratic);
+            coord->data.quadratic = NULL;
             break;
         case TRANSCENDENTAL:
             transcendental_destroy(coord->data.transcendental);
+            coord->data.transcendental = NULL;
             break;
     }
+
+    /* 将 trust 颜色重置为安全默认值 */
+    coord->trust = TRUST_GREEN;
+    coord->type = RATIONAL;
+
     lv00_free((void**)&coord);  /* lv00_malloc分配 */
 }
 
 /**
  * 获取任意 SymbolicCoord 类型的数值近似。
+ *
+ * 先检查缓存：若 cache_valid 为 true，则直接返回 cached_value，
+ * 避免重复的 GMP 转换开销。缓存失效时重新计算并更新缓存。
+ * 当坐标被修改时需调用 symbolic_coord_invalidate_cache() 使缓存失效。
  *
  * 根据 coord 的类型调用相应的转换函数：
  * - RATIONAL: rational_to_double
@@ -2457,17 +2490,52 @@ void symbolic_coord_destroy(SymbolicCoord *coord) {
 double symbolic_coord_to_double(const SymbolicCoord *coord) {
     if (!coord)
         return 0.0;
+
+    /* 缓存命中：直接返回已缓存值，避免重复计算 */
+    /* 注意：为保持 const 语义，将 const 转换为非 const 以便写入缓存。
+     * 这是安全的，因为缓存是透明的性能优化，不影响逻辑语义。 */
+    if (coord->cache_valid) {
+        return coord->cached_value;
+    }
+
+    double val = 0.0;
     switch (coord->type) {
         case RATIONAL:
-            return rational_to_double(coord->data.rational);
+            val = rational_to_double(coord->data.rational);
+            break;
         case ALGEBRAIC:
-            return algebraic_to_double(coord->data.algebraic);
+            val = algebraic_to_double(coord->data.algebraic);
+            break;
         case QUADRATIC:
-            return quadratic_to_double(coord->data.quadratic);
+            val = quadratic_to_double(coord->data.quadratic);
+            break;
         case TRANSCENDENTAL:
-            return transcendental_to_double(coord->data.transcendental);
+            val = transcendental_to_double(coord->data.transcendental);
+            break;
     }
-    return 0.0;
+
+    /* 更新缓存（const 转换为非 const：缓存是性能优化，不改变逻辑语义） */
+    ((SymbolicCoord *)coord)->cached_value = val;
+    ((SymbolicCoord *)coord)->cache_valid = true;
+
+    return val;
+}
+
+/**
+ * 使符号坐标的数值缓存失效。
+ *
+ * 当坐标被修改（如算术运算、信任颜色变更、类型转换）时，
+ * 调用此函数标记缓存为无效，确保后续调用
+ * symbolic_coord_to_double() 时重新计算精确数值。
+ * 提供的指针将被设置为 NULL。
+ *
+ * @param coord 符号坐标（可为 NULL，空操作）
+ */
+void symbolic_coord_invalidate_cache(SymbolicCoord *coord) {
+    if (!coord)
+        return;
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
 }
 
 /* Cross-type comparison */
@@ -3792,6 +3860,8 @@ SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *src) {
 
     dst->type = src->type;
     dst->trust = src->trust;
+    dst->cache_valid = false;  /* 复制品缓存初始无效，首次访问时重新计算 */
+    dst->cached_value = 0.0;
 
     switch (src->type) {
         case RATIONAL:
@@ -3979,6 +4049,8 @@ TrustColor symbolic_coord_get_trust(const SymbolicCoord *coord) {
 void symbolic_coord_set_trust(SymbolicCoord *coord, TrustColor trust) {
     if (coord) {
         coord->trust = trust;
+        /* 信任颜色变更可能影响数值含义，使缓存失效 */
+        symbolic_coord_invalidate_cache(coord);
     }
 }
 
@@ -5116,7 +5188,7 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
                 char *coeff_str = mpz_get_str(NULL, 16, a->minimal_poly.coeffs[i]);
                 if (coeff_str) {
                     hash = fnv1a_update(hash, coeff_str, strlen(coeff_str));
-                    lv00_free((void **) &coeff_str);
+                    lv00_free_external((void **) &coeff_str);
                 }
             }
             /* Hash bounds for distinguishing different roots */

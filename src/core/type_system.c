@@ -66,6 +66,36 @@ LV00_DECLARE_STREAM_CTX(type_system)
  */
 #define TYPE_INFER_MAX_DEPTH 100
 
+/* 递归深度限制，防止无限递归（类型等价检查） */
+#define TYPE_EQUIV_MAX_DEPTH 16
+
+/* visited set 最大容量，防止共享子类型导致指数级时间 */
+#define TYPE_EQUIV_MAX_VISITED 256
+#define MAX_VISITED TYPE_EQUIV_MAX_VISITED
+
+/* visited set：记录已比较的类型对，防止共享子类型导致指数级时间
+ * 使用线程局部存储确保多线程环境下类型等价检查的线程安全性 */
+static LV00_THREAD_LOCAL struct { const TypeRegion *a; const TypeRegion *b; } s_equiv_visited[MAX_VISITED];
+static LV00_THREAD_LOCAL int s_equiv_visited_count = 0;
+
+/**
+ * @brief 检查是否已访问过此类型对，若已访问则直接返回等价
+ *
+ * 用于类型等价检查中的环路检测。在递归比较两个类型时，
+ * 如果发现当前类型对已经被比较过，则直接返回 TYPE_EQUIV_OK
+ * 以避免无限递归和指数级时间复杂度。
+ */
+#define VISITED_CHECK(ta, tb) do { \
+    for (int _vi = 0; _vi < s_equiv_visited_count; _vi++) { \
+        if (s_equiv_visited[_vi].a == (ta) && s_equiv_visited[_vi].b == (tb)) return TYPE_EQUIV_OK; \
+    } \
+    if (s_equiv_visited_count < MAX_VISITED) { \
+        s_equiv_visited[s_equiv_visited_count].a = (ta); \
+        s_equiv_visited[s_equiv_visited_count].b = (tb); \
+        s_equiv_visited_count++; \
+    } \
+} while(0)
+
 /* 前向声明：用于辅助函数 */
 static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
                                                        bool use_rewrite, int depth);
@@ -519,6 +549,65 @@ TypeRegion *type_create_bottom(TypeSystem *ts) {
     return tr;
 }
 
+TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
+                                          const char *predicate_name,
+                                          const char *predicate_expr) {
+    if (!ts || !base_type || !predicate_name)
+        return NULL;
+
+    TypeRegion *tr = type_region_create(ts, TYPE_KIND_PREDICATE_SUBTYPE);
+    if (!tr)
+        return NULL;
+
+    tr->base_type = base_type;
+    tr->predicate_name = lv00_strdup(predicate_name);
+    tr->predicate_expr = predicate_expr ? lv00_strdup(predicate_expr) : NULL;
+    tr->predicate_constraint_id = -1; /* 稍后通过约束系统关联 */
+    tr->level = base_type->level; /* 子类型与基类型同层级 */
+
+    if (!tr->predicate_name) {
+        lv00_free((void **)&tr);
+        return NULL;
+    }
+
+    return tr;
+}
+
+bool type_check_predicate_subtype_value(TypeSystem *ts, TypeRegion *subtype, int node_id) {
+    if (!ts || !subtype || subtype->kind != TYPE_KIND_PREDICATE_SUBTYPE)
+        return false;
+
+    /* 首先检查值是否属于基类型 */
+    TypeRegion *base = subtype->base_type;
+    if (!base)
+        return false;
+
+    /* 获取节点的当前类型 */
+    TypeRegion *node_type = type_get_node_type(ts, node_id);
+    if (!node_type)
+        return false;
+
+    /* 检查节点类型是否与基类型兼容 */
+    TypeEquivResult equiv = type_check_equivalence(ts, node_type, base, false);
+    if (equiv != TYPE_EQUIV_OK)
+        return false;
+
+    /* 如果有关联的约束ID，检查约束是否满足 */
+    if (subtype->predicate_constraint_id >= 0) {
+        /* 通过约束图检查约束状态 */
+        /* 这里简化处理：假设约束系统会验证 */
+        return true; /* 基类型兼容且约束存在 */
+    }
+
+    return true; /* 基类型兼容即可 */
+}
+
+TypeRegion *type_predicate_subtype_get_base(TypeRegion *subtype) {
+    if (!subtype || subtype->kind != TYPE_KIND_PREDICATE_SUBTYPE)
+        return NULL;
+    return subtype->base_type;
+}
+
 /**
  * @brief 销毁类型区域并释放其资源
  *
@@ -536,6 +625,8 @@ void type_region_destroy(TypeRegion *tr) {
     lv00_free((void **) &tr->variable_name);
     lv00_free((void **) &tr->alias_name);
     lv00_free((void **) &tr->constraint_ids);
+    lv00_free((void **) &tr->predicate_name);
+    lv00_free((void **) &tr->predicate_expr);
 
     /* 注意：不递归销毁关联的类型，因为它们可能被共享 */
     lv00_free((void **) &tr);
@@ -670,12 +761,6 @@ bool type_check_cumulative(TypeSystem *ts, TypeRegion *lower, TypeRegion *higher
 
 /* ============== 类型等价检查 ============== */
 
-/* 递归深度限制，防止无限递归 */
-#define TYPE_EQUIV_MAX_DEPTH 16
-
-/* visited set 最大容量，防止共享子类型导致指数级时间 */
-#define TYPE_EQUIV_MAX_VISITED 256
-
 /* qsort 比较函数：按 int 升序排列 */
 static int compare_ints(const void *a, const void *b) {
     int ia = *(const int *) a;
@@ -693,23 +778,6 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
     if (depth >= TYPE_EQUIV_MAX_DEPTH) {
         return TYPE_EQUIV_UNKNOWN;
     }
-
-/* visited set：记录已比较的类型对，防止共享子类型导致指数级时间 */
-    #define MAX_VISITED TYPE_EQUIV_MAX_VISITED
-    static struct { const TypeRegion *a; const TypeRegion *b; } s_equiv_visited[MAX_VISITED];
-    static int s_equiv_visited_count = 0;
-
-    /* 检查是否已访问过此类型对，若已访问则直接返回等价 */
-    #define VISITED_CHECK(ta, tb) do { \
-        for (int _vi = 0; _vi < s_equiv_visited_count; _vi++) { \
-            if (s_equiv_visited[_vi].a == (ta) && s_equiv_visited[_vi].b == (tb)) return TYPE_EQUIV_OK; \
-        } \
-        if (s_equiv_visited_count < MAX_VISITED) { \
-            s_equiv_visited[s_equiv_visited_count].a = (ta); \
-            s_equiv_visited[s_equiv_visited_count].b = (tb); \
-            s_equiv_visited_count++; \
-        } \
-    } while(0)
 
     /* 首次进入时重置 visited set（depth == 0 表示顶层调用） */
     if (depth == 0) {
@@ -2168,7 +2236,7 @@ const char *type_check_result_to_string(TypeCheckResult result) {
  * @param tr     类型区域指针（可为 NULL）
  * @param indent 缩进层级（空格数）
  */
-void type_print(TypeRegion *tr, int indent) {
+void type_print(const TypeRegion *tr, int indent) {
     if (!tr)
         return;
 

@@ -15,7 +15,9 @@
 #ifndef LV00_PRESET_REGISTER_MACROS_H
 #define LV00_PRESET_REGISTER_MACROS_H
 
-#include "lv00/func_block_registry.h"
+#include "func_block_registry.h"
+
+#include <stdio.h>
 
 /**
  * @brief 开始预设注册块
@@ -42,7 +44,8 @@
                 (name), (display_name), (desc), (cat))) { \
             _preset_##cat##_register_count++; \
         } else { \
-            /* 注册失败时记录警告 */ \
+            fprintf(stderr, "[PRESET WARN] 预设注册失败: %s (类别: %s)\n", \
+                    (name), _cat_name); \
         }
 
 /**

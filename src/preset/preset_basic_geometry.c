@@ -331,7 +331,6 @@ bool preset_basic_geometry_get_names(char ***out_names, int *out_count) {
         /* 交点计算 */
         PRESET_LINE_INTERSECTION,
         PRESET_LINE_CIRCLE_INTERSECTION,
-        PRESET_CIRCLE_INTERSECTION,
         /* 反射与对称 */
         PRESET_REFLECT_POINT_OVER_LINE,
         PRESET_REFLECT_POINT_OVER_POINT,

@@ -113,13 +113,18 @@ extern "C" {
 /** @brief 默认符号精度位数（symbolic_coord 精度，单位：比特） */
 #define LV00_DEFAULT_PRECISION_BITS 64
 /** @brief 默认重写步数上限（每次 solve 调用中的重写步数限制）
- *  与 config.h 中 LV00_CONFIG_DEFAULT_REWRITE_LIMIT 保持一致 */
+ *  @deprecated 使用 LV00_CONFIG_DEFAULT_REWRITE_LIMIT 替代 */
+#ifndef LV00_CONFIG_DEFAULT_REWRITE_LIMIT
 #define LV00_DEFAULT_REWRITE_STEP_LIMIT 1000
+#else
+#define LV00_DEFAULT_REWRITE_STEP_LIMIT LV00_CONFIG_DEFAULT_REWRITE_LIMIT
+#endif
 /** @brief 默认内存使用上限（单位：MB，0 表示无限制） */
 #define LV00_DEFAULT_MEMORY_LIMIT_MB 0
 
 /* ── 动态数组初始容量与增长因子 ── */
-/** @brief 动态数组的初始容量（统一使用 config.h 中的定义） */
+/** @brief 动态数组的初始容量
+ *  @deprecated 使用 LV00_CONFIG_INITIAL_ARRAY_CAPACITY 替代 */
 #ifndef LV00_CONFIG_INITIAL_ARRAY_CAPACITY
 #define LV00_INITIAL_ARRAY_CAPACITY 4
 #else
@@ -148,10 +153,20 @@ extern "C" {
 #define LV00_FNV_HASH_MULTIPLIER 2654435769u
 
 /* ── 位数熔断阈值 ── */
-/** @brief 位数熔断阈值：当坐标值的位数超过此值，触发降级或熔断保护 */
+/** @brief 位数熔断阈值：当坐标值的位数超过此值，触发降级或熔断保护
+ *  @deprecated 使用 LV00_CONFIG_BIT_CUTOFF_THRESHOLD 替代 */
+#ifndef LV00_CONFIG_BIT_CUTOFF_THRESHOLD
 #define LV00_BIT_CUTOFF_THRESHOLD 1000000
-/** @brief 符号坐标系统支持的最大精度位数（超过此值的操作将被拒绝） */
+#else
+#define LV00_BIT_CUTOFF_THRESHOLD LV00_CONFIG_BIT_CUTOFF_THRESHOLD
+#endif
+/** @brief 符号坐标系统支持的最大精度位数（超过此值的操作将被拒绝）
+ *  @deprecated 使用 LV00_CONFIG_MAX_PRECISION_BITS 替代 */
+#ifndef LV00_CONFIG_MAX_PRECISION_BITS
 #define LV00_MAX_PRECISION_BITS 100
+#else
+#define LV00_MAX_PRECISION_BITS LV00_CONFIG_MAX_PRECISION_BITS
+#endif
 
 /* ── 电路溢出阈值 ── */
 /** @brief 位电路溢出容错次数：连续溢出超过此次数触发回滚/降级策略 */

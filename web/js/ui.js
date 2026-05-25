@@ -585,6 +585,19 @@
                     }
                     app.appendLog('Loaded: Equilateral Triangle / 等边三角形', 'info');
                 },
+                'triangle': function(app) {
+                    // 三角形：复用等边三角形示例
+                    var h = Math.sqrt(3) / 2 * 4;
+                    app.addPoint(-2, -h / 3);
+                    app.addPoint(2, -h / 3);
+                    app.addPoint(0, 2 * h / 3);
+                    if (app.points.length >= 3) {
+                        app.addSegment(app.points[0].id, app.points[1].id);
+                        app.addSegment(app.points[1].id, app.points[2].id);
+                        app.addSegment(app.points[2].id, app.points[0].id);
+                    }
+                    app.appendLog('Loaded: Triangle / 三角形', 'info');
+                },
                 'circle_equation': function(app) {
                     // 圆（正十二边形近似），半径 3
                     var r = 3;
@@ -663,7 +676,6 @@
                     }
                     app.appendLog('Loaded: Ellipse a=4, b=2 / 椭圆', 'info');
                 },
-                'triangle': _EXAMPLES['equilateral_triangle'],  // 复用等边三角形示例
                 'square': function(app) {
                     // 正方形 4x4
                     app.addPoint(-2, -2);

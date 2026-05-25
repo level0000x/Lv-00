@@ -29,11 +29,11 @@
  * @version 3.3.0
  */
 
-#include "lv00/modal_operators.h"
-#include "lv00/three_valued_logic.h"
-#include "lv00/lv00_utils.h"
-#include "lv00/proof.h"
-#include "lv00/error_codes.h"
+#include "modal_operators.h"
+#include "three_valued_logic.h"
+#include "lv00_utils.h"
+#include "proof.h"
+#include "error_codes.h"
 
 #include <stdio.h>
 #include <string.h>

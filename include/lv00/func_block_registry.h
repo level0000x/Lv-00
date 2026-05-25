@@ -76,12 +76,26 @@ typedef enum {
  *
  * 每个条目包含一个预设函数块的元数据及其模板函数块。
  * 模板函数块是只读的，实例化时应通过 func_block_copy 创建副本。
+ *
+ * 【引用计数机制 (v3.4.1)】
+ * 为防止悬空指针风险，PresetEntry 包含引用计数字段。
+ * - 初始化时 ref_count = 1（注册表持有引用）
+ * - 每次 lookup 返回深拷贝时，ref_count++
+ * - 深拷贝使用后由调用者负责释放，不影响 ref_count
+ * - cleanup 时，仅当 ref_count == 1 时才释放模板函数块
+ * - 如果外部仍有引用，cleanup 仅释放注册表资源，模板函数块保留
+ *
+ * 这样的设计确保：
+ * 1. 注册表清理不会产生悬空指针
+ * 2. 外部代码可以安全使用 lookup 返回的深拷贝
+ * 3. 注册表可以安全重新初始化
  */
 typedef struct {
     char *name;              /* 预设名称（唯一键） */
     char *description;       /* 描述 */
     PresetCategory category; /* 类别 */
     FuncBlock *template_fb;  /* 模板函数块（只读） */
+    int ref_count;           /* 引用计数 (v3.4.1)：模板函数块的引用数量 */
 } PresetEntry;
 
 /* ============== 注册表结构 ============== */
@@ -184,7 +198,10 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
  * @param cat 预设类别
  * @return 类别的中文名称，未知类别返回 "未知类别"
  */
+#ifndef LV00_PRESET_CATEGORY_TO_STRING_DECLARED
+#define LV00_PRESET_CATEGORY_TO_STRING_DECLARED
 const char *preset_category_to_string(PresetCategory cat);
+#endif /* LV00_PRESET_CATEGORY_TO_STRING_DECLARED */
 
 /**
  * @brief 从字符串解析预设类别枚举值

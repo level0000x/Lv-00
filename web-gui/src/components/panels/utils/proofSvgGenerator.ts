@@ -364,7 +364,8 @@ function toggleAuto() {
   }
 }
 
-document.addEventListener('keydown', function(e) {
+// 键盘快捷键处理函数（保存引用以便清理）
+var keydownHandler = function(e) {
   if (e.target.tagName === 'INPUT') return;
   switch(e.key) {
     case 'ArrowLeft': e.preventDefault(); prevStep(); break;
@@ -374,7 +375,17 @@ document.addEventListener('keydown', function(e) {
     case ' ': e.preventDefault(); toggleAuto(); break;
     case 'g': case 'G': e.preventDefault(); var inp = document.getElementById('jumpInput'); inp.focus(); inp.select(); break;
   }
-});
+};
+document.addEventListener('keydown', keydownHandler);
+
+/**
+ * 清理键盘快捷键事件监听器。
+ * 当用户关闭此HTML文件或不再需要快捷键功能时调用。
+ * 注：关闭HTML文件时会自动清理，无需手动调用。
+ */
+function cleanupHotkeys() {
+  document.removeEventListener('keydown', keydownHandler);
+}
 
 updateStep(currentStep);
 </script>

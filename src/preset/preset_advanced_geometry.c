@@ -32,6 +32,7 @@
 #include "lv00_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h" /* 预设公共宏与辅助函数（PRESET_ERROR_LOG 等日志宏） */
+#include "debug.h"           /* lv00_log_error 等日志函数 */
 
 /* ============================================================
  * 预设数量定义

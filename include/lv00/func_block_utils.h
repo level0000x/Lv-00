@@ -57,7 +57,10 @@ int *dup_int_array(const int *src, int count);
  * @param out_count [输出] 合并后的元素个数
  * @return 新分配的整数数组指针，失败时返回 NULL
  */
-int *merge_int_arrays(const int *a, int a_count, const int *b, int b_count, int *out_count);
+int *lv00_int_array_merge(const int *a, int a_count, const int *b, int b_count, int *out_count);
+
+/* 向后兼容别名 */
+#define merge_int_arrays lv00_int_array_merge
 
 #ifdef __cplusplus
 }

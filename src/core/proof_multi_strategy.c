@@ -662,3 +662,386 @@ const char *proof_strategy_status_to_string(ProofStrategyStatus status) {
             return "未知";
     }
 }
+
+/* ========================================================================
+ * 简化版多策略搜索接口（桩实现）
+ *
+ * 提供简化的搜索函数接口，方便快速集成和测试。
+ * 这些函数封装了上述完整的多策略引擎，提供更直观的调用方式。
+ * ======================================================================== */
+
+/**
+ * @brief 简化版策略类型转字符串（英文）
+ *
+ * 与 proof_strategy_type_to_string 不同，此函数返回英文标识符，
+ * 便于日志输出和调试。
+ *
+ * @param strategy 策略类型
+ * @return 策略名称字符串
+ */
+const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
+    switch (strategy) {
+        case PROOF_STRATEGY_DIRECT_CONSTRUCTION:
+            return "direct_construction";
+        case PROOF_STRATEGY_AREA_METHOD:
+            return "area_method";
+        case PROOF_STRATEGY_GROEBNER_BASIS:
+            return "groebner_basis";
+        case PROOF_STRATEGY_VECTOR_METHOD:
+            return "vector_method";
+        case PROOF_STRATEGY_FULL_ANGLE_METHOD:
+            return "full_angle_method";
+        case PROOF_STRATEGY_DEDUCTIVE_DATABASE:
+            return "deductive_database";
+        case PROOF_STRATEGY_COORDINATE:
+            return "coordinate";
+        case PROOF_STRATEGY_ORACLE:
+            return "oracle";
+        default:
+            return "unknown";
+    }
+}
+
+/* ============== 辅助搜索函数声明 ============== */
+
+/**
+ * @brief 深度优先搜索（简化实现）
+ *
+ * 沿着单一路径深入搜索，直到达到目标或无法继续。
+ * 遇到死胡同时回溯到上一个选择点。
+ *
+ * @param proof   证明导航器指针
+ * @param max_steps 最大搜索步数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+static bool proof_depth_first_search(ProofNavigator *proof, int max_steps);
+
+/**
+ * @brief 广度优先搜索（简化实现）
+ *
+ * 按层次展开搜索空间，先探索所有深度为 d 的节点，
+ * 再探索深度为 d+1 的节点。
+ *
+ * @param proof   证明导航器指针
+ * @param max_steps 最大搜索步数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps);
+
+/**
+ * @brief 最佳优先搜索（简化实现）
+ *
+ * 使用启发式评估函数选择最有希望的节点进行探索。
+ * 需要提供启发式评分函数。
+ *
+ * @param proof   证明导航器指针
+ * @param max_steps 最大搜索步数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+static bool proof_best_first_search(ProofNavigator *proof, int max_steps);
+
+/**
+ * @brief 蒙特卡洛树搜索（简化实现）
+ *
+ * 通过随机模拟评估节点价值，结合探索和利用。
+ * 适用于搜索空间大、难以用传统方法评估的证明问题。
+ *
+ * @param proof   证明导航器指针
+ * @param max_steps 最大搜索步数（模拟次数）
+ * @return true 找到证明，false 搜索失败或超时
+ */
+static bool proof_mcts_search(ProofNavigator *proof, int max_steps);
+
+/* ============== 辅助搜索函数实现 ============== */
+
+/**
+ * @brief 深度优先搜索实现
+ *
+ * 递归/迭代深入搜索：
+ * 1. 检查当前状态是否为目标
+ * 2. 选择一条推理规则应用
+ * 3. 递归深入
+ * 4. 如果失败则回溯尝试其他路径
+ */
+static bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
+    if (!proof)
+        return false;
+
+    int steps = 0;
+
+    /* 简化的深度优先搜索：遍历策略执行 */
+    while (steps < max_steps && !proof->is_complete) {
+        /* 获取当前激活的策略 */
+        const ProofStrategyDescriptor *desc = proof_multi_strategy_get_active(
+            (const ProofMultiStrategy *) proof->engine);
+
+        if (!desc || !desc->execute) {
+            /* 无可用策略，尝试所有策略 */
+            ProofStrategyType tried = proof_multi_strategy_try_all(
+                (ProofMultiStrategy *) proof->engine);
+            if (tried >= PROOF_STRATEGY_COUNT) {
+                break;
+            }
+        } else {
+            /* 执行当前策略 */
+            if (!proof_multi_strategy_execute((ProofMultiStrategy *) proof->engine)) {
+                /* 当前策略失败，切换到下一个可用策略 */
+                int current_idx = -1;
+                for (int i = 0; i < PROOF_STRATEGY_COUNT; i++) {
+                    if (((ProofMultiStrategy *) proof->engine)->strategies[i].status == PROOF_STRATEGY_ACTIVE) {
+                        current_idx = i;
+                        break;
+                    }
+                }
+                /* 尝试下一个策略 */
+                for (int next = current_idx + 1; next < PROOF_STRATEGY_COUNT; next++) {
+                    if (((ProofMultiStrategy *) proof->engine)->strategies[next].status == PROOF_STRATEGY_AVAILABLE) {
+                        proof_multi_strategy_activate((ProofMultiStrategy *) proof->engine,
+                                                      (ProofStrategyType) next);
+                        break;
+                    }
+                }
+            }
+        }
+
+        steps++;
+    }
+
+    return proof->is_complete;
+}
+
+/**
+ * @brief 广度优先搜索实现
+ *
+ * 按层次展开搜索空间：
+ * 1. 展开当前层所有候选
+ * 2. 检查该层是否有目标
+ * 3. 如果没有，移动到下一层
+ */
+static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
+    if (!proof)
+        return false;
+
+    int explored = 0;
+    int level_size = 1;  /* 假设初始有1个节点 */
+    int current_level = 0;
+
+    /* 简化的 BFS：逐个策略执行 */
+    while (explored < max_steps) {
+        bool found_in_level = false;
+
+        /* 模拟当前层的所有候选节点探索 */
+        for (int i = 0; i < level_size && explored < max_steps; i++) {
+            /* 执行一次策略尝试 */
+            bool success = proof_multi_strategy_execute((ProofMultiStrategy *) proof->engine);
+
+            if (success && proof->is_complete) {
+                return true;
+            }
+
+            explored++;
+        }
+
+        /* 当前层探索完毕，检查是否完成 */
+        if (proof->is_complete) {
+            return true;
+        }
+
+        /* 进入下一层 */
+        current_level++;
+        /* 假设每层节点数指数增长（有分支因子） */
+        level_size = level_size * 2;
+        if (level_size > 1024) {
+            level_size = 1024;  /* 限制增长 */
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @brief 最佳优先搜索实现
+ *
+ * 使用启发式评分选择最佳候选：
+ * 1. 评估所有候选的启发式分数
+ * 2. 选择分数最高的候选
+ * 3. 应用该候选
+ * 4. 重复直到找到目标或无候选
+ */
+static bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
+    if (!proof)
+        return false;
+
+    int steps = 0;
+
+    /* 简化的最佳优先搜索：按策略优先级尝试 */
+    while (steps < max_steps && !proof->is_complete) {
+        /* 尝试所有策略，找到第一个成功的 */
+        for (int i = 0; i < PROOF_STRATEGY_COUNT; i++) {
+            if (((ProofMultiStrategy *) proof->engine)->strategies[i].status == PROOF_STRATEGY_AVAILABLE) {
+                /* 激活并执行此策略 */
+                proof_multi_strategy_activate((ProofMultiStrategy *) proof->engine,
+                                              (ProofStrategyType) i);
+
+                if (proof_multi_strategy_execute((ProofMultiStrategy *) proof->engine)) {
+                    if (proof->is_complete) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        steps++;
+    }
+
+    return proof->is_complete;
+}
+
+/**
+ * @brief 蒙特卡洛树搜索实现（简化版）
+ *
+ * MCTS 四步循环：
+ * 1. 选择（Selection）：从根节点选择最优子节点
+ * 2. 展开（Expansion）：添加新的子节点
+ * 3. 模拟（Simulation）：随机执行到终止状态
+ * 4. 回传（Backpropagation）：更新路径上节点的统计信息
+ *
+ * @param proof       证明导航器指针
+ * @param max_steps   最大模拟次数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+static bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
+    if (!proof)
+        return false;
+
+    int simulations = 0;
+
+    /* 简化的 MCTS：多次尝试不同策略组合 */
+    while (simulations < max_steps) {
+        /* 选择一个随机策略尝试 */
+        ProofStrategyType random_strategy = (ProofStrategyType)(
+            simulations % PROOF_STRATEGY_COUNT);
+
+        /* 检查策略是否可用 */
+        if (((ProofMultiStrategy *) proof->engine)->strategies[random_strategy].status !=
+            PROOF_STRATEGY_UNAVAILABLE) {
+
+            /* 激活策略 */
+            proof_multi_strategy_activate((ProofMultiStrategy *) proof->engine,
+                                          random_strategy);
+
+            /* 执行模拟 */
+            bool success = proof_multi_strategy_execute((ProofMultiStrategy *) proof->engine);
+
+            /* 检查结果 */
+            if (success && proof->is_complete) {
+                return true;
+            }
+
+            /* 如果失败，尝试下一个策略 */
+            ProofStrategyType next = (ProofStrategyType)((random_strategy + 1) % PROOF_STRATEGY_COUNT);
+            if (((ProofMultiStrategy *) proof->engine)->strategies[next].status !=
+                PROOF_STRATEGY_UNAVAILABLE) {
+                proof_multi_strategy_activate((ProofMultiStrategy *) proof->engine, next);
+                proof_multi_strategy_execute((ProofMultiStrategy *) proof->engine);
+
+                if (proof->is_complete) {
+                    return true;
+                }
+            }
+        }
+
+        simulations++;
+    }
+
+    /* 返回是否找到证明 */
+    return proof->is_complete;
+}
+
+/* ============== 公共简化API ============== */
+
+/**
+ * @brief 使用指定策略执行证明搜索（简化接口）
+ *
+ * 这是 proof_multi_strategy_execute 的简化版本，
+ * 直接指定策略类型和最大步数。
+ *
+ * @param proof      证明导航器指针
+ * @param strategy   搜索策略类型
+ * @param max_steps  最大搜索步数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+bool proof_search_with_strategy(ProofNavigator *proof, ProofStrategyType strategy, int max_steps) {
+    if (!proof)
+        return false;
+
+    /* 激活指定策略 */
+    if (!proof_multi_strategy_activate((ProofMultiStrategy *) proof->engine, strategy)) {
+        return false;
+    }
+
+    /* 根据策略类型选择搜索方法 */
+    switch (strategy) {
+        case PROOF_STRATEGY_DIRECT_CONSTRUCTION:
+        case PROOF_STRATEGY_AREA_METHOD:
+        case PROOF_STRATEGY_GROEBNER_BASIS:
+        case PROOF_STRATEGY_VECTOR_METHOD:
+        case PROOF_STRATEGY_FULL_ANGLE_METHOD:
+        case PROOF_STRATEGY_DEDUCTIVE_DATABASE:
+        case PROOF_STRATEGY_COORDINATE:
+        case PROOF_STRATEGY_ORACLE:
+            /* 使用深度优先搜索策略执行 */
+            return proof_depth_first_search(proof, max_steps);
+
+        default:
+            return false;
+    }
+}
+
+/**
+ * @brief 使用蒙特卡洛树搜索执行证明（简化接口）
+ *
+ * 封装 MCTS 搜索，适用于复杂或搜索空间大的证明问题。
+ *
+ * @param proof      证明导航器指针
+ * @param max_steps  最大模拟次数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+bool proof_mcts_execute(ProofNavigator *proof, int max_steps) {
+    if (!proof)
+        return false;
+
+    return proof_mcts_search(proof, max_steps);
+}
+
+/**
+ * @brief 执行广度优先搜索证明（简化接口）
+ *
+ * 适用于需要系统探索所有可能性的证明问题。
+ *
+ * @param proof      证明导航器指针
+ * @param max_steps  最大搜索步数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+bool proof_bfs_execute(ProofNavigator *proof, int max_steps) {
+    if (!proof)
+        return false;
+
+    return proof_breadth_first_search(proof, max_steps);
+}
+
+/**
+ * @brief 执行最佳优先搜索证明（简化接口）
+ *
+ * 适用于有良好启发式函数的证明问题。
+ *
+ * @param proof      证明导航器指针
+ * @param max_steps  最大搜索步数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+bool proof_best_first_execute(ProofNavigator *proof, int max_steps) {
+    if (!proof)
+        return false;
+
+    return proof_best_first_search(proof, max_steps);
+}

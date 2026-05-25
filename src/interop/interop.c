@@ -1303,7 +1303,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                     "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
                 if (engine->main_graph) {
                     for (int i = 0; i < engine->main_graph->node_count && offset < (int)sizeof(resp->data) - 256; i++) {
-                        GeomNode *node = &engine->main_graph->nodes[i];
+                        GeomNode *node = engine->main_graph->nodes[i];
                         if (node->type == GEOM_POINT && node->coord_count >= 2) {
                             double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                             double y = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -1322,7 +1322,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                     "\\begin{tikzpicture}\n");
                 if (engine->main_graph) {
                     for (int i = 0; i < engine->main_graph->node_count && offset < (int)sizeof(resp->data) - 256; i++) {
-                        GeomNode *node = &engine->main_graph->nodes[i];
+                        GeomNode *node = engine->main_graph->nodes[i];
                         if (node->type == GEOM_POINT && node->coord_count >= 2) {
                             double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                             double y = symbolic_coord_to_double(node->symbolic_coords[1]);
@@ -3961,7 +3961,9 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
 
         /* 输出符号坐标 */
         fprintf(fp, " [");
-        for (int j = 0; j < node->coord_count; j++) {
+        /* 内层坐标遍历：const 保护外层节点指针，只读遍历 */
+        const int coord_cnt = node->coord_count;
+        for (int j = 0; j < coord_cnt; j++) {
             if (j > 0)
                 fprintf(fp, ", ");
 

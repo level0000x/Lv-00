@@ -28,6 +28,36 @@
 /** 初始变换序列容量 */
 #define TRANSFORM_SEQ_INIT_CAPACITY 8
 
+/* ============== GMP辅助函数 ============== */
+
+/**
+ * @brief 辅助函数：mpq乘以无符号整数
+ * @param result 结果
+ * @param op 操作数
+ * @param n 乘数
+ */
+static void mpq_mul_by_ui(mpq_t result, const mpq_t op, unsigned long n) {
+    mpq_t temp;
+    mpq_init(temp);
+    mpq_set_ui(temp, n, 1);
+    mpq_mul(result, op, temp);
+    mpq_clear(temp);
+}
+
+/**
+ * @brief 辅助函数：mpq减去无符号整数
+ * @param result 结果
+ * @param op 操作数
+ * @param n 减数
+ */
+static void mpq_sub_by_ui(mpq_t result, const mpq_t op, unsigned long n) {
+    mpq_t temp;
+    mpq_init(temp);
+    mpq_set_ui(temp, n, 1);
+    mpq_sub(result, op, temp);
+    mpq_clear(temp);
+}
+
 /** 变换群生成元最大数量 */
 #define GROUP_MAX_GENERATORS 16
 
@@ -305,7 +335,7 @@ Lv00Transform *lv00_transform_reflection(const mpq_t ax, const mpq_t ay,
 
         /* b' = -2ab / (a^2 + b^2) */
         mpq_mul(t->matrix.b, t->params.params.reflection.line_a, t->params.params.reflection.line_b);
-        mpq_mul_ui(t->matrix.b, t->matrix.b, 2);
+        mpq_mul_by_ui(t->matrix.b, t->matrix.b, 2);
         mpq_neg(t->matrix.b, t->matrix.b);
         mpq_div(t->matrix.b, t->matrix.b, denom);
 
@@ -319,20 +349,20 @@ Lv00Transform *lv00_transform_reflection(const mpq_t ax, const mpq_t ay,
         /* 计算平移分量 */
         mpq_t two_c;
         mpq_init(two_c);
-        mpq_mul_ui(two_c, t->params.params.reflection.line_c, 2);
+        mpq_mul_by_ui(two_c, t->params.params.reflection.line_c, 2);
 
         mpq_mul(t->matrix.tx, t->matrix.b, t->params.params.reflection.line_c);
         mpq_mul(temp, t->matrix.a, t->params.params.reflection.line_c);
         mpq_add(t->matrix.tx, t->matrix.tx, temp);
         mpq_neg(t->matrix.tx, t->matrix.tx);
-        mpq_mul_ui(t->matrix.tx, t->matrix.tx, 2);
+        mpq_mul_by_ui(t->matrix.tx, t->matrix.tx, 2);
         mpq_div(t->matrix.tx, t->matrix.tx, denom);
 
         mpq_mul(t->matrix.ty, t->matrix.d, t->params.params.reflection.line_c);
         mpq_mul(temp, t->matrix.c, t->params.params.reflection.line_c);
         mpq_add(t->matrix.ty, t->matrix.ty, temp);
         mpq_neg(t->matrix.ty, t->matrix.ty);
-        mpq_mul_ui(t->matrix.ty, t->matrix.ty, 2);
+        mpq_mul_by_ui(t->matrix.ty, t->matrix.ty, 2);
         mpq_div(t->matrix.ty, t->matrix.ty, denom);
 
         mpq_clear(two_c);
@@ -415,7 +445,7 @@ Lv00Transform *lv00_transform_scaling(const mpq_t cx, const mpq_t cy, const mpq_
     mpq_t temp;
     mpq_init(temp);
 
-    mpq_sub_ui(temp, scale, 1);
+    mpq_sub_by_ui(temp, scale, 1);  /* 使用我们定义的辅助函数 */
     mpq_mul(t->matrix.tx, temp, cx);
     mpq_neg(t->matrix.tx, t->matrix.tx);
 
@@ -942,11 +972,17 @@ bool lv00_reflect_point(const mpq_t px, const mpq_t py,
     mpq_add(hy, hy, ay);
 
     /* 对称点 R = 2*H - P */
-    mpq_mul(out_x, hx, 2);
+    mpq_t two;
+    mpq_init(two);
+    mpq_set_ui(two, 2, 1);  /* two = 2/1 = 2 */
+    
+    mpq_mul(out_x, hx, two);
     mpq_sub(out_x, out_x, px);
 
-    mpq_mul(out_y, hy, 2);
+    mpq_mul(out_y, hy, two);
     mpq_sub(out_y, out_y, py);
+    
+    mpq_clear(two);
 
     mpq_clear(dx);
     mpq_clear(dy);
@@ -998,7 +1034,7 @@ char *lv00_transform_to_string(const Lv00Transform *t) {
         default: type_str = "Unknown"; break;
     }
 
-    /* [Bug修复] 先用 snprintf(NULL, 0, ...) 计算所需长度，再动态分配，避免固定 512 字节缓冲区溢出 */
+    /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
     int needed = snprintf(NULL, 0, "%s: matrix=[%Qd %Qd %Qd; %Qd %Qd %Qd]",
              type_str,
              t->matrix.a, t->matrix.b, t->matrix.tx,
@@ -1035,7 +1071,7 @@ char *lv00_transform_to_json(const Lv00Transform *t) {
         default: type_str = "unknown"; break;
     }
 
-    /* [Bug修复] 先用 snprintf(NULL, 0, ...) 计算所需长度，再动态分配，避免固定 1024 字节缓冲区溢出 */
+    /* 动态计算字符串长度并分配缓冲区，避免固定缓冲区溢出 */
     int needed = snprintf(NULL, 0,
              "{\"type\":\"%s\",\"matrix\":{\"a\":\"%Qd\",\"b\":\"%Qd\",\"tx\":\"%Qd\",\"c\":\"%Qd\",\"d\":\"%Qd\",\"ty\":\"%Qd\"},"
              "\"is_isometry\":%s,\"is_orientation_preserving\":%s}",

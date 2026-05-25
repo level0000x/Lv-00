@@ -158,12 +158,13 @@ extern "C" {
 #endif
 #endif
 
-/* strdup 兼容性（非标准C函数） */
-#if defined(_MSC_VER)
-#define lv00_strdup _strdup
-#else
-#define lv00_strdup strdup
-#endif
+/* strdup 兼容性（非标准C函数）
+ * 使用 lv00_strdup_safe 确保与 lv00_malloc/lv00_free 内存分配器兼容。
+ * 如果 memory_pool.h 中声明了 lv00_strdup 函数，则不使用宏定义，
+ * 以避免宏吞掉函数声明导致编译错误。 */
+#ifndef LV00_STRDUP_AS_FUNCTION
+#define lv00_strdup lv00_strdup_safe
+#endif /* LV00_STRDUP_AS_FUNCTION */
 
 /* localtime 线程安全包装 */
 #if defined(_WIN32)
@@ -520,6 +521,19 @@ LV00_PUBLIC_API int lv00_add_point(LV00Engine *engine,
     int64_t y_num, uint64_t y_den);
 
 /**
+ * @brief 添加整数坐标点（便捷函数）
+ * @param engine 引擎实例
+ * @param x x 坐标（整数）
+ * @param y y 坐标（整数）
+ * @return 新节点 ID，失败返回 -1
+ *
+ * @note 等价于 lv00_add_point(engine, x, 1, y, 1)
+ */
+static inline int lv00_add_point_i(LV00Engine *engine, long long x, long long y) {
+    return lv00_add_point(engine, x, 1, y, 1);
+}
+
+/**
  * @brief 快速创建线段（便捷函数）
  *
  * 在引擎的约束图中创建一条连接两个已有点的线段。
@@ -720,7 +734,7 @@ LV00_PUBLIC_API bool lv00_get_memory_stats_ex(MemoryStats *stats);
  * @brief 设置内存使用上限
  *
  * 限制 Lv-00 可分配的总内存。达到上限后，新的分配请求将失败
- * 并返回 NULL，同时设置错误码 LV00_ERR_OOM。
+ * 并返回 NULL，同时设置错误码 LV00_ERROR_OUT_OF_MEMORY。
  *
  * @param[in] limit_bytes 内存上限（字节），0 表示无限制
  *

@@ -33,6 +33,10 @@ static uint64_t mpz_bit_size(const mpz_t x) {
  * 生命周期管理
  * ======================================================================== */
 
+/**
+ * @brief 创建有理数（初始值为 0/1）
+ * @return 新分配的有理数，失败返回 NULL
+ */
 Lv00Rational *lv00_rational_create(void) {
     Lv00Rational *r = (Lv00Rational *) lv00_malloc(sizeof(Lv00Rational));
     if (!r)
@@ -42,6 +46,12 @@ Lv00Rational *lv00_rational_create(void) {
     return r;
 }
 
+/**
+ * @brief 从 GMP 整数创建有理数
+ * @param num 分子（GMP mpz_t）
+ * @param den 分母（GMP mpz_t，不得为 0）
+ * @return 新分配的有理数，分母为 0 或内存不足时返回 NULL
+ */
 Lv00Rational *lv00_rational_create_from_mpz(const mpz_t num, const mpz_t den) {
     if (mpz_sgn(den) == 0)
         return NULL; /* 分母不得为 0 */
@@ -62,6 +72,12 @@ Lv00Rational *lv00_rational_create_from_mpz(const mpz_t num, const mpz_t den) {
     return r;
 }
 
+/**
+ * @brief 从 C 长整数创建有理数
+ * @param num 分子
+ * @param den 分母（不得为 0）
+ * @return 新分配的有理数，失败返回 NULL
+ */
 Lv00Rational *lv00_rational_create_from_si(long num, unsigned long den) {
     if (den == 0)
         return NULL;
@@ -79,6 +95,12 @@ Lv00Rational *lv00_rational_create_from_si(long num, unsigned long den) {
     return r;
 }
 
+/**
+ * @brief 从 64 位整数创建有理数
+ * @param num 分子（有符号）
+ * @param den 分母（无符号，不得为 0）
+ * @return 新分配的有理数，失败返回 NULL
+ */
 Lv00Rational *lv00_rational_create_from_i64(int64_t num, uint64_t den) {
     if (den == 0)
         return NULL;
@@ -103,6 +125,11 @@ Lv00Rational *lv00_rational_create_from_i64(int64_t num, uint64_t den) {
     return r;
 }
 
+/**
+ * @brief 深拷贝有理数
+ * @param src 源有理数
+ * @return 新分配的副本，失败返回 NULL
+ */
 Lv00Rational *lv00_rational_clone(const Lv00Rational *src) {
     if (!src)
         return NULL;
@@ -117,6 +144,10 @@ Lv00Rational *lv00_rational_clone(const Lv00Rational *src) {
     return r;
 }
 
+/**
+ * @brief 销毁有理数并释放 GMP 资源
+ * @param r 指向有理数指针的指针（释放后置 NULL）
+ */
 void lv00_rational_destroy(Lv00Rational **r) {
     if (r && *r) {
         mpz_clear((*r)->num);
@@ -129,6 +160,9 @@ void lv00_rational_destroy(Lv00Rational **r) {
  * 赋值操作
  * ======================================================================== */
 
+/**
+ * @brief 将有理数赋值为另一个有理数的值
+ */
 void lv00_rational_set(Lv00Rational *dst, const Lv00Rational *src) {
     if (!dst || !src)
         return;
@@ -136,6 +170,7 @@ void lv00_rational_set(Lv00Rational *dst, const Lv00Rational *src) {
     mpz_set(dst->den, src->den);
 }
 
+/** @brief 将有理数置零 */
 void lv00_rational_set_zero(Lv00Rational *r) {
     if (!r)
         return;
@@ -143,6 +178,7 @@ void lv00_rational_set_zero(Lv00Rational *r) {
     mpz_set_si(r->den, 1);
 }
 
+/** @brief 将有理数置一 */
 void lv00_rational_set_one(Lv00Rational *r) {
     if (!r)
         return;
@@ -150,6 +186,10 @@ void lv00_rational_set_one(Lv00Rational *r) {
     mpz_set_si(r->den, 1);
 }
 
+/**
+ * @brief 用 GMP 整数设置有理数的分子和分母
+ * @return true 成功，false 分母为 0
+ */
 bool lv00_rational_set_mpz(Lv00Rational *r, const mpz_t num, const mpz_t den) {
     if (!r)
         return false;
@@ -166,6 +206,9 @@ bool lv00_rational_set_mpz(Lv00Rational *r, const mpz_t num, const mpz_t den) {
  * 规范化
  * ======================================================================== */
 
+/**
+ * @brief 约分有理数（化简为最简分数，确保分母为正）
+ */
 void lv00_rational_simplify(Lv00Rational *r) {
     if (!r)
         return;
@@ -200,6 +243,9 @@ void lv00_rational_simplify(Lv00Rational *r) {
  * 算术运算
  * ======================================================================== */
 
+/**
+ * @brief 有理数加法：返回 a + b 的新有理数
+ */
 Lv00Rational *lv00_rational_add(const Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return NULL;
@@ -226,6 +272,9 @@ Lv00Rational *lv00_rational_add(const Lv00Rational *a, const Lv00Rational *b) {
     return r;
 }
 
+/**
+ * @brief 有理数减法：返回 a - b 的新有理数
+ */
 Lv00Rational *lv00_rational_sub(const Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return NULL;
@@ -252,6 +301,9 @@ Lv00Rational *lv00_rational_sub(const Lv00Rational *a, const Lv00Rational *b) {
     return r;
 }
 
+/**
+ * @brief 有理数乘法：返回 a * b 的新有理数
+ */
 Lv00Rational *lv00_rational_mul(const Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return NULL;
@@ -267,6 +319,9 @@ Lv00Rational *lv00_rational_mul(const Lv00Rational *a, const Lv00Rational *b) {
     return r;
 }
 
+/**
+ * @brief 有理数除法：返回 a / b 的新有理数（b 不得为 0）
+ */
 Lv00Rational *lv00_rational_div(const Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return NULL;
@@ -284,6 +339,9 @@ Lv00Rational *lv00_rational_div(const Lv00Rational *a, const Lv00Rational *b) {
     return r;
 }
 
+/**
+ * @brief 有理数取反：返回 -a 的新有理数
+ */
 Lv00Rational *lv00_rational_neg(const Lv00Rational *a) {
     if (!a)
         return NULL;
@@ -295,6 +353,9 @@ Lv00Rational *lv00_rational_neg(const Lv00Rational *a) {
     return r;
 }
 
+/**
+ * @brief 有理数取倒数：返回 1/a 的新有理数（a 不得为 0）
+ */
 Lv00Rational *lv00_rational_inv(const Lv00Rational *a) {
     if (!a)
         return NULL;
@@ -317,6 +378,9 @@ Lv00Rational *lv00_rational_inv(const Lv00Rational *a) {
     return r;
 }
 
+/**
+ * @brief 有理数绝对值：返回 |a| 的新有理数
+ */
 Lv00Rational *lv00_rational_abs(const Lv00Rational *a) {
     if (!a)
         return NULL;
@@ -334,6 +398,9 @@ Lv00Rational *lv00_rational_abs(const Lv00Rational *a) {
  * 原地算术运算
  * ======================================================================== */
 
+/**
+ * @brief 有理数原地加法：a += b
+ */
 void lv00_rational_add_inplace(Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return;
@@ -358,6 +425,9 @@ void lv00_rational_add_inplace(Lv00Rational *a, const Lv00Rational *b) {
     lv00_rational_simplify(a);
 }
 
+/**
+ * @brief 有理数原地减法：a -= b
+ */
 void lv00_rational_sub_inplace(Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return;
@@ -378,6 +448,9 @@ void lv00_rational_sub_inplace(Lv00Rational *a, const Lv00Rational *b) {
     lv00_rational_simplify(a);
 }
 
+/**
+ * @brief 有理数原地乘法：a *= b
+ */
 void lv00_rational_mul_inplace(Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return;
@@ -388,6 +461,10 @@ void lv00_rational_mul_inplace(Lv00Rational *a, const Lv00Rational *b) {
     lv00_rational_simplify(a);
 }
 
+/**
+ * @brief 有理数原地除法：a /= b（b 不得为 0）
+ * @return true 成功，false b 为 0
+ */
 bool lv00_rational_div_inplace(Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return false;
@@ -401,6 +478,9 @@ bool lv00_rational_div_inplace(Lv00Rational *a, const Lv00Rational *b) {
     return true;
 }
 
+/**
+ * @brief 有理数原地取反：a = -a
+ */
 void lv00_rational_neg_inplace(Lv00Rational *a) {
     if (!a)
         return;
@@ -411,6 +491,10 @@ void lv00_rational_neg_inplace(Lv00Rational *a) {
  * 比较操作
  * ======================================================================== */
 
+/**
+ * @brief 比较两个有理数
+ * @return -1 (a < b), 0 (a == b), 1 (a > b)
+ */
 int lv00_rational_cmp(const Lv00Rational *a, const Lv00Rational *b) {
     if (!a || !b)
         return 0;
@@ -431,28 +515,33 @@ int lv00_rational_cmp(const Lv00Rational *a, const Lv00Rational *b) {
     return result;
 }
 
+/** @brief 判断两个有理数是否相等 */
 bool lv00_rational_equal(const Lv00Rational *a, const Lv00Rational *b) {
     return lv00_rational_cmp(a, b) == 0;
 }
 
+/** @brief 判断有理数是否为零 */
 bool lv00_rational_is_zero(const Lv00Rational *a) {
     if (!a)
         return true;
     return mpz_sgn(a->num) == 0;
 }
 
+/** @brief 判断有理数是否为一 */
 bool lv00_rational_is_one(const Lv00Rational *a) {
     if (!a)
         return false;
     return mpz_cmp_si(a->num, 1) == 0 && mpz_cmp_si(a->den, 1) == 0;
 }
 
+/** @brief 判断有理数是否为整数（分母为 1） */
 bool lv00_rational_is_integer(const Lv00Rational *a) {
     if (!a)
         return false;
     return mpz_cmp_si(a->den, 1) == 0;
 }
 
+/** @brief 获取有理数的符号：-1（负）、0（零）、1（正） */
 int lv00_rational_sgn(const Lv00Rational *a) {
     if (!a)
         return 0;
@@ -463,6 +552,12 @@ int lv00_rational_sgn(const Lv00Rational *a) {
  * 与 double 的转换（显式标注精度损失）
  * ======================================================================== */
 
+/**
+ * @brief 将有理数转换为双精度浮点数
+ * @param out_lossy [输出] 近似浮点值
+ * @param out_loss_bits [输出] 精度损失位数（NULL 可忽略）
+ * @return true 转换成功，false 参数无效
+ */
 bool lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_loss_bits) {
     if (!r || !out_lossy)
         return false;
@@ -485,6 +580,10 @@ bool lv00_rational_to_double(const Lv00Rational *r, double *out_lossy, int *out_
     return true;
 }
 
+/**
+ * @brief 估算有理数转浮点数时的精度损失位数
+ * @return 损失位数（0 表示无损失）
+ */
 int lv00_rational_estimate_loss(const Lv00Rational *r) {
     if (!r || lv00_rational_is_zero(r))
         return 0;
@@ -508,6 +607,11 @@ int lv00_rational_estimate_loss(const Lv00Rational *r) {
  * 防止分母溢出
  * ======================================================================== */
 
+/**
+ * @brief 判断两个有理数相乘是否安全（不会超出比特数限制）
+ * @param max_bits 允许的最大比特数
+ * @return true 安全，false 可能溢出
+ */
 bool lv00_rational_mul_is_safe(const Lv00Rational *a, const Lv00Rational *b, uint64_t max_bits) {
     if (!a || !b)
         return false;
@@ -531,6 +635,10 @@ bool lv00_rational_mul_is_safe(const Lv00Rational *a, const Lv00Rational *b, uin
     return true;
 }
 
+/**
+ * @brief 判断分母的比特数是否在安全范围内
+ * @return true 安全，false 比特数过大
+ */
 bool lv00_rational_den_is_safe(const mpz_t den) {
     if (!den)
         return false;
@@ -542,6 +650,10 @@ bool lv00_rational_den_is_safe(const mpz_t den) {
  * 格式化与调试
  * ======================================================================== */
 
+/**
+ * @brief 将有理数转换为字符串（如 "3/4"、"-5/1"）
+ * @return 新分配的字符串，失败返回 NULL
+ */
 char *lv00_rational_to_string(const Lv00Rational *r) {
     if (!r)
         return NULL;
@@ -552,9 +664,9 @@ char *lv00_rational_to_string(const Lv00Rational *r) {
         if (!gmp_str) return NULL;
         size_t slen = strlen(gmp_str);
         char *result = (char *) lv00_malloc(slen + 1);
-        if (!result) { lv00_free((void **) &gmp_str); return NULL; }
+        if (!result) { lv00_free_external((void **) &gmp_str); return NULL; }
         memcpy(result, gmp_str, slen + 1);
-        lv00_free((void **) &gmp_str);  /* GMP分配，用标准free */
+        lv00_free_external((void **) &gmp_str);  /* GMP分配，用lv00_free_external释放 */
         return result;
     }
 
@@ -563,27 +675,31 @@ char *lv00_rational_to_string(const Lv00Rational *r) {
     char *den_str = mpz_get_str(NULL, 10, r->den);
 
     if (!num_str || !den_str) {
-        lv00_free((void **) &num_str); num_str = NULL;  /* GMP分配，用标准free */
-        lv00_free((void **) &den_str); den_str = NULL;  /* GMP分配，用标准free */
+        lv00_free_external((void **) &num_str);  /* GMP分配，用lv00_free_external释放 */
+        lv00_free_external((void **) &den_str);  /* GMP分配，用lv00_free_external释放 */
         return NULL;
     }
 
     size_t len = strlen(num_str) + strlen(den_str) + 2; /* num + '/' + den + '\0' */
     char *result = (char *) lv00_malloc(len);
     if (!result) {
-        lv00_free((void **) &num_str); num_str = NULL;  /* GMP分配，用标准free */
-        lv00_free((void **) &den_str); den_str = NULL;  /* GMP分配，用标准free */
+        lv00_free_external((void **) &num_str);  /* GMP分配，用lv00_free_external释放 */
+        lv00_free_external((void **) &den_str);  /* GMP分配，用lv00_free_external释放 */
         return NULL;
     }
 
     snprintf(result, len, "%s/%s", num_str, den_str);
 
-    lv00_free((void **) &num_str);   /* GMP分配，用标准free */
-    lv00_free((void **) &den_str);   /* GMP分配，用标准free */
+    lv00_free_external((void **) &num_str);   /* GMP分配，用lv00_free_external释放 */
+    lv00_free_external((void **) &den_str);   /* GMP分配，用lv00_free_external释放 */
 
     return result;
 }
 
+/**
+ * @brief 从字符串解析有理数（支持 "a/b"、"整数"、"小数" 格式）
+ * @return 新分配的有理数，失败返回 NULL
+ */
 Lv00Rational *lv00_rational_from_string(const char *s) {
     if (!s || !*s)
         return NULL;
@@ -654,6 +770,10 @@ Lv00Rational *lv00_rational_from_string(const char *s) {
  * 与现有 Rational* (mpq_t) 类型的互操作
  * ======================================================================== */
 
+/**
+ * @brief 从 GMP mpq_t 创建有理数
+ * @return 新分配的有理数，失败返回 NULL
+ */
 Lv00Rational *lv00_rational_from_mpq(mpq_srcptr val) {
     if (!val)
         return NULL;
@@ -673,6 +793,11 @@ Lv00Rational *lv00_rational_from_mpq(mpq_srcptr val) {
     return r;
 }
 
+/**
+ * @brief 将有理数导出到 GMP mpq_t
+ * @param r 源有理数
+ * @param out [输出] GMP 有理数
+ */
 void lv00_rational_to_mpq(const Lv00Rational *r, mpq_t out) {
     if (!r || !out)
         return;

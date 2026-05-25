@@ -33,6 +33,7 @@
 #define LV00_PROOF_H
 
 #include <stdbool.h>
+#include <time.h>
 
 #include "constraint_graph.h"
 #include "exact_arithmetic.h" /* LV00_TOLERATED_FLOAT for proof timing/thresholds */
@@ -60,30 +61,34 @@ typedef struct PropositionEquivalence PropositionEquivalence;
 typedef struct BottomDefinition BottomDefinition;
 typedef struct LV00Engine LV00Engine; /* 引擎前向声明 */
 
-/* ============== 证明状态颜色 ============== */
+/* ============== 证明状态颜色 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    PROOF_COLOR_GREEN,             /* 全构造，无任何非常规依赖 */
-    PROOF_COLOR_BLUE_UNEXPLORED,   /* 蓝色（未探索） */
-    PROOF_COLOR_BLUE_RESOURCE,     /* 蓝色（资源受限） */
-    PROOF_COLOR_BLUE_OUT_OF_RANGE, /* 蓝色（超出范围） */
-    PROOF_COLOR_GREEN_VERIFIED,    /* 绿色实框：已证不可构造 */
-    PROOF_COLOR_YELLOW,            /* 黄色虚线框：条件性不可构造 */
-    PROOF_COLOR_ORANGE_ORACLE,     /* 浅橙色实心端口：依赖非构造性oracle */
-    PROOF_COLOR_ORANGE_EX_FALSO,   /* 浅橙色虚线箭头：爆炸原理步骤 */
-    PROOF_COLOR_AMBER,             /* 橙黄色：含数值假设 */
-    PROOF_COLOR_DARK_ORANGE        /* 深橙色：非构造性依赖与数值假设叠加 */
+    PROOF_COLOR_GREEN,             /**< 全构造，无任何非常规依赖 */
+    PROOF_COLOR_BLUE_UNEXPLORED,   /**< 蓝色（未探索） */
+    PROOF_COLOR_BLUE_RESOURCE,     /**< 蓝色（资源受限） */
+    PROOF_COLOR_BLUE_OUT_OF_RANGE, /**< 蓝色（超出范围） */
+    PROOF_COLOR_GREEN_VERIFIED,    /**< 绿色实框：已证不可构造 */
+    PROOF_COLOR_YELLOW,            /**< 黄色虚线框：条件性不可构造 */
+    PROOF_COLOR_ORANGE_ORACLE,     /**< 浅橙色实心端口：依赖非构造性oracle */
+    PROOF_COLOR_ORANGE_EX_FALSO,   /**< 浅橙色虚线箭头：爆炸原理步骤 */
+    PROOF_COLOR_AMBER,             /**< 橙黄色：含数值假设 */
+    PROOF_COLOR_DARK_ORANGE        /**< 深橙色：非构造性依赖与数值假设叠加 */
 } ProofColor;
 
-/* ============== 命题类型 ============== */
+/* ============== 命题类型 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    PROPOSITION_ATOMIC,      /* 原子命题 */
-    PROPOSITION_CONJUNCTION, /* 合取 ∧ */
-    PROPOSITION_DISJUNCTION, /* 析取 ∨ */
-    PROPOSITION_IMPLICATION, /* 蕴含 → */
-    PROPOSITION_NEGATION,    /* 否定 ¬ */
-    PROPOSITION_UNIVERSAL,   /* 全称 ∀ */
-    PROPOSITION_EXISTENTIAL, /* 存在 ∃ */
-    PROPOSITION_BOTTOM       /* 矛盾 ⊥ */
+    PROPOSITION_TYPE_ATOMIC,      /**< 原子命题 */
+    PROPOSITION_TYPE_CONJUNCTION, /**< 合取 ∧ */
+    PROPOSITION_TYPE_DISJUNCTION, /**< 析取 ∨ */
+    PROPOSITION_TYPE_IMPLICATION, /**< 蕴含 → */
+    PROPOSITION_TYPE_NEGATION,    /**< 否定 ¬ */
+    PROPOSITION_TYPE_UNIVERSAL,   /**< 全称 ∀ */
+    PROPOSITION_TYPE_EXISTENTIAL, /**< 存在 ∃ */
+    PROPOSITION_TYPE_BOTTOM       /**< 矛盾 ⊥ */
 } PropositionType;
 
 /* ============== 命题模式 ============== */
@@ -92,6 +97,7 @@ struct Proposition {
     PropositionType type; /* 命题类型 */
     ProofColor color;     /* 证明状态颜色 */
     char *label;          /* 命题标签（可空） */
+    int ref_count;        /* 引用计数（用于 proposition_ref/unref） */
 
     /* 输入/输出端口 */
     int *input_port_ids;  /* 输入端口ID数组 */
@@ -120,6 +126,10 @@ struct Proposition {
     /* 元数据 */
     char *name;        /* 命题名称 */
     char *description; /* 描述 */
+
+    /* 时间戳 */
+    time_t created_at;    /* 创建时间 */
+    time_t last_modified; /* 最后修改时间 */
 };
 
 /* ============== 证明步骤类型 ============== */
@@ -163,6 +173,10 @@ struct ProofStep {
     bool is_completed;  /* 是否完成 */
     char *note;         /* 用户注释 */
 
+    /* 证明树结构 */
+    int parent_step_id; /* 父步骤ID（-1 表示根步骤） */
+    int depth;          /* 步骤在证明树中的深度 */
+
     /* 时间戳 */
     int64_t timestamp; /* 步骤时间戳 */
 };
@@ -203,11 +217,22 @@ struct ProofDependency {
 
 /**
  * @brief 引理视图状态
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    LEMMA_VIEW_EXPANDED, /* 展开 */
-    LEMMA_VIEW_COLLAPSED /* 折叠 */
+    LEMMA_VIEW_STATE_EXPANDED, /**< 展开 */
+    LEMMA_VIEW_STATE_COLLAPSED /**< 折叠 */
 } LemmaViewState;
+
+/**
+ * @brief 证明状态
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
+typedef enum {
+    PROOF_STATE_ONGOING,       /**< 证明进行中 */
+    PROOF_STATE_COMPLETED,     /**< 证明完成 */
+    PROOF_STATE_CONTRADICTORY  /**< 证明矛盾：推导出了互斥结论 */
+} ProofState;
 
 /* ============== 证明导航器 ============== */
 struct ProofNavigator {
@@ -223,6 +248,7 @@ struct ProofNavigator {
     /* 导航状态 */
     bool is_complete;       /* 证明是否完成 */
     ProofColor final_color; /* 最终颜色 */
+    ProofState proof_state; /* 证明状态（进行中/完成/矛盾） */
 
     /* 断点管理 */
     int *breakpoint_indices; /* 断点索引数组 */
@@ -267,6 +293,16 @@ typedef ProofNavigator Proof;
 Proposition *proposition_create(int id, PropositionType type);
 
 /**
+ * 增加命题引用计数
+ */
+void proposition_ref(Proposition *prop);
+
+/**
+ * 减少命题引用计数，当计数为0时销毁
+ */
+void proposition_unref(Proposition *prop);
+
+/**
  * 销毁命题
  */
 void proposition_destroy(Proposition *prop);
@@ -301,6 +337,18 @@ bool proposition_set_postconditions(Proposition *prop, const int *constraint_ids
  */
 bool proposition_add_sub_proposition(Proposition *parent, Proposition *child);
 
+/**
+ * @brief 检查两个命题是否逻辑互斥
+ *
+ * 通过比较命题的类型、模式图和约束关系，判断两个命题是否
+ * 构成逻辑矛盾（如 P 和 ¬P 同时成立）。
+ *
+ * @param a  命题 A
+ * @param b  命题 B
+ * @return true 表示两个命题互斥，false 表示不互斥或无法判断
+ */
+bool proposition_contradicts(const Proposition *a, const Proposition *b);
+
 /* ============== 合一检查 ============== */
 
 /**
@@ -310,7 +358,7 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child);
  * @param normalize_first 是否先执行图规范化遍
  * @return 合一结果
  */
-UnifyStatus proof_unify(const ConstraintGraph *construction, const Proposition *proposition, bool normalize_first);
+UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *proposition, bool normalize_first);
 
 /**
  * 合一检查（详细版）
@@ -319,7 +367,7 @@ UnifyStatus proof_unify(const ConstraintGraph *construction, const Proposition *
  * @param out_mismatch_info 输出不匹配信息
  * @return 合一结果
  */
-UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, const Proposition *proposition, char **out_mismatch_info);
+UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info);
 
 /* ============== 证明步骤管理 ============== */
 
@@ -352,6 +400,21 @@ bool proof_step_add_dependency(ProofStep *step, int dep_step_id);
  * 设置断点
  */
 void proof_step_set_breakpoint(ProofStep *step, bool is_breakpoint);
+
+/**
+ * @brief 获取证明步骤的完整祖先链（推导链）
+ *
+ * 从指定步骤开始，沿 parent_step_id 向上追溯，
+ * 返回所有祖先步骤的 ID 列表。结果按从近到远排序
+ * （最近祖先在前，根步骤在最后）。
+ *
+ * @param nav          证明导航器（用于查找步骤）
+ * @param step_id      目标步骤 ID
+ * @param out_ancestor_ids 输出：祖先步骤 ID 数组（调用者需用 lv00_free 释放）
+ * @param out_count    输出：祖先数量（包含步骤本身为 0 时表示该步骤为根步骤）
+ * @return true 成功，false 步骤不存在或参数无效
+ */
+bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_ancestor_ids, int *out_count);
 
 /* ============== 证明导航器 ============== */
 
@@ -525,6 +588,52 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id);
  */
 bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id);
 
+/* ============== 断点存储管理（v3.4.1 新增） ============== */
+
+/**
+ * @brief 初始化断点存储系统
+ *
+ * 在使用断点功能前必须调用此函数（通常在引擎初始化时）。
+ * 线程安全：使用线程局部存储，每个线程有独立的存储实例。
+ * 可重复调用，后续调用会重置存储状态。
+ *
+ * @note 此函数在 proof.c 中使用静态局部变量确保线程安全初始化，
+ *       无需外部同步机制。
+ */
+void proof_breakpoint_storage_init(void);
+
+/**
+ * @brief 重置断点存储系统
+ *
+ * 清除所有已保存的断点快照，释放相关资源。
+ * 调用后断点存储回到初始状态。
+ *
+ * @note 线程安全：仅重置当前线程的存储实例。
+ *       不会影响其他线程的断点存储。
+ */
+void proof_breakpoint_storage_reset(void);
+
+/**
+ * @brief 获取当前断点存储中的断点数量
+ *
+ * @return 当前存储的断点数量
+ *
+ * @note 线程安全：返回当前线程存储中的断点数量。
+ */
+int proof_breakpoint_storage_count(void);
+
+/**
+ * @brief 删除指定的断点快照
+ *
+ * 从存储中移除指定ID的断点快照。
+ *
+ * @param breakpoint_id 要删除的断点ID
+ * @return true 成功删除，false 未找到该断点
+ *
+ * @note 线程安全：仅操作当前线程的存储实例。
+ */
+bool proof_breakpoint_delete(int breakpoint_id);
+
 /* ============== 导出功能 ============== */
 
 /**
@@ -692,6 +801,26 @@ void proof_set_lemma_view_state(ProofNavigator *nav, int step_id, LemmaViewState
 LemmaViewState proof_get_lemma_view_state(const ProofNavigator *nav, int step_id);
 
 /* ============== 辅助函数 ============== */
+
+/**
+ * @brief 锁定公理库，禁止修改公理集合
+ *
+ * 锁定后，所有修改公理集合的操作（添加/删除/替换公理）
+ * 将被拒绝。用于保护已验证的证明不因公理变化而失效。
+ */
+void proof_lock_axioms(void);
+
+/**
+ * @brief 解锁公理库，允许修改公理集合
+ */
+void proof_unlock_axioms(void);
+
+/**
+ * @brief 查询公理库锁定状态
+ *
+ * @return true 表示公理库已锁定，禁止修改
+ */
+bool proof_axioms_is_locked(void);
 
 /**
  * 证明颜色转字符串
@@ -1152,6 +1281,43 @@ const char *proof_strategy_type_to_string(ProofStrategyType type);
  * @brief 策略状态转字符串
  */
 const char *proof_strategy_status_to_string(ProofStrategyStatus status);
+
+/**
+ * @brief 策略类型转字符串（英文版）
+ *
+ * 与 proof_strategy_type_to_string 不同，返回英文标识符，
+ * 便于日志输出和调试。
+ */
+const char *proof_strategy_type_to_string_en(ProofStrategyType type);
+
+/* ============== 简化版搜索接口 ============== */
+
+/**
+ * @brief 使用指定策略执行证明搜索（简化接口）
+ *
+ * 封装多策略引擎，提供更直观的调用方式。
+ *
+ * @param proof      证明导航器指针
+ * @param strategy   搜索策略类型
+ * @param max_steps  最大搜索步数
+ * @return true 找到证明，false 搜索失败或超时
+ */
+bool proof_search_with_strategy(ProofNavigator *proof, ProofStrategyType strategy, int max_steps);
+
+/**
+ * @brief 使用蒙特卡洛树搜索执行证明（简化接口）
+ */
+bool proof_mcts_execute(ProofNavigator *proof, int max_steps);
+
+/**
+ * @brief 执行广度优先搜索证明（简化接口）
+ */
+bool proof_bfs_execute(ProofNavigator *proof, int max_steps);
+
+/**
+ * @brief 执行最佳优先搜索证明（简化接口）
+ */
+bool proof_best_first_execute(ProofNavigator *proof, int max_steps);
 
 
 /* ================================================================

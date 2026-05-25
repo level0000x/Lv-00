@@ -212,7 +212,7 @@ SolutionSelector *selector_create_custom(SelectorFunction func, void *user_data)
     if (!func)
         return NULL;
     /* 复用 selector_create 避免初始化代码重复 */
-    SolutionSelector *sel = selector_create(SELECTOR_CUSTOM);
+    SolutionSelector *sel = selector_create(SELECTOR_TYPE_CUSTOM);
     if (!sel)
         return NULL;
     sel->custom_func = func;
@@ -221,17 +221,46 @@ SolutionSelector *selector_create_custom(SelectorFunction func, void *user_data)
 }
 
 /**
- * @brief 销毁选择器
+ * @brief 销毁选择器 - 改进版：支持深拷贝资源释放
  *
- * 注意：本函数仅释放选择器结构体本身的内存，不会释放 user_data 所指向的内存。
- * 调用者有责任在销毁选择器之前自行管理 user_data 的生命周期（分配与释放）。
- * 这一约定避免了选择器与调用者之间的内存所有权歧义。
+ * 释放选择器结构体及其动态分配的成员：
+ * - name（选择器名称字符串）
+ * - solution_values（候选解数值数组）
+ * - user_data（如果提供了 free_user_data 回调）
+ * - 选择器结构体本身
  *
- * @param selector 选择器指针
+ * 内存所有权规则：
+ * - 选择器自身分配的资源（name, solution_values）总是由本函数释放
+ * - user_data 的释放取决于 free_user_data 回调：
+ *   - 如果 free_user_data 不为 NULL，调用该回调释放 user_data
+ *   - 如果 free_user_data 为 NULL，user_data 由外部管理，本函数不释放
+ *
+ * @param selector 选择器指针（可为 NULL）
  */
 void selector_destroy(SolutionSelector *selector) {
     if (!selector)
         return;
+    
+    /* 释放选择器名称 */
+    if (selector->name) {
+        lv00_free((void **)&selector->name);
+        selector->name = NULL;
+    }
+    
+    /* 释放候选解数值数组 */
+    if (selector->solution_values) {
+        lv00_free((void **)&selector->solution_values);
+        selector->solution_values = NULL;
+        selector->solution_count = 0;
+    }
+    
+    /* 释放 user_data（如果提供了释放回调） */
+    if (selector->user_data && selector->free_user_data) {
+        selector->free_user_data(selector->user_data);
+        selector->user_data = NULL;
+    }
+    
+    /* 最后释放选择器结构体本身 */
     lv00_free((void **) &selector);
 }
 
@@ -271,7 +300,7 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
 
     switch (selector->type) {
         /* 策略1：选择正根 - 遍历候选解，取第一个 x 坐标大于 0 的解 */
-        case SELECTOR_POSITIVE_ROOT:
+        case SELECTOR_TYPE_POSITIVE_ROOT:
             for (int i = 0; i < count; i++) {
                 if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
                     candidates[i]->symbolic_coords[0]) {
@@ -287,7 +316,7 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
             return false;
 
         /* 策略2：选择负根 - 遍历候选解，取第一个 x 坐标小于 0 的解 */
-        case SELECTOR_NEGATIVE_ROOT:
+        case SELECTOR_TYPE_NEGATIVE_ROOT:
             for (int i = 0; i < count; i++) {
                 if (candidates[i] && candidates[i]->coord_count > 0 && candidates[i]->symbolic_coords &&
                     candidates[i]->symbolic_coords[0]) {
@@ -303,7 +332,7 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
             return false;
 
         /* 策略3：选择区域内的解 - 使用射线法判断候选点是否在指定区域内 */
-        case SELECTOR_IN_REGION: {
+        case SELECTOR_TYPE_IN_REGION: {
             ConstraintGraph *sel_graph = selector->graph;
             GeomNode *region = NULL;
             if (!sel_graph) {
@@ -326,7 +355,7 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
         }
 
         /* 策略4：选择最近点 - 遍历候选解，取距离参考点欧几里得距离最小的解 */
-        case SELECTOR_NEAREST_TO_POINT: {
+        case SELECTOR_TYPE_NEAREST_TO_POINT: {
             ConstraintGraph *sel_graph = selector->graph;
             GeomNode *ref_point = NULL;
             if (!sel_graph) {
@@ -358,7 +387,7 @@ bool selector_apply(SolutionSelector *selector, GeomNode **candidates, int count
         }
 
         /* 策略5：自定义选择 - 委托给用户提供的回调函数 */
-        case SELECTOR_CUSTOM:
+        case SELECTOR_TYPE_CUSTOM:
             if (selector->custom_func) {
                 return selector->custom_func(candidates, count, out_selected_index, selector->user_data);
             }

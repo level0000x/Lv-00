@@ -19,7 +19,7 @@
  * 使用示例：
  *   PropFormula *goal = prop_formula_create_atom("Pythagorean");
  *   VerifyDetail detail = prop_verifier_verify(premises, n, goal, NULL);
- *   if (detail.result == PV_VERIFY_PROVEN) { /* 证明成功 */ }
+ *   if (detail.result == PV_VERIFY_PROVEN) { ... 证明成功 ... }
  *
  * @version 3.3.0
  * ======================================================================== */

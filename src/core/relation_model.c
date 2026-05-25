@@ -252,13 +252,6 @@ Relation *rel_join(const Relation *a, const Relation *b) {
                         rel_destroy(r);
                         return NULL;
                     }
-                    r->tuple_count--; /* undo the increment from add, we already added */
-                    if (!rel_ensure_capacity(r)) {
-                        lv00_free((void **)&t);
-                        rel_destroy(r);
-                        return NULL;
-                    }
-                    r->tuples[r->tuple_count++] = t;
                 } else {
                     lv00_free((void **)&t);
                 }
@@ -410,12 +403,12 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
     for (int i = 0; i < r->tuple_count; i++) {
         int a = r->tuples[i][0];
         int b = r->tuples[i][1];
-        if (a < 2048 && !seen[a]) {
+        if (a >= 0 && a < 2048 && !seen[a]) {
             int t[2] = {a, a};
             rel_add_tuple_inner(result, t);
             seen[a] = true;
         }
-        if (b < 2048 && !seen[b]) {
+        if (b >= 0 && b < 2048 && !seen[b]) {
             int t[2] = {b, b};
             rel_add_tuple_inner(result, t);
             seen[b] = true;
@@ -828,7 +821,7 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst,
         case REL_FORMULA_EQ:
         case REL_FORMULA_SUBSET: {
             /* 关系比较 */
-            RelExpr *left = formula->sub[0] ? NULL : NULL;
+            RelFormula *left = formula->sub[0];
             RelExpr *right_expr = formula->expr;
             LV00_UNUSED(left);
             LV00_UNUSED(right_expr);

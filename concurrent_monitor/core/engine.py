@@ -148,7 +148,7 @@ class ProcessExecutor:
                 except ValueError:
                     # shlex 解析失败（如不匹配的引号），回退到简单空格分割
                     # 这种情况下命令本身可能有语法问题，记录警告后继续
-                    logger.warning(f"Windows 命令解析回退到空格分割: {self.command}")
+                    logger.warning("Windows 命令解析回退到空格分割: %s", self.command)
                     cmd_parts: list[str] = self.command.split()
             else:
                 import shlex

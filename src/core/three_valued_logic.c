@@ -22,8 +22,8 @@
  *   - lv00_utils.h         : 统一内存分配器（lv00_malloc / lv00_free）
  */
 
-#include "lv00/three_valued_logic.h"
-#include "lv00/lv00_utils.h"
+#include "three_valued_logic.h"
+#include "lv00_utils.h"
 
 /* ============== 真值表查找操作 ============== */
 

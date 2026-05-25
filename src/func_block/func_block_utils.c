@@ -94,7 +94,7 @@ int *dup_int_array(const int *src, int count) {
  * @param out_count [输出] 合并后元素总数
  * @return 新分配的整数数组，调用方负责释放；失败返回 NULL
  */
-int *merge_int_arrays(const int *a, int a_count, const int *b, int b_count, int *out_count) {
+int *lv00_int_array_merge(const int *a, int a_count, const int *b, int b_count, int *out_count) {
     if (!out_count)
         return NULL;
     /* 【修复】检查 count 参数是否为负数，防止 size_t 转换后回绕产生巨大值 */

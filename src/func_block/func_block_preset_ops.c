@@ -27,6 +27,80 @@
  * 命名常量
  * ================================================================ */
 
+/**
+ * @brief 二元运算符优先级枚举
+ *
+ * 遵循数学标准规则 PEMDAS（括号 > 指数 > 乘除 > 加减）。
+ * 数值越大优先级越高。当预设操作中需要构造或验证复合表达式时，
+ * 使用此枚举确保运算顺序与数学标准规则一致。
+ */
+typedef enum {
+    PRESET_OP_PRIORITY_UNKNOWN   = 0,   /**< 未定义/未知 */
+    PRESET_OP_PRIORITY_ADD       = 1,   /**< 加法/减法 */
+    PRESET_OP_PRIORITY_MUL       = 2,   /**< 乘法/除法 */
+    PRESET_OP_PRIORITY_POWER     = 3,   /**< 指数/幂运算 */
+    PRESET_OP_PRIORITY_PAREN     = 99   /**< 括号（最高优先级，手动分组） */
+} PresetOpPriority;
+
+/**
+ * @brief 二元运算符类型到优先级的映射表
+ *
+ * 每个预设运算符都有固定的数学优先级。在链式表达式求值时，
+ * 通过此函数查询运算符的优先级，确保运算顺序符合 PEMDAS。
+ *
+ * @param op_type 运算符类型字符串（如 "add", "mul", "pow"）
+ * @return 对应的优先级枚举值，未知运算符返回 PRESET_OP_PRIORITY_UNKNOWN
+ */
+static inline PresetOpPriority preset_op_get_priority(const char *op_type) {
+    if (!op_type) return PRESET_OP_PRIORITY_UNKNOWN;
+
+    /* 优先级 3：指数/幂运算 */
+    if (strcmp(op_type, "pow") == 0 || strcmp(op_type, "exp") == 0 ||
+        strcmp(op_type, "sqrt") == 0) {
+        return PRESET_OP_PRIORITY_POWER;
+    }
+
+    /* 优先级 2：乘除运算 */
+    if (strcmp(op_type, "mul") == 0 || strcmp(op_type, "multiply") == 0 ||
+        strcmp(op_type, "div") == 0 || strcmp(op_type, "divide") == 0 ||
+        strcmp(op_type, "mod") == 0 || strcmp(op_type, "modulo") == 0) {
+        return PRESET_OP_PRIORITY_MUL;
+    }
+
+    /* 优先级 1：加减运算 */
+    if (strcmp(op_type, "add") == 0 || strcmp(op_type, "plus") == 0 ||
+        strcmp(op_type, "sub") == 0 || strcmp(op_type, "minus") == 0 ||
+        strcmp(op_type, "subtract") == 0) {
+        return PRESET_OP_PRIORITY_ADD;
+    }
+
+    return PRESET_OP_PRIORITY_UNKNOWN;
+}
+
+/**
+ * @brief 验证两个相邻运算符的优先级顺序是否正确
+ *
+ * 在解析二元表达式时，如果当前操作符 cur_op 的优先级 <= 栈顶操作符 top_op
+ * 的优先级（不含幂运算的右结合特性），则需要先对栈顶操作符进行归约，
+ * 以确保 PEMDAS 规则。
+ *
+ * @param top_op 栈顶运算符类型
+ * @param cur_op 当前读入的运算符类型
+ * @return true 需要先对栈顶归约（cur 优先级不高于 top），false 继续压栈
+ */
+static inline bool preset_op_should_reduce(const char *top_op, const char *cur_op) {
+    PresetOpPriority top_prio = preset_op_get_priority(top_op);
+    PresetOpPriority cur_prio = preset_op_get_priority(cur_op);
+
+    /* 处理幂运算的右结合性：同级幂运算不应归约 */
+    if (top_prio == PRESET_OP_PRIORITY_POWER && cur_prio == PRESET_OP_PRIORITY_POWER) {
+        return false;
+    }
+
+    /* 一般情况：当栈顶优先级 >= 当前优先级时需要归约 */
+    return top_prio >= cur_prio && top_prio != PRESET_OP_PRIORITY_UNKNOWN;
+}
+
 /** 预设链初始容量 */
 #define PRESET_CHAIN_INITIAL_CAPACITY 8
 
@@ -584,7 +658,7 @@ PresetValidationResult preset_validate(const char *preset_name) {
     }
 
     /* 检查确定性 */
-    if (fb->determinism == DETERMINISM_VERIFIED || fb->determinism == DETERMINISM_PARTIALLY_VERIFIED) {
+    if (fb->determinism == DETERMINISM_STATE_VERIFIED || fb->determinism == DETERMINISM_STATE_PARTIALLY_VERIFIED) {
         result.determinism_check_passed = true;
     }
 

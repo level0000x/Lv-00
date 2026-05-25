@@ -144,6 +144,16 @@ bool lv00_memory_check_magic(const void *ptr);
 void lv00_poison_enable(bool enable);
 
 /**
+ * @brief 释放由外部库（如GMP）分配的内存
+ * @param ptr 指向指针的指针
+ * @note 专用于释放使用系统malloc分配的内存（如GMP的mpz_get_str返回值）。
+ *       与lv00_free不同，此函数直接调用标准free，适用于非lv00_malloc分配的内存。
+ *       释放后会将指针置为NULL。
+ * @warning 不要将此函数用于lv00_malloc/calloc分配的内存，否则会导致未定义行为。
+ */
+void lv00_free_external(void **ptr);
+
+/**
  * @brief 获取毒模式填充的当前状态
  * @return true 已启用，false 已禁用
  */
@@ -828,72 +838,6 @@ void *lv00_calloc_tracked(size_t nmemb, size_t size, const char *file, int line)
 int lv00_memory_leak_report(FILE *output);
 
 /* ============================================================
- * 内存池
- * ============================================================ */
-
-/**
- * @brief 内存池结构 —— 用于频繁分配/释放的等大小对象
- *
- * 内存池预分配一组固定大小的内存块，通过空闲链表管理。
- * 适用于 AST 节点、临时中间结构等频繁创建/销毁的等大小对象，
- * 可显著减少 malloc/free 的系统调用开销。
- */
-typedef struct Lv00MemoryPool Lv00MemoryPool;
-
-/**
- * @brief 创建内存池
- *
- * 预分配 initial_blocks 个大小为 block_size 的内存块。
- * 内存池内部维护一个空闲链表，lv00_pool_alloc 从链表头部获取空闲块，
- * lv00_pool_free 将块归还到链表头部。
- *
- * @param block_size 每个内存块的大小（字节），必须大于 0
- * @param initial_blocks 初始预分配的块数，至少为 1
- * @return 创建的内存池指针，失败返回 NULL
- */
-Lv00MemoryPool *lv00_pool_create(size_t block_size, size_t initial_blocks);
-
-/**
- * @brief 从内存池分配一个内存块
- *
- * 若空闲链表非空，直接返回链表头部块（O(1)）；
- * 若空闲链表为空，自动扩容分配一块新的内存。
- *
- * @param pool 内存池指针
- * @return 分配的内存块指针，失败返回 NULL
- */
-void *lv00_pool_alloc(Lv00MemoryPool *pool);
-
-/**
- * @brief 将内存块归还内存池
- *
- * 将 ptr 指向的内存块插入空闲链表头部（O(1)）。
- * ptr 必须是通过同一内存池的 lv00_pool_alloc 分配的，否则行为未定义。
- *
- * @param pool 内存池指针
- * @param ptr 要归还的内存块指针（允许为 NULL，为 NULL 时无操作）
- */
-void lv00_pool_free(Lv00MemoryPool *pool, void *ptr);
-
-/**
- * @brief 销毁内存池并释放所有关联内存
- *
- * 释放所有预分配的内存块及内存池自身占用的资源。
- * 销毁后 pool 指针变为无效。
- *
- * @param pool 内存池指针
- */
-void lv00_pool_destroy(Lv00MemoryPool *pool);
-
-/**
- * @brief 获取内存池统计信息
- * @param pool 内存池指针
- * @param total_blocks 输出：总共分配的块数
- * @param free_blocks 输出：当前空闲块数
- */
-void lv00_pool_stats(const Lv00MemoryPool *pool, size_t *total_blocks, size_t *free_blocks);
-
-/* ============================================================
  * 时间工具
  * ============================================================ */
 
@@ -934,6 +878,34 @@ int lv00_random_int(int min, int max);
  * @brief 生成随机双精度浮点数
  */
 double lv00_random_double(double min, double max);
+
+/* ============================================================
+ * 统一数组扩容
+ * ============================================================ */
+
+/**
+ * @brief 确保动态数组有足够的容量
+ * @param arr 当前数组指针（可能被 realloc）
+ * @param count 当前元素数量
+ * @param capacity 当前容量指针（会被更新）
+ * @param elem_size 每个元素的大小
+ * @param min_growth 最小增长量
+ * @return 成功返回 true，失败返回 false
+ * @note 使用 LV00_ARRAY_GROWTH_FACTOR 倍增策略
+ */
+bool lv00_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, int min_growth);
+
+/* ============================================================
+ * 统一 FNV-1a 哈希函数
+ * ============================================================ */
+
+/**
+ * @brief FNV-1a 哈希函数
+ * @param data 输入数据
+ * @param len 数据长度
+ * @return 64位哈希值
+ */
+uint64_t lv00_fnv1a_hash(const void *data, size_t len);
 
 /* ============================================================
  * 哈希函数

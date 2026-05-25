@@ -26,6 +26,7 @@ import { useExport } from '@/hooks/useExport';
 import { useEngineStream } from '@/hooks/useEngineStream';
 import { logger } from '@/services/logger';
 import { importJsonFile } from '@/utils/importExport';
+import { useAppStore } from '@/stores';
 
 /**
  * Layout - 应用程序主外壳
@@ -56,6 +57,12 @@ const Layout: React.FC = () => {
   useEngineStream({
     engineUrl: 'ws://localhost:3456',
     autoConnect: false, // 不自动连接，等待用户手动触发或后端就绪
+    // 引擎错误时向用户展示 Toast 通知
+    onError: (error: Error) => {
+      const addToast = useAppStore.getState().addToast;
+      addToast('error', `引擎连接错误: ${error.message}`);
+      useAppStore.getState().appendLog(`引擎连接错误: ${error.message}`, 'error');
+    },
   });
 
   // 使用提取的导出逻辑 Hook（导出相关状态和 DOM 清理由 hook 内部管理）

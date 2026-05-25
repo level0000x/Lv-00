@@ -271,7 +271,7 @@ AxiomPackage *axiom_package_create(const char *name, const char *version) {
     pkg->unconstructible_count = 0;
     pkg->bottom_geometry = NULL;
     pkg->negation_encoding = NULL;
-    pkg->contradiction_behavior = EXPLOSION_PRINCIPLE;
+    pkg->contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE;
     pkg->expansion_cache = NULL;
     pkg->expansion_cache_count = 0;
     pkg->expansion_cache_capacity = 0;
@@ -861,11 +861,11 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
 
             const char *behavior = p->current.str_value;
             if (strcmp(behavior, "explosion_principle") == 0) {
-                pkg->contradiction_behavior = EXPLOSION_PRINCIPLE;
+                pkg->contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE;
             } else if (strcmp(behavior, "constructive") == 0) {
-                pkg->contradiction_behavior = CONSTRUCTIVE;
+                pkg->contradiction_behavior = PROPOSITION_KIND_CONSTRUCTIVE;
             } else if (strcmp(behavior, "non_constructive_oracle") == 0) {
-                pkg->contradiction_behavior = NON_CONSTRUCTIVE_ORACLE;
+                pkg->contradiction_behavior = PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE;
             } else {
                 lv00_set_error(LV00_ERROR_PARSE, "解析错误 (行 %d): 未知的矛盾行为 '%s'", p->current.line, behavior);
                 p->has_error = true;
@@ -997,11 +997,11 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
 
 static const char *behavior_to_string(int behavior) {
     switch (behavior) {
-        case CONSTRUCTIVE:
+        case PROPOSITION_KIND_CONSTRUCTIVE:
             return "constructive";
-        case NON_CONSTRUCTIVE_ORACLE:
+        case PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE:
             return "non_constructive_oracle";
-        case EXPLOSION_PRINCIPLE:
+        case PROPOSITION_KIND_EXPLOSION_PRINCIPLE:
         default:
             return "explosion_principle";
     }

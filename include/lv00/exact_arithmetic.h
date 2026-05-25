@@ -16,7 +16,7 @@
  * 使用示例：
  *   double LV00_TOLERATED_FLOAT(approx) = compute_approx();
  *   int64_t result;
- *   if (LV00_SAFE_MUL(a, b, &result)) { /* 安全 */ }
+ *   if (LV00_SAFE_MUL(a, b, &result)) { /\* 安全 *\/ }
  *
  * @version v1.0.0
  * ======================================================================== */

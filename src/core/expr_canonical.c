@@ -24,9 +24,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /* [Bug修复] 引入 lv00_strlcpy 安全字符串函数 */
 #include "lv00_utils.h"
+
+/* ============== 安全计算常量 ============== */
+
+/** 浮点除零保护阈值 (1e-15)。
+ *  当分母绝对值小于此值时视为零，避免除零错误。 */
+#ifndef LV00_EPSILON
+#define LV00_EPSILON 1e-15
+#endif
+
+/** 三角函数角度归模上限。
+ *  超过此值的角度需进行周期归模：angle = fmod(angle, 2.0 * M_PI)，
+ *  防止大角度导致精度损失。 */
+#ifndef LV00_TRIG_ANGLE_MAX
+#define LV00_TRIG_ANGLE_MAX 1e6
+#endif
 
 /* ============== 内部常量 ============== */
 
@@ -441,9 +461,10 @@ char *lv00_poly_to_string(const Lv00Polynomial *poly, const char **var_names) {
 
         /* 输出系数：[安全修复] 使用 gmp_asprintf 动态分配，避免固定64字节缓冲区溢出 */
         char *coeff_str = NULL;
+        int written = 0;
         gmp_asprintf(&coeff_str, "%Qd", term->coeff);
         if (coeff_str) {
-            int written = snprintf(result + pos, size - pos, "%s", coeff_str);
+            written = snprintf(result + pos, size - pos, "%s", coeff_str);
             if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
             else pos += (size_t)written;
             free(coeff_str);
@@ -534,6 +555,9 @@ bool lv00_is_perfect_cube(const mpz_t n, mpz_t out_root) {
     mpz_init(root);
     mpz_init(cube);
 
+    /* 保存原始符号，在 mpz_abs 之前 */
+    int is_negative = (mpz_cmp_ui(n, 0) < 0);
+
     /* 使用二分查找立方根 */
     mpz_abs(root, n);
     mpz_t low, high, mid;
@@ -553,9 +577,8 @@ bool lv00_is_perfect_cube(const mpz_t n, mpz_t out_root) {
 
         int cmp = mpz_cmp(cube, root);
         if (cmp == 0) {
-            bool result = (mpz_cmp_ui(n, 0) >= 0);
-            if (result && out_root) {
-                if (mpz_cmp_ui(n, 0) < 0) {
+            if (out_root) {
+                if (is_negative) {
                     mpz_neg(out_root, mid);
                 } else {
                     mpz_set(out_root, mid);
@@ -566,7 +589,7 @@ bool lv00_is_perfect_cube(const mpz_t n, mpz_t out_root) {
             mpz_clear(mid);
             mpz_clear(root);
             mpz_clear(cube);
-            return result;
+            return true;
         } else if (cmp < 0) {
             mpz_add_ui(low, mid, 1);
         } else {
@@ -869,9 +892,84 @@ Lv00VarId lv00_alloc_var_id(Lv00CanonicalContext *ctx) {
 
 /* ============== 有理表达式实现 ============== */
 
+/**
+ * 安全 GMP 有理数除法。
+ *
+ * 使用 mpz_sgn() 检查除数分子是否为 0，防止除零错误。
+ * 除数分子为 0 时返回 false，不执行除法操作。
+ *
+ * @param[out] result 结果（仅在成功时写入）
+ * @param[in]  a      被除数
+ * @param[in]  b      除数
+ * @return true 除法成功，false 除数为零
+ */
+bool lv00_safe_mpq_div(mpq_t result, const mpq_t a, const mpq_t b) {
+    /* 使用 mpz_sgn 检查除数分子是否为 0 */
+    if (mpz_sgn(mpq_numref(b)) == 0) {
+        return false;
+    }
+    mpq_div(result, a, b);
+    return true;
+}
+
+/**
+ * 安全 GMP 整数除法。
+ *
+ * 使用 mpz_sgn() 检查除数是否为 0，防止除零错误。
+ * 除数分子为 0 时返回 false，不执行除法操作。
+ *
+ * @param[out] result 结果（仅在成功时写入）
+ * @param[in]  a      被除数
+ * @param[in]  b      除数
+ * @return true 除法成功，false 除数为零
+ */
+static bool safe_mpz_tdiv_q(mpz_t result, const mpz_t a, const mpz_t b) {
+    if (mpz_sgn(b) == 0) {
+        return false;
+    }
+    mpz_tdiv_q(result, a, b);
+    return true;
+}
+
+/**
+ * 安全浮点除法。
+ *
+ * 检查分母绝对值是否小于 LV00_EPSILON，防止浮点除零错误。
+ * 分母接近零时返回 false 并将 result 设为 HUGE_VAL 作为无穷大标记。
+ *
+ * @param[out] result      结果（仅在成功时写入）
+ * @param[in]  numerator   分子
+ * @param[in]  denominator 分母
+ * @return true 除法成功，false 分母接近零
+ */
+bool lv00_safe_fp_div(double *result, double numerator, double denominator) {
+    if (fabs(denominator) < LV00_EPSILON) {
+        *result = (numerator >= 0.0) ? HUGE_VAL : -HUGE_VAL;
+        return false;
+    }
+    *result = numerator / denominator;
+    return true;
+}
+
 Lv00RationalExpr *lv00_rat_expr_create(Lv00Polynomial *numerator, Lv00Polynomial *denominator) {
     if (!numerator) {
         return NULL;
+    }
+
+    /* 分母多项式检查：若分母为 NULL 或为零多项式，创建默认分母 1 */
+    if (denominator) {
+        /* 检查分母是否为零多项式（所有系数为零） */
+        bool is_zero_denom = true;
+        for (uint32_t i = 0; i < denominator->term_count; i++) {
+            if (mpq_cmp_ui(denominator->terms[i].coeff, 0, 1) != 0) {
+                is_zero_denom = false;
+                break;
+            }
+        }
+        if (is_zero_denom && denominator->term_count > 0) {
+            /* 分母为零多项式 -> 拒绝创建 */
+            return NULL;
+        }
     }
 
     Lv00RationalExpr *expr = (Lv00RationalExpr *)lv00_malloc(sizeof(Lv00RationalExpr));
@@ -880,7 +978,20 @@ Lv00RationalExpr *lv00_rat_expr_create(Lv00Polynomial *numerator, Lv00Polynomial
     }
 
     expr->numerator = numerator;
-    expr->denominator = denominator ? denominator : lv00_poly_create();
+    /* 安全处理：若分母为 NULL 或为空，创建默认分母多项式 1 */
+    if (!denominator || denominator->term_count == 0) {
+        Lv00Polynomial *one_poly = lv00_poly_create();
+        if (one_poly) {
+            mpq_t one;
+            mpq_init(one);
+            mpq_set_ui(one, 1, 1);
+            lv00_poly_add_term(one_poly, one, NULL, NULL, 0);
+            mpq_clear(one);
+        }
+        expr->denominator = one_poly;
+    } else {
+        expr->denominator = denominator;
+    }
 
     return expr;
 }
@@ -998,6 +1109,68 @@ bool lv00_continued_fraction_approx(const mpz_t num, const mpz_t denom,
 void lv00_best_rational_approx(const mpz_t num, const mpz_t denom,
                                 const mpz_t max_denom, mpz_t out_num, mpz_t out_denom) {
     lv00_continued_fraction_approx(num, denom, max_denom, out_num, out_denom);
+}
+
+/* ============== 安全计算工具 ============== */
+
+/**
+ * 三角函数角度周期归模。
+ *
+ * 将输入角度归一化到 [-pi, pi] 范围内，使用 2pi 取模：
+ *   angle_norm = fmod(angle, 2.0 * M_PI)
+ *
+ * 当角度绝对值超过 LV00_TRIG_ANGLE_MAX 时，直接返回 0.0
+ * 作为安全值，防止极大角度导致精度灾难性损失。
+ *
+ * @param angle 原始角度（弧度）
+ * @return 规范化后的角度（[-pi, pi]）
+ */
+double lv00_trig_normalize_angle(double angle) {
+    /* 极端角度保护：超过上限时返回安全值 */
+    if (fabs(angle) > LV00_TRIG_ANGLE_MAX) {
+        return 0.0;
+    }
+
+    /* 标准 2pi 周期归模 */
+    double norm = fmod(angle, 2.0 * M_PI);
+
+    /* 将结果移到 [-pi, pi] 区间 */
+    if (norm > M_PI) {
+        norm -= 2.0 * M_PI;
+    } else if (norm < -M_PI) {
+        norm += 2.0 * M_PI;
+    }
+
+    return norm;
+}
+
+/**
+ * GMP 有理数角度周期归模。
+ *
+ * 对于以有理数表示的角度（弧度），使用 GMP 精确运算
+ * 进行 2pi 周期归模。通过连分数近似将 2pi 表示为有理数
+ * 进行取模运算。
+ *
+ * @param[in,out] angle_mpq 角度（GMP 有理数），原地归模后写入
+ */
+void lv00_trig_normalize_angle_mpq(mpq_t angle_mpq) {
+    /* 使用高精度有理数近似 pi */
+    /* 355/113 为 pi 的经典有理数近似，误差约 2.7e-7 */
+    mpq_t two_pi;
+    mpq_init(two_pi);
+    mpq_set_ui(two_pi, 710, 113);  /* 2 * 355/113 = 710/113 */
+
+    /* 若角度为负，通过加法归入正区间 */
+    while (mpq_cmp_ui(angle_mpq, 0, 1) < 0) {
+        mpq_add(angle_mpq, angle_mpq, two_pi);
+    }
+
+    /* 若角度过大，通过减法归入 [0, 2pi) 区间 */
+    while (mpq_cmp(angle_mpq, two_pi) >= 0) {
+        mpq_sub(angle_mpq, angle_mpq, two_pi);
+    }
+
+    mpq_clear(two_pi);
 }
 
 /* ============== Groebner 基实现（简化版） ============== */

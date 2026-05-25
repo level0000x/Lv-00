@@ -110,7 +110,7 @@ Measure *measure_create_symbolic(const char *name, int kind, int ref_node_id) {
     if (!m)
         return NULL;
 
-    m->type = MEASURE_SYMBOLIC;
+    m->type = MEASURE_TYPE_SYMBOLIC;
     m->name = name ? lv00_strdup(name) : NULL;
     m->kind = kind;
     m->reference_node_id = ref_node_id;
@@ -136,7 +136,7 @@ Measure *measure_create_custom(const char *name, int (*compare_func)(GeomNode *a
     if (!m)
         return NULL;
 
-    m->type = MEASURE_CUSTOM;
+    m->type = MEASURE_TYPE_CUSTOM;
     m->name = name ? lv00_strdup(name) : NULL;
     m->kind = MEASURE_KIND_CUSTOM;
     m->compare_func = compare_func;
@@ -193,7 +193,7 @@ bool measure_system_add(MeasureSystem *ms, Measure *m) {
     ms->measures[ms->measure_count] = m;
     ms->measure_count++;
 
-    if (m->type == MEASURE_CUSTOM) {
+    if (m->type == MEASURE_TYPE_CUSTOM) {
         ms->has_non_symbolic = true;
     }
 
@@ -226,7 +226,7 @@ SymbolicCoord *measure_compute_value(Measure *m, GeomNode *node, ConstraintGraph
     if (!m || !node)
         return NULL;
 
-    if (m->type != MEASURE_SYMBOLIC) {
+    if (m->type != MEASURE_TYPE_SYMBOLIC) {
         /* 非符号测度无法直接计算数值 */
         return NULL;
     }
@@ -342,7 +342,7 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
     if (!m || !node)
         return NULL;
 
-    if (m->type != MEASURE_SYMBOLIC) {
+    if (m->type != MEASURE_TYPE_SYMBOLIC) {
         return NULL;
     }
 
@@ -823,7 +823,7 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
 /**
  * @brief 比较两个测度值
  *
- * 符号测度使用代数比较，非符号测度返回 MEASURE_UNKNOWN。
+ * 符号测度使用代数比较，非符号测度返回 MEASURE_COMPARE_UNKNOWN。
  *
  * @param m 测度指针
  * @param a 第一个测度值
@@ -832,20 +832,20 @@ SymbolicCoord *measure_compute_value_symbolic(Measure *m, GeomNode *node, Constr
  */
 MeasureCompareResult measure_compare(Measure *m, SymbolicCoord *a, SymbolicCoord *b) {
     if (!m || !a || !b)
-        return MEASURE_ERROR;
+        return MEASURE_COMPARE_ERROR;
 
     /* 符号测度使用代数比较 */
-    if (m->type == MEASURE_SYMBOLIC) {
+    if (m->type == MEASURE_TYPE_SYMBOLIC) {
         int cmp = symbolic_coord_compare(a, b);
         if (cmp < 0)
-            return MEASURE_LESS;
+            return MEASURE_COMPARE_LESS;
         if (cmp > 0)
-            return MEASURE_GREATER;
-        return MEASURE_EQUAL;
+            return MEASURE_COMPARE_GREATER;
+        return MEASURE_COMPARE_EQUAL;
     }
 
     /* 非符号测度需要自定义比较函数 */
-    return MEASURE_UNKNOWN;
+    return MEASURE_COMPARE_UNKNOWN;
 }
 
 /**
@@ -859,18 +859,18 @@ MeasureCompareResult measure_compare(Measure *m, SymbolicCoord *a, SymbolicCoord
  * @param graph 约束图指针
  * @return 比较结果
  */
-MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, ConstraintGraph *graph) {
+MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b, const ConstraintGraph *graph) {
     if (!m || !a || !b)
-        return MEASURE_ERROR;
+        return MEASURE_COMPARE_ERROR;
 
-    if (m->type == MEASURE_SYMBOLIC) {
+    if (m->type == MEASURE_TYPE_SYMBOLIC) {
         SymbolicCoord *val_a = measure_compute_value(m, a, graph);
         SymbolicCoord *val_b = measure_compute_value(m, b, graph);
 
         if (!val_a || !val_b) {
             symbolic_coord_destroy(val_a);
             symbolic_coord_destroy(val_b);
-            return MEASURE_UNKNOWN;
+            return MEASURE_COMPARE_UNKNOWN;
         }
 
         MeasureCompareResult result = measure_compare(m, val_a, val_b);
@@ -885,13 +885,13 @@ MeasureCompareResult measure_compare_nodes(Measure *m, GeomNode *a, GeomNode *b,
     if (m->compare_func) {
         int cmp = m->compare_func(a, b, m->user_data);
         if (cmp < 0)
-            return MEASURE_LESS;
+            return MEASURE_COMPARE_LESS;
         if (cmp > 0)
-            return MEASURE_GREATER;
-        return MEASURE_EQUAL;
+            return MEASURE_COMPARE_GREATER;
+        return MEASURE_COMPARE_EQUAL;
     }
 
-    return MEASURE_UNKNOWN;
+    return MEASURE_COMPARE_UNKNOWN;
 }
 
 /* ============== 递归上下文API ============== */
@@ -1105,7 +1105,7 @@ int lv00_recursion_get_depth(void) {
 RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_block_id, const GeomNode *input,
                                              ConstraintGraph *graph) {
     if (!ctx)
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
 
     /* 流式输出：递归测度检查入口 */
     if (recursion_stream_ctx) {
@@ -1119,7 +1119,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             RecursionAction action =
                 ctx->depth_callback(ctx->current_depth, ctx->max_depth, ctx->depth_callback_user_data);
 
-            if (action == RECURSION_ACTION_STOP) {
+            if (action == RECURSION_DEPTH_ACTION_STOP) {
                 /* 用户决定停止 */
                 /* 流式事件：递归深度超限（回调停止） */
                 if (recursion_stream_ctx) {
@@ -1130,7 +1130,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
                 lv00_free((void **) &ctx->termination_reason);
                 ctx->termination_reason =
                     lv00_strdup("Maximum recursion depth exceeded (user callback decided to stop)");
-                return RECURSION_DEPTH_EXCEEDED;
+                return RECURSION_CHECK_RESULT_DEPTH_EXCEEDED;
             }
             /* RECURSION_ACTION_CONTINUE：用户决定继续，不终止 */
         } else {
@@ -1142,7 +1142,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             ctx->is_terminated = true;
             lv00_free((void **) &ctx->termination_reason);
             ctx->termination_reason = lv00_strdup("Maximum recursion depth exceeded");
-            return RECURSION_DEPTH_EXCEEDED;
+            return RECURSION_CHECK_RESULT_DEPTH_EXCEEDED;
         }
     }
 
@@ -1152,12 +1152,12 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
         if (new_value) {
             RecursionCheckResult result = recursion_context_check_decreasing(ctx, new_value);
 
-            if (result == RECURSION_NOT_DECREASING) {
+            if (result == RECURSION_CHECK_RESULT_NOT_DECREASING) {
                 symbolic_coord_destroy(new_value);
                 ctx->is_terminated = true;
                 lv00_free((void **) &ctx->termination_reason);
                 ctx->termination_reason = lv00_strdup("Measure not decreasing");
-                return RECURSION_NOT_DECREASING;
+                return RECURSION_CHECK_RESULT_NOT_DECREASING;
             }
 
             /* 记录测度值 */
@@ -1167,7 +1167,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             if (!new_vals) {
                 ctx->measure_value_count--;
                 symbolic_coord_destroy(new_value);
-                return RECURSION_ERROR;
+                return RECURSION_CHECK_RESULT_ERROR;
             }
             ctx->measure_values = new_vals;
             ctx->measure_values[ctx->measure_value_count - 1] = new_value;
@@ -1179,7 +1179,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
     int *new_stack = lv00_realloc(ctx->call_stack, ctx->call_stack_size * sizeof(int));
     if (!new_stack) {
         ctx->call_stack_size--;
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
     }
     ctx->call_stack = new_stack;
     ctx->call_stack[ctx->call_stack_size - 1] = func_block_id;
@@ -1188,7 +1188,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
      * 检测循环调用：如果同一个函数块在调用栈中已经存在，
      * 说明可能存在无限递归循环。
      *
-     * 策略：设置错误标志并返回 RECURSION_ERROR，让调用者决定如何处理。
+     * 策略：设置错误标志并返回 RECURSION_CHECK_RESULT_ERROR，让调用者决定如何处理。
      * 这比静默忽略更安全，因为即使测度在递减，循环调用模式本身
      * 也可能暗示着逻辑错误。
      */
@@ -1201,7 +1201,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             ctx->is_terminated = true;
             lv00_free((void **) &ctx->termination_reason);
             ctx->termination_reason = lv00_strdup("Cycle detected: recursive call to the same function block");
-            return RECURSION_ERROR;
+            return RECURSION_CHECK_RESULT_ERROR;
         }
     }
 
@@ -1212,7 +1212,7 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
         stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_INFO, "递归终止检查通过", ctx->current_depth);
     }
 
-    return RECURSION_OK;
+    return RECURSION_CHECK_RESULT_OK;
 }
 
 /**
@@ -1257,38 +1257,38 @@ void recursion_context_exit(RecursionContext *ctx) {
  * @param new_value 新的测度值
  * @return 递归检查结果
  */
-RecursionCheckResult recursion_context_check_decreasing(RecursionContext *ctx, SymbolicCoord *new_value) {
+RecursionCheckResult recursion_context_check_decreasing(const RecursionContext *ctx, SymbolicCoord *new_value) {
     if (!ctx || !new_value)
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
 
     if (!ctx->active_measure)
-        return RECURSION_OK;
+        return RECURSION_CHECK_RESULT_OK;
 
     if (ctx->measure_value_count == 0) {
         /* 第一次调用，无需检查递减 */
-        return RECURSION_OK;
+        return RECURSION_CHECK_RESULT_OK;
     }
 
     /*
      * 修改1：遍历整个 measure_values 数组，验证严格单调递减
      * 即 measure_values[0] > measure_values[1] > ... > measure_values[count-1] > new_value
-     * 如果发现任何相邻对不满足递减，返回 RECURSION_NOT_DECREASING
+     * 如果发现任何相邻对不满足递减，返回 RECURSION_CHECK_RESULT_NOT_DECREASING
      */
 
     /* 首先检查最后一个值与 new_value 的关系 */
     SymbolicCoord *prev_value = ctx->measure_values[ctx->measure_value_count - 1];
     MeasureCompareResult cmp = measure_compare(ctx->active_measure, new_value, prev_value);
 
-    if (cmp == MEASURE_LESS) {
+    if (cmp == MEASURE_COMPARE_LESS) {
         /* new_value < prev_value，满足递减 */
-    } else if (cmp == MEASURE_EQUAL || cmp == MEASURE_GREATER) {
+    } else if (cmp == MEASURE_COMPARE_EQUAL || cmp == MEASURE_COMPARE_GREATER) {
         /* 流式输出：测度未减小 */
         if (recursion_stream_ctx) {
             stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_WARNING, "递归测度未减小", ctx->current_depth);
         }
-        return RECURSION_NOT_DECREASING;
+        return RECURSION_CHECK_RESULT_NOT_DECREASING;
     } else {
-        return RECURSION_MEASURE_UNKNOWN;
+        return RECURSION_CHECK_RESULT_MEASURE_UNKNOWN;
     }
 
     /* 然后遍历整个已有的 measure_values 数组，验证整体单调递减 */
@@ -1298,22 +1298,22 @@ RecursionCheckResult recursion_context_check_decreasing(RecursionContext *ctx, S
 
         MeasureCompareResult chain_cmp = measure_compare(ctx->active_measure, next, current);
 
-        if (chain_cmp != MEASURE_LESS) {
+        if (chain_cmp != MEASURE_COMPARE_LESS) {
             /* 发现不满足递减的相邻对 */
-            if (chain_cmp == MEASURE_EQUAL || chain_cmp == MEASURE_GREATER) {
+            if (chain_cmp == MEASURE_COMPARE_EQUAL || chain_cmp == MEASURE_COMPARE_GREATER) {
                 /* 流式输出：测度未减小（调用链检查） */
                 if (recursion_stream_ctx) {
                     stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_WARNING, "递归测度未减小",
                                        ctx->current_depth);
                 }
-                return RECURSION_NOT_DECREASING;
+                return RECURSION_CHECK_RESULT_NOT_DECREASING;
             }
-            return RECURSION_MEASURE_UNKNOWN;
+            return RECURSION_CHECK_RESULT_MEASURE_UNKNOWN;
         }
     }
 
     /* 所有相邻对都满足严格单调递减 */
-    return RECURSION_OK;
+    return RECURSION_CHECK_RESULT_OK;
 }
 
 /**
@@ -1745,12 +1745,12 @@ void selector_block_update_states(SelectorBlock *sb, BranchState true_state, Bra
 RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, const Measure *measure,
                                                 const ConstraintGraph *graph, int node_id) {
     if (!ctx || !measure || !graph || node_id < 0)
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
 
     /* 获取目标节点（需要 const_cast，因为 graph_get_node 不接受 const） */
     GeomNode *node = graph_get_node((ConstraintGraph *) graph, node_id);
     if (!node)
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
 
     /* 计算当前节点的测度值（需要 const_cast，因为底层 API 不接受 const） */
     SymbolicCoord *current_value = measure_compute_value((Measure *) measure, node, (ConstraintGraph *) graph);
@@ -1759,12 +1759,12 @@ RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, con
         current_value = measure_compute_value_symbolic((Measure *) measure, node, (ConstraintGraph *) graph);
     }
     if (!current_value)
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
 
     /* 如果上下文中没有历史测度值，这是第一次调用，无法比较 */
     if (ctx->measure_value_count == 0) {
         symbolic_coord_destroy(current_value);
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
     }
 
     /* 获取上下文中的前一个测度值（最近一次记录的） */
@@ -1778,20 +1778,20 @@ RecursionCheckResult recursion_validate_measure(const RecursionContext *ctx, con
     /* 流式事件：测度验证结果 */
     if (recursion_stream_ctx) {
         stream_emit_simple(recursion_stream_ctx, STREAM_EVENT_PROGRESS,
-                           cmp == MEASURE_LESS ? "测度验证通过" : "测度验证失败", node_id);
+                           cmp == MEASURE_COMPARE_LESS ? "测度验证通过" : "测度验证失败", node_id);
     }
 
     /* 返回结果 */
     switch (cmp) {
-        case MEASURE_LESS:
-            return RECURSION_OK; /* 严格递减 */
-        case MEASURE_EQUAL:
-        case MEASURE_GREATER:
-            return RECURSION_NOT_DECREASING; /* 未递减 */
-        case MEASURE_UNKNOWN:
-        case MEASURE_ERROR:
+        case MEASURE_COMPARE_LESS:
+            return RECURSION_CHECK_RESULT_OK; /* 严格递减 */
+        case MEASURE_COMPARE_EQUAL:
+        case MEASURE_COMPARE_GREATER:
+            return RECURSION_CHECK_RESULT_NOT_DECREASING; /* 未递减 */
+        case MEASURE_COMPARE_UNKNOWN:
+        case MEASURE_COMPARE_ERROR:
         default:
-            return RECURSION_ERROR; /* 出错或无法比较 */
+            return RECURSION_CHECK_RESULT_ERROR; /* 出错或无法比较 */
     }
 }
 
@@ -1876,7 +1876,7 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
     /* 验证 ctx_a 的调用链 */
     for (int i = 0; i < ctx_a->measure_value_count - 1; i++) {
         MeasureCompareResult cmp = measure_compare(measure, ctx_a->measure_values[i + 1], ctx_a->measure_values[i]);
-        if (cmp != MEASURE_LESS) {
+        if (cmp != MEASURE_COMPARE_LESS) {
             return false; /* ctx_a 的调用链不满足递减 */
         }
     }
@@ -1884,7 +1884,7 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
     /* 验证 ctx_b 的调用链 */
     for (int i = 0; i < ctx_b->measure_value_count - 1; i++) {
         MeasureCompareResult cmp = measure_compare(measure, ctx_b->measure_values[i + 1], ctx_b->measure_values[i]);
-        if (cmp != MEASURE_LESS) {
+        if (cmp != MEASURE_COMPARE_LESS) {
             return false; /* ctx_b 的调用链不满足递减 */
         }
     }
@@ -1902,7 +1902,7 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
         SymbolicCoord *a_last = ctx_a->measure_values[ctx_a->measure_value_count - 1];
         SymbolicCoord *b_first = ctx_b->measure_values[0];
         MeasureCompareResult cross_cmp_1 = measure_compare(measure, b_first, a_last);
-        if (cross_cmp_1 != MEASURE_LESS) {
+        if (cross_cmp_1 != MEASURE_COMPARE_LESS) {
             return false; /* 交叉递减不满足 */
         }
 
@@ -1910,7 +1910,7 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
         SymbolicCoord *b_last = ctx_b->measure_values[ctx_b->measure_value_count - 1];
         SymbolicCoord *a_first = ctx_a->measure_values[0];
         MeasureCompareResult cross_cmp_2 = measure_compare(measure, a_first, b_last);
-        if (cross_cmp_2 != MEASURE_LESS) {
+        if (cross_cmp_2 != MEASURE_COMPARE_LESS) {
             return false; /* 交叉递减不满足 */
         }
     }
@@ -1993,10 +1993,10 @@ RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *meas
                                                              SymbolicCoord *after_value,
                                                              NonSymbolicComparator comparator) {
     if (!measure || !before_value || !after_value)
-        return RECURSION_ERROR;
+        return RECURSION_CHECK_RESULT_ERROR;
 
     if (!comparator)
-        return RECURSION_MEASURE_UNKNOWN;
+        return RECURSION_CHECK_RESULT_MEASURE_UNKNOWN;
 
     /*
      * 通过公理包提供的比较器验证测度递减性。
@@ -2005,7 +2005,7 @@ RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *meas
     bool is_decreasing = comparator(before_value, after_value);
 
     if (is_decreasing) {
-        return RECURSION_OK; /* 递减，验证通过 */
+        return RECURSION_CHECK_RESULT_OK; /* 递减，验证通过 */
     }
 
     /* 检查是否相等或递增 */
@@ -2014,18 +2014,18 @@ RecursionCheckResult recursion_validate_non_symbolic_measure(const Measure *meas
     if (after_lt_before) {
         /* after < before，即 before > after，与上面的结果矛盾 */
         /* 这不应该发生，但为安全起见处理 */
-        return RECURSION_OK;
+        return RECURSION_CHECK_RESULT_OK;
     }
 
     /* 既不是 before > after 也不是 after > before，可能是相等 */
     /* 检查相等性：使用符号坐标比较 */
     int cmp = symbolic_coord_compare(before_value, after_value);
     if (cmp == 0) {
-        return RECURSION_NOT_DECREASING; /* 相等，未递减 */
+        return RECURSION_CHECK_RESULT_NOT_DECREASING; /* 相等，未递减 */
     }
 
     /* 比较器无法判定 */
-    return RECURSION_MEASURE_UNKNOWN;
+    return RECURSION_CHECK_RESULT_MEASURE_UNKNOWN;
 }
 
 /* ============== 加载时验证的完整测试集 ============== */
@@ -2053,37 +2053,37 @@ bool recursion_run_measure_tests(const Measure *measure, int test_count, Symboli
             continue;
         }
 
-        if (measure->type == MEASURE_SYMBOLIC) {
+        if (measure->type == MEASURE_TYPE_SYMBOLIC) {
             /* 符号测度：使用符号坐标比较 */
             MeasureCompareResult cmp = measure_compare((Measure *) measure, after, before);
 
             switch (cmp) {
-                case MEASURE_LESS:
+                case MEASURE_COMPARE_LESS:
                     results[i].passed = true;
                     break;
-                case MEASURE_EQUAL:
+                case MEASURE_COMPARE_EQUAL:
                     results[i].passed = false;
                     results[i].error_message = lv00_strdup("Measure values are equal (not decreasing)");
                     all_passed = false;
                     break;
-                case MEASURE_GREATER:
+                case MEASURE_COMPARE_GREATER:
                     results[i].passed = false;
                     results[i].error_message = lv00_strdup("Measure value increased (not decreasing)");
                     all_passed = false;
                     break;
-                case MEASURE_UNKNOWN:
+                case MEASURE_COMPARE_UNKNOWN:
                     results[i].passed = false;
                     results[i].error_message = lv00_strdup("Cannot determine measure comparison");
                     all_passed = false;
                     break;
-                case MEASURE_ERROR:
+                case MEASURE_COMPARE_ERROR:
                 default:
                     results[i].passed = false;
                     results[i].error_message = lv00_strdup("Error comparing measure values");
                     all_passed = false;
                     break;
             }
-        } else if (measure->type == MEASURE_CUSTOM) {
+        } else if (measure->type == MEASURE_TYPE_CUSTOM) {
             /* 非符号测度：使用自定义比较函数 */
             if (measure->compare_func) {
                 /*
@@ -2110,9 +2110,9 @@ bool recursion_run_measure_tests(const Measure *measure, int test_count, Symboli
 
 const char *measure_type_to_string(MeasureType type) {
     switch (type) {
-        case MEASURE_SYMBOLIC:
+        case MEASURE_TYPE_SYMBOLIC:
             return "Symbolic";
-        case MEASURE_CUSTOM:
+        case MEASURE_TYPE_CUSTOM:
             return "Custom";
         default:
             return "Unknown";
@@ -2121,15 +2121,15 @@ const char *measure_type_to_string(MeasureType type) {
 
 const char *measure_compare_result_to_string(MeasureCompareResult result) {
     switch (result) {
-        case MEASURE_LESS:
+        case MEASURE_COMPARE_LESS:
             return "Less";
-        case MEASURE_EQUAL:
+        case MEASURE_COMPARE_EQUAL:
             return "Equal";
-        case MEASURE_GREATER:
+        case MEASURE_COMPARE_GREATER:
             return "Greater";
-        case MEASURE_UNKNOWN:
+        case MEASURE_COMPARE_UNKNOWN:
             return "Unknown";
-        case MEASURE_ERROR:
+        case MEASURE_COMPARE_ERROR:
             return "Error";
         default:
             return "Unknown";
@@ -2138,17 +2138,17 @@ const char *measure_compare_result_to_string(MeasureCompareResult result) {
 
 const char *recursion_check_result_to_string(RecursionCheckResult result) {
     switch (result) {
-        case RECURSION_OK:
+        case RECURSION_CHECK_RESULT_OK:
             return "OK";
-        case RECURSION_NOT_DECREASING:
+        case RECURSION_CHECK_RESULT_NOT_DECREASING:
             return "Not Decreasing";
-        case RECURSION_DEPTH_EXCEEDED:
+        case RECURSION_CHECK_RESULT_DEPTH_EXCEEDED:
             return "Depth Exceeded";
-        case RECURSION_CYCLE_DETECTED:
+        case RECURSION_CHECK_RESULT_CYCLE_DETECTED:
             return "Cycle Detected";
-        case RECURSION_MEASURE_UNKNOWN:
+        case RECURSION_CHECK_RESULT_MEASURE_UNKNOWN:
             return "Measure Unknown";
-        case RECURSION_ERROR:
+        case RECURSION_CHECK_RESULT_ERROR:
             return "Error";
         default:
             return "Unknown";
@@ -2342,18 +2342,18 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
             SymbolicCoord *val_b = symbolic_coord_create_rational(1, 1);  /* 1 */
 
             MeasureCompareResult cmp = measure_compare(m_len, val_b, val_a);
-            /* val_b(1) < val_a(25)，所以 measure_compare(m, val_b, val_a) 应返回 MEASURE_LESS */
+            /* val_b(1) < val_a(25)，所以 measure_compare(m, val_b, val_a) 应返回 MEASURE_COMPARE_LESS */
 
             symbolic_coord_destroy(val_a);
             symbolic_coord_destroy(val_b);
             measure_destroy(m_len);
 
-            if (cmp == MEASURE_LESS) {
+            if (cmp == MEASURE_COMPARE_LESS) {
                 tr->passed = true;
                 passed_count++;
             } else {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_LESS, got %s",
+                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_COMPARE_LESS, got %s",
                          measure_compare_result_to_string(cmp));
             }
         }
@@ -2369,7 +2369,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
             tr->passed = false;
             snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create custom measure");
         } else {
-            /* 非符号测度的 measure_compare 返回 MEASURE_UNKNOWN（需要 GeomNode） */
+            /* 非符号测度的 measure_compare 返回 MEASURE_COMPARE_UNKNOWN（需要 GeomNode） */
             SymbolicCoord *val_a = symbolic_coord_create_rational(5, 1);
             SymbolicCoord *val_b = symbolic_coord_create_rational(3, 1);
 
@@ -2379,13 +2379,13 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
             symbolic_coord_destroy(val_b);
             measure_destroy(m_custom);
 
-            if (cmp == MEASURE_UNKNOWN) {
+            if (cmp == MEASURE_COMPARE_UNKNOWN) {
                 /* 非符号测度直接比较 SymbolicCoord 返回 UNKNOWN，这是正确行为 */
                 tr->passed = true;
                 passed_count++;
             } else {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_UNKNOWN for non-symbolic, got %s",
+                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_COMPARE_UNKNOWN for non-symbolic, got %s",
                          measure_compare_result_to_string(cmp));
             }
         }
@@ -2410,7 +2410,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
             recursion_context_destroy(ctx);
 
             /* 前三次应该成功，第四次应该返回 DEPTH_EXCEEDED */
-            if (r1 == RECURSION_OK && r2 == RECURSION_OK && r3 == RECURSION_OK && r4 == RECURSION_DEPTH_EXCEEDED) {
+            if (r1 == RECURSION_CHECK_RESULT_OK && r2 == RECURSION_CHECK_RESULT_OK && r3 == RECURSION_CHECK_RESULT_OK && r4 == RECURSION_CHECK_RESULT_DEPTH_EXCEEDED) {
                 tr->passed = true;
                 passed_count++;
             } else {
@@ -2526,12 +2526,12 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                      * 这不可能！除非是循环递减...
                      *
                      * 看代码：cross_cmp_2 检查 B_last > A_first
-                     * 这确实要求 B_last < A_first（measure_compare 返回 MEASURE_LESS 表示 b < a）
+                     * 这确实要求 B_last < A_first（measure_compare 返回 MEASURE_COMPARE_LESS 表示 b < a）
                      * 所以 B_last < A_first 即 2 < 8 ✓
                      *
                      * 等等，measure_compare(measure, a_first, b_last) 检查 a_first < b_last
-                     * 如果 a_first < b_last，返回 MEASURE_LESS，即 cross_cmp_2 == MEASURE_LESS
-                     * 但条件是 cross_cmp_2 != MEASURE_LESS 时返回 false
+                     * 如果 a_first < b_last，返回 MEASURE_COMPARE_LESS，即 cross_cmp_2 == MEASURE_COMPARE_LESS
+                     * 但条件是 cross_cmp_2 != MEASURE_COMPARE_LESS 时返回 false
                      * 所以需要 a_first < b_last，即 A_first < B_last
                      *
                      * 对于 A=(8,5), B=(4,2): A_first=8, B_last=2, 8 < 2? 不满足
@@ -2546,17 +2546,17 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                      * B_first(4) < A_last(3)? 4 < 3 ✗
                      *
                      * A=(6,4), B=(3,2)
-                     * B_first(3) < A_last(4)? 3 < 4 ✓ (cross_cmp_1 = MEASURE_LESS)
-                     * A_first(6) < B_last(2)? 6 < 2 ✗ (cross_cmp_2 != MEASURE_LESS)
+                     * B_first(3) < A_last(4)? 3 < 4 ✓ (cross_cmp_1 = MEASURE_COMPARE_LESS)
+                     * A_first(6) < B_last(2)? 6 < 2 ✗ (cross_cmp_2 != MEASURE_COMPARE_LESS)
                      *
                      * 似乎这个交叉检查要求形成环形递减，这在数学上是不可能的
                      * 除非测度值序列不是简单的递减...
                      *
                      * 重新看代码：
                      * cross_cmp_1 = measure_compare(measure, b_first, a_last)
-                     *   如果 b_first < a_last => MEASURE_LESS => 通过
+                     *   如果 b_first < a_last => MEASURE_COMPARE_LESS => 通过
                      * cross_cmp_2 = measure_compare(measure, a_first, b_last)
-                     *   如果 a_first < b_last => MEASURE_LESS => 通过
+                     *   如果 a_first < b_last => MEASURE_COMPARE_LESS => 通过
                      *
                      * 所以需要：b_first < a_last 且 a_first < b_last
                      * 即 B_first < A_last 且 A_first < B_last
@@ -2762,7 +2762,7 @@ int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_i
         return -1;
 
     /* 必须是非符号测度 */
-    if (target->type != MEASURE_CUSTOM)
+    if (target->type != MEASURE_TYPE_CUSTOM)
         return -1;
 
     /* 如果提供了模板名称，存储为验证模板 */
@@ -2818,7 +2818,7 @@ const char *recursion_get_measure_validation_template(MeasureSystem *sys, int me
         return NULL;
 
     /* 符号测度没有验证模板 */
-    if (target->type != MEASURE_CUSTOM)
+    if (target->type != MEASURE_TYPE_CUSTOM)
         return NULL;
 
     /* 查找验证模板 */

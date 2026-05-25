@@ -87,7 +87,7 @@ int module_get_axiom_package_count(const Module *mod) {
     return mod ? mod->axiom_package_count : 0;
 }
 
-ConstraintGraph *module_get_graph(const Module *mod) {
+const ConstraintGraph *module_get_graph(const Module *mod) {
     return mod ? mod->graph : NULL;
 }
 
@@ -1568,10 +1568,13 @@ char *module_compute_version_hash(const Module *mod) {
 }
 
 bool module_validate_dependency_chain(Module *mod, Module **all_modules, int module_count) {
+    /* 外层遍历：检查每个依赖是否在已知模块列表中 */
     for (int i = 0; i < mod->dependency_count; i++) {
         bool found = false;
+        /* 内层遍历只读比较，const 保护外层依赖指针不被修改 */
+        const char *dep_name = mod->dependencies[i].name;
         for (int j = 0; j < module_count; j++) {
-            if (strcmp(all_modules[j]->name, mod->dependencies[i].name) == 0) {
+            if (strcmp(all_modules[j]->name, dep_name) == 0) {
                 found = true;
                 break;
             }
@@ -2492,7 +2495,15 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                     module_destroy(mod);
                 return MODULE_LOAD_PARSE_ERROR;
             }
-            for (uint16_t j = 0; j < dep_count; j++) {
+            /*
+             * 三层嵌套遍历保护：
+             *   外层 j: 遍历依赖数组 (dep_count 固定)
+             *   中层: 遍历每个依赖的键值对映射 (dep_map_count)
+             *   内层 k: 解析映射中的键值条目
+             * 备份外层迭代计数，防止解码器异常修改导致死循环。
+             */
+            const uint16_t outer_dep_count_saved = dep_count;
+            for (uint16_t j = 0; j < outer_dep_count_saved; j++) {
                 uint16_t dep_map_count = 0;
                 if (!mp_decoder_read_map_header(&dec, &dep_map_count)) {
                     lv00_free((void **) &name);
@@ -2503,7 +2514,9 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                 }
                 char *dep_name = NULL;
                 char *dep_ver = NULL;
-                for (uint16_t k = 0; k < dep_map_count; k++) {
+                /* 中层内层遍历：逐键值解析依赖条目 */
+                const uint16_t map_count_saved = dep_map_count;
+                for (uint16_t k = 0; k < map_count_saved; k++) {
                     char *dk = NULL;
                     if (!mp_decoder_read_str(&dec, &dk)) {
                         lv00_free((void **) &name);
@@ -2541,7 +2554,14 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                     module_destroy(mod);
                 return MODULE_LOAD_PARSE_ERROR;
             }
-            for (uint16_t j = 0; j < exp_map_count; j++) {
+            /*
+             * 导出键值遍历保护：
+             *   外层 j: 遍历导出映射条目 (exp_map_count 固定)
+             *   内层: 按条目类型解析数组（function_blocks / type_regions）
+             * 备份外层迭代计数，防止内层解码异常影响外层循环。
+             */
+            const uint16_t exp_count_saved = exp_map_count;
+            for (uint16_t j = 0; j < exp_count_saved; j++) {
                 char *ek = NULL;
                 if (!mp_decoder_read_str(&dec, &ek)) {
                     lv00_free((void **) &name);
@@ -2560,7 +2580,9 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                             module_destroy(mod);
                         return MODULE_LOAD_PARSE_ERROR;
                     }
-                    for (uint16_t k = 0; k < fb_count; k++) {
+                    /* 内层遍历保护：备份 fb_count 防止解码器异常修改 */
+                    const uint16_t fb_count_saved = fb_count;
+                    for (uint16_t k = 0; k < fb_count_saved; k++) {
                         int64_t val = 0;
                         if (mp_decoder_read_int(&dec, &val) && mod) {
                             module_export_function_block(mod, (int) val);
@@ -2576,7 +2598,9 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                             module_destroy(mod);
                         return MODULE_LOAD_PARSE_ERROR;
                     }
-                    for (uint16_t k = 0; k < tr_count; k++) {
+                    /* 内层遍历保护：备份 tr_count 防止解码器异常修改 */
+                    const uint16_t tr_count_saved = tr_count;
+                    for (uint16_t k = 0; k < tr_count_saved; k++) {
                         int64_t val = 0;
                         if (mp_decoder_read_int(&dec, &val) && mod) {
                             module_export_type_region(mod, (int) val);
@@ -2596,7 +2620,9 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
                 lv00_free((void **) &version);
                 return MODULE_LOAD_PARSE_ERROR;
             }
-            for (uint16_t j = 0; j < pkg_count; j++) {
+            /* 公理包遍历保护：备份 pkg_count */
+            const uint16_t pkg_count_saved = pkg_count;
+            for (uint16_t j = 0; j < pkg_count_saved; j++) {
                 char *pkg_name = NULL;
                 if (mp_decoder_read_str(&dec, &pkg_name) && mod && pkg_name) {
                     AxiomPackage *pkg = axiom_package_create(pkg_name, "0.0.0");
@@ -3770,11 +3796,13 @@ static void store_baseline(const Module *mod, uint64_t hash) {
             bl->graph_node_ids = (int *) lv00_malloc(sizeof(int) * bl->graph_node_count);
             bl->graph_node_coord_hashes = (uint64_t *) lv00_malloc(sizeof(uint64_t) * bl->graph_node_count);
             for (int i = 0; i < bl->graph_node_count; i++) {
-                GeomNode *n = mod->graph->nodes[i];
+                /* const 保护：只读遍历，不修改节点指针或结构体 */
+                const GeomNode *n = mod->graph->nodes[i];
                 bl->graph_node_ids[i] = n ? n->id : -1;
                 /* 计算节点坐标哈希：组合所有坐标的哈希 */
                 uint64_t ch = 0;
                 if (n && n->symbolic_coords) {
+                    /* 内层遍历：备份外层节点指针，内层只读坐标 */
                     for (int c = 0; c < n->coord_count; c++) {
                         if (n->symbolic_coords[c]) {
                             ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
@@ -3969,11 +3997,14 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
             cur_node_ids = (int *) lv00_malloc(sizeof(int) * cur_node_count);
             cur_node_hashes = (uint64_t *) lv00_malloc(sizeof(uint64_t) * cur_node_count);
             for (int i = 0; i < cur_node_count; i++) {
-                GeomNode *n = mod->graph->nodes[i];
+                /* const 保护：只读遍历节点以生成 ID 和哈希 */
+                const GeomNode *n = mod->graph->nodes[i];
                 cur_node_ids[i] = n ? n->id : -1;
                 uint64_t ch = 0;
                 if (n && n->symbolic_coords) {
-                    for (int c = 0; c < n->coord_count; c++) {
+                    /* 内层遍历坐标：备份外层节点迭代状态，内层只读 */
+                    const int coord_cnt = n->coord_count;
+                    for (int c = 0; c < coord_cnt; c++) {
                         if (n->symbolic_coords[c]) {
                             ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
                         }

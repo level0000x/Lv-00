@@ -5,6 +5,19 @@
  * @details 提供预设函数块系统的公共类型定义、常量、宏和工具函数。
  *          所有预设模块共享此头文件。
  *
+ * 【内部公共API说明】
+ * 此头文件位于 include/lv00/ 目录，虽然是"公共"头文件，
+ * 但实际上是供 src/ 目录下的内部模块使用的内部公共API，
+ * 不是供外部库用户直接使用的外部公共API。
+ *
+ * 此头文件依赖 lv00_internal.h 和 lv00_utils.h，因为：
+ *   - LV00_ERROR_SET 等错误处理宏
+ *   - lv00_malloc 等内存管理函数
+ *   - lv00_safe_* 等安全字符串函数
+ *   - lv00_log_* 等日志函数
+ *
+ * 这些依赖是预设系统正常运作所必需的。
+ *
  * @version 5.0.0
  * @author Lv-00 Project
  */
@@ -15,15 +28,18 @@
 #include <stdio.h>
 
 #include "func_block_preset.h"
-/*
- * [P1 修复] preset_common.h 引用了 lv00_internal.h（内部头文件）。
- * 此依赖关系存在是因为 preset_common.h 中的宏（如 LV00_ERROR_SET、
- * LV00_ERROR_ALLOCATION_FAILED 等）和内存管理函数（lv00_malloc 等）
- * 定义在 lv00_internal.h / lv00_utils.h 中。
- * 注意：lv00_internal.h 本意是 src/ 目录的内部桥接头文件，
- * 但当前被公共头文件 preset_common.h 引用。
- * 未来应考虑将必要的错误码和内存管理声明提取到独立的公共头文件中，
- * 以消除公共头文件对内部头文件的依赖。
+/* ============================================================================
+ * 内部依赖说明
+ * ============================================================================
+ * preset_common.h 依赖 lv00_internal.h 和 lv00_utils.h。
+ * 这些头文件虽然名为"内部"，但在此上下文中被作为预设系统的
+ * 基础支撑库使用，是内部公共API的一部分。
+ *
+ * 如需将此头文件提升为真正的外部公共API，应：
+ *   1. 将必要的错误码定义提取到 error_codes.h
+ *   2. 将内存管理函数声明提取到独立的公共头文件
+ *   3. 将安全字符串函数声明提取到公共头文件
+ * ============================================================================
  */
 #include "lv00_internal.h"
 #include "lv00_utils.h"
@@ -287,6 +303,7 @@ typedef _Atomic int PresetAtomicCounter;
 /**
  * @brief 简化预设注册调用（带类别参数）
  *
+ * @param _success_count 成功计数变量名（int 类型，由调用者提供）
  * @param name 预设名称
  * @param desc 描述
  * @param cat  预设类别（PresetCategory 枚举值）
@@ -298,12 +315,12 @@ typedef _Atomic int PresetAtomicCounter;
  * @param constructive 是否构造性
  * @param reversible 是否可逆
  */
-#define PRESET_REGISTER_EX(name, desc, cat, inputs, input_count, output, math_def, complexity, constructive,    \
-                           reversible)                                                                          \
+#define PRESET_REGISTER_EX(_success_count, name, desc, cat, inputs, input_count, output, math_def, complexity,    \
+                           constructive, reversible)                                                              \
     do {                                                                                                        \
         if (preset_blocks_register_simple((name), (desc), (cat), (inputs), (input_count), (output), (math_def), \
                                           (complexity), (constructive), (reversible))) {                        \
-            success_count++;                                                                                    \
+            (_success_count)++;                                                                                  \
         } else {                                                                                                \
             LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, "预设注册失败: %s", (name));                  \
         }                                                                                                       \
@@ -359,9 +376,10 @@ typedef _Atomic int PresetAtomicCounter;
 /**
  * @brief 通用预设注册宏（带自动成功计数）
  *
- * 在 PRESET_REGISTER_CAT 基础上自动递增 success_count。
+ * 在 PRESET_REGISTER_CAT 基础上自动递增成功计数。
  * 适用于模块的 xxx_register() 函数内部，与 PRESET_REGISTER_BEGIN/END 配合使用。
  *
+ * @param _success_count 成功计数变量名（int 类型，由调用者提供）
  * @param name 预设名称
  * @param desc 描述
  * @param cat  预设类别（PresetCategory 枚举值）
@@ -373,12 +391,12 @@ typedef _Atomic int PresetAtomicCounter;
  * @param constructive 是否构造性
  * @param reversible 是否可逆
  */
-#define PRESET_REGISTER_CAT_COUNTED(name, desc, cat, in_types, in_cnt, out_type, \
+#define PRESET_REGISTER_CAT_COUNTED(_success_count, name, desc, cat, in_types, in_cnt, out_type, \
                                      math_def, complexity, constructive, reversible) \
     do { \
         if (PRESET_REGISTER_CAT(name, desc, cat, in_types, in_cnt, out_type, \
                                 math_def, complexity, constructive, reversible)) { \
-            success_count++; \
+            (_success_count)++; \
         } else { \
             LV00_ERROR_SET(LV00_ERROR_PRESET_REGISTRATION_FAILED, \
                            "预设注册失败: %s", (name)); \
@@ -388,6 +406,7 @@ typedef _Atomic int PresetAtomicCounter;
 /**
  * @brief 简化预设注册调用（默认类别为 CONSTRUCTION，向后兼容）
  *
+ * @param _success_count 成功计数变量名（int 类型，由调用者提供）
  * @param name 预设名称
  * @param desc 描述
  * @param inputs 输入类型数组
@@ -401,9 +420,10 @@ typedef _Atomic int PresetAtomicCounter;
  * @note 推荐使用 PRESET_REGISTER_EX 以指定正确的类别。
  *       此宏保留仅为向后兼容，默认使用 PRESET_CATEGORY_CONSTRUCTION。
  */
-#define PRESET_REGISTER(name, desc, inputs, input_count, output, math_def, complexity, constructive, reversible)    \
-    PRESET_REGISTER_EX(name, desc, PRESET_CATEGORY_CONSTRUCTION, inputs, input_count, output, math_def, complexity, \
-                       constructive, reversible)
+#define PRESET_REGISTER(_success_count, name, desc, inputs, input_count, output, math_def, complexity, constructive, \
+                        reversible)                                                                                \
+    PRESET_REGISTER_EX(_success_count, name, desc, PRESET_CATEGORY_CONSTRUCTION, inputs, input_count, output,    \
+                       math_def, complexity, constructive, reversible)
 
 /**
  * @brief 批量注册预设的辅助宏
@@ -762,7 +782,7 @@ bool preset_validate_complexity(const char *complexity);
 /**
  * @brief 错误日志
  */
-#define PRESET_ERROR_LOG(fmt, ...) lv00_log_error("[PRESET ERROR] " fmt, ##__VA_ARGS__)
+#define PRESET_ERROR_LOG(fmt, ...) LOG_ERROR("preset", "[PRESET ERROR] " fmt, ##__VA_ARGS__)
 
 /**
  * @brief 警告日志

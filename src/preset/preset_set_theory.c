@@ -46,7 +46,7 @@
  * 注册成功时递增 success_count，失败时输出错误日志。
  */
 #define REGISTER_SET(name, desc, inputs, in_count, output, math, comp, cons, rev) \
-    PRESET_REGISTER_EX((name), (desc), PRESET_CATEGORY_SET_THEORY, (inputs), (in_count), \
+    PRESET_REGISTER_EX(success_count, (name), (desc), PRESET_CATEGORY_SET_THEORY, (inputs), (in_count), \
                        (output), (math), (comp), (cons), (rev))
 
 /* ==================== 模块注册实现 ==================== */

@@ -750,7 +750,7 @@ static uint64_t segment_endpoint_hash(GeomNode *node) {
  * 3. 将具有相同哈希的节点分组
  * 4. 仅在每组内进行比较
  */
-NodeMergeCandidate *find_merge_candidates(ConstraintGraph *graph, int *out_count) {
+NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out_count) {
     *out_count = 0;
 
     /* 最坏情况：所有节点对都是候选，乘以3覆盖三个阶段（点、线段、区域）。
@@ -1378,13 +1378,9 @@ void normalization_result_destroy(NormalizationResult *result) {
 /*  图哈希 / 重写历史记录（功能不变）                                  */
 /* ------------------------------------------------------------------ */
 
+/** @brief FNV-1a 哈希函数（委托给统一的 lv00_fnv1a_hash） */
 static uint64_t fnv1a_hash(const char *s) {
-    uint64_t hash = LV00_FNV64_OFFSET_BASIS;
-    while (*s) {
-        hash ^= (uint8_t) (*s++);
-        hash *= LV00_FNV64_PRIME;
-    }
-    return hash;
+    return lv00_fnv1a_hash(s, s ? strlen(s) : 0);
 }
 
 GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
@@ -1498,7 +1494,7 @@ void rewrite_history_destroy(RewriteHistory *history) {
     }
 }
 
-bool rewrite_history_check_cycle(const RewriteHistory *history, ConstraintGraph *graph) {
+bool rewrite_history_check_cycle(const RewriteHistory *history, const ConstraintGraph *graph) {
     GraphHash *current_hash = compute_complete_graph_hash(graph);
     if (!current_hash)
         return false;
@@ -1543,7 +1539,7 @@ void rewrite_history_add(RewriteHistory *history, ConstraintGraph *graph) {
  * @param graph 约束图（预期已规范化）
  * @return true 如果幂等（无变化），false 否则
  */
-bool normalization_verify_idempotency(const ConstraintGraph *graph) {
+bool normalization_verify_idempotency(ConstraintGraph *graph) {
     if (!graph)
         return false;
 

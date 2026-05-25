@@ -475,9 +475,13 @@ bool preset_module_get_names(const char *const *names, int count,
         if (!result[i]) {
             /* 回滚已分配的内存 */
             for (int j = 0; j < i; j++) {
-                lv00_free(result[j]);
+                char *tmp = result[j];
+                lv00_free((void **)&tmp);
             }
-            lv00_free(result);
+            {
+                char *tmp_ptr = (char *)result;
+                lv00_free((void **)&tmp_ptr);
+            }
             return false;
         }
     }

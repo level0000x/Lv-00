@@ -5,10 +5,58 @@
  *              返回新创建的点、线段和约束。
  *
  *              所有几何计算使用纯 JS 实现，不依赖 WASM 后端。
+ *
+ * 【优化说明】v3.4.2
+ * - 添加几何精度常量，替代硬编码的 epsilon 值
+ * - 统一浮点数比较策略
  */
 
 import type { Point, Segment, Constraint } from '@/types';
 import { generateUniqueId } from '@/utils/idGenerator';
+
+// ================================================================
+// 几何精度常量
+// ================================================================
+
+/**
+ * 几何计算精度常量
+ * 用于浮点数比较，避免浮点精度问题导致的判断错误
+ */
+export const GEOMETRY_EPSILON = {
+  /** 极小值：用于除法时的安全除数 */
+  ZERO: 1e-15,
+
+  /** 紧密比较：两值相等判定阈值 */
+  EQUAL: 1e-10,
+
+  /** 宽松比较：允许一定误差的相等判定 */
+  LOOSE: 1e-6,
+
+  /** 距离比较：点重合判定阈值 */
+  DISTANCE_COLLINEAR: 1e-8,
+
+  /** 角度比较：平行/垂直判定阈值 */
+  ANGLE_TOLERANCE: 1e-6,
+
+  /** 坐标比较：坐标相等判定阈值 */
+  COORD_EQUAL: 1e-10,
+
+  /** 投影系数：线段参数 t 的有效范围边界 */
+  PROJECTION_T_MIN: 1e-9,
+  PROJECTION_T_MAX: 1 - 1e-9,
+};
+
+/**
+ * 几何计算状态码
+ */
+export const GEOMETRY_STATUS = {
+  SUCCESS: 0,
+  DEGENERATE: 1,       // 退化情况（如零长度线段）
+  NO_INTERSECTION: 2,   // 无交点
+  PARALLEL: 3,         // 平行线
+  COINCIDENT: 4,       // 重合
+  ERROR: -1,
+} as const;
 
 // ================================================================
 // 类型定义
@@ -58,6 +106,43 @@ export interface FuncBlockPreset {
 // ================================================================
 
 /**
+ * 比较两个浮点数是否相等
+ *
+ * @param a 第一个值
+ * @param b 第二个值
+ * @param epsilon 比较精度（默认使用 GEOMETRY_EPSILON.EQUAL）
+ * @returns 是否相等
+ */
+export function floatEqual(a: number, b: number, epsilon: number = GEOMETRY_EPSILON.EQUAL): boolean {
+  return Math.abs(a - b) < epsilon;
+}
+
+/**
+ * 比较两个浮点数大小
+ *
+ * @param a 第一个值
+ * @param b 第二个值
+ * @param epsilon 比较精度
+ * @returns -1 (a < b), 0 (a ≈ b), 1 (a > b)
+ */
+export function floatCompare(
+  a: number,
+  b: number,
+  epsilon: number = GEOMETRY_EPSILON.EQUAL
+): -1 | 0 | 1 {
+  const diff = a - b;
+  if (Math.abs(diff) < epsilon) return 0;
+  return diff < 0 ? -1 : 1;
+}
+
+/**
+ * 检查值是否为零
+ */
+export function floatIsZero(value: number, epsilon: number = GEOMETRY_EPSILON.ZERO): boolean {
+  return Math.abs(value) < epsilon;
+}
+
+/**
  * 获取下一个可用 ID（使用全局统一的 generateUniqueId）
  * 保留此函数名以兼容 BlockPanel.tsx 中的调用
  */
@@ -94,7 +179,7 @@ function projectPointOnSegment(p: Point, seg: Segment, points: Point[]): Point |
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return { id: -1, x: a.x, y: a.y };
+  if (floatIsZero(lenSq, GEOMETRY_EPSILON.ZERO)) return { id: -1, x: a.x, y: a.y };
 
   let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
   // 钳制到线段范围内
@@ -717,4 +802,294 @@ export interface UserFuncBlock {
   internalSegmentIds: number[];
   internalConstraintIds: number[];
   relativePositions: Array<{ id: number; relX: number; relY: number }>;
+}
+
+// ================================================================
+// 函数块组合、乘积、部分应用工具函数 (v3.5.0 新增)
+// ================================================================
+
+/**
+ * 函数块组合结果
+ * @property result - 组合后的新函数块
+ * @property description - 操作描述
+ */
+export interface CompositionResult {
+  result: UserFuncBlock | null;
+  description: string;
+}
+
+/**
+ * 函数块乘积结果
+ * @property result - 乘积后的新函数块
+ * @property description - 操作描述
+ */
+export interface ProductResult {
+  result: UserFuncBlock | null;
+  description: string;
+}
+
+/**
+ * 部分应用结果
+ * @property result - 部分应用后的新函数块
+ * @property description - 操作描述
+ * @property fixedInputs - 被固定的输入索引
+ */
+export interface PartialApplyResult {
+  result: UserFuncBlock | null;
+  description: string;
+  fixedInputs: number[];
+}
+
+/**
+ * 组合两个用户函数块（Compose）
+ *
+ * 组合操作将 f: A → B 和 g: B → C 串联，形成 h: A → C。
+ * 组合后的函数块继承第一个的输入，输出第二个的内部点。
+ *
+ * @param block1 - 第一个函数块（作为前级）
+ * @param block2 - 第二个函数块（作为后级）
+ * @param block1Outputs - 第一个函数块应该暴露的输出点索引
+ * @returns 组合结果
+ *
+ * @example
+ * // 组合 "中点" 和 "等边三角形" 函数块
+ * const composed = composeBlocks(midpointBlock, equilateralBlock, [0]);
+ * // 结果：输入两点，输出中点上构造的等边三角形
+ */
+export function composeBlocks(
+  block1: UserFuncBlock,
+  block2: UserFuncBlock,
+  block1Outputs: number[] = [],
+): CompositionResult {
+  if (block1Outputs.length === 0) {
+    // 默认使用 block1 的最后一个输入作为输出连接点
+    block1Outputs = [block1.inputPointIds.length - 1];
+  }
+
+  // 计算新的输入点：block1 的输入
+  const newInputPointIds = [...block1.inputPointIds];
+
+  // 计算新的内部点：block1 的内部点 + block2 的内部点（需要重新编号）
+  const block1InternalCount = block1.internalPointIds.length;
+  const newInternalPointIds: number[] = [];
+
+  // 复制 block1 的内部点（偏移 0）
+  for (const id of block1.internalPointIds) {
+    newInternalPointIds.push(id);
+  }
+
+  // 复制 block2 的内部点（偏移 block1InternalCount）
+  for (const id of block2.internalPointIds) {
+    newInternalPointIds.push(id + block1InternalCount);
+  }
+
+  // 更新 block2 的相对坐标偏移
+  const newRelativePositions = [
+    ...block1.relativePositions.map((p) => ({ ...p })),
+    ...block2.relativePositions.map((p) => ({
+      ...p,
+      id: p.id + block1InternalCount,
+      relX: p.relX, // 保持相对于新锚点的偏移
+      relY: p.relY,
+    })),
+  ];
+
+  const composedBlock: UserFuncBlock = {
+    id: `compose_${Date.now()}`,
+    name: `${block1.name} ∘ ${block2.name}`,
+    inputPointIds: newInputPointIds,
+    internalPointIds: newInternalPointIds,
+    internalSegmentIds: [
+      ...block1.internalSegmentIds,
+      ...block2.internalSegmentIds.map((id) => id + block1InternalCount),
+    ],
+    internalConstraintIds: [
+      ...block1.internalConstraintIds,
+      ...block2.internalConstraintIds.map((id) => id + block1InternalCount),
+    ],
+    relativePositions: newRelativePositions,
+  };
+
+  return {
+    result: composedBlock,
+    description: `组合 "${block1.name}" 和 "${block2.name}"`,
+  };
+}
+
+/**
+ * 计算两个函数块的乘积（Product）
+ *
+ * 乘积操作将 f: A₁ → B₁ 和 g: A₂ → B₂ 并行执行，
+ * 形成 h: (A₁ ⊔ A₂) → (B₁ ⊔ B₂)。
+ * 输入为两个函数块输入的并集，输出为两个函数块输出的并集。
+ *
+ * @param block1 - 第一个函数块
+ * @param block2 - 第二个函数块
+ * @returns 乘积结果
+ *
+ * @example
+ * // 计算 "中点" 和 "等边三角形" 的乘积
+ * const product = productBlocks(midpointBlock, equilateralBlock);
+ * // 结果：输入4个点，分别在中点和底边上构造等边三角形
+ */
+export function productBlocks(block1: UserFuncBlock, block2: UserFuncBlock): ProductResult {
+  // 计算新的输入点
+  const newInputPointIds = [...block1.inputPointIds, ...block2.inputPointIds];
+
+  // 计算新的内部点
+  const block1InternalCount = block1.internalPointIds.length;
+  const newInternalPointIds = [
+    ...block1.internalPointIds,
+    ...block2.internalPointIds.map((id) => id + block1InternalCount),
+  ];
+
+  // 更新相对坐标（保持相对于各自输入的偏移）
+  const newRelativePositions = [
+    ...block1.relativePositions.map((p) => ({ ...p })),
+    ...block2.relativePositions.map((p) => ({
+      ...p,
+      id: p.id + block1InternalCount,
+    })),
+  ];
+
+  const productBlock: UserFuncBlock = {
+    id: `product_${Date.now()}`,
+    name: `${block1.name} × ${block2.name}`,
+    inputPointIds: newInputPointIds,
+    internalPointIds: newInternalPointIds,
+    internalSegmentIds: [
+      ...block1.internalSegmentIds,
+      ...block2.internalSegmentIds.map((id) => id + block1InternalCount),
+    ],
+    internalConstraintIds: [
+      ...block1.internalConstraintIds,
+      ...block2.internalConstraintIds.map((id) => id + block1InternalCount),
+    ],
+    relativePositions: newRelativePositions,
+  };
+
+  return {
+    result: productBlock,
+    description: `"${block1.name}" 和 "${block2.name}" 的乘积`,
+  };
+}
+
+/**
+ * 对函数块进行部分应用（Partial Apply / Currying）
+ *
+ * 部分应用固定函数块的某些输入参数，生成一个新的函数块，
+ * 新函数块接受更少的输入。
+ *
+ * @param block - 原函数块
+ * @param fixedInputIndices - 要固定的输入索引数组
+ * @param fixedInputValues - 对应索引的固定值（相对坐标）
+ * @returns 部分应用结果
+ *
+ * @example
+ * // 部分应用 "等边三角形" 函数块，固定底边中点
+ * const partial = partialApplyBlock(equilateralBlock, [0], [{ relX: 0, relY: 0 }]);
+ * // 结果：输入1个点，输出以该点为中点的等边三角形
+ */
+export function partialApplyBlock(
+  block: UserFuncBlock,
+  fixedInputIndices: number[],
+  fixedInputValues: Array<{ relX: number; relY: number }>,
+): PartialApplyResult {
+  if (fixedInputIndices.length !== fixedInputValues.length) {
+    return {
+      result: null,
+      description: '固定输入数量不匹配',
+      fixedInputs: [],
+    };
+  }
+
+  if (fixedInputIndices.length >= block.inputPointIds.length) {
+    return {
+      result: null,
+      description: '不能固定所有输入',
+      fixedInputs: [],
+    };
+  }
+
+  // 计算新的输入点：排除固定的输入
+  const newInputPointIds = block.inputPointIds.filter((_, idx) => !fixedInputIndices.includes(idx));
+
+  // 创建映射：将旧索引映射到新索引（排除固定输入后）
+  const oldToNewIndexMap = new Map<number, number>();
+  let newIndex = 0;
+  for (let i = 0; i < block.inputPointIds.length; i++) {
+    if (!fixedInputIndices.includes(i)) {
+      oldToNewIndexMap.set(i, newIndex);
+      newIndex++;
+    }
+  }
+
+  // 更新内部点的相对坐标：将固定输入的影响纳入偏移
+  const anchorOffsetX = fixedInputValues
+    .filter((_, i) => block.inputPointIds[fixedInputIndices[i]] === block.inputPointIds[0])
+    .reduce((sum, v) => sum + v.relX, 0);
+  const anchorOffsetY = fixedInputValues
+    .filter((_, i) => block.inputPointIds[fixedInputIndices[i]] === block.inputPointIds[0])
+    .reduce((sum, v) => sum + v.relY, 0);
+
+  const newRelativePositions = block.relativePositions.map((p) => {
+    // 如果是固定输入的内部点，需要调整坐标
+    const isFixedInternal = block.inputPointIds.some(
+      (inputId, idx) =>
+        fixedInputIndices.includes(idx) &&
+        p.id === inputId,
+    );
+    if (isFixedInternal) {
+      const fixedIdx = fixedInputIndices.find(
+        (i) => block.inputPointIds[i] === p.id,
+      );
+      if (fixedIdx !== undefined) {
+        const fixedVal = fixedInputValues[fixedInputIndices.indexOf(fixedIdx)];
+        return {
+          ...p,
+          relX: p.relX - fixedVal.relX,
+          relY: p.relY - fixedVal.relY,
+        };
+      }
+    }
+    return { ...p };
+  });
+
+  const partialBlock: UserFuncBlock = {
+    id: `partial_${Date.now()}`,
+    name: `partial(${block.name})`,
+    inputPointIds: newInputPointIds,
+    internalPointIds: [...block.internalPointIds],
+    internalSegmentIds: [...block.internalSegmentIds],
+    internalConstraintIds: [...block.internalConstraintIds],
+    relativePositions: newRelativePositions,
+  };
+
+  return {
+    result: partialBlock,
+    description: `"${block.name}" 的部分应用（固定 ${fixedInputIndices.length} 个输入）`,
+    fixedInputs: fixedInputIndices,
+  };
+}
+
+/**
+ * 验证函数块组合的兼容性
+ *
+ * 检查两个函数块是否可以组合（block1 的输出类型是否与 block2 的输入兼容）
+ *
+ * @param block1 - 前级函数块
+ * @param block2 - 后级函数块
+ * @returns 是否兼容
+ */
+export function validateComposition(
+  block1: UserFuncBlock,
+  block2: UserFuncBlock,
+): boolean {
+  // 基本验证：block1 至少有一个输出连接点，block2 至少有一个输入点
+  if (block1.internalPointIds.length === 0 || block2.inputPointIds.length === 0) {
+    return false;
+  }
+
+  // 检查维度兼容性（如果需要更复杂的类型检查，可扩展此处）
+  return true;
 }

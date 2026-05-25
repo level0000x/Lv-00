@@ -22,6 +22,10 @@ import { MAX_PANEL_LOG_ENTRIES } from '@/utils/constants';
 import {
   FUNC_BLOCK_PRESETS,
   getNextId,
+  composeBlocks,
+  productBlocks,
+  partialApplyBlock,
+  validateComposition,
 } from '@/utils/funcBlockPresets';
 import type {
   FuncBlockPreset,
@@ -88,6 +92,18 @@ const BlockPanel: React.FC = () => {
   const [instantiatingBlock, setInstantiatingBlock] = useState<UserFuncBlock | null>(null);
   /** 例化时已选择的输入点 */
   const [instInputIds, setInstInputIds] = useState<number[]>([]);
+
+  // ================================================================
+  // 局部状态 —— 函数块组合/乘积/部分应用 (v3.5.0 新增)
+  // ================================================================
+  /** 组合操作：选中的第一个函数块 */
+  const [composeSelect1, setComposeSelect1] = useState<UserFuncBlock | null>(null);
+  /** 组合操作：选中的第二个函数块 */
+  const [composeSelect2, setComposeSelect2] = useState<UserFuncBlock | null>(null);
+  /** 乘积操作：选中的第一个函数块 */
+  const [productSelect1, setProductSelect1] = useState<UserFuncBlock | null>(null);
+  /** 乘积操作：选中的第二个函数块 */
+  const [productSelect2, setProductSelect2] = useState<UserFuncBlock | null>(null);
 
   // ================================================================
   // 从 Store 读取真实数据
@@ -395,35 +411,221 @@ const BlockPanel: React.FC = () => {
     log(status);
   }, [constraints.length, points.length, addToast, appendLog, log]);
 
-  /** 组合 */
+  // ================================================================
+  // 函数块组合、乘积、部分应用操作 (v3.5.0 新增)
+  // ================================================================
+
+  /**
+   * 组合操作处理 (v3.5.0)
+   *
+   * 支持两种模式：
+   * 1. 无选中块时：提示用户选择函数块
+   * 2. 选中第一个块后：继续选择第二个块
+   * 3. 两个块都选中后：执行组合并添加结果
+   */
   const handleCompose = useCallback(() => {
     if (userBlocks.length < 2) {
       addToast('info', '组合需要至少 2 个已打包的函数块 / Compose requires at least 2 packed blocks');
       return;
     }
-    addToast('info', `组合功能: 当前有 ${userBlocks.length} 个函数块可组合。组合操作将串联两个函数块的输出与输入，形成新的函数块。`);
-    appendLog('组合操作: 需要选择两个函数块进行组合', 'info');
-  }, [userBlocks.length, addToast, appendLog]);
 
-  /** 乘积 */
+    // 如果已选择第一个块，尝试执行组合
+    if (composeSelect1) {
+      if (!composeSelect2) {
+        // 等待选择第二个块
+        addToast('info', `已选择 "${composeSelect1.name}"，请继续选择第二个函数块...`);
+        return;
+      }
+
+      // 验证兼容性
+      if (!validateComposition(composeSelect1, composeSelect2)) {
+        addToast('warning', '所选函数块不兼容，无法组合');
+        setComposeSelect1(null);
+        setComposeSelect2(null);
+        return;
+      }
+
+      // 执行组合
+      const result = composeBlocks(composeSelect1, composeSelect2);
+      if (result.result) {
+        setUserBlocks((prev) => [...prev, result.result!]);
+        addToast('success', result.description);
+        appendLog(result.description, 'info');
+        log(result.description);
+      }
+
+      // 重置选择状态
+      setComposeSelect1(null);
+      setComposeSelect2(null);
+    } else {
+      // 开始选择第一个块
+      addToast('info', `组合功能: 当前有 ${userBlocks.length} 个函数块。请选择一个作为前级...`);
+      appendLog('组合操作: 选择第一个函数块（前级）', 'info');
+    }
+  }, [userBlocks, composeSelect1, composeSelect2, addToast, appendLog, log]);
+
+  /**
+   * 处理函数块选择（用于组合操作）
+   */
+  const handleBlockSelectForCompose = useCallback((block: UserFuncBlock) => {
+    if (!composeSelect1) {
+      // 选择第一个块
+      setComposeSelect1(block);
+      addToast('info', `已选择 "${block.name}" 作为前级，请选择后级...`);
+    } else if (!composeSelect2) {
+      // 选择第二个块
+      if (block.id === composeSelect1.id) {
+        addToast('warning', '不能选择同一个函数块');
+        return;
+      }
+      setComposeSelect2(block);
+
+      // 验证兼容性
+      if (!validateComposition(composeSelect1, block)) {
+        addToast('warning', '所选函数块不兼容');
+        setComposeSelect1(null);
+        setComposeSelect2(null);
+        return;
+      }
+
+      // 自动执行组合
+      const result = composeBlocks(composeSelect1, block);
+      if (result.result) {
+        setUserBlocks((prev) => [...prev, result.result!]);
+        addToast('success', result.description);
+        appendLog(result.description, 'info');
+        log(result.description);
+      }
+
+      // 重置选择状态
+      setComposeSelect1(null);
+      setComposeSelect2(null);
+    }
+  }, [composeSelect1, addToast, appendLog, log]);
+
+  /**
+   * 取消组合选择
+   */
+  const handleCancelCompose = useCallback(() => {
+    setComposeSelect1(null);
+    setComposeSelect2(null);
+    addToast('info', '已取消组合操作');
+  }, [addToast]);
+
+  /**
+   * 乘积操作处理 (v3.5.0)
+   *
+   * 支持两种模式：
+   * 1. 无选中块时：提示用户选择函数块
+   * 2. 选中第一个块后：继续选择第二个块
+   * 3. 两个块都选中后：执行乘积并添加结果
+   */
   const handleProduct = useCallback(() => {
     if (userBlocks.length < 2) {
       addToast('info', '乘积需要至少 2 个已打包的函数块 / Product requires at least 2 packed blocks');
       return;
     }
-    addToast('info', `乘积功能: 当前有 ${userBlocks.length} 个函数块可做乘积。乘积操作将并行执行两个函数块，输入为两者输入的并集。`);
-    appendLog('乘积操作: 需要选择两个函数块做乘积', 'info');
-  }, [userBlocks.length, addToast, appendLog]);
 
-  /** 部分应用 */
+    // 如果已选择第一个块，尝试执行乘积
+    if (productSelect1) {
+      if (!productSelect2) {
+        // 等待选择第二个块
+        addToast('info', `已选择 "${productSelect1.name}"，请继续选择第二个函数块...`);
+        return;
+      }
+
+      // 执行乘积
+      const result = productBlocks(productSelect1, productSelect2);
+      if (result.result) {
+        setUserBlocks((prev) => [...prev, result.result!]);
+        addToast('success', result.description);
+        appendLog(result.description, 'info');
+        log(result.description);
+      }
+
+      // 重置选择状态
+      setProductSelect1(null);
+      setProductSelect2(null);
+    } else {
+      // 开始选择第一个块
+      addToast('info', `乘积功能: 当前有 ${userBlocks.length} 个函数块。请选择一个...`);
+      appendLog('乘积操作: 选择第一个函数块', 'info');
+    }
+  }, [userBlocks, productSelect1, productSelect2, addToast, appendLog, log]);
+
+  /**
+   * 处理函数块选择（用于乘积操作）
+   */
+  const handleBlockSelectForProduct = useCallback((block: UserFuncBlock) => {
+    if (!productSelect1) {
+      // 选择第一个块
+      setProductSelect1(block);
+      addToast('info', `已选择 "${block.name}"，请选择第二个函数块...`);
+    } else if (!productSelect2) {
+      // 选择第二个块
+      if (block.id === productSelect1.id) {
+        addToast('warning', '不能选择同一个函数块');
+        return;
+      }
+      setProductSelect2(block);
+
+      // 自动执行乘积
+      const result = productBlocks(productSelect1, block);
+      if (result.result) {
+        setUserBlocks((prev) => [...prev, result.result!]);
+        addToast('success', result.description);
+        appendLog(result.description, 'info');
+        log(result.description);
+      }
+
+      // 重置选择状态
+      setProductSelect1(null);
+      setProductSelect2(null);
+    }
+  }, [productSelect1, addToast, appendLog, log]);
+
+  /**
+   * 取消乘积选择
+   */
+  const handleCancelProduct = useCallback(() => {
+    setProductSelect1(null);
+    setProductSelect2(null);
+    addToast('info', '已取消乘积操作');
+  }, [addToast]);
+
+  /**
+   * 部分应用操作处理 (v3.5.0)
+   *
+   * 简化实现：使用默认的相对坐标值进行部分应用
+   * 实际使用中，用户可以通过修改生成的函数块来调整固定值
+   */
   const handlePartialApply = useCallback(() => {
     if (userBlocks.length === 0) {
       addToast('info', '部分应用需要至少 1 个已打包的函数块 / Partial apply requires at least 1 packed block');
       return;
     }
-    addToast('info', '部分应用: 固定函数块的某些输入参数，生成一个接受更少输入的新函数块（柯里化）。');
-    appendLog('部分应用: 选择函数块并固定部分输入', 'info');
-  }, [userBlocks.length, addToast, appendLog]);
+
+    // 选择第一个可用的函数块进行部分应用
+    const block = userBlocks[0];
+    if (!block || block.inputPointIds.length < 2) {
+      addToast('warning', '所选函数块没有足够的输入参数进行部分应用');
+      return;
+    }
+
+    // 固定第一个输入，使用默认坐标 (0, 0)
+    const fixedInputIndices = [0];
+    const fixedInputValues = [{ relX: 0, relY: 0 }];
+
+    const result = partialApplyBlock(block, fixedInputIndices, fixedInputValues);
+    if (result.result) {
+      setUserBlocks((prev) => [...prev, result.result!]);
+      addToast('success', result.description);
+      appendLog(result.description, 'info');
+      log(result.description);
+    } else {
+      addToast('error', `部分应用失败: ${result.description}`);
+    }
+  }, [userBlocks, addToast, appendLog, log]);
 
   /** 视图折叠 */
   const handleViewFold = useCallback(() => {
@@ -570,34 +772,78 @@ const BlockPanel: React.FC = () => {
       {/* USER BLOCKS / 用户函数块列表 */}
       {/* ============================================================ */}
       <Panel title="USER BLOCKS / 用户块" panelId="block-user">
+        {/* 组合/乘积操作状态提示 */}
+        {(composeSelect1 || productSelect1) && (
+          <div style={{ fontSize: '11px', marginBottom: '6px', padding: '4px', backgroundColor: 'var(--accent-color, #4a9eff22)', borderRadius: '4px' }}>
+            {composeSelect1 && (
+              <div>
+                组合操作进行中: 已选 "{composeSelect1.name}"
+                <button className="btn" style={{ fontSize: '10px', marginLeft: '6px', padding: '1px 4px' }} onClick={handleCancelCompose}>
+                  取消
+                </button>
+              </div>
+            )}
+            {productSelect1 && (
+              <div>
+                乘积操作进行中: 已选 "{productSelect1.name}"
+                <button className="btn" style={{ fontSize: '10px', marginLeft: '6px', padding: '1px 4px' }} onClick={handleCancelProduct}>
+                  取消
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {userBlocks.length === 0 ? (
           <div style={{ fontSize: '11px', opacity: 0.5 }}>
             暂无用户函数块 / No user blocks. Use PACK to create one.
           </div>
         ) : (
           <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
-            {userBlocks.map((block) => (
-              <div
-                key={block.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '4px 6px',
-                  borderBottom: '1px solid var(--border-color, #222)',
-                  fontSize: '11px',
-                }}
-              >
-                <span>{block.name}</span>
-                <button
-                  className="btn"
-                  style={{ fontSize: '10px', padding: '1px 6px' }}
-                  onClick={() => handleStartInstantiate(block)}
+            {userBlocks.map((block) => {
+              // 检查是否为当前选中状态
+              const isComposeSelected = composeSelect1?.id === block.id;
+              const isProductSelected = productSelect1?.id === block.id;
+
+              return (
+                <div
+                  key={block.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 6px',
+                    borderBottom: '1px solid var(--border-color, #222)',
+                    fontSize: '11px',
+                    backgroundColor: isComposeSelected || isProductSelected ? 'var(--accent-color, #4a9eff33)' : 'transparent',
+                    cursor: composeSelect1 || productSelect1 ? 'pointer' : 'default',
+                  }}
+                  onClick={() => {
+                    if (composeSelect1) {
+                      handleBlockSelectForCompose(block);
+                    } else if (productSelect1) {
+                      handleBlockSelectForProduct(block);
+                    }
+                  }}
                 >
-                  例化
-                </button>
-              </div>
-            ))}
+                  <span>
+                    {block.name}
+                    {isComposeSelected && <span style={{ marginLeft: '4px', color: '#4a9eff' }}>[组合前级]</span>}
+                    {isProductSelected && <span style={{ marginLeft: '4px', color: '#4a9eff' }}>[乘积第一]</span>}
+                  </span>
+                  <button
+                    className="btn"
+                    style={{ fontSize: '10px', padding: '1px 6px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartInstantiate(block);
+                    }}
+                  >
+                    例化
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 

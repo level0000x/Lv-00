@@ -18,6 +18,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "error_codes.h"
+#include "lv00_utils.h"
+#include "lv00_internal.h"
+
 /* ============== 平台抽象层 ============== */
 
 #ifdef _WIN32

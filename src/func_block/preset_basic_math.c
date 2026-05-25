@@ -498,8 +498,7 @@ bool preset_basic_math_get_names(char ***out_names, int *out_count) {
                 names[j] = NULL;
             }
             {
-                char *p = names;
-                lv00_free((void **)&p);
+                lv00_free((void **)&names);
             }
             return false;
         }

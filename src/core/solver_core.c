@@ -88,10 +88,7 @@ struct Lv00Solver {
  * ======================================================================== */
 
 /**
- * @brief 通用数组容量确保函数
- *
- * 检查数组当前容量是否满足需求，若不足则以几何增长策略扩容。
- * 采用安全的 realloc 模式：扩容失败时原指针不会被丢失。
+ * @brief 通用数组容量确保函数（委托给统一的 lv00_ensure_capacity）
  *
  * @param arr        指向数组指针的指针（二级指针，用于更新调用者的指针）
  * @param capacity   指向当前容量的指针（扩容成功后会被更新）
@@ -100,20 +97,10 @@ struct Lv00Solver {
  *
  * @return 1 表示容量充足或扩容成功，0 表示扩容失败（内存不足或溢出）
  *
- * @note 扩容策略：容量为0时初始化为 DEFAULT_CLAUSE_CAPACITY，
- *       否则以 LV00_ARRAY_GROWTH_FACTOR 倍增长，但至少满足 required。
- *       扩容前会检查乘法是否导致整数溢出。
+ * @note 内部委托给 lv00_ensure_capacity，最小增长量为 1
  */
 static int ensure_array_cap(void **arr, int *capacity, int required, size_t elem_size) {
-    if (required <= *capacity) return 1;
-    if (*capacity > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) return 0;
-    int new_cap = (*capacity == 0) ? DEFAULT_CLAUSE_CAPACITY : *capacity * LV00_ARRAY_GROWTH_FACTOR;
-    if (new_cap < required) new_cap = required;
-    void *new_ptr = lv00_realloc(*arr, (size_t)new_cap * elem_size);
-    if (!new_ptr) return 0;
-    *arr = new_ptr;
-    *capacity = new_cap;
-    return 1;
+    return lv00_ensure_capacity(arr, required, capacity, elem_size, 1) ? 1 : 0;
 }
 
 static bool ensure_clause_cap(Lv00Solver *s) {

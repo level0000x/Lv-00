@@ -126,7 +126,17 @@ static volatile bool g_initialized = false;
 /* 线程安全互斥锁 */
 #ifdef _WIN32
 static CRITICAL_SECTION g_log_mutex;
-static volatile LONG g_mutex_initialized = 0;
+static INIT_ONCE g_log_init_once = INIT_ONCE_STATIC_INIT;
+
+static BOOL CALLBACK log_mutex_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
+    (void)once; (void)param; (void)context;
+    InitializeCriticalSection(&g_log_mutex);
+    return TRUE;
+}
+
+static void log_ensure_mutex_init(void) {
+    InitOnceExecuteOnce(&g_log_init_once, log_mutex_init_callback, NULL, NULL);
+}
 #else
 static pthread_mutex_t g_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -136,7 +146,17 @@ static PerformanceCounters g_counters = {0};
 
 #ifdef _WIN32
 static CRITICAL_SECTION g_counter_mutex;
-static volatile LONG g_counter_mutex_initialized = 0;
+static INIT_ONCE g_counter_init_once = INIT_ONCE_STATIC_INIT;
+
+static BOOL CALLBACK counter_mutex_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
+    (void)once; (void)param; (void)context;
+    InitializeCriticalSection(&g_counter_mutex);
+    return TRUE;
+}
+
+static void counter_ensure_mutex_init(void) {
+    InitOnceExecuteOnce(&g_counter_init_once, counter_mutex_init_callback, NULL, NULL);
+}
 #else
 static pthread_mutex_t g_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -152,7 +172,7 @@ static int g_log_ring_buffer_capacity = LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY;
 /*=== 内部辅助函数 ===*/
 
 #ifdef _WIN32
-/** @brief 通用互斥锁加锁宏（Windows 下使用 InterlockedCompareExchange 确保线程安全惰性初始化） */
+/** @brief 通用互斥锁加锁宏（Windows 下使用 InitOnceExecuteOnce 确保线程安全惰性初始化） */
 #define LV00_MUTEX_LOCK(mutex) do { \
     EnterCriticalSection(&(mutex)); \
 } while (0)
@@ -182,14 +202,34 @@ static int g_log_ring_buffer_capacity = LV00_LOG_RING_BUFFER_DEFAULT_CAPACITY;
         LV00_MUTEX_UNLOCK(mutex_var); \
     }
 
-/* 日志加锁 */
-LV00_DEFINE_LOCK_FUNCS(log, g_log_mutex)
+/* 日志加锁（使用 InitOnceExecuteOnce 确保互斥锁初始化） */
+static void log_lock(void) {
+#ifdef _WIN32
+    log_ensure_mutex_init();
+#endif
+    LV00_MUTEX_LOCK(g_log_mutex);
+}
 
-/* 性能计数器加锁 */
-LV00_DEFINE_LOCK_FUNCS(counter, g_counter_mutex)
+static void log_unlock(void) {
+    LV00_MUTEX_UNLOCK(g_log_mutex);
+}
+
+/* 性能计数器加锁（使用 InitOnceExecuteOnce 确保互斥锁初始化） */
+static void counter_lock(void) {
+#ifdef _WIN32
+    counter_ensure_mutex_init();
+#endif
+    LV00_MUTEX_LOCK(g_counter_mutex);
+}
+
+static void counter_unlock(void) {
+    LV00_MUTEX_UNLOCK(g_counter_mutex);
+}
 
 /* 引用计数加锁/解锁（复用 counter_mutex） */
 LV00_DEFINE_LOCK_FUNCS(debug_refcount, g_counter_mutex)
+#define debug_lock_refcount debug_refcount_lock
+#define debug_unlock_refcount debug_refcount_unlock
 
 /* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
 static const char *log_level_string(LogLevel level) {
@@ -229,13 +269,17 @@ static const char *get_home_dir(void) {
 #endif
 }
 
-/* 递归创建目录 */ /* [修复] 英文注释改为中文 */
+/**
+ * @brief 递归创建目录
+ * @param path 要创建的目录路径
+ * @return 0 成功，-1 失败
+ */
 static int create_directory(const char *path) {
     char tmp[LV00_LOG_PATH_MAX];
     char *p = NULL;
     size_t len;
 
-    /* strncpy 不安全使用 → lv00_strlcpy，确保零终止后再计算 strlen */
+    /* 使用安全的字符串复制函数，确保零终止后再计算 strlen */
     lv00_strlcpy(tmp, path, sizeof(tmp));
     len = strlen(tmp);
     if (len > 0 && tmp[len - 1] == LV00_PATH_SEPARATOR) {
@@ -283,7 +327,7 @@ static void rotate_logs(void) {
     char new_path[LV00_LOG_PATH_MAX];
     int i;
 
-    /* 如果存在则删除最旧的文件 */ /* [修复] 英文注释改为中文 */
+    /* 如果存在则删除最旧的文件 */
     snprintf(old_path, LV00_LOG_PATH_MAX, "%s%c%s.%d", g_log_dir_path, LV00_PATH_SEPARATOR, LV00_DEBUG_LOG_BASENAME,
              LV00_LOG_MAX_FILES);
     if (access(old_path, LV00_DEBUG_F_OK) == 0) {
@@ -479,7 +523,7 @@ int debug_assert_port_invariants(const LV00Engine *engine, DebugContext *ctx) {
 /*  内存池实现                                                         */
 /* ================================================================== */
 
-struct MemPool {
+struct Lv00MemPool {
     uint8_t *blocks;   /* 连续内存块数组 */
     int *free_list;    /* 空闲块索引栈 */
     int free_count;    /* 空闲块数量 */
@@ -487,6 +531,10 @@ struct MemPool {
     size_t block_size; /* 每个块的大小 */
     uint8_t *used;     /* 使用标志位数组，防止双重释放 */
 };
+
+/* 向后兼容别名 */
+typedef struct Lv00MemPool Lv00MemPool;
+#define MemPool Lv00MemPool
 
 /**
  * @brief 创建固定块大小的内存池
@@ -1463,12 +1511,8 @@ int debug_log_init(void) {
         return 0;
     }
     /* 首次进入的线程：先初始化互斥锁 */
-    if (InterlockedCompareExchange(&g_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_log_mutex);
-    }
-    if (InterlockedCompareExchange(&g_counter_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_counter_mutex);
-    }
+    log_ensure_mutex_init();
+    counter_ensure_mutex_init();
     /* 获取日志互斥锁，保护后续对 g_log_dir_path、g_log_file_path 等全局变量的写入 */
     EnterCriticalSection(&g_log_mutex);
 #else
@@ -1580,17 +1624,8 @@ void debug_log_shutdown(void) {
      * 使用标志位 g_mutex_initialized/g_counter_mutex_initialized 防止
      * log_lock/log_unlock 在销毁后继续操作。 */
 #ifdef _WIN32
-    if (g_mutex_initialized) {
-        LeaveCriticalSection(&g_log_mutex);
-        DeleteCriticalSection(&g_log_mutex);
-        InterlockedExchange(&g_mutex_initialized, 0);
-    }
-    if (g_counter_mutex_initialized) {
-        EnterCriticalSection(&g_counter_mutex);
-        LeaveCriticalSection(&g_counter_mutex);
-        DeleteCriticalSection(&g_counter_mutex);
-        InterlockedExchange(&g_counter_mutex_initialized, 0);
-    }
+    DeleteCriticalSection(&g_log_mutex);
+    DeleteCriticalSection(&g_counter_mutex);
 #else
     pthread_mutex_unlock(&g_log_mutex);
     pthread_mutex_destroy(&g_log_mutex);
@@ -2100,7 +2135,7 @@ char *debug_counters_report(void) {
     PerformanceCounters counters;
     debug_get_counters(&counters);
 
-    /* [修复] 将重复的格式化字符串提取为静态常量，消除重复代码 */
+    /* 将重复的格式化字符串提取为静态常量，消除重复代码 */
     static const char *report_format =
         "=== Lv-00 Performance Counters Report ===\n"
         "\n"
@@ -2151,7 +2186,7 @@ char *debug_counters_report(void) {
     if (!report)
         return NULL;
 
-    /* [修复] 第二遍：使用 LV00_SAFE_SNPRINTF 替代裸 snprintf */
+    /* 使用安全的 snprintf 替代裸 snprintf */
     {
         int _snw;
         LV00_SAFE_SNPRINTF(

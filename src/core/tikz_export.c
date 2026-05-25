@@ -493,6 +493,7 @@ static int tikz_render_element_svg(char *buf, int buf_size, int offset,
         case TIKZ_ARC:
             if (elem->coord_count >= 5) {
                 double cx = elem->coords[0];
+                double cy = elem->coords[1];
                 double sa = elem->coords[2], ea = elem->coords[3], r = elem->coords[4];
                 double sa_rad = sa * M_PI / 180.0;
                 double ea_rad = ea * M_PI / 180.0;

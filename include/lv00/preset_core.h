@@ -380,6 +380,8 @@ bool preset_instance_validate(PresetInstanceHandle instance, bool *out_is_valid,
 /**
  * @brief 预设组合模式
  */
+#ifndef LV00_PRESET_COMPOSE_MODE_DEFINED
+#define LV00_PRESET_COMPOSE_MODE_DEFINED
 typedef enum {
     PRESET_COMPOSE_SEQUENCE, /**< 顺序执行 */
     PRESET_COMPOSE_PARALLEL, /**< 并行执行 */
@@ -387,6 +389,7 @@ typedef enum {
     PRESET_COMPOSE_BRANCH,   /**< 条件分支 */
     PRESET_COMPOSE_PIPE,     /**< 管道（数据流） */
 } PresetComposeMode;
+#endif /* LV00_PRESET_COMPOSE_MODE_DEFINED */
 
 /**
  * @brief 预设组合描述

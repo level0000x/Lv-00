@@ -40,6 +40,7 @@
 #define LV00_FUNC_BLOCK_H
 
 #include <stdbool.h>
+#include <stdint.h>  /* v3.4.2: 添加 uint16_t 支持 */
 
 #include "constraint_graph.h"
 #include "func_block_utils.h"
@@ -55,12 +56,14 @@ typedef struct FuncBlock FuncBlock;
 typedef struct PortDependency PortDependency;
 typedef struct SolutionSelector SolutionSelector;
 
-/* ============== 确定性状态机 ============== */
+/* ============== 确定性状态机 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    DETERMINISM_UNVERIFIED,        /* 打包完成，尚未进行静态分析 */
-    DETERMINISM_VERIFIED,          /* 静态分析确认解唯一 */
-    DETERMINISM_NON_DETERMINISTIC, /* 应用时出现过一次多解 */
-    DETERMINISM_PARTIALLY_VERIFIED /* 静态分析未完成但未发现冲突 */
+    DETERMINISM_STATE_UNVERIFIED,        /**< 打包完成，尚未进行静态分析 */
+    DETERMINISM_STATE_VERIFIED,          /**< 静态分析确认解唯一 */
+    DETERMINISM_STATE_NON_DETERMINISTIC, /**< 应用时出现过一次多解 */
+    DETERMINISM_STATE_PARTIALLY_VERIFIED /**< 静态分析未完成但未发现冲突 */
 } DeterminismState;
 
 /* ============== 端口依赖类型 ============== */
@@ -80,23 +83,49 @@ struct PortDependency {
     void *constraint_data;   /* 约束数据 */
 };
 
-/* ============== 多解选择器 ============== */
+/* ============== 多解选择器 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    SELECTOR_POSITIVE_ROOT,    /* 取正根 */
-    SELECTOR_NEGATIVE_ROOT,    /* 取负根 */
-    SELECTOR_IN_REGION,        /* 取位于区域内的解 */
-    SELECTOR_NEAREST_TO_POINT, /* 取距离某点最近的解 */
-    SELECTOR_CUSTOM            /* 自定义选择器 */
+    SELECTOR_TYPE_POSITIVE_ROOT,    /**< 取正根 */
+    SELECTOR_TYPE_NEGATIVE_ROOT,    /**< 取负根 */
+    SELECTOR_TYPE_IN_REGION,        /**< 取位于区域内的解 */
+    SELECTOR_TYPE_NEAREST_TO_POINT, /**< 取距离某点最近的解 */
+    SELECTOR_TYPE_CUSTOM            /**< 自定义选择器 */
 } SelectorType;
 
 typedef bool (*SelectorFunction)(GeomNode **candidates, int count, int *selected_index, void *user_data);
 
+/**
+ * @brief 多解选择器结构 - 改进版 v3.4.1
+ *
+ * 支持深拷贝的选择器结构，添加了名称、候选解数组和 user_data 生命周期管理。
+ * 用于在函数块例化产生多个候选解时，根据指定策略选择唯一解。
+ */
 struct SolutionSelector {
-    SelectorType type;
-    int reference_node_id;        /* 参考节点ID（如区域、点等） */
-    SelectorFunction custom_func; /* 自定义选择函数 */
-    void *user_data;              /* 用户透传数据（自定义选择器使用） */
-    ConstraintGraph *graph;       /* 显式的约束图引用 */
+    /* === 基础配置 === */
+    SelectorType type;            /**< 选择器类型 */
+    int reference_node_id;        /**< 参考节点ID（如区域、点等） */
+    
+    /* === 回调函数 === */
+    SelectorFunction custom_func; /**< 自定义选择函数 */
+    int (*compare)(const void *a, const void *b); /**< 候选解比较函数 */
+    void (*on_select)(int selected_index, void *user_data); /**< 选择回调 */
+    void (*on_change)(int old_index, int new_index, void *user_data); /**< 切换回调 */
+    
+    /* === user_data 生命周期管理 === */
+    void *user_data;              /**< 用户透传数据 */
+    void (*free_user_data)(void *user_data);   /**< user_data 释放回调（可选） */
+    void *(*copy_user_data)(const void *user_data); /**< user_data 深拷贝回调（可选） */
+    
+    /* === 约束图引用 === */
+    ConstraintGraph *graph;       /**< 显式的约束图引用 */
+    
+    /* === 候选解管理 === */
+    char *name;                   /**< 选择器名称（用于调试和UI显示） */
+    double *solution_values;      /**< 候选解数值数组（用于排序和比较） */
+    int solution_count;           /**< 候选解数量 */
+    int current_index;            /**< 当前选中的候选解索引 */
 };
 
 /* ============== 函数块跨边界约束（扩展版） ============== */
@@ -114,11 +143,13 @@ typedef struct FuncBlockCrossBoundary {
     CrossBoundaryAction action;     /* 用户选择的处理方式 */
 } FuncBlockCrossBoundary;
 
-/* ============== 函数块视图状态 ============== */
+/* ============== 函数块视图状态 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    FB_VIEW_EXPANDED,  /* 展开显示内部构造 */
-    FB_VIEW_COLLAPSED, /* 折叠为单个盒子 */
-    FB_VIEW_PINNED     /* 固定展开（用户锁定） */
+    FB_VIEW_STATE_EXPANDED,  /**< 展开显示内部构造 */
+    FB_VIEW_STATE_COLLAPSED, /**< 折叠为单个盒子 */
+    FB_VIEW_STATE_PINNED     /**< 固定展开（用户锁定） */
 } FuncBlockViewState;
 
 /* ============== 跨边界约束处理结果 ============== */
@@ -135,58 +166,84 @@ typedef struct {
 typedef CrossBoundaryResolution (*CrossBoundaryCallback)(int constraint_id, ConstraintType constraint_type,
                                                          int internal_node_id, int external_node_id, void *user_data);
 
-/* ============== 函数块结构 ============== */
+/* ============== 函数块结构（v3.4.2 改进版） ==============
+ *
+ * 【重要说明】v3.4.2 改进：
+ * 1. 添加版本字段用于序列化兼容性检查
+ * 2. 添加容量字段（port_dep_capacity）用于安全边界检查
+ * 3. 结构体定义保持公开以允许栈分配，但建议通过访问器函数访问字段
+ *
+ * 【内存布局】字段按类型大小降序排列，优化内存对齐：
+ * - 指针字段（8字节）在前
+ * - int 字段（4字节）其次
+ * - bool/enum（1-4字节）最后
+ */
 struct FuncBlock {
-    int id;                  /* 函数块ID */
-    int *internal_node_ids;  /* 内部节点ID数组 */
-    int internal_node_count; /* 内部节点数量 */
-    int *input_port_ids;     /* 输入端口ID数组 */
-    int input_count;         /* 输入端口数量 */
-    int *output_port_ids;    /* 输出端口ID数组 */
-    int output_count;        /* 输出端口数量 */
+    /* === 指针字段（8字节对齐）=== */
+    int *internal_node_ids;         /**< 内部节点ID数组 */
+    int *input_port_ids;            /**< 输入端口ID数组 */
+    int *output_port_ids;           /**< 输出端口ID数组 */
+    PortDependency *port_deps;      /**< 端口依赖数组 */
+    char *name;                     /**< 函数块名称 */
+    char *description;              /**< 函数块描述 */
+    int *precondition_region_ids;   /**< 前置条件区域ID数组 */
+    SolutionSelector *selector;     /**< 多解选择器 */
 
-    DeterminismState determinism; /* 确定性状态 */
-    SolutionSelector *selector;   /* 多解选择器 */
+    /* === 函数指针 === */
+    int (*measure_compare)(const GeomNode *a, const GeomNode *b); /**< 测度比较函数 */
 
-    PortDependency *port_deps; /* 端口依赖数组 */
-    int port_dep_count;        /* 端口依赖数量 */
+    /* === int 字段（4字节对齐）=== */
+    int id;                         /**< 函数块ID */
+    int internal_node_count;        /**< 内部节点数量 */
+    int input_count;                /**< 输入端口数量 */
+    int output_count;               /**< 输出端口数量 */
+    int port_dep_count;             /**< 端口依赖数量 */
+    int port_dep_capacity;          /**< 端口依赖数组容量（v3.4.2 新增） */
+    int precondition_count;         /**< 前置条件数量 */
+    int measure_node_id;            /**< 测度节点ID */
 
-    char *name;        /* 函数块名称 */
-    char *description; /* 描述 */
+    /* === 版本字段（v3.4.2 新增）=== */
+    uint16_t version_major;         /**< 主版本号 */
+    uint16_t version_minor;         /**< 次版本号 */
+    uint16_t version_patch;         /**< 补丁版本号 */
 
-    /* 前置条件区域 */
-    int *precondition_region_ids; /* 前置条件区域ID数组 */
-    int precondition_count;       /* 前置条件数量 */
-
-    /* 测度（用于递归） */
-    bool has_measure;                                 /* 是否声明了测度 */
-    int measure_node_id;                              /* 测度节点ID */
-    int (*measure_compare)(GeomNode *a, GeomNode *b); /* 测度比较函数 */
-
-    /* 视图状态 */
-    FuncBlockViewState view_state; /* 视图折叠/展开状态 */
+    /* === 布尔和枚举字段 === */
+    bool has_measure;               /**< 是否声明了测度 */
+    bool is_instantiated;           /**< 是否已被例化（生命周期追踪，v3.4.2 新增） */
+    DeterminismState determinism;   /**< 确定性状态 */
+    FuncBlockViewState view_state;  /**< 视图折叠/展开状态 */
 };
 
-/* ============== 打包结果 ============== */
+/* ============== 打包结果 ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    PACK_OK,                      /* 打包成功 */
-    PACK_CROSS_BOUNDARY_CONFLICT, /* 存在跨边界约束 */
-    PACK_INVALID_NODES,           /* 无效节点 */
-    PACK_INVALID_PORTS,           /* 无效端口 */
-    PACK_INVALID_GRAPH,           /* 无效图 */
-    PACK_OUT_OF_MEMORY,           /* 内存不足 */
-    PACK_CANCELLED                /* 用户取消 */
+    PACK_RESULT_OK,                      /**< 打包成功 */
+    PACK_RESULT_CROSS_BOUNDARY_CONFLICT, /**< 存在跨边界约束 */
+    PACK_RESULT_INVALID_NODES,           /**< 无效节点 */
+    PACK_RESULT_INVALID_PORTS,           /**< 无效端口 */
+    PACK_RESULT_INVALID_GRAPH,           /**< 无效图 */
+    PACK_RESULT_OUT_OF_MEMORY,           /**< 内存不足 */
+    PACK_RESULT_CANCELLED                /**< 用户取消 */
 } PackResult;
 
 /* ============== 例化结果 ============== */
 typedef enum {
-    INSTANTIATE_OK,                  /* 例化成功 */
-    INSTANTIATE_NO_SOLUTION,         /* 无解 */
-    INSTANTIATE_MULTIPLE_SOLUTIONS,  /* 多解 */
-    INSTANTIATE_SELECTOR_NEEDED,     /* 需要选择器 */
-    INSTANTIATE_PRECONDITION_FAILED, /* 前置条件不满足 */
-    INSTANTIATE_OUT_OF_MEMORY        /* 内存不足 */
+    LV00_INSTANTIATE_OK,                  /* 例化成功 */
+    LV00_INSTANTIATE_NO_SOLUTION,         /* 无解 */
+    LV00_INSTANTIATE_MULTIPLE_SOLUTIONS,  /* 多解 */
+    LV00_INSTANTIATE_SELECTOR_NEEDED,     /* 需要选择器 */
+    LV00_INSTANTIATE_PRECONDITION_FAILED, /* 前置条件不满足 */
+    LV00_INSTANTIATE_OUT_OF_MEMORY        /* 内存不足 */
 } InstantiateResult;
+
+/* 向后兼容别名：旧名称映射到新名称 */
+#define INSTANTIATE_OK                  LV00_INSTANTIATE_OK
+#define INSTANTIATE_NO_SOLUTION         LV00_INSTANTIATE_NO_SOLUTION
+#define INSTANTIATE_MULTIPLE_SOLUTIONS  LV00_INSTANTIATE_MULTIPLE_SOLUTIONS
+#define INSTANTIATE_SELECTOR_NEEDED     LV00_INSTANTIATE_SELECTOR_NEEDED
+#define INSTANTIATE_PRECONDITION_FAILED LV00_INSTANTIATE_PRECONDITION_FAILED
+#define INSTANTIATE_OUT_OF_MEMORY       LV00_INSTANTIATE_OUT_OF_MEMORY
 
 /* ============== 确定性检查结果（设计文档 8.2 节） ============== */
 
@@ -204,13 +261,15 @@ typedef enum {
  */
 typedef DeterminismState DeterminismStatus;
 
-/* ============== 确定性检查结果（详细） ============== */
+/* ============== 确定性检查结果（详细） ==============
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    DETERMINISM_CHECK_UNIQUE,      /* 唯一解 */
-    DETERMINISM_CHECK_MULTIPLE,    /* 多解 */
-    DETERMINISM_CHECK_NO_SOLUTION, /* 无解 */
-    DETERMINISM_CHECK_TIMEOUT,     /* 超时 */
-    DETERMINISM_CHECK_OUT_OF_RANGE /* 超出范围 */
+    DETERMINISM_CHECK_RESULT_UNIQUE,      /**< 唯一解 */
+    DETERMINISM_CHECK_RESULT_MULTIPLE,    /**< 多解 */
+    DETERMINISM_CHECK_RESULT_NO_SOLUTION, /**< 无解 */
+    DETERMINISM_CHECK_RESULT_TIMEOUT,     /**< 超时 */
+    DETERMINISM_CHECK_RESULT_OUT_OF_RANGE /**< 超出范围 */
 } DeterminismCheckResult;
 
 /* ============== 打包配置结构（简化API参数） ============== */

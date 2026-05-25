@@ -55,8 +55,10 @@ typedef struct {
     int node_id;
 } VarMapEntry;
 
-/* 注意：此全局变量已使用线程本地存储，每线程独立副本。
- * 若需跨线程共享变量映射，需额外使用互斥锁保护。 */
+/* 线程安全说明：此全局变量已使用 LV00_THREAD_LOCAL 宏声明为线程本地存储，
+ * 每个线程拥有独立的副本，因此多线程并发访问时不会产生数据竞争。
+ * 注意：线程本地存储意味着每个线程的映射表是独立的，跨线程不共享。
+ * 若需跨线程共享变量映射，需额外使用互斥锁保护或通过参数传递。 */
 static LV00_THREAD_LOCAL VarMapEntry g_var_map[LV00_MAX_VAR_MAP_SIZE];
 static LV00_THREAD_LOCAL int g_var_map_count = 0;
 

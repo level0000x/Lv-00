@@ -83,12 +83,16 @@ typedef struct RewriteRule {
     void *condition_data;
 } RewriteRule;
 
+/**
+ * @brief 重写状态枚举
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    REWRITE_OK,               /* 重写成功（无操作） */
-    REWRITE_NO_MATCH,         /* 未找到匹配 */
-    REWRITE_APPLIED,          /* 规则已应用 */
-    REWRITE_CONFLUENCE_ISSUE, /* 汇流性问题 */
-    REWRITE_TERMINATED        /* 重写终止 */
+    REWRITE_STATUS_OK,               /**< 重写成功（无操作） */
+    REWRITE_STATUS_NO_MATCH,         /**< 未找到匹配 */
+    REWRITE_STATUS_APPLIED,          /**< 规则已应用 */
+    REWRITE_STATUS_CONFLUENCE_ISSUE, /**< 汇流性问题 */
+    REWRITE_STATUS_TERMINATED        /**< 重写终止 */
 } RewriteStatus;
 
 /* VF2 子图同构匹配状态 */
@@ -425,18 +429,20 @@ int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, Rewrite
  *   - search → rewrite_search_backward() 反向证明搜索
  * ================================================================ */
 
-/** @brief Maude 风格重写策略组合子（10 种） */
+/** @brief Maude 风格重写策略组合子（10 种）
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    REWRITE_STRAT_IDLE,          /* idle:  不执行任何操作 */
-    REWRITE_STRAT_FAIL,          /* fail:  总是失败 */
-    REWRITE_STRAT_APPLY_RULE,    /* apply rule_id: 应用指定规则 */
-    REWRITE_STRAT_MATCH_PATTERN, /* match pattern: 匹配模式不替换 */
-    REWRITE_STRAT_TEST_COND,     /* test condition: 条件检查 */
-    REWRITE_STRAT_SEQUENCE,      /* s1 ; s2: 顺序组合 */
-    REWRITE_STRAT_ORELSE,        /* s1 or-else s2: 回退组合 */
-    REWRITE_STRAT_REPEAT,        /* repeat s: 重复直到不动点 */
-    REWRITE_STRAT_NORMALIZE,     /* normalize s: 规范化（等价于 repeat(s ; s)） */
-    REWRITE_STRAT_TRY            /* try s: 尝试，失败则保持原状 */
+    REWRITE_STRATEGY_KIND_IDLE,          /**< idle:  不执行任何操作 */
+    REWRITE_STRATEGY_KIND_FAIL,          /**< fail:  总是失败 */
+    REWRITE_STRATEGY_KIND_APPLY_RULE,    /**< apply rule_id: 应用指定规则 */
+    REWRITE_STRATEGY_KIND_MATCH_PATTERN, /**< match pattern: 匹配模式不替换 */
+    REWRITE_STRATEGY_KIND_TEST_COND,     /**< test condition: 条件检查 */
+    REWRITE_STRATEGY_KIND_SEQUENCE,      /**< s1 ; s2: 顺序组合 */
+    REWRITE_STRATEGY_KIND_ORELSE,        /**< s1 or-else s2: 回退组合 */
+    REWRITE_STRATEGY_KIND_REPEAT,        /**< repeat s: 重复直到不动点 */
+    REWRITE_STRATEGY_KIND_NORMALIZE,     /**< normalize s: 规范化（等价于 repeat(s ; s)） */
+    REWRITE_STRATEGY_KIND_TRY            /**< try s: 尝试，失败则保持原状 */
 } RewriteStrategyKind;
 
 /** @brief 可执行重写策略树节点 */

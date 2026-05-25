@@ -450,6 +450,11 @@ FormulaNode *formula_create_unary_op(NodeType op_type, FormulaNode *operand) {
     node->column = 1;
     node->refcount = 1;
     node->data.unary_op.operand = operand;
+    /* 引用计数管理策略：父节点持有对子节点的引用，
+     * 因此需要递增操作数的引用计数，与 formula_create_binary_op 保持一致。
+     * 这样当父节点被销毁时（formula_node_unref），会递减子节点的引用计数，
+     * 只有当引用计数归零时才真正释放子节点，避免悬垂指针。 */
+    formula_node_ref(operand);
     return node;
 }
 

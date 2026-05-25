@@ -6,21 +6,15 @@
 
 
 
-#include "lv00/sparse_linear_algebra.h"
-
+#include "sparse_linear_algebra.h"
 
 #include <float.h>
-
 #include <math.h>
-
 #include <stdio.h>
-
 #include <stdlib.h>
-
 #include <string.h>
 
-
-#include "lv00/constraint_graph.h"
+#include "constraint_graph.h"
 
 
 

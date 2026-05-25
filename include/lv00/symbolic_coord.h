@@ -126,6 +126,8 @@ typedef struct SymbolicCoord {
         Transcendental *transcendental;
     } data;
     TrustColor trust;
+    double cached_value;      /* 几何节点数值缓存 */
+    bool cache_valid;         /* 缓存是否有效 */
 } SymbolicCoord;
 
 Rational *rational_create(int64_t numerator, uint64_t denominator);
@@ -447,6 +449,17 @@ char *symbolic_coord_serialize(const SymbolicCoord *coord);
  * @return 双精度浮点数值
  */
 double symbolic_coord_to_double(const SymbolicCoord *coord);
+
+/**
+ * @brief 使符号坐标的数值缓存失效
+ *
+ * 当坐标被修改（如算术运算、类型转换、信任颜色变更）时，
+ * 调用此函数清除缓存的数值近似值，确保下次调用
+ * symbolic_coord_to_double() 时重新计算。
+ *
+ * @param[in,out] coord 符号坐标（可为 NULL，空操作）
+ */
+void symbolic_coord_invalidate_cache(SymbolicCoord *coord);
 
 /**
  * @brief 位电路状态枚举

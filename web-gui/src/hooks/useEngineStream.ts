@@ -39,6 +39,8 @@ import { useAIStore } from '@/stores';
 interface UseEngineStreamOptions extends StreamManagerConfig {
   /** 是否在组件挂载时自动连接引擎（默认 false） */
   autoConnect?: boolean;
+  /** 引擎错误回调（用于向用户展示连接错误信息等） */
+  onError?: (error: Error) => void;
 }
 
 interface UseEngineStreamReturn {
@@ -134,6 +136,7 @@ export function useEngineStream(options: UseEngineStreamOptions = {}): UseEngine
     autoConnect = false,
     eventBufferSize = 1000,
     heartbeatInterval = 15000,
+    onError: errorCallback,
   } = options;
 
   // ---- 本地状态 / Local State ----
@@ -194,10 +197,13 @@ export function useEngineStream(options: UseEngineStreamOptions = {}): UseEngine
   }, []);
 
   const handleError = useCallback((error: Error) => {
-    // 错误已由 StreamManager 内部处理，此处仅做日志记录
+    // 记录错误日志
     console.error('[Lv00 useEngineStream] Engine stream error:', error.message || error);
-    // TODO: 可在此处添加 Toast 通知，向用户展示连接错误信息
-  }, []);
+    // 调用外部错误回调（用于向用户展示 Toast 通知等）
+    if (errorCallback) {
+      errorCallback(error);
+    }
+  }, [errorCallback]);
 
   // ---- 生命周期管理 ----
   useEffect(() => {

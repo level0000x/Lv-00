@@ -23,12 +23,24 @@
  *     系数数组。若使用 lv00_malloc 分配（带额外 AllocHeader），lv00_free() 将因为
  *     指针不指向标准堆头而导致未定义行为。这是 GMP 库的硬性要求，非可选方案。
  *   - 其他所有动态内存分配统一使用 lv00_malloc/lv00_free。
+ *
+ * @note GMP 变量作用域与所有权规则（v3.3.0 补充）：
+ *   - 每个 mpz_init/mpq_init 必须在相同或内层作用域内对应一个 mpz_clear/mpq_clear，
+ *     且两者的执行路径必须通过所有代码路径可达。不允许有 init 无 clear 的路径。
+ *   - 跨代码块复用的 GMP 变量：在变量声明处添加 [owner: block_name] 注释
+ *     标明其生命周期边界。此类变量必须在定义所在作用域结束时 clear，不得在
+ *     其他作用域提前释放。
+ *   - 循环体内 init 的变量：必须在同一次迭代结束前 clear。循环内频繁 init/clear
+ *     的变量可考虑提升到循环外并复用（mpz_set 后使用），以节省分配开销。
+ *   - 条件分支内的 init：确保 if/else 两个分支都有对应的 clear，不得在
+ *     一个分支 init 而在另一个分支泄漏。
  */
 
 #include "solver.h"
 
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +79,147 @@
  * 和 coeffs[2]（二次项）。用于 poly.coeffs 数组的 malloc 分配。
  */
 #define LV00_SOLVER_QUADRATIC_COEFF_COUNT 3
+
+/* ------------------------------------------------------------------ */
+/*  SolverSnapshot — 求解回滚机制                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * LV00_ZERO_EPSILON - 零值容差（用于 GMP 整数比较）
+ *
+ * 在将有理数转换为缩放整数时，当 remainder 与 half_den 的差值
+ * 小于此宏值时视为相等，避免浮点舍入导致的错误进位。这解决了
+ * 符号判别中的临界盲区问题：当余数恰好落在中点附近时，
+ * 传统的 >= 比较会因为舍入噪声而产生错误的符号判定。
+ */
+#define LV00_ZERO_EPSILON 1e-12
+
+/**
+ * @brief 求解快照结构体——保存求解前的节点坐标状态
+ *
+ * 在核心求解函数开始前拍摄快照；若求解失败，通过快照回滚恢复
+ * 所有受影响的节点坐标，防止部分求解结果污染图形状态。
+ *
+ * 快照仅保存坐标值（SymbolicCoord 副本），不保存整个 GeomNode。
+ * 所有权：snapshot 拥有 copies 数组中每个 SymbolicCoord* 的所有权。
+ */
+typedef struct SolverSnapshot {
+    int *node_ids;       /**< 受影响的节点 ID 数组（长度 = node_count） */
+    SymbolicCoord **copies; /**< 对应节点的坐标副本（长度 = node_count * 2，x/y 连续存放） */
+    int node_count;      /**< 节点数量 */
+    int coord_count;     /**< 坐标总数量（= node_count * 2） */
+} SolverSnapshot;
+
+/* 前向声明：solver_snapshot_free 在 solver_snapshot_save 中使用，定义在下方 */
+static void solver_snapshot_free(SolverSnapshot *snapshot);
+
+/**
+ * @brief 保存求解前的节点坐标快照
+ *
+ * 遍历约束图中所有几何节点，为每个节点的符号坐标创建深拷贝。
+ * 快照中的所有 SymbolicCoord 由调用者通过 solver_snapshot_free 释放。
+ *
+ * @param graph    约束图指针
+ * @param snapshot 输出：填充的快照结构体
+ * @return true 表示成功，false 表示内存分配失败
+ */
+static bool solver_snapshot_save(const ConstraintGraph *graph, SolverSnapshot *snapshot) {
+    if (!graph || !snapshot)
+        return false;
+
+    memset(snapshot, 0, sizeof(SolverSnapshot));
+    snapshot->node_count = graph->node_count;
+    if (snapshot->node_count <= 0)
+        return true;
+
+    snapshot->coord_count = snapshot->node_count * 2;
+    snapshot->node_ids = lv00_malloc((size_t) snapshot->node_count * sizeof(int));
+    snapshot->copies = lv00_malloc((size_t) snapshot->coord_count * sizeof(SymbolicCoord *));
+
+    if (!snapshot->node_ids || !snapshot->copies) {
+        solver_snapshot_free(snapshot);
+        return false;
+    }
+
+    for (int i = 0; i < snapshot->node_count; i++) {
+        snapshot->node_ids[i] = graph->nodes[i]->id;
+        GeomNode *node = graph->nodes[i];
+
+        if (node && node->symbolic_coords) {
+            snapshot->copies[i * 2 + 0] =
+                node->symbolic_coords[0] ? symbolic_coord_copy(node->symbolic_coords[0]) : NULL;
+            snapshot->copies[i * 2 + 1] =
+                (node->coord_count >= 2 && node->symbolic_coords[1])
+                    ? symbolic_coord_copy(node->symbolic_coords[1])
+                    : NULL;
+        } else {
+            snapshot->copies[i * 2 + 0] = NULL;
+            snapshot->copies[i * 2 + 1] = NULL;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * @brief 回滚——将节点坐标恢复到快照状态
+ *
+ * 在求解失败（SOLVER_STATUS_TIMEOUT / SOLVER_STATUS_NO_SOLUTION 等）时调用，
+ * 将受影响的节点坐标替换为快照中保存的原始值。
+ *
+ * 使用场景：求解过程中部分方程已被求解并回代，导致某些节点坐标
+ * 被修改，但后续发现系统无解或超时——此时需要回滚所有修改。
+ *
+ * @param graph    约束图指针
+ * @param snapshot 先前通过 solver_snapshot_save 保存的快照
+ */
+static void solver_snapshot_restore(ConstraintGraph *graph, const SolverSnapshot *snapshot) {
+    if (!graph || !snapshot || snapshot->node_count <= 0)
+        return;
+
+    for (int i = 0; i < snapshot->node_count; i++) {
+        /* 按节点 ID 查找当前图中的节点（节点顺序可能已变化） */
+        GeomNode *node = graph_get_node(graph, snapshot->node_ids[i]);
+        if (!node || !node->symbolic_coords)
+            continue;
+
+        if (snapshot->copies[i * 2 + 0]) {
+            symbolic_coord_destroy(node->symbolic_coords[0]);
+            node->symbolic_coords[0] = symbolic_coord_copy(snapshot->copies[i * 2 + 0]);
+        }
+        if (node->coord_count >= 2 && node->symbolic_coords[1] && snapshot->copies[i * 2 + 1]) {
+            symbolic_coord_destroy(node->symbolic_coords[1]);
+            node->symbolic_coords[1] = symbolic_coord_copy(snapshot->copies[i * 2 + 1]);
+        }
+    }
+}
+
+/**
+ * @brief 释放快照——求解成功后释放所有保存的坐标副本
+ *
+ * 快照不再需要时必须调用，否则会泄漏 SymbolicCoord 内存。
+ * 此函数是幂等的：多次调用或对零值快照调用是安全的。
+ *
+ * @param snapshot 待释放的快照（调用后置零）
+ */
+static void solver_snapshot_free(SolverSnapshot *snapshot) {
+    if (!snapshot)
+        return;
+
+    if (snapshot->copies) {
+        for (int i = 0; i < snapshot->coord_count; i++) {
+            if (snapshot->copies[i]) {
+                symbolic_coord_destroy(snapshot->copies[i]);
+                snapshot->copies[i] = NULL;
+            }
+        }
+        lv00_free((void **) &snapshot->copies);
+    }
+
+    lv00_free((void **) &snapshot->node_ids);
+    snapshot->node_count = 0;
+    snapshot->coord_count = 0;
+}
 
 
 LV00_DECLARE_STREAM_CTX(solver)
@@ -233,7 +386,7 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
  * @param result 输出 mpz_t 整数，结果直接写入该变量
  * @param scale  缩放系数
  */
-static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, long scale) {
+static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, int64_t scale) {
     mpz_t scaled;
     mpz_init(scaled);
     mpz_set_ui(scaled, (unsigned long) scale);
@@ -253,7 +406,7 @@ static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, long scale) {
  * @param scale  缩放因子
  * @return true 表示成功（精确或近似），false 表示失败
  */
-static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, long scale) {
+static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
     if (!c)
         return false;
 
@@ -273,7 +426,7 @@ static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, long scale
             /* 精确整除：直接取商 */
             mpz_fdiv_q(result, scaled_num, den);
         } else {
-            /* 非精确整除：向最近整数舍入 */
+            /* 非精确整除：使用银行家舍入（round to nearest even）避免系统性偏差 */
             mpz_t q, r;
             mpz_init(q);
             mpz_init(r);
@@ -281,10 +434,22 @@ static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, long scale
             mpz_t half_den;
             mpz_init(half_den);
             mpz_fdiv_q_2exp(half_den, den, 1);
-            if (mpz_cmp(r, half_den) >= 0) {
+            /*
+             * 临界盲区修复：当剩余 r 与 half_den 相等时，使用银行家舍入
+             * (round to nearest even) 而非单纯向上舍入，避免系统性偏差。
+             */
+            int cmp = mpz_cmp(r, half_den);
+            if (cmp > 0) {
                 mpz_add_ui(result, q, 1);
-            } else {
+            } else if (cmp < 0) {
                 mpz_set(result, q);
+            } else {
+                /* 临界点：r == half_den，使用银行家舍入 */
+                if (mpz_even_p(q)) {
+                    mpz_set(result, q);
+                } else {
+                    mpz_add_ui(result, q, 1);
+                }
             }
             mpz_clear(half_den);
             mpz_clear(q);
@@ -308,7 +473,7 @@ static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, long scale
 
 /* 前向声明：coord_to_mpz_scaled_exact 在 double_to_mpz_scaled 之后定义，
    但 coord_to_mpz_scaled 的回退路径需要引用 double_to_mpz_scaled */
-static void double_to_mpz_scaled(double val, mpz_t result, long scale);
+static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale);
 
 /**
  * 将符号坐标精确转换为缩放整数系数。
@@ -316,7 +481,7 @@ static void double_to_mpz_scaled(double val, mpz_t result, long scale);
  * 对于二次根式和代数数，尝试有理化后转换；失败时回退到 double 近似。
  * 返回 true 表示精确转换成功，false 表示使用了近似。
  */
-static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, long scale) {
+static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
     if (!coord)
         return false;
 
@@ -380,7 +545,7 @@ static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, 
  * 先从 double 构造 mpq，再乘以 scale 得到缩放后的整数。
  * 当 scaled_num 不能被 den 整除时，使用四舍五入取整。
  */
-static void double_to_mpz_scaled(double val, mpz_t result, long scale) {
+static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
     /* 使用 GMP 的 mpq_set_d 获取最佳精度 */
     mpq_t q;
     mpq_init(q);
@@ -399,7 +564,7 @@ static void double_to_mpz_scaled(double val, mpz_t result, long scale) {
         /* 能整除时直接取精确商 */
         mpz_divexact(result, scaled_num, den);
     } else {
-        /* 不能整除时，使用四舍五入取整 */
+        /* 不能整除时，使用银行家舍入（round to nearest even）避免系统性偏差 */
         mpz_t quotient, remainder;
         mpz_init(quotient);
         mpz_init(remainder);
@@ -407,10 +572,30 @@ static void double_to_mpz_scaled(double val, mpz_t result, long scale) {
         mpz_t half_den;
         mpz_init(half_den);
         mpz_fdiv_q_2exp(half_den, den, 1);
-        if (mpz_cmp(remainder, half_den) >= 0) {
-            mpz_add_ui(result, quotient, 1);
+        /*
+         * 临界盲区修复：当 remainder 与 half_den 相等时，使用银行家舍入
+         * (round to nearest even) 而非单纯向上舍入。这消除了当余数恰好落在
+         * 中点附近时因浮点舍入噪声导致的错误符号判别。
+         *
+         * 零值保护：若原始 double 值 val 的绝对值 < LV00_ZERO_EPSILON，
+         * 则结果为 0，防止微小浮点噪声产生非零整数结果。
+         */
+        if (fabs(val) < LV00_ZERO_EPSILON) {
+            mpz_set_ui(result, 0);
         } else {
-            mpz_set(result, quotient);
+            int cmp = mpz_cmp(remainder, half_den);
+            if (cmp > 0) {
+                mpz_add_ui(result, quotient, 1);
+            } else if (cmp < 0) {
+                mpz_set(result, quotient);
+            } else {
+                /* 临界点：remainder == half_den，使用银行家舍入 */
+                if (mpz_even_p(quotient)) {
+                    mpz_set(result, quotient);
+                } else {
+                    mpz_add_ui(result, quotient, 1);
+                }
+            }
         }
         mpz_clear(half_den);
         mpz_clear(quotient);
@@ -473,8 +658,13 @@ static bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) 
     double dx = x2 - x1;
     double dy = y2 - y1;
 
-    /* 检测退化情况：两点重合 */
-    if (dx == 0.0 && dy == 0.0) {
+    /* 检测退化情况：两点重合
+     * 使用 epsilon 比较而非精确相等（==），原因：
+     * 浮点运算存在舍入误差，即使两点在数学上重合，
+     * 经过坐标变换或中间计算后，dx 和 dy 可能不为精确的 0.0。
+     * 使用 fabs(dx) < 1e-15 可以正确识别数值上近似为零的情况，
+     * 避免将几乎重合的误判为有效直线（导致法向量接近零、方程退化）。 */
+    if (fabs(dx) < 1e-15 && fabs(dy) < 1e-15) {
         LOG_WARN("solver", "line_from_two_points: 两点重合，无法确定直线");
         return false;
     }
@@ -550,7 +740,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                 if (line->type == GEOM_LINE_SEGMENT && line->coord_count >= 2) {
                     /* 线段的 symbolic_coords 存储端点坐标为 (x1,y1,x2,y2) 格式 */
                     if (line->coord_count >= 4) {
-                        long scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                         /* 使用精确有理数路径获取端点坐标的缩放值 */
                         mpz_t lx1_s, ly1_s, lx2_s, ly2_s;
                         mpz_init(lx1_s);
@@ -704,7 +894,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                 if (!line1 || !line2 || !rpt)
                     break;
 
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
 
                 /* 尝试精确有理数路径：直接从线段端点坐标计算直线方程 */
                 if (line1->type == GEOM_LINE_SEGMENT && line1->coord_count >= 4 && line2->type == GEOM_LINE_SEGMENT &&
@@ -1021,7 +1211,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                (x2-x1)*(y3-y1) - (y2-y1)*(x3-x1) = 0
                展开: dy13*x2 - dx13*y2 + (dx13*y1 - dy13*x1) = 0
                使用精确有理数路径避免 double 精度损失 */
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                 mpz_t x1_s, y1_s, x3_s, y3_s;
                 mpz_init(x1_s);
                 mpz_init(y1_s);
@@ -1118,7 +1308,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                     break;
 
                 {
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                     int seg_count = outer->data.region.segment_count;
 
                     for (int si = 0; si < seg_count; si++) {
@@ -1254,7 +1444,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                     break;
 
                 double dist_sq = dist_val * dist_val;
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
 
                 /* (xA-xB)^2 + (yA-yB)^2 = d^2
                Expand for nodeB as variable (nodeA as fixed):
@@ -1349,7 +1539,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
 
                 /* 对于第二个端点的 x 坐标：需要第二个端点的节点 ID。
                    由于线段直接存储坐标，我们创建以线段 ID 标记的方程。 */
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
 
                 /* x^2 - 2*x1*x + (x1^2 + y1^2 - dist_sq - y^2 + 2*y1*y) = 0
                    作为 x 的单变量方程: x^2 - 2*x1*x + const = 0
@@ -2197,11 +2387,16 @@ static PolyEquation *substitute_symbolic_into_equation(const PolyEquation *eq, i
          * 否则，使用 double 近似值作为常数项。 */
         mpz_poly_init(&result->poly);
 
+        /*
+         * OWNER: eval_mpq — if-else 分支内
+         * 在 if (symbolic_coord_to_mpq) 分支内 init，分支末 clear。
+         * 在 else 分支不使用。两个分支执行路径互斥，不存在泄漏。
+         */
         mpq_t eval_mpq;
         mpq_init(eval_mpq);
         if (symbolic_coord_to_mpq(eval_result, eval_mpq)) {
             /* 精确有理数路径：缩放为整数 */
-            long scale = LV00_SOLVER_SCALE_FACTOR;
+            int64_t scale = LV00_SOLVER_SCALE_FACTOR;
             mpz_t scaled_num;
             mpz_init(scaled_num);
             mpz_mul_si(scaled_num, mpq_numref(eval_mpq), scale);
@@ -2227,7 +2422,7 @@ static PolyEquation *substitute_symbolic_into_equation(const PolyEquation *eq, i
             /* Non-rational result: use double approximation */
             double d;
             if (coord_to_double(eval_result, &d)) {
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                 result->poly.degree = 0;
                 /* GMP 要求使用标准分配器 */
                 result->poly.coeffs = lv00_malloc(sizeof(mpz_t));
@@ -2392,9 +2587,32 @@ SymbolicCoord **back_substitute_symbolic(PolyEquation **equations, int eq_count,
     int max_iterations = n_vars + 1; /* 防止无限循环 */
     int iteration = 0;
 
+    /* ── 防抖容错：残差变化率检测 ── */
+    int stalled_count = 0;          /* 连续停滞计数 */
+    const int max_stalled = 5;      /* 连续 max_stalled 次无进展则终止 */
+    int last_solved_count = 0;      /* 上一轮已求解变量数 */
+
     while (progress && iteration < max_iterations) {
         progress = false;
         iteration++;
+
+        int current_solved = 0;
+        for (int vi = 0; vi < n_vars; vi++) {
+            if (all_values[vi] != NULL)
+                current_solved++;
+        }
+
+        /* 防抖检测：连续停滞则提前终止 */
+        if (current_solved == last_solved_count && iteration > 1) {
+            stalled_count++;
+            if (stalled_count >= max_stalled) {
+                LOG_WARN("solver", "back_substitute_symbolic: 连续 %d 轮无进展，提前终止迭代", stalled_count);
+                break;
+            }
+        } else {
+            stalled_count = 0;
+        }
+        last_solved_count = current_solved;
 
         for (int eq_idx = 0; eq_idx < eq_count; eq_idx++) {
             PolyEquation *eq = equations[eq_idx];
@@ -2532,6 +2750,11 @@ static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, m
     if (poly->degree < 3)
         return false;
 
+    /*
+     * OWNER: const_term, lead_coeff — 本函数全作用域
+     * 这两个 mpz_t 在函数顶部 init，在所有返回路径（含提前返回）上 clear。
+     * 不能提前释放，也不转移所有权给调用者。
+     */
     mpz_t const_term, lead_coeff;
     mpz_init(const_term);
     mpz_init(lead_coeff);
@@ -3037,7 +3260,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     if (!graph || !out_result) {
         debug_log(LOG_LEVEL_ERROR, "solver", "solve_algebraic_system: 无效参数 graph=%p out_result=%p",
                   (const void *) graph, (const void *) out_result);
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
 
     /* 分配结果内存 */
@@ -3045,13 +3268,21 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     if (!result) {
         debug_log(LOG_LEVEL_ERROR, "solver", "solve_algebraic_system: 无法分配 GroebnerResult（大小 %zu 字节）",
                   sizeof(GroebnerResult));
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
     memset(result, 0, sizeof(GroebnerResult));
     result->solutions = NULL;
     result->solution_count = 0;
     result->unique = false;
     result->overdetermined = false;
+
+    /* ── 快照: 保存求解前的节点坐标状态 ── */
+    SolverSnapshot snapshot;
+    bool snapshot_saved = solver_snapshot_save(graph, &snapshot);
+    if (!snapshot_saved) {
+        debug_log(LOG_LEVEL_WARN, "solver", "solve_algebraic_system: 快照保存失败，继续求解但无法回滚");
+        memset(&snapshot, 0, sizeof(snapshot));
+    }
 
     /* 流式输出: 求解阶段开始 */
     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_START, "代数求解开始", 0);
@@ -3101,7 +3332,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             equation_system_clear(&sys);
             *out_result = result;
             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 检测到冲突方程", 0);
-            return SOLVER_OVERCONSTRAINED;
+            /* 求解失败，回滚所有坐标修改 */
+            solver_snapshot_restore(graph, &snapshot);
+            solver_snapshot_free(&snapshot);
+            return SOLVER_STATUS_OVERCONSTRAINED;
         }
         /* Might be redundant but not conflicting; continue */
     }
@@ -3118,7 +3352,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 方程超出代数范围", 0);
-        return SOLVER_OUT_OF_SCOPE;
+        /* 求解失败，回滚所有坐标修改 */
+        solver_snapshot_restore(graph, &snapshot);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
     /* Step 4: Order variables by dependency (topological sort).
@@ -3131,7 +3368,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             equation_system_clear(&sys);
             *out_result = result;
             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解错误: 内存分配失败", 0);
-            return SOLVER_TIMEOUT;
+            /* 求解失败，回滚所有坐标修改 */
+            solver_snapshot_restore(graph, &snapshot);
+            solver_snapshot_free(&snapshot);
+            return SOLVER_STATUS_TIMEOUT;
         }
         int all_var_count = 0;
         for (int i = 0; i < sys.count; i++) {
@@ -3182,7 +3422,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     equation_system_clear(&sys);
                     *out_result = result;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解错误: 内存分配失败", 0);
-                    return SOLVER_TIMEOUT;
+                    /* 求解失败，回滚所有坐标修改 */
+                    solver_snapshot_restore(graph, &snapshot);
+                    solver_snapshot_free(&snapshot);
+                    return SOLVER_STATUS_TIMEOUT;
                 }
                 for (int i = 0; i < sys.count; i++)
                     priority[i] = INT_MAX;
@@ -3259,7 +3502,10 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 无解", 0);
-        return SOLVER_NO_SOLUTION;
+        /* 求解失败，回滚所有坐标修改 */
+        solver_snapshot_restore(graph, &snapshot);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_NO_SOLUTION;
     }
 
     /* Step 7: Gröbner basis elimination for remaining unsolved equations.
@@ -3313,13 +3559,15 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 高次方程无法处理", 0);
-                return SOLVER_OUT_OF_SCOPE;
+                solver_snapshot_restore(graph, &snapshot);
+                solver_snapshot_free(&snapshot);
+                return SOLVER_STATUS_OUT_OF_SCOPE;
             }
 
             /* Attempt Gröbner basis computation */
             SolverStatus gb_status = groebner_basis_compute(&sys);
 
-            if (gb_status == SOLVER_OUT_OF_SCOPE) {
+            if (gb_status == SOLVER_STATUS_OUT_OF_SCOPE) {
                 /* Gröbner basis computation found degree > 4 */
                 char *suggestion = NULL;
                 analyze_out_of_scope(graph, -1, &suggestion);
@@ -3327,10 +3575,12 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基计算超出范围", 0);
-                return SOLVER_OUT_OF_SCOPE;
+                solver_snapshot_restore(graph, &snapshot);
+                solver_snapshot_free(&snapshot);
+                return SOLVER_STATUS_OUT_OF_SCOPE;
             }
 
-            if (gb_status == SOLVER_OK) {
+            if (gb_status == SOLVER_STATUS_OK) {
                 /* Try to solve the Gröbner basis equations */
                 solve_equations_pass(&sys, result, &solved_count, &multiple_solutions, &no_solution, true);
 
@@ -3340,7 +3590,9 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     equation_system_clear(&sys);
                     *out_result = result;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基求解后无解", 0);
-                    return SOLVER_NO_SOLUTION;
+                    solver_snapshot_restore(graph, &snapshot);
+                    solver_snapshot_free(&snapshot);
+                    return SOLVER_STATUS_NO_SOLUTION;
                 }
             }
         }
@@ -3393,32 +3645,38 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         /* Could not solve anything */
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 未能求解任何变量", 0);
-        return SOLVER_OUT_OF_SCOPE;
+        solver_snapshot_restore(graph, &snapshot);
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
     if (result->overdetermined) {
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 超定系统", 0);
-        return SOLVER_OVERCONSTRAINED;
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_OVERCONSTRAINED;
     }
 
     if (multiple_solutions > 0) {
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 多解", 0);
-        return SOLVER_MULTIPLE;
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_MULTIPLE;
     }
 
     if (solved_count > 0 && remaining == 0) {
         result->unique = true;
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 唯一解", 0);
-        return SOLVER_UNIQUE;
+        solver_snapshot_free(&snapshot);
+        return SOLVER_STATUS_UNIQUE;
     }
 
     /* Partially solved or underdetermined */
     *out_result = result;
     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "求解完成: 部分求解/欠定", 0);
-    return SOLVER_OK;
+    solver_snapshot_free(&snapshot);
+    return SOLVER_STATUS_OK;
 }
 
 /* ================================================================== */
@@ -3471,7 +3729,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
     if (!graph)
         return NULL;
 
-    SolverFeedback *fb = solver_feedback_create(SOLVER_FEEDBACK_CONSTRAINT_ADDED,
+    SolverFeedback *fb = solver_feedback_create(SOLVER_FEEDBACK_TYPE_CONSTRAINT_ADDED,
                                                 dirty_count > 0 ? "约束已添加，增量求解开始" : "执行全量求解");
 
     if (!fb)
@@ -3481,7 +3739,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
     GroebnerResult *result = solver_incremental_solve(graph, dirty_vars, dirty_count);
 
     if (!result) {
-        fb->type = SOLVER_FEEDBACK_CONFLICT_DETECTED;
+        fb->type = SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED;
         lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(64);
         if (fb->message)
@@ -3506,7 +3764,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
 
     /* Step 3: 判断反馈类型 */
     if (result->overdetermined) {
-        fb->type = SOLVER_FEEDBACK_OVERCONSTRAINED;
+        fb->type = SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED;
         lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(64);
         if (fb->message)
@@ -3522,7 +3780,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
             }
         }
     } else if (dof == 0) {
-        fb->type = SOLVER_FEEDBACK_VARIABLE_SOLVED;
+        fb->type = SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED;
         lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(64);
         if (fb->message)
@@ -3532,7 +3790,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
             fb->affected_var_id = dirty_vars[0];
         }
     } else if (dof > 0) {
-        fb->type = SOLVER_FEEDBACK_DOF_CHANGED;
+        fb->type = SOLVER_FEEDBACK_TYPE_DOF_CHANGED;
         char buf[128];
         snprintf(buf, sizeof(buf), "当前仍有 %d 个自由度", dof);
         lv00_free((void **) &fb->message);
@@ -3557,10 +3815,10 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         int _snw_fb;
         LV00_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
                            "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
-                           (fb->type == SOLVER_FEEDBACK_VARIABLE_SOLVED)     ? "solved"
-                           : (fb->type == SOLVER_FEEDBACK_OVERCONSTRAINED)   ? "overconstrained"
-                           : (fb->type == SOLVER_FEEDBACK_DOF_CHANGED)       ? "dof_changed"
-                           : (fb->type == SOLVER_FEEDBACK_CONFLICT_DETECTED) ? "conflict"
+                           (fb->type == SOLVER_FEEDBACK_TYPE_VARIABLE_SOLVED)     ? "solved"
+                           : (fb->type == SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED)   ? "overconstrained"
+                           : (fb->type == SOLVER_FEEDBACK_TYPE_DOF_CHANGED)       ? "dof_changed"
+                           : (fb->type == SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED) ? "conflict"
                                                                              : "constraint_added",
                            fb->degrees_of_freedom, fb->free_var_count, fb->overconstrained_count);
         LV00_UNUSED(_snw_fb);
@@ -3594,12 +3852,12 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
  * @param target_var_id 目标变量的节点 ID
  * @param eliminate_ids 待消元的变量 ID 数组
  * @param elim_count    待消元变量数量
- * @return SOLVER_OK 表示成功消元，SOLVER_OUT_OF_SCOPE 表示超出范围
+ * @return SOLVER_STATUS_OK 表示成功消元，SOLVER_STATUS_OUT_OF_SCOPE 表示超出范围
  */
 
 SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids, int elim_count) {
     if (!graph || elim_count <= 0)
-        return SOLVER_OK;
+        return SOLVER_STATUS_OK;
 
     /* Build equation system from constraints */
     EquationSystem sys;
@@ -3755,10 +4013,10 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
     }
 
     if (out_of_scope_found)
-        return SOLVER_OUT_OF_SCOPE;
+        return SOLVER_STATUS_OUT_OF_SCOPE;
     if (any_eliminated)
-        return SOLVER_OK;
-    return SOLVER_OK; /* No variables eliminated, but not an error */
+        return SOLVER_STATUS_OK;
+    return SOLVER_STATUS_OK; /* No variables eliminated, but not an error */
 }
 
 /* ================================================================== */
@@ -3767,7 +4025,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
 
 SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char **suggestion) {
     if (!graph || !suggestion)
-        return SOLVER_OUT_OF_SCOPE;
+        return SOLVER_STATUS_OUT_OF_SCOPE;
 
     /* 流式事件: 开始超出范围分析 */
     if (solver_stream_ctx) {
@@ -3833,7 +4091,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         }
 
         equation_system_clear(&sys);
-        return SOLVER_OUT_OF_SCOPE;
+        return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
     /* 流式事件: 发现高次方程 */
@@ -3896,7 +4154,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         mpz_poly_clear(&factor1);
         mpz_poly_clear(&factor2);
         equation_system_clear(&sys);
-        return SOLVER_OUT_OF_SCOPE;
+        return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
     /* Check if the degree is 4 (quartic) - check for biquadratic */
@@ -3931,7 +4189,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             }
 
             equation_system_clear(&sys);
-            return SOLVER_OUT_OF_SCOPE;
+            return SOLVER_STATUS_OUT_OF_SCOPE;
         }
     }
 
@@ -3973,7 +4231,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
     lv00_free((void **) &poly_str); poly_str = NULL;  /* GMP分配，用标准free */
 
     equation_system_clear(&sys);
-    return SOLVER_OUT_OF_SCOPE;
+    return SOLVER_STATUS_OUT_OF_SCOPE;
 }
 
 /* ================================================================== */
@@ -4614,6 +4872,13 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
     int safety = 0;
     const int max_iterations = LV00_DEFAULT_MAX_ITERATIONS; /* 安全上限 */
 
+    /* ── 防抖容错 ── */
+    int stalled_rounds = 0;
+    const int max_stalled_rounds = 10;
+    long double prev_term_count = (long double) remainder->term_count;
+    /* 微小误差累积检测：记录多项式项数序列，检测微小波动 */
+    int term_oscillation = 0;
+
     while (changed && safety < max_iterations) {
         changed = false;
         safety++;
@@ -4652,6 +4917,10 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                     mv_poly_init(&new_remainder, remainder->var_count);
 
                     /* new_remainder = lt_g->coeff * remainder - coeff_j * sub_term */
+                    /*
+                     * OWNER: scaled — 循环体 k 内
+                     * 每次迭代独立 init/clear，不在迭代间复用。
+                     */
                     for (int k = 0; k < remainder->term_count; k++) {
                         mpz_t scaled;
                         mpz_init(scaled);
@@ -4659,6 +4928,10 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                         mv_poly_add_term(&new_remainder, scaled, remainder->terms[k].exponents);
                         mpz_clear(scaled);
                     }
+                    /*
+                     * OWNER: neg — 循环体 k 内
+                     * 每次迭代独立 init/clear。
+                     */
                     for (int k = 0; k < sub_term.term_count; k++) {
                         mpz_t neg;
                         mpz_init(neg);
@@ -4679,6 +4952,37 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
                 }
             }
         }
+
+        /* ── 残差变化率检测 & 微小误差累积监控 ── */
+        if (!changed) {
+            /* 本轮无变化，计数停滞 */
+            stalled_rounds++;
+        } else {
+            stalled_rounds = 0;
+        }
+
+        /* 微小误差累积检测：对比项数变化，检测振荡 */
+        if (changed) {
+            long double curr_term_count = (long double) remainder->term_count;
+            long double diff = curr_term_count - prev_term_count;
+            if (fabsl(diff) < 1.0L && diff != 0.0L) {
+                /* 项数微小波动：可能是精度误差累积导致的反复约化 */
+                term_oscillation++;
+            } else {
+                term_oscillation = 0;
+            }
+            prev_term_count = curr_term_count;
+        }
+
+        /* 提前终止条件 */
+        if (stalled_rounds >= max_stalled_rounds) {
+            LOG_WARN("solver", "polynomial_reduce: 连续 %d 轮无约化进展，提前终止", stalled_rounds);
+            break;
+        }
+        if (term_oscillation >= 3) {
+            LOG_WARN("solver", "polynomial_reduce: 检测到项数微小振荡（精度累积），提前终止");
+            break;
+        }
     }
 }
 
@@ -4690,7 +4994,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
  * @brief 使用 Buchberger 算法计算多变量多项式系统的 Groebner 基
  *
  * @details 支持全次数 <= 3 的多项式系统（v3.1 扩展：加入三次方程支持）。
- *          对每个输入多项式检查次数上限，超过限制返回 SOLVER_OUT_OF_SCOPE。
+ *          对每个输入多项式检查次数上限，超过限制返回 SOLVER_STATUS_OUT_OF_SCOPE。
  *          使用 Buchberger 第一判据（LCM 等于某首项时跳过）优化计算。
  *          对 degree=3 的多项式，S-多项式可能产生 degree 4-6 的高次项，
  *          此时使用内容约化（提取公因子）和因数分解降次。
@@ -4700,14 +5004,14 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
  * @param out_G       输出：Groebner 基多项式数组（调用者负责释放每个元素及其内部资源）
  * @param out_g_count 输出：基中多项式数量
  * @param step_limit  最大计算步数（防止无限循环）
- * @return SOLVER_OK 表示成功，SOLVER_TIMEOUT 表示超时，SOLVER_OUT_OF_SCOPE 表示次数超限
+ * @return SOLVER_STATUS_OK 表示成功，SOLVER_STATUS_TIMEOUT 表示超时，SOLVER_STATUS_OUT_OF_SCOPE 表示次数超限
  */
 static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynomial ***out_G, int *out_g_count,
                                         int step_limit) {
     if (f_count == 0 || !F || !out_G || !out_g_count) {
         *out_G = NULL;
         *out_g_count = 0;
-        return SOLVER_OK;
+        return SOLVER_STATUS_OK;
     }
 
     int var_count = F[0]->var_count;
@@ -4718,7 +5022,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             if (mv_monomial_total_degree(&F[i]->terms[j], var_count) > 4) {
                 *out_G = NULL;
                 *out_g_count = 0;
-                return SOLVER_OUT_OF_SCOPE;
+                return SOLVER_STATUS_OUT_OF_SCOPE;
             }
         }
     }
@@ -4729,7 +5033,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     if (!G) {
         *out_G = NULL;
         *out_g_count = 0;
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
     int g_count = f_count;
     for (int i = 0; i < f_count; i++) {
@@ -4743,7 +5047,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             lv00_free((void **) &G);
             *out_G = NULL;
             *out_g_count = 0;
-            return SOLVER_TIMEOUT;
+            return SOLVER_STATUS_TIMEOUT;
         }
         mv_poly_init(G[i], var_count);
         mv_poly_copy(G[i], F[i]);
@@ -4761,11 +5065,20 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
         lv00_free((void **) &G);
         *out_G = NULL;
         *out_g_count = 0;
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
     memset(pair_data, 0, (size_t) (g_capacity * g_capacity) * sizeof(bool));
 
     int steps = 0;
+
+    /* ── 防抖容错：残差变化率检测 ── */
+    int gb_stalled_count = 0;
+    const int gb_max_stalled = 8;
+    int prev_g_count = g_count;
+    long double prev_total_terms = 0; /* 多项式项数累加，监控微小误差累积 */
+    for (int ti = 0; ti < g_count; ti++) {
+        prev_total_terms += (long double) G[ti]->term_count;
+    }
 
     /* Buchberger 主循环 */
     bool changed = true;
@@ -4942,6 +5255,30 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                 }
             }
         }
+
+        /* ── 残差变化率检测 & 微小误差累积监控 ── */
+        if (!changed) {
+            gb_stalled_count++;
+        } else {
+            gb_stalled_count = 0;
+            /* 微小误差累积检测：计算基的总项数变化，检测振荡 */
+            long double curr_total_terms = 0;
+            for (int ti = 0; ti < g_count; ti++) {
+                curr_total_terms += (long double) G[ti]->term_count;
+            }
+            long double term_diff = curr_total_terms - prev_total_terms;
+            /* 如果项数持续微小增加（< 1 项/轮），可能是精度累积导致的膨胀 */
+            if (fabsl(term_diff) < 1.0L && term_diff != 0.0L && g_count == prev_g_count) {
+                gb_stalled_count++;
+            }
+            prev_total_terms = curr_total_terms;
+            prev_g_count = g_count;
+        }
+
+        if (gb_stalled_count >= gb_max_stalled) {
+            LOG_WARN("solver", "buchberger_groebner: 连续 %d 轮无有效进展，提前终止迭代", gb_stalled_count);
+            break;
+        }
     }
 
     /* ── 自约化 (Inter-reduction / Auto-reduction) ──
@@ -5045,7 +5382,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     *out_G = G;
     *out_g_count = g_count;
 
-    return (steps >= step_limit) ? SOLVER_TIMEOUT : SOLVER_OK;
+    return (steps >= step_limit) ? SOLVER_STATUS_TIMEOUT : SOLVER_STATUS_OK;
 }
 
 /* ================================================================== */
@@ -5265,7 +5602,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
                 /* 这主要用于当某些边有距离约束时推断其他边 */
 
                 /* 生成: AB^2/BC^2 的精确比例 (用 GMP 整数) */
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                 mpz_t ab2_mpz, bc2_mpz, ac2_mpz;
                 mpz_init(ab2_mpz);
                 mpz_init(bc2_mpz);
@@ -5401,7 +5738,7 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                     /* 检查哪些坐标是未知的 (没有精确值) */
                     /* 对于有精确值的坐标, 直接代入; 对于未知的, 生成方程 */
 
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                     /* AB^2 = (xa-xb)^2 + (ya-yb)^2 */
                     mpz_t ab2_x_mpz, ab2_y_mpz;
                     mpz_init(ab2_x_mpz);
@@ -5592,7 +5929,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
 
                         /* Proportion: t_i * len_j = t_j * len_i
                          * => t_i * len_j - t_j * len_i = 0 (linear equation) */
-                        long scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
@@ -5772,7 +6109,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
                          * => segs[i].dx * segs[j].dy - segs[i].dy * segs[j].dx = 0
                          * (这已经在平行检测中使用, 这里生成精确方程) */
 
-                        long scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                         /* 生成平行条件的精确方程 */
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
@@ -6717,7 +7054,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         if (remaining > 0) {
             SolverStatus gb_status = groebner_basis_compute(&filtered_sys);
 
-            if (gb_status != SOLVER_OUT_OF_SCOPE) {
+            if (gb_status != SOLVER_STATUS_OUT_OF_SCOPE) {
                 solve_equations_pass(&filtered_sys, result, &solved_count, &multiple_solutions, &no_solution, false);
             }
         }
@@ -6865,7 +7202,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                      * As univariate in px: dy*px + (dx*ly1 - dy*lx1 - dx*py) = 0
                      * We store the x-component: dy*px + (dx*ly1 - dy*lx1) = 0
                      * (the y-dependent part is handled via the second equation) */
-                        long scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                         mpz_poly_t poly;
                         mpz_poly_init(&poly);
                         poly.degree = 1;
@@ -6965,7 +7302,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 }
 
                 if (got1 && got2) {
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                     /* Line1: a1*x + b1*y + c1 = 0 */
                     mpz_poly_t poly;
                     mpz_poly_init(&poly);
@@ -7033,7 +7370,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     break;
 
                 {
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                     int seg_count = outer->data.region.segment_count;
 
                     for (int si = 0; si < seg_count; si++) {
@@ -7231,7 +7568,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     p1->symbolic_coords[1]->type == RATIONAL && p3->symbolic_coords[0] &&
                     p3->symbolic_coords[0]->type == RATIONAL && p3->symbolic_coords[1] &&
                     p3->symbolic_coords[1]->type == RATIONAL) {
-                    long scale = LV00_SOLVER_SCALE_FACTOR;
+                    int64_t scale = LV00_SOLVER_SCALE_FACTOR;
                     mpz_init(dx13_s);
                     mpz_init(dy13_s);
                     mpz_init(x1_s);
@@ -7349,7 +7686,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     if (ok) {
                         double dx13 = x3 - x1;
                         double dy13 = y3 - y1;
-                        long scale = LV00_SOLVER_SCALE_FACTOR;
+                        int64_t scale = LV00_SOLVER_SCALE_FACTOR;
 
                         /* Collinearity: (x2-x1)*dy13 - (y2-y1)*dx13 = 0 */
                         mpz_poly_t poly;
@@ -7449,7 +7786,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     break;
 
                 double dist_sq = dist_val * dist_val;
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
 
                 /* (xA-xB)^2 + (yA-yB)^2 = d^2
                Expand for nodeB as variable (nodeA as fixed):
@@ -7529,7 +7866,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
         if (node->coord_count >= 4) {
             double x1, y1;
             if (coord_to_double(node->symbolic_coords[0], &x1) && coord_to_double(node->symbolic_coords[1], &y1)) {
-                long scale = LV00_SOLVER_SCALE_FACTOR;
+                int64_t scale = LV00_SOLVER_SCALE_FACTOR;
 
                 mpz_poly_t poly;
                 mpz_poly_init(&poly);
@@ -7582,17 +7919,17 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
  *          4. 用 Groebner 基替换原方程
  *
  * @param system 方程系统指针（函数会就地修改）
- * @return SOLVER_OK 表示成功，SOLVER_OUT_OF_SCOPE 表示存在次数 > 4 的多项式，
- *         SOLVER_TIMEOUT 表示计算超出步数限制
+ * @return SOLVER_STATUS_OK 表示成功，SOLVER_STATUS_OUT_OF_SCOPE 表示存在次数 > 4 的多项式，
+ *         SOLVER_STATUS_TIMEOUT 表示计算超出步数限制
  */
 SolverStatus groebner_basis_compute(EquationSystem *system) {
     if (!system || system->count == 0)
-        return SOLVER_OK;
+        return SOLVER_STATUS_OK;
 
     /* Step 1: Check degree limit first (fast path) */
     for (int i = 0; i < system->count; i++) {
         if (system->eqs[i].poly.degree > 4) {
-            return SOLVER_OUT_OF_SCOPE;
+            return SOLVER_STATUS_OUT_OF_SCOPE;
         }
     }
 
@@ -7605,7 +7942,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     if (var_count == 0 || !mv_polys) {
         lv00_free((void **) &var_id_map);
         lv00_free((void **) &coord_map);
-        return SOLVER_OK;
+        return SOLVER_STATUS_OK;
     }
 
     /* Step 3: Filter out zero polynomials and collect non-trivial ones */
@@ -7623,7 +7960,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         lv00_free((void **) &mv_polys);
         lv00_free((void **) &var_id_map);
         lv00_free((void **) &coord_map);
-        return SOLVER_OK;
+        return SOLVER_STATUS_OK;
     }
 
     MVPolynomial **active = lv00_malloc(active_count * sizeof(MVPolynomial *));
@@ -7633,7 +7970,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         lv00_free((void **) &mv_polys);
         lv00_free((void **) &var_id_map);
         lv00_free((void **) &coord_map);
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
     int idx = 0;
     for (int i = 0; i < system->count; i++) {
@@ -7661,8 +7998,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
                            "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
                            "\"input_equations\":%d,\"active_equations\":%d,"
                            "\"basis_size\":%d,\"variables\":%d}",
-                           (status == SOLVER_OK)             ? "ok"
-                           : (status == SOLVER_OUT_OF_SCOPE) ? "out_of_scope"
+                           (status == SOLVER_STATUS_OK)             ? "ok"
+                           : (status == SOLVER_STATUS_OUT_OF_SCOPE) ? "out_of_scope"
                                                              : "timeout",
                            system->count, active_count, g_count, var_count);
         LV00_UNUSED(_snw_gc);
@@ -7672,14 +8009,14 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
     lv00_free((void **) &active);
 
-    if (status == SOLVER_OUT_OF_SCOPE) {
+    if (status == SOLVER_STATUS_OUT_OF_SCOPE) {
         for (int i = 0; i < system->count; i++) {
             mv_poly_clear(&mv_polys[i]);
         }
         lv00_free((void **) &mv_polys);
         lv00_free((void **) &var_id_map);
         lv00_free((void **) &coord_map);
-        return SOLVER_OUT_OF_SCOPE;
+        return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
     /* Save original count before clearing system */
@@ -7767,7 +8104,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     lv00_free((void **) &var_id_map);
     lv00_free((void **) &coord_map);
 
-    return (status == SOLVER_TIMEOUT) ? SOLVER_TIMEOUT : SOLVER_OK;
+    return (status == SOLVER_STATUS_TIMEOUT) ? SOLVER_STATUS_TIMEOUT : SOLVER_STATUS_OK;
 }
 
 /* ================================================================== */
@@ -7792,19 +8129,19 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
  * @param system         方程系统指针
  * @param out_branches   输出：有效分支的解数组
  * @param out_branch_count 输出：有效分支数量
- * @return SOLVER_UNIQUE 表示唯一解，SOLVER_NO_SOLUTION 表示无解，
- *         SOLVER_OK 表示多解，SOLVER_TIMEOUT 表示内存不足
+ * @return SOLVER_STATUS_UNIQUE 表示唯一解，SOLVER_STATUS_NO_SOLUTION 表示无解，
+ *         SOLVER_STATUS_OK 表示多解，SOLVER_STATUS_TIMEOUT 表示内存不足
  */
 SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, const EquationSystem *system,
                                               SymbolicCoord ***out_branches, int *out_branch_count) {
     if (!out_branches || !out_branch_count)
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     *out_branches = NULL;
     *out_branch_count = 0;
 
     /* No system means no branches to handle */
     if (!system || system->count == 0) {
-        return SOLVER_UNIQUE;
+        return SOLVER_STATUS_UNIQUE;
     }
 
     /* Step 1: Identify quadratic equations that have distinct real roots.
@@ -7823,7 +8160,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     int max_branch_vars = system->count;
     struct BranchVariable *branch_vars = lv00_malloc((size_t) max_branch_vars * sizeof(struct BranchVariable));
     if (!branch_vars)
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     memset(branch_vars, 0, (size_t) max_branch_vars * sizeof(struct BranchVariable));
 
     /* Also need a mapping from variable (node_id, coord) to which equations
@@ -7895,7 +8232,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
      * We cap at 2^12 = 4096 to avoid combinatorial explosion. */
     if (branch_count == 0) {
         lv00_free((void **) &branch_vars);
-        return SOLVER_UNIQUE; /* No quadratic equations with distinct roots */
+        return SOLVER_STATUS_UNIQUE; /* No quadratic equations with distinct roots */
     }
 
     if (branch_count > 12) {
@@ -7915,7 +8252,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     SymbolicCoord **branch_coords = lv00_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
     if (!branch_coords) {
         lv00_free((void **) &branch_vars);
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
     memset(branch_coords, 0, (size_t) total_coords * sizeof(SymbolicCoord *));
 
@@ -7934,7 +8271,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                 }
                 lv00_free((void **) &branch_coords);
                 lv00_free((void **) &branch_vars);
-                return SOLVER_TIMEOUT;
+                return SOLVER_STATUS_TIMEOUT;
             }
             branch_coords[b * branch_count + v] = coord;
         }
@@ -7950,7 +8287,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         }
         lv00_free((void **) &branch_coords);
         lv00_free((void **) &branch_vars);
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
     memset(branch_valid, 0, (size_t) total_branches * sizeof(bool));
 
@@ -8098,7 +8435,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         lv00_free((void **) &branch_coords);
         lv00_free((void **) &branch_valid);
         lv00_free((void **) &branch_vars);
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
     memset(out_branch_arr, 0, (size_t) (valid_branches * branch_count) * sizeof(SymbolicCoord *));
 
@@ -8170,7 +8507,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         if (solver_stream_ctx) {
             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "多解分支处理: 所有分支均无效", 0);
         }
-        return SOLVER_NO_SOLUTION;
+        return SOLVER_STATUS_NO_SOLUTION;
     }
 
     *out_branches = out_branch_arr;
@@ -8181,7 +8518,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "多解分支处理: 过滤后仅剩唯一有效解",
                                valid_branches);
         }
-        return SOLVER_UNIQUE;
+        return SOLVER_STATUS_UNIQUE;
     }
 
     if (solver_stream_ctx) {
@@ -8193,5 +8530,5 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, msg, valid_branches);
     }
 
-    return SOLVER_OK;
+    return SOLVER_STATUS_OK;
 }

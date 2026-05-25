@@ -136,14 +136,17 @@ Check that the source file belongs to a CMake layer target (lv00_layerN_*)."
 /* 前向声明 —— Lv00Context 定义在 context.h 中，避免循环依赖 */
 struct Lv00Context;
 
-/* ── 引擎状态码（必须在 LV00Engine 结构体之前定义）── */
+/* ── 引擎状态码（必须在 LV00Engine 结构体之前定义）──
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
-    ENGINE_OK,                 /**< 操作成功完成 */
-    ENGINE_OUT_OF_MEMORY,      /**< 内存分配失败 */
-    ENGINE_INVALID_STATE,      /**< 引擎处于无效状态（如未初始化即调用） */
-    ENGINE_INVALID_ARGUMENT,   /**< 传入参数无效（空指针、越界等） */
-    ENGINE_CONSTRAINT_CONFLICT,/**< 约束冲突：无法满足的约束条件 */
-    ENGINE_MODULE_ERROR        /**< 模块加载/执行错误 */
+    ENGINE_STATUS_OK,                 /**< 操作成功完成 */
+    ENGINE_STATUS_OUT_OF_MEMORY,      /**< 内存分配失败 */
+    ENGINE_STATUS_INVALID_STATE,      /**< 引擎处于无效状态（如未初始化即调用） */
+    ENGINE_STATUS_INVALID_ARGUMENT,   /**< 传入参数无效（空指针、越界等） */
+    ENGINE_STATUS_CONSTRAINT_CONFLICT,/**< 约束冲突：无法满足的约束条件 */
+    ENGINE_STATUS_MODULE_ERROR,       /**< 模块加载/执行错误 */
+    ENGINE_STATUS_ERROR_INTERNAL      /**< 内部错误 */
 } EngineStatus;
 
 /* ============================================================
@@ -192,6 +195,8 @@ typedef enum {
  *
  * 引擎在其生命周期内严格遵循这些状态的转移规则。
  * 任何非法转移都将被拒绝并返回错误码。
+ *
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
     /** 空闲状态 —— 引擎已创建但尚未开始处理任何问题。
@@ -218,6 +223,24 @@ typedef enum {
 /**
  * @struct LV00Engine
  * @brief 引擎核心状态 —— Lv-00 系统的中央调度器
+ *
+ * 【封装性说明 —— 内部实现细节警告】
+ *   LV00Engine 结构体的字段定义属于引擎的内部实现细节。
+ *   外部代码（非 engine.c）不应直接访问或修改这些字段，否则可能
+ *   破坏引擎内部不变量，导致未定义行为。
+ *
+ *   推荐做法：
+ *   - 使用 engine.h 中声明的公共 API 函数操作引擎实例
+ *   - 通过 engine_get_state()、engine_get_last_status() 等访问器获取状态
+ *   - 不要直接读写 engine->state、engine->last_status 等字段
+ *
+ *   当前保留结构体字段在头文件中可见是为了：
+ *   1. 避免破坏现有 ABI（已发布的二进制兼容性）
+ *   2. 允许内联性能关键路径中的快速状态检查（需谨慎使用）
+ *   3. 为未来迁移到不透明指针（opaque pointer）模式预留过渡期
+ *
+ *   长期计划：当条件成熟时，将结构体定义迁移到 engine.c 内部，
+ *   头文件仅保留前向声明（typedef struct LV00Engine LV00Engine;）。
  *
  * LV00Engine 是整个 Lv-00 系统的核心数据结构，持有约束图、模块、公理包、
  * 重写规则等所有子系统资源，并协调它们之间的工作流程。
@@ -408,10 +431,41 @@ ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath);
  */
 AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepath);
 
-bool engine_pack_function(LV00Engine *engine, int *internal_node_ids, int internal_count, int *input_port_ids,
-                          int input_count, int *output_port_ids, int output_count, int *out_func_block_id);
+/**
+ * @brief 将一组内部节点打包为函数块
+ *
+ * 将引擎约束图中的若干内部节点封装为一个可复用的函数块。
+ * 打包后，调用者可通过返回的 func_block_id 在后续操作中引用该函数块。
+ *
+ * @param[in]  engine            引擎实例
+ * @param[in]  internal_node_ids 内部节点 ID 数组（将被打包的节点）
+ * @param[in]  internal_count    内部节点数量
+ * @param[in]  input_port_ids    输入端口节点 ID 数组（定义函数块的输入接口）
+ * @param[in]  input_count       输入端口数量
+ * @param[in]  output_port_ids   输出端口节点 ID 数组（定义函数块的输出接口）
+ * @param[in]  output_count      输出端口数量
+ * @param[out] out_func_block_id 输出：新创建的函数块 ID
+ * @return true 成功，false 失败（参数无效或内存不足）
+ */
+bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
+                          int input_count, const int *output_port_ids, int output_count, int *out_func_block_id);
 
-int *engine_instantiate_function(LV00Engine *engine, int func_block_id, int *arg_mappings, int arg_count,
+/**
+ * @brief 实例化一个已打包的函数块
+ *
+ * 根据给定的参数映射，在引擎约束图中创建指定函数块的一个实例。
+ * 实例化会复制函数块内部的节点和约束结构，并将输入/输出端口
+ * 绑定到映射表中指定的实际节点。
+ *
+ * @param[in]  engine          引擎实例
+ * @param[in]  func_block_id   要实例化的函数块 ID（由 engine_pack_function 创建）
+ * @param[in]  arg_mappings    参数映射数组：arg_mappings[i] 表示函数块的第 i 个输入端口
+ *                             映射到的实际节点 ID
+ * @param[in]  arg_count       参数映射数量（应与函数块的输入端口数量一致）
+ * @param[out] out_result_count 输出：实例化产生的结果（输出端口）数量
+ * @return 新创建的输出端口节点 ID 数组（调用者负责 free），失败返回 NULL
+ */
+int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const int *arg_mappings, int arg_count,
                                  int *out_result_count);
 
 UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, ConstraintGraph *proposition);
@@ -425,7 +479,9 @@ typedef enum {
     ENGINE_CIRCUIT_ERROR
 } EngineCircuitResult;
 
-/** @brief 位电路跳闸时的用户动作 */
+/** @brief 位电路跳闸时的用户动作
+ * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ */
 typedef enum {
     ENGINE_CIRCUIT_ACTION_IGNORE,   /**< 忽略，接受当前结果 */
     ENGINE_CIRCUIT_ACTION_ROLLBACK, /**< 回滚到冻结点快照 */
@@ -442,6 +498,48 @@ EngineStatus engine_get_last_status(const LV00Engine *engine);
  *         如无错误，返回空字符串。
  */
 const char *engine_get_last_error(const LV00Engine *engine);
+
+/**
+ * @brief 将引擎状态码转换为可读字符串（v3.4.1 新增）
+ *
+ * 提供所有 EngineStatus 枚举值的人类可读描述，支持国际化。
+ *
+ * @param status 引擎状态码
+ * @return 状态描述字符串（静态常量，无需释放）
+ *
+ * @note 返回的字符串为中文描述，用于日志记录和用户界面显示。
+ *       如果状态码未知，返回 "未知状态"。
+ *
+ * 示例:
+ * @code
+ *   EngineStatus status = engine_get_last_status(engine);
+ *   printf("操作结果: %s\n", engine_status_to_string(status));
+ * @endcode
+ */
+const char *engine_status_to_string(EngineStatus status);
+
+/**
+ * @brief 将引擎状态码转换为英文标识符字符串（v3.4.1 新增）
+ *
+ * 返回状态码的英文标识符，适合用于日志、配置文件和程序逻辑判断。
+ *
+ * @param status 引擎状态码
+ * @return 英文标识符字符串（静态常量，无需释放）
+ *
+ * @note 返回值格式为 ENGINE_STATUS_XXX，如 "ENGINE_STATUS_OK"。
+ *       如果状态码未知，返回 "ENGINE_STATUS_UNKNOWN"。
+ */
+const char *engine_status_to_identifier(EngineStatus status);
+
+/**
+ * @brief 获取引擎状态的详细描述（v3.4.1 新增）
+ *
+ * 返回包含状态码、描述和建议操作的完整信息。
+ *
+ * @param status 引擎状态码
+ * @return 详细描述字符串（静态常量，无需释放）
+ */
+const char *engine_status_get_description(EngineStatus status);
 
 /* ---- 工作流编排 ---- */
 
@@ -587,6 +685,20 @@ EngineStatus lv00_engine_transition_state(LV00Engine *engine, EngineState new_st
  * @return 当前状态枚举值
  */
 EngineState engine_get_state(const LV00Engine *engine);
+
+/**
+ * @brief 检查引擎是否正在忙于推理计算
+ *
+ * 引擎在 REASONING 状态下无法接受新的求解请求、修改约束图拓扑
+ * 或执行销毁操作。此函数提供一个便捷的忙状态查询接口。
+ *
+ * @param engine 引擎实例（可为 NULL，返回 false）
+ * @return true 表示引擎繁忙（处于 REASONING 状态），false 表示空闲可接受请求
+ *
+ * @note 等价于 engine_get_state(engine) == ENGINE_STATE_REASONING
+ * @see engine_get_state()
+ */
+bool engine_is_busy(const LV00Engine *engine);
 
 /**
  * @brief 获取状态的可读名称

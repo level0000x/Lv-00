@@ -70,7 +70,8 @@ typedef enum {
     TYPE_KIND_SUM,          /* 和类型 */
     TYPE_KIND_VARIABLE,     /* 类型变量（多态） */
     TYPE_KIND_DEPENDENT,    /* 依赖类型 */
-    TYPE_KIND_BOTTOM        /* ⊥ 类型 */
+    TYPE_KIND_BOTTOM,       /* ⊥ 类型 */
+    TYPE_KIND_PREDICATE_SUBTYPE /* PVS风格谓词子类型 {x:T | P(x)} */
 } TypeKind;
 
 /* ============== 类型区域 ============== */
@@ -145,6 +146,12 @@ struct TypeRegion {
     /* 对于依赖类型 */
     int param_node_id;     /* 参数节点ID */
     TypeRegion *body_type; /* 体类型 */
+
+    /* 对于PVS风格谓词子类型 {x:base_type | predicate} */
+    TypeRegion *base_type;      /* 基类型 T */
+    char *predicate_name;       /* 谓词名称 P */
+    char *predicate_expr;       /* 谓词表达式字符串 */
+    int predicate_constraint_id; /* 关联的约束ID（用于验证） */
 
     /* 类型别名 */
     char *alias_name;         /* 别名名称 */
@@ -381,6 +388,34 @@ TypeRegion *type_create_dependent(TypeSystem *ts, int param_id, TypeRegion *body
  * 创建底部类型
  */
 TypeRegion *type_create_bottom(TypeSystem *ts);
+
+/**
+ * 创建PVS风格谓词子类型 {x:base_type | predicate}
+ * @param ts 类型系统
+ * @param base_type 基类型 T
+ * @param predicate_name 谓词名称 P
+ * @param predicate_expr 谓词表达式（可选，用于显示）
+ * @return 新创建的谓词子类型
+ */
+TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
+                                          const char *predicate_name,
+                                          const char *predicate_expr);
+
+/**
+ * 验证值是否满足谓词子类型的约束
+ * @param ts 类型系统
+ * @param subtype 谓词子类型
+ * @param node_id 要验证的节点ID
+ * @return true 满足谓词约束，false 不满足或出错
+ */
+bool type_check_predicate_subtype_value(TypeSystem *ts, TypeRegion *subtype, int node_id);
+
+/**
+ * 获取谓词子类型的基类型
+ * @param subtype 谓词子类型
+ * @return 基类型，如果不是谓词子类型则返回NULL
+ */
+TypeRegion *type_predicate_subtype_get_base(TypeRegion *subtype);
 
 /**
  * 销毁类型区域

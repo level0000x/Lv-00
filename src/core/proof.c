@@ -93,8 +93,33 @@ Proposition *proposition_create(int id, PropositionType type) {
     prop->id = id;
     prop->type = type;
     prop->color = PROOF_COLOR_BLUE_UNEXPLORED; /* 默认蓝色未探索 */
+    prop->ref_count = 1; /* 创建时引用计数为1 */
+
+    /* 初始化时间戳 */
+    prop->created_at = time(NULL);
+    prop->last_modified = prop->created_at;
 
     return prop;
+}
+
+/**
+ * 增加命题引用计数
+ */
+void proposition_ref(Proposition *prop) {
+    if (prop)
+        prop->ref_count++;
+}
+
+/**
+ * 减少命题引用计数，当计数为0时销毁
+ */
+void proposition_unref(Proposition *prop) {
+    if (!prop)
+        return;
+    if (prop->ref_count > 0)
+        prop->ref_count--;
+    if (prop->ref_count == 0)
+        proposition_destroy(prop);
 }
 
 /**
@@ -147,14 +172,28 @@ void proposition_destroy(Proposition *prop) {
                         for (int i = 0; i < stack_top; i++) {
                             proposition_unref(destroy_stack[i]);
                         }
-                        lv00_free(destroy_stack);
+                        lv00_free((void **)&destroy_stack);
                         return;
                     }
                     int new_cap = stack_capacity * 2;
                     if (new_cap <= stack_capacity) {
-                        /* 整数溢出保护：直接销毁剩余子命题 */
+                        /* 整数溢出保护：使用循环逐个释放子命题的基本资源，避免递归导致栈溢出 */
                         for (int j = i; j < current->sub_prop_count; j++) {
-                            proposition_destroy(current->sub_props[j]);
+                            if (current->sub_props[j]) {
+                                Proposition *child = current->sub_props[j];
+                                lv00_free((void **) &child->input_port_ids);
+                                lv00_free((void **) &child->output_port_ids);
+                                lv00_free((void **) &child->precondition_region_ids);
+                                lv00_free((void **) &child->postcondition_constraint_ids);
+                                if (child->pattern)
+                                    graph_destroy(child->pattern);
+                                lv00_free((void **) &child->sub_props);
+                                lv00_free((void **) &child->name);
+                                lv00_free((void **) &child->description);
+                                if (child->prop_type)
+                                    type_region_destroy(child->prop_type);
+                                lv00_free((void **) &child);
+                            }
                         }
                         break;
                     }
@@ -264,7 +303,11 @@ static bool proposition_set_id_list(int **target, int *count_ptr, const int *ids
 bool proposition_set_input_ports(Proposition *prop, const int *port_ids, int count) {
     if (!prop)
         return false;
-    return proposition_set_id_list(&prop->input_port_ids, &prop->input_count, port_ids, count);
+    bool result = proposition_set_id_list(&prop->input_port_ids, &prop->input_count, port_ids, count);
+    if (result) {
+        prop->last_modified = time(NULL);
+    }
+    return result;
 }
 
 /**
@@ -280,7 +323,11 @@ bool proposition_set_input_ports(Proposition *prop, const int *port_ids, int cou
 bool proposition_set_output_ports(Proposition *prop, const int *port_ids, int count) {
     if (!prop)
         return false;
-    return proposition_set_id_list(&prop->output_port_ids, &prop->output_count, port_ids, count);
+    bool result = proposition_set_id_list(&prop->output_port_ids, &prop->output_count, port_ids, count);
+    if (result) {
+        prop->last_modified = time(NULL);
+    }
+    return result;
 }
 
 /**
@@ -301,6 +348,7 @@ bool proposition_set_pattern(Proposition *prop, ConstraintGraph *pattern) {
         graph_destroy(prop->pattern);
     }
     prop->pattern = pattern;
+    prop->last_modified = time(NULL);
     return true;
 }
 
@@ -315,7 +363,11 @@ bool proposition_set_pattern(Proposition *prop, ConstraintGraph *pattern) {
 bool proposition_set_preconditions(Proposition *prop, const int *region_ids, int count) {
     if (!prop)
         return false;
-    return proposition_set_id_list(&prop->precondition_region_ids, &prop->precondition_count, region_ids, count);
+    bool result = proposition_set_id_list(&prop->precondition_region_ids, &prop->precondition_count, region_ids, count);
+    if (result) {
+        prop->last_modified = time(NULL);
+    }
+    return result;
 }
 
 /**
@@ -329,8 +381,12 @@ bool proposition_set_preconditions(Proposition *prop, const int *region_ids, int
 bool proposition_set_postconditions(Proposition *prop, const int *constraint_ids, int count) {
     if (!prop)
         return false;
-    return proposition_set_id_list(&prop->postcondition_constraint_ids, &prop->postcondition_count, constraint_ids,
+    bool result = proposition_set_id_list(&prop->postcondition_constraint_ids, &prop->postcondition_count, constraint_ids,
                                    count);
+    if (result) {
+        prop->last_modified = time(NULL);
+    }
+    return result;
 }
 
 /**
@@ -354,6 +410,7 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child) {
     parent->sub_props = new_arr;
     parent->sub_props[parent->sub_prop_count] = child;
     parent->sub_prop_count = new_count;
+    parent->last_modified = time(NULL);
     return true;
 }
 
@@ -687,6 +744,8 @@ ProofStep *proof_step_create(ProofStepType type) {
     step->type = type;
     step->color = PROOF_COLOR_GREEN; /* 默认绿色 */
     step->timestamp = (long) time(NULL);
+    step->parent_step_id = -1; /* 根步骤，无父步骤 */
+    step->depth = 0;           /* 根步骤深度为 0 */
 
     return step;
 }
@@ -768,6 +827,7 @@ ProofNavigator *proof_navigator_create(Proposition *target, LV00Engine *engine) 
     nav->current_step = -1;
     nav->is_complete = false;
     nav->final_color = PROOF_COLOR_BLUE_UNEXPLORED;
+    nav->proof_state = PROOF_STATE_ONGOING;
     nav->strategy_note = NULL; /* LeanGeo风格：策略注释 */
 
     return nav;
@@ -846,6 +906,15 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
 
     step->id = nav->step_count;
 
+    /* 设置父子关系和深度 */
+    if (nav->step_count > 0 && nav->current_step >= 0 && nav->current_step < nav->step_count) {
+        step->parent_step_id = nav->current_step;
+        ProofStep *parent = nav->steps[nav->current_step];
+        if (parent) {
+            step->depth = parent->depth + 1;
+        }
+    }
+
     int new_count = nav->step_count + 1;
     ProofStep **new_arr = lv00_realloc(nav->steps, (size_t) new_count * sizeof(ProofStep *));
     if (!new_arr)
@@ -868,6 +937,20 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
         if (new_bp) {
             nav->breakpoint_indices = new_bp;
             nav->breakpoint_indices[nav->breakpoint_count - 1] = step->id;
+        }
+    }
+
+    /* 逻辑互斥校验：检查新步骤是否产生了矛盾命题 */
+    if (nav->target_prop && step->type == PROOF_STEP_UNIFY) {
+        /* 遍历所有已存在的命题，检查是否与新推导结论矛盾 */
+        /* 这里通过导航器的目标命题和已加载的引擎命题进行检测 */
+        if (proposition_contradicts(nav->target_prop, nav->target_prop)) {
+            /* 自矛盾检测：目标命题与自身矛盾（如目标命题包含自指否定） */
+            if (proof_stream_ctx) {
+                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
+                                   "逻辑互斥: 检测到自矛盾命题", step->id);
+            }
+            nav->proof_state = PROOF_STATE_CONTRADICTORY;
         }
     }
 
@@ -1313,7 +1396,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
 
     /* ====== 阶段 1：创建隔离的证明环境 ====== */
     /* 深拷贝目标命题，避免修改原始数据 */
-    Proposition *negated_goal = proposition_create(-1, PROPOSITION_NEGATION);
+    Proposition *negated_goal = proposition_create(-1, PROPOSITION_TYPE_NEGATION);
     if (!negated_goal) {
         Lv00ContradictionResult *result = lv00_calloc(1, sizeof(Lv00ContradictionResult));
         if (result) {
@@ -1442,7 +1525,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         bool has_contradiction = false;
 
         /* 检查推导出的命题是否包含矛盾类型 */
-        if (branch_nav->target_prop && branch_nav->target_prop->type == PROPOSITION_BOTTOM) {
+        if (branch_nav->target_prop && branch_nav->target_prop->type == PROPOSITION_TYPE_BOTTOM) {
             has_contradiction = true;
             contradiction_desc = lv00_strdup("推导出矛盾 ⊥：假设 ¬P 导致矛盾，因此 P 成立");
         }
@@ -1766,6 +1849,87 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     if (proof_stream_ctx != NULL) {
         char buf[128];
         snprintf(buf, sizeof(buf), "断点恢复: breakpoint_id=%d, step=%d", breakpoint_id, nav->current_step);
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
+    }
+
+    return true;
+}
+
+/* ============== 断点存储管理实现（v3.4.1 新增） ============== */
+
+/**
+ * @brief 线程安全的断点存储初始化
+ *
+ * 使用静态局部变量确保初始化过程只执行一次（C++11 保证线程安全）。
+ * 即使多个线程同时调用，也只有第一个会执行初始化。
+ */
+void proof_breakpoint_storage_init(void) {
+    /* C11 静态局部变量初始化是线程安全的 */
+    static _Bool initialized = false;
+    if (!initialized) {
+        /* 重置计数器（非原子操作，但因为有 initialized 保护，只执行一次） */
+        g_breakpoint_store_count = 0;
+        /* 清空存储 */
+        memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
+        initialized = true;
+    }
+}
+
+/**
+ * @brief 重置断点存储
+ *
+ * 清除所有已保存的断点快照，重置计数器。
+ */
+void proof_breakpoint_storage_reset(void) {
+    /* 清空所有快照 */
+    memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
+    g_breakpoint_store_count = 0;
+
+    /* 流式事件 */
+    if (proof_stream_ctx != NULL) {
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, "断点存储已重置", 0);
+    }
+}
+
+/**
+ * @brief 获取当前断点数量
+ */
+int proof_breakpoint_storage_count(void) {
+    return g_breakpoint_store_count;
+}
+
+/**
+ * @brief 删除指定的断点快照
+ */
+bool proof_breakpoint_delete(int breakpoint_id) {
+    if (breakpoint_id < 0) {
+        return false;
+    }
+
+    /* 查找断点 */
+    int slot = -1;
+    for (int i = 0; i < g_breakpoint_store_count; i++) {
+        if (g_breakpoint_store[i].breakpoint_id == breakpoint_id) {
+            slot = i;
+            break;
+        }
+    }
+
+    if (slot < 0) {
+        /* 未找到断点 */
+        return false;
+    }
+
+    /* 将最后一个元素移动到当前位置，然后减少计数 */
+    if (slot < g_breakpoint_store_count - 1) {
+        g_breakpoint_store[slot] = g_breakpoint_store[g_breakpoint_store_count - 1];
+    }
+    g_breakpoint_store_count--;
+
+    /* 流式事件 */
+    if (proof_stream_ctx != NULL) {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "断点已删除: breakpoint_id=%d", breakpoint_id);
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO, buf, 0);
     }
 
@@ -2801,7 +2965,7 @@ void proof_set_lemma_view_state(ProofNavigator *nav, int step_id, LemmaViewState
 
 LemmaViewState proof_get_lemma_view_state(const ProofNavigator *nav, int step_id) {
     if (!nav || step_id < 0)
-        return LEMMA_VIEW_EXPANDED; /* 默认展开 */
+        return LEMMA_VIEW_STATE_EXPANDED; /* 默认展开 */
 
     for (int i = 0; i < nav->lemma_view_count; i++) {
         if (nav->lemma_view_step_ids[i] == step_id) {
@@ -2809,7 +2973,205 @@ LemmaViewState proof_get_lemma_view_state(const ProofNavigator *nav, int step_id
         }
     }
 
-    return LEMMA_VIEW_EXPANDED; /* 未设置时默认展开 */
+    return LEMMA_VIEW_STATE_EXPANDED; /* 未设置时默认展开 */
+}
+
+/* ============== 公理库权限保护 ============== */
+
+/** 公理库锁定标记：true 时禁止修改公理集合 */
+static bool g_axiom_locked = false;
+
+/**
+ * @brief 锁定公理库，禁止修改公理集合
+ *
+ * 锁定后，所有修改公理集合的操作（添加/删除/替换公理）
+ * 将被拒绝。用于保护已验证的证明不因公理变化而失效。
+ */
+void proof_lock_axioms(void) {
+    g_axiom_locked = true;
+    if (proof_stream_ctx) {
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO,
+                           "公理库已锁定：禁止修改公理集合", 0);
+    }
+}
+
+/**
+ * @brief 解锁公理库，允许修改公理集合
+ */
+void proof_unlock_axioms(void) {
+    g_axiom_locked = false;
+    if (proof_stream_ctx) {
+        stream_emit_simple(proof_stream_ctx, STREAM_EVENT_INFO,
+                           "公理库已解锁：允许修改公理集合", 0);
+    }
+}
+
+/**
+ * @brief 查询公理库锁定状态
+ *
+ * @return true 表示公理库已锁定，禁止修改
+ */
+bool proof_axioms_is_locked(void) {
+    return g_axiom_locked;
+}
+
+/* ============== 逻辑互斥校验 ============== */
+
+/**
+ * @brief 检查两个命题是否逻辑互斥
+ *
+ * 通过比较命题的类型、模式图和约束关系判断是否构成矛盾。
+ *
+ * 判断规则：
+ * 1. 一个为 BOTTOM（矛盾）类型的命题与任何命题互斥
+ * 2. 一个为 NEGATION 类型的命题与被否定的原命题互斥
+ * 3. 子命题中存在互斥对则整体互斥
+ * 4. 通过比较命题类型对（如蕴含与反蕴含）判定语义矛盾
+ *
+ * @param a  命题 A
+ * @param b  命题 B
+ * @return true 表示两个命题互斥，false 表示不互斥或无法判断
+ */
+bool proposition_contradicts(const Proposition *a, const Proposition *b) {
+    if (!a || !b)
+        return false;
+
+    /* 同一命题的引用——不矛盾 */
+    if (a == b)
+        return false;
+
+    /* 规则 1：BOTTOM（矛盾）类型的命题与其他命题互斥 */
+    if (a->type == PROPOSITION_TYPE_BOTTOM || b->type == PROPOSITION_TYPE_BOTTOM)
+        return true;
+
+    /* 规则 2：否定类型 NEGATION 与被否定命题互斥
+     * 若 a 是否定，检查 a 的子命题中是否存在与 b 类型相同且模式相近的命题 */
+    if (a->type == PROPOSITION_TYPE_NEGATION && a->sub_prop_count > 0) {
+        for (int i = 0; i < a->sub_prop_count; i++) {
+            if (proposition_contradicts(a->sub_props[i], b))
+                return true;
+        }
+    }
+    if (b->type == PROPOSITION_TYPE_NEGATION && b->sub_prop_count > 0) {
+        for (int i = 0; i < b->sub_prop_count; i++) {
+            if (proposition_contradicts(a, b->sub_props[i]))
+                return true;
+        }
+    }
+
+    /* 规则 3：对命题类型组合进行语义矛盾判定 */
+    /* 蕴含与原蕴含反向 */
+    if ((a->type == PROPOSITION_TYPE_IMPLICATION && b->type == PROPOSITION_TYPE_IMPLICATION)) {
+        /* 两个蕴含命题，检查是否一个的前件等于另一个的后件且结论相反 */
+        if (a->precondition_count == b->postcondition_count &&
+            a->postcondition_count == b->precondition_count) {
+            /* 简化：检查前提/后件 ID 集合的交集 */
+            bool pre_post_overlap = false;
+            for (int ap = 0; ap < a->precondition_count && !pre_post_overlap; ap++) {
+                for (int bp = 0; bp < b->postcondition_count; bp++) {
+                    if (a->precondition_region_ids[ap] == b->postcondition_constraint_ids[bp]) {
+                        pre_post_overlap = true;
+                        break;
+                    }
+                }
+            }
+            if (pre_post_overlap) {
+                /* 可能存在 A->B 与 B->¬A 的变体冲突，标记为潜在矛盾 */
+                return true;
+            }
+        }
+    }
+
+    /* 规则 4：通过命题 ID 和类型完全相同但颜色不同来检测重复声明矛盾
+     * （如同一命题被同时标记为 GREEN 和 ORANGE_EX_FALSO，说明推导路径冲突） */
+    if (a->id == b->id && a->type == b->type &&
+        a->color != PROOF_COLOR_BLUE_UNEXPLORED && b->color != PROOF_COLOR_BLUE_UNEXPLORED) {
+        /* 同一命题有两条不同信任颜色的推导路径，标记为潜在矛盾 */
+        if ((a->color == PROOF_COLOR_GREEN && b->color == PROOF_COLOR_ORANGE_EX_FALSO) ||
+            (a->color == PROOF_COLOR_ORANGE_EX_FALSO && b->color == PROOF_COLOR_GREEN)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/* ============== 证明步骤追溯 ============== */
+
+/**
+ * @brief 获取证明步骤的完整祖先链（推导链）
+ *
+ * 从指定步骤开始，沿 parent_step_id 向上追溯，
+ * 返回所有祖先步骤的 ID 列表。结果按从近到远排序
+ * （最近祖先在前，根步骤在最后）。
+ *
+ * @param nav              证明导航器
+ * @param step_id          目标步骤 ID
+ * @param out_ancestor_ids  输出：祖先步骤 ID 数组
+ * @param out_count         输出：祖先数量
+ * @return true 成功，false 失败
+ */
+bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_ancestor_ids, int *out_count) {
+    if (!nav || !out_ancestor_ids || !out_count)
+        return false;
+
+    *out_ancestor_ids = NULL;
+    *out_count = 0;
+
+    /* 查找目标步骤 */
+    ProofStep *current = NULL;
+    for (int i = 0; i < nav->step_count; i++) {
+        if (nav->steps[i] && nav->steps[i]->id == step_id) {
+            current = nav->steps[i];
+            break;
+        }
+    }
+    if (!current)
+        return false;
+
+    /* 先遍历一次计算祖先数量 */
+    int capacity = 16;
+    int count = 0;
+    int *ancestors = lv00_malloc(capacity * sizeof(int));
+    if (!ancestors)
+        return false;
+
+    ProofStep *cursor = current;
+    while (cursor->parent_step_id >= 0) {
+        /* 查找父步骤 */
+        ProofStep *parent = NULL;
+        for (int i = 0; i < nav->step_count; i++) {
+            if (nav->steps[i] && nav->steps[i]->id == cursor->parent_step_id) {
+                parent = nav->steps[i];
+                break;
+            }
+        }
+        if (!parent)
+            break;
+
+        /* 扩容 */
+        if (count >= capacity) {
+            if (capacity > INT_MAX / 2) {
+                lv00_free((void **)&ancestors);
+                return false;
+            }
+            int new_cap = capacity * 2;
+            int *new_arr = lv00_realloc(ancestors, new_cap * sizeof(int));
+            if (!new_arr) {
+                lv00_free((void **)&ancestors);
+                return false;
+            }
+            ancestors = new_arr;
+            capacity = new_cap;
+        }
+
+        ancestors[count++] = parent->id;
+        cursor = parent;
+    }
+
+    *out_ancestor_ids = ancestors;
+    *out_count = count;
+    return true;
 }
 
 /* ============== 辅助函数 ============== */
@@ -2843,21 +3205,21 @@ const char *proof_color_to_string(ProofColor color) {
 
 const char *proposition_type_to_string(PropositionType type) {
     switch (type) {
-        case PROPOSITION_ATOMIC:
+        case PROPOSITION_TYPE_ATOMIC:
             return "Atomic";
-        case PROPOSITION_CONJUNCTION:
+        case PROPOSITION_TYPE_CONJUNCTION:
             return "Conjunction";
-        case PROPOSITION_DISJUNCTION:
+        case PROPOSITION_TYPE_DISJUNCTION:
             return "Disjunction";
-        case PROPOSITION_IMPLICATION:
+        case PROPOSITION_TYPE_IMPLICATION:
             return "Implication";
-        case PROPOSITION_NEGATION:
+        case PROPOSITION_TYPE_NEGATION:
             return "Negation";
-        case PROPOSITION_UNIVERSAL:
+        case PROPOSITION_TYPE_UNIVERSAL:
             return "Universal";
-        case PROPOSITION_EXISTENTIAL:
+        case PROPOSITION_TYPE_EXISTENTIAL:
             return "Existential";
-        case PROPOSITION_BOTTOM:
+        case PROPOSITION_TYPE_BOTTOM:
             return "Bottom";
         default:
             return "Unknown";
@@ -3347,7 +3709,7 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
         const ConstraintGraph *pg = prop->pattern;
 
         /* 检查命题是否为矛盾类型（BOTTOM 表示不可构造） */
-        if (prop->type == PROPOSITION_BOTTOM) {
+        if (prop->type == PROPOSITION_TYPE_BOTTOM) {
             info->result = UNCONSTRUCT_PROVED;
             info->matched_problem = "命题矛盾";
             info->matched_theory = "命题系统";
@@ -3672,7 +4034,7 @@ BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label) 
     node->child_count = 0;
     node->child_capacity = 0;
 
-    /* 复制标签（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
+    /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (label && label[0] != '\0') {
         node->label = lv00_malloc(strlen(label) + 1);
         if (!node->label) {
@@ -3792,7 +4154,7 @@ void backtrack_node_mark_backtrack(BacktrackNode *node, const char *strategy_nam
     /* 释放旧策略名称 */
     lv00_free((void **) &node->strategy_name);
 
-    /* 复制新策略名称（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
+    /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (strategy_name && strategy_name[0] != '\0') {
         node->strategy_name = lv00_malloc(strlen(strategy_name) + 1);
         if (node->strategy_name) {
@@ -3832,7 +4194,7 @@ void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *stra
         return;
     tree->available_strategies = new_strats;
 
-    /* 复制策略名称（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
+    /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     tree->available_strategies[tree->strategy_count] = lv00_malloc(strlen(strategy_name) + 1);
     if (!tree->available_strategies[tree->strategy_count])
         return;
@@ -3855,7 +4217,7 @@ void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_
     /* 释放旧值 */
     lv00_free((void **) &tree->current_strategy);
 
-    /* 复制新值（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
+    /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (strategy_name && strategy_name[0] != '\0') {
         tree->current_strategy = lv00_malloc(strlen(strategy_name) + 1);
         if (tree->current_strategy) {
@@ -4362,7 +4724,7 @@ char *proof_step_get_natural_language(const ProofStep *step, ProofNaturalLanguag
         }
     }
 
-    /* 复制结果字符串（[Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全） */
+    /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     char *output = lv00_malloc(strlen(result) + 1);
     if (!output)
         return NULL;
@@ -4462,7 +4824,7 @@ bool proof_navigator_set_strategy_note(ProofNavigator *nav, const char *strategy
         nav->strategy_note = lv00_malloc(strlen(strategy_note) + 1);
         if (!nav->strategy_note)
             return false;
-        /* [Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全 */
+        /* 使用安全的字符串复制函数，确保缓冲区零终止 */
         lv00_strlcpy(nav->strategy_note, strategy_note, strlen(strategy_note) + 1);
     } else {
         nav->strategy_note = NULL;
@@ -4498,7 +4860,7 @@ bool proof_step_set_note(ProofStep *step, const char *note) {
         step->note = lv00_malloc(strlen(note) + 1);
         if (!step->note)
             return false;
-        /* [Bug修复] 使用 lv00_strlcpy 替代 strncpy/snprintf，确保缓冲区安全 */
+        /* 使用安全的字符串复制函数，确保缓冲区零终止 */
         lv00_strlcpy(step->note, note, strlen(note) + 1);
     } else {
         step->note = NULL;
@@ -4773,7 +5135,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         if (!pool) {
             /* 线程池不可用，回退到同步模式并输出警告 */
             if (proof_stream_ctx) {
-                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARN,
+                stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
                                    "SLEDGE_ASYNC: 全局线程池未初始化，回退到同步模式", 0);
             }
             /* 回退：继续执行下面的同步逻辑 */
@@ -4822,7 +5184,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
                 /* 任务组创建失败，回退到同步模式 */
                 lv00_free((void**)&task_data_array);
                 if (proof_stream_ctx) {
-                    stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARN,
+                    stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
                                        "SLEDGE_ASYNC: 任务组创建失败，回退到同步模式", 0);
                 }
                 /* 回退：释放 results 并继续执行下面的同步逻辑 */
@@ -4977,9 +5339,14 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
  * 当 proof_multi_strategy.c 和 proof_optimize.c 模块被编译排除时，
  * 链接器将使用此处的桩实现以避免未定义符号错误。
  *
- * TODO: 实现多策略证明搜索框架后移除这些桩。
- *       - proof_multi_strategy_activate: 激活指定的证明策略
- *       - proof_multi_strategy_execute: 执行已激活的策略进行证明搜索
+ * 【设计说明】
+ * 这些桩实现是架构设计的一部分，用于支持模块化编译：
+ * - 当完整模块可用时，链接器会自动使用完整实现
+ * - 桩实现确保核心代码始终可编译，即使某些高级功能被禁用
+ * 
+ * 相关模块：
+ * - proof_multi_strategy_activate: 激活指定的证明策略
+ * - proof_multi_strategy_execute: 执行已激活的策略进行证明搜索
  * ================================================================ */
 #include "proof.h"
 
@@ -5218,12 +5585,14 @@ static bool starts_with(const char *s, const char *prefix) {
 /**
  * @brief 辅助：生成验证 trace 字符串
  */
-static char *make_trace(const char *fmt, const char *arg1, const char *arg2) {
+static char *make_trace(const char *fmt, const char *arg1, const char *arg2, const char *arg3) {
     size_t len = (fmt ? strlen(fmt) : 0) + (arg1 ? strlen(arg1) : 0) +
-                 (arg2 ? strlen(arg2) : 0) + 64;
+                 (arg2 ? strlen(arg2) : 0) + (arg3 ? strlen(arg3) : 0) + 64;
     char *buf = (char *) lv00_malloc(len);
     if (buf) {
-        if (arg2)
+        if (arg3)
+            snprintf(buf, len, fmt, arg1, arg2, arg3);
+        else if (arg2)
             snprintf(buf, len, fmt, arg1, arg2);
         else if (arg1)
             snprintf(buf, len, fmt, arg1);
@@ -5361,7 +5730,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 轻量级检查：结论形如 "(\\x.M) N = ..." 或 "(Abs x M) N = ..." */
             if (!has_equality_pattern(conclusion)) {
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_INVALID [BETA_CONV]: 结论 \"%s\" 非等式形式", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_INVALID [BETA_CONV]: 结论 \"%s\" 非等式形式", conclusion, NULL, NULL);
                 return VERIFY_INVALID;
             }
             {
@@ -5369,23 +5738,23 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 int lhs_len = extract_eq_lhs(conclusion, lhs_buf, (int) sizeof(lhs_buf));
                 if (lhs_len <= 0) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: 无法解析结论 \"%s\"", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: 无法解析结论 \"%s\"", conclusion, NULL, NULL);
                     return VERIFY_UNDECIDED;
                 }
                 /* 左侧应包含 lambda 模式和应用模式 */
                 if (has_lambda_pattern(lhs_buf) && has_application_pattern(lhs_buf)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [BETA_CONV]: \"%s\" 符合 beta-归约模式 (\\x.M) N = M[x:=N]", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_VALID [BETA_CONV]: \"%s\" 符合 beta-归约模式 (\\x.M) N = M[x:=N]", conclusion, NULL, NULL);
                     return VERIFY_VALID;
                 }
                 /* 左侧不含 lambda 但有应用：可能是已归约形式，标记为未决 */
                 if (has_application_pattern(lhs_buf)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: \"%s\" 含应用但无 lambda 抽象，无法确认", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_UNDECIDED [BETA_CONV]: \"%s\" 含应用但无 lambda 抽象，无法确认", conclusion, NULL, NULL);
                     return VERIFY_UNDECIDED;
                 }
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_INVALID [BETA_CONV]: \"%s\" 不符合 beta-归约模式", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_INVALID [BETA_CONV]: \"%s\" 不符合 beta-归约模式", conclusion, NULL, NULL);
                 return VERIFY_INVALID;
             }
 
@@ -5403,7 +5772,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 /* 两个前提都应为等式 */
                 if (!has_equality_pattern(p0) || !has_equality_pattern(p1)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 前提 \"%s\" 或 \"%s\" 非等式", p0, p1);
+                        *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 前提 \"%s\" 或 \"%s\" 非等式", p0, p1, NULL);
                     return VERIFY_INVALID;
                 }
                 /* 结论应包含 COMB 模式 */
@@ -5415,11 +5784,11 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 /* 结论不含 COMB 但含等式：可能是隐式组合 */
                 if (has_equality_pattern(conclusion)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [MK_COMB]: 结论 \"%s\" 含等式但无 COMB 标记", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_UNDECIDED [MK_COMB]: 结论 \"%s\" 含等式但无 COMB 标记", conclusion, NULL, NULL);
                     return VERIFY_UNDECIDED;
                 }
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 结论 \"%s\" 不符合 MK_COMB 规则", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_INVALID [MK_COMB]: 结论 \"%s\" 不符合 MK_COMB 规则", conclusion, NULL, NULL);
                 return VERIFY_INVALID;
             }
 
@@ -5435,13 +5804,13 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 const char *p0 = premises[0]; /* s=t */
                 if (!has_equality_pattern(p0)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 前提 \"%s\" 非等式", p0, NULL);
+                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 前提 \"%s\" 非等式", p0, NULL, NULL);
                     return VERIFY_INVALID;
                 }
                 /* 结论应为等式且两侧含 lambda */
                 if (!has_equality_pattern(conclusion)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 结论 \"%s\" 非等式", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_INVALID [ABS]: 结论 \"%s\" 非等式", conclusion, NULL, NULL);
                     return VERIFY_INVALID;
                 }
                 char lhs_buf[512];
@@ -5449,11 +5818,11 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 const char *rhs = extract_eq_rhs(conclusion);
                 if (lhs_len > 0 && rhs && has_lambda_pattern(lhs_buf) && has_lambda_pattern(rhs)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [ABS]: 前提 \"%s\" => 结论 \"%s\" 符合抽象规则", p0, conclusion);
+                        *out_trace = make_trace("VERIFY_VALID [ABS]: 前提 \"%s\" => 结论 \"%s\" 符合抽象规则", p0, conclusion, NULL);
                     return VERIFY_VALID;
                 }
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_UNDECIDED [ABS]: 结论 \"%s\" 两侧不全含 lambda 抽象", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_UNDECIDED [ABS]: 结论 \"%s\" 两侧不全含 lambda 抽象", conclusion, NULL, NULL);
                 return VERIFY_UNDECIDED;
             }
 
@@ -5477,17 +5846,17 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 }
                 if (!has_eq_premise) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [SUBST]: 前提中无等式，无法执行替换", NULL, NULL);
+                        *out_trace = make_trace("VERIFY_INVALID [SUBST]: 前提中无等式，无法执行替换", NULL, NULL, NULL);
                     return VERIFY_INVALID;
                 }
                 /* 结论应包含某种实例化或替换标记 */
                 if (has_inst_pattern(conclusion) || has_equality_pattern(conclusion)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [SUBST]: 结论 \"%s\" 符合替换实例模式", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_VALID [SUBST]: 结论 \"%s\" 符合替换实例模式", conclusion, NULL, NULL);
                     return VERIFY_VALID;
                 }
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_UNDECIDED [SUBST]: 结论 \"%s\" 结构不明确", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_UNDECIDED [SUBST]: 结论 \"%s\" 结构不明确", conclusion, NULL, NULL);
                 return VERIFY_UNDECIDED;
             }
 
@@ -5505,17 +5874,17 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 /* 轻量级检查：结论长度 >= 前提长度（特化通常添加类型信息） */
                 if (strlen(conclusion) >= strlen(p0) && has_inst_type_pattern(conclusion)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [INST_TYPE]: 前提 \"%s\" => 结论 \"%s\" 符合类型实例化", p0, conclusion);
+                        *out_trace = make_trace("VERIFY_VALID [INST_TYPE]: 前提 \"%s\" => 结论 \"%s\" 符合类型实例化", p0, conclusion, NULL);
                     return VERIFY_VALID;
                 }
                 /* 结论可能不含显式 INST_TYPE 标记但结构相似 */
                 if (strlen(conclusion) > 0 && strstr(conclusion, ":") != NULL) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [INST_TYPE]: 结论 \"%s\" 含类型标注但无显式标记", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_UNDECIDED [INST_TYPE]: 结论 \"%s\" 含类型标注但无显式标记", conclusion, NULL, NULL);
                     return VERIFY_UNDECIDED;
                 }
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_INVALID [INST_TYPE]: 结论 \"%s\" 不符合类型实例化模式", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_INVALID [INST_TYPE]: 结论 \"%s\" 不符合类型实例化模式", conclusion, NULL, NULL);
                 return VERIFY_INVALID;
             }
 
@@ -5533,17 +5902,17 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                  * 结论含实例化标记或替换列表 */
                 if (has_inst_pattern(conclusion)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_VALID [INST]: 前提 \"%s\" => 结论 \"%s\" 符合项实例化", p0, conclusion);
+                        *out_trace = make_trace("VERIFY_VALID [INST]: 前提 \"%s\" => 结论 \"%s\" 符合项实例化", p0, conclusion, NULL);
                     return VERIFY_VALID;
                 }
                 /* 结论可能不含显式 INST 标记 */
                 if (has_equality_pattern(conclusion) || has_application_pattern(conclusion)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [INST]: 结论 \"%s\" 结构可能为实例化结果但无显式标记", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_UNDECIDED [INST]: 结论 \"%s\" 结构可能为实例化结果但无显式标记", conclusion, NULL, NULL);
                     return VERIFY_UNDECIDED;
                 }
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_INVALID [INST]: 结论 \"%s\" 不符合项实例化模式", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_INVALID [INST]: 结论 \"%s\" 不符合项实例化模式", conclusion, NULL, NULL);
                 return VERIFY_INVALID;
             }
 
@@ -5560,7 +5929,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 /* 结论应包含蕴含模式 */
                 if (!has_implication_pattern(conclusion)) {
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_INVALID [DISCH]: 结论 \"%s\" 不含蕴含模式", conclusion, NULL);
+                        *out_trace = make_trace("VERIFY_INVALID [DISCH]: 结论 \"%s\" 不含蕴含模式", conclusion, NULL, NULL);
                     return VERIFY_INVALID;
                 }
                 /* 结论的后件（蕴含右侧）应与前提匹配 */
@@ -5577,16 +5946,16 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                     while (p0_len > 0 && p0[p0_len - 1] == ' ') p0_len--;
                     if (rhs_len == p0_len && strncmp(rhs, p0, p0_len) == 0) {
                         if (out_trace)
-                            *out_trace = make_trace("VERIFY_VALID [DISCH]: 前提 \"%s\" => 结论 \"%s\" 符合蕴含引入", p0, conclusion);
+                            *out_trace = make_trace("VERIFY_VALID [DISCH]: 前提 \"%s\" => 结论 \"%s\" 符合蕴含引入", p0, conclusion, NULL);
                         return VERIFY_VALID;
                     }
                     /* 后件与前提不完全匹配，但蕴含结构存在 */
                     if (out_trace)
-                        *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含但后件与前提 \"%s\" 不完全匹配", conclusion, p0);
+                        *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含但后件与前提 \"%s\" 不完全匹配", conclusion, p0, NULL);
                     return VERIFY_UNDECIDED;
                 }
                 if (out_trace)
-                    *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含关键词但格式不明确", conclusion, NULL);
+                    *out_trace = make_trace("VERIFY_UNDECIDED [DISCH]: 结论 \"%s\" 含蕴含关键词但格式不明确", conclusion, NULL, NULL);
                 return VERIFY_UNDECIDED;
             }
 

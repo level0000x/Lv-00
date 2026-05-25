@@ -1835,7 +1835,7 @@ static double g_so4_rotation_angles[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
  * 按优先级排列，最多3个维度映射到3D输出。默认取前3维(0,1,2)。
  * 当 dim_count > 4 时，第[3]维度采用加权折叠策略。
  */
-static int g_ortho_selected_axes[3] = {0, 1, 2};
+static LV00_THREAD_LOCAL int g_ortho_selected_axes[3] = {0, 1, 2};
 
 /**
  * @brief 上一次 high_dim_project_to_3d 调用的投影矩阵迹
@@ -1845,7 +1845,7 @@ static int g_ortho_selected_axes[3] = {0, 1, 2};
  *   - 信息损失：迹 < 3.0（维度被折叠或丢弃）
  *   - 立体投影：迹 = 矩阵对角和（通常 < 3.0）
  */
-static double g_project_to_3d_projection_trace = 0.0;
+static LV00_THREAD_LOCAL double g_project_to_3d_projection_trace = 0.0;
 
 /**
  * @brief 获取所选轴的实际维度索引

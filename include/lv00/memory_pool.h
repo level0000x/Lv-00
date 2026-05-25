@@ -324,6 +324,8 @@ void lv00_mem_print_stats(void *stream);
 
 /* ============== 通用内存管理函数 ============== */
 
+#define LV00_STRDUP_AS_FUNCTION
+
 /**
  * @brief 复制字符串（安全包装）
  *

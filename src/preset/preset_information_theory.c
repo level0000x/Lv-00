@@ -633,6 +633,6 @@ bool preset_information_theory_get_names(char ***out_names, int *out_count) {
  *
  * @return 预设类别枚举值
  */
-PresetCategory preset_information_theory_category(void) {
-    return PRESET_CATEGORY_ANALYSIS;
+const char *preset_information_theory_category(void) {
+    return "analysis";
 }

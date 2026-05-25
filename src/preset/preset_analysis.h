@@ -1,19 +1,19 @@
 /**
  * @file preset_analysis.h
- * @brief 分析学预设函数块 - 头文?
+ * @brief 分析学预设函数块 - 头文件
  *
  * 提供理论数学研究中常用的分析学运算预设函数块，包括：
- *   - 极限运算：数列极限、函数极?
- *   - 微分运算：导数、偏导数、方向导?
+ *   - 极限运算：数列极限、函数极限
+ *   - 微分运算：导数、偏导数、方向导数
  *   - 积分运算：定积分、不定积分、重积分
- *   - 级数运算：收敛判定、求?
- *   - 函数空间：连续函数空间、可积函数空?
- *   - 度量空间：完备化、紧致?
+ *   - 级数运算：收敛判定、求和
+ *   - 函数空间：连续函数空间、可积函数空间
+ *   - 度量空间：完备化、紧致性
  *
  * @module Analysis
  * @category PRESET_CATEGORY_ANALYSIS
  * @version 3.2.0
- * @author Lv-00 开发团?
+ * @author Lv-00 开发团队
  */
 
 #ifndef LV00_PRESET_ANALYSIS_H
@@ -37,33 +37,33 @@ extern "C" {
 /** 函数极限 */
 #define PRESET_FUNCTION_LIMIT "function_limit"
 
-/** 左极?*/
+/** 左极限 */
 #define PRESET_LEFT_LIMIT "left_limit"
 
-/** 右极?*/
+/** 右极限 */
 #define PRESET_RIGHT_LIMIT "right_limit"
 
 /** 无穷极限 */
 #define PRESET_INFINITE_LIMIT "infinite_limit"
 
-/** 上极?*/
+/** 上极限 */
 #define PRESET_LIMIT_SUPERIOR "limit_superior"
 
-/** 下极?*/
+/** 下极限 */
 #define PRESET_LIMIT_INFERIOR "limit_inferior"
 
-/** 极限存在性判?*/
+/** 极限存在性判定 */
 #define PRESET_LIMIT_EXISTS_TEST "limit_exists_test"
 
-/* -------------------- 连续?-------------------- */
+/* -------------------- 连续性 -------------------- */
 
-/** 连续性判?*/
+/** 连续性判定 */
 #define PRESET_CONTINUITY_TEST "continuity_test"
 
-/** 一致连续判?*/
+/** 一致连续判定 */
 #define PRESET_UNIFORM_CONTINUITY_TEST "uniform_continuity_test"
 
-/** 间断点分?*/
+/** 间断点分类 */
 #define PRESET_DISCONTINUITY_CLASSIFY "discontinuity_classify"
 
 /** Lipschitz 连续判定 */
@@ -77,7 +77,7 @@ extern "C" {
 /** 高阶导数 */
 #define PRESET_HIGHER_DERIVATIVE "higher_derivative"
 
-/** 偏导?*/
+/** 偏导数 */
 #define PRESET_PARTIAL_DERIVATIVE "partial_derivative"
 
 /** 方向导数 */
@@ -95,7 +95,7 @@ extern "C" {
 /** 拉普拉斯算子 */
 #define PRESET_LAPLACIAN "laplacian"
 
-/** 可微性判?*/
+/** 可微性判定 */
 #define PRESET_DIFFERENTIABILITY_TEST "differentiability_test"
 
 /** 泰勒展开 */
@@ -106,13 +106,13 @@ extern "C" {
 /** 不定积分 */
 #define PRESET_INDEFINITE_INTEGRAL "indefinite_integral"
 
-/** 定积?*/
+/** 定积分 */
 #define PRESET_DEFINITE_INTEGRAL "definite_integral"
 
 /** 广义积分 */
 #define PRESET_IMPROPER_INTEGRAL "improper_integral"
 
-/** 重积?*/
+/** 重积分 */
 #define PRESET_MULTIPLE_INTEGRAL "multiple_integral"
 
 /** 曲线积分 */
@@ -121,10 +121,10 @@ extern "C" {
 /** 曲面积分 */
 #define PRESET_SURFACE_INTEGRAL "surface_integral"
 
-/** 可积性判?*/
+/** 可积性判定 */
 #define PRESET_INTEGRABILITY_TEST "integrability_test"
 
-/** 积分中值定理应?*/
+/** 积分中值定理应用 */
 #define PRESET_MEAN_VALUE_THEOREM "mean_value_theorem"
 
 /* -------------------- 级数运算 -------------------- */
@@ -138,13 +138,13 @@ extern "C" {
 /** 条件收敛判定 */
 #define PRESET_CONDITIONAL_CONVERGENCE "conditional_convergence"
 
-/** 幂级数收敛半?*/
+/** 幂级数收敛半径 */
 #define PRESET_POWER_SERIES_RADIUS "power_series_radius"
 
 /** 级数求和 */
 #define PRESET_SERIES_SUM "series_sum"
 
-/** 傅里叶级?*/
+/** 傅里叶级数 */
 #define PRESET_FOURIER_SERIES "fourier_series"
 
 /* -------------------- 函数空间 -------------------- */
@@ -152,13 +152,13 @@ extern "C" {
 /** L^p 空间范数 */
 #define PRESET_LP_NORM "lp_norm"
 
-/** 一致范?*/
+/** 一致范数 */
 #define PRESET_SUP_NORM "sup_norm"
 
-/** 完备?*/
+/** 完备化 */
 #define PRESET_COMPLETION "completion"
 
-/** 紧致性判定（Arzelà-Ascoli?*/
+/** 紧致性判定（Arzela-Ascoli 定理） */
 #define PRESET_COMPACTNESS_TEST "compactness_test"
 
 /* -------------------- 度量空间 -------------------- */
@@ -175,7 +175,7 @@ extern "C" {
 /** 压缩映射 */
 #define PRESET_CONTRACTION_MAPPING "contraction_mapping"
 
-/** 不动点定?*/
+/** 不动点定理 */
 #define PRESET_FIXED_POINT_THEOREM "fixed_point_theorem"
 
 /* -------------------- 特殊函数 -------------------- */
@@ -197,7 +197,7 @@ extern "C" {
  * ============================================================ */
 
 /**
- * @brief 注册所有分析学预设函数?
+ * @brief 注册所有分析学预设函数块
  *
  * @return true 全部注册成功
  * @return false 部分注册失败

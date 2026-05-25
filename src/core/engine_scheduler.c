@@ -866,11 +866,11 @@ int scheduler_solve_groebner_compat(EngineScheduler *scheduler,
     /* 将 SMT 状态映射为 SolverStatus */
     switch (smt_result.sat_result) {
     case SMT_RESULT_SAT:
-        return (*out_result)->unique ? SOLVER_UNIQUE : SOLVER_MULTIPLE;
+        return (*out_result)->unique ? SOLVER_STATUS_UNIQUE : SOLVER_STATUS_MULTIPLE;
     case SMT_RESULT_UNSAT:
-        return SOLVER_NO_SOLUTION;
+        return SOLVER_STATUS_NO_SOLUTION;
     default:
-        return SOLVER_TIMEOUT;
+        return SOLVER_STATUS_TIMEOUT;
     }
 }
 

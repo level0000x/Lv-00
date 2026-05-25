@@ -419,9 +419,11 @@ int debug_assert_normalization_invariants(const LV00Engine *engine, DebugContext
 /*=== 内存池 ===*/
 
 /**
- * @brief 内存池——用于频繁分配/释放的小对象
+ * @brief 内存池 —— 用于频繁分配/释放的小对象内存管理器
  */
-typedef struct MemPool MemPool;
+typedef struct Lv00MemPool Lv00MemPool;
+/* 向后兼容别名 */
+#define MemPool Lv00MemPool
 
 /**
  * @brief 创建内存池
@@ -454,12 +456,14 @@ void mem_pool_stats(const MemPool *pool, int *total_blocks, int *free_blocks, si
 /*=== 引用计数与垃圾回收 ===*/
 
 /**
- * @brief 引用计数对象基类
+ * @brief 引用计数对象基类 —— 提供自动引用计数和析构回调机制
  */
-typedef struct {
+typedef struct Lv00RefCounted {
     int ref_count;
     void (*destructor)(void *self);
-} RefCounted;
+} Lv00RefCounted;
+/* 向后兼容别名 */
+#define RefCounted Lv00RefCounted
 
 /**
  * @brief 增加引用计数
@@ -551,14 +555,16 @@ typedef struct {
 } TraceEvent;
 
 /**
- * @brief 追踪会话
+ * @brief 追踪会话 —— 记录归一化/重写/求解过程中的事件序列
  */
-typedef struct {
+typedef struct Lv00TraceSession {
     TraceEvent *events;
     int event_count;
     int capacity;
     bool active;
-} TraceSession;
+} Lv00TraceSession;
+/* 向后兼容别名 */
+#define TraceSession Lv00TraceSession
 
 /**
  * @brief 创建追踪会话

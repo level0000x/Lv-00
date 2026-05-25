@@ -37,6 +37,11 @@
 extern "C" {
 #endif
 
+/* 前向声明：LV00Engine 定义在 engine.h 中。
+ * 此处仅声明指针类型，避免引入 engine.h 的完整依赖链，
+ * 同时提供编译期类型安全检查（优于 void*）。 */
+typedef struct LV00Engine LV00Engine;
+
 /* ==================== 常量定义 ==================== */
 
 /** 最大同时活跃几何对象数量 */
@@ -285,7 +290,10 @@ typedef struct Lv00ConstraintMaintainer {
     int affected_count;    /**< 受影响对象数量 */
 
     /* ── 求解器引用 ── */
-    void *solver_handle; /**< 约束求解器句柄（内部使用） */
+    void *solver_handle; /**< 约束求解器句柄（内部使用，类型为 Solver*，
+                              此处保留 void* 因为 Solver 定义在 solver.h 中，
+                              而 solver.h 依赖 constraint_graph.h 等重型头文件，
+                              为避免循环依赖和编译开销，不在此处前向声明 Solver） */
 
     /* ── 维护策略 ── */
     bool use_projective_method; /**< 使用投影几何方法（Cinderella 风格） */
@@ -311,7 +319,7 @@ typedef struct Lv00InteractiveGeo {
     int current_snapshot_index;              /**< 当前快照索引（用于撤销/重做） */
 
     /* ── 引擎引用 ── */
-    void *engine_handle; /**< 关联的 LV00Engine 句柄 */
+    LV00Engine *engine_handle; /**< 关联的 LV00Engine 句柄 */
 
     /* ── 回调 ── */
     void (*on_mode_changed)(InteractiveGeoMode new_mode);       /**< 模式变更回调 */
@@ -330,7 +338,7 @@ typedef struct Lv00InteractiveGeo {
  * @param[in] engine_handle 关联的 LV00Engine 句柄（可为 NULL 延迟绑定）
  * @return 新分配的交互几何上下文，失败返回 NULL
  */
-Lv00InteractiveGeo *interactive_geo_init(void *engine_handle);
+Lv00InteractiveGeo *interactive_geo_init(LV00Engine *engine_handle);
 
 /**
  * @brief 销毁交互几何系统并释放所有关联资源

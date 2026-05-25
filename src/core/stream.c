@@ -1695,7 +1695,7 @@ void stream_reset_stats(StreamContext *ctx) {
  * @param type 事件类型
  * @return 发射次数，ctx 为 NULL 或类型越界时返回 0
  */
-long stream_get_event_count(StreamContext *ctx, StreamEventType type) {
+int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type) {
     if (!ctx)
         return 0;
     int idx = (int) type;

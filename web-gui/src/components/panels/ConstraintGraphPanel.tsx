@@ -509,6 +509,8 @@ const ConstraintGraphPanel: React.FC = () => {
     cancel: false,
   });
   const pendingRelayoutRef = useRef(false);
+  /** 跟踪布局重启定时器，用于防止多次快速调用导致的定时器累积 */
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ---- Component state / 组件状态 ----
   const [showMatrix, setShowMatrix] = useState(false);
@@ -555,9 +557,14 @@ const ConstraintGraphPanel: React.FC = () => {
     if (layoutRef.current.running) {
       layoutRef.current.cancel = true;
       pendingRelayoutRef.current = false;
-      setTimeout(() => {
+      // 清理之前的定时器，防止多次快速调用导致的定时器累积
+      if (restartTimerRef.current !== null) {
+        clearTimeout(restartTimerRef.current);
+      }
+      restartTimerRef.current = setTimeout(() => {
         layoutRef.current.cancel = false;
         pendingRelayoutRef.current = true;
+        restartTimerRef.current = null;
       }, 30);
       return;
     }

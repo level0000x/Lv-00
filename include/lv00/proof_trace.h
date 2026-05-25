@@ -165,6 +165,24 @@ bool lv00_proof_tree_add_premise(Lv00ProofTreeNode *node, int premise_id,
 char *lv00_proof_tree_export_text(const Lv00ProofTree *tree, const char *filepath);
 
 /**
+ * @brief 将证明树导出为Mizar风格的形式化证明文本
+ *
+ * Mizar是一种自然语言风格的形式化数学证明语言。此函数生成类似Mizar语法的证明：
+ * - 使用 reserve（预留变量）、let（设）、assume（假设）等关键字
+ * - 使用 thus（因此）、hence（从而）等结论引导词
+ * - 使用 by（依据）引用前提
+ * - 支持反证法（proof by contradiction）结构
+ * - 支持引理（lemma）和定理（theorem）结构
+ *
+ * 生成的证明文本接近自然语言数学证明，同时保持形式化严谨性。
+ *
+ * @param tree      证明树
+ * @param filepath   输出文件路径（可为 NULL，此时返回字符串）
+ * @return 新分配的证明文本字符串（调用者需用 lv00_free 释放），失败返回 NULL
+ */
+char *lv00_proof_tree_export_mizar(const Lv00ProofTree *tree, const char *filepath);
+
+/**
  * @brief 标记节点为反证法分支
  *
  * 设置节点的 is_contradiction_branch 标志，

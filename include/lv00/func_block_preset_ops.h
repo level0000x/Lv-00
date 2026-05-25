@@ -245,12 +245,16 @@ void preset_search_result_free(PresetSearchResult *result);
 /**
  * @brief 预设组合模式
  */
+#ifndef LV00_PRESET_COMPOSE_MODE_DEFINED
+#define LV00_PRESET_COMPOSE_MODE_DEFINED
 typedef enum {
     PRESET_COMPOSE_SEQUENCE, /* 顺序组合：f -> g */
     PRESET_COMPOSE_PARALLEL, /* 并行组合：f | g */
     PRESET_COMPOSE_FEEDBACK, /* 反馈组合：f 的输出反馈到输入 */
-    PRESET_COMPOSE_BRANCH    /* 分支组合：条件选择 f 或 g */
+    PRESET_COMPOSE_BRANCH,   /* 分支组合：条件选择 f 或 g */
+    PRESET_COMPOSE_PIPE      /* 管道组合：数据流管道 */
 } PresetComposeMode;
+#endif /* LV00_PRESET_COMPOSE_MODE_DEFINED */
 
 /**
  * @brief 创建组合预设

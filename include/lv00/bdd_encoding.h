@@ -62,6 +62,7 @@ typedef struct BDDManager {
     int unique_table_size;  /**< 唯一表哈希桶数 */
     int *var_order;         /**< 变量序数组（var_order[i] = 第 i 层的变量 ID） */
     int var_count;          /**< 已注册变量总数 */
+    int var_capacity;       /**< var_order 数组容量 */
     uint64_t node_count;    /**< 当前存活节点数（不含终端节点） */
 } BDDManager;
 
@@ -135,8 +136,8 @@ BDDNode *bdd_literal(BDDManager *mgr, int var_id);
 /** 增加节点引用计数 */
 void bdd_ref(BDDNode *node);
 
-/** 减少节点引用计数（为 0 时回收） */
-void bdd_deref(BDDNode *node);
+/** 减少节点引用计数（为 0 时从唯一表回收） */
+void bdd_deref(BDDManager *mgr, BDDNode *node);
 
 /* ========================================================================
  * BDD 布尔运算

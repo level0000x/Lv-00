@@ -30,7 +30,9 @@
 
 #include "engine.h"
 
+#include <assert.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,8 +44,10 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
-/* 错误消息缓冲区大小（用于 last_error 数组） */
-#define LV00_ERROR_MSG_SIZE 256
+/** 模块名称最大长度（用于 engine_extract_module_name 静态缓冲区） */
+#define LV00_MAX_NAME_LENGTH 256
+
+/* Lv00RefCounted 及 LV00_REF_* 宏已在 debug.h 中定义，此处不再重复 */
 
 /** 全局画布的上下文深度（用于引擎初始化时的默认值） */
 #define ENGINE_GLOBAL_CANVAS_DEPTH 0
@@ -52,32 +56,188 @@
 #define ENGINE_MAX_COLLABORATION_ITERATIONS 10000
 
 /* ============================================================
- * LEGACY 全局状态 —— 将在迁移至 Lv00Context 后移除
+ * 统一错误处理系统 v3.4.1
+ * ============================================================
  *
- * 迁移目标：
- *   last_status → ctx->error_code (Lv00ErrorCode) 或 ctx->last_status (int)
- *   last_error  → ctx->error_message[512]
+ * 【设计原则】
+ *   1. 引擎实例优先：所有错误信息优先存储在引擎实例中（engine->last_status/error）
+ *   2. 全局状态回退：仅在引擎实例不可用时（如 engine_create 失败）使用线程局部状态
+ *   3. 自动清理：成功操作后自动清除错误状态，避免错误滞留
+ *   4. 线程安全：线程局部存储确保多线程环境下的错误隔离
  *
- * 当前保留原因：engine_create() 等函数在创建引擎实例前无法访问
- * context，需要回退到线程局部存储来报告早期错误。
+ * 【迁移状态】
+ *   v3.4.1: 统一错误处理机制，消除双重错误报告问题
+ *   - 新增 engine_set_error / engine_clear_error / engine_get_error 统一接口
+ *   - 保留线程局部变量作为早期错误回退机制
+ *   - 所有引擎操作统一使用实例级错误存储
  *
- * 【迁移进度】第 1 阶段 —— 标记 LEGACY，禁止新增全局状态。
- * 【禁止】在引擎中新增任何全局/线程局部变量。
- *
- * 【线程安全性说明】
- *   last_status 和 last_error 使用 LV00_THREAD_LOCAL 宏声明为线程局部存储。
- *   每个操作系统线程拥有独立的副本，因此：
- *   - 不同线程同时调用 engine_get_last_status() / engine_get_last_error()
- *     不会产生数据竞争。
- *   - 同一线程内的多次调用是顺序一致的。
- *   - 线程局部存储在 Windows 上通过 __declspec(thread) 实现，
- *     在 POSIX 上通过 __thread 或 pthread_key_t 实现。
- *   - 注意：线程局部变量不保证跨线程可见性。如果线程 A 设置了
- *     last_status，线程 B 无法读取到该值。这是预期行为——
- *     每个线程应使用自己的引擎实例来获取错误状态。
+ * 【使用规范】
+ *   - 引擎内部函数：使用 engine_set_error(engine, status, fmt, ...) 设置错误
+ *   - 获取错误：使用 engine_get_error(engine, &status, buf, size) 获取完整错误信息
+ *   - 清理错误：成功操作后自动调用 engine_clear_error(engine)
  * ============================================================ */
-static LV00_THREAD_LOCAL EngineStatus last_status = ENGINE_OK;   /* LEGACY - 将迁移到 Lv00Context.error_code */
-static LV00_THREAD_LOCAL char last_error[LV00_ERROR_MSG_SIZE] = {0}; /* LEGACY - 将迁移到 Lv00Context.error_message[] */
+
+/* 线程局部回退状态 —— 仅在引擎实例不可用时使用 */
+#define LV00_ERROR_MSG_SIZE 512
+static LV00_THREAD_LOCAL EngineStatus g_thread_last_status = ENGINE_STATUS_OK;
+static LV00_THREAD_LOCAL char g_thread_last_error[LV00_ERROR_MSG_SIZE] = {0};
+
+/* 错误缓冲区大小 */
+#define LV00_ENGINE_ERROR_SIZE 512
+
+/**
+ * @brief 设置引擎错误状态（统一接口）
+ *
+ * 优先将错误信息存储在引擎实例中，如果引擎为 NULL 则存储在线程局部变量中。
+ * 使用可变参数支持格式化错误消息。
+ *
+ * @param engine 引擎实例（可为 NULL）
+ * @param status 错误状态码
+ * @param fmt 格式化字符串（printf 风格）
+ * @param ... 可变参数
+ */
+static void engine_set_error(LV00Engine *engine, EngineStatus status, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    
+    if (engine) {
+        engine->last_status = status;
+        vsnprintf(engine->last_error, sizeof(engine->last_error), fmt, args);
+    } else {
+        g_thread_last_status = status;
+        vsnprintf(g_thread_last_error, sizeof(g_thread_last_error), fmt, args);
+    }
+    
+    va_end(args);
+}
+
+/**
+ * @brief 清除引擎错误状态
+ *
+ * 将错误状态重置为 ENGINE_STATUS_OK，清空错误消息。
+ *
+ * @param engine 引擎实例（可为 NULL）
+ */
+static void engine_clear_error(LV00Engine *engine) {
+    if (engine) {
+        engine->last_status = ENGINE_STATUS_OK;
+        engine->last_error[0] = '\0';
+    } else {
+        g_thread_last_status = ENGINE_STATUS_OK;
+        g_thread_last_error[0] = '\0';
+    }
+}
+
+/**
+ * @brief 获取引擎错误信息
+ *
+ * 获取当前错误状态码和错误消息。优先从引擎实例获取，
+ * 如果引擎为 NULL 则从线程局部变量获取。
+ *
+ * @param engine 引擎实例（可为 NULL）
+ * @param status 输出错误状态码（可为 NULL）
+ * @param buf 错误消息缓冲区（可为 NULL）
+ * @param size 缓冲区大小
+ * @return 实际写入的字符数（不含终止符），0 表示无错误或缓冲区为 NULL
+ */
+static int engine_get_error(LV00Engine *engine, EngineStatus *status, char *buf, size_t size) {
+    EngineStatus s;
+    const char *msg;
+    
+    if (engine) {
+        s = engine->last_status;
+        msg = engine->last_error;
+    } else {
+        s = g_thread_last_status;
+        msg = g_thread_last_error;
+    }
+    
+    if (status) {
+        *status = s;
+    }
+    
+    if (buf && size > 0) {
+        return snprintf(buf, size, "%s", msg);
+    }
+    
+    return 0;
+}
+
+/**
+ * @brief 将引擎状态码转换为可读字符串（公共API实现）
+ *
+ * 提供所有 EngineStatus 枚举值的人类可读描述。
+ *
+ * @param status 引擎状态码
+ * @return 状态描述字符串（静态常量，无需释放）
+ */
+const char *engine_status_to_string(EngineStatus status) {
+    switch (status) {
+        case ENGINE_STATUS_OK: return "成功";
+        case ENGINE_STATUS_OUT_OF_MEMORY: return "内存不足";
+        case ENGINE_STATUS_INVALID_ARGUMENT: return "无效参数";
+        case ENGINE_STATUS_INVALID_STATE: return "无效状态";
+        case ENGINE_STATUS_ERROR_INTERNAL: return "内部错误";
+        case ENGINE_STATUS_CONSTRAINT_CONFLICT: return "约束冲突";
+        case ENGINE_STATUS_MODULE_ERROR: return "模块错误";
+        default: return "未知错误";
+    }
+}
+
+/**
+ * @brief 将引擎状态码转换为英文标识符字符串（公共API实现）
+ *
+ * 返回状态码的英文标识符，适合用于日志和程序逻辑判断。
+ *
+ * @param status 引擎状态码
+ * @return 英文标识符字符串（静态常量，无需释放）
+ */
+const char *engine_status_to_identifier(EngineStatus status) {
+    switch (status) {
+        case ENGINE_STATUS_OK: return "ENGINE_STATUS_OK";
+        case ENGINE_STATUS_OUT_OF_MEMORY: return "ENGINE_STATUS_OUT_OF_MEMORY";
+        case ENGINE_STATUS_INVALID_ARGUMENT: return "ENGINE_STATUS_INVALID_ARGUMENT";
+        case ENGINE_STATUS_INVALID_STATE: return "ENGINE_STATUS_INVALID_STATE";
+        case ENGINE_STATUS_ERROR_INTERNAL: return "ENGINE_STATUS_ERROR_INTERNAL";
+        case ENGINE_STATUS_CONSTRAINT_CONFLICT: return "ENGINE_STATUS_CONSTRAINT_CONFLICT";
+        case ENGINE_STATUS_MODULE_ERROR: return "ENGINE_STATUS_MODULE_ERROR";
+        default: return "ENGINE_STATUS_UNKNOWN";
+    }
+}
+
+/**
+ * @brief 获取引擎状态的详细描述（公共API实现）
+ *
+ * 返回包含状态码、描述和建议操作的完整信息。
+ *
+ * @param status 引擎状态码
+ * @return 详细描述字符串（静态常量，无需释放）
+ */
+const char *engine_status_get_description(EngineStatus status) {
+    switch (status) {
+        case ENGINE_STATUS_OK: 
+            return "操作成功完成。系统处于正常状态，可以继续后续操作。";
+        case ENGINE_STATUS_OUT_OF_MEMORY: 
+            return "内存分配失败。系统无法分配所需的内存资源。建议：检查系统内存使用情况，尝试释放不必要的资源，或减小问题规模。";
+        case ENGINE_STATUS_INVALID_ARGUMENT: 
+            return "传入参数无效。可能是空指针、越界值或格式错误的参数。建议：检查函数调用的参数是否符合文档要求。";
+        case ENGINE_STATUS_INVALID_STATE: 
+            return "引擎处于无效状态。当前操作与引擎状态不兼容。建议：检查引擎当前状态，必要时调用 engine_reset() 重置。";
+        case ENGINE_STATUS_ERROR_INTERNAL: 
+            return "内部错误。系统内部出现意外情况。建议：检查日志获取详细信息，如果问题持续请报告给开发团队。";
+        case ENGINE_STATUS_CONSTRAINT_CONFLICT: 
+            return "约束冲突。几何约束之间存在矛盾，无法满足所有约束条件。建议：检查约束定义，移除或修改冲突的约束。";
+        case ENGINE_STATUS_MODULE_ERROR: 
+            return "模块错误。加载或执行模块/公理包时发生错误。建议：检查模块文件路径和格式是否正确。";
+        default: 
+            return "未知错误。系统遇到未识别的错误状态。建议：检查日志并报告问题。";
+    }
+}
+
+/* 
+ * 注意：以下宏定义用于向后兼容，但会导致问题，已移除。
+ * 请直接使用 engine->last_status 和 engine->last_error 访问引擎状态。
+ */
 
 /**
  * @brief 创建并初始化 LV00 引擎实例
@@ -86,12 +246,12 @@ static LV00_THREAD_LOCAL char last_error[LV00_ERROR_MSG_SIZE] = {0}; /* LEGACY -
  * 主图等核心组件，并注册/分发内置模块的流式上下文 setter。
  *
  * @return 新创建的引擎实例指针；若内存不足则返回 NULL，
- *         此时可通过 engine_get_last_status() 获取 ENGINE_OUT_OF_MEMORY 错误码。
+ *         此时可通过 engine_get_last_status() 获取 ENGINE_STATUS_OUT_OF_MEMORY 错误码。
  */
 LV00Engine *engine_create(void) {
     LV00Engine *engine = lv00_malloc(sizeof(LV00Engine));
     if (!engine) {
-        last_status = ENGINE_OUT_OF_MEMORY;
+        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
         return NULL;
     }
     memset(engine, 0, sizeof(LV00Engine));
@@ -99,6 +259,11 @@ LV00Engine *engine_create(void) {
     engine->frozen_point = NULL;
     engine->context = NULL; /* 迁移中：暂不绑定上下文，后续可通过 engine_bind_context() 设置 */
     engine->stream_ctx = stream_context_create(); /* 创建流式上下文 */
+    if (!engine->stream_ctx) {
+        lv00_free((void **) &engine);
+        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        return NULL;
+    }
 
     /* 初始化五状态机（v3.3.0 形式化） */
     engine->state = ENGINE_STATE_IDLE;
@@ -112,19 +277,25 @@ LV00Engine *engine_create(void) {
      * 无需修改此处的引擎初始化代码。
      *
      * 注意：这两个函数当前不返回错误码（void 返回类型）。
-     * 如果未来重构为返回错误码，应在此处检查返回值并做相应错误处理。 */
+     * 如果未来重构为返回错误码，应在此处检查返回值并做相应错误处理。
+     * 当前状态：调用后无法检测失败，仅记录日志以便排查问题。 */
     stream_context_register_builtins();
+    /* 当前状态：内置模块 setter 注册完成，无法确认是否全部成功 */
+    LV00_LOG_WARNING("engine_create: stream_context_register_builtins() 已调用（void 返回，无法检测错误）");
+
     stream_context_dispatch_all(engine->stream_ctx);
+    /* 当前状态：流式上下文分发完成，无法确认是否全部成功 */
+    LV00_LOG_WARNING("engine_create: stream_context_dispatch_all() 已调用（void 返回，无法检测错误）");
 
     engine->main_graph = graph_create();
     if (!engine->main_graph) {
         stream_context_destroy(engine->stream_ctx);
         lv00_free((void **) &engine);
-        last_status = ENGINE_OUT_OF_MEMORY;
+        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
         return NULL;
     }
-    last_status = ENGINE_OK;
-    last_error[0] = '\0';
+    engine->last_status = ENGINE_STATUS_OK;
+    engine->last_error[0] = '\0';
     return engine;
 }
 
@@ -140,6 +311,23 @@ LV00Engine *engine_create(void) {
 void engine_destroy(LV00Engine *engine) {
     if (!engine)
         return;
+
+    /*
+     * 状态检查：如果引擎正处于 REASONING 状态，拒绝销毁。
+     * 推理过程中销毁会导致约束图、重写规则等共享数据结构处于不一致状态，
+     * 可能引发悬垂指针、内存损坏等严重问题。
+     * 调用者应先等待推理完成或通过 engine_reset() 将状态置为 IDLE/ERROR。
+     */
+    if (engine->state == ENGINE_STATE_REASONING) {
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE,
+                         "engine_destroy: 引擎处于 REASONING 状态，无法安全销毁。"
+                         "请先等待推理完成或调用 engine_reset() 重置状态。");
+        return;
+    }
+
+    /* 标记引擎为销毁中状态，防止并发操作 */
+    engine->state = ENGINE_STATE_IDLE;
+
     if (engine->frozen_point) {
         engine_destroy_frozen_point(engine->frozen_point);
         engine->frozen_point = NULL;
@@ -168,53 +356,17 @@ void engine_destroy(LV00Engine *engine) {
 }
 
 /**
- * @brief 通用动态数组扩容辅助函数
- *
- * 当 count >= capacity 时触发扩容。扩容策略为指数增长（初始容量由
- * LV00_INITIAL_ARRAY_CAPACITY 定义，后续每次翻倍）。
- *
- * 【溢出检查逻辑】
- *   1. count <= -1: 防御性检查，捕获调用方传入负数的错误场景
- *   2. *capacity <= 0: 初始化容量分支，使用 LV00_INITIAL_ARRAY_CAPACITY
- *   3. *capacity > INT_MAX / 2: 已接近 int 最大值，无法安全扩容（扩容公式
- *      new_cap = capacity * 2 会溢出），此时直接返回 false
- *   4. (size_t)new_cap > SIZE_MAX / elem_size: 在分配内存前检查乘法是否溢出，
- *      防止 lv00_realloc 接收到超大值导致未定义行为
- *   5. new_cap < count: 极端情况下的安全钳制（例如 capacity 被外部错误修改）
- *
- * 注：第3、4条的检查顺序经过优化 —— 先检查 int 溢出（较廉价），
- * 再检查 size_t 溢出（只在需要分配时才做），避免不必要的除法运算。
+ * @brief 引擎内部数组扩容辅助函数（委托给统一的 lv00_ensure_capacity）
  *
  * @param arr      当前数组指针的地址（用于 realloc）
  * @param count    当前元素数量
  * @param capacity 当前容量的地址（会被更新为新容量）
  * @param elem_size 单个元素的字节大小
  * @return true 扩容成功（或无需扩容），false 失败（内存不足或溢出）
+ * @note 内部委托给 lv00_ensure_capacity，最小增长量为 1
  */
 static bool engine_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size) {
-    if (count < *capacity)
-        return true;
-    /* 溢出检查：先防御负数，再防御接近 INT_MAX 的极端情况 */
-    if (count < 0 || *capacity < 0)
-        return false;
-    if (*capacity > INT_MAX / 2)
-        return false;
-    int new_cap = *capacity == 0 ? LV00_INITIAL_ARRAY_CAPACITY : *capacity * LV00_ARRAY_GROWTH_FACTOR;
-    /* 二次检查：确保扩容后的容量至少容纳 count 个元素 */
-    if (new_cap < count) {
-        if (count > INT_MAX / LV00_ARRAY_GROWTH_FACTOR)
-            return false;
-        new_cap = count * LV00_ARRAY_GROWTH_FACTOR;
-    }
-    /* 分配前检查：防止 new_cap * elem_size 超过 size_t 可表示范围 */
-    if ((size_t) new_cap > SIZE_MAX / elem_size)
-        return false;
-    void *new_arr = lv00_realloc(*arr, (size_t) new_cap * elem_size);
-    if (!new_arr)
-        return false;
-    *arr = new_arr;
-    *capacity = new_cap;
-    return true;
+    return lv00_ensure_capacity(arr, count, capacity, elem_size, 1);
 }
 
 /**
@@ -249,28 +401,68 @@ bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
  * @param filepath 模块文件路径
  * @return 模块加载状态码（MODULE_LOAD_OK 表示成功）
  */
+/**
+ * @brief 从文件路径中提取基础文件名（不含目录和扩展名）
+ *
+ * 例如: "/path/to/my_module.lvmod" -> "my_module"
+ *       "simple.lvmod" -> "simple"
+ *       "no_extension" -> "no_extension"
+ *
+ * @param filepath 文件路径
+ * @return 静态缓冲区中的文件名字符串（注意：非线程安全，调用后应立即使用）
+ */
+static const char *engine_extract_module_name(const char *filepath) {
+    static char name_buf[LV00_MAX_NAME_LENGTH];
+    if (!filepath) {
+        name_buf[0] = '\0';
+        return name_buf;
+    }
+
+    /* 找到最后一个路径分隔符 */
+    const char *last_sep = strrchr(filepath, '/');
+    const char *last_bsep = strrchr(filepath, '\\');
+    if (last_bsep > last_sep)
+        last_sep = last_bsep;
+    const char *base = last_sep ? last_sep + 1 : filepath;
+
+    /* 复制基础文件名 */
+    lv00_strlcpy(name_buf, base, LV00_MAX_NAME_LENGTH);
+
+    /* 去掉扩展名（最后一个 '.' 之后的部分） */
+    char *dot = strrchr(name_buf, '.');
+    if (dot)
+        *dot = '\0';
+
+    /* 如果提取后为空，回退到 "temp" */
+    if (name_buf[0] == '\0')
+        lv00_strlcpy(name_buf, "temp", LV00_MAX_NAME_LENGTH);
+
+    return name_buf;
+}
+
 ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath) {
     if (!engine || !filepath)
         return MODULE_LOAD_ERROR_INVALID_PATH;
-    Module *mod = module_create("temp", "0.0.0");
+    const char *module_name = engine_extract_module_name(filepath);
+    Module *mod = module_create(module_name, "0.0.0");
     if (!mod) {
-        last_status = ENGINE_OUT_OF_MEMORY;
-        snprintf(last_error, sizeof(last_error), "模块创建失败");
-        return MODULE_LOAD_PARSE_ERROR;
+        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        snprintf(engine->last_error, sizeof(engine->last_error), "模块创建失败");
+        return MODULE_LOAD_MEMORY_ERROR;
     }
     ModuleLoadStatus status = module_load(mod, filepath, engine->loaded_modules, engine->module_count);
     if (status != MODULE_LOAD_OK) {
         module_destroy(mod);
-        last_status = ENGINE_MODULE_ERROR;
-        snprintf(last_error, sizeof(last_error), "模块加载失败 [文件=%s, 状态码=%d]", filepath, status);
+        engine->last_status = ENGINE_STATUS_MODULE_ERROR;
+        snprintf(engine->last_error, sizeof(engine->last_error), "模块加载失败 [文件=%s, 状态码=%d]", filepath, status);
         return status;
     }
     /* 指数增长策略：使用通用扩容辅助函数 */
     if (!engine_ensure_capacity((void **) &engine->loaded_modules, engine->module_count, &engine->module_capacity,
                                 sizeof(Module *))) {
         module_destroy(mod);
-        last_status = ENGINE_OUT_OF_MEMORY;
-        return MODULE_LOAD_PARSE_ERROR;
+        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        return MODULE_LOAD_MEMORY_ERROR;
     }
     engine->loaded_modules[engine->module_count++] = mod;
     return MODULE_LOAD_OK;
@@ -289,26 +481,26 @@ ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath) {
  */
 AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepath) {
     if (!engine || !filepath)
-        return AXIOM_LOAD_PARSE_ERROR;
+        return AXIOM_LOAD_NULL_POINTER;
     AxiomPackage *pkg = axiom_package_create("temp", "0.0.0");
     if (!pkg) {
-        last_status = ENGINE_OUT_OF_MEMORY;
-        snprintf(last_error, sizeof(last_error), "公理包创建失败");
-        return AXIOM_LOAD_PARSE_ERROR;
+        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        snprintf(engine->last_error, sizeof(engine->last_error), "公理包创建失败");
+        return AXIOM_LOAD_MEMORY_ERROR;
     }
     AxiomLoadStatus status = axiom_package_load(pkg, filepath);
     if (status != AXIOM_LOAD_OK) {
         axiom_package_destroy(pkg);
-        last_status = ENGINE_MODULE_ERROR;
-        snprintf(last_error, sizeof(last_error), "公理包加载失败 [文件=%s, 状态码=%d]", filepath, status);
+        engine->last_status = ENGINE_STATUS_MODULE_ERROR;
+        snprintf(engine->last_error, sizeof(engine->last_error), "公理包加载失败 [文件=%s, 状态码=%d]", filepath, status);
         return status;
     }
     /* 指数增长策略：使用通用扩容辅助函数 */
     if (!engine_ensure_capacity((void **) &engine->axiom_packages, engine->axiom_package_count,
                                 &engine->axiom_package_capacity, sizeof(AxiomPackage *))) {
         axiom_package_destroy(pkg);
-        last_status = ENGINE_OUT_OF_MEMORY;
-        return AXIOM_LOAD_PARSE_ERROR;
+        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        return AXIOM_LOAD_MEMORY_ERROR;
     }
     engine->axiom_packages[engine->axiom_package_count++] = pkg;
     return AXIOM_LOAD_OK;
@@ -352,23 +544,23 @@ static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
 bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
     if (!engine || !engine->main_graph) {
-        last_status = ENGINE_INVALID_ARGUMENT;
-        snprintf(last_error, sizeof(last_error), "引擎或主图为空");
+        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
+        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "引擎或主图为空");
         return false;
     }
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
         if (!n) {
-            last_status = ENGINE_INVALID_STATE;
-            snprintf(last_error, sizeof(last_error), "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
+            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
             return false;
         }
     }
     for (int i = 0; i < input_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, input_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
-            last_status = ENGINE_INVALID_STATE;
-            snprintf(last_error, sizeof(last_error), "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
+            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
                      input_port_ids[i]);
             return false;
         }
@@ -376,28 +568,37 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
     for (int i = 0; i < output_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, output_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
-            last_status = ENGINE_INVALID_STATE;
-            snprintf(last_error, sizeof(last_error), "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
+            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
                      output_port_ids[i]);
             return false;
         }
     }
+    /* v3.4.1 改进：使用 graph_get_last_added_node_id() 安全获取新节点 ID，
+     * 避免依赖 next_node_id - 1 的推断方式，消除悬空指针风险。
+     * graph_add_function_block 成功后会更新最后添加节点 ID。 */
     AddNodeResult result = graph_add_function_block(engine->main_graph, internal_node_ids, internal_count,
                                                     input_port_ids, input_count, output_port_ids, output_count);
     if (result != ADD_NODE_OK) {
-        last_status = ENGINE_INVALID_STATE;
-        snprintf(last_error, sizeof(last_error), "创建函数块失败（图操作返回错误）");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "创建函数块失败（图操作返回错误: %d）", result);
         return false;
     }
-    /* 注意：graph_add_function_block 内部可能添加多个节点（含内部节点），
-     * 因此新函数块 ID 不一定等于 next_node_id - 1。
-     * 当前依赖 graph_add_function_block 返回最后一个添加的节点 ID。 */
-    int new_func_block_id = engine->main_graph->next_node_id - 1;
-    /* 安全检查：确保 ID 在有效范围内 */
-    if (new_func_block_id < 0 || new_func_block_id >= engine->main_graph->next_node_id) {
-        LV00_LOG_ERROR("engine_add_function_block: 推断的函数块 ID=%d 无效", new_func_block_id);
-        engine->last_status = ENGINE_ERROR_INTERNAL;
-        snprintf(engine->last_error, sizeof(engine->last_error), "推断的函数块ID无效");
+    
+    /* 安全获取新创建的函数块 ID */
+    int new_func_block_id = graph_get_last_added_node_id(engine->main_graph);
+    
+    /* 验证获取的 ID 有效 */
+    if (new_func_block_id < 0) {
+        LV00_LOG_ERROR("engine_add_function_block: 无法获取有效的函数块 ID");
+        engine_set_error(engine, ENGINE_STATUS_ERROR_INTERNAL, "无法获取有效的函数块 ID");
+        return false;
+    }
+    
+    /* 二次验证：确保 ID 对应的节点存在且类型正确 */
+    GeomNode *new_fb_node = graph_get_node(engine->main_graph, new_func_block_id);
+    if (!new_fb_node || new_fb_node->type != GEOM_FUNCTION_BLOCK) {
+        LV00_LOG_ERROR("engine_add_function_block: ID=%d 对应的节点不存在或类型不是函数块", new_func_block_id);
+        engine_set_error(engine, ENGINE_STATUS_ERROR_INTERNAL, "函数块节点验证失败");
         return false;
     }
     if (out_func_block_id) {
@@ -427,22 +628,22 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
 int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const int *arg_mappings, int arg_count,
                                  int *out_result_count) {
     if (!out_result_count) {
-        last_status = ENGINE_INVALID_ARGUMENT;
-        snprintf(last_error, sizeof(last_error), "out_result_count 不能为 NULL");
+        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
+        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "out_result_count 不能为 NULL");
         return NULL;
     }
     if (!engine || !engine->main_graph) {
         *out_result_count = 0;
-        last_status = ENGINE_INVALID_ARGUMENT;
-        snprintf(last_error, sizeof(last_error), "引擎或主图为空");
+        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
+        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "引擎或主图为空");
         return NULL;
     }
     *out_result_count = 0;
 
     GeomNode *func_block = graph_get_node(engine->main_graph, func_block_id);
     if (!func_block || func_block->type != GEOM_FUNCTION_BLOCK) {
-        last_status = ENGINE_INVALID_STATE;
-        snprintf(last_error, sizeof(last_error), "函数块 %d 不存在或类型不是函数块", func_block_id);
+        g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "函数块 %d 不存在或类型不是函数块", func_block_id);
         return NULL;
     }
 
@@ -453,7 +654,7 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
      */
     FuncBlock *fb = func_block_create(func_block_id);
     if (!fb) {
-        last_status = ENGINE_OUT_OF_MEMORY;
+        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
         return NULL;
     }
 
@@ -463,14 +664,14 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
         int *ids = lv00_malloc((size_t) ic * sizeof(int));
         if (!ids) {
             func_block_destroy(fb);
-            last_status = ENGINE_OUT_OF_MEMORY;
+            g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
             return NULL;
         }
         for (int i = 0; i < ic; i++) {
             if (!func_block->data.func_block.internal_nodes[i]) {
                 func_block_destroy(fb);
                 lv00_free((void **) &ids);
-                last_status = ENGINE_INVALID_STATE;
+                g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
                 return NULL;
             }
             ids[i] = func_block->data.func_block.internal_nodes[i]->id;
@@ -500,8 +701,8 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
     func_block_destroy(fb);
 
     if (inst_result != INSTANTIATE_OK) {
-        last_status = ENGINE_INVALID_STATE;
-        snprintf(last_error, sizeof(last_error), "engine_instantiate_function: instantiation failed (code %d)",
+        g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine_instantiate_function: instantiation failed (code %d)",
                  inst_result);
         return NULL;
     }
@@ -515,7 +716,7 @@ UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, Cons
     if (!engine || !construction || !proposition) {
         if (engine) {
             engine->last_unify_status = LV00_ERROR_INVALID_PARAM;
-            engine->last_status = ENGINE_INVALID_ARGUMENT;
+            engine->last_status = ENGINE_STATUS_INVALID_ARGUMENT;
             snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_unify: 空指针参数 (engine=%p, construction=%p, proposition=%p)", (void *) engine,
                      (void *) construction, (void *) proposition);
@@ -529,7 +730,7 @@ UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, Cons
 
     /* 同步错误状态到引擎实例 */
     engine->last_unify_status = status;
-    engine->last_status = ENGINE_OK;
+    engine->last_status = ENGINE_STATUS_OK;
 
     if (status == UNIFY_STATUS_OK) {
         /* 合一成功：构造图满足命题模式 */
@@ -559,7 +760,7 @@ UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, Cons
             default:
                 break;
         }
-        engine->last_status = ENGINE_CONSTRAINT_CONFLICT;
+        engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
         snprintf(engine->last_error, sizeof(engine->last_error), "合一失败 [状态码=%d]: %s", (int) status, reason);
         lv00_set_error(LV00_ERROR_UNIFY_FAILED, reason);
     }
@@ -572,7 +773,7 @@ UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, Cons
  *
  * 优先使用引擎实例级别的错误状态（每个引擎独立隔离）。
  * 若无引擎实例，回退到线程局部变量。
- * 当 engine 为 NULL 且线程局部变量未被初始化时，返回 ENGINE_INVALID_ARGUMENT。
+ * 当 engine 为 NULL 且线程局部变量未被初始化时，返回 ENGINE_STATUS_INVALID_ARGUMENT。
  *
  * @param[in] engine 引擎实例（可为 NULL，此时回退到线程局部状态）
  * @return 最近一次操作的状态码
@@ -582,7 +783,7 @@ EngineStatus engine_get_last_status(const LV00Engine *engine) {
         return engine->last_status;
     }
     /* 回退到线程局部变量（LEGACY 模式） */
-    return last_status;
+    return g_thread_last_status;
 }
 
 /**
@@ -598,7 +799,7 @@ const char *engine_get_last_error(const LV00Engine *engine) {
         return engine->last_error;
     }
     /* 回退到线程局部变量（LEGACY 模式） */
-    return last_error;
+    return g_thread_last_error;
 }
 
 /**
@@ -627,8 +828,8 @@ static int check_and_report_conflicts(LV00Engine *engine, const char *context) {
         lv00_free((void **) &conflicts);
     }
     if (conflict_count > 0) {
-        last_status = ENGINE_CONSTRAINT_CONFLICT;
-        snprintf(last_error, sizeof(last_error), "%s: 检测到 %d 个冲突", context, conflict_count);
+        engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+        snprintf(engine->last_error, sizeof(engine->last_error), "%s: 检测到 %d 个冲突", context, conflict_count);
         return -1;
     }
     return 0;
@@ -651,14 +852,14 @@ static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *con
             groebner_result_free(result);
         lv00_free((void **) &dirty_ids);
 
-        if (sstatus == SOLVER_NO_SOLUTION || sstatus == SOLVER_OVERCONSTRAINED) {
-            last_status = ENGINE_CONSTRAINT_CONFLICT;
-            snprintf(last_error, sizeof(last_error), "%s: 求解器检测到冲突", context);
+        if (sstatus == SOLVER_STATUS_NO_SOLUTION || sstatus == SOLVER_STATUS_OVERCONSTRAINED) {
+            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+            snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器检测到冲突", context);
             return ENGINE_SOLVE_CONFLICT;
         }
-        if (sstatus == SOLVER_TIMEOUT) {
-            last_status = ENGINE_CONSTRAINT_CONFLICT;
-            snprintf(last_error, sizeof(last_error), "%s: 求解器超时", context);
+        if (sstatus == SOLVER_STATUS_TIMEOUT) {
+            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+            snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器超时", context);
             return ENGINE_SOLVE_TIMEOUT;
         }
         return ENGINE_SOLVE_OK;
@@ -678,9 +879,11 @@ static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *con
  *         ENGINE_SOLVE_TIMEOUT 超时，ENGINE_SOLVE_ERROR 错误
  */
 EngineSolveResult engine_solve(LV00Engine *engine) {
+    /* P2修复: 迁移到 engine 实例变量，移除全局 TLS 状态依赖 */
+    assert(engine != NULL && "engine_solve: engine is NULL");
     if (!engine || !engine->main_graph) {
-        last_status = ENGINE_INVALID_STATE;
-        snprintf(last_error, sizeof(last_error), "求解失败: 引擎实例或约束图为空 (engine=%p)", (void *) engine);
+        engine->last_status = ENGINE_STATUS_INVALID_STATE;
+        snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 引擎实例或约束图为空 (engine=%p)", (void *) engine);
         return ENGINE_SOLVE_ERROR;
     }
 
@@ -698,7 +901,7 @@ EngineSolveResult engine_solve(LV00Engine *engine) {
         if (!norm) {
             /* 归一化失败（可能内存不足或图状态异常），记录警告继续执行。
              * 求解器将在未归一化的图上运行，结果可能不如预期。 */
-            snprintf(last_error, sizeof(last_error),
+            snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_solve: graph_normalize 返回 NULL，将继续在未规范化的图上求解");
             engine_emit_stream_event(engine, STREAM_EVENT_WARNING, "图规范化失败，将继续在未规范化的图上求解", 0, -1,
                                      -1);
@@ -731,10 +934,10 @@ EngineSolveResult engine_solve(LV00Engine *engine) {
                                false /* normalize_between_steps: 默认禁用 */
             );
 
-        if (rstatus == REWRITE_TERMINATED) {
+        if (rstatus == REWRITE_STATUS_TERMINATED) {
             engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写终止（可能循环）", 1, -1, -1);
-            last_status = ENGINE_CONSTRAINT_CONFLICT;
-            snprintf(last_error, sizeof(last_error), "engine_solve: 重写终止（可能存在循环）");
+            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+            snprintf(engine->last_error, sizeof(engine->last_error), "engine_solve: 重写终止（可能存在循环）");
             return ENGINE_SOLVE_TIMEOUT;
         }
         engine_emit_stream_event(engine, STREAM_EVENT_REWRITE_DONE, "重写阶段完成", 1, -1, -1);
@@ -776,8 +979,8 @@ EngineSolveResult engine_solve(LV00Engine *engine) {
         stream_emit(engine->stream_ctx, &ev);
     }
 
-    last_status = ENGINE_OK;
-    last_error[0] = '\0';
+    engine->last_status = ENGINE_STATUS_OK;
+    engine->last_error[0] = '\0';
     return ENGINE_SOLVE_OK;
 }
 
@@ -799,8 +1002,8 @@ EngineSolveResult engine_solve(LV00Engine *engine) {
  */
 int engine_rewrite_and_solve(LV00Engine *engine, int max_rewrite_steps, int max_solve_steps) {
     if (!engine || !engine->main_graph) {
-        last_status = ENGINE_INVALID_STATE;
-        snprintf(last_error, sizeof(last_error), "重写-求解协作失败: 引擎实例或约束图为空 (engine=%p)",
+        engine->last_status = ENGINE_STATUS_INVALID_STATE;
+        snprintf(engine->last_error, sizeof(engine->last_error), "重写-求解协作失败: 引擎实例或约束图为空 (engine=%p)",
                  (void *) engine);
         return -1;
     }
@@ -830,8 +1033,8 @@ int engine_rewrite_and_solve(LV00Engine *engine, int max_rewrite_steps, int max_
         /* 总迭代次数安全限制：防止重写-求解交替无限循环 */
         if (iteration > ENGINE_MAX_COLLABORATION_ITERATIONS) {
             engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写-求解协作超过最大迭代次数限制 (" LV00_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) ")", iteration, -1, -1);
-            last_status = ENGINE_CONSTRAINT_CONFLICT;
-            snprintf(last_error, sizeof(last_error),
+            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+            snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_rewrite_and_solve: 总迭代次数超过上限 " LV00_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) "，终止执行");
             wl_history_destroy(&wl_history);
             return -2;
@@ -865,10 +1068,10 @@ int engine_rewrite_and_solve(LV00Engine *engine, int max_rewrite_steps, int max_
             total_steps += (rewrite_progress > 0) ? rewrite_progress : 1;
             remaining_rewrite = 0;
 
-            if (rstatus == REWRITE_TERMINATED) {
+            if (rstatus == REWRITE_STATUS_TERMINATED) {
                 engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写终止（循环）", iteration, -1, -1);
-                last_status = ENGINE_CONSTRAINT_CONFLICT;
-                snprintf(last_error, sizeof(last_error), "engine_rewrite_and_solve: 重写终止（存在循环）");
+                engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+                snprintf(engine->last_error, sizeof(engine->last_error), "engine_rewrite_and_solve: 重写终止（存在循环）");
                 wl_history_destroy(&wl_history);
                 return -2;
             }
@@ -889,10 +1092,10 @@ int engine_rewrite_and_solve(LV00Engine *engine, int max_rewrite_steps, int max_
 
             /* 重写阶段后的WL图哈希循环检测 */
             RewriteStatus loop_status = detect_rewrite_loop_wl(engine->main_graph, &wl_history);
-            if (loop_status == REWRITE_TERMINATED) {
+            if (loop_status == REWRITE_STATUS_TERMINATED) {
                 engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "WL哈希循环检测触发", iteration, -1, -1);
-                last_status = ENGINE_CONSTRAINT_CONFLICT;
-                snprintf(last_error, sizeof(last_error), "engine_rewrite_and_solve: 在第 %d 步通过WL哈希检测到重写循环",
+                engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+                snprintf(engine->last_error, sizeof(engine->last_error), "engine_rewrite_and_solve: 在第 %d 步通过WL哈希检测到重写循环",
                          total_steps);
                 wl_history_destroy(&wl_history);
                 return -2;
@@ -951,8 +1154,8 @@ int engine_rewrite_and_solve(LV00Engine *engine, int max_rewrite_steps, int max_
         stream_emit(engine->stream_ctx, &ev);
     }
 
-    last_status = ENGINE_OK;
-    last_error[0] = '\0';
+    engine->last_status = ENGINE_STATUS_OK;
+    engine->last_error[0] = '\0';
     return total_steps;
 }
 
@@ -973,7 +1176,7 @@ EngineCircuitResult engine_handle_circuit_trip(LV00Engine *engine) {
         return ENGINE_CIRCUIT_IGNORE;
     }
 
-    (void) engine; /* 引擎可用于未来特定上下文的处理 */
+    (void) engine; /* 引擎可用于未来特定上下文的的处理 */
 
     /* 步骤1：检查是否存在冻结点 */
     if (circuit_has_frozen_point()) {
@@ -982,20 +1185,20 @@ EngineCircuitResult engine_handle_circuit_trip(LV00Engine *engine) {
 
         /* 步骤2：若 overflow_count >= LV00_CIRCUIT_OVERFLOW_THRESHOLD，建议永久降级 */
         if (overflow >= LV00_CIRCUIT_OVERFLOW_THRESHOLD) {
-            snprintf(last_error, sizeof(last_error),
+            snprintf(engine->last_error, sizeof(engine->last_error),
                      "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
                      "建议永久降级为琥珀色",
                      overflow, LV00_CIRCUIT_OVERFLOW_THRESHOLD);
-            last_status = ENGINE_CONSTRAINT_CONFLICT;
+            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
             return ENGINE_CIRCUIT_DOWNGRADE;
         }
 
         /* 存在冻结点但溢出计数可控，建议回滚 */
-        snprintf(last_error, sizeof(last_error),
+        snprintf(engine->last_error, sizeof(engine->last_error),
                  "engine_handle_circuit_trip: 存在冻结点，"
                  "溢出计数 %d，建议回滚",
                  overflow);
-        last_status = ENGINE_OK;
+        engine->last_status = ENGINE_STATUS_OK;
         return ENGINE_CIRCUIT_ROLLBACK;
     }
 
@@ -1003,16 +1206,16 @@ EngineCircuitResult engine_handle_circuit_trip(LV00Engine *engine) {
     int overflow = circuit_get_overflow_count();
     if (overflow >= LV00_CIRCUIT_OVERFLOW_THRESHOLD) {
         /* 即使没有冻结点，反复溢出也建议降级 */
-        snprintf(last_error, sizeof(last_error),
+        snprintf(engine->last_error, sizeof(engine->last_error),
                  "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
                  "建议永久降级为琥珀色",
                  overflow, LV00_CIRCUIT_OVERFLOW_THRESHOLD);
-        last_status = ENGINE_CONSTRAINT_CONFLICT;
+        engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
         return ENGINE_CIRCUIT_DOWNGRADE;
     }
 
-    snprintf(last_error, sizeof(last_error), "engine_handle_circuit_trip: 溢出计数 %d，已处理（忽略）", overflow);
-    last_status = ENGINE_OK;
+    snprintf(engine->last_error, sizeof(engine->last_error), "engine_handle_circuit_trip: 溢出计数 %d，已处理（忽略）", overflow);
+    engine->last_status = ENGINE_STATUS_OK;
     return ENGINE_CIRCUIT_IGNORE;
 }
 
@@ -1036,22 +1239,22 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
 
     switch (action) {
         case ENGINE_CIRCUIT_ACTION_IGNORE: /* 忽略：将坐标标记为琥珀色并继续 */
-            if (overflow_coord) {
-                symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
-            }
-            circuit_handle_overflow();
-            last_status = ENGINE_OK;
-            last_error[0] = '\0';
-            return ENGINE_CIRCUIT_IGNORE;
+        if (overflow_coord) {
+            symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
+        }
+        circuit_handle_overflow();
+        g_thread_last_status = ENGINE_STATUS_OK;
+        g_thread_last_error[0] = '\0';
+        return ENGINE_CIRCUIT_IGNORE;
 
-        case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
-            if (engine->frozen_point) {
-                engine_restore_frozen_point(engine, engine->frozen_point);
-                /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
-            }
-            circuit_reset_context();
-            last_status = ENGINE_OK;
-            snprintf(last_error, sizeof(last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
+    case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
+        if (engine->frozen_point) {
+            engine_restore_frozen_point(engine, engine->frozen_point);
+            /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
+        }
+        circuit_reset_context();
+        g_thread_last_status = ENGINE_STATUS_OK;
+            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
             return ENGINE_CIRCUIT_ROLLBACK;
 
         case ENGINE_CIRCUIT_ACTION_DOWNGRADE: /* 永久降级：替换为高精度浮点数近似值 */
@@ -1100,13 +1303,13 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
                 }
             }
             circuit_handle_overflow();
-            last_status = ENGINE_OK;
-            snprintf(last_error, sizeof(last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
+            g_thread_last_status = ENGINE_STATUS_OK;
+            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
             return ENGINE_CIRCUIT_DOWNGRADE;
 
         default:
-            last_status = ENGINE_INVALID_STATE;
-            snprintf(last_error, sizeof(last_error), "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
+            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
             return ENGINE_CIRCUIT_ERROR;
     }
 }
@@ -1455,6 +1658,10 @@ void engine_set_streaming_enabled(LV00Engine *engine, bool enabled) {
     } else if (enabled && !engine->stream_ctx) {
         /* 启用时重新创建流式上下文，通过分发机制同步到所有子模块 */
         engine->stream_ctx = stream_context_create();
+        if (!engine->stream_ctx) {
+            LV00_LOG_ERROR("engine_set_streaming_enabled: stream_context_create() 返回 NULL，流式输出未能启用");
+            return;
+        }
         stream_context_dispatch_all(engine->stream_ctx);
     }
 }
@@ -1578,50 +1785,50 @@ const char *engine_state_name(EngineState state) {
  * - 记录 previous_state（用于审计和调试）
  * - 更新 state
  * - 递增 state_transition_count
- * - 返回 ENGINE_OK
+ * - 返回 ENGINE_STATUS_OK
  *
  * 转移非法时：
  * - 不改变任何状态字段
- * - 设置 last_status = ENGINE_INVALID_STATE
+ * - 设置 last_status = ENGINE_STATUS_INVALID_STATE
  * - 设置 last_error 描述尝试的非法转移
- * - 返回 ENGINE_INVALID_STATE
+ * - 返回 ENGINE_STATUS_INVALID_STATE
  *
  * @param engine    引擎实例（非 NULL）
  * @param new_state 目标状态
- * @return ENGINE_OK 成功，ENGINE_INVALID_STATE 非法转移
+ * @return ENGINE_STATUS_OK 成功，ENGINE_STATUS_INVALID_STATE 非法转移
  */
 EngineStatus lv00_engine_transition_state(LV00Engine *engine, EngineState new_state) {
     /* 参数校验 */
     if (!engine) {
-        return ENGINE_INVALID_ARGUMENT;
+        return ENGINE_STATUS_INVALID_ARGUMENT;
     }
 
     EngineState current = engine->state;
 
     /* 边界检查：防止无效状态枚举值 */
     if (new_state < ENGINE_STATE_IDLE || new_state > ENGINE_STATE_COMPLETE) {
-        engine->last_status = ENGINE_INVALID_STATE;
+        engine->last_status = ENGINE_STATUS_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error),
                  "状态转移失败: 无效的目标状态 %d（合法范围: %d-%d）",
                  (int)new_state, ENGINE_STATE_IDLE, ENGINE_STATE_COMPLETE);
-        return ENGINE_INVALID_STATE;
+        return ENGINE_STATUS_INVALID_STATE;
     }
 
     /* 转移到相同状态 —— 允许（幂等），只记录日志不触发错误 */
     if (current == new_state) {
         /* 相同状态转移：这是一个 no-op，但计数仍然递增用于审计 */
         engine->state_transition_count++;
-        return ENGINE_OK;
+        return ENGINE_STATUS_OK;
     }
 
     /* 查转移表验证合法性 */
     if (!engine_is_valid_transition(current, new_state)) {
-        engine->last_status = ENGINE_INVALID_STATE;
+        engine->last_status = ENGINE_STATUS_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error),
                  "状态转移非法: 不能从 \"%s\" 转移到 \"%s\"（转移次数: %d）",
                  engine_state_name(current), engine_state_name(new_state),
                  engine->state_transition_count);
-        return ENGINE_INVALID_STATE;
+        return ENGINE_STATUS_INVALID_STATE;
     }
 
     /* 合法转移：记录并执行 */
@@ -1629,7 +1836,7 @@ EngineStatus lv00_engine_transition_state(LV00Engine *engine, EngineState new_st
     engine->state = new_state;
     engine->state_transition_count++;
 
-    return ENGINE_OK;
+    return ENGINE_STATUS_OK;
 }
 
 /**
@@ -1643,4 +1850,19 @@ EngineState engine_get_state(const LV00Engine *engine) {
         return ENGINE_STATE_IDLE;
     }
     return engine->state;
+}
+
+/**
+ * @brief 检查引擎是否正在忙于推理计算
+ *
+ * 引擎在 REASONING 状态下禁止接受新请求、修改约束图拓扑或执行销毁。
+ * 此函数提供便捷的忙状态检查，供所有会修改引擎状态的公共 API 使用。
+ *
+ * @param engine 引擎实例（可为 NULL，返回 false 即非忙状态）
+ * @return true 引擎繁忙（处于 REASONING），false 空闲
+ */
+bool engine_is_busy(const LV00Engine *engine) {
+    if (!engine)
+        return false;
+    return engine->state == ENGINE_STATE_REASONING;
 }

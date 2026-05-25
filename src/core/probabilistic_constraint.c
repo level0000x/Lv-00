@@ -1,7 +1,10 @@
-﻿/**
+/**
  * @file probabilistic_constraint.c
- * @brief PRISM 姒傜巼妯″瀷妫€娴?鈥斺€?妗╁疄鐜? *
- * 鎻愪緵姒傜巼鍒嗗竷銆佹鐜囩害鏉熻妭鐐瑰拰 PCTL 璇勪及鐨勬鏋跺疄鐜般€? * 鍖呭惈 Box-Muller 姝ｆ€侀噰鏍枫€侀€?CDF 閲囨牱绛夊熀鏈噰鏍锋柟娉曘€? *
+ * @brief PRISM 概率模型检验 —— 桩实现
+ *
+ * 提供概率分布、概率约束节点和 PCTL 评估的框架实现。
+ * 包含 Box-Muller 正态采样、逆 CDF 采样等基础采样方法。
+ *
  * @version v3.3.0
  * @date 2026-05-24
  */
@@ -15,32 +18,32 @@
 
 #include "lv00_utils.h"
 
-/* ---- 鍐呴儴甯搁噺 ---- */
+/* ---- 内部常量 ---- */
 
-/** 榛樿閲囨牱鏁伴噺锛堢敤浜?Monte Carlo 浼拌锛?*/
+/** 默认采样数量（用于 Monte Carlo 估算）*/
 #define DEFAULT_N_SAMPLES 1000
 
-/** pi 甯搁噺 */
+/** pi 常量 */
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-/* ---- 鍐呴儴锛氱畝鍗曢殢鏈烘暟鐢熸垚鍣紙绾挎€у悓浣欏彂鐢熷櫒锛?---- */
+/* ---- 内部：简单随机数生成器（线性同余发生器）---- */
 
 static unsigned long rand_state_lcg = 123456789UL;
 
-/** 璁剧疆闅忔満绉嶅瓙 */
+/** 设置随机种子 */
 static void rand_seed_lcg(unsigned long seed) {
     rand_state_lcg = seed;
 }
 
-/** 鐢熸垚 [0, 1) 鐨勫潎鍖€闅忔満鏁帮紙绾挎€у悓浣欙級 */
+/** 生成 [0, 1) 的均匀随机数（线性同余） */
 static double rand_uniform_lcg(void) {
     rand_state_lcg = rand_state_lcg * 1103515245UL + 12345UL;
     return (double) (rand_state_lcg & 0x7FFFFFFFUL) / (double) 0x80000000UL;
 }
 
-/** 鐢熸垚鏍囧噯姝ｆ€佸垎甯?N(0,1) 闅忔満鏁帮紙Box-Muller 鍙樻崲锛?*/
+/** 生成标准正态分布 N(0,1) 随机数（Box-Muller 变换）*/
 static double rand_normal_box_muller(void) {
     double u1 = rand_uniform_lcg();
     double u2 = rand_uniform_lcg();
@@ -50,7 +53,7 @@ static double rand_normal_box_muller(void) {
 }
 
 /* ========================================================================
- * prob_dist_create 鈥?鍒涘缓姒傜巼鍒嗗竷
+ * prob_dist_create —— 创建概率分布
  * ======================================================================== */
 
 ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_count) {
@@ -74,7 +77,7 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
         dist->params = NULL;
     }
 
-    /* 璁剧疆鏀拺闆?*/
+    /* 设置支撑集 */
     switch (type) {
         case PROB_DIST_UNIFORM:
             dist->support_lo = (param_count >= 2) ? params[0] : 0.0;
@@ -98,7 +101,8 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
 }
 
 /* ========================================================================
- * prob_dist_destroy 鈥?閿€姣佹鐜囧垎甯? * ======================================================================== */
+ * prob_dist_destroy —— 销毁概率分布
+ * ======================================================================== */
 
 void prob_dist_destroy(ProbDistribution *dist) {
     if (dist) {
@@ -108,13 +112,14 @@ void prob_dist_destroy(ProbDistribution *dist) {
 }
 
 /* ========================================================================
- * prob_dist_pdf 鈥?璁＄畻姒傜巼瀵嗗害鍑芥暟鍊? * ======================================================================== */
+ * prob_dist_pdf —— 计算概率密度函数值
+ * ======================================================================== */
 
 double prob_dist_pdf(ProbDistribution *dist, double x) {
     if (!dist)
         return 0.0;
 
-    /* 璋冪敤鑷畾涔?PDF锛堝鏋滄彁渚涳級 */
+    /* 调用自定义 PDF（如果提供） */
     if (dist->type == PROB_DIST_CUSTOM && dist->pdf) {
         return dist->pdf(x, dist->params, dist->param_count);
     }
@@ -138,7 +143,7 @@ double prob_dist_pdf(ProbDistribution *dist, double x) {
             double beta = (dist->param_count >= 2) ? dist->params[1] : 1.0;
             if (x < 0.0 || x > 1.0)
                 return 0.0;
-            /* 绠€鍖栵細浣跨敤 pow 杩戜技锛堝畬鏁村疄鐜伴渶瑕?Gamma 鍑芥暟锛?*/
+            /* 简化：使用 pow 近似（完整实现需要 Gamma 函数）*/
             return pow(x, alpha - 1.0) * pow(1.0 - x, beta - 1.0);
         }
         default:
@@ -147,7 +152,8 @@ double prob_dist_pdf(ProbDistribution *dist, double x) {
 }
 
 /* ========================================================================
- * prob_dist_cdf 鈥?璁＄畻绱Н鍒嗗竷鍑芥暟鍊? * ======================================================================== */
+ * prob_dist_cdf —— 计算累积分布函数值
+ * ======================================================================== */
 
 double prob_dist_cdf(ProbDistribution *dist, double x) {
     if (!dist)
@@ -170,7 +176,7 @@ double prob_dist_cdf(ProbDistribution *dist, double x) {
         case PROB_DIST_NORMAL: {
             double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
             double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
-            /* 浣跨敤 erf 杩戜技 */
+            /* 使用 erf 近似 */
             double z = (x - mu) / (sigma * sqrt(2.0));
             return 0.5 * (1.0 + erf(z));
         }
@@ -180,12 +186,13 @@ double prob_dist_cdf(ProbDistribution *dist, double x) {
 }
 
 /* ========================================================================
- * prob_dist_sample 鈥?浠庡垎甯冧腑閲囨牱
+ * prob_dist_sample —— 从分布中采样
  *
- * 鏍规嵁鍒嗗竷绫诲瀷浣跨敤涓嶅悓鐨勯噰鏍锋柟娉曪細
- * - UNIFORM: 閫?CDF 绾挎€у彉鎹? * - NORMAL: Box-Muller 鍙樻崲
- * - BETA: 鎷掔粷閲囨牱
- * - DISCRETE: 绂绘暎閫?CDF
+ * 根据分布类型使用不同的采样方法：
+ * - UNIFORM: 逆 CDF 线性变换
+ * - NORMAL: Box-Muller 变换
+ * - BETA: 拒绝采样
+ * - DISCRETE: 离散逆 CDF
  * ======================================================================== */
 
 int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples) {
@@ -211,13 +218,13 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                 break;
             }
             case PROB_DIST_BETA: {
-                /* 绠€鍖栭噰鏍凤細浣跨敤闅忔満娓歌蛋 Metropolis-Hastings
-             * 妗╁疄鐜帮細鐢熸垚鍧囧寑闅忔満鏁颁綔涓鸿繎浼?*/
+                /* 简化采样：使用均匀随机数 Metropolis-Hastings
+             * 桩实现：生成均匀随机数作为近似 */
                 samples[i] = rand_uniform_lcg();
                 break;
             }
             case PROB_DIST_DISCRETE: {
-                /* 绂绘暎鍒嗗竷锛氶€?CDF 鏂规硶 */
+                /* 离散分布：逆 CDF 方法 */
                 double r = rand_uniform_lcg();
                 double cum = 0.0;
                 int k = 0;
@@ -241,7 +248,7 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
 }
 
 /* ========================================================================
- * prob_constraint_create 鈥?鍒涘缓姒傜巼绾︽潫鑺傜偣
+ * prob_constraint_create —— 创建概率约束节点
  * ======================================================================== */
 
 ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) {
@@ -259,7 +266,8 @@ ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist) 
 }
 
 /* ========================================================================
- * prob_constraint_destroy 鈥?閿€姣佹鐜囩害鏉熻妭鐐? * ======================================================================== */
+ * prob_constraint_destroy —— 销毁概率约束节点
+ * ======================================================================== */
 
 void prob_constraint_destroy(ProbConstraintNode *node) {
     if (node) {
@@ -270,7 +278,8 @@ void prob_constraint_destroy(ProbConstraintNode *node) {
 }
 
 /* ========================================================================
- * prob_constraint_sample 鈥?浠庢鐜囩害鏉熻妭鐐归噰鏍峰潗鏍? * ======================================================================== */
+ * prob_constraint_sample —— 从概率约束节点采样坐标
+ * ======================================================================== */
 
 int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out_samples) {
     if (!node || n_samples <= 0 || !out_samples)
@@ -291,9 +300,10 @@ int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out
 }
 
 /* ========================================================================
- * pctl_evaluate 鈥?鍦ㄧ害鏉熷浘涓婅瘎浼?PCTL 鍏紡
+ * pctl_evaluate —— 在约束图上评估 PCTL 公式
  *
- * 妗╁疄鐜帮細鏍规嵁 PCTL 鍏紡绫诲瀷鍋氭鏋惰瘎浼? * ======================================================================== */
+ * 桩实现：根据 PCTL 公式类型做框架评估
+ * ======================================================================== */
 
 bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, double *out_probability) {
     if (!graph || !formula || !out_probability)
@@ -303,36 +313,38 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
 
     switch (formula->type) {
         case PCTL_PROB_BOUND:
-            /* 姒傜巼杈圭晫锛氭鏌ユ槸鍚︽弧瓒?P~p [ phi ]
-         * 妗╋細浼板€间负 p_bound 鏈韩 */
+            /* 概率边界：检查是否满足 P~p [ phi ]
+         * 桩：返回值为 p_bound 本身 */
             *out_probability = formula->p_bound;
             break;
 
         case PCTL_NEXT:
-            /* 涓嬩竴鐘舵€侊細X phi
-         * 妗╋細濡傛灉瀛樺湪閭绘帴鑺傜偣 鈫?1.0锛屽惁鍒?0.0 */
+            /* 下一状态：X phi
+         * 桩：如果存在邻接节点 >= 1.0，否则 0.0 */
             *out_probability = (graph->node_count > 1) ? 1.0 : 0.0;
             break;
 
         case PCTL_UNTIL:
             /* phi U psi
-         * 妗╋細鍩虹浼板€?0.5 */
+         * 桩：基础返回 0.5 */
             *out_probability = 0.5;
             break;
 
         case PCTL_EVENTUALLY:
-            /* F phi锛氭渶缁堟弧瓒?         * 妗╋細濡傜姸鎬佽皳璇嶉潪绌?鈫?1.0锛屽惁鍒?0.0 */
+            /* F phi：最终满足
+         * 桩：如状态谓词非空 >= 1.0，否则 0.0 */
             *out_probability = (formula->state_predicate && strlen(formula->state_predicate) > 0) ? 1.0 : 0.0;
             break;
 
         case PCTL_ALWAYS:
-            /* G phi锛氭€绘槸婊¤冻
-         * 妗╋細浼扮畻涓?1.0锛堜箰瑙傚亣璁撅級 */
+            /* G phi：总是满足
+         * 框：估算为 1.0（乐观假设） */
             *out_probability = 1.0;
             break;
 
         case PCTL_STEADY_STATE:
-            /* S~p [ phi ]锛氱ǔ鎬佹鐜?         * 妗╋細褰撹妭鐐规暟 > 0 鏃惰繑鍥炲潎鍖€鍒嗗竷绋虫€?*/
+            /* S~p [ phi ]：稳态概率
+         * 桩：当节点数 > 0 时返回均匀分布概率 */
             *out_probability = (graph->node_count > 0) ? (1.0 / (double) graph->node_count) : 0.0;
             break;
 
@@ -344,8 +356,11 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
 }
 
 /* ========================================================================
- * pctl_check_constructibility 鈥?PCTL 鏋勯€犳€ф鏌? *
- * 閫氳繃瀵规鐜囧垎甯冭繘琛?Monte Carlo 閲囨牱锛堥粯璁?N=1000 娆★級锛? * 缁熻婊¤冻绾︽潫鐨勬湁鏁堟瀯閫犳瘮渚嬨€? * ======================================================================== */
+ * pctl_check_constructibility —— PCTL 构造性检查
+ *
+ * 通过对概率分布进行 Monte Carlo 采样（默认 N=1000 次），
+ * 统计满足约束的有效构造比例。
+ * ======================================================================== */
 
 bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence) {
     if (!graph)
@@ -353,21 +368,21 @@ bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence
     if (confidence < 0.0 || confidence > 1.0)
         return false;
 
-    /* 涓哄浘涓瘡涓妭鐐硅繘琛?Monte Carlo 妯℃嫙 */
+    /* 为图中每个节点进行 Monte Carlo 模拟 */
     int n = DEFAULT_N_SAMPLES;
     int valid_count = 0;
 
-    /* 閬嶅巻姣忎釜绾︽潫锛屾鏌ュ彲婊¤冻鎬?*/
+    /* 遍历每个约束，检查可满足性 */
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
-        (void) c; /* 妗╋細鍋囪鎵€鏈夌害鏉熼兘鏈夎В */
+        (void) c; /* 框：假设所有约束都有解 */
 
-        /* 绠€鍖栵細姣忕绾︽潫绫诲瀷鏈夌壒瀹氭湁鏁堟鐜?*/
+        /* 简化：每种约束类型有特定有效概率 */
         double valid_prob = 1.0;
         if (c->type == INTERSECTION) {
-            valid_prob = 0.95; /* 鐩镐氦绾︽潫閫氬父鍙弧瓒?*/
+            valid_prob = 0.95; /* 相交约束通常可满足 */
         } else if (c->type == BETWEENNESS) {
-            valid_prob = 0.90; /* 涔嬮棿绾︽潫鐣ュ井涓ユ牸 */
+            valid_prob = 0.90; /* 介于约束略微严格 */
         }
 
         for (int sample = 0; sample < n; sample++) {
@@ -377,7 +392,7 @@ bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence
         }
     }
 
-    /* 璁＄畻鏈夋晥鏋勯€犳瘮渚?*/
+    /* 计算有效构造比例 */
     int total_trials = n * graph->constraint_count;
     if (total_trials <= 0)
         total_trials = 1;
@@ -387,16 +402,18 @@ bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence
 }
 
 /* ========================================================================
- * prob_constraint_infer 鈥?姒傜巼绾︽潫鎺ㄧ悊
+ * prob_constraint_infer —— 概率约束推理
  *
- * 浣跨敤璐濆彾鏂綉缁滈鏍肩殑淇″康浼犳挱锛屼粠涓€缁勬鐜囩害鏉熸帹鏂洰鏍囧彉閲忕殑缃俊搴︺€? * ======================================================================== */
+ * 使用置信度网络传播的概念传播，从一组概率约束推导目标变量的置信度。
+ * ======================================================================== */
 
 bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbConstraintNode **constraints, int n,
                            double *out_conf) {
     if (!graph || !constraints || n <= 0 || !out_conf)
         return false;
 
-    /* 妗╁疄鐜帮細浣跨敤鏈寸礌璐濆彾鏂帹鐞?     * 瀵规瘡涓害鏉熺嫭绔嬮噰鏍凤紝姹囨€诲悗璁＄畻缃俊鍖洪棿
+    /* 框实现：使用朴素置信度推理
+     * 对每个约束独立采样，汇总后计算置信区间
      */
     double total_confidence = 0.0;
     int valid_constraints = 0;
@@ -406,14 +423,14 @@ bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbCon
         if (!cn)
             continue;
 
-        /* 瀵瑰綋鍓嶇害鏉熼噰鏍?*/
+        /* 对当前约束采样 */
         int n_samples = 100;
         double *samples = NULL;
         int count = prob_constraint_sample(cn, n_samples, &samples);
         if (count <= 0 || !samples)
             continue;
 
-        /* 璁＄畻鏍锋湰缃俊搴︼紙绠€鍖栵細浣跨敤杞害鏉熸鐜囷級 */
+        /* 计算样本置信度（简化：使用约束概率） */
         double conf = cn->is_soft ? cn->probability : 1.0;
         total_confidence += conf;
         valid_constraints++;
@@ -431,6 +448,6 @@ bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbCon
         *out_conf = 0.0;
     }
 
-    (void) target_var; /* 妗╁疄鐜颁腑鏈娇鐢ㄧ洰鏍囧彉閲?*/
+    (void) target_var; /* 框实现中未使用目标变量 */
     return true;
 }

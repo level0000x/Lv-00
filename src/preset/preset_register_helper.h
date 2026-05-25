@@ -10,9 +10,9 @@
 #ifndef LV00_PRESET_REGISTER_HELPER_H
 #define LV00_PRESET_REGISTER_HELPER_H
 
-#include "lv00/preset_blocks.h"
-#include "lv00/error_codes.h"
-#include "lv00/debug.h"
+#include "preset_blocks.h"
+#include "error_codes.h"
+#include "debug.h"
 
 /**
  * @brief 统一的预设注册辅助宏
@@ -43,22 +43,33 @@
 
 /**
  * @brief 带类别的预设注册辅助宏
- * @details 支持扩展类别系统的注册宏。
+ * @details 支持扩展类别系统的注册宏，调用 preset_blocks_register_simple 接口。
+ *
+ * @param success_count  成功计数变量名（int 类型）
+ * @param total_count    总数计数变量名（int 类型）
+ * @param registry       函数块注册表指针（保留参数，当前未使用）
+ * @param name           预设名称字符串
+ * @param output_type    输出类型（PresetType 枚举值）
+ * @param input_types    输入类型数组
+ * @param input_count    输入类型数量
+ * @param desc           中文描述字符串
+ * @param category       预设类别（PresetCategory 枚举值）
+ * @param complexity     时间复杂度描述（如 "O(1)", "O(n)"）
+ * @param reversible     是否可逆（bool）
  */
-#define LV00_PRESET_REGISTER_EX(success_count, total_count, registry, name, type, \
-                                 input_types, input_count, output_type, desc,     \
-                                 category, complexity, reversible)               \
-    do {                                                                         \
-        (total_count)++;                                                         \
-        if (preset_blocks_register_by_category((registry), (name), (type),       \
-                                               (input_types), (input_count),     \
-                                               (output_type), (desc),            \
-                                               (category), (complexity),         \
-                                               (reversible))) {                  \
-            (success_count)++;                                                   \
-        } else {                                                                 \
-            LV00_LOG_ERROR("预设注册失败: %s (%s)", (name), (desc));             \
-        }                                                                        \
+#define LV00_PRESET_REGISTER_EX(success_count, total_count, registry, name, output_type, \
+                                 input_types, input_count, desc, category, complexity, \
+                                 reversible)                                       \
+    do {                                                                             \
+        (total_count)++;                                                             \
+        if (preset_blocks_register_simple((name), (desc), (category),                \
+                                          (input_types), (input_count),              \
+                                          (output_type), NULL, (complexity),         \
+                                          false, (reversible))) {                    \
+            (success_count)++;                                                       \
+        } else {                                                                     \
+            LV00_LOG_ERROR("预设注册失败: %s (%s)", (name), (desc));                 \
+        }                                                                            \
     } while (0)
 
 #endif /* LV00_PRESET_REGISTER_HELPER_H */

@@ -32,16 +32,51 @@ static int bdd_unique_hash(int var_id, BDDNode *low, BDDNode *high, int table_si
 
 /** 在唯一表中查找或插入节点 */
 static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDDNode *high) {
-    /* 简化实现：返回新节点（桩，不使用真正唯一表缓存） */
+    if (!mgr)
+        return NULL;
+
+    /* 终端节点直接返回 */
+    if (low == high)
+        return low;
+
+    /* 在唯一表中查找已存在的相同 (var, lo, hi) 节点 */
+    int idx = bdd_unique_hash(var_id, low, high, mgr->unique_table_size);
+    /* 线性探测 */
+    for (int probe = 0; probe < mgr->unique_table_size; probe++) {
+        int slot = (idx + probe) % mgr->unique_table_size;
+        BDDNode *existing = mgr->unique_table[slot];
+        if (existing == NULL)
+            break; /* 空槽，未找到 */
+        if (existing->var_id == var_id &&
+            existing->low == low &&
+            existing->high == high) {
+            /* 找到已存在节点，增加引用计数并返回 */
+            existing->ref_count++;
+            return existing;
+        }
+    }
+
+    /* 未找到，分配新节点 */
     BDDNode *node = (BDDNode *) lv00_malloc(sizeof(BDDNode));
     if (!node)
         return NULL;
     node->var_id = var_id;
     node->low = low;
     node->high = high;
-    node->ref_count = 0;
+    node->ref_count = 1; /* 初始引用计数为 1（调用者持有） */
     node->complemented = false;
     mgr->node_count++;
+
+    /* 插入唯一表 */
+    int slot = bdd_unique_hash(var_id, low, high, mgr->unique_table_size);
+    for (int probe = 0; probe < mgr->unique_table_size; probe++) {
+        int s = (slot + probe) % mgr->unique_table_size;
+        if (mgr->unique_table[s] == NULL) {
+            mgr->unique_table[s] = node;
+            break;
+        }
+    }
+
     return node;
 }
 
@@ -113,6 +148,7 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
         mgr->var_order[i] = i;
     }
     mgr->var_count = var_count;
+    mgr->var_capacity = var_count;
     mgr->node_count = 0;
 
     return mgr;
@@ -153,9 +189,18 @@ int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
     (void) type;
     if (!mgr)
         return -1;
-    /* 注意：桩实现不真正使用 var_order 数组，var_count 递增不会导致越界访问。
-     * 完整实现中应检查 var_count 是否超出 var_order 数组容量并按需扩容。 */
+    /* 检查 var_order 数组容量，不足时扩容（2 倍增长） */
+    if (mgr->var_count >= mgr->var_capacity) {
+        int new_capacity = (mgr->var_capacity > 0) ? mgr->var_capacity * 2 : 16;
+        int *new_order = (int *) lv00_realloc(mgr->var_order,
+                                               (size_t) new_capacity * sizeof(int));
+        if (!new_order)
+            return -1;
+        mgr->var_order = new_order;
+        mgr->var_capacity = new_capacity;
+    }
     int id = mgr->var_count;
+    mgr->var_order[id] = id;
     mgr->var_count++;
     return id;
 }
@@ -211,14 +256,36 @@ void bdd_ref(BDDNode *node) {
 }
 
 /**
- * @brief 减少节点引用计数（桩实现中终端节点不回收）
+ * @brief 减少节点引用计数，为 0 时从唯一表移除并释放
+ * @param mgr  BDD 管理器
  * @param node BDD 节点
  */
-void bdd_deref(BDDNode *node) {
-    if (node && node->ref_count > 0) {
-        node->ref_count--;
-        /* 桩：终端节点不回收 */
+void bdd_deref(BDDManager *mgr, BDDNode *node) {
+    if (!node || node->ref_count == 0)
+        return;
+    node->ref_count--;
+    /* 终端节点（var_id == -1）不回收 */
+    if (node->var_id < 0)
+        return;
+    if (node->ref_count > 0)
+        return;
+
+    /* 引用计数降为 0：从唯一表中移除并释放 */
+    if (mgr && mgr->unique_table) {
+        int idx = bdd_unique_hash(node->var_id, node->low, node->high,
+                                  mgr->unique_table_size);
+        for (int probe = 0; probe < mgr->unique_table_size; probe++) {
+            int slot = (idx + probe) % mgr->unique_table_size;
+            if (mgr->unique_table[slot] == node) {
+                mgr->unique_table[slot] = NULL;
+                break;
+            }
+            if (mgr->unique_table[slot] == NULL)
+                break;
+        }
+        mgr->node_count--;
     }
+    lv00_free((void **)&node);
 }
 
 /* ========================================================================
@@ -281,8 +348,8 @@ BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h) {
     BDDNode *e = bdd_ite(mgr, f_high, g_high, h_high);
 
     BDDNode *result = bdd_unique_lookup(mgr, top_var, t, e);
-    bdd_deref(t);
-    bdd_deref(e);
+    bdd_deref(mgr, t);
+    bdd_deref(mgr, e);
     return result;
 }
 
@@ -309,7 +376,7 @@ BDDNode *bdd_xor(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* f ^ g = ite(f, ~g, g) */
     BDDNode *not_g = bdd_not(mgr, g);
     BDDNode *result = bdd_ite(mgr, f, not_g, g);
-    bdd_deref(not_g);
+    bdd_deref(mgr, not_g);
     return result;
 }
 
@@ -317,7 +384,7 @@ BDDNode *bdd_nand(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* ~(f & g) = ite(f, ~g, T) */
     BDDNode *not_g = bdd_not(mgr, g);
     BDDNode *result = bdd_ite(mgr, f, not_g, mgr->true_node);
-    bdd_deref(not_g);
+    bdd_deref(mgr, not_g);
     return result;
 }
 
@@ -439,8 +506,8 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             continue;
 
         BDDNode *new_result = bdd_and(mgr, result, lit);
-        bdd_deref(result);
-        bdd_deref(lit);
+        bdd_deref(mgr, result);
+        bdd_deref(mgr, lit);
         result = new_result;
     }
 
@@ -480,8 +547,24 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
         int var_id = base_var + bit;
         /* 获取或创建变量 */
         if (var_id >= mgr->var_count) {
-            /* 扩展变量序 */
-            mgr->var_count = var_id + 1;
+            /* 检查 var_order 容量，不足时扩容 */
+            int needed = var_id + 1;
+            if (needed > mgr->var_capacity) {
+                int new_capacity = (mgr->var_capacity > 0) ? mgr->var_capacity * 2 : 16;
+                if (new_capacity < needed)
+                    new_capacity = needed;
+                int *new_order = (int *) lv00_realloc(mgr->var_order,
+                                                       (size_t) new_capacity * sizeof(int));
+                if (!new_order)
+                    return -1;
+                mgr->var_order = new_order;
+                mgr->var_capacity = new_capacity;
+            }
+            /* 初始化新增的变量序条目 */
+            for (int v = mgr->var_count; v < needed; v++) {
+                mgr->var_order[v] = v;
+            }
+            mgr->var_count = needed;
         }
     }
 

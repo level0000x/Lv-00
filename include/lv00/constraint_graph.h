@@ -38,15 +38,39 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdatomic.h> /* v3.4.1: 原子操作支持多线程安全 */
 
 #include "error_codes.h"
 #include "stream.h"
 #include "symbolic_coord.h"
 
+/* ================================================================
+ * v3.4.1: 多线程安全原子操作宏
+ * ================================================================
+ * 为 next_node_id 和 next_constraint_id 提供原子递增操作，
+ * 确保多线程环境下的线程安全，避免数据竞争。
+ *
+ * 使用 _Atomic int 类型（在 C11 stdatomic.h 中定义），
+ * 通过 atomic_fetch_add_explicit() 实现无锁原子递增，
+ * 使用 memory_order_relaxed 优化性能（仅保证原子性，不保证内存顺序）。
+ *
+ * 对于需要严格内存顺序的场景，可使用 atomic_fetch_add() 默认的
+ * memory_order_seq_cst，或显式使用 memory_order_acq_rel。
+ */
+
+/** @brief 原子递增节点ID并返回新值（线程安全） */
+#define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed)
+
+/** @brief 原子递增约束ID并返回新值（线程安全） */
+#define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed)
+
 /* LV00_DEPRECATED 宏统一由 lv00.h 定义，此处不再重复声明。 */
 
 /* 前向声明 - 用于 Port 的多态类型标记 */
 typedef struct TypeRegion TypeRegion;
+
+/* 前向声明 - Lv00Context (v3.4.0: 用于统一错误系统) */
+struct Lv00Context;
 
 /**
  * @brief 几何节点类型枚举
@@ -184,6 +208,7 @@ struct Constraint {
     int *participants;
     int participant_count;
     int template_id;
+    bool is_active; /**< 约束生命周期标记：true=活跃，false=已废弃 */
 };
 
 /**
@@ -226,8 +251,18 @@ struct ConstraintGraph {
     int constraint_count;    /**< 当前约束数量 */
     int constraint_capacity; /**< 约束数组容量 */
 
-    int next_node_id;       /**< 下一个可分配的节点 ID */
-    int next_constraint_id; /**< 下一个可分配的约束 ID */
+    /* ================================================================
+     * v3.4.1: 原子类型确保多线程安全 ID 分配
+     * ================================================================
+     * next_node_id 和 next_constraint_id 使用 _Atomic int 类型，
+     * 通过 atomic_fetch_add_explicit() 实现无锁原子递增。
+     * 在多线程环境下，节点和约束的 ID 分配不会出现数据竞争。
+     *
+     * 注意：初始化时应使用 ATOMIC_INT_INIT 宏或在 graph_create 中
+     * 使用 atomic_store(&graph->next_node_id, 0)。
+     */
+    _Atomic int next_node_id;       /**< 下一个可分配的节点 ID（原子操作，线程安全） */
+    _Atomic int next_constraint_id; /**< 下一个可分配的约束 ID（原子操作，线程安全） */
 
     /** O(1) 节点哈希索引 —— node_id -> GeomNode* */
     GeomNode **node_index;
@@ -251,6 +286,16 @@ struct ConstraintGraph {
      * ============================================================ */
     char *error_buffer;       /**< 图级内部错误消息缓冲区（256 字节，堆分配） */
     char *serialize_buffer;   /**< 图级序列化错误消息缓冲区（256 字节，堆分配） */
+
+    /* ============================================================
+     * Lv00Context 指针 (v3.4.0: 统一错误系统迁移)
+     *
+     * 当 graph 通过 engine 关联到 Lv00Context 时，此字段指向对应的上下文。
+     * graph_set_error() 和 graph_get_error() 函数会优先使用 context
+     * 中的错误存储，fallback 到 error_buffer。
+     * ============================================================ */
+    struct Lv00Context *context;  /**< 关联的 Lv00Context 实例（可选，v3.4.0 新增） */
+    bool dirty;                    /**< 脏标记：约束被修改时置 true，需同步后置 false */
 };
 
 typedef enum {
@@ -649,6 +694,42 @@ char *graph_constraint_serialize_to_json(const Constraint *constraint);
  */
 const char *graph_get_serialize_error(const ConstraintGraph *graph);
 
+/* ============================================================
+ * 统一错误系统 (v3.4.0: 迁移到 Lv00Context)
+ *
+ * graph_set_error() 和 graph_get_error() 函数优先使用
+ * graph->context 中的错误存储（如果有），fallback 到
+ * graph->error_buffer。
+ *
+ * 设计原则：
+ *   - 优先使用 context 错误存储（支持隔离上下文）
+ *   - context 为 NULL 时 fallback 到 error_buffer
+ *   - 保持向后兼容，现有调用无需修改
+ * ============================================================ */
+
+/**
+ * @brief 设置约束图的错误信息 (v3.4.0: 支持 Lv00Context)
+ *
+ * 优先将错误信息存储到 graph->context->error_message 中
+ * (如果有 context)，fallback 到 graph->error_buffer。
+ *
+ * @param graph 约束图（可以为 NULL，但错误信息不会被存储）
+ * @param fmt   printf 风格的格式字符串
+ * @param ...   可变参数列表
+ */
+void graph_set_error(ConstraintGraph *graph, const char *fmt, ...);
+
+/**
+ * @brief 获取约束图的错误信息 (v3.4.0: 支持 Lv00Context)
+ *
+ * 优先从 graph->context->error_message 读取错误信息
+ * (如果有 context 且有错误)，fallback 到 graph->error_buffer。
+ *
+ * @param graph 约束图（可以为 NULL，返回 "NULL graph"）
+ * @return 错误信息字符串（内部存储，勿 free）
+ */
+const char *graph_get_error(const ConstraintGraph *graph);
+
 /* ========================================================================
  * DOT 格式导出（借鉴 Graphviz DOT 声明式图描述语言，v3.3.0）
  *
@@ -751,6 +832,46 @@ int graph_export_dot_file(const ConstraintGraph *graph, const DOTExportConfig *c
  * @note 需系统 PATH 中有 graphviz 的 dot 命令
  */
 int graph_export_dot_to_svg(const ConstraintGraph *graph, const DOTExportConfig *config, const char *output_svg);
+
+/* ============================================================
+ * 约束生命周期管理与脏标记同步 (v3.5.0)
+ *
+ * 提供约束的惰性废弃机制和 dirty 标记传播机制，
+ * 用于在约束被修改后同步所有受影响节点的属性。
+ * ============================================================ */
+
+/**
+ * @brief 标记约束图为脏状态（约束被修改时调用）
+ *
+ * 设置 graph->dirty = true，表示图中节点属性需要刷新。
+ * 应在每次约束添加、修改或删除后调用。
+ *
+ * @param graph 约束图（非 NULL）
+ */
+void graph_mark_dirty(ConstraintGraph *graph);
+
+/**
+ * @brief 同步约束图中所有受影响节点的属性
+ *
+ * 遍历所有受影响的节点并刷新其属性。
+ * 同步完成后将 dirty 标记重置为 false。
+ * 通常在调用 graph_mark_dirty() 后、求解前调用。
+ *
+ * @param graph 约束图（非 NULL）
+ */
+void graph_sync_nodes(ConstraintGraph *graph);
+
+/**
+ * @brief 废弃约束（惰性删除，保留审计跟踪）
+ *
+ * 将约束标记为不活跃（is_active = false），从活跃约束索引中移除，
+ * 但保留其数据以便审计跟踪。遍历约束时自动跳过不活跃约束。
+ *
+ * @param graph         约束图（非 NULL）
+ * @param constraint_id 要废弃的约束 ID
+ * @return LV00_OK 成功，其他错误码表示失败
+ */
+int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id);
 
 #ifdef __cplusplus
 }

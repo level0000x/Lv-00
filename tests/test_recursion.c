@@ -247,7 +247,7 @@ static int test_recursion_depth_exceeded(void) {
         printf("  第 %d 次进入: %s (深度: %d)\n", i + 1, recursion_check_result_to_string(result),
                recursion_context_get_depth(ctx));
 
-        if (result == RECURSION_DEPTH_EXCEEDED) {
+        if (result == RECURSION_CHECK_RESULT_DEPTH_EXCEEDED) {
             printf("  深度超限检测成功!\n");
             break;
         }
@@ -396,16 +396,16 @@ static int test_helper_functions(void) {
     printf("  CUSTOM -> %s\n", str);
 
     /* 递归检查结果转字符串 */
-    str = recursion_check_result_to_string(RECURSION_OK);
+    str = recursion_check_result_to_string(RECURSION_CHECK_RESULT_OK);
     printf("  OK -> %s\n", str);
 
-    str = recursion_check_result_to_string(RECURSION_NOT_DECREASING);
+    str = recursion_check_result_to_string(RECURSION_CHECK_RESULT_NOT_DECREASING);
     printf("  NOT_DECREASING -> %s\n", str);
 
-    str = recursion_check_result_to_string(RECURSION_DEPTH_EXCEEDED);
+    str = recursion_check_result_to_string(RECURSION_CHECK_RESULT_DEPTH_EXCEEDED);
     printf("  DEPTH_EXCEEDED -> %s\n", str);
 
-    str = recursion_check_result_to_string(RECURSION_CYCLE_DETECTED);
+    str = recursion_check_result_to_string(RECURSION_CHECK_RESULT_CYCLE_DETECTED);
     printf("  CYCLE_DETECTED -> %s\n", str);
 
     printf("  PASSED\n");

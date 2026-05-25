@@ -119,7 +119,7 @@ static void geo_randomized_check_init(Lv00RandomizedCheck *check) {
  * 生命周期函数
  * ======================================================================== */
 
-Lv00InteractiveGeo *interactive_geo_init(void *engine_handle) {
+Lv00InteractiveGeo *interactive_geo_init(LV00Engine *engine_handle) {
     Lv00InteractiveGeo *geo = (Lv00InteractiveGeo *)lv00_malloc(sizeof(Lv00InteractiveGeo));
     LV00_CHECK_NULL(geo, NULL);
     if (!geo) return NULL;

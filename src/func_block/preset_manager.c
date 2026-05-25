@@ -868,8 +868,8 @@ bool preset_instance_execute(PresetInstanceHandle instance, const PresetExecutio
 
     /* 实际执行：标记函数块为已验证确定性状态，
      * 完整的执行逻辑依赖于 func_block 系统的约束求解器。 */
-    if (inst->func_block->determinism == DETERMINISM_UNVERIFIED) {
-        inst->func_block->determinism = DETERMINISM_VERIFIED;
+    if (inst->func_block->determinism == DETERMINISM_STATE_UNVERIFIED) {
+        inst->func_block->determinism = DETERMINISM_STATE_VERIFIED;
     }
 
     /* 进度回调 */
@@ -916,7 +916,7 @@ bool preset_instance_validate(PresetInstanceHandle instance, bool *out_is_valid,
     }
 
     /* 验证3：确定性状态检查 */
-    if (inst->func_block->determinism == DETERMINISM_NON_DETERMINISTIC) {
+    if (inst->func_block->determinism == DETERMINISM_STATE_NON_DETERMINISTIC) {
         if (out_error_message) {
             *out_error_message = lv00_strdup_safe("验证警告: 函数块存在多解歧义");
         }

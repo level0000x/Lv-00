@@ -857,6 +857,6 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count) {
  *
  * @return 预设类别枚举值
  */
-PresetCategory preset_lattice_theory_category(void) {
-    return PRESET_CATEGORY_ALGEBRAIC;
+const char *preset_lattice_theory_category(void) {
+    return "algebraic";
 }

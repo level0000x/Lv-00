@@ -343,12 +343,12 @@ static bool match_ports(const ConstraintGraph *construction, const ConstraintGra
  * 基础合一
  * ------------------------------------------------------------------------- */
 
-UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, ConstraintGraph *proposition) {
+UnifyStatus unify_construction_with_proposition(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
     if (unify_stream_ctx) {
         stream_emit_simple(unify_stream_ctx, STREAM_EVENT_PROOF_UNIFY, "合一检查开始", 0);
     }
-    NormalizationResult *nc = graph_normalize(construction, true);
-    NormalizationResult *np = graph_normalize(proposition, true);
+    NormalizationResult *nc = graph_normalize((ConstraintGraph *)construction, true);
+    NormalizationResult *np = graph_normalize((ConstraintGraph *)proposition, true);
     if (!nc || !np) {
         if (nc)
             normalization_result_destroy(nc);
@@ -445,7 +445,7 @@ UnifyStatus unify_construction_with_proposition(ConstraintGraph *construction, C
  * 这确保了深层子图同构不仅匹配拓扑结构，还匹配几何语义。
  * ------------------------------------------------------------------------- */
 
-UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construction, ConstraintGraph *proposition) {
+UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *construction, const ConstraintGraph *proposition) {
     /*
      * 执行带坐标级判等的合一检查。流程分为四个阶段：
      *
@@ -465,8 +465,8 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
      *   否则返回对应的错误状态码。
      */
 
-    NormalizationResult *nc = graph_normalize(construction, true);
-    NormalizationResult *np = graph_normalize(proposition, true);
+    NormalizationResult *nc = graph_normalize((ConstraintGraph *)construction, true);
+    NormalizationResult *np = graph_normalize((ConstraintGraph *)proposition, true);
     if (!nc || !np) {
         if (nc)
             normalization_result_destroy(nc);
@@ -571,10 +571,10 @@ UnifyStatus unify_construction_with_proposition_coord(ConstraintGraph *construct
  * 不必要的约束匹配次数。
  * ------------------------------------------------------------------------- */
 
-UnifyStatus unify_construction_with_proposition_hash_filtered(ConstraintGraph *construction,
-                                                              ConstraintGraph *proposition) {
-    NormalizationResult *nc = graph_normalize(construction, true);
-    NormalizationResult *np = graph_normalize(proposition, true);
+UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGraph *construction,
+                                                              const ConstraintGraph *proposition) {
+    NormalizationResult *nc = graph_normalize((ConstraintGraph *)construction, true);
+    NormalizationResult *np = graph_normalize((ConstraintGraph *)proposition, true);
     if (!nc || !np) {
         if (nc)
             normalization_result_destroy(nc);
@@ -1080,6 +1080,37 @@ UnifyStatus unify_construction_with_proposition_detailed(ConstraintGraph *constr
 
 static LV00_THREAD_LOCAL PropositionEquivalence g_equivalences[MAX_EQUIVALENCES];
 static LV00_THREAD_LOCAL int g_equivalence_count = 0;
+
+/**
+ * @brief 初始化等价声明存储（线程安全）
+ *
+ * 确保线程局部存储被正确初始化。
+ * 由于使用 LV00_THREAD_LOCAL，此函数主要为显式初始化提供接口。
+ *
+ * @note 线程安全：每个线程有独立的存储实例。
+ *       可重复调用，后续调用会重置存储状态。
+ */
+void unify_equivalence_storage_init(void) {
+    /* 使用静态变量确保线程安全初始化 */
+    static _Bool initialized = false;
+    if (!initialized) {
+        /* 重置计数器并清空存储 */
+        g_equivalence_count = 0;
+        memset(g_equivalences, 0, sizeof(g_equivalences));
+        initialized = true;
+    }
+}
+
+/**
+ * @brief 获取当前等价声明数量
+ *
+ * @return 当前存储的等价声明数量
+ *
+ * @note 线程安全：返回当前线程存储中的等价声明数量。
+ */
+int unify_equivalence_count(void) {
+    return g_equivalence_count;
+}
 
 bool unify_declare_proposition_equivalence(int prop_a_id, int prop_b_id, ConstraintGraph *transformation_rule) {
     if (g_equivalence_count >= MAX_EQUIVALENCES) {

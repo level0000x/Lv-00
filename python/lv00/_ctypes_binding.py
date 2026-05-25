@@ -1078,12 +1078,12 @@ PROOF_STEP_ORACLE = 8         # 神谕/外部求解
 
 # ===== 递归检查结果常量 =====
 # 递归终止检查的返回状态
-RECURSION_OK = 0               # 递归检查通过
-RECURSION_NOT_DECREASING = 1   # 测度未递减（可能不终止）
-RECURSION_DEPTH_EXCEEDED = 2   # 递归深度超限
-RECURSION_CYCLE_DETECTED = 3   # 检测到循环依赖
-RECURSION_MEASURE_UNKNOWN = 4  # 测度未知
-RECURSION_ERROR = 5            # 检查过程发生错误
+RECURSION_CHECK_RESULT_OK = 0               # 递归检查通过
+RECURSION_CHECK_RESULT_NOT_DECREASING = 1   # 测度未递减（可能不终止）
+RECURSION_CHECK_RESULT_DEPTH_EXCEEDED = 2   # 递归深度超限
+RECURSION_CHECK_RESULT_CYCLE_DETECTED = 3   # 检测到循环依赖
+RECURSION_CHECK_RESULT_MEASURE_UNKNOWN = 4  # 测度未知
+RECURSION_CHECK_RESULT_ERROR = 5            # 检查过程发生错误
 
 # ===== 日志级别常量 =====
 # 调试日志输出级别，从最详细到最简洁

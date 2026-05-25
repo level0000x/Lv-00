@@ -69,7 +69,9 @@ typedef enum {
     MODULE_LOAD_PARSE_ERROR,         /* 解析错误 */
     MODULE_LOAD_CIRCULAR_DEPENDENCY, /* 循环依赖 */
     MODULE_LOAD_DEPTH_EXCEEDED,      /* 依赖深度超限 */
-    MODULE_LOAD_INVALID_LVZ          /* 无效的 LVZ 格式 */
+    MODULE_LOAD_INVALID_LVZ,         /* 无效的 LVZ 格式 */
+    MODULE_LOAD_ERROR_INVALID_PATH,  /* 无效的文件路径 */
+    MODULE_LOAD_MEMORY_ERROR         /* 内存分配失败 */
 } ModuleLoadStatus;
 
 typedef enum {

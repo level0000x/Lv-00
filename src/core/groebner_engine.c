@@ -666,10 +666,11 @@ static bool poly_ensure_capacity(Lv00Polynomial *poly, int needed) {
     /* 简单地，我们要求调用者确保容量足够，或者我们在此处做一个保守假设。 */
     /* 既然 powers 数组长度 = term_capacity * var_count，且目前 term_count 已知， */
     /* 我们可以通过 term_count > 0 时 powers 的长度来推断。但首次分配时 term_count=0 则不行。 */
-    /* 最简单的做法：在调用 poly_ensure_capacity 时，已知 var_count 由调用者保证。 */
-    /* 此处我们假设 var_count 已经在上下文中。但为了函数本身自足，我们存储 var_count。 */
-    /* 无法修改 struct，所以我们采用替代方案：总是传入 ring。 */
-
+    /* 警告：此函数为空操作（始终返回 true）。
+     * 原因：多项式的 powers 数组大小为 term_capacity * var_count，
+     * 但本函数无法获取 var_count（该信息存储在外部环结构中）。
+     * 所有需要扩容的调用点均使用 poly_ensure_capacity_ex(poly, needed, var_count)。
+     * 保留此函数仅为向后兼容 API 签名。 */
     return true;
 }
 

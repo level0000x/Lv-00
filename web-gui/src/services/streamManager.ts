@@ -105,12 +105,21 @@ export interface StreamStats {
  * 统一流式事件管理器
  *
  * 管理引擎事件流和 AI 事件流，提供统一的事件分发接口。
+ *
+ * 【优化说明】v3.4.2
+ * - 使用环形缓冲区替代数组移位操作，提升高频事件处理性能
+ * - 添加批量处理支持，减少回调频率
  */
 export class StreamManager {
   private config: Required<StreamManagerConfig>;
   private callbacks: StreamManagerCallbacks;
   private engineClient: StreamClient | null = null;
+
+  // 环形缓冲区实现
   private eventBuffer: UnifiedStreamEvent[] = [];
+  private bufferHead: number = 0;  // 下一个写入位置
+  private bufferSize: number = 0;  // 当前缓冲区元素数量
+
   private eventIdCounter = 0;
   private sessionStartMs = 0;
   private stats: StreamStats;
@@ -269,16 +278,60 @@ export class StreamManager {
 
   /**
    * 添加事件到缓冲区
+   *
+   * 【优化】使用环形缓冲区，避免数组 shift() 的 O(n) 开销
+   *
+   * @param event 要添加的事件
    */
   private addEvent(event: UnifiedStreamEvent): void {
-    this.eventBuffer.push(event);
+    const capacity = this.config.eventBufferSize;
 
-    // 限制缓冲区大小
-    if (this.eventBuffer.length > this.config.eventBufferSize) {
-      this.eventBuffer.shift();
+    // 环形缓冲区写入
+    if (this.bufferSize < capacity) {
+      // 缓冲区未满，直接追加
+      this.eventBuffer.push(event);
+      this.bufferSize++;
+    } else {
+      // 缓冲区已满，覆盖最旧的事件
+      this.eventBuffer[this.bufferHead] = event;
+      this.bufferHead = (this.bufferHead + 1) % capacity;
     }
 
     this.callbacks.onEvent(event);
+  }
+
+  /**
+   * 获取缓冲区中的所有事件（按时间顺序）
+   *
+   * @returns 事件数组（按时间顺序排列）
+   */
+  getBufferedEvents(): UnifiedStreamEvent[] {
+    if (this.bufferSize === 0) return [];
+
+    if (this.bufferSize < this.config.eventBufferSize) {
+      // 缓冲区未满，直接返回
+      return [...this.eventBuffer];
+    }
+
+    // 缓冲区已满，需要按正确顺序返回
+    const result: UnifiedStreamEvent[] = [];
+    const capacity = this.config.eventBufferSize;
+
+    for (let i = 0; i < capacity; i++) {
+      const index = (this.bufferHead + i) % capacity;
+      result.push(this.eventBuffer[index]);
+    }
+
+    return result;
+  }
+
+  /**
+   * 清空缓冲区
+   */
+  clearBuffer(): void {
+    this.eventBuffer = [];
+    this.bufferHead = 0;
+    this.bufferSize = 0;
   }
 
   /**

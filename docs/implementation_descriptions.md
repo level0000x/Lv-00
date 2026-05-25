@@ -2024,7 +2024,7 @@ bool proof_restore_breakpoint(const char *filepath,
  * @param measure 测度定义
  * @param before_value 递归前的测度值
  * @param after_value 递归后的测度值
- * @return RECURSION_OK 测度递减，RECURSION_NOT_DECREASING 未递减
+ * @return RECURSION_CHECK_RESULT_OK 测度递减，RECURSION_CHECK_RESULT_NOT_DECREASING 未递减
  */
 RecursionCheckResult recursion_validate_measure(
     Measure *measure,
@@ -2039,9 +2039,9 @@ RecursionCheckResult recursion_validate_measure(
    - `RATIONAL`: 直接比较分子分母。
    - `QUADRATIC`: 比较数值近似或使用代数判等。
    - `ALGEBRAIC`: 使用隔离区间判定（若 `right_bound < 0` 则为负）。
-3. 若 `diff < 0`，返回 `RECURSION_OK`。
-4. 若 `diff >= 0`，返回 `RECURSION_NOT_DECREASING`。
-5. 若无法判定，返回 `RECURSION_MEASURE_UNKNOWN`。
+3. 若 `diff < 0`，返回 `RECURSION_CHECK_RESULT_OK`。
+4. 若 `diff >= 0`，返回 `RECURSION_CHECK_RESULT_NOT_DECREASING`。
+5. 若无法判定，返回 `RECURSION_CHECK_RESULT_MEASURE_UNKNOWN`。
 
 **设计规格对应：** `design_v2.9.md` 第 9.2 节 "符号测度：递减性由内核的代数不等式引擎直接判定"。
 

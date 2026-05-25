@@ -22,6 +22,9 @@ option(BUILD_SHARED_LIBS "Build shared library (DLL/SO)"         OFF)
 option(BUILD_FUZZERS     "Build fuzzing targets (requires Clang)" OFF)
 option(ENABLE_COVERAGE   "Enable code coverage (GCC/Clang)"       OFF)
 option(ENABLE_SANITIZERS "Enable ASan + UBSan (GCC/Clang)"       OFF)
+option(BUILD_WASM        "Build WebAssembly target (Emscripten)"  OFF)
+option(WASM_ES6_MODULE   "Generate ES6 module for WASM"          ON)
+option(WASM_ALLOW_MEMORY_GROWTH "Allow WASM memory growth"       ON)
 # v3.3.0: 层级验证开关（启用后在编译时检查跨层依赖违规）
 option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" OFF)
 
@@ -148,6 +151,59 @@ if(ENABLE_COVERAGE AND ENABLE_SANITIZERS)
                     "导致性能下降或误报。建议分开构建（coverage 构建和 sanitizer 构建各用一个构建目录）。")
 endif()
 
+# ============================================================
+# WebAssembly (Emscripten) 支持
+# ============================================================
+if(BUILD_WASM)
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        message(FATAL_ERROR "BUILD_WASM 需要 Emscripten 工具链。"
+            "请使用: emcmake cmake -DBUILD_WASM=ON ...")
+    endif()
+    
+    message(STATUS "配置 WebAssembly 构建目标")
+    
+    # WASM 特定编译选项
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s WASM=1")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap']")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORTED_FUNCTIONS=['_malloc','_free']")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s MODULARIZE=1")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORT_NAME='Lv00Module'")
+    
+    # ES6 模块支持
+    if(WASM_ES6_MODULE)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s EXPORT_ES6=1")
+        message(STATUS "WASM: 生成 ES6 模块")
+    endif()
+    
+    # 内存增长支持
+    if(WASM_ALLOW_MEMORY_GROWTH)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
+        message(STATUS "WASM: 允许内存增长")
+    endif()
+    
+    # 初始内存 32MB，最大 256MB
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s INITIAL_MEMORY=33554432")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s MAXIMUM_MEMORY=268435456")
+    
+    # 禁用某些在 WASM 下不支持的特性
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s DISABLE_EXCEPTION_CATCHING=1")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s NODEJS_CATCH_EXIT=0")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s NODEJS_CATCH_REJECTION=0")
+    
+    # 启用优化
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+    
+    # 禁用测试（WASM 需要特殊测试框架）
+    set(BUILD_TESTS OFF)
+    message(STATUS "WASM: 禁用常规测试（使用 web-gui 测试）")
+    
+    # WASM 不需要 GMP（使用 JavaScript 大整数或内置实现）
+    set(GMP_INCLUDE_DIR "")
+    set(GMP_LIBRARIES "")
+    add_definitions(-DLV00_WASM_BUILD=1)
+    add_definitions(-DLV00_NO_GMP=1)
+endif()
+
 # --- 安全相关编译选项（GCC / Clang）---
 # -fstack-protector-strong : 启用栈溢出保护（对含有局部数组/取地址操作的函数生效）
 # -D_FORTIFY_SOURCE=2      : 启用 glibc 缓冲区溢出检测（需配合 -O1 及以上优化）
@@ -170,31 +226,57 @@ endif()
 # Windows 策略：优先查找静态库 libgmp.a，避免运行时 DLL 依赖。
 #   如果找不到静态库，回退到 find_library 自动搜索。
 # Linux/macOS：直接使用 CMake 内置的 find_path/find_library。
+# MSVC 注意：MSVC 不能直接使用 MinGW 的头文件，需要专门的 MSVC 兼容 GMP 构建
 if(WIN32)
-    # 优先使用 GMP_ROOT 环境变量，回退到常见 MSYS2/MinGW 路径
-    set(_GMP_FALLBACK_DIR "C:/msys64/mingw64")
-    find_path(GMP_INCLUDE_DIR gmp.h
-        HINTS ${GMP_ROOT}/include ENV GMP_ROOT/include
-              "${_GMP_FALLBACK_DIR}/include"
-    )
-    # Windows 上优先使用静态库以避免 DLL 依赖
-    if(EXISTS "${GMP_ROOT}/lib/libgmp.a")
-        set(GMP_LIBRARIES "${GMP_ROOT}/lib/libgmp.a")
-    elseif(EXISTS "${_GMP_FALLBACK_DIR}/lib/libgmp.a")
-        set(GMP_LIBRARIES "${_GMP_FALLBACK_DIR}/lib/libgmp.a")
-    else()
+    if(MSVC)
+        # MSVC 需要专门的 GMP 构建，尝试查找预编译的 MSVC 版本
+        find_path(GMP_INCLUDE_DIR gmp.h
+            HINTS ${GMP_ROOT}/include ENV GMP_ROOT/include
+                  "C:/gmp/include"
+                  "C:/vcpkg/installed/x64-windows/include"
+        )
         find_library(GMP_LIBRARIES gmp
             HINTS ${GMP_ROOT}/lib ENV GMP_ROOT/lib
-                  "${_GMP_FALLBACK_DIR}/lib"
+                  "C:/gmp/lib"
+                  "C:/vcpkg/installed/x64-windows/lib"
         )
+        # 如果找不到 GMP，提示用户安装
+        if(NOT GMP_INCLUDE_DIR OR NOT GMP_LIBRARIES)
+            message(FATAL_ERROR "MSVC: GMP library not found. Please install GMP for MSVC:\n"
+                "  Option 1: Use vcpkg: vcpkg install gmp\n"
+                "  Option 2: Download from https://github.com/BrianGladman/mpir\n"
+                "  Option 3: Set GMP_ROOT to your GMP installation path\n"
+                "Or use MinGW/Clang compiler instead.")
+        endif()
+    else()
+        # MinGW/Clang 可以使用 MSYS2 的 GMP
+        set(_GMP_FALLBACK_DIR "C:/msys64/mingw64")
+        find_path(GMP_INCLUDE_DIR gmp.h
+            HINTS ${GMP_ROOT}/include ENV GMP_ROOT/include
+                  "${_GMP_FALLBACK_DIR}/include"
+        )
+        if(EXISTS "${GMP_ROOT}/lib/libgmp.a")
+            set(GMP_LIBRARIES "${GMP_ROOT}/lib/libgmp.a")
+        elseif(EXISTS "${_GMP_FALLBACK_DIR}/lib/libgmp.a")
+            set(GMP_LIBRARIES "${_GMP_FALLBACK_DIR}/lib/libgmp.a")
+        else()
+            find_library(GMP_LIBRARIES gmp
+                HINTS ${GMP_ROOT}/lib ENV GMP_ROOT/lib
+                      "${_GMP_FALLBACK_DIR}/lib"
+            )
+        endif()
     endif()
 else()
     find_path(GMP_INCLUDE_DIR gmp.h)
     find_library(GMP_LIBRARIES gmp)
 endif()
 
-if(NOT GMP_INCLUDE_DIR OR NOT GMP_LIBRARIES)
-    message(FATAL_ERROR "GMP library not found. Set -DGMP_ROOT=<path> or install libgmp-dev.")
+if(NOT BUILD_WASM)
+    if(NOT GMP_INCLUDE_DIR OR NOT GMP_LIBRARIES)
+        message(FATAL_ERROR "GMP library not found. Set -DGMP_ROOT=<path> or install libgmp-dev.")
+    endif()
+else()
+    message(STATUS "WASM: 跳过 GMP 库查找（使用内置大整数实现）")
 endif()
 
 # GMP_LIBRARIES 已包含完整路径，无需 link_directories
@@ -434,6 +516,34 @@ set(LV00_LAYER3_SOURCES
     src/core/mpz_poly_resultant.c
     # v3.3.0 新增：几何变换推理
     src/core/geometry_transform.c
+    # v3.4.0 新增：几何代数模块（GATr + GAALOP + GeoLogic 落地）
+    src/core/ga_multivector.c
+    src/core/ga_interface.c
+    src/core/ga_codegen.c
+    src/core/geo_invariant_type.c
+    # v3.4.0 新增：区间/数值验证模块（MPFI + Gappa + FPTaylor + Herbie + FLINT/Arb 落地）
+    src/core/interval_arithmetic.c
+    src/core/gappa_dsl.c
+    src/core/gappa_propagate.c
+    src/core/fptaylor_eval.c
+    src/core/herbie_eval.c
+    # v3.4.0 新增：SMT/SAT 模块（Alt-Ergo + STP + Boolector + CaDiCaL + Yices2 落地）
+    src/core/smt_theory_combiner.c
+    src/core/smt_bitvector.c
+    src/core/smt_trigger_engine.c
+    # v3.4.0 新增：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
+    src/core/proof_rule_engine.c
+    src/core/proof_session.c
+    # v3.4.0 新增：数论/代数模块（NTL + SymEngine + GiNaC 落地）
+    src/core/nt_number_theory.c
+    src/core/nt_polynomial.c
+    src/core/sym_expr.c
+    # v3.4.0 新增：重写引擎模块（egg + Maude + K Framework 落地）
+    src/core/rewrite_strategy.c
+    # v3.4.0 新增：版本控制模块（libgit2 落地）
+    src/core/proof_version.c
+    # v3.4.0 新增：自动微分模块（Enzyme 落地）
+    src/core/autodiff.c
     # v3.3.0 性能优化模块
     src/core/thread_pool.c
     src/core/simd_ops.c
@@ -640,7 +750,8 @@ add_library(lv00_static STATIC
 )
 target_include_directories(lv00_static PUBLIC
     ${GMP_INCLUDE_DIR}
-    ${CMAKE_SOURCE_DIR}/include/lv00
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/lv00>
+    $<INSTALL_INTERFACE:include/lv00>
 )
 target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
 set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
@@ -659,7 +770,8 @@ if(BUILD_SHARED_LIBS)
     )
     target_include_directories(lv00_shared PUBLIC
         ${GMP_INCLUDE_DIR}
-        ${CMAKE_SOURCE_DIR}/include/lv00
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/lv00>
+        $<INSTALL_INTERFACE:include/lv00>
     )
     # [P0 修复] 共享库也需要链接 Threads::Threads（与静态库保持一致）
     target_link_libraries(lv00_shared ${GMP_LIBRARIES} Threads::Threads)
@@ -868,6 +980,36 @@ if(BUILD_TESTS)
         tests/test_new_modules.c new_modules_test)
     add_lv00_test_and_register(test_circuit_breaker
         tests/test_circuit_breaker.c circuit_breaker_test)
+    # v3.4.0 新增：几何代数模块测试
+    add_lv00_test_and_register(test_ga_multivector
+        tests/test_ga_multivector.c test_ga_multivector)
+    add_lv00_test_and_register(test_geo_invariant
+        tests/test_geo_invariant.c test_geo_invariant)
+    # v3.4.0 新增：区间/数值验证模块测试
+    add_lv00_test_and_register(test_interval_arithmetic
+        tests/test_interval_arithmetic.c test_interval_arithmetic)
+    add_lv00_test_and_register(test_gappa_dsl
+        tests/test_gappa_dsl.c test_gappa_dsl)
+    # v3.4.0 新增：SMT/SAT 模块测试
+    add_lv00_test_and_register(test_smt_bitvector
+        tests/test_smt_bitvector.c test_smt_bitvector)
+    # v3.4.0 新增：证明策略模块测试
+    add_lv00_test_and_register(test_proof_rule_engine
+        tests/test_proof_rule_engine.c test_proof_rule_engine)
+    # v3.4.0 新增：数论/代数模块测试
+    add_lv00_test_and_register(test_nt_number_theory
+        tests/test_nt_number_theory.c test_nt_number_theory)
+    add_lv00_test_and_register(test_sym_expr
+        tests/test_sym_expr.c test_sym_expr)
+    # v3.4.0 新增：重写引擎测试
+    add_lv00_test_and_register(test_rewrite_strategy
+        tests/test_rewrite_strategy.c test_rewrite_strategy)
+    # v3.4.0 新增：版本控制测试
+    add_lv00_test_and_register(test_proof_version
+        tests/test_proof_version.c test_proof_version)
+    # v3.4.0 新增：自动微分测试
+    add_lv00_test_and_register(test_autodiff
+        tests/test_autodiff.c test_autodiff)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
     add_executable(test_prop_verifier tests/test_prop_verifier.c src/core/prop_verifier.c)
     target_include_directories(test_prop_verifier PRIVATE include/lv00)

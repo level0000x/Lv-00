@@ -161,6 +161,7 @@ static const ErrorInfo g_error_table[] = {
     {LV00_ERROR_PROOF_INVALID, "LV00_ERROR_PROOF_INVALID", "无效证明", "证明系统"},
     {LV00_ERROR_PROOF_INCOMPLETE, "LV00_ERROR_PROOF_INCOMPLETE", "证明不完整", "证明系统"},
     {LV00_ERROR_PROOF_VERIFICATION_FAILED, "LV00_ERROR_PROOF_VERIFICATION_FAILED", "证明验证失败", "证明系统"},
+    {LV00_ERROR_CIRCUIT_OPEN, "LV00_ERROR_CIRCUIT_OPEN", "熔断器已跳闸（OPEN态）", "证明系统"},
 };
 
 #define ERROR_TABLE_SIZE LV00_ARRAY_COUNT(g_error_table)

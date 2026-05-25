@@ -10,6 +10,7 @@
 
 #include "lv00_utils.h"
 
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -219,15 +220,16 @@ bool lv00_test_add_tag(const char *suite_name, const char *test_name, const char
             for (uint32_t j = 0; j < suite->case_count; j++) {
                 Lv00TestCase *test_case = &suite->cases[j];
                 if (strcmp(test_case->name, test_name) == 0) {
-                    /* 添加标签 */
+                    /* 添加标签（使用安全的字符串复制函数 lv00_strlcpy） */
                     if (test_case->tag_count < 8) {
                         if (test_case->tag_count == 0) {
                             test_case->tags = (char **)lv00_malloc(8 * sizeof(char *));
                         }
-                        test_case->tags[test_case->tag_count++] = /* strdup: 使用 lv00_malloc + strcpy 替代标准 strdup */
-                            (char *)lv00_malloc(strlen(tag) + 1);
-                        if (test_case->tags[test_case->tag_count - 1]) {
-                            strcpy(test_case->tags[test_case->tag_count - 1], tag);
+                        test_case->tags[test_case->tag_count] = (char *)lv00_malloc(strlen(tag) + 1);
+                        if (test_case->tags[test_case->tag_count]) {
+                            /* 使用安全的字符串复制函数，自动保证零终止 */
+                            lv00_strlcpy(test_case->tags[test_case->tag_count], tag, strlen(tag) + 1);
+                            test_case->tag_count++;
                         }
                     }
                     MUTEX_UNLOCK(g_test_system.mutex);

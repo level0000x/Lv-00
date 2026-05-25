@@ -30,12 +30,12 @@
  *   - lv00/proof.h            : Proposition 结构定义
  */
 
-#include "lv00/quantifier.h"
-#include "lv00/three_valued_logic.h"
-#include "lv00/lv00_utils.h"
-#include "lv00/proof.h"
-#include "lv00/constraint_graph.h"
-#include "lv00/error_codes.h"
+#include "quantifier.h"
+#include "three_valued_logic.h"
+#include "lv00_utils.h"
+#include "proof.h"
+#include "constraint_graph.h"
+#include "error_codes.h"
 
 #include <stdio.h>
 #include <string.h>

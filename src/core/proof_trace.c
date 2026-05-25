@@ -19,6 +19,7 @@
 
 #include "proof_trace.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -576,4 +577,161 @@ char *lv00_proof_tree_export_text(const Lv00ProofTree *tree, const char *filepat
     }
 
     return result;
+}
+
+/* ============== Mizar风格证明导出 ============== */
+
+/** Mizar导出缓冲区初始大小 */
+#define MIZAR_BUF_INIT_SIZE 8192
+
+/** Mizar导出缩进单位 */
+#define MIZAR_INDENT "  "
+
+/**
+ * @brief 确保缓冲区有足够空间
+ * @return true 成功，false 失败
+ */
+static bool mizar_ensure_buf(char **buf, size_t *buf_size, size_t needed) {
+    if (needed <= *buf_size) return true;
+    size_t new_size = *buf_size * 2;
+    while (new_size < needed) new_size *= 2;
+    char *new_buf = lv00_realloc(*buf, new_size);
+    if (!new_buf) return false;
+    *buf = new_buf;
+    *buf_size = new_size;
+    return true;
+}
+
+/**
+ * @brief 追加文本到缓冲区
+ */
+static bool mizar_append(char **buf, size_t *buf_size, size_t *used, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int needed = vsnprintf(NULL, 0, fmt, args);
+    va_end(args);
+    if (needed < 0) return false;
+    if (!mizar_ensure_buf(buf, buf_size, *used + needed + 1)) return false;
+    va_start(args, fmt);
+    vsnprintf(*buf + *used, *buf_size - *used, fmt, args);
+    va_end(args);
+    *used += needed;
+    return true;
+}
+
+/**
+ * @brief 递归导出节点为Mizar风格
+ */
+static bool mizar_export_node_recursive(const Lv00ProofTreeNode *node, int depth,
+                                         char **buf, size_t *buf_size, size_t *used) {
+    if (!node) return true;
+
+    const char *indent = MIZAR_INDENT;
+    char indent_buf[128] = "";
+    for (int i = 0; i < depth && i < 64; i++) {
+        strcat(indent_buf, indent);
+    }
+
+    /* 处理根节点（定理声明） */
+    if (depth == 0 && node->conclusion) {
+        if (!mizar_append(buf, buf_size, used, "theorem\n  %s\n", node->conclusion)) return false;
+        if (!mizar_append(buf, buf_size, used, "proof\n")) return false;
+    }
+
+    /* 处理子节点 */
+    for (int i = 0; i < node->child_count; i++) {
+        Lv00ProofTreeNode *child = node->children[i];
+        if (!child) continue;
+
+        /* 反证法分支 */
+        if (child->is_contradiction_branch) {
+            if (!mizar_append(buf, buf_size, used, "%s:: 反证法开始\n", indent_buf)) return false;
+            if (!mizar_append(buf, buf_size, used, "%sassume %s;\n", indent_buf, 
+                             child->conclusion ? child->conclusion : "矛盾假设")) return false;
+        }
+        /* 引理 */
+        else if (child->is_lemma) {
+            if (!mizar_append(buf, buf_size, used, "%s:: 引理\n", indent_buf)) return false;
+        }
+
+        /* 结论输出 */
+        if (child->conclusion) {
+            const char *keyword = (i == node->child_count - 1) ? "thus" : "hence";
+            if (!mizar_append(buf, buf_size, used, "%s%s %s", indent_buf, keyword, child->conclusion)) return false;
+
+            /* 引用前提 */
+            if (child->premise_count > 0) {
+                if (!mizar_append(buf, buf_size, used, " by ")) return false;
+                for (int p = 0; p < child->premise_count; p++) {
+                    if (p > 0) {
+                        if (!mizar_append(buf, buf_size, used, ", ")) return false;
+                    }
+                    if (child->premises[p].description) {
+                        if (!mizar_append(buf, buf_size, used, "%s", child->premises[p].description)) return false;
+                    } else {
+                        if (!mizar_append(buf, buf_size, used, "P%d", child->premises[p].premise_id)) return false;
+                    }
+                }
+            }
+
+            /* 使用的公理 */
+            if (child->axiom_used) {
+                if (!mizar_append(buf, buf_size, used, "  :: 使用 %s", child->axiom_used)) return false;
+            }
+
+            if (!mizar_append(buf, buf_size, used, ";\n")) return false;
+        }
+
+        /* 递归处理子节点 */
+        if (child->child_count > 0) {
+            if (!mizar_export_node_recursive(child, depth + 1, buf, buf_size, used)) return false;
+        }
+
+        /* 反证法结束 */
+        if (child->is_contradiction_branch) {
+            if (!mizar_append(buf, buf_size, used, "%s:: 反证法结束\n", indent_buf)) return false;
+        }
+    }
+
+    return true;
+}
+
+char *lv00_proof_tree_export_mizar(const Lv00ProofTree *tree, const char *filepath) {
+    if (!tree || !tree->root) return NULL;
+
+    size_t buf_size = MIZAR_BUF_INIT_SIZE;
+    size_t used = 0;
+    char *buf = lv00_malloc(buf_size);
+    if (!buf) return NULL;
+    buf[0] = '\0';
+
+    /* 文件头 */
+    if (!mizar_append(&buf, &buf_size, &used, ":: Mizar风格形式化证明\n")) goto fail;
+    if (!mizar_append(&buf, &buf_size, &used, ":: 由Lv-00几何元语言内核生成\n\n")) goto fail;
+
+    /* 策略说明 */
+    if (tree->proof_strategy) {
+        if (!mizar_append(&buf, &buf_size, &used, ":: 证明策略: %s\n\n", tree->proof_strategy)) goto fail;
+    }
+
+    /* 递归导出 */
+    if (!mizar_export_node_recursive(tree->root, 0, &buf, &buf_size, &used)) goto fail;
+
+    /* 证明结束 */
+    if (!mizar_append(&buf, &buf_size, &used, "end;\n")) goto fail;
+
+    /* 写入文件 */
+    if (filepath) {
+        FILE *fp = fopen(filepath, "w");
+        if (fp) {
+            fwrite(buf, 1, used, fp);
+            fclose(fp);
+        }
+    }
+
+    return buf;
+
+fail:
+    lv00_free((void **)&buf);
+    return NULL;
 }

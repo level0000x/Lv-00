@@ -67,7 +67,6 @@ typedef enum {
     /* 通用系统错误 (1-99) */
     LV00_ERROR_UNKNOWN = 1,             /**< 未知错误 */
     /* 16-69: 预留范围 / Reserved range */
-    LV00_ERROR_INTERNAL = 70,           /**< 内部错误 */
     LV00_ERROR_INVALID_PARAM = 2,       /**< 无效参数 */
     LV00_ERROR_NULL_POINTER = 3,        /**< 空指针 */
     LV00_ERROR_NOT_INITIALIZED = 4,     /**< 未初始化 */
@@ -86,6 +85,7 @@ typedef enum {
                                               请使用 LV00_ERROR_INVALID_PARAM 替代 */
     LV00_ERROR_INDEX_OUT_OF_RANGE = 17, /**< 索引越界 */
     LV00_ERROR_VALUE_OUT_OF_RANGE = 18, /**< 数值越界 */
+    LV00_ERROR_INTERNAL = 70,           /**< 内部错误 */
 
     /* 解析器安全错误 (130-139) */
     LV00_ERROR_PARSER_NULL_INPUT = 130,     /**< 输入为NULL */

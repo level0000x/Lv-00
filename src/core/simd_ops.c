@@ -15,6 +15,10 @@
 #include <stdatomic.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /* ============== SIMD 能力检测 ============== */
 
 static atomic_uint g_simd_capabilities = 0;

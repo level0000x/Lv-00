@@ -774,6 +774,6 @@ bool preset_stochastic_processes_get_names(char ***out_names, int *out_count) {
  *
  * @return 预设类别枚举值
  */
-PresetCategory preset_stochastic_processes_category(void) {
-    return PRESET_CATEGORY_PROBABILITY;
+const char *preset_stochastic_processes_category(void) {
+    return "analysis";
 }

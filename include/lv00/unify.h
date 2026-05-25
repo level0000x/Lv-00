@@ -254,6 +254,25 @@ int unify_find_equivalent_proposition(int prop_id, int *equivalent_ids, int max_
  */
 void unify_clear_equivalences(void);
 
+/* ============== 等价声明存储管理（v3.4.1 新增） ============== */
+
+/**
+ * @brief 初始化等价声明存储系统
+ *
+ * 线程安全：每个线程有独立的存储实例。
+ * 可重复调用，后续调用会重置存储状态。
+ */
+void unify_equivalence_storage_init(void);
+
+/**
+ * @brief 获取当前等价声明数量
+ *
+ * @return 当前存储的等价声明数量
+ *
+ * @note 线程安全：返回当前线程存储中的等价声明数量。
+ */
+int unify_equivalence_count(void);
+
 /* ============== 命题的实例化 ============== */
 
 /**
