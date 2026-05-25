@@ -1,13 +1,13 @@
 # Lv-00 Web 演示部署工作流
-# 注意：部署路径已从 web/ 修正为 web-gui/（与实际目录结构一致）
+# 注意：部署路径已从 web/ 修正为 web/gui/（与实际目录结构一致）
 name: Deploy Web Demo
 
 on:
   push:
     branches: [ main, master ]
     paths:
-      - 'web-gui/**'
-      - 'src/**'
+      - 'web/gui/**'
+      - 'core/src/**'
       - 'include/**'
   workflow_dispatch:
 
@@ -30,32 +30,32 @@ jobs:
     
     - name: Build WebAssembly module
       run: |
-        cd web-gui
+        cd web/gui
         emcmake cmake -B build
         cmake --build build
     
     - name: Copy files to dist
       shell: bash
       run: |
-        mkdir -p web-gui/dist
-        cp web-gui/build/lv00_web.js web-gui/dist/
-        cp web-gui/build/lv00_web.wasm web-gui/dist/
-        cp web-gui/js/app.js web-gui/dist/
-        cp web-gui/index.html web-gui/dist/
+        mkdir -p web/gui/dist
+        cp web/gui/build/lv00_web.js web/gui/dist/
+        cp web/gui/build/lv00_web.wasm web/gui/dist/
+        cp web/gui/js/app.js web/gui/dist/
+        cp web/gui/index.html web/gui/dist/
     
     - name: Verify WebAssembly module
       shell: bash
       run: |
         echo "=== Verifying WebAssembly module ==="
-        if [ -f web-gui/dist/lv00_web.wasm ]; then
-          echo "WASM module found: $(du -h web-gui/dist/lv00_web.wasm | cut -f1)"
-          file web-gui/dist/lv00_web.wasm
+        if [ -f web/gui/dist/lv00_web.wasm ]; then
+          echo "WASM module found: $(du -h web/gui/dist/lv00_web.wasm | cut -f1)"
+          file web/gui/dist/lv00_web.wasm
         else
           echo "ERROR: WASM module not found!"
           exit 1
         fi
-        if [ -f web-gui/dist/lv00_web.js ]; then
-          echo "JS glue found: $(du -h web-gui/dist/lv00_web.js | cut -f1)"
+        if [ -f web/gui/dist/lv00_web.js ]; then
+          echo "JS glue found: $(du -h web/gui/dist/lv00_web.js | cut -f1)"
         else
           echo "ERROR: JS glue not found!"
           exit 1
@@ -70,5 +70,5 @@ jobs:
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./web-gui/dist
+        publish_dir: ./web/gui/dist
         publish_branch: gh-pages

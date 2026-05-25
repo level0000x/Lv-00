@@ -17,7 +17,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: build
-        key: linux-cmake-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+        key: linux-cmake-${{ hashFiles('CMakeLists.txt', 'core/src/**', 'include/**') }}
         restore-keys: linux-cmake-
 
     - name: Install dependencies
@@ -51,13 +51,13 @@ jobs:
 
     - name: Run benchmarks
       run: |
-        python3 scripts/benchmark.py --build-dir build --output-dir benchmark_results
+        python3 tool/scripts/benchmark.py --build-dir build --output-dir log/benchmark_results
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-results-linux
-        path: benchmark_results/
+        path: log/benchmark_results/
 
     # Linux 专用：Debug 模式 + sanitizers 构建，尽早发现内存问题
     - name: Build with sanitizers (Linux)
@@ -141,7 +141,7 @@ jobs:
       run: |
         cppcheck --enable=all --error-exitcode=1 \
           --suppress=missingIncludeSystem \
-          -I include src tests 2>&1 | head -500
+          -I include src test/c 2>&1 | head -500
     
     - name: Configure CMake with Clang
       run: cmake -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_CLANG_TIDY=clang-tidy -DCMAKE_BUILD_TYPE=Debug

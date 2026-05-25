@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "lv00"
 version = "3.2.0"
 description = "Lv-00 几何元语言系统 —— 以几何为唯一载体的双模数学元语言"
-readme = "../README.md"
+readme = "../../README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
@@ -31,7 +31,7 @@ dev = ["pytest>=7.0", "black>=23.0", "ruff>=0.1"]
 full = ["lv00[monitor,llm-assist,dev]"]
 
 [tool.setuptools.packages.find]
-where = ["python"]
+where = ["."]
 
 [tool.ruff]
 line-length = 100

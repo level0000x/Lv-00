@@ -46,7 +46,7 @@ coverage/
 htmlcov/
 
 # Benchmark
-benchmark_results/
+log/benchmark_results/
 
 # Fuzzing
 fuzz_corpus*/
@@ -66,8 +66,8 @@ dist/
 *.whl
 
 # WebAssembly
-web/dist/
-web/build/
+web/legacy/dist/
+web/legacy/build/
 
 # Environment
 .env
@@ -130,8 +130,8 @@ build_tmp/
 _archived_builds/
 
 # 归档文档和报告历史版本
-docs/reports/_archive/
-benchmark_results/_archive/
+doc/reports/_archive/
+log/benchmark_results/_archive/
 
 # 分支原型目录（非正式源码）
-branches/
+module/branches/

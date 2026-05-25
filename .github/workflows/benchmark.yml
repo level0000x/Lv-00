@@ -31,7 +31,7 @@ jobs:
     
     - name: Run benchmarks
       run: |
-        python3 scripts/benchmark.py --build-dir build --output-dir benchmark_results
+        python3 tool/scripts/benchmark.py --build-dir build --output-dir log/benchmark_results
     
     - name: Download baseline
       uses: actions/download-artifact@v4
@@ -43,23 +43,23 @@ jobs:
     - name: Compare with baseline
       if: hashFiles('baseline/*.json') != ''
       run: |
-        python3 scripts/benchmark.py \
+        python3 tool/scripts/benchmark.py \
           --build-dir build \
-          --output-dir benchmark_results \
+          --output-dir log/benchmark_results \
           --compare-with baseline/*.json
     
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
-        path: benchmark_results/
+        path: log/benchmark_results/
     
     - name: Store as baseline
       if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-baseline
-        path: benchmark_results/*.json
+        path: log/benchmark_results/*.json
         overwrite: true
     
     - name: Comment PR
@@ -70,7 +70,7 @@ jobs:
           const fs = require('fs');
           const path = require('path');
           
-          const resultsDir = 'benchmark_results';
+          const resultsDir = 'log/benchmark_results';
           const files = fs.readdirSync(resultsDir).filter(f => f.endsWith('.md'));
           
           if (files.length === 0) return;

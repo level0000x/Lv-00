@@ -61,7 +61,7 @@ jobs:
         cmake --build build --parallel
 
     - name: Install Python package
-      working-directory: python
+      working-directory: module/python
       run: |
         pip install -e .
         pip install pytest pytest-cov flake8 mypy
@@ -70,21 +70,21 @@ jobs:
     # 在运行测试之前先进行代码质量检查，尽早发现风格和类型问题
     - name: Run flake8 linting
       run: |
-        # 检查 concurrent_monitor/ 和 llm_coding_assistant/ 目录的代码风格
-        flake8 concurrent_monitor/ llm_coding_assistant/ \
+        # 检查 module/concurrent_monitor/ 和 module/llm_coding_assistant/ 目录的代码风格
+        flake8 module/concurrent_monitor/ module/llm_coding_assistant/ \
           --count --select=E9,F63,F7,F82 --show-source --statistics
         # E9/F63/F7/F82: 仅报告致命语法错误和导入错误
         echo "flake8 致命错误检查通过"
         # 完整风格检查（非阻塞，仅输出警告）
-        flake8 concurrent_monitor/ llm_coding_assistant/ \
+        flake8 module/concurrent_monitor/ module/llm_coding_assistant/ \
           --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics \
           || echo "flake8 风格警告已输出（非阻塞）"
 
     - name: Run mypy type checking
       run: |
-        # 对 concurrent_monitor/ 和 llm_coding_assistant/ 进行类型检查
-        mypy concurrent_monitor/ --ignore-missing-imports --no-error-summary || true
-        mypy llm_coding_assistant/ --ignore-missing-imports --no-error-summary || true
+        # 对 module/concurrent_monitor/ 和 module/llm_coding_assistant/ 进行类型检查
+        mypy module/concurrent_monitor/ --ignore-missing-imports --no-error-summary || true
+        mypy module/llm_coding_assistant/ --ignore-missing-imports --no-error-summary || true
         echo "mypy 类型检查完成（非阻塞模式）"
 
     - name: Set library path (Ubuntu/macOS)
@@ -102,28 +102,28 @@ jobs:
         echo "LV00_LIBRARY_PATH=$PWD/build/liblv00.dll" | Out-File -FilePath $env:GITHUB_ENV -Append
 
     - name: Run Python tests
-      working-directory: python
+      working-directory: module/python
       run: |
         pytest tests/ -v --cov=lv00 --cov-report=xml
 
     - name: Run concurrent_monitor tests
-      working-directory: concurrent_monitor
+      working-directory: module/concurrent_monitor
       run: |
         python -m pytest tests/ -v
 
     - name: Run llm_coding_assistant tests
-      working-directory: llm_coding_assistant
+      working-directory: module/llm_coding_assistant
       run: |
         python -m pytest tests/ -v || echo "No tests yet"
 
     - name: Upload coverage
       uses: codecov/codecov-action@v5
       with:
-        files: python/coverage.xml
+        files: module/python/coverage.xml
         flags: python
         fail_ci_if_error: false
 
     - name: Run example
-      working-directory: python
+      working-directory: module/python
       run: |
         python examples/basic_usage.py

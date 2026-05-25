@@ -63,8 +63,8 @@ def _find_library():
     # 仅包含当前平台有效的路径，避免无意义的文件系统调用
     package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     search_paths = [
-        package_dir,  # python/lv00/
-        os.path.join(package_dir, '..'),  # python/
+        package_dir,  # module/python/lv00/
+        os.path.join(package_dir, '..'),  # module/python/
         os.path.join(package_dir, '..', '..', 'build'),  # project_root/build
         os.path.join(package_dir, '..', '..', 'build', 'Release'),  # Windows 构建目录
         os.path.join(package_dir, '..', '..'),  # project_root
@@ -674,8 +674,8 @@ _lib.recursion_context_reset.restype = None
 _lib.recursion_check_mutual.argtypes = [POINTER(c_int), c_int, POINTER(_MeasureSystem)]
 _lib.recursion_check_mutual.restype = c_bool
 
-_lib.recursion_run_builtin_tests.argtypes = [POINTER(_MeasureSystem), POINTER(POINTER(c_void_p)), POINTER(c_int)]
-_lib.recursion_run_builtin_tests.restype = c_int
+_lib.recursion_run_builtin_test/c.argtypes = [POINTER(_MeasureSystem), POINTER(POINTER(c_void_p)), POINTER(c_int)]
+_lib.recursion_run_builtin_test/c.restype = c_int
 
 # ============================================================
 # Engine 函数签名
