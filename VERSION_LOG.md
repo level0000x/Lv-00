@@ -108,3 +108,22 @@
 - CI workflow 检查：5 个 workflow 均使用 main/dev 分支
 - 无自动提交脚本存在
 - CONTRIBUTING.md 已禁止空提交
+
+### 源码规整优化
+- 为 28 个公开头文件中的 1097 个函数声明添加 LV00_PUBLIC_API 导出宏
+- 核心模块：lv00_utils(85), constraint_graph(50), engine(31), context(42), proof(119), symbolic_coord(75)
+- 模块 API：func_block(44), module(36), type_system(60), recursion(50), stream(46), debug(51), magic(78)
+- 更新 .clang-format IncludeCategories 以匹配项目"对应头文件优先"惯例
+- 代码风格检查：0 个 Tab 混入，命名风格统一 snake_case
+
+### 工程化体系标准化
+- 三级分支体系确认：main（稳定）/ dev（开发）/ exp（实验）
+- 同步 dev 和 exp 分支到最新 main 状态
+- 修正本地分支跟踪关系（main → origin/main, dev → origin/dev, exp → origin/exp）
+- CI 配置验证：5 个 workflow 均使用 main/dev 分支触发
+- PR 模板已存在且规范
+
+### 待用户手动操作
+- 在 GitHub Settings → Default branch 中将默认分支从 master 改为 main
+- 改完后执行 `git push origin --delete master` 删除远程 master 分支
+- 建议启用 main 分支的 Branch Protection Rules（要求 PR + CI 通过）
