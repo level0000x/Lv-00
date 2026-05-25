@@ -23,6 +23,13 @@
 
 'use strict';
 
+/* 安全转义HTML特殊字符，防止XSS注入 */
+function _safeEscapeHtml(str) {
+    if (typeof str !== 'string') str = String(str);
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 /**
  * =========================================================================
  * 第一部分：TikZ 模板生成函数
@@ -923,7 +930,7 @@ class TikzRenderPipeline {
             container.dataset.tikzCode = result.tikz;
 
         } catch (err) {
-            container.innerHTML = `<div class="tikz-error" style="padding:20px;color:#ff6b6b;font-size:12px;">Render error: ${err.message}<br>渲染错误: ${err.message}</div>`;
+            container.innerHTML = `<div class="tikz-error" style="padding:20px;color:#ff6b6b;font-size:12px;">Render error: ${_safeEscapeHtml(err.message)}<br>渲染错误: ${_safeEscapeHtml(err.message)}</div>`;
         }
     }
 

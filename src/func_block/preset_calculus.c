@@ -445,15 +445,9 @@ bool preset_calculus_get_names(char ***out_names, int *out_count) {
         if (names[i] == NULL) {
             /* 内存分配失败，释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                {
-                    void *tmp = names[j];
-                    lv00_free((void **) &tmp);
-                }
+                PRESET_SAFE_FREE(names[j]);
             }
-            {
-                void *tmp = names;
-                lv00_free((void **) &tmp);
-            }
+            PRESET_SAFE_FREE(names);
             return false;
         }
     }

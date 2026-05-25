@@ -1136,6 +1136,8 @@ int preset_blocks_get_all_names(const char **out_names, int max_count) {
 /* ==================== 文档生成 ==================== */
 
 char *preset_blocks_generate_documentation(void) {
+    PRESET_REGISTRY_LOCK();
+
     /* 计算所需缓冲区大小 */
     size_t total_size = 4096; /* 基础大小 */
     for (int i = 0; i < g_preset_registry.count; i++) {
@@ -1148,8 +1150,10 @@ char *preset_blocks_generate_documentation(void) {
     }
 
     char *doc = lv00_malloc(total_size);
-    if (!doc)
+    if (!doc) {
+        PRESET_REGISTRY_UNLOCK();
         return NULL;
+    }
 
     int written = snprintf(doc, total_size,
                            "# Lv-00 预设函数块文档\n\n"
@@ -1158,6 +1162,7 @@ char *preset_blocks_generate_documentation(void) {
                            g_preset_registry.count);
     if (written < 0) {
         lv00_free((void **) &doc);
+        PRESET_REGISTRY_UNLOCK();
         return NULL;
     }
     if ((size_t) written >= total_size) {
@@ -1213,6 +1218,7 @@ char *preset_blocks_generate_documentation(void) {
         }
     }
 
+    PRESET_REGISTRY_UNLOCK();
     return doc;
 }
 

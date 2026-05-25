@@ -1,9 +1,6 @@
 /**
  * @module hooks/useResize
- * @description Panel resize hook for draggable sidebar width adjustment.
- *              Manages mouse drag events for resizing left and right sidebars.
- *
- *              面板调整大小 Hook，用于可拖拽的侧边栏宽度调整。
+ * @description 面板调整大小 Hook，用于可拖拽的侧边栏宽度调整。
  *              管理鼠标拖拽事件以调整左侧和右侧侧边栏的大小。
  */
 
@@ -12,13 +9,10 @@ import { useAppStore } from '@/stores';
 import type { ResizeState } from '@/types';
 
 /**
- * useResize - Sidebar resize management hook
- *             侧边栏调整大小管理 Hook
+ * useResize - 侧边栏调整大小管理 Hook
  *
- * @param sidebar - Which sidebar to manage ('left' or 'right')
- *                  要管理的侧边栏（'left' 或 'right'）
- * @returns Object with onMouseDown handler and dragging state
- *          包含 onMouseDown 处理函数和拖拽状态的对象
+ * @param sidebar - 要管理的侧边栏（'left' 或 'right'）
+ * @returns 包含 onMouseDown 处理函数和拖拽状态的对象
  */
 export function useResize(
   sidebar: 'left' | 'right',

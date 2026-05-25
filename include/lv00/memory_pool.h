@@ -106,7 +106,7 @@ bool lv00_pool_free(Lv00ObjectPool *pool, void *obj);
  * @param out_total_frees 输出：总释放次数
  * @param out_current_used 输出：当前使用数量
  */
-void lv00_pool_get_stats(const Lv00ObjectPool *pool,
+void lv00_pool_get_stats(Lv00ObjectPool *pool,
                          uint64_t *out_total_allocs,
                          uint64_t *out_total_frees,
                          size_t *out_current_used);

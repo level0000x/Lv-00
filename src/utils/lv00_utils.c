@@ -24,7 +24,7 @@
  * 2. lv00_free 使用 void** 参数：
  *    - lv00_free 接受 void** 而非 void*，释放后自动将调用者的指针置为 NULL，
  *      有效防止 use-after-free 和 double-free。
- *    - 必须传递指针的地址：lv00_free((void **)&ptr)，不可写作 lv00_free((void **) &ptr)。
+ *    - 必须传递指针的地址：lv00_free((void **)&ptr)，必须写作 lv00_free((void **) &ptr)。
  *
  * 3. 内存所有权规则：
  *    - 创建函数（如 rune_create_*）返回新分配的内存，调用者拥有所有权。

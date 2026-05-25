@@ -804,9 +804,6 @@ const FormulaPanel: React.FC = () => {
         formulaSyntax={formulaSyntax}
         setFormulaInput={setFormulaInput}
         setFormulaSyntax={setFormulaSyntax}
-        addToast={addToast}
-        appendLog={appendLog}
-        setLogEntries={setLogEntries}
         onParse={handleParse}
         onRender={handleRender}
         onSolve={handleSolve}

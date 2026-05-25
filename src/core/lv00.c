@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include "func_block_registry.h"
 #include "lv00_internal.h"
@@ -306,17 +307,17 @@ int lv00_get_system_info(char *info, size_t size) {
         "  总释放: %.2f MB\n"
         "  分配次数: %zu\n"
         "\n[性能统计]\n"
-        "  节点创建: %llu\n"
-        "  约束创建: %llu\n"
-        "  求解器调用: %llu\n"
-        "  重写步数: %llu\n"
-        "  合一检查: %llu\n",
+        "  节点创建: %" PRIu64 "\n"
+        "  约束创建: %" PRIu64 "\n"
+        "  求解器调用: %" PRIu64 "\n"
+        "  重写步数: %" PRIu64 "\n"
+        "  合一检查: %" PRIu64 "\n",
         LV00_VERSION_STRING, is_system_initialized() ? "已初始化" : "未初始化", g_init_count,
         (double) mem_stats.current_used / (1024.0 * 1024.0), (double) mem_stats.peak_used / (1024.0 * 1024.0),
         (double) mem_stats.total_allocated / (1024.0 * 1024.0), (double) mem_stats.total_freed / (1024.0 * 1024.0),
-        mem_stats.allocation_count, (unsigned long long) perf.total_nodes_created,
-        (unsigned long long) perf.total_constraints_created, (unsigned long long) perf.solver_call_count,
-        (unsigned long long) perf.rewrite_total_steps, (unsigned long long) perf.unify_check_count);
+        mem_stats.allocation_count, (uint64_t) perf.total_nodes_created,
+        (uint64_t) perf.total_constraints_created, (uint64_t) perf.solver_call_count,
+        (uint64_t) perf.rewrite_total_steps, (uint64_t) perf.unify_check_count);
 
     return written;
 }
@@ -397,12 +398,14 @@ void lv00_engine_destroy(LV00Engine *engine) {
  * @brief 快速创建点（便捷函数）
  */
 int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, int64_t y_num, uint64_t y_den) {
-    if (!engine || !engine->main_graph)
+    if (!engine || !engine->main_graph) {
+        lv00_set_error(LV00_ERROR_NULL_POINTER, "lv00_add_point: engine 或 main_graph 为 NULL");
         return -1;
+    }
     /* 参数校验：分母不能为零 */
     if (x_den == 0 || y_den == 0) {
-        LOG_ERROR("lv00", "lv00_add_point: 分母不能为零 (x_den=%llu, y_den=%llu)", (unsigned long long) x_den,
-                  (unsigned long long) y_den);
+        lv00_set_error(LV00_ERROR_INVALID_PARAM, "lv00_add_point: 分母不能为零 (x_den=%" PRIu64 ", y_den=%" PRIu64 ")",
+                       (uint64_t) x_den, (uint64_t) y_den);
         return -1;
     }
 
@@ -410,6 +413,7 @@ int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, int64_t y_
     SymbolicCoord *y = symbolic_coord_create_rational(y_num, y_den);
 
     if (!x || !y) {
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "lv00_add_point: 创建符号坐标失败");
         if (x)
             symbolic_coord_destroy(x);
         if (y)
@@ -426,6 +430,7 @@ int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, int64_t y_
     symbolic_coord_destroy(y);
 
     if (result != ADD_NODE_OK) {
+        lv00_set_error(LV00_ERROR_NODE_CONFLICT, "lv00_add_point: 添加点到图失败 (result=%d)", (int) result);
         return -1;
     }
 
@@ -436,11 +441,15 @@ int lv00_add_point(LV00Engine *engine, int64_t x_num, uint64_t x_den, int64_t y_
  * @brief 快速创建线段（便捷函数）
  */
 int lv00_add_line_segment(LV00Engine *engine, int point1_id, int point2_id) {
-    if (!engine || !engine->main_graph)
+    if (!engine || !engine->main_graph) {
+        lv00_set_error(LV00_ERROR_NULL_POINTER, "lv00_add_line_segment: engine 或 main_graph 为 NULL");
         return -1;
+    }
 
     AddNodeResult result = graph_add_line_segment(engine->main_graph, point1_id, point2_id);
     if (result != ADD_NODE_OK) {
+        lv00_set_error(LV00_ERROR_NODE_CONFLICT, "lv00_add_line_segment: 添加线段失败 (point1=%d, point2=%d, result=%d)",
+                       point1_id, point2_id, (int) result);
         return -1;
     }
 
@@ -451,11 +460,19 @@ int lv00_add_line_segment(LV00Engine *engine, int point1_id, int point2_id) {
  * @brief 快速添加约束（便捷函数）
  */
 bool lv00_add_constraint_incidence(LV00Engine *engine, int point_id, int line_id) {
-    if (!engine || !engine->main_graph)
+    if (!engine || !engine->main_graph) {
+        lv00_set_error(LV00_ERROR_NULL_POINTER, "lv00_add_constraint_incidence: engine 或 main_graph 为 NULL");
         return false;
+    }
 
     AddConstraintResult result = graph_add_incidence(engine->main_graph, point_id, line_id);
-    return result == ADD_CONSTRAINT_OK;
+    if (result != ADD_CONSTRAINT_OK) {
+        lv00_set_error(LV00_ERROR_CONSTRAINT_CONFLICT,
+                       "lv00_add_constraint_incidence: 添加关联约束失败 (point=%d, line=%d, result=%d)",
+                       point_id, line_id, (int) result);
+        return false;
+    }
+    return true;
 }
 
 /**

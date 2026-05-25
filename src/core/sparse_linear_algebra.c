@@ -1,4 +1,4 @@
-﻿/**
+/**
 
  * @file sparse_linear_algebra.c
 
@@ -6,8 +6,7 @@
 
 
 
-#include "sparse_linear_algebra.h"
-
+#include "lv00/sparse_linear_algebra.h"
 
 
 #include <float.h>
@@ -21,8 +20,7 @@
 #include <string.h>
 
 
-
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 
 
 

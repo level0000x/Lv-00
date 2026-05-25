@@ -1,6 +1,6 @@
 /**
  * @module utils/constraintSolver
- * @description 约束求解纯函数工具模块 / Constraint solving pure function utilities
+ * @description 约束求解纯函数工具模块。
  *
  *              从 EnginePanel 中提取的几何约束求解逻辑，
  *              包含以下纯函数（无副作用，不依赖 React 状态）：
@@ -15,7 +15,7 @@
 import type { Point, Segment, Constraint } from '@/types';
 
 // ================================================================
-// 类型定义 / Type Definitions
+// 类型定义
 // ================================================================
 
 /** 引擎求解结果 */
@@ -35,7 +35,7 @@ export interface SolveResult {
 }
 
 // ================================================================
-// 约束求解辅助函数 / Constraint Solving Helpers
+// 约束求解辅助函数
 // ================================================================
 
 /**

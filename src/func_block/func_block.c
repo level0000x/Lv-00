@@ -396,6 +396,11 @@ bool func_block_add_port_dependency(FuncBlock *fb, PortDependency *dep) {
     /* 使用指数扩容策略，避免每次添加依赖都触发 realloc */
     if (fb->port_dep_count >= fb->port_dep_capacity) {
         int new_cap = fb->port_dep_capacity == 0 ? 4 : fb->port_dep_capacity * 2;
+        /* 整数溢出保护：乘以2后可能溢出 INT_MAX */
+        if (fb->port_dep_capacity != 0 && new_cap < fb->port_dep_capacity) {
+            LV00_LOG_ERROR("func_block_add_port_dependency: 容量扩容溢出 (capacity=%d)", fb->port_dep_capacity);
+            return false;
+        }
         if (new_cap < fb->port_dep_count + 1) new_cap = fb->port_dep_count + 1;
         PortDependency *new_deps = lv00_realloc(fb->port_deps, (size_t) new_cap * sizeof(PortDependency));
         if (!new_deps)
@@ -616,40 +621,37 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
     }
 
     /* 创建 FuncBlock 结构 */
+    PackResult pack_result = PACK_OK; /* 统一错误处理：记录最终返回值 */
     FuncBlock *fb = func_block_create(fb_id);
     if (!fb) {
-        /* func_block_create 失败时，需要从图中移除已添加的函数块节点，
-         * 避免资源泄漏（图中残留无主节点） */
-        /* 修复：检查 graph_remove_node 返回值，确保节点确实被移除 */
-        if (graph_remove_node(graph, fb_id) != REMOVE_NODE_OK) {
-            LV00_LOG_WARNING("func_block_pack: graph_remove_node(%d) 失败，图中可能残留无主节点", fb_id);
-        }
-        return PACK_OUT_OF_MEMORY;
+        pack_result = PACK_OUT_OF_MEMORY;
+        goto pack_cleanup;
     }
 
     if (!func_block_set_internal_nodes(fb, internal_node_ids, internal_count)) {
-        /* 修复：检查 graph_remove_node 返回值，确保节点确实被移除 */
-        if (graph_remove_node(graph, fb_id) != REMOVE_NODE_OK) {
-            LV00_LOG_WARNING("func_block_pack: graph_remove_node(%d) 失败，图中可能残留无主节点", fb_id);
-        }
-        func_block_destroy(fb);
-        return PACK_OUT_OF_MEMORY;
+        pack_result = PACK_OUT_OF_MEMORY;
+        goto pack_cleanup;
     }
     if (!func_block_set_input_ports(fb, input_port_ids, input_count)) {
-        /* 修复：检查 graph_remove_node 返回值，确保节点确实被移除 */
-        if (graph_remove_node(graph, fb_id) != REMOVE_NODE_OK) {
-            LV00_LOG_WARNING("func_block_pack: graph_remove_node(%d) 失败，图中可能残留无主节点", fb_id);
-        }
-        func_block_destroy(fb);
-        return PACK_OUT_OF_MEMORY;
+        pack_result = PACK_OUT_OF_MEMORY;
+        goto pack_cleanup;
     }
     if (!func_block_set_output_ports(fb, output_port_ids, output_count)) {
-        /* 修复：检查 graph_remove_node 返回值，确保节点确实被移除 */
+        pack_result = PACK_OUT_OF_MEMORY;
+        goto pack_cleanup;
+    }
+
+pack_cleanup:
+    if (pack_result != PACK_OK) {
+        /* 统一错误处理：从图中移除已添加的节点，销毁函数块 */
         if (graph_remove_node(graph, fb_id) != REMOVE_NODE_OK) {
             LV00_LOG_WARNING("func_block_pack: graph_remove_node(%d) 失败，图中可能残留无主节点", fb_id);
         }
-        func_block_destroy(fb);
-        return PACK_OUT_OF_MEMORY;
+        if (fb) {
+            func_block_destroy(fb);
+            fb = NULL;
+        }
+        return pack_result;
     }
 
     /* ---- 设计文档 3.2: 更新内部节点 ---- */
@@ -950,6 +952,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
         memcpy(dst->port_deps, src->port_deps, (size_t) src->port_dep_count * sizeof(PortDependency));
     }
     dst->port_dep_count = src->port_dep_count;
+    dst->port_dep_capacity = src->port_dep_capacity;
 
     /* 深拷贝选择器 */
     if (src->selector) {

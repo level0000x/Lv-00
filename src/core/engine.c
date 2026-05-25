@@ -48,6 +48,9 @@
 /** 全局画布的上下文深度（用于引擎初始化时的默认值） */
 #define ENGINE_GLOBAL_CANVAS_DEPTH 0
 
+/** @brief 重写-求解协作最大迭代次数 */
+#define ENGINE_MAX_COLLABORATION_ITERATIONS 10000
+
 /* ============================================================
  * LEGACY 全局状态 —— 将在迁移至 Lv00Context 后移除
  *
@@ -393,7 +396,9 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
     /* 安全检查：确保 ID 在有效范围内 */
     if (new_func_block_id < 0 || new_func_block_id >= engine->main_graph->next_node_id) {
         LV00_LOG_ERROR("engine_add_function_block: 推断的函数块 ID=%d 无效", new_func_block_id);
-        return ENGINE_ERROR_INTERNAL;
+        engine->last_status = ENGINE_ERROR_INTERNAL;
+        snprintf(engine->last_error, sizeof(engine->last_error), "推断的函数块ID无效");
+        return false;
     }
     if (out_func_block_id) {
         *out_func_block_id = new_func_block_id;
@@ -583,11 +588,7 @@ EngineStatus engine_get_last_status(const LV00Engine *engine) {
 /**
  * @brief 获取引擎最近一次错误的描述字符串
  *
- * 优先使用引擎实例级别的错误状态（每个引擎独立隔离）。
- * 若无引擎实例，回退到线程局部变量。
- * 当 engine 为 NULL 且线程局部变量未被初始化时，返回空字符串。
- *
- * @param[in] engine 引擎实例（当前未使用，可为 NULL）
+ * @param[in] engine 引擎实例（为 NULL 时返回全局错误字符串）
  * @return 内部静态错误字符串指针。调用者不得 free。
  *         在下一次可能修改错误状态的操作前有效。
  *         如无错误，返回空字符串。
@@ -827,11 +828,11 @@ int engine_rewrite_and_solve(LV00Engine *engine, int max_rewrite_steps, int max_
         iteration++;
 
         /* 总迭代次数安全限制：防止重写-求解交替无限循环 */
-        if (iteration > 10000) {
-            engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写-求解协作超过最大迭代次数限制 (10000)", iteration, -1, -1);
+        if (iteration > ENGINE_MAX_COLLABORATION_ITERATIONS) {
+            engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写-求解协作超过最大迭代次数限制 (" LV00_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) ")", iteration, -1, -1);
             last_status = ENGINE_CONSTRAINT_CONFLICT;
             snprintf(last_error, sizeof(last_error),
-                     "engine_rewrite_and_solve: 总迭代次数超过上限 10000，终止执行");
+                     "engine_rewrite_and_solve: 总迭代次数超过上限 " LV00_TOSTRING(ENGINE_MAX_COLLABORATION_ITERATIONS) "，终止执行");
             wl_history_destroy(&wl_history);
             return -2;
         }

@@ -17,10 +17,18 @@ import { EngineEventType } from '@/types';
 // 事件类型配置（39 种类型，与 C 内核 stream.h 对齐） / Event type configuration (39 types, aligned with C kernel stream.h)
 // ================================================================
 
+/**
+ * 事件样式配置（图标、颜色、标签）
+ * Event style configuration (icon, color, label)
+ */
 interface EventStyle {
+  /** 事件图标（Unicode 字符） */
   icon: string;
+  /** 事件颜色（CSS 颜色值） */
   color: string;
+  /** 英文标签 */
   label: string;
+  /** 中文标签 */
   labelZh: string;
 }
 
@@ -88,6 +96,19 @@ function getEventStyle(type: number): EventStyle {
 // Safe JSON serialization / 安全 JSON 序列化
 // ================================================================
 
+/**
+ * 安全地将任意数据序列化为 JSON 字符串
+ * 超过 maxLen 时截断并添加提示后缀
+ * 序列化失败时返回友好的错误提示
+ *
+ * Safely serialize any data to a JSON string.
+ * Truncates with a suffix when exceeding maxLen.
+ * Returns a friendly error message on serialization failure.
+ *
+ * @param data - 待序列化的数据
+ * @param maxLen - 最大输出长度，默认 10000 字符
+ * @returns 格式化的 JSON 字符串或错误提示
+ */
 function safeStringify(data: unknown, maxLen = 10000): string {
   try {
     const str = JSON.stringify(data, null, 2);
@@ -101,8 +122,11 @@ function safeStringify(data: unknown, maxLen = 10000): string {
 // 组件属性 / Component Props
 // ================================================================
 
+/** StreamEventItem 组件属性 */
 interface StreamEventItemProps {
+  /** 引擎流式事件数据 */
   event: EngineStreamEvent;
+  /** 事件在列表中的索引（用于显示和键值） */
   index: number;
 }
 

@@ -12,17 +12,23 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdatomic.h>
 #include <string.h>
 
 /* ============== SIMD 能力检测 ============== */
 
-static uint32_t g_simd_capabilities = 0;
-static bool g_simd_initialized = false;
+static atomic_uint g_simd_capabilities = 0;
+static atomic_bool g_simd_initialized = false;
 
-/* 检测SIMD能力 */
+/* 检测SIMD能力（线程安全：使用原子操作保证只初始化一次） */
 static void detect_simd_capabilities(void) {
-    if (g_simd_initialized) return;
-    g_simd_initialized = true;
+    /* 原子交换：多线程并发调用时，仅第一个线程返回 false 并执行初始化 */
+    bool expected = false;
+    if (!atomic_compare_exchange_strong(&g_simd_initialized, &expected, true)) {
+        return; /* 已被其他线程初始化，直接返回 */
+    }
+
+    uint32_t caps = 0;
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     /* x86/x64 平台 */
@@ -30,19 +36,19 @@ static void detect_simd_capabilities(void) {
 #if defined(__GNUC__) || defined(__clang__)
     /* GCC/Clang: 使用 __builtin_cpu_supports */
     #if defined(__SSE2__)
-    g_simd_capabilities |= LV00_SIMD_SSE2;
+    caps |= LV00_SIMD_SSE2;
     #endif
     #if defined(__SSE4_1__)
-    g_simd_capabilities |= LV00_SIMD_SSE41;
+    caps |= LV00_SIMD_SSE41;
     #endif
     #if defined(__AVX__)
-    g_simd_capabilities |= LV00_SIMD_AVX;
+    caps |= LV00_SIMD_AVX;
     #endif
     #if defined(__AVX2__)
-    g_simd_capabilities |= LV00_SIMD_AVX2;
+    caps |= LV00_SIMD_AVX2;
     #endif
     #if defined(__AVX512F__)
-    g_simd_capabilities |= LV00_SIMD_AVX512F;
+    caps |= LV00_SIMD_AVX512F;
     #endif
 
 #elif defined(_MSC_VER)
@@ -53,38 +59,41 @@ static void detect_simd_capabilities(void) {
 
     if (cpuinfo[0] >= 1) {
         __cpuid(cpuinfo, 1);
-        if (cpuinfo[3] & (1 << 26)) g_simd_capabilities |= LV00_SIMD_SSE2;
-        if (cpuinfo[2] & (1 << 19)) g_simd_capabilities |= LV00_SIMD_SSE41;
-        if (cpuinfo[2] & (1 << 28)) g_simd_capabilities |= LV00_SIMD_AVX;
+        if (cpuinfo[3] & (1 << 26)) caps |= LV00_SIMD_SSE2;
+        if (cpuinfo[2] & (1 << 19)) caps |= LV00_SIMD_SSE41;
+        if (cpuinfo[2] & (1 << 28)) caps |= LV00_SIMD_AVX;
     }
 
     if (cpuinfo[0] >= 7) {
         __cpuidex(cpuinfo, 7, 0);
-        if (cpuinfo[1] & (1 << 5)) g_simd_capabilities |= LV00_SIMD_AVX2;
+        if (cpuinfo[1] & (1 << 5)) caps |= LV00_SIMD_AVX2;
     }
 #endif
 
 #elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM) || defined(_M_ARM64)
     /* ARM 平台 */
     #if defined(__ARM_NEON) || defined(__ARM_NEON__) || defined(_M_ARM64)
-    g_simd_capabilities |= LV00_SIMD_NEON;
+    caps |= LV00_SIMD_NEON;
     #endif
 #endif
 
     /* 如果没有检测到任何SIMD能力，使用标量实现 */
-    if (g_simd_capabilities == 0) {
-        g_simd_capabilities = LV00_SIMD_NONE;
+    if (caps == 0) {
+        caps = LV00_SIMD_NONE;
     }
+
+    /* 原子写入：确保其他线程看到完整的初始化结果 */
+    atomic_store(&g_simd_capabilities, caps);
 }
 
 uint32_t lv00_simd_detect_capabilities(void) {
     detect_simd_capabilities();
-    return g_simd_capabilities;
+    return atomic_load(&g_simd_capabilities);
 }
 
 bool lv00_simd_has_capability(Lv00SimdCapability cap) {
     detect_simd_capabilities();
-    return (g_simd_capabilities & cap) != 0;
+    return (atomic_load(&g_simd_capabilities) & cap) != 0;
 }
 
 const char *lv00_simd_capability_name(Lv00SimdCapability cap) {
@@ -128,7 +137,7 @@ void lv00_simd_print_diag(void *stream) {
 
     bool has_any = false;
     for (int i = 0; i < 6; i++) {
-        if (g_simd_capabilities & flags[i]) {
+        if (atomic_load(&g_simd_capabilities) & flags[i]) {
             fprintf(f, "  - %s\n", caps[i]);
             has_any = true;
         }

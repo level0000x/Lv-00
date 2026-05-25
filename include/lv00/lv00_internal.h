@@ -310,6 +310,132 @@ extern "C" {
  *  @param ...   可变参数列表 */
 void lv00_log_message(int level, const char *file, int line, const char *fmt, ...);
 
+/* ====================================================================
+ * 统一内联函数宏
+ * ==================================================================== */
+#ifndef LV00_INLINE
+#if defined(__GNUC__) || defined(__clang__)
+#define LV00_INLINE static inline __attribute__((unused))
+#elif defined(_MSC_VER)
+#define LV00_INLINE static __inline
+#else
+#define LV00_INLINE static
+#endif
+#endif
+
+/* ====================================================================
+ * 统一平台抽象层 —— 互斥锁与条件变量
+ * ====================================================================
+ * 集中管理跨平台线程同步原语，避免各模块各自重复定义。
+ * 使用方式：在需要线程同步的 .c 文件中 #include "lv00_internal.h"
+ *
+ * 现有模块适配说明：
+ *   - memory_pool.c   使用 LV00_MUTEX_INIT/DESTROY/LOCK/UNLOCK（带 & 取地址）
+ *   - runtime_monitor.c 使用 MUTEX_INIT/DESTROY/LOCK/UNLOCK（带 & 取地址）
+ *   - stream.c        使用 lv00_mutex_create/destroy/lock/unlock（函数形式，堆分配）
+ * 各模块可逐步迁移到统一的 lv00_mutex_* / lv00_condvar_* 命名。
+ * ==================================================================== */
+
+#ifdef LV00_THREAD_SAFE
+
+/* 互斥锁类型 */
+#ifdef _WIN32
+typedef CRITICAL_SECTION lv00_mutex_t;
+typedef CONDITION_VARIABLE lv00_condvar_t;
+#else
+typedef pthread_mutex_t lv00_mutex_t;
+typedef pthread_cond_t lv00_condvar_t;
+#endif
+
+/* 互斥锁操作宏 */
+#define LV00_MUTEX_INIT(m)    \
+    do { \
+        _Static_assert(sizeof(m) >= sizeof(lv00_mutex_t), "lv00_mutex_t size mismatch"); \
+        memset(&(m), 0, sizeof(m)); \
+        /* 实际初始化由下面的平台特定代码完成 */ \
+    } while(0)
+
+/* 注意：由于 C 宏无法在 do-while 内使用平台特定的初始化函数，
+ * 这里采用内联函数方式。各模块可继续使用各自的宏定义，
+ * 但应逐步迁移到统一的 lv00_mutex_* 命名。 */
+
+/* 互斥锁初始化/销毁/加锁/解锁 —— Windows 实现 */
+#ifdef _WIN32
+#define LV00_MUTEX_INIT_PTR(m)    InitializeCriticalSection((m))
+#define LV00_MUTEX_DESTROY_PTR(m) DeleteCriticalSection((m))
+#define LV00_MUTEX_LOCK_PTR(m)    EnterCriticalSection((m))
+#define LV00_MUTEX_UNLOCK_PTR(m)  LeaveCriticalSection((m))
+
+/* 条件变量初始化/销毁/信号/等待 */
+#define LV00_CONDVAR_INIT_PTR(cv)     InitializeConditionVariable((cv))
+#define LV00_CONDVAR_DESTROY_PTR(cv)  ((void)0) /* Windows 不需要销毁 */
+#define LV00_CONDVAR_SIGNAL_PTR(cv)   WakeConditionVariable((cv))
+#define LV00_CONDVAR_BROADCAST_PTR(cv) WakeAllConditionVariable((cv))
+#define LV00_CONDVAR_WAIT_PTR(cv, m)  SleepConditionVariableCS((cv), (m), INFINITE)
+
+#else /* POSIX 实现 */
+#define LV00_MUTEX_INIT_PTR(m)    pthread_mutex_init((m), NULL)
+#define LV00_MUTEX_DESTROY_PTR(m) pthread_mutex_destroy((m))
+#define LV00_MUTEX_LOCK_PTR(m)    pthread_mutex_lock((m))
+#define LV00_MUTEX_UNLOCK_PTR(m)  pthread_mutex_unlock((m))
+
+#define LV00_CONDVAR_INIT_PTR(cv)     pthread_cond_init((cv), NULL)
+#define LV00_CONDVAR_DESTROY_PTR(cv)  pthread_cond_destroy((cv))
+#define LV00_CONDVAR_SIGNAL_PTR(cv)   pthread_cond_signal((cv))
+#define LV00_CONDVAR_BROADCAST_PTR(cv) pthread_cond_broadcast((cv))
+#define LV00_CONDVAR_WAIT_PTR(cv, m)  pthread_cond_wait((cv), (m))
+
+#endif /* _WIN32 */
+
+#else /* LV00_THREAD_SAFE 未定义时为空操作 */
+#define LV00_MUTEX_INIT_PTR(m)    ((void)0)
+#define LV00_MUTEX_DESTROY_PTR(m) ((void)0)
+#define LV00_MUTEX_LOCK_PTR(m)    ((void)0)
+#define LV00_MUTEX_UNLOCK_PTR(m)  ((void)0)
+#define LV00_CONDVAR_INIT_PTR(cv)     ((void)0)
+#define LV00_CONDVAR_DESTROY_PTR(cv)  ((void)0)
+#define LV00_CONDVAR_SIGNAL_PTR(cv)   ((void)0)
+#define LV00_CONDVAR_BROADCAST_PTR(cv) ((void)0)
+#define LV00_CONDVAR_WAIT_PTR(cv, m)  ((void)0)
+#endif /* LV00_THREAD_SAFE */
+
+/* ====================================================================
+ * 统一 FNV-1a 哈希函数
+ * ====================================================================
+ * 消除 rewrite.c、normalization.c、memory_pool.c 中的重复实现。
+ * ==================================================================== */
+
+/**
+ * @brief FNV-1a 32位哈希 —— 对字节数组计算哈希值
+ * @param data 输入数据指针
+ * @param len  数据长度（字节）
+ * @return 32位哈希值
+ */
+LV00_INLINE uint32_t lv00_fnv1a_32(const void *data, size_t len) {
+    const unsigned char *bytes = (const unsigned char *)data;
+    uint32_t hash = 2166136261u; /* FNV offset basis */
+    for (size_t i = 0; i < len; i++) {
+        hash ^= bytes[i];
+        hash *= 16777619u; /* FNV prime */
+    }
+    return hash;
+}
+
+/**
+ * @brief FNV-1a 32位哈希 —— 对以 null 结尾的字符串计算哈希值
+ * @param str 输入字符串
+ * @return 32位哈希值
+ */
+LV00_INLINE uint32_t lv00_fnv1a_str(const char *str) {
+    if (!str) return 0;
+    uint32_t hash = 2166136261u;
+    while (*str) {
+        hash ^= (unsigned char)*str++;
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
 #ifdef __cplusplus
 }
 #endif

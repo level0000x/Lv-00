@@ -79,14 +79,24 @@ function isEngineStreamEvent(event: StreamingEvent | EngineStreamEvent): event i
 // Event Normalization / 事件标准化
 // ================================================================
 
-/** Normalized event row for export / 导出用标准化事件行 */
+/**
+ * 标准化事件行（导出用），将不同事件类型统一为扁平结构
+ * Normalized event row for export, unifying different event types into a flat structure
+ */
 interface NormalizedEvent {
+  /** 事件类型标识 */
   type: string;
+  /** 步骤编号 */
   step: number;
+  /** 事件描述 */
   description: string;
+  /** ISO 8601 时间戳 */
   timestamp: string;
+  /** 事件类别 */
   category: string;
+  /** 关联节点 ID（-1 表示无关联） */
   nodeId: number;
+  /** 关联约束 ID（-1 表示无关联） */
   constraintId: number;
 }
 

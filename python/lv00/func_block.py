@@ -21,10 +21,7 @@ Lv-00 函数块模块
 
 import ctypes
 from ctypes import c_int, c_void_p, POINTER
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
-
-if TYPE_CHECKING:
-    pass  # Lv00BaseError 现在在运行时导入
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import Lv00BaseError
 

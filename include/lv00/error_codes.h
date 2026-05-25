@@ -81,7 +81,9 @@ typedef enum {
     LV00_ERROR_IO = 12,                 /**< IO错误 */
     LV00_ERROR_PARSE = 13,              /**< 解析错误 */
     LV00_ERROR_INVALID_STATE = 14,      /**< 无效状态 */
-    LV00_ERROR_INVALID_ARGUMENT = 15,   /**< 无效参数（字符串为空等） */
+    LV00_ERROR_INVALID_ARGUMENT = 15,   /**< 无效参数（字符串为空等）
+                                              @deprecated 与 LV00_ERROR_INVALID_PARAM 语义重叠，
+                                              请使用 LV00_ERROR_INVALID_PARAM 替代 */
     LV00_ERROR_INDEX_OUT_OF_RANGE = 17, /**< 索引越界 */
     LV00_ERROR_VALUE_OUT_OF_RANGE = 18, /**< 数值越界 */
 

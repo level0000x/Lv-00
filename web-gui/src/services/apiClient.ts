@@ -16,7 +16,7 @@
  */
 
 // ================================================================
-// 类型定义 / Type Definitions
+// 类型定义
 // ================================================================
 
 /**
@@ -26,7 +26,7 @@
 import type { AIProviderId } from '@/types';
 export type { AIProviderId } from '@/types';
 
-/** API 调用选项 / API Call Options */
+/** API 调用选项 */
 export interface ApiCallOptions {
   /** AI 提供者标识符 */
   provider: AIProviderId;
@@ -46,7 +46,7 @@ export interface ApiCallOptions {
   maxRetries?: number;
 }
 
-/** 流式响应回调集合 / Streaming response callbacks */
+/** 流式响应回调集合 */
 export interface StreamCallbacks {
   /** 收到新的文本分块时调用 */
   onChunk: (text: string, fullContent: string) => void;
@@ -56,7 +56,7 @@ export interface StreamCallbacks {
   onError: (error: ApiClientError) => void;
 }
 
-/** API 客户端错误的分类 / API Client Error Classification */
+/** API 客户端错误分类 */
 export class ApiClientError extends Error {
   /** 错误类别：网络 / 认证 / 速率限制 / 服务器 / 超时 / 客户端 */
   readonly category: 'network' | 'auth' | 'rate_limit' | 'server' | 'timeout' | 'client';
@@ -93,10 +93,10 @@ export class ApiClientError extends Error {
 }
 
 // ================================================================
-// 默认配置 / Default Configuration
+// 默认配置
 // ================================================================
 
-/** 各提供者的默认 API 端点 / Default API endpoints by provider */
+/** 各提供者的默认 API 端点 */
 const DEFAULT_ENDPOINTS: Record<AIProviderId, string> = {
   openai: 'https://api.openai.com/v1/chat/completions',
   anthropic: 'https://api.anthropic.com/v1/messages',
@@ -107,7 +107,7 @@ const DEFAULT_ENDPOINTS: Record<AIProviderId, string> = {
   custom: '',
 };
 
-/** 各提供者的默认模型名称 / Default model names by provider */
+/** 各提供者的默认模型名称 */
 const DEFAULT_MODELS: Record<AIProviderId, string> = {
   openai: 'gpt-3.5-turbo',
   anthropic: 'claude-3-haiku-20240307',
@@ -118,20 +118,20 @@ const DEFAULT_MODELS: Record<AIProviderId, string> = {
   custom: '',
 };
 
-/** 默认请求超时时间（毫秒） / Default request timeout in milliseconds */
+/** 默认请求超时时间（毫秒） */
 const DEFAULT_TIMEOUT_MS = 30000;
 
-/** 默认最大重试次数 / Default max retries */
+/** 默认最大重试次数 */
 const DEFAULT_MAX_RETRIES = 3;
 
-/** 指数退避的初始等待时间（毫秒） / Initial backoff delay in milliseconds */
+/** 指数退避的初始等待时间（毫秒） */
 const INITIAL_BACKOFF_MS = 1000;
 
-/** 不需要重试的 HTTP 状态码 / HTTP status codes that should not be retried */
+/** 不需要重试的 HTTP 状态码 */
 const NON_RETRYABLE_STATUS_CODES = new Set([400, 401, 403, 404, 422]);
 
 // ================================================================
-// 辅助函数 / Helper Functions
+// 辅助函数
 // ================================================================
 
 /**
@@ -305,7 +305,7 @@ async function parseNonStreamResponse(response: Response): Promise<string> {
 }
 
 // ================================================================
-// 核心 API 调用函数 / Core API Call Functions
+// 核心 API 调用函数
 // ================================================================
 
 /**
@@ -504,7 +504,7 @@ export async function chat(
 }
 
 // ================================================================
-// 工具函数 / Utility Functions
+// 工具函数
 // ================================================================
 
 /**

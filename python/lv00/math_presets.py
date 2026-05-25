@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 import math
 
 # 版本号统一引用包级 __version__
-from lv00 import __version__
+from . import __version__
 
 # 类型检查时导入，避免运行时循环依赖
 if TYPE_CHECKING:

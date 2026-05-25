@@ -2,7 +2,7 @@
  * streaming.js - Lv-00 流式输出核心模块
  *
  * 提供 StreamBridge 类，用于在 JS 后端和前端 UI 之间桥接流式事件。
- * 支持 39 种事件类型（与 C 内核 stream.h StreamEventType 枚举一一对应）、
+ * 支持 47 种事件类型（与 C 内核 stream.h StreamEventType 枚举一一对应）、
  * 事件类型分组过滤、实时日志展示、清除日志、SSE 连接超时与自动重连等功能。
  *
  * 中文说明：流式输出核心模块，桥接 JS 后端事件到前端 UI 面板。
@@ -11,11 +11,12 @@
  * 导出：
  *   window.Lv00Streaming = { StreamBridge: StreamBridge, EVENT_TYPES: EVENT_TYPES }
  *
- * 事件类型分组（8 组 39 种）：
+ * 事件类型分组（9 组 47 种）：
  *   ENG(0-2): 引擎生命周期    NRM(3-5): 归一化
  *   RWT(6-11): 重写引擎       SLV(12-16): 代数求解
  *   PRF(17-21): 证明系统       FBK(22-29): 函数块系统
- *   ERR(30-35): 冲突与错误     LOG(36-38): 信息与进度
+ *   PST(30-37): 预设函数块     ERR(38-43): 冲突与错误
+ *   LOG(44-46): 信息与进度
  *
  * 使用方式：
  *   var bridge = new window.Lv00Streaming.StreamBridge(app);
@@ -29,6 +30,7 @@
  * 作者：Lv-00 Team
  * 创建日期：2026-05-20
  * 更新日期：2026-05-21 - 补全全部 31 种事件类型，分组过滤器
+ * 更新日期：2026-05-25 - 对齐 stream.h 至 47 种事件类型，补充预设函数块系统(PST)分组
  */
 (function() {
     'use strict';
@@ -75,17 +77,26 @@
         FUNC_BLOCK_DETERMINISM_CHECK: 27,
         FUNC_BLOCK_CAPTURE_AVOID: 28,
         FUNC_BLOCK_CROSS_BOUNDARY: 29,
+        /* ---- 预设函数块系统 ---- */
+        PRESET_REGISTER_START: 30,
+        PRESET_REGISTER_DONE: 31,
+        PRESET_REGISTER_FAILED: 32,
+        PRESET_LOOKUP: 33,
+        PRESET_INSTANTIATE: 34,
+        PRESET_VALIDATE: 35,
+        PRESET_CATEGORY_LOADED: 36,
+        PRESET_MODULE_LOADED: 37,
         /* ---- 冲突与错误 ---- */
-        CONFLICT_DETECTED: 30,
-        CONSTRAINT_ADDED: 31,
-        NODE_ADDED: 32,
-        CIRCUIT_TRIP: 33,
-        ERROR: 34,
-        WARNING: 35,
+        CONFLICT_DETECTED: 38,
+        CONSTRAINT_ADDED: 39,
+        NODE_ADDED: 40,
+        CIRCUIT_TRIP: 41,
+        ERROR: 42,
+        WARNING: 43,
         /* ---- 信息 ---- */
-        INFO: 36,
-        PROGRESS: 37,
-        GRAPH_SNAPSHOT: 38
+        INFO: 44,
+        PROGRESS: 45,
+        GRAPH_SNAPSHOT: 46
     };
 
     // ================================================================
@@ -130,17 +141,26 @@
     EVENT_META[27] = { name: '确定性检查 / Determinism Check',       shortName: 'FBK-DET',  cssClass: 'stream-ev-funcblock', colorScheme: 'blue' };
     EVENT_META[28] = { name: '捕获避免 / Capture Avoid',             shortName: 'FBK-CAP',  cssClass: 'stream-ev-funcblock', colorScheme: 'blue' };
     EVENT_META[29] = { name: '跨边界操作 / Cross Boundary',          shortName: 'FBK-CROSS',cssClass: 'stream-ev-funcblock', colorScheme: 'purple' };
+    /* ---- 预设函数块系统 ---- */
+    EVENT_META[30] = { name: '预设注册开始 / Preset Register Start',  shortName: 'PST-REG',  cssClass: 'stream-ev-preset', colorScheme: 'green' };
+    EVENT_META[31] = { name: '预设注册完成 / Preset Register Done',   shortName: 'PST-REG',  cssClass: 'stream-ev-preset', colorScheme: 'green' };
+    EVENT_META[32] = { name: '预设注册失败 / Preset Register Failed', shortName: 'PST-REG',  cssClass: 'stream-ev-preset', colorScheme: 'red' };
+    EVENT_META[33] = { name: '预设查找 / Preset Lookup',              shortName: 'PST-LOOK', cssClass: 'stream-ev-preset', colorScheme: 'blue' };
+    EVENT_META[34] = { name: '预设实例化 / Preset Instantiate',        shortName: 'PST-INST', cssClass: 'stream-ev-preset', colorScheme: 'purple' };
+    EVENT_META[35] = { name: '预设验证 / Preset Validate',             shortName: 'PST-VAL',  cssClass: 'stream-ev-preset', colorScheme: 'blue' };
+    EVENT_META[36] = { name: '预设类别加载 / Preset Category Loaded',  shortName: 'PST-CAT',  cssClass: 'stream-ev-preset', colorScheme: 'green' };
+    EVENT_META[37] = { name: '预设模块加载 / Preset Module Loaded',    shortName: 'PST-MOD',  cssClass: 'stream-ev-preset', colorScheme: 'green' };
     /* ---- 冲突与错误 ---- */
-    EVENT_META[30] = { name: '冲突检测 / Conflict Detected',  shortName: 'CONFLICT',  cssClass: 'stream-ev-conflict', colorScheme: 'red' };
-    EVENT_META[31] = { name: '约束添加 / Constraint Added',   shortName: 'CON-ADD',   cssClass: 'stream-ev-conflict', colorScheme: 'blue' };
-    EVENT_META[32] = { name: '节点添加 / Node Added',         shortName: 'NODE-ADD',  cssClass: 'stream-ev-conflict', colorScheme: 'blue' };
-    EVENT_META[33] = { name: '位数熔断 / Circuit Trip',       shortName: 'CIRCUIT',   cssClass: 'stream-ev-conflict', colorScheme: 'orange' };
-    EVENT_META[34] = { name: '错误 / Error',                  shortName: 'ERROR',     cssClass: 'stream-ev-error',   colorScheme: 'red' };
-    EVENT_META[35] = { name: '警告 / Warning',                shortName: 'WARN',      cssClass: 'stream-ev-error',   colorScheme: 'yellow' };
+    EVENT_META[38] = { name: '冲突检测 / Conflict Detected',  shortName: 'CONFLICT',  cssClass: 'stream-ev-conflict', colorScheme: 'red' };
+    EVENT_META[39] = { name: '约束添加 / Constraint Added',   shortName: 'CON-ADD',   cssClass: 'stream-ev-conflict', colorScheme: 'blue' };
+    EVENT_META[40] = { name: '节点添加 / Node Added',         shortName: 'NODE-ADD',  cssClass: 'stream-ev-conflict', colorScheme: 'blue' };
+    EVENT_META[41] = { name: '位数熔断 / Circuit Trip',       shortName: 'CIRCUIT',   cssClass: 'stream-ev-conflict', colorScheme: 'orange' };
+    EVENT_META[42] = { name: '错误 / Error',                  shortName: 'ERROR',     cssClass: 'stream-ev-error',   colorScheme: 'red' };
+    EVENT_META[43] = { name: '警告 / Warning',                shortName: 'WARN',      cssClass: 'stream-ev-error',   colorScheme: 'yellow' };
     /* ---- 信息 ---- */
-    EVENT_META[36] = { name: '信息 / Info',                   shortName: 'INFO',      cssClass: 'stream-ev-info',    colorScheme: 'gray' };
-    EVENT_META[37] = { name: '进度 / Progress',               shortName: 'PROGRESS',  cssClass: 'stream-ev-info',    colorScheme: 'blue' };
-    EVENT_META[38] = { name: '图快照 / Graph Snapshot',       shortName: 'SNAPSHOT',  cssClass: 'stream-ev-info',    colorScheme: 'lightgray' };
+    EVENT_META[44] = { name: '信息 / Info',                   shortName: 'INFO',      cssClass: 'stream-ev-info',    colorScheme: 'gray' };
+    EVENT_META[45] = { name: '进度 / Progress',               shortName: 'PROGRESS',  cssClass: 'stream-ev-info',    colorScheme: 'blue' };
+    EVENT_META[46] = { name: '图快照 / Graph Snapshot',       shortName: 'SNAPSHOT',  cssClass: 'stream-ev-info',    colorScheme: 'lightgray' };
 
     // ================================================================
     //  流式输出 UI 颜色常量
@@ -336,10 +356,11 @@
             { label: 'SLV',   types: [12, 13, 14, 15, 16],               desc: '代数求解' },
             { label: 'PRF',   types: [17, 18, 19, 20, 21],               desc: '证明系统' },
             { label: 'FBK',   types: [22, 23, 24, 25, 26, 27, 28, 29],  desc: '函数块系统' },
-            { label: 'ERR',   types: [30, 31, 32, 33, 34, 35],           desc: '冲突与错误' },
-            { label: 'LOG',   types: [36, 37, 38],                        desc: '信息与进度' }
+            { label: 'PST',   types: [30, 31, 32, 33, 34, 35, 36, 37],  desc: '预设函数块' },
+            { label: 'ERR',   types: [38, 39, 40, 41, 42, 43],           desc: '冲突与错误' },
+            { label: 'LOG',   types: [44, 45, 46],                        desc: '信息与进度' }
         ];
-        var groupColors = [STREAM_COLORS.success, STREAM_COLORS.success, STREAM_COLORS.warning, COLOR_SCHEMES.purple.text, COLOR_SCHEMES.purple.text, COLOR_SCHEMES.teal.text, STREAM_COLORS.error, STREAM_COLORS.dim];
+        var groupColors = [STREAM_COLORS.success, STREAM_COLORS.success, STREAM_COLORS.warning, COLOR_SCHEMES.purple.text, COLOR_SCHEMES.purple.text, COLOR_SCHEMES.teal.text, COLOR_SCHEMES.blue.text, STREAM_COLORS.error, STREAM_COLORS.dim];
 
         for (var gi = 0; gi < filterGroups.length; gi++) {
             (function(group, gColor) {

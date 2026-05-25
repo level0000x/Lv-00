@@ -375,7 +375,7 @@ static int *build_id_to_idx(ConstraintGraph *graph, int *out_max_id) {
      * 超过此值可能意味着 ID 生成器异常或输入数据存在问题。 */
     if (max_id < 0 || max_id > NORM_MAX_ID) {
         /* 修复：设置全局错误状态，提供明确的错误信息 */
-        lv00_set_error(LV00_ERROR_INVALID_ARGUMENT,
+        lv00_set_error(LV00_ERROR_INVALID_PARAM,
                        "build_id_to_idx 安全检查失败: max_id=%d 超过阈值 NORM_MAX_ID=%d，"
                        "拒绝分配巨大查找表以防止内存耗尽",
                        max_id, NORM_MAX_ID);

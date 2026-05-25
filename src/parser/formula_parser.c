@@ -428,6 +428,9 @@ FormulaNode *formula_create_binary_op(NodeType op_type, FormulaNode *left, Formu
     node->refcount = 1;
     node->data.binary_op.left = left;
     node->data.binary_op.right = right;
+    /* 增加子节点引用计数：父节点持有对子节点的引用 */
+    formula_node_ref(left);
+    formula_node_ref(right);
     return node;
 }
 
@@ -1253,6 +1256,11 @@ static FormulaNode *parse_number(ParserContext *ctx) {
 
         /* 步骤1：解析符号后的整数部分 */
         while (p < end && is_digit((unsigned char) *p)) {
+            /* 溢出保护：int_part * 10 + digit 不得超过 INT64_MAX */
+            if (int_part > (INT64_MAX - (*p - '0')) / 10) {
+                set_error(ctx, "整数部分溢出");
+                return NULL;
+            }
             int_part = int_part * 10 + (*p - '0');
             p++;
         }
@@ -1261,7 +1269,17 @@ static FormulaNode *parse_number(ParserContext *ctx) {
         if (p < end && *p == '.') {
             p++;
             while (p < end && is_digit((unsigned char) *p)) {
+                /* 溢出保护：frac_part * 10 + digit 不得超过 INT64_MAX */
+                if (frac_part > (INT64_MAX - (*p - '0')) / 10) {
+                    set_error(ctx, "小数部分溢出");
+                    return NULL;
+                }
                 frac_part = frac_part * 10 + (*p - '0');
+                /* 溢出保护：frac_denom * 10 不得超过 INT64_MAX */
+                if (frac_denom > INT64_MAX / 10) {
+                    set_error(ctx, "小数分母溢出");
+                    return NULL;
+                }
                 frac_denom *= 10; /* 每位小数使分母乘以10 */
                 p++;
             }
@@ -1309,7 +1327,28 @@ static FormulaNode *parse_number(ParserContext *ctx) {
          * value = int_part + frac_part/frac_denom
          *        = (int_part * frac_denom + frac_part) / frac_denom
          */
-        int64_t numerator = int_part * frac_denom + frac_part;
+        /* 溢出检查：int_part * frac_denom 可能超出 int64_t 范围 */
+        int64_t numerator;
+        if (int_part != 0 && frac_denom != 0) {
+            if (int_part > 0) {
+                if (frac_denom > INT64_MAX / int_part) {
+                    /* 乘法溢出，钳位到 INT64_MAX */
+                    numerator = INT64_MAX;
+                } else {
+                    numerator = int_part * frac_denom + frac_part;
+                }
+            } else {
+                /* int_part < 0 */
+                if (frac_denom > INT64_MAX / (-int_part)) {
+                    /* 乘法溢出，钳位到 INT64_MIN */
+                    numerator = INT64_MIN;
+                } else {
+                    numerator = int_part * frac_denom + frac_part;
+                }
+            }
+        } else {
+            numerator = frac_part;
+        }
         int64_t denominator = frac_denom;
 
         if (negative) {
@@ -2478,7 +2517,7 @@ static FormulaNode *parse_dsl_factor(ParserContext *ctx) {
             formula_node_destroy(left);
             return NULL;
         }
-        return formula_create_binary_op(NODE_BINARY_OP_POW, left, right);
+        return track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_POW, left, right));
     }
 
     return left;
@@ -2734,7 +2773,7 @@ static FormulaNode *parse_latex_frac(ParserContext *ctx) {
         return NULL;
     }
 
-    return formula_create_binary_op(NODE_BINARY_OP_DIV, numerator, denominator);
+    return track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_DIV, numerator, denominator));
 }
 
 /**
@@ -2962,7 +3001,7 @@ static FormulaNode *parse_latex_atom(ParserContext *ctx) {
         return node;
     }
 
-    set_error(ctx, "Unexpected character in DSL expression");
+    set_error(ctx, "Unexpected character in LaTeX expression");
     return NULL;
 }
 
@@ -3006,7 +3045,7 @@ static FormulaNode *parse_latex_factor(ParserContext *ctx) {
             formula_node_destroy(left);
             return NULL;
         }
-        return formula_create_binary_op(NODE_BINARY_OP_POW, left, exponent);
+        return track_node(ctx, formula_create_binary_op(NODE_BINARY_OP_POW, left, exponent));
     }
 
     return left;

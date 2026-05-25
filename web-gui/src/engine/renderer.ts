@@ -432,6 +432,10 @@ export class Renderer {
   // Port Drawing / 端口绘制
   // ================================================================
 
+  /**
+   * 绘制端口（函数块上的输入/输出连接点）
+   * 输入端口使用 port 颜色，输出端口使用 portHover 颜色
+   */
   private drawPort(port: Port, vp: ViewportState, colors: ThemeColors): void {
     const ctx = this.ctx;
     const screen = this.worldToScreen(port.x, port.y, vp);
@@ -450,6 +454,15 @@ export class Renderer {
   // FuncBlock Drawing / 函数块绘制
   // ================================================================
 
+  /**
+   * 绘制函数块（封装几何构造的可复用模块）
+   * 包含圆角矩形背景、分类颜色填充、标签文字和端口渲染
+   *
+   * @param fb - 函数块数据
+   * @param fbPorts - 属于该函数块的端口列表
+   * @param vp - 当前视口状态
+   * @param colors - 当前主题颜色
+   */
   private drawFuncBlock(fb: FuncBlock, fbPorts: Port[], vp: ViewportState, colors: ThemeColors): void {
     const ctx = this.ctx;
     const x = fb.x - fb.width / 2;
@@ -793,7 +806,12 @@ export class Renderer {
   // ================================================================
 
   /**
+   * 调整画布尺寸以匹配容器，支持高 DPI 渲染
+   * 设置物理像素尺寸、CSS 尺寸和 DPR 缩放变换
+   * 应在窗口大小变化和初始化时调用
+   *
    * Resize the canvas to match its container with high-DPI support.
+   * Sets physical pixel dimensions, CSS dimensions, and DPR scale transform.
    * Call this on window resize and initial setup.
    */
   setupCanvas(): void {
@@ -814,13 +832,15 @@ export class Renderer {
   }
 
   /**
-   * Find the point nearest to a given screen position within a threshold.
-   * @param screenX - Screen X coordinate
-   * @param screenY - Screen Y coordinate
-   * @param points - Array of points to search
-   * @param vp - Current viewport state
-   * @param threshold - Maximum distance in CSS pixels (default 10)
-   * @returns The nearest point within threshold, or null
+   * 查找距给定屏幕坐标最近的点（在阈值范围内）
+   * 用于鼠标点击时的点拾取
+   *
+   * @param screenX - 屏幕 X 坐标（CSS 像素）
+   * @param screenY - 屏幕 Y 坐标（CSS 像素）
+   * @param points - 待搜索的点数组
+   * @param vp - 当前视口状态
+   * @param threshold - 最大距离阈值（CSS 像素），默认 10
+   * @returns 阈值范围内最近的点，无匹配则返回 null
    */
   findPointAt(
     screenX: number,

@@ -262,7 +262,7 @@ int atp_solver_load(ATPBackendSolver *solver, const char *tptp_text) {
 
     int len = (int)strlen(tptp_text);
     if (len <= 0) {
-        return (int)LV00_ERROR_INVALID_ARGUMENT;
+        return (int)LV00_ERROR_INVALID_PARAM;
     }
 
     solver->tptp_code = (char *)lv00_malloc((size_t)(len + 1));

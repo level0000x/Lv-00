@@ -3,6 +3,15 @@
  * @description 几何数据状态管理。
  *              管理所有几何图元（点、线段、约束、区域）以及完整的撤销/重做历史。
  *              从原先 stores/index.ts（~850 行单体 Store）拆分而来，遵循单一职责原则。
+ *
+ *              级联删除规则：
+ *              - removePoint: 同时删除关联的线段、约束和包含该点的区域
+ *              - removeSegment: 同时删除引用该线段 ID 的约束
+ *
+ *              撤销/重做性能说明：
+ *              - 每次快照对所有数组进行一层浅拷贝（Point/Segment 为扁平对象，足够安全）
+ *              - Constraint 的 args 数组和 Region 的 points 数组做了额外的数组拷贝
+ *              - 最多保留 MAX_UNDO_HISTORY (50) 条快照，防止内存过度占用
  */
 
 import { create } from 'zustand';
@@ -230,7 +239,8 @@ export const useGeometryStore = create<GeometryState>((set) => ({
 
   /**
    * 删除指定 ID 的点。
-   * 同时会删除以此点为端点的所有线段，保证数据一致性。
+   * 同时级联删除以此点为端点的所有线段、引用该点的所有约束，
+   * 以及包含该点作为顶点的所有区域，保证数据一致性。
    */
   removePoint: (id) =>
     set((state) => ({
@@ -239,6 +249,10 @@ export const useGeometryStore = create<GeometryState>((set) => ({
       /* 级联删除引用该点的所有约束，保持数据一致性 */
       constraints: state.constraints.filter(
         (c) => !c.args.includes(id),
+      ),
+      /* 级联删除包含该点作为顶点的所有区域，保持数据一致性 */
+      regions: state.regions.filter(
+        (r) => !r.points.some((p) => p.id === id),
       ),
     })),
 

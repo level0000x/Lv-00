@@ -4,6 +4,10 @@
  *              管理主题、模态框、Toast 通知、面板折叠、侧边栏宽度、后端连接、
  *              日志、性能统计、公式模块和状态栏等全局 UI 状态。
  *              从原先 stores/index.ts（~850 行单体 Store）拆分而来，遵循单一职责原则。
+ *
+ *              内存安全保障：
+ *              - logs: 最多保留 MAX_GLOBAL_LOG_ENTRIES (500) 条，超出自动丢弃最旧条目
+ *              - Toast 定时器：duration > 0 时自动移除；组件卸载后定时器回调为 no-op，无泄漏风险
  */
 
 import { create } from 'zustand';

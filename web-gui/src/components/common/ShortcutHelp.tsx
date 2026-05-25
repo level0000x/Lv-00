@@ -5,6 +5,10 @@
  *              以分类卡片的形式显示所有可用的键盘快捷键。
  *              Toggle with ? key or Ctrl+/, rendered to body via React Portal.
  *              Displays all available keyboard shortcuts in categorized cards.
+ *
+ * 样式说明 / Style Notes:
+ *   所有样式已从内联 style 对象迁移至 CSS 类（shortcut-help.css），
+ *   通过 className 属性引用。视觉表现与迁移前完全一致。
  */
 
 import React, { useCallback, useEffect } from 'react';
@@ -106,136 +110,6 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
 ];
 
 // ============================================================
-// 内联样式 / Inline Styles
-// ============================================================
-
-/** 样式对象集合 / Style object collection */
-const styles: Record<string, React.CSSProperties> = {
-  /** 遮罩层：半透明背景，覆盖全屏 / Overlay: semi-transparent backdrop covering the full viewport */
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    zIndex: 200,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
-    WebkitBackdropFilter: 'blur(4px)',
-    animation: 'shortcutHelpFadeIn 0.15s ease-out',
-  },
-
-  /** 面板主体：居中显示，带阴影和圆角 / Panel body: centered with shadow and rounded corners */
-  panel: {
-    backgroundColor: 'var(--color-bg-secondary)',
-    border: '1px solid var(--color-border-primary)',
-    borderRadius: 'var(--radius-lg)',
-    boxShadow: 'var(--shadow-xl)',
-    maxWidth: 720,
-    width: 'calc(100vw - 48px)',
-    maxHeight: 'calc(100vh - 80px)',
-    overflowY: 'auto',
-    padding: '28px 32px',
-    animation: 'shortcutHelpSlideUp 0.2s ease-out',
-  },
-
-  /** 标题行：面板顶部的大标题 / Title row: main heading at the top of the panel */
-  title: {
-    fontSize: 'var(--font-size-2xl)',
-    fontWeight: 600,
-    color: 'var(--color-text-bright)',
-    marginBottom: 6,
-    fontFamily: 'var(--font-sans)',
-  },
-
-  /** 副标题：提示用户如何关闭面板 / Subtitle: hint for how to close the panel */
-  subtitle: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--color-text-muted)',
-    marginBottom: 24,
-    fontFamily: 'var(--font-sans)',
-  },
-
-  /** 分类网格容器：两列布局 / Category grid container: two-column layout */
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: 20,
-  },
-
-  /** 单个分类卡片 / Single category card */
-  categoryCard: {
-    backgroundColor: 'var(--color-bg-tertiary)',
-    border: '1px solid var(--color-border-secondary)',
-    borderRadius: 'var(--radius-md)',
-    padding: '14px 16px',
-  },
-
-  /** 分类标题 / Category title */
-  categoryTitle: {
-    fontSize: 'var(--font-size-md)',
-    fontWeight: 600,
-    color: 'var(--color-accent)',
-    marginBottom: 10,
-    paddingBottom: 8,
-    borderBottom: `1px solid var(--color-border-secondary)`,
-    fontFamily: 'var(--font-sans)',
-    textTransform: 'uppercase' as React.CSSProperties['textTransform'],
-    letterSpacing: '0.5px',
-  },
-
-  /** 快捷键条目行 / Shortcut item row */
-  shortcutRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '5px 0',
-  },
-
-  /** 快捷键按键标签（模拟 kbd） / Keyboard key label (simulating kbd) */
-  kbd: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '2px 7px',
-    minWidth: 22,
-    fontSize: '10px',
-    fontFamily: 'var(--font-mono)',
-    fontWeight: 500,
-    color: 'var(--color-text-bright)',
-    backgroundColor: 'rgba(var(--color-accent-rgb), 0.1)',
-    border: `1px solid rgba(var(--color-accent-rgb), 0.25)`,
-    borderRadius: 'var(--radius-sm)',
-    lineHeight: 1.6,
-    whiteSpace: 'nowrap' as React.CSSProperties['whiteSpace'],
-  },
-
-  /** 快捷键功能描述文本 / Shortcut description text */
-  description: {
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--color-text-secondary)',
-    fontFamily: 'var(--font-sans)',
-    textAlign: 'right' as React.CSSProperties['textAlign'],
-    flex: 1,
-    marginLeft: 12,
-  },
-
-  /** 底部提示行 / Footer hint row */
-  footer: {
-    marginTop: 24,
-    paddingTop: 14,
-    borderTop: `1px solid var(--color-border-secondary)`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    fontSize: 'var(--font-size-sm)',
-    color: 'var(--color-text-muted)',
-    fontFamily: 'var(--font-sans)',
-  },
-};
-
-// ============================================================
 // ShortcutHelp 组件 / ShortcutHelp Component
 // ============================================================
 
@@ -248,7 +122,7 @@ const styles: Record<string, React.CSSProperties> = {
  * - 点击遮罩层关闭 / Click overlay to close
  * - 使用 React Portal 渲染到 document.body / Rendered to document.body via React Portal
  * - 快捷键按分类分卡片展示 / Shortcuts displayed in categorized cards
- * - 完全使用内联样式，不依赖外部 CSS 文件 / Fully inline-styled, no external CSS dependency
+ * - 使用 CSS 类替代内联样式，便于维护 / Uses CSS classes instead of inline styles
  * - 使用项目 CSS 变量保持视觉一致性 / Uses project CSS variables for visual consistency
  *
  * 注意：键盘监听已统一由 Layout.tsx 管理，本组件不再独立注册 keydown 监听器。
@@ -303,33 +177,33 @@ const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isVisible, onClose }) => {
     const parts = keyText.split('+');
     return parts.map((part, idx) => (
       <React.Fragment key={idx}>
-        {idx > 0 && <span style={{ margin: '0 3px', color: 'var(--color-text-muted)', fontSize: 10 }}>+</span>}
-        <kbd style={styles.kbd}>{part.trim()}</kbd>
+        {idx > 0 && <span className="shortcut-help-kbd-sep">+</span>}
+        <kbd className="shortcut-help-kbd">{part.trim()}</kbd>
       </React.Fragment>
     ));
   };
 
   return createPortal(
-    <div style={styles.overlay} onClick={handleOverlayClick} role="dialog" aria-modal="true" aria-label="键盘快捷键帮助">
-      <div style={styles.panel}>
+    <div className="shortcut-help-overlay" onClick={handleOverlayClick} role="dialog" aria-modal="true" aria-label="键盘快捷键帮助">
+      <div className="shortcut-help-panel">
         {/* 标题区域 / Title area */}
-        <h2 style={styles.title}>键盘快捷键 Keyboard Shortcuts</h2>
-        <p style={styles.subtitle}>
-          按 <kbd style={styles.kbd}>?</kbd> 或 <kbd style={styles.kbd}>Ctrl+/</kbd> 切换此面板 &middot; 点击遮罩或按{' '}
-          <kbd style={styles.kbd}>Esc</kbd> 关闭
+        <h2 className="shortcut-help-title">键盘快捷键 Keyboard Shortcuts</h2>
+        <p className="shortcut-help-subtitle">
+          按 <kbd className="shortcut-help-kbd">?</kbd> 或 <kbd className="shortcut-help-kbd">Ctrl+/</kbd> 切换此面板 &middot; 点击遮罩或按{' '}
+          <kbd className="shortcut-help-kbd">Esc</kbd> 关闭
         </p>
 
         {/* 分类网格 / Category grid */}
-        <div style={styles.grid}>
+        <div className="shortcut-help-grid">
           {SHORTCUT_CATEGORIES.map((category) => (
-            <div key={category.title} style={styles.categoryCard}>
-              <div style={styles.categoryTitle}>{category.title}</div>
+            <div key={category.title} className="shortcut-help-category-card">
+              <div className="shortcut-help-category-title">{category.title}</div>
               {category.items.map((item) => (
-                <div key={item.description} style={styles.shortcutRow}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+                <div key={item.description} className="shortcut-help-row">
+                  <span className="shortcut-help-keys">
                     {renderKbd(item.key)}
                   </span>
-                  <span style={styles.description}>{item.description}</span>
+                  <span className="shortcut-help-desc">{item.description}</span>
                 </div>
               ))}
             </div>
@@ -337,10 +211,10 @@ const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isVisible, onClose }) => {
         </div>
 
         {/* 底部提示 / Footer hint */}
-        <div style={styles.footer}>
-          <kbd style={styles.kbd}>?</kbd>
+        <div className="shortcut-help-footer">
+          <kbd className="shortcut-help-kbd">?</kbd>
           <span>或</span>
-          <kbd style={styles.kbd}>Ctrl+/</kbd>
+          <kbd className="shortcut-help-kbd">Ctrl+/</kbd>
           <span>随时打开此面板 / Press anytime to open this panel</span>
         </div>
       </div>

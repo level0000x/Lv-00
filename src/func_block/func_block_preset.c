@@ -924,13 +924,15 @@ static bool register_builtin_preset(const PresetMetadata *metadata) {
  * @return true 成功，false 失败
  */
 static bool init_builtin_presets(void) {
+    int fail_count = 0;
     for (int i = 0; i < g_builtin_count; i++) {
         if (!register_builtin_preset(&g_builtin_metadata[i])) {
             LV00_LOG_WARNING("注册内置预设失败: %s", g_builtin_metadata[i].name);
-            /* 继续注册其他预设 */
+            fail_count++;
         }
     }
-    return true;
+    /* 至少注册成功一个预设才视为初始化成功 */
+    return (fail_count < g_builtin_count);
 }
 
 /* ============================================================
@@ -946,9 +948,11 @@ bool func_block_preset_library_init(void) {
         return true;
     }
 
-    /* 清空状态 */
-    memset(&g_preset_library, 0, sizeof(g_preset_library));
+    /* 安全清零：逐字段重置，避免 memset 破坏可能的互斥锁状态 */
+    g_preset_library.count = 0;
     g_preset_library.next_preset_id = LV00_PRESET_ID_OFFSET;
+    g_preset_library.initialized = false;
+    /* entries 数组不需要逐元素清零，count=0 已足够 */
 
     /* 初始化内置预设 */
     if (!init_builtin_presets()) {
@@ -972,8 +976,10 @@ void func_block_preset_library_cleanup(void) {
         }
     }
 
-    /* 重置状态 */
-    memset(&g_preset_library, 0, sizeof(g_preset_library));
+    /* 安全清零：逐字段重置，避免 memset 破坏可能的互斥锁状态 */
+    g_preset_library.count = 0;
+    g_preset_library.next_preset_id = 0;
+    g_preset_library.initialized = false;
 
     preset_library_unlock();
 }
@@ -1030,9 +1036,11 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
     /* 参数检查 */
     if (!preset_name || !graph || !out_details) {
         if (out_details)
-            out_details->result = INSTANTIATE_OUT_OF_MEMORY;
-        return INSTANTIATE_OUT_OF_MEMORY;
+            out_details->result = INSTANTIATE_PRECONDITION_FAILED;
+        return INSTANTIATE_PRECONDITION_FAILED;
     }
+
+    preset_library_lock();
 
     memset(out_details, 0, sizeof(InstantiateDetails));
 
@@ -1041,6 +1049,7 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
     if (idx < 0) {
         out_details->result = INSTANTIATE_NO_SOLUTION;
         out_details->error_detail = lv00_strdup("预设不存在");
+        preset_library_unlock();
         return INSTANTIATE_NO_SOLUTION;
     }
 
@@ -1051,6 +1060,7 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
         out_details->result = INSTANTIATE_PRECONDITION_FAILED;
         out_details->error_detail =
             lv00_asprintf("输入参数数量不匹配: 需要%d个，提供%d个", metadata->input_count, input_count);
+        preset_library_unlock();
         return INSTANTIATE_PRECONDITION_FAILED;
     }
 
@@ -1058,6 +1068,7 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
     if (input_count > 0 && !input_node_ids) {
         out_details->result = INSTANTIATE_PRECONDITION_FAILED;
         out_details->error_detail = lv00_strdup("输入节点ID为空");
+        preset_library_unlock();
         return INSTANTIATE_PRECONDITION_FAILED;
     }
 
@@ -1066,6 +1077,7 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
         if (!node) {
             out_details->result = INSTANTIATE_PRECONDITION_FAILED;
             out_details->error_detail = lv00_asprintf("输入节点%d不存在", input_node_ids[i]);
+            preset_library_unlock();
             return INSTANTIATE_PRECONDITION_FAILED;
         }
     }
@@ -1074,6 +1086,7 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
     FuncBlock *fb = func_block_copy(g_preset_library.entries[idx].template_fb);
     if (!fb) {
         out_details->result = INSTANTIATE_OUT_OF_MEMORY;
+        preset_library_unlock();
         return INSTANTIATE_OUT_OF_MEMORY;
     }
 
@@ -1082,6 +1095,7 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
         if (!func_block_set_input_ports(fb, input_node_ids, input_count)) {
             func_block_destroy(fb);
             out_details->result = INSTANTIATE_OUT_OF_MEMORY;
+            preset_library_unlock();
             return INSTANTIATE_OUT_OF_MEMORY;
         }
     } else {
@@ -1098,6 +1112,7 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
     out_details->result = INSTANTIATE_OK;
     out_details->func_block = fb;
 
+    preset_library_unlock();
     return INSTANTIATE_OK;
 }
 

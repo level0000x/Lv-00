@@ -1,0 +1,76 @@
+/* ============================================================
+   Form 表单组件样式 / Form Component Styles
+   包含输入框、下拉选择框、输入行、输入组行等表单元素。
+   ============================================================ */
+
+/* === INPUT ROW / 输入行 === */
+/* 标签 + 输入框的水平排列容器 */
+.input-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+    align-items: center;
+}
+
+/* 输入行中的标签文字 */
+.input-row label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    min-width: 20px;
+    letter-spacing: 1px;
+}
+
+/* === INPUT FIELD / 输入框 === */
+/* 通用文本输入框，focus 时显示强调色边框和发光效果 */
+.input-field {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    outline: none;
+    transition: border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-smooth);
+    border-radius: var(--radius-sm);
+}
+
+/* 输入框聚焦状态：强调色边框 + 外发光 */
+.input-field:focus {
+    border-color: var(--color-accent);
+    color: var(--color-text-bright);
+    box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.12), var(--shadow-glow-accent);
+}
+
+/* 输入框占位符文字颜色 */
+.input-field::placeholder {
+    color: var(--color-text-muted);
+}
+
+/* === SELECT FIELD / 下拉选择框 === */
+/* 通用下拉选择框，样式与输入框保持一致 */
+.select-field {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    outline: none;
+    margin-bottom: 6px;
+    border-radius: var(--radius-sm);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-smooth);
+}
+
+/* 下拉框聚焦状态 */
+.select-field:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.12);
+}
+
+/* === INPUT GROUP ROW / 输入组行 === */
+/* 标签 + 选择框的组合行，常用于面板中的选项配置 */
+.input-group-row { display: flex; gap: 4px; align-items: center; }
+.input-group-row label { font-size: var(--font-size-xs); color: var(--color-text-secondary); min-width: 40px; }
+.input-group-row .select-field { width: auto; margin-bottom: 0; }

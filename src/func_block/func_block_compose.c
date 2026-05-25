@@ -68,6 +68,7 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     /* 整数溢出检查 */
     if (f->internal_node_count > INT_MAX - g->internal_node_count - f->output_count - g->input_count) {
         fprintf(stderr, "[ERROR] 函数块组合失败：内部节点总数溢出\n");
+        graph->next_node_id--; /* 回滚之前递增的节点ID */
         return false;
     }
     int total_internal = f->internal_node_count + g->internal_node_count + f->output_count + g->input_count;

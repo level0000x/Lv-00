@@ -419,7 +419,15 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
 
     /* 创建圆周上的一个点（用于表示半径） */
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_create_rational((int64_t) (radius * 1000), 1000); /* 圆心 x + radius */
+    /* 范围检查：确保 double 到 int64_t 转换不会溢出 */
+    double scaled_radius = radius * 1000.0;
+    int64_t radius_int_val;
+    if (scaled_radius > (double) INT64_MAX || scaled_radius < (double) INT64_MIN) {
+        radius_int_val = (scaled_radius > 0) ? INT64_MAX : INT64_MIN;
+    } else {
+        radius_int_val = (int64_t) scaled_radius;
+    }
+    radius_coords[0] = symbolic_coord_create_rational(radius_int_val, 1000); /* 圆心 x + radius */
     radius_coords[1] = symbolic_coord_create_rational(0, 1);                            /* 圆心 y */
 
     AddNodeResult result = graph_add_point(graph, radius_coords, 2);
@@ -506,17 +514,17 @@ bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph 
     AddNodeResult result;
 
     result = graph_add_line_segment(graph, v1_id, v2_id);
-    if (result == ADD_NODE_OK) {
+    if (result == ADD_NODE_OK && *out_count < 64) {
         out_node_ids[(*out_count)++] = graph_get_node_count(graph) - 1;
     }
 
     result = graph_add_line_segment(graph, v2_id, v3_id);
-    if (result == ADD_NODE_OK) {
+    if (result == ADD_NODE_OK && *out_count < 64) {
         out_node_ids[(*out_count)++] = graph_get_node_count(graph) - 1;
     }
 
     result = graph_add_line_segment(graph, v3_id, v1_id);
-    if (result == ADD_NODE_OK) {
+    if (result == ADD_NODE_OK && *out_count < 64) {
         out_node_ids[(*out_count)++] = graph_get_node_count(graph) - 1;
     }
 
@@ -757,7 +765,9 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
 
     if (center_id < 0)
         return false;
-    out_node_ids[(*out_count)++] = center_id;
+    /* 边界检查：防止 out_node_ids 数组越界 */
+    if (*out_count < 64)
+        out_node_ids[(*out_count)++] = center_id;
 
     /* 获取半径 */
     double radius = 1.0;
@@ -802,8 +812,15 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
     double rx = radius * cos(start_angle);
     double ry = radius * sin(start_angle);
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_create_rational((int64_t) (rx * 1000), 1000);
-    radius_coords[1] = symbolic_coord_create_rational((int64_t) (ry * 1000), 1000);
+    /* 范围检查：确保 double 到 int64_t 转换不会溢出 */
+    double scaled_rx = rx * 1000.0;
+    double scaled_ry = ry * 1000.0;
+    int64_t rx_int = (scaled_rx > (double) INT64_MAX || scaled_rx < (double) INT64_MIN)
+                     ? ((scaled_rx > 0) ? INT64_MAX : INT64_MIN) : (int64_t) scaled_rx;
+    int64_t ry_int = (scaled_ry > (double) INT64_MAX || scaled_ry < (double) INT64_MIN)
+                     ? ((scaled_ry > 0) ? INT64_MAX : INT64_MIN) : (int64_t) scaled_ry;
+    radius_coords[0] = symbolic_coord_create_rational(rx_int, 1000);
+    radius_coords[1] = symbolic_coord_create_rational(ry_int, 1000);
 
     AddNodeResult r = graph_add_point(graph, radius_coords, 2);
     symbolic_coord_destroy(radius_coords[0]);
@@ -814,7 +831,9 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
         GeomNode *n = graph_get_node_by_id(graph, rp_id);
         if (n)
             rp_id = n->id;
-        out_node_ids[(*out_count)++] = rp_id;
+        /* 边界检查：防止 out_node_ids 数组越界 */
+        if (*out_count < 64)
+            out_node_ids[(*out_count)++] = rp_id;
 
         /* 创建半径线段 */
         r = graph_add_line_segment(graph, center_id, rp_id);
@@ -823,7 +842,9 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
             n = graph_get_node_by_id(graph, seg_id);
             if (n)
                 seg_id = n->id;
-            out_node_ids[(*out_count)++] = seg_id;
+            /* 边界检查：防止 out_node_ids 数组越界 */
+            if (*out_count < 64)
+                out_node_ids[(*out_count)++] = seg_id;
         }
     }
 
@@ -1125,8 +1146,15 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
 
         /* 使用两个坐标存储 cos(θ) 和 sin(θ) */
         SymbolicCoord *angle_coords[2];
-        angle_coords[0] = symbolic_coord_create_rational((int64_t) (cos_theta * 1000000), 1000000);
-        angle_coords[1] = symbolic_coord_create_rational((int64_t) (sin_theta * 1000000), 1000000);
+        /* 范围检查：确保 double 到 int64_t 转换不会溢出 */
+        double scaled_cos = cos_theta * 1000000.0;
+        double scaled_sin = sin_theta * 1000000.0;
+        int64_t cos_int = (scaled_cos > (double) INT64_MAX || scaled_cos < (double) INT64_MIN)
+                          ? ((scaled_cos > 0) ? INT64_MAX : INT64_MIN) : (int64_t) scaled_cos;
+        int64_t sin_int = (scaled_sin > (double) INT64_MAX || scaled_sin < (double) INT64_MIN)
+                          ? ((scaled_sin > 0) ? INT64_MAX : INT64_MIN) : (int64_t) scaled_sin;
+        angle_coords[0] = symbolic_coord_create_rational(cos_int, 1000000);
+        angle_coords[1] = symbolic_coord_create_rational(sin_int, 1000000);
 
         AddNodeResult add_result = graph_add_point(graph, angle_coords, 2);
         symbolic_coord_destroy(angle_coords[0]);

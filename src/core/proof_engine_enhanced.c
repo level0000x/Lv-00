@@ -117,6 +117,13 @@ static int64_t get_time_ns(void) {
  * @param dest 目标缓冲区
  * @param src 源字符串
  * @param max_len 缓冲区最大长度
+ *
+ * 本函数与标准 strncpy 的行为差异：
+ *   1. 标准 strncpy 不会保证目标字符串以 '\0' 结尾（当 src 长度 >= n 时），
+ *      而本函数始终在 dest[max_len-1] 处写入 '\0'，确保结果始终为合法 C 字符串。
+ *   2. 标准 strncpy 在 src 短于 n 时会用 '\0' 填充剩余空间，本函数不做填充，
+ *      仅写入有效内容加终止符，性能更优。
+ *   3. 本函数对 NULL 指针做了防御性检查，标准 strncpy 对 NULL 调用是未定义行为。
  */
 static void safe_strncpy(char *dest, const char *src, size_t max_len) {
     if (!dest || !src) {

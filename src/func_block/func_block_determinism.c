@@ -98,7 +98,13 @@ int *determinism_collect_constraint_stats(const FuncBlock *fb, const ConstraintG
         for (int i = 0; i < fb->internal_node_count; i++) {
             /* 安全性说明：graph_get_node 仅读取图内容，不修改图结构。
              * 此处 graph 参数来源为 const ConstraintGraph *，
-             * 强制转换是安全的，因为被调用函数不会产生副作用。 */
+             * 强制转换是安全的，因为被调用函数不会产生副作用。
+             *
+             * 为什么需要 (ConstraintGraph *) 强制转换：
+             * graph_get_node 的接口声明未使用 const 限定符，而此处 graph
+             * 为 const 指针。由于 graph_get_node 实际上不会修改图结构，
+             * 该转换在逻辑上是安全的。这是为了在不修改 graph_get_node 接口
+             * （避免影响其他调用者）的前提下，保持本函数的 const 正确性。 */
             GeomNode *n = graph_get_node((ConstraintGraph *) graph, fb->internal_node_ids[i]);
             /* 修复：增强 graph_get_node 返回值检查，
              * 对 NULL 返回值记录警告日志，便于排查节点丢失问题 */

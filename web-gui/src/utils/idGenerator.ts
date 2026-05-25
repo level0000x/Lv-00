@@ -1,15 +1,15 @@
 /**
  * @module utils/idGenerator
- * @description 全局唯一 ID 生成器 / Global unique ID generator
+ * @description 全局唯一 ID 生成器。
  *
  * 替代 Date.now() 方案，避免同一毫秒内的 ID 冲突。
- * Uses a monotonically increasing counter to guarantee uniqueness.
+ * 使用单调递增计数器保证唯一性。
  */
 
-/** 全局递增计数器 / Global incrementing counter */
+/** 全局递增计数器 */
 let _counter = 0;
 
-/** 基准时间戳，用于混合时间信息 / Base timestamp for mixing time info */
+/** 基准时间戳，用于混合时间信息 */
 const _baseTime = Date.now();
 
 /**
@@ -34,5 +34,3 @@ export function generateUniqueId(): number {
 export function resetIdGenerator(): void {
   _counter = 0;
 }
-
-

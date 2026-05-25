@@ -105,9 +105,8 @@ static int  proof_widget_count_proof_steps(const ProofNavigator *nav);
 static char *proof_widget_json_escape(const char *str)
 {
     if (!str) {
-        char *result = lv00_malloc(5);
-        if (result) strcpy(result, "null");
-        return result;
+        /* [安全修复] 使用 lv00_strdup 替代 lv00_malloc + strcpy，更安全简洁 */
+        return lv00_strdup("null");
     }
 
     size_t len = strlen(str);

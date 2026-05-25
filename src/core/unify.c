@@ -1753,7 +1753,7 @@ bool unify_instantiate_proposition(ConstraintGraph *proposition, int type_var_no
  * 流式输出: 匹配每对端口时发出 PROOF_UNIFY 事件，
  * 包含端口类型和命名空间深度的 JSON 详细信息。
  */
-int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition, int *out_port_bindings) {
+int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition, int *out_port_bindings, int max_bindings) {
     if (!construction || !proposition)
         return -1;
 
@@ -1814,7 +1814,7 @@ int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph
             used[j] = true;
             found = true;
 
-            if (out_port_bindings) {
+            if (out_port_bindings && match_count < max_bindings) {
                 out_port_bindings[match_count * 2] = pn->id;
                 out_port_bindings[match_count * 2 + 1] = cn->id;
             }

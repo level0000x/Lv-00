@@ -1,8 +1,13 @@
 /**
  * @module stores/canvasStore
  * @description 画布视图状态管理。
- *              管理画布的缩放、平移、DPR、渲染尺寸以及显示选项（网格、坐标轴、标签）。
+ *              管理画布的缩放、平移、DPR、渲染尺寸、显示选项（网格、坐标轴、标签）以及主题颜色。
  *              从原先 stores/index.ts（~850 行单体 Store）拆分而来，遵循单一职责原则。
+ *
+ *              主题颜色切换机制：
+ *              - 本 Store 不直接感知主题变化，通过 setThemeColors() 接收外部传入的颜色方案
+ *              - useTheme hook 在主题切换时调用 getThemeColors() 获取默认颜色，再调用 setThemeColors() 写入
+ *              - 这种解耦设计使得主题逻辑集中在 useTheme hook 中，Store 只负责存储和提供颜色数据
  */
 
 import { create } from 'zustand';

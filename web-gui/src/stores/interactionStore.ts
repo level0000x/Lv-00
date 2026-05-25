@@ -3,6 +3,15 @@
  * @description 交互状态管理。
  *              管理当前工具选择、点选/框选/拖拽状态、鼠标坐标、右键菜单、搜索栏。
  *              从原先 stores/index.ts（~850 行单体 Store）拆分而来，遵循单一职责原则。
+ *
+ *              工具切换时的状态清理规则：
+ *              切换工具时自动清除以下状态，避免残留数据导致 UI 不一致：
+ *              - selectedPoints（多选结果在新工具下不再有效）
+ *              - isBoxSelecting / isDraggingPoint（操作状态重置）
+ *              - regionPoints / segmentFirstPoint（工具专属中间状态）
+ *              - boxSelectStart / dragStart（拖拽起始坐标）
+ *              注意：selectedPoint（单选）和 isDragging（画布平移）不在此处清除，
+ *              因为它们是跨工具共享的状态。
  */
 
 import { create } from 'zustand';
@@ -170,6 +179,7 @@ export const useInteractionStore = create<InteractionState>((set) => ({
    * 切换时自动清除与旧工具关联的状态，避免残留数据导致 UI 不一致：
    * - 清除多选点列表（切换到新工具后框选结果不再有效）
    * - 清除框选和拖拽点状态
+   * - 清除框选起始坐标和拖拽起始坐标
    * - 清除区域定义顶点列表
    * - 清除线段首点
    */
@@ -179,6 +189,8 @@ export const useInteractionStore = create<InteractionState>((set) => ({
       selectedPoints: [],
       isBoxSelecting: false,
       isDraggingPoint: false,
+      boxSelectStart: null,
+      dragStart: null,
       regionPoints: [],
       segmentFirstPoint: null,
     }),

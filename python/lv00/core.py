@@ -24,7 +24,6 @@ Lv-00 核心模块
 
 import ctypes
 import logging
-import sys as _sys
 from fractions import Fraction
 from typing import Any, Iterator, List, Optional, Set, Tuple, Union
 

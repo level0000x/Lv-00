@@ -184,7 +184,7 @@ AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z) 
 AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (entity_id < 0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "entity_id 无效: %d", entity_id);
         return NULL;
     }
@@ -208,7 +208,7 @@ AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
 AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "id 无效: id_a=%d, id_b=%d", id_a, id_b);
         return NULL;
     }
@@ -231,7 +231,7 @@ AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b) {
 AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "id 无效: id_a=%d, id_b=%d", id_a, id_b);
         return NULL;
     }
@@ -258,8 +258,8 @@ AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b) {
 AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0 || id_a == id_b) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
-                           "line 参数无效: id_a=%d, id_b=%d", id_a, id_b);
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+                            "id 无效或重复: id_a=%d, id_b=%d", id_a, id_b);
         return NULL;
     }
 
@@ -281,8 +281,8 @@ AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b) {
 AlgebraicGeom *algebra_segment(AlgebraicGeom *geom, int id_a, int id_b) {
     LV00_CHECK_NULL(geom, NULL);
     if (id_a < 0 || id_b < 0 || id_a == id_b) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
-                           "segment 参数无效: id_a=%d, id_b=%d", id_a, id_b);
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
+                            "segment 参数无效: id_a=%d, id_b=%d", id_a, id_b);
         return NULL;
     }
 
@@ -306,7 +306,7 @@ AlgebraicGeom *algebra_segment(AlgebraicGeom *geom, int id_a, int id_b) {
 AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (origin_id < 0 || through_id < 0 || origin_id == through_id) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "ray 参数无效");
         return NULL;
     }
@@ -333,7 +333,7 @@ AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id) {
 AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double radius) {
     LV00_CHECK_NULL(geom, NULL);
     if (center_id < 0 || radius <= 0.0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "circle_radius 参数无效: center=%d, r=%.3f", center_id, radius);
         return NULL;
     }
@@ -356,7 +356,7 @@ AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double 
 AlgebraicGeom *algebra_circle(AlgebraicGeom *geom, int center_id, int on_circle_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (center_id < 0 || on_circle_id < 0 || center_id == on_circle_id) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "circle 参数无效");
         return NULL;
     }
@@ -385,7 +385,7 @@ AlgebraicGeom *algebra_circle(AlgebraicGeom *geom, int center_id, int on_circle_
 AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (line_id < 0 || point_id < 0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "parallel 参数无效");
         return NULL;
     }
@@ -410,7 +410,7 @@ AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id) 
 AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point_id) {
     LV00_CHECK_NULL(geom, NULL);
     if (line_id < 0 || point_id < 0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "perpendicular 参数无效");
         return NULL;
     }
@@ -442,7 +442,7 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op,
     LV00_CHECK_NULL(geom, NULL);
     LV00_CHECK_NULL(params, NULL);
     if (param_count <= 0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "param_count 无效: %d", param_count);
         return NULL;
     }
@@ -668,7 +668,7 @@ AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_typ
     LV00_CHECK_NULL(constraint_type, NULL);
     LV00_CHECK_NULL(entity_ids, NULL);
     if (count <= 0) {
-        lv00_set_error_ctx(LV00_ERROR_INVALID_ARGUMENT, __FILE__, __LINE__, __func__,
+        lv00_set_error_ctx(LV00_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__,
                            "count 无效: %d", count);
         return NULL;
     }

@@ -196,8 +196,6 @@ _FORMULA_NAMES: frozenset = frozenset({
     'parse', 'render', 'to_graph', 'from_graph',
 })
 
-_formula_exports = {}
-
 # Groebner 引擎模块的导出名称集合
 _GROEBNER_NAMES: frozenset = frozenset({
     'RingFieldType', 'MonomialOrder', 'GroebnerAlgorithm',
@@ -267,7 +265,7 @@ def _lazy_import_module(
     module_name: str,
     names: frozenset,
     cache: dict,
-) -> Any:
+) -> None:
     """惰性导入子模块的辅助函数。
 
     参数：

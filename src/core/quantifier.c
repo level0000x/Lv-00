@@ -86,6 +86,10 @@ static bool domain_ensure_capacity(Lv00Domain *domain, int needed)
 
     new_capacity = domain->element_capacity == 0 ? DOMAIN_INITIAL_CAPACITY : domain->element_capacity * 2;
     while (new_capacity < needed) {
+        /* 整数溢出保护：翻倍后若变为负数或超过 INT_MAX/2，则无法继续扩容 */
+        if (new_capacity < 0 || new_capacity > INT_MAX / 2) {
+            return false;
+        }
         new_capacity *= 2;
     }
 

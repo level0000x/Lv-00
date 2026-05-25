@@ -242,7 +242,7 @@ typedef _Atomic int PresetAtomicCounter;
  * @param label 跳转标签
  */
 #define PRESET_CHECK_STRING(str, label) \
-    PRESET_CHECK((str) != NULL && (str)[0] != '\0', LV00_ERROR_INVALID_ARGUMENT, "无效字符串: %s", label, #str)
+    PRESET_CHECK((str) != NULL && (str)[0] != '\0', LV00_ERROR_INVALID_PARAM, "无效字符串: %s", label, #str)
 
 /**
  * @brief 检查索引范围

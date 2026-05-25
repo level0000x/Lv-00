@@ -235,61 +235,6 @@ bool preset_validate_type_combination(const PresetType *input_types, int input_c
  * 类型转换实现
  * ============================================================ */
 
-/* 类别名称映射表 */
-#if 0
-static const struct {
-    PresetCategory category;
-    const char *name;
-} g_category_map[] = {
-    {PRESET_CATEGORY_CONSTRUCTION, "construction"},
-    {PRESET_CATEGORY_MEASUREMENT, "measurement"},
-    {PRESET_CATEGORY_TRANSFORMATION, "transformation"},
-    {PRESET_CATEGORY_MATH_LOGIC, "predicate"},
-    {PRESET_CATEGORY_COMBINATORICS, "combinatorics"},
-    {PRESET_CATEGORY_ALGEBRA, "algebra"},
-    {PRESET_CATEGORY_TOPOLOGY, "topology"},
-    {PRESET_CATEGORY_LOGIC, "logic"},
-    {PRESET_CATEGORY_SET_THEORY, "set_theory"},
-    {PRESET_CATEGORY_NUMBER_THEORY, "number_theory"},
-    {PRESET_CATEGORY_GROUP_THEORY, "group_theory"},
-    {PRESET_CATEGORY_ANALYSIS, "analysis"},
-    {PRESET_CATEGORY_GEOMETRY, "geometry"},
-    {PRESET_CATEGORY_CUSTOM, "custom"},
-};
-#endif
-
-/*
- * preset_category_to_string() 和 preset_category_from_string()
- * 已在 func_block_registry.c 中实现（包含中文名称映射）。
- * 此处注释掉以避免重复符号错误。
- * 声明保留在 preset_common.h 中供外部调用。
- */
-#if 0
-const char* preset_category_to_string(PresetCategory category) {
-    for (size_t i = 0; i < sizeof(g_category_map) / sizeof(g_category_map[0]); i++) {
-        if (g_category_map[i].category == category) {
-            return g_category_map[i].name;
-        }
-    }
-    return "unknown";
-}
-
-bool preset_category_from_string(const char *str, PresetCategory *category) {
-    if (str == NULL || category == NULL) {
-        return false;
-    }
-    
-    for (size_t i = 0; i < sizeof(g_category_map) / sizeof(g_category_map[0]); i++) {
-        if (strcmp(g_category_map[i].name, str) == 0) {
-            *category = g_category_map[i].category;
-            return true;
-        }
-    }
-    
-    return false;
-}
-#endif
-
 /* 类型名称映射表（完整版，覆盖全部 PresetType 枚举值）
  *
  * 每个类型条目包含 PresetType 枚举值和对应的英文/标识符名称。

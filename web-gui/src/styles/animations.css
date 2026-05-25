@@ -1,5 +1,29 @@
 /* ============================================================
    LV-00 Animations / 动画定义
+
+   本文件统一管理所有 @keyframes 动画定义和动画相关的工具类。
+   所有动画均使用 CSS 变量控制时长和缓动函数，确保与设计令牌一致。
+
+   动画分类：
+   - 淡入淡出：fadeIn / fadeOut
+   - 滑入滑出：slideInUp / slideOutDown / slideInDown / slideOutUp /
+                slideInLeft / slideOutLeft / slideInRight / slideOutRight
+   - 缩放动画：scaleIn / scaleOut
+   - 面板动画：panelFadeIn / panel-collapse / panel-expand
+   - Toast 通知：toast-slide-in / toast-slide-out
+   - 加载动画：loading-slide（加载条）/ btn-loading-spin（按钮旋转）
+   - 脉冲动画：pulse / pulse-scale / conflict-pulse / streaming-pulse
+   - 旋转加载器：spinner（sm/md/lg 三种尺寸）
+   - 流式输出：streaming-entry-in
+   - 模态框背景：modal-backdrop-in / modal-backdrop-out
+   - 按钮涟漪：ripple-effect
+   - 画布加载：canvas-fade-in
+   - 微光效果：shimmer
+   - 发光脉冲：glow-pulse
+
+   注意：
+   - 所有动画在 prefers-reduced-motion: reduce 时自动禁用
+   - 动画时长使用 variables.css 中定义的 --duration-* 变量
    ============================================================ */
 
 /* === Fade Animations / 淡入淡出 === */

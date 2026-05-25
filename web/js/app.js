@@ -910,6 +910,8 @@ Lv00WebApp.prototype._bindGraphButtons = function() {
         // 使用原生 confirm() 而非自定义模态框，以确保清空操作时的确认对话框
         // 在所有浏览器中行为一致且不会被异步渲染干扰
         // Use native confirm() instead of custom modal for reliable synchronous confirmation
+        // 注意：当前项目的 _showModal(id) 仅支持显示模态框，不支持传入回调函数。
+        //       若未来 _showModal 扩展支持 onConfirm 回调参数，应替换为自定义模态框。
         if (confirm('确定要清空所有数据吗？此操作不可撤销。\nClear all data? This cannot be undone.')) {
             self.clear();
         }
@@ -940,7 +942,15 @@ Lv00WebApp.prototype._bindTypeButtons = function() {
     // 禁用 TYPE 模块中尚在开发中的按钮
     ['btnTypeCreate', 'btnTypeCheck', 'btnTypeUnify', 'btnTypeSubtype'].forEach(function(id) {
         var btn = document.getElementById(id);
-        if (btn) { btn.disabled = true; btn.classList.add('disabled'); }
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+            btn.title = '功能开发中 / Feature coming soon';
+            var originalText = btn.textContent;
+            if (originalText && originalText.indexOf('(即将推出)') === -1) {
+                btn.textContent = originalText + ' (即将推出)';
+            }
+        }
     });
 };
 
@@ -964,7 +974,15 @@ Lv00WebApp.prototype._bindRecurseButtons = function() {
     // 禁用 RECURSE 模块中尚在开发中的按钮
     ['btnRecurseDefine', 'btnRecurseStep'].forEach(function(id) {
         var btn = document.getElementById(id);
-        if (btn) { btn.disabled = true; btn.classList.add('disabled'); }
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+            btn.title = '功能开发中 / Feature coming soon';
+            var originalText = btn.textContent;
+            if (originalText && originalText.indexOf('(即将推出)') === -1) {
+                btn.textContent = originalText + ' (即将推出)';
+            }
+        }
     });
 };
 
@@ -1314,12 +1332,12 @@ Lv00WebApp.prototype.cleanup = function() {
         this._cleanupEventListeners();
     }
 
-    // 5.5. 清理模态框和搜索快捷键事件监听器（ESC、Ctrl+F，防止内存泄漏）
+    // 6. 清理模态框和搜索快捷键事件监听器（ESC、Ctrl+F，防止内存泄漏）
     if (typeof this._cleanupModals === 'function') {
         this._cleanupModals();
     }
 
-    // 6. 日志确认清理完成
+    // 7. 日志确认清理完成
     if (typeof console !== 'undefined') {
         console.log('[Lv-00] 应用清理完成 / Application cleaned up');
     }

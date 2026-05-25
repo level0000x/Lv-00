@@ -11,6 +11,7 @@
 
 #include "approx_counter.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +20,10 @@
 #include "lv00.h"
 
 /* ---- 内部辅助 ---- */
+
+/* 修复：定义错误检查宏，用于 cnf_builder_add_lit / cnf_builder_end_clause 的返回值检查 */
+#define CHECK_ADD_LIT(b, lit)   do { if (cnf_builder_add_lit((b), (lit)) != 0) goto build_failed; } while (0)
+#define CHECK_END_CLAUSE(b)     do { if (cnf_builder_end_clause((b)) != 0) goto build_failed; } while (0)
 
 /** 内部 CNF 子句构建器 */
 typedef struct {
@@ -53,19 +58,36 @@ static int cnf_builder_new_var(CNFBuilder *b) {
     return b->next_var_id++;
 }
 
-/** 添加单个文字到当前子句（正数 = 正文字，负数 = 负文字） */
-static void cnf_builder_add_lit(CNFBuilder *b, int lit) {
+/** 添加单个文字到当前子句（正数 = 正文字，负数 = 负文字）
+ * @return 成功返回 0，内存不足返回 -1
+ */
+static int cnf_builder_add_lit(CNFBuilder *b, int lit) {
     if (b->clause_buf_len + 1 >= b->clause_buf_size) {
+        /* 修复：添加整数溢出保护，防止 clause_buf_size 翻倍后超出 INT_MAX */
+        if (b->clause_buf_size > INT_MAX / 2) {
+            return -1; /* 容量已接近上限，无法再翻倍 */
+        }
         b->clause_buf_size *= 2;
-        b->clause_buffer = (int *) lv00_realloc(b->clause_buffer, (size_t) b->clause_buf_size * sizeof(int));
+        int *new_buf = (int *) lv00_realloc(b->clause_buffer, (size_t) b->clause_buf_size * sizeof(int));
+        /* 修复：检查 realloc 返回值，失败时返回错误而非使用悬垂指针 */
+        if (!new_buf) {
+            return -1;
+        }
+        b->clause_buffer = new_buf;
     }
     b->clause_buffer[b->clause_buf_len++] = lit;
+    return 0;
 }
 
-/** 结束当前子句（在文字序列末尾加 0） */
-static void cnf_builder_end_clause(CNFBuilder *b) {
-    cnf_builder_add_lit(b, 0);
+/** 结束当前子句（在文字序列末尾加 0）
+ * @return 成功返回 0，内存不足返回 -1
+ */
+static int cnf_builder_end_clause(CNFBuilder *b) {
+    int ret = cnf_builder_add_lit(b, 0);
+    if (ret != 0)
+        return ret;
     b->clause_count++;
+    return 0;
 }
 
 /** 销毁 CNF 构建器 */
@@ -82,7 +104,15 @@ static char *cnf_builder_to_dimacs(CNFBuilder *b) {
         return NULL;
     /* 计算所需缓冲区大小 */
     size_t header_size = 256;
-    size_t buf_size = header_size + (size_t) b->clause_buf_len * 12;
+    /* 修复：添加整数溢出检查，防止 clause_buf_len * 12 溢出 size_t */
+    if ((size_t) b->clause_buf_len > SIZE_MAX / 12) {
+        return NULL; /* 乘法溢出，无法分配 */
+    }
+    size_t lit_part = (size_t) b->clause_buf_len * 12;
+    if (header_size > SIZE_MAX - lit_part) {
+        return NULL; /* 加法溢出 */
+    }
+    size_t buf_size = header_size + lit_part;
     char *buf = (char *) lv00_malloc(buf_size);
     if (!buf)
         return NULL;
@@ -158,66 +188,66 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
                 /* 关联约束：点在线段上
              * Tseitin: aux -> v0 & v1
              * 子句：(~aux | v0), (~aux | v1), (aux | ~v0 | ~v1) */
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v0);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v1);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, aux);
-                cnf_builder_add_lit(b, -v0);
-                cnf_builder_add_lit(b, -v1);
-                cnf_builder_end_clause(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v0);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v1);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, aux);
+                CHECK_ADD_LIT(b, -v0);
+                CHECK_ADD_LIT(b, -v1);
+                CHECK_END_CLAUSE(b);
                 break;
 
             case BETWEENNESS:
                 /* 之间的约束：B 在 A 和 C 之间
              * Tseitin: aux -> v0 & v1 & v2
              * 4 条子句 */
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v0);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v1);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v2);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, aux);
-                cnf_builder_add_lit(b, -v0);
-                cnf_builder_add_lit(b, -v1);
-                cnf_builder_add_lit(b, -v2);
-                cnf_builder_end_clause(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v0);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v1);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v2);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, aux);
+                CHECK_ADD_LIT(b, -v0);
+                CHECK_ADD_LIT(b, -v1);
+                CHECK_ADD_LIT(b, -v2);
+                CHECK_END_CLAUSE(b);
                 break;
 
             case INTERSECTION:
                 /* 真交约束：两个对象在某点真交
              * 简化：双变量 AND */
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v0);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v1);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, aux);
-                cnf_builder_add_lit(b, -v0);
-                cnf_builder_add_lit(b, -v1);
-                cnf_builder_end_clause(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v0);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v1);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, aux);
+                CHECK_ADD_LIT(b, -v0);
+                CHECK_ADD_LIT(b, -v1);
+                CHECK_END_CLAUSE(b);
                 break;
 
             case CONTAINMENT:
             case CONNECTION:
                 /* 包含/连接约束：与 INCIDENCE 类似处理 */
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v0);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, -aux);
-                cnf_builder_add_lit(b, v1);
-                cnf_builder_end_clause(b);
-                cnf_builder_add_lit(b, aux);
-                cnf_builder_add_lit(b, -v0);
-                cnf_builder_add_lit(b, -v1);
-                cnf_builder_end_clause(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v0);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, -aux);
+                CHECK_ADD_LIT(b, v1);
+                CHECK_END_CLAUSE(b);
+                CHECK_ADD_LIT(b, aux);
+                CHECK_ADD_LIT(b, -v0);
+                CHECK_ADD_LIT(b, -v1);
+                CHECK_END_CLAUSE(b);
                 break;
 
             default:
@@ -227,8 +257,8 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
 
     /* 添加单元子句：所有节点变量为真（激活状态） */
     for (int i = 0; i < graph->node_count; i++) {
-        cnf_builder_add_lit(b, node_vars[i]);
-        cnf_builder_end_clause(b);
+        CHECK_ADD_LIT(b, node_vars[i]);
+        CHECK_END_CLAUSE(b);
     }
 
     /* Phase 3: 输出 DIMACS */
@@ -241,6 +271,12 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars) {
     lv00_free((void **)&node_vars);
     cnf_builder_destroy(b);
     return result;
+
+build_failed:
+    /* 修复：构建失败时的统一错误处理路径 */
+    lv00_free((void **)&node_vars);
+    cnf_builder_destroy(b);
+    return NULL;
 }
 
 /* ========================================================================

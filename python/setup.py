@@ -5,7 +5,7 @@ Lv-00 Python 绑定安装配置脚本（最小化版本）。
 已在 python/pyproject.toml 的 [project] 段中声明和维护，此处仅保留 setup() 特有的配置。
 如需修改版本号或依赖，请优先编辑 pyproject.toml。
 
-版本：3.2.0
+版本：3.3.0
 作者：Lv-00 开发团队
 """
 

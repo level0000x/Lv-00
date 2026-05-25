@@ -82,9 +82,10 @@ char *func_block_serialize_state(const FuncBlock *fb) {
         buf_size += strlen(fb->name);
     if (fb->description)
         buf_size += strlen(fb->description);
-    buf_size += (size_t) (fb->internal_node_count + fb->input_count + fb->output_count + fb->port_dep_count +
-                          fb->precondition_count) *
-                32;
+    /* 估算缓冲区大小：先将每个 int count 转为 size_t 再相加，避免 int 加法溢出 */
+    buf_size += ((size_t) fb->internal_node_count + (size_t) fb->input_count +
+                 (size_t) fb->output_count + (size_t) fb->port_dep_count +
+                 (size_t) fb->precondition_count) * 32;
 
     char *buf = lv00_malloc(buf_size);
     if (!buf)
@@ -109,10 +110,26 @@ char *func_block_serialize_state(const FuncBlock *fb) {
     WRITE_FMT("func_block {\n  id = %d\n", fb->id);
 
     if (fb->name) {
-        WRITE_FMT("  name = \"%s\"\n", fb->name);
+        /* 转义双引号和反斜杠，防止序列化输出被破坏 */
+        WRITE_FMT("  name = \"");
+        for (const char *p = fb->name; *p; p++) {
+            if (*p == '"' || *p == '\\')
+                WRITE_FMT("\\%c", *p);
+            else
+                WRITE_FMT("%c", *p);
+        }
+        WRITE_FMT("\"\n");
     }
     if (fb->description) {
-        WRITE_FMT("  description = \"%s\"\n", fb->description);
+        /* 转义双引号和反斜杠，防止序列化输出被破坏 */
+        WRITE_FMT("  description = \"");
+        for (const char *p = fb->description; *p; p++) {
+            if (*p == '"' || *p == '\\')
+                WRITE_FMT("\\%c", *p);
+            else
+                WRITE_FMT("%c", *p);
+        }
+        WRITE_FMT("\"\n");
     }
 
     /* 确定性状态 */
@@ -358,6 +375,13 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
                 p++;
             }
             while (*p >= '0' && *p <= '9') {
+                if (val > (INT_MAX - (*p - '0')) / 10) {
+                    /* 溢出：释放已分配的内存并返回 */
+                    lv00_free((void **) &arr);
+                    *out = NULL;
+                    *out_count = 0;
+                    return p;
+                }
                 val = val * 10 + (*p - '0');
                 p++;
             }

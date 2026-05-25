@@ -1,8 +1,22 @@
 /**
  * @module styles/panel-forms
- * @description 面板表单共享样式
+ * @description 面板表单共享样式 / Shared panel form styles
  *              提取自 TypePanel 和 RecursePanel 的重复样式常量，
  *              供所有面板组件复用。
+ *
+ * 包含的组件样式：
+ * - panel-form          表单容器（flex 纵向布局，带边框和圆角）
+ * - panel-form-label    表单标签（大写、小字号、字间距）
+ * - panel-form-input    表单输入框（等宽字体，聚焦高亮）
+ * - panel-form-select   表单选择框（与输入框样式一致）
+ * - panel-result-box    结果展示框（等宽字体，可滚动）
+ * - panel-log-list      日志列表（紧凑行高，带级别颜色）
+ * - panel-btn-row       按钮行（flex 水平排列）
+ * - panel-info-text     内联信息文本
+ * - panel-divider       分隔线
+ * - panel-empty-state   空状态占位
+ * - panel-selector-dropdown  选择器下拉框
+ * - panel-selector-option    选择器选项
  */
 
 /* ================================================================

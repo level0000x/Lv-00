@@ -3,13 +3,16 @@
  * @description 函数块模块侧边栏面板。
  *
  *              实现功能：
- *              1. 预设函数块库 —— 提供常用几何构造的快捷操作
- *              2. 打包函数块（Pack）—— 将选中的几何元素封装为可复用函数块
- *              3. 例化（Instantiate）—— 选择已存储的函数块并应用到新的输入点
- *              4. 确定性检查、组合、乘积、部分应用、视图折叠 —— 增强占位按钮
+ *              1. 预设函数块库 -- 提供常用几何构造的快捷操作
+ *              2. 打包函数块（Pack）-- 将选中的几何元素封装为可复用函数块
+ *              3. 例化（Instantiate）-- 选择已存储的函数块并应用到新的输入点
+ *              4. 确定性检查、组合、乘积、部分应用、视图折叠 -- 增强占位按钮
  *
  *              参数输入区（ID/IN/OUT）已连接到本地状态，
  *              并实时展示来自 Store 的几何元素统计。
+ *
+ *              函数块执行逻辑已提取到 utils/ 目录：
+ *              - funcBlockExecutor.ts: 预设执行、输入验证、结果格式化
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -19,19 +22,20 @@ import { MAX_PANEL_LOG_ENTRIES } from '@/utils/constants';
 import {
   FUNC_BLOCK_PRESETS,
   getNextId,
-  executePerpendicularBisector,
-  executeIntersection,
-  executePerpendicularFoot,
-  executeParallelLine,
-  executeReflection,
 } from '@/utils/funcBlockPresets';
 import type {
   FuncBlockPreset,
   FuncBlockCategory,
   UserFuncBlock,
-  FuncBlockResult,
 } from '@/utils/funcBlockPresets';
 import type { Point, Segment } from '@/types';
+
+// ---- 提取的工具模块 / Extracted utility modules ----
+import {
+  validateInputs,
+  executePreset,
+  formatExecutionSummary,
+} from './utils/funcBlockExecutor';
 
 /**
  * BlockPanel - 函数块模块侧边栏面板
@@ -165,123 +169,33 @@ const BlockPanel: React.FC = () => {
       .map((id) => findSegment(id))
       .filter((s): s is Segment => s !== undefined);
 
-    // 验证输入数量
-    if (preset.segmentInput && inputSegments.length < 1) {
-      addToast('warning', '请选择至少一条线段 / Select at least one segment');
-      return;
-    }
-    if (!preset.segmentInput && inputPoints.length < preset.inputCount) {
-      addToast(
-        'warning',
-        `需要 ${preset.inputCount} 个点，已选 ${inputPoints.length} 个 / Need ${preset.inputCount} points, selected ${inputPoints.length}`,
-      );
+    // 使用提取的输入验证工具
+    const validationError = validateInputs(preset, inputPoints, inputSegments);
+    if (validationError) {
+      addToast('warning', validationError);
       return;
     }
 
     // 保存撤销状态
     saveUndoState();
 
-    let result: FuncBlockResult;
+    // 使用提取的执行工具
+    const outcome = executePreset(preset, inputPoints, inputSegments, { findPoint, findSegment });
 
-    try {
-    // 根据预设类型执行不同的构造
-    switch (preset.id) {
-      case 'PERPENDICULAR_BISECTOR': {
-        // 需要从已选线段获取端点
-        if (inputSegments.length < 1) {
-          addToast('warning', '请选择一条线段');
-          return;
-        }
-        const seg0 = inputSegments[0];
-        if (!seg0) {
-          addToast('error', '线段不存在');
-          return;
-        }
-        const p1 = findPoint(seg0.p1);
-        const p2 = findPoint(seg0.p2);
-        if (!p1 || !p2) {
-          addToast('error', '线段端点不存在');
-          return;
-        }
-        result = executePerpendicularBisector(p1, p2, getNextId);
-        break;
-      }
-      case 'INTERSECTION': {
-        if (inputSegments.length < 2) {
-          addToast('warning', '请选择两条线段 / Select two segments');
-          return;
-        }
-        const is0 = inputSegments[0];
-        const is1 = inputSegments[1];
-        if (!is0 || !is1) {
-          addToast('error', '线段不存在');
-          return;
-        }
-        result = executeIntersection(is0, is1, points, getNextId);
-        break;
-      }
-      case 'PERPENDICULAR_FOOT': {
-        if (inputPoints.length < 1 || inputSegments.length < 1) {
-          addToast('warning', '请选择一个点和一条线段 / Select a point and a segment');
-          return;
-        }
-        const pfPt = inputPoints[0];
-        const pfSeg = inputSegments[0];
-        if (!pfPt || !pfSeg) {
-          addToast('error', '输入不存在');
-          return;
-        }
-        result = executePerpendicularFoot(pfPt, pfSeg, points, getNextId);
-        break;
-      }
-      case 'PARALLEL_LINE': {
-        if (inputPoints.length < 1 || inputSegments.length < 1) {
-          addToast('warning', '请选择一个点和一条线段 / Select a point and a segment');
-          return;
-        }
-        const plPt = inputPoints[0];
-        const plSeg = inputSegments[0];
-        if (!plPt || !plSeg) {
-          addToast('error', '输入不存在');
-          return;
-        }
-        result = executeParallelLine(plPt, plSeg, points, getNextId);
-        break;
-      }
-      case 'REFLECTION': {
-        if (inputPoints.length < 1 || inputSegments.length < 1) {
-          addToast('warning', '请选择一个点和一条线段 / Select a point and a segment');
-          return;
-        }
-        const rfPt = inputPoints[0];
-        const rfSeg = inputSegments[0];
-        if (!rfPt || !rfSeg) {
-          addToast('error', '输入不存在');
-          return;
-        }
-        result = executeReflection(rfPt, rfSeg, points, getNextId);
-        break;
-      }
-      default: {
-        // 使用预设自带的 execute 函数
-        result = preset.execute(inputPoints, inputSegments, getNextId);
-        break;
-      }
-    }
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+    if (!outcome.success || !outcome.result) {
+      const errMsg = outcome.error ?? '未知错误';
       addToast('error', `执行预设失败: ${errMsg}`);
       appendLog(`执行预设失败: ${errMsg}`, 'error');
       return;
     }
 
     // 将结果添加到 Store
-    result.newPoints.forEach((p) => addPoint(p));
-    result.newSegments.forEach((s) => addSegment(s));
-    result.newConstraints.forEach((c) => addConstraint(c));
+    outcome.result.newPoints.forEach((p) => addPoint(p));
+    outcome.result.newSegments.forEach((s) => addSegment(s));
+    outcome.result.newConstraints.forEach((c) => addConstraint(c));
 
     // 记录日志
-    const summary = `执行 ${preset.nameZh}: 创建 ${result.newPoints.length} 个点, ${result.newSegments.length} 条线段, ${result.newConstraints.length} 个约束`;
+    const summary = formatExecutionSummary(preset, outcome.result);
     log(summary);
     appendLog(summary, 'info');
     addToast('success', summary);

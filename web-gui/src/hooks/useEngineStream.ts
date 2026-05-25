@@ -33,7 +33,7 @@ import type { EngineStreamState, EngineStreamCategory } from '@/types';
 import { useAIStore } from '@/stores';
 
 // ================================================================
-// 类型定义 / Type Definitions
+// 类型定义
 // ================================================================
 
 interface UseEngineStreamOptions extends StreamManagerConfig {
@@ -65,7 +65,7 @@ interface UseEngineStreamReturn {
 }
 
 // ================================================================
-// 应用级单例 / Application-level Singleton
+// 应用级单例
 // ================================================================
 
 /** 全局 StreamManager 单例引用 */
@@ -114,7 +114,7 @@ function releaseManager(): void {
 }
 
 // ================================================================
-// Hook 实现 / Hook Implementation
+// Hook 实现
 // ================================================================
 
 /**
@@ -162,7 +162,7 @@ export function useEngineStream(options: UseEngineStreamOptions = {}): UseEngine
   const addStreamEvent = useAIStore((s) => s.addStreamEvent);
   const incrementStreamFilterCount = useAIStore((s) => s.incrementStreamFilterCount);
 
-  // ---- Refs（避免闭陈旧引用） / Refs to avoid stale closures ----
+  // ---- Refs（避免闭包陈旧引用） ----
   const managerRef = useRef<StreamManager | null>(null);
   const addStreamEventRef = useRef(addStreamEvent);
   const incrementStreamFilterCountRef = useRef(incrementStreamFilterCount);
@@ -175,7 +175,7 @@ export function useEngineStream(options: UseEngineStreamOptions = {}): UseEngine
     incrementStreamFilterCountRef.current = incrementStreamFilterCount;
   }, [incrementStreamFilterCount]);
 
-  // ---- 回调定义（使用 ref 避免依赖变化导致重建管理器） / Callbacks ----
+  // ---- 回调定义（使用 ref 避免依赖变化导致重建管理器） ----
   const handleEvent = useCallback((event: UnifiedStreamEvent) => {
     // 将引擎事件同步到 aiStore
     if (event.engineEvent) {
@@ -199,7 +199,7 @@ export function useEngineStream(options: UseEngineStreamOptions = {}): UseEngine
     // TODO: 可在此处添加 Toast 通知，向用户展示连接错误信息
   }, []);
 
-  // ---- 生命周期管理 / Lifecycle Management ----
+  // ---- 生命周期管理 ----
   useEffect(() => {
     const manager = getOrCreateManager(
       { engineUrl, eventBufferSize, heartbeatInterval },
@@ -224,7 +224,7 @@ export function useEngineStream(options: UseEngineStreamOptions = {}): UseEngine
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- 操作方法 / Action Methods ----
+  // ---- 操作方法 ----
 
   const connectEngine = useCallback(() => {
     managerRef.current?.connectEngine();

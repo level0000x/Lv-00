@@ -1870,15 +1870,9 @@ var Lv00JSBackend = (function() {
     };
 
     // HTML 转义辅助函数，防止 XSS 注入
-    Backend.prototype._escapeHtml = function(str) {
-        if (typeof str !== 'string') return String(str);
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    };
+    // fix: 统一使用 utils.js 中 Lv00WebApp.prototype._escapeHtml，
+    //      通过在 Backend 构造函数中引用全局版本实现复用
+    Backend.prototype._escapeHtml = Lv00WebApp.prototype._escapeHtml;
 
     Backend.prototype.proofExportHTML = function(nav) {
         var parts = [];

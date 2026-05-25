@@ -90,19 +90,25 @@ typedef struct {
  * in_use 标志读写，与项目中其他模块（debug.c、memory_pool.c）保持一致。
  *
  * 平台策略：
- * - Windows: CRITICAL_SECTION + InterlockedCompareExchange 惰性初始化
+ * - Windows: CRITICAL_SECTION + InitOnceExecuteOnce 惰性初始化
+ *            （消除 InterlockedCompareExchange 的 TOCTOU 竞态）
  * - POSIX:   pthread_mutex_t 静态初始化（PTHREAD_MUTEX_INITIALIZER）
  */
 
 #ifdef _WIN32
 static CRITICAL_SECTION g_formula_pool_mutex;
-static volatile LONG g_formula_pool_mutex_initialized = 0;
+static INIT_ONCE g_formula_pool_init_once = INIT_ONCE_STATIC_INIT;
 
-/* 线程安全地确保缓冲区池互斥锁已初始化 */
+/* InitOnceExecuteOnce 回调：执行 CRITICAL_SECTION 的一次性初始化 */
+static BOOL CALLBACK formula_pool_init_callback(PINIT_ONCE once, PVOID param, PVOID *context) {
+    (void)once; (void)param; (void)context;
+    InitializeCriticalSection(&g_formula_pool_mutex);
+    return TRUE;
+}
+
+/* 线程安全地确保缓冲区池互斥锁已初始化（使用 InitOnceExecuteOnce 消除 TOCTOU） */
 static void formula_pool_ensure_mutex_init(void) {
-    if (InterlockedCompareExchange(&g_formula_pool_mutex_initialized, 1, 0) == 0) {
-        InitializeCriticalSection(&g_formula_pool_mutex);
-    }
+    InitOnceExecuteOnce(&g_formula_pool_init_once, formula_pool_init_callback, NULL, NULL);
 }
 #define LV00_FORMULA_POOL_LOCK()   do { formula_pool_ensure_mutex_init(); EnterCriticalSection(&g_formula_pool_mutex); } while (0)
 #define LV00_FORMULA_POOL_UNLOCK() LeaveCriticalSection(&g_formula_pool_mutex)

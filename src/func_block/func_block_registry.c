@@ -1031,6 +1031,7 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
         return 0;
     }
 
+    registry_lock();
     int found = 0;
     int total = 0;
     for (int i = 0; i < g_registry.count; i++) {
@@ -1041,7 +1042,7 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
             }
         }
     }
-
+    registry_unlock();
     return total;
 }
 

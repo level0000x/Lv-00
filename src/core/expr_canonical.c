@@ -439,12 +439,15 @@ char *lv00_poly_to_string(const Lv00Polynomial *poly, const char **var_names) {
             else pos += (size_t)written;
         }
 
-        /* 输出系数 */
-        char coeff_str[64];
-        gmp_sprintf(coeff_str, "%Qd", term->coeff);
-        int written = snprintf(result + pos, size - pos, "%s", coeff_str);
-        if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
-        else pos += (size_t)written;
+        /* 输出系数：[安全修复] 使用 gmp_asprintf 动态分配，避免固定64字节缓冲区溢出 */
+        char *coeff_str = NULL;
+        gmp_asprintf(&coeff_str, "%Qd", term->coeff);
+        if (coeff_str) {
+            int written = snprintf(result + pos, size - pos, "%s", coeff_str);
+            if (written < 0 || (size_t)written >= size - pos) pos = size - 1;
+            else pos += (size_t)written;
+            free(coeff_str);
+        }
 
         /* 输出变量 */
         for (uint32_t j = 0; j < term->var_count; j++) {
@@ -786,16 +789,12 @@ char *lv00_expr_to_string(const Lv00Expr *expr) {
 
     switch (expr->type) {
         case EXPR_TYPE_INTEGER:
-            result = (char *)lv00_malloc(128);
-            if (result) {
-                gmp_sprintf(result, "%Zd", expr->data.int_val);
-            }
+            /* [安全修复] 使用 gmp_asprintf 动态分配，避免固定缓冲区溢出 */
+            gmp_asprintf(&result, "%Zd", expr->data.int_val);
             break;
         case EXPR_TYPE_RATIONAL:
-            result = (char *)lv00_malloc(128);
-            if (result) {
-                gmp_sprintf(result, "%Qd", expr->data.rational_val);
-            }
+            /* [安全修复] 使用 gmp_asprintf 动态分配，避免固定缓冲区溢出 */
+            gmp_asprintf(&result, "%Qd", expr->data.rational_val);
             break;
         case EXPR_TYPE_VARIABLE:
             result = (char *)lv00_malloc(64);
@@ -838,6 +837,10 @@ Lv00CanonicalContext *lv00_canonical_ctx_create(void) {
 }
 
 void lv00_canonical_ctx_destroy(Lv00CanonicalContext *ctx) {
+    /* [安全修复] 添加 NULL 检查，防止对空指针调用 lv00_free */
+    if (!ctx) {
+        return;
+    }
     lv00_free((void **) &ctx);
 }
 

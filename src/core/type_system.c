@@ -105,11 +105,13 @@ static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int
 static inline TypeEquivResult check_binary_type_equiv(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,
                                                       TypeRegion *sub1, TypeRegion *sub2, TypeRegion *other1,
                                                       TypeRegion *other2, bool use_rw, int d) {
+    VISITED_CHECK(sub1, other1);
     TypeEquivResult first = type_check_equivalence_internal(ts, sub1, other1, use_rw, d + 1);
     if (first == TYPE_EQUIV_NOT_EQUIV)
         return TYPE_EQUIV_NOT_EQUIV;
     if (first != TYPE_EQUIV_OK)
         return first;
+    VISITED_CHECK(sub2, other2);
     return type_check_equivalence_internal(ts, sub2, other2, use_rw, d + 1);
 }
 
@@ -671,6 +673,9 @@ bool type_check_cumulative(TypeSystem *ts, TypeRegion *lower, TypeRegion *higher
 /* 递归深度限制，防止无限递归 */
 #define TYPE_EQUIV_MAX_DEPTH 16
 
+/* visited set 最大容量，防止共享子类型导致指数级时间 */
+#define TYPE_EQUIV_MAX_VISITED 256
+
 /* qsort 比较函数：按 int 升序排列 */
 static int compare_ints(const void *a, const void *b) {
     int ia = *(const int *) a;
@@ -689,13 +694,30 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
         return TYPE_EQUIV_UNKNOWN;
     }
 
-    /* TODO(v3.4.0): 当前仅通过深度计数防止无限递归，缺少访问标记（visited set）。
-     * 在存在共享子类型的图中，同一子类型可能被重复检查多次，
-     * 导致指数级时间复杂度。
-     * 实现策略：在 Lv00TypeContext 中添加 GHashTable *visited_pairs，
-     * 键为 (type1_ptr, type2_ptr) 的指针对，值忽略。
-     * 进入递归前检查是否已访问，退出时移除（回溯）。
-     * 预期收益：最坏情况从 O(2^d) 降至 O(d * n^2)，其中 d 为最大深度，n 为类型节点数。 */
+/* visited set：记录已比较的类型对，防止共享子类型导致指数级时间 */
+    #define MAX_VISITED TYPE_EQUIV_MAX_VISITED
+    static struct { const TypeRegion *a; const TypeRegion *b; } s_equiv_visited[MAX_VISITED];
+    static int s_equiv_visited_count = 0;
+
+    /* 检查是否已访问过此类型对，若已访问则直接返回等价 */
+    #define VISITED_CHECK(ta, tb) do { \
+        for (int _vi = 0; _vi < s_equiv_visited_count; _vi++) { \
+            if (s_equiv_visited[_vi].a == (ta) && s_equiv_visited[_vi].b == (tb)) return TYPE_EQUIV_OK; \
+        } \
+        if (s_equiv_visited_count < MAX_VISITED) { \
+            s_equiv_visited[s_equiv_visited_count].a = (ta); \
+            s_equiv_visited[s_equiv_visited_count].b = (tb); \
+            s_equiv_visited_count++; \
+        } \
+    } while(0)
+
+    /* 首次进入时重置 visited set（depth == 0 表示顶层调用） */
+    if (depth == 0) {
+        s_equiv_visited_count = 0;
+    }
+
+    /* 对入口类型对执行 visited 检查 */
+    VISITED_CHECK(type1, type2);
 
     /* 相同指针 */
     if (type1 == type2)
@@ -749,6 +771,7 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 TypeVariable *tv = ts->type_vars[var_type->variable_id];
                 if (tv && tv->bound_type) {
                     /* 变量已实例化，递归检查 bound_type 与目标类型的等价性 */
+                    VISITED_CHECK(tv->bound_type, other_type);
                     return type_check_equivalence_internal(ts, tv->bound_type, other_type, use_rewrite, depth + 1);
                 }
             }
@@ -780,6 +803,7 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 TypeVariable *tv = ts->type_vars[var_type->variable_id];
                 if (tv && tv->bound_type) {
                     /* 变量已实例化，递归检查 bound_type 与目标类型的等价性 */
+                    VISITED_CHECK(tv->bound_type, other_type);
                     return type_check_equivalence_internal(ts, tv->bound_type, other_type, use_rewrite, depth + 1);
                 }
             }
@@ -908,11 +932,13 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
         case TYPE_KIND_FUNCTION:
             /* 函数类型：递归检查输入和输出 */
             {
+                VISITED_CHECK(type1->input_type, type2->input_type);
                 TypeEquivResult input_result =
                     type_check_equivalence_internal(ts, type1->input_type, type2->input_type, use_rewrite, depth + 1);
                 if (input_result != TYPE_EQUIV_OK)
                     return input_result;
 
+                VISITED_CHECK(type1->output_type, type2->output_type);
                 return type_check_equivalence_internal(ts, type1->output_type, type2->output_type, use_rewrite,
                                                        depth + 1);
             }
@@ -920,11 +946,13 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
         case TYPE_KIND_PRODUCT:
             /* 乘积类型：递归检查左右类型 */
             {
+                VISITED_CHECK(type1->left_type, type2->left_type);
                 TypeEquivResult left_result =
                     type_check_equivalence_internal(ts, type1->left_type, type2->left_type, use_rewrite, depth + 1);
                 if (left_result != TYPE_EQUIV_OK)
                     return left_result;
 
+                VISITED_CHECK(type1->right_type, type2->right_type);
                 return type_check_equivalence_internal(ts, type1->right_type, type2->right_type, use_rewrite,
                                                        depth + 1);
             }
@@ -932,11 +960,13 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
         case TYPE_KIND_SUM:
             /* 和类型：递归检查两个分支 */
             {
+                VISITED_CHECK(type1->first_type, type2->first_type);
                 TypeEquivResult first_result =
                     type_check_equivalence_internal(ts, type1->first_type, type2->first_type, use_rewrite, depth + 1);
                 if (first_result != TYPE_EQUIV_OK)
                     return first_result;
 
+                VISITED_CHECK(type1->second_type, type2->second_type);
                 return type_check_equivalence_internal(ts, type1->second_type, type2->second_type, use_rewrite,
                                                        depth + 1);
             }
@@ -980,6 +1010,7 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
                 /* 策略1：相同参数节点ID */
                 if (type1->param_node_id == type2->param_node_id) {
+                    VISITED_CHECK(type1->body_type, type2->body_type);
                     return type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite,
                                                            depth + 1);
                 }
@@ -998,6 +1029,7 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                                              type1->body_type, /* 使用type1的体类型作为参考 */
                                              &substituted_body)) {
                     /* 替换成功，比较体类型 */
+                    VISITED_CHECK(type1->body_type, substituted_body);
                     TypeEquivResult body_result =
                         type_check_equivalence_internal(ts, type1->body_type, substituted_body, use_rewrite, depth + 1);
                     return body_result;
@@ -1011,6 +1043,7 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
                 /* 对于简单情况，直接比较体类型（忽略参数差异） */
                 /* 这是一种保守策略，可能产生假阴性结果 */
+                VISITED_CHECK(type1->body_type, type2->body_type);
                 TypeEquivResult body_result =
                     type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
 

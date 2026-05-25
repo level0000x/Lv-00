@@ -1,0 +1,87 @@
+/* ============================================================
+   Log 日志面板组件样式 / Log Panel Component Styles
+   包含日志面板容器、日志内容区域、日志条目、日志操作按钮等。
+   ============================================================ */
+
+/* === LOG PANEL / 日志面板容器 === */
+/* 占据侧边栏剩余空间的日志面板，纵向弹性布局 */
+.log-panel {
+    flex: 1;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* === LOG CONTENT / 日志内容区域 === */
+/* 可滚动的日志文本区域，固定最大高度 */
+.log-content {
+    flex: 1;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-secondary);
+    padding: 6px var(--spacing-md);
+    overflow-y: auto;
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-relaxed);
+    color: var(--color-text-secondary);
+    max-height: 300px;
+    border-radius: var(--radius-sm);
+}
+
+/* === LOG ENTRY / 日志条目 === */
+/* 单条日志记录，底部有细分隔线 */
+.log-entry {
+    padding: 1px 0;
+    border-bottom: 1px solid var(--color-bg-secondary);
+}
+
+/* 日志时间戳 */
+.log-entry .log-time {
+    color: var(--color-text-muted);
+    margin-right: 6px;
+}
+
+/* 日志消息文本 */
+.log-entry .log-msg { color: var(--color-text-secondary); }
+
+/* === LOG ENTRY LEVELS / 日志级别样式 === */
+/* 不同级别的日志使用不同颜色标识 */
+
+/* 信息级别：默认灰色 */
+.log-entry.log-info .log-msg { color: var(--color-text-secondary); }
+
+/* 警告级别：黄色 */
+.log-entry.log-warn .log-msg { color: var(--color-trust-yellow); }
+
+/* 错误级别：红色 */
+.log-entry.log-error .log-msg { color: var(--color-trust-red); }
+
+/* === LOG ACTIONS / 日志操作按钮区域 === */
+/* 日志面板底部的操作按钮（清空、导出等） */
+.log-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: 6px;
+}
+
+/* 日志操作按钮 */
+.log-action-btn {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border: 1px solid var(--color-border-secondary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 9px;
+    font-family: inherit;
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-sm);
+}
+.log-action-btn:hover { background: var(--color-bg-overlay); color: var(--color-text-primary); }
+
+/* === LOG EMPTY MESSAGE / 日志空状态 === */
+/* 没有日志时的占位提示文本 */
+.log-empty-msg {
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 20px;
+    font-size: var(--font-size-base);
+}

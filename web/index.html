@@ -10,10 +10,12 @@
         内联脚本和样式可运行（当前页面大量使用内联 script/style）。
       - script-src 继承自 default-src，未单独指定；生产环境应显式设置 script-src
         并使用 nonce 或 hash 机制替代 'unsafe-inline'。
-      - connect-src * 允许连接到任意后端服务，开发阶段方便调试，生产环境应限制为具体域名。
+      - connect-src 'self': 限制网络连接仅允许同源请求，防止数据外泄。
+        注意：若后端 API 部署在不同域名，需在此添加对应域名。
+        生产环境建议使用 nonce 机制替代 'unsafe-inline'，以获得更严格的安全控制。
       - 若需强化安全性，可将 'unsafe-inline' 替换为 'nonce-{随机值}' 并给所有内联脚本/样式加 nonce 属性。
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/; connect-src *; img-src * data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/; connect-src 'self'; img-src * data:;">
     <title>Lv-00 几何元语言系统</title>
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/main.css">

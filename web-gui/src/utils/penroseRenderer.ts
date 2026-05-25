@@ -11,230 +11,192 @@
  *              3. Style（样式模式）—— 将几何实体映射到视觉样式
  *              4. AutoLayout —— 力导向自动布局引擎
  *              5. SVG Generator —— 生成完整 SVG 标记
- *
- * Penrose-style auto-visualization renderer for Lv-00.
- * Adapts Penrose's three-layer architecture (Domain-Substance-Style)
- * to automatically generate visual representations from Lv-00's
- * constraint graph data. The system enables "describe mathematical
- * relationships with code, automatically generate visualization"
- * narrative that Penrose pioneered.
  */
 
 import type { Point, Segment, Constraint } from '@/types';
 
 // ================================================================
-// 第一部分：领域模式定义 / Domain Schema Definition
+// 第一部分：领域模式定义
 // ================================================================
 
 /**
  * 几何类型定义 —— 领域中的实体类别。
  * 每个类型描述该几何实体的形状、维度等信息。
- *
- * Geometric type definition — entity categories in the domain.
- * Each type describes the shape, dimension, etc. of the geometric entity.
  */
 export interface PenroseType {
-  /** 类型标识符 / Type identifier */
+  /** 类型标识符 */
   name: string;
-  /** 类型描述（中文） / Type description */
+  /** 类型描述 */
   description: string;
-  /** 维度：0=点, 1=线, 2=区域 / Dimension: 0=point, 1=line, 2=region */
+  /** 维度：0=点, 1=线, 2=区域 */
   dimension: number;
-  /** 该类型实体是否可拖动 / Whether this type of entity is draggable */
+  /** 该类型实体是否可拖动 */
   draggable: boolean;
-  /** 默认可视化形状 / Default visual shape */
+  /** 默认可视化形状 */
   defaultShape: 'circle' | 'square' | 'line' | 'label' | 'arrow' | 'region';
 }
 
 /**
  * 谓词定义 —— 描述几何实体之间的约束关系。
  * 每个谓词有一个名称和支持的参数类型列表（按索引对应）。
- *
- * Predicate definition — describes constraint relationships
- * between geometric entities. Each predicate has a name and
- * a list of supported argument types (by index).
  */
 export interface PenrosePredicate {
-  /** 谓词标识符 / Predicate identifier */
+  /** 谓词标识符 */
   name: string;
-  /** 谓词描述（中文） / Predicate description */
+  /** 谓词描述 */
   description: string;
-  /** 参数类型列表（按顺序对应） / Argument type list (by order) */
+  /** 参数类型列表（按顺序对应） */
   argTypes: string[];
-  /** 是否对称（参数顺序无关） / Whether symmetric (argument order irrelevant) */
+  /** 是否对称（参数顺序无关） */
   symmetric: boolean;
 }
 
 /**
  * 领域模式 —— 定义整个几何可视化领域的完整类型系统。
  * 包含所有合法类型和谓词，是 Substance 和 Style 的"语法"基础。
- *
- * Domain schema — defines the complete type system for the
- * geometric visualization domain. Contains all legal types
- * and predicates, serving as the "grammar" foundation for
- * Substance and Style specifications.
  */
 export interface PenroseDomain {
-  /** 领域名称 / Domain name */
+  /** 领域名称 */
   name: string;
-  /** 领域描述 / Domain description */
+  /** 领域描述 */
   description: string;
-  /** 该领域所有类型定义 / All type definitions in this domain */
+  /** 该领域所有类型定义 */
   types: { [name: string]: PenroseType };
-  /** 该领域所有谓词定义 / All predicate definitions in this domain */
+  /** 该领域所有谓词定义 */
   predicates: { [name: string]: PenrosePredicate };
 }
 
 // ================================================================
-// 第二部分：物质程序 / Substance Program
+// 第二部分：物质程序
 // ================================================================
 
 /**
  * 对象声明 —— 声明一个具有特定类型的几何实体。
- *
- * Object declaration — declares a geometric entity with a specific type.
  */
 export interface PenroseObject {
-  /** 类型名称（必须在 Domain 中定义） / Type name (must be defined in Domain) */
+  /** 类型名称（必须在 Domain 中定义） */
   type: string;
-  /** 对象名称（可读标识符） / Object name (readable identifier) */
+  /** 对象名称（可读标识符） */
   name: string;
 }
 
 /**
  * 语句 —— 描述几何实体之间的关系。
- *
- * Statement — describes a relationship between geometric entities.
  */
 export interface PenroseStatement {
-  /** 谓词名称（必须在 Domain 中定义） / Predicate name (must be defined in Domain) */
+  /** 谓词名称（必须在 Domain 中定义） */
   predicate: string;
-  /** 参数的对象名称列表 / List of argument object names */
+  /** 参数的对象名称列表 */
   args: string[];
 }
 
 /**
  * 物质程序 —— 编码特定几何场景中的事实。
  * 声明所有存在的几何实体以及它们之间的关系。
- *
- * Substance program — encodes the facts of a specific geometric scene.
- * Declares all existing geometric entities and their relationships.
  */
 export interface PenroseSubstance {
-  /** 场景名称 / Scene name */
+  /** 场景名称 */
   name: string;
-  /** 来自 Lv-00 的点列表 / Points from Lv-00 */
+  /** 来自 Lv-00 的点列表 */
   points: Point[];
-  /** 来自 Lv-00 的线段列表 / Segments from Lv-00 */
+  /** 来自 Lv-00 的线段列表 */
   segments: Segment[];
-  /** 来自 Lv-00 的约束列表 / Constraints from Lv-00 */
+  /** 来自 Lv-00 的约束列表 */
   constraints: Constraint[];
-  /** 映射表：Lv-00 Point ID → 对象名称 / Map: Lv-00 Point ID → Object name */
+  /** 映射表：Lv-00 Point ID -> 对象名称 */
   pointNameMap: Map<number, string>;
-  /** 声明的对象列表（自动生成） / Declared object list (auto-generated) */
+  /** 声明的对象列表（自动生成） */
   objects: PenroseObject[];
-  /** 声明的语句列表（自动生成） / Declared statement list (auto-generated) */
+  /** 声明的语句列表（自动生成） */
   statements: PenroseStatement[];
 }
 
 // ================================================================
-// 第三部分：样式模式 / Style Schema
+// 第三部分：样式模式
 // ================================================================
 
 /**
  * 视觉样式 —— 定义几何类型的渲染属性。
- *
- * Visual style — defines the rendering properties for a geometric type.
  */
 export interface VisualStyle {
   /** 形状：圆形、方形、线段、标签、箭头、区域 */
   shape: 'circle' | 'square' | 'line' | 'label' | 'arrow' | 'region';
-  /** 填充色（十六进制） / Fill color (hex) */
+  /** 填充色（十六进制） */
   color: string;
-  /** 尺寸（半径/边长/线宽，像素） / Size (radius/side/width, px) */
+  /** 尺寸（半径/边长/线宽，像素） */
   size: number;
-  /** 描边宽度（像素） / Stroke width (px) */
+  /** 描边宽度（像素） */
   strokeWidth: number;
-  /** 填充不透明度 0-1 / Fill opacity 0-1 */
+  /** 填充不透明度 0-1 */
   fillOpacity?: number;
-  /** 描边颜色 / Stroke color */
+  /** 描边颜色 */
   strokeColor?: string;
-  /** 是否显示标签 / Whether to show labels */
+  /** 是否显示标签 */
   label?: boolean;
-  /** 字体大小（仅标签类型） / Font size (label type only) */
+  /** 字体大小（仅标签类型） */
   fontSize?: number;
-  /** 字体族 / Font family */
+  /** 字体族 */
   fontFamily?: string;
 }
 
 /**
  * 样式模式 —— 将几何类型和谓词映射到视觉样式。
  * 还包含画布尺寸定义。
- *
- * Style schema — maps geometric types and predicates to visual styles.
- * Also includes canvas dimensions definition.
  */
 export interface PenroseStyle {
-  /** 画布尺寸 / Canvas dimensions */
+  /** 画布尺寸 */
   canvas: {
     width: number;
     height: number;
   };
-  /** 背景色 / Background color */
+  /** 背景色 */
   background?: string;
-  /** 类型到视觉样式的映射 / Type-to-visual-style mapping */
+  /** 类型到视觉样式的映射 */
   typeStyles: { [type: string]: VisualStyle };
-  /** 谓词到视觉样式的映射 / Predicate-to-visual-style mapping */
+  /** 谓词到视觉样式的映射 */
   predicateStyles: { [pred: string]: VisualStyle };
 }
 
 /**
  * 定位后的对象 —— 包含布局计算后的坐标。
- *
- * Positioned object — includes coordinates after layout computation.
  */
 export interface PositionedObject {
-  /** 对象名称 / Object name */
+  /** 对象名称 */
   name: string;
-  /** 类型名称 / Type name */
+  /** 类型名称 */
   type: string;
-  /** 布局后的 X 坐标 / X coordinate after layout */
+  /** 布局后的 X 坐标 */
   x: number;
-  /** 布局后的 Y 坐标 / Y coordinate after layout */
+  /** 布局后的 Y 坐标 */
   y: number;
-  /** 对象半径（用于力导向避碰） / Object radius (for force-directed collision) */
+  /** 对象半径（用于力导向避碰） */
   radius: number;
-  /** 是否固定位置（锚点） / Whether position is fixed (anchor) */
+  /** 是否固定位置（锚点） */
   fixed: boolean;
-  /** 关联的视觉样式 / Associated visual style */
+  /** 关联的视觉样式 */
   style: VisualStyle;
 }
 
 /**
  * 边 —— 对象之间的连接关系，用于力导向计算。
- *
- * Edge — connection between objects, used for force-directed computation.
  */
 interface LayoutEdge {
   source: string;
   target: string;
-  /** 边的谓词名称（决定视觉样式） / Edge predicate name (determines visual style) */
+  /** 边的谓词名称（决定视觉样式） */
   predicate: string;
-  /** 理想长度（像素） / Ideal length (px) */
+  /** 理想长度（像素） */
   idealLength: number;
-  /** 线强度（0-1） / Spring strength (0-1) */
+  /** 弹簧强度（0-1） */
   strength: number;
 }
 
 // ================================================================
-// 第四部分：预构建领域 / Pre-built Domains
+// 第四部分：预构建领域
 // ================================================================
 
 /**
  * 欧几里得几何领域 —— 处理平面几何中的点、线段、约束关系。
- *
- * Euclidean geometry domain — handles points, segments, and
- * constraint relationships in plane geometry.
  */
 export const euclideanGeometryDomain: PenroseDomain = {
   name: 'EuclideanGeometry',
@@ -272,31 +234,31 @@ export const euclideanGeometryDomain: PenroseDomain = {
   predicates: {
     incidence: {
       name: 'incidence',
-      description: '点在线上 — Point lies on Segment',
+      description: '点在线上',
       argTypes: ['Point', 'Segment'],
       symmetric: false,
     },
     betweenness: {
       name: 'betweenness',
-      description: 'B 在 A 和 C 之间 — B is between A and C',
+      description: 'B 在 A 和 C 之间',
       argTypes: ['Point', 'Point', 'Point'],
       symmetric: false,
     },
     intersection: {
       name: 'intersection',
-      description: '两线段相交于一点 — Two segments intersect at a point',
+      description: '两线段相交于一点',
       argTypes: ['IntersectionPoint', 'Segment', 'Segment'],
       symmetric: true,
     },
     connection: {
       name: 'connection',
-      description: '两点之间的连接关系 — Connection between two objects',
+      description: '两点之间的连接关系',
       argTypes: ['Point', 'Point'],
       symmetric: true,
     },
     containment: {
       name: 'containment',
-      description: '点/区域包含于另一区域 — Object is contained within a region',
+      description: '点/区域包含于另一区域',
       argTypes: ['Point', 'Point', 'Point'],
       symmetric: false,
     },
@@ -305,9 +267,6 @@ export const euclideanGeometryDomain: PenroseDomain = {
 
 /**
  * 解析几何领域 —— 处理坐标系中的点、曲线和方程关系。
- *
- * Analytic geometry domain — handles points, curves, and
- * equation relationships in coordinate systems.
  */
 export const analyticGeometryDomain: PenroseDomain = {
   name: 'AnalyticGeometry',
@@ -345,25 +304,25 @@ export const analyticGeometryDomain: PenroseDomain = {
   predicates: {
     passesThrough: {
       name: 'passesThrough',
-      description: '曲线通过某点 — Curve passes through a point',
+      description: '曲线通过某点',
       argTypes: ['CurveSegment', 'CoordinatePoint'],
       symmetric: false,
     },
     tangent: {
       name: 'tangent',
-      description: '两曲线在某点相切 — Two curves are tangent at a point',
+      description: '两曲线在某点相切',
       argTypes: ['CurveSegment', 'CurveSegment', 'CoordinatePoint'],
       symmetric: true,
     },
     inside: {
       name: 'inside',
-      description: '点在区域内 — Point is inside the region',
+      description: '点在区域内',
       argTypes: ['CoordinatePoint', 'BoundingBox'],
       symmetric: false,
     },
     collinear: {
       name: 'collinear',
-      description: '三点共线 — Three points are collinear',
+      description: '三点共线',
       argTypes: ['CoordinatePoint', 'CoordinatePoint', 'CoordinatePoint'],
       symmetric: true,
     },
@@ -373,10 +332,6 @@ export const analyticGeometryDomain: PenroseDomain = {
 /**
  * 约束图领域 —— 将 Lv-00 约束图直接映射为可视化实体。
  * 这是连接 Lv-00 核心引擎与 Penrose 可视化系统的关键桥接领域。
- *
- * Constraint graph domain — directly maps Lv-00 constraint graph
- * to visual entities. This is the key bridging domain connecting
- * Lv-00 core engine to the Penrose visualization system.
  */
 export const constraintGraphDomain: PenroseDomain = {
   name: 'ConstraintGraph',
@@ -414,25 +369,25 @@ export const constraintGraphDomain: PenroseDomain = {
   predicates: {
     incident: {
       name: 'incident',
-      description: '节点关联于边 — Node is incident on an edge',
+      description: '节点关联于边',
       argTypes: ['GraphNode', 'GraphEdge'],
       symmetric: false,
     },
     constrained: {
       name: 'constrained',
-      description: '节点受约束限制 — Node is constrained by constraint',
+      description: '节点受约束限制',
       argTypes: ['GraphNode', 'ConstraintNode'],
       symmetric: false,
     },
     adjacent: {
       name: 'adjacent',
-      description: '两个节点相邻 — Two nodes are adjacent',
+      description: '两个节点相邻',
       argTypes: ['GraphNode', 'GraphNode'],
       symmetric: true,
     },
     dependsOn: {
       name: 'dependsOn',
-      description: '约束依赖于节点 — Constraint depends on node',
+      description: '约束依赖于节点',
       argTypes: ['ConstraintNode', 'GraphNode'],
       symmetric: false,
     },
@@ -447,28 +402,26 @@ export const ALL_DOMAINS: { [key: string]: PenroseDomain } = {
 };
 
 // ================================================================
-// 第五部分：力导向自动布局引擎 / Force-Directed AutoLayout Engine
+// 第五部分：力导向自动布局引擎
 // ================================================================
 
 /**
  * 力导向布局的配置参数。
- *
- * Configuration parameters for force-directed layout.
  */
 interface LayoutConfig {
-  /** 排斥力常数 / Repulsion force constant */
+  /** 排斥力常数 */
   repulsion: number;
-  /** 吸引力常数（弹簧系数） / Attraction force constant (spring stiffness) */
+  /** 吸引力常数（弹簧系数） */
   attraction: number;
-  /** 阻尼系数（速度衰减） / Damping coefficient (velocity decay) */
+  /** 阻尼系数（速度衰减） */
   damping: number;
-  /** 最大迭代次数 / Maximum iterations */
+  /** 最大迭代次数 */
   maxIterations: number;
-  /** 收敛阈值（平均速度平方和） / Convergence threshold (mean squared velocity) */
+  /** 收敛阈值（平均速度平方和） */
   convergenceThreshold: number;
-  /** 最大速度限制 / Maximum velocity limit */
+  /** 最大速度限制 */
   maxVelocity: number;
-  /** 画布边距 / Canvas margin */
+  /** 画布边距 */
   margin: number;
 }
 
@@ -488,15 +441,11 @@ const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
  * 将原始的 Point、Segment、Constraint 数据转换为 Penrose 的
  * 声明式几何事实表示。
  *
- * Builds a Substance program from Lv-00 geometry data.
- * Converts raw Point, Segment, Constraint data into Penrose's
- * declarative geometric fact representation.
- *
- * @param points - Lv-00 中的点列表 / Points from Lv-00
- * @param segments - Lv-00 中的线段列表 / Segments from Lv-00
- * @param constraints - Lv-00 中的约束列表 / Constraints from Lv-00
- * @param domain - 目标领域 / Target domain (default: euclideanGeometry)
- * @returns 构建好的物质程序 / Built substance program
+ * @param points - Lv-00 中的点列表
+ * @param segments - Lv-00 中的线段列表
+ * @param constraints - Lv-00 中的约束列表
+ * @param domain - 目标领域（默认使用 euclideanGeometry）
+ * @returns 构建好的物质程序
  */
 export function buildSubstance(
   points: Point[],
@@ -619,16 +568,10 @@ export function buildSubstance(
  * - 有连接关系的节点相互吸引（弹簧力）
  * - 通过迭代收敛到稳定布局
  *
- * Computes force-directed auto-layout.
- * Uses standard force-directed graph layout algorithm:
- * - Nodes repel each other (Coulomb force)
- * - Connected nodes attract each other (spring force)
- * - Converges to stable layout through iteration
- *
- * @param substance - 物质程序 / Substance program
- * @param style - 样式模式 / Style schema
- * @param config - 布局配置（可选） / Layout config (optional)
- * @returns 定位后的对象数组 / Array of positioned objects
+ * @param substance - 物质程序
+ * @param style - 样式模式
+ * @param config - 布局配置（可选）
+ * @returns 定位后的对象数组
  */
 export function computeLayout(
   substance: PenroseSubstance,
@@ -867,9 +810,6 @@ export function computeLayout(
 /**
  * 获取默认的视觉样式。
  * 当用户未为某类型显式指定样式时使用。
- *
- * Gets the default visual style.
- * Used when user has not explicitly specified a style for a type.
  */
 function defaultVisualStyle(type: string): VisualStyle {
   const defaults: Record<string, VisualStyle> = {
@@ -937,20 +877,17 @@ function defaultVisualStyle(type: string): VisualStyle {
 }
 
 // ================================================================
-// 第六部分：SVG 生成器 / SVG Generator
+// 第六部分：SVG 生成器
 // ================================================================
 
 /**
  * 将布局后的对象渲染为完整的 SVG 标记字符串。
  * SVG 可直接嵌入 HTML 或作为独立的 .svg 文件保存。
  *
- * Renders positioned objects into a complete SVG markup string.
- * SVG can be embedded in HTML or saved as a standalone .svg file.
- *
- * @param positioned - 定位后的对象数组 / Array of positioned objects
- * @param style - 样式模式 / Style schema
- * @param substance - 物质程序（用于线段/箭头端点查找） / Substance program (for segment/arrow endpoint lookup)
- * @returns 完整的 SVG 字符串 / Complete SVG string
+ * @param positioned - 定位后的对象数组
+ * @param style - 样式模式
+ * @param substance - 物质程序（用于线段/箭头端点查找）
+ * @returns 完整的 SVG 字符串
  */
 export function renderToSVG(
   positioned: PositionedObject[],
@@ -1196,15 +1133,12 @@ export function renderToSVG(
 }
 
 // ================================================================
-// 第七部分：集成函数 / Integration Functions
+// 第七部分：集成函数
 // ================================================================
 
 /**
  * 预定义的样式模板集合。
  * 用户可以从中选择或自定义。
- *
- * Collection of predefined style templates.
- * Users can choose from these or customize.
  */
 export const PRESET_STYLES: { [key: string]: PenroseStyle } = {
   /** 暗色主题 —— 适用于 Lv-00 默认暗色界面 */
@@ -1424,25 +1358,16 @@ export const PRESET_STYLES: { [key: string]: PenroseStyle } = {
  * 这是面向终端用户的主要入口函数。它：
  * 1. 从 Lv-00 的点、线段、约束中构建 Substance 程序
  * 2. 应用用户选择（或默认）的样式模式
- * 3. 运行为导向自动布局算法
+ * 3. 运行力导向自动布局算法
  * 4. 生成完整的 SVG 标记
  *
- * Auto-generates a Penrose-style visualization SVG from current
- * Lv-00 geometry store data.
- *
- * This is the main entry function for end users. It:
- * 1. Builds a Substance program from Lv-00 points, segments, constraints
- * 2. Applies user-selected (or default) style schema
- * 3. Runs force-directed auto-layout algorithm
- * 4. Generates complete SVG markup
- *
- * @param points - Lv-00 中的点列表 / Points from Lv-00
- * @param segments - Lv-00 中的线段列表 / Segments from Lv-00
- * @param constraints - Lv-00 中的约束列表 / Constraints from Lv-00
- * @param style - 可选的样式模式（默认使用 'dark' 预设） / Optional style schema (defaults to 'dark' preset)
- * @param domain - 可选的目标领域（默认使用 euclideanGeometry） / Optional target domain (defaults to euclideanGeometry)
- * @param layoutConfig - 可选的布局配置 / Optional layout configuration
- * @returns 完整的 SVG 字符串 / Complete SVG string
+ * @param points - Lv-00 中的点列表
+ * @param segments - Lv-00 中的线段列表
+ * @param constraints - Lv-00 中的约束列表
+ * @param style - 可选的样式模式（默认使用 'dark' 预设）
+ * @param domain - 可选的目标领域（默认使用 euclideanGeometry）
+ * @param layoutConfig - 可选的布局配置
+ * @returns 完整的 SVG 字符串
  *
  * @example
  * ```typescript
@@ -1482,12 +1407,9 @@ export function generatePenroseDiagram(
  * 将生成的 SVG 标记包装为独立 HTML 页面。
  * 方便用户在浏览器中预览或将可视化分享给他人。
  *
- * Wraps generated SVG markup into a standalone HTML page.
- * Convenient for browser preview or sharing visualizations.
- *
- * @param svgMarkup - SVG 标记字符串 / SVG markup string
- * @param title - 页面标题 / Page title
- * @returns 完整的 HTML 字符串 / Complete HTML string
+ * @param svgMarkup - SVG 标记字符串
+ * @param title - 页面标题
+ * @returns 完整的 HTML 字符串
  */
 export function wrapSVGInHTML(svgMarkup: string, title: string = 'Lv-00 Penrose Diagram'): string {
   return `<!DOCTYPE html>
@@ -1517,10 +1439,8 @@ ${svgMarkup}
 /**
  * 导出完整的 Penrose 可视化（包含元数据）为可下载的 Blob。
  *
- * Exports the complete Penrose visualization (with metadata) as a downloadable Blob.
- *
- * @param svgMarkup - SVG 标记字符串 / SVG markup string
- * @returns Blob 对象 / Blob object
+ * @param svgMarkup - SVG 标记字符串
+ * @returns Blob 对象
  */
 export function svgToBlob(svgMarkup: string): Blob {
   return new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
@@ -1529,10 +1449,8 @@ export function svgToBlob(svgMarkup: string): Blob {
 /**
  * 触发浏览器下载 SVG 文件。
  *
- * Triggers browser download of an SVG file.
- *
- * @param svgMarkup - SVG 标记字符串 / SVG markup string
- * @param filename - 文件名（不含路径） / Filename (without path)
+ * @param svgMarkup - SVG 标记字符串
+ * @param filename - 文件名（不含路径）
  */
 export function downloadSVG(svgMarkup: string, filename: string = 'penrose-diagram.svg'): void {
   const blob = svgToBlob(svgMarkup);

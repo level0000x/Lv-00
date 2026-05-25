@@ -83,10 +83,13 @@ uint64_t lv00_circuit_breaker_now_us(void) {
 #ifdef _WIN32
     LARGE_INTEGER freq, counter;
     static LARGE_INTEGER freq_cached = {0};
-    /* 一次性缓存频率值（线程安全：多个线程同时执行仅导致重复计算，
-     * 结果一致且无副作用） */
+    /* 线程安全：使用 InterlockedCompareExchange64 确保频率值只初始化一次。
+     * 多线程首次调用时，仅一个线程执行 QueryPerformanceFrequency，
+     * 其余线程自旋等待直到 freq_cached 被写入非零值。 */
     if (freq_cached.QuadPart == 0) {
-        QueryPerformanceFrequency(&freq_cached);
+        LARGE_INTEGER freq_temp;
+        QueryPerformanceFrequency(&freq_temp);
+        InterlockedCompareExchange64(&freq_cached.QuadPart, freq_temp.QuadPart, 0);
     }
     QueryPerformanceCounter(&counter);
     return (uint64_t)((counter.QuadPart * 1000000ULL) / freq_cached.QuadPart);

@@ -19,26 +19,41 @@ import type { EngineStreamEvent, EngineStreamCategory } from '@/types';
 // 类型定义 / Type Definitions
 // ================================================================
 
+/**
+ * 事件节点数据（用于 Canvas 绘制）
+ * Event node data for Canvas rendering
+ */
 interface EventNode {
+  /** 节点唯一标识（格式 "event-{index}"） */
   id: string;
+  /** 关联的引擎流式事件 */
   event: EngineStreamEvent;
+  /** 节点在画布上的 X 坐标 */
   x: number;
+  /** 节点在画布上的 Y 坐标 */
   y: number;
+  /** 节点半径（像素） */
   radius: number;
+  /** 节点颜色（CSS 颜色值） */
   color: string;
+  /** 事件时间戳（毫秒） */
   timestamp: number;
 }
 
+/**
+ * 可视化配置
+ * Visualization configuration
+ */
 interface VisualizationConfig {
-  /** 时间线模式 vs 节点图模式 */
+  /** 可视化模式：时间线（水平排列）或节点图（按类别分组） */
   mode: 'timeline' | 'graph';
-  /** 自动滚动 */
+  /** 是否自动滚动到最新事件 */
   autoScroll: boolean;
-  /** 显示详情面板 */
+  /** 是否显示事件详情面板 */
   showDetails: boolean;
   /** 高亮持续时间（毫秒） */
   highlightDuration: number;
-  /** 最大显示事件数 */
+  /** 最大可见事件数（超出时只显示最近的 N 个） */
   maxVisibleEvents: number;
 }
 
@@ -67,12 +82,16 @@ const StreamVisualizer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
 
-  // 过滤并限制事件数量
+  // 过滤并限制可见事件数量（只显示最近的 N 个事件）
   const visibleEvents = useMemo(() => {
     return streamingEvents.slice(-config.maxVisibleEvents);
   }, [streamingEvents, config.maxVisibleEvents]);
 
-  // 计算事件节点位置
+  /**
+   * 计算事件节点在画布上的位置
+   * 时间线模式：水平等距排列
+   * 节点图模式：按类别分行排列
+   */
   const eventNodes = useMemo((): EventNode[] => {
     const nodes: EventNode[] = [];
     const width = containerRef.current?.clientWidth ?? 800;
@@ -130,7 +149,10 @@ const StreamVisualizer: React.FC = () => {
     return nodes;
   }, [visibleEvents, config.mode]);
 
-  // 绘制画布
+  /**
+   * 绘制可视化画布
+   * 包含：背景、网格、连接线、事件节点（带发光效果）、类别标签
+   */
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -249,7 +271,10 @@ const StreamVisualizer: React.FC = () => {
     };
   }, [draw]);
 
-  // 处理画布点击
+  /**
+   * 处理画布点击事件
+   * 查找点击位置最近的事件节点并选中
+   */
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -270,7 +295,9 @@ const StreamVisualizer: React.FC = () => {
     setSelectedEvent(null);
   }, [eventNodes]);
 
-  // 高亮最新事件
+  /**
+   * 高亮最新事件（在 highlightDuration 后自动取消高亮）
+   */
   useEffect(() => {
     if (visibleEvents.length > 0) {
       const latestId = `event-${visibleEvents.length - 1}`;
@@ -284,7 +311,9 @@ const StreamVisualizer: React.FC = () => {
     }
   }, [visibleEvents.length, config.highlightDuration]);
 
-  // 统计信息
+  /**
+   * 按类别统计可见事件数量
+   */
   const stats = useMemo(() => {
     const byCategory: Record<EngineStreamCategory, number> = {
       engine: 0,

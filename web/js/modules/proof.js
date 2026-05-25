@@ -16,19 +16,12 @@
     'use strict';
 
     // ================================================================
-    // 公共辅助：HTML 转义
+    // 公共辅助：HTML 转义（引用 utils.js 中的全局版本）
     // 将字符串中的 < > & " ' 转义为 HTML 实体，防止 XSS
-    // fix: 提取为闭包内公共函数，避免多处复制粘贴相同转义逻辑
+    // fix: 统一使用 utils.js 中 Lv00WebApp.prototype._escapeHtml，
+    //      避免多处复制粘贴相同转义逻辑
     // ================================================================
-    var _escapeHtml = function(str) {
-        if (str == null) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    };
+    var _escapeHtml = Lv00WebApp.prototype._escapeHtml;
 
     // ================================================================
     // 创建命题

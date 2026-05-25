@@ -81,8 +81,15 @@ void graph_constraint_index_insert(ConstraintGraph *graph, Constraint *con);
 static void *graph_ensure_capacity(void *arr, int count, int *capacity,
                                     size_t elem_size, int min_growth) {
     if (count < *capacity) return arr;
+    /* 溢出检查：确保 new_cap 不会超过 INT_MAX */
+    if (*capacity > INT_MAX / 2) {
+        return NULL;
+    }
     int new_cap = *capacity * 2;
     if (new_cap < count + min_growth) new_cap = count + min_growth;
+    if (new_cap < 0 || (size_t)new_cap > SIZE_MAX / elem_size) {
+        return NULL;
+    }
     void *new_arr = lv00_realloc(arr, (size_t)new_cap * elem_size);
     if (new_arr) *capacity = new_cap;
     return new_arr;
@@ -353,11 +360,18 @@ static bool constraint_exists(ConstraintGraph *graph, ConstraintType type, int *
  * @return 哈希值
  */
 static unsigned node_id_hash(int id, int capacity) {
-    /* 防御性断言：哈希表容量必须为 2 的幂（位掩码操作的前提条件） */
-    assert(capacity > 0 && (capacity & (capacity - 1)) == 0);
     /* FNV-1a-like hash，乘数定义在 lv00_internal.h 中 */
     unsigned h = (unsigned) id * LV00_FNV_HASH_MULTIPLIER;
-    return h & (unsigned) (capacity - 1);
+    /*
+     * 运行时检查：哈希表容量通常为 2 的幂，此时使用高效的位掩码取模。
+     * 若容量不是 2 的幂（防御性场景），回退到安全的取模操作，
+     * 避免在 Release 构建中因 assert 被移除而导致未定义行为。
+     */
+    if (capacity > 0 && (capacity & (capacity - 1)) == 0) {
+        return h & (unsigned)(capacity - 1);
+    } else {
+        return h % (unsigned)(capacity > 0 ? capacity : 1);
+    }
 }
 
 /**
@@ -1783,7 +1797,9 @@ ConstraintGraph *graph_create(void) {
      * 当前保留仅为向后兼容。 */
     /* 为每图级的错误缓冲区分配堆内存（v3.3.0：替代旧版静态全局变量） */
     graph->error_buffer = lv00_malloc(256);
+    /* TODO(v3.4.0): 迁移到 Lv00Context 后移除此缓冲区 */
     graph->serialize_buffer = lv00_malloc(256);
+    /* TODO(v3.4.0): 迁移到 Lv00Context 后移除此缓冲区 */
     if (!graph->error_buffer || !graph->serialize_buffer) {
         /* 缓冲区分配失败：清理已分配资源，返回 NULL */
         lv00_free((void **) &graph->error_buffer);

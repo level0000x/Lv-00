@@ -161,11 +161,23 @@ void proposition_destroy(Proposition *prop) {
                     Proposition **new_stack =
                         (Proposition **) lv00_realloc(destroy_stack, new_cap * sizeof(Proposition *));
                     if (!new_stack) {
-                        /* 栈扩容失败：仅释放剩余子命题的外壳，避免递归导致栈溢出。
-                         * 深层子命题可能泄漏，但保证不会崩溃。 */
+                        /* 栈扩容失败：使用循环安全释放所有子命题的内部资源 */
                         for (int j = i; j < current->sub_prop_count; j++) {
                             if (current->sub_props[j]) {
-                                lv00_free((void **) &current->sub_props[j]);
+                                /* 使用非递归方式释放子命题，避免栈溢出 */
+                                Proposition *child = current->sub_props[j];
+                                lv00_free((void **) &child->input_port_ids);
+                                lv00_free((void **) &child->output_port_ids);
+                                lv00_free((void **) &child->precondition_region_ids);
+                                lv00_free((void **) &child->postcondition_constraint_ids);
+                                if (child->pattern)
+                                    graph_destroy(child->pattern);
+                                lv00_free((void **) &child->sub_props);
+                                lv00_free((void **) &child->name);
+                                lv00_free((void **) &child->description);
+                                if (child->prop_type)
+                                    type_region_destroy(child->prop_type);
+                                lv00_free((void **) &child);
                             }
                         }
                         break;

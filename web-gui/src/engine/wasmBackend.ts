@@ -191,10 +191,16 @@ export class WasmBackend implements IBackend {
 
   // ---- Graph Lifecycle / 图生命周期 ----
 
+  /**
+   * 创建新的空约束图，返回 WASM 端的图句柄（不透明指针）
+   */
   graphCreate(): number {
     return this.mod._web_graph_create();
   }
 
+  /**
+   * 销毁约束图，释放 WASM 端的图资源
+   */
   graphDestroy(graphHandle: number): void {
     this.mod._web_graph_destroy(graphHandle);
   }
@@ -215,30 +221,51 @@ export class WasmBackend implements IBackend {
     return this.mod._web_graph_add_point(graphHandle, xNum, den, yNum, den);
   }
 
+  /**
+   * 移除图中的节点（点或线段）
+   * @returns 是否成功移除（C 函数返回 0 表示成功）
+   */
   graphRemovePoint(graphHandle: number, pointId: number): boolean {
     return this.mod._web_graph_remove_node(graphHandle, pointId) === 0;
   }
 
   // ---- Segment Operations / 线段操作 ----
 
+  /**
+   * 添加线段，返回线段 ID
+   */
   graphAddLineSegment(graphHandle: number, p1: number, p2: number): number {
     return this.mod._web_graph_add_line_segment(graphHandle, p1, p2);
   }
 
+  /**
+   * 移除线段（复用 _web_graph_remove_node）
+   * @returns 是否成功移除
+   */
   graphRemoveLineSegment(graphHandle: number, segmentId: number): boolean {
     return this.mod._web_graph_remove_node(graphHandle, segmentId) === 0;
   }
 
   // ---- Constraint Operations / 约束操作 ----
 
+  /**
+   * 添加关联约束（点在线段上），返回约束 ID
+   */
   graphAddIncidence(graphHandle: number, pointId: number, segmentId: number): number {
     return this.mod._web_graph_add_incidence(graphHandle, pointId, segmentId);
   }
 
+  /**
+   * 添加介于约束（B 介于 A 和 C 之间），返回约束 ID
+   */
   graphAddBetweenness(graphHandle: number, a: number, b: number, c: number): number {
     return this.mod._web_graph_add_betweenness(graphHandle, a, b, c);
   }
 
+  /**
+   * 添加相交约束（两线段相交），返回约束 ID
+   * 内部会先创建一个临时点作为交点占位
+   */
   graphAddIntersection(graphHandle: number, seg1: number, seg2: number): number {
     /* 相交约束需要交点 ID，此处先创建一个临时点作为交点占位 */
     const intersectionPointId = this.graphAddPoint(graphHandle, 0, 0);
@@ -248,33 +275,56 @@ export class WasmBackend implements IBackend {
     );
   }
 
+  /**
+   * 添加包含约束（内部元素包含于外部元素），返回约束 ID
+   */
   graphAddContainment(graphHandle: number, inner: number, outer: number): number {
     return this.mod._web_graph_add_containment(graphHandle, inner, outer);
   }
 
+  /**
+   * 添加一般连接约束（两个元素之间的通用连接关系），返回约束 ID
+   */
   graphAddConnection(graphHandle: number, elem1: number, elem2: number): number {
     return this.mod._web_graph_add_connection(graphHandle, elem1, elem2);
   }
 
   // ---- Analysis Operations / 分析操作 ----
 
+  /**
+   * 图规范化（标准形式），合并等价节点
+   * @returns 是否成功（mergedCount >= 0 表示成功）
+   */
   graphNormalize(graphHandle: number): boolean {
     const mergedCount = this.mod._web_graph_normalize(graphHandle);
     return mergedCount >= 0;
   }
 
+  /**
+   * 查找合并候选节点（距离极近的点对）
+   * @returns 候选点对数组，每对格式为 { a: id1, b: id2 }
+   */
   graphFindMergeCandidates(graphHandle: number): Array<{ a: number; b: number }> {
     const jsonPtr = this.mod._web_find_merge_candidates(graphHandle);
     const result = this.readJsonAndFree<Array<{ a: number; b: number }>>(jsonPtr);
     return result ?? [];
   }
 
+  /**
+   * 检测冗余约束（可被其他约束推导出的约束）
+   * @returns 冗余约束 ID 数组
+   */
   graphDetectRedundant(graphHandle: number): number[] {
     const jsonPtr = this.mod._web_graph_detect_redundant(graphHandle);
     const result = this.readJsonAndFree<number[]>(jsonPtr);
     return result ?? [];
   }
 
+  /**
+   * 检测冲突约束（互相矛盾的约束对）
+   * C 引擎返回冲突组数组，此处转换为 {c1, c2} 对数组
+   * @returns 冲突约束对数组
+   */
   graphDetectConflicts(graphHandle: number): Array<{ c1: number; c2: number }> {
     const jsonPtr = this.mod._web_graph_detect_conflicts(graphHandle);
     const raw = this.readJsonAndFree<number[][]>(jsonPtr);
@@ -292,16 +342,28 @@ export class WasmBackend implements IBackend {
     return conflicts;
   }
 
+  /**
+   * 计算图的自由度
+   * @returns 自由度数值
+   */
   graphDegreesOfFreedom(graphHandle: number): number {
     return this.mod._web_count_degrees_of_freedom(graphHandle);
   }
 
+  /**
+   * 约束拓扑排序
+   * @returns 排序后的约束 ID 数组
+   */
   graphTopologicalSort(graphHandle: number): number[] {
     const jsonPtr = this.mod._web_graph_topological_sort(graphHandle);
     const result = this.readJsonAndFree<number[]>(jsonPtr);
     return result ?? [];
   }
 
+  /**
+   * 计算图的哈希值（精确哈希，由 C 引擎计算）
+   * @returns 十六进制哈希字符串
+   */
   graphHash(graphHandle: number): string {
     const jsonPtr = this.mod._web_graph_hash(graphHandle);
     return this.readAndFreeCString(jsonPtr);
@@ -309,6 +371,9 @@ export class WasmBackend implements IBackend {
 
   // ---- Coordinate Operations / 坐标操作 ----
 
+  /**
+   * 创建有理数坐标（精确有理数表示，由 C 引擎维护）
+   */
   coordCreateRational(num: number, den: number): number {
     return this.mod._web_coord_create_rational(num, den);
   }

@@ -7,6 +7,12 @@
  *
  *              流式事件体系已统一为 8 类别（与 C 核心 stream.h 对齐）：
  *              engine / normalize / rewrite / solve / proof / func_block / conflict / info
+ *
+ *              内存安全保障：
+ *              - chatMessages: 最多保留 MAX_CHAT_MESSAGES (100) 条
+ *              - streamingEvents: 最多保留 MAX_STREAMING_EVENTS (500) 条
+ *              - streamingEntries: 最多保留 MAX_STREAMING_ENTRIES (500) 条
+ *              超出上限时自动丢弃最旧的条目，防止长时间运行导致内存溢出。
  */
 
 import { create } from 'zustand';
@@ -355,121 +361,122 @@ export const useAIStore = create<AIState>((set, get) => ({
     } = get();
 
     try {
-    // 1. 添加用户消息
-    const userMsg: ChatMessage = {
-      id: `user-${generateUniqueId()}`,
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-    };
-    addMessage(userMsg);
+      // 1. 添加用户消息
+      const userMsg: ChatMessage = {
+        id: `user-${generateUniqueId()}`,
+        role: 'user',
+        content,
+        timestamp: Date.now(),
+      };
+      addMessage(userMsg);
 
-    // 2. 创建空的 assistant 消息（流式占位）
-    const assistantMsg: ChatMessage = {
-      id: `assistant-${generateUniqueId()}`,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      isStreaming: true,
-    };
-    addMessage(assistantMsg);
-    setIsStreaming(true);
+      // 2. 创建空的 assistant 消息（流式占位）
+      const assistantMsg: ChatMessage = {
+        id: `assistant-${generateUniqueId()}`,
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        isStreaming: true,
+      };
+      addMessage(assistantMsg);
+      setIsStreaming(true);
 
-    // 3. 获取响应文本分块（优先上下文感知，回退到固定模拟）
-    const chunks = getResponseChunks(activeProvider, content);
+      // 3. 获取响应文本分块（优先上下文感知，回退到固定模拟）
+      const chunks = getResponseChunks(activeProvider, content);
 
-    // 4. 流式输出：产生 EngineStreamEvent 事件（8 类别体系）
-    let fullContent = '';
-    const startTime = Date.now();
+      // 4. 流式输出：产生 EngineStreamEvent 事件（8 类别体系）
+      let fullContent = '';
+      const startTime = Date.now();
 
-    // 流开始事件
-    addStreamEvent({
-      type: 'ENGINE_START',
-      type_name: 'AI 流开始',
-      color: '#3fb950',
-      category: 'engine',
-      timestamp_ms: Date.now(),
-      step: 0,
-      total_steps: chunks.length,
-      node_id: -1,
-      constraint_id: -1,
-      rule_id: -1,
-      var_id: -1,
-      description: 'AI stream started / AI 流开始',
-      detail: null,
-      progress: 0,
-      numeric_value: 0,
-      graph_snapshot: null,
-    });
-    incrementStreamFilterCount('engine');
-
-    // 逐块输出
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      if (chunk === undefined || chunk === null) continue;
-
-      await new Promise<void>((resolve) => setTimeout(resolve, 30 + Math.random() * 50));
-      fullContent += chunk;
-      updateLastAssistantMessage(fullContent);
-
+      // 流开始事件
       addStreamEvent({
-        type: 'PROGRESS',
-        type_name: '生成中',
-        color: '#58a6ff',
-        category: 'info',
+        type: 'ENGINE_START',
+        type_name: 'AI 流开始',
+        color: '#3fb950',
+        category: 'engine',
         timestamp_ms: Date.now(),
-        step: i + 1,
+        step: 0,
         total_steps: chunks.length,
         node_id: -1,
         constraint_id: -1,
         rule_id: -1,
         var_id: -1,
-        description: `Chunk ${i + 1}/${chunks.length} / 块 ${i + 1}/${chunks.length}`,
+        description: 'AI stream started / AI 流开始',
         detail: null,
-        progress: (i + 1) / chunks.length,
+        progress: 0,
         numeric_value: 0,
         graph_snapshot: null,
       });
-      incrementStreamFilterCount('info');
-    }
+      incrementStreamFilterCount('engine');
 
-    // 流完成事件
-    addStreamEvent({
-      type: 'ENGINE_DONE',
-      type_name: 'AI 流完成',
-      color: '#3fb950',
-      category: 'engine',
-      timestamp_ms: Date.now(),
-      step: chunks.length,
-      total_steps: chunks.length,
-      node_id: -1,
-      constraint_id: -1,
-      rule_id: -1,
-      var_id: -1,
-      description: `AI response complete (${((Date.now() - startTime) / 1000).toFixed(1)}s) / AI 回复完成`,
-      detail: null,
-      progress: 1.0,
-      numeric_value: Date.now() - startTime,
-      graph_snapshot: null,
-    });
-    incrementStreamFilterCount('engine');
+      // 逐块输出
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        if (chunk === undefined || chunk === null) continue;
 
-    // 5. 完成流式输出
-    updateLastAssistantMessage(fullContent);
+        await new Promise<void>((resolve) => setTimeout(resolve, 30 + Math.random() * 50));
+        fullContent += chunk;
+        updateLastAssistantMessage(fullContent);
 
-    // 清除流式标记（将 assistant 消息的 isStreaming 设为 false）
-    set((state) => {
-      const msgs = [...state.chatMessages];
-      for (let i = msgs.length - 1; i >= 0; i--) {
-        const msg = msgs[i];
-        if (msg && msg.role === 'assistant') {
-          msgs[i] = { ...msg, isStreaming: false };
-          break;
-        }
+        addStreamEvent({
+          type: 'PROGRESS',
+          type_name: '生成中',
+          color: '#58a6ff',
+          category: 'info',
+          timestamp_ms: Date.now(),
+          step: i + 1,
+          total_steps: chunks.length,
+          node_id: -1,
+          constraint_id: -1,
+          rule_id: -1,
+          var_id: -1,
+          description: `Chunk ${i + 1}/${chunks.length} / 块 ${i + 1}/${chunks.length}`,
+          detail: null,
+          progress: (i + 1) / chunks.length,
+          numeric_value: 0,
+          graph_snapshot: null,
+        });
+        incrementStreamFilterCount('info');
       }
-      return { chatMessages: msgs };
-    });
+
+      // 流完成事件
+      addStreamEvent({
+        type: 'ENGINE_DONE',
+        type_name: 'AI 流完成',
+        color: '#3fb950',
+        category: 'engine',
+        timestamp_ms: Date.now(),
+        step: chunks.length,
+        total_steps: chunks.length,
+        node_id: -1,
+        constraint_id: -1,
+        rule_id: -1,
+        var_id: -1,
+        description: `AI response complete (${((Date.now() - startTime) / 1000).toFixed(1)}s) / AI 回复完成`,
+        detail: null,
+        progress: 1.0,
+        numeric_value: Date.now() - startTime,
+        graph_snapshot: null,
+      });
+      incrementStreamFilterCount('engine');
+
+      // 5. 完成流式输出
+      updateLastAssistantMessage(fullContent);
+
+      // 清除流式标记（将 assistant 消息的 isStreaming 设为 false）
+      set((state) => {
+        const msgs = [...state.chatMessages];
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          const msg = msgs[i];
+          if (msg && msg.role === 'assistant') {
+            msgs[i] = { ...msg, isStreaming: false };
+            break;
+          }
+        }
+        return { chatMessages: msgs };
+      });
     } finally {
+      // 无论成功或异常，都确保重置流式状态
       setIsStreaming(false);
     }
   },

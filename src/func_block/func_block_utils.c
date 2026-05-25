@@ -14,6 +14,12 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+/*
+ * 使用 extern 前向声明而非 #include "preset_common.h" 的原因：
+ * preset_common.h 与本文件所属头文件之间存在循环依赖关系，
+ * 直接包含会导致编译器报错。通过 extern 前向声明仅引入所需函数
+ * 的签名，既避免了循环依赖，又保持了编译隔离性。
+ */
 /* 前向声明：委托给 preset_common.c 中的主实现，避免循环依赖 */
 extern int *lv00_dup_int_array(const int *src, int count);
 

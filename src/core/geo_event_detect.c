@@ -480,7 +480,7 @@ int geo_event_register(Lv00EventDetector *detector, int event_id,
                 func = geodet_check_periodic;
                 break;
             default:
-                LV00_ERROR_SET(LV00_ERROR_INVALID_ARGUMENT,
+                LV00_ERROR_SET(LV00_ERROR_INVALID_PARAM,
                                "自定义事件LV00_EVENT_CUSTOM必须提供func参数");
                 return -1;
         }

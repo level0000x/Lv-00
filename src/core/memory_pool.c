@@ -343,7 +343,7 @@ bool lv00_pool_free(Lv00ObjectPool *pool, void *obj) {
     return true;
 }
 
-void lv00_pool_get_stats(const Lv00ObjectPool *pool,
+void lv00_pool_get_stats(Lv00ObjectPool *pool,
                          uint64_t *out_total_allocs,
                          uint64_t *out_total_frees,
                          size_t *out_current_used) {
@@ -351,14 +351,8 @@ void lv00_pool_get_stats(const Lv00ObjectPool *pool,
         return;
     }
 
-    /*
-     * 注意：由于参数为 const，此处需要通过 const_cast 获取锁。
-     * 已知限制：C 标准中 const 限定符与互斥锁操作的语义冲突，
-     * 此处通过强制转换解决，调用方应确保不会在持有 const 指针时
-     * 修改池的状态。
-     */
     if (pool->thread_safe) {
-        LV00_MUTEX_LOCK(((Lv00ObjectPool *)pool)->mutex);
+        LV00_MUTEX_LOCK(pool->mutex);
     }
 
     if (out_total_allocs) *out_total_allocs = pool->total_allocs;
@@ -366,7 +360,7 @@ void lv00_pool_get_stats(const Lv00ObjectPool *pool,
     if (out_current_used) *out_current_used = pool->current_used;
 
     if (pool->thread_safe) {
-        LV00_MUTEX_UNLOCK(((Lv00ObjectPool *)pool)->mutex);
+        LV00_MUTEX_UNLOCK(pool->mutex);
     }
 }
 
@@ -963,6 +957,12 @@ void lv00_mem_get_global_stats(Lv00MemoryStats *stats) {
 void lv00_mem_reset_stats(void) {
     ensure_stats_init();
     LV00_MUTEX_LOCK(g_stats_mutex);
+    /* 释放已注册类型的名称字符串，防止内存泄漏 */
+    for (int i = 0; i < g_global_stats.type_count; i++) {
+        if (g_global_stats.types[i].name) {
+            lv00_free((void **)&g_global_stats.types[i].name);
+        }
+    }
     memset(&g_global_stats, 0, sizeof(Lv00MemoryStats));
     LV00_MUTEX_UNLOCK(g_stats_mutex);
 }

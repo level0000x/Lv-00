@@ -13,16 +13,10 @@
  * - 解析 / 渲染操作按钮
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Panel from '../Panel';
-import { useAppStore } from '@/stores';
 import { parseFormula } from '@/utils/formulaParser';
-import { MAX_PANEL_LOG_ENTRIES } from '@/utils/constants';
-import { generateUniqueId } from '@/utils/idGenerator';
 import type { FormulaSyntax } from '@/types';
-
-/** 日志截断长度 / Max characters to show for formula input in log messages */
-const LOG_TRUNCATE_LENGTH = 50;
 
 /** 实时预览结果类型 */
 interface PreviewResult {
@@ -59,12 +53,6 @@ interface FormulaInputProps {
   setFormulaInput: (value: string) => void;
   /** 设置语法模式的回调 */
   setFormulaSyntax: (value: FormulaSyntax) => void;
-  /** 添加 Toast 提示的回调 */
-  addToast: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
-  /** 追加日志的回调 */
-  appendLog: (message: string, level: string) => void;
-  /** 追加面板日志的回调 */
-  setLogEntries: React.Dispatch<React.SetStateAction<Array<{ time: string; msg: string; id: string }>>>;
   /** 解析公式回调 */
   onParse: () => void;
   /** 渲染公式回调 */
@@ -83,9 +71,6 @@ const FormulaInput: React.FC<FormulaInputProps> = ({
   formulaSyntax,
   setFormulaInput,
   setFormulaSyntax,
-  addToast,
-  appendLog,
-  setLogEntries,
   onParse,
   onRender,
   onSolve,

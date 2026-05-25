@@ -1,10 +1,16 @@
 /**
  * @module components/panels/ConstraintGraphPanel
- * @description FRONTIER-style standalone constraint graph visualization panel.
+ * @description FRONTIER 风格的独立约束图可视化面板。
+ *              使用 Canvas 渲染交互式力导向节点-链接图，
+ *              提供与主画布的双向链接。
+ *
+ *              FRONTIER-style standalone constraint graph visualization panel.
  *              Renders the constraint graph as an interactive force-directed
  *              node-link diagram using Canvas-based rendering in a sidebar panel.
  *              Provides bidirectional linking with the main canvas.
- *              FRONTIER 风格的独立约束图可视化面板。
+ *
+ *              力导向布局算法已提取到 utils/ 目录：
+ *              - forceLayout.ts: Coulomb 斥力 + 弹簧引力模拟
  */
 
 import React, {
@@ -23,6 +29,9 @@ import {
 } from '@/utils/geometryAlgorithms';
 import type { Point, ConstraintType } from '@/types';
 import Panel from './Panel';
+
+// ---- 提取的工具模块 / Extracted utility modules ----
+import { stepSimulation, initLayout, DEFAULT_SIM_PARAMS } from './utils/forceLayout';
 
 // ================================================================
 // Types / 类型
@@ -90,17 +99,6 @@ const EDGE_COLORS: Record<ConstraintType, string> = {
 
 const NODE_RADIUS = 14;
 const CANVAS_HEIGHT = 250;
-
-const SIM = {
-  REPULSION: 4000,
-  ATTRACTION: 0.006,
-  DAMPING: 0.85,
-  CENTER_FORCE: 0.003,
-  REST_LENGTH: 100,
-  MIN_DIST: 8,
-  ITERATIONS: 50,
-  STABILIZE_THRESHOLD: 0.5,
-} as const;
 
 const MERGE_DISTANCE_THRESHOLD = 15;
 
@@ -204,101 +202,6 @@ function buildGraph(
   }
 
   return { nodes, edges };
-}
-
-// ================================================================
-// Force-Directed Layout / 力导向布局
-// ================================================================
-
-/**
- * Initialize node positions in a circle.
- */
-function initLayout(nodes: GraphNode[], canvasW: number, canvasH: number): void {
-  const cx = canvasW / 2;
-  const cy = canvasH / 2;
-  const radius = Math.min(canvasW, canvasH) * 0.35;
-
-  if (nodes.length === 1) {
-    nodes[0]!.x = cx;
-    nodes[0]!.y = cy;
-    return;
-  }
-
-  for (let i = 0; i < nodes.length; i++) {
-    const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
-    nodes[i]!.x = cx + Math.cos(angle) * radius + (Math.random() - 0.5) * 20;
-    nodes[i]!.y = cy + Math.sin(angle) * radius + (Math.random() - 0.5) * 20;
-  }
-}
-
-/**
- * Run one step of Coulomb repulsion + spring attraction on the graph.
- * Returns the maximum velocity magnitude (for convergence check).
- */
-function stepSimulation(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  canvasW: number,
-  canvasH: number,
-): number {
-  const n = nodes.length;
-  const cx = canvasW / 2;
-  const cy = canvasH / 2;
-
-  // Accumulated forces
-  const fx = new Float64Array(n);
-  const fy = new Float64Array(n);
-
-  // Coulomb repulsion between all node pairs
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const a = nodes[i]!;
-      const b = nodes[j]!;
-      let dx = a.x - b.x;
-      let dy = a.y - b.y;
-      const dist = Math.max(SIM.MIN_DIST, Math.sqrt(dx * dx + dy * dy));
-      const force = SIM.REPULSION / (dist * dist);
-      const fdx = (dx / dist) * force;
-      const fdy = (dy / dist) * force;
-      fx[i] = (fx[i] ?? 0) + fdx; fy[i] = (fy[i] ?? 0) + fdy;
-      fx[j] = (fx[j] ?? 0) - fdx; fy[j] = (fy[j] ?? 0) - fdy;
-    }
-  }
-
-  // Spring attraction along edges
-  for (const e of edges) {
-    const si = nodes.findIndex((nd) => nd.id === e.source);
-    const ti = nodes.findIndex((nd) => nd.id === e.target);
-    if (si === -1 || ti === -1 || si === ti) continue;
-    const a = nodes[si]!;
-    const b = nodes[ti]!;
-    let dx = b.x - a.x;
-    let dy = b.y - a.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < SIM.MIN_DIST) continue;
-    const force = SIM.ATTRACTION * (dist - SIM.REST_LENGTH);
-    const fdx = (dx / dist) * force;
-    const fdy = (dy / dist) * force;
-    fx[si] = (fx[si] ?? 0) + fdx; fy[si] = (fy[si] ?? 0) + fdy;
-    fx[ti] = (fx[ti] ?? 0) - fdx; fy[ti] = (fy[ti] ?? 0) - fdy;
-  }
-
-  // Apply forces with damping + centering
-  let maxV = 0;
-  for (let i = 0; i < n; i++) {
-    const node = nodes[i]!;
-    node.vx = (node.vx + fx[i]! + (cx - node.x) * SIM.CENTER_FORCE) * SIM.DAMPING;
-    node.vy = (node.vy + fy[i]! + (cy - node.y) * SIM.CENTER_FORCE) * SIM.DAMPING;
-    node.x += node.vx;
-    node.y += node.vy;
-    // Clamp to canvas bounds
-    node.x = Math.max(NODE_RADIUS, Math.min(canvasW - NODE_RADIUS, node.x));
-    node.y = Math.max(NODE_RADIUS, Math.min(canvasH - NODE_RADIUS, node.y));
-    const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
-    if (speed > maxV) maxV = speed;
-  }
-
-  return maxV;
 }
 
 // ================================================================
@@ -691,12 +594,12 @@ const ConstraintGraphPanel: React.FC = () => {
         return;
       }
 
-      const maxV = stepSimulation(simNodes, edges, canvasW, canvasH);
+      const maxV = stepSimulation(simNodes, edges, canvasW, canvasH, NODE_RADIUS, DEFAULT_SIM_PARAMS);
       iter++;
 
       const done =
-        iter >= SIM.ITERATIONS ||
-        (iter >= 30 && maxV < SIM.STABILIZE_THRESHOLD);
+        iter >= DEFAULT_SIM_PARAMS.ITERATIONS ||
+        (iter >= 30 && maxV < DEFAULT_SIM_PARAMS.STABILIZE_THRESHOLD);
 
       if (!done) {
         animRef.current = requestAnimationFrame(step);

@@ -5,6 +5,12 @@
  *              select, point, segment, pan, region, and probe.
  *              Keyboard shortcuts are managed by hooks/useKeyboard.ts.
  *              This class has NO React or framework dependencies.
+ *
+ *              与框架无关的几何画布交互管理器。
+ *              处理鼠标、触摸和滚轮事件，支持以下工具：
+ *              选择、加点、线段、平移、区域和探针。
+ *              键盘快捷键由 hooks/useKeyboard.ts 统一管理。
+ *              本类无 React 或框架依赖。
  */
 
 import type { ViewportState } from '@/engine/renderer';
@@ -150,24 +156,29 @@ export class InteractionManager {
     // 键盘事件已移除：统一由 hooks/useKeyboard.ts 管理，避免双重注册
   };
 
-  /** Internal drag state */
+  /** 内部拖拽状态 / Internal drag state */
   private isDragging = false;
+  /** 拖拽起始时的屏幕坐标 / Screen coordinates at drag start */
   private dragStartScreen: { x: number; y: number } | null = null;
+  /** 拖拽起始时的视口偏移量 / Viewport offset at drag start */
   private dragStartOffset: { x: number; y: number } | null = null;
 
-  /** Internal point drag state */
+  /** 内部点拖拽状态 / Internal point drag state */
   private isDraggingPoint = false;
+  /** 当前正在拖拽的点 / The point currently being dragged */
   private dragPoint: Point | null = null;
 
-  /** Internal box selection state */
+  /** 内部框选状态 / Internal box selection state */
   private isBoxSelecting = false;
+  /** 框选起始时的屏幕坐标 / Screen coordinates at box selection start */
   private boxSelectStartScreen: { x: number; y: number } | null = null;
 
   /** 圆规工具状态 / Compass tool state */
   private compassCenter: Point | null = null;
 
-  /** Throttle tracking */
+  /** 鼠标移动节流追踪 / Mouse move throttle tracking */
   private lastMouseMoveTime = 0;
+  /** 鼠标移动节流间隔（毫秒）/ Mouse move throttle interval (ms) */
   private mouseMoveThrottleMs = MOUSE_MOVE_THROTTLE_MS;
 
   constructor(canvas: HTMLCanvasElement, callbacks: InteractionCallbacks) {
@@ -233,6 +244,16 @@ export class InteractionManager {
   // Mouse Events / 鼠标事件
   // ================================================================
 
+  /**
+   * 鼠标按下事件处理
+   * 根据当前工具类型分发到不同的交互逻辑：
+   * - point: 在点击位置添加新点
+   * - segment: 选择两个点连线
+   * - compass: 圆规工具（两次点击画圆）
+   * - pan: 开始平移画布
+   * - select: 开始拖拽点或框选
+   * - region: 添加区域顶点
+   */
   private onMouseDown(e: MouseEvent): void {
     e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
@@ -375,6 +396,10 @@ export class InteractionManager {
     this.callbacks.requestRender();
   }
 
+  /**
+   * 鼠标移动事件处理（带节流）
+   * 更新鼠标坐标、处理拖拽平移/点拖拽/框选、更新悬停点和光标样式
+   */
   private onMouseMove(e: MouseEvent): void {
     const now = performance.now();
     if (now - this.lastMouseMoveTime < this.mouseMoveThrottleMs) return;
@@ -430,6 +455,10 @@ export class InteractionManager {
     this.callbacks.requestRender();
   }
 
+  /**
+   * 鼠标释放事件处理
+   * 结束所有拖拽/框选状态，恢复光标样式
+   */
   private onMouseUp(_e: MouseEvent): void {
     // End panning
     if (this.isDragging) {
@@ -457,6 +486,10 @@ export class InteractionManager {
     this.updateCursor(this.callbacks.getTool());
   }
 
+  /**
+   * 鼠标离开画布事件处理
+   * 清除悬停点状态并触发重绘
+   */
   private onMouseLeave(_e: MouseEvent): void {
     this.callbacks.setHoveredPoint(null);
     this.callbacks.requestRender();
@@ -466,6 +499,10 @@ export class InteractionManager {
   // Wheel Zoom / 滚轮缩放
   // ================================================================
 
+  /**
+   * 滚轮缩放事件处理
+   * 向上滚动放大，向下滚动缩小，缩放范围受 SCALE_MIN/SCALE_MAX 限制
+   */
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
     const vp = this.callbacks.getViewport();
@@ -479,6 +516,10 @@ export class InteractionManager {
   // Context Menu / 右键菜单
   // ================================================================
 
+  /**
+   * 右键菜单事件处理
+   * 检测点击位置的点和线段，显示对应的上下文菜单
+   */
   private onContextMenu(e: MouseEvent): void {
     e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
@@ -501,6 +542,10 @@ export class InteractionManager {
   // Touch Events / 触摸事件
   // ================================================================
 
+  /**
+   * 触摸开始事件处理
+   * 单指触摸模拟鼠标按下事件
+   */
   private onTouchStart(e: TouchEvent): void {
     e.preventDefault();
     if (e.touches.length === 1) {
@@ -516,6 +561,10 @@ export class InteractionManager {
     }
   }
 
+  /**
+   * 触摸移动事件处理
+   * 单指触摸模拟鼠标移动事件
+   */
   private onTouchMove(e: TouchEvent): void {
     e.preventDefault();
     if (e.touches.length === 1) {
@@ -528,6 +577,10 @@ export class InteractionManager {
     }
   }
 
+  /**
+   * 触摸结束事件处理
+   * 模拟鼠标释放事件
+   */
   private onTouchEnd(_e: TouchEvent): void {
     const mouseEvent = new MouseEvent('mouseup', { button: 0 });
     this.onMouseUp(mouseEvent);
@@ -551,7 +604,8 @@ export class InteractionManager {
   // ================================================================
 
   /**
-   * Update the canvas cursor based on the current tool
+   * 根据当前工具更新画布光标样式
+   * 拖拽中显示 'grabbing'，否则根据工具类型显示对应光标
    */
   private updateCursor(tool: ToolType): void {
     if (this.isDragging || this.isDraggingPoint) {

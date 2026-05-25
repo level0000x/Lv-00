@@ -23,10 +23,7 @@ Lv-00 引擎模块
 import ctypes
 import logging
 import os
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
-
-if TYPE_CHECKING:
-    pass  # Lv00BaseError 现在在运行时导入
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import Lv00BaseError
 

@@ -180,6 +180,9 @@ bool measure_system_add(MeasureSystem *ms, Measure *m) {
         /* 检查容量扩大的乘法是否会导致整数溢出 */
         if (ms->measure_capacity > 0 && ms->measure_capacity > INT_MAX / 2) return false;
         int new_cap = ms->measure_capacity == 0 ? MEASURE_INITIAL_CAPACITY : ms->measure_capacity * 2;
+        if ((size_t)new_cap > SIZE_MAX / sizeof(Measure *)) {
+            return false;
+        }
         Measure **new_arr = lv00_realloc(ms->measures, (size_t) new_cap * sizeof(Measure *));
         if (!new_arr)
             return false;

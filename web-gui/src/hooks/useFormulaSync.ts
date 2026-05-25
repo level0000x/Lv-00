@@ -13,7 +13,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '@/stores';
 import { generateDSLFromGeometry } from '@/utils/formulaParser';
-import type { Point, Segment, Constraint } from '@/types';
 
 /**
  * useFormulaSync - 公式双向同步 Hook

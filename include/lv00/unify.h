@@ -139,7 +139,8 @@ UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGr
  *   如果缓冲区过小，函数行为未定义（可能越界写入）。
  *   建议在调用前检查端口数并分配足够的缓冲区，或传入 NULL 以仅获取匹配计数。
  */
-int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition, int *out_port_bindings);
+int unify_match_ports(const ConstraintGraph *construction, const ConstraintGraph *proposition,
+                      int *out_port_bindings, int max_bindings);
 
 /**
  * @brief 单独执行约束匹配

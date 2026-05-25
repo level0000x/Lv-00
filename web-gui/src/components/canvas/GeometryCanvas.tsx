@@ -11,7 +11,6 @@ import { useAppStore } from '@/stores';
 import { Renderer, type ViewportState, type RendererConfig } from '@/engine/renderer';
 import { InteractionManager, type InteractionCallbacks } from '@/engine/interaction';
 import { HIT_THRESHOLD } from '@/utils/constants';
-import { throttle } from '@/utils/debounce';
 import type { Point, Segment } from '@/types';
 import CanvasToolbar from './CanvasToolbar';
 import CanvasOverlay from './CanvasOverlay';
@@ -20,8 +19,23 @@ import CanvasInfo from './CanvasInfo';
 /**
  * 计算点到线段的最短距离（屏幕坐标）
  * 用于右键菜单的线段拾取
- * Calculate the shortest distance from a point to a segment (screen coordinates)
- * Used for segment picking in the context menu
+ *
+ * 算法：将点投影到线段上，计算投影点与原点的距离。
+ * 如果投影点落在线段外，则取到最近端点的距离。
+ *
+ * Calculate the shortest distance from a point to a segment (screen coordinates).
+ * Used for segment picking in the context menu.
+ *
+ * Algorithm: Project the point onto the line segment and compute the distance.
+ * If the projection falls outside the segment, use the distance to the nearest endpoint.
+ *
+ * @param px - 点的 X 坐标
+ * @param py - 点的 Y 坐标
+ * @param x1 - 线段起点 X
+ * @param y1 - 线段起点 Y
+ * @param x2 - 线段终点 X
+ * @param y2 - 线段终点 Y
+ * @returns 点到线段的最短距离
  */
 function pointToSegmentDist(
   px: number, py: number,
@@ -49,9 +63,13 @@ function pointToSegmentDist(
  * framework-agnostic engine classes and React state management.
  */
 const GeometryCanvas: React.FC = () => {
+  /** Canvas DOM 元素引用 */
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** 渲染引擎实例引用 */
   const rendererRef = useRef<Renderer | null>(null);
+  /** requestAnimationFrame ID，用于取消待执行的渲染帧 */
   const rafIdRef = useRef<number>(0);
+  /** 渲染函数引用，用于在 InteractionManager 回调中触发最新渲染 */
   const doRenderRef = useRef<() => void>(() => {});
 
   // Store selectors

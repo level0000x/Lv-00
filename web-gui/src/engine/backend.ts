@@ -118,6 +118,10 @@ export class JsBackend implements IBackend {
   /** Auto-incrementing constraint ID / 自增约束 ID */
   private nextConstraintId = 0;
 
+  /**
+   * 创建新的空约束图，返回图句柄
+   * Create a new empty constraint graph, returns the graph handle
+   */
   graphCreate(): number {
     const handle = this.nextGraphHandle++;
     this.graphs.set(handle, {
@@ -128,10 +132,18 @@ export class JsBackend implements IBackend {
     return handle;
   }
 
+  /**
+   * 销毁约束图并释放关联的内存资源
+   * Destroy a constraint graph and free associated memory resources
+   */
   graphDestroy(graphHandle: number): void {
     this.graphs.delete(graphHandle);
   }
 
+  /**
+   * 向图中添加一个新点，返回新分配的点 ID
+   * 如果图句柄无效则返回 -1
+   */
   graphAddPoint(graphHandle: number, x: number, y: number): number {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return -1;
@@ -141,12 +153,20 @@ export class JsBackend implements IBackend {
     return id;
   }
 
+  /**
+   * 按 ID 从图中移除点
+   * @returns 是否成功移除（图不存在或点不存在返回 false）
+   */
   graphRemovePoint(graphHandle: number, pointId: number): boolean {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return false;
     return graph.points.delete(pointId);
   }
 
+  /**
+   * 在两点之间添加线段，返回新分配的线段 ID
+   * 不允许自环（p1 === p2 时返回 -1）
+   */
   graphAddLineSegment(graphHandle: number, p1: number, p2: number): number {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return -1;
@@ -157,12 +177,19 @@ export class JsBackend implements IBackend {
     return id;
   }
 
+  /**
+   * 按 ID 移除线段
+   * @returns 是否成功移除
+   */
   graphRemoveLineSegment(graphHandle: number, segmentId: number): boolean {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return false;
     return graph.segments.delete(segmentId);
   }
 
+  /**
+   * 添加关联约束（点在线段上），返回约束 ID
+   */
   graphAddIncidence(graphHandle: number, pointId: number, segmentId: number): number {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return -1;
@@ -171,6 +198,9 @@ export class JsBackend implements IBackend {
     return id;
   }
 
+  /**
+   * 添加介于约束（点 B 介于点 A 和点 C 之间），返回约束 ID
+   */
   graphAddBetweenness(graphHandle: number, a: number, b: number, c: number): number {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return -1;
@@ -179,6 +209,9 @@ export class JsBackend implements IBackend {
     return id;
   }
 
+  /**
+   * 添加相交约束（两线段相交），返回约束 ID
+   */
   graphAddIntersection(graphHandle: number, seg1: number, seg2: number): number {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return -1;
@@ -187,6 +220,9 @@ export class JsBackend implements IBackend {
     return id;
   }
 
+  /**
+   * 添加包含约束（内部元素包含于外部元素），返回约束 ID
+   */
   graphAddContainment(graphHandle: number, inner: number, outer: number): number {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return -1;
@@ -229,6 +265,15 @@ export class JsBackend implements IBackend {
     return true;
   }
 
+  /**
+   * 查找距离极近的点对作为合并候选
+   * 使用 MERGE_DISTANCE_THRESHOLD 作为判定阈值（从 @/utils/constants 导入）
+   * 时间复杂度 O(n^2)，适用于中小规模图
+   *
+   * Find point pairs that are extremely close as merge candidates.
+   * Uses MERGE_DISTANCE_THRESHOLD from @/utils/constants.
+   * Time complexity O(n^2), suitable for small-to-medium graphs.
+   */
   graphFindMergeCandidates(graphHandle: number): Array<{ a: number; b: number }> {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return [];
@@ -304,6 +349,18 @@ export class JsBackend implements IBackend {
     return [];
   }
 
+  /**
+   * 计算图的自由度（简化公式）
+   * DOF = 2 * 点数 - 约束数
+   *
+   * 【注意】此为简化计算，未考虑约束的秩和线性依赖关系。
+   * 精确的自由度计算需要 WASM 后端的支持。
+   *
+   * Calculate degrees of freedom (simplified formula).
+   * Note: This is a simplified calculation that does not account for
+   * constraint rank and linear dependencies. Use the WASM backend
+   * for accurate DOF computation.
+   */
   graphDegreesOfFreedom(graphHandle: number): number {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return 0;
@@ -311,12 +368,31 @@ export class JsBackend implements IBackend {
     return 2 * graph.points.size - graph.constraints.length;
   }
 
+  /**
+   * 约束拓扑排序（简化实现）
+   * 当前 JS 回退后端仅按约束添加顺序返回 ID 列表，
+   * 未执行真正的拓扑排序。完整实现需要 WASM 后端。
+   *
+   * Topological sort of constraints (simplified implementation).
+   * The JS fallback backend returns constraint IDs in insertion order.
+   * Use the WASM backend for proper topological sorting.
+   */
   graphTopologicalSort(graphHandle: number): number[] {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return [];
     return graph.constraints.map((c) => c.id);
   }
 
+  /**
+   * 计算图的哈希值（简化实现）
+   * 基于点数、线段数和约束数生成简单的哈希值，
+   * 用于快速比较两个图是否可能相同。
+   * 不保证无碰撞，精确哈希需要 WASM 后端。
+   *
+   * Compute a simple graph hash based on point/segment/constraint counts.
+   * This is a lightweight fingerprint for quick comparison, not collision-free.
+   * Use the WASM backend for cryptographic-quality graph hashing.
+   */
   graphHash(graphHandle: number): string {
     const graph = this.graphs.get(graphHandle);
     if (!graph) return '';
@@ -331,6 +407,15 @@ export class JsBackend implements IBackend {
     return Math.abs(hash).toString(16);
   }
 
+  /**
+   * 创建有理数坐标（简化实现）
+   * 直接返回 num/den 的浮点除法结果。
+   * WASM 后端会维护精确的有理数表示。
+   *
+   * Create a rational coordinate (simplified implementation).
+   * Returns the floating-point division result of num/den.
+   * The WASM backend maintains exact rational representations.
+   */
   coordCreateRational(num: number, den: number): number {
     // Simple rational representation as a single number
     return den !== 0 ? num / den : 0;

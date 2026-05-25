@@ -37,6 +37,13 @@ import argparse
 from typing import Optional, Callable, Any, Dict, List
 from ctypes import CDLL, CFUNCTYPE, c_void_p, c_int, c_long, c_double, c_char_p, POINTER, Structure
 
+# 重新导出 WebSocket 服务器组件（供 main() 和外部使用）
+from .ws_server import StreamBridgeServer, ClientSession, WEBSOCKETS_AVAILABLE
+try:
+    from .ws_server import serve
+except ImportError:
+    serve = None  # websockets 未安装时 serve 不可用
+
 # 日志配置：库模块不应调用 logging.basicConfig()，由使用方（应用入口）负责全局日志配置。
 logger = logging.getLogger('stream_bridge')
 
@@ -508,7 +515,7 @@ class EventPersistence:
             'file_path': self.file_path,
             'file_size_bytes': 0,
             'event_types': {},
-            'sessions': list(),
+            'sessions': set(),
             'time_range': [None, None],
         }
 
@@ -974,8 +981,3 @@ if __name__ == '__main__':
     main()
 
 
-# ================================================================
-# 重新导出 WebSocket 服务器组件
-# ================================================================
-
-from .ws_server import StreamBridgeServer, ClientSession, WEBSOCKETS_AVAILABLE

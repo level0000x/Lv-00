@@ -158,7 +158,7 @@
             /** @constant {number} 事件类型最小值（含 SSE 连接事件 -1）*/
             EVENT_TYPE_MIN: -1,
             /** @constant {number} 事件类型最大值 */
-            EVENT_TYPE_MAX: 38
+            EVENT_TYPE_MAX: 46
         },
 
         // ================================================================

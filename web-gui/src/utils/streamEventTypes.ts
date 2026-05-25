@@ -1,8 +1,8 @@
 /**
  * @module utils/streamEventTypes
- * @description 流式事件类型定义 / Stream event type definitions
+ * @description 流式事件类型定义。
  *
- * *** DEPRECATED (2026-05-24) ***
+ * *** 已废弃 (2026-05-24) ***
  * 本文件已被 @/types/index.ts 中的 EngineEventType 枚举和
  * EngineStreamCategory 类型取代。
  *
@@ -18,46 +18,46 @@
  * 本文件保留仅为向后兼容，新代码请勿使用。
  */
 
-/** 流式事件类别 / Stream event category */
+/** 流式事件类别 */
 export type StreamEventCategory = 'info' | 'step' | 'result' | 'error' | 'warning' | 'debug';
 
-/** 流式事件类型枚举 / Stream event type enum */
+/** 流式事件类型枚举 */
 export enum StreamEventType {
-  /** 引擎启动 / Engine started */
+  /** 引擎启动 */
   ENGINE_START = 0,
-  /** 求解开始 / Solve started */
+  /** 求解开始 */
   SOLVE_START = 1,
-  /** 求解步骤 / Solve step */
+  /** 求解步骤 */
   SOLVE_STEP = 2,
-  /** 求解完成 / Solve completed */
+  /** 求解完成 */
   SOLVE_DONE = 3,
-  /** 约束添加 / Constraint added */
+  /** 约束添加 */
   CONSTRAINT_ADD = 4,
-  /** 约束满足 / Constraint satisfied */
+  /** 约束满足 */
   CONSTRAINT_SAT = 5,
-  /** 约束冲突 / Constraint conflict */
+  /** 约束冲突 */
   CONSTRAINT_FAIL = 6,
-  /** 归一化开始 / Normalization started */
+  /** 归一化开始 */
   NORM_START = 7,
-  /** 归一化完成 / Normalization completed */
+  /** 归一化完成 */
   NORM_DONE = 8,
-  /** 证明开始 / Proof started */
+  /** 证明开始 */
   PROOF_START = 9,
-  /** 证明步骤 / Proof step */
+  /** 证明步骤 */
   PROOF_STEP = 10,
-  /** 证明完成 / Proof completed */
+  /** 证明完成 */
   PROOF_DONE = 11,
-  /** 错误 / Error */
+  /** 错误 */
   ERROR = 12,
-  /** 警告 / Warning */
+  /** 警告 */
   WARNING = 13,
-  /** 调试信息 / Debug info */
+  /** 调试信息 */
   DEBUG = 14,
-  /** 系统信息 / System info */
+  /** 系统信息 */
   SYSTEM = 15,
-  /** 流开始 / Stream started */
+  /** 流开始 */
   STREAM_START = 16,
-  /** 流结束 / Stream ended */
+  /** 流结束 */
   STREAM_END = 17,
 }
 

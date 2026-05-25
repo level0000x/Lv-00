@@ -18,12 +18,6 @@
 const DANGEROUS_TAGS = ['script', 'iframe', 'object', 'embed', 'applet', 'form'];
 
 /**
- * 需要移除的事件处理器属性前缀。
- * 所有以 on 开头的属性都可能是事件处理器，存在 XSS 风险。
- */
-const EVENT_HANDLER_PREFIX = 'on';
-
-/**
  * 对 HTML 内容进行消毒处理，移除潜在的 XSS 攻击向量。
  *
  * 处理步骤：

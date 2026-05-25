@@ -493,14 +493,13 @@ bool preset_basic_math_get_names(char ***out_names, int *out_count) {
         if (names[i] == NULL) {
             /* 释放已分配的内存 */
             for (int j = 0; j < i; j++) {
-                {
-                    void *tmp = names[j];
-                    lv00_free((void **) &tmp);
-                }
+                char *p = names[j];
+                lv00_free((void **)&p);
+                names[j] = NULL;
             }
             {
-                void *tmp = names;
-                lv00_free((void **) &tmp);
+                char *p = names;
+                lv00_free((void **)&p);
             }
             return false;
         }

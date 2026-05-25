@@ -63,7 +63,7 @@ static bool register_advanced_geometry_preset(const char *name, const char *desc
                                               (rev))) {                                                               \
             success_count++;                                                                                          \
         } else {                                                                                                      \
-            /* PRESET_ERROR_LOG("注册预设失败: %s", (name)); */                                                       \
+            PRESET_ERROR_LOG("注册预设失败: %s", (name));                                                       \
         }                                                                                                             \
     } while (0)
 

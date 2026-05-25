@@ -8,6 +8,11 @@
  *
  *              本模块禁止使用 `!` 非空断言操作符，所有数组/Record 访问
  *              均通过 `if` 守卫或空值合并提供安全回退，避免运行时崩溃。
+ *
+ *              支持三种 AI 响应模式：
+ *              1. 模拟响应（默认）：使用 buildContextualResponse 生成上下文感知的回复
+ *              2. 真实 API（SSE）：通过 createRealAPIClient 连接 OpenAI 兼容端点
+ *              3. WebSocket：通过 WebSocketAIClient 连接 WebSocket 服务端
  */
 
 import type { StreamingEvent } from '@/types';
@@ -21,8 +26,16 @@ import { AI_SIMULATED_DELAY_MIN, AI_SIMULATED_DELAY_MAX } from '@/utils/constant
  * 根据用户输入关键词，动态构建上下文感知的结构化响应。
  * 根据语言（中文/英文）生成双语友好的回复内容。
  *
+ * 匹配规则：
+ * - 约束系统：constraint/约束/incidence/关联/betweenness/介值/intersection/相交/containment/包含
+ * - 求解器：solve/求解/equation/方程/groebner
+ * - 规范化：normalize/规范化/merge/合并/归一化
+ * - 公式：formula/公式/latex/parse/解析/render/渲染
+ * - 代码：code/代码/example/示例/python/function/函数
+ * - 架构：architecture/架构/design/设计/module/模块
+ *
  * @param query - 用户输入的消息
- * @returns 响应文本分块数组
+ * @returns 响应文本分块数组（至少包含标题和结语，保证非空）
  */
 export function buildContextualResponse(query: string): string[] {
   const chunks: string[] = [];
@@ -93,7 +106,7 @@ export function buildContextualResponse(query: string): string[] {
   /* 架构关键词 */
   if (/architecture|架构|design|设计|module|模块/i.test(query)) {
     chunks.push(isChinese
-      ? '### 系统架构\n\n```\n[Python API] ↔ [ctypes 绑定] ↔ [C 共享库]\n                                  ↕\n[React GUI]  ↔ [Tauri/Rust]  ↔ [GMP 任意精度库]\n```\n\n核心模块：符号坐标 → 约束图 → 规范化 → 求解/重写 → 合/证明\n\n'
+      ? '### 系统架构\n\n```\n[Python API] ↔ [ctypes 绑定] ↔ [C 共享库]\n                                  ↕\n[React GUI]  ↔ [Tauri/Rust]  ↔ [GMP 任意精度库]\n```\n\n核心模块：符号坐标 → 约束图 → 规范化 → 求解/重写 → 合一/证明\n\n'
       : '### System Architecture\n\n```\n[Python API] ↔ [ctypes binding] ↔ [C Shared Lib]\n                                  ↕\n[React GUI]  ↔ [Tauri/Rust]   ↔ [GMP Arbitrary Precision]\n```\n\nCore pipeline: Symbolic Coord → Constraint Graph → Normalization → Solve/Rewrite → Unify/Proof\n\n');
   }
 
@@ -117,7 +130,7 @@ const FALLBACK_PROVIDER = 'openai' as const;
  * 获取固定模拟响应（按提供者回退）。
  * 当上下文感知响应无法匹配合适内容时，使用此回退响应。
  *
- * @param provider - AI 提供者 ID（如 'openai', 'claude', 'gemini'）
+ * @param provider - AI 提供者 ID（如 'openai', 'claude', 'gemini', 'deepseek', 'local'）
  * @returns 响应文本分块数组，保证非空（至少返回默认 openai 响应）
  */
 export function getFallbackResponse(provider: string): string[] {
@@ -184,7 +197,7 @@ export function getFallbackResponse(provider: string): string[] {
  *
  * @param provider - AI 提供者 ID
  * @param content - 用户消息内容
- * @returns 响应文本分块数组
+ * @returns 响应文本分块数组（保证非空）
  */
 export function getResponseChunks(provider: string, content: string): string[] {
   const contextualChunks = buildContextualResponse(content);
@@ -199,38 +212,32 @@ export function getResponseChunks(provider: string, content: string): string[] {
 /**
  * AI 客户端配置接口。
  * 存储连接到 OpenAI 兼容 API 端点所需的全部参数。
- *
- * AI client configuration interface.
- * Stores all parameters needed to connect to an OpenAI-compatible API endpoint.
  */
 export interface AIClientConfig {
-  /** API 端点 URL / API endpoint URL (e.g., "https://api.openai.com") */
+  /** API 端点 URL（如 "https://api.openai.com"） */
   endpoint: string;
-  /** API 密钥 / API key */
+  /** API 密钥（Bearer Token） */
   apiKey: string;
-  /** 模型名称 / Model name (e.g., "gpt-4o", "gpt-3.5-turbo") */
+  /** 模型名称（如 "gpt-4o", "gpt-3.5-turbo"） */
   modelName: string;
-  /** 最大生成 token 数 / Maximum tokens to generate */
+  /** 最大生成 token 数 */
   maxTokens: number;
-  /** 采样温度 (0-2) / Sampling temperature (0-2) */
+  /** 采样温度 (0-2)，值越高输出越随机 */
   temperature: number;
 }
 
 /**
  * 真实 API 客户端接口。
  * 定义与远程 AI 服务交互的标准方法签名。
- *
- * Real API client interface.
- * Defines the standard method signature for interacting with remote AI services.
  */
 export interface RealAPIClient {
   /**
    * 发送消息到 AI 服务并获取流式响应。
-   * Send a message to the AI service and receive streaming response.
    *
-   * @param content - 用户消息内容 / user message content
-   * @param onChunk - 每收到一个文本分块时调用的回调 / callback invoked for each text chunk received
-   * @returns 完整的响应文本 / complete response text
+   * @param content - 用户消息内容
+   * @param onChunk - 每收到一个文本分块时调用的回调
+   * @returns 完整的响应文本
+   * @throws 当 HTTP 请求失败或流处理出错时抛出异常
    */
   sendMessage(content: string, onChunk: (chunk: string) => void): Promise<string>;
 }
@@ -242,9 +249,8 @@ let realAPIConfig: AIClientConfig | null = null;
 
 /**
  * 检查当前是否使用真实 API。
- * Check whether the real API is currently active.
  *
- * @returns 如果已配置真实 API 则返回 true / true if real API config is set
+ * @returns 如果已配置真实 API 则返回 true
  */
 export function isUsingRealAPI(): boolean {
   return realAPIConfig !== null;
@@ -252,12 +258,9 @@ export function isUsingRealAPI(): boolean {
 
 /**
  * 设置或清除真实 API 配置。
- * Set or clear the real API configuration.
- *
  * 传入 null 可切换回模拟响应模式。
- * Pass null to switch back to simulated response mode.
  *
- * @param config - API 配置对象或 null / API configuration object or null
+ * @param config - API 配置对象或 null
  */
 export function setRealAPIConfig(config: AIClientConfig | null): void {
   realAPIConfig = config;
@@ -265,30 +268,27 @@ export function setRealAPIConfig(config: AIClientConfig | null): void {
 
 /**
  * 创建真实 API 客户端。
- * Create a real API client.
  *
  * 支持 OpenAI 兼容的 chat completions 端点，使用 SSE 流式传输。
  * 当 fetch 或流处理过程中发生错误时，抛出异常供上层回退处理。
  *
- * Supports OpenAI-compatible chat completions endpoint with SSE streaming.
- * Throws exceptions on fetch or stream processing errors for upper-level fallback handling.
- *
- * 实现细节 / Implementation details:
+ * 实现细节：
  * - POST /v1/chat/completions with stream: true
- * - 解析 SSE (Server-Sent Events) 数据流 / Parse SSE data stream
- * - 安全访问嵌套 JSON 属性，禁止 ! 非空断言 / Safe nested access, no ! assertions
- * - 保留不完整的行缓冲区以处理分片 / Preserve incomplete line buffer for chunked data
+ * - 解析 SSE (Server-Sent Events) 数据流
+ * - 安全访问嵌套 JSON 属性，禁止 ! 非空断言
+ * - 保留不完整的行缓冲区以处理 TCP 分片
+ * - 在异常路径上显式取消 reader，防止资源泄漏
  *
- * @param config - API 客户端配置 / API client configuration
- * @returns 具有 sendMessage 方法的客户端对象 / client object with sendMessage method
+ * @param config - API 客户端配置
+ * @returns 具有 sendMessage 方法的客户端对象
  */
 export function createRealAPIClient(config: AIClientConfig): RealAPIClient {
   return {
     async sendMessage(content: string, onChunk: (chunk: string) => void): Promise<string> {
-      // 构建请求 URL / Build request URL
+      // 构建请求 URL
       const url = `${config.endpoint}/v1/chat/completions`;
 
-      // 发起 fetch 请求 / Initiate fetch request
+      // 发起 fetch 请求
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -304,7 +304,7 @@ export function createRealAPIClient(config: AIClientConfig): RealAPIClient {
         }),
       });
 
-      // 检查 HTTP 状态 / Check HTTP status
+      // 检查 HTTP 状态
       if (!response.ok) {
         let errorDetail = '';
         try {
@@ -317,7 +317,7 @@ export function createRealAPIClient(config: AIClientConfig): RealAPIClient {
         );
       }
 
-      // 获取可读流 / Get readable stream
+      // 获取可读流
       const reader = response.body?.getReader();
       if (reader === null || reader === undefined) {
         throw new Error(
@@ -329,64 +329,73 @@ export function createRealAPIClient(config: AIClientConfig): RealAPIClient {
       let fullContent = '';
       let buffer = '';
 
-      // 循环读取流数据 / Loop reading stream data
-      while (true) {
-        const readResult = await reader.read();
-        const { done, value } = readResult;
-        if (done) {
-          break;
+      try {
+        // 循环读取流数据
+        while (true) {
+          const readResult = await reader.read();
+          const { done, value } = readResult;
+          if (done) {
+            break;
+          }
+
+          // 解码二进制数据并追加到缓冲区
+          if (value) {
+            buffer += decoder.decode(value, { stream: true });
+          }
+
+          // 按行分割 SSE 数据
+          const lines = buffer.split('\n');
+          // 保留最后一个不完整的行
+          const lastLine = lines.pop();
+          buffer = lastLine !== undefined ? lastLine : '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed === '') {
+              continue;
+            }
+            if (!trimmed.startsWith('data: ')) {
+              continue;
+            }
+
+            const dataStr = trimmed.slice(6);
+            // SSE 流结束标记
+            if (dataStr === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              // 安全访问嵌套属性，禁止 ! 非空断言
+              const choices = parsed.choices;
+              if (!choices || !Array.isArray(choices) || choices.length === 0) {
+                continue;
+              }
+              const firstChoice = choices[0];
+              if (firstChoice === null || firstChoice === undefined) {
+                continue;
+              }
+              const delta = firstChoice.delta;
+              if (delta === null || delta === undefined) {
+                continue;
+              }
+              const deltaContent = delta.content;
+              if (deltaContent && typeof deltaContent === 'string') {
+                fullContent += deltaContent;
+                onChunk(deltaContent);
+              }
+            } catch {
+              // 忽略无法解析的 JSON 行
+              continue;
+            }
+          }
         }
-
-        // 解码二进制数据并追加到缓冲区 / Decode binary data and append to buffer
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-        }
-
-        // 按行分割 SSE 数据 / Split SSE data by line
-        const lines = buffer.split('\n');
-        // 保留最后一个不完整的行 / Keep the last incomplete line
-        const lastLine = lines.pop();
-        buffer = lastLine !== undefined ? lastLine : '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed === '') {
-            continue;
-          }
-          if (!trimmed.startsWith('data: ')) {
-            continue;
-          }
-
-          const dataStr = trimmed.slice(6);
-          // SSE 流结束标记 / SSE stream end marker
-          if (dataStr === '[DONE]') {
-            continue;
-          }
-
-          try {
-            const parsed = JSON.parse(dataStr);
-            // 安全访问嵌套属性，禁止 ! 非空断言 / Safe nested access, no ! assertions
-            const choices = parsed.choices;
-            if (!choices || !Array.isArray(choices) || choices.length === 0) {
-              continue;
-            }
-            const firstChoice = choices[0];
-            if (firstChoice === null || firstChoice === undefined) {
-              continue;
-            }
-            const delta = firstChoice.delta;
-            if (delta === null || delta === undefined) {
-              continue;
-            }
-            const deltaContent = delta.content;
-            if (deltaContent && typeof deltaContent === 'string') {
-              fullContent += deltaContent;
-              onChunk(deltaContent);
-            }
-          } catch {
-            // 忽略无法解析的 JSON 行 / Ignore unparseable JSON lines
-            continue;
-          }
+      } finally {
+        // 确保在异常路径上释放 reader，防止资源泄漏
+        try {
+          reader.releaseLock();
+        } catch {
+          // reader 可能已关闭，忽略释放错误
         }
       }
 
@@ -411,93 +420,79 @@ export const SIMULATED_EVENT_TYPES = [
 /** 推导 SIMULATED_EVENT_TYPES 的只读类型 */
 type SimulatedEventEntry = (typeof SIMULATED_EVENT_TYPES)[number];
 
-/**
- * 模拟流式输出。
- * 依次发送预处理事件 → 文本分块事件 → 完成事件。
- *
- * 内部使用 `if` 守卫安全地访问数组元素，替代不安全的 `!` 非空断言。
- *
- * --- 真实 API 流处理已就绪 ---
- *
- * SSE 流处理已在 createRealAPIClient() (本文件第 ~285 行) 中完整实现：
- * - 使用 fetch + ReadableStream 读取 OpenAI 兼容的 SSE (data: 行) 流
- * - 解析 choices[0].delta.content 增量内容
- * - 通过 onChunk 回调逐块传递
- * - 保留不完整行缓冲区以处理 TCP 分片
- *
- * sendMessage() (第 ~509 行) 统一入口已集成切换逻辑：
- * - 若 realAPIConfig 已配置 → 使用 createRealAPIClient 的真实 SSE 流
- * - 若真实 API 连接失败 → 自动回退到本函数 (simulateStreamResponse)
- * - 若 realAPIConfig 为 null → 直接使用本函数的模拟响应
- *
- * --- WebSocket 备选方案 ---
- *
- * 若后端需要 WebSocket 流式传输（而非 SSE + fetch），可按以下步骤扩展：
- *
- *   1. 定义 WebSocketRealAPIClient 类，实现 RealAPIClient 接口
- *   2. 在 connectWebSocket() 中建立 ws:// 或 wss:// 连接
- *   3. ws.onmessage 中解析 JSON 帧，调用 onChunk 回调
- *   4. 在 sendMessage() 入口通过 realAPIConfig 的字段选择传输方式
- *
 // ================================================================
 // WebSocket 客户端 / WebSocket Client
 // ================================================================
 
 /**
- * WebSocket 连接状态
+ * WebSocket 连接状态枚举。
+ * - disconnected: 未连接（初始状态或主动断开后）
+ * - connecting: 正在建立连接
+ * - connected: 已连接，可正常通信
+ * - reconnecting: 连接断开后正在自动重连
  */
 export type WebSocketState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
 /**
- * WebSocket 客户端配置
+ * WebSocket 客户端配置接口。
  */
 export interface WebSocketClientConfig {
-  /** WebSocket 服务器地址 / WebSocket server URL (e.g., "ws://localhost:8080/ws") */
+  /** WebSocket 服务器地址（如 "ws://localhost:8080/ws"） */
   url: string;
-  /** 最大重连次数 / Maximum reconnection attempts (default: 10) */
+  /** 最大重连次数（默认 10） */
   maxReconnectAttempts?: number;
-  /** 初始重连延迟（毫秒）/ Initial reconnection delay in ms (default: 1000) */
+  /** 初始重连延迟（毫秒，默认 1000） */
   initialReconnectDelay?: number;
-  /** 最大重连延迟（毫秒）/ Maximum reconnection delay in ms (default: 30000) */
+  /** 最大重连延迟（毫秒，默认 30000） */
   maxReconnectDelay?: number;
-  /** 连接超时（毫秒）/ Connection timeout in ms (default: 10000) */
+  /** 连接超时（毫秒，默认 10000） */
   connectionTimeout?: number;
-  /** 请求超时（毫秒）/ Request timeout in ms (default: 30000) */
+  /** 请求超时（毫秒，默认 30000） */
   requestTimeout?: number;
 }
 
 /**
- * WebSocket 消息类型（客户端 -> 服务端）
+ * WebSocket 消息类型（客户端 -> 服务端）。
  */
 export interface WSRequestMessage {
+  /** 查询唯一标识符 */
   id: string;
+  /** 查询类型：'query'（通用查询）| 'proof'（证明）| 'solve'（求解） */
   type: 'query' | 'proof' | 'solve';
+  /** 查询内容文本 */
   content: string;
+  /** 发送时间戳（毫秒） */
   timestamp: number;
 }
 
 /**
- * WebSocket 响应类型（服务端 -> 客户端）
+ * WebSocket 响应类型（服务端 -> 客户端）。
  */
 export interface WSResponseMessage {
+  /** 对应的查询 ID */
   id: string;
+  /** 响应类型：'chunk'（文本块）| 'done'（完成）| 'error'（错误） */
   type: 'chunk' | 'done' | 'error';
+  /** 文本内容（chunk 类型时有值） */
   content?: string;
+  /** 错误信息（error 类型时有值） */
   error?: string;
+  /** 响应时间戳（毫秒） */
   timestamp: number;
 }
 
 /**
- * WebSocket 客户端回调接口
+ * WebSocket 客户端回调接口。
+ * 用于将 WebSocket 事件通知给上层使用者。
  */
 export interface WebSocketClientCallbacks {
-  /** 收到文本分块时调用 / Called when a text chunk is received */
+  /** 收到文本分块时调用 */
   onChunk: (queryId: string, chunk: string) => void;
-  /** 查询完成时调用 / Called when a query is completed */
+  /** 查询完成时调用，包含完整响应文本 */
   onComplete: (queryId: string, fullContent: string) => void;
-  /** 查询出错时调用 / Called when a query encounters an error */
+  /** 查询出错时调用，包含错误描述 */
   onError: (queryId: string, error: string) => void;
-  /** 连接状态变化时调用 / Called when connection state changes */
+  /** 连接状态变化时调用 */
   onStateChange: (state: WebSocketState) => void;
 }
 
@@ -505,12 +500,13 @@ export interface WebSocketClientCallbacks {
  * WebSocket AI 客户端。
  *
  * 特性：
- * - 自动重连（指数退避）/ Automatic reconnection with exponential backoff
- * - 流式响应解析 / Streaming response parsing
- * - 请求超时处理 / Request timeout handling
- * - 连接生命周期管理 / Connection lifecycle management
+ * - 自动重连（指数退避 + 随机抖动）：连接意外断开后自动尝试重新连接
+ * - 流式响应解析：支持 JSON 帧和 SSE-like 两种消息格式
+ * - 请求超时处理：每个查询有独立的超时计时器，超时后自动 reject
+ * - 连接生命周期管理：支持主动断开和自动重连的区分
+ * - 资源清理：disconnect 时清理所有计时器、挂起查询和事件监听器
  *
- * 使用方式 / Usage:
+ * 使用方式：
  * ```ts
  * const client = new WebSocketAIClient({ url: 'ws://localhost:8080/ws' });
  * client.onResponse({
@@ -525,21 +521,35 @@ export interface WebSocketClientCallbacks {
  * ```
  */
 export class WebSocketAIClient {
+  /** 客户端配置（所有可选字段已填充默认值） */
   private config: Required<WebSocketClientConfig>;
+  /** WebSocket 实例引用（null 表示未连接） */
   private ws: WebSocket | null = null;
+  /** 当前连接状态 */
   private state: WebSocketState = 'disconnected';
+  /** 事件回调注册（null 表示未注册） */
   private callbacks: WebSocketClientCallbacks | null = null;
+  /** 当前已尝试的重连次数 */
   private reconnectAttempts = 0;
+  /** 重连延迟计时器 ID（null 表示无活跃计时器） */
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 连接超时计时器 ID（null 表示无活跃计时器） */
   private connectionTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * 挂起的查询映射表。
+   * key: 查询 ID, value: Promise 的 resolve/reject、累积内容和超时计时器。
+   */
   private pendingQueries = new Map<string, {
     resolve: (content: string) => void;
     reject: (error: Error) => void;
     accumulated: string;
     timeoutTimer: ReturnType<typeof setTimeout>;
   }>();
+  /** 查询 ID 自增计数器，确保每个查询有唯一标识 */
   private queryCounter = 0;
+  /** 是否为主动关闭（true 时不触发自动重连） */
   private intentionalClose = false;
+  /** SSE-like 消息缓冲区，用于处理跨帧分割的不完整行 */
   private messageBuffer = '';
 
   constructor(config: WebSocketClientConfig) {
@@ -555,7 +565,9 @@ export class WebSocketAIClient {
 
   /**
    * 注册响应回调。
-   * Register response callbacks.
+   * 必须在 connect() 之前调用，否则将无法接收事件通知。
+   *
+   * @param callbacks - 回调函数集合
    */
   onResponse(callbacks: WebSocketClientCallbacks): void {
     this.callbacks = callbacks;
@@ -563,7 +575,8 @@ export class WebSocketAIClient {
 
   /**
    * 获取当前连接状态。
-   * Get current connection state.
+   *
+   * @returns 当前 WebSocketState
    */
   getState(): WebSocketState {
     return this.state;
@@ -571,10 +584,12 @@ export class WebSocketAIClient {
 
   /**
    * 建立 WebSocket 连接。
-   * Establish WebSocket connection.
    *
-   * @returns Promise，连接成功时 resolve / Promise that resolves when connected
-   * @throws 连接超时或被拒绝时 reject / Rejects on timeout or refusal
+   * 如果已处于 connected 或 connecting 状态，直接返回已 resolve 的 Promise。
+   * 连接过程中会启动超时计时器，超时后自动 reject 并清理资源。
+   *
+   * @returns Promise，连接成功时 resolve
+   * @throws 连接超时、WebSocket 构造失败或连接被拒绝时 reject
    */
   connect(): Promise<void> {
     if (this.ws && (this.state === 'connected' || this.state === 'connecting')) {
@@ -626,6 +641,9 @@ export class WebSocketAIClient {
         this.clearConnectionTimer();
         this.cleanupWebSocket();
 
+        // 清理 SSE 消息缓冲区，防止残留数据影响下次连接
+        this.messageBuffer = '';
+
         // 拒绝所有挂起的查询
         for (const [id, pending] of this.pendingQueries) {
           clearTimeout(pending.timeoutTimer);
@@ -647,11 +665,14 @@ export class WebSocketAIClient {
 
   /**
    * 发送查询并等待流式响应。
-   * Send a query and wait for streaming response.
    *
-   * @param content - 查询内容 / Query content
-   * @param type - 查询类型 / Query type ('query' | 'proof' | 'solve')
-   * @returns Promise，包含完整响应文本 / Promise with full response text
+   * 每个查询分配唯一 ID 和独立的超时计时器。
+   * 服务端通过 chunk/done/error 类型的响应消息驱动 Promise 的完成。
+   *
+   * @param content - 查询内容
+   * @param type - 查询类型（'query' | 'proof' | 'solve'，默认 'query'）
+   * @returns Promise，包含完整响应文本
+   * @throws WebSocket 未连接、查询超时或发送失败时 reject
    */
   sendQuery(content: string, type: 'query' | 'proof' | 'solve' = 'query'): Promise<string> {
     if (this.state !== 'connected' || !this.ws) {
@@ -683,7 +704,16 @@ export class WebSocketAIClient {
       });
 
       try {
-        this.ws!.send(JSON.stringify(message));
+        // 安全发送：通过局部变量避免 this.ws 被并发修改
+        const ws = this.ws;
+        if (ws) {
+          ws.send(JSON.stringify(message));
+        } else {
+          // 理论上不会到达（上方已检查 state 和 ws），防御性处理
+          clearTimeout(timeoutTimer);
+          this.pendingQueries.delete(queryId);
+          reject(new Error('WebSocket not connected / WebSocket 未连接'));
+        }
       } catch (err) {
         clearTimeout(timeoutTimer);
         this.pendingQueries.delete(queryId);
@@ -695,7 +725,13 @@ export class WebSocketAIClient {
 
   /**
    * 断开 WebSocket 连接。
-   * Disconnect WebSocket.
+   *
+   * 执行以下清理操作：
+   * 1. 标记为主动关闭（阻止自动重连）
+   * 2. 清除所有计时器（重连、连接超时）
+   * 3. 拒绝所有挂起查询并通知回调
+   * 4. 关闭 WebSocket 连接（code=1000）
+   * 5. 清理事件监听器引用
    */
   disconnect(): void {
     this.intentionalClose = true;
@@ -709,6 +745,9 @@ export class WebSocketAIClient {
     }
     this.pendingQueries.clear();
 
+    // 清理 SSE 消息缓冲区
+    this.messageBuffer = '';
+
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
       this.cleanupWebSocket();
@@ -719,11 +758,13 @@ export class WebSocketAIClient {
 
   /**
    * 处理收到的消息。
-   * Handle received message.
    *
    * 支持两种格式：
    * 1. JSON 帧: {"id":"...","type":"chunk","content":"..."}
    * 2. SSE-like 文本: "data: {...}\n\ndata: {...}\n"
+   * 3. 纯文本: 作为 chunk 广播给第一个挂起查询
+   *
+   * @param data - 原始消息字符串
    */
   private handleMessage(data: string): void {
     // 尝试 SSE-like 格式解析
@@ -744,7 +785,10 @@ export class WebSocketAIClient {
 
   /**
    * 处理 SSE-like 格式消息。
-   * Handle SSE-like format messages.
+   * 将数据追加到缓冲区，按行分割后逐行解析 JSON。
+   * 保留最后一个不完整的行到下次消息到达时处理。
+   *
+   * @param data - SSE 格式的原始数据
    */
   private handleSSEMessage(data: string): void {
     // 追加到缓冲区处理跨帧分割
@@ -770,7 +814,9 @@ export class WebSocketAIClient {
   }
 
   /**
-   * 处理纯文本消息（无 ID，广播给所有挂起查询）。
+   * 处理纯文本消息（无 ID，广播给第一个挂起查询）。
+   *
+   * @param text - 纯文本内容
    */
   private handlePlainText(text: string): void {
     // 纯文本广播给第一个挂起查询
@@ -783,6 +829,12 @@ export class WebSocketAIClient {
 
   /**
    * 处理解析后的消息对象。
+   * 根据 type 字段分发到不同的处理逻辑：
+   * - chunk: 追加文本到累积内容，触发 onChunk 回调
+   * - done: 完成查询，触发 onComplete 回调并 resolve Promise
+   * - error: 查询出错，触发 onError 回调并 reject Promise
+   *
+   * @param message - 已解析的响应消息
    */
   private processMessage(message: WSResponseMessage): void {
     const pending = this.pendingQueries.get(message.id);
@@ -815,7 +867,9 @@ export class WebSocketAIClient {
 
   /**
    * 指数退避重连。
-   * Exponential backoff reconnection.
+   *
+   * 退避公式：delay = min(initial * 2^(attempt-1), max) + random(0, 500ms)
+   * 当重连次数超过 maxReconnectAttempts 时停止重连，切换到 disconnected 状态。
    */
   private attemptReconnect(): void {
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
@@ -829,7 +883,7 @@ export class WebSocketAIClient {
     // 指数退避: delay = min(initial * 2^(attempt-1), max) + jitter
     const baseDelay = this.config.initialReconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
     const delay = Math.min(baseDelay, this.config.maxReconnectDelay);
-    const jitter = Math.random() * 500; // 0-500ms 随机抖动
+    const jitter = Math.random() * 500; // 0-500ms 随机抖动，防止多个客户端同时重连
 
     this.clearReconnectTimer();
     this.reconnectTimer = setTimeout(() => {
@@ -841,6 +895,8 @@ export class WebSocketAIClient {
 
   /**
    * 更新连接状态并通知回调。
+   *
+   * @param newState - 新的连接状态
    */
   private setState(newState: WebSocketState): void {
     this.state = newState;
@@ -848,7 +904,8 @@ export class WebSocketAIClient {
   }
 
   /**
-   * 清理 WebSocket 实例引用。
+   * 清理 WebSocket 实例引用和所有事件监听器。
+   * 将 onopen/onmessage/onerror/onclose 置为 null，帮助 GC 回收闭包引用。
    */
   private cleanupWebSocket(): void {
     if (this.ws) {
@@ -883,18 +940,32 @@ export class WebSocketAIClient {
 
 /**
  * 创建 WebSocket AI 客户端的便捷工厂函数。
- * Convenience factory function for creating a WebSocket AI client.
  *
- * @param config - WebSocket 客户端配置 / WebSocket client configuration
- * @returns WebSocketAIClient 实例 / WebSocketAIClient instance
+ * @param config - WebSocket 客户端配置
+ * @returns WebSocketAIClient 实例
  */
 export function createWebSocketClient(config: WebSocketClientConfig): WebSocketAIClient {
   return new WebSocketAIClient(config);
 }
+
+// ================================================================
+// 模拟流式输出 / Simulated Stream Response
+// ================================================================
+
+/**
+ * 模拟流式输出。
+ * 依次发送预处理事件 -> 文本分块事件 -> 完成事件。
  *
- * 当前 mock 实现（下方）用于开发/演示阶段，连接真实 API 后自动跳过。
+ * 内部使用 `if` 守卫安全地访问数组元素，替代不安全的 `!` 非空断言。
  *
- * @param chunks - 响应文本分块
+ * 真实 API 流处理已就绪：
+ * - SSE 流处理已在 createRealAPIClient() 中完整实现
+ * - WebSocket 流处理已在 WebSocketAIClient 类中完整实现
+ * - sendMessage() 统一入口已集成切换逻辑
+ *
+ * 当前 mock 实现用于开发/演示阶段，连接真实 API 后自动跳过。
+ *
+ * @param chunks - 响应文本分块数组
  * @param callbacks - 事件回调集合
  *   - addStreamEvent: 添加流式事件到事件列表
  *   - incrementFilterCount: 增加对应过滤类型的计数
@@ -964,22 +1035,19 @@ function delay(ms: number): Promise<void> {
  * 统一的消息发送入口。
  * 优先使用真实 API（如果已配置），失败时自动回退到模拟响应。
  *
- * Unified message sending entry point.
- * Prefers real API if configured, automatically falls back to simulated response on failure.
+ * 执行流程：
+ * 1. 检查 realAPIConfig 是否已配置
+ * 2. 若已配置：创建客户端并尝试流式调用
+ * 3. 若真实 API 失败：自动回退到模拟响应（发送回退通知事件）
+ * 4. 若未配置：直接使用模拟响应
  *
- * 执行流程 / Execution flow:
- * 1. 检查 realAPIConfig 是否已配置 / Check if realAPIConfig is set
- * 2. 若已配置：创建客户端并尝试流式调用 / If set: create client and attempt streaming call
- * 3. 若真实 API 失败：自动回退到模拟响应 / If real API fails: auto-fallback to simulated response
- * 4. 若未配置：直接使用模拟响应 / If not set: use simulated response directly
- *
- * @param content - 用户消息内容 / user message content
- * @param provider - AI 提供者 ID（用于模拟回退）/ AI provider ID (for simulated fallback)
- * @param callbacks - 回调集合 / callback collection
- *   - addStreamEvent: 添加流式事件到事件列表 / add streaming event to event list
- *   - incrementFilterCount: 增加对应过滤类型的计数 / increment count for filter type
- *   - updateContent: 更新累积的响应内容 / update accumulated response content
- * @returns 完整的响应文本 / complete response text
+ * @param content - 用户消息内容
+ * @param provider - AI 提供者 ID（用于模拟回退时的响应选择）
+ * @param callbacks - 回调集合
+ *   - addStreamEvent: 添加流式事件到事件列表
+ *   - incrementFilterCount: 增加对应过滤类型的计数
+ *   - updateContent: 更新累积的响应内容
+ * @returns 完整的响应文本
  */
 export async function sendMessage(
   content: string,
@@ -990,13 +1058,13 @@ export async function sendMessage(
     updateContent: (fullContent: string) => void;
   },
 ): Promise<string> {
-  // 优先尝试真实 API / Try real API first
+  // 优先尝试真实 API
   if (realAPIConfig !== null) {
     try {
       const client = createRealAPIClient(realAPIConfig);
       let accumulatedContent = '';
 
-      // 发送真实 API 流开始事件 / Send real API stream start event
+      // 发送真实 API 流开始事件
       callbacks.addStreamEvent({
         type: 0,
         description: 'Real API stream started / 真实 API 流开始',
@@ -1004,13 +1072,13 @@ export async function sendMessage(
       });
       callbacks.incrementFilterCount('info');
 
-      // 使用真实 API 客户端发送消息 / Send message using real API client
+      // 使用真实 API 客户端发送消息
       const result = await client.sendMessage(content, (chunk: string) => {
         accumulatedContent += chunk;
         callbacks.updateContent(accumulatedContent);
       });
 
-      // 发送真实 API 完成事件 / Send real API completion event
+      // 发送真实 API 完成事件
       callbacks.addStreamEvent({
         type: 15,
         description: 'Real API response complete / 真实 API 回复完成',
@@ -1020,7 +1088,7 @@ export async function sendMessage(
 
       return result;
     } catch {
-      // 真实 API 失败，发送回退通知并继续使用模拟 / Real API failed, notify and use simulated
+      // 真实 API 失败，发送回退通知并继续使用模拟
       callbacks.addStreamEvent({
         type: 3,
         description:
@@ -1028,11 +1096,11 @@ export async function sendMessage(
         stepNumber: 1,
       });
       callbacks.incrementFilterCount('info');
-      // 继续执行下方模拟响应逻辑 / Continue to simulated response below
+      // 继续执行下方模拟响应逻辑
     }
   }
 
-  // 使用模拟响应 / Use simulated response
+  // 使用模拟响应
   const chunks = getResponseChunks(provider, content);
   await simulateStreamResponse(chunks, callbacks);
   return chunks.join('');

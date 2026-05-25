@@ -36,7 +36,6 @@ import traceback
 import time
 import uuid
 import secrets
-import threading
 from functools import wraps
 from typing import Callable, Optional, Dict, Any, List, Awaitable
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -466,8 +465,8 @@ async def limit_request_size(request: Request, call_next: RequestResponseEndpoin
 _rate_limit_store: Dict[str, List[float]] = {}
 # 上次全局清理的时间戳
 _last_rate_limit_cleanup: float = 0.0
-# 线程安全锁：保护速率限制存储的并发访问
-_rate_limit_lock: threading.Lock = threading.Lock()
+# 异步安全锁：保护速率限制存储的并发访问（asyncio.Lock 适用于异步中间件）
+_rate_limit_lock: asyncio.Lock = asyncio.Lock()
 # 速率限制存储中IP数量的上限，超过时触发全局清理
 RATE_LIMIT_MAX_IPS = 10000
 # 全局清理的最小间隔（秒）
@@ -527,7 +526,7 @@ async def rate_limit_middleware(request: Request, call_next: RequestResponseEndp
     基于IP的速率限制中间件
     使用滑动窗口算法，限制每个IP在指定时间窗口内的请求数量。
     超过限制的请求将返回429状态码。
-    使用线程锁确保多线程环境下的安全访问。
+    使用异步锁确保异步环境下的安全访问。
     """
     # 仅对HTTP请求进行速率限制，WebSocket连接不受此限制
     if request.url.path.startswith("/ws/"):
@@ -536,8 +535,8 @@ async def rate_limit_middleware(request: Request, call_next: RequestResponseEndp
     client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(",")[0].strip() if request.client else "unknown"
     now = time.time()
 
-    # 使用线程锁保护速率限制存储的并发访问
-    with _rate_limit_lock:
+    # 使用异步锁保护速率限制存储的并发访问
+    async with _rate_limit_lock:
         # 定期全局清理：每 RATE_LIMIT_CLEANUP_INTERVAL 秒清理一次所有过期记录
         if (now - _last_rate_limit_cleanup >= RATE_LIMIT_CLEANUP_INTERVAL
                 or len(_rate_limit_store) > RATE_LIMIT_MAX_IPS):

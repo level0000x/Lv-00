@@ -1,11 +1,6 @@
 /**
  * @module utils/geometryAlgorithms
- * @description Pure JavaScript geometry algorithms for the Lv-00 GUI.
- *              Provides fallback implementations for constraint analysis,
- *              geometric calculations, and graph operations when the WASM
- *              backend is not available.
- *
- *              纯 JavaScript 几何算法工具库。
+ * @description 纯 JavaScript 几何算法工具库。
  *              当 WASM 后端不可用时，提供约束分析、几何计算和图操作的回退实现。
  */
 
@@ -13,16 +8,15 @@ import type { Point, Segment, Constraint } from '@/types';
 import { MERGE_DISTANCE_THRESHOLD } from '@/utils/constants';
 
 // ================================================================
-// Geometric Calculations / 几何计算
+// 几何计算
 // ================================================================
 
 /**
- * Calculate the midpoint of two points.
  * 计算两点的中点。
  *
- * @param p1 - First point / 第一个点
- * @param p2 - Second point / 第二个点
- * @returns Midpoint coordinates / 中点坐标
+ * @param p1 - 第一个点
+ * @param p2 - 第二个点
+ * @returns 中点坐标
  */
 export function calculateMidpoint(p1: Point, p2: Point): { x: number; y: number } {
   return {
@@ -32,20 +26,17 @@ export function calculateMidpoint(p1: Point, p2: Point): { x: number; y: number 
 }
 
 /**
- * Calculate the intersection point of two line segments.
- * Returns null if the segments are parallel (no intersection).
- *
  * 计算两条线段的交点。
  * 如果线段平行（无交点），返回 null。
  *
- * Uses parametric line intersection:
+ * 使用参数化直线求交公式：
  *   P = p1 + t * (p2 - p1)
  *   Q = p3 + u * (p4 - p3)
- *   Solve for t and u, then compute intersection.
+ *   求解 t 和 u，然后计算交点。
  *
- * @param s1 - First segment { p1: Point, p2: Point }
- * @param s2 - Second segment { p1: Point, p2: Point }
- * @returns Intersection point or null / 交点或 null
+ * @param s1 - 第一条线段 { p1: Point, p2: Point }
+ * @param s2 - 第二条线段 { p1: Point, p2: Point }
+ * @returns 交点或 null
  */
 export function calculateIntersection(
   s1: { p1: Point; p2: Point },
@@ -61,7 +52,7 @@ export function calculateIntersection(
 
   const denom = dx1 * dy2 - dy1 * dx2;
 
-  // Parallel or collinear segments
+  // 平行或共线线段
   if (Math.abs(denom) < 1e-10) {
     return null;
   }
@@ -69,8 +60,8 @@ export function calculateIntersection(
   const t = ((c.x - a.x) * dy2 - (c.y - a.y) * dx2) / denom;
   const u = ((c.x - a.x) * dy1 - (c.y - a.y) * dx1) / denom;
 
-  // Check if intersection lies on both segments (within parameter range)
-  // For graph constraints we allow extended lines, so we use a generous range
+  // 检查交点是否在两条线段上（参数范围）
+  // 对于图约束，允许延长线上的交点，使用宽松范围
   if (t < -0.01 || t > 1.01 || u < -0.01 || u > 1.01) {
     return null;
   }
@@ -82,57 +73,52 @@ export function calculateIntersection(
 }
 
 /**
- * Calculate the three vertices of an equilateral triangle centered at origin.
  * 计算以原点为中心的等边三角形的三个顶点。
  *
- * @param side - Side length of the triangle / 三角形边长
- * @returns Array of 3 points forming the equilateral triangle / 等边三角形的 3 个顶点
+ * @param side - 三角形边长
+ * @returns 等边三角形的 3 个顶点数组
  */
 export function calculateEquilateralTriangle(side: number): Array<{ x: number; y: number }> {
   const h = (side * Math.sqrt(3)) / 2;
-  // Center the triangle vertically
+  // 垂直居中
   const cy = h / 3;
 
   return [
-    { x: 0, y: -cy },                  // Top vertex
-    { x: -side / 2, y: h - cy },        // Bottom-left vertex
-    { x: side / 2, y: h - cy },         // Bottom-right vertex
+    { x: 0, y: -cy },                  // 顶部顶点
+    { x: -side / 2, y: h - cy },        // 左下顶点
+    { x: side / 2, y: h - cy },         // 右下顶点
   ];
 }
 
 /**
- * Calculate the four vertices of a square centered at origin.
  * 计算以原点为中心的正方形的四个顶点。
  *
- * @param side - Side length of the square / 正方形边长
- * @returns Array of 4 points forming the square / 正方形的 4 个顶点
+ * @param side - 正方形边长
+ * @returns 正方形的 4 个顶点数组
  */
 export function calculateSquare(side: number): Array<{ x: number; y: number }> {
   const half = side / 2;
   return [
-    { x: -half, y: -half },  // Bottom-left
-    { x: half, y: -half },   // Bottom-right
-    { x: half, y: half },    // Top-right
-    { x: -half, y: half },   // Top-left
+    { x: -half, y: -half },  // 左下
+    { x: half, y: -half },   // 右下
+    { x: half, y: half },    // 右上
+    { x: -half, y: half },   // 左上
   ];
 }
 
 // ================================================================
-// Graph Analysis / 图分析
+// 图分析
 // ================================================================
 
 /**
- * Normalize a graph by merging nearby points.
- * Returns the merged point mappings and the number of merges performed.
- *
  * 通过合并邻近点来规范化图。
  * 返回合并映射和合并数量。
  *
- * @param points - Current points / 当前点列表
- * @param segments - Current segments / 当前线段列表
- * @param constraints - Current constraints / 当前约束列表
- * @param threshold - Distance threshold for merging / 合并距离阈值
- * @returns Object with merge results / 合并结果
+ * @param points - 当前点列表
+ * @param segments - 当前线段列表
+ * @param constraints - 当前约束列表
+ * @param threshold - 合并距离阈值
+ * @returns 合并结果对象
  */
 export function normalizeGraph(
   points: Point[],
@@ -148,7 +134,7 @@ export function normalizeGraph(
 } {
   const mergeMap = new Map<number, number>();
 
-  // Build merge map: for each pair of nearby points, merge the higher ID into the lower ID
+  // 构建合并映射：对每对邻近点，将较大 ID 合并到较小 ID
   for (let i = 0; i < points.length; i++) {
     for (let j = i + 1; j < points.length; j++) {
       const pi = points[i];
@@ -160,7 +146,7 @@ export function normalizeGraph(
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < threshold) {
-        // Merge the higher ID into the lower ID
+        // 将较大 ID 合并到较小 ID
         const keepId = Math.min(pi.id, pj.id);
         const removeId = Math.max(pi.id, pj.id);
         mergeMap.set(removeId, keepId);
@@ -168,7 +154,7 @@ export function normalizeGraph(
     }
   }
 
-  // Resolve transitive merges (if A->B and B->C, then A->C)
+  // 解析传递性合并（如果 A->B 且 B->C，则 A->C）
   const resolvedMap = new Map<number, number>();
   for (const [oldId, newId] of mergeMap) {
     let finalId = newId;
@@ -182,7 +168,7 @@ export function normalizeGraph(
 
   const mergedCount = resolvedMap.size;
 
-  // Helper to resolve a point ID through the merge map
+  // 解析点 ID 的辅助函数
   const resolveId = (id: number): number => {
     let current = id;
     while (resolvedMap.has(current)) {
@@ -193,11 +179,11 @@ export function normalizeGraph(
     return current;
   };
 
-  // Filter out merged points (keep only points that are not merged away)
+  // 过滤掉被合并的点（仅保留未被合并的点）
   const mergedPointIds = new Set(resolvedMap.keys());
   const mergedPoints = points.filter((p) => !mergedPointIds.has(p.id));
 
-  // Update segments: resolve point IDs and remove degenerate segments
+  // 更新线段：解析点 ID 并移除退化线段
   const mergedSegments = segments
     .map((s) => ({
       ...s,
@@ -206,7 +192,7 @@ export function normalizeGraph(
     }))
     .filter((s) => s.p1 !== s.p2);
 
-  // Remove duplicate segments
+  // 移除重复线段
   const seenSegments = new Set<string>();
   const uniqueSegments: Segment[] = [];
   for (const s of mergedSegments) {
@@ -217,7 +203,7 @@ export function normalizeGraph(
     }
   }
 
-  // Update constraints: resolve all argument IDs
+  // 更新约束：解析所有参数 ID
   const mergedConstraints = constraints.map((c) => ({
     ...c,
     args: c.args.map(resolveId),
@@ -233,23 +219,19 @@ export function normalizeGraph(
 }
 
 /**
- * Detect redundant (duplicate) constraints.
- * A constraint is considered redundant if there exists another constraint
- * of the same type with the same arguments (regardless of order for symmetric types).
- *
  * 检测冗余（重复）约束。
  * 如果存在另一个相同类型且参数相同的约束（对称类型不考虑顺序），
  * 则该约束被视为冗余。
  *
- * @param constraints - List of constraints to check / 待检查的约束列表
- * @returns Array of redundant constraint IDs / 冗余约束 ID 列表
+ * @param constraints - 待检查的约束列表
+ * @returns 冗余约束 ID 列表
  */
 export function detectRedundantConstraints(constraints: Constraint[]): number[] {
   const redundantIds: number[] = [];
   const seen = new Set<string>();
 
   for (const c of constraints) {
-    // For symmetric types, normalize argument order
+    // 对称类型需要归一化参数顺序
     let key: string;
     if (c.type === 'connection' || c.type === 'intersection') {
       const sortedArgs = [...c.args].sort((a, b) => a - b);
@@ -269,22 +251,18 @@ export function detectRedundantConstraints(constraints: Constraint[]): number[] 
 }
 
 /**
- * Detect conflicting constraints.
- * Currently detects:
- * - Two betweenness constraints with conflicting orderings (e.g., B between A,C and A between B,C)
- *
  * 检测冲突约束。
  * 当前检测：
  * - 两个介于约束的顺序冲突（如 B 介于 A,C 且 A 介于 B,C）
  *
- * @param constraints - List of constraints to check / 待检查的约束列表
- * @returns Array of conflict pairs / 冲突对列表
+ * @param constraints - 待检查的约束列表
+ * @returns 冲突对列表
  */
 export function detectConflicts(constraints: Constraint[]): Array<{ c1: number; c2: number; reason: string }> {
   const conflicts: Array<{ c1: number; c2: number; reason: string }> = [];
   const betweennessConstraints = constraints.filter((c) => c.type === 'betweenness');
 
-  // Check for conflicting betweenness constraints
+  // 检查冲突的介于约束
   for (let i = 0; i < betweennessConstraints.length; i++) {
     for (let j = i + 1; j < betweennessConstraints.length; j++) {
       const ci = betweennessConstraints[i];
@@ -294,12 +272,12 @@ export function detectConflicts(constraints: Constraint[]): Array<{ c1: number; 
       const [ai, bi, ci_] = [ci.args[0], ci.args[1], ci.args[2]];
       const [aj, bj, cj_] = [cj.args[0], cj.args[1], cj.args[2]];
 
-      // Same triplet but different middle point
+      // 相同三元组但不同的中间点
       const setI = new Set([ai, bi, ci_]);
       const setJ = new Set([aj, bj, cj_]);
 
       if (setI.size === 3 && setJ.size === 3) {
-        // Check if they share the same 3 points
+        // 检查是否共享相同的 3 个点
         let allSame = true;
         for (const val of setI) {
           if (!setJ.has(val)) {
@@ -322,21 +300,18 @@ export function detectConflicts(constraints: Constraint[]): Array<{ c1: number; 
 }
 
 /**
- * Calculate degrees of freedom for the constraint graph.
- * DOF = 2 * numPoints - numIndependentConstraints
- *
- * Each independent constraint reduces DOF by 1.
- * Duplicate constraints are counted only once.
- *
  * 计算约束图的自由度。
  * DOF = 2 * 点数 - 独立约束数
  *
- * @param points - List of points / 点列表
- * @param constraints - List of constraints / 约束列表
- * @returns Degrees of freedom / 自由度
+ * 每个独立约束减少 1 个自由度。
+ * 重复约束仅计数一次。
+ *
+ * @param points - 点列表
+ * @param constraints - 约束列表
+ * @returns 自由度
  */
 export function calculateDOF(points: Point[], constraints: Constraint[]): number {
-  // Count unique constraints (exclude duplicates)
+  // 统计唯一约束（排除重复）
   const seen = new Set<string>();
   let uniqueCount = 0;
 
@@ -359,23 +334,20 @@ export function calculateDOF(points: Point[], constraints: Constraint[]): number
 }
 
 /**
- * Simple hash function for graph state comparison.
- * Produces a deterministic hash based on points, segments, and constraints.
- *
  * 图状态的简单哈希函数。
  * 基于点、线段和约束生成确定性哈希值。
  *
- * @param points - List of points / 点列表
- * @param segments - List of segments / 线段列表
- * @param constraints - List of constraints / 约束列表
- * @returns Hex string hash / 十六进制哈希字符串
+ * @param points - 点列表
+ * @param segments - 线段列表
+ * @param constraints - 约束列表
+ * @returns 十六进制哈希字符串
  */
 export function computeGraphHash(
   points: Point[],
   segments: Segment[],
   constraints: Constraint[],
 ): string {
-  // Sort for deterministic output
+  // 排序以确保确定性输出
   const sortedPoints = [...points].sort((a, b) => a.id - b.id);
   const sortedSegments = [...segments].sort((a, b) => a.id - b.id);
   const sortedConstraints = [...constraints].sort((a, b) => a.id - b.id);
@@ -386,7 +358,7 @@ export function computeGraphHash(
 
   const raw = `P[${pointData}]S[${segData}]C[${conData}]`;
 
-  // DJB2 hash
+  // DJB2 哈希算法
   let hash = 5381;
   for (let i = 0; i < raw.length; i++) {
     hash = ((hash << 5) + hash + raw.charCodeAt(i)) | 0;
@@ -395,32 +367,25 @@ export function computeGraphHash(
 }
 
 /**
- * Topological sort of constraints based on dependency.
- * Constraints that reference points/segments created by other constraints
- * should come after those constraints.
- *
- * For now, returns constraints in insertion order (stable sort).
- *
  * 约束的拓扑排序。
  * 引用其他约束创建的点/线段的约束应排在那些约束之后。
  *
  * 当前按插入顺序返回（稳定排序）。
  *
- * @param constraints - List of constraints / 约束列表
- * @returns Sorted constraint IDs / 排序后的约束 ID 列表
+ * @param constraints - 约束列表
+ * @returns 排序后的约束 ID 列表
  */
 export function topologicalSort(constraints: Constraint[]): number[] {
-  // Simple implementation: return in order of creation (by ID)
+  // 简单实现：按创建顺序返回（按 ID 排序）
   return [...constraints].sort((a, b) => a.id - b.id).map((c) => c.id);
 }
 
 /**
- * Find merge candidate pairs among points that are very close together.
  * 查找距离非常近的点对作为合并候选。
  *
- * @param points - List of points / 点列表
- * @param threshold - Distance threshold / 距离阈值
- * @returns Array of candidate pairs / 候选对列表
+ * @param points - 点列表
+ * @param threshold - 距离阈值
+ * @returns 候选对列表
  */
 export function findMergeCandidates(
   points: Point[],

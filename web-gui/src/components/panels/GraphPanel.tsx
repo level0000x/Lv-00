@@ -1,11 +1,15 @@
 /**
  * @module components/panels/GraphPanel
- * @description Graph module panel.
+ * @description 图模块面板。
+ *              提供节点/线段/区域操作、约束管理、分析工具、统计和预设。
+ *
+ *              Graph module panel.
  *              Provides node/segment/region operations, constraint management,
  *              analysis tools, statistics, and presets for the constraint graph.
  *
- *              图模块面板。
- *              提供节点/线段/区域操作、约束管理、分析工具、统计和预设。
+ *              预设几何和分析工具已提取到 utils/ 目录：
+ *              - graphPresets.ts: 预设几何配置生成
+ *              - graphAnalysis.ts: 分析结果格式化 + 合并操作工具
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
@@ -14,29 +18,16 @@ import { useAppStore } from '@/stores';
 import type { Constraint } from '@/types';
 import { generateUniqueId } from '@/utils/idGenerator';
 import {
-  calculateMidpoint,
   calculateIntersection,
-  calculateEquilateralTriangle,
-  calculateSquare,
   normalizeGraph,
   detectRedundantConstraints,
   detectConflicts,
-  calculateDOF,
-  computeGraphHash,
-  topologicalSort,
   findMergeCandidates,
 } from '@/utils/geometryAlgorithms';
 
-/**
- * Graph presets for quick loading
- * 图预设列表，用于快速加载常见几何配置。
- */
-const GRAPH_PRESETS = [
-  { id: 'triangle', label: 'EQUILATERAL TRIANGLE / 等边三角形' },
-  { id: 'square', label: 'SQUARE / 正方形' },
-  { id: 'intersection', label: 'SEGMENT INTERSECTION / 线段相交' },
-  { id: 'midpoint', label: 'MIDPOINT / 中点' },
-];
+// ---- 提取的工具模块 / Extracted utility modules ----
+import { GRAPH_PRESETS, generatePresetGeometry } from './utils/graphPresets';
+import { formatDOF, formatTopoSort, formatGraphHash } from './utils/graphAnalysis';
 
 /**
  * Simple inline selector component for choosing a point or segment.
@@ -485,8 +476,7 @@ const GraphPanel: React.FC = () => {
   }, [constraints, addToast, appendLog]);
 
   const handleDOF = useCallback(() => {
-    const dof = calculateDOF(points, constraints);
-    const result = `DOF = 2 * ${points.length} - ${constraints.length} = ${dof}`;
+    const result = formatDOF(points, constraints);
     setAnalysisResult(result);
     appendLog(`自由度: ${result} / Degrees of freedom: ${result}`, 'info');
     addToast('info', result);
@@ -497,16 +487,14 @@ const GraphPanel: React.FC = () => {
       addToast('warning', '没有约束可排序 / No constraints to sort');
       return;
     }
-    const sorted = topologicalSort(constraints);
-    const result = `拓扑排序: ${sorted.map((id) => `C${id}`).join(' -> ')}`;
+    const result = formatTopoSort(constraints);
     setAnalysisResult(result);
-    appendLog(`拓扑排序: ${sorted.map((id) => `C${id}`).join(', ')} / Topo sort done`, 'info');
+    appendLog(`拓扑排序完成 / Topo sort done`, 'info');
     addToast('info', result);
   }, [constraints, addToast, appendLog]);
 
   const handleGraphHash = useCallback(() => {
-    const hash = computeGraphHash(points, segments, constraints);
-    const result = `Hash: 0x${hash}`;
+    const result = formatGraphHash(points, segments, constraints);
     setAnalysisResult(result);
     appendLog(`图哈希: ${result} / Graph hash computed`, 'info');
     addToast('info', result);
@@ -534,111 +522,23 @@ const GraphPanel: React.FC = () => {
       setAnalysisResult('');
       setMergedCount(0);
 
-      const newPoints: Array<{ id: number; x: number; y: number }> = [];
-      const newSegments: Array<{ id: number; p1: number; p2: number }> = [];
-      const newConstraints: Constraint[] = [];
-
-      switch (presetId) {
-        case 'triangle': {
-          const verts = calculateEquilateralTriangle(200);
-          const p0 = { id: generateUniqueId(), x: verts[0]!.x, y: verts[0]!.y };
-          const p1 = { id: generateUniqueId(), x: verts[1]!.x, y: verts[1]!.y };
-          const p2 = { id: generateUniqueId(), x: verts[2]!.x, y: verts[2]!.y };
-          newPoints.push(p0, p1, p2);
-          newSegments.push(
-            { id: generateUniqueId(), p1: p0.id, p2: p1.id },
-            { id: generateUniqueId(), p1: p1.id, p2: p2.id },
-            { id: generateUniqueId(), p1: p2.id, p2: p0.id },
-          );
-          appendLog('加载预设: 等边三角形 / Preset: Equilateral Triangle', 'info');
-          break;
-        }
-        case 'square': {
-          const verts = calculateSquare(200);
-          const p0 = { id: generateUniqueId(), x: verts[0]!.x, y: verts[0]!.y };
-          const p1 = { id: generateUniqueId(), x: verts[1]!.x, y: verts[1]!.y };
-          const p2 = { id: generateUniqueId(), x: verts[2]!.x, y: verts[2]!.y };
-          const p3 = { id: generateUniqueId(), x: verts[3]!.x, y: verts[3]!.y };
-          newPoints.push(p0, p1, p2, p3);
-          newSegments.push(
-            { id: generateUniqueId(), p1: p0.id, p2: p1.id },
-            { id: generateUniqueId(), p1: p1.id, p2: p2.id },
-            { id: generateUniqueId(), p1: p2.id, p2: p3.id },
-            { id: generateUniqueId(), p1: p3.id, p2: p0.id },
-          );
-          appendLog('加载预设: 正方形 / Preset: Square', 'info');
-          break;
-        }
-        case 'intersection': {
-          // Two crossing segments: (-150,-100)->(150,100) and (-150,100)->(150,-100)
-          const p0 = { id: generateUniqueId(), x: -150, y: -100 };
-          const p1 = { id: generateUniqueId(), x: 150, y: 100 };
-          const p2 = { id: generateUniqueId(), x: -150, y: 100 };
-          const p3 = { id: generateUniqueId(), x: 150, y: -100 };
-          // Intersection point at origin
-          const p4 = { id: generateUniqueId(), x: 0, y: 0 };
-          newPoints.push(p0, p1, p2, p3, p4);
-          const s0 = { id: generateUniqueId(), p1: p0.id, p2: p1.id };
-          const s1 = { id: generateUniqueId(), p1: p2.id, p2: p3.id };
-          newSegments.push(s0, s1);
-          // Intersection constraint
-          newConstraints.push({
-            id: generateUniqueId(),
-            type: 'intersection',
-            args: [s0.id, s1.id],
-          });
-          // Incidence: intersection point on both segments
-          newConstraints.push({
-            id: generateUniqueId(),
-            type: 'incidence',
-            args: [p4.id, s0.id],
-          });
-          newConstraints.push({
-            id: generateUniqueId(),
-            type: 'incidence',
-            args: [p4.id, s1.id],
-          });
-          appendLog('加载预设: 线段相交 / Preset: Segment Intersection', 'info');
-          break;
-        }
-        case 'midpoint': {
-          // Two points with a segment and midpoint
-          const p0 = { id: generateUniqueId(), x: -150, y: 0 };
-          const p1 = { id: generateUniqueId(), x: 150, y: 0 };
-          const mid = calculateMidpoint(p0, p1);
-          const p2 = { id: generateUniqueId(), x: mid.x, y: mid.y };
-          newPoints.push(p0, p1, p2);
-          const segId = generateUniqueId();
-          newSegments.push({ id: segId, p1: p0.id, p2: p1.id });
-          // Betweenness: midpoint is between the two endpoints
-          newConstraints.push({
-            id: generateUniqueId(),
-            type: 'betweenness',
-            args: [p0.id, p2.id, p1.id],
-          });
-          // Incidence: midpoint on the segment
-          newConstraints.push({
-            id: generateUniqueId(),
-            type: 'incidence',
-            args: [p2.id, segId],
-          });
-          appendLog('加载预设: 中点 / Preset: Midpoint', 'info');
-          break;
-        }
-        default:
-          addToast('warning', `未知预设 / Unknown preset: ${presetId}`);
-          return;
+      // 使用提取的预设生成工具 / Use extracted preset generation utility
+      const presetData = generatePresetGeometry(presetId);
+      if (!presetData) {
+        addToast('warning', `未知预设 / Unknown preset: ${presetId}`);
+        return;
       }
 
-      // Apply all new geometry
-      for (const p of newPoints) addPoint(p);
-      for (const s of newSegments) addSegment(s);
-      for (const c of newConstraints) addConstraint(c);
+      // 应用所有新几何数据
+      for (const p of presetData.points) addPoint(p);
+      for (const s of presetData.segments) addSegment(s);
+      for (const c of presetData.constraints) addConstraint(c);
 
-      // Center view on new geometry
+      // 居中视图 / Center view on new geometry
       setOffset(0, 0);
       setScale(1);
 
+      appendLog(`加载预设: ${presetId} / Preset loaded: ${presetId}`, 'info');
       addToast('success', `预设已加载 / Preset loaded: ${presetId}`);
     },
     [points, segments, saveUndoState, clearAll, addPoint, addSegment, addConstraint, setOffset, setScale, addToast, appendLog],

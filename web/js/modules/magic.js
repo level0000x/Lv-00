@@ -638,19 +638,10 @@
     // ================================================================
 
     /**
-     * @brief 转义HTML特殊字符，防止XSS注入
-     * @param {string} str - 需要转义的字符串
-     * @returns {string} 转义后的安全字符串
+     * @brief 转义HTML特殊字符，防止XSS注入（引用 utils.js 中的全局版本）
+     * fix: 统一使用 Lv00WebApp.prototype._escapeHtml，避免重复定义
      */
-    function _escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
+    var _escapeHtml = Lv00WebApp.prototype._escapeHtml;
 
     function showToast(message, type) {
         type = type || 'info';

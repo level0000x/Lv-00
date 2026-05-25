@@ -155,7 +155,10 @@ void lv00_log_set_level(Lv00LogLevel level) {
 }
 
 void lv00_log_set_targets(Lv00LogTarget targets) {
+    /* 线程安全：加锁保护全局日志目标的修改 */
+    MUTEX_LOCK(g_log_system.mutex);
     g_log_system.config.targets = targets;
+    MUTEX_UNLOCK(g_log_system.mutex);
 }
 
 bool lv00_log_set_file(const char *path) {
@@ -180,8 +183,11 @@ bool lv00_log_set_file(const char *path) {
 }
 
 void lv00_log_set_callback(Lv00LogCallback callback, void *user_data) {
+    /* 线程安全：加锁保护回调和用户数据的修改，防止与日志写入并发冲突 */
+    MUTEX_LOCK(g_log_system.mutex);
     g_log_system.config.callback = callback;
     g_log_system.config.callback_user_data = user_data;
+    MUTEX_UNLOCK(g_log_system.mutex);
 }
 
 static void rotate_log_file(void) {
@@ -586,13 +592,17 @@ void lv00_health_shutdown(void) {
 }
 
 void lv00_health_set_memory_thresholds(double warning_mb, double critical_mb) {
+    MUTEX_LOCK(g_health_system.mutex);
     g_health_system.memory_warning_mb = warning_mb;
     g_health_system.memory_critical_mb = critical_mb;
+    MUTEX_UNLOCK(g_health_system.mutex);
 }
 
 void lv00_health_set_cpu_thresholds(double warning_percent, double critical_percent) {
+    MUTEX_LOCK(g_health_system.mutex);
     g_health_system.cpu_warning_percent = warning_percent;
     g_health_system.cpu_critical_percent = critical_percent;
+    MUTEX_UNLOCK(g_health_system.mutex);
 }
 
 /* ============== 平台特定 CPU 使用率采样 ============== */
@@ -797,11 +807,15 @@ Lv00Diagnostics *lv00_diagnostics_generate(void) {
     strncpy(diag->build_date, __DATE__ " " __TIME__, sizeof(diag->build_date) - 1);
     diag->uptime_ms = get_time_ns() / 1000000;
 
-    /* 内存统计 */
-    diag->memory_total = 0;
-    diag->memory_peak = 0;
-    diag->alloc_count = 0;
-    diag->free_count = 0;
+    /* 内存统计 - 从 lv00 内存管理器获取实际数据 */
+    {
+        MemoryStats mem_stats;
+        lv00_get_memory_stats(&mem_stats);
+        diag->memory_total = mem_stats.current_used;
+        diag->memory_peak = mem_stats.peak_used;
+        diag->alloc_count = (uint32_t)mem_stats.allocation_count;
+        diag->free_count = (uint32_t)mem_stats.free_count;
+    }
 
     /* 性能统计 */
     diag->proof_count = 0;
@@ -942,20 +956,27 @@ char *lv00_diagnostics_to_json(const Lv00Diagnostics *diag) {
 /* ============== 事件追踪实现 ============== */
 
 static struct {
-    Lv00EventRecord events[MAX_EVENTS];
+    Lv00EventRecord *events;
+    uint32_t max_events;
     uint32_t event_count;
     Lv00Mutex mutex;
     bool initialized;
 } g_event_system = {0};
 
 bool lv00_event_trace_init(uint32_t max_events) {
-    (void)max_events; /* 使用固定大小 */
-
     if (g_event_system.initialized) {
         return true;
     }
 
+    /* 使用请求的大小，最小为 MAX_EVENTS */
+    uint32_t actual_max = (max_events > 0) ? max_events : MAX_EVENTS;
+
     memset(&g_event_system, 0, sizeof(g_event_system));
+    g_event_system.events = (Lv00EventRecord *)lv00_calloc(actual_max, sizeof(Lv00EventRecord));
+    if (!g_event_system.events) {
+        return false;
+    }
+    g_event_system.max_events = actual_max;
     MUTEX_INIT(g_event_system.mutex);
     g_event_system.initialized = true;
     return true;
@@ -966,12 +987,13 @@ void lv00_event_trace_shutdown(void) {
         return;
     }
 
+    lv00_free((void **)&g_event_system.events);
     MUTEX_DESTROY(g_event_system.mutex);
     g_event_system.initialized = false;
 }
 
 void lv00_event_trace_record(Lv00EventType type, const char *name, const char *data) {
-    if (!g_event_system.initialized || g_event_system.event_count >= MAX_EVENTS) {
+    if (!g_event_system.initialized || g_event_system.event_count >= g_event_system.max_events) {
         return;
     }
 
@@ -994,7 +1016,7 @@ void lv00_event_trace_record(Lv00EventType type, const char *name, const char *d
 }
 
 int lv00_event_trace_begin(Lv00EventType type, const char *name) {
-    if (!g_event_system.initialized || g_event_system.event_count >= MAX_EVENTS) {
+    if (!g_event_system.initialized || g_event_system.event_count >= g_event_system.max_events) {
         return -1;
     }
 

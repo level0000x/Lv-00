@@ -16,7 +16,7 @@ import { useAppStore } from '@/stores';
 import type { EngineStreamEvent } from '@/types';
 
 // ================================================================
-// 类型定义 / Type Definitions
+// 类型定义
 // ================================================================
 
 interface HighlightState {
@@ -58,7 +58,7 @@ interface CanvasSyncState {
 }
 
 // ================================================================
-// 默认配置 / Default Configuration
+// 默认配置
 // ================================================================
 
 const DEFAULT_CONFIG: CanvasSyncConfig = {
@@ -70,7 +70,7 @@ const DEFAULT_CONFIG: CanvasSyncConfig = {
 };
 
 // ================================================================
-// Hook 实现 / Hook Implementation
+// Hook 实现
 // ================================================================
 
 /**

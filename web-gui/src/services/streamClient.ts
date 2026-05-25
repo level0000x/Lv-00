@@ -30,10 +30,10 @@ import type {
 } from '@/types';
 
 // ================================================================
-// 类型定义 / Type Definitions
+// 类型定义
 // ================================================================
 
-/** 流式客户端回调集合 / Stream Client Callbacks */
+/** 流式客户端回调集合 */
 export interface StreamClientCallbacks {
   /** 连接状态变化时调用 */
   onStateChange: (state: EngineStreamState) => void;
@@ -45,7 +45,7 @@ export interface StreamClientCallbacks {
   onError: (error: Error) => void;
 }
 
-/** 流式客户端配置选项 / Stream Client Configuration */
+/** 流式客户端配置选项 */
 export interface StreamClientOptions {
   /** 自动重连是否启用，默认 true */
   autoReconnect?: boolean;
@@ -63,7 +63,7 @@ export interface StreamClientOptions {
   maxEventLog?: number;
 }
 
-/** 流式客户端结果对象 / Stream Client Result */
+/** 流式客户端控制对象 */
 export interface StreamClient {
   /** 连接到 WebSocket 服务器 */
   connect: () => void;
@@ -80,7 +80,7 @@ export interface StreamClient {
 }
 
 // ================================================================
-// 默认配置 / Default Configuration
+// 默认配置
 // ================================================================
 
 const DEFAULT_OPTIONS: Required<StreamClientOptions> = {
@@ -94,7 +94,7 @@ const DEFAULT_OPTIONS: Required<StreamClientOptions> = {
 };
 
 // ================================================================
-// 事件解析辅助 / Event Parsing Helpers
+// 事件解析辅助
 // ================================================================
 
 /**
@@ -179,7 +179,7 @@ function inferCategory(typeStr: string): EngineStreamCategory {
 }
 
 // ================================================================
-// 流式客户端工厂 / Stream Client Factory
+// 流式客户端工厂
 // ================================================================
 
 /**
