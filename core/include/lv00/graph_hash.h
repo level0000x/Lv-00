@@ -23,6 +23,10 @@ extern "C" {
 
 #include <stdint.h>
 
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 #include "constraint_graph.h"
 
 /* ================================================================
@@ -43,7 +47,7 @@ typedef struct GraphHash {
  * @return 新分配的 GraphHash 指针，调用者须通过 graph_hash_destroy() 释放。
  *         若 graph 为 NULL，返回 NULL。
  */
-GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph);
+LV00_PUBLIC_API GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph);
 
 /**
  * @brief 比较两个图哈希是否相等
@@ -53,14 +57,14 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph);
  *
  * @return 两个哈希结构相同时返回 true，否则返回 false
  */
-bool graph_hash_equal(const GraphHash *a, const GraphHash *b);
+LV00_PUBLIC_API bool graph_hash_equal(const GraphHash *a, const GraphHash *b);
 
 /**
  * @brief 销毁 GraphHash 并释放其内部资源
  *
  * @param[in] hash 要销毁的 GraphHash 指针，可为 NULL（无操作）
  */
-void graph_hash_destroy(GraphHash *hash);
+LV00_PUBLIC_API void graph_hash_destroy(GraphHash *hash);
 
 #ifdef __cplusplus
 }

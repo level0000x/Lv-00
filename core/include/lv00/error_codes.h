@@ -40,6 +40,10 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 /* ============================================================
  * 错误码定义
  * ============================================================ */
@@ -172,14 +176,14 @@ typedef enum {
  * @param code 错误码
  * @return 错误信息字符串（静态存储，无需释放）
  */
-const char *lv00_error_string(Lv00ErrorCode code);
+LV00_PUBLIC_API const char *lv00_error_string(Lv00ErrorCode code);
 
 /**
  * @brief 获取错误码的简短名称
  * @param code 错误码
  * @return 错误名称字符串（如 "LV00_OK"）
  */
-const char *lv00_error_name(Lv00ErrorCode code);
+LV00_PUBLIC_API const char *lv00_error_name(Lv00ErrorCode code);
 
 /**
  * @brief 判断错误码是否表示成功
@@ -204,7 +208,7 @@ static inline bool lv00_is_error(Lv00ErrorCode code) {
  * @param code 错误码
  * @return 错误类别名称字符串
  */
-const char *lv00_error_category(Lv00ErrorCode code);
+LV00_PUBLIC_API const char *lv00_error_category(Lv00ErrorCode code);
 
 /* ============================================================
  * 线程局部错误状态
@@ -214,13 +218,13 @@ const char *lv00_error_category(Lv00ErrorCode code);
  * @brief 获取当前线程的最后错误码
  * @return 最后错误码
  */
-Lv00ErrorCode lv00_get_last_error_code(void);
+LV00_PUBLIC_API Lv00ErrorCode lv00_get_last_error_code(void);
 
 /**
  * @brief 获取当前线程的最后错误信息（详细描述）
  * @return 错误信息字符串（线程局部存储，无需释放）
  */
-const char *lv00_get_last_error_message(void);
+LV00_PUBLIC_API const char *lv00_get_last_error_message(void);
 
 /**
  * @brief 获取当前线程的完整错误描述（包含错误码名称和信息）
@@ -228,7 +232,7 @@ const char *lv00_get_last_error_message(void);
  * @param buf_size 缓冲区大小
  * @return 实际写入的字符数，失败返回-1
  */
-int lv00_get_error_description(char *buf, size_t buf_size);
+LV00_PUBLIC_API int lv00_get_error_description(char *buf, size_t buf_size);
 
 /**
  * @brief 设置当前线程的错误状态
@@ -236,7 +240,7 @@ int lv00_get_error_description(char *buf, size_t buf_size);
  * @param format 格式化字符串（类似printf）
  * @param ... 可变参数
  */
-void lv00_set_error(Lv00ErrorCode code, const char *format, ...);
+LV00_PUBLIC_API void lv00_set_error(Lv00ErrorCode code, const char *format, ...);
 
 /**
  * @brief 设置当前线程的错误状态（带上下文信息）
@@ -247,12 +251,12 @@ void lv00_set_error(Lv00ErrorCode code, const char *format, ...);
  * @param format 格式化字符串
  * @param ... 可变参数
  */
-void lv00_set_error_ctx(Lv00ErrorCode code, const char *file, int line, const char *func, const char *format, ...);
+LV00_PUBLIC_API void lv00_set_error_ctx(Lv00ErrorCode code, const char *file, int line, const char *func, const char *format, ...);
 
 /**
  * @brief 清除当前线程的错误状态
  */
-void lv00_clear_error(void);
+LV00_PUBLIC_API void lv00_clear_error(void);
 
 /**
  * @brief 运行时验证错误信息表的排序正确性
@@ -263,7 +267,7 @@ void lv00_clear_error(void);
  *
  * @return true 表排序正确，false 检测到违规（已通过 lv00_set_error 记录详情）
  */
-bool lv00_error_table_validate(void);
+LV00_PUBLIC_API bool lv00_error_table_validate(void);
 
 /**
  * @brief 从错误名称字符串反向查找错误码
@@ -271,7 +275,7 @@ bool lv00_error_table_validate(void);
  * @param name 错误名称（如 "LV00_OK"、"LV00_ERROR_OUT_OF_MEMORY"）
  * @return 对应的错误码枚举值，未找到时返回 LV00_ERROR_UNKNOWN
  */
-Lv00ErrorCode lv00_error_code_from_string(const char *name);
+LV00_PUBLIC_API Lv00ErrorCode lv00_error_code_from_string(const char *name);
 
 /* ============================================================
  * 便捷错误处理宏

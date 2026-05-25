@@ -67,7 +67,7 @@ typedef enum {
  * @param b  右操作数真值
  * @return   a AND b 的真值
  */
-Lv00TruthValue lv00_tvl_and(Lv00TruthValue a, Lv00TruthValue b);
+LV00_PUBLIC_API Lv00TruthValue lv00_tvl_and(Lv00TruthValue a, Lv00TruthValue b);
 
 /**
  * @brief 三值或运算 OR
@@ -83,7 +83,7 @@ Lv00TruthValue lv00_tvl_and(Lv00TruthValue a, Lv00TruthValue b);
  * @param b  右操作数真值
  * @return   a OR b 的真值
  */
-Lv00TruthValue lv00_tvl_or(Lv00TruthValue a, Lv00TruthValue b);
+LV00_PUBLIC_API Lv00TruthValue lv00_tvl_or(Lv00TruthValue a, Lv00TruthValue b);
 
 /**
  * @brief 三值非运算 NOT
@@ -96,7 +96,7 @@ Lv00TruthValue lv00_tvl_or(Lv00TruthValue a, Lv00TruthValue b);
  * @param v  操作数真值
  * @return   NOT v 的真值
  */
-Lv00TruthValue lv00_tvl_not(Lv00TruthValue v);
+LV00_PUBLIC_API Lv00TruthValue lv00_tvl_not(Lv00TruthValue v);
 
 /**
  * @brief 三值蕴涵运算 IMPLIES (A → B)
@@ -117,7 +117,7 @@ Lv00TruthValue lv00_tvl_not(Lv00TruthValue v);
  * @param b  结论真值
  * @return   a → b 的真值
  */
-Lv00TruthValue lv00_tvl_implies(Lv00TruthValue a, Lv00TruthValue b);
+LV00_PUBLIC_API Lv00TruthValue lv00_tvl_implies(Lv00TruthValue a, Lv00TruthValue b);
 
 /**
  * @brief 三值等价运算 EQUIV (A ↔ B)
@@ -128,7 +128,7 @@ Lv00TruthValue lv00_tvl_implies(Lv00TruthValue a, Lv00TruthValue b);
  * @param b  右操作数真值
  * @return   a ↔ b 的真值
  */
-Lv00TruthValue lv00_tvl_equiv(Lv00TruthValue a, Lv00TruthValue b);
+LV00_PUBLIC_API Lv00TruthValue lv00_tvl_equiv(Lv00TruthValue a, Lv00TruthValue b);
 
 /* ============== 批量操作 ============== */
 
@@ -142,7 +142,7 @@ Lv00TruthValue lv00_tvl_equiv(Lv00TruthValue a, Lv00TruthValue b);
  * @param count   数组长度
  * @return        所有元素 AND 归约后的真值
  */
-Lv00TruthValue lv00_tvl_and_all(const Lv00TruthValue *values, int count);
+LV00_PUBLIC_API Lv00TruthValue lv00_tvl_and_all(const Lv00TruthValue *values, int count);
 
 /**
  * @brief 三值或运算（数组形式）
@@ -154,7 +154,7 @@ Lv00TruthValue lv00_tvl_and_all(const Lv00TruthValue *values, int count);
  * @param count   数组长度
  * @return        所有元素 OR 归约后的真值
  */
-Lv00TruthValue lv00_tvl_or_all(const Lv00TruthValue *values, int count);
+LV00_PUBLIC_API Lv00TruthValue lv00_tvl_or_all(const Lv00TruthValue *values, int count);
 
 /* ============== 判定辅助函数 ============== */
 
@@ -222,7 +222,7 @@ static inline bool lv00_tvl_to_bool_optimistic(Lv00TruthValue v) {
  * @param v  真值
  * @return   静态字符串（"TRUE" / "FALSE" / "UNKNOWN"），请勿释放
  */
-const char *lv00_tvl_to_string(Lv00TruthValue v);
+LV00_PUBLIC_API const char *lv00_tvl_to_string(Lv00TruthValue v);
 
 /**
  * @brief 将三值真值转换为中文可读字符串
@@ -230,7 +230,7 @@ const char *lv00_tvl_to_string(Lv00TruthValue v);
  * @param v  真值
  * @return   静态字符串（"真" / "伪" / "未知"），请勿释放
  */
-const char *lv00_tvl_to_string_zh(Lv00TruthValue v);
+LV00_PUBLIC_API const char *lv00_tvl_to_string_zh(Lv00TruthValue v);
 
 /* ============== 二值/三值转换 ============== */
 

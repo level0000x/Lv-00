@@ -123,7 +123,7 @@ typedef struct {
  *
  * @return true 初始化成功，false 内存不足
  */
-bool func_block_registry_init(void);
+LV00_PUBLIC_API bool func_block_registry_init(void);
 
 /**
  * @brief 清理注册表并释放所有资源
@@ -131,7 +131,7 @@ bool func_block_registry_init(void);
  * 销毁全局注册表中的所有条目，释放模板函数块和字符串内存。
  * 调用后需重新 init 才能使用注册表。
  */
-void func_block_registry_cleanup(void);
+LV00_PUBLIC_API void func_block_registry_cleanup(void);
 
 /* ============== 注册与查找 ============== */
 
@@ -148,7 +148,7 @@ void func_block_registry_cleanup(void);
  * @param fb          模板函数块（不可为 NULL，注册后由注册表接管管理）
  * @return true 注册成功，false 参数无效或同名已存在或内存不足
  */
-bool func_block_register(const char *name, const char *description, PresetCategory category, FuncBlock *fb);
+LV00_PUBLIC_API bool func_block_register(const char *name, const char *description, PresetCategory category, FuncBlock *fb);
 
 /**
  * @brief 按名称查找预设函数块并返回深拷贝
@@ -162,7 +162,7 @@ bool func_block_register(const char *name, const char *description, PresetCatego
  * @param name 预设名称
  * @return 函数块深拷贝（调用者负责释放），未找到或失败返回 NULL
  */
-FuncBlock *func_block_registry_lookup(const char *name);
+LV00_PUBLIC_API FuncBlock *func_block_registry_lookup(const char *name);
 
 /**
  * @brief 按名称查找预设条目（不创建副本）
@@ -176,7 +176,7 @@ FuncBlock *func_block_registry_lookup(const char *name);
  * @param name 预设名称
  * @return 条目指针，未找到返回 NULL
  */
-PresetEntry *func_block_registry_find(const char *name);
+LV00_PUBLIC_API PresetEntry *func_block_registry_find(const char *name);
 
 /**
  * @brief 按类别查找预设条目
@@ -188,7 +188,7 @@ PresetEntry *func_block_registry_find(const char *name);
  * @param max_count   输出数组的最大容量
  * @return 实际找到的条目数量（可能超过 max_count，此时仅返回前 max_count 个）
  */
-int func_block_registry_find_by_category(PresetCategory category, PresetEntry **out_entries, int max_count);
+LV00_PUBLIC_API int func_block_registry_find_by_category(PresetCategory category, PresetEntry **out_entries, int max_count);
 
 /* ============== 辅助函数 ============== */
 
@@ -200,7 +200,7 @@ int func_block_registry_find_by_category(PresetCategory category, PresetEntry **
  */
 #ifndef LV00_PRESET_CATEGORY_TO_STRING_DECLARED
 #define LV00_PRESET_CATEGORY_TO_STRING_DECLARED
-const char *preset_category_to_string(PresetCategory cat);
+LV00_PUBLIC_API const char *preset_category_to_string(PresetCategory cat);
 #endif /* LV00_PRESET_CATEGORY_TO_STRING_DECLARED */
 
 /**
@@ -212,21 +212,21 @@ const char *preset_category_to_string(PresetCategory cat);
  * @param category 输出：解析后的类别枚举值
  * @return true 解析成功，false 字符串无法识别或参数无效
  */
-bool preset_category_from_string(const char *str, PresetCategory *category);
+LV00_PUBLIC_API bool preset_category_from_string(const char *str, PresetCategory *category);
 
 /**
  * @brief 获取注册表中当前条目总数
  *
  * @return 条目数量
  */
-int func_block_registry_get_count(void);
+LV00_PUBLIC_API int func_block_registry_get_count(void);
 
 /**
  * @brief 注销指定名称的函数块
  * @param name 要注销的函数块名称
  * @return 0 成功，-1 未找到
  */
-int func_block_registry_unregister(const char *name);
+LV00_PUBLIC_API int func_block_registry_unregister(const char *name);
 
 #ifdef __cplusplus
 }

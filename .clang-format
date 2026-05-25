@@ -43,14 +43,17 @@ SpacesBeforeTrailingComments: 2
 SortIncludes: true
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex: '^<.*\.h>'
+  # 对应头文件（同目录 .h）优先，匹配 "xxx.h" 但不匹配 "lv00/xxx.h"
+  - Regex: '^"(?!lv00/)[^/]+\.h"'
     Priority: 1
-  - Regex: '^<.*>'
+  - Regex: '^<.*\.h>'
     Priority: 2
-  - Regex: '"lv00/'
+  - Regex: '^<.*>'
     Priority: 3
-  - Regex: '".*"'
+  - Regex: '"lv00/'
     Priority: 4
+  - Regex: '".*"'
+    Priority: 5
 
 # 其他
 AccessModifierOffset: -4
