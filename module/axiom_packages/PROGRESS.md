@@ -55,6 +55,7 @@
 | 47 | graph_theory | 1.0.0 | Graph Theory (Euler-Diestel, 70 templates, 14 NP-complete problems, Matching/Coloring/Planarity) | 2026-05-24 |
 | 48 | cartesian_closed_category | 1.0.0 | Cartesian Closed Category / CCC (Eilenberg-Kelly, Terminal + Products + Exponentials, Curry-Howard-Lambek, 55 templates) | 2026-05-24 |
 | 49 | topos_theory | 1.0.0 | Topos Theory / Elementary Topos (Lawvere-Tierney, Finite Limits + Cartesian Closed + Subobject Classifier, 90 templates) | 2026-05-25 |
+| 50 | linear_algebra | 1.0.0 | Linear Algebra (Vector Space Axioms, Linear Maps, Matrix Algebra, Determinant, Eigenvalue, Inner Product, Dual/Tensor, Canonical Forms, 90 templates) | 2026-05-26 |
 
 ### 1. euclidean_plane v1.0.0
 
@@ -1930,6 +1931,95 @@
 **File**: `axiom_packages/topos_theory.lvz`
 **Test**: `tests/test_axiom_topos_theory.c` (7 test functions)
 
+### 50. linear_algebra v1.0.0
+
+**Mathematical Theory**: Linear Algebra — the study of vector spaces, linear maps, matrices, determinants, eigenvalues, inner product spaces, dual spaces, and tensor products. One of the most fundamental and widely-applied branches of mathematics, serving as the computational and conceptual foundation for virtually every other area of mathematics, physics, engineering, and computer science.
+
+- **References**:
+  - Wikipedia: Vector space
+    https://en.wikipedia.org/wiki/Vector_space
+  - Wikipedia: Linear algebra
+    https://en.wikipedia.org/wiki/Linear_algebra
+  - nLab: vector space
+    https://ncatlab.org/nlab/show/vector+space
+  - Halmos, P.R. (1958). "Finite-Dimensional Vector Spaces" (2nd ed.). Van Nostrand. ISBN 0-387-90093-4.
+  - Axler, S. (2015). "Linear Algebra Done Right" (3rd ed.). Springer. ISBN 978-3-319-11080-6.
+  - Lang, S. (2002). "Algebra" (3rd ed.). Springer. ISBN 0-387-95385-X.
+  - Hoffman, K. & Kunze, R. (1971). "Linear Algebra" (2nd ed.). Prentice-Hall.
+  - Roman, S. (2005). "Advanced Linear Algebra" (2nd ed.). Springer. ISBN 0-387-24766-1.
+  - Peano, G. (1888). "Calcolo Geometrico secondo l'Ausdehnungslehre di H. Grassmann". Torino.
+  - Wikipedia: Matrix (mathematics)
+    https://en.wikipedia.org/wiki/Matrix_(mathematics)
+  - Wikipedia: Eigenvalues and eigenvectors
+    https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors
+  - Wikipedia: Determinant
+    https://en.wikipedia.org/wiki/Determinant
+  - Wikipedia: Tensor product of vector spaces
+    https://en.wikipedia.org/wiki/Tensor_product_of_vector_spaces
+  - Wikipedia: Dual space
+    https://en.wikipedia.org/wiki/Dual_space
+  - Wikipedia: Mortality problem
+    https://en.wikipedia.org/wiki/Mortality_problem
+
+- **Primitive Notions**: vector (element of V), scalar (element of field F), vector addition (+): V × V → V, scalar multiplication (*): F × V → V, zero vector (0_V), linear map (T: V → W), matrix (rectangular array of scalars)
+
+- **Core Axioms**: 8 axioms in 2 groups:
+  - Group I: Abelian Group under Addition (4)
+    - LA1. Associativity: u + (v + w) = (u + v) + w
+    - LA2. Commutativity: u + v = v + u
+    - LA3. Identity: ∃0_V ∈ V such that v + 0_V = v
+    - LA4. Inverse: ∀v ∈ V, ∃(-v) ∈ V with v + (-v) = 0_V
+  - Group II: Scalar Multiplication (4)
+    - LA5. Compatibility: a * (b * v) = (a * b) * v
+    - LA6. Identity: 1 * v = v
+    - LA7. Distributivity over vector addition: a * (u + v) = a*u + a*v
+    - LA8. Distributivity over field addition: (a + b) * v = a*v + b*v
+
+- **Constraint Templates**: 90 (12 groups)
+  - Group I: Vector Space Axioms (8) — core axioms LA1-LA8
+  - Group II: Derived Properties (6) — zero annihilates, negation via scalar, zero divisor property, subtraction
+  - Group III: Subspaces and Quotient Spaces (6) — subspace test, span, linear independence/dependence, quotient space, direct sum
+  - Group IV: Basis and Dimension (8) — basis, dimension, finite/infinite-dimensional, dimension theorem, rank-nullity, basis extension, Steinitz exchange
+  - Group V: Linear Maps (10) — linear map, composition, kernel, image, injectivity/surjectivity criteria, isomorphism, Hom space, End(V), GL(V)
+  - Group VI: Matrix Algebra (10) — matrix, addition, multiplication, scalar multiplication, transpose, identity, zero matrix, inverse, trace, rank
+  - Group VII: Determinant Theory (6) — determinant, multiplicative property, transpose, cofactor expansion, Cramer's rule, adjugate
+  - Group VIII: Eigenvalue Theory (8) — eigenvalue, eigenvector, characteristic polynomial, eigenspace, algebraic/geometric multiplicity, diagonalizability, Cayley-Hamilton
+  - Group IX: Inner Product Spaces (8) — inner product, conjugate symmetry, linearity, positive definiteness, norm, orthogonality, orthogonal complement, Gram-Schmidt
+  - Group X: Dual Spaces and Tensor Products (8) — dual space, dual basis, double dual, annihilator, tensor product, universal property, exterior product, symmetric product
+  - Group XI: Canonical Forms (6) — Jordan normal form, rational canonical form, SVD, QR decomposition, LU decomposition, spectral theorem
+  - Group XII: Advanced Constructions (6) — direct product, external direct sum, induced quotient map, pullback, pushout, multilinear map
+
+- **Known Unconstructible Problems**: 8
+  - matrix_mortality_problem/undecidable (Paterson 1970, dimension ≥ 3)
+  - matrix_semigroup_membership/undecidable
+  - matrix_semigroup_equality/undecidable
+  - matrix_nilpotency_problem/undecidable (related to mortality)
+  - basis_existence_infinite_dimensional/requires_axiom_of_choice
+  - vector_space_isomorphism_problem/undecidable
+  - tensor_rank_problem/np_hard
+  - eigenvalue_sensitivity_nonnormal/numerically_unstable
+
+- **Bottom Geometry**: vector_space_over_field — ⊥ is geometrically represented as the zero vector 0_V; contradiction in linear algebra corresponds to deriving the zero vector from a nontrivial assumption
+- **Negation Encoding**: classical_equality
+- **Contradiction Behavior**: explosion_principle
+
+- **Relationship to existing packages**:
+  - field_theory: A vector space is defined over a field F. Scalar multiplication uses field operations. Linear algebra is the module theory of fields.
+  - group_theory: (V, +) is an abelian group. GL(V) = Aut(V) is a group under composition. Linear algebra adds the scalar action of F on this group.
+  - functional_analysis: Normed spaces, Banach spaces, and Hilbert spaces are vector spaces with additional topological structure (norm, completeness, inner product).
+  - differential_geometry: Tangent spaces T_p M are vector spaces; the tangent bundle is a vector bundle. Connections and curvature are expressed via linear maps.
+  - quantum_information_theory: Quantum states are unit vectors in a complex Hilbert space (a complete inner product space over C). Quantum gates are unitary linear maps.
+  - lie_theory: A Lie algebra is a vector space g over F equipped with a bilinear bracket [·,·]: g × g → g satisfying the Jacobi identity.
+  - graph_theory: Adjacency matrix, incidence matrix, Laplacian matrix, spectral graph theory all use linear algebra.
+  - real_analysis: R^n is a vector space; differentiation is a linear map on tangent spaces; integration is a linear functional.
+  - measure_theory: L^p spaces are vector spaces of measurable functions; the Riesz representation theorem connects linear functionals to measures.
+  - category_theory: Vect_F (the category of vector spaces over F) is a fundamental example of an abelian category.
+  - homological_algebra: Chain complexes are sequences of vector spaces and linear maps; homology groups are vector spaces over F.
+  - algebraic_geometry: The coordinate ring k[V] of an affine variety V is a vector space over k; tangent spaces in algebraic geometry are vector spaces.
+
+**File**: `axiom_packages/linear_algebra.lvz`
+**Test**: `tests/test_axiom_linear_algebra.c` (10 test functions)
+
 ---
 
 ## Dependency Graph
@@ -2052,6 +2142,36 @@ graph_theory (v1.0.0, 48 templates)
     [Connects to group_theory: automorphism group of graph, Cayley graphs, graph coloring groups]
     [Connects to zfc_set_theory: infinite graph theory requires choice for some results]
     [Core axioms: 3 groups (structural, incidence/adjacency, well-formedness)]
+
+linear_algebra (v1.0.0, 90 templates)
+    [Built on field_theory: vector spaces are defined over a field F; scalars are field elements]
+    [Built on group_theory: (V, +) is an abelian group; GL(V) is a group under composition]
+    [Connects to functional_analysis: normed spaces, Banach spaces, Hilbert spaces extend vector spaces with topology/metric]
+    [Connects to differential_geometry: tangent spaces T_p M are vector spaces; tensor fields are sections of vector bundles]
+    [Connects to quantum_information_theory: quantum states are unit vectors in a complex Hilbert space (inner product space)]
+    [Connects to lie_theory: Lie algebras are vector spaces over F with a bilinear bracket satisfying Jacobi identity]
+    [Connects to graph_theory: adjacency matrix, incidence matrix, spectral graph theory, Laplacian matrix]
+    [Connects to real_analysis: R^n is a vector space; differentiation is a linear map on tangent spaces]
+    [Connects to measure_theory: L^p spaces are vector spaces of measurable functions]
+    [Connects to probability_theory: random variables form vector spaces; covariance matrices]
+    [Connects to algebraic_geometry: coordinate rings of affine varieties are vector spaces over the base field]
+    [Connects to homological_algebra: chain complexes are sequences of vector spaces and linear maps]
+    [Connects to category_theory: Vect_F is the category of vector spaces over F; a fundamental example of an abelian category]
+    [Connects to representation_theory: group representations are linear actions on vector spaces]
+    [Core axioms: 8 (4 abelian group + 4 scalar multiplication)]
+    [12 groups: vector space axioms (8), derived properties (6), subspaces (6), basis/dimension (8),
+     linear maps (10), matrix algebra (10), determinant theory (6), eigenvalue theory (8),
+     inner product spaces (8), dual/tensor (8), canonical forms (6), advanced constructions (6)]
+    [90 templates, 8 unconstructible problems]
+    [8 unconstructible problems: matrix mortality (undecidable), semigroup membership (undecidable),
+     semigroup equality (undecidable), nilpotency (undecidable), basis existence infinite-dim (AC),
+     vector space isomorphism (undecidable), tensor rank (NP-hard), eigenvalue sensitivity (numerically unstable)]
+    [bottom_geometry: vector_space_over_field]
+    [negation_encoding: classical_equality]
+    [contradiction_behavior: explosion_principle]
+    [Key: vector space = module over a field; every vector space has a basis (AC);
+     rank-nullity theorem connects linear maps to dimension;
+     Cayley-Hamilton: every matrix satisfies its own characteristic polynomial]
     [8 groups: structural (6), elementary consequences (10), core constructors (6),
      connectivity (6), paths/cycles (5), trees/forests (4), special graph classes (5),
      graph operations (6)]
@@ -2939,6 +3059,47 @@ Major mathematical branches are now comprehensively covered. The three classical
    - Key theorems: No-cloning theorem, quantum teleportation, Holevo bound, Tsirelson bound, strong subadditivity
    - Core quantum postulates: QP1 (state space), QP2 (unitary evolution), QP3 (POVM measurement), QP4 (tensor product composition)
    - Total axiom packages: 45 (including 2 unnumbered), covering 23 mathematical branches
+
+### 2026-05-26 (Session 1)
+
+15. **Linear Algebra axiom package implemented** — Added the 50th numbered axiom package covering Linear Algebra, one of the most fundamental and widely-used branches of mathematics. A vector space over a field F is a set V equipped with vector addition and scalar multiplication satisfying 8 axioms.
+   - 90 constraint templates across 12 groups:
+     - Group I: Vector Space Axioms (8) — abelian group axioms + scalar multiplication axioms
+     - Group II: Derived Properties (6) — zero annihilates, negation via scalar, zero divisor property
+     - Group III: Subspaces and Quotient Spaces (6) — subspace test, span, linear independence, quotient space, direct sum
+     - Group IV: Basis and Dimension (8) — basis, dimension, rank-nullity theorem, Steinitz exchange
+     - Group V: Linear Maps (10) — linear map, kernel, image, isomorphism, Hom space, GL(V)
+     - Group VI: Matrix Algebra (10) — matrix operations, transpose, inverse, trace, rank
+     - Group VII: Determinant Theory (6) — determinant, Cramer's rule, cofactor expansion, adjugate
+     - Group VIII: Eigenvalue Theory (8) — eigenvalue/eigenvector, characteristic polynomial, Cayley-Hamilton
+     - Group IX: Inner Product Spaces (8) — inner product, norm, orthogonality, Gram-Schmidt
+     - Group X: Dual Spaces and Tensor Products (8) — dual space, tensor product, exterior/symmetric product
+     - Group XI: Canonical Forms (6) — Jordan, SVD, QR, LU, spectral theorem
+     - Group XII: Advanced Constructions (6) — pullback, pushout, multilinear map
+   - 8 known unconstructible problems:
+     - matrix_mortality_problem (undecidable, Paterson 1970)
+     - matrix_semigroup_membership (undecidable)
+     - matrix_semigroup_equality (undecidable)
+     - matrix_nilpotency_problem (undecidable)
+     - basis_existence_infinite_dimensional (requires AC)
+     - vector_space_isomorphism_problem (undecidable)
+     - tensor_rank_problem (NP-hard)
+     - eigenvalue_sensitivity_nonnormal (numerically unstable)
+   - References: Wikipedia Vector space, nLab vector space, Halmos (1958), Axler (2015), Lang (2002), Hoffman & Kunze (1971), Roman (2005), Peano (1888)
+   - Test file: `tests/test_axiom_linear_algebra.c` with 10 test functions
+   - Key relationships:
+     - field_theory → linear_algebra: vector spaces are defined over a field; scalars are field elements
+     - group_theory → linear_algebra: (V, +) is an abelian group
+     - linear_algebra → functional_analysis: normed/Banach/Hilbert spaces are vector spaces with topology
+     - linear_algebra → differential_geometry: tangent spaces are vector spaces
+     - linear_algebra → quantum_information_theory: quantum states live in complex Hilbert spaces
+     - linear_algebra → lie_theory: Lie algebras are vector spaces with a bilinear bracket
+     - linear_algebra → graph_theory: adjacency matrix, spectral graph theory
+   - Core axioms: 8 (4 abelian group + 4 scalar multiplication)
+   - bottom_geometry: vector_space_over_field
+   - negation_encoding: classical_equality
+   - contradiction_behavior: explosion_principle
+   - Total axiom packages: 50 (including 2 unnumbered), covering 23 mathematical branches
 
 ---
 

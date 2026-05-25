@@ -376,7 +376,7 @@ static void test_proof_tree_multi_level(void) {
 
     /* 验证兄弟关系不影响各自深度 */
     TEST_ASSERT_EQ(level1->child_count, 2);
-    TEST_ASSERT_NE(level2->depth, sibling->depth);
+    TEST_ASSERT_EQ(level2->depth, sibling->depth);
     TEST_ASSERT_EQ(level2->depth, 2);
     TEST_ASSERT_EQ(sibling->depth, 2);
 

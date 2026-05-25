@@ -94,7 +94,7 @@ static int assertions_total = 0;
     } while (0)
 
 /* Path to axiom package file */
-static const char *AXIOM_FILE = "axiom_packages/galois_theory.lvz";
+static const char *AXIOM_FILE = "module/axiom_packages/galois_theory.lvz";
 
 /* ============================================================================
  * Test Functions
@@ -294,7 +294,7 @@ static void test_round_trip_save_load(void) {
     ASSERT_EQ(status, AXIOM_LOAD_OK);
 
     /* Save to temporary file */
-    const char *temp_file = "axiom_packages/galois_theory_test_temp.lvz";
+    const char *temp_file = "module/axiom_packages/galois_theory_test_temp.lvz";
     AxiomSaveStatus save_status = axiom_package_save(pkg1, temp_file);
     ASSERT_EQ(save_status, AXIOM_SAVE_OK);
 

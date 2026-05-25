@@ -602,6 +602,17 @@
       "axiom_file": "quantum_information_theory.lvz",
       "test_file": "test_axiom_quantum_information_theory.c",
       "test_save": null
+    },
+    "linear_algebra": {
+      "version": "1.0.0",
+      "category": "algebra",
+      "layers": ["vector_space", "subspace_basis", "linear_map", "matrix_algebra", "determinant", "eigenvalue", "inner_product", "dual_tensor", "canonical_form", "advanced"],
+      "dependencies": ["field_theory"],
+      "description": "Linear Algebra -- vector spaces over a field, linear maps, matrix algebra, determinant theory, eigenvalue theory, inner product spaces, dual spaces, tensor products, canonical forms (Jordan, SVD, QR, LU, spectral theorem)",
+      "manifest_path": null,
+      "axiom_file": "linear_algebra.lvz",
+      "test_file": "test_axiom_linear_algebra.c",
+      "test_save": null
     }
   }
 }

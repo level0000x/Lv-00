@@ -22,8 +22,8 @@
 int g_fail_count = 0;
 int g_pass_count = 0;
 
-#define AXIOM_PKG_PATH "axiom_packages/combinatorics.lvz"
-#define SAVE_TEST_PATH "axiom_packages/combinatorics_test_save.lvz"
+#define AXIOM_PKG_PATH "module/axiom_packages/combinatorics.lvz"
+#define SAVE_TEST_PATH "module/axiom_packages/combinatorics_test_save.lvz"
 
 #define EXPECTED_TEMPLATE_COUNT 39
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7

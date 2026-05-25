@@ -24,8 +24,8 @@
 #include "axiom_pkg.h"
 #include "lv00_utils.h"
 
-#define AXIOM_PKG_PATH "axiom_packages/elliptic_geometry.lvz"
-#define SAVE_TEST_PATH "axiom_packages/elliptic_geometry_test_save.lvz"
+#define AXIOM_PKG_PATH "module/axiom_packages/elliptic_geometry.lvz"
+#define SAVE_TEST_PATH "module/axiom_packages/elliptic_geometry_test_save.lvz"
 
 #define EXPECTED_TEMPLATE_COUNT 30
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 6

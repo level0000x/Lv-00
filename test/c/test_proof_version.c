@@ -22,6 +22,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <direct.h>
+#define TEST_MKDIR(path) _mkdir(path)
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#define TEST_MKDIR(path) mkdir(path, 0755)
+#endif
+
 #include "lv00.h"
 #include "proof_version.h"
 #include "test_helpers.h"
@@ -30,10 +39,19 @@ int g_pass_count = 0;
 int g_fail_count = 0;
 
 /* ============================================================
+ * Helper: ensure a directory exists before repo init
+ * ============================================================ */
+
+static void ensure_dir_exists(const char *path) {
+    TEST_MKDIR(path);
+}
+
+/* ============================================================
  * Test: Repository initialization
  * ============================================================ */
 
 static void test_repo_init(void) {
+    ensure_dir_exists("test_repo_init");
     Lv00ProofRepo *repo = proof_repo_init("test_repo_init");
     TEST_ASSERT_NOT_NULL(repo);
 
@@ -57,9 +75,11 @@ static void test_repo_init(void) {
 
 static void test_repo_open(void) {
     /* First create a repo */
+    ensure_dir_exists("test_repo_open");
     Lv00ProofRepo *repo = proof_repo_init("test_repo_open");
     TEST_ASSERT_NOT_NULL(repo);
     char original_head[LV00_OID_LENGTH];
+    memset(original_head, 0, sizeof(original_head));
     strncpy(original_head, repo->head_commit, LV00_OID_LENGTH - 1);
     proof_repo_destroy(repo);
 
@@ -82,10 +102,12 @@ static void test_repo_open(void) {
  * ============================================================ */
 
 static void test_repo_commit(void) {
+    ensure_dir_exists("test_repo_commit");
     Lv00ProofRepo *repo = proof_repo_init("test_repo_commit");
     TEST_ASSERT_NOT_NULL(repo);
 
     char old_head[LV00_OID_LENGTH];
+    memset(old_head, 0, sizeof(old_head));
     strncpy(old_head, repo->head_commit, LV00_OID_LENGTH - 1);
 
     const char *files[] = {"theorem1.lv00"};
@@ -112,6 +134,7 @@ static void test_repo_commit(void) {
  * ============================================================ */
 
 static void test_repo_log(void) {
+    ensure_dir_exists("test_repo_log");
     Lv00ProofRepo *repo = proof_repo_init("test_repo_log");
     TEST_ASSERT_NOT_NULL(repo);
 
@@ -151,11 +174,13 @@ static void test_repo_log(void) {
  * ============================================================ */
 
 static void test_repo_diff(void) {
+    ensure_dir_exists("test_repo_diff");
     Lv00ProofRepo *repo = proof_repo_init("test_repo_diff");
     TEST_ASSERT_NOT_NULL(repo);
 
     /* Get initial commit OID */
     char initial_oid[LV00_OID_LENGTH];
+    memset(initial_oid, 0, sizeof(initial_oid));
     strncpy(initial_oid, repo->head_commit, LV00_OID_LENGTH - 1);
 
     const char *files[] = {"lemma.lv00"};
@@ -194,6 +219,7 @@ static void test_repo_diff(void) {
  * ============================================================ */
 
 static void test_repo_branch(void) {
+    ensure_dir_exists("test_repo_branch");
     Lv00ProofRepo *repo = proof_repo_init("test_repo_branch");
     TEST_ASSERT_NOT_NULL(repo);
 
@@ -223,6 +249,7 @@ static void test_repo_branch(void) {
  * ============================================================ */
 
 static void test_repo_checkout(void) {
+    ensure_dir_exists("test_repo_checkout");
     Lv00ProofRepo *repo = proof_repo_init("test_repo_checkout");
     TEST_ASSERT_NOT_NULL(repo);
 
@@ -231,6 +258,7 @@ static void test_repo_checkout(void) {
 
     /* Save the current HEAD (which dev branch points to) */
     char dev_head[LV00_OID_LENGTH];
+    memset(dev_head, 0, sizeof(dev_head));
     strncpy(dev_head, repo->head_commit, LV00_OID_LENGTH - 1);
 
     /* Make a new commit on main */
@@ -306,6 +334,7 @@ static void test_null_safety(void) {
  * ============================================================ */
 
 static void test_multiple_commits(void) {
+    ensure_dir_exists("test_multi_commit");
     Lv00ProofRepo *repo = proof_repo_init("test_multi_commit");
     TEST_ASSERT_NOT_NULL(repo);
 

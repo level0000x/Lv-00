@@ -57,7 +57,7 @@ typedef enum Lv00ODEMethod {
  * @param params User-provided parameter block (may be NULL)
  * @param[out] dydt  Output derivative vector (caller-allocated, size = dim)
  */
-typedef void (*Lv00ODE rhs_fn)(double t, const double *y, void *params, double *dydt);
+typedef void (*Lv00ODERhsFn)(double t, const double *y, void *params, double *dydt);
 
 /**
  * @brief Describes an ODE initial value problem.
@@ -66,7 +66,7 @@ typedef void (*Lv00ODE rhs_fn)(double t, const double *y, void *params, double *
  *       of the problem. params may be NULL if not needed.
  */
 typedef struct Lv00ODEProblem {
-    Lv00ODE rhs_fn rhs_fn; /**< Right-hand-side function dy/dt = f(t,y) */
+    Lv00ODERhsFn rhs_fn; /**< Right-hand-side function dy/dt = f(t,y) */
     double         *y0;    /**< Initial state vector (size = dim) */
     size_t          dim;   /**< Dimension of the state vector */
     double          t_span[2]; /**< Integration interval [t_start, t_end] */

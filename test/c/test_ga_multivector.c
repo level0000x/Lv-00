@@ -187,13 +187,13 @@ void test_ga_reverse(void) {
     TEST_ASSERT(approx_eq(s_rev->components[GA_BLADE_1], 5.0),
                 "Reverse of scalar should be itself");
 
-    /* Test 2: reverse of e1 (grade 1) is -e1 */
+    /* Test 2: reverse of e1 (grade 1) is e1 (unchanged) */
     Lv00MultiVector *e1 = ga_mv_zero();
     e1->components[GA_BLADE_E1] = 1.0;
     Lv00MultiVector *e1_rev = ga_reverse(e1);
     TEST_ASSERT_NOT_NULL(e1_rev);
-    TEST_ASSERT(approx_eq(e1_rev->components[GA_BLADE_E1], -1.0),
-                "Reverse of e1 should be -e1");
+    TEST_ASSERT(approx_eq(e1_rev->components[GA_BLADE_E1], 1.0),
+                "Reverse of e1 should be e1");
 
     /* Test 3: reverse of e12 (grade 2) is -e12 */
     Lv00MultiVector *e12 = ga_mv_zero();

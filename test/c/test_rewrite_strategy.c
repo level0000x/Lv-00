@@ -197,10 +197,10 @@ static void test_conditional_rules(void) {
     rewrite_engine_result_ex_destroy(&result);
 
     /* Condition not satisfied: term does not contain "safe" */
-    ok = rewrite_engine_ex_apply(engine, "unsafe_x", &result);
+    ok = rewrite_engine_ex_apply(engine, "untrusted_x", &result);
     TEST_ASSERT(ok, "apply should succeed");
     TEST_ASSERT_NOT_NULL(result.output);
-    TEST_ASSERT_STR_EQ(result.output, "unsafe_x");
+    TEST_ASSERT_STR_EQ(result.output, "untrusted_x");
     rewrite_engine_result_ex_destroy(&result);
 
     rewrite_engine_ex_destroy(engine);

@@ -109,25 +109,17 @@ extern "C" {
  * ============================================================ */
 
 /**
- * @brief 注册所有数理逻辑预设函数块（兼容性接口）
- *
- * @deprecated 请直接调用 preset_math_logic_register() 替代
+ * @brief 注册数理逻辑预设函数块
  * @return true 全部注册成功
  * @return false 部分注册失败
  */
-static inline bool preset_mathematical_logic_register(void) {
-    return preset_math_logic_register();
-}
+bool preset_mathematical_logic_register(void);
 
 /**
  * @brief 获取数理逻辑预设函数块数量（兼容性接口）
- *
- * @deprecated 请直接调用 preset_math_logic_count() 替代
  * @return int 数理逻辑模块预设函数块总数
  */
-static inline int preset_mathematical_logic_count(void) {
-    return preset_math_logic_count();
-}
+int preset_mathematical_logic_count(void);
 
 #ifdef __cplusplus
 }
