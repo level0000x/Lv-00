@@ -304,6 +304,10 @@ set(LV00_HEADERS
     core/include/lv00/solver.h
     core/include/lv00/rewrite.h
     core/include/lv00/unify.h
+    # v3.6.0 新增：WFC 范式头文件
+    core/include/lv00/propagation.h
+    core/include/lv00/equiv_class.h
+    core/include/lv00/meta_proof.h
     core/include/lv00/axiom_pkg.h
     core/include/lv00/module.h
     core/include/lv00/engine.h
@@ -473,81 +477,89 @@ set(LV00_HEADERS
 # 职责：词法分析、公式解析、DSL 编译
 # 依赖：Layer 2
 set(LV00_LAYER1_SOURCES
-    core/src/parser/formula_parser.c
-    core/src/parser/formula_converter.c
-    core/src/parser/formula_renderer.c
-    core/src/parser/lexer_shared.c
-    core/src/parser/parser_safety.c
-    core/src/core/dsl_compiler.c
-    core/src/core/math_input.c
+    core/src/layer1_parser/formula_parser.c
+    core/src/layer1_parser/formula_converter.c
+    core/src/layer1_parser/formula_renderer.c
+    core/src/layer1_parser/lexer_shared.c
+    core/src/layer1_parser/parser_safety.c
+    core/src/layer1_parser/dsl_compiler.c
+    core/src/layer1_parser/math_input.c
 )
 
 # ── Layer 2: 资源管理层 (Resource) ──
 # 职责：内存分配、错误码、调试、深拷贝、工具函数
 # 依赖：GMP，C 标准库（仅 Layer 2 能直接依赖 GMP 链接）
 set(LV00_LAYER2_SOURCES
-    core/src/utils/lv00_utils.c
-    core/src/core/lv00.c
-    core/src/core/context.c
-    core/src/core/error_codes.c
-    core/src/core/debug.c
-    core/src/core/node_deep_copy.c
+    core/src/layer2_resource/lv00_utils.c
+    core/src/layer2_resource/lv00.c
+    core/src/layer2_resource/context.c
+    core/src/layer2_resource/error_codes.c
+    core/src/layer2_resource/debug.c
+    core/src/layer2_resource/node_deep_copy.c
     # v3.3.0 新增：内存池、运行时监控、测试框架
-    core/src/core/memory_pool.c
-    core/src/core/runtime_monitor.c
-    core/src/core/test_framework.c
+    core/src/layer2_resource/memory_pool.c
+    core/src/layer2_resource/runtime_monitor.c
+    core/src/layer2_resource/test_framework.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
 # 职责：约束图、符号坐标、几何原语、高维结构
 # 依赖：Layer 2，GMP（通过 Layer 2 传递）
 set(LV00_LAYER3_SOURCES
-    core/src/core/constraint_graph.c
-    core/src/core/symbolic_coord.c
-    core/src/core/euclidean_geometry.c
-    core/src/core/interactive_geo.c
-    core/src/core/high_dim.c
-    core/src/core/geometry_compress.c
-    core/src/core/geo_event_detect.c
-    core/src/core/geo_spec.c
-    core/src/core/geometry_csg.c
-    core/src/core/sparse_linear_algebra.c
-    core/src/core/geom_evol.c
-    core/src/core/float_error.c
-    core/src/core/mpz_poly_resultant.c
+    core/src/layer3_geometry/constraint_graph.c
+    core/src/layer3_geometry/symbolic_coord.c
+    core/src/layer3_geometry/euclidean_geometry.c
+    core/src/layer3_geometry/interactive_geo.c
+    core/src/layer3_geometry/high_dim.c
+    core/src/layer3_geometry/geometry_compress.c
+    core/src/layer3_geometry/geo_event_detect.c
+    core/src/layer3_geometry/geo_spec.c
+    core/src/layer3_geometry/geometry_csg.c
+    core/src/layer3_geometry/sparse_linear_algebra.c
+    core/src/layer3_geometry/geom_evol.c
+    core/src/layer3_geometry/float_error.c
+    core/src/layer3_geometry/mpz_poly_resultant.c
     # v3.3.0 新增：几何变换推理
-    core/src/core/geometry_transform.c
+    core/src/layer3_geometry/geometry_transform.c
     # v3.4.0 新增：几何代数模块（GATr + GAALOP + GeoLogic 落地）
-    core/src/core/ga_multivector.c
-    core/src/core/ga_interface.c
-    core/src/core/ga_codegen.c
-    core/src/core/geo_invariant_type.c
+    core/src/layer3_geometry/ga_multivector.c
+    core/src/layer3_geometry/ga_interface.c
+    core/src/layer3_geometry/ga_codegen.c
+    core/src/layer3_geometry/geo_invariant_type.c
     # v3.4.0 新增：区间/数值验证模块（MPFI + Gappa + FPTaylor + Herbie + FLINT/Arb 落地）
-    core/src/core/interval_arithmetic.c
-    core/src/core/gappa_dsl.c
-    core/src/core/gappa_propagate.c
-    core/src/core/fptaylor_eval.c
-    core/src/core/herbie_eval.c
+    core/src/layer3_geometry/interval_arithmetic.c
+    core/src/layer3_geometry/gappa_dsl.c
+    core/src/layer3_geometry/gappa_propagate.c
+    core/src/layer3_geometry/fptaylor_eval.c
+    core/src/layer3_geometry/herbie_eval.c
     # v3.4.0 新增：SMT/SAT 模块（Alt-Ergo + STP + Boolector + CaDiCaL + Yices2 落地）
-    core/src/core/smt_theory_combiner.c
-    core/src/core/smt_bitvector.c
-    core/src/core/smt_trigger_engine.c
+    core/src/layer3_geometry/smt_theory_combiner.c
+    core/src/layer3_geometry/smt_bitvector.c
+    core/src/layer3_geometry/smt_trigger_engine.c
     # v3.4.0 新增：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
-    core/src/core/proof_rule_engine.c
-    core/src/core/proof_session.c
+    core/src/layer3_geometry/proof_rule_engine.c
+    core/src/layer3_geometry/proof_session.c
     # v3.4.0 新增：数论/代数模块（NTL + SymEngine + GiNaC 落地）
-    core/src/core/nt_number_theory.c
-    core/src/core/nt_polynomial.c
-    core/src/core/sym_expr.c
+    core/src/layer3_geometry/nt_number_theory.c
+    core/src/layer3_geometry/nt_polynomial.c
+    core/src/layer3_geometry/sym_expr.c
     # v3.4.0 新增：重写引擎模块（egg + Maude + K Framework 落地）
-    core/src/core/rewrite_strategy.c
+    core/src/layer3_geometry/rewrite_strategy.c
     # v3.4.0 新增：版本控制模块（libgit2 落地）
-    core/src/core/proof_version.c
+    core/src/layer3_geometry/proof_version.c
     # v3.4.0 新增：自动微分模块（Enzyme 落地）
-    core/src/core/autodiff.c
+    core/src/layer3_geometry/autodiff.c
     # v3.3.0 性能优化模块
-    core/src/core/thread_pool.c
-    core/src/core/simd_ops.c
+    core/src/layer3_geometry/thread_pool.c
+    core/src/layer3_geometry/simd_ops.c
+    # v3.3.0 新增：几何拓扑
+    core/src/layer3_geometry/geo_topology.c
+    # v3.6.0 新增：WFC 范式 - 等价类管理器（Layer 3 约束拓扑规约）
+    core/src/layer3_geometry/equiv_class.c
+    # v3.6.0 新增：WFC 范式 - 约束传播引擎（Layer 3 约束拓扑规约）
+    core/src/layer3_geometry/propagation.c
+    # v3.3.0 新增：ODE 求解器
+    core/src/layer3_geometry/ode_solver.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -555,145 +567,149 @@ set(LV00_LAYER3_SOURCES
 # 依赖：Layer 3，Layer 2
 set(LV00_LAYER4_SOURCES
     # 核心引擎与求解
-    core/src/core/engine.c
-    core/src/core/engine_scheduler.c
-    core/src/core/solver.c
-    core/src/core/solver_core.c
+    core/src/layer4_reasoning/engine.c
+    core/src/layer4_reasoning/engine_scheduler.c
+    core/src/layer4_reasoning/solver.c
+    core/src/layer4_reasoning/solver_core.c
     # 证明系统
-    core/src/core/proof_scoped.c
-    core/src/core/proof_optimize.c
-    core/src/core/proof_multi_strategy.c
-    core/src/core/proof_trace.c
-    core/src/core/proof_priority.c
-    core/src/core/logic_check.c
-    core/src/core/circuit_breaker.c
+    core/src/layer4_reasoning/proof.c
+    core/src/layer4_reasoning/proof_optimize.c
+    core/src/layer4_reasoning/proof_multi_strategy.c
+    core/src/layer4_reasoning/proof_trace.c
+    core/src/layer4_reasoning/proof_priority.c
+    core/src/layer4_reasoning/logic_check.c
+    core/src/layer4_reasoning/circuit_breaker.c
     # 三值逻辑、模态算子、量词系统
-    core/src/core/three_valued_logic.c
-    core/src/core/modal_operators.c
-    core/src/core/quantifier.c
+    core/src/layer4_reasoning/three_valued_logic.c
+    core/src/layer4_reasoning/modal_operators.c
+    core/src/layer4_reasoning/quantifier.c
     # 增强证明引擎
-    core/src/core/proof_engine_enhanced.c
-    core/src/core/proof_scoped.c
+    core/src/layer4_reasoning/proof_engine_enhanced.c
     # 重写与合一
-    core/src/core/rewrite.c
-    core/src/core/unify.c
-    core/src/core/normalization.c
-    core/src/core/recursion.c
+    core/src/layer4_reasoning/rewrite.c
+    core/src/layer4_reasoning/unify.c
+    core/src/layer4_reasoning/normalization.c
+    core/src/layer4_reasoning/recursion.c
     # 类型与属性
-    core/src/core/type_system.c
-    core/src/core/prop_verifier.c
+    core/src/layer4_reasoning/type_system.c
+    core/src/layer4_reasoning/prop_verifier.c
     # 后端求解引擎
-    core/src/core/groebner_engine.c
-    core/src/core/smt_backend_impl.c
-    core/src/core/atp_backend.c
-    core/src/core/sat_encoding.c
-    core/src/core/bdd_encoding.c
-    core/src/core/approx_counter.c
-    core/src/core/probabilistic_constraint.c
-    core/src/core/rational.c
-    core/src/core/expr_canon.c
-    core/src/core/exact_arithmetic.c
+    core/src/layer4_reasoning/groebner_engine.c
+    core/src/layer4_reasoning/smt_backend_impl.c
+    core/src/layer4_reasoning/atp_backend.c
+    core/src/layer4_reasoning/sat_encoding.c
+    core/src/layer4_reasoning/bdd_encoding.c
+    core/src/layer4_reasoning/approx_counter.c
+    core/src/layer4_reasoning/probabilistic_constraint.c
+    core/src/layer4_reasoning/rational.c
+    core/src/layer4_reasoning/expr_canon.c
+    core/src/layer4_reasoning/exact_arithmetic.c
     # v3.3.0 新增：表达式规范化、不等式推理
-    core/src/core/expr_canonical.c
+    core/src/layer4_reasoning/expr_canonical.c
     # 模型与模式
-    core/src/core/relation_model.c
-    core/src/core/algebra_mode.c
-    core/src/core/numerical_backend.c
+    core/src/layer4_reasoning/relation_model.c
+    core/src/layer4_reasoning/algebra_mode.c
+    core/src/layer4_reasoning/numerical_backend.c
     # 内核与协议
-    core/src/core/module.c
-    core/src/core/mini_kernel.c
-    core/src/core/gc_language.c
-    core/src/core/ecosystem.c
-    core/src/core/math_protocol.c
-    core/src/core/stream.c
-    core/src/core/stream_context_util.c
+    core/src/layer4_reasoning/module.c
+    core/src/layer4_reasoning/mini_kernel.c
+    core/src/layer4_reasoning/gc_language.c
+    core/src/layer4_reasoning/ecosystem.c
+    core/src/layer4_reasoning/math_protocol.c
+    core/src/layer4_reasoning/stream.c
+    core/src/layer4_reasoning/stream_context_util.c
+    # v3.3.0 新增：不等式推理系统（桩实现）
+    core/src/layer4_reasoning/inequality_reasoning.c
     # 公理包
-    core/src/axiom/axiom_pkg.c
-    core/src/axiom/axiom_grade.c
+    core/src/layer4_reasoning/axiom/axiom_pkg.c
+    core/src/layer4_reasoning/axiom/axiom_grade.c
     # func_block 函数块系统
-    core/src/func_block/func_block.c
-    core/src/func_block/func_block_compose.c
-    core/src/func_block/func_block_determinism.c
-    core/src/func_block/func_block_instantiate.c
-    core/src/func_block/func_block_preset.c
-    core/src/func_block/func_block_preset_ops.c
-    core/src/func_block/func_block_registry.c
-    core/src/func_block/func_block_selector.c
-    core/src/func_block/func_block_serialize.c
-    core/src/func_block/func_block_utils.c
-    core/src/func_block/preset_basic_math.c
-    core/src/func_block/preset_blocks.c
-    core/src/func_block/preset_calculus.c
-    core/src/func_block/preset_common.c
-    core/src/func_block/preset_manager.c
+    core/src/layer4_reasoning/func_block/func_block.c
+    core/src/layer4_reasoning/func_block/func_block_compose.c
+    core/src/layer4_reasoning/func_block/func_block_determinism.c
+    core/src/layer4_reasoning/func_block/func_block_instantiate.c
+    core/src/layer4_reasoning/func_block/func_block_preset.c
+    core/src/layer4_reasoning/func_block/func_block_preset_ops.c
+    core/src/layer4_reasoning/func_block/func_block_registry.c
+    core/src/layer4_reasoning/func_block/func_block_selector.c
+    core/src/layer4_reasoning/func_block/func_block_serialize.c
+    core/src/layer4_reasoning/func_block/func_block_utils.c
+    core/src/layer4_reasoning/func_block/preset_basic_math.c
+    core/src/layer4_reasoning/func_block/preset_blocks.c
+    core/src/layer4_reasoning/func_block/preset_calculus.c
+    core/src/layer4_reasoning/func_block/preset_common.c
+    core/src/layer4_reasoning/func_block/preset_manager.c
     # 数学理论预设 (55 个文件)
-    core/src/preset/preset_advanced_geometry.c
-    core/src/preset/preset_algebraic.c
-    core/src/preset/preset_algebraic_geometry.c
-    core/src/preset/preset_algebraic_topology.c
-    core/src/preset/preset_algebraic_topology_adv.c
-    core/src/preset/preset_analysis.c
-    core/src/preset/preset_arithmetic_geometry.c
-    core/src/preset/preset_basic_geometry.c
-    core/src/preset/preset_category_theory.c
-    core/src/preset/preset_category_theory_adv.c
-    core/src/preset/preset_coding_theory.c
-    core/src/preset/preset_combinatorics.c
-    core/src/preset/preset_complex_analysis.c
-    core/src/preset/preset_difference_equations.c
-    core/src/preset/preset_differential_equations.c
-    core/src/preset/preset_differential_geometry.c
-    core/src/preset/preset_differential_geometry_adv.c
-    core/src/preset/preset_dynamical_systems.c
-    core/src/preset/preset_field_theory.c
-    core/src/preset/preset_functional_analysis.c
-    core/src/preset/preset_functional_analysis_adv.c
-    core/src/preset/preset_game_theory.c
-    core/src/preset/preset_geometry_3d.c
-    core/src/preset/preset_graph_theory.c
-    core/src/preset/preset_group_theory.c
-    core/src/preset/preset_homological_algebra.c
-    core/src/preset/preset_information_theory.c
-    core/src/preset/preset_integral_transforms.c
-    core/src/preset/preset_lattice_theory.c
-    core/src/preset/preset_lie_theory_advanced.c
-    core/src/preset/preset_linear_algebra.c
-    core/src/preset/preset_logic_advanced.c
-    core/src/preset/preset_math_logic.c
-    core/src/preset/preset_mathematical_logic.c
-    core/src/preset/preset_mathematical_physics.c
-    core/src/preset/preset_matrix.c
-    core/src/preset/preset_measure_theory.c
-    core/src/preset/preset_measurements.c
-    core/src/preset/preset_number_theory.c
-    core/src/preset/preset_numerical.c
-    core/src/preset/preset_numerical_analysis.c
-    core/src/preset/preset_optimization.c
-    core/src/preset/preset_order_theory.c
-    core/src/preset/preset_polygons.c
-    core/src/preset/preset_polynomial.c
-    core/src/preset/preset_probability.c
-    core/src/preset/preset_probability_statistics.c
-    core/src/preset/preset_representation_theory.c
-    core/src/preset/preset_ring_theory.c
-    core/src/preset/preset_set_theory.c
-    core/src/preset/preset_special_functions.c
-    core/src/preset/preset_statistics.c
-    core/src/preset/preset_stochastic_processes.c
-    core/src/preset/preset_topology.c
-    core/src/preset/preset_transformations.c
-    core/src/preset/preset_trigonometry.c
+    core/src/layer4_reasoning/preset/preset_advanced_geometry.c
+    core/src/layer4_reasoning/preset/preset_algebraic.c
+    core/src/layer4_reasoning/preset/preset_algebraic_geometry.c
+    core/src/layer4_reasoning/preset/preset_algebraic_topology.c
+    core/src/layer4_reasoning/preset/preset_algebraic_topology_adv.c
+    core/src/layer4_reasoning/preset/preset_analysis.c
+    core/src/layer4_reasoning/preset/preset_arithmetic_geometry.c
+    core/src/layer4_reasoning/preset/preset_basic_geometry.c
+    core/src/layer4_reasoning/preset/preset_category_theory.c
+    core/src/layer4_reasoning/preset/preset_category_theory_adv.c
+    core/src/layer4_reasoning/preset/preset_coding_theory.c
+    core/src/layer4_reasoning/preset/preset_combinatorics.c
+    core/src/layer4_reasoning/preset/preset_complex_analysis.c
+    core/src/layer4_reasoning/preset/preset_difference_equations.c
+    core/src/layer4_reasoning/preset/preset_differential_equations.c
+    core/src/layer4_reasoning/preset/preset_differential_geometry.c
+    core/src/layer4_reasoning/preset/preset_differential_geometry_adv.c
+    core/src/layer4_reasoning/preset/preset_dynamical_systems.c
+    core/src/layer4_reasoning/preset/preset_field_theory.c
+    core/src/layer4_reasoning/preset/preset_functional_analysis.c
+    core/src/layer4_reasoning/preset/preset_functional_analysis_adv.c
+    core/src/layer4_reasoning/preset/preset_game_theory.c
+    core/src/layer4_reasoning/preset/preset_geometry_3d.c
+    core/src/layer4_reasoning/preset/preset_graph_theory.c
+    core/src/layer4_reasoning/preset/preset_group_theory.c
+    core/src/layer4_reasoning/preset/preset_homological_algebra.c
+    core/src/layer4_reasoning/preset/preset_information_theory.c
+    core/src/layer4_reasoning/preset/preset_integral_transforms.c
+    core/src/layer4_reasoning/preset/preset_lattice_theory.c
+    core/src/layer4_reasoning/preset/preset_lie_theory_advanced.c
+    core/src/layer4_reasoning/preset/preset_linear_algebra.c
+    core/src/layer4_reasoning/preset/preset_logic_advanced.c
+    core/src/layer4_reasoning/preset/preset_math_logic.c
+    core/src/layer4_reasoning/preset/preset_mathematical_logic.c
+    core/src/layer4_reasoning/preset/preset_mathematical_physics.c
+    core/src/layer4_reasoning/preset/preset_matrix.c
+    core/src/layer4_reasoning/preset/preset_measure_theory.c
+    core/src/layer4_reasoning/preset/preset_measurements.c
+    core/src/layer4_reasoning/preset/preset_number_theory.c
+    core/src/layer4_reasoning/preset/preset_numerical.c
+    core/src/layer4_reasoning/preset/preset_numerical_analysis.c
+    core/src/layer4_reasoning/preset/preset_optimization.c
+    core/src/layer4_reasoning/preset/preset_order_theory.c
+    core/src/layer4_reasoning/preset/preset_polygons.c
+    core/src/layer4_reasoning/preset/preset_polynomial.c
+    core/src/layer4_reasoning/preset/preset_probability.c
+    core/src/layer4_reasoning/preset/preset_probability_statistics.c
+    core/src/layer4_reasoning/preset/preset_representation_theory.c
+    core/src/layer4_reasoning/preset/preset_ring_theory.c
+    core/src/layer4_reasoning/preset/preset_set_theory.c
+    core/src/layer4_reasoning/preset/preset_special_functions.c
+    core/src/layer4_reasoning/preset/preset_statistics.c
+    core/src/layer4_reasoning/preset/preset_stochastic_processes.c
+    core/src/layer4_reasoning/preset/preset_topology.c
+    core/src/layer4_reasoning/preset/preset_transformations.c
+    core/src/layer4_reasoning/preset/preset_trigonometry.c
+    # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
+    core/src/layer4_reasoning/meta_proof.c
 )
 
 # ── Layer 5: 结果输出层 (Output) ──
 # 职责：流式输出、TikZ 导出、证明可视化、模块、互操作
 # 依赖：Layer 4，Layer 3，Layer 2
 set(LV00_LAYER5_SOURCES
-    core/src/core/proof_widget.c
-    core/src/core/tikz_export.c
-    core/src/interop/interop.c
+    core/src/layer5_output/proof_widget.c
+    core/src/layer5_output/tikz_export.c
+    core/src/layer5_output/proof_export_enhanced.c
+    core/src/layer5_output/interop/interop.c
     # Magic 模拟器模块
-    core/src/magic/magic.c
+    core/src/layer5_output/magic/magic.c
 )
 
 # ============================================================
@@ -706,6 +722,8 @@ macro(lv00_setup_layer target layer_id)
         ${GMP_INCLUDE_DIR}
         ${CMAKE_SOURCE_DIR}/core/include
         ${CMAKE_SOURCE_DIR}/core/include/lv00
+        ${CMAKE_SOURCE_DIR}/core/src
+        ${CMAKE_SOURCE_DIR}/core/src/preset
     )
     # 层级标识（用于编译时诊断和层级验证）
     target_compile_definitions(${target} PRIVATE LV00_CURRENT_LAYER=${layer_id})
@@ -1021,11 +1039,15 @@ if(BUILD_TESTS)
     add_lv00_test_and_register(test_autodiff
         test/c/test_autodiff.c test_autodiff)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
-    add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/core/prop_verifier.c)
+    add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/layer4_reasoning/prop_verifier.c)
     target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv00)
     target_link_libraries(test_prop_verifier lv00 ${GMP_LIBRARIES})
     add_test(NAME prop_verifier_test COMMAND test_prop_verifier
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    # v3.6.0 新增：WFC 范式三模块集成测试
+    add_lv00_test_and_register(test_wfc_modules
+        test/c/test_wfc_modules.c wfc_modules_test)
 
     # 基准测试（构建但不注册到 CTest，手动运行）
     add_lv00_test(test_benchmark test/c/test_benchmark.c)

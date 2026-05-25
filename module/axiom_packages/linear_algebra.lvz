@@ -1,0 +1,550 @@
+# =============================================================================
+# Lv-00 Axiom Package: Linear Algebra
+# =============================================================================
+#
+# Mathematical Theory: Linear Algebra (Vector Spaces, Linear Maps, Matrices)
+# Axiomatization: Standard vector space axioms over a field (8 axioms) +
+#                 linear map axioms + matrix algebra + eigenvalue theory
+#
+# References:
+#   - Wikipedia: Vector space
+#     https://en.wikipedia.org/wiki/Vector_space
+#   - Wikipedia: Linear algebra
+#     https://en.wikipedia.org/wiki/Linear_algebra
+#   - nLab: vector space
+#     https://ncatlab.org/nlab/show/vector+space
+#   - Halmos, P.R. (1958). "Finite-Dimensional Vector Spaces" (2nd ed.).
+#     Van Nostrand. ISBN 0-387-90093-4.
+#   - Axler, S. (2015). "Linear Algebra Done Right" (3rd ed.). Springer.
+#     ISBN 978-3-319-11080-6.
+#   - Lang, S. (2002). "Algebra" (3rd ed.). Springer. ISBN 0-387-95385-X.
+#   - Hoffman, K. & Kunze, R. (1971). "Linear Algebra" (2nd ed.).
+#     Prentice-Hall. ISBN 0-13-536797-2.
+#   - Roman, S. (2005). "Advanced Linear Algebra" (2nd ed.). Springer.
+#     ISBN 0-387-24766-1.
+#   - Peano, G. (1888). "Calcolo Geometrico secondo l'Ausdehnungslehre
+#     di H. Grassmann". Fratelli Bocca Editori, Torino.
+#   - Wikipedia: Matrix (mathematics)
+#     https://en.wikipedia.org/wiki/Matrix_(mathematics)
+#   - Wikipedia: Eigenvalues and eigenvectors
+#     https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors
+#   - Wikipedia: Determinant
+#     https://en.wikipedia.org/wiki/Determinant
+#   - Wikipedia: Tensor product of vector spaces
+#     https://en.wikipedia.org/wiki/Tensor_product_of_vector_spaces
+#   - Wikipedia: Dual space
+#     https://en.wikipedia.org/wiki/Dual_space
+#
+# Primitive Notions:
+#   - Vector (element of a vector space V over a field F)
+#   - Scalar (element of the field F)
+#   - Vector addition (+): V x V -> V
+#   - Scalar multiplication (*): F x V -> V
+#   - Zero vector (0_V): the additive identity in V
+#   - Linear map (T): V -> W (homomorphism between vector spaces)
+#   - Matrix (A): rectangular array of scalars representing a linear map
+#
+# Core Axioms (8, organized in 2 groups):
+#   Group I: Abelian Group Axioms for Vector Addition (4)
+#     LA1. Associativity of addition:      u + (v + w) = (u + v) + w
+#     LA2. Commutativity of addition:      u + v = v + u
+#     LA3. Additive identity:              There exists 0_V with v + 0_V = v
+#     LA4. Additive inverse:               For each v, there exists -v with v + (-v) = 0_V
+#
+#   Group II: Scalar Multiplication Axioms (4)
+#     LA5. Compatibility:                  a * (b * v) = (a * b) * v
+#     LA6. Scalar identity:                1 * v = v  (where 1 is the field's multiplicative identity)
+#     LA7. Distributivity over vector add: a * (u + v) = a * u + a * v
+#     LA8. Distributivity over scalar add: (a + b) * v = a * v + b * v
+#
+# Derived Properties (from the 8 axioms):
+#   - 0 * v = 0_V
+#   - a * 0_V = 0_V
+#   - (-1) * v = -v
+#   - a * v = 0_V implies a = 0 or v = 0_V
+#
+# Relationship to existing packages:
+#   - field_theory: A vector space is defined over a field F. The scalar
+#     multiplication uses field operations. Linear algebra extends field
+#     theory with a second sort (vectors) and the scalar multiplication action.
+#   - group_theory: (V, +) is an abelian group. Linear algebra adds the
+#     scalar action of the field on this group.
+#   - module/axiom: A vector space is a module over a field. Linear algebra
+#     is the special case of module theory where the ring is a field.
+#   - functional_analysis: Normed spaces, Banach spaces, and Hilbert spaces
+#     are vector spaces with additional topological/metric structure.
+#   - differential_geometry: Tangent spaces are vector spaces; the tangent
+#     bundle is a vector bundle (locally a product of a manifold with a
+#     vector space).
+#   - quantum_information_theory: Quantum states live in a complex Hilbert
+#     space (a complete inner product space), which is a vector space over C.
+#   - lie_theory: Lie algebras are vector spaces equipped with a bilinear
+#     bracket operation satisfying the Jacobi identity.
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-26
+# Version: 1.0.0
+# =============================================================================
+
+axiom "linear_algebra" "1.0.0" {
+
+    # =================================================================
+    # Group I: Vector Space Axioms (8)
+    # LA1-LA4: Abelian group under vector addition
+    # LA5-LA8: Scalar multiplication axioms
+    # =================================================================
+
+    # LA1: Associativity of vector addition — u + (v + w) = (u + v) + w
+    template "vector_addition_associativity" 3
+
+    # LA2: Commutativity of vector addition — u + v = v + u
+    template "vector_addition_commutativity" 2
+
+    # LA3: Additive identity — there exists 0_V with v + 0_V = v
+    template "vector_additive_identity" 1
+
+    # LA4: Additive inverse — for each v, there exists -v with v + (-v) = 0_V
+    template "vector_additive_inverse" 1
+
+    # LA5: Compatibility of scalar multiplication with field multiplication
+    #      a * (b * v) = (a * b) * v
+    template "scalar_multiplication_compatibility" 3
+
+    # LA6: Scalar identity — 1 * v = v (1 is the field's multiplicative identity)
+    template "scalar_identity" 1
+
+    # LA7: Distributivity of scalar multiplication over vector addition
+    #      a * (u + v) = a * u + a * v
+    template "scalar_distributivity_vector" 3
+
+    # LA8: Distributivity of scalar multiplication over field addition
+    #      (a + b) * v = a * v + b * v
+    template "scalar_distributivity_field" 3
+
+    # =================================================================
+    # Group II: Derived Properties (6)
+    # These follow from the 8 axioms but are recorded as templates
+    # for use in proofs and constructions.
+    # =================================================================
+
+    # Zero scalar annihilates: 0_F * v = 0_V
+    template "zero_scalar_annihilates" 1
+
+    # Zero vector annihilates: a * 0_V = 0_V
+    template "zero_vector_annihilates" 1
+
+    # Negation via scalar: (-1) * v = -v
+    template "negation_via_scalar" 1
+
+    # Zero divisor property: a * v = 0_V implies a = 0_F or v = 0_V
+    template "zero_divisor_property" 2
+
+    # Subtraction: u - v = u + (-v)
+    template "vector_subtraction" 2
+
+    # Scalar subtraction: (a - b) * v = a * v - b * v
+    template "scalar_subtraction" 3
+
+    # =================================================================
+    # Group III: Linear Subspaces and Quotient Spaces (6)
+    # =================================================================
+
+    # Subspace test: W ⊆ V is a subspace iff W is nonempty and closed under
+    # vector addition and scalar multiplication
+    template "subspace_test" 2
+
+    # Span: span(S) = set of all finite linear combinations of elements of S
+    template "span" 1
+
+    # Linear independence: v_1, ..., v_n are linearly independent iff
+    # a_1*v_1 + ... + a_n*v_n = 0 implies all a_i = 0
+    template "linear_independence" 2
+
+    # Linear dependence: v_1, ..., v_n are linearly dependent iff
+    # there exist scalars not all zero with sum a_i*v_i = 0
+    template "linear_dependence" 2
+
+    # Quotient space: V/W = {v + W : v in V}, the set of cosets of W in V
+    template "quotient_space" 2
+
+    # Direct sum: V = U ⊕ W iff V = U + W and U ∩ W = {0}
+    template "direct_sum" 2
+
+    # =================================================================
+    # Group IV: Basis and Dimension (8)
+    # =================================================================
+
+    # Basis: a linearly independent spanning set of V
+    template "basis" 1
+
+    # Dimension: dim(V) = cardinality of any basis of V
+    template "dimension" 1
+
+    # Finite-dimensional: V has a finite basis
+    template "finite_dimensional" 1
+
+    # Infinite-dimensional: V has no finite basis
+    template "infinite_dimensional" 1
+
+    # Dimension theorem: dim(U + W) = dim(U) + dim(W) - dim(U ∩ W)
+    template "dimension_theorem" 2
+
+    # Rank-nullity theorem: dim(V) = rank(T) + nullity(T) for T: V -> W
+    template "rank_nullity_theorem" 2
+
+    # Basis extension: every linearly independent set can be extended to a basis
+    # (requires Axiom of Choice for infinite-dimensional spaces)
+    template "basis_extension" 2
+
+    # Steinitz exchange lemma: if {v_1,...,v_m} is linearly independent and
+    # each v_i is in span{w_1,...,w_n}, then m <= n
+    template "steinitz_exchange" 2
+
+    # =================================================================
+    # Group V: Linear Maps (10)
+    # =================================================================
+
+    # Linear map: T: V -> W is linear iff T(u + v) = T(u) + T(v) and
+    # T(a * v) = a * T(v) for all u, v in V and a in F
+    template "linear_map" 2
+
+    # Linear map composition: (S ∘ T)(v) = S(T(v)) for T: U -> V, S: V -> W
+    template "linear_map_composition" 3
+
+    # Kernel (null space): ker(T) = {v in V : T(v) = 0_W}
+    template "kernel" 1
+
+    # Image (range): im(T) = {T(v) : v in V}
+    template "image" 1
+
+    # Injectivity criterion: T is injective iff ker(T) = {0}
+    template "injectivity_criterion" 1
+
+    # Surjectivity criterion: T is surjective iff im(T) = W
+    template "surjectivity_criterion" 1
+
+    # Isomorphism: T: V -> W is an isomorphism iff T is bijective (and linear)
+    template "isomorphism" 2
+
+    # Hom space: Hom(V, W) = set of all linear maps from V to W
+    template "hom_space" 2
+
+    # Endomorphism ring: End(V) = Hom(V, V), a ring under + and composition
+    template "endomorphism_ring" 1
+
+    # Automorphism group: GL(V) = Aut(V) = set of all invertible linear maps V -> V
+    template "general_linear_group" 1
+
+    # =================================================================
+    # Group VI: Matrix Algebra (10)
+    # =================================================================
+
+    # Matrix: an m x n array of scalars representing a linear map F^n -> F^m
+    template "matrix" 2
+
+    # Matrix addition: (A + B)_{ij} = A_{ij} + B_{ij}
+    template "matrix_addition" 2
+
+    # Matrix multiplication: (AB)_{ij} = sum_k A_{ik} * B_{kj}
+    template "matrix_multiplication" 2
+
+    # Scalar matrix multiplication: (cA)_{ij} = c * A_{ij}
+    template "scalar_matrix_multiplication" 2
+
+    # Transpose: (A^T)_{ij} = A_{ji}
+    template "matrix_transpose" 1
+
+    # Identity matrix: I_n, the n x n matrix with 1s on the diagonal
+    template "identity_matrix" 1
+
+    # Zero matrix: O_{m,n}, the m x n matrix with all entries 0
+    template "zero_matrix" 2
+
+    # Inverse matrix: A^{-1} exists iff A is nonsingular (det(A) != 0)
+    template "matrix_inverse" 1
+
+    # Trace: tr(A) = sum_i A_{ii}, the sum of diagonal entries
+    template "matrix_trace" 1
+
+    # Matrix rank: rank(A) = dim(im(A)), the dimension of the column space
+    template "matrix_rank" 1
+
+    # =================================================================
+    # Group VII: Determinant Theory (6)
+    # =================================================================
+
+    # Determinant: det: M_n(F) -> F, a multiplicative map satisfying
+    # multilinearity and alternating property
+    template "determinant" 1
+
+    # Determinant multiplicative: det(AB) = det(A) * det(B)
+    template "determinant_multiplicative" 2
+
+    # Determinant of transpose: det(A^T) = det(A)
+    template "determinant_transpose" 1
+
+    # Cofactor expansion: det(A) = sum_j (-1)^{i+j} * A_{ij} * C_{ij}
+    template "cofactor_expansion" 1
+
+    # Cramer's rule: for Ax = b with det(A) != 0,
+    # x_i = det(A_i) / det(A) where A_i replaces column i with b
+    template "cramers_rule" 2
+
+    # Adjugate matrix: adj(A) = C^T where C is the cofactor matrix;
+    # A * adj(A) = adj(A) * A = det(A) * I
+    template "adjugate_matrix" 1
+
+    # =================================================================
+    # Group VIII: Eigenvalue Theory (8)
+    # =================================================================
+
+    # Eigenvalue: lambda in F is an eigenvalue of T if there exists
+    # nonzero v with T(v) = lambda * v
+    template "eigenvalue" 2
+
+    # Eigenvector: v != 0 is an eigenvector of T for eigenvalue lambda
+    # if T(v) = lambda * v
+    template "eigenvector" 2
+
+    # Characteristic polynomial: p_T(lambda) = det(T - lambda * I)
+    template "characteristic_polynomial" 1
+
+    # Eigenspace: E_lambda = ker(T - lambda * I), the subspace of all
+    # eigenvectors for eigenvalue lambda (plus the zero vector)
+    template "eigenspace" 2
+
+    # Algebraic multiplicity: multiplicity of lambda as a root of p_T
+    template "algebraic_multiplicity" 2
+
+    # Geometric multiplicity: dim(E_lambda) = nullity(T - lambda * I)
+    template "geometric_multiplicity" 2
+
+    # Diagonalizability: T is diagonalizable iff V has a basis of eigenvectors
+    template "diagonalizability" 1
+
+    # Cayley-Hamilton theorem: p_T(T) = 0 (every linear map satisfies its
+    # own characteristic polynomial)
+    template "cayley_hamilton" 1
+
+    # =================================================================
+    # Group IX: Inner Product Spaces (8)
+    # =================================================================
+
+    # Inner product: <.,.>: V x V -> F satisfying conjugate symmetry,
+    # linearity in first argument, and positive definiteness
+    template "inner_product" 2
+
+    # Conjugate symmetry: <u, v> = conj(<v, u>)
+    template "conjugate_symmetry" 2
+
+    # Linearity in first argument: <au + bv, w> = a<u,w> + b<v,w>
+    template "inner_product_linearity" 3
+
+    # Positive definiteness: <v, v> >= 0, with equality iff v = 0
+    template "positive_definiteness" 1
+
+    # Norm: ||v|| = sqrt(<v, v>)
+    template "norm_from_inner_product" 1
+
+    # Orthogonality: u ⊥ v iff <u, v> = 0
+    template "orthogonality" 2
+
+    # Orthogonal complement: W^⊥ = {v in V : <v, w> = 0 for all w in W}
+    template "orthogonal_complement" 1
+
+    # Gram-Schmidt process: orthogonalize a basis {v_1, ..., v_n} to produce
+    # an orthonormal basis {e_1, ..., e_n}
+    template "gram_schmidt" 1
+
+    # =================================================================
+    # Group X: Dual Spaces and Tensor Products (8)
+    # =================================================================
+
+    # Dual space: V* = Hom(V, F), the space of all linear functionals on V
+    template "dual_space" 1
+
+    # Dual basis: if {e_i} is a basis of V, the dual basis {e^i} of V*
+    # satisfies e^i(e_j) = delta_{ij}
+    template "dual_basis" 1
+
+    # Double dual: V** = (V*)*, naturally isomorphic to V for finite-dim V
+    template "double_dual" 1
+
+    # Annihilator: for S ⊆ V, S^0 = {f in V* : f(s) = 0 for all s in S}
+    template "annihilator" 1
+
+    # Tensor product: V ⊗ W, the universal bilinear map space
+    template "tensor_product" 2
+
+    # Tensor product universal property: for any bilinear map B: V x W -> U,
+    # there exists a unique linear map f: V ⊗ W -> U with B = f ∘ ⊗
+    template "tensor_universal_property" 3
+
+    # Exterior product (wedge product): v ∧ w, alternating bilinear form
+    template "exterior_product" 2
+
+    # Symmetric product: v ⊙ w, symmetric bilinear form
+    template "symmetric_product" 2
+
+    # =================================================================
+    # Group XI: Canonical Forms and Decompositions (6)
+    # =================================================================
+
+    # Jordan normal form: every matrix over an algebraically closed field
+    # is similar to a block-diagonal Jordan matrix
+    template "jordan_normal_form" 1
+
+    # Rational canonical form: every matrix is similar to a block-diagonal
+    # matrix of companion matrices of invariant factors
+    template "rational_canonical_form" 1
+
+    # Singular value decomposition: A = U * Sigma * V^* for complex matrices
+    template "singular_value_decomposition" 1
+
+    # QR decomposition: A = QR where Q is unitary and R is upper triangular
+    template "qr_decomposition" 1
+
+    # LU decomposition: A = LU where L is lower triangular and U is upper
+    # triangular (when all leading principal minors are nonzero)
+    template "lu_decomposition" 1
+
+    # Spectral theorem: every normal matrix (AA* = A*A) is unitarily
+    # diagonalizable; every self-adjoint matrix has real eigenvalues and
+    # an orthonormal eigenbasis
+    template "spectral_theorem" 1
+
+    # =================================================================
+    # Group XII: Advanced Constructions (6)
+    # =================================================================
+
+    # Direct product of vector spaces: V x W with componentwise operations
+    template "direct_product" 2
+
+    # Direct sum (external): V ⊕ W = V x W
+    template "external_direct_sum" 2
+
+    # Induced linear map on quotient: T induces T': V/ker(T) -> im(T)
+    template "induced_quotient_map" 2
+
+    # Pullback of linear maps: the fiber product in the category of vector spaces
+    template "pullback" 3
+
+    # Pushout of linear maps: the amalgamated sum in the category of vector spaces
+    template "pushout" 3
+
+    # Multilinear map: T: V_1 x ... x V_n -> W, linear in each argument
+    template "multilinear_map" 3
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (8)
+    # =================================================================
+
+    # Matrix mortality problem: given a finite set of n x n integer matrices,
+    # determine whether the zero matrix can be expressed as a (finite) product
+    # of matrices from the set. Undecidable for n >= 3 (Paterson 1970).
+    unconstructible "matrix_mortality_problem" {
+        reduces_to "undecidable"
+        dependency "matrix_multiplication"
+        dependency "zero_matrix"
+        dependency "matrix"
+        external_ref "https://en.wikipedia.org/wiki/Mortality_problem"
+        green_verified true
+    }
+
+    # Semigroup membership problem for matrices: given matrices A, B and a
+    # finite set S of matrices, determine whether B belongs to the semigroup
+    # generated by S. Undecidable in general.
+    unconstructible "matrix_semigroup_membership" {
+        reduces_to "undecidable"
+        dependency "matrix_multiplication"
+        dependency "matrix"
+        dependency "identity_matrix"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_in_matrix_semigroups"
+        green_verified true
+    }
+
+    # Matrix semigroup equality: determining whether two finitely generated
+    # matrix semigroups are equal is undecidable.
+    unconstructible "matrix_semigroup_equality" {
+        reduces_to "undecidable"
+        dependency "matrix_multiplication"
+        dependency "matrix"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_in_matrix_semigroups"
+        green_verified true
+    }
+
+    # Nilpotency problem for matrices: given a finite set of matrices,
+    # determine whether some product is the zero matrix. Undecidable for
+    # integer matrices of dimension >= 3 (related to mortality problem).
+    unconstructible "matrix_nilpotency_problem" {
+        reduces_to "undecidable"
+        dependency "matrix_multiplication"
+        dependency "zero_matrix"
+        dependency "matrix"
+        dependency "matrix_mortality_problem"
+        external_ref "https://en.wikipedia.org/wiki/Mortality_problem"
+        green_verified true
+    }
+
+    # Existence of a basis (infinite-dimensional case): every vector space
+    # has a basis, but the proof requires the Axiom of Choice (equivalent
+    # to Zorn's Lemma). Without AC, there exist vector spaces with no basis.
+    unconstructible "basis_existence_infinite_dimensional" {
+        reduces_to "requires_axiom_of_choice"
+        dependency "basis"
+        dependency "infinite_dimensional"
+        dependency "basis_extension"
+        external_ref "https://en.wikipedia.org/wiki/Basis_(linear_algebra)"
+        green_verified true
+    }
+
+    # Vector space isomorphism problem: determining whether two given
+    # vector spaces (presented by generators and relations) are isomorphic
+    # is undecidable in general (reduces to module isomorphism for rings).
+    unconstructible "vector_space_isomorphism_problem" {
+        reduces_to "undecidable"
+        dependency "isomorphism"
+        dependency "dimension"
+        dependency "basis"
+        dependency "linear_map"
+        external_ref "https://en.wikipedia.org/wiki/Vector_space"
+        green_verified true
+    }
+
+    # Tensor rank problem: determining the minimal number of rank-1 tensors
+    # needed to express a given tensor. NP-hard in general, unknown exact
+    # complexity for many specific cases.
+    unconstructible "tensor_rank_problem" {
+        reduces_to "np_hard"
+        dependency "tensor_product"
+        dependency "multilinear_map"
+        external_ref "https://en.wikipedia.org/wiki/Tensor_rank"
+        green_verified true
+    }
+
+    # Eigenvalue computation for non-normal matrices: while eigenvalues of
+    # normal matrices are well-conditioned, eigenvalues of non-normal matrices
+    # can be arbitrarily sensitive to perturbations (Wilkinson's example).
+    # The algebraic multiplicity can change discontinuously.
+    unconstructible "eigenvalue_sensitivity_nonnormal" {
+        reduces_to "numerically_unstable"
+        dependency "eigenvalue"
+        dependency "characteristic_polynomial"
+        dependency "algebraic_multiplicity"
+        dependency "geometric_multiplicity"
+        external_ref "https://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    # The bottom geometry of linear algebra is the abstract vector space
+    # over a field. The zero vector 0_V serves as the geometric encoding
+    # of contradiction (⊥). A vector space is a module over a field, and
+    # the field structure provides the scalar action.
+    bottom_geometry "vector_space_over_field"
+    negation_encoding "classical_equality"
+    contradiction_behavior "explosion_principle"
+}

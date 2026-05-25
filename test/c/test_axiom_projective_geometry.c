@@ -15,8 +15,8 @@
 
 #include "lv00.h"
 
-#define AXIOM_PKG_PATH "axiom_packages/projective_geometry.lvz"
-#define SAVE_TEST_PATH "axiom_packages/projective_geometry_test_save.lvz"
+#define AXIOM_PKG_PATH "module/axiom_packages/projective_geometry.lvz"
+#define SAVE_TEST_PATH "module/axiom_packages/projective_geometry_test_save.lvz"
 
 #define EXPECTED_TEMPLATE_COUNT 38
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 7

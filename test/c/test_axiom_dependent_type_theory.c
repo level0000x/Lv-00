@@ -22,8 +22,8 @@
 int g_fail_count = 0;
 int g_pass_count = 0;
 
-#define AXIOM_PKG_PATH "axiom_packages/dependent_type_theory.lvz"
-#define SAVE_TEST_PATH "axiom_packages/dependent_type_theory_test_save.lvz"
+#define AXIOM_PKG_PATH "module/axiom_packages/dependent_type_theory.lvz"
+#define SAVE_TEST_PATH "module/axiom_packages/dependent_type_theory_test_save.lvz"
 
 #define EXPECTED_TEMPLATE_COUNT 33
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 6

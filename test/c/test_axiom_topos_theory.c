@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_topos_theory.c
  * @brief Topos Theory Axiom Package Test
  *
@@ -25,8 +25,8 @@
 int g_fail_count = 0;
 int g_pass_count = 0;
 
-#define AXIOM_PKG_PATH "axiom_packages/topos_theory.lvz"
-#define SAVE_TEST_PATH "axiom_packages/topos_theory_test_save.lvz"
+#define AXIOM_PKG_PATH "module/axiom_packages/topos_theory.lvz"
+#define SAVE_TEST_PATH "module/axiom_packages/topos_theory_test_save.lvz"
 
 #define EXPECTED_TEMPLATE_COUNT 90
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 10

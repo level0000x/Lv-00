@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="15" failures="0" skipped="0" time="0.115">
+  <testsuite name="MemoryPool" tests="3" failures="0" skipped="0">
+    <testcase name="CreateDestroy" time="0.000015"/>
+    <testcase name="AutoGrow" time="0.000006"/>
+    <testcase name="LinearAllocator" time="0.000002"/>
+  </testsuite>
+  <testsuite name="GeometryTransform" tests="6" failures="0" skipped="0">
+    <testcase name="Identity" time="0.000088"/>
+    <testcase name="Translation" time="0.000014"/>
+    <testcase name="Rotation90" time="0.000012"/>
+    <testcase name="Reflection" time="0.000033"/>
+    <testcase name="Compose" time="0.000097"/>
+    <testcase name="Inverse" time="0.000025"/>
+  </testsuite>
+  <testsuite name="RuntimeMonitor" tests="6" failures="0" skipped="0">
+    <testcase name="LogInit" time="0.000021"/>
+    <testcase name="Timer" time="0.000011"/>
+    <testcase name="PerfStats" time="0.000010"/>
+    <testcase name="HealthCheck" time="0.114099"/>
+    <testcase name="Diagnostics" time="0.000018"/>
+    <testcase name="EventTrace" time="0.000235"/>
+  </testsuite>
+</testsuites>

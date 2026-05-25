@@ -31,8 +31,8 @@
 
 #include "lv00.h"
 
-#define AXIOM_PKG_PATH "axiom_packages/ergodic_theory.lvz"
-#define SAVE_TEST_PATH "axiom_packages/ergodic_theory_test_save.lvz"
+#define AXIOM_PKG_PATH "module/axiom_packages/ergodic_theory.lvz"
+#define SAVE_TEST_PATH "module/axiom_packages/ergodic_theory_test_save.lvz"
 
 /* Template count: 9 groups total
  *   Group I:   Measure-Preserving System Foundation = 5

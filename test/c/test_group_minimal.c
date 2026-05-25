@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <string.h>
 
 #include "lv00.h"
@@ -12,7 +12,7 @@ int main(void) {
 
     printf("Step 2: Loading file...\n");
     fflush(stdout);
-    AxiomLoadStatus status = axiom_package_load(pkg, "axiom_packages/group_theory.lvz");
+    AxiomLoadStatus status = axiom_package_load(pkg, "module/axiom_packages/group_theory.lvz");
     printf("  status = %d\n", (int) status);
     fflush(stdout);
     if (status != AXIOM_LOAD_OK) {
@@ -45,7 +45,7 @@ int main(void) {
 
     printf("Step 5: Save...\n");
     fflush(stdout);
-    AxiomSaveStatus ss = axiom_package_save(pkg, "axiom_packages/group_theory_test_save.lvz");
+    AxiomSaveStatus ss = axiom_package_save(pkg, "module/axiom_packages/group_theory_test_save.lvz");
     printf("  save_status = %d\n", (int) ss);
     fflush(stdout);
 

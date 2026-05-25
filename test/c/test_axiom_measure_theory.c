@@ -33,8 +33,8 @@
 
 #include "lv00.h"
 
-#define AXIOM_PKG_PATH "axiom_packages/measure_theory.lvz"
-#define SAVE_TEST_PATH "axiom_packages/measure_theory_test_save.lvz"
+#define AXIOM_PKG_PATH "module/axiom_packages/measure_theory.lvz"
+#define SAVE_TEST_PATH "module/axiom_packages/measure_theory_test_save.lvz"
 
 #define EXPECTED_TEMPLATE_COUNT 66
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8

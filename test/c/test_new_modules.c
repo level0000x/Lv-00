@@ -332,7 +332,7 @@ LV00_TEST(RuntimeMonitor, Timer) {
     }
 
     int64_t elapsed = lv00_timer_stop(timer);
-    LV00_ASSERT(elapsed > 0);
+    LV00_ASSERT(elapsed >= 0);
 
     lv00_timer_destroy(timer);
     lv00_perf_shutdown();

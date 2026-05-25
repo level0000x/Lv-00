@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_minimal_parse.c
  * @brief 公理包最小化解析测试 - 验证 .lvz 文件加载
  *
@@ -30,7 +30,7 @@ int main(void) {
 
     /* 路径：先尝试相对于可执行文件所在目录，再尝试相对于当前工作目录 */
     const char *paths[] = {
-        "axiom_packages/euclidean_plane.lvz",
+        "module/axiom_packages/euclidean_plane.lvz",
         "../axiom_packages/euclidean_plane.lvz",
         "../../axiom_packages/euclidean_plane.lvz",
     };
