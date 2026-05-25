@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_ga_multivector.c
  * @brief Tests for the PGA multivector module
  *
@@ -18,8 +18,8 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/ga_multivector.h"
-#include "lv00/ga_interface.h"
+#include "ga_multivector.h"
+#include "ga_interface.h"
 #include "test_helpers.h"
 
 /* Global test counters */

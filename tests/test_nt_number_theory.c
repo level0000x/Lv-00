@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_nt_number_theory.c
  * @brief Test suite for the number theory module
  *
@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/nt_number_theory.h"
+#include "nt_number_theory.h"
 #include "test_helpers.h"
 
 /* ============================================================

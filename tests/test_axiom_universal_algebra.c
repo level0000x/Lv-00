@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_universal_algebra.c
  * @brief Universal Algebra Axiom Package Test
  *
@@ -214,9 +214,9 @@ static void test_logical_framework(void) {
                 "negation_encoding should be 'equational_equality'");
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
 
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: explosion_principle\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
+    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
 
     axiom_package_destroy(pkg);
 }

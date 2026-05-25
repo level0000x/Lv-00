@@ -1,10 +1,10 @@
-/**
+﻿/**
  * @file test_axiom_intuitionistic_propositional_logic.c
  * @brief Intuitionistic Propositional Logic (Heyting 1930) Axiom Package Test
  *
  * Tests the intuitionistic_propositional_logic.lvz axiom package.
- * IPL is constructive logic: NO LEM, NO DNE, NO Peirce.
- * Still uses explosion_principle (EFQ is an axiom in Heyting's system).
+ * IPL is PROPOSITION_KIND_CONSTRUCTIVE logic: NO LEM, NO DNE, NO Peirce.
+ * Still uses PROPOSITION_KIND_EXPLOSION_PRINCIPLE (EFQ is an axiom in Heyting's system).
  */
 
 #include <assert.h>
@@ -218,11 +218,11 @@ static void test_logical_framework(void) {
                 "negation_encoding: implication_to_falsum");
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
 
-    /* IPL uses explosion_principle because EFQ is an axiom in Heyting's system.
+    /* IPL uses PROPOSITION_KIND_EXPLOSION_PRINCIPLE because EFQ is an axiom in Heyting's system.
      * Constructivity comes from the ABSENCE of LEM, DNE, and Peirce. */
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior: explosion_principle (EFQ is an axiom in IPL)");
-    printf("  contradiction_behavior: explosion_principle\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE (EFQ is an axiom in IPL)");
+    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
     axiom_package_destroy(pkg);
 }
 
@@ -304,7 +304,7 @@ static void test_negative_lookups(void) {
 
 /* ---------------------------------------------------------------- */
 static void test_constructive_character(void) {
-    printf("Test 9: Constructive vs Classical contrast...\n");
+    printf("Test 9: PROPOSITION_KIND_CONSTRUCTIVE vs Classical contrast...\n");
     AxiomPackage *pkg = axiom_package_create("pl", "0.0.0");
     axiom_package_load(pkg, AXIOM_PKG_PATH);
 
@@ -346,7 +346,7 @@ static void test_constructive_character(void) {
     TEST_ASSERT(axiom_package_lookup_unconstructible(pkg, "intuitionistic_unification_problem") != NULL,
                 "IPL unification (undecidable) documented");
 
-    printf("  Constructive vs Classical: verified\n");
+    printf("  PROPOSITION_KIND_CONSTRUCTIVE vs Classical: verified\n");
     axiom_package_destroy(pkg);
 }
 

@@ -488,6 +488,7 @@ set(LV00_LAYER1_SOURCES
 set(LV00_LAYER2_SOURCES
     src/utils/lv00_utils.c
     src/core/lv00.c
+    src/core/context.c
     src/core/error_codes.c
     src/core/debug.c
     src/core/node_deep_copy.c

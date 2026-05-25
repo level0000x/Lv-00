@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_cartesian_closed_category.c
  * @brief Cartesian Closed Category Axiom Package Test
  *
@@ -216,10 +216,10 @@ static void test_logical_framework(void) {
                 "negation_encoding should be 'exponential_to_terminal_A_implies_false'");
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
 
-    /* CCC uses constructive contradiction behavior (minimal logic,
+    /* CCC uses PROPOSITION_KIND_CONSTRUCTIVE contradiction behavior (minimal logic,
      * no ex falso quodlibet) */
-    TEST_ASSERT(pkg->contradiction_behavior == CONSTRUCTIVE, "contradiction_behavior should be CONSTRUCTIVE");
-    printf("  contradiction_behavior: constructive\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_CONSTRUCTIVE, "contradiction_behavior should be PROPOSITION_KIND_CONSTRUCTIVE");
+    printf("  contradiction_behavior: PROPOSITION_KIND_CONSTRUCTIVE\n");
 
     axiom_package_destroy(pkg);
 }

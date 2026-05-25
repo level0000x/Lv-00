@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_classical_propositional_logic.c
  * @brief Classical Propositional Logic (Łukasiewicz P₂) Axiom Package Test
  */
@@ -248,9 +248,9 @@ static void test_logical_framework(void) {
                 "negation_encoding should be 'material_implication_to_falsum'");
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
 
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: explosion_principle\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
+    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
 
     axiom_package_destroy(pkg);
 }

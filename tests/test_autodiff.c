@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_autodiff.c
  * @brief Tests for the automatic differentiation engine.
  *
@@ -24,7 +24,7 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/autodiff.h"
+#include "autodiff.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;

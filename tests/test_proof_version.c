@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_proof_version.c
  * @brief Tests for the proof version control system.
  *
@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/proof_version.h"
+#include "proof_version.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;

@@ -72,6 +72,14 @@ typedef enum {
     MEASURE_TYPE_CUSTOM    /**< 非符号测度：公理包定义的抽象序结构 */
 } MeasureType;
 
+/* 向后兼容别名：保留旧测试与外部调用方使用的测度枚举名称 */
+#ifndef MEASURE_SYMBOLIC
+#define MEASURE_SYMBOLIC MEASURE_TYPE_SYMBOLIC
+#endif
+#ifndef MEASURE_CUSTOM
+#define MEASURE_CUSTOM MEASURE_TYPE_CUSTOM
+#endif
+
 /* ============== 测度比较结果 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */

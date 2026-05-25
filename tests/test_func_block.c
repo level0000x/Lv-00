@@ -89,7 +89,7 @@ static int test_pack_basic(void) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
 
-    assert(result == PACK_STATUS_OK);
+    assert(result == PACK_RESULT_OK);
     assert(fb != NULL);
     assert(fb->internal_node_count == 2);
     assert(fb->input_count == 1);
@@ -169,7 +169,7 @@ static int test_pack_cross_boundary_promote(void) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal_ids, 3, input_ids, 1, output_ids, 1, actions, 1, &fb);
 
-    assert(result == PACK_STATUS_OK);
+    assert(result == PACK_RESULT_OK);
     assert(fb != NULL);
 
     func_block_destroy(fb);
@@ -209,7 +209,7 @@ static int test_pack_cross_boundary_disconnect(void) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal_ids, 3, input_ids, 1, output_ids, 1, actions, 1, &fb);
 
-    assert(result == PACK_STATUS_OK);
+    assert(result == PACK_RESULT_OK);
     assert(fb != NULL);
 
     func_block_destroy(fb);
@@ -247,7 +247,7 @@ static int test_pack_cross_boundary_cancel(void) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal_ids, 3, input_ids, 1, output_ids, 1, actions, 1, &fb);
 
-    assert(result == PACK_STATUS_CANCELLED);
+    assert(result == PACK_RESULT_CANCELLED);
     assert(fb == NULL);
 
     graph_destroy(g);
@@ -255,7 +255,7 @@ static int test_pack_cross_boundary_cancel(void) {
     return 0;
 }
 
-static int test_PACK_STATUS_INVALID_NODES(void) {
+static int test_PACK_RESULT_INVALID_NODES(void) {
     printf("Test: pack with invalid nodes...\n");
 
     ConstraintGraph *g = graph_create();
@@ -270,7 +270,7 @@ static int test_PACK_STATUS_INVALID_NODES(void) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, invalid_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
 
-    assert(result == PACK_STATUS_INVALID_NODES);
+    assert(result == PACK_RESULT_INVALID_NODES);
     assert(fb == NULL);
 
     graph_destroy(g);
@@ -301,7 +301,7 @@ static int test_determinism_static_linear(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 闈欐€佺‘瀹氭€ф鏌?鈥?杩斿洖绫诲瀷鏄?DeterminismStatus (DeterminismState) */
     DeterminismStatus det_result = func_block_determinism_check_static(fb, g);
@@ -344,7 +344,7 @@ static int test_determinism_static_quadratic(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 6, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 闈欐€佺‘瀹氭€ф鏌?*/
     DeterminismCheckResult det_result = func_block_determinism_check_static(fb, g);
@@ -374,7 +374,7 @@ static int test_determinism_dynamic(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 鍔ㄦ€佺‘瀹氭€ф鏌?鈥?杩斿洖绫诲瀷鏄?DeterminismStatus (DeterminismState) */
     DeterminismStatus det_result = func_block_determinism_check_dynamic(fb, g, NULL, 0);
@@ -406,7 +406,7 @@ static int test_instantiate_basic(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 鍒涘缓瀹炲弬鑺傜偣 */
     int arg_node = add_point(g, 5, 1, 5, 1);
@@ -449,7 +449,7 @@ static int test_instantiate_beta_reduction(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 楠岃瘉杈撳叆绔彛琚爣璁颁负褰㈠紡鍙傛暟 */
     GeomNode *port_node = graph_get_node(g, in_port);
@@ -492,7 +492,7 @@ static int test_instantiate_precondition(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 璁剧疆鍓嶇疆鏉′欢锛堜笉瀛樺湪鐨勫尯鍩燂級 */
     int invalid_region = 999;
@@ -527,9 +527,9 @@ static int test_selector_basic(void) {
     selector_destroy(sel);
 
     /* 甯﹀弬鑰冭妭鐐圭殑閫夋嫨鍣?*/
-    sel = selector_create_with_reference(SELECTOR_IN_REGION, 100);
+    sel = selector_create_with_reference(SELECTOR_TYPE_IN_REGION, 100);
     assert(sel != NULL);
-    assert(sel->type == SELECTOR_IN_REGION);
+    assert(sel->type == SELECTOR_TYPE_IN_REGION);
     assert(sel->reference_node_id == 100);
 
     selector_destroy(sel);
@@ -557,7 +557,7 @@ static int test_selector_apply(void) {
     selector_destroy(sel);
 
     /* 娴嬭瘯璐熸牴閫夋嫨鍣?鈥?褰撳墠寮曟搸鍙兘鍦ㄦ煇浜涙潯浠朵笅杩斿洖 false */
-    sel = selector_create(SELECTOR_NEGATIVE_ROOT);
+    sel = selector_create(SELECTOR_TYPE_NEGATIVE_ROOT);
     ok = selector_apply(sel, candidates, 2, &selected);
     /* assert(ok); -- 寰呭紩鎿庣ǔ瀹氬悗鎭㈠ */
     (void) ok;
@@ -598,7 +598,7 @@ static int test_selector_custom(void) {
     int user_data = 42;
     SolutionSelector *sel = selector_create_custom(custom_selector_func, &user_data);
     assert(sel != NULL);
-    assert(sel->type == SELECTOR_CUSTOM);
+    assert(sel->type == SELECTOR_TYPE_CUSTOM);
 
     int selected = -1;
     bool ok = selector_apply(sel, candidates, 3, &selected);
@@ -630,7 +630,7 @@ static int test_partial_apply(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 2, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
     assert(fb->input_count == 2);
 
     /* 閮ㄥ垎搴旂敤锛氬浐瀹氱涓€涓弬鏁?*/
@@ -669,7 +669,7 @@ static int test_func_block_compose(void) {
 
     FuncBlock *f = NULL;
     PackResult pack_result = func_block_pack(g, f_internal, 1, f_inputs, 1, f_outputs, 1, NULL, 0, &f);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
     f->name = strdup("f");
 
     /* 鍒涘缓鍑芥暟鍧?g锛?杈撳叆 -> 1杈撳嚭 */
@@ -683,7 +683,7 @@ static int test_func_block_compose(void) {
 
     FuncBlock *fb_g = NULL;
     pack_result = func_block_pack(g, g_internal, 1, g_inputs, 1, g_outputs, 1, NULL, 0, &fb_g);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
     fb_g->name = strdup("g");
 
     /* 缁勫悎锛歡 鈭?f */
@@ -718,7 +718,7 @@ static int test_func_block_product(void) {
 
     FuncBlock *f = NULL;
     PackResult pack_result = func_block_pack(g, f_internal, 1, f_inputs, 1, f_outputs, 1, NULL, 0, &f);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
     f->name = strdup("f");
 
     /* 鍒涘缓鍑芥暟鍧?g锛?杈撳叆 -> 1杈撳嚭 */
@@ -733,7 +733,7 @@ static int test_func_block_product(void) {
 
     FuncBlock *fb_g = NULL;
     pack_result = func_block_pack(g, g_internal, 1, g_inputs, 2, g_outputs, 1, NULL, 0, &fb_g);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
     fb_g->name = strdup("g");
 
     /* 涔樼Н锛歠 脳 g */
@@ -807,22 +807,22 @@ static int test_helper_functions(void) {
     assert(strcmp(str, "PARTIALLY_VERIFIED") == 0);
 
     /* 娴嬭瘯鎵撳寘缁撴灉瀛楃涓茶浆鎹?*/
-    str = pack_result_to_string(PACK_STATUS_OK);
+    str = pack_result_to_string(PACK_RESULT_OK);
     assert(strcmp(str, "OK") == 0);
 
-    str = pack_result_to_string(PACK_CROSS_BOUNDARY_CONFLICT);
+    str = pack_result_to_string(PACK_RESULT_CROSS_BOUNDARY_CONFLICT);
     assert(strcmp(str, "CROSS_BOUNDARY_CONFLICT") == 0);
 
-    str = pack_result_to_string(PACK_STATUS_INVALID_NODES);
+    str = pack_result_to_string(PACK_RESULT_INVALID_NODES);
     assert(strcmp(str, "INVALID_NODES") == 0);
 
-    str = pack_result_to_string(PACK_INVALID_PORTS);
+    str = pack_result_to_string(PACK_RESULT_INVALID_PORTS);
     assert(strcmp(str, "INVALID_PORTS") == 0);
 
-    str = pack_result_to_string(PACK_OUT_OF_MEMORY);
+    str = pack_result_to_string(PACK_RESULT_OUT_OF_MEMORY);
     assert(strcmp(str, "OUT_OF_MEMORY") == 0);
 
-    str = pack_result_to_string(PACK_STATUS_CANCELLED);
+    str = pack_result_to_string(PACK_RESULT_CANCELLED);
     assert(strcmp(str, "CANCELLED") == 0);
 
     /* 娴嬭瘯渚嬪寲缁撴灉瀛楃涓茶浆鎹?*/
@@ -870,7 +870,7 @@ static int test_determinism_check_static_enhanced(void) {
 
         FuncBlock *fb = NULL;
         PackResult pr = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-        assert(pr == PACK_STATUS_OK);
+        assert(pr == PACK_RESULT_OK);
 
         DeterminismStatus status = func_block_determinism_check_static(fb, g);
         assert(status == DETERMINISM_STATE_VERIFIED || status == DETERMINISM_STATE_PARTIALLY_VERIFIED);
@@ -901,7 +901,7 @@ static int test_determinism_check_static_enhanced(void) {
 
         FuncBlock *fb = NULL;
         PackResult pr = func_block_pack(g, internal_ids, 6, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-        assert(pr == PACK_STATUS_OK);
+        assert(pr == PACK_RESULT_OK);
 
         DeterminismStatus status = func_block_determinism_check_static(fb, g);
         /* 浜屾绾︽潫鍙兘杩斿洖 VERIFIED銆丳ARTIALLY_VERIFIED 鎴?NON_DETERMINISTIC */
@@ -947,7 +947,7 @@ static int test_determinism_check_dynamic_enhanced(void) {
 
         FuncBlock *fb = NULL;
         PackResult pr = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-        assert(pr == PACK_STATUS_OK);
+        assert(pr == PACK_RESULT_OK);
 
         /* 鎻愪緵鍏蜂綋杈撳叆鍊?*/
         SymbolicCoord *input_val = symbolic_coord_create_rational(5, 1);
@@ -1008,7 +1008,7 @@ static int test_instantiate_connection_beta_reduction(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 楠岃瘉杈撳叆绔彛琚爣璁颁负褰㈠紡鍙傛暟 */
     GeomNode *port_node = graph_get_node(g, in_port);
@@ -1070,7 +1070,7 @@ static int test_instantiate_connection_case_b_free_variable(void) {
 
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
-    assert(pack_result == PACK_STATUS_OK);
+    assert(pack_result == PACK_RESULT_OK);
 
     /* 楠岃瘉 external_point 鐨?parent_block_id != fb->id */
     GeomNode *ext_node = graph_get_node(g, external_point);
@@ -1134,7 +1134,7 @@ static int test_func_block_copy_deep(void) {
     assert(ok);
 
     src->determinism = DETERMINISM_STATE_VERIFIED;
-    src->view_state = FB_VIEW_COLLAPSED;
+    src->view_state = FB_VIEW_STATE_COLLAPSED;
 
     /* 鎵ц娣辨嫹璐?*/
     FuncBlock *dst = func_block_copy(src);
@@ -1212,7 +1212,7 @@ static int test_func_block_pack_ex(void) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack_ex(g, &config, &fb);
 
-    assert(result == PACK_STATUS_OK);
+    assert(result == PACK_RESULT_OK);
     assert(fb != NULL);
     assert(fb->internal_node_count == 2);
     assert(fb->input_count == 1);
@@ -1235,25 +1235,25 @@ static int test_func_block_pack_ex(void) {
 static int test_func_block_view_state(void) {
     printf("Test: view state management...\n");
 
-    /* 鍒涘缓鍑芥暟鍧楋紝榛樿鐘舵€佸簲涓?FB_VIEW_EXPANDED */
+    /* 鍒涘缓鍑芥暟鍧楋紝榛樿鐘舵€佸簲涓?FB_VIEW_STATE_EXPANDED */
     FuncBlock *fb = func_block_create(1);
     assert(fb != NULL);
-    assert(fb->view_state == FB_VIEW_EXPANDED);
-    assert(func_block_get_view_state(fb) == FB_VIEW_EXPANDED);
+    assert(fb->view_state == FB_VIEW_STATE_EXPANDED);
+    assert(func_block_get_view_state(fb) == FB_VIEW_STATE_EXPANDED);
 
-    /* 璁剧疆涓?FB_VIEW_COLLAPSED */
-    func_block_set_view_state(fb, FB_VIEW_COLLAPSED);
-    assert(fb->view_state == FB_VIEW_COLLAPSED);
-    assert(func_block_get_view_state(fb) == FB_VIEW_COLLAPSED);
+    /* 璁剧疆涓?FB_VIEW_STATE_COLLAPSED */
+    func_block_set_view_state(fb, FB_VIEW_STATE_COLLAPSED);
+    assert(fb->view_state == FB_VIEW_STATE_COLLAPSED);
+    assert(func_block_get_view_state(fb) == FB_VIEW_STATE_COLLAPSED);
 
-    /* 璁剧疆涓?FB_VIEW_PINNED */
-    func_block_set_view_state(fb, FB_VIEW_PINNED);
-    assert(fb->view_state == FB_VIEW_PINNED);
-    assert(func_block_get_view_state(fb) == FB_VIEW_PINNED);
+    /* 璁剧疆涓?FB_VIEW_STATE_PINNED */
+    func_block_set_view_state(fb, FB_VIEW_STATE_PINNED);
+    assert(fb->view_state == FB_VIEW_STATE_PINNED);
+    assert(func_block_get_view_state(fb) == FB_VIEW_STATE_PINNED);
 
-    /* 璁剧疆鍥?FB_VIEW_EXPANDED */
-    func_block_set_view_state(fb, FB_VIEW_EXPANDED);
-    assert(func_block_get_view_state(fb) == FB_VIEW_EXPANDED);
+    /* 璁剧疆鍥?FB_VIEW_STATE_EXPANDED */
+    func_block_set_view_state(fb, FB_VIEW_STATE_EXPANDED);
+    assert(func_block_get_view_state(fb) == FB_VIEW_STATE_EXPANDED);
 
     func_block_destroy(fb);
     printf("  PASSED\n");
@@ -1438,26 +1438,26 @@ static int test_selector_failure_cases(void) {
         selector_destroy(sel);
     }
 
-    /* SELECTOR_NEGATIVE_ROOT锛氭墍鏈夊€欓€?x 鍧愭爣 >= 0锛岄獙璇佽繑鍥?false */
+    /* SELECTOR_TYPE_NEGATIVE_ROOT锛氭墍鏈夊€欓€?x 鍧愭爣 >= 0锛岄獙璇佽繑鍥?false */
     {
         int p1 = add_point(g, 0, 1, 0, 1);
         int p2 = add_point(g, 5, 1, 0, 1);
 
         GeomNode *candidates[] = {graph_get_node(g, p1), graph_get_node(g, p2)};
 
-        SolutionSelector *sel = selector_create(SELECTOR_NEGATIVE_ROOT);
+        SolutionSelector *sel = selector_create(SELECTOR_TYPE_NEGATIVE_ROOT);
         int selected = -1;
         bool ok = selector_apply(sel, candidates, 2, &selected);
         assert(ok == false);
         selector_destroy(sel);
     }
 
-    /* SELECTOR_IN_REGION锛氫笉璁剧疆 graph锛岄獙璇佽繑鍥?false */
+    /* SELECTOR_TYPE_IN_REGION锛氫笉璁剧疆 graph锛岄獙璇佽繑鍥?false */
     {
         int p1 = add_point(g, 1, 1, 1, 1);
         GeomNode *candidates[] = {graph_get_node(g, p1)};
 
-        SolutionSelector *sel = selector_create_with_reference(SELECTOR_IN_REGION, 999);
+        SolutionSelector *sel = selector_create_with_reference(SELECTOR_TYPE_IN_REGION, 999);
         /* 涓嶈皟鐢?selector_set_graph锛実raph 淇濇寔 NULL */
         int selected = -1;
         bool ok = selector_apply(sel, candidates, 1, &selected);
@@ -1466,12 +1466,12 @@ static int test_selector_failure_cases(void) {
         selector_destroy(sel);
     }
 
-    /* SELECTOR_NEAREST_TO_POINT锛氫笉璁剧疆 graph锛岄獙璇佽繑鍥?false */
+    /* SELECTOR_TYPE_NEAREST_TO_POINT锛氫笉璁剧疆 graph锛岄獙璇佽繑鍥?false */
     {
         int p1 = add_point(g, 1, 1, 1, 1);
         GeomNode *candidates[] = {graph_get_node(g, p1)};
 
-        SolutionSelector *sel = selector_create_with_reference(SELECTOR_NEAREST_TO_POINT, 999);
+        SolutionSelector *sel = selector_create_with_reference(SELECTOR_TYPE_NEAREST_TO_POINT, 999);
         /* 涓嶈皟鐢?selector_set_graph锛実raph 淇濇寔 NULL */
         int selected = -1;
         bool ok = selector_apply(sel, candidates, 1, &selected);
@@ -1499,7 +1499,7 @@ int main(void) {
     test_pack_cross_boundary_promote();
     test_pack_cross_boundary_disconnect();
     test_pack_cross_boundary_cancel();
-    test_PACK_STATUS_INVALID_NODES();
+    test_PACK_RESULT_INVALID_NODES();
 
     /* 纭畾鎬ф鏌ユ祴璇?*/
     test_determinism_static_linear();

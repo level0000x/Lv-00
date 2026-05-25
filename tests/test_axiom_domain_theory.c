@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_domain_theory.c
  * @brief Domain Theory Axiom Package Test
  *
@@ -208,9 +208,9 @@ static void test_logical_framework(void) {
                 "negation_encoding should be 'classical_complement_in_information_order'");
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
 
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: explosion_principle\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
+    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
 
     axiom_package_destroy(pkg);
 }
@@ -393,7 +393,7 @@ static void test_domain_theory_properties(void) {
                 "should have cartesian closed structure templates (currying, function space, composition)");
 
     /* Property 10: Classical logic (explosion principle) */
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
                 "domain theory should use classical logic (explosion principle)");
 
     printf("  All structural properties verified\n");

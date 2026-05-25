@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_intuitionistic_logic.c
  * @brief Intuitionistic Propositional Logic (Heyting's Calculus) Axiom Package Test
  *
@@ -88,7 +88,7 @@ static void test_templates(void) {
         TEST_ASSERT(tmpl != NULL, group_2[i]);
     }
 
-    /* Group III: Constructive Negation (4) */
+    /* Group III: PROPOSITION_KIND_CONSTRUCTIVE Negation (4) */
     const char *group_3[] = {
         "double_negation_intro",
         "triple_negation_reduction",
@@ -193,11 +193,11 @@ static void test_logical_framework(void) {
                 "negation_encoding should reference BHK/falsum");
     printf("  negation_encoding: '%s'\n", pkg->negation_encoding);
 
-    /* Contradiction behavior: explosion_principle
+    /* Contradiction behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE
      * (ex falso is an axiom in intuitionistic logic too!) */
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: EXPLOSION_PRINCIPLE (ex falso is constructive)\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
+    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE (ex falso is PROPOSITION_KIND_CONSTRUCTIVE)\n");
 
     axiom_package_destroy(pkg);
 }
@@ -345,7 +345,7 @@ static void test_external_references(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Test 10: Contrast with classical logic — confirm constructive     */
+/*  Test 10: Contrast with classical logic — confirm PROPOSITION_KIND_CONSTRUCTIVE     */
 /*           principles are marked as unconstructible                  */
 /* ------------------------------------------------------------------ */
 static void test_classical_boundary(void) {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_proof_export_enhanced.c
  * @brief Tests for the enhanced proof export module.
  *
@@ -22,7 +22,7 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/proof_export_enhanced.h"
+#include "proof_export_enhanced.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;

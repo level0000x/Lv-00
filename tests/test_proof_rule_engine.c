@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_proof_rule_engine.c
  * @brief Proof rule engine and proof session tests
  *
@@ -18,8 +18,8 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/proof_rule_engine.h"
-#include "lv00/proof_session.h"
+#include "proof_rule_engine.h"
+#include "proof_session.h"
 #include "test_helpers.h"
 
 /* Global test counters */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_linear_logic.c
  * @brief Linear Logic Axiom Package Test
  *
@@ -205,9 +205,9 @@ static void test_logical_framework(void) {
                 "negation_encoding should be 'involutive_linear_negation'");
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
 
-    TEST_ASSERT(pkg->contradiction_behavior == CONSTRUCTIVE,
-                "contradiction_behavior should be CONSTRUCTIVE (blocking, no explosion)");
-    printf("  contradiction_behavior: constructive (blocking)\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_CONSTRUCTIVE,
+                "contradiction_behavior should be PROPOSITION_KIND_CONSTRUCTIVE (blocking, no explosion)");
+    printf("  contradiction_behavior: PROPOSITION_KIND_CONSTRUCTIVE (blocking)\n");
 
     axiom_package_destroy(pkg);
 }
@@ -349,8 +349,8 @@ static void test_linear_logic_properties(void) {
     ConstraintTemplate *dm_bq = axiom_package_get_template(pkg, "demorgan_bang_quest");
     TEST_ASSERT(dm_tp != NULL && dm_wp != NULL && dm_bq != NULL, "should have De Morgan duality templates");
 
-    /* Property 4: No explosion principle (constructive contradiction behavior) */
-    TEST_ASSERT(pkg->contradiction_behavior == CONSTRUCTIVE, "linear logic should NOT have explosion principle");
+    /* Property 4: No explosion principle (PROPOSITION_KIND_CONSTRUCTIVE contradiction behavior) */
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_CONSTRUCTIVE, "linear logic should NOT have explosion principle");
 
     /* Property 5: Negation is involutive (double negation = identity) */
     ConstraintTemplate *dn = axiom_package_get_template(pkg, "double_negation_involution");

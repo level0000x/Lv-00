@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_galois_theory.c
  * @brief Test suite for Galois Theory axiom package
  *
@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/axiom_pkg.h"
+#include "axiom_pkg.h"
 
 #include "lv00_utils.h"
 
@@ -248,7 +248,7 @@ static void test_logical_framework(void) {
     ASSERT_NOT_NULL(pkg->negation_encoding);
     ASSERT_STR_EQ(pkg->negation_encoding, "classical_equality");
 
-    ASSERT_EQ(pkg->contradiction_behavior, EXPLOSION_PRINCIPLE);
+    ASSERT_EQ(pkg->contradiction_behavior, PROPOSITION_KIND_EXPLOSION_PRINCIPLE);
 
     axiom_package_destroy(pkg);
     TEST_PASS();

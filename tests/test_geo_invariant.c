@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_geo_invariant.c
  * @brief Tests for the geometric invariant type module
  *
@@ -13,7 +13,7 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/geo_invariant_type.h"
+#include "geo_invariant_type.h"
 #include "test_helpers.h"
 
 /* Global test counters */

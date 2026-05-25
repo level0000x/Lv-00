@@ -113,7 +113,7 @@ static int test_function_block_export(void) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal, 2, inputs, 1, outputs, 1, NULL, 0, &fb);
 
-    if (result == PACK_OK && fb) {
+    if (result == PACK_RESULT_OK && fb) {
         /* 导出函数块 */
         bool ok = module_export_function_block(mod, fb->id);
         printf("  导出函数块 ID=%d: %s\n", fb->id, ok ? "成功" : "失败");

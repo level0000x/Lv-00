@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_interval_arithmetic.c
  * @brief Test suite for the interval arithmetic module
  *
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/interval_arithmetic.h"
+#include "interval_arithmetic.h"
 #include "test_helpers.h"
 
 /* ============================================================

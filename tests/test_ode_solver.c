@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_ode_solver.c
  * @brief Tests for the ODE solver module.
  *
@@ -20,7 +20,7 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/ode_solver.h"
+#include "ode_solver.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;

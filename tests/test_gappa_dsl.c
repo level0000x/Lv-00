@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_gappa_dsl.c
  * @brief Test suite for the Gappa DSL module
  *
@@ -17,9 +17,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/gappa_dsl.h"
-#include "lv00/gappa_propagate.h"
-#include "lv00/interval_arithmetic.h"
+#include "gappa_dsl.h"
+#include "gappa_propagate.h"
+#include "interval_arithmetic.h"
 #include "test_helpers.h"
 
 /* ============================================================

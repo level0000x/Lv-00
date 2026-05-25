@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_probability_theory.c
  * @brief Probability Theory Axiom Package Test
  *
@@ -185,8 +185,8 @@ static void test_logical_framework(void) {
                 "negation_encoding should be 'event_complement'");
     printf("  Negation encoding: '%s'\n", pkg->negation_encoding);
 
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be EXPLOSION_PRINCIPLE");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 
     axiom_package_destroy(pkg);
 }

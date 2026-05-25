@@ -360,7 +360,7 @@ LV00_TEST(RuntimeMonitor, PerfStats) {
 LV00_TEST(RuntimeMonitor, HealthCheck) {
     LV00_ASSERT_TRUE(lv00_health_init());
 
-    Lv00HealthReport *report = lv00_health_check();
+    Lv00HealthReport *report = lv00_runtime_health_check();
     LV00_ASSERT_NOT_NULL(report);
     LV00_ASSERT_NOT_NULL(report->checks);
     LV00_ASSERT(report->check_count > 0);

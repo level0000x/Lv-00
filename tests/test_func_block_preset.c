@@ -78,7 +78,6 @@ static void test_preset_lookup(void) {
     TEST_ASSERT(func_block_preset_get_metadata(NULL) == NULL, "NULL应返回NULL");
 
     TEST_PASS("test_preset_lookup");
-    return 0;
 }
 
 /**

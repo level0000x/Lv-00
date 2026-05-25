@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_modal_logic.c
  * @brief Modal Logic (Normal Modal Logics K, T, S4, S5) Axiom Package Test
  */
@@ -250,9 +250,9 @@ static void test_logical_framework(void) {
     }
 
     /* Verify contradiction_behavior */
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be EXPLOSION_PRINCIPLE");
-    printf("  contradiction_behavior: explosion_principle\n");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
+    printf("  contradiction_behavior: PROPOSITION_KIND_EXPLOSION_PRINCIPLE\n");
 
     axiom_package_destroy(pkg);
 }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_rewrite_strategy.c
  * @brief Tests for the extended rewrite strategy engine.
  *
@@ -24,7 +24,7 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/rewrite_strategy.h"
+#include "rewrite_strategy.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;

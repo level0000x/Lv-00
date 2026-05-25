@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_geo_topology.c
  * @brief Tests for the geometric topology module.
  *
@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "lv00.h"
-#include "lv00/geo_topology.h"
+#include "geo_topology.h"
 #include "test_helpers.h"
 
 int g_pass_count = 0;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_axiom_graph_theory.c
  * @brief Graph Theory Axiom Package Test
  *
@@ -202,12 +202,12 @@ static void test_logical_framework(void) {
                 "bottom_geometry should be 'graph_incidence_structure'");
     TEST_ASSERT(pkg->negation_encoding != NULL && strcmp(pkg->negation_encoding, "classical_edge_complement") == 0,
                 "negation_encoding should be 'classical_edge_complement'");
-    TEST_ASSERT(pkg->contradiction_behavior == EXPLOSION_PRINCIPLE,
-                "contradiction_behavior should be EXPLOSION_PRINCIPLE");
+    TEST_ASSERT(pkg->contradiction_behavior == PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+                "contradiction_behavior should be PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
 
     printf("  bottom_geometry: %s\n", pkg->bottom_geometry);
     printf("  negation_encoding: %s\n", pkg->negation_encoding);
-    printf("  contradiction_behavior: %d (EXPLOSION_PRINCIPLE=%d)\n", pkg->contradiction_behavior, EXPLOSION_PRINCIPLE);
+    printf("  contradiction_behavior: %d (PROPOSITION_KIND_EXPLOSION_PRINCIPLE=%d)\n", pkg->contradiction_behavior, PROPOSITION_KIND_EXPLOSION_PRINCIPLE);
 
     axiom_package_destroy(pkg);
 }

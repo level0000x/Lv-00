@@ -382,7 +382,7 @@ void lv00_health_shutdown(void);
  * @brief 执行健康检查
  * @return 健康报告（调用者负责释放）
  */
-Lv00HealthReport *lv00_health_check(void);
+Lv00HealthReport *lv00_runtime_health_check(void);
 
 /**
  * @brief 销毁健康报告

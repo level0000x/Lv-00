@@ -685,7 +685,7 @@ static double get_cpu_usage_percent(void) {
 }
 #endif
 
-Lv00HealthReport *lv00_health_check(void) {
+Lv00HealthReport *lv00_runtime_health_check(void) {
     Lv00HealthReport *report = (Lv00HealthReport *)lv00_calloc(1, sizeof(Lv00HealthReport));
     if (!report) {
         return NULL;

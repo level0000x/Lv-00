@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_sym_expr.c
  * @brief Test suite for the symbolic expression module
  *
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv00/sym_expr.h"
+#include "sym_expr.h"
 #include "test_helpers.h"
 
 /* ============================================================
