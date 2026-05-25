@@ -1,0 +1,420 @@
+# =============================================================================
+# Lv-00 Axiom Package: Universal Algebra
+# =============================================================================
+#
+# Mathematical Theory: Universal Algebra (General Algebra)
+# Axiomatization: Signature + Equational Laws, Birkhoff's HSP Theorem
+#
+# Universal algebra studies algebraic structures in general, providing a
+# unified framework for groups, rings, lattices, and all equational classes
+# (varieties). The fundamental objects are algebras of a given signature
+# (type) equipped with equational axioms.
+#
+# References:
+#   - Whitehead, A.N. (1898). "A Treatise on Universal Algebra."
+#     Cambridge University Press.
+#     https://en.wikipedia.org/wiki/A_Treatise_on_Universal_Algebra
+#   - Birkhoff, G. (1935). "On the structure of abstract algebras."
+#     Proc. Cambridge Phil. Soc., 31: 433-454.
+#     https://doi.org/10.1017/S0305004100013463
+#   - Birkhoff, G. (1944). "Subdirect unions in universal algebra."
+#     Bull. Amer. Math. Soc., 50: 764-768.
+#     https://doi.org/10.1090/S0002-9904-1944-08235-7
+#   - Burris, S. and Sankappanavar, H.P. (1981). "A Course in Universal
+#     Algebra." Springer. ISBN 3-540-90578-2.
+#     http://www.math.uwaterloo.ca/~snburris/htdocs/ualg.html
+#   - Grätzer, G. (2008). "Universal Algebra" (2nd ed.). Springer.
+#     ISBN 978-0-387-77486-2.
+#   - Wikipedia: Universal algebra
+#     https://en.wikipedia.org/wiki/Universal_algebra
+#   - nLab: Universal algebra
+#     https://ncatlab.org/nlab/show/universal+algebra
+#   - Wikipedia: Variety (universal algebra)
+#     https://en.wikipedia.org/wiki/Variety_(universal_algebra)
+#   - Wikipedia: Word problem (mathematics) — section on universal algebra
+#     https://en.wikipedia.org/wiki/Word_problem_(mathematics)#The_word_problem_in_universal_algebra
+#   - Makanin, G.S. (1977). "The problem of solvability of equations in a
+#     free semigroup." Math. USSR Sbornik, 32(2): 129-198.
+#     https://doi.org/10.1070/SM1977v032n02ABEH002376
+#   - Mal'cev, A.I. (1971). "The Metamathematics of Algebraic Systems."
+#     North-Holland. ISBN 0-7204-2036-4.
+#   - Freese, R. and McKenzie, R. (1987). "Communtator Theory of
+#     Congruence Modular Varieties." London Math. Soc. Lecture Note Ser. 125.
+#   - Ježek, J. and Kepka, T. (1981). "Free algebras and varieties."
+#     Algebra Universalis, 12: 118-126.
+#   - Bergman, G.M. (2011). "An Invitation to General Algebra and
+#     Universal Constructions." Springer. ISBN 978-3-319-11477-0.
+#
+# Core Axioms (Signature + Equational Laws):
+#
+#   An algebra A = (A, f_1, f_2, ..., f_n) consists of:
+#     - A non-empty carrier set A
+#     - A collection of finitary operations f_i : A^{n_i} -> A
+#
+#   The signature (type) Omega = (n_1, n_2, ..., n_n) specifies the arity
+#   of each operation. Equational axioms are universally quantified
+#   identities of the form: t_1 = t_2, where t_1, t_2 are terms built
+#   from operation symbols and variables.
+#
+#   UA1. Signature definition: Omega = (n_1, ..., n_k) specifies arities
+#   UA2. Term algebra: terms are built inductively from variables and ops
+#   UA3. Substitution: sigma(t) is the result of applying substitution
+#   UA4. Equational satisfaction: A |= t_1 = t_2 iff eval(t_1) = eval(t_2)
+#   UA5. Congruence: ~ is an equivalence relation respecting all operations
+#   UA6. Quotient algebra: A/~ inherits operations from A
+#   UA7. Homomorphism: h(f_A(x)) = f_B(h(x)) for all operations f
+#   UA8. Subalgebra: B subseteq A closed under all operations of A
+#   UA9. Direct product: coordinatewise operations on Cartesian product
+#   UA10. Free algebra: term algebra modulo equational theory
+#
+#   Birkhoff's HSP Theorem (1935):
+#     A class K of algebras is a variety (equational class) iff
+#     K is closed under:
+#       H - Homomorphic images
+#       S - Subalgebras
+#       P - Arbitrary direct products
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "universal_algebra" "1.0.0" {
+
+    # =================================================================
+    # Core Axioms — Signature and Algebra Definition (10)
+    # =================================================================
+
+    # UA1: Signature (type) definition — specifies operation arities
+    # Omega = (n_1, n_2, ..., n_k) where n_i in N_0
+    template "signature" 1
+
+    # UA2: Term algebra — terms built inductively from variables and ops
+    # If t_1, ..., t_n are terms and f is n-ary, then f(t_1,...,t_n) is a term
+    template "term_algebra" 2
+
+    # UA3: Substitution lemma — applying substitution to terms
+    # sigma(t[x := s]) = (sigma(t))[x := sigma(s)]
+    template "substitution" 3
+
+    # UA4: Equational satisfaction — A |= t_1 = t_2
+    # For all assignments val: Vars -> A, eval(t_1, val) = eval(t_2, val)
+    template "equational_satisfaction" 2
+
+    # UA5: Congruence relation — equivalence respecting all operations
+    # If a_i ~ b_i for i=1..n, then f(a_1,...,a_n) ~ f(b_1,...,b_n)
+    template "congruence" 2
+
+    # UA6: Quotient algebra — A/~ with well-defined inherited operations
+    # [f(a_1,...,a_n)] = f~([a_1],...,[a_n]) is well-defined iff ~ is congruence
+    template "quotient_algebra" 2
+
+    # UA7: Homomorphism — structure-preserving map between algebras
+    # h(f_A(x_1,...,x_n)) = f_B(h(x_1),...,h(x_n))
+    template "homomorphism" 3
+
+    # UA8: Subalgebra — subset closed under all operations
+    # B subseteq A, and for each n-ary f, f(b_1,...,b_n) in B whenever b_i in B
+    template "subalgebra" 2
+
+    # UA9: Direct product — coordinatewise operations
+    # f_{A x B}((a_1,b_1),...,(a_n,b_n)) = (f_A(a_1,...,a_n), f_B(b_1,...,b_n))
+    template "direct_product" 2
+
+    # UA10: Free algebra — term algebra modulo equational theory
+    # F_V(X) = T_Omega(X) / =_E where =_E is equational congruence
+    template "free_algebra" 2
+
+    # =================================================================
+    # Birkhoff's HSP Theorem — Three Closure Operators (3)
+    # =================================================================
+
+    # H: Homomorphic image — h(A) = {h(a) : a in A} for homomorphism h
+    template "homomorphic_image" 2
+
+    # S: Subalgebra closure — S(K) = {B : B is subalgebra of some A in K}
+    template "subalgebra_closure" 1
+
+    # P: Product closure — P(K) = {prod A_i : A_i in K}
+    template "product_closure" 1
+
+    # =================================================================
+    # Congruence Theory (6)
+    # =================================================================
+
+    # Con Id: Every algebra has the identity congruence Delta = {(a,a)}
+    template "congruence_identity" 1
+
+    # Con Tot: Every algebra has the total congruence Nabla = A x A
+    template "congruence_total" 1
+
+    # Con Meet: Meet of two congruences is a congruence
+    # (theta_1 ^ theta_2)(a,b) iff theta_1(a,b) and theta_2(a,b)
+    template "congruence_meet" 2
+
+    # Con Join: Join of two congruences is a congruence
+    # theta_1 v theta_2 is the transitive closure of theta_1 union theta_2
+    template "congruence_join" 2
+
+    # Con Lattice: Con(A) forms a complete lattice under inclusion
+    template "congruence_lattice" 1
+
+    # Factor theorem: A/theta_2 is homomorphic image of A/theta_1
+    # iff theta_1 subseteq theta_2
+    template "factor_theorem" 2
+
+    # =================================================================
+    # Isomorphism Theorems (4)
+    # =================================================================
+
+    # First Isomorphism Theorem: A/ker(h) congruent to im(h)
+    # For any homomorphism h: A -> B
+    template "first_isomorphism_theorem" 2
+
+    # Second Isomorphism Theorem: (B + C)/C congruent to B/(B ^ C)
+    # For congruences B, C on A with C subseteq B
+    template "second_isomorphism_theorem" 2
+
+    # Third Isomorphism Theorem: (A/theta_1)/(theta_2/theta_1) congruent to A/theta_2
+    # For theta_1 subseteq theta_2
+    template "third_isomorphism_theorem" 2
+
+    # Correspondence Theorem: Lattice isomorphism between
+    # congruences above theta and congruences of A/theta
+    template "correspondence_theorem" 2
+
+    # =================================================================
+    # Variety Theory (6)
+    # =================================================================
+
+    # Equational class: class of all algebras satisfying a set of equations E
+    template "equational_class" 1
+
+    # Birkhoff's HSP Theorem: K is a variety iff H(K)=K, S(K)=K, P(K)=K
+    template "hsp_theorem" 1
+
+    # Free algebra in variety: F_V(X) satisfies universal mapping property
+    template "free_algebra_universal_property" 3
+
+    # Birkhoff's Subdirect Representation Theorem:
+    # Every algebra in a variety is subdirectly embeddable into a product
+    # of subdirectly irreducible algebras
+    template "subdirect_representation" 1
+
+    # Subdirectly irreducible algebra: has a unique minimal non-trivial
+    # congruence (the monolith)
+    template "subdirectly_irreducible" 1
+
+    # Equational basis: finite set of equations defining a variety
+    template "equational_basis" 1
+
+    # =================================================================
+    # Mal'cev Conditions (6)
+    # =================================================================
+
+    # Mal'cev term: p(x,x,y) = y, p(x,y,y) = x
+    # Characterizes congruence permutability (modular varieties)
+    template "malcev_term" 1
+
+    # Congruence permutability: theta_1 o theta_2 = theta_2 o theta_1
+    template "congruence_permutability" 2
+
+    # Congruence modularity: modular lattice of congruences
+    # theta_1 v (theta_2 ^ theta_3) = (theta_1 v theta_2) ^ theta_3
+    # when theta_1 subseteq theta_3
+    template "congruence_modularity" 3
+
+    # Congruence distributivity: distributive lattice of congruences
+    # theta_1 ^ (theta_2 v theta_3) = (theta_1 ^ theta_2) v (theta_1 ^ theta_3)
+    template "congruence_distributivity" 3
+
+    # Jónsson terms: 4-ary terms characterizing congruence distributivity
+    # d_0(x,y,z) = x, d_1(x,y,z) = y, d_2(x,y,z) = z
+    # d_i(x,x,y) = d_i(x,y,y) for i=0,1,2
+    template "jonsson_terms" 1
+
+    # Day terms: characterizing congruence distributivity (alternative)
+    template "day_terms" 1
+
+    # =================================================================
+    # Term Rewriting and Equational Deduction (5)
+    # =================================================================
+
+    # Equational deduction: |=_E t_1 = t_2 iff derivable from E
+    # Using reflexivity, symmetry, transitivity, and congruence rules
+    template "equational_deduction" 2
+
+    # Term rewriting: oriented equations as rewrite rules
+    # l -> r where vars(r) subseteq vars(l)
+    template "term_rewriting" 2
+
+    # Confluence (Church-Rosser): if t ->* u and t ->* v then u ->* w and v ->* w
+    template "confluence" 1
+
+    # Termination: no infinite rewrite sequences
+    template "termination" 1
+
+    # Knuth-Bendix completion: transform equations into convergent system
+    template "knuth_bendix_completion" 1
+
+    # =================================================================
+    # Core Constructors (8)
+    # =================================================================
+
+    # Apply operation: f(a_1, ..., a_n) in algebra A
+    template "apply_operation" 2
+
+    # Build term: construct term from operation and subterms
+    template "build_term" 2
+
+    # Evaluate term: compute value of term under assignment
+    template "evaluate_term" 2
+
+    # Form quotient: A/~ with inherited operations
+    template "form_quotient" 2
+
+    # Form homomorphism: h: A -> B preserving operations
+    template "form_homomorphism" 3
+
+    # Form subalgebra: B subseteq A closed under operations
+    template "form_subalgebra" 2
+
+    # Form product: A x B with coordinatewise operations
+    template "form_product" 2
+
+    # Form free algebra: T_Omega(X) / =_E
+    template "form_free_algebra" 2
+
+    # =================================================================
+    # Derived Constructors (12)
+    # =================================================================
+
+    # Congruence generation: smallest congruence containing given pairs
+    template "congruence_generation" 2
+
+    # Kernel of homomorphism: ker(h) = {(a,b) in A^2 : h(a) = h(b)}
+    template "kernel" 1
+
+    # Image of homomorphism: im(h) = {h(a) : a in A}
+    template "image" 1
+
+    # Isomorphism: bijective homomorphism
+    template "isomorphism" 2
+
+    # Endomorphism: homomorphism from A to A
+    template "endomorphism" 1
+
+    # Automorphism: isomorphism from A to A
+    template "automorphism" 1
+
+    # Subdirect embedding: embedding into product of quotient algebras
+    template "subdirect_embedding" 2
+
+    # Ultrafilter construction: reduce to subdirectly irreducible factors
+    template "ultrafilter_construction" 2
+
+    # Clone of term operations: all derived operations of an algebra
+    template "clone" 1
+
+    # Polynomial clone: term operations + constants
+    template "polynomial_clone" 1
+
+    # Variety membership test: check if algebra satisfies all equations
+    template "variety_membership" 2
+
+    # Equational consequence: E |= t_1 = t_2
+    template "equational_consequence" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (8)
+    # =================================================================
+
+    unconstructible "word_problem_for_varieties" {
+        reduces_to "undecidable"
+        dependency "equational_deduction"
+        dependency "term_rewriting"
+        dependency "signature"
+        dependency "equational_satisfaction"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_(mathematics)#The_word_problem_in_universal_algebra"
+        green_verified true
+    }
+
+    unconstructible "equational_theory_equivalence" {
+        reduces_to "undecidable"
+        dependency "equational_deduction"
+        dependency "equational_basis"
+        dependency "equational_satisfaction"
+        dependency "equational_class"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_(mathematics)"
+        green_verified true
+    }
+
+    unconstructible "finite_basis_problem" {
+        reduces_to "undecidable"
+        dependency "equational_basis"
+        dependency "equational_class"
+        dependency "hsp_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Universal_algebra"
+        green_verified true
+    }
+
+    unconstructible "variety_equivalence" {
+        reduces_to "undecidable"
+        dependency "equational_class"
+        dependency "hsp_theorem"
+        dependency "equational_basis"
+        external_ref "https://en.wikipedia.org/wiki/Variety_(universal_algebra)"
+        green_verified true
+    }
+
+    unconstructible "congruence_lattice_recognition" {
+        reduces_to "undecidable"
+        dependency "congruence_lattice"
+        dependency "congruence_meet"
+        dependency "congruence_join"
+        external_ref "https://en.wikipedia.org/wiki/Universal_algebra"
+        green_verified false
+    }
+
+    unconstructible "free_algebra_finiteness" {
+        reduces_to "undecidable"
+        dependency "free_algebra"
+        dependency "equational_deduction"
+        dependency "signature"
+        external_ref "https://en.wikipedia.org/wiki/Universal_algebra"
+        green_verified false
+    }
+
+    unconstructible "knuth_bendix_completion_termination" {
+        reduces_to "undecidable"
+        dependency "knuth_bendix_completion"
+        dependency "confluence"
+        dependency "termination"
+        dependency "term_rewriting"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_(mathematics)"
+        green_verified true
+    }
+
+    unconstructible "equational_unification" {
+        reduces_to "undecidable"
+        dependency "equational_deduction"
+        dependency "substitution"
+        dependency "term_algebra"
+        dependency "equational_satisfaction"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_(mathematics)"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    # Universal algebra is the most general algebraic framework;
+    # its "geometry" is the abstract space of all equational structures.
+    # The bottom geometry reflects that UA subsumes group_theory,
+    # ring_theory, boolean_algebra, lattice_theory, field_theory, etc.
+
+    bottom_geometry "universal_algebra_equational"
+    negation_encoding "equational_equality"
+    contradiction_behavior "explosion_principle"
+}

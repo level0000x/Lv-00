@@ -1,0 +1,554 @@
+# =============================================================================
+# Lv-00 Axiom Package: NBG Set Theory (von Neumann-Bernays-Godel)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   von Neumann-Bernays-Godel (NBG) set theory, a conservative extension
+#   of ZFC that formalizes set theory in a two-sorted first-order framework
+#   with classes and sets. NBG distinguishes between sets (objects that can
+#   be members of other classes) and proper classes (objects that cannot be
+#   members, such as the universe V, the class of all ordinals Ord, and the
+#   class of all cardinals Card). NBG is finitely axiomatizable, unlike ZFC
+#   which requires axiom schemas.
+#
+# Axiomatization Method:
+#   Class-set two-sorted first-order axiomatization following:
+#   - von Neumann (1925): An axiomatization of set theory based on functions
+#   - Bernays (1937): A system of axiomatic set theory (Parts I-III)
+#   - Godel (1940): The Consistency of the Continuum Hypothesis
+#
+# References:
+#   - Wikipedia: Von Neumann-Bernays-Godel set theory
+#     https://en.wikipedia.org/wiki/Von_Neumann%E2%80%93Bernays%E2%80%93G%C3%B6del_set_theory
+#   - Mendelson, E. (2015). "Introduction to Mathematical Logic," 6th ed.
+#     CRC Press. Chapter 4.
+#   - Godel, K. (1940). "The Consistency of the Continuum Hypothesis."
+#     Princeton University Press.
+#   - Wikipedia: Proper class
+#     https://en.wikipedia.org/wiki/Proper_class
+#   - nLab: NBG set theory
+#     https://ncatlab.org/nlab/show/NBG+set+theory
+#   - Stanford Encyclopedia of Philosophy: Set Theory
+#     https://plato.stanford.edu/entries/set-theory/
+#
+# Formal Language:
+#   Primitive notions:
+#     - Set: a class that can be an element of another class
+#       (in "x in y", x is a set)
+#     - Proper Class: a class that cannot be an element of any class
+#       (e.g., V = the class of all sets, Ord = the class of all ordinals,
+#        Card = the class of all cardinals)
+#     - in (class membership): a binary relation between sets and classes
+#     - = (class equality): defined via the axiom of extensionality
+#
+#   NBG is a two-sorted theory with variables ranging over classes.
+#   Sets are those classes x for which there exists a class y with x in y.
+#   The predicate M(x) (or "x is a set") is defined as: Eya(x in y).
+#   Proper classes are those classes that are not sets: ¬M(x).
+#
+# Core Axioms (16 axioms in 5 groups):
+#
+#   Group I: Class Existence Axioms (5)
+#     C1. Class Extensionality:
+#         Classes with the same elements are equal.
+#         ∀X∀Y[∀z(z∈X ↔ z∈Y) → X=Y]
+#     C2. Class Pair Existence:
+#         There exists a class containing all ordered pairs.
+#         ∃R∀x∀y∃p[p=(x,y) ∧ p∈R]
+#     C3. Class Intersection:
+#         The intersection of any two classes is a class.
+#         ∀X∀Y∃Z∀z[z∈Z ↔ (z∈X ∧ z∈Y)]
+#     C4. Class Complement:
+#         There exists a complement class relative to sets.
+#         ∀X∃Y∀z[z∈Y ↔ (M(z) ∧ z∉X)]
+#     C5. Class Domain:
+#         The domain (first projection) of a class of ordered pairs is a class.
+#         ∀R∃D∀x[x∈D ↔ ∃y((x,y)∈R)]
+#
+#   Group II: Set Existence Axioms (5)
+#     S1. Axiom of Infinity:
+#         There exists an inductive set.
+#         ∃I[∅∈I ∧ ∀x(x∈I → x∪{x}∈I)]
+#     S2. Axiom of Union:
+#         The union of a set of sets is a set.
+#         ∀x[M(x) → M(∪x)]
+#     S3. Axiom of Power Set:
+#         The power set of a set is a set.
+#         ∀x[M(x) → M(P(x))]
+#     S4. Axiom of Replacement:
+#         The image of a set under a class function is a set.
+#         ∀F[M(dom(F)) → ∀x(M(x) → M(F[x]))]
+#     S5. Axiom of Regularity:
+#         Every non-empty set has an in-minimal element.
+#         ∀x[M(x) ∧ x≠∅ → ∃y(y∈x ∧ x∩y=∅)]
+#
+#   Group III: Choice Axioms (2)
+#     A1. Local Axiom of Choice (set version):
+#         Every non-empty set of non-empty sets has a choice function.
+#         ∀x[M(x) ∧ ∅∉x → ∃f(f is a choice function on x)]
+#     A2. Global Axiom of Choice (class version, NBG-specific):
+#         There exists a global choice function on the class of all non-empty sets.
+#         ∃G[G is a function ∧ ∀x(M(x) ∧ x≠∅ → G(x)∈x)]
+#
+#   Group IV: Restrictive Axioms (2)
+#     L1. Limitation of Size:
+#         A class is a set iff it cannot be put in bijection with V.
+#         ∀X[M(X) ↔ ¬∃f(f is a bijection from X to V)]
+#     L2. Foundation (Well-foundedness of in):
+#         The membership relation in is well-founded on all sets.
+#         Every non-empty set has an in-minimal element.
+#
+#   Group V: Class Construction Axioms (2)
+#     K1. Class Comprehension:
+#         Classes are definable by first-order formulas.
+#         ∀x₁...∀xₙ∃Y∀z[z∈Y ↔ φ(z,x₁,...,xₙ)]
+#         (where φ has only set quantifiers)
+#     K2. Class Union:
+#         The generalized union of a class of sets is a class.
+#         ∀X∃Y∀z[z∈Y ↔ ∃w(z∈w ∧ w∈X)]
+#
+# Key Properties:
+#   - NBG is a conservative extension of ZFC: any set-theoretic statement
+#     provable in NBG is already provable in ZFC.
+#   - NBG is finitely axiomatizable (unlike ZFC which requires schemas).
+#   - The class comprehension schema of NBG is restricted to formulas
+#     with only set quantifiers (Delta_0 formulas), preventing paradoxes.
+#   - The Global Axiom of Choice is a distinctive feature of NBG not
+#     available in ZFC (ZFC only has local choice).
+#   - V, Ord, and Card are proper classes in NBG.
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "nbg_set_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, operation, or
+    # derived construction in NBG set theory.
+    #
+    # Parameter semantics:
+    #   Params = classes (the universe of discourse in NBG)
+    #   Sets are those classes X for which M(X) holds (i.e., X ∈ Y
+    #   for some class Y).
+    #
+    # NOTE: In NBG, variables range over classes. The predicate M(x)
+    # distinguishes sets from proper classes. Templates involving
+    # set parameters are annotated accordingly.
+    # =================================================================
+
+    # --- Group I: Class Axioms (5) ---
+
+    # C1. Class Extensionality:
+    #   Two classes are equal iff they have exactly the same elements.
+    #   This is the fundamental identity principle for classes in NBG.
+    #   ∀X∀Y[∀z(z∈X ↔ z∈Y) → X=Y]
+    # Params: class X, class Y
+    template "class_extensionality" 2
+
+    # C2. Class Pair Existence:
+    #   There exists a class containing all ordered pairs (x, y).
+    #   This axiom ensures that ordered pairs can be collected into
+    #   a class, which is essential for defining relations and functions
+    #   as classes in NBG.
+    #   ∃R∀x∀y∃p[p=(x,y) ∧ p∈R]
+    # Params: class X, class Y -> class of pairs R
+    template "class_pair_existence" 2
+
+    # C3. Class Intersection:
+    #   The intersection of any two classes is a class.
+    #   ∀X∀Y∃Z∀z[z∈Z ↔ (z∈X ∧ z∈Y)]
+    # Params: class X, class Y -> class X∩Y
+    template "class_intersection" 2
+
+    # C4. Class Complement:
+    #   There exists a complement class consisting of all sets not in X.
+    #   Note: the complement is taken relative to sets only (M(z)),
+    #   not all classes, to avoid Russell-type paradoxes.
+    #   ∀X∃Y∀z[z∈Y ↔ (M(z) ∧ z∉X)]
+    # Params: class X -> class complement of X (relative to sets)
+    template "class_complement" 1
+
+    # C5. Class Domain:
+    #   The domain (first projection) of a class of ordered pairs is a class.
+    #   If R is a class of ordered pairs, then dom(R) = {x : ∃y (x,y)∈R}
+    #   is a class. This is essential for defining functions as classes.
+    #   ∀R∃D∀x[x∈D ↔ ∃y((x,y)∈R)]
+    # Params: class R (relation) -> class dom(R)
+    template "class_domain" 1
+
+    # --- Group II: Set Axioms (5) ---
+
+    # S1. Axiom of Infinity:
+    #   There exists an inductive set I containing the empty set and
+    #   closed under the successor operation S(x) = x ∪ {x}.
+    #   ∃I[M(I) ∧ ∅∈I ∧ ∀x(x∈I → x∪{x}∈I)]
+    # Params: (none) -> set ω (the least inductive set)
+    template "infinity" 0
+
+    # S2. Axiom of Union:
+    #   The union of a set of sets is a set.
+    #   ∀x[M(x) → M(∪x)]
+    #   Equivalently: if x is a set, then ∪x = {z : ∃w(w∈x ∧ z∈w)} is a set.
+    # Params: set x -> set ∪x
+    template "union" 1
+
+    # S3. Axiom of Power Set:
+    #   The power set of a set is a set.
+    #   ∀x[M(x) → M(P(x))]
+    #   P(x) = {y : y ⊆ x} is the class of all subsets of x.
+    # Params: set x -> set P(x)
+    template "power_set" 1
+
+    # S4. Axiom of Replacement:
+    #   The image of a set under a class function is a set.
+    #   If F is a class function (a functional class of ordered pairs)
+    #   and x is a set, then F[x] = {F(y) : y∈x} is a set.
+    #   ∀F[Func(F) → ∀x(M(x) → M(F[x]))]
+    # Params: class function F, set x -> set F[x]
+    template "replacement" 2
+
+    # S5. Axiom of Regularity:
+    #   Every non-empty set has an ∈-minimal element (an element
+    #   disjoint from the set). This ensures ∈ is well-founded.
+    #   ∀x[M(x) ∧ x≠∅ → ∃y(y∈x ∧ x∩y=∅)]
+    # Params: set x
+    template "regularity" 1
+
+    # --- Group III: Choice Axioms (2) ---
+
+    # A1. Local Axiom of Choice (set version):
+    #   Every non-empty set of non-empty sets has a choice function.
+    #   This is the standard AC from ZFC, restricted to sets.
+    #   ∀x[M(x) ∧ ∅∉x → ∃f(f is a choice function on x)]
+    # Params: set x (non-empty set of non-empty sets) -> choice function f
+    template "local_choice" 1
+
+    # A2. Global Axiom of Choice (class version, NBG-specific):
+    #   There exists a global choice function G defined on the class of
+    #   all non-empty sets, such that G(x) ∈ x for every non-empty set x.
+    #   This is a distinctive feature of NBG not available in ZFC.
+    #   ∃G[Func(G) ∧ ∀x(M(x) ∧ x≠∅ → G(x)∈x)]
+    # Params: (none) -> global choice function G
+    template "global_choice" 0
+
+    # --- Group IV: Restrictive & Foundation Axioms (2) ---
+
+    # L1. Limitation of Size:
+    #   A class is a set if and only if it cannot be put in bijection
+    #   with the universal class V (the class of all sets).
+    #   This is the characteristic axiom of NBG that distinguishes
+    #   sets from proper classes: proper classes are exactly those
+    #   classes that are "too large" to be sets.
+    #   ∀X[M(X) ↔ ¬∃f(Bij(f, X, V))]
+    # Params: class X -> check whether X is a set
+    template "limitation_of_size" 1
+
+    # L2. Foundation (Well-foundedness of ∈):
+    #   The membership relation ∈ is well-founded on all sets.
+    #   Every non-empty set has an ∈-minimal element, preventing
+    #   infinite descending ∈-chains.
+    #   ∀x[M(x) ∧ x≠∅ → ∃y(y∈x ∧ y∩x=∅)]
+    # Params: set x
+    template "foundation" 1
+
+    # --- Group V: Class Construction Axioms (2) ---
+
+    # K1. Class Comprehension (Class Comprehension Schema):
+    #   For any first-order formula φ(z, x₁, ..., xₙ) with only set
+    #   quantifiers (Δ₀-comprehension), there exists a class
+    #   Y = {z : φ(z, x₁, ..., xₙ)}.
+    #   The restriction to set quantifiers prevents Russell-type paradoxes.
+    #   ∀x₁...∀xₙ∃Y∀z[z∈Y ↔ φ(z,x₁,...,xₙ)]
+    # Params: formula φ, parameters x₁...xₙ -> class Y
+    template "class_comprehension" 2
+
+    # K2. Class Union:
+    #   The generalized union of a class of sets is a class.
+    #   If X is a class, then ∪X = {z : ∃w(w∈X ∧ z∈w)} is a class.
+    #   This extends the set union axiom to classes.
+    #   ∀X∃Y∀z[z∈Y ↔ ∃w(z∈w ∧ w∈X)]
+    # Params: class X -> class ∪X
+    template "class_union" 1
+
+    # --- Group VI: NBG-Specific Constructions (6) ---
+
+    # Proper Class:
+    #   A proper class is a class that is not a set.
+    #   Proper classes cannot be elements of other classes.
+    #   Examples: V (universal class), Ord (class of all ordinals),
+    #   Card (class of all cardinals).
+    #   ProperClass(X) ↔ ¬M(X)
+    # Params: class X -> check whether X is a proper class
+    template "proper_class" 1
+
+    # Set-Class Distinction:
+    #   The fundamental dichotomy in NBG: every class is either a set
+    #   or a proper class, but not both.
+    #   ∀X[M(X) ∨ ¬M(X)]  (excluded middle)
+    #   ∀X[¬(M(X) ∧ ¬M(X))]  (non-contradiction)
+    # Params: class X -> set/proper class classification
+    template "set_class_distinction" 1
+
+    # Ordinal Class:
+    #   The class Ord of all ordinals is a proper class.
+    #   Ord is transitive, well-ordered by ∈, and contains all
+    #   ordinals (von Neumann ordinals).
+    #   Ord = {x : M(x) ∧ Trans(x) ∧ WellOrder(x, ∈)}
+    #   ProperClass(Ord) holds by the Burali-Forti paradox.
+    # Params: class X -> check whether X = Ord
+    template "ordinal_class" 1
+
+    # Cardinal Class:
+    #   The class Card of all cardinals is a proper class.
+    #   Each cardinal is the least ordinal of a given equinumerosity class.
+    #   Card = {α ∈ Ord : ∀β<α, |β| < |α|}
+    #   ProperClass(Card) holds by Cantor's theorem.
+    # Params: class X -> check whether X = Card
+    template "cardinal_class" 1
+
+    # Universal Class V:
+    #   The universal class V = {x : M(x)} is the class of all sets.
+    #   V is a proper class (by the Limitation of Size axiom, since
+    #   the identity map is a bijection from V to V).
+    #   V = ∪_{α∈Ord} V_α  (cumulative hierarchy)
+    # Params: (none) -> class V
+    template "universal_class_v" 0
+
+    # Cumulative Hierarchy:
+    #   The von Neumann cumulative hierarchy V = ∪_{α∈Ord} V_α,
+    #   where V₀ = ∅, V_{α+1} = P(V_α), and V_λ = ∪_{α<λ} V_α
+    #   for limit ordinals λ. Every set appears at some stage V_α.
+    #   Params: ordinal α -> class V_α
+    template "cumulative_hierarchy" 1
+
+    # --- Group VII: Set Operations (6) ---
+
+    # Set Pairing:
+    #   For any two sets x and y, there exists a set {x, y}.
+    #   Derived from class pair existence + limitation of size.
+    #   ∀x∀y[M(x) ∧ M(y) → M({x,y})]
+    # Params: set x, set y -> set {x, y}
+    template "set_pairing" 2
+
+    # Set Difference:
+    #   The difference of two sets is a set.
+    #   A \ B = {x ∈ A : x ∉ B}
+    #   Derived from class intersection + class complement.
+    #   ∀x∀y[M(x) ∧ M(y) → M(x \ y)]
+    # Params: set x, set y -> set x \ y
+    template "set_difference" 2
+
+    # Set Cartesian Product:
+    #   The Cartesian product of two sets is a set.
+    #   A × B = {(x,y) : x∈A ∧ y∈B}
+    #   Derived from class pair existence + replacement + power set.
+    #   ∀x∀y[M(x) ∧ M(y) → M(x × y)]
+    # Params: set x, set y -> set x × y
+    template "set_cartesian_product" 2
+
+    # Set Relation:
+    #   A relation R from set A to set B is a set of ordered pairs.
+    #   R ⊆ A × B, and R is a set whenever A and B are sets.
+    #   Params: set A, set B, predicate R -> set relation R
+    template "set_relation" 3
+
+    # Set Function:
+    #   A function f: A → B is a functional relation that is a set.
+    #   ∀x∈A ∃!y∈B [(x,y)∈f]
+    #   Params: set A, set B, graph f -> set function f
+    template "set_function" 3
+
+    # Set Image:
+    #   The image of a set under a set function is a set.
+    #   f[A] = {f(x) : x ∈ A}
+    #   Derived from replacement.
+    #   Params: set function f, set A -> set f[A]
+    template "set_image" 2
+
+    # --- Group VIII: NBG-ZFC Relationship (4) ---
+
+    # NBG is Conservative over ZFC:
+    #   Every set-theoretic statement (i.e., a statement with only
+    #   set quantifiers) provable in NBG is already provable in ZFC.
+    #   This is a fundamental metatheoretic result.
+    #   NBG ⊢ φ (set sentence)  ⇒  ZFC ⊢ φ
+    # Params: set-theoretic sentence φ -> conservativity check
+    template "nbg_conservative_over_zfc" 1
+
+    # Class Comprehension Schema:
+    #   The class comprehension schema of NBG corresponds to the
+    #   separation and replacement schemas of ZFC. In NBG, class
+    #   comprehension is restricted to Δ₀-formulas (formulas with
+    #   only set-bounded quantizers), which is finitely axiomatizable.
+    #   Params: formula φ (Δ₀) -> class {z : φ(z)}
+    template "class_comprehension_schema" 1
+
+    # Global Choice implies AC:
+    #   The Global Axiom of Choice (A2) implies the local Axiom of
+    #   Choice (A1). The converse does not hold in general.
+    #   NBG ⊢ GlobalChoice → AC
+    #   This is because the restriction of a global choice function
+    #   to any non-empty set of non-empty sets yields a choice function.
+    # Params: global choice function G -> local choice function on set x
+    template "global_choice_implies_ac" 1
+
+    # NBG Finite Axiomatizability:
+    #   Unlike ZFC (which requires infinitely many axiom schemas),
+    #   NBG can be finitely axiomatized. This is because the class
+    #   existence axioms can be stated as a finite set of axioms
+    #   that imply the full class comprehension schema.
+    #   Params: (none) -> finite axiomatization
+    template "nbg_finite_axiomatizability" 0
+
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+    # Each entry documents a problem known to be independent of NBG
+    # (neither provable nor refutable) or undecidable within NBG.
+    # =================================================================
+
+    # 1. Continuum Hypothesis in NBG
+    # "There is no set whose cardinality is strictly between ℵ₀ and 2^ℵ₀"
+    # CH is independent of NBG, just as it is independent of ZFC.
+    # Since NBG is a conservative extension of ZFC for set-theoretic
+    # statements, the independence results transfer directly.
+    unconstructible "nbg_continuum_hypothesis" {
+        reduces_to "independent_of_nbg"
+        dependency "infinity"
+        dependency "power_set"
+        dependency "limitation_of_size"
+        external_ref "https://en.wikipedia.org/wiki/Continuum_hypothesis"
+        green_verified true
+    }
+
+    # 2. Global Choice Consistency
+    # The Global Axiom of Choice is equiconsistent with ZFC.
+    # NBG + Global Choice is conservative over ZFC + AC for
+    # set-theoretic statements. Adding Global Choice does not
+    # increase the consistency strength beyond ZFC.
+    unconstructible "nbg_global_choice_consistency" {
+        reduces_to "equiconsistent_with_zfc"
+        dependency "global_choice"
+        dependency "local_choice"
+        dependency "class_comprehension"
+        external_ref "https://en.wikipedia.org/wiki/Von_Neumann%E2%80%93Bernays%E2%80%93G%C3%B6del_set_theory"
+        green_verified true
+    }
+
+    # 3. Proper Class Cardinality
+    # Proper classes do not have a cardinality in the standard sense.
+    # The concept of cardinality (as a set) applies only to sets.
+    # A proper class X is "too large" to have a cardinality: by the
+    # Limitation of Size axiom, X is a proper class iff there exists
+    # a bijection from X to V, and V does not have a cardinality.
+    unconstructible "proper_class_cardinality" {
+        reduces_to "undefined"
+        dependency "limitation_of_size"
+        dependency "proper_class"
+        external_ref "https://en.wikipedia.org/wiki/Proper_class"
+        green_verified true
+    }
+
+    # 4. Class Membership Decision Problem
+    # Given a class X and a set x, deciding whether x ∈ X is
+    # undecidable in general. This follows from the undecidability
+    # of first-order set theory (even for ZFC, hence for NBG).
+    unconstructible "class_membership_decision" {
+        reduces_to "undecidable"
+        dependency "class_comprehension"
+        dependency "class_extensionality"
+        external_ref "https://en.wikipedia.org/wiki/Von_Neumann%E2%80%93Bernays%E2%80%93G%C3%B6del_set_theory"
+        green_verified true
+    }
+
+    # 5. NBG Incompleteness (Godel's Incompleteness Theorem)
+    # By Godel's First Incompleteness Theorem, NBG (being a
+    # sufficiently strong recursively axiomatizable theory) is
+    # incomplete: there exist set-theoretic statements that are
+    # neither provable nor refutable in NBG.
+    unconstructible "nbg_incompleteness" {
+        reduces_to "godel_incompleteness"
+        dependency "infinity"
+        dependency "class_comprehension"
+        dependency "replacement"
+        external_ref "https://plato.stanford.edu/entries/set-theory/"
+        green_verified true
+    }
+
+    # 6. Definable Class Characterization
+    # Characterizing which classes are definable by first-order
+    # formulas (with set parameters) is undecidable. This follows
+    # from Tarski's undefinability of truth and the arithmetical
+    # hierarchy results.
+    unconstructible "definable_class_characterization" {
+        reduces_to "undecidable"
+        dependency "class_comprehension"
+        dependency "class_comprehension_schema"
+        external_ref "https://ncatlab.org/nlab/show/NBG+set+theory"
+        green_verified true
+    }
+
+    # 7. NBG Conservativity Verification
+    # Verifying that NBG is conservative over ZFC for a given
+    # set-theoretic statement is itself undecidable in general.
+    # While the metatheorem is provable (in a suitable metatheory),
+    # the specific conservativity check for an arbitrary statement
+    # cannot be decided algorithmically.
+    unconstructible "nbg_conservativity_verification" {
+        reduces_to "undecidable"
+        dependency "nbg_conservative_over_zfc"
+        dependency "class_comprehension_schema"
+        external_ref "https://en.wikipedia.org/wiki/Von_Neumann%E2%80%93Bernays%E2%80%93G%C3%B6del_set_theory"
+        green_verified true
+    }
+
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    #
+    # bottom_geometry: "nbg_cumulative_hierarchy_with_proper_classes"
+    #   ⊥ (contradiction) in NBG is geometrically represented as the
+    #   empty set ∅ within the cumulative hierarchy V = ∪_{α∈Ord} V_α.
+    #   Unlike ZFC, NBG extends the bottom geometry to include proper
+    #   classes: the universe of discourse includes both sets (elements
+    #   of V) and proper classes (subcollections of V that are "too
+    #   large" to be sets). The bottom element ∅ is a set (the unique
+    #   minimal element of V), and the top "element" V itself is a
+    #   proper class that cannot be a member of any class.
+    #
+    # negation_encoding: "classical_complement_in_class_universe"
+    #   ¬φ is encoded as the complement of the extension of φ within
+    #   the class universe. For a class X, its complement is the class
+    #   of all sets not in X: {z : M(z) ∧ z ∉ X}. Note that this
+    #   complement is always a class (by the Class Complement axiom C4),
+    #   but it may be a proper class. Since NBG uses classical logic,
+    #   negation satisfies the law of excluded middle: φ ∨ ¬φ.
+    #
+    # contradiction_behavior: "explosion_principle"
+    #   NBG uses classical logic with the principle of explosion
+    #   (ex contradictione quodlibet): from ⊥, anything follows.
+    #   The empty set ∅ = {x : x ≠ x} witnesses contradiction, and
+    #   from ∅ any proposition can be derived. This is implemented
+    #   via the explosion principle function block: input ⊥-witness
+    #   → output P-witness for any proposition P. The output carries
+    #   a light-orange dashed arrow marker.
+    #
+    # Oracle blocks:
+    #   - Global Axiom of Choice: non-constructive oracle block (zero
+    #     input, outputs global choice function G with light-orange
+    #     solid port marker). This is the NBG-specific enhancement
+    #     over ZFC's local choice.
+    #   - Local Axiom of Choice: non-constructive oracle block for
+    #     set-level choice, inherited from ZFC.
+    # =================================================================
+
+    bottom_geometry "nbg_cumulative_hierarchy_with_proper_classes"
+    negation_encoding "classical_complement_in_class_universe"
+    contradiction_behavior "explosion_principle"
+}

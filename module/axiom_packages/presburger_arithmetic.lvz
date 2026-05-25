@@ -1,0 +1,466 @@
+# =============================================================================
+# Lv-00 Axiom Package: Presburger Arithmetic
+# =============================================================================
+#
+# Mathematical Theory: Presburger Arithmetic — the first-order theory of
+# natural numbers with addition (but without multiplication). Proven
+# consistent, complete, and decidable by Mojżesz Presburger in 1929.
+#
+# This is the richest arithmetic theory satisfying all of Hilbert's
+# program requirements: consistency, completeness, and decidability.
+# The cost is severely limited expressiveness — only addition and
+# linear relations can be expressed.
+#
+# References:
+#   - Presburger, M. (1929). "Uber die Vollstandigkeit eines gewissen
+#     Systems der Arithmetik ganzer Zahlen, in welchem die Addition als
+#     einzige Operation hervortritt." Comptes Rendus du I Congrès des
+#     Mathématiciens des Pays Slaves, Warszawa, pp. 92-101.
+#     English translation: Stansifer (1984), TR84-639, Cornell.
+#     http://cs.fit.edu/~ryan/papers/presburger.pdf
+#   - Cooper, D.C. (1972). "Theorem Proving in Arithmetic without
+#     Multiplication." Machine Intelligence, 7: 91-99.
+#     https://www21.in.tum.de/teaching/logik/SS16/Exercises/Cooper.pdf
+#   - Ferrante, J. & Rackoff, C.W. (1979). "The Computational Complexity
+#     of Logical Theories." Lecture Notes in Mathematics 718, Springer.
+#     DOI: 10.1007/BFb0062837
+#   - Fischer, M.J. & Rabin, M.O. (1974). "Super-Exponential Complexity
+#     of Presburger Arithmetic." MIT LCS TM-043.
+#   - Oppen, D.C. (1978). "A 2^{2^{pn}} Upper Bound on the Complexity
+#     of Presburger Arithmetic." JCSS, 17(2): 161-172.
+#   - Berman, L. (1980). "The Complexity of Logical Theories."
+#     Theoretical Computer Science, 11(1): 71-77.
+#   - Buchi, J.R. (1962). "On a Decision Method in Restricted Second
+#     Order Arithmetic." Logic, Methodology and Philosophy of Science.
+#   - Nipkow, T. (2010). "Linear Quantifier Elimination." JAR, 45(2).
+#     https://www.proof.cit.tum.de/~nipkow/pubs/jar10.pdf
+#   - Haase, C. (2018). "A Survival Guide to Presburger Arithmetic."
+#     ACM SIGLOG News, 5(3): 67-82.
+#     http://www.cs.ox.ac.uk/people/christoph.haase/home/publication/haa-18/haa-18.pdf
+#   - Enderton, H. (2001). "A Mathematical Introduction to Logic,"
+#     2nd ed. Academic Press. Section 3.3.
+#   - Nelson, G. & Oppen, D.C. (1978). "A simplifier based on efficient
+#     decision algorithms." Proc. 5th POPL. DOI: 10.1145/512760.512775
+#   - Ginsburg, S. & Spanier, E.H. (1966). "Semigroups, Presburger
+#     Formulas, and Languages." Pacific J. Math., 16(2): 285-296.
+#   - Wikipedia: Presburger arithmetic
+#     https://en.wikipedia.org/wiki/Presburger_arithmetic
+#   - nLab: Presburger arithmetic
+#     https://ncatlab.org/nlab/show/Presburger+arithmetic
+#   - Stanford Encyclopedia of Philosophy: Godel's Incompleteness Theorems
+#     https://plato.stanford.edu/entries/goedel-incompleteness/
+#
+# Language / Signature:
+#   Constants: 0 (zero), 1 (one)
+#   Binary function: + (addition)
+#   Relation: = (equality)
+#   Variables: x, y, z, ... (first-order, range: N)
+#   NOTE: NO multiplication symbol. Multiplication by constants is
+#         expressible as iterated addition (e.g., 3*x = x+x+x).
+#
+# Core Axioms (5):
+#   P1. Zero is not a successor:  forall x. ~(0 = x + 1)
+#   P2. Successor is injective:  forall x y. (x + 1 = y + 1) -> (x = y)
+#   P3. Additive identity:       forall x. x + 0 = x
+#   P4. Addition recursion:      forall x y. x + (y + 1) = (x + y) + 1
+#   P5. Induction schema:        for all formulas P(x) in the language:
+#         (P(0) /\ forall x (P(x) -> P(x+1))) -> forall y P(y)
+#
+# Key Properties:
+#   - Consistent (Presburger 1929)
+#   - Complete (Presburger 1929)
+#   - Decidable (Presburger 1929, via quantifier elimination)
+#   - NOT finitely axiomatizable (Zoethout 2015)
+#   - Godel's incompleteness theorems do NOT apply (too weak)
+#   - Satisfiability is 2-EXPTIME complete (Berman 1980)
+#   - Lower bound: 2^{2^{cn}} (Fischer & Rabin 1974)
+#   - Definable sets = semilinear sets (Ginsburg & Spanier 1966)
+#   - Unary definable sets = ultimately periodic sets
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "presburger_arithmetic" "1.0.0" {
+
+    # =================================================================
+    # Group 1: Core Axioms (5)
+    # =================================================================
+
+    # P1: Zero is not a successor: forall x. ~(0 = x + 1)
+    template "zero_not_successor" 1
+
+    # P2: Successor is injective: forall x y. (x + 1 = y + 1) -> (x = y)
+    template "successor_injective" 2
+
+    # P3: Additive identity: forall x. x + 0 = x
+    template "additive_identity" 1
+
+    # P4: Addition recursion: forall x y. x + (y + 1) = (x + y) + 1
+    template "addition_recursion" 2
+
+    # P5: Induction schema (for each formula P(x) in the language):
+    #     (P(0) /\ forall x (P(x) -> P(x+1))) -> forall y P(y)
+    template "induction_schema" 1
+
+    # =================================================================
+    # Group 2: Elementary Consequences from Induction (12)
+    # =================================================================
+
+    # Addition is commutative: forall x y. x + y = y + x
+    template "addition_commutative" 2
+
+    # Addition is associative: forall x y z. (x + y) + z = x + (y + z)
+    template "addition_associative" 3
+
+    # Left cancellation: forall x y z. x + z = y + z -> x = y
+    template "left_cancellation" 3
+
+    # Right cancellation: forall x y z. z + x = z + y -> x = y
+    template "right_cancellation" 3
+
+    # Uniqueness of additive identity: forall z. (forall x. x + z = x) -> z = 0
+    template "identity_uniqueness" 1
+
+    # Zero is left identity: forall x. 0 + x = x
+    template "zero_left_identity" 1
+
+    # Successor definition: forall x. S(x) = x + 1
+    template "successor_definition" 1
+
+    # Every number is 0 or a successor: forall x. x = 0 \/ exists y. x = y + 1
+    template "every_number_zero_or_successor" 1
+
+    # No number is its own successor: forall x. x != x + 1
+    template "no_self_successor" 1
+
+    # Addition is strictly increasing: forall x y. 0 < y -> x < x + y
+    template "addition_increasing" 2
+
+    # Zero is the minimum: forall x. x = 0 \/ 0 < x
+    template "zero_minimum" 1
+
+    # No maximum element: forall x. exists y. x < y
+    template "no_maximum" 1
+
+    # =================================================================
+    # Group 3: Order Relation (6)
+    # =================================================================
+
+    # Order definition: x < y <=> exists z. x + z + 1 = y
+    template "order_definition" 2
+
+    # Order is transitive: forall x y z. x < y /\ y < z -> x < z
+    template "order_transitive" 3
+
+    # Order is irreflexive: forall x. ~(x < x)
+    template "order_irreflexive" 1
+
+    # Order is total (trichotomy): forall x y. x < y \/ x = y \/ y < x
+    template "order_trichotomy" 2
+
+    # Order is asymmetric: forall x y. x < y -> ~(y < x)
+    template "order_asymmetric" 2
+
+    # Successor is the immediate successor: forall x y. x < y /\ ~(exists z. x < z /\ z < y) -> y = x + 1
+    template "successor_immediate" 2
+
+    # =================================================================
+    # Group 4: Multiplication by Constants (6)
+    # =================================================================
+    # Note: General multiplication is NOT in the language.
+    # Multiplication by a fixed constant c is expressible as iterated addition.
+
+    # Multiply by 2 (doubling): 2*x = x + x
+    template "multiply_by_2" 1
+
+    # Multiply by 3: 3*x = x + x + x
+    template "multiply_by_3" 1
+
+    # Multiply by constant c: c*x = x + x + ... + x (c times)
+    template "multiply_by_constant" 2
+
+    # Left distributivity over constant multiplication: c*(x+y) = c*x + c*y
+    template "constant_left_distributive" 3
+
+    # Right distributivity over constant multiplication: (x+y)*c = x*c + y*c
+    template "constant_right_distributive" 3
+
+    # Constant multiplication is associative: (c*d)*x = c*(d*x)
+    template "constant_multiply_associative" 3
+
+    # =================================================================
+    # Group 5: Parity and Divisibility by Constants (8)
+    # =================================================================
+
+    # Every number is even or odd: forall x exists y. (y+y=x) \/ (y+y+1=x)
+    template "even_or_odd" 1
+
+    # Even number definition: Even(x) <=> exists y. y + y = x
+    template "even_definition" 1
+
+    # Odd number definition: Odd(x) <=> exists y. y + y + 1 = x
+    template "odd_definition" 1
+
+    # Sum of two evens is even: Even(x) /\ Even(y) -> Even(x+y)
+    template "even_plus_even" 2
+
+    # Sum of even and odd is odd: Even(x) /\ Odd(y) -> Odd(x+y)
+    template "even_plus_odd" 2
+
+    # Divisibility by constant c: c | x <=> exists y. c*y = x
+    template "divisibility_by_constant" 2
+
+    # Every number is congruent to one of 0, 1, ..., c-1 mod c
+    template "residue_class_exhaustion" 2
+
+    # Chinese Remainder Theorem for constants: if gcd(c,d)=1 then
+    # the system x ≡ a (mod c), x ≡ b (mod d) has a solution
+    template "chinese_remainder_constants" 4
+
+    # =================================================================
+    # Group 6: Linear Diophantine Equations and Inequalities (6)
+    # =================================================================
+
+    # Linear equation solvability: a*x + b*y = c has integer solutions
+    # iff gcd(a,b) | c (for fixed constants a, b, c)
+    template "linear_equation_solvability" 3
+
+    # Frobenius coin problem: for coprime a, b, the largest number
+    # not representable as a*x + b*y is a*b - a - b
+    template "frobenius_coin_problem" 2
+
+    # Linear inequality systems: a system of linear inequalities
+    # over natural numbers is satisfiable iff it has a solution
+    template "linear_inequality_system" 1
+
+    # Subtraction (truncated): x - y = z iff x = y + z, or 0 if y > x
+    template "truncated_subtraction" 2
+
+    # Absolute difference: |x - y| = max(x-y, y-x)
+    template "absolute_difference" 2
+
+    # Minimum and maximum: min(x,y) and max(x,y) are definable
+    template "min_max_definable" 2
+
+    # =================================================================
+    # Group 7: Quantifier Elimination (4)
+    # =================================================================
+
+    # Existential quantifier elimination (Cooper's algorithm)
+    template "cooper_existential_elimination" 1
+
+    # Universal quantifier elimination (via negation of existential)
+    template "universal_elimination" 1
+
+    # Normal form: every Presburger formula is equivalent to a
+    # quantifier-free Boolean combination of linear inequalities
+    # and congruence relations
+    template "quantifier_free_normal_form" 1
+
+    # Congruence reasoning: x ≡ y (mod c) is expressible
+    template "congruence_relation" 2
+
+    # =================================================================
+    # Group 8: Automata-Theoretic Connection (4)
+    # =================================================================
+
+    # Buchi automaton construction: given a Presburger formula,
+    # construct an automaton recognizing its solutions
+    template "buchi_automaton_construction" 1
+
+    # Semilinear set representation: every Presburger-definable
+    # set is a finite union of linear sets
+    template "semilinear_set_representation" 1
+
+    # Ultimately periodic sets: every unary Presburger-definable
+    # set is ultimately periodic
+    template "ultimately_periodic_sets" 1
+
+    # Cobham-Semenov theorem: a relation is Presburger-definable
+    # iff it is recognizable in all base-k automata (k >= 2)
+    template "cobham_semenov_theorem" 1
+
+    # =================================================================
+    # Group 9: Model Theory (5)
+    # =================================================================
+
+    # Standard model: (N, 0, 1, +, <)
+    template "standard_model" 0
+
+    # Nonstandard models exist (by compactness)
+    template "nonstandard_models" 0
+
+    # Elementary equivalence: all models satisfy the same sentences
+    template "elementary_equivalence" 0
+
+    # Model completeness: every embedding between models is elementary
+    template "model_completeness" 0
+
+    # Vaught's test: Presburger arithmetic has no finite models
+    # and is kappa-categorical for uncountable kappa
+    template "vaught_test" 0
+
+    # =================================================================
+    # Group 10: Core Constructors (6)
+    # =================================================================
+
+    # Construct the successor of a number
+    template "construct_successor" 1
+
+    # Construct the sum of two numbers
+    template "construct_sum" 2
+
+    # Construct a constant multiple of a number
+    template "construct_constant_multiple" 2
+
+    # Construct the truncated difference
+    template "construct_truncated_difference" 2
+
+    # Construct the minimum of two numbers
+    template "construct_minimum" 2
+
+    # Construct the maximum of two numbers
+    template "construct_maximum" 2
+
+    # =================================================================
+    # Group 11: Derived Constructors (8)
+    # =================================================================
+
+    # Construct the residue of x modulo c
+    template "construct_residue" 2
+
+    # Construct the quotient of x divided by c (integer division)
+    template "construct_quotient" 2
+
+    # Construct the parity predicate: is_even(x)
+    template "construct_parity" 1
+
+    # Construct a linear combination: a*x + b*y (for constants a, b)
+    template "construct_linear_combination" 4
+
+    # Construct a semilinear set from period vectors
+    template "construct_semilinear_set" 2
+
+    # Construct a periodic set from base and period
+    template "construct_periodic_set" 2
+
+    # Construct the ordering relation x < y
+    template "construct_less_than" 2
+
+    # Construct the congruence class x ≡ r (mod c)
+    template "construct_congruence_class" 3
+
+    # =================================================================
+    # Group 12: Applications in Formal Verification (4)
+    # =================================================================
+
+    # Array index bounds checking (linear expressions)
+    template "array_bounds_check" 2
+
+    # Loop invariant verification (linear invariants)
+    template "loop_invariant_check" 1
+
+    # Integer linear programming feasibility
+    template "ilp_feasibility" 1
+
+    # SMT solver integration (quantifier-free fragment)
+    template "smt_integration" 1
+
+    # =================================================================
+    # Known Unconstructible / Inexpressible Problems (10)
+    # =================================================================
+    # These problems CANNOT be expressed in Presburger arithmetic
+    # because they require multiplication between variables.
+
+    unconstructible "primality" {
+        reduces_to "inexpressible"
+        dependency "addition_recursion"
+        dependency "induction_schema"
+        external_ref "https://en.wikipedia.org/wiki/Presburger_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "general_multiplication" {
+        reduces_to "inexpressible"
+        dependency "addition_recursion"
+        dependency "multiply_by_constant"
+        external_ref "https://en.wikipedia.org/wiki/Presburger_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "general_divisibility" {
+        reduces_to "inexpressible"
+        dependency "divisibility_by_constant"
+        dependency "addition_recursion"
+        external_ref "https://en.wikipedia.org/wiki/Presburger_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "exponentiation" {
+        reduces_to "inexpressible"
+        dependency "multiply_by_constant"
+        dependency "addition_recursion"
+        external_ref "https://en.wikipedia.org/wiki/Presburger_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "goldbach_conjecture" {
+        reduces_to "inexpressible"
+        dependency "addition_recursion"
+        dependency "induction_schema"
+        external_ref "https://en.wikipedia.org/wiki/Presburger_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "fermat_last_theorem" {
+        reduces_to "inexpressible"
+        dependency "addition_recursion"
+        dependency "induction_schema"
+        external_ref "https://en.wikipedia.org/wiki/Presburger_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "goodstein_theorem" {
+        reduces_to "inexpressible"
+        dependency "induction_schema"
+        dependency "addition_recursion"
+        external_ref "https://plato.stanford.edu/entries/goedel-incompleteness/"
+        green_verified true
+    }
+
+    unconstructible "godel_sentence" {
+        reduces_to "inexpressible"
+        dependency "induction_schema"
+        dependency "addition_recursion"
+        external_ref "https://plato.stanford.edu/entries/goedel-incompleteness/"
+        green_verified true
+    }
+
+    unconstructible "satisfiability_2exptime" {
+        reduces_to "2_exptime_complete"
+        dependency "cooper_existential_elimination"
+        dependency "quantifier_free_normal_form"
+        dependency "linear_inequality_system"
+        external_ref "https://en.wikipedia.org/wiki/Presburger_arithmetic"
+        green_verified true
+    }
+
+    unconstructible "bit_vector_arithmetic" {
+        reduces_to "undecidable_extension"
+        dependency "addition_recursion"
+        dependency "construct_residue"
+        dependency "construct_quotient"
+        external_ref "https://ncatlab.org/nlab/show/Presburger+arithmetic"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "presburger_natural_numbers"
+    negation_encoding "classical_first_order"
+    contradiction_behavior "explosion_principle"
+}

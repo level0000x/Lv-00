@@ -1,0 +1,545 @@
+# =============================================================================
+# Lv-00 Axiom Package: Cartesian Closed Category (CCC)
+# =============================================================================
+#
+# Mathematical Theory: Cartesian Closed Category
+#   A Cartesian closed category (CCC) is a category equipped with finite
+#   products and exponentials (internal hom-objects). CCCs are the
+#   categorical semantics of simply typed lambda calculus and the
+#   internal logic is minimal logic (intuitionistic logic without ⊥).
+#
+#   The Curry-Howard-Lambek correspondence establishes a deep isomorphism:
+#     Intuitionistic Propositional Logic ≅ Simply Typed λ-Calculus ≅ CCC
+#
+# Axiomatization: Standard definition via finite products + exponentials
+#
+# References:
+#   - Eilenberg, S. & Kelly, G.M. (1966). "Closed Categories." In:
+#     Proceedings of the Conference on Categorical Algebra (La Jolla 1965).
+#     Springer, pp. 421-562.
+#     https://doi.org/10.1007/978-3-642-99902-4
+#   - Mac Lane, S. (1998). "Categories for the Working Mathematician"
+#     (2nd ed.), §IV.6. Springer. ISBN 0-387-98403-8.
+#     https://doi.org/10.1007/978-1-4757-4721-8
+#   - Lambek, J. & Scott, P.J. (1986). "Introduction to Higher Order
+#     Categorical Logic." Cambridge Studies in Advanced Mathematics 7.
+#     ISBN 0-521-24665-2.
+#   - Borceux, F. (1994). "Handbook of Categorical Algebra, Vol. 2:
+#     Categories and Structures," Def. 6.1.5. Cambridge University Press.
+#     https://doi.org/10.1017/CBO9780511525865
+#   - Wikipedia: Cartesian closed category
+#     https://en.wikipedia.org/wiki/Cartesian_closed_category
+#   - nLab: Cartesian closed category
+#     https://ncatlab.org/nlab/show/cartesian+closed+category
+#   - nLab: Exponential object
+#     https://ncatlab.org/nlab/show/exponential+object
+#   - Awodey, S. (2010). "Category Theory" (2nd ed.), Ch. 6. Oxford.
+#   - Wikipedia: Curry-Howard-Lambek correspondence
+#     https://en.wikipedia.org/wiki/Curry%E2%80%93Howard%E2%80%93Lambek_correspondence
+#
+# Core Axioms (3 structural requirements):
+#   CCC1. Terminal Object: There exists an object 1 such that for every
+#         object X, there exists exactly one morphism !_X : X → 1.
+#   CCC2. Finite Products: For any two objects A, B, there exists a
+#         product A × B with projections π₁ : A × B → A and
+#         π₂ : A × B → B, satisfying the universal property.
+#   CCC3. Exponentials: For any two objects B, A, there exists an
+#         exponential B^A with evaluation ev : B^A × A → B, satisfying
+#         the universal property:
+#           Hom(C × A, B) ≅ Hom(C, B^A)  (natural in C)
+#
+# Derived Constructions:
+#   - Currying (λ-abstraction): Hom(C × A, B) → Hom(C, B^A)
+#   - Evaluation (application): ev : B^A × A → B
+#   - Internal composition: Z^Y × Y^X → Z^X
+#   - Partial application: Z^(X×Y) × X → Z^Y
+#   - Precomposition: Z^p : Z^Y → Z^X for p : X → Y
+#   - Postcomposition: p^Z : X^Z → Y^Z for p : X → Y
+#
+# Relationship to Other Theories:
+#   - category_theory: CCC extends a category with finite products and
+#     exponentials. Every CCC is a category, but not every category is
+#     Cartesian closed (e.g., abelian categories are never CCC).
+#   - simple_type_theory: By Curry-Howard-Lambek, the internal language
+#     of a CCC is exactly simply typed lambda calculus. Types ↔ objects,
+#     terms ↔ morphisms, function types ↔ exponentials.
+#   - intuitionistic_propositional_logic: The internal logic of a CCC
+#     is minimal logic (or intuitionistic logic if ⊥ is added).
+#     A × B ↔ conjunction, B^A ↔ implication A → B, 1 ↔ truth.
+#   - boolean_algebra: A Boolean algebra is a CCC where every object
+#     has a complement (subobject classifier). Boolean algebras are
+#     CCCs viewed as poset categories.
+#   - lattice_theory: A Heyting algebra is a CCC (as a poset category).
+#     The exponential B^A corresponds to the relative pseudocomplement.
+#   - domain_theory: The category of DCPOs with Scott-continuous maps
+#     is a Cartesian closed category (Scott 1972).
+#   - point_set_topology: The category of compactly generated Hausdorff
+#     spaces is Cartesian closed (but Top is not).
+#
+# Non-examples:
+#   - Any non-trivial category with a zero object (e.g., abelian
+#     categories, module categories) is NOT Cartesian closed.
+#   - The category Top of all topological spaces is NOT Cartesian closed.
+#   - The category of smooth manifolds is NOT Cartesian closed.
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "cartesian_closed_category" "1.0.0" {
+
+    # =================================================================
+    # Group I: Foundational Category Structure (inherited)
+    # =================================================================
+    # These templates represent the underlying category structure that
+    # a CCC extends. They mirror the core of category_theory but are
+    # restated here for self-containedness.
+    # =================================================================
+
+    # Object of the category
+    template "object" 0
+
+    # Morphism f : A → B (directed edge in the geometric view)
+    template "morphism" 2
+
+    # Identity morphism id_A : A → A
+    template "identity_morphism" 1
+
+    # Composition: g ∘ f : A → C from f : A → B, g : B → C
+    template "composition" 3
+
+    # Associativity of composition: h ∘ (g ∘ f) = (h ∘ g) ∘ f
+    template "associativity" 3
+
+    # Left identity: id_B ∘ f = f
+    template "left_identity" 2
+
+    # Right identity: f ∘ id_A = f
+    template "right_identity" 2
+
+    # =================================================================
+    # Group II: Terminal Object (CCC Axiom 1)
+    # =================================================================
+    # A terminal object 1 is characterized by: for every object X,
+    # there exists exactly one morphism !_X : X → 1.
+    # In the geometric view: a sink node that every other node has
+    # exactly one edge to.
+    # =================================================================
+
+    # Terminal object existence declaration
+    template "terminal_object" 0
+
+    # Unique morphism to terminal: !_X : X → 1
+    # Params: object X
+    template "terminal_morphism" 1
+
+    # Uniqueness of terminal morphism: if f, g : X → 1, then f = g
+    template "terminal_uniqueness" 2
+
+    # =================================================================
+    # Group III: Finite Products (CCC Axiom 2)
+    # =================================================================
+    # A product A × B is characterized by projections π₁, π₂ and
+    # the universal property: for any f : C → A, g : C → B, there
+    # exists unique ⟨f,g⟩ : C → A × B with π₁∘⟨f,g⟩ = f, π₂∘⟨f,g⟩ = g.
+    # =================================================================
+
+    # Binary product object: A × B
+    # Params: object A, object B
+    template "binary_product" 2
+
+    # Left projection: π₁ : A × B → A
+    # Params: product object P, component object A
+    template "projection_left" 2
+
+    # Right projection: π₂ : A × B → B
+    # Params: product object P, component object B
+    template "projection_right" 2
+
+    # Pairing (universal property): given f : C → A, g : C → B,
+    #   produce ⟨f,g⟩ : C → A × B
+    # Params: morphism f, morphism g
+    template "pairing" 2
+
+    # Left projection law: π₁ ∘ ⟨f,g⟩ = f
+    # Params: morphism f, morphism g
+    template "projection_left_law" 2
+
+    # Right projection law: π₂ ∘ ⟨f,g⟩ = g
+    # Params: morphism f, morphism g
+    template "projection_right_law" 2
+
+    # Uniqueness of pairing: if h : C → A × B satisfies
+    #   π₁ ∘ h = f and π₂ ∘ h = g, then h = ⟨f,g⟩
+    # Params: morphism h, morphism f, morphism g
+    template "pairing_uniqueness" 3
+
+    # Product associator: (A × B) × C ≅ A × (B × C)
+    # Params: object A, object B, object C
+    template "product_associator" 3
+
+    # Product commutator: A × B ≅ B × A
+    # Params: object A, object B
+    template "product_commutator" 2
+
+    # Product unitor left: 1 × A ≅ A
+    # Params: object A
+    template "product_unitor_left" 1
+
+    # Product unitor right: A × 1 ≅ A
+    # Params: object A
+    template "product_unitor_right" 1
+
+    # Diagonal (copying): Δ_A : A → A × A
+    # Params: object A
+    template "diagonal" 1
+
+    # Twisted arrow (swap): τ : A × B → B × A
+    # Params: object A, object B
+    template "swap" 2
+
+    # =================================================================
+    # Group IV: Exponential Objects (CCC Axiom 3)
+    # =================================================================
+    # An exponential B^A is characterized by evaluation ev : B^A × A → B
+    # and the universal property (currying):
+    #   Hom(C × A, B) ≅ Hom(C, B^A)  (natural in C)
+    # This is the categorical generalization of function spaces.
+    # =================================================================
+
+    # Exponential object: B^A (the "function space" from A to B)
+    # Params: base object A, exponent object B
+    template "exponential" 2
+
+    # Evaluation map: ev_{A,B} : B^A × A → B
+    # Params: exponential object B^A, base object A
+    template "evaluation" 2
+
+    # Currying (λ-abstraction): Λ(f) : C → B^A from f : C × A → B
+    # This is the canonical bijection Hom(C × A, B) → Hom(C, B^A).
+    # Params: morphism f (of type C × A → B)
+    template "currying" 1
+
+    # Uncurrying (application): Λ⁻¹(g) : C × A → B from g : C → B^A
+    # This is the inverse of currying.
+    # Params: morphism g (of type C → B^A)
+    template "uncurrying" 1
+
+    # Beta reduction: ev ∘ (Λ(f) × id_A) = f
+    # The fundamental computational rule: (λx.M) N = M[x:=N]
+    # Params: morphism f (of type C × A → B)
+    template "beta_reduction" 1
+
+    # Eta expansion (extensionality): Λ(ev ∘ (g × id_A)) = g
+    # Every morphism g : C → B^A is uniquely determined by its
+    # behavior under evaluation.
+    # Params: morphism g (of type C → B^A)
+    template "eta_expansion" 1
+
+    # Exponential uniqueness: if g₁, g₂ : C → B^A and
+    #   ev ∘ (g₁ × id_A) = ev ∘ (g₂ × id_A), then g₁ = g₂
+    # Params: morphism g1, morphism g2
+    template "exponential_uniqueness" 2
+
+    # =================================================================
+    # Group V: Internal Composition and Derived Operations
+    # =================================================================
+    # Operations derived from the exponential structure that
+    # correspond to fundamental computational concepts.
+    # =================================================================
+
+    # Internal composition: c_{X,Y,Z} : Z^Y × Y^X → Z^X
+    # Satisfies: ev ∘ (c × id_X) = ev ∘ (id × ev)
+    # Params: object X, object Y, object Z
+    template "internal_composition" 3
+
+    # Identity element: id_A as a morphism 1 → A^A
+    # Params: object A
+    template "identity_element" 1
+
+    # Precomposition (right action): for p : X → Y,
+    #   Z^p : Z^Y → Z^X (post-composition with p)
+    # Params: morphism p, object Z
+    template "precomposition" 2
+
+    # Postcomposition (left action): for p : X → Y,
+    #   p^Z : Y^Z → X^Z (pre-composition with p)
+    # Params: morphism p, object Z
+    template "postcomposition" 2
+
+    # Partial application: papply : Z^(X×Y) × X → Z^Y
+    # Params: object X, object Y, object Z
+    template "partial_application" 3
+
+    # Constant function: const_B : A → B^A (maps everything to fixed b ∈ B)
+    # Derived via currying of π₂ : A × A → A followed by some b : 1 → B
+    # Params: object A, object B
+    template "constant_function" 2
+
+    # =================================================================
+    # Group VI: Functorial Structure of Products and Exponentials
+    # =================================================================
+    # How products and exponentials behave under morphisms.
+    # =================================================================
+
+    # Product functor on morphisms: f × g : A × C → B × D
+    #   from f : A → B, g : C → D
+    # Params: morphism f, morphism g
+    template "product_functor" 2
+
+    # Exponential functor on morphisms (contravariant in base):
+    #   For p : X → Y, the induced map (-)^p : Z^Y → Z^X
+    # Params: morphism p, object Z
+    template "exponential_functor_contravariant" 2
+
+    # Exponential functor on morphisms (covariant in exponent):
+    #   For q : Y → Z, the induced map q^A : Y^A → Z^A
+    # Params: morphism q, object A
+    template "exponential_functor_covariant" 2
+
+    # Naturality of currying in the exponent:
+    #   For h : B → B', the diagram:
+    #     Hom(C × A, B) → Hom(C, B^A)
+    #         h∘(-)↓           ↓((-)^A ∘ h)
+    #     Hom(C × A, B') → Hom(C, B'^A)
+    #   commutes.
+    # Params: morphism h, object A, object C
+    template "currying_naturality" 3
+
+    # Naturality of currying in the base:
+    #   For k : A' → A, the diagram:
+    #     Hom(C × A, B) → Hom(C, B^A)
+    #     (-)×k↓            ↓B^k
+    #     Hom(C × A', B) → Hom(C, B^A')
+    #   commutes.
+    # Params: morphism k, object B, object C
+    template "currying_naturality_base" 3
+
+    # =================================================================
+    # Group VII: CCC Functor — Structure-Preserving Maps
+    # =================================================================
+    # A CCC functor between Cartesian closed categories preserves
+    # finite products and exponentials.
+    # =================================================================
+
+    # CCC functor: F : C → D preserving terminal, products, exponentials
+    # Params: source category C, target category D
+    template "ccc_functor" 2
+
+    # CCC functor preserves terminal: F(1) ≅ 1
+    # Params: functor F
+    template "ccc_functor_preserves_terminal" 1
+
+    # CCC functor preserves products: F(A × B) ≅ F(A) × F(B)
+    # Params: functor F, object A, object B
+    template "ccc_functor_preserves_products" 3
+
+    # CCC functor preserves exponentials: F(B^A) ≅ F(B)^F(A)
+    # Params: functor F, object A, object B
+    template "ccc_functor_preserves_exponentials" 3
+
+    # =================================================================
+    # Group VIII: Special Objects and Properties
+    # =================================================================
+    # =================================================================
+
+    # Initial object (if it exists in the CCC)
+    template "initial_object" 0
+
+    # Zero object (both initial and terminal — implies trivial CCC)
+    template "zero_object" 0
+
+    # Natural numbers object (NNO): the categorical generalization of ℕ
+    #   Characterized by z : 1 → N and s : N → N with the universal
+    #   property for recursion/iteration.
+    template "natural_numbers_object" 0
+
+    # =================================================================
+    # Group IX: Limits and Colimits in CCC
+    # =================================================================
+    # CCCs have all finite limits iff they have equalizers (since
+    # they already have finite products).
+    # =================================================================
+
+    # Equalizer of f,g : A → B
+    # Params: morphism f, morphism g
+    template "equalizer" 2
+
+    # Coequalizer of f,g : A → B
+    # Params: morphism f, morphism g
+    template "coequalizer" 2
+
+    # Pullback of f : A → C ← g : B
+    # Params: morphism f, morphism g
+    template "pullback" 2
+
+    # Pushout of f : C ← A → g
+    # Params: morphism f, morphism g
+    template "pushout" 2
+
+    # =================================================================
+    # Group X: Internal Logic Correspondences
+    # =================================================================
+    # Templates encoding the Curry-Howard-Lambek correspondence
+    # between CCC structure and logical/type-theoretic concepts.
+    # =================================================================
+
+    # Conjunction (product): A × B corresponds to A ∧ B
+    # Params: object A (proposition), object B (proposition)
+    template "conjunction" 2
+
+    # Implication (exponential): B^A corresponds to A → B
+    # Params: antecedent A, consequent B
+    template "implication" 2
+
+    # Truth (terminal): 1 corresponds to ⊤
+    template "truth" 0
+
+    # Weakening: C → C × A (discard A)
+    # Params: object C, object A
+    template "weakening" 2
+
+    # Contraction: C × C → C (duplicate C)
+    # Params: object C
+    template "contraction" 1
+
+    # Exchange: A × B → B × A (swap)
+    template "exchange" 2
+
+    # =================================================================
+    # Group XI: Sections and Dependent Constructs
+    # =================================================================
+    # =================================================================
+
+    # Object of sections Γ_Y(p) for p : X → Y
+    # The subobject of X^Y consisting of maps whose composite with p
+    # is the identity. Generalizes the notion of sections in topology.
+    # Params: morphism p, object Y
+    template "object_of_sections" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+    # Problems related to Cartesian closed categories that are known
+    # to be algorithmically undecidable or intractable.
+    # =================================================================
+
+    # Whether a given finite category is Cartesian closed requires
+    # checking existence of all finite products and exponentials,
+    # which involves solving universal property existence problems.
+    unconstructible "ccc_recognition_problem" {
+        reduces_to "undecidable"
+        dependency "binary_product"
+        dependency "exponential"
+        dependency "terminal_object"
+        dependency "evaluation"
+        dependency "currying"
+        external_ref "https://ncatlab.org/nlab/show/cartesian+closed+category"
+        green_verified true
+    }
+
+    # Equality of morphisms in a free CCC is undecidable (reduces to
+    # equivalence of simply typed lambda terms, which is known to be
+    # undecidable in general due to encoding of combinatory logic).
+    unconstructible "morphism_equality_free_ccc" {
+        reduces_to "undecidable"
+        dependency "composition"
+        dependency "associativity"
+        dependency "currying"
+        dependency "uncurrying"
+        dependency "beta_reduction"
+        dependency "eta_expansion"
+        external_ref "https://en.wikipedia.org/wiki/Cartesian_closed_category"
+        green_verified true
+    }
+
+    # Whether a given functor between CCCs preserves the CCC structure
+    # (products and exponentials) requires checking isomorphisms,
+    # which is undecidable in general.
+    unconstructible "ccc_functor_preservation" {
+        reduces_to "undecidable"
+        dependency "ccc_functor"
+        dependency "ccc_functor_preserves_products"
+        dependency "ccc_functor_preserves_exponentials"
+        dependency "binary_product"
+        dependency "exponential"
+        external_ref "https://ncatlab.org/nlab/show/cartesian+closed+functor"
+        green_verified true
+    }
+
+    # Whether a given category with finite products can be extended
+    # to a CCC (i.e., whether exponentials exist for all pairs) is
+    # undecidable in general.
+    unconstructible "exponential_existence" {
+        reduces_to "undecidable"
+        dependency "binary_product"
+        dependency "exponential"
+        dependency "evaluation"
+        dependency "currying"
+        dependency "exponential_uniqueness"
+        external_ref "https://ncatlab.org/nlab/show/exponential+object"
+        green_verified true
+    }
+
+    # Whether a given slice category C/X is Cartesian closed
+    # (locally Cartesian closed) is undecidable in general.
+    unconstructible "local_cartesian_closedness" {
+        reduces_to "exponential_existence"
+        dependency "binary_product"
+        dependency "exponential"
+        dependency "pullback"
+        dependency "object_of_sections"
+        external_ref "https://ncatlab.org/nlab/show/locally+cartesian+closed+category"
+        green_verified true
+    }
+
+    # The word problem for free CCCs (equality of morphisms in the
+    # free Cartesian closed category on n generators) is undecidable.
+    # This follows from the undecidability of βη-equality for
+    # simply typed lambda calculus.
+    unconstructible "word_problem_free_ccc" {
+        reduces_to "morphism_equality_free_ccc"
+        dependency "composition"
+        dependency "currying"
+        dependency "uncurrying"
+        dependency "beta_reduction"
+        dependency "eta_expansion"
+        dependency "internal_composition"
+        external_ref "https://en.wikipedia.org/wiki/Curry%E2%80%93Howard%E2%80%93Lambek_correspondence"
+        green_verified true
+    }
+
+    # Whether a given CCC has a natural numbers object is undecidable
+    # in general, as it requires checking the universal property of
+    # the NNO against all possible algebras.
+    unconstructible "nno_existence" {
+        reduces_to "undecidable"
+        dependency "natural_numbers_object"
+        dependency "terminal_object"
+        dependency "exponential"
+        dependency "evaluation"
+        external_ref "https://ncatlab.org/nlab/show/natural+numbers+object"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    # A CCC's internal logic is minimal logic (intuitionistic logic
+    # without ⊥). The bottom element represents inconsistency.
+    #
+    # ⊥ = the empty CCC (no objects) or a CCC where the product or
+    #     exponential axioms fail (structural inconsistency)
+    # ¬ = In a CCC, negation can be defined via exponentiation:
+    #     ¬A = A → 1 (the exponential A^A mapped to terminal)
+    #     More precisely, ¬A corresponds to the subobject A ⇒ ⊥
+    #     which requires a subobject classifier (topos structure).
+    # Contradiction behavior: constructive (minimal logic has no
+    #     explosion principle; ex falso is not derivable).
+    # =================================================================
+
+    bottom_geometry "directed_multigraph_with_products_and_exponentials"
+    negation_encoding "exponential_to_terminal_A_implies_false"
+    contradiction_behavior "constructive"
+}

@@ -1,0 +1,75 @@
+/* ============================================================
+   ErrorBoundary 错误边界组件样式 / Error Boundary Component Styles
+   当 React 组件树发生未捕获错误时显示的错误回退界面。
+   ============================================================ */
+
+/* === ERROR BOUNDARY / 错误边界容器 === */
+/* 居中显示的错误回退界面，包含图标、标题、消息、堆栈详情和重试按钮 */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--color-bg-primary, #0d1117);
+  color: var(--color-text-primary, #e6edf3);
+}
+
+/* 错误图标 */
+.error-boundary__icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* 错误标题 */
+.error-boundary__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--color-danger, #f85149);
+}
+
+/* 错误描述消息 */
+.error-boundary__message {
+  font-size: 13px;
+  color: var(--color-text-secondary, #8b949e);
+  max-width: 500px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* 错误堆栈详情（等宽字体，可滚动） */
+.error-boundary__details {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-muted, #484f58);
+  background: var(--color-bg-secondary, #161b22);
+  border: 1px solid var(--color-border-primary, #30363d);
+  border-radius: var(--radius-md, 6px);
+  padding: 12px;
+  max-width: 600px;
+  max-height: 200px;
+  overflow: auto;
+  text-align: left;
+  white-space: pre-wrap;
+  margin-bottom: 20px;
+}
+
+/* 重试按钮 */
+.error-boundary__retry {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--color-accent, #58a6ff);
+  border: none;
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+  transition: background var(--duration-fast, 0.15s);
+}
+.error-boundary__retry:hover {
+  background: var(--color-accent-hover, #79c0ff);
+}

@@ -1,0 +1,586 @@
+# =============================================================================
+# Lv-00 Axiom Package: Quantum Information Theory
+# =============================================================================
+#
+# Mathematical Theory: Quantum Information Theory — the mathematical study
+# of information encoding, transmission, and processing using quantum
+# mechanical systems. Combines quantum mechanics with information theory,
+# providing the foundation for quantum computing, quantum cryptography,
+# and quantum communication.
+#
+# References:
+#   - Nielsen, M.A. & Chuang, I.L. (2010). "Quantum Computation and Quantum
+#     Information" (10th Anniversary Edition). Cambridge University Press.
+#     ISBN 978-1-107-00217-3. https://doi.org/10.1017/CBO9780511976667
+#   - Wilde, M.M. (2017). "Quantum Information Theory" (2nd ed.).
+#     Cambridge University Press. ISBN 978-1-316-80994-8.
+#   - Preskill, J. (1998). "Quantum Information and Computation."
+#     Lecture Notes, Caltech. http://theory.caltech.edu/~preskill/ph219/
+#   - Watrous, J. (2018). "The Theory of Quantum Information."
+#     Cambridge University Press. ISBN 978-1-107-18056-7.
+#   - Bengtsson, I. & Życzkowski, K. (2017). "Geometry of Quantum States"
+#     (2nd ed.). Cambridge University Press. ISBN 978-1-107-02256-4.
+#   - Holevo, A.S. (2019). "Quantum Systems, Channels, Information" (2nd ed.).
+#     De Gruyter. ISBN 978-3-11-064224-9.
+#   - Hayashi, M. (2006). "Quantum Information Theory: Mathematical Foundation."
+#     Springer. ISBN 978-3-662-49624-6.
+#   - Wikipedia: Quantum information
+#     https://en.wikipedia.org/wiki/Quantum_information
+#   - Wikipedia: Quantum channel
+#     https://en.wikipedia.org/wiki/Quantum_channel
+#   - Wikipedia: Quantum entanglement
+#     https://en.wikipedia.org/wiki/Quantum_entanglement
+#   - Wikipedia: Qubit
+#     https://en.wikipedia.org/wiki/Qubit
+#   - Wikipedia: Density matrix
+#     https://en.wikipedia.org/wiki/Density_matrix
+#   - Wikipedia: Von Neumann entropy
+#     https://en.wikipedia.org/wiki/Von_Neumann_entropy
+#   - Wikipedia: Quantum teleportation
+#     https://en.wikipedia.org/wiki/Quantum_teleportation
+#   - Wikipedia: No-cloning theorem
+#     https://en.wikipedia.org/wiki/No-cloning_theorem
+#   - Wikipedia: Quantum error correction
+#     https://en.wikipedia.org/wiki/Quantum_error_correction
+#   - nLab: quantum information
+#     https://ncatlab.org/nlab/show/quantum+information
+#   - nLab: quantum channel
+#     https://ncatlab.org/nlab/show/quantum+channel
+#
+# Primitive Notions:
+#   - Hilbert space H (state space of quantum system)
+#   - Quantum state ρ (density operator: positive semidefinite, trace 1)
+#   - Pure state |ψ⟩ (rank-1 density operator)
+#   - Qubit (2-dimensional quantum system)
+#   - Quantum channel Φ (CPTP map: completely positive, trace-preserving)
+#   - Observable A (Hermitian operator)
+#   - Measurement {M_i} (POVM: positive operators summing to identity)
+#   - Entanglement (non-separable bipartite state)
+#
+# Core Axioms (Quantum Postulates):
+#
+#   QP1. State Space Postulate:
+#       A quantum system is associated with a Hilbert space H.
+#       The state of the system is described by a density operator ρ
+#       satisfying: ρ ≥ 0 (positive semidefinite), Tr(ρ) = 1.
+#
+#   QP2. Evolution Postulate:
+#       The evolution of a closed quantum system is described by a
+#       unitary transformation: ρ → UρU†, where U is unitary (U†U = I).
+#       Open system evolution is a CPTP map (quantum channel).
+#
+#   QP3. Measurement Postulate:
+#       A measurement is described by a POVM {M_i} with M_i ≥ 0, Σ_i M_i = I.
+#       Probability of outcome i: p_i = Tr(M_i ρ).
+#       Post-measurement state (if outcome i): ρ_i = √M_i ρ √M_i / p_i.
+#
+#   QP4. Composite System Postulate:
+#       The state space of a composite system is the tensor product of
+#       component state spaces: H_AB = H_A ⊗ H_B.
+#       The state of a composite system may be entangled (non-separable).
+#
+# Key Derived Concepts:
+#   - Qubit: |ψ⟩ = α|0⟩ + β|1⟩ with |α|² + |β|² = 1
+#   - Bloch sphere representation of single-qubit states
+#   - Schmidt decomposition for bipartite pure states
+#   - Von Neumann entropy: S(ρ) = -Tr(ρ log ρ)
+#   - Quantum mutual information: I(A;B) = S(ρ_A) + S(ρ_B) - S(ρ_AB)
+#   - Entanglement entropy (for pure states)
+#   - Concurrence and entanglement of formation
+#   - Quantum channel capacities (classical, quantum, private)
+#   - Holevo bound: classical information from quantum systems
+#   - No-cloning theorem: unknown quantum states cannot be perfectly copied
+#   - Quantum teleportation: transferring quantum states using entanglement
+#   - Quantum key distribution (BB84, E91 protocols)
+#   - Quantum error correction codes
+#   - Bell inequalities and nonlocality
+#
+# Known Undecidable / Unconstructible Problems:
+#   - Quantum separability problem: determining if a state is separable
+#     (NP-hard in general)
+#   - Quantum channel capacity computation (no closed-form formula)
+#   - Optimal quantum measurement discrimination
+#   - Quantum state discrimination (optimal strategy may not exist)
+#   - Decidability of quantum entanglement detection
+#   - Quantum complexity class relationships (BQP vs NP is open)
+#   - Quantum circuit optimization (finding minimal circuit is hard)
+#   - Quantum error correction code optimization
+#
+# Relationship to Other Lv-00 Axiom Packages:
+#   - information_theory: Quantum entropy generalizes Shannon entropy;
+#     Holevo bound limits classical information from quantum systems
+#   - functional_analysis: Hilbert spaces are central; density operators
+#     are trace-class operators; quantum channels are CPTP maps
+#   - probability_theory: Quantum states are probability measures on
+#     the space of pure states; measurement outcomes are probabilistic
+#   - linear_algebra (implied): Matrix operations, tensor products,
+#     spectral decomposition, unitary matrices
+#   - group_theory: Pauli matrices form a group; unitary representations
+#   - category_theory: Quantum channels form a category; C*-algebras
+#   - computability_theory: Quantum computing extends classical computing
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "quantum_information_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: Quantum Postulates (4)
+    # =================================================================
+
+    # QP1. State Space Postulate: Quantum states are density operators
+    # A density operator ρ satisfies: ρ ≥ 0 (positive semidefinite), Tr(ρ) = 1
+    template "quantum_state_density_operator" 1
+
+    # QP2. Unitary Evolution: Closed system evolution is unitary
+    # ρ → UρU† where U†U = I
+    template "unitary_evolution" 2
+
+    # QP3. Measurement Postulate: POVM measurement
+    # {M_i} with M_i ≥ 0, Σ_i M_i = I; p_i = Tr(M_i ρ)
+    template "povm_measurement" 2
+
+    # QP4. Composite System: Tensor product structure
+    # H_AB = H_A ⊗ H_B
+    template "composite_system_tensor_product" 2
+
+    # =================================================================
+    # Group II: Qubit and Single-Qubit States (10)
+    # =================================================================
+
+    # QUB1. Qubit definition: 2-dimensional quantum system
+    template "qubit_definition" 0
+
+    # QUB2. Qubit pure state: |ψ⟩ = α|0⟩ + β|1⟩ with |α|² + |β|² = 1
+    template "qubit_pure_state" 2
+
+    # QUB3. Bloch sphere representation:
+    # ρ = (I + r⃗·σ⃗)/2 where |r⃗| ≤ 1
+    template "bloch_sphere_representation" 1
+
+    # QUB4. Pauli matrices: σ_x, σ_y, σ_z
+    template "pauli_matrices" 0
+
+    # QUB5. Computational basis: |0⟩, |1⟩
+    template "computational_basis" 0
+
+    # QUB6. Hadamard basis: |+⟩, |−⟩
+    template "hadamard_basis" 0
+
+    # QUB7. Qubit density matrix: 2×2 positive semidefinite, trace 1
+    template "qubit_density_matrix" 1
+
+    # QUB8. Single-qubit unitary gates: I, X, Y, Z, H, S, T
+    template "single_qubit_gates" 1
+
+    # QUB9. Bloch vector: r⃗ = (Tr(ρX), Tr(ρY), Tr(ρZ))
+    template "bloch_vector" 1
+
+    # QUB10. Pure state condition: Tr(ρ²) = 1
+    template "pure_state_condition" 1
+
+    # =================================================================
+    # Group III: Quantum States and Density Operators (12)
+    # =================================================================
+
+    # QS1. Density operator properties: ρ ≥ 0, Tr(ρ) = 1
+    template "density_operator_properties" 1
+
+    # QS2. Pure state: rank-1 projector |ψ⟩⟨ψ|
+    template "pure_state_projector" 1
+
+    # QS3. Mixed state: convex combination of pure states
+    template "mixed_state_convex_combination" 1
+
+    # QS4. Spectral decomposition: ρ = Σ_i λ_i |i⟩⟨i|
+    template "spectral_decomposition" 1
+
+    # QS5. Partial trace: Tr_B(ρ_AB) = ρ_A
+    template "partial_trace" 2
+
+    # QS6. State purification: Every mixed state has a purification
+    template "state_purification" 1
+
+    # QS7. Schmidt decomposition: |ψ⟩_AB = Σ_i √λ_i |i⟩_A ⊗ |i⟩_B
+    template "schmidt_decomposition" 1
+
+    # QS8. Schmidt rank: number of non-zero Schmidt coefficients
+    template "schmidt_rank" 1
+
+    # QS9. Fidelity: F(ρ, σ) = Tr(√(√ρ σ √ρ))
+    template "fidelity_definition" 2
+
+    # QS10. Trace distance: D(ρ, σ) = (1/2)||ρ - σ||_1
+    template "trace_distance" 2
+
+    # QS11. Ensemble representation: ρ = Σ_i p_i |ψ_i⟩⟨ψ_i|
+    template "ensemble_representation" 2
+
+    # QS12. State discrimination: optimal measurement to distinguish states
+    template "state_discrimination" 2
+
+    # =================================================================
+    # Group IV: Quantum Channels (CPTP Maps) (12)
+    # =================================================================
+
+    # QC1. Quantum channel definition: CPTP map Φ
+    template "quantum_channel_cptp" 1
+
+    # QC2. Complete positivity: (I ⊗ Φ)(ρ) ≥ 0 for all ρ ≥ 0
+    template "complete_positivity" 1
+
+    # QC3. Trace preservation: Tr(Φ(ρ)) = Tr(ρ)
+    template "trace_preservation" 1
+
+    # QC4. Kraus representation: Φ(ρ) = Σ_i K_i ρ K_i† with Σ_i K_i†K_i = I
+    template "kraus_representation" 2
+
+    # QC5. Stinespring dilation: Every channel has a unitary extension
+    template "stinespring_dilation" 1
+
+    # QC6. Choi matrix: J_Φ = (I ⊗ Φ)(|Ω⟩⟨Ω|) where |Ω⟩ = Σ_i |i⟩⊗|i⟩
+    template "choi_matrix" 1
+
+    # QC7. Unitary channel: Φ(ρ) = UρU†
+    template "unitary_channel" 2
+
+    # QC8. Depolarizing channel: Φ(ρ) = (1-p)ρ + p(I/d)
+    template "depolarizing_channel" 2
+
+    # QC9. Amplitude damping channel: models energy dissipation
+    template "amplitude_damping_channel" 2
+
+    # QC10. Phase damping channel: models dephasing
+    template "phase_damping_channel" 2
+
+    # QC11. Bit flip channel: X error with probability p
+    template "bit_flip_channel" 2
+
+    # QC12. Phase flip channel: Z error with probability p
+    template "phase_flip_channel" 2
+
+    # =================================================================
+    # Group V: Quantum Entanglement (12)
+    # =================================================================
+
+    # QE1. Separable state: ρ_AB = Σ_i p_i ρ_A^i ⊗ ρ_B^i
+    template "separable_state" 1
+
+    # QE2. Entangled state: not separable
+    template "entangled_state" 1
+
+    # QE3. Bell states: maximally entangled two-qubit states
+    template "bell_states" 0
+
+    # QE4. Maximally entangled state: |Φ⁺⟩ = (|00⟩ + |11⟩)/√2
+    template "maximally_entangled_state" 0
+
+    # QE5. Entanglement entropy: S(ρ_A) for pure |ψ⟩_AB
+    template "entanglement_entropy" 1
+
+    # QE6. Concurrence: entanglement measure for two qubits
+    template "concurrence" 1
+
+    # QE7. Entanglement of formation: E_F(ρ) = min{Σ_i p_i S(Tr_B|ψ_i⟩⟨ψ_i|)}
+    template "entanglement_of_formation" 1
+
+    # QE8. PPT criterion (Peres-Horodecki): separable ⟹ PPT
+    template "ppt_criterion" 1
+
+    # QE9. Partial transpose: ρ^(T_B) for entanglement detection
+    template "partial_transpose" 1
+
+    # QE10. Entanglement witness: W such that Tr(Wρ) < 0 iff ρ entangled
+    template "entanglement_witness" 2
+
+    # QE11. LOCC (Local Operations and Classical Communication)
+    template "locc_operations" 0
+
+    # QE12. Distillable entanglement: maximum entanglement extractable via LOCC
+    template "distillable_entanglement" 1
+
+    # =================================================================
+    # Group VI: Quantum Entropy and Information (10)
+    # =================================================================
+
+    # QI1. Von Neumann entropy: S(ρ) = -Tr(ρ log ρ)
+    template "von_neumann_entropy" 1
+
+    # QI2. Quantum relative entropy: D(ρ||σ) = Tr(ρ(log ρ - log σ))
+    template "quantum_relative_entropy" 2
+
+    # QI3. Quantum mutual information: I(A;B) = S(ρ_A) + S(ρ_B) - S(ρ_AB)
+    template "quantum_mutual_information" 1
+
+    # QI4. Conditional entropy: S(A|B) = S(ρ_AB) - S(ρ_B)
+    template "quantum_conditional_entropy" 1
+
+    # QI5. Strong subadditivity: S(ρ_ABC) + S(ρ_B) ≤ S(ρ_AB) + S(ρ_BC)
+    template "strong_subadditivity" 1
+
+    # QI6. Araki-Lieb inequality: |S(ρ_A) - S(ρ_B)| ≤ S(ρ_AB)
+    template "araki_lieb_inequality" 1
+
+    # QI7. Holevo bound: χ ≤ S(ρ) - Σ_i p_i S(ρ_i)
+    template "holevo_bound" 2
+
+    # QI8. Quantum data processing inequality
+    template "quantum_data_processing" 2
+
+    # QI9. Quantum channel capacity: maximum rate of reliable transmission
+    template "quantum_channel_capacity" 1
+
+    # QI10. Coherent information: I_c(ρ, Φ) = S(Φ(ρ)) - S((I ⊗ Φ)(|ψ⟩⟨ψ|))
+    template "coherent_information" 2
+
+    # =================================================================
+    # Group VII: Quantum Measurements (8)
+    # =================================================================
+
+    # QM1. Projective measurement: {P_i} with P_i² = P_i, P_i P_j = δ_{ij} P_i
+    template "projective_measurement" 1
+
+    # QM2. POVM (Positive Operator-Valued Measure): {M_i} with M_i ≥ 0
+    template "povm_definition" 1
+
+    # QM3. Naimark dilation: POVM extends to projective measurement
+    template "naimark_dilation" 1
+
+    # QM4. Measurement in computational basis
+    template "computational_basis_measurement" 1
+
+    # QM5. Bell measurement: measurement in Bell basis
+    template "bell_measurement" 1
+
+    # QM6. Weak measurement: minimal disturbance measurement
+    template "weak_measurement" 2
+
+    # QM7. POVM optimization: optimal measurement for state discrimination
+    template "povm_optimization" 2
+
+    # QM8. Measurement disturbance: how measurement affects the state
+    template "measurement_disturbance" 2
+
+    # =================================================================
+    # Group VIII: Fundamental Theorems (8)
+    # =================================================================
+
+    # FT1. No-cloning theorem: unknown quantum states cannot be copied
+    template "no_cloning_theorem" 0
+
+    # FT2. No-broadcast theorem: quantum information cannot be broadcast
+    template "no_broadcast_theorem" 0
+
+    # FT3. No-deleting theorem: unknown quantum states cannot be deleted
+    template "no_deleting_theorem" 0
+
+    # FT4. No-hiding theorem: quantum information is conserved
+    template "no_hiding_theorem" 0
+
+    # FT5. No-teleportation theorem: cannot determine unknown quantum state
+    template "no_teleportation_theorem" 0
+
+    # FT6. Quantum teleportation: transfer quantum state using entanglement
+    template "quantum_teleportation" 0
+
+    # FT7. Superdense coding: send 2 classical bits with 1 qubit
+    template "superdense_coding" 0
+
+    # FT8. Holevo's theorem: bound on classical information from quantum
+    template "holevo_theorem" 0
+
+    # =================================================================
+    # Group IX: Quantum Gates and Circuits (10)
+    # =================================================================
+
+    # QG1. Single-qubit gates: rotations on Bloch sphere
+    template "single_qubit_gate" 2
+
+    # QG2. Two-qubit gates: CNOT, CZ, SWAP
+    template "two_qubit_gates" 0
+
+    # QG3. CNOT gate: controlled-NOT
+    template "cnot_gate" 0
+
+    # QG4. Universal gate set: {H, T, CNOT} is universal
+    template "universal_gate_set" 0
+
+    # QG5. Quantum circuit: sequence of quantum gates
+    template "quantum_circuit" 1
+
+    # QG6. Clifford gates: H, S, CNOT
+    template "clifford_gates" 0
+
+    # QG7. Non-Clifford gate: T gate (π/8 gate)
+    template "non_clifford_gate" 0
+
+    # QG8. Gate decomposition: any unitary as circuit
+    template "gate_decomposition" 1
+
+    # QG9. Circuit depth and width
+    template "circuit_complexity" 2
+
+    # QG10. Solovay-Kitaev theorem: efficient gate approximation
+    template "solovay_kitaev_theorem" 0
+
+    # =================================================================
+    # Group X: Quantum Error Correction (8)
+    # =================================================================
+
+    # QEC1. Quantum error: Pauli errors X, Y, Z
+    template "quantum_error_types" 0
+
+    # QEC2. Error correction condition: [P_i, E_a] = 0 for stabilizer codes
+    template "error_correction_condition" 2
+
+    # QEC3. Stabilizer code: defined by stabilizer group
+    template "stabilizer_code" 1
+
+    # QEC4. Shor code: 9-qubit code correcting arbitrary single-qubit error
+    template "shor_code" 0
+
+    # QEC5. Steane code: 7-qubit CSS code
+    template "steane_code" 0
+
+    # QEC6. Surface code: topological quantum error correction
+    template "surface_code" 0
+
+    # QEC7. Quantum error detection: detect without correcting
+    template "quantum_error_detection" 1
+
+    # QEC8. Fault-tolerant computation: computation with error correction
+    template "fault_tolerant_computation" 0
+
+    # =================================================================
+    # Group XI: Quantum Cryptography (6)
+    # =================================================================
+
+    # QCR1. BB84 protocol: quantum key distribution
+    template "bb84_protocol" 0
+
+    # QCR2. E91 protocol: entanglement-based QKD
+    template "e91_protocol" 0
+
+    # QCR3. Quantum secret sharing
+    template "quantum_secret_sharing" 0
+
+    # QCR4. Quantum digital signatures
+    template "quantum_digital_signatures" 0
+
+    # QCR5. Security proofs: unconditional security
+    template "quantum_security_proofs" 0
+
+    # QCR6. Eavesdropping detection: quantum advantage
+    template "eavesdropping_detection" 0
+
+    # =================================================================
+    # Group XII: Bell Inequalities and Nonlocality (6)
+    # =================================================================
+
+    # BI1. Bell inequality: CHSH inequality |⟨CHSH⟩| ≤ 2 classically
+    template "bell_inequality" 0
+
+    # BI2. CHSH inequality: S = E(a,b) + E(a,b') + E(a',b) - E(a',b')
+    template "chsh_inequality" 0
+
+    # BI3. Bell state measurement: correlation measurements
+    template "bell_state_measurement" 0
+
+    # BI4. Tsirelson bound: quantum maximum |⟨CHSH⟩| ≤ 2√2
+    template "tsirelson_bound" 0
+
+    # BI5. Nonlocality: violation of Bell inequalities
+    template "quantum_nonlocality" 0
+
+    # BI6. Local hidden variable model: classical explanation
+    template "local_hidden_variable" 0
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # UC1. Quantum separability problem
+    # Determining if a given state is separable is NP-hard in general.
+    unconstructible "quantum_separability_problem" {
+        reduces_to "np_hard"
+        dependency "computational_complexity_theory"
+        external_ref "https://en.wikipedia.org/wiki/Quantum_state_discrimination"
+        green_verified true
+    }
+
+    # UC2. Quantum channel capacity computation
+    # No closed-form formula exists for general quantum channel capacities.
+    unconstructible "quantum_channel_capacity_computation" {
+        reduces_to "optimization_problem"
+        external_ref "https://en.wikipedia.org/wiki/Quantum_channel_capacity"
+        green_verified true
+    }
+
+    # UC3. Optimal quantum state discrimination
+    # Finding optimal measurement to distinguish quantum states.
+    unconstructible "optimal_state_discrimination" {
+        reduces_to "optimization_problem"
+        external_ref "https://en.wikipedia.org/wiki/Quantum_state_discrimination"
+        green_verified true
+    }
+
+    # UC4. BQP vs NP
+    # Relationship between quantum and classical complexity classes is open.
+    unconstructible "bqp_vs_np" {
+        reduces_to "complexity_theory_open_problem"
+        dependency "computational_complexity_theory"
+        external_ref "https://en.wikipedia.org/wiki/BQP"
+        green_verified false
+    }
+
+    # UC5. Quantum circuit optimization
+    # Finding minimal quantum circuit for a given unitary is hard.
+    unconstructible "quantum_circuit_optimization" {
+        reduces_to "optimization_problem"
+        external_ref "https://en.wikipedia.org/wiki/Quantum_circuit"
+        green_verified true
+    }
+
+    # UC6. Entanglement detection for general states
+    # No universal efficient criterion for entanglement detection.
+    unconstructible "general_entanglement_detection" {
+        reduces_to "quantum_separability_problem"
+        external_ref "https://en.wikipedia.org/wiki/Quantum_entanglement"
+        green_verified true
+    }
+
+    # UC7. Quantum error correction code optimization
+    # Finding optimal codes for given noise models.
+    unconstructible "qec_code_optimization" {
+        reduces_to "optimization_problem"
+        external_ref "https://en.wikipedia.org/wiki/Quantum_error_correction"
+        green_verified true
+    }
+
+    # UC8. Quantum supremacy verification
+    # Verifying quantum supremacy claims is computationally hard.
+    unconstructible "quantum_supremacy_verification" {
+        reduces_to "computational_complexity"
+        dependency "computational_complexity_theory"
+        external_ref "https://en.wikipedia.org/wiki/Quantum_supremacy"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    # Bottom geometry: Hilbert space with density operators
+    # Quantum states are points in the space of density operators
+    bottom_geometry "hilbert_space_density_operators"
+
+    # Negation encoding: orthogonal complement in Hilbert space
+    # ¬|ψ⟩ is represented by orthogonal state |ψ⊥⟩
+    negation_encoding "hilbert_space_orthogonal_complement"
+
+    # Contradiction behavior: explosion principle
+    # Incompatible observables lead to uncertainty, not logical contradiction
+    contradiction_behavior "explosion_principle"
+}

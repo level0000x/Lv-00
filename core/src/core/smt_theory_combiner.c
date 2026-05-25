@@ -1,0 +1,217 @@
+/**
+ * @file smt_theory_combiner.c
+ * @brief SMT theory combination dispatcher implementation
+ *
+ * Implements a simple serial theory dispatcher. Theories are stored in
+ * a priority-sorted array and tried one at a time until a definitive
+ * SAT/UNSAT result is obtained or all theories have been exhausted.
+ *
+ * Inspired by Alt-Ergo's CDCL(T) architecture where the SAT core
+ * delegates theory checks to specialized solvers, and Yices2's
+ * eager approach of trying simpler theories first.
+ *
+ * @version v3.4.2
+ * @date 2026-05-25
+ */
+
+#include "smt_theory_combiner.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* ========================================================================
+ * Internal helpers
+ * ======================================================================== */
+
+/** Default initial capacity for the theory entry array */
+#define DEFAULT_CAPACITY 8
+
+/**
+ * @brief Compare two theory entries by priority (for qsort)
+ *
+ * Lower priority value = higher dispatch precedence.
+ */
+static int compare_entries_by_priority(const void *a, const void *b) {
+    const Lv00TheoryEntry *ea = (const Lv00TheoryEntry *) a;
+    const Lv00TheoryEntry *eb = (const Lv00TheoryEntry *) b;
+    if (ea->priority != eb->priority)
+        return ea->priority - eb->priority;
+    /* Tie-break by theory ID for deterministic ordering */
+    return (int) ea->theory_id - (int) eb->theory_id;
+}
+
+/**
+ * @brief Find the index of a theory entry by theory ID
+ *
+ * @return Index of the entry, or -1 if not found
+ */
+static int find_entry_index(const Lv00TheoryCombiner *combiner, Lv00TheoryId theory_id) {
+    if (!combiner)
+        return -1;
+    for (int i = 0; i < combiner->entry_count; i++) {
+        if (combiner->entries[i].theory_id == theory_id)
+            return i;
+    }
+    return -1;
+}
+
+/**
+ * @brief Ensure the entries array has room for at least one more entry
+ *
+ * @return true on success, false on allocation failure
+ */
+static bool ensure_capacity(Lv00TheoryCombiner *combiner) {
+    if (!combiner)
+        return false;
+
+    if (combiner->entry_count < combiner->entry_capacity)
+        return true;
+
+    int new_capacity = combiner->entry_capacity * 2;
+    if (new_capacity < DEFAULT_CAPACITY)
+        new_capacity = DEFAULT_CAPACITY;
+
+    Lv00TheoryEntry *new_entries = (Lv00TheoryEntry *) realloc(
+        combiner->entries, (size_t) new_capacity * sizeof(Lv00TheoryEntry));
+    if (!new_entries)
+        return false;
+
+    combiner->entries = new_entries;
+    combiner->entry_capacity = new_capacity;
+    return true;
+}
+
+/* ========================================================================
+ * Lifecycle
+ * ======================================================================== */
+
+Lv00TheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms) {
+    if (initial_capacity <= 0)
+        initial_capacity = DEFAULT_CAPACITY;
+
+    Lv00TheoryCombiner *combiner =
+        (Lv00TheoryCombiner *) malloc(sizeof(Lv00TheoryCombiner));
+    if (!combiner)
+        return NULL;
+
+    combiner->entries = (Lv00TheoryEntry *) calloc(
+        (size_t) initial_capacity, sizeof(Lv00TheoryEntry));
+    if (!combiner->entries) {
+        free(combiner);
+        return NULL;
+    }
+
+    combiner->entry_count = 0;
+    combiner->entry_capacity = initial_capacity;
+    combiner->timeout_ms = timeout_ms;
+
+    return combiner;
+}
+
+void smt_combiner_destroy(Lv00TheoryCombiner *combiner) {
+    if (!combiner)
+        return;
+
+    free(combiner->entries);
+    combiner->entries = NULL;
+    combiner->entry_count = 0;
+    combiner->entry_capacity = 0;
+
+    free(combiner);
+}
+
+/* ========================================================================
+ * Theory registration
+ * ======================================================================== */
+
+bool smt_combiner_add_theory(Lv00TheoryCombiner *combiner,
+                             Lv00TheoryId theory_id,
+                             int priority,
+                             Lv00TheorySolverFn solver_fn,
+                             void *solver_context) {
+    if (!combiner || !solver_fn)
+        return false;
+
+    /* Check for existing entry with the same theory ID */
+    int existing_idx = find_entry_index(combiner, theory_id);
+    if (existing_idx >= 0) {
+        /* Update the existing entry */
+        combiner->entries[existing_idx].priority = priority;
+        combiner->entries[existing_idx].solver_fn = solver_fn;
+        combiner->entries[existing_idx].solver_context = solver_context;
+        combiner->entries[existing_idx].enabled = true;
+
+        /* Re-sort by priority */
+        qsort(combiner->entries, (size_t) combiner->entry_count,
+              sizeof(Lv00TheoryEntry), compare_entries_by_priority);
+        return true;
+    }
+
+    /* Add a new entry */
+    if (!ensure_capacity(combiner))
+        return false;
+
+    Lv00TheoryEntry *entry = &combiner->entries[combiner->entry_count];
+    entry->theory_id = theory_id;
+    entry->priority = priority;
+    entry->solver_fn = solver_fn;
+    entry->solver_context = solver_context;
+    entry->enabled = true;
+    combiner->entry_count++;
+
+    /* Re-sort by priority */
+    qsort(combiner->entries, (size_t) combiner->entry_count,
+          sizeof(Lv00TheoryEntry), compare_entries_by_priority);
+
+    return true;
+}
+
+bool smt_combiner_set_enabled(Lv00TheoryCombiner *combiner,
+                              Lv00TheoryId theory_id,
+                              bool enabled) {
+    if (!combiner)
+        return false;
+
+    int idx = find_entry_index(combiner, theory_id);
+    if (idx < 0)
+        return false;
+
+    combiner->entries[idx].enabled = enabled;
+    return true;
+}
+
+/* ========================================================================
+ * Solving
+ * ======================================================================== */
+
+Lv00TheoryResult smt_combiner_solve(const Lv00TheoryCombiner *combiner,
+                                    const void *constraints) {
+    Lv00TheoryResult result;
+    result.satisfiable = false;
+    result.timeout = true;
+    result.solve_time_ms = 0.0;
+
+    if (!combiner || !constraints)
+        return result;
+
+    /*
+     * Serial dispatch: try each enabled theory in priority order.
+     * Return the first definitive (non-timeout) result.
+     * If all theories time out, return the last result with timeout=true.
+     */
+    for (int i = 0; i < combiner->entry_count; i++) {
+        const Lv00TheoryEntry *entry = &combiner->entries[i];
+        if (!entry->enabled || !entry->solver_fn)
+            continue;
+
+        result = entry->solver_fn(entry->solver_context, constraints);
+
+        /* If this theory gave a definitive answer, return immediately */
+        if (!result.timeout)
+            return result;
+    }
+
+    /* All theories timed out or none were enabled */
+    return result;
+}

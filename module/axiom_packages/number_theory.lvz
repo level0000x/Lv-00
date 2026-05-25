@@ -1,0 +1,382 @@
+# =============================================================================
+# Lv-00 Axiom Package: Number Theory
+# =============================================================================
+#
+# Mathematical Theory: Number Theory
+#   Number theory is the study of integers, their properties, and the
+#   relationships between them. It ranges from elementary divisibility
+#   to deep connections with algebraic geometry and analysis.
+#
+# Approach: Constructive Definitions (not a strict axiom system)
+#   Unlike geometry, number theory is primarily constructive, with
+#   fundamental concepts defined rather than axiomatically assumed.
+#
+# References:
+#   - Wikipedia: Number theory
+#     https://en.wikipedia.org/wiki/Number_theory
+#   - Hardy, G.H. & Wright, E.M. (2008). "An Introduction to the
+#     Theory of Numbers" (6th ed.). Oxford University Press.
+#   - Wikipedia: Prime number
+#     https://en.wikipedia.org/wiki/Prime_number
+#   - Wikipedia: Algebraic number theory
+#     https://en.wikipedia.org/wiki/Algebraic_number_theory
+#   - Wikipedia: Analytic number theory
+#     https://en.wikipedia.org/wiki/Analytic_number_theory
+#   - nLab: Number theory
+#     https://ncatlab.org/nlab/show/number+theory
+#
+# Primitive Notions:
+#   Integers Z: the ring of whole numbers, positive, negative, and zero
+#   Rational numbers Q: ratios of integers
+#   Prime p: a natural number with exactly two positive divisors
+#   Algebraic integer: a root of a monic polynomial with integer coefficients
+#   Ideal: a special subset of a ring closed under addition and absorption
+#
+# Core Concepts (Constructive Definitions):
+#   Elementary: Divisibility, congruence, primes
+#   Algebraic: Algebraic integer rings, ideals, class numbers
+#   Analytic: Riemann zeta function, prime number theorem
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "number_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: Elementary Number Theory (6)
+    # =================================================================
+    # Elementary number theory studies properties of integers using
+    # basic operations and divisibility relations.
+    # =================================================================
+
+    # Divisibility: a divides b (a | b) if there exists integer k
+    # such that b = a·k. This is the fundamental relation in number theory.
+    # Params: integer a, integer b
+    template "divisibility" 2
+
+    # Congruence: a ≡ b (mod n) if n divides (a - b). This partitions
+    # integers into residue classes modulo n, forming the ring Z/nZ.
+    # Params: integer a, integer b, modulus n
+    template "congruence" 3
+
+    # Euler's totient function φ(n) counts integers 1 ≤ k ≤ n that
+    # are coprime to n. It satisfies φ(p^k) = p^k - p^{k-1} for prime p.
+    # Params: positive integer n, totient φ(n)
+    template "euler_totient" 2
+
+    # Fermat's little theorem: if p is prime and gcd(a,p) = 1, then
+    # a^{p-1} ≡ 1 (mod p). This is the basis for many primality tests.
+    # Params: integer a, prime p
+    template "fermat_little_theorem" 2
+
+    # Chinese remainder theorem: the system x ≡ a_i (mod n_i) for
+    # i = 1..k with pairwise coprime moduli has a unique solution
+    # modulo the product N = n_1·...·n_k.
+    # Params: moduli n_i, residues a_i, solution x
+    template "chinese_remainder" 3
+
+    # Quadratic residue: an integer a is a quadratic residue mod p
+    # if there exists x such that x^2 ≡ a (mod p). The Legendre
+    # symbol (a/p) encodes this information.
+    # Params: integer a, odd prime p, Legendre symbol (a/p)
+    template "quadratic_residue" 3
+
+    # =================================================================
+    # Group II: Prime Number Theory (6)
+    # =================================================================
+    # Prime numbers are the multiplicative building blocks of integers.
+    # Their distribution is one of the central themes of number theory.
+    # =================================================================
+
+    # A prime number p > 1 has exactly two positive divisors (1 and p).
+    # By the fundamental theorem of arithmetic, every integer factors
+    # uniquely into primes.
+    # Params: integer p, primality predicate
+    template "prime_number" 1
+
+    # Prime distribution π(x) counts primes ≤ x. The prime number
+    # theorem states π(x) ~ x/log(x).
+    # Params: real x, prime counting function π(x)
+    template "prime_distribution" 2
+
+    # Twin primes: pairs of primes (p, p+2) differing by 2.
+    # The twin prime conjecture asserts infinitely many such pairs.
+    # Params: prime p, twin prime pair (p, p+2)
+    template "twin_primes" 2
+
+    # Goldbach's conjecture: every even integer > 2 is the sum of
+    # two primes. This remains unproved for all even integers.
+    # Params: even integer n, Goldbach partition
+    template "goldbach_conjecture" 2
+
+    # Prime number theorem: π(x) ~ Li(x) = ∫_2^x dt/log(t), equivalently
+    # π(x) ~ x/log(x). This describes the asymptotic distribution of primes.
+    # Params: real x, ratio π(x)/Li(x)
+    template "prime_number_theorem" 2
+
+    # Dirichlet's theorem: if gcd(a,n) = 1, then there are infinitely
+    # many primes in the arithmetic progression a + nk.
+    # Params: modulus n, coprime residue a, Dirichlet theorem
+    template "dirichlet_theorem" 2
+
+    # =================================================================
+    # Group III: Algebraic Number Theory (7)
+    # =================================================================
+    # Algebraic number theory studies algebraic integers and their
+    # generalizations using algebraic structure.
+    # =================================================================
+
+    # An algebraic integer α is a root of a monic polynomial with
+    # integer coefficients. Examples: sqrt(2), (1+√-5)/2.
+    # Params: complex number α, minimal polynomial, algebraic integer status
+    template "algebraic_integer" 3
+
+    # The ring of integers O_K of a number field K is the set of
+    # algebraic integers contained in K. For K = Q, O_K = Z.
+    # Params: number field K, ring of integers O_K
+    template "ring_of_integers" 2
+
+    # An ideal I in a ring R is a subset closed under addition and
+    # absorption: if a ∈ I and r ∈ R, then ra ∈ I.
+    # Params: ring R, ideal I
+    template "ideal_theory" 2
+
+    # The class number h_K of a number field K is the size of the
+    # ideal class group Cl(K), measuring failure of unique factorization.
+    # Params: number field K, class number h_K
+    template "class_number" 2
+
+    # The unit group O_K^× of the ring of integers is the group of
+    # invertible elements. By Dirichlet's unit theorem, rank is r+s-1
+    # where r,s count real and complex embeddings.
+    # Params: ring of integers O_K, unit group O_K^×
+    template "unit_group" 2
+
+    # Ramification theory studies how primes behave in extensions:
+    # a prime p is unramified/ramified/totally ramified based on
+    # how the prime ideal factorization relates to the degree.
+    # Params: number field extension K/Q, prime p, ramification index e
+    template "ramification_theory" 3
+
+    # A Dedekind domain is an integral domain where every nonzero
+    # ideal factors uniquely into prime ideals. Rings of integers
+    # of number fields are Dedekind domains.
+    # Params: ring R, Dedekind domain properties
+    template "dedekind_domain" 1
+
+    # =================================================================
+    # Group IV: Analytic Number Theory (6)
+    # =================================================================
+    # Analytic number theory applies analytical methods (calculus,
+    # complex analysis) to study number-theoretic questions.
+    # =================================================================
+
+    # The Riemann zeta function ζ(s) = Σ_{n=1}^∞ n^{-s} for Re(s) > 1,
+    # analytically continued to a meromorphic function on C.
+    # The Riemann hypothesis concerns zeros of ζ(s).
+    # Params: complex s, zeta value ζ(s)
+    template "riemann_zeta" 2
+
+    # Dirichlet L-functions L(s, χ) = Σ_{n=1}^∞ χ(n)/n^s for a
+    # Dirichlet character χ, generalizing the Riemann zeta function.
+    # Params: complex s, Dirichlet character χ, L-value L(s, χ)
+    template "dirichlet_l_function" 3
+
+    # A modular form of weight k for SL(2,Z) is a holomorphic
+    # function f on the upper half-plane satisfying transformation
+    # f((az+b)/(cz+d)) = (cz+d)^k f(z) and growth conditions.
+    # Params: weight k, modular form f
+    template "modular_form" 2
+
+    # An L-function L(s) is a Dirichlet series with Euler product
+    # encoding arithmetic data. Examples: ζ(s), L(s, χ), L(s, f).
+    # Params: L-function L, Euler product, functional equation
+    template "l_function" 2
+
+    # The Euler product expresses an L-function as a product over
+    # primes: ζ(s) = Π_p (1 - p^{-s})^{-1} for Re(s) > 1.
+    # This connects multiplication and addition in number theory.
+    # Params: L-function L, Euler product representation
+    template "euler_product" 1
+
+    # The functional equation relates values of an L-function at
+    # s and 1-s: ζ(s) = 2^s π^{s-1} sin(πs/2) Γ(1-s) ζ(1-s).
+    # This reflects the deep symmetry of number theory.
+    # Params: L-function L, functional equation
+    template "functional_equation" 1
+
+    # =================================================================
+    # Group V: Diophantine Equations (5)
+    # =================================================================
+    # Diophantine equations ask for integer or rational solutions
+    # to polynomial equations.
+    # =================================================================
+
+    # A Diophantine equation is an equation where only integer
+    # solutions are sought. Examples: x^n + y^n = z^n (Fermat).
+    # Params: polynomial P, integer solutions (x_1,...,x_n)
+    template "diophantine_equation" 2
+
+    # Pell's equation x^2 - Dy^2 = 1 for nonsquare D has infinite
+    # integer solutions given by fundamental unit in Q(√D).
+    # Params: nonsquare D, Pell equation solutions
+    template "pell_equation" 2
+
+    # An elliptic curve E: y^2 = x^3 + ax + b (with discriminant ≠ 0)
+    # is a smooth projective curve of genus 1 with a rational point.
+    # Params: parameters a, b, elliptic curve E
+    template "elliptic_curve" 3
+
+    # Mordell-Weil theorem: the rational points E(Q) form a finitely
+    # generated abelian group E(Q) ≅ Z^r × E(Q)_tors.
+    # Params: elliptic curve E, rank r, torsion E(Q)_tors
+    template "mordell_weil_theorem" 2
+
+    # Faltings' theorem (Mordell conjecture): a curve of genus > 1
+    # over Q has finitely many rational points.
+    # Params: algebraic curve C, genus g, finiteness of rational points
+    template "faltings_theorem" 2
+
+    # =================================================================
+    # Group VI: Number System Construction (4)
+    # =================================================================
+    # Constructions extending the integers to larger number systems.
+    # =================================================================
+
+    # The p-adic numbers Q_p complete Q with respect to the p-adic
+    # metric, where |p|_p = 1/p. Every integer extends uniquely.
+    # Params: prime p, p-adic number x in Q_p
+    template "p_adic_numbers" 2
+
+    # Adeles and ideles provide a topological framework for global
+    # fields, combining all completions (R, Q_p) into one object.
+    # Params: number field K, adele ring A_K, idele group I_K
+    template "adeles_ideles" 3
+
+    # Local-global principle: a Diophantine equation has a rational
+    # solution iff it has solutions in all completions (R and Q_p).
+    # This holds for quadrics but fails generally (Hasse principle).
+    # Params: Diophantine equation, local solvability, global solution
+    template "local_global_principle" 3
+
+    # Hensel's lemma: if f(x) ≡ 0 (mod p^n) and f'(x) ≠ 0 (mod p),
+    # then there exists a unique p-adic root lifting x modulo p^n.
+    # Params: polynomial f, prime p, Hensel's lemma lifting
+    template "hensel_lemma" 3
+
+    # =================================================================
+    # Group VII: Special Number Classes (4)
+    # =================================================================
+    # Classification of numbers by their algebraic properties.
+    # =================================================================
+
+    # An algebraic number α is a root of a nonzero polynomial with
+    # rational coefficients. Its degree is the degree of its minimal
+    # polynomial.
+    # Params: complex number α, minimal polynomial, degree
+    template "algebraic_number" 3
+
+    # A transcendental number is not algebraic: it is not a root of
+    # any polynomial with rational coefficients. e and π are transcendental.
+    # Params: real/complex number t, transcendence status
+    template "transcendental_number" 2
+
+    # A Liouville number is irrational and can be approximated by
+    # rationals with unusually fast convergence: for all n,
+    # |α - p/q| < 1/q^n for some p/q.
+    # Params: number α, Liouville property
+    template "liouville_number" 1
+
+    # Catalan's conjecture (Mihailescu's theorem): the only consecutive
+    # perfect powers are 8 = 2^3 and 9 = 3^2. Catalan's constant G
+    # remains poorly understood.
+    # Params: Catalan's constant G = Σ (-1)^k/(2k+1)^2
+    template "catalan_constant" 0
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+    # Many central problems in number theory remain unsolved or are
+    # provably undecidable in certain contexts.
+    # =================================================================
+
+    unconstructible "riemann_hypothesis" {
+        reduces_to "open_problem"
+        dependency "riemann_zeta"
+        dependency "functional_equation"
+        dependency "l_function"
+        external_ref "https://en.wikipedia.org/wiki/Riemann_hypothesis"
+        green_verified true
+    }
+
+    unconstructible "goldbach_conjecture_verification" {
+        reduces_to "open_problem"
+        dependency "goldbach_conjecture"
+        dependency "prime_distribution"
+        dependency "divisibility"
+        external_ref "https://en.wikipedia.org/wiki/Goldbach%27s_conjecture"
+        green_verified true
+    }
+
+    unconstructible "twin_prime_conjecture" {
+        reduces_to "open_problem"
+        dependency "twin_primes"
+        dependency "prime_distribution"
+        dependency "prime_number_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Twin_prime"
+        green_verified true
+    }
+
+    unconstructible "class_number_computation" {
+        reduces_to "undecidable"
+        dependency "class_number"
+        dependency "ring_of_integers"
+        dependency "ideal_theory"
+        external_ref "https://en.wikipedia.org/wiki/Class_number_problem"
+        green_verified true
+    }
+
+    unconstructible "generalized_riemann_hypothesis" {
+        reduces_to "open_problem"
+        dependency "dirichlet_l_function"
+        dependency "functional_equation"
+        dependency "l_function"
+        external_ref "https://en.wikipedia.org/wiki/Generalized_Riemann_hypothesis"
+        green_verified true
+    }
+
+    unconstructible "ideal_class_group_computation" {
+        reduces_to "undecidable"
+        dependency "ideal_theory"
+        dependency "class_number"
+        dependency "unit_group"
+        external_ref "https://en.wikipedia.org/wiki/Ideal_class_group"
+        green_verified true
+    }
+
+    unconstructible "transcendence_of_constants" {
+        reduces_to "open_problem"
+        dependency "transcendental_number"
+        dependency "l_function"
+        dependency "catalan_constant"
+        external_ref "https://en.wikipedia.org/wiki/Transcendental_number_theory"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    # Number theory studies the integer number line and its extensions.
+    # The bottom geometry represents the degenerate case of integers
+    # without multiplicative structure.
+    #
+    # ⊥ = the integer number line with trivial structure
+    # ¬ = complement in divisibility relations
+    # =================================================================
+
+    bottom_geometry "integer_number_line"
+    negation_encoding "classical_divisibility_complement"
+    contradiction_behavior "explosion_principle"
+}

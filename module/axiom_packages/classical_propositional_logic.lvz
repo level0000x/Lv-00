@@ -1,0 +1,296 @@
+# =============================================================================
+# Lv-00 Axiom Package: Classical Propositional Logic
+# =============================================================================
+#
+# Mathematical Theory: Classical Propositional Logic (CPL)
+# Axiomatization: Łukasiewicz P₂ (1929) + Frege Begriffsschrift (1879)
+#   + Russell-Whitehead Principia Mathematica (1910)
+#
+# References:
+#   - Łukasiewicz, J. & Tarski, A. (1930). "Untersuchungen über den
+#     Aussagenkalkül." Comptes Rendus, Varsovie, Classe III, 23: 30-50.
+#     https://en.wikipedia.org/wiki/%C5%81ukasiewicz_logic
+#   - Frege, G. (1879). "Begriffsschrift".
+#     https://en.wikipedia.org/wiki/Begriffsschrift
+#   - Whitehead, A.N. & Russell, B. (1910). "Principia Mathematica".
+#     https://en.wikipedia.org/wiki/Principia_Mathematica
+#   - Wikipedia: Propositional calculus
+#     https://en.wikipedia.org/wiki/Propositional_calculus
+#   - Stanford Encyclopedia of Philosophy: Classical Logic
+#     https://plato.stanford.edu/entries/logic-classical/
+#
+# Core Axioms (Łukasiewicz P₂):
+#   A1. φ → (ψ → φ)              [K axiom / Weakening]
+#   A2. (φ → (ψ → χ)) → ((φ → ψ) → (φ → χ))  [S axiom / Distribution]
+#   A3. (¬φ → ¬ψ) → (ψ → φ)      [C-N axiom / Contrapositive]
+#   Rule: Modus Ponens
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-21
+# Version: 1.0.0
+# =============================================================================
+
+axiom "classical_propositional_logic" "1.0.0" {
+
+    # --- Group I: Łukasiewicz P₂ Core Axiom Schemata (3) ---
+
+    # A1: φ → (ψ → φ)
+    template "axiom_K_weakening" 2
+
+    # A2: (φ → (ψ → χ)) → ((φ → ψ) → (φ → χ))
+    template "axiom_S_distribution" 3
+
+    # A3: (¬φ → ¬ψ) → (ψ → φ)
+    template "axiom_C_contrapositive" 2
+
+    # --- Group II: Frege's Original Axioms (1879) (4) ---
+
+    # Proposition 8: (φ → (ψ → χ)) → (ψ → (φ → χ))
+    template "frege_proposition_8" 3
+
+    # Proposition 28: (φ → ψ) → (¬ψ → ¬φ)
+    template "frege_proposition_28" 2
+
+    # Proposition 31: ¬¬φ → φ
+    template "frege_proposition_31" 1
+
+    # Proposition 41: φ → ¬¬φ
+    template "frege_proposition_41" 1
+
+    # --- Group III: Russell-Whitehead Axioms (5) ---
+
+    # *1.1 Tautology: (p ∨ p) → p
+    template "RW_tautology" 1
+
+    # *1.2 Addition: q → (p ∨ q)
+    template "RW_addition" 2
+
+    # *1.3 Commutation: (p ∨ q) → (q ∨ p)
+    template "RW_commutation" 2
+
+    # *1.4 Association: p ∨ (q ∨ r) → (p ∨ q) ∨ r
+    template "RW_association" 3
+
+    # *1.5 Distribution: (p ∨ (q ∧ r)) → ((p ∨ q) ∧ (p ∨ r))
+    template "RW_distribution" 3
+
+    # --- Group IV: Inference Rules (2) ---
+
+    # From φ and φ → ψ, infer ψ
+    template "modus_ponens" 2
+
+    # If ⊢ φ, then ⊢ φ[σ] for any uniform substitution σ
+    template "uniform_substitution" 2
+
+    # --- Group V: Core Constructors — Primitive Connectives (4) ---
+
+    # ¬φ (negation)
+    template "negation" 1
+
+    # φ → ψ (material implication)
+    template "implication" 2
+
+    # ⊥ (falsum — contradiction)
+    template "falsum" 0
+
+    # ⊤ (verum — tautology)
+    template "verum" 0
+
+    # --- Group VI: Derived Connectives (6) ---
+
+    # φ ∧ ψ ≡ ¬(φ → ¬ψ) (conjunction)
+    template "conjunction" 2
+
+    # φ ∨ ψ ≡ ¬φ → ψ (disjunction)
+    template "disjunction" 2
+
+    # φ ↔ ψ ≡ (φ → ψ) ∧ (ψ → φ) (biconditional)
+    template "biconditional" 2
+
+    # φ ⊕ ψ ≡ (φ ∨ ψ) ∧ ¬(φ ∧ ψ) (exclusive or)
+    template "exclusive_or" 2
+
+    # φ | ψ ≡ ¬(φ ∧ ψ) (Sheffer stroke / NAND)
+    template "sheffer_stroke" 2
+
+    # φ ↓ ψ ≡ ¬(φ ∨ ψ) (Peirce arrow / NOR)
+    template "peirce_arrow" 2
+
+    # --- Group VII: Derived Inference Rules (20) ---
+
+    # (φ → ψ) → ((ψ → χ) → (φ → χ))
+    template "hypothetical_syllogism" 3
+
+    # (φ → ψ) → (¬ψ → ¬φ)
+    template "modus_tollens" 2
+
+    # (φ ∨ ψ) ∧ ¬φ → ψ
+    template "disjunctive_syllogism" 2
+
+    # φ → (ψ → (φ ∧ ψ))
+    template "conjunction_introduction" 2
+
+    # (φ ∧ ψ) → φ
+    template "conjunction_elimination_left" 2
+
+    # (φ ∧ ψ) → ψ
+    template "conjunction_elimination_right" 2
+
+    # φ → (φ ∨ ψ)
+    template "disjunction_introduction_left" 2
+
+    # ψ → (φ ∨ ψ)
+    template "disjunction_introduction_right" 2
+
+    # (φ → ψ) → ((ψ → φ) → (φ ↔ ψ))
+    template "biconditional_introduction" 2
+
+    # ¬¬φ → φ
+    template "double_negation_elimination" 1
+
+    # φ → ¬¬φ
+    template "double_negation_introduction" 1
+
+    # (¬φ → φ) → φ
+    template "reductio_ad_absurdum" 1
+
+    # ⊥ → φ
+    template "ex_falso_quodlibet" 1
+
+    # φ ∨ ¬φ
+    template "law_of_excluded_middle" 1
+
+    # ¬(φ ∧ ¬φ)
+    template "law_of_non_contradiction" 1
+
+    # (Γ ∪ {φ} ⊢ ψ) → (Γ ⊢ φ → ψ)
+    template "deduction_theorem" 2
+
+    # (φ → χ) → ((ψ → χ) → ((φ ∨ ψ) → χ))
+    template "proof_by_cases" 3
+
+    # (φ → ψ) → (¬ψ → ¬φ)
+    template "contraposition" 2
+
+    # (φ ∧ ψ → χ) → (φ → (ψ → χ))
+    template "exportation" 3
+
+    # (φ → (ψ → χ)) → (φ ∧ ψ → χ)
+    template "importation" 3
+
+    # --- Group VIII: Propositional Identities (15) ---
+
+    # ¬(φ ∧ ψ) ↔ ¬φ ∨ ¬ψ
+    template "de_morgan_conjunction" 2
+
+    # ¬(φ ∨ ψ) ↔ ¬φ ∧ ¬ψ
+    template "de_morgan_disjunction" 2
+
+    # φ ∧ φ ↔ φ
+    template "conjunction_idempotence" 1
+
+    # φ ∨ φ ↔ φ
+    template "disjunction_idempotence" 1
+
+    # φ ∧ ψ ↔ ψ ∧ φ
+    template "conjunction_commutativity" 2
+
+    # φ ∨ ψ ↔ ψ ∨ φ
+    template "disjunction_commutativity" 2
+
+    # (φ ∧ ψ) ∧ χ ↔ φ ∧ (ψ ∧ χ)
+    template "conjunction_associativity" 3
+
+    # (φ ∨ ψ) ∨ χ ↔ φ ∨ (ψ ∨ χ)
+    template "disjunction_associativity" 3
+
+    # φ ∧ (ψ ∨ χ) ↔ (φ ∧ ψ) ∨ (φ ∧ χ)
+    template "conjunction_distributes_over_disjunction" 3
+
+    # φ ∨ (ψ ∧ χ) ↔ (φ ∨ ψ) ∧ (φ ∨ χ)
+    template "disjunction_distributes_over_conjunction" 3
+
+    # φ ∧ (φ ∨ ψ) ↔ φ
+    template "absorption_conjunction_disjunction" 2
+
+    # φ ∨ (φ ∧ ψ) ↔ φ
+    template "absorption_disjunction_conjunction" 2
+
+    # (φ → ψ) ∧ (χ → ψ) → ((φ ∨ χ) → ψ)
+    template "constructive_dilemma" 3
+
+    # (¬φ → ψ) ∧ (¬χ → δ) ∧ (φ ∨ χ) → (ψ ∨ δ)
+    template "destructive_dilemma" 4
+
+    # ((φ → ψ) → φ) → φ
+    template "peirces_law" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (6)
+    # =================================================================
+
+    unconstructible "propositional_satisfiability" {
+        reduces_to "NP_complete"
+        dependency "negation"
+        dependency "implication"
+        dependency "conjunction"
+        external_ref "https://en.wikipedia.org/wiki/Boolean_satisfiability_problem"
+        green_verified true
+    }
+
+    unconstructible "tautology_checking" {
+        reduces_to "coNP_complete"
+        dependency "negation"
+        dependency "implication"
+        dependency "disjunction"
+        external_ref "https://en.wikipedia.org/wiki/Tautology_(logic)"
+        green_verified true
+    }
+
+    unconstructible "minimal_proof_length" {
+        reduces_to "NP_hard_approximation"
+        dependency "axiom_K_weakening"
+        dependency "axiom_S_distribution"
+        dependency "axiom_C_contrapositive"
+        dependency "modus_ponens"
+        external_ref "https://en.wikipedia.org/wiki/Proof_theory"
+        green_verified true
+    }
+
+    unconstructible "propositional_interpolation" {
+        reduces_to "PiP2_complete"
+        dependency "negation"
+        dependency "implication"
+        dependency "conjunction"
+        external_ref "https://en.wikipedia.org/wiki/Craig_interpolation"
+        green_verified true
+    }
+
+    unconstructible "proof_equivalence_checking" {
+        reduces_to "coNP_complete"
+        dependency "negation"
+        dependency "implication"
+        dependency "biconditional"
+        dependency "conjunction"
+        external_ref "https://en.wikipedia.org/wiki/Logical_equivalence"
+        green_verified true
+    }
+
+    unconstructible "shortest_implicational_proof" {
+        reduces_to "NP_hard"
+        dependency "axiom_K_weakening"
+        dependency "axiom_S_distribution"
+        dependency "axiom_C_contrapositive"
+        dependency "modus_ponens"
+        external_ref "https://en.wikipedia.org/wiki/Implicational_logic"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "classical_propositional_2valued"
+    negation_encoding "material_implication_to_falsum"
+    contradiction_behavior "explosion_principle"
+}
