@@ -1,0 +1,445 @@
+# =============================================================================
+# Lv-00 Axiom Package: Affine Geometry
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Affine geometry — the study of geometric properties that are invariant
+#   under affine transformations. It is what remains of Euclidean geometry
+#   when the metric notions of distance and angle are "forgotten" (Euler 1748,
+#   Klein's Erlangen program 1872). The fundamental invariant is parallelism.
+#
+# Axiomatization: Based on the synthetic incidence-based axiomatization,
+#   combining elements from:
+#   - Coxeter, H.S.M. (1969). "Introduction to Geometry" (2nd ed.). Wiley.
+#   - Veblen, O. & Young, J.W. (1910). "Projective Geometry, Vol. I & II."
+#     Ginn and Company, Boston. (Affine geometry as projective minus a line
+#     at infinity.)
+#   - Artin, E. (1957). "Geometric Algebra." Wiley. (Vector space approach.)
+#   - Snapper, E. & Troyer, R.J. (1971). "Metric Affine Geometry."
+#     Springer-Verlag. ISBN 0-387-90036-5.
+#   - Berger, M. (1987). "Geometry, Vol. I & II." Springer.
+#     ISBN 3-540-11658-3.
+#
+# References:
+#   - Wikipedia: Affine geometry
+#     https://en.wikipedia.org/wiki/Affine_geometry
+#   - Wikipedia: Affine space
+#     https://en.wikipedia.org/wiki/Affine_space
+#   - nLab: Affine space
+#     https://ncatlab.org/nlab/show/affine+space
+#   - Stanford Encyclopedia of Philosophy: Geometry
+#     https://plato.stanford.edu/entries/geometry/
+#   - Coxeter, H.S.M. (1969). "Introduction to Geometry" (2nd ed.). Wiley.
+#   - Artin, E. (1957). "Geometric Algebra." Wiley.
+#     ISBN 978-1-118-16454-9.
+#   - Snapper, E. & Troyer, R.J. (1971). "Metric Affine Geometry."
+#     Springer-Verlag.
+#   - Berger, M. (1987). "Geometry, Vol. I." Springer.
+#
+# Primitive Notions (3 total):
+#   Terms: point, line, vector (displacement)
+#   Relations: incidence (point lies on line), parallelism (line || line),
+#             subtraction (point - point = vector), translation (point + vector)
+#
+# Core Axioms:
+#   I.   Incidence Axioms (4 axioms) — existence/uniqueness of points and lines
+#   II.  Parallelism Axioms (3 axioms) — Playfair's axiom, equivalence relation
+#   III. Vector Space Axioms (4 axioms) — displacements form a vector space
+#   IV.  Affine Structure Axioms (4 axioms) — point-vector interaction
+#   V.   Desargues' Theorem (1 axiom) — free in dim >= 3, required in 2D
+#   VI.  Pappus's Theorem (1 axiom) — implies coordinate field commutativity
+#
+# Key Properties:
+#   - No concept of distance or angle (purely affine invariants)
+#   - Parallelism is the central notion (Playfair's axiom is fundamental)
+#   - Midpoints, centroids, barycenters are affine invariants
+#   - Ratios of collinear segments are preserved under affine maps
+#   - Affine group = GL(V) semidirect V (translations)
+#   - Affine geometry = projective geometry minus a line at infinity
+#   - Ceva's theorem and Menelaus's theorem are affine theorems
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Constructing a projective completion (requires adding points at infinity)
+#   - Determining if a finite affine plane of non-prime-power order exists
+#   - Classification of non-Desarguesian affine planes
+#   - Recovering metric structure from affine structure alone
+#   - Constructing perpendicular bisector (requires metric)
+#   - Angle trisection (requires metric, not purely affine)
+#
+# Relationship to Existing Lv-00 Packages:
+#   - euclidean_plane: Affine geometry is Euclidean minus distance/angle;
+#     Euclidean is affine + metric structure
+#   - projective_geometry: Affine = projective minus a line at infinity;
+#     projective completion adds points at infinity
+#   - hyperbolic_geometry: The Klein model lives inside projective geometry;
+#     Beltrami-Klein model uses affine structure
+#   - elliptic_geometry: Elliptic geometry has no parallel lines, unlike affine
+#   - field_theory: Pappus's theorem implies the coordinate field is commutative
+#   - group_theory: The translation group of an affine space is an abelian group
+#   - linear_logic: Affine combinations (coefficients sum to 1) are the
+#     fundamental operations
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "affine_geometry" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Metrics)
+    # =================================================================
+    # Each template represents a fundamental operation or relation in
+    # affine geometry. Parameters are geometric objects (points, lines,
+    # vectors) or scalars from the coordinate field.
+    # =================================================================
+
+    # --- Group I: Incidence Axioms ---
+    # I1: For any two distinct points, there exists exactly one line
+    #     containing both.
+    # Params: point A, point B -> line AB
+    template "line_through_two_points" 2
+
+    # I2: Every line contains at least two distinct points.
+    # Params: line l -> (exists point A, point B on l)
+    template "line_has_two_points" 1
+
+    # I3: There exist at least three non-collinear points.
+    # Params: (zero-input existence axiom)
+    template "existence_of_triangle" 0
+
+    # I4: (Dimension axiom) There exist four points, no three collinear,
+    #     forming a non-degenerate affine frame (for plane affine geometry
+    #     extended to 3D).
+    # Params: (zero-input existence axiom)
+    template "existence_of_affine_frame_3d" 0
+
+    # --- Group II: Parallelism Axioms ---
+    # II1 (Playfair's Axiom): Given a line L and a point P not on L,
+    #     there exists exactly one line through P that does not meet L.
+    #     This line is said to be parallel to L.
+    # Params: point P, line L -> line M (parallel to L through P)
+    template "parallel_through_point" 2
+
+    # II2: Parallelism is reflexive: every line is parallel to itself.
+    # Params: line l
+    template "parallelism_reflexive" 1
+
+    # II3: Parallelism is transitive: if l || m and m || n, then l || n.
+    #     (Together with reflexivity, parallelism is an equivalence relation.)
+    # Params: line l, line m, line n
+    template "parallelism_transitive" 3
+
+    # II4: Two distinct lines are parallel iff they do not intersect.
+    # Params: line l, line m
+    template "parallelism_no_intersection" 2
+
+    # --- Group III: Vector Space of Displacements ---
+    # III1: Subtraction — for any two points A, B, there exists a unique
+    #       vector v = B - A (the displacement from A to B).
+    # Params: point A, point B -> vector v
+    template "point_subtraction" 2
+
+    # III2: Translation — for any point A and vector v, there exists a
+    #       unique point B = A + v.
+    # Params: point A, vector v -> point B
+    template "point_translation" 2
+
+    # III3: Vector addition — displacements form an abelian group.
+    #       (u + v) + w = u + (v + w)
+    # Params: vector u, vector v, vector w
+    template "vector_addition_associative" 3
+
+    # III4: Vector addition commutativity — u + v = v + u.
+    # Params: vector u, vector v
+    template "vector_addition_commutative" 2
+
+    # III5: Zero vector — there exists a zero vector 0 such that A + 0 = A.
+    # Params: (zero-input existence axiom)
+    template "zero_vector_exists" 0
+
+    # III6: Vector inverse — for every vector v, there exists -v such
+    #       that v + (-v) = 0.
+    # Params: vector v -> vector (-v)
+    template "vector_negation" 1
+
+    # III7: Scalar multiplication — for scalar r and vector v, r*v is
+    #       a vector satisfying distributivity and associativity.
+    # Params: scalar r, vector v -> vector (r*v)
+    template "scalar_multiplication" 2
+
+    # III8: Scalar multiplication distributivity over vector addition:
+    #       r*(u + v) = r*u + r*v.
+    # Params: scalar r, vector u, vector v
+    template "scalar_distributivity_vectors" 3
+
+    # III9: Scalar multiplication distributivity over scalar addition:
+    #       (r + s)*v = r*v + s*v.
+    # Params: scalar r, scalar s, vector v
+    template "scalar_distributivity_scalars" 3
+
+    # III10: Scalar multiplication associativity: (rs)*v = r*(s*v).
+    # Params: scalar r, scalar s, vector v
+    template "scalar_multiplication_associative" 3
+
+    # III11: Unit scalar: 1*v = v.
+    # Params: vector v
+    template "scalar_unit" 1
+
+    # --- Group IV: Affine Structure Axioms ---
+    # IV1: (Subtraction identity) A - A = 0 for any point A.
+    # Params: point A
+    template "subtraction_identity" 1
+
+    # IV2: (Subtraction chain) (B - A) + (C - B) = C - A (Chasles relation).
+    # Params: point A, point B, point C
+    template "subtraction_chain" 3
+
+    # IV3: (Translation-subtraction compatibility) (A + v) - A = v.
+    # Params: point A, vector v
+    template "translation_subtraction_compat" 2
+
+    # IV4: (Subtraction-translation compatibility) A + (B - A) = B.
+    # Params: point A, point B
+    template "subtraction_translation_compat" 2
+
+    # --- Group V: Affine Combinations ---
+    # V1: Affine combination (barycenter) — for scalars r, s with r + s = 1,
+    #     the point r*A + s*B is well-defined and independent of origin.
+    #     This is the fundamental affine operation.
+    # Params: scalar r, scalar s, point A, point B -> point (r*A + s*B)
+    template "affine_combination_two" 4
+
+    # V2: Midpoint — the special case of affine combination with r = s = 1/2.
+    #     Midpoint(A, B) = (A + B) / 2. An affine invariant.
+    # Params: point A, point B -> point M (midpoint)
+    template "midpoint" 2
+
+    # V3: Centroid (barycenter) of three points — (A + B + C) / 3.
+    #     An affine invariant; concurrence of medians.
+    # Params: point A, point B, point C -> point G (centroid)
+    template "centroid_three_points" 3
+
+    # V4: General barycenter — for n points with weights summing to 1.
+    # Params: point A, point B, point C, scalar wa, scalar wb, scalar wc
+    #         -> point (weighted barycenter)
+    template "general_barycenter" 6
+
+    # V5: Affine combination associativity — for r + s + t = 1:
+    #     r*A + s*B + t*C is well-defined regardless of grouping.
+    # Params: scalar r, scalar s, scalar t, point A, point B, point C
+    template "affine_combination_associative" 6
+
+    # V6: Affine combination commutativity — r*A + s*B = s*B + r*A
+    #     when r + s = 1.
+    # Params: scalar r, scalar s, point A, point B
+    template "affine_combination_commutative" 4
+
+    # V7: Affine combination idempotence — r*A + (1-r)*A = A.
+    # Params: scalar r, point A
+    template "affine_combination_idempotent" 2
+
+    # --- Group VI: Affine Transformations ---
+    # VI1: Affine map — a map f such that f(r*A + (1-r)*B) = r*f(A) + (1-r)*f(B)
+    #     for all r, A, B. Preserves parallelism and ratios of segments.
+    # Params: scalar r, point A, point B -> (f maps affine combinations)
+    template "affine_map_preserves_combination" 3
+
+    # VI2: Translation map — T_v(P) = P + v. The simplest affine map.
+    # Params: point P, vector v -> point T_v(P)
+    template "translation_map" 2
+
+    # VI3: Linear part of affine map — every affine map is a translation
+    #     composed with a linear map: f(P) = L(P) + v.
+    # Params: point P, linear_map L, vector v -> point f(P)
+    template "affine_map_decomposition" 3
+
+    # VI4: Affine map preserves parallelism — if l || m then f(l) || f(m).
+    # Params: line l, line m, affine_map f
+    template "affine_map_preserves_parallelism" 3
+
+    # VI5: Affine map preserves ratios — for collinear points A, B, C:
+    #     AC/AB = f(A)f(C)/f(A)f(B).
+    # Params: point A, point B, point C, affine_map f
+    template "affine_map_preserves_ratio" 4
+
+    # VI6: Affine map preserves midpoint — f(midpoint(A,B)) = midpoint(f(A),f(B)).
+    # Params: point A, point B, affine_map f
+    template "affine_map_preserves_midpoint" 3
+
+    # VI7: Affine map preserves centroid.
+    # Params: point A, point B, point C, affine_map f
+    template "affine_map_preserves_centroid" 4
+
+    # VI8: Affine map preserves barycenter.
+    # Params: point A, point B, point C, scalar wa, scalar wb, scalar wc, affine_map f
+    template "affine_map_preserves_barycenter" 8
+
+    # --- Group VII: Desargues' Theorem (Affine Version) ---
+    # VII1: Desargues' Theorem (affine) — If two triangles ABC and A'B'C'
+    #     are in parallel perspective from O (i.e., AA' || BB' || CC' all
+    #     pass through O), and AB || A'B', BC || B'C', then AC || A'C'.
+    #     This is a theorem in dimensions >= 3 but must be postulated in 2D.
+    # Params: point A, point B, point C, point A_prime, point B_prime,
+    #         point C_prime, point O
+    template "desargues_theorem_affine" 7
+
+    # --- Group VIII: Pappus's Theorem (Affine Version) ---
+    # VIII1: Pappus's Theorem (affine) — If A, B, C are on one line and
+    #     A', B', C' on another, and AB' || A'B, BC' || B'C, then
+    #     CA' || C'A. Implies the coordinate field is commutative.
+    # Params: point A, point B, point C, point A_prime, point B_prime,
+    #         point C_prime
+    template "pappus_theorem_affine" 6
+
+    # --- Group IX: Affine Subspaces ---
+    # IX1: Affine subspace (flat) — a set closed under affine combinations.
+    #     Params: set S -> bool (is affine subspace?)
+    template "affine_subspace_check" 1
+
+    # IX2: Affine span — the smallest affine subspace containing given points.
+    #     Params: point A, point B -> affine_subspace span(A, B)
+    template "affine_span_two_points" 2
+
+    # IX3: Affine span of three non-collinear points is a plane.
+    #     Params: point A, point B, point C -> affine_plane
+    template "affine_span_three_points" 3
+
+    # IX4: Dimension of affine subspace.
+    #     Params: affine_subspace S -> integer dim(S)
+    template "affine_subspace_dimension" 1
+
+    # IX5: Parallel affine subspaces — two affine subspaces are parallel
+    #     if their direction (displacement) subspaces are contained in
+    #     one another.
+    #     Params: affine_subspace S, affine_subspace T -> bool
+    template "affine_subspaces_parallel" 2
+
+    # --- Group X: Ratio and Division ---
+    # X1: Simple ratio — for collinear points A, B, C, the ratio (A,B;C)
+    #     = AC/AB (signed). An affine invariant.
+    #     Params: point A, point B, point C -> scalar ratio
+    template "simple_ratio" 3
+
+    # X2: Thales' theorem (intercept theorem) — parallel lines cut
+    #     transversals proportionally.
+    #     Params: line l1, line l2, line l3 (parallel), line t1, line t2 (transversals)
+    template "thales_intercept_theorem" 5
+
+    # X3: Ceva's theorem (affine version) — for triangle ABC and points
+    #     D on BC, E on CA, F on AB: the cevians AD, BE, CF are concurrent
+    #     iff (BD/DC)*(CE/EA)*(AF/FB) = 1.
+    #     Params: point A, point B, point C, point D, point E, point F
+    template "ceva_theorem" 6
+
+    # X4: Menelaus's theorem (affine version) — for triangle ABC and a
+    #     transversal cutting BC, CA, AB at D, E, F respectively:
+    #     (BD/DC)*(CE/EA)*(AF/FB) = -1.
+    #     Params: point A, point B, point C, point D, point E, point F
+    template "menelaus_theorem" 6
+
+    # --- Group XI: Parallelogram and Affine Quadrilaterals ---
+    # XI1: Parallelogram construction — given three vertices A, B, C of a
+    #      parallelogram ABCD (with AB || CD and BC || AD), the fourth
+    #      vertex D = A + (C - B) is uniquely determined.
+    #      Params: point A, point B, point C -> point D
+    template "parallelogram_fourth_vertex" 3
+
+    # XI2: Parallelogram law — A + C = B + D iff ABCD is a parallelogram.
+    #      Params: point A, point B, point C, point D
+    template "parallelogram_law" 4
+
+    # XI3: Diagonals of a parallelogram bisect each other.
+    #      Params: point A, point B, point C, point D -> midpoint of diagonals
+    template "parallelogram_diagonal_bisect" 4
+
+    # XI4: Affine map sends parallelograms to parallelograms.
+    #      Params: point A, point B, point C, point D, affine_map f
+    template "affine_map_preserves_parallelogram" 5
+
+    # --- Group XII: Projective Connection ---
+    # XII1: Projective completion — every affine space can be embedded in
+    #       a projective space by adding "points at infinity" (one for each
+    #       equivalence class of parallel lines).
+    #       Params: affine_space A -> projective_space P(A)
+    template "projective_completion" 1
+
+    # XII2: Line at infinity — the set of all points at infinity forms a
+    #       hyperplane in the projective completion.
+    #       Params: projective_space P(A) -> hyperplane H_inf
+    template "line_at_infinity" 1
+
+    # XII3: Affine patch — removing a hyperplane from a projective space
+    #       yields an affine space.
+    #       Params: projective_space P, hyperplane H -> affine_space P \ H
+    template "affine_patch_from_projective" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "perpendicular_bisector" {
+        reduces_to "orthogonality requires metric structure"
+        dependency "affine_geometry"
+        dependency "euclidean_plane"
+        external_ref "https://en.wikipedia.org/wiki/Affine_geometry"
+        green_verified true
+    }
+
+    unconstructible "angle_trisection" {
+        reduces_to "requires metric structure and solving cubic equations"
+        dependency "affine_geometry"
+        dependency "euclidean_plane"
+        external_ref "https://en.wikipedia.org/wiki/Angle_trisection"
+        green_verified true
+    }
+
+    unconstructible "circle_construction" {
+        reduces_to "circles require metric distance notion absent in affine geometry"
+        dependency "affine_geometry"
+        dependency "euclidean_plane"
+        external_ref "https://en.wikipedia.org/wiki/Affine_geometry"
+        green_verified true
+    }
+
+    unconstructible "finite_affine_plane_non_prime_power" {
+        reduces_to "existence of finite affine planes of non-prime-power order is an open problem in combinatorics; equivalent to existence of finite projective planes"
+        dependency "affine_geometry"
+        dependency "combinatorics"
+        dependency "projective_geometry"
+        external_ref "https://en.wikipedia.org/wiki/Affine_plane_(incidence_geometry)"
+        green_verified false
+    }
+
+    unconstructible "non_desarguesian_classification" {
+        reduces_to "classification of non-Desarguesian affine planes is wildly open; only partial results known"
+        dependency "affine_geometry"
+        dependency "projective_geometry"
+        external_ref "https://en.wikipedia.org/wiki/Non-Desarguesian_plane"
+        green_verified false
+    }
+
+    unconstructible "metric_recovery_from_affine" {
+        reduces_to "an affine space admits infinitely many inequivalent metric structures; no canonical choice without additional data"
+        dependency "affine_geometry"
+        dependency "euclidean_plane"
+        external_ref "https://en.wikipedia.org/wiki/Affine_space"
+        green_verified true
+    }
+
+    unconstructible "area_computation" {
+        reduces_to "area requires a notion of determinant or metric; only ratios of areas on parallel lines are affine invariants"
+        dependency "affine_geometry"
+        dependency "euclidean_plane"
+        external_ref "https://en.wikipedia.org/wiki/Affine_geometry"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    bottom_geometry "affine_space"
+    negation_encoding "classical_material_implication"
+    contradiction_behavior "explosion_principle"
+}

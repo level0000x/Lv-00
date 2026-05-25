@@ -1,0 +1,1099 @@
+﻿<!-- Lv-00 开源项目集成演示面板 -->
+<div id="panelGitHub" class="module-panel panel-hidden">
+    <div class="panel">
+        <div class="panel-title">
+            <span>Lv00Libraries</span>
+            <span style="font-size:10px;color:#666;">38个开源库集成 / Open Source Integrations</span>
+        </div>
+
+        <!-- Math.js 演示 -->
+        <div class="github-section">
+            <h3>[Math] Math.js 数学计算</h3>
+            <div class="demo-area">
+                <input type="text" id="mathExpr" class="input-field" placeholder="输入表达式，如: sqrt(3^2 + 4^2)" style="width:100%;margin-bottom:8px;">
+                <button id="mathBtn" class="btn btn-accent" style="width:100%;">计算 / Evaluate</button>
+                <div id="mathResult" class="result-box" style="margin-top:8px;padding:8px;background:#0a0a0a;border-radius:3px;min-height:30px;">结果将显示在这里</div>
+            </div>
+            <div class="quick-math" style="margin-top:8px;">
+                <button id="mathBtnDeriv" class="btn btn-sm">求导</button>
+                <button id="mathBtnDet" class="btn btn-sm">行列式</button>
+                <button id="mathBtnSqrt" class="btn btn-sm">距离</button>
+                <button id="mathBtnSimplify" class="btn btn-sm">化简</button>
+            </div>
+        </div>
+
+        <!-- Highlight.js 演示 -->
+        <div class="github-section">
+            <h3>[Code] Highlight.js 语法高亮</h3>
+            <div class="demo-area">
+                <select id="codeLang" class="input-field" style="width:100%;margin-bottom:8px;">
+                    <option value="javascript">JavaScript</option>
+                    <option value="c">C</option>
+                    <option value="cpp">C++</option>
+                    <option value="python">Python</option>
+                    <option value="rust">Rust</option>
+                </select>
+                <textarea id="codeInput" class="chat-input" rows="4" placeholder="输入代码..." style="width:100%;margin-bottom:8px;font-family:monospace;">function hello() {
+    console.log("Hello, Lv-00!");
+    return 42;
+}</textarea>
+                <button id="highlightBtn" class="btn btn-accent" style="width:100%;">高亮 / Highlight</button>
+                <pre id="codeOutput" style="margin-top:8px;background:#0a0a0a;padding:8px;border-radius:3px;overflow-x:auto;"><code>高亮结果将显示在这里</code></pre>
+            </div>
+        </div>
+
+        <!-- Fabric.js 演示 -->
+        <div class="github-section">
+            <h3>[Canvas] Fabric.js 几何绘图</h3>
+            <div class="demo-area">
+                <canvas id="fabricCanvas" width="280" height="200" style="border:1px solid #333;background:#0a0a0a;"></canvas>
+                <div class="canvas-controls" style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+                    <button id="fabricBtnPoint" class="btn btn-sm">添加点</button>
+                    <button id="fabricBtnLine" class="btn btn-sm">添加线段</button>
+                    <button id="fabricBtnCircle" class="btn btn-sm">添加圆</button>
+                    <button id="fabricBtnTriangle" class="btn btn-sm">添加三角形</button>
+                    <button id="fabricBtnClear" class="btn btn-sm">清空</button>
+                    <button id="fabricBtnExport" class="btn btn-sm">导出PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ECharts 演示 -->
+        <div class="github-section">
+            <h3>[Chart] ECharts 数据可视化</h3>
+            <div class="demo-area">
+                <div id="echartsDemo" style="width:100%;height:200px;background:#0a0a0a;"></div>
+                <div class="chart-controls" style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+                    <button id="echartBtnLine" class="btn btn-sm">折线图</button>
+                    <button id="echartBtnBar" class="btn btn-sm">柱状图</button>
+                    <button id="echartBtnPie" class="btn btn-sm">饼图</button>
+                    <button id="echartBtnScatter" class="btn btn-sm">散点图</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lodash 演示 -->
+        <div class="github-section">
+            <h3>[Utils] Lodash 实用工具</h3>
+            <div class="demo-area">
+                <textarea id="lodashInput" class="chat-input" rows="3" placeholder="输入JSON数组" style="width:100%;margin-bottom:8px;font-family:monospace;">[{"name":"Alice","age":25,"score":85},{"name":"Bob","age":30,"score":92},{"name":"Charlie","age":25,"score":78}]</textarea>
+                <div style="display:flex;gap:4px;margin-bottom:8px;">
+                    <button id="lodashBtnGroup" class="btn btn-sm">按年龄分组</button>
+                    <button id="lodashBtnOrder" class="btn btn-sm">按分数排序</button>
+                    <button id="lodashBtnClone" class="btn btn-sm">深拷贝</button>
+                </div>
+                <pre id="lodashOutput" style="background:#0a0a0a;padding:8px;border-radius:3px;overflow-x:auto;font-size:10px;">结果将显示在这里</pre>
+            </div>
+        </div>
+
+        <!-- Axios 演示 -->
+        <div class="github-section">
+            <h3>[HTTP] Axios 网络请求</h3>
+            <div class="demo-area">
+                <input type="text" id="axiosUrl" class="input-field" placeholder="输入URL，如: https://api.github.com" value="https://api.github.com" style="width:100%;margin-bottom:8px;">
+                <button id="axiosBtn" class="btn btn-accent" style="width:100%;">发送 GET 请求</button>
+                <pre id="axiosOutput" style="margin-top:8px;background:#0a0a0a;padding:8px;border-radius:3px;overflow-x:auto;font-size:10px;max-height:120px;">结果将显示在这里</pre>
+            </div>
+        </div>
+
+        <!-- TensorFlow.js 演示 -->
+        <div class="github-section">
+            <h3>[ML] TensorFlow.js 线性回归</h3>
+            <div class="demo-area">
+                <canvas id="tfCanvas" width="280" height="150" style="border:1px solid #333;background:#0a0a0a;width:100%;"></canvas>
+                <div style="margin-top:8px;display:flex;gap:4px;">
+                    <button id="tfBtnTrain" class="btn btn-accent">训练模型</button>
+                    <button id="tfBtnPredict" class="btn btn-sm">预测</button>
+                </div>
+                <div id="tfOutput" style="margin-top:4px;font-size:10px;color:#888;">点击训练开始线性回归</div>
+            </div>
+        </div>
+
+        <!-- Ollama 演示 -->
+        <div class="github-section">
+            <h3>[LLM] Ollama 本地大模型</h3>
+            <div class="demo-area">
+                <input type="text" id="ollamaModel" class="input-field" placeholder="模型名称" value="qwen2.5:0.5b" style="width:48%;margin-bottom:4px;">
+                <input type="text" id="ollamaPrompt" class="input-field" placeholder="提示词" value="用一句话解释什么是几何约束" style="width:48%;margin-bottom:4px;">
+                <div style="display:flex;gap:4px;">
+                    <button id="ollamaBtnGen" class="btn btn-accent">生成文本</button>
+                    <button id="ollamaBtnList" class="btn btn-sm">列出模型</button>
+                    <button id="ollamaBtnClear" class="btn btn-sm">清空</button>
+                </div>
+                <pre id="ollamaOutput" style="margin-top:8px;background:#0a0a0a;padding:8px;border-radius:3px;overflow-x:auto;font-size:10px;max-height:120px;">需要本地运行Ollama服务 (默认端口11434)</pre>
+            </div>
+        </div>
+
+        <!-- LangChain 演示 -->
+        <div class="github-section">
+            <h3>[LLM] LangChain RAG检索</h3>
+            <div class="demo-area">
+                <textarea id="ragDocs" class="chat-input" rows="3" placeholder="输入文档（每行一篇）" style="width:100%;margin-bottom:4px;font-family:monospace;">Lv-00是一种符号几何语言
+几何约束是Lv-00的核心概念
+约束图由节点和边组成
+三角剖分是计算几何的基础算法</textarea>
+                <input type="text" id="ragQuery" class="input-field" placeholder="检索查询" value="什么是Lv-00" style="width:100%;margin-bottom:4px;">
+                <button id="ragBtn" class="btn btn-accent" style="width:100%;">检索 / Retrieve</button>
+                <pre id="ragOutput" style="margin-top:8px;background:#0a0a0a;padding:8px;border-radius:3px;overflow-x:auto;font-size:10px;max-height:100px;">检索结果将显示在这里</pre>
+            </div>
+        </div>
+
+        <!-- Mermaid 演示 -->
+        <div class="github-section">
+            <h3>[Diagram] Mermaid.js 流程图</h3>
+            <div class="demo-area">
+                <textarea id="mermaidInput" class="chat-input" rows="5" placeholder="输入Mermaid语法..." style="width:100%;margin-bottom:8px;font-family:monospace;">graph TD
+    A[点约束] --> B[线段约束]
+    B --> C[区域约束]
+    C --> D[约束求解]
+    A --> D
+    D --> E[几何输出]</textarea>
+                <button id="mermaidBtn" class="btn btn-accent" style="width:100%;">渲染 / Render</button>
+                <div id="mermaidOutput" style="margin-top:8px;background:#0a0a0a;padding:8px;border-radius:3px;overflow-x:auto;text-align:center;">图表将显示在这里</div>
+            </div>
+        </div>
+
+        <!-- Cytoscape.js 演示 -->
+        <div class="github-section">
+            <h3>[Graph] Cytoscape.js 约束图</h3>
+            <div class="demo-area">
+                <div id="cytoscapeDemo" style="width:100%;height:200px;background:#0a0a0a;border-radius:3px;"></div>
+                <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+                    <button id="cytoBtnNode" class="btn btn-sm">添加节点</button>
+                    <button id="cytoBtnConstr" class="btn btn-sm">添加约束</button>
+                    <button id="cytoBtnEdge" class="btn btn-sm">添加边</button>
+                    <button id="cytoBtnReset" class="btn btn-sm">重置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Marked.js 演示 -->
+        <div class="github-section">
+            <h3>[Doc] Marked.js Markdown渲染</h3>
+            <div class="demo-area">
+                <textarea id="markdownInput" class="chat-input" rows="3" placeholder="输入Markdown..." style="width:100%;margin-bottom:8px;font-family:monospace;font-size:10px;">## Lv-00 符号几何引擎
+
+Lv-00是一种**符号几何语言**，核心功能包括：
+
+- 几何约束求解
+- 符号表达式归一化
+- Canvas 2D渲染
+
+`约束图` 是Lv-00的核心数据结构。</textarea>
+                <button id="markedBtn" class="btn btn-accent" style="width:100%;">渲染 / Render</button>
+                <div id="markdownOutput" style="margin-top:8px;background:#0a0a0a;padding:8px;border-radius:3px;color:#ccc;font-size:11px;max-height:150px;overflow-y:auto;">渲染结果将显示在这里</div>
+            </div>
+        </div>
+
+        <!-- Three.js 演示 -->
+        <div class="github-section">
+            <h3>[3D] Three.js 3D图形</h3>
+            <div class="demo-area">
+                <div id="threeDemo" style="width:100%;height:180px;background:#0a0a0a;border-radius:3px;"></div>
+                <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+                    <button id="threeBtnCube" class="btn btn-sm">创建立方体</button>
+                    <button id="threeBtnSphere" class="btn btn-sm">创建球体</button>
+                    <button id="threeBtnRotate" class="btn btn-sm">切换旋转</button>
+                    <button id="threeBtnClr" class="btn btn-sm">清空</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Anime.js 演示 -->
+        <div class="github-section">
+            <h3>[Anim] Anime.js 动画引擎</h3>
+            <div class="demo-area">
+                <div id="animeBox" style="width:100%;height:60px;background:#0a0a0a;border-radius:3px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">
+                    <div id="animeTarget" style="width:40px;height:40px;background:#2196f3;border-radius:4px;"></div>
+                </div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button id="animeBtnTrans" class="btn btn-sm">平移动画</button>
+                    <button id="animeBtnRotate" class="btn btn-sm">旋转动画</button>
+                    <button id="animeBtnScale" class="btn btn-sm">缩放动画</button>
+                    <button id="animeBtnColor" class="btn btn-sm">颜色动画</button>
+                    <button id="animeBtnTimeline" class="btn btn-sm">时间线</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delaunator 演示 -->
+        <div class="github-section">
+            <h3>[Geo] Delaunator 三角剖分</h3>
+            <div class="demo-area">
+                <canvas id="delaunatorCanvas" width="280" height="180" style="border:1px solid #333;background:#0a0a0a;width:100%;"></canvas>
+                <div style="margin-top:8px;display:flex;gap:4px;">
+                    <button id="delauBtnGen" class="btn btn-sm">随机生成</button>
+                    <button id="delauBtnClr" class="btn btn-sm">清空</button>
+                </div>
+                <div id="delaunatorInfo" style="margin-top:4px;font-size:10px;color:#888;"></div>
+            </div>
+        </div>
+
+        <!-- Earcut 演示 -->
+        <div class="github-section">
+            <h3>[Geo] Earcut 多边形剖分</h3>
+            <div class="demo-area">
+                <canvas id="earcutCanvas" width="280" height="180" style="border:1px solid #333;background:#0a0a0a;width:100%;"></canvas>
+                <div style="margin-top:8px;display:flex;gap:4px;">
+                    <button id="earcutBtnTri" class="btn btn-sm">三角剖分</button>
+                    <button id="earcutBtnClr" class="btn btn-sm">清空</button>
+                </div>
+                <div id="earcutInfo" style="margin-top:4px;font-size:10px;color:#888;"></div>
+            </div>
+        </div>
+
+        <!-- 集成的项目列表 -->
+        <div class="github-section">
+            <h3>[Libs] 集成的开源项目 (共38个)</h3>
+            <style>
+                /* 开源库列表项：提取公共样式，消除重复的内联 style */
+                .lib-item { padding: 6px; background: #0a0a0a; margin-bottom: 4px; border-radius: 3px; border-left-width: 3px; border-left-style: solid; }
+                .lib-item-blue   { border-left-color: #2196f3; }
+                .lib-item-green  { border-left-color: #4caf50; }
+                .lib-item-orange { border-left-color: #ff9800; }
+                .lib-item-pink   { border-left-color: #e91e63; }
+            </style>
+            <div class="lib-list" style="font-size:11px;max-height:300px;overflow-y:auto;">
+                <div class="lib-item lib-item-blue">
+                    <strong>Math.js</strong> - 数学计算<br>
+                    <span style="color:#888;">GitHub: josdejong/mathjs | Apache-2.0</span><br>
+                    <span style="color:#666;">符号计算、矩阵运算、单位转换</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Highlight.js</strong> - 语法高亮<br>
+                    <span style="color:#888;">GitHub: highlightjs/highlight.js | BSD-3-Clause</span><br>
+                    <span style="color:#666;">180+语言支持，自动语言检测</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Fabric.js</strong> - Canvas绘图<br>
+                    <span style="color:#888;">GitHub: fabricjs/fabric.js | MIT</span><br>
+                    <span style="color:#666;">Canvas交互式绘图，SVG/JSON导入导出</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Three.js</strong> - 3D图形引擎<br>
+                    <span style="color:#888;">GitHub: mrdoob/three.js | MIT</span><br>
+                    <span style="color:#666;">基于WebGL的3D渲染引擎</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Store</strong> - 状态管理<br>
+                    <span style="color:#888;">GitHub: zustand-like | MIT</span><br>
+                    <span style="color:#666;">轻量级状态管理容器</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>D3.js</strong> - 数据可视化<br>
+                    <span style="color:#888;">GitHub: d3/d3 | ISC</span><br>
+                    <span style="color:#666;">数据驱动DOM操作与可视化</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>ECharts</strong> - 图表库<br>
+                    <span style="color:#888;">GitHub: apache/echarts | Apache-2.0</span><br>
+                    <span style="color:#666;">丰富的交互式图表</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Mermaid.js</strong> - 流程图渲染<br>
+                    <span style="color:#888;">GitHub: mermaid-js/mermaid | MIT</span><br>
+                    <span style="color:#666;">基于文本的图表渲染</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Cytoscape.js</strong> - 图论可视化<br>
+                    <span style="color:#888;">GitHub: cytoscape/cytoscape.js | MIT</span><br>
+                    <span style="color:#666;">图论分析与可视化</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Lodash</strong> - 实用工具<br>
+                    <span style="color:#888;">GitHub: lodash/lodash | MIT</span><br>
+                    <span style="color:#666;">高性能JavaScript工具库</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>Axios</strong> - HTTP客户端<br>
+                    <span style="color:#888;">GitHub: axios/axios | MIT</span><br>
+                    <span style="color:#666;">Promise-based HTTP请求库</span>
+                </div>
+                <div class="lib-item lib-item-blue">
+                    <strong>CodeMirror 5</strong> - 代码编辑器<br>
+                    <span style="color:#888;">GitHub: codemirror/codemirror5 | MIT</span><br>
+                    <span style="color:#666;">100+语言代码编辑器</span>
+                </div>
+                <div class="lib-item lib-item-green">
+                    <strong>TensorFlow.js</strong> - 机器学习<br>
+                    <span style="color:#888;">GitHub: tensorflow/tfjs | Apache-2.0</span><br>
+                    <span style="color:#666;">浏览器端机器学习框架</span>
+                </div>
+                <div class="lib-item lib-item-green">
+                    <strong>Transformers.js</strong> - NLP模型<br>
+                    <span style="color:#888;">GitHub: xenova/transformers.js | Apache-2.0</span><br>
+                    <span style="color:#666;">浏览器端Transformers模型</span>
+                </div>
+                <div class="lib-item lib-item-green">
+                    <strong>ONNX Runtime Web</strong> - 模型推理<br>
+                    <span style="color:#888;">GitHub: microsoft/onnxruntime | MIT</span><br>
+                    <span style="color:#666;">跨平台ONNX模型推理引擎</span>
+                </div>
+                <div class="lib-item lib-item-green">
+                    <strong>LangChain-like</strong> - LLM应用框架<br>
+                    <span style="color:#888;">GitHub: langchain-ai/langchainjs | MIT</span><br>
+                    <span style="color:#666;">LLM链、内存管理、RAG检索</span>
+                </div>
+                <div class="lib-item lib-item-green">
+                    <strong>Ollama.js</strong> - 本地LLM客户端<br>
+                    <span style="color:#888;">GitHub: ollama/ollama-js | MIT</span><br>
+                    <span style="color:#666;">本地大语言模型服务通信接口</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>Marked.js</strong> - Markdown解析<br>
+                    <span style="color:#888;">GitHub: markedjs/marked | MIT</span><br>
+                    <span style="color:#666;">高性能Markdown到HTML转换</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>jsPDF</strong> - PDF生成<br>
+                    <span style="color:#888;">GitHub: parallax/jsPDF | MIT</span><br>
+                    <span style="color:#666;">浏览器端PDF文档生成</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>Turndown</strong> - HTML转Markdown<br>
+                    <span style="color:#888;">GitHub: mixmark-io/turndown | MIT</span><br>
+                    <span style="color:#666;">HTML到Markdown转换器</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>Matter.js</strong> - 2D物理引擎<br>
+                    <span style="color:#888;">GitHub: liabru/matter-js | MIT</span><br>
+                    <span style="color:#666;">2D物理模拟，刚体碰撞与约束</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>Anime.js</strong> - 动画引擎<br>
+                    <span style="color:#888;">GitHub: juliangarnier/anime | MIT</span><br>
+                    <span style="color:#666;">轻量级动画，CSS/SVG/DOM/JS对象</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>xterm.js</strong> - 终端模拟器<br>
+                    <span style="color:#888;">GitHub: xtermjs/xterm.js | MIT</span><br>
+                    <span style="color:#666;">浏览器端终端，支持WebSocket</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>Delaunator</strong> - Delaunay三角剖分<br>
+                    <span style="color:#888;">GitHub: mapbox/delaunator | ISC</span><br>
+                    <span style="color:#666;">高性能Delaunay三角剖分算法</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>Day.js</strong> - 轻量日期处理<br>
+                    <span style="color:#888;">GitHub: iamkun/dayjs | MIT</span><br>
+                    <span style="color:#666;">轻量级日期处理库</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>FileSaver.js</strong> - 文件保存<br>
+                    <span style="color:#888;">GitHub: nicolo-ribaudo/FileSaver.js | MIT</span><br>
+                    <span style="color:#666;">浏览器端文件保存下载</span>
+                </div>
+                <div class="lib-item lib-item-orange">
+                    <strong>Clipboard.js</strong> - 剪贴板<br>
+                    <span style="color:#888;">GitHub: zenorocha/clipboard.js | MIT</span><br>
+                    <span style="color:#666;">现代化剪贴板复制操作</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>UUID</strong> - 唯一标识符<br>
+                    <span style="color:#888;">GitHub: uuidjs/uuid | MIT</span><br>
+                    <span style="color:#666;">RFC4122标准UUID生成器</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>Fuse.js</strong> - 模糊搜索<br>
+                    <span style="color:#888;">GitHub: krisk/Fuse | Apache-2.0</span><br>
+                    <span style="color:#666;">轻量级模糊搜索库</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>CryptoJS</strong> - 加密与哈希<br>
+                    <span style="color:#888;">GitHub: brix/crypto-js | MIT</span><br>
+                    <span style="color:#666;">MD5/SHA256/AES/DES等加解密</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>seedrandom</strong> - 种子随机数<br>
+                    <span style="color:#888;">GitHub: davidbau/seedrandom | MIT</span><br>
+                    <span style="color:#666;">可复现的种子随机数生成器</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>pako.js</strong> - 数据压缩<br>
+                    <span style="color:#888;">GitHub: nodeca/pako | MIT</span><br>
+                    <span style="color:#666;">zlib实现，deflate/gzip/zlib压缩</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>tinyqueue</strong> - 二叉堆<br>
+                    <span style="color:#888;">GitHub: mourner/tinyqueue | ISC</span><br>
+                    <span style="color:#666;">轻量级二叉堆优先队列</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>rbush</strong> - R-tree空间索引<br>
+                    <span style="color:#888;">GitHub: mourner/rbush | MIT</span><br>
+                    <span style="color:#666;">高性能空间索引，近邻查询/碰撞检测</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>simple-statistics</strong> - 统计库<br>
+                    <span style="color:#888;">GitHub: simple-statistics/simple-statistics | ISC</span><br>
+                    <span style="color:#666;">零依赖统计，回归/分位数/标准差</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>earcut</strong> - 多边形三角剖分<br>
+                    <span style="color:#888;">GitHub: mapbox/earcut | ISC</span><br>
+                    <span style="color:#666;">高性能耳切法三角剖分</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>robust-predicates</strong> - 精确几何谓词<br>
+                    <span style="color:#888;">GitHub: mourner/robust-predicates | Unlicense</span><br>
+                    <span style="color:#666;">浮点误差鲁棒的orient2d/incircle</span>
+                </div>
+                <div class="lib-item lib-item-pink">
+                    <strong>gl-matrix</strong> - 向量矩阵库<br>
+                    <span style="color:#888;">GitHub: toji/gl-matrix | MIT</span><br>
+                    <span style="color:#666;">高性能vec2/vec3/mat4，几何变换</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================================================================
+// Lv-00 开源库集成演示脚本 (ES5 标准)
+// 所有演示对象命名空间：_LvDemo
+// 库访问方式：window.Lv00Libraries
+// ================================================================
+
+(function() {
+    'use strict';
+    var libs = window.Lv00Libraries;
+
+    // ==================== 安全工具函数 ====================
+    /**
+     * HTML 特殊字符转义，防止 XSS 攻击。
+     * @param {string} str - 需要转义的字符串
+     * @returns {string} 转义后的安全字符串
+     */
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return String(str);
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    // ==================== Lv00Libraries 初始化 ====================
+    if (libs && typeof libs.initAll === 'function') {
+        libs.initAll();
+    }
+
+    // ==================== 演示对象 ====================
+    var _LvDemo = {};
+
+    // ---------- Math.js 演示 ----------
+    _LvDemo.math = {
+        evaluate: function() {
+            var expr = document.getElementById('mathExpr').value;
+            var resultDiv = document.getElementById('mathResult');
+            if (!libs || !libs.mathJS) { resultDiv.innerHTML = '<span style="color:#f44336;">Math.js 尚未加载</span>'; return; }
+            libs.mathJS.load().then(function() {
+                try {
+                    var result = libs.mathJS.evaluate(expr);
+                    resultDiv.innerHTML = '<strong>' + escapeHtml(expr) + ' = </strong>' + escapeHtml(String(result));
+                } catch (e) {
+                    resultDiv.innerHTML = '<span style="color:#f44336;">错误: ' + escapeHtml(e.message) + '</span>';
+                }
+            });
+        },
+        setExpr: function(expr) {
+            document.getElementById('mathExpr').value = expr;
+            _LvDemo.math.evaluate();
+        }
+    };
+
+    // ---------- Highlight.js 演示 ----------
+    _LvDemo.highlight = {
+        highlight: function() {
+            var code = document.getElementById('codeInput').value;
+            var lang = document.getElementById('codeLang').value;
+            var output = document.getElementById('codeOutput').querySelector('code');
+            if (!libs || !libs.highlightJS) return;
+            libs.highlightJS.load().then(function() {
+                var html = libs.highlightJS.highlightCode(code, lang);
+                output.innerHTML = html;
+            });
+        }
+    };
+
+    // ---------- Fabric.js 演示 ----------
+    _LvDemo.fabric = {
+        canvas: null,
+        init: function() {
+            var self = this;
+            if (self.canvas || !libs || !libs.fabricJS) return;
+            libs.fabricJS.load().then(function() {
+                self.canvas = libs.fabricJS.createCanvas('fabricCanvas', { backgroundColor: '#0a0a0a' });
+            });
+        },
+        addPoint: function() { if (!this.canvas) return; libs.fabricJS.geometry.addPoint(this.canvas, 50 + Math.random() * 200, 30 + Math.random() * 150, '#2196f3'); },
+        addLine: function() {
+            if (!this.canvas) return;
+            var x1 = 30 + Math.random() * 100, y1 = 40 + Math.random() * 120;
+            libs.fabricJS.geometry.addLine(this.canvas, x1, y1, x1 + 80 + Math.random() * 100, y1 + 20 + Math.random() * 80, '#4caf50');
+        },
+        addCircle: function() {
+            if (!this.canvas) return;
+            libs.fabricJS.geometry.addCircle(this.canvas, 140, 100, 20 + Math.random() * 40, { stroke: '#ff9800', fill: 'transparent' });
+        },
+        addTriangle: function() { if (!this.canvas) return; libs.fabricJS.geometry.addTriangle(this.canvas, 140, 30, 90, 170, 190, 170, '#9c27b0'); },
+        clear: function() { if (this.canvas) { this.canvas.clear(); this.canvas.backgroundColor = '#0a0a0a'; this.canvas.renderAll(); } },
+        exportPNG: function() {
+            if (!this.canvas || !libs || !libs.fabricJS) return;
+            var dataURL = libs.fabricJS.export.toPNG(this.canvas);
+            var link = document.createElement('a');
+            link.download = 'lv00-geometry.png';
+            link.href = dataURL;
+            link.click();
+        }
+    };
+
+    // ---------- ECharts 演示 ----------
+    _LvDemo.echarts = {
+        chart: null,
+        init: function() {
+            var self = this;
+            if (self.chart || !libs || !libs.echarts) return;
+            libs.echarts.load().then(function() {
+                libs.echarts.init('echartsDemo', 'dark').then(function(chart) {
+                    self.chart = chart;
+                    self.showLineChart();
+                });
+            });
+        },
+        showLineChart: function() {
+            if (!this.chart) return;
+            this.chart.setOption({
+                backgroundColor: 'transparent',
+                title: { text: '折线图示例', textStyle: { fontSize: 12, color: '#ccc' } },
+                xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+                yAxis: { type: 'value' },
+                series: [{ data: [820, 932, 901, 934, 1290, 1330, 1320], type: 'line', smooth: true }]
+            });
+        },
+        showBarChart: function() {
+            if (!this.chart) return;
+            this.chart.setOption({
+                backgroundColor: 'transparent',
+                title: { text: '柱状图示例', textStyle: { fontSize: 12, color: '#ccc' } },
+                xAxis: { type: 'category', data: ['A', 'B', 'C', 'D', 'E'] },
+                yAxis: { type: 'value' },
+                series: [{ data: [120, 200, 150, 80, 70], type: 'bar' }]
+            });
+        },
+        showPieChart: function() {
+            if (!this.chart) return;
+            this.chart.setOption({
+                backgroundColor: 'transparent',
+                title: { text: '饼图示例', textStyle: { fontSize: 12, color: '#ccc' } },
+                series: [{ type: 'pie', data: [{ value: 335, name: 'A' }, { value: 310, name: 'B' }, { value: 234, name: 'C' }, { value: 135, name: 'D' }, { value: 1548, name: 'E' }], radius: '60%' }]
+            });
+        },
+        showScatterChart: function() {
+            if (!this.chart) return;
+            var data = [];
+            for (var i = 0; i < 30; i++) data.push([Math.random() * 100, Math.random() * 100]);
+            this.chart.setOption({
+                backgroundColor: 'transparent',
+                title: { text: '散点图示例', textStyle: { fontSize: 12, color: '#ccc' } },
+                xAxis: {}, yAxis: {},
+                series: [{ data: data, type: 'scatter' }]
+            });
+        }
+    };
+
+    // ---------- Lodash 演示 ----------
+    _LvDemo.lodash = {
+        groupBy: function() {
+            if (!libs || !libs.lodash) return;
+            libs.lodash.load().then(function() {
+                try {
+                    var data = JSON.parse(document.getElementById('lodashInput').value);
+                    var result = libs.lodash.groupBy(data, 'age');
+                    document.getElementById('lodashOutput').textContent = JSON.stringify(result, null, 2);
+                } catch (e) {
+                    document.getElementById('lodashOutput').textContent = '错误: ' + e.message;
+                }
+            });
+        },
+        orderBy: function() {
+            if (!libs || !libs.lodash) return;
+            libs.lodash.load().then(function() {
+                try {
+                    var data = JSON.parse(document.getElementById('lodashInput').value);
+                    var result = libs.lodash.orderBy(data, ['score'], ['desc']);
+                    document.getElementById('lodashOutput').textContent = JSON.stringify(result, null, 2);
+                } catch (e) {
+                    document.getElementById('lodashOutput').textContent = '错误: ' + e.message;
+                }
+            });
+        },
+        deepClone: function() {
+            if (!libs || !libs.lodash) return;
+            libs.lodash.load().then(function() {
+                try {
+                    var data = JSON.parse(document.getElementById('lodashInput').value);
+                    var cloned = libs.lodash.deepClone(data);
+                    cloned[0].name = '[已修改]';
+                    document.getElementById('lodashOutput').textContent = '原始: ' + JSON.stringify(data[0]) + '\n修改后: ' + JSON.stringify(cloned[0]);
+                } catch (e) {
+                    document.getElementById('lodashOutput').textContent = '错误: ' + e.message;
+                }
+            });
+        }
+    };
+
+    // ---------- Axios 演示 ----------
+    _LvDemo.axios = {
+        send: function() {
+            var url = document.getElementById('axiosUrl').value;
+            var output = document.getElementById('axiosOutput');
+            output.textContent = '请求中...';
+            if (!libs || !libs.axios) return;
+            libs.axios.load().then(function() {
+                libs.axios.get(url).then(function(data) {
+                    output.textContent = JSON.stringify(data, null, 2);
+                }).catch(function(e) {
+                    output.textContent = '请求失败: ' + e.message;
+                });
+            });
+        }
+    };
+
+    // ---------- TensorFlow.js 演示 ----------
+    _LvDemo.tf = {
+        model: null,
+        train: function() {
+            var output = document.getElementById('tfOutput');
+            output.textContent = '训练中...';
+            if (!libs || !libs.tensorflowJS) return;
+            libs.tensorflowJS.load().then(function() {
+                return libs.tensorflowJS.createLinearModel().then(function(model) {
+                    _LvDemo.tf.model = model;
+                    var result = libs.tensorflowJS.trainLinearModel(model, 100);
+                    output.textContent = '训练完成! Loss: ' + result.toFixed(4) + ' (公式: y = 2x - 1)';
+                    _LvDemo.tf.draw();
+                });
+            });
+        },
+        predict: function() {
+            var output = document.getElementById('tfOutput');
+            if (!this.model || !libs || !libs.tensorflowJS) { output.textContent = '请先训练模型'; return; }
+            try {
+                var pred = libs.tensorflowJS.predictLinearModel(this.model, 5);
+                output.textContent = '预测 x=5 时 y = ' + pred.toFixed(4);
+            } catch (e) {
+                output.textContent = '预测失败: ' + e.message;
+            }
+        },
+        draw: function() {
+            var canvas = document.getElementById('tfCanvas');
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#4caf50';
+            ctx.beginPath();
+            for (var x = 0; x < canvas.width; x++) {
+                var y = canvas.height - (x / canvas.width * 2) * canvas.height;
+                if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+    };
+
+    // ---------- Ollama 演示 ----------
+    _LvDemo.ollama = {
+        generate: function() {
+            var model = document.getElementById('ollamaModel').value;
+            var prompt = document.getElementById('ollamaPrompt').value;
+            var output = document.getElementById('ollamaOutput');
+            output.textContent = '生成中...';
+            if (!libs || !libs.ollama) return;
+            libs.ollama.load().then(function() {
+                return libs.ollama.generate(model, prompt);
+            }).then(function(result) {
+                output.innerHTML = '<strong>' + escapeHtml(model) + ':</strong><br>' + escapeHtml(result.response);
+            }).catch(function(e) {
+                output.innerHTML = '<span style="color:#f44336;">连接失败: ' + escapeHtml(e.message) + '<br>请确保Ollama服务运行在 http://localhost:11434</span>';
+            });
+        },
+        listModels: function() {
+            var output = document.getElementById('ollamaOutput');
+            output.textContent = '获取模型列表...';
+            if (!libs || !libs.ollama) return;
+            libs.ollama.load().then(function() {
+                return libs.ollama.listModels();
+            }).then(function(result) {
+                if (result.models && result.models.length > 0) {
+                    output.innerHTML = '<strong>本地模型:</strong><br>' + result.models.map(function(m) { return '- ' + escapeHtml(m.name) + ' (' + (m.size / 1e9).toFixed(2) + ' GB)'; }).join('<br>');
+                } else {
+                    output.innerHTML = '<span style="color:#ff9800;">未找到本地模型</span>';
+                }
+            }).catch(function(e) {
+                output.innerHTML = '<span style="color:#f44336;">连接失败: ' + escapeHtml(e.message) + '</span>';
+            });
+        },
+        clear: function() {
+            document.getElementById('ollamaOutput').innerHTML = '需要本地运行Ollama服务 (默认端口11434)';
+        }
+    };
+
+    // ---------- LangChain 演示 ----------
+    _LvDemo.langchain = {
+        retrieve: function() {
+            var docsText = document.getElementById('ragDocs').value;
+            var query = document.getElementById('ragQuery').value;
+            var output = document.getElementById('ragOutput');
+            output.textContent = '检索中...';
+            if (!libs || !libs.langChain) return;
+            libs.langChain.load().then(function() {
+                var documents = docsText.split('\n').filter(function(line) { return line.trim(); }).map(function(content, id) { return { id: id, content: content }; });
+                var retriever = libs.langChain.createSimpleRetriever(documents);
+                var results = libs.langChain.searchDocuments(retriever, query, 3);
+                output.innerHTML = '<strong>查询:</strong> ' + escapeHtml(query) + '<br><strong>结果:</strong><br>' + results.map(function(r) { return '- [相关度 ' + r.score.toFixed(2) + '] ' + escapeHtml(r.content); }).join('<br>');
+            });
+        }
+    };
+
+    // ---------- Mermaid 演示 ----------
+    _LvDemo.mermaid = {
+        render: function() {
+            var input = document.getElementById('mermaidInput').value;
+            var output = document.getElementById('mermaidOutput');
+            if (!libs || !libs.mermaid) return;
+            libs.mermaid.load().then(function() {
+                libs.mermaid.render(input, 'mermaidOutput').then(function() {});
+            });
+        }
+    };
+
+    // ---------- Cytoscape 演示 ----------
+    _LvDemo.cytoscape = {
+        nodeCount: 0,
+        init: function() {
+            if (this.nodeCount > 0 || !libs || !libs.cytoscape) return;
+            libs.cytoscape.load().then(function() {
+                return libs.cytoscape.init('cytoscapeDemo');
+            });
+        },
+        addNode: function() {
+            if (!libs || !libs.cytoscape) return;
+            var id = 'n' + (++this.nodeCount);
+            libs.cytoscape.addNode(id, { x: 50 + Math.random() * 160, y: 30 + Math.random() * 120 });
+        },
+        addConstraint: function() {
+            if (!libs || !libs.cytoscape) return;
+            var id = 'c' + (++this.nodeCount);
+            libs.cytoscape.addConstraintNode(id, { x: 50 + Math.random() * 160, y: 30 + Math.random() * 120 });
+        },
+        addEdge: function() {
+            if (!libs || !libs.cytoscape) return;
+            var nodes = libs.cytoscape.getGraph().nodes();
+            if (nodes.length >= 2) {
+                var source = nodes[Math.floor(Math.random() * nodes.length)].id();
+                var target = nodes[Math.floor(Math.random() * nodes.length)].id();
+                while (target === source && nodes.length > 1) { target = nodes[Math.floor(Math.random() * nodes.length)].id(); }
+                libs.cytoscape.addEdge(source, target);
+            }
+        },
+        reset: function() {
+            this.nodeCount = 0;
+            if (libs && libs.cytoscape) { libs.cytoscape.destroy(); }
+            this.init();
+        }
+    };
+
+    // ---------- Marked.js 演示 ----------
+    _LvDemo.marked = {
+        render: function() {
+            var markdown = document.getElementById('markdownInput').value;
+            var output = document.getElementById('markdownOutput');
+            if (!libs || !libs.marked) return;
+            libs.marked.load().then(function() {
+                libs.marked.renderTo('markdownOutput', markdown);
+                var hs = output.querySelectorAll('h1,h2,h3');
+                for (var i = 0; i < hs.length; i++) { hs[i].style.cssText = 'color:#2196f3;margin:4px 0;font-size:13px'; }
+                var cs = output.querySelectorAll('code');
+                for (var j = 0; j < cs.length; j++) { cs[j].style.cssText = 'background:#1a1a1a;padding:1px 4px;border-radius:2px;color:#4caf50'; }
+            });
+        }
+    };
+
+    // ---------- Three.js 演示 ----------
+    _LvDemo.three = {
+        scene: null, camera: null, renderer: null, objects: [], isRotating: false, animationId: null,
+        init: function() {
+            var self = this;
+            if (self.renderer || !libs || !libs.threeJS) return;
+            libs.threeJS.load().then(function() {
+                var result = libs.threeJS.createScene('threeDemo', { backgroundColor: 0x0a0a0a, cameraZ: 5 });
+                if (result) { self.scene = result.scene; self.camera = result.camera; self.renderer = result.renderer; self.animate(); }
+            });
+        },
+        createCube: function() {
+            var self = this;
+            // 确保 Three.js 场景已初始化（init() 异步调用 libs.threeJS.load()，
+            // 回调中设置 self.scene。未就绪时 self.scene 为 null，跳过创建。）
+            self.init();
+            if (!self.scene || !libs || !libs.threeJS) return;
+            var cube = libs.threeJS.createCube(self.scene, { color: 0x2196f3, wireframe: true });
+            cube.rotation.x = Math.random(); cube.rotation.y = Math.random();
+            self.objects.push(cube);
+        },
+        createSphere: function() {
+            var self = this;
+            if (!self.scene || !libs || !libs.threeJS) return;
+            var sphere = libs.threeJS.createSphere(self.scene, { color: 0x4caf50, wireframe: true });
+            sphere.position.x = (Math.random() - 0.5) * 2; sphere.position.y = (Math.random() - 0.5) * 2;
+            self.objects.push(sphere);
+        },
+        toggleRotation: function() { this.isRotating = !this.isRotating; },
+        animate: function() {
+            var self = this;
+            if (!self.renderer) return;
+            // 注意：当前使用持续运行的 requestAnimationFrame 循环。
+            // 当 isRotating 为 false 且场景无动画需求时，每次仍执行 render()。
+            // 若需优化，可在静止时停止循环，仅在交互或旋转时重启动画帧。
+            if (self.isRotating) {
+                for (var i = 0; i < self.objects.length; i++) { self.objects[i].rotation.x += 0.01; self.objects[i].rotation.y += 0.01; }
+            }
+            self.renderer.render(self.scene, self.camera);
+            self.animationId = requestAnimationFrame(function() { self.animate(); });
+        },
+        clear: function() {
+            if (this.animationId) cancelAnimationFrame(this.animationId);
+            if (this.renderer) { this.renderer.dispose(); var c = document.getElementById('threeDemo'); if (c && this.renderer.domElement) c.removeChild(this.renderer.domElement); }
+            this.scene = null; this.camera = null; this.renderer = null; this.objects = []; this.isRotating = false;
+        }
+    };
+
+    // ---------- Anime.js 演示 ----------
+    _LvDemo.anime = {
+        playTranslate: function() { if (!libs || !libs.anime) return; libs.anime.load().then(function() { libs.anime.animate('#animeTarget', { translateX: 200 }, { duration: 800 }); libs.anime.animate('#animeTarget', { translateX: 0 }, { duration: 800, delay: 800 }); }); },
+        playRotate: function() { if (!libs || !libs.anime) return; libs.anime.load().then(function() { libs.anime.animate('#animeTarget', { rotate: 360 }, { duration: 1000, easing: 'easeInOutCubic' }); }); },
+        playScale: function() { if (!libs || !libs.anime) return; libs.anime.load().then(function() { libs.anime.animate('#animeTarget', { scale: [1, 1.5, 1] }, { duration: 600 }); }); },
+        playColor: function() {
+            if (!libs || !libs.anime) return;
+            libs.anime.load().then(function() {
+                libs.anime.animate('#animeTarget', { backgroundColor: ['#2196f3', '#4caf50', '#ff9800', '#9c27b0', '#f44336'], borderRadius: ['4px', '50%', '4px'] }, { duration: 2000, easing: 'easeInOutQuad' });
+            });
+        },
+        playTimeline: function() {
+            if (!libs || !libs.anime) return;
+            libs.anime.load().then(function() {
+                var tl = libs.anime.createTimeline();
+                tl.add({ targets: '#animeTarget', translateX: 100, duration: 300 })
+                  .add({ targets: '#animeTarget', translateY: 20, duration: 200 })
+                  .add({ targets: '#animeTarget', translateX: 0, duration: 300 })
+                  .add({ targets: '#animeTarget', translateY: 0, rotate: 360, duration: 400 });
+            });
+        }
+    };
+
+    // ---------- Delaunator 演示 ----------
+    _LvDemo.delaunator = {
+        generate: function() {
+            var canvas = document.getElementById('delaunatorCanvas');
+            var ctx = canvas.getContext('2d');
+            var info = document.getElementById('delaunatorInfo');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var numPoints = 10 + Math.floor(Math.random() * 15);
+            var points = [];
+            for (var i = 0; i < numPoints; i++) points.push([20 + Math.random() * (canvas.width - 40), 20 + Math.random() * (canvas.height - 40)]);
+            if (!libs || !libs.delaunator) return;
+            libs.delaunator.load().then(function() {
+                try {
+                    var result = libs.delaunator.triangulate(points);
+                    ctx.strokeStyle = '#2196f3'; ctx.lineWidth = 0.5; ctx.globalAlpha = 0.4;
+                    for (var ti = 0; ti < result.triangleCoords.length; ti++) {
+                        var t = result.triangleCoords[ti];
+                        ctx.beginPath(); ctx.moveTo(t[0][0], t[0][1]); ctx.lineTo(t[1][0], t[1][1]); ctx.lineTo(t[2][0], t[2][1]); ctx.closePath();
+                        ctx.fillStyle = 'hsl(' + (Math.random() * 360) + ', 40%, 15%)'; ctx.fill(); ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1; ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1.5; ctx.beginPath();
+                    var first = points[result.hull[0]]; ctx.moveTo(first[0], first[1]);
+                    for (var hi = 1; hi < result.hull.length; hi++) { var p = points[result.hull[hi]]; ctx.lineTo(p[0], p[1]); }
+                    ctx.closePath(); ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    for (var pi = 0; pi < points.length; pi++) { ctx.beginPath(); ctx.arc(points[pi][0], points[pi][1], 3, 0, Math.PI * 2); ctx.fillStyle = '#4caf50'; ctx.fill(); }
+                    info.textContent = numPoints + '个点, ' + result.triangles.length + '个三角形, 凸包' + result.hull.length + '个顶点';
+                } catch (e) { info.textContent = '错误: ' + e.message; }
+            });
+        },
+        clear: function() {
+            var ctx = document.getElementById('delaunatorCanvas').getContext('2d');
+            ctx.clearRect(0, 0, 280, 180);
+            document.getElementById('delaunatorInfo').textContent = '';
+        }
+    };
+
+    // ---------- Earcut 演示 ----------
+    _LvDemo.earcut = {
+        triangulate: function() {
+            var canvas = document.getElementById('earcutCanvas');
+            var ctx = canvas.getContext('2d');
+            var info = document.getElementById('earcutInfo');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var cx = canvas.width / 2, cy = canvas.height / 2;
+            var w = canvas.width * 0.4, h = canvas.height * 0.4;
+            var vertices = [cx - w, cy - h, cx + w, cy - h, cx + w, cy + h, cx - w, cy + h, cx - w * 0.5, cy - h * 0.3, cx, cy - h * 0.6, cx + w * 0.3, cy, cx, cy + h * 0.3];
+            if (!libs || !libs.earcut) return;
+            libs.earcut.load().then(function() {
+                try {
+                    var triangles = libs.earcut.triangulate(vertices, null, 2);
+                    ctx.strokeStyle = '#2196f3'; ctx.lineWidth = 0.5;
+                    for (var ti = 0; ti < triangles.length; ti++) {
+                        var t = triangles[ti];
+                        ctx.beginPath(); ctx.moveTo(vertices[t[0] * 2], vertices[t[0] * 2 + 1]); ctx.lineTo(vertices[t[1] * 2], vertices[t[1] * 2 + 1]); ctx.lineTo(vertices[t[2] * 2], vertices[t[2] * 2 + 1]); ctx.closePath();
+                        ctx.fillStyle = 'hsl(' + ((ti * 47) % 360) + ', 40%, 12%)'; ctx.fill(); ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                    for (var i = 0; i < vertices.length; i += 2) { ctx.beginPath(); ctx.arc(vertices[i], vertices[i + 1], 3, 0, Math.PI * 2); ctx.fillStyle = '#4caf50'; ctx.fill(); }
+                    ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 2; ctx.beginPath();
+                    ctx.moveTo(vertices[0], vertices[1]); ctx.lineTo(vertices[2], vertices[3]); ctx.lineTo(vertices[4], vertices[5]); ctx.lineTo(vertices[6], vertices[7]); ctx.closePath(); ctx.stroke();
+                    info.textContent = '凹多边形, ' + triangles.length + '个三角形';
+                } catch (e) { info.textContent = '错误: ' + e.message; }
+            });
+        },
+        clear: function() {
+            var ctx = document.getElementById('earcutCanvas').getContext('2d');
+            ctx.clearRect(0, 0, 280, 180);
+            document.getElementById('earcutInfo').textContent = '';
+        }
+    };
+
+    // ==================== 事件绑定 ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Math
+        var mathBtn = document.getElementById('mathBtn');
+        if (mathBtn) mathBtn.addEventListener('click', _LvDemo.math.evaluate);
+        var mDeriv = document.getElementById('mathBtnDeriv');
+        if (mDeriv) mDeriv.addEventListener('click', function() { _LvDemo.math.setExpr("derivative(x^2 + 3*x, x)"); });
+        var mDet = document.getElementById('mathBtnDet');
+        if (mDet) mDet.addEventListener('click', function() { _LvDemo.math.setExpr("det([[1, 2], [3, 4]])"); });
+        var mSqrt = document.getElementById('mathBtnSqrt');
+        if (mSqrt) mSqrt.addEventListener('click', function() { _LvDemo.math.setExpr("sqrt(3^2 + 4^2)"); });
+        var mSimp = document.getElementById('mathBtnSimplify');
+        if (mSimp) mSimp.addEventListener('click', function() { _LvDemo.math.setExpr("simplify(2x + 3x)"); });
+
+        // Highlight
+        var hlBtn = document.getElementById('highlightBtn');
+        if (hlBtn) hlBtn.addEventListener('click', _LvDemo.highlight.highlight);
+
+        // Fabric
+        var fbPt = document.getElementById('fabricBtnPoint');
+        if (fbPt) fbPt.addEventListener('click', function() { _LvDemo.fabric.addPoint(); });
+        var fbLn = document.getElementById('fabricBtnLine');
+        if (fbLn) fbLn.addEventListener('click', function() { _LvDemo.fabric.addLine(); });
+        var fbCir = document.getElementById('fabricBtnCircle');
+        if (fbCir) fbCir.addEventListener('click', function() { _LvDemo.fabric.addCircle(); });
+        var fbTri = document.getElementById('fabricBtnTriangle');
+        if (fbTri) fbTri.addEventListener('click', function() { _LvDemo.fabric.addTriangle(); });
+        var fbClr = document.getElementById('fabricBtnClear');
+        if (fbClr) fbClr.addEventListener('click', function() { _LvDemo.fabric.clear(); });
+        var fbExp = document.getElementById('fabricBtnExport');
+        if (fbExp) fbExp.addEventListener('click', function() { _LvDemo.fabric.exportPNG(); });
+
+        // ECharts
+        var ecLine = document.getElementById('echartBtnLine');
+        if (ecLine) ecLine.addEventListener('click', function() { _LvDemo.echarts.showLineChart(); });
+        var ecBar = document.getElementById('echartBtnBar');
+        if (ecBar) ecBar.addEventListener('click', function() { _LvDemo.echarts.showBarChart(); });
+        var ecPie = document.getElementById('echartBtnPie');
+        if (ecPie) ecPie.addEventListener('click', function() { _LvDemo.echarts.showPieChart(); });
+        var ecScat = document.getElementById('echartBtnScatter');
+        if (ecScat) ecScat.addEventListener('click', function() { _LvDemo.echarts.showScatterChart(); });
+
+        // Lodash
+        var ldGrp = document.getElementById('lodashBtnGroup');
+        if (ldGrp) ldGrp.addEventListener('click', _LvDemo.lodash.groupBy);
+        var ldOrd = document.getElementById('lodashBtnOrder');
+        if (ldOrd) ldOrd.addEventListener('click', _LvDemo.lodash.orderBy);
+        var ldCln = document.getElementById('lodashBtnClone');
+        if (ldCln) ldCln.addEventListener('click', _LvDemo.lodash.deepClone);
+
+        // Axios
+        var axBtn = document.getElementById('axiosBtn');
+        if (axBtn) axBtn.addEventListener('click', _LvDemo.axios.send);
+
+        // TensorFlow
+        var tfTrain = document.getElementById('tfBtnTrain');
+        if (tfTrain) tfTrain.addEventListener('click', _LvDemo.tf.train);
+        var tfPred = document.getElementById('tfBtnPredict');
+        if (tfPred) tfPred.addEventListener('click', _LvDemo.tf.predict);
+
+        // Ollama
+        var ollGen = document.getElementById('ollamaBtnGen');
+        if (ollGen) ollGen.addEventListener('click', _LvDemo.ollama.generate);
+        var ollList = document.getElementById('ollamaBtnList');
+        if (ollList) ollList.addEventListener('click', _LvDemo.ollama.listModels);
+        var ollClr = document.getElementById('ollamaBtnClear');
+        if (ollClr) ollClr.addEventListener('click', _LvDemo.ollama.clear);
+
+        // LangChain
+        var ragBtn = document.getElementById('ragBtn');
+        if (ragBtn) ragBtn.addEventListener('click', _LvDemo.langchain.retrieve);
+
+        // Mermaid
+        var mmBtn = document.getElementById('mermaidBtn');
+        if (mmBtn) mmBtn.addEventListener('click', _LvDemo.mermaid.render);
+
+        // Cytoscape
+        var cyNode = document.getElementById('cytoBtnNode');
+        if (cyNode) cyNode.addEventListener('click', function() { _LvDemo.cytoscape.addNode(); });
+        var cyCon = document.getElementById('cytoBtnConstr');
+        if (cyCon) cyCon.addEventListener('click', function() { _LvDemo.cytoscape.addConstraint(); });
+        var cyEdge = document.getElementById('cytoBtnEdge');
+        if (cyEdge) cyEdge.addEventListener('click', function() { _LvDemo.cytoscape.addEdge(); });
+        var cyRst = document.getElementById('cytoBtnReset');
+        if (cyRst) cyRst.addEventListener('click', function() { _LvDemo.cytoscape.reset(); });
+
+        // Marked
+        var mkBtn = document.getElementById('markedBtn');
+        if (mkBtn) mkBtn.addEventListener('click', _LvDemo.marked.render);
+
+        // Three.js
+        var thCube = document.getElementById('threeBtnCube');
+        if (thCube) thCube.addEventListener('click', function() { _LvDemo.three.createCube(); });
+        var thSph = document.getElementById('threeBtnSphere');
+        if (thSph) thSph.addEventListener('click', function() { _LvDemo.three.createSphere(); });
+        var thRot = document.getElementById('threeBtnRotate');
+        if (thRot) thRot.addEventListener('click', function() { _LvDemo.three.toggleRotation(); });
+        var thClr = document.getElementById('threeBtnClr');
+        if (thClr) thClr.addEventListener('click', function() { _LvDemo.three.clear(); });
+
+        // Anime
+        var anTrans = document.getElementById('animeBtnTrans');
+        if (anTrans) anTrans.addEventListener('click', _LvDemo.anime.playTranslate);
+        var anRot = document.getElementById('animeBtnRotate');
+        if (anRot) anRot.addEventListener('click', _LvDemo.anime.playRotate);
+        var anScl = document.getElementById('animeBtnScale');
+        if (anScl) anScl.addEventListener('click', _LvDemo.anime.playScale);
+        var anClr = document.getElementById('animeBtnColor');
+        if (anClr) anClr.addEventListener('click', _LvDemo.anime.playColor);
+        var anTl = document.getElementById('animeBtnTimeline');
+        if (anTl) anTl.addEventListener('click', _LvDemo.anime.playTimeline);
+
+        // Delaunator
+        var dlGen = document.getElementById('delauBtnGen');
+        if (dlGen) dlGen.addEventListener('click', _LvDemo.delaunator.generate);
+        var dlClr = document.getElementById('delauBtnClr');
+        if (dlClr) dlClr.addEventListener('click', _LvDemo.delaunator.clear);
+
+        // Earcut
+        var ecTri = document.getElementById('earcutBtnTri');
+        if (ecTri) ecTri.addEventListener('click', _LvDemo.earcut.triangulate);
+        var ecClr = document.getElementById('earcutBtnClr');
+        if (ecClr) ecClr.addEventListener('click', _LvDemo.earcut.clear);
+
+        // 自动初始化异步演示（三个 init 内部各自调用 libs.load().then()，
+        // 均为非阻塞异步操作，实际并行执行，1 秒延迟仅为等待 DOM 就绪）
+        setTimeout(function() {
+            _LvDemo.fabric.init();
+            _LvDemo.echarts.init();
+            _LvDemo.cytoscape.init();
+        }, 1000);
+    });
+
+})();
+</script>

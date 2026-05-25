@@ -1,0 +1,627 @@
+# =============================================================================
+# Lv-00 Axiom Package: Ergodic Theory
+# =============================================================================
+#
+# Mathematical Theory: Ergodic Theory (遍历论)
+#   The study of measure-preserving transformations, their statistical
+#   properties, and the long-term average behavior of dynamical systems.
+#   Bridges measure theory, probability theory, and dynamics.
+#
+# Axiomatization: Measure-preserving dynamical system + Ergodicity +
+#   Mixing Hierarchy + Entropy Theory + Spectral Theory
+#
+# References:
+#   - Birkhoff, G.D. (1931). "Proof of the Ergodic Theorem."
+#     Proceedings of the National Academy of Sciences, 17(12): 656-660.
+#     https://doi.org/10.1073/pnas.17.12.656
+#   - von Neumann, J. (1932). "Proof of the Quasi-Ergodic Hypothesis."
+#     Proceedings of the National Academy of Sciences, 18(1): 70-82.
+#     https://doi.org/10.1073/pnas.18.1.70
+#   - Kolmogorov, A.N. (1958). "A New Metric Invariant of Transient
+#     Dynamical Systems and Automorphisms in Lebesgue Spaces."
+#     Doklady Akademii Nauk SSSR, 119(5): 861-864.
+#   - Sinai, Ya.G. (1959). "On the Concept of Entropy for Dynamical
+#     Systems." Doklady Akademii Nauk SSSR, 124(4): 768-771.
+#   - Ornstein, D.S. (1970). "Bernoulli Shifts with the Same Entropy
+#     are Isomorphic." Advances in Mathematics, 4(3): 337-352.
+#     https://doi.org/10.1016/0001-8708(70)90029-0
+#   - Halmos, P.R. (1956). "Lectures on Ergodic Theory." Chelsea.
+#   - Walters, P. (1982). "An Introduction to Ergodic Theory."
+#     Graduate Texts in Mathematics 79. Springer. ISBN 0-387-95152-0.
+#   - Petersen, K. (1983). "Ergodic Theory." Cambridge Studies in
+#     Advanced Mathematics 2. Cambridge University Press.
+#   - Furstenberg, H. (1981). "Recurrence in Ergodic Theory and
+#     Combinatorial Number Theory." Princeton University Press.
+#   - Wikipedia: Ergodic theory
+#     https://en.wikipedia.org/wiki/Ergodic_theory
+#   - Wikipedia: Measure-preserving dynamical system
+#     https://en.wikipedia.org/wiki/Measure-preserving_dynamical_system
+#   - Wikipedia: Mixing (mathematics)
+#     https://en.wikipedia.org/wiki/Mixing_(mathematics)
+#   - Wikipedia: Kolmogorov-Sinai entropy
+#     https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Sinai_entropy
+#   - Wikipedia: Ornstein isomorphism theorem
+#     https://en.wikipedia.org/wiki/Ornstein_isomorphism_theorem
+#   - nLab: ergodic theory
+#     https://ncatlab.org/nlab/show/ergodic+theory
+#
+# Core Axioms (4 groups):
+#   I. Measure-Preserving System (4 axioms):
+#     MDS1. (X, B, μ) is a probability space
+#     MDS2. T: X → X is a measurable transformation
+#     MDS3. μ(T⁻¹(A)) = μ(A) for all A ∈ B (measure-preserving)
+#     MDS4. T*: L^p → L^p is the Koopman operator U_T(f) = f∘T
+#
+#   II. Ergodicity (1 defining property + 3 equivalent characterizations):
+#     E1. T⁻¹(A) = A (mod 0) ⟹ μ(A) ∈ {0, 1}
+#     E2. f∘T = f (a.e.) ⟹ f is constant (a.e.)
+#     E3. ⟨U_T^n f, g⟩ has Cesàro limit = ⟨f, 1⟩⟨1, g⟩
+#
+#   III. Mixing Hierarchy (4 levels, each implying the previous):
+#     MIX1. Strong mixing: lim_{n→∞} μ(T⁻ⁿ(A) ∩ B) = μ(A)μ(B)
+#     MIX2. Weak mixing: Cesàro-type mixing
+#     MIX3. K-mixing: completely positive entropy (Kolmogorov property)
+#     MIX4. Bernoulli: isomorphic to a Bernoulli shift
+#
+#   IV. Entropy Axioms (Kolmogorov-Sinai):
+#     ENT1. Entropy of partition: H(P) = -Σ μ(A_i) log μ(A_i)
+#     ENT2. Entropy of transformation: h(T) = sup_α h(T, α)
+#     ENT3. Generator theorem: h(T) = h(T, α) if α is a generator
+#
+# Primitive Notions:
+#   - Underlying set X (phase space)
+#   - σ-algebra B of measurable subsets
+#   - Probability measure μ (μ(X) = 1)
+#   - Measure-preserving transformation T: X → X
+#   - Time-average operator A_n(f)(x) = (1/n) Σ_{k=0}^{n-1} f(T^k x)
+#
+# Key Derived Concepts Formalized as Templates:
+#   - Poincaré recurrence, Birkhoff pointwise ergodic theorem
+#   - von Neumann mean ergodic theorem, Koopman operator
+#   - Kolmogorov-Sinai entropy (measure-theoretic entropy)
+#   - Ornstein isomorphism theorem (entropy as complete invariant)
+#   - Mixing properties (strong, weak, K, Bernoulli)
+#   - Spectral analysis (discrete spectrum, continuous spectrum)
+#   - Induced transformations, natural extensions, factors
+#   - Kingman's subadditive ergodic theorem
+#   - Furstenberg multiple recurrence
+#
+# Known Undecidable / Unconstructible Problems:
+#   - Isomorphism problem for measure-preserving transformations
+#     (undecidable in general; anti-classification theorem)
+#   - Spectral isomorphism problem (Kolmogorov's problem, open)
+#   - Computation of KS entropy for general systems (undecidable)
+#   - Classification of K-automorphisms (open)
+#   - Conjugacy problem for subshifts of finite type (undecidable)
+#   - Existence of invariant measures without compactness (AC-dependent)
+#   - Decidability of the isomorphism problem for specific classes
+#   - von Neumann's problem on simple groups and ergodic theory
+#
+# Relationship to Other Lv-00 Axiom Packages:
+#   - measure_theory: ergodic theory is built on measure spaces;
+#     the underlying space must be a probability space
+#   - real_analysis: Birkhoff ergodic theorem uses L^p convergence
+#   - zfc_set_theory: existence of invariant measures sometimes
+#     requires the Axiom of Choice (Krylov-Bogolyubov via compactness)
+#   - functional_analysis: Koopman operator is a unitary operator on L^2;
+#     spectral theory of dynamical systems connects to operator theory
+#   - point_set_topology: topological dynamics (minimality,
+#     unique ergodicity) bridges topology and ergodic theory
+#   - group_theory: actions of amenable groups on measure spaces;
+#     representation theory of group actions
+#   - descriptive_set_theory: Borel dynamical systems, definable sets
+#   - number_theory: Furstenberg's ergodic-theoretic proof of
+#     Szemerédi's theorem; equidistribution of sequences
+#   - information_theory: Kolmogorov-Sinai entropy is Shannon
+#     entropy of dynamical partitions
+#   - lie_theory: homogeneous dynamics on Lie groups; Ratner's theorems
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "ergodic_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, property,
+    # construction, or theorem in ergodic theory.
+    #
+    # Parameter semantics:
+    #   Points are elements of the underlying set X (phase space points).
+    #   Regions are measurable subsets A ∈ B.
+    #   Scalars are real numbers (probabilities, measures, entropies).
+    # =================================================================
+
+    # --- Group I: Measure-Preserving Dynamical System Foundation (5) ---
+
+    # MDS1. Probability space structure:
+    #   (X, B, μ) with μ(X) = 1, μ(∅) = 0.
+    # Params: (no parameters — global structure)
+    template "probability_space_base" 0
+
+    # MDS2. Measurable transformation:
+    #   T: X → X is B-measurable: T⁻¹(A) ∈ B for all A ∈ B.
+    # Params: transformation T, measurable set A
+    template "measurable_transformation" 2
+
+    # MDS3. Measure-preserving property:
+    #   μ(T⁻¹(A)) = μ(A) for all A ∈ B.
+    # Params: transformation T, measurable set A
+    template "measure_preserving" 2
+
+    # MDS4. Invertible measure-preserving transformation (automorphism):
+    #   T is bijective, and both T and T⁻¹ are measurable and
+    #   measure-preserving.
+    # Params: transformation T
+    template "invertible_mp_transformation" 1
+
+    # MDS5. Non-singular transformation (conservative):
+    #   μ(T⁻¹(A)) = 0 iff μ(A) = 0. Weaker than measure-preserving.
+    # Params: transformation T, measurable set A
+    template "non_singular_transformation" 2
+
+    # --- Group II: Ergodicity Core Axioms (6) ---
+
+    # E1. Ergodicity definition:
+    #   T is ergodic iff for every A ∈ B: T⁻¹(A) = A (mod 0)
+    #   ⟹ μ(A) = 0 or μ(A) = 1.
+    #   No nontrivial invariant subsets.
+    # Params: transformation T
+    template "ergodicity_definition" 1
+
+    # E2. Invariant function characterization:
+    #   T is ergodic iff every measurable f: X → ℝ satisfying
+    #   f∘T = f (a.e.) is constant (a.e.).
+    #   Equivalent to E1.
+    # Params: transformation T, invariant function f
+    template "ergodicity_constant_invariant_function" 2
+
+    # E3. Cesàro convergence characterization:
+    #   T is ergodic iff for all f, g ∈ L²(μ):
+    #   lim_{n→∞} (1/n) Σ_{k=0}^{n-1} ⟨U_T^k f, g⟩ = ⟨f, 1⟩⟨1, g⟩.
+    # Params: transformation T, function f, function g
+    template "ergodicity_cesaro_convergence" 3
+
+    # E4. Ergodicity of product system:
+    #   If T₁ is ergodic on (X₁, B₁, μ₁) and T₂ is ergodic on
+    #   (X₂, B₂, μ₂), then T₁ × T₂ is not necessarily ergodic.
+    #   Weak mixing is required for product ergodicity.
+    # Params: transformation T1, transformation T2
+    template "ergodicity_product_criterion" 2
+
+    # E5. Ergodicity via Fourier coefficients (for abelian groups):
+    #   On a compact abelian group G with Haar measure, T(g) = a·g
+    #   is ergodic iff the orbit under the adjoint action is infinite
+    #   for all non-trivial characters.
+    # Params: group G, automorphism T, character χ
+    template "ergodicity_fourier_criterion" 3
+
+    # E6. Ergodicity of irrational rotation:
+    #   T(x) = x + α (mod 1) on [0,1] is ergodic iff α is irrational.
+    # Params: rotation angle α
+    template "ergodicity_irrational_rotation" 1
+
+    # --- Group III: Mixing Hierarchy (5) ---
+
+    # MIX1. Strong mixing:
+    #   lim_{n→∞} μ(T⁻ⁿ(A) ∩ B) = μ(A) · μ(B) for all A, B ∈ B.
+    #   Exponential decay of correlations.
+    # Params: transformation T, set A, set B
+    template "strong_mixing" 3
+
+    # MIX2. Weak mixing:
+    #   lim_{n→∞} (1/n) Σ_{k=0}^{n-1} |μ(T⁻ᵏ(A) ∩ B) - μ(A)μ(B)| = 0.
+    #   Cesàro-type mixing; implies product system ergodicity.
+    # Params: transformation T, set A, set B
+    template "weak_mixing" 3
+
+    # MIX3. K-mixing (Kolmogorov property):
+    #   T has completely positive entropy: every nontrivial factor
+    #   has positive entropy. Existence of a K-partition.
+    # Params: transformation T
+    template "k_mixing_kolmogorov" 1
+
+    # MIX4. Bernoulli property:
+    #   T is isomorphic to a Bernoulli shift (independent identically
+    #   distributed process). Strongest mixing property.
+    # Params: transformation T
+    template "bernoulli_property" 1
+
+    # MIX5. Mixing implies ergodic:
+    #   If T is weakly mixing, then T is ergodic. Strong mixing
+    #   implies weak mixing. Mixing hierarchy:
+    #   Bernoulli ⊂ K-mixing ⊂ strong mixing ⊂ weak mixing ⊂ ergodic.
+    # Params: transformation T
+    template "mixing_implies_ergodic" 1
+
+    # --- Group IV: Ergodic Theorems (7) ---
+
+    # BIRK1. Birkhoff pointwise ergodic theorem:
+    #   For f ∈ L¹(μ), the time average
+    #   f*(x) = lim_{n→∞} (1/n) Σ_{k=0}^{n-1} f(T^k x)
+    #   exists for μ-almost every x ∈ X.
+    #   Moreover, f* is T-invariant and ∫ f* dμ = ∫ f dμ.
+    # Params: transformation T, integrable function f
+    template "birkhoff_pointwise_ergodic_theorem" 2
+
+    # BIRK2. Birkhoff theorem — T is ergodic:
+    #   If T is ergodic, then f*(x) = ∫ f dμ (constant a.e.).
+    #   Time average = space average for almost every initial point.
+    # Params: transformation T, integrable function f
+    template "birkhoff_ergodic_constancy" 2
+
+    # VN1. von Neumann mean ergodic theorem:
+    #   For f ∈ L²(μ), the ergodic averages
+    #   A_n(f) = (1/n) Σ_{k=0}^{n-1} U_T^k f
+    #   converge in L²-norm to the projection of f onto the
+    #   subspace of T-invariant functions.
+    # Params: unitary operator U, vector f
+    template "von_neumann_mean_ergodic" 2
+
+    # POINC. Poincaré recurrence theorem:
+    #   For any measurable set A with μ(A) > 0, almost every x ∈ A
+    #   returns to A infinitely often:
+    #   μ({x ∈ A : Tⁿ(x) ∉ A for all n ≥ 1}) = 0.
+    #   Every measure-preserving system is recurrent.
+    # Params: transformation T, set A
+    template "poincare_recurrence" 2
+
+    # KING. Kingman's subadditive ergodic theorem:
+    #   If {f_n} is a subadditive sequence (f_{n+m} ≤ f_n + f_m∘Tⁿ),
+    #   and integrable, then f_n/n converges a.e. to a T-invariant
+    #   limit. Generalizes Birkhoff; fundamental for random matrix
+    #   products and Lyapunov exponents.
+    # Params: subadditive sequence f_n, transformation T
+    template "kingman_subadditive_ergodic" 2
+
+    # KR_B. Krylov-Bogolyubov theorem:
+    #   Every continuous map on a compact metric space admits an
+    #   invariant Borel probability measure. (Requires Axiom of Choice
+    #   via Banach-Alaoglu or Riesz representation.)
+    # Params: topological space X, continuous map T
+    template "krylov_bogolyubov_invariant_measure" 2
+
+    # FURSZ. Furstenberg multiple recurrence theorem:
+    #   Let T be a measure-preserving transformation on (X, B, μ)
+    #   with μ(A) > 0. For any k ≥ 1, there exists n ≥ 1 such that
+    #   μ(A ∩ T⁻ⁿ(A) ∩ T⁻²ⁿ(A) ∩ ... ∩ T⁻ᵏⁿ(A)) > 0.
+    #   Ergodic-theoretic foundation of Szemerédi's theorem.
+    # Params: transformation T, set A, integer k
+    template "furstenberg_multiple_recurrence" 3
+
+    # --- Group V: Entropy Theory (Kolmogorov-Sinai) (6) ---
+
+    # ENT1. Entropy of a finite partition:
+    #   For a finite measurable partition α = {A₁, ..., A_k}:
+    #   H(α) = -Σ_{i=1}^k μ(A_i) log μ(A_i).
+    #   (Using natural log; base 2 or e conventions exist.)
+    # Params: finite partition α
+    template "entropy_of_partition" 1
+
+    # ENT2. Entropy of T relative to a partition:
+    #   h(T, α) = lim_{n→∞} (1/n) H(∨_{k=0}^{n-1} T⁻ᵏα).
+    #   Where ∨ denotes the join (coarsest common refinement)
+    #   of partitions.
+    # Params: transformation T, partition α
+    template "entropy_relative_to_partition" 2
+
+    # ENT3. Kolmogorov-Sinai entropy of T:
+    #   h(T) = sup_α h(T, α), supremum over all finite partitions.
+    #   A measure-theoretic invariant of the dynamical system.
+    #   Isomorphic systems have equal entropy.
+    # Params: transformation T
+    template "kolmogorov_sinai_entropy" 1
+
+    # ENT4. Generator theorem (Kolmogorov-Sinai):
+    #   If α is a generating partition (∨_{k=-∞}^∞ Tᵏα = B mod 0
+    #   for automorphism T), then h(T) = h(T, α).
+    #   No need to take supremum over all partitions.
+    # Params: transformation T, generating partition α
+    template "generator_theorem" 2
+
+    # ENT5. Entropy properties:
+    #   (a) h(Tⁿ) = |n|·h(T) for n ∈ ℤ (power formula).
+    #   (b) h(S × T) = h(S) + h(T) (additivity for products).
+    #   (c) h(T) ≥ 0 (non-negativity).
+    #   (d) h(S) ≤ h(T) if S is a factor of T (monotonicity).
+    # Params: transformation T, transformation S
+    template "entropy_properties" 2
+
+    # ENT6. Shannon-McMillan-Breiman theorem:
+    #   For ergodic T and finite partition α, the information function
+    #   converges almost everywhere:
+    #   -(1/n) log μ(α_n(x)) → h(T, α) as n → ∞,
+    #   where α_n(x) is the n-th refinement atom containing x.
+    # Params: transformation T, partition α
+    template "shannon_mcmillan_breiman" 2
+
+    # --- Group VI: Spectral Theory of Dynamical Systems (4) ---
+
+    # SPEC1. Koopman operator:
+    #   U_T: L²(μ) → L²(μ), (U_T f)(x) = f(T(x)).
+    #   U_T is a unitary (or isometric) operator on the Hilbert space
+    #   L²(μ). The spectral properties of U_T encode dynamical
+    #   invariants.
+    # Params: transformation T
+    template "koopman_operator" 1
+
+    # SPEC2. Spectral isomorphism:
+    #   Two systems are spectrally isomorphic if their Koopman
+    #   operators are unitarily equivalent. Spectral isomorphism
+    #   is weaker than measure-theoretic isomorphism.
+    #   Kolmogorov's problem: does spectral isomorphism imply
+    #   isomorphism? (Open for general systems.)
+    # Params: transformation T1, transformation T2
+    template "spectral_isomorphism" 2
+
+    # SPEC3. Discrete spectrum:
+    #   T has discrete spectrum if L²(μ) is the closed linear span
+    #   of eigenfunctions of U_T. Such systems are isomorphic to
+    #   translations on compact abelian groups (Halmos-von Neumann).
+    # Params: transformation T
+    template "discrete_spectrum" 1
+
+    # SPEC4. Continuous spectrum:
+    #   T has continuous spectrum if the only eigenfunctions are
+    #   constants. Weak mixing is equivalent to continuous spectrum.
+    #   Lebesgue spectrum: maximal spectral multiplicity.
+    # Params: transformation T
+    template "continuous_spectrum" 1
+
+    # --- Group VII: Classification and Isomorphism (5) ---
+
+    # CLASS1. Measure-theoretic isomorphism:
+    #   Two systems (X₁, B₁, μ₁, T₁) and (X₂, B₂, μ₂, T₂) are
+    #   isomorphic if ∃ measure-preserving φ: X₁ → X₂ (bijection
+    #   mod 0) with φ∘T₁ = T₂∘φ (mod 0).
+    # Params: transformation T1, transformation T2
+    template "measure_theoretic_isomorphism" 2
+
+    # CLASS2. Ornstein isomorphism theorem:
+    #   Two Bernoulli shifts are measure-theoretically isomorphic
+    #   iff they have the same Kolmogorov-Sinai entropy.
+    #   Entropy is a complete invariant for Bernoulli shifts.
+    # Params: Bernoulli shift B1, Bernoulli shift B2
+    template "ornstein_isomorphism_theorem" 2
+
+    # CLASS3. Factor of a dynamical system:
+    #   S is a factor of T if there exists a measure-preserving
+    #   surjection π: X_T → X_S with π∘T = S∘π (mod 0).
+    #   Every factor has entropy ≤ entropy of the original system.
+    # Params: transformation T, factor S, factor map π
+    template "factor_system" 3
+
+    # CLASS4. Orbit equivalence:
+    #   Two systems are orbit equivalent if there exists a
+    #   measure-preserving bijection that sends orbits to orbits
+    #   (not necessarily preserving the time parametrization).
+    # Params: transformation T1, transformation T2
+    template "orbit_equivalence" 2
+
+    # CLASS5. Kakutani equivalence:
+    #   Two systems are Kakutani equivalent if they are isomorphic
+    #   up to time change (induction). K-equivalence preserves
+    #   zero-entropy and completely positive entropy.
+    # Params: transformation T1, transformation T2
+    template "kakutani_equivalence" 2
+
+    # --- Group VIII: Examples and Special Systems (6) ---
+
+    # EX1. Irrational rotation:
+    #   T: [0,1) → [0,1), T(x) = x + α (mod 1), where α ∈ ℝ\ℚ.
+    #   Ergodicity holds; uniquely ergodic; discrete spectrum.
+    #   Not weakly mixing (no continuous spectrum).
+    # Params: rotation angle α
+    template "irrational_rotation_system" 1
+
+    # EX2. Bernoulli shift:
+    #   X = {1, ..., k}^ℤ, T is the left shift σ((x_n)) = (x_{n+1}),
+    #   μ = p^ℤ (product measure with probability vector p).
+    #   Entropy h(T) = -Σ p_i log p_i. Standard model for chaos.
+    # Params: alphabet size k, probability vector p
+    template "bernoulli_shift_system" 2
+
+    # EX3. Baker's transformation:
+    #   T(x, y) = (2x mod 1, y/2 + [2x]/2) on [0,1)².
+    #   Strong mixing; Bernoulli; isomorphic to (1/2, 1/2)-Bernoulli
+    #   shift. Entropy h(T) = log 2.
+    # Params: (no parameters — canonical example)
+    template "baker_transformation_system" 0
+
+    # EX4. Hyperbolic toral automorphism:
+    #   T: 𝕋² → 𝕋², T(x) = A·x (mod 1), where A ∈ SL(2, ℤ)
+    #   has eigenvalues λ, 1/λ with |λ| > 1.
+    #   Anosov diffeomorphism; Bernoulli; entropy h(T) = log|λ|.
+    #   Example: Arnold's cat map with A = [[2,1],[1,1]].
+    # Params: matrix A (2 parameters)
+    template "hyperbolic_toral_automorphism" 1
+
+    # EX5. Markov shift:
+    #   X ⊆ {1, ..., k}^ℤ of sequences allowed by a stochastic
+    #   transition matrix P. Shift with Markov measure.
+    #   Entropy h(T) = -Σ π_i P_{ij} log P_{ij}.
+    #   Generalization of Bernoulli shifts.
+    # Params: state space size k, transition matrix P
+    template "markov_shift_system" 2
+
+    # EX6. Geodesic flow on negative curvature:
+    #   On the unit tangent bundle of a compact Riemannian manifold
+    #   of negative sectional curvature, the geodesic flow is
+    #   Bernoulli (Anosov 1967). Entropy related to Lyapunov exponents.
+    # Params: manifold M
+    template "geodesic_flow_negative_curvature" 1
+
+    # --- Group IX: Core Constructors (5) ---
+
+    # CON1. Product system:
+    #   (X₁ × X₂, B₁ ⊗ B₂, μ₁ × μ₂, T₁ × T₂).
+    #   T₁ × T₂(x₁, x₂) = (T₁(x₁), T₂(x₂)).
+    #   Entropy is additive: h(T₁ × T₂) = h(T₁) + h(T₂).
+    # Params: transformation T1, transformation T2
+    template "product_system" 2
+
+    # CON2. Induced transformation (Kakutani skyscraper):
+    #   For T on (X, B, μ) and A ∈ B with μ(A) > 0:
+    #   T_A(x) = T^{r_A(x)}(x) where r_A(x) = min{k≥1: T^k(x) ∈ A}
+    #   is the first return time. T_A is measure-preserving on
+    #   (A, B|_A, μ|_A/μ(A)).
+    # Params: transformation T, set A
+    template "induced_transformation" 2
+
+    # CON3. Natural extension:
+    #   For a non-invertible measure-preserving transformation T,
+    #   the natural extension T̃ is the unique (up to isomorphism)
+    #   invertible extension: X̃ = {(x_n) ∈ X^ℤ : x_{n+1} = T(x_n)},
+    #   T̃ is the left shift. Same entropy: h(T̃) = h(T).
+    # Params: transformation T
+    template "natural_extension" 1
+
+    # CON4. Suspension flow (special flow):
+    #   Given T on (X, B, μ) and integrable ceiling function
+    #   f: X → ℝ⁺, construct a flow on X^f = {(x,t): 0 ≤ t < f(x)}
+    #   with identification (x, f(x)) ~ (T(x), 0).
+    # Params: transformation T, ceiling function f
+    template "suspension_flow" 2
+
+    # CON5. Rokhlin tower:
+    #   For an aperiodic automorphism T and any ε > 0, N ≥ 1,
+    #   there exists a measurable set B such that
+    #   B, T(B), ..., T^{N-1}(B) are pairwise disjoint and
+    #   μ(∪_{k=0}^{N-1} T^k(B)) > 1 - ε.
+    #   Provides a geometric picture of the dynamics.
+    # Params: transformation T, integer N, epsilon ε
+    template "rokhlin_tower" 3
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # Isomorphism problem for measure-preserving transformations:
+    # Deciding whether two arbitrary MPTs are isomorphic is
+    # undecidable. Foreman, Rudolph, and Weiss (2011) proved strong
+    # anti-classification: the isomorphism relation is not Borel
+    # reducible to any orbit equivalence relation of a Polish group
+    # action. This is a deep undecidability result.
+    unconstructible "mpt_isomorphism_undecidable" {
+        reduces_to "classification_of_ergodic_transformations"
+        dependency "measure_theoretic_isomorphism"
+        dependency "zfc_set_theory"
+        dependency "descriptive_set_theory"
+        external_ref "https://en.wikipedia.org/wiki/Measure-preserving_dynamical_system#Classification_and_anti-classification_theorems"
+        green_verified true
+    }
+
+    # Kolmogorov's spectral isomorphism problem:
+    # Does spectral isomorphism imply measure-theoretic isomorphism?
+    # Known to be false for general measure-preserving
+    # transformations (counterexamples exist), but the precise
+    # characterization is an active research area.
+    unconstructible "kolmogorov_spectral_isomorphism_problem" {
+        reduces_to "spectral_vs_measure_isomorphism"
+        dependency "spectral_isomorphism"
+        dependency "measure_theoretic_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Ergodic_theory"
+        green_verified false
+    }
+
+    # Computation of Kolmogorov-Sinai entropy:
+    # Computing h(T) for general dynamical systems is
+    # algorithmically undecidable. Even approximating it from
+    # below is impossible in general. Entropy can be
+    # non-computable for computable systems.
+    unconstructible "ks_entropy_computation_undecidable" {
+        reduces_to "algorithmic_undecidability_of_entropy"
+        dependency "kolmogorov_sinai_entropy"
+        dependency "computability_theory"
+        external_ref "https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Sinai_entropy"
+        green_verified true
+    }
+
+    # Classification of K-automorphisms:
+    # The isomorphism problem for K-automorphisms (K-mixing systems)
+    # is open. Not all K-automorphisms are Bernoulli; identifying
+    # exactly which ones are Bernoulli is a major open problem.
+    # Girsanov (1970) and Ornstein-Shields (1973) constructed
+    # non-Bernoulli K-automorphisms.
+    unconstructible "k_automorphism_classification" {
+        reduces_to "classification_of_k_systems"
+        dependency "k_mixing_kolmogorov"
+        dependency "bernoulli_property"
+        external_ref "https://en.wikipedia.org/wiki/Kolmogorov_automorphism"
+        green_verified false
+    }
+
+    # Conjugacy problem for subshifts of finite type:
+    # Deciding whether two subshifts of finite type (SFTs) are
+    # topologically conjugate is undecidable (Williams problem).
+    # This has direct implications for the ergodic theory of
+    # symbolic systems.
+    unconstructible "sft_conjugacy_undecidable" {
+        reduces_to "conjugacy_problem_for_sfts"
+        dependency "markov_shift_system"
+        dependency "measure_theoretic_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Subshift_of_finite_type"
+        green_verified true
+    }
+
+    # Existence of invariant measures without compactness:
+    # The Krylov-Bogolyubov theorem requires compactness.
+    # On non-compact spaces, a continuous map may have no invariant
+    # Borel probability measure. The existence of invariant measures
+    # in general requires the Axiom of Choice.
+    unconstructible "invariant_measure_existence_noncompact" {
+        reduces_to "axiom_of_choice"
+        dependency "krylov_bogolyubov_invariant_measure"
+        dependency "zfc_set_theory"
+        external_ref "https://en.wikipedia.org/wiki/Invariant_measure"
+        green_verified true
+    }
+
+    # Rokhlin's problem on standardness:
+    # Are all Lebesgue spaces standard? In ZFC, every Lebesgue
+    # space is isomorphic to a standard Borel space with a
+    # continuous measure (Rokhlin's theorem). However, without
+    # sufficient choice, non-standard Lebesgue spaces exist.
+    unconstructible "rokhlin_standardness_without_choice" {
+        reduces_to "standardness_of_lebesgue_spaces"
+        dependency "probability_space_base"
+        dependency "zfc_set_theory"
+        external_ref "https://en.wikipedia.org/wiki/Standard_probability_space"
+        green_verified true
+    }
+
+    # von Neumann's problem on amenable groups:
+    # Is every non-amenable group contains a free non-abelian
+    # subgroup? (Disproved by Ol'shanskii 1980 and others.)
+    # This has implications for ergodic theory of group actions.
+    unconstructible "von_neumann_amenability_conjecture" {
+        reduces_to "existence_of_nonamenable_groups"
+        dependency "group_theory"
+        dependency "probability_space_base"
+        external_ref "https://en.wikipedia.org/wiki/Amenable_group"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    # Bottom geometry: The phase space (X, B, μ, T) as a
+    # geometric structure. Measurable sets are regions; T describes
+    # the time evolution as geometric deformation.
+    bottom_geometry "measure_preserving_dynamical_system"
+
+    # Negation encoding: Classical negation via equality/inequality.
+    # ¬(A mod 0) means A has measure 0, contrasting to full measure.
+    negation_encoding "classical_equality"
+
+    # Contradiction behavior: Standard explosion principle.
+    # From contradiction one can derive anything; the logic is
+    # classical (law of excluded middle). The non-constructive
+    # nature of invariant measure existence is captured with the
+    # krylov_bogolyubov template (marked as oracle-dependent).
+    contradiction_behavior "explosion_principle"
+}

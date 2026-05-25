@@ -1,0 +1,369 @@
+# =============================================================================
+# Lv-00 Axiom Package: Order Theory (序理论)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Order theory — the branch of mathematics investigating the intuitive
+#   notion of order using binary relations. It provides a formal framework
+#   for describing statements such as "this is less than that" or "this
+#   precedes that." Order theory can be viewed as the study of (0,1)-categories,
+#   i.e., one dimension below category theory.
+#
+# References:
+#   - Davey, B.A. & Priestley, H.A. (2002). "Introduction to Lattices and
+#     Order" (2nd ed.). Cambridge University Press. ISBN 0-521-78451-4.
+#     https://www.cambridge.org/core/books/introduction-to-lattices-and-order/
+#   - Birkhoff, G. (1967). "Lattice Theory" (3rd ed.). AMS Colloquium
+#     Publications Vol. 25. ISBN 0-8218-1025-1.
+#   - Grätzer, G. (2011). "Lattice Theory: Foundation." Springer.
+#     ISBN 978-3-0348-0017-4.
+#   - Wikipedia: Order theory
+#     https://en.wikipedia.org/wiki/Order_theory
+#   - Wikipedia: Partially ordered set
+#     https://en.wikipedia.org/wiki/Partially_ordered_set
+#   - Wikipedia: Total order
+#     https://en.wikipedia.org/wiki/Total_order
+#   - Wikipedia: Well-order
+#     https://en.wikipedia.org/wiki/Well-order
+#   - nLab: Order theory
+#     https://ncatlab.org/nlab/show/order+theory
+#   - nLab: Poset
+#     https://ncatlab.org/nlab/show/poset
+#   - nLab: Well-order
+#     https://ncatlab.org/nlab/show/well-order
+#   - Schröder, B.S.W. (2003). "Ordered Sets: An Introduction." Birkhäuser.
+#     ISBN 0-8176-4128-9.
+#   - Roman, S. (2008). "Lattices and Ordered Sets." Springer.
+#     ISBN 978-0-387-78900-2.
+#   - Trotter, W.T. (1992). "Combinatorics and Partially Ordered Sets:
+#     Dimension Theory." Johns Hopkins University Press.
+#     ISBN 0-8018-4425-5.
+#
+# Primitive Notions:
+#   - Element: a member of the underlying set P
+#   - Order relation ≤: a binary relation on P (reflexive, antisymmetric, transitive)
+#   - Strict order <: a < b iff a ≤ b and a ≠ b
+#   - Covering relation ⋖: a ⋖ b iff a < b and no c exists with a < c < b
+#
+# Core Axioms (7 groups):
+#   I.   Partial Order (3): reflexivity, antisymmetry, transitivity
+#   II.  Special Elements (4): least element (bottom), greatest element (top),
+#        minimal element, maximal element
+#   III. Bounds (4): upper bound, lower bound, least upper bound (sup/join),
+#        greatest lower bound (inf/meet)
+#   IV.  Total Order (1): totality (comparability)
+#   V.   Well-Order (2): well-foundedness, totality
+#   VI.  Order Morphisms (4): monotone (order-preserving), antitone
+#        (order-reversing), order-embedding, order-isomorphism
+#   VII. Constructions (4): dual order, product order, suborder (induced),
+#        ordinal sum
+#
+# Key Theorems:
+#   - Zorn's Lemma: if every chain in a poset has an upper bound, then
+#     the poset has a maximal element (equivalent to AC in ZFC)
+#   - Dilworth's Theorem: in any finite poset, the size of a maximum
+#     antichain equals the minimum number of chains needed to cover the set
+#   - Mirsky's Theorem: in any finite poset, the size of a longest chain
+#     equals the minimum number of antichains needed to cover the set
+#   - Knaster-Tarski Fixed Point Theorem: every monotone function on a
+#     complete lattice has a least fixed point and a greatest fixed point
+#   - Szpilrajn Extension Theorem: every partial order can be extended to
+#     a total order
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Poset dimension computation (NP-hard)
+#   - Counting linear extensions of a poset (#P-complete)
+#   - Poset isomorphism (GI-hard, not known to be in P or NP-complete)
+#   - Width (maximum antichain size) for infinite posets
+#   - Order-automorphism group problem
+#   - Poset realizability as inclusion order of convex sets
+#
+# Dependencies:
+#   - zfc_set_theory (for Zorn's Lemma, ordinals, cardinality)
+#   - lattice_theory (extends partial orders with join/meet existence)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "order_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Metrics)
+    # =================================================================
+    # Each template represents a fundamental order-theoretic operation,
+    # relation, or property. Parameters are elements, subsets, or
+    # order-preserving functions.
+    # =================================================================
+
+    # --- Group I: Partial Order Axioms ---
+    # The three defining properties of a partial order (poset).
+
+    # PO1: Reflexivity — every element is related to itself.
+    # For all a in P: a ≤ a
+    # Params: element a
+    template "reflexivity" 1
+
+    # PO2: Antisymmetry — if a ≤ b and b ≤ a, then a = b.
+    # For all a, b in P: (a ≤ b ∧ b ≤ a) → a = b
+    # Params: element a, element b
+    template "antisymmetry" 2
+
+    # PO3: Transitivity — if a ≤ b and b ≤ c, then a ≤ c.
+    # For all a, b, c in P: (a ≤ b ∧ b ≤ c) → a ≤ c
+    # Params: element a, element b, element c
+    template "transitivity" 3
+
+    # --- Group II: Special Elements ---
+    # Elements with distinguished positions in the order.
+
+    # SE1: Least element (bottom/⊥) — an element below all others.
+    # There exists ⊥ in P such that for all a: ⊥ ≤ a
+    # Params: (zero-input existence axiom, returns bottom element)
+    template "least_element" 0
+
+    # SE2: Greatest element (top/⊤) — an element above all others.
+    # There exists ⊤ in P such that for all a: a ≤ ⊤
+    # Params: (zero-input existence axiom, returns top element)
+    template "greatest_element" 0
+
+    # SE3: Minimal element — no element is strictly below it.
+    # m is minimal iff for all a: a ≤ m → a = m
+    # Params: element m
+    template "minimal_element" 1
+
+    # SE4: Maximal element — no element is strictly above it.
+    # M is maximal iff for all a: M ≤ a → a = M
+    # Params: element M
+    template "maximal_element" 1
+
+    # --- Group III: Bounds ---
+    # Upper and lower bounds for subsets.
+
+    # B1: Upper bound — an element above all elements of a subset.
+    # b is an upper bound of S iff for all s in S: s ≤ b
+    # Params: subset S, element b
+    template "upper_bound" 2
+
+    # B2: Lower bound — an element below all elements of a subset.
+    # b is a lower bound of S iff for all s in S: b ≤ s
+    # Params: subset S, element b
+    template "lower_bound" 2
+
+    # B3: Least upper bound (supremum/join) — the smallest upper bound.
+    # sup(S) is the least upper bound of S: sup(S) ≤ b for every upper bound b
+    # Params: subset S, returns element sup(S)
+    template "least_upper_bound" 1
+
+    # B4: Greatest lower bound (infimum/meet) — the largest lower bound.
+    # inf(S) is the greatest lower bound of S: b ≤ inf(S) for every lower bound b
+    # Params: subset S, returns element inf(S)
+    template "greatest_lower_bound" 1
+
+    # --- Group IV: Total Order ---
+    # A partial order where every pair of elements is comparable.
+
+    # TO1: Totality (comparability) — for any two elements, one ≤ the other.
+    # For all a, b in P: a ≤ b or b ≤ a
+    # Params: element a, element b
+    template "totality" 2
+
+    # --- Group V: Well-Order ---
+    # A total order where every non-empty subset has a least element.
+
+    # WO1: Well-foundedness — every non-empty subset has a minimal element.
+    # For all non-empty S ⊆ P: S has a least element
+    # Params: subset S
+    template "well_foundedness" 1
+
+    # WO2: Well-order — a well-founded total order.
+    # Combines totality + well-foundedness
+    # Params: (zero-input: declares the order as a well-order)
+    template "well_order" 0
+
+    # --- Group VI: Order Morphisms ---
+    # Functions between ordered sets preserving or reflecting order.
+
+    # OM1: Monotone (order-preserving) function.
+    # f: P → Q is monotone iff a ≤ b → f(a) ≤ f(b)
+    # Params: element a, element b, function f
+    template "monotone_function" 3
+
+    # OM2: Antitone (order-reversing) function.
+    # f: P → Q is antitone iff a ≤ b → f(a) ≥ f(b)
+    # Params: element a, element b, function f
+    template "antitone_function" 3
+
+    # OM3: Order-embedding — injective monotone function that reflects order.
+    # f is an order-embedding iff f(a) ≤ f(b) ↔ a ≤ b
+    # Params: element a, element b, function f
+    template "order_embedding" 3
+
+    # OM4: Order-isomorphism — bijective monotone function with monotone inverse.
+    # f is an order-isomorphism iff f is bijective and f(a) ≤ f(b) ↔ a ≤ b
+    # Params: poset P, poset Q, function f
+    template "order_isomorphism" 3
+
+    # --- Group VII: Order Constructions ---
+    # Building new orders from existing ones.
+
+    # OC1: Dual (opposite) order — reverse the direction of ≤.
+    # Given (P, ≤), the dual is (P, ≥) where a ≤_dual b iff b ≤ a
+    # Params: poset P, returns dual poset
+    template "dual_order" 1
+
+    # OC2: Product order — componentwise ordering on cartesian product.
+    # (a, x) ≤ (b, y) iff a ≤ b and x ≤ y
+    # Params: poset P, poset Q, returns product poset
+    template "product_order" 2
+
+    # OC3: Suborder (induced order) — restrict order to a subset.
+    # Given (P, ≤) and S ⊆ P, the induced order is ≤ ∩ (S × S)
+    # Params: poset P, subset S, returns sub-poset
+    template "induced_suborder" 2
+
+    # OC4: Ordinal sum — place one poset above another.
+    # In P ⊕ Q: all elements of P are below all elements of Q,
+    # and within each, the original order is preserved.
+    # Params: poset P, poset Q, returns ordinal sum poset
+    template "ordinal_sum" 2
+
+    # --- Group VIII: Derived Concepts & Constructors ---
+
+    # DC1: Strict order — a < b iff a ≤ b and a ≠ b.
+    # Params: element a, element b
+    template "strict_order" 2
+
+    # DC2: Covering relation — a ⋖ b (a is covered by b) iff
+    # a < b and there is no c with a < c < b.
+    # Params: element a, element b
+    template "covering_relation" 2
+
+    # DC3: Chain — a totally ordered subset.
+    # S is a chain iff for all a, b in S: a ≤ b or b ≤ a
+    # Params: subset S
+    template "chain" 1
+
+    # DC4: Antichain — a subset of pairwise incomparable elements.
+    # S is an antichain iff for all distinct a, b in S: neither a ≤ b nor b ≤ a
+    # Params: subset S
+    template "antichain" 1
+
+    # DC5: Interval — the set of elements between two given elements.
+    # [a, b] = { x ∈ P : a ≤ x ≤ b }
+    # Params: element a, element b, returns interval
+    template "interval" 2
+
+    # DC6: Hasse diagram construction — the transitive reduction of a poset.
+    # Produces the minimal directed graph representing the cover relation.
+    # Params: poset P, returns Hasse diagram graph
+    template "hasse_diagram" 1
+
+    # DC7: Zorn's Lemma application — if every chain has an upper bound,
+    # then a maximal element exists (equivalent to AC in ZFC).
+    # Params: poset P, returns maximal element
+    template "zorn_lemma" 1
+
+    # DC8: Dilworth's decomposition — decompose a poset into width-many chains.
+    # Params: poset P, returns chain decomposition
+    template "dilworth_decomposition" 1
+
+    # DC9: Knaster-Tarski fixed point — least/greatest fixed point of
+    # a monotone function on a complete lattice.
+    # Params: complete lattice L, monotone function f, returns fixed point
+    template "knaster_tarski_fixed_point" 2
+
+    # DC10: Szpilrajn extension — extend a partial order to a total order.
+    # Params: poset P, returns total order extending P
+    template "szpilrajn_extension" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "poset_dimension" {
+        reduces_to "NP-hard optimization problem"
+        dependency "partial_order"
+        dependency "realizer"
+        external_ref "https://en.wikipedia.org/wiki/Order_dimension"
+        green_verified true
+    }
+
+    unconstructible "counting_linear_extensions" {
+        reduces_to "#P-complete"
+        dependency "partial_order"
+        dependency "topological_sort"
+        external_ref "https://en.wikipedia.org/wiki/Linear_extension"
+        green_verified true
+    }
+
+    unconstructible "poset_isomorphism" {
+        reduces_to "GI-hard (Graph Isomorphism hardness)"
+        dependency "partial_order"
+        dependency "graph_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Graph_isomorphism_problem"
+        green_verified true
+    }
+
+    unconstructible "infinite_poset_width" {
+        reduces_to "requires transfinite methods; not computable in general"
+        dependency "partial_order"
+        dependency "antichain"
+        dependency "zfc_set_theory"
+        external_ref "https://en.wikipedia.org/wiki/Antichain"
+        green_verified true
+    }
+
+    unconstructible "order_automorphism_group" {
+        reduces_to "computationally intractable for general posets"
+        dependency "partial_order"
+        dependency "group_theory"
+        external_ref "https://en.wikipedia.org/wiki/Automorphism_group"
+        green_verified false
+    }
+
+    unconstructible "poset_convex_realizability" {
+        reduces_to "undecidable: determining if a poset is isomorphic to the inclusion order of convex sets in R^d"
+        dependency "partial_order"
+        dependency "convex_geometry"
+        external_ref "https://en.wikipedia.org/wiki/Convex_geometry"
+        green_verified true
+    }
+
+    unconstructible "poset_dimension_at_least_4" {
+        reduces_to "NP-complete to decide if dimension >= 4"
+        dependency "partial_order"
+        dependency "poset_dimension"
+        external_ref "https://doi.org/10.1016/0012-365X(84)90132-1"
+        green_verified true
+    }
+
+    unconstructible "chain_partition_minimization" {
+        reduces_to "NP-hard: minimum chain decomposition"
+        dependency "partial_order"
+        dependency "dilworth_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Dilworth%27s_theorem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Negation Encoding
+    # =================================================================
+
+    # Bottom geometry: the Hasse diagram of a poset is a directed acyclic
+    # graph (transitive reduction), naturally representable in Lv-00's
+    # geometric metalanguage as a planar point-line diagram.
+    bottom_geometry "hasse_diagram_poset"
+
+    # Negation encoding: order theory uses classical negation.
+    # "Not (a ≤ b)" means a and b are incomparable or b < a.
+    # In the Hasse diagram, this corresponds to the absence of a
+    # directed path from a to b.
+    negation_encoding "classical_order_negation"
+
+    # Contradiction behavior: classical explosion principle applies.
+    # A cycle in the order (a ≤ b ≤ ... ≤ a with a ≠ b) violates
+    # antisymmetry and constitutes a contradiction.
+    contradiction_behavior "explosion_principle"
+}

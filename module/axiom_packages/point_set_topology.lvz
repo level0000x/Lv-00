@@ -1,0 +1,344 @@
+# =============================================================================
+# Lv-00 Axiom Package: Point-Set Topology (General Topology)
+# =============================================================================
+#
+# Mathematical Theory: Point-Set Topology / General Topology
+# Axiomatization: Open Set Axioms (Kuratowski axioms via open sets)
+#
+# References:
+#   - Wikipedia: Topology
+#     https://en.wikipedia.org/wiki/Topology
+#   - Wikipedia: Topological space
+#     https://en.wikipedia.org/wiki/Topological_space
+#   - Munkres, J.R. (2000). "Topology" (2nd ed.). Prentice Hall. ISBN 0-13-181629-2.
+#   - Wikipedia: Separation axiom
+#     https://en.wikipedia.org/wiki/Separation_axiom
+#   - Wikipedia: Compact space
+#     https://en.wikipedia.org/wiki/Compact_space
+#   - nLab: Topological space
+#     https://ncatlab.org/nlab/show/topological+space
+#
+# Primitive Notions:
+#   A topological space (X, tau), where X is a set and tau is a family of
+#   subsets of X called open sets: tau ⊆ P(X).
+#
+# Core Axioms (Open Set Axioms, 3 axioms):
+#   T1. The empty set ∅ and the full set X are open.
+#   T2. The union of any collection of open sets is open.
+#   T3. The intersection of any finite collection of open sets is open.
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Homeomorphism problem (undecidable for general topological spaces)
+#   - Homotopy equivalence problem (undecidable)
+#   - Topological isomorphism problem (undecidable)
+#   - Compactness recognition (undecidable)
+#   - Metrizability problem (Bing-Nagata-Smirnov theorem, decision version)
+#   - Covering space classification (undecidable)
+#   - Fundamental group computation (undecidable)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "point_set_topology" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Metrics)
+    # =================================================================
+    # Each template represents a fundamental concept, property, or
+    # construction in point-set topology. Parameters are topological
+    # objects (sets, points, spaces, maps).
+    # =================================================================
+
+    # --- Group I: Core Open Set Axioms (4) ---
+
+    # T1a: The empty set ∅ is open.
+    # Params: topological space (X, tau) -> ∅ ∈ tau
+    template "open_set_empty" 1
+
+    # T1b: The full set X is open.
+    # Params: topological space (X, tau) -> X ∈ tau
+    template "open_set_full" 1
+
+    # T2: The union of any collection of open sets is open.
+    # Params: topological space, family of open sets {U_i} -> ∪U_i ∈ tau
+    template "open_set_arbitrary_union" 2
+
+    # T3: The intersection of finitely many open sets is open.
+    # Params: topological space, finite family {U_1, ..., U_n} -> ∩U_i ∈ tau
+    template "open_set_finite_intersection" 2
+
+    # --- Group II: Basic Topological Concepts (8) ---
+
+    # A set C is closed iff its complement X\C is open.
+    # Params: topological space (X, tau), subset C -> C is closed
+    template "closed_set" 2
+
+    # The closure cl(A) of a set A is the smallest closed set containing A.
+    # Params: topological space (X, tau), subset A -> cl(A)
+    template "closure" 2
+
+    # The interior int(A) of a set A is the largest open set contained in A.
+    # Params: topological space (X, tau), subset A -> int(A)
+    template "interior" 2
+
+    # The boundary ∂A of a set A is cl(A) \ int(A).
+    # Params: topological space (X, tau), subset A -> ∂A
+    template "boundary" 2
+
+    # The exterior ext(A) of a set A is X \ cl(A).
+    # Params: topological space (X, tau), subset A -> ext(A)
+    template "exterior" 2
+
+    # A neighborhood of a point x is a set N containing an open set U with x ∈ U.
+    # Params: topological space, point x, set N -> N is a neighborhood of x
+    template "neighborhood" 3
+
+    # An open neighborhood of x is an open set containing x.
+    # Params: topological space, point x, open set U -> U is an open neighborhood of x
+    template "open_neighborhood" 3
+
+    # A point x is a limit point of A iff every neighborhood of x contains
+    # a point of A other than x itself.
+    # Params: topological space, point x, subset A -> x is a limit point of A
+    template "limit_point" 3
+
+    # --- Group III: Continuous Maps (6) ---
+
+    # A map f: X -> Y between topological spaces is continuous iff
+    # the preimage of every open set in Y is open in X.
+    # Params: space X, space Y, map f -> f is continuous
+    template "continuous_map" 3
+
+    # A homeomorphism is a bijective continuous map whose inverse is
+    # also continuous. Homeomorphic spaces are topologically equivalent.
+    # Params: space X, space Y, map f -> f is a homeomorphism
+    template "homeomorphism" 3
+
+    # The composition of two continuous maps is continuous.
+    # Params: space X, space Y, space Z, map f: X->Y, map g: Y->Z -> g∘f continuous
+    template "continuous_composition" 5
+
+    # The identity map id: X -> X is continuous.
+    # Params: topological space X -> id_X is continuous
+    template "continuous_identity" 1
+
+    # An embedding is an injective continuous map that is a homeomorphism
+    # onto its image.
+    # Params: space X, space Y, map f -> f is an embedding
+    template "embedding" 3
+
+    # A quotient map is a surjective map f: X -> Y such that V is open in Y
+    # iff f^{-1}(V) is open in X.
+    # Params: space X, space Y, map f -> f is a quotient map
+    template "quotient_map" 3
+
+    # --- Group IV: Connectedness (6) ---
+
+    # A space is connected if it cannot be partitioned into two nonempty
+    # disjoint open sets.
+    # Params: topological space X -> X is connected
+    template "connected_space" 1
+
+    # A space is disconnected if it can be partitioned into two nonempty
+    # disjoint open sets.
+    # Params: topological space X -> X is disconnected
+    template "disconnected_space" 1
+
+    # A space is path-connected if for any two points x, y there exists
+    # a continuous path from x to y.
+    # Params: topological space X, point x, point y -> path exists
+    template "path_connected" 3
+
+    # A connected component of a point x is the largest connected subset
+    # containing x.
+    # Params: topological space X, point x -> connected component C(x)
+    template "connected_component" 2
+
+    # A space is locally connected if every point has a neighborhood basis
+    # consisting of connected sets.
+    # Params: topological space X -> X is locally connected
+    template "locally_connected" 1
+
+    # Two sets A, B can be separated by open sets if there exist disjoint
+    # open sets U, V with A ⊆ U and B ⊆ V.
+    # Params: topological space X, subset A, subset B -> separation exists
+    template "separation_by_open_sets" 3
+
+    # --- Group V: Compactness (6) ---
+
+    # A space is compact if every open cover has a finite subcover.
+    # Params: topological space X -> X is compact
+    template "compact_space" 1
+
+    # A space is sequentially compact if every sequence has a convergent
+    # subsequence.
+    # Params: topological space X -> X is sequentially compact
+    template "sequentially_compact" 1
+
+    # A space is locally compact if every point has a compact neighborhood.
+    # Params: topological space X -> X is locally compact
+    template "locally_compact" 1
+
+    # In a compact Hausdorff space, every compact subset is closed.
+    # Params: topological space X, subset K -> K is closed
+    template "compact_subset_closed" 2
+
+    # Heine-Borel theorem: In R^n with the standard topology, a subset is
+    # compact iff it is closed and bounded.
+    # Params: subset of R^n -> compactness equivalence
+    template "heine_borel" 1
+
+    # Tychonoff's theorem: The product of any collection of compact spaces
+    # is compact (equivalent to AC).
+    # Params: family of compact spaces -> product is compact
+    template "tychonoff_product" 2
+
+    # --- Group VI: Separation Axioms (8) ---
+
+    # T0 (Kolmogorov): For any two distinct points, at least one has an
+    # open neighborhood not containing the other.
+    # Params: topological space X -> X is T0
+    template "T0_kolmogorov" 1
+
+    # T1 (Frechet): For any two distinct points, each has an open
+    # neighborhood not containing the other. Equivalently, singletons are closed.
+    # Params: topological space X -> X is T1
+    template "T1_fréchet" 1
+
+    # T2 (Hausdorff): For any two distinct points, there exist disjoint
+    # open neighborhoods separating them.
+    # Params: topological space X -> X is T2 (Hausdorff)
+    template "T2_hausdorff" 1
+
+    # T3 (Regular): A T1 space where for any point x and closed set C
+    # not containing x, there exist disjoint open sets separating x and C.
+    # Params: topological space X -> X is T3 (Regular)
+    template "T3_regular" 1
+
+    # T3½ (Tychonoff / Completely regular): A T1 space where for any
+    # point x and closed set C not containing x, there exists a continuous
+    # function f: X -> [0,1] with f(x)=0 and f(C)={1}.
+    # Params: topological space X -> X is T3½ (Tychonoff)
+    template "T3half_tychonoff" 1
+
+    # T4 (Normal): A T1 space where any two disjoint closed sets can be
+    # separated by disjoint open sets.
+    # Params: topological space X -> X is T4 (Normal)
+    template "T4_normal" 1
+
+    # T5 (Completely normal): A T1 space where every subspace is T4.
+    # Equivalently, any two separated sets can be separated by open sets.
+    # Params: topological space X -> X is T5 (Completely normal)
+    template "T5_completely_normal" 1
+
+    # T6 (Perfectly normal): A T1 space that is normal and every closed
+    # set is a G_delta set (countable intersection of open sets).
+    # Params: topological space X -> X is T6 (Perfectly normal)
+    template "T6_perfectly_normal" 1
+
+    # --- Group VII: Convergence and Metric Spaces (5) ---
+
+    # A sequence (x_n) converges to x if for every neighborhood U of x,
+    # there exists N such that x_n ∈ U for all n ≥ N.
+    # Params: topological space X, sequence (x_n), point x -> x_n -> x
+    template "convergent_sequence" 3
+
+    # A sequence (x_n) is Cauchy if for every ε > 0, there exists N such
+    # that d(x_m, x_n) < ε for all m, n ≥ N.
+    # Params: metric space (X, d), sequence (x_n) -> (x_n) is Cauchy
+    template "cauchy_sequence" 2
+
+    # A metric space is a set X with a distance function d: X × X -> R
+    # satisfying non-negativity, identity of indiscernibles, symmetry,
+    # and the triangle inequality.
+    # Params: set X, distance function d -> metric space (X, d)
+    template "metric_space" 2
+
+    # Every metric induces a topology: the open sets are unions of open
+    # balls B(x, ε) = {y : d(x,y) < ε}.
+    # Params: metric space (X, d) -> topological space (X, tau_d)
+    template "metric_topology" 1
+
+    # A metric space is complete if every Cauchy sequence converges.
+    # Params: metric space (X, d) -> (X, d) is complete
+    template "complete_metric_space" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+
+    unconstructible "homeomorphism_problem" {
+        reduces_to "undecidable"
+        dependency "continuous_map"
+        dependency "homeomorphism"
+        dependency "closure"
+        dependency "open_set_arbitrary_union"
+        external_ref "https://en.wikipedia.org/wiki/Homeomorphism"
+        green_verified true
+    }
+
+    unconstructible "homotopy_equivalence_problem" {
+        reduces_to "undecidable"
+        dependency "continuous_map"
+        dependency "homeomorphism"
+        dependency "path_connected"
+        external_ref "https://en.wikipedia.org/wiki/Homotopy"
+        green_verified true
+    }
+
+    unconstructible "topological_isomorphism_problem" {
+        reduces_to "undecidable"
+        dependency "continuous_map"
+        dependency "homeomorphism"
+        dependency "open_set_arbitrary_union"
+        dependency "open_set_finite_intersection"
+        external_ref "https://en.wikipedia.org/wiki/Topological_space"
+        green_verified true
+    }
+
+    unconstructible "compactness_recognition" {
+        reduces_to "undecidable"
+        dependency "compact_space"
+        dependency "open_set_arbitrary_union"
+        dependency "open_set_finite_intersection"
+        external_ref "https://en.wikipedia.org/wiki/Compact_space"
+        green_verified true
+    }
+
+    unconstructible "metrizability_problem" {
+        reduces_to "undecidable"
+        dependency "metric_space"
+        dependency "metric_topology"
+        dependency "T3half_tychonoff"
+        external_ref "https://en.wikipedia.org/wiki/Metrization_theorem"
+        green_verified true
+    }
+
+    unconstructible "covering_space_classification" {
+        reduces_to "undecidable"
+        dependency "continuous_map"
+        dependency "path_connected"
+        dependency "connected_space"
+        external_ref "https://en.wikipedia.org/wiki/Covering_space"
+        green_verified true
+    }
+
+    unconstructible "fundamental_group_computation" {
+        reduces_to "undecidable"
+        dependency "continuous_map"
+        dependency "path_connected"
+        dependency "connected_component"
+        external_ref "https://en.wikipedia.org/wiki/Fundamental_group"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "topological_space_open_sets"
+    negation_encoding "set_complement_in_topology"
+    contradiction_behavior "explosion_principle"
+}

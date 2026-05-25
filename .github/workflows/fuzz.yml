@@ -1,0 +1,111 @@
+name: Fuzzing
+
+on:
+  schedule:
+    # 每周日凌晨 3 点运行
+    - cron: '0 3 * * 0'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake libgmp-dev clang
+    
+    - name: Configure CMake with Clang
+      run: |
+        export CC=clang
+        export CXX=clang++
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DBUILD_FUZZERS=ON \
+          -DENABLE_SANITIZERS=OFF  # Fuzzers自带sanitizer
+    
+    - name: Build fuzzers
+      run: cmake --build build --target fuzz_constraint_graph fuzz_symbolic_coord
+    
+    - name: Run constraint graph fuzzer
+      run: |
+        mkdir -p fuzz_corpus_constraint
+        timeout 300 ./build/fuzz_constraint_graph \
+          fuzz_corpus_constraint \
+          -max_total_time=240 \
+          -print_final_stats=1 \
+          2>&1 | tee fuzz_constraint_stats.txt
+      continue-on-error: true
+    
+    - name: Run symbolic coord fuzzer
+      run: |
+        mkdir -p fuzz_corpus_coord
+        timeout 300 ./build/fuzz_symbolic_coord \
+          fuzz_corpus_coord \
+          -max_total_time=240 \
+          -print_final_stats=1 \
+          2>&1 | tee fuzz_coord_stats.txt
+      continue-on-error: true
+    
+    - name: Check for crashes
+      shell: bash
+      run: |
+        echo "=== Checking for crashes ==="
+        CRASHES=0
+        
+        # 检查根目录及 corpus 目录中的 crash 文件
+        for dir in . fuzz_corpus_constraint fuzz_corpus_coord; do
+          if ls "$dir"/crash-* 1> /dev/null 2>&1; then
+            echo "Found crashes in $dir/:"
+            ls -la "$dir"/crash-*
+            CRASHES=$((CRASHES + 1))
+          fi
+          if ls "$dir"/oom-* 1> /dev/null 2>&1; then
+            echo "Found OOM in $dir/:"
+            ls -la "$dir"/oom-*
+            CRASHES=$((CRASHES + 1))
+          fi
+          if ls "$dir"/timeout-* 1> /dev/null 2>&1; then
+            echo "Found timeouts in $dir/:"
+            ls -la "$dir"/timeout-*
+            CRASHES=$((CRASHES + 1))
+          fi
+        done
+        
+        if [ $CRASHES -gt 0 ]; then
+          echo "ERROR: Found $CRASHES issues during fuzzing"
+          exit 1
+        else
+          echo "No crashes found"
+        fi
+    
+    - name: Upload fuzzing corpus
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzz-corpus
+        path: |
+          fuzz_corpus_constraint/
+          fuzz_corpus_coord/
+      continue-on-error: true
+    
+    - name: Upload crashes (if any)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzz-crashes
+        path: |
+          crash-*
+          oom-*
+          timeout-*
+      continue-on-error: true
+    
+    - name: Upload stats
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzz-stats
+        path: |
+          fuzz_constraint_stats.txt
+          fuzz_coord_stats.txt
