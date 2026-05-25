@@ -304,6 +304,30 @@ typedef enum {
     ADD_NODE_INVALID_REGION /* 无效区域 */
 } AddNodeResult;
 
+typedef enum {
+    LV00_CONSTRAINT_STATUS_CONSISTENT = 0,        /* 约束集合存在普通模型且未发现冗余 */
+    LV00_CONSTRAINT_STATUS_INCONSISTENT = 1,      /* 约束集合存在直接矛盾或非法退化 */
+    LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED = 2, /* 约束不足，无法形成确定几何结构 */
+    LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED = 3,  /* 存在重复或冗余约束 */
+    LV00_CONSTRAINT_STATUS_INVALID = 4            /* 输入图或输出参数无效 */
+} Lv00ConstraintStatus;
+
+typedef struct Lv00ConstraintCompatibilityResult {
+    Lv00ConstraintStatus status;
+    int conflicting_constraint_id;
+    int redundant_constraint_count;
+    int free_degree_count;
+    const char *diagnostic;
+} Lv00ConstraintCompatibilityResult;
+
+/**
+ * @brief 约束相容性四态诊断
+ *
+ * 对约束图进行轻量级结构诊断，区分普通相容、直接矛盾、欠约束和过约束/冗余。
+ * 该接口不会修改图结构，适合作为约束写入后的即时校验入口。
+ */
+bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result);
+
 typedef enum { ADD_CONSTRAINT_OK, ADD_CONSTRAINT_DUPLICATE, ADD_CONSTRAINT_CONFLICT } AddConstraintResult;
 
 typedef enum { REMOVE_NODE_OK, REMOVE_NODE_NOT_FOUND, REMOVE_NODE_ERROR } RemoveNodeResult;
@@ -464,6 +488,19 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
  * @return 找到的约束数量
  */
 int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, int *out_indices, int max_results);
+
+/**
+ * @brief 检查约束图的相容性状态
+ *
+ * 该接口属于约束拓扑规约层，只返回相容性诊断，不执行证明搜索，
+ * 不生成证明输出。首批实现覆盖空图欠约束、普通线段相容、退化
+ * 线段矛盾、重复线段过约束等基础情形。
+ *
+ * @param[in]  graph      约束图
+ * @param[out] out_result 相容性诊断结果
+ * @return true 表示成功写入诊断；false 表示输入无效
+ */
+bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result);
 
 /**
  * @brief 检测指定约束是否冗余

@@ -1,24 +1,10 @@
-# lv00.pc.in — pkg-config 模板文件
-#
-# 由 CMake configure_file() 生成 lv00.pc
-# 安装到 ${CMAKE_INSTALL_LIBDIR}/pkgconfig/lv00.pc
-#
-# 使用方式:
-#   pkg-config --cflags lv00
-#   pkg-config --libs lv00
-
 prefix=@CMAKE_INSTALL_PREFIX@
 exec_prefix=${prefix}
-libdir=@LV00_PC_LIBDIR@
-includedir=@LV00_PC_INCLUDEDIR@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 
 Name: lv00
-Description: Lv-00: A geometric metalanguage for dual-mode mathematics
-URL: https://github.com/example/lv00
+Description: Lv-00 Geometric Meta-Language System
 Version: @PROJECT_VERSION@
-Requires: @LV00_PC_REQUIRES@
-Requires.private:
-Conflicts:
 Libs: -L${libdir} -llv00
-Libs.private:
 Cflags: -I${includedir}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof.h
  * @brief 命题与证明系统 - 合一检查、证明导航器、证明步骤
  *
@@ -52,6 +52,12 @@ extern "C" {
  */
 void proof_set_stream_context(StreamContext *ctx);
 
+/**
+ * @brief 获取证明系统的流式输出上下文
+ * @return 当前流式上下文（可能为 NULL）
+ */
+StreamContext *proof_get_stream_context(void);
+
 /* ============== 前向声明 ============== */
 typedef struct Proposition Proposition;
 typedef struct ProofStep ProofStep;
@@ -60,6 +66,10 @@ typedef struct ProofDependency ProofDependency;
 typedef struct PropositionEquivalence PropositionEquivalence;
 typedef struct BottomDefinition BottomDefinition;
 typedef struct LV00Engine LV00Engine; /* 引擎前向声明 */
+
+typedef int Lv00ProofScopeId;
+#define LV00_PROOF_SCOPE_GLOBAL 0
+#define LV00_PROOF_SCOPE_INVALID (-1)
 
 /* ============== 证明状态颜色 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
@@ -234,6 +244,19 @@ typedef enum {
     PROOF_STATE_CONTRADICTORY  /**< 证明矛盾：推导出了互斥结论 */
 } ProofState;
 
+/* ============== 假设作用域标识符 ============== */
+/**
+ * @brief 假设作用域标识符
+ *
+ * 用于限定反证法中的临时假设作用范围。作用域内的矛盾不得污染
+ * 全局证明上下文。作用域关闭后，其下所有临时假设和条件性结论
+ * 应被回收或标记为失效。
+ */
+typedef int Lv00ProofScopeId;
+
+#define LV00_PROOF_SCOPE_GLOBAL 0   /**< 全局作用域（默认公理和约束） */
+#define LV00_PROOF_SCOPE_INVALID -1 /**< 无效作用域标识符 */
+
 /* ============== 证明导航器 ============== */
 struct ProofNavigator {
     ProofStep **steps; /* 证明步骤数组 */
@@ -273,6 +296,14 @@ struct ProofNavigator {
 
     /* 证明策略注释（LeanGeo风格：先展示总体策略，再展开细节） */
     char *strategy_note; /* 总体策略描述 */
+
+    /* 局部假设作用域：防止局部矛盾污染全局证明上下文 */
+    Lv00ProofScopeId *scope_ids;
+    bool *scope_active;
+    Proposition **scope_assumptions;
+    int scope_count;
+    int scope_capacity;
+    Lv00ProofScopeId next_scope_id;
 };
 
 /* Proof 类型——与 ProofNavigator 相同 */
@@ -348,6 +379,14 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child);
  * @return true 表示两个命题互斥，false 表示不互斥或无法判断
  */
 bool proposition_contradicts(const Proposition *a, const Proposition *b);
+
+/* ============== 假设作用域与局部矛盾隔离 ============== */
+Lv00ProofScopeId proof_begin_assumption_scope(ProofNavigator *nav, const Proposition *assumption);
+bool proof_close_assumption_scope(ProofNavigator *nav, Lv00ProofScopeId scope_id);
+bool proof_scope_is_active(const ProofNavigator *nav, Lv00ProofScopeId scope_id);
+bool proof_apply_ex_falso_scoped(ProofNavigator *nav, ConstraintGraph *bottom_proof, Proposition *target_prop,
+                                 Lv00ProofScopeId scope_id);
+bool proof_has_global_proposition(const ProofNavigator *nav, const Proposition *prop);
 
 /* ============== 合一检查 ============== */
 
@@ -487,7 +526,53 @@ bool proof_dependency_add_sub(ProofDependency *parent, ProofDependency *child);
  */
 ProofColor proof_dependency_compute_color(ProofDependency *dep);
 
-/* ============== 爆炸原理 ============== */
+/* ============== 爆炸原理与反证作用域（v3.4-academic 整改） ============== */
+
+/**
+ * @brief 开启假设作用域
+ *
+ * 在证明导航器中开启一个新的假设作用域，用于反证法或条件推理。
+ * 该作用域内的所有临时假设和推导结论都与全局上下文隔离。
+ *
+ * @param[in] nav        证明导航器
+ * @param[in] assumption 临时假设命题（作用域内视为真）
+ * @return 新作用域ID，失败返回 LV00_PROOF_SCOPE_INVALID
+ */
+Lv00ProofScopeId proof_begin_assumption_scope(ProofNavigator *nav, const Proposition *assumption);
+
+/**
+ * @brief 关闭假设作用域
+ *
+ * 关闭指定作用域，回收其下所有临时假设和条件性结论。
+ * 若作用域内存在未解决的矛盾，应记录到 proof trace 中，
+ * 但不得将矛盾结论泄漏到全局上下文。
+ *
+ * @param[in] nav      证明导航器
+ * @param[in] scope_id 要关闭的作用域ID
+ * @return true 成功关闭，false 作用域不存在或已关闭
+ */
+bool proof_close_assumption_scope(ProofNavigator *nav, Lv00ProofScopeId scope_id);
+
+/**
+ * @brief 检查作用域是否仍处于活动状态
+ *
+ * @param[in] nav      证明导航器
+ * @param[in] scope_id 作用域ID
+ * @return true 作用域仍活动，false 已关闭或无效
+ */
+bool proof_scope_is_active(const ProofNavigator *nav, Lv00ProofScopeId scope_id);
+
+/**
+ * @brief 检查命题是否在全局上下文中被证明
+ *
+ * 用于验证局部矛盾闭包的安全性：即使局部反证推出了某命题，
+ * 也应确认该命题未被无界加入全局证明上下文。
+ *
+ * @param[in] nav  证明导航器
+ * @param[in] prop 要检查的命题
+ * @return true 命题在全局上下文中，false 不在或仅条件性成立
+ */
+bool proof_has_global_proposition(const ProofNavigator *nav, const Proposition *prop);
 
 /**
  * 创建爆炸原理函数块
@@ -498,8 +583,30 @@ ProofColor proof_dependency_compute_color(ProofDependency *dep);
 bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id);
 
 /**
- * 应用爆炸原理
- * @param nav 证明导航器
+ * 应用爆炸原理（带作用域限定）
+ *
+ * 在指定作用域内应用爆炸原理：从矛盾推出任意命题。
+ * 该结论仅在给定作用域内有效，不得自动扩散到全局上下文。
+ * 若 scope_id 为 LV00_PROOF_SCOPE_GLOBAL，则要求 bottom_proof
+ * 必须是在无额外假设下导出的全局矛盾。
+ *
+ * @param nav         证明导航器
+ * @param bottom_proof ⊥的证物（矛盾约束图）
+ * @param target_prop 目标命题
+ * @param scope_id    作用域ID（限定结论有效性范围）
+ * @return 是否成功
+ */
+bool proof_apply_ex_falso_scoped(ProofNavigator *nav, ConstraintGraph *bottom_proof,
+                                  Proposition *target_prop, Lv00ProofScopeId scope_id);
+
+/**
+ * 应用爆炸原理（兼容包装）
+ *
+ * 旧版无界爆炸原理的兼容接口。实现应默认拒绝无作用域的全局爆炸，
+ * 或仅在 bottom_proof 明确标记为全局矛盾时允许。
+ * 新代码应优先使用 proof_apply_ex_falso_scoped。
+ *
+ * @param nav         证明导航器
  * @param bottom_proof ⊥的证物
  * @param target_prop 目标命题
  * @return 是否成功

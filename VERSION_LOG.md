@@ -40,3 +40,35 @@
 - 安装或配置 GMP 后运行完整 CMake build/test。
 - 完善 PR 分支保护、CI 检查、安全扫描与覆盖率检测。
 - 对核心算法、解析器、拓扑模块补齐关键注释与边界测试。
+
+---
+
+## v3.4.0 -- 2026-05-26 仓库全面整改
+
+### 提交记录整改
+- 清理所有备份分支和远程备份引用
+- 重命名主分支 master → main
+- 建立三级分支体系：main（稳定）/ dev（开发）/ exp（实验）
+
+### 仓库文件清理
+- 归档 10+ 过时设计/规划文档至 doc/reports/_archive/legacy_docs/
+- 归档 7+ 旧任务报告至 doc/reports/_archive/legacy_task_reports/
+- 归档 15+ 散放报告文件至 doc/reports/_archive/
+- 删除重复编码规范（保留 CODING_STANDARD_v3.4.2.md）
+- 合并魔法系统文档（magic_system.md → MAGIC_MODULE.md 附录）
+- 清理 23 个测试保存文件（*_test_save.lvz）
+- 清理 10 个本地构建目录
+- 竞品设计笔记移至 doc/docs/reference/
+
+### 源码规整优化
+- 补齐核心模块 Doxygen 注释
+- 消除 coords_equal 重复实现
+- 统一代码风格
+
+### 源码安全加固
+- 完善错误处理和参数校验
+
+### 工程化标准化
+- CI 流水线适配 main 分支
+- 新增 PR 模板
+- 版本号统一为 3.4.0

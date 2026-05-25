@@ -988,6 +988,114 @@ AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, i
  * @param segment_count        边界线段数量
  * @return 添加结果状态
  */
+static bool graph_coord_equal_for_compatibility(const SymbolicCoord *a, const SymbolicCoord *b) {
+    if (!a || !b)
+        return false;
+    if (a->type != b->type)
+        return false;
+    if (a->type == RATIONAL)
+        return a->data.rational && b->data.rational && rational_compare(a->data.rational, b->data.rational) == 0;
+    return symbolic_coord_compare(a, b) == 0;
+}
+
+static bool graph_segment_is_degenerate(const GeomNode *segment) {
+    if (!segment || segment->type != GEOM_LINE_SEGMENT)
+        return false;
+    if (!segment->symbolic_coords || segment->coord_count < 4)
+        return true;
+    if (!segment->symbolic_coords[0] || !segment->symbolic_coords[1] ||
+        !segment->symbolic_coords[2] || !segment->symbolic_coords[3])
+        return true;
+    return graph_coord_equal_for_compatibility(segment->symbolic_coords[0], segment->symbolic_coords[2]) &&
+           graph_coord_equal_for_compatibility(segment->symbolic_coords[1], segment->symbolic_coords[3]);
+}
+
+static bool graph_segments_have_same_endpoints(const GeomNode *a, const GeomNode *b) {
+    if (!a || !b || a->type != GEOM_LINE_SEGMENT || b->type != GEOM_LINE_SEGMENT)
+        return false;
+    if (!a->symbolic_coords || !b->symbolic_coords || a->coord_count < 4 || b->coord_count < 4)
+        return false;
+    for (int i = 0; i < 4; i++) {
+        if (!a->symbolic_coords[i] || !b->symbolic_coords[i])
+            return false;
+    }
+    bool same_direction = graph_coord_equal_for_compatibility(a->symbolic_coords[0], b->symbolic_coords[0]) &&
+                          graph_coord_equal_for_compatibility(a->symbolic_coords[1], b->symbolic_coords[1]) &&
+                          graph_coord_equal_for_compatibility(a->symbolic_coords[2], b->symbolic_coords[2]) &&
+                          graph_coord_equal_for_compatibility(a->symbolic_coords[3], b->symbolic_coords[3]);
+    bool reverse_direction = graph_coord_equal_for_compatibility(a->symbolic_coords[0], b->symbolic_coords[2]) &&
+                             graph_coord_equal_for_compatibility(a->symbolic_coords[1], b->symbolic_coords[3]) &&
+                             graph_coord_equal_for_compatibility(a->symbolic_coords[2], b->symbolic_coords[0]) &&
+                             graph_coord_equal_for_compatibility(a->symbolic_coords[3], b->symbolic_coords[1]);
+    return same_direction || reverse_direction;
+}
+
+bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result) {
+    if (out_result) {
+        out_result->status = LV00_CONSTRAINT_STATUS_INVALID;
+        out_result->conflicting_constraint_id = -1;
+        out_result->redundant_constraint_count = 0;
+        out_result->free_degree_count = 0;
+        out_result->diagnostic = "输入无效";
+    }
+    if (!graph || !out_result)
+        return false;
+
+    if (graph->node_count == 0) {
+        out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
+        out_result->free_degree_count = 1;
+        out_result->diagnostic = "空约束图缺少几何事实";
+        return true;
+    }
+
+    int active_geometry_nodes = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node)
+            continue;
+        if (node->type == GEOM_LINE_SEGMENT) {
+            active_geometry_nodes++;
+            if (graph_segment_is_degenerate(node)) {
+                out_result->status = LV00_CONSTRAINT_STATUS_INCONSISTENT;
+                out_result->conflicting_constraint_id = node->id;
+                out_result->diagnostic = "检测到由重合端点构成的退化线段";
+                return true;
+            }
+        } else if (node->type == GEOM_POINT || node->type == GEOM_REGION) {
+            active_geometry_nodes++;
+        }
+    }
+
+    int redundant_count = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *left = graph->nodes[i];
+        if (!left || left->type != GEOM_LINE_SEGMENT)
+            continue;
+        for (int j = i + 1; j < graph->node_count; j++) {
+            GeomNode *right = graph->nodes[j];
+            if (graph_segments_have_same_endpoints(left, right))
+                redundant_count++;
+        }
+    }
+    out_result->redundant_constraint_count = redundant_count;
+    if (redundant_count > 0) {
+        out_result->status = LV00_CONSTRAINT_STATUS_OVER_CONSTRAINED;
+        out_result->diagnostic = "检测到重复线段约束";
+        return true;
+    }
+
+    if (active_geometry_nodes < 3) {
+        out_result->status = LV00_CONSTRAINT_STATUS_UNDER_CONSTRAINED;
+        out_result->free_degree_count = 3 - active_geometry_nodes;
+        out_result->diagnostic = "几何事实不足，约束系统欠约束";
+        return true;
+    }
+
+    out_result->status = LV00_CONSTRAINT_STATUS_CONSISTENT;
+    out_result->diagnostic = "未发现直接矛盾或冗余";
+    return true;
+}
+
 AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segment_ids, int segment_count) {
     for (int i = 0; i < segment_count; i++) {
         GeomNode *seg = graph_get_node(graph, boundary_segment_ids[i]);

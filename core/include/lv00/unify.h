@@ -159,6 +159,24 @@ int unify_match_constraints(const ConstraintGraph *construction, const Constrain
                             int *out_constraint_bindings);
 
 /**
+ * @brief 比较两个几何节点的符号坐标数组是否完全相等
+ *
+ * 逐个比较两个节点的符号坐标序列。不关心节点的几何类型，
+ * 仅检查 symbolic_coords 数组的内容一致性。
+ *
+ * 检查流程：
+ *   1. NULL 检查：任一节点为 NULL 则判定为不相等
+ *   2. 坐标数量一致性：coord_count 不同则不可能相等
+ *   3. 数组指针检查：若 coord_count > 0 但 symbolic_coords 为 NULL，判定为不相等
+ *   4. 逐坐标比较：对每个坐标槽位调用 symbolic_coord_compare
+ *
+ * @param[in] a 第一个节点
+ * @param[in] b 第二个节点
+ * @return 1 表示所有坐标均相等，0 表示存在差异或参数无效
+ */
+int unify_coords_equal(const GeomNode *a, const GeomNode *b);
+
+/**
  * @brief 单独执行符号坐标判等
  *
  * 比较两个符号坐标的结构是否相等。

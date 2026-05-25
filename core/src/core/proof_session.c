@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_session.c
  * @brief Proof session management implementation
  *
@@ -115,15 +115,15 @@ Lv00ProofSession *proof_session_create_with_id(const char *session_id,
     /* Set target proposition */
     session->target_proposition = safe_strdup(target_proposition);
     if (!session->target_proposition) {
-        free(session);
+        lv00_free((void **) &session);
         return NULL;
     }
 
     /* Create proof state from target */
     session->state = proof_state_create(target_proposition);
     if (!session->state) {
-        free(session->target_proposition);
-        free(session);
+        lv00_free((void **) &session->target_proposition);
+        lv00_free((void **) &session);
         return NULL;
     }
 
@@ -143,7 +143,7 @@ void proof_session_destroy(Lv00ProofSession *session) {
 
     /* Free target proposition */
     if (session->target_proposition) {
-        free(session->target_proposition);
+        lv00_free((void **) &session->target_proposition);
         session->target_proposition = NULL;
     }
 
@@ -155,7 +155,7 @@ void proof_session_destroy(Lv00ProofSession *session) {
 
     /* Note: engine is NOT owned by session, do not free it */
 
-    free(session);
+    lv00_free((void **) &session);
 }
 
 bool proof_session_submit_step(Lv00ProofSession *session,

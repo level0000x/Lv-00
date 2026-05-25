@@ -4,11 +4,11 @@ name: Deploy Web Demo
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, dev ]
     paths:
       - 'web/gui/**'
       - 'core/src/**'
-      - 'include/**'
+      - 'core/include/**'
   workflow_dispatch:
 
 jobs:
@@ -67,7 +67,7 @@ jobs:
     # - Vercel: 使用 amondnet/vercel-action
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./web/gui/dist

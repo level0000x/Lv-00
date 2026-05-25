@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file float_error.c
  * @brief FPTaylor 风格浮点误差验证实现 —— 区间算术 + 泰勒展开桩
  * @details 实现 IEEE 1788 区间算术的基本操作（加减乘除）以及
@@ -124,7 +124,7 @@ FloatInterval interval_make(double lo, double hi, bool is_exact) {
  * @param b 右操作数区间
  * @return 结果区间
  */
-FloatInterval interval_add(FloatInterval a, FloatInterval b) {
+FloatInterval float_interval_add(FloatInterval a, FloatInterval b) {
     FloatInterval result;
     result.lo = round_down(a.lo + b.lo);
     result.hi = round_up(a.hi + b.hi);
@@ -138,7 +138,7 @@ FloatInterval interval_add(FloatInterval a, FloatInterval b) {
  * @param b 减数区间
  * @return 结果区间
  */
-FloatInterval interval_sub(FloatInterval a, FloatInterval b) {
+FloatInterval float_interval_sub(FloatInterval a, FloatInterval b) {
     FloatInterval result;
     /* a - b: 下界 = a.lo - b.hi, 上界 = a.hi - b.lo */
     result.lo = round_down(a.lo - b.hi);
@@ -153,7 +153,7 @@ FloatInterval interval_sub(FloatInterval a, FloatInterval b) {
  * @param b 右操作数区间
  * @return 结果区间
  */
-FloatInterval interval_mul(FloatInterval a, FloatInterval b) {
+FloatInterval float_interval_mul(FloatInterval a, FloatInterval b) {
     /* 计算四个角点 */
     double p1 = a.lo * b.lo;
     double p2 = a.lo * b.hi;
@@ -176,7 +176,7 @@ FloatInterval interval_mul(FloatInterval a, FloatInterval b) {
  * @param b 除数区间
  * @return 结果区间；若除数跨越零点则返回 [-HUGE_VAL, HUGE_VAL]
  */
-FloatInterval interval_div(FloatInterval a, FloatInterval b) {
+FloatInterval float_interval_div(FloatInterval a, FloatInterval b) {
     FloatInterval result;
 
     /* 检查分母是否跨越零点 */
@@ -194,13 +194,13 @@ FloatInterval interval_div(FloatInterval a, FloatInterval b) {
         double inv_lo = 1.0 / b.hi;
         double inv_hi = 1.0 / b.lo;
         FloatInterval inv_b = interval_make(inv_lo, inv_hi, b.is_exact);
-        result = interval_mul(a, inv_b);
+        result = float_interval_mul(a, inv_b);
     } else {
         /* 分母全正：取倒数范围 [1/b.hi, 1/b.lo] */
         double inv_lo = 1.0 / b.hi;
         double inv_hi = 1.0 / b.lo;
         FloatInterval inv_b = interval_make(inv_lo, inv_hi, b.is_exact);
-        result = interval_mul(a, inv_b);
+        result = float_interval_mul(a, inv_b);
     }
 
     return result;
@@ -211,7 +211,7 @@ FloatInterval interval_div(FloatInterval a, FloatInterval b) {
  * @param a 输入区间
  * @return 结果区间
  */
-FloatInterval interval_sqrt(FloatInterval a) {
+FloatInterval float_interval_sqrt(FloatInterval a) {
     FloatInterval result;
     if (a.lo < 0.0) {
         /* 负数部分无实数定义，截断到 0 */
@@ -229,7 +229,7 @@ FloatInterval interval_sqrt(FloatInterval a) {
  * @param a 输入区间（弧度）
  * @return 结果区间，范围 [-1, 1]
  */
-FloatInterval interval_sin(FloatInterval a) {
+FloatInterval float_interval_sin(FloatInterval a) {
     /* sin 在 [-1, 1] 之间，需要处理非单调区间 */
     double sin_lo = sin(a.lo);
     double sin_hi = sin(a.hi);
@@ -272,7 +272,7 @@ FloatInterval interval_sin(FloatInterval a) {
  * @param a 输入区间（弧度）
  * @return 结果区间，范围 [-1, 1]
  */
-FloatInterval interval_cos(FloatInterval a) {
+FloatInterval float_interval_cos(FloatInterval a) {
     /* cos 性质类似 sin，偏移 pi/2 */
     double cos_lo = cos(a.lo);
     double cos_hi = cos(a.hi);
@@ -312,7 +312,7 @@ FloatInterval interval_cos(FloatInterval a) {
  * @param a 输入区间
  * @return 结果区间
  */
-FloatInterval interval_exp(FloatInterval a) {
+FloatInterval float_interval_exp(FloatInterval a) {
     /* exp 单调递增 */
     FloatInterval result;
     result.lo = round_down(exp(a.lo));
@@ -326,7 +326,7 @@ FloatInterval interval_exp(FloatInterval a) {
  * @param a 输入区间
  * @return 结果区间；若下界 <= 0 则返回 [-HUGE_VAL, ...]
  */
-FloatInterval interval_log(FloatInterval a) {
+FloatInterval float_interval_log(FloatInterval a) {
     FloatInterval result;
     if (a.lo <= 0.0) {
         /* log 在非正区间无定义 */

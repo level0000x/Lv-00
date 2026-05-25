@@ -112,13 +112,16 @@ LV00_DECLARE_STREAM_CTX(unify)
  */
 
 /**
- * @brief 内联辅助函数：比较两个节点的符号坐标是否完全相等
+ * @brief 比较两个几何节点的符号坐标是否完全相等（公共版本）
  *
- * 抽取 nodes_coords_equal 中各几何类型分支中重复出现的坐标逐项比较逻辑。
+ * 抽取 nodes_coords_equal 中各几何类型分支中重复出现的坐标逐项比较逻辑，
+ * 同时作为 normalization.c 中 coords_equal 的统一替代，消除代码重复。
+ *
  * 检查流程：
  * 1. NULL 检查：任一节点为 NULL 则判定为不相等
  * 2. 坐标数量一致性：coord_count 不同则不可能相等
- * 3. 逐坐标比较：对每个坐标槽位调用 symbolic_coord_compare，
+ * 3. 数组指针检查：若 coord_count > 0 但 symbolic_coords 为 NULL，判定为不相等
+ * 4. 逐坐标比较：对每个坐标槽位调用 symbolic_coord_compare，
  *    任一槽位的指针为 NULL 或比较结果非零则判定为不相等
  *
  * 此函数不关心节点的几何类型（POINT/LINE/REGION 等），仅检查
@@ -128,10 +131,13 @@ LV00_DECLARE_STREAM_CTX(unify)
  * @param b 第二个节点
  * @return 1 表示所有坐标均相等，0 表示存在差异或参数无效
  */
-static inline int coords_equal_by_type(GeomNode *a, GeomNode *b) {
+int unify_coords_equal(const GeomNode *a, const GeomNode *b) {
     if (!a || !b)
         return 0;
     if (a->coord_count != b->coord_count)
+        return 0;
+    /* coord_count > 0 时，symbolic_coords 数组指针不应为 NULL */
+    if (a->coord_count > 0 && (!a->symbolic_coords || !b->symbolic_coords))
         return 0;
     for (int c = 0; c < a->coord_count; c++) {
         if (!a->symbolic_coords[c] || !b->symbolic_coords[c])
@@ -153,8 +159,8 @@ static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
         case GEOM_POINT:
         case GEOM_PORT:
         case GEOM_LINE_SEGMENT:
-            /* POINT / PORT / LINE_SEGMENT: 委托给内联辅助函数统一比较坐标 */
-            return coords_equal_by_type(a, b);
+            /* POINT / PORT / LINE_SEGMENT: 委托给 unify_coords_equal 统一比较坐标 */
+            return unify_coords_equal(a, b);
 
         case GEOM_REGION:
             /* REGION: 比较边界线段数量和每条线段的坐标哈希 */
@@ -170,8 +176,8 @@ static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
                     return 0;
                 if (seg_a->type != seg_b->type)
                     return 0;
-                /* 比较线段的坐标：委托给内联辅助函数 */
-                if (!coords_equal_by_type(seg_a, seg_b))
+                /* 比较线段的坐标：委托给公共坐标比较函数 */
+                if (!unify_coords_equal(seg_a, seg_b))
                     return 0;
             }
             return 1;
@@ -186,8 +192,8 @@ static int nodes_coords_equal(GeomNode *a, GeomNode *b) {
                 GeomNode *nb = b->data.func_block.internal_nodes[n];
                 if (!na || !nb)
                     return 0;
-                /* 比较内部节点的坐标：委托给内联辅助函数 */
-                if (!coords_equal_by_type(na, nb))
+                /* 比较内部节点的坐标：委托给公共坐标比较函数 */
+                if (!unify_coords_equal(na, nb))
                     return 0;
             }
             return 1;
@@ -571,6 +577,27 @@ UnifyStatus unify_construction_with_proposition_coord(const ConstraintGraph *con
  * 不必要的约束匹配次数。
  * ------------------------------------------------------------------------- */
 
+/**
+ * @brief 带哈希预过滤的构造图与命题图合一（Unification）
+ *
+ * 在进行详细的约束匹配之前，先使用 compute_node_coord_hash() 对两个图中的
+ * 节点按坐标哈希分组，只有哈希相同的节点组之间才进行比较，从而大幅减少不必要的
+ * 约束匹配次数。函数首先对两个图分别执行 scope_aware 规范化，然后比较规范化后
+ * 的合并节点数量是否一致；若不一致则直接返回坐标不匹配状态。随后对端口节点进行
+ * 哈希预过滤的类型等价检查，防止多个命题端口匹配到同一个构造端口（多对一）。
+ *
+ * @param construction  构造图（被匹配的目标约束图），不可为 NULL
+ * @param proposition   命题图（待匹配的查询约束图），不可为 NULL
+ *
+ * @return UNIFY_STATUS_SUCCESS         合一成功，构造图与命题图完全匹配
+ * @return UNIFY_STATUS_FAILED          内部错误（内存分配失败或规范化失败）
+ * @return UNIFY_STATUS_COORD_MISMATCH  规范化后合并节点数量不一致，坐标结构不匹配
+ * @return UNIFY_STATUS_TYPE_MISMATCH   端口类型不兼容
+ *
+ * @note 函数内部会创建临时 TypeSystem 用于端口类型等价检查，并在返回前释放。
+ *       两个图的规范化结果（NormalizationResult）也在函数返回前销毁，不会泄漏。
+ *       used_construction_ports 数组确保命题端口与构造端口之间的一对一匹配。
+ */
 UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGraph *construction,
                                                               const ConstraintGraph *proposition) {
     NormalizationResult *nc = graph_normalize((ConstraintGraph *)construction, true);

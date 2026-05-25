@@ -43,6 +43,7 @@
 #include "lv00_internal.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "unify.h"
 
 /* ==================== 命名常量（消除魔术数字） ==================== */
 
@@ -149,47 +150,14 @@ static long long scope_key(GeomNode *node) {
 /**
  * @brief 判断两个几何节点的坐标数组是否相等
  *
- * 逐个比较两个节点的符号坐标序列。包含对空指针的防护检查。
- * 如果任一节点的坐标数组为 NULL，则：
- *  - 两者均为 NULL 且坐标数为 0 → 视为相等
- *  - 否则 (一个为 NULL 另一个非 NULL 或坐标数不匹配) → 视为不等
- *
- * 【重复说明】此函数与 unify.c 中的 coords_equal_by_type 功能高度相似，
- * 均为逐元素比较 symbolic_coords 数组。差异：
- *  - 本函数返回 bool，coords_equal_by_type 返回 int
- *  - 本函数额外处理 coord_count==0 的边界情况
- *  - 本函数为 static，仅供 normalization.c 内部使用
- * 建议未来统一为公共函数（如 geom_coords_equal），消除重复。
+ * 委托给 unify.c 中的公共函数 unify_coords_equal，消除重复代码。
  *
  * @param a 第一个几何节点
  * @param b 第二个几何节点
  * @return true 坐标相等，false 不相等
  */
 static bool coords_equal(GeomNode *a, GeomNode *b) {
-    /* 防护：检查节点有效性 */
-    if (!a || !b)
-        return false;
-
-    if (a->coord_count != b->coord_count)
-        return false;
-
-    /* 防护：若坐标数为 0 或符号坐标数组为 NULL，视为相等 */
-    if (a->coord_count == 0)
-        return true;
-
-    /* 防护：任一符号坐标数组为 NULL 时不可能相等（除非 coord_count 为 0，已在上方处理） */
-    if (!a->symbolic_coords || !b->symbolic_coords)
-        return false;
-
-    for (int i = 0; i < a->coord_count; i++) {
-        /* 防护：检查数组中每个坐标指针的有效性 */
-        if (!a->symbolic_coords[i] || !b->symbolic_coords[i])
-            return false;
-        if (symbolic_coord_compare(a->symbolic_coords[i], b->symbolic_coords[i]) != 0) {
-            return false;
-        }
-    }
-    return true;
+    return unify_coords_equal(a, b) != 0;
 }
 
 /* cmp_seg_hash 已移除，其功能与 hash_idx_compare_asc 完全相同，
@@ -1262,6 +1230,29 @@ static int normalize_phase(ConstraintGraph *graph, NormalizationResult *result, 
     return merges;
 }
 
+/**
+ * @brief 对约束图执行多阶段规范化（归一化）
+ *
+ * 将约束图中语义等价的节点合并为代表节点，消除冗余结构。规范化分为三个阶段：
+ *   - 阶段1（点合并）：通过 find_merge_candidates + apply_merges 合并等价的点节点；
+ *   - 阶段2（线段合并）：阶段1完成后，检查所有 LINE_SEGMENT 节点，若两条线段的
+ *     端点在点合并后变得相同，则合并它们；
+ *   - 阶段3（区域合并）：阶段2完成后，检查所有 REGION 节点，若两个区域的边界线段
+ *     序列相同，则合并它们。
+ * 每个阶段的合并操作都会记录到 NormalizationResult 的日志和合并数组中。
+ *
+ * @param graph         待规范化的约束图，函数会直接修改图中的节点和约束；不可为 NULL
+ * @param scope_aware   是否启用作用域感知模式；为 true 时在合并候选查找中考虑
+ *                      节点的作用域信息，避免跨作用域的误合并
+ *
+ * @return 成功时返回新分配的 NormalizationResult 结构体指针，包含合并记录、
+ *         原始/代表节点 ID 数组及规范化日志；调用者需通过 normalization_result_destroy 释放。
+ *         失败时返回 NULL（内存分配失败）。
+ *
+ * @note 函数通过 normalization_stream_ctx 发送流式事件（STREAM_EVENT_NORMALIZE_START、
+ *       STREAM_EVENT_NORMALIZE_MERGE 等），可用于实时监控规范化进度。
+ *       各阶段的合并日志从 result->log 中获取，log_start 做了防御性非负检查。
+ */
 NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
     NormalizationResult *result = lv00_malloc(sizeof(NormalizationResult));
     if (!result)

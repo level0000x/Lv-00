@@ -812,6 +812,27 @@ bool graph_to_constraint_matrix(const ConstraintGraph *graph, SparseMatrix **mat
 
 
 
+/**
+ * @brief 稀疏矩阵乘法（CSR 三重循环）
+ *
+ * 对两个 CSR 格式的稀疏矩阵 A 和 B 执行矩阵乘法 C = A * B。
+ * 采用经典的 "行-列-累加" 三重循环实现：外层遍历 A 的行，中层遍历 A 的
+ * 非零列索引（即 B 的行），内层遍历 B 对应行的非零元素，将乘积累加到工作数组中。
+ * 第一遍扫描统计 C 每行的非零元数量以构建 CSR 的 row_ptr 数组；
+ * 第二遍执行实际乘法并填充 values 和 col_idx。
+ *
+ * @param A  左乘矩阵（CSR 格式），行数为 m，列数必须等于 B 的行数
+ * @param B  右乘矩阵（CSR 格式），行数必须等于 A 的列数
+ * @param C  输出参数，函数成功时指向新分配的 m x n 结果矩阵（CSR 格式）；
+ *           调用者需通过 sparse_matrix_destroy 释放
+ *
+ * @return true  乘法成功完成，*C 已设置为结果矩阵
+ * @return false 参数无效（NULL 指针或维度不匹配）、矩阵格式非 CSR 或内存分配失败
+ *
+ * @note 两个输入矩阵和输出矩阵均须为 CSR（SPARSE_CSR）格式。
+ *       若 A 或 B 的 values 为 NULL，则视为结构矩阵（非零元值默认为 1.0）。
+ *       时间复杂度 O(nnz(A) * avg_nnz_per_row(B))，空间复杂度 O(m + nnz(C))。
+ */
 bool sparse_matrix_multiply(const SparseMatrix *A, const SparseMatrix *B, SparseMatrix **C) {
 
     if (!A || !B || !C) {

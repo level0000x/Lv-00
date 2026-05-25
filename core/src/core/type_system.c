@@ -101,18 +101,26 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                                                        bool use_rewrite, int depth);
 
 /**
- * @brief 类型推断的内部实现（带递归深度参数）
+ * @brief 类型推断的内部递归实现
  *
- * 当递归深度超过 TYPE_INFER_MAX_DEPTH 时返回 false，防止无限递归。
- * 在约束图中存在循环连接时（例如函数块 A 的输出连接到函数块 B 的输入，
- * 而 B 的输出又连接到 A 的输入），递归推断可能无限循环。
+ * 根据约束图中节点的几何类型（GEOM_POINT / GEOM_LINE_SEGMENT / GEOM_REGION /
+ * GEOM_PORT / GEOM_FUNCTION_BLOCK）递归推断其类型区域（TypeRegion）。
+ * 对于基本几何类型直接创建对应类型；对于端口类型通过 type_infer_port 从连接关系推断；
+ * 对于函数块类型则递归推断所有输入/输出端口类型，并组合为乘积类型。
  *
- * @param ts      类型系统指针
- * @param graph   约束图指针
- * @param node_id 节点 ID
- * @param out_type 输出参数，接收推断的类型
- * @param depth   当前递归深度
- * @return true 推断成功，false 推断失败或超过递归深度限制
+ * @param ts        类型系统上下文，用于创建和管理类型对象，不可为 NULL
+ * @param graph     约束图，提供节点和连接信息，不可为 NULL
+ * @param node_id   待推断节点的 ID（在 graph 中的索引）
+ * @param out_type  输出参数，成功时指向新创建的 TypeRegion 对象；
+ *                  调用者需通过类型系统的释放接口管理其生命周期，不可为 NULL
+ * @param depth     当前递归深度，初始调用应传 0；每次递归调用时递增
+ *
+ * @return true  类型推断成功，*out_type 已设置
+ * @return false 参数无效、节点不存在、递归深度超过 TYPE_INFER_MAX_DEPTH 或推断失败
+ *
+ * @note 递归深度限制（TYPE_INFER_MAX_DEPTH）用于防止在循环依赖的约束图中无限递归，
+ *       例如函数块 A 的输出连接到函数块 B 的输入，而 B 的输出又连接到 A 的输入。
+ *       多个输入/输出端口会组合为乘积类型（type_create_product）。
  */
 static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int node_id, TypeRegion **out_type,
                                      int depth);
@@ -1232,10 +1240,28 @@ TypeCheckResult type_check_port_compatibility(TypeSystem *ts, TypeRegion *source
 
 /* ============== 类型推断 ============== */
 
-/* 类型推断的内部实现，带递归深度参数。
-     * 当递归深度超过 TYPE_INFER_MAX_DEPTH 时返回 false，防止无限递归。
-     * 在约束图中存在循环连接时（例如函数块 A 的输出连接到函数块 B 的输入，
-     * 而 B 的输出又连接到 A 的输入），递归推断可能无限循环。 */
+/**
+ * @brief 类型推断的内部递归实现
+ *
+ * 根据约束图中节点的几何类型（GEOM_POINT / GEOM_LINE_SEGMENT / GEOM_REGION /
+ * GEOM_PORT / GEOM_FUNCTION_BLOCK）递归推断其类型区域（TypeRegion）。
+ * 对于基本几何类型直接创建对应类型；对于端口类型通过 type_infer_port 从连接关系推断；
+ * 对于函数块类型则递归推断所有输入/输出端口类型，并组合为乘积类型。
+ *
+ * @param ts        类型系统上下文，用于创建和管理类型对象，不可为 NULL
+ * @param graph     约束图，提供节点和连接信息，不可为 NULL
+ * @param node_id   待推断节点的 ID（在 graph 中的索引）
+ * @param out_type  输出参数，成功时指向新创建的 TypeRegion 对象；
+ *                  调用者需通过类型系统的释放接口管理其生命周期，不可为 NULL
+ * @param depth     当前递归深度，初始调用应传 0；每次递归调用时递增
+ *
+ * @return true  类型推断成功，*out_type 已设置
+ * @return false 参数无效、节点不存在、递归深度超过 TYPE_INFER_MAX_DEPTH 或推断失败
+ *
+ * @note 递归深度限制（TYPE_INFER_MAX_DEPTH）用于防止在循环依赖的约束图中无限递归，
+ *       例如函数块 A 的输出连接到函数块 B 的输入，而 B 的输出又连接到 A 的输入。
+ *       多个输入/输出端口会组合为乘积类型（type_create_product）。
+ */
 static bool type_infer_node_internal(TypeSystem *ts, ConstraintGraph *graph, int node_id, TypeRegion **out_type,
                                      int depth) {
     if (!ts || !graph || !out_type)

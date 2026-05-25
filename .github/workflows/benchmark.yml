@@ -2,12 +2,10 @@ name: Performance Benchmark
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, master ]
-  schedule:
-    # 每天凌晨 2 点运行
-    - cron: '0 2 * * *'
+    branches: [ main, dev ]
+  workflow_dispatch:
 
 jobs:
   benchmark:
@@ -55,7 +53,7 @@ jobs:
         path: log/benchmark_results/
     
     - name: Store as baseline
-      if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-baseline

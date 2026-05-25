@@ -58,7 +58,7 @@ cd build && ctest
 
 ### 提交信息规范
 
-使用 Conventional Commits 格式：
+使用 Conventional Commits 格式，并禁止无实际差异的空提交进入主分支：
 
 ```
 <type>(<scope>): <description>
@@ -73,6 +73,13 @@ feat(solver): 新增 Groebner 基增量求解
 fix(proof): 修复反证法数据回滚异常
 refactor(constraint_graph): 按功能拆分模块
 ```
+
+提交要求：
+
+- 每次提交必须对应明确的代码、测试、文档或配置变更。
+- 禁止每日定时、机器人或脚本生成无实际内容的静默提交。
+- 自动化任务如需保存产物，应优先使用 CI artifact，不应直接写回主分支。
+- 涉及接口、构建路径或目录结构调整时，必须同步更新 README、CMake 和 CI 配置。
 
 ## 开发流程
 

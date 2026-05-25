@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file float_error.h
  * @brief FPTaylor 风格浮点误差验证 —— 泰勒展开 + 区间算术误差界分析
  *
@@ -103,7 +103,7 @@ typedef struct {
  * @param[in] b 区间 b
  * @return 结果区间
  */
-FloatInterval interval_add(FloatInterval a, FloatInterval b);
+FloatInterval float_interval_add(FloatInterval a, FloatInterval b);
 
 /**
  * @brief 区间减法：a - b = [a.lo - b.hi, a.hi - b.lo]
@@ -112,7 +112,7 @@ FloatInterval interval_add(FloatInterval a, FloatInterval b);
  * @param[in] b 区间 b
  * @return 结果区间
  */
-FloatInterval interval_sub(FloatInterval a, FloatInterval b);
+FloatInterval float_interval_sub(FloatInterval a, FloatInterval b);
 
 /**
  * @brief 区间乘法：a * b = [min(S), max(S)]
@@ -124,7 +124,7 @@ FloatInterval interval_sub(FloatInterval a, FloatInterval b);
  * @param[in] b 区间 b
  * @return 结果区间
  */
-FloatInterval interval_mul(FloatInterval a, FloatInterval b);
+FloatInterval float_interval_mul(FloatInterval a, FloatInterval b);
 
 /**
  * @brief 区间除法：a / b
@@ -135,7 +135,7 @@ FloatInterval interval_mul(FloatInterval a, FloatInterval b);
  * @param[in] b 区间 b
  * @return 结果区间
  */
-FloatInterval interval_div(FloatInterval a, FloatInterval b);
+FloatInterval float_interval_div(FloatInterval a, FloatInterval b);
 
 /**
  * @brief 区间平方根：sqrt(a)
@@ -146,7 +146,7 @@ FloatInterval interval_div(FloatInterval a, FloatInterval b);
  * @param[in] a 区间 a
  * @return 结果区间
  */
-FloatInterval interval_sqrt(FloatInterval a);
+FloatInterval float_interval_sqrt(FloatInterval a);
 
 /**
  * @brief 区间正弦：sin(a)
@@ -157,7 +157,7 @@ FloatInterval interval_sqrt(FloatInterval a);
  * @param[in] a 区间 a
  * @return 结果区间
  */
-FloatInterval interval_sin(FloatInterval a);
+FloatInterval float_interval_sin(FloatInterval a);
 
 /**
  * @brief 区间余弦：cos(a)
@@ -167,7 +167,7 @@ FloatInterval interval_sin(FloatInterval a);
  * @param[in] a 区间 a
  * @return 结果区间
  */
-FloatInterval interval_cos(FloatInterval a);
+FloatInterval float_interval_cos(FloatInterval a);
 
 /**
  * @brief 区间指数：exp(a)
@@ -177,7 +177,7 @@ FloatInterval interval_cos(FloatInterval a);
  * @param[in] a 区间 a
  * @return 结果区间
  */
-FloatInterval interval_exp(FloatInterval a);
+FloatInterval float_interval_exp(FloatInterval a);
 
 /**
  * @brief 区间对数：log(a)
@@ -188,7 +188,7 @@ FloatInterval interval_exp(FloatInterval a);
  * @param[in] a 区间 a
  * @return 结果区间
  */
-FloatInterval interval_log(FloatInterval a);
+FloatInterval float_interval_log(FloatInterval a);
 
 /* ========================================================================
  * 误差界与信任颜色
