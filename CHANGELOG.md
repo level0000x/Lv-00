@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-05-26
+
+### 新增 (Added)
+- **五层架构源码迁移**：将所有源码从扁平目录迁移至分层目录结构（layer1_parser ~ layer5_output），共 355 个文件
+- **等价类管理器** (`equiv_class`)：并查集实现，支持坐标/约束/代数共轭/几何变换/语义模式五种等价来源
+- **元证明系统** (`meta_proof`)：WFC 范式剪枝合法性证明，L1/L2/L3 三层证明策略
+- **约束传播引擎** (`propagation`)：WFC 风格 AC-3 弧相容性，熵最小化节点选择
+- **代数表达式规范形式** (`expr_canon`)：项排序、规范形式表示、算术运算 API
+- **线性代数公理包** (`linear_algebra.lvz`)：新增公理包
+- **WFC 范式文档** (`doc/docs/11_wfc_paradigm.md`)：Wave Function Collapse 范式数学理论
+- **论文归档** (`doc/papers/`)：项目研究论文集中存放
+
+### 变更 (Changed)
+- **CMakeLists.txt**：适配五层架构构建系统，层级化源文件组织
+- **constraint_graph.h**：新增 v3.4.1 多线程安全原子操作宏
+- **preset_mathematical_logic.h**：添加兼容性别名，标记旧版前缀为 @deprecated
+- **proof.h**：增强证明引擎核心接口
+- **目录结构标准化**：合并 `docs/` 到 `doc/docs/`，消除文档目录歧义
+
+### 移除 (Removed)
+- **删除旧扁平目录源码**：移除 `core/src/core/`、`core/src/axiom/`、`core/src/func_block/`、`core/src/parser/`、`core/src/preset/`、`core/src/utils/`、`core/src/interop/`、`core/src/magic/` 共约 180 个旧文件
+- **清理废弃代码**：删除 `core/src/_deprecated/` 和 `module/concurrent_monitor/_deprecated/`
+- **清理散落测试产物**：删除 23 个 `*_test_save.lvz` 文件和 3 个 `test_results.*` 文件
+- **清理重复报告**：删除 `doc/reports/current/` 中 31 个过时/重复报告文件
+- **清理深度归档**：删除 `doc/reports/_archive/` 整个目录
+- **清理顶层文档目录**：合并 `docs/` 到 `doc/docs/` 后删除空 `docs/` 目录
+
+### 修复 (Fixed)
+- **.gitignore 增强**：新增 `test_results.*`、`*_test_save.lvz`、`module/axiom_packages/test_saves/` 忽略规则
+- **测试文件更新**：所有测试文件适配新的分层目录结构
+
+### 工程化 (Engineering)
+- **CI 配置验证**：确认所有 5 个 workflow 均使用 main/dev 分支
+- **PR 模板**：已存在规范的中文 PR 模板
+- **提交规范**：确认无自动提交脚本，CONTRIBUTING.md 已禁止空提交
+
+---
+
 ## [3.3.0] - 2026-05-25
 
 ### 新增 (Added)
