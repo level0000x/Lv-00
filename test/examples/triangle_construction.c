@@ -162,7 +162,7 @@ static FuncBlock *pack_triangle_constructor(ConstraintGraph *g, int a, int b, in
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal_nodes, 3, input_ports, 1, output_ports, 1, NULL, 0, &fb);
 
-    if (result != PACK_OK) {
+    if (result != PACK_RESULT_OK) {
         printf("  打包失败: %s\n", pack_result_to_string(result));
         return NULL;
     }
@@ -189,17 +189,20 @@ static void check_determinism(FuncBlock *fb, ConstraintGraph *g) {
 
     printf("  检查结果: ");
     switch (result) {
-        case DETERMINISM_CHECK_UNIQUE:
+        case DETERMINISM_CHECK_RESULT_UNIQUE:
             printf("唯一解（确定性）\n");
             break;
-        case DETERMINISM_CHECK_MULTIPLE:
+        case DETERMINISM_CHECK_RESULT_MULTIPLE:
             printf("多解（需要选择器）\n");
             break;
-        case DETERMINISM_CHECK_NO_SOLUTION:
+        case DETERMINISM_CHECK_RESULT_NO_SOLUTION:
             printf("无解\n");
             break;
-        case DETERMINISM_CHECK_TIMEOUT:
+        case DETERMINISM_CHECK_RESULT_TIMEOUT:
             printf("检查超时\n");
+            break;
+        case DETERMINISM_CHECK_RESULT_OUT_OF_RANGE:
+            printf("超出范围\n");
             break;
         default:
             printf("未知结果\n");

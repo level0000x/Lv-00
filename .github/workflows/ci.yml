@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main, dev ]
 
 jobs:
   build-linux:
@@ -17,7 +17,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: build
-        key: linux-cmake-${{ hashFiles('CMakeLists.txt', 'core/src/**', 'include/**') }}
+        key: linux-cmake-${{ hashFiles('CMakeLists.txt', 'core/src/**', 'core/include/**') }}
         restore-keys: linux-cmake-
 
     - name: Install dependencies
@@ -141,7 +141,7 @@ jobs:
       run: |
         cppcheck --enable=all --error-exitcode=1 \
           --suppress=missingIncludeSystem \
-          -I include src test/c 2>&1 | head -500
+          -I core/include core/src test/c 2>&1 | head -500
     
     - name: Configure CMake with Clang
       run: cmake -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_CLANG_TIDY=clang-tidy -DCMAKE_BUILD_TYPE=Debug

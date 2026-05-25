@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_rule_engine.c
  * @brief Proof rule search engine implementation
  *
@@ -136,9 +136,12 @@ static Lv00SearchResultStatus search_best_first(Lv00RuleEngine *engine,
             /* Record the applied rule */
             proof_state_record_rule(state, rule->name);
 
-            /* Recurse */
-            Lv00SearchResultStatus result = search_best_first(engine, state, depth + 1);
+            /* Recurse or finish immediately when the rule closes all goals. */
+            Lv00SearchResultStatus result = proof_state_is_complete(state)
+                ? SEARCH_RESULT_FOUND
+                : search_best_first(engine, state, depth + 1);
             if (result == SEARCH_RESULT_FOUND) {
+                state->current_depth = saved_depth;
                 return SEARCH_RESULT_FOUND;
             }
 
@@ -146,7 +149,7 @@ static Lv00SearchResultStatus search_best_first(Lv00RuleEngine *engine,
             /* Free any goals/hypotheses that were added during the failed branch */
             while (state->goal_stack_top > saved_goal_top) {
                 if (state->goal_stack[state->goal_stack_top] != NULL) {
-                    free(state->goal_stack[state->goal_stack_top]);
+                    lv00_free((void **) &state->goal_stack[state->goal_stack_top]);
                     state->goal_stack[state->goal_stack_top] = NULL;
                 }
                 state->goal_stack_top--;
@@ -154,14 +157,14 @@ static Lv00SearchResultStatus search_best_first(Lv00RuleEngine *engine,
             while (state->hypothesis_count > saved_hyp_count) {
                 state->hypothesis_count--;
                 if (state->hypotheses[state->hypothesis_count] != NULL) {
-                    free(state->hypotheses[state->hypothesis_count]);
+                    lv00_free((void **) &state->hypotheses[state->hypothesis_count]);
                     state->hypotheses[state->hypothesis_count] = NULL;
                 }
             }
             while (state->applied_rule_count > saved_rule_count) {
                 state->applied_rule_count--;
                 if (state->applied_rules[state->applied_rule_count] != NULL) {
-                    free(state->applied_rules[state->applied_rule_count]);
+                    lv00_free((void **) &state->applied_rules[state->applied_rule_count]);
                     state->applied_rules[state->applied_rule_count] = NULL;
                 }
             }
@@ -205,15 +208,18 @@ static Lv00SearchResultStatus search_depth_first(Lv00RuleEngine *engine,
             state->current_depth = depth + 1;
             proof_state_record_rule(state, rule->name);
 
-            Lv00SearchResultStatus result = search_depth_first(engine, state, depth + 1);
+            Lv00SearchResultStatus result = proof_state_is_complete(state)
+                ? SEARCH_RESULT_FOUND
+                : search_depth_first(engine, state, depth + 1);
             if (result == SEARCH_RESULT_FOUND) {
+                state->current_depth = saved_depth;
                 return SEARCH_RESULT_FOUND;
             }
 
             /* Backtrack */
             while (state->goal_stack_top > saved_goal_top) {
                 if (state->goal_stack[state->goal_stack_top] != NULL) {
-                    free(state->goal_stack[state->goal_stack_top]);
+                    lv00_free((void **) &state->goal_stack[state->goal_stack_top]);
                     state->goal_stack[state->goal_stack_top] = NULL;
                 }
                 state->goal_stack_top--;
@@ -221,14 +227,14 @@ static Lv00SearchResultStatus search_depth_first(Lv00RuleEngine *engine,
             while (state->hypothesis_count > saved_hyp_count) {
                 state->hypothesis_count--;
                 if (state->hypotheses[state->hypothesis_count] != NULL) {
-                    free(state->hypotheses[state->hypothesis_count]);
+                    lv00_free((void **) &state->hypotheses[state->hypothesis_count]);
                     state->hypotheses[state->hypothesis_count] = NULL;
                 }
             }
             while (state->applied_rule_count > saved_rule_count) {
                 state->applied_rule_count--;
                 if (state->applied_rules[state->applied_rule_count] != NULL) {
-                    free(state->applied_rules[state->applied_rule_count]);
+                    lv00_free((void **) &state->applied_rules[state->applied_rule_count]);
                     state->applied_rules[state->applied_rule_count] = NULL;
                 }
             }
@@ -314,7 +320,7 @@ Lv00RuleEngine *rule_engine_create_ex(Lv00SearchStrategy strategy,
     engine->rule_set = (Lv00ProofRule **)lv00_malloc(
         sizeof(Lv00ProofRule *) * LV00_RULE_SET_CAPACITY);
     if (!engine->rule_set) {
-        free(engine);
+        lv00_free((void **) &engine);
         return NULL;
     }
     memset(engine->rule_set, 0, sizeof(Lv00ProofRule *) * LV00_RULE_SET_CAPACITY);
@@ -335,15 +341,15 @@ void rule_engine_destroy(Lv00RuleEngine *engine) {
     if (engine->rule_set) {
         for (i = 0; i < engine->rule_count; i++) {
             if (engine->rule_set[i]) {
-                free(engine->rule_set[i]);
+                lv00_free((void **) &engine->rule_set[i]);
                 engine->rule_set[i] = NULL;
             }
         }
-        free(engine->rule_set);
+        lv00_free((void **) &engine->rule_set);
         engine->rule_set = NULL;
     }
 
-    free(engine);
+    lv00_free((void **) &engine);
 }
 
 bool rule_engine_add_rule(Lv00RuleEngine *engine, Lv00ProofRule *rule) {
@@ -361,7 +367,7 @@ bool rule_engine_remove_rule(Lv00RuleEngine *engine, const char *name) {
     for (i = 0; i < engine->rule_count; i++) {
         if (engine->rule_set[i] &&
             strncmp(engine->rule_set[i]->name, name, LV00_PROOF_RULE_NAME_MAX) == 0) {
-            free(engine->rule_set[i]);
+            lv00_free((void **) &engine->rule_set[i]);
             /* Shift remaining rules */
             int j;
             for (j = i; j < engine->rule_count - 1; j++) {
@@ -433,7 +439,7 @@ Lv00ProofState *proof_state_create(const char *initial_goal) {
 
     /* Push the initial goal */
     if (!proof_state_push_goal(state, initial_goal)) {
-        free(state);
+        lv00_free((void **) &state);
         return NULL;
     }
 
@@ -469,7 +475,7 @@ void proof_state_destroy(Lv00ProofState *state) {
     }
 
     state->current_goal = NULL;
-    free(state);
+    lv00_free((void **) &state);
 }
 
 bool proof_state_push_goal(Lv00ProofState *state, const char *goal) {
@@ -488,7 +494,7 @@ bool proof_state_pop_goal(Lv00ProofState *state) {
     if (state->goal_stack_top < 0) return false;
 
     if (state->goal_stack[state->goal_stack_top]) {
-        free(state->goal_stack[state->goal_stack_top]);
+        lv00_free((void **) &state->goal_stack[state->goal_stack_top]);
         state->goal_stack[state->goal_stack_top] = NULL;
     }
     state->goal_stack_top--;

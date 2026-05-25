@@ -263,9 +263,10 @@ void *lv00_calloc_tracked(size_t nmemb, size_t size, const char *file, int line)
         if (full > SIZE_MAX - ALLOC_TAIL_MAGIC_SIZE) goto overflow;
         full += ALLOC_TAIL_MAGIC_SIZE;
 
-        AllocHeader *hdr = (AllocHeader *)lv00_calloc(1, full);
+        AllocHeader *hdr = (AllocHeader *)malloc(full);
         if (!hdr)
             return NULL;
+        memset(hdr, 0, full);
 
         hdr->head_magic = ALLOC_HEAD_MAGIC;
         hdr->tail_offset = (uint32_t)total;
@@ -433,7 +434,7 @@ void lv00_free_many(void **first, ...) {
 
     void **ptr = first;
     while (ptr) {
-        lv00_free((void **) &ptr);
+        lv00_free(ptr);
         ptr = va_arg(args, void **);
     }
 
@@ -469,7 +470,7 @@ void lv00_free_external(void **ptr) {
  */
 void lv00_auto_free(void *p) {
     void **ptr = (void **) p;
-    lv00_free((void **) &ptr);
+    lv00_free(ptr);
 }
 
 void lv00_get_memory_stats(MemoryStats *stats) {

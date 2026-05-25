@@ -38,7 +38,7 @@ static void test_rule_engine_create(void) {
 
     /* Verify default configuration */
     TEST_ASSERT_EQ(engine->search_strategy, SEARCH_BEST_FIRST);
-    TEST_ASSERT(engine->max_depth > 0);
+    TEST_ASSERT(engine->max_depth > 0, "max_depth should be positive");
     TEST_ASSERT_EQ(engine->timeout_ms, 0);
 
     rule_engine_destroy(engine);
@@ -115,7 +115,7 @@ static void test_rule_engine_add_rule(void) {
     const Lv00ProofRule *found = rule_engine_find_rule(engine, "test_intro");
     TEST_ASSERT_NOT_NULL(found);
     TEST_ASSERT_EQ(found->type, RULE_INTRO);
-    TEST_ASSERT(found->weight > 0.7);
+    TEST_ASSERT(found->weight > 0.7, "found rule weight should be greater than 0.7");
 
     /* Test finding non-existent rule */
     found = rule_engine_find_rule(engine, "nonexistent");
@@ -183,13 +183,13 @@ static void test_rule_engine_search_simple(void) {
     /* Create a proof state with a single goal */
     Lv00ProofState *state = proof_state_create("trivial_goal");
     TEST_ASSERT_NOT_NULL(state);
-    TEST_ASSERT(!proof_state_is_complete(state));
+    TEST_ASSERT(!proof_state_is_complete(state), "state should not be complete initially");
     TEST_ASSERT_STR_EQ(proof_state_current_goal(state), "trivial_goal");
 
     /* Run search -- should find proof immediately */
     Lv00SearchResultStatus result = rule_engine_search(engine, state);
     TEST_ASSERT_EQ(result, SEARCH_RESULT_FOUND);
-    TEST_ASSERT(proof_state_is_complete(state));
+    TEST_ASSERT(proof_state_is_complete(state), "state should be complete");
 
     /* Verify rule was recorded */
     TEST_ASSERT_EQ(state->applied_rule_count, 1);
@@ -205,7 +205,7 @@ static void test_rule_engine_search_simple(void) {
 
     result = rule_engine_search(empty_engine, state2);
     TEST_ASSERT_EQ(result, SEARCH_RESULT_EXHAUSTED);
-    TEST_ASSERT(!proof_state_is_complete(state2));
+    TEST_ASSERT(!proof_state_is_complete(state2), "state2 should remain incomplete");
 
     proof_state_destroy(state2);
     rule_engine_destroy(empty_engine);
@@ -255,14 +255,14 @@ static void test_proof_session_create(void) {
     TEST_ASSERT_NOT_NULL(proof_session_get_id(session));
     TEST_ASSERT_STR_EQ(proof_session_get_target(session), "forall x, P(x) -> P(x)");
     TEST_ASSERT_EQ(proof_session_get_step_count(session), 0);
-    TEST_ASSERT(!proof_session_is_complete(session));
+    TEST_ASSERT(!proof_session_is_complete(session), "session should not be complete");
     TEST_ASSERT_EQ(proof_session_get_status(session), SESSION_STATUS_ACTIVE);
 
     proof_session_destroy(session);
 
     /* Create session with custom ID */
     session = proof_session_create_with_id("my_session_001",
-                                            "A /\ B -> B /\ A",
+                                            "A /\\ B -> B /\\ A",
                                             NULL);
     TEST_ASSERT_NOT_NULL(session);
     TEST_ASSERT_STR_EQ(proof_session_get_id(session), "my_session_001");
@@ -293,7 +293,7 @@ static void test_proof_session_submit_step(void) {
     bool ok = proof_session_submit_step(session, "exact P", &result);
     TEST_ASSERT(ok, "submit_step should succeed");
     TEST_ASSERT_EQ(result, STEP_RESULT_PROVED);
-    TEST_ASSERT(proof_session_is_complete(session));
+    TEST_ASSERT(proof_session_is_complete(session), "session should be complete");
     TEST_ASSERT_EQ(proof_session_get_status(session), SESSION_STATUS_COMPLETE);
     TEST_ASSERT_EQ(proof_session_get_step_count(session), 1);
 
@@ -316,11 +316,11 @@ static void test_proof_session_submit_step(void) {
 
     ok = proof_session_submit_step(session, "exact R", &result);
     TEST_ASSERT_EQ(result, STEP_RESULT_PROVED);
-    TEST_ASSERT(proof_session_is_complete(session));
+    TEST_ASSERT(proof_session_is_complete(session), "session should be complete");
 
     ok = proof_session_reset(session);
     TEST_ASSERT(ok, "reset should succeed");
-    TEST_ASSERT(!proof_session_is_complete(session));
+    TEST_ASSERT(!proof_session_is_complete(session), "session should not be complete");
     TEST_ASSERT_EQ(proof_session_get_step_count(session), 0);
     TEST_ASSERT_EQ(proof_session_get_status(session), SESSION_STATUS_ACTIVE);
 
@@ -368,7 +368,7 @@ static void test_proof_session_get_state_json(void) {
                 "JSON should show is_complete false");
 
     if (json) {
-        lv00_free(json);
+        lv00_free((void **)&json);
     }
 
     /* Test NULL session */
@@ -386,7 +386,7 @@ static void test_proof_state_management(void) {
 
     Lv00ProofState *state = proof_state_create("main_goal");
     TEST_ASSERT_NOT_NULL(state);
-    TEST_ASSERT(!proof_state_is_complete(state));
+    TEST_ASSERT(!proof_state_is_complete(state), "state should not be complete");
     TEST_ASSERT_STR_EQ(proof_state_current_goal(state), "main_goal");
 
     /* Push sub-goals */
@@ -423,7 +423,7 @@ static void test_proof_state_management(void) {
 
     ok = proof_state_pop_goal(state);
     TEST_ASSERT(ok, "pop_goal last should succeed");
-    TEST_ASSERT(proof_state_is_complete(state));
+    TEST_ASSERT(proof_state_is_complete(state), "state should be complete");
     TEST_ASSERT_NULL(proof_state_current_goal(state));
 
     /* Pop on empty stack should fail */

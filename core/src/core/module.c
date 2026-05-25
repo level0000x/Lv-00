@@ -3827,6 +3827,23 @@ static void store_baseline(const Module *mod, uint64_t hash) {
     }
 }
 
+/**
+ * @brief 计算模块相对于指定基线哈希的增量差异（Delta）
+ *
+ * 将模块当前状态与之前存储的基线快照进行逐字段比较，生成 JSON 格式的增量描述。
+ * 如果不存在匹配的基线，则将当前状态存储为新基线，并返回完整快照作为 delta。
+ * 比较覆盖模块的 name、version、author、description、节点、约束、函数块等所有字段。
+ *
+ * @param mod        指向待计算差异的模块对象，不可为 NULL
+ * @param base_hash  基线版本哈希值，用于查找对应的已存储基线快照
+ *
+ * @return 成功时返回新分配的 ModuleDelta 结构体指针（调用者需通过
+ *         module_delta_destroy 释放）；失败时返回 NULL。
+ *
+ * @note 返回的 delta->delta_data 为 JSON 字符串，格式包含 base_hash 和 changes 两部分。
+ *       当无匹配基线时，delta_data 为完整模块序列化 JSON，delta_size 为其字节长度。
+ *       内部会调用 find_delta_baseline / store_baseline 管理基线生命周期。
+ */
 ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
     if (!mod)
         return NULL;

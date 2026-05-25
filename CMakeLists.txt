@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(lv00 VERSION 3.3.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
+project(lv00 VERSION 3.4.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -16,7 +16,7 @@ endif()
 # ============================================================
 # 构建选项（集中声明）
 # ============================================================
-option(BUILD_test/c       "Build test/c"                            ON)
+option(BUILD_TESTS       "Build tests"                            ON)
 option(BUILD_EXAMPLES    "Build examples"                         ON)
 option(BUILD_SHARED_LIBS "Build shared library (DLL/SO)"         OFF)
 option(BUILD_FUZZERS     "Build fuzzing targets (requires Clang)" OFF)
@@ -560,7 +560,7 @@ set(LV00_LAYER4_SOURCES
     core/src/core/solver.c
     core/src/core/solver_core.c
     # 证明系统
-    core/src/core/proof.c
+    core/src/core/proof_scoped.c
     core/src/core/proof_optimize.c
     core/src/core/proof_multi_strategy.c
     core/src/core/proof_trace.c
@@ -573,6 +573,7 @@ set(LV00_LAYER4_SOURCES
     core/src/core/quantifier.c
     # 增强证明引擎
     core/src/core/proof_engine_enhanced.c
+    core/src/core/proof_scoped.c
     # 重写与合一
     core/src/core/rewrite.c
     core/src/core/unify.c
@@ -703,6 +704,7 @@ set(LV00_LAYER5_SOURCES
 macro(lv00_setup_layer target layer_id)
     target_include_directories(${target} PUBLIC
         ${GMP_INCLUDE_DIR}
+        ${CMAKE_SOURCE_DIR}/core/include
         ${CMAKE_SOURCE_DIR}/core/include/lv00
     )
     # 层级标识（用于编译时诊断和层级验证）
@@ -751,8 +753,9 @@ add_library(lv00_static STATIC
 )
 target_include_directories(lv00_static PUBLIC
     ${GMP_INCLUDE_DIR}
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv00>
-    $<INSTALL_INTERFACE:include/lv00>
+    $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
 set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
@@ -771,8 +774,9 @@ if(BUILD_SHARED_LIBS)
     )
     target_include_directories(lv00_shared PUBLIC
         ${GMP_INCLUDE_DIR}
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv00>
-        $<INSTALL_INTERFACE:include/lv00>
+        $<INSTALL_INTERFACE:include>
     )
     # [P0 修复] 共享库也需要链接 Threads::Threads（与静态库保持一致）
     target_link_libraries(lv00_shared ${GMP_LIBRARIES} Threads::Threads)
@@ -810,6 +814,9 @@ add_library(lv00 ALIAS lv00_static)
 # ============================================================
 function(add_lv00_test name source)
     add_executable(${name} ${source})
+    target_include_directories(${name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/test/c
+    )
     target_link_libraries(${name} lv00 ${GMP_LIBRARIES})
 endfunction()
 
@@ -822,7 +829,7 @@ endfunction()
 # ============================================================
 # 测试
 # ============================================================
-if(BUILD_test/c)
+if(BUILD_TESTS)
     enable_testing()
 
     # 正式模块测试（注册到 CTest）
@@ -834,6 +841,8 @@ if(BUILD_test/c)
         test/c/test_complex_graph.c complex_graph_test)
     add_lv00_test_and_register(test_normalization
         test/c/test_normalization.c normalization_test)
+    add_lv00_test_and_register(test_constraint_compatibility
+        test/c/test_constraint_compatibility.c constraint_compatibility_test)
     add_lv00_test_and_register(test_unify
         test/c/test_unify.c unify_test)
     add_lv00_test_and_register(test_func_block
@@ -1013,7 +1022,7 @@ if(BUILD_test/c)
         test/c/test_autodiff.c test_autodiff)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
     add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/core/prop_verifier.c)
-    target_include_directories(test_prop_verifier PRIVATE core/include/lv00)
+    target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv00)
     target_link_libraries(test_prop_verifier lv00 ${GMP_LIBRARIES})
     add_test(NAME prop_verifier_test COMMAND test_prop_verifier
              WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
@@ -1026,15 +1035,19 @@ endif()
 # 模糊测试
 # ============================================================
 if(BUILD_FUZZERS AND CMAKE_C_COMPILER_ID MATCHES "Clang")
-    add_executable(fuzz_constraint_graph test/test/fuzz/fuzz_constraint_graph.c)
-    target_link_libraries(fuzz_constraint_graph lv00 ${GMP_LIBRARIES})
-    target_compile_options(fuzz_constraint_graph PRIVATE -fsanitize=fuzzer,address)
-    target_link_options(fuzz_constraint_graph PRIVATE -fsanitize=fuzzer,address)
+    if(WIN32)
+        message(WARNING "BUILD_FUZZERS is enabled, but libFuzzer is not supported by this Windows Clang toolchain; skipping fuzz targets.")
+    else()
+        add_executable(fuzz_constraint_graph test/fuzz/fuzz_constraint_graph.c)
+        target_link_libraries(fuzz_constraint_graph lv00 ${GMP_LIBRARIES})
+        target_compile_options(fuzz_constraint_graph PRIVATE -fsanitize=fuzzer,address)
+        target_link_options(fuzz_constraint_graph PRIVATE -fsanitize=fuzzer,address)
 
-    add_executable(fuzz_symbolic_coord test/test/fuzz/fuzz_symbolic_coord.c)
-    target_link_libraries(fuzz_symbolic_coord lv00 ${GMP_LIBRARIES})
-    target_compile_options(fuzz_symbolic_coord PRIVATE -fsanitize=fuzzer,address)
-    target_link_options(fuzz_symbolic_coord PRIVATE -fsanitize=fuzzer,address)
+        add_executable(fuzz_symbolic_coord test/fuzz/fuzz_symbolic_coord.c)
+        target_link_libraries(fuzz_symbolic_coord lv00 ${GMP_LIBRARIES})
+        target_compile_options(fuzz_symbolic_coord PRIVATE -fsanitize=fuzzer,address)
+        target_link_options(fuzz_symbolic_coord PRIVATE -fsanitize=fuzzer,address)
+    endif()
 endif()
 
 # ============================================================
@@ -1046,12 +1059,12 @@ if(BUILD_EXAMPLES)
         target_link_libraries(${name} lv00 ${GMP_LIBRARIES})
     endfunction()
 
-    add_lv00_example(example_triangle    test/test/examples/triangle_construction.c)
-    add_lv00_example(example_circle      test/test/examples/circle_intersection.c)
-    add_lv00_example(example_composition test/test/examples/function_composition.c)
-    add_lv00_example(example_high_dim    test/test/examples/high_dim_demo.c)
-    add_lv00_example(example_streaming      test/test/examples/streaming_demo.c)
-    add_lv00_example(example_stream_advanced test/test/examples/stream_advanced_demo.c)
+    add_lv00_example(example_triangle    test/examples/triangle_construction.c)
+    add_lv00_example(example_circle      test/examples/circle_intersection.c)
+    add_lv00_example(example_composition test/examples/function_composition.c)
+    add_lv00_example(example_high_dim    test/examples/high_dim_demo.c)
+    add_lv00_example(example_streaming      test/examples/streaming_demo.c)
+    add_lv00_example(example_stream_advanced test/examples/stream_advanced_demo.c)
 endif()
 
 # 修复 1：安装规则 —— 支持 cmake --install 将库文件和头文件安装到系统目录
@@ -1112,7 +1125,7 @@ endif()
 
 # 生成 lv00.pc
 configure_file(
-    ${CMAKE_SOURCE_DIR}/build/build/cmake/lv00.pc.in
+    ${CMAKE_SOURCE_DIR}/build/cmake/lv00.pc.in
     ${CMAKE_BINARY_DIR}/lv00.pc
     @ONLY
 )
@@ -1132,11 +1145,11 @@ install(FILES ${CMAKE_BINARY_DIR}/lv00.pc
 include(CMakePackageConfigHelpers)
 
 # 包安装路径
-set(LV00_CMAKE_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/build/build/cmake/lv00")
+set(LV00_CMAKE_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/lv00")
 
 # 生成 lv00-config.cmake 和 lv00-config-version.cmake
 configure_package_config_file(
-    ${CMAKE_SOURCE_DIR}/build/build/cmake/lv00-config.cmake.in
+    ${CMAKE_SOURCE_DIR}/build/cmake/lv00-config.cmake.in
     ${CMAKE_BINARY_DIR}/lv00-config.cmake
     INSTALL_DESTINATION ${LV00_CMAKE_CONFIG_DIR}
 )

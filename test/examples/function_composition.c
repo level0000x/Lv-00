@@ -65,7 +65,7 @@ static FuncBlock *create_midpoint_function(ConstraintGraph *g) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal, 4, inputs, 2, outputs, 1, NULL, 0, &fb);
 
-    if (result == PACK_OK && fb) {
+    if (result == PACK_RESULT_OK && fb) {
         /*
          * 注意：lv00_strdup_safe 分配的内存在 func_block_destroy 中释放。
          * func_block_destroy 负责清理 fb->name 和 fb->description。
@@ -111,7 +111,7 @@ static FuncBlock *create_distance_function(ConstraintGraph *g) {
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack(g, internal, 2, inputs, 2, outputs, 1, NULL, 0, &fb);
 
-    if (result == PACK_OK && fb) {
+    if (result == PACK_RESULT_OK && fb) {
         /*
          * 注意：lv00_strdup_safe 分配的内存在 func_block_destroy 中释放。
          * func_block_destroy 负责清理 fb->name 和 fb->description。

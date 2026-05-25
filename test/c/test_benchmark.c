@@ -182,7 +182,7 @@ static int test_func_block_pack_performance(void) {
         double elapsed = get_time_ms() - start;
         print_result("Pack function block", elapsed, n, "internal nodes");
 
-        assert(result == PACK_OK);
+        assert(result == PACK_RESULT_OK);
         assert(fb != NULL);
 
         func_block_destroy(fb);
@@ -350,7 +350,7 @@ static int test_complex_scenario(void) {
     FuncBlock *fb = NULL;
     PackResult pack_result = func_block_pack(g, internal_nodes, 50, &in_port, 1, &out_port, 1, NULL, 0, &fb);
     printf("  Pack function block: %.2f ms\n", get_time_ms() - start);
-    assert(pack_result == PACK_OK);
+    assert(pack_result == PACK_RESULT_OK);
     func_block_destroy(fb);
 
     double total_elapsed = get_time_ms() - total_start;
