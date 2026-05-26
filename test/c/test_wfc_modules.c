@@ -29,6 +29,7 @@
 #include "propagation.h"
 #include "equiv_class.h"
 #include "meta_proof.h"
+#include "test_helpers.h"
 
 /* Helper macros */
 #define TEST_START(name)                 \
@@ -190,10 +191,10 @@ void test_prop_ac3_collapsed(void) {
                 "传播结果为 SATISFIED 或 STABLE");
 
     propagation_context_destroy(ctx);
-    for (int i = 0; i < 3; i++) {
-        symbolic_coord_destroy(c0[i % 2]);
-        symbolic_coord_destroy(c1[i % 2]);
-        symbolic_coord_destroy(c2[i % 2]);
+    for (int i = 0; i < 2; i++) {
+        symbolic_coord_destroy(c0[i]);
+        symbolic_coord_destroy(c1[i]);
+        symbolic_coord_destroy(c2[i]);
     }
     graph_destroy(graph);
     printf("  PASS: PROP-T03\n");
@@ -638,17 +639,47 @@ void test_meta_proof_strategy_toggle(void) {
  * ================================================================ */
 
 int main(void) {
+    printf("DEBUG: Entering main function\n");
+    fflush(stdout);
+
+    /* 初始化 Lv-00 系统 */
+    printf("DEBUG: before lv00_init\n");
+    fflush(stdout);
+    bool init_ok = lv00_init();
+    printf("DEBUG: after lv00_init: %d\n", init_ok ? 1 : 0);
+    fflush(stdout);
+    if (!init_ok) {
+        fprintf(stderr, "Failed to initialize Lv-00\n");
+        fflush(stderr);
+        return 1;
+    }
+
     printf("=== WFC 范式模块集成测试 ===\n\n");
+    fflush(stdout);
 
     printf("--- Module A: 约束传播引擎 ---\n");
+    fflush(stdout);
+    printf("DEBUG: before PROP-T01\n"); fflush(stdout);
     test_prop_context_lifecycle();
+    printf("DEBUG: after PROP-T01\n"); fflush(stdout);
+    printf("DEBUG: before PROP-T02\n"); fflush(stdout);
     test_prop_init_state_spaces();
+    printf("DEBUG: after PROP-T02\n"); fflush(stdout);
+    printf("DEBUG: before PROP-T03\n"); fflush(stdout);
     test_prop_ac3_collapsed();
+    printf("DEBUG: after PROP-T03\n"); fflush(stdout);
+    printf("DEBUG: before PROP-T04\n"); fflush(stdout);
     test_prop_entropy();
+    printf("DEBUG: after PROP-T04\n"); fflush(stdout);
+    printf("DEBUG: before PROP-T05\n"); fflush(stdout);
     test_prop_snapshot();
+    printf("DEBUG: after PROP-T05\n"); fflush(stdout);
+    printf("DEBUG: before PROP-T06\n"); fflush(stdout);
     test_prop_statistics();
+    printf("DEBUG: after PROP-T06\n"); fflush(stdout);
 
     printf("\n--- Module B: 等价类管理器 ---\n");
+    fflush(stdout);
     test_equiv_lifecycle();
     test_equiv_coord_merge();
     test_equiv_non_equivalent();

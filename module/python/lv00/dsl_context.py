@@ -66,8 +66,17 @@ def _to_core_point(
     raise TypeError(f"无法将 {type(value).__name__} 转换为 Point")
 
 def _float(val: SymbolicCoord) -> float:
-    """将 SymbolicCoord 安全转为 float。"""
+    """将 SymbolicCoord 安全转为 float。
+
+    [代码质量修复 L-03] 此函数原名 _float，以下划线前缀表示"私有"，
+    但被 dsl_wrappers.py 等外部模块广泛使用。保留原名 _float 以维持
+    内部调用的便利性，同时在 __all__ 中导出公开别名 to_float，
+    供外部模块通过 ``from .dsl_context import to_float`` 导入。
+    """
     return val.to_double()
+
+# [L-03] 提供公开别名，供跨模块导入使用
+to_float = _float
 
 class G:
     """几何构造上下文（类似 PyEuclid 的 G）。
@@ -787,4 +796,6 @@ __all__ = [
     'line',
     'circle',
     'DSLError',
+    # [L-03] 公开别名，供跨模块导入使用（替代私有函数 _float）
+    'to_float',
 ]

@@ -16,12 +16,27 @@ Lv-00 UI编程辅助系统 - 主程序模块
   - 概念解释：解释归一化、合一、证明系统等核心概念
 """
 
+from __future__ import annotations
+
 import os
 import json
 import logging
 from collections import deque
-from typing import Dict, List, Any, Optional, Deque
 from pathlib import Path
+
+# [安全修复 H-06] 添加模块级 logger，替代直接使用 logging.warning/error/debug。
+# 使用 logging.warning() 等模块级函数会绕过日志系统的层级结构和过滤器配置，
+# 导致日志消息无法被按模块名精确控制。应统一使用 logger 实例。
+logger = logging.getLogger(__name__)
+
+# [代码质量修复 M-13] 配置文件路径支持环境变量覆盖。
+# 默认使用 ~/.lv00_coding_assistant/config.json，但可通过设置环境变量
+# LV00_CONFIG_DIR 指定自定义配置目录，便于测试、容器化部署和多实例场景。
+_CONFIG_DIR = os.environ.get(
+    "LV00_CONFIG_DIR",
+    os.path.expanduser("~/.lv00_coding_assistant"),
+)
+_CONFIG_PATH = os.path.join(_CONFIG_DIR, "config.json")
 
 # 导入本地模块
 from .lv00_knowledge import (
@@ -62,38 +77,42 @@ class Lv00CodingAssistant:
     DEFAULT_MAX_HISTORY = 1000
 
     # ── 类级常量：概念解释数据 ──────────────────────────────────────────
-    # 从 lv00_knowledge 模块导入，不再在 main.py 中内联定义
-    CONCEPT_EXPLANATIONS: Dict[str, str] = {}
+    # [代码质量修复 L-09] 从 lv00_knowledge 模块导入的数据赋值给类变量，
+    # 供实例方法通过 self.CONCEPT_EXPLANATIONS 访问。
+    # 原先为空字典 {}，导致 handle_explain_command() 始终报告"未找到概念"。
+    CONCEPT_EXPLANATIONS: dict[str, str] = CONCEPT_EXPLANATIONS
 
     # ── 类级常量：代码生成指导文本 ──────────────────────────────────────
-    # 从 lv00_knowledge 模块导入，不再在 main.py 中内联定义
-    CODE_GUIDANCE: Dict[str, str] = {}
+    # [代码质量修复 L-09] 同上，从 lv00_knowledge 模块导入的数据赋值给类变量，
+    # 供实例方法通过 self.CODE_GUIDANCE 访问。
+    # 原先为空字典 {}，导致 handle_code_command() 始终报告"未知任务"。
+    CODE_GUIDANCE: dict[str, str] = CODE_GUIDANCE
 
     def __init__(self) -> None:
         """初始化编程辅助系统"""
         self.kb: Lv00KnowledgeBase = Lv00KnowledgeBase()
         self.pe: Lv00PromptEngine = Lv00PromptEngine(self.kb)
-        self.current_context: Dict[str, Any] = {}
+        self.current_context: dict[str, Any] = {}
 
         # 命令历史记录上限，超出时自动裁剪最早记录
         self.max_history: int = self.DEFAULT_MAX_HISTORY
         # 使用 deque 自动维护历史记录大小上限，避免手动切片
-        self.history: Deque[str] = deque(maxlen=self.max_history)
+        self.history: deque[str] = deque(maxlen=self.max_history)
 
         # 加载用户配置
-        self.config: Dict[str, Any] = self._load_config()
+        self.config: dict[str, Any] = self._load_config()
 
     # 【修复 #9】配置文件 schema 定义
     # 定义配置文件中各字段的名称、期望类型和是否必填。
     # 加载配置时会根据此 schema 进行验证，确保配置文件的完整性。
-    _CONFIG_SCHEMA: Dict[str, Dict[str, Any]] = {
+    _CONFIG_SCHEMA: dict[str, dict[str, Any]] = {
         "ai_provider": {"type": str, "required": False, "default": "dashscope"},
         "model": {"type": str, "required": False, "default": "qwen-coder-plus"},
         "theme": {"type": str, "required": False, "default": "dark"},
         "max_history": {"type": int, "required": False, "default": 1000},
     }
 
-    def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_config(self, config: dict[str, Any]) -> dict[str, Any]:
         """验证配置字典是否符合 schema 定义
 
         【修复 #9】对从 JSON 文件加载的配置进行基本的 schema 验证，
@@ -120,9 +139,9 @@ class Lv00CodingAssistant:
             value = config[key]
             if not isinstance(value, expected_type):
                 # 类型不匹配，记录警告并使用默认值
-                logging.warning(
-                    f"配置字段 '{key}' 类型错误: 期望 {expected_type.__name__}, "
-                    f"实际 {type(value).__name__}，使用默认值 {default_value!r}"
+                logger.warning(
+                    "配置字段 '%s' 类型错误: 期望 %s, 实际 %s，使用默认值 %r",
+                    key, expected_type.__name__, type(value).__name__, default_value,
                 )
                 validated[key] = default_value
             else:
@@ -131,15 +150,18 @@ class Lv00CodingAssistant:
         # 检查配置中是否存在未定义的字段（可能是拼写错误或版本不匹配）
         unknown_keys = set(config.keys()) - set(self._CONFIG_SCHEMA.keys())
         if unknown_keys:
-            logging.warning(f"配置文件中存在未识别的字段: {unknown_keys}，已忽略")
+            logger.warning(f"配置文件中存在未识别的字段: {unknown_keys}，已忽略")
 
         return validated
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """
         从用户目录加载配置文件
 
-        配置文件路径：~/.lv00_coding_assistant/config.json
+        配置文件路径由模块级常量 _CONFIG_PATH 指定，
+        默认为 ~/.lv00_coding_assistant/config.json，
+        可通过环境变量 LV00_CONFIG_DIR 覆盖配置目录。
+
         如果文件不存在或解析失败，返回默认配置。
 
         【修复 #9】加载后通过 _validate_config() 进行 schema 验证，
@@ -148,7 +170,7 @@ class Lv00CodingAssistant:
         Returns:
             Dict[str, Any]: 验证后的配置字典
         """
-        config_path: Path = Path.home() / ".lv00_coding_assistant" / "config.json"
+        config_path: Path = Path(_CONFIG_PATH)
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
@@ -156,21 +178,25 @@ class Lv00CodingAssistant:
                 # 【修复 #9】对加载的配置进行 schema 验证
                 return self._validate_config(raw_config)
             except json.JSONDecodeError as e:
-                logging.warning(f"配置文件 JSON 解析失败: {e}，使用默认配置")
+                logger.warning("配置文件 JSON 解析失败: %s，使用默认配置", e)
             except OSError as e:
-                logging.warning(f"配置文件读取失败: {e}，使用默认配置")
+                logger.warning("配置文件读取失败: %s，使用默认配置", e)
         # 返回默认配置（经过 schema 验证，确保所有字段都有值）
         return self._validate_config({})
 
     def _save_config(self) -> None:
-        """保存当前配置到用户目录的配置文件"""
-        config_path: Path = Path.home() / ".lv00_coding_assistant"
+        """保存当前配置到配置目录
+
+        [M-13] 使用模块级常量 _CONFIG_DIR 和 _CONFIG_PATH，
+        配置目录可通过环境变量 LV00_CONFIG_DIR 覆盖。
+        """
+        config_dir: Path = Path(_CONFIG_DIR)
         try:
-            config_path.mkdir(parents=True, exist_ok=True)
-            with open(config_path / "config.json", 'w', encoding='utf-8') as f:
+            config_dir.mkdir(parents=True, exist_ok=True)
+            with open(Path(_CONFIG_PATH), 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2)
         except OSError as e:
-            logging.error(f"配置保存失败: {e}")
+            logger.error("配置保存失败: %s", e)
 
     def _update_config(self, key: str, value: Any) -> None:
         """
@@ -245,13 +271,13 @@ class Lv00CodingAssistant:
             return
 
         # 查询指定模块的 API
-        apis: Optional[Dict[str, str]] = get_api_reference(module)
+        apis: dict[str, str] | None = get_api_reference(module)
         if apis:
             print(f"\n【{module.upper()} API 参考】")
             print("─" * 40)
             for func, desc in apis.items():
                 # 获取函数签名等详细信息
-                details: Dict[str, str] = self.kb.api_signatures.get(func, {})
+                details: dict[str, str] = self.kb.api_signatures.get(func, {})
                 print(f"\n• {func}")
                 print(f"  描述: {desc}")
                 if details:
@@ -281,7 +307,7 @@ class Lv00CodingAssistant:
             return
 
         # 查询指定模板
-        template: Optional[Dict[str, Any]] = CODE_TEMPLATES.get(name)
+        template: dict[str, Any] | None = CODE_TEMPLATES.get(name)
         if template:
             print(f"\n【{template['name']}】")
             print(f"语言: {template['language']}")
@@ -312,7 +338,7 @@ class Lv00CodingAssistant:
             return
 
         # 查询指定片段
-        snippet: Optional[str] = CODE_SNIPPETS.get(name)
+        snippet: str | None = CODE_SNIPPETS.get(name)
         if snippet:
             print(f"\n【{name}】")
             print("─" * 60)
@@ -330,7 +356,7 @@ class Lv00CodingAssistant:
         Args:
             task: 任务类型（binding/renderer/interaction/panel）
         """
-        guidance: Optional[str] = self.CODE_GUIDANCE.get(task)
+        guidance: str | None = self.CODE_GUIDANCE.get(task)
         if guidance:
             print(guidance)
         else:
@@ -388,7 +414,7 @@ class Lv00CodingAssistant:
                 self.history.append(cmd)
 
                 # 解析命令：第一个词为命令名，其余为参数
-                parts: List[str] = cmd.split(maxsplit=1)
+                parts: list[str] = cmd.split(maxsplit=1)
                 command: str = parts[0].lower()
                 args: str = parts[1] if len(parts) > 1 else ""
 
@@ -441,7 +467,7 @@ class Lv00CodingAssistant:
                 print("\n\n使用 'exit' 命令退出")
             except (OSError, ValueError, RuntimeError) as e:
                 print(f"\n错误: {e}")
-                logging.debug(f"命令执行异常: {cmd} - {e}")
+                logger.debug("命令执行异常: %s - %s", cmd, e)
 
     def set_context(self, file_path: str) -> None:
         """
@@ -518,10 +544,10 @@ class Lv00CodingAssistant:
             print(f"  预览: {content[:100]}...")
 
         except UnicodeDecodeError as e:
-            logging.error(f"文件编码错误: {file_path} - {e}")
+            logger.error("文件编码错误: %s - %s", file_path, e)
             print(f"读取文件失败: 不支持的编码 ({e})")
         except OSError as e:
-            logging.error(f"文件读取失败: {file_path} - {e}")
+            logger.error("文件读取失败: %s - %s", file_path, e)
             print(f"读取文件失败: {e}")
 
 

@@ -22,10 +22,6 @@
 #ifndef LV00_ENGINE_H
 #define LV00_ENGINE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "config.h"
 #include "axiom_pkg.h"
 #include "constraint_graph.h"
@@ -36,6 +32,10 @@ extern "C" {
 #include "solver.h"
 #include "stream.h"
 #include "unify.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ============================================================
  * 五层架构层级标识（v3.3）

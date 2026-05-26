@@ -381,6 +381,20 @@ LV00_PUBLIC_API SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, co
  */
 LV00_PUBLIC_API SolverStatus solver_sparse_solve(ConstraintGraph *graph, GroebnerResult **out_result);
 
+/* ============== 矛盾检测 ============== */
+
+/**
+ * @brief 检查约束图中是否存在基本矛盾
+ *
+ * 当前实现为桩函数，检查基本的约束冲突：
+ * - 同一个点被约束到两个不同位置
+ * - 同一实体上的互斥约束
+ *
+ * @param graph 约束图（可为 NULL，此时返回 0）
+ * @return 0 未检测到矛盾，正值检测到矛盾（矛盾数量），负值错误
+ */
+LV00_PUBLIC_API int lv00_solver_check_contradictions(void *graph);
+
 #ifdef __cplusplus
 }
 #endif

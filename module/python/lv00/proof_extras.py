@@ -21,6 +21,7 @@ Lv-00 扩展证明模块
 """
 
 import ctypes
+from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 from ._ctypes_binding import (
@@ -28,6 +29,49 @@ from ._ctypes_binding import (
     c_int, c_char_p, c_void_p, c_bool, POINTER,
 )
 from .core import Lv00BaseError
+
+
+# ============================================================
+# 路径验证工具函数
+# ============================================================
+
+def _validate_filepath(filepath: str, must_exist: bool = False) -> Path:
+    """
+    验证文件路径的安全性。
+
+    检查路径是否在允许的范围内，防止路径遍历攻击。
+
+    参数：
+        filepath: 文件路径字符串
+        must_exist: 是否要求文件已存在
+
+    返回：
+        Path: 解析后的绝对路径
+
+    异常：
+        ValueError: 路径不安全或无效
+        FileNotFoundError: must_exist=True 且文件不存在
+    """
+    path = Path(filepath).resolve()
+
+    # 检查路径遍历（路径必须在当前工作目录或其子目录下）
+    try:
+        path.relative_to(Path.cwd())
+    except ValueError:
+        # 路径不在当前工作目录下，检查是否在用户主目录下
+        home = Path.home()
+        try:
+            path.relative_to(home)
+        except ValueError:
+            raise ValueError(
+                f"路径不安全: {filepath}\n"
+                f"路径必须位于当前工作目录或用户主目录下"
+            )
+
+    if must_exist and not path.exists():
+        raise FileNotFoundError(f"文件不存在: {filepath}")
+
+    return path
 
 __all__ = [
     "BacktrackNodeType", "ProofStrategyType", "ProofStrategyStatus",
@@ -232,8 +276,13 @@ class ProofSearchTree:
 
         返回:
             bool: 成功返回 True
+
+        异常:
+            ValueError: 路径不安全
         """
-        return _lib.proof_search_tree_export_json(self._ptr, filepath.encode('utf-8'))
+        # [代码质量修复 M-02] 添加路径验证，防止路径遍历攻击
+        validated_path = _validate_filepath(filepath)
+        return _lib.proof_search_tree_export_json(self._ptr, str(validated_path).encode('utf-8'))
 
     def export_dot(self, filepath: str) -> bool:
         """导出搜索树为 DOT 格式（Graphviz）。
@@ -243,8 +292,13 @@ class ProofSearchTree:
 
         返回:
             bool: 成功返回 True
+
+        异常:
+            ValueError: 路径不安全
         """
-        return _lib.proof_search_tree_export_dot(self._ptr, filepath.encode('utf-8'))
+        # [代码质量修复 M-02] 添加路径验证，防止路径遍历攻击
+        validated_path = _validate_filepath(filepath)
+        return _lib.proof_search_tree_export_dot(self._ptr, str(validated_path).encode('utf-8'))
 
 
 def backtrack_node_create(node_type: int, label: str) -> Any:

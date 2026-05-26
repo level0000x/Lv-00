@@ -124,9 +124,9 @@ def _log_request(self: Any, code: object = '-', size: object = '-') -> None:
         size: 响应体大小
     """
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print(
-        f"[{timestamp}] {self.client_address[0]} - "
-        f'"{self.command} {self.path}" {code} -'
+    _log.info(
+        "%s - \"%s %s\" %s -",
+        self.client_address[0], self.command, self.path, code,
     )
 
 

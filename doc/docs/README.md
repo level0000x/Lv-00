@@ -1,4 +1,4 @@
-# Lv-00 几何元语言系统 v3.4-academic - 模块文档索引
+# Lv-00 几何元语言系统 v3.5.0-academic - 模块文档索引
 
 ## 概述
 
@@ -54,6 +54,29 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 | [18_output_layer.md](18_output_layer.md) | 输出层 (Layer 5) | TikZ 导出、跨语言互操作、证明格式化 |
 | [19_numerical_backends.md](19_numerical_backends.md) | 数值后端 | 区间算术、浮点误差、Herbie/FPTaylor/Gappa |
 | [20_preset_registry.md](20_preset_registry.md) | 预设函数块注册表 | 63个领域预设函数块完整索引 |
+
+### 代码驱动补充文档（文档 12~22）
+
+> 以下文档由代码扫描驱动创建，覆盖仅存在于源代码中、此前未被独立文档化的模块。
+
+| 文档 | 模块 | 覆盖头文件 | 功能描述 |
+|------|------|-----------|----------|
+| [12_context_and_lifecycle.md](12_context_and_lifecycle.md) | 上下文与生命周期 | context.h, circuit_breaker.h, runtime_guard.h, status_codes.h, node_deep_copy.h | 引擎上下文管理、熔断器、运行时守卫、节点深拷贝 |
+| [13_proof_engine_enhanced.md](13_proof_engine_enhanced.md) | 增强证明引擎 | proof_engine_enhanced.h, proof_session.h, proof_score.h, proof_priority.h, proof_rule_engine.h, proof_version.h | 多策略证明引擎、证明会话、评分、优先级、规则引擎 |
+| [14_solver_backends.md](14_solver_backends.md) | 求解器后端 | solver_core.h, smt_backend.h, smt_bitvector.h, smt_theory_combiner.h, smt_trigger_engine.h, atp_backend.h, bdd_encoding.h, sat_encoding.h, approx_counter.h, engine_scheduler.h | SMT/ATP/SAT/BDD 多后端、引擎调度 |
+| [15_geometry_advanced.md](15_geometry_advanced.md) | 高级几何模块 | geometry_types.h, geometry_transform.h, geometry_compress.h, high_dim.h, interactive_geo.h, geom_evol.h, geo_event_detect.h, geo_invariant_type.h, geo_spec.h, geo_topology.h | 几何变换、压缩、高维、交互式、演化、拓扑 |
+| [16_logic_verification.md](16_logic_verification.md) | 逻辑验证 | logic_check.h, prop_verifier.h, three_valued_logic.h, modal_operators.h, quantifier.h, meta_proof.h, herbie_eval.h, fptaylor_eval.h, gappa_dsl.h, gappa_propagate.h | 逻辑检查、命题验证、三值逻辑、模态算子、元证明 |
+| [17_numerical_analysis.md](17_numerical_analysis.md) | 数值分析 | interval_arithmetic.h, float_error.h, herbie_eval.h, fptaylor_eval.h, gappa_dsl.h, gappa_propagate.h, inequality_reasoning.h, numerical_backend.h, probabilistic_constraint.h, ode_solver.h, autodiff.h | 区间算术、浮点误差、Herbie/FPTaylor/Gappa、ODE求解、自动微分 |
+| [18_formula_dsl_ga.md](18_formula_dsl_ga.md) | 公式DSL与几何代数 | formula_parser.h, formula_renderer.h, formula_converter.h, dsl_compiler.h, lexer_shared.h, math_input.h, parser_safety.h, gc_language.h, expr_canonical.h, expr_canon.h, simd_ops.h, benchmark.h, stream.h, stream_context_util.h, math_protocol.h | 公式解析/渲染/转换、DSL编译、GC语言、表达式规范化、SIMD |
+| [19_axiom_rewrite_export.md](19_axiom_rewrite_export.md) | 公理·重写·导出 | axiom_pkg.h, axiom_rule_engine.h, axiom_grade.h, rewrite.h, rewrite_strategy.h, proof_export_enhanced.h, relation_model.h, sym_expr.h, fast_index.h, ecosystem.h | 公理包、规则引擎、重写策略、增强导出、符号表达式 |
+| [20_preset_registry.md](20_preset_registry.md) | 预设函数块注册表 | func_block_preset.h, func_block_preset_ops.h, func_block_registry.h, func_block_utils.h, preset_*.h (63个) | 63个领域预设函数块完整索引 |
+| [21_euclidean_geometry.md](21_euclidean_geometry.md) | 欧氏几何公理包 | euclidean_geometry.h | Hilbert五公理组、Birkhoff/Tarski等价性、EquivalenceProofChain |
+| [22_proof_export_trace_widget.md](22_proof_export_trace_widget.md) | 证明导出·追踪·可视化 | proof_export_enhanced.h, proof_trace.h, proof_widget.h | 6格式导出、证明追踪树、8种可视化组件 |
+| [23_core_infrastructure.md](23_core_infrastructure.md) | 核心基础设施与配置 | lv00.h, config.h, error_codes.h, debug.h, cross_platform.h, module.h, memory_pool.h | 系统入口、配置管理、错误处理、跨平台抽象 |
+| [24_constraint_propagation.md](24_constraint_propagation.md) | 约束传播与等价类 | propagation.h, equiv_class.h, graph_hash.h, probabilistic_constraint.h | WFC传播、AC-3弧相容、等价类合并、图哈希、概率约束 |
+| [25_engine_scheduler.md](25_engine_scheduler.md) | 引擎核心与调度系统 | engine.h, engine_scheduler.h | 五状态机、多引擎调度、自动路由决策、回退链 |
+| [26_interactive_geometry.md](26_interactive_geometry.md) | 交互式几何与事件系统 | interactive_geo.h, geo_event_detect.h, geo_topology.h, geo_invariant_type.h | 交互几何、事件检测、单纯复形拓扑 |
+| [27_quantifier_logic.md](27_quantifier_logic.md) | 量词与关系逻辑 | quantifier.h, relation_model.h | 量词系统、Alloy风格关系模型 |
 
 ## 模块依赖关系
 
@@ -303,7 +326,14 @@ Lv-00/
 │   ├── 17_reasoning_layer.md
 │   ├── 18_output_layer.md
 │   ├── 19_numerical_backends.md
-│   └── 20_preset_registry.md
+│   ├── 20_preset_registry.md
+│   ├── 21_euclidean_geometry.md
+│   ├── 22_proof_export_trace_widget.md
+│   ├── 23_core_infrastructure.md
+│   ├── 24_constraint_propagation.md
+│   ├── 25_engine_scheduler.md
+│   ├── 26_interactive_geometry.md
+│   └── 27_quantifier_logic.md
 └── CMakeLists.txt         # 构建配置
 ```
 
@@ -351,8 +381,22 @@ make
 
 ## 版本历史
 
-- **v3.4-academic** (当前版本)
+- **v3.5.0-academic** (当前版本)
   - 五层单向依赖学术架构（解析层 -> 几何公理层 -> 约束拓扑层 -> 推理层 -> 输出层）
+  - 完整实现 122+ 核心头文件模块
+  - 核心基础设施：配置系统、错误处理、跨平台抽象
+  - 约束传播引擎：WFC范式、AC-3弧相容、等价类管理
+  - 引擎调度系统：五状态机、自动路由决策、回退链机制
+  - 函数块系统：打包、例化、确定性检查、预设注册表
+  - 类型系统：宇宙层级、类型等价检查
+  - 命题与证明系统：合一检查、证明导航器、多策略推理
+  - 递归与条件：测度系统、选择器块
+  - SMT/ATP/SAT/BDD 多后端推理支持
+  - 数值后端：区间算术、Herbie、FPTaylor、Gappa
+  - 63个领域预设函数块
+
+- **v3.4-academic**
+  - 五层单向依赖学术架构
   - 完整实现 122+ 核心头文件模块
   - 函数块系统：打包、例化、确定性检查、预设注册表
   - 类型系统：宇宙层级、类型等价检查

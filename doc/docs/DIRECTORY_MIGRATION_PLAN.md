@@ -106,6 +106,24 @@ Lv-00/
 | `src/core/stream.c` | `layer5_output/stream.c` | 流式输出 |
 | `src/core/formula_renderer.c` | `layer5_output/formula_renderer.c` | 公式渲染 |
 
+### 3.6 新增模块文档覆盖映射 (文档 12~22)
+
+以下映射表记录了 12~22 号新增文档所覆盖的头文件模块及其在五层架构中的归属。这些文档已为大部分模块提供了独立的详细规范文档。
+
+| 文档编号 | 文档名称 | 覆盖头文件 | 建议归属层 |
+|----------|----------|------------|-----------|
+| 12 | 上下文系统与运行时安全 | `context.h`, `circuit_breaker.h`, `runtime_guard.h`, `status_codes.h`, `node_deep_copy.h` | 跨层基础设施（L2/L3/L4） |
+| 13 | 增强证明引擎 | `proof_engine_enhanced.h`, `proof_session.h`, `proof_score.h`, `proof_priority.h`, `proof_rule_engine.h`, `proof_version.h` | L4 推理引擎 |
+| 14 | 多后端求解器 | `solver_core.h`, `smt_backend.h`, `smt_bitvector.h`, `smt_theory_combiner.h`, `smt_trigger_engine.h`, `atp_backend.h`, `bdd_encoding.h`, `sat_encoding.h`, `approx_counter.h`, `engine_scheduler.h` | L4 推理引擎 |
+| 15 | 高级几何分析 | `geometry_types.h`, `transform_reasoning.h`, `data_compression.h`, `high_dimensional.h`, `interactive_geometry.h`, `evolution_engine.h`, `event_detection.h`, `invariant_types.h`, `construction_reduction.h`, `topology_operations.h` | L3 几何内核 |
+| 16 | 逻辑验证与浮点证明 | `three_valued_logic.h`, `modal_operators.h`, `quantifier.h`, `logic_check.h`, `prop_verifier.h`, `meta_proof.h`, `herbie_eval.h`, `fptaylor_eval.h`, `gappa_dsl.h`, `gappa_propagate.h` | L4 推理引擎 |
+| 17 | 数值计算与代数分析 | `interval_arithmetic.h`, `float_error.h`, `ode_solver.h`, `autodiff.h`, `numerical_backend.h`, `rational.h`, `inequality_reasoning.h`, `probabilistic_constraint.h`, `nt_number_theory.h`, `nt_polynomial.h`, `sparse_linear_algebra.h` | L3 几何内核 / L4 推理引擎 |
+| 18 | 公式系统与 DSL | `formula_parser.h`, `formula_renderer.h`, `formula_converter.h`, `expr_canonical.h`, `expr_canon.h`, `dsl_compiler.h`, `lexer_shared.h`, `math_input.h`, `ga_interface.h`, `ga_multivector.h`, `ga_codegen.h`, `gc_language.h` | L1 语法解析 / L5 输出展示 |
+| 19 | 公理规则引擎与导出 | `axiom_rule_engine.h`, `axiom_grade.h`, `rewrite_strategy.h`, `tikz_export.h`, `interop.h`, `stream_context_util.h`, `relation_model.h`, `ecosystem.h`, `graph_hash.h`, `fast_index.h` | L4 推理引擎 / L5 输出展示 |
+| 20 | 预设函数块注册表 | `preset_core.h`, `preset_common.h`, `preset_blocks.h`, `preset_register_macros.h`, `func_block_registry.h`, `func_block_preset.h`, `func_block_preset_ops.h`, `func_block_utils.h`, `preset_*.h` (63 files) | L4 推理引擎 |
+
+> **说明**：12~22 号文档已为大部分模块提供了独立的详细规范文档，覆盖了五层架构中 L1（语法解析）、L3（几何内核）、L4（推理引擎）、L5（输出展示）各层的新增头文件。迁移时应参照对应文档中的模块间依赖关系来确定头文件的层级归属和 include 路径。
+
 ---
 
 ## 4. 迁移步骤

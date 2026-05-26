@@ -10,6 +10,18 @@
  * 兼容层到统一错误系统（lv00_set_error / lv00_clear_error / lv00_get_error）的迁移。
  * 所有错误报告均已直接调用 lv00_set_error()，错误清除调用 lv00_clear_error()。
  * 旧的双轨错误系统已被完全移除，不再保留兼容层。
+ *
+ * @par 设计要点
+ * - 图结构采用邻接表表示，每个节点维护约束列表
+ * - 支持 5 种约束类型：关联(association)、中间(midpoint)、等距(equidistance)、角度(angle)、正交(orthogonal)
+ * - 哈希索引加速节点查找，冗余检测避免重复约束
+ * - 冲突检测基于约束传播，支持实时一致性验证
+ * - 节点类型涵盖点、线段、区域、端口和函数块
+ *
+ * @par 依赖关系
+ * - 上层: 被 solver.c（方程提取）、engine.c（规范化）调用
+ * - 下层: 依赖 lv00_utils.c（内存管理）、lv00_internal.h（内部常量）
+ * - 同层: 与 symbolic_coord.c 协作进行坐标计算
  */
 
 /* ============================================================================
@@ -306,9 +318,17 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
     graph->constraints[graph->constraint_count++] = con;
     graph_constraint_index_insert(graph, con);
 
-    /* 更新 next_constraint_id 以确保新约束ID不会冲突 */
+    /* 更新 next_constraint_id 以确保新约束ID不会冲突（使用原子 CAS 循环保证线程安全） */
     if (constraint_id >= graph->next_constraint_id) {
-        graph->next_constraint_id = constraint_id + 1;
+        int expected = graph->next_constraint_id;
+        int desired = constraint_id + 1;
+        while (expected < desired) {
+            desired = constraint_id + 1;
+            if (atomic_compare_exchange_weak((atomic_int *)&graph->next_constraint_id, &expected, desired)) {
+                break;
+            }
+            /* expected 已被更新为当前值，循环重试直到成功或当前值已 >= desired */
+        }
     }
 
     /* 流式事件: 约束添加 */
@@ -905,6 +925,18 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, in
     /* 深拷贝坐标，使节点拥有这些坐标 */
     for (int i = 0; i < coord_count; i++) {
         node->symbolic_coords[i] = coords[i] ? symbolic_coord_copy(coords[i]) : NULL;
+        if (coords[i] && !node->symbolic_coords[i]) {
+            /* 坐标拷贝失败：清理已分配的坐标和节点，返回错误 */
+            for (int j = 0; j < i; j++) {
+                if (node->symbolic_coords[j])
+                    symbolic_coord_destroy(node->symbolic_coords[j]);
+            }
+            lv00_free((void **) &node->symbolic_coords);
+            graph->node_count--;
+            node_index_remove(graph, node->id);
+            lv00_free((void **) &node);
+            return ADD_NODE_CONFLICT;
+        }
     }
     node->coord_count = coord_count;
     if (graph_stream_ctx) {
@@ -2303,7 +2335,8 @@ void graph_destroy(ConstraintGraph *graph) {
     if (!graph)
         return;
     for (int i = 0; i < graph->node_count; i++) {
-        node_destroy(graph->nodes[i]);
+        if (graph->nodes[i])
+            node_destroy(graph->nodes[i]);
     }
     lv00_free((void **) &graph->nodes);
     for (int i = 0; i < graph->constraint_count; i++) {

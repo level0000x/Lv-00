@@ -34,6 +34,18 @@
  *     的变量可考虑提升到循环外并复用（mpz_set 后使用），以节省分配开销。
  *   - 条件分支内的 init：确保 if/else 两个分支都有对应的 clear，不得在
  *     一个分支 init 而在另一个分支泄漏。
+ *
+ * @par 设计要点
+ * - 采用 Groebner 基算法进行多项式方程组求解，保证完备性
+ * - 增量求解策略：仅对新添加的约束重新计算，避免全量求解
+ * - 自由度计算基于约束图分析，支持欠约束和过约束检测
+ * - GMP 多精度多项式系数使用标准 malloc（非 lv00_malloc），遵循 GMP 库要求
+ * - 支持从约束图自动提取代数方程，桥接几何层和代数层
+ *
+ * @par 依赖关系
+ * - 上层: 被 engine.c（求解编排）、proof.c（证明验证）调用
+ * - 下层: 依赖 constraint_graph.c（方程提取）、mpz_poly.c（多项式运算）
+ * - 同层: 与 stream.c 协作输出求解事件，与 type_system.c 协作类型检查
  */
 
 #include "solver.h"
@@ -3680,6 +3692,55 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
 }
 
 /* ================================================================== */
+/*  PUBLIC API: lv00_solver_check_contradictions                       */
+/* ================================================================== */
+
+#include "conflict_detector.h"
+
+/**
+ * @brief 检查约束图中是否存在基本矛盾
+ *
+ * 使用 v3.5.0 新增的矛盾约束检测器进行全面检测：
+ * - 基础约束冲突：点位置、距离、角度
+ * - 约束组合冲突：垂直vs平行、相交vs平行、包含vs分离
+ * - 传递闭包冲突：传递等式矛盾、循环依赖
+ * - 代数冲突：方程组无解、过度约束、奇异矩阵
+ *
+ * @param graph 约束图（可为 NULL，此时返回 0）
+ * @return 0 未检测到矛盾，正值检测到矛盾（矛盾数量），负值错误
+ */
+int lv00_solver_check_contradictions(void *graph) {
+    if (!graph) return 0;
+
+    /* 使用快速检测模式 */
+    if (lv00_conflict_detect_quick((ConstraintGraph *)graph)) {
+        /* 发现矛盾，进行完整检测获取详细信息 */
+        ConflictReport *report = lv00_conflict_report_create();
+        if (!report) return -1;
+
+        int err = lv00_conflict_detect_all((ConstraintGraph *)graph, NULL, report);
+        if (err != 0) {
+            lv00_conflict_report_destroy(report);
+            return err;
+        }
+
+        int conflict_count = report->conflict_count;
+
+        /* 如果有严重矛盾，记录日志 */
+        if (report->has_critical) {
+            LV00_LOG_ERROR("检测到 %d 个严重约束矛盾", conflict_count);
+        } else if (report->has_error) {
+            LV00_LOG_WARNING("检测到 %d 个约束错误", conflict_count);
+        }
+
+        lv00_conflict_report_destroy(report);
+        return conflict_count;
+    }
+
+    return 0; /* No contradiction detected */
+}
+
+/* ================================================================== */
 /*  Solvespace 风格交互式求解反馈                                        */
 /* ================================================================== */
 
@@ -4554,9 +4615,7 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
         }
     }
 
-    fprintf(stderr, "[TRACE check] clear sys\n");
     equation_system_clear(&sys);
-    fprintf(stderr, "[TRACE check] return false\n");
     return false;
 }
 

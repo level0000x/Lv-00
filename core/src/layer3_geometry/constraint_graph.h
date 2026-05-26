@@ -1,3 +1,4 @@
+/* DEPRECATED: Use lv00/constraint_graph.h instead. This file will be removed in a future version. */
 /* ========================================================================
  * 模块名称：约束图 (constraint_graph)
  * 功能概述：Lv-00 系统的核心数据结构，提供几何节点（点、线段、区域、

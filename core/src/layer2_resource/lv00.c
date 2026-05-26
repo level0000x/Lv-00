@@ -12,6 +12,7 @@
  */
 
 #include "lv00.h"
+#include "memory_pool.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -142,7 +143,12 @@ const char *lv00_get_version_string(void) {
     return version_str;
 }
 
-/** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
+/**
+ * @brief 系统初始化主函数
+ * @details 初始化内存管理、配置系统和全局状态。
+ *          支持嵌套初始化（递增引用计数），需与 lv00_cleanup 配对使用。
+ * @return true 初始化成功，false 初始化失败
+ */
 bool lv00_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
     if (g_system_state == SYSTEM_STATE_INITIALIZED) {
@@ -213,7 +219,11 @@ bool lv00_init(void) {
     return true;
 }
 
-/** @brief 系统清理函数 @details 释放所有全局资源，重置初始化状态。 */
+/**
+ * @brief 系统清理函数
+ * @details 释放所有全局资源，重置初始化状态。
+ *          支持嵌套清理（递减引用计数），需与 lv00_init 配对使用。
+ */
 void lv00_cleanup(void) {
     /* 检查嵌套计数 */
     if (g_init_count > 1) {
@@ -265,7 +275,10 @@ void lv00_cleanup(void) {
     set_system_state(SYSTEM_STATE_UNINITIALIZED);
 }
 
-/** @brief 查询系统是否已初始化 @return true 已初始化，false 未初始化 */
+/**
+ * @brief 查询系统是否已初始化
+ * @return true 已初始化，false 未初始化
+ */
 bool lv00_is_initialized(void) {
     return is_system_initialized();
 }
@@ -588,7 +601,9 @@ bool lv00_get_version_info(LV00VersionInfo *info) {
     info->compiler = "Unknown";
 #endif
 
-#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+#if defined(__aarch64__)
+    info->arch = "aarch64";
+#elif defined(_WIN64) || defined(__x86_64__)
     info->arch = "x86_64";
 #elif defined(_WIN32) || defined(__i386__)
     info->arch = "x86";
@@ -605,8 +620,11 @@ bool lv00_get_version_info(LV00VersionInfo *info) {
 }
 
 bool lv00_check_version_compat(void) {
-    /* 检查运行时主版本号与编译时主版本号是否一致 */
-    if (LV00_VERSION_MAJOR != 3) {
+    /* 检查编译时主版本号是否为预期值
+     * 预期主版本号：3（与 CMakeLists.txt 中的 PROJECT_VERSION_MAJOR 保持同步）
+     * 当项目升级到 v4.x 时，此检查将帮助识别未重新编译的旧代码 */
+    const int expected_major = 3;
+    if (LV00_VERSION_MAJOR != expected_major) {
         return false;
     }
     return true;
@@ -630,10 +648,18 @@ LV00_DEPRECATED("use lv00_get_memory_stats instead")
  * @return false stats 为 NULL 指针，未执行任何操作
  * @note 内部委托 lv00_get_memory_stats() 完成实际统计
  */
-bool lv00_get_memory_stats_ex(MemoryStats *stats) {
+bool lv00_get_memory_stats_ex(Lv00MemoryStats *stats) {
     if (!stats)
         return false;
-    lv00_get_memory_stats(stats);
+    /* MemoryStats 和 Lv00MemoryStats 是不同的结构体，需要手动转换 */
+    MemoryStats mem_stats;
+    lv00_get_memory_stats(&mem_stats);
+    /* 将 MemoryStats 的字段映射到 Lv00MemoryStats */
+    stats->total_bytes = mem_stats.current_used;
+    stats->peak_bytes = mem_stats.peak_used;
+    /* types 和 type_count 保持为零（此函数不追踪类型细分） */
+    stats->type_count = 0;
+    memset(stats->types, 0, sizeof(stats->types));
     return true;
 }
 

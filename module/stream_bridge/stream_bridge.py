@@ -3,34 +3,57 @@
 Lv-00 Stream Bridge - C 引擎流式事件到 JSON Lines 的桥接服务器模块
 ========================================================================
 
-本模块是 Lv-00 几何引擎与前端/CLI 之间的流式事件桥接层。
-将 C 引擎产生的流式事件转换为 JSON Lines 或 SSE 格式，供外部消费。
+模块功能概述：
+    本模块是 Lv-00 几何引擎与前端/CLI 之间的流式事件桥接层，
+    是系统外部集成的关键组件。将 C 引擎产生的流式事件转换为
+    JSON Lines 或 SSE（Server-Sent Events）格式，供外部消费者
+    （Web 前端、CLI 工具、IDE 插件等）实时获取引擎运行状态。
 
 运行模式：
-  1. stdio  : stdin JSON-RPC 命令 → stdout JSON Lines 事件流（子进程桥接）
-  2. sse    : HTTP SSE (Server-Sent Events) 端点（浏览器直连）
-  3. demo   : 演示模式，模拟引擎运行全流程事件流
+    1. stdio  : stdin JSON-RPC 命令 -> stdout JSON Lines 事件流（子进程桥接）
+    2. sse    : HTTP SSE (Server-Sent Events) 端点（浏览器直连）
+    3. demo   : 演示模式，模拟引擎运行全流程事件流
 
 架构：
-  [C 引擎 stream 模块] → (ctypes 回调) → [Stream Bridge] → JSON Lines/SSE → [前端/CLI]
+    [C 引擎 stream 模块] -> (ctypes 回调) -> [Stream Bridge] -> JSON Lines/SSE -> [前端/CLI]
 
-当 C 共享库不可用时，自动退化为纯 Python 模拟实现（demo 模式），
-保证前端开发不依赖 C 编译环境。
+    当 C 共享库不可用时，自动退化为纯 Python 模拟实现（demo 模式），
+    保证前端开发不依赖 C 编译环境。
 
 核心组件：
-  - StreamEventType: 事件类型枚举（与 C 头文件 stream.h 一致）
-  - StreamEvent: 事件数据结构（与 C StreamEvent 结构体对应）
-  - StreamContext: 流式上下文（模拟 C StreamContext API）
-  - DemoEngine: 演示引擎（模拟完整求解流程）
-  - JsonLineWriter: JSON Lines 序列化输出器
+    - StreamEventType: 事件类型枚举（与 C 头文件 stream.h 一致）
+    - StreamEvent: 事件数据结构（与 C StreamEvent 结构体对应）
+    - StreamContext: 流式上下文（模拟 C StreamContext API）
+    - DemoEngine: 演示引擎（模拟完整求解流程）
+    - JsonLineWriter: JSON Lines 序列化输出器
 
 用法：
-  python stream_bridge.py stdio          # stdin/stdout 模式
-  python stream_bridge.py sse --port 5801  # SSE 服务器模式
-  python stream_bridge.py demo --scenario triangle  # 演示模式
+    python stream_bridge.py stdio              # stdin/stdout 模式
+    python stream_bridge.py sse --port 5801    # SSE 服务器模式
+    python stream_bridge.py demo --scenario triangle  # 演示模式
+
+使用示例：
+    >>> # 在 Python 代码中以 stdio 模式使用
+    >>> import subprocess, json
+    >>> proc = subprocess.Popen(
+    ...     ["python", "stream_bridge.py", "stdio"],
+    ...     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True
+    ... )
+    >>> proc.stdin.write(json.dumps({"method": "solve", "params": {}}))
+    >>> proc.stdin.flush()
+    >>> for line in proc.stdout:
+    ...     event = json.loads(line)
+    ...     print(f"[{event['type']}] {event['description']}")
+
+注意事项：
+    - stdio 模式下每行输出为一个完整的 JSON 对象（JSON Lines 协议）
+    - SSE 模式下事件以 "data: " 前缀格式化，遵循 SSE 规范
+    - C 共享库加载失败时会打印警告并自动切换到 demo 模式
+    - demo 模式的事件时序和内容为预设值，不代表真实引擎行为
+    - 多线程场景下 StreamContext 的使用需外部同步
 
 @author Lv-00 Project
-@version 3.2.0
+@version 3.5.0
 """
 
 import sys

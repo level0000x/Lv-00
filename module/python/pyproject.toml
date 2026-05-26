@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lv00"
-version = "3.4.0"
-description = "Lv-00 几何元语言系统 —— 以几何为唯一载体的双模数学元语言"
+version = "3.5.0"
+description = "Lv-00 几何元语言 —— 将几何构造、计算程序、一阶逻辑证明统一于同一语法体系的理论数学研究平台"
 readme = "../../README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

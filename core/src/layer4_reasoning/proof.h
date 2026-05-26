@@ -1,4 +1,5 @@
-﻿/**
+/* DEPRECATED: Use lv00/proof.h instead. This file will be removed in a future version. */
+/**
  * @file proof.h
  * @brief 命题与证明系统 - 合一检查、证明导航器、证明步骤
  *
@@ -253,7 +254,30 @@ typedef int Lv00ProofScopeId;
 #define LV00_PROOF_SCOPE_GLOBAL 0   /**< 全局作用域（默认公理和约束） */
 #define LV00_PROOF_SCOPE_INVALID -1 /**< 无效作用域标识符 */
 
-/* ============== 证明导航器 ============== */
+/* ============== QTT 用量标注（借鉴 Idris 2 Quantitative Type Theory）============== */
+typedef enum {
+    PROOF_QTT_ERASED = 0,      /**< 0: 编译期擦除 */
+    PROOF_QTT_LINEAR = 1,      /**< 1: 线性使用 */
+    PROOF_QTT_UNRESTRICTED = 2 /**< ω: 无限制使用 */
+} ProofQuantifier;
+
+/* ============== 证明导航器 ==============*/
+
+/** @brief 断点保存数据结构 */
+typedef struct {
+    int breakpoint_id;      /* 断点ID */
+    int current_step;       /* 当前步骤索引 */
+    int step_count;         /* 步骤数量 */
+    bool is_complete;       /* 证明是否完成 */
+    ProofColor final_color; /* 最终颜色 */
+} ProofBreakpointSnapshot;
+
+/** @brief 断点存储最大容量 */
+#define PROOF_MAX_BREAKPOINT_SNAPSHOTS 64
+
+/** @brief Ghost 标记表最大步数 */
+#define PROOF_MAX_GHOST_STEPS 1024
+
 struct ProofNavigator {
     ProofStep **steps; /* 证明步骤数组 */
     int step_count;    /* 步骤数量 */
@@ -272,6 +296,14 @@ struct ProofNavigator {
     /* 断点管理 */
     int *breakpoint_indices; /* 断点索引数组 */
     int breakpoint_count;    /* 断点数量 */
+
+    /* 断点快照存储（实例级，替代全局静态数组） */
+    ProofBreakpointSnapshot breakpoint_store[PROOF_MAX_BREAKPOINT_SNAPSHOTS];
+    int breakpoint_store_count;
+
+    /* Ghost 标记表（实例级，替代全局静态数组） */
+    ProofQuantifier ghost_table[PROOF_MAX_GHOST_STEPS];
+    bool ghost_table_initialized;
 
     /* 命题等价表 */
     PropositionEquivalence *equivalences; /* 等价命题数组 */
@@ -696,14 +728,12 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id);
 /**
  * @brief 初始化断点存储系统
  *
- * 在使用断点功能前必须调用此函数（通常在引擎初始化时）。
- * 线程安全：使用线程局部存储，每个线程有独立的存储实例。
+ * 重置指定导航器的断点存储。在使用断点功能前调用。
  * 可重复调用，后续调用会重置存储状态。
  *
- * @note 此函数在 proof.c 中使用静态局部变量确保线程安全初始化，
- *       无需外部同步机制。
+ * @param nav 证明导航器
  */
-void proof_breakpoint_storage_init(void);
+void proof_breakpoint_storage_init(ProofNavigator *nav);
 
 /**
  * @brief 重置断点存储系统
@@ -711,31 +741,28 @@ void proof_breakpoint_storage_init(void);
  * 清除所有已保存的断点快照，释放相关资源。
  * 调用后断点存储回到初始状态。
  *
- * @note 线程安全：仅重置当前线程的存储实例。
- *       不会影响其他线程的断点存储。
+ * @param nav 证明导航器
  */
-void proof_breakpoint_storage_reset(void);
+void proof_breakpoint_storage_reset(ProofNavigator *nav);
 
 /**
  * @brief 获取当前断点存储中的断点数量
  *
+ * @param nav 证明导航器
  * @return 当前存储的断点数量
- *
- * @note 线程安全：返回当前线程存储中的断点数量。
  */
-int proof_breakpoint_storage_count(void);
+int proof_breakpoint_storage_count(const ProofNavigator *nav);
 
 /**
  * @brief 删除指定的断点快照
  *
  * 从存储中移除指定ID的断点快照。
  *
+ * @param nav 证明导航器
  * @param breakpoint_id 要删除的断点ID
  * @return true 成功删除，false 未找到该断点
- *
- * @note 线程安全：仅操作当前线程的存储实例。
  */
-bool proof_breakpoint_delete(int breakpoint_id);
+bool proof_breakpoint_delete(ProofNavigator *nav, int breakpoint_id);
 
 /* ============== 导出功能 ============== */
 
@@ -1461,22 +1488,21 @@ void fill_suggestions_destroy(FillSuggestion *list);
  * 2. Idris 2 — QTT 线性类型标记（0/1/ω），证明仅编译期
  * ================================================================ */
 
-/** @brief QTT 用量标注（借鉴 Idris 2 Quantitative Type Theory） */
-typedef enum { PROOF_QTT_ERASED = 0, PROOF_QTT_LINEAR = 1, PROOF_QTT_UNRESTRICTED = 2 } ProofQuantifier;
-
 /**
  * @brief 标记构造步骤为 Ghost（仅编译期存在，运行时擦除）
+ * @param nav      证明导航器（持有 ghost 标记表）
  * @param step_id  证明步骤 ID
  * @param quant    用量标注（ERASED=仅证明，LINEAR=精确一次，UNRESTRICTED=可多次）
  * @return 是否成功
  */
-bool proof_mark_ghost(int step_id, ProofQuantifier quant);
+bool proof_mark_ghost(ProofNavigator *nav, int step_id, ProofQuantifier quant);
 
 /**
  * @brief 检查 Ghost 冲突 — 确认被运行时计算依赖的步骤未被标记为 ERASED
+ * @param nav  证明导航器（持有 ghost 标记表）
  * @return 冲突数量（0 = 无冲突）
  */
-int proof_check_ghost_conflicts(void);
+int proof_check_ghost_conflicts(ProofNavigator *nav);
 
 /* ================================================================
  * 3. Isabelle/HOL — Sledgehammer 自动证明策略调度

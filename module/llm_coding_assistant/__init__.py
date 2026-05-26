@@ -5,7 +5,7 @@ LLM 编程辅助系统 (Lv-00 LLM Coding Assistant)
 通过 RESTful API 和 WebSocket 接口与 Lv-00 几何元语言系统集成。
 """
 
-__version__ = "3.3.0"
+__version__ = "3.5.0"
 
 __all__ = [
     "__version__",

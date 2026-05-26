@@ -14,6 +14,7 @@
  * @version 3.3.0
  */
 
+#include "lv00.h"           /* 必须先包含以获取 LV00_PUBLIC_API 定义 */
 #include "stream_context_util.h"
 
 #include <stddef.h>

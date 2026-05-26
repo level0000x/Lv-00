@@ -17,16 +17,92 @@ Lv-00 交互几何模块
 """
 
 import ctypes
-from typing import Any, List, Optional, Tuple
+import threading
+import time
+from typing import Any, Callable, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, c_int, c_double, c_char_p, c_void_p, c_bool, POINTER
 from .core import Lv00BaseError
 
+
+# ============================================================
+# 防抖/节流装饰器
+# ============================================================
+
+def throttle(min_interval: float = 0.016) -> Callable:
+    """
+    节流装饰器。
+
+    限制函数调用频率，确保两次调用之间至少间隔指定时间。
+    适用于高频事件处理（如拖拽移动）。
+
+    参数：
+        min_interval: 最小调用间隔（秒），默认 0.016（约 60 FPS）
+
+    返回：
+        Callable: 装饰后的函数
+
+    示例：
+        >>> @throttle(0.016)  # 限制为 60 FPS
+        ... def on_drag(x, y):
+        ...     update_position(x, y)
+    """
+    def decorator(func: Callable) -> Callable:
+        last_call_time = 0.0
+
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            nonlocal last_call_time
+            current_time = time.time()
+            if current_time - last_call_time >= min_interval:
+                last_call_time = current_time
+                return func(*args, **kwargs)
+            return None  # 跳过此次调用
+
+        return wrapper
+    return decorator
+
+
+def debounce(wait: float = 0.1) -> Callable:
+    """
+    防抖装饰器。
+
+    延迟函数执行，如果在等待时间内再次调用，则重新计时。
+    适用于输入框、搜索等场景。
+
+    参数：
+        wait: 等待时间（秒），默认 0.1
+
+    返回：
+        Callable: 装饰后的函数
+
+    示例：
+        >>> @debounce(0.3)  # 300ms 防抖
+        ... def on_search(query):
+        ...     perform_search(query)
+    """
+    def decorator(func: Callable) -> Callable:
+        timer = None
+
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            nonlocal timer
+            if timer is not None:
+                timer.cancel()
+            timer = threading.Timer(wait, lambda: func(*args, **kwargs))
+            timer.start()
+
+        return wrapper
+    return decorator
+
 __all__ = [
+    # 枚举常量
     "InteractiveGeoMode", "ConfigClassification", "ScriptLanguage",
     "RandomizedCheckResult", "ConstraintMaintainStatus",
+    # 主类
     "InteractiveGeo", "InteractiveGeoError",
+    # 便捷函数
     "interactive_geo_init",
+    # 装饰器
+    "throttle", "debounce",
 ]
 
 

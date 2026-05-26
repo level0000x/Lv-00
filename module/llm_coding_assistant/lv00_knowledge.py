@@ -29,7 +29,9 @@ Lv-00 UI编程辅助系统 - 专为几何元语言可视化界面优化的LLM助
   - generate_task_help(): 生成任务帮助信息
 """
 
-from typing import Dict, List, Any, Optional
+from __future__ import annotations
+
+from typing import Any, Optional
 from enum import Enum
 import logging
 import threading
@@ -59,12 +61,12 @@ class Lv00KnowledgeBase:
     """
     
     def __init__(self) -> None:
-        self.api_signatures = self._init_api_signatures()
-        self.code_patterns = self._init_code_patterns()
-        self.ui_conventions = self._init_ui_conventions()
-        self.common_tasks = self._init_common_tasks()
+        self.api_signatures: dict[str, dict[str, str]] = self._init_api_signatures()
+        self.code_patterns: dict[str, str] = self._init_code_patterns()
+        self.ui_conventions: dict[str, str] = self._init_ui_conventions()
+        self.common_tasks: list[dict[str, Any]] = self._init_common_tasks()
     
-    def _init_api_signatures(self) -> Dict[str, Dict[str, str]]:
+    def _init_api_signatures(self) -> dict[str, dict[str, str]]:
         """初始化Lv-00 C API签名"""
         return {
             # 图操作
@@ -138,7 +140,7 @@ class Lv00KnowledgeBase:
             }
         }
     
-    def _init_code_patterns(self) -> Dict[str, str]:
+    def _init_code_patterns(self) -> dict[str, str]:
         """
         初始化常用代码模式（面向 LLM 上下文注入）
 
@@ -530,7 +532,7 @@ document.querySelectorAll('.module-tab').forEach(tab => {
 """
         }
     
-    def _init_ui_conventions(self) -> Dict[str, str]:
+    def _init_ui_conventions(self) -> dict[str, str]:
         """初始化UI设计规范"""
         return {
             "color_scheme": """
@@ -575,7 +577,7 @@ Lv-00 事件命名规范：
 """
         }
     
-    def _init_common_tasks(self) -> List[Dict[str, Any]]:
+    def _init_common_tasks(self) -> list[dict[str, Any]]:
         """初始化常见编程任务模板"""
         return [
             {
@@ -684,7 +686,7 @@ class Lv00PromptEngine:
 7. 遵循Lv-00的代码风格(4空格缩进)
 """
     
-    def generate_canvas_renderer_prompt(self, element_type: str, features: List[str]) -> str:
+    def generate_canvas_renderer_prompt(self, element_type: str, features: list[str]) -> str:
         """生成Canvas渲染器的提示词"""
         return f"""
 为Lv-00几何画布生成渲染代码。
@@ -810,13 +812,13 @@ Lv-00 UI编程任务:
 # 缓存有效期1小时，超时自动失效
 # 使用 threading.Lock 保证多线程环境下的安全访问
 # ============================================
-_cached_helper: Optional[tuple] = None
-# 缓存创建时间戳，用于判断是否过期
+_cached_helper: Optional[tuple[Lv00KnowledgeBase, Lv00PromptEngine]] = None
+# 缓存创建时间戳，用于判断是否过期（Unix 纪元秒数）
 _cache_created_at: float = 0.0
 # 缓存有效期（秒）：1小时
-_CACHE_TTL_SECONDS = 3600
+_CACHE_TTL_SECONDS: int = 3600
 # 缓存访问锁，保护 _cached_helper 和 _cache_created_at 的并发读写
-_cache_lock = threading.Lock()
+_cache_lock: threading.Lock = threading.Lock()
 
 
 def invalidate_cache() -> None:
@@ -852,7 +854,7 @@ def _is_cache_valid_unlocked() -> bool:
     return True
 
 
-def get_lv00_helper() -> tuple:
+def get_lv00_helper() -> tuple[Lv00KnowledgeBase, Lv00PromptEngine]:
     """
     获取Lv-00编程辅助系统的核心组件（带缓存）
 
@@ -892,7 +894,7 @@ def generate_binding_help(function_name: str, description: str) -> str:
     return pe.generate_wasm_binding_prompt(function_name, description)
 
 
-def generate_renderer_help(element: str, features: List[str]) -> str:
+def generate_renderer_help(element: str, features: list[str]) -> str:
     """生成渲染器代码的帮助信息"""
     kb, pe = get_lv00_helper()
     return pe.generate_canvas_renderer_prompt(element, features)
@@ -908,7 +910,7 @@ def generate_task_help(task: str) -> str:
 # 概念解释数据（从 main.py 提取）
 # ============================================
 
-CONCEPT_EXPLANATIONS: Dict[str, str] = {
+CONCEPT_EXPLANATIONS: dict[str, str] = {
     "normalization": """
 【图归一化 (Graph Normalization)】
 
@@ -1054,7 +1056,7 @@ TRUST_DARK_ORANGE (9)
 # 代码生成指导文本（从 main.py 提取）
 # ============================================
 
-CODE_GUIDANCE: Dict[str, str] = {
+CODE_GUIDANCE: dict[str, str] = {
     "binding": """
 【生成WebAssembly绑定代码】
 

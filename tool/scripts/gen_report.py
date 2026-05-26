@@ -4,12 +4,40 @@
 本模块用于生成 Lv-00 UI 系统全面优化任务的汇报文档（.docx 格式），
 涵盖安全修复、代码标准化、模块化重构、用户体验增强等维度的改进记录。
 
-用法:
-    python gen_report.py                          # 输出到当前目录
-    python gen_report.py -o /path/to/output.docx  # 输出到指定路径
+模块功能：
+    自动生成结构化的 Word 文档（.docx），记录 UI 系统优化的完整过程，
+    包括任务概述、Bug 修复详情、安全风险修复、代码风格改进、
+    模块化重构记录、用户体验增强以及后续建议等内容。
+    文档包含封面、分章节正文和风险消除清单表格。
 
-依赖:
-    pip install python-docx
+主要函数：
+    generate_report(output_path: str) -> str
+        核心函数，生成完整的汇报文档并保存到指定路径。
+        文档内容涵盖 8 个章节：任务概述、严重 Bug 修复、安全风险修复、
+        代码风格标准化与模块化重构、用户体验增强、风险消除清单、
+        后续建议和任务总结。
+
+使用示例：
+    命令行方式::
+
+        python gen_report.py                          # 输出到当前目录
+        python gen_report.py -o /path/to/output.docx  # 输出到指定路径
+
+    编程方式::
+
+        from gen_report import generate_report
+        path = generate_report("/path/to/output.docx")
+
+依赖：
+    python-docx >= 0.8.0: 用于创建和操作 .docx 文档。
+        安装方式: pip install python-docx
+
+    标准库: argparse, os, sys, datetime
+
+注意：
+    - 文档日期使用动态获取的当前日期，非硬编码
+    - 缺少 python-docx 时抛出 ImportError（而非 sys.exit），便于调用方捕获处理
+    - 输出文件编码为 UTF-8，支持中文字体（微软雅黑）
 """
 
 import argparse
@@ -19,13 +47,15 @@ from datetime import datetime  # 【修复 #5】使用动态日期替代硬编�
 
 try:
     from docx import Document
-    from docx.shared import Pt, Cm, RGBColor
+    from docx.shared import Pt, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml.ns import qn
 except ImportError:
-    print("错误: 缺少 python-docx 依赖库。", file=sys.stderr)
-    print("请执行: pip install python-docx", file=sys.stderr)
-    sys.exit(1)
+    # [代码质量修复 M-04] 使用 raise ImportError 替代 sys.exit(1)。
+    # 库模块不应直接调用 sys.exit()，因为它会强制终止整个 Python 进程，
+    # 导致调用方无法捕获和处理依赖缺失的情况。
+    # 抛出 ImportError 允许调用方通过 try/except 优雅地处理此错误。
+    raise ImportError("需要安装 python-docx: pip install python-docx")
 
 
 def generate_report(output_path: str) -> str:
@@ -58,12 +88,25 @@ def generate_report(output_path: str) -> str:
     style.paragraph_format.line_spacing = 1.5
 
     def heading(text, level=1):
+        """添加标题段落并设置中英文字体。
+
+        参数:
+            text: 标题文本
+            level: 标题级别（1-4），默认为 1
+        """
         h = doc.add_heading(text, level=level)
         for r in h.runs:
             r.font.name = 'Arial'
             r.element.rPr.rFonts.set(qn('w:eastAsia'), 'Microsoft YaHei')
 
     def para(text, bold=False, align=None):
+        """添加正文段落并设置字体样式。
+
+        参数:
+            text: 段落文本
+            bold: 是否加粗，默认为 False
+            align: 对齐方式（如 WD_ALIGN_PARAGRAPH.CENTER），默认为 None（左对齐）
+        """
         p = doc.add_paragraph()
         if align: p.alignment = align
         run = p.add_run(text)
@@ -72,6 +115,11 @@ def generate_report(output_path: str) -> str:
         if bold: run.bold = True
 
     def bullet(text):
+        """添加项目符号段落并设置字体样式。
+
+        参数:
+            text: 项目符号文本
+        """
         p = doc.add_paragraph(text, style='List Bullet')
         for r in p.runs:
             r.font.name = 'Arial'
@@ -83,7 +131,7 @@ def generate_report(output_path: str) -> str:
     para('任务汇报文档', bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
     para('—— 安全修复 · 代码标准化 · 模块化重构 · 用户体验增强', align=WD_ALIGN_PARAGRAPH.CENTER)
     doc.add_paragraph()
-    para(f'版本: v5.1.0 | 日期: {today_str}', align=WD_ALIGN_PARAGRAPH.CENTER)
+    para(f'版本: v3.5.0 | 日期: {today_str}', align=WD_ALIGN_PARAGRAPH.CENTER)
     doc.add_page_break()
 
     # 一、任务概述

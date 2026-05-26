@@ -23,10 +23,16 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
+#include "lv00.h"
 #include "error_codes.h"
 
+/* LV00_PUBLIC_API 由 lv00.h 统一定义，此处不再重复。
+ * 原因：lv00.h 中根据平台（Windows DLL / GCC/Clang visibility）和构建模式
+ * （共享库 / 静态库）统一设置 LV00_PUBLIC_API。若各子模块头文件各自
+ * #define LV00_PUBLIC_API 为空，在构建共享库时会导致符号不导出。
+ * 因此要求使用者先包含 lv00.h，此处仅做守卫检查。 */
 #ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
+#error "请先包含 lv00.h 以获取 LV00_PUBLIC_API 定义"
 #endif
 
 /* ============================================================

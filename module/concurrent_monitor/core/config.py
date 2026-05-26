@@ -131,14 +131,14 @@ class LoggingConfig:
 
     Attributes:
         level: 日志级别（DEBUG/INFO/WARNING/ERROR/CRITICAL）
-        format: 日志格式字符串
+        log_format: 日志格式字符串
         file: 日志文件路径（None 表示不输出到文件）
         max_bytes: 单个日志文件的最大大小（字节），用于日志轮转
         backup_count: 保留的备份日志文件数量
         console_enabled: 是否启用控制台日志输出
     """
     level: str = "INFO"                 # 日志级别
-    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     file: str | None = None             # 日志文件路径
     max_bytes: int = 10 * 1024 * 1024   # 单个日志文件最大大小（10MB）
     backup_count: int = 5               # 保留的备份文件数

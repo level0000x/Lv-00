@@ -36,6 +36,11 @@ from typing import (TYPE_CHECKING, Any, Dict, List, Optional,
 from .core import (Graph, LineSegment, Point, SymbolicCoord,
                    Lv00ConstraintError, Lv00Error)
 
+# [重构 H-02] 从 dsl_context 导入共享的坐标转换函数，消除重复定义。
+# _to_coord() 在 py_euclid_style 和 dsl_context 中逻辑完全一致，
+# 统一由 dsl_context 提供唯一实现，其他模块通过导入复用。
+from .dsl_context import _to_coord
+
 # ============================================================
 # 自定义异常
 # ============================================================
@@ -63,13 +68,9 @@ _CoordLike = Union[SymbolicCoord, int, float]
 _PointLike = Union['P', Tuple[float, float], List[float], Point]
 _PointSeq = Sequence[_PointLike]
 
-
-def _to_coord(value: Union[SymbolicCoord, int, float]) -> SymbolicCoord:
-    """将数值转为 SymbolicCoord。"""
-    if isinstance(value, SymbolicCoord):
-        return value
-    return SymbolicCoord(value)
-
+# [重构 H-02] _to_coord() 已移至 dsl_context.py 并通过上方导入复用。
+# _to_point() 保留在此处，因为它额外支持本模块的 P 类型（PointWrapper 仅在 dsl_context 中使用），
+# 且内部调用 _to_coord() 进行坐标转换，逻辑与 dsl_context._to_core_point() 有类型差异。
 
 def _to_point(value: _PointLike, graph: Graph) -> Point:
     """将任意点表示转为 core.Point。

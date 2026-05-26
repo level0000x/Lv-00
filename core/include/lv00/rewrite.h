@@ -15,8 +15,8 @@
  *   - rewrite_num_optimize                         — Herbie 风格数值优化
  *
  * 使用示例：
- LV00_PUBLIC_API *   RewriteRule *rule = rewrite_rule_create("simplify", pattern, replacement, 1);
- LV00_PUBLIC_API *   RewriteMatch *match = find_rewrite_match(graph, rule, false);
+ *   RewriteRule *rule = rewrite_rule_create("simplify", pattern, replacement, 1);
+ *   RewriteMatch *match = find_rewrite_match(graph, rule, false);
  *   if (match) { apply_rewrite(graph, rule, match); }
  *
  * ======================================================================== */

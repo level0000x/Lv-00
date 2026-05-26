@@ -28,9 +28,9 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  background: var(--color-bg-tertiary, #1a1a2e);
-  border-radius: var(--radius-md, 6px);
-  border: 1px solid var(--color-border-secondary, #2a2a3e);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-secondary);
 }
 
 /* ================================================================
@@ -38,8 +38,8 @@
  * ================================================================ */
 
 .panel-form-label {
-  font-size: var(--font-size-sm, 10px);
-  color: var(--color-text-secondary, #8b949e);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 2px;
@@ -52,23 +52,23 @@
 .panel-form-input {
   width: 100%;
   padding: 5px 8px;
-  font-size: var(--font-size-base, 11px);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  color: var(--color-text-primary, #e0e0e0);
-  background: var(--color-bg-secondary, #161b22);
-  border: 1px solid var(--color-border-primary, #30363d);
-  border-radius: var(--radius-sm, 3px);
+  font-size: var(--font-size-base);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
   outline: none;
-  transition: border-color var(--duration-fast, 0.15s);
+  transition: border-color var(--duration-fast);
   box-sizing: border-box;
 }
 
 .panel-form-input:focus {
-  border-color: var(--color-accent, #58a6ff);
+  border-color: var(--color-accent);
 }
 
 .panel-form-input::placeholder {
-  color: var(--color-text-muted, #484f58);
+  color: var(--color-text-muted);
 }
 
 /* ================================================================
@@ -78,19 +78,19 @@
 .panel-form-select {
   width: 100%;
   padding: 5px 8px;
-  font-size: var(--font-size-base, 11px);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  color: var(--color-text-primary, #e0e0e0);
-  background: var(--color-bg-secondary, #161b22);
-  border: 1px solid var(--color-border-primary, #30363d);
-  border-radius: var(--radius-sm, 3px);
+  font-size: var(--font-size-base);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
   outline: none;
   cursor: pointer;
-  transition: border-color var(--duration-fast, 0.15s);
+  transition: border-color var(--duration-fast);
 }
 
 .panel-form-select:focus {
-  border-color: var(--color-accent, #58a6ff);
+  border-color: var(--color-accent);
 }
 
 /* ================================================================
@@ -99,12 +99,12 @@
 
 .panel-result-box {
   padding: 8px;
-  font-size: var(--font-size-sm, 10px);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  color: var(--color-text-primary, #e0e0e0);
-  background: var(--color-bg-secondary, #161b22);
-  border: 1px solid var(--color-border-primary, #30363d);
-  border-radius: var(--radius-sm, 3px);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
   min-height: 40px;
   max-height: 200px;
   overflow-y: auto;
@@ -120,15 +120,15 @@
 .panel-log-list {
   max-height: 200px;
   overflow-y: auto;
-  font-size: var(--font-size-sm, 10px);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
   line-height: 1.6;
 }
 
 .panel-log-item {
   padding: 2px 4px;
-  border-bottom: 1px solid var(--color-border-secondary, #2a2a3e);
-  color: var(--color-text-secondary, #8b949e);
+  border-bottom: 1px solid var(--color-border-secondary);
+  color: var(--color-text-secondary);
 }
 
 .panel-log-item:last-child {
@@ -136,19 +136,19 @@
 }
 
 .panel-log-item--success {
-  color: var(--color-success, #3fb950);
+  color: var(--color-success);
 }
 
 .panel-log-item--error {
-  color: var(--color-danger, #f85149);
+  color: var(--color-danger);
 }
 
 .panel-log-item--warning {
-  color: var(--color-warning, #d29922);
+  color: var(--color-warning);
 }
 
 .panel-log-item--info {
-  color: var(--color-info, #58a6ff);
+  color: var(--color-info);
 }
 
 /* ================================================================
@@ -170,13 +170,13 @@
  * ================================================================ */
 
 .panel-info-text {
-  font-size: var(--font-size-sm, 10px);
-  color: var(--color-text-muted, #484f58);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
   line-height: 1.4;
 }
 
 .panel-info-text--highlight {
-  color: var(--color-accent, #58a6ff);
+  color: var(--color-accent);
 }
 
 /* ================================================================
@@ -185,7 +185,7 @@
 
 .panel-divider {
   height: 1px;
-  background: var(--color-border-secondary, #2a2a3e);
+  background: var(--color-border-secondary);
   margin: 6px 0;
 }
 
@@ -196,8 +196,8 @@
 .panel-empty-state {
   padding: 16px 8px;
   text-align: center;
-  color: var(--color-text-muted, #484f58);
-  font-size: var(--font-size-sm, 10px);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 /* ================================================================
@@ -211,23 +211,23 @@
   right: 0;
   max-height: 200px;
   overflow-y: auto;
-  background: var(--color-bg-secondary, #161b22);
-  border: 1px solid var(--color-border-primary, #30363d);
-  border-radius: var(--radius-sm, 3px);
-  z-index: var(--z-dropdown, 40);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  z-index: var(--z-dropdown);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .panel-selector-option {
   padding: 5px 8px;
-  font-size: var(--font-size-base, 11px);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  color: var(--color-text-primary, #e0e0e0);
+  font-size: var(--font-size-base);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: background var(--duration-fast, 0.15s);
+  transition: background var(--duration-fast);
 }
 
 .panel-selector-option:hover {
-  background: var(--color-accent, #58a6ff);
+  background: var(--color-accent);
   color: #fff;
 }

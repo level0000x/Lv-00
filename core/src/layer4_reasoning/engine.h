@@ -1,3 +1,4 @@
+/* DEPRECATED: Use lv00/engine.h instead. This file will be removed in a future version. */
 /**
  * @file engine.h
  * @brief Lv-00 主引擎 —— 工作流编排、模块/公理加载、重写与求解

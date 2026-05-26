@@ -45,15 +45,16 @@ extern "C" {
 
 /**
  * @brief 日志级别
+ * @note 使用 LV00_ 前缀避免与 debug.h 中的 LOG_LEVEL_* 冲突
  */
 typedef enum {
-    LOG_LEVEL_TRACE = 0,    /**< 最详细跟踪 */
-    LOG_LEVEL_DEBUG = 1,    /**< 调试信息 */
-    LOG_LEVEL_INFO = 2,     /**< 一般信息 */
-    LOG_LEVEL_WARN = 3,     /**< 警告 */
-    LOG_LEVEL_ERROR = 4,    /**< 错误 */
-    LOG_LEVEL_FATAL = 5,    /**< 致命错误 */
-    LOG_LEVEL_OFF = 6       /**< 关闭日志 */
+    LV00_LOG_LEVEL_TRACE = 0,    /**< 最详细跟踪 */
+    LV00_LOG_LEVEL_DEBUG = 1,    /**< 调试信息 */
+    LV00_LOG_LEVEL_INFO = 2,     /**< 一般信息 */
+    LV00_LOG_LEVEL_WARN = 3,     /**< 警告 */
+    LV00_LOG_LEVEL_ERROR = 4,    /**< 错误 */
+    LV00_LOG_LEVEL_FATAL = 5,    /**< 致命错误 */
+    LV00_LOG_LEVEL_OFF = 6       /**< 关闭日志 */
 } Lv00LogLevel;
 
 /**
@@ -160,17 +161,17 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
 
 /* 便捷日志宏 */
 #define LV00_LOG_TRACE(tag, fmt, ...) \
-    lv00_log_write(LOG_LEVEL_TRACE, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    lv00_log_write(LV00_LOG_LEVEL_TRACE, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_DEBUG(tag, fmt, ...) \
-    lv00_log_write(LOG_LEVEL_DEBUG, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    lv00_log_write(LV00_LOG_LEVEL_DEBUG, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_INFO(tag, fmt, ...) \
-    lv00_log_write(LOG_LEVEL_INFO, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    lv00_log_write(LV00_LOG_LEVEL_INFO, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_WARN(tag, fmt, ...) \
-    lv00_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    lv00_log_write(LV00_LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_ERROR(tag, fmt, ...) \
-    lv00_log_write(LOG_LEVEL_ERROR, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    lv00_log_write(LV00_LOG_LEVEL_ERROR, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_FATAL(tag, fmt, ...) \
-    lv00_log_write(LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    lv00_log_write(LV00_LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 /* ============== 性能监控 ============== */
 

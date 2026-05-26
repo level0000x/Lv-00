@@ -42,6 +42,18 @@
  *   - stream.h             : 流式事件输出
  *   - constraint_graph.h   : 约束图接口
  *   - normalization.h      : 图规范化
+ *
+ * @par 设计要点
+ * - 命题采用树形结构管理，支持子命题嵌套和依赖链追踪
+ * - 信任颜色系统实现证明可信度的分层评估（绿->黄->蓝->琥珀->橙）
+ * - 证明导航器支持步进、跳转和断点调试，适用于交互式证明探索
+ * - 合一检查采用三层匹配策略：端口类型 -> 约束类型 -> 坐标等价
+ * - 导出功能支持 HTML（交互式）、LaTeX（出版级）和 Coq（机器验证）三种格式
+ *
+ * @par 依赖关系
+ * - 上层: 被 engine.c（证明编排）、dsl_compiler.c（DSL 证明生成）调用
+ * - 下层: 依赖 type_system.c（类型等价）、solver.c（数值验证）、axiom_pkg.h（公理包）
+ * - 同层: 与 unify.c 协作进行合一检查，与 stream.c 协作输出证明事件
  */
 
 #include "proof.h"
@@ -219,7 +231,12 @@ void proposition_destroy(Proposition *prop) {
                                 lv00_free((void **) &child);
                             }
                         }
-                        break;
+                        /* 清理已入栈但尚未处理的命题，防止内存泄漏 */
+                        for (int k = 0; k < stack_top; k++) {
+                            proposition_unref(destroy_stack[k]);
+                        }
+                        lv00_free((void **) &destroy_stack);
+                        return;
                     }
                     destroy_stack = new_stack;
                     stack_capacity = new_cap;
@@ -1739,26 +1756,12 @@ bool proof_interactive_step(ProofNavigator *nav, ProofStepType step_type, const 
 
 /* ============== 证明断点保存/恢复 ============== */
 
-/**
- * 断点保存数据结构
- * 存储证明导航器在某个断点处的完整状态快照
- */
-typedef struct {
-    int breakpoint_id;      /* 断点ID */
-    int current_step;       /* 当前步骤索引 */
-    int step_count;         /* 步骤数量 */
-    bool is_complete;       /* 证明是否完成 */
-    ProofColor final_color; /* 最终颜色 */
-} ProofBreakpointSnapshot;
+/* ProofBreakpointSnapshot 类型已在 proof.h 中定义 */
 
 /**
- * 断点存储（模块级静态变量）
- * 使用简单的固定大小数组存储断点快照
+ * 断点存储 — 已迁移到 ProofNavigator 实例字段（nav->breakpoint_store）
+ * 保留旧定义仅为兼容注释，实际数据存储在 ProofNavigator 结构体中。
  */
-#define MAX_BREAKPOINT_SNAPSHOTS 64
-
-static ProofBreakpointSnapshot g_breakpoint_store[MAX_BREAKPOINT_SNAPSHOTS];
-static int g_breakpoint_store_count = 0;
 
 bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     if (!nav)
@@ -1770,8 +1773,8 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 查找是否已有相同ID的快照，如果有则覆盖 */
     int slot = -1;
-    for (int i = 0; i < g_breakpoint_store_count; i++) {
-        if (g_breakpoint_store[i].breakpoint_id == breakpoint_id) {
+    for (int i = 0; i < nav->breakpoint_store_count; i++) {
+        if (nav->breakpoint_store[i].breakpoint_id == breakpoint_id) {
             slot = i;
             break;
         }
@@ -1779,19 +1782,19 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 如果没有找到，分配新槽位 */
     if (slot < 0) {
-        if (g_breakpoint_store_count >= MAX_BREAKPOINT_SNAPSHOTS) {
+        if (nav->breakpoint_store_count >= PROOF_MAX_BREAKPOINT_SNAPSHOTS) {
             return false; /* 存储已满 */
         }
-        slot = g_breakpoint_store_count;
-        g_breakpoint_store_count++;
+        slot = nav->breakpoint_store_count;
+        nav->breakpoint_store_count++;
     }
 
     /* 保存当前导航器状态 */
-    g_breakpoint_store[slot].breakpoint_id = breakpoint_id;
-    g_breakpoint_store[slot].current_step = nav->current_step;
-    g_breakpoint_store[slot].step_count = nav->step_count;
-    g_breakpoint_store[slot].is_complete = nav->is_complete;
-    g_breakpoint_store[slot].final_color = nav->final_color;
+    nav->breakpoint_store[slot].breakpoint_id = breakpoint_id;
+    nav->breakpoint_store[slot].current_step = nav->current_step;
+    nav->breakpoint_store[slot].step_count = nav->step_count;
+    nav->breakpoint_store[slot].is_complete = nav->is_complete;
+    nav->breakpoint_store[slot].final_color = nav->final_color;
 
     /* 将当前步骤标记为断点 */
     if (nav->current_step >= 0 && nav->current_step < nav->step_count) {
@@ -1817,8 +1820,8 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 查找断点快照 */
     int slot = -1;
-    for (int i = 0; i < g_breakpoint_store_count; i++) {
-        if (g_breakpoint_store[i].breakpoint_id == breakpoint_id) {
+    for (int i = 0; i < nav->breakpoint_store_count; i++) {
+        if (nav->breakpoint_store[i].breakpoint_id == breakpoint_id) {
             slot = i;
             break;
         }
@@ -1828,14 +1831,14 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
         return false; /* 未找到断点 */
 
     /* 验证快照中的 step_count 不超过当前步骤数量 */
-    if (g_breakpoint_store[slot].step_count > nav->step_count) {
+    if (nav->breakpoint_store[slot].step_count > nav->step_count) {
         return false; /* 快照无效：保存时的步骤数多于当前 */
     }
 
     /* 恢复导航器状态 */
-    nav->current_step = g_breakpoint_store[slot].current_step;
-    nav->is_complete = g_breakpoint_store[slot].is_complete;
-    nav->final_color = g_breakpoint_store[slot].final_color;
+    nav->current_step = nav->breakpoint_store[slot].current_step;
+    nav->is_complete = nav->breakpoint_store[slot].is_complete;
+    nav->final_color = nav->breakpoint_store[slot].final_color;
 
     /* 确保 current_step 在有效范围内 */
     if (nav->current_step < -1) {
@@ -1858,21 +1861,15 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 /* ============== 断点存储管理实现（v3.4.1 新增） ============== */
 
 /**
- * @brief 线程安全的断点存储初始化
+ * @brief 断点存储初始化
  *
- * 使用静态局部变量确保初始化过程只执行一次（C++11 保证线程安全）。
- * 即使多个线程同时调用，也只有第一个会执行初始化。
+ * 重置指定导航器的断点存储。
  */
-void proof_breakpoint_storage_init(void) {
-    /* C11 静态局部变量初始化是线程安全的 */
-    static _Bool initialized = false;
-    if (!initialized) {
-        /* 重置计数器（非原子操作，但因为有 initialized 保护，只执行一次） */
-        g_breakpoint_store_count = 0;
-        /* 清空存储 */
-        memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
-        initialized = true;
-    }
+void proof_breakpoint_storage_init(ProofNavigator *nav) {
+    if (!nav)
+        return;
+    nav->breakpoint_store_count = 0;
+    memset(nav->breakpoint_store, 0, sizeof(nav->breakpoint_store));
 }
 
 /**
@@ -1880,10 +1877,12 @@ void proof_breakpoint_storage_init(void) {
  *
  * 清除所有已保存的断点快照，重置计数器。
  */
-void proof_breakpoint_storage_reset(void) {
+void proof_breakpoint_storage_reset(ProofNavigator *nav) {
+    if (!nav)
+        return;
     /* 清空所有快照 */
-    memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
-    g_breakpoint_store_count = 0;
+    memset(nav->breakpoint_store, 0, sizeof(nav->breakpoint_store));
+    nav->breakpoint_store_count = 0;
 
     /* 流式事件 */
     if (proof_stream_ctx != NULL) {
@@ -1894,22 +1893,24 @@ void proof_breakpoint_storage_reset(void) {
 /**
  * @brief 获取当前断点数量
  */
-int proof_breakpoint_storage_count(void) {
-    return g_breakpoint_store_count;
+int proof_breakpoint_storage_count(const ProofNavigator *nav) {
+    if (!nav)
+        return 0;
+    return nav->breakpoint_store_count;
 }
 
 /**
  * @brief 删除指定的断点快照
  */
-bool proof_breakpoint_delete(int breakpoint_id) {
-    if (breakpoint_id < 0) {
+bool proof_breakpoint_delete(ProofNavigator *nav, int breakpoint_id) {
+    if (!nav || breakpoint_id < 0) {
         return false;
     }
 
     /* 查找断点 */
     int slot = -1;
-    for (int i = 0; i < g_breakpoint_store_count; i++) {
-        if (g_breakpoint_store[i].breakpoint_id == breakpoint_id) {
+    for (int i = 0; i < nav->breakpoint_store_count; i++) {
+        if (nav->breakpoint_store[i].breakpoint_id == breakpoint_id) {
             slot = i;
             break;
         }
@@ -1921,10 +1922,10 @@ bool proof_breakpoint_delete(int breakpoint_id) {
     }
 
     /* 将最后一个元素移动到当前位置，然后减少计数 */
-    if (slot < g_breakpoint_store_count - 1) {
-        g_breakpoint_store[slot] = g_breakpoint_store[g_breakpoint_store_count - 1];
+    if (slot < nav->breakpoint_store_count - 1) {
+        nav->breakpoint_store[slot] = nav->breakpoint_store[nav->breakpoint_store_count - 1];
     }
-    g_breakpoint_store_count--;
+    nav->breakpoint_store_count--;
 
     /* 流式事件 */
     if (proof_stream_ctx != NULL) {
@@ -4999,35 +5000,35 @@ void fill_suggestions_destroy(FillSuggestion *list) {
  * 2. Idris 2 — QTT 线性类型标记（0/1/ω）
  * ================================================================ */
 
-/** @brief 静态 ghost 标记表，最大支持 1024 步 */
-#define MAX_GHOST_STEPS 1024
-
-static ProofQuantifier g_ghost_table[MAX_GHOST_STEPS];
-static bool g_ghost_table_initialized = false;
+/** @brief Ghost 标记表 — 已迁移到 ProofNavigator 实例字段（nav->ghost_table） */
 
 /**
  * @brief 惰性初始化 ghost 标记表
  */
-static void ghost_table_init(void) {
-    if (!g_ghost_table_initialized) {
-        for (int i = 0; i < MAX_GHOST_STEPS; i++) {
-            g_ghost_table[i] = PROOF_QTT_UNRESTRICTED; /* 默认非擦除 */
+static void ghost_table_init(ProofNavigator *nav) {
+    if (!nav)
+        return;
+    if (!nav->ghost_table_initialized) {
+        for (int i = 0; i < PROOF_MAX_GHOST_STEPS; i++) {
+            nav->ghost_table[i] = PROOF_QTT_UNRESTRICTED; /* 默认非擦除 */
         }
-        g_ghost_table_initialized = true;
+        nav->ghost_table_initialized = true;
     }
 }
 
 /**
  * @brief 标记证明步骤的 QTT 用量 — 证明仅编译期存在，运行时擦除
  */
-bool proof_mark_ghost(int step_id, ProofQuantifier quant) {
-    ghost_table_init();
+bool proof_mark_ghost(ProofNavigator *nav, int step_id, ProofQuantifier quant) {
+    if (!nav)
+        return false;
+    ghost_table_init(nav);
 
-    if (step_id < 0 || step_id >= MAX_GHOST_STEPS) {
+    if (step_id < 0 || step_id >= PROOF_MAX_GHOST_STEPS) {
         return false;
     }
 
-    g_ghost_table[step_id] = quant;
+    nav->ghost_table[step_id] = quant;
     return true;
 }
 
@@ -5041,13 +5042,15 @@ bool proof_mark_ghost(int step_id, ProofQuantifier quant) {
  *
  * @return 冲突数量
  */
-int proof_check_ghost_conflicts(void) {
-    ghost_table_init();
+int proof_check_ghost_conflicts(ProofNavigator *nav) {
+    if (!nav)
+        return 0;
+    ghost_table_init(nav);
 
     int conflicts = 0;
 
-    for (int i = 0; i < MAX_GHOST_STEPS; i++) {
-        if (g_ghost_table[i] == PROOF_QTT_ERASED) {
+    for (int i = 0; i < PROOF_MAX_GHOST_STEPS; i++) {
+        if (nav->ghost_table[i] == PROOF_QTT_ERASED) {
             /* 检查是否有 LINEAR 或 UNRESTRICTED 步骤依赖了这个 ERASED 步骤。
              * 在完整实现中需遍历 ProofStep 的 dependency_step_ids。
              * 当前简化版本：标记冲突并报告。 */

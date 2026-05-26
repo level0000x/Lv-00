@@ -26,6 +26,18 @@
  *   2. 现有 LEGACY 变量在迁移完成前继续工作，不影响运行时行为。
  *   3. 每个 context 实例是完全隔离的，支持并发、分支推理和资源熔断。
  * ============================================================
+ *
+ * @par 设计要点
+ * - 作为推理层的核心编排器，协调规范化、重写、求解和冲突检查的完整流程
+ * - 重写-求解协作模式：图重写与代数求解交替进行，逐步逼近解
+ * - 位电路跳闸处理：检测约束冲突并触发回滚机制
+ * - 冻结点回滚：在求解失败时恢复到已知的稳定状态
+ * - 正在从全局引擎模式迁移到隔离上下文模式（Lv00Context），支持并发推理
+ *
+ * @par 依赖关系
+ * - 上层: 被 C API 层（lv00.h）和 dsl_compiler.c 调用
+ * - 下层: 依赖 solver.c（求解）、proof.c（证明）、constraint_graph.c（约束图）
+ * - 同层: 与 type_system.c 协作类型检查，与 stream.c 协作事件输出
  */
 
 #include "engine.h"
@@ -44,7 +56,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
-/** 模块名称最大长度（用于 engine_extract_module_name 静态缓冲区） */
+/** 模块名称最大长度（用于 engine_extract_module_name 调用者缓冲区） */
 #define LV00_MAX_NAME_LENGTH 256
 
 /* Lv00RefCounted 及 LV00_REF_* 宏已在 debug.h 中定义，此处不再重复 */
@@ -274,18 +286,9 @@ LV00Engine *engine_create(void) {
      * stream_context_register_builtins() 一次性注册所有内置模块的 setter，
      * stream_context_dispatch_all() 统一分发流式上下文到所有已注册模块。
      * 新增模块时只需在 stream_context_util.c 中添加注册行，
-     * 无需修改此处的引擎初始化代码。
-     *
-     * 注意：这两个函数当前不返回错误码（void 返回类型）。
-     * 如果未来重构为返回错误码，应在此处检查返回值并做相应错误处理。
-     * 当前状态：调用后无法检测失败，仅记录日志以便排查问题。 */
+     * 无需修改此处的引擎初始化代码。 */
     stream_context_register_builtins();
-    /* 当前状态：内置模块 setter 注册完成，无法确认是否全部成功 */
-    LV00_LOG_WARNING("engine_create: stream_context_register_builtins() 已调用（void 返回，无法检测错误）");
-
     stream_context_dispatch_all(engine->stream_ctx);
-    /* 当前状态：流式上下文分发完成，无法确认是否全部成功 */
-    LV00_LOG_WARNING("engine_create: stream_context_dispatch_all() 已调用（void 返回，无法检测错误）");
 
     engine->main_graph = graph_create();
     if (!engine->main_graph) {
@@ -409,13 +412,15 @@ bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
  *       "no_extension" -> "no_extension"
  *
  * @param filepath 文件路径
- * @return 静态缓冲区中的文件名字符串（注意：非线程安全，调用后应立即使用）
+ * @param name_buf 调用者提供的输出缓冲区
+ * @param buf_size 缓冲区大小
+ * @return name_buf 中的文件名字符串
  */
-static const char *engine_extract_module_name(const char *filepath) {
-    static char name_buf[LV00_MAX_NAME_LENGTH];
-    if (!filepath) {
-        name_buf[0] = '\0';
-        return name_buf;
+static const char *engine_extract_module_name(const char *filepath, char *name_buf, size_t buf_size) {
+    if (!filepath || !name_buf || buf_size == 0) {
+        if (name_buf && buf_size > 0)
+            name_buf[0] = '\0';
+        return name_buf ? name_buf : "";
     }
 
     /* 找到最后一个路径分隔符 */
@@ -426,7 +431,7 @@ static const char *engine_extract_module_name(const char *filepath) {
     const char *base = last_sep ? last_sep + 1 : filepath;
 
     /* 复制基础文件名 */
-    lv00_strlcpy(name_buf, base, LV00_MAX_NAME_LENGTH);
+    lv00_strlcpy(name_buf, base, buf_size);
 
     /* 去掉扩展名（最后一个 '.' 之后的部分） */
     char *dot = strrchr(name_buf, '.');
@@ -435,7 +440,7 @@ static const char *engine_extract_module_name(const char *filepath) {
 
     /* 如果提取后为空，回退到 "temp" */
     if (name_buf[0] == '\0')
-        lv00_strlcpy(name_buf, "temp", LV00_MAX_NAME_LENGTH);
+        lv00_strlcpy(name_buf, "temp", buf_size);
 
     return name_buf;
 }
@@ -443,7 +448,8 @@ static const char *engine_extract_module_name(const char *filepath) {
 ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath) {
     if (!engine || !filepath)
         return MODULE_LOAD_ERROR_INVALID_PATH;
-    const char *module_name = engine_extract_module_name(filepath);
+    char module_name[LV00_MAX_NAME_LENGTH];
+    engine_extract_module_name(filepath, module_name, sizeof(module_name));
     Module *mod = module_create(module_name, "0.0.0");
     if (!mod) {
         engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
@@ -544,23 +550,20 @@ static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
 bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
     if (!engine || !engine->main_graph) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "引擎或主图为空");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
         return false;
     }
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
         if (!n) {
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
             return false;
         }
     }
     for (int i = 0; i < input_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, input_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
                      input_port_ids[i]);
             return false;
         }
@@ -568,8 +571,7 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
     for (int i = 0; i < output_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, output_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
                      output_port_ids[i]);
             return false;
         }
@@ -628,22 +630,19 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
 int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const int *arg_mappings, int arg_count,
                                  int *out_result_count) {
     if (!out_result_count) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "out_result_count 不能为 NULL");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "out_result_count 不能为 NULL");
         return NULL;
     }
     if (!engine || !engine->main_graph) {
         *out_result_count = 0;
-        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "引擎或主图为空");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
         return NULL;
     }
     *out_result_count = 0;
 
     GeomNode *func_block = graph_get_node(engine->main_graph, func_block_id);
     if (!func_block || func_block->type != GEOM_FUNCTION_BLOCK) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "函数块 %d 不存在或类型不是函数块", func_block_id);
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "函数块 %d 不存在或类型不是函数块", func_block_id);
         return NULL;
     }
 
@@ -654,7 +653,7 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
      */
     FuncBlock *fb = func_block_create(func_block_id);
     if (!fb) {
-        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "func_block_create 分配失败");
         return NULL;
     }
 
@@ -664,14 +663,14 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
         int *ids = lv00_malloc((size_t) ic * sizeof(int));
         if (!ids) {
             func_block_destroy(fb);
-            g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+            engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "内部节点ID数组分配失败");
             return NULL;
         }
         for (int i = 0; i < ic; i++) {
             if (!func_block->data.func_block.internal_nodes[i]) {
                 func_block_destroy(fb);
                 lv00_free((void **) &ids);
-                g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+                engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "内部节点 %d 的指针为 NULL", i);
                 return NULL;
             }
             ids[i] = func_block->data.func_block.internal_nodes[i]->id;
@@ -701,8 +700,7 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
     func_block_destroy(fb);
 
     if (inst_result != INSTANTIATE_OK) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine_instantiate_function: instantiation failed (code %d)",
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "engine_instantiate_function: instantiation failed (code %d)",
                  inst_result);
         return NULL;
     }
@@ -880,7 +878,6 @@ static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *con
  */
 EngineSolveResult engine_solve(LV00Engine *engine) {
     /* P2修复: 迁移到 engine 实例变量，移除全局 TLS 状态依赖 */
-    assert(engine != NULL && "engine_solve: engine is NULL");
     if (!engine || !engine->main_graph) {
         engine->last_status = ENGINE_STATUS_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 引擎实例或约束图为空 (engine=%p)", (void *) engine);
@@ -1243,8 +1240,7 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
             symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
         }
         circuit_handle_overflow();
-        g_thread_last_status = ENGINE_STATUS_OK;
-        g_thread_last_error[0] = '\0';
+        engine_set_error(engine, ENGINE_STATUS_OK, "");
         return ENGINE_CIRCUIT_IGNORE;
 
     case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
@@ -1253,8 +1249,7 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
             /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
         }
         circuit_reset_context();
-        g_thread_last_status = ENGINE_STATUS_OK;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
+        engine_set_error(engine, ENGINE_STATUS_OK, "engine: 通过回滚到冻结点处理了电路跳闸");
             return ENGINE_CIRCUIT_ROLLBACK;
 
         case ENGINE_CIRCUIT_ACTION_DOWNGRADE: /* 永久降级：替换为高精度浮点数近似值 */
@@ -1303,13 +1298,11 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
                 }
             }
             circuit_handle_overflow();
-            g_thread_last_status = ENGINE_STATUS_OK;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
+            engine_set_error(engine, ENGINE_STATUS_OK, "engine: 通过永久降级为琥珀色处理了电路跳闸");
             return ENGINE_CIRCUIT_DOWNGRADE;
 
         default:
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
             return ENGINE_CIRCUIT_ERROR;
     }
 }
@@ -1663,6 +1656,8 @@ void engine_set_streaming_enabled(LV00Engine *engine, bool enabled) {
             return;
         }
         stream_context_dispatch_all(engine->stream_ctx);
+        /* 注意：stream_context_dispatch_all 返回 int 错误码，
+         * 此处忽略返回值因为流式输出启用失败不应阻止引擎继续工作 */
     }
 }
 

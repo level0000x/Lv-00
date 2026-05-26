@@ -13,10 +13,19 @@
  *
  *              函数块执行逻辑已提取到 utils/ 目录：
  *              - funcBlockExecutor.ts: 预设执行、输入验证、结果格式化
+ *
+ *              重构说明 (v3.6.0):
+ *              - 日志区域使用 LogPanel 通用组件
+ *              - 统计区域使用 StatsRow 通用组件
+ *              - 组合/乘积逻辑提取为 useDualBlockOperation 通用 hook
+ *              - 所有内联样式提取为 bp- 前缀 CSS 类
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
 import Panel from './Panel';
+import LogPanel from '@/components/common/LogPanel';
+import StatsRow from '@/components/common/StatsRow';
+import { useDualBlockOperation } from '@/hooks/useDualBlockOperation';
 import { useAppStore } from '@/stores';
 import { MAX_PANEL_LOG_ENTRIES } from '@/utils/constants';
 import {
@@ -25,7 +34,6 @@ import {
   composeBlocks,
   productBlocks,
   partialApplyBlock,
-  validateComposition,
 } from '@/utils/funcBlockPresets';
 import type {
   FuncBlockPreset,
@@ -33,6 +41,9 @@ import type {
   UserFuncBlock,
 } from '@/utils/funcBlockPresets';
 import type { Point, Segment } from '@/types';
+
+/* 引入 BlockPanel 专用样式 / Import BlockPanel-specific styles */
+import '@/styles/components/block-panel.css';
 
 // ---- 提取的工具模块 / Extracted utility modules ----
 import {
@@ -47,10 +58,16 @@ import {
  * 面板分区:
  * - PRESET LIBRARY: 预设函数块库（可滚动列表）
  * - FUNCTION BLOCK: 打包、例化、确定性检查、组合、乘积、部分应用、视图折叠
+ * - USER BLOCKS: 用户自定义函数块列表（支持例化、组合、乘积选择）
  * - PARAMETERS    : Block ID、输入/输出类型参数输入
- * - INFO          : 来自 Store 的实时函数块统计
+ * - EXEC LOG      : 执行日志（使用 LogPanel 组件）
+ * - INFO          : 来自 Store 的实时函数块统计（使用 StatsRow 组件）
  */
 const BlockPanel: React.FC = () => {
+  /* ==============================================================
+   * Store 订阅 / Store subscriptions
+   * 从全局状态中读取和获取操作方法
+   * ============================================================== */
   const addToast = useAppStore((s) => s.addToast);
   const appendLog = useAppStore((s) => s.appendLog);
   const saveUndoState = useAppStore((s) => s.saveUndoState);
@@ -61,12 +78,17 @@ const BlockPanel: React.FC = () => {
   const segments = useAppStore((s) => s.segments);
   const selectedPoints = useAppStore((s) => s.selectedPoints);
   const setSelectedPoints = useAppStore((s) => s.setSelectedPoints);
+  const regions = useAppStore((s) => s.regions);
+  const constraints = useAppStore((s) => s.constraints);
 
   // ================================================================
   // 局部状态 —— 函数块参数输入
   // ================================================================
+  /** 函数块标识符 / Block identifier */
   const [blockId, setBlockId] = useState('');
+  /** 函数块输入类型 / Block input types */
   const [blockIn, setBlockIn] = useState('');
+  /** 函数块输出类型 / Block output types */
   const [blockOut, setBlockOut] = useState('');
 
   // ================================================================
@@ -94,33 +116,8 @@ const BlockPanel: React.FC = () => {
   const [instInputIds, setInstInputIds] = useState<number[]>([]);
 
   // ================================================================
-  // 局部状态 —— 函数块组合/乘积/部分应用 (v3.5.0 新增)
-  // ================================================================
-  /** 组合操作：选中的第一个函数块 */
-  const [composeSelect1, setComposeSelect1] = useState<UserFuncBlock | null>(null);
-  /** 组合操作：选中的第二个函数块 */
-  const [composeSelect2, setComposeSelect2] = useState<UserFuncBlock | null>(null);
-  /** 乘积操作：选中的第一个函数块 */
-  const [productSelect1, setProductSelect1] = useState<UserFuncBlock | null>(null);
-  /** 乘积操作：选中的第二个函数块 */
-  const [productSelect2, setProductSelect2] = useState<UserFuncBlock | null>(null);
-
-  // ================================================================
-  // 从 Store 读取真实数据
-  // ================================================================
-  const regions = useAppStore((s) => s.regions);
-  const constraints = useAppStore((s) => s.constraints);
-
-  // ================================================================
-  // 预设函数块列表（按分类过滤）
-  // ================================================================
-  const filteredPresets = useMemo(() => {
-    if (categoryFilter === 'all') return FUNC_BLOCK_PRESETS;
-    return FUNC_BLOCK_PRESETS.filter((p) => p.category === categoryFilter);
-  }, [categoryFilter]);
-
-  // ================================================================
-  // 辅助函数
+  // 通用双块操作 —— 组合 (Compose) 与乘积 (Product)
+  // 使用 useDualBlockOperation hook 管理选择流程
   // ================================================================
 
   /** 向执行日志追加一条记录 */
@@ -132,6 +129,49 @@ const BlockPanel: React.FC = () => {
   const clearLog = useCallback(() => {
     setExecutionLog([]);
   }, []);
+
+  /**
+   * 组合操作 hook
+   * 管理组合操作的两个函数块选择流程
+   */
+  const compose = useDualBlockOperation({
+    operationName: '组合',
+    operationNameEn: 'Compose',
+    executor: composeBlocks,
+    userBlocks,
+    addToast,
+    appendLog,
+    log,
+    setUserBlocks,
+  });
+
+  /**
+   * 乘积操作 hook
+   * 管理乘积操作的两个函数块选择流程
+   */
+  const product = useDualBlockOperation({
+    operationName: '乘积',
+    operationNameEn: 'Product',
+    executor: productBlocks,
+    userBlocks,
+    addToast,
+    appendLog,
+    log,
+    setUserBlocks,
+  });
+
+  // ================================================================
+  // 预设函数块列表（按分类过滤）
+  // ================================================================
+  /** 根据当前分类过滤器过滤后的预设列表 */
+  const filteredPresets = useMemo(() => {
+    if (categoryFilter === 'all') return FUNC_BLOCK_PRESETS;
+    return FUNC_BLOCK_PRESETS.filter((p) => p.category === categoryFilter);
+  }, [categoryFilter]);
+
+  // ================================================================
+  // 辅助函数
+  // ================================================================
 
   /** 根据 ID 查找点 */
   const findPoint = useCallback(
@@ -265,6 +305,7 @@ const BlockPanel: React.FC = () => {
 
   // ================================================================
   // PACK 操作 —— 打包函数块
+  // 将画布上选中的几何元素封装为可复用的函数块
   // ================================================================
   const handlePack = useCallback(() => {
     if (selectedPoints.length < 2) {
@@ -312,7 +353,13 @@ const BlockPanel: React.FC = () => {
 
   // ================================================================
   // INSTANTIATE 操作 —— 例化函数块
+  // 选择已存储的函数块并应用到新的输入点
   // ================================================================
+
+  /**
+   * 开始例化操作
+   * 设置当前例化的函数块并清空输入选择
+   */
   const handleStartInstantiate = useCallback(
     (block: UserFuncBlock) => {
       setInstantiatingBlock(block);
@@ -323,6 +370,10 @@ const BlockPanel: React.FC = () => {
     [log, addToast],
   );
 
+  /**
+   * 执行例化操作
+   * 根据已选择的输入点，基于原始函数块的相对坐标创建新的几何元素
+   */
   const handleExecuteInstantiate = useCallback(() => {
     if (!instantiatingBlock) return;
     if (instInputIds.length < instantiatingBlock.inputPointIds.length) {
@@ -389,7 +440,10 @@ const BlockPanel: React.FC = () => {
   // 增强占位按钮
   // ================================================================
 
-  /** 确定性检查 */
+  /**
+   * 确定性检查
+   * 分析约束数量与自由度的比值，判断系统是否约束充足
+   */
   const handleCheckDeterminism = useCallback(() => {
     const totalConstraints = constraints.length;
     const totalPoints = points.length;
@@ -410,188 +464,6 @@ const BlockPanel: React.FC = () => {
     appendLog(`确定性检查: ${status}`, 'info');
     log(status);
   }, [constraints.length, points.length, addToast, appendLog, log]);
-
-  // ================================================================
-  // 函数块组合、乘积、部分应用操作 (v3.5.0 新增)
-  // ================================================================
-
-  /**
-   * 组合操作处理 (v3.5.0)
-   *
-   * 支持两种模式：
-   * 1. 无选中块时：提示用户选择函数块
-   * 2. 选中第一个块后：继续选择第二个块
-   * 3. 两个块都选中后：执行组合并添加结果
-   */
-  const handleCompose = useCallback(() => {
-    if (userBlocks.length < 2) {
-      addToast('info', '组合需要至少 2 个已打包的函数块 / Compose requires at least 2 packed blocks');
-      return;
-    }
-
-    // 如果已选择第一个块，尝试执行组合
-    if (composeSelect1) {
-      if (!composeSelect2) {
-        // 等待选择第二个块
-        addToast('info', `已选择 "${composeSelect1.name}"，请继续选择第二个函数块...`);
-        return;
-      }
-
-      // 验证兼容性
-      if (!validateComposition(composeSelect1, composeSelect2)) {
-        addToast('warning', '所选函数块不兼容，无法组合');
-        setComposeSelect1(null);
-        setComposeSelect2(null);
-        return;
-      }
-
-      // 执行组合
-      const result = composeBlocks(composeSelect1, composeSelect2);
-      if (result.result) {
-        setUserBlocks((prev) => [...prev, result.result!]);
-        addToast('success', result.description);
-        appendLog(result.description, 'info');
-        log(result.description);
-      }
-
-      // 重置选择状态
-      setComposeSelect1(null);
-      setComposeSelect2(null);
-    } else {
-      // 开始选择第一个块
-      addToast('info', `组合功能: 当前有 ${userBlocks.length} 个函数块。请选择一个作为前级...`);
-      appendLog('组合操作: 选择第一个函数块（前级）', 'info');
-    }
-  }, [userBlocks, composeSelect1, composeSelect2, addToast, appendLog, log]);
-
-  /**
-   * 处理函数块选择（用于组合操作）
-   */
-  const handleBlockSelectForCompose = useCallback((block: UserFuncBlock) => {
-    if (!composeSelect1) {
-      // 选择第一个块
-      setComposeSelect1(block);
-      addToast('info', `已选择 "${block.name}" 作为前级，请选择后级...`);
-    } else if (!composeSelect2) {
-      // 选择第二个块
-      if (block.id === composeSelect1.id) {
-        addToast('warning', '不能选择同一个函数块');
-        return;
-      }
-      setComposeSelect2(block);
-
-      // 验证兼容性
-      if (!validateComposition(composeSelect1, block)) {
-        addToast('warning', '所选函数块不兼容');
-        setComposeSelect1(null);
-        setComposeSelect2(null);
-        return;
-      }
-
-      // 自动执行组合
-      const result = composeBlocks(composeSelect1, block);
-      if (result.result) {
-        setUserBlocks((prev) => [...prev, result.result!]);
-        addToast('success', result.description);
-        appendLog(result.description, 'info');
-        log(result.description);
-      }
-
-      // 重置选择状态
-      setComposeSelect1(null);
-      setComposeSelect2(null);
-    }
-  }, [composeSelect1, addToast, appendLog, log]);
-
-  /**
-   * 取消组合选择
-   */
-  const handleCancelCompose = useCallback(() => {
-    setComposeSelect1(null);
-    setComposeSelect2(null);
-    addToast('info', '已取消组合操作');
-  }, [addToast]);
-
-  /**
-   * 乘积操作处理 (v3.5.0)
-   *
-   * 支持两种模式：
-   * 1. 无选中块时：提示用户选择函数块
-   * 2. 选中第一个块后：继续选择第二个块
-   * 3. 两个块都选中后：执行乘积并添加结果
-   */
-  const handleProduct = useCallback(() => {
-    if (userBlocks.length < 2) {
-      addToast('info', '乘积需要至少 2 个已打包的函数块 / Product requires at least 2 packed blocks');
-      return;
-    }
-
-    // 如果已选择第一个块，尝试执行乘积
-    if (productSelect1) {
-      if (!productSelect2) {
-        // 等待选择第二个块
-        addToast('info', `已选择 "${productSelect1.name}"，请继续选择第二个函数块...`);
-        return;
-      }
-
-      // 执行乘积
-      const result = productBlocks(productSelect1, productSelect2);
-      if (result.result) {
-        setUserBlocks((prev) => [...prev, result.result!]);
-        addToast('success', result.description);
-        appendLog(result.description, 'info');
-        log(result.description);
-      }
-
-      // 重置选择状态
-      setProductSelect1(null);
-      setProductSelect2(null);
-    } else {
-      // 开始选择第一个块
-      addToast('info', `乘积功能: 当前有 ${userBlocks.length} 个函数块。请选择一个...`);
-      appendLog('乘积操作: 选择第一个函数块', 'info');
-    }
-  }, [userBlocks, productSelect1, productSelect2, addToast, appendLog, log]);
-
-  /**
-   * 处理函数块选择（用于乘积操作）
-   */
-  const handleBlockSelectForProduct = useCallback((block: UserFuncBlock) => {
-    if (!productSelect1) {
-      // 选择第一个块
-      setProductSelect1(block);
-      addToast('info', `已选择 "${block.name}"，请选择第二个函数块...`);
-    } else if (!productSelect2) {
-      // 选择第二个块
-      if (block.id === productSelect1.id) {
-        addToast('warning', '不能选择同一个函数块');
-        return;
-      }
-      setProductSelect2(block);
-
-      // 自动执行乘积
-      const result = productBlocks(productSelect1, block);
-      if (result.result) {
-        setUserBlocks((prev) => [...prev, result.result!]);
-        addToast('success', result.description);
-        appendLog(result.description, 'info');
-        log(result.description);
-      }
-
-      // 重置选择状态
-      setProductSelect1(null);
-      setProductSelect2(null);
-    }
-  }, [productSelect1, addToast, appendLog, log]);
-
-  /**
-   * 取消乘积选择
-   */
-  const handleCancelProduct = useCallback(() => {
-    setProductSelect1(null);
-    setProductSelect2(null);
-    addToast('info', '已取消乘积操作');
-  }, [addToast]);
 
   /**
    * 部分应用操作处理 (v3.5.0)
@@ -627,7 +499,10 @@ const BlockPanel: React.FC = () => {
     }
   }, [userBlocks, addToast, appendLog, log]);
 
-  /** 视图折叠 */
+  /**
+   * 视图折叠
+   * 切换函数块的展开/折叠视图
+   */
   const handleViewFold = useCallback(() => {
     if (userBlocks.length === 0) {
       addToast('info', '视图折叠需要至少 1 个已打包的函数块 / View fold requires at least 1 packed block');
@@ -636,6 +511,36 @@ const BlockPanel: React.FC = () => {
     addToast('info', '视图折叠: 将函数块的内部构造折叠为单个盒子视图，或展开显示内部细节。');
     appendLog('视图折叠: 切换函数块的展开/折叠视图', 'info');
   }, [userBlocks.length, addToast, appendLog]);
+
+  /**
+   * 处理用户函数块列表中的点击事件
+   * 根据当前操作状态（组合/乘积选择中）分发到对应的处理函数
+   */
+  const handleUserBlockClick = useCallback(
+    (block: UserFuncBlock) => {
+      if (compose.select1) {
+        compose.handleSelect(block);
+      } else if (product.select1) {
+        product.handleSelect(block);
+      }
+    },
+    [compose, product],
+  );
+
+  // ================================================================
+  // 统计信息数据（用于 StatsRow 组件）
+  // ================================================================
+  const statsItems = useMemo(
+    () => [
+      { label: 'POINTS / 点', value: points.length },
+      { label: 'SEGMENTS / 线段', value: segments.length },
+      { label: 'REGIONS / 区域', value: regions.length },
+      { label: 'CONSTRAINTS / 约束', value: constraints.length },
+      { label: 'USER BLOCKS / 用户块', value: userBlocks.length },
+      { label: 'STATUS / 状态', value: activePreset ? `选择中: ${activePreset.nameZh}` : 'READY' },
+    ],
+    [points.length, segments.length, regions.length, constraints.length, userBlocks.length, activePreset],
+  );
 
   // ================================================================
   // 渲染
@@ -647,12 +552,11 @@ const BlockPanel: React.FC = () => {
       {/* ============================================================ */}
       <Panel title="PRESET LIBRARY / 预设库" panelId="block-presets">
         {/* 分类过滤按钮 */}
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+        <div className="bp-filter-bar">
           {(['all', 'construction', 'measurement', 'transform'] as const).map((cat) => (
             <button
               key={cat}
-              className={`btn ${categoryFilter === cat ? 'btn-accent' : ''}`}
-              style={{ fontSize: '11px', padding: '2px 6px' }}
+              className={`btn bp-filter-btn ${categoryFilter === cat ? 'btn-accent' : ''}`}
               onClick={() => setCategoryFilter(cat)}
             >
               {cat === 'all' ? '全部' : cat === 'construction' ? '构造' : cat === 'measurement' ? '度量' : '变换'}
@@ -661,45 +565,27 @@ const BlockPanel: React.FC = () => {
         </div>
 
         {/* 预设块列表（可滚动） */}
-        <div
-          style={{
-            maxHeight: '240px',
-            overflowY: 'auto',
-            border: '1px solid var(--border-color, #333)',
-            borderRadius: '4px',
-          }}
-        >
+        <div className="bp-preset-list">
           {filteredPresets.map((preset) => (
             <div
               key={preset.id}
               role="button"
               tabIndex={0}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 8px',
-                cursor: 'pointer',
-                borderBottom: '1px solid var(--border-color, #222)',
-                backgroundColor:
-                  activePreset?.id === preset.id
-                    ? 'var(--accent-color, #4a9eff22)'
-                    : 'transparent',
-              }}
+              className={`bp-preset-item ${activePreset?.id === preset.id ? 'bp-preset-item--active' : ''}`}
               onClick={() => handlePresetClick(preset)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePresetClick(preset); } }}
               title={preset.description}
             >
-              <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>
+              <span className="bp-preset-icon">
                 {preset.icon}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '12px', fontWeight: 600 }}>{preset.nameZh}</div>
-                <div style={{ fontSize: '10px', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div className="bp-preset-info">
+                <div className="bp-preset-name-zh">{preset.nameZh}</div>
+                <div className="bp-preset-name-en">
                   {preset.name}
                 </div>
               </div>
-              <span style={{ fontSize: '10px', opacity: 0.5 }}>
+              <span className="bp-preset-hint">
                 {preset.segmentInput ? '线段' : `${preset.inputCount}点`}
               </span>
             </div>
@@ -708,18 +594,18 @@ const BlockPanel: React.FC = () => {
 
         {/* 当前预设的输入选择状态 */}
         {activePreset && (
-          <div style={{ marginTop: '8px' }}>
-            <div style={{ fontSize: '11px', marginBottom: '4px', opacity: 0.8 }}>
+          <div className="bp-active-preset-area">
+            <div className="bp-preset-status">
               当前: {activePreset.nameZh} | 已选点: {selectedInputIds.length} | 已选线段: {selectedSegmentIds.length}
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <button className="btn" style={{ fontSize: '11px' }} onClick={handleAddSelectedPoints}>
+            <div className="bp-action-row">
+              <button className="btn bp-action-btn" onClick={handleAddSelectedPoints}>
                 + 添加已选点
               </button>
-              <button className="btn btn-accent" style={{ fontSize: '11px' }} onClick={handleExecutePreset}>
+              <button className="btn btn-accent bp-action-btn" onClick={handleExecutePreset}>
                 执行 / EXECUTE
               </button>
-              <button className="btn" style={{ fontSize: '11px' }} onClick={handleCancelPreset}>
+              <button className="btn bp-action-btn" onClick={handleCancelPreset}>
                 取消
               </button>
             </div>
@@ -751,11 +637,11 @@ const BlockPanel: React.FC = () => {
           CHECK DETERMINISM / 确定性检查
         </button>
         {/* 组合 —— 串联两个函数块 */}
-        <button className="btn" onClick={handleCompose}>
+        <button className="btn" onClick={compose.handleStart}>
           COMPOSE / 组合
         </button>
         {/* 乘积 —— 并行执行两个函数块 */}
-        <button className="btn" onClick={handleProduct}>
+        <button className="btn" onClick={product.handleStart}>
           PRODUCT / 乘积
         </button>
         {/* 部分应用 —— 柯里化 */}
@@ -773,20 +659,20 @@ const BlockPanel: React.FC = () => {
       {/* ============================================================ */}
       <Panel title="USER BLOCKS / 用户块" panelId="block-user">
         {/* 组合/乘积操作状态提示 */}
-        {(composeSelect1 || productSelect1) && (
-          <div style={{ fontSize: '11px', marginBottom: '6px', padding: '4px', backgroundColor: 'var(--accent-color, #4a9eff22)', borderRadius: '4px' }}>
-            {composeSelect1 && (
+        {(compose.select1 || product.select1) && (
+          <div className="bp-dual-op-hint">
+            {compose.select1 && (
               <div>
-                组合操作进行中: 已选 "{composeSelect1.name}"
-                <button className="btn" style={{ fontSize: '10px', marginLeft: '6px', padding: '1px 4px' }} onClick={handleCancelCompose}>
+                组合操作进行中: 已选 "{compose.select1.name}"
+                <button className="btn bp-dual-op-cancel-btn" onClick={compose.handleCancel}>
                   取消
                 </button>
               </div>
             )}
-            {productSelect1 && (
+            {product.select1 && (
               <div>
-                乘积操作进行中: 已选 "{productSelect1.name}"
-                <button className="btn" style={{ fontSize: '10px', marginLeft: '6px', padding: '1px 4px' }} onClick={handleCancelProduct}>
+                乘积操作进行中: 已选 "{product.select1.name}"
+                <button className="btn bp-dual-op-cancel-btn" onClick={product.handleCancel}>
                   取消
                 </button>
               </div>
@@ -795,45 +681,31 @@ const BlockPanel: React.FC = () => {
         )}
 
         {userBlocks.length === 0 ? (
-          <div style={{ fontSize: '11px', opacity: 0.5 }}>
+          <div className="bp-user-blocks-empty">
             暂无用户函数块 / No user blocks. Use PACK to create one.
           </div>
         ) : (
-          <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
+          <div className="bp-user-blocks-list">
             {userBlocks.map((block) => {
               // 检查是否为当前选中状态
-              const isComposeSelected = composeSelect1?.id === block.id;
-              const isProductSelected = productSelect1?.id === block.id;
+              const isComposeSelected = compose.select1?.id === block.id;
+              const isProductSelected = product.select1?.id === block.id;
+              const isSelected = isComposeSelected || isProductSelected;
+              const isClickable = !!(compose.select1 || product.select1);
 
               return (
                 <div
                   key={block.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '4px 6px',
-                    borderBottom: '1px solid var(--border-color, #222)',
-                    fontSize: '11px',
-                    backgroundColor: isComposeSelected || isProductSelected ? 'var(--accent-color, #4a9eff33)' : 'transparent',
-                    cursor: composeSelect1 || productSelect1 ? 'pointer' : 'default',
-                  }}
-                  onClick={() => {
-                    if (composeSelect1) {
-                      handleBlockSelectForCompose(block);
-                    } else if (productSelect1) {
-                      handleBlockSelectForProduct(block);
-                    }
-                  }}
+                  className={`bp-user-block-item ${isSelected ? 'bp-user-block-item--selected' : ''} ${isClickable ? 'bp-user-block-item--clickable' : ''}`}
+                  onClick={() => handleUserBlockClick(block)}
                 >
                   <span>
                     {block.name}
-                    {isComposeSelected && <span style={{ marginLeft: '4px', color: '#4a9eff' }}>[组合前级]</span>}
-                    {isProductSelected && <span style={{ marginLeft: '4px', color: '#4a9eff' }}>[乘积第一]</span>}
+                    {isComposeSelected && <span className="bp-user-block-label">[组合前级]</span>}
+                    {isProductSelected && <span className="bp-user-block-label">[乘积第一]</span>}
                   </span>
                   <button
-                    className="btn"
-                    style={{ fontSize: '10px', padding: '1px 6px' }}
+                    className="btn bp-user-block-inst-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStartInstantiate(block);
@@ -849,14 +721,13 @@ const BlockPanel: React.FC = () => {
 
         {/* 例化输入选择 */}
         {instantiatingBlock && (
-          <div style={{ marginTop: '8px' }}>
-            <div style={{ fontSize: '11px', marginBottom: '4px' }}>
+          <div className="bp-instantiate-area">
+            <div className="bp-instantiate-status">
               例化: {instantiatingBlock.name} | 需 {instantiatingBlock.inputPointIds.length} 点 | 已选 {instInputIds.length} 点
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div className="bp-action-row">
               <button
-                className="btn"
-                style={{ fontSize: '11px' }}
+                className="btn bp-action-btn"
                 onClick={() => {
                   const currentIds = [...instInputIds];
                   for (const pt of selectedPoints) {
@@ -870,15 +741,13 @@ const BlockPanel: React.FC = () => {
                 + 添加已选点
               </button>
               <button
-                className="btn btn-accent"
-                style={{ fontSize: '11px' }}
+                className="btn btn-accent bp-action-btn"
                 onClick={handleExecuteInstantiate}
               >
                 执行
               </button>
               <button
-                className="btn"
-                style={{ fontSize: '11px' }}
+                className="btn bp-action-btn"
                 onClick={() => {
                   setInstantiatingBlock(null);
                   setInstInputIds([]);
@@ -929,65 +798,24 @@ const BlockPanel: React.FC = () => {
 
       {/* ============================================================ */}
       {/* EXECUTION LOG / 执行日志 */}
+      {/* 使用 LogPanel 通用组件渲染 */}
       {/* ============================================================ */}
       <Panel title="EXEC LOG / 执行日志" panelId="block-log">
-        <div
-          style={{
-            maxHeight: '100px',
-            overflowY: 'auto',
-            fontSize: '10px',
-            fontFamily: 'monospace',
-          }}
-          role="log"
-          aria-live="polite"
-        >
-          {executionLog.length === 0 ? (
-            <div style={{ opacity: 0.5 }}>暂无日志 / No logs</div>
-          ) : (
-            executionLog.map((msg, i) => (
-              <div key={i} style={{ padding: '1px 0', borderBottom: '1px solid #222' }}>
-                {msg}
-              </div>
-            ))
-          )}
-        </div>
-        {executionLog.length > 0 && (
-          <button className="btn" style={{ fontSize: '10px', marginTop: '4px' }} onClick={clearLog}>
-            CLEAR LOG / 清空日志
-          </button>
-        )}
+        <LogPanel
+          entries={executionLog}
+          emptyText="暂无日志 / No logs"
+          maxHeight="100px"
+          onClear={clearLog}
+          clearText="CLEAR LOG / 清空日志"
+        />
       </Panel>
 
       {/* ============================================================ */}
       {/* INFO / 信息统计 */}
+      {/* 使用 StatsRow 通用组件渲染 */}
       {/* ============================================================ */}
       <Panel title="INFO / 信息" panelId="block-info">
-        <div className="info-box">
-          <div className="info-row">
-            <span className="info-label">POINTS / 点</span>
-            <span className="info-value">{points.length}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">SEGMENTS / 线段</span>
-            <span className="info-value">{segments.length}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">REGIONS / 区域</span>
-            <span className="info-value">{regions.length}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">CONSTRAINTS / 约束</span>
-            <span className="info-value">{constraints.length}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">USER BLOCKS / 用户块</span>
-            <span className="info-value">{userBlocks.length}</span>
-          </div>
-          <div className="info-row">
-            <span className="info-label">STATUS / 状态</span>
-            <span className="info-value">{activePreset ? `选择中: ${activePreset.nameZh}` : 'READY'}</span>
-          </div>
-        </div>
+        <StatsRow items={statsItems} />
       </Panel>
     </>
   );

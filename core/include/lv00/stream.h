@@ -46,16 +46,16 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-/* ============== 常量 ============== */
+/* LV00_PUBLIC_API 由 lv00.h 统一定义，此处不再重复。
+ * 原因：lv00.h 中根据平台（Windows DLL / GCC/Clang visibility）和构建模式
+ * （共享库 / 静态库）统一设置 LV00_PUBLIC_API。若各子模块头文件各自
+ * #define LV00_PUBLIC_API 为空，在构建共享库时会导致符号不导出。
+ * 因此要求使用者先包含 lv00.h，此处仅做守卫检查。 */
+#ifndef LV00_PUBLIC_API
+#error "请先包含 lv00.h 以获取 LV00_PUBLIC_API 定义"
+#endif
 
-/**
- * 事件类型总数（用于位掩码计算，值 = 最后一个枚举值 + 1）。
- *
- * 注意 —— 该值与 StreamEventType 枚举强耦合：每次在枚举末尾新增事件类型时，
- * 必须同步更新此宏的值，否则位掩码过滤和事件统计将出现偏差。
- * 建议在 CI 中使用 static_assert 校验一致性。
- */
-#define STREAM_EVENT_TYPE_COUNT 47
+/* ============== 常量 ============== */
 
 /** 全部事件掩码（接收所有事件） */
 #define STREAM_FILTER_ALL ((uint64_t) 0xFFFFFFFFFFFFFFFFULL)
@@ -151,15 +151,22 @@ typedef enum {
     STREAM_EVENT_INFO,           /* 一般信息 */
     STREAM_EVENT_PROGRESS,       /* 进度更新（百分比） */
     STREAM_EVENT_GRAPH_SNAPSHOT, /* 图快照（用于前端同步） */
+
+    /* ---- 哨兵值 ----
+     * STREAM_EVENT_TYPE_COUNT 作为枚举末尾的哨兵值，
+     * 其数值自动等于事件类型总数（最后一个有效枚举值 + 1）。
+     * 用于位掩码计算、事件统计数组大小等场景。
+     * 新增事件类型时只需在上方添加，无需手动更新此值。
+     */
+    STREAM_EVENT_TYPE_COUNT
 } StreamEventType;
 
 /*
- * 编译期校验：确保 STREAM_EVENT_TYPE_COUNT 与枚举值数量一致。
- * 使用枚举末尾值 + 1 而非硬编码数字，这样在新增事件类型时，
- * 若忘记同步更新宏值，编译器会立即报错。
+ * 编译期校验：STREAM_EVENT_TYPE_COUNT 作为哨兵值自动等于有效事件类型数量。
+ * 此断言确保哨兵值机制正常工作（永远为真，但保留作为文档和防御性检查）。
  */
 _Static_assert(STREAM_EVENT_TYPE_COUNT == STREAM_EVENT_GRAPH_SNAPSHOT + 1,
-               "STREAM_EVENT_TYPE_COUNT 与 StreamEventType 枚举值数量不一致，请同步更新");
+               "STREAM_EVENT_TYPE_COUNT 哨兵值与 StreamEventType 枚举不一致");
 
 /* ============== 流式事件数据 ============== */
 

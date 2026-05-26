@@ -50,7 +50,7 @@
  * @endcode
  *
  * @section version_sec 版本
- * 当前版本: 3.3.0
+ * 当前版本: 3.5.0
  *
  * @section architecture_sec 架构
  *
@@ -64,7 +64,7 @@
  * 详见 docs/ARCHITECTURE_v3.3.md
  *
  * @author Lv-00 Project
- * @version 3.3.0
+ * @version 3.5.0
  * @copyright Copyright (c) 2024-2026 Lv-00 Project
  */
 
@@ -84,10 +84,6 @@
  * 采用双前缀格式避免与子模块头文件（如 solver.h → LV00_SOLVER_H）冲突 */
 #ifndef LV00_LV00_H
 #define LV00_LV00_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -195,9 +191,9 @@ extern "C" {
 /* 向后兼容：旧宏名 LV00_PATH_SEPARATOR 保留 */
 #define LV00_PATH_SEPARATOR LV00_PATH_SEPARATOR_CHAR
 
-/* ---- 版本信息（统一版本号 v3.3.0，所有模块引用此宏） ---- */
+/* ---- 版本信息（统一版本号 v3.5.0，所有模块引用此宏） ---- */
 #define LV00_VERSION_MAJOR 3
-#define LV00_VERSION_MINOR 3
+#define LV00_VERSION_MINOR 5
 #define LV00_VERSION_PATCH 0
 #define LV00_VERSION_STRING_EXPAND(maj, min, pat) #maj "." #min "." #pat
 #define LV00_VERSION_STRING_MACRO(maj, min, pat) LV00_VERSION_STRING_EXPAND(maj, min, pat)
@@ -259,6 +255,10 @@ extern "C" {
 #include "stream.h"              /* 流式事件系统 */
 #include "stream_context_util.h" /* 流式上下文工具宏 */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ============================================================
  * === 版本信息 API ===
  * ============================================================ */
@@ -266,23 +266,29 @@ extern "C" {
 /**
  * @brief 获取编译期版本号（主版本号）
  * @return 主版本号（如 3）
- * @note   编译期常量，可在 #if 预处理指令中使用
+ * @note   编译期常量，可在 #if 预处理指令中使用。
+ *         改为 static inline 函数以提供类型安全和更好的调试体验，
+ *         同时保留与宏相同的零开销特性。
  */
-#define lv00_version_major() LV00_VERSION_MAJOR
+static inline int lv00_version_major(void) { return LV00_VERSION_MAJOR; }
 
 /**
  * @brief 获取编译期版本号（次版本号）
- * @return 次版本号（如 3）
- * @note   编译期常量，可在 #if 预处理指令中使用
+ * @return 次版本号（如 5）
+ * @note   编译期常量，可在 #if 预处理指令中使用。
+ *         改为 static inline 函数以提供类型安全和更好的调试体验，
+ *         同时保留与宏相同的零开销特性。
  */
-#define lv00_version_minor() LV00_VERSION_MINOR
+static inline int lv00_version_minor(void) { return LV00_VERSION_MINOR; }
 
 /**
  * @brief 获取编译期版本号（补丁版本号）
  * @return 补丁版本号（如 0）
- * @note   编译期常量，可在 #if 预处理指令中使用
+ * @note   编译期常量，可在 #if 预处理指令中使用。
+ *         改为 static inline 函数以提供类型安全和更好的调试体验，
+ *         同时保留与宏相同的零开销特性。
  */
-#define lv00_version_patch() LV00_VERSION_PATCH
+static inline int lv00_version_patch(void) { return LV00_VERSION_PATCH; }
 
 /**
  * @brief 获取版本信息结构体
@@ -294,7 +300,7 @@ typedef struct LV00VersionInfo {
     int         major;          /**< 主版本号 */
     int         minor;          /**< 次版本号 */
     int         patch;          /**< 补丁版本号 */
-    const char *version_string; /**< 完整版本字符串（如 "3.3.0"） */
+    const char *version_string; /**< 完整版本字符串（如 "3.5.0"） */
     const char *platform;       /**< 编译平台名称 */
     const char *compiler;       /**< 编译器名称 */
     const char *arch;           /**< 目标架构 */
@@ -306,7 +312,7 @@ typedef struct LV00VersionInfo {
  * @brief 获取版本字符串（编译期常量）
  *
  * 返回编译期确定的版本字符串，零开销。
- * 格式为 "major.minor.patch"，例如 "3.3.0"。
+ * 格式为 "major.minor.patch"，例如 "3.5.0"。
  *
  * @return 版本字符串（静态常量，无需释放）
  *
@@ -316,7 +322,7 @@ typedef struct LV00VersionInfo {
  * 示例:
  * @code
  *   printf("Lv-00 version: %s\n", lv00_get_version_string());
- *   // 输出: Lv-00 version: 3.3.0
+ *   // 输出: Lv-00 version: 3.5.0
  * @endcode
  */
 LV00_PUBLIC_API const char *lv00_get_version_string(void);
@@ -728,7 +734,8 @@ LV00_PUBLIC_API bool lv00_config_set_string(const char *key, const char *value);
  *   }
  * @endcode
  */
-LV00_PUBLIC_API bool lv00_get_memory_stats_ex(MemoryStats *stats);
+#include "memory_pool.h" /* Lv00MemoryStats 类型定义 */
+LV00_PUBLIC_API bool lv00_get_memory_stats_ex(Lv00MemoryStats *stats);
 
 /**
  * @brief 设置内存使用上限
@@ -805,7 +812,7 @@ LV00_PUBLIC_API bool lv00_are_assertions_enabled(void);
  * 确保 lv00.h 中的版本宏与 CMakeLists.txt 的 project(VERSION ...)
  * 保持一致。版本不匹配时触发编译错误，防止 API 兼容性问题。
  * ============================================================ */
-#if LV00_VERSION_MAJOR != 3 || LV00_VERSION_MINOR != 3 || LV00_VERSION_PATCH != 0
+#if LV00_VERSION_MAJOR != 3 || LV00_VERSION_MINOR != 5 || LV00_VERSION_PATCH != 0
 #error "[Lv-00] 版本宏不匹配：lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 与 CMakeLists.txt 的 project(VERSION ...) 不一致，请同步后重新编译。"
 #endif
 

@@ -286,11 +286,17 @@ export interface ThemeColors {
 export type BackendType = 'wasm' | 'js' | null;
 
 /**
- * Log level for filtering log messages / 日志级别（用于过滤日志消息）
+ * 应用日志级别（用于 UI 日志面板过滤）
+ * App log level for UI log panel filtering.
  * Severity order: debug < info < warn < error
  * 严重程度顺序：debug < info < warn < error
+ *
+ * [安全修复 M-08] 重命名为 AppLogLevel，消除与 services/logger.ts 中
+ * LogLevel enum 的命名冲突。logger.ts 中的 LogLevel 是 numeric enum，
+ * 用于日志服务内部级别控制；此处的 AppLogLevel 是 string union type，
+ * 用于 UI 层面的日志过滤。
  */
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /**
  * Log entry structure / 日志条目结构
@@ -301,7 +307,7 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
  */
 export interface LogEntry {
   timestamp: string;
-  level: LogLevel;
+  level: AppLogLevel;
   message: string;
 }
 

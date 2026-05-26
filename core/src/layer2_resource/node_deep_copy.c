@@ -135,8 +135,8 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig) {
  *
  * 创建一个新的 Port，复制所有标量字段。注意：
  * - connected_to 指针被置为 NULL，后续需要通过 ID 映射更新。
- * - type_region 执行完整深拷贝（递归复制所有子类型和数组），
- *   并设置 owns_type_region = true 标记所有权归属。
+ * - type_region 执行浅拷贝（指针赋值），所有权由 TypeSystem 统一管理，
+ *   不设置 owns_type_region（由 TypeSystem 管理生命周期）。
  *
  * 【2026-05-24 更新：原技术债务已消除，三阶段方案全部实施完成。】
  *

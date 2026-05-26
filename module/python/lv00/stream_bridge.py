@@ -139,10 +139,10 @@ class EngineBridge:
             try:
                 self.lib = CDLL(lib_path)
                 self._setup_functions()
-                logger.info(f"成功加载引擎: {lib_path}")
+                logger.info("成功加载引擎: %s", lib_path)
                 return True
             except Exception as e:
-                logger.warning(f"加载引擎失败 {lib_path}: {e}")
+                logger.warning("加载引擎失败 %s: %s", lib_path, e)
 
         # 尝试默认路径
         default_paths = [
@@ -159,10 +159,10 @@ class EngineBridge:
                 try:
                     self.lib = CDLL(path)
                     self._setup_functions()
-                    logger.info(f"成功加载引擎: {path}")
+                    logger.info("成功加载引擎: %s", path)
                     return True
                 except Exception as e:
-                    logger.debug(f"尝试加载 {path} 失败: {e}")
+                    logger.debug("尝试加载 %s 失败: %s", path, e)
 
         logger.warning("未找到 C 引擎共享库，将使用模拟模式")
         return False
@@ -248,7 +248,7 @@ class EngineBridge:
             logger.error("注册回调失败")
             return False
 
-        logger.info(f"流式上下文已创建，回调 ID: {self.callback_id}")
+        logger.info("流式上下文已创建，回调 ID: %d", self.callback_id)
         return True
 
     def destroy_context(self) -> None:
@@ -300,10 +300,10 @@ class EngineBridge:
                 try:
                     handler(event_dict)
                 except Exception as e:
-                    logger.error(f"事件处理器错误: {e}")
+                    logger.error("事件处理器错误: %s", e)
 
         except Exception as e:
-            logger.error(f"处理事件错误: {e}")
+            logger.error("处理事件错误: %s", e)
 
     def add_event_handler(self, handler: Callable[[Dict], None]) -> None:
         """添加事件处理器。
@@ -401,7 +401,7 @@ class EventPersistence:
         if file_dir:
             os.makedirs(file_dir, exist_ok=True)
 
-        logger.info(f"事件持久化已初始化: {self.file_path}")
+        logger.info("事件持久化已初始化: %s", self.file_path)
 
     def append(self, event: Dict, session_id: Optional[str] = None) -> None:
         """追加事件到 JSONL 文件。
@@ -426,7 +426,7 @@ class EventPersistence:
             with open(self.file_path, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(record, ensure_ascii=False) + '\n')
         except Exception as e:
-            logger.error(f"写入持久化文件失败: {e}")
+            logger.error("写入持久化文件失败: %s", e)
 
     def replay(self, callback: Callable[[Dict], None],
                session_id: Optional[str] = None,
@@ -447,7 +447,7 @@ class EventPersistence:
             int: 回放的事件数量
         """
         if not os.path.exists(self.file_path):
-            logger.warning(f"持久化文件不存在: {self.file_path}")
+            logger.warning("持久化文件不存在: %s", self.file_path)
             return 0
 
         count = 0
@@ -461,7 +461,7 @@ class EventPersistence:
                     try:
                         record = json.loads(line)
                     except json.JSONDecodeError:
-                        logger.debug(f"跳过无效 JSON 行: {line[:50]}...")
+                        logger.debug("跳过无效 JSON 行: %s...", line[:50])
                         continue
 
                     # 应用过滤条件
@@ -476,9 +476,9 @@ class EventPersistence:
                     count += 1
 
         except Exception as e:
-            logger.error(f"读取持久化文件失败: {e}")
+            logger.error("读取持久化文件失败: %s", e)
 
-        logger.info(f"回放完成，共 {count} 条事件")
+        logger.info("回放完成，共 %d 条事件", count)
         return count
 
     def clear(self) -> bool:
@@ -493,7 +493,7 @@ class EventPersistence:
             logger.info("持久化文件已清空")
             return True
         except Exception as e:
-            logger.error(f"清空持久化文件失败: {e}")
+            logger.error("清空持久化文件失败: %s", e)
             return False
 
     def get_stats(self) -> Dict:
@@ -556,7 +556,7 @@ class EventPersistence:
                         stats['time_range'][1] = ts
 
         except Exception as e:
-            logger.error(f"读取持久化文件失败: {e}")
+            logger.error("读取持久化文件失败: %s", e)
 
         # 将 set 转为 list 以便 JSON 序列化
         stats['sessions'] = list(stats['sessions'])
@@ -644,11 +644,11 @@ class MultiEngineManager:
             bool: 注册成功返回 True，名称已存在返回 False
         """
         if name in self._engines:
-            logger.warning(f"引擎 '{name}' 已存在，注册失败")
+            logger.warning("引擎 '%s' 已存在，注册失败", name)
             return False
 
         self._engines[name] = bridge
-        logger.info(f"引擎已注册: {name}")
+        logger.info("引擎已注册: %s", name)
         return True
 
     def unregister(self, name: str) -> bool:
@@ -663,12 +663,12 @@ class MultiEngineManager:
             bool: 注销成功返回 True，名称不存在返回 False
         """
         if name not in self._engines:
-            logger.warning(f"引擎 '{name}' 不存在，注销失败")
+            logger.warning("引擎 '%s' 不存在，注销失败", name)
             return False
 
         bridge = self._engines.pop(name)
         bridge.destroy_context()
-        logger.info(f"引擎已注销: {name}")
+        logger.info("引擎已注销: %s", name)
         return True
 
     def get(self, name: str) -> Optional[EngineBridge]:
@@ -720,10 +720,10 @@ class MultiEngineManager:
                 bridge.emit_simulated_event(event_type, description, step)
                 count += 1
             except Exception as e:
-                logger.error(f"向引擎 '{name}' 广播事件失败: {e}")
+                logger.error("向引擎 '%s' 广播事件失败: %s", name, e)
 
         if count > 0:
-            logger.debug(f"事件已广播到 {count} 个引擎")
+            logger.debug("事件已广播到 %d 个引擎", count)
         return count
 
     def aggregate_stats(self) -> Dict:
@@ -828,7 +828,7 @@ class AIAssistantProxy:
                 async with session.post(url, headers=headers, json=payload) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        logger.error(f"API 请求失败: {response.status} - {error_text}")
+                        logger.error("API 请求失败: %d - %s", response.status, error_text)
                         return ""
 
                     async for line in response.content:
@@ -853,7 +853,7 @@ class AIAssistantProxy:
                             continue
 
         except Exception as e:
-            logger.error(f"流式请求错误: {e}")
+            logger.error("流式请求错误: %s", e)
 
         return full_content
 
@@ -944,7 +944,7 @@ def main() -> None:
         # 启动 WebSocket 服务器
         tasks = []
         if WEBSOCKETS_AVAILABLE:
-            logger.info(f"流式桥接服务器启动: ws://{args.host}:{args.port}")
+            logger.info("流式桥接服务器启动: ws://%s:%d", args.host, args.port)
             ws_server = await serve(server._handle_client, args.host, args.port)
             tasks.append(asyncio.create_task(ws_server.wait_closed()))
         else:

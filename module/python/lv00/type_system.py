@@ -141,12 +141,15 @@ class TypeRegion:
         _owns_ptr: 是否拥有指针所有权（析构时决定是否释放）
     """
 
-    def __init__(self, ptr, owns: bool = True) -> None:
+    def __init__(self, ptr: Optional[c_void_p], owns: bool = True) -> None:
         """创建 TypeRegion 包装。
 
         参数:
             ptr: 底层 C TypeRegion 指针
             owns: 是否拥有所有权（默认 True）
+
+        [代码质量修复 M-06] 为 ptr 参数添加 Optional[c_void_p] 类型注解，
+        明确表示 ptr 可以为 None，提高类型安全性和代码可读性。
         """
         self._ptr = ptr
         self._owns_ptr: bool = owns

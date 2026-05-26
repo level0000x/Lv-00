@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file debug.c
  * @brief 调试工具实现
  * @details 实现日志系统、性能计数器、内存池、引用计数/GC、
@@ -28,6 +28,7 @@
 #define LV00_DEBUG_F_OK F_OK
 #endif
 
+#include "lv00.h"       /* 必须先包含以获取 LV00_PUBLIC_API 定义 */
 #include "debug.h"
 #include "context.h"      /* v3.3.0: 结构化日志需要 Lv00Context */
 #include "engine.h"

@@ -49,10 +49,15 @@ typedef CRITICAL_SECTION Lv00Mutex;
 #define MUTEX_UNLOCK(m) LeaveCriticalSection(&(m))
 
 static int64_t get_time_ns(void) {
-    LARGE_INTEGER freq, count;
-    QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER count, freq;
     QueryPerformanceCounter(&count);
-    return (int64_t)((double)count.QuadPart / (double)freq.QuadPart * 1e9);
+    QueryPerformanceFrequency(&freq);
+    /* 使用整数运算避免 double 精度损失：
+     * result = count * 1e9 / freq
+     * 为避免中间结果溢出，先除后乘（精度损失在纳秒级可接受） */
+    int64_t seconds = count.QuadPart / freq.QuadPart;
+    int64_t remainder = count.QuadPart % freq.QuadPart;
+    return seconds * 1000000000LL + remainder * 1000000000LL / freq.QuadPart;
 }
 
 static int get_thread_id(void) {
@@ -100,6 +105,15 @@ static const char *level_colors[] = {
     ""
 };
 
+/**
+ * @brief 日志系统初始化
+ * @details 根据配置初始化全局日志系统。若 config 为 NULL，则使用默认配置：
+ *          最低日志级别 INFO、输出到标准输出、包含时间戳、启用彩色输出、
+ *          最大文件大小 10MB、最多保留 5 个备份文件。
+ *          若已初始化则直接返回 true（幂等）。若配置了文件输出目标，会以追加模式打开日志文件。
+ * @param config 日志配置，可以为 NULL（使用默认配置）
+ * @return 初始化成功返回 true
+ */
 bool lv00_log_init(const Lv00LogConfig *config) {
     if (g_log_system.initialized) {
         return true;
@@ -111,7 +125,7 @@ bool lv00_log_init(const Lv00LogConfig *config) {
         memcpy(&g_log_system.config, config, sizeof(Lv00LogConfig));
     } else {
         /* 默认配置 */
-        g_log_system.config.min_level = LOG_LEVEL_INFO;
+        g_log_system.config.min_level = LV00_LOG_LEVEL_INFO;
         g_log_system.config.targets = LOG_TARGET_STDOUT;
         g_log_system.config.include_timestamp = true;
         g_log_system.config.include_location = false;
@@ -135,6 +149,11 @@ bool lv00_log_init(const Lv00LogConfig *config) {
     return true;
 }
 
+/**
+ * @brief 日志系统关闭
+ * @details 关闭日志文件句柄并销毁互斥锁。关闭后日志系统不再可用，
+ *          需要重新调用 lv00_log_init 才能再次使用。
+ */
 void lv00_log_shutdown(void) {
     if (!g_log_system.initialized) {
         return;
@@ -150,7 +169,7 @@ void lv00_log_shutdown(void) {
 }
 
 void lv00_log_set_level(Lv00LogLevel level) {
-    if (level >= LOG_LEVEL_TRACE && level <= LOG_LEVEL_OFF) {
+    if (level >= LV00_LOG_LEVEL_TRACE && level <= LV00_LOG_LEVEL_OFF) {
         g_log_system.config.min_level = level;
     }
 }
@@ -225,6 +244,20 @@ static void rotate_log_file(void) {
     g_log_system.current_file_size = 0;
 }
 
+/**
+ * @brief 写入日志
+ * @details 根据日志级别和配置输出日志记录。支持多种输出目标（标准输出、标准错误、文件、回调）。
+ *          日志格式包含：时间戳（可选）、日志级别（可选彩色）、标签、线程ID（可选）、消息内容、
+ *          源码位置（可选）。当日志文件大小超过 max_file_size 时自动轮转。
+ *          级别低于 min_level 的日志会被静默丢弃。
+ * @param level    日志级别（TRACE/DEBUG/INFO/WARN/ERROR/FATAL）
+ * @param tag      日志标签（模块名），可以为 NULL
+ * @param file     源文件路径，可以为 NULL
+ * @param line     源文件行号
+ * @param function 函数名，可以为 NULL
+ * @param fmt      printf 风格的格式字符串
+ * @param ...      可变参数列表
+ */
 void lv00_log_write(Lv00LogLevel level, const char *tag,
                     const char *file, int line, const char *function,
                     const char *fmt, ...) {
@@ -274,7 +307,14 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
         time_t now = time(NULL);
         struct tm *tm_info = localtime(&now);
         pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", tm_info);
+        /* 防止 pos 超过缓冲区大小导致 sizeof(output) - pos 下溢 */
+        if (pos >= (int)sizeof(output)) {
+            goto output_done;
+        }
         pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
+        if (pos >= (int)sizeof(output)) {
+            goto output_done;
+        }
     }
 
     if (g_log_system.config.colored_output) {
@@ -283,16 +323,28 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
     } else {
         pos += snprintf(output + pos, sizeof(output) - pos, "%-5s ", level_strings[level]);
     }
+    if (pos >= (int)sizeof(output)) {
+        goto output_done;
+    }
 
     if (record.tag[0]) {
         pos += snprintf(output + pos, sizeof(output) - pos, "[%s] ", record.tag);
+        if (pos >= (int)sizeof(output)) {
+            goto output_done;
+        }
     }
 
     if (g_log_system.config.include_thread_id) {
         pos += snprintf(output + pos, sizeof(output) - pos, "(T%d) ", record.thread_id);
+        if (pos >= (int)sizeof(output)) {
+            goto output_done;
+        }
     }
 
     pos += snprintf(output + pos, sizeof(output) - pos, "%s", record.message);
+    if (pos >= (int)sizeof(output)) {
+        goto output_done;
+    }
 
     if (g_log_system.config.include_location) {
         const char *basename = strrchr(record.file, '/');
@@ -300,9 +352,14 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
         basename = basename ? basename + 1 : record.file;
         pos += snprintf(output + pos, sizeof(output) - pos, " (%s:%d in %s)",
                         basename, record.line, record.function);
+        if (pos >= (int)sizeof(output)) {
+            goto output_done;
+        }
     }
 
     pos += snprintf(output + pos, sizeof(output) - pos, "\n");
+
+output_done:
 
     /* 输出到标准输出/错误 */
     if (g_log_system.config.targets & LOG_TARGET_STDOUT) {
@@ -366,6 +423,14 @@ void lv00_perf_shutdown(void) {
     g_perf_system.initialized = false;
 }
 
+/**
+ * @brief 创建计时器
+ * @details 创建并注册一个命名计时器，初始状态为 TIMER_STOPPED。
+ *          计时器用于测量代码段的执行时间，支持多次启停和累计统计。
+ *          创建的计时器会被注册到全局性能监控系统中，由系统统一管理生命周期。
+ * @param name 计时器名称，用于标识和调试，可以为 NULL
+ * @return 新创建的计时器指针（调用者需使用 lv00_timer_destroy 释放），失败时返回 NULL
+ */
 Lv00Timer *lv00_timer_create(const char *name) {
     if (!g_perf_system.initialized || g_perf_system.timer_count >= MAX_TIMERS) {
         return NULL;
@@ -405,6 +470,12 @@ void lv00_timer_destroy(Lv00Timer *timer) {
     lv00_free((void **) &timer);
 }
 
+/**
+ * @brief 启动计时器
+ * @details 记录当前时间戳作为起始时间，并将计时器状态设为 TIMER_RUNNING。
+ *          同时递增调用计数（call_count）。若计时器已在运行，会覆盖起始时间。
+ * @param timer 计时器指针，为 NULL 时安全无操作
+ */
 void lv00_timer_start(Lv00Timer *timer) {
     if (!timer) {
         return;
@@ -415,6 +486,13 @@ void lv00_timer_start(Lv00Timer *timer) {
     timer->call_count++;
 }
 
+/**
+ * @brief 停止计时器
+ * @details 计算从启动到当前的耗时，将计时器状态设为 TIMER_STOPPED，
+ *          并将本次耗时累加到总耗时（total_ns）中。
+ * @param timer 计时器指针，为 NULL 或未运行时返回 0
+ * @return 本次计时的毫秒数
+ */
 int64_t lv00_timer_stop(Lv00Timer *timer) {
     if (!timer || timer->state != TIMER_RUNNING) {
         return 0;
@@ -539,7 +617,8 @@ void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
     /* 计算均值和方差 */
     stats->mean = stats->sum / stats->count;
     if (stats->count > 1) {
-        stats->variance = (stats->sum_sq - stats->sum * stats->sum / stats->count) / (stats->count - 1);
+        double variance_val = (stats->sum_sq - stats->sum * stats->sum / stats->count) / (stats->count - 1);
+        stats->variance = variance_val > 0.0 ? variance_val : 0.0;
         stats->std_dev = sqrt(stats->variance);
     }
 }
@@ -609,6 +688,13 @@ void lv00_health_set_cpu_thresholds(double warning_percent, double critical_perc
 /* ============== 平台特定 CPU 使用率采样 ============== */
 
 #ifdef _WIN32
+/**
+ * @brief 获取CPU使用率
+ * @details 通过两次采样系统CPU时间（间隔约100ms）计算当前进程的CPU使用率百分比。
+ *          支持平台：Windows（GetSystemTimes）、Linux（/proc/stat）、macOS（host_statistics）。
+ *          不支持的平台返回 0.0。注意：此函数会阻塞约100ms。
+ * @return CPU使用率百分比（0.0 ~ 100.0），不支持的平台返回 0.0
+ */
 static double get_cpu_usage_percent(void) {
     FILETIME idle1, kernel1, user1;
     FILETIME idle2, kernel2, user2;
@@ -895,6 +981,13 @@ bool lv00_diagnostics_write_file(const Lv00Diagnostics *diag, const char *path) 
     return true;
 }
 
+/**
+ * @brief 诊断信息转JSON
+ * @details 将诊断信息（版本、构建日期、运行时间、内存统计、性能统计、错误统计、系统信息等）
+ *          序列化为 JSON 格式字符串。
+ * @param diag 诊断信息结构体指针，为 NULL 时返回 NULL
+ * @return 新分配的 JSON 字符串（调用者需使用 lv00_free 释放），失败时返回 NULL
+ */
 char *lv00_diagnostics_to_json(const Lv00Diagnostics *diag) {
     if (!diag) {
         return NULL;

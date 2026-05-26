@@ -13,6 +13,17 @@
  *   - lv00_internal.h  : 内部数据结构和常量
  *   - lv00_utils.h     : 统一内存分配器和工具函数
  *   - lv00.h           : 核心类型定义
+ *
+ * @par 设计要点
+ * - 采用递归下降解析(Recursive Descent Parsing)策略，按运算符优先级分层
+ * - 词法分析和语法分析分离（lexer_shared.c 提供词法层）
+ * - 支持三种语法模式：LaTeX、Python 和 DSL，通过语法标志切换
+ * - 错误恢复采用同步恢复策略，遇到错误时跳至安全同步点继续解析
+ * - AST 节点使用 lv00_malloc 统一分配，支持位置追踪用于错误定位
+ *
+ * @par 依赖关系
+ * - 上层: 被 engine.c, dsl_compiler.c 调用
+ * - 下层: 依赖 lexer_shared.c, lv00_utils.c
  */
 
 /* ============================================================
@@ -57,6 +68,133 @@ LV00_DECLARE_STREAM_CTX(formula_parser)
  */
 const char *formula_parser_get_last_error(void) {
     return lv00_get_last_error_message();
+}
+
+/* ============================================================
+ * 公共 API —— 输入验证
+ * ============================================================ */
+
+#define LV00_FORMULA_MAX_WARN_LENGTH 4096 /**< 输入长度警告阈值 */
+
+/**
+ * @brief 检查字符是否为公式输入允许的合法字符.
+ *
+ * 允许的字符集: 字母数字, 空白, 运算符.
+ * 以及 LaTeX 命令反斜杠和命令名字母.
+ *
+ * @param c 字符值
+ * @return true  是合法字符
+ * @return false 是非法字符
+ */
+static bool is_valid_formula_char(char c) {
+    /* 字母数字 */
+    if (isalnum((unsigned char) c)) return true;
+    /* 空白 */
+    if (isspace((unsigned char) c)) return true;
+    /* 运算符和标点 */
+    if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^') return true;
+    if (c == '(' || c == ')' || c == ',' || c == '.') return true;
+    if (c == '[' || c == ']' || c == '{' || c == '}') return true;
+    if (c == '=' || c == '<' || c == '>' || c == '!' || c == '&') return true;
+    if (c == '|' || c == '_' || c == ':' || c == ';') return true;
+    if (c == '\\') return true;  /* LaTeX 命令前缀 */
+    if (c == '~' || c == '@' || c == '#' || c == '%') return true;
+    return false;
+}
+
+/**
+ * @brief 预解析输入验证
+ *
+ * 在正式解析之前对输入进行结构级验证：
+ *   1. NULL 或空输入检查
+ *   2. 括号/方括号匹配检查
+ *   3. 过长输入警告（> 4096 字符）
+ *   4. 非法字符检测
+ *
+ * @param[in] input 输入的公式字符串
+ * @return 0 验证通过，非零为错误码
+ */
+int formula_validate_input(const char *input) {
+    if (!input) {
+        lv00_set_error(LV00_ERROR_NULL_POINTER, "formula_validate_input: 输入为 NULL");
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    if (input[0] == '\0') {
+        lv00_set_error(LV00_ERROR_PARSER_EMPTY_INPUT, "formula_validate_input: 输入为空字符串");
+        return LV00_ERROR_PARSER_EMPTY_INPUT;
+    }
+
+    size_t len = strlen(input);
+
+    /* 过长输入警告 */
+    if (len > LV00_FORMULA_MAX_WARN_LENGTH) {
+        lv00_set_error(LV00_ERROR_PARSER_INPUT_TOO_LONG,
+                       "formula_validate_input: 输入长度 %zu 超过建议上限 %d，可能导致性能问题",
+                       len, LV00_FORMULA_MAX_WARN_LENGTH);
+        return LV00_ERROR_PARSER_INPUT_TOO_LONG;
+    }
+
+    /* 括号/方括号匹配检查 */
+    int paren_depth = 0;   /* () */
+    int bracket_depth = 0; /* [] */
+    int brace_depth = 0;   /* {} */
+
+    for (size_t i = 0; i < len; i++) {
+        char c = input[i];
+
+        /* 非法字符检查 */
+        if (!is_valid_formula_char(c)) {
+            lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+                           "formula_validate_input: 位置 %zu 处包含非法字符 '%c' (0x%02X)",
+                           i, c, (unsigned char) c);
+            return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+        }
+
+        switch (c) {
+            case '(': paren_depth++;  break;
+            case ')': paren_depth--;  break;
+            case '[': bracket_depth++; break;
+            case ']': bracket_depth--; break;
+            case '{': brace_depth++;  break;
+            case '}': brace_depth--;  break;
+            default: break;
+        }
+
+        if (paren_depth < 0) {
+            lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+                           "formula_validate_input: 位置 %zu 处出现未匹配的右括号 ')'", i);
+            return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+        }
+        if (bracket_depth < 0) {
+            lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+                           "formula_validate_input: 位置 %zu 处出现未匹配的右方括号 ']'", i);
+            return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+        }
+        if (brace_depth < 0) {
+            lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+                           "formula_validate_input: 位置 %zu 处出现未匹配的右花括号 '}'", i);
+            return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+        }
+    }
+
+    if (paren_depth != 0) {
+        lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+                       "formula_validate_input: 存在 %d 个未匹配的左括号 '('", paren_depth);
+        return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+    }
+    if (bracket_depth != 0) {
+        lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+                       "formula_validate_input: 存在 %d 个未匹配的左方括号 '['", bracket_depth);
+        return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+    }
+    if (brace_depth != 0) {
+        lv00_set_error(LV00_ERROR_PARSER_ILLEGAL_CHARS,
+                       "formula_validate_input: 存在 %d 个未匹配的左花括号 '{'", brace_depth);
+        return LV00_ERROR_PARSER_ILLEGAL_CHARS;
+    }
+
+    return 0;
 }
 
 typedef struct {
@@ -475,6 +613,10 @@ FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
     node->refcount = 1;
     node->data.equation.lhs = lhs;
     node->data.equation.rhs = rhs;
+    /* 引用计数管理：父节点持有对子节点的引用，需递增引用计数，
+     * 与 formula_create_binary_op / formula_create_unary_op 保持一致 */
+    formula_node_ref(lhs);
+    formula_node_ref(rhs);
     return node;
 }
 
@@ -494,6 +636,10 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
         }
         memcpy(node->data.coord_list.coords, coords, sizeof(FormulaNode *) * count);
         node->data.coord_list.coord_count = count;
+        /* 引用计数管理：递增每个坐标子节点的引用计数 */
+        for (int i = 0; i < count; i++) {
+            formula_node_ref(coords[i]);
+        }
     }
     return node;
 }
@@ -514,6 +660,7 @@ FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
         return NULL;
     }
     node->data.geom_point.coords = coords;
+    formula_node_ref(coords);
     return node;
 }
 
@@ -534,6 +681,8 @@ FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, For
     }
     node->data.geom_segment.endpoint1 = ep1;
     node->data.geom_segment.endpoint2 = ep2;
+    formula_node_ref(ep1);
+    formula_node_ref(ep2);
     return node;
 }
 
@@ -554,6 +703,8 @@ FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, F
     }
     node->data.geom_circle.center = center;
     node->data.geom_circle.radius = radius;
+    formula_node_ref(center);
+    formula_node_ref(radius);
     return node;
 }
 
@@ -575,6 +726,9 @@ FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, For
     node->data.geom_triangle.vertex1 = v1;
     node->data.geom_triangle.vertex2 = v2;
     node->data.geom_triangle.vertex3 = v3;
+    formula_node_ref(v1);
+    formula_node_ref(v2);
+    formula_node_ref(v3);
     return node;
 }
 
@@ -602,6 +756,10 @@ FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertice
         }
         memcpy(node->data.geom_polygon.vertices, vertices, sizeof(FormulaNode *) * vertex_count);
         node->data.geom_polygon.vertex_count = vertex_count;
+        /* 引用计数管理：递增每个顶点子节点的引用计数 */
+        for (int i = 0; i < vertex_count; i++) {
+            formula_node_ref(vertices[i]);
+        }
     }
     return node;
 }
@@ -630,6 +788,10 @@ FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments
         }
         memcpy(node->data.geom_region.boundary_segments, segments, sizeof(FormulaNode *) * segment_count);
         node->data.geom_region.segment_count = segment_count;
+        /* 引用计数管理：递增每个边界段子节点的引用计数 */
+        for (int i = 0; i < segment_count; i++) {
+            formula_node_ref(segments[i]);
+        }
     }
     return node;
 }
@@ -654,6 +816,10 @@ FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, Form
     node->data.geom_arc.radius = radius;
     node->data.geom_arc.start_angle = start_angle;
     node->data.geom_arc.end_angle = end_angle;
+    formula_node_ref(center);
+    formula_node_ref(radius);
+    formula_node_ref(start_angle);
+    formula_node_ref(end_angle);
     return node;
 }
 
@@ -673,6 +839,10 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
         }
         memcpy(node->data.constraint.participants, participants, sizeof(FormulaNode *) * count);
         node->data.constraint.participant_count = count;
+        /* 引用计数管理：递增每个参与者子节点的引用计数 */
+        for (int i = 0; i < count; i++) {
+            formula_node_ref(participants[i]);
+        }
     }
     return node;
 }
@@ -693,6 +863,10 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
         }
         memcpy(node->data.compound.statements, statements, sizeof(FormulaNode *) * count);
         node->data.compound.statement_count = count;
+        /* 引用计数管理：递增每个语句子节点的引用计数 */
+        for (int i = 0; i < count; i++) {
+            formula_node_ref(statements[i]);
+        }
     }
     return node;
 }
@@ -746,6 +920,10 @@ int formula_node_refcount(const FormulaNode *node) {
  */
 void formula_node_destroy(FormulaNode *node) {
     if (!node)
+        return;
+
+    /* 防止引用计数下溢：如果 refcount 已经 <= 0，说明已被销毁或存在错误 */
+    if (node->refcount <= 0)
         return;
 
     /* 引用计数递减：仅当引用计数归零时才真正销毁 */
@@ -882,6 +1060,150 @@ void formula_node_destroy(FormulaNode *node) {
     }
 
     lv00_free((void **) &node);
+}
+
+/**
+ * @brief 递归销毁整棵 AST 树
+ *
+ * 提供便捷的单次调用清理接口。与 formula_node_destroy 不同，
+ * 此函数不使用引用计数，直接递归释放所有子节点后释放根节点。
+ * 适用于解析器返回的 AST 根节点的最终清理。
+ *
+ * @param[in] root AST 根节点，可以为 NULL
+ */
+void formula_ast_destroy(FormulaNode *root) {
+    if (!root)
+        return;
+
+    switch (root->type) {
+        case NODE_NUMBER:
+            break;
+
+        case NODE_VARIABLE:
+            lv00_free((void **) &root->data.variable.name);
+            break;
+
+        case NODE_IDENTIFIER:
+            lv00_free((void **) &root->data.identifier.name);
+            break;
+
+        case NODE_BINARY_OP_ADD:
+        case NODE_BINARY_OP_SUB:
+        case NODE_BINARY_OP_MUL:
+        case NODE_BINARY_OP_DIV:
+        case NODE_BINARY_OP_POW:
+            formula_ast_destroy(root->data.binary_op.left);
+            formula_ast_destroy(root->data.binary_op.right);
+            break;
+
+        case NODE_UNARY_OP_NEG:
+        case NODE_UNARY_OP_SQRT:
+        case NODE_UNARY_OP_SIN:
+        case NODE_UNARY_OP_COS:
+        case NODE_UNARY_OP_TAN:
+        case NODE_UNARY_OP_ABS:
+        case NODE_UNARY_OP_LN:
+        case NODE_UNARY_OP_LOG:
+            formula_ast_destroy(root->data.unary_op.operand);
+            break;
+
+        case NODE_EQUATION:
+            formula_ast_destroy(root->data.equation.lhs);
+            formula_ast_destroy(root->data.equation.rhs);
+            break;
+
+        case NODE_COORDINATE_LIST:
+            for (int i = 0; i < root->data.coord_list.coord_count; i++) {
+                formula_ast_destroy(root->data.coord_list.coords[i]);
+            }
+            lv00_free((void **) &root->data.coord_list.coords);
+            break;
+
+        case NODE_GEOM_POINT:
+            lv00_free((void **) &root->data.geom_point.name);
+            formula_ast_destroy(root->data.geom_point.coords);
+            break;
+
+        case NODE_GEOM_SEGMENT:
+            lv00_free((void **) &root->data.geom_segment.name);
+            formula_ast_destroy(root->data.geom_segment.endpoint1);
+            formula_ast_destroy(root->data.geom_segment.endpoint2);
+            break;
+
+        case NODE_GEOM_LINE:
+            lv00_free((void **) &root->data.geom_line.name);
+            formula_ast_destroy(root->data.geom_line.point1);
+            formula_ast_destroy(root->data.geom_line.point2);
+            formula_ast_destroy(root->data.geom_line.equation);
+            break;
+
+        case NODE_GEOM_CIRCLE:
+            lv00_free((void **) &root->data.geom_circle.name);
+            formula_ast_destroy(root->data.geom_circle.center);
+            formula_ast_destroy(root->data.geom_circle.radius);
+            formula_ast_destroy(root->data.geom_circle.equation);
+            break;
+
+        case NODE_GEOM_TRIANGLE:
+            lv00_free((void **) &root->data.geom_triangle.name);
+            formula_ast_destroy(root->data.geom_triangle.vertex1);
+            formula_ast_destroy(root->data.geom_triangle.vertex2);
+            formula_ast_destroy(root->data.geom_triangle.vertex3);
+            break;
+
+        case NODE_GEOM_POLYGON:
+            lv00_free((void **) &root->data.geom_polygon.name);
+            for (int i = 0; i < root->data.geom_polygon.vertex_count; i++) {
+                formula_ast_destroy(root->data.geom_polygon.vertices[i]);
+            }
+            lv00_free((void **) &root->data.geom_polygon.vertices);
+            break;
+
+        case NODE_GEOM_REGION:
+            lv00_free((void **) &root->data.geom_region.name);
+            for (int i = 0; i < root->data.geom_region.segment_count; i++) {
+                formula_ast_destroy(root->data.geom_region.boundary_segments[i]);
+            }
+            lv00_free((void **) &root->data.geom_region.boundary_segments);
+            break;
+
+        case NODE_GEOM_ARC:
+            lv00_free((void **) &root->data.geom_arc.name);
+            formula_ast_destroy(root->data.geom_arc.center);
+            formula_ast_destroy(root->data.geom_arc.radius);
+            formula_ast_destroy(root->data.geom_arc.start_angle);
+            formula_ast_destroy(root->data.geom_arc.end_angle);
+            break;
+
+        case NODE_GEOM_VECTOR:
+            lv00_free((void **) &root->data.geom_vector.name);
+            formula_ast_destroy(root->data.geom_vector.start);
+            formula_ast_destroy(root->data.geom_vector.end);
+            break;
+
+        case NODE_CONSTRAINT_PERPENDICULAR:
+        case NODE_CONSTRAINT_PARALLEL:
+        case NODE_CONSTRAINT_MIDPOINT:
+        case NODE_CONSTRAINT_BISECTOR:
+        case NODE_CONSTRAINT_COLLINEAR:
+        case NODE_CONSTRAINT_TANGENT:
+        case NODE_CONSTRAINT_CONGRUENT:
+        case NODE_CONSTRAINT_ANGLE:
+            for (int i = 0; i < root->data.constraint.participant_count; i++) {
+                formula_ast_destroy(root->data.constraint.participants[i]);
+            }
+            lv00_free((void **) &root->data.constraint.participants);
+            break;
+
+        case NODE_COMPOUND:
+            for (int i = 0; i < root->data.compound.statement_count; i++) {
+                formula_ast_destroy(root->data.compound.statements[i]);
+            }
+            lv00_free((void **) &root->data.compound.statements);
+            break;
+    }
+
+    lv00_free((void **) &root);
 }
 
 FormulaNode *formula_node_copy(const FormulaNode *node) {
@@ -3518,7 +3840,14 @@ FormulaNode *formula_parse(const char *input, const char *syntax) {
 
     lv00_clear_error();
 
-    /* ──── 安全加固：输入验证 ──── */
+    /* ──── 安全加固：预解析输入验证（括号匹配、非法字符、长度检查） ──── */
+    int pre_validate_err = formula_validate_input(input);
+    if (pre_validate_err != 0) {
+        /* formula_validate_input 已通过 lv00_set_error 设置详细错误信息 */
+        return NULL;
+    }
+
+    /* ──── 安全加固：输入验证（底层安全检查） ──── */
     size_t input_len = strlen(input);
     Lv00ErrorCode validate_err = lv00_input_validate(input, input_len);
     if (validate_err != LV00_OK) {

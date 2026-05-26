@@ -396,10 +396,14 @@ export class WasmBackend implements IBackend {
    * / 从 JSON 字符串反序列化图。
    */
   graphDeserializeFromJson(json: string): number {
+    // [安全修复 C-03] 使用 try-finally 确保 WASM 堆内存释放，
+    // 即使 C 函数调用抛出异常也不会导致内存泄漏
     const ptr = this.allocWasmString(json);
-    const graphPtr = this.mod._web_graph_deserialize_from_json(ptr);
-    this.freeWasmString(ptr);
-    return graphPtr;
+    try {
+      return this.mod._web_graph_deserialize_from_json(ptr);
+    } finally {
+      this.freeWasmString(ptr);
+    }
   }
 
   /**
@@ -407,11 +411,14 @@ export class WasmBackend implements IBackend {
    * / 添加由边界线段围成的区域。
    */
   graphAddRegion(graphHandle: number, boundarySegmentIds: number[]): number {
+    // [安全修复 C-03] 使用 try-finally 确保 WASM 堆内存释放
     const jsonStr = JSON.stringify(boundarySegmentIds);
     const ptr = this.allocWasmString(jsonStr);
-    const regionId = this.mod._web_graph_add_region(graphHandle, ptr);
-    this.freeWasmString(ptr);
-    return regionId;
+    try {
+      return this.mod._web_graph_add_region(graphHandle, ptr);
+    } finally {
+      this.freeWasmString(ptr);
+    }
   }
 
   /**
@@ -449,11 +456,15 @@ export class WasmBackend implements IBackend {
    * / 解析公式字符串并返回 AST 句柄。
    */
   formulaParse(input: string, syntax: number): { success: boolean; ast: number; error: string | null } {
+    // [安全修复 C-03] 使用 try-finally 确保 WASM 堆内存释放
     const ptr = this.allocWasmString(input);
-    const jsonPtr = this.mod._web_formula_parse(ptr, syntax);
-    this.freeWasmString(ptr);
-    const result = this.readJsonAndFree<{ success: boolean; ast: number; error: string | null }>(jsonPtr);
-    return result ?? { success: false, ast: 0, error: 'Failed to parse formula' };
+    try {
+      const jsonPtr = this.mod._web_formula_parse(ptr, syntax);
+      const result = this.readJsonAndFree<{ success: boolean; ast: number; error: string | null }>(jsonPtr);
+      return result ?? { success: false, ast: 0, error: 'Failed to parse formula' };
+    } finally {
+      this.freeWasmString(ptr);
+    }
   }
 
   /**
@@ -531,10 +542,13 @@ export class WasmBackend implements IBackend {
    * / 检测公式字符串的语法类型。
    */
   formulaDetectSyntax(input: string): number {
+    // [安全修复 C-03] 使用 try-finally 确保 WASM 堆内存释放
     const ptr = this.allocWasmString(input);
-    const result = this.mod._web_formula_detect_syntax(ptr);
-    this.freeWasmString(ptr);
-    return result;
+    try {
+      return this.mod._web_formula_detect_syntax(ptr);
+    } finally {
+      this.freeWasmString(ptr);
+    }
   }
 
   // ---- Engine Operations / 引擎操作 ----

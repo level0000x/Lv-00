@@ -12,6 +12,10 @@ out/
 *.dll
 *.exe
 
+# Sanitizer outputs
+*.asan
+*.ubsan
+
 # CMake
 CMakeCache.txt
 CMakeFiles/
@@ -117,7 +121,6 @@ compile_commands.json
 node_modules/
 
 # Test result files（测试输出已统一放入 test_outputs/ 目录）
-/test_output*.txt
 /test_*.txt
 /test_results.*
 
@@ -126,7 +129,6 @@ node_modules/
 module/axiom_packages/test_saves/
 
 # Build directories（所有构建目录变体）
-build/
 build_*/
 build2/
 build_final/

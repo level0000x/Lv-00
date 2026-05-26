@@ -70,6 +70,12 @@ export function useCanvas(
 ): React.MutableRefObject<Renderer | null> {
   const rendererRef = useRef<Renderer | null>(null);
 
+  // [安全修复 H-05] 使用 useRef 稳定化 options 中的回调函数引用，
+  // 避免因回调函数引用变化导致 useEffect 不必要地重新执行。
+  // 这样依赖数组中只需引用 ref 对象（稳定引用），无需直接依赖回调。
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -84,7 +90,9 @@ export function useCanvas(
     renderer.setupCanvas();
 
     // 调用初始化完成回调（如：同步 canvas 尺寸到 store）
-    options?.onInit?.(canvas, renderer);
+    // [安全修复 H-05] 通过 optionsRef.current 读取最新回调，
+    // 避免在依赖数组中直接引用 options 回调导致无限重渲染
+    optionsRef.current?.onInit?.(canvas, renderer);
 
     /**
      * 窗口尺寸变化处理：重新设置 Canvas 尺寸并更新 DPR。
@@ -99,7 +107,7 @@ export function useCanvas(
         renderer.setupCanvas();
         useAppStore.getState().setDpr(window.devicePixelRatio || 1);
         // 调用 resize 完成回调
-        options?.onResize?.(canvas, renderer);
+        optionsRef.current?.onResize?.(canvas, renderer);
         resizeRafId = null;
       });
     };
@@ -112,7 +120,9 @@ export function useCanvas(
       if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
       rendererRef.current = null;
     };
-  }, [canvasRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canvasRef]); // [安全修复 H-05] 依赖数组仅包含 canvasRef，
+                   // options 中的回调通过 optionsRef 稳定化访问，
+                   // 移除了原先的 eslint-disable 注释
 
   return rendererRef;
 }

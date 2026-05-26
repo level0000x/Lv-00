@@ -8,7 +8,7 @@
  *   1. 导入 React 18 的 StrictMode 组件
  *   2. 创建 React 根节点（createRoot）
  *   3. 验证 DOM 中是否存在 #root 元素
- *   4. 加载全局样式文件
+ *   4. 加载全局样式文件（variables -> global -> components -> animations -> panel-forms）
  *   5. 渲染 App 组件到根节点
  *
  * StrictMode 说明：
@@ -28,7 +28,6 @@ import './styles/global.css';
 import './styles/components.css';
 import './styles/animations.css';
 import './styles/panel-forms.css';
-import './styles/shortcut-help.css';
 import './services/logger';
 
 /**

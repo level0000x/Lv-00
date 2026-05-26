@@ -15,10 +15,10 @@
  *   - algebraic_get_plan / algebraic_set_plan         — A/B 计划切换
  *
  * 使用示例：
- LV00_PUBLIC_API *   SymbolicCoord *x = symbolic_coord_create_rational(3, 4);
- LV00_PUBLIC_API *   SymbolicCoord *y = symbolic_coord_create_transcendental("pi");
- LV00_PUBLIC_API *   SymbolicCoord *sum = symbolic_coord_add(x, y);
- LV00_PUBLIC_API *   CircuitStatus cs = check_digit_circuit(sum);
+ *   SymbolicCoord *x = symbolic_coord_create_rational(3, 4);
+ *   SymbolicCoord *y = symbolic_coord_create_transcendental("pi");
+ *   SymbolicCoord *sum = symbolic_coord_add(x, y);
+ *   CircuitStatus cs = check_digit_circuit(sum);
  *
  * ======================================================================== */
 
@@ -39,8 +39,13 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+/* LV00_PUBLIC_API 由 lv00.h 统一定义，此处不再重复。
+ * 原因：lv00.h 中根据平台（Windows DLL / GCC/Clang visibility）和构建模式
+ * （共享库 / 静态库）统一设置 LV00_PUBLIC_API。若各子模块头文件各自
+ * #define LV00_PUBLIC_API 为空，在构建共享库时会导致符号不导出。
+ * 因此要求使用者先包含 lv00.h，此处仅做守卫检查。 */
 #ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
+#error "请先包含 lv00.h 以获取 LV00_PUBLIC_API 定义"
 #endif
 
 /* MAX_MODULE_DEPTH —— 与 module.h 中的定义保持同步

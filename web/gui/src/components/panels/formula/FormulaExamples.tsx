@@ -15,8 +15,9 @@ import Panel from '../Panel';
 /**
  * 预设的公式示例列表，使用真实 DSL 语法。
  * 每个示例的 id 对应 DSL 中的常见几何命题。
+ * 导出供 FormulaPanel 等组件使用。
  */
-const FORMULA_EXAMPLES: Array<{ id: string; label: string; code: string }> = [
+export const FORMULA_EXAMPLES: Array<{ id: string; label: string; code: string }> = [
   {
     id: 'equilateral_triangle',
     label: '等边三角形 / Equilateral Triangle',

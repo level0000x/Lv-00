@@ -9,7 +9,7 @@
 import React, { useCallback, useRef, useEffect, useMemo } from 'react';
 import Panel from './Panel';
 import { useAppStore } from '@/stores';
-import type { LogLevel } from '@/types';
+import type { AppLogLevel } from '@/types'; // [安全修复 M-08] 重命名 LogLevel -> AppLogLevel
 
 /**
  * DebugPanel - 调试模块侧边栏面板 / Debug module sidebar panel
@@ -42,7 +42,7 @@ const DebugPanel: React.FC = () => {
   /** 过滤后的日志列表（缓存） / Filtered log entries (memoized) */
   const filteredLogs = useMemo(
     () => logs.filter((log) => {
-      const levels: LogLevel[] = ['debug', 'info', 'warn', 'error'];
+      const levels: AppLogLevel[] = ['debug', 'info', 'warn', 'error'];
       return levels.indexOf(log.level) >= levels.indexOf(minLogLevel);
     }),
     [logs, minLogLevel],
@@ -53,7 +53,7 @@ const DebugPanel: React.FC = () => {
   }, [logs.length, addToast]);
 
   const handleLogLevelChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setMinLogLevel(e.target.value as LogLevel);
+    setMinLogLevel(e.target.value as AppLogLevel);
   }, [setMinLogLevel]);
 
   const handleShowCounters = useCallback(() => {

@@ -22,11 +22,13 @@ option(BUILD_SHARED_LIBS "Build shared library (DLL/SO)"         OFF)
 option(BUILD_FUZZERS     "Build fuzzing targets (requires Clang)" OFF)
 option(ENABLE_COVERAGE   "Enable code coverage (GCC/Clang)"       OFF)
 option(ENABLE_SANITIZERS "Enable ASan + UBSan (GCC/Clang)"       OFF)
+option(ENABLE_ASAN       "Enable AddressSanitizer (GCC/Clang/MSVC)" OFF)
+option(ENABLE_UBSAN      "Enable UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
 option(BUILD_WASM        "Build WebAssembly target (Emscripten)"  OFF)
 option(WASM_ES6_MODULE   "Generate ES6 module for WASM"          ON)
 option(WASM_ALLOW_MEMORY_GROWTH "Allow WASM memory growth"       ON)
 # v3.3.0: 层级验证开关（启用后在编译时检查跨层依赖违规）
-option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" OFF)
+option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" ON)
 
 # ============================================================
 # 编译器标志
@@ -140,13 +142,40 @@ if(ENABLE_COVERAGE AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 endif()
 
-if(ENABLE_SANITIZERS AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
+# ENABLE_SANITIZERS 作为快捷方式，同时启用 ASan 和 UBSan
+if(ENABLE_SANITIZERS)
+    set(ENABLE_ASAN ON CACHE BOOL "" FORCE)
+    set(ENABLE_UBSAN ON CACHE BOOL "" FORCE)
+endif()
+
+# --- Sanitizer 标志（GCC / Clang）---
+set(_LV00_SANITIZER_FLAGS "")
+set(_LV00_SANITIZER_LINK_FLAGS "")
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    if(ENABLE_ASAN)
+        string(APPEND _LV00_SANITIZER_FLAGS " -fsanitize=address -fno-omit-frame-pointer")
+        string(APPEND _LV00_SANITIZER_LINK_FLAGS " -fsanitize=address")
+    endif()
+    if(ENABLE_UBSAN)
+        string(APPEND _LV00_SANITIZER_FLAGS " -fsanitize=undefined -fno-omit-frame-pointer")
+        string(APPEND _LV00_SANITIZER_LINK_FLAGS " -fsanitize=undefined")
+    endif()
+    if(_LV00_SANITIZER_FLAGS)
+        # 去重 -fno-omit-frame-pointer（ASan 和 UBSan 都会添加）
+        list(REMOVE_DUPLICATES _LV00_SANITIZER_FLAGS)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}${_LV00_SANITIZER_FLAGS}")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}${_LV00_SANITIZER_LINK_FLAGS}")
+    endif()
+endif()
+
+# --- Sanitizer 标志（MSVC）---
+if(MSVC AND ENABLE_ASAN)
+    add_compile_options(/fsanitize=address)
 endif()
 
 # 警告：覆盖率插桩和消毒器同时启用时可能互相干扰
-if(ENABLE_COVERAGE AND ENABLE_SANITIZERS)
+if(ENABLE_COVERAGE AND (ENABLE_SANITIZERS OR ENABLE_ASAN OR ENABLE_UBSAN))
     message(WARNING "--coverage 和 -fsanitize 同时启用：覆盖率插桩可能与 AddressSanitizer 冲突，"
                     "导致性能下降或误报。建议分开构建（coverage 构建和 sanitizer 构建各用一个构建目录）。")
 endif()
@@ -207,7 +236,7 @@ endif()
 # --- 安全相关编译选项（GCC / Clang）---
 # -fstack-protector-strong : 启用栈溢出保护（对含有局部数组/取地址操作的函数生效）
 # -D_FORTIFY_SOURCE=2      : 启用 glibc 缓冲区溢出检测（需配合 -O1 及以上优化）
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT ENABLE_SANITIZERS)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT (ENABLE_SANITIZERS OR ENABLE_ASAN OR ENABLE_UBSAN))
     add_compile_options(-fstack-protector-strong)
     # 仅在非调试优化级别下启用 _FORTIFY_SOURCE，避免与 -O0 冲突
     if(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug" OR ENABLE_COVERAGE))
@@ -323,6 +352,7 @@ set(LV00_HEADERS
     core/include/lv00/formula_parser.h
     core/include/lv00/formula_renderer.h
     core/include/lv00/formula_converter.h
+    core/include/lv00/geometry_config.h
     core/include/lv00/prop_verifier.h
     core/include/lv00/lexer_shared.h
     core/include/lv00/stream.h
@@ -471,6 +501,17 @@ set(LV00_HEADERS
     core/include/lv00/preset_polynomial.h
     core/include/lv00/preset_representation_theory.h
     core/include/lv00/preset_special_functions.h
+    # 通用几何计算工具函数
+    core/include/lv00/geo_utils.h
+    # v3.5.0 新增：动态规则注册表 + 推理结果去重缓存
+    core/include/lv00/rule_registry.h
+    core/include/lv00/reasoning_cache.h
+    # v3.5.0 新增：可配置几何精度参数
+    core/include/lv00/geometry_config.h
+    # v3.5.0 新增：矛盾约束检测器
+    core/include/lv00/conflict_detector.h
+    # v3.5.0 新增：性能分析器
+    core/include/lv00/performance_profiler.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -500,6 +541,8 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/memory_pool.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
+    # 几何计算可配置容差参数
+    core/src/layer2_resource/geometry_config.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -532,23 +575,6 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/gappa_propagate.c
     core/src/layer3_geometry/fptaylor_eval.c
     core/src/layer3_geometry/herbie_eval.c
-    # v3.4.0 新增：SMT/SAT 模块（Alt-Ergo + STP + Boolector + CaDiCaL + Yices2 落地）
-    core/src/layer3_geometry/smt_theory_combiner.c
-    core/src/layer3_geometry/smt_bitvector.c
-    core/src/layer3_geometry/smt_trigger_engine.c
-    # v3.4.0 新增：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
-    core/src/layer3_geometry/proof_rule_engine.c
-    core/src/layer3_geometry/proof_session.c
-    # v3.4.0 新增：数论/代数模块（NTL + SymEngine + GiNaC 落地）
-    core/src/layer3_geometry/nt_number_theory.c
-    core/src/layer3_geometry/nt_polynomial.c
-    core/src/layer3_geometry/sym_expr.c
-    # v3.4.0 新增：重写引擎模块（egg + Maude + K Framework 落地）
-    core/src/layer3_geometry/rewrite_strategy.c
-    # v3.4.0 新增：版本控制模块（libgit2 落地）
-    core/src/layer3_geometry/proof_version.c
-    # v3.4.0 新增：自动微分模块（Enzyme 落地）
-    core/src/layer3_geometry/autodiff.c
     # v3.3.0 性能优化模块
     core/src/layer3_geometry/thread_pool.c
     core/src/layer3_geometry/simd_ops.c
@@ -558,8 +584,8 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/equiv_class.c
     # v3.6.0 新增：WFC 范式 - 约束传播引擎（Layer 3 约束拓扑规约）
     core/src/layer3_geometry/propagation.c
-    # v3.3.0 新增：ODE 求解器
-    core/src/layer3_geometry/ode_solver.c
+    # 通用几何计算工具函数（消除跨模块代码重复）
+    core/src/layer3_geometry/geo_utils.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -576,6 +602,10 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/proof_optimize.c
     core/src/layer4_reasoning/proof_multi_strategy.c
     core/src/layer4_reasoning/proof_trace.c
+    # v3.4.0 从 Layer 3 迁移：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
+    core/src/layer4_reasoning/proof_rule_engine.c
+    core/src/layer4_reasoning/proof_session.c
+    core/src/layer4_reasoning/proof_version.c
     core/src/layer4_reasoning/proof_priority.c
     core/src/layer4_reasoning/logic_check.c
     core/src/layer4_reasoning/circuit_breaker.c
@@ -604,6 +634,20 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/rational.c
     core/src/layer4_reasoning/expr_canon.c
     core/src/layer4_reasoning/exact_arithmetic.c
+    # v3.4.0 从 Layer 3 迁移：SMT/SAT 模块（Alt-Ergo + STP + Boolector + CaDiCaL + Yices2 落地）
+    core/src/layer4_reasoning/smt_theory_combiner.c
+    core/src/layer4_reasoning/smt_bitvector.c
+    core/src/layer4_reasoning/smt_trigger_engine.c
+    # v3.4.0 从 Layer 3 迁移：数论/代数模块（NTL + SymEngine + GiNaC 落地）
+    core/src/layer4_reasoning/nt_number_theory.c
+    core/src/layer4_reasoning/nt_polynomial.c
+    core/src/layer4_reasoning/sym_expr.c
+    # v3.4.0 从 Layer 3 迁移：重写引擎模块（egg + Maude + K Framework 落地）
+    core/src/layer4_reasoning/rewrite_strategy.c
+    # v3.4.0 从 Layer 3 迁移：自动微分模块（Enzyme 落地）
+    core/src/layer4_reasoning/autodiff.c
+    # v3.4.0 从 Layer 3 迁移：ODE 求解器
+    core/src/layer4_reasoning/ode_solver.c
     # v3.3.0 新增：表达式规范化、不等式推理
     core/src/layer4_reasoning/expr_canonical.c
     # 模型与模式
@@ -698,6 +742,13 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/preset/preset_trigonometry.c
     # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
     core/src/layer4_reasoning/meta_proof.c
+    # v3.5.0 新增：动态规则注册表 + 推理结果去重缓存
+    core/src/layer4_reasoning/rule_registry.c
+    core/src/layer4_reasoning/reasoning_cache.c
+    # v3.5.0 新增：矛盾约束检测器
+    core/src/layer4_reasoning/conflict_detector.c
+    # v3.5.0 新增：性能分析器
+    core/src/layer2_resource/performance_profiler.c
 )
 
 # ── Layer 5: 结果输出层 (Output) ──
@@ -781,6 +832,8 @@ set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
 # 跳过有深层依赖问题的预设注册（preset_differential_geometry, preset_functional_analysis）
 # 此定义对静态库始终生效，不依赖于 BUILD_SHARED_LIBS 选项
 target_compile_definitions(lv00_static PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
+message(WARNING "Excluding broken presets: preset_differential_geometry, preset_functional_analysis. "
+                "These modules have unresolved dependency issues and need to be fixed.")
 
 if(BUILD_SHARED_LIBS)
     add_library(lv00_shared SHARED
@@ -1049,6 +1102,22 @@ if(BUILD_TESTS)
     add_lv00_test_and_register(test_wfc_modules
         test/c/test_wfc_modules.c wfc_modules_test)
 
+    # 内存管理系统综合测试
+    add_lv00_test_and_register(test_memory_management
+        test/c/test_memory_management.c memory_management_test)
+
+    # 边界条件与错误处理测试
+    add_lv00_test_and_register(test_error_handling
+        test/c/test_error_handling.c error_handling_test)
+
+    # v3.5.0 新增：矛盾约束检测器测试
+    add_lv00_test_and_register(test_conflict_detector
+        test/c/test_conflict_detector.c conflict_detector_test)
+
+    # v3.5.0 新增：性能基准测试
+    add_lv00_test_and_register(test_performance
+        test/c/test_performance.c performance_test)
+
     # 基准测试（构建但不注册到 CTest，手动运行）
     add_lv00_test(test_benchmark test/c/test_benchmark.c)
 endif()
@@ -1117,7 +1186,7 @@ endif()
 install(EXPORT lv00-targets
     FILE lv00-targets.cmake
     NAMESPACE lv00::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/build/build/cmake/lv00
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lv00
 )
 
 # ============================================================

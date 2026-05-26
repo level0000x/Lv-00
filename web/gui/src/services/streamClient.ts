@@ -302,8 +302,12 @@ export function createStreamClient(
       setState('connected');
 
       // 订阅所有事件类型
+      // [安全修复 M-01] 添加空值守卫，避免使用非空断言操作符 (!)
+      // 在 onopen 回调中 ws 理论上非 null，但 TypeScript 闭包分析无法确认，
+      // 使用显式守卫比非空断言更安全，防止运行时空指针异常
+      if (!ws) return;
       try {
-        ws!.send(JSON.stringify({
+        ws.send(JSON.stringify({
           jsonrpc: '2.0',
           method: 'subscribe',
           params: { event_mask: -1 }, // -1 = 所有事件类型

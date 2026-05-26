@@ -2,16 +2,19 @@
 多并发输出实时监控系统 - 统一入口包
 ================================================
 
-提供完整的进程监控解决方案，支持 CLI TUI 和 Web 仪表盘两种界面模式。
+模块功能概述：
+    提供完整的进程监控解决方案，支持 CLI TUI 和 Web 仪表盘两种界面模式。
+    本系统可同时监控多个并发进程的 stdout/stderr 输出，实时展示进程状态、
+    资源使用和输出内容，适用于自动化测试、CI/CD 管道和批量任务管理等场景。
 
-主要模块:
-    - core: 核心引擎和数据模型
-    - cli: 命令行界面
-    - web: Web 仪表盘
+主要模块：
+    - core: 核心引擎和数据模型（MonitorEngine、ProcessInfo 等）
+    - cli: 命令行界面（CLIMonitor，基于终端的实时监控 TUI）
+    - web: Web 仪表盘（WebDashboard，基于浏览器的可视化监控界面）
     - utils: 工具函数和常量
-    - config: 配置管理
+    - config: 配置管理（支持文件配置和环境变量）
 
-使用示例:
+使用示例：
     >>> from concurrent_monitor import MonitorEngine, WebDashboard, CLIMonitor
     >>>
     >>> # 创建引擎
@@ -25,6 +28,12 @@
     >>> # CLI 模式
     >>> monitor = CLIMonitor(engine)
     >>> monitor.run()
+
+注意事项：
+    - Web 模式需要额外安装 Web 服务器依赖（如 aiohttp 或 fastapi）
+    - CLI 模式依赖终端兼容性，Windows 下建议使用 Windows Terminal
+    - 进程并发数受系统资源限制，建议根据机器配置调整 max_concurrency
+    - 旧版单文件结构（monitor_engine.py）已弃用，新版使用 core/ 包结构
 
 版本: 3.3.0
 作者: Lv-00 Team

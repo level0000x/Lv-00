@@ -16,10 +16,10 @@
  *   - graph_detect_conflicts                        — 冲突分析
  *
  * 使用示例：
- LV00_PUBLIC_API *   ConstraintGraph *g = graph_create();
- LV00_PUBLIC_API *   graph_add_point(g, coords, 2);
- LV00_PUBLIC_API *   graph_add_line_segment(g, p1_id, p2_id);
- LV00_PUBLIC_API *   graph_add_incidence(g, point_id, line_id);
+  *   ConstraintGraph *g = graph_create();
+ *   graph_add_point(g, coords, 2);
+ *   graph_add_line_segment(g, p1_id, p2_id);
+ *   graph_add_incidence(g, point_id, line_id);
  *
  * ======================================================================== */
 
@@ -31,18 +31,19 @@
 #ifndef LV00_CONSTRAINT_GRAPH_H
 #define LV00_CONSTRAINT_GRAPH_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdatomic.h> /* v3.4.1: 原子操作支持多线程安全 */
 
+#include "determinism_state.h"  /* 确定性状态枚举（解决循环依赖） */
 #include "error_codes.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ================================================================
  * v3.4.1: 多线程安全原子操作宏
@@ -193,12 +194,12 @@ struct GeomNode {
             int internal_node_count;   /* 内部节点数量 */
             int input_count;           /* 输入端口数量 */
             int output_count;          /* 输出端口数量 */
-            enum {
-                UNVERIFIED,        /* 未验证 */
-                VERIFIED,          /* 已验证 */
-                NON_DETERMINISTIC, /* 非确定性 */
-                PARTIALLY_VERIFIED /* 部分验证 */
-            } determinism_state;   /* 确定性状态 */
+            /* 确定性状态：引用 constraint_graph.h 中定义的 DeterminismState 枚举，
+             * 取值为 DETERMINISM_STATE_UNVERIFIED / _VERIFIED /
+             * _NON_DETERMINISTIC / _PARTIALLY_VERIFIED。
+             * 原先此处使用匿名枚举，与 func_block.h 中的 DeterminismState 重复，
+             * 现统一使用同一类型定义。 */
+            DeterminismState determinism_state;
         } func_block;              /* 函数块数据（GEOM_FUNCTION_BLOCK 类型使用） */
     } data;
 };

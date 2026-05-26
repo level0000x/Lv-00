@@ -10,6 +10,7 @@
 
 import type { BackendType, Constraint } from '@/types';
 import { MERGE_DISTANCE_THRESHOLD } from '@/utils/constants';
+import { logger } from '../services/logger'; // [安全修复 H-01] 使用统一 logger 替代 console.log/warn/info
 import { WasmBackend } from './wasmBackend';
 import type { Lv00WasmModule } from './wasmBackend';
 
@@ -255,8 +256,9 @@ export class JsBackend implements IBackend {
    * Please connect the WASM backend for complete graph normalization support.
    */
   graphNormalize(_graphHandle: number): boolean {
-    console.warn(
-      '[lv00-backend:js] graphNormalize() — JS 回退后端限制 | JS Fallback Limitation\n' +
+    // [安全修复 H-01] 使用统一 logger 替代 console.warn，便于日志级别管理和统一采集
+    logger.warn(
+      'graphNormalize() — JS 回退后端限制 | JS Fallback Limitation\n' +
       '  当前 JS 回退后端不支持完整的图规范化计算，始终返回 true。\n' +
       '  The JS fallback backend does not support full graph normalization and always returns true.\n' +
       '  请连接 WASM 后端以获取完整功能。\n' +
@@ -315,8 +317,9 @@ export class JsBackend implements IBackend {
    * Please connect the WASM backend for complete redundant detection support.
    */
   graphDetectRedundant(_graphHandle: number): number[] {
-    console.warn(
-      '[lv00-backend:js] graphDetectRedundant() — JS 回退后端限制 | JS Fallback Limitation\n' +
+    // [安全修复 H-01] 使用统一 logger 替代 console.warn
+    logger.warn(
+      'graphDetectRedundant() — JS 回退后端限制 | JS Fallback Limitation\n' +
       '  当前 JS 回退后端不支持冗余约束检测，始终返回空数组。\n' +
       '  The JS fallback backend does not support redundant constraint detection and always returns an empty array.\n' +
       '  请连接 WASM 后端以获取完整功能。\n' +
@@ -339,8 +342,9 @@ export class JsBackend implements IBackend {
    * Please connect the WASM backend for complete conflict detection support.
    */
   graphDetectConflicts(_graphHandle: number): Array<{ c1: number; c2: number }> {
-    console.warn(
-      '[lv00-backend:js] graphDetectConflicts() — JS 回退后端限制 | JS Fallback Limitation\n' +
+    // [安全修复 H-01] 使用统一 logger 替代 console.warn
+    logger.warn(
+      'graphDetectConflicts() — JS 回退后端限制 | JS Fallback Limitation\n' +
       '  当前 JS 回退后端不支持约束冲突检测，始终返回空数组。\n' +
       '  The JS fallback backend does not support constraint conflict detection and always returns an empty array.\n' +
       '  请连接 WASM 后端以获取完整功能。\n' +
@@ -484,11 +488,12 @@ export class BackendAdapter {
       /* 全局工厂函数已存在（例如通过 <script> 标签加载） */
       try {
         wasmInstance = await (globalModuleFactory as () => Promise<Lv00WasmModule>)();
-        console.info('[Lv-00] WASM module loaded from global Lv00Module factory');
-        console.info('[Lv-00] 从全局 Lv00Module 工厂加载 WASM 模块');
+        // [安全修复 H-01] 使用统一 logger 替代 console.info/warn/log
+        logger.info('WASM module loaded from global Lv00Module factory');
+        logger.info('从全局 Lv00Module 工厂加载 WASM 模块');
       } catch (err) {
-        console.warn('[Lv-00] Global Lv00Module factory failed:', err);
-        console.warn('[Lv-00] 全局 Lv00Module 工厂初始化失败');
+        logger.warn('Global Lv00Module factory failed:', err);
+        logger.warn('全局 Lv00Module 工厂初始化失败');
       }
     }
 
@@ -499,18 +504,18 @@ export class BackendAdapter {
         const moduleFactory = await import('/lv00_web.js');
         if (typeof moduleFactory.default === 'function') {
           wasmInstance = await (moduleFactory.default as () => Promise<Lv00WasmModule>)();
-          console.info('[Lv-00] WASM module loaded via dynamic import from /lv00_web.js');
-          console.info('[Lv-00] 通过动态导入从 /lv00_web.js 加载 WASM 模块');
+          logger.info('WASM module loaded via dynamic import from /lv00_web.js');
+          logger.info('通过动态导入从 /lv00_web.js 加载 WASM 模块');
         } else if (typeof moduleFactory.default === 'object' && moduleFactory.default !== null) {
           /* 模块已经是实例化的对象（非 MODULARIZE 模式） */
           wasmInstance = moduleFactory.default as unknown as Lv00WasmModule;
-          console.info('[Lv-00] WASM module loaded as pre-initialized instance');
-          console.info('[Lv-00] WASM 模块已作为预初始化实例加载');
+          logger.info('WASM module loaded as pre-initialized instance');
+          logger.info('WASM 模块已作为预初始化实例加载');
         }
       } catch (err) {
         /* 动态导入失败（模块文件不存在或加载错误），静默回退 */
-        console.info('[Lv-00] Dynamic WASM import failed, falling back to JS backend');
-        console.info('[Lv-00] 动态 WASM 导入失败，回退到 JS 后端');
+        logger.info('Dynamic WASM import failed, falling back to JS backend');
+        logger.info('动态 WASM 导入失败，回退到 JS 后端');
       }
     }
 
@@ -519,29 +524,29 @@ export class BackendAdapter {
         /* 验证 WASM 模块是否包含必要的导出函数 */
         const requiredFunc = '_web_graph_create';
         if (typeof wasmInstance[requiredFunc] !== 'function') {
-          console.warn(
-            `[Lv-00] WASM module missing required export "${requiredFunc}", falling back to JS`
+          logger.warn(
+            `WASM module missing required export "${requiredFunc}", falling back to JS`
           );
-          console.warn(`[Lv-00] WASM 模块缺少必需的导出函数 "${requiredFunc}"，回退到 JS`);
+          logger.warn(`WASM 模块缺少必需的导出函数 "${requiredFunc}"，回退到 JS`);
         } else {
           /* 成功初始化 WASM 后端 */
           this.backend = new WasmBackend(wasmInstance);
           this.graphHandle = this.backend.graphCreate();
-          console.log('[Lv-00] WASM backend initialized successfully');
-          console.log('[Lv-00] WASM 后端初始化成功');
+          logger.info('WASM backend initialized successfully');
+          logger.info('WASM 后端初始化成功');
           return 'wasm';
         }
       } catch (err) {
-        console.warn('[Lv-00] WASM backend construction failed:', err);
-        console.warn('[Lv-00] WASM 后端构建失败');
+        logger.warn('WASM backend construction failed:', err);
+        logger.warn('WASM 后端构建失败');
       }
     }
 
     /* 回退到 JS 后端 / Fall back to JS backend */
     this.backend = new JsBackend();
     this.graphHandle = this.backend.graphCreate();
-    console.log('[Lv-00] JS backend initialized (fallback mode)');
-    console.log('[Lv-00] JS 后端已初始化（回退模式）');
+    logger.info('JS backend initialized (fallback mode)');
+    logger.info('JS 后端已初始化（回退模式）');
     return 'js';
   }
 

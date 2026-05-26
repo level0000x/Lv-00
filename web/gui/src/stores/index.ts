@@ -41,7 +41,7 @@ import type {
   ModuleType,
   Theme,
   ThemeColors,
-  LogLevel,
+  AppLogLevel, // [安全修复 M-08] 重命名 LogLevel -> AppLogLevel
   LogEntry,
   Toast,
   ToastVariant,
@@ -193,7 +193,7 @@ interface AppState {
 
   // ---- 日志 / Logging (uiStore) ----
   /** 最小显示日志级别（如 'debug', 'info', 'warn', 'error'） */
-  minLogLevel: LogLevel;
+  minLogLevel: AppLogLevel;
   /** 应用日志条目列表（最多 500 条） */
   logs: LogEntry[];
 
@@ -375,9 +375,9 @@ interface AppState {
 
   // ---- 日志 / Logging ----
   /** 设置最小日志级别 */
-  setMinLogLevel: (level: LogLevel) => void;
+  setMinLogLevel: (level: AppLogLevel) => void;
   /** 追加一条日志（自动限制总数不超过 500 条） */
-  appendLog: (message: string, level: LogLevel) => void;
+  appendLog: (message: string, level: AppLogLevel) => void;
   /** 清空所有日志 */
   clearLogs: () => void;
 

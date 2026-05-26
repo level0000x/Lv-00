@@ -21,7 +21,7 @@ import json
 import logging
 import time
 import base64
-from typing import Optional, Dict, Any
+from typing import Any
 from dataclasses import dataclass
 
 # ============================================================
@@ -62,7 +62,7 @@ class User:
     role: str = "user"
     password_hash: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转为可序列化的字典（不含密码哈希）"""
         return {
             "id": self.id,
@@ -128,6 +128,34 @@ def verify_password(password: str, password_hash: str) -> bool:
 # ============================================================
 # JWT 令牌生成（纯 HMAC+SHA256 实现）
 # ============================================================
+#
+# 安全说明 - 纯 HMAC+SHA256 降级实现：
+#
+# 本模块在 PyJWT 不可用时，提供纯 Python 的 HMAC+SHA256 JWT 实现
+# 作为降级方案。此实现仅支持 HS256 算法，功能上与 PyJWT 等价，
+# 但存在以下安全注意事项：
+#
+# 1. 算法限制：仅支持 HMAC-SHA256 (HS256)，不支持 RS256/ES256 等非对称算法。
+#    非对称算法在公钥/私钥分离的场景下更安全（如第三方验证令牌），
+#    HS256 仅适用于服务端自己签发和验证的场景。
+#
+# 2. 无算法混淆防护：PyJWT 会自动拒绝 "alg":"none" 等不安全算法，
+#    本实现通过硬编码 HS256 避免了此问题，但缺少对 JWT 头部 alg 字段的
+#    验证。如果未来需要支持多算法，必须添加 alg 白名单检查。
+#
+# 3. 无 JWK/JWKS 支持：不支持 JSON Web Key Set，无法动态获取验证密钥。
+#    在微服务架构中，建议使用 PyJWT + PyJWK 以支持 JWKS 密钥轮换。
+#
+# 4. 无 jti (JWT ID) 声明：本实现不生成 jti 字段，无法实现令牌撤销列表。
+#    如果需要令牌撤销功能，请使用 PyJWT 并配合 Redis 等存储实现黑名单。
+#
+# 5. 时间验证精度：使用 time.time() 进行过期检查，依赖系统时钟。
+#    在分布式系统中，各节点时钟不同步可能导致令牌在某些节点提前过期
+#    或延迟过期。建议使用 PyJWT 的 leeway 参数处理时钟偏差。
+#
+# 推荐做法：生产环境请安装 PyJWT（pip install PyJWT）以获得更完整、
+# 更安全的 JWT 处理能力。纯 HMAC 实现仅用于无外部依赖的轻量级部署场景。
+# ============================================================
 
 def _base64url_encode(data: bytes) -> str:
     """Base64URL 编码（无填充）"""
@@ -179,12 +207,12 @@ def _hmac_sha256_verify(payload_b64: str, signature: str, secret_key: str) -> bo
 # JWT 令牌生成与验证（PyJWT 实现）
 # ============================================================
 
-def _pyjwt_create_token(payload: Dict[str, Any], secret_key: str) -> str:
+def _pyjwt_create_token(payload: dict[str, Any], secret_key: str) -> str:
     """使用 PyJWT 生成令牌"""
     return _pyjwt.encode(payload, secret_key, algorithm="HS256")
 
 
-def _pyjwt_verify_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]:
+def _pyjwt_verify_token(token: str, secret_key: str) -> dict[str, Any] | None:
     """使用 PyJWT 验证并解码令牌"""
     try:
         payload = _pyjwt.decode(token, secret_key, algorithms=["HS256"])
@@ -202,8 +230,8 @@ def _pyjwt_verify_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]
 def create_access_token(
     user_id: str,
     secret_key: str,
-    expires_delta: Optional[int] = None,
-    extra_data: Optional[Dict[str, Any]] = None,
+    expires_delta: int | None = None,
+    extra_data: dict[str, Any] | None = None,
 ) -> str:
     """
     生成 JWT 访问令牌
@@ -243,7 +271,7 @@ def create_access_token(
     return f"{message}.{signature}"
 
 
-def verify_access_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]:
+def verify_access_token(token: str, secret_key: str) -> dict[str, Any] | None:
     """
     验证 JWT 访问令牌
 
@@ -284,9 +312,9 @@ def verify_access_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]
 
 
 def get_current_user(
-    authorization_header: Optional[str],
+    authorization_header: str | None,
     secret_key: str,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     从请求的 Authorization 头中提取并验证用户信息
 

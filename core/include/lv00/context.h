@@ -35,10 +35,6 @@
 #ifndef LV00_CONTEXT_H
 #define LV00_CONTEXT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ============================================================
  * 依赖头文件
  * ============================================================ */
@@ -52,6 +48,11 @@ extern "C" {
 
 /* 工具函数 —— MemoryStats 类型定义在此 */
 #include "lv00_utils.h"
+#include "memory_pool.h"  /* Lv00MemoryStats 类型定义 */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* 前向声明 —— 避免循环依赖，具体类型在各模块头文件中定义 */
 struct ConstraintGraph;     /* constraint_graph.h */
@@ -569,7 +570,7 @@ typedef struct Lv00Context {
     void *memory_pool;
 
     /** 内存统计（当前上下文级别，而非全局级别） */
-    MemoryStats mem_stats;
+    Lv00MemoryStats mem_stats;
 
     /* ==================================================================
      * 12. 公理与规则引用

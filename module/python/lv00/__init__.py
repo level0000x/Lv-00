@@ -18,7 +18,7 @@ Lv-00 几何元编程库的 Python 接口。
     - formula: 公式编程（解析、渲染、转换）
     - _ctypes_binding: 底层 C 库的 ctypes 绑定
 
-版本：3.3.0
+版本：3.5.0
 作者：Lv-00 开发团队
 
 示例：
@@ -44,9 +44,12 @@ Lv-00 几何元编程库的 Python 接口。
     >>> c, d = create_square(g, a, b)  # 正方形：A(0,0)、B(2,0)、C(2,2)、D(0,2)
 """
 
-import logging
+# [代码质量修复 L-01] 移除未使用的 import logging。
+# 原 _check_ctypes_binding 函数中的 logging.warning 已改为 warnings.warn，
+# 因为 logging 模块在包初始化时可能尚未配置，使用 warnings 更为合适。
+# import logging
 
-__version__ = "3.3.0"
+__version__ = "3.5.0"
 __author__ = "Lv-00 开发团队"
 __description__ = "Lv-00 几何元编程库 Python 接口"
 
@@ -226,6 +229,8 @@ _INTERACTIVE_GEO_NAMES: frozenset = frozenset({
     'RandomizedCheckResult', 'ConstraintMaintainStatus',
     'InteractiveGeo', 'InteractiveGeoError',
     'interactive_geo_init',
+    # 防抖/节流装饰器
+    'throttle', 'debounce',
 })
 
 # 稀疏线性代数模块的导出名称集合
@@ -253,12 +258,21 @@ _PROOF_EXTRAS_NAMES: frozenset = frozenset({
     'proof_sledgehammer_dispatch',
     'proof_minimal_verify',
 })
+
+# 工具模块的导出名称集合
+_UTILS_NAMES: frozenset = frozenset({
+    'singleton', 'TTLCache',
+    'limit_array_length', 'safe_append_limited',
+    'has_valid_ptr', 'validate_ptr_or_raise',
+    'ResourceGuard',
+})
 _formula_exports = {}
 _groebner_exports = {}
 _type_system_exports = {}
 _interactive_geo_exports = {}
 _sparse_la_exports = {}
 _proof_extras_exports = {}
+_utils_exports = {}
 
 
 def _lazy_import_module(
@@ -348,6 +362,12 @@ def __getattr__(name: str):
         if not _proof_extras_exports:
             _lazy_import_module('proof_extras', _PROOF_EXTRAS_NAMES, _proof_extras_exports)
         return _proof_extras_exports[name]
+
+    # 工具模块（惰性导入）
+    if '_UTILS_NAMES' in globals() and name in _UTILS_NAMES:
+        if not _utils_exports:
+            _lazy_import_module('utils', _UTILS_NAMES, _utils_exports)
+        return _utils_exports[name]
 
     raise AttributeError(f"module 'lv00' has no attribute '{name}'")
 
@@ -545,6 +565,8 @@ __all__ = [
     "ConfigClassification", "ScriptLanguage",
     "RandomizedCheckResult", "ConstraintMaintainStatus",
     "interactive_geo_init",
+    # 防抖/节流装饰器
+    "throttle", "debounce",
 
     # 稀疏线性代数模块（通过惰性导入）
     "SparseMatrix", "SparseFormat", "SemiringType", "SparseLAError",
@@ -563,6 +585,12 @@ __all__ = [
     "proof_save_breakpoint", "proof_restore_breakpoint",
     "proof_check_unconstructibility",
     "proof_sledgehammer_dispatch", "proof_minimal_verify",
+
+    # 工具模块（通过惰性导入）
+    "singleton", "TTLCache",
+    "limit_array_length", "safe_append_limited",
+    "has_valid_ptr", "validate_ptr_or_raise",
+    "ResourceGuard",
 ]
 
 
@@ -580,10 +608,12 @@ def _check_ctypes_binding() -> bool:
         if hasattr(_ctypes_binding, '_lib'):
             return True
     except Exception as exc:
-        logging.warning(
+        import warnings
+        warnings.warn(
             "ctypes 绑定加载失败，Lv-00 C 库功能不可用。"
-            "错误详情: %s",
-            exc,
+            "错误详情: %s" % (exc,),
+            ImportWarning,
+            stacklevel=2,
         )
     return False
 

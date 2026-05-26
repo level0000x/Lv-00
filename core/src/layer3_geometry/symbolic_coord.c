@@ -9,6 +9,18 @@
  * - R01: 修复牛顿迭代中 val_mid == 0.0 的不安全浮点比较
  * - R02: 修复 continued_fraction_approx 中 ULLONG_MAX 转 double 的精度问题
  * - R03: 添加 mpz_get_ui 截断的安全检查
+ *
+ * @par 设计要点
+ * - 基于 GMP 任意精度算术库，确保符号计算的精确性
+ * - 信任颜色机制（绿/蓝/黄/橙/琥珀）反映计算结果的可信度
+ * - A/B 计划切换支持在近似计算失败时回退到精确路径
+ * - 有理数运算避免浮点舍入，代数数使用最小多项式表示
+ * - 超越数通过有理逼近和精度边界进行区间估计
+ *
+ * @par 依赖关系
+ * - 上层: 被 constraint_graph.c（坐标验证）、solver.c（精确求解）调用
+ * - 下层: 依赖 GMP 库（libgmp）、lv00_utils.c（内存管理）
+ * - 同层: 与 mpz_poly.c 协作进行多项式运算
  */
 
 #include "symbolic_coord.h"

@@ -14,7 +14,7 @@ import { create } from 'zustand';
 import type {
   ModuleType,
   Theme,
-  LogLevel,
+  AppLogLevel, // [安全修复 M-08] 重命名 LogLevel -> AppLogLevel，消除与 logger.ts 的命名冲突
   LogEntry,
   Toast,
   ToastVariant,
@@ -67,7 +67,7 @@ export interface UIState {
 
   // ---- 日志 / Logging ----
   /** 最小显示日志级别 */
-  minLogLevel: LogLevel;
+  minLogLevel: AppLogLevel;
   /** 应用日志条目列表 */
   logs: LogEntry[];
 
@@ -121,9 +121,9 @@ export interface UIState {
 
   // ---- Actions: 日志 / Logging ----
   /** 设置最小日志级别 */
-  setMinLogLevel: (level: LogLevel) => void;
+  setMinLogLevel: (level: AppLogLevel) => void;
   /** 追加一条日志 */
-  appendLog: (message: string, level: LogLevel) => void;
+  appendLog: (message: string, level: AppLogLevel) => void;
   /** 清空所有日志 */
   clearLogs: () => void;
 
