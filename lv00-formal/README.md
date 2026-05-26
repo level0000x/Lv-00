@@ -62,7 +62,7 @@ lv00-formal/
 
 ## 下一步
 
-1. 继续对照 C 源码中的 `primitive_axioms`、`AxiomRule`、`axiom_package`，把语义化八规则细化为具体可执行前提与结论模板。
+1. 继续把 `RuleTemplate.lean` 与真实规则包、`.lvz` 公理包和 `test_axiom_proof_theory.c` 对齐，补充具体规则实例。
 2. 对照 C 源码中的 `constraint_graph`、`normalization`、`rewrite`、`unify`、`groebner` 模块，细化 Lean 中的约束图与推理规则。
 3. 证明关键元理论：
    - 归一化保持良构性；
