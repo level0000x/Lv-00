@@ -29,7 +29,10 @@ lv00-formal/
     │   ├── Predicates/
     │   │   └── Defs.lean               # 六条本原谓词
     │   ├── Axioms/
-    │   │   └── Primitive.lean          # 八条基础公理/规则接口
+    │   │   ├── Primitive.lean          # 八条基础公理/规则接口
+    │   │   ├── RuleTemplate.lean       # 对照 C 规则引擎的可执行规则模板
+    │   │   ├── Instances.lean          # proof_theory.lvz 真实规则包实例
+    │   │   └── PackageValidation.lean  # 公理包依赖验证模型
     │   ├── Constraint/
     │   │   └── Graph.lean              # 约束图、四态、归一化目标
     │   ├── Reasoning/
@@ -59,18 +62,108 @@ lv00-formal/
 - [x] 定义约束图、四态相容性、归一化目标。
 - [x] 定义推理步骤与可靠性骨架。
 - [x] 定义可追溯证明对象。
+- [x] 映射 `proof_theory.lvz` 公理包（36 模板，6 不可构造问题）。
+- [x] 映射 `linear_logic.lvz` 公理包（54 模板，10 不可构造问题）。
+- [x] 映射 `galois_theory.lvz` 公理包（62 模板，8 不可构造问题）。
+- [x] 证明 `proof_theory` 包依赖验证：`proofTheoryPackage_dependencies_valid`。
+- [x] 证明 `linear_logic` 包依赖验证：`linearLogicPackage_dependencies_valid`。
+- [x] 证明 `galois_theory` 包依赖验证：`galoisTheoryPackage_dependencies_valid`。
+- [x] 映射 `euclidean_plane.lvz` 公理包（22 模板，6 不可构造问题）。
+- [x] 证明 `euclidean_plane` 包依赖验证：`euclideanPlanePackage_dependencies_valid`。
+- [x] 映射 `category_theory.lvz` 公理包（60 模板，7 不可构造问题）。
+- [x] 证明 `category_theory` 包依赖验证：`categoryTheoryPackage_dependencies_valid`。
+- [x] 映射 `hyperbolic_geometry.lvz` 公理包（29 模板，6 不可构造问题）。
+- [x] 证明 `hyperbolic_geometry` 包依赖验证：`hyperbolicGeometryPackage_dependencies_valid`。
+- [x] 映射 `projective_geometry.lvz` 公理包（38 模板，7 不可构造问题）。
+- [x] 证明 `projective_geometry` 包依赖验证：`projectiveGeometryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `group_theory.lvz` 公理包（34 模板，7 不可构造问题）。
+- [x] 证明 `group_theory` 包依赖验证：`groupTheoryPackage_dependencies_valid`。
+- [x] 映射 `zfc_set_theory.lvz` 公理包（27 模板，10 不可构造问题）。
+- [x] 证明 `zfc_set_theory` 包依赖验证：`zfcSetTheoryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `boolean_algebra.lvz` 公理包（29 模板，6 不可构造问题）。
+- [x] 证明 `boolean_algebra` 包依赖验证：`booleanAlgebraPackage_dependencies_valid`。
+- [x] 映射 `ring_theory.lvz` 公理包（54 模板，8 不可构造问题）。
+- [x] 证明 `ring_theory` 包依赖验证：`ringTheoryPackage_dependencies_valid`。
+- [x] 映射 `peano_arithmetic.lvz` 公理包（70 模板，8 不可构造问题）。
+- [x] 证明 `peano_arithmetic` 包依赖验证：`peanoArithmeticPackage_dependencies_valid`。
+- [x] 映射 `field_theory.lvz` 公理包（37 模板，7 不可构造问题）。
+- [x] 证明 `field_theory` 包依赖验证：`fieldTheoryPackage_dependencies_valid`。
+- [x] 映射 `order_theory.lvz` 公理包（32 模板，8 不可构造问题）。
+- [x] 证明 `order_theory` 包依赖验证：`orderTheoryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `point_set_topology.lvz` 公理包（43 模板，7 不可构造问题）。
+- [x] 证明 `point_set_topology` 包依赖验证：`pointSetTopologyPackage_dependencies_valid`。
+- [x] 映射 `graph_theory.lvz` 公理包（70 模板，14 不可构造问题）。
+- [x] 证明 `graph_theory` 包依赖验证：`graphTheoryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `number_theory.lvz` 公理包（38 模板，7 不可构造问题）。
+- [x] 证明 `number_theory` 包依赖验证：`numberTheoryPackage_dependencies_valid`。
+- [x] 映射 `measure_theory.lvz` 公理包（70 模板，9 不可构造问题）。
+- [x] 证明 `measure_theory` 包依赖验证：`measureTheoryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `real_analysis.lvz` 公理包（43 模板，7 不可构造问题）。
+- [x] 证明 `real_analysis` 包依赖验证：`realAnalysisPackage_dependencies_valid`。
+- [x] 映射 `functional_analysis.lvz` 公理包（37 模板，7 不可构造问题）。
+- [x] 证明 `functional_analysis` 包依赖验证：`functionalAnalysisPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `probability_theory.lvz` 公理包（87 模板，8 不可构造问题）。
+- [x] 证明 `probability_theory` 包依赖验证：`probabilityTheoryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `algebraic_geometry.lvz` 公理包（38 模板，6 不可构造问题）。
+- [x] 证明 `algebraic_geometry` 包依赖验证：`algebraicGeometryPackage_dependencies_valid`。
+- [x] 映射 `information_theory.lvz` 公理包（96 模板，8 不可构造问题）。
+- [x] 证明 `information_theory` 包依赖验证：`informationTheoryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `linear_algebra.lvz` 公理包（90 模板，8 不可构造问题）。
+- [x] 证明 `linear_algebra` 包依赖验证：`linearAlgebraPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `homological_algebra.lvz` 公理包（36 模板，6 不可构造问题）。
+- [x] 证明 `homological_algebra` 包依赖验证：`homologicalAlgebraPackage_dependencies_valid`。
+- [x] 映射 `differential_geometry.lvz` 公理包（41 模板，6 不可构造问题）。
+- [x] 证明 `differential_geometry` 包依赖验证：`differentialGeometryPackage_dependencies_valid`。
+- [x] 映射 `computability_theory.lvz` 公理包（53 模板，14 不可构造问题）。
+- [x] 证明 `computability_theory` 包依赖验证：`computabilityTheoryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `modal_logic.lvz` 公理包（29 模板，7 不可构造问题）。
+- [x] 证明 `modal_logic` 包依赖验证：`modalLogicPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `universal_algebra.lvz` 公理包（60 模板，8 不可构造问题）。
+- [x] 证明 `universal_algebra` 包依赖验证：`universalAlgebraPackage_dependencies_valid`。
+- [x] 映射 `combinatorics.lvz` 公理包（39 模板，7 不可构造问题）。
+- [x] 证明 `combinatorics` 包依赖验证：`combinatoricsPackage_dependencies_valid`。
+- [x] 映射 `game_theory.lvz` 公理包（51 模板，10 不可构造问题）。
+- [x] 证明 `game_theory` 包依赖验证：`gameTheoryPackage_dependencies_valid`。
+- [x] 映射 `homotopy_type_theory.lvz` 公理包（37 模板，6 不可构造问题）。
+- [x] 证明 `homotopy_type_theory` 包依赖验证：`homotopyTypeTheoryPackage_dependencies_valid`。
+- [x] 映射 `dependent_type_theory.lvz` 公理包（33 模板，6 不可构造问题）。
+- [x] 证明 `dependent_type_theory` 包依赖验证：`dependentTypeTheoryPackage_dependencies_valid`。
+- [x] 映射 `simple_type_theory.lvz` 公理包（39 模板，6 不可构造问题）。
+- [x] 证明 `simple_type_theory` 包依赖验证：`simpleTypeTheoryPackage_dependencies_valid`。
+- [x] 映射 `affine_geometry.lvz` 公理包（52 模板，7 不可构造问题）。
+- [x] 证明 `affine_geometry` 包依赖验证：`affineGeometryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 映射 `algebraic_topology.lvz` 公理包（38 模板，7 不可构造问题）。
+- [x] 证明 `algebraic_topology` 包依赖验证：`algebraicTopologyPackage_dependencies_valid`。
+- [x] 映射 `elliptic_geometry.lvz` 公理包（30 模板，6 不可构造问题）。
+- [x] 证明 `elliptic_geometry` 包依赖验证：`ellipticGeometryPackage_dependencies_valid`。
+- [x] 映射 `metric_space.lvz` 公理包（47 模板，8 不可构造问题）。
+- [x] 证明 `metric_space` 包依赖验证：`metricSpacePackage_dependencies_valid`。
+- [x] 映射 `lattice_theory.lvz` 公理包（42 模板，7 不可构造问题）。
+- [x] 证明 `lattice_theory` 包依赖验证：`latticeTheoryPackage_dependencies_valid`。
+- [x] 映射 `lie_theory.lvz` 公理包（70 模板，7 不可构造问题）。
+- [x] 证明 `lie_theory` 包依赖验证：`lieTheoryPackage_dependencies_valid`。
+- [x] 映射 `model_theory.lvz` 公理包（35 模板，6 不可构造问题）。
+- [x] 证明 `model_theory` 包依赖验证：`modelTheoryPackage_dependencies_valid`。
+- [x] 映射 `classical_propositional_logic.lvz` 公理包（59 模板，6 不可构造问题）。
+- [x] 证明 `classical_propositional_logic` 包依赖验证：`classicalPropositionalLogicPackage_dependencies_valid`。
+- [x] 映射 `intuitionistic_logic.lvz` 公理包（50 模板，7 不可构造问题）。
+- [x] 证明 `intuitionistic_logic` 包依赖验证：`intuitionisticLogicPackage_dependencies_valid`。
+- [x] 映射 `topos_theory.lvz` 公理包（81 模板，10 不可构造问题）。
+- [x] 证明 `topos_theory` 包依赖验证：`toposTheoryPackage_dependencies_valid`。
 
 ## 下一步
 
-1. 继续把 `RuleTemplate.lean` 与真实规则包、`.lvz` 公理包和 `test_axiom_proof_theory.c` 对齐，补充具体规则实例。
-2. 对照 C 源码中的 `constraint_graph`、`normalization`、`rewrite`、`unify`、`groebner` 模块，细化 Lean 中的约束图与推理规则。
-3. 证明关键元理论：
+1. 将依赖验证模型继续推广到更多 `.lvz` 公理包。
+2. 消除含跨引用 sorry 的 13 个包（需要引入跨包依赖验证机制）。
+3. 对照 C 源码中的 `constraint_graph`、`normalization`、`rewrite`、`unify`、`groebner` 模块，细化 Lean 中的约束图与推理规则。
+3. 对照 C 源码中的 `constraint_graph`、`normalization`、`rewrite`、`unify`、`groebner` 模块，细化 Lean 中的约束图与推理规则。
+4. 证明关键元理论：
    - 归一化保持良构性；
    - 归一化幂等性；
    - 单步推理可靠性；
    - 多步证明链可靠性；
    - Lv-00 内部规则到经典几何对照层的解释正确性。
-4. 最后再处理 Hilbert/欧氏几何关系：不是直接复刻 Hilbert，而是证明 Lv-00 自有体系可以解释、推出或覆盖相应经典性质。
+5. 最后再处理 Hilbert/欧氏几何关系：不是直接复刻 Hilbert，而是证明 Lv-00 自有体系可以解释、推出或覆盖相应经典性质。
 
 ## 使用示例
 

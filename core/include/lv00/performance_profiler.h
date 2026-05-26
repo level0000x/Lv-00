@@ -171,7 +171,7 @@ typedef struct {
     int warmup_iterations;      /**< 预热迭代次数 */
     int measurement_iterations; /**< 测量迭代次数 */
     int min_duration_ms;        /**< 最小测量时长（毫秒） */
-} Lv00BenchmarkConfig;
+} Lv00PerfBenchConfig;
 
 /**
  * @brief 基准测试结果
@@ -182,13 +182,13 @@ typedef struct {
     double min_ns;              /**< 最小耗时 */
     double max_ns;              /**< 最大耗时 */
     int iterations;             /**< 实际迭代次数 */
-} Lv00BenchmarkResult;
+} Lv00PerfBenchResult;
 
 /**
  * @brief 获取默认基准测试配置
  * @return 默认配置
  */
-const Lv00BenchmarkConfig *lv00_benchmark_default_config(void);
+const Lv00PerfBenchConfig *lv00_perf_benchmark_default_config(void);
 
 /**
  * @brief 运行基准测试
@@ -198,9 +198,9 @@ const Lv00BenchmarkConfig *lv00_benchmark_default_config(void);
  * @param result 输出结果
  * @return 0 表示成功
  */
-int lv00_benchmark_run(const char *name, void (*func)(void), 
-                        const Lv00BenchmarkConfig *config,
-                        Lv00BenchmarkResult *result);
+int lv00_perf_benchmark_run(const char *name, void (*func)(void),
+                             const Lv00PerfBenchConfig *config,
+                             Lv00PerfBenchResult *result);
 
 /**
  * @brief 打印基准测试结果
@@ -208,7 +208,7 @@ int lv00_benchmark_run(const char *name, void (*func)(void),
  * @param result 结果
  * @param output 输出流
  */
-void lv00_benchmark_print_result(const char *name, const Lv00BenchmarkResult *result, void *output);
+void lv00_perf_benchmark_print_result(const char *name, const Lv00PerfBenchResult *result, void *output);
 
 #ifdef __cplusplus
 }

@@ -13,13 +13,17 @@
 #include "lv00/conflict_detector.h"
 #include "test_helpers.h"
 
+/* 全局测试计数器 */
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ================================================================
  * 测试：空图和边界条件
  * ================================================================ */
 
-static int test_null_graph(void) {
+static void test_null_graph(void) {
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create conflict report");
+    TEST_ASSERT_NOT_NULL(report);
     
     /* 检测 NULL 图应该返回错误 */
     int err = lv00_conflict_detect_all(NULL, NULL, report);
@@ -30,20 +34,19 @@ static int test_null_graph(void) {
     TEST_ASSERT(!has_conflict, "Quick detect on NULL should return false");
     
     lv00_conflict_report_destroy(report);
-    return 0;
 }
 
-static int test_empty_graph(void) {
+static void test_empty_graph(void) {
     ConstraintGraph *graph = graph_create();
-    TEST_ASSERT_NOT_NULL(graph, "Failed to create graph");
+    TEST_ASSERT_NOT_NULL(graph);
     
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create report");
+    TEST_ASSERT_NOT_NULL(report);
     
     /* 空图应该无矛盾 */
     int err = lv00_conflict_detect_all(graph, NULL, report);
-    TEST_ASSERT_EQ(err, 0, "Empty graph should have no errors");
-    TEST_ASSERT_EQ(report->conflict_count, 0, "Empty graph should have no conflicts");
+    TEST_ASSERT_EQ(err, 0);
+    TEST_ASSERT_EQ(report->conflict_count, 0);
     
     /* 快速检测 */
     bool has_conflict = lv00_conflict_detect_quick(graph);
@@ -51,110 +54,109 @@ static int test_empty_graph(void) {
     
     lv00_conflict_report_destroy(report);
     graph_destroy(graph);
-    return 0;
 }
 
 /* ================================================================
  * 测试：报告管理
  * ================================================================ */
 
-static int test_report_lifecycle(void) {
+static void test_report_lifecycle(void) {
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create report");
-    TEST_ASSERT_EQ(report->conflict_count, 0, "New report should have 0 conflicts");
+    TEST_ASSERT_NOT_NULL(report);
+    TEST_ASSERT_EQ(report->conflict_count, 0);
     TEST_ASSERT(!report->has_critical, "New report should not have critical");
     TEST_ASSERT(!report->has_error, "New report should not have error");
     TEST_ASSERT(!report->has_warning, "New report should not have warning");
     
     /* 清空空报告应该安全 */
     lv00_conflict_report_clear(report);
-    TEST_ASSERT_EQ(report->conflict_count, 0, "Cleared report should have 0 conflicts");
+    TEST_ASSERT_EQ(report->conflict_count, 0);
     
     lv00_conflict_report_destroy(report);
     
     /* 销毁 NULL 应该安全 */
     lv00_conflict_report_destroy(NULL);
-    
-    return 0;
 }
 
 /* ================================================================
  * 测试：配置管理
  * ================================================================ */
 
-static int test_default_config(void) {
+static void test_default_config(void) {
     const ConflictDetectorConfig *config = lv00_conflict_detector_default_config();
-    TEST_ASSERT_NOT_NULL(config, "Default config should not be NULL");
+    TEST_ASSERT_NOT_NULL(config);
     
     TEST_ASSERT(config->enable_basic_checks, "Basic checks should be enabled by default");
     TEST_ASSERT(config->enable_combination_checks, "Combination checks should be enabled by default");
     TEST_ASSERT(config->enable_transitive_checks, "Transitive checks should be enabled by default");
     TEST_ASSERT(!config->enable_algebraic_checks, "Algebraic checks should be disabled by default");
     
-    TEST_ASSERT_GT(config->position_tolerance, 0.0, "Position tolerance should be positive");
-    TEST_ASSERT_GT(config->distance_tolerance, 0.0, "Distance tolerance should be positive");
-    TEST_ASSERT_GT(config->angle_tolerance, 0.0, "Angle tolerance should be positive");
-    
-    return 0;
+    TEST_ASSERT(config->position_tolerance > 0.0, "Position tolerance should be positive");
+    TEST_ASSERT(config->distance_tolerance > 0.0, "Distance tolerance should be positive");
+    TEST_ASSERT(config->angle_tolerance > 0.0, "Angle tolerance should be positive");
 }
 
 /* ================================================================
  * 测试：类型名称
  * ================================================================ */
 
-static int test_type_names(void) {
+static void test_type_names(void) {
     /* 测试所有类型名称不为 NULL */
     for (int i = 0; i <= CONFLICT_UNKNOWN; i++) {
         const char *name = lv00_conflict_type_name((ConflictType)i);
-        TEST_ASSERT_NOT_NULL(name, "Type name should not be NULL");
+        TEST_ASSERT_NOT_NULL(name);
         TEST_ASSERT(strlen(name) > 0, "Type name should not be empty");
     }
     
     /* 测试严重程度名称 */
-    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_WARNING), "Warning name should exist");
-    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_ERROR), "Error name should exist");
-    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_CRITICAL), "Critical name should exist");
-    
-    return 0;
+    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_WARNING));
+    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_ERROR));
+    TEST_ASSERT_NOT_NULL(lv00_conflict_severity_name(CONFLICT_SEVERITY_CRITICAL));
 }
 
 /* ================================================================
  * 测试：简单几何场景（无矛盾）
  * ================================================================ */
 
-static int test_simple_triangle_no_conflict(void) {
+static void test_simple_triangle_no_conflict(void) {
     /* 创建一个简单的三角形，应该无矛盾 */
     ConstraintGraph *graph = graph_create();
-    TEST_ASSERT_NOT_NULL(graph, "Failed to create graph");
+    TEST_ASSERT_NOT_NULL(graph);
     
     /* 添加三个点 */
     SymbolicCoord *coords1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
     SymbolicCoord *coords2[2] = {symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(0, 1)};
     SymbolicCoord *coords3[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(4, 1)};
     
-    int p1 = graph_add_point_with_id(graph, 1, coords1, 2);
-    int p2 = graph_add_point_with_id(graph, 2, coords2, 2);
-    int p3 = graph_add_point_with_id(graph, 3, coords3, 2);
+    GeomNode *p1_node = graph_add_node_with_id(graph, 1, GEOM_POINT, coords1, 2);
+    GeomNode *p2_node = graph_add_node_with_id(graph, 2, GEOM_POINT, coords2, 2);
+    GeomNode *p3_node = graph_add_node_with_id(graph, 3, GEOM_POINT, coords3, 2);
     
-    TEST_ASSERT_GT(p1, 0, "Should create point 1");
-    TEST_ASSERT_GT(p2, 0, "Should create point 2");
-    TEST_ASSERT_GT(p3, 0, "Should create point 3");
+    TEST_ASSERT_NOT_NULL(p1_node);
+    TEST_ASSERT_NOT_NULL(p2_node);
+    TEST_ASSERT_NOT_NULL(p3_node);
     
     /* 添加三条边 */
-    int line1 = graph_add_line_segment(graph, p1, p2);
-    int line2 = graph_add_line_segment(graph, p2, p3);
-    int line3 = graph_add_line_segment(graph, p3, p1);
-    
-    TEST_ASSERT_GT(line1, 0, "Should create line 1");
-    TEST_ASSERT_GT(line2, 0, "Should create line 2");
-    TEST_ASSERT_GT(line3, 0, "Should create line 3");
+    AddNodeResult line1_result = graph_add_line_segment(graph, 1, 2);
+    int line1 = graph_get_last_added_node_id(graph);
+    AddNodeResult line2_result = graph_add_line_segment(graph, 2, 3);
+    int line2 = graph_get_last_added_node_id(graph);
+    AddNodeResult line3_result = graph_add_line_segment(graph, 3, 1);
+    int line3 = graph_get_last_added_node_id(graph);
+
+    TEST_ASSERT_EQ(line1_result, ADD_NODE_OK);
+    TEST_ASSERT_EQ(line2_result, ADD_NODE_OK);
+    TEST_ASSERT_EQ(line3_result, ADD_NODE_OK);
+    TEST_ASSERT(line1 > 0, "Line 1 id should be valid");
+    TEST_ASSERT(line2 > 0, "Line 2 id should be valid");
+    TEST_ASSERT(line3 > 0, "Line 3 id should be valid");
     
     /* 检测矛盾 */
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create report");
+    TEST_ASSERT_NOT_NULL(report);
     
     int err = lv00_conflict_detect_all(graph, NULL, report);
-    TEST_ASSERT_EQ(err, 0, "Detection should succeed");
+    TEST_ASSERT_EQ(err, 0);
     /* 注意：基础检测可能还无法检测所有情况，所以不强制要求 conflict_count == 0 */
     
     lv00_conflict_report_destroy(report);
@@ -166,136 +168,87 @@ static int test_simple_triangle_no_conflict(void) {
         symbolic_coord_destroy(coords2[i]);
         symbolic_coord_destroy(coords3[i]);
     }
-    
-    return 0;
 }
 
 /* ================================================================
  * 测试：结构性矛盾检测
  * ================================================================ */
 
-static Constraint *make_test_constraint(int id, ConstraintType type, const int *participants, int count) {
-    Constraint *c = (Constraint *)calloc(1, sizeof(Constraint));
-    if (!c) return NULL;
-    c->id = id;
-    c->type = type;
-    c->participant_count = count;
-    c->is_active = true;
-    if (count > 0 && participants) {
-        c->participants = (int *)calloc((size_t)count, sizeof(int));
-        if (!c->participants) {
-            free(c);
-            return NULL;
-        }
-        for (int i = 0; i < count; i++) {
-            c->participants[i] = participants[i];
-        }
-    }
-    return c;
-}
-
-static void free_test_constraint(Constraint *c) {
-    if (!c) return;
-    free(c->participants);
-    free(c);
-}
-
-static int test_detects_missing_participant_node(void) {
+static void test_detects_missing_participant_node(void) {
     ConstraintGraph *graph = graph_create();
-    TEST_ASSERT_NOT_NULL(graph, "Failed to create graph");
-
-    graph->constraint_capacity = 4;
-    graph->constraints = (Constraint **)calloc((size_t)graph->constraint_capacity, sizeof(Constraint *));
-    TEST_ASSERT_NOT_NULL(graph->constraints, "Failed to allocate test constraints");
+    TEST_ASSERT_NOT_NULL(graph);
 
     int parts[2] = {999, 1000};
-    graph->constraints[0] = make_test_constraint(1, INCIDENCE, parts, 2);
-    TEST_ASSERT_NOT_NULL(graph->constraints[0], "Failed to create invalid constraint");
-    graph->constraint_count = 1;
+    Constraint *constraint = graph_add_constraint_with_id(graph, 1, INCIDENCE, parts, 2);
+    TEST_ASSERT_NOT_NULL(constraint);
 
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create report");
+    TEST_ASSERT_NOT_NULL(report);
 
     int err = lv00_conflict_detect_all(graph, NULL, report);
-    TEST_ASSERT_EQ(err, 0, "Detection should succeed even when conflicts exist");
-    TEST_ASSERT_GT(report->conflict_count, 0, "Missing participant nodes should be reported as conflict");
+    TEST_ASSERT_EQ(err, 0);
+    TEST_ASSERT(report->conflict_count > 0, "Missing participant nodes should be reported as conflict");
     TEST_ASSERT(report->has_critical, "Missing participant node should be critical");
 
     lv00_conflict_report_destroy(report);
-    free_test_constraint(graph->constraints[0]);
-    free(graph->constraints);
-    graph->constraints = NULL;
-    graph->constraint_count = 0;
-    graph->constraint_capacity = 0;
     graph_destroy(graph);
-    return 0;
 }
 
-static int test_detects_degenerate_betweenness(void) {
+static void test_detects_degenerate_betweenness(void) {
     ConstraintGraph *graph = graph_create();
-    TEST_ASSERT_NOT_NULL(graph, "Failed to create graph");
+    TEST_ASSERT_NOT_NULL(graph);
 
     SymbolicCoord *coords1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
     SymbolicCoord *coords2[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point_with_id(graph, 1, coords1, 2);
-    graph_add_point_with_id(graph, 2, coords2, 2);
-
-    graph->constraint_capacity = 4;
-    graph->constraints = (Constraint **)calloc((size_t)graph->constraint_capacity, sizeof(Constraint *));
-    TEST_ASSERT_NOT_NULL(graph->constraints, "Failed to allocate test constraints");
+    GeomNode *p1 = graph_add_node_with_id(graph, 1, GEOM_POINT, coords1, 2);
+    GeomNode *p2 = graph_add_node_with_id(graph, 2, GEOM_POINT, coords2, 2);
+    TEST_ASSERT_NOT_NULL(p1);
+    TEST_ASSERT_NOT_NULL(p2);
 
     int parts[3] = {1, 1, 2};
-    graph->constraints[0] = make_test_constraint(2, BETWEENNESS, parts, 3);
-    TEST_ASSERT_NOT_NULL(graph->constraints[0], "Failed to create degenerate betweenness");
-    graph->constraint_count = 1;
+    Constraint *constraint = graph_add_constraint_with_id(graph, 2, BETWEENNESS, parts, 3);
+    TEST_ASSERT_NOT_NULL(constraint);
 
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create report");
+    TEST_ASSERT_NOT_NULL(report);
 
     int err = lv00_conflict_detect_all(graph, NULL, report);
-    TEST_ASSERT_EQ(err, 0, "Detection should succeed");
-    TEST_ASSERT_GT(report->conflict_count, 0, "Degenerate betweenness should be reported");
+    TEST_ASSERT_EQ(err, 0);
+    TEST_ASSERT(report->conflict_count > 0, "Degenerate betweenness should be reported");
     TEST_ASSERT(report->has_error || report->has_critical, "Degenerate betweenness should be error or critical");
 
     lv00_conflict_report_destroy(report);
-    free_test_constraint(graph->constraints[0]);
-    free(graph->constraints);
-    graph->constraints = NULL;
-    graph->constraint_count = 0;
-    graph->constraint_capacity = 0;
     graph_destroy(graph);
     for (int i = 0; i < 2; i++) {
         symbolic_coord_destroy(coords1[i]);
         symbolic_coord_destroy(coords2[i]);
     }
-    return 0;
 }
 
 /* ================================================================
  * 测试：JSON 输出
  * ================================================================ */
 
-static int test_json_output(void) {
+static void test_json_output(void) {
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create report");
+    TEST_ASSERT_NOT_NULL(report);
     
     char buffer[1024];
     int len = lv00_conflict_report_to_json(report, buffer, sizeof(buffer));
-    TEST_ASSERT_GT(len, 0, "JSON output should succeed");
+    TEST_ASSERT(len > 0, "JSON output should succeed");
     TEST_ASSERT(strstr(buffer, "conflict_count") != NULL, "JSON should contain conflict_count");
     TEST_ASSERT(strstr(buffer, "has_critical") != NULL, "JSON should contain has_critical");
     
     lv00_conflict_report_destroy(report);
-    return 0;
 }
 
 /* ================================================================
  * 测试：便捷函数
  * ================================================================ */
 
-static int test_convenience_functions(void) {
+static void test_convenience_functions(void) {
     ConstraintGraph *graph = graph_create();
-    TEST_ASSERT_NOT_NULL(graph, "Failed to create graph");
+    TEST_ASSERT_NOT_NULL(graph);
     
     /* 测试 has_conflicts 便捷函数 */
     bool has_conflict = lv00_conflict_graph_has_conflicts(graph);
@@ -304,15 +257,13 @@ static int test_convenience_functions(void) {
     
     /* 测试 get_worst_type */
     ConflictReport *report = lv00_conflict_report_create();
-    TEST_ASSERT_NOT_NULL(report, "Failed to create report");
+    TEST_ASSERT_NOT_NULL(report);
     
     ConflictType worst = lv00_conflict_get_worst_type(report);
-    TEST_ASSERT_EQ(worst, CONFLICT_UNKNOWN, "Empty report should return UNKNOWN");
+    TEST_ASSERT_EQ(worst, CONFLICT_UNKNOWN);
     
     lv00_conflict_report_destroy(report);
     graph_destroy(graph);
-    
-    return 0;
 }
 
 /* ================================================================

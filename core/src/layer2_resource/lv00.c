@@ -259,17 +259,17 @@ void lv00_cleanup(void) {
     /* 清理函数块注册表 */
     func_block_registry_cleanup();
 
+    /* 关闭日志系统会释放其内部缓冲区；先关闭再统计，避免将日志系统自身计入泄漏 */
+    debug_log_shutdown();
+
     /* 输出内存统计 */
     MemoryStats stats;
     lv00_get_memory_stats(&stats);
     if (stats.current_used > 0) {
-        LOG_WARN("lv00", "检测到内存泄漏: 当前使用 %zu 字节", stats.current_used);
+        fprintf(stderr, "[Lv-00] 警告: 检测到内存泄漏: 当前使用 %zu 字节\n", stats.current_used);
     }
-    LOG_INFO("lv00", "内存统计 - 总分配: %zu, 总释放: %zu, 峰值: %zu", stats.total_allocated, stats.total_freed,
-             stats.peak_used);
-
-    /* 关闭日志系统 */
-    debug_log_shutdown();
+    fprintf(stderr, "[Lv-00] 内存统计 - 总分配: %zu, 总释放: %zu, 峰值: %zu\n",
+            stats.total_allocated, stats.total_freed, stats.peak_used);
 
     g_init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);

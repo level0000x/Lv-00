@@ -16,8 +16,10 @@
 
 | 模块 | 职责 |
 |------|------|
+| axiom_pkg.h | 公理包定义、依赖、版本、可信等级与加载接口 |
 | axiom_rule_engine.h | 公理规则引擎，可配置规则库 |
 | axiom_grade.h | 公理分级系统，级进解锁 |
+| rule_registry.h | 规则注册表、规则发现、规则命名空间与启停控制 |
 | rewrite_strategy.h | 扩展重写策略引擎 |
 | tikz_export.h | TikZ 几何导出与渲染 |
 | interop.h | 跨语言互操作与多格式导出/导入 |

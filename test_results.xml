@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites tests="15" failures="0" skipped="0" time="0.102">
+<testsuites tests="15" failures="0" skipped="0" time="0.103">
   <testsuite name="MemoryPool" tests="3" failures="0" skipped="0">
-    <testcase name="CreateDestroy" time="0.000005"/>
-    <testcase name="AutoGrow" time="0.000002"/>
-    <testcase name="LinearAllocator" time="0.000001"/>
+    <testcase name="CreateDestroy" time="0.000032"/>
+    <testcase name="AutoGrow" time="0.000006"/>
+    <testcase name="LinearAllocator" time="0.000002"/>
   </testsuite>
   <testsuite name="GeometryTransform" tests="6" failures="0" skipped="0">
-    <testcase name="Identity" time="0.000034"/>
-    <testcase name="Translation" time="0.000006"/>
-    <testcase name="Rotation90" time="0.000003"/>
-    <testcase name="Reflection" time="0.000006"/>
-    <testcase name="Compose" time="0.000005"/>
-    <testcase name="Inverse" time="0.000006"/>
+    <testcase name="Identity" time="0.000079"/>
+    <testcase name="Translation" time="0.000013"/>
+    <testcase name="Rotation90" time="0.000010"/>
+    <testcase name="Reflection" time="0.000022"/>
+    <testcase name="Compose" time="0.000026"/>
+    <testcase name="Inverse" time="0.000028"/>
   </testsuite>
   <testsuite name="RuntimeMonitor" tests="6" failures="0" skipped="0">
-    <testcase name="LogInit" time="0.000003"/>
-    <testcase name="Timer" time="0.000005"/>
-    <testcase name="PerfStats" time="0.000004"/>
-    <testcase name="HealthCheck" time="0.101612"/>
-    <testcase name="Diagnostics" time="0.000017"/>
-    <testcase name="EventTrace" time="0.000178"/>
+    <testcase name="LogInit" time="0.000014"/>
+    <testcase name="Timer" time="0.000013"/>
+    <testcase name="PerfStats" time="0.000012"/>
+    <testcase name="HealthCheck" time="0.102281"/>
+    <testcase name="Diagnostics" time="0.000010"/>
+    <testcase name="EventTrace" time="0.000186"/>
   </testsuite>
 </testsuites>

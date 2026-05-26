@@ -1,15 +1,15 @@
-/**
+﻿/**
  * @file test_basic.c
- * @brief Lv-00 基础模块测试 - 有理数、约束图、归一化、模块系统、公理包、统一化、引擎
+ * @brief Lv-00 鍩虹妯″潡娴嬭瘯 - 鏈夌悊鏁般€佺害鏉熷浘銆佸綊涓€鍖栥€佹ā鍧楃郴缁熴€佸叕鐞嗗寘銆佺粺涓€鍖栥€佸紩鎿?
  *
- * 测试内容：
- * - 有理数算术运算与序列化
- * - 约束图的构建与约束添加
- * - 图归一化处理
- * - 模块系统依赖管理
- * - 公理包模板注册与查询
- * - 构造与命题的统一化
- * - 引擎生命周期与端口/功能块
+ * 娴嬭瘯鍐呭锛?
+ * - 鏈夌悊鏁扮畻鏈繍绠椾笌搴忓垪鍖?
+ * - 绾︽潫鍥剧殑鏋勫缓涓庣害鏉熸坊鍔?
+ * - 鍥惧綊涓€鍖栧鐞?
+ * - 妯″潡绯荤粺渚濊禆绠＄悊
+ * - 鍏悊鍖呮ā鏉挎敞鍐屼笌鏌ヨ
+ * - 鏋勯€犱笌鍛介鐨勭粺涓€鍖?
+ * - 寮曟搸鐢熷懡鍛ㄦ湡涓庣鍙?鍔熻兘鍧?
  */
 
 #include <stdio.h>
@@ -19,36 +19,36 @@
 #include "lv00.h"
 #include "test_helpers.h"
 
-/* 全局测试计数器 */
+/* 鍏ㄥ眬娴嬭瘯璁℃暟鍣?*/
 int g_pass_count = 0;
 int g_fail_count = 0;
 
 /**
- * @brief 测试有理数的基本算术运算
+ * @brief 娴嬭瘯鏈夌悊鏁扮殑鍩烘湰绠楁湳杩愮畻
  *
- * 验证有理数的加法、乘法结果是否正确，
- * 以及序列化输出是否包含预期的分数表示。
+ * 楠岃瘉鏈夌悊鏁扮殑鍔犳硶銆佷箻娉曠粨鏋滄槸鍚︽纭紝
+ * 浠ュ強搴忓垪鍖栬緭鍑烘槸鍚﹀寘鍚鏈熺殑鍒嗘暟琛ㄧず銆?
  */
-void test_rational() {
+void test_rational(void) {
     printf("Testing rational numbers...\n");
 
-    /* 创建两个有理数: 1/2 和 1/3 */
+    /* 鍒涘缓涓や釜鏈夌悊鏁? 1/2 鍜?1/3 */
     Rational *r1 = rational_create(1, 2);
     Rational *r2 = rational_create(1, 3);
     Rational *sum = rational_add(r1, r2);
     Rational *prod = rational_multiply(r1, r2);
 
-    /* 验证加法结果: 1/2 + 1/3 = 5/6 */
+    /* 楠岃瘉鍔犳硶缁撴灉: 1/2 + 1/3 = 5/6 */
     Rational *expected_sum = rational_create(5, 6);
     TEST_ASSERT(rational_compare(sum, expected_sum) == 0, "1/2 + 1/3 should equal 5/6");
     rational_destroy(expected_sum);
 
-    /* 验证乘法结果: 1/2 * 1/3 = 1/6 */
+    /* 楠岃瘉涔樻硶缁撴灉: 1/2 * 1/3 = 1/6 */
     Rational *expected_prod = rational_create(1, 6);
     TEST_ASSERT(rational_compare(prod, expected_prod) == 0, "1/2 * 1/3 should equal 1/6");
     rational_destroy(expected_prod);
 
-    /* 验证序列化输出 */
+    /* 楠岃瘉搴忓垪鍖栬緭鍑?*/
     char *ser = rational_serialize(sum);
     printf("  Sum: %s\n", ser);
     lv00_free_ptr(ser);
@@ -62,36 +62,36 @@ void test_rational() {
 }
 
 /**
- * @brief 测试约束图的构建与基本操作
+ * @brief 娴嬭瘯绾︽潫鍥剧殑鏋勫缓涓庡熀鏈搷浣?
  *
- * 在约束图中添加两个点、一条线段和一个关联约束，
- * 验证节点数和约束数是否符合预期。
+ * 鍦ㄧ害鏉熷浘涓坊鍔犱袱涓偣銆佷竴鏉＄嚎娈靛拰涓€涓叧鑱旂害鏉燂紝
+ * 楠岃瘉鑺傜偣鏁板拰绾︽潫鏁版槸鍚︾鍚堥鏈熴€?
  */
-void test_constraint_graph() {
+void test_constraint_graph(void) {
     printf("Testing constraint graph...\n");
 
     ConstraintGraph *graph = graph_create();
     TEST_ASSERT(graph != NULL, "graph_create should return non-NULL");
 
-    /* 使用辅助函数添加第一个点: 原点 (0, 0) */
+    /* 浣跨敤杈呭姪鍑芥暟娣诲姞绗竴涓偣: 鍘熺偣 (0, 0) */
     int p0 = add_point(graph, 0, 1, 0, 1);
-    /* 检查 add_point 返回值：失败时返回 -1，不应将无效ID传入后续函数 */
+    /* 妫€鏌?add_point 杩斿洖鍊硷細澶辫触鏃惰繑鍥?-1锛屼笉搴斿皢鏃犳晥ID浼犲叆鍚庣画鍑芥暟 */
     TEST_ASSERT(p0 >= 0, "add_point for p0 (origin) failed");
 
-    /* 使用辅助函数添加第二个点: (1, 0) */
+    /* 浣跨敤杈呭姪鍑芥暟娣诲姞绗簩涓偣: (1, 0) */
     int p1 = add_point(graph, 1, 1, 0, 1);
     TEST_ASSERT(p1 >= 0, "add_point for p1 failed");
 
-    /* 添加线段: 连接点0和点1 */
+    /* 娣诲姞绾挎: 杩炴帴鐐?鍜岀偣1 */
     AddNodeResult res3 = graph_add_line_segment(graph, p0, p1);
     TEST_ASSERT(res3 == ADD_NODE_OK, "graph_add_line_segment should return ADD_NODE_OK");
 
-    /* 添加关联约束: 点0在线段上 */
+    /* 娣诲姞鍏宠仈绾︽潫: 鐐?鍦ㄧ嚎娈典笂 */
     int seg_id = graph->next_node_id - 1;
     AddConstraintResult res4 = graph_add_incidence(graph, p0, seg_id);
     TEST_ASSERT(res4 == ADD_CONSTRAINT_OK, "graph_add_incidence should return ADD_CONSTRAINT_OK");
 
-    /* 验证图结构: 2个点 + 1条线段 = 3个节点, 1个约束 */
+    /* 楠岃瘉鍥剧粨鏋? 2涓偣 + 1鏉＄嚎娈?= 3涓妭鐐? 1涓害鏉?*/
     TEST_ASSERT(graph->node_count == 3, "graph should have 3 nodes");
     TEST_ASSERT(graph->constraint_count == 1, "graph should have 1 constraint");
 
@@ -100,26 +100,26 @@ void test_constraint_graph() {
 }
 
 /**
- * @brief 测试图的归一化处理
+ * @brief 娴嬭瘯鍥剧殑褰掍竴鍖栧鐞?
  *
- * 创建包含两个相同坐标点的图，验证归一化操作
- * 能正确执行且不改变节点数。
+ * 鍒涘缓鍖呭惈涓や釜鐩稿悓鍧愭爣鐐圭殑鍥撅紝楠岃瘉褰掍竴鍖栨搷浣?
+ * 鑳芥纭墽琛屼笖涓嶆敼鍙樿妭鐐规暟銆?
  */
-void test_normalization() {
+void test_normalization(void) {
     printf("Testing graph normalization...\n");
 
     ConstraintGraph *graph = graph_create();
 
-    /* 使用辅助函数添加第一个点: (1, 1) */
+    /* 浣跨敤杈呭姪鍑芥暟娣诲姞绗竴涓偣: (1, 1) */
     add_point(graph, 1, 1, 1, 1);
 
-    /* 使用辅助函数添加第二个点: 同样是 (1, 1) */
+    /* 浣跨敤杈呭姪鍑芥暟娣诲姞绗簩涓偣: 鍚屾牱鏄?(1, 1) */
     add_point(graph, 1, 1, 1, 1);
 
-    /* 两个点应独立存在 */
+    /* 涓や釜鐐瑰簲鐙珛瀛樺湪 */
     TEST_ASSERT(graph->node_count == 2, "graph should have 2 nodes before normalization");
 
-    /* 执行归一化 */
+    /* 鎵ц褰掍竴鍖?*/
     NormalizationResult *nr = graph_normalize(graph, true);
     TEST_ASSERT(nr != NULL, "graph_normalize should return non-NULL");
     normalization_result_destroy(nr);
@@ -129,22 +129,22 @@ void test_normalization() {
 }
 
 /**
- * @brief 测试模块系统的基本功能
+ * @brief 娴嬭瘯妯″潡绯荤粺鐨勫熀鏈姛鑳?
  *
- * 创建模块、设置名称、添加依赖项，
- * 验证模块属性和依赖计数是否正确。
+ * 鍒涘缓妯″潡銆佽缃悕绉般€佹坊鍔犱緷璧栭」锛?
+ * 楠岃瘉妯″潡灞炴€у拰渚濊禆璁℃暟鏄惁姝ｇ‘銆?
  */
-void test_module() {
+void test_module(void) {
     printf("Testing module system...\n");
 
-    /* 创建模块 */
+    /* 鍒涘缓妯″潡 */
     Module *mod = module_create("test_module", "1.0.0");
     TEST_ASSERT(mod != NULL, "module_create should return non-NULL");
 
-    /* 验证模块名称 */
+    /* 楠岃瘉妯″潡鍚嶇О */
     TEST_ASSERT(strcmp(module_get_name(mod), "test_module") == 0, "module name should be 'test_module'");
 
-    /* 添加依赖并验证计数 */
+    /* 娣诲姞渚濊禆骞堕獙璇佽鏁?*/
     module_add_dependency(mod, "dep1", ">=1.0");
     TEST_ASSERT(module_get_dependency_count(mod) == 1, "module should have 1 dependency");
 
@@ -153,26 +153,26 @@ void test_module() {
 }
 
 /**
- * @brief 测试公理包的模板注册与查询
+ * @brief 娴嬭瘯鍏悊鍖呯殑妯℃澘娉ㄥ唽涓庢煡璇?
  *
- * 创建公理包，注册约束模板，然后通过名称查找模板，
- * 验证模板能被正确注册和检索。
+ * 鍒涘缓鍏悊鍖咃紝娉ㄥ唽绾︽潫妯℃澘锛岀劧鍚庨€氳繃鍚嶇О鏌ユ壘妯℃澘锛?
+ * 楠岃瘉妯℃澘鑳借姝ｇ‘娉ㄥ唽鍜屾绱€?
  */
-void test_axiom_package() {
+void test_axiom_package(void) {
     printf("Testing axiom package...\n");
 
-    /* 创建欧几里得公理包 */
+    /* 鍒涘缓娆у嚑閲屽緱鍏悊鍖?*/
     AxiomPackage *pkg = axiom_package_create("euclidean", "1.0");
     TEST_ASSERT(pkg != NULL, "axiom_package_create should return non-NULL");
 
-    /* 注册距离约束模板 */
+    /* 娉ㄥ唽璺濈绾︽潫妯℃澘 */
     ConstraintTemplate tmpl;
     tmpl.name = strdup("distance");
     tmpl.param_count = 2;
     tmpl.verified = false;
     axiom_package_register_template(pkg, &tmpl);
 
-    /* 通过名称查找已注册的模板 */
+    /* 閫氳繃鍚嶇О鏌ユ壘宸叉敞鍐岀殑妯℃澘 */
     ConstraintTemplate *found = axiom_package_get_template(pkg, "distance");
     TEST_ASSERT(found != NULL, "axiom_package_get_template should find 'distance'");
 
@@ -181,31 +181,31 @@ void test_axiom_package() {
 }
 
 /**
- * @brief 测试构造图与命题图的统一化
+ * @brief 娴嬭瘯鏋勯€犲浘涓庡懡棰樺浘鐨勭粺涓€鍖?
  *
- * 创建两个结构相同的约束图（构造和命题），
- * 验证统一化操作能成功匹配。
+ * 鍒涘缓涓や釜缁撴瀯鐩稿悓鐨勭害鏉熷浘锛堟瀯閫犲拰鍛介锛夛紝
+ * 楠岃瘉缁熶竴鍖栨搷浣滆兘鎴愬姛鍖归厤銆?
  */
-void test_unify() {
+void test_unify(void) {
     printf("Testing unification...\n");
 
     ConstraintGraph *construction = graph_create();
     ConstraintGraph *proposition = graph_create();
 
-    /* 构造图: 使用辅助函数添加原点 (0, 0) 和点 (1, 0) */
+    /* 鏋勯€犲浘: 浣跨敤杈呭姪鍑芥暟娣诲姞鍘熺偣 (0, 0) 鍜岀偣 (1, 0) */
     int cp0 = add_point(construction, 0, 1, 0, 1);
-    /* 检查 add_point 返回值：失败返回 -1，不应将无效ID传入后续函数 */
+    /* 妫€鏌?add_point 杩斿洖鍊硷細澶辫触杩斿洖 -1锛屼笉搴斿皢鏃犳晥ID浼犲叆鍚庣画鍑芥暟 */
     TEST_ASSERT(cp0 >= 0, "add_point in construction for origin failed");
     int cp1 = add_point(construction, 1, 1, 0, 1);
     TEST_ASSERT(cp1 >= 0, "add_point in construction for (1,0) failed");
 
-    /* 命题图: 使用辅助函数添加相同的两个点 */
+    /* 鍛介鍥? 浣跨敤杈呭姪鍑芥暟娣诲姞鐩稿悓鐨勪袱涓偣 */
     int pp0 = add_point(proposition, 0, 1, 0, 1);
     TEST_ASSERT(pp0 >= 0, "add_point in proposition for origin failed");
     int pp1 = add_point(proposition, 1, 1, 0, 1);
     TEST_ASSERT(pp1 >= 0, "add_point in proposition for (1,0) failed");
 
-    /* 验证统一化结果: 结构相同应返回 OK */
+    /* 楠岃瘉缁熶竴鍖栫粨鏋? 缁撴瀯鐩稿悓搴旇繑鍥?OK */
     UnifyStatus status = unify_construction_with_proposition(construction, proposition);
     TEST_ASSERT(status == UNIFY_STATUS_OK, "unify should return UNIFY_STATUS_OK for identical graphs");
 
@@ -215,39 +215,39 @@ void test_unify() {
 }
 
 /**
- * @brief 测试引擎的生命周期与基本操作
+ * @brief 娴嬭瘯寮曟搸鐨勭敓鍛藉懆鏈熶笌鍩烘湰鎿嶄綔
  *
- * 创建引擎，在主图中添加点、线段、关联约束、端口和功能块，
- * 验证各操作返回正确状态。
+ * 鍒涘缓寮曟搸锛屽湪涓诲浘涓坊鍔犵偣銆佺嚎娈点€佸叧鑱旂害鏉熴€佺鍙ｅ拰鍔熻兘鍧楋紝
+ * 楠岃瘉鍚勬搷浣滆繑鍥炴纭姸鎬併€?
  */
-void test_engine() {
+void test_engine(void) {
     printf("Testing engine...\n");
 
     LV00Engine *engine = engine_create();
     TEST_ASSERT(engine != NULL, "engine_create should return non-NULL");
 
-    /* 使用辅助函数在引擎主图中添加原点 (0, 0) */
+    /* 浣跨敤杈呭姪鍑芥暟鍦ㄥ紩鎿庝富鍥句腑娣诲姞鍘熺偣 (0, 0) */
     int ep0 = add_point(engine->main_graph, 0, 1, 0, 1);
-    /* 检查 add_point 返回值：失败返回 -1，不应将无效ID传入后续函数 */
+    /* 妫€鏌?add_point 杩斿洖鍊硷細澶辫触杩斿洖 -1锛屼笉搴斿皢鏃犳晥ID浼犲叆鍚庣画鍑芥暟 */
     TEST_ASSERT(ep0 >= 0, "add_point in engine for origin failed");
 
-    /* 使用辅助函数添加点 (1, 0) */
+    /* 浣跨敤杈呭姪鍑芥暟娣诲姞鐐?(1, 0) */
     int ep1 = add_point(engine->main_graph, 1, 1, 0, 1);
     TEST_ASSERT(ep1 >= 0, "add_point in engine for (1,0) failed");
 
-    /* 添加线段: 连接点0和点1 */
+    /* 娣诲姞绾挎: 杩炴帴鐐?鍜岀偣1 */
     graph_add_line_segment(engine->main_graph, ep0, ep1);
 
-    /* 添加关联约束: 点0在线段上 */
+    /* 娣诲姞鍏宠仈绾︽潫: 鐐?鍦ㄧ嚎娈典笂 */
     int seg_id = engine->main_graph->next_node_id - 1;
     AddConstraintResult res = graph_add_incidence(engine->main_graph, ep0, seg_id);
     TEST_ASSERT(res == ADD_CONSTRAINT_OK, "graph_add_incidence should return ADD_CONSTRAINT_OK");
 
-    /* 添加输入端口 */
+    /* 娣诲姞杈撳叆绔彛 */
     AddNodeResult port_result = graph_add_port(engine->main_graph, PORT_INPUT, 0, -1);
     TEST_ASSERT(port_result == ADD_NODE_OK, "graph_add_port should return ADD_NODE_OK");
 
-    /* 添加功能块（无参数版本） */
+    /* 娣诲姞鍔熻兘鍧楋紙鏃犲弬鏁扮増鏈級 */
     AddNodeResult fb_result = graph_add_function_block(engine->main_graph, NULL, 0, NULL, 0, NULL, 0);
     TEST_ASSERT(fb_result == ADD_NODE_OK, "graph_add_function_block should return ADD_NODE_OK");
 
@@ -256,20 +256,20 @@ void test_engine() {
 }
 
 /**
- * @brief 测试有理数的边界条件
+ * @brief 娴嬭瘯鏈夌悊鏁扮殑杈圭晫鏉′欢
  *
- * 验证有理数在零值运算、负数运算和分母为零时的行为。
+ * 楠岃瘉鏈夌悊鏁板湪闆跺€艰繍绠椼€佽礋鏁拌繍绠楀拰鍒嗘瘝涓洪浂鏃剁殑琛屼负銆?
  */
 void test_rational_boundary(void) {
     printf("Testing rational boundary conditions...\n");
 
-    /* --- 零值运算 --- */
+    /* --- 闆跺€艰繍绠?--- */
 
-    /* 创建零值有理数: 0/1 */
+    /* 鍒涘缓闆跺€兼湁鐞嗘暟: 0/1 */
     Rational *zero = rational_create(0, 1);
     TEST_ASSERT_NOT_NULL(zero);
 
-    /* 创建普通有理数: 3/4 */
+    /* 鍒涘缓鏅€氭湁鐞嗘暟: 3/4 */
     Rational *r = rational_create(3, 4);
     TEST_ASSERT_NOT_NULL(r);
 
@@ -302,17 +302,17 @@ void test_rational_boundary(void) {
     rational_destroy(zero);
     rational_destroy(r);
 
-    /* --- 负数运算 --- */
+    /* --- 璐熸暟杩愮畻 --- */
 
-    /* 创建负数有理数: -2/3 */
+    /* 鍒涘缓璐熸暟鏈夌悊鏁? -2/3 */
     Rational *neg = rational_create(-2, 3);
     TEST_ASSERT_NOT_NULL(neg);
 
-    /* 创建正数有理数: 1/3 */
+    /* 鍒涘缓姝ｆ暟鏈夌悊鏁? 1/3 */
     Rational *pos = rational_create(1, 3);
     TEST_ASSERT_NOT_NULL(pos);
 
-    /* 负数 + 正数: -2/3 + 1/3 = -1/3 */
+    /* 璐熸暟 + 姝ｆ暟: -2/3 + 1/3 = -1/3 */
     Rational *sum_neg = rational_add(neg, pos);
     TEST_ASSERT_NOT_NULL(sum_neg);
     Rational *expected_neg = rational_create(-1, 3);
@@ -320,7 +320,7 @@ void test_rational_boundary(void) {
     rational_destroy(expected_neg);
     rational_destroy(sum_neg);
 
-    /* 负数 * 正数: -2/3 * 1/3 = -2/9 */
+    /* 璐熸暟 * 姝ｆ暟: -2/3 * 1/3 = -2/9 */
     Rational *prod_neg = rational_multiply(neg, pos);
     TEST_ASSERT_NOT_NULL(prod_neg);
     Rational *expected_neg2 = rational_create(-2, 9);
@@ -328,7 +328,7 @@ void test_rational_boundary(void) {
     rational_destroy(expected_neg2);
     rational_destroy(prod_neg);
 
-    /* 负数 * 负数: -2/3 * -2/3 = 4/9 */
+    /* 璐熸暟 * 璐熸暟: -2/3 * -2/3 = 4/9 */
     Rational *prod_neg_neg = rational_multiply(neg, neg);
     TEST_ASSERT_NOT_NULL(prod_neg_neg);
     Rational *expected_pos = rational_create(4, 9);
@@ -339,21 +339,21 @@ void test_rational_boundary(void) {
     rational_destroy(neg);
     rational_destroy(pos);
 
-    /* --- 分母为零的错误处理 --- */
+    /* --- 鍒嗘瘝涓洪浂鐨勯敊璇鐞?--- */
 
-    /* 用分母为零创建有理数应返回 NULL 或被规范化处理 */
+    /* 鐢ㄥ垎姣嶄负闆跺垱寤烘湁鐞嗘暟搴旇繑鍥?NULL 鎴栬瑙勮寖鍖栧鐞?*/
     Rational *div_by_zero = rational_create(1, 0);
-    /* 实现应安全处理分母为零的情况：返回 NULL 或规范化为有效值 */
-    printf("  分母为零创建: %s\n", div_by_zero ? "返回非NULL（已规范化）" : "返回NULL（安全处理）");
+    /* 瀹炵幇搴斿畨鍏ㄥ鐞嗗垎姣嶄负闆剁殑鎯呭喌锛氳繑鍥?NULL 鎴栬鑼冨寲涓烘湁鏁堝€?*/
+    printf("  鍒嗘瘝涓洪浂鍒涘缓: %s\n", div_by_zero ? "杩斿洖闈濶ULL锛堝凡瑙勮寖鍖栵級" : "杩斿洖NULL锛堝畨鍏ㄥ鐞嗭級");
     if (div_by_zero != NULL) {
         rational_destroy(div_by_zero);
     }
 
-    /* 有理数除以零应返回 NULL */
+    /* 鏈夌悊鏁伴櫎浠ラ浂搴旇繑鍥?NULL */
     Rational *a = rational_create(5, 1);
     Rational *b = rational_create(0, 1);
     Rational *div_result = rational_divide(a, b);
-    TEST_ASSERT(div_result == NULL, "有理数除以零应返回 NULL");
+    TEST_ASSERT(div_result == NULL, "鏈夌悊鏁伴櫎浠ラ浂搴旇繑鍥?NULL");
     rational_destroy(a);
     rational_destroy(b);
 

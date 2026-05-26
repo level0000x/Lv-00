@@ -10,6 +10,7 @@
 - `benchmark.h` —— 性能基准测试框架
 - `test_framework.h` —— 增强单元测试框架
 - `fast_index.h` —— 高效索引与检索系统
+- `performance_profiler.h` —— 性能剖析器、热点统计与运行期性能采样
 
 ---
 

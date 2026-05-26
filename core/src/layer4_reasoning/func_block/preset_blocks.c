@@ -440,11 +440,9 @@ bool preset_blocks_init(void) {
     }
 
     /* 注册微分几何模块（新增 v9.0） */
-#ifndef LV00_EXCLUDE_BROKEN_PRESETS
     if (!preset_differential_geometry_register()) {
         LV00_LOG_WARNING("微分几何模块预设注册部分失败");
     }
-#endif
 
     /* 注册优化理论模块（新增 v5.0） */
     if (!preset_optimization_register()) {
@@ -517,11 +515,9 @@ bool preset_blocks_init(void) {
     }
 
     /* 注册泛函分析模块（新增 v9.0） */
-#ifndef LV00_EXCLUDE_BROKEN_PRESETS
     if (!preset_functional_analysis_register()) {
         LV00_LOG_WARNING("泛函分析模块预设注册部分失败");
     }
-#endif
 
     /* 注册代数拓扑进阶模块（新增 v7.0） */
     if (!preset_algebraic_topology_adv_register()) {

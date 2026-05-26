@@ -124,6 +124,27 @@ Lv-00/
 
 > **说明**：12~22 号文档已为大部分模块提供了独立的详细规范文档，覆盖了五层架构中 L1（语法解析）、L3（几何内核）、L4（推理引擎）、L5（输出展示）各层的新增头文件。迁移时应参照对应文档中的模块间依赖关系来确定头文件的层级归属和 include 路径。
 
+### 3.7 代码驱动补全文档覆盖映射 (文档 23~34)
+
+以下映射表记录第三轮代码扫描后补齐的基础设施、推理辅助、数值验证、互操作、运行时与缓存模块。该批文档主要覆盖此前仅存在于头文件和实现代码中、但缺少独立规范说明的工程支撑层模块。
+
+| 文档编号 | 文档名称 | 覆盖头文件 | 建议归属层 |
+|----------|----------|------------|-----------|
+| 23 | 核心基础设施与配置系统 | `lv00.h`, `lv00_internal.h`, `lv00_utils.h`, `lv00_numeric.h`, `config.h`, `error_codes.h`, `status_codes.h`, `debug.h`, `cross_platform.h`, `module.h`, `memory_pool.h` | L2 资源管理 / 跨层公共接口 |
+| 24 | 约束传播与等价类系统 | `propagation.h`, `equiv_class.h`, `graph_hash.h`, `probabilistic_constraint.h` | L3 几何内核 / L4 推理引擎 |
+| 25 | 引擎核心与调度系统 | `engine.h`, `engine_scheduler.h` | L4 推理引擎 / 跨层协调器 |
+| 26 | 交互式几何与事件系统 | `interactive_geo.h`, `geo_event_detect.h`, `geo_topology.h`, `geo_invariant_type.h` | L3 几何内核 / L5 输出展示 |
+| 27 | 量词与关系逻辑 | `quantifier.h`, `relation_model.h` | L4 推理引擎 |
+| 28 | 数论与多项式系统 | `nt_number_theory.h`, `nt_polynomial.h`, `mpz_poly.h`, `rational.h` | L3 几何内核 / L4 推理引擎 |
+| 29 | 不等式推理与近似计算 | `inequality_reasoning.h`, `approx_counter.h`, `herbie_eval.h`, `fptaylor_eval.h` | L4 推理引擎 / 数值后端 |
+| 30 | 性能优化与并发系统 | `thread_pool.h`, `simd_ops.h`, `benchmark.h`, `test_framework.h`, `fast_index.h` | L2 资源管理 / 工程基础设施 |
+| 31 | 流处理与互操作系统 | `stream.h`, `stream_context_util.h`, `interop.h` | L5 输出展示 |
+| 32 | 运行时监控与生态系统 | `runtime_guard.h`, `runtime_monitor.h`, `ecosystem.h`, `magic.h` | L2 资源管理 / L5 输出展示 / 扩展生态 |
+| 33 | Gappa浮点验证与解析安全 | `gappa_dsl.h`, `gappa_propagate.h`, `parser_safety.h`, `path_type.h`, `algebra_mode.h` | L1 语法解析 / L3 几何内核 / L4 推理引擎 |
+| 34 | 元证明与推理缓存 | `meta_proof.h`, `prop_verifier.h`, `reasoning_cache.h`, `node_deep_copy.h` | L4 推理引擎 / 跨层复制工具 |
+
+> **说明**：23~34 号文档补齐了基础设施、运行时监控、性能并发、Gappa 验证、元证明缓存等此前分散在代码中的模块说明。迁移时应优先保持 `23_core_infrastructure.md`、`30_performance_concurrency.md` 与 `32_runtime_monitoring.md` 中定义的资源管理边界，并将 `31_stream_interop.md` 中的输出/互操作模块划入第 5 层。
+
 ---
 
 ## 4. 迁移步骤

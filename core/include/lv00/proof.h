@@ -41,6 +41,10 @@
 #include "stream.h"
 #include "type_system.h"
 #include "unify.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {

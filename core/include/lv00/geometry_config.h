@@ -13,6 +13,12 @@
 
 #include <stddef.h>
 
+/* LV00_PUBLIC_API 由 lv00.h 定义（DLL 导出/导入）；
+ * 当几何子模块头文件在 lv00.h 之前被间接包含时，提供空回退。 */
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 /**
  * @brief 几何计算容差配置结构体
  */

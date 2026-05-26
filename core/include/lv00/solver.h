@@ -33,6 +33,10 @@ extern "C" {
 #include "mpz_poly.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 /* 稀疏矩阵求解器（sparse_linear_algebra.h）在 solver_sparse_solve 中按需引用 */
 

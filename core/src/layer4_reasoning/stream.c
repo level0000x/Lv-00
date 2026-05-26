@@ -1484,6 +1484,11 @@ done:
  * @param ...      可变参数
  * @return 新的偏移量（可能超过 size，表示截断）
  */
+static int stream_buf_append(char *buf, size_t size, int offset, const char *fmt, ...)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((format(printf, 4, 5)))
+#endif
+;
 static int stream_buf_append(char *buf, size_t size, int offset, const char *fmt, ...) {
     if (offset < 0)
         return offset;
@@ -1567,7 +1572,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     needed = stream_buf_append(NULL, 0, needed, "  \"type\": \"%s\",\n", type_id);
     needed = stream_buf_append(NULL, 0, needed, "  \"type_name\": \"%s\",\n", type_name);
     needed = stream_buf_append(NULL, 0, needed, "  \"color\": \"%s\",\n", color);
-    needed = stream_buf_append(NULL, 0, needed, "  \"timestamp_ms\": %ld,\n", event->timestamp_ms);
+    needed = stream_buf_append(NULL, 0, needed, "  \"timestamp_ms\": %lld,\n", (long long)event->timestamp_ms);
     needed = stream_buf_append(NULL, 0, needed, "  \"step\": %d,\n", event->step_number);
     needed = stream_buf_append(NULL, 0, needed, "  \"total_steps\": %d,\n", event->total_steps);
     needed = stream_buf_append(NULL, 0, needed, "  \"node_id\": %d,\n", event->node_id);
@@ -1596,7 +1601,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     pos = stream_buf_append(buffer, size, pos, "  \"type\": \"%s\",\n", type_id);
     pos = stream_buf_append(buffer, size, pos, "  \"type_name\": \"%s\",\n", type_name);
     pos = stream_buf_append(buffer, size, pos, "  \"color\": \"%s\",\n", color);
-    pos = stream_buf_append(buffer, size, pos, "  \"timestamp_ms\": %ld,\n", event->timestamp_ms);
+    pos = stream_buf_append(buffer, size, pos, "  \"timestamp_ms\": %lld,\n", (long long)event->timestamp_ms);
     pos = stream_buf_append(buffer, size, pos, "  \"step\": %d,\n", event->step_number);
     pos = stream_buf_append(buffer, size, pos, "  \"total_steps\": %d,\n", event->total_steps);
     pos = stream_buf_append(buffer, size, pos, "  \"node_id\": %d,\n", event->node_id);

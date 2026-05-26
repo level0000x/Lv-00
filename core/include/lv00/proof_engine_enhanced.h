@@ -27,6 +27,10 @@ extern "C" {
 #include "axiom_rule_engine.h"
 #include "constraint_graph.h"
 #include "proof.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 /* ============== 配置常量 ============== */
 

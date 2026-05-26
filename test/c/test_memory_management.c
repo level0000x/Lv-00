@@ -26,6 +26,9 @@
 #include "geometry_config.h"
 #include "test_helpers.h"
 
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ============================================================
  * 测试 1：内存分配与释放基本流程
  * ============================================================ */
@@ -41,8 +44,8 @@ static void test_basic_alloc_free(void) {
     TEST_ASSERT(bytes[0] == 0xAA, "lv00_malloc 分配的内存应可写入");
 
     /* lv00_free 释放 */
-    lv00_free(&ptr);
-    TEST_ASSERT_NULL(ptr, "lv00_free 后指针应置为 NULL");
+    lv00_free((void **)&ptr);
+    TEST_ASSERT_NULL(ptr);
 }
 
 static void test_calloc_zero_fill(void) {
@@ -148,7 +151,7 @@ static void test_poison_pattern(void) {
     memset(ptr, 0x11, alloc_size);
 
     /* 释放后检查毒模式 */
-    lv00_free(&ptr);
+    lv00_free((void **)&ptr);
     /* 释放后 ptr 已置 NULL，需要单独分配来验证毒模式行为 */
 
     /* 分配新块，写入数据，释放，然后手动检查毒模式 */
@@ -157,8 +160,8 @@ static void test_poison_pattern(void) {
     memset(ptr2, 0x22, alloc_size);
 
     /* 释放后 ptr2 置 NULL，但内存区域应被毒模式填充 */
-    lv00_free(&ptr2);
-    TEST_ASSERT_NULL(ptr2, "释放后指针应置 NULL");
+    lv00_free((void **)&ptr2);
+    TEST_ASSERT_NULL(ptr2);
 
     /* 恢复默认状态 */
     lv00_poison_enable(true);
@@ -184,7 +187,7 @@ static void test_magic_number_integrity(void) {
     TEST_ASSERT(magic_ok, "正常使用后魔数应仍完整");
 
     /* 释放 */
-    lv00_free(&ptr);
+    lv00_free((void **)&ptr);
 }
 
 /* ============================================================
@@ -206,8 +209,8 @@ static void test_leak_tracking(void) {
     TEST_ASSERT(stats.allocation_count > 0, "分配次数应大于 0");
 
     /* 正常释放追踪分配的内存 */
-    lv00_free(&tracked);
-    TEST_ASSERT_NULL(tracked, "释放后指针应置 NULL");
+    lv00_free((void **)&tracked);
+    TEST_ASSERT_NULL(tracked);
 
     /* 验证泄漏报告（此时不应有泄漏） */
     int leaks = lv00_memory_leak_report(NULL);
@@ -226,11 +229,11 @@ static void test_bounded_allocation(void) {
 
     /* 请求超过限制的内存应失败 */
     void *big = lv00_malloc_bounded(2048, limit);
-    TEST_ASSERT_NULL(big, "超过限制的分配应返回 NULL");
+    TEST_ASSERT_NULL(big);
 
     /* 请求在限制内的内存应成功 */
     void *small = lv00_malloc_bounded(512, limit);
-    TEST_ASSERT_NOT_NULL(small, "限制内的分配应成功");
+    TEST_ASSERT_NOT_NULL(small);
     lv00_free(&small);
 
     /* 清除限制 */
@@ -312,7 +315,7 @@ static void test_resource_tracker(void) {
 
     /* 销毁追踪器 */
     lv00_resource_tracker_destroy(&rt);
-    TEST_ASSERT_NULL(rt, "销毁后追踪器指针应置 NULL");
+    TEST_ASSERT_NULL(rt);
 }
 
 /* ============================================================
@@ -347,7 +350,7 @@ static void test_linear_allocator(void) {
 
     /* 重置后可重新分配 */
     void *p3 = lv00_linear_alloc(la, 64, 16);
-    TEST_ASSERT_NOT_NULL(p3, "重置后应可重新分配");
+    TEST_ASSERT_NOT_NULL(p3);
 
     /* 销毁 */
     lv00_linear_allocator_destroy(la);

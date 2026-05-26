@@ -35,6 +35,10 @@
 
 #include "proof.h"
 #include "three_valued_logic.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {

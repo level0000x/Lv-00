@@ -269,13 +269,13 @@ void lv00_perf_report_print(const Lv00PerfSession *session, void *output) {
         fprintf(out, "%s\n", "--------------------------------------------------------------------------------");
         
         for (int i = 0; i < session->region_count; i++) {
-            TimeRegion *r = &session->regions[i];
+            const TimeRegion *r = &session->regions[i];
             if (r->count == 0) continue;
             
-            double total_ms = r->total_ns / 1000000.0;
-            double mean_us = (r->total_ns / r->count) / 1000.0;
-            double min_us = r->min_ns / 1000.0;
-            double max_us = r->max_ns / 1000.0;
+            double total_ms = (double)r->total_ns / 1000000.0;
+            double mean_us = ((double)r->total_ns / (double)r->count) / 1000.0;
+            double min_us = (double)r->min_ns / 1000.0;
+            double max_us = (double)r->max_ns / 1000.0;
             
             fprintf(out, "%-30s %10llu %12.3f %12.3f %12.3f %12.3f\n",
                     r->name, (unsigned long long)r->count, total_ms, mean_us, min_us, max_us);
@@ -290,12 +290,12 @@ void lv00_perf_report_print(const Lv00PerfSession *session, void *output) {
         fprintf(out, "%s\n", "--------------------------------------------------------------------------------");
         
         for (int i = 0; i < session->mem_type_count; i++) {
-            MemTypeStat *s = &session->mem_stats[i];
+            const MemTypeStat *s = &session->mem_stats[i];
             if (s->alloc_count == 0) continue;
             
-            double alloc_mb = s->alloc_bytes / (1024.0 * 1024.0);
-            double current_mb = s->current_bytes / (1024.0 * 1024.0);
-            double peak_mb = s->peak_bytes / (1024.0 * 1024.0);
+            double alloc_mb = (double)s->alloc_bytes / (1024.0 * 1024.0);
+            double current_mb = (double)s->current_bytes / (1024.0 * 1024.0);
+            double peak_mb = (double)s->peak_bytes / (1024.0 * 1024.0);
             
             fprintf(out, "%-30s %10llu %12.3f %12.3f %12.3f\n",
                     s->name, (unsigned long long)s->alloc_count, alloc_mb, current_mb, peak_mb);
@@ -317,7 +317,7 @@ int lv00_perf_report_to_json(const Lv00PerfSession *session, char *buffer, size_
     /* 时间区域 */
     int region_count = 0;
     for (int i = 0; i < session->region_count; i++) {
-        TimeRegion *r = &session->regions[i];
+        const TimeRegion *r = &session->regions[i];
         if (r->count == 0) continue;
         
         int n = snprintf(buffer + pos, buffer_size - pos,
@@ -339,7 +339,7 @@ int lv00_perf_report_to_json(const Lv00PerfSession *session, char *buffer, size_
     
     int mem_count = 0;
     for (int i = 0; i < session->mem_type_count; i++) {
-        MemTypeStat *s = &session->mem_stats[i];
+        const MemTypeStat *s = &session->mem_stats[i];
         if (s->alloc_count == 0) continue;
         
         int n = snprintf(buffer + pos, buffer_size - pos,
@@ -366,22 +366,23 @@ int lv00_perf_report_to_json(const Lv00PerfSession *session, char *buffer, size_
  * 基准测试框架
  * ================================================================ */
 
-static const Lv00BenchmarkConfig g_default_benchmark_config = {
+static const Lv00PerfBenchConfig g_default_benchmark_config = {
     .warmup_iterations = 10,
     .measurement_iterations = 100,
     .min_duration_ms = 100
 };
 
-const Lv00BenchmarkConfig *lv00_benchmark_default_config(void) {
+const Lv00PerfBenchConfig *lv00_perf_benchmark_default_config(void) {
     return &g_default_benchmark_config;
 }
 
-int lv00_benchmark_run(const char *name, void (*func)(void),
-                        const Lv00BenchmarkConfig *config,
-                        Lv00BenchmarkResult *result) {
+int lv00_perf_benchmark_run(const char *name, void (*func)(void),
+                             const Lv00PerfBenchConfig *config,
+                             Lv00PerfBenchResult *result) {
+    (void)name;
     if (!func || !result) return -1;
     
-    const Lv00BenchmarkConfig *cfg = config ? config : &g_default_benchmark_config;
+    const Lv00PerfBenchConfig *cfg = config ? config : &g_default_benchmark_config;
     
     /* 预热 */
     for (int i = 0; i < cfg->warmup_iterations; i++) {
@@ -390,7 +391,8 @@ int lv00_benchmark_run(const char *name, void (*func)(void),
     
     /* 测量 */
     int iterations = cfg->measurement_iterations;
-    uint64_t *times = (uint64_t *)malloc(iterations * sizeof(uint64_t));
+    if (iterations <= 0) return -1;
+    uint64_t *times = (uint64_t *)malloc((size_t)iterations * sizeof(uint64_t));
     if (!times) return -1;
     
     uint64_t start_total = lv00_perf_get_time_ns();
@@ -407,7 +409,8 @@ int lv00_benchmark_run(const char *name, void (*func)(void),
     /* 如果总时长不够，增加迭代次数 */
     while (total_duration_ms < (uint64_t)cfg->min_duration_ms && iterations < 10000) {
         int additional = iterations;
-        uint64_t *new_times = (uint64_t *)realloc(times, (iterations + additional) * sizeof(uint64_t));
+        int new_capacity = iterations + additional;
+        uint64_t *new_times = (uint64_t *)realloc(times, (size_t)new_capacity * sizeof(uint64_t));
         if (!new_times) break;
         times = new_times;
         
@@ -453,7 +456,7 @@ int lv00_benchmark_run(const char *name, void (*func)(void),
     return 0;
 }
 
-void lv00_benchmark_print_result(const char *name, const Lv00BenchmarkResult *result, void *output) {
+void lv00_perf_benchmark_print_result(const char *name, const Lv00PerfBenchResult *result, void *output) {
     if (!result) return;
     
     FILE *out = output ? (FILE *)output : stdout;

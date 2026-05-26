@@ -39,6 +39,10 @@ extern "C" {
 #include "constraint_graph.h"
 #include "graph_hash.h"
 #include "stream.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 /**
  * @brief 设置重写引擎的流式输出上下文

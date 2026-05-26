@@ -97,10 +97,8 @@ Check that the source file belongs to a CMake layer target (lv00_layerN_*)."
  */
 #define LV00_ALLOW_LAYER(min_layer) \
     _Static_assert(LV00_CURRENT_LAYER >= (min_layer), \
-        "LV00 layer boundary violation: layer " #LV00_CURRENT_LAYER \
-        " may not call functions from layer " #min_layer \
-        " (only upper layers may call lower layers)." \
-        " See docs/ARCHITECTURE_v3.3.md")
+        "LV00 layer boundary violation: current layer may not call the requested lower layer. " \
+        "Only upper layers may call lower layers. See docs/ARCHITECTURE_v3.5.md")
 
 /**
  * @brief 编译时断言：当前层可以直接调用目标层
@@ -112,8 +110,7 @@ Check that the source file belongs to a CMake layer target (lv00_layerN_*)."
  */
 #define LV00_REQUIRE_STRICTLY_ABOVE(target_layer) \
     _Static_assert(LV00_CURRENT_LAYER > (target_layer), \
-        "LV00 layer boundary violation: layer " #LV00_CURRENT_LAYER \
-        " must be strictly above layer " #target_layer)
+        "LV00 layer boundary violation: current layer must be strictly above the target layer")
 
 #else
 /* 未启用层级验证时，所有检查宏均为空操作 */

@@ -1240,4 +1240,142 @@ Lv-00 不是现有工具的"又一个替代品"，而是一种**新的品类**�
 
 ---
 
-*最后更新：2026-05-25（第十二梯队落地完成，累计 114 个项目）*
+## 十七、第十三梯队落地总结（2026-05-27 第十次落地）
+
+6 个新增项目已全部落地，详见 [`docs/reference/`](reference/)。
+
+### 第十三梯队新增项目清单
+
+共 6 个项目，按类别分组。
+
+#### BL. 计算几何算法库
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **CGAL** | [github.com/CGAL/cgal](https://github.com/CGAL/cgal) | 欧洲多所大学联合开发的工业级计算几何库，25+ 年历史，70+ 模块。**借鉴它的精确谓词范式（Exact Predicate Paradigm）——几何判定（orientation/side_of_circle）使用精确算术保证正确性，几何构造（intersection）可使用浮点近似平衡性能。Kernel 抽象层通过模板参数化支持多种数值内核（Cartesian/Homogeneous/Exact）。AABB_tree 提供高效空间索引，Triangulation_2/3 实现 Delaunay 三角剖分和约束三角剖分。为 Lv-00 第 2 层基础几何公理层和第 3 层约束拓扑规约层提供工业级参考** |
+
+#### BM. 几何约束求解器
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **SolveSpace** | [github.com/solvespace/solvespace](https://github.com/solvespace/solvespace) | Jonathan Westhues 开发的开源参数化 2D/3D CAD 工具，核心求解器约 5000 行 C++。**借鉴它的轻量级约束求解架构——Newton-Raphson 迭代求解几何约束系统，自由度（DOF）分析自动检测欠约束/过约束状态。实时求解反馈支持拖拽几何对象时约束系统实时响应。约束类型体系涵盖点点距离、点线距离、角度、平行、垂直等 15 种约束。Python/JS 绑定提供多语言接口。为 Lv-00 第 3 层约束拓扑规约层和第 4 层多策略自动推理层提供直接参考** |
+
+#### BN. 交互式几何教育软件
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **GeoGebra** | [github.com/geogebra/geogebra](https://github.com/geogebra/geogebra) | 全球最流行的交互式数学教育软件，超 1 亿用户，Java/GWT 架构。**借鉴它的动态几何系统架构——依赖图设计（GeoElement 的 parents/children）实现几何对象联动更新。代数-几何联动机制使几何对象与代数表达式自动关联。工具系统设计支持用户交互创建几何对象（点/线/圆/多边形工具）。证明验证机制内置几何证明验证功能（三点共线/平行/垂直验证）。为 Lv-00 第 5 层交互式可视化层和第 6 层证明输出层提供教育友好设计参考** |
+
+#### BO. 几何深度学习库
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **PyTorch Geometric (PyG)** | [github.com/pyg-team/pytorch_geometric](https://github.com/pyg-team/pytorch_geometric) | TU Dortmund Matthias Fey 团队开发的几何深度学习库，21k+ Stars。**借鉴它的消息传递抽象（MessagePassing 接口）——统一的 propagate/message/update 三阶段流程定义 GNN 层。图数据存储结构使用稀疏张量存储图数据（node_features/edge_index/edge_attr）。点云处理算子包括 FPS 最远点采样、radius_graph 半径图构建、PointNetConv 点云卷积。50+ 预训练模型涵盖 GCN/GAT/SAGE/EdgeConv/PointNetConv。为 Lv-00 第 4 层多策略自动推理层和第 7 层 AI 辅助推理层提供几何深度学习能力参考** |
+
+#### BP. 离散微分几何库
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **geometry-central** | [github.com/nmwsharp/geometry-central](https://github.com/nmwsharp/geometry-central) | Nicholas Sharp 开发的离散微分几何库，现代 C++17 设计。**借鉴它的 Halfedge 数据结构——统一的 SurfaceMesh 数据结构表示网格拓扑，Halfedge 提供完整的拓扑遍历接口（vertex/edge/face/twin/next/prev）。几何量计算涵盖面积、法向量、边长度、角度。热方法距离计算（HeatMethodDistanceSolver）实现快速距离场。曲率计算支持 scalar/mean/Gauss 曲率和主曲率方向。网格简化实现边折叠算法（Quadric Error 优先级）。为 Lv-00 第 2 层基础几何公理层和第 3 层约束拓扑规约层提供离散几何处理参考** |
+
+#### BQ. 空间索引与几何算法
+
+| 项目 | 链接 | 最值得借鉴的地方 |
+|:---|:---|:---|
+| **Boost.Geometry** | [boost.org/libs/geometry](https://www.boost.org/libs/geometry) | Boost C++ 库的一部分，泛型几何算法库。**借鉴它的泛型设计——通过模板支持多种几何类型（point/linestring/polygon/box/segment/ring）和坐标系统。空间索引 R-tree 提供高效空间搜索（within/nearest/intersects 查询）。几何算法涵盖距离、面积、长度、凸包、交集、并集、差集、包含检测。策略模式定制算法行为（distance/convex_hull/side 策略）。WKT 格式读写支持标准几何文本格式。为 Lv-00 第 2 层基础几何公理层和第 3 层约束拓扑规约层提供标准几何算法参考** |
+
+### 第十三梯队落地详情
+
+| 优先级 | 借鉴对象 | 借鉴内容 | 落地模块 | 状态 |
+|:---|:---|:---|:---|:---:|
+| P1 | **CGAL** | 精确谓词范式 + Kernel 抽象 + AABB_tree + 三角剖分 | `docs/reference/cgal_computational_geometry.md`（450行） | ✅ |
+| P1 | **SolveSpace** | Newton-Raphson 求解 + DOF 分析 + 实时反馈 + 约束类型 | `docs/reference/solvespace_constraint_solver.md`（480行） | ✅ |
+| P2 | **GeoGebra** | 依赖图更新 + 代数联动 + 工具系统 + 证明验证 | `docs/reference/geogebra_interactive_geometry.md`（420行） | ✅ |
+| P2 | **PyTorch Geometric** | 消息传递抽象 + 图数据存储 + 点云算子 + GNN 模型 | `docs/reference/pytorch_geometric_gnn.md`（430行） | ✅ |
+| P3 | **geometry-central** | Halfedge 结构 + 几何量计算 + 热方法距离 + 曲率 + 网格简化 | `docs/reference/geometry_central_discrete_geometry.md`（450行） | ✅ |
+| P3 | **Boost.Geometry** | 几何概念 + R-tree 空间索引 + 几何算法 + 策略模式 + WKT | `docs/reference/boost_geometry_spatial_index.md`（420行） | ✅ |
+
+### 第十三梯队按类别汇总
+
+| 类别 | 项目数 | 落地产出 | 状态 |
+|:---|:---:|:---|:---:|
+| BL. 计算几何算法库 | 1 | 1 篇设计文档（450行） | ✅ |
+| BM. 几何约束求解器 | 1 | 1 篇设计文档（480行） | ✅ |
+| BN. 交互式几何教育软件 | 1 | 1 篇设计文档（420行） | ✅ |
+| BO. 几何深度学习库 | 1 | 1 篇设计文档（430行） | ✅ |
+| BP. 离散微分几何库 | 1 | 1 篇设计文档（450行） | ✅ |
+| BQ. 空间索引与几何算法 | 1 | 1 篇设计文档（420行） | ✅ |
+| **总计** | **6** | **6 篇设计文档（≈2,250 行）** | ✅ |
+| **120 个项目全部落地** | | | ✅✅✅✅✅✅ |
+
+### 第十三梯队带来的新设计线索
+
+| 新线索 | 代表项目 | 核心启示 | Lv-00 对应模块 |
+|:---|:---|:---|:---|
+| **精确谓词范式** | CGAL | 几何判定必须精确（使用 MPFR/GMP），几何构造可近似（使用浮点）——Predicate/Construction 分离是几何正确性的核心保障。Kernel 抽象层支持多种精度模式切换 | 第 2 层基础几何公理层、第 1 层符号坐标系统 |
+| **轻量级约束求解** | SolveSpace | 约束求解器不需要复杂架构——5000 行 C++ 的 Newton-Raphson 迭代即可实现实时求解。DOF 分析是约束系统的核心诊断能力 | 第 3 层约束拓扑规约层、第 4 层多策略推理 |
+| **依赖图联动更新** | GeoGebra | 动态几何系统的核心是依赖图——parents/children 关系实现几何对象联动，updateCascade 递归更新所有子元素。代数-几何联动使几何变化自动反映到表达式 | 第 5 层交互式可视化层、第 6 层证明输出层 |
+| **消息传递抽象** | PyTorch Geometric | GNN 层的统一接口是 propagate/message/update 三阶段——消息函数定义信息传递，聚合函数合并邻居信息，更新函数生成新特征。点云处理需要 FPS/radius_graph/KNN 算子 | 第 4 层多策略推理、第 7 层 AI 辅助推理 |
+| **Halfedge 拓扑表示** | geometry-central | 网格拓扑的最佳表示是 Halfedge——每个半边存储 vertex/edge/face/twin/next/prev 六个关系，完整支持所有拓扑遍历。热方法距离计算比传统 Dijkstra 更快 | 第 2 层基础几何层、第 3 层拓扑规约层 |
+| **泛型几何算法** | Boost.Geometry | 几何算法可通过模板泛型化——同一算法（distance/area/convex_hull）支持多种几何类型。R-tree 空间索引是几何查询的核心结构（within/nearest/intersects） | 第 2 层基础几何层、第 3 层空间索引 |
+
+---
+
+## 十八、更新后累计统计
+
+| 梯队 | 项目数 | 累计 | 落地日期 |
+|:---|:---:|:---:|:---|
+| 第一梯队（直接相关） | 4 | 4 | 2026-05-23 |
+| 第二梯队（设计理念） | 4 | 8 | 2026-05-23 |
+| 第三梯队（细分功能） | 4 | 12 | 2026-05-23 |
+| 第四梯队（补充项目） | 10 | 22 | 2026-05-24 |
+| 第五梯队（第二轮补充） | 15 | 37 | 2026-05-24 |
+| 第六梯队（证明/重写/CAS） | 20 | 57 | 2026-05-24 |
+| 第七梯队（E-Graphs等） | 18 | 75 | 2026-05-24 |
+| 第八梯队（Datalog等） | 8 | 83 | 2026-05-24 |
+| 第九梯队（规约/数值/可视化） | 8 | 91 | 2026-05-24 |
+| 第十梯队（稀疏/压缩/误差/概率/BDD） | 7 | 98 | 2026-05-24 |
+| 第十一梯队（GA/区间/AI证明/浮点/SMT/量子） | 8 | 106 | 2026-05-25 |
+| 第十二梯队（版本控制/自动微分/位向量SMT/数论/微分方程/自动化策略/格式转换） | 8 | 114 | 2026-05-25 |
+| **第十三梯队（计算几何/约束求解/交互几何/几何深度学习/离散微分几何/空间索引）** | **6** | **120** | **2026-05-27** |
+
+### 全部分类汇总（共 120 个项目，53 个类别）
+
+| 类别代码 | 类别名称 | 项目数 |
+|:---|:---|:---:|
+| 第一~三梯队 | 几何证明/计算/交互 | 12 |
+| A | 自动几何证明 | 1 |
+| B | 几何代数 | 4 |
+| C | 符号几何计算 | 1 |
+| D | 工业级几何内核 | 3 |
+| E | 国产几何生态 | 1 |
+| F | 几何构造语言 | 3 |
+| G | 形式化证明辅助 | 4 |
+| H | 约束求解与 SMT | 2 |
+| I | 计算机代数系统 | 3 |
+| J | Web 数学交互 | 3 |
+| K | 最小化形式化语言 | 1 |
+| L | 证明助手补完 | 5 |
+| M | 重写逻辑系统 | 5 |
+| N | 补充 CAS | 5 |
+| O | 程序化几何建模 | 3 |
+| P | 约束求解与建模 | 3 |
+| Q | 可视化与几何处理 | 2 |
+| R | E-Graphs | 2 |
+| S | 应用范畴论 | 3 |
+| T | FOL ATP | 3 |
+| U | 符号数学核心库 | 3 |
+| V | 图描述语言 | 2 |
+| W | ML 辅助证明 | 2 |
+| X/Y/Z | 交互/程序/建模 | 3 |
+| AA~AH | Datalog/语言工程/区间/拓扑等 | 8 |
+| AI~AO | 规约/数值/优化/网格/SAT/微分/3D | 8 |
+| AP~AV | 稀疏代数/几何压缩/误差验证/精度改进/概率检测/近似计数/BDD | 7 |
+| AW~BD | GA表示/区间算术/AI证明/几何逻辑/浮点验证/SMT/GA编译/量子验证 | 8 |
+| BE~BK | 版本控制/自动微分/位向量SMT/数论/微分方程/自动化策略/格式转换 | 8 |
+| **BL~BQ** | **计算几何/约束求解/交互几何/几何深度学习/离散微分几何/空间索引** | **6** |
+| **总计** | **53 类** | **120** |
+
+---
+
+*最后更新：2026-05-27（第十三梯队落地完成，累计 120 个项目）*

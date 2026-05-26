@@ -19,6 +19,10 @@ extern "C" {
 #include "graph_hash.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 /**
  * @brief 设置规范化模块的流式上下文

@@ -40,19 +40,19 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 
 | 文档 | 模块 | 功能描述 |
 |------|------|----------|
-| [12_context_and_lifecycle.md](12_context_and_lifecycle.md) | 上下文与生命周期 | 引擎上下文管理、资源生命周期 |
-| [13_error_handling.md](13_error_handling.md) | 错误处理 | 错误码体系、错误传播、恢复策略 |
-| [14_memory_management.md](14_memory_management.md) | 内存管理 | 内存池、分配策略、泄漏检测 |
+| [12_context_and_lifecycle.md](12_context_and_lifecycle.md) | 上下文与生命周期 | 引擎上下文管理、资源生命周期、熔断与运行时守卫 |
+| [13_proof_engine_enhanced.md](13_proof_engine_enhanced.md) | 增强证明引擎 | 多策略证明引擎、证明会话、评分、优先级与规则搜索 |
+| [14_solver_backends.md](14_solver_backends.md) | 求解器后端 | SMT/ATP/SAT/BDD/Gröbner 多后端与调度接口 |
 
 ### 五层架构详细文档
 
 | 文档 | 模块 | 功能描述 |
 |------|------|----------|
-| [15_parsing_layer.md](15_parsing_layer.md) | 解析层 (Layer 1) | 词法分析、语法解析、DSL 编译、AST 生成 |
-| [16_geometry_layer.md](16_geometry_layer.md) | 几何层 (Layer 3) | 约束图、符号坐标、规范化、几何拓扑 |
-| [17_reasoning_layer.md](17_reasoning_layer.md) | 推理层 (Layer 4) | 求解器、重写、证明、SMT/ATP 后端 |
-| [18_output_layer.md](18_output_layer.md) | 输出层 (Layer 5) | TikZ 导出、跨语言互操作、证明格式化 |
-| [19_numerical_backends.md](19_numerical_backends.md) | 数值后端 | 区间算术、浮点误差、Herbie/FPTaylor/Gappa |
+| [15_geometry_advanced.md](15_geometry_advanced.md) | 高级几何模块 (Layer 3) | 几何类型、配置、工具、变换、压缩、高维、演化、事件和拓扑 |
+| [16_logic_verification.md](16_logic_verification.md) | 逻辑验证 (Layer 4) | 逻辑检查、命题验证、三值逻辑、模态算子、量词和元证明 |
+| [17_numerical_analysis.md](17_numerical_analysis.md) | 数值分析 | 区间算术、浮点误差、Herbie/FPTaylor/Gappa、ODE、自动微分 |
+| [18_formula_dsl_ga.md](18_formula_dsl_ga.md) | 公式DSL与几何代数 | 公式解析/渲染/转换、DSL编译、几何代数和表达式规范化 |
+| [19_axiom_rewrite_export.md](19_axiom_rewrite_export.md) | 公理·重写·导出 | 公理包、规则注册、重写策略、TikZ/互操作、关系模型和生态索引 |
 | [20_preset_registry.md](20_preset_registry.md) | 预设函数块注册表 | 63个领域预设函数块完整索引 |
 
 ### 代码驱动补充文档（文档 12~22）
@@ -72,14 +72,14 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 | [20_preset_registry.md](20_preset_registry.md) | 预设函数块注册表 | func_block_preset.h, func_block_preset_ops.h, func_block_registry.h, func_block_utils.h, preset_*.h (63个) | 63个领域预设函数块完整索引 |
 | [21_euclidean_geometry.md](21_euclidean_geometry.md) | 欧氏几何公理包 | euclidean_geometry.h | Hilbert五公理组、Birkhoff/Tarski等价性、EquivalenceProofChain |
 | [22_proof_export_trace_widget.md](22_proof_export_trace_widget.md) | 证明导出·追踪·可视化 | proof_export_enhanced.h, proof_trace.h, proof_widget.h | 6格式导出、证明追踪树、8种可视化组件 |
-| [23_core_infrastructure.md](23_core_infrastructure.md) | 核心基础设施与配置 | lv00.h, config.h, error_codes.h, debug.h, cross_platform.h, module.h, memory_pool.h | 系统入口、配置管理、错误处理、跨平台抽象 |
+| [23_core_infrastructure.md](23_core_infrastructure.md) | 核心基础设施与配置 | lv00.h, lv00_internal.h, lv00_utils.h, lv00_numeric.h, config.h, error_codes.h, status_codes.h, debug.h, cross_platform.h, module.h, memory_pool.h, mini_kernel.h | 系统入口、配置管理、错误处理、跨平台抽象、最小内核 |
 | [24_constraint_propagation.md](24_constraint_propagation.md) | 约束传播与等价类 | propagation.h, equiv_class.h, graph_hash.h, probabilistic_constraint.h | WFC传播、AC-3弧相容、等价类合并、图哈希、概率约束 |
 | [25_engine_scheduler.md](25_engine_scheduler.md) | 引擎核心与调度系统 | engine.h, engine_scheduler.h | 五状态机、多引擎调度、自动路由决策、回退链 |
 | [26_interactive_geometry.md](26_interactive_geometry.md) | 交互式几何与事件系统 | interactive_geo.h, geo_event_detect.h, geo_topology.h, geo_invariant_type.h | 交互几何、事件检测、单纯复形拓扑 |
 | [27_quantifier_logic.md](27_quantifier_logic.md) | 量词与关系逻辑 | quantifier.h, relation_model.h | 量词系统、Alloy风格关系模型 |
 | [28_number_theory.md](28_number_theory.md) | 数论与多项式系统 | nt_number_theory.h, nt_polynomial.h, mpz_poly.h, rational.h | GMP数论、整数多项式、结式、精确有理数 |
-| [29_inequality_approximation.md](29_inequality_approximation.md) | 不等式推理与近似计算 | inequality_reasoning.h, approx_counter.h, herbie_eval.h, fptaylor_eval.h | 符号不等式、近似模型计数、Herbie/FPTaylor误差评估 |
-| [30_performance_concurrency.md](30_performance_concurrency.md) | 性能优化与并发系统 | thread_pool.h, simd_ops.h, benchmark.h, test_framework.h, fast_index.h | 线程池、SIMD、基准测试、测试框架、高效索引 |
+| [29_inequality_approximation.md](29_inequality_approximation.md) | 不等式推理与近似计算 | inequality_reasoning.h, approx_counter.h, herbie_eval.h, fptaylor_eval.h, adaptive_threshold.h | 符号不等式、近似模型计数、Herbie/FPTaylor误差评估、自适应阈值 |
+| [30_performance_concurrency.md](30_performance_concurrency.md) | 性能优化与并发系统 | thread_pool.h, simd_ops.h, benchmark.h, test_framework.h, fast_index.h, performance_profiler.h | 线程池、SIMD、基准测试、测试框架、高效索引、性能剖析 |
 | [31_stream_interop.md](31_stream_interop.md) | 流处理与互操作系统 | stream.h, stream_context_util.h, interop.h | 实时事件流、上下文分发、外部格式互操作 |
 | [32_runtime_monitoring.md](32_runtime_monitoring.md) | 运行时监控与生态系统 | runtime_guard.h, runtime_monitor.h, ecosystem.h, magic.h | 运行时防护、结构化日志、健康检查、生态包、魔法映射 |
 | [33_gappa_verification.md](33_gappa_verification.md) | Gappa浮点验证与解析安全 | gappa_dsl.h, gappa_propagate.h, parser_safety.h, path_type.h, algebra_mode.h | Gappa DSL、谓词传播、解析安全、路径类型、代数模式 |
@@ -429,7 +429,7 @@ make
 
 ## 许可证
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](../LICENSE) 文件
+本项目采用 MIT 许可证 - 详见 [LICENSE](../../LICENSE) 文件
 
 ## 参考文献
 

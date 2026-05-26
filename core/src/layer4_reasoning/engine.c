@@ -108,6 +108,11 @@ static LV00_THREAD_LOCAL char g_thread_last_error[LV00_ERROR_MSG_SIZE] = {0};
  * @param fmt 格式化字符串（printf 风格）
  * @param ... 可变参数
  */
+static void engine_set_error(LV00Engine *engine, EngineStatus status, const char *fmt, ...)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((format(printf, 3, 4)))
+#endif
+;
 static void engine_set_error(LV00Engine *engine, EngineStatus status, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -130,6 +135,11 @@ static void engine_set_error(LV00Engine *engine, EngineStatus status, const char
  *
  * @param engine 引擎实例（可为 NULL）
  */
+static void engine_clear_error(LV00Engine *engine)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((unused))
+#endif
+;
 static void engine_clear_error(LV00Engine *engine) {
     if (engine) {
         engine->last_status = ENGINE_STATUS_OK;
@@ -152,6 +162,11 @@ static void engine_clear_error(LV00Engine *engine) {
  * @param size 缓冲区大小
  * @return 实际写入的字符数（不含终止符），0 表示无错误或缓冲区为 NULL
  */
+static int engine_get_error(LV00Engine *engine, EngineStatus *status, char *buf, size_t size)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((unused))
+#endif
+;
 static int engine_get_error(LV00Engine *engine, EngineStatus *status, char *buf, size_t size) {
     EngineStatus s;
     const char *msg;
@@ -727,7 +742,7 @@ UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, Cons
     UnifyStatus status = unify_construction_with_proposition(construction, proposition);
 
     /* 同步错误状态到引擎实例 */
-    engine->last_unify_status = status;
+    engine->last_unify_status = (int)status;
     engine->last_status = ENGINE_STATUS_OK;
 
     if (status == UNIFY_STATUS_OK) {
@@ -737,6 +752,9 @@ UnifyStatus engine_unify(LV00Engine *engine, ConstraintGraph *construction, Cons
         /* 合一失败：根据具体失败类型设置对应的引擎错误信息 */
         const char *reason = "未知合一失败原因";
         switch (status) {
+            case UNIFY_STATUS_OK:
+                reason = "合一成功";
+                break;
             case UNIFY_STATUS_PORT_TYPE_MISMATCH:
                 reason = "端口类型不匹配";
                 break;
@@ -878,7 +896,10 @@ static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *con
  */
 EngineSolveResult engine_solve(LV00Engine *engine) {
     /* P2修复: 迁移到 engine 实例变量，移除全局 TLS 状态依赖 */
-    if (!engine || !engine->main_graph) {
+    if (!engine) {
+        return ENGINE_SOLVE_ERROR;
+    }
+    if (!engine->main_graph) {
         engine->last_status = ENGINE_STATUS_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 引擎实例或约束图为空 (engine=%p)", (void *) engine);
         return ENGINE_SOLVE_ERROR;
@@ -1417,6 +1438,10 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
     for (int i = 0; i < dst->node_count; i++) {
         GeomNode *copy = dst->nodes[i];
         switch (copy->type) {
+            case GEOM_POINT:
+            case GEOM_LINE_SEGMENT:
+                /* 点和线段无交叉引用，无需更新 */
+                break;
             case GEOM_PORT:
                 if (copy->data.port && copy->data.port->connected_to) {
                     int old_cid = copy->data.port->connected_to->id;

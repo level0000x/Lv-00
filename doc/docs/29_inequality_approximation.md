@@ -9,6 +9,7 @@
 - `approx_counter.h` —— ApproxMC 风格近似模型计数
 - `herbie_eval.h` —— Herbie 风格浮点精度评估
 - `fptaylor_eval.h` —— FPTaylor 风格浮点误差上界分析
+- `adaptive_threshold.h` —— 自适应阈值、误差界动态调整与数值判定阈值管理
 
 ---
 

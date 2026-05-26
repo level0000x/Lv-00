@@ -23,6 +23,9 @@
 #include "solver.h"
 #include "test_helpers.h"
 
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ============================================================
  * 测试 1：NULL 指针处理
  * ============================================================ */
@@ -30,7 +33,7 @@
 static void test_engine_create_normal(void) {
     /* 正常创建引擎应成功 */
     LV00Engine *engine = engine_create();
-    TEST_ASSERT_NOT_NULL(engine, "engine_create 应返回非 NULL");
+    TEST_ASSERT_NOT_NULL(engine);
     engine_destroy(engine);
 }
 
@@ -59,7 +62,7 @@ static void test_lv00_malloc_zero_size(void) {
     void *p = lv00_malloc(0);
     /* 无论返回 NULL 还是有效指针，都不应崩溃 */
     if (p != NULL) {
-        lv00_free(&p);
+        lv00_free((void **)&p);
     }
     g_pass_count++;
 }
@@ -173,7 +176,7 @@ static void test_double_free_detection(void) {
 
     /* 第一次释放 */
     lv00_free(&ptr);
-    TEST_ASSERT_NULL(ptr, "首次释放后指针应置 NULL");
+    TEST_ASSERT_NULL(ptr);
 
     /* ptr 已为 NULL，再次释放应安全（空操作） */
     lv00_free(&ptr);
@@ -206,7 +209,7 @@ static void test_buffer_overflow_detection(void) {
     lv00_poison_enable(true);
 
     /* 释放后检查毒模式 */
-    lv00_free(&ptr);
+    lv00_free((void **)&ptr);
 
     lv00_poison_enable(true);
 }
@@ -227,7 +230,7 @@ static void test_magic_head_tail_consistency(void) {
         ok = lv00_memory_check_magic(p);
         TEST_ASSERT(ok, "写入后魔数应仍完整");
 
-        lv00_free(&p);
+        lv00_free((void **)&p);
     }
 }
 

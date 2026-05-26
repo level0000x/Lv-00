@@ -45,6 +45,10 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 /* LV00_PUBLIC_API 由 lv00.h 统一定义，此处不再重复。
  * 原因：lv00.h 中根据平台（Windows DLL / GCC/Clang visibility）和构建模式

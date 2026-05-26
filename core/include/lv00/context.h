@@ -49,6 +49,10 @@
 /* 工具函数 —— MemoryStats 类型定义在此 */
 #include "lv00_utils.h"
 #include "memory_pool.h"  /* Lv00MemoryStats 类型定义 */
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {

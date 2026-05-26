@@ -41,10 +41,11 @@ int g_errors = 0;
         fflush(stdout);                                                                \
         intptr_t result = (intptr_t)(expr);                                            \
         if (result == (intptr_t)(expected)) {                                          \
-            printf("PASS (returned %ld as expected)\n", (long)result);                 \
+            printf("PASS (returned %lld as expected)\n", (long long)result);            \
             g_pass_count++;                                                            \
         } else {                                                                       \
-            printf("FAIL (returned %ld, expected %ld)\n", (long)result, (long)expected); \
+            printf("FAIL (returned %lld, expected %lld)\n",                             \
+                   (long long)result, (long long)(intptr_t)(expected));                 \
             g_fail_count++;                                                            \
         }                                                                              \
     } while (0)
@@ -400,7 +401,7 @@ static void test_memory_cycle(void) {
     {
         int cycle_ok = 1;
         for (int i = 0; i < 1000; i++) {
-            SymbolicCoord *c = symbolic_coord_create_rational(i % 1000, (i % 999) + 1);
+            SymbolicCoord *c = symbolic_coord_create_rational(i % 1000, (uint64_t)((i % 999) + 1));
             if (!c) {
                 printf("FAIL (allocation failed at iteration %d)\n", i);
                 cycle_ok = 0;

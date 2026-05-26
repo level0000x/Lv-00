@@ -391,6 +391,27 @@ core/include/lv00/exact_arithmetic.h
 
 ---
 
+### 3.1 代码驱动补全文档与层级归属
+
+为避免部分工程支撑模块只存在于代码而未进入架构说明，以下补全文档应作为五层迁移和依赖审查的辅助索引：
+
+| 文档 | 主要层级归属 | 架构说明 |
+|------|--------------|----------|
+| [23_core_infrastructure.md](23_core_infrastructure.md) | shared / L2 | 公共 API、配置、错误、跨平台、模块系统与内存池，属于跨层基础设施，不承载几何推理语义 |
+| [24_constraint_propagation.md](24_constraint_propagation.md) | L3 / L4 | WFC 传播、等价类和概率约束，连接约束拓扑规约与推理前置分析 |
+| [25_engine_scheduler.md](25_engine_scheduler.md) | L4 | 引擎状态机和多后端调度，属于推理层协调器 |
+| [26_interactive_geometry.md](26_interactive_geometry.md) | L3 / L5 | 交互式几何、事件检测和单纯复形拓扑，几何数据归 L3，可视化交互归 L5 |
+| [27_quantifier_logic.md](27_quantifier_logic.md) | L4 | 量词、关系模型与有限范围检查，服务泛化/特化推理 |
+| [28_number_theory.md](28_number_theory.md) | L3 / L4 | 精确有理数、数论、多项式和结式，服务符号坐标和代数证明 |
+| [29_inequality_approximation.md](29_inequality_approximation.md) | L4 / 数值后端 | 不等式证明、近似模型计数、Herbie/FPTaylor 误差分析 |
+| [30_performance_concurrency.md](30_performance_concurrency.md) | shared / L2 | 线程池、SIMD、基准测试、测试框架与高效索引，属于工程性能基础设施 |
+| [31_stream_interop.md](31_stream_interop.md) | L5 | 流式事件、上下文分发、WebSocket/stdio/pipe 互操作与导出格式 |
+| [32_runtime_monitoring.md](32_runtime_monitoring.md) | shared / L2 / L5 | 运行时守卫、监控、诊断、生态包与演示映射，基础监控归 shared，展示/生态归 L5 |
+| [33_gappa_verification.md](33_gappa_verification.md) | L1 / L4 | 解析安全归 L1，Gappa 谓词传播和浮点证明归 L4 |
+| [34_meta_proof_cache.md](34_meta_proof_cache.md) | L4 / shared | 元证明、命题验证和推理缓存归 L4，节点深拷贝作为跨层复制工具需保持最小依赖 |
+
+---
+
 ## 4. 层级依赖图
 
 ```text

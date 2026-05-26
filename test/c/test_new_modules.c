@@ -306,7 +306,7 @@ LV00_TEST(GeometryTransform, Inverse) {
 
 LV00_TEST(RuntimeMonitor, LogInit) {
     Lv00LogConfig config = {
-        .min_level = LOG_LEVEL_DEBUG,
+        .min_level = LV00_LOG_LEVEL_DEBUG,
         .targets = LOG_TARGET_NONE,  /* 禁用输出以避免干扰测试 */
         .include_timestamp = true,
         .include_location = false,

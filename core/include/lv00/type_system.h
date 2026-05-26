@@ -34,6 +34,10 @@
 #include "constraint_graph.h"
 #include "rewrite.h"
 #include "stream.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {

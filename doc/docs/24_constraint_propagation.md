@@ -9,6 +9,7 @@
 - `equiv_class.h` —— 等价类管理器
 - `graph_hash.h` —— 图结构哈希
 - `probabilistic_constraint.h` —— 概率约束与 PCTL 评估
+- `conflict_detector.h` —— 约束冲突检测与矛盾定位
 
 ---
 

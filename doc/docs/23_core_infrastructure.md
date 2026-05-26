@@ -16,6 +16,7 @@
 - `cross_platform.h` —— 跨平台兼容层
 - `module.h` —— 模块系统
 - `memory_pool.h` —— 内存池管理
+- `mini_kernel.h` —— 最小内核接口、轻量初始化与核心能力裁剪
 
 ---
 

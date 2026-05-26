@@ -32,6 +32,10 @@ extern "C" {
 #include <stddef.h>  /* size_t, NULL */
 #include <stdint.h>  /* int32_t, uint32_t, int64_t, uint64_t */
 #include <limits.h>  /* CHAR_BIT, UINT_MAX, ULONG_MAX */
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 /* ====================================================================
  * 1. 固定宽度整数类型别名（Fixed-width Integer Types）

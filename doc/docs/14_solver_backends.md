@@ -50,7 +50,9 @@ typedef enum {
 } BDDVarType;
 ```
 
-## 1. solver_core.h —— CDCL SAT 求解器核心
+## 1. solver_core.h 与 groebner_engine.h —— CDCL SAT 与 Gröbner 求解核心
+
+`solver_core.h` 提供 CDCL SAT 内核；`groebner_engine.h` 提供内置 Gröbner 基求解器，是当前系统中代数方程组求解的默认后端。二者分别对应命题层约束搜索与多项式理想推理。
 
 ### 设计借鉴
 

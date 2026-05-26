@@ -40,6 +40,10 @@
 #include "error_codes.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {

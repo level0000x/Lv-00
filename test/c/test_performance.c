@@ -22,6 +22,9 @@
 #include "lv00/reasoning_cache.h"
 #include "test_helpers.h"
 
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ================================================================
  * 基准测试：内存池分配
  * ================================================================ */
@@ -40,7 +43,7 @@ static void benchmark_pool_alloc_free(void) {
     }
 }
 
-static int test_pool_performance(void) {
+static void test_pool_performance(void) {
     printf("\n--- Memory Pool Performance ---\n");
     
     Lv00PoolConfig config = {
@@ -52,21 +55,19 @@ static int test_pool_performance(void) {
     };
     
     g_test_pool = lv00_pool_create(&config);
-    TEST_ASSERT_NOT_NULL(g_test_pool, "Failed to create pool");
+    TEST_ASSERT_NOT_NULL(g_test_pool);
     
-    Lv00BenchmarkResult result;
-    int err = lv00_benchmark_run("pool_alloc_free", benchmark_pool_alloc_free, NULL, &result);
-    TEST_ASSERT_EQ(err, 0, "Benchmark should succeed");
+    Lv00PerfBenchResult result;
+    int err = lv00_perf_benchmark_run("pool_alloc_free", benchmark_pool_alloc_free, NULL, &result);
+    TEST_ASSERT_EQ(err, 0);
     
-    lv00_benchmark_print_result("pool_alloc_free", &result, stdout);
+    lv00_perf_benchmark_print_result("pool_alloc_free", &result, stdout);
     
     /* 性能断言：单次分配+释放应在 1 微秒内完成 */
     TEST_ASSERT(result.mean_ns < 1000.0, "Pool alloc+free should be < 1us");
     
     lv00_pool_destroy(g_test_pool);
     g_test_pool = NULL;
-    
-    return 0;
 }
 
 /* ================================================================
@@ -82,28 +83,26 @@ static void benchmark_graph_add_point(void) {
         symbolic_coord_create_rational(counter / 100, 1)
     };
     
-    graph_add_point_with_id(g_test_graph, 1000 + counter, coords, 2);
+    graph_add_node_with_id(g_test_graph, 1000 + counter, GEOM_POINT, coords, 2);
     counter++;
     
     /* 注意：这里不销毁坐标，为了测试性能 */
 }
 
-static int test_graph_performance(void) {
+static void test_graph_performance(void) {
     printf("\n--- Constraint Graph Performance ---\n");
     
     g_test_graph = graph_create();
-    TEST_ASSERT_NOT_NULL(g_test_graph, "Failed to create graph");
+    TEST_ASSERT_NOT_NULL(g_test_graph);
     
-    Lv00BenchmarkResult result;
-    int err = lv00_benchmark_run("graph_add_point", benchmark_graph_add_point, NULL, &result);
-    TEST_ASSERT_EQ(err, 0, "Benchmark should succeed");
+    Lv00PerfBenchResult result;
+    int err = lv00_perf_benchmark_run("graph_add_point", benchmark_graph_add_point, NULL, &result);
+    TEST_ASSERT_EQ(err, 0);
     
-    lv00_benchmark_print_result("graph_add_point", &result, stdout);
+    lv00_perf_benchmark_print_result("graph_add_point", &result, stdout);
     
     graph_destroy(g_test_graph);
     g_test_graph = NULL;
-    
-    return 0;
 }
 
 /* ================================================================
@@ -122,33 +121,31 @@ static void benchmark_cache_put_get(void) {
     key++;
 }
 
-static int test_cache_performance(void) {
+static void test_cache_performance(void) {
     printf("\n--- Reasoning Cache Performance ---\n");
     
     g_test_cache = lv00_reasoning_cache_create(4096);
-    TEST_ASSERT_NOT_NULL(g_test_cache, "Failed to create cache");
+    TEST_ASSERT_NOT_NULL(g_test_cache);
     
-    Lv00BenchmarkResult result;
-    int err = lv00_benchmark_run("cache_put_get", benchmark_cache_put_get, NULL, &result);
-    TEST_ASSERT_EQ(err, 0, "Benchmark should succeed");
+    Lv00PerfBenchResult result;
+    int err = lv00_perf_benchmark_run("cache_put_get", benchmark_cache_put_get, NULL, &result);
+    TEST_ASSERT_EQ(err, 0);
     
-    lv00_benchmark_print_result("cache_put_get", &result, stdout);
+    lv00_perf_benchmark_print_result("cache_put_get", &result, stdout);
     
     lv00_reasoning_cache_destroy(g_test_cache);
     g_test_cache = NULL;
-    
-    return 0;
 }
 
 /* ================================================================
  * 测试：性能分析器功能
  * ================================================================ */
 
-static int test_perf_profiler_basic(void) {
+static void test_perf_profiler_basic(void) {
     printf("\n--- Performance Profiler Basic ---\n");
     
     Lv00PerfSession *session = lv00_perf_session_create("test_session");
-    TEST_ASSERT_NOT_NULL(session, "Failed to create session");
+    TEST_ASSERT_NOT_NULL(session);
     
     /* 测试时间测量 */
     lv00_perf_begin(session, "test_region");
@@ -173,7 +170,7 @@ static int test_perf_profiler_basic(void) {
     /* 测试 JSON 导出 */
     char json_buffer[4096];
     int json_len = lv00_perf_report_to_json(session, json_buffer, sizeof(json_buffer));
-    TEST_ASSERT_GT(json_len, 0, "JSON export should succeed");
+    TEST_ASSERT(json_len > 0, "JSON export should succeed");
     TEST_ASSERT(strstr(json_buffer, "test_session") != NULL, "JSON should contain session name");
     TEST_ASSERT(strstr(json_buffer, "test_region") != NULL, "JSON should contain region name");
     TEST_ASSERT(strstr(json_buffer, "TestType") != NULL, "JSON should contain type name");
@@ -182,8 +179,6 @@ static int test_perf_profiler_basic(void) {
     lv00_perf_session_reset(session);
     
     lv00_perf_session_destroy(session);
-    
-    return 0;
 }
 
 /* ================================================================
@@ -202,13 +197,13 @@ static void benchmark_malloc_free(void) {
     }
 }
 
-static int test_malloc_vs_pool(void) {
+static void test_malloc_vs_pool(void) {
     printf("\n--- Malloc vs Pool Comparison ---\n");
     
     /* 测试 malloc */
-    Lv00BenchmarkResult malloc_result;
-    lv00_benchmark_run("malloc_free", benchmark_malloc_free, NULL, &malloc_result);
-    lv00_benchmark_print_result("malloc_free", &malloc_result, stdout);
+    Lv00PerfBenchResult malloc_result;
+    lv00_perf_benchmark_run("malloc_free", benchmark_malloc_free, NULL, &malloc_result);
+    lv00_perf_benchmark_print_result("malloc_free", &malloc_result, stdout);
     
     /* 测试内存池 */
     Lv00PoolConfig config = {
@@ -221,9 +216,9 @@ static int test_malloc_vs_pool(void) {
     
     g_test_pool = lv00_pool_create(&config);
     if (g_test_pool) {
-        Lv00BenchmarkResult pool_result;
-        lv00_benchmark_run("pool_alloc_free", benchmark_pool_alloc_free, NULL, &pool_result);
-        lv00_benchmark_print_result("pool_alloc_free", &pool_result, stdout);
+        Lv00PerfBenchResult pool_result;
+        lv00_perf_benchmark_run("pool_alloc_free", benchmark_pool_alloc_free, NULL, &pool_result);
+        lv00_perf_benchmark_print_result("pool_alloc_free", &pool_result, stdout);
         
         /* 计算加速比 */
         double speedup = malloc_result.mean_ns / pool_result.mean_ns;
@@ -235,8 +230,6 @@ static int test_malloc_vs_pool(void) {
         lv00_pool_destroy(g_test_pool);
         g_test_pool = NULL;
     }
-    
-    return 0;
 }
 
 /* ================================================================

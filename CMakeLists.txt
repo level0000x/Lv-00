@@ -588,6 +588,10 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/propagation.c
     # 通用几何计算工具函数（消除跨模块代码重复）
     core/src/layer3_geometry/geo_utils.c
+    # v3.6.0 第十三梯队落地：CGAL 精确谓词 + Boost.Geometry 空间索引 + SolveSpace 约束求解
+    core/src/layer3_geometry/geo_predicate.c
+    core/src/layer3_geometry/geo_aabb_tree.c
+    core/src/layer3_geometry/geo_constraint_solver.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -749,8 +753,6 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/reasoning_cache.c
     # v3.5.0 新增：矛盾约束检测器
     core/src/layer4_reasoning/conflict_detector.c
-    # v3.5.0 新增：性能分析器
-    core/src/layer2_resource/performance_profiler.c
 )
 
 # ── Layer 5: 结果输出层 (Output) ──
@@ -831,11 +833,8 @@ target_include_directories(lv00_static PUBLIC
 target_link_libraries(lv00_static ${GMP_LIBRARIES} Threads::Threads)
 set_target_properties(lv00_static PROPERTIES OUTPUT_NAME lv00)
 
-# 跳过有深层依赖问题的预设注册（preset_differential_geometry, preset_functional_analysis）
-# 此定义对静态库始终生效，不依赖于 BUILD_SHARED_LIBS 选项
-target_compile_definitions(lv00_static PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
-message(WARNING "Excluding broken presets: preset_differential_geometry, preset_functional_analysis. "
-                "These modules have unresolved dependency issues and need to be fixed.")
+# 所有预设模块均已修复，不再需要排除标记
+# target_compile_definitions(lv00_static PRIVATE LV00_EXCLUDE_BROKEN_PRESETS)
 
 if(BUILD_SHARED_LIBS)
     add_library(lv00_shared SHARED
@@ -1073,6 +1072,13 @@ if(BUILD_TESTS)
         test/c/test_interval_arithmetic.c test_interval_arithmetic)
     add_lv00_test_and_register(test_gappa_dsl
         test/c/test_gappa_dsl.c test_gappa_dsl)
+    # v3.6.0 第十三梯队落地：CGAL 精确谓词 + Boost.Geometry 空间索引 + SolveSpace 约束求解
+    add_lv00_test_and_register(test_geo_predicate
+        test/c/test_geo_predicate.c test_geo_predicate)
+    add_lv00_test_and_register(test_geo_aabb_tree
+        test/c/test_geo_aabb_tree.c test_geo_aabb_tree)
+    add_lv00_test_and_register(test_geo_constraint_solver
+        test/c/test_geo_constraint_solver.c test_geo_constraint_solver)
     # v3.4.0 新增：SMT/SAT 模块测试
     add_lv00_test_and_register(test_smt_bitvector
         test/c/test_smt_bitvector.c test_smt_bitvector)

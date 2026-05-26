@@ -366,12 +366,13 @@ void *lv00_realloc(void *ptr, size_t size) {
         /* 重新加入追踪链表 */
         track_allocation(new_hdr);
 
-        /* 更新统计：减去旧大小，加上新大小 */
+        /* 更新统计：realloc 语义上释放旧块并分配新块，避免 total_freed 长期偏小 */
         g_memory_stats.total_allocated += alloc_size;
+        g_memory_stats.total_freed += old_size;
         if (old_size <= g_memory_stats.current_used) {
             g_memory_stats.current_used = g_memory_stats.current_used - old_size + alloc_size;
         } else {
-            g_memory_stats.current_used += alloc_size;
+            g_memory_stats.current_used = alloc_size;
         }
         if (g_memory_stats.current_used > g_memory_stats.peak_used)
             g_memory_stats.peak_used = g_memory_stats.current_used;
@@ -430,14 +431,16 @@ void lv00_free(void **ptr) {
         /* 标记头部魔数为已释放（防止 double-free） */
         hdr->head_magic = ALLOC_MAGIC_FREED;
 
-        /* 更新统计 */
+        /* 更新统计。若统计已不一致，只将可归属的 current_used 计入释放量，
+         * 避免 total_freed 超过 total_allocated 形成不可能的汇总。 */
+        size_t accounted_free = freed_size;
         if (freed_size <= g_memory_stats.current_used) {
             g_memory_stats.current_used -= freed_size;
         } else {
-            /* 防御：统计不一致时将 current_used 归零 */
+            accounted_free = g_memory_stats.current_used;
             g_memory_stats.current_used = 0;
         }
-        g_memory_stats.total_freed += freed_size;
+        g_memory_stats.total_freed += accounted_free;
         g_memory_stats.free_count++;
 
         free(hdr);
