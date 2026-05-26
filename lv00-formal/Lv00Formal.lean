@@ -39,7 +39,7 @@ namespace Lv00Formal
 -- 自有理论核心导出
 export Theory.Ontology (ObjId OntKind LvPoint LvLine LvDomain LvObj WellFormedObj ontology_closed)
 export Theory.Predicates (PrimPredKind PrimPred arity WellFormedPred predicate_closed)
-export Theory.Axioms (BaseAxiomKind BaseAxiomRule WellFormedRule LvAxiomSystem rule_conclusion_closed)
+export Theory.Axioms (BaseAxiomKind RuleLayer RuleRole canonicalKinds BaseAxiomRule WellFormedRule RuleKindCompatible RuleAbsorbable LvAxiomSystem rule_conclusion_closed wellformed_rule_absorbable system_rules_absorbable system_covers_all_kinds)
 export Theory.Constraint (ConstraintStatus ConstraintGraph WellFormedGraph normalize NormalizationIdempotent NormalizationPreservesWellFormedness checkStatus)
 export Theory.Reasoning (InferenceStep WellFormedStep ReasoningSoundness reasoning_soundness_skeleton)
 export Theory.Proof (StepId ProofStep ProofObject Traceable ProofWellFormed)

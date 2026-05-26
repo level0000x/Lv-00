@@ -200,6 +200,139 @@ const char *lv00_conflict_severity_name(ConflictSeverity severity) {
  * 基础约束冲突检测
  * ================================================================ */
 
+static int expected_participant_count(ConstraintType type) {
+    switch (type) {
+        case INCIDENCE:
+        case CONTAINMENT:
+        case CONNECTION:
+            return 2;
+        case BETWEENNESS:
+        case INTERSECTION:
+            return 3;
+        default:
+            return -1;
+    }
+}
+
+static void add_constraint_entity_ids(ConflictRecord *rec, const Constraint *constraint) {
+    if (!rec || !constraint) return;
+    rec->constraint_ids = (int *)lv00_malloc(sizeof(int));
+    if (rec->constraint_ids) {
+        rec->constraint_ids[0] = constraint->id;
+        rec->constraint_count = 1;
+    }
+    if (constraint->participant_count > 0 && constraint->participants) {
+        rec->node_ids = (int *)lv00_malloc(sizeof(int) * (size_t)constraint->participant_count);
+        if (rec->node_ids) {
+            for (int i = 0; i < constraint->participant_count; i++) {
+                rec->node_ids[i] = constraint->participants[i];
+            }
+            rec->node_count = constraint->participant_count;
+        }
+    }
+}
+
+static bool report_constraint_conflict(ConflictReport *report,
+                                       const Constraint *constraint,
+                                       ConflictType type,
+                                       ConflictSeverity severity,
+                                       const char *description,
+                                       const char *suggestion) {
+    int before = report ? report->conflict_count : 0;
+    if (!conflict_report_add(report, type, severity, description, suggestion)) {
+        return false;
+    }
+    add_constraint_entity_ids(&report->conflicts[before], constraint);
+    return true;
+}
+
+static bool constraint_has_duplicate_participants(const Constraint *constraint) {
+    if (!constraint || !constraint->participants || constraint->participant_count <= 1) {
+        return false;
+    }
+    for (int i = 0; i < constraint->participant_count; i++) {
+        for (int j = i + 1; j < constraint->participant_count; j++) {
+            if (constraint->participants[i] == constraint->participants[j]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static int detect_structural_constraint_conflicts(const ConstraintGraph *graph,
+                                                  const ConflictDetectorConfig *config,
+                                                  ConflictReport *report) {
+    (void)config;
+    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *constraint = graph->constraints[i];
+        if (!constraint || !constraint->is_active) continue;
+
+        int expected = expected_participant_count(constraint->type);
+        if (expected < 0) {
+            report_constraint_conflict(
+                report, constraint, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_ERROR,
+                "约束类型未知，无法进行语义校验。",
+                "检查约束创建逻辑，确保 ConstraintType 来自合法枚举值。");
+            continue;
+        }
+
+        if (constraint->participant_count != expected ||
+            (constraint->participant_count > 0 && !constraint->participants)) {
+            report_constraint_conflict(
+                report, constraint, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_CRITICAL,
+                "约束参与者数量或参与者数组无效。",
+                "按约束类型重新创建约束：INCIDENCE/CONTAINMENT/CONNECTION 需要2个参与者，BETWEENNESS/INTERSECTION 需要3个参与者。");
+            continue;
+        }
+
+        for (int p = 0; p < constraint->participant_count; p++) {
+            int node_id = constraint->participants[p];
+            GeomNode *node = graph_get_node(graph, node_id);
+            if (!node || !node->is_active) {
+                report_constraint_conflict(
+                    report, constraint, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_CRITICAL,
+                    "约束引用了不存在或非活跃的几何节点。",
+                    "删除该约束，或先创建并激活对应的几何节点后再添加约束。");
+                break;
+            }
+        }
+
+        if (constraint_has_duplicate_participants(constraint)) {
+            switch (constraint->type) {
+                case BETWEENNESS:
+                    report_constraint_conflict(
+                        report, constraint, CONFLICT_TRANSITIVE_ORDER, CONFLICT_SEVERITY_ERROR,
+                        "BETWEENNESS 约束出现重复参与点，导致“点在自身与另一点之间”的退化关系。",
+                        "BETWEENNESS 应使用三个互不相同的点，并在上层构造前校验输入。");
+                    break;
+                case INTERSECTION:
+                    report_constraint_conflict(
+                        report, constraint, CONFLICT_INTERSECTION_VS_PARALLEL, CONFLICT_SEVERITY_ERROR,
+                        "INTERSECTION 约束出现重复参与对象，形成自相交或交点与线对象混同的退化关系。",
+                        "INTERSECTION 应使用两条不同几何对象和一个独立交点。");
+                    break;
+                case CONNECTION:
+                    report_constraint_conflict(
+                        report, constraint, CONFLICT_CYCLIC_DEPENDENCY, CONFLICT_SEVERITY_ERROR,
+                        "CONNECTION 约束将端口连接到自身，形成直接循环依赖。",
+                        "拆除自连接，使用不同的输入/输出端口建立连接。");
+                    break;
+                default:
+                    report_constraint_conflict(
+                        report, constraint, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_WARNING,
+                        "约束包含重复参与者，可能表示退化几何关系。",
+                        "检查该约束是否确实允许自引用；若不允许，应拆分或删除该约束。");
+                    break;
+            }
+        }
+    }
+
+    return 0;
+}
+
 /**
  * @brief 检测点位置约束冲突
  *
@@ -263,14 +396,15 @@ static int detect_basic_conflicts(const ConstraintGraph *graph,
                                    const ConflictDetectorConfig *config,
                                    ConflictReport *report) {
     int err;
+
+    err = detect_structural_constraint_conflicts(graph, config, report);
+    if (err != 0) return err;
     
     err = detect_point_position_conflicts(graph, config, report);
     if (err != 0) return err;
     
     err = detect_distance_conflicts(graph, config, report);
     if (err != 0) return err;
-    
-    /* TODO: 添加角度约束检测 */
     
     return 0;
 }

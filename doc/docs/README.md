@@ -77,6 +77,13 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 | [25_engine_scheduler.md](25_engine_scheduler.md) | 引擎核心与调度系统 | engine.h, engine_scheduler.h | 五状态机、多引擎调度、自动路由决策、回退链 |
 | [26_interactive_geometry.md](26_interactive_geometry.md) | 交互式几何与事件系统 | interactive_geo.h, geo_event_detect.h, geo_topology.h, geo_invariant_type.h | 交互几何、事件检测、单纯复形拓扑 |
 | [27_quantifier_logic.md](27_quantifier_logic.md) | 量词与关系逻辑 | quantifier.h, relation_model.h | 量词系统、Alloy风格关系模型 |
+| [28_number_theory.md](28_number_theory.md) | 数论与多项式系统 | nt_number_theory.h, nt_polynomial.h, mpz_poly.h, rational.h | GMP数论、整数多项式、结式、精确有理数 |
+| [29_inequality_approximation.md](29_inequality_approximation.md) | 不等式推理与近似计算 | inequality_reasoning.h, approx_counter.h, herbie_eval.h, fptaylor_eval.h | 符号不等式、近似模型计数、Herbie/FPTaylor误差评估 |
+| [30_performance_concurrency.md](30_performance_concurrency.md) | 性能优化与并发系统 | thread_pool.h, simd_ops.h, benchmark.h, test_framework.h, fast_index.h | 线程池、SIMD、基准测试、测试框架、高效索引 |
+| [31_stream_interop.md](31_stream_interop.md) | 流处理与互操作系统 | stream.h, stream_context_util.h, interop.h | 实时事件流、上下文分发、外部格式互操作 |
+| [32_runtime_monitoring.md](32_runtime_monitoring.md) | 运行时监控与生态系统 | runtime_guard.h, runtime_monitor.h, ecosystem.h, magic.h | 运行时防护、结构化日志、健康检查、生态包、魔法映射 |
+| [33_gappa_verification.md](33_gappa_verification.md) | Gappa浮点验证与解析安全 | gappa_dsl.h, gappa_propagate.h, parser_safety.h, path_type.h, algebra_mode.h | Gappa DSL、谓词传播、解析安全、路径类型、代数模式 |
+| [34_meta_proof_cache.md](34_meta_proof_cache.md) | 元证明与推理缓存 | meta_proof.h, prop_verifier.h, reasoning_cache.h, node_deep_copy.h | 剪枝合法性元证明、BHK命题验证、推理缓存、节点深拷贝 |
 
 ## 模块依赖关系
 
@@ -333,7 +340,14 @@ Lv-00/
 │   ├── 24_constraint_propagation.md
 │   ├── 25_engine_scheduler.md
 │   ├── 26_interactive_geometry.md
-│   └── 27_quantifier_logic.md
+│   ├── 27_quantifier_logic.md
+│   ├── 28_number_theory.md
+│   ├── 29_inequality_approximation.md
+│   ├── 30_performance_concurrency.md
+│   ├── 31_stream_interop.md
+│   ├── 32_runtime_monitoring.md
+│   ├── 33_gappa_verification.md
+│   └── 34_meta_proof_cache.md
 └── CMakeLists.txt         # 构建配置
 ```
 

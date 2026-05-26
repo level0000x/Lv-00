@@ -543,6 +543,8 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/test_framework.c
     # 几何计算可配置容差参数
     core/src/layer2_resource/geometry_config.c
+    # v3.5.0 新增：性能分析器
+    core/src/layer2_resource/performance_profiler.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──

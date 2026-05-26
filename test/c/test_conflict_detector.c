@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "lv00/lv00.h"
@@ -327,6 +328,8 @@ int main(void) {
     TEST_RUN(test_default_config);
     TEST_RUN(test_type_names);
     TEST_RUN(test_simple_triangle_no_conflict);
+    TEST_RUN(test_detects_missing_participant_node);
+    TEST_RUN(test_detects_degenerate_betweenness);
     TEST_RUN(test_json_output);
     TEST_RUN(test_convenience_functions);
     
