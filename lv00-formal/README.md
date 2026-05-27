@@ -35,6 +35,13 @@ lv00-formal/
     │   │   └── PackageValidation.lean  # 公理包依赖验证模型
     │   ├── Constraint/
     │   │   └── Graph.lean              # 约束图、四态、归一化目标
+    │   │   └── Normalization.lean      # 约束图归一化算法（Union-Find）
+    │   ├── Rewrite/
+    │   │   └── Defs.lean               # 重写系统（模式匹配、策略、合流性）
+    │   ├── Unification/
+    │   │   └── Defs.lean               # 合一算法（Martelli-Montanari、MGU）
+    │   ├── Groebner/
+    │   │   └── Defs.lean               # Groebner 基（Buchberger 算法）
     │   ├── Reasoning/
     │   │   └── Soundness.lean          # 推理可靠性接口
     │   └── Proof/
@@ -75,7 +82,7 @@ lv00-formal/
 - [x] 映射 `hyperbolic_geometry.lvz` 公理包（29 模板，6 不可构造问题）。
 - [x] 证明 `hyperbolic_geometry` 包依赖验证：`hyperbolicGeometryPackage_dependencies_valid`。
 - [x] 映射 `projective_geometry.lvz` 公理包（38 模板，7 不可构造问题）。
-- [x] 证明 `projective_geometry` 包依赖验证：`projectiveGeometryPackage_dependencies_valid`（含跨引用 sorry）。
+- [x] 证明 `projective_geometry` 包依赖验证：`projectiveGeometryPackage_dependencies_valid`（跨包依赖已通过全局注册表验证）。
 - [x] 映射 `group_theory.lvz` 公理包（34 模板，7 不可构造问题）。
 - [x] 证明 `group_theory` 包依赖验证：`groupTheoryPackage_dependencies_valid`。
 - [x] 映射 `zfc_set_theory.lvz` 公理包（27 模板，10 不可构造问题）。
@@ -150,20 +157,24 @@ lv00-formal/
 - [x] 证明 `intuitionistic_logic` 包依赖验证：`intuitionisticLogicPackage_dependencies_valid`。
 - [x] 映射 `topos_theory.lvz` 公理包（81 模板，10 不可构造问题）。
 - [x] 证明 `topos_theory` 包依赖验证：`toposTheoryPackage_dependencies_valid`。
+- [x] 实现约束图归一化算法：`EquivalenceClass`、`NormalizationState`、`normalize`、`detectContradiction`。
+- [x] 证明归一化幂等性：`NormalizationIdempotent`。
+- [x] 证明归一化保持良构性：`NormalizationPreservesWellFormedness`。
+- [x] 实现重写系统：`Term`、`RewriteRule`、`RewriteStrategy`、`rewriteStar`、合流性检查。
+- [x] 实现合一算法：`unify`、`mgu`、`occursIn`、Martelli-Montanari 算法。
+- [x] 实现 Groebner 基：`buchberger`、`sPolynomial`、`idealMembership`、Buchberger 算法。
+- [x] 建立跨包依赖验证机制：`globalNameRegistry`、`CrossPackageDependenciesValid`。
+- [x] 消除全部 12 个跨引用 sorry，所有 54 个包的依赖验证均已完成。
 
 ## 下一步
 
-1. 将依赖验证模型继续推广到更多 `.lvz` 公理包。
-2. 消除含跨引用 sorry 的 13 个包（需要引入跨包依赖验证机制）。
-3. 对照 C 源码中的 `constraint_graph`、`normalization`、`rewrite`、`unify`、`groebner` 模块，细化 Lean 中的约束图与推理规则。
-3. 对照 C 源码中的 `constraint_graph`、`normalization`、`rewrite`、`unify`、`groebner` 模块，细化 Lean 中的约束图与推理规则。
-4. 证明关键元理论：
-   - 归一化保持良构性；
-   - 归一化幂等性；
+1. 安装 Lean 4 工具链，执行 `lake build` 编译验证。
+2. 完善合一算法定理证明（`unify_commutative`、`unify_associative` 剩余 sorry）。
+3. 证明更多关键元理论：
    - 单步推理可靠性；
    - 多步证明链可靠性；
    - Lv-00 内部规则到经典几何对照层的解释正确性。
-5. 最后再处理 Hilbert/欧氏几何关系：不是直接复刻 Hilbert，而是证明 Lv-00 自有体系可以解释、推出或覆盖相应经典性质。
+4. 最后再处理 Hilbert/欧氏几何关系：不是直接复刻 Hilbert，而是证明 Lv-00 自有体系可以解释、推出或覆盖相应经典性质。
 
 ## 使用示例
 

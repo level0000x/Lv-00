@@ -137,8 +137,8 @@ build_tmp/
 _archived_builds/
 
 # 归档文档和报告历史版本
-doc/reports/_archive/
-log/benchmark_results/_archive/
+doc/reports/archive/
+log/benchmark_results/archive/
 
 # 分支原型目录（非正式源码）
 module/branches/
