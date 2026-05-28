@@ -22,6 +22,9 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 
+/* 使用 Lv-00 内存管理函数，避免混用 lv00_malloc 与系统 free。 */
+#include "memory_pool.h"
+
 #ifndef MPZ_POLY_T_DEFINED
 #define MPZ_POLY_T_DEFINED
 typedef struct {
@@ -40,7 +43,7 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
         for (int i = 0; i <= p->degree; i++) {
             mpz_clear(p->coeffs[i]);
         }
-        free(p->coeffs);
+        lv00_free((void **)&p->coeffs);
     }
     p->coeffs = NULL;
     p->degree = -1;
@@ -49,7 +52,7 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
 static inline void mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
     mpz_poly_clear(dst);
     if (src->degree >= 0) {
-        dst->coeffs = malloc((size_t)(src->degree + 1) * sizeof(mpz_t));
+        dst->coeffs = (mpz_t *)lv00_malloc((size_t)(src->degree + 1) * sizeof(mpz_t));
         if (!dst->coeffs) {
             dst->degree = -1;
             return;
@@ -81,7 +84,7 @@ static inline bool mpz_poly_alloc_result(mpz_poly_t *result, int max_deg) {
         result->coeffs = NULL;
         return true;
     }
-    result->coeffs = malloc((size_t) (max_deg + 1) * sizeof(mpz_t));
+    result->coeffs = (mpz_t *)lv00_malloc((size_t) (max_deg + 1) * sizeof(mpz_t));
     if (!result->coeffs) {
         result->degree = -1;
         return false;
@@ -100,7 +103,7 @@ static inline void mpz_poly_normalize(mpz_poly_t *result) {
         result->degree--;
     }
     if (result->degree < 0) {
-        free(result->coeffs);
+        lv00_free((void **)&result->coeffs);
         result->coeffs = NULL;
     }
 }
@@ -151,7 +154,7 @@ static inline void mpz_poly_mul(mpz_poly_t *result, const mpz_poly_t *a, const m
         return;
     }
     result->degree = new_degree;
-    result->coeffs = malloc(coeff_count * sizeof(mpz_t));
+    result->coeffs = (mpz_t *)lv00_malloc(coeff_count * sizeof(mpz_t));
     if (!result->coeffs) {
         result->degree = -1;
         return;
@@ -216,7 +219,7 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
     }
     mpz_clear(factor);
     if (quotient->degree < 0) {
-        free(quotient->coeffs);
+        lv00_free((void **)&quotient->coeffs);
         quotient->coeffs = NULL;
     }
 }

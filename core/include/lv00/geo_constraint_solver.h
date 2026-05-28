@@ -54,6 +54,7 @@ typedef struct {
     Lv00EntityType type;        /**< 实体类型 */
     int id;                     /**< 实体 ID（唯一标识） */
     double params[8];           /**< 参数数组（含义取决于类型） */
+    double initial_params[8];   /**< 初始参数（FIXED 约束保存初始位置） */
     int param_count;            /**< 参数数量 */
     bool is_fixed;              /**< 是否固定（固定实体不参与求解） */
     bool is_dragged;            /**< 是否正在被拖拽 */

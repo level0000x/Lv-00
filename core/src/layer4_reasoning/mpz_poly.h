@@ -81,7 +81,7 @@ static inline bool mpz_poly_alloc_result(mpz_poly_t *result, int max_deg) {
         result->coeffs = NULL;
         return true;
     }
-    result->coeffs = malloc((size_t) (max_deg + 1) * sizeof(mpz_t));
+    result->coeffs = (mpz_t *)lv00_malloc((size_t) (max_deg + 1) * sizeof(mpz_t));
     if (!result->coeffs) {
         result->degree = -1;
         return false;

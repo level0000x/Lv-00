@@ -109,7 +109,7 @@ int main(void) {
         } else { FAIL("期望欠约束，剩余 3 DOF"); tests_failed++; }
         lv00_dof_analysis_free(dof);
 
-        /* 添加固定约束：4 DOF - 1 (distance) - 2 (fixed p2) = 1 DOF（仍欠约束） */
+        /* 添加固定约束：4 DOF - 1 (distance) - 2 (fixed p1) = 1 DOF（仍欠约束） */
         Lv00Constraint _c2 = lv00_constraint_fixed(1, 0);
         lv00_solver_add_constraint(sys, &_c2);
         TEST("dof_analyze: 欠约束（加固定后）");
@@ -120,8 +120,8 @@ int main(void) {
         } else { FAIL("期望欠约束，剩余 1 DOF"); tests_failed++; }
         lv00_dof_analysis_free(dof);
 
-        /* 再固定 p1：4 DOF - 1 (distance) - 2 (fixed p1) - 2 (fixed p2) = -1 → 过约束 */
-        Lv00Constraint _c3 = lv00_constraint_fixed(0, 0);
+        /* 再固定 p2：2 DOF (p2) - 1 (distance) = 1 → 过约束（distance 约束冗余） */
+        Lv00Constraint _c3 = lv00_constraint_fixed(2, 1);
         lv00_solver_add_constraint(sys, &_c3);
         TEST("dof_analyze: 过约束检测");
         dof = lv00_solver_dof_analyze(sys);
@@ -174,26 +174,26 @@ int main(void) {
     {
         Lv00SolverSystem *sys = lv00_solver_create(NULL);
 
-        /* 三个点构成等边三角形 */
+        /* 三个点构成等边三角形，边长 = 1 */
         Lv00Entity p1 = lv00_entity_point_2d(0, 0, 0);
-        Lv00Entity p2 = lv00_entity_point_2d(1, 1, 0);  /* 初始猜测 */
+        Lv00Entity p2 = lv00_entity_point_2d(1, 1, 0);
         Lv00Entity p3 = lv00_entity_point_2d(2, 0.5, 0.8);
         lv00_solver_add_entity(sys, &p1);
         lv00_solver_add_entity(sys, &p2);
         lv00_solver_add_entity(sys, &p3);
 
-        /* 固定 p1 */
+        /* 固定 p1 在原点 */
         Lv00Constraint _c6 = lv00_constraint_fixed(3, 0);
         lv00_solver_add_constraint(sys, &_c6);
-        /* 固定 p2 的 y=0 */
+        /* 固定 p2 的 y=0（水平约束） */
         Lv00Constraint _c7 = lv00_constraint_horizontal(4, 1);
         lv00_solver_add_constraint(sys, &_c7);
-        /* 三边等长 */
-        Lv00Constraint _c8 = lv00_constraint_equal_length(5, 0, 1);
+        /* 三边等长（边长 = 1），用距离约束替代 EQUAL_LENGTH */
+        Lv00Constraint _c8 = lv00_constraint_distance(5, 0, 1, 1.0);
         lv00_solver_add_constraint(sys, &_c8);
-        Lv00Constraint _c9 = lv00_constraint_equal_length(6, 1, 2);
+        Lv00Constraint _c9 = lv00_constraint_distance(6, 1, 2, 1.0);
         lv00_solver_add_constraint(sys, &_c9);
-        Lv00Constraint _c10 = lv00_constraint_equal_length(7, 0, 2);
+        Lv00Constraint _c10 = lv00_constraint_distance(7, 0, 2, 1.0);
         lv00_solver_add_constraint(sys, &_c10);
 
         TEST("solver_solve: 等边三角形约束求解");

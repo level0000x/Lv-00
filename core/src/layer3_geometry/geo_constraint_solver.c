@@ -307,6 +307,17 @@ LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00
 
     sys->constraints[sys->constraint_count] = *c;
     sys->constraint_count++;
+
+    /* FIXED 约束：自动标记目标实体为固定 */
+    if (c->type == LV00_CONSTRAINT_FIXED && c->entity_a >= 0) {
+        Lv00Entity *entity = lv00_solver_get_entity(sys, c->entity_a);
+        if (entity) {
+            entity->is_fixed = true;
+            memcpy(entity->initial_params, entity->params,
+                   sizeof(double) * (entity->param_count > 8 ? 8 : entity->param_count));
+        }
+    }
+
     return c->id;
 }
 
@@ -736,6 +747,7 @@ static void build_jacobian_and_residual(const Lv00SolverSystem *sys,
     for (int ci = 0; ci < sys->constraint_count; ci++) {
         const Lv00Constraint *c = &sys->constraints[ci];
         if (!c->is_active) continue;
+        if (c->type == LV00_CONSTRAINT_FIXED) continue;  /* FIXED 实体已通过 is_fixed 排除 */
 
         int n_eq = evaluate_constraint(sys, c, NULL);
 
@@ -1138,13 +1150,8 @@ LV00_PUBLIC_API Lv00DOFAnalysis *lv00_solver_dof_analyze(const Lv00SolverSystem 
 
         int cdof = lv00_constraint_dof(c->type);
         if (cdof == -1) {
-            /* FIXED 约束：消除对应实体的全部自由度 */
-            for (int j = 0; j < sys->entity_count; j++) {
-                if (sys->entities[j].id == c->entity_a) {
-                    constraint_dof += lv00_entity_dof(sys->entities[j].type);
-                    break;
-                }
-            }
+            /* FIXED 约束：目标实体的 DOF 已通过 is_fixed 在 total_dof 中排除，跳过 */
+            continue;
         } else {
             constraint_dof += cdof;
         }

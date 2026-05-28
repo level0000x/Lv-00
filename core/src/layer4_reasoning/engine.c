@@ -351,6 +351,7 @@ void engine_destroy(LV00Engine *engine) {
         engine->frozen_point = NULL;
     }
     if (engine->stream_ctx) {
+        stream_context_dispatch_all(NULL);
         stream_context_destroy(engine->stream_ctx);
         engine->stream_ctx = NULL;
     }

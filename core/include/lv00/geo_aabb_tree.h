@@ -124,6 +124,8 @@ typedef struct Lv00AABBNode {
     int right;              /**< 右子节点索引（-1 表示叶子） */
     int primitive_id;       /**< 叶子节点存储的几何体 ID（-1 表示内部节点） */
     int height;             /**< 节点高度（叶子为 0） */
+    int leaf_start;         /**< 叶子节点在 leaf_prim_ids 中的起始索引 */
+    int leaf_count;         /**< 叶子节点包含的几何体数量 */
 } Lv00AABBNode;
 
 /**
@@ -145,6 +147,8 @@ typedef struct Lv00AABBTree2D {
     int root;                   /**< 根节点索引 */
     Lv00AABB2D *primitives;     /**< 几何体包围盒数组 */
     int primitive_count;        /**< 几何体数量 */
+    int *leaf_prim_ids;         /**< 叶子节点几何体 ID 数组 */
+    int leaf_prim_capacity;     /**< leaf_prim_ids 已使用数量 */
     Lv00AABBTreeConfig config;  /**< 配置 */
 } Lv00AABBTree2D;
 

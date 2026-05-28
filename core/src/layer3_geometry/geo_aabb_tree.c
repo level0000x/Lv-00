@@ -556,11 +556,34 @@ static int aabb2d_build_recursive(Lv00AABBTree2D *tree,
 
     /* 终止条件：几何体数量 <= max_leaf_size 或达到最大深度 */
     if (count <= tree->config.max_leaf_size || depth >= tree->config.max_depth) {
-        /* 叶子节点：存储第一个几何体 ID（简化实现：单几何体叶子） */
-        tree->nodes[node_idx].primitive_id = prim_indices[0];
+        /* 叶子节点：保存所有几何体 ID 到 leaf_prim_ids */
         tree->nodes[node_idx].left  = AABB_INVALID_NODE;
         tree->nodes[node_idx].right = AABB_INVALID_NODE;
         tree->nodes[node_idx].height = 0;
+        tree->nodes[node_idx].primitive_id = prim_indices[0];
+        tree->nodes[node_idx].leaf_start = tree->leaf_prim_capacity;
+        tree->nodes[node_idx].leaf_count = count;
+
+        /* 扩展 leaf_prim_ids 容量（如需要） */
+        int old_size = tree->leaf_prim_capacity;
+        int needed = old_size + count;
+        if (needed > tree->leaf_prim_capacity) {
+            int new_cap = (tree->leaf_prim_capacity > 0)
+                              ? tree->leaf_prim_capacity * 2
+                              : AABB_INITIAL_CAPACITY;
+            while (new_cap < needed) new_cap *= 2;
+            int *new_ids = (int *)realloc(tree->leaf_prim_ids,
+                                       (size_t)new_cap * sizeof(int));
+            if (!new_ids) return AABB_INVALID_NODE;
+            tree->leaf_prim_ids = new_ids;
+            tree->leaf_prim_capacity = new_cap;
+        }
+
+        /* 写入所有几何体 ID（使用 old_size 作为偏移） */
+        for (int k = 0; k < count; k++) {
+            tree->leaf_prim_ids[old_size + k] = prim_indices[k];
+        }
+        tree->leaf_prim_capacity = old_size + count;
         return node_idx;
     }
 
@@ -1019,20 +1042,28 @@ static void aabb2d_nearest_recursive(const Lv00AABBTree2D *tree, int node_idx,
 
     /* 叶子节点 */
     if (node->left == AABB_INVALID_NODE && node->right == AABB_INVALID_NODE) {
-        if (node->primitive_id == AABB_INVALID_NODE) return;
+        /* 遍历叶子节点包含的所有几何体 */
+        int count = node->leaf_count;
+        if (count <= 0) count = 1;  /* 向后兼容：使用 primitive_id */
+        for (int k = 0; k < count; k++) {
+            int pid = (node->leaf_count > 0 && tree->leaf_prim_ids)
+                          ? tree->leaf_prim_ids[node->leaf_start + k]
+                          : node->primitive_id;
+            if (pid < 0 || pid >= tree->primitive_count) continue;
 
-        const Lv00AABB2D *prim_bb = &tree->primitives[node->primitive_id];
-        Lv00AABBPoint2D cp = aabb2d_closest_point(*prim_bb, px, py);
-        double dx = px - cp.x;
-        double dy = py - cp.y;
-        double dist = sqrt(dx * dx + dy * dy);
+            const Lv00AABB2D *prim_bb = &tree->primitives[pid];
+            Lv00AABBPoint2D cp = aabb2d_closest_point(*prim_bb, px, py);
+            double dx = px - cp.x;
+            double dy = py - cp.y;
+            double dist = sqrt(dx * dx + dy * dy);
 
-        if (dist < best->distance) {
-            best->distance    = dist;
-            best->primitive_id = node->primitive_id;
-            best->closest_x   = cp.x;
-            best->closest_y   = cp.y;
-            best->closest_z   = 0.0;
+            if (dist < best->distance) {
+                best->distance    = dist;
+                best->primitive_id = pid;
+                best->closest_x   = cp.x;
+                best->closest_y   = cp.y;
+                best->closest_z   = 0.0;
+            }
         }
         return;
     }
@@ -1332,6 +1363,8 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
     tree->node_capacity  = 0;
     tree->root           = AABB_INVALID_NODE;
     tree->primitive_count = count;
+    tree->leaf_prim_ids  = NULL;
+    tree->leaf_prim_capacity = 0;
 
     /* 设置配置 */
     if (config) {
@@ -1382,6 +1415,7 @@ LV00_PUBLIC_API Lv00AABBTree2D *lv00_aabb2d_build(
 LV00_PUBLIC_API void lv00_aabb2d_free(Lv00AABBTree2D *tree)
 {
     if (!tree) return;
+    free(tree->leaf_prim_ids);
     free(tree->nodes);
     free(tree->primitives);
     free(tree);

@@ -453,7 +453,7 @@ void proof_state_destroy(Lv00ProofState *state) {
     /* Free goal stack entries */
     for (i = 0; i <= state->goal_stack_top && i < LV00_GOAL_STACK_MAX; i++) {
         if (state->goal_stack[i]) {
-            free(state->goal_stack[i]);
+            lv00_free((void **) &state->goal_stack[i]);
             state->goal_stack[i] = NULL;
         }
     }
@@ -461,7 +461,7 @@ void proof_state_destroy(Lv00ProofState *state) {
     /* Free hypothesis entries */
     for (i = 0; i < state->hypothesis_count && i < LV00_HYPOTHESIS_MAX; i++) {
         if (state->hypotheses[i]) {
-            free(state->hypotheses[i]);
+            lv00_free((void **) &state->hypotheses[i]);
             state->hypotheses[i] = NULL;
         }
     }
@@ -469,7 +469,7 @@ void proof_state_destroy(Lv00ProofState *state) {
     /* Free applied rules history */
     for (i = 0; i < state->applied_rule_count && i < LV00_APPLIED_RULES_MAX; i++) {
         if (state->applied_rules[i]) {
-            free(state->applied_rules[i]);
+            lv00_free((void **) &state->applied_rules[i]);
             state->applied_rules[i] = NULL;
         }
     }
