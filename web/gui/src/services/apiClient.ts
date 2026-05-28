@@ -510,6 +510,7 @@ export async function chat(
 /**
  * 将两个 AbortSignal 合并为一个。
  * 任意一个信号触发时，合并后的信号也会被触发。
+ * 【优化】修复内存泄漏：正确移除事件监听器
  *
  * @param a - 第一个 AbortSignal
  * @param b - 第二个 AbortSignal
@@ -518,9 +519,20 @@ export async function chat(
 function combineAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
   if (a.aborted || b.aborted) return AbortSignal.abort();
   const controller = new AbortController();
-  const onAbort = () => controller.abort();
+
+  // 【安全修复 H-04】修复内存泄漏：正确移除事件监听器
+  // 使用 { once: true } 确保监听器在触发后自动移除
+  // 同时在 controller.abort() 时主动清理，防止重复触发
+  const onAbort = () => {
+    controller.abort();
+    // 主动清理以防万一（虽然 once:true 应该自动处理）
+    a.removeEventListener('abort', onAbort);
+    b.removeEventListener('abort', onAbort);
+  };
+
   a.addEventListener('abort', onAbort, { once: true });
   b.addEventListener('abort', onAbort, { once: true });
+
   return controller.signal;
 }
 

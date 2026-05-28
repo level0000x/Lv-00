@@ -124,6 +124,8 @@ const SidebarRight: React.FC = () => {
   const streamFilters = useAIStore((s) => s.streamFilters);
   const streamingActive = useAIStore((s) => s.streamingActive);
   const toggleStreamFilter = useAIStore((s) => s.toggleStreamFilter);
+  const clearStreamEvents = useAIStore((s) => s.clearStreamEvents);
+  const clearStreamingEntries = useAppStore((s) => s.clearStreamingEntries);
 
   // ---- 自动滚动到最新事件 ----
   const eventsEndRef = useRef<HTMLDivElement>(null);
@@ -159,6 +161,12 @@ const SidebarRight: React.FC = () => {
     },
     [toggleStreamFilter],
   );
+
+  // ---- 清除所有流式事件和日志 ----
+  const handleClearStreaming = useCallback(() => {
+    clearStreamEvents();
+    clearStreamingEntries();
+  }, [clearStreamEvents, clearStreamingEntries]);
 
   return (
     <div className="sidebar-right" id="sidebarRight">
@@ -219,8 +227,19 @@ const SidebarRight: React.FC = () => {
       {/* ================================================================ */}
       {/* Streaming Panel / 流式输出面板（增强版） */}
       {/* ================================================================ */}
-      <Panel title="STREAMING / 流式输出" panelId="streaming">
+      <Panel title={`STREAMING / 流式输出 (${streamingEvents.length})`} panelId="streaming">
         <div className="stream-panel" id="streamingContainer">
+          {/* ---- 清除按钮 / Clear Button ---- */}
+          <div className="stream-panel-header-actions">
+            <button
+              className="stream-clear-btn"
+              onClick={handleClearStreaming}
+              title="清除所有流式事件和日志 / Clear all streaming events and logs"
+              type="button"
+            >
+              CLEAR / 清除
+            </button>
+          </div>
           {/* ---- 分类过滤器按钮行 / Category Filter Buttons ---- */}
           <div className="stream-panel-filters">
             {streamFilters.map((filter) => (

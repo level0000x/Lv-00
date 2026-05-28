@@ -10,6 +10,28 @@
  *              - solveIntersection 求解 intersection 约束（两线段交点）
  *              - performSolve      执行完整的约束求解流程
  *              - normalizePoints   归一化（合并距离过近的点）
+ *
+ *              Pure function utility module for geometric constraint solving.
+ *              Extracted from EnginePanel, contains stateless functions
+ *              that do not depend on React state.
+ *
+ * 主要功能 / Key Features:
+ * - 支持四种约束类型的求解：incidence、betweenness、intersection、containment
+ * - 返回结构化的 SolveResult，包含满足/冲突/总数统计
+ * - 自动归一化距离过近的点，避免浮点精度问题
+ * - 所有函数为纯函数，便于单元测试
+ *
+ * 使用示例 / Usage:
+ *   import { performSolve, dist } from '@/utils/constraintSolver';
+ *
+ *   // 计算两点距离
+ *   const d = dist(pointA, pointB);
+ *
+ *   // 执行完整约束求解
+ *   const result = performSolve(points, segments, constraints);
+ *   // result.satisfied: 满足的约束数
+ *   // result.conflicts: 冲突的约束数
+ *   // result.satisfactionRate: 满足率百分比
  */
 
 import type { Point, Segment, Constraint } from '@/types';

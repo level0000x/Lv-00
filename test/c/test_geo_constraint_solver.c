@@ -257,6 +257,119 @@ int main(void) {
         lv00_solver_free(sys);
     }
 
+    /* 9. 哈希索引性能验证 */
+    printf("\n[组 9] 哈希索引性能验证\n");
+    {
+        TEST("hash_index: 创建包含 100 个实体和 100 个约束的系统");
+        Lv00SolverSystem *sys = lv00_solver_create(NULL);
+        if (!sys) { FAIL("创建失败"); tests_failed++; }
+        else {
+            /* 添加 100 个实体（ID: 1000 ~ 1099） */
+            for (int i = 0; i < 100; i++) {
+                Lv00Entity e = lv00_entity_point_2d(1000 + i,
+                    (double)(i * 1.0), (double)(i * 2.0));
+                int ret = lv00_solver_add_entity(sys, &e);
+                if (ret != 1000 + i) {
+                    printf("(add_entity %d failed, ret=%d) ", i, ret);
+                }
+            }
+
+            /* 添加 100 个约束（ID: 2000 ~ 2099） */
+            for (int i = 0; i < 99; i++) {
+                Lv00Constraint c = lv00_constraint_distance(2000 + i,
+                    1000 + i, 1000 + i + 1, 1.0);
+                lv00_solver_add_constraint(sys, &c);
+            }
+            /* 最后一个约束：固定第一个实体 */
+            Lv00Constraint cf = lv00_constraint_fixed(2099, 1000);
+            lv00_solver_add_constraint(sys, &cf);
+
+            if (sys->entity_count == 100 && sys->constraint_count == 100) {
+                PASS(); tests_passed++;
+            } else {
+                FAIL("实体/约束数量不正确");
+                tests_failed++;
+            }
+
+            TEST("hash_index: 通过 ID 查找每个实体都能找到");
+            int all_found = 1;
+            for (int i = 0; i < 100; i++) {
+                Lv00Entity *e = lv00_solver_get_entity(sys, 1000 + i);
+                if (!e || e->id != 1000 + i) {
+                    all_found = 0;
+                    break;
+                }
+            }
+            if (all_found) { PASS(); tests_passed++; }
+            else { FAIL("部分实体未找到"); tests_failed++; }
+
+            TEST("hash_index: 通过 ID 查找每个约束都能找到");
+            all_found = 1;
+            for (int i = 0; i < 100; i++) {
+                Lv00Constraint *c = lv00_solver_get_constraint(sys, 2000 + i);
+                if (!c || c->id != 2000 + i) {
+                    all_found = 0;
+                    break;
+                }
+            }
+            if (all_found) { PASS(); tests_passed++; }
+            else { FAIL("部分约束未找到"); tests_failed++; }
+
+            TEST("hash_index: 查找不存在的 ID 返回 NULL");
+            Lv00Entity *ne = lv00_solver_get_entity(sys, 9999);
+            Lv00Constraint *nc = lv00_solver_get_constraint(sys, 9999);
+            if (ne == NULL && nc == NULL) { PASS(); tests_passed++; }
+            else { FAIL("应返回 NULL"); tests_failed++; }
+
+            TEST("hash_index: 查找结果与线性扫描一致");
+            int consistent = 1;
+            for (int i = 0; i < 100; i++) {
+                /* 通过 API 查找（使用哈希表） */
+                Lv00Entity *e_hash = lv00_solver_get_entity(sys, 1000 + i);
+                Lv00Constraint *c_hash = lv00_solver_get_constraint(sys, 2000 + i);
+
+                /* 线性扫描验证 */
+                Lv00Entity *e_linear = NULL;
+                for (int j = 0; j < sys->entity_count; j++) {
+                    if (sys->entities[j].id == 1000 + i) {
+                        e_linear = &sys->entities[j];
+                        break;
+                    }
+                }
+                Lv00Constraint *c_linear = NULL;
+                for (int j = 0; j < sys->constraint_count; j++) {
+                    if (sys->constraints[j].id == 2000 + i) {
+                        c_linear = &sys->constraints[j];
+                        break;
+                    }
+                }
+
+                if (e_hash != e_linear || c_hash != c_linear) {
+                    consistent = 0;
+                    break;
+                }
+            }
+            if (consistent) { PASS(); tests_passed++; }
+            else { FAIL("哈希查找与线性扫描结果不一致"); tests_failed++; }
+
+            TEST("hash_index: 删除后查找返回 NULL");
+            bool removed = lv00_solver_remove_constraint(sys, 2050);
+            Lv00Constraint *after_remove = lv00_solver_get_constraint(sys, 2050);
+            if (removed && after_remove == NULL) { PASS(); tests_passed++; }
+            else { FAIL("删除后仍能找到或删除失败"); tests_failed++; }
+
+            TEST("hash_index: 删除后其他约束仍可查找");
+            Lv00Constraint *c_before = lv00_solver_get_constraint(sys, 2049);
+            Lv00Constraint *c_after_swap = lv00_solver_get_constraint(sys, 2099);
+            if (c_before && c_before->id == 2049 &&
+                c_after_swap && c_after_swap->id == 2099) {
+                PASS(); tests_passed++;
+            } else { FAIL("swap-and-pop 后索引不一致"); tests_failed++; }
+
+            lv00_solver_free(sys);
+        }
+    }
+
     printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", tests_passed, tests_failed);
     return tests_failed > 0 ? 1 : 0;
 }

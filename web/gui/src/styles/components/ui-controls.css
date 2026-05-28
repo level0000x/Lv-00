@@ -46,11 +46,24 @@
     height: 100%;
     flex: 1;
     overflow-x: auto;
-    scrollbar-width: none;
+    scrollbar-width: thin;
     -ms-overflow-style: none;
     position: relative;
+    white-space: nowrap;
 }
-.module-tabs::-webkit-scrollbar { display: none; }
+.module-tabs::-webkit-scrollbar {
+    height: 3px;
+}
+.module-tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+.module-tabs::-webkit-scrollbar-thumb {
+    background: var(--color-scrollbar-thumb);
+    border-radius: var(--radius-full);
+}
+.module-tabs::-webkit-scrollbar-thumb:hover {
+    background: var(--color-scrollbar-thumb-hover);
+}
 
 .module-tab {
     padding: 0 var(--spacing-lg);

@@ -112,16 +112,21 @@ const Header: React.FC<HeaderProps> = ({ onExport, onImport }) => {
         </span>
       </nav>
 
-      {/* 模块标签页导航 */}
-      <div className="module-tabs" role="tablist" aria-label="模块导航">
-        {MODULE_TABS.map((tab) => (
-          <ModuleTab
-            key={tab.id}
-            tab={tab}
-            isActive={activeModule === tab.id}
-            onSelect={setActiveModule}
-          />
-        ))}
+      {/* 模块标签页导航（支持横向滚动） */}
+      <div
+        className="module-tabs-scroll-wrapper"
+        style={{ overflowX: 'auto', scrollbarWidth: 'thin' }}
+      >
+        <div className="module-tabs" role="tablist" aria-label="模块导航">
+          {MODULE_TABS.map((tab) => (
+            <ModuleTab
+              key={tab.id}
+              tab={tab}
+              isActive={activeModule === tab.id}
+              onSelect={setActiveModule}
+            />
+          ))}
+        </div>
       </div>
 
       {/* 操作按钮组 */}

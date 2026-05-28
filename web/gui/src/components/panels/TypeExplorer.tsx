@@ -10,8 +10,19 @@
  *              - 颜色编码不同宇宙层级
  *              - 参考 TypeInferenceRule 和宇宙层级概念
  *
- *              类型层级数据和推断规则已提取到 utils/ 目录：
- *              - typeHierarchy.ts: 类型种类信息、宇宙层级、树构建
+ * 主要功能 / Key Features:
+ * - 以树形结构展示 Lv-00 类型系统的层级关系
+ * - 每个节点显示类型名称、符号名、宇宙层级颜色编码
+ * - 支持展开/折叠子树，显示子节点数量 badge
+ * - 展示类型等价路径（equivPath），可视化类型推断规则
+ * - 提供类型推断规则的演示数据（DEMO_EQUIV_PATHS）
+ * - 类型层级数据和推断规则已提取到 utils/typeHierarchy.ts
+ *
+ * 使用示例 / Usage:
+ *   // 作为侧边栏面板使用
+ *   <TypeExplorer />
+ *
+ *   // 点击树节点可展开/折叠，查看子类型和等价路径
  */
 
 import React, { useState, useCallback, useMemo } from 'react';

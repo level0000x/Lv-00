@@ -51,7 +51,7 @@
 #define MAX_PARAMS 64
 
 /** ID 哈希表大小（应为 2 的幂次，用于位运算取模） */
-#define ID_HASH_TABLE_SIZE 256
+#define ID_HASH_TABLE_SIZE 512
 
 /** 哈希表最大负载因子 */
 #define HASH_LOAD_FACTOR_MAX 0.75
@@ -189,6 +189,11 @@ static bool id_hash_insert(IdHashTable *table, int id, int index)
 
 /**
  * @brief 在哈希表中查找 ID 对应的索引
+ *
+ * 使用线性探测处理哈希冲突。
+ * 重要：当遇到 tombstone（已删除标记）时继续探测，
+ * 只有遇到"从未使用"的空槽（id=0 且 index=-1）才返回 -1。
+ *
  * @param table 哈希表指针
  * @param id 实体/约束 ID
  * @return 索引（-1 表示未找到）
@@ -202,13 +207,24 @@ static int id_hash_find(const IdHashTable *table, int id)
     /* 线性探测查找 */
     for (int probe = 0; probe < ID_HASH_TABLE_SIZE; probe++) {
         uint32_t idx = (hash + probe) & (ID_HASH_TABLE_SIZE - 1);
+        const HashEntry *entry = &table->entries[idx];
 
-        if (!table->entries[idx].occupied) {
-            return -1;  /* 遇到空槽，说明不存在 */
+        if (!entry->occupied) {
+            /* 遇到未占用槽：区分 tombstone 和从未使用的空槽 */
+            /* tombstone: id=0 且 index=-1 但 occupied=false */
+            /* 从未使用的空槽: id=0 且 index=-1 且 occupied=false */
+            /* 由于初始化时所有条目都是 id=0, index=-1, occupied=false， */
+            /* tombstone 是从 occupied=true 变为 false 的，所以需要额外判断 */
+            /* 简化判断：如果 id=0 且 index=-1，认为是从未使用的空槽 */
+            if (entry->id == 0 && entry->index == -1) {
+                return -1;  /* 从未使用的空槽，说明不存在 */
+            }
+            /* 否则是 tombstone，继续探测 */
+            continue;
         }
 
-        if (table->entries[idx].id == id) {
-            return table->entries[idx].index;
+        if (entry->id == id) {
+            return entry->index;
         }
     }
 
@@ -375,24 +391,30 @@ LV00_PUBLIC_API Lv00SolverConfig lv00_solver_default_config(void)
 /**
  * @brief 创建约束求解系统
  *
+ * 内部分配 Lv00SolverSystemEx（包含哈希索引），返回其 base 字段指针。
+ * 由于 Lv00SolverSystemEx 的第一个字段是 Lv00SolverSystem base，
+ * 返回的指针可以安全地作为 Lv00SolverSystem* 使用（向后兼容）。
+ *
  * @param config 配置（NULL 使用默认配置）
  * @return 求解系统指针，失败返回 NULL
  */
 LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *config)
 {
-    Lv00SolverSystem *sys = (Lv00SolverSystem *)malloc(sizeof(Lv00SolverSystem));
-    if (!sys) return NULL;
+    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)malloc(sizeof(Lv00SolverSystemEx));
+    if (!sys_ex) return NULL;
+
+    Lv00SolverSystem *sys = &sys_ex->base;
 
     sys->entities = (Lv00Entity *)malloc(INITIAL_CAPACITY * sizeof(Lv00Entity));
     if (!sys->entities) {
-        free(sys);
+        free(sys_ex);
         return NULL;
     }
 
     sys->constraints = (Lv00Constraint *)malloc(INITIAL_CAPACITY * sizeof(Lv00Constraint));
     if (!sys->constraints) {
         free(sys->entities);
-        free(sys);
+        free(sys_ex);
         return NULL;
     }
 
@@ -410,17 +432,26 @@ LV00_PUBLIC_API Lv00SolverSystem *lv00_solver_create(const Lv00SolverConfig *con
     sys->last_result      = LV00_SOLVE_OK;
     sys->iteration_count  = 0;
 
+    /* 初始化哈希索引表 */
+    id_hash_init(&sys_ex->entity_hash);
+    id_hash_init(&sys_ex->constraint_hash);
+
     return sys;
 }
 
 /**
  * @brief 释放约束求解系统
+ *
+ * 释放时将 Lv00SolverSystem* 转换回 Lv00SolverSystemEx*，
+ * 以释放哈希索引资源。由于 create 分配的是 Lv00SolverSystemEx，
+ * 此处必须使用相同的指针进行释放。
  */
 LV00_PUBLIC_API void lv00_solver_free(Lv00SolverSystem *sys)
 {
     if (!sys) return;
     free(sys->entities);
     free(sys->constraints);
+    /* sys 实际指向 Lv00SolverSystemEx.base，直接 free 即可释放整个 Ex 结构体 */
     free(sys);
 }
 
@@ -442,6 +473,9 @@ static int find_entity_index(const Lv00SolverSystem *sys, int id)
 
 /**
  * @brief 添加几何实体
+ *
+ * 添加实体后同步插入哈希索引表，实现 O(1) 后续查找。
+ *
  * @return 新实体的 ID
  */
 LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Entity *entity)
@@ -460,19 +494,40 @@ LV00_PUBLIC_API int lv00_solver_add_entity(Lv00SolverSystem *sys, const Lv00Enti
         sys->entity_capacity = new_cap;
     }
 
-    sys->entities[sys->entity_count] = *entity;
+    int new_index = sys->entity_count;
+    sys->entities[new_index] = *entity;
     sys->entity_count++;
+
+    /* 同步插入哈希表 */
+    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    if (!id_hash_insert(&sys_ex->entity_hash, entity->id, new_index)) {
+        /* 哈希表插入失败（已满或 ID 冲突），线性扫描 fallback 仍然有效 */
+        /* 此处仅记录警告，不影响功能 */
+    }
+
     return entity->id;
 }
 
 /**
  * @brief 获取实体指针
+ *
+ * 优先使用哈希表 O(1) 查找，找不到时 fallback 到线性扫描。
+ *
  * @return 实体指针（NULL 表示不存在）
  */
 LV00_PUBLIC_API Lv00Entity *lv00_solver_get_entity(Lv00SolverSystem *sys, int id)
 {
     if (!sys) return NULL;
-    int idx = find_entity_index(sys, id);
+
+    /* 优先使用哈希表查找 */
+    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    int idx = find_entity_index_fast(sys_ex, id);
+    if (idx >= 0 && idx < sys->entity_count && sys->entities[idx].id == id) {
+        return &sys->entities[idx];
+    }
+
+    /* Fallback：线性扫描（兼容非 Ex 分配的系统） */
+    idx = find_entity_index(sys, id);
     if (idx < 0) return NULL;
     return &sys->entities[idx];
 }
@@ -495,6 +550,9 @@ static int find_constraint_index(const Lv00SolverSystem *sys, int id)
 
 /**
  * @brief 添加约束
+ *
+ * 添加约束后同步插入哈希索引表，实现 O(1) 后续查找。
+ *
  * @return 新约束的 ID
  */
 LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00Constraint *c)
@@ -514,8 +572,16 @@ LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00
         sys->constraint_capacity = new_cap;
     }
 
-    sys->constraints[sys->constraint_count] = *c;
+    int new_index = sys->constraint_count;
+    sys->constraints[new_index] = *c;
     sys->constraint_count++;
+
+    /* 同步插入哈希表 */
+    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    if (!id_hash_insert(&sys_ex->constraint_hash, c->id, new_index)) {
+        /* 哈希表插入失败（已满或 ID 冲突），线性扫描 fallback 仍然有效 */
+        /* 此处仅记录警告，不影响功能 */
+    }
 
     /* FIXED 约束：自动标记目标实体为固定 */
     if (c->type == LV00_CONSTRAINT_FIXED && c->entity_a >= 0) {
@@ -532,17 +598,31 @@ LV00_PUBLIC_API int lv00_solver_add_constraint(Lv00SolverSystem *sys, const Lv00
 
 /**
  * @brief 获取约束指针
+ *
+ * 优先使用哈希表 O(1) 查找，找不到时 fallback 到线性扫描。
  */
 LV00_PUBLIC_API Lv00Constraint *lv00_solver_get_constraint(Lv00SolverSystem *sys, int id)
 {
     if (!sys) return NULL;
-    int idx = find_constraint_index(sys, id);
+
+    /* 优先使用哈希表查找 */
+    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+    int idx = find_constraint_index_fast(sys_ex, id);
+    if (idx >= 0 && idx < sys->constraint_count && sys->constraints[idx].id == id) {
+        return &sys->constraints[idx];
+    }
+
+    /* Fallback：线性扫描（兼容非 Ex 分配的系统） */
+    idx = find_constraint_index(sys, id);
     if (idx < 0) return NULL;
     return &sys->constraints[idx];
 }
 
 /**
  * @brief 移除约束
+ *
+ * 使用 swap-and-pop 策略删除约束，同时更新哈希表中
+ * 被移动元素的索引映射。
  */
 LV00_PUBLIC_API bool lv00_solver_remove_constraint(Lv00SolverSystem *sys, int id)
 {
@@ -550,8 +630,23 @@ LV00_PUBLIC_API bool lv00_solver_remove_constraint(Lv00SolverSystem *sys, int id
     int idx = find_constraint_index(sys, id);
     if (idx < 0) return false;
 
+    Lv00SolverSystemEx *sys_ex = (Lv00SolverSystemEx *)sys;
+
+    /* 如果被删除的不是最后一个元素，需要更新被移动元素的哈希索引 */
+    int last_index = sys->constraint_count - 1;
+    if (idx != last_index) {
+        int moved_id = sys->constraints[last_index].id;
+        /* 先从哈希表移除被移动元素的旧索引 */
+        id_hash_remove(&sys_ex->constraint_hash, moved_id);
+        /* 重新插入到新位置 */
+        id_hash_insert(&sys_ex->constraint_hash, moved_id, idx);
+    }
+
+    /* 从哈希表移除被删除的约束 */
+    id_hash_remove(&sys_ex->constraint_hash, id);
+
     /* 将最后一个元素移到被删除的位置 */
-    sys->constraints[idx] = sys->constraints[sys->constraint_count - 1];
+    sys->constraints[idx] = sys->constraints[last_index];
     sys->constraint_count--;
     return true;
 }

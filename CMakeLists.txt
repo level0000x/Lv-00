@@ -602,6 +602,9 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/geo_predicate.c
     core/src/layer3_geometry/geo_aabb_tree.c
     core/src/layer3_geometry/geo_constraint_solver.c
+    # v3.6.0 第十三梯队落地：GeoGebra 动态几何依赖图 + geometry-central Halfedge 拓扑
+    core/src/layer3_geometry/geo_dynamic.c
+    core/src/layer3_geometry/geo_halfedge_mesh.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -1089,6 +1092,11 @@ if(BUILD_TESTS)
         test/c/test_geo_aabb_tree.c test_geo_aabb_tree)
     add_lv00_test_and_register(test_geo_constraint_solver
         test/c/test_geo_constraint_solver.c test_geo_constraint_solver)
+    # v3.6.0 第十三梯队落地：GeoGebra 动态几何依赖图 + geometry-central Halfedge 拓扑
+    add_lv00_test_and_register(test_geo_dynamic
+        test/c/test_geo_dynamic.c test_geo_dynamic)
+    add_lv00_test_and_register(test_geo_halfedge_mesh
+        test/c/test_geo_halfedge_mesh.c test_geo_halfedge_mesh)
     # v3.4.0 新增：SMT/SAT 模块测试
     add_lv00_test_and_register(test_smt_bitvector
         test/c/test_smt_bitvector.c test_smt_bitvector)

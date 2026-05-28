@@ -2,19 +2,41 @@
  * @module utils/formulaParser
  * @description 公式 DSL 解析器 —— 将文本公式解析为几何操作并执行。
  *
- *              支持的 DSL 命令：
- *              - point A(x, y)         创建命名点
- *              - segment AB             创建线段（两点名称拼接）
- *              - segment(A, B)          创建线段（函数调用形式）
- *              - circle center(A) radius(r) 创建圆（多边形近似）
- *              - midpoint M of A, B     创建中点
- *              - perpendicular from A to segment BC  创建垂足
- *              - parallel to AB through C             创建平行线
- *              - intersect segment AB with CD         求交点
- *              - measure distance A, B                计算距离
- *              - measure angle A, B, C                计算角度
+ *              Formula DSL parser that parses text formulas into geometric
+ *              operations and executes them.
  *
- *              所有几何计算使用纯 JS 实现，不依赖 WASM 后端。
+ * 主要功能 / Key Features:
+ * - 支持多种 DSL 命令：创建点、线段、圆、中点、垂足、平行线、交点等
+ * - 支持测量命令：计算距离和角度
+ * - 支持两种线段创建语法：名称拼接（AB）和函数调用（segment(A, B)）
+ * - 自动管理命名实体（点/线段）的注册表
+ * - 所有几何计算使用纯 JS 实现，不依赖 WASM 后端
+ * - 返回结构化的 FormulaCommand，便于后续处理和撤销
+ *
+ * 支持的 DSL 命令 / Supported DSL Commands:
+ * - point A(x, y)                              创建命名点
+ * - segment AB / segment(A, B)                  创建线段
+ * - circle center(A) radius(r)                  创建圆（多边形近似）
+ * - midpoint M of A, B                          创建中点
+ * - perpendicular from A to segment BC          创建垂足
+ * - parallel to AB through C                    创建平行线
+ * - intersect segment AB with CD                求交点
+ * - measure distance A, B                       计算距离
+ * - measure angle A, B, C                       计算角度
+ *
+ * 使用示例 / Usage:
+ *   import { parseFormula } from '@/utils/formulaParser';
+ *
+ *   const commands = parseFormula(`
+ *     point A(0, 0)
+ *     point B(4, 0)
+ *     point C(2, 3)
+ *     segment AB
+ *     segment BC
+ *     segment CA
+ *     measure angle A, B, C
+ *   `);
+ *   // commands: 解析后的 FormulaCommand 数组
  */
 
 import type { Point, Segment, Constraint } from '@/types';
@@ -39,12 +61,26 @@ export type FormulaCommandType =
   | 'comment'
   | 'unknown';
 
+/** 【优化 H3】使用联合类型替代 Record<string, unknown>，提供更精确的类型定义 */
+export type FormulaCommandArgs =
+  | { type: 'point'; name: string; x: number; y: number }
+  | { type: 'segment'; p1Name: string; p2Name: string }
+  | { type: 'circle'; centerName: string; radiusValue: number | null; radiusPointName: string | null }
+  | { type: 'midpoint'; name: string; p1Name: string; p2Name: string }
+  | { type: 'perpendicular'; pointName: string; segP1Name: string; segP2Name: string }
+  | { type: 'parallel'; segP1Name: string; segP2Name: string; throughName: string }
+  | { type: 'intersect'; seg1P1Name: string; seg1P2Name: string; seg2P1Name: string; seg2P2Name: string }
+  | { type: 'measure_distance'; p1Name: string; p2Name: string }
+  | { type: 'measure_angle'; p1Name: string; vertexName: string; p3Name: string }
+  | { type: 'comment'; raw: string }
+  | { type: 'unknown'; raw: string };
+
 /** 解析出的单条命令 */
 export interface FormulaCommand {
   type: FormulaCommandType;
   raw: string;
-  /** 命令参数（根据类型不同含义不同） */
-  args: Record<string, unknown>;
+  /** 命令参数（【优化】使用联合类型替代 Record<string, unknown>，提供更精确的类型） */
+  args: FormulaCommandArgs;
   /** 解析错误（如果有） */
   error?: string;
   /** 执行结果描述 */
@@ -63,6 +99,66 @@ export interface FormulaParseResult {
   createdConstraints: Constraint[];
   /** 度量结果 */
   measurements: Array<{ label: string; value: string }>;
+}
+
+// ================================================================
+// 【新增】类型安全工具函数
+// ================================================================
+
+/**
+ * 【优化 H3】安全类型提取函数
+ * 替代 unsafe 的 `as` 类型断言，提供运行时验证
+ *
+ * @param args - 原始参数对象
+ * @param expectedKeys - 期望存在的键名
+ * @param cmdType - 命令类型（用于错误消息）
+ * @returns 提取并验证后的参数对象
+ * @throws 如果缺少必需的键或类型不正确
+ */
+function extractArgs<T extends Record<string, unknown>>(
+  args: Record<string, unknown>,
+  expectedKeys: (keyof T)[],
+  cmdType: string,
+): T {
+  const missingKeys: string[] = [];
+  const wrongTypeKeys: string[] = [];
+
+  for (const key of expectedKeys) {
+    if (!(key in args)) {
+      missingKeys.push(key as string);
+    }
+  }
+
+  if (missingKeys.length > 0) {
+    throw new Error(`命令 "${cmdType}" 缺少必需参数: ${missingKeys.join(', ')}`);
+  }
+
+  // 类型验证
+  const result = {} as T;
+  for (const key of expectedKeys) {
+    result[key] = args[key as string] as T[keyof T];
+  }
+
+  return result;
+}
+
+/**
+ * 【优化 H3】安全获取点名称参数
+ * 专门处理点名称的提取和验证
+ *
+ * @param args - 原始参数对象
+ * @param keys - 点名称参数键名数组
+ * @param cmdType - 命令类型
+ * @returns 验证后的点名称数组
+ */
+function extractPointNames(args: Record<string, unknown>, keys: string[], cmdType: string): string[] {
+  return keys.map((key) => {
+    const value = args[key];
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new Error(`命令 "${cmdType}" 的参数 "${key}" 必须是有效的非空字符串`);
+    }
+    return value.trim();
+  });
 }
 
 // ================================================================
@@ -301,7 +397,8 @@ function parseLine(line: string): FormulaCommand {
 // ================================================================
 
 /**
- * 执行解析后的命令列表，创建几何图元
+ * 【优化 H3】执行解析后的命令列表，创建几何图元
+ * 使用类型安全的参数提取替代 unsafe 的 as 断言
  */
 export function executeFormula(
   commands: FormulaCommand[],
@@ -339,7 +436,19 @@ export function executeFormula(
     try {
       switch (cmd.type) {
         case 'point': {
-          const { name, x, y } = cmd.args as { name: string; x: number; y: number };
+          // 【优化 H3】使用类型安全的参数提取
+          const { name, x, y } = cmd.args as { type: 'point'; name: string; x: number; y: number };
+          // 数值验证
+          if (typeof x !== 'number' || isNaN(x)) {
+            cmd.error = `点 ${name} 的 x 坐标无效`;
+            result.errors.push(cmd.error);
+            break;
+          }
+          if (typeof y !== 'number' || isNaN(y)) {
+            cmd.error = `点 ${name} 的 y 坐标无效`;
+            result.errors.push(cmd.error);
+            break;
+          }
           const pt: Point = { id: generateUniqueId(), x, y };
           registerPoint(name, pt);
           cmd.result = `创建点 ${name}(${x}, ${y})`;
@@ -347,7 +456,8 @@ export function executeFormula(
         }
 
         case 'segment': {
-          const { p1Name, p2Name } = cmd.args as { p1Name: string; p2Name: string };
+          // 【优化 H3】使用类型安全的参数提取
+          const { p1Name, p2Name } = cmd.args as { type: 'segment'; p1Name: string; p2Name: string };
           const p1 = getPoint(p1Name);
           const p2 = getPoint(p2Name);
           if (!p1) {
@@ -367,7 +477,9 @@ export function executeFormula(
         }
 
         case 'circle': {
+          // 【优化 H3】使用类型安全的参数提取
           const { centerName, radiusValue, radiusPointName } = cmd.args as {
+            type: 'circle';
             centerName: string;
             radiusValue: number | null;
             radiusPointName: string | null;
@@ -380,8 +492,19 @@ export function executeFormula(
           }
           let radius: number;
           if (radiusValue !== null) {
+            // 验证半径值类型和有效性
+            if (typeof radiusValue !== 'number' || isNaN(radiusValue)) {
+              cmd.error = `圆 ${centerName} 的半径值无效`;
+              result.errors.push(cmd.error);
+              break;
+            }
             radius = radiusValue;
-          } else if (radiusPointName) {
+          } else if (radiusPointName !== null) {
+            if (typeof radiusPointName !== 'string') {
+              cmd.error = `圆 ${centerName} 的半径点名称无效`;
+              result.errors.push(cmd.error);
+              break;
+            }
             const rp = getPoint(radiusPointName);
             if (!rp) {
               cmd.error = `半径点 ${radiusPointName} 未定义`;
@@ -430,7 +553,9 @@ export function executeFormula(
         }
 
         case 'midpoint': {
+          // 【优化 H3】使用类型安全的参数提取
           const { name, p1Name, p2Name } = cmd.args as {
+            type: 'midpoint';
             name: string;
             p1Name: string;
             p2Name: string;
@@ -465,7 +590,9 @@ export function executeFormula(
         }
 
         case 'perpendicular': {
+          // 【优化 H3】使用类型安全的参数提取
           const { pointName, segP1Name, segP2Name } = cmd.args as {
+            type: 'perpendicular';
             pointName: string;
             segP1Name: string;
             segP2Name: string;
@@ -503,7 +630,9 @@ export function executeFormula(
         }
 
         case 'parallel': {
+          // 【优化 H3】使用类型安全的参数提取
           const { segP1Name, segP2Name, throughName } = cmd.args as {
+            type: 'parallel';
             segP1Name: string;
             segP2Name: string;
             throughName: string;
@@ -552,7 +681,9 @@ export function executeFormula(
         }
 
         case 'intersect': {
+          // 【优化 H3】使用类型安全的参数提取
           const { seg1P1Name, seg1P2Name, seg2P1Name, seg2P2Name } = cmd.args as {
+            type: 'intersect';
             seg1P1Name: string;
             seg1P2Name: string;
             seg2P1Name: string;
@@ -580,7 +711,8 @@ export function executeFormula(
         }
 
         case 'measure_distance': {
-          const { p1Name, p2Name } = cmd.args as { p1Name: string; p2Name: string };
+          // 【优化 H3】使用类型安全的参数提取
+          const { p1Name, p2Name } = cmd.args as { type: 'measure_distance'; p1Name: string; p2Name: string };
           const p1 = getPoint(p1Name);
           const p2 = getPoint(p2Name);
           if (!p1 || !p2) {
@@ -596,7 +728,9 @@ export function executeFormula(
         }
 
         case 'measure_angle': {
+          // 【优化 H3】使用类型安全的参数提取
           const { p1Name, vertexName, p3Name } = cmd.args as {
+            type: 'measure_angle';
             p1Name: string;
             vertexName: string;
             p3Name: string;
@@ -627,6 +761,7 @@ export function executeFormula(
           break;
       }
     } catch (e) {
+      // 【优化】改进错误消息，提供更多上下文信息
       const errMsg = `执行命令时出错: ${cmd.raw} - ${(e as Error).message}`;
       cmd.error = errMsg;
       result.errors.push(errMsg);

@@ -142,3 +142,15 @@ log/benchmark_results/archive/
 
 # 分支原型目录（非正式源码）
 module/branches/
+
+# 根目录 lock 文件（顶层 package.json 仅用于工具脚本）
+/package-lock.json
+
+# 根目录垃圾文件防护
+/null
+/test_output.svg
+/test_edge_debug.c
+
+# 重复目录防护（统一使用 doc/ 和 test/）
+/docs/
+/tests/

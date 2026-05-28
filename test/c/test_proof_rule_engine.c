@@ -447,6 +447,211 @@ static void test_proof_state_management(void) {
 
 /* ============== Test: Utility String Functions ============== */
 
+/* ============== 测试辅助：超时测试用的规则 ============== */
+
+/**
+ * @brief 超时测试用：始终适用，但总是推送子目标（永不完成证明）
+ *
+ * 这样搜索会不断深入，直到超时或达到深度限制。
+ */
+static bool timeout_push_subgoal_apply(const Lv00ProofRule *rule,
+                                        Lv00ProofState *state) {
+    (void)rule;
+    /* 推送一个新子目标，使搜索永远无法完成 */
+    return proof_state_push_goal(state, "timeout_subgoal");
+}
+
+/**
+ * @brief BFS 测试用：第一步规则 —— 将 "prove_A_and_B" 分解为 "prove_A" 和 "prove_B"
+ */
+static bool bfs_step1_applicable(const Lv00ProofRule *rule,
+                                  const Lv00ProofState *state) {
+    (void)rule;
+    const char *goal = proof_state_current_goal(state);
+    return goal != NULL && strcmp(goal, "prove_A_and_B") == 0;
+}
+
+static bool bfs_step1_apply(const Lv00ProofRule *rule,
+                             Lv00ProofState *state) {
+    (void)rule;
+    /* 弹出当前目标，推送两个子目标 */
+    proof_state_pop_goal(state);
+    proof_state_push_goal(state, "prove_B");
+    proof_state_push_goal(state, "prove_A");
+    return true;
+}
+
+/**
+ * @brief BFS 测试用：第二步规则 —— 解决 "prove_A"
+ */
+static bool bfs_step2_applicable(const Lv00ProofRule *rule,
+                                  const Lv00ProofState *state) {
+    (void)rule;
+    const char *goal = proof_state_current_goal(state);
+    return goal != NULL && strcmp(goal, "prove_A") == 0;
+}
+
+static bool bfs_step2_apply(const Lv00ProofRule *rule,
+                             Lv00ProofState *state) {
+    (void)rule;
+    /* 弹出 "prove_A" 目标 */
+    return proof_state_pop_goal(state);
+}
+
+/**
+ * @brief BFS 测试用：第三步规则 —— 解决 "prove_B"
+ */
+static bool bfs_step3_applicable(const Lv00ProofRule *rule,
+                                  const Lv00ProofState *state) {
+    (void)rule;
+    const char *goal = proof_state_current_goal(state);
+    return goal != NULL && strcmp(goal, "prove_B") == 0;
+}
+
+static bool bfs_step3_apply(const Lv00ProofRule *rule,
+                             Lv00ProofState *state) {
+    (void)rule;
+    /* 弹出 "prove_B" 目标 */
+    return proof_state_pop_goal(state);
+}
+
+/* ============== Test: 超时机制验证 ============== */
+
+static void test_search_timeout(void) {
+    printf("Testing search timeout mechanism...\n");
+
+    /* 创建一个有很多规则且永不完成证明的引擎 */
+    Lv00RuleEngine *engine = rule_engine_create_ex(SEARCH_BEST_FIRST, 1000, 100);
+    TEST_ASSERT_NOT_NULL(engine);
+    TEST_ASSERT_EQ(engine->timeout_ms, 100);
+
+    /* 添加多个规则，每个都会推送子目标（永不完成证明） */
+    int i;
+    for (i = 0; i < 30; i++) {
+        Lv00ProofRule *rule = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+        TEST_ASSERT_NOT_NULL(rule);
+        memset(rule, 0, sizeof(Lv00ProofRule));
+        snprintf(rule->name, LV00_PROOF_RULE_NAME_MAX, "timeout_rule_%d", i);
+        rule->type = RULE_INTRO;
+        rule->priority = 100 - i;
+        rule->weight = 1.0 - (double)i * 0.01;
+        rule->applicability_check_fn = sample_always_applicable;
+        rule->apply_fn = timeout_push_subgoal_apply;
+        rule_engine_add_rule(engine, rule);
+    }
+    TEST_ASSERT_EQ(rule_engine_rule_count(engine), 30);
+
+    /* 创建一个初始目标 */
+    Lv00ProofState *state = proof_state_create("timeout_goal");
+    TEST_ASSERT_NOT_NULL(state);
+
+    /* 执行搜索，设置 timeout_ms = 100（100毫秒），应返回 SEARCH_RESULT_TIMEOUT */
+    Lv00SearchResultStatus result = rule_engine_search(engine, state);
+    TEST_ASSERT_EQ(result, SEARCH_RESULT_TIMEOUT);
+
+    proof_state_destroy(state);
+    rule_engine_destroy(engine);
+
+    /* 验证无超时时的行为不受影响 */
+    engine = rule_engine_create_ex(SEARCH_BEST_FIRST, 8, 0);
+    TEST_ASSERT_NOT_NULL(engine);
+
+    Lv00ProofRule *solve_rule = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    TEST_ASSERT_NOT_NULL(solve_rule);
+    memset(solve_rule, 0, sizeof(Lv00ProofRule));
+    strncpy(solve_rule->name, "solve_no_timeout", LV00_PROOF_RULE_NAME_MAX - 1);
+    solve_rule->type = RULE_INTRO;
+    solve_rule->priority = 100;
+    solve_rule->weight = 1.0;
+    solve_rule->applicability_check_fn = sample_always_applicable;
+    solve_rule->apply_fn = sample_pop_goal_apply;
+    rule_engine_add_rule(engine, solve_rule);
+
+    state = proof_state_create("simple_goal");
+    TEST_ASSERT_NOT_NULL(state);
+
+    result = rule_engine_search(engine, state);
+    TEST_ASSERT_EQ(result, SEARCH_RESULT_FOUND);
+    TEST_ASSERT(proof_state_is_complete(state), "无超时时应正常完成证明");
+
+    proof_state_destroy(state);
+    rule_engine_destroy(engine);
+
+    printf("  PASSED\n");
+}
+
+/* ============== Test: BFS 搜索验证 ============== */
+
+static void test_search_breadth_first(void) {
+    printf("Testing BFS search...\n");
+
+    /* 创建 BFS 引擎，需要 3 步才能完成证明：
+     * 1. step1: "prove_A_and_B" -> ["prove_B", "prove_A"]
+     * 2. step2: pop "prove_A" -> ["prove_B"]
+     * 3. step3: pop "prove_B" -> [] (完成)
+     */
+    Lv00RuleEngine *engine = rule_engine_create_ex(SEARCH_BREADTH_FIRST, 16, 0);
+    TEST_ASSERT_NOT_NULL(engine);
+
+    /* 规则1：分解目标 */
+    Lv00ProofRule *rule1 = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    TEST_ASSERT_NOT_NULL(rule1);
+    memset(rule1, 0, sizeof(Lv00ProofRule));
+    strncpy(rule1->name, "split_goal", LV00_PROOF_RULE_NAME_MAX - 1);
+    rule1->type = RULE_CASE_SPLIT;
+    rule1->priority = 10;
+    rule1->weight = 0.9;
+    rule1->applicability_check_fn = bfs_step1_applicable;
+    rule1->apply_fn = bfs_step1_apply;
+    rule_engine_add_rule(engine, rule1);
+
+    /* 规则2：解决 prove_A */
+    Lv00ProofRule *rule2 = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    TEST_ASSERT_NOT_NULL(rule2);
+    memset(rule2, 0, sizeof(Lv00ProofRule));
+    strncpy(rule2->name, "solve_A", LV00_PROOF_RULE_NAME_MAX - 1);
+    rule2->type = RULE_INTRO;
+    rule2->priority = 10;
+    rule2->weight = 0.8;
+    rule2->applicability_check_fn = bfs_step2_applicable;
+    rule2->apply_fn = bfs_step2_apply;
+    rule_engine_add_rule(engine, rule2);
+
+    /* 规则3：解决 prove_B */
+    Lv00ProofRule *rule3 = (Lv00ProofRule *)lv00_malloc(sizeof(Lv00ProofRule));
+    TEST_ASSERT_NOT_NULL(rule3);
+    memset(rule3, 0, sizeof(Lv00ProofRule));
+    strncpy(rule3->name, "solve_B", LV00_PROOF_RULE_NAME_MAX - 1);
+    rule3->type = RULE_INTRO;
+    rule3->priority = 10;
+    rule3->weight = 0.8;
+    rule3->applicability_check_fn = bfs_step3_applicable;
+    rule3->apply_fn = bfs_step3_apply;
+    rule_engine_add_rule(engine, rule3);
+
+    TEST_ASSERT_EQ(rule_engine_rule_count(engine), 3);
+
+    /* 创建初始证明状态 */
+    Lv00ProofState *state = proof_state_create("prove_A_and_B");
+    TEST_ASSERT_NOT_NULL(state);
+    TEST_ASSERT(!proof_state_is_complete(state), "初始状态不应已完成");
+
+    /* 执行 BFS 搜索 */
+    Lv00SearchResultStatus result = rule_engine_search(engine, state);
+    TEST_ASSERT_EQ(result, SEARCH_RESULT_FOUND);
+    TEST_ASSERT(proof_state_is_complete(state), "BFS 搜索后证明应已完成");
+
+    /* 验证至少应用了规则（BFS 应该找到路径） */
+    TEST_ASSERT(state->applied_rule_count > 0, "BFS 搜索应至少应用一个规则");
+
+    proof_state_destroy(state);
+    rule_engine_destroy(engine);
+
+    printf("  PASSED\n");
+}
+
+/* ============== Test: Utility String Functions ============== */
+
 static void test_utility_string_functions(void) {
     printf("Testing utility string functions...\n");
 
@@ -501,6 +706,8 @@ int main(void) {
     TEST_RUN(test_rule_engine_create);
     TEST_RUN(test_rule_engine_add_rule);
     TEST_RUN(test_rule_engine_search_simple);
+    TEST_RUN(test_search_timeout);
+    TEST_RUN(test_search_breadth_first);
     TEST_RUN(test_proof_session_create);
     TEST_RUN(test_proof_session_submit_step);
     TEST_RUN(test_proof_session_get_state_json);

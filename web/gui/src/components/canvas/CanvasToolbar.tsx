@@ -20,7 +20,7 @@ const TOOLS: Array<{ id: ToolType; icon: string; label: string; title: string }>
   { id: 'compass', icon: 'O', label: 'CMP', title: 'COMPASS / 圆规 (C)' },
   { id: 'pan', icon: 'H', label: 'PAN', title: 'PAN VIEW / 平移视图 (H)' },
   { id: 'region', icon: 'R', label: 'REG', title: 'REGION / 区域 (R)' },
-  { id: 'probe', icon: '?', label: 'PRB', title: 'PROBE / 探测 (?)' },
+  { id: 'probe', icon: 'I', label: 'PRB', title: 'PROBE / 探测 (I)' },
 ];
 
 /**

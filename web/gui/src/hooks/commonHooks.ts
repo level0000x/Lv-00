@@ -22,7 +22,7 @@
  * @since 3.6.0
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // ================================================================
 // useAsync - 异步操作状态管理
@@ -260,7 +260,7 @@ export function useThrottledCallback<T extends (...args: unknown[]) => unknown>(
   delay: number,
 ): T {
   const lastCallRef = useRef<number>(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const throttled = useCallback(
     (...args: Parameters<T>) => {

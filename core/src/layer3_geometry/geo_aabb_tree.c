@@ -583,7 +583,7 @@ static int aabb2d_build_recursive(Lv00AABBTree2D *tree,
         for (int k = 0; k < count; k++) {
             tree->leaf_prim_ids[old_size + k] = prim_indices[k];
         }
-        tree->leaf_prim_capacity = old_size + count;
+        /* 注意：leaf_prim_capacity 保持为容量值，不要修改为已使用大小 */
         return node_idx;
     }
 

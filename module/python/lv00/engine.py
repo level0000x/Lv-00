@@ -59,10 +59,14 @@ Lv-00 引擎模块
 作者：Lv-00 开发团队
 """
 
+# 【优化】统一使用 Python 3.10+ 现代类型注解风格
+# 如需兼容旧版 Python，可在文件顶部添加 `from __future__ import annotations`
+from __future__ import annotations
+
 import ctypes
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Tuple, Type
 
 from .core import Lv00BaseError
 

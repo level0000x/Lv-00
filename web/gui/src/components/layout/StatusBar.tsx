@@ -29,7 +29,7 @@ const TOOL_COMPACT_KEYS: Record<ToolType, string> = {
   compass: 'C',
   pan: 'H',
   region: 'R',
-  probe: '?',
+  probe: 'I',
 };
 
 /**

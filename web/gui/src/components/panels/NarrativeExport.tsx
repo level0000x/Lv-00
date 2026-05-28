@@ -7,9 +7,19 @@
  *              Given the current geometric construction, automatically generates
  *              a narrative proof/story and an annotated SVG visualization.
  *
- *              核心业务逻辑已提取到 utils/ 目录：
- *              - narrativeGenerator.ts: 模式检测 + 叙述生成
- *              - narrativeSvg.ts: SVG 可视化生成
+ * 主要功能 / Key Features:
+ * - 自动检测几何构造中的模式（三角形、平行四边形、圆等）
+ * - 生成叙述性证明步骤，支持中文和英文
+ * - 支持多种叙述风格：简洁（concise）、详细（detailed）、教学（pedagogical）
+ * - 生成带标注的 SVG 可视化图，可下载或复制
+ * - 提供设置面板，可控制是否显示约束和测量信息
+ * - 核心逻辑已提取到 utils/narrativeGenerator.ts 和 utils/narrativeSvg.ts
+ *
+ * 使用示例 / Usage:
+ *   // 作为侧边栏面板使用
+ *   <NarrativeExport />
+ *
+ *   // 用户点击"生成叙述"按钮后，自动分析当前几何构造并输出证明步骤
  */
 
 import React, { useState, useCallback, useMemo, useRef } from 'react';

@@ -548,8 +548,8 @@ export class BackendAdapter {
           return null;
         }
 
-        this.backend = new WasmBackend(wasmInstance);
-        this.graphHandle = this.backend.graphCreate();
+        this.backend = new WasmBackend(wasmInstance) as IBackend;
+        this.graphHandle = this.backend!.graphCreate();
         
         logger.info('[BackendAdapter] WASM backend initialized successfully');
         return {

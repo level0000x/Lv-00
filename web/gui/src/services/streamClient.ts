@@ -203,6 +203,8 @@ export function createStreamClient(
 ): StreamClient {
   const opts: Required<StreamClientOptions> = { ...DEFAULT_OPTIONS, ...options };
 
+  // 【优化】使用内部标志位代替修改 options 对象，避免副作用
+  let autoReconnectEnabled = opts.autoReconnect;
   let ws: WebSocket | null = null;
   let state: EngineStreamState = 'disconnected';
   let reconnectAttempt = 0;
@@ -212,6 +214,8 @@ export function createStreamClient(
   let lastEventTime = 0;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let heartbeatTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  // 【安全修复 M-08】保存重连定时器 ID，以便在 destroy 时清理
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** 更新内部状态并通知回调 */
   function setState(newState: EngineStreamState): void {
@@ -244,6 +248,11 @@ export function createStreamClient(
     if (heartbeatTimeoutTimer !== null) {
       clearTimeout(heartbeatTimeoutTimer);
       heartbeatTimeoutTimer = null;
+    }
+    // 【安全修复 M-08】清理重连定时器，防止 destroy 后仍触发重连
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
     }
   }
 
@@ -343,17 +352,20 @@ export function createStreamClient(
       }
     };
 
-    ws.onerror = (error) => {
-      // 记录详细的错误信息便于调试
-      const errorMsg = ws ? `WebSocket state: ${ws.readyState}` : 'WebSocket is null';
-      console.error('[StreamClient] WebSocket error:', error, errorMsg);
+    ws.onerror = (event) => {
+      // 【优化】记录更详细的错误信息，便于排查问题
+      // ErrorEvent 包含 message/type 等诊断信息
+      const errorType = 'type' in event ? event.type : 'unknown';
+      const errorMessage = 'message' in event ? event.message : 'Unknown error';
+      const wsState = ws ? `WebSocket state: ${ws.readyState}` : 'WebSocket is null';
+      console.error('[StreamClient] WebSocket error:', { type: errorType, message: errorMessage }, wsState);
 
       if (ws?.readyState === WebSocket.CLOSED || ws?.readyState === WebSocket.CLOSING) {
         handleDisconnect();
         scheduleReconnect();
       } else {
         setState('error');
-        callbacks.onError(new Error(`WebSocket 连接错误: ${errorMsg}`));
+        callbacks.onError(new Error(`WebSocket 连接错误: ${errorMessage} (${wsState})`));
       }
     };
 
@@ -365,7 +377,8 @@ export function createStreamClient(
 
   /** 调度重连（指数退避） */
   function scheduleReconnect(): void {
-    if (!opts.autoReconnect || reconnectAttempt >= opts.maxReconnectAttempts) {
+    // 【优化】使用内部标志位判断是否重连，避免修改原 options 对象
+    if (!autoReconnectEnabled || reconnectAttempt >= opts.maxReconnectAttempts) {
       setState('error');
       callbacks.onError(new Error(
         `重连失败：已达到最大重连次数 (${opts.maxReconnectAttempts})`,
@@ -379,8 +392,10 @@ export function createStreamClient(
     );
     reconnectAttempt++;
 
-    setTimeout(() => {
-      if (state === 'disconnected' || state === 'error') {
+    // 【安全修复 M-08】保存定时器 ID，以便在 cleanup/destroy 时清理
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null; // 定时器触发后重置
+      if (autoReconnectEnabled && (state === 'disconnected' || state === 'error')) {
         connect();
       }
     }, delay);
@@ -388,7 +403,8 @@ export function createStreamClient(
 
   /** 断开连接 */
   function disconnect(): void {
-    opts.autoReconnect = false;
+    // 【优化】使用内部标志位代替 opts.autoReconnect = false，避免修改原 options 对象
+    autoReconnectEnabled = false;
     if (ws) {
       ws.close();
       ws = null;

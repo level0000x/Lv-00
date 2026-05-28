@@ -3170,6 +3170,35 @@ Major mathematical branches are now comprehensively covered. The three classical
    - contradiction_behavior: explosion_principle
    - Total axiom packages: 50 (including 2 unnumbered), covering 23 mathematical branches
 
+### 52. non_well_founded_set_theory v1.0.0
+
+**Mathematical Theory**: Non-well-founded set theory (ZFA) — Zermelo-Fraenkel set theory with Aczel's Anti-Foundation Axiom (AFA) replacing the Axiom of Regularity. Allows sets to contain themselves and form infinite descending membership chains, while preserving extensionality strengthened by bisimulation equivalence.
+- **References**:
+  - Aczel, P. (1988). "Non-Well-Founded Sets." CSLI Lecture Notes, vol. 14. Stanford University. ISBN 0-937073-22-9.
+    https://archive.org/details/nonwellfoundedse0000acze/page/
+  - Barwise, J. & Moss, L.S. (1996). "Vicious Circles: On the Mathematics of Non-Wellfounded Phenomena." CSLI Publications. ISBN 1-57586-009-0.
+  - Forti, M. & Honsell, F. (1983). "Set theory with free construction principles." Annali della Scuola Normale Superiore di Pisa, 10(3): 493-522.
+  - Wikipedia: Non-well-founded set theory
+    https://en.wikipedia.org/wiki/Non-well-founded_set_theory
+  - Wikipedia: Aczel's anti-foundation axiom
+    https://en.wikipedia.org/wiki/Aczel%27s_anti-foundation_axiom
+  - Stanford Encyclopedia of Philosophy: Non-wellfounded Set Theory
+    https://plato.stanford.edu/entries/nonwellfounded-set-theory/
+  - Mirimanoff, D. (1917). "Les antinomies de Russell et de Burali-Forti et le probleme fondamental de la theorie des ensembles." L'Enseignement Mathematique, 19: 37-52.
+  - Finsler, P. (1926). "Uber die Grundlagen der Mengenlehre. I." Math. Z., 25: 683-713.
+  - Scott, D. (1960). "A different kind of model for set theory." Unpublished talk, 1960 Stanford Congress.
+  - Boffa, M. (1968). "Les ensembles extraordinaires." Bulletin de la Societe Mathematique de Belgique, 20: 3-15.
+- **Primitive Notions**: hyperset, ∈ (membership), = (bisimulation-based equality)
+- **Core Axioms**: 10 (ZF minus Regularity, plus AFA in two equivalent forms: decoration and solution lemma)
+- **Constraint Templates**: 42 (10 core axioms + 7 graph-theoretic machinery + 14 core constructors + 6 coinductive operations + 5 ZFC comparison)
+- **Known Unconstructible Problems**: 8 (foundation independence, AFA/SAFA/FAFA/BAFA exclusivity, Quine atom uniqueness in BAFA, ZFA consistency, hyperset existence in ZFC, bisimulation undecidability for infinite systems, CH in ZFA, AC independence in ZFA)
+- **Bottom Geometry**: hyperset_graph_universe
+- **Negation Encoding**: classical_complement_in_hyperset_universe
+- **Contradiction Behavior**: explosion_principle
+
+**File**: `axiom_packages/non_well_founded_set_theory.lvz`
+**Test**: `test/c/test_axiom_non_well_founded_set_theory.c` (11 test functions)
+
 ---
 
 ## Notes

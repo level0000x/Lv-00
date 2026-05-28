@@ -205,10 +205,18 @@ static int expected_participant_count(ConstraintType type) {
         case INCIDENCE:
         case CONTAINMENT:
         case CONNECTION:
+        case CONSTRAINT_DISTANCE:
+        case CONSTRAINT_ANGLE:
+        case CONSTRAINT_COINCIDENT:
+        case CONSTRAINT_PARALLEL:
+        case CONSTRAINT_PERPENDICULAR:
             return 2;
         case BETWEENNESS:
         case INTERSECTION:
             return 3;
+        case CONSTRAINT_HORIZONTAL:
+        case CONSTRAINT_VERTICAL:
+            return 1;
         default:
             return -1;
     }
@@ -368,7 +376,9 @@ static int detect_point_position_conflicts(const ConstraintGraph *graph,
 /**
  * @brief 检测距离约束冲突
  *
- * 检查距离约束是否与几何对象的实际距离一致。
+ * 遍历所有距离约束对，如果两个距离约束涉及同一对实体但值不同，
+ * 则报告 CONFLICT_DISTANCE_MISMATCH 矛盾。
+ * 距离值差异小于 epsilon（1e-9）的视为相同。
  */
 static int detect_distance_conflicts(const ConstraintGraph *graph,
                                       const ConflictDetectorConfig *config,
@@ -377,13 +387,50 @@ static int detect_distance_conflicts(const ConstraintGraph *graph,
     
     const double eps = config ? config->distance_tolerance : g_default_config.distance_tolerance;
     
-    /* 遍历所有约束，查找距离相关的约束 */
+    /* 收集所有活跃的距离约束 */
+    int dist_count = 0;
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *cons = graph->constraints[i];
-        if (!cons) continue;
+        if (cons && cons->is_active && cons->type == CONSTRAINT_DISTANCE) {
+            dist_count++;
+        }
+    }
+    
+    if (dist_count < 2) return 0;
+    
+    /* 两两比较距离约束 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c1 = graph->constraints[i];
+        if (!c1 || !c1->is_active || c1->type != CONSTRAINT_DISTANCE) continue;
+        if (c1->participant_count < 2) continue;
         
-        /* TODO: 实现距离约束检查 */
-        /* 需要解析约束参数，计算实际距离，与约束值比较 */
+        for (int j = i + 1; j < graph->constraint_count; j++) {
+            Constraint *c2 = graph->constraints[j];
+            if (!c2 || !c2->is_active || c2->type != CONSTRAINT_DISTANCE) continue;
+            if (c2->participant_count < 2) continue;
+            
+            /* 检查是否涉及同一对实体（无序对） */
+            int a1 = c1->participants[0], b1 = c1->participants[1];
+            int a2 = c2->participants[0], b2 = c2->participants[1];
+            
+            bool same_pair = (a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2);
+            if (!same_pair) continue;
+            
+            /* 比较距离值 */
+            double diff = fabs(c1->numeric_value - c2->numeric_value);
+            if (diff > eps) {
+                /* 距离值不同，报告矛盾 */
+                char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                snprintf(desc, sizeof(desc),
+                    "实体 %d 和 %d 之间存在矛盾的距离约束："
+                    "约束 %d 要求距离 %.10g，约束 %d 要求距离 %.10g（差值 %.10g > 容差 %.10g）",
+                    a1, b1, c1->id, c1->numeric_value, c2->id, c2->numeric_value, diff, eps);
+                
+                report_constraint_conflict(report, c1, CONFLICT_DISTANCE_MISMATCH,
+                    CONFLICT_SEVERITY_ERROR, desc,
+                    "移除或修正其中一个距离约束，确保同一对实体只有一个距离值。");
+            }
+        }
     }
     
     return 0;
@@ -415,29 +462,120 @@ static int detect_basic_conflicts(const ConstraintGraph *graph,
 
 /**
  * @brief 检测两个约束之间的逻辑冲突
+ *
+ * 检测以下冲突模式：
+ * 1. 角度冲突：同一对实体有两个矛盾角度约束（差值不是 0 或 180 度）
+ * 2. 平行 vs 垂直：同一对实体同时有 PARALLEL 和 PERPENDICULAR 约束
+ * 3. 水平 vs 垂直：同一线段同时有 HORIZONTAL 和 VERTICAL 约束
+ * 4. 相交 vs 平行：两条线不能同时相交和平行
  */
 static int check_constraint_pair_conflict(const ConstraintGraph *graph,
                                            Constraint *c1,
                                            Constraint *c2,
                                            const ConflictDetectorConfig *config,
                                            ConflictReport *report) {
-    if (!c1 || !c2) return 0;
+    if (!c1 || !c2 || !c1->is_active || !c2->is_active) return 0;
     
-    /* 垂直 vs 平行：同一对线不能同时垂直和平行 */
-    if ((c1->type == INCIDENCE && c2->type == INCIDENCE)) {
-        /* TODO: 检查是否涉及垂直和平行的混合 */
+    const double angle_eps = config ? config->angle_tolerance : g_default_config.angle_tolerance;
+    /* 180 度对应的弧度 */
+    const double PI = 3.14159265358979323846;
+    const double PI_EPS = PI + angle_eps;
+    
+    /* ---- 角度冲突检测 ---- */
+    if (c1->type == CONSTRAINT_ANGLE && c2->type == CONSTRAINT_ANGLE &&
+        c1->participant_count >= 2 && c2->participant_count >= 2) {
+        int a1 = c1->participants[0], b1 = c1->participants[1];
+        int a2 = c2->participants[0], b2 = c2->participants[1];
+        
+        /* 检查是否涉及同一对实体（无序对） */
+        bool same_pair = (a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2);
+        if (same_pair) {
+            /* 计算角度差值（归一化到 [0, 2*PI)） */
+            double diff = fabs(c1->numeric_value - c2->numeric_value);
+            /* 归一化到 [0, PI) */
+            while (diff >= PI) diff -= PI;
+            if (diff < 0) diff = -diff;
+            
+            /* 角度差不是 0（相同角度）也不是 180 度（互补角度），则矛盾 */
+            if (diff > angle_eps && fabs(diff - PI) > angle_eps) {
+                char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                snprintf(desc, sizeof(desc),
+                    "实体 %d 和 %d 之间存在矛盾的角度约束："
+                    "约束 %d 要求 %.6g 弧度，约束 %d 要求 %.6g 弧度（差值 %.6g 弧度）",
+                    a1, b1, c1->id, c1->numeric_value, c2->id, c2->numeric_value, diff);
+                
+                report_constraint_conflict(report, c1, CONFLICT_ANGLE_MISMATCH,
+                    CONFLICT_SEVERITY_ERROR, desc,
+                    "移除或修正其中一个角度约束。两个角度约束的差值必须是 0 或 180 度。");
+            }
+        }
     }
     
-    /* 相交 vs 平行：两条线不能同时相交和平行 */
-    if ((c1->type == INTERSECTION && c2->type == INCIDENCE) ||
-        (c1->type == INCIDENCE && c2->type == INTERSECTION)) {
-        /* TODO: 检查是否涉及同一线对 */
+    /* ---- 平行 vs 垂直冲突 ---- */
+    if ((c1->type == CONSTRAINT_PARALLEL && c2->type == CONSTRAINT_PERPENDICULAR) ||
+        (c1->type == CONSTRAINT_PERPENDICULAR && c2->type == CONSTRAINT_PARALLEL)) {
+        /* 检查是否涉及同一对线段 */
+        if (c1->participant_count >= 2 && c2->participant_count >= 2) {
+            int a1 = c1->participants[0], b1 = c1->participants[1];
+            int a2 = c2->participants[0], b2 = c2->participants[1];
+            bool same_pair = (a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2);
+            if (same_pair) {
+                char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                snprintf(desc, sizeof(desc),
+                    "线段 %d 和 %d 同时被约束为平行（约束 %d）和垂直（约束 %d），这是矛盾的。",
+                    a1, b1,
+                    c1->type == CONSTRAINT_PARALLEL ? c1->id : c2->id,
+                    c1->type == CONSTRAINT_PERPENDICULAR ? c1->id : c2->id);
+                
+                report_constraint_conflict(report, c1, CONFLICT_PERPENDICULAR_VS_PARALLEL,
+                    CONFLICT_SEVERITY_CRITICAL, desc,
+                    "移除平行约束或垂直约束，两条线段不能同时平行和垂直。");
+            }
+        }
     }
     
-    /* 包含 vs 分离：一个对象不能同时被包含和分离 */
-    if ((c1->type == CONTAINMENT && c2->type == INCIDENCE) ||
-        (c1->type == INCIDENCE && c2->type == CONTAINMENT)) {
-        /* TODO: 检查是否涉及同一对象对 */
+    /* ---- 水平 vs 垂直冲突 ---- */
+    if ((c1->type == CONSTRAINT_HORIZONTAL && c2->type == CONSTRAINT_VERTICAL) ||
+        (c1->type == CONSTRAINT_VERTICAL && c2->type == CONSTRAINT_HORIZONTAL)) {
+        /* 检查是否涉及同一线段 */
+        if (c1->participant_count >= 1 && c2->participant_count >= 1) {
+            int line1 = c1->participants[0];
+            int line2 = c2->participants[0];
+            if (line1 == line2) {
+                char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                snprintf(desc, sizeof(desc),
+                    "线段 %d 同时被约束为水平（约束 %d）和垂直（约束 %d），这是矛盾的。",
+                    line1,
+                    c1->type == CONSTRAINT_HORIZONTAL ? c1->id : c2->id,
+                    c1->type == CONSTRAINT_VERTICAL ? c1->id : c2->id);
+                
+                report_constraint_conflict(report, c1, CONFLICT_PERPENDICULAR_VS_PARALLEL,
+                    CONFLICT_SEVERITY_CRITICAL, desc,
+                    "移除水平约束或垂直约束，一条线段不能同时水平和垂直。");
+            }
+        }
+    }
+    
+    /* ---- 相交 vs 平行冲突（原有逻辑补充） ---- */
+    if ((c1->type == INTERSECTION && c2->type == CONSTRAINT_PARALLEL) ||
+        (c1->type == CONSTRAINT_PARALLEL && c2->type == INTERSECTION)) {
+        if (c1->participant_count >= 2 && c2->participant_count >= 2) {
+            int a1 = c1->participants[0], b1 = c1->participants[1];
+            int a2 = c2->participants[0], b2 = c2->participants[1];
+            bool same_pair = (a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2);
+            if (same_pair) {
+                char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                snprintf(desc, sizeof(desc),
+                    "线段 %d 和 %d 同时被约束为相交（约束 %d）和平行（约束 %d），这是矛盾的。",
+                    a1, b1,
+                    c1->type == INTERSECTION ? c1->id : c2->id,
+                    c1->type == CONSTRAINT_PARALLEL ? c1->id : c2->id);
+                
+                report_constraint_conflict(report, c1, CONFLICT_INTERSECTION_VS_PARALLEL,
+                    CONFLICT_SEVERITY_CRITICAL, desc,
+                    "移除相交约束或平行约束，两条线段不能同时相交和平行。");
+            }
+        }
     }
     
     return 0;
@@ -471,13 +609,106 @@ static int detect_combination_conflicts(const ConstraintGraph *graph,
 /**
  * @brief 检测传递等式矛盾
  *
- * 检查是否存在 A=B, B=C, 但 A≠C 的情况。
+ * 使用 Union-Find（并查集）算法：
+ * 1. 遍历所有 COINCIDENT 约束，将两个实体合并到同一集合
+ * 2. 检查是否存在矛盾：同一对实体既被标记为 COINCIDENT 又有非零距离约束
+ * 3. 检查传递矛盾：A=B, B=C, 但 A 和 C 有非零距离约束
  */
 static int detect_transitive_equality_conflicts(const ConstraintGraph *graph,
                                                  const ConflictDetectorConfig *config,
                                                  ConflictReport *report) {
-    /* TODO: 实现传递等式检测 */
-    /* 需要构建等式关系图，检查连通分量的等价性 */
+    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    
+    const double dist_eps = config ? config->distance_tolerance : g_default_config.distance_tolerance;
+    
+    /* 收集所有节点 ID，确定并查集大小 */
+    int max_node_id = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->id > max_node_id) {
+            max_node_id = graph->nodes[i]->id;
+        }
+    }
+    
+    if (max_node_id <= 0) return 0;
+    
+    /* 分配并查集数组（parent[i] 表示节点 i 的父节点） */
+    int uf_size = max_node_id + 1;
+    int *parent = (int *)lv00_malloc(sizeof(int) * (size_t)uf_size);
+    if (!parent) return LV00_ERROR_NULL_POINTER;
+    
+    /* 初始化：每个节点的父节点是自己 */
+    for (int i = 0; i < uf_size; i++) {
+        parent[i] = i;
+    }
+    
+    /* 并查集：查找根节点（带路径压缩） */
+    /* 使用函数指针宏模拟内联函数 */
+    #define UF_FIND(x) \
+        do { \
+            while (parent[(x)] != (x)) { \
+                parent[(x)] = parent[parent[(x)]]; /* 路径压缩 */ \
+                (x) = parent[(x)]; \
+            } \
+        } while (0)
+    
+    #define UF_UNION(a, b) \
+        do { \
+            int _ra = (a), _rb = (b); \
+            UF_FIND(_ra); \
+            UF_FIND(_rb); \
+            if (_ra != _rb) { parent[_ra] = _rb; } \
+        } while (0)
+    
+    /* 步骤 1：遍历所有 COINCIDENT 约束，合并实体 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *cons = graph->constraints[i];
+        if (!cons || !cons->is_active || cons->type != CONSTRAINT_COINCIDENT) continue;
+        if (cons->participant_count < 2 || !cons->participants) continue;
+        
+        int a = cons->participants[0];
+        int b = cons->participants[1];
+        if (a >= 0 && a < uf_size && b >= 0 && b < uf_size) {
+            UF_UNION(a, b);
+        }
+    }
+    
+    /* 步骤 2：检查距离约束是否与 COINCIDENT 约束矛盾 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *cons = graph->constraints[i];
+        if (!cons || !cons->is_active || cons->type != CONSTRAINT_DISTANCE) continue;
+        if (cons->participant_count < 2 || !cons->participants) continue;
+        
+        int a = cons->participants[0];
+        int b = cons->participants[1];
+        if (a < 0 || a >= uf_size || b < 0 || b >= uf_size) continue;
+        
+        /* 如果距离值接近 0，不算矛盾 */
+        if (fabs(cons->numeric_value) <= dist_eps) continue;
+        
+        /* 检查两个实体是否在同一个等价类中 */
+        int ra = a, rb = b;
+        UF_FIND(ra);
+        UF_FIND(rb);
+        
+        if (ra == rb) {
+            /* 同一等价类中的两个实体有非零距离约束 —— 矛盾 */
+            char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+            snprintf(desc, sizeof(desc),
+                "传递等式矛盾：实体 %d 和 %d 通过 COINCIDENT 约束被标记为同一位置，"
+                "但距离约束 %d 要求它们之间的距离为 %.10g（非零）。",
+                a, b, cons->id, cons->numeric_value);
+            
+            report_constraint_conflict(report, cons, CONFLICT_TRANSITIVE_EQUALITY,
+                CONFLICT_SEVERITY_ERROR, desc,
+                "移除非零距离约束或移除相关的 COINCIDENT 约束。"
+                "被标记为重合的实体之间的距离必须为 0。");
+        }
+    }
+    
+    #undef UF_FIND
+    #undef UF_UNION
+    
+    lv00_free((void **)&parent);
     return 0;
 }
 

@@ -9,7 +9,7 @@
 // ================================================================
 
 /** 应用程序版本号（需与 lv00.h 中 LV00_VERSION_STRING 保持一致） */
-export const APP_VERSION = '3.3.0';
+export const APP_VERSION = '3.5.0';
 
 /** 应用程序名称 */
 export const APP_NAME = 'Lv-00';

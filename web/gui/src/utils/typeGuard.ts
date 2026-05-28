@@ -140,11 +140,11 @@ export function hasKeyOf<K extends string, T>(
 export function hasProperties<T extends Record<string, (val: unknown) => boolean>>(
   guards: T,
 ) {
-  type Result = { [K in keyof T]: unknown };
   return (obj: unknown): obj is { [K in keyof T]: T[K] extends (val: unknown) => val is infer R ? R : never } => {
     if (!isObject(obj)) return false;
     for (const key in guards) {
-      if (!guards[key](obj[key])) return false;
+      const guard = guards[key];
+      if (guard && !guard(obj[key])) return false;
     }
     return true;
   };

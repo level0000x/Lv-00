@@ -11,7 +11,9 @@
 
 import type { IBackend } from './backend';
 import { RATIONAL_DENOMINATOR } from '@/utils/constants';
+import { logger } from '@/services/logger';
 
+// 【优化 M6】统一使用 logger 替代 console
 // ================================================================
 // WASM Module Type / WASM 模块类型
 // ================================================================
@@ -119,6 +121,14 @@ export interface Lv00WasmModule {
 export class WasmBackend implements IBackend {
   readonly type = 'wasm' as const;
 
+  readonly capabilities = {
+    normalization: true,
+    redundantDetection: true,
+    conflictDetection: true,
+    exactArithmetic: true,
+    constraintSolving: true,
+  };
+
   /** The Emscripten WASM module instance / Emscripten WASM 模块实例 */
   private mod: Lv00WasmModule;
 
@@ -184,7 +194,8 @@ export class WasmBackend implements IBackend {
     try {
       return JSON.parse(str) as T;
     } catch {
-      console.warn('[WasmBackend] Failed to parse JSON from C:', str);
+      // 【优化 M6】使用统一 logger 替代 console.warn
+      logger.warn('[WasmBackend] Failed to parse JSON from C:', str);
       return null;
     }
   }

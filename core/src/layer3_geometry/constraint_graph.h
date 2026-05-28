@@ -107,7 +107,15 @@ typedef enum {
     BETWEENNESS,  /* 之间约束：点B在点A和点C之间（共线有序） */
     INTERSECTION, /* 相交约束：两个几何对象在某点相交 */
     CONTAINMENT,  /* 包含约束：一个对象完全包含在另一个对象内 */
-    CONNECTION    /* 连接约束：端口之间的数据流连接 */
+    CONNECTION,   /* 连接约束：端口之间的数据流连接 */
+    /* v3.5.1: 数值约束类型（用于矛盾检测器） */
+    CONSTRAINT_DISTANCE,      /* 距离约束：两个实体之间的距离值（participants=[id1,id2]，numeric_value=距离） */
+    CONSTRAINT_ANGLE,         /* 角度约束：两个实体之间的角度值（participants=[id1,id2]，numeric_value=弧度） */
+    CONSTRAINT_COINCIDENT,    /* 重合约束：两个实体被标记为同一位置（participants=[id1,id2]） */
+    CONSTRAINT_PARALLEL,      /* 平行约束：两条线段平行（participants=[line1_id,line2_id]） */
+    CONSTRAINT_PERPENDICULAR, /* 垂直约束：两条线段垂直（participants=[line1_id,line2_id]） */
+    CONSTRAINT_HORIZONTAL,    /* 水平约束：线段水平（participants=[line_id]） */
+    CONSTRAINT_VERTICAL       /* 垂直约束：线段垂直（participants=[line_id]） */
 } ConstraintType;
 
 typedef struct GeomNode GeomNode;
@@ -211,6 +219,7 @@ struct Constraint {
     int participant_count;
     int template_id;
     bool is_active; /**< 约束生命周期标记：true=活跃，false=已废弃 */
+    double numeric_value; /**< v3.5.1: 数值约束的值（距离/角度），非数值约束为 0.0 */
 };
 
 /**

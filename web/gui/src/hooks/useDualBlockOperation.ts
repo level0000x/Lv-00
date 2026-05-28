@@ -60,11 +60,9 @@ interface UseDualBlockOperationParams {
   /** 当前用户函数块列表 / Current user function block list */
   userBlocks: UserFuncBlock[];
   /** 添加 Toast 消息的函数 / Function to add toast messages */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addToast: (type: any, message: string) => void;
+  addToast: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
   /** 追加全局日志的函数 / Function to append global log */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  appendLog: (message: string, level: any) => void;
+  appendLog: (message: string, level: 'debug' | 'info' | 'warn' | 'error') => void;
   /** 追加面板日志的函数 / Function to append panel log */
   log: (message: string) => void;
   /** 更新用户函数块列表的函数 / Function to update user block list */

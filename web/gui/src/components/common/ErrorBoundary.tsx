@@ -18,7 +18,9 @@
  */
 
 import React from 'react';
+import { logger } from '@/services/logger';
 
+// 【优化 M7】统一使用 logger 替代 console
 // ================================================================
 // 类型定义 / Type Definitions
 // ================================================================
@@ -121,9 +123,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
    * @param errorInfo - 包含组件堆栈的附加信息 / Additional info containing component stack
    */
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    // 输出到控制台 / Log to console
-    console.error('[ErrorBoundary] 捕获到未处理错误 / Caught unhandled error:', error);
-    console.error('[ErrorBoundary] 组件堆栈 / Component stack:', errorInfo.componentStack);
+    // 【优化 M7】使用统一 logger 替代 console，便于日志收集和分析
+    logger.error('[ErrorBoundary] 捕获到未处理错误 / Caught unhandled error:', error);
+    logger.error('[ErrorBoundary] 组件堆栈 / Component stack:', errorInfo.componentStack);
 
     // 调用外部错误回调（用于集成 Sentry 等服务）
     // Call external error callback (for integrating Sentry, etc.)
