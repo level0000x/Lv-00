@@ -52,7 +52,7 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
 static inline void mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
     mpz_poly_clear(dst);
     if (src->degree >= 0) {
-        dst->coeffs = malloc((src->degree + 1) * sizeof(mpz_t));
+        dst->coeffs = (mpz_t *)lv00_malloc((size_t)(src->degree + 1) * sizeof(mpz_t));
         if (!dst->coeffs) {
             dst->degree = -1;
             return;

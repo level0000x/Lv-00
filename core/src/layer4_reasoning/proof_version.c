@@ -181,9 +181,16 @@ static void sha256_final(Sha256Ctx *ctx, uint8_t hash[SHA256_DIGEST_SIZE]) {
  *
  * @param data  Input data
  * @param len   Length of input data
- * @param out   Output hex string (must be at least LV00_OID_LENGTH bytes)
+ * @param out   Output hex string buffer
+ * @param out_size  Size of output buffer (must be at least SHA256_DIGEST_SIZE * 2 + 1)
+ *
+ * @return true on success, false if buffer is too small
  */
-static void compute_sha256_hex(const void *data, size_t len, char *out) {
+static bool compute_sha256_hex(const void *data, size_t len, char *out, size_t out_size) {
+    if (out_size < SHA256_DIGEST_SIZE * 2 + 1) {
+        return false;
+    }
+
     Sha256Ctx ctx;
     uint8_t hash[SHA256_DIGEST_SIZE];
 
@@ -192,9 +199,11 @@ static void compute_sha256_hex(const void *data, size_t len, char *out) {
     sha256_final(&ctx, hash);
 
     for (int i = 0; i < SHA256_DIGEST_SIZE; i++) {
-        sprintf(out + i * 2, "%02x", hash[i]);
+        /* 使用 snprintf 替代 sprintf，确保缓冲区安全 */
+        snprintf(out + i * 2, out_size - i * 2, "%02x", hash[i]);
     }
     out[SHA256_DIGEST_SIZE * 2] = '\0';
+    return true;
 }
 
 /* ============================================================
@@ -206,11 +215,23 @@ static void compute_sha256_hex(const void *data, size_t len, char *out) {
  *
  * Unlike strncpy, this always null-terminates the destination buffer
  * even when the source string length >= n.
+ *
+ * @param dest  Destination buffer
+ * @param src   Source string
+ * @param n     Size of destination buffer
+ * @return Number of characters copied (excluding null terminator), or 0 on error
  */
-static void safe_strncpy(char *dest, const char *src, size_t n) {
-    strncpy(dest, src, n);
-    if (n > 0) dest[n - 1] = '\0';
+static size_t safe_strncpy(char *dest, const char *src, size_t n) {
+    if (n == 0 || dest == NULL || src == NULL) {
+        return 0;
+    }
+    strncpy(dest, src, n - 1);
+    dest[n - 1] = '\0';
+    return strlen(dest);
 }
+
+/** 最大路径长度（包含 null 终止符） */
+#define MAX_PATH_LEN 4096
 
 /**
  * @brief Build a path by joining directory and filename.
@@ -220,19 +241,40 @@ static void safe_strncpy(char *dest, const char *src, size_t n) {
  *
  * @param dir   Directory path
  * @param file  Filename
- * @param out   Output buffer (must be large enough)
+ * @param out   Output buffer
  * @param out_size  Size of output buffer
+ * @return true on success, false if buffer is too small or paths are invalid
  */
-static void build_path(const char *dir, const char *file, char *out, size_t out_size) {
-    char tmp[1024];
-    snprintf(tmp, sizeof(tmp), "%s%s%s", dir,
+static bool build_path(const char *dir, const char *file, char *out, size_t out_size) {
+    if (dir == NULL || file == NULL || out == NULL || out_size == 0) {
+        return false;
+    }
+
+    /* 计算所需缓冲区大小 */
+    size_t dir_len = strlen(dir);
+    size_t file_len = strlen(file);
+    size_t sep_len = 1; /* 分隔符长度 */
+
+    /* 检查路径长度是否超过安全限制 */
+    if (dir_len + sep_len + file_len >= MAX_PATH_LEN) {
+        return false;
+    }
+
+    /* 检查输出缓冲区是否足够 */
+    if (out_size < dir_len + sep_len + file_len + 1) {
+        return false;
+    }
+
+    const char *sep =
 #ifdef _WIN32
-        "\\",
+        "\\";
 #else
-        "/",
+        "/";
 #endif
-        file);
-    snprintf(out, out_size, "%s", tmp);
+
+    /* 安全构建路径 */
+    int written = snprintf(out, out_size, "%s%s%s", dir, sep, file);
+    return (written >= 0 && (size_t)written < out_size);
 }
 
 /**
@@ -345,7 +387,7 @@ static void compute_commit_oid(const char *message, const char *parent_oid,
     memcpy(buf + pos, &timestamp, sizeof(int64_t));
     pos += sizeof(int64_t);
 
-    compute_sha256_hex(buf, pos, oid_out);
+    compute_sha256_hex(buf, pos, oid_out, LV00_OID_LENGTH);
     free(buf);
 }
 
@@ -569,7 +611,7 @@ bool proof_repo_commit(Lv00ProofRepo *repo, const char *message,
 
         /* Compute content hash */
         char hash[LV00_OID_LENGTH];
-        compute_sha256_hex(contents[i], strlen(contents[i]), hash);
+        compute_sha256_hex(contents[i], strlen(contents[i]), hash, LV00_OID_LENGTH);
 
         /* Store object */
         build_path(obj_dir, hash, obj_path, sizeof(obj_path));

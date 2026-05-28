@@ -22,6 +22,10 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 
+/* 前向声明：避免引入 memory_pool.h 导致循环依赖或类型冲突 */
+extern void *lv00_malloc(size_t size);
+extern void lv00_free(void **ptr);
+
 #ifndef MPZ_POLY_T_DEFINED
 #define MPZ_POLY_T_DEFINED
 typedef struct {
@@ -40,7 +44,7 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
         for (int i = 0; i <= p->degree; i++) {
             mpz_clear(p->coeffs[i]);
         }
-        free(p->coeffs);
+        lv00_free((void **)&p->coeffs);
     }
     p->coeffs = NULL;
     p->degree = -1;
@@ -216,7 +220,7 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
     }
     mpz_clear(factor);
     if (quotient->degree < 0) {
-        free(quotient->coeffs);
+        lv00_free((void **)&quotient->coeffs);
         quotient->coeffs = NULL;
     }
 }

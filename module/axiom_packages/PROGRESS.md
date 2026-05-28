@@ -56,6 +56,8 @@
 | 48 | cartesian_closed_category | 1.0.0 | Cartesian Closed Category / CCC (Eilenberg-Kelly, Terminal + Products + Exponentials, Curry-Howard-Lambek, 55 templates) | 2026-05-24 |
 | 49 | topos_theory | 1.0.0 | Topos Theory / Elementary Topos (Lawvere-Tierney, Finite Limits + Cartesian Closed + Subobject Classifier, 90 templates) | 2026-05-25 |
 | 50 | linear_algebra | 1.0.0 | Linear Algebra (Vector Space Axioms, Linear Maps, Matrix Algebra, Determinant, Eigenvalue, Inner Product, Dual/Tensor, Canonical Forms, 90 templates) | 2026-05-26 |
+| 51 | synthetic_differential_geometry | 1.0.0 | Synthetic Differential Geometry (SDG, Lawvere-Kock, Weil Algebras, Kock-Lawvere Axiom, Microaffinity, 33 templates) | 2026-05-28 |
+| 52 | non_well_founded_set_theory | 1.0.0 | Non-Well-Founded Set Theory / ZFA (Aczel AFA, Hypersets, Bisimulation, Solution Lemma, Coinduction, 42 templates) | 2026-05-28 |
 
 ### 1. euclidean_plane v1.0.0
 
@@ -2020,6 +2022,72 @@
 **File**: `axiom_packages/linear_algebra.lvz`
 **Test**: `tests/test_axiom_linear_algebra.c` (10 test functions)
 
+### 51. synthetic_differential_geometry v1.0.0
+
+**Mathematical Theory**: Synthetic Differential Geometry (SDG) — a reformulation of differential geometry in the language of topos theory, developed by Lawvere, Kock, and others in the 1960s-1980s. SDG allows "synthetic" reasoning about differential geometry, similar to how Euclidean geometry allows synthetic reasoning about distances and angles. The key insight is that the category of "smooth loci" is equivalent to the category of certain R-algebras (C^\infty-rings), and that infinitesimal objects like D = {d | d² = 0} (dual numbers) have particularly nice categorical properties in the appropriate topos.
+
+- **References**:
+  - Kock, A. (2006). "Synthetic Differential Geometry" (2nd ed.). Cambridge University Press. ISBN: 978-0521687386.
+    https://users-math.au.dk/kock/sdg99.pdf
+  - Lavendhomme, R. (1996). "Basic Concepts of Synthetic Differential Geometry". Springer-Verlag.
+  - Lawvere, F.W. (1998). "Outline of Synthetic Differential Geometry".
+    https://raw.githubusercontent.com/mattearnshaw/lawvere/master/pdfs/1998-outline-of-synthetic-differential-geometry.pdf
+  - Wikipedia: Synthetic differential geometry
+    https://en.wikipedia.org/wiki/Synthetic_differential_geometry
+  - Bell, J.L. "Two Approaches to Modelling the Universe: Synthetic Differential Geometry and Frame-Valued Sets."
+    https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=9100113e2c74c99c5262c6a686a63b166dc9aaa7
+  - nLab: Synthetic differential geometry
+    https://ncatlab.org/nlab/show/synthetic+differential+geometry
+
+- **Primitive Notions**: smooth space (object in the category of smooth loci), smooth map (morphism between smooth spaces), infinitesimal object (objects like D = {d | d² = 0} for dual numbers), tangent vector (element of tangent bundle at a point), differential form (section of cotangent bundle), Weil algebra (R-algebra with nilpotent elements)
+
+- **Core Axioms** (7):
+  - **SDG1. Weil Algebra**: The category has infinitesimal objects D(V) for finite-dimensional vector spaces V, with good categorical properties. A Weil algebra A is a real algebra with nilpotent elements such that A/N ≅ R where N is the nilradical. Monomials of degree > k vanish.
+  - **SDG2. Kock-Lawvere**: There is a natural isomorphism between tangent vectors at a point and R-linear derivations on the algebra of germs of smooth functions at that point. For a smooth algebra A and a Weil algebra A, there is a natural isomorphism: Hom_{R-Algebra}(C^\infty(M), A) ≅ M × Der(C^\infty(M), R).
+  - **SDG3. Microaffinity**: Functions on infinitesimal objects are affine linear. A map f: D(V) -> D(W) is determined by its linear part (the derivative) since higher-order terms vanish.
+  - **SDG4. Fibration**: There is a tangent bundle functor T: SmoothSpace -> SmoothSpace. The tangent bundle T(M) of a smooth space M is the disjoint union of all tangent spaces at all points of M.
+  - **SDG5. Weil Functor**: There are "infinitesimal thickening" functors W_A that assign to each space its W_A-points, i.e., Hom(C^\infty(M), A) for a Weil algebra A.
+  - **SDG6. Differential Forms**: There is a cotangent bundle Ω^1 with good properties. The module of differential forms Ω^1(M) is the module of sections of the cotangent bundle.
+  - **SDG7. Integration**: There is a notion of integration along infinitesimal paths γ: D -> M.
+
+- **Constraint Templates**: 33 in 7 groups:
+  - **Group I: Weil Algebras and Infinitesimal Objects (6)**: dual_numbers, weil_algebra, infinitesimal_object, tangent_dual_numbers, microaffine_map, nilpotent_neighborhood
+  - **Group II: Kock-Lawvere Axiom and Tangent Vectors (5)**: kock_lawvere_isomorphism, tangent_vector, tangent_bundle, vector_field, lie_bracket
+  - **Group III: Differential Forms and de Rham Cohomology (5)**: cotangent_space, differential_forms, exterior_derivative, de_rham_complex, de_rham_cohomology
+  - **Group IV: Weil Functors and Jets (5)**: weil_functor, jet_bundle, jet_prolongation, connection_form, curvature_form
+  - **Group V: Lie Theory in SDG (4)**: synthetic_lie_group, lie_algebra, exponential_map, adjoint_representation
+  - **Group VI: Integration and Cohomology (4)**: infinitesimal_integration, stokes_theorem, synthetic_poincare_lemma, synthetic_de_rham_cohomology
+  - **Group VII: Fiber Bundles and Connections (4)**: fiber_bundle, principal_bundle, principal_connection, holonomy_group
+
+- **Known Unconstructible Problems**: 4
+  - smooth_manifold_classification (reduces to undecidable, green_verified=true)
+  - riemannian_metric_existence (reduces to axiom_of_choice, green_verified=false)
+  - geodesic_completeness (reduces to undecidable, green_verified=true)
+  - index_theorem_computation (reduces to undecidable, green_verified=true)
+
+- **Bottom Geometry**: smooth_loci_topos — ⊥ is geometrically represented as a point (0-dimensional smooth space) with trivial tangent bundle. The contradiction in SDG corresponds to inconsistency in the topos semantics.
+
+- **Negation Encoding**: topos_semantic_negation — Negation in SDG is interpreted in the topos semantics. For a subobject A ↪ X, ¬A is the largest subobject B ↪ X with B ∧ A = ⊥. This is intuitionistic negation (¬A = (A → ⊥)).
+
+- **Contradiction Behavior**: explosion_principle — In classical models of SDG (where the topos is a boolean topos), the explosion principle holds: from contradiction, anything follows.
+
+- **Relationship to existing packages**:
+  - **differential_geometry**: SDG is a categorical reformulation of differential geometry. It provides synthetic/synthetic proofs of differential-geometric results that avoid coordinate-based computations.
+  - **category_theory**: SDG is formulated in the language of category theory and topos theory. The category of smooth loci is a topos.
+  - **topos_theory**: SDG lives in a topos with a natural numbers object (NNO). The infinitesimal objects are Weil algebras in this topos.
+  - **cartesian_closed_category**: The category of smooth loci is cartesian closed (as any topos is).
+  - **linear_algebra**: The tangent space at a point is a vector space; Weil algebras are related to dual numbers R[ε]/(ε²).
+  - **lie_theory**: SDG provides a synthetic framework for Lie groups and their Lie algebras. The exponential map has a categorical interpretation.
+
+- **Key Insights**:
+  - The Kock-Lawvere axiom provides a synthetic description of tangent vectors that avoids coordinate-based definitions.
+  - Weil functors W_A provide a uniform treatment of jet bundles and infinitesimal thickenings.
+  - SDG allows working with "infinitesimals" in a rigorous categorical framework, avoiding the contradictions of classical infinitesimal analysis.
+  - The synthetic approach to differential geometry is particularly natural for computer formalization (e.g., in homotopy type theory).
+
+**File**: `axiom_packages/synthetic_differential_geometry.lvz`
+**Test**: `tests/test_axiom_synthetic_differential_geometry.c` (9 test functions)
+
 ---
 
 ## Dependency Graph
@@ -2917,6 +2985,7 @@ Major mathematical branches are now comprehensively covered. The three classical
 20. ~~**Galois Theory** (Algebra)~~ — ✅ Completed as galois_theory (2026-05-24). Field extensions, Galois groups, fundamental theorem, solvability by radicals, 62 templates, 8 unconstructible problems including inverse Galois problem (unsolved).
 21. ~~**Probability Theory** (Analysis/Probability)~~ — ✅ Completed and upgraded as probability_theory (2026-05-24, v1.0.0, 120 templates). Kolmogorov axioms, conditional probability, Bayes' theorem, independence, random variables, distributions (Bernoulli, Binomial, Poisson, Normal, etc.), moments and expectation, limit theorems (LLN, CLT), stochastic processes (martingales, Markov chains, Brownian motion), concentration inequalities, ergodic theory, 12 unconstructible problems. Depends on measure_theory, real_analysis, computability_theory.
 22. ~~**Topos Theory** (Category Theory/Logic)~~ — ✅ Completed as topos_theory (2026-05-25). Elementary topos (Lawvere-Tierney axioms): finite limits + cartesian closed + subobject classifier Ω. Internal logic is intuitionistic higher-order logic (Mitchell-Bénabou language). 90 templates in 11 parts, 10 unconstructible problems. Bridges category_theory, cartesian_closed_category, lattice_theory, intuitionistic_propositional_logic, algebraic_geometry (Grothendieck toposes), and homotopy_type_theory (∞-toposes).
+23. ~~**Synthetic Differential Geometry** (Geometry/Category Theory)~~ — ✅ Completed as synthetic_differential_geometry (2026-05-28). SDG (Lawvere-Kock, Weil algebras, Kock-Lawvere axiom, microaffinity). 33 templates in 7 groups, 4 unconstructible problems. Bridges differential_geometry with category_theory and topos_theory.
 
 ---
 

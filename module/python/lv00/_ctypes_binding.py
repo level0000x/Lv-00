@@ -20,7 +20,10 @@ Lv-00 底层 C 库 ctypes 绑定模块
 import ctypes
 import os
 import sys
-from ctypes import c_int, c_int64, c_uint64, c_double, c_char_p, c_void_p, c_bool, POINTER, CFUNCTYPE
+from ctypes import (
+    c_int, c_int64, c_uint64, c_double, c_char_p,
+    c_void_p, c_bool, POINTER, CFUNCTYPE
+)
 
 # ============================================================
 # 库文件搜索函数

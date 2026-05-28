@@ -195,7 +195,7 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
         return;
     }
     quotient->degree = dividend->degree - divisor->degree;
-    quotient->coeffs = malloc((size_t)(quotient->degree + 1) * sizeof(mpz_t));
+    quotient->coeffs = (mpz_t *)lv00_malloc((size_t)(quotient->degree + 1) * sizeof(mpz_t));
     if (!quotient->coeffs) {
         quotient->degree = -1;
         return;

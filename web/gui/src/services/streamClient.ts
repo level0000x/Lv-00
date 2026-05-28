@@ -337,18 +337,23 @@ export function createStreamClient(
         if (engineEvent) {
           addEvent(engineEvent);
         }
-      } catch {
-        // 非 JSON 消息，忽略（可能是日志文本）
+      } catch (err) {
+        // 非 JSON 消息，记录到调试日志便于排查问题
+        console.debug('[StreamClient] 非 JSON 消息:', event.data, err);
       }
     };
 
-    ws.onerror = () => {
+    ws.onerror = (error) => {
+      // 记录详细的错误信息便于调试
+      const errorMsg = ws ? `WebSocket state: ${ws.readyState}` : 'WebSocket is null';
+      console.error('[StreamClient] WebSocket error:', error, errorMsg);
+
       if (ws?.readyState === WebSocket.CLOSED || ws?.readyState === WebSocket.CLOSING) {
         handleDisconnect();
         scheduleReconnect();
       } else {
         setState('error');
-        callbacks.onError(new Error('WebSocket 连接错误'));
+        callbacks.onError(new Error(`WebSocket 连接错误: ${errorMsg}`));
       }
     };
 

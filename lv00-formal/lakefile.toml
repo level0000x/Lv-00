@@ -4,19 +4,3 @@ defaultTargets = ["Lv00Formal"]
 
 [[lean_lib]]
 name = "Lv00Formal"
-
-[[require]]
-name = "mathlib"
-scope = "leanprover-community"
-version = "v4.15.0"
-
-[[lean_exe]]
-name = "lv00-formal"
-root = "Main"
-
-[defaultTargets]
-buildType = "Release"
-
-[test]
-name = "Test"
-root = "Test.Main"

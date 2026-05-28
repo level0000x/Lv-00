@@ -512,6 +512,11 @@ set(LV00_HEADERS
     core/include/lv00/conflict_detector.h
     # v3.5.0 新增：性能分析器
     core/include/lv00/performance_profiler.h
+    # v3.6.0 新增：中文本地化支持
+    core/include/lv00/error_messages_cn.h
+    core/include/lv00/result_messages_cn.h
+    core/include/lv00/preset_helper_cn.h
+    core/include/lv00/math_theory_guide_cn.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -545,6 +550,11 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/geometry_config.c
     # v3.5.0 新增：性能分析器
     core/src/layer2_resource/performance_profiler.c
+    # v3.6.0 新增：中文本地化支持
+    core/src/layer2_resource/error_messages_cn.c
+    core/src/layer2_resource/result_messages_cn.c
+    core/src/layer2_resource/preset_helper_cn.c
+    core/src/layer2_resource/math_theory_guide_cn.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──

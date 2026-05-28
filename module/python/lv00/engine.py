@@ -62,7 +62,7 @@ Lv-00 引擎模块
 import ctypes
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 from .core import Lv00BaseError
 
@@ -197,7 +197,12 @@ class Engine:
         """
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any]
+    ) -> None:
         """
         上下文管理器出口，自动释放引擎资源。
 
