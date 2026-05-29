@@ -440,6 +440,10 @@ set(LV00_HEADERS
     core/include/lv00/preset_information_theory.h
     core/include/lv00/preset_coding_theory.h
     core/include/lv00/preset_difference_equations.h
+    # v13.0 新增：抽象代数、证明论、模型论模块
+    core/include/lv00/preset_abstract_algebra.h
+    core/include/lv00/preset_proof_theory.h
+    core/include/lv00/preset_model_theory.h
     # v3.3.0 性能优化模块
     core/include/lv00/thread_pool.h
     core/include/lv00/simd_ops.h
@@ -717,6 +721,12 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/preset/preset_combinatorics.c
     core/src/layer4_reasoning/preset/preset_complex_analysis.c
     core/src/layer4_reasoning/preset/preset_difference_equations.c
+    # v13.0 新增：抽象代数模块
+    core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
+    # v13.0 新增：证明论模块
+    core/src/layer4_reasoning/func_block/preset_proof_theory.c
+    # v13.0 新增：模型论模块
+    core/src/layer4_reasoning/func_block/preset_model_theory.c
     core/src/layer4_reasoning/preset/preset_differential_equations.c
     core/src/layer4_reasoning/preset/preset_differential_geometry.c
     core/src/layer4_reasoning/preset/preset_differential_geometry_adv.c
@@ -1242,7 +1252,7 @@ endif()
 
 # 生成 lv00.pc
 configure_file(
-    ${CMAKE_SOURCE_DIR}/build/cmake/lv00.pc.in
+    ${CMAKE_SOURCE_DIR}/cmake/lv00.pc.in
     ${CMAKE_BINARY_DIR}/lv00.pc
     @ONLY
 )
@@ -1266,7 +1276,7 @@ set(LV00_CMAKE_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/lv00")
 
 # 生成 lv00-config.cmake 和 lv00-config-version.cmake
 configure_package_config_file(
-    ${CMAKE_SOURCE_DIR}/build/cmake/lv00-config.cmake.in
+    ${CMAKE_SOURCE_DIR}/cmake/lv00-config.cmake.in
     ${CMAKE_BINARY_DIR}/lv00-config.cmake
     INSTALL_DESTINATION ${LV00_CMAKE_CONFIG_DIR}
 )

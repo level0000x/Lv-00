@@ -16,7 +16,7 @@ inductive Term where
   | var (name : Var)
   | const (value : Nat)
   | app (fn : String) (args : List Term)
-  deriving Repr, BEq, DecidableEq
+  deriving Repr, BEq
 
 /-- 替换：变量到项的映射。 -/
 abbrev Substitution := List (Var × Term)
@@ -40,15 +40,21 @@ def applySubst (σ : Substitution) : Term → Term
 /-- 空替换保持项不变。 -/
 theorem apply_emptySubst (t : Term) :
     applySubst emptySubst t = t := by
-  induction t with
-  | var v => rfl
-  | const n => rfl
-  | app f args ih =>
+  cases t with
+  | var v => simp [applySubst, emptySubst, lookupSubst]
+  | const n => simp [applySubst, emptySubst]
+  | app f args =>
       simp [applySubst, emptySubst]
-      induction args with
-      | nil => rfl
-      | cons a rest ihRest =>
-          simp [List.map_cons, ih a (by simp), ihRest]
+      -- 使用列表归纳证明 map 保持
+      have h : ∀ (l : List Term), l.map (applySubst emptySubst) = l := by
+        intro l
+        induction l with
+        | nil => simp
+        | cons a rest ih =>
+            simp [ih]
+            rw [apply_emptySubst a]
+      subst h
+      simp [apply_emptySubst]
 
 end Rewrite
 end Theory

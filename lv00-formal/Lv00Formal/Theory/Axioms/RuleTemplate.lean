@@ -1,17 +1,20 @@
 /-
-Lv-00 自有理论核心：可执行规则模板
+Lv-00 Core: Executable Rule Templates
 
-本文件对照 C 侧 `axiom_rule_engine.h` 与 `rule_registry.h` 建立 Lean 级规则模板：
+This file establishes Lean-level rule templates corresponding to C-side
+`axiom_rule_engine.h` and `rule_registry.h`:
 - Lv00RuleVariable  -> RuleVariable
 - Lv00RuleCondition -> RuleCondition
 - Lv00RulePremise   -> RulePremise
 - Lv00RuleConclusion -> RuleConclusion
 - Lv00RuleMatch     -> RuleMatch
-- 规则注册表 apply_all -> RuleApplication / applyRule 接口
+- Rule registry apply_all -> RuleApplication / applyRule interface
 
-目标不是复刻 C 数据结构细节，而是抽象出可证明的核心性质：
-若规则模板、匹配和输入约束图良构，则规则应用产生的结论仍然是良构谓词，
-因此可以被 Lv-00 约束图吸收。
+The goal is not to replicate C data structure details, but to abstract
+core properties that can be proven: if rule templates, matches, and input
+constraint graphs are well-formed, then the conclusions produced by rule
+application are also well-formed predicates and can be absorbed into the
+Lv-00 constraint graph.
 -/
 
 import Lv00Formal.Theory.Axioms.Primitive
@@ -26,7 +29,7 @@ open Ontology
 open Predicates
 open Constraint
 
-/-- 规则类型，对应 C 侧 `Lv00RuleType`。 -/
+/-- Rule type, corresponding to C-side `Lv00RuleType`. -/
 inductive RuleType where
   | inference
   | rewrite
@@ -38,7 +41,7 @@ inductive RuleType where
   | constructor
   deriving DecidableEq, Repr
 
-/-- 规则状态，对应 C 侧 `Lv00RuleStatus`。 -/
+/-- Rule status, corresponding to C-side `Lv00RuleStatus`. -/
 inductive RuleStatus where
   | disabled
   | enabled
@@ -46,7 +49,7 @@ inductive RuleStatus where
   | experimental
   deriving DecidableEq, Repr
 
-/-- 规则优先级。C 侧使用整数，这里抽象为五档。 -/
+/-- Rule priority. C-side uses integers, abstracted here to five levels. -/
 inductive RulePriority where
   | lowest
   | low
@@ -55,7 +58,7 @@ inductive RulePriority where
   | highest
   deriving DecidableEq, Repr
 
-/-- 规则条件类型，对应 C 侧 `Lv00ConditionType`。 -/
+/-- Condition type, corresponding to C-side `Lv00ConditionType`. -/
 inductive ConditionType where
   | patternMatch
   | typeCheck
@@ -65,130 +68,130 @@ inductive ConditionType where
   | custom
   deriving DecidableEq, Repr
 
-/-- 规则变量：名称、类型约束、可选绑定对象。 -/
+/-- Rule variable: name, type constraint, optional bound object. -/
 structure RuleVariable where
   name : String
   typeName : String
   bound : Option LvObj := none
   deriving Repr
 
-/-- 规则条件：目前保留模式、变量名和条件类型，后续可细化为可判定谓词。 -/
+/-- Rule condition: pattern, variable name, and condition type. -/
 structure RuleCondition where
-  type : ConditionType
+  condType : ConditionType
   pattern : String
-  variable : String
+  varName : String
   deriving Repr
 
-/-- 规则前提：一个谓词模式及其附加条件。 -/
+/-- Rule premise: a predicate pattern with attached conditions. -/
 structure RulePremise where
   predicate : PrimPred
-  conditions : List RuleCondition := []
-  optional : Bool := false
+  conditions : List RuleCondition
+  optional : Bool
   deriving Repr
 
-/-- 规则结论：可被约束图吸收的本原谓词，附带证明理由。 -/
+/-- Rule conclusion: absorbable primitive predicate with justification. -/
 structure RuleConclusion where
   predicate : PrimPred
-  justification : String := ""
+  justification : String
   deriving Repr
 
-/-- 可执行规则模板。 -/
+/-- Executable rule template. -/
 structure ExecutableRule where
   id : Nat
   baseKind : BaseAxiomKind
   name : String
   description : String
-  type : RuleType
+  ruleType : RuleType
   status : RuleStatus
   variables : List RuleVariable
   premises : List RulePremise
   conclusions : List RuleConclusion
-  priority : RulePriority := RulePriority.normal
-  dependencies : List Nat := []
-  packageName : String := ""
+  priority : RulePriority
+  dependencies : List Nat
+  packageName : String
   deriving Repr
 
-/-- 前提良构性。 -/
+/-- Premise well-formedness. -/
 def WellFormedPremise (p : RulePremise) : Prop :=
   WellFormedPred p.predicate
 
-/-- 结论良构性。 -/
+/-- Conclusion well-formedness. -/
 def WellFormedConclusion (c : RuleConclusion) : Prop :=
   WellFormedPred c.predicate
 
-/-- 可执行规则良构性。 -/
+/-- Executable rule well-formedness. -/
 def WellFormedExecutableRule (r : ExecutableRule) : Prop :=
   r.baseKind ∈ canonicalKinds ∧
   (∀ p ∈ r.premises, WellFormedPremise p) ∧
   (∀ c ∈ r.conclusions, WellFormedConclusion c)
 
-/-- 规则匹配结果，对应 C 侧 `Lv00RuleMatch`。 -/
+/-- Rule match result, corresponding to C-side `Lv00RuleMatch`. -/
 structure RuleMatch where
   rule : ExecutableRule
   bindings : List RuleVariable
   confidence : Nat
   matchedPremises : Nat
-  complete : Bool
+  isComplete : Bool
   deriving Repr
 
-/-- 规则匹配良构性：匹配对象对应的规则本身良构。 -/
+/-- Rule match well-formedness: the matched rule itself is well-formed. -/
 def WellFormedMatch (m : RuleMatch) : Prop :=
-  WellFormedExecutableRule m.rule ∧ m.complete = true
+  WellFormedExecutableRule m.rule ∧ m.isComplete = true
 
-/-- 规则适用性：图良构、规则良构、匹配完整。 -/
+/-- Rule applicability: graph well-formed, rule well-formed, match complete. -/
 def Applicable (g : ConstraintGraph) (m : RuleMatch) : Prop :=
   WellFormedGraph g ∧ WellFormedMatch m
 
-/-- 规则应用结果：产生若干结论谓词。 -/
+/-- Rule application result: produces a list of conclusion predicates. -/
 structure RuleApplication where
   sourceGraph : ConstraintGraph
-  match : RuleMatch
+  ruleMatch : RuleMatch
   produced : List RuleConclusion
   deriving Repr
 
-/-- 应用结果良构性。 -/
+/-- Application result well-formedness. -/
 def WellFormedApplication (a : RuleApplication) : Prop :=
-  Applicable a.sourceGraph a.match ∧
-  a.produced = a.match.rule.conclusions
+  Applicable a.sourceGraph a.ruleMatch ∧
+  a.produced = a.ruleMatch.rule.conclusions
 
-/-- 结论可被图吸收：结论谓词良构即可进入约束图。 -/
+/-- Conclusion absorbability: well-formed conclusion predicate can enter constraint graph. -/
 def ConclusionAbsorbable (c : RuleConclusion) : Prop :=
   WellFormedConclusion c
 
-/-- 规则良构时，它的全部结论都可被图吸收。 -/
+/-- When rule is well-formed, all its conclusions are absorbable. -/
 theorem executable_rule_conclusions_absorbable
     {r : ExecutableRule} (h : WellFormedExecutableRule r) :
     ∀ c ∈ r.conclusions, ConclusionAbsorbable c := by
   intro c hc
   exact h.2.2 c hc
 
-/-- 若规则匹配完整且规则良构，则匹配规则的全部结论可被吸收。 -/
+/-- When match is complete and rule is well-formed, all matched rule conclusions are absorbable. -/
 theorem match_conclusions_absorbable
     {m : RuleMatch} (h : WellFormedMatch m) :
     ∀ c ∈ m.rule.conclusions, ConclusionAbsorbable c := by
   exact executable_rule_conclusions_absorbable h.1
 
-/-- 若规则应用良构，则应用产生的所有结论都可被约束图吸收。 -/
+/-- When rule application is well-formed, all produced conclusions can be absorbed by constraint graph. -/
 theorem application_outputs_absorbable
     {a : RuleApplication} (h : WellFormedApplication a) :
     ∀ c ∈ a.produced, ConclusionAbsorbable c := by
   intro c hc
-  have hmatch : WellFormedMatch a.match := h.1.2
-  have hprod : a.produced = a.match.rule.conclusions := h.2
+  have hmatch : WellFormedMatch a.ruleMatch := h.1.2
+  have hprod : a.produced = a.ruleMatch.rule.conclusions := h.2
   rw [hprod] at hc
   exact match_conclusions_absorbable hmatch c hc
 
-/-- 将规则应用结果吸收到约束图中的抽象接口。 -/
+/-- Abstract interface for absorbing rule application results into constraint graph. -/
 def absorbApplication (a : RuleApplication) : ConstraintGraph :=
   { a.sourceGraph with constraints := a.sourceGraph.constraints ++ a.produced.map (fun c => c.predicate) }
 
-/-- 吸收保持节点列表不变。 -/
+/-- Absorption preserves node list. -/
 theorem absorb_preserves_nodes (a : RuleApplication) :
     (absorbApplication a).nodes = a.sourceGraph.nodes := by
   rfl
 
-/-- 若图良构且应用良构，则吸收后的新增约束全都良构。
-    这是后续证明“吸收保持图良构性”的核心局部引理。 -/
+/-- If graph is well-formed and application is well-formed, then all newly absorbed constraints are well-formed.
+    This is the core local lemma for proving "absorption preserves graph well-formedness". -/
 theorem absorbed_new_constraints_wellformed
     {a : RuleApplication} (h : WellFormedApplication a) :
     ∀ p ∈ a.produced.map (fun c => c.predicate), WellFormedPred p := by
