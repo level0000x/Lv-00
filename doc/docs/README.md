@@ -1,4 +1,4 @@
-# Lv-00 几何元语言系统 v3.5.0-academic - 模块文档索引
+# Lv-00 几何元语言系统 v4.0.0-academic - 模块文档索引
 
 ## 概述
 
@@ -13,7 +13,7 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 
 ## 文档结构
 
-本文档目录包含 Lv-00 v3.4-academic 全部核心模块的详细描述：
+本文档目录包含 Lv-00 v4.0.0-academic 全部核心模块的详细描述：
 
 ### 核心模块
 
@@ -326,13 +326,13 @@ Lv-00/
 │   ├── 10_recursion.md
 │   ├── 11_wfc_paradigm.md
 │   ├── 12_context_and_lifecycle.md
-│   ├── 13_error_handling.md
-│   ├── 14_memory_management.md
-│   ├── 15_parsing_layer.md
-│   ├── 16_geometry_layer.md
-│   ├── 17_reasoning_layer.md
-│   ├── 18_output_layer.md
-│   ├── 19_numerical_backends.md
+│   ├── 13_proof_engine_enhanced.md
+│   ├── 14_solver_backends.md
+│   ├── 15_geometry_advanced.md
+│   ├── 16_logic_verification.md
+│   ├── 17_numerical_analysis.md
+│   ├── 18_formula_dsl_ga.md
+│   ├── 19_axiom_rewrite_export.md
 │   ├── 20_preset_registry.md
 │   ├── 21_euclidean_geometry.md
 │   ├── 22_proof_export_trace_widget.md
@@ -395,7 +395,12 @@ make
 
 ## 版本历史
 
-- **v3.5.0-academic** (当前版本)
+- **v4.0.0-academic** (当前版本)
+  - 项目结构全面重构：清理临时文件、统一文档体系
+  - 新增抽象代数、证明论、模型论预设模块
+  - 增强公理包系统与函数块注册表
+
+- **v3.5.0-academic**
   - 五层单向依赖学术架构（解析层 -> 几何公理层 -> 约束拓扑层 -> 推理层 -> 输出层）
   - 完整实现 122+ 核心头文件模块
   - 核心基础设施：配置系统、错误处理、跨平台抽象

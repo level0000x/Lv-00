@@ -4,19 +4,12 @@
  */
 
 #include "lv00/geo_visual.h"
+#include "lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
 /* ============ 内部工具函数 ============ */
-
-static void* lv00_malloc(size_t size) {
-    return malloc(size);
-}
-
-static void lv00_free(void* ptr) {
-    free(ptr);
-}
 
 static void identity_matrix(float m[16]) {
     memset(m, 0, 16 * sizeof(float));

@@ -5,6 +5,7 @@
  * 包含所有功能：点、线、圆、多边形、文本、LaTeX、3D、组合对象
  */
 
+#include "lv00_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,19 +80,6 @@ typedef struct {
 } Lv00VisualRenderer;
 
 /* ============ 工具函数 ============ */
-
-static void* lv00_malloc(size_t size) {
-    void* ptr = malloc(size);
-    if (!ptr) {
-        fprintf(stderr, "Memory allocation failed\n");
-        exit(1);
-    }
-    return ptr;
-}
-
-static void lv00_free(void* ptr) {
-    free(ptr);
-}
 
 static char* lv00_strdup(const char* s) {
     if (!s) return NULL;

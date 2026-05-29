@@ -150,10 +150,6 @@
  * 所有平台差异在此集中处理，模块代码只使用统一宏接口。
  * ============================================================ */
 #include "cross_platform.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 /* ============================================================
  * LV00_PUBLIC_API —— 共享库导出/导入控制
@@ -174,6 +170,7 @@
  *   LV00_PUBLIC_API bool lv00_init(void);
  *   LV00_PUBLIC_API void lv00_cleanup(void);
  * ============================================================ */
+#ifndef LV00_PUBLIC_API
 #if defined(_WIN32) || defined(_MSC_VER)
   /* Windows DLL 导出/导入 */
   #ifdef LV00_BUILD_SHARED
@@ -195,6 +192,7 @@
 #else
   #define LV00_PUBLIC_API
 #endif
+#endif /* LV00_PUBLIC_API */
 
 /* ============================================================
  * 线程局部存储宏（跨平台统一，避免各模块各自定义）

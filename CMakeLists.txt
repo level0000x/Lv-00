@@ -223,7 +223,7 @@ if(BUILD_WASM)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
     
     # 禁用测试（WASM 需要特殊测试框架）
-    set(BUILD_test/c OFF)
+    set(BUILD_TESTS OFF)
     message(STATUS "WASM: 禁用常规测试（使用 web/gui 测试）")
     
     # WASM 不需要 GMP（使用 JavaScript 大整数或内置实现）
@@ -397,7 +397,6 @@ set(LV00_HEADERS
     core/include/lv00/proof_widget.h
     core/include/lv00/path_type.h
     # 模块化预设函数块系统
-    core/include/lv00/preset_blocks.h
     core/include/lv00/preset_register_macros.h
     core/include/lv00/preset_basic_geometry.h
     core/include/lv00/preset_transformations.h
@@ -490,7 +489,6 @@ set(LV00_HEADERS
     core/include/lv00/preset_common.h
     core/include/lv00/preset_calculus.h
     core/include/lv00/preset_core.h
-    core/include/lv00/preset_blocks.h
     # 预设模块头文件（内部实现）
     core/include/lv00/preset_algebraic_topology.h
     core/include/lv00/preset_algebraic_topology_adv.h
