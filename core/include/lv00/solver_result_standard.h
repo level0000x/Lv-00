@@ -52,24 +52,24 @@ extern "C" {
 #define SOLVER_RESULT_MAX_CONFLICTS 64
 
 /* ============================================================
- * 统一结果类型枚举
+ * 统一结果类型枚举（v4.1.0：统一使用 solver.h 中的 SolverStatus）
  * ============================================================ */
 
-/**
- * @brief 统一求解结果状态
- *
- * 所有后端的结果都映射到此枚举，提供语义一致的结论。
- */
-typedef enum {
-    SOLVER_RESULT_UNKNOWN = 0,      /**< 未知/未求解 */
-    SOLVER_RESULT_SAT = 1,          /**< 可满足（有解） */
-    SOLVER_RESULT_UNSAT = 2,        /**< 不可满足（无解） */
-    SOLVER_RESULT_PARTIAL = 3,      /**< 部分求解（部分变量确定） */
-    SOLVER_RESULT_TIMEOUT = 4,      /**< 超时 */
-    SOLVER_RESULT_ERROR = 5,        /**< 求解错误 */
-    SOLVER_RESULT_INCONSISTENT = 6, /**< 多后端结果不一致 */
-    SOLVER_RESULT_OUT_OF_SCOPE = 7  /**< 超出求解范围 */
-} SolverResultStatus;
+/* 统一使用 solver.h 中的 SolverStatus 枚举 */
+#include "solver.h"
+
+/* 兼容性别名：将旧 SolverResultStatus 枚举值映射到 SolverStatus */
+#define SOLVER_RESULT_UNKNOWN      SOLVER_STATUS_UNKNOWN
+#define SOLVER_RESULT_SAT          SOLVER_STATUS_OK
+#define SOLVER_RESULT_UNSAT        SOLVER_STATUS_NO_SOLUTION
+#define SOLVER_RESULT_PARTIAL      SOLVER_STATUS_PARTIAL
+#define SOLVER_RESULT_TIMEOUT      SOLVER_STATUS_TIMEOUT
+#define SOLVER_RESULT_ERROR        SOLVER_STATUS_ERROR
+#define SOLVER_RESULT_INCONSISTENT SOLVER_STATUS_INCONSISTENT
+#define SOLVER_RESULT_OUT_OF_SCOPE SOLVER_STATUS_OUT_OF_SCOPE
+
+/* SolverResultStatus 作为 SolverStatus 的类型别名，保持向后兼容 */
+typedef SolverStatus SolverResultStatus;
 
 /**
  * @brief 结果置信度等级

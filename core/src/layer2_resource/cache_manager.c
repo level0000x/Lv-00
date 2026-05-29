@@ -395,7 +395,7 @@ LV00_PUBLIC_API void lv00_cache_manager_destroy(Lv00CacheManager *manager)
     if (!manager) return;
 
     /* 释放所有缓存条目 */
-    lv00_cache_mgr_clear(manager);
+    lv00_unified_cache_clear(manager);
 
     /* 释放上下文数组 */
     { void *_tmp = manager->contexts; lv00_free(&_tmp); manager->contexts = NULL; }
@@ -448,7 +448,7 @@ LV00_PUBLIC_API Lv00ErrorCode lv00_cache_manager_reset(Lv00CacheManager *manager
     }
 
     /* 清空所有缓存条目 */
-    lv00_cache_mgr_clear(manager);
+    lv00_unified_cache_clear(manager);
 
     /* 重置统计信息 */
     manager->total_hits = 0;
@@ -1031,7 +1031,7 @@ LV00_PUBLIC_API bool lv00_cache_context_destroy(Lv00CacheManager *manager,
  * @param out_misses [输出] 总未命中次数（可为 NULL）
  * @param out_size [输出] 当前缓存大小（可为 NULL）
  */
-LV00_PUBLIC_API void lv00_cache_mgr_get_stats(const Lv00CacheManager *manager,
+LV00_PUBLIC_API void lv00_unified_cache_get_stats(const Lv00CacheManager *manager,
                                             uint64_t *out_hits,
                                             uint64_t *out_misses,
                                             size_t *out_size)
@@ -1138,7 +1138,7 @@ LV00_PUBLIC_API void lv00_cache_set_destructor(Lv00CacheManager *manager,
  *
  * @param manager 缓存管理器
  */
-LV00_PUBLIC_API void lv00_cache_mgr_clear(Lv00CacheManager *manager)
+LV00_PUBLIC_API void lv00_unified_cache_clear(Lv00CacheManager *manager)
 {
     if (!manager) return;
 

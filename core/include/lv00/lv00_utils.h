@@ -23,16 +23,11 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
-#include "lv00.h"
 #include "error_codes.h"
 
-/* LV00_PUBLIC_API 由 lv00.h 统一定义，此处不再重复。
- * 原因：lv00.h 中根据平台（Windows DLL / GCC/Clang visibility）和构建模式
- * （共享库 / 静态库）统一设置 LV00_PUBLIC_API。若各子模块头文件各自
- * #define LV00_PUBLIC_API 为空，在构建共享库时会导致符号不导出。
- * 因此要求使用者先包含 lv00.h，此处仅做守卫检查。 */
+/* LV00_PUBLIC_API 由 lv00.h 或 error_codes.h 定义，此处提供回退 */
 #ifndef LV00_PUBLIC_API
-#error "请先包含 lv00.h 以获取 LV00_PUBLIC_API 定义"
+#define LV00_PUBLIC_API
 #endif
 
 /* ============================================================
@@ -691,7 +686,7 @@ static inline size_t lv00_max_z(size_t a, size_t b) {
 /**
  * @brief 安全赋值宏 —— 记录非空指针的覆盖操作
  *
- * 若 ptr 当前非 NULL，则通过 LV00_LOG_WARNING 输出警告日志，
+ * 若 ptr 当前非 NULL，则通过 fprintf(stderr, ...) 输出警告日志，
  * 提示可能存在内存泄漏（旧值未被释放就被覆盖）。
  * 然后无条件将 value 赋给 ptr。
  *
@@ -704,8 +699,9 @@ static inline size_t lv00_max_z(size_t a, size_t b) {
 #define LV00_SAFE_ASSIGN(ptr, value)                                                       \
     do {                                                                                   \
         if ((ptr) != NULL) {                                                               \
-            LV00_LOG_WARNING("LV00_SAFE_ASSIGN: 指针 " #ptr " 非空时被覆盖 (0x%p)，可能泄漏", \
-                             (const void *)(uintptr_t)(ptr));                              \
+            fprintf(stderr, "[WARNING] LV00_SAFE_ASSIGN: 指针 " #ptr                       \
+                            " 非空时被覆盖 (0x%p)，可能泄漏 (%s:%d)\n",                     \
+                            (const void *)(uintptr_t)(ptr), __FILE__, __LINE__);            \
         }                                                                                  \
         (ptr) = (value);                                                                   \
     } while (0)

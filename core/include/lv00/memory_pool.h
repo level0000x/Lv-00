@@ -160,6 +160,8 @@ void lv00_linear_allocator_get_stats(const Lv00LinearAllocator *allocator,
                                      size_t *out_capacity_bytes);
 
 /* ============== 对象缓存（LRU） ============== */
+/* DEPRECATED: 已废弃，请使用 cache_manager.h 中的 Lv00CacheManager */
+#if 0
 
 /**
  * @brief 对象缓存键类型
@@ -233,6 +235,8 @@ void lv00_cache_get_stats(const Lv00ObjectCache *cache,
                           uint64_t *out_hits,
                           uint64_t *out_misses,
                           size_t *out_current_size);
+
+#endif /* DEPRECATED: Lv00ObjectCache */
 
 /* ============== 全局内存统计 ============== */
 

@@ -79,13 +79,18 @@ typedef struct GroebnerResult {
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    SOLVER_STATUS_OK,              /**< 成功 */
-    SOLVER_STATUS_UNIQUE,          /**< 唯一解 */
-    SOLVER_STATUS_MULTIPLE,        /**< 多解 */
-    SOLVER_STATUS_NO_SOLUTION,     /**< 无解 */
-    SOLVER_STATUS_OVERCONSTRAINED, /**< 过度约束 */
+    SOLVER_STATUS_OK = 0,          /**< 求解成功（有解） */
+    SOLVER_STATUS_UNIQUE,           /**< 唯一解 */
+    SOLVER_STATUS_MULTIPLE,         /**< 多解 */
+    SOLVER_STATUS_NO_SOLUTION,      /**< 无解 */
+    SOLVER_STATUS_OVERCONSTRAINED,  /**< 过约束 */
     SOLVER_STATUS_OUT_OF_SCOPE,    /**< 超出范围 */
-    SOLVER_STATUS_TIMEOUT          /**< 超时 */
+    SOLVER_STATUS_TIMEOUT,         /**< 超时 */
+    /* v4.1.0 新增：统一求解结果扩展 */
+    SOLVER_STATUS_PARTIAL,          /**< 部分求解 */
+    SOLVER_STATUS_ERROR,            /**< 求解错误 */
+    SOLVER_STATUS_INCONSISTENT,     /**< 约束不一致 */
+    SOLVER_STATUS_UNKNOWN           /**< 未知状态 */
 } SolverStatus;
 
 /* AlgebraicOp is now defined in mpz_poly.h (included above) */

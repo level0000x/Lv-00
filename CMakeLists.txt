@@ -568,6 +568,11 @@ set(LV00_LAYER2_SOURCES
     # v3.6.0 新增：缓存隔离层管理器
     core/src/layer2_resource/cache_manager.c
     core/src/layer2_resource/global_state.c
+    # v3.3.0 性能优化模块（从 Layer 3 迁移：基础设施性质，不依赖几何/推理层）
+    core/src/layer3_geometry/thread_pool.c
+    core/src/layer3_geometry/simd_ops.c
+    # v3.5.0 推理结果去重缓存（从 Layer 4 迁移：纯哈希表，仅依赖 Layer 2）
+    core/src/layer4_reasoning/reasoning_cache.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -601,9 +606,6 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/gappa_propagate.c
     core/src/layer3_geometry/fptaylor_eval.c
     core/src/layer3_geometry/herbie_eval.c
-    # v3.3.0 性能优化模块
-    core/src/layer3_geometry/thread_pool.c
-    core/src/layer3_geometry/simd_ops.c
     # v3.3.0 新增：几何拓扑
     core/src/layer3_geometry/geo_topology.c
     # v3.6.0 新增：WFC 范式 - 等价类管理器（Layer 3 约束拓扑规约）
@@ -785,7 +787,6 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/meta_proof.c
     # v3.5.0 新增：动态规则注册表 + 推理结果去重缓存
     core/src/layer4_reasoning/rule_registry.c
-    core/src/layer4_reasoning/reasoning_cache.c
     # v3.5.0 新增：矛盾约束检测器
     core/src/layer4_reasoning/conflict_detector.c
 )
@@ -826,6 +827,9 @@ endmacro()
 add_library(lv00_layer2_resource OBJECT ${LV00_LAYER2_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_layer2_resource 2)
 target_link_libraries(lv00_layer2_resource ${GMP_LIBRARIES})
+# v3.3.0: 线程库链接（用于 thread_pool.c，从 Layer 3 迁移至 Layer 2）
+find_package(Threads REQUIRED)
+target_link_libraries(lv00_layer2_resource Threads::Threads)
 
 # Layer 1: 输入解析层（依赖 Layer 2）
 add_library(lv00_layer1_parser OBJECT ${LV00_LAYER1_SOURCES} ${LV00_HEADERS})
@@ -836,9 +840,6 @@ target_link_libraries(lv00_layer1_parser lv00_layer2_resource)
 add_library(lv00_layer3_geometry OBJECT ${LV00_LAYER3_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_layer3_geometry 3)
 target_link_libraries(lv00_layer3_geometry lv00_layer2_resource)
-# v3.3.0: 线程库链接（用于 thread_pool.c）
-find_package(Threads REQUIRED)
-target_link_libraries(lv00_layer3_geometry Threads::Threads)
 
 # Layer 4: 公理推理层（依赖 Layer 3，Layer 2）
 add_library(lv00_layer4_reasoning OBJECT ${LV00_LAYER4_SOURCES} ${LV00_HEADERS})

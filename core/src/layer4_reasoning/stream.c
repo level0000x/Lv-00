@@ -1844,6 +1844,22 @@ const char *stream_event_type_name(StreamEventType type) {
             return "捕获避免";
         case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
             return "跨边界操作";
+        case STREAM_EVENT_PRESET_REGISTER_START:
+            return "预设注册开始";
+        case STREAM_EVENT_PRESET_REGISTER_DONE:
+            return "预设注册完成";
+        case STREAM_EVENT_PRESET_REGISTER_FAILED:
+            return "预设注册失败";
+        case STREAM_EVENT_PRESET_LOOKUP:
+            return "预设查找";
+        case STREAM_EVENT_PRESET_INSTANTIATE:
+            return "预设实例化";
+        case STREAM_EVENT_PRESET_VALIDATE:
+            return "预设验证";
+        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
+            return "预设类别加载完成";
+        case STREAM_EVENT_PRESET_MODULE_LOADED:
+            return "预设模块加载完成";
         case STREAM_EVENT_CONFLICT_DETECTED:
             return "冲突检测";
         case STREAM_EVENT_CONSTRAINT_ADDED:
@@ -1935,6 +1951,22 @@ const char *stream_event_type_id(StreamEventType type) {
             return "FUNC_BLOCK_CAPTURE_AVOID";
         case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
             return "FUNC_BLOCK_CROSS_BOUNDARY";
+        case STREAM_EVENT_PRESET_REGISTER_START:
+            return "PRESET_REGISTER_START";
+        case STREAM_EVENT_PRESET_REGISTER_DONE:
+            return "PRESET_REGISTER_DONE";
+        case STREAM_EVENT_PRESET_REGISTER_FAILED:
+            return "PRESET_REGISTER_FAILED";
+        case STREAM_EVENT_PRESET_LOOKUP:
+            return "PRESET_LOOKUP";
+        case STREAM_EVENT_PRESET_INSTANTIATE:
+            return "PRESET_INSTANTIATE";
+        case STREAM_EVENT_PRESET_VALIDATE:
+            return "PRESET_VALIDATE";
+        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
+            return "PRESET_CATEGORY_LOADED";
+        case STREAM_EVENT_PRESET_MODULE_LOADED:
+            return "PRESET_MODULE_LOADED";
         case STREAM_EVENT_CONFLICT_DETECTED:
             return "CONFLICT_DETECTED";
         case STREAM_EVENT_CONSTRAINT_ADDED:
@@ -1988,6 +2020,17 @@ const char *stream_event_color(StreamEventType type) {
         case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
         case STREAM_EVENT_PROOF_STEP_APPLIED:
             return STREAM_COLOR_PURPLE; /* 紫色 */
+        case STREAM_EVENT_PRESET_REGISTER_START:
+        case STREAM_EVENT_PRESET_REGISTER_DONE:
+        case STREAM_EVENT_PRESET_LOOKUP:
+        case STREAM_EVENT_PRESET_INSTANTIATE:
+        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
+        case STREAM_EVENT_PRESET_MODULE_LOADED:
+            return STREAM_COLOR_TEAL; /* 青绿色 - 预设函数块系统 */
+        case STREAM_EVENT_PRESET_REGISTER_FAILED:
+            return STREAM_COLOR_RED; /* 红色 - 注册失败 */
+        case STREAM_EVENT_PRESET_VALIDATE:
+            return STREAM_COLOR_CYAN; /* 青色 - 验证 */
         default:
             return STREAM_COLOR_LIGHT_GRAY; /* 默认浅灰 */
     }

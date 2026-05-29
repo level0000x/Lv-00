@@ -297,7 +297,7 @@ LV00_PUBLIC_API void lv00_cache_set_destructor(Lv00CacheManager *manager,
 /**
  * @brief 清空缓存
  */
-LV00_PUBLIC_API void lv00_cache_mgr_clear(Lv00CacheManager *manager);
+LV00_PUBLIC_API void lv00_unified_cache_clear(Lv00CacheManager *manager);
 
 #ifdef __cplusplus
 }

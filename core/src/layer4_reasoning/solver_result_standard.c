@@ -502,7 +502,7 @@ LV00_PUBLIC_API void solver_unified_result_free(SolverUnifiedResult *result)
     result->conflict_count = 0;
 
     result->backend_count = 0;
-    result->status = SOLVER_RESULT_UNKNOWN;
+    result->status = SOLVER_STATUS_UNKNOWN;
     result->confidence = SOLVER_CONFIDENCE_NONE;
 }
 
@@ -542,22 +542,22 @@ LV00_PUBLIC_API int solver_convert_smt_to_unified(const SMTSolverResult *smt_res
 {
     if (!smt_result || !out_result) return -1;
 
-    /* 映射 SMT 可满足性结果到统一状态 */
+    /* 映射 SMT 可满足性结果到统一状态（v4.1.0：使用 SOLVER_STATUS_* 宏） */
     switch (smt_result->sat_result) {
     case SMT_RESULT_SAT:
-        out_result->status = SOLVER_RESULT_SAT;
+        out_result->status = SOLVER_STATUS_OK;
         break;
     case SMT_RESULT_UNSAT:
-        out_result->status = SOLVER_RESULT_UNSAT;
+        out_result->status = SOLVER_STATUS_NO_SOLUTION;
         break;
     case SMT_RESULT_UNKNOWN:
-        out_result->status = SOLVER_RESULT_UNKNOWN;
+        out_result->status = SOLVER_STATUS_UNKNOWN;
         break;
     case SMT_RESULT_ERROR:
-        out_result->status = SOLVER_RESULT_ERROR;
+        out_result->status = SOLVER_STATUS_ERROR;
         break;
     default:
-        out_result->status = SOLVER_RESULT_UNKNOWN;
+        out_result->status = SOLVER_STATUS_UNKNOWN;
         break;
     }
 
@@ -636,20 +636,20 @@ LV00_PUBLIC_API int solver_convert_groebner_to_unified(const void *gb_result,
     if (!out_result) return -1;
 
     if (!gb_result) {
-        out_result->status = SOLVER_RESULT_UNKNOWN;
+        out_result->status = SOLVER_STATUS_UNKNOWN;
         out_result->confidence = SOLVER_CONFIDENCE_NONE;
         return -1;
     }
 
     /* 简化实现：标记为部分求解，等待完整 Groebner 结果解析 */
-    out_result->status = SOLVER_RESULT_PARTIAL;
+    out_result->status = SOLVER_STATUS_PARTIAL;
     out_result->confidence = SOLVER_CONFIDENCE_LOW;
 
     /* 添加 Groebner 后端记录 */
     if (out_result->backend_count < SOLVER_RESULT_MAX_BACKENDS) {
         SolverBackendResult *br = &out_result->backend_results[out_result->backend_count];
         br->backend         = GROEBNER;
-        br->status          = SOLVER_RESULT_PARTIAL;
+        br->status          = SOLVER_STATUS_PARTIAL;
         br->solve_time_ms   = 0;
         br->raw_result      = NULL;
         br->raw_result_free = NULL;
@@ -1038,19 +1038,28 @@ LV00_PUBLIC_API int solver_unified_format_report(const SolverUnifiedResult *resu
 
 /**
  * @brief 获取结果状态字符串
+ *
+ * 覆盖 SolverStatus 的全部枚举值（v4.1.0 统一枚举）。
+ * 兼容性别名 SOLVER_RESULT_* 通过宏映射到 SOLVER_STATUS_*，
+ * 因此 switch 中使用 SOLVER_RESULT_* 或 SOLVER_STATUS_* 均可。
  */
 LV00_PUBLIC_API const char *solver_result_status_string(SolverResultStatus status)
 {
     switch (status) {
-    case SOLVER_RESULT_UNKNOWN:      return "UNKNOWN";
-    case SOLVER_RESULT_SAT:          return "SAT";
-    case SOLVER_RESULT_UNSAT:        return "UNSAT";
-    case SOLVER_RESULT_PARTIAL:      return "PARTIAL";
-    case SOLVER_RESULT_TIMEOUT:      return "TIMEOUT";
-    case SOLVER_RESULT_ERROR:        return "ERROR";
-    case SOLVER_RESULT_INCONSISTENT: return "INCONSISTENT";
-    case SOLVER_RESULT_OUT_OF_SCOPE: return "OUT_OF_SCOPE";
-    default:                         return "INVALID";
+    /* SolverStatus 原有值 */
+    case SOLVER_STATUS_OK:             return "OK";
+    case SOLVER_STATUS_UNIQUE:         return "UNIQUE";
+    case SOLVER_STATUS_MULTIPLE:       return "MULTIPLE";
+    case SOLVER_STATUS_NO_SOLUTION:    return "NO_SOLUTION";
+    case SOLVER_STATUS_OVERCONSTRAINED: return "OVERCONSTRAINED";
+    case SOLVER_STATUS_OUT_OF_SCOPE:   return "OUT_OF_SCOPE";
+    case SOLVER_STATUS_TIMEOUT:        return "TIMEOUT";
+    /* v4.1.0 新增值 */
+    case SOLVER_STATUS_PARTIAL:        return "PARTIAL";
+    case SOLVER_STATUS_ERROR:          return "ERROR";
+    case SOLVER_STATUS_INCONSISTENT:   return "INCONSISTENT";
+    case SOLVER_STATUS_UNKNOWN:        return "UNKNOWN";
+    default:                           return "INVALID";
     }
 }
 
