@@ -232,17 +232,14 @@ def templateToExecutableRule (id : Nat) (t : PackageTemplate) : ExecutableRule :
     priority := RulePriority.normal,
     dependencies := [],
     packageName := proofTheoryPackage.name }
-/-- Enumerate a list with indices: zip (List.range xs.length) xs. -/
-def listEnum (xs : List α) : List (Nat × α) :=
-  List.zip (List.range xs.length) xs
 
 /-- 由全部模板生成的规则实例。 -/
 def proofTheoryExecutableRules : List ExecutableRule :=
-  listEnum(proofTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  proofTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的规则实例数量与模板数量一致。 -/
 theorem proofTheoryExecutableRules_length : proofTheoryExecutableRules.length = 36 := by
-  simp [listEnum, proofTheoryExecutableRules, proofTheoryTemplates_length]
+  simp [ proofTheoryExecutableRules, proofTheoryTemplates_length]
 
 /-- 模板生成的规则实例均良构。
     由于模板阶段尚未携带具体前提/结论，良构性主要来自规则种类属于规范八规则集合。 -/
@@ -393,11 +390,11 @@ theorem linearLogic_MELL_open_problem :
 
 /-- 由全部 Linear Logic 模板生成的规则实例。 -/
 def linearLogicExecutableRules : List ExecutableRule :=
-  listEnum(linearLogicTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  linearLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Linear Logic 规则实例数量与模板数量一致。 -/
 theorem linearLogicExecutableRules_length : linearLogicExecutableRules.length = 54 := by
-  simp [listEnum, linearLogicExecutableRules, linearLogicTemplates_length]
+  simp [ linearLogicExecutableRules, linearLogicTemplates_length]
 
 /-! ## Galois Theory 公理包实例
 
@@ -549,11 +546,11 @@ theorem galoisTheory_inverse_problem_unsolved :
 
 /-- 由全部 Galois Theory 模板生成的规则实例。 -/
 def galoisTheoryExecutableRules : List ExecutableRule :=
-  listEnum(galoisTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  galoisTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Galois Theory 规则实例数量与模板数量一致。 -/
 theorem galoisTheoryExecutableRules_length : galoisTheoryExecutableRules.length = 62 := by
-  simp [listEnum, galoisTheoryExecutableRules, galoisTheoryTemplates_length]
+  simp [ galoisTheoryExecutableRules, galoisTheoryTemplates_length]
 
 /-! ## Euclidean Plane 公理包实例
 
@@ -656,11 +653,11 @@ theorem euclideanPlaneUnconstructibles_green_verified :
 
 /-- 由全部 Euclidean Plane 模板生成的规则实例。 -/
 def euclideanPlaneExecutableRules : List ExecutableRule :=
-  listEnum(euclideanPlaneTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  euclideanPlaneTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Euclidean Plane 规则实例数量与模板数量一致。 -/
 theorem euclideanPlaneExecutableRules_length : euclideanPlaneExecutableRules.length = 22 := by
-  simp [listEnum, euclideanPlaneExecutableRules, euclideanPlaneTemplates_length]
+  simp [ euclideanPlaneExecutableRules, euclideanPlaneTemplates_length]
 
 /-! ## Category Theory 公理包实例
 
@@ -803,11 +800,11 @@ theorem categoryTheory_logical_framework :
 
 /-- 由全部 Category Theory 模板生成的规则实例。 -/
 def categoryTheoryExecutableRules : List ExecutableRule :=
-  listEnum(categoryTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  categoryTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Category Theory 规则实例数量与模板数量一致。 -/
 theorem categoryTheoryExecutableRules_length : categoryTheoryExecutableRules.length = 60 := by
-  simp [listEnum, categoryTheoryExecutableRules, categoryTheoryTemplates_length]
+  simp [ categoryTheoryExecutableRules, categoryTheoryTemplates_length]
 
 /-! ## Hyperbolic Geometry 公理包实例
 
@@ -912,11 +909,11 @@ theorem hyperbolicGeometry_logical_framework :
 
 /-- 由全部 Hyperbolic Geometry 模板生成的规则实例。 -/
 def hyperbolicGeometryExecutableRules : List ExecutableRule :=
-  listEnum(hyperbolicGeometryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  hyperbolicGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Hyperbolic Geometry 规则实例数量与模板数量一致。 -/
 theorem hyperbolicGeometryExecutableRules_length : hyperbolicGeometryExecutableRules.length = 29 := by
-  simp [listEnum, hyperbolicGeometryExecutableRules, hyperbolicGeometryTemplates_length]
+  simp [ hyperbolicGeometryExecutableRules, hyperbolicGeometryTemplates_length]
 
 /-! ## Projective Geometry 公理包实例
 
@@ -1031,11 +1028,11 @@ def projectiveGeometryPackage : AxiomPackageInstance :=
 
 /-- 由全部 Projective Geometry 模板生成的规则实例。 -/
 def projectiveGeometryExecutableRules : List ExecutableRule :=
-  listEnum(projectiveGeometryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  projectiveGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Projective Geometry 规则实例数量与模板数量一致。 -/
 theorem projectiveGeometryExecutableRules_length : projectiveGeometryExecutableRules.length = 38 := by
-  simp [listEnum, projectiveGeometryExecutableRules, projectiveGeometryTemplates_length]
+  simp [ projectiveGeometryExecutableRules, projectiveGeometryTemplates_length]
 
 /-! ## Group Theory 公理包实例
 
@@ -1134,11 +1131,11 @@ def groupTheoryPackage : AxiomPackageInstance :=
 
 /-- 由全部 Group Theory 模板生成的规则实例。 -/
 def groupTheoryExecutableRules : List ExecutableRule :=
-  listEnum(groupTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  groupTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Group Theory 规则实例数量与模板数量一致。 -/
 theorem groupTheoryExecutableRules_length : groupTheoryExecutableRules.length = 34 := by
-  simp [listEnum, groupTheoryExecutableRules, groupTheoryTemplates_length]
+  simp [ groupTheoryExecutableRules, groupTheoryTemplates_length]
 
 /-! ## ZFC Set Theory 公理包实例
 
@@ -1245,11 +1242,11 @@ def zfcSetTheoryPackage : AxiomPackageInstance :=
 
 /-- 由全部 ZFC Set Theory 模板生成的规则实例。 -/
 def zfcSetTheoryExecutableRules : List ExecutableRule :=
-  listEnum(zfcSetTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  zfcSetTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 ZFC Set Theory 规则实例数量与模板数量一致。 -/
 theorem zfcSetTheoryExecutableRules_length : zfcSetTheoryExecutableRules.length = 27 := by
-  simp [listEnum, zfcSetTheoryExecutableRules, zfcSetTheoryTemplates_length]
+  simp [ zfcSetTheoryExecutableRules, zfcSetTheoryTemplates_length]
 
 /-! ## Boolean Algebra 公理包实例 -/
 
@@ -1304,10 +1301,10 @@ def booleanAlgebraPackage : AxiomPackageInstance :=
     negationEncoding := "classical_complement", contradictionBehavior := "explosion_principle" }
 
 def booleanAlgebraExecutableRules : List ExecutableRule :=
-  listEnum(booleanAlgebraTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  booleanAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem booleanAlgebraExecutableRules_length : booleanAlgebraExecutableRules.length = 29 := by
-  simp [listEnum, booleanAlgebraExecutableRules, booleanAlgebraTemplates_length]
+  simp [ booleanAlgebraExecutableRules, booleanAlgebraTemplates_length]
 
 /-! ## Ring Theory 公理包实例 -/
 
@@ -1343,10 +1340,10 @@ def ringTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_equality", contradictionBehavior := "explosion_principle" }
 
 def ringTheoryExecutableRules : List ExecutableRule :=
-  listEnum(ringTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  ringTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem ringTheoryExecutableRules_length : ringTheoryExecutableRules.length = 54 := by
-  simp [listEnum, ringTheoryExecutableRules, ringTheoryTemplates_length]
+  simp [ ringTheoryExecutableRules, ringTheoryTemplates_length]
 
 /-! ## Peano Arithmetic 公理包实例 -/
 
@@ -1378,10 +1375,10 @@ def peanoArithmeticPackage : AxiomPackageInstance :=
     negationEncoding := "classical_first_order_logic", contradictionBehavior := "explosion_principle" }
 
 def peanoArithmeticExecutableRules : List ExecutableRule :=
-  listEnum(peanoArithmeticTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  peanoArithmeticTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem peanoArithmeticExecutableRules_length : peanoArithmeticExecutableRules.length = 70 := by
-  simp [listEnum, peanoArithmeticExecutableRules, peanoArithmeticTemplates_length]
+  simp [ peanoArithmeticExecutableRules, peanoArithmeticTemplates_length]
 
 /-! ## Field Theory 公理包实例 -/
 
@@ -1417,10 +1414,10 @@ def fieldTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_equality", contradictionBehavior := "explosion_principle" }
 
 def fieldTheoryExecutableRules : List ExecutableRule :=
-  listEnum(fieldTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  fieldTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem fieldTheoryExecutableRules_length : fieldTheoryExecutableRules.length = 37 := by
-  simp [listEnum, fieldTheoryExecutableRules, fieldTheoryTemplates_length]
+  simp [ fieldTheoryExecutableRules, fieldTheoryTemplates_length]
 
 /-! ## Order Theory 公理包实例 -/
 
@@ -1457,10 +1454,10 @@ def orderTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_order_negation", contradictionBehavior := "explosion_principle" }
 
 def orderTheoryExecutableRules : List ExecutableRule :=
-  listEnum(orderTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  orderTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem orderTheoryExecutableRules_length : orderTheoryExecutableRules.length = 32 := by
-  simp [listEnum, orderTheoryExecutableRules, orderTheoryTemplates_length]
+  simp [ orderTheoryExecutableRules, orderTheoryTemplates_length]
 
 /-! ## Point-Set Topology 公理包实例 -/
 
@@ -1495,10 +1492,10 @@ def pointSetTopologyPackage : AxiomPackageInstance :=
     negationEncoding := "set_complement_in_topology", contradictionBehavior := "explosion_principle" }
 
 def pointSetTopologyExecutableRules : List ExecutableRule :=
-  listEnum(pointSetTopologyTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  pointSetTopologyTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem pointSetTopologyExecutableRules_length : pointSetTopologyExecutableRules.length = 43 := by
-  simp [listEnum, pointSetTopologyExecutableRules, pointSetTopologyTemplates_length]
+  simp [ pointSetTopologyExecutableRules, pointSetTopologyTemplates_length]
 
 /-! ## Graph Theory 公理包实例 -/
 
@@ -1543,10 +1540,10 @@ def graphTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_edge_complement", contradictionBehavior := "explosion_principle" }
 
 def graphTheoryExecutableRules : List ExecutableRule :=
-  listEnum(graphTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  graphTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem graphTheoryExecutableRules_length : graphTheoryExecutableRules.length = 70 := by
-  simp [listEnum, graphTheoryExecutableRules, graphTheoryTemplates_length]
+  simp [ graphTheoryExecutableRules, graphTheoryTemplates_length]
 
 /-! ## Number Theory 公理包实例 -/
 
@@ -1581,10 +1578,10 @@ def numberTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_divisibility_complement", contradictionBehavior := "explosion_principle" }
 
 def numberTheoryExecutableRules : List ExecutableRule :=
-  listEnum(numberTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  numberTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem numberTheoryExecutableRules_length : numberTheoryExecutableRules.length = 38 := by
-  simp [listEnum, numberTheoryExecutableRules, numberTheoryTemplates_length]
+  simp [ numberTheoryExecutableRules, numberTheoryTemplates_length]
 
 /-! ## Measure Theory 公理包实例 -/
 
@@ -1628,10 +1625,10 @@ def measureTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_equality", contradictionBehavior := "explosion_principle" }
 
 def measureTheoryExecutableRules : List ExecutableRule :=
-  listEnum(measureTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  measureTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem measureTheoryExecutableRules_length : measureTheoryExecutableRules.length = 70 := by
-  simp [listEnum, measureTheoryExecutableRules, measureTheoryTemplates_length]
+  simp [ measureTheoryExecutableRules, measureTheoryTemplates_length]
 
 /-! ## Real Analysis 公理包实例 -/
 
@@ -1666,10 +1663,10 @@ def realAnalysisPackage : AxiomPackageInstance :=
     negationEncoding := "classical_complement_in_measure_space", contradictionBehavior := "explosion_principle" }
 
 def realAnalysisExecutableRules : List ExecutableRule :=
-  listEnum(realAnalysisTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  realAnalysisTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem realAnalysisExecutableRules_length : realAnalysisExecutableRules.length = 43 := by
-  simp [listEnum, realAnalysisExecutableRules, realAnalysisTemplates_length]
+  simp [ realAnalysisExecutableRules, realAnalysisTemplates_length]
 
 /-! ## Functional Analysis 公理包实例 -/
 
@@ -1704,10 +1701,10 @@ def functionalAnalysisPackage : AxiomPackageInstance :=
     negationEncoding := "operator_norm_complement", contradictionBehavior := "explosion_principle" }
 
 def functionalAnalysisExecutableRules : List ExecutableRule :=
-  listEnum(functionalAnalysisTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  functionalAnalysisTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem functionalAnalysisExecutableRules_length : functionalAnalysisExecutableRules.length = 37 := by
-  simp [listEnum, functionalAnalysisExecutableRules, functionalAnalysisTemplates_length]
+  simp [ functionalAnalysisExecutableRules, functionalAnalysisTemplates_length]
 
 /-! ## Probability Theory 公理包实例 -/
 
@@ -1748,10 +1745,10 @@ def probabilityTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "event_complement", contradictionBehavior := "explosion_principle" }
 
 def probabilityTheoryExecutableRules : List ExecutableRule :=
-  listEnum(probabilityTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  probabilityTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem probabilityTheoryExecutableRules_length : probabilityTheoryExecutableRules.length = 87 := by
-  simp [listEnum, probabilityTheoryExecutableRules, probabilityTheoryTemplates_length]
+  simp [ probabilityTheoryExecutableRules, probabilityTheoryTemplates_length]
 
 /-! ## Algebraic Geometry 公理包实例 -/
 
@@ -1785,10 +1782,10 @@ def algebraicGeometryPackage : AxiomPackageInstance :=
     negationEncoding := "sheaf_stalk_complement", contradictionBehavior := "explosion_principle" }
 
 def algebraicGeometryExecutableRules : List ExecutableRule :=
-  listEnum(algebraicGeometryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  algebraicGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem algebraicGeometryExecutableRules_length : algebraicGeometryExecutableRules.length = 38 := by
-  simp [listEnum, algebraicGeometryExecutableRules, algebraicGeometryTemplates_length]
+  simp [ algebraicGeometryExecutableRules, algebraicGeometryTemplates_length]
 
 /-! ## Information Theory 公理包实例 -/
 
@@ -1831,10 +1828,10 @@ def informationTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_measure_theoretic", contradictionBehavior := "explosion_principle" }
 
 def informationTheoryExecutableRules : List ExecutableRule :=
-  listEnum(informationTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  informationTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem informationTheoryExecutableRules_length : informationTheoryExecutableRules.length = 96 := by
-  simp [listEnum, informationTheoryExecutableRules, informationTheoryTemplates_length]
+  simp [ informationTheoryExecutableRules, informationTheoryTemplates_length]
 
 /-! ## Linear Algebra 公理包实例 -/
 
@@ -1875,10 +1872,10 @@ def linearAlgebraPackage : AxiomPackageInstance :=
     negationEncoding := "classical_equality", contradictionBehavior := "explosion_principle" }
 
 def linearAlgebraExecutableRules : List ExecutableRule :=
-  listEnum(linearAlgebraTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  linearAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem linearAlgebraExecutableRules_length : linearAlgebraExecutableRules.length = 90 := by
-  simp [listEnum, linearAlgebraExecutableRules, linearAlgebraTemplates_length]
+  simp [ linearAlgebraExecutableRules, linearAlgebraTemplates_length]
 
 /-! ## Homological Algebra 公理包实例 -/
 
@@ -1912,10 +1909,10 @@ def homologicalAlgebraPackage : AxiomPackageInstance :=
     negationEncoding := "exact_sequence_kernel_cokernel", contradictionBehavior := "explosion_principle" }
 
 def homologicalAlgebraExecutableRules : List ExecutableRule :=
-  listEnum(homologicalAlgebraTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  homologicalAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem homologicalAlgebraExecutableRules_length : homologicalAlgebraExecutableRules.length = 36 := by
-  simp [listEnum, homologicalAlgebraExecutableRules, homologicalAlgebraTemplates_length]
+  simp [ homologicalAlgebraExecutableRules, homologicalAlgebraTemplates_length]
 
 /-! ## Differential Geometry 公理包实例 -/
 
@@ -1949,10 +1946,10 @@ def differentialGeometryPackage : AxiomPackageInstance :=
     negationEncoding := "tensor_field_complement", contradictionBehavior := "explosion_principle" }
 
 def differentialGeometryExecutableRules : List ExecutableRule :=
-  listEnum(differentialGeometryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  differentialGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem differentialGeometryExecutableRules_length : differentialGeometryExecutableRules.length = 41 := by
-  simp [listEnum, differentialGeometryExecutableRules, differentialGeometryTemplates_length]
+  simp [ differentialGeometryExecutableRules, differentialGeometryTemplates_length]
 
 /-! ## Computability Theory 公理包实例 -/
 
@@ -2001,10 +1998,10 @@ def computabilityTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "complement_in_natural_numbers", contradictionBehavior := "explosion_principle" }
 
 def computabilityTheoryExecutableRules : List ExecutableRule :=
-  listEnum(computabilityTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  computabilityTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem computabilityTheoryExecutableRules_length : computabilityTheoryExecutableRules.length = 53 := by
-  simp [listEnum, computabilityTheoryExecutableRules, computabilityTheoryTemplates_length]
+  simp [ computabilityTheoryExecutableRules, computabilityTheoryTemplates_length]
 
 /-! ## Modal Logic 公理包实例 -/
 
@@ -2044,10 +2041,10 @@ def modalLogicPackage : AxiomPackageInstance :=
     negationEncoding := "classical_complement_with_modal_dual", contradictionBehavior := "explosion_principle" }
 
 def modalLogicExecutableRules : List ExecutableRule :=
-  listEnum(modalLogicTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  modalLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem modalLogicExecutableRules_length : modalLogicExecutableRules.length = 29 := by
-  simp [listEnum, modalLogicExecutableRules, modalLogicTemplates_length]
+  simp [ modalLogicExecutableRules, modalLogicTemplates_length]
 
 /-! ## Universal Algebra 公理包实例 -/
 
@@ -2085,10 +2082,10 @@ def universalAlgebraPackage : AxiomPackageInstance :=
     negationEncoding := "equational_equality", contradictionBehavior := "explosion_principle" }
 
 def universalAlgebraExecutableRules : List ExecutableRule :=
-  listEnum(universalAlgebraTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  universalAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem universalAlgebraExecutableRules_length : universalAlgebraExecutableRules.length = 60 := by
-  simp [listEnum, universalAlgebraExecutableRules, universalAlgebraTemplates_length]
+  simp [ universalAlgebraExecutableRules, universalAlgebraTemplates_length]
 
 /-! ## Combinatorics 公理包实例 -/
 
@@ -2123,10 +2120,10 @@ def combinatoricsPackage : AxiomPackageInstance :=
     negationEncoding := "classical_complement", contradictionBehavior := "explosion_principle" }
 
 def combinatoricsExecutableRules : List ExecutableRule :=
-  listEnum(combinatoricsTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  combinatoricsTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem combinatoricsExecutableRules_length : combinatoricsExecutableRules.length = 39 := by
-  simp [listEnum, combinatoricsExecutableRules, combinatoricsTemplates_length]
+  simp [ combinatoricsExecutableRules, combinatoricsTemplates_length]
 
 /-! ## Game Theory 公理包实例 -/
 
@@ -2167,10 +2164,10 @@ def gameTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_deviation_negation", contradictionBehavior := "explosion_principle" }
 
 def gameTheoryExecutableRules : List ExecutableRule :=
-  listEnum(gameTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  gameTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem gameTheoryExecutableRules_length : gameTheoryExecutableRules.length = 51 := by
-  simp [listEnum, gameTheoryExecutableRules, gameTheoryTemplates_length]
+  simp [ gameTheoryExecutableRules, gameTheoryTemplates_length]
 
 /-! ## Homotopy Type Theory 公理包实例 -/
 
@@ -2204,10 +2201,10 @@ def homotopyTypeTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "identity_type_path_to_empty_type", contradictionBehavior := "explosion_principle" }
 
 def homotopyTypeTheoryExecutableRules : List ExecutableRule :=
-  listEnum(homotopyTypeTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  homotopyTypeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem homotopyTypeTheoryExecutableRules_length : homotopyTypeTheoryExecutableRules.length = 37 := by
-  simp [listEnum, homotopyTypeTheoryExecutableRules, homotopyTypeTheoryTemplates_length]
+  simp [ homotopyTypeTheoryExecutableRules, homotopyTypeTheoryTemplates_length]
 
 /-! ## Dependent Type Theory 公理包实例 -/
 
@@ -2241,10 +2238,10 @@ def dependentTypeTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "identity_type_to_empty_type", contradictionBehavior := "explosion_principle" }
 
 def dependentTypeTheoryExecutableRules : List ExecutableRule :=
-  listEnum(dependentTypeTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  dependentTypeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem dependentTypeTheoryExecutableRules_length : dependentTypeTheoryExecutableRules.length = 33 := by
-  simp [listEnum, dependentTypeTheoryExecutableRules, dependentTypeTheoryTemplates_length]
+  simp [ dependentTypeTheoryExecutableRules, dependentTypeTheoryTemplates_length]
 
 /-! ## Simple Type Theory 公理包实例 -/
 
@@ -2278,10 +2275,10 @@ def simpleTypeTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "function_type_to_empty_type", contradictionBehavior := "explosion_principle" }
 
 def simpleTypeTheoryExecutableRules : List ExecutableRule :=
-  listEnum(simpleTypeTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  simpleTypeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem simpleTypeTheoryExecutableRules_length : simpleTypeTheoryExecutableRules.length = 39 := by
-  simp [listEnum, simpleTypeTheoryExecutableRules, simpleTypeTheoryTemplates_length]
+  simp [ simpleTypeTheoryExecutableRules, simpleTypeTheoryTemplates_length]
 
 /-! ## Affine Geometry 公理包实例 -/
 
@@ -2321,10 +2318,10 @@ def affineGeometryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_material_implication", contradictionBehavior := "explosion_principle" }
 
 def affineGeometryExecutableRules : List ExecutableRule :=
-  listEnum(affineGeometryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  affineGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem affineGeometryExecutableRules_length : affineGeometryExecutableRules.length = 52 := by
-  simp [listEnum, affineGeometryExecutableRules, affineGeometryTemplates_length]
+  simp [ affineGeometryExecutableRules, affineGeometryTemplates_length]
 
 /-! ## Algebraic Topology 公理包实例 -/
 
@@ -2359,10 +2356,10 @@ def algebraicTopologyPackage : AxiomPackageInstance :=
     negationEncoding := "abelian_group_complement", contradictionBehavior := "explosion_principle" }
 
 def algebraicTopologyExecutableRules : List ExecutableRule :=
-  listEnum(algebraicTopologyTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  algebraicTopologyTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem algebraicTopologyExecutableRules_length : algebraicTopologyExecutableRules.length = 38 := by
-  simp [listEnum, algebraicTopologyExecutableRules, algebraicTopologyTemplates_length]
+  simp [ algebraicTopologyExecutableRules, algebraicTopologyTemplates_length]
 
 /-! ## Elliptic Geometry 公理包实例 -/
 
@@ -2398,10 +2395,10 @@ def ellipticGeometryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_material_implication", contradictionBehavior := "explosion_principle" }
 
 def ellipticGeometryExecutableRules : List ExecutableRule :=
-  listEnum(ellipticGeometryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  ellipticGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem ellipticGeometryExecutableRules_length : ellipticGeometryExecutableRules.length = 30 := by
-  simp [listEnum, ellipticGeometryExecutableRules, ellipticGeometryTemplates_length]
+  simp [ ellipticGeometryExecutableRules, ellipticGeometryTemplates_length]
 
 /-! ## Metric Space 公理包实例 -/
 
@@ -2439,10 +2436,10 @@ def metricSpacePackage : AxiomPackageInstance :=
     negationEncoding := "classical_distance_negation", contradictionBehavior := "explosion_principle" }
 
 def metricSpaceExecutableRules : List ExecutableRule :=
-  listEnum(metricSpaceTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  metricSpaceTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem metricSpaceExecutableRules_length : metricSpaceExecutableRules.length = 47 := by
-  simp [listEnum, metricSpaceExecutableRules, metricSpaceTemplates_length]
+  simp [ metricSpaceExecutableRules, metricSpaceTemplates_length]
 
 /-! ## Lattice Theory 公理包实例 -/
 
@@ -2482,10 +2479,10 @@ def latticeTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "complement_in_complemented_lattice", contradictionBehavior := "explosion_principle" }
 
 def latticeTheoryExecutableRules : List ExecutableRule :=
-  listEnum(latticeTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  latticeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem latticeTheoryExecutableRules_length : latticeTheoryExecutableRules.length = 42 := by
-  simp [listEnum, latticeTheoryExecutableRules, latticeTheoryTemplates_length]
+  simp [ latticeTheoryExecutableRules, latticeTheoryTemplates_length]
 
 /-! ## Lie Theory 公理包实例 -/
 
@@ -2524,10 +2521,10 @@ def lieTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_equality", contradictionBehavior := "explosion_principle" }
 
 def lieTheoryExecutableRules : List ExecutableRule :=
-  listEnum(lieTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  lieTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem lieTheoryExecutableRules_length : lieTheoryExecutableRules.length = 70 := by
-  simp [listEnum, lieTheoryExecutableRules, lieTheoryTemplates_length]
+  simp [ lieTheoryExecutableRules, lieTheoryTemplates_length]
 
 /-! ## Model Theory 公理包实例 -/
 
@@ -2562,10 +2559,10 @@ def modelTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "classical_negation_in_logic", contradictionBehavior := "explosion_principle" }
 
 def modelTheoryExecutableRules : List ExecutableRule :=
-  listEnum(modelTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  modelTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem modelTheoryExecutableRules_length : modelTheoryExecutableRules.length = 35 := by
-  simp [listEnum, modelTheoryExecutableRules, modelTheoryTemplates_length]
+  simp [ modelTheoryExecutableRules, modelTheoryTemplates_length]
 
 /-! ## Classical Propositional Logic 公理包实例 -/
 
@@ -2609,10 +2606,10 @@ def classicalPropositionalLogicPackage : AxiomPackageInstance :=
     negationEncoding := "material_implication_to_falsum", contradictionBehavior := "explosion_principle" }
 
 def classicalPropositionalLogicExecutableRules : List ExecutableRule :=
-  listEnum(classicalPropositionalLogicTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  classicalPropositionalLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem classicalPropositionalLogicExecutableRules_length : classicalPropositionalLogicExecutableRules.length = 59 := by
-  simp [listEnum, classicalPropositionalLogicExecutableRules, classicalPropositionalLogicTemplates_length]
+  simp [ classicalPropositionalLogicExecutableRules, classicalPropositionalLogicTemplates_length]
 
 /-! ## Intuitionistic Logic 公理包实例 -/
 
@@ -2651,10 +2648,10 @@ def intuitionisticLogicPackage : AxiomPackageInstance :=
     negationEncoding := "brouwer_heyting_kolmogorov_implication_to_falsum", contradictionBehavior := "explosion_principle" }
 
 def intuitionisticLogicExecutableRules : List ExecutableRule :=
-  listEnum(intuitionisticLogicTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  intuitionisticLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem intuitionisticLogicExecutableRules_length : intuitionisticLogicExecutableRules.length = 50 := by
-  simp [listEnum, intuitionisticLogicExecutableRules, intuitionisticLogicTemplates_length]
+  simp [ intuitionisticLogicExecutableRules, intuitionisticLogicTemplates_length]
 
 /-! ## Topos Theory 公理包实例 -/
 
@@ -2701,10 +2698,10 @@ def toposTheoryPackage : AxiomPackageInstance :=
     negationEncoding := "heyting_negation", contradictionBehavior := "blocking" }
 
 def toposTheoryExecutableRules : List ExecutableRule :=
-  listEnum(toposTheoryTemplates).map (fun item => templateToExecutableRule item.1 item.2)
+  toposTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem toposTheoryExecutableRules_length : toposTheoryExecutableRules.length = 81 := by
-  simp [listEnum, toposTheoryExecutableRules, toposTheoryTemplates_length]
+  simp [ toposTheoryExecutableRules, toposTheoryTemplates_length]
 
 end Instances
 end Axioms

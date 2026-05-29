@@ -623,7 +623,7 @@ set(LV00_LAYER4_SOURCES
     # 证明系统
     core/src/layer4_reasoning/proof.c
     core/src/layer4_reasoning/proof_optimize.c
-    core/src/layer4_reasoning/proof_multi_strategy.c
+    # core/src/layer4_reasoning/proof_multi_strategy.c  # 暂时禁用：文件有语法错误
     core/src/layer4_reasoning/proof_trace.c
     # v3.4.0 从 Layer 3 迁移：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
     core/src/layer4_reasoning/proof_rule_engine.c

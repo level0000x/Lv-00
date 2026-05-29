@@ -1,0 +1,46 @@
+/**
+ * @file triangle_right.lv00
+ * @brief 直角三角形构造案例
+ *
+ * 演示如何构造一个直角三角形，并证明勾股定理
+ */
+
+// 定义直角三角形的三个顶点
+point A(0, 0);
+point B(4, 0);
+point C(0, 3);
+
+// 构造三角形
+triangle ABC(A, B, C);
+
+// 定义边
+segment AB(A, B);
+segment BC(B, C);
+segment CA(C, A);
+
+// 证明直角
+prove {
+    angle(C, A, B) == 90°
+}
+
+// 验证勾股定理
+prove {
+    length(AB)^2 == length(BC)^2 + length(CA)^2
+}
+
+// 计算面积
+compute {
+    area = 0.5 * length(AB) * length(CA)
+}
+
+// 可视化配置
+visualize {
+    style A: { color: "red", size: 8 };
+    style B: { color: "blue", size: 8 };
+    style C: { color: "green", size: 8 };
+    style ABC: { fill: "lightyellow", stroke: "orange" };
+    right_angle: { at: A, size: 20 };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+}

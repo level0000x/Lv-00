@@ -1,0 +1,137 @@
+/**
+ * @file template_circle.lv00
+ * @brief 圆的几何构造模板
+ *
+ * 可配置的圆相关几何构造模板
+ */
+
+// ===== 配置参数 =====
+config {
+    // 圆心坐标
+    center: { x: 0, y: 0 },
+    
+    // 半径
+    radius: 5,
+    
+    // 构造类型: "basic" | "inscribed" | "circumscribed" | "tangent"
+    construction_type: "basic",
+    
+    // 多边形边数（用于内接/外切多边形）
+    polygon_sides: 6,
+    
+    // 是否显示半径
+    show_radius: true,
+    
+    // 是否显示直径
+    show_diameter: false,
+    
+    // 是否显示弦
+    show_chords: false,
+    
+    // 是否显示切线
+    show_tangents: false
+}
+
+// ===== 基本构造 =====
+point O(config.center.x, config.center.y);
+const r = config.radius;
+circle C(O, r);
+
+// ===== 根据类型构造 =====
+if (config.construction_type == "basic") {
+    // 基本圆构造
+    point A(r, 0);
+    point B(0, r);
+    point C(-r, 0);
+    point D(0, -r);
+    
+    if (config.show_radius) {
+        segment OA(O, A);
+        segment OB(O, B);
+    }
+    
+    if (config.show_diameter) {
+        segment AC(A, C);
+        segment BD(B, D);
+    }
+}
+
+if (config.construction_type == "inscribed") {
+    // 内接多边形
+    const n = config.polygon_sides;
+    const angle_step = 360° / n;
+    
+    array vertices[n];
+    for (i from 0 to n-1) {
+        const angle = i * angle_step;
+        vertices[i] = point(
+            O.x + r * cos(angle),
+            O.y + r * sin(angle)
+        );
+    }
+    
+    polygon inscribed(vertices);
+    
+    if (config.show_chords) {
+        for (i from 0 to n-1) {
+            segment(vertices[i], vertices[(i+1) % n]);
+        }
+    }
+}
+
+if (config.construction_type == "circumscribed") {
+    // 外切多边形
+    const n = config.polygon_sides;
+    const angle_step = 360° / n;
+    const apothem = r;
+    const R = apothem / cos(180° / n);
+    
+    array tangent_points[n];
+    array outer_vertices[n];
+    
+    for (i from 0 to n-1) {
+        const angle = i * angle_step;
+        tangent_points[i] = point(
+            O.x + r * cos(angle),
+            O.y + r * sin(angle)
+        );
+        outer_vertices[i] = point(
+            O.x + R * cos(angle),
+            O.y + R * sin(angle)
+        );
+    }
+    
+    polygon circumscribed(outer_vertices);
+    
+    if (config.show_tangents) {
+        for (i from 0 to n-1) {
+            line tangent = tangent_at(C, tangent_points[i]);
+        }
+    }
+}
+
+if (config.construction_type == "tangent") {
+    // 切线构造
+    point P(r * cos(45°), r * sin(45°));
+    line tangent = tangent_at(C, P);
+    
+    prove {
+        perpendicular(tangent, line(O, P))
+    }
+}
+
+// ===== 计算 =====
+compute {
+    circumference = 2 * π * r
+    area = π * r^2
+}
+
+// ===== 可视化 =====
+visualize {
+    style C: { 
+        fill: "none", 
+        stroke: "blue", 
+        width: 2 
+    };
+    label O: "O";
+}

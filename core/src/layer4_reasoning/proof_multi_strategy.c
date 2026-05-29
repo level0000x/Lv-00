@@ -1070,7 +1070,9 @@ bool proof_best_first_execute(ProofNavigator *proof, int max_steps) {
  * 版本：v3.5.0 - 增强版：智能策略选择器与成本评估
  * 参考：
  *   - JGEX/GEX (https://github.com/kovzol/Java-Geometry-Expert)
- */**
+ */
+
+/**
  * @file proof_multi_strategy.c
  * @brief 多证明方法并存引擎实现（借鉴 JGEX/GEX 架构）
  *
