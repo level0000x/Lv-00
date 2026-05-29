@@ -104,7 +104,7 @@ typedef struct {
  * 全局状态结构
  * ============================================================ */
 
-typedef struct {
+typedef struct Lv00GlobalState {
     uint64_t magic;              /**< 魔法数（完整性校验） */
     uint32_t version;            /**< 结构版本号 */
     uint32_t param_count;        /**< 当前参数数量 */

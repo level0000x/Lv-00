@@ -141,6 +141,13 @@ typedef struct SymbolicCoord {
     TrustColor trust;
     double cached_value;      /* 几何节点数值缓存 */
     bool cache_valid;         /* 缓存是否有效 */
+
+    /* ============================================================
+     * 版本控制字段 (v3.5.0: 自举支持)
+     * ============================================================ */
+    uint16_t version_major;         /**< 主版本号 */
+    uint16_t version_minor;         /**< 次版本号 */
+    uint16_t version_patch;         /**< 补丁版本号 */
 } SymbolicCoord;
 
 LV00_PUBLIC_API Rational *rational_create(int64_t numerator, uint64_t denominator);

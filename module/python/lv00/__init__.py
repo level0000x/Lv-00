@@ -8,17 +8,19 @@ Lv-00 几何元编程库的 Python 接口。
     - core: 核心类（SymbolicCoord、Point、LineSegment、Graph）
     - engine: Lv-00 主引擎
     - func_block: 函数块系统
-    - preset_func_blocks: 预设函数块（常用几何构造）
-        - 基础构造：中点、垂直平分线、距离
-        - 三角形构造：重心、垂心、外心、内心、面积、等边三角形
-        - 多边形构造：正方形
-        - 变换构造：反射、平移、旋转
+    - preset_blocks: 预设函数块（v4.0 推荐）
+        - 基础构造：中点、垂直平分线、距离、垂足
+        - 三角形构造：重心、垂心、外心、内心、旁心、面积、等边三角形、九点圆
+        - 多边形构造：正方形、正多边形
+        - 圆构造：圆心、切线、交点
+        - 变换构造：反射、平移、旋转、位似、圆反演、仿射变换
+    - preset_func_blocks: 预设函数块（v3.x 兼容，已弃用）
     - constraints: 几何约束类型
     - normalization: 图归一化结果处理
     - formula: 公式编程（解析、渲染、转换）
     - _ctypes_binding: 底层 C 库的 ctypes 绑定
 
-版本：3.5.0
+版本：4.0.0
 作者：Lv-00 开发团队
 
 示例：
@@ -49,7 +51,7 @@ Lv-00 几何元编程库的 Python 接口。
 # 因为 logging 模块在包初始化时可能尚未配置，使用 warnings 更为合适。
 # import logging
 
-__version__ = "3.5.0"
+__version__ = "4.0.0"
 __author__ = "Lv-00 开发团队"
 __description__ = "Lv-00 几何元编程库 Python 接口"
 

@@ -15,6 +15,7 @@
 
 #include "lv00.h"
 #include "lv00_utils.h"
+#include "circuit_breaker.h"
 
 /* ============== 假设栈实现 ============== */
 

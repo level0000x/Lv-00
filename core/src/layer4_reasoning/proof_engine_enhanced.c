@@ -967,7 +967,7 @@ uint32_t lv00_contradiction_path_add_node(Lv00ContradictionPath *path,
  */
 bool lv00_detect_contradiction(const ConstraintGraph *graph,
                                 const ProofNavigator *nav,
-                                Lv00ContradictionType *out_type,
+                                Lv00EngineContradictionType *out_type,
                                 char *out_desc) {
     if (!out_type || !out_desc) {
         lv00_set_error(LV00_ERROR_NULL_POINTER,
@@ -1278,7 +1278,7 @@ bool lv00_engine_proof_by_contradiction(Lv00ProofEngine *engine,
 
     while (step < max_steps && !found_contradiction) {
         /* 在约束图中检测矛盾 */
-        Lv00ContradictionType ctype;
+        Lv00EngineContradictionType ctype;
         char cdesc[512];
 
         if (lv00_detect_contradiction(engine->graph, engine->navigator,

@@ -327,6 +327,7 @@ set(LV00_HEADERS
     core/include/lv00/cross_platform.h
     core/include/lv00/error_codes.h
     core/include/lv00/symbolic_coord.h
+    core/include/lv00/algebraic_number.h
     core/include/lv00/constraint_graph.h
     core/include/lv00/normalization.h
     core/include/lv00/graph_hash.h
@@ -373,6 +374,7 @@ set(LV00_HEADERS
     # v3.3.0 新增模块头文件（第二轮：计算后端与数值模块）
     core/include/lv00/atp_backend.h
     core/include/lv00/solver_core.h
+    core/include/lv00/solver_result_standard.h
     core/include/lv00/sat_encoding.h
     core/include/lv00/relation_model.h
     core/include/lv00/numerical_backend.h
@@ -521,6 +523,8 @@ set(LV00_HEADERS
     core/include/lv00/result_messages_cn.h
     core/include/lv00/preset_helper_cn.h
     core/include/lv00/math_theory_guide_cn.h
+    # v3.6.0 新增：调试追踪系统
+    core/include/lv00/debug_trace.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -559,6 +563,11 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/result_messages_cn.c
     core/src/layer2_resource/preset_helper_cn.c
     core/src/layer2_resource/math_theory_guide_cn.c
+    # v3.6.0 新增：调试追踪系统
+    core/src/layer2_resource/debug_trace.c
+    # v3.6.0 新增：缓存隔离层管理器
+    core/src/layer2_resource/cache_manager.c
+    core/src/layer2_resource/global_state.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -567,6 +576,7 @@ set(LV00_LAYER2_SOURCES
 set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/symbolic_coord.c
+    core/src/layer3_geometry/algebraic_number.c
     core/src/layer3_geometry/euclidean_geometry.c
     core/src/layer3_geometry/interactive_geo.c
     core/src/layer3_geometry/high_dim.c
@@ -623,8 +633,10 @@ set(LV00_LAYER4_SOURCES
     # 证明系统
     core/src/layer4_reasoning/proof.c
     core/src/layer4_reasoning/proof_optimize.c
-    # core/src/layer4_reasoning/proof_multi_strategy.c  # 暂时禁用：文件有语法错误
+    core/src/layer4_reasoning/proof_multi_strategy.c
     core/src/layer4_reasoning/proof_trace.c
+    core/src/layer4_reasoning/proof_contradiction.c
+    core/src/layer4_reasoning/solver_result_standard.c
     # v3.4.0 从 Layer 3 迁移：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
     core/src/layer4_reasoning/proof_rule_engine.c
     core/src/layer4_reasoning/proof_session.c

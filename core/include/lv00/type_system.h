@@ -164,6 +164,13 @@ struct TypeRegion {
     /* 约束条件 */
     int *constraint_ids;  /* 约束ID数组 */
     int constraint_count; /* 约束数量 */
+
+    /* ============================================================
+     * 版本控制字段 (v3.5.0: 自举支持)
+     * ============================================================ */
+    uint16_t version_major;         /**< 主版本号 */
+    uint16_t version_minor;         /**< 次版本号 */
+    uint16_t version_patch;         /**< 补丁版本号 */
 };
 
 /* ============== 类型变量 ============== */
@@ -322,6 +329,13 @@ struct TypeSystem {
     TypeInferenceRule *inference_rules; /* 推断规则数组 */
     int inference_rule_count;           /* 推断规则数量 */
     int inference_rule_capacity;        /* 推断规则数组容量 */
+
+    /* ============================================================
+     * 版本控制字段 (v3.5.0: 自举支持)
+     * ============================================================ */
+    uint16_t version_major;         /**< 主版本号 */
+    uint16_t version_minor;         /**< 次版本号 */
+    uint16_t version_patch;         /**< 补丁版本号 */
 };
 
 /* ============== 类型系统管理API ============== */

@@ -214,6 +214,13 @@ struct GeomNode {
             DeterminismState determinism_state;
         } func_block;              /* 函数块数据（GEOM_FUNCTION_BLOCK 类型使用） */
     } data;
+
+    /* ============================================================
+     * 版本控制字段 (v3.5.0: 自举支持)
+     * ============================================================ */
+    uint16_t version_major;         /**< 主版本号 */
+    uint16_t version_minor;         /**< 次版本号 */
+    uint16_t version_patch;         /**< 补丁版本号 */
 };
 
 struct Constraint {
@@ -310,7 +317,18 @@ struct ConstraintGraph {
      * 中的错误存储，fallback 到 error_buffer。
      * ============================================================ */
     struct Lv00Context *context;  /**< 关联的 Lv00Context 实例（可选，v3.4.0 新增） */
-    bool dirty;                    /**< 脏标记：约束被修改时置 true，需同步后置 false */
+    bool is_dirty;                 /**< 脏标记：约束被修改时置 true，需同步后置 false */
+
+    /* ============================================================
+     * 版本控制字段 (v3.5.0: 自举支持)
+     *
+     * 用于序列化兼容性验证和自举编译器的版本管理。
+     * 在 graph_create() 中初始化为当前库版本。
+     * 在 graph_deserialize_from_json() 中验证兼容性。
+     * ============================================================ */
+    uint16_t version_major;         /**< 主版本号 */
+    uint16_t version_minor;         /**< 次版本号 */
+    uint16_t version_patch;         /**< 补丁版本号 */
 };
 
 typedef enum {
