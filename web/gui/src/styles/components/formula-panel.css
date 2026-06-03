@@ -1,0 +1,51 @@
+/* ============================================================
+   FormulaPanel 公式面板组合层专用样式
+   前缀: fp- (FormulaPanel)
+   ============================================================ */
+
+/* === 同步行 / Sync Row === */
+/* 公式 <-> 图形双向同步控制行 */
+.fp-sync-row {
+    margin-top: 6px;
+}
+
+/* === 同步状态指示灯 / Sync Status Indicator === */
+/* 圆形小圆点，根据同步状态显示不同颜色 */
+.fp-sync-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-left: 6px;
+    background-color: var(--color-text-muted);
+}
+
+/* 已同步状态 - 绿色 */
+.fp-sync-dot--synced {
+    background-color: var(--color-success);
+}
+
+/* 同步中状态 - 橙色 */
+.fp-sync-dot--syncing {
+    background-color: var(--color-warning);
+}
+
+/* 未同步状态 - 灰色（默认） */
+.fp-sync-dot--idle {
+    background-color: var(--color-text-muted);
+}
+
+/* === 同步按钮 / Sync Toggle Button === */
+/* 自动同步开关按钮，紧凑尺寸 */
+.fp-sync-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+}
+
+/* === 同步提示信息 / Sync Info Box === */
+/* 显示同步状态的提示文本 */
+.fp-sync-info {
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--color-success);
+}

@@ -1,0 +1,92 @@
+/* ============================================================
+   Formula 公式模块组件样式 / Formula Module Component Styles
+   包含公式面板标题颜色、输入框、输出区域、日志区域、
+   语法选择行、代码块、解析摘要等。
+   ============================================================ */
+
+/* === FORMULA PANEL TITLE / 公式面板标题颜色 === */
+/* 公式面板使用蓝色系模块颜色 */
+#panelFormula .panel-title { color: var(--color-module-formula); }
+#panelFormula .panel-title:hover { color: var(--color-module-formula-hover); }
+
+/* 公式文本域：左侧蓝色边框标识 */
+#panelFormula textarea.input-field { border-left: 3px solid var(--color-module-formula-deep); padding-left: var(--spacing-lg); }
+
+/* 公式示例列表悬停颜色 */
+#panelFormula .examples-list li:hover { border-left-color: var(--color-module-formula); }
+
+/* === FORMULA SYNTAX ROW / 公式语法选择行 === */
+/* 语法类型选择器（标签 + 下拉框） */
+.formula-syntax-row { display: flex; gap: 4px; margin-bottom: 6px; align-items: center; }
+.formula-syntax-row label { font-size: var(--font-size-xs); color: var(--color-text-secondary); min-width: 40px; }
+.formula-syntax-row .select-field { width: auto; margin-bottom: 0; }
+
+/* === FORMULA BUTTON ROW / 公式操作按钮行 === */
+/* 公式面板底部的操作按钮组 */
+.formula-btn-row { display: flex; gap: 4px; margin-top: 6px; }
+.formula-btn-row .btn { flex: 1; }
+
+/* === FORMULA OUTPUT AREA / 公式输出区域 === */
+/* 显示公式解析/计算结果的只读文本区域 */
+.formula-output-area {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-md);
+    min-height: 80px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-sm);
+}
+
+/* 输出区域占位提示 */
+.formula-output-placeholder { color: var(--color-text-muted); font-style: italic; }
+
+/* === FORMULA LOG AREA / 公式日志区域 === */
+/* 公式解析过程的日志输出区域 */
+.formula-log-area {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-secondary);
+    padding: 4px 6px;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: var(--line-height-relaxed);
+    border-radius: var(--radius-sm);
+}
+
+/* 公式日志条目 */
+.formula-log-entry { padding: 1px 0; border-bottom: 1px solid var(--color-bg-secondary); font-size: var(--font-size-xs); line-height: var(--line-height-relaxed); }
+
+/* 日志时间戳 */
+.formula-log-time { color: var(--color-text-muted); margin-right: 6px; }
+
+/* 日志消息文本 */
+.formula-log-msg { color: var(--color-text-secondary); }
+
+/* 警告级别日志 */
+.formula-log-entry.formula-log-warn .formula-log-msg { color: var(--color-trust-yellow); }
+
+/* 错误级别日志 */
+.formula-log-entry.formula-log-error .formula-log-msg { color: var(--color-trust-red); }
+
+/* === FORMULA CODE BLOCK / 公式代码块 === */
+/* 显示公式源代码的等宽字体区域 */
+.formula-code-block {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-md);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    white-space: pre-wrap;
+    overflow-x: auto;
+    border-radius: var(--radius-sm);
+}
+
+/* === FORMULA PARSE SUMMARY / 公式解析摘要 === */
+/* 公式解析结果的摘要文本 */
+.formula-parse-summary { font-size: var(--font-size-base); color: var(--color-text-secondary); line-height: var(--line-height-relaxed); }
+.formula-parse-summary strong { color: var(--color-trust-green); }

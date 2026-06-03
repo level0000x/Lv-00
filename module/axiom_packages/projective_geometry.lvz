@@ -1,0 +1,447 @@
+# =============================================================================
+# Lv-00 Axiom Package: Projective Geometry
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Projective geometry — the study of geometric properties invariant under
+#   projective transformations. A non-metrical geometry where there are no
+#   distances, angles, or parallel lines. Every pair of distinct lines meets
+#   at exactly one point (including "points at infinity").
+#
+# Axiomatization: Based on the incidence-based axioms for projective spaces,
+#   combining elements from:
+#   - Veblen, O. & Young, J.W. (1910). "Projective Geometry, Vol. I & II."
+#     Ginn and Company, Boston.
+#   - Coxeter, H.S.M. (1969). "Introduction to Geometry" (2nd ed.). Wiley.
+#   - Hartshorne, R. (2000). "Geometry: Euclid and Beyond." Springer.
+#     ISBN 0-387-98650-2.
+#   - Whitehead, A.N. (1906). "The Axioms of Projective Geometry."
+#     Cambridge University Press.
+#
+# References:
+#   - Wikipedia: Projective geometry
+#     https://en.wikipedia.org/wiki/Projective_geometry
+#   - Wikipedia: Projective plane
+#     https://en.wikipedia.org/wiki/Projective_plane
+#   - nLab: Projective geometry
+#     https://ncatlab.org/nlab/show/projective+geometry
+#   - nLab: Synthetic projective geometry
+#     https://ncatlab.org/nlab/show/synthetic+projective+geometry
+#   - Stanford Encyclopedia of Philosophy: Geometry
+#     https://plato.stanford.edu/entries/geometry/
+#   - Coxeter, H.S.M. (2003). "Projective Geometry" (2nd ed.). Springer.
+#     ISBN 0-387-40623-9.
+#   - Artin, E. (1957). "Geometric Algebra." Wiley.
+#     ISBN 978-1-118-16454-9.
+#   - Beutelspacher, A. & Rosenbaum, U. (1998). "Projective Geometry:
+#     From Foundations to Applications." Cambridge University Press.
+#     ISBN 0-521-48277-1.
+#
+# Primitive Notions (2 total):
+#   Terms: point, line
+#   Relations: incidence (point lies on line, line passes through point)
+#
+# Key Properties:
+#   - No concept of distance, angle, or betweenness
+#   - No parallel lines: every two distinct lines intersect at exactly one point
+#   - Duality principle: points and lines are interchangeable in theorems
+#   - Cross-ratio is the fundamental projective invariant
+#   - Homogeneous coordinates provide an algebraic model
+#   - Projective space is obtained from affine space by adding points at infinity
+#
+# Core Axioms:
+#   I.  Incidence Axioms (3 axioms) — existence and uniqueness of joins/meets
+#   II. Dimension Axiom (1 axiom) — existence of a non-degenerate frame
+#   III. Desargues' Theorem (1 axiom) — required in 2D (free in dim >= 3)
+#   IV. Pappus's Theorem (1 axiom) — implies commutativity of coordinate field
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Constructing a projective coordinate field (reduces to Pappus's theorem)
+#   - Determining if a finite projective plane exists of order n (open for
+#     non-prime-power n; reduces to existence of projective planes)
+#   - Classification of finite projective planes (wildly open)
+#   - Non-Desarguesian plane classification (open)
+#
+# Relationship to Existing Lv-00 Packages:
+#   - euclidean_plane: Projective geometry extends Euclidean by adding points
+#     at infinity; Euclidean is a specialization (removing a line at infinity)
+#   - hyperbolic_geometry: The Klein model of hyperbolic geometry lives inside
+#     projective geometry (Cayley-Klein metric via cross-ratio)
+#   - field_theory: Pappus's theorem implies the coordinate field is commutative
+#   - category_theory: Projective geometry is a natural setting for the
+#     category of projective spaces and projective transformations
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "projective_geometry" "1.0.0" {
+
+    # =================================================================
+    # Group I: Incidence Axioms (3 axioms)
+    # =================================================================
+    # These are the fundamental axioms of projective geometry.
+    # In projective geometry, there are NO parallel lines — every two
+    # distinct lines meet at exactly one point.
+    # =================================================================
+
+    # I1 (Join): For any two distinct points A, B, there exists exactly
+    #     one line l such that both A and B lie on l.
+    # Params: point A, point B -> line AB
+    template "join_of_two_points" 2
+
+    # I2 (Meet / Veblen-Young Axiom): If line l contains two distinct
+    #     points A, B, and line m contains two distinct points C, D,
+    #     and the intersection of l and m is point E, then for any
+    #     point F on l (distinct from E), the line through F and C
+    #     meets the line through A and D.
+    #     Equivalently (simplified): Any two distinct lines intersect
+    #     in exactly one point.
+    # Params: line l, line m -> point P (intersection)
+    template "meet_of_two_lines" 2
+
+    # I3 (Non-degeneracy): There exist at least three non-collinear points
+    #     (i.e., not all points lie on a single line).
+    #     This ensures the space has dimension >= 2.
+    # Params: (zero-input existence axiom)
+    template "existence_of_triangle_projective" 0
+
+    # =================================================================
+    # Group II: Dimension and Extension Axioms (4 axioms)
+    # =================================================================
+    # These axioms ensure the projective space has sufficient dimension
+    # and richness for meaningful geometric constructions.
+    # =================================================================
+
+    # II1 (Four-point condition): There exist four points, no three of
+    #     which are collinear. This ensures the plane is not degenerate.
+    # Params: (zero-input existence axiom)
+    template "existence_of_complete_quadrangle" 0
+
+    # II2 (Line has three points): Every line contains at least three
+    #     distinct points.
+    # Params: line l -> (exists point A, point B, point C on l)
+    template "line_has_three_points" 1
+
+    # II3 (Point has three lines): Through every point, there pass at
+    #     least three distinct lines.
+    # Params: point P -> (exists line l, line m, line n through P)
+    template "point_has_three_lines" 1
+
+    # II4 (Veblen's Axiom / Pasch for projective space): If A, B, C, D
+    #     are four distinct points, and the line through A and B meets
+    #     the line through C and D, then the line through A and C meets
+    #     the line through B and D. This is the projective analogue of
+    #     Pasch's axiom and is crucial for higher-dimensional projective
+    #     spaces.
+    # Params: point A, point B, point C, point D
+    template "veblen_axiom" 4
+
+    # =================================================================
+    # Group III: Desargues' Theorem (1 axiom)
+    # =================================================================
+    # In projective spaces of dimension >= 3, Desargues' theorem is
+    # provable from the incidence axioms. In the projective plane (dim 2),
+    # it must be postulated separately. Non-Desarguesian planes exist.
+    #
+    # Desargues' Theorem: If two triangles ABC and A'B'C' are perspective
+    # from a point O (i.e., lines AA', BB', CC' all pass through O),
+    # then they are perspective from a line (i.e., the intersections
+    # AB∩A'B', BC∩B'C', CA∩C'A' are collinear).
+    # =================================================================
+
+    # Params: center O, point A, point B, point C,
+    #         point A', point B', point C'
+    template "desargues_theorem" 7
+
+    # =================================================================
+    # Group IV: Pappus's Hexagon Theorem (1 axiom)
+    # =================================================================
+    # Pappus's theorem is stronger than Desargues' theorem. In a
+    # Desarguesian projective plane, Pappus's theorem is equivalent to
+    # the commutativity of the underlying coordinate field.
+    #
+    # Pappus's Theorem: If points A, B, C lie on one line, and points
+    # A', B', C' lie on another line, then the three intersection points
+    # AB'∩A'B, BC'∩B'C, CA'∩C'A' are collinear.
+    # =================================================================
+
+    # Params: point A, point B, point C (on line l),
+    #         point A', point B', point C' (on line m)
+    template "pappus_hexagon_theorem" 6
+
+    # =================================================================
+    # Group V: Fundamental Constructors (8 constructors)
+    # =================================================================
+    # These are the basic geometric construction operations in
+    # projective geometry. Unlike Euclidean geometry, projective
+    # constructions use only a straightedge (no compass).
+    # =================================================================
+
+    # V1: Given a point P and a line l, construct the unique line
+    #     through P that meets l (always exists in projective geometry;
+    #     if P is on l, this is l itself).
+    # Params: point P, line l -> line through P meeting l
+    template "line_through_point_meeting_line" 2
+
+    # V2: Given three collinear points A, B, C, find a fourth point D
+    #     on the same line such that the cross-ratio (A,B;C,D) is
+    #     harmonic (i.e., D is the harmonic conjugate of C w.r.t. A,B).
+    # Params: point A, point B, point C -> point D (harmonic conjugate)
+    template "harmonic_conjugate" 3
+
+    # V3: Given two points A, B and a line l not containing them,
+    #     construct the intersection of line AB with line l.
+    # Params: point A, point B, line l -> point P (intersection)
+    template "intersection_of_line_with_line" 3
+
+    # V4: Given four collinear points A, B, C, D, compute their
+    #     cross-ratio (A,B;C,D), the fundamental projective invariant.
+    # Params: point A, point B, point C, point D -> scalar (cross-ratio)
+    template "cross_ratio" 4
+
+    # V5: Given a line l and a point P not on l, construct the
+    #     perspectivity (central projection) from P mapping l to
+    #     another line m through P.
+    # Params: line l, point P, line m -> projective transformation
+    template "perspectivity" 3
+
+    # V6: Given a complete quadrangle (four points, no three collinear,
+    #     and their six connecting lines), construct the diagonal triangle
+    #     (the three diagonal points formed by opposite sides).
+    # Params: point A, point B, point C, point D -> triangle of diagonal points
+    template "diagonal_triangle_of_quadrangle" 4
+
+    # V7: Construct the dual of a configuration (swap points and lines).
+    #     This embodies the principle of duality in projective geometry.
+    # Params: geometric configuration -> dual configuration
+    template "dual_configuration" 1
+
+    # V8: Given a conic section and a point, construct the polar line
+    #     (or given a line, construct the pole point). This is the
+    #     fundamental pole-polar relationship with respect to a conic.
+    # Params: conic C, point P -> polar line p
+    template "pole_polar_construction" 2
+
+    # =================================================================
+    # Group VI: Projective Transformations (5 constructors)
+    # =================================================================
+    # Projective transformations (collineations) are bijections of the
+    # projective space that preserve incidence relations.
+    # =================================================================
+
+    # VI1: A projectivity (composition of perspectivities) mapping
+    #     one range of points to another.
+    # Params: range of points, target range -> projective transformation
+    template "projectivity" 2
+
+    # VI2: Fundamental Theorem of Projective Geometry: A projectivity
+    #     of a line is uniquely determined by the images of three
+    #     distinct points.
+    # Params: point A, point B, point C, image A', image B', image C'
+    template "fundamental_theorem_uniqueness" 6
+
+    # VI3: A collineation (incidence-preserving bijection) of the
+    #     projective plane.
+    # Params: projective plane -> collineation
+    template "collineation" 1
+
+    # VI4: A correlation (incidence-reversing bijection) mapping points
+    #     to lines and lines to points. Dualizes the geometry.
+    # Params: projective plane -> correlation
+    template "correlation" 1
+
+    # VI5: An elation (a collineation that fixes all points on a line
+    #     called the axis, and all lines through a point called the
+    #     center, where the center lies on the axis).
+    # Params: axis line, center point -> elation
+    template "elation" 2
+
+    # =================================================================
+    # Group VII: Conic Sections in Projective Geometry (4 constructors)
+    # =================================================================
+    # In projective geometry, all non-degenerate conics are projectively
+    # equivalent — there is no distinction between ellipse, parabola,
+    # and hyperbola. A conic is determined by five points (no three
+    # collinear).
+    # =================================================================
+
+    # VII1: Given five points, no three collinear, construct the unique
+    #      conic passing through all five.
+    # Params: point P1, P2, P3, P4, P5 -> conic
+    template "conic_through_five_points" 5
+
+    # VII2: Given a conic and a point on it, construct the tangent
+    #      line at that point.
+    # Params: conic C, point P on C -> tangent line t
+    template "tangent_to_conic" 2
+
+    # VII3: Pascal's Theorem: If a hexagon is inscribed in a conic,
+    #      then the three pairs of opposite sides meet in collinear
+    #      points (the Pascal line).
+    # Params: point P1..P6 (hexagon vertices on conic) -> Pascal line
+    template "pascal_theorem" 6
+
+    # VII4: Brianchon's Theorem (dual of Pascal): If a hexagon is
+    #      circumscribed about a conic, then its three main diagonals
+    #      are concurrent.
+    # Params: line l1..l6 (hexagon sides tangent to conic) -> concurrency point
+    template "brianchon_theorem" 6
+
+    # =================================================================
+    # Group VIII: Coordinate Field Construction (4 constructors)
+    # =================================================================
+    # Using Desargues' theorem and Pappus's theorem, one can construct
+    # a coordinate field from the projective plane. The field operations
+    # are defined geometrically using the complete quadrangle.
+    # =================================================================
+
+    # VIII1: Geometric addition of field elements on a line.
+    #        Using a complete quadrangle, define a + b on a projective line.
+    # Params: point O (origin), point E (unit), point A (a), point B (b)
+    #        -> point S (representing a+b)
+    template "field_addition_geometric" 4
+
+    # VIII2: Geometric multiplication of field elements on a line.
+    #        Using a complete quadrangle, define a * b on a projective line.
+    # Params: point O (origin), point E (unit), point A (a), point B (b)
+    #        -> point P (representing a*b)
+    template "field_multiplication_geometric" 4
+
+    # VIII3: Geometric additive inverse: given point A on a line through
+    #        origin O, construct -A.
+    # Params: point O (origin), point A -> point A' (additive inverse)
+    template "field_additive_inverse" 2
+
+    # VIII4: Geometric multiplicative inverse: given point A on a line
+    #        through origin O with unit E, construct A^{-1}.
+    # Params: point O (origin), point E (unit), point A -> point A' (inverse)
+    template "field_multiplicative_inverse" 3
+
+    # =================================================================
+    # Group IX: Higher-Dimensional Projective Space (3 constructors)
+    # =================================================================
+    # Extensions to projective spaces of dimension >= 3.
+    # =================================================================
+
+    # IX1: The join of a point and a line not containing it forms a plane.
+    # Params: point P, line l -> plane (P, l)
+    template "join_point_line_to_plane" 2
+
+    # IX2: The meet of two distinct planes in 3D projective space is
+    #     a line.
+    # Params: plane alpha, plane beta -> line (intersection)
+    template "meet_of_two_planes" 2
+
+    # IX3: In 3D projective space, Desargues' theorem is provable
+    #     from the incidence axioms alone (unlike in 2D).
+    # Params: (zero-input theorem — provable in dim >= 3)
+    template "desargues_provable_in_3d" 0
+
+    # =================================================================
+    # Group X: Derived Theorems and Consequences (5 constructors)
+    # =================================================================
+    # Important theorems that follow from the axioms.
+    # =================================================================
+
+    # X1: The dual of Desargues' theorem (obtained by swapping
+    #     points and lines). In projective geometry, the dual of
+    #     every theorem is also a theorem.
+    # Params: (dual configuration of Desargues)
+    template "dual_desargues_theorem" 7
+
+    # X2: The harmonic construction theorem: the harmonic conjugate
+    #     is well-defined (unique) when it exists.
+    # Params: point A, point B, point C -> unique point D
+    template "harmonic_conjugate_uniqueness" 3
+
+    # X3: The complete quadrilateral theorem: the three diagonal
+    #     points of a complete quadrilateral are never collinear
+    #     (in a Desarguesian plane).
+    # Params: four lines forming a complete quadrilateral
+    template "complete_quadrilateral_theorem" 4
+
+    # X4: A projectivity between two ranges that maps three distinct
+    #     points to three distinct points is unique (Fundamental Theorem).
+    # Params: three source points, three target points -> unique projectivity
+    template "projectivity_uniqueness" 6
+
+    # X5: Invariance of cross-ratio under projectivities: if a
+    #     projectivity maps A,B,C,D to A',B',C',D', then
+    #     (A,B;C,D) = (A',B';C',D').
+    # Params: four points, four image points -> equal cross-ratios
+    template "cross_ratio_invariance" 8
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "existence_of_finite_projective_plane_non_prime_power" {
+        reduces_to "open_problem"
+        dependency "combinatorial_design_theory"
+        dependency "finite_field_theory"
+        dependency "bruck_ryser_chowla_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Projective_plane#Finite_projective_planes"
+        green_verified true
+    }
+
+    unconstructible "classification_of_finite_projective_planes" {
+        reduces_to "wildly_open"
+        dependency "non_desarguesian_plane_construction"
+        dependency "translation_plane_theory"
+        external_ref "https://en.wikipedia.org/wiki/Projective_plane#Classification"
+        green_verified true
+    }
+
+    unconstructible "coordinate_field_of_non_desarguesian_plane" {
+        reduces_to "non_associative_algebra"
+        dependency "desargues_theorem_failure"
+        dependency "alternative_division_ring"
+        external_ref "https://en.wikipedia.org/wiki/Non-Desarguesian_plane"
+        green_verified true
+    }
+
+    unconstructible "constructing_midpoint_with_straightedge_only" {
+        reduces_to "metric_construction"
+        dependency "harmonic_conjugate"
+        dependency "projective_to_euclidean_specialization"
+        external_ref "https://en.wikipedia.org/wiki/Straightedge_and_compass_construction"
+        green_verified true
+    }
+
+    unconstructible "trisection_of_angle_projective" {
+        reduces_to "cubic_equation_solving"
+        dependency "cross_ratio"
+        dependency "field_theory"
+        external_ref "https://en.wikipedia.org/wiki/Angle_trisection"
+        green_verified true
+    }
+
+    unconstructible "pappus_implies_field_commutativity" {
+        reduces_to "algebraic_equivalence"
+        dependency "desargues_theorem"
+        dependency "coordinate_field_construction"
+        dependency "pappus_hexagon_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Pappus%27s_hexagon_theorem#Relationship_to_the_axioms_of_projective_geometry"
+        green_verified true
+    }
+
+    unconstructible "order_of_largest_unknown_finite_projective_plane" {
+        reduces_to "open_problem"
+        dependency "bruck_ryser_chowla_theorem"
+        dependency "computational_search"
+        external_ref "https://en.wikipedia.org/wiki/Projective_plane#Finite_projective_planes"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    bottom_geometry "projective_plane_incidence"
+
+    negation_encoding "classical_equality"
+
+    contradiction_behavior "explosion_principle"
+}

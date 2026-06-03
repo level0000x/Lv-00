@@ -1,0 +1,270 @@
+# =============================================================================
+# Lv-00 Axiom Package: Computational Complexity Theory
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Computational complexity theory — the study of the intrinsic difficulty
+#   of computational problems. It classifies problems according to their
+#   resource usage (time, space, communication) and explores relationships
+#   between complexity classes. The theory formalizes the intuition that some
+#   problems are inherently difficult regardless of the algorithm used.
+#
+# References:
+#   - Wikipedia: Computational complexity theory
+#     https://en.wikipedia.org/wiki/Computational_complexity_theory
+#   - Wikipedia: P versus NP problem
+#     https://en.wikipedia.org/wiki/P_versus_NP_problem
+#   - Cook, S. (1971). "The complexity of theorem proving procedures."
+#     Proceedings of STOC 1971: 151-158.
+#     https://doi.org/10.1145/800157.805047
+#   - Levin, L. (1973). "Universal search problems."
+#     Problems of Information Transmission, 9(3): 265-266.
+#   - Arora, S. & Barak, B. (2009). "Computational Complexity: A Modern Approach."
+#     Cambridge University Press. ISBN 978-0521424264.
+#   - Sipser, M. (2012). "Introduction to the Theory of Computation" (3rd ed.).
+#     Cengage Learning. ISBN 978-1133187790.
+#   - Stanford Encyclopedia of Philosophy: Computational Complexity Theory
+#     https://plato.stanford.edu/entries/computational-complexity/
+#   - nLab: computational complexity
+#     https://ncatlab.org/nlab/show/computational+complexity
+#
+# Primitive Notions:
+#   - Computational problem (decision problem): a yes/no question with input
+#   - Turing machine: mathematical model of computation
+#   - Resource measure: time (steps) and space (tape cells)
+#   - Input size: length of input string in bits
+#   - Complexity class: set of problems solvable with bounded resources
+#
+# Core Concepts (6 groups):
+#   Machine Models:
+#     Deterministic Turing machine (DTM) - single computation path
+#     Non-deterministic Turing machine (NTM) - multiple computation paths
+#     Probabilistic Turing machine - uses random bits
+#     Quantum Turing machine - quantum superposition
+#   Complexity Measures:
+#     Time complexity T(n): maximum steps for inputs of size n
+#     Space complexity S(n): maximum tape cells for inputs of size n
+#     Best-case, worst-case, average-case analysis
+#     Asymptotic notation: O, Ω, Θ, o, ω
+#   Fundamental Complexity Classes:
+#     P - deterministic polynomial time
+#     NP - non-deterministic polynomial time
+#     PSPACE - polynomial space
+#     EXPTIME - exponential time
+#     L, NL - logarithmic space (deterministic, non-deterministic)
+#   Reduction and Completeness:
+#     Polynomial-time many-one reduction (Karp reduction)
+#     NP-completeness - hardest problems in NP
+#     NP-hardness - at least as hard as NP problems
+#     Cook-Levin theorem - SAT is NP-complete
+#   Hierarchy Theorems:
+#     Time hierarchy theorem - more time solves more problems
+#     Space hierarchy theorem - more space solves more problems
+#     Ladner's theorem - if P≠NP, NP-intermediate problems exist
+#   Relationships:
+#     P ⊆ NP ⊆ PSPACE ⊆ EXPTIME
+#     L ⊆ NL ⊆ P ⊆ NP ⊆ PSPACE
+#     P = NP? (open problem, widely believed P ≠ NP)
+#
+# Core Axioms / Fundamental Theorems:
+#   A1 (P Definition): A problem is in P iff there exists a deterministic
+#       Turing machine that decides it in time O(n^k) for some constant k.
+#   A2 (NP Definition): A problem is in NP iff there exists a non-deterministic
+#       Turing machine that decides it in time O(n^k) for some constant k,
+#       or equivalently, solutions can be verified in polynomial time.
+#   A3 (NP-Completeness): A problem is NP-complete iff (1) it is in NP, and
+#       (2) every problem in NP reduces to it in polynomial time.
+#   A4 (Cook-Levin): Boolean satisfiability (SAT) is NP-complete.
+#   A5 (Time Hierarchy): For time-constructible functions f(n) > g(n) log(n),
+#       TIME(f(n)) ⊃ TIME(g(n)). More time strictly increases power.
+#   A6 (Space Hierarchy): For space-constructible functions f(n) > g(n),
+#       SPACE(f(n)) ⊃ SPACE(g(n)). More space strictly increases power.
+#   A7 (Ladner's Theorem): If P ≠ NP, then there exist problems in NP
+#       that are neither in P nor NP-complete (NP-intermediate).
+#   A8 (PSPACE Completeness): QBF (quantified Boolean formula) is PSPACE-complete.
+#   A9 (Savitch's Theorem): NSPACE(s(n)) ⊆ SPACE(s(n)^2). Non-deterministic
+#       space can be simulated deterministically with quadratic overhead.
+#   A10 (P ⊆ NP): Every problem solvable in deterministic polynomial time
+#       is also solvable in non-deterministic polynomial time.
+#
+# Known Unconstructible / Undecidable Problems:
+#   - P vs NP problem (open, Millennium Prize Problem)
+#   - Graph isomorphism problem (NP-intermediate candidate)
+#   - Discrete logarithm problem (NP-intermediate candidate)
+#   - Integer factorization problem (NP-intermediate candidate)
+#   - Halting problem (undecidable)
+#   - Post correspondence problem (undecidable)
+#   - Word problem for groups (undecidable in general)
+#
+# Bottom Geometry: computational_complexity_abstract
+# Negation Encoding: classical_complement
+# Contradiction Behavior: explosion_principle
+#
+# Dependencies:
+#   - combinatorics (for graph problems, counting)
+#   - classical_propositional_logic (for SAT, QBF)
+#   - number_theory (for integer factorization, discrete log)
+#
+# =============================================================================
+
+axiom "computational_complexity_theory" "1.0.0" {
+    # -------------------------------------------------------------------------
+    # Group I: Machine Model Axioms (4 templates)
+    # -------------------------------------------------------------------------
+    template "deterministic_turing_machine" 1
+    template "non_deterministic_turing_machine" 1
+    template "probabilistic_turing_machine" 1
+    template "quantum_turing_machine" 1
+
+    # -------------------------------------------------------------------------
+    # Group II: Complexity Measure Axioms (6 templates)
+    # -------------------------------------------------------------------------
+    template "time_complexity" 2
+    template "space_complexity" 2
+    template "worst_case_analysis" 1
+    template "best_case_analysis" 1
+    template "average_case_analysis" 1
+    template "asymptotic_notation" 2
+
+    # -------------------------------------------------------------------------
+    # Group III: Fundamental Complexity Class Definitions (8 templates)
+    # -------------------------------------------------------------------------
+    template "class_P" 1
+    template "class_NP" 1
+    template "class_PSPACE" 1
+    template "class_EXPTIME" 1
+    template "class_L" 1
+    template "class_NL" 1
+    template "class_BPP" 1
+    template "class_BQP" 1
+
+    # -------------------------------------------------------------------------
+    # Group IV: Reduction and Completeness Axioms (7 templates)
+    # -------------------------------------------------------------------------
+    template "polynomial_time_reduction" 2
+    template "NP_completeness" 1
+    template "NP_hardness" 1
+    template "Cook_Levin_theorem" 1
+    template "Karp_reduction" 2
+    template "many_one_reduction" 2
+    template "Turing_reduction" 2
+
+    # -------------------------------------------------------------------------
+    # Group V: Hierarchy Theorems (5 templates)
+    # -------------------------------------------------------------------------
+    template "time_hierarchy_theorem" 2
+    template "space_hierarchy_theorem" 2
+    template "Ladner_theorem" 1
+    template "Savitch_theorem" 1
+    template "hierarchy_separation" 2
+
+    # -------------------------------------------------------------------------
+    # Group VI: Complexity Class Relationships (6 templates)
+    # -------------------------------------------------------------------------
+    template "P_subseteq_NP" 0
+    template "NP_subseteq_PSPACE" 0
+    template "PSPACE_subseteq_EXPTIME" 0
+    template "L_subseteq_NL" 0
+    template "NL_subseteq_P" 0
+    template "P_vs_NP_open" 0
+
+    # -------------------------------------------------------------------------
+    # Group VII: Core Constructors (5 templates)
+    # -------------------------------------------------------------------------
+    template "construct_complexity_class" 2
+    template "verify_NP_membership" 2
+    template "reduce_problem" 2
+    template "prove_completeness" 2
+    template "separate_classes" 2
+
+    # -------------------------------------------------------------------------
+    # Group VIII: Derived Complexity Classes (4 templates)
+    # -------------------------------------------------------------------------
+    template "class_coNP" 1
+    template "class_PH" 1
+    template "class_#P" 1
+    template "class_IP" 1
+
+    # -------------------------------------------------------------------------
+    # Group IX: Important Problems (5 templates)
+    # -------------------------------------------------------------------------
+    template "SAT_problem" 1
+    template "3SAT_problem" 1
+    template "Hamiltonian_path_problem" 1
+    template "vertex_cover_problem" 1
+    template "clique_problem" 1
+
+    # -------------------------------------------------------------------------
+    # Group X: Specialized Theorems (4 templates)
+    # -------------------------------------------------------------------------
+    template "Immerman_Szelepcsényi_theorem" 1
+    template "Fagin_theorem" 1
+    template "PCP_theorem" 1
+    template "IP_equals_PSPACE" 1
+
+    # -------------------------------------------------------------------------
+    # Known Unconstructible / Undecidable Problems
+    # -------------------------------------------------------------------------
+
+    unconstructible "P_vs_NP_problem" {
+        reduces_to "none"
+        dependency "class_P"
+        dependency "class_NP"
+        external_ref "https://en.wikipedia.org/wiki/P_versus_NP_problem"
+        external_ref "https://www.claymath.org/millennium-problems/p-vs-np-problem"
+        green_verified false
+    }
+
+    unconstructible "graph_isomorphism_problem" {
+        reduces_to "none"
+        dependency "class_P"
+        dependency "class_NP"
+        external_ref "https://en.wikipedia.org/wiki/Graph_isomorphism_problem"
+        green_verified false
+    }
+
+    unconstructible "discrete_logarithm_problem" {
+        reduces_to "none"
+        dependency "class_NP"
+        dependency "number_theory"
+        external_ref "https://en.wikipedia.org/wiki/Discrete_logarithm"
+        green_verified false
+    }
+
+    unconstructible "integer_factorization_problem" {
+        reduces_to "none"
+        dependency "class_NP"
+        dependency "number_theory"
+        external_ref "https://en.wikipedia.org/wiki/Integer_factorization"
+        green_verified false
+    }
+
+    unconstructible "halting_problem" {
+        reduces_to "none"
+        dependency "deterministic_turing_machine"
+        external_ref "https://en.wikipedia.org/wiki/Halting_problem"
+        green_verified false
+    }
+
+    unconstructible "Post_correspondence_problem" {
+        reduces_to "none"
+        dependency "deterministic_turing_machine"
+        external_ref "https://en.wikipedia.org/wiki/Post_correspondence_problem"
+        green_verified false
+    }
+
+    unconstructible "word_problem_for_groups" {
+        reduces_to "none"
+        dependency "group_theory"
+        dependency "deterministic_turing_machine"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified false
+    }
+
+    # -------------------------------------------------------------------------
+    # Logical Framework Settings
+    # -------------------------------------------------------------------------
+    bottom_geometry "computational_complexity_abstract"
+    negation_encoding "classical_complement"
+    contradiction_behavior "explosion_principle"
+}

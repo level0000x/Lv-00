@@ -1,0 +1,122 @@
+/**
+ * @file template_triangle.lv00
+ * @brief 通用三角形构造模板
+ *
+ * 可配置的三角形构造模板，支持等边、等腰、直角等类型
+ */
+
+// ===== 配置参数 =====
+config {
+    // 三角形类型: "scalene" | "isosceles" | "equilateral" | "right"
+    type: "scalene",
+    
+    // 顶点A坐标
+    A: { x: 0, y: 0 },
+    
+    // 顶点B坐标
+    B: { x: 6, y: 0 },
+    
+    // 顶点C坐标（根据类型可自动计算）
+    C: { x: 3, y: 4 },
+    
+    // 是否显示高
+    show_altitudes: true,
+    
+    // 是否显示中线
+    show_medians: true,
+    
+    // 是否显示角平分线
+    show_angle_bisectors: false,
+    
+    // 是否显示外接圆
+    show_circumcircle: false,
+    
+    // 是否显示内切圆
+    show_incircle: false
+}
+
+// ===== 自动计算 =====
+if (config.type == "equilateral") {
+    const side = distance(config.A, config.B);
+    config.C = {
+        x: (config.A.x + config.B.x) / 2,
+        y: config.A.y + side * sqrt(3) / 2
+    };
+}
+
+if (config.type == "right") {
+    // 直角在A点
+    config.C = {
+        x: config.A.x,
+        y: config.A.y + distance(config.A, config.B)
+    };
+}
+
+// ===== 构造 =====
+point A(config.A.x, config.A.y);
+point B(config.B.x, config.B.y);
+point C(config.C.x, config.C.y);
+
+triangle ABC(A, B, C);
+
+// 边
+segment AB(A, B);
+segment BC(B, C);
+segment CA(C, A);
+
+// ===== 可选构造 =====
+if (config.show_altitudes) {
+    line altitude_A = perpendicular(line(B, C), A);
+    line altitude_B = perpendicular(line(C, A), B);
+    line altitude_C = perpendicular(line(A, B), C);
+    point orthocenter = intersection(altitude_A, altitude_B);
+}
+
+if (config.show_medians) {
+    point D = midpoint(B, C);
+    point E = midpoint(C, A);
+    point F = midpoint(A, B);
+    segment AD(A, D);
+    segment BE(B, E);
+    segment CF(C, F);
+    point centroid = intersection(AD, BE);
+}
+
+if (config.show_angle_bisectors) {
+    line bisector_A = angle_bisector(B, A, C);
+    line bisector_B = angle_bisector(A, B, C);
+    point incenter = intersection(bisector_A, bisector_B);
+}
+
+if (config.show_circumcircle) {
+    point circumcenter = intersection(perpendicular_bisector(AB), perpendicular_bisector(BC));
+    const R = distance(circumcenter, A);
+    circle circumcircle(circumcenter, R);
+}
+
+if (config.show_incircle) {
+    point incenter = intersection(angle_bisector(B, A, C), angle_bisector(A, B, C));
+    const r = distance_from_point_to_line(incenter, AB);
+    circle incircle(incenter, r);
+}
+
+// ===== 基本证明 =====
+prove {
+    length(AB) + length(BC) > length(CA)
+}
+
+prove {
+    length(BC) + length(CA) > length(AB)
+}
+
+prove {
+    length(CA) + length(AB) > length(BC)
+}
+
+// ===== 可视化 =====
+visualize {
+    style ABC: { fill: "lightblue", stroke: "blue", width: 2 };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+}

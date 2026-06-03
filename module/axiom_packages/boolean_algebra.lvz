@@ -1,0 +1,314 @@
+# =============================================================================
+# Lv-00 Axiom Package: Boolean Algebra (Huntington Axiomatization)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Boolean algebra, a fundamental algebraic structure in mathematics and
+#   computer science. Formalized primarily via Huntington's axioms (1933),
+#   with the standard complemented distributive lattice definition as
+#   the primary axiomatization.
+#
+# References:
+#   - Huntington, E.V. (1933). "New Sets of Independent Postulates for the
+#     Algebra of Logic." Trans. Amer. Math. Soc., 35: 274-304.
+#     https://doi.org/10.1090/S0002-9947-1933-1501684-X
+#   - Huntington, E.V. (1904). "Sets of Independent Postulates for the
+#     Algebra of Logic." Trans. Amer. Math. Soc., 5(3): 288-309.
+#     https://doi.org/10.2307/1986459
+#   - Wikipedia: Boolean algebra (structure)
+#     https://en.wikipedia.org/wiki/Boolean_algebra_(structure)
+#   - Stanford Encyclopedia of Philosophy: The Mathematics of Boolean Algebra
+#     https://plato.stanford.edu/entries/boolalg-math/
+#   - nLab: Boolean algebra
+#     https://ncatlab.org/nlab/show/Boolean+algebra
+#
+# Primitive Notions (5 total):
+#   Terms: boolean value (element of the carrier set), constants 0 (bottom)
+#          and 1 (top)
+#   Operations: meet (AND, ∧), join (OR, ∨), complement (NOT, ¬)
+#
+# Standard Definition (Complemented Distributive Lattice):
+#   A Boolean algebra is a set B with two binary operations ∧ and ∨,
+#   a unary operation ¬, and two distinguished elements 0 and 1, satisfying:
+#
+#   I.   Lattice Axioms (6 axioms):
+#        L1. Associativity of ∨:  a ∨ (b ∨ c) = (a ∨ b) ∨ c
+#        L2. Associativity of ∧:  a ∧ (b ∧ c) = (a ∧ b) ∧ c
+#        L3. Commutativity of ∨:  a ∨ b = b ∨ a
+#        L4. Commutativity of ∧:  a ∧ b = b ∧ a
+#        L5. Absorption (∨ over ∧): a ∨ (a ∧ b) = a
+#        L6. Absorption (∧ over ∨): a ∧ (a ∨ b) = a
+#
+#   II.  Identity Axioms (2 axioms):
+#        I1. Identity for ∨:  a ∨ 0 = a
+#        I2. Identity for ∧:  a ∧ 1 = a
+#
+#   III. Distributive Axioms (2 axioms):
+#        D1. ∧ distributes over ∨: a ∧ (b ∨ c) = (a ∧ b) ∨ (a ∧ c)
+#        D2. ∨ distributes over ∧: a ∨ (b ∧ c) = (a ∨ b) ∧ (a ∨ c)
+#
+#   IV.  Complement Axioms (2 axioms):
+#        C1. Complement (∨):  a ∨ ¬a = 1
+#        C2. Complement (∧):  a ∧ ¬a = 0
+#
+#   Note: The identity axioms can be derived from the other axioms
+#   (0 is the unique complement of 1, and vice versa), but are included
+#   explicitly for clarity and to match the standard textbook presentation.
+#
+# Huntington 1933 Minimal Axiomatization (3 axioms):
+#   Using only ∨ and ¬:
+#        H1. Associativity: a ∨ (b ∨ c) = (a ∨ b) ∨ c
+#        H2. Commutativity: a ∨ b = b ∨ a
+#        H3. Huntington equation: ¬(¬a ∨ b) ∨ ¬(¬a ∨ ¬b) = a
+#
+#   This is provably equivalent to the standard definition and is one of
+#   the simplest complete axiomatizations of Boolean algebra.
+#
+# Derived Constructors (theorems usable as construction rules):
+#   De Morgan's laws, double negation, idempotence, boundedness,
+#   consensus theorem, Sheffer stroke (NAND), Peirce arrow (NOR).
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Boolean satisfiability (SAT) is NP-complete (Cook-Levin theorem)
+#   - Tautology checking is co-NP-complete
+#   - Boolean equivalence checking is co-NP-complete
+#   - Boolean formula minimization is NP-hard
+#   - Equational theory with distinguished subalgebra is undecidable (Tarski)
+#   - Minimal Boolean circuit synthesis is NP-hard
+#
+# Relationship to Other Theories:
+#   - Boolean algebra is the algebraic counterpart of classical propositional
+#     logic via the Lindenbaum-Tarski algebra construction.
+#   - Every Boolean algebra is a Heyting algebra satisfying excluded middle.
+#   - Boolean algebras are equivalent to Boolean rings (rings with x² = x).
+#   - Stone's representation theorem: every Boolean algebra is isomorphic to
+#     a field of sets (the clopen subsets of its Stone space).
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-21
+# Version: 1.0.0
+# =============================================================================
+
+axiom "boolean_algebra" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Axioms)
+    # =================================================================
+    # Each template represents a fundamental algebraic operation, axiom,
+    # or derived construction rule in Boolean algebra. Parameters are
+    # boolean values (elements of the carrier set).
+    # =================================================================
+
+    # --- Group I: Lattice Axioms ---
+    # L1: Associativity of join (OR)
+    #     a ∨ (b ∨ c) = (a ∨ b) ∨ c
+    # Params: element a, element b, element c
+    template "join_associativity" 3
+
+    # L2: Associativity of meet (AND)
+    #     a ∧ (b ∧ c) = (a ∧ b) ∧ c
+    # Params: element a, element b, element c
+    template "meet_associativity" 3
+
+    # L3: Commutativity of join (OR)
+    #     a ∨ b = b ∨ a
+    # Params: element a, element b
+    template "join_commutativity" 2
+
+    # L4: Commutativity of meet (AND)
+    #     a ∧ b = b ∧ a
+    # Params: element a, element b
+    template "meet_commutativity" 2
+
+    # L5: Absorption of join over meet
+    #     a ∨ (a ∧ b) = a
+    # Params: element a, element b
+    template "join_absorption" 2
+
+    # L6: Absorption of meet over join
+    #     a ∧ (a ∨ b) = a
+    # Params: element a, element b
+    template "meet_absorption" 2
+
+    # --- Group II: Identity Axioms ---
+    # I1: Identity for join: a ∨ 0 = a
+    # Params: element a
+    template "join_identity" 1
+
+    # I2: Identity for meet: a ∧ 1 = a
+    # Params: element a
+    template "meet_identity" 1
+
+    # --- Group III: Distributive Axioms ---
+    # D1: Meet distributes over join
+    #     a ∧ (b ∨ c) = (a ∧ b) ∨ (a ∧ c)
+    # Params: element a, element b, element c
+    template "meet_distributes_over_join" 3
+
+    # D2: Join distributes over meet
+    #     a ∨ (b ∧ c) = (a ∨ b) ∧ (a ∨ c)
+    # Params: element a, element b, element c
+    template "join_distributes_over_meet" 3
+
+    # --- Group IV: Complement Axioms ---
+    # C1: Complement law (join): a ∨ ¬a = 1
+    #     (Law of Excluded Middle)
+    # Params: element a
+    template "complement_join" 1
+
+    # C2: Complement law (meet): a ∧ ¬a = 0
+    #     (Law of Non-Contradiction)
+    # Params: element a
+    template "complement_meet" 1
+
+    # --- Group V: Huntington 1933 Minimal Axioms ---
+    # These three axioms are provably equivalent to Groups I-IV combined.
+    # H1: Associativity of ∨ (same as L1)
+    #     (already declared as "join_associativity")
+
+    # H2: Commutativity of ∨ (same as L3)
+    #     (already declared as "join_commutativity")
+
+    # H3: Huntington equation
+    #     ¬(¬a ∨ b) ∨ ¬(¬a ∨ ¬b) = a
+    #     This single equation, together with H1 and H2, completely
+    #     axiomatizes Boolean algebra using only ∨ and ¬.
+    # Params: element a, element b
+    template "huntington_equation" 2
+
+    # --- Group VI: Core Constructors (Operations) ---
+    # Complement: Given element a, produce ¬a
+    # Params: element a -> element ¬a
+    template "complement" 1
+
+    # Meet (AND): Given elements a, b, produce a ∧ b
+    # Params: element a, element b -> element (a ∧ b)
+    template "meet" 2
+
+    # Join (OR): Given elements a, b, produce a ∨ b
+    # Params: element a, element b -> element (a ∨ b)
+    template "join" 2
+
+    # --- Group VII: Derived Constructors (Theorems) ---
+    # Double negation: ¬(¬a) = a
+    # Params: element a -> element ¬(¬a)
+    template "double_negation" 1
+
+    # De Morgan's law (join form): ¬(a ∨ b) = ¬a ∧ ¬b
+    # Params: element a, element b -> element ¬(a ∨ b)
+    template "de_morgan_join" 2
+
+    # De Morgan's law (meet form): ¬(a ∧ b) = ¬a ∨ ¬b
+    # Params: element a, element b -> element ¬(a ∧ b)
+    template "de_morgan_meet" 2
+
+    # Idempotence of join: a ∨ a = a
+    # Params: element a
+    template "join_idempotence" 1
+
+    # Idempotence of meet: a ∧ a = a
+    # Params: element a
+    template "meet_idempotence" 1
+
+    # Boundedness (top): a ∨ 1 = 1
+    # Params: element a
+    template "join_bounded_top" 1
+
+    # Boundedness (bottom): a ∧ 0 = 0
+    # Params: element a
+    template "meet_bounded_bottom" 1
+
+    # Consensus theorem: (a ∧ b) ∨ (¬a ∧ c) ∨ (b ∧ c) = (a ∧ b) ∨ (¬a ∧ c)
+    # Params: element a, element b, element c
+    template "consensus" 3
+
+    # Sheffer stroke (NAND): a | b = ¬(a ∧ b)
+    # Functionally complete: all Boolean operations can be expressed via NAND.
+    # Params: element a, element b -> element (a | b)
+    template "sheffer_stroke" 2
+
+    # Peirce arrow (NOR): a ↓ b = ¬(a ∨ b)
+    # Functionally complete: all Boolean operations can be expressed via NOR.
+    # Params: element a, element b -> element (a ↓ b)
+    template "peirce_arrow" 2
+
+    # Material implication: a → b = ¬a ∨ b
+    # Params: element a, element b -> element (a → b)
+    template "material_implication" 2
+
+    # Exclusive or (XOR): a ⊕ b = (a ∧ ¬b) ∨ (¬a ∧ b)
+    # Params: element a, element b -> element (a ⊕ b)
+    template "exclusive_or" 2
+
+    # Biconditional: a ↔ b = (a → b) ∧ (b → a)
+    # Params: element a, element b -> element (a ↔ b)
+    template "biconditional" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "boolean_satisfiability" {
+        reduces_to "NP_complete"
+        dependency "join"
+        dependency "meet"
+        dependency "complement"
+        external_ref "https://en.wikipedia.org/wiki/Boolean_satisfiability_problem"
+        green_verified true
+    }
+
+    unconstructible "tautology_checking" {
+        reduces_to "coNP_complete"
+        dependency "join"
+        dependency "meet"
+        dependency "complement"
+        external_ref "https://en.wikipedia.org/wiki/Tautology_(logic)"
+        green_verified true
+    }
+
+    unconstructible "boolean_equivalence_checking" {
+        reduces_to "coNP_complete"
+        dependency "join"
+        dependency "meet"
+        dependency "complement"
+        external_ref "https://en.wikipedia.org/wiki/Boolean_algebra_(structure)"
+        green_verified true
+    }
+
+    unconstructible "boolean_formula_minimization" {
+        reduces_to "NP_hard"
+        dependency "join"
+        dependency "meet"
+        dependency "complement"
+        dependency "consensus"
+        external_ref "https://en.wikipedia.org/wiki/Boolean_satisfiability_problem"
+        green_verified true
+    }
+
+    unconstructible "minimal_circuit_synthesis" {
+        reduces_to "NP_hard"
+        dependency "join"
+        dependency "meet"
+        dependency "complement"
+        dependency "sheffer_stroke"
+        external_ref "https://en.wikipedia.org/wiki/Circuit_complexity"
+        green_verified true
+    }
+
+    unconstructible "equational_theory_with_subalgebra" {
+        reduces_to "undecidable"
+        dependency "join"
+        dependency "meet"
+        dependency "complement"
+        external_ref "https://plato.stanford.edu/entries/boolalg-math/#decid"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "boolean_algebra_2element"
+    negation_encoding "classical_complement"
+    contradiction_behavior "explosion_principle"
+}
