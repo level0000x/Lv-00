@@ -500,6 +500,15 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/memory_pool.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
+    # 补全遗漏文件：缓存管理、全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
+    core/src/layer2_resource/cache_manager.c
+    core/src/layer2_resource/global_state.c
+    core/src/layer2_resource/geometry_config.c
+    core/src/layer2_resource/debug_trace.c
+    core/src/layer2_resource/preset_helper_cn.c
+    core/src/layer2_resource/math_theory_guide_cn.c
+    core/src/layer2_resource/error_messages_cn.c
+    core/src/layer2_resource/result_messages_cn.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -558,6 +567,14 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/equiv_class.c
     # v3.6.0 新增：WFC 范式 - 约束传播引擎（Layer 3 约束拓扑规约）
     core/src/layer3_geometry/propagation.c
+    # 补全遗漏文件：代数数、半边网格、约束求解器、几何工具、动态几何、AABB树、几何谓词
+    core/src/layer3_geometry/algebraic_number.c
+    core/src/layer3_geometry/geo_halfedge_mesh.c
+    core/src/layer3_geometry/geo_constraint_solver.c
+    core/src/layer3_geometry/geo_utils.c
+    core/src/layer3_geometry/geo_dynamic.c
+    core/src/layer3_geometry/geo_aabb_tree.c
+    core/src/layer3_geometry/geo_predicate.c
     # [已移至 Layer 4] ODE 求解器
     # core/src/layer3_geometry/ode_solver.c
 )
@@ -721,6 +738,10 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/preset/preset_trigonometry.c
     # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
     core/src/layer4_reasoning/meta_proof.c
+    # 补全遗漏文件：冲突检测、矛盾证明、抽象代数预设
+    core/src/layer4_reasoning/conflict_detector.c
+    core/src/layer4_reasoning/proof_contradiction.c
+    core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
 )
 
 # ── Layer 5: 结果输出层 (Output) ──
@@ -733,6 +754,9 @@ set(LV00_LAYER5_SOURCES
     core/src/layer5_output/interop/interop.c
     # Magic 模拟器模块
     core/src/layer5_output/magic/magic.c
+    # 补全遗漏文件：几何可视化（基础版 + 完整版）
+    core/src/layer5_output/geo_visual.c
+    core/src/layer5_output/geo_visual_complete.c
 )
 
 # ============================================================

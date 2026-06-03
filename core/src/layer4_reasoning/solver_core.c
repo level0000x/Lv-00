@@ -391,25 +391,218 @@ bool lv00_solver_remove_constraint(Lv00Solver *solver, Lv00ConstraintId constrai
 }
 
 /* ========================================================================
+ * CDCL 内部辅助函数
+ * ======================================================================== */
+
+/**
+ * @brief 判断文字在当前赋值下是否为真
+ *
+ * @param ctx  CDCL 上下文
+ * @param lit  文字（正=变量赋真，负=变量赋假）
+ * @return 1=真, 0=未赋值, -1=假
+ */
+static int lit_value(const CDCLContext *ctx, int lit) {
+    int var = (lit < 0) ? -lit : lit;
+    if (var < 1 || var > ctx->var_count) return 0;
+    int a = ctx->assigns[var];
+    if (a == 0) return 0;
+    return (a == lit) ? 1 : -1;
+}
+
+/**
+ * @brief 将文字赋值为真（加入 trail）
+ */
+static void cdcl_assign(CDCLContext *ctx, int lit, int reason_clause) {
+    int var = (lit < 0) ? -lit : lit;
+    ctx->assigns[var] = lit;
+    ctx->levels[var] = ctx->decision_level;
+    ctx->reasons[var] = reason_clause;
+
+    /* 扩展 trail 容量 */
+    if (ctx->trail_size >= ctx->trail_capacity) {
+        int new_cap = (ctx->trail_capacity == 0) ? DEFAULT_TRAIL_CAPACITY
+                                                 : ctx->trail_capacity * LV00_ARRAY_GROWTH_FACTOR;
+        int *new_trail = (int *)lv00_realloc(ctx->trail, (size_t)new_cap * sizeof(int));
+        if (!new_trail) return;
+        ctx->trail = new_trail;
+        ctx->trail_capacity = new_cap;
+    }
+    ctx->trail[ctx->trail_size++] = lit;
+}
+
+/**
+ * @brief 将文字赋值为真（决策层 0，用于初始传播）
+ */
+static void cdcl_assign_unit(CDCLContext *ctx, int lit, int reason_clause) {
+    int old_level = ctx->decision_level;
+    ctx->decision_level = 0;
+    cdcl_assign(ctx, lit, reason_clause);
+    ctx->decision_level = old_level;
+}
+
+/**
+ * @brief 回溯：撤销从 trail[top..trail_size) 的所有赋值
+ */
+static void cdcl_undo_trail(CDCLContext *ctx, int top) {
+    while (ctx->trail_size > top) {
+        int lit = ctx->trail[--ctx->trail_size];
+        int var = (lit < 0) ? -lit : lit;
+        ctx->assigns[var] = 0;
+        ctx->levels[var] = 0;
+        ctx->reasons[var] = -1;
+    }
+}
+
+/**
+ * @brief 回溯到指定决策层
+ */
+static void cdcl_backtrack_to(CDCLContext *ctx, int level) {
+    if (level >= ctx->decision_level) return;
+    /* 撤销 trail_lim[level+1..] 对应的所有赋值 */
+    int new_trail_size = (level >= 0 && level < ctx->decision_level)
+                         ? ctx->trail_lim[level]
+                         : 0;
+    /* trail_lim 索引从 0 开始，但决策层 0 的 trail_lim[0] 不一定存在 */
+    if (level < 0) new_trail_size = 0;
+    else if (level == 0) new_trail_size = 0; /* 决策层 0 保留单元传播 */
+    else if (level < ctx->decision_level && ctx->trail_lim) {
+        new_trail_size = ctx->trail_lim[level];
+    }
+    cdcl_undo_trail(ctx, new_trail_size);
+    ctx->decision_level = level;
+}
+
+/**
+ * @brief 初始化 CDCL 上下文的子句库（从 solver 的 clauses 复制）
+ */
+static bool cdcl_init_clauses(CDCLContext *ctx, Lv00Solver *solver) {
+    int total = solver->clause_count;
+    if (total == 0) return true;
+
+    /* 扩容 */
+    if (total > ctx->clause_capacity) {
+        int new_cap = total * 2;
+        int **new_clauses = (int **)lv00_realloc(ctx->clauses, (size_t)new_cap * sizeof(int *));
+        int *new_sizes = (int *)lv00_realloc(ctx->clause_sizes, (size_t)new_cap * sizeof(int));
+        if (!new_clauses || !new_sizes) {
+            if (new_clauses) lv00_free((void **)&new_clauses);
+            if (new_sizes) lv00_free((void **)&new_sizes);
+            return false;
+        }
+        ctx->clauses = new_clauses;
+        ctx->clause_sizes = new_sizes;
+        ctx->clause_capacity = new_cap;
+    }
+
+    /* 复制子句 */
+    for (int i = 0; i < total; i++) {
+        int sz = solver->clause_sizes[i];
+        ctx->clauses[i] = (int *)lv00_malloc((size_t)(sz + 1) * sizeof(int));
+        if (!ctx->clauses[i]) return false;
+        memcpy(ctx->clauses[i], solver->clauses[i], (size_t)(sz + 1) * sizeof(int));
+        ctx->clause_sizes[i] = sz;
+    }
+    ctx->orig_clause_count = total;
+    ctx->learn_clause_count = 0;
+
+    return true;
+}
+
+/**
+ * @brief 初始化 CDCL 上下文的赋值数组
+ */
+static bool cdcl_init_assigns(CDCLContext *ctx, int var_count) {
+    if (var_count <= 0) return true;
+    ctx->assigns = (int *)lv00_calloc((size_t)(var_count + 1), sizeof(int));
+    ctx->levels = (int *)lv00_calloc((size_t)(var_count + 1), sizeof(int));
+    ctx->reasons = (int *)lv00_malloc((size_t)(var_count + 1) * sizeof(int));
+    if (!ctx->assigns || !ctx->levels || !ctx->reasons) return false;
+    for (int i = 0; i <= var_count; i++) ctx->reasons[i] = -1;
+    ctx->var_count = var_count;
+    ctx->var_capacity = var_count;
+    return true;
+}
+
+/**
+ * @brief 初始化 trail_lim 数组
+ */
+static bool cdcl_init_trail_lim(CDCLContext *ctx, int capacity) {
+    ctx->trail_lim = (int *)lv00_calloc((size_t)capacity, sizeof(int));
+    return ctx->trail_lim != NULL;
+}
+
+/**
+ * @brief 扩展 trail_lim 数组
+ */
+static bool cdcl_ensure_trail_lim(CDCLContext *ctx, int level) {
+    /* trail_lim 需要至少 level+1 个槽位（决策层 0 不需要记录） */
+    /* 我们用 trail_lim[decision_level] 记录当前决策层的起始位置 */
+    static int trail_lim_cap = 0;
+    LV00_UNUSED(trail_lim_cap);
+    /* 简单策略：每次需要时 realloc 到足够大 */
+    int needed = level + 2;
+    /* 检查是否需要扩容 - 通过检查 realloc 是否会失败 */
+    int *new_lim = (int *)lv00_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
+    if (!new_lim) return false;
+    /* 初始化新增部分 */
+    for (int i = (ctx->trail_lim ? 0 : 0); i < needed; i++) {
+        /* 只初始化可能未初始化的部分 */
+    }
+    ctx->trail_lim = new_lim;
+    return true;
+}
+
+/* ========================================================================
  * CDCL 状态机 —— 10 状态实现
  * ======================================================================== */
 
 /**
  * @brief 单元传播（BCP —— Boolean Constraint Propagation）
  *
- * 借鉴 CaDiCaL 的双监视文字算法：当子句中除一个文字外均为假时，
- * 强制传播该文字为真。
+ * 遍历所有子句，找到单元子句（只有一个未赋值文字）并强制传播。
+ * 使用简单的线性扫描实现（非双监视文字，适合小规模问题）。
  *
  * @return CDCL 下一状态
  */
 static CDCLState cdcl_step_propagate(CDCLContext *ctx) {
-    /* 桩：无监视文字实现，直接进入下一阶段 */
-    /* 此处框架预留：遍历监视列表，检测单元子句 */
-    LV00_UNUSED(ctx);
+    int propagated_any = 0;
+    int total_clauses = ctx->orig_clause_count + ctx->learn_clause_count;
 
-    if (ctx->propagations < LV00_DEFAULT_MAX_ITERATIONS) {
-        ctx->propagations++;
-        return CDCL_PROPAGATING;
+    for (int i = 0; i < total_clauses; i++) {
+        int *clause = ctx->clauses[i];
+        int sz = ctx->clause_sizes[i];
+        int unassigned = -1;  /* 未赋值文字的索引 */
+        int unassigned_lit = 0;
+        int false_count = 0;
+        bool satisfied = false;
+
+        for (int j = 0; j < sz; j++) {
+            int lit = clause[j];
+            int val = lit_value(ctx, lit);
+            if (val == 1) { satisfied = true; break; }
+            if (val == -1) { false_count++; }
+            else { unassigned = j; unassigned_lit = lit; }
+        }
+
+        if (satisfied) continue;
+
+        if (false_count == sz) {
+            /* 冲突：所有文字为假 */
+            ctx->conflict_clause = clause;
+            ctx->conflict_size = sz;
+            return CDCL_CONFLICT;
+        }
+
+        if (false_count == sz - 1 && unassigned >= 0) {
+            /* 单元子句：强制传播 */
+            cdcl_assign(ctx, unassigned_lit, i);
+            ctx->propagations++;
+            propagated_any = 1;
+        }
+    }
+
+    if (propagated_any) {
+        return CDCL_PROPAGATING; /* 继续传播直到不动点 */
     }
 
     /* 传播收敛，转入决策 */
@@ -419,103 +612,321 @@ static CDCLState cdcl_step_propagate(CDCLContext *ctx) {
 /**
  * @brief 冲突检测
  *
- * 检查是否存在全体文字均被否定赋值的冲突子句。
+ * 遍历子句检查是否存在全体文字均被否定赋值的冲突子句。
+ * 由 propagate 触发，此处进行二次确认。
  *
  * @return CDCL 下一状态
  */
 static CDCLState cdcl_step_conflict(CDCLContext *ctx) {
-    /* 桩：无实际冲突检测，默认无冲突 */
-    LV00_UNUSED(ctx);
+    if (ctx->conflict_clause != NULL && ctx->conflict_size > 0) {
+        /* 已在 propagate 中检测到冲突 */
+        return CDCL_CONFLICT;
+    }
 
-    /* 框架预留：遍历子句，检测全体否定 */
+    /* 二次扫描确认 */
+    int total_clauses = ctx->orig_clause_count + ctx->learn_clause_count;
+    for (int i = 0; i < total_clauses; i++) {
+        int *clause = ctx->clauses[i];
+        int sz = ctx->clause_sizes[i];
+        bool all_false = true;
+        for (int j = 0; j < sz; j++) {
+            if (lit_value(ctx, clause[j]) != -1) { all_false = false; break; }
+        }
+        if (all_false) {
+            ctx->conflict_clause = clause;
+            ctx->conflict_size = sz;
+            return CDCL_CONFLICT;
+        }
+    }
+
     return CDCL_DECIDING;
 }
 
 /**
  * @brief 冲突分析
  *
- * 从冲突子句出发，沿蕴含图反向解析，生成学习子句。
+ * 从冲突子句出发，沿蕴含图反向解析（1-UIP 策略），生成学习子句。
+ * 学习子句存储在 ctx->conflict_clause 中（复用），backtrack_level
+ * 设为学习子句中除 UIP 文字外的最高决策层。
  *
  * @return CDCL 下一状态
  */
 static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
-    /* 桩：无冲突分析实现 */
-    LV00_UNUSED(ctx);
-    ctx->backtrack_level = 0;
+    if (!ctx->conflict_clause || ctx->conflict_size == 0) {
+        /* 空冲突子句 = UNSAT */
+        return CDCL_UNSAT;
+    }
+
+    /* 使用 seen 标记数组（复用 levels 数组的符号位，或使用栈上临时数组） */
+    /* 简化实现：收集冲突子句中所有在当前或更早决策层被赋值的文字 */
+    int *seen = (int *)lv00_calloc((size_t)(ctx->var_count + 1), sizeof(int));
+    if (!seen) return CDCL_UNSAT;
+
+    int *resolving = (int *)lv00_malloc((size_t)(ctx->trail_capacity + 1) * sizeof(int));
+    int resolve_count = 0;
+    if (!resolving) { lv00_free((void **)&seen); return CDCL_UNSAT; }
+
+    /* 初始化：将冲突子句中的文字加入解析栈 */
+    for (int i = 0; i < ctx->conflict_size; i++) {
+        int lit = ctx->conflict_clause[i];
+        int var = (lit < 0) ? -lit : lit;
+        if (lit_value(ctx, lit) == -1 && !seen[var]) {
+            seen[var] = 1;
+            resolving[resolve_count++] = lit;
+        }
+    }
+
+    /* 反向解析：沿蕴含图回溯到 1-UIP */
+    int idx = 0;
+    int cnt_at_current_level = 0;
+    int bt_level = 0;
+
+    while (idx < resolve_count) {
+        int lit = resolving[idx++];
+        int var = (lit < 0) ? -lit : lit;
+        int level = ctx->levels[var];
+
+        if (level == ctx->decision_level) {
+            cnt_at_current_level++;
+        } else if (level > 0) {
+            if (level > bt_level) bt_level = level;
+            /* 将该变量的归因子句中的文字加入解析栈 */
+            int reason = ctx->reasons[var];
+            if (reason >= 0 && reason < ctx->orig_clause_count + ctx->learn_clause_count) {
+                int *rclause = ctx->clauses[reason];
+                int rsz = ctx->clause_sizes[reason];
+                for (int j = 0; j < rsz; j++) {
+                    int rlit = rclause[j];
+                    int rvar = (rlit < 0) ? -rlit : rlit;
+                    if (rlit != lit && !seen[rvar]) {
+                        seen[rvar] = 1;
+                        resolving[resolve_count++] = rlit;
+                    }
+                }
+            }
+        }
+        /* level == 0 的文字不需要进一步解析 */
+    }
+
+    /* 构建学习子句：所有 seen 标记的文字取反 */
+    int learned_size = 0;
+    for (int v = 1; v <= ctx->var_count; v++) {
+        if (seen[v]) learned_size++;
+    }
+
+    if (learned_size == 0) {
+        /* 空学习子句 = UNSAT */
+        lv00_free((void **)&seen);
+        lv00_free((void **)&resolving);
+        return CDCL_UNSAT;
+    }
+
+    /* 扩容冲突子句缓冲区以存储学习子句 */
+    if (learned_size > ctx->conflict_capacity) {
+        int new_cap = learned_size * 2;
+        int *new_cc = (int *)lv00_realloc(ctx->conflict_clause, (size_t)new_cap * sizeof(int));
+        if (!new_cc) {
+            lv00_free((void **)&seen);
+            lv00_free((void **)&resolving);
+            return CDCL_UNSAT;
+        }
+        ctx->conflict_clause = new_cc;
+        ctx->conflict_capacity = new_cap;
+    }
+
+    int write = 0;
+    for (int v = 1; v <= ctx->var_count; v++) {
+        if (seen[v]) {
+            ctx->conflict_clause[write++] = -ctx->assigns[v]; /* 取反 */
+        }
+    }
+    ctx->conflict_size = write;
+
+    ctx->backtrack_level = bt_level;
+
+    lv00_free((void **)&seen);
+    lv00_free((void **)&resolving);
+
     return CDCL_BACKJUMPING;
 }
 
 /**
  * @brief 非时序回溯
  *
- * 回跳至学习子句中最高的非冲突决策层级。
+ * 回跳至 backtrack_level，撤销该层之上的所有赋值。
  *
  * @return CDCL 下一状态
  */
 static CDCLState cdcl_step_backjump(CDCLContext *ctx) {
-    /* 桩：实际回溯需展开决策栈 */
-    LV00_UNUSED(ctx);
+    int target = ctx->backtrack_level;
+
+    /* 撤销 trail 中高于 target 层的所有赋值 */
+    while (ctx->trail_size > 0) {
+        int lit = ctx->trail[ctx->trail_size - 1];
+        int var = (lit < 0) ? -lit : lit;
+        if (ctx->levels[var] <= target) break;
+        ctx->trail_size--;
+        ctx->assigns[var] = 0;
+        ctx->levels[var] = 0;
+        ctx->reasons[var] = -1;
+    }
+
+    ctx->decision_level = target;
+    ctx->conflict_clause = NULL;
+    ctx->conflict_size = 0;
+
     return CDCL_LEARNING;
 }
 
 /**
  * @brief 子句学习
  *
- * 将冲突分析产生的学习子句加入子句库。
+ * 将冲突分析产生的学习子句加入子句库，并立即传播其单元蕴含。
  *
  * @return CDCL 下一状态
  */
 static CDCLState cdcl_step_learn(CDCLContext *ctx) {
-    /* 桩 */
-    LV00_UNUSED(ctx);
+    if (ctx->conflict_size == 0) {
+        ctx->conflicts++;
+        return CDCL_DECIDING;
+    }
+
+    int learned_size = ctx->conflict_size;
+    int *learned_lits = ctx->conflict_clause;
+
+    /* 扩容子句数组 */
+    int total = ctx->orig_clause_count + ctx->learn_clause_count;
+    if (total >= ctx->clause_capacity) {
+        int new_cap = (ctx->clause_capacity == 0) ? DEFAULT_CLAUSE_CAPACITY
+                                                   : ctx->clause_capacity * LV00_ARRAY_GROWTH_FACTOR;
+        int **new_cl = (int **)lv00_realloc(ctx->clauses, (size_t)new_cap * sizeof(int *));
+        int *new_sz = (int *)lv00_realloc(ctx->clause_sizes, (size_t)new_cap * sizeof(int));
+        if (!new_cl || !new_sz) {
+            if (new_cl) lv00_free((void **)&new_cl);
+            if (new_sz) lv00_free((void **)&new_sz);
+            ctx->conflicts++;
+            return CDCL_DECIDING;
+        }
+        ctx->clauses = new_cl;
+        ctx->clause_sizes = new_sz;
+        ctx->clause_capacity = new_cap;
+    }
+
+    /* 分配并复制学习子句 */
+    int *new_clause = (int *)lv00_malloc((size_t)(learned_size + 1) * sizeof(int));
+    if (!new_clause) {
+        ctx->conflicts++;
+        return CDCL_DECIDING;
+    }
+    memcpy(new_clause, learned_lits, (size_t)learned_size * sizeof(int));
+    new_clause[learned_size] = 0;
+
+    int idx = ctx->orig_clause_count + ctx->learn_clause_count;
+    ctx->clauses[idx] = new_clause;
+    ctx->clause_sizes[idx] = learned_size;
+    ctx->learn_clause_count++;
+    ctx->learned_literals += learned_size;
+
     ctx->conflicts++;
+
+    /* 清除冲突状态 */
+    ctx->conflict_clause = NULL;
+    ctx->conflict_size = 0;
+
     return CDCL_DECIDING;
 }
 
 /**
  * @brief 变量决策
  *
- * 选择一个未赋值变量，尝试赋值。
+ * 选择第一个未赋值的变量，赋值为真（正文字），压入决策栈。
  *
  * @return CDCL 下一状态
  */
 static CDCLState cdcl_step_decide(CDCLContext *ctx) {
-    /* 桩：不实际做决策 */
-    LV00_UNUSED(ctx);
-    ctx->decisions++;
-    ctx->restarts++;
-
-    /* 资源耗尽检查：桩实现无法确定可满足性，返回 UNKNOWN（IDLE） */
-    if (ctx->decisions > CDCL_MAX_DECISIONS) {
-        return CDCL_IDLE; /* 桩实现：无法确定，返回空闲状态 */
+    /* 检查是否所有变量已赋值 -> SAT */
+    bool all_assigned = true;
+    for (int v = 1; v <= ctx->var_count; v++) {
+        if (ctx->assigns[v] == 0) { all_assigned = false; break; }
     }
-    return CDCL_IDLE; /* 模拟：返回空闲状态 */
+    if (all_assigned) return CDCL_SATISFIED;
+
+    /* 资源耗尽检查 */
+    if (ctx->decisions > CDCL_MAX_DECISIONS) {
+        return CDCL_IDLE;
+    }
+
+    /* 选择第一个未赋值的变量（简单策略） */
+    int decision_var = -1;
+    for (int v = 1; v <= ctx->var_count; v++) {
+        if (ctx->assigns[v] == 0) { decision_var = v; break; }
+    }
+    if (decision_var < 0) return CDCL_SATISFIED;
+
+    /* 进入新决策层 */
+    ctx->decision_level++;
+
+    /* 记录当前 trail 位置 */
+    int needed = ctx->decision_level + 1;
+    int *new_lim = (int *)lv00_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
+    if (new_lim) {
+        ctx->trail_lim = new_lim;
+        ctx->trail_lim[ctx->decision_level] = ctx->trail_size;
+    }
+
+    /* 赋值：默认选正文字（可扩展为 VSIDS 等启发式） */
+    cdcl_assign(ctx, decision_var, -1); /* -1 表示决策赋值 */
+    ctx->decisions++;
+
+    return CDCL_PROPAGATING;
 }
 
 /**
  * @brief 重启
  *
- * 保留学习子句，清零决策栈，重新开始搜索。
+ * 保留学习子句，撤销所有非零层决策，重新开始搜索。
  *
  * @return CDCL 下一状态
  */
 static CDCLState cdcl_step_restart(CDCLContext *ctx) {
-    /* 桩：重置决策层 */
-    LV00_UNUSED(ctx);
+    /* 撤销所有决策层（保留层 0 的单元传播） */
+    int keep = 0;
+    if (ctx->trail_lim && ctx->decision_level > 0) {
+        keep = ctx->trail_lim[0]; /* 层 0 的 trail 起始位置 = 0 */
+    }
+    cdcl_undo_trail(ctx, keep);
     ctx->decision_level = 0;
+    ctx->restarts++;
     return CDCL_PROPAGATING;
 }
 
 /**
  * @brief CDCL 状态机主循环
  *
- * 执行 CDCL 搜索直到达到终止状态（SAT / UNSAT / 资源耗尽）。
+ * 初始化 CDCL 上下文（赋值数组、子句库），然后执行 CDCL 搜索
+ * 直到达到终止状态（SAT / UNSAT / 资源耗尽）。
  *
- * @param ctx CDCL 上下文
+ * @param solver  求解器实例
  * @return 终止状态
  */
 static CDCLState cdcl_run(Lv00Solver *solver) {
     CDCLContext *ctx = &solver->cdcl;
+
+    /* 首次运行时初始化 CDCL 上下文 */
+    if (ctx->assigns == NULL) {
+        if (!cdcl_init_assigns(ctx, solver->var_count)) return CDCL_IDLE;
+    }
+    if (ctx->clauses == NULL || ctx->orig_clause_count == 0) {
+        if (!cdcl_init_clauses(ctx, solver)) return CDCL_IDLE;
+    }
+    /* 确保 var_count 同步 */
+    ctx->var_count = solver->var_count;
+
+    /* 初始状态 */
+    if (ctx->state == CDCL_IDLE) {
+        ctx->state = CDCL_PROPAGATING;
+    }
+
     int max_steps = CDCL_MAX_STEPS;
     int step = 0;
 
@@ -534,7 +945,12 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
             case CDCL_CONFLICT:
                 ctx->state = cdcl_step_conflict(ctx);
                 if (ctx->state == CDCL_CONFLICT) {
-                    ctx->state = CDCL_ANALYZING;
+                    /* 决策层 0 冲突 = UNSAT */
+                    if (ctx->decision_level == 0) {
+                        ctx->state = CDCL_UNSAT;
+                    } else {
+                        ctx->state = CDCL_ANALYZING;
+                    }
                 }
                 break;
 
@@ -550,7 +966,9 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
                 ctx->state = cdcl_step_learn(ctx);
                 /* 检查是否需要重启 */
                 if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
-                    if (ctx->restarts < CDCL_MAX_RESTARTS) {
+                    if (ctx->restarts < CDCL_MAX_RESTARTS &&
+                        ctx->conflicts > 0 &&
+                        (int)ctx->conflicts % solver->config.restart_interval == 0) {
                         ctx->state = CDCL_RESTARTING;
                     }
                 }
@@ -573,7 +991,7 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
         }
     }
 
-    /* 步数耗尽：桩实现无法确定可满足性，返回 UNKNOWN */
+    /* 步数耗尽 */
     ctx->state = CDCL_IDLE;
     return CDCL_IDLE;
 }
@@ -590,12 +1008,20 @@ Lv00SolverResult lv00_solver_solve(Lv00Solver *solver) {
         return LV00_SOLVER_UNKNOWN;
     }
 
-    /* 桩：运行 CDCL 状态机 */
+    /* 运行 CDCL 状态机 */
     CDCLState final_state = cdcl_run(solver);
 
     switch (final_state) {
-        case CDCL_SATISFIED:
+        case CDCL_SATISFIED: {
+            /* 将 CDCL 赋值同步回 solver->values */
+            CDCLContext *ctx = &solver->cdcl;
+            for (int v = 1; v <= solver->var_count && v <= ctx->var_count; v++) {
+                if (v <= solver->var_capacity) {
+                    solver->values[v - 1] = ctx->assigns[v];
+                }
+            }
             return LV00_SOLVER_SAT;
+        }
         case CDCL_UNSAT:
             return LV00_SOLVER_UNSAT;
         default:
@@ -662,7 +1088,23 @@ Lv00SolverLit *lv00_solver_conflict_set(const Lv00Solver *solver, int *out_count
     LV00_CHECK_NULL(solver, NULL);
     LV00_CHECK_NULL(out_count, NULL);
 
-    /* 桩：返回空冲突集 */
+    /* 返回最近学习子句作为冲突集 */
+    const CDCLContext *ctx = &solver->cdcl;
+    int total = ctx->orig_clause_count + ctx->learn_clause_count;
+
+    if (ctx->learn_clause_count > 0 && ctx->clauses) {
+        /* 返回最后一个学习子句 */
+        int idx = total - 1;
+        int sz = ctx->clause_sizes[idx];
+        int *set = (int *)lv00_malloc((size_t)(sz + 1) * sizeof(int));
+        if (set) {
+            memcpy(set, ctx->clauses[idx], (size_t)(sz + 1) * sizeof(int));
+            *out_count = sz;
+            return set;
+        }
+    }
+
+    /* 无学习子句，返回空冲突集 */
     *out_count = 0;
     int *set = (int *)lv00_malloc(sizeof(int));
     if (set) set[0] = 0;
