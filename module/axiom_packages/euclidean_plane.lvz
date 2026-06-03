@@ -1,0 +1,223 @@
+# =============================================================================
+# Lv-00 Axiom Package: Euclidean Plane Geometry (Hilbert's Axiomatization)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Euclidean plane geometry, formalized via Hilbert's axioms (1899).
+#   Reference: David Hilbert, "Grundlagen der Geometrie" (Foundations of
+#   Geometry), 1899. See: https://en.wikipedia.org/wiki/Hilbert%27s_axioms
+#
+# Primitive Notions (6 total):
+#   Terms: point, line, plane
+#   Relations: incidence (lies_on), betweenness, segment_congruence, angle_congruence
+#
+# Core Axioms (20 axioms in 5 groups):
+#   I.  Incidence (8 axioms)         - existence/uniqueness of points, lines, planes
+#   II. Betweenness / Order (4 axioms) - collinear order, Pasch's axiom
+#   III. Congruence (6 axioms)       - segment/angle congruence, SAS criterion
+#   IV. Parallels (1 axiom)          - Playfair's axiom (equivalent to Euclid V)
+#   V. Continuity (1 axiom)          - Archimedes' axiom + completeness
+#
+# This package focuses on the PLANE GEOMETRY subset (axioms I1-I3, B1-B4,
+# C1-C6, IV, V), which is the most natural starting point for Lv-00's
+# geometric metalanguage system.
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Angle trisection (reduces to solving cubic equations)
+#   - Doubling the cube (reduces to cube root of 2)
+#   - Squaring the circle (reduces to pi, transcendental)
+#   - General quintic by radicals (Abel-Ruffini theorem)
+#   - Regular heptagon construction (reduces to cubic equations)
+#   - Circle squaring (reduces to Lindemann-Weierstrass theorem)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-21
+# Version: 1.0.0
+# =============================================================================
+
+axiom "euclidean_plane" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Metrics)
+    # =================================================================
+    # Each template represents a fundamental geometric operation or
+    # relation in Euclidean plane geometry. Parameters are geometric
+    # objects (points, lines, segments, angles).
+    # =================================================================
+
+    # --- Group I: Incidence Axioms ---
+    # I1: For every two distinct points, there exists exactly one line
+    #     containing both.
+    # Params: point A, point B -> line AB
+    template "line_through_two_points" 2
+
+    # I2: Every line contains at least two distinct points.
+    # Params: line l -> (exists point A, point B on l)
+    template "line_has_two_points" 1
+
+    # I3: There exist at least three non-collinear points.
+    # Params: (zero-input existence axiom)
+    template "existence_of_triangle" 0
+
+    # --- Group II: Betweenness (Order) Axioms ---
+    # B1: Symmetry of betweenness: A*B*C implies C*B*A
+    # Params: point A, point B, point C
+    template "betweenness_symmetry" 3
+
+    # B2: Extension: For any two distinct points A, C, there exists
+    #     a point B such that A*C*B (C is between A and B).
+    # Params: point A, point C -> point B
+    template "extend_segment" 2
+
+    # B3: Uniqueness: Of any three collinear points, exactly one lies
+    #     between the other two.
+    # Params: point A, point B, point C
+    template "betweenness_uniqueness" 3
+
+    # B4: Pasch's Axiom: If a line intersects one side of a triangle
+    #     (not at a vertex), it must intersect exactly one of the other
+    #     two sides.
+    # Params: point A, point B, point C (triangle vertices), line l
+    template "pasch_axiom" 4
+
+    # --- Group III: Congruence Axioms ---
+    # C1: Segment transport: Given segment AB and point A' on ray A'B',
+    #     there exists B' such that AB = A'B'.
+    # Params: point A, point B, point A_prime, point direction -> point B_prime
+    template "segment_transport" 4
+
+    # C2: Segment congruence is reflexive: AB = AB
+    # Params: point A, point B
+    template "segment_congruence_reflexive" 2
+
+    # C3: Segment congruence is transitive and symmetric
+    #     AB = CD and CD = EF implies AB = EF
+    # Params: segment AB, segment CD, segment EF
+    template "segment_congruence_transitive" 6
+
+    # C4: Angle transport: Given angle BAC and ray A'B', there exists
+    #     ray A'C' on a given side such that angle BAC = angle B'A'C'.
+    # Params: angle vertex A, rays AB,AC; new vertex A', ray A'B', side
+    template "angle_transport" 5
+
+    # C5: Angle congruence properties (reflexive, symmetric, transitive)
+    # Params: angle ABC, angle DEF
+    template "angle_congruence_properties" 6
+
+    # C6: SAS (Side-Angle-Side) congruence criterion:
+    #     If AB = A'B', AC = A'C', and angle BAC = angle B'A'C',
+    #     then triangle ABC = triangle A'B'C'.
+    # Params: 6 points (A,B,C and A',B',C')
+    template "SAS_congruence" 6
+
+    # --- Group IV: Parallel Axiom ---
+    # IV (Playfair's Axiom): Given a line l and a point P not on l,
+    #     there exists exactly one line through P parallel to l.
+    # Params: point P, line l -> line m (parallel)
+    template "unique_parallel" 2
+
+    # --- Group V: Continuity ---
+    # V.1 (Archimedes' Axiom): Given segments AB and CD, there exists
+    #     a natural number n such that n copies of CD laid end-to-end
+    #     extend beyond AB.
+    # Params: segment AB, segment CD
+    template "archimedes_axiom" 4
+
+    # V.2 (Completeness): The points of a line form a complete ordered
+    #     field (no gaps). This is a second-order axiom ensuring the
+    #     real numbers as coordinate model.
+    # Params: (zero-input, structural axiom)
+    template "line_completeness" 0
+
+    # --- Derived Constructors (theorems usable as construction rules) ---
+    # Midpoint: Given segment AB, construct its midpoint M.
+    # Params: point A, point B -> point M
+    template "midpoint" 2
+
+    # Perpendicular bisector: Given segment AB, construct the
+    # perpendicular bisector line.
+    # Params: point A, point B -> line
+    template "perpendicular_bisector" 2
+
+    # Perpendicular from point to line: Given point P and line l,
+    # construct the perpendicular from P to l.
+    # Params: point P, line l -> foot Q
+    template "perpendicular_from_point" 2
+
+    # Angle bisector: Given angle BAC, construct its bisector ray.
+    # Params: point A, point B, point C -> ray
+    template "angle_bisector" 3
+
+    # Circle with center and radius: Given center O and point R (defining
+    # radius OR), construct the circle.
+    # Params: point O, point R -> circle
+    template "circle_by_center_radius" 2
+
+    # Intersection of line and circle: Given line l and circle (O, r),
+    # find intersection points (0, 1, or 2).
+    # Params: line l, circle (O, r) -> intersection points
+    template "line_circle_intersection" 3
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "angle_trisection" {
+        reduces_to "cubic_equation_solving"
+        dependency "segment_transport"
+        dependency "angle_transport"
+        dependency "SAS_congruence"
+        external_ref "https://en.wikipedia.org/wiki/Angle_trisection"
+        green_verified true
+    }
+
+    unconstructible "doubling_the_cube" {
+        reduces_to "cube_root_of_two"
+        dependency "segment_transport"
+        dependency "midpoint"
+        dependency "perpendicular_bisector"
+        external_ref "https://en.wikipedia.org/wiki/Doubling_the_cube"
+        green_verified true
+    }
+
+    unconstructible "squaring_the_circle" {
+        reduces_to "pi_transcendence"
+        dependency "circle_by_center_radius"
+        dependency "segment_transport"
+        dependency "line_completeness"
+        external_ref "https://en.wikipedia.org/wiki/Squaring_the_circle"
+        green_verified true
+    }
+
+    unconstructible "general_quintic_by_radicals" {
+        reduces_to "abel_ruffini_theorem"
+        dependency "segment_transport"
+        dependency "line_circle_intersection"
+        external_ref "https://en.wikipedia.org/wiki/Abel%E2%80%93Ruffini_theorem"
+        green_verified true
+    }
+
+    unconstructible "construction_of_regular_heptagon" {
+        reduces_to "cubic_equation_solving"
+        dependency "circle_by_center_radius"
+        dependency "line_circle_intersection"
+        external_ref "https://en.wikipedia.org/wiki/Heptagon"
+        green_verified true
+    }
+
+    unconstructible "circle_squaring_straightedge" {
+        reduces_to "lindemann_weierstrass_theorem"
+        dependency "circle_by_center_radius"
+        dependency "segment_transport"
+        external_ref "https://en.wikipedia.org/wiki/Transcendental_number"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "euclidean_plane"
+    negation_encoding "classical_material_implication"
+    contradiction_behavior "explosion_principle"
+}

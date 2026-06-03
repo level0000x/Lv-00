@@ -1,0 +1,208 @@
+/**
+ * @file template_proof.lv00
+ * @brief 几何证明模板
+ *
+ * 标准几何证明结构和常用证明方法
+ */
+
+// ===== 配置参数 =====
+config {
+    // 证明类型: "congruence" | "similarity" | "parallel" | "perpendicular" |
+    //          "equal_length" | "equal_angle" | "collinear" | "concyclic"
+    proof_type: "congruence",
+    
+    // 是否显示详细步骤
+    show_steps: true,
+    
+    // 是否生成证明图
+    generate_diagram: true
+}
+
+// ===== 全等三角形证明 =====
+if (config.proof_type == "congruence") {
+    // 已知条件
+    given {
+        segment AB == segment DE
+        segment BC == segment EF
+        angle(B) == angle(E)
+    }
+    
+    // 构造
+    point A(0, 0);
+    point B(4, 0);
+    point C(2, 3);
+    triangle ABC(A, B, C);
+    
+    point D(6, 0);
+    point E(10, 0);
+    point F(8, 3);
+    triangle DEF(D, E, F);
+    
+    // 证明步骤
+    proof {
+        step 1: "AB = DE (已知)"
+        step 2: "BC = EF (已知)"
+        step 3: "∠B = ∠E (已知)"
+        conclusion: "△ABC ≅ △DEF (SAS)"
+    }
+    
+    prove {
+        triangle(ABC) ≅ triangle(DEF)
+    }
+}
+
+// ===== 相似三角形证明 =====
+if (config.proof_type == "similarity") {
+    // 已知条件
+    given {
+        parallel(line(AB), line(DE))
+    }
+    
+    // 构造
+    point A(0, 0);
+    point B(6, 0);
+    point C(3, 4);
+    triangle ABC(A, B, C);
+    
+    point D(0, 0);
+    point E(3, 0);
+    point F(1.5, 2);
+    triangle DEF(D, E, F);
+    
+    // 证明步骤
+    proof {
+        step 1: "AB ∥ DE (已知)"
+        step 2: "∠A = ∠D (同位角)"
+        step 3: "∠B = ∠E (同位角)"
+        conclusion: "△ABC ~ △DEF (AA)"
+    }
+    
+    prove {
+        triangle(ABC) ~ triangle(DEF)
+    }
+}
+
+// ===== 平行证明 =====
+if (config.proof_type == "parallel") {
+    given {
+        angle(1) == angle(2)  // 同位角相等
+    }
+    
+    point A(0, 0);
+    point B(6, 0);
+    line l1(A, B);
+    
+    point C(0, 4);
+    point D(6, 4);
+    line l2(C, D);
+    
+    proof {
+        step 1: "∠1 = ∠2 (已知)"
+        step 2: "∠1 和 ∠2 是同位角"
+        conclusion: "l1 ∥ l2 (同位角相等，两直线平行)"
+    }
+    
+    prove {
+        parallel(l1, l2)
+    }
+}
+
+// ===== 垂直证明 =====
+if (config.proof_type == "perpendicular") {
+    given {
+        angle(A) == 90°
+    }
+    
+    point A(0, 0);
+    point B(4, 0);
+    point C(0, 3);
+    
+    proof {
+        step 1: "∠A = 90° (已知)"
+        conclusion: "AB ⊥ AC"
+    }
+    
+    prove {
+        perpendicular(line(A, B), line(A, C))
+    }
+}
+
+// ===== 线段相等证明 =====
+if (config.proof_type == "equal_length") {
+    given {
+        triangle(ABC) ≅ triangle(DEF)
+    }
+    
+    proof {
+        step 1: "△ABC ≅ △DEF (已知)"
+        step 2: "对应边相等"
+        conclusion: "AB = DE"
+    }
+    
+    prove {
+        length(AB) == length(DE)
+    }
+}
+
+// ===== 角度相等证明 =====
+if (config.proof_type == "equal_angle") {
+    given {
+        parallel(line(AB), line(CD))
+    }
+    
+    proof {
+        step 1: "AB ∥ CD (已知)"
+        step 2: "AC 为截线"
+        conclusion: "∠BAC = ∠DCA (内错角)"
+    }
+}
+
+// ===== 共线证明 =====
+if (config.proof_type == "collinear") {
+    given {
+        angle(AOB) + angle(BOC) == 180°
+    }
+    
+    point O(0, 0);
+    point A(-3, 0);
+    point B(0, 0);
+    point C(3, 0);
+    
+    proof {
+        step 1: "∠AOB + ∠BOC = 180° (已知)"
+        conclusion: "A、O、B 三点共线"
+    }
+    
+    prove {
+        collinear(A, O, C)
+    }
+}
+
+// ===== 共圆证明 =====
+if (config.proof_type == "concyclic") {
+    given {
+        angle(A) + angle(C) == 180°
+        angle(B) + angle(D) == 180°
+    }
+    
+    point A(5, 0);
+    point B(0, 5);
+    point C(-5, 0);
+    point D(0, -5);
+    
+    proof {
+        step 1: "∠A + ∠C = 180° (已知)"
+        step 2: "∠B + ∠D = 180° (已知)"
+        step 3: "对角互补"
+        conclusion: "A、B、C、D 四点共圆"
+    }
+    
+    prove {
+        concyclic(A, B, C, D)
+    }
+}
+
+// ===== 可视化 =====
+visualize {
+    style: { width: 2 };
+}

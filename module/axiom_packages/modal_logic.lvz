@@ -1,0 +1,236 @@
+# =============================================================================
+# Lv-00 Axiom Package: Modal Logic (Normal Modal Logics K, T, S4, S5)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Normal modal logic, formalized via the standard Kripke semantics and
+#   Hilbert-style axiomatization. Modal logic extends classical propositional
+#   logic with modal operators □ (necessity) and ◇ (possibility).
+#
+#   Reference: 
+#   - Wikipedia: Modal Logic
+#     https://en.wikipedia.org/wiki/Modal_logic
+#   - Wikipedia: Normal Modal Logic
+#     https://en.wikipedia.org/wiki/Normal_modal_logic
+#   - Blackburn, P., de Rijke, M., & Venema, Y. (2001). "Modal Logic."
+#     Cambridge University Press. ISBN 978-0-521-80200-3.
+#   - C.I. Lewis (1912). "Implication and the Algebra of Logic."
+#     Mind, 21(84): 522-531.
+#   - Saul Kripke (1963). "Semantical Analysis of Modal Logic I."
+#     Zeitschrift für Mathematische Logik und Grundlagen der Mathematik, 9: 67-96.
+#
+# Primitive Notions:
+#   - Propositional variables (atomic formulas)
+#   - Classical connectives: ¬, ∧, ∨, →, ↔
+#   - Modal operators: □ (necessity/box), ◇ (possibility/diamond)
+#   - Possible worlds and accessibility relation R
+#
+# Core Axioms (Normal Modal Logic K):
+#   1. All propositional tautologies (from classical logic)
+#   2. Kripke schema (Distribution Axiom): □(A → B) → (□A → □B)
+#   3. Necessitation Rule: If ⊢ A, then ⊢ □A
+#   4. Modus Ponens: From A and A → B, infer B
+#
+# Common Normal Modal Logic Systems:
+#   - K: Basic normal modal logic (no additional axioms)
+#   - T: K + Reflexivity axiom (T): □A → A
+#   - K4: K + Transitivity axiom (4): □A → □□A
+#   - S4: T + 4 (preorder frames)
+#   - S5: S4 + Symmetry axiom (5): ◇A → □◇A (equivalence relation frames)
+#   - D: K + Seriality axiom (D): □A → ◇A
+#   - GL: K + Löb's axiom (GL): □(□A → A) → □A (provability logic)
+#
+# Modal Axiom Schemata (Common Additional Axioms):
+#   - T (Reflexivity): □A → A  [also written as □p → p]
+#   - B (Brouwerian/Symmetry): A → □◇A
+#   - 4 (Transitivity): □A → □□A
+#   - 5 (Euclidean): ◇A → □◇A
+#   - D (Seriality): □A → ◇A
+#   - GL (Löb): □(□A → A) → □A
+#
+# Duality of Modal Operators:
+#   - ◇A ↔ ¬□¬A
+#   - □A ↔ ¬◇¬A
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Modal satisfiability for K: PSPACE-complete (Ladner 1977)
+#   - Modal satisfiability for S4: PSPACE-complete
+#   - Modal satisfiability for S5: NP-complete
+#   - Global satisfiability: generally harder than local satisfiability
+#   - Uniform interpolation: not all modal logics have it
+#   - Modal logic with propositional quantifiers: undecidable
+#
+# Frame Correspondence Theory:
+#   - K: All frames
+#   - T: Reflexive frames
+#   - K4: Transitive frames
+#   - S4: Preorders (reflexive + transitive)
+#   - S5: Equivalence relations (reflexive + transitive + symmetric)
+#   - D: Serial frames
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "modal_logic" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Core Axioms and Rules)
+    # =================================================================
+    # Each template represents a fundamental axiom schema or inference rule
+    # in normal modal logic systems.
+    # =================================================================
+
+    # --- Group I: Classical Propositional Foundation ---
+    # All classical tautologies are valid in modal logic
+    template "classical_tautology" 1
+
+    # Modus Ponens (inference rule)
+    template "modus_ponens" 2
+
+    # --- Group II: Core Modal Axioms (System K) ---
+    # Kripke schema (Distribution Axiom): □(A → B) → (□A → □B)
+    template "kripke_schema" 2
+
+    # Necessitation Rule: If A is a theorem, then □A is a theorem
+    template "necessitation" 1
+
+    # --- Group III: Modal Operator Duality ---
+    # ◇A ↔ ¬□¬A (Possibility as dual of necessity)
+    template "possibility_dual" 1
+
+    # □A ↔ ¬◇¬A (Necessity as dual of possibility)
+    template "necessity_dual" 1
+
+    # --- Group IV: Reflexivity Axioms (System T) ---
+    # T axiom: □A → A (What is necessary is true)
+    template "reflexivity_T" 1
+
+    # --- Group V: Transitivity Axioms (System K4/S4) ---
+    # 4 axiom: □A → □□A (Positive introspection)
+    template "transitivity_4" 1
+
+    # --- Group VI: Symmetry Axioms (System S5) ---
+    # B axiom: A → □◇A (Brouwerian axiom)
+    template "symmetry_B" 1
+
+    # 5 axiom: ◇A → □◇A (Euclidean property)
+    template "euclidean_5" 1
+
+    # --- Group VII: Seriality Axioms (System D) ---
+    # D axiom: □A → ◇A (What is necessary is possible)
+    template "seriality_D" 1
+
+    # --- Group VIII: Provability Logic (GL) ---
+    # GL axiom (Löb): □(□A → A) → □A
+    template "lob_axiom" 1
+
+    # --- Group IX: Modal System Constructors ---
+    # Constructor for Kripke frame (W, R)
+    template "kripke_frame" 2
+
+    # Constructor for model (W, R, V) where V is valuation
+    template "kripke_model" 3
+
+    # Constructor for satisfaction at a world
+    template "satisfaction_at_world" 3
+
+    # Constructor for validity in a frame
+    template "validity_in_frame" 2
+
+    # --- Group X: Derived Modal Principles ---
+    # Modal Modus Tollens: □(A → B) → (◇A → ◇B)
+    template "modal_modus_tollens" 2
+
+    # Distribution of □ over ∧: □(A ∧ B) → (□A ∧ □B)
+    template "box_distributes_over_and" 2
+
+    # Monotonicity of ◇: (A → B) → (◇A → ◇B)
+    template "diamond_monotonicity" 2
+
+    # Modal negation: □¬A → ¬◇A
+    template "modal_negation" 1
+
+    # --- Group XI: Epistemic/Doxastic Variants ---
+    # Knowledge axiom (T in epistemic logic): KA → A
+    template "knowledge_axiom" 1
+
+    # Positive introspection (4 in epistemic logic): KA → KKA
+    template "positive_introspection" 1
+
+    # Negative introspection (5 in epistemic logic): ¬KA → K¬KA
+    template "negative_introspection" 1
+
+    # --- Group XII: Temporal Logic Variants ---
+    # Always/Eventually operators (temporal reading of □/◇)
+    template "always_operator" 1
+    template "eventually_operator" 1
+
+    # Next operator (for discrete temporal logics)
+    template "next_operator" 1
+
+    # Until operator (for temporal logics like LTL)
+    template "until_operator" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "modal_satisfiability_K" {
+        reduces_to "PSPACE_complete_problem"
+        dependency "classical_propositional_logic"
+        external_ref "https://en.wikipedia.org/wiki/PSPACE-complete"
+        green_verified false
+    }
+
+    unconstructible "modal_satisfiability_S4" {
+        reduces_to "PSPACE_complete_problem"
+        dependency "modal_satisfiability_K"
+        external_ref "https://en.wikipedia.org/wiki/Modal_logic"
+        green_verified false
+    }
+
+    unconstructible "modal_satisfiability_S5" {
+        reduces_to "NP_complete_problem"
+        dependency "classical_propositional_logic"
+        external_ref "https://en.wikipedia.org/wiki/NP-completeness"
+        green_verified false
+    }
+
+    unconstructible "modal_uniform_interpolation" {
+        reduces_to "undecidable"
+        dependency "modal_logic"
+        external_ref "https://en.wikipedia.org/wiki/Interpolation"
+        green_verified false
+    }
+
+    unconstructible "modal_logic_with_propositional_quantifiers" {
+        reduces_to "undecidable"
+        dependency "second_order_logic"
+        external_ref "https://en.wikipedia.org/wiki/Second-order_logic"
+        green_verified false
+    }
+
+    unconstructible "global_satisfiability_S4" {
+        reduces_to "EXPTIME_complete"
+        dependency "modal_satisfiability_S4"
+        external_ref "https://en.wikipedia.org/wiki/EXPTIME"
+        green_verified false
+    }
+
+    unconstructible "modal_mu_calculus_model_checking" {
+        reduces_to "NP_intersection_coNP"
+        dependency "modal_logic"
+        external_ref "https://en.wikipedia.org/wiki/Modal_%CE%BC-calculus"
+        green_verified false
+    }
+
+    # =================================================================
+    # Logical Framework Configuration
+    # =================================================================
+
+    bottom_geometry "kripke_possible_worlds_semantics"
+    negation_encoding "classical_complement_with_modal_dual"
+    contradiction_behavior "explosion_principle"
+}

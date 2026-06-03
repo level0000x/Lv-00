@@ -1,0 +1,63 @@
+# Lv-00 代码格式化配置
+# 适用于 C11 项目，与项目风格保持一致
+# 使用方法：clang-format -i <file>
+
+Language: Cpp
+BasedOnStyle: Google
+
+# 缩进
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+
+# 大括号
+BreakBeforeBraces: Attach
+
+# 函数/控制流
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortBlocksOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: Never
+
+# 指针/引用
+PointerAlignment: Right
+ReferenceAlignment: Right
+
+# 空格
+SpaceAfterCStyleCast: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+
+# 对齐
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: Align
+
+# 注释
+ReflowComments: false
+SpacesBeforeTrailingComments: 2
+
+# include 排序
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # 对应头文件（同目录 .h）优先，匹配 "xxx.h" 但不匹配 "lv00/xxx.h"
+  - Regex: '^"(?!lv00/)[^/]+\.h"'
+    Priority: 1
+  - Regex: '^<.*\.h>'
+    Priority: 2
+  - Regex: '^<.*>'
+    Priority: 3
+  - Regex: '"lv00/'
+    Priority: 4
+  - Regex: '".*"'
+    Priority: 5
+
+# 其他
+AccessModifierOffset: -4
+BreakBeforeTernaryOperators: true
+CompactNamespaces: false
+FixNamespaceComments: true
+MaxEmptyLinesToKeep: 2

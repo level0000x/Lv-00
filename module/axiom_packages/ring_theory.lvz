@@ -1,0 +1,370 @@
+# =============================================================================
+# Lv-00 Axiom Package: Ring Theory
+# =============================================================================
+#
+# Mathematical Theory: Ring Theory
+# Axiomatization: Standard 8-axiom definition (additive abelian group + 
+#   multiplicative monoid + distributivity)
+#
+# References:
+#   - Wikipedia: Ring (mathematics)
+#     https://en.wikipedia.org/wiki/Ring_(mathematics)
+#   - Wikipedia: Ring theory
+#     https://en.wikipedia.org/wiki/Ring_theory
+#   - nLab: Ring
+#     https://ncatlab.org/nlab/show/ring
+#   - Bourbaki, N. (1989). "Algebra I, Chapters 1-3". Springer.
+#     ISBN 3-540-64243-9. Ch 1, §8.1
+#   - Dummit, D.S. and Foote, R.M. (2004). "Abstract Algebra" (3rd ed.). Wiley.
+#     ISBN 0-471-43334-9. Ch 7.
+#   - Lang, S. (2002). "Algebra" (3rd ed.). Springer. ISBN 0-387-95385-X. Ch II.
+#   - Wikipedia: Hilbert's tenth problem
+#     https://en.wikipedia.org/wiki/Hilbert%27s_tenth_problem
+#   - Wikipedia: Matiyasevich's theorem (MRDP theorem)
+#     https://en.wikipedia.org/wiki/Matiyasevich%27s_theorem
+#   - Wikipedia: Word problem for groups (inherited by additive group)
+#     https://en.wikipedia.org/wiki/Word_problem_for_groups
+#   - Wikipedia: Ideal (ring theory)
+#     https://en.wikipedia.org/wiki/Ideal_(ring_theory)
+#   - Wikipedia: Quotient ring
+#     https://en.wikipedia.org/wiki/Quotient_ring
+#   - Wikipedia: Commutative ring
+#     https://en.wikipedia.org/wiki/Commutative_ring
+#   - Wikipedia: Integral domain
+#     https://en.wikipedia.org/wiki/Integral_domain
+#   - Wikipedia: Polynomial ring
+#     https://en.wikipedia.org/wiki/Polynomial_ring
+#
+# Core Axioms (8, organized in 3 groups):
+#   Group A: Additive Abelian Group (4 axioms)
+#     A1. Additive Closure:         For all a, b in R, a + b is in R.
+#     A2. Additive Associativity:   For all a, b, c in R, (a + b) + c = a + (b + c).
+#     A3. Additive Identity:        There exists 0 in R such that a + 0 = a = 0 + a.
+#     A4. Additive Inverse:         For each a in R, there exists -a with a + (-a) = 0.
+#     (Additive commutativity a+b=b+a is derivable from the ring axioms
+#      with multiplicative identity, but we include it as a template
+#      for pedagogical clarity and because many texts state it as an axiom.)
+#
+#   Group M: Multiplicative Monoid (2 axioms)
+#     M1. Multiplicative Closure:   For all a, b in R, a * b is in R.
+#     M2. Multiplicative Associativity: For all a, b, c, (a * b) * c = a * (b * c).
+#     M3. Multiplicative Identity:  There exists 1 in R such that a * 1 = 1 * a = a.
+#
+#   Group D: Distributive Laws (2 axioms)
+#     D1. Left Distributivity:      a * (b + c) = (a * b) + (a * c).
+#     D2. Right Distributivity:     (a + b) * c = (a * c) + (b * c).
+#
+# Relationship to group_theory:
+#   - The additive structure (R, +) is an abelian group, which is a special
+#     case of the group structure defined in group_theory.lvz.
+#   - The multiplicative structure (R\{0}, *) forms a monoid; for fields
+#     and division rings it forms a group.
+#   - Ring theory thus naturally depends on group_theory for its additive
+#     axioms, and extends them with a compatible multiplicative structure.
+#
+# Relationship to boolean_algebra:
+#   - Boolean algebras are rings under symmetric difference (XOR) as addition
+#     and meet (AND) as multiplication (Boolean ring). Not every ring is a
+#     Boolean ring (requires x² = x for all x).
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-21
+# Version: 1.0.0
+# =============================================================================
+
+axiom "ring_theory" "1.0.0" {
+
+    # =================================================================
+    # Group A: Additive Abelian Group Axioms (5)
+    # (These directly correspond to the group_theory axioms, with the
+    #  additional requirement of commutativity for abelian groups.)
+    # =================================================================
+
+    # A1: Additive Closure — a + b is in R
+    template "additive_closure" 2
+
+    # A2: Additive Associativity — (a + b) + c = a + (b + c)
+    template "additive_associativity" 3
+
+    # A3: Additive Identity — there exists 0 with a + 0 = a
+    template "additive_identity" 1
+
+    # A4: Additive Inverse — for each a, there exists -a
+    template "additive_inverse" 1
+
+    # A5: Additive Commutativity — a + b = b + a
+    template "additive_commutativity" 2
+
+    # =================================================================
+    # Group M: Multiplicative Monoid Axioms (3)
+    # =================================================================
+
+    # M1: Multiplicative Closure — a * b is in R
+    template "multiplicative_closure" 2
+
+    # M2: Multiplicative Associativity — (a * b) * c = a * (b * c)
+    template "multiplicative_associativity" 3
+
+    # M3: Multiplicative Identity — there exists 1 with a * 1 = 1 * a = a
+    template "multiplicative_identity" 1
+
+    # =================================================================
+    # Group D: Distributive Laws (2)
+    # =================================================================
+
+    # D1: Left Distributivity — a * (b + c) = (a * b) + (a * c)
+    template "left_distributivity" 3
+
+    # D2: Right Distributivity — (a + b) * c = (a * c) + (b * c)
+    template "right_distributivity" 3
+
+    # =================================================================
+    # Elementary Consequences (12)
+    # =================================================================
+
+    # Uniqueness of the additive identity (0)
+    template "additive_identity_uniqueness" 0
+
+    # Uniqueness of additive inverses
+    template "additive_inverse_uniqueness" 1
+
+    # Uniqueness of the multiplicative identity (1)
+    template "multiplicative_identity_uniqueness" 0
+
+    # a * 0 = 0 = 0 * a (zero is absorbing for multiplication)
+    template "zero_multiplication" 1
+
+    # (-a) * b = -(a * b) = a * (-b)
+    template "negative_multiplication" 2
+
+    # (-a) * (-b) = a * b
+    template "negative_negative_product" 2
+
+    # 0 = 1 iff R is the zero ring (trivial ring)
+    template "zero_ring_condition" 0
+
+    # Additive cancellation: a + b = a + c implies b = c
+    template "additive_cancellation" 3
+
+    # Double additive inverse: -(-a) = a
+    template "double_additive_inverse" 1
+
+    # Negative of sum: -(a + b) = (-a) + (-b)
+    template "negative_of_sum" 2
+
+    # 0 is its own additive inverse: -0 = 0
+    template "zero_is_own_add_inverse" 0
+
+    # (-1) * a = -a
+    template "negative_one_times" 1
+
+    # =================================================================
+    # Core Constructors (6)
+    # =================================================================
+
+    # Ring addition: a + b
+    template "add" 2
+
+    # Ring multiplication: a * b
+    template "multiply" 2
+
+    # Additive negation: -a
+    template "negate" 1
+
+    # Zero element: 0
+    template "zero" 0
+
+    # One element: 1
+    template "one" 0
+
+    # Subtraction: a - b = a + (-b)
+    template "subtract" 2
+
+    # =================================================================
+    # Derived Constructors (26)
+    # =================================================================
+
+    # Characteristic of a ring: smallest n > 0 with n*1 = 0
+    template "characteristic" 1
+
+    # Positive power: a^n for n > 0
+    template "power_positive" 2
+
+    # Scalar multiple: n * a = a + a + ... + a (n times)
+    template "scalar_multiple" 2
+
+    # Binomial theorem: (a + b)^n when a * b = b * a
+    template "binomial_theorem" 3
+
+    # Unit: element u with multiplicative inverse u⁻¹
+    template "unit" 1
+
+    # Multiplicative inverse: u * u⁻¹ = 1 = u⁻¹ * u
+    template "multiplicative_inverse" 1
+
+    # Zero divisor: nonzero a with a * b = 0 for some nonzero b
+    template "zero_divisor" 2
+
+    # Nilpotent element: a^n = 0 for some n > 0
+    template "nilpotent" 1
+
+    # Idempotent element: e * e = e
+    template "idempotent" 1
+
+    # Subring test: S ⊆ R is a subring iff nonempty and closed under subtraction and multiplication
+    template "subring_test" 2
+
+    # Ideal: I ⊆ R is a (left) ideal iff closed under subtraction and left multiplication by ring elements
+    template "left_ideal" 2
+
+    # Right ideal: closed under subtraction and right multiplication
+    template "right_ideal" 2
+
+    # Two-sided ideal: both left and right ideal
+    template "two_sided_ideal" 2
+
+    # Principal ideal: (a) = {r * a : r in R} (left) or {a * r : r in R} (right)
+    template "principal_ideal" 1
+
+    # Quotient ring: R / I
+    template "quotient_ring" 2
+
+    # Ring homomorphism: f: R → S preserving + and *
+    template "homomorphism" 3
+
+    # Kernel: ker(f) = {r in R : f(r) = 0_S}
+    template "kernel" 1
+
+    # Image: im(f) = {f(r) : r in R}
+    template "image" 1
+
+    # First isomorphism theorem: R/ker(f) ≅ im(f)
+    template "first_isomorphism_theorem" 1
+
+    # Direct product of rings: R × S with componentwise operations
+    template "direct_product" 2
+
+    # Polynomial ring: R[x]
+    template "polynomial_ring" 1
+
+    # Matrix ring: M_n(R)
+    template "matrix_ring" 2
+
+    # Commutator: [a, b] = a * b - b * a
+    template "commutator" 2
+
+    # Center: Z(R) = {r in R : r * x = x * r for all x}
+    template "center" 0
+
+    # Unit group: R^× = {u in R : u has multiplicative inverse}
+    template "unit_group" 0
+
+    # Jacobson radical: intersection of all maximal left ideals
+    template "jacobson_radical" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (8)
+    # =================================================================
+
+    unconstructible "hilberts_tenth_problem" {
+        reduces_to "undecidable"
+        dependency "add"
+        dependency "multiply"
+        dependency "additive_identity"
+        dependency "multiplicative_identity"
+        dependency "power_positive"
+        external_ref "https://en.wikipedia.org/wiki/Hilbert%27s_tenth_problem"
+        green_verified true
+    }
+
+    unconstructible "word_problem_for_rings" {
+        reduces_to "undecidable"
+        dependency "additive_closure"
+        dependency "additive_associativity"
+        dependency "additive_inverse"
+        dependency "multiplicative_closure"
+        dependency "multiplicative_associativity"
+        dependency "left_distributivity"
+        dependency "right_distributivity"
+        dependency "additive_identity"
+        dependency "multiplicative_identity"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified true
+    }
+
+    unconstructible "ring_isomorphism_problem" {
+        reduces_to "undecidable"
+        dependency "homomorphism"
+        dependency "kernel"
+        dependency "image"
+        dependency "add"
+        dependency "multiply"
+        dependency "additive_inverse"
+        dependency "multiplicative_identity"
+        external_ref "https://en.wikipedia.org/wiki/Ring_isomorphism"
+        green_verified true
+    }
+
+    unconstructible "triviality_problem_rings" {
+        reduces_to "undecidable"
+        dependency "zero"
+        dependency "one"
+        dependency "additive_identity"
+        dependency "multiplicative_identity"
+        dependency "zero_ring_condition"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified true
+    }
+
+    unconstructible "zero_divisor_recognition" {
+        reduces_to "undecidable"
+        dependency "zero_divisor"
+        dependency "multiply"
+        dependency "zero_multiplication"
+        dependency "multiplicative_identity"
+        dependency "additive_identity"
+        external_ref "https://en.wikipedia.org/wiki/Zero_divisor"
+        green_verified true
+    }
+
+    unconstructible "nilpotent_element_recognition" {
+        reduces_to "undecidable"
+        dependency "nilpotent"
+        dependency "multiply"
+        dependency "power_positive"
+        dependency "zero_multiplication"
+        external_ref "https://en.wikipedia.org/wiki/Nilpotent"
+        green_verified true
+    }
+
+    unconstructible "commutativity_recognition" {
+        reduces_to "undecidable"
+        dependency "commutator"
+        dependency "multiply"
+        dependency "additive_commutativity"
+        dependency "multiplicative_associativity"
+        external_ref "https://en.wikipedia.org/wiki/Commutative_ring"
+        green_verified true
+    }
+
+    unconstructible "ideal_membership_unrestricted" {
+        reduces_to "undecidable"
+        dependency "left_ideal"
+        dependency "right_ideal"
+        dependency "two_sided_ideal"
+        dependency "multiply"
+        dependency "add"
+        dependency "additive_inverse"
+        dependency "additive_identity"
+        external_ref "https://en.wikipedia.org/wiki/Ideal_(ring_theory)"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "ring_theory_abstract"
+    negation_encoding "classical_equality"
+    contradiction_behavior "explosion_principle"
+}

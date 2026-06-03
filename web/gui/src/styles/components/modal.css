@@ -1,0 +1,128 @@
+/* ============================================================
+   Modal & ContextMenu 模态框与右键菜单样式
+   / Modal & Context Menu Component Styles
+   包含模态框遮罩、对话框、按钮，以及右键上下文菜单。
+   ============================================================ */
+
+/* === MODAL OVERLAY / 模态框遮罩层 === */
+/* 全屏半透明遮罩，居中显示模态对话框，带背景模糊效果 */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--color-modal-backdrop);
+    z-index: var(--z-modal);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    animation: fadeIn var(--duration-slow) var(--ease-default);
+}
+.modal-overlay.active {
+    display: flex;
+}
+
+/* === MODAL DIALOG / 模态对话框 === */
+/* 模态框的主体内容区域，带圆角和阴影 */
+.modal-dialog {
+    background: var(--color-bg-overlay);
+    border: 1px solid var(--color-border-primary);
+    padding: var(--spacing-xl);
+    min-width: 400px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    animation: scaleIn var(--duration-slow) var(--ease-spring);
+}
+
+/* 模态框标题 */
+.modal-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-bright);
+    margin-bottom: var(--spacing-lg);
+    letter-spacing: 1px;
+}
+
+/* 模态框正文内容 */
+.modal-body { font-size: var(--font-size-base); color: var(--color-text-secondary); margin-bottom: 16px; }
+
+/* 模态框底部操作按钮区域 */
+.modal-actions { display: flex; gap: var(--spacing-md); justify-content: flex-end; }
+
+/* === MODAL BUTTON / 模态框按钮 === */
+/* 模态框内使用的按钮，样式与通用按钮一致 */
+.modal-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-overlay);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+.modal-btn:hover { background: var(--color-bg-tertiary); color: var(--color-text-bright); }
+.modal-btn:active { transform: scale(0.97); }
+
+/* 模态框主要按钮：高亮显示 */
+.modal-btn-primary { border-color: var(--color-text-muted); color: var(--color-text-bright); }
+
+/* 模态框危险按钮：红色系，用于确认删除等操作 */
+.modal-btn-danger { border-color: var(--color-danger-border); color: var(--color-trust-red); }
+.modal-btn-danger:hover { box-shadow: var(--shadow-glow-danger); }
+
+/* === CONTEXT MENU / 右键上下文菜单 === */
+/* 固定定位的弹出菜单，从左上角缩放动画进入 */
+.context-menu {
+    position: fixed;
+    background: var(--color-bg-overlay);
+    border: 1px solid var(--color-border-primary);
+    padding: var(--spacing-sm) 0;
+    min-width: 180px;
+    z-index: var(--z-context-menu);
+    box-shadow: var(--shadow-lg);
+    display: none;
+    border-radius: var(--radius-md);
+    animation: scaleIn var(--duration-slow) var(--ease-spring);
+    transform-origin: top left;
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+}
+
+/* 右键菜单条目 */
+.context-menu-item {
+    padding: 6px 16px;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    transition: background var(--transition-fast), color var(--transition-fast), padding-left var(--transition-fast);
+}
+/* 菜单项悬停：背景高亮 + 左侧缩进 */
+.context-menu-item:hover {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-bright);
+    padding-left: 20px;
+}
+
+/* 右键菜单分隔线 */
+.context-menu-separator { height: 1px; background: var(--color-border-primary); margin: var(--spacing-sm) 0; }
+
+/* 右键菜单快捷键提示标签 */
+.context-menu-shortcut {
+    margin-left: auto;
+    opacity: 0.5;
+    font-size: 10px;
+}

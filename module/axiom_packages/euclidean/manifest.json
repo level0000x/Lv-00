@@ -1,0 +1,185 @@
+{
+  "$schema": "https://lv00.dev/schemas/package-manifest-v1.json",
+  "name": "euclidean_plane",
+  "version": "1.0.0",
+  "namespace": "euclidean",
+  "description": "Tarski-style Euclidean plane geometry axioms, organized by logical dependency layers",
+  "category": "geometry",
+  "author": "Lv-00 Core Team",
+  "license": "MIT",
+  "keywords": ["geometry", "euclidean", "tarski", "axioms", "plane"],
+  "layers": [
+    {
+      "name": "incidence",
+      "description": "Basic point-line incidence relations",
+      "order": 0,
+      "axioms": [
+        {
+          "id": "I1",
+          "namespace_name": "euclidean.I1",
+          "name": "Two-Point Incidence",
+          "signature": "forall (A B : Point), A != B -> exists! (l : Line), on(A, l) /\ on(B, l)",
+          "arity": 2,
+          "primitive_relations": ["on", "!="]
+        },
+        {
+          "id": "I2",
+          "namespace_name": "euclidean.I2",
+          "name": "Line Points Existence",
+          "signature": "forall (l : Line), exists (A B : Point), A != B /\ on(A, l) /\ on(B, l)",
+          "arity": 1,
+          "primitive_relations": ["on", "!="]
+        },
+        {
+          "id": "I3",
+          "namespace_name": "euclidean.I3",
+          "name": "Non-Collinearity",
+          "signature": "exists (A B C : Point), ~(exists (l : Line), on(A, l) /\ on(B, l) /\ on(C, l))",
+          "arity": 3,
+          "primitive_relations": ["on", "collinear"]
+        }
+      ],
+      "depends_on": [],
+      "minimal_model": "3-point projective plane (Fano plane fails I1 interpretation)",
+      "independence_notes": "I1, I2, I3 are pairwise independent"
+    },
+    {
+      "name": "order",
+      "description": "Betweenness relations governing point ordering on lines",
+      "order": 1,
+      "axioms": [
+        {
+          "id": "B1",
+          "namespace_name": "euclidean.B1",
+          "name": "Betweenness Symmetry",
+          "signature": "forall (A B C : Point), B(A, B, C) -> B(C, B, A)",
+          "arity": 3,
+          "primitive_relations": ["B"]
+        },
+        {
+          "id": "B2",
+          "namespace_name": "euclidean.B2",
+          "name": "Betweenness Extension",
+          "signature": "forall (A B : Point), A != B -> exists (C : Point), B(A, B, C)",
+          "arity": 2,
+          "primitive_relations": ["B", "!="]
+        },
+        {
+          "id": "B3",
+          "namespace_name": "euclidean.B3",
+          "name": "Betweenness Uniqueness",
+          "signature": "forall (A B C : Point), B(A, B, C) -> ~B(B, A, C) /\ ~B(A, C, B)",
+          "arity": 3,
+          "primitive_relations": ["B"]
+        },
+        {
+          "id": "B4",
+          "namespace_name": "euclidean.B4",
+          "name": "Pasch Axiom",
+          "signature": "forall (A B C P Q : Point), ~collinear(A, B, C) /\ B(A, P, B) -> (B(C, Q, A) \\/ B(B, Q, C))",
+          "arity": 5,
+          "primitive_relations": ["B", "collinear"]
+        }
+      ],
+      "depends_on": ["incidence"],
+      "minimal_model": "Dense linear order without endpoints (applied to lines)",
+      "independence_notes": "B4 (Pasch) is independent of B1-B3"
+    },
+    {
+      "name": "congruence",
+      "description": "Segment congruence relations for metric comparison",
+      "order": 2,
+      "axioms": [
+        {
+          "id": "C1",
+          "namespace_name": "euclidean.C1",
+          "name": "Segment Construction",
+          "signature": "forall (A B C D : Point), A != B -> exists! (E : Point), (B(C, D, E) \\/ B(C, E, D)) /\ AB =~= CE",
+          "arity": 4,
+          "primitive_relations": ["B", "=~=", "!="]
+        },
+        {
+          "id": "C2",
+          "namespace_name": "euclidean.C2",
+          "name": "Congruence Transitivity",
+          "signature": "forall (A B C D E F : Point), AB =~= CD /\ AB =~= EF -> CD =~= EF",
+          "arity": 6,
+          "primitive_relations": ["=~="]
+        },
+        {
+          "id": "C3",
+          "namespace_name": "euclidean.C3",
+          "name": "Segment Addition",
+          "signature": "forall (A B C A' B' C' : Point), B(A, B, C) /\ B(A', B', C') /\ AB =~= A'B' /\ BC =~= B'C' -> AC =~= A'C'",
+          "arity": 6,
+          "primitive_relations": ["B", "=~="]
+        }
+      ],
+      "depends_on": ["incidence", "order"],
+      "minimal_model": "Rational plane Q^2 (satisfies C1-C3 but not continuity)",
+      "independence_notes": "C3 is independent of C1 and C2. Five-Segment Axiom (implied) provides angle congruence.",
+      "extended_axioms": [
+        {
+          "id": "FiveSeg",
+          "namespace_name": "euclidean.FiveSeg",
+          "name": "Five-Segment Axiom",
+          "note": "Implied by the geometry; used to derive angle congruence without explicit angle primitives"
+        }
+      ]
+    },
+    {
+      "name": "continuity",
+      "description": "Continuity axiom ensuring line completeness (no 'gaps')",
+      "order": 3,
+      "axioms": [
+        {
+          "id": "Dedekind",
+          "namespace_name": "euclidean.Dedekind",
+          "name": "Dedekind Cut Axiom",
+          "signature": "forall (l : Line) (P Q : Point -> Prop), partition(l, P, Q) /\ (exists X, P(X)) /\ (exists Y, Q(Y)) -> exists Z, cut_point(l, P, Q, Z)",
+          "arity_schema": true,
+          "primitive_relations": ["on", "B"],
+          "logic_rank": "second-order (requires set quantification)",
+          "first_order_alternative": "Axiom schema of continuity"
+        }
+      ],
+      "depends_on": ["incidence", "order"],
+      "independence_notes": "Independent of layers 0-2. Rational plane model satisfies 0-2 but not continuity.",
+      "alternatives": [
+        {"name": "Line-Circle Continuity", "equivalent": true},
+        {"name": "Circle-Circle Continuity", "equivalent": false, "weaker": true},
+        {"name": "Archimedean Axiom", "equivalent": false, "weaker": true}
+      ]
+    },
+    {
+      "name": "parallels",
+      "description": "Euclidean parallel postulate (Playfair's form)",
+      "order": 4,
+      "axioms": [
+        {
+          "id": "Playfair",
+          "namespace_name": "euclidean.Playfair",
+          "name": "Playfair Parallel Axiom",
+          "signature": "forall (A : Point) (l : Line), ~on(A, l) -> exists! (m : Line), on(A, m) /\ ~intersect(l, m)",
+          "arity": 2,
+          "primitive_relations": ["on", "intersect"]
+        }
+      ],
+      "depends_on": ["incidence"],
+      "independence_notes": "Independent of layers 0-3. Hyperbolic geometry satisfies 0-3 but not Playfair.",
+      "equivalents": [
+        "Euclid's Fifth Postulate (in absolute geometry)",
+        "Triangle angle sum = 180 degrees",
+        "Legendre's theorem",
+        "Wallis's axiom (existence of similar triangles of arbitrary size)"
+      ]
+    }
+  ],
+  "content_hash_algorithm": "SHA-256",
+  "references": [
+    "Tarski, A. 'What is Elementary Geometry?' In The Axiomatic Method (1959), pp. 16-29. North-Holland.",
+    "Schwabhauser, W., Szmielew, W., & Tarski, A. Metamathematische Methoden in der Geometrie (1983). Springer.",
+    "GeoCoq project -- github.com/GeoCoq/GeoCoq",
+    "Hilbert, D. Grundlagen der Geometrie (1899). Teubner."
+  ]
+}

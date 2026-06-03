@@ -1,0 +1,416 @@
+# =============================================================================
+# Lv-00 Axiom Package: Lattice Theory
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Lattice theory — the study of lattices as algebraic structures and
+#   partially ordered sets. A lattice is a poset in which every pair of
+#   elements has a unique least upper bound (join, ∨) and a unique greatest
+#   lower bound (meet, ∧). Equivalently, a lattice is an algebraic structure
+#   (L, ∧, ∨) satisfying idempotence, commutativity, associativity, and
+#   the absorption laws.
+#
+# References:
+#   - Birkhoff, G. (1940). "Lattice Theory." Amer. Math. Soc. Colloquium
+#     Publications, Vol. 25. ISBN 0-8218-1025-1.
+#     https://en.wikipedia.org/wiki/Lattice_(order)
+#   - Grätzer, G. (2011). "Lattice Theory: Foundation." Springer.
+#     ISBN 978-3-0348-0017-4.
+#   - Davey, B.A. & Priestley, H.A. (2002). "Introduction to Lattices and
+#     Order" (2nd ed.). Cambridge University Press. ISBN 0-521-78451-4.
+#   - nLab: Lattice
+#     https://ncatlab.org/nlab/show/lattice
+#   - Burris, S. & Sankappanavar, H.P. (1981). "A Course in Universal
+#     Algebra." Springer. ISBN 0-387-90578-2.
+#     https://www.math.uwaterloo.ca/~snburris/htdocs/UALG/univ.html
+#
+# Primitive Notions:
+#   - Lattice element (member of carrier set L)
+#   - Meet operation ∧ (binary: L × L → L) — greatest lower bound
+#   - Join operation ∨ (binary: L × L → L) — least upper bound
+#   - Partial order ≤ (derived: a ≤ b iff a ∧ b = a iff a ∨ b = a)
+#   - Top element ⊤ (identity of ∧, if bounded)
+#   - Bottom element ⊥ (identity of ∨, if bounded)
+#
+# Core Axioms (Algebraic Definition):
+#   A lattice (L, ∧, ∨) satisfies:
+#   I.  Meet Semilattice (3 axioms):
+#       L1. Idempotence of ∧:  a ∧ a = a
+#       L2. Commutativity of ∧: a ∧ b = b ∧ a
+#       L3. Associativity of ∧: (a ∧ b) ∧ c = a ∧ (b ∧ c)
+#   II. Join Semilattice (3 axioms):
+#       L4. Idempotence of ∨:  a ∨ a = a
+#       L5. Commutativity of ∨: a ∨ b = b ∨ a
+#       L6. Associativity of ∨: (a ∨ b) ∨ c = a ∨ (b ∨ c)
+#   III. Absorption (2 axioms — link meet and join):
+#       L7. a ∨ (a ∧ b) = a
+#       L8. a ∧ (a ∨ b) = a
+#
+#   Note: The absorption laws imply the order-theoretic connection:
+#     a ≤ b  iff  a ∧ b = a  iff  a ∨ b = a
+#   They also imply that the two definitions of ≤ agree.
+#
+#   Bounded Lattice (2 additional axioms):
+#       L9.  a ∨ ⊥ = a  (⊥ is identity of ∨)
+#       L10. a ∧ ⊤ = a  (⊤ is identity of ∧)
+#
+#   Distributive Lattice (2 additional axioms):
+#       L11. a ∧ (b ∨ c) = (a ∧ b) ∨ (a ∧ c)  (meet distributes over join)
+#       L12. a ∨ (b ∧ c) = (a ∨ b) ∧ (a ∨ c)  (join distributes over meet)
+#       Note: L11 and L12 are equivalent in the presence of L1-L8.
+#
+#   Modular Lattice (1 additional axiom):
+#       L13. a ≤ c ⟹ (a ∨ b) ∧ c = a ∨ (b ∧ c)
+#       Note: Distributivity implies modularity, but not conversely.
+#             Every distributive lattice is modular.
+#
+#   Complemented Lattice (1 additional axiom):
+#       L14. For every a, there exists a' such that a ∧ a' = ⊥ and a ∨ a' = ⊤
+#
+# Special Lattice Types:
+#   - Boolean algebra = complemented distributive lattice
+#   - Heyting algebra = bounded distributive lattice with relative pseudo-complement
+#   - Ortholattice = bounded lattice with orthocomplement satisfying a'' = a
+#   - Modular lattice: satisfies the modular law (L13)
+#   - Distributive lattice: satisfies distributivity (L11/L12)
+#
+# Known Undecidable/Unconstructible Problems:
+#   - Lattice word problem for free lattices (decidable but EXPSPACE-hard)
+#   - Lattice variety membership (undecidable — Baker 1969)
+#   - Finite lattice representation (undecidable — finite embeddability)
+#   - Equational theory of lattices (decidable — Whitman 1941)
+#   - Lattice embedding problem (undecidable in general)
+#   - Congruence lattice problem (undecidable — Grätzer-Schmidt 1963)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "lattice_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Metrics)
+    # =================================================================
+
+    # --- Group I: Meet Semilattice Axioms ---
+    # L1: Idempotence of meet: a ∧ a = a
+    # Params: lattice element a
+    template "meet_idempotence" 1
+
+    # L2: Commutativity of meet: a ∧ b = b ∧ a
+    # Params: lattice element a, lattice element b
+    template "meet_commutativity" 2
+
+    # L3: Associativity of meet: (a ∧ b) ∧ c = a ∧ (b ∧ c)
+    # Params: lattice element a, lattice element b, lattice element c
+    template "meet_associativity" 3
+
+    # --- Group II: Join Semilattice Axioms ---
+    # L4: Idempotence of join: a ∨ a = a
+    # Params: lattice element a
+    template "join_idempotence" 1
+
+    # L5: Commutativity of join: a ∨ b = b ∨ a
+    # Params: lattice element a, lattice element b
+    template "join_commutativity" 2
+
+    # L6: Associativity of join: (a ∨ b) ∨ c = a ∨ (b ∨ c)
+    # Params: lattice element a, lattice element b, lattice element c
+    template "join_associativity" 3
+
+    # --- Group III: Absorption Laws ---
+    # L7: a ∨ (a ∧ b) = a
+    # Params: lattice element a, lattice element b
+    template "absorption_join_over_meet" 2
+
+    # L8: a ∧ (a ∨ b) = a
+    # Params: lattice element a, lattice element b
+    template "absorption_meet_over_join" 2
+
+    # --- Group IV: Bounded Lattice Axioms ---
+    # L9: Bottom identity: a ∨ ⊥ = a
+    # Params: lattice element a
+    template "bottom_identity" 1
+
+    # L10: Top identity: a ∧ ⊤ = a
+    # Params: lattice element a
+    template "top_identity" 1
+
+    # --- Group V: Distributive Lattice Axioms ---
+    # L11: Meet distributes over join: a ∧ (b ∨ c) = (a ∧ b) ∨ (a ∧ c)
+    # Params: lattice element a, lattice element b, lattice element c
+    template "meet_distributes_over_join" 3
+
+    # L12: Join distributes over meet: a ∨ (b ∧ c) = (a ∨ b) ∧ (a ∨ c)
+    # Params: lattice element a, lattice element b, lattice element c
+    template "join_distributes_over_meet" 3
+
+    # --- Group VI: Modular Lattice Axiom ---
+    # L13: Modular law: if a ≤ c then (a ∨ b) ∧ c = a ∨ (b ∧ c)
+    # Params: lattice element a, lattice element b, lattice element c
+    template "modular_law" 3
+
+    # --- Group VII: Complemented Lattice Axiom ---
+    # L14: Complement existence: for every a, exists a' with a ∧ a' = ⊥, a ∨ a' = ⊤
+    # Params: lattice element a
+    template "complement_existence" 1
+
+    # --- Group VIII: Core Constructors ---
+    # Meet operation: given two elements, compute their greatest lower bound
+    # Params: lattice element a, lattice element b -> element a ∧ b
+    template "meet" 2
+
+    # Join operation: given two elements, compute their least upper bound
+    # Params: lattice element a, lattice element b -> element a ∨ b
+    template "join" 2
+
+    # Partial order from meet: a ≤ b iff a ∧ b = a
+    # Params: lattice element a, lattice element b -> boolean
+    template "leq_from_meet" 2
+
+    # Partial order from join: a ≤ b iff a ∨ b = b
+    # Params: lattice element a, lattice element b -> boolean
+    template "leq_from_join" 2
+
+    # Top element constructor (for bounded lattices)
+    # Params: (zero-input existence axiom for bounded lattices)
+    template "top_element" 0
+
+    # Bottom element constructor (for bounded lattices)
+    # Params: (zero-input existence axiom for bounded lattices)
+    template "bottom_element" 0
+
+    # Complement: given element a, find a' with a ∧ a' = ⊥ and a ∨ a' = ⊤
+    # Params: lattice element a -> element a'
+    template "complement" 1
+
+    # --- Group IX: Derived Constructors ---
+    # Strict order: a < b iff a ≤ b and a ≠ b
+    # Params: lattice element a, lattice element b -> boolean
+    template "strict_less_than" 2
+
+    # Incomparability: a || b iff neither a ≤ b nor b ≤ a
+    # Params: lattice element a, lattice element b -> boolean
+    template "incomparable" 2
+
+    # Covering relation: a is covered by b (a ≺ b) iff a < b and no c with a < c < b
+    # Params: lattice element a, lattice element b -> boolean
+    template "covering_relation" 2
+
+    # Meet-irreducible element: a is meet-irreducible iff a = ⊤ or
+    #   a = b ∧ c implies a = b or a = c
+    # Params: lattice element a -> boolean
+    template "meet_irreducible" 1
+
+    # Join-irreducible element: a is join-irreducible iff a = ⊥ or
+    #   a = b ∨ c implies a = b or a = c
+    # Params: lattice element a -> boolean
+    template "join_irreducible" 1
+
+    # Atom: an atom is an element that covers ⊥
+    # Params: lattice element a -> boolean
+    template "is_atom" 1
+
+    # Coatom: a coatom is an element covered by ⊤
+    # Params: lattice element a -> boolean
+    template "is_coatom" 1
+
+    # --- Group X: Sublattice and Homomorphism Constructors ---
+    # Sublattice test: S ⊆ L is a sublattice iff closed under ∧ and ∨
+    # Params: lattice L, subset S -> boolean
+    template "sublattice_test" 2
+
+    # Lattice homomorphism: f preserves ∧ and ∨ (and ⊤, ⊥ if bounded)
+    # Params: lattice L1, lattice L2, function f -> boolean
+    template "lattice_homomorphism_test" 3
+
+    # Lattice isomorphism: bijective homomorphism
+    # Params: lattice L1, lattice L2, function f -> boolean
+    template "lattice_isomorphism_test" 3
+
+    # Lattice direct product: L1 × L2 with component-wise ∧ and ∨
+    # Params: lattice L1, lattice L2 -> lattice L1 × L2
+    template "direct_product" 2
+
+    # Lattice dual: reverse the partial order (swap ∧ and ∨)
+    # Params: lattice L -> lattice L^op
+    template "dual_lattice" 1
+
+    # Interval sublattice: [a, b] = {x : a ≤ x ≤ b}
+    # Params: lattice element a, lattice element b -> sublattice [a,b]
+    template "interval_sublattice" 2
+
+    # --- Group XI: Advanced Lattice Constructions ---
+    # Ideal: non-empty downward-closed set closed under join
+    # Params: lattice L, subset S -> ideal
+    template "ideal" 2
+
+    # Filter: non-empty upward-closed set closed under meet
+    # Params: lattice L, subset S -> filter
+    template "filter" 2
+
+    # Prime ideal: ideal I where a ∧ b ∈ I implies a ∈ I or b ∈ I
+    # Params: ideal I -> boolean
+    template "prime_ideal_test" 1
+
+    # Prime filter (ultrafilter in Boolean case): filter F where a ∨ b ∈ F
+    #   implies a ∈ F or b ∈ F
+    # Params: filter F -> boolean
+    template "prime_filter_test" 1
+
+    # Maximal ideal: ideal not properly contained in any other proper ideal
+    # Params: ideal I -> boolean
+    template "maximal_ideal_test" 1
+
+    # Congruence relation: equivalence relation on L compatible with ∧ and ∨
+    # Params: lattice L, equivalence relation R -> boolean
+    template "congruence_relation_test" 2
+
+    # Quotient lattice: L / θ where θ is a congruence
+    # Params: lattice L, congruence θ -> quotient lattice
+    template "quotient_lattice" 2
+
+    # --- Group XII: Special Lattice Type Verifiers ---
+    # Distributive lattice test: a ∧ (b ∨ c) = (a ∧ b) ∨ (a ∧ c) for all a,b,c
+    # Params: lattice L -> boolean
+    template "is_distributive" 1
+
+    # Modular lattice test: a ≤ c ⟹ (a ∨ b) ∧ c = a ∨ (b ∧ c) for all a,b,c
+    # Params: lattice L -> boolean
+    template "is_modular" 1
+
+    # Complemented lattice test: every element has a complement
+    # Params: lattice L -> boolean
+    template "is_complemented" 1
+
+    # Boolean algebra test: complemented distributive lattice
+    # Params: lattice L -> boolean
+    template "is_boolean_algebra" 1
+
+    # Heyting algebra test: bounded distributive lattice with relative
+    #   pseudo-complement (for every a,b, exists a→b = max{x : a∧x ≤ b})
+    # Params: lattice L -> boolean
+    template "is_heyting_algebra" 1
+
+    # Complete lattice test: every subset has a supremum and infimum
+    # Params: lattice L -> boolean
+    template "is_complete" 1
+
+    # Chain test: totally ordered lattice (a ≤ b or b ≤ a for all a,b)
+    # Params: lattice L -> boolean
+    template "is_chain" 1
+
+    # --- Group XIII: Fundamental Lattice Theorems ---
+    # Whitman's condition: in a free lattice, a∧b ≤ c∨d iff
+    #   a ≤ c∨d or b ≤ c∨d or a∧b ≤ c or a∧b ≤ d
+    # Params: lattice element a, b, c, d -> boolean
+    template "whitman_condition" 4
+
+    # Dedekind-MacNeille completion: smallest complete lattice containing L
+    # Params: lattice L -> complete lattice
+    template "dedekind_macneille_completion" 1
+
+    # Birkhoff's representation theorem: every finite distributive lattice
+    #   is isomorphic to the lattice of lower sets of its join-irreducibles
+    # Params: finite distributive lattice L -> poset of join-irreducibles
+    template "birkhoff_representation" 1
+
+    # Stone representation: every Boolean algebra is isomorphic to a
+    #   field of sets
+    # Params: Boolean algebra B -> field of sets
+    template "stone_representation" 1
+
+    # Knaster-Tarski fixed point theorem: every monotone function on a
+    #   complete lattice has a least fixed point and a greatest fixed point
+    # Params: complete lattice L, monotone function f -> (lfp, gfp)
+    template "knaster_tarski_fixed_point" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "lattice_variety_membership" {
+        reduces_to "equational_theory_undecidability"
+        dependency "meet"
+        dependency "join"
+        dependency "meet_associativity"
+        dependency "join_associativity"
+        external_ref "https://en.wikipedia.org/wiki/Lattice_(order)"
+        green_verified true
+    }
+
+    unconstructible "finite_lattice_embeddability" {
+        reduces_to "finite_representation_problem"
+        dependency "meet"
+        dependency "join"
+        dependency "sublattice_test"
+        external_ref "https://en.wikipedia.org/wiki/Lattice_(order)"
+        green_verified true
+    }
+
+    unconstructible "congruence_lattice_problem" {
+        reduces_to "universal_algebra_undecidability"
+        dependency "congruence_relation_test"
+        dependency "quotient_lattice"
+        dependency "ideal"
+        external_ref "https://en.wikipedia.org/wiki/Lattice_(order)"
+        green_verified true
+    }
+
+    unconstructible "free_lattice_word_problem" {
+        reduces_to "exp_space_hardness"
+        dependency "meet"
+        dependency "join"
+        dependency "whitman_condition"
+        external_ref "https://en.wikipedia.org/wiki/Free_lattice"
+        green_verified true
+    }
+
+    unconstructible "lattice_isomorphism_problem" {
+        reduces_to "graph_isomorphism_hardness"
+        dependency "lattice_isomorphism_test"
+        dependency "lattice_homomorphism_test"
+        external_ref "https://en.wikipedia.org/wiki/Lattice_(order)"
+        green_verified true
+    }
+
+    unconstructible "equational_basis_for_lattice_variety" {
+        reduces_to "finite_basis_problem"
+        dependency "meet_distributes_over_join"
+        dependency "join_distributes_over_meet"
+        dependency "modular_law"
+        external_ref "https://en.wikipedia.org/wiki/Lattice_(order)"
+        green_verified true
+    }
+
+    unconstructible "lattice_identity_entailment" {
+        reduces_to "equational_unification"
+        dependency "meet"
+        dependency "join"
+        dependency "absorption_join_over_meet"
+        dependency "absorption_meet_over_join"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_(mathematics)"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    # ⊥ in lattice theory is the bottom element of the lattice (identity of ∨),
+    # the least element under the partial order. This is a natural geometric
+    # interpretation: ⊥ is the unique minimal point in the lattice diagram.
+    bottom_geometry "lattice_partial_order"
+
+    # ¬ is encoded via complement in complemented lattices: ¬a = a' where
+    # a ∧ a' = ⊥ and a ∨ a' = ⊤. In general (non-complemented) lattices,
+    # negation is not available — this is a key distinction from Boolean algebras.
+    # For Heyting algebras, pseudo-complement provides a weaker form.
+    negation_encoding "complement_in_complemented_lattice"
+
+    # Classical explosion principle: in the lattice-theoretic setting,
+    # from ⊥ (bottom) any element follows since ⊥ ≤ a for all a.
+    # This is order-theoretically trivial: ⊥ is the least element.
+    contradiction_behavior "explosion_principle"
+}

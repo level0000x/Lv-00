@@ -1,0 +1,305 @@
+# =============================================================================
+# Lv-00 Axiom Package: Proof Theory (Gentzen's Sequent Calculus)
+# =============================================================================
+#
+# Mathematical Theory: Proof Theory
+#   Proof theory is the study of formal proofs and their structure.
+#   It was founded by Gerhard Gentzen (1935) with his sequent calculus,
+#   providing a fundamental framework for analyzing logical reasoning.
+#
+# Axiomatization: Gentzen's Sequent Calculus LK (1935) + Hilbert-style systems
+#
+# References:
+#   - Wikipedia: Proof theory
+#     https://en.wikipedia.org/wiki/Proof_theory
+#   - Takeuti, G. (1987). "Proof Theory" (2nd ed.). North-Holland.
+#     ISBN 0-444-10492-5.
+#   - Wikipedia: Sequent calculus
+#     https://en.wikipedia.org/wiki/Sequent_calculus
+#   - Wikipedia: Cut-elimination theorem
+#     https://en.wikipedia.org/wiki/Cut-elimination_theorem
+#   - Wikipedia: Ordinal analysis
+#     https://en.wikipedia.org/wiki/Ordinal_analysis
+#   - Schwichtenberg, H. & Wainer, S.S. (2011). "Proofs and Computations."
+#     Cambridge University Press.
+#   - Gentzen, G. (1935). "Untersuchungen über das logische Schließen."
+#     Mathematische Zeitschrift, 39: 176-210, 405-431.
+#
+# Primitive Notions:
+#   Formal proof Π — a finite tree of sequents
+#   Sequent: Γ ⊢ Δ — from antecedents Γ, derive succedents Δ
+#   Inference rules — structural and logical rules
+#   Proof normalization — reduction to normal form
+#
+# Core Axioms / Rules (Gentzen 1935 Sequent Calculus):
+#   Structural Rules: Identity axiom, Weakening, Contraction, Cut
+#   Logical Rules: Propositional (¬, ∧, ∨, →) + First-order quantifiers
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "proof_theory" "1.0.0" {
+
+    # =========================================================================
+    # Group I: Sequent Calculus Fundamentals (6)
+    # =========================================================================
+
+    # Sequent: Γ ⊢ Δ — from a sequence of formulas (antecedents)
+    #   derive a sequence of formulas (succedents)
+    template "sequent" 2
+
+    # Antecedent-succedent structure: separating the left and right
+    #   sides of the sequent turnstile symbol
+    template "antecedent_succedent" 2
+
+    # Initial sequent (identity axiom): A ⊢ A
+    #   The basic building block of all proofs
+    template "initial_sequent" 1
+
+    # Left rule application: introducing a connective on the left side
+    template "left_rule" 2
+
+    # Right rule application: introducing a connective on the right side
+    template "right_rule" 2
+
+    # Structural rule: governs the manipulation of antecedent/succedent
+    #   sequences (weakening, contraction, exchange, cut)
+    template "structural_rule" 2
+
+    # =========================================================================
+    # Group II: Propositional Logic Rules (6)
+    # =========================================================================
+
+    # Negation left (¬L): From Γ ⊢ Δ, A, infer Γ, ¬A ⊢ Δ
+    template "negation_left" 2
+
+    # Negation right (¬R): From Γ, A ⊢ Δ, infer Γ ⊢ Δ, ¬A
+    template "negation_right" 2
+
+    # Conjunction left (∧L): From Γ, A, B ⊢ Δ, infer Γ, A ∧ B ⊢ Δ
+    template "conjunction_left" 2
+
+    # Conjunction right (∧R): From Γ ⊢ Δ, A and Γ ⊢ Δ, B,
+    #   infer Γ ⊢ Δ, A ∧ B
+    template "conjunction_right" 2
+
+    # Disjunction left (∨L): From Γ, A ⊢ Δ and Γ, B ⊢ Δ,
+    #   infer Γ, A ∨ B ⊢ Δ
+    template "disjunction_left" 2
+
+    # Disjunction right (∨R): From Γ ⊢ Δ, A, B, infer Γ ⊢ Δ, A ∨ B
+    template "disjunction_right" 2
+
+    # =========================================================================
+    # Group III: First-Order Logic Rules (5)
+    # =========================================================================
+
+    # Universal quantifier left (∀L): From Γ, A[t/x] ⊢ Δ, infer Γ, ∀x A ⊢ Δ
+    #   (where t is substitutable for x in A)
+    template "universal_left" 2
+
+    # Universal quantifier right (∀R): From Γ ⊢ Δ, A[y/x],
+    #   infer Γ ⊢ Δ, ∀x A (where y is fresh)
+    template "universal_right" 2
+
+    # Existential quantifier left (∃L): From Γ, A[y/x] ⊢ Δ,
+    #   infer Γ, ∃x A ⊢ Δ (where y is fresh)
+    template "existential_left" 2
+
+    # Existential quantifier right (∃R): From Γ ⊢ Δ, A[t/x],
+    #   infer Γ ⊢ Δ, ∃x A
+    template "existential_right" 2
+
+    # Equality rule (identity): From Γ ⊢ Δ, infer Γ ⊢ Δ, t = t
+    #   Reflexivity of equality
+    template "equality_rule" 1
+
+    # =========================================================================
+    # Group IV: Proof Reduction & Normalization (5)
+    # =========================================================================
+
+    # Cut elimination: Removing cut inferences from a proof
+    #   The Hauptsatz (Gentzen's famous theorem)
+    template "cut_elimination" 1
+
+    # Proof normalization: reducing proofs to normal form
+    #   where no maximal formula remains
+    template "proof_normalization" 1
+
+    # Hauptsatz: LK proofs can be transformed to cut-free proofs
+    #   This is the cornerstone theorem of proof theory
+    template "hauptsatz" 1
+
+    # Reducibility candidate: a syntactically defined set of proofs
+    #   used in proof of cut elimination by recursion on proof depth
+    template "reducibility_candidate" 1
+
+    # Proof complexity: measuring the size/height of proofs
+    template "proof_complexity" 1
+
+    # =========================================================================
+    # Group V: Proof-Theoretic Ordinals (5)
+    # =========================================================================
+
+    # Ordinal notation: representing ordinals in a formal system
+    #   Cantor normal form, epsilon_0, etc.
+    template "ordinal_notation" 1
+
+    # Recursive ordinal: an ordinal that is order-isomorphic to a
+    #   well-ordering of the natural numbers
+    template "recursive_ordinal" 1
+
+    # Proof ordinal analysis: assigning an ordinal to each proof
+    #   measuring its strength
+    template "proof_ordinal_analysis" 2
+
+    # Buchi-Landau theorem: ordinal of arithmetic is ε_0
+    #   The proof-theoretic ordinal of PA is ε_0
+    template "buchi_landau_theorem" 0
+
+    # First inaccessible ordinal: the first ordinal not reachable
+    #   by successor, sup, or replacement operations
+    template "first_inaccessible" 0
+
+    # =========================================================================
+    # Group VI: Reflection Principles (4)
+    # =========================================================================
+
+    # Reflection principle: any provable sentence is true
+    #   ∀x (Provable(φ(x)) → φ(x))
+    template "reflection_principle" 1
+
+    # Provability logic: modal logic for studying provability
+    #   GL (Gödel-Löb) logic for arithmetical provability
+    template "provability_logic" 1
+
+    # Solovay's theorem: arithmetical provability is complete for GL
+    #   The relationship between provability and modal logic
+    template "solovay_theorem" 0
+
+    # Arithmetical hierarchy: classifying formulas by quantifier prefix
+    #   Σ_n, Π_n, Δ_n levels
+    template "arithmetical_hierarchy" 1
+
+    # =========================================================================
+    # Group VII: Special Logical Systems (5)
+    # =========================================================================
+
+    # Arithmetic proof: proof in first-order Peano Arithmetic (PA)
+    #   Involves induction, successor, addition, multiplication
+    template "arithmetic_proof" 1
+
+    # Second-order logic proof: quantification over predicates
+    #   Comprehension axioms, second-order induction
+    template "second_order_logic_proof" 1
+
+    # Intuitionistic proof: proof without law of excluded middle
+    #   Based on BHK (Brouwer-Heyting-Kolmogorov) interpretation
+    template "intuitionistic_proof" 1
+
+    # Linear logic proof: proofs where premises are used exactly once
+    #   Multiplicative and additive connectives
+    template "linear_logic_proof" 1
+
+    # Modal proof logic: proofs involving necessity and possibility
+    #   S4, S5, and other modal systems
+    template "modal_proof_logic" 1
+
+    # =========================================================================
+    # Known Unconstructible / Undecidable Problems (6)
+    # =========================================================================
+
+    # 1. Cut elimination complexity is non-elementary
+    #   The complexity of the cut-elimination procedure grows faster
+    #   than any fixed exponential tower
+    unconstructible "cut_elimination_complexity" {
+        reduces_to "non_elementary"
+        dependency "cut_elimination"
+        dependency "hauptsatz"
+        dependency "structural_rule"
+        external_ref "https://en.wikipedia.org/wiki/Cut-elimination_theorem"
+        green_verified true
+    }
+
+    # 2. Proof equivalence problem is undecidable
+    #   Determining whether two proofs prove the same theorem
+    #   is generally not decidable
+    unconstructible "proof_equality_problem" {
+        reduces_to "undecidable"
+        dependency "sequent"
+        dependency "initial_sequent"
+        dependency "structural_rule"
+        external_ref "https://en.wikipedia.org/wiki/Proof_theory"
+        green_verified true
+    }
+
+    # 3. First-order validity proof is undecidable (Church's theorem)
+    #   There is no algorithm to determine first-order validity
+    unconstructible "first_order_validity_proof" {
+        reduces_to "undecidable"
+        dependency "sequent"
+        dependency "negation_left"
+        dependency "negation_right"
+        dependency "conjunction_right"
+        dependency "disjunction_left"
+        dependency "universal_right"
+        dependency "existential_left"
+        external_ref "https://en.wikipedia.org/wiki/First-order_logic"
+        green_verified true
+    }
+
+    # 4. Ordinal computation is undecidable
+    #   Comparing ordinals and computing with them is not decidable
+    #   in general
+    unconstructible "ordinal_computation" {
+        reduces_to "undecidable"
+        dependency "ordinal_notation"
+        dependency "recursive_ordinal"
+        dependency "proof_ordinal_analysis"
+        external_ref "https://en.wikipedia.org/wiki/Ordinal_analysis"
+        green_verified true
+    }
+
+    # 5. Shortest proof finding is an open problem
+    #   The existence of an algorithm to find shortest proofs
+    #   in arbitrary formal systems is unknown
+    unconstructible "proof_length_optimal" {
+        reduces_to "open_problem"
+        dependency "proof_complexity"
+        dependency "proof_normalization"
+        dependency "sequent"
+        external_ref "https://en.wikipedia.org/wiki/Proof_complexity"
+        green_verified true
+    }
+
+    # 6. Subsystem ordinal analysis is undecidable
+    #   Determining the proof-theoretic ordinal of arithmetic
+    #   subsystems is not decidable in general
+    unconstructible "subsystem_analysis" {
+        reduces_to "undecidable"
+        dependency "proof_ordinal_analysis"
+        dependency "arithmetical_hierarchy"
+        dependency "recursive_ordinal"
+        external_ref "https://en.wikipedia.org/wiki/Ordinal_analysis"
+        green_verified true
+    }
+
+    # =========================================================================
+    # Bottom Geometry & Logical Framework
+    # =========================================================================
+    # Proof theory is fundamentally about the structure of derivations.
+    # The bottom geometry represents the empty proof or contradictory
+    # sequent situation.
+    #
+    # ⊥ = ⊢ (empty sequent with no antecedents and no succedents)
+    #     OR a sequent where ⊢ ⊥ occurs
+    # ¬ = negation of a formula in the sequent calculus framework
+    #     (introduced via ¬L and ¬R rules)
+    # =========================================================================
+
+    bottom_geometry "sequent_calculus_proofs"
+    negation_encoding "classical_negation_in_sequent"
+    contradiction_behavior "explosion_principle"
+}

@@ -1,0 +1,64 @@
+/**
+ * @file geometry_similar_triangles.lv00
+ * @brief 相似三角形案例
+ *
+ * 演示相似三角形的构造和性质
+ */
+
+// 定义大三角形
+point A(0, 0);
+point B(6, 0);
+point C(3, 6);
+triangle ABC(A, B, C);
+
+// 构造相似小三角形（缩放比1:2）
+point D = midpoint(A, B);  // (3, 0)
+point E = midpoint(A, C);  // (1.5, 3)
+point F = midpoint(B, C);  // (4.5, 3)
+triangle DEF(D, E, F);
+
+// 证明相似
+prove {
+    length(DE) / length(AB) == length(EF) / length(BC) == length(FD) / length(CA) == 0.5
+}
+
+prove {
+    angle(D, E, F) == angle(A, B, C)
+}
+
+prove {
+    angle(E, F, D) == angle(B, C, A)
+}
+
+prove {
+    angle(F, D, E) == angle(C, A, B)
+}
+
+// 面积比
+compute {
+    area_ratio = (0.5)^2  // 相似比的平方
+}
+
+// 中位线定理
+prove {
+    parallel(line(D, E), line(B, C))
+}
+
+prove {
+    length(D, E) == 0.5 * length(B, C)
+}
+
+// 可视化配置
+visualize {
+    style ABC: { fill: "lightblue", stroke: "blue", width: 2 };
+    style DEF: { fill: "lightyellow", stroke: "orange", width: 2 };
+    style DE: { color: "red", width: 3 };
+    style EF: { color: "red", width: 3 };
+    style FD: { color: "red", width: 3 };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+    label D: "D";
+    label E: "E";
+    label F: "F";
+}
