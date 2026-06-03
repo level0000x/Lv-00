@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_backend.h
  * @brief SMT 后端抽象层 —— 多引擎 SMT 求解的接口、配置与编码
  *

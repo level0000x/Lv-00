@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file herbie_eval.h
  * @brief Floating-point precision evaluation inspired by Herbie
  *

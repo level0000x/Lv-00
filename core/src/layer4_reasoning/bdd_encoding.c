@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bdd_encoding.c
  * @brief CUDD 二阶策略图编码 —— 桩实现
  *

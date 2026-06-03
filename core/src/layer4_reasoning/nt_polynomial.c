@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file nt_polynomial.c
  * @brief Polynomial arithmetic with arbitrary-precision integer coefficients
  *

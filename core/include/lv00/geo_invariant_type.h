@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_invariant_type.h
  * @brief Geometric invariant types for trust-colored geometry
  *

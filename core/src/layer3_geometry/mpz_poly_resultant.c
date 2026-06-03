@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mpz_poly_resultant.c
  * @brief 多精度多项式结式计算
  *

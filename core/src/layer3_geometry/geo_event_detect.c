@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_event_detect.c
  * @brief 几何事件检测器 —— 基于 SUNDIALS Rootfinding 的事件检测实现
  *

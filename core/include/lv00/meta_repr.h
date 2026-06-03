@@ -15,19 +15,14 @@
  * @version 1.0.0
  * @date 2026-05-29
  */
-
 #ifndef LV00_META_REPR_H
 #define LV00_META_REPR_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stdint.h>
-
 /* ============== 前向声明 ============== */
-
 typedef struct ConstraintGraph ConstraintGraph;
 typedef struct GeomNode GeomNode;
 typedef struct FuncBlock FuncBlock;
@@ -35,9 +30,7 @@ typedef struct TypeRegion TypeRegion;
 typedef struct Proposition Proposition;
 typedef struct MetaReprEncoder MetaReprEncoder;
 typedef struct MetaReprDecoder MetaReprDecoder;
-
 /* ============== 编码配置 ============== */
-
 /**
  * @brief 编码器配置选项
  */
@@ -49,49 +42,43 @@ typedef struct MetaReprConfig {
         double base_x;              /**< 基础 X 坐标（默认 0.0） */
         double base_y;              /**< 基础 Y 坐标（默认 0.0） */
     } coordinate_scheme;
-    
+
     /* 区域编码方案 */
     struct {
         double padding;             /**< 区域内部边距（默认 50.0） */
         double port_spacing;        /**< 端口间距（默认 30.0） */
     } region_scheme;
-    
+
     /* 元数据编码 */
     bool encode_metadata;           /**< 是否编码元数据（count、capacity 等） */
     bool encode_version;            /**< 是否编码版本信息 */
-    
+
     /* 性能选项 */
     bool use_caching;               /**< 是否启用缓存 */
     uint32_t cache_size;            /**< 缓存大小 */
 } MetaReprConfig;
-
 /**
  * @brief 获取默认编码配置
  * @return 默认配置
  */
 MetaReprConfig meta_repr_default_config(void);
-
 /* ============== 编码器 API ============== */
-
 /**
  * @brief 创建编码器
  * @param config 编码配置（NULL 使用默认配置）
  * @return 编码器实例
  */
 MetaReprEncoder *meta_repr_encoder_create(const MetaReprConfig *config);
-
 /**
  * @brief 销毁编码器
  * @param encoder 编码器实例
  */
 void meta_repr_encoder_destroy(MetaReprEncoder *encoder);
-
 /**
  * @brief 重置编码器状态
  * @param encoder 编码器实例
  */
 void meta_repr_encoder_reset(MetaReprEncoder *encoder);
-
 /**
  * @brief 编码 ConstraintGraph 为几何表示
  * @param encoder 编码器实例
@@ -100,7 +87,6 @@ void meta_repr_encoder_reset(MetaReprEncoder *encoder);
  */
 ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder,
                                          const ConstraintGraph *graph);
-
 /**
  * @brief 编码 GeomNode 为几何点
  * @param encoder 编码器实例
@@ -109,7 +95,6 @@ ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder,
  */
 GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder,
                                  const GeomNode *node);
-
 /**
  * @brief 编码 FuncBlock 为几何区域
  * @param encoder 编码器实例
@@ -118,7 +103,6 @@ GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder,
  */
 GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
                                        const FuncBlock *block);
-
 /**
  * @brief 编码 TypeRegion 为几何区域
  * @param encoder 编码器实例
@@ -127,7 +111,6 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder,
  */
 GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder,
                                         const TypeRegion *type_region);
-
 /**
  * @brief 编码 Proposition 为几何节点
  * @param encoder 编码器实例
@@ -136,21 +119,17 @@ GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder,
  */
 GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder,
                                         const Proposition *proposition);
-
 /* ============== 解码器 API ============== */
-
 /**
  * @brief 创建解码器
  * @return 解码器实例
  */
 MetaReprDecoder *meta_repr_decoder_create(void);
-
 /**
  * @brief 销毁解码器
  * @param decoder 解码器实例
  */
 void meta_repr_decoder_destroy(MetaReprDecoder *decoder);
-
 /**
  * @brief 从几何表示解码为 ConstraintGraph
  * @param decoder 解码器实例
@@ -159,7 +138,6 @@ void meta_repr_decoder_destroy(MetaReprDecoder *decoder);
  */
 ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder,
                                          const ConstraintGraph *encoded_graph);
-
 /**
  * @brief 从几何点解码为 GeomNode
  * @param decoder 解码器实例
@@ -168,7 +146,6 @@ ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder,
  */
 GeomNode *meta_repr_decode_node(MetaReprDecoder *decoder,
                                  const GeomNode *encoded_node);
-
 /**
  * @brief 从几何区域解码为 FuncBlock
  * @param decoder 解码器实例
@@ -177,9 +154,7 @@ GeomNode *meta_repr_decode_node(MetaReprDecoder *decoder,
  */
 FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
                                         const GeomNode *encoded_block);
-
 /* ============== 验证 API ============== */
-
 /**
  * @brief 验证编码-解码往返正确性
  * @param original 原始结构体
@@ -190,7 +165,6 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder,
 bool meta_repr_verify_roundtrip(const void *original,
                                  const void *decoded,
                                  const char *type_name);
-
 /**
  * @brief 比较两个约束图是否语义等价
  * @param a 约束图 A
@@ -199,7 +173,6 @@ bool meta_repr_verify_roundtrip(const void *original,
  */
 bool meta_repr_graph_equivalent(const ConstraintGraph *a,
                                  const ConstraintGraph *b);
-
 /**
  * @brief 比较两个几何表示是否同构
  * @param a 几何表示 A
@@ -208,9 +181,7 @@ bool meta_repr_graph_equivalent(const ConstraintGraph *a,
  */
 bool meta_repr_isomorphic(const ConstraintGraph *a,
                            const ConstraintGraph *b);
-
 /* ============== 工具 API ============== */
-
 /**
  * @brief 获取编码统计信息
  * @param encoder 编码器实例
@@ -220,7 +191,6 @@ bool meta_repr_isomorphic(const ConstraintGraph *a,
 void meta_repr_get_stats(MetaReprEncoder *encoder,
                           int *out_node_count,
                           int *out_constraint_count);
-
 /**
  * @brief 导出几何表示为 DOT 格式（用于可视化）
  * @param encoded_graph 编码后的几何表示
@@ -229,16 +199,13 @@ void meta_repr_get_stats(MetaReprEncoder *encoder,
  */
 bool meta_repr_export_dot(const ConstraintGraph *encoded_graph,
                            const char *filepath);
-
 /**
  * @brief 导出几何表示为 JSON 格式
  * @param encoded_graph 编码后的几何表示
  * @return JSON 字符串（需由调用者释放）
  */
 char *meta_repr_export_json(const ConstraintGraph *encoded_graph);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_META_REPR_H */

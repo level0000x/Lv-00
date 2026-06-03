@@ -1,17 +1,17 @@
-﻿/**
+/**
  * @file proof_multi_strategy.c
  * @brief 多证明方法并存引擎实现（借鉴 JGEX/GEX 架构）
  *
  * 借鉴 JGEX（中科院张景中团队的几何定理机器证明系统）的多方法共存设计：
  * - 在同一系统中集成 8 种独立的证明方法
- * - 支持策略注册,切换,组合执行
+ * - 支持策略注册、切换、组合执行
  * - 支持竞争模式（自动回退）和流水线模式（串联）
  * - 支持适用性自动评估
  *
  * 版本：v3.2.0
  * 参考：
  *   - JGEX/GEX (https://github.com/kovzol/Java-Geometry-Expert)
- *     多证明方法并存引擎,可读证明生成,C-tree 约束分解
+ *     多证明方法并存引擎、可读证明生成、C-tree 约束分解
  */
 
 #include <stdio.h>
@@ -294,7 +294,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
 /**
  * @brief 获取默认策略描述符
  *
- * 为每种策略类型预填充名称,描述,适用性检查和执行函数。
+ * 为每种策略类型预填充名称、描述、适用性检查和执行函数。
  */
 static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategyType type) {
     memset(desc, 0, sizeof(*desc));
@@ -744,7 +744,7 @@ static bool proof_best_first_search(ProofNavigator *proof, int max_steps);
  * @brief 蒙特卡洛树搜索（简化实现）
  *
  * 通过随机模拟评估节点价值，结合探索和利用。
- * 适用于搜索空间大,难以用传统方法评估的证明问题。
+ * 适用于搜索空间大、难以用传统方法评估的证明问题。
  *
  * @param proof   证明导航器指针
  * @param max_steps 最大搜索步数（模拟次数）

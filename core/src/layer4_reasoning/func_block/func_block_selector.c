@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_selector.c
  * @brief 多解选择器实现
  * @details 提供从多个候选解中选择特定解的策略，包括正根/负根选择、

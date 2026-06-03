@@ -28,18 +28,6 @@
  * @note 本模块无外部依赖（除 lv00_utils），仅依赖标准 C 库。
  *       所有平台相关代码通过 #ifdef 隔离（Windows: windows.h/timeGetTime/process.h，
  *       类 Unix: sys/time.h/strings.h/pthread.h）。异步模式使用平台原生线程原语。
- *
- * @par 设计要点
- * - 四种事件发射模式：立即（同步）、缓冲（批量）、节流（频率限制）、惰性（按需拉取）
- * - 回调系统支持事件类型过滤掩码，消费者只接收感兴趣的事件
- * - 惰性求值模式支持消费者主动拉取，阈值自动刷新
- * - 异步模式基于环形缓冲区，使用平台原生线程原语（互斥锁+条件变量）
- * - JSON 序列化采用手工拼接，避免引入第三方 JSON 库依赖
- *
- * @par 依赖关系
- * - 上层: 被 engine.c、solver.c、proof.c 等所有需要事件输出的模块调用
- * - 下层: 依赖 lv00_utils.c（内存管理）
- * - 外部: 仅依赖标准 C 库，无第三方依赖
  */
 
 #include "stream.h"
@@ -1484,11 +1472,6 @@ done:
  * @param ...      可变参数
  * @return 新的偏移量（可能超过 size，表示截断）
  */
-static int stream_buf_append(char *buf, size_t size, int offset, const char *fmt, ...)
-#if defined(__GNUC__) || defined(__clang__)
-    __attribute__((format(printf, 4, 5)))
-#endif
-;
 static int stream_buf_append(char *buf, size_t size, int offset, const char *fmt, ...) {
     if (offset < 0)
         return offset;
@@ -1572,7 +1555,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     needed = stream_buf_append(NULL, 0, needed, "  \"type\": \"%s\",\n", type_id);
     needed = stream_buf_append(NULL, 0, needed, "  \"type_name\": \"%s\",\n", type_name);
     needed = stream_buf_append(NULL, 0, needed, "  \"color\": \"%s\",\n", color);
-    needed = stream_buf_append(NULL, 0, needed, "  \"timestamp_ms\": %lld,\n", (long long)event->timestamp_ms);
+    needed = stream_buf_append(NULL, 0, needed, "  \"timestamp_ms\": %ld,\n", event->timestamp_ms);
     needed = stream_buf_append(NULL, 0, needed, "  \"step\": %d,\n", event->step_number);
     needed = stream_buf_append(NULL, 0, needed, "  \"total_steps\": %d,\n", event->total_steps);
     needed = stream_buf_append(NULL, 0, needed, "  \"node_id\": %d,\n", event->node_id);
@@ -1601,7 +1584,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     pos = stream_buf_append(buffer, size, pos, "  \"type\": \"%s\",\n", type_id);
     pos = stream_buf_append(buffer, size, pos, "  \"type_name\": \"%s\",\n", type_name);
     pos = stream_buf_append(buffer, size, pos, "  \"color\": \"%s\",\n", color);
-    pos = stream_buf_append(buffer, size, pos, "  \"timestamp_ms\": %lld,\n", (long long)event->timestamp_ms);
+    pos = stream_buf_append(buffer, size, pos, "  \"timestamp_ms\": %ld,\n", event->timestamp_ms);
     pos = stream_buf_append(buffer, size, pos, "  \"step\": %d,\n", event->step_number);
     pos = stream_buf_append(buffer, size, pos, "  \"total_steps\": %d,\n", event->total_steps);
     pos = stream_buf_append(buffer, size, pos, "  \"node_id\": %d,\n", event->node_id);
@@ -1844,22 +1827,6 @@ const char *stream_event_type_name(StreamEventType type) {
             return "捕获避免";
         case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
             return "跨边界操作";
-        case STREAM_EVENT_PRESET_REGISTER_START:
-            return "预设注册开始";
-        case STREAM_EVENT_PRESET_REGISTER_DONE:
-            return "预设注册完成";
-        case STREAM_EVENT_PRESET_REGISTER_FAILED:
-            return "预设注册失败";
-        case STREAM_EVENT_PRESET_LOOKUP:
-            return "预设查找";
-        case STREAM_EVENT_PRESET_INSTANTIATE:
-            return "预设实例化";
-        case STREAM_EVENT_PRESET_VALIDATE:
-            return "预设验证";
-        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
-            return "预设类别加载完成";
-        case STREAM_EVENT_PRESET_MODULE_LOADED:
-            return "预设模块加载完成";
         case STREAM_EVENT_CONFLICT_DETECTED:
             return "冲突检测";
         case STREAM_EVENT_CONSTRAINT_ADDED:
@@ -1951,22 +1918,6 @@ const char *stream_event_type_id(StreamEventType type) {
             return "FUNC_BLOCK_CAPTURE_AVOID";
         case STREAM_EVENT_FUNC_BLOCK_CROSS_BOUNDARY:
             return "FUNC_BLOCK_CROSS_BOUNDARY";
-        case STREAM_EVENT_PRESET_REGISTER_START:
-            return "PRESET_REGISTER_START";
-        case STREAM_EVENT_PRESET_REGISTER_DONE:
-            return "PRESET_REGISTER_DONE";
-        case STREAM_EVENT_PRESET_REGISTER_FAILED:
-            return "PRESET_REGISTER_FAILED";
-        case STREAM_EVENT_PRESET_LOOKUP:
-            return "PRESET_LOOKUP";
-        case STREAM_EVENT_PRESET_INSTANTIATE:
-            return "PRESET_INSTANTIATE";
-        case STREAM_EVENT_PRESET_VALIDATE:
-            return "PRESET_VALIDATE";
-        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
-            return "PRESET_CATEGORY_LOADED";
-        case STREAM_EVENT_PRESET_MODULE_LOADED:
-            return "PRESET_MODULE_LOADED";
         case STREAM_EVENT_CONFLICT_DETECTED:
             return "CONFLICT_DETECTED";
         case STREAM_EVENT_CONSTRAINT_ADDED:
@@ -2020,17 +1971,6 @@ const char *stream_event_color(StreamEventType type) {
         case STREAM_EVENT_SOLVE_VARIABLE_RESOLVED:
         case STREAM_EVENT_PROOF_STEP_APPLIED:
             return STREAM_COLOR_PURPLE; /* 紫色 */
-        case STREAM_EVENT_PRESET_REGISTER_START:
-        case STREAM_EVENT_PRESET_REGISTER_DONE:
-        case STREAM_EVENT_PRESET_LOOKUP:
-        case STREAM_EVENT_PRESET_INSTANTIATE:
-        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
-        case STREAM_EVENT_PRESET_MODULE_LOADED:
-            return STREAM_COLOR_TEAL; /* 青绿色 - 预设函数块系统 */
-        case STREAM_EVENT_PRESET_REGISTER_FAILED:
-            return STREAM_COLOR_RED; /* 红色 - 注册失败 */
-        case STREAM_EVENT_PRESET_VALIDATE:
-            return STREAM_COLOR_CYAN; /* 青色 - 验证 */
         default:
             return STREAM_COLOR_LIGHT_GRAY; /* 默认浅灰 */
     }

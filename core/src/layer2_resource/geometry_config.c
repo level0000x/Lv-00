@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geometry_config.c
  * @brief 几何计算可配置容差参数实现
  *

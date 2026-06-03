@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_category_theory_adv.c
  * @brief 范畴论进阶预设函数块模块 - 实现（v10.0 统一注册模式）
  *

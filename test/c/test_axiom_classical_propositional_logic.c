@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * @file test_axiom_classical_propositional_logic.c
  * @brief Classical Propositional Logic (Łukasiewicz P₂) Axiom Package Test
  */

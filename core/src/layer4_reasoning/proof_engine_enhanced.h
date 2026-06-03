@@ -144,7 +144,7 @@ typedef enum {
     CONTRADICTION_TYPE_TYPE_MISMATCH,   /**< 类型不匹配 */
     CONTRADICTION_TYPE_ARITHMETIC,      /**< 算术矛盾 */
     CONTRADICTION_TYPE_GEOMETRIC        /**< 几何矛盾 */
-} Lv00EngineContradictionType;
+} Lv00ContradictionType;
 
 /**
  * @brief 反证法路径节点
@@ -165,7 +165,7 @@ struct Lv00ContradictionPath {
     uint32_t node_count;                /**< 节点数量 */
     uint32_t node_capacity;             /**< 节点容量 */
 
-    Lv00EngineContradictionType type;         /**< 矛盾类型 */
+    Lv00ContradictionType type;         /**< 矛盾类型 */
     char contradiction_desc[512];       /**< 矛盾描述 */
 
     Lv00ProofTraceTree *trace_tree;     /**< 完整溯源树 */
@@ -400,7 +400,7 @@ uint32_t lv00_contradiction_path_add_node(Lv00ContradictionPath *path,
  */
 bool lv00_detect_contradiction(const ConstraintGraph *graph,
                                 const ProofNavigator *nav,
-                                Lv00EngineContradictionType *out_type,
+                                Lv00ContradictionType *out_type,
                                 char *out_desc);
 
 /**

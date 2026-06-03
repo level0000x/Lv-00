@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_invariant_type.c
  * @brief Implementation of geometric invariant types
  *

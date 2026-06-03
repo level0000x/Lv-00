@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_instantiate.c
  * @brief 函数块例化与捕获避免模块
  * @details 实现函数块的例化（beta-归约）、部分应用（柯里化），

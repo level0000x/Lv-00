@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_proposition.h
  * @brief 命题与证明基础类型定义
  *

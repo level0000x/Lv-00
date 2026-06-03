@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geometry_types.h
  * @brief 几何实体类型层次 —— 借鉴 SymPy Geometry + clifford flat array 存储
  *

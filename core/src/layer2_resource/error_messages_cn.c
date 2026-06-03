@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file error_messages_cn.c
  * @brief Lv-00 中文错误信息系统实现
  *

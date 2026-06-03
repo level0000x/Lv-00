@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file simd_ops.c
  * @brief SIMD向量运算库实现
  *

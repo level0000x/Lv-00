@@ -10,11 +10,6 @@
  *              预设几何和分析工具已提取到 utils/ 目录：
  *              - graphPresets.ts: 预设几何配置生成
  *              - graphAnalysis.ts: 分析结果格式化 + 合并操作工具
- *
- *              公共组件复用：
- *              - ConstraintModal: 统一的约束输入对话框
- *              - StatsRow: 统计信息键值对显示
- *              - Modal: 预设加载确认对话框
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
@@ -29,14 +24,38 @@ import {
   detectConflicts,
   findMergeCandidates,
 } from '@/utils/geometryAlgorithms';
-import ConstraintModal from '@/components/common/ConstraintModal';
-import type { ConstraintField } from '@/components/common/ConstraintModal';
-import StatsRow from '@/components/common/StatsRow';
-import Modal from '@/components/common/Modal';
 
 // ---- 提取的工具模块 / Extracted utility modules ----
 import { GRAPH_PRESETS, generatePresetGeometry } from './utils/graphPresets';
 import { formatDOF, formatTopoSort, formatGraphHash } from './utils/graphAnalysis';
+
+/**
+ * Simple inline selector component for choosing a point or segment.
+ * 简单的内联选择器组件，用于选择点或线段。
+ */
+const SelectorDropdown: React.FC<{
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: Array<{ value: string; label: string }>;
+}> = ({ label, value, onChange, options }) => (
+  <div className="input-row" style={{ marginBottom: 4 }}>
+    <label style={{ minWidth: 60, fontSize: 11 }}>{label}</label>
+    <select
+      className="input-field"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{ fontSize: 11 }}
+    >
+      <option value="">-- / 选择 --</option>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
 
 /**
  * GraphPanel - Graph module sidebar panel
@@ -66,7 +85,6 @@ const GraphPanel: React.FC = () => {
   const appendLog = useAppStore((s) => s.appendLog);
   const setOffset = useAppStore((s) => s.setOffset);
   const setScale = useAppStore((s) => s.setScale);
-  const showModal = useAppStore((s) => s.showModal);
 
   // ---- Input state / 输入状态 ----
   const [inputX, setInputX] = useState('');
@@ -78,13 +96,19 @@ const GraphPanel: React.FC = () => {
   /** 约束模态框类型 / Constraint modal type */
   type ConstraintModalType = 'incidence' | 'betweenness' | 'intersection' | 'containment' | null;
   const [constraintModal, setConstraintModal] = useState<ConstraintModalType>(null);
-
-  /** 约束对话框的统一值状态 / Unified value state for constraint modal */
-  const [constraintValues, setConstraintValues] = useState<Record<string, string>>({});
-
-  // ---- Preset confirm state / 预设确认对话框状态 ----
-  /** 待加载的预设 ID（非 null 时显示确认对话框）/ Pending preset ID (non-null shows confirm dialog) */
-  const [pendingPresetId, setPendingPresetId] = useState<string | null>(null);
+  // Incidence: select point + segment
+  const [incidencePointId, setIncidencePointId] = useState('');
+  const [incidenceSegmentId, setIncidenceSegmentId] = useState('');
+  // Betweenness: select 3 points
+  const [betweenA, setBetweenA] = useState('');
+  const [betweenB, setBetweenB] = useState('');
+  const [betweenC, setBetweenC] = useState('');
+  // Intersection: select 2 segments
+  const [intersectSeg1, setIntersectSeg1] = useState('');
+  const [intersectSeg2, setIntersectSeg2] = useState('');
+  // Containment: select inner + outer elements
+  const [containInner, setContainInner] = useState('');
+  const [containOuter, setContainOuter] = useState('');
 
   // ---- Analysis result state / 分析结果状态 ----
   const [mergeCandidates, setMergeCandidates] = useState<Array<{ a: number; b: number; dist: number }>>([]);
@@ -121,87 +145,16 @@ const GraphPanel: React.FC = () => {
     [segments, points],
   );
 
-  /** 包含约束的元素选项列表（点 + 线段）/ Combined element options for containment (points + segments) */
-  const elementOptions = useMemo(
-    () => [
-      ...pointOptions.map((o) => ({ ...o, label: `[Point] ${o.label}` })),
-      ...segmentOptions.map((o) => ({ ...o, label: `[Seg] ${o.label}` })),
-    ],
-    [pointOptions, segmentOptions],
-  );
-
-  // ================================================================
-  // Constraint modal helpers / 约束对话框辅助方法
-  // ================================================================
-
-  /**
-   * 根据约束类型获取对话框标题和字段定义
-   * Get modal title and field definitions based on constraint type
-   */
-  const getConstraintConfig = useCallback(
-    (type: ConstraintModalType): { title: string; fields: ConstraintField[] } | null => {
-      if (!type) return null;
-      switch (type) {
-        case 'incidence':
-          return {
-            title: 'INCIDENCE / 关联 (点在线上)',
-            fields: [
-              { label: 'Point / 点', name: 'point', options: pointOptions },
-              { label: 'Segment / 线段', name: 'segment', options: segmentOptions },
-            ],
-          };
-        case 'betweenness':
-          return {
-            title: 'BETWEENNESS / 之间 (B 介于 A 和 C 之间)',
-            fields: [
-              { label: 'A / 端点A', name: 'a', options: pointOptions },
-              { label: 'B / 中间点', name: 'b', options: pointOptions },
-              { label: 'C / 端点C', name: 'c', options: pointOptions },
-            ],
-          };
-        case 'intersection':
-          return {
-            title: 'INTERSECTION / 相交 (两线段相交，自动创建交点)',
-            fields: [
-              { label: 'Seg 1 / 线段1', name: 'seg1', options: segmentOptions },
-              { label: 'Seg 2 / 线段2', name: 'seg2', options: segmentOptions },
-            ],
-          };
-        case 'containment':
-          return {
-            title: 'CONTAINMENT / 包含 (内部元素包含于外部元素)',
-            fields: [
-              { label: 'Inner / 内部', name: 'inner', options: elementOptions },
-              { label: 'Outer / 外部', name: 'outer', options: elementOptions },
-            ],
-          };
-        default:
-          return null;
-      }
-    },
-    [pointOptions, segmentOptions, elementOptions],
-  );
-
-  /** 打开约束对话框，重置值状态 / Open constraint modal, reset value state */
-  const openConstraintModal = useCallback(
-    (type: ConstraintModalType) => {
-      setConstraintValues({});
-      setConstraintModal(type);
-    },
-    [],
-  );
-
-  /** 关闭约束对话框 / Close constraint modal */
-  const closeConstraintModal = useCallback(() => {
-    setConstraintModal(null);
-    setConstraintValues({});
-  }, []);
+  // Combined element options for containment (points + segments)
+  const elementOptions = [
+    ...pointOptions.map((o) => ({ ...o, label: `[Point] ${o.label}` })),
+    ...segmentOptions.map((o) => ({ ...o, label: `[Seg] ${o.label}` })),
+  ];
 
   // ================================================================
   // NODE OPS / 节点操作
   // ================================================================
 
-  /** 添加点到图中 / Add a point to the graph */
   const handleAddPoint = useCallback(() => {
     const x = parseFloat(inputX) || 0;
     const y = parseFloat(inputY) || 0;
@@ -212,7 +165,6 @@ const GraphPanel: React.FC = () => {
     setInputY('');
   }, [inputX, inputY, saveUndoState, addPoint, appendLog]);
 
-  /** 添加线段（连接前两个点）/ Add segment (connects first two points) */
   const handleAddSegment = useCallback(() => {
     if (points.length < 2) {
       addToast('warning', '需要至少两个点 / Need at least 2 points');
@@ -225,7 +177,6 @@ const GraphPanel: React.FC = () => {
     appendLog(`添加线段: P${p1.id} -> P${p2.id}`, 'info');
   }, [points, saveUndoState, addSegment, addToast, appendLog]);
 
-  /** 删除指定 ID 的节点 / Delete a node by ID */
   const handleDeleteNode = useCallback(() => {
     const id = parseInt(deleteNodeId, 10);
     if (isNaN(id)) {
@@ -238,7 +189,6 @@ const GraphPanel: React.FC = () => {
     setDeleteNodeId('');
   }, [deleteNodeId, saveUndoState, addToast, appendLog]);
 
-  /** 删除指定 ID 的约束 / Delete a constraint by ID */
   const handleDeleteConstraint = useCallback(() => {
     const id = parseInt(deleteConstraintId, 10);
     if (isNaN(id)) {
@@ -257,7 +207,6 @@ const GraphPanel: React.FC = () => {
     setDeleteConstraintId('');
   }, [deleteConstraintId, constraints, saveUndoState, setConstraints, addToast, appendLog]);
 
-  /** 清空所有几何数据和分析结果 / Clear all geometry data and analysis results */
   const handleClear = useCallback(() => {
     clearAll();
     setMergeCandidates([]);
@@ -272,10 +221,9 @@ const GraphPanel: React.FC = () => {
   // CONSTRAINT OPERATIONS / 约束操作
   // ================================================================
 
-  /** 确认添加关联约束 / Confirm adding incidence constraint */
   const handleIncidence = useCallback(() => {
-    const ptId = parseInt(constraintValues.point ?? '', 10);
-    const segId = parseInt(constraintValues.segment ?? '', 10);
+    const ptId = parseInt(incidencePointId, 10);
+    const segId = parseInt(incidenceSegmentId, 10);
     if (isNaN(ptId) || isNaN(segId)) {
       addToast('warning', '请选择点和线段 / Select a point and a segment');
       return;
@@ -289,14 +237,15 @@ const GraphPanel: React.FC = () => {
     addConstraint(newConstraint);
     appendLog(`添加关联约束: P${ptId} 在 S${segId} 上 / Incidence: P${ptId} on S${segId}`, 'info');
     addToast('success', `关联约束已添加 / Incidence added: P${ptId} on S${segId}`);
-    closeConstraintModal();
-  }, [constraintValues, saveUndoState, addConstraint, addToast, appendLog, closeConstraintModal]);
+    setConstraintModal(null);
+    setIncidencePointId('');
+    setIncidenceSegmentId('');
+  }, [incidencePointId, incidenceSegmentId, saveUndoState, addConstraint, addToast, appendLog]);
 
-  /** 确认添加介于约束 / Confirm adding betweenness constraint */
   const handleBetweenness = useCallback(() => {
-    const aId = parseInt(constraintValues.a ?? '', 10);
-    const bId = parseInt(constraintValues.b ?? '', 10);
-    const cId = parseInt(constraintValues.c ?? '', 10);
+    const aId = parseInt(betweenA, 10);
+    const bId = parseInt(betweenB, 10);
+    const cId = parseInt(betweenC, 10);
     if (isNaN(aId) || isNaN(bId) || isNaN(cId)) {
       addToast('warning', '请选择三个点 / Select three points (A, B, C)');
       return;
@@ -314,13 +263,15 @@ const GraphPanel: React.FC = () => {
     addConstraint(newConstraint);
     appendLog(`添加介于约束: P${bId} 介于 P${aId} 和 P${cId} 之间 / Betweenness: P${bId} between P${aId} and P${cId}`, 'info');
     addToast('success', `介于约束已添加 / Betweenness added`);
-    closeConstraintModal();
-  }, [constraintValues, saveUndoState, addConstraint, addToast, appendLog, closeConstraintModal]);
+    setConstraintModal(null);
+    setBetweenA('');
+    setBetweenB('');
+    setBetweenC('');
+  }, [betweenA, betweenB, betweenC, saveUndoState, addConstraint, addToast, appendLog]);
 
-  /** 确认添加相交约束（自动计算交点并创建）/ Confirm adding intersection constraint (auto-computes and creates intersection point) */
   const handleIntersection = useCallback(() => {
-    const s1Id = parseInt(constraintValues.seg1 ?? '', 10);
-    const s2Id = parseInt(constraintValues.seg2 ?? '', 10);
+    const s1Id = parseInt(intersectSeg1, 10);
+    const s2Id = parseInt(intersectSeg2, 10);
     if (isNaN(s1Id) || isNaN(s2Id)) {
       addToast('warning', '请选择两条线段 / Select two segments');
       return;
@@ -347,7 +298,6 @@ const GraphPanel: React.FC = () => {
       return;
     }
 
-    /** 计算两线段的交点 / Calculate intersection of two segments */
     const intersection = calculateIntersection(
       { p1, p2 },
       { p1: p3, p2: p4 },
@@ -360,11 +310,11 @@ const GraphPanel: React.FC = () => {
 
     saveUndoState();
 
-    // 创建交点 / Create the intersection point
+    // Create the intersection point
     const newPointId = generateUniqueId();
     addPoint({ id: newPointId, x: intersection.x, y: intersection.y });
 
-    // 添加相交约束 / Add the intersection constraint
+    // Add the intersection constraint
     const newConstraint: Constraint = {
       id: generateUniqueId(),
       type: 'intersection',
@@ -377,13 +327,14 @@ const GraphPanel: React.FC = () => {
       'info',
     );
     addToast('success', `相交约束已添加，交点 P${newPointId} / Intersection added`);
-    closeConstraintModal();
-  }, [constraintValues, segments, points, saveUndoState, addPoint, addConstraint, addToast, appendLog, closeConstraintModal]);
+    setConstraintModal(null);
+    setIntersectSeg1('');
+    setIntersectSeg2('');
+  }, [intersectSeg1, intersectSeg2, segments, points, saveUndoState, addPoint, addConstraint, addToast, appendLog]);
 
-  /** 确认添加包含约束 / Confirm adding containment constraint */
   const handleContainment = useCallback(() => {
-    const innerId = parseInt(constraintValues.inner ?? '', 10);
-    const outerId = parseInt(constraintValues.outer ?? '', 10);
+    const innerId = parseInt(containInner, 10);
+    const outerId = parseInt(containOuter, 10);
     if (isNaN(innerId) || isNaN(outerId)) {
       addToast('warning', '请选择内部和外部元素 / Select inner and outer elements');
       return;
@@ -401,35 +352,15 @@ const GraphPanel: React.FC = () => {
     addConstraint(newConstraint);
     appendLog(`添加包含约束: ${innerId} 包含于 ${outerId} / Containment: ${innerId} in ${outerId}`, 'info');
     addToast('success', `包含约束已添加 / Containment added`);
-    closeConstraintModal();
-  }, [constraintValues, saveUndoState, addConstraint, addToast, appendLog, closeConstraintModal]);
-
-  /**
-   * 根据当前约束对话框类型，分发到对应的确认处理函数
-   * Dispatch to the appropriate confirm handler based on current constraint modal type
-   */
-  const handleConstraintConfirm = useCallback(() => {
-    switch (constraintModal) {
-      case 'incidence':
-        handleIncidence();
-        break;
-      case 'betweenness':
-        handleBetweenness();
-        break;
-      case 'intersection':
-        handleIntersection();
-        break;
-      case 'containment':
-        handleContainment();
-        break;
-    }
-  }, [constraintModal, handleIncidence, handleBetweenness, handleIntersection, handleContainment]);
+    setConstraintModal(null);
+    setContainInner('');
+    setContainOuter('');
+  }, [containInner, containOuter, saveUndoState, addConstraint, addToast, appendLog]);
 
   // ================================================================
   // ANALYSIS OPERATIONS / 分析操作
   // ================================================================
 
-  /** 归一化图：合并距离过近的点 / Normalize graph: merge points that are too close */
   const handleNormalize = useCallback(() => {
     if (points.length === 0) {
       addToast('warning', '没有点可以归一化 / No points to normalize');
@@ -445,7 +376,6 @@ const GraphPanel: React.FC = () => {
     addToast('success', `归一化完成，合并 ${result.mergedCount} 个点 / Normalized: ${result.mergedCount} merges`);
   }, [points, segments, constraints, saveUndoState, setPoints, setSegments, setConstraints, addToast, appendLog]);
 
-  /** 查找可合并的候选点对 / Find merge candidate point pairs */
   const handleFindMergeCandidates = useCallback(() => {
     if (points.length < 2) {
       addToast('warning', '需要至少两个点 / Need at least 2 points');
@@ -462,16 +392,15 @@ const GraphPanel: React.FC = () => {
     }
   }, [points, addToast, appendLog]);
 
-  /** 批准合并两个点 / Approve merging two points */
   const handleApproveMerge = useCallback(
     (a: number, b: number) => {
       saveUndoState();
       const keepId = Math.min(a, b);
       const removeId = Math.max(a, b);
 
-      // 移除 ID 较大的点 / Remove the point with higher ID
+      // Remove the point with higher ID
       const newPoints = points.filter((p) => p.id !== removeId);
-      // 更新引用被移除点的线段 / Update segments referencing the removed point
+      // Update segments referencing the removed point
       const newSegments = segments
         .map((s) => ({
           ...s,
@@ -479,7 +408,7 @@ const GraphPanel: React.FC = () => {
           p2: s.p2 === removeId ? keepId : s.p2,
         }))
         .filter((s) => s.p1 !== s.p2);
-      // 更新约束中的引用 / Update constraint references
+      // Update constraints
       const newConstraints = constraints.map((c) => ({
         ...c,
         args: c.args.map((arg) => (arg === removeId ? keepId : arg)),
@@ -489,7 +418,7 @@ const GraphPanel: React.FC = () => {
       setSegments(newSegments);
       setConstraints(newConstraints);
 
-      // 从候选列表中移除已处理的条目 / Remove processed entry from candidates list
+      // Remove from candidates list
       setMergeCandidates((prev) => prev.filter((c) => !(c.a === a && c.b === b)));
 
       appendLog(`合并: P${removeId} -> P${keepId} / Merged: P${removeId} into P${keepId}`, 'info');
@@ -498,12 +427,10 @@ const GraphPanel: React.FC = () => {
     [points, segments, constraints, saveUndoState, setPoints, setSegments, setConstraints, addToast, appendLog],
   );
 
-  /** 跳过合并候选 / Skip a merge candidate */
   const handleRejectMerge = useCallback((a: number, b: number) => {
     setMergeCandidates((prev) => prev.filter((c) => !(c.a === a && c.b === b)));
   }, []);
 
-  /** 检测冗余约束 / Detect redundant constraints */
   const handleDetectRedundant = useCallback(() => {
     if (constraints.length === 0) {
       addToast('warning', '没有约束可检测 / No constraints to check');
@@ -520,7 +447,6 @@ const GraphPanel: React.FC = () => {
     }
   }, [constraints, addToast, appendLog]);
 
-  /** 移除单个冗余约束 / Remove a single redundant constraint */
   const handleRemoveRedundant = useCallback(
     (id: number) => {
       saveUndoState();
@@ -533,7 +459,6 @@ const GraphPanel: React.FC = () => {
     [constraints, saveUndoState, setConstraints, addToast, appendLog],
   );
 
-  /** 检测约束冲突 / Detect constraint conflicts */
   const handleDetectConflicts = useCallback(() => {
     if (constraints.length === 0) {
       addToast('warning', '没有约束可检测 / No constraints to check');
@@ -550,7 +475,6 @@ const GraphPanel: React.FC = () => {
     }
   }, [constraints, addToast, appendLog]);
 
-  /** 计算并显示自由度 / Calculate and display degrees of freedom */
   const handleDOF = useCallback(() => {
     const result = formatDOF(points, constraints);
     setAnalysisResult(result);
@@ -558,7 +482,6 @@ const GraphPanel: React.FC = () => {
     addToast('info', result);
   }, [points, constraints, addToast, appendLog]);
 
-  /** 执行拓扑排序 / Perform topological sort */
   const handleTopoSort = useCallback(() => {
     if (constraints.length === 0) {
       addToast('warning', '没有约束可排序 / No constraints to sort');
@@ -570,7 +493,6 @@ const GraphPanel: React.FC = () => {
     addToast('info', result);
   }, [constraints, addToast, appendLog]);
 
-  /** 计算图哈希 / Compute graph hash */
   const handleGraphHash = useCallback(() => {
     const result = formatGraphHash(points, segments, constraints);
     setAnalysisResult(result);
@@ -582,34 +504,16 @@ const GraphPanel: React.FC = () => {
   // PRESETS / 预设
   // ================================================================
 
-  /**
-   * 请求加载预设：如果当前有几何数据，先弹出确认对话框
-   * Request loading a preset: if geometry exists, show confirmation dialog first
-   */
   const handleLoadPreset = useCallback(
     (presetId: string) => {
       const hasGeometry = points.length > 0 || segments.length > 0;
       if (hasGeometry) {
-        // 使用 Modal 替代 window.confirm / Use Modal instead of window.confirm
-        setPendingPresetId(presetId);
-        showModal({
-          id: 'preset-confirm',
-          title: 'LOAD PRESET / 加载预设',
-          content: '加载预设将清除当前几何数据，是否继续？\nLoading preset will clear current geometry. Continue?',
-        });
-      } else {
-        doLoadPreset(presetId);
+        const confirmed = window.confirm(
+          '加载预设将清除当前几何数据，是否继续？\nLoading preset will clear current geometry. Continue?',
+        );
+        if (!confirmed) return;
       }
-    },
-    [points, segments, showModal],
-  );
 
-  /**
-   * 实际执行预设加载（清空当前数据，生成预设几何）
-   * Actually execute preset loading (clear current data, generate preset geometry)
-   */
-  const doLoadPreset = useCallback(
-    (presetId: string) => {
       saveUndoState();
       clearAll();
       setMergeCandidates([]);
@@ -625,7 +529,7 @@ const GraphPanel: React.FC = () => {
         return;
       }
 
-      // 应用所有新几何数据 / Apply all new geometry data
+      // 应用所有新几何数据
       for (const p of presetData.points) addPoint(p);
       for (const s of presetData.segments) addSegment(s);
       for (const c of presetData.constraints) addConstraint(c);
@@ -637,17 +541,7 @@ const GraphPanel: React.FC = () => {
       appendLog(`加载预设: ${presetId} / Preset loaded: ${presetId}`, 'info');
       addToast('success', `预设已加载 / Preset loaded: ${presetId}`);
     },
-    [saveUndoState, clearAll, addPoint, addSegment, addConstraint, setOffset, setScale, addToast, appendLog],
-  );
-
-  // ================================================================
-  // Constraint modal config / 约束对话框配置（缓存）
-  // ================================================================
-
-  /** 当前约束对话框的配置（标题 + 字段）/ Current constraint modal config (title + fields) */
-  const constraintConfig = useMemo(
-    () => getConstraintConfig(constraintModal),
-    [constraintModal, getConstraintConfig],
+    [points, segments, saveUndoState, clearAll, addPoint, addSegment, addConstraint, setOffset, setScale, addToast, appendLog],
   );
 
   // ================================================================
@@ -656,7 +550,7 @@ const GraphPanel: React.FC = () => {
 
   return (
     <>
-      {/* NODE OPS / 节点操作 */}
+      {/* NODE OPS */}
       <Panel title="NODE OPS / 节点操作" panelId="graph-nodes">
         <div className="input-row">
           <label>X</label>
@@ -714,37 +608,145 @@ const GraphPanel: React.FC = () => {
         </button>
       </Panel>
 
-      {/* CONSTRAINTS / 约束 */}
+      {/* CONSTRAINTS */}
       <Panel title="CONSTRAINTS / 约束" panelId="graph-constraints">
-        <button className="btn" onClick={() => openConstraintModal('incidence')}>
+        <button className="btn" onClick={() => setConstraintModal('incidence')}>
           INCIDENCE / 关联
         </button>
-        <button className="btn" onClick={() => openConstraintModal('betweenness')}>
+        <button className="btn" onClick={() => setConstraintModal('betweenness')}>
           BETWEENNESS / 之间
         </button>
-        <button className="btn" onClick={() => openConstraintModal('intersection')}>
+        <button className="btn" onClick={() => setConstraintModal('intersection')}>
           INTERSECTION / 相交
         </button>
-        <button className="btn" onClick={() => openConstraintModal('containment')}>
+        <button className="btn" onClick={() => setConstraintModal('containment')}>
           CONTAINMENT / 包含
         </button>
 
-        {/* 统一的约束对话框 / Unified constraint modal */}
-        {constraintConfig && (
-          <ConstraintModal
-            title={constraintConfig.title}
-            fields={constraintConfig.fields}
-            values={constraintValues}
-            onChange={(name, value) =>
-              setConstraintValues((prev) => ({ ...prev, [name]: value }))
-            }
-            onConfirm={handleConstraintConfirm}
-            onCancel={closeConstraintModal}
-          />
+        {/* Constraint Modal: Incidence */}
+        {constraintModal === 'incidence' && (
+          <div style={{ marginTop: 6, padding: 8, border: '1px solid var(--border)', borderRadius: 4 }}>
+            <div style={{ fontSize: 11, marginBottom: 4, fontWeight: 600 }}>
+              INCIDENCE / 关联 (点在线上)
+            </div>
+            <SelectorDropdown
+              label="Point / 点"
+              value={incidencePointId}
+              onChange={setIncidencePointId}
+              options={pointOptions}
+            />
+            <SelectorDropdown
+              label="Segment / 线段"
+              value={incidenceSegmentId}
+              onChange={setIncidenceSegmentId}
+              options={segmentOptions}
+            />
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button className="btn btn-accent" onClick={handleIncidence} style={{ flex: 1, fontSize: 11 }}>
+                OK / 确认
+              </button>
+              <button className="btn" onClick={() => setConstraintModal(null)} style={{ flex: 1, fontSize: 11 }}>
+                CANCEL / 取消
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Constraint Modal: Betweenness */}
+        {constraintModal === 'betweenness' && (
+          <div style={{ marginTop: 6, padding: 8, border: '1px solid var(--border)', borderRadius: 4 }}>
+            <div style={{ fontSize: 11, marginBottom: 4, fontWeight: 600 }}>
+              BETWEENNESS / 之间 (B 介于 A 和 C 之间)
+            </div>
+            <SelectorDropdown
+              label="A / 端点A"
+              value={betweenA}
+              onChange={setBetweenA}
+              options={pointOptions}
+            />
+            <SelectorDropdown
+              label="B / 中间点"
+              value={betweenB}
+              onChange={setBetweenB}
+              options={pointOptions}
+            />
+            <SelectorDropdown
+              label="C / 端点C"
+              value={betweenC}
+              onChange={setBetweenC}
+              options={pointOptions}
+            />
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button className="btn btn-accent" onClick={handleBetweenness} style={{ flex: 1, fontSize: 11 }}>
+                OK / 确认
+              </button>
+              <button className="btn" onClick={() => setConstraintModal(null)} style={{ flex: 1, fontSize: 11 }}>
+                CANCEL / 取消
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Constraint Modal: Intersection */}
+        {constraintModal === 'intersection' && (
+          <div style={{ marginTop: 6, padding: 8, border: '1px solid var(--border)', borderRadius: 4 }}>
+            <div style={{ fontSize: 11, marginBottom: 4, fontWeight: 600 }}>
+              INTERSECTION / 相交 (两线段相交，自动创建交点)
+            </div>
+            <SelectorDropdown
+              label="Seg 1 / 线段1"
+              value={intersectSeg1}
+              onChange={setIntersectSeg1}
+              options={segmentOptions}
+            />
+            <SelectorDropdown
+              label="Seg 2 / 线段2"
+              value={intersectSeg2}
+              onChange={setIntersectSeg2}
+              options={segmentOptions}
+            />
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button className="btn btn-accent" onClick={handleIntersection} style={{ flex: 1, fontSize: 11 }}>
+                OK / 确认
+              </button>
+              <button className="btn" onClick={() => setConstraintModal(null)} style={{ flex: 1, fontSize: 11 }}>
+                CANCEL / 取消
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Constraint Modal: Containment */}
+        {constraintModal === 'containment' && (
+          <div style={{ marginTop: 6, padding: 8, border: '1px solid var(--border)', borderRadius: 4 }}>
+            <div style={{ fontSize: 11, marginBottom: 4, fontWeight: 600 }}>
+              CONTAINMENT / 包含 (内部元素包含于外部元素)
+            </div>
+            <SelectorDropdown
+              label="Inner / 内部"
+              value={containInner}
+              onChange={setContainInner}
+              options={elementOptions}
+            />
+            <SelectorDropdown
+              label="Outer / 外部"
+              value={containOuter}
+              onChange={setContainOuter}
+              options={elementOptions}
+            />
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button className="btn btn-accent" onClick={handleContainment} style={{ flex: 1, fontSize: 11 }}>
+                OK / 确认
+              </button>
+              <button className="btn" onClick={() => setConstraintModal(null)} style={{ flex: 1, fontSize: 11 }}>
+                CANCEL / 取消
+              </button>
+            </div>
+          </div>
         )}
       </Panel>
 
-      {/* ANALYSIS / 分析 */}
+      {/* ANALYSIS */}
       <Panel title="ANALYSIS / 分析" panelId="graph-analysis">
         <button className="btn" onClick={handleNormalize}>
           NORMALIZE / 归一化
@@ -769,38 +771,50 @@ const GraphPanel: React.FC = () => {
           GRAPH HASH / 图哈希
         </button>
 
-        {/* 分析结果显示区域 / Analysis result display */}
+        {/* Analysis result display */}
         {analysisResult && (
-          <StatsRow
-            className="gp-analysis-result"
-            items={[{ label: 'RESULT / 结果', value: analysisResult }]}
-          />
+          <div className="info-box" style={{ marginTop: 6 }}>
+            <div className="info-row">
+              <span className="info-label">RESULT / 结果</span>
+              <span className="info-value" style={{ fontSize: 10, wordBreak: 'break-all' }}>
+                {analysisResult}
+              </span>
+            </div>
+          </div>
         )}
 
-        {/* 合并候选列表 / Merge candidates list */}
+        {/* Merge candidates display */}
         {mergeCandidates.length > 0 && (
-          <div className="gp-list-container">
-            <div className="gp-list-title">
+          <div style={{ marginTop: 6, fontSize: 11 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
               MERGE CANDIDATES / 合并候选 ({mergeCandidates.length})
             </div>
             {mergeCandidates.map((c) => (
               <div
                 key={`${c.a}-${c.b}`}
-                className="gp-list-item"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '2px 0',
+                  borderBottom: '1px solid var(--border)',
+                }}
               >
                 <span>
                   P{c.a} -&gt; P{c.b} (d={c.dist.toFixed(3)})
                 </span>
-                <div className="gp-list-actions">
+                <div style={{ display: 'flex', gap: 2 }}>
                   <button
-                    className="btn btn-accent gp-list-btn"
+                    className="btn btn-accent"
                     onClick={() => handleApproveMerge(c.a, c.b)}
+                    style={{ fontSize: 10, padding: '1px 6px' }}
                   >
                     Merge
                   </button>
                   <button
-                    className="btn gp-list-btn"
+                    className="btn"
                     onClick={() => handleRejectMerge(c.a, c.b)}
+                    style={{ fontSize: 10, padding: '1px 6px' }}
                   >
                     Skip
                   </button>
@@ -810,41 +824,49 @@ const GraphPanel: React.FC = () => {
           </div>
         )}
 
-        {/* 冗余约束列表 / Redundant constraints list */}
+        {/* Redundant constraints display */}
         {redundantIds.length > 0 && (
-          <div className="gp-list-container">
-            <div className="gp-list-title">
+          <div style={{ marginTop: 6, fontSize: 11 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
               REDUNDANT / 冗余 ({redundantIds.length})
             </div>
             {redundantIds.map((id) => (
               <div
                 key={id}
-                className="gp-list-item"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '2px 0',
+                  borderBottom: '1px solid var(--border)',
+                }}
               >
                 <span>C{id}</span>
-                <div className="gp-list-actions">
-                  <button
-                    className="btn gp-list-btn"
-                    onClick={() => handleRemoveRedundant(id)}
-                  >
-                    Remove
-                  </button>
-                </div>
+                <button
+                  className="btn"
+                  onClick={() => handleRemoveRedundant(id)}
+                  style={{ fontSize: 10, padding: '1px 6px' }}
+                >
+                  Remove
+                </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* 冲突对列表 / Conflict pairs list */}
+        {/* Conflict pairs display */}
         {conflictPairs.length > 0 && (
-          <div className="gp-list-container">
-            <div className="gp-list-title">
+          <div style={{ marginTop: 6, fontSize: 11 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
               CONFLICTS / 冲突 ({conflictPairs.length})
             </div>
             {conflictPairs.map((cp, idx) => (
               <div
                 key={idx}
-                className="gp-conflict-item"
+                style={{
+                  padding: '2px 0',
+                  borderBottom: '1px solid var(--border)',
+                }}
               >
                 <span>C{cp.c1} -&gt; C{cp.c2}: {cp.reason}</span>
               </div>
@@ -853,19 +875,29 @@ const GraphPanel: React.FC = () => {
         )}
       </Panel>
 
-      {/* STATISTICS / 统计 */}
+      {/* STATISTICS */}
       <Panel title="STATISTICS / 统计" panelId="graph-stats">
-        <StatsRow
-          items={[
-            { label: 'NODES / 节点数', value: points.length },
-            { label: 'SEGMENTS / 线段数', value: segments.length },
-            { label: 'CONSTRAINTS / 约束数', value: constraints.length },
-            { label: 'MERGED / 已合并', value: mergedCount },
-          ]}
-        />
+        <div className="info-box">
+          <div className="info-row">
+            <span className="info-label">NODES / 节点数</span>
+            <span className="info-value">{points.length}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">SEGMENTS / 线段数</span>
+            <span className="info-value">{segments.length}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">CONSTRAINTS / 约束数</span>
+            <span className="info-value">{constraints.length}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">MERGED / 已合并</span>
+            <span className="info-value">{mergedCount}</span>
+          </div>
+        </div>
       </Panel>
 
-      {/* PRESETS / 预设 */}
+      {/* PRESETS */}
       <Panel title="PRESETS / 预设" panelId="graph-presets">
         <ul className="examples-list">
           {GRAPH_PRESETS.map((preset) => (
@@ -880,33 +912,12 @@ const GraphPanel: React.FC = () => {
         </ul>
       </Panel>
 
-      {/* CLEAR / 清空 */}
+      {/* CLEAR */}
       <Panel title="" panelId="graph-clear">
         <button className="btn" onClick={handleClear}>
           CLEAR ALL / 清空
         </button>
       </Panel>
-
-      {/* 预设加载确认对话框 / Preset load confirmation modal */}
-      <Modal
-        id="preset-confirm"
-        title="LOAD PRESET / 加载预设"
-        onConfirm={() => {
-          if (pendingPresetId) {
-            doLoadPreset(pendingPresetId);
-          }
-          setPendingPresetId(null);
-        }}
-        onCancel={() => {
-          setPendingPresetId(null);
-        }}
-        confirmLabel="OK / 确认"
-        cancelLabel="CANCEL / 取消"
-        danger
-      >
-        加载预设将清除当前几何数据，是否继续？
-        {'\n'}Loading preset will clear current geometry. Continue?
-      </Modal>
     </>
   );
 };

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_widget.c
  * @brief 证明交互可视化组件实现 —— 借鉴 ProofWidgets4 的 React 组件嵌入证明环境设计
  *

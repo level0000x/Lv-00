@@ -1,6 +1,6 @@
 {
   "name": "lv00",
-  "version": "3.5.0",
+  "version": "3.4.0",
   "description": "Lv-00 几何元语言 —— 将几何构造、计算程序、一阶逻辑证明统一于同一语法体系的理论数学研究平台",
   "private": true,
   "scripts": {

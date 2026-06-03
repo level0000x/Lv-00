@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebraic_number.h
  * @brief 代数数域封装 —— 有理数、二次代数数、区间运算、多项式系统
  *

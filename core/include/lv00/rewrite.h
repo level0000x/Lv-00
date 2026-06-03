@@ -15,8 +15,8 @@
  *   - rewrite_num_optimize                         — Herbie 风格数值优化
  *
  * 使用示例：
- *   RewriteRule *rule = rewrite_rule_create("simplify", pattern, replacement, 1);
- *   RewriteMatch *match = find_rewrite_match(graph, rule, false);
+ LV00_PUBLIC_API *   RewriteRule *rule = rewrite_rule_create("simplify", pattern, replacement, 1);
+ LV00_PUBLIC_API *   RewriteMatch *match = find_rewrite_match(graph, rule, false);
  *   if (match) { apply_rewrite(graph, rule, match); }
  *
  * ======================================================================== */
@@ -39,10 +39,6 @@ extern "C" {
 #include "constraint_graph.h"
 #include "graph_hash.h"
 #include "stream.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 /**
  * @brief 设置重写引擎的流式输出上下文

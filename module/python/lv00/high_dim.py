@@ -172,7 +172,7 @@ class HighDimManager:
 
         参数：
             block_id: 函数块 ID
-            preset: HighDimProjectionPreset 对象或底层 C 指针
+            preset: HighDimProjectionPreset 对象或底��� C 指针
 
         返回：
             int: 预设索引，负值表示失败

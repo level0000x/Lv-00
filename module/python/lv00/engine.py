@@ -1,72 +1,29 @@
 """
 Lv-00 引擎模块
-==============
 
-模块功能概述：
-    提供 Lv-00 主引擎的高级 Python 接口，是系统的核心协调层。
-    引擎负责工作流编排、模块/公理加载、函数打包与实例化、重写与求解协作、
-    位电路跳闸处理、冻结点快照回滚以及合一检查（构造与命题匹配）等操作。
-    本模块封装了底层 C 引擎（_LV00Engine）的全部功能，通过 ctypes 进行交互。
-
-主要类和异常：
-    - Engine: 主引擎类，协调所有子系统的工作，支持上下文管理器
-    - EngineError: 引擎操作错误基类
-    - EngineMemoryError: 内存不足错误
-    - EngineStateError: 引擎状态错误（未初始化、已销毁等）
-    - EngineConflictError: 约束冲突错误
-    - EngineModuleError: 模块/公理包加载错误
-
-使用示例：
-    >>> from lv00.engine import Engine
-    >>>
-    >>> # 基本用法：创建引擎并加载模块
-    >>> engine = Engine()
-    >>> engine.load_module("my_module.lv00")
-    >>> engine.load_axiom_package("geometry_axioms.lv00")
-    >>> result = engine.solve()
-    >>>
-    >>> # 使用上下文管理器确保资源释放
-    >>> with Engine() as engine:
-    ...     engine.load_module("basic_geometry.lv00")
-    ...     result = engine.solve()
-    ...     # 离开 with 块后自动释放引擎资源
-    >>>
-    >>> # 冻结点快照与回滚
-    >>> engine.freeze_point("P")
-    >>> # ... 执行可能失败的操作 ...
-    >>> engine.rollback_to_frozen("P")
-
-与 C 库的绑定关系：
-    - Engine 类持有 _LV00Engine (ctypes 指针) ↔ C 层 LV00Engine* 不透明句柄
-    - 引擎状态常量（ENGINE_OK, ENGINE_OUT_OF_MEMORY 等）直接映射 C 层枚举值
-    - 求解状态常量（ENGINE_SOLVE_OK, ENGINE_SOLVE_CONFLICT 等）映射 C 层求解结果
-    - 重写相关常量（UNIFY_OK, UNIFY_FAILED 等）映射 C 层合一检查结果
-    - 所有 C 资源通过 __del__ 和 __exit__ 自动释放
+提供 Lv-00 主引擎的高级 Python 接口，用于：
+    - 工作流编排
+    - 模块/公理加载
+    - 函数打包与实例化
+    - 重写与求解协作
+    - 位电路跳闸处理
+    - 冻结点快照回滚
+    - 合一检查（构造与命题匹配）
 
 设计原则：
-    1. 资源安全：支持上下文管理器，确保 C 资源正确释放
+    1. 资源安全：支持上下文管理器，确保资源正确释放
     2. 错误处理：完整的异常层次结构，清晰的错误消息
     3. 类型安全：完整的类型提示和参数验证
     4. 可扩展性：支持自定义模块和公理包加载
-
-注意事项：
-    - Engine 实例不是线程安全的，多线程场景需外部同步
-    - 引擎销毁后所有内部指针失效，不应再调用任何方法
-    - load_module / load_axiom_package 的文件路径需为 UTF-8 编码
-    - solve() 可能因约束冲突抛出 EngineConflictError，调用者应妥善处理
 
 版本：3.3.0
 作者：Lv-00 开发团队
 """
 
-# 【优化】统一使用 Python 3.10+ 现代类型注解风格
-# 如需兼容旧版 Python，可在文件顶部添加 `from __future__ import annotations`
-from __future__ import annotations
-
 import ctypes
 import logging
 import os
-from typing import Any, Callable, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .core import Lv00BaseError
 
@@ -201,12 +158,7 @@ class Engine:
         """
         return self
 
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[Any]
-    ) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """
         上下文管理器出口，自动释放引擎资源。
 

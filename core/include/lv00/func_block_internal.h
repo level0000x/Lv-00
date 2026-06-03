@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_internal.h
  * @brief 函数块模块内部共享头文件
  *

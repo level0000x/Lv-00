@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file solver_core.c
  * @brief CDCL SAT 求解器核心实现 —— 借鉴 CaDiCaL 的 CDCL 极简内核
  *

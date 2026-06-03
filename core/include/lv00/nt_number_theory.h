@@ -10,24 +10,18 @@
  * @author Lv-00 Project
  * @version 3.3.0
  */
-
 #ifndef LV00_NT_NUMBER_THEORY_H
 #define LV00_NT_NUMBER_THEORY_H
-
 #include "lv00.h"
-
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /* ============================================================
  * Types
  * ============================================================ */
-
 /**
  * @brief Modular arithmetic context
  *
@@ -38,11 +32,9 @@ typedef struct Lv00ModContext {
     mpz_t modulus;   /**< The modulus (must be > 0) */
     int   is_prime;  /**< Non-zero if modulus is known to be prime */
 } Lv00ModContext;
-
 /* ============================================================
  * Lifecycle
  * ============================================================ */
-
 /**
  * @brief Initialize a modular context
  *
@@ -52,7 +44,6 @@ typedef struct Lv00ModContext {
  * @param ctx  Pointer to context to initialize
  */
 LV00_PUBLIC_API void nt_mod_context_init(Lv00ModContext *ctx);
-
 /**
  * @brief Set the modulus of a modular context
  *
@@ -64,18 +55,15 @@ LV00_PUBLIC_API void nt_mod_context_init(Lv00ModContext *ctx);
  * @param modulus  The new modulus (must be > 0)
  */
 LV00_PUBLIC_API void nt_mod_context_set(Lv00ModContext *ctx, const mpz_t modulus);
-
 /**
  * @brief Release resources held by a modular context
  *
  * @param ctx  Pointer to context to clear
  */
 LV00_PUBLIC_API void nt_mod_context_clear(Lv00ModContext *ctx);
-
 /* ============================================================
  * Modular arithmetic
  * ============================================================ */
-
 /**
  * @brief Modular addition: (a + b) mod n
  *
@@ -86,7 +74,6 @@ LV00_PUBLIC_API void nt_mod_context_clear(Lv00ModContext *ctx);
  */
 LV00_PUBLIC_API void nt_mod_add(mpz_t result, const Lv00ModContext *ctx,
                                 const mpz_t a, const mpz_t b);
-
 /**
  * @brief Modular multiplication: (a * b) mod n
  *
@@ -97,7 +84,6 @@ LV00_PUBLIC_API void nt_mod_add(mpz_t result, const Lv00ModContext *ctx,
  */
 LV00_PUBLIC_API void nt_mod_mul(mpz_t result, const Lv00ModContext *ctx,
                                 const mpz_t a, const mpz_t b);
-
 /**
  * @brief Modular inverse: a^(-1) mod n
  *
@@ -111,7 +97,6 @@ LV00_PUBLIC_API void nt_mod_mul(mpz_t result, const Lv00ModContext *ctx,
  */
 LV00_PUBLIC_API int nt_mod_inv(mpz_t result, const Lv00ModContext *ctx,
                                const mpz_t a);
-
 /**
  * @brief Modular exponentiation: base^exp mod n
  *
@@ -124,11 +109,9 @@ LV00_PUBLIC_API int nt_mod_inv(mpz_t result, const Lv00ModContext *ctx,
  */
 LV00_PUBLIC_API void nt_mod_pow(mpz_t result, const Lv00ModContext *ctx,
                                 const mpz_t base, const mpz_t exp);
-
 /* ============================================================
  * GCD and LCM
  * ============================================================ */
-
 /**
  * @brief Greatest common divisor: gcd(a, b)
  *
@@ -137,7 +120,6 @@ LV00_PUBLIC_API void nt_mod_pow(mpz_t result, const Lv00ModContext *ctx,
  * @param b       Second operand
  */
 LV00_PUBLIC_API void nt_gcd(mpz_t result, const mpz_t a, const mpz_t b);
-
 /**
  * @brief Least common multiple: lcm(a, b)
  *
@@ -148,11 +130,9 @@ LV00_PUBLIC_API void nt_gcd(mpz_t result, const mpz_t a, const mpz_t b);
  * @param b       Second operand
  */
 LV00_PUBLIC_API void nt_lcm(mpz_t result, const mpz_t a, const mpz_t b);
-
 /* ============================================================
  * Primality testing
  * ============================================================ */
-
 /**
  * @brief Miller-Rabin probabilistic primality test
  *
@@ -166,7 +146,6 @@ LV00_PUBLIC_API void nt_lcm(mpz_t result, const mpz_t a, const mpz_t b);
  * @return 1 if probably prime, 0 if composite
  */
 LV00_PUBLIC_API int nt_is_prime_miller_rabin(const mpz_t n, int k);
-
 /**
  * @brief Find the next prime >= n
  *
@@ -176,11 +155,9 @@ LV00_PUBLIC_API int nt_is_prime_miller_rabin(const mpz_t n, int k);
  * @param n       Starting point
  */
 LV00_PUBLIC_API void nt_next_prime(mpz_t result, const mpz_t n);
-
 /* ============================================================
  * Factorization
  * ============================================================ */
-
 /**
  * @brief Trial division factorization
  *
@@ -195,9 +172,7 @@ LV00_PUBLIC_API void nt_next_prime(mpz_t result, const mpz_t n);
  */
 LV00_PUBLIC_API int nt_factorize_trial_div(const mpz_t n, mpz_t *factors,
                                            int max_factors, const mpz_t bound);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_NT_NUMBER_THEORY_H */

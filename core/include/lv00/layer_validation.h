@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file layer_validation.h
  * @brief Lv-00 五层架构编译时边界验证
  * @details 提供编译时层级边界检查，确保下层模块不依赖上层模块。

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_conflict_detector.c
  * @brief 矛盾约束检测器单元测试
  *

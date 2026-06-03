@@ -35,18 +35,6 @@
  *    - 内存统计 (MemoryStats) 使用 LV00_THREAD_LOCAL 存储，每个线程独立统计。
  *    - 内存限制 (g_memory_limit) 同样是线程局部变量。
  *    - 多线程环境下的跨线程内存操作需调用者自行同步。
- *
- * @par 设计要点
- * - 所有动态内存分配通过封装函数进行，支持分配统计和越界检测
- * - lv00_free 使用 void** 参数，释放后自动置 NULL，防止 use-after-free
- * - 提供统一的字符串操作（lv00_strdup, lv00_asprintf 等），避免平台差异
- * - 内存所有权遵循"创建者拥有"原则，容器销毁时递归释放子元素
- * - 支持可选的内存限制和泄漏检测功能
- *
- * @par 依赖关系
- * - 上层: 被项目中几乎所有模块调用（solver.c, proof.c, engine.c 等）
- * - 下层: 依赖标准 C 库（stdlib, string）和平台特定头文件
- * - 同层: 与 memory_pool.c 协作提供完整内存管理基础设施
  */
 
 #include "lv00_utils.h"
@@ -208,12 +196,6 @@ void *lv00_malloc_tracked(size_t size, const char *file, int line) {
     /* 零大小请求：分配最小块（1 字节数据 + 尾魔数），保持 lv00_malloc(0) 语义 */
     size_t alloc_size = size ? size : 1;
 
-    /* 防止无符号整数下溢：仅在 g_memory_limit > 0（启用限制）时检查 */
-    if (g_memory_limit > 0 && alloc_size > g_memory_limit) {
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", alloc_size);
-        return NULL;
-    }
-
     if (g_memory_limit > 0 && g_memory_stats.current_used > g_memory_limit - alloc_size) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "内存限制超出: 请求%zu", alloc_size);
         return NULL;
@@ -262,10 +244,8 @@ void *lv00_calloc(size_t nmemb, size_t size) {
 }
 
 void *lv00_calloc_tracked(size_t nmemb, size_t size, const char *file, int line) {
-    if (nmemb == 0 || size == 0) {
-        lv00_set_error(LV00_ERROR_INVALID_PARAM, "calloc 参数无效: nmemb=%zu, size=%zu", nmemb, size);
+    if (nmemb == 0 || size == 0)
         return NULL;
-    }
 
     /* 检查溢出 */
     if (nmemb > SIZE_MAX / size) {
@@ -359,20 +339,19 @@ void *lv00_realloc(void *ptr, size_t size) {
         new_hdr->tail_offset = (uint32_t)alloc_size;
         new_hdr->size = alloc_size;
 
-        /* 使用 memcpy 写入尾部魔数，避免潜在的未对齐内存访问 */
-        uint32_t tail_magic = ALLOC_TAIL_MAGIC;
-        memcpy(new_hdr->data + alloc_size, &tail_magic, sizeof(tail_magic));
+        /* 设置尾部魔数 */
+        uint32_t *tail = (uint32_t *)(new_hdr->data + alloc_size);
+        *tail = ALLOC_TAIL_MAGIC;
 
         /* 重新加入追踪链表 */
         track_allocation(new_hdr);
 
-        /* 更新统计：realloc 语义上释放旧块并分配新块，避免 total_freed 长期偏小 */
+        /* 更新统计：减去旧大小，加上新大小 */
         g_memory_stats.total_allocated += alloc_size;
-        g_memory_stats.total_freed += old_size;
         if (old_size <= g_memory_stats.current_used) {
             g_memory_stats.current_used = g_memory_stats.current_used - old_size + alloc_size;
         } else {
-            g_memory_stats.current_used = alloc_size;
+            g_memory_stats.current_used += alloc_size;
         }
         if (g_memory_stats.current_used > g_memory_stats.peak_used)
             g_memory_stats.peak_used = g_memory_stats.current_used;
@@ -403,8 +382,6 @@ void *lv00_realloc(void *ptr, size_t size) {
         }
         /* 注意：若平台不支持获取旧大小（old_usable_size == 0），
          * 则不复制旧数据。调用者应尽量使用 lv00_malloc/lv00_free 配对。 */
-        /* 释放旧的内存，避免内存泄漏 */
-        free(ptr);
         return new_ptr;
     }
 
@@ -431,16 +408,14 @@ void lv00_free(void **ptr) {
         /* 标记头部魔数为已释放（防止 double-free） */
         hdr->head_magic = ALLOC_MAGIC_FREED;
 
-        /* 更新统计。若统计已不一致，只将可归属的 current_used 计入释放量，
-         * 避免 total_freed 超过 total_allocated 形成不可能的汇总。 */
-        size_t accounted_free = freed_size;
+        /* 更新统计 */
         if (freed_size <= g_memory_stats.current_used) {
             g_memory_stats.current_used -= freed_size;
         } else {
-            accounted_free = g_memory_stats.current_used;
+            /* 防御：统计不一致时将 current_used 归零 */
             g_memory_stats.current_used = 0;
         }
-        g_memory_stats.total_freed += accounted_free;
+        g_memory_stats.total_freed += freed_size;
         g_memory_stats.free_count++;
 
         free(hdr);
@@ -575,12 +550,10 @@ bool lv00_memory_check_magic(const void *ptr) {
 
     /* 检查尾部魔数 */
     if (hdr->tail_offset > 0) {
-        /* 使用 memcpy 读取尾部魔数，避免潜在的未对齐内存访问 */
-    uint32_t tail_magic = 0;
-    memcpy(&tail_magic, (const char *)ptr + hdr->tail_offset, sizeof(tail_magic));
-    if (tail_magic != ALLOC_TAIL_MAGIC) {
-        LV00_LOG_ERROR("尾部魔数检测失败: 指针 0x%p 可能发生缓冲区溢出, 期望 0x%08X, 实际 0x%08X",
-                       ptr, ALLOC_TAIL_MAGIC, tail_magic);
+        const uint32_t *tail = (const uint32_t *)((const char *)ptr + hdr->tail_offset);
+        if (*tail != ALLOC_TAIL_MAGIC) {
+            LV00_LOG_ERROR("尾部魔数检测失败: 指针 0x%p 可能发生缓冲区溢出, 期望 0x%08X, 实际 0x%08X",
+                           ptr, ALLOC_TAIL_MAGIC, *tail);
             return false;
         }
     }
@@ -665,16 +638,6 @@ int lv00_memory_leak_report(FILE *output) {
  * 字符串处理
  * ============================================================ */
 
-/**
- * @brief 安全字符串复制
- * @details 将源字符串 src 复制到目标缓冲区 dest，始终保证零终止。
- *          即使源字符串长度超过目标缓冲区大小，也会在 dest[dest_size-1] 处写入 '\0'。
- *          行为类似于 BSD strlcpy，但增加了 NULL 指针检查。
- * @param dest      目标缓冲区
- * @param src       源字符串
- * @param dest_size 目标缓冲区大小（字节）
- * @return 源字符串的长度（不包括终止符），可用于检测截断
- */
 size_t lv00_strlcpy(char *dest, const char *src, size_t dest_size) {
     if (!dest || !src || dest_size == 0)
         return 0;
@@ -689,16 +652,6 @@ size_t lv00_strlcpy(char *dest, const char *src, size_t dest_size) {
     return src_len;
 }
 
-/**
- * @brief 安全字符串拼接
- * @details 将源字符串 src 追加到目标缓冲区 dest 的末尾，始终保证零终止。
- *          如果 dest 中已有字符串长度超过 dest_size，则不做任何修改。
- *          行为类似于 BSD strlcat，但增加了 NULL 指针检查。
- * @param dest      目标缓冲区（必须包含合法的以 '\0' 结尾的字符串）
- * @param src       要追加的源字符串
- * @param dest_size 目标缓冲区总大小（字节）
- * @return 拼接后期望的总字符串长度（即 dest 原长度 + src 长度），可用于检测截断
- */
 size_t lv00_strlcat(char *dest, const char *src, size_t dest_size) {
     if (!dest || !src || dest_size == 0)
         return 0;
@@ -719,13 +672,6 @@ size_t lv00_strlcat(char *dest, const char *src, size_t dest_size) {
     return dest_len + src_len;
 }
 
-/**
- * @brief 安全字符串复制（堆分配）
- * @details 使用 lv00_malloc 分配内存并复制字符串。输入为 NULL 时安全返回 NULL，
- *          不会导致未定义行为。
- * @param str 要复制的源字符串，可以为 NULL
- * @return 新分配的字符串副本（调用者需使用 lv00_free 释放），失败或 str 为 NULL 时返回 NULL
- */
 char *lv00_strdup_safe(const char *str) {
     if (!str)
         return NULL;
@@ -737,14 +683,6 @@ char *lv00_strdup_safe(const char *str) {
     return copy;
 }
 
-/**
- * @brief 格式化字符串分配
- * @details 根据 printf 风格的格式字符串和可变参数，动态分配足够大小的缓冲区并写入
- *          格式化结果。调用者需使用 lv00_free 释放返回的字符串。
- * @param fmt printf 风格的格式字符串，可以为 NULL
- * @param ... 可变参数列表
- * @return 新分配的格式化字符串（调用者需使用 lv00_free 释放），失败或 fmt 为 NULL 时返回 NULL
- */
 char *lv00_asprintf(const char *fmt, ...) {
     if (!fmt)
         return NULL;
@@ -921,14 +859,6 @@ int lv00_snprintf(char *buf, size_t size, const char *fmt, ...) {
  * 动态数组
  * ============================================================ */
 
-/**
- * @brief 动态数组创建
- * @details 创建一个动态增长的数组。初始容量为 initial_capacity（若为 0 则使用默认值
- *          LV00_INITIAL_ARRAY_CAPACITY）。元素大小 elem_size 必须非零。
- * @param initial_capacity 初始容量（元素个数），为 0 时使用默认值
- * @param elem_size        单个元素的大小（字节），必须大于 0
- * @return 新创建的动态数组指针（调用者需使用 lv00_array_destroy 释放），失败时返回 NULL
- */
 LV00Array *lv00_array_create(size_t initial_capacity, size_t elem_size) {
     /* 修复：验证 elem_size，避免后续操作中出现除零或无意义的零大小元素 */
     if (elem_size == 0)
@@ -953,13 +883,6 @@ LV00Array *lv00_array_create(size_t initial_capacity, size_t elem_size) {
     return arr;
 }
 
-/**
- * @brief 动态数组销毁
- * @details 释放动态数组及其内部数据缓冲区。当 free_elements 为 true 时，
- *          还会逐个释放数组中每个非 NULL 元素（通过 lv00_free）。
- * @param arr           要销毁的动态数组指针，可以为 NULL（安全无操作）
- * @param free_elements 是否同时释放数组中每个元素的内存
- */
 void lv00_array_destroy(LV00Array *arr, bool free_elements) {
     if (!arr)
         return;

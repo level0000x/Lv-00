@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_geo_predicate.c
  * @brief 精确几何谓词模块测试（第十三梯队 CGAL 落地验证）
  */

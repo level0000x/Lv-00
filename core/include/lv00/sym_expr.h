@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sym_expr.h
  * @brief Symbolic expression tree -- construction, simplification, evaluation, differentiation
  *

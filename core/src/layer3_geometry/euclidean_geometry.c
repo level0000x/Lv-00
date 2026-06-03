@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file euclidean_geometry.c
  * @brief 欧几里得几何公理体系实现 —— Hilbert 五大公理组 + Birkhoff/Tarski 等价性
  *

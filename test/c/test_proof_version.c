@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * @file test_proof_version.c
  * @brief Tests for the proof version control system.
  *

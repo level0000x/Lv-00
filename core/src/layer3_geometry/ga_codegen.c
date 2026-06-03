@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_codegen.c
  * @brief Implementation of GA code generator
  *

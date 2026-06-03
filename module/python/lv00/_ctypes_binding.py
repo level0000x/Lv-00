@@ -1,4 +1,4 @@
-﻿"""
+"""
 Lv-00 底层 C 库 ctypes 绑定模块
 
 负责加载 Lv-00 动态链接库并定义所有 C 函数的签名。
@@ -20,17 +20,13 @@ Lv-00 底层 C 库 ctypes 绑定模块
 import ctypes
 import os
 import sys
-from ctypes import (
-    c_int, c_int64, c_uint64, c_double, c_char_p,
-    c_void_p, c_bool, POINTER, CFUNCTYPE
-)
+from ctypes import c_int, c_int64, c_uint64, c_double, c_char_p, c_void_p, c_bool, POINTER, CFUNCTYPE
 
 # ============================================================
 # 库文件搜索函数
 # ============================================================
 
-def _find_library() -> str:
-    # [代码质量修复 M-07] 添加 -> str 返回类型注解，明确函数返回值为字符串路径。
+def _find_library():
     """
     搜索并定位 Lv-00 共享库文件。
 
@@ -678,9 +674,8 @@ _lib.recursion_context_reset.restype = None
 _lib.recursion_check_mutual.argtypes = [POINTER(c_int), c_int, POINTER(_MeasureSystem)]
 _lib.recursion_check_mutual.restype = c_bool
 
-# [代码质量修复 M-01] 修复拼写错误：test/c 应为 test_c
-_lib.recursion_run_builtin_test_c.argtypes = [POINTER(_MeasureSystem), POINTER(POINTER(c_void_p)), POINTER(c_int)]
-_lib.recursion_run_builtin_test_c.restype = c_int
+_lib.recursion_run_builtin_test/c.argtypes = [POINTER(_MeasureSystem), POINTER(POINTER(c_void_p)), POINTER(c_int)]
+_lib.recursion_run_builtin_test/c.restype = c_int
 
 # ============================================================
 # Engine 函数签名

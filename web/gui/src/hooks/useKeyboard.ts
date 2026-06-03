@@ -61,8 +61,8 @@ export function useKeyboard(): void {
           // R 键：切换到区域工具
           if (!ctrl) setTool('region');
           break;
-        case 'i':
-          // I 键：切换到探针工具（Inspect）
+        case '?':
+          // ? 键：切换到探针工具
           if (!ctrl) setTool('probe');
           break;
         case '+':

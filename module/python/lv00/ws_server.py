@@ -28,9 +28,7 @@ from typing import Optional, Callable, Any, Dict, List, Set
 
 from .stream_bridge import EngineBridge, StreamEvent
 
-# [代码质量修复 M-10] 将硬编码的 logger 名称 'stream_bridge' 改为 __name__，
-# 避免与其他模块的 logger 名称冲突，使日志消息能正确标识来源模块。
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('stream_bridge')
 
 # ================================================================
 # WebSocket 依赖检查
@@ -97,11 +95,6 @@ class StreamBridgeServer:
         self._sse_clients: List[asyncio.Queue] = []
         self._sse_server = None
 
-        # [安全修复 H-03] 使用集合保存后台 task 引用，防止被垃圾回收。
-        # 未保存引用的 asyncio.create_task() 创建的 Task 对象可能在完成前被 GC 回收，
-        # 导致静默失败（如广播消息丢失）。task 完成后通过回调自动从集合中移除。
-        self._background_tasks: Set[asyncio.Task] = set()
-
         # 注册引擎事件处理器
         self.engine.add_event_handler(self._on_engine_event)
 
@@ -126,16 +119,10 @@ class StreamBridgeServer:
         }
 
         # 广播给所有订阅的客户端
-        # [安全修复 H-03] 将 task 保存到 _background_tasks 集合中，
-        # 防止 task 在完成前被垃圾回收导致消息丢失。
-        task = asyncio.create_task(self._broadcast(notification))
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
+        asyncio.create_task(self._broadcast(notification))
 
         # 同时推送给 SSE 客户端
-        task_sse = asyncio.create_task(self._broadcast_sse(notification))
-        self._background_tasks.add(task_sse)
-        task_sse.add_done_callback(self._background_tasks.discard)
+        asyncio.create_task(self._broadcast_sse(notification))
 
     async def _broadcast(self, message: Dict) -> None:
         """广播消息给所有已连接的客户端。

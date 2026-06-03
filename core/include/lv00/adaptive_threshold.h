@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file adaptive_threshold.h
  * @brief 自适应阈值框架 - 动态调整算法迭代限制
  * 

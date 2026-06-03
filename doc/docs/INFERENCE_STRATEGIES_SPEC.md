@@ -495,26 +495,7 @@ RULE_AUX_CONSTRUCT:
 
 ---
 
-## 12. 相关模块文档
-
-本文档形式化定义了八大核心推理策略。以下模块文档提供了策略调度、求解后端和逻辑验证的详细规范：
-
-| 模块文档 | 覆盖内容 |
-|----------|----------|
-| [13_proof_engine_enhanced.md](13_proof_engine_enhanced.md) | 增强证明引擎的 10 种策略调度（直接/反证/逆否/归纳/分情况/构造/展开/逆向/正向/混合）、溯源树、证明会话、证明评分、优先级调度器、规则搜索引擎、证明版本控制 |
-| [14_solver_backends.md](14_solver_backends.md) | 多后端求解器体系（CDCL SAT、SMT Z3/cvc5/Singular、ATP Vampire/E/iProver、BDD/ADD、SAT 编码、近似模型计数、多引擎调度） |
-| [16_logic_verification.md](16_logic_verification.md) | 逻辑验证与浮点证明工具链（Kleene 三值逻辑、模态逻辑、量词系统、逻辑自检、命题验证器、元证明、Herbie/FPTaylor/Gappa 浮点证明） |
-| [24_constraint_propagation.md](24_constraint_propagation.md) | WFC 约束传播、AC-3 弧相容性、状态空间坍缩、等价类合并、剪枝前置条件，为分情况推理和矛盾检测提供约束传播基础 |
-| [25_engine_scheduler.md](25_engine_scheduler.md) | 引擎五状态机、多后端调度、求解流水线与回退链，是策略搜索、求解器选择和证明任务调度的工程入口 |
-| [27_quantifier_logic.md](27_quantifier_logic.md) | 全称量词、存在量词、唯一存在量词、有限域量词消去与 Alloy 风格关系模型，是泛化和特化规则的代码级补全文档 |
-| [29_inequality_approximation.md](29_inequality_approximation.md) | 不等式证明策略、近似模型计数、Herbie/FPTaylor 误差评估，为不等式型几何命题和数值辅助证明提供依据 |
-| [34_meta_proof_cache.md](34_meta_proof_cache.md) | 剪枝合法性元证明、BHK 命题验证、推理缓存与节点深拷贝，是 WFC 剪枝、命题搜索缓存和构造性验证的补充规范 |
-
-其中，本文档第 10 节（策略优先级与搜索）中的搜索策略实现参见 `13_proof_engine_enhanced.md` 第 5 节（证明规则搜索引擎）与 `25_engine_scheduler.md` 第 25.3 节（多引擎调度框架）；本文档第 11 节（扩展规则）中的神经建议和辅助构造规则参见 `13_proof_engine_enhanced.md` 第 1 节（增强证明引擎）。泛化、特化和有限域量词消去的具体工程接口参见 `27_quantifier_logic.md`；分情况推理与剪枝合法性验证参见 `24_constraint_propagation.md` 和 `34_meta_proof_cache.md`。
-
----
-
-## 13. 参考文献
+## 12. 参考文献
 
 1. Aesop: Automated Extensible Strategy for Proof Search
 2. Seed-Prover: Neural Auxiliary Construction for Geometry
@@ -524,5 +505,5 @@ RULE_AUX_CONSTRUCT:
 
 ---
 
-**文档状态**: 已完成
+**文档状态**: 已完成  
 **下一步**: 实现策略应用器与证明搜索引擎集成

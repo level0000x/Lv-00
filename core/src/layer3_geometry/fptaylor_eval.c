@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file fptaylor_eval.c
  * @brief Implementation of FPTaylor-style floating-point error analysis
  *

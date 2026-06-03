@@ -15,10 +15,10 @@
  *   - algebraic_get_plan / algebraic_set_plan         — A/B 计划切换
  *
  * 使用示例：
- *   SymbolicCoord *x = symbolic_coord_create_rational(3, 4);
- *   SymbolicCoord *y = symbolic_coord_create_transcendental("pi");
- *   SymbolicCoord *sum = symbolic_coord_add(x, y);
- *   CircuitStatus cs = check_digit_circuit(sum);
+ LV00_PUBLIC_API *   SymbolicCoord *x = symbolic_coord_create_rational(3, 4);
+ LV00_PUBLIC_API *   SymbolicCoord *y = symbolic_coord_create_transcendental("pi");
+ LV00_PUBLIC_API *   SymbolicCoord *sum = symbolic_coord_add(x, y);
+ LV00_PUBLIC_API *   CircuitStatus cs = check_digit_circuit(sum);
  *
  * ======================================================================== */
 
@@ -38,18 +38,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #ifndef LV00_PUBLIC_API
 #define LV00_PUBLIC_API
-#endif
-
-
-/* LV00_PUBLIC_API 由 lv00.h 统一定义，此处不再重复。
- * 原因：lv00.h 中根据平台（Windows DLL / GCC/Clang visibility）和构建模式
- * （共享库 / 静态库）统一设置 LV00_PUBLIC_API。若各子模块头文件各自
- * #define LV00_PUBLIC_API 为空，在构建共享库时会导致符号不导出。
- * 因此要求使用者先包含 lv00.h，此处仅做守卫检查。 */
-#ifndef LV00_PUBLIC_API
-#error "请先包含 lv00.h 以获取 LV00_PUBLIC_API 定义"
 #endif
 
 /* MAX_MODULE_DEPTH —— 与 module.h 中的定义保持同步
@@ -141,13 +132,6 @@ typedef struct SymbolicCoord {
     TrustColor trust;
     double cached_value;      /* 几何节点数值缓存 */
     bool cache_valid;         /* 缓存是否有效 */
-
-    /* ============================================================
-     * 版本控制字段 (v3.5.0: 自举支持)
-     * ============================================================ */
-    uint16_t version_major;         /**< 主版本号 */
-    uint16_t version_minor;         /**< 次版本号 */
-    uint16_t version_patch;         /**< 补丁版本号 */
 } SymbolicCoord;
 
 LV00_PUBLIC_API Rational *rational_create(int64_t numerator, uint64_t denominator);

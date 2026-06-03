@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file cache_manager.c
  * @brief Lv-00 缓存隔离层管理器实现
  * @details 实现上下文状态隔离，避免多次连续运算造成上下文状态污染。

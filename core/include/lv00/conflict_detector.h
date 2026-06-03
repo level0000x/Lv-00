@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file conflict_detector.h
  * @brief 矛盾约束检测器 —— 几何约束系统的冲突分析与报告
  *

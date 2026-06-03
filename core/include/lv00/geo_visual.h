@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_visual.h
  * @brief 几何可视化抽象层 - 基于 Manim Mobject 设计
  * 

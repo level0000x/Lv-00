@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_theory_combiner.h
  * @brief SMT theory combination dispatcher
  *

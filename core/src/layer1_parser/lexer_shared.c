@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lexer_shared.c
  * @brief 共享词法分析器基础设施实现
  *

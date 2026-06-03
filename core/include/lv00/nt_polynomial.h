@@ -11,24 +11,18 @@
  * @author Lv-00 Project
  * @version 3.3.0
  */
-
 #ifndef LV00_NT_POLYNOMIAL_H
 #define LV00_NT_POLYNOMIAL_H
-
 #include "lv00.h"
-
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /* ============================================================
  * Types
  * ============================================================ */
-
 /**
  * @brief Polynomial with arbitrary-precision integer coefficients
  *
@@ -43,29 +37,24 @@ typedef struct Lv00Poly {
     int    degree;   /**< Current degree (-1 for zero polynomial) */
     int    capacity; /**< Allocated size of coeffs array */
 } Lv00Poly;
-
 /* ============================================================
  * Lifecycle
  * ============================================================ */
-
 /**
  * @brief Create a zero polynomial
  *
  * @return Pointer to newly allocated polynomial, or NULL on allocation failure
  */
 LV00_PUBLIC_API Lv00Poly *nt_poly_create(void);
-
 /**
  * @brief Destroy a polynomial and release all resources
  *
  * @param p  Pointer to polynomial (may be NULL, no-op in that case)
  */
 LV00_PUBLIC_API void nt_poly_destroy(Lv00Poly *p);
-
 /* ============================================================
  * Coefficient access
  * ============================================================ */
-
 /**
  * @brief Set a coefficient at a given degree
  *
@@ -78,7 +67,6 @@ LV00_PUBLIC_API void nt_poly_destroy(Lv00Poly *p);
  * @return 0 on success, -1 on error
  */
 LV00_PUBLIC_API int nt_poly_set_coeff(Lv00Poly *p, int deg, const mpz_t val);
-
 /**
  * @brief Get a coefficient at a given degree
  *
@@ -90,11 +78,9 @@ LV00_PUBLIC_API int nt_poly_set_coeff(Lv00Poly *p, int deg, const mpz_t val);
  * @return 0 on success, -1 if deg is out of range
  */
 LV00_PUBLIC_API int nt_poly_get_coeff(const Lv00Poly *p, int deg, mpz_t out);
-
 /* ============================================================
  * Arithmetic
  * ============================================================ */
-
 /**
  * @brief Polynomial addition: result = a + b
  *
@@ -105,7 +91,6 @@ LV00_PUBLIC_API int nt_poly_get_coeff(const Lv00Poly *p, int deg, mpz_t out);
  */
 LV00_PUBLIC_API int nt_poly_add(Lv00Poly *result, const Lv00Poly *a,
                                 const Lv00Poly *b);
-
 /**
  * @brief Polynomial multiplication: result = a * b
  *
@@ -116,7 +101,6 @@ LV00_PUBLIC_API int nt_poly_add(Lv00Poly *result, const Lv00Poly *a,
  */
 LV00_PUBLIC_API int nt_poly_mul(Lv00Poly *result, const Lv00Poly *a,
                                 const Lv00Poly *b);
-
 /**
  * @brief Polynomial modular reduction: result = f mod m
  *
@@ -130,7 +114,6 @@ LV00_PUBLIC_API int nt_poly_mul(Lv00Poly *result, const Lv00Poly *a,
  */
 LV00_PUBLIC_API int nt_poly_mod(Lv00Poly *result, const Lv00Poly *f,
                                 const Lv00Poly *m);
-
 /**
  * @brief Polynomial GCD: result = gcd(a, b)
  *
@@ -143,11 +126,9 @@ LV00_PUBLIC_API int nt_poly_mod(Lv00Poly *result, const Lv00Poly *f,
  */
 LV00_PUBLIC_API int nt_poly_gcd(Lv00Poly *result, const Lv00Poly *a,
                                 const Lv00Poly *b);
-
 /* ============================================================
  * Evaluation and properties
  * ============================================================ */
-
 /**
  * @brief Evaluate polynomial at a given point: p(x)
  *
@@ -159,7 +140,6 @@ LV00_PUBLIC_API int nt_poly_gcd(Lv00Poly *result, const Lv00Poly *a,
  * @return 0 on success, -1 on error
  */
 LV00_PUBLIC_API int nt_poly_eval(const Lv00Poly *p, const mpz_t x, mpz_t out);
-
 /**
  * @brief Get the degree of a polynomial
  *
@@ -169,9 +149,7 @@ LV00_PUBLIC_API int nt_poly_eval(const Lv00Poly *p, const mpz_t x, mpz_t out);
  * @return Degree of the polynomial, or -1 if p is NULL or zero
  */
 LV00_PUBLIC_API int nt_poly_degree(const Lv00Poly *p);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_NT_POLYNOMIAL_H */

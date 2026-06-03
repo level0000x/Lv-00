@@ -108,7 +108,7 @@ mathlib4 的几何形式化体系建立在以下核心原则上：
 | **拓扑** | `point_set_topology`, `algebraic_topology` |
 | **数论/组合** | `number_theory`, `combinatorics`, `game_theory`, `information_theory`, `graph_theory` |
 | **算术** | `peano_arithmetic`, `second_order_arithmetic`, `robin_arithmetic`, `presburger_arithmetic` |
-| **其他** | `category_theory`, `cartesian_closed_category`, `topos_theory`, `algebraic_geometry`, `galois_theory`, `quantum_information_theory`, `linear_algebra`, `synthetic_differential_geometry` |
+| **其他** | `category_theory`, `cartesian_closed_category`, `algebraic_geometry`, `galois_theory`, `quantum_information_theory` |
 
 ---
 
@@ -204,21 +204,6 @@ mathlib4 的几何形式化体系建立在以下核心原则上：
                                      │ [G0]             │
                                      │ 终对象+积+指数     │
                                      └──────────────────┘
-                                              │
-                                              ▼
-                                     ┌──────────────────┐
-                                     │   topos_theory   │
-                                     │ [G0]             │
-                                     │ 子对象分类器Ω     │
-                                     └──────────────────┘
-                                              │
-                                              ▼
-                                     ┌──────────────────────────────┐
-                                     │ synthetic_differential_       │
-                                     │   geometry                   │
-                                     │ [G0]                        │
-                                     │ Weil代数+Kock-Lawvere公理    │
-                                     └──────────────────────────────┘
 
      ┌──────────────────────────────────────────────────────────────────────┐
      │                           逻辑家族                                     │
@@ -267,7 +252,6 @@ mathlib4 的几何形式化体系建立在以下核心原则上：
      │  │   metric_space [G2] ─── Fréchet, 距离+三角不等式              │     │
      │  │   differential_geometry [G3] ─── 光滑流形+曲率                │     │
      │  │   algebraic_geometry [G0] ─── 簇+概形 (需 ring/field)         │     │
-     │  │   synthetic_differential_geometry [G0] ─── Weil代数+Kock-Lawvere (需 topos) │
      │  └──────────────────────────────────────────────────────────────┘     │
      └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -308,7 +292,7 @@ zfc_set_theory (基础层)
   - linear_logic
   - simple_type_theory (├── dependent_type_theory ─── homotopy_type_theory)
   - proof_theory
-  - category_theory (├── cartesian_closed_category ─── topos_theory ─── synthetic_differential_geometry)
+  - category_theory (├── cartesian_closed_category)
   - boolean_algebra (需 lattice_theory)
   - combinatorics
   - game_theory
@@ -567,7 +551,6 @@ differential_geometry [G3]
 | `AffinePlane` | `affine_geometry` | G1 | 关联 + 平行 |
 | `MetricSpace` | `metric_space` | G2 | 距离函数 |
 | `SmoothManifold` | `differential_geometry` | G3 | 需要 real_analysis |
-| `SmoothManifold` (Synthetic) | `synthetic_differential_geometry` | G0 | 需要 topos_theory |
 | `Group` | `group_theory` | G0 | 代数 |
 | `Ring` / `Field` | `ring_theory` / `field_theory` | G0 | 代数层级 |
 | `BoolAlg` / `HeytingAlg` | `boolean_algebra` / `intuitionistic_prop_logic` | G0 | 逻辑代数 |
@@ -652,9 +635,6 @@ differential_geometry [G3]
 | 51 | `graph_theory` | discrete_math | G0 | 2 | zfc, combinatorics |
 | 52 | `cartesian_closed_category` | foundations | G0 | 0 | - |
 | 53 | `quantum_information_theory` | discrete_math | G0 | 0 | - |
-| 54 | `topos_theory` | foundations | G0 | 1 | cartesian_closed_category |
-| 55 | `linear_algebra` | algebra | G0 | 2 | field_theory, group_theory |
-| 56 | `synthetic_differential_geometry` | geometry/category | G0 | 3 | differential_geometry, category_theory, topos_theory |
 
 ---
 

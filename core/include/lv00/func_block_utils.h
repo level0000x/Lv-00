@@ -9,16 +9,12 @@
  *
  * 这些函数被函数块系统（func_block、func_block_compose 等）内部使用。
  */
-
 #ifndef LV00_FUNC_BLOCK_UTILS_H
 #define LV00_FUNC_BLOCK_UTILS_H
-
 #include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @brief 检查整数 ID 是否存在于数组中
  *
@@ -31,7 +27,6 @@ extern "C" {
  * @return false 不存在或数组为空
  */
 bool is_id_in_array(int id, const int *array, int count);
-
 /**
  * @brief 深拷贝整数数组
  *
@@ -43,7 +38,6 @@ bool is_id_in_array(int id, const int *array, int count);
  * @return 新分配的整数数组指针，失败时返回 NULL
  */
 int *dup_int_array(const int *src, int count);
-
 /**
  * @brief 合并两个整数数组
  *
@@ -58,12 +52,9 @@ int *dup_int_array(const int *src, int count);
  * @return 新分配的整数数组指针，失败时返回 NULL
  */
 int *lv00_int_array_merge(const int *a, int a_count, const int *b, int b_count, int *out_count);
-
 /* 向后兼容别名 */
 #define merge_int_arrays lv00_int_array_merge
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_FUNC_BLOCK_UTILS_H */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file exact_arithmetic.c
  * @brief 精确算术基础设施实现 —— 时间戳、安全幂运算
  *

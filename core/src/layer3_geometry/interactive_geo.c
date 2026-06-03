@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interactive_geo.c
  * @brief 交互几何系统实现 —— 借鉴 Cinderella 与 Dr. Geo 的交互几何 UX 设计
  *

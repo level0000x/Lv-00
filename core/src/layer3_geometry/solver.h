@@ -1,4 +1,3 @@
-/* DEPRECATED: Use lv00/solver.h instead. This file will be removed in a future version. */
 /**
  * @file solver.h
  * @brief 代数求解器 —— Groebner 基、方程提取与冲突检测

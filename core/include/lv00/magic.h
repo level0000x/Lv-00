@@ -18,10 +18,6 @@
 #include "constraint_graph.h"
 #include "func_block.h"
 #include "symbolic_coord.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 #ifdef __cplusplus
 extern "C" {

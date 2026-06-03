@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * @file test_geo_topology.c
  * @brief Tests for the geometric topology module.
  *

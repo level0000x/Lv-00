@@ -25,7 +25,6 @@ extern "C" {
 
 #include "error_codes.h"
 
-/* LV00_PUBLIC_API 由 lv00.h 或 error_codes.h 定义，此处提供回退 */
 #ifndef LV00_PUBLIC_API
 #define LV00_PUBLIC_API
 #endif
@@ -210,12 +209,7 @@ LV00_PUBLIC_API char *lv00_strdup_safe(const char *str);
  * @param fmt 格式字符串
  * @return 新分配的字符串，失败返回NULL
  */
-#if defined(__GNUC__) || defined(__clang__)
-LV00_PUBLIC_API char *lv00_asprintf(const char *fmt, ...)
-    __attribute__((format(printf, 1, 2)));
-#else
 LV00_PUBLIC_API char *lv00_asprintf(const char *fmt, ...);
-#endif
 
 /**
  * @brief 检查字符串是否为空或仅包含空白
@@ -273,12 +267,7 @@ LV00_PUBLIC_API char *lv00_strncat(char *dest, const char *src, size_t dest_size
  * @param ...  可变参数
  * @return 成功时返回写入的字符数（不含 \0），失败返回 -1
  */
-#if defined(__GNUC__) || defined(__clang__)
-LV00_PUBLIC_API int lv00_snprintf(char *buf, size_t size, const char *fmt, ...)
-    __attribute__((format(printf, 3, 4)));
-#else
 LV00_PUBLIC_API int lv00_snprintf(char *buf, size_t size, const char *fmt, ...);
-#endif
 
 /* ============================================================
  * 数组操作辅助
@@ -696,7 +685,7 @@ static inline size_t lv00_max_z(size_t a, size_t b) {
 /**
  * @brief 安全赋值宏 —— 记录非空指针的覆盖操作
  *
- * 若 ptr 当前非 NULL，则通过 fprintf(stderr, ...) 输出警告日志，
+ * 若 ptr 当前非 NULL，则通过 LV00_LOG_WARNING 输出警告日志，
  * 提示可能存在内存泄漏（旧值未被释放就被覆盖）。
  * 然后无条件将 value 赋给 ptr。
  *
@@ -709,9 +698,8 @@ static inline size_t lv00_max_z(size_t a, size_t b) {
 #define LV00_SAFE_ASSIGN(ptr, value)                                                       \
     do {                                                                                   \
         if ((ptr) != NULL) {                                                               \
-            fprintf(stderr, "[WARNING] LV00_SAFE_ASSIGN: 指针 " #ptr                       \
-                            " 非空时被覆盖 (0x%p)，可能泄漏 (%s:%d)\n",                     \
-                            (const void *)(uintptr_t)(ptr), __FILE__, __LINE__);            \
+            LV00_LOG_WARNING("LV00_SAFE_ASSIGN: 指针 " #ptr " 非空时被覆盖 (0x%p)，可能泄漏", \
+                             (const void *)(uintptr_t)(ptr));                              \
         }                                                                                  \
         (ptr) = (value);                                                                   \
     } while (0)

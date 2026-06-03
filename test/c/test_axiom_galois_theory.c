@@ -1,4 +1,4 @@
-﻿/**
+﻿﻿/**
  * @file test_axiom_galois_theory.c
  * @brief Test suite for Galois Theory axiom package
  *

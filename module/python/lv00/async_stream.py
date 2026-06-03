@@ -2,18 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Lv-00 异步流式迭代器模块
-========================
 
-模块功能概述：
-    提供 Pythonic 的异步迭代器接口，用于消费 Lv-00 引擎产生的流式事件。
-    本模块将引擎的同步回调模式转换为异步 async/await 模式，支持事件过滤、
-    超时控制和上下文管理，适合在异步应用（如 Web 服务器、CLI 工具）中
-    实时处理引擎求解过程的事件流。
+提供 Pythonic 的异步迭代器接口，用于消费引擎流式事件。
 
 主要类：
-    - AsyncStreamIterator: 异步流迭代器，支持 async for 语法和事件类型过滤
-    - StreamEventQueue: 线程安全的事件队列，桥接 C 引擎回调线程与 asyncio 事件循环
-    - AsyncStreamContext: 异步流上下文管理器，支持 async with 语法自动管理生命周期
+    - AsyncStreamIterator: 异步流迭代器
+    - StreamEventQueue: 事件队列（线程安全）
+    - AsyncStreamContext: 异步流上下文管理器
 
 使用示例：
     >>> from lv00.async_stream import AsyncStreamIterator
@@ -31,13 +26,6 @@ Lv-00 异步流式迭代器模块
     >>> # 过滤特定事件类型
     >>> async for event in AsyncStreamIterator(engine, event_types=['normalization', 'solving']):
     ...     process(event)
-
-注意事项：
-    - 本模块需要 Python 3.10+（asyncio.timeout 需要 3.11+，3.10 自动降级为 wait_for）
-    - StreamEventQueue 内部使用线程锁保证线程安全，适用于 C 回调线程与 asyncio 线程的桥接
-    - 异步迭代器在引擎求解完成后会自动结束迭代
-    - 超时机制默认启用，可通过参数配置超时时长
-    - 事件队列有容量上限，生产速度超过消费速度时会丢弃旧事件
 
 版本：3.3.0
 作者：Lv-00 开发团队

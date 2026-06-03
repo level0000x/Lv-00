@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interval_arithmetic.c
  * @brief Implementation of unified interval arithmetic for Lv-00
  *

@@ -16,10 +16,10 @@
  *   - recursion_check_mutual                 — 互递归验证
  *
  * 使用示例：
- *   RecursionContext *ctx = recursion_context_create(10000);
- *   Measure *m = measure_create_symbolic("depth", MEASURE_KIND_DEPTH, -1);
- *   recursion_context_set_measure(ctx, m);
- *   RecursionCheckResult r = recursion_context_enter(ctx, fb_id, input, graph);
+ LV00_PUBLIC_API *   RecursionContext *ctx = recursion_context_create(10000);
+ LV00_PUBLIC_API *   Measure *m = measure_create_symbolic("depth", MEASURE_KIND_DEPTH, -1);
+ LV00_PUBLIC_API *   recursion_context_set_measure(ctx, m);
+ LV00_PUBLIC_API *   RecursionCheckResult r = recursion_context_enter(ctx, fb_id, input, graph);
  *
  * ======================================================================== */
 
@@ -36,10 +36,6 @@
 #include "constraint_graph.h"
 #include "stream.h"
 #include "symbolic_coord.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 #ifdef __cplusplus
 extern "C" {

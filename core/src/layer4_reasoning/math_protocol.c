@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file math_protocol.c
  * @brief 结构化数学中间表示协议实现 —— 借鉴 CortexJS / MathJSON 的语义化表达式
  *

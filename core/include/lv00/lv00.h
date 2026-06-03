@@ -50,7 +50,7 @@
  * @endcode
  *
  * @section version_sec 版本
- * 当前版本: 3.5.0
+ * 当前版本: 3.3.0
  *
  * @section architecture_sec 架构
  *
@@ -64,7 +64,7 @@
  * 详见 docs/ARCHITECTURE_v3.3.md
  *
  * @author Lv-00 Project
- * @version 3.5.0
+ * @version 3.3.0
  * @copyright Copyright (c) 2024-2026 Lv-00 Project
  */
 
@@ -80,64 +80,14 @@
  *         静态库构建时 LV00_PUBLIC_API 展开为空。
  */
 
-/*
- * ================================================================
- *  Lv-00 头文件层级架构
- * ================================================================
- *
- *  本文件按六层单向依赖结构聚合所有公开头文件。
- *  层间依赖方向: Layer 0 → Layer 1 → Layer 2 → Layer 3 → Layer 4 → Layer 5
- *  每层仅允许依赖同层及更低层，禁止反向依赖。
- *
- *  Layer 0 — 核心类型与错误处理
- *    跨平台类型、错误码、运行时守卫、公共 API 宏。
- *    所有其他层的基础，不依赖任何 Lv-00 模块。
- *
- *  Layer 1 — 输入解析
- *    公式解析、DSL 编译、数学输入。
- *    将外部文本/公式转化为内部表示。
- *
- *  Layer 2 — 资源管理
- *    内存池、缓存、全局状态、调试追踪、通用工具。
- *    为上层提供运行时基础设施。
- *
- *  Layer 3 — 几何拓扑
- *    约束图、符号坐标、几何基元、代数数、图哈希、规范化、合一。
- *    几何对象的表示与拓扑关系。
- *
- *  Layer 4 — 公理推理
- *    引擎、求解器、证明系统、重写、SMT 后端、Groebner 引擎、
- *    公理包、模块系统、函数块、预设库、逻辑系统、类型系统、量词。
- *    核心推理与计算逻辑。
- *
- *  Layer 5 — 结果输出
- *    流式事件、调试工具。
- *    将推理结果转化为外部可观察的输出。
- *
- * @par 命名规范 (v4.1.0)
- *
- * 本项目采用以下命名规范：
- *
- * | 类别 | 规范 | 示例 |
- * |------|------|------|
- * | 公共类型 | Lv00 + PascalCase | Lv00CacheManager, Lv00Solver |
- * | 公共函数 | lv00_ + snake_case | lv00_cache_put, lv00_solver_solve |
- * | 公共宏 | LV00_ + UPPER_CASE | LV00_PUBLIC_API, LV00_ERROR_OUT_OF_MEMORY |
- * | 内部枚举 | 模块前缀 + PascalCase | SolverStatus, SMTSatResult (模块内部使用) |
- * | 内部结构 | PascalCase (无前缀) | ConstraintGraph, ProofNavigator |
- * | 回调类型 | 模块前缀 + Callback | SolverCallback, CacheDestructor |
- *
- * @note 历史遗留的无前缀枚举（如 SolverStatus, SMTSatResult）为模块内部使用，
- *       对外统一转换使用 SolverStatus（solver.h）。
- *       新增公共类型必须使用 Lv00 前缀。
- *
- * ================================================================
- */
-
 /* 头文件守卫：LV00_LV00_H = "LV00"（项目名）+ "_" + "LV00_H"（文件名 lv00.h）
  * 采用双前缀格式避免与子模块头文件（如 solver.h → LV00_SOLVER_H）冲突 */
 #ifndef LV00_LV00_H
 #define LV00_LV00_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -170,7 +120,6 @@
  *   LV00_PUBLIC_API bool lv00_init(void);
  *   LV00_PUBLIC_API void lv00_cleanup(void);
  * ============================================================ */
-#ifndef LV00_PUBLIC_API
 #if defined(_WIN32) || defined(_MSC_VER)
   /* Windows DLL 导出/导入 */
   #ifdef LV00_BUILD_SHARED
@@ -192,7 +141,6 @@
 #else
   #define LV00_PUBLIC_API
 #endif
-#endif /* LV00_PUBLIC_API */
 
 /* ============================================================
  * 线程局部存储宏（跨平台统一，避免各模块各自定义）
@@ -247,9 +195,9 @@
 /* 向后兼容：旧宏名 LV00_PATH_SEPARATOR 保留 */
 #define LV00_PATH_SEPARATOR LV00_PATH_SEPARATOR_CHAR
 
-/* ---- 版本信息（统一版本号 v3.5.0，所有模块引用此宏） ---- */
+/* ---- 版本信息（统一版本号 v3.3.0，所有模块引用此宏） ---- */
 #define LV00_VERSION_MAJOR 3
-#define LV00_VERSION_MINOR 5
+#define LV00_VERSION_MINOR 3
 #define LV00_VERSION_PATCH 0
 #define LV00_VERSION_STRING_EXPAND(maj, min, pat) #maj "." #min "." #pat
 #define LV00_VERSION_STRING_MACRO(maj, min, pat) LV00_VERSION_STRING_EXPAND(maj, min, pat)
@@ -257,100 +205,59 @@
 #define LV00_VERSION_STRING LV00_VERSION_STRING_MACRO(LV00_VERSION_MAJOR, LV00_VERSION_MINOR, LV00_VERSION_PATCH)
 #endif
 
-/* ============================================================
- * Layer 0: 核心类型与错误处理
- * ============================================================
- * 跨平台类型、错误码、运行时守卫、隔离上下文。
- * 所有其他层的基础，不依赖任何 Lv-00 模块。
- * ============================================================ */
-#include "error_codes.h"      /* 统一错误码系统 */
-#include "runtime_guard.h"    /* 运行时安全守卫 */
-#include "context.h"          /* 隔离上下文系统 —— 统一状态容器、分支推理与熔断机制 */
+/* 基础模块（必须在其他模块之前） */
+#include "error_codes.h" /* 统一错误码系统 */
+#include "runtime_guard.h" /* 运行时安全守卫 */
 
-/* ============================================================
- * Layer 1: 输入解析
- * ============================================================
- * 公式解析、DSL 编译、数学输入。
- * 将外部文本/公式转化为内部表示。
- * ============================================================ */
-/* （当前版本中 Layer 1 头文件尚未作为独立公开头文件暴露于此聚合层） */
+/* 隔离上下文系统 —— 统一状态容器、分支推理与熔断机制 */
+#include "context.h"
 
-/* ============================================================
- * Layer 2: 资源管理
- * ============================================================
- * 内存池、缓存、全局状态、调试追踪、通用工具。
- * 为上层提供运行时基础设施。
- * ============================================================ */
-#include "lv00_utils.h"   /* 通用工具函数 */
-#include "memory_pool.h"  /* 内存池 —— Lv00MemoryStats 等类型定义 */
-
-/* ============================================================
- * Layer 3: 几何拓扑
- * ============================================================
- * 约束图、符号坐标、几何基元、代数数、图哈希、规范化、合一。
- * 几何对象的表示与拓扑关系。
- * ============================================================ */
+/* 核心模块 */
 #include "constraint_graph.h" /* 约束图核心 */
 #include "graph_hash.h"       /* 图结构哈希 */
 #include "normalization.h"    /* 图规范化遍引擎 */
+#include "rewrite.h"          /* 图重写引擎 */
+#include "solver.h"           /* 符号代数求解器 */
 #include "symbolic_coord.h"   /* 符号坐标系统 */
-#include "unify.h"             /* 合一检查 */
+#include "unify.h"            /* 合一检查 */
 
-/* ============================================================
- * Layer 4: 公理推理
- * ============================================================
- * 引擎、求解器、证明系统、重写、公理包、模块系统、
- * 函数块、预设库、逻辑系统、类型系统、量词。
- * 核心推理与计算逻辑。
- * ============================================================ */
-
-/* --- 4a: 核心推理引擎 --- */
-#include "engine.h"   /* 主引擎 */
-#include "solver.h"   /* 符号代数求解器 */
-#include "rewrite.h"  /* 图重写引擎 */
-#include "magic.h"    /* Magic 模拟器模块 */
-
-/* --- 4b: 公理与模块系统 --- */
+/* 公理系统 */
 #include "axiom_pkg.h" /* 公理系统包 */
 #include "module.h"    /* 模块系统 */
 
-/* --- 4c: 证明系统 --- */
-#include "proof.h"                 /* 命题与证明系统 */
-#include "proof_engine_enhanced.h" /* 增强证明引擎 */
-
-/* --- 4d: 函数块系统 --- */
+/* 高级功能 */
 #include "func_block.h"          /* 函数块系统 */
 #include "func_block_preset.h"   /* 预设函数块库 */
 #include "func_block_registry.h" /* 预设函数块注册系统 */
 
-/* --- 4e: 模块化预设函数块 --- */
+/* 模块化预设函数块系统 */
 #include "preset_algebraic.h"       /* 代数运算模块 */
 #include "preset_basic_geometry.h"  /* 基础几何构造模块 */
 #include "preset_blocks.h"          /* 模块化预设函数块主系统 */
 #include "preset_measurements.h"    /* 度量计算模块 */
 #include "preset_polygons.h"        /* 多边形构造模块 */
 #include "preset_transformations.h" /* 几何变换模块 */
+#include "proof.h"                  /* 命题与证明系统 */
+#include "three_valued_logic.h"     /* 三值逻辑系统 */
+#include "modal_operators.h"        /* 模态逻辑算子 */
+#include "proof_engine_enhanced.h"  /* 增强证明引擎 */
+#include "recursion.h"              /* 递归与条件 */
+#include "type_system.h"            /* 类型系统 */
+#include "quantifier.h"             /* 量词系统 */
 
-/* --- 4f: 逻辑与类型系统 --- */
-#include "three_valued_logic.h" /* 三值逻辑系统 */
-#include "modal_operators.h"    /* 模态逻辑算子 */
-#include "recursion.h"          /* 递归与条件 */
-#include "type_system.h"        /* 类型系统 */
-#include "quantifier.h"         /* 量词系统 */
+/* 引擎 */
+#include "engine.h" /* 主引擎 */
+#include "magic.h"  /* Magic 模拟器模块 */
 
-/* ============================================================
- * Layer 5: 结果输出
- * ============================================================
- * 流式事件、调试工具。
- * 将推理结果转化为外部可观察的输出。
- * ============================================================ */
-#include "debug.h"              /* 调试工具 */
-#include "stream.h"             /* 流式事件系统 */
+/* 调试 */
+#include "debug.h" /* 调试工具 */
+
+/* 工具函数库 */
+#include "lv00_utils.h" /* 通用工具函数 */
+
+/* 流式输出 */
+#include "stream.h"              /* 流式事件系统 */
 #include "stream_context_util.h" /* 流式上下文工具宏 */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* ============================================================
  * === 版本信息 API ===
@@ -359,29 +266,23 @@ extern "C" {
 /**
  * @brief 获取编译期版本号（主版本号）
  * @return 主版本号（如 3）
- * @note   编译期常量，可在 #if 预处理指令中使用。
- *         改为 static inline 函数以提供类型安全和更好的调试体验，
- *         同时保留与宏相同的零开销特性。
+ * @note   编译期常量，可在 #if 预处理指令中使用
  */
-static inline int lv00_version_major(void) { return LV00_VERSION_MAJOR; }
+#define lv00_version_major() LV00_VERSION_MAJOR
 
 /**
  * @brief 获取编译期版本号（次版本号）
- * @return 次版本号（如 5）
- * @note   编译期常量，可在 #if 预处理指令中使用。
- *         改为 static inline 函数以提供类型安全和更好的调试体验，
- *         同时保留与宏相同的零开销特性。
+ * @return 次版本号（如 3）
+ * @note   编译期常量，可在 #if 预处理指令中使用
  */
-static inline int lv00_version_minor(void) { return LV00_VERSION_MINOR; }
+#define lv00_version_minor() LV00_VERSION_MINOR
 
 /**
  * @brief 获取编译期版本号（补丁版本号）
  * @return 补丁版本号（如 0）
- * @note   编译期常量，可在 #if 预处理指令中使用。
- *         改为 static inline 函数以提供类型安全和更好的调试体验，
- *         同时保留与宏相同的零开销特性。
+ * @note   编译期常量，可在 #if 预处理指令中使用
  */
-static inline int lv00_version_patch(void) { return LV00_VERSION_PATCH; }
+#define lv00_version_patch() LV00_VERSION_PATCH
 
 /**
  * @brief 获取版本信息结构体
@@ -393,7 +294,7 @@ typedef struct LV00VersionInfo {
     int         major;          /**< 主版本号 */
     int         minor;          /**< 次版本号 */
     int         patch;          /**< 补丁版本号 */
-    const char *version_string; /**< 完整版本字符串（如 "3.5.0"） */
+    const char *version_string; /**< 完整版本字符串（如 "3.3.0"） */
     const char *platform;       /**< 编译平台名称 */
     const char *compiler;       /**< 编译器名称 */
     const char *arch;           /**< 目标架构 */
@@ -405,7 +306,7 @@ typedef struct LV00VersionInfo {
  * @brief 获取版本字符串（编译期常量）
  *
  * 返回编译期确定的版本字符串，零开销。
- * 格式为 "major.minor.patch"，例如 "3.5.0"。
+ * 格式为 "major.minor.patch"，例如 "3.3.0"。
  *
  * @return 版本字符串（静态常量，无需释放）
  *
@@ -415,7 +316,7 @@ typedef struct LV00VersionInfo {
  * 示例:
  * @code
  *   printf("Lv-00 version: %s\n", lv00_get_version_string());
- *   // 输出: Lv-00 version: 3.5.0
+ *   // 输出: Lv-00 version: 3.3.0
  * @endcode
  */
 LV00_PUBLIC_API const char *lv00_get_version_string(void);
@@ -827,8 +728,7 @@ LV00_PUBLIC_API bool lv00_config_set_string(const char *key, const char *value);
  *   }
  * @endcode
  */
-/* memory_pool.h 已在上方 Layer 2: 资源管理 中统一包含（提供 Lv00MemoryStats 类型） */
-LV00_PUBLIC_API bool lv00_get_memory_stats_ex(Lv00MemoryStats *stats);
+LV00_PUBLIC_API bool lv00_get_memory_stats_ex(MemoryStats *stats);
 
 /**
  * @brief 设置内存使用上限
@@ -905,7 +805,7 @@ LV00_PUBLIC_API bool lv00_are_assertions_enabled(void);
  * 确保 lv00.h 中的版本宏与 CMakeLists.txt 的 project(VERSION ...)
  * 保持一致。版本不匹配时触发编译错误，防止 API 兼容性问题。
  * ============================================================ */
-#if LV00_VERSION_MAJOR != 3 || LV00_VERSION_MINOR != 5 || LV00_VERSION_PATCH != 0
+#if LV00_VERSION_MAJOR != 3 || LV00_VERSION_MINOR != 3 || LV00_VERSION_PATCH != 0
 #error "[Lv-00] 版本宏不匹配：lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 与 CMakeLists.txt 的 project(VERSION ...) 不一致，请同步后重新编译。"
 #endif
 

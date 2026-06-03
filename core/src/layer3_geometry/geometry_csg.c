@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geometry_csg.c
  * @brief Lv-00 CSG 构造实体几何 — BSP 树布尔运算与 OpenSCAD 互操作
  *

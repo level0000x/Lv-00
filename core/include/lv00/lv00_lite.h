@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv00_lite.h
  * @brief Lv-00 轻量版 API 头文件
  *

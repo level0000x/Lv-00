@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file expr_canon.h
  * @brief 代数表达式规范形式 (Canonical Form)
  *

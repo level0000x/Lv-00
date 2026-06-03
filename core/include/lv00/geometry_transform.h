@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geometry_transform.h
  * @brief 几何变换推理系统 —— 旋转、轴对称、平移
  *

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file algebra_mode.c
  * @brief 代数模式构造引擎实现 —— 借鉴 build123d 代数模式 + CadQuery Fluent API
  *

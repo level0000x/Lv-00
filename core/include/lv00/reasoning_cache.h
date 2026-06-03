@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file reasoning_cache.h
  * @brief 推理结果缓存 —— 基于哈希的去重中间结果缓存
  *

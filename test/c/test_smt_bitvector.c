@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_smt_bitvector.c
  * @brief Tests for the SMT bitvector module (smt_bitvector.h)
  *

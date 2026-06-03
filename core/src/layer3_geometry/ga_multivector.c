@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_multivector.c
  * @brief Implementation of PGA multivector operations
  *

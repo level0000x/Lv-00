@@ -39,10 +39,6 @@ extern "C" {
 #include "constraint_graph.h"
 #include "stream.h"
 #include "type_system.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 /**
  * @brief 设置合一检查器的流式输出上下文

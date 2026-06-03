@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file proof_rule_engine.h
  * @brief Proof rule search engine -- best-first rule application with depth limits
  *

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv00_optimized.h
  * @brief Lv-00 核心库主头文件 (优化版 v3.5.1)
  * 

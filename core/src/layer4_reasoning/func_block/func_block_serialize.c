@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_serialize.c
  * @brief 函数块序列化/反序列化模块
  * @details 实现函数块状态的序列化（保存为文本格式）和反序列化（从文本格式恢复）。

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_propagate.c
  * @brief Implementation of the predicate propagation engine
  *

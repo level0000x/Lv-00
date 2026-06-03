@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file stream_context_util.h
  * @brief 流式上下文工具 —— 注册/分发机制 + 消除各模块中的重复样板代码
  *

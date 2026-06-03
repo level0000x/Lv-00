@@ -33,10 +33,6 @@ extern "C" {
 #include "mpz_poly.h"
 #include "stream.h"
 #include "symbolic_coord.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 /* 稀疏矩阵求解器（sparse_linear_algebra.h）在 solver_sparse_solve 中按需引用 */
 
@@ -79,18 +75,13 @@ typedef struct GroebnerResult {
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
  */
 typedef enum {
-    SOLVER_STATUS_OK = 0,          /**< 求解成功（有解） */
-    SOLVER_STATUS_UNIQUE,           /**< 唯一解 */
-    SOLVER_STATUS_MULTIPLE,         /**< 多解 */
-    SOLVER_STATUS_NO_SOLUTION,      /**< 无解 */
-    SOLVER_STATUS_OVERCONSTRAINED,  /**< 过约束 */
+    SOLVER_STATUS_OK,              /**< 成功 */
+    SOLVER_STATUS_UNIQUE,          /**< 唯一解 */
+    SOLVER_STATUS_MULTIPLE,        /**< 多解 */
+    SOLVER_STATUS_NO_SOLUTION,     /**< 无解 */
+    SOLVER_STATUS_OVERCONSTRAINED, /**< 过度约束 */
     SOLVER_STATUS_OUT_OF_SCOPE,    /**< 超出范围 */
-    SOLVER_STATUS_TIMEOUT,         /**< 超时 */
-    /* v4.1.0 新增：统一求解结果扩展 */
-    SOLVER_STATUS_PARTIAL,          /**< 部分求解 */
-    SOLVER_STATUS_ERROR,            /**< 求解错误 */
-    SOLVER_STATUS_INCONSISTENT,     /**< 约束不一致 */
-    SOLVER_STATUS_UNKNOWN           /**< 未知状态 */
+    SOLVER_STATUS_TIMEOUT          /**< 超时 */
 } SolverStatus;
 
 /* AlgebraicOp is now defined in mpz_poly.h (included above) */
@@ -389,20 +380,6 @@ LV00_PUBLIC_API SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, co
  * @return 求解器状态
  */
 LV00_PUBLIC_API SolverStatus solver_sparse_solve(ConstraintGraph *graph, GroebnerResult **out_result);
-
-/* ============== 矛盾检测 ============== */
-
-/**
- * @brief 检查约束图中是否存在基本矛盾
- *
- * 当前实现为桩函数，检查基本的约束冲突：
- * - 同一个点被约束到两个不同位置
- * - 同一实体上的互斥约束
- *
- * @param graph 约束图（可为 NULL，此时返回 0）
- * @return 0 未检测到矛盾，正值检测到矛盾（矛盾数量），负值错误
- */
-LV00_PUBLIC_API int lv00_solver_check_contradictions(void *graph);
 
 #ifdef __cplusplus
 }

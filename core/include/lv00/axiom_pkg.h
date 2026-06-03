@@ -20,10 +20,6 @@ extern "C" {
 #include "constraint_graph.h"
 #include "stream.h"
 #include "symbolic_coord.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 /**
  * @brief 命题类型枚举 —— 标识公理包中命题的类型

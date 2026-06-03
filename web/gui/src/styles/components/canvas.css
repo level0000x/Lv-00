@@ -10,9 +10,7 @@
     top: var(--spacing-lg);
     left: var(--spacing-lg);
     display: flex;
-    flex-wrap: wrap;
     gap: var(--spacing-xs);
-    max-width: calc(100% - var(--spacing-lg) * 2);
     background: var(--color-bg-secondary);
     border: 1px solid var(--color-border-primary);
     padding: 3px;

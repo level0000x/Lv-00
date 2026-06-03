@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_dsl.c
  * @brief Implementation of the Gappa-style floating-point proof DSL
  *

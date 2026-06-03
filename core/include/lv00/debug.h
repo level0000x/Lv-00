@@ -16,11 +16,6 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-/* 如果 lv00.h 未被包含，定义默认的 LV00_PUBLIC_API */
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 /* [C5 修复] 使用前向声明替代完整包含 engine.h，
  * 减少编译依赖链。仅需要 LV00Engine 和 ConstraintGraph 指针类型。 */
 struct LV00Engine;

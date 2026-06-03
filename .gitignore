@@ -12,10 +12,6 @@ out/
 *.dll
 *.exe
 
-# Sanitizer outputs
-*.asan
-*.ubsan
-
 # CMake
 CMakeCache.txt
 CMakeFiles/
@@ -121,6 +117,7 @@ compile_commands.json
 node_modules/
 
 # Test result files（测试输出已统一放入 test_outputs/ 目录）
+/test_output*.txt
 /test_*.txt
 /test_results.*
 
@@ -129,6 +126,7 @@ node_modules/
 module/axiom_packages/test_saves/
 
 # Build directories（所有构建目录变体）
+build/
 build_*/
 build2/
 build_final/
@@ -137,20 +135,8 @@ build_tmp/
 _archived_builds/
 
 # 归档文档和报告历史版本
-doc/reports/archive/
-log/benchmark_results/archive/
+doc/reports/_archive/
+log/benchmark_results/_archive/
 
 # 分支原型目录（非正式源码）
 module/branches/
-
-# 根目录 lock 文件（顶层 package.json 仅用于工具脚本）
-/package-lock.json
-
-# 根目录垃圾文件防护
-/null
-/test_output.svg
-/test_edge_debug.c
-
-# 重复目录防护（统一使用 doc/ 和 test/）
-/docs/
-/tests/

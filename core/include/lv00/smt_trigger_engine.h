@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file smt_trigger_engine.h
  * @brief Quantifier instantiation engine based on pattern-matching triggers
  *

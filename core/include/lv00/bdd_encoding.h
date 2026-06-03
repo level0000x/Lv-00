@@ -20,31 +20,24 @@
  * @version v3.3.0
  * @date 2026-05-24
  */
-
 #ifndef LV00_BDD_ENCODING_H
 #define LV00_BDD_ENCODING_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stdint.h>
-
 #include "constraint_graph.h"
 #include "symbolic_coord.h"
-
 /* ========================================================================
  * BDD/ADD 基础类型
  * ======================================================================== */
-
 /** BDD 变量在决策图中的类型 */
 typedef enum {
     BDD_BOOLEAN = 0, /**< 布尔变量（0/1） */
     BDD_INT_BIT = 1, /**< 整数位变量（bit-blast 中的某一位） */
     BDD_ENUM = 2     /**< 枚举类型变量（多值编码为多位） */
 } BDDVarType;
-
 /** BDD 节点（二叉决策图节点） */
 typedef struct BDDNode {
     int var_id;           /**< 决策变量 ID（终端节点为 -1） */
@@ -53,7 +46,6 @@ typedef struct BDDNode {
     uint64_t ref_count;   /**< 引用计数（用于垃圾回收） */
     bool complemented;    /**< 是否为补边（CUDD 风格 complemented edges） */
 } BDDNode;
-
 /** BDD 管理器（唯一表 + 变量序 + 缓存） */
 typedef struct BDDManager {
     BDDNode *true_node;     /**< 终端 T 节点（常量 1） */
@@ -65,11 +57,9 @@ typedef struct BDDManager {
     int var_capacity;       /**< var_order 数组容量 */
     uint64_t node_count;    /**< 当前存活节点数（不含终端节点） */
 } BDDManager;
-
 /* ========================================================================
  * ADD (Algebraic Decision Diagram) 类型
  * ======================================================================== */
-
 /** ADD 节点（代数决策图，叶子为 double） */
 typedef struct ADDNode {
     int var_id;           /**< 决策变量 ID（常量叶子为 -1） */
@@ -78,7 +68,6 @@ typedef struct ADDNode {
     double constant;      /**< 常量值（仅 is_constant=true 时有效） */
     bool is_constant;     /**< 是否为常量叶子节点 */
 } ADDNode;
-
 /** ADD 管理器 */
 typedef struct ADDManager {
     ADDNode *zero_node;     /**< 常量 0 节点 */
@@ -89,11 +78,9 @@ typedef struct ADDManager {
     int var_count;          /**< 变量数 */
     uint64_t node_count;    /**< 节点数 */
 } ADDManager;
-
 /* ========================================================================
  * BDD 管理器生命周期
  * ======================================================================== */
-
 /**
  * @brief 创建 BDD 管理器
  *
@@ -102,14 +89,12 @@ typedef struct ADDManager {
  * @return 新管理器，失败返回 NULL
  */
 BDDManager *bdd_manager_create(int var_count, int unique_table_size);
-
 /**
  * @brief 销毁 BDD 管理器及其所有节点
  *
  * @param[in,out] mgr BDD 管理器
  */
 void bdd_manager_destroy(BDDManager *mgr);
-
 /**
  * @brief 注册新的 BDD 变量
  *
@@ -119,26 +104,19 @@ void bdd_manager_destroy(BDDManager *mgr);
  * @return 新变量 ID（>=0），失败返回 -1
  */
 int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type);
-
 /* ========================================================================
  * BDD 基本节点创建
  * ======================================================================== */
-
 /** 获取 T 节点（常量 1） */
 BDDNode *bdd_true(BDDManager *mgr);
-
 /** 获取 F 节点（常量 0） */
 BDDNode *bdd_false(BDDManager *mgr);
-
 /** 创建字面量节点：var_id 为正 = 正文字，var_id 为负 = 负文字 */
 BDDNode *bdd_literal(BDDManager *mgr, int var_id);
-
 /** 增加节点引用计数 */
 void bdd_ref(BDDNode *node);
-
 /** 减少节点引用计数（为 0 时从唯一表回收） */
 void bdd_deref(BDDManager *mgr, BDDNode *node);
-
 /* ========================================================================
  * BDD 布尔运算
  *
@@ -146,51 +124,36 @@ void bdd_deref(BDDManager *mgr, BDDNode *node);
  *   ite(F, G, H) = (F ∧ G) ∨ (¬F ∧ H)
  * 其他运算均可归约为 ITE。
  * ======================================================================== */
-
 /** BDD AND：f ∧ g */
 BDDNode *bdd_and(BDDManager *mgr, BDDNode *f, BDDNode *g);
-
 /** BDD OR：f ∨ g */
 BDDNode *bdd_or(BDDManager *mgr, BDDNode *f, BDDNode *g);
-
 /** BDD NOT：¬f */
 BDDNode *bdd_not(BDDManager *mgr, BDDNode *f);
-
 /** BDD ITE：if(f) then g else h */
 BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h);
-
 /** BDD XOR：f ⊕ g */
 BDDNode *bdd_xor(BDDManager *mgr, BDDNode *f, BDDNode *g);
-
 /** BDD NAND：¬(f ∧ g) */
 BDDNode *bdd_nand(BDDManager *mgr, BDDNode *f, BDDNode *g);
-
 /* ========================================================================
  * ADD 代数运算
  * ======================================================================== */
-
 /** ADD 加法：a + b */
 ADDNode *add_add(ADDManager *mgr, ADDNode *a, ADDNode *b);
-
 /** ADD 减法：a - b */
 ADDNode *add_sub(ADDManager *mgr, ADDNode *a, ADDNode *b);
-
 /** ADD 乘法：a * b */
 ADDNode *add_mul(ADDManager *mgr, ADDNode *a, ADDNode *b);
-
 /** ADD 除法：a / b */
 ADDNode *add_div(ADDManager *mgr, ADDNode *a, ADDNode *b);
-
 /** ADD 最大值：max(a, b) */
 ADDNode *add_max(ADDManager *mgr, ADDNode *a, ADDNode *b);
-
 /** ADD 最小值：min(a, b) */
 ADDNode *add_min(ADDManager *mgr, ADDNode *a, ADDNode *b);
-
 /* ========================================================================
  * 变量序优化（Sifting 算法）
  * ======================================================================== */
-
 /**
  * @brief 使用 sifting 算法重排 BDD 变量序
  *
@@ -206,11 +169,9 @@ ADDNode *add_min(ADDManager *mgr, ADDNode *a, ADDNode *b);
  * @return 优化后的节点数（-1 表示失败）
  */
 int bdd_reorder_sift(BDDManager *mgr);
-
 /* ========================================================================
  * 约束图 → BDD 编码
  * ======================================================================== */
-
 /**
  * @brief 将整个约束图编码为一个 BDD
  *
@@ -223,7 +184,6 @@ int bdd_reorder_sift(BDDManager *mgr);
  * @return 表示约束图可满足赋值的 BDD 节点，失败返回 NULL
  */
 BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr);
-
 /**
  * @brief 将符号坐标编码为 BDD 变量组
  *
@@ -237,11 +197,9 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr);
  * @return 成功分配的位数（通常为 64），失败返回 -1
  */
 int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
-
 /* ========================================================================
  * BDD → CNF 转换
  * ======================================================================== */
-
 /**
  * @brief 将 BDD 转换为 CNF (DIMACS 格式)
  *
@@ -253,11 +211,9 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
  * @return true 成功，false 失败
  */
 bool bdd_to_cnf(BDDNode *bdd, char **out_cnf);
-
 /* ========================================================================
  * ADD 管理器生命周期
  * ======================================================================== */
-
 /**
  * @brief 创建 ADD 管理器
  *
@@ -266,17 +222,13 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf);
  * @return 新管理器，失败返回 NULL
  */
 ADDManager *add_manager_create(int var_count, int unique_table_size);
-
 /**
  * @brief 销毁 ADD 管理器
  */
 void add_manager_destroy(ADDManager *mgr);
-
 /** 创建 ADD 常量节点 */
 ADDNode *add_constant(ADDManager *mgr, double value);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_BDD_ENCODING_H */

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file preset_coding_theory.c
  * @brief 编码理论预设函数块模块 - 实现（v2统一宏模式）
  *

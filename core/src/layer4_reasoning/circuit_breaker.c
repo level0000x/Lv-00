@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file circuit_breaker.c
  * @brief 熔断器实现 —— 多维资源保护与自动恢复
  *

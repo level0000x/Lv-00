@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_normalization.c
  * @brief Lv-00 图规范化测试 - 点合并、线段规范化、含约束图规范化
  *

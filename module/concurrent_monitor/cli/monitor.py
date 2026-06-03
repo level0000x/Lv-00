@@ -110,7 +110,6 @@ class CLIMonitor:
         self._keyboard_running: bool = False # 键盘监听线程运行标志
         self._keyboard_thread: Optional[threading.Thread] = None
         self._key_lock: threading.Lock = threading.Lock()  # 按键队列锁
-        self._should_exit: bool = False  # 退出标志（由信号处理函数设置）
 
         # 注册事件监听
         self._setup_event_handlers()
@@ -567,13 +566,12 @@ class CLIMonitor:
 
         # 设置 Ctrl+C 处理
         def handle_interrupt(sig, frame):
-            """信号处理函数：设置退出标志而非直接退出"""
             logger.info("收到中断信号，正在停止...")
             self.engine.stop_all()
             self._stop_keyboard_listener()
             if self._console:
                 self._console.print("\n[yellow]正在停止所有进程...[/yellow]")
-            self._should_exit = True
+            sys.exit(0)
 
         signal.signal(signal.SIGINT, handle_interrupt)
 
@@ -592,7 +590,7 @@ class CLIMonitor:
                 screen=True,
             ) as live:
                 self._live = live
-                while self.engine.is_running and not self._should_exit:
+                while self.engine.is_running:
                     # 处理键盘事件队列
                     with self._key_lock:
                         keys = list(self._key_queue)

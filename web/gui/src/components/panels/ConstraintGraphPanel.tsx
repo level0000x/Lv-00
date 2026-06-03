@@ -9,19 +9,8 @@
  *              node-link diagram using Canvas-based rendering in a sidebar panel.
  *              Provides bidirectional linking with the main canvas.
  *
- * 主要功能 / Key Features:
- * - 将当前几何构造中的点和约束可视化为力导向图
- * - 节点颜色编码状态：已满足（绿）、冲突（红）、欠约束（蓝）、已合并（灰）
- * - 边颜色编码约束类型：incidence（青）、betweenness（紫）、intersection（橙）
- * - 支持节点悬停高亮、点击选中、与主画布双向联动
- * - 自动检测约束冲突和自由度（DOF），提供合并候选建议
- * - 力导向布局算法已提取到 utils/forceLayout.ts
- *
- * 使用示例 / Usage:
- *   // 作为侧边栏面板使用
- *   <ConstraintGraphPanel />
- *
- *   // 内部自动从 useGeometryStore 和 useInteractionStore 获取数据
+ *              力导向布局算法已提取到 utils/ 目录：
+ *              - forceLayout.ts: Coulomb 斥力 + 弹簧引力模拟
  */
 
 import React, {

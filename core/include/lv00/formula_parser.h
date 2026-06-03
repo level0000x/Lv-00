@@ -254,17 +254,6 @@ FormulaNode *formula_parse(const char *input, const char *syntax);
  */
 const char *formula_parser_get_last_error(void);
 
-/**
- * @brief 预解析输入验证
- *
- * 在正式解析之前对输入进行结构级验证：NULL/空检查、括号匹配、
- * 过长输入警告（> 4096 字符）、非法字符检测。
- *
- * @param[in] input 输入的公式字符串
- * @return 0 验证通过，非零为错误码
- */
-int formula_validate_input(const char *input);
-
 /* ============================================================
  * 公共 API —— AST 节点管理
  * ============================================================ */
@@ -278,17 +267,6 @@ int formula_validate_input(const char *input);
  * @param[in] node 要销毁的 AST 节点
  */
 void formula_node_destroy(FormulaNode *node);
-
-/**
- * @brief 递归销毁整棵 AST 树（便捷接口）
- *
- * 提供单次调用清理整棵解析树。不使用引用计数，
- * 直接递归释放所有子节点后释放根节点。
- * 适用于 formula_parse 返回的 AST 根节点的最终清理。
- *
- * @param[in] root AST 根节点，可以为 NULL
- */
-void formula_ast_destroy(FormulaNode *root);
 
 /**
  * @brief 增加 AST 节点引用计数

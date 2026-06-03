@@ -33,10 +33,6 @@
 
 #include "func_block.h"
 #include "func_block_registry.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 #ifdef __cplusplus
 extern "C" {

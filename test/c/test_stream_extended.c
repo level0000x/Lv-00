@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_stream_extended.c
  * @brief 流式输出系统扩展测试
  *

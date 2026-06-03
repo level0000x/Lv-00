@@ -38,18 +38,6 @@
  *
  * @author Lv-00 Project
  * @version 3.3.0
- *
- * @par 设计要点
- * - 三级内存管理策略：固定大小对象池（低碎片）、线性分配器（批量分配）、对象缓存（LRU 复用）
- * - 内部数据块使用标准 malloc/free，避免与 lv00_malloc 形成循环依赖
- * - 池结构体本身使用 lv00_malloc/lv00_free，便于统一追踪和调试
- * - 对象池支持线程安全模式（互斥锁保护）
- * - 线性分配器支持重置（reset）和批量释放，适用于临时计算场景
- *
- * @par 依赖关系
- * - 上层: 被 solver.c, engine.c, proof.c 等性能敏感模块调用
- * - 下层: 依赖标准 C 库（stdlib）和平台线程原语（windows.h / pthread.h）
- * - 同层: 与 lv00_utils.c 协作，池结构体分配走 lv00_malloc 路径
  */
 
 #include "memory_pool.h"
@@ -141,14 +129,6 @@ static inline size_t align_up(size_t size, size_t alignment) {
     return (size + alignment - 1) & ~(alignment - 1);
 }
 
-/**
- * @brief 对象池创建
- * @details 根据配置创建一个固定大小对象池。池内部使用空闲链表管理对象，
- *          支持线程安全（互斥锁保护）和自动扩展（当空闲链表耗尽时按增长因子分配新块）。
- *          对象大小会按指针对齐（至少 sizeof(void*)），以确保空闲链表节点能正确嵌入。
- * @param config 对象池配置，包含 object_size、capacity、thread_safe、auto_grow 等字段
- * @return 新创建的对象池指针（调用者需使用 lv00_pool_destroy 释放），参数无效或内存不足时返回 NULL
- */
 Lv00ObjectPool *lv00_pool_create(const Lv00PoolConfig *config) {
     if (!config || config->object_size == 0) {
         return NULL;
@@ -224,14 +204,6 @@ Lv00ObjectPool *lv00_pool_create(const Lv00PoolConfig *config) {
     return pool;
 }
 
-/**
- * @brief 对象池销毁
- * @details 释放对象池持有的所有内存块、块容量记录数组以及池结构体本身。
- *          如果启用了线程安全，会先销毁互斥锁。
- *          注意：调用前应确保所有已分配的对象已归还（通过 lv00_pool_free），
- *          否则可能产生悬空指针。
- * @param pool 要销毁的对象池指针，为 NULL 时安全无操作
- */
 void lv00_pool_destroy(Lv00ObjectPool *pool) {
     if (!pool) {
         return;
@@ -252,15 +224,6 @@ void lv00_pool_destroy(Lv00ObjectPool *pool) {
     free(pool);
 }
 
-/**
- * @brief 从对象池分配对象
- * @details 从空闲链表头部取出一个对象并返回。返回的对象内存已清零。
- *          若空闲链表为空且 auto_grow 为 true，则自动分配新内存块并扩展容量；
- *          若 auto_grow 为 false，则返回 NULL。
- *          通过此函数分配的对象必须通过 lv00_pool_free 释放，严禁混用其他释放方式。
- * @param pool 对象池指针
- * @return 分配的对象指针（已清零），失败时返回 NULL
- */
 void *lv00_pool_alloc(Lv00ObjectPool *pool) {
     if (!pool) {
         return NULL;
@@ -368,14 +331,6 @@ void *lv00_pool_alloc(Lv00ObjectPool *pool) {
     return node;
 }
 
-/**
- * @brief 释放对象到对象池
- * @details 将对象归还到对象池的空闲链表头部。归还后对象内存不会被清零，
- *          下次分配时会清零返回。
- * @param pool 对象池指针
- * @param obj  要释放的对象指针，必须是通过 lv00_pool_alloc 分配的
- * @return 成功返回 true，参数无效时返回 false
- */
 bool lv00_pool_free(Lv00ObjectPool *pool, void *obj) {
     if (!pool || !obj) {
         return false;
@@ -390,9 +345,7 @@ bool lv00_pool_free(Lv00ObjectPool *pool, void *obj) {
     node->next = pool->free_list;
     pool->free_list = node;
     pool->total_frees++;
-    if (pool->current_used > 0) {
-        pool->current_used--;
-    }
+    pool->current_used--;
 
     if (pool->thread_safe) {
         LV00_MUTEX_UNLOCK(pool->mutex);
@@ -473,15 +426,6 @@ struct Lv00LinearAllocator {
     size_t total_capacity;      /**< 总容量 */
 };
 
-/**
- * @brief 线性分配器创建
- * @details 创建一个线性（栈式）分配器。线性分配器只支持顺序分配，不支持单独释放，
- *          但可以通过 lv00_linear_allocator_reset 一次性重置所有已分配内存。
- *          适用于临时内存分配场景（如单帧分配、解析过程等），分配效率极高。
- *          初始会预分配第一个内存块。
- * @param block_size 默认内存块大小（字节），为 0 时使用 LV00_LINEAR_ALLOCATOR_BLOCK_SIZE
- * @return 新创建的线性分配器指针（调用者需使用 lv00_linear_allocator_destroy 释放），失败时返回 NULL
- */
 Lv00LinearAllocator *lv00_linear_allocator_create(size_t block_size) {
     Lv00LinearAllocator *allocator = (Lv00LinearAllocator *)malloc(sizeof(Lv00LinearAllocator));
     if (!allocator) {
@@ -508,13 +452,6 @@ Lv00LinearAllocator *lv00_linear_allocator_create(size_t block_size) {
     return allocator;
 }
 
-/**
- * @brief 线性分配器销毁
- * @details 释放线性分配器持有的所有内存块链表及分配器结构体本身。
- *          注意：线性分配器不支持单独释放，销毁时所有通过 lv00_linear_alloc 分配的
- *          内存将全部失效。
- * @param allocator 要销毁的线性分配器指针，为 NULL 时安全无操作
- */
 void lv00_linear_allocator_destroy(Lv00LinearAllocator *allocator) {
     if (!allocator) {
         return;
@@ -531,16 +468,6 @@ void lv00_linear_allocator_destroy(Lv00LinearAllocator *allocator) {
     free(allocator);
 }
 
-/**
- * @brief 线性分配
- * @details 从线性分配器中按指定大小和对齐要求分配内存。分配器会依次检查现有内存块
- *          是否有足够空间，若所有块都不足则分配新块。新块大小为 max(size + align, block_size)。
- * @param allocator 线性分配器指针
- * @param size      请求分配的字节数，必须大于 0
- * @param alignment 对齐要求（字节），为 0 时使用默认值 LV00_DEFAULT_ALIGNMENT（16 字节），
- *                  且最小为 sizeof(void*)
- * @return 分配的内存指针，失败时返回 NULL
- */
 void *lv00_linear_alloc(Lv00LinearAllocator *allocator, size_t size, size_t alignment) {
     if (!allocator || size == 0) {
         return NULL;
@@ -601,12 +528,6 @@ void *lv00_linear_alloc(Lv00LinearAllocator *allocator, size_t size, size_t alig
     return ptr;
 }
 
-/**
- * @brief 线性分配器重置
- * @details 将线性分配器所有内存块的使用量归零，使其可以重新从头部开始分配。
- *          不会释放任何内存块，仅重置偏移量。适用于需要反复使用同一批临时内存的场景。
- * @param allocator 线性分配器指针，为 NULL 时安全无操作
- */
 void lv00_linear_allocator_reset(Lv00LinearAllocator *allocator) {
     if (!allocator) {
         return;
@@ -634,8 +555,6 @@ void lv00_linear_allocator_get_stats(const Lv00LinearAllocator *allocator,
 }
 
 /* ============== 对象缓存（LRU）实现 ============== */
-/* DEPRECATED: 已废弃，请使用 cache_manager.h 中的 Lv00CacheManager */
-#if 0
 
 /**
  * @brief 缓存条目
@@ -938,8 +857,6 @@ void lv00_cache_get_stats(const Lv00ObjectCache *cache,
     if (out_misses) *out_misses = cache->misses;
     if (out_current_size) *out_current_size = cache->current_size;
 }
-
-#endif /* DEPRECATED: Lv00ObjectCache */
 
 /* ============== 全局内存统计 ============== */
 

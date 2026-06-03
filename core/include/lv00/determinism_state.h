@@ -4,14 +4,11 @@
  *
  * 将 DeterminismState 枚举定义独立出来，解决 constraint_graph.h 和 func_block.h 之间的循环依赖问题。
  */
-
 #ifndef LV00_DETERMINISM_STATE_H
 #define LV00_DETERMINISM_STATE_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @brief 确定性状态枚举
  *
@@ -24,9 +21,7 @@ typedef enum {
     DETERMINISM_STATE_NON_DETERMINISTIC, /**< 非确定性 —— 函数块可能产生不同输出 */
     DETERMINISM_STATE_PARTIALLY_VERIFIED /**< 部分验证 —— 仅部分路径已验证确定性 */
 } DeterminismState;
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_DETERMINISM_STATE_H */

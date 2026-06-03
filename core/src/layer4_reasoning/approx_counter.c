@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file approx_counter.c
  * @brief ApproxMC 近似模型计数 —— 桩实现
  *

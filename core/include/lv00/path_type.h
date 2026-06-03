@@ -20,34 +20,26 @@
  * @version v3.3.0
  * @date 2026-05-24
  */
-
 #ifndef LV00_PATH_TYPE_H
 #define LV00_PATH_TYPE_H
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 #include "constraint_graph.h"
 #include "unify.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /* ================================================================
  *  前向声明
  * ================================================================ */
-
 typedef struct Lv00Interval Lv00Interval;
 typedef struct Lv00Path Lv00Path;
 typedef struct Lv00PathSystem Lv00PathSystem;
 typedef struct ConstraintGraph ConstraintGraph;
-
 /* ================================================================
  *  第一部分：HoTT 区间类型（Interval）
  * ================================================================ */
-
 /**
  * @brief 路径方向枚举
  *
@@ -59,7 +51,6 @@ typedef enum {
     DIRECTION_FORWARD = 0, /**< 正向路径：从端点 A 到端点 B */
     DIRECTION_BACKWARD = 1 /**< 逆向路径：从端点 B 到端点 A */
 } Lv00PathDirection;
-
 /**
  * @brief HoTT 区间类型 I
  *
@@ -77,11 +68,9 @@ struct Lv00Interval {
     bool is_degenerate; /**< 退化区间标记（left == right，对应 refl） */
     char *label;        /**< 可选标签（用于调试/显示） */
 };
-
 /* ================================================================
  *  第二部分：路径类型枚举
  * ================================================================ */
-
 /**
  * @brief 路径类型分类枚举
  *
@@ -101,7 +90,6 @@ typedef enum {
     PATH_TRANSPORT = 4,    /**< 传输路径，coe——沿路径传输类型/属性 */
     PATH_EQUIVALENCE = 5   /**< 等价路径，表示类型/空间之间的等价 */
 } Lv00PathType;
-
 /**
  * @brief 路径传输模式枚举
  *
@@ -115,11 +103,9 @@ typedef enum {
     TRANSPORT_ALONG_EQUIV = 1,       /**< 沿类型等价（equivalence）传输 */
     TRANSPORT_ALONG_CONSTRUCTION = 2 /**< 沿构造路径传输（联动构造图） */
 } Lv00TransportMode;
-
 /* ================================================================
  *  第三部分：路径结构体
  * ================================================================ */
-
 /**
  * @brief HoTT 路径结构体
  *
@@ -151,11 +137,9 @@ struct Lv00Path {
     int source_step_id;                             /**< 产生此路径的构造步骤 ID（溯源） */
     int64_t created_at_us;                          /**< 路径创建时间（微秒，用于排序/调试） */
 };
-
 /* ================================================================
  *  第四部分：路径系统（Paths Universe）
  * ================================================================ */
-
 /**
  * @brief 路径消去上下文
  *
@@ -176,7 +160,6 @@ typedef struct {
     bool preserve_structure; /**< 是否保留结构不变性 */
     char error_msg[256];     /**< 传输失败时的错误信息 */
 } Lv00PathCoercionContext;
-
 /**
  * @brief 路径系统 —— 所有活跃路径的全局注册与管理
  *
@@ -207,11 +190,9 @@ struct Lv00PathSystem {
     bool is_initialized;                   /**< 系统初始化状态 */
     int64_t init_time_us;                  /**< 系统初始化时间戳 */
 };
-
 /* ================================================================
  *  第五部分：API —— 路径系统生命周期
  * ================================================================ */
-
 /**
  * @brief 创建并初始化路径系统
  *
@@ -223,7 +204,6 @@ struct Lv00PathSystem {
  * @return 成功返回新分配的路径系统指针，失败返回 NULL
  */
 Lv00PathSystem *path_system_create(int path_capacity, int interval_capacity);
-
 /**
  * @brief 销毁路径系统并释放所有关联资源
  *
@@ -233,11 +213,9 @@ Lv00PathSystem *path_system_create(int path_capacity, int interval_capacity);
  * @param sys  路径系统指针（销毁后置为悬空，调用方应置 NULL）
  */
 void path_system_destroy(Lv00PathSystem *sys);
-
 /* ================================================================
  *  第六部分：API —— 路径创建与操作
  * ================================================================ */
-
 /**
  * @brief 创建一条新路径
  *
@@ -255,7 +233,6 @@ void path_system_destroy(Lv00PathSystem *sys);
  */
 int path_create(Lv00PathSystem *sys, int endpoint_a, int endpoint_b, const char *label,
                 double (*path_func)(double t, void *user_data), void *user_data, int source_step);
-
 /**
  * @brief 创建恒等路径（refl）
  *
@@ -268,7 +245,6 @@ int path_create(Lv00PathSystem *sys, int endpoint_a, int endpoint_b, const char 
  * @return 成功返回恒等路径 ID（>= 0），失败返回 -1
  */
 int path_create_identity(Lv00PathSystem *sys, int endpoint_a, const char *label);
-
 /**
  * @brief 创建逆路径
  *
@@ -280,7 +256,6 @@ int path_create_identity(Lv00PathSystem *sys, int endpoint_a, const char *label)
  * @return 成功返回逆路径 ID（>= 0），失败返回 -1
  */
 int path_create_inverse(Lv00PathSystem *sys, int path_id);
-
 /**
  * @brief 路径拼接（p @ q）
  *
@@ -295,7 +270,6 @@ int path_create_inverse(Lv00PathSystem *sys, int path_id);
  * @return 成功返回合成路径 ID（>= 0），失败返回 -1
  */
 int path_compose(Lv00PathSystem *sys, int path_id_p, int path_id_q, const char *label);
-
 /**
  * @brief 路径传输（coe —— 沿路径消去）
  *
@@ -313,11 +287,9 @@ int path_compose(Lv00PathSystem *sys, int path_id_p, int path_id_q, const char *
  * @return 成功返回 0，失败返回负值错误码
  */
 int path_transport(Lv00PathSystem *sys, int path_id, int source_type_id, Lv00TransportMode mode, void **transported);
-
 /* ================================================================
  *  第七部分：API —— 路径查询与变换
  * ================================================================ */
-
 /**
  * @brief 检查路径是否为恒等路径
  *
@@ -328,7 +300,6 @@ int path_transport(Lv00PathSystem *sys, int path_id, int source_type_id, Lv00Tra
  * @return 若为恒等路径返回 true，否则返回 false（路径不存在也返回 false）
  */
 bool path_is_constant(const Lv00PathSystem *sys, int path_id);
-
 /**
  * @brief 将 HoTT 路径转换为等式证明（与 unify.h 集成）
  *
@@ -341,7 +312,6 @@ bool path_is_constant(const Lv00PathSystem *sys, int path_id);
  * @return 成功返回 0，失败返回负值错误码
  */
 int path_to_equality(Lv00PathSystem *sys, int path_id, ConstraintGraph **out_equality);
-
 /**
  * @brief 从构造步骤生成路径证明
  *
@@ -354,7 +324,6 @@ int path_to_equality(Lv00PathSystem *sys, int path_id, ConstraintGraph **out_equ
  * @return 成功返回路径 ID（>= 0），失败返回 -1
  */
 int path_from_construction(Lv00PathSystem *sys, int step_index, const char *label);
-
 /**
  * @brief 将路径转换为约束图等价关系
  *
@@ -367,7 +336,6 @@ int path_from_construction(Lv00PathSystem *sys, int step_index, const char *labe
  * @return 成功返回 0，失败返回负值错误码
  */
 int path_to_constraint_graph(Lv00PathSystem *sys, int path_id, ConstraintGraph **out_constraint);
-
 /**
  * @brief 查询两点之间的所有已知路径
  *
@@ -383,11 +351,9 @@ int path_to_constraint_graph(Lv00PathSystem *sys, int path_id, ConstraintGraph *
  */
 int path_system_get_all_paths_between(const Lv00PathSystem *sys, int endpoint_a, int endpoint_b, int *out_path_ids,
                                       int max_count);
-
 /* ================================================================
  *  第八部分：API —— 区间操作
  * ================================================================ */
-
 /**
  * @brief 在路径系统中创建区间实例
  *
@@ -401,7 +367,6 @@ int path_system_get_all_paths_between(const Lv00PathSystem *sys, int endpoint_a,
  * @return 成功返回区间 ID（>= 0），失败返回 -1
  */
 int path_system_create_interval(Lv00PathSystem *sys, double left, double right, const char *label);
-
 /**
  * @brief 获取区间实例
  *
@@ -410,7 +375,6 @@ int path_system_create_interval(Lv00PathSystem *sys, double left, double right, 
  * @return 区间指针，若不存在返回 NULL
  */
 const Lv00Interval *path_system_get_interval(const Lv00PathSystem *sys, int interval_id);
-
 /**
  * @brief 获取路径实例
  *
@@ -419,9 +383,7 @@ const Lv00Interval *path_system_get_interval(const Lv00PathSystem *sys, int inte
  * @return 路径指针，若不存在返回 NULL
  */
 const Lv00Path *path_system_get_path(const Lv00PathSystem *sys, int path_id);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_PATH_TYPE_H */

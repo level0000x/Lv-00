@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file numerical_backend.c
  * @brief 多后端数值抽象层 —— SERIAL 后端完整实现
  *

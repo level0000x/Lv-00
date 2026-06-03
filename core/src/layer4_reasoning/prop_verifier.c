@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file prop_verifier.c
  * @brief 命题逻辑验证器实现 —— 自然演绎证明搜索
  *

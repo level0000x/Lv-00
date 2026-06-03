@@ -20,20 +20,15 @@
  * @author Lv-00 Project
  * @version 3.3.0
  */
-
 #ifndef LV00_LEXER_SHARED_H
 #define LV00_LEXER_SHARED_H
-
 #include <stddef.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /* ================================================================
  *  词法分析器结构体
  * ================================================================ */
-
 /**
  * @brief 词法分析器状态
  *
@@ -47,11 +42,9 @@ typedef struct {
     int col;            /**< 当前列号（从 1 开始） */
     char *error_msg;    /**< 错误消息（堆分配，调用者负责释放） */
 } Lv00Lexer;
-
 /* ================================================================
  *  公共词法分析器函数
  * ================================================================ */
-
 /**
  * @brief 初始化词法分析器
  *
@@ -59,7 +52,6 @@ typedef struct {
  * @param source 要解析的源字符串（词法分析器不获取所有权）
  */
 void lv00_lexer_init(Lv00Lexer *lex, const char *source);
-
 /**
  * @brief 重置/清除词法分析器状态
  *
@@ -70,7 +62,6 @@ void lv00_lexer_init(Lv00Lexer *lex, const char *source);
  * @param lex 指向词法分析器结构体的指针
  */
 void lv00_lexer_clear(Lv00Lexer *lex);
-
 /**
  * @brief 跳过空白字符和注释
  *
@@ -80,7 +71,6 @@ void lv00_lexer_clear(Lv00Lexer *lex);
  * @param lex 指向词法分析器结构体的指针
  */
 void lv00_lexer_skip_whitespace_and_comments(Lv00Lexer *lex);
-
 /**
  * @brief 提取字符串字面量（含转义处理）
  *
@@ -96,9 +86,7 @@ void lv00_lexer_skip_whitespace_and_comments(Lv00Lexer *lex);
  * @return    新分配的字符串（调用者负责用 free() 释放），失败时返回 NULL
  */
 char *lv00_lexer_extract_string(Lv00Lexer *lex);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_LEXER_SHARED_H */

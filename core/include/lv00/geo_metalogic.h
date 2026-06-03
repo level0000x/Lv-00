@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_metalogic.h
  * @brief 几何元逻辑层 - 基于 Isabelle Pure 元逻辑设计
  * 

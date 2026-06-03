@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file triangle_construction.c
  * @brief 完整示例：三角形构造与证明
  *

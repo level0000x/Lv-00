@@ -1,58 +1,15 @@
 """
 Lv-00 DSL 包装器模块 - 几何对象包装类
-======================================
 
-模块功能概述：
-    提供几何对象的高级包装接口，是 Lv-00 系统的用户友好层。
-    本模块将底层 core 模块的原始几何对象封装为支持链式调用、运算符重载
-    和声明式几何构造的 DSL（领域特定语言）包装类，使几何构造代码更加
-    直观和接近数学表达习惯。
+提供几何对象的高级包装接口，支持链式调用、运算符重载和声明式几何构造。
 
-包装类列表：
-    - PointWrapper: 点包装器，支持坐标访问、距离计算、中点运算
-    - SegmentWrapper: 线段包装器，支持长度计算、中点访问、垂线构造
-    - LineWrapper: 无限直线包装器，支持交点计算、平行/垂直判定
-    - CircleWrapper: 圆包装器，支持半径访问、交点计算、切线构造
-    - TriangleWrapper: 三角形包装器，支持面积计算、外心/内心等特征点
-    - PolygonWrapper: 多边形包装器，支持顶点遍历、面积和周长计算
-
-异常类：
-    - DSLError: DSL 构造异常，几何 DSL 操作失败时抛出
-
-使用示例：
-    >>> from lv00.dsl_wrappers import G  # DSL 上下文入口
-    >>>
-    >>> # 创建 DSL 上下文并构造几何对象
-    >>> g = G()
-    >>> A = g.point(0, 0, "A")
-    >>> B = g.point(3, 4, "B")
-    >>> C = g.point(6, 0, "C")
-    >>>
-    >>> # 运算符重载：减号创建线段
-    >>> AB = A - B  # 线段 AB
-    >>>
-    >>> # 运算符重载：加号求中点
-    >>> M = A + B  # A 和 B 的中点
-    >>>
-    >>> # 运算符重载：与运算创建直线
-    >>> line = A & B  # 过 A 和 B 的直线
-    >>>
-    >>> # 运算符重载：或运算创建圆
-    >>> circle = A | B  # 以 A 为圆心、过 B 的圆
-    >>>
-    >>> # 链式调用
-    >>> d = A.distance_to(B)
-    >>> perp = AB.perpendicular()
-
-注意事项：
-    - DSL 包装器是 core 对象的轻量视图，修改会反映到底层数据
-    - 运算符重载语义借鉴 GAlgebra 的数学到代码映射设计
-    - 包装器对象的生命周期由 DSL 上下文 (G) 管理
-    - 复杂几何构造建议使用 dsl_context.py 中的 G 上下文入口
-
-依赖关系：
-    - 依赖 core 模块：Graph, Point, LineSegment, SymbolicCoord, Lv00Error
-    - 依赖 dsl_context 模块：to_float（公开别名，用于坐标转换）
+包装类：
+    - PointWrapper: 点包装器
+    - SegmentWrapper: 线段包装器
+    - LineWrapper: 无限直线包装器
+    - CircleWrapper: 圆包装器
+    - TriangleWrapper: 三角形包装器
+    - PolygonWrapper: 多边形包装器
 
 版本：3.3.0
 作者：Lv-00 开发团队
@@ -64,10 +21,7 @@ import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .core import Graph, LineSegment, Point, SymbolicCoord, Lv00Error
-# [代码质量修复 L-03] 使用公开别名 to_float 替代私有函数 _float。
-# _float 以下划线前缀表示模块内部使用，但本模块需要跨模块导入它。
-# dsl_context.py 现在提供公开别名 to_float，通过 __all__ 导出。
-from .dsl_context import to_float as _float
+from .dsl_context import _float  # 显式导入，避免依赖 dsl.py 的 re-export 机制
 
 
 # ============================================================

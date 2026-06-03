@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_halfedge_mesh.h
  * @brief Halfedge 网格拓扑数据结构 —— 借鉴 geometry-central
  *

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ga_multivector.h
  * @brief PGA Multivector type definitions and operations
  *

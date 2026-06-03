@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file rewrite_strategy.h
  * @brief Extended rewrite strategy engine with multiple strategies
  *

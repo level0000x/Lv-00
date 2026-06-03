@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file geo_topology.c
  * @brief Implementation of the geometric topology module.
  *

@@ -19,7 +19,7 @@
  *              - proofSearchTree.ts: 回溯搜索树构建
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Panel from './Panel';
 import { useAppStore } from '@/stores';
 import { detectConflicts } from '@/utils/geometryAlgorithms';
@@ -31,16 +31,6 @@ import { generateCoqScript, generateExFalsoNarrative } from './utils/proofCoqGen
 import { generateNlProof, generateCurrentStepDescription } from './utils/proofNarrativeGenerator';
 import { buildBacktrackTree } from './utils/proofSearchTree';
 import type { BacktrackTreeNode } from './utils/proofSearchTree';
-
-// ---- 安全 SVG 渲染组件 / Safe SVG rendering component ----
-import ProofSvgView from './utils/ProofSvgView';
-
-// ---- 通用统计行组件 / Reusable statistics row component ----
-import StatsRow from '@/components/common/StatsRow';
-import type { StatsItem } from '@/components/common/StatsRow';
-
-// ---- 面板专用样式 / Panel-specific styles ----
-import '@/styles/components/proof-panel.css';
 
 /**
  * ProofPanel - 证明模块侧边栏面板
@@ -65,19 +55,11 @@ const ProofPanel: React.FC = () => {
   const redoStack = useAppStore((s) => s.redoStack);
   const tool = useAppStore((s) => s.tool);
 
-  /** 当前活跃模块，用于键盘监听范围收窄 */
-  const activeModule = useAppStore((s) => s.activeModule);
-
   // 用于恢复几何状态的方法
   const setPoints = useAppStore((s) => s.setPoints);
   const setSegments = useAppStore((s) => s.setSegments);
   const setConstraints = useAppStore((s) => s.setConstraints);
   const saveUndoState = useAppStore((s) => s.saveUndoState);
-
-  // ================================================================
-  // 面板容器引用（用于键盘事件委托）/ Panel container ref for keyboard delegation
-  // ================================================================
-  const panelContainerRef = useRef<HTMLDivElement>(null);
 
   // ================================================================
   // 证明步骤导航状态 / Proof Step Navigation State
@@ -228,16 +210,14 @@ const ProofPanel: React.FC = () => {
   }, [jumpToStepInput, totalSteps, restoreToStep, addToast, appendLog]);
 
   // ================================================================
-  // 键盘快捷键（仅在证明面板可见时响应）/ Keyboard Shortcuts (proof panel only)
+  // 键盘快捷键 / Keyboard Shortcuts
   // ================================================================
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 仅在证明模块激活时响应快捷键
-      if (activeModule !== 'proof') return;
-
-      // 如果焦点在输入框中，不处理快捷键（允许正常输入）
+      // 仅在证明面板相关区域响应快捷键
       const activeEl = document.activeElement;
+      // 如果焦点在输入框中，不处理快捷键（允许正常输入）
       if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
         return;
       }
@@ -288,7 +268,7 @@ const ProofPanel: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePrev, handleNext, totalSteps, restoreToStep, addToast, activeModule]);
+  }, [handlePrev, handleNext, totalSteps, restoreToStep, addToast]);
 
   // ================================================================
   // SVG 几何视图生成（委托给工具模块） / SVG Geometry View (delegated)
@@ -296,7 +276,6 @@ const ProofPanel: React.FC = () => {
 
   const selectedPoint = useAppStore((s) => s.selectedPoint);
 
-  /** 根据当前步骤的几何数据生成 SVG 字符串 */
   const proofSvg = useMemo(() => {
     const step = proofSteps[currentStepIndex];
     if (!step) return '';
@@ -426,8 +405,6 @@ const ProofPanel: React.FC = () => {
   // ================================================================
   // 当前步骤自然语言描述（委托给工具模块） / Current Step NL (delegated)
   // ================================================================
-
-  /** 生成当前步骤的自然语言描述 */
   const currentStepNlDescription = useMemo(() => {
     return generateCurrentStepDescription(proofSteps, currentStepIndex);
   }, [proofSteps, currentStepIndex]);
@@ -442,42 +419,8 @@ const ProofPanel: React.FC = () => {
     }
   }, [totalSteps, currentStepIndex]);
 
-  // ================================================================
-  // 回溯树节点状态到 CSS 类名的映射 / Backtrack tree status -> CSS class mapping
-  // ================================================================
-
-  /** 根据节点状态返回对应的 CSS 后缀 */
-  const getStatusSuffix = (status: string): string => {
-    switch (status) {
-      case 'success': return 'success';
-      case 'failure': return 'failure';
-      case 'choice': return 'choice';
-      default: return 'pruned';
-    }
-  };
-
-  // ================================================================
-  // INFO 面板统计数据 / INFO Panel Statistics Data
-  // ================================================================
-
-  /** 构建 INFO 面板的统计行数据 */
-  const infoStatsItems = useMemo((): StatsItem[] => {
-    return [
-      { label: 'STEP / 步骤', value: `${currentStepIndex + 1} / ${totalSteps || '--'}` },
-      { label: 'CONSTRAINTS / 约束', value: constraintSatisfaction },
-      { label: 'COMPLETENESS / 完整度', value: `${proofCompleteness}%` },
-      { label: 'TOOL / 工具', value: tool.toUpperCase() },
-      { label: 'STRATEGY / 策略', value: searchStrategy },
-      { label: 'POINTS / 点', value: points.length },
-      { label: 'SEGMENTS / 线段', value: segments.length },
-      { label: 'CONSTRAINTS / 约束', value: constraints.length },
-      { label: 'UNDO / 撤销栈', value: undoStack.length },
-      { label: 'REDO / 重做栈', value: redoStack.length },
-    ];
-  }, [currentStepIndex, totalSteps, constraintSatisfaction, proofCompleteness, tool, searchStrategy, points.length, segments.length, constraints.length, undoStack.length, redoStack.length]);
-
   return (
-    <div ref={panelContainerRef}>
+    <>
       <Panel title="PROOF / 证明" panelId="proof-ops">
         {/* 证明步骤导航 */}
         <div className="nav-row">
@@ -515,9 +458,10 @@ const ProofPanel: React.FC = () => {
             title={`输入步骤号 (1-${totalSteps})，按 Enter 跳转 / Enter step number, press Enter to jump`}
           />
           <button
-            className="btn btn-small pp-jump-btn"
+            className="btn btn-small"
             onClick={handleJumpToStep}
             disabled={totalSteps === 0}
+            style={{ padding: '3px 8px', fontSize: '10px', width: 'auto', marginBottom: 0 }}
           >
             GO
           </button>
@@ -529,13 +473,22 @@ const ProofPanel: React.FC = () => {
         </div>
 
         {/* 搜索策略选择器 / Search Strategy Selector */}
-        <div className="info-box pp-strategy-box">
+        <div className="info-box" style={{ marginTop: '4px' }}>
           <div className="info-row">
             <span className="info-label" style={{ minWidth: '110px' }}>STRATEGY / 策略</span>
             <select
               value={searchStrategy}
               onChange={(e) => setSearchStrategy(e.target.value)}
-              className="pp-strategy-select"
+              style={{
+                flex: 1,
+                background: 'var(--canvas-bg, #1a1a2e)',
+                color: 'var(--text, #e0e0e0)',
+                border: '1px solid var(--segment, #555)',
+                borderRadius: '4px',
+                padding: '4px 6px',
+                fontSize: '11px',
+                fontFamily: 'inherit',
+              }}
             >
               <option value="Forward Chaining">Forward Chaining / 前向链</option>
               <option value="Backward Chaining">Backward Chaining / 后向链</option>
@@ -547,42 +500,76 @@ const ProofPanel: React.FC = () => {
         </div>
 
         {/* 策略注释 / Strategy Note */}
-        <div className="info-box pp-note-box">
-          <div className="info-row pp-note-row">
+        <div className="info-box" style={{ marginTop: '4px' }}>
+          <div className="info-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '2px' }}>
             <span className="info-label">STRATEGY NOTE / 策略注释</span>
             <input
               type="text"
               value={strategyNote}
               onChange={(e) => setStrategyNote(e.target.value)}
               placeholder="e.g. 先构造辅助圆，再用角平分性质..."
-              className="pp-note-input"
+              style={{
+                width: '100%',
+                background: 'var(--canvas-bg, #1a1a2e)',
+                color: 'var(--text, #e0e0e0)',
+                border: '1px solid var(--segment, #555)',
+                borderRadius: '4px',
+                padding: '4px 6px',
+                fontSize: '11px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
         </div>
 
         {/* 步骤注释 / Step Note */}
-        <div className="info-box pp-note-box">
-          <div className="info-row pp-note-row">
+        <div className="info-box" style={{ marginTop: '4px' }}>
+          <div className="info-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '2px' }}>
             <span className="info-label">STEP NOTE / 步骤注释</span>
             <input
               type="text"
               value={stepNote}
               onChange={(e) => setStepNote(e.target.value)}
               placeholder={`步骤 ${currentStepIndex + 1} 的注释...`}
-              className="pp-note-input"
+              style={{
+                width: '100%',
+                background: 'var(--canvas-bg, #1a1a2e)',
+                color: 'var(--text, #e0e0e0)',
+                border: '1px solid var(--segment, #555)',
+                borderRadius: '4px',
+                padding: '4px 6px',
+                fontSize: '11px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
             />
           </div>
         </div>
 
         {/* 当前步骤内联 NL 描述 / Current Step NL Description Inline */}
         {currentStepNlDescription && (
-          <div className="pp-step-description">
+          <div
+            className="info-box"
+            style={{
+              marginTop: '4px',
+              padding: '6px 8px',
+              background: 'var(--canvas-bg, #1a1a2e)',
+              border: '1px solid var(--segment, #555)',
+              borderRadius: '4px',
+              fontSize: '11px',
+              lineHeight: '1.5',
+              color: '#51cf66',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
             {currentStepNlDescription}
           </div>
         )}
 
         {/* 自然语言证明生成 */}
-        <button className="btn btn-accent pp-btn-margin-top" onClick={handleGenerateNlProof}>
+        <button className="btn btn-accent" onClick={handleGenerateNlProof} style={{ marginTop: '4px' }}>
           GENERATE NL PROOF / 生成自然语言证明
         </button>
 
@@ -616,10 +603,12 @@ const ProofPanel: React.FC = () => {
       {showSvgView && proofSvg && (
         <Panel title="GEOMETRY VIEW / 几何视图" panelId="proof-svg">
           <div className="proof-svg-container">
-            {/* 使用 ProofSvgView 安全渲染 SVG，替代 dangerouslySetInnerHTML */}
-            <ProofSvgView svgString={proofSvg} />
+            <div
+              dangerouslySetInnerHTML={{ __html: proofSvg }}
+              style={{ width: '100%', overflow: 'hidden' }}
+            />
           </div>
-          <div className="proof-shortcut-hint pp-svg-info">
+          <div className="proof-shortcut-hint" style={{ marginTop: '4px' }}>
             步骤 {currentStepIndex + 1}/{totalSteps} | {proofSteps[currentStepIndex]?.points.length ?? 0} 点, {proofSteps[currentStepIndex]?.segments.length ?? 0} 线段, {proofSteps[currentStepIndex]?.constraints.length ?? 0} 约束
           </div>
         </Panel>
@@ -628,17 +617,31 @@ const ProofPanel: React.FC = () => {
       {/* Coq 脚本展示面板 */}
       {showCoqPanel && (
         <Panel title="COQ SCRIPT / Coq 脚本" panelId="proof-coq">
-          <div className="pp-coq-content">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <textarea
               readOnly
               value={coqScript}
-              className="pp-coq-textarea"
+              style={{
+                width: '100%',
+                minHeight: '120px',
+                maxHeight: '300px',
+                resize: 'vertical',
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                lineHeight: '1.4',
+                background: 'var(--canvas-bg, #1a1a2e)',
+                color: 'var(--text, #e0e0e0)',
+                border: '1px solid var(--segment, #555)',
+                borderRadius: '4px',
+                padding: '6px',
+                boxSizing: 'border-box',
+              }}
             />
-            <div className="pp-coq-btn-row">
-              <button className="btn btn-accent" onClick={copyCoqScript}>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button className="btn btn-accent" onClick={copyCoqScript} style={{ flex: 1 }}>
                 COPY / 复制
               </button>
-              <button className="btn" onClick={() => setShowCoqPanel(false)}>
+              <button className="btn" onClick={() => setShowCoqPanel(false)} style={{ flex: 1 }}>
                 CLOSE / 关闭
               </button>
             </div>
@@ -649,10 +652,25 @@ const ProofPanel: React.FC = () => {
       {/* 矛盾证明结果面板 */}
       {showConflictPanel && (
         <Panel title="EX FALSO / 矛盾证明结果" panelId="proof-conflict">
-          <pre className={`pp-conflict-pre${constraintSatisfaction === 'CONFLICT' ? ' pp-conflict-pre--conflict' : ''}`}>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              lineHeight: '1.4',
+              background: 'var(--canvas-bg, #1a1a2e)',
+              color: constraintSatisfaction === 'CONFLICT' ? '#ff6b6b' : 'var(--text, #e0e0e0)',
+              border: '1px solid var(--segment, #555)',
+              borderRadius: '4px',
+              padding: '8px',
+              maxHeight: '250px',
+              overflowY: 'auto',
+            }}
+          >
             {conflictResult}
           </pre>
-          <button className="btn pp-full-width-btn" onClick={() => setShowConflictPanel(false)}>
+          <button className="btn" onClick={() => setShowConflictPanel(false)} style={{ marginTop: '4px', width: '100%' }}>
             CLOSE / 关闭
           </button>
         </Panel>
@@ -661,10 +679,25 @@ const ProofPanel: React.FC = () => {
       {/* 自然语言证明面板 / Natural Language Proof Panel */}
       {showNlPanel && (
         <Panel title="NATURAL LANGUAGE / 自然语言" panelId="proof-nl">
-          <pre className="pp-nl-pre">
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              lineHeight: '1.4',
+              background: 'var(--canvas-bg, #1a1a2e)',
+              color: 'var(--text, #e0e0e0)',
+              border: '1px solid var(--segment, #555)',
+              borderRadius: '4px',
+              padding: '8px',
+              maxHeight: '350px',
+              overflowY: 'auto',
+            }}
+          >
             {nlProof}
           </pre>
-          <button className="btn pp-full-width-btn" onClick={() => setShowNlPanel(false)}>
+          <button className="btn" onClick={() => setShowNlPanel(false)} style={{ marginTop: '4px', width: '100%' }}>
             CLOSE / 关闭
           </button>
         </Panel>
@@ -673,53 +706,106 @@ const ProofPanel: React.FC = () => {
       {/* 回溯树面板 / Backtrack Tree Panel */}
       {showBacktrackPanel && (
         <Panel title="BACKTRACK TREE / 回溯树" panelId="proof-backtrack">
-          <div className="pp-backtrack-scroll">
+          <div
+            style={{
+              maxHeight: '350px',
+              overflowY: 'auto',
+              padding: '6px',
+              background: 'var(--canvas-bg, #1a1a2e)',
+              border: '1px solid var(--segment, #555)',
+              borderRadius: '4px',
+            }}
+          >
             {/* 图例 / Legend */}
-            <div className="pp-backtrack-legend">
-              <span className="pp-backtrack-legend-item">
-                <span className="pp-backtrack-legend-dot pp-backtrack-legend-dot--success" /> Success/成功
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', fontSize: '10px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#51cf66', display: 'inline-block' }} /> Success/成功
               </span>
-              <span className="pp-backtrack-legend-item">
-                <span className="pp-backtrack-legend-dot pp-backtrack-legend-dot--failure" /> Failure/失败
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#ff6b6b', display: 'inline-block' }} /> Failure/失败
               </span>
-              <span className="pp-backtrack-legend-item">
-                <span className="pp-backtrack-legend-dot pp-backtrack-legend-dot--choice" /> Choice/选择点
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#4dabf7', display: 'inline-block' }} /> Choice/选择点
               </span>
-              <span className="pp-backtrack-legend-item">
-                <span className="pp-backtrack-legend-dot pp-backtrack-legend-dot--pruned" /> Pruned/剪枝
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#868e96', display: 'inline-block' }} /> Pruned/剪枝
               </span>
-              <span className="pp-backtrack-legend-item">
-                <span className="pp-backtrack-legend-arrow">&#8617;</span> Backtrack/回溯
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ fontWeight: 'bold', color: '#ffd43b' }}>↩</span> Backtrack/回溯
               </span>
             </div>
 
             {/* 树节点 / Tree Nodes */}
             {backtrackTree.map((node) => {
-              const suffix = getStatusSuffix(node.status);
+              const statusColor =
+                node.status === 'success' ? '#51cf66' :
+                node.status === 'failure' ? '#ff6b6b' :
+                node.status === 'choice' ? '#4dabf7' :
+                '#868e96';
 
               return (
-                <div key={node.id} className="pp-tree-node">
+                <div key={node.id} style={{ marginBottom: '6px' }}>
                   {/* 父节点 / Parent Node */}
-                  <div className={`pp-tree-parent pp-tree-parent--${suffix}`}>
-                    <span className={`pp-tree-status-dot pp-tree-status-dot--${suffix}`} />
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: `${statusColor}22`,
+                      border: `1px solid ${statusColor}`,
+                      fontSize: '11px',
+                      color: 'var(--text, #e0e0e0)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 2,
+                        background: statusColor,
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
                     {node.isBacktrack && (
-                      <span className="pp-tree-backtrack-arrow">&#8617;</span>
+                      <span style={{ color: '#ffd43b', fontWeight: 'bold', flexShrink: 0 }}>↩</span>
                     )}
-                    <span className="pp-tree-parent-label">{node.label}</span>
-                    <span className={`pp-tree-parent-status pp-tree-parent-status--${suffix}`}>
+                    <span style={{ flex: 1 }}>{node.label}</span>
+                    <span style={{ fontSize: '9px', color: statusColor, flexShrink: 0 }}>
                       {node.status.toUpperCase()}
                     </span>
                   </div>
 
                   {/* 子节点 / Children */}
                   {node.children.length > 0 && (
-                    <div className="pp-tree-children">
+                    <div style={{ marginLeft: '20px', borderLeft: `1px solid ${statusColor}44`, paddingLeft: '8px', marginTop: '2px' }}>
                       {node.children.map((child) => (
                         <div
                           key={child.id}
-                          className="pp-tree-child"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 6px',
+                            marginTop: '2px',
+                            borderRadius: '3px',
+                            background: '#51cf6611',
+                            fontSize: '10px',
+                            color: 'var(--text, #e0e0e0)',
+                          }}
                         >
-                          <span className="pp-tree-child-dot" />
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: 1,
+                              background: '#51cf66',
+                              display: 'inline-block',
+                              flexShrink: 0,
+                            }}
+                          />
                           <span>{child.label}</span>
                         </div>
                       ))}
@@ -730,24 +816,82 @@ const ProofPanel: React.FC = () => {
             })}
 
             {backtrackTree.length === 0 && (
-              <div className="pp-backtrack-empty">
+              <div style={{ color: '#868e96', fontSize: '11px', padding: '8px', textAlign: 'center' }}>
                 尚未构建回溯树。点击 "SHOW SEARCH TREE" 按钮开始。
                 <br />
                 No backtrack tree built yet. Click "SHOW SEARCH TREE" to build.
               </div>
             )}
           </div>
-          <button className="btn pp-full-width-btn" onClick={() => setShowBacktrackPanel(false)}>
+          <button className="btn" onClick={() => setShowBacktrackPanel(false)} style={{ marginTop: '4px', width: '100%' }}>
             CLOSE / 关闭
           </button>
         </Panel>
       )}
 
-      {/* INFO 面板：使用 StatsRow 组件展示统计信息 */}
       <Panel title="INFO / 信息" panelId="proof-info">
-        <StatsRow items={infoStatsItems} />
+        <div className="info-box">
+          {/* 证明步骤进度 */}
+          <div className="info-row">
+            <span className="info-label">STEP / 步骤</span>
+            <span className="info-value">{currentStepIndex + 1} / {totalSteps || '--'}</span>
+          </div>
+          {/* 约束满足状态 */}
+          <div className="info-row">
+            <span className="info-label">CONSTRAINTS / 约束</span>
+            <span className="info-value" style={{
+              color: constraintSatisfaction === 'CONFLICT' ? '#ff6b6b'
+                : constraintSatisfaction === 'SATISFIED' ? '#51cf66'
+                : 'var(--text, #e0e0e0)',
+            }}>
+              {constraintSatisfaction}
+            </span>
+          </div>
+          {/* 证明完整度 */}
+          <div className="info-row">
+            <span className="info-label">COMPLETENESS / 完整度</span>
+            <span className="info-value">{proofCompleteness}%</span>
+          </div>
+          {/* 当前工具上下文 */}
+          <div className="info-row">
+            <span className="info-label">TOOL / 工具</span>
+            <span className="info-value">{tool.toUpperCase()}</span>
+          </div>
+          {/* 搜索策略 */}
+          <div className="info-row">
+            <span className="info-label">STRATEGY / 策略</span>
+            <span className="info-value" style={{
+              color: '#4dabf7',
+              fontSize: '11px',
+            }}>
+              {searchStrategy}
+            </span>
+          </div>
+          {/* 几何元素统计 */}
+          <div className="info-row">
+            <span className="info-label">POINTS / 点</span>
+            <span className="info-value">{points.length}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">SEGMENTS / 线段</span>
+            <span className="info-value">{segments.length}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">CONSTRAINTS / 约束</span>
+            <span className="info-value">{constraints.length}</span>
+          </div>
+          {/* 撤销/重做栈深度 */}
+          <div className="info-row">
+            <span className="info-label">UNDO / 撤销栈</span>
+            <span className="info-value">{undoStack.length}</span>
+          </div>
+          <div className="info-row">
+            <span className="info-label">REDO / 重做栈</span>
+            <span className="info-value">{redoStack.length}</span>
+          </div>
+        </div>
       </Panel>
-    </div>
+    </>
   );
 };
 

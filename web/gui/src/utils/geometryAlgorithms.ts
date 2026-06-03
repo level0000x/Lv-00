@@ -2,25 +2,6 @@
  * @module utils/geometryAlgorithms
  * @description 纯 JavaScript 几何算法工具库。
  *              当 WASM 后端不可用时，提供约束分析、几何计算和图操作的回退实现。
- *
- *              Pure JavaScript geometry algorithm utility library.
- *              Provides fallback implementations for constraint analysis,
- *              geometric computation, and graph operations when the
- *              WASM backend is unavailable.
- *
- * 主要功能 / Key Features:
- * - 基础几何计算：中点、交点、等边三角形、正方形顶点计算
- * - 约束分析：检测约束冲突（detectConflicts）、计算自由度（calculateDOF）
- * - 图操作：寻找合并候选点（findMergeCandidates）、连通分量分析
- * - 角度和距离计算：三点夹角、两点距离
- * - 所有算法均为纯函数，无副作用，便于测试和复用
- *
- * 使用示例 / Usage:
- *   import { calculateMidpoint, detectConflicts, calculateDOF } from '@/utils/geometryAlgorithms';
- *
- *   const mid = calculateMidpoint(pointA, pointB);
- *   const conflicts = detectConflicts(points, segments, constraints);
- *   const dof = calculateDOF(points.length, constraints.length);
  */
 
 import type { Point, Segment, Constraint } from '@/types';

@@ -125,16 +125,6 @@ static void init_test_system(void) {
 
 /* ============== 测试注册实现 ============== */
 
-/**
- * @brief 注册测试用例
- * @details 将一个测试用例注册到指定测试套件中。若套件不存在则自动创建。
- *          不带 setup/teardown 夹具的简化版本，等价于调用 lv00_test_register_with_fixture
- *          并将 setup 和 teardown 设为 NULL。同名测试用例不会被重复注册。
- * @param suite_name 测试套件名称
- * @param test_name  测试用例名称
- * @param func       测试函数指针
- * @return 注册成功返回 true，参数无效或已存在同名用例时返回 false
- */
 bool lv00_test_register(const char *suite_name, const char *test_name, Lv00TestFunc func) {
     return lv00_test_register_with_fixture(suite_name, test_name, func, NULL, NULL);
 }
@@ -167,11 +157,6 @@ bool lv00_test_register_with_fixture(const char *suite_name, const char *test_na
 
     /* 扩容 */
     if (suite->case_count >= suite->case_capacity) {
-        /* 检查乘法溢出 */
-        if (suite->case_capacity > UINT32_MAX / 2) {
-            MUTEX_UNLOCK(g_test_system.mutex);
-            return false;  /* 容量过大，无法扩展 */
-        }
         uint32_t new_cap = suite->case_capacity * 2;
         Lv00TestCase *new_cases = (Lv00TestCase *)lv00_realloc(suite->cases,
                                                           new_cap * sizeof(Lv00TestCase));
@@ -292,15 +277,6 @@ void lv00_assert_pass(const char *file, int line) {
 
 /* ============== 测试执行实现 ============== */
 
-/**
- * @brief 运行单个测试
- * @details 执行单个测试用例的完整生命周期：setup -> 测试函数 -> teardown。
- *          记录执行时间和结果状态。若测试函数中调用了断言失败，状态会被标记为 FAILED；
- *          若未触发任何断言失败，状态标记为 PASSED。
- * @param test_case 测试用例指针
- * @param suite     所属测试套件指针（用于更新套件统计）
- * @return 测试结果指针（调用者需使用 lv00_test_result_destroy 释放），失败时返回 NULL
- */
 static Lv00TestResult *run_single_test(Lv00TestCase *test_case, Lv00TestSuite *suite) {
     Lv00TestResult *result = (Lv00TestResult *)lv00_calloc(1, sizeof(Lv00TestResult));
     if (!result) {
@@ -353,13 +329,6 @@ static Lv00TestResult *run_single_test(Lv00TestCase *test_case, Lv00TestSuite *s
     return result;
 }
 
-/**
- * @brief 运行所有测试
- * @details 依次运行所有已注册的测试套件中的所有测试用例。对每个套件会执行：
- *          套件级 setup -> 逐个运行测试用例 -> 套件级 teardown。
- *          汇总所有套件的通过/失败/跳过计数，生成测试报告。
- * @return 测试报告指针（调用者需使用 lv00_test_report_destroy 释放），失败时返回 NULL
- */
 Lv00TestReport *lv00_test_run_all(void) {
     init_test_system();
 
@@ -455,11 +424,6 @@ Lv00TestReport *lv00_test_run_suite(const char *suite_name) {
 
     report->start_time_ns = get_time_ns();
     report->suites = (Lv00TestSuite *)lv00_malloc(sizeof(Lv00TestSuite));
-    if (!report->suites) {
-        MUTEX_UNLOCK(g_test_system.mutex);
-        lv00_test_report_destroy(report);
-        return NULL;
-    }
     report->suite_count = 1;
 
     /* 重置统计 */
@@ -828,13 +792,6 @@ void lv00_test_report_print(const Lv00TestReport *report, FILE *stream) {
     }
 }
 
-/**
- * @brief 测试报告转JSON
- * @details 将测试报告序列化为 JSON 格式字符串，包含总测试数、通过数、失败数、跳过数、
- *          总耗时以及各测试套件的统计信息。
- * @param report 测试报告指针，为 NULL 时返回 NULL
- * @return 新分配的 JSON 字符串（调用者需使用 lv00_free 释放），失败时返回 NULL
- */
 char *lv00_test_report_to_json(const Lv00TestReport *report) {
     if (!report) {
         return NULL;
@@ -858,25 +815,14 @@ char *lv00_test_report_to_json(const Lv00TestReport *report) {
                        report->failed_count,
                        report->skipped_count,
                        (long long)report->total_time_ns);
-    if (pos >= 8192) {
-        pos = 8192 - 1;
-    }
 
     for (uint32_t i = 0; i < report->suite_count; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
         pos += snprintf(json + pos, 8192 - pos,
                         "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
                         suite->name, suite->passed_count, suite->failed_count, suite->skipped_count);
-        if (pos >= 8192) {
-            pos = 8192 - 1;
-            break;
-        }
         if (i < report->suite_count - 1) {
             pos += snprintf(json + pos, 8192 - pos, ",");
-            if (pos >= 8192) {
-                pos = 8192 - 1;
-                break;
-            }
         }
     }
 
@@ -885,13 +831,6 @@ char *lv00_test_report_to_json(const Lv00TestReport *report) {
     return json;
 }
 
-/**
- * @brief 测试报告转XML
- * @details 将测试报告序列化为 JUnit 兼容的 XML 格式字符串，包含测试套件、
- *          测试用例、执行时间、失败信息等。可用于 CI/CD 系统的测试报告集成。
- * @param report 测试报告指针，为 NULL 时返回 NULL
- * @return 新分配的 XML 字符串（调用者需使用 lv00_free 释放），失败时返回 NULL
- */
 char *lv00_test_report_to_xml(const Lv00TestReport *report) {
     if (!report) {
         return NULL;
@@ -907,29 +846,18 @@ char *lv00_test_report_to_xml(const Lv00TestReport *report) {
                        "<testsuites tests=\"%u\" failures=\"%u\" skipped=\"%u\" time=\"%.3f\">\n",
                        report->total_tests, report->failed_count, report->skipped_count,
                        (double)report->total_time_ns / 1e9);
-    if (pos >= 16384) {
-        pos = 16384 - 1;
-    }
 
     for (uint32_t i = 0; i < report->suite_count; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
         pos += snprintf(xml + pos, 16384 - pos,
                         "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
                         suite->name, suite->case_count, suite->failed_count, suite->skipped_count);
-        if (pos >= 16384) {
-            pos = 16384 - 1;
-            break;
-        }
 
         for (uint32_t j = 0; j < suite->case_count; j++) {
             const Lv00TestCase *test = &suite->cases[j];
             pos += snprintf(xml + pos, 16384 - pos,
                             "    <testcase name=\"%s\" time=\"%.6f\"",
                             test->name, (double)test->elapsed_ns / 1e9);
-            if (pos >= 16384) {
-                pos = 16384 - 1;
-                break;
-            }
 
             if (test->status == TEST_STATUS_FAILED) {
                 pos += snprintf(xml + pos, 16384 - pos,
@@ -941,17 +869,9 @@ char *lv00_test_report_to_xml(const Lv00TestReport *report) {
             } else {
                 pos += snprintf(xml + pos, 16384 - pos, "/>\n");
             }
-            if (pos >= 16384) {
-                pos = 16384 - 1;
-                break;
-            }
         }
 
         pos += snprintf(xml + pos, 16384 - pos, "  </testsuite>\n");
-        if (pos >= 16384) {
-            pos = 16384 - 1;
-            break;
-        }
     }
 
     snprintf(xml + pos, 16384 - pos, "</testsuites>\n");
@@ -959,14 +879,6 @@ char *lv00_test_report_to_xml(const Lv00TestReport *report) {
     return xml;
 }
 
-/**
- * @brief 测试报告转HTML
- * @details 将测试报告序列化为自包含的 HTML 页面，包含内联 CSS 样式、
- *          测试汇总统计表格以及每个测试用例的状态和执行时间。
- *          通过/失败/跳过分别用绿色/红色/橙色标识。
- * @param report 测试报告指针，为 NULL 时返回 NULL
- * @return 新分配的 HTML 字符串（调用者需使用 lv00_free 释放），失败时返回 NULL
- */
 char *lv00_test_report_to_html(const Lv00TestReport *report) {
     if (!report) {
         return NULL;
@@ -990,9 +902,6 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
                        "Failed: <span class=\"failed\">%u</span> | Skipped: <span class=\"skipped\">%u</span></p>\n"
                        "<table><tr><th>Suite</th><th>Test</th><th>Status</th><th>Time (ms)</th></tr>\n",
                        report->total_tests, report->passed_count, report->failed_count, report->skipped_count);
-    if (pos >= 32768) {
-        pos = 32768 - 1;
-    }
 
     for (uint32_t i = 0; i < report->suite_count; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
@@ -1007,13 +916,6 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
                             "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n",
                             suite->name, test->name, status_class, status_text,
                             (double)test->elapsed_ns / 1e6);
-            if (pos >= 32768) {
-                pos = 32768 - 1;
-                break;
-            }
-        }
-        if (pos >= 32768) {
-            break;
         }
     }
 
@@ -1054,14 +956,6 @@ bool lv00_test_report_write_file(const Lv00TestReport *report,
 
 /* ============== 主函数实现 ============== */
 
-/**
- * @brief 测试主入口
- * @details 运行所有已注册的测试用例，将结果打印到标准输出，并根据失败数量返回退出码。
- *          适用于作为 main() 函数的简单包装，方便快速执行全部测试。
- * @param argc 命令行参数数量（当前未使用）
- * @param argv 命令行参数数组（当前未使用）
- * @return 所有测试通过返回 0，存在失败测试返回 1
- */
 int lv00_test_main(int argc, char **argv) {
     (void)argc;
     (void)argv;
