@@ -1,0 +1,59 @@
+/**
+ * @file polygon_regular_pentagon.lv00
+ * @brief 正五边形构造案例
+ *
+ * 演示正五边形的构造和黄金比例
+ */
+
+// 定义正五边形的中心和外接圆半径
+point O(0, 0);
+const r = 5;
+
+// 计算顶点坐标
+const angle_step = 72°;  // 360° / 5
+point A(r * cos(0°), r * sin(0°));
+point B(r * cos(72°), r * sin(72°));
+point C(r * cos(144°), r * sin(144°));
+point D(r * cos(216°), r * sin(216°));
+point E(r * cos(288°), r * sin(288°));
+
+// 构造正五边形
+polygon ABCDE(A, B, C, D, E);
+
+// 定义边
+segment AB(A, B);
+segment BC(B, C);
+segment CD(C, D);
+segment DE(D, E);
+segment EA(E, A);
+
+// 证明五边相等
+prove {
+    length(AB) == length(BC) == length(CD) == length(DE) == length(EA)
+}
+
+// 证明五角相等
+prove {
+    angle(E, A, B) == angle(A, B, C) == angle(B, C, D) == 
+    angle(C, D, E) == angle(D, E, A) == 108°
+}
+
+// 构造对角线并展示黄金比例
+segment AC(A, C);
+segment AD(A, D);
+
+prove {
+    length(AC) / length(AB) == (1 + sqrt(5)) / 2  // 黄金比例 φ
+}
+
+// 可视化配置
+visualize {
+    style ABCDE: { fill: "lightcoral", stroke: "darkred", width: 2 };
+    style AC: { color: "gold", width: 2 };
+    style AD: { color: "gold", width: 2 };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+    label D: "D";
+    label E: "E";
+}

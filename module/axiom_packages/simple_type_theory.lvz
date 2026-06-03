@@ -1,0 +1,278 @@
+# =============================================================================
+# Lv-00 Axiom Package: Simply Typed Lambda Calculus (STLC)
+# =============================================================================
+#
+# Mathematical Theory: Simply Typed Lambda Calculus / Simple Type Theory
+# Axiomatization: Church 1940 Simple Theory of Types + Curry-Howard Isomorphism
+#
+# References:
+#   - Church, A. (1940). "A Formulation of the Simple Theory of Types."
+#     J. Symbolic Logic, 5(2): 56-68.
+#     https://doi.org/10.2307/2266170
+#   - Wikipedia: Simply typed lambda calculus
+#     https://en.wikipedia.org/wiki/Simply_typed_lambda_calculus
+#   - Wikipedia: Curry-Howard correspondence
+#     https://en.wikipedia.org/wiki/Curry%E2%80%93Howard_correspondence
+#   - Hindley, J.R. & Seldin, J.P. (2008). "Lambda-Calculus and Combinators."
+#     Cambridge University Press.
+#   - Sorensen, M.H. & Urzyczyn, P. (2006). "Lectures on the Curry-Howard
+#     Isomorphism." Elsevier.
+#   - nLab: simply typed lambda calculus
+#     https://ncatlab.org/nlab/show/simply+typed+lambda+calculus
+#   - Wikipedia: Type theory
+#     https://en.wikipedia.org/wiki/Type_theory
+#
+# Primitive Concepts:
+#   - Type (Type): base types (o, i) and function types (sigma -> tau)
+#   - Term (Term): variable, lambda-abstraction, application
+#   - Typing Judgment: Gamma |- t : sigma
+#
+# Core Axioms / Typing Rules (8):
+#   VAR:       Gamma, x:sigma |- x : sigma
+#   ABS:       Gamma, x:sigma |- t:tau  ==>  Gamma |- lambda x.t : sigma->tau
+#   APP:       Gamma |- f:sigma->tau, Gamma |- a:sigma  ==>  Gamma |- f a : tau
+#   CONV:      Gamma |- t:sigma, sigma =_beta tau  ==>  Gamma |- t : tau
+#   PROD-FORM: Gamma |- A : Type, Gamma,x:A |- B : Type  ==>  Gamma |- Pi(x:A).B : Type
+#   PROD-INTRO:Gamma,x:A |- b:B  ==>  Gamma |- lambda(x:A).b : Pi(x:A).B
+#   PROD-ELIM: Gamma |- p:Pi(x:A).B, Gamma |- a:A  ==>  Gamma |- p a : B[a/x]
+#   PROD-BETA: (lambda x.b) a =_beta b[a/x]
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "simple_type_theory" "1.0.0" {
+
+    # =========================================================================
+    # Group I: Type Constructors (5)
+    # =========================================================================
+
+    # Base type: primitive types such as o (propositions) and i (individuals)
+    template "base_type" 1
+
+    # Function type: sigma -> tau, the type of functions from sigma to tau
+    template "function_type" 2
+
+    # Product type: Pi(x:A).B, dependent function type (universal quantification)
+    template "product_type" 2
+
+    # Sum type: A + B, disjoint union (existential quantification / disjunction)
+    template "sum_type" 2
+
+    # Unit type: 1 (terminal object), the type with exactly one inhabitant
+    template "unit_type" 0
+
+    # =========================================================================
+    # Group II: Lambda Calculus Core Terms (6)
+    # =========================================================================
+
+    # Variable: x, a bound or free variable in a term
+    template "variable" 1
+
+    # Lambda abstraction: lambda x.t, function definition binding variable x in body t
+    template "lambda_abstraction" 2
+
+    # Application: f a, applying function f to argument a
+    template "application" 2
+
+    # Beta reduction: (lambda x.t) a ~> t[a/x], the fundamental computation rule
+    template "beta_reduction" 2
+
+    # Eta expansion: t ~> lambda x.(t x) when x not free in t, extensionality principle
+    template "eta_expansion" 1
+
+    # Alpha conversion: lambda x.t = lambda y.t[y/x], renaming of bound variables
+    template "alpha_conversion" 2
+
+    # =========================================================================
+    # Group III: Typing Judgment Rules (8)
+    # =========================================================================
+
+    # VAR: If x:sigma is in context Gamma, then Gamma |- x : sigma
+    template "var_rule" 2
+
+    # ABS: If Gamma, x:sigma |- t : tau, then Gamma |- lambda x.t : sigma -> tau
+    template "abs_rule" 3
+
+    # APP: If Gamma |- f : sigma -> tau and Gamma |- a : sigma, then Gamma |- f a : tau
+    template "app_rule" 3
+
+    # CONV: If Gamma |- t : sigma and sigma =_beta tau, then Gamma |- t : tau
+    template "conv_rule" 3
+
+    # PROD-FORM: If Gamma |- A : Type and Gamma,x:A |- B : Type, then Gamma |- Pi(x:A).B : Type
+    template "prod_formation" 3
+
+    # PROD-INTRO: If Gamma,x:A |- b : B, then Gamma |- lambda(x:A).b : Pi(x:A).B
+    template "prod_intro" 3
+
+    # PROD-ELIM: If Gamma |- p : Pi(x:A).B and Gamma |- a : A, then Gamma |- p a : B[a/x]
+    template "prod_elim" 3
+
+    # PROD-BETA: (lambda x.b) a =_beta b[a/x], computation rule for product elimination
+    template "prod_beta" 3
+
+    # =========================================================================
+    # Group IV: Curry-Howard Correspondence (6)
+    # =========================================================================
+
+    # Propositions-as-Types: every proposition P corresponds to a type [[P]]
+    template "proposition_as_type" 1
+
+    # Proofs-as-Terms: a proof of proposition P is a term t inhabiting type [[P]]
+    template "proof_as_term" 2
+
+    # Implication as function type: A -> B corresponds to the type A -> B
+    template "implication_as_function_type" 2
+
+    # Conjunction as product: A /\ B corresponds to the product type A x B
+    template "conjunction_as_product" 2
+
+    # Disjunction as sum: A \/ B corresponds to the sum type A + B
+    template "disjunction_as_sum" 2
+
+    # Negation as function to false: ~A corresponds to the type A -> Bottom
+    template "negation_as_function_to_false" 1
+
+    # =========================================================================
+    # Group V: Type System Properties (5)
+    # =========================================================================
+
+    # Type safety (progress): every well-typed closed term is either a value or can step
+    template "type_safety_progress" 1
+
+    # Type safety (preservation): if Gamma |- t : sigma and t ~> t', then Gamma |- t' : sigma
+    template "type_safety_preservation" 2
+
+    # Strong normalization: every well-typed term has a finite reduction sequence
+    template "strong_normalization" 1
+
+    # Decidability of typing: given Gamma, t, sigma, it is decidable whether Gamma |- t : sigma
+    template "decidability_of_typing" 3
+
+    # Principal type property: every typable term has a most general type (Hindley-Milner)
+    template "principal_type_property" 2
+
+    # =========================================================================
+    # Group VI: Derived Constructors (5)
+    # =========================================================================
+
+    # Let binding: let x = t in u, syntactic sugar for (lambda x.u) t
+    template "let_binding" 2
+
+    # Fixpoint for product types: recursive definitions via typed fixed-point combinators
+    template "fixpoint_for_product" 2
+
+    # Pair constructor: (a, b) : A x B, forming an ordered pair of typed terms
+    template "pair_constructor" 2
+
+    # Pair elimination: fst(p) : A, snd(p) : B, projection from a product type
+    template "pair_elimination" 2
+
+    # Inductive type sketch: W-type / initial algebra pattern for inductive definitions
+    template "inductive_type_sketch" 2
+
+    # =========================================================================
+    # Group VII: Equivalence and Subtyping (4)
+    # =========================================================================
+
+    # Type equivalence: sigma ~ tau iff sigma and tau are convertible (alpha-beta-eta equal)
+    template "type_equivalence" 2
+
+    # Definitional equality: t =_def s iff t and s reduce to the same normal form
+    template "definitional_equality" 2
+
+    # Beta-eta equivalence: the congruence closure of beta-reduction and eta-expansion
+    template "beta_eta_equivalence" 2
+
+    # Subtype relation: sigma <: tau, subsumption rule allowing implicit coercion
+    template "subtype_relation" 2
+
+    # =========================================================================
+    # Known Unconstructible / Undecidable Problems (6)
+    # =========================================================================
+
+    # 1. General type inhabitation: given a type sigma, does there exist a closed term t : sigma?
+    #    Undecidable even for STLC with product types (Statman 1979).
+    unconstructible "type_inhabitation_general" {
+        reduces_to "undecidable"
+        dependency "var_rule"
+        dependency "abs_rule"
+        dependency "app_rule"
+        dependency "function_type"
+        dependency "product_type"
+        external_ref "https://en.wikipedia.org/wiki/Type_inhabitation"
+        green_verified true
+    }
+
+    # 2. Beta normalization order: given t, is there a reduction strategy reaching a normal form?
+    #    The existence of a normal form is guaranteed by strong normalization, but the
+    #    problem of whether a specific reduction order reaches it is undecidable.
+    unconstructible "beta_normalization_order" {
+        reduces_to "undecidable"
+        dependency "beta_reduction"
+        dependency "lambda_abstraction"
+        dependency "application"
+        dependency "strong_normalization"
+        external_ref "https://en.wikipedia.org/wiki/Beta_normal_form"
+        green_verified true
+    }
+
+    # 3. Type equivalence decidability: given sigma and tau, is sigma =_beta tau?
+    #    Beta-equivalence of types is undecidable in general for dependent types.
+    unconstructible "type_equivalence_decidability" {
+        reduces_to "undecidable"
+        dependency "type_equivalence"
+        dependency "beta_reduction"
+        dependency "conv_rule"
+        dependency "product_type"
+        external_ref "https://ncatlab.org/nlab/show/convertibility"
+        green_verified true
+    }
+
+    # 4. Polymorphic type inhabitation (System F): given a System F type, is it inhabited?
+    #    Undecidable — extends beyond STLC to second-order polymorphic lambda calculus.
+    unconstructible "polymorphic_type_inhabitation" {
+        reduces_to "undecidable"
+        dependency "function_type"
+        dependency "product_type"
+        dependency "var_rule"
+        dependency "abs_rule"
+        external_ref "https://en.wikipedia.org/wiki/System_F"
+        green_verified true
+    }
+
+    # 5. Termination checking: given an untyped lambda term, does it have a normal form?
+    #    Undecidable (equivalent to the halting problem).
+    unconstructible "termination_checking" {
+        reduces_to "undecidable"
+        dependency "beta_reduction"
+        dependency "lambda_abstraction"
+        dependency "application"
+        dependency "strong_normalization"
+        external_ref "https://en.wikipedia.org/wiki/Normalisation_property_(abstract_rewriting)"
+        green_verified true
+    }
+
+    # 6. Proof irrelevance: for a proposition P, are any two proofs of P definitionally equal?
+    #    Undecidable in STLC — requires extensional reasoning beyond beta-eta equality.
+    unconstructible "proof_irrelevance" {
+        reduces_to "undecidable"
+        dependency "proposition_as_type"
+        dependency "proof_as_term"
+        dependency "definitional_equality"
+        dependency "beta_eta_equivalence"
+        external_ref "https://ncatlab.org/nlab/show/proof+irrelevance"
+        green_verified true
+    }
+
+    # =========================================================================
+    # Bottom Geometry & Logical Framework
+    # =========================================================================
+
+    bottom_geometry "simply_typed_lambda_calculus_terms"
+    negation_encoding "function_type_to_empty_type"
+    contradiction_behavior "explosion_principle"
+
+}

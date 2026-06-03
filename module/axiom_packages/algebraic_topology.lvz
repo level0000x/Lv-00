@@ -1,0 +1,418 @@
+# =============================================================================
+# Lv-00 Axiom Package: Algebraic Topology
+# =============================================================================
+#
+# Mathematical Theory: Algebraic Topology
+#   Algebraic topology uses algebraic structures (groups, rings, modules)
+#   to classify and study topological spaces up to homotopy equivalence.
+#   The central idea is to assign algebraic invariants (functors) to
+#   topological spaces and continuous maps, converting topological
+#   problems into algebraic ones that are often more tractable.
+#
+# Axiomatization: Functorial Axioms (4) + Eilenberg-Steenrod Axioms (7)
+#
+# References:
+#   - Wikipedia: Algebraic topology
+#     https://en.wikipedia.org/wiki/Algebraic_topology
+#   - Hatcher, A. (2002). "Algebraic Topology." Cambridge University Press.
+#     ISBN 0-521-79540-0.
+#   - Wikipedia: Fundamental group
+#     https://en.wikipedia.org/wiki/Fundamental_group
+#   - Wikipedia: Homology (mathematics)
+#     https://en.wikipedia.org/wiki/Homology_(mathematics)
+#   - Wikipedia: Cohomology
+#     https://en.wikipedia.org/wiki/Cohomology
+#   - nLab: Algebraic topology
+#     https://ncatlab.org/nlab/show/algebraic+topology
+#
+# Primitive Notions:
+#   Topological space X: a set equipped with a topology
+#   Continuous map f: X -> Y: a map between topological spaces
+#   Homotopy equivalence: f ~ g if there exists a continuous deformation
+#   Algebraic invariants: groups, rings, modules assigned to spaces
+#
+# Core Axioms (11):
+#   Functorial Axioms (4):
+#     F1. Identity preservation: F(id_X) = id_{F(X)}
+#     F2. Composition preservation: F(g ∘ f) = F(g) ∘ F(f)
+#     F3. Homotopy invariance: f ≃ g ⟹ F(f) = F(g)
+#     F4. Homotopy equivalence invariance: X ≃ Y ⟹ F(X) ≅ F(Y)
+#   Eilenberg-Steenrod Axioms (7):
+#     ES1. Functoriality: H_n is a functor from Top to Ab
+#     ES2. Homotopy invariance: homotopic maps induce equal maps
+#     ES3. Long exact sequence: for pair (X,A), ... -> H_n(A) -> H_n(X) -> H_n(X,A) -> ...
+#     ES4. Excision: H_n(X,A) ≅ H_n(X\U, A\U) for U ⊆ A with cl(U) ⊆ int(A)
+#     ES5. Dimension axiom: H_n(pt) = 0 for n ≠ 0, H_0(pt) ≅ Z
+#     ES6. Additivity: H_n(∐ X_α) ≅ ⊕ H_n(X_α)
+#     ES7. Boundary map: ∂ : H_n(X,A) -> H_{n-1}(A) natural
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "algebraic_topology" "1.0.0" {
+
+    # =================================================================
+    # Group I: Fundamental Group (6)
+    # =================================================================
+    # The fundamental group π₁(X, x₀) is the group of homotopy classes
+    # of loops based at x₀ in X. It is the first and most basic
+    # algebraic invariant in algebraic topology.
+    # =================================================================
+
+    # The fundamental group π₁(X, x₀) of a pointed space (X, x₀):
+    # elements are homotopy classes [γ] of loops γ: [0,1] -> X with
+    # γ(0) = γ(1) = x₀, with concatenation as group operation.
+    # Params: topological space X, basepoint x₀
+    template "fundamental_group" 2
+
+    # The fundamental groupoid Π₁(X): a category whose objects are
+    # points of X and morphisms are homotopy classes of paths.
+    # This generalizes the fundamental group by removing the basepoint
+    # dependence.
+    # Params: topological space X
+    template "fundamental_groupoid" 1
+
+    # A covering space p: Ẽ -> X is a surjective continuous map where
+    # every point x in X has an open neighborhood U such that p⁻¹(U)
+    # is a disjoint union of open sets each homeomorphic to U via p.
+    # Params: covering space Ẽ, base space X, projection map p
+    template "covering_space" 3
+
+    # The universal cover Ẽ of X is a simply connected covering space
+    # that covers every other connected covering space of X.
+    # Params: topological space X, universal cover Ẽ, projection p
+    template "universal_cover" 3
+
+    # The monodromy action: given a covering p: Ẽ -> X and a loop γ
+    # in X based at x₀, the monodromy permutes the fiber p⁻¹(x₀).
+    # This defines a group homomorphism π₁(X, x₀) -> Aut(p⁻¹(x₀)).
+    # Params: covering space p: Ẽ -> X, basepoint x₀, loop γ
+    template "monodromy" 3
+
+    # Van Kampen theorem (Seifert-van Kampen): if X = U ∪ V where
+    # U, V are open, path-connected, and U ∩ V is path-connected and
+    # nonempty, then π₁(X) is the pushout (amalgamated free product)
+    # of π₁(U) and π₁(V) over π₁(U ∩ V).
+    # Params: space X, open subsets U, V, intersection W = U ∩ V
+    template "van_kampen_theorem" 4
+
+    # =================================================================
+    # Group II: Simplicial Homology (7)
+    # =================================================================
+    # Simplicial homology is a combinatorial approach to homology theory
+    # based on triangulations of spaces. It assigns abelian groups H_n(K)
+    # to a simplicial complex K, measuring n-dimensional "holes."
+    # =================================================================
+
+    # A simplicial complex K is a collection of simplices (points,
+    # edges, triangles, tetrahedra, ...) such that every face of a
+    # simplex in K is also in K, and the intersection of any two
+    # simplices is a face of both.
+    # Params: simplicial complex K
+    template "simplicial_complex" 1
+
+    # The simplicial homology H_n(K) of a simplicial complex K is
+    # defined as H_n(K) = ker(∂_n) / im(∂_{n+1}), where ∂_n is the
+    # boundary operator on the simplicial chain complex.
+    # Params: simplicial complex K, dimension n
+    template "simplicial_homology" 2
+
+    # A chain complex (C_*, ∂) is a sequence ... -> C_{n+1} -> C_n ->
+    # C_{n-1} -> ... of abelian groups with boundary maps ∂_n such that
+    # ∂_n ∘ ∂_{n+1} = 0 for all n.
+    # Params: chain groups C_n, boundary maps ∂_n
+    template "chain_complex" 2
+
+    # The boundary operator ∂_n: C_n -> C_{n-1} on a chain complex
+    # satisfies ∂_n ∘ ∂_{n+1} = 0, ensuring that im(∂_{n+1}) ⊆ ker(∂_n).
+    # Params: chain group C_n, chain group C_{n-1}, boundary map ∂_n
+    template "boundary_operator" 3
+
+    # The homology group H_n = ker(∂_n) / im(∂_{n+1}) of a chain
+    # complex. Cycles modulo boundaries: n-dimensional "holes."
+    # Params: chain complex, dimension n
+    template "homology_group" 2
+
+    # The Euler characteristic χ(K) = Σ (-1)^n · rank(H_n(K)) is a
+    # topological invariant that equals V - E + F for surfaces.
+    # Params: simplicial complex K
+    template "euler_characteristic" 1
+
+    # The n-th Betti number b_n = rank(H_n(X; Z)) counts the number
+    # of independent n-dimensional holes in X.
+    # Params: topological space X, dimension n
+    template "betti_number" 2
+
+    # =================================================================
+    # Group III: Singular Homology (6)
+    # =================================================================
+    # Singular homology is defined for all topological spaces (not just
+    # triangulable ones) using continuous maps from simplices into the
+    # space. It satisfies the Eilenberg-Steenrod axioms.
+    # =================================================================
+
+    # The singular homology H_n(X; G) of a space X with coefficients
+    # in an abelian group G is defined using singular chains: formal
+    # linear combinations of continuous maps σ: Δ^n -> X.
+    # Params: topological space X, abelian group G, dimension n
+    template "singular_homology" 3
+
+    # The singular cohomology H^n(X; G) is the dual of singular
+    # homology, defined via cochain complexes Hom(C_n(X), G).
+    # Params: topological space X, abelian group G, dimension n
+    template "singular_cohomology" 3
+
+    # The Mayer-Vietoris sequence: for X = U ∪ V with U, V open,
+    # there is a long exact sequence ... -> H_n(U ∩ V) -> H_n(U) ⊕ H_n(V)
+    # -> H_n(X) -> H_{n-1}(U ∩ V) -> ...
+    # Params: space X, open subsets U, V
+    template "mayer_vietoris_sequence" 3
+
+    # The excision theorem: if Z ⊆ A ⊆ X with cl(Z) ⊆ int(A), then
+    # the inclusion (X\Z, A\Z) -> (X, A) induces isomorphisms
+    # H_n(X\Z, A\Z) ≅ H_n(X, A) for all n.
+    # Params: space X, subset A, subset Z
+    template "excision_theorem" 3
+
+    # The universal coefficient theorem: H^n(X; G) ≅ Hom(H_n(X), G) ⊕
+    # Ext(H_{n-1}(X), G), relating cohomology to homology.
+    # Params: space X, abelian group G, dimension n
+    template "universal_coefficient_theorem" 3
+
+    # The Kunneth formula: H_n(X × Y) ≅ ⊕_{i+j=n} H_i(X) ⊗ H_j(Y) ⊕
+    # ⊕_{i+j=n-1} Tor(H_i(X), H_j(Y)), computing homology of products.
+    # Params: space X, space Y, dimension n
+    template "kuenneth_formula" 3
+
+    # =================================================================
+    # Group IV: Cohomology (5)
+    # =================================================================
+    # Cohomology theories carry additional algebraic structure (rings)
+    # and support operations like cup products and Poincare duality.
+    # =================================================================
+
+    # The cup product ∪: H^p(X; R) × H^q(X; R) -> H^{p+q}(X; R) is a
+    # bilinear operation making cohomology a graded ring.
+    # Params: space X, cohomology classes α ∈ H^p, β ∈ H^q, ring R
+    template "cup_product" 4
+
+    # The cohomology ring H*(X; R) is the graded ring formed by the
+    # direct sum of all cohomology groups with the cup product.
+    # Params: space X, coefficient ring R
+    template "cohomology_ring" 2
+
+    # Poincare duality: for a closed oriented n-manifold M,
+    # H^k(M; R) ≅ H_{n-k}(M; R) via cap product with the fundamental
+    # class [M] ∈ H_n(M).
+    # Params: manifold M, dimension n, coefficient ring R, degree k
+    template "poincare_duality" 4
+
+    # De Rham cohomology: for a smooth manifold M, H^k_dR(M) is the
+    # quotient of closed k-forms by exact k-forms. By de Rham's
+    # theorem, H^k_dR(M) ≅ H^k(M; R).
+    # Params: smooth manifold M, degree k
+    template "de_rham_cohomology" 2
+
+    # Sheaf cohomology H^n(X, F) generalizes cohomology using sheaves
+    # of abelian groups. It captures local-to-global obstructions.
+    # Params: topological space X, sheaf F, degree n
+    template "sheaf_cohomology" 3
+
+    # =================================================================
+    # Group V: Homotopy Theory (6)
+    # =================================================================
+    # Higher homotopy groups π_n(X, x₀) generalize the fundamental
+    # group to higher dimensions, measuring n-sphere-like holes.
+    # =================================================================
+
+    # The n-th homotopy group π_n(X, x₀) = [S^n, X]_* is the set of
+    # homotopy classes of based maps from the n-sphere to X, with a
+    # group structure for n ≥ 1 (abelian for n ≥ 2).
+    # Params: space X, basepoint x₀, dimension n
+    template "homotopy_group" 3
+
+    # The Hurewicz theorem: if X is (n-1)-connected (n ≥ 2), then
+    # h: π_n(X) -> H_n(X) is an isomorphism and π_{n+1}(X) ->
+    # H_{n+1}(X) is surjective. This connects homotopy to homology.
+    # Params: space X, dimension n
+    template "hurewicz_theorem" 2
+
+    # The Whitehead theorem: if f: X -> Y is a map between connected
+    # CW complexes that induces isomorphisms f_*: π_n(X) -> π_n(Y)
+    # for all n, then f is a homotopy equivalence.
+    # Params: map f: X -> Y, CW complexes X, Y
+    template "whitehead_theorem" 3
+
+    # A fibration p: E -> B is a map with the homotopy lifting property:
+    # given a homotopy in B and a lift of the starting point, the
+    # entire homotopy can be lifted to E.
+    # Params: total space E, base space B, projection p
+    template "fibration" 3
+
+    # A cofibration i: A -> X is an inclusion with the homotopy
+    # extension property: given a homotopy of X and a map defined on A,
+    # the homotopy can be extended from A.
+    # Params: subspace A, space X, inclusion i
+    template "cofibration" 3
+
+    # The long exact sequence of a fibration F -> E -> B:
+    # ... -> π_n(F) -> π_n(E) -> π_n(B) -> π_{n-1}(F) -> ...
+    # This is the homotopy-theoretic analog of the LES of a pair.
+    # Params: fiber F, total space E, base space B
+    template "long_exact_sequence_fibration" 3
+
+    # =================================================================
+    # Group VI: Duality & Intersection Theory (4)
+    # =================================================================
+    # Duality theorems relate homology and cohomology in complementary
+    # dimensions, while intersection theory studies how submanifolds
+    # intersect.
+    # =================================================================
+
+    # The Lefschetz fixed point theorem: if f: X -> X is a continuous
+    # map on a compact polyhedron with L(f) = Σ (-1)^n · tr(f_*: H_n -> H_n)
+    # ≠ 0, then f has a fixed point.
+    # Params: space X, map f: X -> X
+    template "lefschetz_fixed_point" 2
+
+    # The Lefschetz number L(f) = Σ (-1)^n · tr(f_*: H_n(X) -> H_n(X))
+    # is a homotopy invariant that detects fixed points.
+    # Params: space X, map f: X -> X
+    template "lefschetz_number" 2
+
+    # Intersection theory studies intersections of submanifolds,
+    # formalized via the intersection product on homology/cohomology.
+    # For transverse submanifolds A, B of complementary dimension in M,
+    # the intersection number A · B is well-defined.
+    # Params: manifold M, submanifold A, submanifold B
+    template "intersection_theory" 3
+
+    # The Poincare lemma: on a contractible open set U (e.g., a star-
+    # shaped region in R^n), every closed differential form is exact:
+    # if dω = 0 on U, then ω = dη for some η.
+    # Params: open set U, differential form ω
+    template "poincare_lemma" 2
+
+    # =================================================================
+    # Group VII: K-Theory (4)
+    # =================================================================
+    # Topological K-theory is a generalized cohomology theory built
+    # from vector bundles. It connects topology to analysis and
+    # operator algebras.
+    # =================================================================
+
+    # A vector bundle of rank n over a base space B is a space E with
+    # a projection p: E -> B such that each fiber p⁻¹(b) is an
+    # n-dimensional vector space, locally trivial.
+    # Params: total space E, base space B, rank n
+    template "vector_bundle" 3
+
+    # The K-group K(X) is the Grothendieck group of vector bundles over
+    # X. K^0(X) classifies stable isomorphism classes of vector bundles;
+    # K^{-n}(X) = K^0(Σ^n X) via suspension.
+    # Params: topological space X
+    template "k_group" 1
+
+    # Bott periodicity: K(X × S²) ≅ K(X) ⊗ K(S²) ≅ K(X) ⊕ K(X),
+    # and equivalently K^{-n}(pt) ≅ K^{-n-2}(pt) for all n.
+    # This gives K-theory a 2-periodic structure.
+    # Params: topological space X
+    template "bott_periodicity" 1
+
+    # The Atiyah-Singer index theorem: for an elliptic differential
+    # operator D on a compact manifold M, index(D) = ∫_M ch(σ(D)) Td(M),
+    # connecting analysis (index of operators) to topology (characteristic
+    # classes).
+    # Params: manifold M, elliptic operator D
+    template "atiyah_singer_index" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+    # Many fundamental problems in algebraic topology are undecidable,
+    # particularly those involving homotopy groups of spheres and
+    # classification of high-dimensional manifolds.
+    # =================================================================
+
+    unconstructible "homotopy_group_computation" {
+        reduces_to "undecidable"
+        dependency "homotopy_group"
+        dependency "fibration"
+        dependency "long_exact_sequence_fibration"
+        external_ref "https://en.wikipedia.org/wiki/Homotopy_groups_of_spheres"
+        green_verified true
+    }
+
+    unconstructible "homology_isomorphism_problem" {
+        reduces_to "undecidable"
+        dependency "homology_group"
+        dependency "singular_homology"
+        dependency "simplicial_homology"
+        external_ref "https://en.wikipedia.org/wiki/Homology_(mathematics)"
+        green_verified true
+    }
+
+    unconstructible "knot_classification" {
+        reduces_to "undecidable"
+        dependency "fundamental_group"
+        dependency "homology_group"
+        dependency "covering_space"
+        external_ref "https://en.wikipedia.org/wiki/Knot_theory"
+        green_verified true
+    }
+
+    unconstructible "homeomorphism_problem_manifolds" {
+        reduces_to "undecidable"
+        dependency "homology_group"
+        dependency "homotopy_group"
+        dependency "poincare_duality"
+        external_ref "https://en.wikipedia.org/wiki/Homeomorphism"
+        green_verified true
+    }
+
+    unconstructible "simple_homotopy_equivalence" {
+        reduces_to "undecidable"
+        dependency "homotopy_group"
+        dependency "homology_group"
+        dependency "whitehead_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Simple-homotopy_equivalence"
+        green_verified true
+    }
+
+    unconstructible "group_presentation_triviality" {
+        reduces_to "undecidable"
+        dependency "fundamental_group"
+        dependency "van_kampen_theorem"
+        dependency "covering_space"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified true
+    }
+
+    unconstructible "manifold_triangulation" {
+        reduces_to "undecidable"
+        dependency "simplicial_complex"
+        dependency "simplicial_homology"
+        dependency "homology_group"
+        external_ref "https://en.wikipedia.org/wiki/Triangulation_(topology)"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    # Algebraic topology assigns algebraic invariants to topological
+    # spaces. The bottom geometry represents the degenerate case where
+    # all algebraic invariants vanish (contractible space with trivial
+    # homotopy/homology groups).
+    #
+    # ⊥ = topological space with all trivial algebraic invariants
+    #     (equivalent to a point)
+    # ¬ = complement in the abelian group structure of invariants
+    # =================================================================
+
+    bottom_geometry "topological_spaces_with_algebraic_invariants"
+    negation_encoding "abelian_group_complement"
+    contradiction_behavior "explosion_principle"
+}

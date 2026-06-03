@@ -1,0 +1,66 @@
+/**
+ * @file geometry_concyclic.lv00
+ * @brief 四点共圆案例
+ *
+ * 演示四点共圆的判定和性质
+ */
+
+// 定义圆
+point O(0, 0);
+const r = 5;
+circle C(O, r);
+
+// 圆上四点
+point A(5, 0);
+point B(0, 5);
+point C(-5, 0);
+point D(0, -5);
+
+// 证明四点共圆
+prove {
+    distance(O, A) == distance(O, B) == distance(O, C) == distance(O, D) == r
+}
+
+// 构造四边形
+polygon ABCD(A, B, C, D);
+
+// 证明对角互补
+prove {
+    angle(A, B, C) + angle(C, D, A) == 180°
+}
+
+prove {
+    angle(B, C, D) + angle(D, A, B) == 180°
+}
+
+// 证明同弧所对圆周角相等
+point E(3, 4);  // 圆上另一点
+prove {
+    angle(A, E, B) == angle(A, C, B)  // 同弧AB所对圆周角
+}
+
+// 托勒密定理
+segment AB(A, B);
+segment BC(B, C);
+segment CD(C, D);
+segment DA(D, A);
+segment AC(A, C);
+segment BD(B, D);
+
+prove {
+    length(AC) * length(BD) == length(AB) * length(CD) + length(BC) * length(DA)
+}
+
+// 可视化配置
+visualize {
+    style C: { fill: "none", stroke: "blue", width: 2 };
+    style ABCD: { fill: "lightcyan", stroke: "darkblue", width: 2 };
+    style AC: { color: "red", dashed: true };
+    style BD: { color: "red", dashed: true };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+    label D: "D";
+    label E: "E";
+    label O: "O";
+}

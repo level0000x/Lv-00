@@ -1,0 +1,96 @@
+/**
+ * @file geometry_midpoint_connector.lv00
+ * @brief 中位线定理案例
+ *
+ * 演示三角形中位线定理
+ */
+
+// 定义三角形
+point A(0, 0);
+point B(8, 0);
+point C(4, 6);
+triangle ABC(A, B, C);
+
+// 定义中点
+point D = midpoint(B, C);
+point E = midpoint(A, C);
+point F = midpoint(A, B);
+
+// 构造中位线
+segment DE(D, E);
+segment EF(E, F);
+segment FD(F, D);
+
+// 证明中位线平行于第三边
+prove {
+    parallel(DE, AB)
+}
+
+prove {
+    parallel(EF, BC)
+}
+
+prove {
+    parallel(FD, CA)
+}
+
+// 证明中位线长度等于第三边的一半
+prove {
+    length(DE) == 0.5 * length(AB)
+}
+
+prove {
+    length(EF) == 0.5 * length(BC)
+}
+
+prove {
+    length(FD) == 0.5 * length(CA)
+}
+
+// 重心（三条中线交点）
+segment AD(A, D);
+segment BE(B, E);
+segment CF(C, F);
+point G = intersection(AD, BE);
+
+prove {
+    G lies_on CF
+}
+
+// 重心分中线比例
+prove {
+    length(A, G) == 2 * length(G, D)
+}
+
+prove {
+    length(B, G) == 2 * length(G, E)
+}
+
+prove {
+    length(C, G) == 2 * length(G, F)
+}
+
+// 中位线分割的四个小三角形面积相等
+compute {
+    area_ABC = area(ABC)
+    area_AFE = area_ABC / 4
+}
+
+// 可视化配置
+visualize {
+    style ABC: { fill: "lightblue", stroke: "blue", width: 2 };
+    style DE: { color: "red", width: 3 };
+    style EF: { color: "red", width: 3 };
+    style FD: { color: "red", width: 3 };
+    style AD: { color: "green", dashed: true };
+    style BE: { color: "green", dashed: true };
+    style CF: { color: "green", dashed: true };
+    style G: { color: "purple", size: 10 };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+    label D: "D";
+    label E: "E";
+    label F: "F";
+    label G: "G (重心)";
+}

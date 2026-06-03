@@ -1,0 +1,49 @@
+# Lv-00 EditorConfig
+# https://editorconfig.org
+# 统一跨编辑器代码风格配置
+# 注意：Python 标准行长度为 100，C/H 文件为 120（函数签名较长）
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{c,h}]
+indent_style = space
+indent_size = 4
+# C/H 文件允许 120 字符行长度（函数签名、类型声明较长）
+max_line_length = 120
+
+[*.{py}]
+indent_style = space
+indent_size = 4
+# Python 标准行长度统一为 100，与 PEP8 推荐一致
+# 注意：code_analyzer 等特殊模块如需更长行，应在模块级别单独配置
+max_line_length = 100
+
+[*.{ts,tsx,js,jsx}]
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = false
+
+[CMakeLists.txt]
+indent_style = space
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+indent_size = 4

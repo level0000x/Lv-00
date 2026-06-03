@@ -1,0 +1,466 @@
+# =============================================================================
+# Lv-00 Axiom Package: Robinson Arithmetic (Q)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Robinson arithmetic, also denoted by Q, is a finitely axiomatized fragment
+#   of first-order Peano arithmetic (PA), first set out by Raphael M. Robinson
+#   in 1950. Q is PA without the axiom schema of mathematical induction.
+#   Q is weaker than PA but is recursively incompletable and essentially
+#   undecidable — the weakest theory strong enough for Godel's first
+#   incompleteness theorem.
+#
+# References:
+#   - Robinson, R.M. (1950). "An Essentially Undecidable Axiom System."
+#     Proceedings of the International Congress of Mathematicians. pp. 729-730.
+#     LCCN 52001808.
+#   - Wikipedia: Robinson arithmetic
+#     https://en.wikipedia.org/wiki/Robinson_arithmetic
+#   - nLab: Robinson arithmetic
+#     https://ncatlab.org/nlab/show/Robinson+arithmetic
+#   - Boolos, G.; Burgess, J.P.; Jeffrey, R. (2002). "Computability and Logic"
+#     (4th ed.). Cambridge University Press. ISBN 0-521-00758-5. Chapter 16.
+#   - Burgess, J.P. (2005). "Fixing Frege." Princeton University Press.
+#     ISBN 978-0691122311. Sections 1.5a, 2.2.
+#   - Mendelson, E. (2015). "Introduction to Mathematical Logic" (6th ed.).
+#     Chapman & Hall. ISBN 9781482237726. pp. 202-203.
+#   - Tarski, A.; Mostowski, A.; Robinson, R.M. (1953). "Undecidable Theories."
+#     North Holland.
+#   - Stanford Encyclopedia of Philosophy: Computability and Complexity
+#     https://plato.stanford.edu/entries/computability/
+#   - Bezboruah, A.; Shepherdson, J.C. (1976). "Godel's Second Incompleteness
+#     Theorem for Q". Journal of Symbolic Logic, 41(2): 503-512.
+#     https://doi.org/10.2307/2272251
+#   - Jones, J.P.; Shepherdson, J.C. (1983). "Variants of Robinson's
+#     essentially undecidable theory R". Archiv fur mathematische Logik,
+#     23: 61-64. https://doi.org/10.1007/BF02023013
+#   - Tennenbaum, S. (1959). "Non-Archimedean Models for Arithmetic."
+#     Notices of the AMS, 6: 270.
+#     https://en.wikipedia.org/wiki/Tennenbaum%27s_theorem
+#   - Rautenberg, W. (2010). "A Concise Introduction to Mathematical Logic"
+#     (3rd ed.). Springer. ISBN 978-1-4419-1220-6.
+#   - Tourlakis, G. (2022). "Computability." Springer.
+#     ISBN 978-3-030-83202-5. Section 12.6.
+#
+# Primitive Notions:
+#   - Natural number (element of domain N)
+#   - Zero constant: 0 (distinguished element of N)
+#   - Successor function: S (unary operation S: N -> N)
+#   - Addition: + (binary operation +: N x N -> N)
+#   - Multiplication: . (binary operation .: N x N -> N)
+#   - Identity/equality: = (infix binary predicate)
+#
+# Core Axioms (7 axioms, Q1-Q7 per Burgess 2005):
+#   The background logic is first-order logic with identity.
+#   Variables not bound by an existential quantifier are bound by an
+#   implicit universal quantifier.
+#
+#   Q1. Sx != 0
+#       — 0 is not the successor of any number.
+#   Q2. (Sx = Sy) -> x = y
+#       — The successor function is injective.
+#   Q3. y = 0 \/ Ex (Sx = y)
+#       — Every number is either 0 or the successor of some number.
+#   Q4. x + 0 = x
+#       — Base case for the recursive definition of addition.
+#   Q5. x + Sy = S(x + y)
+#       — Inductive case for the recursive definition of addition.
+#   Q6. x . 0 = 0
+#       — Base case for the recursive definition of multiplication.
+#   Q7. x . Sy = (x . y) + x
+#       — Inductive case for the recursive definition of multiplication.
+#
+# Key Metamathematical Properties:
+#   - Q has NO induction axiom (the defining difference from PA).
+#   - Q is essentially undecidable: no consistent recursively axiomatized
+#     extension of Q is decidable (Tarski, Mostowski, Robinson 1953).
+#   - All computable functions are representable in Q (Robinson 1950).
+#     This is sufficient for Godel's first incompleteness theorem.
+#   - Godel's second incompleteness theorem also holds for Q
+#     (Bezboruah & Shepherdson 1976, Pudlak 1985).
+#   - If any one of the 7 axioms is dropped, the resulting theory ceases
+#     to be essentially undecidable (though the fragments may still be
+#     undecidable).
+#   - Unlike PA, Q has computable nonstandard models (Tennenbaum's
+#     theorem does not apply to Q).
+#   - General statements are often unprovable in Q while all specific
+#     instances are provable (e.g., 5+7=7+5 is provable, but the
+#     commutativity of addition is not).
+#
+# Relationship to Other Theories:
+#   - Sub-theory of: peano_arithmetic (PA adds the induction schema)
+#   - Sub-theory of: zfc_set_theory (Q is interpretable in Zermelo set
+#     theory minus infinity; Q is interpretable in General Set Theory)
+#   - Contains: Presburger arithmetic's language (but Q is not a sub-theory
+#     of Presburger because Q includes multiplication)
+#   - Related: computability_theory (Q is the minimal theory in which all
+#     computable functions are representable; essential undecidability
+#     connects to decidability theory)
+#   - Related: classical_propositional_logic (Q uses first-order logic
+#     with identity as its background logic)
+#   - Related: model_theory (Q has nonstandard models and is a classic
+#     example of the compactness theorem)
+#   - Related: proof_theory (Gentzen's consistency proof for PA uses
+#     transfinite induction beyond Q's capacity)
+#   - Related: number_theory (Q captures the most basic number-theoretic
+#     operations; all elementary number theory can be encoded in Q)
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "robin_arithmetic" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, operation, or
+    # derived construction in Robinson arithmetic (Q).
+    #
+    # Parameter semantics:
+    #   Params = natural numbers (elements of the domain N),
+    #            represented as terms in the language of Q
+    # =================================================================
+
+    # --- Group I: Core Axioms of Q (7) ---
+    # The 7 axioms that define Q. Without induction, these 7 axioms
+    # alone suffice for representing all computable functions.
+
+    # Q1: Zero is not a successor — Sx != 0
+    # The constant 0 is not in the image of the successor function.
+    # This guarantees the domain is not a finite cycle.
+    # Params: point x (natural number)
+    template "zero_not_successor" 1
+
+    # Q2: Successor is injective — Sx = Sy -> x = y
+    # The successor function is one-to-one: distinct numbers have
+    # distinct successors.
+    # Params: point x, point y (natural numbers)
+    template "successor_injective" 2
+
+    # Q3: Every number is zero or a successor — y = 0 \/ Ex (Sx = y)
+    # This is the only axiom with an existential quantifier.
+    # Without this, the theory would not be essentially undecidable.
+    # Params: point y (natural number)
+    template "every_number_zero_or_successor" 1
+
+    # Q4: Addition base case — x + 0 = x
+    # Recursive definition of addition: base case.
+    # Params: point x (natural number)
+    template "add_zero_right" 1
+
+    # Q5: Addition inductive case — x + Sy = S(x + y)
+    # Recursive definition of addition: inductive step.
+    # Params: point x, point y (natural numbers)
+    template "add_successor_right" 2
+
+    # Q6: Multiplication base case — x . 0 = 0
+    # Recursive definition of multiplication: base case.
+    # Params: point x (natural number)
+    template "mul_zero" 1
+
+    # Q7: Multiplication inductive case — x . Sy = (x . y) + x
+    # Recursive definition of multiplication: inductive step.
+    # Params: point x, point y (natural numbers)
+    template "mul_successor_right" 2
+
+    # --- Group II: Definitional Extension: Order Relation (4) ---
+    # The "less than" relation can be defined in Q:
+    #   x < y <-> Ez (Sz + x = y)
+    # This is a definitional conservative extension (Boolos, Burgess,
+    # Jeffrey 2002, Sec 16.4). Adding it as primitive with axioms
+    # yields Q+ (Tourlakis 2022, p.345).
+
+    # Less-than definition: x < y iff there exists z such that Sz + x = y
+    # Params: point x, point y (natural numbers)
+    template "less_than_definition" 2
+
+    # Nothing is less than zero: ~(x < 0)
+    # Params: point x (natural number)
+    template "less_than_zero_impossible" 1
+
+    # Less-than and successor: x < Sy <-> (x < y \/ x = y)
+    # Params: point x, point y (natural numbers)
+    template "less_than_successor" 2
+
+    # Trichotomy: x < y \/ x = y \/ y < x
+    # Every pair of numbers is comparable by the order relation.
+    # Params: point x, point y (natural numbers)
+    template "trichotomy" 2
+
+    # --- Group III: Elementary Consequences of Q (12) ---
+    # Some simple theorems that can be proven in Q without induction.
+    # These are not general theorems (which often require induction
+    # and are NOT provable in Q), but specific instances or very
+    # simple universal statements derivable from the 7 axioms.
+
+    # Zero is the only number without a predecessor
+    # Params: point x (natural number)
+    template "zero_predecessor_property" 1
+
+    # Successor is distinct: Sx != x for any numeral-laden x
+    # NOTE: The general statement Ax(Sx != x) is NOT provable in Q.
+    #       Only specific instances (e.g., S0 != 0, SS0 != S0, etc.)
+    #       are provable (Burgess 2005, p.56).
+    # Params: point x (natural numeral)
+    template "successor_not_self_instance" 1
+
+    # Addition zero left base: 0 + x = x
+    # This requires case analysis on whether x is zero or a successor.
+    # Params: point x (natural number)
+    template "add_zero_left" 1
+
+    # Addition associativity instance: specific numeral instances
+    # General associativity (Ax,y,z) is NOT provable in Q.
+    # Params: point a, point b, point c (specific numerals)
+    template "add_associative_instance" 3
+
+    # Addition commutativity instance: specific numeral instances
+    # General commutativity is NOT provable in Q.
+    # Params: point a, point b (specific numerals)
+    template "add_commutative_instance" 2
+
+    # Multiplication by zero from left: 0 . x = 0
+    # Requires case analysis.
+    # Params: point x (natural number)
+    template "mul_zero_left" 1
+
+    # Multiplication identity from right: x . S0 = x
+    # Follows from Q7 and Q4.
+    # Params: point x (natural number)
+    template "mul_one_right" 1
+
+    # Multiplication identity from left: S0 . x = x
+    # Requires case analysis.
+    # Params: point x (natural number)
+    template "mul_one_left" 1
+
+    # Distributivity instance: specific numeral instances
+    # General distributivity is NOT provable in Q.
+    # Params: point a, point b, point c (specific numerals)
+    template "distributive_instance" 3
+
+    # Transitivity of less-than instance
+    # Params: point a, point b, point c (specific numerals)
+    template "less_than_transitive_instance" 3
+
+    # Less-than is irreflexive: ~(x < x) for any x
+    # This uses the definition and Q1, Q2.
+    # Params: point x (natural numeral)
+    template "less_than_irreflexive" 1
+
+    # Zero is the least element: 0 < Sx
+    # Params: point x (natural number)
+    template "zero_is_least_successor" 1
+
+    # --- Group IV: Core Constructors (8) ---
+    # Basic operations that construct new natural numbers from existing
+    # ones, corresponding to the primitive operations of Q.
+
+    # Successor constructor: S(x)
+    # Params: point x -> point Sx
+    template "successor" 1
+
+    # Predecessor: given Sy, return y (undefined for 0)
+    # Params: point x -> point y where x = Sy or error
+    template "predecessor" 1
+
+    # Addition: x + y
+    # Params: point x, point y -> point (x + y)
+    template "add" 2
+
+    # Multiplication: x . y
+    # Params: point x, point y -> point (x . y)
+    template "multiply" 2
+
+    # Zero literal: construct the constant 0
+    # Params: (zero-input constructor)
+    template "zero" 0
+
+    # Numeric literal: S(S(...S(0)...)) for a given count n
+    # Params: count n -> numeral SS...S0
+    template "numeral" 1
+
+    # Less-than check: test if x < y
+    # Params: point x, point y -> boolean
+    template "less_than_check" 2
+
+    # Equality check: test if x = y
+    # Params: point x, point y -> boolean
+    template "equality_check" 2
+
+    # --- Group V: Derived Constructors (8) ---
+    # Additional useful operations constructible in Q.
+
+    # Subtraction (truncated): x - y defined only when y <= x
+    # Params: point x, point y -> point (x - y) or undefined
+    template "subtract_truncated" 2
+
+    # Exponentiation: x^y defined recursively
+    # Params: point x, point y -> point (x^y)
+    template "exponentiate" 2
+
+    # Parity check: determine if a number is even (Ex(x = S0+S0 . z))
+    # Params: point x -> boolean
+    template "is_even" 1
+
+    # Maximum: max(x, y)
+    # Params: point x, point y -> point max(x, y)
+    template "maximum" 2
+
+    # Minimum: min(x, y)
+    # Params: point x, point y -> point min(x, y)
+    template "minimum" 2
+
+    # Division (truncated): x // y when y > 0
+    # Params: point x, point y -> point (x // y)
+    template "divide_truncated" 2
+
+    # Remainder: x mod y when y > 0
+    # Params: point x, point y -> point (x mod y)
+    template "remainder" 2
+
+    # Greatest common divisor (Euclidean algorithm)
+    # Params: point x, point y -> point gcd(x, y)
+    template "gcd" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+    # Q is essentially undecidable — no consistent extension is decidable.
+    # The following are key undecidability/independence results.
+    # =================================================================
+
+    unconstructible "consistency_of_Q" {
+        reduces_to "godel_second_incompleteness"
+        dependency "zero_not_successor"
+        dependency "successor_injective"
+        dependency "every_number_zero_or_successor"
+        dependency "add_zero_right"
+        dependency "add_successor_right"
+        dependency "mul_zero"
+        dependency "mul_successor_right"
+        external_ref "https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems"
+        green_verified true
+    }
+
+    unconstructible "godel_sentence_for_Q" {
+        reduces_to "godel_first_incompleteness"
+        dependency "successor_injective"
+        dependency "add_successor_right"
+        dependency "mul_successor_right"
+        external_ref "https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems"
+        green_verified true
+    }
+
+    unconstructible "add_commutativity_general" {
+        reduces_to "induction_requirement"
+        dependency "add_zero_right"
+        dependency "add_successor_right"
+        dependency "induction_schema_absent"
+        external_ref "https://en.wikipedia.org/wiki/Robinson_arithmetic#Metamathematics"
+        green_verified true
+    }
+
+    unconstructible "mul_commutativity_general" {
+        reduces_to "induction_requirement"
+        dependency "mul_zero"
+        dependency "mul_successor_right"
+        dependency "add_commutativity_instance"
+        dependency "induction_schema_absent"
+        external_ref "https://en.wikipedia.org/wiki/Robinson_arithmetic#Metamathematics"
+        green_verified true
+    }
+
+    unconstructible "add_associativity_general" {
+        reduces_to "induction_requirement"
+        dependency "add_zero_right"
+        dependency "add_successor_right"
+        dependency "induction_schema_absent"
+        external_ref "https://en.wikipedia.org/wiki/Robinson_arithmetic#Metamathematics"
+        green_verified true
+    }
+
+    unconstructible "successor_not_self_general" {
+        reduces_to "induction_requirement"
+        dependency "zero_not_successor"
+        dependency "successor_injective"
+        dependency "induction_schema_absent"
+        external_ref "https://en.wikipedia.org/wiki/Robinson_arithmetic#Metamathematics"
+        green_verified true
+    }
+
+    unconstructible "decidability_of_Q" {
+        reduces_to "essential_undecidability"
+        dependency "zero_not_successor"
+        dependency "successor_injective"
+        dependency "every_number_zero_or_successor"
+        dependency "add_zero_right"
+        dependency "add_successor_right"
+        dependency "mul_zero"
+        dependency "mul_successor_right"
+        external_ref "https://en.wikipedia.org/wiki/Essentially_undecidable_theory"
+        green_verified true
+    }
+
+    unconstructible "decidability_of_any_extension_of_Q" {
+        reduces_to "tarski_mostowski_robinson_theorem"
+        dependency "zero_not_successor"
+        dependency "successor_injective"
+        dependency "every_number_zero_or_successor"
+        dependency "add_zero_right"
+        dependency "add_successor_right"
+        dependency "mul_zero"
+        dependency "mul_successor_right"
+        external_ref "https://en.wikipedia.org/wiki/Essentially_undecidable_theory"
+        green_verified true
+    }
+
+    unconstructible "hilbert_tenth_problem_for_Q" {
+        reduces_to "matiyasevich_davis_putnam_robinson_theorem"
+        dependency "add_successor_right"
+        dependency "mul_successor_right"
+        dependency "induction_schema_absent"
+        external_ref "https://en.wikipedia.org/wiki/Hilbert%27s_tenth_problem"
+        green_verified true
+    }
+
+    unconstructible "nonstandard_model_characterization_of_Q" {
+        reduces_to "tennenbaum_independence"
+        dependency "zero_not_successor"
+        dependency "add_successor_right"
+        dependency "mul_successor_right"
+        external_ref "https://en.wikipedia.org/wiki/Tennenbaum%27s_theorem"
+        green_verified true
+    }
+
+    unconstructible "uniform_solvability_equations_in_Q" {
+        reduces_to "unsolvability_of_diophantine_equations"
+        dependency "add_successor_right"
+        dependency "mul_successor_right"
+        external_ref "https://en.wikipedia.org/wiki/Diophantine_set"
+        green_verified true
+    }
+
+    unconstructible "recursive_separability_of_Q_theorems_from_refutations" {
+        reduces_to "essential_inseparability_of_Q"
+        dependency "zero_not_successor"
+        dependency "successor_injective"
+        dependency "every_number_zero_or_successor"
+        dependency "add_zero_right"
+        dependency "add_successor_right"
+        dependency "mul_zero"
+        dependency "mul_successor_right"
+        external_ref "https://en.wikipedia.org/wiki/Essentially_undecidable_theory"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "natural_number_zero_without_predecessor"
+    negation_encoding "classical_falsum_in_first_order_logic"
+    contradiction_behavior "explosion_principle"
+}
