@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Cache CMake build
+      uses: actions/cache@v4
+      with:
+        path: build
+        key: linux-cmake-${{ hashFiles('CMakeLists.txt', 'core/src/**', 'core/include/**') }}
+        restore-keys: linux-cmake-
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake libgmp-dev lcov
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Test (Debug + Coverage)
+      working-directory: build
+      run: ctest --output-on-failure
+    
+    - name: Generate coverage report
+      working-directory: build
+      run: |
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info
+        lcov --list coverage.info
+    
+    - name: Upload coverage to Codecov
+      if: success()
+      uses: codecov/codecov-action@v5
+      with:
+        files: build/coverage.info
+        fail_ci_if_error: false
+
+    - name: Run benchmarks
+      run: |
+        python3 tool/scripts/benchmark.py --build-dir build --output-dir log/benchmark_results
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-linux
+        path: log/benchmark_results/
+
+    # Linux 专用：Debug 模式 + sanitizers 构建，尽早发现内存问题
+    - name: Build with sanitizers (Linux)
+      run: |
+        cmake -B build-san -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
+        cmake --build build-san
+
+    - name: Test with sanitizers
+      working-directory: build-san
+      run: ctest --output-on-failure
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: brew install cmake gmp
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    # macOS 专用：Debug 模式 + sanitizers 构建，用于在 CI 中尽早发现内存问题
+    - name: Build with sanitizers (macOS)
+      run: |
+        cmake -B build-san -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
+        cmake --build build-san
+    
+    - name: Test
+      working-directory: build
+      run: ctest --output-on-failure
+    
+    - name: Test with sanitizers
+      working-directory: build-san
+      run: ctest --output-on-failure
+
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-gmp
+    
+    - name: Configure CMake
+      shell: msys2 {0}
+      run: cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      shell: msys2 {0}
+      run: cmake --build build --parallel
+    
+    - name: Test
+      shell: msys2 {0}
+      working-directory: build
+      run: ctest --output-on-failure
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake libgmp-dev cppcheck clang-tidy
+    
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --error-exitcode=1 \
+          --suppress=missingIncludeSystem \
+          -I core/include core/src test/c 2>&1 | head -500
+    
+    - name: Configure CMake with Clang
+      run: cmake -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_CLANG_TIDY=clang-tidy -DCMAKE_BUILD_TYPE=Debug
+    
+    - name: Build with clang-tidy
+      run: |
+        # 将构建输出完整写入日志文件，以便 Build 本身的退出码不被管道吞没
+        # 原实现直接将输出管道到 grep | head，当 clang-tidy 没有发现任何警告时，
+        # grep 返回退出码 1（无匹配），导致步骤误判为失败。
+        # 修复：先 tee 到文件保留完整输出用于调试，再用 grep 提取警告摘要。
+        cmake --build build 2>&1 | tee build-clang-tidy.log
+        echo "=== Clang-Tidy 检查摘要 ==="
+        grep -E "(warning|error|note):" build-clang-tidy.log | head -50 || true

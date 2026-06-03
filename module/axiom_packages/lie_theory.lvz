@@ -1,0 +1,403 @@
+# =============================================================================
+# Lv-00 Axiom Package: Lie Theory
+# =============================================================================
+#
+# Mathematical Theory: Lie Theory — the study of Lie groups and Lie algebras,
+# continuous symmetry groups and their infinitesimal (linearized) counterparts.
+# Lie theory bridges algebra (groups, algebras) and geometry (smooth manifolds),
+# providing the mathematical framework for continuous symmetries in physics
+# and mathematics.
+#
+# A Lie group G is a group that is also a smooth manifold, where the group
+# operations (multiplication and inversion) are smooth maps. Its associated
+# Lie algebra g is the tangent space at the identity, equipped with the Lie
+# bracket [X,Y] measuring the non-commutativity of G near the identity.
+#
+# References:
+#   - Sophus Lie & Friedrich Engel, "Theorie der Transformationsgruppen" (1888-1893)
+#   - Wikipedia: Lie group
+#     https://en.wikipedia.org/wiki/Lie_group
+#   - Wikipedia: Lie algebra
+#     https://en.wikipedia.org/wiki/Lie_algebra
+#   - Wikipedia: Lie group-Lie algebra correspondence
+#     https://en.wikipedia.org/wiki/Lie_group%E2%80%93Lie_algebra_correspondence
+#   - Hall, B.C. (2015). "Lie Groups, Lie Algebras, and Representations" (2nd ed.). Springer.
+#   - Humphreys, J.E. (1972). "Introduction to Lie Algebras and Representation Theory." Springer.
+#   - Varadarajan, V.S. (1984). "Lie Groups, Lie Algebras, and Their Representations." Springer.
+#   - Kirillov, A.A. (2008). "Introduction to Lie Groups and Lie Algebras." Cambridge University Press.
+#   - nLab: Lie algebra
+#     https://ncatlab.org/nlab/show/Lie+algebra
+#   - nLab: Lie group
+#     https://ncatlab.org/nlab/show/Lie+group
+#   - Wikipedia: Killing form
+#     https://en.wikipedia.org/wiki/Killing_form
+#   - Wikipedia: Root system
+#     https://en.wikipedia.org/wiki/Root_system
+#   - Wikipedia: Universal enveloping algebra
+#     https://en.wikipedia.org/wiki/Universal_enveloping_algebra
+#   - Wikipedia: Lie algebra representation
+#     https://en.wikipedia.org/wiki/Lie_algebra_representation
+#   - Wikipedia: Hilbert's fifth problem
+#     https://en.wikipedia.org/wiki/Hilbert%27s_fifth_problem
+#   - Wikipedia: Exponential map (Lie theory)
+#     https://en.wikipedia.org/wiki/Exponential_map_(Lie_theory)
+#   - Wikipedia: Baker-Campbell-Hausdorff formula
+#     https://en.wikipedia.org/wiki/Baker%E2%80%93Campbell%E2%80%93Hausdorff_formula
+#   - Wikipedia: Ado's theorem
+#     https://en.wikipedia.org/wiki/Ado%27s_theorem
+#
+# Core Axioms:
+#
+# === Lie Algebra Axioms (3) ===
+# A Lie algebra g over a field F is a vector space with a Lie bracket
+# [.,.] : g x g -> g satisfying:
+#   LA1. Bilinearity: [aX+bY, Z] = a[X,Z] + b[Y,Z] and [Z, aX+bY] = a[Z,X] + b[Z,Y]
+#   LA2. Alternating:  [X, X] = 0 for all X in g  (implies [X,Y] = -[Y,X])
+#   LA3. Jacobi identity: [X,[Y,Z]] + [Z,[X,Y]] + [Y,[Z,X]] = 0
+#
+# === Lie Group Axioms (3) ===
+# A Lie group G is a set satisfying:
+#   LG1. Group structure: (G, *) is a group with identity e
+#   LG2. Smooth manifold: G is a finite-dimensional smooth manifold
+#   LG3. Smooth operations: multiplication mu: G x G -> G and inversion inv: G -> G are smooth
+#
+# === Lie Group-Lie Algebra Correspondence (4) ===
+#   C1. Tangent space: g = T_e G (Lie algebra is tangent space at identity)
+#   C2. Exponential map: exp: g -> G is a local diffeomorphism near 0
+#   C3. Lie bracket: [X,Y] = d/dt|_{t=0} d/ds|_{s=0} exp(X)exp(tY)exp(-X)exp(-sY)
+#   C4. Homomorphism: If phi: G -> H is a Lie group hom, then d phi: g -> h is a Lie algebra hom
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "lie_theory" "1.0.0" {
+
+    # =========================================================================
+    # Group I: Lie Algebra Core Axioms (3)
+    # =========================================================================
+
+    # LA1: Bilinearity of the Lie bracket
+    # [aX + bY, Z] = a[X, Z] + b[Y, Z]
+    template "lie_algebra_bilinearity_left" 3
+
+    # [Z, aX + bY] = a[Z, X] + b[Z, Y]
+    template "lie_algebra_bilinearity_right" 3
+
+    # LA2: Alternating property — [X, X] = 0
+    template "lie_algebra_alternating" 1
+
+    # LA2-consequence: Anticommutativity — [X, Y] = -[Y, X]
+    template "lie_algebra_anticommutativity" 2
+
+    # LA3: Jacobi identity — [X,[Y,Z]] + [Z,[X,Y]] + [Y,[Z,X]] = 0
+    template "jacobi_identity" 3
+
+    # =========================================================================
+    # Group II: Lie Group Core Axioms (3)
+    # =========================================================================
+
+    # LG1: Group structure on G (inherits from group_theory)
+    template "lie_group_structure" 2
+
+    # LG2: Smooth manifold structure on G (inherits from differential_geometry)
+    template "lie_group_smooth_manifold" 1
+
+    # LG3: Smooth multiplication map mu: G x G -> G
+    template "lie_group_smooth_multiplication" 2
+
+    # LG3: Smooth inversion map inv: G -> G
+    template "lie_group_smooth_inversion" 1
+
+    # =========================================================================
+    # Group III: Lie Group-Lie Algebra Correspondence (4)
+    # =========================================================================
+
+    # C1: Lie algebra as tangent space at identity: g = T_e G
+    template "tangent_space_at_identity" 1
+
+    # C2: Exponential map exp: g -> G (local diffeomorphism near 0)
+    template "exponential_map" 1
+
+    # C2: Exponential map is a local diffeomorphism at 0
+    template "exponential_local_diffeomorphism" 1
+
+    # C3: Lie bracket from group commutator
+    # [X,Y] = d/dt d/ds exp(X)exp(tY)exp(-X)exp(-sY) at t=s=0
+    template "lie_bracket_from_commutator" 2
+
+    # C4: Lie group homomorphism induces Lie algebra homomorphism
+    template "homomorphism_induces_algebra_hom" 2
+
+    # =========================================================================
+    # Group IV: Elementary Consequences & Derived Properties (8)
+    # =========================================================================
+
+    # [X,Y] = -[Y,X] follows from bilinearity + alternating
+    template "skew_symmetry_derived" 2
+
+    # [X,[Y,Z]] = [[X,Y],Z] + [Y,[X,Z]] (Jacobi as derivation)
+    template "jacobi_as_derivation" 3
+
+    # Baker-Campbell-Hausdorff formula: exp(X)exp(Y) = exp(X+Y+[X,Y]/2+...)
+    template "baker_campbell_hausdorff" 2
+
+    # exp(0) = e (identity)
+    template "exp_of_zero_is_identity" 0
+
+    # exp(-X) = exp(X)^{-1}
+    template "exp_of_negative_is_inverse" 1
+
+    # d/dt exp(tX) = X exp(tX) (differential equation of exponential)
+    template "exponential_differential_equation" 1
+
+    # Adjoint representation: Ad_g(X) = gXg^{-1} for matrix groups
+    template "adjoint_representation" 2
+
+    # Ad: G -> GL(g) is a Lie group homomorphism
+    template "adjoint_is_homomorphism" 1
+
+    # =========================================================================
+    # Group V: Lie Algebra Structure Theory (8)
+    # =========================================================================
+
+    # Lie subalgebra: subspace h closed under bracket
+    template "lie_subalgebra" 1
+
+    # Lie ideal: subspace i with [g, i] subset i
+    template "lie_ideal" 1
+
+    # Quotient Lie algebra: g/i with inherited bracket
+    template "quotient_lie_algebra" 1
+
+    # Solvable Lie algebra: derived series terminates at 0
+    # D^0(g) = g, D^{n+1}(g) = [D^n(g), D^n(g)]
+    template "solvable_derived_series" 1
+
+    # Nilpotent Lie algebra: lower central series terminates at 0
+    # C^0(g) = g, C^{n+1}(g) = [g, C^n(g)]
+    template "nilpotent_lower_central_series" 1
+
+    # Simple Lie algebra: no nontrivial ideals
+    template "simple_lie_algebra" 1
+
+    # Semisimple Lie algebra: direct sum of simple ideals (no nonzero solvable ideals)
+    template "semisimple_lie_algebra" 1
+
+    # Abelian Lie algebra: [X,Y] = 0 for all X,Y
+    template "abelian_lie_algebra" 0
+
+    # =========================================================================
+    # Group VI: Classical Lie Algebras (8)
+    # =========================================================================
+
+    # General linear: gl(n,F) — all n x n matrices with commutator bracket
+    template "general_linear_algebra_gln" 1
+
+    # Special linear: sl(n,F) — traceless matrices
+    template "special_linear_algebra_sln" 1
+
+    # Orthogonal: so(n,F) — skew-symmetric matrices
+    template "orthogonal_algebra_son" 1
+
+    # Special orthogonal: so(n) (same as orthogonal over R)
+    template "special_orthogonal_algebra" 1
+
+    # Symplectic: sp(2n,F) — matrices preserving symplectic form
+    template "symplectic_algebra_sp2n" 1
+
+    # Unitary: u(n) — skew-Hermitian matrices
+    template "unitary_algebra_un" 1
+
+    # Special unitary: su(n) — traceless skew-Hermitian matrices
+    template "special_unitary_algebra_sun" 1
+
+    # Euclidean: se(3) — Lie algebra of Euclidean group (rigid body motions)
+    template "euclidean_algebra_se3" 1
+
+    # =========================================================================
+    # Group VII: Representation Theory (6)
+    # =========================================================================
+
+    # Lie algebra representation: rho: g -> gl(V) preserving bracket
+    # rho([X,Y]) = [rho(X), rho(Y)] = rho(X)rho(Y) - rho(Y)rho(X)
+    template "lie_algebra_representation" 2
+
+    # Adjoint representation: ad_X(Y) = [X,Y]
+    template "adjoint_representation_algebra" 1
+
+    # Irreducible representation: no nontrivial invariant subspaces
+    template "irreducible_representation" 1
+
+    # Universal enveloping algebra U(g)
+    template "universal_enveloping_algebra" 1
+
+    # Poincare-Birkhoff-Witt theorem: U(g) has canonical basis
+    template "poincare_birkhoff_witt" 1
+
+    # Casimir element: central in U(g) for semisimple g
+    template "casimir_element" 1
+
+    # =========================================================================
+    # Group VIII: Root Systems & Classification (6)
+    # =========================================================================
+
+    # Cartan subalgebra: maximal abelian subalgebra (diagonalizable on g)
+    template "cartan_subalgebra" 1
+
+    # Root: eigenvalue of ad_H for H in Cartan subalgebra
+    template "root_of_lie_algebra" 1
+
+    # Root system: set of all roots with their structure
+    template "root_system" 1
+
+    # Killing form: B(X,Y) = tr(ad_X o ad_Y)
+    template "killing_form" 2
+
+    # Cartan's criterion for semisimplicity: g semisimple iff Killing form nondegenerate
+    template "cartan_criterion_semisimple" 1
+
+    # Weyl group: finite group generated by reflections in root hyperplanes
+    template "weyl_group" 1
+
+    # =========================================================================
+    # Group IX: Core Constructors (6)
+    # =========================================================================
+
+    # Lie bracket: [X, Y]
+    template "lie_bracket" 2
+
+    # Exponential map: exp(X)
+    template "exponential" 1
+
+    # Adjoint action: Ad_g(X) = gXg^{-1}
+    template "adjoint_action" 2
+
+    # Direct sum of Lie algebras: g1 ⊕ g2
+    template "direct_sum_lie_algebra" 2
+
+    # Derived algebra: [g, g] = span{[X,Y] : X,Y in g}
+    template "derived_algebra" 1
+
+    # Center of Lie algebra: Z(g) = {X in g : [X,Y] = 0 for all Y in g}
+    template "center_lie_algebra" 1
+
+    # =========================================================================
+    # Group X: Derived Constructors (8)
+    # =========================================================================
+
+    # Matrix commutator: [A,B] = AB - BA (for matrix Lie algebras)
+    template "matrix_commutator" 2
+
+    # Cross product as Lie bracket on R^3
+    template "cross_product_bracket" 2
+
+    # Lie algebra homomorphism: phi: g -> h with phi([X,Y]) = [phi(X), phi(Y)]
+    template "lie_algebra_homomorphism" 2
+
+    # Lie algebra isomorphism: bijective homomorphism
+    template "lie_algebra_isomorphism" 2
+
+    # Semidirect product of Lie algebras: g ⋉ h
+    template "semidirect_product_lie_algebra" 2
+
+    # Universal covering Lie group
+    template "universal_covering_group" 1
+
+    # Lie subgroup
+    template "lie_subgroup" 1
+
+    # Connected component of identity G_0
+    template "identity_component" 1
+
+    # =========================================================================
+    # Group XI: Advanced Topics (6)
+    # =========================================================================
+
+    # Levi decomposition: g = rad(g) ⋉ ss(g) (radical semidirect semisimple)
+    template "levi_decomposition" 1
+
+    # Ado's theorem: every finite-dim Lie algebra has a faithful representation
+    template "ados_theorem" 1
+
+    # Lie's third theorem: every Lie algebra integrates to a Lie group
+    template "lies_third_theorem" 1
+
+    # Hilbert's fifth problem: every locally Euclidean topological group is a Lie group
+    template "hilberts_fifth_problem" 0
+
+    # Highest weight theory for representations of semisimple Lie algebras
+    template "highest_weight_theory" 1
+
+    # Dynkin diagram classification (A_n, B_n, C_n, D_n, E_6, E_7, E_8, F_4, G_2)
+    template "dynkin_diagram_classification" 1
+
+    # =========================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =========================================================================
+
+    unconstructible "lie_algebra_isomorphism_problem" {
+        reduces_to "group_isomorphism_problem"
+        dependency "lie_algebra_homomorphism"
+        dependency "lie_algebra_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Group_isomorphism_problem"
+        green_verified false
+    }
+
+    unconstructible "lie_group_isomorphism_problem" {
+        reduces_to "lie_algebra_isomorphism_problem"
+        dependency "lie_group_structure"
+        dependency "lie_algebra_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Lie_group"
+        green_verified false
+    }
+
+    unconstructible "nilpotency_testing_infinite_dimensional" {
+        reduces_to "word_problem_for_groups"
+        dependency "nilpotent_lower_central_series"
+        dependency "lie_bracket"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified false
+    }
+
+    unconstructible "solvable_quotient_computation" {
+        reduces_to "group_isomorphism_problem"
+        dependency "solvable_derived_series"
+        dependency "quotient_lie_algebra"
+        external_ref "https://en.wikipedia.org/wiki/Solvable_group"
+        green_verified false
+    }
+
+    unconstructible "lie_algebra_word_problem" {
+        reduces_to "word_problem_for_groups"
+        dependency "lie_bracket"
+        dependency "exponential"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified false
+    }
+
+    unconstructible "representation_equivalence_problem" {
+        reduces_to "lie_algebra_isomorphism_problem"
+        dependency "lie_algebra_representation"
+        dependency "irreducible_representation"
+        external_ref "https://en.wikipedia.org/wiki/Representation_theory"
+        green_verified false
+    }
+
+    unconstructible "invariant_subspace_lattice" {
+        reduces_to "lie_algebra_isomorphism_problem"
+        dependency "lie_algebra_representation"
+        dependency "lie_subalgebra"
+        external_ref "https://en.wikipedia.org/wiki/Invariant_subspace_problem"
+        green_verified false
+    }
+
+    # =========================================================================
+    # Logical Framework
+    # =========================================================================
+
+    bottom_geometry "lie_group_smooth_manifold_with_lie_algebra_tangent_space"
+    negation_encoding "classical_equality"
+    contradiction_behavior "explosion_principle"
+}

@@ -1,0 +1,167 @@
+/**
+ * ShortcutHelp 组件样式 / ShortcutHelp component styles
+ *
+ * 从 ShortcutHelp.tsx 的内联样式迁移而来，使用 CSS 类替代。
+ * 所有样式使用项目 CSS 变量保持视觉一致性。
+ *
+ * Migrated from ShortcutHelp.tsx inline styles, using CSS classes instead.
+ * All styles use project CSS variables for visual consistency.
+ */
+
+/* === 遮罩层 / Overlay === */
+.shortcut-help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: shortcutHelpFadeIn 0.15s ease-out;
+}
+
+/* === 面板主体 / Panel Body === */
+.shortcut-help-panel {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 720px;
+  width: calc(100vw - 48px);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 28px 32px;
+  animation: shortcutHelpSlideUp 0.2s ease-out;
+}
+
+/* === 标题 / Title === */
+.shortcut-help-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--color-text-bright);
+  margin-bottom: 6px;
+  font-family: var(--font-sans);
+}
+
+/* === 副标题 / Subtitle === */
+.shortcut-help-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-bottom: 24px;
+  font-family: var(--font-sans);
+}
+
+/* === 分类网格 / Category Grid === */
+.shortcut-help-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* === 分类卡片 / Category Card === */
+.shortcut-help-category {
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+/* === 分类标题 / Category Title === */
+.shortcut-help-category-title {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* === 快捷键条目行 / Shortcut Item Row === */
+.shortcut-help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+}
+
+/* === 快捷键按键标签容器 / Key Label Container === */
+.shortcut-help-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* === 快捷键分隔符（+ 号）/ Shortcut Separator (+) === */
+.shortcut-help-separator {
+  margin: 0 3px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+/* === kbd 按键标签 / Keyboard Key Label === */
+.shortcut-help-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  min-width: 22px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--color-text-bright);
+  background-color: rgba(var(--color-accent-rgb), 0.1);
+  border: 1px solid rgba(var(--color-accent-rgb), 0.25);
+  border-radius: var(--radius-sm);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* === 快捷键描述文本 / Shortcut Description === */
+.shortcut-help-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  text-align: right;
+  flex: 1;
+  margin-left: 12px;
+}
+
+/* === 底部提示 / Footer Hint === */
+.shortcut-help-footer {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+}
+
+/* === 动画关键帧 / Animation Keyframes === */
+@keyframes shortcutHelpFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shortcutHelpSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,321 @@
+# =============================================================================
+# Lv-00 Axiom Package: Homological Algebra
+# =============================================================================
+#
+# Mathematical Theory: Homological Algebra
+# Axiomatization: Abelian Category Axioms (Freyd 1964) + Homological Axioms
+#
+# References:
+#   - Wikipedia: Homological algebra
+#     https://en.wikipedia.org/wiki/Homological_algebra
+#   - Weibel, C.A. (1994). "An Introduction to Homological Algebra."
+#     Cambridge University Press. ISBN 0-521-55987-1.
+#   - Wikipedia: Exact sequence
+#     https://en.wikipedia.org/wiki/Exact_sequence
+#   - Wikipedia: Derived functor
+#     https://en.wikipedia.org/wiki/Derived_functor
+#   - Wikipedia: Tor functor
+#     https://en.wikipedia.org/wiki/Tor_functor
+#   - Wikipedia: Ext functor
+#     https://en.wikipedia.org/wiki/Ext_functor
+#
+# Primitive Concepts:
+#   - Abelian Category: a category satisfying zero object, biproducts,
+#     kernels, cokernels, and the ability to decompose every morphism
+#   - Chain Complex: a sequence of objects connected by boundary morphisms d_n
+#     with d_{n+1} o d_n = 0
+#   - Cohomology Group: H_n = ker(d_n) / im(d_{n+1}), measuring failure of exactness
+#   - Derived Functor: left/right derived functors extending a functor via resolutions
+#
+# Core Axioms (8):
+#   Abelian Category Axioms (5):
+#     AC1: Zero object exists (both initial and terminal)
+#     AC2: Biproducts exist for every finite family of objects
+#     AC3: Kernels exist for every morphism
+#     AC4: Cokernels exist for every morphism
+#     AC5: Every monomorphism is a kernel and every epimorphism is a cokernel
+#   Homological Axioms (3):
+#     HA1: Boundary operator satisfies d^2 = 0 (d_{n+1} o d_n = 0)
+#     HA2: Homology group H_n = ker(d_n) / im(d_{n+1})
+#     HA3: Short exact sequences induce long exact sequences in homology
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "homological_algebra" "1.0.0" {
+
+    # =========================================================================
+    # Group I: Abelian Category Axioms (6)
+    # =========================================================================
+
+    # Zero object: an object 0 that is both initial and terminal
+    # Unique morphisms !: A -> 0 and !: 0 -> A exist for all objects A
+    template "zero_object" 0
+
+    # Biproduct: A x B is both a product and a coproduct with diagonal and codiagonal
+    # Equipped with projections pi1, pi2 and injections i1, i2 satisfying
+    # i1 o pi1 + i2 o pi2 = id_{A x B}
+    template "biproduct" 2
+
+    # Kernel: ker(f) is the equalizer of f and 0, the universal subobject of
+    # objects mapping to zero under f: ker(f) -> A -> B
+    template "kernel" 1
+
+    # Cokernel: coker(f) is the coequalizer of f and 0, the universal quotient
+    # of B by the image of f: A -> B -> coker(f)
+    template "cokernel" 1
+
+    # Abelian category: a pre-additive category with zero object, biproducts,
+    # kernels, cokernels, and the property that every monomorphism is a kernel
+    # and every epimorphism is a cokernel
+    template "abelian_category" 0
+
+    # Exact sequence: a sequence ... -> A -> B -> C -> ... where im(f) = ker(g)
+    # at every position; short exact: 0 -> A -> B -> C -> 0
+    template "exact_sequence" 3
+
+    # =========================================================================
+    # Group II: Chain Complexes (6)
+    # =========================================================================
+
+    # Chain complex: a sequence ... -> C_{n+1} -d_{n+1}-> C_n -d_n-> C_{n-1} -> ...
+    # of objects and morphisms satisfying d_n o d_{n+1} = 0
+    template "chain_complex" 2
+
+    # Cohain complex: a sequence ... -> C^{n-1} -d^{n-1}-> C^n -d^n-> C^{n+1} -> ...
+    # with d^n o d^{n-1} = 0; cohomological indexing with superscripts
+    template "cochain_complex" 2
+
+    # Chain map: a morphism f_*: C_* -> D_* of chain complexes, a family of
+    # morphisms f_n: C_n -> D_n commuting with the boundary operators
+    template "chain_map" 2
+
+    # Chain homotopy: two chain maps f, g: C_* -> D_* are homotopic if there
+    # exists h_n: C_n -> D_{n+1} with f_n - g_n = d_{n+1} o h_n + h_{n-1} o d_n
+    template "chain_homotopy" 3
+
+    # Mapping cone: Cone(f)_n = D_n ⊕ C_{n-1} with differential
+    # d(a, c) = (d_D(a) + f(c), -d_C(c)); measures failure of f to be a quasi-isomorphism
+    template "mapping_cone" 2
+
+    # Mapping cylinder: Cyl(f)_n = C_n ⊕ C_{n-1} ⊕ D_n, used in homotopy theory
+    # to factor a chain map as a cofibration followed by a homotopy equivalence
+    template "cylinder" 2
+
+    # =========================================================================
+    # Group III: Homology and Cohomology (5)
+    # =========================================================================
+
+    # Homology group: H_n(C_*) = ker(d_n) / im(d_{n+1}), the n-th homology of
+    # a chain complex; measures the failure of exactness at C_n
+    template "homology_group" 2
+
+    # Cohomology group: H^n(C^*) = ker(d^n) / im(d^{n-1}), the n-th cohomology
+    # of a cochain complex; dual notion to homology
+    template "cohomology_group" 2
+
+    # Long exact sequence: a short exact sequence of chain complexes
+    # 0 -> A_* -> B_* -> C_* -> 0 induces a long exact sequence
+    # ... -> H_n(A) -> H_n(B) -> H_n(C) -> H_{n-1}(A) -> ...
+    template "long_exact_sequence" 3
+
+    # Snake lemma: given a commutative diagram with exact rows
+    # A -> B -> C -> 0 and 0 -> A' -> B' -> C', there is an exact sequence
+    # ker(f) -> ker(g) -> ker(h) -> coker(f) -> coker(g) -> coker(h)
+    template "snake_lemma" 3
+
+    # Five lemma: in a commutative diagram with exact rows of five terms,
+    # if four of the vertical maps are isomorphisms, so is the fifth
+    template "five_lemma" 3
+
+    # =========================================================================
+    # Group IV: Derived Functors (6)
+    # =========================================================================
+
+    # Left derived functor: L_nF(A) = H_n(P_* -> A) where P_* is a projective
+    # resolution of A; measures the failure of F to be exact on the left
+    template "left_derived_functor" 2
+
+    # Right derived functor: R^nF(A) = H^n(A -> I^*) where I^* is an injective
+    # resolution of A; measures the failure of F to be exact on the right
+    template "right_derived_functor" 2
+
+    # Tor functor: Tor_n^R(A, B) = L_n(A ⊗_R -)(B), the left derived functors
+    # of tensor product; Tor_1 detects torsion in abelian groups
+    template "tor_functor" 3
+
+    # Ext functor: Ext^n_R(A, B) = R^n Hom_R(A, -)(B), the right derived
+    # functors of Hom; classifies extensions of A by B
+    template "ext_functor" 3
+
+    # Spectral sequence: a family {E_r^{p,q}} of abelian groups with differentials
+    # d_r: E_r^{p,q} -> E_r^{p+r, q-r+1} converging to the homology of a
+    # filtered complex; Leray-Serre, Grothendieck, and Adams spectral sequences
+    template "spectral_sequence" 3
+
+    # Derived category: D(A) obtained from the category of chain complexes by
+    # inverting quasi-isomorphisms; the natural setting for derived functors
+    template "derived_category" 1
+
+    # =========================================================================
+    # Group V: Special Objects (5)
+    # =========================================================================
+
+    # Injective module: an R-module I such that Hom_R(-, I) is exact;
+    # every module embeds into an injective module (Baer's criterion)
+    template "injective_module" 1
+
+    # Projective module: an R-module P such that Hom_R(P, -) is exact;
+    # every module is a quotient of a projective module
+    template "projective_module" 1
+
+    # Flat module: an R-module M such that M ⊗_R - is exact;
+    # flat modules are precisely the filtered colimits of finitely generated
+    # free modules (Lazard's theorem)
+    template "flat_module" 1
+
+    # Free resolution: an exact sequence ... -> P_2 -> P_1 -> P_0 -> A -> 0
+    # where each P_i is a free (or projective) module; used to compute
+    # left derived functors
+    template "free_resolution" 2
+
+    # Injective resolution: an exact sequence 0 -> A -> I^0 -> I^1 -> I^2 -> ...
+    # where each I^i is an injective module; used to compute right derived functors
+    template "injective_resolution" 2
+
+    # =========================================================================
+    # Group VI: Homological Dimensions (4)
+    # =========================================================================
+
+    # Projective dimension: proj.dim(A) = min{n | L_nF(A) = 0 for all right
+    # exact functors F}; the length of the shortest projective resolution of A
+    template "projective_dimension" 2
+
+    # Injective dimension: inj.dim(A) = min{n | R^nF(A) = 0 for all left
+    # exact functors F}; the length of the shortest injective resolution of A
+    template "injective_dimension" 2
+
+    # Global dimension: gl.dim(R) = sup{proj.dim(A) | A is an R-module};
+    # the maximum projective dimension over all modules; a ring is regular
+    # iff its global dimension is finite
+    template "global_dimension" 1
+
+    # Regular sequence: x_1, ..., x_n in R is M-regular if x_1 is a non-zero-divisor
+    # on M and x_{i+1} is a non-zero-divisor on M/(x_1,...,x_i)M; used to define
+    # depth and Cohen-Macaulay rings
+    template "regular_sequence" 2
+
+    # =========================================================================
+    # Group VII: Applications (4)
+    # =========================================================================
+
+    # Group cohomology: H^n(G, M) = Ext^n_{ZG}(Z, M), the cohomology of a
+    # group G with coefficients in a G-module M; classifies group extensions
+    template "group_cohomology" 2
+
+    # Sheaf cohomology: H^n(X, F) = R^n Gamma(X, F), the right derived functors
+    # of the global sections functor; fundamental invariant in algebraic geometry
+    template "sheaf_cohomology_application" 2
+
+    # Hochschild homology: HH_n(R, M) = Tor_n^{R ⊗ R^op}(R, M), the homology
+    # of associative algebras; detects smoothness and separability
+    template "hochschild_homology" 2
+
+    # Cyclic homology: HC_n(R), a variant of Hochschild homology incorporating
+    # the cyclic permutation operator; related to K-theory and noncommutative geometry
+    template "cyclic_homology" 2
+
+    # =========================================================================
+    # Known Unconstructible / Undecidable Problems (6)
+    # =========================================================================
+
+    # 1. Projective dimension computation: given a module M over a ring R,
+    #    compute proj.dim(M). Undecidable in general — reduces to the word
+    #    problem for finitely presented groups and ideal membership problems.
+    unconstructible "projective_dimension_computation" {
+        reduces_to "undecidable"
+        dependency "projective_dimension"
+        dependency "free_resolution"
+        dependency "projective_module"
+        dependency "abelian_category"
+        external_ref "https://en.wikipedia.org/wiki/Projective_dimension"
+        green_verified true
+    }
+
+    # 2. Global dimension computation: given a ring R, compute gl.dim(R).
+    #    Undecidable in general — even for finitely presented commutative rings,
+    #    determining whether the global dimension is finite is undecidable.
+    unconstructible "global_dimension_computation" {
+        reduces_to "undecidable"
+        dependency "global_dimension"
+        dependency "projective_dimension"
+        dependency "abelian_category"
+        dependency "exact_sequence"
+        external_ref "https://en.wikipedia.org/wiki/Global_dimension"
+        green_verified true
+    }
+
+    # 3. Spectral sequence convergence: given a spectral sequence {E_r^{p,q}},
+    #    determine whether it converges and identify its limit. Undecidable in
+    #    general — convergence depends on subtle vanishing conditions.
+    unconstructible "spectral_sequence_convergence" {
+        reduces_to "undecidable"
+        dependency "spectral_sequence"
+        dependency "homology_group"
+        dependency "cohomology_group"
+        dependency "long_exact_sequence"
+        external_ref "https://en.wikipedia.org/wiki/Spectral_sequence"
+        green_verified true
+    }
+
+    # 4. Extension group computation: given modules A, B over a ring R,
+    #    compute Ext^n_R(A, B). Undecidable in general — even Ext^1 is
+    #    undecidable for finitely presented modules over finitely presented rings.
+    unconstructible "extension_group_computation" {
+        reduces_to "undecidable"
+        dependency "ext_functor"
+        dependency "injective_resolution"
+        dependency "projective_module"
+        dependency "abelian_category"
+        external_ref "https://en.wikipedia.org/wiki/Ext_functor"
+        green_verified true
+    }
+
+    # 5. Derived equivalence problem: given two rings R and S, determine whether
+    #    their derived categories D(R) and D(S) are equivalent (triangularly).
+    #    Undecidable in general — reduces to Morita equivalence and isomorphism problems.
+    unconstructible "derived_equivalence_problem" {
+        reduces_to "undecidable"
+        dependency "derived_category"
+        dependency "chain_complex"
+        dependency "chain_map"
+        dependency "abelian_category"
+        external_ref "https://en.wikipedia.org/wiki/Derived_category"
+        green_verified true
+    }
+
+    # 6. Homological conjecture resolution: given a homological conjecture
+    #    (e.g., finitistic dimension conjecture, Bass conjecture, Nakayama
+    #    conjecture), determine its truth value. These are major open problems
+    #    in homological algebra with deep connections to representation theory.
+    unconstructible "homological_conjecture_resolution" {
+        reduces_to "undecidable"
+        dependency "global_dimension"
+        dependency "projective_dimension"
+        dependency "injective_dimension"
+        dependency "ext_functor"
+        external_ref "https://en.wikipedia.org/wiki/Homological_algebra#Open_problems"
+        green_verified true
+    }
+
+    # =========================================================================
+    # Bottom Geometry & Logical Framework
+    # =========================================================================
+
+    bottom_geometry "abelian_category_chain_complexes"
+    negation_encoding "exact_sequence_kernel_cokernel"
+    contradiction_behavior "explosion_principle"
+
+}

@@ -1,0 +1,108 @@
+/**
+ * @file template_polygon.lv00
+ * @brief 正多边形构造模板
+ *
+ * 可配置的正多边形构造模板
+ */
+
+// ===== 配置参数 =====
+config {
+    // 边数
+    n: 6,
+    
+    // 中心坐标
+    center: { x: 0, y: 0 },
+    
+    // 外接圆半径
+    radius: 5,
+    
+    // 起始角度（度）
+    start_angle: 0,
+    
+    // 是否显示对角线
+    show_diagonals: false,
+    
+    // 是否显示外接圆
+    show_circumcircle: true,
+    
+    // 是否显示内切圆
+    show_incircle: false,
+    
+    // 填充颜色
+    fill_color: "lightblue",
+    
+    // 边框颜色
+    stroke_color: "blue"
+}
+
+// ===== 构造 =====
+point O(config.center.x, config.center.y);
+const r = config.radius;
+const n = config.n;
+const angle_step = 360° / n;
+
+// 生成顶点
+array points[n];
+for (i from 0 to n-1) {
+    const angle = config.start_angle + i * angle_step;
+    points[i] = point(
+        O.x + r * cos(angle),
+        O.y + r * sin(angle)
+    );
+}
+
+// 构造多边形
+polygon P(points);
+
+// 构造边
+array sides[n];
+for (i from 0 to n-1) {
+    sides[i] = segment(points[i], points[(i+1) % n]);
+}
+
+// ===== 可选构造 =====
+if (config.show_diagonals) {
+    for (i from 0 to n-1) {
+        for (j from i+2 to n-1) {
+            if (j != (i + n - 1) % n) {
+                segment(points[i], points[j]);
+            }
+        }
+    }
+}
+
+if (config.show_circumcircle) {
+    circle circumcircle(O, r);
+}
+
+if (config.show_incircle) {
+    const apothem = r * cos(180° / n);
+    circle incircle(O, apothem);
+}
+
+// ===== 计算 =====
+compute {
+    side_length = 2 * r * sin(180° / n)
+    perimeter = n * side_length
+    area = 0.5 * n * r^2 * sin(360° / n)
+    interior_angle = (n - 2) * 180° / n
+}
+
+// ===== 证明 =====
+prove {
+    all_sides_equal: length(sides[0]) == length(sides[1])
+}
+
+prove {
+    all_angles_equal: interior_angle == (n - 2) * 180° / n
+}
+
+// ===== 可视化 =====
+visualize {
+    style P: { 
+        fill: config.fill_color, 
+        stroke: config.stroke_color, 
+        width: 2 
+    };
+    label O: "O";
+}

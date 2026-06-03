@@ -1,0 +1,455 @@
+# =============================================================================
+# Lv-00 Axiom Package: ZFC Set Theory (Zermelo-Fraenkel with Choice)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Zermelo-Fraenkel Set Theory with the Axiom of Choice (ZFC), the standard
+#   axiomatic foundation for almost all of modern mathematics. ZFC formalizes
+#   the notion of a hereditary well-founded set in first-order logic with
+#   a single binary predicate ∈ (set membership).
+#
+# References:
+#   - Zermelo, E. (1908). "Untersuchungen über die Grundlagen der Mengenlehre I."
+#     Mathematische Annalen, 65: 261-281.
+#     https://doi.org/10.1007/BF01449999
+#   - Fraenkel, A. (1922). "Der Begriff 'definit' und die Unabhängigkeit des
+#     Auswahlaxioms." Sitzungsberichte der Preussischen Akademie der Wissenschaften,
+#     Phys.-math. Klasse, pp. 253-257.
+#   - Skolem, T. (1922). "Einige Bemerkungen zur axiomatischen Begründung der
+#     Mengenlehre." Matematikerkongressen i Helsingfors, pp. 217-232.
+#   - Wikipedia: Zermelo-Fraenkel set theory
+#     https://en.wikipedia.org/wiki/Zermelo%E2%80%93Fraenkel_set_theory
+#   - nLab: ZFC
+#     https://ncatlab.org/nlab/show/ZFC
+#   - Stanford Encyclopedia of Philosophy: Set Theory
+#     https://plato.stanford.edu/entries/set-theory/
+#   - Jech, T. (2003). "Set Theory: The Third Millennium Edition." Springer.
+#     ISBN 3-540-44085-2.
+#   - Kunen, K. (2011). "Set Theory." College Publications. ISBN 1-84890-050-3.
+#   - Gödel, K. (1940). "The Consistency of the Continuum Hypothesis."
+#     Annals of Mathematics Studies, No. 3. Princeton University Press.
+#   - Cohen, P.J. (1963). "The Independence of the Continuum Hypothesis."
+#     Proceedings of the National Academy of Sciences, 50(6): 1143-1148.
+#     https://doi.org/10.1073/pnas.50.6.1143
+#
+# Formal Language:
+#   Primitive notions:
+#     - Set (element of the cumulative hierarchy V)
+#     - ∈ (set membership, binary predicate)
+#     - = (equality, defined via extensionality)
+#
+#   All entities in ZFC are pure sets — the cumulative hierarchy V is built
+#   from ∅ by iterating the power set operation through all ordinals:
+#     V₀ = ∅
+#     V_{α+1} = P(V_α)
+#     V_λ = ∪_{α<λ} V_α  (for limit λ)
+#     V = ∪_{α∈Ord} V_α
+#
+# Core Axioms (9-10, depending on how schemas are counted):
+#   I.   Axiom of Extensionality: ∀x∀y[∀z(z∈x ↔ z∈y) → x=y]
+#   II.  Axiom of Regularity (Foundation): ∀x[∃a(a∈x) → ∃y(y∈x ∧ ¬∃z(z∈y ∧ z∈x))]
+#   III. Axiom Schema of Specification (Separation):
+#        ∀z∀w₁…∀wₙ∃y∀x[x∈y ↔ (x∈z ∧ φ(x,w₁,…,wₙ))]
+#   IV.  Axiom of Pairing: ∀x∀y∃z[x∈z ∧ y∈z]
+#   V.   Axiom of Union: ∀F∃A∀Y∀x[(x∈Y ∧ Y∈F) → x∈A]
+#   VI.  Axiom Schema of Replacement:
+#        ∀A∀w₁…∀wₙ[∀x(x∈A → ∃!y φ(x,y,w₁,…,wₙ))
+#        → ∃B∀y(y∈B ↔ ∃x(x∈A ∧ φ(x,y,w₁,…,wₙ)))]
+#   VII. Axiom of Infinity: ∃I[∅∈I ∧ ∀x(x∈I → x∪{x}∈I)]
+#   VIII.Axiom of Power Set: ∀x∃y∀z[z⊆x → z∈y]
+#   IX.  Axiom of Choice (AC) [Non-constructive Oracle]:
+#        ∀X[∅∉X → ∃f:X→∪X such that ∀A∈X, f(A)∈A]
+#
+# Equivalently: every set can be well-ordered.
+#
+# Known Independence / Undecidable Results:
+#   - Continuum Hypothesis (CH): independent of ZFC (Gödel 1940, Cohen 1963)
+#   - Generalized Continuum Hypothesis (GCH): independent of ZFC
+#   - Axiom of Choice: independent of ZF (Gödel 1938, Cohen 1963)
+#   - Existence of inaccessible cardinals: independent of ZFC
+#   - Suslin's Hypothesis: independent of ZFC
+#   - Whitehead Problem: undecidable in ZFC (Shelah 1974)
+#   - Consistency of ZFC: unprovable in ZFC (Gödel's Second Incompleteness Theorem)
+#
+# Relationship to Other Theories:
+#   - ZFC is the standard foundation for all of modern mathematics
+#   - ZF (without Choice) is the constructive foundation
+#   - NBG (von Neumann-Bernays-Gödel) is a conservative extension with classes
+#   - ZF + AD (Axiom of Determinacy) is an alternative to ZFC
+#   - ZFC + GCH decides cardinal exponentiation completely
+#   - ZFC + V=L (Axiom of Constructibility) decides CH, GCH, and many others
+#   - Category theory can be formalized in ZFC + an inaccessible cardinal
+#   - All mathematical structures (groups, rings, topological spaces, etc.)
+#     can be encoded as sets in ZFC
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-21
+# Version: 1.0.0
+# =============================================================================
+
+axiom "zfc_set_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, operation, or
+    # derived construction in ZFC set theory.
+    #
+    # Parameter semantics:
+    #   Params = sets (elements of V, the cumulative hierarchy)
+    #
+    # NOTE: Axiom schemas (Specification, Replacement) are represented
+    # as parameterized templates that take a formula predicate as an
+    # abstract parameter. The Lv-00 engine resolves these at expansion
+    # time against the constraint graph.
+    # =================================================================
+
+    # --- Group I: Existence & Construction Axioms ---
+
+    # Axiom of Extensionality:
+    #   Two sets are equal iff they have exactly the same elements.
+    #   ∀x∀y[∀z(z∈x ↔ z∈y) → x=y]
+    # Params: set x, set y
+    template "extensionality" 2
+
+    # Axiom of Pairing:
+    #   For any two sets x and y, there exists a set {x, y} containing
+    #   exactly x and y.
+    #   ∀x∀y∃z[x∈z ∧ y∈z]
+    # Params: set x, set y -> set {x, y}
+    template "pairing" 2
+
+    # Axiom of Union:
+    #   For any family of sets F, there exists the union set ∪F
+    #   containing all elements of elements of F.
+    #   ∀F∃A∀Y∀x[(x∈Y ∧ Y∈F) → x∈A]
+    # Params: family F -> set ∪F
+    template "union" 1
+
+    # Axiom of Power Set:
+    #   For any set x, there exists the power set P(x) containing
+    #   all subsets of x.
+    #   ∀x∃y∀z[z⊆x → z∈y]
+    # Params: set x -> set P(x)
+    template "power_set" 1
+
+    # Axiom of Infinity:
+    #   There exists an inductive set I containing ∅ and closed
+    #   under the successor operation S(x) = x ∪ {x}.
+    #   ∃I[∅∈I ∧ ∀x(x∈I → x∪{x}∈I)]
+    # Params: (none) -> set ω (the least inductive set)
+    template "infinity" 0
+
+    # --- Group II: Structural & Regularity Axioms ---
+
+    # Axiom of Regularity (Foundation):
+    #   Every non-empty set x contains an element y that is
+    #   disjoint from x. This ensures ∈ is well-founded.
+    #   ∀x[∃a(a∈x) → ∃y(y∈x ∧ ¬∃z(z∈y ∧ z∈x))]
+    # Params: set x
+    template "regularity" 1
+
+    # --- Group III: Axiom Schemas (Parameterized Templates) ---
+
+    # Axiom Schema of Specification (Separation):
+    #   Given a set z and a predicate φ(x, w), the subset {x∈z : φ(x,w)}
+    #   exists. This replaces naive unrestricted comprehension.
+    #   ∀z∀w₁…∀wₙ∃y∀x[x∈y ↔ (x∈z ∧ φ(x,w₁,…,wₙ))]
+    # Params: set z, predicate φ, parameter w -> set {x∈z : φ(x,w)}
+    template "specification" 3
+
+    # Axiom Schema of Replacement:
+    #   If φ(x,y) defines a function on a set A, then the image
+    #   {y : ∃x∈A φ(x,y)} is a set.
+    #   ∀A∀w₁…∀wₙ[∀x(x∈A → ∃!y φ(x,y,w₁,…,wₙ))
+    #     → ∃B∀y(y∈B ↔ ∃x(x∈A ∧ φ(x,y,w₁,…,wₙ)))]
+    # Params: set A, functional predicate φ, parameter w -> set B
+    template "replacement" 3
+
+    # --- Group IV: Axiom of Choice (Non-constructive Oracle) ---
+    # The Axiom of Choice is a non-constructive existence principle.
+    # In Lv-00, it is marked as a non-constructive oracle block:
+    # any proof depending on AC carries a light-orange solid port marker.
+    #
+    # ∀X[∅∉X → ∃f:X→∪X such that ∀A∈X, f(A)∈A]
+    # Params: family X -> choice function f
+    template "choice" 1
+
+    # --- Group V: Core Constructors (Derived Set Operations) ---
+
+    # Empty Set: derived via specification from any set z as
+    #   ∅ = {x∈z : x≠x}. Existence guaranteed by Infinity or any set.
+    # Params: (none) -> set ∅
+    template "empty_set" 0
+
+    # Singleton: {a} = {a, a} via pairing
+    # Params: set a -> set {a}
+    template "singleton" 1
+
+    # Ordered Pair (Kuratowski): (a,b) = {{a}, {a,b}}
+    # Params: set a, set b -> set (a,b)
+    template "ordered_pair" 2
+
+    # Cartesian Product: A × B = {(x,y) : x∈A ∧ y∈B}
+    # Requires: pairing, union, power_set, specification
+    # Params: set A, set B -> set A×B
+    template "cartesian_product" 2
+
+    # Binary Union: A ∪ B = ∪{A, B}
+    # Params: set A, set B -> set A∪B
+    template "binary_union" 2
+
+    # Binary Intersection: A ∩ B = {x∈A : x∈B}
+    # Params: set A, set B -> set A∩B
+    template "binary_intersection" 2
+
+    # Set Difference: A \ B = {x∈A : x∉B}
+    # Params: set A, set B -> set A\B
+    template "set_difference" 2
+
+    # Big Intersection: ∩F = {x∈∪F : ∀Y(Y∈F → x∈Y)}
+    # Params: family F -> set ∩F
+    template "big_intersection" 1
+
+    # Subset Check: A ⊆ B ↔ ∀x(x∈A → x∈B)
+    # Params: set A, set B -> check result
+    template "subset_relation" 2
+
+    # --- Group VI: Well-Foundedness & Induction ---
+
+    # Epsilon Induction (Transfinite Induction on ∈):
+    #   If ∀x[(∀y∈x φ(y)) → φ(x)], then ∀x φ(x).
+    #   This is equivalent to Regularity in ZF.
+    # Params: set x, predicate φ
+    template "epsilon_induction" 2
+
+    # Transitive Closure: TC(x) = smallest transitive set containing x
+    #   TC(x) = ∪{x, ∪x, ∪∪x, ...}
+    # Params: set x -> set TC(x)
+    template "transitive_closure" 1
+
+    # Ordinal Successor: S(α) = α ∪ {α}
+    # Params: ordinal α -> successor α+1
+    template "ordinal_successor" 1
+
+    # --- Group VII: Relation & Function Constructors ---
+
+    # Relation: A relation R from A to B is R ⊆ A×B
+    # Params: set A, set B, predicate R -> relation R
+    template "relation" 3
+
+    # Function: A function f: A → B is a relation where
+    #   ∀x∈A ∃!y∈B [(x,y)∈f]
+    # Params: set A, set B, graph f -> function f
+    template "function" 3
+
+    # Function Application: f(x) = the unique y such that (x,y)∈f
+    # Params: function f, set x -> value f(x)
+    template "function_application" 2
+
+    # Image of a Set: f[A] = {f(x) : x∈A} (via replacement)
+    # Params: function f, set A -> image f[A]
+    template "image" 2
+
+    # Inverse Image: f⁻¹[B] = {x : f(x)∈B}
+    # Params: function f, set B -> inverse image f⁻¹[B]
+    template "inverse_image" 2
+
+    # --- Group VIII: Cardinal & Ordinal Constructors ---
+
+    # Equinumerosity: A ≈ B iff ∃ bijection f: A → B
+    # Params: set A, set B -> check result
+    template "equinumerous" 2
+
+    # Cardinality: |A| = the least ordinal equipollent to A (via AC)
+    # Params: set A -> cardinal |A|
+    template "cardinality" 1
+
+    # Well-Order: A relation < on A is a well-order iff it is a total
+    #   order on A and every non-empty subset of A has a <-least element.
+    # Params: set A, relation < -> well-order
+    template "well_order" 2
+
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+    # Each entry documents a problem known to be independent of ZFC
+    # (neither provable nor refutable) or undecidable within ZFC.
+    # =================================================================
+
+    # 1. Continuum Hypothesis (CH)
+    # "There is no set whose cardinality is strictly between ℵ₀ and 2^ℵ₀"
+    # Independent of ZFC (Gödel 1940: Con(ZF) → Con(ZFC+CH);
+    # Cohen 1963: Con(ZF) → Con(ZFC+¬CH))
+    unconstructible "continuum_hypothesis" {
+        reduces_to "independent_of_ZFC"
+        dependency "infinity"
+        dependency "power_set"
+        dependency "cardinality"
+        dependency "choice"
+        external_ref "https://en.wikipedia.org/wiki/Continuum_hypothesis"
+        green_verified true
+    }
+
+    # 2. Generalized Continuum Hypothesis (GCH)
+    # "For all ordinals α, 2^ℵ_α = ℵ_{α+1}"
+    # Independent of ZFC (proved by Gödel for ZFC+GCH consistency;
+    # Cohen's method shows ¬GCH is also consistent)
+    unconstructible "generalized_continuum_hypothesis" {
+        reduces_to "independent_of_ZFC"
+        dependency "continuum_hypothesis"
+        dependency "cardinality"
+        dependency "replacement"
+        external_ref "https://en.wikipedia.org/wiki/Continuum_hypothesis#Generalized_continuum_hypothesis"
+        green_verified true
+    }
+
+    # 3. Axiom of Choice Independence
+    # AC is independent of ZF: there are models of ZF where AC fails.
+    # (Gödel 1938: Con(ZF) → Con(ZFC);
+    # Cohen 1963: Con(ZF) → Con(ZF+¬AC))
+    unconstructible "axiom_of_choice_independence" {
+        reduces_to "independent_of_ZF"
+        dependency "choice"
+        dependency "well_order"
+        external_ref "https://en.wikipedia.org/wiki/Axiom_of_choice#Independence"
+        green_verified true
+    }
+
+    # 4. Existence of Inaccessible Cardinals
+    # ZFC cannot prove the existence of strongly inaccessible cardinals
+    # unless ZFC is inconsistent. If κ is inaccessible, V_κ is a model
+    # of ZFC, so ZFC + "∃ inaccessible" proves Con(ZFC).
+    unconstructible "inaccessible_cardinal_existence" {
+        reduces_to "equiconsistent_with_ZFC"
+        dependency "cardinality"
+        dependency "power_set"
+        dependency "regularity"
+        external_ref "https://en.wikipedia.org/wiki/Inaccessible_cardinal"
+        green_verified true
+    }
+
+    # 5. Suslin's Hypothesis (SH)
+    # Every Suslin line is isomorphic to the real line.
+    # Independent of ZFC (Solovay-Tennenbaum 1971: SH consistent;
+    # Jensen 1968: ¬SH consistent via ◇ principle)
+    unconstructible "suslin_hypothesis" {
+        reduces_to "independent_of_ZFC"
+        dependency "well_order"
+        dependency "cartesian_product"
+        dependency "infinity"
+        external_ref "https://en.wikipedia.org/wiki/Suslin%27s_problem"
+        green_verified true
+    }
+
+    # 6. Whitehead Problem
+    # Is every Whitehead group free?
+    # Undecidable in ZFC (Shelah 1974: independent of ZFC;
+    # ¬CH implies every Whitehead group of size ℵ₁ is free,
+    # but under V=L there exists a non-free Whitehead group of size ℵ₁)
+    unconstructible "whitehead_problem" {
+        reduces_to "independent_of_ZFC"
+        dependency "function"
+        dependency "cardinality"
+        dependency "choice"
+        external_ref "https://en.wikipedia.org/wiki/Whitehead_problem"
+        green_verified true
+    }
+
+    # 7. ZFC Consistency (Gödel's Second Incompleteness Theorem)
+    # Con(ZFC) cannot be proved within ZFC itself.
+    # If ZFC is consistent, the statement "ZFC is consistent" is not
+    # a theorem of ZFC.
+    unconstructible "zfc_consistency" {
+        reduces_to "unprovable_in_ZFC"
+        dependency "specification"
+        dependency "replacement"
+        dependency "infinity"
+        external_ref "https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems"
+        green_verified true
+    }
+
+    # 8. Measurable Cardinal Existence
+    # The existence of a measurable cardinal cannot be proved in ZFC.
+    # Measurable cardinals imply Con(ZFC) and the existence of
+    # inaccessible cardinals, so they transcend ZFC consistency strength.
+    unconstructible "measurable_cardinal_existence" {
+        reduces_to "transcends_ZFC"
+        dependency "cardinality"
+        dependency "power_set"
+        dependency "choice"
+        external_ref "https://en.wikipedia.org/wiki/Measurable_cardinal"
+        green_verified true
+    }
+
+    # 9. Axiom of Constructibility (V=L)
+    # V=L is independent of ZFC. It decides CH, GCH, and almost all
+    # other independent statements, but is rejected by most set theorists
+    # for being too restrictive.
+    unconstructible "axiom_of_constructibility" {
+        reduces_to "independent_of_ZFC"
+        dependency "power_set"
+        dependency "replacement"
+        dependency "infinity"
+        external_ref "https://en.wikipedia.org/wiki/Axiom_of_constructibility"
+        green_verified true
+    }
+
+    # 10. Martin's Axiom (MA)
+    # Martin's Axiom is independent of ZFC. MA + ¬CH is consistent
+    # and provides an alternative to CH for cardinal invariants.
+    unconstructible "martins_axiom" {
+        reduces_to "independent_of_ZFC"
+        dependency "choice"
+        dependency "continuum_hypothesis"
+        dependency "cardinality"
+        external_ref "https://en.wikipedia.org/wiki/Martin%27s_axiom"
+        green_verified true
+    }
+
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    #
+    # bottom_geometry: "zfc_cumulative_hierarchy"
+    #   ⊥ (contradiction) in ZFC is geometrically represented as the
+    #   empty set ∅, which is the unique bottom element of the cumulative
+    #   hierarchy V. ∅ is the set with no elements; it is the only set
+    #   whose existence is unconditionally guaranteed (via Infinity +
+    #   Specification) and serves as the foundation for the entire
+    #   von Neumann universe V = ∪_{α∈Ord} V_α.
+    #
+    # negation_encoding: "classical_complement_in_set_universe"
+    #   ¬φ is encoded as the complement of the extension of φ within
+    #   the universe of sets: {x ∈ V : ¬φ(x)} = V \ {x ∈ V : φ(x)}.
+    #   Since ZFC uses classical first-order logic, negation is classical
+    #   and satisfies the law of excluded middle: φ ∨ ¬φ is always true.
+    #   This is in contrast to intuitionistic set theory (IZF) where
+    #   negation is constructive.
+    #
+    # contradiction_behavior: "explosion_principle"
+    #   ZFC uses classical logic with the principle of explosion
+    #   (ex contradictione quodlibet): from ⊥ (i.e., from ∅ = {x : x≠x},
+    #   a contradiction derivable as the set of all x satisfying x≠x
+    #   in any non-empty universe), anything follows.
+    #   This is implemented via the explosion principle function block:
+    #   input ⊥-witness → output P-witness for any proposition P.
+    #   The output carries a light-orange dashed arrow marker.
+    #
+    # Oracle blocks:
+    #   - Axiom of Choice: non-constructive oracle block (zero input,
+    #     outputs AC witness with light-orange solid port marker).
+    #     See planning_v3.0.md Section 2, Layer 2: "选择公理块
+    #     （零输入，输出AC证物，携带浅橙色实心端口标记）"
+    #   - Law of Excluded Middle: implicit in classical negation encoding.
+    #     Since negation_encoding is classical, LEM is effectively
+    #     available; explicit LEM oracle block not needed unless the
+    #     user wants to track non-constructive steps.
+    # =================================================================
+
+    bottom_geometry "zfc_cumulative_hierarchy"
+    negation_encoding "classical_complement_in_set_universe"
+    contradiction_behavior "explosion_principle"
+}

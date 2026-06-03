@@ -1,0 +1,40 @@
+/**
+ * @file triangle_equilateral.lv00
+ * @brief 等边三角形构造案例
+ *
+ * 演示如何构造一个等边三角形，并证明其三边相等
+ */
+
+// 定义三个顶点
+point A(0, 0);
+point B(6, 0);
+point C(3, 3*sqrt(3));
+
+// 构造三角形
+triangle ABC(A, B, C);
+
+// 定义边
+segment AB(A, B);
+segment BC(B, C);
+segment CA(C, A);
+
+// 证明三边相等
+prove {
+    length(AB) == length(BC) == length(CA)
+}
+
+// 证明三个角相等
+prove {
+    angle(A, B, C) == angle(B, C, A) == angle(C, A, B) == 60°
+}
+
+// 可视化配置
+visualize {
+    style A: { color: "red", size: 8 };
+    style B: { color: "red", size: 8 };
+    style C: { color: "red", size: 8 };
+    style ABC: { fill: "lightblue", stroke: "blue" };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+}

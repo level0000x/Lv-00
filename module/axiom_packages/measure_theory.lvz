@@ -1,0 +1,610 @@
+# =============================================================================
+# Lv-00 Axiom Package: Measure Theory (Abstract Measure & Integration)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Measure theory — the study of measures, σ-algebras, measurable spaces,
+#   and integration. Founded by Émile Borel (1898), Henri Lebesgue (1902),
+#   and Constantin Carathéodory (1914), measure theory generalizes the
+#   classical notions of length, area, and volume to abstract sets. It is
+#   the rigorous foundation for Lebesgue integration, probability theory,
+#   and modern analysis.
+#
+# References:
+#   - Lebesgue, H. (1902). "Intégrale, longueur, aire." Annali di
+#     Matematica Pura ed Applicata, 7(1): 231-359.
+#     https://doi.org/10.1007/BF02419242
+#   - Carathéodory, C. (1914). "Über das lineare Maß von Punktmengen —
+#     eine Verallgemeinerung des Längenbegriffs." Nachrichten von der
+#     Gesellschaft der Wissenschaften zu Göttingen, 1914: 404-426.
+#   - Halmos, P.R. (1950). "Measure Theory." D. Van Nostrand Co.
+#     ISBN 0-387-90088-8. (Springer reprint 1974)
+#   - Folland, G.B. (1999). "Real Analysis: Modern Techniques and Their
+#     Applications" (2nd ed.). Wiley. ISBN 0-471-31716-0.
+#   - Royden, H.L. and Fitzpatrick, P.M. (2010). "Real Analysis" (4th ed.).
+#     Prentice Hall. ISBN 0-13-143747-X.
+#   - Wikipedia: Measure (mathematics)
+#     https://en.wikipedia.org/wiki/Measure_(mathematics)
+#   - Wikipedia: σ-algebra
+#     https://en.wikipedia.org/wiki/%CE%A3-algebra
+#   - Wikipedia: Outer measure
+#     https://en.wikipedia.org/wiki/Outer_measure
+#   - Wikipedia: Carathéodory's extension theorem
+#     https://en.wikipedia.org/wiki/Carath%C3%A9odory%27s_extension_theorem
+#   - Wikipedia: Lebesgue measure
+#     https://en.wikipedia.org/wiki/Lebesgue_measure
+#   - Wikipedia: Non-measurable set
+#     https://en.wikipedia.org/wiki/Non-measurable_set
+#   - Wikipedia: Vitali set
+#     https://en.wikipedia.org/wiki/Vitali_set
+#   - Wikipedia: Banach-Tarski paradox
+#     https://en.wikipedia.org/wiki/Banach%E2%80%93Tarski_paradox
+#   - nLab: Measure space
+#     https://ncatlab.org/nlab/show/measure+space
+#   - nLab: Sigma-algebra
+#     https://ncatlab.org/nlab/show/sigma-algebra
+#   - Dudley, R.M. (2002). "Real Analysis and Probability." Cambridge
+#     University Press. ISBN 0-521-00754-3.
+#
+# Primitive Notions:
+#   - Set X (the underlying point set / sample space)
+#   - σ-algebra Σ over X (the collection of measurable subsets)
+#   - Measure function μ: Σ → [0, +∞] (the set function assigning "size")
+#   - Outer measure μ*: 2^X → [0, +∞] (defined on all subsets)
+#
+# Core Axioms:
+#
+#   I. σ-Algebra Axioms (for the measurable space (X, Σ)):
+#     SA1. X ∈ Σ (contains the whole space)
+#     SA2. If A ∈ Σ, then Aᶜ ∈ Σ (closed under complement)
+#     SA3. If A₁, A₂, ... ∈ Σ, then ∪ᵢ Aᵢ ∈ Σ (closed under countable unions)
+#
+#   II. Measure Axioms (for the measure space (X, Σ, μ)):
+#     M1. μ(∅) = 0 (null empty set)
+#     M2. Non-negativity: ∀E ∈ Σ, μ(E) ≥ 0
+#     M3. Countable additivity (σ-additivity):
+#         For pairwise disjoint {Eₖ} ⊆ Σ:
+#         μ(∪ₖ Eₖ) = Σₖ μ(Eₖ)
+#
+#   III. Outer Measure Axioms (Carathéodory, for μ*: 2^X → [0, +∞]):
+#     OM1. μ*(∅) = 0 (null empty set)
+#     OM2. Monotonicity: A ⊆ B ⟹ μ*(A) ≤ μ*(B)
+#     OM3. Countable subadditivity:
+#         μ*(∪ⱼ Bⱼ) ≤ Σⱼ μ*(Bⱼ)
+#
+#   IV. Carathéodory Measurability Condition:
+#     A set E ⊆ X is μ*-measurable iff:
+#     ∀A ⊆ X: μ*(A) = μ*(A ∩ E) + μ*(A ∩ Eᶜ)
+#
+# Key Derived Concepts Formalized as Templates:
+#   - Measurable space, measure space, probability space
+#   - Null sets, complete measures, completion of a measure
+#   - σ-finite measures, semifinite measures, localizable measures
+#   - Signed measures, Jordan decomposition (Hahn decomposition)
+#   - Complex measures, total variation measure
+#   - Product measures (Fubini-Tonelli construction)
+#   - Lebesgue measure on ℝⁿ
+#   - Borel σ-algebra, Lebesgue σ-algebra
+#   - Pushforward measures, restriction of measures
+#   - Absolutely continuous measures, Radon-Nikodym derivative
+#   - Singular measures, Lebesgue decomposition
+#   - Carathéodory extension theorem (pre-measure → measure)
+#   - Dynkin's π-λ theorem
+#   - Monotone convergence, Fatou's lemma, dominated convergence
+#   - Lᵖ spaces (as measure-theoretic constructions)
+#   - Hausdorff measure, Hausdorff dimension
+#
+# Known Undecidable / Unconstructible Problems:
+#   - Existence of non-measurable sets (requires Axiom of Choice)
+#   - Lebesgue measure of a Vitali set (non-measurable)
+#   - Banach-Tarski paradox (non-measurable decomposition)
+#   - Measurability of all subsets of ℝ (inconsistent with ZFC)
+#   - Classification of measures up to isomorphism (undecidable)
+#   - Is every set measurable? (independent of ZF without Choice)
+#   - Existence of a universal measure (Solovay model)
+#   - Computing Hausdorff dimension of general sets (undecidable)
+#
+# Relationship to Other Lv-00 Axiom Packages:
+#   - real_analysis: measure theory extends real analysis with Lebesgue
+#     integration; ℝ with Lebesgue measure is the canonical example
+#   - zfc_set_theory: the existence of non-measurable sets depends on
+#     the Axiom of Choice; Solovay's model shows consistency of "all
+#     sets are Lebesgue measurable" with ZF + Dependent Choice
+#   - point_set_topology: the Borel σ-algebra is generated by open sets;
+#     Radon measures bridge measure theory and topology
+#   - functional_analysis: Lᵖ spaces are fundamental Banach/Hilbert
+#     spaces built on measure theory; spectral measures in operator theory
+#   - category_theory: the category of measure spaces with measurable maps
+#   - probability theory (future): a probability measure is a measure
+#     with total mass 1; Kolmogorov's axioms are measure-theoretic
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "measure_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, property, or
+    # construction in measure theory.
+    #
+    # Parameter semantics:
+    #   Points are elements of the underlying set X.
+    #   Regions are measurable subsets of X (elements of Σ).
+    #   Scalars are non-negative extended real numbers [0, +∞].
+    # =================================================================
+
+    # --- Group I: σ-Algebra Axioms (Measurable Space Structure) ---
+
+    # SA1. The whole space X is measurable:
+    #   X ∈ Σ
+    # Params: (no parameters — this is a global property of the space)
+    template "sigma_algebra_contains_X" 0
+
+    # SA2. Closure under complement:
+    #   If A ∈ Σ, then Aᶜ = X \ A ∈ Σ.
+    # Params: measurable set A -> complement measurable set Aᶜ
+    template "sigma_algebra_complement" 1
+
+    # SA3. Closure under countable unions:
+    #   If A₁, A₂, A₃, ... ∈ Σ, then ∪ᵢ₌₁^∞ Aᵢ ∈ Σ.
+    # Params: countable family of measurable sets -> union measurable set
+    template "sigma_algebra_countable_union" 1
+
+    # SA4. Closure under countable intersections (derived from SA2 + SA3):
+    #   If A₁, A₂, ... ∈ Σ, then ∩ᵢ₌₁^∞ Aᵢ ∈ Σ.
+    # Params: countable family of measurable sets -> intersection measurable set
+    template "sigma_algebra_countable_intersection" 1
+
+    # SA5. The empty set is measurable (derived from SA1 + SA2):
+    #   ∅ = Xᶜ ∈ Σ
+    # Params: (no parameters)
+    template "sigma_algebra_contains_empty" 0
+
+    # SA6. Closure under set difference (derived):
+    #   A, B ∈ Σ ⟹ A \ B = A ∩ Bᶜ ∈ Σ
+    # Params: measurable set A, measurable set B -> difference A \ B
+    template "sigma_algebra_set_difference" 2
+
+    # SA7. Symmetric difference (derived):
+    #   A △ B = (A \ B) ∪ (B \ A) ∈ Σ
+    # Params: measurable set A, measurable set B -> symmetric difference
+    template "sigma_algebra_symmetric_difference" 2
+
+    # --- Group II: Core Measure Axioms ---
+
+    # M1. Null empty set:
+    #   μ(∅) = 0
+    # Params: (no parameters)
+    template "measure_null_empty_set" 0
+
+    # M2. Non-negativity of measure:
+    #   ∀E ∈ Σ, μ(E) ≥ 0
+    # Params: measurable set E -> non-negative scalar μ(E)
+    template "measure_non_negativity" 1
+
+    # M3. Countable additivity (σ-additivity):
+    #   For pairwise disjoint {Eₖ} ⊆ Σ:
+    #   μ(∪ₖ Eₖ) = Σₖ μ(Eₖ)
+    # Params: countable family of pairwise disjoint measurable sets
+    template "measure_countable_additivity" 1
+
+    # M4. Finite additivity (derived from M3):
+    #   A ∩ B = ∅ ⟹ μ(A ∪ B) = μ(A) + μ(B)
+    # Params: disjoint measurable set A, disjoint measurable set B
+    template "measure_finite_additivity" 2
+
+    # M5. Monotonicity (derived from M2 + M3):
+    #   A ⊆ B ⟹ μ(A) ≤ μ(B)
+    # Params: measurable set A (subset), measurable set B (superset)
+    template "measure_monotonicity" 2
+
+    # M6. Countable subadditivity (derived from M3):
+    #   μ(∪ₖ Eₖ) ≤ Σₖ μ(Eₖ) (not necessarily disjoint)
+    # Params: countable family of measurable sets
+    template "measure_countable_subadditivity" 1
+
+    # M7. Continuity from below:
+    #   E₁ ⊆ E₂ ⊆ ... ⟹ μ(∪ₖ Eₖ) = limₖ μ(Eₖ)
+    # Params: increasing sequence of measurable sets
+    template "measure_continuity_from_below" 1
+
+    # M8. Continuity from above (requires μ(E₁) < ∞):
+    #   E₁ ⊇ E₂ ⊇ ..., μ(E₁) < ∞ ⟹ μ(∩ₖ Eₖ) = limₖ μ(Eₖ)
+    # Params: decreasing sequence of measurable sets with finite first measure
+    template "measure_continuity_from_above" 1
+
+    # --- Group III: Outer Measure Axioms (Carathéodory) ---
+
+    # OM1. Null empty set for outer measure:
+    #   μ*(∅) = 0
+    # Params: (no parameters)
+    template "outer_measure_null_empty" 0
+
+    # OM2. Monotonicity of outer measure:
+    #   A ⊆ B ⟹ μ*(A) ≤ μ*(B)
+    # Params: set A (subset), set B (superset)
+    template "outer_measure_monotonicity" 2
+
+    # OM3. Countable subadditivity of outer measure:
+    #   μ*(∪ⱼ Bⱼ) ≤ Σⱼ μ*(Bⱼ)
+    # Params: countable family of arbitrary subsets
+    template "outer_measure_countable_subadditivity" 1
+
+    # --- Group IV: Carathéodory Measurability ---
+
+    # CM1. Carathéodory measurability condition:
+    #   E is μ*-measurable iff ∀A ⊆ X:
+    #   μ*(A) = μ*(A ∩ E) + μ*(A ∩ Eᶜ)
+    # Params: candidate set E, test set A
+    template "caratheodory_measurability" 2
+
+    # CM2. The measurable sets form a σ-algebra:
+    #   The collection M of all μ*-measurable sets is a σ-algebra.
+    # Params: (no parameters — structural theorem)
+    template "measurable_sets_form_sigma_algebra" 0
+
+    # CM3. μ* restricted to M is a complete measure:
+    #   The restriction of μ* to the σ-algebra M of measurable sets
+    #   yields a complete measure.
+    # Params: (no parameters — structural theorem)
+    template "outer_measure_restriction_complete" 0
+
+    # --- Group V: Null Sets and Completeness ---
+
+    # NS1. Null set definition:
+    #   N is a null set if N ∈ Σ and μ(N) = 0.
+    # Params: measurable set N -> null set property
+    template "null_set" 1
+
+    # NS2. Subsets of null sets (completeness):
+    #   If N is a null set and E ⊆ N, then E is measurable with μ(E) = 0.
+    # Params: null set N, subset E
+    template "null_set_subset_measurable" 2
+
+    # NS3. Almost everywhere (a.e.) property:
+    #   A property holds μ-almost everywhere if it fails only on a null set.
+    # Params: measurable set where property fails -> null set
+    template "almost_everywhere" 1
+
+    # NS4. Completion of a measure space:
+    #   (X, Σ̄, μ̄) where Σ̄ = {E ⊆ X : ∃A, B ∈ Σ, A ⊆ E ⊆ B, μ(B\A) = 0}
+    # Params: original measurable space -> completed measurable space
+    template "measure_completion" 1
+
+    # --- Group VI: σ-Finite and Semifinite Measures ---
+
+    # SF1. σ-finite measure:
+    #   X = ∪ₖ Xₖ where each μ(Xₖ) < ∞.
+    # Params: countable exhaustion of X by finite-measure sets
+    template "sigma_finite_measure" 1
+
+    # SF2. Semifinite measure:
+    #   If μ(E) = ∞, then ∃F ⊆ E with 0 < μ(F) < ∞.
+    # Params: set E with infinite measure -> finite-measure subset F
+    template "semifinite_measure" 2
+
+    # SF3. Localizable measure (generalization of σ-finite):
+    #   Supports essential supremum of families of measurable sets.
+    # Params: family of measurable sets -> essential supremum
+    template "localizable_measure" 1
+
+    # --- Group VII: Signed and Complex Measures ---
+
+    # SM1. Signed measure definition:
+    #   ν: Σ → [-∞, +∞] with ν(∅) = 0 and countable additivity.
+    # Params: signed measure ν on measurable set
+    template "signed_measure" 1
+
+    # SM2. Hahn decomposition theorem:
+    #   X = P ∪ N, P ∩ N = ∅, ν(E ∩ P) ≥ 0, ν(E ∩ N) ≤ 0 for all E ∈ Σ.
+    # Params: signed measure ν -> positive set P, negative set N
+    template "hahn_decomposition" 1
+
+    # SM3. Jordan decomposition:
+    #   ν = ν⁺ - ν⁻ where ν⁺, ν⁻ are mutually singular positive measures.
+    # Params: signed measure ν -> positive variation ν⁺, negative variation ν⁻
+    template "jordan_decomposition" 1
+
+    # SM4. Total variation measure:
+    #   |ν| = ν⁺ + ν⁻
+    # Params: signed measure ν -> total variation |ν|
+    template "total_variation_measure" 1
+
+    # SM5. Complex measure:
+    #   μ: Σ → ℂ with countable additivity and |μ|(X) < ∞.
+    # Params: complex measure μ on measurable set
+    template "complex_measure" 1
+
+    # --- Group VIII: Absolute Continuity and the Radon-Nikodym Theorem ---
+
+    # AC1. Absolute continuity of measures:
+    #   ν ≪ μ iff μ(E) = 0 ⟹ ν(E) = 0.
+    # Params: measure ν, measure μ -> absolute continuity relation
+    template "absolute_continuity" 2
+
+    # AC2. Mutually singular measures:
+    #   μ ⊥ ν iff ∃E ∈ Σ: μ(E) = 0 and ν(Eᶜ) = 0.
+    # Params: measure μ, measure ν -> singular decomposition set E
+    template "mutual_singularity" 2
+
+    # AC3. Radon-Nikodym theorem:
+    #   If ν ≪ μ and μ is σ-finite, then ∃f (Radon-Nikodym derivative)
+    #   such that ν(E) = ∫_E f dμ for all E ∈ Σ.
+    # Params: absolutely continuous measure ν, reference measure μ -> density f
+    template "radon_nikodym_theorem" 2
+
+    # AC4. Lebesgue decomposition theorem:
+    #   ν = ν_ac + ν_s where ν_ac ≪ μ and ν_s ⊥ μ.
+    # Params: measure ν, reference measure μ -> ac part, singular part
+    template "lebesgue_decomposition" 2
+
+    # --- Group IX: Product Measures and Fubini-Tonelli ---
+
+    # PM1. Product σ-algebra:
+    #   Σ₁ ⊗ Σ₂ is the σ-algebra generated by measurable rectangles
+    #   A × B where A ∈ Σ₁, B ∈ Σ₂.
+    # Params: σ-algebra Σ₁, σ-algebra Σ₂ -> product σ-algebra
+    template "product_sigma_algebra" 2
+
+    # PM2. Product measure construction:
+    #   (μ₁ × μ₂)(E) = ∫ μ₂(E_x) dμ₁(x) for E ∈ Σ₁ ⊗ Σ₂.
+    # Params: measure μ₁, measure μ₂ -> product measure
+    template "product_measure" 2
+
+    # PM3. Fubini's theorem:
+    #   If f is Σ₁⊗Σ₂-integrable, then the iterated integrals are equal:
+    #   ∫∫ f dμ₁ dμ₂ = ∫∫ f dμ₂ dμ₁.
+    # Params: integrable function f, measure μ₁, measure μ₂
+    template "fubini_theorem" 3
+
+    # PM4. Tonelli's theorem (for non-negative functions):
+    #   If f ≥ 0 is measurable, iterated integrals equal the double integral.
+    # Params: non-negative measurable function f, measure μ₁, measure μ₂
+    template "tonelli_theorem" 3
+
+    # --- Group X: Convergence Theorems ---
+
+    # CT1. Monotone Convergence Theorem (Beppo Levi):
+    #   0 ≤ f₁ ≤ f₂ ≤ ... → f a.e. ⟹ ∫fₖ dμ → ∫f dμ.
+    # Params: increasing sequence of non-negative measurable functions
+    template "monotone_convergence_theorem" 1
+
+    # CT2. Fatou's Lemma:
+    #   ∫lim inf fₖ dμ ≤ lim inf ∫fₖ dμ (for non-negative fₖ).
+    # Params: sequence of non-negative measurable functions
+    template "fatou_lemma" 1
+
+    # CT3. Dominated Convergence Theorem (Lebesgue):
+    #   fₖ → f a.e., |fₖ| ≤ g, g ∈ L¹ ⟹ ∫fₖ → ∫f.
+    # Params: sequence of functions, dominating function g
+    template "dominated_convergence_theorem" 2
+
+    # CT4. Uniform integrability:
+    #   A family {fₐ} is uniformly integrable if
+    #   lim_{μ(E)→0} sup_α ∫_E |fₐ| dμ = 0.
+    # Params: family of integrable functions
+    template "uniform_integrability" 1
+
+    # --- Group XI: Carathéodory Extension Theorem ---
+
+    # CE1. Pre-measure on a ring:
+    #   μ₀: R → [0, +∞] is a pre-measure if it is σ-additive on R.
+    # Params: ring of sets R, pre-measure μ₀
+    template "pre_measure" 2
+
+    # CE2. Carathéodory extension (outer measure from pre-measure):
+    #   μ*(E) = inf{Σₖ μ₀(Aₖ) : E ⊆ ∪ₖ Aₖ, Aₖ ∈ R}
+    # Params: pre-measure μ₀ on ring R -> outer measure μ*
+    template "caratheodory_outer_measure_construction" 1
+
+    # CE3. Carathéodory extension theorem:
+    #   A σ-finite pre-measure on a ring extends uniquely to a measure
+    #   on the generated σ-algebra.
+    # Params: pre-measure μ₀ on ring R -> unique measure on σ(R)
+    template "caratheodory_extension_theorem" 1
+
+    # CE4. Dynkin's π-λ theorem:
+    #   If a π-system P is contained in a λ-system L, then σ(P) ⊆ L.
+    #   Used to prove uniqueness of measure extensions.
+    # Params: π-system P, λ-system L
+    template "dynkin_pi_lambda_theorem" 2
+
+    # --- Group XII: Specific Measures ---
+
+    # SP1. Counting measure:
+    #   μ(E) = |E| (cardinality of E), ∞ if E is infinite.
+    # Params: set E -> cardinality measure
+    template "counting_measure" 1
+
+    # SP2. Dirac (point) measure:
+    #   δₓ(E) = 1 if x ∈ E, 0 otherwise.
+    # Params: point x, measurable set E -> indicator value
+    template "dirac_measure" 2
+
+    # SP3. Lebesgue measure on ℝ:
+    #   m([a,b]) = b - a, extended to the Lebesgue σ-algebra.
+    # Params: interval [a,b] -> length b - a
+    template "lebesgue_measure_interval" 2
+
+    # SP4. Lebesgue measure on ℝⁿ:
+    #   m(Q) = ∏ᵢ(bᵢ - aᵢ) for a rectangle Q = ∏[aᵢ, bᵢ].
+    # Params: n-dimensional rectangle -> n-dimensional volume
+    template "lebesgue_measure_rn" 2
+
+    # SP5. Borel σ-algebra:
+    #   The σ-algebra generated by open sets of a topological space.
+    # Params: topological space X -> Borel σ-algebra B(X)
+    template "borel_sigma_algebra" 1
+
+    # SP6. Hausdorff measure (generalized measure for dimension):
+    #   H^s_δ(E) = inf{Σᵢ (diam Uᵢ)^s : E ⊆ ∪ᵢ Uᵢ, diam Uᵢ < δ}
+    # Params: set E, dimension parameter s, approximation scale δ -> measure
+    template "hausdorff_measure" 3
+
+    # SP7. Hausdorff dimension:
+    #   dim_H(E) = inf{s ≥ 0 : H^s(E) = 0} = sup{s ≥ 0 : H^s(E) = ∞}
+    # Params: set E -> Hausdorff dimension
+    template "hausdorff_dimension" 1
+
+    # SP8. Pushforward (image) measure:
+    #   (f_*μ)(B) = μ(f⁻¹(B)) for measurable f: X → Y.
+    # Params: measurable function f, measure μ on X -> pushforward measure on Y
+    template "pushforward_measure" 2
+
+    # SP9. Restriction of a measure:
+    #   μ|_A(E) = μ(E ∩ A) for A ∈ Σ.
+    # Params: measure μ, measurable set A -> restricted measure
+    template "measure_restriction" 2
+
+    # --- Group XIII: Lᵖ Spaces (Measure-Theoretic Construction) ---
+
+    # LP1. Lᵖ norm:
+    #   ‖f‖_p = (∫|f|^p dμ)^{1/p} for 1 ≤ p < ∞.
+    # Params: measurable function f, exponent p -> Lᵖ norm
+    template "lp_norm" 2
+
+    # LP2. L^∞ norm (essential supremum):
+    #   ‖f‖_∞ = ess sup|f| = inf{M ≥ 0 : |f| ≤ M a.e.}
+    # Params: measurable function f -> essential supremum
+    template "linf_norm" 1
+
+    # LP3. Hölder's inequality:
+    #   ∫|fg| dμ ≤ ‖f‖_p · ‖g‖_q where 1/p + 1/q = 1.
+    # Params: function f, function g, conjugate exponents p, q
+    template "holder_inequality" 4
+
+    # LP4. Minkowski's inequality (triangle inequality for Lᵖ):
+    #   ‖f + g‖_p ≤ ‖f‖_p + ‖g‖_p
+    # Params: function f, function g, exponent p
+    template "minkowski_inequality" 3
+
+    # LP5. Jensen's inequality (for convex functions):
+    #   φ(∫f dμ) ≤ ∫φ(f) dμ for convex φ, when μ(X) = 1.
+    # Params: convex function φ, integrable function f, probability measure μ
+    template "jensen_inequality" 3
+
+    # --- Group XIV: Probability Measure (Special Case) ---
+
+    # PR1. Probability measure:
+    #   A measure P with P(X) = 1.
+    # Params: measure space -> probability measure
+    template "probability_measure" 1
+
+    # PR2. Conditional expectation:
+    #   E[X | 𝒢] is the 𝒢-measurable r.v. such that
+    #   ∫_G X dP = ∫_G E[X | 𝒢] dP for all G ∈ 𝒢.
+    # Params: integrable random variable X, sub-σ-algebra 𝒢 -> conditional expectation
+    template "conditional_expectation" 2
+
+    # PR3. Independence of σ-algebras:
+    #   𝒜 and ℬ are independent iff P(A ∩ B) = P(A)P(B) for all A ∈ 𝒜, B ∈ ℬ.
+    # Params: σ-algebra 𝒜, σ-algebra ℬ -> independence relation
+    template "sigma_algebra_independence" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # Vitali set: a subset of ℝ that is not Lebesgue measurable.
+    # Its existence requires the Axiom of Choice. Under ZF+DC (Solovay's
+    # model), all subsets of ℝ can be Lebesgue measurable.
+    unconstructible "vitali_set_non_measurable" {
+        reduces_to "axiom_of_choice"
+        dependency "zfc_set_theory"
+        dependency "lebesgue_measure_rn"
+        external_ref "https://en.wikipedia.org/wiki/Vitali_set"
+        green_verified true
+    }
+
+    # Banach-Tarski paradox: a solid ball in ℝ³ can be decomposed into
+    # a finite number of non-measurable pieces and reassembled into two
+    # identical copies. This is possible because Lebesgue measure cannot
+    # be extended to all subsets of ℝ³ in a rotation-invariant way.
+    unconstructible "banach_tarski_paradox" {
+        reduces_to "non_measurable_decomposition"
+        dependency "zfc_set_theory"
+        dependency "lebesgue_measure_rn"
+        external_ref "https://en.wikipedia.org/wiki/Banach%E2%80%93Tarski_paradox"
+        green_verified true
+    }
+
+    # Universal measure problem: does there exist a countably additive,
+    # translation-invariant measure on all subsets of ℝⁿ that extends
+    # Lebesgue measure? Answer: NO (for n ≥ 3), and NO for n ≥ 1
+    # if we require translation invariance and normalization.
+    unconstructible "universal_measure_on_all_subsets" {
+        reduces_to "non_measurable_set_existence"
+        dependency "zfc_set_theory"
+        dependency "lebesgue_measure_rn"
+        external_ref "https://en.wikipedia.org/wiki/Non-measurable_set"
+        green_verified true
+    }
+
+    # Solovay's model: In ZF + Dependent Choice, it is consistent that
+    # all subsets of ℝ are Lebesgue measurable. This shows that the
+    # existence of non-measurable sets cannot be proved in ZF+DC alone.
+    unconstructible "all_sets_measurable_consistency" {
+        reduces_to "independence_from_ZF_DC"
+        dependency "zfc_set_theory"
+        dependency "measure_null_empty_set"
+        external_ref "https://en.wikipedia.org/wiki/Solovay_model"
+        green_verified true
+    }
+
+    # Hausdorff dimension computation: computing the exact Hausdorff
+    # dimension of general (fractal) sets is algorithmically undecidable.
+    unconstructible "hausdorff_dimension_computation" {
+        reduces_to "algorithmic_undecidability"
+        dependency "computability_theory"
+        dependency "hausdorff_measure"
+        external_ref "https://en.wikipedia.org/wiki/Hausdorff_dimension"
+        green_verified false
+    }
+
+    # Classification of measure spaces up to isomorphism:
+    # Two measure spaces are isomorphic if there exists a bijection
+    # preserving the measurable structure and measure. The general
+    # classification problem is undecidable.
+    unconstructible "measure_space_isomorphism_classification" {
+        reduces_to "isomorphism_problem"
+        dependency "zfc_set_theory"
+        dependency "measure_countable_additivity"
+        external_ref "https://en.wikipedia.org/wiki/Standard_probability_space"
+        green_verified false
+    }
+
+    # Measure extension uniqueness without σ-finiteness:
+    # A pre-measure on a ring may have multiple extensions to the
+    # generated σ-algebra if it is not σ-finite.
+    unconstructible "measure_extension_uniqueness_without_sigma_finite" {
+        reduces_to "non_uniqueness_of_extension"
+        dependency "caratheodory_extension_theorem"
+        dependency "sigma_finite_measure"
+        external_ref "https://en.wikipedia.org/wiki/Carath%C3%A9odory%27s_extension_theorem"
+        green_verified true
+    }
+
+    # Riemann-integrability characterization:
+    # Deciding whether a bounded function on [a,b] is Riemann integrable
+    # requires checking that the set of discontinuities has Lebesgue
+    # measure zero — this is itself a non-trivial measure-theoretic problem.
+    unconstructible "riemann_integrability_decision" {
+        reduces_to "lebesgue_measure_zero_set"
+        dependency "lebesgue_measure_rn"
+        dependency "null_set"
+        external_ref "https://en.wikipedia.org/wiki/Riemann_integral#Integrability"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    bottom_geometry "measure_space_extended_reals"
+    negation_encoding "classical_equality"
+    contradiction_behavior "explosion_principle"
+}

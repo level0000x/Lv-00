@@ -1,0 +1,34 @@
+/* ============================================================
+   Tooltip 工具提示样式 / Tooltip Component Styles
+   包含工具按钮的悬停提示气泡（通过 data-tooltip 属性触发）。
+   ============================================================ */
+
+/* === TOOL BUTTON TOOLTIP / 工具按钮悬停提示 === */
+/* 通过 CSS ::after 伪元素实现，无需额外 DOM 元素。
+   使用 data-tooltip 属性设置提示文本。
+   默认隐藏，hover 时淡入并上移。 */
+.tool-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: var(--color-bg-primary);
+    color: var(--color-text-bright);
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-primary);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-default), transform var(--duration-fast) var(--ease-out);
+    z-index: var(--z-tooltip);
+    box-shadow: var(--shadow-md);
+}
+
+/* 悬停时显示提示：淡入 + 上移到最终位置 */
+.tool-btn[data-tooltip]:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}

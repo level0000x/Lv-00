@@ -1,0 +1,463 @@
+# =============================================================================
+# Lv-00 Axiom Package: Elliptic Geometry (Single Elliptic Plane)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Elliptic geometry (single elliptic geometry), a non-Euclidean geometry
+#   in which Euclid's parallel postulate does not hold. Unlike Euclidean
+#   geometry (exactly one parallel) and hyperbolic geometry (infinitely
+#   many parallels), elliptic geometry has NO parallel lines: any two
+#   distinct lines in the plane must intersect at exactly one point.
+#
+#   The single elliptic plane is obtained from the sphere S^2 by identifying
+#   antipodal points {P, -P} to a single elliptic point. Elliptic lines
+#   correspond to great circles reduced by this identification. Since any
+#   two great circles on S^2 intersect at a pair of antipodal points, and
+#   these pairs are identified, any two elliptic lines intersect at exactly
+#   one point.
+#
+#   The elliptic plane is equivalent to the real projective plane RP^2
+#   equipped with a metric (Cayley-Klein metric).
+#
+# Axiomatization Method:
+#   Based on Hilbert's axiomatic framework (Grundlagen der Geometrie, 1899),
+#   with the following modifications for elliptic geometry:
+#     - Group I (Incidence): Modified — any two distinct lines intersect.
+#       The uniqueness of the line through two points is preserved.
+#     - Group II (Betweenness): REPLACED by Separation/Cyclic Order axioms.
+#       Betweenness is not well-defined on elliptic lines (which are
+#       topologically circles), so it is replaced by the concept of
+#       separation of point pairs on a line.
+#     - Group III (Congruence): Modified — segment congruence is bounded
+#       (no segment can exceed half the circumference). Angle congruence
+#       and SAS criterion are preserved.
+#     - Group IV (Parallel Postulate): REPLACED by the Elliptic Parallel
+#       Axiom — no parallel lines exist; any two lines intersect.
+#     - Group V (Continuity): Modified — Archimedes' axiom holds but
+#       line completeness is adapted for the finite total length of lines.
+#
+# References:
+#   - Wikipedia: Elliptic geometry
+#     https://en.wikipedia.org/wiki/Elliptic_geometry
+#   - Coxeter, H.S.M. "Introduction to Geometry" (2nd ed., 1969), Wiley.
+#     Chapters 6-7 (Non-Euclidean Geometry).
+#   - Coxeter, H.S.M. "Non-Euclidean Geometry" (6th ed., 1998), MAA.
+#   - Greenberg, M.J. (2007). "Euclidean and Non-Euclidean Geometries"
+#     (4th ed.). W.H. Freeman. Chapter 7.
+#   - Meserve, B.E. (1983). "Fundamental Concepts of Geometry."
+#     Dover. Chapter 5.
+#   - Wikipedia: Spherical geometry
+#     https://en.wikipedia.org/wiki/Spherical_geometry
+#   - Wikipedia: Real projective plane
+#     https://en.wikipedia.org/wiki/Real_projective_plane
+#   - Wikipedia: Cayley-Klein metric
+#     https://en.wikipedia.org/wiki/Cayley%E2%80%93Klein_metric
+#   - Sommerville, D.M.Y. (1914). "The Elements of Non-Euclidean Geometry."
+#     Bell. Chapter IV.
+#   - Bonola, R. (1955). "Non-Euclidean Geometry." Dover.
+#     (Historical treatment of elliptic and hyperbolic geometry.)
+#
+# Primitive Notions (4 total):
+#   Terms: point, line (elliptic line = great circle with antipodal ID)
+#   Relations: incidence (lies_on), separation (cyclic order on lines),
+#              segment_congruence, angle_congruence
+#
+# Key Properties Distinguishing Elliptic from Euclidean/Hyperbolic:
+#   1. NO parallel lines: any two distinct lines intersect at exactly one point.
+#   2. Lines are finite and closed (topologically circles).
+#   3. The total length of any line is bounded (pi * R in the spherical model).
+#   4. Triangle angle sum > 180 degrees (excess, not defect).
+#   5. The Pythagorean theorem does NOT hold.
+#   6. Similarity implies congruence (no scaling).
+#   7. The space is compact, homogeneous, isotropic.
+#   8. The space is non-orientable (for the 2D single elliptic plane).
+#   9. Every point has a unique absolute polar line (pole-polar duality).
+#   10. Two lines perpendicular to a given line intersect at the absolute pole.
+#
+# Core Axioms (5 groups):
+#   I.   Elliptic Incidence (4 axioms) — modified from Hilbert
+#   II.  Separation / Cyclic Order (4 axioms) — replaces Betweenness
+#   III. Congruence (6 axioms) — modified for bounded segments
+#   IV.  Elliptic Parallel Postulate (1 axiom) — replaces Euclid V
+#   V.   Continuity (2 axioms) — modified for finite line length
+#
+# Constraint Templates (30 total, in 8 groups):
+#   Group I:   Elliptic Incidence Axioms     (4 templates)
+#   Group II:  Separation / Cyclic Order      (4 templates)
+#   Group III: Congruence Axioms              (6 templates)
+#   Group IV:  Elliptic Parallel Postulate    (2 templates)
+#   Group V:   Elliptic-Specific Properties   (6 templates)
+#   Group VI:  Continuity & Metric            (3 templates)
+#   Group VII: Model Constructions            (3 templates)
+#   Group VIII: Derived Constructors          (2 templates)
+#
+# Known Unconstructible Problems (6):
+#   1. squaring_the_circle_elliptic
+#   2. angle_trisection_elliptic
+#   3. doubling_the_cube_elliptic
+#   4. regular_heptagon_elliptic
+#   5. constructible_length_characterization
+#   6. triangle_similarity_without_congruence
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "elliptic_geometry" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Metrics)
+    # =================================================================
+    # Each template represents a fundamental geometric operation or
+    # relation in elliptic plane geometry. Parameters are geometric
+    # objects (points, lines, segments, angles).
+    #
+    # Groups I-III and VI share structural similarities with Euclidean
+    # and hyperbolic geometry, but have key modifications for the
+    # elliptic setting (finite lines, no parallels, cyclic order).
+    # Groups IV-V and VII-VIII are specific to elliptic geometry.
+    # =================================================================
+
+    # --- Group I: Elliptic Incidence Axioms (4) ---
+    # Modified from Hilbert's incidence axioms for the elliptic plane.
+    # Key change: any two distinct lines intersect at exactly one point.
+
+    # E-I1: For every two distinct points, there exists exactly one line
+    #     containing both. (Same as Euclidean I1.)
+    # Params: point A, point B -> line AB
+    template "line_through_two_points" 2
+
+    # E-I2: Every line contains at least two distinct points.
+    #     (Same as Euclidean I2.)
+    # Params: line l -> (exists point A, point B on l)
+    template "line_has_two_points" 1
+
+    # E-I3: There exist at least three non-collinear points.
+    #     (Same as Euclidean I3.)
+    # Params: (zero-input existence axiom)
+    template "existence_of_triangle" 0
+
+    # E-I4: Any two distinct lines intersect at exactly one point.
+    #     This is the ELLIPTIC INCIDENCE AXIOM — the defining property
+    #     that distinguishes elliptic from Euclidean and hyperbolic
+    #     geometry. There are NO parallel lines in elliptic geometry.
+    # Params: line l1, line l2 -> intersection point P
+    template "any_two_lines_intersect" 2
+
+    # --- Group II: Separation / Cyclic Order Axioms (4) ---
+    # REPLACES Hilbert's Betweenness axioms. On an elliptic line
+    # (topologically a circle), betweenness is not globally well-defined.
+    # Instead, we use the concept of SEPARATION: a pair of points {A,B}
+    # SEPARATES a pair {C,D} on a line if C and D lie in different
+    # arcs of the line determined by A and B.
+
+    # S1: Existence of separation: For any four distinct collinear points,
+    #     exactly one of the three possible pairings separates the other.
+    #     Given points A, B, C, D on line l, either {A,B}|{C,D},
+    #     {A,C}|{B,D}, or {A,D}|{B,C} is the separation relation.
+    # Params: point A, point B, point C, point D -> separation relation
+    template "separation_relation" 4
+
+    # S2: Symmetry of separation: If {A,B} separates {C,D}, then
+    #     {C,D} separates {A,B}. Separation is a mutual relation.
+    # Params: point A, point B, point C, point D
+    template "separation_symmetry" 4
+
+    # S3: Transitivity of separation: If {A,B} separates {C,D} and
+    #     {A,C} separates {D,E}, then {A,D} separates {B,E}.
+    #     This ensures the cyclic order structure is consistent.
+    # Params: point A, point B, point C, point D, point E
+    template "separation_transitivity" 5
+
+    # S4: Richness of separation: Given three distinct collinear points
+    #     A, B, C, there exists a point D such that {A,B} separates {C,D}.
+    #     This replaces the Euclidean extension axiom (B2) — on a circle,
+    #     we can always find a point on the "other side."
+    # Params: point A, point B, point C -> point D
+    template "separation_extension" 3
+
+    # --- Group III: Congruence Axioms (6) ---
+    # Modified from Hilbert's congruence axioms. Segment congruence is
+    # bounded: no segment can exceed half the total line length (pi*R).
+    # Angle congruence and SAS are preserved.
+
+    # C1: Bounded segment transport: Given segment AB and point A' on
+    #     line l, there exists B' on l such that AB = A'B', PROVIDED
+    #     that |AB| <= pi*R (half the circumference). Segment transport
+    #     fails for distances exceeding half the line length.
+    # Params: point A, point B, point A_prime, line l -> point B_prime
+    template "bounded_segment_transport" 4
+
+    # C2: Segment congruence is reflexive: AB = AB.
+    #     (Same as Euclidean C2.)
+    # Params: point A, point B
+    template "segment_congruence_reflexive" 2
+
+    # C3: Segment congruence is transitive and symmetric:
+    #     AB = CD and CD = EF implies AB = EF.
+    #     (Same as Euclidean C3.)
+    # Params: segment AB, segment CD, segment EF (6 points)
+    template "segment_congruence_transitive" 6
+
+    # C4: Angle transport: Given angle BAC and ray A'B', there exists
+    #     ray A'C' on a given side such that angle BAC = angle B'A'C'.
+    #     (Same as Euclidean C4 — angle transport is unbounded.)
+    # Params: angle vertex A, rays AB,AC; new vertex A', ray A'B', side
+    template "angle_transport" 5
+
+    # C5: Angle congruence properties (reflexive, symmetric, transitive).
+    #     (Same as Euclidean C5.)
+    # Params: angle ABC (3 points), angle DEF (3 points)
+    template "angle_congruence_properties" 6
+
+    # C6: SAS (Side-Angle-Side) congruence criterion:
+    #     If AB = A'B', AC = A'C', and angle BAC = angle B'A'C',
+    #     then triangle ABC = triangle A'B'C'.
+    #     (Same as Euclidean C6 — SAS holds in elliptic geometry.)
+    # Params: 6 points (A,B,C and A',B',C')
+    template "SAS_congruence" 6
+
+    # --- Group IV: Elliptic Parallel Postulate (2) ---
+    # REPLACES Euclid's parallel postulate. In elliptic geometry,
+    # there are NO parallel lines. This is the defining axiom.
+
+    # E-IV: Elliptic Parallel Postulate — there are no parallel lines.
+    #     Given any line l and any point P (whether on l or not on l),
+    #     every line through P intersects l. In other words, for any
+    #     two distinct lines l1, l2, there exists a unique point
+    #     P = l1 ∩ l2.
+    # Params: line l, point P -> all lines through P intersect l
+    template "no_parallel_lines" 2
+
+    # Corollary: The elliptic plane satisfies the projective incidence
+    #     property — the space of lines through any point covers the
+    #     entire plane. Every line through P intersects every other line.
+    # Params: point P -> pencil of all lines through P covers plane
+    template "projective_incidence_property" 1
+
+    # --- Group V: Elliptic-Specific Properties (6) ---
+
+    # Pole-polar duality: Every point P has a unique absolute polar line
+    #     p, and every line l has a unique absolute pole L. Point P lies
+    #     on line l if and only if pole L lies on polar p. The distance
+    #     from a point to its polar is a quadrant (pi/2 * R).
+    # Params: point P -> polar line p
+    template "absolute_polar_line" 1
+
+    # Absolute pole: Every line l has a unique absolute pole L such that
+    #     L is the intersection of all lines perpendicular to l.
+    #     Two lines perpendicular to l intersect at the pole of l.
+    # Params: line l -> pole point L
+    template "absolute_pole" 1
+
+    # Elliptic distance: The distance between two points P and Q on the
+    #     elliptic plane is proportional to the angle between their
+    #     absolute polars. In the spherical model of radius R:
+    #     d(P,Q) = R * arccos(P . Q), where 0 <= d(P,Q) <= pi*R/2.
+    #     The maximum distance is pi*R/2 (half the circumference).
+    # Params: point P, point Q -> elliptic distance d(P,Q)
+    template "elliptic_distance" 2
+
+    # Triangle angle excess: In elliptic geometry, the sum of interior
+    #     angles of any triangle is STRICTLY GREATER than pi (180 degrees).
+    #     The excess E = (sum of angles) - pi is proportional to the
+    #     area of the triangle: Area = R^2 * E (Girard's theorem for
+    #     the sphere, adapted to the elliptic plane).
+    # Params: triangle vertices A, B, C -> angle excess E
+    template "triangle_angle_excess" 3
+
+    # Polar triangle: Given triangle ABC, its polar triangle A'B'C' is
+    #     formed by the poles of the sides of ABC. The vertices of the
+    #     polar triangle are the poles of the lines BC, CA, AB. The
+    #     polar triangle has the property that its angles are the
+    #     supplements of the sides of the original triangle, and vice
+    #     versa (polar duality).
+    # Params: triangle vertices A, B, C -> polar triangle A', B', C'
+    template "polar_triangle" 3
+
+    # Similarity implies congruence: In elliptic geometry, if two
+    #     triangles have corresponding angles equal, then they are
+    #     congruent (corresponding sides are also equal). There is NO
+    #     notion of similar-but-non-congruent figures. This is because
+    #     the space is compact — scaling is impossible.
+    # Params: triangle ABC, triangle DEF (6 points) -> congruence
+    template "similarity_implies_congruence" 6
+
+    # --- Group VI: Continuity & Metric (3) ---
+
+    # V.1 (Archimedes' Axiom, bounded): Given segments AB and CD with
+    #     |CD| > 0, there exists a natural number n such that n copies
+    #     of CD laid end-to-end on the line through A and B will
+    #     "wrap around" the elliptic line. Since elliptic lines are
+    #     finite circles, Archimedes' axiom takes a cyclic form.
+    # Params: segment AB, segment CD (4 points)
+    template "elliptic_archimedes_axiom" 4
+
+    # V.2 (Completeness, adapted): The points of an elliptic line form
+    #     a complete metric space isometric to the circle S^1 / {+/-}
+    #     (circle with antipodal identification). The coordinate model
+    #     is [0, pi) with wrap-around identification.
+    # Params: (zero-input, structural axiom)
+    template "elliptic_line_completeness" 0
+
+    # Elliptic area: The total area of the elliptic plane is finite.
+    #     In the spherical model of radius R, the total area is
+    #     2*pi*R^2 (half the sphere's surface area, since antipodal
+    #     points are identified). The area of a triangle with angle
+    #     excess E is R^2 * E (Girard's theorem, adapted).
+    # Params: triangle vertices A, B, C -> area
+    template "elliptic_area" 3
+
+    # --- Group VII: Model Constructions (3) ---
+
+    # Spherical model: The elliptic plane is modeled as the unit sphere
+    #     S^2 with antipodal points identified. Points are pairs {P, -P}
+    #     on S^2. Lines are great circles with antipodal identification.
+    #     The distance between {P,-P} and {Q,-Q} is the lesser of the
+    #     two spherical distances d(P,Q) and d(P,-Q).
+    # Params: sphere radius R -> spherical model of elliptic plane
+    template "spherical_model" 1
+
+    # Projective model (Cayley-Klein): The elliptic plane is modeled as
+    #     the real projective plane RP^2 with the Cayley-Klein metric.
+    #     Points are lines through the origin in R^3. The distance
+    #     between points [u] and [v] is:
+    #     d([u],[v]) = arccos(|u . v| / (||u|| ||v||)).
+    #     Lines are planes through the origin in R^3.
+    # Params: coordinate dimension (3) -> projective model
+    template "projective_model" 1
+
+    # Gnomonic projection: Maps the hemisphere to a tangent plane.
+    #     Great circles on the sphere map to straight lines in the
+    #     plane. This provides a connection between the spherical model
+    #     and the projective model. The projection covers exactly half
+    #     the elliptic plane (one hemisphere).
+    # Params: hemisphere center, tangent plane -> gnomonic projection map
+    template "gnomonic_projection" 2
+
+    # --- Group VIII: Derived Constructors (2) ---
+
+    # Perpendicular from a point to a line: Given a point P and a line l,
+    #     there exists a unique line through P perpendicular to l.
+    #     In elliptic geometry, the foot of the perpendicular is the
+    #     point on l closest to P (minimum distance).
+    # Params: point P, line l -> perpendicular line, foot of perpendicular
+    template "perpendicular_from_point" 2
+
+    # Elliptic midpoint: Given two distinct points A and B on an
+    #     elliptic line, there exist exactly TWO midpoints M1 and M2
+    #     (unlike Euclidean geometry which has exactly one). The two
+    #     midpoints are antipodal to each other. This is because the
+    #     line is a circle: going halfway from A to B in either
+    #     direction gives a midpoint.
+    # Params: point A, point B -> midpoint pair M1, M2
+    template "elliptic_midpoint_pair" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # 1. Squaring the circle in elliptic geometry: constructing a square
+    #    with the same area as a given circle. The area of an elliptic
+    #    circle involves transcendental functions of the radius, making
+    #    this impossible with geometric constructions.
+    unconstructible "squaring_the_circle_elliptic" {
+        reduces_to "transcendental_number"
+        dependency "elliptic_distance"
+        dependency "elliptic_area"
+        dependency "elliptic_line_completeness"
+        external_ref "https://en.wikipedia.org/wiki/Squaring_the_circle"
+        green_verified true
+    }
+
+    # 2. Angle trisection in elliptic geometry: dividing an arbitrary
+    #    angle into three equal parts. This reduces to solving a general
+    #    cubic equation, which is impossible with straightedge and compass
+    #    constructions in any geometry (the algebraic obstructions are
+    #    the same regardless of the ambient geometry).
+    unconstructible "angle_trisection_elliptic" {
+        reduces_to "cubic_equation_solving"
+        dependency "angle_transport"
+        dependency "SAS_congruence"
+        dependency "bounded_segment_transport"
+        external_ref "https://en.wikipedia.org/wiki/Angle_trisection"
+        green_verified true
+    }
+
+    # 3. Doubling the cube in elliptic geometry: constructing a segment
+    #    whose length is the cube root of 2 times a given segment.
+    #    This requires constructing the cube root of 2, which is
+    #    algebraic of degree 3 and impossible with straightedge and
+    #    compass regardless of the ambient geometry.
+    unconstructible "doubling_the_cube_elliptic" {
+        reduces_to "cube_root_of_two"
+        dependency "bounded_segment_transport"
+        dependency "elliptic_distance"
+        external_ref "https://en.wikipedia.org/wiki/Doubling_the_cube"
+        green_verified true
+    }
+
+    # 4. Regular heptagon construction in elliptic geometry: constructing
+    #    a regular 7-gon. The cosine of 2*pi/7 satisfies a cubic equation
+    #    with Galois group S_3, making it non-constructible. The algebraic
+    #    obstructions are the same as in Euclidean geometry.
+    unconstructible "regular_heptagon_elliptic" {
+        reduces_to "cubic_equation_solving"
+        dependency "bounded_segment_transport"
+        dependency "angle_transport"
+        dependency "elliptic_distance"
+        external_ref "https://en.wikipedia.org/wiki/Constructible_polygon"
+        green_verified true
+    }
+
+    # 5. Constructible length characterization in elliptic geometry:
+    #    characterizing which lengths are constructible on an elliptic
+    #    line. The constructible lengths are bounded by pi*R/2 and
+    #    satisfy the same algebraic constraints as in Euclidean geometry
+    #    (nested square roots), but the boundedness adds additional
+    #    complexity to the characterization.
+    unconstructible "constructible_length_characterization" {
+        reduces_to "algebraic_number_theory"
+        dependency "elliptic_distance"
+        dependency "elliptic_line_completeness"
+        dependency "bounded_segment_transport"
+        external_ref "https://en.wikipedia.org/wiki/Constructible_number"
+        green_verified true
+    }
+
+    # 6. Triangle similarity without congruence: In elliptic geometry,
+    #    any two triangles with equal corresponding angles are necessarily
+    #    congruent (AAA is a congruence criterion). There do NOT exist
+    #    similar-but-non-congruent triangles. This is a fundamental
+    #    impossibility resulting from the compactness of the space.
+    unconstructible "triangle_similarity_without_congruence" {
+        reduces_to "compactness_of_elliptic_space"
+        dependency "similarity_implies_congruence"
+        dependency "SAS_congruence"
+        dependency "triangle_angle_excess"
+        external_ref "https://en.wikipedia.org/wiki/Elliptic_geometry"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    # The bottom geometry is the single elliptic plane, modeled as
+    # the real projective plane RP^2 with a Cayley-Klein metric.
+    # Contradiction (bottom) is geometrically represented as the
+    # degenerate case where the angle excess of a triangle would
+    # need to exceed the maximum possible value.
+    bottom_geometry "elliptic_plane_RP2"
+
+    # Classical negation encoding: ¬φ is encoded as φ → ⊥, using
+    # material implication. Elliptic geometry is a classical theory
+    # (not constructive/intuitionistic).
+    negation_encoding "classical_material_implication"
+
+    # Explosion principle: ex contradictione quodlibet. From a
+    # contradiction (⊥), any proposition follows. This is standard
+    # for classical geometric theories.
+    contradiction_behavior "explosion_principle"
+}
