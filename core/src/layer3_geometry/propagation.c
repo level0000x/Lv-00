@@ -608,10 +608,38 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
     case PROP_COLLAPSE_FIRST:
         selected_index = 0;
         break;
-    case PROP_COLLAPSE_WEIGHTED:
-        /* 简化实现：使用第一个候选 */
-        /* TODO: 实现基于约束兼容性的加权随机选择 */
-        selected_index = 0;
+    case PROP_COLLAPSE_WEIGHTED: {
+        /* 基于约束兼容性的加权随机选择 */
+        /* 计算每个候选坐标的兼容性权重：与邻域约束兼容的数量 */
+        double *weights = (double *)calloc((size_t)ss->coord_count, sizeof(double));
+        if (weights && ss->coord_count > 0) {
+            int cids[128];
+            int nc = graph_find_constraints_involving(ctx->graph, node_id, cids, 128);
+            for (int k = 0; k < ss->coord_count; k++) {
+                double w = 1.0;
+                for (int ci = 0; ci < nc; ci++) {
+                    Constraint *c = graph_get_constraint(ctx->graph, cids[ci]);
+                    if (c && c->is_active &&
+                        check_constraint_compatible(ss->possible_coords[k], c, ctx->graph)) {
+                        w += 1.0;
+                    }
+                }
+                weights[k] = w;
+            }
+            /* 计算总权重 */
+            double total = 0.0;
+            for (int k = 0; k < ss->coord_count; k++) total += weights[k];
+            /* 加权随机选择（轮盘赌算法） */
+            if (total > 0.0) {
+                double r = ((double)rand() / (double)RAND_MAX) * total;
+                double accum = 0.0;
+                for (int k = 0; k < ss->coord_count; k++) {
+                    accum += weights[k];
+                    if (r <= accum) { selected_index = k; break; }
+                }
+            }
+            free(weights);
+        }
         break;
     }
 

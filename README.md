@@ -1,7 +1,7 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg?style=flat)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.0.0-blue.svg?style=flat)](CHANGELOG.md)
 [![CI](https://github.com/lv00-project/lv00/actions/workflows/ci.yml/badge.svg)](https://github.com/lv00-project/lv00/actions/workflows/ci.yml)
 
 > **Lv-00 是唯一将几何构造、计算程序、一阶逻辑证明三者统一于同一语法体系的元语言。**
@@ -37,7 +37,7 @@ Lv-00 不是一个几何工具库，不是一个自动证明器，也不是一�
 - **Python DSL (v3.2)**：Workplane 工作平面 + AlgebraMode 代数模式 + 操作符变换链（借鉴 CadQuery/build123d/GAlgebra）
 - **几何实体类型层次 (v3.2)**：借鉴 SymPy GeometryEntity 继承体系
 - **扁平数组存储 (v3.2)**：借鉴 clifford flat array，SIMD 友好的紧凑数值存储
-- **五层单向依赖架构 (v3.3)**：Parser → Resource → Geometry → Reasoning → Output，编译时层级边界验证（ENABLE_LAYER_VALIDATION）
+- **十层单向依赖架构 (v5.0)**：Lexer → Parser → Resource → Geometry → Reasoning → Output → Interop → Preset → Magic → Deprecation，编译时层级边界验证（ENABLE_LAYER_VALIDATION）
 - **多后端求解引擎 (v3.3)**：Groebner 基求解引擎增强、SMT 后端集成、ATP（自动定理证明器）后端、SAT/BDD 编码
 - **运行时基础设施 (v3.3)**：环形日志缓冲区、对象缓存系统（LRU）、集中化配置系统（LV00_CONFIG_* 前缀）
 - **统一错误码系统 (v3.3)**：分层 0-999 错误码体系，覆盖全部模块
@@ -212,7 +212,7 @@ lv00/
 ## 文档
 
 - [API使用指南](docs/API_USAGE_GUIDE.md) - 详细的API参考和最佳实践
-- [分层架构设计 v3.3](docs/ARCHITECTURE_v3.3.md) - **更新：OCCT 风格 7 层架构 → 五层单向依赖架构（2026-05-24）**
+- [分层架构设计 v5.0](docs/ARCHITECTURE_v5.0.md) - **更新：OCCT 风格 7 层架构 → 十层单向依赖架构（2026-06-04）**
 - [竞品分析](docs/competitive_analysis.md) - **已更新：22 个参考项目（2026-05-24）**
 - [模块文档](docs/) - 各模块的详细设计文档
 - [实现路线图](IMPLEMENTATION_ROADMAP.md) - 开发计划和进度
