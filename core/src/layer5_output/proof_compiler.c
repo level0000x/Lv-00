@@ -530,50 +530,59 @@ static const char *get_event_type_name(Lv00TraceEventType type) {
 char *lv00_proof_compiler_to_json(const Lv00ProofObject *proof,
                                    const Lv00ProofTrace *trace) {
     if (!proof) return NULL;
-    
-    /* 简化实现：使用固定大小缓冲区 */
-    size_t buffer_size = 16384;
+
+    /* 动态缓冲区：初始 4096，溢出时翻倍 */
+    size_t buffer_size = 4096;
+    size_t offset = 0;
     char *buffer = (char *)lv00_malloc(buffer_size);
     if (!buffer) return NULL;
-    
-    size_t offset = 0;
-    offset += snprintf(buffer + offset, buffer_size - offset, "{\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"proof_id\": %d,\n", proof->proof_id);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"theorem_name\": \"%s\",\n",
+
+    /* 辅助宏：确保容量并写入 */
+    #define JSON_ENSURE(needed) do { \
+        while (offset + (needed) >= buffer_size) { \
+            buffer_size *= 2; \
+            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
+            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            buffer = _nb; \
+        } \
+    } while(0)
+
+    #define JSON_WRITE(fmt, ...) do { \
+        JSON_ENSURE(256); \
+        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
+    } while(0)
+
+    JSON_WRITE("{\n");
+    JSON_WRITE("  \"proof_id\": %d,\n", proof->proof_id);
+    JSON_WRITE("  \"theorem_name\": \"%s\",\n",
         proof->theorem_name ? proof->theorem_name : "unknown");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"final_color\": %d,\n", proof->final_color);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"step_count\": %d,\n", proof->step_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"max_depth\": %d,\n", proof->max_depth);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"axiom_count\": %d,\n", proof->axiom_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"assumption_count\": %d,\n", proof->assumption_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"elapsed_us\": %lld,\n", (long long)proof->elapsed_us);
-    
+    JSON_WRITE("  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
+    JSON_WRITE("  \"final_color\": %d,\n", proof->final_color);
+    JSON_WRITE("  \"step_count\": %d,\n", proof->step_count);
+    JSON_WRITE("  \"max_depth\": %d,\n", proof->max_depth);
+    JSON_WRITE("  \"axiom_count\": %d,\n", proof->axiom_count);
+    JSON_WRITE("  \"assumption_count\": %d,\n", proof->assumption_count);
+    JSON_WRITE("  \"elapsed_us\": %lld,\n", (long long)proof->elapsed_us);
+
     /* 步骤数组 */
-    offset += snprintf(buffer + offset, buffer_size - offset, "  \"steps\": [\n");
+    JSON_WRITE("  \"steps\": [\n");
     for (int i = 0; i < proof->step_count; i++) {
         Lv00ProofStepRecord *step = proof->steps[i];
-        offset += snprintf(buffer + offset, buffer_size - offset,
-            "    {\"id\": %d, \"type\": %d, \"depth\": %d}",
+        JSON_ENSURE(256);
+        JSON_WRITE("    {\"id\": %d, \"type\": %d, \"depth\": %d}",
             step->step_id, step->type, step->depth);
         if (i < proof->step_count - 1) {
-            offset += snprintf(buffer + offset, buffer_size - offset, ",");
+            JSON_WRITE(",");
         }
-        offset += snprintf(buffer + offset, buffer_size - offset, "\n");
+        JSON_WRITE("\n");
     }
-    offset += snprintf(buffer + offset, buffer_size - offset, "  ]\n");
-    
-    offset += snprintf(buffer + offset, buffer_size - offset, "}\n");
-    
+    JSON_WRITE("  ]\n");
+
+    JSON_WRITE("}\n");
+
+    #undef JSON_ENSURE
+    #undef JSON_WRITE
+
     return buffer;
 }
 
