@@ -140,3 +140,4 @@ log/benchmark_results/_archive/
 
 # 分支原型目录（非正式源码）
 module/branches/
+.git-safe/
