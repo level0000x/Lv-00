@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_proof_rule_engine.c
  * @brief Proof rule engine and proof session tests
  *
