@@ -1,0 +1,761 @@
+# =============================================================================
+# Lv-00 Axiom Package: Graph Theory
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Graph theory — the study of graphs as mathematical structures modeling
+#   pairwise relations between objects. A graph G = (V, E) consists of a set
+#   V of vertices (nodes) and a set E of edges (links), where each edge is
+#   an unordered pair {u, v} of distinct vertices (for simple graphs).
+#
+# References:
+#   - Euler, L. (1736). "Solutio problematis ad geometriam situs pertinentis."
+#     Commentarii Academiae Scientiarum Imperialis Petropolitanae, 8: 128-140.
+#     https://en.wikipedia.org/wiki/Seven_Bridges_of_K%C3%B6nigsberg
+#   - Diestel, R. (2017). "Graph Theory" (5th ed.). Springer.
+#     Graduate Texts in Mathematics 173. ISBN 978-3-662-53621-6.
+#   - Bondy, J.A. and Murty, U.S.R. (2008). "Graph Theory." Springer.
+#     Graduate Texts in Mathematics 244. ISBN 978-1-84628-969-9.
+#   - Wikipedia: Graph theory
+#     https://en.wikipedia.org/wiki/Graph_theory
+#   - Wikipedia: Graph (discrete mathematics)
+#     https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)
+#   - nLab: graph
+#     https://ncatlab.org/nlab/show/graph
+#   - West, D.B. (2001). "Introduction to Graph Theory" (2nd ed.).
+#     Prentice Hall. ISBN 0-13-014400-2.
+#   - Bollobás, B. (1998). "Modern Graph Theory." Springer.
+#     Graduate Texts in Mathematics 184. ISBN 978-0-387-98488-9.
+#   - Harary, F. (1969). "Graph Theory." Addison-Wesley.
+#     ISBN 0-201-02787-9.
+#
+# Formal Language:
+#   Primitive notions:
+#     - Vertex (element of set V, the vertex set)
+#     - Edge (element of set E, the edge set)
+#     - Incidence (relation between edges and their endpoint vertices)
+#     - Adjacency (symmetric relation between vertices sharing an edge)
+#
+#   A graph G = (V, E) where:
+#     - V is a finite set of vertices
+#     - E ⊆ {{u,v} : u, v ∈ V, u ≠ v} for simple undirected graphs
+#     - Each edge e ∈ E is incident to exactly two vertices (its endpoints)
+#
+# Core Axioms:
+#   I.   Graph Definition (G1-G3):
+#        G1: V is a finite set (vertex set)
+#        G2: E is a set of 2-element subsets of V (edge set, simple graph)
+#        G3: Every edge is incident to exactly two distinct vertices
+#
+#   II.  Connectivity (G4-G5):
+#        G4: A path is a sequence of distinct vertices v₀,v₁,...,vₖ
+#            where {vᵢ,vᵢ₊₁} ∈ E for all 0 ≤ i < k
+#        G5: G is connected iff for every u, v ∈ V, there exists a path from u to v
+#
+#   III. Graph Operations (G6-G10):
+#        G6: Subgraph: G' = (V', E') where V' ⊆ V and E' ⊆ E ∩ (V' × V')
+#        G7: Complement: Ḡ = (V, V×V \ E)
+#        G8: Union: G₁ ∪ G₂ = (V₁ ∪ V₂, E₁ ∪ E₂)
+#        G9: Intersection: G₁ ∩ G₂ = (V₁ ∩ V₂, E₁ ∩ E₂)
+#        G10: Vertex deletion: G - v = (V \ {v}, E \ {e ∈ E : v ∈ e})
+#
+#   IV.  Special Graph Classes (G11-G16):
+#        G11: Complete graph Kₙ: E = {{u,v} : u, v ∈ V, u ≠ v}
+#        G12: Bipartite graph: V = V₁ ∪ V₂, V₁ ∩ V₂ = ∅, E ⊆ V₁ × V₂
+#        G13: Tree: connected acyclic graph (|E| = |V| - 1)
+#        G14: Forest: acyclic graph (disjoint union of trees)
+#        G15: Cycle graph Cₙ: connected 2-regular graph on n vertices
+#        G16: Planar graph: can be embedded in the plane without edge crossings
+#
+#   V.   Fundamental Theorems (G17-G20):
+#        G17: Handshaking Lemma: Σ deg(v) = 2|E|
+#        G18: Euler's Formula (planar): |V| - |E| + |F| = 2
+#        G19: König's Theorem: α'(G) = τ(G) for bipartite G
+#              (matching number = vertex cover number)
+#        G20: Menger's Theorem: κ(u,v) = λ(u,v) for any u, v ∈ V
+#              (minimum vertex cut = maximum internally vertex-disjoint paths)
+#
+# Known Undecidable / NP-Complete Problems:
+#   - Graph 3-coloring: NP-complete (reduction from 3-SAT)
+#   - Hamiltonian cycle: NP-complete (Karp 1972)
+#   - Subgraph isomorphism: NP-complete
+#   - Graph isomorphism: not known to be in P or NP-complete (Babai 2015: quasi-polynomial)
+#   - Treewidth computation: NP-complete
+#   - Graph minor containment: O(n³) by Robertson-Seymour, but fixed-parameter
+#   - Clique decision: NP-complete
+#   - Independent set: NP-complete
+#   - Vertex cover: NP-complete
+#   - Dominating set: NP-complete
+#   - Graph coloring (k-coloring for k ≥ 3): NP-complete
+#   - Steiner tree: NP-complete
+#   - Feedback vertex set: NP-complete
+#
+# Relationship to Other Theories:
+#   - Graph theory is a subfield of discrete mathematics / combinatorics
+#   - Trees are intimately connected to order theory (partial orders)
+#   - Planar graphs connect to topology (Euler characteristic, embeddings)
+#   - Graph coloring connects to algebra (chromatic polynomial, group theory)
+#   - Spectral graph theory connects to linear algebra (adjacency matrix eigenvalues)
+#   - Category theory: graphs are presheaves on the category • ⇉ •
+#   - Graph algorithms connect to computational complexity theory
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "graph_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, operation, property,
+    # or derived construction in graph theory.
+    #
+    # Parameter semantics:
+    #   Params = vertices (elements of V) or edges (elements of E)
+    #   Unless otherwise noted, all params are vertices.
+    # =================================================================
+
+    # --- Group I: Core Graph Definition (3 axioms) ---
+
+    # Axiom G1: Vertex Set
+    #   V is a finite set of vertices.
+    #   The vertex set is the carrier of the graph structure.
+    # Params: (none) -> vertex set V
+    template "vertex_set" 0
+
+    # Axiom G2: Edge Set
+    #   E ⊆ {{u,v} : u, v ∈ V, u ≠ v} is a set of unordered pairs.
+    #   For simple graphs, no loops (u = v) and no multiple edges.
+    # Params: vertex u, vertex v -> edge {u, v}
+    template "edge_set" 2
+
+    # Axiom G3: Incidence
+    #   Every edge e = {u, v} is incident to exactly two distinct
+    #   vertices u and v. The incidence relation is symmetric.
+    # Params: edge e -> endpoints (u, v)
+    template "incidence" 1
+
+    # --- Group II: Adjacency & Degree (5 templates) ---
+
+    # Adjacency Relation
+    #   Two vertices u and v are adjacent iff {u, v} ∈ E.
+    #   Adjacency is symmetric and irreflexive (for simple graphs).
+    # Params: vertex u, vertex v -> check result
+    template "adjacency" 2
+
+    # Vertex Degree
+    #   deg(v) = |{u ∈ V : {u, v} ∈ E}|
+    #   The degree of a vertex is the number of edges incident to it.
+    # Params: vertex v -> degree deg(v)
+    template "vertex_degree" 1
+
+    # Handshaking Lemma (G17)
+    #   Σ_{v ∈ V} deg(v) = 2|E|
+    #   The sum of all vertex degrees equals twice the number of edges.
+    # Params: (none) -> equation
+    template "handshaking_lemma" 0
+
+    # Maximum Degree
+    #   Δ(G) = max{deg(v) : v ∈ V}
+    # Params: (none) -> max degree Δ(G)
+    template "maximum_degree" 0
+
+    # Minimum Degree
+    #   δ(G) = min{deg(v) : v ∈ V}
+    # Params: (none) -> min degree δ(G)
+    template "minimum_degree" 0
+
+    # --- Group III: Paths, Walks, and Connectivity (8 templates) ---
+
+    # Walk
+    #   A walk is a sequence of vertices v₀, v₁, ..., vₖ where
+    #   {vᵢ, vᵢ₊₁} ∈ E for all 0 ≤ i < k. Vertices may repeat.
+    # Params: vertex v₀, vertex vₖ -> walk from v₀ to vₖ
+    template "walk" 2
+
+    # Path
+    #   A path is a walk with all vertices distinct.
+    # Params: vertex v₀, vertex vₖ -> path from v₀ to vₖ
+    template "path" 2
+
+    # Path Length
+    #   The length of a path is the number of edges traversed.
+    # Params: path p -> length (integer)
+    template "path_length" 1
+
+    # Distance (Shortest Path Length)
+    #   d(u, v) = length of shortest path from u to v, or ∞ if none.
+    # Params: vertex u, vertex v -> distance d(u, v)
+    template "distance" 2
+
+    # Connected Graph
+    #   G is connected iff ∀u, v ∈ V, ∃ path from u to v.
+    # Params: (none) -> check result
+    template "connected" 0
+
+    # Connected Component
+    #   A maximal connected subgraph of G.
+    # Params: vertex v -> connected component containing v
+    template "connected_component" 1
+
+    # Number of Connected Components
+    #   c(G) = number of connected components of G.
+    # Params: (none) -> count c(G)
+    template "component_count" 0
+
+    # Connectivity (Vertex)
+    #   κ(G) = minimum number of vertices whose removal disconnects G.
+    # Params: (none) -> vertex connectivity κ(G)
+    template "vertex_connectivity" 0
+
+    # --- Group IV: Cycles and Trees (8 templates) ---
+
+    # Cycle
+    #   A cycle is a closed path v₀, v₁, ..., vₖ = v₀ with k ≥ 3
+    #   and all vertices distinct except v₀ = vₖ.
+    # Params: vertex v₀ -> cycle containing v₀
+    template "cycle" 1
+
+    # Cycle Length (Girth)
+    #   g(G) = length of the shortest cycle in G, or ∞ if acyclic.
+    # Params: (none) -> girth g(G)
+    template "girth" 0
+
+    # Circumference
+    #   The length of the longest cycle in G.
+    # Params: (none) -> circumference
+    template "circumference" 0
+
+    # Acyclic Graph (Forest)
+    #   G is acyclic iff G contains no cycles.
+    # Params: (none) -> check result
+    template "acyclic" 0
+
+    # Tree
+    #   A tree is a connected acyclic graph.
+    #   Equivalently: |E| = |V| - 1 and connected.
+    # Params: (none) -> check result
+    template "tree" 0
+
+    # Forest
+    #   A forest is a disjoint union of trees (acyclic graph).
+    #   Equivalently: |E| = |V| - c(G).
+    # Params: (none) -> check result
+    template "forest" 0
+
+    # Spanning Tree
+    #   A subgraph T ⊆ G that is a tree and V(T) = V(G).
+    #   Every connected graph has at least one spanning tree.
+    # Params: (none) -> spanning tree
+    template "spanning_tree" 0
+
+    # Leaf Vertex
+    #   A vertex of degree 1. Every tree with |V| ≥ 2 has ≥ 2 leaves.
+    # Params: vertex v -> check result
+    template "leaf" 1
+
+    # --- Group V: Graph Operations (12 templates) ---
+
+    # Subgraph
+    #   G' = (V', E') is a subgraph of G iff V' ⊆ V and E' ⊆ E.
+    # Params: vertex subset V', edge subset E' -> subgraph G'
+    template "subgraph" 2
+
+    # Induced Subgraph
+    #   G[S] = (S, {e ∈ E : e ⊆ S}) for S ⊆ V.
+    # Params: vertex subset S -> induced subgraph G[S]
+    template "induced_subgraph" 1
+
+    # Complement Graph
+    #   Ḡ = (V, {{u,v} : u, v ∈ V, u ≠ v} \ E).
+    # Params: (none) -> complement graph Ḡ
+    template "complement" 0
+
+    # Graph Union
+    #   G₁ ∪ G₂ = (V₁ ∪ V₂, E₁ ∪ E₂).
+    # Params: graph G₁, graph G₂ -> union G₁ ∪ G₂
+    template "graph_union" 2
+
+    # Graph Intersection
+    #   G₁ ∩ G₂ = (V₁ ∩ V₂, E₁ ∩ E₂).
+    # Params: graph G₁, graph G₂ -> intersection G₁ ∩ G₂
+    template "graph_intersection" 2
+
+    # Vertex Deletion
+    #   G - v = (V \ {v}, {e ∈ E : v ∉ e}).
+    # Params: vertex v -> graph G - v
+    template "vertex_deletion" 1
+
+    # Edge Deletion
+    #   G - e = (V, E \ {e}).
+    # Params: edge e -> graph G - e
+    template "edge_deletion" 1
+
+    # Vertex Contraction
+    #   G / e: contract edge e = {u,v} into a single vertex uv,
+    #   merging all incident edges.
+    # Params: edge e -> graph G / e
+    template "edge_contraction" 1
+
+    # Line Graph
+    #   L(G): vertices of L(G) are edges of G; two vertices of L(G)
+    #   are adjacent iff the corresponding edges of G share an endpoint.
+    # Params: (none) -> line graph L(G)
+    template "line_graph" 0
+
+    # Cartesian Product of Graphs
+    #   G □ H: V(G □ H) = V(G) × V(H); {(u₁,v₁),(u₂,v₂)} ∈ E(G □ H)
+    #   iff u₁ = u₂ and {v₁,v₂} ∈ E(H), or v₁ = v₂ and {u₁,u₂} ∈ E(G).
+    # Params: graph G, graph H -> product G □ H
+    template "cartesian_product" 2
+
+    # Graph Join
+    #   G + H = (V(G) ∪ V(H), E(G) ∪ E(H) ∪ {{u,v} : u ∈ V(G), v ∈ V(H)}).
+    # Params: graph G, graph H -> join G + H
+    template "graph_join" 2
+
+    # Disjoint Union
+    #   G ⊔ H: the union of G and H with disjoint vertex sets.
+    # Params: graph G, graph H -> disjoint union G ⊔ H
+    template "disjoint_union" 2
+
+    # --- Group VI: Special Graph Classes (10 templates) ---
+
+    # Complete Graph Kₙ
+    #   Kₙ = (V, {{u,v} : u, v ∈ V, u ≠ v}). Every pair of distinct
+    #   vertices is connected by an edge. |E| = n(n-1)/2.
+    # Params: integer n -> complete graph Kₙ
+    template "complete_graph" 1
+
+    # Empty Graph Ẽₙ
+    #   Ẽₙ = (V, ∅). No edges. Complement of Kₙ.
+    # Params: integer n -> empty graph Ẽₙ
+    template "empty_graph" 1
+
+    # Path Graph Pₙ
+    #   Pₙ: a tree on n vertices with exactly 2 leaves.
+    # Params: integer n -> path graph Pₙ
+    template "path_graph" 1
+
+    # Cycle Graph Cₙ
+    #   Cₙ: a connected 2-regular graph on n vertices (n ≥ 3).
+    # Params: integer n -> cycle graph Cₙ
+    template "cycle_graph" 1
+
+    # Bipartite Graph
+    #   G is bipartite iff V can be partitioned into V₁, V₂ such that
+    #   every edge has one endpoint in V₁ and one in V₂.
+    #   Equivalently: G has no odd cycle.
+    # Params: (none) -> check result
+    template "bipartite" 0
+
+    # Complete Bipartite Graph K_{m,n}
+    #   K_{m,n}: bipartite graph with |V₁| = m, |V₂| = n, all possible
+    #   edges between V₁ and V₂. |E| = m·n.
+    # Params: integer m, integer n -> K_{m,n}
+    template "complete_bipartite" 2
+
+    # Regular Graph
+    #   G is k-regular iff every vertex has degree k.
+    # Params: integer k -> check result
+    template "regular" 1
+
+    # Planar Graph
+    #   G is planar iff G can be embedded in the plane without edge crossings.
+    #   By Kuratowski's theorem: G is planar iff it contains no subdivision
+    #   of K₅ or K_{3,3}.
+    # Params: (none) -> check result
+    template "planar" 0
+
+    # Eulerian Graph
+    #   G is Eulerian iff G is connected and every vertex has even degree.
+    #   Equivalently: G has a closed trail using every edge exactly once.
+    # Params: (none) -> check result
+    template "eulerian" 0
+
+    # Hamiltonian Graph
+    #   G is Hamiltonian iff G contains a cycle visiting every vertex
+    #   exactly once. Deciding this is NP-complete.
+    # Params: (none) -> check result
+    template "hamiltonian" 0
+
+    # --- Group VII: Matching and Covering (8 templates) ---
+
+    # Matching
+    #   A matching M ⊆ E is a set of pairwise non-adjacent edges
+    #   (no two edges share a vertex).
+    # Params: edge subset M -> check result (is matching)
+    template "matching" 1
+
+    # Maximum Matching
+    #   A matching of maximum cardinality. ν(G) = |M_max|.
+    # Params: (none) -> maximum matching M_max
+    template "maximum_matching" 0
+
+    # Perfect Matching
+    #   A matching M where every vertex is incident to exactly one edge
+    #   in M. Requires |V| to be even.
+    # Params: (none) -> check result
+    template "perfect_matching" 0
+
+    # Vertex Cover
+    #   A vertex cover C ⊆ V is a set of vertices such that every edge
+    #   has at least one endpoint in C. τ(G) = |C_min|.
+    # Params: vertex subset C -> check result (is vertex cover)
+    template "vertex_cover" 1
+
+    # Minimum Vertex Cover
+    #   A vertex cover of minimum cardinality. τ(G) = |C_min|.
+    # Params: (none) -> minimum vertex cover C_min
+    template "minimum_vertex_cover" 0
+
+    # Independent Set
+    #   An independent set S ⊆ V is a set of pairwise non-adjacent vertices.
+    #   α(G) = |S_max|. Note: S is independent iff V \ S is a vertex cover.
+    # Params: vertex subset S -> check result (is independent set)
+    template "independent_set" 1
+
+    # Maximum Independent Set
+    #   An independent set of maximum cardinality. α(G) = |S_max|.
+    # Params: (none) -> maximum independent set S_max
+    template "maximum_independent_set" 0
+
+    # Dominating Set
+    #   A dominating set D ⊆ V is such that every vertex in V \ D
+    #   is adjacent to at least one vertex in D.
+    # Params: vertex subset D -> check result (is dominating set)
+    template "dominating_set" 1
+
+    # --- Group VIII: Graph Coloring (6 templates) ---
+
+    # Proper Vertex Coloring
+    #   A function c: V → {1, 2, ..., k} such that c(u) ≠ c(v)
+    #   whenever {u, v} ∈ E (adjacent vertices get different colors).
+    # Params: integer k -> coloring function c
+    template "vertex_coloring" 1
+
+    # Chromatic Number
+    #   χ(G) = minimum k such that G has a proper k-coloring.
+    #   χ(G) = 1 iff G has no edges; χ(G) = 2 iff G is bipartite
+    #   and has at least one edge.
+    # Params: (none) -> chromatic number χ(G)
+    template "chromatic_number" 0
+
+    # Chromatic Polynomial
+    #   P(G, k) = number of proper k-colorings of G.
+    #   P(G, k) is a polynomial in k (Birkhoff 1912, Whitney 1932).
+    # Params: integer k -> count P(G, k)
+    template "chromatic_polynomial" 1
+
+    # Edge Coloring
+    #   A function c': E → {1, 2, ..., k} such that edges sharing
+    #   a vertex get different colors. χ'(G) = Δ(G) or Δ(G) + 1
+    #   (Vizing's theorem).
+    # Params: integer k -> edge coloring function c'
+    template "edge_coloring" 1
+
+    # Chromatic Index
+    #   χ'(G) = minimum k for a proper edge coloring.
+    #   By Vizing's theorem: Δ(G) ≤ χ'(G) ≤ Δ(G) + 1.
+    # Params: (none) -> chromatic index χ'(G)
+    template "chromatic_index" 0
+
+    # Clique
+    #   A clique K ⊆ V is a set of pairwise adjacent vertices.
+    #   ω(G) = size of the largest clique.
+    # Params: vertex subset K -> check result (is clique)
+    template "clique" 1
+
+    # --- Group IX: Fundamental Theorems (5 templates) ---
+
+    # Euler's Formula for Planar Graphs (G18)
+    #   For a connected planar graph: |V| - |E| + |F| = 2,
+    #   where F is the number of faces in any planar embedding.
+    # Params: (none) -> equation
+    template "euler_formula_planar" 0
+
+    # König's Theorem (G19)
+    #   For bipartite graphs: α'(G) = τ(G).
+    #   The size of a maximum matching equals the size of a minimum
+    #   vertex cover. This is equivalent to Hall's marriage theorem
+    #   and the max-flow min-cut theorem for bipartite networks.
+    # Params: (none) -> equation
+    template "konigs_theorem" 0
+
+    # Menger's Theorem (G20)
+    #   For any two non-adjacent vertices u, v in G:
+    #   κ(u,v) = λ(u,v) = maximum number of internally vertex-disjoint
+    #   u-v paths. (Vertex version; edge version also exists.)
+    # Params: vertex u, vertex v -> equation
+    template "mengers_theorem" 2
+
+    # Kuratowski's Theorem
+    #   G is planar iff G contains no subdivision of K₅ or K_{3,3}.
+    #   This is the fundamental characterization of planarity.
+    # Params: (none) -> check result (planarity via Kuratowski)
+    template "kuratowskis_theorem" 0
+
+    # Four Color Theorem
+    #   Every planar graph is 4-colorable: χ(G) ≤ 4 for planar G.
+    #   Proved by Appel and Haken (1976), simplified by Robertson
+    #   et al. (1997). One of the most famous theorems in mathematics.
+    # Params: (none) -> bound χ(G) ≤ 4
+    template "four_color_theorem" 0
+
+    # --- Group X: Advanced Properties (5 templates) ---
+
+    # Graph Isomorphism
+    #   G ≅ H iff there exists a bijection f: V(G) → V(H) preserving
+    #   adjacency: {u,v} ∈ E(G) ↔ {f(u),f(v)} ∈ E(H).
+    #   GI is in NP but not known to be NP-complete or in P.
+    #   Babai (2015): quasi-polynomial time algorithm.
+    # Params: graph G, graph H -> check result
+    template "graph_isomorphism" 2
+
+    # Graph Automorphism
+    #   An automorphism of G is an isomorphism from G to itself.
+    #   Aut(G) forms a group under composition.
+    # Params: (none) -> automorphism group Aut(G)
+    template "graph_automorphism" 0
+
+    # Treewidth
+    #   The treewidth tw(G) measures how "tree-like" a graph is.
+    #   Many NP-hard problems become polynomial on bounded-treewidth graphs
+    #   (Courcelle's theorem). Computing treewidth is NP-complete.
+    # Params: (none) -> treewidth tw(G)
+    template "treewidth" 0
+
+    # Graph Minor
+    #   H is a minor of G iff H can be obtained from G by vertex/edge
+    #   deletions and edge contractions. Robertson-Seymour theorem:
+    #   every minor-closed family has a finite forbidden minor set.
+    # Params: graph H -> check result (H is minor of G)
+    template "graph_minor" 1
+
+    # Spectral Properties (Adjacency Eigenvalues)
+    #   The eigenvalues λ₁ ≥ λ₂ ≥ ... ≥ λₙ of the adjacency matrix A
+    #   encode structural information: λ₁ ≥ 2|E|/|V| (average degree),
+    #   G is bipartite iff λ₁ = -λₙ, G is connected iff λ₁ > λ₂.
+    # Params: (none) -> eigenvalue spectrum
+    template "spectral_properties" 0
+
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+    # Each entry documents a problem in graph theory known to be
+    # NP-complete, NP-hard, or otherwise computationally intractable.
+    # =================================================================
+
+    # 1. Graph 3-Coloring
+    # "Can the vertices of G be colored with 3 colors so that
+    #  no two adjacent vertices share a color?"
+    # NP-complete (reduction from 3-SAT; Stockmeyer 1973).
+    unconstructible "graph_3_coloring" {
+        reduces_to "NP_complete"
+        dependency "vertex_coloring"
+        dependency "chromatic_number"
+        dependency "three_colorability"
+        external_ref "https://en.wikipedia.org/wiki/Graph_coloring#Computational_complexity"
+        green_verified true
+    }
+
+    # 2. Hamiltonian Cycle Problem
+    # "Does G contain a cycle that visits every vertex exactly once?"
+    # NP-complete (Karp 1972, one of the original 21 NP-complete problems).
+    unconstructible "hamiltonian_cycle" {
+        reduces_to "NP_complete"
+        dependency "cycle"
+        dependency "hamiltonian"
+        dependency "path"
+        external_ref "https://en.wikipedia.org/wiki/Hamiltonian_path_problem"
+        green_verified true
+    }
+
+    # 3. Subgraph Isomorphism
+    # "Does G contain a subgraph isomorphic to H?"
+    # NP-complete (generalizes clique detection).
+    unconstructible "subgraph_isomorphism" {
+        reduces_to "NP_complete"
+        dependency "subgraph"
+        dependency "graph_isomorphism"
+        dependency "induced_subgraph"
+        external_ref "https://en.wikipedia.org/wiki/Subgraph_isomorphism_problem"
+        green_verified true
+    }
+
+    # 4. Graph Isomorphism
+    # "Are G and H isomorphic?"
+    # Not known to be in P or NP-complete. In NP.
+    # Babai (2015): quasi-polynomial time algorithm exp(O((log n)³)).
+    unconstructible "graph_isomorphism_problem" {
+        reduces_to "GI_complexity_class"
+        dependency "graph_isomorphism"
+        dependency "graph_automorphism"
+        external_ref "https://en.wikipedia.org/wiki/Graph_isomorphism_problem"
+        green_verified true
+    }
+
+    # 5. Treewidth Computation
+    # "What is the treewidth of G?"
+    # NP-complete to compute (Arnborg, Corneil, Proskurowski 1987).
+    # Deciding tw(G) ≤ k is NP-complete for general k, but
+    # polynomial for fixed k (Bodlaender 1996: O(n) for fixed k).
+    unconstructible "treewidth_computation" {
+        reduces_to "NP_complete"
+        dependency "treewidth"
+        dependency "subgraph"
+        dependency "vertex_deletion"
+        external_ref "https://en.wikipedia.org/wiki/Treewidth"
+        green_verified true
+    }
+
+    # 6. Maximum Clique Problem
+    # "What is the size of the largest clique in G?"
+    # NP-complete (equivalent to maximum independent set via complement).
+    unconstructible "maximum_clique" {
+        reduces_to "NP_complete"
+        dependency "clique"
+        dependency "complement"
+        dependency "independent_set"
+        external_ref "https://en.wikipedia.org/wiki/Clique_problem"
+        green_verified true
+    }
+
+    # 7. Maximum Independent Set
+    # "What is the size of the largest independent set in G?"
+    # NP-complete (Karp 1972). Equivalent to minimum vertex cover
+    # via α(G) + τ(G) = |V|.
+    unconstructible "maximum_independent_set_problem" {
+        reduces_to "NP_complete"
+        dependency "independent_set"
+        dependency "maximum_independent_set"
+        dependency "vertex_cover"
+        external_ref "https://en.wikipedia.org/wiki/Independent_set_(graph_theory)"
+        green_verified true
+    }
+
+    # 8. Minimum Vertex Cover
+    # "What is the size of the smallest vertex cover in G?"
+    # NP-complete (Karp 1972). For bipartite graphs, polynomial
+    # via König's theorem and maximum matching.
+    unconstructible "minimum_vertex_cover_problem" {
+        reduces_to "NP_complete"
+        dependency "vertex_cover"
+        dependency "minimum_vertex_cover"
+        dependency "maximum_matching"
+        external_ref "https://en.wikipedia.org/wiki/Vertex_cover"
+        green_verified true
+    }
+
+    # 9. Minimum Dominating Set
+    # "What is the size of the smallest dominating set in G?"
+    # NP-complete (Karp 1972). Even APX-hard (cannot be approximated
+    # within (1 - ε) ln n for any ε > 0 unless P = NP).
+    unconstructible "minimum_dominating_set" {
+        reduces_to "NP_complete"
+        dependency "dominating_set"
+        dependency "adjacency"
+        external_ref "https://en.wikipedia.org/wiki/Dominating_set"
+        green_verified true
+    }
+
+    # 10. Graph k-Coloring (for k ≥ 3)
+    # "Can G be properly colored with k colors?"
+    # NP-complete for k ≥ 3 (Garey, Johnson, Stockmeyer 1976).
+    # Polynomial for k = 1 (check if E = ∅) and k = 2 (bipartiteness).
+    unconstructible "graph_k_coloring" {
+        reduces_to "NP_complete"
+        dependency "vertex_coloring"
+        dependency "chromatic_number"
+        dependency "bipartite"
+        external_ref "https://en.wikipedia.org/wiki/Graph_coloring"
+        green_verified true
+    }
+
+    # 11. Steiner Tree Problem
+    # "Given a weighted graph and a set of terminals, find the
+    #  minimum-weight tree connecting all terminals."
+    # NP-complete (Karp 1972). Even APX-hard.
+    unconstructible "steiner_tree" {
+        reduces_to "NP_complete"
+        dependency "spanning_tree"
+        dependency "tree"
+        dependency "path"
+        external_ref "https://en.wikipedia.org/wiki/Steiner_tree_problem"
+        green_verified true
+    }
+
+    # 12. Feedback Vertex Set
+    # "What is the minimum number of vertices whose removal makes
+    #  G acyclic?"
+    # NP-complete (Karp 1972).
+    unconstructible "feedback_vertex_set" {
+        reduces_to "NP_complete"
+        dependency "acyclic"
+        dependency "cycle"
+        dependency "vertex_deletion"
+        external_ref "https://en.wikipedia.org/wiki/Feedback_vertex_set"
+        green_verified true
+    }
+
+    # 13. Graph Homomorphism
+    # "Does there exist a homomorphism from G to H?"
+    # NP-complete in general. The k-coloring problem is the special
+    # case of homomorphism to Kₖ.
+    unconstructible "graph_homomorphism" {
+        reduces_to "NP_complete"
+        dependency "vertex_coloring"
+        dependency "complete_graph"
+        dependency "adjacency"
+        external_ref "https://en.wikipedia.org/wiki/Graph_homomorphism"
+        green_verified true
+    }
+
+    # 14. Bandwidth Minimization
+    # "Find a labeling f: V → {1,...,n} minimizing max|f(u)-f(v)|
+    #  over all edges {u,v} ∈ E."
+    # NP-complete (Papadimitriou 1976).
+    unconstructible "bandwidth_minimization" {
+        reduces_to "NP_complete"
+        dependency "adjacency"
+        dependency "path_length"
+        external_ref "https://en.wikipedia.org/wiki/Bandwidth_(graph_theory)"
+        green_verified true
+    }
+
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    #
+    # bottom_geometry: "graph_incidence_structure"
+    #   ⊥ (contradiction) in graph theory is geometrically represented
+    #   as the empty graph (∅, ∅) — the graph with no vertices and no
+    #   edges. This is the unique minimal element in the lattice of
+    #   (finite) graphs ordered by the subgraph relation. A contradictory
+    #   statement in graph theory corresponds to asserting the existence
+    #   of a graph property that cannot be realized by any graph.
+    #
+    # negation_encoding: "classical_edge_complement"
+    #   ¬φ(G) is encoded via the complement operation on the graph
+    #   universe: the negation of a graph property φ is the class of
+    #   graphs satisfying the complementary property. Since graph theory
+    #   uses classical logic (e.g., in proofs of theorems like the
+    #   Four Color Theorem), negation satisfies the law of excluded
+    #   middle. The complement graph Ḡ provides a geometric encoding
+    #   of certain negated adjacency properties.
+    #
+    # contradiction_behavior: "explosion_principle"
+    #   Graph theory uses classical logic with the principle of explosion:
+    #   from a contradiction (e.g., asserting both that G is bipartite
+    #   and that G contains an odd cycle), any conclusion follows.
+    #   This is standard in all of classical mathematics.
+    # =================================================================
+
+    bottom_geometry "graph_incidence_structure"
+    negation_encoding "classical_edge_complement"
+    contradiction_behavior "explosion_principle"
+}

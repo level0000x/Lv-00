@@ -1,0 +1,729 @@
+# =============================================================================
+# Lv-00 Axiom Package: Computability Theory / Recursion Theory
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Computability theory (also known as recursion theory), the branch of
+#   mathematical logic studying computable functions and the boundaries of
+#   algorithmic solvability. Originated in the 1930s with the work of Turing,
+#   Church, Gödel, Kleene, and Post.
+#
+# References:
+#   - Turing, A.M. (1936). "On Computable Numbers, with an Application to
+#     the Entscheidungsproblem." Proc. London Math. Soc., 2(42): 230-265.
+#     https://en.wikipedia.org/wiki/Turing%27s_proof
+#   - Church, A. (1936). "An Unsolvable Problem of Elementary Number Theory."
+#     American J. of Mathematics, 58: 345-363.
+#     https://en.wikipedia.org/wiki/Church%27s_thesis
+#   - Kleene, S.C. (1936). "General Recursive Functions of Natural Numbers."
+#     Mathematische Annalen, 112: 727-742.
+#     https://en.wikipedia.org/wiki/General_recursive_function
+#   - Kleene, S.C. (1952). "Introduction to Metamathematics." Van Nostrand.
+#   - Post, E.L. (1944). "Recursively Enumerable Sets and Their Decision
+#     Problems." Bull. AMS, 50: 284-316.
+#     https://en.wikipedia.org/wiki/Post%27s_problem
+#   - Rice, H.G. (1953). "Classes of Recursively Enumerable Sets and Their
+#     Decision Problems." Trans. AMS, 74: 358-366.
+#     https://en.wikipedia.org/wiki/Rice%27s_theorem
+#   - Soare, R.I. (1987). "Recursively Enumerable Sets and Degrees."
+#     Springer-Verlag. ISBN 3-540-15299-7.
+#   - Odifreddi, P. (1989). "Classical Recursion Theory." North-Holland.
+#     ISBN 0-444-87295-7.
+#   - Cutland, N.J. (1980). "Computability: An Introduction to Recursive
+#     Function Theory." Cambridge University Press.
+#   - Wikipedia: Computability theory
+#     https://en.wikipedia.org/wiki/Computability_theory
+#   - Wikipedia: Mu-recursive function
+#     https://en.wikipedia.org/wiki/Mu-recursive_function
+#   - nLab: computability
+#     https://ncatlab.org/nlab/show/computability
+#   - Stanford Encyclopedia of Philosophy: Computability and Complexity
+#     https://plato.stanford.edu/entries/computability/
+#
+# Primitive Notions:
+#   - Natural number (element of N = {0, 1, 2, ...})
+#   - Partial function f: N^k ⇢ N (may be undefined for some inputs)
+#   - Turing machine (abstract computational device)
+#   - Program index (Gödel number encoding a partial computable function)
+#   - Oracle (set A ⊆ N used as black-box query source)
+#
+# Core Axioms & Definitions:
+#   The theory is built on the μ-recursive function framework:
+#     I.   Initial Functions (3): zero, successor, projection
+#     II.  Operators (3): composition, primitive recursion, minimization (μ)
+#     III. Fundamental Theorems:
+#          - Kleene's Normal Form Theorem
+#          - Kleene's Recursion Theorem (Fixed Point Theorem)
+#          - s-m-n Theorem (Parameter Theorem)
+#          - Rice's Theorem (undecidability of non-trivial semantic properties)
+#          - Universal Turing Machine Theorem
+#     IV.  Degree Structure:
+#          - Turing reducibility (≤_T)
+#          - Turing degrees (equivalence classes under ≡_T)
+#          - Turing jump operator (A' = halting problem relative to A)
+#          - Arithmetical hierarchy (Σ_n^0, Π_n^0, Δ_n^0)
+#
+# Relationship to Other Theories:
+#   - Extends: computational_complexity_theory (computability is the
+#     qualitative foundation; complexity adds quantitative resource bounds)
+#   - Extends: proof_theory (Gödel's incompleteness theorems are proven
+#     via computability-theoretic methods)
+#   - Related: classical_propositional_logic (decidability of SAT is a
+#     computability-theoretic question)
+#   - Related: zfc_set_theory (all computability theory can be formalized
+#     in ZFC; the Church-Turing thesis is a meta-mathematical claim)
+#   - Related: model_theory (arithmetical hierarchy connects to definability)
+#   - Related: descriptive_set_theory (effective descriptive set theory
+#     applies computability to Borel/analytic sets)
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "computability_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, operation, or
+    # derived construction in computability theory.
+    #
+    # Parameter semantics:
+    #   Params = natural numbers, partial functions, program indices,
+    #            Turing machines, or oracle sets (as appropriate)
+    # =================================================================
+
+    # --- Group I: Initial Functions (Building Blocks) ---
+
+    # Zero Function: Z(x) = 0 for all x ∈ N
+    # The constant zero function, one of the three initial functions
+    # in the μ-recursive function framework.
+    # Params: natural number x -> 0
+    template "zero_function" 1
+
+    # Successor Function: S(x) = x + 1
+    # The successor function, generating all natural numbers from 0.
+    # Params: natural number x -> x + 1
+    template "successor_function" 1
+
+    # Projection (Identity) Function: P_i^k(x_1,...,x_k) = x_i
+    # Extracts the i-th argument from a k-tuple. Essential for
+    # composition and primitive recursion.
+    # Params: tuple (x_1,...,x_k), index i -> x_i
+    template "projection_function" 2
+
+    # --- Group II: Operators (Function Construction Rules) ---
+
+    # Composition (Substitution) Operator:
+    #   Given h: N^m → N and g_1,...,g_m: N^k → N, construct
+    #   f(x_1,...,x_k) = h(g_1(x),...,g_m(x))
+    # Params: function h, functions g_1,...,g_m -> composed function f
+    template "composition" 3
+
+    # Primitive Recursion Operator:
+    #   Given g: N^k → N and h: N^{k+2} → N, construct
+    #   f(0, x) = g(x)
+    #   f(n+1, x) = h(n, f(n, x), x)
+    # All primitive recursive functions are total.
+    # Params: base function g, step function h -> recursive function f
+    template "primitive_recursion" 2
+
+    # Minimization (μ) Operator:
+    #   Given f: N^{k+1} → N, construct μ(f)(x) = least z such that
+    #   f(z, x) = 0 (if such z exists; undefined otherwise).
+    # The μ-operator makes partial recursive functions strictly more
+    # powerful than primitive recursive functions (e.g., Ackermann
+    # function is total recursive but not primitive recursive).
+    # Params: function f, arguments x -> least zero of f (or undefined)
+    template "minimization_operator" 2
+
+    # --- Group III: Fundamental Constructions ---
+
+    # Universal Turing Machine (UTM):
+    #   There exists a Turing machine U that, given an encoding e of
+    #   a Turing machine T and input x, simulates T on x:
+    #   U(e, x) = φ_e(x) (the partial computable function with index e)
+    # This is the existence theorem for universal computation.
+    # Params: program index e, input x -> output φ_e(x) or diverge
+    template "universal_turing_machine" 2
+
+    # Kleene's T Predicate:
+    #   T(e, x, s) holds iff s encodes a valid halting computation
+    #   history of the e-th Turing machine on input x.
+    #   φ_e(x) = U(μs T(e, x, s)) — the normal form for all partial
+    #   computable functions.
+    # Params: program index e, input x, computation history s -> truth value
+    template "kleene_T_predicate" 3
+
+    # Result Extraction Function:
+    #   U(s) extracts the output value from a computation history s.
+    # Together with T, gives the Kleene Normal Form:
+    #   φ_e(x) ≃ U(μs T(e, x, s))
+    # Params: computation history s -> output value
+    template "result_extraction" 1
+
+    # --- Group IV: Fundamental Theorems ---
+
+    # Kleene's Normal Form Theorem:
+    #   Every partial recursive function φ_e has a normal form:
+    #   φ_e(x) = U(μs T(e, x, s))
+    #   where T is Kleene's T predicate and U is the result extractor.
+    # This shows that a single unbounded search (μ) suffices to capture
+    # all partial computable functions.
+    # Params: program index e, input x -> normal form expression
+    template "kleene_normal_form" 2
+
+    # s-m-n Theorem (Parameter Theorem):
+    #   For every m, n ≥ 1, there exists a total computable function
+    #   s_n^m: N^{m+1} → N such that:
+    #   φ_{s_n^m(e, x_1,...,x_m)}(y_1,...,y_n) ≃ φ_e(x_1,...,x_m, y_1,...,y_n)
+    # This allows "currying" of program indices — fixing some parameters
+    # of a computable function produces a new computable function.
+    # Params: program index e, parameters x_1,...,x_m -> new program index
+    template "smn_theorem" 2
+
+    # Kleene's Recursion Theorem (Fixed Point Theorem):
+    #   For every total computable function f: N → N, there exists an
+    #   index e such that φ_e ≃ φ_{f(e)}.
+    #   Equivalently: every computable transformation of programs has a
+    #   fixed point — a program that behaves identically to its transform.
+    # This is the theoretical foundation for self-reference, quines,
+    # and Rice's theorem.
+    # Params: computable function f -> fixed point index e
+    template "kleene_recursion_theorem" 1
+
+    # Rice's Theorem:
+    #   Every non-trivial semantic property of partial computable
+    #   functions is undecidable. A property P is "semantic" (extensional)
+    #   if φ_e = φ_f implies e ∈ P ↔ f ∈ P. "Non-trivial" means
+    #   P ≠ ∅ and P ≠ N.
+    # This generalizes the undecidability of the halting problem to
+    # all interesting questions about program behavior.
+    # Params: property P (set of indices) -> undecidability witness
+    template "rice_theorem" 1
+
+    # --- Group V: Computable Sets and Computably Enumerable Sets ---
+
+    # Computable (Decidable, Recursive) Set:
+    #   A set A ⊆ N is computable iff both A and its complement N\A
+    #   are computably enumerable. Equivalently, the characteristic
+    #   function χ_A(x) = 1 if x∈A, 0 otherwise is total computable.
+    # Params: set A -> characteristic function χ_A
+    template "computable_set" 1
+
+    # Computably Enumerable (c.e., r.e., semidecidable) Set:
+    #   A set A ⊆ N is c.e. iff A = ∅ or A = range(f) for some total
+    #   computable function f. Equivalently, there exists a Turing
+    #   machine that halts on exactly the elements of A.
+    # Params: computable function f -> c.e. set range(f)
+    template "computably_enumerable_set" 1
+
+    # Halting Set (K):
+    #   K = {e ∈ N : φ_e(e) halts} = {e : e ∈ W_e}
+    #   The canonical c.e. non-computable set. K is c.e. complete:
+    #   every c.e. set A is many-one reducible to K.
+    #   K is the "hardest" c.e. set — it encodes the halting problem.
+    # Params: program index e -> membership in K
+    template "halting_set_K" 1
+
+    # Complement of Halting Set (K̄):
+    #   K̄ = {e ∈ N : φ_e(e) diverges}
+    #   K̄ is not c.e. (otherwise K would be computable).
+    #   K̄ is co-c.e. but not computable — the prototypical
+    #   non-c.e. set.
+    # Params: program index e -> membership in K̄
+    template "complement_halting_set" 1
+
+    # --- Group VI: Reducibilities and Degrees ---
+
+    # Many-One Reducibility (m-reducibility):
+    #   A ≤_m B iff there exists a total computable function f such that
+    #   x ∈ A ↔ f(x) ∈ B for all x.
+    #   This is the strongest natural reducibility notion.
+    # Params: set A, set B, reducing function f -> reduction certificate
+    template "many_one_reducibility" 3
+
+    # Turing Reducibility (T-reducibility):
+    #   A ≤_T B iff A is computable relative to an oracle for B.
+    #   Equivalently, there exists an oracle Turing machine with oracle
+    #   B that decides membership in A.
+    #   This is the most general and important reducibility notion.
+    # Params: set A, oracle set B -> oracle computation certificate
+    template "turing_reducibility" 2
+
+    # Turing Equivalence:
+    #   A ≡_T B iff A ≤_T B and B ≤_T A.
+    #   Sets with the same Turing degree are equally "difficult" to compute.
+    # Params: set A, set B -> equivalence certificate
+    template "turing_equivalence" 2
+
+    # Turing Degree (Degree of Unsolvability):
+    #   The equivalence class [A]_T = {B : A ≡_T B} under Turing
+    #   equivalence. The degree of A measures "how uncomputable" A is.
+    #   deg(∅) = 0 (the least degree, containing all computable sets).
+    #   deg(K) = 0' (the halting problem degree).
+    # Params: set A -> Turing degree [A]_T
+    template "turing_degree" 1
+
+    # Turing Jump Operator:
+    #   A' = {e : φ_e^A(e) halts} (halting problem relative to oracle A)
+    #   Properties: A <_T A' (strict increase); A ≡_T B implies A' ≡_T B'.
+    #   The jump operator generates the arithmetical hierarchy:
+    #   ∅^(n) is Σ_n^0-complete.
+    # Params: oracle set A -> jumped set A'
+    template "turing_jump" 1
+
+    # --- Group VII: Arithmetical Hierarchy ---
+
+    # Σ_1^0 (c.e.) Set:
+    #   A ∈ Σ_1^0 iff A = {x : ∃y R(x, y)} for some computable R.
+    #   Σ_1^0 = the class of computably enumerable sets.
+    # Params: computable relation R -> Σ_1^0 set
+    template "sigma_1_set" 1
+
+    # Π_1^0 (co-c.e.) Set:
+    #   A ∈ Π_1^0 iff A = {x : ∀y R(x, y)} for some computable R.
+    #   Π_1^0 = the class of complements of c.e. sets.
+    # Params: computable relation R -> Π_1^0 set
+    template "pi_1_set" 1
+
+    # Σ_n^0 Set (n ≥ 1):
+    #   A ∈ Σ_n^0 iff A = {x : ∃y_1 ∀y_2 ∃y_3 ... Q_n y_n R(x, y⃗)}
+    #   for some computable relation R and alternating quantifiers.
+    #   Σ_n^0 = the n-th level of the arithmetical hierarchy.
+    # Params: level n, computable relation R -> Σ_n^0 set
+    template "sigma_n_set" 2
+
+    # Π_n^0 Set (n ≥ 1):
+    #   A ∈ Π_n^0 iff A = {x : ∀y_1 ∃y_2 ∀y_3 ... Q_n y_n R(x, y⃗)}
+    #   for some computable relation R and alternating quantifiers.
+    #   Π_n^0 = the complement of Σ_n^0.
+    # Params: level n, computable relation R -> Π_n^0 set
+    template "pi_n_set" 2
+
+    # Δ_n^0 Set (n ≥ 1):
+    #   A ∈ Δ_n^0 iff A ∈ Σ_n^0 ∩ Π_n^0.
+    #   Δ_1^0 = the computable sets.
+    #   Δ_{n+1}^0 = sets computable relative to ∅^(n).
+    # Params: level n, set A -> Δ_n^0 membership certificate
+    template "delta_n_set" 2
+
+    # Post's Theorem:
+    #   A ∈ Σ_{n+1}^0 iff A is c.e. relative to ∅^(n).
+    #   This connects the arithmetical hierarchy to relativized
+    #   computability and the Turing jump.
+    # Params: set A, level n -> equivalence certificate
+    template "post_theorem" 2
+
+    # --- Group VIII: Core Constructors (Derived Operations) ---
+
+    # Pairing Function (Cantor):
+    #   π(x, y) = (x + y)(x + y + 1)/2 + y
+    #   A bijective encoding N × N → N, enabling tuples of naturals
+    #   to be encoded as single naturals.
+    # Params: natural x, natural y -> natural π(x, y)
+    template "cantor_pairing" 2
+
+    # Unpairing Functions:
+    #   π_1(z) and π_2(z) such that π(π_1(z), π_2(z)) = z
+    # Params: natural z -> component x or y
+    template "cantor_unpairing" 1
+
+    # Gödel Numbering (Encoding):
+    #   Assign a unique natural number (Gödel number) to each Turing
+    #   machine / partial computable function. This enables programs
+    #   to be inputs to other programs (self-reference).
+    # Params: Turing machine / program -> Gödel number e
+    template "godel_numbering" 1
+
+    # Program Enumeration:
+    #   φ_0, φ_1, φ_2, ... is a fixed effective enumeration of all
+    #   partial computable functions (of one variable). The enumeration
+    #   is computable: there exists a universal function U(e, x) = φ_e(x).
+    # Params: index e, input x -> φ_e(x) or diverge
+    template "program_enumeration" 2
+
+    # Diagonalization:
+    #   The function d(x) = φ_x(x) + 1 (or any non-trivial modification
+    #   of the diagonal) is a classic tool for proving undecidability.
+    #   Cantor's diagonal argument underpins the proof that the halting
+    #   problem is undecidable.
+    # Params: index e -> φ_e(e) + 1 (or diverge)
+    template "diagonalization" 1
+
+    # Oracle Turing Machine:
+    #   A Turing machine augmented with an oracle tape and query state.
+    #   When in the query state, it writes a number x on the oracle tape
+    #   and receives a yes/no answer for "x ∈ A?" where A is the oracle set.
+    # Params: program description, oracle set A -> computation result
+    template "oracle_turing_machine" 2
+
+    # Relative Computability:
+    #   A set B is computable relative to oracle A (B ≤_T A) iff there
+    #   exists an oracle Turing machine with oracle A that decides B.
+    # Params: set B, oracle set A -> relative computation certificate
+    template "relative_computability" 2
+
+    # Finite Injury Priority Method:
+    #   A construction technique (Friedberg-Muchnik, 1956) for building
+    #   c.e. sets with intermediate Turing degrees. Uses requirements
+    #   ordered by priority; a requirement may be "injured" (temporarily
+    #   violated) but only finitely many times.
+    # Params: requirements R_0, R_1, ... -> c.e. set A of intermediate degree
+    template "finite_injury_priority" 1
+
+    # Infinite Injury Priority Method:
+    #   An extension of the finite injury method where requirements may
+    #   be injured infinitely often, but the construction still converges.
+    #   Used for more complex degree-theoretic constructions.
+    # Params: requirements R_0, R_1, ... -> c.e. set A
+    template "infinite_injury_priority" 1
+
+    # --- Group IX: Primitive Recursive Functions (Subset) ---
+
+    # Addition: plus(x, y) = x + y
+    # Defined by primitive recursion: plus(0, y) = y; plus(S(x), y) = S(plus(x, y))
+    # Params: x, y -> x + y
+    template "primitive_addition" 2
+
+    # Multiplication: times(x, y) = x × y
+    # Defined by primitive recursion: times(0, y) = 0; times(S(x), y) = plus(times(x, y), y)
+    # Params: x, y -> x × y
+    template "primitive_multiplication" 2
+
+    # Exponentiation: power(x, y) = x^y
+    # Defined by primitive recursion: power(x, 0) = 1; power(x, S(y)) = times(x, power(x, y))
+    # Params: base x, exponent y -> x^y
+    template "primitive_exponentiation" 2
+
+    # Factorial: fact(n) = n!
+    # Defined by primitive recursion: fact(0) = 1; fact(S(n)) = times(S(n), fact(n))
+    # Params: n -> n!
+    template "primitive_factorial" 1
+
+    # Predecessor: pred(x) = x - 1 if x > 0, else 0
+    # Defined by primitive recursion: pred(0) = 0; pred(S(x)) = x
+    # Params: x -> x - 1 (or 0)
+    template "primitive_predecessor" 1
+
+    # Subtraction (truncated): sub(x, y) = x - y if x ≥ y, else 0
+    # Defined by primitive recursion: sub(x, 0) = x; sub(x, S(y)) = pred(sub(x, y))
+    # Params: x, y -> max(x - y, 0)
+    template "primitive_subtraction" 2
+
+    # Sign Function: sg(x) = 0 if x = 0, else 1
+    # Defined by primitive recursion: sg(0) = 0; sg(S(x)) = 1
+    # Params: x -> 0 or 1
+    template "primitive_sign" 1
+
+    # Absolute Difference: |x - y| = sub(x, y) + sub(y, x)
+    # Params: x, y -> |x - y|
+    template "primitive_absolute_difference" 2
+
+    # Bounded Minimization:
+    #   (μy ≤ z) R(x, y) = least y ≤ z such that R(x, y) holds,
+    #   or z + 1 if no such y exists. This is primitive recursive
+    #   (unlike unbounded μ).
+    # Params: relation R, bound z -> least y ≤ z or z + 1
+    template "bounded_minimization" 2
+
+    # Bounded Quantification (∃y ≤ z):
+    #   (∃y ≤ z) R(x, y) is primitive recursive when R is.
+    # Params: relation R, bound z -> truth value
+    template "bounded_existential" 2
+
+    # Bounded Universal Quantification (∀y ≤ z):
+    #   (∀y ≤ z) R(x, y) is primitive recursive when R is.
+    # Params: relation R, bound z -> truth value
+    template "bounded_universal" 2
+
+    # --- Group X: Advanced Constructions ---
+
+    # Ackermann Function:
+    #   A(0, n) = n + 1
+    #   A(m+1, 0) = A(m, 1)
+    #   A(m+1, n+1) = A(m, A(m+1, n))
+    #   Total recursive but NOT primitive recursive. Grows faster than
+    #   any primitive recursive function. Demonstrates that μ-recursive
+    #   functions are strictly more powerful than primitive recursive.
+    # Params: m, n -> A(m, n)
+    template "ackermann_function" 2
+
+    # Busy Beaver Function Σ(n):
+    #   The maximum number of 1s that an n-state Turing machine (on the
+    #   binary alphabet) can print before halting, starting on a blank tape.
+    #   Σ(n) grows faster than ANY computable function — it is not
+    #   computable. Only Σ(1)=1, Σ(2)=4, Σ(3)=6, Σ(4)=13, Σ(5)≥4098
+    #   are known.
+    # Params: number of states n -> Σ(n) (non-computable)
+    template "busy_beaver_function" 1
+
+    # Kolmogorov Complexity K(x):
+    #   The length of the shortest program that outputs x and halts.
+    #   K(x) is not computable (by a diagonalization argument), but
+    #   it is upper-semicomputable (c.e. from above).
+    # Params: string x -> K(x) (non-computable)
+    template "kolmogorov_complexity" 1
+
+    # Martin-Löf Randomness Test:
+    #   A Martin-Löf test is a uniformly c.e. sequence of sets
+    #   U_1 ⊇ U_2 ⊇ ... with μ(U_n) ≤ 2^{-n}.
+    #   A set X is Martin-Löf random iff X ∉ ∩_n U_n for every test.
+    # Params: test sequence U_n -> randomness certificate
+    template "martin_lof_randomness_test" 1
+
+    # Friedberg-Muchnik Theorem:
+    #   There exist c.e. sets A, B such that A ≰_T B and B ≰_T A.
+    #   This solves Post's problem: there are c.e. Turing degrees
+    #   strictly between 0 and 0'.
+    # Params: (existence theorem, no inputs) -> intermediate degree sets
+    template "friedberg_muchnik_theorem" 0
+
+    # --- Group XI: Computable Real Numbers ---
+
+    # Computable Real Number:
+    #   A real number x is computable iff there exists a computable
+    #   function f: N → Q such that |x - f(n)| < 2^{-n} for all n.
+    #   Equivalently, the Dedekind cut {q ∈ Q : q < x} is computable.
+    # Params: Cauchy sequence f -> computable real x
+    template "computable_real_number" 1
+
+    # Computable Function on Reals:
+    #   A function f: R → R is computable iff it maps computable reals
+    #   to computable reals and is effectively continuous (there is a
+    #   computable modulus of continuity on compact sets).
+    # Params: computable real x -> computable real f(x)
+    template "computable_function_on_reals" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+    # Each entry documents a problem known to be undecidable or
+    # non-computable within the standard computability framework.
+    # These correspond to Lv-00's "unconstructible" problems —
+    # there is no general algorithm that solves them for all inputs.
+    # =================================================================
+
+    # 1. The Halting Problem
+    # "Given a program e and input x, does φ_e(x) halt?"
+    # The canonical undecidable problem. Proved by Turing (1936) via
+    # diagonalization: if a halting decider H existed, the program
+    # D(x) = "if H(x,x)=1 then loop else halt" would contradict itself.
+    unconstructible "halting_problem" {
+        reduces_to "non_computable_set"
+        dependency "universal_turing_machine"
+        dependency "diagonalization"
+        dependency "godel_numbering"
+        external_ref "https://en.wikipedia.org/wiki/Halting_problem"
+        green_verified true
+    }
+
+    # 2. Rice's Theorem (General Semantic Property Undecidability)
+    # "Is there an algorithm to decide any non-trivial semantic property
+    #  of programs?" No — all non-trivial extensional properties of
+    #  partial computable functions are undecidable.
+    unconstructible "rice_theorem_undecidability" {
+        reduces_to "halting_problem"
+        dependency "kleene_recursion_theorem"
+        dependency "program_enumeration"
+        dependency "halting_problem"
+        external_ref "https://en.wikipedia.org/wiki/Rice%27s_theorem"
+        green_verified true
+    }
+
+    # 3. Totality Problem
+    # "Given program e, is φ_e total (defined on all inputs)?"
+    # Undecidable by Rice's theorem (being total is a non-trivial
+    # semantic property). Also Σ_2^0-complete.
+    unconstructible "totality_problem" {
+        reduces_to "non_computable_set"
+        dependency "rice_theorem_undecidability"
+        dependency "sigma_n_set"
+        external_ref "https://en.wikipedia.org/wiki/Total_function"
+        green_verified true
+    }
+
+    # 4. Equivalence Problem (Program Equivalence)
+    # "Given programs e and f, is φ_e = φ_f (do they compute the
+    #  same partial function)?"
+    # Undecidable by Rice's theorem (equality of functions is a
+    # non-trivial semantic property). Also Π_2^0-complete.
+    unconstructible "program_equivalence_problem" {
+        reduces_to "non_computable_set"
+        dependency "rice_theorem_undecidability"
+        dependency "program_enumeration"
+        external_ref "https://en.wikipedia.org/wiki/Program_equivalence"
+        green_verified true
+    }
+
+    # 5. Post Correspondence Problem (PCP)
+    # "Given a finite set of domino pairs {(u_1,v_1),...,(u_k,v_k)},
+    #  is there a non-empty sequence i_1,...,i_n such that
+    #  u_{i_1}...u_{i_n} = v_{i_1}...v_{i_n}?"
+    # Undecidable (Post 1946). Reduces to the halting problem.
+    # Fundamental undecidable problem in formal language theory.
+    unconstructible "post_correspondence_problem" {
+        reduces_to "halting_problem"
+        dependency "universal_turing_machine"
+        dependency "halting_problem"
+        external_ref "https://en.wikipedia.org/wiki/Post_correspondence_problem"
+        green_verified true
+    }
+
+    # 6. Hilbert's Tenth Problem (Diophantine Equations over Z)
+    # "Given a polynomial P(x_1,...,x_n) with integer coefficients,
+    #  does P = 0 have a solution in integers?"
+    # Undecidable (Matiyasevich 1970, building on Davis-Putnam-Robinson).
+    # One of Hilbert's 23 problems; negative answer was a landmark.
+    unconstructible "hilberts_tenth_problem" {
+        reduces_to "halting_problem"
+        dependency "minimization_operator"
+        dependency "primitive_recursion"
+        dependency "halting_problem"
+        external_ref "https://en.wikipedia.org/wiki/Hilbert%27s_tenth_problem"
+        green_verified true
+    }
+
+    # 7. Word Problem for Groups
+    # "Given a finitely presented group G = ⟨S | R⟩ and a word w
+    #  in the generators S, does w represent the identity element?"
+    # Undecidable (Novikov 1955, Boone 1958). One of the most
+    # important undecidability results in algebra.
+    unconstructible "word_problem_for_groups" {
+        reduces_to "halting_problem"
+        dependency "universal_turing_machine"
+        dependency "halting_problem"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified true
+    }
+
+    # 8. Kolmogorov Complexity (Algorithmic Information)
+    # "Given string x and integer n, is K(x) ≤ n?"
+    # K(x) (the length of the shortest program outputting x) is not
+    # computable. The upper bound K(x) ≤ n is Σ_1^0-complete (c.e.),
+    # but the exact value of K(x) is not computable.
+    unconstructible "kolmogorov_complexity_exact" {
+        reduces_to "non_computable_function"
+        dependency "diagonalization"
+        dependency "universal_turing_machine"
+        dependency "program_enumeration"
+        external_ref "https://en.wikipedia.org/wiki/Kolmogorov_complexity"
+        green_verified true
+    }
+
+    # 9. Busy Beaver Values
+    # "Given n, what is Σ(n) (the busy beaver function value)?"
+    # Σ(n) grows faster than any computable function, so it is not
+    # computable. For n ≥ 5, the exact values are unknown and their
+    # computation would require solving the halting problem for all
+    # n-state Turing machines.
+    unconstructible "busy_beaver_values" {
+        reduces_to "non_computable_function"
+        dependency "halting_problem"
+        dependency "universal_turing_machine"
+        external_ref "https://en.wikipedia.org/wiki/Busy_beaver"
+        green_verified true
+    }
+
+    # 10. Entscheidungsproblem (Decision Problem for First-Order Logic)
+    # "Is there an algorithm that, given a first-order formula,
+    #  decides whether it is valid (true in all structures)?"
+    # Undecidable (Church 1936, Turing 1936). This was the problem
+    # that motivated the development of computability theory.
+    unconstructible "entscheidungsproblem" {
+        reduces_to "halting_problem"
+        dependency "halting_problem"
+        dependency "godel_numbering"
+        external_ref "https://en.wikipedia.org/wiki/Entscheidungsproblem"
+        green_verified true
+    }
+
+    # 11. Tiling Problem (Wang Tiles)
+    # "Given a finite set of Wang tiles, can they tile the entire plane?"
+    # Undecidable (Berger 1966). Reduces to the halting problem.
+    # Connects computability to geometry and tilings.
+    unconstructible "tiling_problem" {
+        reduces_to "halting_problem"
+        dependency "halting_problem"
+        dependency "post_correspondence_problem"
+        external_ref "https://en.wikipedia.org/wiki/Wang_tile"
+        green_verified true
+    }
+
+    # 12. Mortal Matrix Problem
+    # "Given a finite set of n×n integer matrices, is there a product
+    #  (of any finite length) that equals the zero matrix?"
+    # Undecidable for n ≥ 3 (Paterson 1970). Connects computability
+    # to linear algebra.
+    unconstructible "mortal_matrix_problem" {
+        reduces_to "halting_problem"
+        dependency "halting_problem"
+        external_ref "https://en.wikipedia.org/wiki/Mortal_matrix_problem"
+        green_verified true
+    }
+
+    # 13. Post's Problem (Intermediate c.e. Degrees)
+    # "Does there exist a c.e. set A such that ∅ <_T A <_T K?"
+    # Solved positively by Friedberg and Muchnik (1956-1957) using
+    # the finite injury priority method. While the existence is
+    # provable, the specific construction is non-uniform.
+    unconstructible "posts_problem_uniform_solution" {
+        reduces_to "non_uniform_construction"
+        dependency "finite_injury_priority"
+        dependency "turing_degree"
+        dependency "halting_set_K"
+        external_ref "https://en.wikipedia.org/wiki/Post%27s_problem"
+        green_verified true
+    }
+
+    # 14. Zero of a Computable Function
+    # "Given a total computable function f, does f have a zero?"
+    # Undecidable by Rice's theorem (having a zero is a non-trivial
+    # semantic property of the function computed).
+    unconstructible "zero_of_computable_function" {
+        reduces_to "halting_problem"
+        dependency "rice_theorem_undecidability"
+        dependency "halting_problem"
+        external_ref "https://en.wikipedia.org/wiki/Rice%27s_theorem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    #
+    # bottom_geometry: "turing_machine_configuration_space"
+    #   ⊥ (contradiction) in computability theory is geometrically
+    #   represented as a divergent computation — a Turing machine
+    #   configuration that never reaches a halting state. This is the
+    #   natural "bottom" of the computation lattice: a program that
+    #   fails to produce a result. The configuration space of Turing
+    #   machines (tape contents + head position + state) forms the
+    #   underlying geometric substrate. Divergence corresponds to an
+    #   infinite path through this space without reaching a terminal
+    #   configuration.
+    #
+    # negation_encoding: "complement_in_natural_numbers"
+    #   ¬P (negation of a property P) is encoded as the complement
+    #   of the set of indices satisfying P: N \ {e : P(φ_e)}.
+    #   For decidable properties, both P and ¬P are c.e.; for
+    #   undecidable properties, at most one of P, ¬P is c.e.
+    #   The asymmetry between c.e. and co-c.e. reflects the
+    #   constructive/intuitionistic nature of computation: we can
+    #   semi-decide positive existence but not universal negation.
+    #
+    # contradiction_behavior: "explosion_principle"
+    #   Computability theory uses classical logic. From a contradiction
+    #   (e.g., "the halting problem is decidable"), any statement
+    #   follows — including false ones. This is consistent with the
+    #   standard mathematical framework in which computability theory
+    #   is developed. The explosion principle is realized as: if a
+    #   program is shown to both halt and not halt on the same input,
+    #   any computable function can be "computed" from this contradiction.
+    # =================================================================
+
+    bottom_geometry "turing_machine_configuration_space"
+    negation_encoding "complement_in_natural_numbers"
+    contradiction_behavior "explosion_principle"
+}

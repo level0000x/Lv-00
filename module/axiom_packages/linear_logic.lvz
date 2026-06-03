@@ -1,0 +1,459 @@
+# =============================================================================
+# Lv-00 Axiom Package: Linear Logic (Girard 1987)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Linear logic, introduced by Jean-Yves Girard in 1987. A refinement of
+#   classical and intuitionistic logic that treats formulas as resources
+#   rather than truth values. The central insight is that logical connectives
+#   split into multiplicative and additive variants when structural rules
+#   (contraction and weakening) are restricted.
+#
+# References:
+#   - Girard, J.-Y. (1987). "Linear Logic." Theoretical Computer Science,
+#     50(1): 1-102. https://doi.org/10.1016/0304-3975(87)90045-4
+#   - Stanford Encyclopedia of Philosophy: Linear Logic
+#     https://plato.stanford.edu/entries/logic-linear/
+#   - Abramsky, S. (1993). "Computational Interpretations of Linear Logic."
+#     Theoretical Computer Science, 111(1-2): 3-57.
+#     https://doi.org/10.1016/0304-3975(93)90180-R
+#   - Andreoli, J.-M. (1992). "Logic Programming with Focusing Proofs
+#     in Linear Logic." Journal of Logic and Computation, 2(3): 297-347.
+#     https://doi.org/10.1093/logcom/2.3.297
+#   - Wadler, P. (1993). "A Taste of Linear Logic." MFCS 1993.
+#     https://doi.org/10.1007/3-540-57182-5_24
+#   - nLab: Linear logic
+#     https://ncatlab.org/nlab/show/linear+logic
+#
+# Primitive Notions:
+#   - Linear proposition (formula): treated as a resource
+#   - Linear sequent: Γ ⊢ Δ (multisets of formulas on both sides)
+#   - Negation (⊥): involutive, De Morgan dualities with all connectives
+#
+# Core Connectives (4 groups):
+#   Multiplicative:
+#     ⊗ (tensor)     - multiplicative conjunction (both resources needed)
+#     ⅋ (par)        - multiplicative disjunction (choice between resources)
+#     1 (one)        - multiplicative unit (left)
+#     ⊥ (bottom)     - multiplicative unit (right)
+#   Additive:
+#     & (with)       - additive conjunction (choice of which to use)
+#     ⊕ (plus)       - additive disjunction (offer of alternatives)
+#     ⊤ (top)        - additive unit (left)
+#     0 (zero)       - additive unit (right)
+#   Exponential (modal):
+#     ! (of-course/bang)  - allows contraction/weakening on left
+#     ? (why-not)         - allows contraction/weakening on right
+#   Linear implication:
+#     A ⊸ B ≡ A⊥ ⅋ B  (linear implication, resource-consuming)
+#     A ⇒ B ≡ !A ⊸ B   (intuitionistic implication, reusable resource)
+#
+# Structural Rules (restricted by exponentials):
+#   - Contraction: only for !A (left) and ?A (right)
+#   - Weakening:   only for !A (left) and ?A (right)
+#   - Exchange:    always allowed (multiset contexts)
+#
+# Sequent Calculus Rules (Girard 1987):
+#   Identity:  init: B ⊢ B
+#             cut:  Γ₁ ⊢ B,Δ₁  Γ₂,B ⊢ Δ₂  ⇒  Γ₁,Γ₂ ⊢ Δ₁,Δ₂
+#   Negation:  ⊥L:  Γ ⊢ B,Δ  ⇒  Γ,B⊥ ⊢ Δ
+#             ⊥R:  Γ,B ⊢ Δ  ⇒  Γ ⊢ B⊥,Δ
+#   Multiplicative:
+#             1L:   Γ ⊢ Δ  ⇒  Γ,1 ⊢ Δ
+#             1R:   ⊢ 1
+#             ⊥L:   ⊥ ⊢
+#             ⊥R:   Γ ⊢ Δ  ⇒  Γ ⊢ ⊥,Δ
+#             ⊗L:   Γ,A,B ⊢ Δ  ⇒  Γ,A⊗B ⊢ Δ
+#             ⊗R:   Γ₁ ⊢ A,Δ₁  Γ₂ ⊢ B,Δ₂  ⇒  Γ₁,Γ₂ ⊢ A⊗B,Δ₁,Δ₂
+#             ⅋L:   Γ₁,A ⊢ Δ₁  Γ₂,B ⊢ Δ₂  ⇒  Γ₁,Γ₂,A⅋B ⊢ Δ₁,Δ₂
+#             ⅋R:   Γ ⊢ A,B,Δ  ⇒  Γ ⊢ A⅋B,Δ
+#   Additive:
+#             0L:   Γ,0 ⊢ Δ
+#             ⊤R:   Γ ⊢ ⊤,Δ
+#             &L:   Γ,Aᵢ ⊢ Δ  ⇒  Γ,A₁&A₂ ⊢ Δ  (i=1,2)
+#             &R:   Γ ⊢ A,Δ  Γ ⊢ B,Δ  ⇒  Γ ⊢ A&B,Δ
+#             ⊕L:   Γ,A ⊢ Δ  Γ,B ⊢ Δ  ⇒  Γ,A⊕B ⊢ Δ
+#             ⊕R:   Γ ⊢ Aᵢ,Δ  ⇒  Γ ⊢ A₁⊕A₂,Δ  (i=1,2)
+#   Exponential:
+#             !W:   Γ ⊢ Δ  ⇒  Γ,!A ⊢ Δ
+#             !C:   Γ,!A,!A ⊢ Δ  ⇒  Γ,!A ⊢ Δ
+#             !D:   Γ,A ⊢ Δ  ⇒  Γ,!A ⊢ Δ
+#             !R:   !Γ ⊢ A,?Δ  ⇒  !Γ ⊢ !A,?Δ
+#             ?W:   Γ ⊢ Δ  ⇒  Γ ⊢ ?A,Δ
+#             ?C:   Γ ⊢ ?A,?A,Δ  ⇒  Γ ⊢ ?A,Δ
+#             ?D:   Γ ⊢ A,Δ  ⇒  Γ ⊢ ?A,Δ
+#             ?L:   !Γ,A ⊢ ?Δ  ⇒  !Γ,?A ⊢ ?Δ
+#
+# Key Fragments:
+#   MLL  = Multiplicative Linear Logic (⊗, ⅋, 1, ⊥, ⊥) — NP-complete
+#   MALL = Multiplicative Additive Linear Logic (MLL + &, ⊕, ⊤, 0) — PSPACE-complete
+#   MELL = Multiplicative Exponential Linear Logic (MLL + !, ?) — undecidable
+#   Full = MALL + exponentials — undecidable
+#
+# Known Undecidable/Unconstructible Problems:
+#   1. Provability in full propositional linear logic — undecidable
+#      (Lincoln, Mitchell, Scedrov, Shankar 1992)
+#   2. Provability in MELL — open problem (long-standing)
+#   3. Proof net normalization for full linear logic — undecidable
+#   4. Type inhabitation for full linear logic — undecidable
+#   5. Equality of proof nets — undecidable
+#   6. Provability in non-commutative linear logic — undecidable
+#
+# Relationship to other axiom packages:
+#   - Refines: intuitionistic_logic (linear logic restricts structural rules)
+#   - Refines: classical_propositional_logic (with exponentials, recovers classical)
+#   - Connects to: simple_type_theory (linear type systems)
+#   - Connects to: category_theory (*-autonomous categories model MLL)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "linear_logic" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates: Identity & Structural Rules
+    # =================================================================
+
+    # --- Identity and Cut ---
+    # init: B ⊢ B (identity axiom)
+    template "identity_init" 1
+
+    # cut: Γ₁ ⊢ B,Δ₁  Γ₂,B ⊢ Δ₂  ⇒  Γ₁,Γ₂ ⊢ Δ₁,Δ₂
+    # Params: sequent1, sequent2, cut_formula
+    template "cut_rule" 3
+
+    # --- Exchange (always permitted in linear logic) ---
+    # Exchange: reorder formulas in sequent context (multiset)
+    template "exchange" 2
+
+    # =================================================================
+    # Constraint Templates: Negation (Involutive, De Morgan Dualities)
+    # =================================================================
+
+    # ⊥L: Γ ⊢ B,Δ  ⇒  Γ,B⊥ ⊢ Δ
+    # Params: formula B, sequent context
+    template "negation_left" 2
+
+    # ⊥R: Γ,B ⊢ Δ  ⇒  Γ ⊢ B⊥,Δ
+    # Params: formula B, sequent context
+    template "negation_right" 2
+
+    # Double negation elimination/reintroduction (involutive negation)
+    # A⊥⊥ ≡ A
+    template "double_negation_involution" 1
+
+    # De Morgan duality: (A ⊗ B)⊥ ≡ A⊥ ⅋ B⊥
+    template "demorgan_tensor_par" 2
+
+    # De Morgan duality: (A ⅋ B)⊥ ≡ A⊥ ⊗ B⊥
+    template "demorgan_par_tensor" 2
+
+    # De Morgan duality: (A & B)⊥ ≡ A⊥ ⊕ B⊥
+    template "demorgan_with_plus" 2
+
+    # De Morgan duality: (A ⊕ B)⊥ ≡ A⊥ & B⊥
+    template "demorgan_plus_with" 2
+
+    # De Morgan duality: (!A)⊥ ≡ ?(A⊥)
+    template "demorgan_bang_quest" 1
+
+    # De Morgan duality: (?A)⊥ ≡ !(A⊥)
+    template "demorgan_quest_bang" 1
+
+    # =================================================================
+    # Constraint Templates: Multiplicative Connectives
+    # =================================================================
+
+    # --- Tensor (⊗): multiplicative conjunction ---
+    # ⊗L: Γ,A,B ⊢ Δ  ⇒  Γ,A⊗B ⊢ Δ
+    template "tensor_left" 3
+
+    # ⊗R: Γ₁ ⊢ A,Δ₁  Γ₂ ⊢ B,Δ₂  ⇒  Γ₁,Γ₂ ⊢ A⊗B,Δ₁,Δ₂
+    template "tensor_right" 4
+
+    # --- Par (⅋): multiplicative disjunction ---
+    # ⅋L: Γ₁,A ⊢ Δ₁  Γ₂,B ⊢ Δ₂  ⇒  Γ₁,Γ₂,A⅋B ⊢ Δ₁,Δ₂
+    template "par_left" 4
+
+    # ⅋R: Γ ⊢ A,B,Δ  ⇒  Γ ⊢ A⅋B,Δ
+    template "par_right" 3
+
+    # --- One (1): multiplicative unit (left) ---
+    # 1L: Γ ⊢ Δ  ⇒  Γ,1 ⊢ Δ
+    template "one_left" 1
+
+    # 1R: ⊢ 1
+    template "one_right" 0
+
+    # --- Bottom (⊥): multiplicative unit (right) ---
+    # ⊥L: ⊥ ⊢
+    template "bottom_mult_left" 0
+
+    # ⊥R: Γ ⊢ Δ  ⇒  Γ ⊢ ⊥,Δ
+    template "bottom_mult_right" 1
+
+    # --- Linear Implication (⊸) ---
+    # A ⊸ B ≡ A⊥ ⅋ B
+    # ⊸L: Γ₁ ⊢ A,Δ₁  Γ₂,B ⊢ Δ₂  ⇒  Γ₁,Γ₂,A⊸B ⊢ Δ₁,Δ₂
+    template "linear_implication_left" 4
+
+    # ⊸R: Γ,A ⊢ B,Δ  ⇒  Γ ⊢ A⊸B,Δ
+    template "linear_implication_right" 3
+
+    # =================================================================
+    # Constraint Templates: Additive Connectives
+    # =================================================================
+
+    # --- With (&): additive conjunction (internal choice) ---
+    # &L: Γ,Aᵢ ⊢ Δ  ⇒  Γ,A₁&A₂ ⊢ Δ  (i = 1,2)
+    template "with_left" 3
+
+    # &R: Γ ⊢ A,Δ  Γ ⊢ B,Δ  ⇒  Γ ⊢ A&B,Δ
+    template "with_right" 3
+
+    # --- Plus (⊕): additive disjunction (external choice) ---
+    # ⊕L: Γ,A ⊢ Δ  Γ,B ⊢ Δ  ⇒  Γ,A⊕B ⊢ Δ
+    template "plus_left" 3
+
+    # ⊕R: Γ ⊢ Aᵢ,Δ  ⇒  Γ ⊢ A₁⊕A₂,Δ  (i = 1,2)
+    template "plus_right" 3
+
+    # --- Top (⊤): additive unit (left) ---
+    # ⊤R: Γ ⊢ ⊤,Δ
+    template "top_right" 1
+
+    # --- Zero (0): additive unit (right) ---
+    # 0L: Γ,0 ⊢ Δ
+    template "zero_left" 1
+
+    # =================================================================
+    # Constraint Templates: Exponential (Modal) Connectives
+    # =================================================================
+
+    # --- Of-course (!): enables contraction/weakening on left ---
+    # !W (weakening): Γ ⊢ Δ  ⇒  Γ,!A ⊢ Δ
+    template "bang_weakening" 2
+
+    # !C (contraction): Γ,!A,!A ⊢ Δ  ⇒  Γ,!A ⊢ Δ
+    template "bang_contraction" 3
+
+    # !D (dereliction): Γ,A ⊢ Δ  ⇒  Γ,!A ⊢ Δ
+    template "bang_dereliction" 2
+
+    # !R (promotion): !Γ ⊢ A,?Δ  ⇒  !Γ ⊢ !A,?Δ
+    template "bang_promotion" 3
+
+    # --- Why-not (?): enables contraction/weakening on right ---
+    # ?W (weakening): Γ ⊢ Δ  ⇒  Γ ⊢ ?A,Δ
+    template "quest_weakening" 2
+
+    # ?C (contraction): Γ ⊢ ?A,?A,Δ  ⇒  Γ ⊢ ?A,Δ
+    template "quest_contraction" 3
+
+    # ?D (dereliction): Γ ⊢ A,Δ  ⇒  Γ ⊢ ?A,Δ
+    template "quest_dereliction" 2
+
+    # ?L (promotion): !Γ,A ⊢ ?Δ  ⇒  !Γ,?A ⊢ ?Δ
+    template "quest_promotion" 3
+
+    # =================================================================
+    # Constraint Templates: Exponential Equivalences
+    # =================================================================
+
+    # ! distributes over ⊗: !(A & B) ≡ (!A ⊗ !B)
+    template "bang_distributes_tensor" 2
+
+    # ! distributes over ⊤: !⊤ ≡ 1
+    template "bang_top_equivalence" 0
+
+    # ? distributes over ⅋: ?(A ⊕ B) ≡ (?A ⅋ ?B)
+    template "quest_distributes_par" 2
+
+    # ? distributes over 0: ?0 ≡ ⊥
+    template "quest_zero_equivalence" 0
+
+    # Monoid laws for ! (promotion forms a comonoid)
+    # !A ⊸ A (dereliction as linear implication)
+    template "bang_to_linear" 1
+
+    # !A ⊸ !A ⊗ !A (comonoid comultiplication)
+    template "bang_comultiplication" 1
+
+    # !A ⊸ 1 (comonoid counit / weakening)
+    template "bang_counit" 1
+
+    # =================================================================
+    # Constraint Templates: Key Derived Constructors / Theorems
+    # =================================================================
+
+    # --- Encoding classical logic into linear logic ---
+    # Intuitionistic implication: A ⇒ B ≡ !A ⊸ B
+    template "intuitionistic_implication_encoding" 2
+
+    # Classical conjunction: A ∧ B ≡ !(A & B)
+    template "classical_conjunction_encoding" 2
+
+    # Classical disjunction: A ∨ B ≡ !(!(A ⊕ B))
+    template "classical_disjunction_encoding" 2
+
+    # Law of excluded middle (multiplicative): A ⅋ A⊥ (provable)
+    template "excluded_middle_multiplicative" 1
+
+    # Law of excluded middle (additive): A ⊕ A⊥ (NOT provable)
+    # This is recorded as an unconstructible problem below.
+
+    # --- Focused proof system (Andreoli 1992) ---
+    # Asynchronous phase: invertible rules (⊤, &, ⊥, ⅋, ?, ∀)
+    template "asynchronous_phase" 1
+
+    # Synchronous phase: non-invertible rules (0, ⊕, 1, ⊗, !, ∃)
+    template "synchronous_phase" 1
+
+    # Decision: choose between synchronous and asynchronous formulas
+    template "focus_decision" 2
+
+    # --- Encoding into intuitionistic logic ---
+    # Γ ⊢ Δ in linear logic maps to !Γ ⊢ ?Δ in intuitionistic
+    template "linear_to_intuitionistic_translation" 2
+
+    # --- Resource management patterns ---
+    # Resource splitting: from A⊗B, extract A and B separately
+    template "resource_split" 2
+
+    # Resource merging: from A and B, construct A⊗B
+    template "resource_merge" 2
+
+    # Resource consumption: from A⊸B and A, produce B (consume A)
+    template "resource_consume" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "provability_full_propositional_linear_logic" {
+        reduces_to "undecidable"
+        dependency "bang_weakening"
+        dependency "bang_contraction"
+        dependency "bang_promotion"
+        dependency "tensor_right"
+        dependency "par_right"
+        external_ref "https://doi.org/10.1016/0304-3975(87)90045-4"
+        green_verified true
+    }
+
+    unconstructible "provability_MELL" {
+        reduces_to "open_problem"
+        dependency "bang_weakening"
+        dependency "bang_contraction"
+        dependency "bang_promotion"
+        dependency "tensor_right"
+        dependency "par_right"
+        external_ref "https://plato.stanford.edu/entries/logic-linear/"
+        green_verified false
+    }
+
+    unconstructible "proof_net_normalization" {
+        reduces_to "undecidable"
+        dependency "tensor_right"
+        dependency "par_right"
+        dependency "cut_rule"
+        external_ref "https://doi.org/10.1016/0304-3975(87)90045-4"
+        green_verified true
+    }
+
+    unconstructible "type_inhabitation_full_linear_logic" {
+        reduces_to "undecidable"
+        dependency "bang_weakening"
+        dependency "bang_contraction"
+        dependency "bang_promotion"
+        dependency "linear_implication_right"
+        external_ref "https://doi.org/10.1016/0304-3975(87)90045-4"
+        green_verified true
+    }
+
+    unconstructible "proof_net_equality" {
+        reduces_to "undecidable"
+        dependency "tensor_right"
+        dependency "par_right"
+        dependency "identity_init"
+        external_ref "https://doi.org/10.1016/0304-3975(87)90045-4"
+        green_verified true
+    }
+
+    unconstructible "provability_noncommutative_linear_logic" {
+        reduces_to "undecidable"
+        dependency "identity_init"
+        dependency "tensor_right"
+        dependency "par_right"
+        external_ref "https://plato.stanford.edu/entries/logic-linear/#NonComLinLog"
+        green_verified true
+    }
+
+    unconstructible "additive_excluded_middle" {
+        reduces_to "not_provable"
+        dependency "plus_right"
+        dependency "negation_right"
+        dependency "identity_init"
+        external_ref "https://plato.stanford.edu/entries/logic-linear/"
+        green_verified true
+    }
+
+    unconstructible "provability_MALL_PSPACE_complete" {
+        reduces_to "PSPACE_complete"
+        dependency "tensor_right"
+        dependency "par_right"
+        dependency "with_right"
+        dependency "plus_left"
+        external_ref "https://doi.org/10.1016/0890-5401(92)90020-D"
+        green_verified true
+    }
+
+    unconstructible "provability_MLL_NP_complete" {
+        reduces_to "NP_complete"
+        dependency "tensor_right"
+        dependency "par_right"
+        dependency "identity_init"
+        external_ref "https://doi.org/10.1007/BFb0018400"
+        green_verified true
+    }
+
+    unconstructible "cut_elimination_termination" {
+        reduces_to "undecidable_for_full_linear_logic"
+        dependency "cut_rule"
+        dependency "bang_promotion"
+        dependency "tensor_right"
+        external_ref "https://doi.org/10.1016/0304-3975(87)90045-4"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    # Bottom geometry: Linear logic's ⊥ (falsum) is the multiplicative
+    # unit, distinct from the additive 0. In the resource interpretation,
+    # ⊥ represents the absence of any resource — it is the identity for
+    # tensor (A ⊗ ⊥ ≡ A) and the annihilator for par (A ⅋ ⊥ ≡ ⊥).
+    # The negation is involutive: (A⊥)⊥ ≡ A.
+    bottom_geometry "linear_resource_multiset"
+
+    # Negation encoding: Involutive linear negation (⊥)
+    # Unlike classical logic (A → ⊥) or intuitionistic logic,
+    # linear negation is a primitive, involutive operation with full
+    # De Morgan dualities. It is its own dual: (A⊥)⊥ = A.
+    negation_encoding "involutive_linear_negation"
+
+    # Contradiction behavior: CONSTRUCTIVE (blocking)
+    # Linear logic does NOT have the explosion principle (ex falso
+    # quodlibet). From ⊥, one cannot derive arbitrary propositions.
+    # The absence of weakening means that ⊥ cannot be discarded to
+    # derive anything else. This is a fundamental difference from
+    # classical logic. The contradiction behavior is "blocking" —
+    # a contradiction blocks further derivation in that branch.
+    # Note: In the full system with exponentials, !⊥ ⊸ A is provable
+    # (recovering a form of explosion for reusable contradictions),
+    # but ⊥ ⊸ A is NOT provable.
+    contradiction_behavior "constructive"
+}
