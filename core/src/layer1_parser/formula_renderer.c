@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_renderer.c
  * @brief 公式渲染器实现
  *
