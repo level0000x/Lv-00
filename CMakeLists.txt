@@ -833,6 +833,50 @@ add_library(lv00_layer6_visual OBJECT ${LV00_LAYER6_SOURCES} ${LV00_LAYER6_HEADE
 lv00_setup_layer(lv00_layer6_visual 6)
 target_link_libraries(lv00_layer6_visual lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
 
+# ── Layer 7: 编排调度层 (Orchestration Layer) ──
+set(LV00_LAYER7_SOURCES
+    core/src/layer7_orchestration/orchestrator.c
+)
+set(LV00_LAYER7_HEADERS
+    core/include/lv00/orchestrator.h
+)
+add_library(lv00_layer7_orchestration OBJECT ${LV00_LAYER7_SOURCES} ${LV00_LAYER7_HEADERS})
+lv00_setup_layer(lv00_layer7_orchestration 7)
+target_link_libraries(lv00_layer7_orchestration lv00_layer6_visual lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+
+# ── Layer 8: 元验证层 (Meta-Verification Layer) ──
+set(LV00_LAYER8_SOURCES
+    core/src/layer8_meta_verify/meta_verify.c
+)
+set(LV00_LAYER8_HEADERS
+    core/include/lv00/meta_verify.h
+)
+add_library(lv00_layer8_meta_verify OBJECT ${LV00_LAYER8_SOURCES} ${LV00_LAYER8_HEADERS})
+lv00_setup_layer(lv00_layer8_meta_verify 8)
+target_link_libraries(lv00_layer8_meta_verify lv00_layer7_orchestration)
+
+# ── Layer 9: 应用入口层 (Application Layer) ──
+set(LV00_LAYER9_SOURCES
+    core/src/layer9_application/application.c
+)
+set(LV00_LAYER9_HEADERS
+    core/include/lv00/application.h
+)
+add_library(lv00_layer9_application OBJECT ${LV00_LAYER9_SOURCES} ${LV00_LAYER9_HEADERS})
+lv00_setup_layer(lv00_layer9_application 9)
+target_link_libraries(lv00_layer9_application lv00_layer8_meta_verify)
+
+# ── Layer 10: 外部集成层 (Interop Layer) ──
+set(LV00_LAYER10_SOURCES
+    core/src/layer10_interop/interop.c
+)
+set(LV00_LAYER10_HEADERS
+    core/include/lv00/interop.h
+)
+add_library(lv00_layer10_interop OBJECT ${LV00_LAYER10_SOURCES} ${LV00_LAYER10_HEADERS})
+lv00_setup_layer(lv00_layer10_interop 10)
+target_link_libraries(lv00_layer10_interop lv00_layer9_application)
+
 # ── 聚合静态库（向后兼容 lv00_static）──
 # 将所有层的 OBJECT 文件聚合到一个静态库中
 add_library(lv00_static STATIC
@@ -842,6 +886,10 @@ add_library(lv00_static STATIC
     $<TARGET_OBJECTS:lv00_layer4_reasoning>
     $<TARGET_OBJECTS:lv00_layer5_output>
     $<TARGET_OBJECTS:lv00_layer6_visual>
+    $<TARGET_OBJECTS:lv00_layer7_orchestration>
+    $<TARGET_OBJECTS:lv00_layer8_meta_verify>
+    $<TARGET_OBJECTS:lv00_layer9_application>
+    $<TARGET_OBJECTS:lv00_layer10_interop>
 )
 target_include_directories(lv00_static PUBLIC
     ${GMP_INCLUDE_DIR}
@@ -864,6 +912,10 @@ if(BUILD_SHARED_LIBS)
         $<TARGET_OBJECTS:lv00_layer4_reasoning>
         $<TARGET_OBJECTS:lv00_layer5_output>
         $<TARGET_OBJECTS:lv00_layer6_visual>
+        $<TARGET_OBJECTS:lv00_layer7_orchestration>
+        $<TARGET_OBJECTS:lv00_layer8_meta_verify>
+        $<TARGET_OBJECTS:lv00_layer9_application>
+        $<TARGET_OBJECTS:lv00_layer10_interop>
     )
     target_include_directories(lv00_shared PUBLIC
         ${GMP_INCLUDE_DIR}

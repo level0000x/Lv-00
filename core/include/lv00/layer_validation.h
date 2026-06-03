@@ -1,10 +1,10 @@
 /**
  * @file layer_validation.h
- * @brief Lv-00 六层架构编译时边界验证
+ * @brief Lv-00 十层架构编译时边界验证
  * @details 提供编译时层级边界检查，确保下层模块不依赖上层模块。
  *          通过宏和静态断言实现编译时验证。
  *
- * @version 4.0.0
+ * @version 5.0.0
  * @author Lv-00 Project
  *
  * @par 验证规则
@@ -14,6 +14,10 @@
  * - Layer 4 (Reasoning): 只能依赖 Layer 3 和 Layer 2
  * - Layer 5 (Output): 只能依赖 Layer 4、Layer 3 和 Layer 2
  * - Layer 6 (Visual): 只能依赖 Layer 5、Layer 4、Layer 3 和 Layer 2
+ * - Layer 7 (Orchestration): 编排调度 Layer 1-6
+ * - Layer 8 (Meta-Verification): 元验证证明结果
+ * - Layer 9 (Application): 应用入口（REPL/批量/IDE）
+ * - Layer 10 (Interop): 外部工具集成（Lean4/Coq/Isabelle）
  *
  * @par 使用方法
  * 在每个源文件顶部包含此头文件，并定义 LV00_CURRENT_LAYER 宏。
@@ -33,6 +37,10 @@
 #define LV00_LAYER_REASONING 4  /**< Layer 4: 公理推理层 */
 #define LV00_LAYER_OUTPUT    5  /**< Layer 5: 结果输出层 */
 #define LV00_LAYER_VISUAL    6  /**< Layer 6: 图形化编程层 */
+#define LV00_LAYER_ORCHESTRATION 7  /**< Layer 7: 编排调度层 */
+#define LV00_LAYER_META_VERIFY   8  /**< Layer 8: 元验证层 */
+#define LV00_LAYER_APPLICATION    9  /**< Layer 9: 应用入口层 */
+#define LV00_LAYER_INTEROP       10 /**< Layer 10: 外部集成层 */
 
 /* ============================================================
  * 层级边界验证宏
