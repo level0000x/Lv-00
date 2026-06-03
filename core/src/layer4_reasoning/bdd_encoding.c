@@ -1,9 +1,15 @@
 /**
  * @file bdd_encoding.c
- * @brief CUDD 二阶策略图编码 —— 桩实现
+ * @brief CUDD 二阶策略图编码 —— 真实实现
  *
- * 提供 BDD/ADD 的基本操作实现，包括布尔运算、变量序优化、
+ * 提供 BDD/ADD 的完整操作实现，包括布尔运算、变量序优化、
  * 约束图 -> BDD 编码和坐标 bit-blasting。
+ *
+ * BDD 核心算法：
+ * - 唯一表哈希（开放寻址法）确保节点去重
+ * - ITE (If-Then-Else) 递归算法实现所有布尔运算
+ * - Tseitin 变换实现 BDD -> CNF 转换
+ * - Sifting 变量序优化
  *
  * @version v3.3.0
  * @date 2026-05-24
@@ -574,27 +580,262 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
 }
 
 /* ========================================================================
+ * 内部：BDD 节点遍历辅助
+ * ======================================================================== */
+
+/** BDD 遍历访问标记（用于 bdd_to_cnf 的拓扑排序） */
+typedef struct BDDVisitEntry {
+    BDDNode *node;
+    int aux_var;      /**< Tseitin 辅助变量编号 */
+    bool visited;
+} BDDVisitEntry;
+
+/** 最大 BDD 节点数（用于遍历数组） */
+#define BDD_TRAVERSE_MAX 65536
+
+/** 收集 BDD 中所有非终端节点（拓扑排序） */
+static int bdd_collect_nodes(BDDNode *root, BDDVisitEntry *entries, int max_entries) {
+    if (!root || max_entries <= 0)
+        return 0;
+
+    /* 简单 DFS 收集 */
+    int count = 0;
+    BDDNode *stack[BDD_TRAVERSE_MAX];
+    int stack_top = 0;
+
+    stack[stack_top++] = root;
+
+    while (stack_top > 0 && count < max_entries) {
+        BDDNode *node = stack[--stack_top];
+
+        /* 终端节点跳过 */
+        if (!node || node->var_id < 0)
+            continue;
+
+        /* 检查是否已收集 */
+        bool found = false;
+        for (int i = 0; i < count; i++) {
+            if (entries[i].node == node) {
+                found = true;
+                break;
+            }
+        }
+        if (found)
+            continue;
+
+        entries[count].node = node;
+        entries[count].aux_var = 0;
+        entries[count].visited = false;
+        count++;
+
+        if (stack_top < BDD_TRAVERSE_MAX) {
+            if (node->high) stack[stack_top++] = node->high;
+            if (node->low) stack[stack_top++] = node->low;
+        }
+    }
+
+    return count;
+}
+
+/* ========================================================================
  * bdd_to_cnf —— BDD -> DIMACS CNF
  *
  * 使用 Tseitin 变换：对 BDD 中每个非终端节点引入辅助变量。
  * 节点 v = ITE(var, low, high) 的 Tseitin 编码：
  *   (~v | ~var | high) & (~v | var | low) & (v | ~var | ~high) & (v | var | ~low)
+ *
+ * 变量编号：
+ *   1..n = 原始 BDD 变量
+ *   n+1.. = Tseitin 辅助变量
+ * 根节点的辅助变量必须为 true（单位子句）。
  * ======================================================================== */
 
 bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
     if (!bdd || !out_cnf)
         return false;
 
-    /* 桩实现：生成骨架 CNF */
-    size_t buf_size = 4096;
-    char *buf = (char *) lv00_malloc(buf_size);
-    if (!buf)
+    /* 终端节点特例 */
+    if (bdd->var_id < 0) {
+        size_t buf_size = 128;
+        char *buf = (char *) lv00_malloc(buf_size);
+        if (!buf)
+            return false;
+        if (bdd->complemented) {
+            /* False 节点 -> 空 CNF（不可满足） */
+            snprintf(buf, buf_size, "c BDD is FALSE\np cnf 1 1\n1 0\n-1 0\n");
+        } else {
+            /* True 节点 -> 空 CNF（可满足） */
+            snprintf(buf, buf_size, "c BDD is TRUE\np cnf 1 1\n1 0\n");
+        }
+        *out_cnf = buf;
+        return true;
+    }
+
+    /* 收集所有非终端节点 */
+    BDDVisitEntry *entries = (BDDVisitEntry *) lv00_malloc(
+        (size_t) BDD_TRAVERSE_MAX * sizeof(BDDVisitEntry));
+    if (!entries)
         return false;
 
-    /* DIMACS 头部 */
-    int offset = snprintf(buf, buf_size,
-                          "c BDD-to-CNF conversion (stub)\n"
-                          "p cnf 0 0\n");
+    int node_count = bdd_collect_nodes(bdd, entries, BDD_TRAVERSE_MAX);
+
+    /* 确定最大原始变量 ID */
+    int max_var_id = 0;
+    for (int i = 0; i < node_count; i++) {
+        if (entries[i].node->var_id > max_var_id)
+            max_var_id = entries[i].node->var_id;
+    }
+
+    /* 分配辅助变量：从 max_var_id + 1 开始 */
+    int aux_base = max_var_id + 1;
+    for (int i = 0; i < node_count; i++) {
+        entries[i].aux_var = aux_base + i;
+    }
+
+    /* 根节点的辅助变量映射 */
+    int root_aux = -1;
+    for (int i = 0; i < node_count; i++) {
+        if (entries[i].node == bdd) {
+            root_aux = entries[i].aux_var;
+            break;
+        }
+    }
+
+    /* 估算缓冲区大小 */
+    size_t buf_size = (size_t)(4096 + node_count * 256);
+    char *buf = (char *) lv00_malloc(buf_size);
+    if (!buf) {
+        lv00_free((void **) &entries);
+        return false;
+    }
+
+    int offset = 0;
+    int remaining = (int) buf_size;
+    int clause_count = 0;
+
+    /* DIMACS 头部（先写占位，后面回填） */
+    int header_pos = offset;
+    offset += snprintf(buf + offset, (size_t) remaining,
+                      "c BDD-to-CNF conversion (Tseitin)\n");
+    remaining -= offset - header_pos;
+
+    /* 辅助变量查找函数 */
+    /* 对于终端节点，返回其布尔值对应的变量 */
+    /* 这里我们用一个简单的线性查找 */
+
+    /* 生成子句 */
+    for (int i = 0; i < node_count; i++) {
+        BDDNode *node = entries[i].node;
+        int v = entries[i].aux_var;       /* 辅助变量 */
+        int x = node->var_id;             /* 决策变量 */
+
+        /* 确定 low 和 high 的变量编号 */
+        int low_lit, high_lit;
+        if (!node->low || node->low->var_id < 0) {
+            /* low 是终端节点 */
+            low_lit = 0; /* 表示 false */
+        } else {
+            /* 查找 low 的辅助变量 */
+            low_lit = 0;
+            for (int j = 0; j < node_count; j++) {
+                if (entries[j].node == node->low) {
+                    low_lit = entries[j].aux_var;
+                    break;
+                }
+            }
+        }
+
+        if (!node->high || node->high->var_id < 0) {
+            /* high 是终端节点 */
+            high_lit = 0;
+        } else {
+            high_lit = 0;
+            for (int j = 0; j < node_count; j++) {
+                if (entries[j].node == node->high) {
+                    high_lit = entries[j].aux_var;
+                    break;
+                }
+            }
+        }
+
+        /* Tseitin 编码：node = ITE(x, high, low)
+         * 等价于四个子句：
+         *   (~v | ~x | high_lit)   -- 如果 v=1 且 x=1 则 high=1
+         *   (~v | x | low_lit)     -- 如果 v=1 且 x=0 则 low=1
+         *   (v | ~x | ~high_lit)   -- 如果 v=0 且 x=1 则 high=0
+         *   (v | x | ~low_lit)     -- 如果 v=0 且 x=0 则 low=0
+         *
+         * 对于终端节点（lit=0），子句简化
+         */
+
+        /* 子句 1: ~v | ~x | high */
+        if (remaining > 64) {
+            if (high_lit > 0) {
+                int n = snprintf(buf + offset, (size_t) remaining,
+                                "%d %d %d 0\n", -v, -x, high_lit);
+            } else {
+                /* high 是 false (0)，子句变为 ~v | ~x（省略 0） */
+                int n = snprintf(buf + offset, (size_t) remaining,
+                                "%d %d 0\n", -v, -x);
+            }
+            if (n > 0 && n < remaining) { offset += n; remaining -= n; }
+            clause_count++;
+        }
+
+        /* 子句 2: ~v | x | low */
+        if (remaining > 64) {
+            if (low_lit > 0) {
+                int n = snprintf(buf + offset, (size_t) remaining,
+                                "%d %d %d 0\n", -v, x, low_lit);
+            } else {
+                int n = snprintf(buf + offset, (size_t) remaining,
+                                "%d %d 0\n", -v, x);
+            }
+            if (n > 0 && n < remaining) { offset += n; remaining -= n; }
+            clause_count++;
+        }
+
+        /* 子句 3: v | ~x | ~high */
+        if (remaining > 64 && high_lit > 0) {
+            int n = snprintf(buf + offset, (size_t) remaining,
+                            "%d %d %d 0\n", v, -x, -high_lit);
+            if (n > 0 && n < remaining) { offset += n; remaining -= n; }
+            clause_count++;
+        }
+
+        /* 子句 4: v | x | ~low */
+        if (remaining > 64 && low_lit > 0) {
+            int n = snprintf(buf + offset, (size_t) remaining,
+                            "%d %d %d 0\n", v, x, -low_lit);
+            if (n > 0 && n < remaining) { offset += n; remaining -= n; }
+            clause_count++;
+        }
+    }
+
+    /* 根节点单位子句：root_aux 必须为 true */
+    if (root_aux > 0 && remaining > 32) {
+        int n = snprintf(buf + offset, (size_t) remaining, "%d 0\n", root_aux);
+        if (n > 0 && n < remaining) { offset += n; remaining -= n; }
+        clause_count++;
+    }
+
+    /* 回填 DIMACS p 行 */
+    int total_vars = aux_base + node_count - 1;
+    char header[256];
+    snprintf(header, sizeof(header), "p cnf %d %d\n", total_vars, clause_count);
+
+    /* 将 header 插入到头部位置之后 */
+    size_t header_len = strlen(header);
+    if (offset + (int) header_len < (int) buf_size) {
+        /* 移动现有内容为 header腾出空间 */
+        memmove(buf + header_pos + (int) header_len,
+                buf + header_pos,
+                (size_t)(offset - header_pos));
+        memcpy(buf + header_pos, header, header_len);
+        offset += (int) header_len;
+    }
+
+    lv00_free((void **) &entries);
 
     *out_cnf = buf;
     return true;
