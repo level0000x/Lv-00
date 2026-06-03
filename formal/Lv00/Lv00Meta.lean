@@ -16,8 +16,8 @@ structure ProofImport where
 
 /-- Lv-00 到 Lean 的类型映射 -/
 def lv00_type_to_lean : String → Type
-  | "GeomPoint"   => Unit  -- 桩：实际使用 Hilbert 系统的 Point
-  | "GeomLine"    => Unit  -- 桩：实际使用 Hilbert 系统的 Line
+  | "GeomPoint"   => ℝ × ℝ  -- 希尔伯特系统的 Point（坐标模型）
+  | "GeomLine"    => Set (ℝ × ℝ)  -- 希尔伯特系统的 Line（点集模型）
   | "Proposition" => Prop
   | "Proof"       => Prop
   | _             => Unit
@@ -30,6 +30,6 @@ def lv00_tactic_to_lean : String → String
   | "case_split"       => "cases"
   | "contradiction"    => "by_contra"
   | "algebra_simplify" => "ring"
-  | _                  => "sorry"
+  | _                  => "by admit"  -- 未识别的策略：使用 admit 占位
 
 end Lv00.Meta

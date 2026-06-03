@@ -1821,12 +1821,63 @@ uint64_t lv00_hash_string(const char *str) {
  * 日志函数（lv00_internal.h 中宏调用的底层实现）
  * ============================================================ */
 
+/* ============================================================
+ * 日志系统（运行时级别过滤 + 时间戳 + 可选文件输出）
+ * ============================================================ */
+
+/** 当前运行时日志级别（默认 INFO，即 3） */
+static int g_log_level = LV00_LOG_LEVEL_INFO;
+
+/** 可选日志文件句柄（NULL 表示仅输出到 stderr） */
+static FILE *g_log_file = NULL;
+
 /**
- * @brief 输出日志消息（桩函数 —— 默认写入 stderr）
+ * @brief 设置运行时日志级别
+ * @param level 日志级别（1=ERROR, 2=WARNING, 3=INFO, 4=DEBUG）
+ */
+void lv00_log_set_level(int level) {
+    if (level >= LV00_LOG_LEVEL_ERROR && level <= LV00_LOG_LEVEL_DEBUG) {
+        g_log_level = level;
+    }
+}
+
+/**
+ * @brief 设置日志文件输出路径（传入 NULL 关闭文件输出）
+ * @param path 日志文件路径，NULL 则关闭文件输出
+ * @return 0 成功，-1 失败
+ */
+int lv00_log_set_file(const char *path) {
+    if (g_log_file) {
+        fclose(g_log_file);
+        g_log_file = NULL;
+    }
+    if (!path) return 0;
+    g_log_file = fopen(path, "a");
+    return g_log_file ? 0 : -1;
+}
+
+/**
+ * @brief 日志级别名称映射
+ */
+static const char *log_level_name(int level) {
+    switch (level) {
+    case LV00_LOG_LEVEL_ERROR:   return "ERROR";
+    case LV00_LOG_LEVEL_WARNING: return "WARN ";
+    case LV00_LOG_LEVEL_INFO:    return "INFO ";
+    case LV00_LOG_LEVEL_DEBUG:   return "DEBUG";
+    default:                     return "TRACE";
+    }
+}
+
+/**
+ * @brief 输出日志消息（带级别过滤、时间戳、可选文件输出）
  *
  * 由 LV00_LOG_INFO / LV00_LOG_WARNING / LV00_LOG_ERROR / LV00_LOG_DEBUG
- * 系列宏间接调用。当前实现为简单桩函数，将格式化消息写入 stderr。
- * 后续可替换为更完善的日志系统（分级过滤、文件写入、异步输出等）。
+ * 系列宏间接调用。实现功能：
+ * - 运行时日志级别过滤（低于 g_log_level 的消息被丢弃）
+ * - 自动添加时间戳 [YYYY-MM-DD HH:MM:SS]
+ * - 格式：[TIMESTAMP] [LEVEL] [file:line] message
+ * - 默认输出到 stderr，可配置同时写入日志文件
  *
  * @param level 日志级别（LV00_LOG_LEVEL_DEBUG / INFO / WARNING / ERROR）
  * @param file  源文件名（__FILE__）
@@ -1835,14 +1886,40 @@ uint64_t lv00_hash_string(const char *str) {
  * @param ...   可变参数
  */
 void lv00_log_message(int level, const char *file, int line, const char *fmt, ...) {
-    (void) level;
-    (void) line;
-    fprintf(stderr, "[%s:%d] ", file ? file : "?", line);
+    /* 运行时级别过滤：低于当前级别的日志直接丢弃 */
+    if (level > g_log_level) return;
+
+    /* 生成时间戳 */
+    time_t now = time(NULL);
+    struct tm tm_buf;
+    localtime_s(&tm_buf, &now); /* Windows 安全版本 */
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &tm_buf);
+
+    /* 格式化级别名称 */
+    const char *level_str = log_level_name(level);
+
+    /* 输出到 stderr */
+    fprintf(stderr, "[%s] [%s] [%s:%d] ", timestamp, level_str,
+            file ? file : "?", line);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
     fprintf(stderr, "\n");
+    fflush(stderr);
+
+    /* 可选：同时写入日志文件 */
+    if (g_log_file) {
+        fprintf(g_log_file, "[%s] [%s] [%s:%d] ", timestamp, level_str,
+                file ? file : "?", line);
+        va_list args2;
+        va_start(args2, fmt);
+        vfprintf(g_log_file, fmt, args2);
+        va_end(args2);
+        fprintf(g_log_file, "\n");
+        fflush(g_log_file);
+    }
 }
 
 uint64_t lv00_hash_bytes(const void *data, size_t len) {

@@ -56,7 +56,9 @@ axiom angle_sum_180 (α : Type) [Point α] [Line α] :
     A ≠ B → B ≠ C → A ≠ C →
     ¬(∃ l, Line.lies_on A l ∧ Line.lies_on B l ∧ Line.lies_on C l) →
     -- ∠A + ∠B + ∠C = 180°
-    True  -- 桩：需要角度度量系统才能精确表述
+    -- 需要角度度量系统才能精确表述，目前使用 sorry 占位
+    -- 完整表述应为：∠ B A C + ∠ A B C + ∠ A C B = (180 : ℝ)
+    True  -- 桩：待角度度量形式化后替换为完整命题
 
 /-- 定理: 勾股定理（直角三角形斜边平方等于两直角边平方之和） -/
 axiom pythagorean_theorem (α : Type) [Point α] [MetricSpace α] :

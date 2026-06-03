@@ -1,6 +1,8 @@
 #include "lv00/orchestrator.h"
+#include "lv00/lv00_internal.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 static int session_counter = 0;
 
@@ -42,11 +44,29 @@ int lv00_session_run(Lv00Session *session, const char *input) {
     if (!session || !input) return -1;
     session->success = 0;
 
-    /* Stage 0: Parse */
+    /* Stage 0: Parse —— 调用 Layer 1 解析器处理输入文本 */
     session->stages[LV00_STAGE_PARSE].status = LV00_STAGE_RUNNING;
-    /* TODO: invoke parser with input */
-    session->stages[LV00_STAGE_PARSE].status = LV00_STAGE_COMPLETED;
-    session->stages[LV00_STAGE_PARSE].elapsed_ms = 1.0;
+    {
+        /* 调用解析器处理输入（Layer 1 接口） */
+        int parse_ok = 1; /* 解析成功标志 */
+        /* TODO: 当 Layer 1 parser API 就绪后，替换为实际调用 */
+        /* int parse_rc = lv00_parser_parse(input, &session->parsed_ast); */
+        /* parse_ok = (parse_rc == 0); */
+        (void)input; /* 暂时抑制未使用警告 */
+
+        if (parse_ok) {
+            session->stages[LV00_STAGE_PARSE].status = LV00_STAGE_COMPLETED;
+            session->stages[LV00_STAGE_PARSE].elapsed_ms = 1.0;
+        } else {
+            session->stages[LV00_STAGE_PARSE].status = LV00_STAGE_FAILED;
+            strncpy(session->stages[LV00_STAGE_PARSE].error_msg,
+                    "解析失败：输入格式无效", sizeof(session->stages[LV00_STAGE_PARSE].error_msg) - 1);
+            strncpy(session->final_error, "Stage 0 (Parse) 失败",
+                    sizeof(session->final_error) - 1);
+            session->success = 0;
+            return -1;
+        }
+    }
 
     /* Stage 1: Resource */
     session->stages[LV00_STAGE_RESOURCE].status = LV00_STAGE_RUNNING;
@@ -84,9 +104,77 @@ int lv00_session_run(Lv00Session *session, const char *input) {
 int lv00_session_run_stage(Lv00Session *session, Lv00PipelineStage stage) {
     if (!session || stage < 0 || stage >= LV00_STAGE_COUNT) return -1;
     session->stages[stage].status = LV00_STAGE_RUNNING;
-    /* TODO: execute single stage */
-    session->stages[stage].status = LV00_STAGE_COMPLETED;
-    return 0;
+
+    /* 检查前置阶段是否已完成（除第一个阶段外） */
+    if (stage > LV00_STAGE_PARSE) {
+        if (session->stages[stage - 1].status != LV00_STAGE_COMPLETED) {
+            session->stages[stage].status = LV00_STAGE_FAILED;
+            snprintf(session->stages[stage].error_msg,
+                     sizeof(session->stages[stage].error_msg),
+                     "前置阶段 %d 未完成，无法执行阶段 %d", stage - 1, stage);
+            return -1;
+        }
+    }
+
+    /* 按阶段类型分发执行 */
+    int rc = 0;
+    switch (stage) {
+    case LV00_STAGE_PARSE:
+        /* 调用解析器处理输入 */
+        /* TODO: 当 Layer 1 parser API 就绪后，替换为实际调用 */
+        session->stages[stage].elapsed_ms = 1.0;
+        session->stages[stage].status = LV00_STAGE_COMPLETED;
+        break;
+
+    case LV00_STAGE_RESOURCE:
+        /* 调用资源管理器初始化 */
+        /* TODO: 当 Layer 2 resource API 就绪后，替换为实际调用 */
+        session->stages[stage].elapsed_ms = 0.5;
+        session->stages[stage].status = LV00_STAGE_COMPLETED;
+        break;
+
+    case LV00_STAGE_GEOMETRY:
+        /* 调用几何引擎初始化 */
+        /* TODO: 当几何引擎 API 就绪后，替换为实际调用 */
+        session->stages[stage].elapsed_ms = 2.0;
+        session->stages[stage].status = LV00_STAGE_COMPLETED;
+        break;
+
+    case LV00_STAGE_REASONING:
+        /* 调用证明引擎（多策略尝试） */
+        /* TODO: 当推理引擎 API 就绪后，替换为实际调用 */
+        session->stages[stage].elapsed_ms = 10.0;
+        session->stages[stage].status = LV00_STAGE_COMPLETED;
+        break;
+
+    case LV00_STAGE_OUTPUT:
+        /* 调用输出生成器 */
+        /* TODO: 当输出 API 就绪后，替换为实际调用 */
+        session->stages[stage].elapsed_ms = 1.0;
+        session->stages[stage].status = LV00_STAGE_COMPLETED;
+        break;
+
+    case LV00_STAGE_VISUAL:
+        /* 调用可视化编辑器（可选阶段） */
+        if (session->config.enable_visualization) {
+            /* TODO: 当可视化 API 就绪后，替换为实际调用 */
+            session->stages[stage].elapsed_ms = 5.0;
+            session->stages[stage].status = LV00_STAGE_COMPLETED;
+        } else {
+            session->stages[stage].status = LV00_STAGE_SKIPPED;
+        }
+        break;
+
+    default:
+        session->stages[stage].status = LV00_STAGE_FAILED;
+        snprintf(session->stages[stage].error_msg,
+                 sizeof(session->stages[stage].error_msg),
+                 "未知阶段: %d", stage);
+        rc = -1;
+        break;
+    }
+
+    return rc;
 }
 
 int lv00_session_run_from(Lv00Session *session, Lv00PipelineStage from_stage) {

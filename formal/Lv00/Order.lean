@@ -10,7 +10,7 @@ namespace Lv00.Order
 
 /-- Pasch 公理: 若直线 l 与三角形 ABC 的一边相交，
    则 l 必与三角形的另一边或第三边相交 -/
-axiom pasch (α : Type) [Point α] [Line α] :
+axiom pasch (α : Type) [Point α] [Line α] [MetricSpace α] :
   ∀ (A B C : α) (l : α),
     A ≠ B → B ≠ C → A ≠ C →
     ¬(∃ m, Line.lies_on A m ∧ Line.lies_on B m ∧ Line.lies_on C m) →
@@ -19,7 +19,7 @@ axiom pasch (α : Type) [Point α] [Line α] :
       (Betweenness.Between B Q C ∨ Betweenness.Between A Q C))
 
 /-- 稠密性: 线上任意两点之间存在另一点 -/
-axiom line_density (α : Type) [Point α] [Line α] :
+axiom line_density (α : Type) [Point α] [Line α] [MetricSpace α] :
   ∀ (l : α) (P Q : α),
     Line.lies_on P l → Line.lies_on Q l → P ≠ Q →
     ∃ R, Line.lies_on R l ∧ R ≠ P ∧ R ≠ Q ∧
