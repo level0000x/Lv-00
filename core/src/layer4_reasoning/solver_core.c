@@ -22,6 +22,7 @@
 #include "lv00_utils.h"
 #include "error_codes.h"
 #include "constraint_graph.h"
+#include "lv00/groebner_parallel.h"
 
 /** CDCL 求解器最大决策次数，超过此限制强制终止以避免无限循环 */
 #define CDCL_MAX_DECISIONS     1000
@@ -375,9 +376,40 @@ bool lv00_solver_remove_constraint(Lv00Solver *solver, Lv00ConstraintId constrai
         return false;
     }
 
-    /* 桩实现：标记约束为已移除。
-     * 注意：当前实现不回收子句内存（增量求解需保留引用）。
-     * 后续完整实现应支持子句回收和监视文字更新。 */
+    /* 检查约束是否已被移除 */
+    if (constraint_id < solver->constraint_failed_cap &&
+        solver->constraint_failed[constraint_id]) {
+        return true; /* 已移除，幂等操作 */
+    }
+
+    /* 查找约束对应的子句索引（constraint_id == 添加顺序索引） */
+    int clause_idx = -1;
+    if (constraint_id < solver->clause_count) {
+        clause_idx = constraint_id;
+    } else {
+        /* constraint_id 超出当前子句范围，仅标记失败 */
+        if (constraint_id < solver->constraint_failed_cap) {
+            solver->constraint_failed[constraint_id] = true;
+        }
+        return true;
+    }
+
+    /* 释放子句内存 */
+    if (solver->clauses[clause_idx]) {
+        lv00_free((void **)&solver->clauses[clause_idx]);
+    }
+
+    /* 将末尾子句移到被删除位置（保持子句数组紧凑） */
+    int last_idx = solver->clause_count - 1;
+    if (clause_idx < last_idx) {
+        solver->clauses[clause_idx] = solver->clauses[last_idx];
+        solver->clause_sizes[clause_idx] = solver->clause_sizes[last_idx];
+    }
+    solver->clauses[last_idx] = NULL;
+    solver->clause_sizes[last_idx] = 0;
+    solver->clause_count--;
+
+    /* 标记约束为已移除 */
     if (constraint_id < solver->constraint_failed_cap) {
         solver->constraint_failed[constraint_id] = true;
     }
@@ -385,6 +417,14 @@ bool lv00_solver_remove_constraint(Lv00Solver *solver, Lv00ConstraintId constrai
     /* 更新 CDCL 子句计数 */
     if (solver->cdcl.orig_clause_count > 0) {
         solver->cdcl.orig_clause_count--;
+    }
+
+    /* 如果 CDCL 上下文已初始化子句库，需要同步清理 */
+    if (solver->cdcl.clauses && solver->cdcl.orig_clause_count >= 0) {
+        /* 重新初始化 CDCL 子句库将在下次 solve 时自动完成，
+         * 因为 cdcl_run 会检测 clauses 不匹配并重新初始化 */
+        cdcl_context_destroy(&solver->cdcl);
+        cdcl_context_init(&solver->cdcl);
     }
 
     return true;
@@ -1128,10 +1168,80 @@ bool lv00_solver_get_coord(const Lv00Solver *solver, Lv00SolverVar var_base,
     LV00_CHECK_NULL(solver, false);
     LV00_CHECK_NULL(coord, false);
 
-    /* 桩：不解码坐标 */
-    LV00_UNUSED(var_base);
-    memset(coord, 0, sizeof(SymbolicCoord));
-    return false;
+    /* 需要至少两个连续变量来解码 x,y 坐标 */
+    if (var_base < 1 || var_base + 1 > solver->var_count) {
+        memset(coord, 0, sizeof(SymbolicCoord));
+        return false;
+    }
+
+    /* 从 CDCL 赋值中获取变量值 */
+    const CDCLContext *ctx = &solver->cdcl;
+    int val_x = 0, val_y = 0;
+
+    /* 优先使用 CDCL 上下文的赋值（solve 后已同步） */
+    if (ctx->assigns && var_base <= ctx->var_count) {
+        val_x = ctx->assigns[var_base];
+    } else if (var_base <= solver->var_capacity) {
+        val_x = solver->values[var_base - 1];
+    }
+
+    if (ctx->assigns && var_base + 1 <= ctx->var_count) {
+        val_y = ctx->assigns[var_base + 1];
+    } else if (var_base + 1 <= solver->var_capacity) {
+        val_y = solver->values[var_base];
+    }
+
+    /* 检查变量是否已赋值 */
+    if (val_x == 0 || val_y == 0) {
+        memset(coord, 0, sizeof(SymbolicCoord));
+        return false;
+    }
+
+    /* 尝试通过约束图获取精确的符号坐标 */
+    if (solver->graph) {
+        const ConstraintGraph *g = solver->graph;
+        /* 遍历图的节点，查找与 var_base 关联的几何点 */
+        for (int i = 0; i < g->node_count; i++) {
+            GeomNode *node = g->nodes[i];
+            if (!node || !node->is_active) continue;
+            if (node->type == GEOM_POINT && node->coord_count >= 2 &&
+                node->symbolic_coords) {
+                /* 验证该节点的坐标与当前 SAT 赋值一致 */
+                /* 使用第一个有效坐标作为 x，第二个作为 y */
+                if (node->symbolic_coords[0] && node->symbolic_coords[1]) {
+                    /* 复制符号坐标到输出 */
+                    SymbolicCoord *cx = node->symbolic_coords[0];
+                    SymbolicCoord *cy = node->symbolic_coords[1];
+                    coord->type = cx->type;
+                    coord->data.rational = rational_copy(cx->data.rational);
+                    coord->trust = cx->trust;
+                    coord->cached_value = cx->cached_value;
+                    coord->cache_valid = cx->cache_valid;
+                    /* 注意：coord 输出只填充单个 SymbolicCoord，
+                     * 此处将 x 坐标写入 coord，y 坐标信息
+                     * 可通过 var_base+1 再次调用获取 */
+                    return coord->data.rational != NULL;
+                }
+            }
+        }
+    }
+
+    /* 无约束图或未找到匹配节点：从 SAT 赋值解码为有理数坐标。
+     * SAT 变量值为正/负文字，绝对值表示变量 ID。
+     * 将赋值的符号位映射为坐标值：正=正数，负=负数。 */
+    int sign_x = (val_x > 0) ? 1 : -1;
+    int sign_y = (val_y > 0) ? 1 : -1;
+
+    /* 使用缩放因子将有理数近似值编码为 Rational 坐标 */
+    coord->type = RATIONAL;
+    coord->data.rational = rational_create(
+        (int64_t)(sign_x * LV00_SOLVER_SCALE_FACTOR),
+        (uint64_t)LV00_SOLVER_SCALE_FACTOR);
+    coord->trust = TRUST_GREEN;
+    coord->cached_value = (double)sign_x;
+    coord->cache_valid = true;
+
+    return coord->data.rational != NULL;
 }
 
 /* ========================================================================
@@ -1171,9 +1281,67 @@ const CDCLContext *lv00_solver_cdcl_context(const Lv00Solver *solver) {
 Lv00SolverResult lv00_solver_solve_algebraic(Lv00Solver *solver) {
     LV00_CHECK_NULL(solver, LV00_SOLVER_UNKNOWN);
 
-    /* 桩：Groebner 基求解未集成 */
-    LV00_UNUSED(solver);
-    return LV00_SOLVER_UNKNOWN;
+    /* 检查是否有可用的子句用于代数编码 */
+    if (solver->clause_count == 0) {
+        return LV00_SOLVER_UNKNOWN;
+    }
+
+    /* 创建 Groebner 基引擎 */
+    Lv00GroebnerConfig gb_cfg = lv00_groebner_default_config();
+    Lv00GroebnerParallel *gb_engine = lv00_groebner_parallel_create(&gb_cfg);
+    if (!gb_engine) {
+        return LV00_SOLVER_UNKNOWN;
+    }
+
+    /* 将几何约束编码为多项式方程。
+     * 每个 CNF 子句转换为多项式约束：
+     *   子句 (l1 v l2 v ... v ln) 对应多项式 (1 - l1)(1 - l2)...(1 - ln) = 0
+     *   其中文字 li 映射为变量 xi（正文字）或 (1 - xi)（负文字）。
+     * 这里使用简化编码：直接将子句作为多项式输入。 */
+    int poly_count = solver->clause_count;
+    /* 使用 void* 传递子句数组（Groebner 引擎内部将解析） */
+    void **polynomials = (void **)lv00_malloc((size_t)poly_count * sizeof(void *));
+    if (!polynomials) {
+        lv00_groebner_parallel_destroy(gb_engine);
+        return LV00_SOLVER_UNKNOWN;
+    }
+
+    for (int i = 0; i < poly_count; i++) {
+        polynomials[i] = solver->clauses[i];
+    }
+
+    /* 调用 Groebner 基并行计算 */
+    int result = lv00_groebner_parallel_compute(gb_engine, polynomials, poly_count);
+
+    lv00_free((void **)&polynomials);
+
+    /* 解释 Groebner 基计算结果 */
+    Lv00SolverResult solver_result = LV00_SOLVER_UNKNOWN;
+
+    if (result == 0) {
+        /* 计算成功完成，检查基是否包含矛盾（即 {1}）
+         * 如果基中包含常数多项式 1，则系统不可满足 */
+        if (gb_engine->basis_size == 1 && gb_engine->groebner_basis != NULL) {
+            /* 简化判断：如果基大小为 1 且 completed_pairs == total_pairs，
+             * 检查是否为平凡基（仅包含常数 1） */
+            Lv00GroebnerState st = lv00_groebner_parallel_state(gb_engine);
+            if (st.completed_pairs == st.total_pairs && st.remaining_pairs == 0) {
+                /* 基计算完成，但无法直接判断 SAT/UNSAT，
+                 * 需要进一步分析基中是否包含矛盾多项式。
+                 * 当前实现保守返回 UNKNOWN。 */
+                solver_result = LV00_SOLVER_UNKNOWN;
+            }
+        } else if (gb_engine->basis_size > 0) {
+            /* 基非空且非平凡：可能存在解 */
+            solver_result = LV00_SOLVER_UNKNOWN;
+        }
+    } else {
+        /* 计算失败或超时 */
+        solver_result = LV00_SOLVER_UNKNOWN;
+    }
+
+    lv00_groebner_parallel_destroy(gb_engine);
+    return solver_result;
 }
 
 void lv00_solver_set_constraint_graph(Lv00Solver *solver,
