@@ -641,6 +641,8 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/inequality_reasoning.c
     # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
     core/src/layer4_reasoning/adaptive_pruning.c
+    # v5.0.0 新增：并行 Groebner 引擎（并发优化）
+    core/src/layer4_reasoning/groebner_parallel.c
     # 公理包
     core/src/layer4_reasoning/axiom/axiom_pkg.c
     core/src/layer4_reasoning/axiom/axiom_grade.c
@@ -871,6 +873,9 @@ target_link_libraries(lv00_layer9_application lv00_layer8_meta_verify)
 # ── Layer 10: 外部集成层 (Interop Layer) ──
 set(LV00_LAYER10_SOURCES
     core/src/layer10_interop/interop.c
+    core/src/layer10_interop/lean4_bridge.c
+    core/src/layer10_interop/coq_bridge.c
+    core/src/layer10_interop/opml_codec.c
 )
 set(LV00_LAYER10_HEADERS
     core/include/lv00/interop.h
