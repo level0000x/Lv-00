@@ -1,0 +1,117 @@
+/**
+ * @file template_construction.lv00
+ * @brief 尺规作图模板
+ *
+ * 常用尺规作图步骤模板
+ */
+
+// ===== 配置参数 =====
+config {
+    // 作图类型: "perpendicular" | "parallel" | "angle_bisector" | 
+    //          "perpendicular_bisector" | "copy_segment" | "copy_angle"
+    construction_type: "perpendicular",
+    
+    // 起点
+    start_point: { x: 0, y: 0 },
+    
+    // 终点（用于线段）
+    end_point: { x: 6, y: 0 },
+    
+    // 参考点（用于过点作图）
+    reference_point: { x: 3, y: 4 }
+}
+
+// ===== 基本点 =====
+point A(config.start_point.x, config.start_point.y);
+point B(config.end_point.x, config.end_point.y);
+point P(config.reference_point.x, config.reference_point.y);
+
+// ===== 作图步骤 =====
+if (config.construction_type == "perpendicular") {
+    // 过点P作AB的垂线
+    line l(A, B);
+    line perp = perpendicular(l, P);
+    
+    // 构造步骤可视化
+    circle c1(P, distance(P, l));  // 以P为圆心，适当半径画弧交l于两点
+    // ... 尺规作图详细步骤
+    
+    prove {
+        perpendicular(perp, l)
+    }
+}
+
+if (config.construction_type == "parallel") {
+    // 过点P作AB的平行线
+    line l(A, B);
+    line par = parallel(l, P);
+    
+    prove {
+        parallel(par, l)
+    }
+}
+
+if (config.construction_type == "angle_bisector") {
+    // 作角平分线
+    point C(4, 5);
+    angle BAC(A, B, C);
+    line bisector = angle_bisector(B, A, C);
+    
+    // 构造步骤：以A为圆心画弧交两边于D、E
+    // 分别以D、E为圆心画弧交于F
+    // AF即为角平分线
+    
+    prove {
+        angle(B, A, bisector) == angle(bisector, A, C)
+    }
+}
+
+if (config.construction_type == "perpendicular_bisector") {
+    // 作垂直平分线
+    segment AB(A, B);
+    line perp_bisector = perpendicular_bisector(AB);
+    point M = midpoint(AB);
+    
+    prove {
+        M lies_on perp_bisector
+    }
+    
+    prove {
+        perpendicular(perp_bisector, AB)
+    }
+}
+
+if (config.construction_type == "copy_segment") {
+    // 复制线段
+    point Q(8, 0);
+    point R = copy_segment(AB, Q, direction(0°));
+    
+    segment QR(Q, R);
+    
+    prove {
+        length(QR) == length(AB)
+    }
+}
+
+if (config.construction_type == "copy_angle") {
+    // 复制角
+    point C(3, 4);
+    point Q(8, 0);
+    point R(11, 0);
+    
+    copy_angle(B, A, C, Q, R);
+    
+    prove {
+        angle(B, A, C) == angle(Q, R, new_point)
+    }
+}
+
+// ===== 可视化 =====
+visualize {
+    style A: { color: "red", size: 8 };
+    style B: { color: "blue", size: 8 };
+    style P: { color: "green", size: 8 };
+    label A: "A";
+    label B: "B";
+    label P: "P";
+}

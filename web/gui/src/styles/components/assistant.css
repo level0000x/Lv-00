@@ -1,0 +1,430 @@
+/* ============================================================
+   AI Assistant AI 助手组件样式 / AI Assistant Component Styles
+   包含旧版助手容器和增强版 AI 助手的完整样式。
+   ============================================================ */
+
+/* === ASSISTANT CONTAINER (Legacy) / 旧版助手容器 === */
+/* 旧版 AI 助手的容器布局，纵向弹性排列 */
+.assistant-container { display: flex; flex-direction: column; height: 100%; }
+
+/* 旧版助手消息区域 */
+.assistant-messages {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 200px;
+    max-height: 400px;
+    background: rgba(var(--color-accent-rgb), 0.03);
+    border: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    border-radius: var(--radius-sm);
+}
+
+/* 旧版助手消息条目 */
+.assistant-msg {
+    padding: 6px var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    border-radius: var(--radius-sm);
+}
+
+/* 用户消息：右对齐，深色背景 */
+.assistant-msg.user { background: var(--color-bg-overlay); color: var(--color-text-primary); text-align: right; }
+
+/* 系统消息：灰色背景 */
+.assistant-msg.system { background: var(--color-bg-secondary); color: var(--color-text-secondary); }
+
+/* 旧版助手输入行 */
+.assistant-input-row { display: flex; gap: var(--spacing-sm); }
+.assistant-input-row .input-field { flex: 1; }
+.assistant-input-row .btn { width: auto; margin-bottom: 0; }
+
+/* ================================================================
+ * AI ASSISTANT ENHANCED / 增强版 AI 助手
+ * 包含提供商选择、设置面板、消息区域、输入区域等完整 UI。
+ * ================================================================ */
+
+/* 增强版助手容器 */
+.ai-assistant-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: var(--spacing-sm);
+}
+
+/* --- Provider Row / 提供商选择行 --- */
+/* AI 提供商下拉选择 + 设置按钮的水平排列 */
+.ai-provider-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+.ai-provider-select {
+    flex: 1;
+    margin-bottom: 0;
+}
+.ai-settings-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-md);
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+/* --- Settings Panel / 设置面板 --- */
+/* 可展开的 AI 参数设置面板（温度、最大 token 等） */
+.ai-settings-panel {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-sm);
+    animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+
+/* 设置面板中的单个参数行 */
+.ai-setting-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: var(--spacing-md);
+}
+.ai-setting-row:last-child { margin-bottom: 0; }
+
+/* 设置参数标签 */
+.ai-setting-row label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 设置参数当前值显示 */
+.ai-setting-value {
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* 滑块输入控件 */
+.ai-range-input {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--color-border-primary);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+.ai-range-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    cursor: pointer;
+    border: none;
+}
+.ai-range-input::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    cursor: pointer;
+    border: none;
+}
+
+/* 设置参数说明信息 */
+.ai-setting-info {
+    font-size: 9px;
+    color: var(--color-text-muted);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--color-border-secondary);
+}
+.ai-setting-detail {
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    word-break: break-all;
+}
+
+/* --- Messages Area / 消息区域 --- */
+/* AI 对话消息的可滚动区域 */
+.ai-messages {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 200px;
+    max-height: 400px;
+    background: rgba(var(--color-accent-rgb), 0.02);
+    border: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+/* --- Empty State / 空状态 --- */
+/* 没有对话时的占位界面，包含图标、标题、描述和快捷提示 */
+.ai-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 10px;
+    text-align: center;
+}
+.ai-empty-icon {
+    font-size: 32px;
+    margin-bottom: var(--spacing-lg);
+    opacity: 0.6;
+}
+.ai-empty-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+    letter-spacing: 0.5px;
+}
+.ai-empty-desc {
+    font-size: var(--font-size-base);
+    color: var(--color-text-muted);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* 快捷提示条目列表 */
+.ai-empty-hints {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    width: 100%;
+}
+.ai-hint-item {
+    padding: 6px 10px;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-smooth);
+    text-align: left;
+}
+.ai-hint-item:hover {
+    background: var(--color-bg-overlay);
+    border-color: var(--color-accent);
+    color: var(--color-text-primary);
+    padding-left: 14px;
+}
+
+/* --- Chat Messages / 聊天消息 --- */
+/* 单条对话消息，通过左侧彩色边框区分角色 */
+.ai-msg {
+    padding: 8px 10px;
+    margin-bottom: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+
+/* 用户消息：强调色左边框 */
+.ai-msg-user {
+    background: rgba(var(--color-accent-rgb), 0.08);
+    border-left: 3px solid var(--color-accent);
+}
+
+/* AI 助手回复：公式模块蓝色左边框 */
+.ai-msg-assistant {
+    background: var(--color-bg-secondary);
+    border-left: 3px solid var(--color-module-formula);
+}
+
+/* 系统消息：灰色左边框 */
+.ai-msg-system {
+    background: var(--color-bg-tertiary);
+    border-left: 3px solid var(--color-text-muted);
+}
+
+/* 消息角色标签（USER / ASSISTANT / SYSTEM） */
+.ai-msg-role {
+    font-size: 8px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+/* 消息正文内容 */
+.ai-msg-content {
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    line-height: var(--line-height-relaxed);
+    word-break: break-word;
+}
+.ai-msg-user .ai-msg-content { color: var(--color-text-bright); }
+.ai-msg-assistant .ai-msg-content { color: var(--color-text-primary); }
+
+/* 消息时间戳 */
+.ai-msg-time {
+    font-size: 8px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    text-align: right;
+}
+
+/* --- Streaming Cursor / 流式光标 --- */
+/* AI 回复流式输出时的闪烁光标 */
+.ai-streaming-cursor {
+    display: inline-block;
+    color: var(--color-accent);
+    animation: blink-cursor 0.8s step-end infinite;
+    font-size: var(--font-size-lg);
+}
+@keyframes blink-cursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* --- Markdown Rendered Content / Markdown 渲染内容 --- */
+/* AI 回复中 Markdown 格式化内容的样式 */
+
+/* 二级标题 */
+.ai-msg-content .ai-h2 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-bright);
+    margin: 8px 0 4px 0;
+}
+
+/* 三级标题 */
+.ai-msg-content .ai-h3 {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin: 6px 0 3px 0;
+}
+
+/* 四级标题 */
+.ai-msg-content .ai-h4 {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin: 4px 0 2px 0;
+}
+
+/* 行内代码 */
+.ai-msg-content .ai-inline-code {
+    background: rgba(var(--color-accent-rgb), 0.12);
+    color: var(--color-accent);
+    padding: 0 4px;
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+}
+
+/* 代码块 */
+.ai-msg-content .ai-code-block {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+    margin: 6px 0;
+    overflow-x: auto;
+    position: relative;
+}
+
+/* 代码块语言标签 */
+.ai-msg-content .ai-code-lang {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    font-size: 8px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 代码块中的代码文本 */
+.ai-msg-content .ai-code-block code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-text-primary);
+    line-height: var(--line-height-relaxed);
+    white-space: pre;
+}
+
+/* 引用块 */
+.ai-msg-content .ai-blockquote {
+    border-left: 3px solid var(--color-accent);
+    padding-left: var(--spacing-md);
+    margin: 4px 0;
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+
+/* 列表项（自定义项目符号） */
+.ai-msg-content .ai-li {
+    padding: 1px 0 1px 14px;
+    position: relative;
+    list-style: none;
+}
+.ai-msg-content .ai-li::before {
+    content: '\2022';
+    position: absolute;
+    left: 4px;
+    color: var(--color-accent);
+    font-size: 10px;
+}
+
+/* --- Input Area / 输入区域 --- */
+/* AI 对话输入区域：文本框 + 操作按钮 */
+.ai-input-area {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* 多行文本输入框 */
+.ai-textarea {
+    width: 100%;
+    min-height: 32px;
+    max-height: 120px;
+    resize: none;
+    line-height: var(--line-height-normal);
+    font-size: var(--font-size-base);
+}
+
+/* 输入区域操作按钮行 */
+.ai-input-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* 操作按钮（清空、停止等） */
+.ai-action-btn {
+    width: 32px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-md);
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+/* 发送按钮 */
+.ai-send-btn {
+    flex: 1;
+    text-align: center;
+    margin-bottom: 0;
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.5px;
+}

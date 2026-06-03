@@ -1,0 +1,383 @@
+# =============================================================================
+# Lv-00 Axiom Package: Differential Geometry (Differential Geometry of Manifolds)
+# =============================================================================
+#
+# Mathematical Theory: Differential Geometry
+#   Differential geometry studies the geometry of smooth manifolds using
+#   calculus, differential algebra, and multilinear algebra. It provides
+#   the mathematical framework for modern physics (general relativity,
+#   gauge theories) and computer graphics.
+#
+# Axiomatization: Manifold Axioms (3) + Riemannian Geometry Axioms (3)
+#
+# References:
+#   - Wikipedia: Differential geometry
+#     https://en.wikipedia.org/wiki/Differential_geometry
+#   - do Carmo, M.P. (1994). "Differential Geometry of Curves and
+#     Surfaces." Prentice Hall. ISBN 0-13-212589-7.
+#   - Wikipedia: Riemannian geometry
+#     https://en.wikipedia.org/wiki/Riemannian_geometry
+#   - Wikipedia: Smooth manifold
+#     https://en.wikipedia.org/wiki/Smooth_manifold
+#   - Wikipedia: Connection (mathematics)
+#     https://en.wikipedia.org/wiki/Connection_(mathematics)
+#   - Wikipedia: Curvature
+#     https://en.wikipedia.org/wiki/Curvature
+#
+# Primitive Notions:
+#   Smooth manifold M: a topological manifold with a maximal smooth atlas
+#   Smooth map f: M -> N: a map between manifolds whose coordinate
+#     representations are infinitely differentiable
+#   Riemannian metric g: a smoothly varying inner product on tangent spaces
+#   Tensor field: a smooth assignment of tensors to each point of M
+#   Connection: a way of differentiating vector fields along curves
+#   Curvature: measures how much a manifold deviates from being flat
+#
+# Core Axioms (6):
+#   Manifold Axioms (3):
+#     M1. Local chart covering: M is covered by coordinate charts
+#     M2. Hausdorff + second countable: topological separation axioms
+#     M3. Smooth structure compatibility: transition maps are C^infinity
+#   Riemannian Geometry Axioms (3):
+#     R1. Symmetry: g(X, Y) = g(Y, X) for all tangent vectors X, Y
+#     R2. Non-degeneracy: g(X, X) = 0 implies X = 0
+#     R3. Levi-Civita connection existence: unique torsion-free metric-compatible connection
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "differential_geometry" "1.0.0" {
+
+    # =================================================================
+    # Group I: Smooth Manifold (6)
+    # =================================================================
+    # A smooth manifold is a topological manifold equipped with a maximal
+    # smooth atlas, allowing calculus operations in local coordinates.
+    # =================================================================
+
+    # A smooth manifold M is a second-countable Hausdorff space locally
+    # homeomorphic to R^n with smooth transition maps.
+    # Params: manifold M, dimension n, atlas A
+    template "smooth_manifold" 3
+
+    # A chart (U, phi) where U is an open subset of M and phi: U -> R^n
+    # is a homeomorphism onto an open subset of R^n. An atlas is a
+    # collection of charts covering M.
+    # Params: manifold M, chart (U, phi)
+    template "chart_atlas" 2
+
+    # A smooth map f: M -> N between manifolds is one whose coordinate
+    # representations in charts are infinitely differentiable.
+    # Params: source manifold M, target manifold N, map f
+    template "smooth_map" 3
+
+    # The tangent space T_p M at a point p in M is the vector space of
+    # derivations at p, equivalently the set of velocity vectors of
+    # curves through p.
+    # Params: manifold M, point p, tangent space T_p M
+    template "tangent_space" 3
+
+    # A vector field X on M assigns to each point p a tangent vector
+    # X_p in T_p M, smoothly varying with p.
+    # Params: manifold M, vector field X
+    template "vector_field" 2
+
+    # A tensor field of type (r, s) is a smoothly varying (r, s)-tensor
+    # on each tangent space, e.g., the Riemann curvature tensor (1, 3).
+    # Params: manifold M, tensor type (r, s), tensor field T
+    template "tensor_field" 3
+
+    # =================================================================
+    # Group II: Riemannian Metric (5)
+    # =================================================================
+    # A Riemannian metric is a smoothly varying inner product on the
+    # tangent bundle, allowing measurement of lengths, angles, and volumes.
+    # =================================================================
+
+    # A Riemannian metric g on M assigns to each point p a positive-
+    # definite inner product g_p on T_p M, varying smoothly with p.
+    # Params: manifold M, metric tensor g
+    template "riemannian_metric" 2
+
+    # Metric compatibility (Koszul formula): the Levi-Civita connection
+    # satisfies g(∇_X Y, Z) = 1/2 X·g(Y,Z) + Y·g(X,Z) - Z·g(X,Y)
+    # + g([X,Y],Z) + g([Z,X],Y) - g([Y,Z],X).
+    # Params: metric g, vector fields X, Y, Z
+    template "metric_compatibility" 4
+
+    # The length of a piecewise-smooth curve gamma: [a,b] -> M is
+    # L(gamma) = integral_a^b sqrt(g(gamma'(t), gamma'(t))) dt.
+    # Params: curve gamma, metric g
+    template "length_of_curve" 2
+
+    # A geodesic is a curve whose tangent vector is parallel along itself,
+    # locally minimizing distance between points.
+    # Params: manifold M with metric g, geodesic curve gamma
+    template "geodesic" 2
+
+    # The exponential map exp_p: T_p M -> M maps a tangent vector v
+    # to the point reached by following the geodesic starting at p
+    # with initial velocity v for unit time.
+    # Params: point p, tangent vector v, exponential map exp_p
+    template "exponential_map" 3
+
+    # The volume form dV_g is the canonical n-form on an oriented
+    # Riemannian n-manifold, allowing measurement of volumes.
+    # Params: manifold M, metric g, volume form dV_g
+    template "volume_form" 2
+
+    # =================================================================
+    # Group III: Curvature (7)
+    # =================================================================
+    # Curvature measures how a manifold deviates from Euclidean flatness
+    # at each point and in each direction.
+    # =================================================================
+
+    # The Riemann curvature tensor R of type (1,3) is defined by
+    # R(X,Y)Z = ∇_X ∇_Y Z - ∇_Y ∇_X Z - ∇_[X,Y] Z,
+    # measuring non-commutativity of covariant derivatives.
+    # Params: manifold M, curvature tensor R
+    template "riemann_curvature_tensor" 2
+
+    # The Ricci curvature Ric(X,Y) = trace(g^{-1} R(X,·)Y·) is obtained
+    # by contracting the Riemann tensor, measuring volume distortion.
+    # Params: manifold M, Ricci tensor Ric
+    template "ricci_curvature" 2
+
+    # The scalar curvature S = trace_g(Ric) = g^{ij} Ric_{ij} is the
+    # trace of the Ricci tensor, the simplest curvature invariant.
+    # Params: manifold M, scalar curvature S
+    template "scalar_curvature" 2
+
+    # Sectional curvature K(p, sigma) for a 2-plane sigma in T_p M
+    # is K = g(R(e1,e2)e2,e1) / (g(e1,e1)g(e2,e2) - g(e1,e2)^2)
+    # for orthonormal basis {e1,e2} of sigma.
+    # Params: point p, 2-plane sigma, sectional curvature K
+    template "sectional_curvature" 3
+
+    # Gauss-Bonnet theorem: for a compact oriented 2-manifold M,
+    # integral_M K dA = 2π χ(M), relating geometry to topology.
+    # Params: 2-manifold M, Gauss-Bonnet integral
+    template "gauss_bonnet_theorem" 2
+
+    # Gauss curvature K for a 2-dimensional surface is the product
+    # of principal curvatures, or equivalently the determinant of
+    # the shape operator.
+    # Params: surface S, point p, Gauss curvature K(p)
+    template "gauss_curvature" 3
+
+    # =================================================================
+    # Group IV: Connections and Covariant Derivatives (5)
+    # =================================================================
+    # Connections allow differentiation of vector fields and tensors
+    # along curves, generalizing directional derivatives.
+    # =================================================================
+
+    # The Levi-Civita connection ∇ is the unique connection on a
+    # Riemannian manifold that is torsion-free (∇_X Y - ∇_Y X = [X,Y])
+    # and metric-compatible (∇ g = 0).
+    # Params: manifold M with metric g, Levi-Civita connection ∇
+    template "levi_civita_connection" 2
+
+    # The covariant derivative ∇_X Y of vector field Y along vector
+    # field X generalizes the directional derivative to curved spaces.
+    # Params: manifold M, vector fields X, Y, covariant derivative ∇_X Y
+    template "covariant_derivative" 4
+
+    # Parallel transport of a vector v along a curve gamma: the vector
+    # is parallel if its covariant derivative along gamma' vanishes.
+    # Params: curve gamma, tangent vector v at gamma(0), parallel transport v(t)
+    template "parallel_transport" 3
+
+    # Christoffel symbols Γ^k_{ij} are the coordinate representation
+    # of the Levi-Civita connection: ∇_{∂/∂x_i} ∂/∂x_j = Γ^k_{ij} ∂/∂x_k.
+    # Params: local coordinates x^i, Christoffel symbols Γ^k_{ij}
+    template "christoffel_symbols" 2
+
+    # The torsion tensor T(X,Y) = ∇_X Y - ∇_Y X - [X,Y] measures the
+    # antisymmetric part of a connection. For Levi-Civita: T = 0.
+    # Params: connection ∇, vector fields X, Y, torsion T(X,Y)
+    template "torsion_tensor" 4
+
+    # =================================================================
+    # Group V: Submanifolds (5)
+    # =================================================================
+    # Submanifolds are subsets of a manifold that are themselves manifolds,
+    # inheriting structure from the ambient space.
+    # =================================================================
+
+    # An immersed (resp. embedded) submanifold S of M is a subset with
+    # a smooth structure such that the inclusion is a smooth immersion
+    # (resp. also a topological embedding).
+    # Params: ambient manifold M, submanifold S, inclusion map i: S -> M
+    template "submanifold" 3
+
+    # An immersion f: S -> M is a smooth map with injective differential
+    # at every point; an embedding additionally has f as a topological
+    # embedding onto its image.
+    # Params: source S, target M, immersion/embedding f
+    template "immersion_embedding" 3
+
+    # The induced metric on a submanifold S is the pullback of the
+    # ambient metric g via the inclusion map i: S ·-> M.
+    # Params: submanifold S, ambient metric g, induced metric i*g
+    template "induced_metric" 3
+
+    # The second fundamental form II is the normal component of the
+    # covariant derivative of a tangent vector along a tangent direction,
+    # measuring extrinsic curvature.
+    # Params: submanifold S, second fundamental form II
+    template "second_fundamental_form" 2
+
+    # The mean curvature H is the trace of the second fundamental form,
+    # averaging principal curvatures. Minimal surfaces have H = 0.
+    # Params: submanifold S, point p, mean curvature H(p)
+    template "mean_curvature" 3
+
+    # The shape operator S: TS -> NS maps a tangent vector to the
+    # normal derivative of the unit normal, encoding extrinsic curvature.
+    # Params: surface S, shape operator S, principal curvatures κ1, κ2
+    template "shape_operator" 3
+
+    # =================================================================
+    # Group VI: Special Manifolds (6)
+    # =================================================================
+    # Important classes of Riemannian manifolds with special properties.
+    # =================================================================
+
+    # A complete Riemannian manifold is one where every geodesic can be
+    # extended indefinitely, equivalent to metric completeness.
+    # Params: Riemannian manifold M
+    template "riemannian_manifold_complete" 1
+
+    # Hopf-Rinow theorem: on a complete Riemannian manifold, the
+    # exponential map is defined for all tangent vectors, and any
+    # two points are joined by a minimizing geodesic.
+    # Params: complete manifold M, Hopf-Rinow properties
+    template "hopf_rinow_theorem" 1
+
+    # A space of constant curvature k is locally isometric to:
+    # hyperbolic space (k<0), Euclidean space (k=0), or sphere (k>0).
+    # Params: manifold M, curvature k, space form structure
+    template "constant_curvature" 2
+
+    # A maximally symmetric space has the maximum number of independent
+    # Killing vectors (dimension n(n+1)/2 for n-dimensional manifolds).
+    # Params: manifold M, Killing vectors, symmetry order
+    template "maximally_symmetric" 2
+
+    # A space form is a complete Riemannian manifold of constant
+    # curvature; equivalently, a quotient of a simply connected
+    # space of constant curvature by a discrete group of isometries.
+    # Params: space form M, universal cover, fundamental group Γ
+    template "space_form" 3
+
+    # =================================================================
+    # Group VII: Extensions and Applications (5)
+    # =================================================================
+    # Generalizations and applications to other geometric structures.
+    # =================================================================
+
+    # A pseudo-Riemannian metric has signature (p, q) instead of being
+    # positive-definite; used in relativity (signature (1,3)).
+    # Params: manifold M, metric signature (p,q), metric g
+    template "pseudo_riemannian_metric" 3
+
+    # A Lorentzian manifold has metric signature (1, n-1), the setting
+    # of special and general relativity.
+    # Params: n-dimensional manifold M, Lorentzian metric g
+    template "lorentzian_manifold" 2
+
+    # A symplectic manifold (M, ω) has a closed non-degenerate 2-form ω,
+    # the phase space of classical mechanics.
+    # Params: manifold M, symplectic form ω
+    template "symplectic_manifold" 2
+
+    # A complex manifold has holomorphic transition maps, allowing
+    # complex analysis in local coordinates.
+    # Params: 2n-dimensional manifold M, complex structure J
+    template "complex_manifold" 2
+
+    # A Kähler manifold has compatible Riemannian, complex, and
+    # symplectic structures: g(X,JY) = ω(X,Y).
+    # Params: Kähler manifold M, metric g, complex J, symplectic ω
+    template "kahler_metric" 3
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (6)
+    # =================================================================
+    # Many fundamental problems in differential geometry are undecidable
+    # or remain open, particularly in higher dimensions.
+    # =================================================================
+
+    unconstructible "geodesic_completeness_decision" {
+        reduces_to "undecidable"
+        dependency "geodesic"
+        dependency "riemannian_manifold_complete"
+        dependency "exponential_map"
+        external_ref "https://en.wikipedia.org/wiki/Geodesic_completeness"
+        green_verified true
+    }
+
+    unconstructible "positive_mass_theorem" {
+        reduces_to "open_problem"
+        dependency "scalar_curvature"
+        dependency "ricci_curvature"
+        dependency "riemann_curvature_tensor"
+        external_ref "https://en.wikipedia.org/wiki/Positive_mass_theorem"
+        green_verified true
+    }
+
+    unconstructible "exotic_sphere_existence" {
+        reduces_to "undecidable"
+        dependency "smooth_manifold"
+        dependency "riemannian_metric"
+        dependency "ricci_curvature"
+        external_ref "https://en.wikipedia.org/wiki/Exotic_sphere"
+        green_verified true
+    }
+
+    unconstructible "poincare_conjecture_higher" {
+        reduces_to "solved"
+        dependency "smooth_manifold"
+        dependency "riemann_curvature_tensor"
+        dependency "ricci_curvature"
+        external_ref "https://en.wikipedia.org/wiki/Poincar%C3%A9_conjecture"
+        green_verified true
+    }
+
+    unconstructible "curvature_bounded_below" {
+        reduces_to "undecidable"
+        dependency "ricci_curvature"
+        dependency "scalar_curvature"
+        dependency "sectional_curvature"
+        external_ref "https://en.wikipedia.org/wiki/Curvature_bounds"
+        green_verified true
+    }
+
+    unconstructible "symplectic_embedding" {
+        reduces_to "undecidable"
+        dependency "symplectic_manifold"
+        dependency "immersion_embedding"
+        dependency "riemannian_metric"
+        external_ref "https://en.wikipedia.org/wiki/Symplectic_embedding"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    # Differential geometry studies smooth manifolds with metric structure.
+    # The bottom geometry represents the degenerate case of smooth
+    # manifolds without meaningful metric structure.
+    #
+    # ⊥ = smooth manifold with degenerate/trivial metric tensor
+    # ¬ = complement in tensor field structure
+    # =================================================================
+
+    bottom_geometry "smooth_manifolds_with_riemannian_structure"
+    negation_encoding "tensor_field_complement"
+    contradiction_behavior "explosion_principle"
+}

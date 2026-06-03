@@ -1,0 +1,65 @@
+/**
+ * @file geometry_parallel_lines.lv00
+ * @brief 平行线构造案例
+ *
+ * 演示平行线的构造和性质
+ */
+
+// 定义第一条直线上的两点
+point A(0, 0);
+point B(6, 0);
+line l1(A, B);
+
+// 构造平行线（通过点C）
+point C(0, 4);
+line l2 = parallel(l1, C);
+
+// 在l2上取点D
+point D(6, 4);
+prove {
+    D lies_on l2
+}
+
+// 构造截线
+point E(2, -2);
+point F(4, 6);
+line transversal(E, F);
+
+// 证明同位角相等
+prove {
+    angle(l1, transversal) == angle(l2, transversal)
+}
+
+// 证明内错角相等
+prove {
+    alternate_interior_angle(l1, l2, transversal)
+}
+
+// 构造平行四边形
+point G(0, 4);
+point H(6, 4);
+point I(8, 0);
+
+// 证明对边平行且相等
+prove {
+    parallel(line(A, B), line(G, H))
+}
+
+prove {
+    length(A, B) == length(G, H)
+}
+
+// 可视化配置
+visualize {
+    style l1: { color: "blue", width: 2 };
+    style l2: { color: "blue", width: 2 };
+    style transversal: { color: "red", width: 1 };
+    style A: { color: "black", size: 6 };
+    style B: { color: "black", size: 6 };
+    style C: { color: "black", size: 6 };
+    style D: { color: "black", size: 6 };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+    label D: "D";
+}

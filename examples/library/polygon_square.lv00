@@ -1,0 +1,61 @@
+/**
+ * @file polygon_square.lv00
+ * @brief 正方形构造案例
+ *
+ * 演示正方形的构造和对角线性质
+ */
+
+// 定义正方形的四个顶点
+point A(0, 0);
+point B(4, 0);
+point C(4, 4);
+point D(0, 4);
+
+// 构造正方形
+polygon ABCD(A, B, C, D);
+
+// 定义边
+segment AB(A, B);
+segment BC(B, C);
+segment CD(C, D);
+segment DA(D, A);
+
+// 定义对角线
+segment AC(A, C);
+segment BD(B, D);
+
+// 证明四边相等
+prove {
+    length(AB) == length(BC) == length(CD) == length(DA)
+}
+
+// 证明四角为直角
+prove {
+    angle(D, A, B) == angle(A, B, C) == angle(B, C, D) == angle(C, D, A) == 90°
+}
+
+// 证明对角线相等且垂直平分
+prove {
+    length(AC) == length(BD)
+}
+
+prove {
+    perpendicular(AC, BD)
+}
+
+// 计算面积和周长
+compute {
+    area = length(AB)^2
+    perimeter = 4 * length(AB)
+}
+
+// 可视化配置
+visualize {
+    style ABCD: { fill: "lightgreen", stroke: "darkgreen", width: 2 };
+    style AC: { color: "red", dashed: true };
+    style BD: { color: "red", dashed: true };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+    label D: "D";
+}

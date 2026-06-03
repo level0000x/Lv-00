@@ -1,0 +1,13 @@
+/**
+ * App.css - Minimal global reset for the React application
+ *
+ * Most styles are managed through CSS custom properties in variables.css
+ * and component styles in global.css / components.css.
+ */
+
+/* Ensure the root element fills the viewport */
+#root {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}

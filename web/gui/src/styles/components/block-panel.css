@@ -1,0 +1,181 @@
+/* ============================================================
+   BlockPanel 函数块面板样式 / BlockPanel Component Styles
+   前缀: bp- / Prefix: bp-
+   ============================================================ */
+
+/* === 分类过滤按钮容器 / Category filter button container === */
+.bp-filter-bar {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+/* 分类过滤按钮 / Category filter button */
+.bp-filter-btn {
+    font-size: 11px;
+    padding: 2px 6px;
+}
+
+/* === 预设块列表容器 / Preset block list container === */
+.bp-preset-list {
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border-secondary, #333);
+    border-radius: var(--radius-sm, 4px);
+}
+
+/* === 预设块条目 / Preset block entry === */
+.bp-preset-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border-secondary, #222);
+    background-color: transparent;
+    transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+/* 预设块悬停效果 / Preset item hover effect */
+.bp-preset-item:hover {
+    background-color: var(--color-bg-overlay, rgba(255, 255, 255, 0.05));
+}
+
+/* 预设块选中状态 / Preset item selected state */
+.bp-preset-item--active {
+    background-color: var(--color-accent-bg, rgba(74, 158, 255, 0.13));
+}
+
+/* 预设块图标 / Preset item icon */
+.bp-preset-icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* 预设块信息区 / Preset item info area */
+.bp-preset-info {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 预设块中文名称 / Preset item Chinese name */
+.bp-preset-name-zh {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* 预设块英文名称 / Preset item English name */
+.bp-preset-name-en {
+    font-size: 10px;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 预设块输入提示 / Preset item input hint */
+.bp-preset-hint {
+    font-size: 10px;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+/* === 当前预设输入选择状态 / Active preset input selection state === */
+.bp-active-preset-area {
+    margin-top: 8px;
+}
+
+/* 预设选择状态文本 / Preset selection status text */
+.bp-preset-status {
+    font-size: 11px;
+    margin-bottom: 4px;
+    opacity: 0.8;
+}
+
+/* 操作按钮行 / Action button row */
+.bp-action-row {
+    display: flex;
+    gap: 4px;
+}
+
+/* 小号操作按钮 / Small action button */
+.bp-action-btn {
+    font-size: 11px;
+}
+
+/* === 双块操作状态提示 / Dual-block operation status hint === */
+.bp-dual-op-hint {
+    font-size: 11px;
+    margin-bottom: 6px;
+    padding: 4px;
+    background-color: var(--color-accent-bg, rgba(74, 158, 255, 0.13));
+    border-radius: var(--radius-sm, 4px);
+}
+
+/* 双块操作取消按钮 / Dual-block operation cancel button */
+.bp-dual-op-cancel-btn {
+    font-size: 10px;
+    margin-left: 6px;
+    padding: 1px 4px;
+}
+
+/* === 用户函数块列表 / User function block list === */
+.bp-user-blocks-empty {
+    font-size: 11px;
+    opacity: 0.5;
+}
+
+/* 用户函数块列表容器 / User block list container */
+.bp-user-blocks-list {
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+/* 用户函数块条目 / User block entry */
+.bp-user-block-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--color-border-secondary, #222);
+    font-size: 11px;
+    background-color: transparent;
+    cursor: default;
+    transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+/* 用户块可点击状态（组合/乘积选择中）/ User block clickable state */
+.bp-user-block-item--clickable {
+    cursor: pointer;
+}
+
+/* 用户块选中状态 / User block selected state */
+.bp-user-block-item--selected {
+    background-color: var(--color-accent-bg, rgba(74, 158, 255, 0.2));
+}
+
+/* 用户块选中标签 / User block selected label */
+.bp-user-block-label {
+    margin-left: 4px;
+    color: var(--color-accent, #4a9eff);
+}
+
+/* 用户块例化按钮 / User block instantiate button */
+.bp-user-block-inst-btn {
+    font-size: 10px;
+    padding: 1px 6px;
+}
+
+/* === 例化输入选择区 / Instantiate input selection area === */
+.bp-instantiate-area {
+    margin-top: 8px;
+}
+
+/* 例化状态文本 / Instantiate status text */
+.bp-instantiate-status {
+    font-size: 11px;
+    margin-bottom: 4px;
+}

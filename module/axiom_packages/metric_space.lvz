@@ -1,0 +1,531 @@
+# =============================================================================
+# Lv-00 Axiom Package: Metric Space Theory
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Metric space theory — the study of sets equipped with a distance function
+#   satisfying the metric axioms. Introduced by Maurice Fréchet (1906) in his
+#   doctoral thesis "Sur quelques points du calcul fonctionnel", metric spaces
+#   generalize the notion of Euclidean distance to abstract sets and form the
+#   foundational framework for analysis, topology, and geometry.
+#
+# References:
+#   - Fréchet, M. (1906). "Sur quelques points du calcul fonctionnel."
+#     Rendiconti del Circolo Matematico di Palermo, 22(1): 1-74.
+#     https://doi.org/10.1007/BF03018603
+#   - Hausdorff, F. (1914). "Grundzüge der Mengenlehre." Veit & Comp., Leipzig.
+#     https://en.wikipedia.org/wiki/Felix_Hausdorff
+#   - Wikipedia: Metric space
+#     https://en.wikipedia.org/wiki/Metric_space
+#   - nLab: Metric space
+#     https://ncatlab.org/nlab/show/metric+space
+#   - Rudin, W. (1976). "Principles of Mathematical Analysis" (3rd ed.).
+#     McGraw-Hill. ISBN 0-07-054235-X.
+#   - Burago, D., Burago, Y., and Ivanov, S. (2001). "A Course in Metric
+#     Geometry." AMS Graduate Studies in Mathematics, Vol. 33.
+#     ISBN 0-8218-2129-6.
+#   - Wikipedia: Complete metric space
+#     https://en.wikipedia.org/wiki/Complete_metric_space
+#   - Wikipedia: Banach fixed-point theorem
+#     https://en.wikipedia.org/wiki/Banach_fixed-point_theorem
+#   - Wikipedia: Baire category theorem
+#     https://en.wikipedia.org/wiki/Baire_category_theorem
+#   - Wikipedia: Urysohn's lemma (metric space version)
+#     https://en.wikipedia.org/wiki/Urysohn%27s_lemma
+#
+# Primitive Notions:
+#   - Set X (the underlying point set)
+#   - Distance function d: X × X → ℝ≥0 (metric)
+#
+# Core Axioms (Metric Axioms, 4 axioms):
+#   M1. Non-negativity:   d(x, y) ≥ 0, with equality iff x = y
+#   M2. Symmetry:         d(x, y) = d(y, x)
+#   M3. Triangle Inequality: d(x, z) ≤ d(x, y) + d(y, z)
+#   M4. Identity of Indiscernibles: d(x, x) = 0
+#       (Often combined with M1 as "d(x, y) = 0 ↔ x = y")
+#
+# Extended Metric Spaces (allowing d(x, y) = ∞):
+#   A pseudo-metric relaxes M4 to d(x, x) = 0 (but not necessarily x = y).
+#   An extended metric allows d(x, y) = ∞ for distinct points.
+#   A quasi-metric relaxes M2 (asymmetry allowed).
+#   An ultrametric strengthens M3 to d(x, z) ≤ max(d(x, y), d(y, z)).
+#
+# Key Derived Concepts Formalized as Templates:
+#   - Open balls, closed balls, spheres
+#   - Open sets, closed sets (via metric topology)
+#   - Convergence, Cauchy sequences, completeness
+#   - Continuity, uniform continuity, Lipschitz continuity
+#   - Compactness (sequential), total boundedness
+#   - Connectedness, path connectedness
+#   - Completion of metric spaces (Cauchy completion)
+#   - Banach fixed-point theorem (contraction mapping principle)
+#   - Baire category theorem
+#   - Product metric spaces, quotient metric spaces
+#   - Hausdorff distance (on compact subsets)
+#
+# Known Undecidable / Unconstructible Problems:
+#   - Isometric embedding into ℓ² (general case undecidable)
+#   - Classification of separable metric spaces up to isometry
+#   - Existence of a universal Urysohn metric space (requires choice)
+#   - Computability of the Hausdorff distance for general compact sets
+#   - Isometry problem for finite metric spaces (GI-hard)
+#   - Deciding whether a metric space is embeddable in ℝⁿ
+#
+# Relationship to Other Lv-00 Axiom Packages:
+#   - point_set_topology: every metric space induces a topology (metric topology)
+#   - real_analysis: ℝ with the standard metric is the prototypical complete
+#     metric space; Banach spaces are complete normed metric spaces
+#   - euclidean_plane: ℝ² with the Euclidean metric is a metric space
+#   - functional_analysis: Banach and Hilbert spaces are metric spaces with
+#     additional algebraic structure
+#   - category_theory: metric spaces form a category Met with non-expansive maps
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "metric_space" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Metric Axioms & Core Constructions)
+    # =================================================================
+    # Each template represents a fundamental axiom, property, or
+    # construction in metric space theory.
+    #
+    # Parameter semantics:
+    #   Points are elements of the underlying set X.
+    #   Scalars are non-negative real numbers (distances).
+    #   Regions are subsets of X (open balls, closed balls, etc.).
+    # =================================================================
+
+    # --- Group I: Core Metric Axioms ---
+
+    # M1. Non-negativity of distance:
+    #   For all x, y ∈ X, d(x, y) ≥ 0.
+    # Params: point x, point y
+    template "metric_non_negativity" 2
+
+    # M2. Symmetry of distance:
+    #   For all x, y ∈ X, d(x, y) = d(y, x).
+    # Params: point x, point y
+    template "metric_symmetry" 2
+
+    # M3. Triangle Inequality:
+    #   For all x, y, z ∈ X, d(x, z) ≤ d(x, y) + d(y, z).
+    # Params: point x, point y, point z
+    template "triangle_inequality" 3
+
+    # M4. Identity of Indiscernibles:
+    #   d(x, y) = 0 if and only if x = y.
+    #   (Combined non-negativity + identity)
+    # Params: point x, point y
+    template "identity_of_indiscernibles" 2
+
+    # --- Group II: Basic Metric Constructions ---
+
+    # Open Ball: B(x, r) = {y ∈ X : d(x, y) < r}
+    # The fundamental open neighborhood in a metric space.
+    # Params: center point x, radius scalar r -> open ball region
+    template "open_ball" 2
+
+    # Closed Ball: B̄(x, r) = {y ∈ X : d(x, y) ≤ r}
+    # Params: center point x, radius scalar r -> closed ball region
+    template "closed_ball" 2
+
+    # Sphere (distance sphere): S(x, r) = {y ∈ X : d(x, y) = r}
+    # Params: center point x, radius scalar r -> sphere region
+    template "sphere" 2
+
+    # Distance between point and set:
+    #   d(x, A) = inf{d(x, a) : a ∈ A}
+    # Params: point x, set A -> scalar distance
+    template "point_set_distance" 2
+
+    # Distance between two sets:
+    #   d(A, B) = inf{d(a, b) : a ∈ A, b ∈ B}
+    # Params: set A, set B -> scalar distance
+    template "set_set_distance" 2
+
+    # Diameter of a set:
+    #   diam(A) = sup{d(x, y) : x, y ∈ A}
+    # Params: set A -> scalar diameter
+    template "diameter" 1
+
+    # --- Group III: Metric Topology Constructions ---
+
+    # Open Set (metric topology):
+    #   U ⊆ X is open iff ∀x ∈ U, ∃r > 0 such that B(x, r) ⊆ U.
+    # Params: set U -> open set verification
+    template "metric_open_set" 1
+
+    # Closed Set:
+    #   F ⊆ X is closed iff X \ F is open.
+    # Params: set F -> closed set verification
+    template "metric_closed_set" 1
+
+    # Interior of a set:
+    #   int(A) = {x ∈ X : ∃r > 0, B(x, r) ⊆ A}
+    # Params: set A -> set int(A)
+    template "interior" 1
+
+    # Closure of a set:
+    #   cl(A) = {x ∈ X : ∀r > 0, B(x, r) ∩ A ≠ ∅}
+    # Params: set A -> set cl(A)
+    template "closure" 1
+
+    # Boundary of a set:
+    #   ∂A = cl(A) \ int(A)
+    # Params: set A -> set ∂A
+    template "boundary" 1
+
+    # Hausdorff Property (T₂ separation):
+    #   For any two distinct points x ≠ y, there exist disjoint open
+    #   balls B(x, r₁) and B(y, r₂). Every metric space is Hausdorff.
+    # Params: point x, point y -> separating radii r₁, r₂
+    template "hausdorff_separation" 2
+
+    # --- Group IV: Convergence & Completeness ---
+
+    # Sequence Convergence:
+    #   xₙ → x iff ∀ε > 0, ∃N such that ∀n ≥ N, d(xₙ, x) < ε.
+    # Params: sequence (xₙ), limit point x, epsilon ε -> convergence check
+    template "sequence_convergence" 3
+
+    # Cauchy Sequence:
+    #   (xₙ) is Cauchy iff ∀ε > 0, ∃N such that ∀m,n ≥ N, d(xₘ, xₙ) < ε.
+    # Params: sequence (xₙ), epsilon ε -> Cauchy check
+    template "cauchy_sequence" 2
+
+    # Completeness:
+    #   (X, d) is complete iff every Cauchy sequence converges in X.
+    # Params: metric space (X, d) -> completeness verification
+    template "completeness" 1
+
+    # Completion (Cauchy Completion):
+    #   Every metric space has a unique (up to isometry) complete metric
+    #   space (X̂, d̂) containing a dense isometric copy of (X, d).
+    #   Constructed as equivalence classes of Cauchy sequences.
+    # Params: metric space (X, d) -> complete metric space (X̂, d̂)
+    template "cauchy_completion" 1
+
+    # Banach Fixed-Point Theorem (Contraction Mapping Principle):
+    #   If (X, d) is complete and T: X → X is a contraction
+    #   (i.e., ∃k < 1 such that d(Tx, Ty) ≤ k·d(x, y) for all x,y),
+    #   then T has a unique fixed point x* and Tⁿ(x) → x* for any x.
+    # Params: contraction map T, contraction constant k -> fixed point x*
+    template "banach_fixed_point" 2
+
+    # Baire Category Theorem:
+    #   In a complete metric space, the countable intersection of dense
+    #   open sets is dense. Equivalently, a complete metric space is
+    #   not the countable union of nowhere dense sets.
+    # Params: complete metric space (X, d) -> Baire property verification
+    template "baire_category_theorem" 1
+
+    # --- Group V: Continuity ---
+
+    # Pointwise Continuity:
+    #   f: X → Y is continuous at x₀ iff ∀ε > 0, ∃δ > 0 such that
+    #   d(x, x₀) < δ implies d'(f(x), f(x₀)) < ε.
+    # Params: function f, point x₀, epsilon ε -> delta δ
+    template "pointwise_continuity" 3
+
+    # Uniform Continuity:
+    #   f: X → Y is uniformly continuous iff ∀ε > 0, ∃δ > 0 such that
+    #   ∀x, y ∈ X, d(x, y) < δ implies d'(f(x), f(y)) < ε.
+    # Params: function f, epsilon ε -> delta δ
+    template "uniform_continuity" 2
+
+    # Lipschitz Continuity:
+    #   f: X → Y is L-Lipschitz iff ∀x, y ∈ X,
+    #   d'(f(x), f(y)) ≤ L · d(x, y).
+    # Params: function f, Lipschitz constant L -> Lipschitz verification
+    template "lipschitz_continuity" 2
+
+    # Contraction Map:
+    #   T: X → X is a contraction iff ∃k ∈ [0, 1) such that
+    #   d(Tx, Ty) ≤ k · d(x, y) for all x, y ∈ X.
+    # Params: function T, contraction constant k -> contraction verification
+    template "contraction_map" 2
+
+    # Isometry:
+    #   f: X → Y is an isometry iff d'(f(x), f(y)) = d(x, y) for all x, y.
+    # Params: function f -> isometry verification
+    template "isometry" 1
+
+    # Uniformly Continuous Extension (to completion):
+    #   Every uniformly continuous function f: X → Y where Y is complete
+    #   has a unique uniformly continuous extension f̂: X̂ → Y.
+    # Params: function f, complete space Y -> extended function f̂
+    template "uniform_extension_to_completion" 2
+
+    # --- Group VI: Compactness & Boundedness ---
+
+    # Bounded Set:
+    #   A ⊆ X is bounded iff diam(A) < ∞.
+    # Params: set A -> boundedness verification
+    template "bounded_set" 1
+
+    # Totally Bounded Set:
+    #   A ⊆ X is totally bounded iff ∀ε > 0, A can be covered by
+    #   finitely many open balls of radius ε.
+    # Params: set A, epsilon ε -> finite cover verification
+    template "totally_bounded" 2
+
+    # Sequential Compactness:
+    #   A ⊆ X is sequentially compact iff every sequence in A has a
+    #   convergent subsequence with limit in A.
+    # Params: set A -> sequential compactness verification
+    template "sequential_compactness" 1
+
+    # Heine-Borel for Metric Spaces:
+    #   In a metric space, a subset is compact iff it is complete and
+    #   totally bounded. (Generalization of Heine-Borel theorem)
+    # Params: set A -> compactness equivalence verification
+    template "compact_equals_complete_totally_bounded" 1
+
+    # Lebesgue Number Lemma:
+    #   Every open cover of a compact metric space has a Lebesgue number
+    #   δ > 0 such that every subset of diameter < δ is contained in
+    #   some member of the cover.
+    # Params: compact space X, open cover -> Lebesgue number δ
+    template "lebesgue_number_lemma" 2
+
+    # Arzelà-Ascoli Theorem (metric space version):
+    #   A subset F of C(X, Y) is relatively compact iff F is uniformly
+    #   bounded and equicontinuous, where X is compact and Y is complete.
+    # Params: function family F, compact X, complete Y -> relative compactness
+    template "arzela_ascoli" 3
+
+    # --- Group VII: Connectedness ---
+
+    # Connected Set:
+    #   A ⊆ X is connected iff A cannot be partitioned into two
+    #   non-empty disjoint open (relative) subsets.
+    # Params: set A -> connectedness verification
+    template "connected_set" 1
+
+    # Path Connected Set:
+    #   A ⊆ X is path connected iff for any x, y ∈ A, there exists a
+    #   continuous path γ: [0,1] → A with γ(0) = x and γ(1) = y.
+    # Params: set A -> path connectedness verification
+    template "path_connected_set" 1
+
+    # Connected Components:
+    #   The connected component of x is the largest connected subset
+    #   of X containing x.
+    # Params: point x -> connected component
+    template "connected_component" 1
+
+    # --- Group VIII: Product & Quotient Constructions ---
+
+    # Product Metric (ℓ∞ product):
+    #   d∞((x₁,y₁), (x₂,y₂)) = max(d₁(x₁,x₂), d₂(y₁,y₂))
+    # Params: metric space (X₁,d₁), metric space (X₂,d₂) -> product space
+    template "product_metric_linf" 2
+
+    # Product Metric (ℓ² product):
+    #   d₂((x₁,y₁), (x₂,y₂)) = √(d₁(x₁,x₂)² + d₂(y₁,y₂)²)
+    # Params: metric space (X₁,d₁), metric space (X₂,d₂) -> product space
+    template "product_metric_l2" 2
+
+    # Product Metric (ℓ¹ product):
+    #   d₁((x₁,y₁), (x₂,y₂)) = d₁(x₁,x₂) + d₂(y₁,y₂)
+    # Params: metric space (X₁,d₁), metric space (X₂,d₂) -> product space
+    template "product_metric_l1" 2
+
+    # Quotient Metric:
+    #   Given an equivalence relation ~ on X, the quotient metric on X/~
+    #   is d'([x], [y]) = inf{Σᵢ d(pᵢ, pᵢ₊₁)} over all chains
+    #   x = p₀ ~ p₁ ~ ... ~ pₙ = y.
+    # Params: metric space (X, d), equivalence relation ~ -> quotient space
+    template "quotient_metric" 2
+
+    # --- Group IX: Specialized Constructions ---
+
+    # Hausdorff Distance (on compact subsets):
+    #   d_H(A, B) = max{sup_{a∈A} d(a, B), sup_{b∈B} d(b, A)}
+    #   Defines a metric on the space of non-empty compact subsets.
+    # Params: compact set A, compact set B -> Hausdorff distance
+    template "hausdorff_distance" 2
+
+    # Induced Metric on Subspace:
+    #   If (X, d) is a metric space and S ⊆ X, then d restricted to
+    #   S × S is a metric on S.
+    # Params: metric space (X, d), subset S -> subspace metric
+    template "subspace_metric" 2
+
+    # Discrete Metric:
+    #   d(x, y) = 1 if x ≠ y, d(x, x) = 0.
+    #   Makes any set into a complete metric space.
+    # Params: set X -> discrete metric space
+    template "discrete_metric" 1
+
+    # Standard Metric on ℝⁿ:
+    #   d(x, y) = √(Σᵢ (xᵢ - yᵢ)²) (Euclidean metric on ℝⁿ)
+    # Params: dimension n -> Euclidean metric space ℝⁿ
+    template "euclidean_metric_Rn" 1
+
+    # Sup Metric (ℓ∞ metric on bounded functions):
+    #   d(f, g) = sup{|f(x) - g(x)| : x ∈ X}
+    # Params: bounded function space -> sup metric space
+    template "sup_metric" 1
+
+    # Weighted Metric:
+    #   If d is a metric and w: X → (0, ∞), then d_w(x, y) = w(x)·d(x, y)
+    #   is a metric iff w is bounded above.
+    # Params: metric d, weight function w -> weighted metric
+    template "weighted_metric" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # 1. Isometric Embedding into ℓ² (general case)
+    # Determining whether an arbitrary (possibly infinite) metric space
+    # admits an isometric embedding into the Hilbert space ℓ² is
+    # undecidable in general. For finite metric spaces, this reduces to
+    # checking positive semi-definiteness of the Gram matrix, but for
+    # countable metric spaces the problem is more complex.
+    unconstructible "isometric_embedding_into_l2" {
+        reduces_to "gram_matrix_positive_semi_definiteness"
+        dependency "metric_non_negativity"
+        dependency "triangle_inequality"
+        dependency "identity_of_indiscernibles"
+        external_ref "https://en.wikipedia.org/wiki/Metric_space#Embeddings"
+        green_verified true
+    }
+
+    # 2. Classification of Separable Metric Spaces up to Isometry
+    # The isometry classification problem for separable metric spaces
+    # is extremely complex. There are 2^ℵ₀ non-isometric separable
+    # metric spaces (up to homeomorphism), and no effective complete
+    # classification exists.
+    unconstructible "separable_metric_space_classification" {
+        reduces_to "uncountable_isometry_classes"
+        dependency "metric_non_negativity"
+        dependency "completeness"
+        dependency "hausdorff_separation"
+        external_ref "https://en.wikipedia.org/wiki/Separable_space"
+        green_verified true
+    }
+
+    # 3. Existence of the Urysohn Universal Metric Space
+    # The Urysohn universal metric space U is a separable complete
+    # metric space that contains an isometric copy of every separable
+    # metric space. Its existence proof relies on the Axiom of Choice
+    # (via a Fraïssé limit construction), making it non-constructive.
+    unconstructible "urysohn_universal_space_existence" {
+        reduces_to "requires_axiom_of_choice"
+        dependency "completeness"
+        dependency "triangle_inequality"
+        dependency "isometry"
+        external_ref "https://en.wikipedia.org/wiki/Urysohn_universal_space"
+        green_verified true
+    }
+
+    # 4. Isometry Problem for Finite Metric Spaces
+    # Determining whether two finite metric spaces are isometric is
+    # polynomial-time equivalent to the Graph Isomorphism problem (GI),
+    # which is neither known to be in P nor known to be NP-complete.
+    # It is GI-hard and in NP.
+    unconstructible "finite_metric_space_isometry" {
+        reduces_to "graph_isomorphism"
+        dependency "metric_non_negativity"
+        dependency "metric_symmetry"
+        dependency "triangle_inequality"
+        dependency "identity_of_indiscernibles"
+        external_ref "https://en.wikipedia.org/wiki/Graph_isomorphism_problem"
+        green_verified true
+    }
+
+    # 5. Embedding a Finite Metric Space into ℝⁿ
+    # Determining the minimum dimension n for isometrically embedding
+    # a finite metric space into ℝⁿ with the ℓ∞ metric is NP-hard.
+    # For ℓ₂ (Euclidean) embedding, checking embeddability into ℝⁿ
+    # requires verifying positive semi-definiteness of the associated
+    # Gram matrix, which is polynomial for fixed n but the minimum
+    # dimension problem is hard.
+    unconstructible "finite_metric_embedding_into_Rn" {
+        reduces_to "NP_hard_optimization"
+        dependency "euclidean_metric_Rn"
+        dependency "triangle_inequality"
+        dependency "identity_of_indiscernibles"
+        external_ref "https://en.wikipedia.org/wiki/Embedding#Metric_space_embeddings"
+        green_verified true
+    }
+
+    # 6. Computability of Hausdorff Distance for General Compact Sets
+    # While the Hausdorff distance between polytopes is computable,
+    # computing it for general compact sets (given as arbitrary closed
+    # sets) is non-computable in the sense of computable analysis.
+    unconstructible "hausdorff_distance_computability" {
+        reduces_to "non_computable_in_computable_analysis"
+        dependency "hausdorff_distance"
+        dependency "closure"
+        dependency "completeness"
+        external_ref "https://en.wikipedia.org/wiki/Hausdorff_distance"
+        green_verified true
+    }
+
+    # 7. Baire Category Theorem Without Dependent Choice
+    # The Baire Category Theorem for complete metric spaces requires
+    # some form of the Axiom of Choice (at least Dependent Choice DC).
+    # It is not provable in ZF alone. There are models of ZF where
+    # the Baire Category Theorem fails for complete metric spaces.
+    unconstructible "baire_category_without_choice" {
+        reduces_to "requires_dependent_choice"
+        dependency "baire_category_theorem"
+        dependency "completeness"
+        dependency "cauchy_sequence"
+        external_ref "https://en.wikipedia.org/wiki/Baire_category_theorem"
+        green_verified true
+    }
+
+    # 8. Metrization of General Topological Spaces
+    # Not every topological space is metrizable. The Nagata-Smirnov
+    # metrization theorem gives necessary and sufficient conditions
+    # (regular + has a σ-locally finite base), but checking these
+    # conditions for an arbitrary topological space is undecidable.
+    unconstructible "general_metrizability" {
+        reduces_to "nagata_smirnov_conditions"
+        dependency "metric_open_set"
+        dependency "hausdorff_separation"
+        dependency "triangle_inequality"
+        external_ref "https://en.wikipedia.org/wiki/Metrization_theorem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    #
+    # bottom_geometry: "metric_space_general"
+    #   ⊥ (contradiction) in metric space theory is geometrically
+    #   represented as the degenerate metric space — a singleton set
+    #   {x} with d(x, x) = 0. This is the unique metric space with
+    #   zero diameter and zero distance between all points (trivially
+    #   just one point). It serves as the terminal object in the
+    #   category of metric spaces with non-expansive maps.
+    #
+    # negation_encoding: "classical_distance_negation"
+    #   ¬φ is encoded classically: a property φ fails on a metric
+    #   space (X, d) when there exists a counterexample point or
+    #   configuration violating the distance constraints of φ.
+    #   Since metric space theory uses classical logic (ZFC-based),
+    #   the law of excluded middle holds: for any property φ of a
+    #   metric space, either φ holds or ¬φ holds.
+    #
+    # contradiction_behavior: "explosion_principle"
+    #   Metric space theory is built on classical set theory (ZFC).
+    #   A contradiction in metric space theory (e.g., deriving both
+    #   d(x, y) > 0 and d(x, y) = 0 for x ≠ y) allows explosion:
+    #   from ⊥, any proposition follows. This is the standard
+    #   classical behavior.
+    # =================================================================
+
+    bottom_geometry "metric_space_general"
+    negation_encoding "classical_distance_negation"
+    contradiction_behavior "explosion_principle"
+}

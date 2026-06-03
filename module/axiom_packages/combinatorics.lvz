@@ -1,0 +1,354 @@
+# =============================================================================
+# Lv-00 Axiom Package: Combinatorics & Graph Theory
+# =============================================================================
+#
+# Mathematical Theory: Combinatorics & Graph Theory
+# Axiomatization: Constructive definitions (non-axiomatic framework)
+#
+# References:
+#   - Wikipedia: Combinatorics
+#     https://en.wikipedia.org/wiki/Combinatorics
+#   - Wikipedia: Graph theory
+#     https://en.wikipedia.org/wiki/Graph_theory
+#   - Stanley, R.P. (2012). "Enumerative Combinatorics" Vol. 1 (2nd ed.).
+#     Cambridge University Press.
+#   - Diestel, R. (2017). "Graph Theory" (5th ed.). Springer.
+#     ISBN 978-3-662-53621-6.
+#   - Wikipedia: Pigeonhole principle
+#     https://en.wikipedia.org/wiki/Pigeonhole_principle
+#   - Wikipedia: Ramsey theory
+#     https://en.wikipedia.org/wiki/Ramsey_theory
+#
+# Primitive Notions:
+#   - Finite sets (collections of distinguishable elements)
+#   - Permutations (bijective arrangements of a set)
+#   - Combinations (unordered selections from a set)
+#   - Graph G = (V, E) where V is a vertex set and E ⊆ V x V is an edge set
+#
+# Core Concepts (constructive definitions, not axioms):
+#   Combinatorial foundations:
+#     - Permutations, combinations, binomial coefficients
+#     - Inclusion-exclusion principle
+#   Graph-theoretic foundations:
+#     - Vertices, edges, paths, connectivity, trees, planar graphs
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "combinatorics" "1.0.0" {
+
+    # =================================================================
+    # Group I: Counting Foundations (6)
+    # =================================================================
+
+    # Pigeonhole principle — if n items are placed into m containers and
+    # n > m, then at least one container contains more than one item;
+    # a fundamental counting principle with many generalizations
+    template "pigeonhole_principle" 2
+
+    # Inclusion-exclusion principle — for finite sets A_1, ..., A_n,
+    # |union A_i| = sum |A_i| - sum |A_i ∩ A_j| + sum |A_i ∩ A_j ∩ A_k| - ...
+    # + (-1)^{n+1} |A_1 ∩ ... ∩ A_n|
+    template "inclusion_exclusion" 2
+
+    # Binomial coefficient — C(n, k) = n! / (k! * (n-k)!), the number of
+    # ways to choose k elements from an n-element set; satisfies
+    # Pascal's identity: C(n, k) = C(n-1, k-1) + C(n-1, k)
+    template "binomial_coefficient" 2
+
+    # Multinomial coefficient — (n; k_1, ..., k_r) = n! / (k_1! * ... * k_r!)
+    # where k_1 + ... + k_r = n; counts ways to partition n items into
+    # r labeled groups of sizes k_1, ..., k_r
+    template "multinomial_coefficient" 2
+
+    # Stars and bars — the number of ways to place n indistinguishable items
+    # into k distinguishable bins is C(n + k - 1, k - 1); a fundamental
+    # combinatorial counting technique
+    template "stars_and_bars" 2
+
+    # Generating function — a formal power series a_0 + a_1*x + a_2*x^2 + ...
+    # whose coefficients encode a combinatorial sequence; ordinary and
+    # exponential generating functions are the two main types
+    template "generating_function" 2
+
+    # =================================================================
+    # Group II: Permutations and Combinations (5)
+    # =================================================================
+
+    # Permutation — an ordered arrangement of k distinct elements chosen
+    # from an n-element set; P(n, k) = n! / (n-k)!
+    template "permutation" 2
+
+    # Combination — an unordered selection of k elements from an n-element
+    # set; C(n, k) = n! / (k! * (n-k)!)
+    template "combination" 2
+
+    # Permutation with repetition — the number of sequences of length k
+    # from an n-element set with repetition allowed: n^k
+    template "permutation_with_repetition" 2
+
+    # Derangement — a permutation of n elements with no fixed points;
+    # the number of derangements D_n = n! * sum_{k=0}^{n} (-1)^k / k!
+    # ≈ n! / e
+    template "derangement" 1
+
+    # Stirling number of the second kind — S(n, k) counts the number of
+    # ways to partition an n-element set into k non-empty unlabeled subsets;
+    # satisfies S(n, k) = k*S(n-1, k) + S(n-1, k-1)
+    template "stirling_number" 2
+
+    # =================================================================
+    # Group III: Graph Theory Foundations (8)
+    # =================================================================
+
+    # Graph vertex — an element v of the vertex set V of a graph G = (V, E);
+    # the fundamental atomic unit of a graph
+    template "graph_vertex" 1
+
+    # Graph edge — an element {u, v} of the edge set E ⊆ V x V of a graph
+    # G = (V, E); represents a relationship between two vertices
+    template "graph_edge" 2
+
+    # Graph path — a sequence of distinct vertices v_0, v_1, ..., v_k such
+    # that {v_i, v_{i+1}} is an edge for each i; the length of the path is k
+    template "graph_path" 2
+
+    # Graph cycle — a closed path v_0, v_1, ..., v_k, v_0 where k >= 3 and
+    # all vertices except v_0 = v_k are distinct; a cycle is simple if all
+    # vertices are distinct
+    template "graph_cycle" 1
+
+    # Graph tree — a connected acyclic graph; equivalently, a connected graph
+    # with |E| = |V| - 1; trees have exactly one path between any two vertices
+    template "graph_tree" 1
+
+    # Graph connectedness — a graph is connected if there exists a path
+    # between every pair of vertices; connected components are maximal
+    # connected subgraphs
+    template "graph_connected" 1
+
+    # Graph bipartiteness — a graph G = (V, E) is bipartite if V can be
+    # partitioned into two sets U, W such that every edge connects a vertex
+    # in U to a vertex in W; equivalently, G has no odd cycles
+    template "graph_bipartite" 1
+
+    # Graph planarity — a graph is planar if it can be drawn in the plane
+    # with no edge crossings; by Kuratowski's theorem, a graph is planar
+    # iff it contains no subdivision of K_5 or K_{3,3}
+    template "graph_planar" 1
+
+    # =================================================================
+    # Group IV: Advanced Graph Theory (6)
+    # =================================================================
+
+    # Graph coloring — an assignment of colors to vertices such that no two
+    # adjacent vertices share the same color; the chromatic number chi(G)
+    # is the minimum number of colors needed
+    template "graph_coloring" 2
+
+    # Graph matching — a set of pairwise non-adjacent edges in a graph;
+    # a maximum matching has the largest possible cardinality, and a perfect
+    # matching covers every vertex
+    template "graph_matching" 1
+
+    # Network flow — a flow in a network is a function on edges satisfying
+    # capacity constraints and flow conservation; the max-flow min-cut
+    # theorem states that the maximum flow equals the minimum cut capacity
+    template "graph_flow" 3
+
+    # Eulerian path — a trail in a graph that visits every edge exactly once;
+    # a connected graph has an Eulerian circuit iff every vertex has even
+    # degree (Euler's theorem)
+    template "eulerian_path" 1
+
+    # Hamiltonian path — a path in a graph that visits every vertex exactly
+    # once; a Hamiltonian cycle is a closed Hamiltonian path; determining
+    # their existence is NP-complete
+    template "hamiltonian_path" 1
+
+    # Graph isomorphism — a bijection f: V(G) -> V(H) preserving adjacency:
+    # {u, v} in E(G) iff {f(u), f(v)} in E(H); testing whether two graphs
+    # are isomorphic is a major open problem in complexity theory
+    template "graph_isomorphism" 2
+
+    # =================================================================
+    # Group V: Ramsey Theory (4)
+    # =================================================================
+
+    # Ramsey number — R(s, t) is the smallest integer n such that every
+    # 2-coloring of the edges of K_n contains a red K_s or a blue K_t;
+    # R(3, 3) = 6 is the smallest non-trivial Ramsey number
+    template "ramsey_number" 2
+
+    # Ramsey's theorem — for any positive integers r, s_1, ..., s_r, there
+    # exists an integer N such that any r-coloring of the k-subsets of an
+    # N-element set contains a monochromatic s_i-subset in color i for some i
+    template "ramsey_theorem" 3
+
+    # Schur's theorem — for any positive integer r, there exists S(r) such
+    # that any r-coloring of {1, 2, ..., S(r)} contains a monochromatic
+    # solution to x + y = z
+    template "schur_theorem" 1
+
+    # Van der Waerden's theorem — for any positive integers r, k, there
+    # exists W(r, k) such that any r-coloring of {1, 2, ..., W(r, k)}
+    # contains a monochromatic arithmetic progression of length k
+    template "van_der_waerden_theorem" 2
+
+    # =================================================================
+    # Group VI: Probabilistic Combinatorics (5)
+    # =================================================================
+
+    # Probabilistic method — a non-constructive technique pioneered by Erdos
+    # that proves the existence of a combinatorial object by showing that
+    # a random construction succeeds with positive probability
+    template "probabilistic_method" 2
+
+    # Markov's inequality — for a non-negative random variable X with
+    # expectation E[X], P(X >= a) <= E[X] / a for any a > 0
+    template "markov_inequality" 2
+
+    # Chebyshev's inequality — for a random variable X with mean mu and
+    # variance sigma^2, P(|X - mu| >= k*sigma) <= 1/k^2
+    template "chebyshev_inequality" 3
+
+    # Chernoff bound — a sharp exponential concentration inequality for
+    # sums of independent random variables; P(X <= (1-delta)*mu) <=
+    # exp(-mu*delta^2/2) for X ~ Binomial(n, p)
+    template "chernoff_bound" 3
+
+    # Lovasz local lemma — if events A_1, ..., A_n are "mostly independent"
+    # (each event is independent of all but at most d others, and
+    # P(A_i) <= p with e*p*(d+1) <= 1), then P(∩ complement A_i) > 0
+    template "lovasz_local_lemma" 3
+
+    # =================================================================
+    # Group VII: Special Structures (5)
+    # =================================================================
+
+    # Latin square — an n x n array filled with n symbols such that each
+    # symbol appears exactly once in each row and each column; equivalent
+    # to the multiplication table of a quasigroup
+    template "latin_square" 1
+
+    # Block design — a pair (V, B) where V is a set of v elements and B is
+    # a collection of k-element subsets (blocks) of V such that every
+    # t-element subset of V is contained in exactly lambda blocks;
+    # a (v, k, lambda)-design when t = 2
+    template "design_theory_block" 4
+
+    # Error-correcting code — a subset C of F_q^n (the space of length-n
+    # words over an alphabet of size q) with the property that distinct
+    # codewords are sufficiently far apart in Hamming distance to allow
+    # detection and correction of transmission errors
+    template "error_correcting_code" 3
+
+    # Matroid — an abstraction of linear independence: a pair (E, I) where
+    # E is a finite ground set and I is a family of independent subsets
+    # satisfying: (I1) empty set in I, (I2) subsets of independent sets
+    # are independent, (I3) the augmentation property
+    template "matroid" 2
+
+    # Dilworth's theorem for posets — in any finite partially ordered set,
+    # the size of a maximum antichain equals the minimum number of chains
+    # needed to cover the set; a fundamental result in order theory
+    template "poset_dilworth" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+
+    # Graph isomorphism problem — determining whether two graphs are
+    # isomorphic; currently known to be in quasi-polynomial time
+    # (Babai, 2015) but not known to be in P or NP-complete
+    unconstructible "graph_isomorphism_problem" {
+        reduces_to "quasi_polynomial"
+        dependency "graph_vertex"
+        dependency "graph_edge"
+        dependency "graph_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Graph_isomorphism_problem"
+        green_verified true
+    }
+
+    # Graph k-coloring decision — determining whether a graph can be colored
+    # with k colors is NP-complete for k >= 3 (Karp, 1972); polynomial for k = 2
+    unconstructible "graph_coloring_decision" {
+        reduces_to "np_complete"
+        dependency "graph_vertex"
+        dependency "graph_edge"
+        dependency "graph_coloring"
+        external_ref "https://en.wikipedia.org/wiki/Graph_coloring"
+        green_verified true
+    }
+
+    # Hamiltonian cycle decision — determining whether a graph contains a
+    # Hamiltonian cycle (a cycle visiting every vertex exactly once) is
+    # NP-complete (Karp, 1972)
+    unconstructible "hamiltonian_cycle_decision" {
+        reduces_to "np_complete"
+        dependency "graph_vertex"
+        dependency "graph_edge"
+        dependency "graph_path"
+        dependency "graph_cycle"
+        dependency "hamiltonian_path"
+        external_ref "https://en.wikipedia.org/wiki/Hamiltonian_path_problem"
+        green_verified true
+    }
+
+    # Subgraph isomorphism — determining whether a graph H is isomorphic to
+    # a subgraph of G is NP-complete; generalizes both clique detection and
+    # independent set problems
+    unconstructible "subgraph_isomorphism" {
+        reduces_to "np_complete"
+        dependency "graph_vertex"
+        dependency "graph_edge"
+        dependency "graph_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Subgraph_isomorphism_problem"
+        green_verified true
+    }
+
+    # Exact Ramsey number computation — computing R(s, t) exactly is
+    # notoriously difficult; only finitely many values are known, and the
+    # growth rate remains poorly understood (Erdos-Szekeres bounds)
+    unconstructible "ramsey_number_exact" {
+        reduces_to "undecidable"
+        dependency "ramsey_number"
+        dependency "ramsey_theorem"
+        dependency "graph_coloring"
+        external_ref "https://en.wikipedia.org/wiki/Ramsey%27s_theorem"
+        green_verified true
+    }
+
+    # Permanent computation — the permanent of an n x n matrix is
+    # sum_{sigma} prod A_{i, sigma(i)} over all permutations sigma;
+    # computing it is #P-hard (Valiant, 1979), in contrast to the
+    # polynomial-time computable determinant
+    unconstructible "permanent_computation" {
+        reduces_to "sharp_p_hard"
+        dependency "permutation"
+        dependency "combination"
+        external_ref "https://en.wikipedia.org/wiki/Permanent_(mathematics)"
+        green_verified true
+    }
+
+    # 3-SAT problem — determining whether a Boolean formula in conjunctive
+    # normal form with exactly 3 literals per clause is satisfiable;
+    # the canonical NP-complete problem (Cook-Levin theorem)
+    unconstructible "satisfiability_3sat" {
+        reduces_to "np_complete"
+        dependency "pigeonhole_principle"
+        dependency "inclusion_exclusion"
+        external_ref "https://en.wikipedia.org/wiki/Boolean_satisfiability_problem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "finite_discrete_structures"
+    negation_encoding "classical_complement"
+    contradiction_behavior "explosion_principle"
+}
