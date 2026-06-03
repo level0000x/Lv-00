@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file float_error.c
  * @brief FPTaylor 风格浮点误差验证实现 —— 区间算术 + 泰勒展开桩
  * @details 实现 IEEE 1788 区间算术的基本操作（加减乘除）以及

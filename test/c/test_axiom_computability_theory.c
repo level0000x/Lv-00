@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_computability_theory.c
  * @brief Computability Theory (Recursion Theory) Axiom Package Test
  *

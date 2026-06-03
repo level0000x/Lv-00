@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_invariant.c
  * @brief Tests for the geometric invariant type module
  *

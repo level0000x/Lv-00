@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_boolean_algebra.c
  * @brief Boolean Algebra Axiom Package Test
  *

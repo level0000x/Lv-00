@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_simple_type_theory.c
  * @brief Simple Type Theory Axiom Package Test
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_descriptive_set_theory.c
  * @brief Descriptive Set Theory Axiom Package Test
  *

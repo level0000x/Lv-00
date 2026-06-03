@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_peano_arithmetic.c
  * @brief Peano Arithmetic Axiom Package Test
  *
