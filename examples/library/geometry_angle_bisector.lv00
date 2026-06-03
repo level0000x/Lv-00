@@ -1,0 +1,65 @@
+/**
+ * @file geometry_angle_bisector.lv00
+ * @brief 角平分线案例
+ *
+ * 演示角平分线的构造和性质
+ */
+
+// 定义角
+point A(0, 0);
+point B(6, 0);
+point C(4, 5);
+angle BAC(A, B, C);
+
+// 构造角平分线
+line bisector = angle_bisector(B, A, C);
+
+// 在角平分线上取点
+point D(3, 2);
+prove {
+    D lies_on bisector
+}
+
+// 证明角平分线上的点到两边距离相等
+const d1 = distance_from_point_to_line(D, line(A, B));
+const d2 = distance_from_point_to_line(D, line(A, C));
+
+prove {
+    d1 == d2
+}
+
+// 角平分线定理
+point E = intersection(bisector, line(B, C));
+
+prove {
+    length(B, E) / length(E, C) == length(A, B) / length(A, C)
+}
+
+// 内心（三条角平分线交点）
+line bisector_B = angle_bisector(A, B, C);
+line bisector_C = angle_bisector(A, C, B);
+point I = intersection(bisector, bisector_B);
+
+prove {
+    I lies_on bisector_C
+}
+
+// 内切圆
+const inradius = distance_from_point_to_line(I, line(A, B));
+circle incircle(I, inradius);
+
+// 可视化配置
+visualize {
+    style triangle ABC: { fill: "lightyellow", stroke: "orange", width: 2 };
+    style bisector: { color: "red", width: 2 };
+    style bisector_B: { color: "red", width: 2 };
+    style bisector_C: { color: "red", width: 2 };
+    style incircle: { fill: "none", stroke: "green", width: 2 };
+    style I: { color: "green", size: 8 };
+    label A: "A";
+    label B: "B";
+    label C: "C";
+    label D: "D";
+    label E: "E";
+    label I: "I";
+}

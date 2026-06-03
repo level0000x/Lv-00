@@ -1,0 +1,84 @@
+/**
+ * @module styles/components/graph-panel
+ * @description GraphPanel 图模块面板专用样式。
+ *              包含选择器下拉框、分析结果列表、合并候选/冗余/冲突列表等样式。
+ *              所有类名使用 gp- 前缀，避免与其他组件冲突。
+ */
+
+/* ============================================================
+   SelectorDropdown 选择器下拉框 / Selector Dropdown
+   ============================================================ */
+
+/* 选择器行容器，缩小底部间距 */
+.gp-selector-row {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 选择器行中的标签文字 */
+.gp-selector-label {
+  min-width: 60px;
+  font-size: var(--font-size-base);
+}
+
+/* 选择器行中的下拉框 */
+.gp-selector-select {
+  font-size: var(--font-size-base);
+}
+
+/* ============================================================
+   分析结果区域 / Analysis Result Area
+   ============================================================ */
+
+/* 分析结果信息框顶部间距 */
+.gp-analysis-result {
+  margin-top: var(--spacing-sm);
+}
+
+/* 分析结果值文字样式 */
+.gp-analysis-value {
+  font-size: var(--font-size-sm);
+  word-break: break-all;
+}
+
+/* ============================================================
+   合并候选列表 / Merge Candidates List
+   ============================================================ */
+
+/* 列表容器通用样式 */
+.gp-list-container {
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-base);
+}
+
+/* 列表标题 */
+.gp-list-title {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 列表条目：水平排列，两端对齐 */
+.gp-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+/* 列表条目中的操作按钮组 */
+.gp-list-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+/* 列表条目中的小按钮（Merge / Skip / Remove） */
+.gp-list-btn {
+  font-size: var(--font-size-sm);
+  padding: 1px 6px;
+}
+
+/* 冲突条目：仅有底部边框和内边距 */
+.gp-conflict-item {
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--color-border-secondary);
+}

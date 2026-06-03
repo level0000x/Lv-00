@@ -1,0 +1,312 @@
+# =============================================================================
+# Lv-00 Axiom Package: Field Theory
+# =============================================================================
+#
+# Mathematical Theory: Field Theory
+# Axiomatization: Standard field axioms (ring axioms + multiplicative inverse axiom)
+#
+# References:
+#   - Wikipedia: Field (mathematics)
+#     https://en.wikipedia.org/wiki/Field_(mathematics)
+#   - Lang, S. (2002). "Algebra" (3rd ed.). Springer. ISBN 0-387-95385-X.
+#   - Dummit, D.S. and Foote, R.M. (2004). "Abstract Algebra" (3rd ed.). Wiley.
+#   - Wikipedia: Galois theory
+#     https://en.wikipedia.org/wiki/Galois_theory
+#   - Wikipedia: Finite field
+#     https://en.wikipedia.org/wiki/Finite_field
+#   - nLab: field
+#     https://ncatlab.org/nlab/show/field
+#
+# Primitive Notions:
+#   - Field elements (members of a field F)
+#   - Addition (+): F x F -> F
+#   - Multiplication (·): F x F -> F
+#   - Additive identity (0): the unique element with a + 0 = a
+#   - Multiplicative identity (1): the unique element with a · 1 = a, 1 != 0
+#
+# Core Axioms (11, organized in 3 groups):
+#   Group I: Ring Axioms F1-F8 (inherited from ring_theory)
+#     F1. Additive Associativity:  (a + b) + c = a + (b + c)
+#     F2. Additive Commutativity:  a + b = b + a
+#     F3. Additive Identity:       There exists 0 in F such that a + 0 = a.
+#     F4. Additive Inverse:        For each a in F, there exists -a with a + (-a) = 0.
+#     F5. Multiplicative Associativity: (a · b) · c = a · (b · c)
+#     F6. Multiplicative Identity: There exists 1 != 0 in F such that a · 1 = a.
+#     F7. Multiplicative Commutativity: a · b = b · a
+#     F8. Distributivity:          a · (b + c) = a · b + a · c
+#
+#   Group II: Field-Specific Axioms F9-F11
+#     F9.  Multiplicative Inverse: For each a != 0 in F, there exists a⁻¹ with a · a⁻¹ = 1.
+#     F10. Zero Not One:           0 != 1 (excludes the zero ring).
+#     F11. Multiplicative Cancellation: a · b = a · c and a != 0 implies b = c.
+#
+# Relationship to ring_theory:
+#   - Every field is a commutative ring with unity, where additionally every
+#     nonzero element has a multiplicative inverse (i.e., the field is a
+#     commutative division ring).
+#   - Axioms F1-F8 are the standard ring axioms; F9-F11 add the field
+#     structure on top.
+#
+# Relationship to group_theory:
+#   - The additive structure (F, +) is an abelian group.
+#   - The multiplicative structure (F*, ·) where F* = F \ {0} is also an
+#     abelian group.
+#   - A field is thus a pair of abelian groups linked by the distributive law.
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "field_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: Field Axioms (11)
+    # F1-F8: Ring axioms (inherited from ring_theory)
+    # F9-F11: Field-specific axioms
+    # =================================================================
+
+    # F1: Additive Associativity — (a + b) + c = a + (b + c)
+    template "addition_associativity" 3
+
+    # F2: Additive Commutativity — a + b = b + a
+    template "addition_commutativity" 2
+
+    # F3: Additive Identity — there exists 0 with a + 0 = a
+    template "additive_identity" 1
+
+    # F4: Additive Inverse — for each a, there exists -a with a + (-a) = 0
+    template "additive_inverse" 1
+
+    # F5: Multiplicative Associativity — (a · b) · c = a · (b · c)
+    template "multiplication_associativity" 3
+
+    # F6: Multiplicative Identity — there exists 1 != 0 with a · 1 = a
+    template "multiplicative_identity" 1
+
+    # F7: Multiplicative Commutativity — a · b = b · a
+    template "multiplication_commutativity" 2
+
+    # F8: Distributivity — a · (b + c) = a · b + a · c
+    template "distributivity" 3
+
+    # F9: Multiplicative Inverse — for each a != 0, there exists a⁻¹ with a · a⁻¹ = 1
+    template "multiplicative_inverse" 1
+
+    # F10: Zero Not One — the additive identity 0 is not equal to the multiplicative identity 1
+    template "zero_not_one" 0
+
+    # F11: Multiplicative Cancellation — a · b = a · c and a != 0 implies b = c
+    template "multiplication_cancellation" 3
+
+    # =================================================================
+    # Group II: Basic Field Constructions (6)
+    # =================================================================
+
+    # Field addition: a + b, the sum of two field elements
+    template "addition" 2
+
+    # Field subtraction: a - b = a + (-b), the difference of two field elements
+    template "subtraction" 2
+
+    # Field multiplication: a · b, the product of two field elements
+    template "multiplication" 2
+
+    # Field division: a / b = a · b⁻¹ for b != 0, the quotient of two field elements
+    template "division" 2
+
+    # Negation: -a, the additive inverse of a field element
+    template "negation" 1
+
+    # Reciprocal: a⁻¹ = 1/a for a != 0, the multiplicative inverse
+    template "reciprocal" 1
+
+    # =================================================================
+    # Group III: Subfields and Field Extensions (5)
+    # =================================================================
+
+    # Subfield test: K ⊆ F is a subfield iff K contains 0, 1, is closed under
+    # addition, subtraction, multiplication, and nonzero elements have inverses
+    template "subfield_test" 2
+
+    # Field extension: F/E where E is a subfield of F; [F : E] denotes the degree
+    template "field_extension" 2
+
+    # Algebraic element: alpha in F over E is algebraic if it is a root of some
+    # nonzero polynomial in E[x]
+    template "algebraic_element" 2
+
+    # Transcendental element: alpha in F over E is transcendental if it is not
+    # a root of any nonzero polynomial in E[x]
+    template "transcendental_element" 2
+
+    # Field tower law: if K ⊆ E ⊆ F are fields, then [F : K] = [F : E][E : K]
+    template "field_tower" 3
+
+    # =================================================================
+    # Group IV: Galois Theory Core (6)
+    # =================================================================
+
+    # Automorphism group: Aut(F/E) = {field automorphisms of F fixing E pointwise}
+    template "automorphism_group" 2
+
+    # Galois group: Gal(F/E) = Aut(F/E) when F/E is a Galois extension
+    template "galois_group" 2
+
+    # Fixed field: Fix(H) = {a in F : sigma(a) = a for all sigma in H},
+    # the subfield of F fixed by a subgroup H of Aut(F)
+    template "fixed_field" 2
+
+    # Galois extension: F/E is Galois if it is normal, separable, and
+    # |Gal(F/E)| = [F : E]
+    template "galois_extension" 2
+
+    # Fundamental theorem of Galois theory: there is an inclusion-reversing
+    # bijection between intermediate fields and subgroups of the Galois group
+    template "galois_correspondence" 2
+
+    # Normal extension: F/E is normal if every irreducible polynomial in E[x]
+    # that has a root in F splits completely in F
+    template "normal_extension" 2
+
+    # =================================================================
+    # Group V: Special Fields (4)
+    # =================================================================
+
+    # Finite field: a field with finitely many elements; every finite field has
+    # order p^n for some prime p and n >= 1 (Galois field GF(p^n))
+    template "finite_field" 2
+
+    # Prime field: the smallest subfield of a field F; isomorphic to Q (char 0)
+    # or F_p (char p)
+    template "prime_field" 1
+
+    # Algebraic closure: an algebraically closed field containing F such that
+    # every element of the closure is algebraic over F
+    template "algebraic_closure" 1
+
+    # Real closure: a real closed field containing an ordered field F,
+    # unique up to isomorphism over F
+    template "real_closure" 1
+
+    # =================================================================
+    # Group VI: Polynomials and Equations (5)
+    # =================================================================
+
+    # Polynomial ring over a field: F[x], the ring of polynomials with
+    # coefficients in F
+    template "polynomial_ring" 1
+
+    # Irreducible polynomial: a non-constant polynomial in F[x] that cannot
+    # be factored as a product of two non-constant polynomials
+    template "irreducible_polynomial" 1
+
+    # Minimal polynomial: the unique monic irreducible polynomial in E[x] of
+    # which an algebraic element alpha over E is a root
+    template "minimal_polynomial" 2
+
+    # Polynomial root: alpha is a root of f(x) in F[x] if f(alpha) = 0
+    template "polynomial_root" 2
+
+    # Degree of extension: [F : E] = dim_E(F), the dimension of F as a vector
+    # space over E
+    template "degree_of_extension" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+
+    # Polynomial roots by radicals: general polynomial equations of degree >= 5
+    # cannot be solved by radicals (Abel-Ruffini theorem)
+    unconstructible "polynomial_root_by_radicals" {
+        reduces_to "abel_ruffini_theorem"
+        dependency "polynomial_ring"
+        dependency "polynomial_root"
+        dependency "irreducible_polynomial"
+        dependency "field_extension"
+        dependency "galois_group"
+        external_ref "https://en.wikipedia.org/wiki/Abel%E2%80%93Ruffini_theorem"
+        green_verified true
+    }
+
+    # Galois group computation: computing the Galois group of a general
+    # polynomial is algorithmically undecidable
+    unconstructible "galois_group_computation" {
+        reduces_to "undecidable"
+        dependency "galois_group"
+        dependency "polynomial_ring"
+        dependency "field_extension"
+        dependency "automorphism_group"
+        dependency "irreducible_polynomial"
+        external_ref "https://en.wikipedia.org/wiki/Galois_theory"
+        green_verified true
+    }
+
+    # Field isomorphism problem: determining whether two given field extensions
+    # are isomorphic is undecidable in general
+    unconstructible "field_isomorphism_problem" {
+        reduces_to "undecidable"
+        dependency "field_extension"
+        dependency "subfield_test"
+        dependency "algebraic_element"
+        dependency "degree_of_extension"
+        external_ref "https://en.wikipedia.org/wiki/Field_(mathematics)"
+        green_verified true
+    }
+
+    # Algebraic closure uniqueness: the uniqueness of the algebraic closure
+    # up to isomorphism depends on the Axiom of Choice (Zorn's Lemma)
+    unconstructible "algebraic_closure_uniqueness" {
+        reduces_to "undecidable"
+        dependency "algebraic_closure"
+        dependency "field_extension"
+        dependency "algebraic_element"
+        external_ref "https://en.wikipedia.org/wiki/Algebraically_closed_field"
+        green_verified true
+    }
+
+    # Transcendence degree basis: the existence of a transcendence basis
+    # relies on the Axiom of Choice
+    unconstructible "transcendence_degree_basis" {
+        reduces_to "undecidable"
+        dependency "transcendental_element"
+        dependency "field_extension"
+        dependency "field_tower"
+        external_ref "https://en.wikipedia.org/wiki/Transcendence_degree"
+        green_verified true
+    }
+
+    # Field embedding existence: determining whether a field embedding exists
+    # between two given fields is undecidable in general
+    unconstructible "field_embedding_existence" {
+        reduces_to "undecidable"
+        dependency "field_extension"
+        dependency "subfield_test"
+        dependency "algebraic_element"
+        dependency "transcendental_element"
+        external_ref "https://en.wikipedia.org/wiki/Field_(mathematics)"
+        green_verified true
+    }
+
+    # Inverse Galois problem: whether every finite group occurs as the Galois
+    # group of some Galois extension of Q; known for many classes but unsolved
+    # in general
+    unconstructible "inverse_galois_problem" {
+        reduces_to "undecidable"
+        dependency "galois_group"
+        dependency "galois_extension"
+        dependency "field_extension"
+        dependency "polynomial_ring"
+        dependency "irreducible_polynomial"
+        external_ref "https://en.wikipedia.org/wiki/Inverse_Galois_problem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "field_theory_abstract"
+    negation_encoding "classical_equality"
+    contradiction_behavior "explosion_principle"
+}

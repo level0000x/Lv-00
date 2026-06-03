@@ -1,0 +1,153 @@
+/* ============================================================
+   Panel 面板组件样式 / Panel Component Styles
+   包含面板容器、标题、折叠/展开动画、属性面板、示例列表等。
+   ============================================================ */
+
+/* === PANEL / 面板容器 === */
+/* 侧边栏中的可折叠面板区块，支持点击标题展开/收起内容 */
+.panel {
+    border-bottom: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-lg) 14px;
+    animation: panelFadeIn var(--duration-slow) var(--ease-default);
+}
+
+/* === PANEL TITLE / 面板标题 === */
+/* 可点击的标题栏，包含折叠箭头图标，hover 时高亮 */
+.panel-title {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    transition: color var(--transition-fast);
+}
+.panel-title:hover { color: var(--color-text-primary); }
+
+/* 折叠箭头图标，折叠时旋转 -90 度 */
+.panel-title .collapse-arrow {
+    font-size: 8px;
+    transition: transform var(--transition-spring);
+    display: inline-block;
+    width: 10px;
+    text-align: center;
+}
+.panel-title .collapse-arrow.collapsed {
+    transform: rotate(-90deg);
+}
+
+/* === PANEL BODY / 面板内容区域 === */
+/* 支持折叠动画：通过 max-height 和 opacity 过渡实现平滑展开/收起 */
+.panel-body {
+    overflow: hidden;
+    max-height: 2000px;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease;
+    opacity: 1;
+}
+.panel-body.collapsed {
+    max-height: 0 !important;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+}
+
+/* === PROPERTIES PANEL / 属性面板 === */
+/* 显示选中对象属性的只读面板 */
+.prop-content {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-md) 10px;
+    font-size: var(--font-size-base);
+    min-height: 60px;
+    border-radius: var(--radius-sm);
+}
+
+/* 属性面板空状态提示 */
+.prop-empty {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-style: italic;
+}
+
+/* 属性键值行 */
+.prop-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+}
+.prop-key { color: var(--color-text-secondary); }
+.prop-val { color: var(--color-text-primary); font-weight: var(--font-weight-semibold); }
+
+/* === INFO BOX / 信息框 === */
+/* 显示只读信息的容器，常用于面板中展示元数据 */
+.info-box {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-secondary);
+    padding: var(--spacing-md) 10px;
+    font-size: var(--font-size-base);
+    border-radius: var(--radius-sm);
+    transition: border-color var(--transition-fast);
+}
+
+.info-box:hover {
+    border-color: var(--color-border-primary);
+}
+
+/* 信息框中的键值行 */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--color-border-secondary);
+}
+.info-row:last-child { border-bottom: none; }
+
+.info-label { color: var(--color-text-secondary); }
+.info-value { color: var(--color-text-primary); font-weight: var(--font-weight-semibold); }
+
+/* === EXAMPLES LIST / 示例列表 === */
+/* 可点击的示例条目列表，hover 时左侧出现指示条 */
+.examples-list { list-style: none; }
+.examples-list li {
+    padding: 5px 10px;
+    margin-bottom: var(--spacing-xs);
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    border-left: 2px solid transparent;
+    transition: all var(--transition-smooth);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.examples-list li:hover {
+    background: var(--color-bg-overlay);
+    color: var(--color-text-primary);
+    border-left-color: var(--color-text-secondary);
+    padding-left: 14px;
+}
+
+/* === DEPENDENCY TREE / 依赖树 === */
+/* 显示公式/模块之间依赖关系的树形结构 */
+.dep-tree { font-size: var(--font-size-xs); line-height: var(--line-height-relaxed); }
+.dep-tree-node {
+    padding: var(--spacing-xs) 0 var(--spacing-xs) 16px;
+    border-left: 1px solid var(--color-border-primary);
+    cursor: pointer;
+    transition: background var(--transition-fast), padding-left var(--transition-fast);
+}
+.dep-tree-node:hover { background: var(--color-bg-overlay); padding-left: 20px; }
+.dep-tree-root { border-left: none; padding-left: 0; }
+.dep-tree-empty { color: var(--color-text-muted); text-align: center; font-style: italic; }
+
+/* === NAV ROW / 导航按钮行 === */
+/* 面板中的水平按钮组，按钮等宽排列 */
+.nav-row { display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
+.nav-row .btn { flex: 1; text-align: center; }
+
+/* === PANEL SEPARATOR / 面板分隔线 === */
+/* 面板内各区块之间的视觉分隔线 */
+.panel-separator { height: 1px; background: var(--color-border-secondary); margin: var(--spacing-sm) 0; }

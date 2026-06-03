@@ -1,0 +1,12 @@
+# Lv-00 LLM 编程辅助模块 Python 依赖
+# ======================================
+# 注意：版本约束与根目录 requirements.txt 保持一致
+
+fastapi>=0.110,<1.0    # HTTP API 框架
+uvicorn[standard]>=0.25,<1.0  # ASGI 服务器（含 WebSocket 支持）
+pydantic>=2.5,<3.0     # 数据验证
+PyJWT>=2.8,<3.0        # JWT 认证（替代已停止维护的 python-jose）
+openai>=1.0,<2.0       # OpenAI 兼容接口
+dashscope>=1.18,<2.0   # 阿里云 DashScope AI 接口
+httpx>=0.25,<1.0       # 异步 HTTP 客户端
+rich>=13.0,<14.0       # 终端美化输出

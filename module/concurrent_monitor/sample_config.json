@@ -1,0 +1,29 @@
+{
+  "mode": "cli",
+  "concurrency": 10,
+  "timeout": 60,
+  "host": "127.0.0.1",
+  "port": 5800,
+  "processes": [
+    {
+      "id": "api_server_check",
+      "command": "ping -n 3 127.0.0.1"
+    },
+    {
+      "id": "dns_check",
+      "command": "ping -n 3 8.8.8.8"
+    },
+    {
+      "id": "system_info",
+      "command": "powershell -Command \"Get-ComputerInfo | Select-Object WindowsVersion,OsArchitecture,CsProcessors | Format-List\""
+    },
+    {
+      "id": "disk_usage",
+      "command": "powershell -Command \"Get-PSDrive -PSProvider FileSystem | Where-Object Used -gt 0 | Select-Object Name,Used,Free | Format-Table -AutoSize\""
+    },
+    {
+      "id": "process_list",
+      "command": "powershell -Command \"Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name,CPU,WorkingSet | Format-Table -AutoSize\""
+    }
+  ]
+}

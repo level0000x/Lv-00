@@ -1,0 +1,547 @@
+# =============================================================================
+# Lv-00 Axiom Package: Category Theory (Eilenberg-Mac Lane Axiomatization)
+# =============================================================================
+#
+# Mathematical Theory: Category Theory
+#   Category theory is a general theory of mathematical structures and their
+#   relations, introduced by Samuel Eilenberg and Saunders Mac Lane (1945).
+#   A category consists of objects and morphisms (arrows) between objects,
+#   with composition and identity morphisms satisfying associativity and
+#   unit laws. Category theory provides a unified language for all of
+#   mathematics and serves as an alternative foundation.
+#
+# Axiomatization: Standard Eilenberg-Mac Lane definition (1945)
+#
+# References:
+#   - Eilenberg, S. & Mac Lane, S. (1945). "General Theory of Natural
+#     Equivalences." Trans. Amer. Math. Soc., 58: 231-294.
+#     https://doi.org/10.1090/S0002-9947-1945-0013131-6
+#   - Mac Lane, S. (1998). "Categories for the Working Mathematician"
+#     (2nd ed.). Springer. ISBN 0-387-98403-8.
+#   - Wikipedia: Category theory
+#     https://en.wikipedia.org/wiki/Category_theory
+#   - Wikipedia: Category (mathematics)
+#     https://en.wikipedia.org/wiki/Category_(mathematics)
+#   - nLab: Category
+#     https://ncatlab.org/nlab/show/category
+#   - nLab: Functor
+#     https://ncatlab.org/nlab/show/functor
+#   - nLab: Natural transformation
+#     https://ncatlab.org/nlab/show/natural+transformation
+#   - Awodey, S. (2010). "Category Theory" (2nd ed.). Oxford University Press.
+#     ISBN 978-0-19-923718-0.
+#   - Leinster, T. (2014). "Basic Category Theory." Cambridge University Press.
+#     ISBN 978-1-107-04424-1.
+#
+# Primitive Notions:
+#   Objects: elements of Ob(C) — the carrier class of a category
+#   Morphisms: elements of Hom(A, B) — arrows from source A to target B
+#   Composition: binary operation ∘ : Hom(B,C) × Hom(A,B) → Hom(A,C)
+#   Identity: for each object X, a distinguished morphism id_X : X → X
+#
+# Core Axioms (5):
+#   C1. Domain/Codomain: Every morphism f has a source dom(f) and target cod(f)
+#   C2. Composability:  f : A → B, g : B → C ⇒ g ∘ f : A → C is defined
+#   C3. Associativity:  For f : A → B, g : B → C, h : C → D:
+#                       h ∘ (g ∘ f) = (h ∘ g) ∘ f
+#   C4. Left Identity:  For f : A → B: id_B ∘ f = f
+#   C5. Right Identity: For f : A → B: f ∘ id_A = f
+#
+# A category is geometrically a directed multigraph with a composition
+# operation and identity loops — making it naturally suited for Lv-00's
+# geometric constraint graph representation.
+#
+# Relationship to Other Theories:
+#   - A monoid is a category with one object (group_theory relates via
+#     delooping: a group is a one-object category where all morphisms
+#     are invertible)
+#   - A preorder/poset is a category with at most one morphism per pair
+#   - boolean_algebra: the category of Boolean algebras relates algebra
+#     to category theory
+#   - classical_propositional_logic: a Boolean algebra is a Cartesian
+#     closed category with certain properties
+#   - Set is the prototypical category; categories generalize sets
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-21
+# Version: 1.0.0
+# =============================================================================
+
+axiom "category_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: Core Primitives & Construction (5)
+    # =================================================================
+    # The fundamental building blocks of any category: objects,
+    # morphisms, composability check, composition, and identity.
+    # =================================================================
+
+    # An object is a carrier of structure (point-like in the geometric view).
+    # Params: none (existence declaration)
+    template "object" 0
+
+    # A morphism from source object A to target object B.
+    # Geometrically: a directed edge from node A to node B.
+    # Params: source A, target B
+    template "morphism" 2
+
+    # Composability check: verifies target of f equals source of g.
+    # Given morphisms f : A → B and g : C → D, check B = C for composability.
+    # Params: morphism f, morphism g
+    template "composability" 2
+
+    # Composition: given f : A → B and g : B → C, produce g ∘ f : A → C.
+    # This is the fundamental operation of category theory.
+    # Params: morphism f, morphism g, result morphism h
+    template "composition" 3
+
+    # Identity morphism: for each object A, id_A : A → A is a distinguished
+    # morphism that acts as the unit of composition.
+    # Params: object A
+    template "identity_morphism" 1
+
+    # =================================================================
+    # Group II: Axiom Constraints (3)
+    # =================================================================
+    # The three equational laws that define a category. These must hold
+    # for all objects and morphisms in the category.
+    # =================================================================
+
+    # C3: Associativity of composition.
+    # For f : A → B, g : B → C, h : C → D: h ∘ (g ∘ f) = (h ∘ g) ∘ f
+    # Params: morphism f, morphism g, morphism h
+    template "associativity" 3
+
+    # C4: Left identity law.
+    # For f : A → B: id_B ∘ f = f
+    # Params: morphism f, object A, object B
+    template "left_identity" 2
+
+    # C5: Right identity law.
+    # For f : A → B: f ∘ id_A = f
+    # Params: morphism f, object A, object B
+    template "right_identity" 2
+
+    # =================================================================
+    # Group III: Morphism Classifications (7)
+    # =================================================================
+    # Morphisms in a category can be classified by their algebraic
+    # properties. Each classification defines a subcollection of
+    # morphisms with specific cancellation or invertibility properties.
+    # =================================================================
+
+    # Monomorphism (monic): f : A → B is monic iff
+    #   ∀g₁,g₂ : X → A, f ∘ g₁ = f ∘ g₂ ⇒ g₁ = g₂
+    # "Left-cancellable"; geometric intuition: injective-like.
+    # Params: morphism f, test morphism g1, test morphism g2
+    template "monomorphism" 3
+
+    # Epimorphism (epic): f : A → B is epic iff
+    #   ∀g₁,g₂ : B → X, g₁ ∘ f = g₂ ∘ f ⇒ g₁ = g₂
+    # "Right-cancellable"; geometric intuition: surjective-like.
+    # Params: morphism f, test morphism g1, test morphism g2
+    template "epimorphism" 3
+
+    # Isomorphism: f : A → B is an isomorphism iff there exists
+    #   g : B → A such that g ∘ f = id_A and f ∘ g = id_B.
+    # The morphism g is the (two-sided) inverse of f.
+    # Params: morphism f, inverse morphism g
+    template "isomorphism" 2
+
+    # Endomorphism: a morphism f : A → A (source = target).
+    # Params: morphism f, object A
+    template "endomorphism" 1
+
+    # Automorphism: an endomorphism that is also an isomorphism.
+    # Params: morphism f, inverse morphism g
+    template "automorphism" 2
+
+    # Section (split monomorphism): f : A → B is a section iff
+    #   there exists r : B → A with r ∘ f = id_A (f has a left inverse).
+    # Params: morphism f, retraction r
+    template "section" 2
+
+    # Retraction (split epimorphism): f : A → B is a retraction iff
+    #   there exists s : B → A with f ∘ s = id_B (f has a right inverse).
+    # Params: morphism f, section s
+    template "retraction" 2
+
+    # =================================================================
+    # Group IV: Fundamental Constructions — Universal Objects (3)
+    # =================================================================
+    # Categories may contain special objects characterized by universal
+    # properties: initial, terminal, and zero objects.
+    # =================================================================
+
+    # Initial object: an object 0 such that for every object X,
+    #   there exists exactly one morphism 0 → X.
+    # Params: none (existence of initial object in the category)
+    template "initial_object" 0
+
+    # Terminal object: an object 1 such that for every object X,
+    #   there exists exactly one morphism X → 1.
+    # Params: none (existence of terminal object in the category)
+    template "terminal_object" 0
+
+    # Zero object: an object that is both initial and terminal.
+    # Params: none (existence of zero object in the category)
+    template "zero_object" 0
+
+    # =================================================================
+    # Group V: Limits — Finite Limits & Universal Constructions (11)
+    # =================================================================
+    # Limits are universal constructions (right Kan extensions).
+    # Finite limits include products, equalizers, and pullbacks.
+    # =================================================================
+
+    # Binary product: A × B with projections π₁ : A × B → A, π₂ : A × B → B
+    #   such that for any X with f : X → A, g : X → B,
+    #   there exists unique ⟨f,g⟩ : X → A × B
+    #   with π₁ ∘ ⟨f,g⟩ = f and π₂ ∘ ⟨f,g⟩ = g.
+    # Params: object A, object B
+    template "binary_product" 2
+
+    # Product projection left: π₁ : A × B → A
+    # Params: product P, object A
+    template "product_projection_left" 2
+
+    # Product projection right: π₂ : A × B → B
+    # Params: product P, object B
+    template "product_projection_right" 2
+
+    # Binary coproduct: A + B with injections ι₁ : A → A + B, ι₂ : B → A + B
+    #   such that for any X with f : A → X, g : B → X,
+    #   there exists unique [f,g] : A + B → X
+    #   with [f,g] ∘ ι₁ = f and [f,g] ∘ ι₂ = g.
+    # Params: object A, object B
+    template "binary_coproduct" 2
+
+    # Coproduct injection left: ι₁ : A → A + B
+    # Params: object A, coproduct C
+    template "coproduct_injection_left" 2
+
+    # Coproduct injection right: ι₂ : B → A + B
+    # Params: object B, coproduct C
+    template "coproduct_injection_right" 2
+
+    # Equalizer: for parallel morphisms f,g : A → B, the equalizer
+    #   Eq(f,g) is the limit of the diagram A ⇉ B.
+    # Params: morphism f, morphism g
+    template "equalizer" 2
+
+    # Coequalizer: the colimit of a parallel pair.
+    # Params: morphism f, morphism g
+    template "coequalizer" 2
+
+    # Pullback: the limit of a cospan A → C ← B.
+    # The pullback P of f : A → C and g : B → C completes the square
+    # so that f ∘ p₁ = g ∘ p₂ and is universal among such completions.
+    # Params: morphism f, morphism g
+    template "pullback" 2
+
+    # Pushout: the colimit of a span A ← C → B (dual of pullback).
+    # Params: morphism f, morphism g
+    template "pushout" 2
+
+    # Exponential object: B^A (internal hom) in a Cartesian closed category.
+    # Characterized by the natural bijection Hom(C × A, B) ≅ Hom(C, B^A).
+    # Params: object A (base), object B (exponent)
+    template "exponential_object" 2
+
+    # =================================================================
+    # Group VI: Functors — Structure-Preserving Maps (8)
+    # =================================================================
+    # A functor F : C → D maps objects and morphisms of C to objects
+    # and morphisms of D, preserving composition and identities.
+    # This is the natural notion of "homomorphism of categories."
+    # =================================================================
+
+    # Functor object map: F₀ : Ob(C) → Ob(D)
+    # Params: object X in C, object F(X) in D
+    template "functor_object_map" 2
+
+    # Functor morphism map: F₁ : Hom_C(A,B) → Hom_D(F(A),F(B))
+    # Params: morphism f, mapped morphism F(f)
+    template "functor_morphism_map" 2
+
+    # Functor preserves composition: F(g ∘ f) = F(g) ∘ F(f)
+    # Params: morphism f, morphism g, functor F
+    template "functor_preserves_composition" 3
+
+    # Functor preserves identities: F(id_A) = id_{F(A)}
+    # Params: object A, functor F
+    template "functor_preserves_identity" 1
+
+    # Identity functor: Id_C : C → C maps everything to itself.
+    # Params: category C
+    template "identity_functor" 1
+
+    # Functor composition: if F : C → D and G : D → E, then G ∘ F : C → E
+    #   with (G∘F)₀ = G₀∘F₀ and (G∘F)₁ = G₁∘F₁.
+    # Params: functor F, functor G, composed functor H
+    template "functor_composition" 3
+
+    # Contravariant functor: reverses morphism direction.
+    #   F : C^op → D (equivalently F : C → D^op).
+    # Params: object X, mapped object F(X)
+    template "contravariant_functor" 2
+
+    # Forgetful functor: U : C → Set strips structure from objects.
+    # Example: U : Grp → Set forgets the group operation.
+    # Params: category C
+    template "forgetful_functor" 1
+
+    # =================================================================
+    # Group VII: Natural Transformations (6)
+    # =================================================================
+    # A natural transformation α : F ⇒ G between parallel functors
+    # F, G : C → D is a family of morphisms α_A : F(A) → G(A) such
+    # that for every f : A → B in C, the naturality square commutes.
+    # =================================================================
+
+    # Natural transformation: α : F ⇒ G between functors F, G : C → D.
+    # Params: functor F, functor G
+    template "natural_transformation" 2
+
+    # Component of a natural transformation at object A: α_A : F(A) → G(A).
+    # Params: natural transformation α, object A, component morphism α_A
+    template "natural_transformation_component" 3
+
+    # Naturality square: for f : A → B in C,
+    #   α_B ∘ F(f) = G(f) ∘ α_A.
+    # This is the coherence condition defining a natural transformation.
+    # Params: morphism f, functor F, functor G, natural transformation α
+    template "naturality_square" 4
+
+    # Vertical composition of natural transformations:
+    #   Given α : F ⇒ G and β : G ⇒ H, then β ∘ α : F ⇒ H
+    #   with (β ∘ α)_A = β_A ∘ α_A.
+    # Params: natural transformation α, natural transformation β
+    template "vertical_composition" 2
+
+    # Horizontal composition (Godement product):
+    #   Given α : F ⇒ F' (between C → D) and β : G ⇒ G' (between D → E),
+    #   β * α : G∘F ⇒ G'∘F'.
+    # Params: natural transformation α, natural transformation β
+    template "horizontal_composition" 2
+
+    # Natural isomorphism: a natural transformation where every component
+    #   is an isomorphism.
+    # Params: natural transformation α, inverse natural transformation β
+    template "natural_isomorphism" 2
+
+    # =================================================================
+    # Group VIII: Adjunctions (4)
+    # =================================================================
+    # An adjunction F ⊣ G between functors F : C → D and G : D → C
+    # is a natural isomorphism Hom_D(F(X), Y) ≅ Hom_C(X, G(Y)).
+    # Adjunctions are pervasive in mathematics: free/forgetful,
+    # product/exponential, etc.
+    # =================================================================
+
+    # Adjunction: F ⊣ G with F : C → D (left adjoint) and G : D → C (right adjoint).
+    # Params: functor F (left adjoint), functor G (right adjoint)
+    template "adjunction" 2
+
+    # Unit of adjunction: η : Id_C ⇒ G ∘ F.
+    # Params: object A in C, unit component η_A
+    template "unit_of_adjunction" 2
+
+    # Counit of adjunction: ε : F ∘ G ⇒ Id_D.
+    # Params: object B in D, counit component ε_B
+    template "counit_of_adjunction" 2
+
+    # Triangle identities: the unit and counit satisfy
+    #   (εF) ∘ (Fη) = id_F and (Gε) ∘ (ηG) = id_G.
+    # These are necessary and sufficient for an adjunction.
+    # Params: functor F, functor G, natural transformation η, natural transformation ε
+    template "triangle_identities" 4
+
+    # =================================================================
+    # Group IX: Special Categories & Duality (6)
+    # =================================================================
+    # Categorical constructions that produce new categories from
+    # existing ones, and special types of categories.
+    # =================================================================
+
+    # Opposite category C^op: reverse all morphisms.
+    #   Ob(C^op) = Ob(C), Hom_{C^op}(A,B) = Hom_C(B,A).
+    # Params: category C
+    template "opposite_category" 1
+
+    # Product category C × D: objects are pairs (A,X) with A∈C, X∈D;
+    #   morphisms are pairs (f,g) with f in C, g in D.
+    # Params: category C, category D
+    template "product_category" 2
+
+    # Slice category C/X (over category): objects are morphisms f : A → X
+    #   in C; a morphism h : f → g is h : A → B with g ∘ h = f.
+    # Params: category C, object X
+    template "slice_category" 2
+
+    # Coslice category X\C (under category): objects are morphisms
+    #   f : X → A in C (dual of slice category).
+    # Params: object X, category C
+    template "coslice_category" 2
+
+    # Arrow category C^→: objects are morphisms of C; morphisms are
+    #   commutative squares.
+    # Params: category C
+    template "arrow_category" 1
+
+    # Monoidal category: a category equipped with a tensor product ⊗
+    #   and a unit object I, with associator, left unitor, and right unitor
+    #   satisfying coherence (Mac Lane's pentagon and triangle).
+    # Params: category C
+    template "monoidal_category" 1
+
+    # =================================================================
+    # Group X: Category Equivalence & Properties (4)
+    # =================================================================
+    # =================================================================
+
+    # Equivalence of categories: F : C → D is an equivalence iff
+    #   there exists G : D → C and natural isomorphisms
+    #   η : Id_C ≅ G∘F and ε : F∘G ≅ Id_D.
+    # Params: functor F, functor G
+    template "equivalence_of_categories" 2
+
+    # Skeleton: a category is skeletal iff isomorphic objects are equal.
+    # Every category is equivalent to its skeleton.
+    # Params: category C
+    template "skeleton" 1
+
+    # Full subcategory: D ⊆ C is full if for all A,B in D,
+    #   Hom_D(A,B) = Hom_C(A,B).
+    # Params: category C, subcategory D
+    template "full_subcategory" 2
+
+    # Commutative diagram: a diagram in a category where all parallel
+    #   compositions of morphisms give equal results.
+    # Params: a collection of morphisms (variable arity, represented here
+    #         as a path-equality constraint)
+    template "commutative_diagram" 2
+
+    # =================================================================
+    # Group XI: Yoneda Lemma & Representables (3)
+    # =================================================================
+    # The Yoneda Lemma is arguably the most important single result in
+    # category theory. It establishes the Yoneda embedding and
+    # characterizes representable functors.
+    # =================================================================
+
+    # Hom-functor: Hom_C(A, -) : C → Set
+    #   and Hom_C(-, A) : C^op → Set (contravariant).
+    # Params: object A
+    template "hom_functor" 1
+
+    # Representable functor: a functor F : C → Set is representable
+    #   iff there exists A in C and a natural isomorphism
+    #   Hom_C(A, -) ≅ F.
+    # Params: functor F, representing object A
+    template "representable_functor" 2
+
+    # Yoneda embedding: the functor Y : C → [C^op, Set] given by
+    #   Y(A) = Hom_C(-, A) is fully faithful.
+    # Params: category C
+    template "yoneda_embedding" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+    # Category theory, despite its abstract nature, has its own
+    # collection of undecidable problems, particularly when dealing
+    # with finitely presented categories (FPCs).
+    # =================================================================
+
+    unconstructible "word_problem_for_fp_categories" {
+        reduces_to "undecidable"
+        dependency "composition"
+        dependency "associativity"
+        dependency "identity_morphism"
+        dependency "morphism"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified true
+    }
+
+    unconstructible "equality_of_morphisms_fpc" {
+        reduces_to "word_problem_for_fp_categories"
+        dependency "composition"
+        dependency "associativity"
+        dependency "morphism"
+        dependency "commutative_diagram"
+        external_ref "https://ncatlab.org/nlab/show/finitely+presented+category"
+        green_verified true
+    }
+
+    unconstructible "isomorphism_of_fp_categories" {
+        reduces_to "undecidable"
+        dependency "morphism"
+        dependency "composition"
+        dependency "functor_object_map"
+        dependency "functor_morphism_map"
+        dependency "equivalence_of_categories"
+        external_ref "https://en.wikipedia.org/wiki/Category_theory"
+        green_verified true
+    }
+
+    unconstructible "existence_of_limit_in_fpc" {
+        reduces_to "undecidable"
+        dependency "binary_product"
+        dependency "equalizer"
+        dependency "pullback"
+        dependency "morphism"
+        dependency "composition"
+        external_ref "https://ncatlab.org/nlab/show/limit"
+        green_verified true
+    }
+
+    unconstructible "is_category_equivalent_to_poset" {
+        reduces_to "undecidable"
+        dependency "morphism"
+        dependency "isomorphism"
+        dependency "equivalence_of_categories"
+        dependency "skeleton"
+        external_ref "https://ncatlab.org/nlab/show/poset"
+        green_verified true
+    }
+
+    unconstructible "finite_model_property_for_fpc" {
+        reduces_to "undecidable"
+        dependency "object"
+        dependency "morphism"
+        dependency "composition"
+        dependency "functor_object_map"
+        external_ref "https://ncatlab.org/nlab/show/finitely+presented+category"
+        green_verified true
+    }
+
+    unconstructible "functor_equivalence_in_fpc" {
+        reduces_to "undecidable"
+        dependency "functor_object_map"
+        dependency "functor_morphism_map"
+        dependency "functor_preserves_composition"
+        dependency "equivalence_of_categories"
+        dependency "natural_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Functor"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    # Category theory is naturally geometric: a category IS a directed
+    # multigraph with composition. This makes it an ideal fit for Lv-00's
+    # geometric metalanguage. The bottom element represents the degenerate
+    # or contradictory categorical situation.
+    #
+    # ⊥ = the empty category (no objects, no morphisms) OR
+    #     a category where id_A ≠ id_A for some object A
+    # ¬ = complement of a subcategory or complement of a subobject
+    #     (in a topos, negation via subobject classifier Ω)
+    # =================================================================
+
+    bottom_geometry "directed_multigraph_with_composition"
+    negation_encoding "categorical_subobject_complement"
+    contradiction_behavior "explosion_principle"
+}

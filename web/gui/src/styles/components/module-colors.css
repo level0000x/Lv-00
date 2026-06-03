@@ -1,0 +1,41 @@
+/* ============================================================
+   Module Colors 各模块标题颜色样式 / Module Title Color Styles
+   为每个功能模块的面板标题定义独立的颜色方案。
+   模块包括：Graph、Proof、Block、Type、Recurse、Engine、Debug。
+   ============================================================ */
+
+/* === GRAPH MODULE / 图模块 === */
+/* 图模块使用绿色系 */
+#panelGraph .panel-title { color: var(--color-module-graph); }
+#panelGraph .panel-title:hover { color: var(--color-module-graph-hover); }
+
+/* === PROOF MODULE / 证明模块 === */
+/* 证明模块使用浅紫色系 */
+#panelProof .panel-title { color: var(--color-module-proof); }
+#panelProof .panel-title:hover { color: var(--color-module-proof-hover); }
+
+/* === BLOCK MODULE / 函数块模块 === */
+/* 函数块模块使用工程色（青色系） */
+#panelBlock .panel-title { color: var(--color-module-engineering); }
+#panelBlock .panel-title:hover { color: var(--color-module-engineering-hover); }
+
+/* === TYPE MODULE / 类型模块 === */
+/* 类型模块使用工程色（青色系） */
+#panelType .panel-title { color: var(--color-module-engineering); }
+#panelType .panel-title:hover { color: var(--color-module-engineering-hover); }
+
+/* === RECURSE MODULE / 递归模块 === */
+/* 递归模块使用工程色（青色系） */
+#panelRecurse .panel-title { color: var(--color-module-engineering); }
+#panelRecurse .panel-title:hover { color: var(--color-module-engineering-hover); }
+
+/* === ENGINE MODULE / 引擎模块 === */
+/* 引擎模块使用工程色（青色系） */
+#panelEngine .panel-title { color: var(--color-module-engineering); }
+#panelEngine .panel-title:hover { color: var(--color-module-engineering-hover); }
+
+/* === DEBUG MODULE / 调试模块 === */
+/* 调试模块使用橙色系，面板背景为极深色 */
+#panelDebug { background: var(--color-debug-panel-bg); }
+#panelDebug .panel-title { color: var(--color-module-debug); }
+#panelDebug .panel-title:hover { color: var(--color-module-debug-hover); }

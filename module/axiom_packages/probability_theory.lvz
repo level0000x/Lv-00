@@ -1,0 +1,626 @@
+# =============================================================================
+# Lv-00 Axiom Package: Probability Theory (Kolmogorov Axiomatization)
+# =============================================================================
+#
+# Mathematical Theory: Probability Theory — the mathematical study of
+# randomness, uncertainty, and chance. Formalized by Andrey Kolmogorov
+# in 1933 using measure theory, providing a rigorous foundation for
+# statistics, stochastic processes, and modern probability.
+#
+# References:
+#   - Kolmogorov, A.N. (1933). "Grundbegriffe der Wahrscheinlichkeitsrechnung"
+#     (Foundations of the Theory of Probability). Berlin: Springer.
+#     https://en.wikipedia.org/wiki/Foundations_of_the_Theory_of_Probability
+#   - Kolmogorov, A.N. (1956). "Foundations of the Theory of Probability"
+#     (2nd English ed.). New York: Chelsea. ISBN 0-8284-0023-7.
+#   - Billingsley, P. (1995). "Probability and Measure" (3rd ed.).
+#     Wiley. ISBN 0-471-00710-2.
+#   - Durrett, R. (2019). "Probability: Theory and Examples" (5th ed.).
+#     Cambridge University Press. ISBN 1-108-58346-1.
+#   - Feller, W. (1968). "An Introduction to Probability Theory and Its
+#     Applications" (3rd ed.). Wiley. ISBN 0-471-25708-7.
+#   - Shiryaev, A.N. (1996). "Probability" (2nd ed.). Springer.
+#     ISBN 0-387-94549-0.
+#   - Wikipedia: Probability axioms
+#     https://en.wikipedia.org/wiki/Probability_axioms
+#   - Wikipedia: Probability theory
+#     https://en.wikipedia.org/wiki/Probability_theory
+#   - Wikipedia: Probability space
+#     https://en.wikipedia.org/wiki/Probability_space
+#   - Wikipedia: Random variable
+#     https://en.wikipedia.org/wiki/Random_variable
+#   - Wikipedia: Conditional probability
+#     https://en.wikipedia.org/wiki/Conditional_probability
+#   - Wikipedia: Independence (probability theory)
+#     https://en.wikipedia.org/wiki/Independence_(probability_theory)
+#   - Wikipedia: Law of large numbers
+#     https://en.wikipedia.org/wiki/Law_of_large_numbers
+#   - Wikipedia: Central limit theorem
+#     https://en.wikipedia.org/wiki/Central_limit_theorem
+#   - nLab: Probability theory
+#     https://ncatlab.org/nlab/show/probability+theory
+#   - nLab: Probability measure
+#     https://ncatlab.org/nlab/show/probability+measure
+#   - Stanford Encyclopedia of Philosophy: Interpretations of Probability
+#     https://plato.stanford.edu/entries/probability-interpret/
+#
+# Primitive Notions:
+#   - Sample space Ω (set of all possible outcomes)
+#   - Event space F (σ-algebra on Ω, collection of measurable events)
+#   - Probability measure P: F → [0,1] (assigns probability to each event)
+#   - Random variable X: Ω → ℝ (measurable function)
+#   - Expected value E[X] (integral with respect to P)
+#
+# Core Axioms (Kolmogorov, 1933):
+#
+#   The probability triple (Ω, F, P) must satisfy:
+#
+#   K1. Non-negativity:
+#       For every event E ∈ F, P(E) ≥ 0
+#
+#   K2. Unit measure (normalization):
+#       P(Ω) = 1
+#
+#   K3. σ-additivity (countable additivity):
+#       For any countable sequence of pairwise disjoint events E₁, E₂, ...
+#       P(∪ᵢ Eᵢ) = Σᵢ P(Eᵢ)
+#
+#   Together, these axioms make (Ω, F, P) a probability space, which is
+#   a measure space with total measure 1.
+#
+# Key Derived Concepts:
+#   - Complement rule: P(Eᶜ) = 1 - P(E)
+#   - Monotonicity: A ⊆ B ⟹ P(A) ≤ P(B)
+#   - Inclusion-exclusion: P(A ∪ B) = P(A) + P(B) - P(A ∩ B)
+#   - Conditional probability: P(A|B) = P(A ∩ B) / P(B) when P(B) > 0
+#   - Independence: A, B independent ⟺ P(A ∩ B) = P(A)·P(B)
+#   - Bayes' theorem: P(A|B) = P(B|A)·P(A) / P(B)
+#   - Law of total probability: P(A) = Σᵢ P(A|Bᵢ)·P(Bᵢ)
+#   - Random variables and their distributions
+#   - Expected value, variance, moments
+#   - Characteristic functions
+#   - Convergence theorems (a.s., in probability, in Lᵖ, in distribution)
+#   - Law of large numbers (weak and strong)
+#   - Central limit theorem
+#   - Stochastic processes, martingales, Markov chains
+#
+# Known Undecidable / Unconstructible Problems:
+#   - Existence of non-measurable sets (requires Axiom of Choice)
+#   - Solovay's theorem: "All sets are Lebesgue measurable" is consistent
+#     with ZF + Dependent Choice (if an inaccessible cardinal exists)
+#   - Vitali sets are non-measurable (constructible with AC)
+#   - Banach-Tarski paradox (non-measurable decomposition of sphere)
+#   - Determining if a general set is measurable (undecidable)
+#   - Computing exact probabilities for complex events (often intractable)
+#   - Exact simulation of continuous distributions (requires infinite precision)
+#   - Strong law of large numbers requires countable additivity
+#   - Existence of regular conditional probabilities (requires mild conditions)
+#
+# Relationship to Other Lv-00 Axiom Packages:
+#   - measure_theory: Probability theory is a specialization where P(Ω) = 1.
+#     All measure-theoretic concepts apply (σ-algebras, integration, etc.)
+#   - zfc_set_theory: Existence of non-measurable sets depends on AC.
+#     Solovay model shows consistency of "all sets measurable" with ZF+DC.
+#   - real_analysis: Random variables are measurable functions Ω → ℝ.
+#     Expected value is Lebesgue integration.
+#   - functional_analysis: Lᵖ(Ω, F, P) spaces are Banach/Hilbert spaces.
+#   - statistics: Probability theory provides the mathematical foundation.
+#   - information_theory: Shannon entropy is defined via probability.
+#   - computability_theory: Algorithmic randomness and Martin-Löf tests.
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "probability_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: Kolmogorov's Three Axioms (3)
+    # =================================================================
+
+    # K1. Non-negativity: P(E) ≥ 0 for all events E ∈ F
+    # This follows from measure theory: probability is a measure.
+    # Params: event E -> non-negative probability value
+    template "kolmogorov_non_negativity" 1
+
+    # K2. Unit measure (normalization): P(Ω) = 1
+    # The sample space has total probability 1 (certainty).
+    # Params: (no parameters — global property of probability space)
+    template "kolmogorov_unit_measure" 0
+
+    # K3. σ-additivity (countable additivity):
+    # For pairwise disjoint events E₁, E₂, ... ∈ F:
+    # P(∪ᵢ Eᵢ) = Σᵢ P(Eᵢ)
+    # Params: countable family of pairwise disjoint events
+    template "kolmogorov_sigma_additivity" 1
+
+    # =================================================================
+    # Group II: Elementary Consequences (12)
+    # =================================================================
+
+    # EC1. Probability of empty set: P(∅) = 0
+    # Derived from K2 + K3: Ω = Ω ∪ ∅ ∪ ∅ ∪ ... implies P(∅) = 0
+    template "prob_empty_set_zero" 0
+
+    # EC2. Probability bounds: 0 ≤ P(E) ≤ 1 for all E ∈ F
+    # Follows from K1, K2, and monotonicity
+    template "prob_bounds" 1
+
+    # EC3. Complement rule: P(Eᶜ) = 1 - P(E)
+    # Since E ∪ Eᶜ = Ω and E ∩ Eᶜ = ∅
+    template "prob_complement_rule" 1
+
+    # EC4. Monotonicity: A ⊆ B ⟹ P(A) ≤ P(B)
+    # Since B = A ∪ (B \ A) disjointly
+    template "prob_monotonicity" 2
+
+    # EC5. Probability of union: P(A ∪ B) = P(A) + P(B) - P(A ∩ B)
+    # Inclusion-exclusion for two events
+    template "prob_union_two" 2
+
+    # EC6. Boole's inequality: P(∪ᵢ Eᵢ) ≤ Σᵢ P(Eᵢ)
+    # Union bound (subadditivity)
+    template "boole_inequality" 1
+
+    # EC7. Bonferroni inequality: P(∩ᵢ Eᵢ) ≥ 1 - Σᵢ P(Eᵢᶜ)
+    # Lower bound for intersection
+    template "bonferroni_inequality" 1
+
+    # EC8. Continuity from below:
+    # If E₁ ⊆ E₂ ⊆ ... then P(∪ᵢ Eᵢ) = lim P(Eᵢ)
+    template "prob_continuity_below" 1
+
+    # EC9. Continuity from above:
+    # If E₁ ⊇ E₂ ⊇ ... and P(E₁) < ∞, then P(∩ᵢ Eᵢ) = lim P(Eᵢ)
+    template "prob_continuity_above" 1
+
+    # EC10. Inclusion-exclusion principle (general):
+    # P(∪ᵢ₌₁ⁿ Eᵢ) = Σ P(Eᵢ) - Σ P(Eᵢ∩Eⱼ) + Σ P(Eᵢ∩Eⱼ∩Eₖ) - ... + (-1)ⁿ⁺¹ P(∩ᵢ Eᵢ)
+    template "inclusion_exclusion" 1
+
+    # EC11. Partition formula:
+    # If B₁, B₂, ... partition Ω, then P(A) = Σᵢ P(A ∩ Bᵢ)
+    template "partition_formula" 2
+
+    # EC12. Finite additivity:
+    # For disjoint A, B: P(A ∪ B) = P(A) + P(B)
+    template "prob_finite_additivity" 2
+
+    # =================================================================
+    # Group III: Conditional Probability (6)
+    # =================================================================
+
+    # CP1. Conditional probability definition:
+    # P(A|B) = P(A ∩ B) / P(B), provided P(B) > 0
+    template "conditional_prob_def" 2
+
+    # CP2. Multiplication rule:
+    # P(A ∩ B) = P(A|B) · P(B) = P(B|A) · P(A)
+    template "multiplication_rule" 2
+
+    # CP3. Chain rule (generalized multiplication):
+    # P(A₁ ∩ A₂ ∩ ... ∩ Aₙ) = P(A₁)·P(A₂|A₁)·P(A₃|A₁∩A₂)·...·P(Aₙ|A₁∩...∩Aₙ₋₁)
+    template "chain_rule" 1
+
+    # CP4. Law of total probability:
+    # If B₁, B₂, ... partition Ω, then P(A) = Σᵢ P(A|Bᵢ)·P(Bᵢ)
+    template "law_total_probability" 2
+
+    # CP5. Bayes' theorem:
+    # P(A|B) = P(B|A)·P(A) / P(B)
+    template "bayes_theorem" 2
+
+    # CP6. Bayes' theorem (partition form):
+    # P(Bᵢ|A) = P(A|Bᵢ)·P(Bᵢ) / Σⱼ P(A|Bⱼ)·P(Bⱼ)
+    template "bayes_theorem_partition" 3
+
+    # =================================================================
+    # Group IV: Independence (8)
+    # =================================================================
+
+    # IN1. Pairwise independence:
+    # A and B are independent ⟺ P(A ∩ B) = P(A)·P(B)
+    template "independence_pairwise" 2
+
+    # IN2. Mutual independence (n events):
+    # E₁, ..., Eₙ mutually independent ⟺ for all subsets I ⊆ {1,...,n}:
+    # P(∩ᵢ∈I Eᵢ) = ∏ᵢ∈I P(Eᵢ)
+    template "independence_mutual" 1
+
+    # IN3. Conditional independence:
+    # A and B are conditionally independent given C ⟺
+    # P(A ∩ B|C) = P(A|C)·P(B|C)
+    template "independence_conditional" 3
+
+    # IN4. Independence of complements:
+    # If A and B are independent, so are A and Bᶜ, Aᶜ and B, Aᶜ and Bᶜ
+    template "independence_complement" 2
+
+    # IN5. Independent events with probability 0 or 1:
+    # If P(A) = 0 or P(A) = 1, then A is independent of every event
+    template "independence_trivial" 1
+
+    # IN6. Pairwise independence does not imply mutual independence
+    # (Counterexample template for educational purposes)
+    template "independence_pairwise_not_mutual" 0
+
+    # IN7. Independence of σ-algebras:
+    # σ-algebras F₁, F₂ are independent if all A ∈ F₁, B ∈ F₂ are independent
+    template "independence_sigma_algebras" 2
+
+    # IN8. Independent random variables:
+    # X and Y are independent iff P(X ∈ A, Y ∈ B) = P(X ∈ A)·P(Y ∈ B)
+    template "independence_random_variables" 2
+
+    # =================================================================
+    # Group V: Random Variables (12)
+    # =================================================================
+
+    # RV1. Random variable definition:
+    # X: Ω → ℝ is a random variable iff X is F-measurable
+    # (For every Borel set B, X⁻¹(B) ∈ F)
+    template "random_variable_def" 1
+
+    # RV2. Distribution function (CDF):
+    # F_X(x) = P(X ≤ x) is right-continuous, non-decreasing, with limits 0 and 1
+    template "distribution_function" 2
+
+    # RV3. Discrete random variable:
+    # X is discrete iff it takes values in a countable set
+    template "random_variable_discrete" 1
+
+    # RV4. Continuous random variable:
+    # X is continuous iff it has a probability density function
+    template "random_variable_continuous" 1
+
+    # RV5. Probability mass function (PMF):
+    # p_X(x) = P(X = x) for discrete random variables
+    template "pmf_def" 2
+
+    # RV6. Probability density function (PDF):
+    # f_X(x) where P(X ∈ A) = ∫_A f_X(x)dx for continuous random variables
+    template "pdf_def" 2
+
+    # RV7. Indicator random variable:
+    # 1_A(ω) = 1 if ω ∈ A, 0 otherwise
+    template "indicator_random_variable" 1
+
+    # RV8. Function of random variable:
+    # If X is a random variable and g is Borel-measurable, then g(X) is a RV
+    template "random_variable_function" 2
+
+    # RV9. Joint distribution:
+    # F_{X,Y}(x,y) = P(X ≤ x, Y ≤ y)
+    template "joint_distribution" 3
+
+    # RV10. Marginal distribution:
+    # F_X(x) = lim_{y→∞} F_{X,Y}(x,y)
+    template "marginal_distribution" 2
+
+    # RV11. Transformation of random variables:
+    # If Y = g(X), then F_Y(y) = P(X ∈ g⁻¹((-∞, y]))
+    template "random_variable_transformation" 2
+
+    # RV12. Quantile function:
+    # F⁻¹(p) = inf{x : F_X(x) ≥ p} for p ∈ (0,1)
+    template "quantile_function" 2
+
+    # =================================================================
+    # Group VI: Expected Value and Moments (10)
+    # =================================================================
+
+    # EV1. Expected value definition:
+    # E[X] = ∫_Ω X dP = ∫_ℝ x dF_X(x) (when the integral exists)
+    template "expected_value_def" 1
+
+    # EV2. Linearity of expectation:
+    # E[aX + bY] = aE[X] + bE[Y]
+    template "expected_value_linearity" 3
+
+    # EV3. Expectation of indicator:
+    # E[1_A] = P(A)
+    template "expected_value_indicator" 1
+
+    # EV4. Non-negativity of expectation:
+    # X ≥ 0 ⟹ E[X] ≥ 0
+    template "expected_value_nonnegativity" 1
+
+    # EV5. Monotonicity of expectation:
+    # X ≤ Y ⟹ E[X] ≤ E[Y]
+    template "expected_value_monotonicity" 2
+
+    # EV6. Variance definition:
+    # Var(X) = E[(X - E[X])²] = E[X²] - (E[X])²
+    template "variance_def" 1
+
+    # EV7. Variance properties:
+    # Var(aX + b) = a² Var(X)
+    template "variance_linear_transform" 3
+
+    # EV8. Covariance definition:
+    # Cov(X, Y) = E[(X - E[X])(Y - E[Y])] = E[XY] - E[X]E[Y]
+    template "covariance_def" 2
+
+    # EV9. Correlation coefficient:
+    # ρ(X, Y) = Cov(X, Y) / (σ_X · σ_Y), where σ = √Var
+    template "correlation_coefficient" 2
+
+    # EV10. Cauchy-Schwarz inequality:
+    # |E[XY]| ≤ √(E[X²] · E[Y²])
+    template "cauchy_schwarz_inequality" 2
+
+    # =================================================================
+    # Group VII: Convergence Theorems (8)
+    # =================================================================
+
+    # CT1. Almost sure convergence:
+    # Xₙ → X a.s. iff P({ω : Xₙ(ω) → X(ω)}) = 1
+    template "convergence_almost_sure" 2
+
+    # CT2. Convergence in probability:
+    # Xₙ → X in probability iff ∀ε > 0: P(|Xₙ - X| > ε) → 0
+    template "convergence_probability" 2
+
+    # CT3. Convergence in Lᵖ:
+    # Xₙ → X in Lᵖ iff E[|Xₙ - X|ᵖ] → 0
+    template "convergence_Lp" 3
+
+    # CT4. Convergence in distribution:
+    # Xₙ → X in distribution iff F_{Xₙ}(x) → F_X(x) at continuity points
+    template "convergence_distribution" 2
+
+    # CT5. Monotone convergence theorem:
+    # If 0 ≤ X₁ ≤ X₂ ≤ ... then E[lim Xₙ] = lim E[Xₙ]
+    template "monotone_convergence" 1
+
+    # CT6. Dominated convergence theorem:
+    # If Xₙ → X a.s. and |Xₙ| ≤ Y with E[Y] < ∞, then E[Xₙ] → E[X]
+    template "dominated_convergence" 2
+
+    # CT7. Fatou's lemma:
+    # E[lim inf Xₙ] ≤ lim inf E[Xₙ] for non-negative Xₙ
+    template "fatou_lemma" 1
+
+    # CT8. Convergence hierarchy:
+    # a.s. → in probability → in distribution
+    # Lᵖ → in probability → in distribution
+    template "convergence_hierarchy" 0
+
+    # =================================================================
+    # Group VIII: Law of Large Numbers (4)
+    # =================================================================
+
+    # LLN1. Weak law of large numbers (WLLN):
+    # If X₁, X₂, ... i.i.d. with E[X₁] = μ and Var(X₁) < ∞, then
+    # (X₁ + ... + Xₙ)/n → μ in probability
+    template "weak_law_large_numbers" 1
+
+    # LLN2. Strong law of large numbers (SLLN):
+    # If X₁, X₂, ... i.i.d. with E[|X₁|] < ∞, then
+    # (X₁ + ... + Xₙ)/n → E[X₁] almost surely
+    template "strong_law_large_numbers" 1
+
+    # LLN3. Kolmogorov's three-series theorem:
+    # Σ Xₙ converges a.s. iff for some A > 0:
+    # (i) Σ P(|Xₙ| > A) < ∞
+    # (ii) Σ E[Xₙ · 1_{|Xₙ|≤A}] converges
+    # (iii) Σ Var(Xₙ · 1_{|Xₙ|≤A}) < ∞
+    template "kolmogorov_three_series" 1
+
+    # LLN4. Borel-Cantelli lemmas:
+    # First: Σ P(Aₙ) < ∞ ⟹ P(Aₙ i.o.) = 0
+    # Second: Σ P(Aₙ) = ∞ and Aₙ independent ⟹ P(Aₙ i.o.) = 1
+    template "borel_cantelli" 1
+
+    # =================================================================
+    # Group IX: Central Limit Theorem (4)
+    # =================================================================
+
+    # CLT1. Classical central limit theorem:
+    # If X₁, X₂, ... i.i.d. with E[X₁] = μ and Var(X₁) = σ² > 0, then
+    # √n((X₁+...+Xₙ)/n - μ) / σ → N(0,1) in distribution
+    template "central_limit_theorem" 1
+
+    # CLT2. Lindeberg-Feller CLT:
+    # General CLT for independent (not necessarily identically distributed) RVs
+    template "lindeberg_feller_clt" 1
+
+    # CLT3. Berry-Esseen theorem:
+    # Rate of convergence in CLT: |F_n(x) - Φ(x)| ≤ C·ρ/σ³√n
+    template "berry_esseen_theorem" 1
+
+    # CLT4. Characteristic function and CLT:
+    # Xₙ → X in distribution iff φ_{Xₙ}(t) → φ_X(t) for all t
+    template "characteristic_function_convergence" 2
+
+    # =================================================================
+    # Group X: Common Distributions (10)
+    # =================================================================
+
+    # DIS1. Bernoulli distribution:
+    # P(X = 1) = p, P(X = 0) = 1-p, for p ∈ [0,1]
+    template "distribution_bernoulli" 1
+
+    # DIS2. Binomial distribution:
+    # P(X = k) = C(n,k) p^k (1-p)^(n-k) for k = 0, 1, ..., n
+    template "distribution_binomial" 2
+
+    # DIS3. Poisson distribution:
+    # P(X = k) = e^(-λ) λ^k / k! for k = 0, 1, 2, ...
+    template "distribution_poisson" 1
+
+    # DIS4. Geometric distribution:
+    # P(X = k) = (1-p)^(k-1) p for k = 1, 2, ...
+    template "distribution_geometric" 1
+
+    # DIS5. Uniform distribution (continuous):
+    # f(x) = 1/(b-a) for x ∈ [a,b], 0 otherwise
+    template "distribution_uniform_continuous" 2
+
+    # DIS6. Exponential distribution:
+    # f(x) = λe^(-λx) for x ≥ 0
+    template "distribution_exponential" 1
+
+    # DIS7. Normal (Gaussian) distribution:
+    # f(x) = (1/√(2πσ²)) exp(-(x-μ)²/(2σ²))
+    template "distribution_normal" 2
+
+    # DIS8. Gamma distribution:
+    # f(x) = x^(α-1) e^(-x/β) / (β^α Γ(α)) for x > 0
+    template "distribution_gamma" 2
+
+    # DIS9. Beta distribution:
+    # f(x) = x^(α-1) (1-x)^(β-1) / B(α,β) for x ∈ (0,1)
+    template "distribution_beta" 2
+
+    # DIS10. Chi-squared distribution:
+    # Special case of Gamma with α = k/2, β = 2
+    template "distribution_chi_squared" 1
+
+    # =================================================================
+    # Group XI: Stochastic Processes (6)
+    # =================================================================
+
+    # SP1. Stochastic process definition:
+    # Collection {X_t : t ∈ T} of random variables on (Ω, F, P)
+    template "stochastic_process_def" 1
+
+    # SP2. Filtration:
+    # Increasing family {F_t} of σ-algebras representing information over time
+    template "filtration_def" 1
+
+    # SP3. Martingale:
+    # E[X_n | F_{n-1}] = X_{n-1} for adapted process {X_n}
+    template "martingale_def" 1
+
+    # SP4. Markov property:
+    # P(X_{n+1} ∈ A | F_n) = P(X_{n+1} ∈ A | X_n)
+    template "markov_property" 1
+
+    # SP5. Stopping time:
+    # Random variable τ with {τ ≤ n} ∈ F_n for all n
+    template "stopping_time_def" 1
+
+    # SP6. Optional stopping theorem:
+    # For bounded stopping time τ and martingale M: E[M_τ] = E[M_0]
+    template "optional_stopping_theorem" 2
+
+    # =================================================================
+    # Group XII: Characteristic Functions (4)
+    # =================================================================
+
+    # CF1. Characteristic function definition:
+    # φ_X(t) = E[e^{itX}] = ∫ e^{itx} dF_X(x)
+    template "characteristic_function_def" 1
+
+    # CF2. Properties of characteristic functions:
+    # φ(0) = 1, |φ(t)| ≤ 1, φ(-t) = φ(t)̄, φ is uniformly continuous
+    template "characteristic_function_properties" 1
+
+    # CF3. Uniqueness theorem:
+    # φ_X = φ_Y implies X and Y have the same distribution
+    template "characteristic_function_uniqueness" 2
+
+    # CF4. Inversion formula:
+    # If ∫ |φ_X(t)| dt < ∞, then X has a continuous density
+    template "characteristic_function_inversion" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # UC1. Existence of non-measurable sets
+    # In ZFC, there exist subsets of ℝ that are not Lebesgue measurable.
+    # Construction requires the Axiom of Choice.
+    unconstructible "non_measurable_set_existence" {
+        reduces_to "axiom_of_choice"
+        dependency "zfc_set_theory"
+        dependency "measure_theory"
+        external_ref "https://en.wikipedia.org/wiki/Non-measurable_set"
+        green_verified true
+    }
+
+    # UC2. Vitali set non-measurability
+    # A Vitali set is a set of representatives of ℝ/ℚ equivalence classes.
+    # It is provably non-measurable in ZFC.
+    unconstructible "vitali_set_non_measurable" {
+        reduces_to "non_measurable_set_existence"
+        dependency "axiom_of_choice"
+        external_ref "https://en.wikipedia.org/wiki/Vitali_set"
+        green_verified true
+    }
+
+    # UC3. Banach-Tarski paradox
+    # A solid ball can be decomposed into finitely many pieces and
+    # reassembled into two balls of the same size. Uses non-measurable sets.
+    unconstructible "banach_tarski_paradox" {
+        reduces_to "non_measurable_set_existence"
+        dependency "axiom_of_choice"
+        external_ref "https://en.wikipedia.org/wiki/Banach%E2%80%93Tarski_paradox"
+        green_verified true
+    }
+
+    # UC4. Solovay's theorem
+    # "All subsets of ℝ are Lebesgue measurable" is consistent with
+    # ZF + Dependent Choice (assuming an inaccessible cardinal exists).
+    unconstructible "solovay_all_sets_measurable" {
+        reduces_to "inaccessible_cardinal_existence"
+        dependency "zfc_set_theory"
+        external_ref "https://en.wikipedia.org/wiki/Solovay_model"
+        green_verified true
+    }
+
+    # UC5. Strong law of large numbers without countable additivity
+    # The strong law requires σ-additivity; finite additivity is insufficient.
+    unconstructible "slln_without_sigma_additivity" {
+        reduces_to "kolmogorov_sigma_additivity"
+        external_ref "https://en.wikipedia.org/wiki/Law_of_large_numbers"
+        green_verified true
+    }
+
+    # UC6. Exact simulation of continuous distributions
+    # True continuous random variables require infinite precision,
+    # which is not achievable with finite computational resources.
+    unconstructible "exact_continuous_simulation" {
+        reduces_to "computational_limits"
+        external_ref "https://en.wikipedia.org/wiki/Pseudorandom_number_generator"
+        green_verified true
+    }
+
+    # UC7. Computing exact probabilities for complex events
+    # Many probability computations are #P-hard or even undecidable.
+    unconstructible "exact_probability_computation" {
+        reduces_to "computational_complexity"
+        dependency "computational_complexity_theory"
+        external_ref "https://en.wikipedia.org/wiki/%E2%99%FP"
+        green_verified true
+    }
+
+    # UC8. Existence of regular conditional probabilities
+    # Regular conditional probabilities exist under mild conditions
+    # (e.g., Polish spaces), but not in general.
+    unconstructible "regular_conditional_probability_general" {
+        reduces_to "measure_theory_limitations"
+        dependency "measure_theory"
+        external_ref "https://en.wikipedia.org/wiki/Regular_conditional_probability"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    # Bottom geometry: probability space (Ω, F, P)
+    # Events are regions in the sample space
+    # Probability is a measure on these regions
+    bottom_geometry "probability_space"
+
+    # Negation encoding: complement of event
+    # ¬A is interpreted as Aᶜ (complement in sample space)
+    negation_encoding "event_complement"
+
+    # Contradiction behavior: explosion principle
+    # P(∅) > 0 leads to contradiction (impossible event has positive probability)
+    contradiction_behavior "explosion_principle"
+}

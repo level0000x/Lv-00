@@ -1,0 +1,465 @@
+# =============================================================================
+# Lv-00 Axiom Package: Domain Theory (Scott 1969–1972)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Domain theory — the mathematical study of directed-complete partial
+#   orders (dcpos), Scott-continuous functions, and approximation structures.
+#   Founded by Dana Scott in the late 1960s to provide denotational semantics
+#   for the lambda calculus. Domain theory formalizes the intuitive ideas of
+#   approximation and convergence in computation, modeling partial information
+#   and non-terminating computations via order-theoretic structures.
+#
+# References:
+#   - Scott, D.S. (1970). "Outline of a Mathematical Theory of Computation."
+#     Technical Monograph PRG-2, Oxford University Computing Laboratory.
+#     https://www.cs.ox.ac.uk/files/3228/PRG02.pdf
+#   - Scott, D.S. (1972). "Continuous Lattices." In: Toposes, Algebraic
+#     Geometry and Logic (Lawvere, ed.), Lecture Notes in Mathematics 274.
+#     https://doi.org/10.1007/BFb0073967
+#   - Abramsky, S. & Jung, A. (1994). "Domain Theory." In: Handbook of
+#     Logic in Computer Science, Vol. 3. Oxford University Press.
+#     https://www.cs.ox.ac.uk/people/samson.abramsky/handbook.ps
+#   - Gierz, G. et al. (2003). "Continuous Lattices and Domains."
+#     Encyclopedia of Mathematics and its Applications 93. Cambridge.
+#   - Wikipedia: Domain theory
+#     https://en.wikipedia.org/wiki/Domain_theory
+#   - Wikipedia: Directed complete partial order
+#     https://en.wikipedia.org/wiki/Directed_complete_partial_order
+#   - Wikipedia: Scott continuity
+#     https://en.wikipedia.org/wiki/Scott_continuity
+#   - Wikipedia: Scott topology
+#     https://en.wikipedia.org/wiki/Scott_topology
+#   - nLab: Domain
+#     https://ncatlab.org/nlab/show/domain
+#   - Markowsky, G. (1976). "Chain-complete posets and directed sets with
+#     applications." Algebra Universalis, 6(1): 53-68.
+#     https://doi.org/10.1007/BF02485815
+#   - Plotkin, G.D. (1981). "A Powerdomain Construction." SIAM J. Comput.,
+#     11(3): 534-550. https://doi.org/10.1137/0211042
+#
+# Primitive Notions:
+#   - Domain element (member of a dcpo D)
+#   - Information ordering ⊑ (partial order on D)
+#   - Directed set (non-empty subset where every pair has an upper bound)
+#   - Directed supremum ⊔D (least upper bound of a directed set)
+#   - Bottom element ⊥ (least element, representing "no information")
+#   - Way-below relation ≪ (approximation / compactness)
+#   - Compact/finite element (x ≪ x, i.e., x approximates itself)
+#
+# Core Axioms (5 groups, 12 axioms):
+#
+#   Group I. DCPO Axioms (4):
+#     D1. Reflexivity:    x ⊑ x for all x
+#     D2. Antisymmetry:   x ⊑ y ∧ y ⊑ x → x = y
+#     D3. Transitivity:   x ⊑ y ∧ y ⊑ z → x ⊑ z
+#     D4. Directed completeness: every directed set has a supremum
+#
+#   Group II. Pointed DCPO (1):
+#     D5. Bottom: ⊥ exists and ⊥ ⊑ x for all x
+#
+#   Group III. Scott Continuity (2):
+#     D6. Monotonicity:   x ⊑ y → f(x) ⊑ f(y)
+#     D7. Directed sup preservation: f(⊔D) = ⊔f(D) for directed D
+#
+#   Group IV. Way-Below / Approximation (3):
+#     D8. Way-below implies below: x ≪ y → x ⊑ y
+#     D9. Directed interpolation: x ≪ ⊔D → ∃d∈D. x ≪ d
+#     D10. Compactness: x ≪ x (compact/finite elements)
+#
+#   Group V. Algebraic / Continuous Domain (2):
+#     D11. Basis: every element is a directed sup of elements way-below it
+#     D12. Algebraic basis: every element is a directed sup of compact elements
+#
+# Key Theorems:
+#   - Kleene Fixed-Point Theorem: Every Scott-continuous f: D→D on a
+#     pointed dcpo has a least fixed point fix(f) = ⊔{fⁿ(⊥) : n ∈ ℕ}
+#   - Pataraia's Theorem: Every monotone self-map of a pointed dcpo has
+#     a least fixed point (no continuity required)
+#   - Bourbaki-Witt Theorem: If f(x) ≥ x for all x in a dcpo, then f
+#     has a fixed point
+#   - Markowsky's Theorem: A poset is a dcpo iff it is chain-complete
+#   - Scott's Fixed-Point Induction: If S is admissible and
+#     (∀x∈D. (∀y≺x. y∈S) → x∈S), then ∀x∈D. x∈S
+#
+# Domain Hierarchy:
+#   poset ⊃ dcpo ⊃ pointed dcpo ⊃ continuous dcpo ⊃ algebraic dcpo
+#                                                   ⊃ Scott domain
+#                                                   ⊃ SFP domain
+#                                                   ⊃ bifinite domain
+#                                                   ⊃ continuous lattice
+#                                                   ⊃ algebraic lattice
+#
+# Known Undecidable/Unconstructible Problems:
+#   1. Domain isomorphism — undecidable in general
+#   2. Equational theory of continuous lattices — undecidable
+#   3. Scott continuity of a given function — undecidable
+#   4. Compact element recognition — undecidable in general
+#   5. Definability in the language of dcpos — undecidable
+#   6. Powerdomain equivalence — undecidable
+#   7. Domain equation solving — undecidable in general
+#
+# Relationship to other axiom packages:
+#   - lattice_theory: Every continuous lattice is a complete lattice.
+#     Domain theory extends lattice theory with directed completeness
+#     and the way-below approximation relation.
+#   - point_set_topology: The Scott topology on a dcpo is the topology
+#     of Scott-open sets (upward-closed, inaccessible by directed joins).
+#     Scott-continuous = topologically continuous w.r.t. Scott topology.
+#   - classical_propositional_logic: The Lindenbaum-Tarski algebra of
+#     IPL is a Scott domain (algebraic, bounded-complete, consistently
+#     complete). Domain theory provides the order-theoretic semantics.
+#   - simple_type_theory: Scott domains model the type D = D → D
+#     needed for the untyped lambda calculus. This was Scott's original
+#     motivation. The category of Scott domains is cartesian closed.
+#   - category_theory: Scott-continuous functions between dcpos form a
+#     cartesian closed category. O-categories (continuous lattices) are
+#     the objects of the category of algebraic lattices.
+#   - zfc_set_theory: Domain theory can be developed within ZFC.
+#     The least fixed point theorem is a consequence of Zorn's lemma.
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "domain_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: DCPO Core Axioms (Partial Order + Directed Completeness)
+    # =================================================================
+
+    # D1. Reflexivity: x ⊑ x for all x in D
+    template "reflexivity" 1
+
+    # D2. Antisymmetry: x ⊑ y ∧ y ⊑ x → x = y
+    template "antisymmetry" 2
+
+    # D3. Transitivity: x ⊑ y ∧ y ⊑ z → x ⊑ z
+    template "transitivity" 3
+
+    # D4. Directed completeness: every directed set D ⊆ P has ⊔D ∈ P
+    # Params: domain, directed_set, supremum
+    template "directed_completeness" 3
+
+    # D4-alt. Chain completeness (Markowsky 1976): every chain has a supremum
+    # Equivalent to directed completeness (requires axiom of choice)
+    template "chain_completeness" 2
+
+    # =================================================================
+    # Group II: Pointed DCPO (Bottom Element)
+    # =================================================================
+
+    # D5. Bottom element: ⊥ exists and ⊥ ⊑ x for all x
+    template "bottom_element" 1
+
+    # Bottom uniqueness: if ⊥₁ and ⊥₂ are both bottom, then ⊥₁ = ⊥₂
+    template "bottom_uniqueness" 2
+
+    # Lifted domain: D⊥ = D ∪ {⊥} with ⊥ ⊑ x for all x ∈ D
+    template "lifted_domain" 1
+
+    # Flat domain: elements are incomparable; only related to ⊥
+    template "flat_domain" 1
+
+    # =================================================================
+    # Group III: Scott Continuity
+    # =================================================================
+
+    # D6. Monotonicity: x ⊑ y → f(x) ⊑ f(y)
+    template "monotonicity" 2
+
+    # D7. Directed sup preservation: f(⊔D) = ⊔f(D)
+    template "directed_sup_preservation" 2
+
+    # Scott continuity (combined): monotone + preserves directed sups
+    template "scott_continuity" 2
+
+    # Composition of Scott-continuous functions is Scott-continuous
+    template "continuous_composition" 2
+
+    # Identity function is Scott-continuous
+    template "continuous_identity" 1
+
+    # Constant function is Scott-continuous
+    template "continuous_constant" 2
+
+    # Pointwise order on continuous functions: f ⊑ g iff f(x) ⊑ g(x) ∀x
+    template "pointwise_order" 2
+
+    # Function space [D → E] of Scott-continuous functions forms a dcpo
+    template "function_space_dcpo" 2
+
+    # Currying: [D × E → F] ≅ [D → [E → F]] (cartesian closed)
+    template "currying_isomorphism" 3
+
+    # =================================================================
+    # Group IV: Way-Below Relation / Approximation
+    # =================================================================
+
+    # D8. Way-below implies below: x ≪ y → x ⊑ y
+    template "way_below_implies_below" 2
+
+    # D9. Directed interpolation: x ≪ ⊔D → ∃d∈D. x ≪ d
+    template "directed_interpolation" 2
+
+    # D10. Compactness: x ≪ x (compact/finite element)
+    template "compact_element" 1
+
+    # Way-below is monotone in second argument: x ≪ y ⊑ z → x ≪ z
+    template "way_below_monotone" 3
+
+    # Finite elements are way-below themselves: x ≪ x iff x is compact
+    template "compact_iff_way_below_self" 1
+
+    # ⊥ is compact: ⊥ ≪ ⊥
+    template "bottom_is_compact" 1
+
+    # Way-below is directed: x ≪ y₁ ∧ x ≪ y₂ → ∃z. x ≪ z ∧ y₁,y₂ ⊑ z
+    template "way_below_directed" 3
+
+    # =================================================================
+    # Group V: Continuous and Algebraic Domains
+    # =================================================================
+
+    # D11. Continuous domain: every x = ⊔{y : y ≪ x} (directed)
+    template "continuous_domain" 1
+
+    # D12. Algebraic domain: every x = ⊔{y : y ≪ y ⊑ x} (directed)
+    template "algebraic_domain" 1
+
+    # ω-continuous: countable basis of elements way-below
+    template "omega_continuous" 1
+
+    # ω-algebraic: countable basis of compact elements
+    template "omega_algebraic" 1
+
+    # Continuous lattice: complete lattice + continuous poset
+    template "continuous_lattice" 1
+
+    # Algebraic lattice: complete lattice + algebraic poset
+    template "algebraic_lattice" 1
+
+    # Scott domain: algebraic + bounded-complete + consistently complete
+    template "scott_domain" 1
+
+    # SFP domain: bounded-complete ω-algebraic dcpo (Plotkin 1976)
+    template "sfp_domain" 1
+
+    # Bifinite domain: inverse limit of finite domains
+    template "bifinite_domain" 1
+
+    # =================================================================
+    # Group VI: Fixed-Point Theorems
+    # =================================================================
+
+    # Kleene Fixed-Point Theorem: fix(f) = ⊔{fⁿ(⊥) : n ∈ ℕ}
+    # For Scott-continuous f: D → D on pointed dcpo D
+    template "kleene_fixed_point" 1
+
+    # Kleene iteration: f⁰(⊥) = ⊥, fⁿ⁺¹(⊥) = f(fⁿ(⊥))
+    template "kleene_iteration" 2
+
+    # Kleene chain: ⊥ ⊑ f(⊥) ⊑ f²(⊥) ⊑ ... is directed
+    template "kleene_chain" 1
+
+    # Least fixed point: fix(f) is the least x such that f(x) = x
+    template "least_fixed_point" 1
+
+    # Pataraia's theorem: monotone self-map of pointed dcpo has lfp
+    template "pataraia_fixed_point" 1
+
+    # Bourbaki-Witt theorem: progressive f on dcpo has a fixed point
+    template "bourbaki_witt_fixed_point" 1
+
+    # Fixed-point fusion: h∘f = g∘h → h(fix(f)) = fix(g)
+    template "fixed_point_fusion" 3
+
+    # Rolling rule: fix(f) = f(fix(f))
+    template "rolling_rule" 1
+
+    # Uniqueness of least fixed point
+    template "lfp_uniqueness" 1
+
+    # =================================================================
+    # Group VII: Scott Topology
+    # =================================================================
+
+    # Scott-open set: upward-closed and inaccessible by directed joins
+    template "scott_open_set" 2
+
+    # Scott topology axioms: open sets form a valid topology
+    template "scott_topology" 1
+
+    # Scott-continuous = topologically continuous w.r.t. Scott topology
+    template "scott_continuity_topological" 2
+
+    # Scott topology is T₀ but not T₁ in general
+    template "scott_topology_T0" 1
+
+    # Lawson topology: Scott topology + lower topology
+    template "lawson_topology" 1
+
+    # Specialization order of Scott topology = original order
+    template "specialization_order" 1
+
+    # Scott-open sets are upper sets
+    template "scott_open_upper" 1
+
+    # Scott-closed sets are lower sets closed under directed sups
+    template "scott_closed_lower" 1
+
+    # =================================================================
+    # Group VIII: Domain Constructions
+    # =================================================================
+
+    # Product domain: D₁ × D₂ with componentwise order
+    template "product_domain" 2
+
+    # Disjoint sum (coalesced sum): D₁ ⊕ D₂
+    template "disjoint_sum_domain" 2
+
+    # Function space domain: [D → E]
+    template "function_space_construction" 2
+
+    # Lifted domain construction: D⊥
+    template "lifted_construction" 1
+
+    # Strict function space: D⊥ →⊥ E
+    template "strict_function_space" 2
+
+    # Powerset domain (Plotkin powerdomain)
+    template "plotkin_powerdomain" 1
+
+    # Hoare powerdomain (lower powerdomain)
+    template "hoare_powerdomain" 1
+
+    # Smyth powerdomain (upper powerdomain)
+    template "smyth_powerdomain" 1
+
+    # Domain equation: D ≅ F(D) (recursive domain)
+    template "domain_equation" 2
+
+    # Inverse limit construction for recursive domains
+    template "inverse_limit" 2
+
+    # =================================================================
+    # Group IX: Core Constructors
+    # =================================================================
+
+    # Compute directed supremum of a directed set
+    template "compute_directed_sup" 1
+
+    # Compute Kleene fixed point via iteration
+    template "compute_kleene_fixpoint" 1
+
+    # Construct Scott topology from dcpo
+    template "construct_scott_topology" 1
+
+    # Construct product domain
+    template "construct_product" 2
+
+    # Construct lifted domain
+    template "construct_lifted" 1
+
+    # Verify Scott continuity of a function
+    template "verify_scott_continuity" 2
+
+    # Compute way-below relation
+    template "compute_way_below" 2
+
+    # Find compact elements
+    template "find_compact_elements" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "domain_isomorphism" {
+        reduces_to "undecidable"
+        dependency "directed_completeness"
+        dependency "scott_continuity"
+        dependency "algebraic_domain"
+        external_ref "https://en.wikipedia.org/wiki/Domain_theory"
+        green_verified true
+    }
+
+    unconstructible "equational_theory_continuous_lattices" {
+        reduces_to "undecidable"
+        dependency "continuous_lattice"
+        dependency "directed_completeness"
+        dependency "way_below_implies_below"
+        external_ref "https://doi.org/10.1016/0304-3975(87)90045-4"
+        green_verified true
+    }
+
+    unconstructible "scott_continuity_verification" {
+        reduces_to "undecidable"
+        dependency "scott_continuity"
+        dependency "monotonicity"
+        dependency "directed_sup_preservation"
+        external_ref "https://en.wikipedia.org/wiki/Scott_continuity"
+        green_verified true
+    }
+
+    unconstructible "compact_element_recognition" {
+        reduces_to "undecidable"
+        dependency "compact_element"
+        dependency "way_below_implies_below"
+        dependency "directed_interpolation"
+        external_ref "https://en.wikipedia.org/wiki/Domain_theory"
+        green_verified true
+    }
+
+    unconstructible "definability_dcpo_language" {
+        reduces_to "undecidable"
+        dependency "directed_completeness"
+        dependency "reflexivity"
+        dependency "antisymmetry"
+        dependency "transitivity"
+        external_ref "https://www.cs.ox.ac.uk/files/3228/PRG02.pdf"
+        green_verified true
+    }
+
+    unconstructible "powerdomain_equivalence" {
+        reduces_to "undecidable"
+        dependency "plotkin_powerdomain"
+        dependency "hoare_powerdomain"
+        dependency "smyth_powerdomain"
+        external_ref "https://doi.org/10.1137/0211042"
+        green_verified true
+    }
+
+    unconstructible "domain_equation_solving" {
+        reduces_to "undecidable"
+        dependency "domain_equation"
+        dependency "inverse_limit"
+        dependency "function_space_construction"
+        external_ref "https://www.cs.ox.ac.uk/people/samson.abramsky/handbook.ps"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    # Bottom geometry: In domain theory, ⊥ is the least element of the
+    # pointed dcpo, representing "no information" or "undefined". It is
+    # the starting point of all computations and the limit of the empty
+    # directed set. The bottom element is compact (⊥ ≪ ⊥) and serves
+    # as the seed for Kleene fixed-point iteration.
+    bottom_geometry "pointed_dcpo_least_element"
+
+    # Negation encoding: Domain theory uses classical negation
+    # (complement in the information order). The complement of an
+    # upper set is a Scott-closed lower set. This is classical because
+    # domain theory is developed within classical mathematics (ZFC).
+    negation_encoding "classical_complement_in_information_order"
+
+    # Contradiction behavior: explosion_principle
+    # Domain theory is a classical mathematical theory (developed in ZFC).
+    # The information ordering is a partial order, and the logic of
+    # reasoning about domains is classical. From ⊥ (contradiction),
+    # any proposition follows via ex falso quodlibet.
+    contradiction_behavior "explosion_principle"
+}

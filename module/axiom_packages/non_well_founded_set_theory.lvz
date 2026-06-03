@@ -1,0 +1,572 @@
+# =============================================================================
+# Lv-00 Axiom Package: Non-Well-Founded Set Theory (AFA — Aczel's Anti-Foundation Axiom)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Non-well-founded set theory (hyperset theory), formalized by replacing
+#   the Axiom of Regularity (Foundation) in ZF with Aczel's Anti-Foundation
+#   Axiom (AFA). This allows sets to contain themselves and form infinite
+#   descending membership chains, while preserving the axiom of extensionality
+#   strengthened by bisimulation equivalence.
+#
+# References:
+#   - Aczel, P. (1988). "Non-Well-Founded Sets." CSLI Lecture Notes, vol. 14.
+#     Stanford University. ISBN 0-937073-22-9.
+#     https://archive.org/details/nonwellfoundedse0000acze/page/
+#   - Barwise, J. & Moss, L.S. (1996). "Vicious Circles: On the Mathematics
+#     of Non-Wellfounded Phenomena." CSLI Publications. ISBN 1-57586-009-0.
+#   - Forti, M. & Honsell, F. (1983). "Set theory with free construction
+#     principles." Annali della Scuola Normale Superiore di Pisa, 10(3): 493-522.
+#   - Wikipedia: Non-well-founded set theory
+#     https://en.wikipedia.org/wiki/Non-well-founded_set_theory
+#   - Wikipedia: Aczel's anti-foundation axiom
+#     https://en.wikipedia.org/wiki/Aczel%27s_anti-foundation_axiom
+#   - Stanford Encyclopedia of Philosophy: Non-wellfounded Set Theory
+#     https://plato.stanford.edu/entries/nonwellfounded-set-theory/
+#   - Moss, L.S. (2018). "Non-wellfounded Set Theory." Stanford Encyclopedia
+#     of Philosophy (Summer 2018 ed.).
+#   - Mirimanoff, D. (1917). "Les antinomies de Russell et de Burali-Forti
+#     et le probleme fondamental de la theorie des ensembles."
+#     L'Enseignement Mathematique, 19: 37-52.
+#   - Finsler, P. (1926). "Uber die Grundlagen der Mengenlehre. I."
+#     Math. Z., 25: 683-713.
+#   - Scott, D. (1960). "A different kind of model for set theory."
+#     Unpublished talk, 1960 Stanford Congress.
+#   - Boffa, M. (1968). "Les ensembles extraordinaires."
+#     Bulletin de la Societe Mathematique de Belgique, 20: 3-15.
+#   - Sangiorgi, D. (2011). "Origins of bisimulation and coinduction."
+#     In: Advanced Topics in Bisimulation and Coinduction, Cambridge Univ. Press.
+#
+# Formal Language:
+#   Primitive notions:
+#     - Hyperset (a "set" that may violate well-foundedness)
+#     - ∈ (membership, binary predicate)
+#     - = (equality, defined via strong extensionality with bisimulation)
+#
+#   The universe of hypersets extends the von Neumann cumulative hierarchy V.
+#   Every well-founded set (element of V) is also a hyperset, but the hyperset
+#   universe additionally contains non-well-founded sets such as:
+#     - Quine atom: Ω = {Ω}  (the unique solution to x = {x} under AFA)
+#     - Infinite descending chains: a₀ ∋ a₁ ∋ a₂ ∋ ...
+#     - Mutual recursion: a = {b}, b = {a}
+#
+# Core Axioms (ZF - Regularity + AFA):
+#   I.   Axiom of Extensionality (strengthened):
+#        ∀x∀y[∀z(z∈x ↔ z∈y) → x=y]
+#        Under AFA, this is equivalent to: two hypersets are equal iff
+#        they are bisimilar (their decoration graphs are isomorphic).
+#
+#   II.  Anti-Foundation Axiom (AFA):
+#        Every accessible pointed graph (apg) has a unique decoration.
+#        Equivalently: every system of equations of the form
+#          x_i = {x_j : j ∈ I_i}  (for i ∈ I)
+#        has a unique solution (up to isomorphism of the index set).
+#        This replaces the Axiom of Regularity.
+#
+#   III. Axiom Schema of Specification (Separation): [retained from ZF]
+#        ∀z∀w₁…∀wₙ∃y∀x[x∈y ↔ (x∈z ∧ φ(x,w₁,…,wₙ))]
+#
+#   IV.  Axiom of Pairing: [retained from ZF]
+#        ∀x∀y∃z[x∈z ∧ y∈z]
+#
+#   V.   Axiom of Union: [retained from ZF]
+#        ∀F∃A∀Y∀x[(x∈Y ∧ Y∈F) → x∈A]
+#
+#   VI.  Axiom Schema of Replacement: [retained from ZF]
+#        ∀A∀w₁…∀wₙ[∀x(x∈A → ∃!y φ(x,y,w₁,…,wₙ))
+#        → ∃B∀y(y∈B ↔ ∃x(x∈A ∧ φ(x,y,w₁,…,wₙ)))]
+#
+#   VII. Axiom of Infinity: [retained from ZF]
+#        ∃I[∅∈I ∧ ∀x(x∈I → x∪{x}∈I)]
+#
+#   VIII.Axiom of Power Set: [retained from ZF]
+#        ∀x∃y∀z[z⊆x → z∈y]
+#
+#   IX.  Axiom of Choice: [retained from ZFC]
+#        ∀X[∅∉X → ∃f:X→∪X such that ∀A∈X, f(A)∈A]
+#
+# Key Concepts:
+#   - Accessible Pointed Graph (apg): a directed graph with exactly one
+#     designated node (the "point") such that every node is reachable
+#     from the point via a finite path.
+#   - Decoration: a labeling of an apg's nodes with hypersets such that
+#     each node's label is exactly the set of labels of its children.
+#   - Bisimulation: a relation R between two hypersets a, b such that
+#     for every x∈a there exists y∈b with xRy, and vice versa.
+#     Under AFA, bisimilarity coincides with equality.
+#   - Solution Lemma: every system of set equations has a unique solution.
+#     This is the operational form of AFA.
+#
+# Relationship to Other Anti-Foundation Axioms:
+#   Four major anti-foundation axioms exist, with increasing universe sizes:
+#     AFA (Aczel/Forti-Honsell): V ⊆ A — based on apg decoration
+#     SAFA (Scott): A ⊆ S — based on smooth apgs
+#     FAFA (Finsler): S ⊆ F — based on Finsler's extensional graphs
+#     BAFA (Boffa): F ⊆ B — based on superuniversality (maximal universe)
+#   In BAFA, distinct Quine atoms form a proper class.
+#   This package formalizes AFA (the most widely used variant).
+#
+# Applications:
+#   - Process algebra: modeling non-terminating concurrent processes
+#   - Final semantics / coinduction in computer science
+#   - Situation theory and natural language semantics
+#   - Philosophical logic: liar paradox, circular propositions
+#   - Non-standard analysis (Ballard & Hrbacek 1992)
+#
+# Known Independence / Undecidable Results:
+#   - Foundation vs. AFA: independent of ZF - Foundation
+#   - AFA vs. SAFA vs. FAFA vs. BAFA: mutually exclusive extensions
+#   - Existence of multiple Quine atoms: consistent in BAFA, refuted in AFA
+#   - Regularity is independent of ZF - Foundation (Bernays 1954, Specker 1957)
+#
+# Author: Lv-00 Axiom Package System (AI-Discovered)
+# Date: 2026-05-28
+# Version: 1.0.0
+# =============================================================================
+
+axiom "non_well_founded_set_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates
+    # =================================================================
+    # Each template represents a fundamental axiom, operation, or
+    # derived construction in ZFA (ZF with AFA replacing Regularity).
+    #
+    # Parameter semantics:
+    #   Params = hypersets (elements of the extended universe V_AFA)
+    #
+    # Templates are organized into groups reflecting the structure
+    # of the theory: core axioms, graph-theoretic machinery, core
+    # constructors, coinductive operations, and comparison with ZFC.
+    # =================================================================
+
+    # --- Group I: Core Axioms (ZF minus Regularity, plus AFA) ---
+
+    # Axiom of Extensionality (strengthened by AFA):
+    #   Two hypersets are equal iff they have exactly the same elements.
+    #   Under AFA, this is equivalent to bisimulation equality.
+    #   ∀x∀y[∀z(z∈x ↔ z∈y) → x=y]
+    # Params: hyperset x, hyperset y
+    template "extensionality" 2
+
+    # Anti-Foundation Axiom (AFA) — Decoration Form:
+    #   Every accessible pointed graph (apg) has a unique decoration.
+    #   An apg is a directed graph with a distinguished root node such
+    #   that every node is reachable from the root via a finite path.
+    #   A decoration assigns to each node n a hyperset d(n) such that
+    #   d(n) = {d(m) : there is an edge from n to m}.
+    # Params: graph G, root node r -> unique decoration d
+    template "afa_decoration" 2
+
+    # Anti-Foundation Axiom (AFA) — Solution Lemma Form:
+    #   Every system of equations of the form
+    #     x_i = {x_j : j ∈ I_i}  for each i in an index set I
+    #   has a unique solution (up to isomorphism of the index set).
+    #   This is the most practically useful formulation of AFA.
+    # Params: equation system E -> unique solution assignment S
+    template "solution_lemma" 1
+
+    # Axiom Schema of Specification (Separation): [retained from ZF]
+    #   ∀z∀w₁…∀wₙ∃y∀x[x∈y ↔ (x∈z ∧ φ(x,w₁,…,wₙ))]
+    # Params: hyperset z, predicate φ, parameter w -> hyperset {x∈z : φ(x,w)}
+    template "specification" 3
+
+    # Axiom of Pairing: [retained from ZF]
+    #   ∀x∀y∃z[x∈z ∧ y∈z]
+    # Params: hyperset x, hyperset y -> hyperset {x, y}
+    template "pairing" 2
+
+    # Axiom of Union: [retained from ZF]
+    #   ∀F∃A∀Y∀x[(x∈Y ∧ Y∈F) → x∈A]
+    # Params: family F -> hyperset ∪F
+    template "union" 1
+
+    # Axiom Schema of Replacement: [retained from ZF]
+    #   ∀A∀w₁…∀wₙ[∀x(x∈A → ∃!y φ(x,y,w₁,…,wₙ))
+    #     → ∃B∀y(y∈B ↔ ∃x(x∈A ∧ φ(x,y,w₁,…,wₙ)))]
+    # Params: hyperset A, functional predicate φ, parameter w -> hyperset B
+    template "replacement" 3
+
+    # Axiom of Infinity: [retained from ZF]
+    #   ∃I[∅∈I ∧ ∀x(x∈I → x∪{x}∈I)]
+    # Params: (none) -> hyperset ω
+    template "infinity" 0
+
+    # Axiom of Power Set: [retained from ZF]
+    #   ∀x∃y∀z[z⊆x → z∈y]
+    # Params: hyperset x -> hyperset P(x)
+    template "power_set" 1
+
+    # Axiom of Choice: [retained from ZFC]
+    #   ∀X[∅∉X → ∃f:X→∪X such that ∀A∈X, f(A)∈A]
+    # Params: family X -> choice function f
+    template "choice" 1
+
+    # --- Group II: Graph-Theoretic Machinery ---
+
+    # Accessible Pointed Graph (apg) Construction:
+    #   Construct an apg from a set of nodes and edges.
+    #   An apg is a directed graph (N, E) with a distinguished root r
+    #   such that every n ∈ N is reachable from r via a finite path.
+    # Params: node set N, edge set E, root r -> apg (N, E, r)
+    template "accessible_pointed_graph" 3
+
+    # Graph Decoration:
+    #   Given an apg, compute its unique decoration (guaranteed by AFA).
+    #   The decoration maps each node to a hyperset where node n maps to
+    #   the set of decorations of n's children.
+    # Params: apg G -> decoration function d: N → V_AFA
+    template "graph_decoration" 1
+
+    # Bisimulation Check:
+    #   Two hypersets a, b are bisimilar iff there exists a relation R
+    #   such that aRb and for every x∈a there exists y∈b with xRy,
+    #   and for every y∈b there exists x∈a with xRy.
+    #   Under AFA, bisimilarity is equivalent to equality.
+    # Params: hyperset a, hyperset b -> bisimilarity check result
+    template "bisimulation_check" 2
+
+    # Bisimulation Construction (Greatest Bisimulation):
+    #   Compute the greatest bisimulation relation between two apgs.
+    #   This is the union of all bisimulation relations.
+    # Params: apg G1, apg G2 -> bisimulation relation R
+    template "greatest_bisimulation" 2
+
+    # Graph Isomorphism:
+    #   Check whether two apgs are isomorphic (structure-preserving
+    #   bijection between nodes preserving edges and the root).
+    # Params: apg G1, apg G2 -> isomorphism check result
+    template "graph_isomorphism" 2
+
+    # Extensional Graph:
+    #   A graph is extensional iff distinct nodes have distinct sets
+    #   of children. AFA requires apgs to be extensional for unique
+    #   decoration (up to isomorphism).
+    # Params: graph G -> extensionality check result
+    template "extensional_graph_check" 1
+
+    # Picture of a Hyperset:
+    #   Given a hyperset a, construct its canonical picture — the
+    #   unique (up to isomorphism) apg that decorates to {a}.
+    # Params: hyperset a -> canonical apg picture
+    template "picture_of_hyperset" 1
+
+    # --- Group III: Core Constructors (Hyperset Operations) ---
+
+    # Empty Hyperset: ∅ = {x : x ≠ x} (same as in ZFC)
+    # Params: (none) -> hyperset ∅
+    template "empty_set" 0
+
+    # Singleton: {a} (same as in ZFC)
+    # Params: hyperset a -> hyperset {a}
+    template "singleton" 1
+
+    # Quine Atom: the unique hyperset Ω such that Ω = {Ω}
+    #   Under AFA, the equation x = {x} has exactly one solution.
+    #   This is the simplest non-well-founded set.
+    # Params: (none) -> hyperset Ω
+    template "quine_atom" 0
+
+    # Non-Well-Founded Singleton Chain:
+    #   Construct the unique hyperset satisfying a₀ = {a₁}, a₁ = {a₂}, ...
+    #   This is a finite or infinite descending chain of singletons.
+    # Params: chain length n (0 = Quine atom, 1 = {∅}, etc.) -> hyperset chain
+    template "singleton_chain" 1
+
+    # Mutual Recursion Pair:
+    #   Construct the unique pair (a, b) satisfying a = {b}, b = {a}.
+    #   Under AFA, this system has a unique solution.
+    # Params: (none) -> pair of hypersets (a, b)
+    template "mutual_recursion_pair" 0
+
+    # Equation System Solver:
+    #   Given a system of set equations, compute the unique solution
+    #   using the Solution Lemma (AFA).
+    #   System format: {x_i = {x_j : j ∈ I_i} : i ∈ I}
+    # Params: index set I, right-hand side map -> solution assignment
+    template "solve_equation_system" 2
+
+    # Ordered Pair (Kuratowski): (a,b) = {{a}, {a,b}}
+    # Params: hyperset a, hyperset b -> hyperset (a,b)
+    template "ordered_pair" 2
+
+    # Cartesian Product: A × B
+    # Params: hyperset A, hyperset B -> hyperset A×B
+    template "cartesian_product" 2
+
+    # Binary Union: A ∪ B
+    # Params: hyperset A, hyperset B -> hyperset A∪B
+    template "binary_union" 2
+
+    # Binary Intersection: A ∩ B
+    # Params: hyperset A, hyperset B -> hyperset A∩B
+    template "binary_intersection" 2
+
+    # Set Difference: A \ B
+    # Params: hyperset A, hyperset B -> hyperset A\B
+    template "set_difference" 2
+
+    # Subset Check: A ⊆ B
+    # Params: hyperset A, hyperset B -> check result
+    template "subset_relation" 2
+
+    # Big Intersection: ∩F
+    # Params: family F -> hyperset ∩F
+    template "big_intersection" 1
+
+    # --- Group IV: Coinductive Operations ---
+
+    # Greatest Fixed Point (ν):
+    #   Given a monotone operator Γ on hypersets, compute the greatest
+    #   fixed point νΓ = ∪{X : X ⊆ Γ(X)}. This is the coinductive
+    #   counterpart to the least fixed point μΓ.
+    #   In ZFA, greatest fixed points always exist for monotone operators
+    #   on the universe of hypersets.
+    # Params: monotone operator Γ -> hyperset νΓ
+    template "greatest_fixed_point" 1
+
+    # Coreflexive Coinductive Definition:
+    #   Define a hyperset as the greatest fixed point of a system of
+    #   equations. Used for modeling streams, infinite trees, processes.
+    # Params: system of guarded equations -> hyperset (coinductive definition)
+    template "coinductive_definition" 1
+
+    # Stream (Infinite Sequence):
+    #   Construct an infinite stream ⟨a₀, a₁, a₂, ...⟩ as a hyperset
+    #   satisfying s = (a₀, s') where s' = (a₁, s''), etc.
+    #   Streams are a canonical example of non-well-founded sets.
+    # Params: head element a, tail stream s -> stream (a :: s)
+    template "stream_cons" 2
+
+    # Stream Unfolding:
+    #   Given a function f: X → X × A and initial state x₀, construct
+    #   the stream ⟨a₀, a₁, a₂, ...⟩ where f(xₙ) = (xₙ₊₁, aₙ).
+    # Params: function f, initial state x₀ -> stream
+    template "stream_unfold" 2
+
+    # Labeled Transition System (LTS):
+    #   Model a process as a hyperset of (action, next-state) pairs.
+    #   This is the standard representation for process algebra in ZFA.
+    # Params: state set S, transition relation T -> LTS as hyperset
+    template "lts_construction" 2
+
+    # Bisimulation on LTS:
+    #   Check whether two labeled transition systems are bisimilar.
+    #   Two processes are bisimilar iff they cannot be distinguished
+    #   by any finite sequence of observations.
+    # Params: LTS P, LTS Q -> bisimilarity check result
+    template "lts_bisimulation" 2
+
+    # --- Group V: Comparison with ZFC ---
+
+    # Well-Founded Part:
+    #   The class WF of well-founded sets is the largest subclass of
+    #   V_AFA satisfying the Axiom of Regularity. WF coincides with
+    #   the von Neumann cumulative hierarchy V.
+    #   Every theorem of ZFC that does not depend on Regularity holds
+    #   in WF ⊆ V_AFA.
+    # Params: hyperset a -> check if a ∈ WF
+    template "well_founded_check" 1
+
+    # Rank Function (for well-founded part):
+    #   For well-founded sets, the rank function assigns an ordinal
+    #   rank(a) measuring the depth of nesting. Non-well-founded sets
+    #   have no rank (rank is undefined).
+    # Params: hyperset a -> ordinal rank(a) or undefined
+    template "rank_function" 1
+
+    # Foundation Violation Check:
+    #   Check whether a hyperset violates the Axiom of Regularity,
+    #   i.e., whether there exists an infinite descending ∈-chain
+    #   starting from a.
+    # Params: hyperset a -> check result
+    template "foundation_violation_check" 1
+
+    # Membership Cycle Detection:
+    #   Check whether a hyperset a participates in a finite ∈-cycle,
+    #   i.e., a ∈ a₁ ∈ ... ∈ aₙ ∈ a for some n ≥ 1.
+    # Params: hyperset a -> cycle detection result
+    template "membership_cycle_detection" 1
+
+    # ZFC Embedding:
+    #   The well-founded part WF of V_AFA is isomorphic to the full
+    #   ZFC universe V. This template represents the embedding map.
+    #   All ZFC theorems hold when relativized to WF.
+    # Params: (none) -> embedding witness
+    template "zfc_embedding" 0
+
+    # --- Group VI: Relation & Function Constructors ---
+
+    # Relation: R ⊆ A × B (same as ZFC)
+    # Params: hyperset A, hyperset B, predicate R -> relation R
+    template "relation" 3
+
+    # Function: f: A → B (same as ZFC)
+    # Params: hyperset A, hyperset B, graph f -> function f
+    template "function" 3
+
+    # Function Application: f(x)
+    # Params: function f, hyperset x -> value f(x)
+    template "function_application" 2
+
+    # Image: f[A] = {f(x) : x ∈ A}
+    # Params: function f, hyperset A -> image f[A]
+    template "image" 2
+
+    # Inverse Image: f⁻¹[B] = {x : f(x) ∈ B}
+    # Params: function f, hyperset B -> inverse image f⁻¹[B]
+    template "inverse_image" 2
+
+    # --- Group VII: Cardinal & Ordinal Constructors ---
+
+    # Equinumerosity: A ≈ B
+    # Params: hyperset A, hyperset B -> check result
+    template "equinumerous" 2
+
+    # Cardinality: |A|
+    # Params: hyperset A -> cardinal |A|
+    template "cardinality" 1
+
+    # Well-Order: well-ordering on a set
+    # Params: hyperset A, relation < -> well-order
+    template "well_order" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # 1. Foundation vs. AFA Consistency
+    # The Axiom of Regularity (Foundation) is independent of ZF minus
+    # Foundation. Both ZF+Foundation and ZF+AFA are consistent (relative
+    # to ZF). Neither implies the other.
+    # (Bernays 1954, Specker 1957)
+    unconstructible "foundation_independence" {
+        reduces_to "independent_of_ZF_minus_foundation"
+        dependency "extensionality"
+        dependency "afa_decoration"
+        dependency "solution_lemma"
+        dependency "well_founded_check"
+        external_ref "https://en.wikipedia.org/wiki/Axiom_of_regularity"
+        green_verified true
+    }
+
+    # 2. AFA vs. SAFA vs. FAFA vs. BAFA Mutual Exclusivity
+    # The four major anti-foundation axioms (AFA, SAFA, FAFA, BAFA)
+    # are mutually exclusive. No two can hold simultaneously.
+    # The universes satisfy V ⊆ A ⊆ S ⊆ F ⊆ B.
+    unconstructible "afa_safa_fafa_bafa_exclusivity" {
+        reduces_to "mutually_exclusive_extensions_of_ZF"
+        dependency "afa_decoration"
+        dependency "extensional_graph_check"
+        dependency "graph_isomorphism"
+        external_ref "https://en.wikipedia.org/wiki/Non-well-founded_set_theory"
+        green_verified true
+    }
+
+    # 3. Uniqueness of Quine Atom under AFA
+    # Under AFA, the equation x = {x} has exactly one solution (the
+    # unique Quine atom Ω). Under BAFA, there is a proper class of
+    # distinct Quine atoms. The uniqueness is provable in ZFA+AFA.
+    unconstructible "quine_atom_uniqueness_in_bafa" {
+        reduces_to "refuted_in_boffa_universe"
+        dependency "quine_atom"
+        dependency "solution_lemma"
+        dependency "bisimulation_check"
+        external_ref "https://en.wikipedia.org/wiki/Quine_atom"
+        green_verified true
+    }
+
+    # 4. Consistency of ZFA relative to ZFC
+    # ZFA (ZF + AFA) is consistent if and only if ZFC is consistent.
+    # This follows from the fact that ZFA has a model constructed
+    # inside ZFC using graph-theoretic techniques.
+    unconstructible "zfa_consistency" {
+        reduces_to "equiconsistent_with_ZFC"
+        dependency "afa_decoration"
+        dependency "accessible_pointed_graph"
+        dependency "graph_decoration"
+        external_ref "https://plato.stanford.edu/entries/nonwellfounded-set-theory/"
+        green_verified true
+    }
+
+    # 5. Existence of Non-Well-Founded Sets in ZFC
+    # ZFC (with Foundation) proves that no non-well-founded sets exist.
+    # The existence of hypersets is refutable in ZFC.
+    unconstructible "hyperset_existence_in_zfc" {
+        reduces_to "refutable_in_ZFC"
+        dependency "foundation_violation_check"
+        dependency "membership_cycle_detection"
+        dependency "well_founded_check"
+        external_ref "https://en.wikipedia.org/wiki/Axiom_of_regularity"
+        green_verified true
+    }
+
+    # 6. Bisimulation Decidability for Finite Hypersets
+    # Checking bisimilarity of two finite hypersets (given as finite
+    # graphs) is decidable in polynomial time. However, checking
+    # bisimilarity of infinite-state systems is undecidable in general.
+    unconstructible "bisimulation_undecidable_infinite" {
+        reduces_to "undecidable_for_infinite_state_systems"
+        dependency "bisimulation_check"
+        dependency "greatest_bisimulation"
+        dependency "lts_bisimulation"
+        external_ref "https://en.wikipedia.org/wiki/Bisimulation"
+        green_verified true
+    }
+
+    # 7. Continuum Hypothesis in ZFA
+    # CH remains independent of ZFA (since ZFA extends ZF and does
+    # not resolve CH). The independence proof from ZFC carries over.
+    unconstructible "continuum_hypothesis_in_zfa" {
+        reduces_to "independent_of_ZFA"
+        dependency "infinity"
+        dependency "power_set"
+        dependency "cardinality"
+        dependency "zfc_embedding"
+        external_ref "https://en.wikipedia.org/wiki/Continuum_hypothesis"
+        green_verified true
+    }
+
+    # 8. Axiom of Choice in ZFA
+    # AC is independent of ZF+AFA (same as in ZF). There are models
+    # of ZFA where AC holds and models where it fails.
+    unconstructible "choice_independence_in_zfa" {
+        reduces_to "independent_of_ZF_plus_AFA"
+        dependency "choice"
+        dependency "well_order"
+        dependency "zfc_embedding"
+        external_ref "https://en.wikipedia.org/wiki/Axiom_of_choice#Independence"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    #
+    # bottom_geometry: "hyperset_graph_universe"
+    #   ⊥ (contradiction) in ZFA is represented as the empty hyperset ∅,
+    #   which is the unique well-founded set with no elements. However,
+    #   the "geometry" of ZFA is fundamentally graph-theoretic: every
+    #   hyperset is uniquely determined by its canonical picture (an
+    #   accessible pointed graph). The universe V_AFA is the class of
+    #   all decorations of all apgs. This graph-theoretic perspective
+    #   is the natural "bottom geometry" for non-well-founded sets,
+    #   as it replaces the cumulative hierarchy V with the universe
+    #   of all apg decorations.
+    #
+    # negation_encoding: "classical_complement_in_hyperset_universe"
+    #   ¬φ is encoded as the complement of the extension of φ within
+    #   the universe of hypersets V_AFA. Since ZFA uses classical
+    #   first-order logic (same as ZFC), negation is classical and
+    #   satisfies the law of excluded middle: φ ∨ ¬φ is always true.
+    #
+    # contradiction_behavior: "explosion_principle"
+    #   ZFA uses classical logic with the principle of explosion
+    #   (ex contradictione quodlibet): from ⊥, anything follows.
+    #   This is the same as in ZFC, since ZFA retains classical logic.
+    # =================================================================
+
+    bottom_geometry "hyperset_graph_universe"
+    negation_encoding "classical_complement_in_hyperset_universe"
+    contradiction_behavior "explosion_principle"
+}

@@ -1,0 +1,324 @@
+# =============================================================================
+# Lv-00 Axiom Package: Galois Theory
+# =============================================================================
+#
+# Mathematical Theory: Galois Theory
+# Axiomatization: Field Extension + Galois Group + Fundamental Theorem
+#
+# References:
+#   - Wikipedia: Galois theory
+#     https://en.wikipedia.org/wiki/Galois_theory
+#   - Wikipedia: Fundamental theorem of Galois theory
+#     https://en.wikipedia.org/wiki/Fundamental_theorem_of_Galois_theory
+#   - Wikipedia: Galois group
+#     https://en.wikipedia.org/wiki/Galois_group
+#   - Wikipedia: Inverse Galois problem
+#     https://en.wikipedia.org/wiki/Inverse_Galois_problem
+#   - Rotman, J.J. (1990). "Galois Theory" (2nd ed.). Springer.
+#   - Stewart, I. (2015). "Galois Theory" (4th ed.). CRC Press.
+#   - Lang, S. (2002). "Algebra" (3rd ed.). Springer. Chapter VI.
+#   - Wikipedia: Abel-Ruffini theorem
+#     https://en.wikipedia.org/wiki/Abel%E2%80%93Ruffini_theorem
+#   - Wikipedia: Solvable group
+#     https://en.wikipedia.org/wiki/Solvable_group
+#
+# Core Concepts:
+#   1. Field Extension E/F: E is a field containing F as a subfield
+#   2. Galois Group Gal(E/F): Automorphisms of E fixing F pointwise
+#   3. Galois Extension: Normal + Separable extension
+#   4. Fundamental Theorem: Correspondence between subgroups and intermediate fields
+#   5. Solvability by Radicals: Polynomial solvable iff Galois group is solvable
+#
+# Dependencies:
+#   - group_theory (Galois groups are groups)
+#   - field_theory (Field extensions are built on fields)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-24
+# Version: 1.0.0
+# =============================================================================
+
+axiom "galois_theory" "1.0.0" {
+
+    # =================================================================
+    # Field Extension Templates (12)
+    # =================================================================
+
+    # Basic field extension E/F
+    template "field_extension" 2
+
+    # Degree of extension [E:F]
+    template "extension_degree" 2
+
+    # Finite extension
+    template "finite_extension" 2
+
+    # Algebraic extension: every element of E is algebraic over F
+    template "algebraic_extension" 2
+
+    # Simple extension: E = F(α) for some α
+    template "simple_extension" 2
+
+    # Tower of extensions: F ⊆ K ⊆ E
+    template "extension_tower" 3
+
+    # Tower law: [E:F] = [E:K][K:F]
+    template "tower_law" 3
+
+    # Minimal polynomial of α over F
+    template "minimal_polynomial" 3
+
+    # Splitting field: field where polynomial splits completely
+    template "splitting_field" 2
+
+    # Algebraic closure
+    template "algebraic_closure" 1
+
+    # Separable element: minimal polynomial has distinct roots
+    template "separable_element" 2
+
+    # Normal extension: every irreducible polynomial with a root in E splits in E
+    template "normal_extension" 2
+
+    # =================================================================
+    # Galois Group Templates (16)
+    # =================================================================
+
+    # Galois group: automorphisms of E fixing F
+    template "galois_group" 2
+
+    # Galois automorphism
+    template "galois_automorphism" 3
+
+    # Fixed field: E^H = {x ∈ E : ∀σ ∈ H, σ(x) = x}
+    template "fixed_field" 2
+
+    # Galois extension: normal + separable
+    template "galois_extension" 2
+
+    # Order of Galois group equals degree of extension
+    template "galois_order_degree" 2
+
+    # Automorphism group of a field
+    template "automorphism_group" 1
+
+    # Field automorphism
+    template "field_automorphism" 2
+
+    # Invariant subfield
+    template "invariant_subfield" 2
+
+    # Galois correspondence: subgroup ↔ intermediate field
+    template "galois_correspondence" 3
+
+    # Subgroup to fixed field
+    template "subgroup_to_field" 2
+
+    # Field to automorphism group
+    template "field_to_subgroup" 2
+
+    # Normal subgroup ↔ normal extension
+    template "normal_correspondence" 2
+
+    # Quotient group ↔ Galois group of normal closure
+    template "quotient_galois" 3
+
+    # Composition of extensions
+    template "extension_composition" 3
+
+    # Galois group of composite extension
+    template "composite_galois_group" 3
+
+    # =================================================================
+    # Solvability Templates (14)
+    # =================================================================
+
+    # Solvable group: has subnormal series with abelian quotients
+    template "solvable_group" 1
+
+    # Derived series: G ⊇ G' ⊇ G'' ⊇ ... ⊇ {e}
+    template "derived_series" 1
+
+    # Commutator subgroup
+    template "commutator_subgroup_galois" 1
+
+    # Solvable by radicals
+    template "solvable_by_radicals" 1
+
+    # Radical extension: E = F(α₁, ..., αₙ) where αᵢᵏⁱ ∈ F(α₁, ..., αᵢ₋₁)
+    template "radical_extension" 2
+
+    # Root adjunction: F(ⁿ√a)
+    template "root_adjunction" 3
+
+    # Cyclotomic extension: F(ζₙ) where ζₙ is primitive n-th root of unity
+    template "cyclotomic_extension" 2
+
+    # Galois group of cyclotomic extension
+    template "cyclotomic_galois_group" 2
+
+    # Kummer extension
+    template "kummer_extension" 3
+
+    # Abel-Ruffini theorem: general quintic not solvable by radicals
+    template "abel_ruffini_theorem" 0
+
+    # Solvable implies solvable by radicals
+    template "solvable_implies_radicals" 1
+
+    # Insolvability of quintic
+    template "quintic_insolvability" 0
+
+    # Discriminant determines Galois group for cubics/quartics
+    template "discriminant_galois" 2
+
+    # General polynomial of degree n
+    template "general_polynomial" 1
+
+    # =================================================================
+    # Classical Constructions Templates (8)
+    # =================================================================
+
+    # Constructible number: obtainable by compass and straightedge
+    template "constructible_number" 1
+
+    # Constructible iff degree is power of 2
+    template "constructible_degree" 1
+
+    # Doubling the cube: impossible (∛2 not constructible)
+    template "doubling_cube_impossible" 0
+
+    # Trisecting angle: impossible in general
+    template "angle_trisection_impossible" 0
+
+    # Squaring the circle: impossible (π transcendental)
+    template "squaring_circle_impossible" 0
+
+    # Constructible regular n-gon: n = 2ᵏ × product of distinct Fermat primes
+    template "constructible_polygon" 1
+
+    # Fermat prime: Fₖ = 2^(2ᵏ) + 1
+    template "fermat_prime" 1
+
+    # Gauss-Wantzel theorem
+    template "gauss_wantzel_theorem" 0
+
+    # =================================================================
+    # Advanced Templates (12)
+    # =================================================================
+
+    # Inverse Galois problem: every finite group realizable over Q?
+    template "inverse_galois_problem" 0
+
+    # Realizable group over a field
+    template "realizable_group" 2
+
+    # Generic polynomial
+    template "generic_polynomial" 2
+
+    # Hilbert irreducibility theorem
+    template "hilbert_irreducibility" 0
+
+    # Galois cohomology
+    template "galois_cohomology" 2
+
+    # Absolute Galois group: Gal(F̄/F)
+    template "absolute_galois_group" 1
+
+    # Kronecker-Weber theorem: finite abelian extensions of Q ⊆ cyclotomic
+    template "kronecker_weber_theorem" 0
+
+    # Fundamental theorem of Galois theory
+    template "fundamental_theorem" 0
+
+    # Primitive element theorem
+    template "primitive_element_theorem" 2
+
+    # Normal closure
+    template "normal_closure" 2
+
+    # Separable closure
+    template "separable_closure" 1
+
+    # Perfect field: every algebraic extension is separable
+    template "perfect_field" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable / Unsolved Problems (8)
+    # =================================================================
+
+    unconstructible "inverse_galois_problem" {
+        reduces_to "unsolved"
+        dependency "galois_group"
+        dependency "field_extension"
+        dependency "realizable_group"
+        external_ref "https://en.wikipedia.org/wiki/Inverse_Galois_problem"
+        green_verified false
+    }
+
+    unconstructible "galois_group_computation" {
+        reduces_to "polynomial_factorization"
+        dependency "galois_group"
+        dependency "splitting_field"
+        dependency "minimal_polynomial"
+        external_ref "https://en.wikipedia.org/wiki/Galois_group#Computation"
+        green_verified true
+    }
+
+    unconstructible "solvability_by_radicals_decision" {
+        reduces_to "galois_group_computation"
+        dependency "solvable_group"
+        dependency "galois_group"
+        dependency "solvable_by_radicals"
+        external_ref "https://en.wikipedia.org/wiki/Solvable_by_radicals"
+        green_verified true
+    }
+
+    unconstructible "minimal_polynomial_computation" {
+        reduces_to "polynomial_factorization"
+        dependency "minimal_polynomial"
+        dependency "algebraic_extension"
+        external_ref "https://en.wikipedia.org/wiki/Minimal_polynomial_(field_theory)"
+        green_verified true
+    }
+
+    unconstructible "splitting_field_construction" {
+        reduces_to "polynomial_factorization"
+        dependency "splitting_field"
+        dependency "field_extension"
+        external_ref "https://en.wikipedia.org/wiki/Splitting_field"
+        green_verified true
+    }
+
+    unconstructible "absolute_galois_group_q" {
+        reduces_to "open_problem"
+        dependency "absolute_galois_group"
+        dependency "algebraic_closure"
+        external_ref "https://en.wikipedia.org/wiki/Absolute_Galois_group"
+        green_verified false
+    }
+
+    unconstructible "hilbert_irreducibility_specialization" {
+        reduces_to "polynomial_irreducibility"
+        dependency "hilbert_irreducibility"
+        dependency "generic_polynomial"
+        external_ref "https://en.wikipedia.org/wiki/Hilbert%27s_irreducibility_theorem"
+        green_verified true
+    }
+
+    unconstructible "galois_cohomology_computation" {
+        reduces_to "group_cohomology"
+        dependency "galois_cohomology"
+        dependency "absolute_galois_group"
+        external_ref "https://en.wikipedia.org/wiki/Galois_cohomology"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "galois_theory_field_extension"
+    negation_encoding "classical_equality"
+    contradiction_behavior "explosion_principle"
+}

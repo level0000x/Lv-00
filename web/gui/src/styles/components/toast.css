@@ -1,0 +1,67 @@
+/* ============================================================
+   Toast 提示通知组件样式 / Toast Notification Component Styles
+   包含通知容器、通知条目、各状态类型（成功/错误/警告/信息）。
+   ============================================================ */
+
+/* === TOAST CONTAINER / 通知容器 === */
+/* 固定在右下角的通知堆叠容器，从下往上排列 */
+.toast-container {
+    position: fixed;
+    bottom: 40px;
+    right: var(--spacing-xl);
+    z-index: var(--z-toast);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+/* === TOAST / 通知条目 === */
+/* 单条通知，带背景模糊和悬停偏移效果 */
+.toast {
+    background: var(--color-bg-overlay);
+    border: 1px solid var(--color-border-primary);
+    padding: 10px 16px;
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    min-width: 200px;
+    max-width: 300px;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* 通知悬停：向左偏移 + 阴影加深，暗示可点击关闭 */
+.toast:hover {
+    transform: translateX(-4px);
+    box-shadow: var(--shadow-xl);
+}
+
+/* === TOAST STATUS VARIANTS / 通知状态变体 === */
+/* 每种状态通过左侧彩色边框 + 渐变背景区分 */
+
+/* 成功通知：绿色左边框 */
+.toast.toast-success {
+    border-left: 3px solid var(--color-trust-green);
+    background: linear-gradient(135deg, var(--color-bg-overlay) 0%, rgba(var(--color-success-rgb), 0.05) 100%);
+}
+
+/* 错误通知：红色左边框 */
+.toast.toast-error {
+    border-left: 3px solid var(--color-trust-red);
+    background: linear-gradient(135deg, var(--color-bg-overlay) 0%, rgba(var(--color-danger-rgb), 0.05) 100%);
+}
+
+/* 警告通知：黄色左边框 */
+.toast.toast-warning {
+    border-left: 3px solid var(--color-trust-yellow);
+    background: linear-gradient(135deg, var(--color-bg-overlay) 0%, rgba(var(--color-warning-rgb), 0.05) 100%);
+}
+
+/* 信息通知：蓝色左边框 */
+.toast.toast-info {
+    border-left: 3px solid var(--color-trust-blue);
+    background: linear-gradient(135deg, var(--color-bg-overlay) 0%, rgba(var(--color-info-rgb), 0.05) 100%);
+}
