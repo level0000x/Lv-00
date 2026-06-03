@@ -1,0 +1,227 @@
+# =============================================================================
+# Lv-00 Axiom Package: Group Theory
+# =============================================================================
+#
+# Mathematical Theory: Group Theory
+# Axiomatization: Standard 4-axiom definition
+#
+# References:
+#   - Wikipedia: Group (mathematics)
+#     https://en.wikipedia.org/wiki/Group_(mathematics)
+#   - Dummit, D.S. and Foote, R.M. (2004). "Abstract Algebra" (3rd ed.). Wiley.
+#   - Rotman, J.J. (1995). "An Introduction to the Theory of Groups" (4th ed.). Springer.
+#   - Wikipedia: Word problem for groups
+#     https://en.wikipedia.org/wiki/Word_problem_for_groups
+#   - Wikipedia: Adian-Rabin theorem
+#     https://en.wikipedia.org/wiki/Adian%E2%80%93Rabin_theorem
+#
+# Core Axioms (4):
+#   G1. Closure:       For all a, b in G, a * b is in G.
+#   G2. Associativity: For all a, b, c in G, (a * b) * c = a * (b * c).
+#   G3. Identity:      There exists e in G such that e * a = a = a * e.
+#   G4. Inverse:       For each a in G, there exists a⁻¹ with a * a⁻¹ = e.
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-21
+# Version: 1.0.0
+# =============================================================================
+
+axiom "group_theory" "1.0.0" {
+
+    # --- Core Axioms (4) ---
+
+    # G1: Closure — a * b is in G
+    template "closure" 2
+
+    # G2: Associativity — (a * b) * c = a * (b * c)
+    template "associativity" 3
+
+    # G3: Identity — there exists e with e * a = a = a * e
+    template "identity" 1
+
+    # G4: Inverse — for each a, there exists a⁻¹
+    template "inverse" 1
+
+    # --- Elementary Consequences (8) ---
+
+    # Uniqueness of identity element
+    template "identity_uniqueness" 0
+
+    # Uniqueness of inverses
+    template "inverse_uniqueness" 1
+
+    # Left cancellation: a * b = a * c implies b = c
+    template "left_cancellation" 3
+
+    # Right cancellation: b * a = c * a implies b = c
+    template "right_cancellation" 3
+
+    # Double inverse: (a⁻¹)⁻¹ = a
+    template "double_inverse" 1
+
+    # Inverse of product: (a * b)⁻¹ = b⁻¹ * a⁻¹
+    template "inverse_of_product" 2
+
+    # Identity is its own inverse: e⁻¹ = e
+    template "identity_is_own_inverse" 0
+
+    # Product with identity: a * e = a = e * a
+    template "product_with_identity" 1
+
+    # --- Core Constructors (4) ---
+
+    # Group multiplication: a * b
+    template "multiply" 2
+
+    # Positive power: aⁿ for n > 0
+    template "power_positive" 2
+
+    # Negative power: a⁻ⁿ for n > 0
+    template "power_negative" 2
+
+    # Zero power: a⁰ = e
+    template "power_zero" 1
+
+    # --- Derived Constructors (18) ---
+
+    # Commutator: [a, b] = a⁻¹ * b⁻¹ * a * b
+    template "commutator" 2
+
+    # Conjugation: b^a = a⁻¹ * b * a
+    template "conjugation" 2
+
+    # Element order: ord(a) = smallest n > 0 with aⁿ = e
+    template "element_order" 1
+
+    # Center: Z(G) = {g in G : g*x = x*g for all x}
+    template "center" 0
+
+    # Centralizer: C_G(a) = {g in G : g*a = a*g}
+    template "centralizer" 1
+
+    # Subgroup test: H ≤ G iff H ≠ ∅ and ∀a,b∈H: a*b⁻¹∈H
+    template "subgroup_test" 2
+
+    # Left coset: aH = {a*h : h in H}
+    template "left_coset" 2
+
+    # Right coset: Ha = {h*a : h in H}
+    template "right_coset" 2
+
+    # Normal subgroup test: N ◁ G iff ∀g∈G: gNg⁻¹ = N
+    template "normal_subgroup_test" 2
+
+    # Quotient group: G/N
+    template "quotient_group" 2
+
+    # Direct product: G × H
+    template "direct_product" 2
+
+    # Free group on a set
+    template "free_group" 1
+
+    # Abelianization: G/[G,G]
+    template "abelianization" 1
+
+    # Commutator subgroup: [G,G]
+    template "commutator_subgroup" 1
+
+    # Homomorphism: f: G → H preserving *
+    template "homomorphism" 3
+
+    # Kernel: ker(f) = {g in G : f(g) = e_H}
+    template "kernel" 1
+
+    # Image: im(f) = {f(g) : g in G}
+    template "image" 1
+
+    # First isomorphism theorem: G/ker(f) ≅ im(f)
+    template "first_isomorphism_theorem" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (7)
+    # =================================================================
+
+    unconstructible "word_problem" {
+        reduces_to "undecidable"
+        dependency "closure"
+        dependency "associativity"
+        dependency "inverse"
+        dependency "multiply"
+        external_ref "https://en.wikipedia.org/wiki/Word_problem_for_groups"
+        green_verified true
+    }
+
+    unconstructible "conjugacy_problem" {
+        reduces_to "undecidable"
+        dependency "closure"
+        dependency "associativity"
+        dependency "inverse"
+        dependency "conjugation"
+        dependency "multiply"
+        external_ref "https://en.wikipedia.org/wiki/Conjugacy_problem"
+        green_verified true
+    }
+
+    unconstructible "group_isomorphism_problem" {
+        reduces_to "undecidable"
+        dependency "homomorphism"
+        dependency "kernel"
+        dependency "image"
+        dependency "multiply"
+        dependency "inverse"
+        external_ref "https://en.wikipedia.org/wiki/Group_isomorphism_problem"
+        green_verified true
+    }
+
+    unconstructible "triviality_problem" {
+        reduces_to "undecidable"
+        dependency "identity"
+        dependency "inverse"
+        dependency "multiply"
+        dependency "closure"
+        external_ref "https://en.wikipedia.org/wiki/Adian%E2%80%93Rabin_theorem"
+        green_verified true
+    }
+
+    unconstructible "finiteness_problem" {
+        reduces_to "undecidable"
+        dependency "identity"
+        dependency "inverse"
+        dependency "multiply"
+        dependency "associativity"
+        dependency "closure"
+        external_ref "https://en.wikipedia.org/wiki/Adian%E2%80%93Rabin_theorem"
+        green_verified true
+    }
+
+    unconstructible "simple_group_recognition" {
+        reduces_to "undecidable"
+        dependency "identity"
+        dependency "inverse"
+        dependency "multiply"
+        dependency "associativity"
+        dependency "closure"
+        external_ref "https://en.wikipedia.org/wiki/Adian%E2%80%93Rabin_theorem"
+        green_verified true
+    }
+
+    unconstructible "torsion_freeness_problem" {
+        reduces_to "undecidable"
+        dependency "identity"
+        dependency "inverse"
+        dependency "multiply"
+        dependency "associativity"
+        dependency "closure"
+        external_ref "https://en.wikipedia.org/wiki/Adian%E2%80%93Rabin_theorem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "group_theory_abstract"
+    negation_encoding "classical_equality"
+    contradiction_behavior "explosion_principle"
+}

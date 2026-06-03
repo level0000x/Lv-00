@@ -1,0 +1,163 @@
+/* ============================================================
+   ShortcutHelp 快捷键帮助面板样式 / Shortcut Help Panel Styles
+   从 ShortcutHelp.tsx 组件的内联样式迁移而来。
+   使用 CSS 类替代内联样式对象，保持视觉一致性。
+   ============================================================ */
+
+/* === 快捷键帮助面板入场动画 === */
+@keyframes shortcutHelpFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes shortcutHelpSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === OVERLAY / 遮罩层 === */
+/* 半透明背景，覆盖全屏，带背景模糊效果 */
+.shortcut-help-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: shortcutHelpFadeIn 0.15s ease-out;
+}
+
+/* === PANEL / 面板主体 === */
+/* 居中显示的快捷键面板，带阴影和圆角 */
+.shortcut-help-panel {
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    max-width: 720px;
+    width: calc(100vw - 48px);
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    padding: 28px 32px;
+    animation: shortcutHelpSlideUp 0.2s ease-out;
+}
+
+/* === TITLE / 标题 === */
+.shortcut-help-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    color: var(--color-text-bright);
+    margin-bottom: 6px;
+    font-family: var(--font-sans);
+}
+
+/* === SUBTITLE / 副标题 === */
+.shortcut-help-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-bottom: 24px;
+    font-family: var(--font-sans);
+}
+
+/* === GRID / 分类网格容器 === */
+/* 两列自适应布局 */
+.shortcut-help-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+/* === CATEGORY CARD / 分类卡片 === */
+.shortcut-help-category-card {
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+}
+
+/* === CATEGORY TITLE / 分类标题 === */
+.shortcut-help-category-title {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-accent);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border-secondary);
+    font-family: var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* === SHORTCUT ROW / 快捷键条目行 === */
+.shortcut-help-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+}
+
+/* === KBD / 按键标签 === */
+/* 模拟键盘按键外观的标签元素 */
+.shortcut-help-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
+    min-width: 22px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--color-text-bright);
+    background-color: rgba(var(--color-accent-rgb), 0.1);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.25);
+    border-radius: var(--radius-sm);
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+/* 按键组合中的加号分隔符 */
+.shortcut-help-kbd-sep {
+    margin: 0 3px;
+    color: var(--color-text-muted);
+    font-size: 10px;
+}
+
+/* === DESCRIPTION / 功能描述文本 === */
+.shortcut-help-desc {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-family: var(--font-sans);
+    text-align: right;
+    flex: 1;
+    margin-left: 12px;
+}
+
+/* === FOOTER / 底部提示行 === */
+.shortcut-help-footer {
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    font-family: var(--font-sans);
+}
+
+/* === 按键组容器 === */
+.shortcut-help-keys {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}

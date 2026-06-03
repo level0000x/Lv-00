@@ -1,0 +1,64 @@
+/**
+ * @file geometry_perpendicular.lv00
+ * @brief 垂线构造案例
+ *
+ * 演示垂线的构造和垂直平分线
+ */
+
+// 定义线段
+point A(0, 0);
+point B(8, 0);
+segment AB(A, B);
+
+// 构造垂直平分线
+line perp_bisector = perpendicular_bisector(AB);
+point M = midpoint(AB);
+
+prove {
+    M lies_on perp_bisector
+}
+
+prove {
+    perpendicular(perp_bisector, AB)
+}
+
+// 证明垂直平分线上的点到两端点距离相等
+point P(4, 3);
+prove {
+    P lies_on perp_bisector
+}
+
+prove {
+    distance(P, A) == distance(P, B)
+}
+
+// 构造过点A的垂线
+point C(0, 6);
+line perp_at_A = perpendicular(AB, A);
+
+prove {
+    perpendicular(perp_at_A, AB)
+}
+
+// 构造直角三角形
+point D(0, 6);
+triangle ABD(A, B, D);
+
+prove {
+    angle(D, A, B) == 90°
+}
+
+// 可视化配置
+visualize {
+    style AB: { color: "blue", width: 3 };
+    style perp_bisector: { color: "red", dashed: true };
+    style perp_at_A: { color: "green", dashed: true };
+    style M: { color: "red", size: 8 };
+    style P: { color: "purple", size: 6 };
+    right_angle: { at: A, size: 20 };
+    label A: "A";
+    label B: "B";
+    label M: "M";
+    label P: "P";
+    label D: "D";
+}

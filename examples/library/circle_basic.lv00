@@ -1,0 +1,51 @@
+/**
+ * @file circle_basic.lv00
+ * @brief 圆的基本构造案例
+ *
+ * 演示圆的定义、切线构造和基本性质
+ */
+
+// 定义圆心和半径
+point O(0, 0);
+const r = 5;
+
+// 构造圆
+circle C(O, r);
+
+// 圆上一点
+point P(3, 4);
+prove {
+    distance(O, P) == r
+}
+
+// 构造切线
+line tangent = tangent_at(C, P);
+
+// 证明切线垂直于半径
+prove {
+    perpendicular(tangent, line(O, P))
+}
+
+// 直径和圆周角
+point A(-5, 0);
+point B(5, 0);
+segment AB(A, B);  // 直径
+
+point Q(0, 5);  // 圆上另一点
+prove {
+    angle(A, Q, B) == 90°  // 直径所对圆周角为直角
+}
+
+// 可视化配置
+visualize {
+    style O: { color: "red", size: 8 };
+    style C: { fill: "none", stroke: "blue", width: 2 };
+    style P: { color: "green", size: 6 };
+    style tangent: { color: "green", dashed: true };
+    style AB: { color: "red", width: 2 };
+    label O: "O";
+    label P: "P";
+    label A: "A";
+    label B: "B";
+    label Q: "Q";
+}
