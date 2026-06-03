@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file adaptive_threshold.c
  * @brief 自适应阈值框架实现
  * 

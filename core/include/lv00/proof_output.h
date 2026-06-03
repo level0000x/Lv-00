@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_output.h
  * @brief 证明输出、格式化、可视化与验证接口
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_dynamic.h
  * @brief 动态几何依赖图 —— 借鉴 GeoGebra 动态几何系统
  *

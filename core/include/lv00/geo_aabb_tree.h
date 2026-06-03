@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_aabb_tree.h
  * @brief AABB 树空间索引 —— 借鉴 CGAL AABB_tree + Boost.Geometry R-tree
  *

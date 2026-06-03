@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module.c
  * @brief 模块系统实现
  * @details 实现模块的加载、保存和依赖管理。支持 MessagePack 序列化、

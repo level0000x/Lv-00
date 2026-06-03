@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_export_enhanced.h
  * @brief Enhanced proof export module supporting multiple output formats.
  *

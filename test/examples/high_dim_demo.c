@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file high_dim_demo.c
  * @brief 高维结构表示与交互模块演示
  *

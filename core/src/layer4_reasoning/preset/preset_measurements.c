@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_measurements.c
  * @brief 几何度量计算预设函数块 - 实现
  *

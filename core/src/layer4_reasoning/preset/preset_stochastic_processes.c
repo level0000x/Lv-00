@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_stochastic_processes.c
  * @brief 随机过程预设函数块模块 - 实现（v2统一宏模式）
  *

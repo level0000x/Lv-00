@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_framework.h
  * @brief 增强单元测试框架
  *

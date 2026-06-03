@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file sparse_linear_algebra.h
  * @brief 稀疏线性代数后端 —— SuiteSparse/GraphBLAS 风格的半环矩阵运算与约束传播
  *

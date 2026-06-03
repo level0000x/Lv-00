@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_transformations.c
  * @brief 几何变换预设函数块 - 实现
  *

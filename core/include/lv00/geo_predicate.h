@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_predicate.h
  * @brief 精确几何谓词 —— 借鉴 CGAL Exact Predicate Paradigm
  *

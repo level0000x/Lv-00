@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_axiom_model_theory.c
  * @brief Model Theory Axiom Package Test
  *

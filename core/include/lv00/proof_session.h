@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_session.h
  * @brief Proof session management -- REPL-style interactive proof construction
  *

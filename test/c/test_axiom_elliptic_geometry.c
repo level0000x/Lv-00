@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_axiom_elliptic_geometry.c
  * @brief Elliptic Geometry Axiom Package Test
  *

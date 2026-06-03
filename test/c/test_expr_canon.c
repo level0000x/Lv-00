@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_expr_canon.c
  * @brief Lv00ExprCanonical 模块测试套件
  *

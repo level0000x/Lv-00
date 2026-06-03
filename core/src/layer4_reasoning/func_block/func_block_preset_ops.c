@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_preset_ops.c
  * @brief 预设函数块操作接口实现
  *

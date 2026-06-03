@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file circle_intersection.c
  * @brief 完整示例：圆与线段的相交构造
  *

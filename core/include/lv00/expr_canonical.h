@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file expr_canonical.h
  * @brief 表达式规范化系统 —— 纯整数符号运算
  *

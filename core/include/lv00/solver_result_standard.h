@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_result_standard.h
  * @brief 统一求解结果标准 —— 多后端结果标准化、交叉验证与一致性检查
  *

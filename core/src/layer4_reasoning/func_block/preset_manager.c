@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_manager.c
  * @brief 预设函数块管理器 - 核心实现
  *

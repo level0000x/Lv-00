@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_helper_cn.c
  * @brief 预设模块中文辅助系统实现
  *

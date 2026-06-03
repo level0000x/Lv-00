@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_advanced_geometry.c
  * @brief 高级几何预设函数块 - 实现
  *

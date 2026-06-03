@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_autodiff.c
  * @brief Tests for the automatic differentiation engine.
  *

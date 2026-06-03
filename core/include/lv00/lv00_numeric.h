@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv00_numeric.h
  * @brief 轻量数值计算基础设施 —— 借鉴 Eigen 纯头文件模式与 Geometry 模块
  *

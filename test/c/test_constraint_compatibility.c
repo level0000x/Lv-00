@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_constraint_compatibility.c
  * @brief 约束拓扑规约层：约束相容性四态检测测试
  *

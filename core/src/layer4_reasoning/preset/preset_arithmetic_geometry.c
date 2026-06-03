@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_arithmetic_geometry.c
  * @brief 算术几何预设函数块 - 实现
  *

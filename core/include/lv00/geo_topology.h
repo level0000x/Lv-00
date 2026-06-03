@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_topology.h
  * @brief Geometric topology module for simplicial complexes.
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file modal_operators.c
  * @brief 模态逻辑扩展 —— 必要性与可能性的基本操作符实现
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file math_input.c
  * @brief 所见即所得数学公式输入系统实现 —— 借鉴 MathLive 的交互式编辑器设计
  *

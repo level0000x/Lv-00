@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_utils.c
  * @brief 通用几何计算工具函数实现
  *

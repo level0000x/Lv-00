@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file three_valued_logic.c
  * @brief 三值逻辑系统实现 —— Kleene 强三值逻辑运算
  *

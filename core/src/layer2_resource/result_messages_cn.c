@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file result_messages_cn.c
  * @brief Lv-00 中文结果信息转换系统实现
  *

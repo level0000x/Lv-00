@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_rewrite_strategy.c
  * @brief Tests for the extended rewrite strategy engine.
  *

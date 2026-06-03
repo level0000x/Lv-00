@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_determinism.c
  * @brief 函数块确定性检查模块
  * @details 实现函数块的静态/动态确定性检查、确定性验证流水线。

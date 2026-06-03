@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_basic_math.c
  * @brief 基础数学计算预设函数块 - 实现
  *

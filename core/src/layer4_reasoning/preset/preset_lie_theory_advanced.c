@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_lie_theory_advanced.c
  * @brief 李理论预设函数块模块 - 实现
  *

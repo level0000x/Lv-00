@@ -532,23 +532,23 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/gappa_propagate.c
     core/src/layer3_geometry/fptaylor_eval.c
     core/src/layer3_geometry/herbie_eval.c
-    # v3.4.0 新增：SMT/SAT 模块（Alt-Ergo + STP + Boolector + CaDiCaL + Yices2 落地）
-    core/src/layer3_geometry/smt_theory_combiner.c
-    core/src/layer3_geometry/smt_bitvector.c
-    core/src/layer3_geometry/smt_trigger_engine.c
-    # v3.4.0 新增：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
-    core/src/layer3_geometry/proof_rule_engine.c
-    core/src/layer3_geometry/proof_session.c
-    # v3.4.0 新增：数论/代数模块（NTL + SymEngine + GiNaC 落地）
-    core/src/layer3_geometry/nt_number_theory.c
-    core/src/layer3_geometry/nt_polynomial.c
-    core/src/layer3_geometry/sym_expr.c
-    # v3.4.0 新增：重写引擎模块（egg + Maude + K Framework 落地）
-    core/src/layer3_geometry/rewrite_strategy.c
-    # v3.4.0 新增：版本控制模块（libgit2 落地）
-    core/src/layer3_geometry/proof_version.c
-    # v3.4.0 新增：自动微分模块（Enzyme 落地）
-    core/src/layer3_geometry/autodiff.c
+    # [已移至 Layer 4] SMT/SAT 模块
+    # core/src/layer3_geometry/smt_theory_combiner.c
+    # core/src/layer3_geometry/smt_bitvector.c
+    # core/src/layer3_geometry/smt_trigger_engine.c
+    # [已移至 Layer 4] 证明策略模块
+    # core/src/layer3_geometry/proof_rule_engine.c
+    # core/src/layer3_geometry/proof_session.c
+    # [已移至 Layer 4] 数论/代数模块
+    # core/src/layer3_geometry/nt_number_theory.c
+    # core/src/layer3_geometry/nt_polynomial.c
+    # core/src/layer3_geometry/sym_expr.c
+    # [已移至 Layer 4] 重写引擎模块
+    # core/src/layer3_geometry/rewrite_strategy.c
+    # [已移至 Layer 4] 版本控制模块
+    # core/src/layer3_geometry/proof_version.c
+    # [已移至 Layer 4] 自动微分模块
+    # core/src/layer3_geometry/autodiff.c
     # v3.3.0 性能优化模块
     core/src/layer3_geometry/thread_pool.c
     core/src/layer3_geometry/simd_ops.c
@@ -558,8 +558,8 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/equiv_class.c
     # v3.6.0 新增：WFC 范式 - 约束传播引擎（Layer 3 约束拓扑规约）
     core/src/layer3_geometry/propagation.c
-    # v3.3.0 新增：ODE 求解器
-    core/src/layer3_geometry/ode_solver.c
+    # [已移至 Layer 4] ODE 求解器
+    # core/src/layer3_geometry/ode_solver.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -618,6 +618,25 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/math_protocol.c
     core/src/layer4_reasoning/stream.c
     core/src/layer4_reasoning/stream_context_util.c
+    # SMT/SAT 后端（从 Layer 3 迁移）
+    core/src/layer4_reasoning/smt_theory_combiner.c
+    core/src/layer4_reasoning/smt_bitvector.c
+    core/src/layer4_reasoning/smt_trigger_engine.c
+    # 证明策略（从 Layer 3 迁移）
+    core/src/layer4_reasoning/proof_rule_engine.c
+    core/src/layer4_reasoning/proof_session.c
+    # 数论/代数（从 Layer 3 迁移）
+    core/src/layer4_reasoning/nt_number_theory.c
+    core/src/layer4_reasoning/nt_polynomial.c
+    core/src/layer4_reasoning/sym_expr.c
+    # 重写引擎（从 Layer 3 迁移）
+    core/src/layer4_reasoning/rewrite_strategy.c
+    # 版本控制（从 Layer 3 迁移）
+    core/src/layer4_reasoning/proof_version.c
+    # 自动微分（从 Layer 3 迁移）
+    core/src/layer4_reasoning/autodiff.c
+    # ODE 求解器（从 Layer 3 迁移）
+    core/src/layer4_reasoning/ode_solver.c
     # v3.3.0 新增：不等式推理系统（桩实现）
     core/src/layer4_reasoning/inequality_reasoning.c
     # 公理包

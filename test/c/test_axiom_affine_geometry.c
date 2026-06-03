@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_axiom_affine_geometry.c
  * @brief Affine Geometry Axiom Package Test
  *

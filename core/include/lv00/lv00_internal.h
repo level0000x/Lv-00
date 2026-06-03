@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv00_internal.h (src/)
  * @brief 内部宏定义统一入口（src/ 目录的桥接文件）
  *

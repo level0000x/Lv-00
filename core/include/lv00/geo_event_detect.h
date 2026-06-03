@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_event_detect.h
  * @brief 几何事件检测 —— 借鉴 SUNDIALS Rootfinding 事件检测机制
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gc_language.h
  * @brief 几何构造语言绑定 —— 借鉴 GCLC GC Language 语法 + WASM 移植管道
  *

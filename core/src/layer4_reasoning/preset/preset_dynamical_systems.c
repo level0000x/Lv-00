@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_dynamical_systems.c
  * @brief 动力系统预设函数块 - 实现
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geom_evol.h
  * @brief 几何演化引擎 —— 借鉴 SUNDIALS CVODE 自适应步长与误差控制
  *

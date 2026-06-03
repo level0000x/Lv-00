@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_analysis.c
  * @brief 分析学预设函数块 - 实现
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_bitvector.h
  * @brief Fixed-width bitvector arithmetic for SMT bitvector theory (QF_BV)
  *

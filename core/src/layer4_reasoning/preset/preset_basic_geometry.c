@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_basic_geometry.c
  * @brief 基础几何构造预设函数块 - 实现（v5.0 升级版）
  *

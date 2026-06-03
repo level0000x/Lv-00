@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_aabb_tree.c
  * @brief AABB 树空间索引模块测试（第十三梯队 CGAL + Boost.Geometry 落地验证）
  */

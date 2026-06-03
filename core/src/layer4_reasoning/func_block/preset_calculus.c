@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_calculus.c
  * @brief 微积分预设函数块 - 实现
  *

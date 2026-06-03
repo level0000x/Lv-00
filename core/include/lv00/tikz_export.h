@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file tikz_export.h
  * @brief TikZ 几何导出与渲染 —— 借鉴 jsTikZ / TikZJax 前端 WASM 渲染管道
  *

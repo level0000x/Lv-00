@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_probability_statistics.c
  * @brief 概率论与数理统计预设函数块模块 - 实现
  *

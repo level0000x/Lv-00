@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geom_evol.c
  * @brief 几何演化引擎 —— 自适应步长 ODE 求解器实现
  *

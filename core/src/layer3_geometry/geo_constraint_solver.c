@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_constraint_solver.c
  * @brief 几何约束求解器实现 —— Newton-Raphson 迭代求解
  *

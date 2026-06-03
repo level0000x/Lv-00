@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_category_theory.c
  * @brief 范畴论预设函数块 - 实现
  *

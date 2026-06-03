@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_visual.c
  * @brief 几何可视化抽象层实现
  */

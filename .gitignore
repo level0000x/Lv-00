@@ -85,6 +85,7 @@ Testing/
 
 # Temporary
 *.tmp
+*.bak
 temp/
 
 # 根目录构建产物（防止误提交）

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file graph_hash.h
  * @brief 图结构哈希 —— 基于 FNV-1a 的约束图结构指纹
  *

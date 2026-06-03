@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gc_language.c
  * @brief GCL 几何命令语言实现 —— 借鉴 GCLC GC Language 语法与 WASM 管道
  *

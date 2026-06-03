@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑数据结构实现
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_optimize.c
  * @brief 证明步骤优化与增强回溯搜索（v3.3.0 新增）
  *

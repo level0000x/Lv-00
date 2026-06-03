@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_performance.c
  * @brief 性能基准测试
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_core.h
  * @brief 求解器内核 —— 借鉴 CaDiCaL 的 CDCL 极简内核
  *

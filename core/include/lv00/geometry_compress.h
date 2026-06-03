@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geometry_compress.h
  * @brief Draco 风格几何数据压缩 —— Edgebreaker 拓扑编码与预测编码
  *

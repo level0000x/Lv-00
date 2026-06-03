@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_homological_algebra.c
  * @brief 同调代数预设函数块模块 - 实现
  *

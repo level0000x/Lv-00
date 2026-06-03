@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file sat_encoding.h
  * @brief SAT 编码管道 —— 借鉴 Alloy Kodkod 的关系逻辑到 SAT 编码管道
  *

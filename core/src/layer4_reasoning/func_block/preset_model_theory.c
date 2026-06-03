@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_model_theory.c
  * @brief 模型论预设函数块 - 实现
  *

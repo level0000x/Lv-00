@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_differential_equations.c
  * @brief 微分方程预设函数块 - 实现
  *

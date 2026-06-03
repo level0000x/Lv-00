@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file proof_version.h
  * @brief Proof version control system
  *

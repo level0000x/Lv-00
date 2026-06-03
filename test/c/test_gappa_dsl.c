@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_gappa_dsl.c
  * @brief Test suite for the Gappa DSL module
  *

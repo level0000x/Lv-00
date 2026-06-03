@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_axiom_quantum_information_theory.c
  * @brief Quantum Information Theory Axiom Package Test
  *

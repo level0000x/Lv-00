@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ecosystem.h
  * @brief 开放生态包管理系统 —— 借鉴 OpenGeometry / mai / GAP 的联盟共建哲学
  *

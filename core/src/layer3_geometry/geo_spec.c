@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_spec.c
  * @brief 几何构造规约层实现 —— 借鉴 TLA+ 的 Init/Next/Invariant 三段式框架
  *

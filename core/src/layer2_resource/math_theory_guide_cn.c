@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file math_theory_guide_cn.c
  * @brief 理论数学研究中文指南实现
  *

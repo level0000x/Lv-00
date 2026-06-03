@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_numerical_analysis.c
  * @brief 数值分析预设函数块 - 实现
  *

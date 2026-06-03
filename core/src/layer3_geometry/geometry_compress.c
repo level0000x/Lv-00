@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geometry_compress.c
  * @brief Draco-style geometry data compression - Edgebreaker topology encoding + predictive coding
  *

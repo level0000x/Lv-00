@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file plugin_system.c
  * @brief LV-00 模块化插件系统实现
  *

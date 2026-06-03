@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file relation_model.h
  * @brief 关系模型层 —— 借鉴 Alloy 的"关系即一切"统一建模范式
  *

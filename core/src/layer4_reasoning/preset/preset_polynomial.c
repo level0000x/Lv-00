@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_polynomial.c
  * @brief 多项式理论预设函数块 - 实现
  *

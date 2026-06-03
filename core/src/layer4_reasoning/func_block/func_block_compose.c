@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_compose.c
  * @brief 函数块组合子实现
  * @details 提供函数块的组合操作，包括顺序组合（g o f）和并行乘积（f x g）。

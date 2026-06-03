@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file bootstrap_test.c
  * @brief Lv-00 自举差分测试框架实现骨架
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file performance_profiler.c
  * @brief 性能分析器实现
  *

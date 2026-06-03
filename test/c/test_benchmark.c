@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_benchmark.c
  * @brief 性能基准测试 - 大规模操作、内存使用、执行时间
  *

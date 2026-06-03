@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gappa_propagate.h
  * @brief Predicate propagation engine for Gappa-style proofs
  *

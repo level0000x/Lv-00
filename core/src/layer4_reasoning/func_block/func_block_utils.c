@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_utils.c
  * @brief 函数块内部工具函数实现
  * @details 提供整数数组相关的工具函数：ID 检查、深拷贝、合并。

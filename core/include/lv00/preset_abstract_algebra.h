@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_abstract_algebra.h
  * @brief 抽象代数预设函数块 - 头文件
  *

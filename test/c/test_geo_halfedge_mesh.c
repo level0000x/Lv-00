@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_halfedge_mesh.c
  * @brief Halfedge 网格拓扑模块测试（第十三梯队 geometry-central 落地验证）
  */

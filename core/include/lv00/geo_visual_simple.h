@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_visual_simple.h
  * @brief 简化版几何可视化抽象层（独立测试用）
  */

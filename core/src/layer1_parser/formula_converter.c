@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_converter.c
  * @brief 公式转换器实现
  *

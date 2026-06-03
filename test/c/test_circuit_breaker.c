@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_circuit_breaker.c
  * @brief 熔断器模块单元测试
  *

@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_axiom_euclidean_plane.c
  * @brief Euclidean Plane Geometry Axiom Package Test
  */

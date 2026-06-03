@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite.c
  * @brief 图重写引擎实现
  * @details 实现 VF2 子图同构匹配算法和 Weisfeiler-Lehman 图核哈希。

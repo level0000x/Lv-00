@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_constraint_solver.h
  * @brief 几何约束求解器 —— 借鉴 SolveSpace Newton-Raphson 求解架构
  *

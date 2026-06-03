@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file performance_profiler.h
  * @brief 性能分析器 —— 内存分配热点追踪与性能基准测试
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ga_interface.c
  * @brief 几何代数接口实现 —— 投影几何代数 (PGA) 嵌入与提取
  *

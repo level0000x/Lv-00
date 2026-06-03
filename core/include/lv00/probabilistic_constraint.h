@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file probabilistic_constraint.h
  * @brief PRISM 概率模型检测 —— 概率约束与 PCTL 评估
  *

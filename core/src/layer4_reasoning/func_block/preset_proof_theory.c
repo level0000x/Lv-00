@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_proof_theory.c
  * @brief 证明论预设函数块 - 实现
  *

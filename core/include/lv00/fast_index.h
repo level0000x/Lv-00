@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file fast_index.h
  * @brief 高效索引与检索系统
  *

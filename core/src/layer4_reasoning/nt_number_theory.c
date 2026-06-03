@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file nt_number_theory.c
  * @brief Number theory algorithms -- GMP-based implementation
  *

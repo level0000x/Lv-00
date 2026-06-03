@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gappa_dsl.h
  * @brief Floating-point proof DSL inspired by Gappa
  *

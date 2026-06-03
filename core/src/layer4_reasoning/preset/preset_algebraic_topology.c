@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic_topology.c
  * @brief 代数拓扑预设函数块 - 实现
  *

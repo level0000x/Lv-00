@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file simd_ops.h
  * @brief SIMD向量运算库 —— 跨平台SIMD抽象层
  *

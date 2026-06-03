@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file function_composition.c
  * @brief 完整示例：函数块组合与类型系统
  *

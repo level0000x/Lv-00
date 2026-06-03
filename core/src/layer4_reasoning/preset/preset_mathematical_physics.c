@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_mathematical_physics.c
  * @brief 数学物理方程预设函数块 - 实现
  *

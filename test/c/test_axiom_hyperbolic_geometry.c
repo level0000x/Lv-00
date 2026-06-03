@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * @file test_axiom_hyperbolic_geometry.c
  * @brief Hyperbolic Geometry Axiom Package Test
  *

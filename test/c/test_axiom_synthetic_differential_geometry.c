@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_synthetic_differential_geometry.c
  * @brief Synthetic Differential Geometry Axiom Package Test
  *

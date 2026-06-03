@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic_geometry.c
  * @brief 代数几何预设函数块模块 - 实现
  *

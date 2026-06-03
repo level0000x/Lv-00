@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file error_codes_optimized.h
  * @brief Lv-00 错误码定义 (优化版 v3.5.1)
  * 

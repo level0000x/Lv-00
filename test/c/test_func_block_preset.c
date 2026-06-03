@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_func_block_preset.c
  * @brief 预设函数块库测试
  *

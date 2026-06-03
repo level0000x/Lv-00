@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file global_state.h
  * @brief Lv-00 全局状态管理器
  * @details 统一管理所有全局参数和状态，提供版本迭代后的参数清理机制，
