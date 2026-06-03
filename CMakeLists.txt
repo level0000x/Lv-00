@@ -779,6 +779,60 @@ add_library(lv00_layer5_output OBJECT ${LV00_LAYER5_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_layer5_output 5)
 target_link_libraries(lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
 
+# ── Layer 6: 图形化编程层 (Visual Programming Layer) ──
+# 设计文档: doc/docs/35_layer6_visual_programming.md
+# 四大子系统: 可视化编辑器、函数块运行时扩展、类型系统扩展、表示转换层
+
+set(LV00_LAYER6_SOURCES
+    # 核心视图
+    core/src/layer6_visual/visual_editor.c
+    core/src/layer6_visual/geometry_canvas.c
+    core/src/layer6_visual/node_graph.c
+    core/src/layer6_visual/block_canvas.c
+    core/src/layer6_visual/text_code.c
+    core/src/layer6_visual/view_synchronizer.c
+    # 控制流块
+    core/src/layer6_visual/control_flow/if_block.c
+    core/src/layer6_visual/control_flow/while_block.c
+    core/src/layer6_visual/control_flow/match_block.c
+    # IO 交互块
+    core/src/layer6_visual/io/file_block.c
+    core/src/layer6_visual/io/network_block.c
+    core/src/layer6_visual/io/ui_block.c
+    # 数据结构块
+    core/src/layer6_visual/data/list_block.c
+    core/src/layer6_visual/data/map_block.c
+    core/src/layer6_visual/data/record_block.c
+    # 运行时
+    core/src/layer6_visual/runtime/block_scheduler.c
+    core/src/layer6_visual/runtime/incremental_exec.c
+    core/src/layer6_visual/runtime/effect_tracker.c
+    # 类型扩展
+    core/src/layer6_visual/types/extended_types.c
+    core/src/layer6_visual/types/effect_types.c
+    core/src/layer6_visual/types/type_inference.c
+    # 表示转换
+    core/src/layer6_visual/converter/block_to_geometry.c
+    core/src/layer6_visual/converter/block_to_node.c
+    core/src/layer6_visual/converter/block_to_text.c
+    core/src/layer6_visual/converter/sync_protocol.c
+)
+
+set(LV00_LAYER6_HEADERS
+    core/include/lv00/visual_editor.h
+    core/include/lv00/control_flow_blocks.h
+    core/include/lv00/io_blocks.h
+    core/include/lv00/data_structure_blocks.h
+    core/include/lv00/extended_types.h
+    core/include/lv00/effect_system.h
+    core/include/lv00/block_scheduler.h
+    core/include/lv00/representation_converter.h
+)
+
+add_library(lv00_layer6_visual OBJECT ${LV00_LAYER6_SOURCES} ${LV00_LAYER6_HEADERS})
+lv00_setup_layer(lv00_layer6_visual 6)
+target_link_libraries(lv00_layer6_visual lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+
 # ── 聚合静态库（向后兼容 lv00_static）──
 # 将所有层的 OBJECT 文件聚合到一个静态库中
 add_library(lv00_static STATIC
@@ -787,6 +841,7 @@ add_library(lv00_static STATIC
     $<TARGET_OBJECTS:lv00_layer3_geometry>
     $<TARGET_OBJECTS:lv00_layer4_reasoning>
     $<TARGET_OBJECTS:lv00_layer5_output>
+    $<TARGET_OBJECTS:lv00_layer6_visual>
 )
 target_include_directories(lv00_static PUBLIC
     ${GMP_INCLUDE_DIR}
@@ -808,6 +863,7 @@ if(BUILD_SHARED_LIBS)
         $<TARGET_OBJECTS:lv00_layer3_geometry>
         $<TARGET_OBJECTS:lv00_layer4_reasoning>
         $<TARGET_OBJECTS:lv00_layer5_output>
+        $<TARGET_OBJECTS:lv00_layer6_visual>
     )
     target_include_directories(lv00_shared PUBLIC
         ${GMP_INCLUDE_DIR}

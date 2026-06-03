@@ -1,10 +1,10 @@
 /**
  * @file layer_validation.h
- * @brief Lv-00 五层架构编译时边界验证
+ * @brief Lv-00 六层架构编译时边界验证
  * @details 提供编译时层级边界检查，确保下层模块不依赖上层模块。
  *          通过宏和静态断言实现编译时验证。
  *
- * @version 3.6.0
+ * @version 4.0.0
  * @author Lv-00 Project
  *
  * @par 验证规则
@@ -13,6 +13,7 @@
  * - Layer 3 (Geometry): 只能依赖 Layer 2
  * - Layer 4 (Reasoning): 只能依赖 Layer 3 和 Layer 2
  * - Layer 5 (Output): 只能依赖 Layer 4、Layer 3 和 Layer 2
+ * - Layer 6 (Visual): 只能依赖 Layer 5、Layer 4、Layer 3 和 Layer 2
  *
  * @par 使用方法
  * 在每个源文件顶部包含此头文件，并定义 LV00_CURRENT_LAYER 宏。
@@ -31,6 +32,7 @@
 #define LV00_LAYER_GEOMETRY  3  /**< Layer 3: 几何拓扑层 */
 #define LV00_LAYER_REASONING 4  /**< Layer 4: 公理推理层 */
 #define LV00_LAYER_OUTPUT    5  /**< Layer 5: 结果输出层 */
+#define LV00_LAYER_VISUAL    6  /**< Layer 6: 图形化编程层 */
 
 /* ============================================================
  * 层级边界验证宏
