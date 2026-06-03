@@ -639,6 +639,8 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/ode_solver.c
     # v3.3.0 新增：不等式推理系统（桩实现）
     core/src/layer4_reasoning/inequality_reasoning.c
+    # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
+    core/src/layer4_reasoning/adaptive_pruning.c
     # 公理包
     core/src/layer4_reasoning/axiom/axiom_pkg.c
     core/src/layer4_reasoning/axiom/axiom_grade.c
