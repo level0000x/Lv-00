@@ -29,12 +29,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
 #define popen _popen
 #define pclose _pclose
+#else
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #endif
 
 #include "error_codes.h"
@@ -168,22 +174,71 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
         if (n > 0 && n < remaining) { offset += n; remaining -= n; }
     }
 
-    /* 编码几何约束为谓词 */
+    /* 编码几何约束为谓词 —— 根据实际约束类型编码 */
     int edge_count = graph->constraint_count;
     for (int i = 0; i < edge_count && remaining > 128; i++) {
-        n = snprintf(buf + offset, (size_t)remaining,
-                     "%s(constraint_%d, axiom, incident(p%d, l%d)).\n",
-                     lang, i, i % node_count, i % (node_count > 0 ? node_count : 1));
+        const Constraint *con = graph->constraints[i];
+        if (!con || !con->is_active)
+            continue;
+
+        switch (con->type) {
+        case INCIDENCE:
+            if (con->participant_count >= 2) {
+                n = snprintf(buf + offset, (size_t)remaining,
+                             "%s(constraint_%d, axiom, incident(p%d, l%d)).\n",
+                             lang, con->id,
+                             con->participants[0], con->participants[1]);
+            }
+            break;
+        case BETWEENNESS:
+            if (con->participant_count >= 3) {
+                n = snprintf(buf + offset, (size_t)remaining,
+                             "%s(constraint_%d, axiom, between(p%d, p%d, p%d)).\n",
+                             lang, con->id,
+                             con->participants[0], con->participants[1], con->participants[2]);
+            }
+            break;
+        case INTERSECTION:
+            if (con->participant_count >= 3) {
+                n = snprintf(buf + offset, (size_t)remaining,
+                             "%s(constraint_%d, axiom, intersect(l%d, l%d, p%d)).\n",
+                             lang, con->id,
+                             con->participants[0], con->participants[1], con->participants[2]);
+            }
+            break;
+        case CONTAINMENT:
+            if (con->participant_count >= 2) {
+                n = snprintf(buf + offset, (size_t)remaining,
+                             "%s(constraint_%d, axiom, contain(r%d, p%d)).\n",
+                             lang, con->id,
+                             con->participants[0], con->participants[1]);
+            }
+            break;
+        case CONNECTION:
+            if (con->participant_count >= 2) {
+                n = snprintf(buf + offset, (size_t)remaining,
+                             "%s(constraint_%d, axiom, connect(p%d, p%d)).\n",
+                             lang, con->id,
+                             con->participants[0], con->participants[1]);
+            }
+            break;
+        default:
+            continue;
+        }
         if (n > 0 && n < remaining) { offset += n; remaining -= n; }
     }
 
-    LV00_UNUSED(include_proof_goal);
-    LV00_UNUSED(target_prop);
-
     /* 添加 conjecture（如果请求） */
     if (include_proof_goal && remaining > 128) {
-        n = snprintf(buf + offset, (size_t)remaining,
-                     "%s(goal, conjecture, $false).\n", lang);
+        if (target_prop) {
+            /* 使用目标命题的名称作为 conjecture */
+            const char *prop_name = target_prop->name ? target_prop->name : "goal";
+            n = snprintf(buf + offset, (size_t)remaining,
+                         "%s(%s, conjecture, $false).\n", lang, prop_name);
+        } else {
+            n = snprintf(buf + offset, (size_t)remaining,
+                         "%s(goal, conjecture, $false).\n", lang);
+        }
         if (n > 0 && n < remaining) { offset += n; remaining -= n; }
     }
 
@@ -270,7 +325,11 @@ static bool atp_check_executable(const char *name) {
         return false;
 
     char cmd[512];
+#ifdef _WIN32
     snprintf(cmd, sizeof(cmd), "where %s 2>NUL", name);
+#else
+    snprintf(cmd, sizeof(cmd), "command -v %s 2>/dev/null", name);
+#endif
 
     FILE *fp = popen(cmd, "r");
     if (!fp)
@@ -279,7 +338,7 @@ static bool atp_check_executable(const char *name) {
     char buffer[256];
     bool found = false;
     if (fgets(buffer, sizeof(buffer), fp)) {
-        /* 如果 where 找到了文件，输出包含路径 */
+        /* 如果命令找到了文件，输出包含路径 */
         found = (buffer[0] != '\0' && buffer[0] != '\n');
     }
     pclose(fp);
@@ -311,6 +370,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     *out_exit_code = -1;
 
     /* 将 TPTP 文本写入临时文件 */
+#ifdef _WIN32
     char temp_path[MAX_PATH];
     char temp_dir[MAX_PATH];
 
@@ -378,6 +438,112 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
 
     /* 清理临时文件 */
     remove(temp_path);
+
+#else  /* POSIX: fork + execvp + pipe + dup2 */
+    char temp_path[256];
+    snprintf(temp_path, sizeof(temp_path), "/tmp/lv00_atp_%d.p", (int)getpid());
+
+    FILE *tmp = fopen(temp_path, "w");
+    if (!tmp)
+        return (int)LV00_ERROR_IO;
+
+    fputs(tptp_text, tmp);
+    fclose(tmp);
+
+    /* 准备参数列表 */
+    char *exec_argv[16];
+    int argc = 0;
+    exec_argv[argc++] = (char *)executable;
+    if (extra_args && extra_args[0] != '\0') {
+        /* 简单参数切分（空格分隔） */
+        char *extra_copy = strdup(extra_args);
+        if (extra_copy) {
+            char *token = strtok(extra_copy, " ");
+            while (token && argc < 14) {
+                exec_argv[argc++] = token;
+                token = strtok(NULL, " ");
+            }
+            /* extra_copy 在 execvp 后由父进程 free，但 fork 后子进程会替换，
+             * 为简化：不 free extra_copy，让其随进程退出释放 */
+        }
+    }
+    exec_argv[argc++] = temp_path;
+    exec_argv[argc] = NULL;
+
+    /* 创建管道 */
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        remove(temp_path);
+        return (int)LV00_ERROR_IO;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        remove(temp_path);
+        return (int)LV00_ERROR_IO;
+    }
+
+    if (pid == 0) {
+        /* 子进程：重定向 stdout/stderr 到管道写端 */
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        dup2(pipefd[1], STDERR_FILENO);
+        close(pipefd[1]);
+
+        execvp(executable, exec_argv);
+        /* 如果 execvp 返回，说明出错 */
+        _exit(127);
+    }
+
+    /* 父进程：关闭写端，读取管道输出 */
+    close(pipefd[1]);
+
+    size_t out_size = 65536;
+    size_t out_len = 0;
+    char *output = (char *) lv00_malloc(out_size);
+    if (!output) {
+        close(pipefd[0]);
+        waitpid(pid, NULL, 0);
+        remove(temp_path);
+        return (int)LV00_ERROR_OUT_OF_MEMORY;
+    }
+
+    ssize_t nread;
+    char buffer[4096];
+    while ((nread = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
+        while (out_len + (size_t)nread + 1 >= out_size) {
+            out_size *= 2;
+            char *new_output = (char *) lv00_realloc(output, out_size);
+            if (!new_output) {
+                lv00_free((void **)&output);
+                close(pipefd[0]);
+                waitpid(pid, NULL, 0);
+                remove(temp_path);
+                return (int)LV00_ERROR_OUT_OF_MEMORY;
+            }
+            output = new_output;
+        }
+        memcpy(output + out_len, buffer, (size_t)nread);
+        out_len += (size_t)nread;
+    }
+    if (out_len == 0) {
+        output[0] = '\0';
+    } else {
+        output[out_len] = '\0';
+    }
+    close(pipefd[0]);
+
+    /* 等待子进程结束 */
+    int status = 0;
+    waitpid(pid, &status, 0);
+    int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+
+    /* 清理临时文件 */
+    remove(temp_path);
+
+#endif
 
     *out_output = output;
     *out_exit_code = exit_code;
@@ -637,12 +803,15 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
                  " %s", solver->config.custom_options);
     }
 
-    /* 调用 ATP 子进程 */
+    /* 调用 ATP 子进程 — 记录实际耗时 */
     char *raw_output = NULL;
     int exit_code = -1;
+    clock_t start_clock = clock();
     int rc = atp_run_subprocess(exe_name, solver->tptp_code,
                                  solver->config.timeout_seconds,
                                  extra_args, &raw_output, &exit_code);
+    clock_t end_clock = clock();
+    double elapsed_seconds = (double)(end_clock - start_clock) / (double)CLOCKS_PER_SEC;
 
     if (rc != (int)LV00_OK) {
         result->result = ATP_RESULT_ERROR;
@@ -666,10 +835,8 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
                                  &result->proof_step_count);
     }
 
-    /* 估算求解时间（简化：基于输出长度启发式） */
-    result->solve_time_seconds = (raw_output && strlen(raw_output) > 0)
-                                  ? solver->config.timeout_seconds * 0.5
-                                  : 0.0;
+    /* 使用 clock() 测量实际求解耗时 */
+    result->solve_time_seconds = elapsed_seconds;
     result->generated_clauses = 0;
     result->processed_clauses = 0;
     result->kept_clauses = 0;
@@ -778,7 +945,10 @@ void atp_result_free(ATPResultInfo *result) {
  * @brief 将 ATP 证明转换为 Lv-00 ProofNavigator 步骤
  *
  * 解析 TSTP 格式的 ATP 证明输出，转换为 Lv-00 证明步骤。
- * 框架实现：桩代码，当前不做实际转换。
+ * 实现基本的证明步骤转换：
+ * - 解析每个证明步骤的推理规则（resolution/paramodulation/superposition等）
+ * - 创建 LV00ProofStep 对象并设置适当的类型标签
+ * - 将步骤链接到有向证明图中
  */
 int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count) {
     LV00_CHECK_NULL(result, (int)LV00_ERROR_NULL_POINTER);
@@ -795,18 +965,107 @@ int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count
     }
 
     if (!result->proof_steps || result->proof_step_count == 0) {
-        /* 桩：未生成证明步骤 */
         return (int)LV00_ERROR_NOT_FOUND;
     }
 
-    /* 遍历 ATP 证明步骤并转换为 Lv-00 格式 */
-    /* 框架实现：仅计算步骤数量 */
+    /* 第一步：为每个 ATP 步骤创建 Lv-00 ProofStep 并记录映射关系 */
     int count = 0;
+    int *lv00_step_ids = (int *)lv00_calloc((size_t)result->proof_step_count, sizeof(int));
+    if (!lv00_step_ids)
+        return (int)LV00_ERROR_OUT_OF_MEMORY;
+
     for (int i = 0; i < result->proof_step_count; i++) {
-        if (result->proof_steps[i].clause) {
-            count++;
+        const ATPProofStep *atp_step = &result->proof_steps[i];
+        if (!atp_step->clause)
+            continue;
+
+        /* 根据推理规则映射 Lv-00 步骤类型 */
+        ProofStepType step_type = PROOF_STEP_REWRITE; /* 默认 */
+        if (atp_step->is_axiom) {
+            step_type = PROOF_STEP_ADD_CONSTRAINT;
+        } else if (atp_step->is_goal) {
+            step_type = PROOF_STEP_UNIFY;
+        } else if (atp_step->inference_rule) {
+            const char *rule = atp_step->inference_rule;
+            if (strstr(rule, "resolution") || strstr(rule, "eq_resolution") ||
+                strstr(rule, "equality")) {
+                step_type = PROOF_STEP_REWRITE;
+            } else if (strstr(rule, "paramodulation") || strstr(rule, "superposition")) {
+                step_type = PROOF_STEP_REWRITE;
+            } else if (strstr(rule, "instantiation") || strstr(rule, "subst")) {
+                step_type = PROOF_STEP_REWRITE;
+            } else {
+                /* 未知规则类型 — 标记为通用 REWRITE */
+                step_type = PROOF_STEP_REWRITE;
+            }
+        }
+
+        ProofStep *lv_step = proof_step_create(step_type);
+        if (!lv_step) {
+            /* 清理已创建的步骤 */
+            for (int j = 0; j < i; j++) {
+                if (lv00_step_ids[j] >= 0) {
+                    /* 步骤已添加到 proof navigator，由 proof 负责生命周期 */
+                }
+            }
+            lv00_free((void **)&lv00_step_ids);
+            return (int)LV00_ERROR_OUT_OF_MEMORY;
+        }
+
+        lv_step->id = atp_step->step_id;
+        lv_step->color = PROOF_COLOR_GREEN; /* ATP 证明步骤默认为绿色 */
+        lv_step->note = atp_step->clause;   /* 存储原始子句作为注释 */
+
+        /* 添加到证明导航器 */
+        if (!proof_navigator_add_step(proof, lv_step)) {
+            proof_step_destroy(lv_step);
+            lv00_free((void **)&lv00_step_ids);
+            return (int)LV00_ERROR_INVALID_STATE;
+        }
+
+        /* 记录映射：ATP step_id -> Lv-00 proof step index */
+        /* 使用 proof->step_count - 1 作为刚添加的步骤索引 */
+        lv00_step_ids[i] = proof->step_count - 1;
+        count++;
+    }
+
+    /* 第二步：建立步骤之间的依赖关系（有向证明图） */
+    for (int i = 0; i < result->proof_step_count; i++) {
+        if (lv00_step_ids[i] < 0)
+            continue;
+
+        const ATPProofStep *atp_step = &result->proof_steps[i];
+        ProofStep *lv_step = proof->steps[lv00_step_ids[i]];
+
+        /* 解析 justification 以找到父步骤引用 */
+        if (atp_step->justification) {
+            /* justification 格式通常是 "step_id1,step_id2,..." */
+            const char *p = atp_step->justification;
+            while (*p) {
+                /* 跳过非数字字符 */
+                while (*p && (*p < '0' || *p > '9')) p++;
+                if (!*p) break;
+
+                int parent_id = atoi(p);
+                /* 查找该父步骤在我们的映射中的位置 */
+                for (int j = 0; j < result->proof_step_count; j++) {
+                    if (result->proof_steps[j].step_id == parent_id &&
+                        lv00_step_ids[j] >= 0) {
+                        proof_step_add_dependency(lv_step, result->proof_steps[j].step_id);
+                        /* 设置第一个匹配的父步骤作为树结构中的父节点 */
+                        if (lv_step->parent_step_id < 0) {
+                            lv_step->parent_step_id = result->proof_steps[j].step_id;
+                        }
+                        break;
+                    }
+                }
+                /* 跳过这个数字 */
+                while (*p >= '0' && *p <= '9') p++;
+            }
         }
     }
+
+    lv00_free((void **)&lv00_step_ids);
 
     if (step_count) {
         *step_count = count;

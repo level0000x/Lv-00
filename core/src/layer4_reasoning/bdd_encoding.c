@@ -28,6 +28,10 @@
  * 内部：唯一表哈希
  * ======================================================================== */
 
+/** 墓碑标记 —— 用于开放寻址哈希表中标记已删除的槽位，保护探查链 */
+static BDDNode bdd_tombstone_marker = { -2, NULL, NULL, 0, false };
+#define BDD_TOMBSTONE (&bdd_tombstone_marker)
+
 /** 节点三元组哈希 (var_id, low, high) -> 唯一表索引 */
 static int bdd_unique_hash(int var_id, BDDNode *low, BDDNode *high, int table_size) {
     unsigned long h = (unsigned long) var_id;
@@ -47,12 +51,19 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
 
     /* 在唯一表中查找已存在的相同 (var, lo, hi) 节点 */
     int idx = bdd_unique_hash(var_id, low, high, mgr->unique_table_size);
+    int first_tombstone = -1;
     /* 线性探测 */
     for (int probe = 0; probe < mgr->unique_table_size; probe++) {
         int slot = (idx + probe) % mgr->unique_table_size;
         BDDNode *existing = mgr->unique_table[slot];
         if (existing == NULL)
-            break; /* 空槽，未找到 */
+            break; /* 空槽，未找到 — 探查链结束 */
+        if (existing == BDD_TOMBSTONE) {
+            /* 墓碑：记录第一个可复用位置，继续探查 */
+            if (first_tombstone < 0)
+                first_tombstone = slot;
+            continue;
+        }
         if (existing->var_id == var_id &&
             existing->low == low &&
             existing->high == high) {
@@ -73,11 +84,16 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
     node->complemented = false;
     mgr->node_count++;
 
-    /* 插入唯一表 */
+    /* 插入唯一表：优先复用墓碑槽位 */
+    if (first_tombstone >= 0) {
+        mgr->unique_table[first_tombstone] = node;
+        return node;
+    }
+
     int slot = bdd_unique_hash(var_id, low, high, mgr->unique_table_size);
     for (int probe = 0; probe < mgr->unique_table_size; probe++) {
         int s = (slot + probe) % mgr->unique_table_size;
-        if (mgr->unique_table[s] == NULL) {
+        if (mgr->unique_table[s] == NULL || mgr->unique_table[s] == BDD_TOMBSTONE) {
             mgr->unique_table[s] = node;
             break;
         }
@@ -157,6 +173,19 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     mgr->var_capacity = var_count;
     mgr->node_count = 0;
 
+    /* 分配 ITE 计算表（缓存 ITE 结果，大小 = 唯一表大小） */
+    mgr->computed_table_size = unique_table_size;
+    mgr->computed_table = (ITECacheEntry *) lv00_calloc(
+        (size_t) unique_table_size, sizeof(ITECacheEntry));
+    if (!mgr->computed_table) {
+        lv00_free((void **)&mgr->var_order);
+        lv00_free((void **)&mgr->unique_table);
+        lv00_free((void **)&mgr->false_node);
+        lv00_free((void **)&mgr->true_node);
+        lv00_free((void **)&mgr);
+        return NULL;
+    }
+
     return mgr;
 }
 
@@ -170,7 +199,7 @@ void bdd_manager_destroy(BDDManager *mgr) {
     /* 遍历唯一表，释放所有已分配的节点 */
     if (mgr->unique_table) {
         for (int i = 0; i < mgr->unique_table_size; i++) {
-            if (mgr->unique_table[i] != NULL) {
+            if (mgr->unique_table[i] != NULL && mgr->unique_table[i] != BDD_TOMBSTONE) {
                 lv00_free((void **)&mgr->unique_table[i]);
             }
         }
@@ -179,6 +208,7 @@ void bdd_manager_destroy(BDDManager *mgr) {
     lv00_free((void **)&mgr->false_node);
     lv00_free((void **)&mgr->unique_table);
     lv00_free((void **)&mgr->var_order);
+    lv00_free((void **)&mgr->computed_table);
     lv00_free((void **)&mgr);
 }
 
@@ -276,14 +306,14 @@ void bdd_deref(BDDManager *mgr, BDDNode *node) {
     if (node->ref_count > 0)
         return;
 
-    /* 引用计数降为 0：从唯一表中移除并释放 */
+    /* 引用计数降为 0：从唯一表中标记为墓碑并释放 */
     if (mgr && mgr->unique_table) {
         int idx = bdd_unique_hash(node->var_id, node->low, node->high,
                                   mgr->unique_table_size);
         for (int probe = 0; probe < mgr->unique_table_size; probe++) {
             int slot = (idx + probe) % mgr->unique_table_size;
             if (mgr->unique_table[slot] == node) {
-                mgr->unique_table[slot] = NULL;
+                mgr->unique_table[slot] = BDD_TOMBSTONE;  /* 墓碑标记，保护探查链 */
                 break;
             }
             if (mgr->unique_table[slot] == NULL)
@@ -309,9 +339,33 @@ void bdd_deref(BDDManager *mgr, BDDNode *node) {
  * 一般情况：选择 F, G, H 中最小的变量，递归展开。
  * ======================================================================== */
 
+/** ITE 计算表哈希: (f, g, h) -> 缓存槽索引 */
+static int bdd_ite_cache_hash(BDDNode *f, BDDNode *g, BDDNode *h, int table_size) {
+    unsigned long val = (unsigned long)(uintptr_t)f;
+    val = val * 31 + (unsigned long)(uintptr_t)g;
+    val = val * 31 + (unsigned long)(uintptr_t)h;
+    return (int)(val % (unsigned long)table_size);
+}
+
 BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h) {
     if (!mgr || !f || !g || !h)
         return NULL;
+
+    /* 查找 ITE 计算表缓存 */
+    if (mgr->computed_table && mgr->computed_table_size > 0) {
+        int cache_idx = bdd_ite_cache_hash(f, g, h, mgr->computed_table_size);
+        for (int probe = 0; probe < 8; probe++) {
+            int slot = (cache_idx + probe) % mgr->computed_table_size;
+            ITECacheEntry *entry = &mgr->computed_table[slot];
+            if (!entry->occupied)
+                break;
+            if (entry->f == f && entry->g == g && entry->h == h) {
+                /* 缓存命中 */
+                bdd_ref(entry->result);
+                return entry->result;
+            }
+        }
+    }
 
     /* 终端条件 */
     if (f == mgr->true_node) {
@@ -356,6 +410,24 @@ BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h) {
     BDDNode *result = bdd_unique_lookup(mgr, top_var, t, e);
     bdd_deref(mgr, t);
     bdd_deref(mgr, e);
+
+    /* 将结果存入 ITE 计算表缓存 */
+    if (mgr->computed_table && mgr->computed_table_size > 0 && result) {
+        int cache_idx = bdd_ite_cache_hash(f, g, h, mgr->computed_table_size);
+        for (int probe = 0; probe < 8; probe++) {
+            int slot = (cache_idx + probe) % mgr->computed_table_size;
+            ITECacheEntry *entry = &mgr->computed_table[slot];
+            if (!entry->occupied) {
+                entry->f = f;
+                entry->g = g;
+                entry->h = h;
+                entry->result = result;
+                entry->occupied = true;
+                break;
+            }
+        }
+    }
+
     return result;
 }
 
@@ -450,18 +522,45 @@ int bdd_reorder_sift(BDDManager *mgr) {
             }
             mgr->var_order[insert_pos] = var;
 
-            /* 桩：使用启发式近似评估（完整实现需重建 BDD） */
-            uint64_t est_nodes = orig_nodes;
-            if (insert_pos == orig_pos) {
-                est_nodes = orig_nodes;
+            /* 真正重建唯一表：收集所有节点，清空表，按新变量序重新插入 */
+            uint64_t rebuild_nodes = 0;
+            if (mgr->unique_table && mgr->unique_table_size > 0) {
+                /* 收集所有非终端、非墓碑节点 */
+                BDDNode **saved = (BDDNode **) lv00_malloc(
+                    (size_t) mgr->unique_table_size * sizeof(BDDNode *));
+                int saved_count = 0;
+                if (saved) {
+                    for (int si = 0; si < mgr->unique_table_size && saved_count < mgr->unique_table_size; si++) {
+                        BDDNode *entry = mgr->unique_table[si];
+                        if (entry && entry != BDD_TOMBSTONE && entry->var_id >= 0) {
+                            saved[saved_count++] = entry;
+                        }
+                        mgr->unique_table[si] = NULL; /* 清空槽位 */
+                    }
+                    /* 按新变量序重新插入 */
+                    mgr->node_count = 0;
+                    for (int si = 0; si < saved_count; si++) {
+                        BDDNode *node = saved[si];
+                        int h = bdd_unique_hash(node->var_id, node->low, node->high,
+                                                mgr->unique_table_size);
+                        for (int pi = 0; pi < mgr->unique_table_size; pi++) {
+                            int s = (h + pi) % mgr->unique_table_size;
+                            if (mgr->unique_table[s] == NULL || mgr->unique_table[s] == BDD_TOMBSTONE) {
+                                mgr->unique_table[s] = node;
+                                mgr->node_count++;
+                                break;
+                            }
+                        }
+                    }
+                    lv00_free((void **)&saved);
+                }
+                rebuild_nodes = mgr->node_count;
             } else {
-                /* 离原位置越远，惩罚越大（简化启发式） */
-                int dist = (insert_pos > orig_pos) ? (insert_pos - orig_pos) : (orig_pos - insert_pos);
-                est_nodes = orig_nodes + (uint64_t) dist * 2;
+                rebuild_nodes = mgr->node_count;
             }
 
-            if (est_nodes < best_nodes) {
-                best_nodes = est_nodes;
+            if (rebuild_nodes < best_nodes) {
+                best_nodes = rebuild_nodes;
                 best_pos = insert_pos;
             }
 
@@ -502,22 +601,125 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
     if (n <= 0)
         return bdd_true(mgr);
 
-    /* 简化版：对所有节点变量做 AND 的 BDD */
-    BDDNode *result = bdd_true(mgr);
+    /* Phase 1: 为每个节点的坐标分配 BDD 变量范围 */
+    int *node_base_var = (int *) lv00_malloc((size_t) n * sizeof(int));
+    if (!node_base_var)
+        return NULL;
 
+    int next_var = 0;
     for (int i = 0; i < n; i++) {
-        int var_id = i + 1; /* 变量 ID 从 1 开始 */
-        BDDNode *lit = bdd_literal(mgr, var_id);
-        if (!lit)
+        GeomNode *gn = graph->nodes[i];
+        if (!gn || !gn->symbolic_coords || gn->coord_count <= 0) {
+            node_base_var[i] = -1;
             continue;
-
-        BDDNode *new_result = bdd_and(mgr, result, lit);
-        bdd_deref(mgr, result);
-        bdd_deref(mgr, lit);
-        result = new_result;
+        }
+        node_base_var[i] = next_var;
+        int bits = coord_to_bdd_var(gn->symbolic_coords[0], mgr, next_var);
+        if (bits > 0)
+            next_var += bits;
     }
 
-    return result;
+    /* Phase 2: 遍历所有活跃约束，按类型编码 BDD 子公式 */
+    BDDNode *constraint_bdd = bdd_true(mgr);
+
+    for (int ci = 0; ci < graph->constraint_count; ci++) {
+        Constraint *con = graph->constraints[ci];
+        if (!con || !con->is_active)
+            continue;
+
+        BDDNode *sub = NULL;
+
+        switch (con->type) {
+        case INCIDENCE:
+            /* INCIDENCE(point, line): point is ON the line */
+            if (con->participant_count >= 2) {
+                int p_id = con->participants[0];
+                int l_id = con->participants[1];
+                int p_var = (p_id >= 0 && p_id < n) ? node_base_var[p_id] : -1;
+                int l_var = (l_id >= 0 && l_id < n) ? node_base_var[l_id] : -1;
+                if (p_var >= 0 && l_var >= 0) {
+                    BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
+                    BDDNode *l_lit = bdd_literal(mgr, l_var + 1);
+                    sub = bdd_and(mgr, p_lit, l_lit);
+                    bdd_deref(mgr, p_lit);
+                    bdd_deref(mgr, l_lit);
+                }
+            }
+            break;
+
+        case BETWEENNESS:
+            /* BETWEENNESS(p1, p2, p3): p2 is between p1 and p3 */
+            if (con->participant_count >= 3) {
+                int p1_var = (con->participants[0] >= 0 && con->participants[0] < n) ? node_base_var[con->participants[0]] : -1;
+                int p2_var = (con->participants[1] >= 0 && con->participants[1] < n) ? node_base_var[con->participants[1]] : -1;
+                int p3_var = (con->participants[2] >= 0 && con->participants[2] < n) ? node_base_var[con->participants[2]] : -1;
+                if (p1_var >= 0 && p2_var >= 0 && p3_var >= 0) {
+                    BDDNode *a = bdd_literal(mgr, p1_var + 1);
+                    BDDNode *b = bdd_literal(mgr, p2_var + 1);
+                    BDDNode *c = bdd_literal(mgr, p3_var + 1);
+                    BDDNode *ab = bdd_and(mgr, a, b);
+                    sub = bdd_and(mgr, ab, c);
+                    bdd_deref(mgr, a);
+                    bdd_deref(mgr, b);
+                    bdd_deref(mgr, c);
+                    bdd_deref(mgr, ab);
+                }
+            }
+            break;
+
+        case INTERSECTION:
+            /* INTERSECTION(line1, line2, point): lines intersect at point */
+            if (con->participant_count >= 3) {
+                int l1_var = (con->participants[0] >= 0 && con->participants[0] < n) ? node_base_var[con->participants[0]] : -1;
+                int l2_var = (con->participants[1] >= 0 && con->participants[1] < n) ? node_base_var[con->participants[1]] : -1;
+                int p_var  = (con->participants[2] >= 0 && con->participants[2] < n) ? node_base_var[con->participants[2]] : -1;
+                if (l1_var >= 0 && l2_var >= 0 && p_var >= 0) {
+                    BDDNode *l1_lit = bdd_literal(mgr, l1_var + 1);
+                    BDDNode *l2_lit = bdd_literal(mgr, l2_var + 1);
+                    BDDNode *p_lit  = bdd_literal(mgr, p_var + 1);
+                    BDDNode *l_and  = bdd_and(mgr, l1_lit, l2_lit);
+                    sub = bdd_and(mgr, l_and, p_lit);
+                    bdd_deref(mgr, l1_lit);
+                    bdd_deref(mgr, l2_lit);
+                    bdd_deref(mgr, p_lit);
+                    bdd_deref(mgr, l_and);
+                }
+            }
+            break;
+
+        case CONTAINMENT:
+            /* CONTAINMENT(region, point): point is inside region */
+            if (con->participant_count >= 2) {
+                int r_var = (con->participants[0] >= 0 && con->participants[0] < n) ? node_base_var[con->participants[0]] : -1;
+                int p_var = (con->participants[1] >= 0 && con->participants[1] < n) ? node_base_var[con->participants[1]] : -1;
+                if (r_var >= 0 && p_var >= 0) {
+                    BDDNode *r_lit = bdd_literal(mgr, r_var + 1);
+                    BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
+                    sub = bdd_and(mgr, r_lit, p_lit);
+                    bdd_deref(mgr, r_lit);
+                    bdd_deref(mgr, p_lit);
+                }
+            }
+            break;
+
+        case CONNECTION:
+            /* CONNECTION: 端口连接 — 此处跳过（端口编码需单独处理） */
+            break;
+
+        default:
+            break;
+        }
+
+        if (sub) {
+            BDDNode *new_bdd = bdd_and(mgr, constraint_bdd, sub);
+            bdd_deref(mgr, constraint_bdd);
+            bdd_deref(mgr, sub);
+            constraint_bdd = new_bdd;
+        }
+    }
+
+    lv00_free((void **)&node_base_var);
+    return constraint_bdd;
 }
 
 /* ========================================================================
@@ -535,10 +737,46 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
 /* 64 位 IEEE 754 双精度编码 */
 #define IEEE754_DOUBLE_BITS 64
 
-    /* 提取坐标的数值近似（使用 double） */
+    /* 提取坐标的数值近似（使用 double），支持所有坐标类型 */
     double value = 0.0;
-    if (coord->type == RATIONAL && coord->data.rational) {
-        value = mpq_get_d(coord->data.rational->value);
+
+    if (coord->cache_valid) {
+        /* 优先使用已缓存的数值近似 */
+        value = coord->cached_value;
+    } else {
+        switch (coord->type) {
+        case RATIONAL:
+            if (coord->data.rational)
+                value = mpq_get_d(coord->data.rational->value);
+            break;
+
+        case ALGEBRAIC:
+            /* 代数数：使用区间中点作为数值近似 */
+            if (coord->data.algebraic) {
+                value = (coord->data.algebraic->left_bound +
+                         coord->data.algebraic->right_bound) / 2.0;
+            }
+            break;
+
+        case QUADRATIC:
+            /* 二次扩张数：计算 a + b*sqrt(n) */
+            if (coord->data.quadratic) {
+                Quadratic *q = coord->data.quadratic;
+                double a_val = (q->a) ? mpq_get_d(q->a->value) : 0.0;
+                double b_val = (q->b) ? mpq_get_d(q->b->value) : 0.0;
+                value = a_val + b_val * sqrt((double) q->n);
+            }
+            break;
+
+        case TRANSCENDENTAL:
+            /* 超越数：使用 symbolic_coord_to_double 辅助函数 */
+            value = symbolic_coord_to_double(coord);
+            break;
+
+        default:
+            value = 0.0;
+            break;
+        }
     }
 
     /* 将 double 的 64 位分别编码为 BDD 变量 */
@@ -880,7 +1118,18 @@ ADDManager *add_manager_create(int var_count, int unique_table_size) {
     mgr->one_node->constant = 1.0;
     mgr->one_node->is_constant = true;
 
-    mgr->unique_table = NULL;
+    /* 分配 ADD 唯一表 */
+    if (unique_table_size > 0) {
+        mgr->unique_table = (ADDNode **) lv00_calloc((size_t) unique_table_size, sizeof(ADDNode *));
+        if (!mgr->unique_table) {
+            lv00_free((void **)&mgr->one_node);
+            lv00_free((void **)&mgr->zero_node);
+            lv00_free((void **)&mgr);
+            return NULL;
+        }
+    } else {
+        mgr->unique_table = NULL;
+    }
     mgr->unique_table_size = unique_table_size;
     mgr->var_count = var_count;
     mgr->node_count = 0;

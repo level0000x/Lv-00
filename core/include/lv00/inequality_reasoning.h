@@ -404,6 +404,7 @@ typedef struct {
     Lv00Expr **squares;     /**< 平方项数组 */
     uint32_t count;         /**< 平方项数量 */
     Lv00Expr *remainder;    /**< 余项（可为 NULL） */
+    char *failure_reason;   /**< 分解失败原因（成功时为 NULL） */
 } Lv00SOSDecomposition;
 
 /**

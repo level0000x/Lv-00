@@ -7,8 +7,8 @@
  * PCTL 评估使用马尔可夫链模型（状态转移矩阵 + 初始分布），
  * 通过 BFS/DFS 搜索可达状态，计算概率界。
  *
- * @version v3.3.0
- * @date 2026-05-24
+ * @version v5.0.0
+ * @date 2026-06-04
  */
 
 #include "probabilistic_constraint.h"
@@ -30,11 +30,11 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-/** 最大状态数（用于 PCTL 评估的数组分配）*/
-#define PCTL_MAX_STATES 4096
+/** 状态数上限 */
+#define PCTL_MAX_STATE_LIMIT 65536
 
-/** BFS 队列最大容量 */
-#define PCTL_BFS_QUEUE_SIZE 8192
+/** BFS 队列初始容量 */
+#define PCTL_BFS_QUEUE_INIT 1024
 
 /** 数值精度阈值 */
 #define PCTL_EPSILON 1e-12
@@ -82,7 +82,7 @@ typedef struct {
 
 /** 创建空 DTMC */
 static SimpleDTMC *dtmc_create(int n_states) {
-    if (n_states <= 0 || n_states > PCTL_MAX_STATES)
+    if (n_states <= 0 || n_states > PCTL_MAX_STATE_LIMIT)
         return NULL;
 
     SimpleDTMC *mc = (SimpleDTMC *) lv00_calloc(1, sizeof(SimpleDTMC));
@@ -164,14 +164,48 @@ static bool dtmc_add_transition(SimpleDTMC *mc, int from, int to, double prob) {
 }
 
 /**
+ * @brief 从约束的满足度推导几何转移概率
+ *
+ * 约束满足度 satisfaction ∈ [0,1] 映射为转移概率：
+ *   prob = satisfaction（满足的几何约束给出确定性转移）
+ * 对非活跃约束或未评估约束使用约束类型默认值。
+ */
+static double prob_from_satisfaction(const Constraint *con) {
+    if (!con)
+        return 0.0;
+    /* 活跃但未评估：使用约束类型基线 */
+    if (!con->is_active)
+        return 0.0;
+    if (con->satisfaction < -0.01) {
+        /* 违反的约束 — 低概率 */
+        switch (con->type) {
+            case INCIDENCE:    return 0.05;
+            case BETWEENNESS:  return 0.05;
+            case INTERSECTION: return 0.05;
+            case CONTAINMENT:  return 0.05;
+            case CONNECTION:   return 0.05;
+            default:           return 0.05;
+        }
+    }
+    /* satisfaction ∈ [0,1] → 直接用作转移概率 */
+    double p = con->satisfaction;
+    if (p < 0.0) p = 0.0;
+    if (p > 1.0) p = 1.0;
+    return p;
+}
+
+/**
  * @brief 从约束图构建 DTMC
  *
  * 将约束图的节点映射为 DTMC 状态，约束映射为转移概率。
- * - 每个节点是一个状态
- * - 关联约束（INCIDENCE）创建从点到线段的转移（概率 0.5）
- * - 之间约束（BETWEENNESS）创建顺序转移（概率 1.0）
- * - 相交约束（INTERSECTION）创建双向转移（概率 0.3）
- * - 无约束的节点有自环（概率 1.0）
+ * 转移概率来源于约束满足度 satisfaction 字段。
+ * 每个状态的总出边概率在构建后归一化为 1.0（多余转移 + 自环）。
+ *
+ * - INCIDENCE → 双向转移（概率 = satisfaction）
+ * - BETWEENNESS → 顺序转移（src→dst, dst→mid，概率 = satisfaction）
+ * - INTERSECTION → 双向转移
+ * - CONTAINMENT → 单向转移（外部→区域）
+ * - CONNECTION → 双向转移
  */
 static SimpleDTMC *build_dtmc_from_graph(const ConstraintGraph *graph) {
     if (!graph || graph->node_count <= 0)
@@ -181,11 +215,6 @@ static SimpleDTMC *build_dtmc_from_graph(const ConstraintGraph *graph) {
     SimpleDTMC *mc = dtmc_create(n);
     if (!mc)
         return NULL;
-
-    /* 初始化：每个状态有自环 */
-    for (int i = 0; i < n; i++) {
-        dtmc_add_transition(mc, i, i, 1.0);
-    }
 
     /* 根据约束构建转移 */
     for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -203,47 +232,80 @@ static SimpleDTMC *build_dtmc_from_graph(const ConstraintGraph *graph) {
         if (src < 0 || src >= n || dst < 0 || dst >= n)
             continue;
 
-        /* 移除自环，添加约束转移 */
-        /* 简化：直接添加转移，概率归一化在评估时处理 */
+        double prob = prob_from_satisfaction(c);
+
         switch (c->type) {
             case INCIDENCE:
-                dtmc_add_transition(mc, src, dst, 0.5);
-                dtmc_add_transition(mc, dst, src, 0.5);
+                dtmc_add_transition(mc, src, dst, prob);
+                dtmc_add_transition(mc, dst, src, prob);
                 break;
             case BETWEENNESS:
-                dtmc_add_transition(mc, src, dst, 1.0);
+                dtmc_add_transition(mc, src, dst, prob);
                 if (c->participant_count >= 3) {
                     int mid = c->participants[2];
                     if (mid >= 0 && mid < n) {
-                        dtmc_add_transition(mc, dst, mid, 1.0);
+                        dtmc_add_transition(mc, dst, mid, prob);
                     }
                 }
                 break;
             case INTERSECTION:
-                dtmc_add_transition(mc, src, dst, 0.3);
-                dtmc_add_transition(mc, dst, src, 0.3);
+                dtmc_add_transition(mc, src, dst, prob);
+                dtmc_add_transition(mc, dst, src, prob);
                 break;
             case CONTAINMENT:
-                dtmc_add_transition(mc, src, dst, 0.7);
+                dtmc_add_transition(mc, src, dst, prob);
                 break;
             case CONNECTION:
-                dtmc_add_transition(mc, src, dst, 0.6);
-                dtmc_add_transition(mc, dst, src, 0.6);
+                dtmc_add_transition(mc, src, dst, prob);
+                dtmc_add_transition(mc, dst, src, prob);
                 break;
+        }
+    }
+
+    /* 归一化每个状态的总出边概率并补充自环 */
+    for (int i = 0; i < n; i++) {
+        double total = 0.0;
+        for (int t = 0; t < mc->trans_count[i]; t++) {
+            total += mc->trans_probs[i][t];
+        }
+
+        if (total < PCTL_EPSILON) {
+            /* 无出边 → 自环 1.0 */
+            dtmc_add_transition(mc, i, i, 1.0);
+        } else {
+            /* 归一化到 1.0 */
+            for (int t = 0; t < mc->trans_count[i]; t++) {
+                mc->trans_probs[i][t] /= total;
+            }
         }
     }
 
     return mc;
 }
 
+/* 全局量：存储 eval_state_predicate 关联的约束图，用于几何语义评估 */
+static const ConstraintGraph *eval_state_graph = NULL;
+
+/**
+ * @brief 设置 eval_state_predicate 使用的约束图上下文
+ *
+ * 使状态谓词能够基于几何约束满足状态（而非任意启发式）做语义评估。
+ */
+static void eval_state_set_graph(const ConstraintGraph *graph) {
+    eval_state_graph = graph;
+}
+
 /**
  * @brief 检查状态谓词是否在给定状态上成立
  *
- * 简化实现：将状态 ID 与谓词字符串匹配。
- * - "true" / "1" 始终成立
- * - "false" / "0" 始终不成立
- * - "state_N" 在状态 N 时成立
- * - 其他：检查状态 ID 是否为偶数（简化启发式）
+ * 几何语义实现：
+ * - "safe"：状态对应的约束子集全部满足（无违反）
+ * - "error"：状态对应的约束子集中任一 INEQUALITY/INTERSECTION 违反
+ * - "reachable"：BFS 可达性检查（由调用方完成，此处默认 true）
+ * - "satisfied"：状态对应的约束子集全部满足
+ * - "true"/"false"/"state_N"：保持向后兼容
+ *
+ * 状态 ID 到约束的映射：state_id == constraint_index（状态即约束子集）。
  */
 static bool eval_state_predicate(const char *predicate, int state_id) {
     if (!predicate || predicate[0] == '\0')
@@ -263,17 +325,57 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
         return (state_id == target);
     }
 
-    /* "reachable" — 简化：任何非零状态都满足 */
+    /* "reachable" — 假设所有状态均可从初始状态抵达，实际由 BFS 验证 */
     if (strcmp(predicate, "reachable") == 0)
-        return (state_id >= 0);
+        return true;
 
-    /* "safe" — 简化：偶数状态满足 */
-    if (strcmp(predicate, "safe") == 0)
-        return (state_id % 2 == 0);
+    /* ---------- 几何语义谓词 ---------- */
+    if (eval_state_graph && state_id >= 0 &&
+        state_id < eval_state_graph->constraint_count) {
 
-    /* "error" — 简化：奇数状态满足 */
-    if (strcmp(predicate, "error") == 0)
-        return (state_id % 2 == 1);
+        Constraint *con = eval_state_graph->constraints[state_id];
+        if (!con)
+            return false;
+
+        /* "safe"：状态对应的约束非违反状态 */
+        if (strcmp(predicate, "safe") == 0) {
+            if (!con->is_active)
+                return true;           /* 非活跃约束无违反 */
+            return (con->satisfaction >= 0.99);
+        }
+
+        /* "error"：状态对应的约束处于违反状态 */
+        if (strcmp(predicate, "error") == 0) {
+            if (!con->is_active)
+                return false;
+            /* 不等/相交类约束：satisfaction < 0 标记违反 */
+            return (con->satisfaction < 0.05);
+        }
+
+        /* "satisfied"：与 safe 等价 */
+        if (strcmp(predicate, "satisfied") == 0) {
+            if (!con->is_active)
+                return true;
+            return (con->satisfaction >= 0.99);
+        }
+
+        /* "violated" / "unsatisfied" / "broken" */
+        if (strcmp(predicate, "violated") == 0 ||
+            strcmp(predicate, "unsatisfied") == 0 ||
+            strcmp(predicate, "broken") == 0) {
+            if (!con->is_active)
+                return false;
+            return (con->satisfaction < 0.05);
+        }
+    }
+
+    /* 回退：无约束图时保留旧启发式（向后兼容） */
+    if (!eval_state_graph) {
+        if (strcmp(predicate, "safe") == 0)
+            return (state_id % 2 == 0);
+        if (strcmp(predicate, "error") == 0)
+            return (state_id % 2 == 1);
+    }
 
     /* 默认：尝试解析为状态 ID */
     int target = atoi(predicate);
@@ -306,7 +408,8 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
     /* BFS 找出从每个初始状态可达的目标状态 */
     bool *visited = (bool *) lv00_calloc((size_t) n, sizeof(bool));
     bool *can_reach_target = (bool *) lv00_calloc((size_t) n, sizeof(bool));
-    int *queue = (int *) lv00_malloc((size_t) PCTL_BFS_QUEUE_SIZE * sizeof(int));
+    int queue_capacity = (n < PCTL_BFS_QUEUE_INIT) ? PCTL_BFS_QUEUE_INIT : n * 2;
+    int *queue = (int *) lv00_malloc((size_t) queue_capacity * sizeof(int));
     if (!visited || !can_reach_target || !queue) {
         lv00_free((void **) &is_target);
         lv00_free((void **) &visited);
@@ -336,9 +439,28 @@ static double pctl_compute_eventually(const SimpleDTMC *mc, const char *target_p
                 int next = mc->trans_targets[cur][t];
                 if (next >= 0 && next < n && !visited[next]) {
                     visited[next] = true;
+                    /* 队列满时动态扩容 */
+                    if (back >= queue_capacity) {
+                        int new_cap = queue_capacity * 2;
+                        if (new_cap > PCTL_MAX_STATE_LIMIT) {
+                            /* 超出合理上限，标记溢出 */
+                            fprintf(stderr,
+                                    "[PCTL] BFS queue overflow at %d states (limit %d)\n",
+                                    back, PCTL_MAX_STATE_LIMIT);
+                            found = false;  /* 标记失败 */
+                            break;
+                        }
+                        int *new_queue = (int *) lv00_realloc(queue,
+                                                (size_t) new_cap * sizeof(int));
+                        if (!new_queue) {
+                            fprintf(stderr, "[PCTL] BFS queue realloc failed\n");
+                            found = false;
+                            break;
+                        }
+                        queue = new_queue;
+                        queue_capacity = new_cap;
+                    }
                     queue[back++] = next;
-                    if (back >= PCTL_BFS_QUEUE_SIZE)
-                        back = PCTL_BFS_QUEUE_SIZE - 1; /* 防溢出 */
                     if (is_target[next]) {
                         found = true;
                         break;
@@ -377,7 +499,8 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
     int n = mc->state_count;
 
     bool *visited = (bool *) lv00_calloc((size_t) n, sizeof(bool));
-    int *queue = (int *) lv00_malloc((size_t) PCTL_BFS_QUEUE_SIZE * sizeof(int));
+    int queue_capacity = (n < PCTL_BFS_QUEUE_INIT) ? PCTL_BFS_QUEUE_INIT : n * 2;
+    int *queue = (int *) lv00_malloc((size_t) queue_capacity * sizeof(int));
     if (!visited || !queue) {
         lv00_free((void **) &visited);
         lv00_free((void **) &queue);
@@ -388,10 +511,18 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
     int front = 0, back = 0;
     for (int i = 0; i < n; i++) {
         if (mc->initial_dist[i] >= PCTL_EPSILON) {
+            /* 动态扩容 */
+            if (back >= queue_capacity) {
+                int new_cap = queue_capacity * 2;
+                if (new_cap > PCTL_MAX_STATE_LIMIT) break;
+                int *new_queue = (int *) lv00_realloc(queue,
+                                        (size_t) new_cap * sizeof(int));
+                if (!new_queue) break;
+                queue = new_queue;
+                queue_capacity = new_cap;
+            }
             queue[back++] = i;
             visited[i] = true;
-            if (back >= PCTL_BFS_QUEUE_SIZE)
-                back = PCTL_BFS_QUEUE_SIZE - 1;
         }
     }
 
@@ -410,9 +541,22 @@ static double pctl_compute_always(const SimpleDTMC *mc, const char *target_predi
             int next = mc->trans_targets[cur][t];
             if (next >= 0 && next < n && !visited[next]) {
                 visited[next] = true;
+                /* 动态扩容 */
+                if (back >= queue_capacity) {
+                    int new_cap = queue_capacity * 2;
+                    if (new_cap > PCTL_MAX_STATE_LIMIT) {
+                        fprintf(stderr,
+                                "[PCTL] Always BFS overflow at %d (limit %d)\n",
+                                back, PCTL_MAX_STATE_LIMIT);
+                        break;
+                    }
+                    int *new_queue = (int *) lv00_realloc(queue,
+                                            (size_t) new_cap * sizeof(int));
+                    if (!new_queue) break;
+                    queue = new_queue;
+                    queue_capacity = new_cap;
+                }
                 queue[back++] = next;
-                if (back >= PCTL_BFS_QUEUE_SIZE)
-                    back = PCTL_BFS_QUEUE_SIZE - 1;
             }
         }
     }
@@ -731,8 +875,91 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                 break;
             }
             case PROB_DIST_BETA: {
-                /* 拒绝采样近似 */
-                samples[i] = rand_uniform_lcg();
+                /* Johnk 方法 + Gamma 采样生成 Beta(alpha, beta)
+                 *
+                 * Beta 可通过两独立 Gamma 变量构造：
+                 *   X ~ Gamma(alpha, 1), Y ~ Gamma(beta, 1) → X/(X+Y) ~ Beta(alpha, beta)
+                 *
+                 * Gamma 采样使用 Marsaglia-Tsang 方法（alpha >= 1 时）
+                 * 或简单接受-拒绝法（alpha < 1 时）。
+                 */
+                double alpha = (dist->param_count >= 2) ? dist->params[0] : 1.0;
+                double beta  = (dist->param_count >= 2) ? dist->params[1] : 1.0;
+                if (alpha < 0.01) alpha = 0.01;
+                if (beta  < 0.01) beta  = 0.01;
+
+                /* Gamma 采样：alpha >= 1 使用 Marsaglia-Tsang；
+                   alpha < 1 使用接受-拒绝变换 */
+                double x_gamma = 0.0, y_gamma = 0.0;
+
+                /* ---- 采样 Gamma(alpha, 1) ---- */
+                if (alpha >= 1.0) {
+                    double d = alpha - 1.0 / 3.0;
+                    double c = 1.0 / sqrt(9.0 * d);
+                    for (;;) {
+                        double v = 1.0 + c * rand_normal_box_muller();
+                        if (v <= 0.0) continue;
+                        v = v * v * v;
+                        double u = rand_uniform_lcg();
+                        if (u < 1.0 - 0.0331 * (v*v)/(d*d)) {
+                            x_gamma = d * v;
+                            break;
+                        }
+                        if (log(u) < 0.5 * (v/d)*(v/d) + d * (1.0 - v + log(v))) {
+                            x_gamma = d * v;
+                            break;
+                        }
+                    }
+                } else {
+                    /* alpha < 1：Gamma 的 Ahrens-Dieter 接受-拒绝法 */
+                    double am = 0.0;
+                    for (;;) {
+                        am = alpha + 1.0;
+                        double u1 = rand_uniform_lcg();
+                        double u2 = rand_uniform_lcg();
+                        double vv = am * pow(u1, 1.0 / am);
+                        if (u2 <= exp(-vv)) {
+                            x_gamma = vv;
+                            break;
+                        }
+                    }
+                }
+
+                /* ---- 采样 Gamma(beta, 1) ---- */
+                if (beta >= 1.0) {
+                    double d = beta - 1.0 / 3.0;
+                    double c = 1.0 / sqrt(9.0 * d);
+                    for (;;) {
+                        double v = 1.0 + c * rand_normal_box_muller();
+                        if (v <= 0.0) continue;
+                        v = v * v * v;
+                        double u = rand_uniform_lcg();
+                        if (u < 1.0 - 0.0331 * (v*v)/(d*d)) {
+                            y_gamma = d * v;
+                            break;
+                        }
+                        if (log(u) < 0.5 * (v/d)*(v/d) + d * (1.0 - v + log(v))) {
+                            y_gamma = d * v;
+                            break;
+                        }
+                    }
+                } else {
+                    double bm = 0.0;
+                    for (;;) {
+                        bm = beta + 1.0;
+                        double u1 = rand_uniform_lcg();
+                        double u2 = rand_uniform_lcg();
+                        double vv = bm * pow(u1, 1.0 / bm);
+                        if (u2 <= exp(-vv)) {
+                            y_gamma = vv;
+                            break;
+                        }
+                    }
+                }
+
+                samples[i] = x_gamma / (x_gamma + y_gamma);
+                if (samples[i] < 0.0) samples[i] = 0.0;
+                if (samples[i] > 1.0) samples[i] = 1.0;
                 break;
             }
             case PROB_DIST_DISCRETE: {
@@ -825,6 +1052,9 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
         return false;
 
     *out_probability = 0.0;
+
+    /* 设置约束图上下文，使 eval_state_predicate 使用几何语义 */
+    eval_state_set_graph(graph);
 
     /* 从约束图构建 DTMC */
     SimpleDTMC *mc = build_dtmc_from_graph(graph);
@@ -962,25 +1192,11 @@ bool pctl_check_constructibility(const ConstraintGraph *graph, double confidence
         if (!c || !c->is_active)
             continue;
 
-        /* 根据约束类型确定有效概率 */
-        double valid_prob = 1.0;
-        switch (c->type) {
-            case INCIDENCE:
-                valid_prob = 0.95;
-                break;
-            case BETWEENNESS:
-                valid_prob = 0.90;
-                break;
-            case INTERSECTION:
-                valid_prob = 0.85;
-                break;
-            case CONTAINMENT:
-                valid_prob = 0.92;
-                break;
-            case CONNECTION:
-                valid_prob = 0.97;
-                break;
-        }
+        /* 从约束满足度推导有效概率（非硬编码常数） */
+        double valid_prob = prob_from_satisfaction(c);
+        /* 未评估的约束默认视为高概率（保守估计） */
+        if (valid_prob < 0.01)
+            valid_prob = 0.95;
 
         for (int sample = 0; sample < n; sample++) {
             if (rand_uniform_lcg() < valid_prob) {

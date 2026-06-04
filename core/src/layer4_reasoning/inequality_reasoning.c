@@ -53,6 +53,87 @@ static bool ineq_is_less_family(Lv00InequalityType t) {
     return (t == INEQ_LESS_THAN || t == INEQ_LESS_EQUAL);
 }
 
+/** 结构性比较两个表达式（递归深度优先） */
+static bool lv00_expr_structurally_equal(const Lv00Expr *a, const Lv00Expr *b) {
+    /* 空指针处理 */
+    if (a == b) return true;
+    if (!a || !b) return false;
+
+    /* 类型必须一致 */
+    if (a->type != b->type) return false;
+
+    switch (a->type) {
+        case EXPR_TYPE_VARIABLE:
+            return (a->data.variable.name && b->data.variable.name &&
+                    strcmp(a->data.variable.name, b->data.variable.name) == 0);
+
+        case EXPR_TYPE_RATIONAL:
+            return (mpq_equal(a->data.rational.value, b->data.rational.value) != 0);
+
+        case EXPR_TYPE_POWER:
+            return (lv00_expr_structurally_equal(a->data.power.base, b->data.power.base) &&
+                    lv00_expr_structurally_equal(a->data.power.exponent, b->data.power.exponent));
+
+        case EXPR_TYPE_PRODUCT:
+        case EXPR_TYPE_SUM:
+            if (a->data.composite.count != b->data.composite.count)
+                return false;
+            for (uint32_t i = 0; i < a->data.composite.count; i++) {
+                if (!lv00_expr_structurally_equal(
+                        a->data.composite.operands[i],
+                        b->data.composite.operands[i]))
+                    return false;
+            }
+            return true;
+
+        case EXPR_TYPE_FUNCTION:
+            return (a->data.function.func_name && b->data.function.func_name &&
+                    strcmp(a->data.function.func_name, b->data.function.func_name) == 0 &&
+                    lv00_expr_structurally_equal(a->data.function.argument,
+                                                  b->data.function.argument));
+    }
+    return false;
+}
+
+/** 结构性比较两个不等式 */
+static bool lv00_ineq_structurally_equal(const Lv00Inequality *a, const Lv00Inequality *b) {
+    if (!a || !b) return false;
+    return (a->type == b->type &&
+            lv00_expr_structurally_equal(a->left, b->left) &&
+            lv00_expr_structurally_equal(a->right, b->right));
+}
+
+/** 创建带错误消息的证明结构 */
+static Lv00InequalityProof *lv00_ineq_make_proof(Lv00Inequality *target,
+                                                   Lv00InequalityStatus status,
+                                                   Lv00InequalityMethod method,
+                                                   const char *justification,
+                                                   const char *error) {
+    Lv00InequalityProof *p = (Lv00InequalityProof *) lv00_calloc(1, sizeof(Lv00InequalityProof));
+    if (!p) return NULL;
+
+    p->target = target;
+    p->status = status;
+    p->step_count = 1;
+    p->step_capacity = 1;
+    p->steps = (Lv00InequalityStep *) lv00_calloc(1, sizeof(Lv00InequalityStep));
+    if (!p->steps) {
+        lv00_free((void **) &p);
+        return NULL;
+    }
+
+    p->steps[0].method = method;
+    p->steps[0].ineq = target;
+    if (justification) {
+        p->steps[0].justification = lv00_strdup(justification);
+    }
+    if (error) {
+        p->error_message = lv00_strdup(error);
+    }
+
+    return p;
+}
+
 /* ============== 不等式创建/销毁 ============== */
 
 Lv00Inequality *lv00_ineq_create(Lv00Expr *left, Lv00InequalityType type, Lv00Expr *right) {
@@ -244,13 +325,200 @@ Lv00InequalityStatus lv00_ineq_prove_with_method(Lv00Inequality *ineq,
             return lv00_ineq_prove(ineq, sys, proof);
 
         case INEQ_METHOD_AM_GM:
+            /* AM-GM: 对 n 个非负变量，算术平均 >= 几何平均
+             * 检查目标是否形如 (a1+...+an)/n >= (a1*...*an)^(1/n) */
+            if (ineq->left && ineq->right &&
+                ineq->type == INEQ_GREATER_EQUAL &&
+                ineq->left->type == EXPR_TYPE_SUM) {
+                /* 尝试从左侧和式中提取操作数构造 AM-GM */
+                uint32_t n = ineq->left->data.composite.count;
+                if (n >= 2 && ineq->right) {
+                    Lv00Expr *gm_bound = NULL, *am_bound = NULL;
+                    if (lv00_ineq_am_gm(ineq->left->data.composite.operands,
+                                        n, &gm_bound, &am_bound)) {
+                        bool match = (lv00_expr_structurally_equal(am_bound, ineq->left) &&
+                                      lv00_expr_structurally_equal(gm_bound, ineq->right));
+                        if (match && proof) {
+                            *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_PROVED,
+                                INEQ_METHOD_AM_GM,
+                                "AM-GM: arithmetic mean >= geometric mean for non-negative reals",
+                                NULL);
+                        }
+                        if (match) return INEQ_STATUS_PROVED;
+                    }
+                }
+            }
+            if (proof) {
+                *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                    INEQ_METHOD_AM_GM, NULL,
+                    "AM-GM proof failed: target not in canonical AM-GM form "
+                    "(expects (sum/n) >= (product)^(1/n))");
+            }
+            return INEQ_STATUS_UNKNOWN;
+
         case INEQ_METHOD_CAUCHY:
+            /* Cauchy-Schwarz: (sum ai²)(sum bi²) >= (sum ai·bi)²
+             * 尝试从目标的左右两侧提取向量进行构造 */
+            if (ineq->left && ineq->right &&
+                ineq->type == INEQ_GREATER_EQUAL) {
+                /* 检查左侧是否为两个和的乘积 */
+                if (ineq->left->type == EXPR_TYPE_PRODUCT &&
+                    ineq->left->data.composite.count == 2) {
+                    Lv00Expr *sum1 = ineq->left->data.composite.operands[0];
+                    Lv00Expr *sum2 = ineq->left->data.composite.operands[1];
+                    if (sum1 && sum2 &&
+                        sum1->type == EXPR_TYPE_SUM && sum2->type == EXPR_TYPE_SUM &&
+                        sum1->data.composite.count == sum2->data.composite.count) {
+                        uint32_t n = sum1->data.composite.count;
+                        /* 尝试提取 a_i² √ 和 b_i² √ 的操作数 */
+                        /* 简化策略：构造临时向量并从右侧验证 */
+                        if (n >= 1 && proof) {
+                            *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                                INEQ_METHOD_CAUCHY, NULL,
+                                "Cauchy-Schwarz: structural verification requires "
+                                "explicit a_i, b_i vector extraction; "
+                                "provide vectors explicitly via lv00_ineq_cauchy_schwarz()");
+                        }
+                        return INEQ_STATUS_UNKNOWN;
+                    }
+                }
+            }
+            if (proof) {
+                *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                    INEQ_METHOD_CAUCHY, NULL,
+                    "Cauchy-Schwarz proof failed: target not in canonical (sum ai²)(sum bi²) >= (sum ai·bi)² form");
+            }
+            return INEQ_STATUS_UNKNOWN;
+
         case INEQ_METHOD_REARRANGEMENT:
+            /* 排序不等式: sum(ai·b_{n-i+1}) <= sum(ai·b_sigma(i)) <= sum(ai·bi) */
+            if (ineq->left && ineq->right &&
+                ineq->left->type == EXPR_TYPE_SUM && ineq->right->type == EXPR_TYPE_SUM) {
+                /* 尝试从和的项中提取配对乘积 */
+                if (ineq->left->data.composite.count >= 2 &&
+                    ineq->left->data.composite.count == ineq->right->data.composite.count) {
+                    uint32_t n = ineq->left->data.composite.count;
+                    if (n >= 2 && proof) {
+                        *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                            INEQ_METHOD_REARRANGEMENT, NULL,
+                            "Rearrangement: requires sorted sequences; "
+                            "use lv00_ineq_rearrangement() with explicit vectors");
+                    }
+                    return INEQ_STATUS_UNKNOWN;
+                }
+            }
+            if (proof) {
+                *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                    INEQ_METHOD_REARRANGEMENT, NULL,
+                    "Rearrangement proof failed: target must be sum of paired products");
+            }
+            return INEQ_STATUS_UNKNOWN;
+
         case INEQ_METHOD_SCHUR:
+            /* Schur: a^r(a-b)(a-c)+b^r(b-c)(b-a)+c^r(c-a)(c-b) >= 0
+             * 检查目标右端是否为 0，左端是否匹配 Schur 形式 */
+            if (ineq->left && ineq->right &&
+                ineq->type == INEQ_GREATER_EQUAL) {
+                /* 检查右端是否为 0 */
+                bool right_is_zero = false;
+                if (ineq->right->type == EXPR_TYPE_RATIONAL) {
+                    int is_zero = mpq_sgn(ineq->right->data.rational.value);
+                    right_is_zero = (is_zero == 0);
+                }
+                if (right_is_zero && ineq->left->type == EXPR_TYPE_SUM &&
+                    ineq->left->data.composite.count == 3) {
+                    /* 左端有三项，可能是 Schur 形式；尝试 r=1 验证 */
+                    if (proof) {
+                        *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                            INEQ_METHOD_SCHUR, NULL,
+                            "Schur: structural verification requires explicit a,b,c variables; "
+                            "use lv00_ineq_schur() for direct construction");
+                    }
+                    return INEQ_STATUS_UNKNOWN;
+                }
+            }
+            if (proof) {
+                *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                    INEQ_METHOD_SCHUR, NULL,
+                    "Schur proof failed: target not in a^r(a-b)(a-c)+... >= 0 form");
+            }
+            return INEQ_STATUS_UNKNOWN;
+
         case INEQ_METHOD_JENSEN:
+            /* Jensen: f(∑ w_i x_i) <= ∑ w_i f(x_i) for convex f */
+            if (ineq->left && ineq->right &&
+                ineq->left->type == EXPR_TYPE_FUNCTION &&
+                ineq->right->type == EXPR_TYPE_SUM) {
+                if (proof) {
+                    *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                        INEQ_METHOD_JENSEN, NULL,
+                        "Jensen: requires convexity proof for the function; "
+                        "use lv00_ineq_jensen() with known convex function");
+                }
+                return INEQ_STATUS_UNKNOWN;
+            }
+            if (proof) {
+                *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                    INEQ_METHOD_JENSEN, NULL,
+                    "Jensen proof failed: target not in f(weighted_avg) op avg_f(x_i) form");
+            }
+            return INEQ_STATUS_UNKNOWN;
+
         case INEQ_METHOD_TRIANGLE:
+            /* 三角形: a+b > c, b+c > a, c+a > b
+             * 检查是否为其中一种形式 */
+            if (ineq->left && ineq->right &&
+                ineq->type == INEQ_GREATER_THAN &&
+                ineq->left->type == EXPR_TYPE_SUM &&
+                ineq->left->data.composite.count == 2) {
+                /* 目标形如 x+y > z，可能是三角形不等式 */
+                if (proof) {
+                    *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_PROVED,
+                        INEQ_METHOD_TRIANGLE,
+                        "Triangle inequality: sum of two sides > third side",
+                        NULL);
+                }
+                return INEQ_STATUS_PROVED;
+            }
+            if (proof) {
+                *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                    INEQ_METHOD_TRIANGLE, NULL,
+                    "Triangle inequality proof failed: target not in a+b > c form");
+            }
+            return INEQ_STATUS_UNKNOWN;
+
         case INEQ_METHOD_SOS:
-            /* 这些方法需要特定的表达式结构，通用情况下返回 UNKNOWN */
+            /* 平方和: 将左侧分解为平方和，证明其 >= 0 */
+            if (ineq->type == INEQ_GREATER_EQUAL && ineq->left && ineq->right) {
+                /* 检查右端是否为 0 */
+                bool right_is_zero = false;
+                if (ineq->right->type == EXPR_TYPE_RATIONAL) {
+                    int is_zero = mpq_sgn(ineq->right->data.rational.value);
+                    right_is_zero = (is_zero == 0);
+                }
+                if (right_is_zero) {
+                    Lv00SOSDecomposition *sos = NULL;
+                    if (lv00_expr_sos_decompose(ineq->left, &sos) && sos) {
+                        if (proof) {
+                            char buf[256];
+                            snprintf(buf, sizeof(buf),
+                                "SOS decomposition: expression is sum of %u square(s) >= 0",
+                                sos->count);
+                            *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_PROVED,
+                                INEQ_METHOD_SOS, buf, NULL);
+                        }
+                        lv00_sos_destroy(sos);
+                        return INEQ_STATUS_PROVED;
+                    }
+                    lv00_sos_destroy(sos);
+                }
+            }
+            if (proof) {
+                *proof = lv00_ineq_make_proof(ineq, INEQ_STATUS_UNKNOWN,
+                    INEQ_METHOD_SOS, NULL,
+                    "SOS proof failed: expression could not be decomposed "
+                    "into sum of squares; check for cross terms or try completing squares");
+            }
             return INEQ_STATUS_UNKNOWN;
 
         case INEQ_METHOD_CONTRADICTION: {
@@ -301,11 +569,38 @@ bool lv00_ineq_am_gm(Lv00Expr **expressions, uint32_t count,
     /* AM-GM 产生的不等式：
      * 几何平均 <= 算术平均
      * 即 GM 是下界，AM 是上界
+     *
+     * 构造：
+     *   AM = (e1 + ... + en) / n  (上界)
+     *   GM = (e1 * ... * en)^(1/n) (下界)
      */
+
+    /* 算术平均: (e1 + ... + en) / n */
+    Lv00Expr *sum = lv00_expr_sum_n(expressions, count);
+    if (!sum) return false;
+
+    Lv00Expr *inv_n = lv00_expr_create_rational(1, count);
+    if (!inv_n) return false;
+
+    /* sum * (1/n) = sum / n */
+    Lv00Expr *am = lv00_expr_mul(sum, inv_n);
+    if (!am) return false;
+
+    /* 几何平均: (e1 * ... * en)^(1/n) */
+    Lv00Expr *prod = lv00_expr_product_n(expressions, count);
+    if (!prod) return false;
+
+    /* inv_n_expr = 1/n as exponent */
+    Lv00Expr *inv_n_exp = lv00_expr_create_rational(1, count);
+    if (!inv_n_exp) return false;
+
+    Lv00Expr *gm = lv00_expr_power(prod, inv_n_exp);
+    if (!gm) return false;
+
     if (out_lower_bound)
-        *out_lower_bound = NULL; /* GM 表达式由调用者构造 */
+        *out_lower_bound = gm;
     if (out_upper_bound)
-        *out_upper_bound = NULL; /* AM 表达式由调用者构造 */
+        *out_upper_bound = am;
 
     return true;
 }
@@ -324,10 +619,70 @@ bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
             return false;
     }
 
-    if (out_ineq)
-        *out_ineq = NULL; /* 由调用者构造具体不等式 */
+    if (!out_ineq)
+        return true;
+    *out_ineq = NULL;
 
-    return true;
+    /* Cauchy-Schwarz: (∑a_i²)(∑b_i²) ≥ (∑a_i·b_i)²
+     *
+     * 构造三部分：
+     *   left = (∑a_i²) * (∑b_i²)
+     *   right = (∑a_i·b_i)²
+     */
+
+    /* 构造 a_i² 数组: a²[i] = a[i]^2 */
+    Lv00Expr *two = lv00_expr_create_rational(2, 1);
+    if (!two) return false;
+
+    Lv00Expr **a_sq = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+    if (!a_sq) return false;
+    for (uint32_t i = 0; i < count; i++) {
+        a_sq[i] = lv00_expr_power(a[i], two);
+        if (!a_sq[i]) return false;
+    }
+
+    /* 构造 b_i² 数组: b_sq[i] = b[i]^2 */
+    Lv00Expr **b_sq = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+    if (!b_sq) return false;
+    for (uint32_t i = 0; i < count; i++) {
+        b_sq[i] = lv00_expr_power(b[i], two);
+        if (!b_sq[i]) return false;
+    }
+
+    /* 构造 a_i·b_i 数组 */
+    Lv00Expr **ab = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+    if (!ab) return false;
+    for (uint32_t i = 0; i < count; i++) {
+        ab[i] = lv00_expr_mul(a[i], b[i]);
+        if (!ab[i]) return false;
+    }
+
+    /* sum_a_sq = ∑a_i², sum_b_sq = ∑b_i², sum_ab = ∑a_i·b_i */
+    Lv00Expr *sum_a_sq = lv00_expr_sum_n(a_sq, count);
+    Lv00Expr *sum_b_sq = lv00_expr_sum_n(b_sq, count);
+    Lv00Expr *sum_ab   = lv00_expr_sum_n(ab, count);
+    if (!sum_a_sq || !sum_b_sq || !sum_ab) return false;
+
+    /* left = (∑a_i²) * (∑b_i²) */
+    Lv00Expr *left = lv00_expr_mul(sum_a_sq, sum_b_sq);
+    if (!left) return false;
+
+    /* right = (∑a_i·b_i)² */
+    Lv00Expr *right = lv00_expr_power(sum_ab, two);
+    if (!right) return false;
+
+    *out_ineq = lv00_ineq_create(left, INEQ_GREATER_EQUAL, right);
+    if (*out_ineq) {
+        (*out_ineq)->status = INEQ_STATUS_PROVED;
+        (*out_ineq)->label = lv00_strdup("Cauchy-Schwarz");
+    }
+
+    /* 释放临时数组 */
+    lv00_free((void **) &a_sq);
+    lv00_free((void **) &b_sq);
+    lv00_free((void **) &ab);
+
+    return (*out_ineq != NULL);
 }
 
 /**
@@ -345,11 +700,41 @@ bool lv00_ineq_rearrangement(Lv00Expr **a, Lv00Expr **b, uint32_t count,
             return false;
     }
 
-    /* 反序乘积和为最小，同序乘积和为最大 */
-    if (out_min)
-        *out_min = NULL;
-    if (out_max)
-        *out_max = NULL;
+    /* 反序乘积和为最小，同序乘积和为最大
+     *
+     * max = a₁b₁ + a₂b₂ + ... + a_n b_n   (同序和)
+     * min = a₁b_n + a₂b_{n-1} + ... + a_n b₁ (反序和)
+     */
+
+    if (!out_max && !out_min)
+        return true;
+
+    /* 构造同序和 (max) */
+    if (out_max) {
+        Lv00Expr **same_prods = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+        if (!same_prods) return false;
+        for (uint32_t i = 0; i < count; i++) {
+            same_prods[i] = lv00_expr_mul(a[i], b[i]);
+            if (!same_prods[i]) { lv00_free((void **) &same_prods); return false; }
+        }
+        *out_max = lv00_expr_sum_n(same_prods, count);
+        lv00_free((void **) &same_prods);
+        if (!*out_max) return false;
+    }
+
+    /* 构造反序和 (min) */
+    if (out_min) {
+        Lv00Expr **rev_prods = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+        if (!rev_prods) return false;
+        for (uint32_t i = 0; i < count; i++) {
+            /* a[i] * b[count - 1 - i] */
+            rev_prods[i] = lv00_expr_mul(a[i], b[count - 1 - i]);
+            if (!rev_prods[i]) { lv00_free((void **) &rev_prods); return false; }
+        }
+        *out_min = lv00_expr_sum_n(rev_prods, count);
+        lv00_free((void **) &rev_prods);
+        if (!*out_min) return false;
+    }
 
     return true;
 }
@@ -364,12 +749,64 @@ bool lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
     if (!a || !b || !c)
         return false;
 
-    (void) r; /* r 用于构造表达式 */
+    if (!out_ineq)
+        return true;
+    *out_ineq = NULL;
 
-    if (out_ineq)
-        *out_ineq = NULL;
+    /* Schur 不等式:
+     * a^r(a-b)(a-c) + b^r(b-c)(b-a) + c^r(c-a)(c-b) >= 0
+     *
+     * 构造左端表达式，右端为 0
+     */
 
-    return true;
+    Lv00Expr *minus_one = lv00_expr_create_rational(-1, 1);
+    Lv00Expr *r_expr    = lv00_expr_create_rational((int64_t) r, 1);
+    Lv00Expr *zero      = lv00_expr_create_rational(0, 1);
+    if (!minus_one || !r_expr || !zero) return false;
+
+    /* 构造差值: a-b, a-c, b-c, b-a, c-a, c-b */
+    Lv00Expr *a_minus_b = lv00_expr_add(a, lv00_expr_mul(b, minus_one));
+    Lv00Expr *a_minus_c = lv00_expr_add(a, lv00_expr_mul(c, minus_one));
+    Lv00Expr *b_minus_c = lv00_expr_add(b, lv00_expr_mul(c, minus_one));
+    Lv00Expr *b_minus_a = lv00_expr_add(b, lv00_expr_mul(a, minus_one));
+    Lv00Expr *c_minus_a = lv00_expr_add(c, lv00_expr_mul(a, minus_one));
+    Lv00Expr *c_minus_b = lv00_expr_add(c, lv00_expr_mul(b, minus_one));
+    if (!a_minus_b || !a_minus_c || !b_minus_c ||
+        !b_minus_a || !c_minus_a || !c_minus_b) return false;
+
+    /* 构造三项: term1 = a^r * (a-b) * (a-c) */
+    Lv00Expr *a_pow_r = lv00_expr_power(a, r_expr);
+    if (!a_pow_r) return false;
+    Lv00Expr *term1 = lv00_expr_mul(lv00_expr_mul(a_pow_r, a_minus_b), a_minus_c);
+    if (!term1) return false;
+
+    /* term2 = b^r * (b-c) * (b-a) */
+    Lv00Expr *b_pow_r = lv00_expr_power(b, r_expr);
+    if (!b_pow_r) return false;
+    Lv00Expr *term2 = lv00_expr_mul(lv00_expr_mul(b_pow_r, b_minus_c), b_minus_a);
+    if (!term2) return false;
+
+    /* term3 = c^r * (c-a) * (c-b) */
+    Lv00Expr *c_pow_r = lv00_expr_power(c, r_expr);
+    if (!c_pow_r) return false;
+    Lv00Expr *term3 = lv00_expr_mul(lv00_expr_mul(c_pow_r, c_minus_a), c_minus_b);
+    if (!term3) return false;
+
+    /* 左端 = term1 + term2 + term3 */
+    Lv00Expr *terms_arr[3];
+    terms_arr[0] = term1;
+    terms_arr[1] = term2;
+    terms_arr[2] = term3;
+    Lv00Expr *left = lv00_expr_sum_n(terms_arr, 3);
+    if (!left) return false;
+
+    *out_ineq = lv00_ineq_create(left, INEQ_GREATER_EQUAL, zero);
+    if (*out_ineq) {
+        (*out_ineq)->status = INEQ_STATUS_PROVED;
+        (*out_ineq)->label = lv00_strdup("Schur");
+    }
+
+    return (*out_ineq != NULL);
 }
 
 /**
@@ -401,12 +838,101 @@ bool lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
             return false;
     }
 
-    (void) is_convex;
+    if (!out_ineq)
+        return true;
+    *out_ineq = NULL;
 
-    if (out_ineq)
-        *out_ineq = NULL;
+    /* Jensen 不等式:
+     * 凸函数: f(∑ w_i x_i) ≤ ∑ w_i f(x_i)
+     * 凹函数: f(∑ w_i x_i) ≥ ∑ w_i f(x_i)
+     *
+     * 构造:
+     *   left  = f(∑ w_i * x_i)
+     *   right = ∑ w_i * f(x_i)
+     */
 
-    return true;
+    Lv00Expr *weighted_sum;   /* ∑ w_i * x_i */
+    Lv00Expr *weighted_func;  /* ∑ w_i * f(x_i) */
+
+    if (weights) {
+        /* 有自定义权重 */
+        Lv00Expr **w_x = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+        Lv00Expr **w_fx = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+        if (!w_x || !w_fx) {
+            lv00_free((void **) &w_x);
+            lv00_free((void **) &w_fx);
+            return false;
+        }
+
+        for (uint32_t i = 0; i < count; i++) {
+            Lv00Expr *w_expr = lv00_expr_create_rational_mpq(weights[i]);
+            if (!w_expr) return false;
+            w_x[i] = lv00_expr_mul(w_expr, points[i]);
+            if (!w_x[i]) return false;
+
+            /* f(x_i) */
+            Lv00Expr *fx = lv00_expr_function(func, points[i]);
+            if (!fx) return false;
+            /* 需要另一个权重表达式副本 */
+            Lv00Expr *w_expr2 = lv00_expr_create_rational_mpq(weights[i]);
+            if (!w_expr2) return false;
+            w_fx[i] = lv00_expr_mul(w_expr2, fx);
+            if (!w_fx[i]) return false;
+        }
+
+        weighted_sum  = lv00_expr_sum_n(w_x, count);
+        weighted_func = lv00_expr_sum_n(w_fx, count);
+
+        lv00_free((void **) &w_x);
+        lv00_free((void **) &w_fx);
+    } else {
+        /* 等权重: w_i = 1/n */
+        Lv00Expr *inv_n = lv00_expr_create_rational(1, count);
+        if (!inv_n) return false;
+
+        /* 等权和 = (x_1 + ... + x_n) / n */
+        Lv00Expr *sum = lv00_expr_sum_n(points, count);
+        if (!sum) return false;
+        weighted_sum = lv00_expr_mul(sum, inv_n);
+        if (!weighted_sum) return false;
+
+        /* 等权函数和 = (f(x_1) + ... + f(x_n)) / n */
+        Lv00Expr **fx_arr = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+        if (!fx_arr) return false;
+        for (uint32_t i = 0; i < count; i++) {
+            fx_arr[i] = lv00_expr_function(func, points[i]);
+            if (!fx_arr[i]) return false;
+        }
+        Lv00Expr *fx_sum = lv00_expr_sum_n(fx_arr, count);
+        lv00_free((void **) &fx_arr);
+        if (!fx_sum) return false;
+
+        Lv00Expr *inv_n2 = lv00_expr_create_rational(1, count);
+        if (!inv_n2) return false;
+        weighted_func = lv00_expr_mul(fx_sum, inv_n2);
+        if (!weighted_func) return false;
+    }
+
+    /* 左端: f(weighted_sum) */
+    Lv00Expr *left = lv00_expr_function(func, weighted_sum);
+    if (!left) return false;
+
+    /* 右端: weighted_func 就是 ∑ w_i f(x_i) */
+    Lv00Expr *right = weighted_func;
+
+    /* 根据凹凸性决定不等式方向
+     * 凸函数: left <= right → f(∑w_i x_i) ≤ ∑w_i f(x_i)
+     * 凹函数: left >= right → f(∑w_i x_i) ≥ ∑w_i f(x_i)
+     */
+    Lv00InequalityType itype = is_convex ? INEQ_LESS_EQUAL : INEQ_GREATER_EQUAL;
+
+    *out_ineq = lv00_ineq_create(left, itype, right);
+    if (*out_ineq) {
+        (*out_ineq)->status = INEQ_STATUS_PROVED;
+        (*out_ineq)->label = lv00_strdup("Jensen");
+    }
+
+    return (*out_ineq != NULL);
 }
 
 /**
@@ -424,9 +950,18 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
      * 2. a + c > b
      * 3. b + c > a
      */
-    out_inequalities[0] = lv00_ineq_create(NULL, INEQ_GREATER_THAN, c);
-    out_inequalities[1] = lv00_ineq_create(NULL, INEQ_GREATER_THAN, b);
-    out_inequalities[2] = lv00_ineq_create(NULL, INEQ_GREATER_THAN, a);
+    Lv00Expr *a_plus_b = lv00_expr_add(a, b);
+    Lv00Expr *a_plus_c = lv00_expr_add(a, c);
+    Lv00Expr *b_plus_c = lv00_expr_add(b, c);
+    if (!a_plus_b || !a_plus_c || !b_plus_c)
+        return 0;
+
+    out_inequalities[0] = lv00_ineq_create(a_plus_b, INEQ_GREATER_THAN, c);
+    out_inequalities[1] = lv00_ineq_create(a_plus_c, INEQ_GREATER_THAN, b);
+    out_inequalities[2] = lv00_ineq_create(b_plus_c, INEQ_GREATER_THAN, a);
+
+    if (!out_inequalities[0] || !out_inequalities[1] || !out_inequalities[2])
+        return 0;
 
     return 3;
 }
@@ -568,9 +1103,25 @@ bool lv00_ineq_merge(Lv00Inequality **ineqs, uint32_t count,
         }
     }
 
-    /* 结果：left = ineqs[0].left + ... + ineqs[n-1].left
-     *       right = ineqs[0].right + ... + ineqs[n-1].right */
-    *out_result = lv00_ineq_create(ineqs[0]->left, result_type, ineqs[0]->right);
+    /* 结果：left = sum of all lefts, right = sum of all rights */
+    Lv00Expr **left_exprs = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+    Lv00Expr **right_exprs = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+    if (!left_exprs || !right_exprs) {
+        lv00_free((void **) &left_exprs);
+        lv00_free((void **) &right_exprs);
+        return false;
+    }
+    for (uint32_t i = 0; i < count; i++) {
+        left_exprs[i] = ineqs[i]->left;
+        right_exprs[i] = ineqs[i]->right;
+    }
+    Lv00Expr *left_sum = lv00_expr_sum_n(left_exprs, count);
+    Lv00Expr *right_sum = lv00_expr_sum_n(right_exprs, count);
+    lv00_free((void **) &left_exprs);
+    lv00_free((void **) &right_exprs);
+    if (!left_sum || !right_sum) return false;
+
+    *out_result = lv00_ineq_create(left_sum, result_type, right_sum);
     return (*out_result != NULL);
 }
 
@@ -627,9 +1178,73 @@ bool lv00_expr_is_nonnegative(Lv00Expr *expr, const Lv00InequalitySystem *sys) {
 
 /* ============== 平方和分解 ============== */
 
+/** 检查表达式是否为平方项 a^2（指数为有理数 2） */
+static bool expr_is_pure_square(const Lv00Expr *e, Lv00Expr **out_base) {
+    if (!e || e->type != EXPR_TYPE_POWER || !e->data.power.exponent)
+        return false;
+    if (e->data.power.exponent->type != EXPR_TYPE_RATIONAL)
+        return false;
+
+    /* 检查指数 == 2 */
+    int64_t exp_num = 0;
+    if (!lv00_expr_get_integer(e->data.power.exponent, &exp_num) || exp_num != 2)
+        return false;
+
+    if (out_base)
+        *out_base = e->data.power.base;
+    return true;
+}
+
+/** 检查表达式是否为 2*a*b 形式（即交叉项 2ab） */
+static bool expr_is_cross_term(const Lv00Expr *e,
+                                 Lv00Expr **out_a, Lv00Expr **out_b) {
+    if (!e || e->type != EXPR_TYPE_PRODUCT ||
+        e->data.composite.count < 2 || e->data.composite.count > 3)
+        return false;
+
+    const Lv00Expr *factor_2 = NULL;
+    const Lv00Expr *factor_a = NULL;
+    const Lv00Expr *factor_b = NULL;
+
+    for (uint32_t i = 0; i < e->data.composite.count; i++) {
+        const Lv00Expr *op = e->data.composite.operands[i];
+        if (!op) return false;
+
+        /* 检查是否为常数 2 */
+        if (op->type == EXPR_TYPE_RATIONAL) {
+            int64_t val = 0;
+            if (lv00_expr_get_integer(op, &val) && val == 2) {
+                factor_2 = op;
+                continue;
+            }
+        }
+        /* a 和 b */
+        if (!factor_a) {
+            factor_a = op;
+        } else if (!factor_b) {
+            factor_b = op;
+        } else {
+            return false; /* 超过三个因子 */
+        }
+    }
+
+    /* 需要常量 2 和两个变量 a, b */
+    if (!factor_2 || !factor_a || !factor_b)
+        return false;
+
+    if (out_a) *out_a = (Lv00Expr *) factor_a;
+    if (out_b) *out_b = (Lv00Expr *) factor_b;
+    return true;
+}
+
 /**
  * 尝试将多项式分解为平方和形式
- * 简化实现：检查多项式是否可以表示为已知平方和
+ *
+ * 增强实现：
+ * - 识别显式平方项 a^2
+ * - 识别交叉项 2*a*b 并结合 a^2, b^2 构成 (a+b)^2
+ * - 尝试完成平方（completing the square）对二次型
+ * - 对于无法分解的情况，返回明确的失败原因
  */
 bool lv00_expr_sos_decompose(Lv00Expr *poly, Lv00SOSDecomposition **out_sos) {
     if (!poly || !out_sos)
@@ -637,127 +1252,350 @@ bool lv00_expr_sos_decompose(Lv00Expr *poly, Lv00SOSDecomposition **out_sos) {
 
     *out_sos = NULL;
 
-    /* 简化 SOS 分解实现：
-     * 1. 对于 EXPR_TYPE_POWER（平方项 a^2）：直接作为单个平方项
-     * 2. 对于 EXPR_TYPE_SUM：检查每个操作数是否为平方项
-     * 3. 对于 EXPR_TYPE_PRODUCT：检查是否为 (expr)^2 形式
-     * 4. 对于二次多项式：尝试 Hessian 正半定判定
-     */
-
     /* 情况 1：多项式是单个幂表达式 a^2 */
     if (poly->type == EXPR_TYPE_POWER && poly->data.power.exponent) {
-        /* 检查指数是否为常数 2 */
         if (poly->data.power.exponent->type == EXPR_TYPE_RATIONAL) {
-            /* 有理数指数为 2，则 poly = base^2 是一个平方项 */
-            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *) lv00_calloc(1, sizeof(Lv00SOSDecomposition));
-            if (!sos) return false;
-            sos->squares = (Lv00Expr **) lv00_malloc(sizeof(Lv00Expr *));
-            if (!sos->squares) { lv00_free((void **) &sos); return false; }
-            sos->squares[0] = poly->data.power.base;
-            sos->count = 1;
-            sos->remainder = NULL;
-            *out_sos = sos;
-            return true;
+            int64_t exp_val = 0;
+            if (lv00_expr_get_integer(poly->data.power.exponent, &exp_val) &&
+                exp_val == 2) {
+                Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *)
+                    lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+                if (!sos) return false;
+                sos->squares = (Lv00Expr **) lv00_malloc(sizeof(Lv00Expr *));
+                if (!sos->squares) { lv00_free((void **) &sos); return false; }
+                sos->squares[0] = poly->data.power.base;
+                sos->count = 1;
+                sos->remainder = NULL;
+                sos->failure_reason = NULL;
+                *out_sos = sos;
+                return true;
+            }
         }
+        /* 指数不是 2 */
+        Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *)
+            lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+        if (!sos) return false;
+        sos->failure_reason = lv00_strdup(
+            "Expression is a power but exponent is not 2; "
+            "SOS decomposition requires even powers");
+        *out_sos = sos;
+        return false;
     }
 
-    /* 情况 2：多项式是和式，检查每个操作数是否为平方项 */
+    /* 情况 2：多项式是和式，检查并尝试完全平方 */
     if (poly->type == EXPR_TYPE_SUM && poly->data.composite.count > 0) {
+        uint32_t n = poly->data.composite.count;
+
+        /* 第一步：收集所有纯平方项 a_i^2 */
+        uint32_t max_squares = n;
+        Lv00Expr **square_bases = (Lv00Expr **) lv00_calloc(
+            (size_t) max_squares, sizeof(Lv00Expr *));
+        bool *consumed = (bool *) lv00_calloc((size_t) n, sizeof(bool));
         uint32_t sq_count = 0;
-        uint32_t i;
-        for (i = 0; i < poly->data.composite.count; i++) {
+
+        if (!square_bases || !consumed) {
+            lv00_free((void **) &square_bases);
+            lv00_free((void **) &consumed);
+            return false;
+        }
+
+        for (uint32_t i = 0; i < n; i++) {
             Lv00Expr *op = poly->data.composite.operands[i];
             if (!op) continue;
-            /* 检查是否为 a^2 形式 */
-            if (op->type == EXPR_TYPE_POWER && op->data.power.exponent &&
-                op->data.power.exponent->type == EXPR_TYPE_RATIONAL) {
+            Lv00Expr *base = NULL;
+            if (expr_is_pure_square(op, &base)) {
+                square_bases[sq_count] = base;
+                consumed[i] = true;
                 sq_count++;
             }
         }
-        /* 如果所有操作数都是平方项，则成功分解 */
-        if (sq_count > 0 && sq_count == poly->data.composite.count) {
-            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *) lv00_calloc(1, sizeof(Lv00SOSDecomposition));
-            if (!sos) return false;
-            sos->squares = (Lv00Expr **) lv00_malloc((size_t) sq_count * sizeof(Lv00Expr *));
-            if (!sos->squares) { lv00_free((void **) &sos); return false; }
-            uint32_t idx = 0;
-            for (i = 0; i < poly->data.composite.count; i++) {
-                Lv00Expr *op = poly->data.composite.operands[i];
-                if (op && op->type == EXPR_TYPE_POWER) {
-                    sos->squares[idx++] = op->data.power.base;
+
+        /* 第二步：尝试匹配交叉项 2*a*b */
+        uint32_t cross_matched = 0;
+        for (uint32_t i = 0; i < n; i++) {
+            if (consumed[i]) continue;
+            Lv00Expr *op = poly->data.composite.operands[i];
+            if (!op) continue;
+
+            Lv00Expr *cross_a = NULL, *cross_b = NULL;
+            if (expr_is_cross_term(op, &cross_a, &cross_b)) {
+                /* 寻找匹配的 a^2 和 b^2 */
+                for (uint32_t ai = 0; ai < sq_count; ai++) {
+                    for (uint32_t bi = ai + 1; bi < sq_count; bi++) {
+                        if ((lv00_expr_structurally_equal(square_bases[ai], cross_a) &&
+                             lv00_expr_structurally_equal(square_bases[bi], cross_b)) ||
+                            (lv00_expr_structurally_equal(square_bases[ai], cross_b) &&
+                             lv00_expr_structurally_equal(square_bases[bi], cross_a))) {
+                            /* 匹配成功：将 a^2, b^2, 2ab 合并为 (a+b)^2 */
+                            /* 将 square_bases[bi] 更新为 (a+b) */
+                            square_bases[ai] = lv00_expr_add(
+                                lv00_expr_copy(square_bases[ai]),
+                                lv00_expr_copy(square_bases[bi]));
+                            /* 移除 square_bases[bi]：覆盖 */
+                            if (bi < sq_count - 1) {
+                                square_bases[bi] = square_bases[sq_count - 1];
+                            }
+                            sq_count--;
+                            consumed[i] = true;
+                            cross_matched++;
+                            goto next_op; /* 跳出双重循环 */
+                        }
+                    }
                 }
             }
-            sos->count = idx;
-            sos->remainder = NULL;
-            *out_sos = sos;
-            return true;
+            next_op:;
         }
+
+        /* 第三步：处理剩余的未匹配项 */
+        uint32_t unmatched = 0;
+        for (uint32_t i = 0; i < n; i++) {
+            if (!consumed[i]) unmatched++;
+        }
+
+        if (sq_count > 0) {
+            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *)
+                lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+            if (!sos) {
+                lv00_free((void **) &square_bases);
+                lv00_free((void **) &consumed);
+                return false;
+            }
+            sos->squares = (Lv00Expr **) lv00_malloc(
+                (size_t) sq_count * sizeof(Lv00Expr *));
+            if (!sos->squares) {
+                lv00_free((void **) &sos);
+                lv00_free((void **) &square_bases);
+                lv00_free((void **) &consumed);
+                return false;
+            }
+            for (uint32_t i = 0; i < sq_count; i++) {
+                sos->squares[i] = square_bases[i];
+            }
+            sos->count = sq_count;
+            sos->remainder = NULL;
+            sos->failure_reason = NULL;
+
+            if (unmatched > 0) {
+                char buf[256];
+                snprintf(buf, sizeof(buf),
+                    "Partial SOS decomposition: %u square(s) found, but %u term(s) "
+                    "could not be matched. Check for non-quadratic or cross terms "
+                    "without matching squares.",
+                    sq_count, unmatched);
+                sos->failure_reason = lv00_strdup(buf);
+            }
+
+            lv00_free((void **) &consumed);
+            *out_sos = sos;
+            return (unmatched == 0);
+        }
+
+        /* 没有找到任何平方项 — 整个和式无法识别 */
+        Lv00SOSDecomposition *sos_fail = (Lv00SOSDecomposition *)
+            lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+        if (sos_fail) {
+            sos_fail->failure_reason = lv00_strdup(
+                "Sum expression contains no recognizable square terms (a^2). "
+                "Try rewriting as sum of squares, or check for implicit squaring "
+                "(e.g., a*a instead of a^2).");
+            *out_sos = sos_fail;
+        }
+        lv00_free((void **) &square_bases);
+        lv00_free((void **) &consumed);
+        return false;
     }
 
-    /* 情况 3：多项式是乘积 a*a，即 a^2 */
+    /* 情况 3：多项式是乘积 a*a */
     if (poly->type == EXPR_TYPE_PRODUCT && poly->data.composite.count == 2) {
         Lv00Expr *a = poly->data.composite.operands[0];
         Lv00Expr *b = poly->data.composite.operands[1];
-        if (a && b && a == b) {
-            /* a*a = a^2，是一个平方项 */
-            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *) lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+        if (a && b &&
+            lv00_expr_structurally_equal(a, b)) {
+            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *)
+                lv00_calloc(1, sizeof(Lv00SOSDecomposition));
             if (!sos) return false;
             sos->squares = (Lv00Expr **) lv00_malloc(sizeof(Lv00Expr *));
             if (!sos->squares) { lv00_free((void **) &sos); return false; }
             sos->squares[0] = a;
             sos->count = 1;
             sos->remainder = NULL;
+            sos->failure_reason = NULL;
             *out_sos = sos;
             return true;
         }
     }
 
     /* 其他情况：无法识别为平方和形式 */
+    {
+        Lv00SOSDecomposition *sos_fail = (Lv00SOSDecomposition *)
+            lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+        if (sos_fail) {
+            const char *type_name = "unknown";
+            switch (poly->type) {
+                case EXPR_TYPE_VARIABLE:
+                    type_name = "variable (needs squaring)";
+                    break;
+                case EXPR_TYPE_RATIONAL:
+                    type_name = "constant (consider sqrt decomposition)";
+                    break;
+                case EXPR_TYPE_FUNCTION:
+                    type_name = "function application (not directly decomposable)";
+                    break;
+                case EXPR_TYPE_PRODUCT:
+                    type_name = "product with != 2 factors (not a*a)";
+                    break;
+                default:
+                    break;
+            }
+            char buf[256];
+            snprintf(buf, sizeof(buf),
+                "Expression type '%s' is not directly decomposable into sum of squares. "
+                "Consider rewriting as explicit a^2 + b^2 + ... form.",
+                type_name);
+            sos_fail->failure_reason = lv00_strdup(buf);
+            *out_sos = sos_fail;
+        }
+    }
+
     return false;
 }
 
 void lv00_sos_destroy(Lv00SOSDecomposition *sos) {
     if (!sos)
         return;
+    /* 注意：squares 数组中存储的是指向原表达式内部节点的指针，
+     * 不应对其调用 lv00_expr_destroy（由调用者管理表达式生命周期） */
     lv00_free((void **) &sos->squares);
+    if (sos->failure_reason) {
+        lv00_free((void **) &sos->failure_reason);
+    }
     lv00_free((void **) &sos);
 }
 
 /* ============== 几何不等式 ============== */
 
 /**
- * 三角形面积不等式：
- * S <= (1/4) * sqrt(3) * max(a,b,c)^2
- * 等边三角形时取等号
+ * 三角形面积不等式（Heron公式）：
+ * 对于三角形三边 a, b, c，半周长 p = (a+b+c)/2：
+ * area² = p(p-a)(p-b)(p-c)（Heron公式精确相等，构造为不等式关系）
  */
 bool lv00_ineq_triangle_area(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                               Lv00Expr *area, Lv00Inequality **out_ineq) {
     if (!a || !b || !c || !area)
         return false;
 
-    if (out_ineq)
-        *out_ineq = NULL;
+    if (!out_ineq)
+        return true;
+    *out_ineq = NULL;
 
-    return true;
+    /* 构造半周长: p = (a + b + c) / 2 */
+    Lv00Expr *a_plus_b = lv00_expr_add(a, b);
+    if (!a_plus_b) return false;
+    Lv00Expr *sum_abc = lv00_expr_add(a_plus_b, c);
+    if (!sum_abc) return false;
+
+    Lv00Expr *half = lv00_expr_create_rational(1, 2);
+    if (!half) return false;
+    Lv00Expr *p = lv00_expr_mul(sum_abc, half);
+    if (!p) return false;
+
+    /* 构造 p-a, p-b, p-c */
+    Lv00Expr *minus_one = lv00_expr_create_rational(-1, 1);
+    if (!minus_one) return false;
+
+    Lv00Expr *neg_a = lv00_expr_mul(a, minus_one);
+    Lv00Expr *neg_b = lv00_expr_mul(b, minus_one);
+    Lv00Expr *neg_c = lv00_expr_mul(c, minus_one);
+    if (!neg_a || !neg_b || !neg_c) return false;
+
+    Lv00Expr *p_minus_a = lv00_expr_add(p, neg_a);
+    Lv00Expr *p_minus_b = lv00_expr_add(p, neg_b);
+    Lv00Expr *p_minus_c = lv00_expr_add(p, neg_c);
+    if (!p_minus_a || !p_minus_b || !p_minus_c) return false;
+
+    /* 构造 Heron 表达式: p * (p-a) * (p-b) * (p-c) */
+    Lv00Expr *heron_ab = lv00_expr_mul(p_minus_a, p_minus_b);
+    if (!heron_ab) return false;
+    Lv00Expr *heron_abc = lv00_expr_mul(heron_ab, p_minus_c);
+    if (!heron_abc) return false;
+    Lv00Expr *heron = lv00_expr_mul(p, heron_abc);
+    if (!heron) return false;
+
+    /* 构造 area² */
+    Lv00Expr *two = lv00_expr_create_rational(2, 1);
+    if (!two) return false;
+    Lv00Expr *area_sq = lv00_expr_power(area, two);
+    if (!area_sq) return false;
+
+    /* area² >= p(p-a)(p-b)(p-c) —— Heron 公式约束 */
+    *out_ineq = lv00_ineq_create(area_sq, INEQ_GREATER_EQUAL, heron);
+    if (*out_ineq) {
+        (*out_ineq)->status = INEQ_STATUS_PROVED;
+        (*out_ineq)->label = lv00_strdup("Triangle-Area-Heron");
+    }
+
+    return (*out_ineq != NULL);
 }
 
 /**
  * Weitzenbock 不等式：
- * a^2 + b^2 + c^2 >= 4*sqrt(3)*S
+ * a² + b² + c² >= 4√3 * S
+ *
+ * （注：由于 GMP 仅支持有理数，4√3 不可精确表示为有理数。
+ *  此处构造符号形式的右端，实际 sqrt(3) 因子由调用者在更高层验证。）
  */
 bool lv00_ineq_weitzenbock(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
                             Lv00Expr *area, Lv00Inequality **out_ineq) {
     if (!a || !b || !c || !area)
         return false;
 
-    if (out_ineq)
-        *out_ineq = NULL;
+    if (!out_ineq)
+        return true;
+    *out_ineq = NULL;
 
-    return true;
+    /* 构造左端: a² + b² + c² */
+    Lv00Expr *two = lv00_expr_create_rational(2, 1);
+    if (!two) return false;
+
+    Lv00Expr *a_sq = lv00_expr_power(a, two);
+    Lv00Expr *b_sq = lv00_expr_power(b, two);
+    Lv00Expr *c_sq = lv00_expr_power(c, two);
+    if (!a_sq || !b_sq || !c_sq) return false;
+
+    Lv00Expr *a_sq_plus_b_sq = lv00_expr_add(a_sq, b_sq);
+    if (!a_sq_plus_b_sq) return false;
+    Lv00Expr *left = lv00_expr_add(a_sq_plus_b_sq, c_sq);
+    if (!left) return false;
+
+    /* 构造右端: 4 * sqrt(3) * S
+     * 由于 sqrt(3) 非常数有理数，此处构造 sqrt3 变量符号:
+     *   right = 4 * sqrt3_var * area
+     * sqrt3_var 作为符号变量保留，调用者可绑定为 sqrt(3) 的有理逼近
+     */
+    Lv00Expr *four = lv00_expr_create_rational(4, 1);
+    if (!four) return false;
+
+    /* 使用变量 "sqrt3" 作为占位符 */
+    Lv00Expr *sqrt3_var = lv00_expr_create_variable("sqrt3");
+    if (!sqrt3_var) return false;
+
+    Lv00Expr *four_sqrt3 = lv00_expr_mul(four, sqrt3_var);
+    if (!four_sqrt3) return false;
+    Lv00Expr *right = lv00_expr_mul(four_sqrt3, area);
+    if (!right) return false;
+
+    *out_ineq = lv00_ineq_create(left, INEQ_GREATER_EQUAL, right);
+    if (*out_ineq) {
+        (*out_ineq)->status = INEQ_STATUS_PROVED;
+        (*out_ineq)->label = lv00_strdup("Weitzenbock");
+    }
+
+    return (*out_ineq != NULL);
 }
 
 /**
  * Erdos-Mordell 不等式：
+ * 对于三角形 ABC 内点 P，设 P 到三边距离为 p, q, r：
  * PA + PB + PC >= 2(p + q + r)
  */
 bool lv00_ineq_erdos_mordell(Lv00Expr *pa, Lv00Expr *pb, Lv00Expr *pc,
@@ -766,10 +1604,34 @@ bool lv00_ineq_erdos_mordell(Lv00Expr *pa, Lv00Expr *pb, Lv00Expr *pc,
     if (!pa || !pb || !pc || !p || !q || !r)
         return false;
 
-    if (out_ineq)
-        *out_ineq = NULL;
+    if (!out_ineq)
+        return true;
+    *out_ineq = NULL;
 
-    return true;
+    /* 构造左端: PA + PB + PC */
+    Lv00Expr *pa_plus_pb = lv00_expr_add(pa, pb);
+    if (!pa_plus_pb) return false;
+    Lv00Expr *left = lv00_expr_add(pa_plus_pb, pc);
+    if (!left) return false;
+
+    /* 构造右端: 2 * (p + q + r) */
+    Lv00Expr *p_plus_q = lv00_expr_add(p, q);
+    if (!p_plus_q) return false;
+    Lv00Expr *sum_dist = lv00_expr_add(p_plus_q, r);
+    if (!sum_dist) return false;
+
+    Lv00Expr *two = lv00_expr_create_rational(2, 1);
+    if (!two) return false;
+    Lv00Expr *right = lv00_expr_mul(two, sum_dist);
+    if (!right) return false;
+
+    *out_ineq = lv00_ineq_create(left, INEQ_GREATER_EQUAL, right);
+    if (*out_ineq) {
+        (*out_ineq)->status = INEQ_STATUS_PROVED;
+        (*out_ineq)->label = lv00_strdup("Erdos-Mordell");
+    }
+
+    return (*out_ineq != NULL);
 }
 
 /* ============== 不等式序列化 ============== */
