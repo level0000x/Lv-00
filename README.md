@@ -211,6 +211,7 @@ lv00/
 
 ## 文档
 
+- [完整技术文档 v5.0](doc/DOCUMENTATION.md) - **最新：基于 Zread 文档更新的全面技术手册（26 章 2000+ 行）**
 - [API使用指南](docs/API_USAGE_GUIDE.md) - 详细的API参考和最佳实践
 - [分层架构设计 v5.0](docs/ARCHITECTURE_v5.0.md) - **更新：OCCT 风格 7 层架构 → 十层单向依赖架构（2026-06-04）**
 - [竞品分析](docs/competitive_analysis.md) - **已更新：22 个参考项目（2026-05-24）**
