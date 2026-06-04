@@ -632,7 +632,7 @@ Prove not area(triangle(A,B,C)) > 0;
 
 ---
 
-## 12. 与五层架构的关系
+## 12. 与十层架构的关系
 
 ```text
 词法语法解析层：本文定义 Token、BNF、AST、Typed IR。

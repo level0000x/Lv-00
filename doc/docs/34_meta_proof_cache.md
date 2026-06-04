@@ -503,7 +503,7 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig);
 
 ## 34.9 版本历史
 
-- **v3.5.0**
+- **v5.0.0**
   - 补全文档化：剪枝合法性元证明、命题逻辑验证器、推理缓存与节点深拷贝。
   - 明确 WFC 剪枝完备性与 BHK 构造验证之间的关系。
 

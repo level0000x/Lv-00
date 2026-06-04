@@ -422,7 +422,7 @@ char *relation_instance_export_xml(const RelInstance *inst);
 
 ## 27.6 版本历史
 
-- **v3.5.0** (当前)
+- **v5.0.0** (当前)
   - 量词系统（∀, ∃, ∃!）
   - 量词实例化/泛化操作
   - 有限域量词消去

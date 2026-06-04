@@ -8,7 +8,7 @@
 ### 📐 架构设计
 | 文档 | 说明 |
 |------|------|
-| [ARCHITECTURE_MANUAL.md](ARCHITECTURE_MANUAL.md) | 架构手册 (v3.5.0) |
+| [ARCHITECTURE_MANUAL.md](ARCHITECTURE_MANUAL.md) | 架构手册 (v5.0.0) |
 | [FIVE_LAYER_ACADEMIC_REFACTOR_PLAN.md](FIVE_LAYER_ACADEMIC_REFACTOR_PLAN.md) | 五层学术化整改计划 |
 | [DIRECTORY_MIGRATION_PLAN.md](DIRECTORY_MIGRATION_PLAN.md) | 目录迁移计划 |
 | [self_bootstrapping_design.md](self_bootstrapping_design.md) | 自举架构设计 |

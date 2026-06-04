@@ -3,7 +3,7 @@
 > **版本**: v1.0-draft
 > **日期**: 2026-05-26
 > **状态**: 规划阶段
-> **依赖**: Lv-00 v3.5.0-academic 五层架构
+> **依赖**: Lv-00 v5.0.0-academic 十层架构
 
 ---
 
@@ -69,8 +69,8 @@
 | 约束图 + 节点/边 | `constraint_graph.c` | ✅ 成熟 |
 | 归一化（点/线段/区域合并） | `normalization.c` | ✅ 成熟 |
 | 四态相容检测 | `constraint_graph.c: graph_check_compatibility()` | ✅ 成熟 |
-| 增量脏标记 | `constraint_graph.c: graph_mark_dirty/sync_nodes()` | ✅ v3.5.0 |
-| 惰性约束废弃 | `constraint_graph.c: graph_deactivate_constraint()` | ✅ v3.5.0 |
+| 增量脏标记 | `constraint_graph.c: graph_mark_dirty/sync_nodes()` | ✅ v5.0.0 |
+| 惰性约束废弃 | `constraint_graph.c: graph_deactivate_constraint()` | ✅ v5.0.0 |
 | 符号坐标精确判等 | `symbolic_coord.c: symbolic_coord_compare()` | ✅ 五级渐进 |
 | 并查集合并 | `normalization.c: uf_*` | ✅ path splitting + rank |
 | 代数求解器 | `solver.c: solve_algebraic_system()` | ✅ Groebner 基 |
