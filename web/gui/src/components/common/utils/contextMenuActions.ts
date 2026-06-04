@@ -17,9 +17,6 @@ import { generateUniqueId } from '@/utils/idGenerator';
 import { MERGE_NEAREST_PIXEL_THRESHOLD, MIN_SEGMENT_LENGTH_PX } from '@/utils/constants';
 import { parseAndExecuteFormula } from '@/utils/formulaParser';
 
-// 声明 require 以避免 TS2580 错误（动态导入避免循环依赖）
-declare function require(moduleName: string): unknown;
-
 // ================================================================
 // 类型定义 / Type Definitions
 // ================================================================
@@ -74,8 +71,8 @@ export interface ActionContext {
 function getStore(): StoreSlice {
   // 动态导入避免循环依赖 / Dynamic import to avoid circular dependency
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const stores = require('@/stores') as { useAppStore: { getState: () => StoreSlice } };
-  return stores.useAppStore.getState();
+  const { useAppStore } = require('@/stores');
+  return useAppStore.getState();
 }
 
 // ================================================================

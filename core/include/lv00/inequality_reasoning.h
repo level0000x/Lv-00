@@ -24,7 +24,6 @@
 extern "C" {
 #endif
 
-#include "lv00.h"           /* 必须先包含以获取 LV00_PUBLIC_API 定义 */
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>

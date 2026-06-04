@@ -113,9 +113,6 @@ export interface GeometryState {
  * data getter functions so that createSnapshot/restoreFromSnapshot
  * automatically sync these states.
  * Currently defaults to empty arrays; no runtime errors occur.
- *
- * 【优化 H2】将可变状态封装为只读接口，防止意外修改
- * 使用 Object.freeze 深度冻结初始值，确保不可变性
  */
 let _portsSource: (() => Port[]) | null = null;
 let _funcBlocksSource: (() => FuncBlock[]) | null = null;
@@ -176,12 +173,6 @@ function createSnapshot(state: {
 /**
  * 从快照恢复几何状态 / Restore geometry state from snapshot
  *
- * 【优化 H2】修复快照/恢复不对称问题
- *
- * 注意：此函数仅恢复 geometryStore 管理的核心几何数据。
- * ports 和 funcBlocks 数据由独立的 Store 管理，通过外部注册机制注入。
- * 如果需要恢复这些数据，应在调用此函数后手动调用对应的 restore 方法。
- *
  * @param snapshot - 要恢复的撤销快照
  * @returns 恢复后的几何状态对象
  */
@@ -191,9 +182,6 @@ function restoreFromSnapshot(snapshot: UndoSnapshot) {
     segments: snapshot.segments.map((s) => ({ ...s })),
     constraints: snapshot.constraints.map((c) => ({ ...c, args: [...c.args] })),
     regions: snapshot.regions.map((r) => ({ ...r, points: r.points.map((p) => ({ ...p })) })),
-    // 【优化 H2】添加注释说明为何不恢复 ports 和 funcBlocks
-    // ports: [], // 由 portsStore 独立管理，需要手动同步
-    // funcBlocks: [], // 由 funcBlocksStore 独立管理，需要手动同步
   };
 }
 
@@ -279,23 +267,16 @@ export const useGeometryStore = create<GeometryState>((set) => ({
     })),
 
   /** 批量设置所有点（替换现有数据） */
-  // 【优化 H2】添加防御性拷贝，防止外部修改影响 Store 状态
-  setPoints: (points) => set({ points: [...points] }),
+  setPoints: (points) => set({ points }),
 
   /** 批量设置所有线段（替换现有数据） */
-  // 【优化 H2】添加防御性拷贝，防止外部修改影响 Store 状态
-  setSegments: (segments) => set({ segments: [...segments] }),
+  setSegments: (segments) => set({ segments }),
 
   /** 批量设置所有约束（替换现有数据） */
-  // 【优化 H2】添加防御性拷贝，防止外部修改影响 Store 状态
-  setConstraints: (constraints) => set({ constraints: constraints.map((c) => ({ ...c, args: [...c.args] })) }),
+  setConstraints: (constraints) => set({ constraints }),
 
   /** 批量设置所有区域（替换现有数据） */
-  // 【优化 H2】添加防御性拷贝，防止外部修改影响 Store 状态
-  setRegions: (regions) =>
-    set({
-      regions: regions.map((r) => ({ ...r, points: [...r.points] })),
-    }),
+  setRegions: (regions) => set({ regions }),
 
   /** 清空所有几何数据（点、线段、约束、区域） */
   clearAll: () =>

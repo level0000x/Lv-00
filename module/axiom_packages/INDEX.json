@@ -613,17 +613,6 @@
       "axiom_file": "linear_algebra.lvz",
       "test_file": "test_axiom_linear_algebra.c",
       "test_save": null
-    },
-    "non_well_founded_set_theory": {
-      "version": "1.0.0",
-      "category": "foundations",
-      "layers": ["core_axioms", "graph_machinery", "core_constructors", "coinductive_operations", "zfc_comparison"],
-      "dependencies": ["zfc_set_theory"],
-      "description": "Non-Well-Founded Set Theory / ZFA (Aczel AFA, Hypersets, Bisimulation, Solution Lemma, Coinduction, 42 templates, 8 undecidable problems)",
-      "manifest_path": null,
-      "axiom_file": "non_well_founded_set_theory.lvz",
-      "test_file": "test_axiom_non_well_founded_set_theory.c",
-      "test_save": null
     }
   }
 }

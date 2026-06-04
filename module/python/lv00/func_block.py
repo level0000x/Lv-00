@@ -1,64 +1,19 @@
 """
 Lv-00 函数块模块
-================
 
-模块功能概述：
-    提供 Lv-00 函数块系统的 Python 接口。函数块是 Lv-00 系统中实现几何构造
-    抽象和复用的核心机制，允许将一组约束子图封装为可参数化的黑盒单元。
-    本模块支持函数块的打包、实例化、确定性检查、多解选择、端口依赖管理
-    以及跨边界约束处理等功能。
-
-主要类和异常：
-    - FuncBlock: 函数块主类，封装约束子图和输入/输出端口
-    - FuncBlockError: 函数块错误基类
-    - FuncBlockPackError: 打包错误（跨边界冲突、无效节点/端口等）
-    - FuncBlockInstantiateError: 实例化错误（无解、多解、前置条件不满足等）
-    - FuncBlockDeterminismError: 确定性检查错误
-    - DeterminismState: 确定性状态常量类（UNVERIFIED/VERIFIED/NON_DETERMINISTIC/PARTIALLY_VERIFIED）
-    - PackResultCode: 打包结果常量类
-    - InstantiateResultCode: 实例化结果常量类
-    - SolutionSelector: 多解选择器常量类
-
-使用示例：
-    >>> from lv00.func_block import FuncBlock, DeterminismState
-    >>> from lv00.core import Graph, SymbolicCoord
-    >>>
-    >>> # 创建函数块定义
-    >>> fb = FuncBlock(graph, name="midpoint_func")
-    >>> fb.add_input_port("A")
-    >>> fb.add_input_port("B")
-    >>> fb.add_output_port("M")
-    >>>
-    >>> # 打包函数块
-    >>> fb.pack()
-    >>>
-    >>> # 检查确定性
-    >>> state = fb.check_determinism()
-    >>> if state == DeterminismState.VERIFIED:
-    ...     print("函数块具有唯一解")
-    >>>
-    >>> # 实例化函数块
-    >>> result = fb.instantiate({"A": point_a, "B": point_b})
-    >>> midpoint = result["M"]
-
-与 C 库的绑定关系：
-    - FuncBlock 类持有 _FuncBlock (ctypes 指针) ↔ C 层 FuncBlock* 不透明句柄
-    - 打包结果常量（PACK_OK, PACK_CROSS_BOUNDARY_CONFLICT 等）映射 C 层枚举值
-    - 实例化结果常量（INSTANTIATE_OK, INSTANTIATE_NO_SOLUTION 等）映射 C 层枚举值
-    - 确定性常量（DETERMINISM_VERIFIED 等）映射 C 层枚举值
-    - 选择器常量（SELECTOR_POSITIVE_ROOT 等）映射 C 层枚举值
+提供函数块系统的 Python 接口，支持：
+    - 函数打包与实例化
+    - 确定性检查（静态/动态）
+    - 多解选择器
+    - 端口依赖管理
+    - 跨边界约束处理
+    - 函数块组合子
 
 设计原则：
     1. 封装性：函数块封装内部约束子图，对外仅暴露输入/输出端口
     2. 确定性追踪：函数块维护确定性状态机，确保使用安全
-    3. beta-归约：实例化时执行变量捕获消解，实现正确的参数传递
+    3. β-归约：实例化时执行变量捕获消解，实现正确的参数传递
     4. 组合子支持：预置 Compose、Product 等几何化组合子
-
-注意事项：
-    - 函数块打包后其内部结构不可修改，需重新创建
-    - 非确定性函数块实例化时可能需要 SolutionSelector 指定解
-    - 跨边界约束冲突时需调整函数块边界或约束定义
-    - 函数块实例化会修改宿主约束图，操作不可逆
 
 版本：3.3.0
 作者：Lv-00 开发团队
@@ -132,7 +87,7 @@ class FuncBlockDeterminismError(FuncBlockError):
 # 常量类
 # ============================================================
 
-def _enum_to_string(value: int, mapping: Dict[int, str], default: str = "未知") -> str:
+def _enum_to_string(value: int, mapping: dict, default: str = "未知") -> str:
     """
     通用的枚举值转中文字符串函数。
 
@@ -142,9 +97,7 @@ def _enum_to_string(value: int, mapping: Dict[int, str], default: str = "未知"
     参数：
         value: 枚举整数值
         mapping: 值到中文字符串的映射字典
-
-    [代码质量修复 M-09] 将 mapping 参数类型从 dict 改为 Dict[int, str]，
-    明确键值类型，提高类型安全性和 IDE 自动补全支持。
+        default: 未找到映射时的默认返回值（默认为 "未知"）
 
     返回：
         str: 对应的中文字符串描述

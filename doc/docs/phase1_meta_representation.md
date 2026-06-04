@@ -110,7 +110,7 @@ REGION (函数块)
 ├── 内部节点 (区域内的点)
 │   └── 表示函数块的内部构造
 └── 版本标注
-    └── "v3.5.0"
+    └── "v5.0.0"
 ```
 
 ---
@@ -272,7 +272,7 @@ GeomNode *encoded = meta_repr_encode_func_block(block);
  * - 边界上的输入端口点
  * - 边界上的输出端口点
  * - 内部构造点
- * - 标注：name="midpoint", version="3.5.0"
+ * - 标注：name="midpoint", version="5.0.0"
  */
 ```
 

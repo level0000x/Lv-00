@@ -25,18 +25,12 @@ Lv-00 性能基准测试脚本模块
 
 import argparse
 import json
-import logging
 import os
 import re
 import subprocess
 import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-
-# [代码质量修复 M-02] 使用标准 logging 模块替代 print() 输出。
-# logging 支持日志级别控制、格式化、输出目标配置等，
-# 比 print() 更适合工具脚本的生产环境使用。
-logger = logging.getLogger(__name__)
 
 # 调试模式开关：通过环境变量 LV00_DEBUG=1 或 --debug 参数启用，默认关闭
 _DEBUG = os.environ.get('LV00_DEBUG', '0') == '1'
@@ -87,7 +81,7 @@ class BenchmarkRunner:
         executable_path = os.path.join(self.build_dir, executable)
         if not os.path.exists(executable_path):
             if self._debug:
-                logger.warning("找不到可执行文件 %s", executable_path)
+                print(f"警告: 找不到可执行文件 {executable_path}")
             return None
             
         try:
@@ -100,18 +94,19 @@ class BenchmarkRunner:
             
             if result.returncode != 0:
                 if self._debug:
-                    logger.error("%s 返回非零退出码\n%s", test_name, result.stderr)
+                    print(f"错误: {test_name} 返回非零退出码")
+                    print(result.stderr)
                 return None
                 
             return self._parse_output(test_name, result.stdout)
             
         except subprocess.TimeoutExpired:
             if self._debug:
-                logger.error("%s 超时", test_name)
+                print(f"错误: {test_name} 超时")
             return None
         except Exception as e:
             if self._debug:
-                logger.error("运行 %s 时发生异常: %s", test_name, e)
+                print(f"错误: 运行 {test_name} 时发生异常: {e}")
             return None
     
     def _parse_output(self, test_name: str, output: str) -> Dict[str, Any]:
@@ -193,23 +188,24 @@ class BenchmarkRunner:
         ]
         
         if self._debug:
-            logger.info("=" * 60)
-            logger.info("Lv-00 性能基准测试")
-            logger.info("=" * 60)
+            print("=" * 60)
+            print("Lv-00 性能基准测试")
+            print("=" * 60)
+            print()
         
         for name, executable in benchmarks:
             if self._debug:
-                logger.info("运行 %s...", name)
+                print(f"运行 {name}...")
             result = self.run_benchmark(name, executable)
             if result:
                 self.results[name] = result
                 if self._debug:
-                    logger.info("  v 完成 - %d 个测试用例", len(result.get('tests', [])))
+                    print(f"  v 完成 - {len(result.get('tests', []))} 个测试用例")
             else:
                 if self._debug:
-                    logger.warning("  x 失败")
+                    print(f"  x 失败")
             if self._debug:
-                logger.debug("")
+                print()
         
         return self.results
     
@@ -239,9 +235,9 @@ class BenchmarkRunner:
         self._generate_markdown(md_file)
         
         if self._debug:
-            logger.info("报告已保存:")
-            logger.info("  JSON: %s", json_file)
-            logger.info("  Markdown: %s", md_file)
+            print(f"报告已保存:")
+            print(f"  JSON: {json_file}")
+            print(f"  Markdown: {md_file}")
         
         return json_file
     
@@ -412,8 +408,8 @@ def main() -> None:
     results = runner.run_all_benchmarks()
     
     if not results:
-        # [M-02] 错误消息始终输出，使用 logger.error 确保日志系统可捕获
-        logger.error("没有基准测试结果")
+        # 错误消息始终输出
+        sys.stderr.write("错误: 没有基准测试结果\n")
         sys.exit(1)
     
     # 生成报告
@@ -422,37 +418,38 @@ def main() -> None:
     # 性能比较
     if args.compare_with:
         if debug:
-            logger.info("=" * 60)
-            logger.info("性能比较")
-            logger.info("=" * 60)
+            print("\n" + "=" * 60)
+            print("性能比较")
+            print("=" * 60)
+            print()
         
         try:
             comparator = PerformanceComparator(args.compare_with)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error("无法加载基线文件: %s", e)
+            sys.stderr.write(f"错误: 无法加载基线文件: {e}\n")
             sys.exit(1)
         has_regression, regressions = comparator.compare(results)
         
         if regressions:
             if debug:
-                logger.info("检测到的性能变化:")
+                print("检测到的性能变化:\n")
             for reg in regressions:
                 if debug:
-                    logger.warning("  . %s", reg)
+                    print(f"  . {reg}")
             if debug:
-                logger.debug("")
+                print()
         else:
             if debug:
-                logger.info("未检测到显著性能回归")
+                print(". 未检测到显著性能回归\n")
         
         if has_regression and args.fail_on_regression:
-            logger.error("检测到性能回归，退出")
+            sys.stderr.write("错误: 检测到性能回归，退出\n")
             sys.exit(2)
     
     if debug:
-        logger.info("=" * 60)
-        logger.info("基准测试完成")
-        logger.info("=" * 60)
+        print("=" * 60)
+        print("基准测试完成")
+        print("=" * 60)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ import logging.handlers
 import os
 import sys
 from pathlib import Path
-from typing import ClassVar
 
 from .constants import DEFAULT_LOG_FORMAT
 
@@ -65,8 +64,8 @@ class ColoredFormatter(logging.Formatter):
     自动检测终端是否支持颜色，不支持时自动降级为纯文本。
     """
 
-    # ANSI 颜色码映射（类变量，所有实例共享同一份颜色配置）
-    COLORS: ClassVar[dict[str, str]] = {
+    # ANSI 颜色码映射
+    COLORS = {
         "DEBUG": "\033[36m",      # 青色
         "INFO": "\033[32m",       # 绿色
         "WARNING": "\033[33m",    # 黄色
@@ -156,16 +155,9 @@ def setup_logging(
     #   1. 如果其他库在此之前已向根记录器添加了自定义 Handler，它们将被移除
     #   2. 多次调用 setup_logging() 是安全的（不会产生重复处理器）
     #   3. 在多线程/多进程环境中，此操作非原子性，可能存在短暂竞态条件
-    # 风险说明：
-    #   - 如果本函数在第三方库（如 Flask、uvicorn）初始化之后调用，
-    #     可能会影响那些依赖自身 Handler 的库的日志输出。
-    #     例如，Flask 的 werkzeug 日志处理器会被移除，导致 Flask 启动日志消失。
-    #   - 在多进程场景（如 gunicorn --preload）中，子进程会继承父进程的 Handler，
-    #     如果在 fork 后调用此函数，可能导致日志重复或丢失。
-    #   - 某些库（如 logging.config.dictConfig）会设置 propagate=False 的子记录器，
-    #     这些子记录器不受此操作影响。
-    # 建议：在应用启动的最早阶段（导入第三方库之前）调用此函数，
-    #   或者在调用后手动重新添加必要的第三方库 Handler。
+    # 注意：如果本函数在第三方库初始化之后调用，
+    #   可能会影响那些依赖自身 Handler 的库的日志输出。
+    #   建议在应用启动的最早阶段（导入第三方库之前）调用此函数。
     root_logger.handlers.clear()
 
     format_str = format_str or DEFAULT_LOG_FORMAT

@@ -64,14 +64,10 @@ extern "C" {
 #define STREAM_FILTER_NONE ((uint64_t) 0x0000000000000000ULL)
 
 /** 异步事件队列默认容量 */
-#ifndef STREAM_ASYNC_QUEUE_DEFAULT_CAPACITY
 #define STREAM_ASYNC_QUEUE_DEFAULT_CAPACITY 1024
-#endif
 
 /** JSON 序列化缓冲区默认大小 */
-#ifndef STREAM_JSON_BUFFER_DEFAULT_SIZE
 #define STREAM_JSON_BUFFER_DEFAULT_SIZE 4096
-#endif
 
 /** 事件类型掩码位运算宏（使用 64 位以支持 >32 种事件类型） */
 #define STREAM_EVENT_MASK(type) ((uint64_t) 1ULL << (uint64_t) (type))

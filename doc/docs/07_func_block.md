@@ -49,8 +49,6 @@ typedef struct FuncBlock {
 
 ### 确定性状态
 
-该状态由 `determinism_state.h` 定义并被 `func_block.h` 引用，用于记录函数块从“未验证”到“唯一解确认”或“多解非确定”的生命周期状态。
-
 ```c
 typedef enum {
     UNVERIFIED,           // 打包完成，尚未进行静态分析

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_proof_export_enhanced.c
  * @brief Tests for the enhanced proof export module.
  *

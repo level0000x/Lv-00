@@ -366,8 +366,59 @@ static int detect_point_position_conflicts(const ConstraintGraph *graph,
         
         if (!x_coord || !y_coord) continue;
         
-        /* TODO: 检查该点的所有关联约束是否一致 */
-        /* 例如：如果点被约束到两条不相交的线上，则存在矛盾 */
+        /* 检查该点的所有关联约束是否一致 */
+        int constraint_ids[128];
+        int c_count = graph_find_constraints_involving(graph, i, constraint_ids, 128);
+        for (int ci = 0; ci < c_count; ci++) {
+            Constraint *cons = graph_get_constraint(graph, constraint_ids[ci]);
+            if (!cons || !cons->is_active) continue;
+
+            /* 检查 COINCIDENT 约束：若点与另一个有不同坐标的点重合，则矛盾 */
+            if (cons->type == CONSTRAINT_COINCIDENT && cons->participant_count >= 2) {
+                int other_id = (cons->participants[0] == i) ? cons->participants[1] : cons->participants[0];
+                GeomNode *other = graph_get_node(graph, other_id);
+                if (other && other->type == GEOM_POINT && other->symbolic_coords &&
+                    other->coord_count >= 2) {
+                    int cx = symbolic_coord_compare(x_coord, other->symbolic_coords[0]);
+                    int cy = symbolic_coord_compare(y_coord, other->symbolic_coords[1]);
+                    if (cx != 0 || cy != 0) {
+                        char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                        snprintf(desc, sizeof(desc),
+                            "点 %d 被约束与点 %d 重合（约束 %d），但坐标不同："
+                            "(%d,%d) vs (%d,%d)。",
+                            i, other_id, cons->id, cx, cy, cx, cy);
+                        report_constraint_conflict(report, cons, CONFLICT_POINT_POSITION,
+                            CONFLICT_SEVERITY_ERROR, desc,
+                            "修正点的坐标或移除重合约束。");
+                    }
+                }
+            }
+
+            /* 检查 INCIDENCE 约束：点应在对应线段上 */
+            if (cons->type == INCIDENCE && cons->participant_count >= 2) {
+                int line_id = cons->participants[1];
+                GeomNode *line_node = graph_get_node(graph, line_id);
+                if (line_node && line_node->type == GEOM_LINE_SEGMENT &&
+                    line_node->symbolic_coords && line_node->coord_count >= 4) {
+                    double px = symbolic_coord_to_double(x_coord);
+                    double py = symbolic_coord_to_double(y_coord);
+                    double ax = symbolic_coord_to_double(line_node->symbolic_coords[0]);
+                    double ay = symbolic_coord_to_double(line_node->symbolic_coords[1]);
+                    double bx = symbolic_coord_to_double(line_node->symbolic_coords[2]);
+                    double by = symbolic_coord_to_double(line_node->symbolic_coords[3]);
+                    double det = fabs((px - ax) * (by - ay) - (py - ay) * (bx - ax));
+                    if (det > eps * 1000.0) {
+                        char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                        snprintf(desc, sizeof(desc),
+                            "点 %d 被约束在线段 %d 上（约束 %d），但行列式偏差 %.6g 超出容差。",
+                            i, line_id, cons->id, det);
+                        report_constraint_conflict(report, cons, CONFLICT_POINT_POSITION,
+                            CONFLICT_SEVERITY_WARNING, desc,
+                            "检查点坐标和线段端点是否正确。");
+                    }
+                }
+            }
+        }
     }
     
     return 0;
@@ -718,8 +769,101 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph,
 static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
                                                const ConflictDetectorConfig *config,
                                                ConflictReport *report) {
-    /* TODO: 实现循环依赖检测 */
-    /* 使用 DFS 或拓扑排序检测约束图中的环 */
+    /* DFS 检测约束图中的环 */
+    if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+    (void)config;
+
+    int max_id = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        if (graph->nodes[i] && graph->nodes[i]->id > max_id)
+            max_id = graph->nodes[i]->id;
+    }
+    if (max_id <= 0) return 0;
+
+    /* 0=白色(未访问), 1=灰色(在栈中), 2=黑色(已完成) */
+    int *color = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
+    int *parent_node = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
+    if (!color || !parent_node) {
+        lv00_free((void **)&color);
+        lv00_free((void **)&parent_node);
+        return LV00_ERROR_NULL_POINTER;
+    }
+    for (int i = 0; i <= max_id; i++) {
+        color[i] = 0;
+        parent_node[i] = -1;
+    }
+
+    /* DFS 递归栈（手动实现避免栈溢出） */
+    int *stack = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
+    int *iter = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
+    if (!stack || !iter) {
+        lv00_free((void **)&color);
+        lv00_free((void **)&parent_node);
+        lv00_free((void **)&stack);
+        lv00_free((void **)&iter);
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    for (int start = 0; start < graph->node_count; start++) {
+        GeomNode *sn = graph->nodes[start];
+        if (!sn || !sn->is_active || color[sn->id] != 0) continue;
+
+        int sp = 0;
+        stack[sp] = sn->id;
+        iter[sp] = 0;
+        color[sn->id] = 1;
+
+        while (sp >= 0) {
+            int cur = stack[sp];
+            /* 查找 cur 的所有邻接约束 */
+            int cids[128];
+            int cc = graph_find_constraints_involving(graph, cur, cids, 128);
+
+            bool found_next = false;
+            while (iter[sp] < cc) {
+                Constraint *c = graph_get_constraint(graph, cids[iter[sp]]);
+                iter[sp]++;
+                if (!c || !c->is_active) continue;
+
+                /* 遍历约束的参与者找到邻接节点 */
+                for (int p = 0; p < c->participant_count; p++) {
+                    int nb = c->participants[p];
+                    if (nb == cur || nb < 0 || nb > max_id) continue;
+
+                    if (color[nb] == 1) {
+                        /* 发现环 */
+                        char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                        snprintf(desc, sizeof(desc),
+                            "循环依赖检测到环：节点 %d → 节点 %d（经由约束 %d）。"
+                            "约束图中存在循环引用，可能导致求解器无法收敛。",
+                            cur, nb, c->id);
+                        report_constraint_conflict(report, c, CONFLICT_CYCLIC_DEPENDENCY,
+                            CONFLICT_SEVERITY_ERROR, desc,
+                            "检查约束关系，移除或打破循环依赖链。");
+                    } else if (color[nb] == 0) {
+                        color[nb] = 1;
+                        parent_node[nb] = cur;
+                        sp++;
+                        stack[sp] = nb;
+                        iter[sp] = 0;
+                        found_next = true;
+                        break;
+                    }
+                }
+                if (found_next) break;
+            }
+
+            if (!found_next) {
+                color[cur] = 2;
+                sp--;
+            }
+        }
+    }
+
+    lv00_free((void **)&color);
+    lv00_free((void **)&parent_node);
+    lv00_free((void **)&stack);
+    lv00_free((void **)&iter);
     return 0;
 }
 
@@ -778,7 +922,53 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
     /* 4. 代数检测（较耗时，最后执行） */
     if (cfg->enable_algebraic_checks &&
         (cfg->max_conflicts == 0 || report->conflict_count < cfg->max_conflicts)) {
-        /* TODO: 实现代数冲突检测 */
+        /* 代数冲突检测：检查多项式方程组是否有矛盾 */
+        /* 收集所有带数值的约束，检查过约束和矛盾方程 */
+        int eq_count = 0;
+        for (int i = 0; i < graph->constraint_count; i++) {
+            Constraint *c = graph->constraints[i];
+            if (!c || !c->is_active) continue;
+            if (c->type == CONSTRAINT_DISTANCE || c->type == CONSTRAINT_ANGLE) {
+                eq_count++;
+            }
+        }
+
+        /* 过约束检测：统计每个实体对被约束的次数 */
+        if (eq_count > 0) {
+            int *pair_constraint_count = (int *)lv00_calloc(
+                sizeof(int), (size_t)(graph->node_count * graph->node_count));
+            if (pair_constraint_count) {
+                for (int i = 0; i < graph->constraint_count; i++) {
+                    Constraint *c = graph->constraints[i];
+                    if (!c || !c->is_active) continue;
+                    if (c->type != CONSTRAINT_DISTANCE && c->type != CONSTRAINT_ANGLE) continue;
+                    if (c->participant_count < 2) continue;
+                    int a = c->participants[0], b = c->participants[1];
+                    if (a >= 0 && b >= 0 &&
+                        a < graph->node_count && b < graph->node_count) {
+                        pair_constraint_count[a * graph->node_count + b]++;
+                        pair_constraint_count[b * graph->node_count + a]++;
+                    }
+                }
+                /* 检查过约束的实体对 */
+                for (int a = 0; a < graph->node_count; a++) {
+                    for (int b = a + 1; b < graph->node_count; b++) {
+                        int cnt = pair_constraint_count[a * graph->node_count + b];
+                        if (cnt > 2) {
+                            char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+                            snprintf(desc, sizeof(desc),
+                                "代数过约束：节点 %d 和 %d 之间存在 %d 个距离/角度约束，"
+                                "超过自由度允许的最大值（2 个独立约束）。",
+                                a, b, cnt);
+                            conflict_report_add(report, CONFLICT_ALGEBRAIC_OVERCONSTRAINED,
+                                CONFLICT_SEVERITY_WARNING, desc,
+                                "移除冗余约束，保留最严格的约束。");
+                        }
+                    }
+                }
+                lv00_free((void **)&pair_constraint_count);
+            }
+        }
     }
     
     return 0;
@@ -807,8 +997,42 @@ int lv00_conflict_detect_for_node(const ConstraintGraph *graph,
                                    ConflictReport *report) {
     if (!graph || !report) return LV00_ERROR_NULL_POINTER;
     
-    /* TODO: 实现针对特定节点的检测 */
-    /* 只检查涉及该节点的约束 */
+    /* 针对特定节点的检测：只检查涉及该节点的约束 */
+    GeomNode *target = graph_get_node(graph, node_id);
+    if (!target || !target->is_active) {
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    /* 收集涉及该节点的所有约束 */
+    int constraint_ids[128];
+    int c_count = graph_find_constraints_involving(graph, node_id, constraint_ids, 128);
+
+    /* 两两检查这些约束之间的兼容性 */
+    for (int i = 0; i < c_count; i++) {
+        Constraint *ci = graph_get_constraint(graph, constraint_ids[i]);
+        if (!ci || !ci->is_active) continue;
+        for (int j = i + 1; j < c_count; j++) {
+            Constraint *cj = graph_get_constraint(graph, constraint_ids[j]);
+            if (!cj || !cj->is_active) continue;
+            check_constraint_pair_conflict(graph, ci, cj,
+                &g_default_config, report);
+        }
+    }
+
+    /* 检查结构有效性 */
+    for (int i = 0; i < c_count; i++) {
+        Constraint *c = graph_get_constraint(graph, constraint_ids[i]);
+        if (!c || !c->is_active) continue;
+        if (constraint_has_duplicate_participants(c)) {
+            char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+            snprintf(desc, sizeof(desc),
+                "节点 %d 的约束 %d 包含重复参与者。",
+                node_id, c->id);
+            report_constraint_conflict(report, c, CONFLICT_UNKNOWN,
+                CONFLICT_SEVERITY_WARNING, desc,
+                "检查约束参与者是否正确。");
+        }
+    }
     
     return 0;
 }
@@ -818,8 +1042,41 @@ int lv00_conflict_detect_for_constraint(const ConstraintGraph *graph,
                                          ConflictReport *report) {
     if (!graph || !report) return LV00_ERROR_NULL_POINTER;
     
-    /* TODO: 实现针对特定约束的检测 */
-    /* 检查该约束与其他所有约束的兼容性 */
+    /* 针对特定约束的检测：检查该约束与其他所有约束的兼容性 */
+    Constraint *target = graph_get_constraint(graph, constraint_id);
+    if (!target || !target->is_active) {
+        return LV00_ERROR_NULL_POINTER;
+    }
+
+    /* 与所有其他活跃约束两两检查 */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        if (i == constraint_id) continue;
+        Constraint *other = graph->constraints[i];
+        if (!other || !other->is_active) continue;
+        check_constraint_pair_conflict(graph, target, other,
+            &g_default_config, report);
+    }
+
+    /* 检查约束自身的结构有效性 */
+    int expected = expected_participant_count(target->type);
+    if (expected >= 0 && target->participant_count != expected) {
+        char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+        snprintf(desc, sizeof(desc),
+            "约束 %d（类型 %d）期望 %d 个参与者，实际有 %d 个。",
+            constraint_id, target->type, expected, target->participant_count);
+        report_constraint_conflict(report, target, CONFLICT_UNKNOWN,
+            CONFLICT_SEVERITY_ERROR, desc,
+            "按约束类型重新创建约束，确保参与者数量正确。");
+    }
+    if (constraint_has_duplicate_participants(target)) {
+        char desc[CONFLICT_MAX_DESCRIPTION_LEN];
+        snprintf(desc, sizeof(desc),
+            "约束 %d 包含重复参与者，可能表示退化几何关系。",
+            constraint_id);
+        report_constraint_conflict(report, target, CONFLICT_UNKNOWN,
+            CONFLICT_SEVERITY_WARNING, desc,
+            "检查约束参与者是否互不相同。");
+    }
     
     return 0;
 }

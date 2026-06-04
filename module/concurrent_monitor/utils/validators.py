@@ -40,11 +40,11 @@ def validate_process_id(process_id: str) -> str:
         ValidationError: 当进程ID为空、类型错误、
             长度超限或包含非法字符时抛出
     """
-    if not isinstance(process_id, str):
-        raise ValidationError(f"进程ID必须是字符串，当前类型: {type(process_id).__name__}")
-
     if not process_id:
         raise ValidationError("进程ID不能为空")
+
+    if not isinstance(process_id, str):
+        raise ValidationError(f"进程ID必须是字符串，当前类型: {type(process_id).__name__}")
 
     if len(process_id) > 64:
         raise ValidationError(f"进程ID长度不能超过64个字符，当前: {len(process_id)}")
@@ -76,11 +76,11 @@ def validate_command(command: str) -> str:
         ValidationError: 当命令为空、类型错误、
             长度超限或包含危险操作模式时抛出
     """
-    if not isinstance(command, str):
-        raise ValidationError(f"命令必须是字符串，当前类型: {type(command).__name__}")
-
     if not command:
         raise ValidationError("命令不能为空")
+
+    if not isinstance(command, str):
+        raise ValidationError(f"命令必须是字符串，当前类型: {type(command).__name__}")
 
     # 清理命令：去除首尾空白
     command = command.strip()

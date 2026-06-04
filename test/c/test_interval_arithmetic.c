@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_interval_arithmetic.c
  * @brief Test suite for the interval arithmetic module
  *

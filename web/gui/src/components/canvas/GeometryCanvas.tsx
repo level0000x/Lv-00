@@ -4,22 +4,6 @@
  *              Main canvas component that wraps the Renderer and InteractionManager.
  *              处理画布初始化、渲染循环和生命周期管理。
  *              Handles canvas initialization, rendering loop, and lifecycle management.
- *
- * 主要功能 / Key Features:
- * - 创建并管理 HTML5 Canvas 元素，处理高 DPI 适配
- * - 桥接框架无关的渲染引擎（Renderer）与 React 状态管理（Zustand）
- * - 管理交互管理器（InteractionManager），支持平移、缩放、点选、框选、拖拽等操作
- * - 监听全局状态变化（点、线段、区域、约束等），自动触发重绘
- * - 处理画布尺寸变化和窗口 resize 事件
- * - 支持右键菜单的线段拾取（基于点到线段距离计算）
- * - 集成 CanvasToolbar、CanvasOverlay、CanvasInfo 等子组件
- *
- * 使用示例 / Usage:
- *   // 在 App 布局中直接使用，无需传入 props
- *   <GeometryCanvas />
- *
- *   // 组件内部自动从 useAppStore 获取所有状态
- *   // 包括 points, segments, constraints, viewport 等
  */
 
 import React, { useRef, useEffect, useCallback } from 'react';

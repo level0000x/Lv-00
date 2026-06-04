@@ -74,8 +74,7 @@ static void state_destroy(NodeStateSpace *s) {
     }
     free(s->coord_dims);
     s->coord_dims = NULL;
-    s->coord_count = 0;
-    s->capacity = 0;
+    free(s);
 }
 
 /** @brief 深拷贝节点状态空间 */
@@ -99,7 +98,6 @@ static NodeStateSpace *state_deep_copy(const NodeStateSpace *src) {
         dst->coord_dims = (int *)calloc((size_t)dst->capacity, sizeof(int));
         if (!dst->possible_coords || !dst->coord_dims) {
             state_destroy(dst);
-            free(dst);
             return NULL;
         }
         for (int i = 0; i < src->coord_count; i++) {
@@ -297,10 +295,7 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
 
     for (int i = 0; i < ctx->state_count; i++) {
         state_destroy(&ctx->state_spaces[i]);
-        NodeStateSpace *new_state = state_create(i);
-        if (!new_state) return PROP_RESULT_CONTRADICTION;
-        ctx->state_spaces[i] = *new_state;
-        free(new_state);  /* 复制后释放临时壳对象 */
+        ctx->state_spaces[i] = *(state_create(i));
     }
 
     for (int i = 0; i < ctx->graph->node_count; i++) {
@@ -486,7 +481,6 @@ PropagationResult propagation_run(PropagationContext *ctx) {
     int iterations = 0;
 
     while (ctx->queue_size > 0 && iterations < ctx->max_iterations) {
-        int initial_queue_size = ctx->queue_size;
         int node_id;
         if (!queue_pop(ctx, &node_id)) break;
 
@@ -508,16 +502,12 @@ PropagationResult propagation_run(PropagationContext *ctx) {
                     }
                 }
 
-                /* 将受影响的邻域节点重新入队。
-                 * 若本轮仅处理已坍缩/无候选状态而没有实际修剪，队列大小不会下降，
-                 * 为避免稳定系统中无限重复入队，此时不再追加邻域节点。 */
-                if (ctx->prune_count > 0 || ctx->queue_size < initial_queue_size) {
-                    Constraint *c = graph_get_constraint(ctx->graph, constraint_ids[i]);
-                    if (c && c->is_active) {
-                        for (int p = 0; p < c->participant_count; p++) {
-                            if (c->participants[p] != node_id) {
-                                queue_push(ctx, c->participants[p]);
-                            }
+                /* 将受影响的邻域节点重新入队 */
+                Constraint *c = graph_get_constraint(ctx->graph, constraint_ids[i]);
+                if (c && c->is_active) {
+                    for (int p = 0; p < c->participant_count; p++) {
+                        if (c->participants[p] != node_id) {
+                            queue_push(ctx, c->participants[p]);
                         }
                     }
                 }
@@ -618,10 +608,38 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
     case PROP_COLLAPSE_FIRST:
         selected_index = 0;
         break;
-    case PROP_COLLAPSE_WEIGHTED:
-        /* 简化实现：使用第一个候选 */
-        /* TODO: 实现基于约束兼容性的加权随机选择 */
-        selected_index = 0;
+    case PROP_COLLAPSE_WEIGHTED: {
+        /* 基于约束兼容性的加权随机选择 */
+        /* 计算每个候选坐标的兼容性权重：与邻域约束兼容的数量 */
+        double *weights = (double *)calloc((size_t)ss->coord_count, sizeof(double));
+        if (weights && ss->coord_count > 0) {
+            int cids[128];
+            int nc = graph_find_constraints_involving(ctx->graph, node_id, cids, 128);
+            for (int k = 0; k < ss->coord_count; k++) {
+                double w = 1.0;
+                for (int ci = 0; ci < nc; ci++) {
+                    Constraint *c = graph_get_constraint(ctx->graph, cids[ci]);
+                    if (c && c->is_active &&
+                        check_constraint_compatible(ss->possible_coords[k], c, ctx->graph)) {
+                        w += 1.0;
+                    }
+                }
+                weights[k] = w;
+            }
+            /* 计算总权重 */
+            double total = 0.0;
+            for (int k = 0; k < ss->coord_count; k++) total += weights[k];
+            /* 加权随机选择（轮盘赌算法） */
+            if (total > 0.0) {
+                double r = ((double)rand() / (double)RAND_MAX) * total;
+                double accum = 0.0;
+                for (int k = 0; k < ss->coord_count; k++) {
+                    accum += weights[k];
+                    if (r <= accum) { selected_index = k; break; }
+                }
+            }
+            free(weights);
+        }
         break;
     }
 
@@ -761,11 +779,7 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     for (int i = 0; i < snap->state_count && i < ctx->state_count; i++) {
         ctx->state_spaces[i] = snap->states[i];
         /* 防止 double-free：将快照中的指针置空 */
-        NodeStateSpace *empty_state = state_create(-1);
-        if (empty_state) {
-            snap->states[i] = *empty_state;
-            free(empty_state);
-        }
+        snap->states[i] = *(state_create(-1)); /* 空壳 */
     }
 
     ctx->propagation_steps = snap->propagation_steps;

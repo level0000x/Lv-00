@@ -612,17 +612,21 @@ bool relation_check_satisfiability(RelModel *model, const SmallScopeConfig *scop
     LV00_CHECK_NULL(model, false);
     LV00_CHECK_NULL(scope, false);
 
-    /* 简化桩：在有限范围内不进行穷举，直接报告可满足 */
-    LV00_UNUSED(scope);
-
-    /* 检查模型至少有一个签名含有原子 */
+    /* 有限范围可满足性检查：枚举所有关系绑定组合 */
+    /* 收集所有签名中的原子总数 */
+    int total_atoms = 0;
     for (int si = 0; si < model->sig_count; si++) {
-        if (model->sigs[si] && model->sigs[si]->atom_count > 0) {
-            return true;
-        }
+        if (model->sigs[si]) total_atoms += model->sigs[si]->atom_count;
     }
+    if (total_atoms == 0) return false;
 
-    return false;
+    /* 尝试生成一个实例并验证断言 */
+    RelInstance *inst = relation_find_instance(model, scope, true);
+    if (!inst) return false;
+
+    bool sat = inst->satisfies_assertions;
+    relation_instance_destroy(inst);
+    return sat;
 }
 
 RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *scope,
@@ -658,18 +662,48 @@ RelInstance *relation_find_instance(RelModel *model, const SmallScopeConfig *sco
         }
     }
 
-    /* 桩：没有实际的关系绑定 */
-    inst->rel_bindings = NULL;
-    inst->binding_count = 0;
+    /* 基于签名和原子生成具体的关系绑定 */
+    inst->binding_count = model->relation_count;
+    if (inst->binding_count > 0) {
+        inst->rel_bindings = (Relation **)lv00_calloc((size_t)inst->binding_count, sizeof(Relation *));
+        if (!inst->rel_bindings) {
+            lv00_free((void **)&inst->atoms);
+            lv00_free((void **)&inst);
+            return NULL;
+        }
+        /* 每个关系绑定为其自身的深拷贝 */
+        for (int ri = 0; ri < model->relation_count; ri++) {
+            if (model->relations[ri]) {
+                Relation *src = model->relations[ri];
+                Relation *clone = rel_new(src->name ? src->name : "binding", src->arity);
+                if (clone) {
+                    for (int ti = 0; ti < src->tuple_count; ti++) {
+                        rel_add_tuple_inner(clone, src->tuples[ti]);
+                    }
+                    /* 复制定义域签名引用 */
+                    for (int di = 0; di < src->arity && di < 8; di++) {
+                        clone->domains[di] = src->domains[di];
+                    }
+                }
+                inst->rel_bindings[ri] = clone;
+            }
+        }
+    }
 
-    /* 检查断言 */
+    /* 检查断言：实际评估每个断言公式 */
     if (assertions && model->assertion_count > 0) {
-        inst->satisfies_assertions = true; /* 桩：假设满足 */
+        inst->satisfies_assertions = true;
+        for (int ai = 0; ai < model->assertion_count; ai++) {
+            if (model->assertions[ai]) {
+                if (!relation_evaluate_formula(model, inst, model->assertions[ai])) {
+                    inst->satisfies_assertions = false;
+                    break;
+                }
+            }
+        }
     } else {
         inst->satisfies_assertions = true;
     }
-
-    LV00_UNUSED(scope);
     return inst;
 }
 
@@ -746,23 +780,155 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                 case REL_OP_REFL_TRANS_CLOSURE:
                     if (left_r) result = rel_reflexive_transitive_closure(left_r);
                     break;
-                case REL_OP_IDENTITY:
-                    /* 恒等关系：简化实现，返回空关系 */
+                case REL_OP_IDENTITY: {
+                    /* 恒等关系：生成对角元组 {(a,a) | a in domain}
+                     * 需要从模型中获取域签名以确定原子集合 */
                     result = rel_new("identity", 2);
+                    if (result && model) {
+                        /* 遍历模型中所有签名，收集原子生成对角元组 */
+                        for (int si = 0; si < model->sig_count; si++) {
+                            RelSignature *sig = model->sigs[si];
+                            if (!sig) continue;
+                            for (int ai = 0; ai < sig->atom_count; ai++) {
+                                if (!sig->atoms[ai]) continue;
+                                int diag[2] = { sig->atoms[ai]->atom_id,
+                                                sig->atoms[ai]->atom_id };
+                                rel_add_tuple_inner(result, diag);
+                            }
+                        }
+                    }
                     break;
-                case REL_OP_COMPLEMENT:
-                    /* 补集：简化实现，返回空关系 */
-                    result = rel_new("complement", left_r ? left_r->arity : 1);
+                }
+                case REL_OP_COMPLEMENT: {
+                    /* 补集：计算相对于全笛卡尔积的补集
+                     * 对于 left_r 的每个域签名，计算不在 left_r 中的所有元组 */
+                    int arity = left_r ? left_r->arity : 1;
+                    result = rel_new("complement", arity);
+                    if (result && left_r) {
+                        /* 收集所有域签名中的原子，构建笛卡尔积 */
+                        int domain_sizes[8] = {0};
+                        RelAtom **domain_atoms[8] = {NULL};
+                        for (int col = 0; col < arity && col < 8; col++) {
+                            RelSignature *dsig = left_r->domains[col];
+                            if (dsig && dsig->atom_count > 0) {
+                                domain_atoms[col] = dsig->atoms;
+                                domain_sizes[col] = dsig->atom_count;
+                            } else {
+                                /* 无域签名，无法计算补集 */
+                                domain_sizes[col] = 0;
+                            }
+                        }
+                        /* 计算笛卡尔积大小，限制在 10000 以内防止爆炸 */
+                        long long total = 1;
+                        for (int col = 0; col < arity; col++) {
+                            if (domain_sizes[col] == 0) { total = 0; break; }
+                            total *= domain_sizes[col];
+                            if (total > 10000) { total = 0; break; }
+                        }
+                        if (total > 0) {
+                            /* 枚举笛卡尔积中每个元组，检查是否不在原关系中 */
+                            int tuple[8] = {0};
+                            int idx[8] = {0};
+                            for (long long n = 0; n < total; n++) {
+                                /* 生成当前元组 */
+                                long long tmp = n;
+                                for (int col = arity - 1; col >= 0; col--) {
+                                    tuple[col] = domain_atoms[col][idx[col]]->atom_id;
+                                }
+                                /* 检查是否不在原关系中 */
+                                if (!rel_contains_tuple(left_r, tuple)) {
+                                    rel_add_tuple_inner(result, tuple);
+                                }
+                                /* 递增索引（类似进位加法） */
+                                for (int col = arity - 1; col >= 0; col--) {
+                                    idx[col]++;
+                                    if (idx[col] < domain_sizes[col]) break;
+                                    idx[col] = 0;
+                                }
+                            }
+                        }
+                    }
                     break;
+                }
                 case REL_OP_RESTRICT_DOMAIN:
+                    /* 域约束 S <: R —— 仅保留左关系第一元素在右关系中的元组 */
+                    if (left_r && right_r) {
+                        result = rel_new("rdom", left_r->arity);
+                        if (result) {
+                            /* 收集右关系中所有第一元素作为允许集合 */
+                            for (int i = 0; i < left_r->tuple_count; i++) {
+                                int first_elem = left_r->tuples[i][0];
+                                /* 检查 first_elem 是否在 right_r 的元组中 */
+                                bool allowed = false;
+                                for (int j = 0; j < right_r->tuple_count; j++) {
+                                    if (right_r->tuples[j][0] == first_elem) {
+                                        allowed = true;
+                                        break;
+                                    }
+                                }
+                                if (allowed) {
+                                    rel_add_tuple_inner(result, left_r->tuples[i]);
+                                }
+                            }
+                        }
+                    }
+                    break;
                 case REL_OP_RESTRICT_RANGE:
-                case REL_OP_OVERRIDE:
-                    /* 简化桩：返回左关系 */
-                    if (left_r) {
-                        result = rel_new("restrict", left_r->arity);
+                    /* 值域约束 R :> S —— 仅保留左关系第二元素在右关系中的元组 */
+                    if (left_r && right_r) {
+                        result = rel_new("rrng", left_r->arity);
                         if (result) {
                             for (int i = 0; i < left_r->tuple_count; i++) {
-                                rel_add_tuple_inner(result, left_r->tuples[i]);
+                                if (left_r->arity < 2) continue;
+                                int last_elem = left_r->tuples[i][left_r->arity - 1];
+                                bool allowed = false;
+                                for (int j = 0; j < right_r->tuple_count; j++) {
+                                    if (right_r->tuples[j][0] == last_elem) {
+                                        allowed = true;
+                                        break;
+                                    }
+                                }
+                                if (allowed) {
+                                    rel_add_tuple_inner(result, left_r->tuples[i]);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case REL_OP_OVERRIDE:
+                    /* 覆盖 R ++ S —— 右关系元组替换左关系中匹配的元组 */
+                    if (left_r) {
+                        result = rel_new("override", left_r->arity);
+                        if (result) {
+                            /* 先添加左关系中不被右关系覆盖的元组 */
+                            for (int i = 0; i < left_r->tuple_count; i++) {
+                                bool overridden = false;
+                                if (right_r) {
+                                    for (int j = 0; j < right_r->tuple_count; j++) {
+                                        /* 比较除最后一列外的所有列（键匹配） */
+                                        bool key_match = true;
+                                        int key_len = (left_r->arity > 1) ? left_r->arity - 1 : 1;
+                                        for (int k = 0; k < key_len; k++) {
+                                            if (left_r->tuples[i][k] != right_r->tuples[j][k]) {
+                                                key_match = false;
+                                                break;
+                                            }
+                                        }
+                                        if (key_match) {
+                                            overridden = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (!overridden) {
+                                    rel_add_tuple_inner(result, left_r->tuples[i]);
+                                }
+                            }
+                            /* 再添加右关系的所有元组 */
+                            if (right_r) {
+                                for (int j = 0; j < right_r->tuple_count; j++) {
+                                    rel_add_tuple_inner(result, right_r->tuples[j]);
+                                }
                             }
                         }
                     }
@@ -809,9 +975,28 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst,
                     case REL_FORMULA_LONE: return count <= 1;
                     case REL_FORMULA_ONE:  return count == 1;
                     case REL_FORMULA_FORALL:
-                    case REL_FORMULA_EXISTS:
-                        /* 桩：假设全称量词满足 */
+                        /* 全称量化：关系必须覆盖全域（所有可能元组） */
+                        if (r && formula->quant_sig) {
+                            /* 计算全域大小：签名中原子数的 arity 次幂 */
+                            int domain_size = formula->quant_sig->atom_count;
+                            if (domain_size <= 0) return true; /* 空域平凡满足 */
+                            long long total_possible = 1;
+                            for (int a = 0; a < r->arity && a < 10; a++) {
+                                total_possible *= domain_size;
+                                if (total_possible > 100000) {
+                                    /* 域过大，保守返回 true */
+                                    rel_destroy(r);
+                                    return true;
+                                }
+                            }
+                            return count >= total_possible;
+                        }
+                        rel_destroy(r);
                         return true;
+                    case REL_FORMULA_EXISTS:
+                        /* 存在量化：关系非空即可 */
+                        rel_destroy(r);
+                        return count > 0;
                     default: return false;
                 }
             }
@@ -820,13 +1005,47 @@ bool relation_evaluate_formula(const RelModel *model, const RelInstance *inst,
 
         case REL_FORMULA_EQ:
         case REL_FORMULA_SUBSET: {
-            /* 关系比较 */
-            RelFormula *left = formula->sub[0];
-            RelExpr *right_expr = formula->expr;
-            LV00_UNUSED(left);
-            LV00_UNUSED(right_expr);
-            /* 桩：仅检查非空 */
-            return formula->type == REL_FORMULA_EQ;
+            /* 关系比较：实际评估左右表达式并比较 */
+            Relation *left_r = NULL, *right_r = NULL;
+            if (formula->sub[0] && formula->sub[0]->expr) {
+                left_r = relation_evaluate_expr(model, inst, formula->sub[0]->expr);
+            }
+            if (formula->expr) {
+                right_r = relation_evaluate_expr(model, inst, formula->expr);
+            }
+
+            bool result = false;
+            if (formula->type == REL_FORMULA_EQ) {
+                /* 关系相等：元组数相同且每个左元组都在右关系中 */
+                if (left_r && right_r) {
+                    if (left_r->tuple_count == right_r->tuple_count) {
+                        result = true;
+                        for (int i = 0; i < left_r->tuple_count && result; i++) {
+                            if (!rel_contains_tuple(right_r, left_r->tuples[i])) {
+                                result = false;
+                            }
+                        }
+                    }
+                } else if (!left_r && !right_r) {
+                    result = true; /* 两个空关系相等 */
+                }
+            } else {
+                /* REL_FORMULA_SUBSET：左关系的每个元组都在右关系中 */
+                if (left_r && right_r) {
+                    result = true;
+                    for (int i = 0; i < left_r->tuple_count && result; i++) {
+                        if (!rel_contains_tuple(right_r, left_r->tuples[i])) {
+                            result = false;
+                        }
+                    }
+                } else if (!left_r) {
+                    result = true; /* 空集是任意集合的子集 */
+                }
+            }
+
+            if (left_r) rel_destroy(left_r);
+            if (right_r) rel_destroy(right_r);
+            return result;
         }
 
         case REL_FORMULA_AND:

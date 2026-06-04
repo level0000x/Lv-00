@@ -13,20 +13,15 @@
  * @version 1.0.0
  * @date 2026-05-29
  */
-
 #ifndef LV00_BOOTSTRAP_TEST_H
 #define LV00_BOOTSTRAP_TEST_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-
 /* ============== 前向声明 ============== */
-
 typedef struct BootstrapDiffTest BootstrapDiffTest;
 typedef struct BootstrapDiffTestResult BootstrapDiffTestResult;
 typedef struct RandomGenerator RandomGenerator;
@@ -35,9 +30,7 @@ typedef struct GraphIsomorphismComparator GraphIsomorphismComparator;
 typedef struct PrimitiveWrapper PrimitiveWrapper;
 typedef struct PrimitiveTestResult PrimitiveTestResult;
 typedef struct TestOracle TestOracle;
-
 /* ============== 差分测试结果 ============== */
-
 /**
  * @brief 差分比较结果类型
  */
@@ -49,7 +42,6 @@ typedef enum {
     DIFF_RESULT_ERROR,             /**< 执行错误 */
     DIFF_RESULT_TIMEOUT            /**< 执行超时 */
 } DiffComparisonResult;
-
 /**
  * @brief 差分测试结果结构
  */
@@ -69,9 +61,7 @@ struct BootstrapDiffTestResult {
     /* 错误信息 */
     char *error_message;                /**< 错误消息 */
 };
-
 /* ============== 随机生成器配置 ============== */
-
 /**
  * @brief 随机生成器配置结构
  */
@@ -99,9 +89,7 @@ struct RandomGeneratorConfig {
     /* 种子 */
     uint64_t seed;                      /**< 随机种子 */
 };
-
 /* ============== 原语测试结果 ============== */
-
 /**
  * @brief 原语测试结果结构
  */
@@ -116,28 +104,22 @@ struct PrimitiveTestResult {
     
     int64_t execution_time_ns;          /**< 执行时间 */
 };
-
 /* ============== 框架初始化 ============== */
-
 /**
  * @brief 初始化自举测试框架
  * @return 是否成功
  */
 bool bootstrap_test_framework_init(void);
-
 /**
  * @brief 清理自举测试框架
  */
 void bootstrap_test_framework_cleanup(void);
-
 /**
  * @brief 检查框架是否已初始化
  * @return 是否已初始化
  */
 bool bootstrap_test_framework_is_initialized(void);
-
 /* ============== 差分测试 API ============== */
-
 /**
  * @brief 创建差分测试
  * @param test_name 测试名称
@@ -146,26 +128,22 @@ bool bootstrap_test_framework_is_initialized(void);
  */
 BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name,
                                                const char *dsl_source);
-
 /**
  * @brief 销毁差分测试
  * @param test 差分测试对象
  */
 void bootstrap_diff_test_destroy(BootstrapDiffTest *test);
-
 /**
  * @brief 执行差分测试
  * @param test 差分测试对象
  * @return 测试结果
  */
 BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test);
-
 /**
  * @brief 销毁差分测试结果
  * @param result 测试结果
  */
 void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result);
-
 /**
  * @brief 执行批量差分测试
  * @param tests 测试数组
@@ -176,42 +154,35 @@ void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result);
 uint32_t bootstrap_diff_test_run_batch(BootstrapDiffTest **tests,
                                         uint32_t count,
                                         BootstrapDiffTestResult **out_results);
-
 /* ============== 随机生成器 API ============== */
-
 /**
  * @brief 创建随机生成器
  * @param config 配置参数
  * @return 生成器对象
  */
 RandomGenerator *random_generator_create(const RandomGeneratorConfig *config);
-
 /**
  * @brief 销毁随机生成器
  * @param gen 生成器对象
  */
 void random_generator_destroy(RandomGenerator *gen);
-
 /**
  * @brief 获取默认配置
  * @return 默认配置结构
  */
 RandomGeneratorConfig random_generator_default_config(void);
-
 /**
  * @brief 生成随机约束图
  * @param gen 生成器对象
  * @return 约束图（需由调用者销毁）
  */
 void *random_generator_generate_graph(RandomGenerator *gen);
-
 /**
  * @brief 生成随机 DSL 源码
  * @param gen 生成器对象
  * @return DSL 源码字符串（需由调用者释放）
  */
 char *random_generator_generate_dsl(RandomGenerator *gen);
-
 /**
  * @brief 批量生成约束图
  * @param gen 生成器对象
@@ -222,28 +193,23 @@ char *random_generator_generate_dsl(RandomGenerator *gen);
 uint32_t random_generator_generate_batch(RandomGenerator *gen,
                                           void **out_graphs,
                                           uint32_t count);
-
 /**
  * @brief 重置生成器种子
  * @param gen 生成器对象
  * @param seed 新种子
  */
 void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed);
-
 /* ============== 图同构比较器 API ============== */
-
 /**
  * @brief 创建图同构比较器
  * @return 比较器对象
  */
 GraphIsomorphismComparator *graph_isomorphism_create(void);
-
 /**
  * @brief 销毁图同构比较器
  * @param comp 比较器对象
  */
 void graph_isomorphism_destroy(GraphIsomorphismComparator *comp);
-
 /**
  * @brief 配置比较器
  * @param comp 比较器对象
@@ -255,7 +221,6 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
                                   bool ignore_ids,
                                   bool compare_coords,
                                   double coord_tolerance);
-
 /**
  * @brief 比较两个图是否同构
  * @param comp 比较器对象
@@ -266,14 +231,12 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp,
 bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
                                 const void *graph_a,
                                 const void *graph_b);
-
 /**
  * @brief 计算图哈希
  * @param graph 图对象
  * @return 哈希值
  */
 uint64_t graph_isomorphism_hash(const void *graph);
-
 /**
  * @brief 查找同构映射
  * @param comp 比较器对象
@@ -288,20 +251,16 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
                                      const void *graph_b,
                                      int **out_node_mapping,
                                      int **out_constraint_mapping);
-
 /* ============== 原语包装器 API ============== */
-
 /**
  * @brief 初始化原语包装器
  * @return 是否成功
  */
 bool primitive_wrapper_init(void);
-
 /**
  * @brief 清理原语包装器
  */
 void primitive_wrapper_cleanup(void);
-
 /**
  * @brief 注册原语
  * @param name 原语名称
@@ -316,7 +275,6 @@ bool primitive_wrapper_register(const char *name,
                                  const char **param_types,
                                  uint32_t param_count,
                                  const char *return_type);
-
 /**
  * @brief 执行单个原语差分测试
  * @param name 原语名称
@@ -325,13 +283,11 @@ bool primitive_wrapper_register(const char *name,
  */
 PrimitiveTestResult *primitive_wrapper_test(const char *name,
                                              void **params);
-
 /**
  * @brief 销毁原语测试结果
  * @param result 测试结果
  */
 void primitive_test_result_destroy(PrimitiveTestResult *result);
-
 /**
  * @brief 执行所有原语的差分测试
  * @param out_results 输出结果数组
@@ -340,7 +296,6 @@ void primitive_test_result_destroy(PrimitiveTestResult *result);
  */
 uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results,
                                      uint32_t max_count);
-
 /**
  * @brief 获取原语统计信息
  * @param name 原语名称
@@ -352,21 +307,17 @@ void primitive_wrapper_get_stats(const char *name,
                                   uint32_t *out_total,
                                   uint32_t *out_passed,
                                   uint32_t *out_failed);
-
 /* ============== 测试预言机 API ============== */
-
 /**
  * @brief 创建测试预言机
  * @return 预言机对象
  */
 TestOracle *test_oracle_create(void);
-
 /**
  * @brief 销毁测试预言机
  * @param oracle 预言机对象
  */
 void test_oracle_destroy(TestOracle *oracle);
-
 /**
  * @brief 验证归一化幂等性
  * @param oracle 预言机对象
@@ -375,7 +326,6 @@ void test_oracle_destroy(TestOracle *oracle);
  */
 bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
                                                   void *graph);
-
 /**
  * @brief 验证求解正确性
  * @param oracle 预言机对象
@@ -386,7 +336,6 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle,
 bool test_oracle_verify_solution_correct(TestOracle *oracle,
                                           const void *graph,
                                           const void *solution);
-
 /**
  * @brief 验证证明有效性
  * @param oracle 预言机对象
@@ -395,7 +344,6 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle,
  */
 bool test_oracle_verify_proof_valid(TestOracle *oracle,
                                      const void *trace);
-
 /**
  * @brief 验证序列化往返正确性
  * @param oracle 预言机对象
@@ -408,9 +356,7 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
                                              const void *graph,
                                              const char *serialized,
                                              const void *deserialized);
-
 /* ============== 报告生成 ============== */
-
 /**
  * @brief 生成差分测试报告
  * @param results 结果数组
@@ -421,7 +367,6 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle,
 char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
                                       uint32_t count,
                                       const char *format);
-
 /**
  * @brief 将报告写入文件
  * @param results 结果数组
@@ -434,9 +379,7 @@ bool bootstrap_test_write_report(BootstrapDiffTestResult **results,
                                   uint32_t count,
                                   const char *filepath,
                                   const char *format);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_BOOTSTRAP_TEST_H */

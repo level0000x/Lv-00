@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_intuitionistic_propositional_logic.c
  * @brief Intuitionistic Propositional Logic (Heyting 1930) Axiom Package Test
  *

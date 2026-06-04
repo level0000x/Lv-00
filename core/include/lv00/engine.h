@@ -22,6 +22,10 @@
 #ifndef LV00_ENGINE_H
 #define LV00_ENGINE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "config.h"
 #include "axiom_pkg.h"
 #include "constraint_graph.h"
@@ -32,14 +36,6 @@
 #include "solver.h"
 #include "stream.h"
 #include "unify.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* ============================================================
  * 五层架构层级标识（v3.3）
@@ -100,8 +96,10 @@ Check that the source file belongs to a CMake layer target (lv00_layerN_*)."
  */
 #define LV00_ALLOW_LAYER(min_layer) \
     _Static_assert(LV00_CURRENT_LAYER >= (min_layer), \
-        "LV00 layer boundary violation: current layer may not call the requested lower layer. " \
-        "Only upper layers may call lower layers. See docs/ARCHITECTURE_v3.5.md")
+        "LV00 layer boundary violation: layer " #LV00_CURRENT_LAYER \
+        " may not call functions from layer " #min_layer \
+        " (only upper layers may call lower layers)." \
+        " See docs/ARCHITECTURE_v3.3.md")
 
 /**
  * @brief 编译时断言：当前层可以直接调用目标层
@@ -113,7 +111,8 @@ Check that the source file belongs to a CMake layer target (lv00_layerN_*)."
  */
 #define LV00_REQUIRE_STRICTLY_ABOVE(target_layer) \
     _Static_assert(LV00_CURRENT_LAYER > (target_layer), \
-        "LV00 layer boundary violation: current layer must be strictly above the target layer")
+        "LV00 layer boundary violation: layer " #LV00_CURRENT_LAYER \
+        " must be strictly above layer " #target_layer)
 
 #else
 /* 未启用层级验证时，所有检查宏均为空操作 */

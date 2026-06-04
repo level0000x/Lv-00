@@ -15,13 +15,13 @@
  *   - selector_create / selector_apply        — 多解选择器
  *
  * 使用示例：
-  *   FuncBlock *fb = func_block_create(1);
- *   func_block_set_internal_nodes(fb, node_ids, count);
- *   func_block_set_input_ports(fb, in_ports, in_count);
- *   func_block_set_output_ports(fb, out_ports, out_count);
+ LV00_PUBLIC_API *   FuncBlock *fb = func_block_create(1);
+ LV00_PUBLIC_API *   func_block_set_internal_nodes(fb, node_ids, count);
+ LV00_PUBLIC_API *   func_block_set_input_ports(fb, in_ports, in_count);
+ LV00_PUBLIC_API *   func_block_set_output_ports(fb, out_ports, out_count);
  *   PackConfig config = { ... };
  *   FuncBlock *result;
-  *   PackResult pr = func_block_pack_ex(graph, &config, &result);
+ LV00_PUBLIC_API *   PackResult pr = func_block_pack_ex(graph, &config, &result);
  *
  * 根据 Lv-00 设计文档第8节实现：
  * - 打包操作（PackFunction）
@@ -42,15 +42,10 @@
 #include <stdbool.h>
 #include <stdint.h>  /* v3.4.2: 添加 uint16_t 支持 */
 
-#include "determinism_state.h"  /* 确定性状态枚举（解决循环依赖） */
 #include "constraint_graph.h"
 #include "func_block_utils.h"
 #include "stream.h"
 #include "symbolic_coord.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,10 +58,13 @@ typedef struct SolutionSelector SolutionSelector;
 
 /* ============== 确定性状态机 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
- * DeterminismState 已在 determinism_state.h 中统一定义，
- * 此处通过 #include "determinism_state.h" 自动获得。
- * 原先此处的定义已移除，避免与 GeomNode 中的匿名枚举重复。
  */
+typedef enum {
+    DETERMINISM_STATE_UNVERIFIED,        /**< 打包完成，尚未进行静态分析 */
+    DETERMINISM_STATE_VERIFIED,          /**< 静态分析确认解唯一 */
+    DETERMINISM_STATE_NON_DETERMINISTIC, /**< 应用时出现过一次多解 */
+    DETERMINISM_STATE_PARTIALLY_VERIFIED /**< 静态分析未完成但未发现冲突 */
+} DeterminismState;
 
 /* ============== 端口依赖类型 ============== */
 typedef enum {

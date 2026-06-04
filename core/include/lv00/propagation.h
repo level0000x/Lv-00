@@ -32,56 +32,41 @@
  *   propagation_context_destroy(ctx);
  *
  * ======================================================================== */
-
 /**
  * @file propagation.h
  * @brief 约束传播引擎 —— WFC 风格的动态约束传播
  */
-
 #ifndef LV00_PROPAGATION_H
 #define LV00_PROPAGATION_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 #include "constraint_graph.h"
 #include "stream.h"
 #include "symbolic_coord.h"
-
 /* ================================================================
  * 常量定义
  * ================================================================ */
-
 /** @brief 传播引擎默认最大迭代轮次 */
 #define PROP_DEFAULT_MAX_ITERATIONS 10000
-
 /** @brief 传播引擎默认最大回溯次数 */
 #define PROP_DEFAULT_MAX_BACKTRACKS 1000
-
 /** @brief 传播队列默认容量 */
 #define PROP_DEFAULT_QUEUE_CAPACITY 256
-
 /** @brief 快照栈默认容量 */
 #define PROP_DEFAULT_SNAPSHOT_CAPACITY 64
-
 /** @brief 节点状态空间默认初始容量 */
 #define PROP_DEFAULT_STATE_CAPACITY 8
-
 /** @brief 无穷大熵标记（表示自由变量/无界） */
 #define PROP_ENTROPY_UNBOUNDED (-1.0)
-
 /** @brief WFC 循环最大协作迭代次数 */
 #define PROP_WFC_MAX_COLLABORATION_ITERATIONS 10000
-
 /* ================================================================
  * 枚举类型
  * ================================================================ */
-
 /**
  * @brief 传播策略枚举
  *
@@ -94,7 +79,6 @@ typedef enum {
     PROP_STRATEGY_BFS,            /**< BFS: 从最近修改处广度优先传播 */
     PROP_STRATEGY_TOPOLOGICAL     /**< 拓扑序: 按依赖关系顺序选择 */
 } PropagationStrategy;
-
 /**
  * @brief 传播结果枚举
  */
@@ -105,7 +89,6 @@ typedef enum {
     PROP_RESULT_STABLE,           /**< 传播收敛，但仍有未确定节点 */
     PROP_RESULT_TIMEOUT           /**< 超时 */
 } PropagationResult;
-
 /**
  * @brief 坍缩策略枚举
  */
@@ -113,11 +96,9 @@ typedef enum {
     PROP_COLLAPSE_FIRST,          /**< 确定性：选择第一个候选 */
     PROP_COLLAPSE_WEIGHTED        /**< 加权随机：按约束兼容性加权 */
 } CollapseStrategy;
-
 /* ================================================================
  * 数据结构
  * ================================================================ */
-
 /**
  * @brief 节点状态空间
  *
@@ -134,7 +115,6 @@ typedef struct NodeStateSpace {
     SymbolicCoord *collapsed_value;    /**< 坍缩后的唯一坐标值 */
     bool is_unbounded;                 /**< 是否为无界自由变量 */
 } NodeStateSpace;
-
 /**
  * @brief 传播快照
  *
@@ -150,7 +130,6 @@ typedef struct PropagationSnapshot {
     int decision_node_id;         /**< 本次决策的节点 ID */
     int decision_coord_index;     /**< 本次决策选择的坐标索引 */
 } PropagationSnapshot;
-
 /**
  * @brief 传播上下文
  *
@@ -160,37 +139,30 @@ typedef struct PropagationContext {
     ConstraintGraph *graph;           /**< 关联约束图（只读引用，不拥有所有权） */
     NodeStateSpace *state_spaces;     /**< 每个节点的状态空间数组 */
     int state_count;                  /**< 状态空间数量（= graph->node_count） */
-
     PropagationStrategy strategy;     /**< 节点选择策略 */
     CollapseStrategy collapse_strategy; /**< 坍缩策略 */
     int max_iterations;               /**< 最大传播轮次 */
     int max_backtracks;               /**< 最大回溯次数 */
-
     /* 传播队列（环形缓冲区） */
     int *propagation_queue;           /**< 待传播节点 ID 队列 */
     int queue_head, queue_tail;
     int queue_capacity;
     int queue_size;
-
     /* 回溯栈 */
     PropagationSnapshot **snapshot_stack; /**< 快照栈 */
     int snapshot_count;
     int snapshot_capacity;
-
     /* 统计信息 */
     int64_t propagation_steps;        /**< 传播步数 */
     int64_t collapse_count;           /**< 坍缩次数 */
     int64_t backtrack_count;          /**< 回溯次数 */
     int64_t prune_count;              /**< 剪枝（状态移除）次数 */
-
     /* 流式事件 */
     StreamContext *stream_ctx;        /**< 流式输出上下文（可为 NULL） */
 } PropagationContext;
-
 /* ================================================================
  * 生命周期管理
  * ================================================================ */
-
 /**
  * @brief 创建传播上下文
  *
@@ -198,7 +170,6 @@ typedef struct PropagationContext {
  * @return 新创建的传播上下文，失败返回 NULL
  */
 PropagationContext *propagation_context_create(ConstraintGraph *graph);
-
 /**
  * @brief 销毁传播上下文
  *
@@ -208,11 +179,9 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph);
  * @param ctx  传播上下文
  */
 void propagation_context_destroy(PropagationContext *ctx);
-
 /* ================================================================
  * 状态空间初始化
  * ================================================================ */
-
 /**
  * @brief 初始化所有节点的状态空间
  *
@@ -225,7 +194,6 @@ void propagation_context_destroy(PropagationContext *ctx);
  * @return PROP_RESULT_CONSISTENT 或 PROP_RESULT_CONTRADICTION
  */
 PropagationResult propagation_init_state_spaces(PropagationContext *ctx);
-
 /**
  * @brief 获取指定节点的状态空间
  *
@@ -234,11 +202,9 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx);
  * @return 状态空间指针，节点不存在返回 NULL
  */
 NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id);
-
 /* ================================================================
  * AC-3 约束传播
  * ================================================================ */
-
 /**
  * @brief 对单个约束执行弧相容性检查
  *
@@ -253,7 +219,6 @@ NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id
  * @return true = 状态空间被收缩（有值被移除），false = 无变化
  */
 bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id);
-
 /**
  * @brief 运行 AC-3 约束传播
  *
@@ -268,11 +233,9 @@ bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id);
  * @return PropagationResult
  */
 PropagationResult propagation_run(PropagationContext *ctx);
-
 /* ================================================================
  * WFC 节点选择与坍缩
  * ================================================================ */
-
 /**
  * @brief WFC 熵最小化节点选择
  *
@@ -284,7 +247,6 @@ PropagationResult propagation_run(PropagationContext *ctx);
  * @return 节点 ID，无候选时返回 -1
  */
 int propagation_select_node(PropagationContext *ctx);
-
 /**
  * @brief 计算节点的熵
  *
@@ -292,7 +254,6 @@ int propagation_select_node(PropagationContext *ctx);
  * @return 熵值（log2），unbounded 返回 PROP_ENTROPY_UNBOUNDED
  */
 double propagation_compute_entropy(const NodeStateSpace *state);
-
 /**
  * @brief 坍缩节点状态
  *
@@ -306,11 +267,9 @@ double propagation_compute_entropy(const NodeStateSpace *state);
  * @return true = 成功坍缩, false = 状态空间为空或已坍缩
  */
 bool propagation_collapse(PropagationContext *ctx, int node_id);
-
 /* ================================================================
  * 完整 WFC 求解循环
  * ================================================================ */
-
 /**
  * @brief 完整的 WFC 求解循环
  *
@@ -324,11 +283,9 @@ bool propagation_collapse(PropagationContext *ctx, int node_id);
  * @return PropagationResult
  */
 PropagationResult propagation_wfc_solve(PropagationContext *ctx);
-
 /* ================================================================
  * 快照与回溯
  * ================================================================ */
-
 /**
  * @brief 保存传播上下文快照
  *
@@ -339,7 +296,6 @@ PropagationResult propagation_wfc_solve(PropagationContext *ctx);
  * @return 新创建的快照，失败返回 NULL
  */
 PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx);
-
 /**
  * @brief 恢复传播上下文到指定快照
  *
@@ -349,57 +305,48 @@ PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx);
  * @param snap  要恢复的快照（所有权转移，调用后不可再使用）
  */
 void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *snap);
-
 /**
  * @brief 销毁快照
  *
  * @param snap  要销毁的快照
  */
 void propagation_snapshot_destroy(PropagationSnapshot *snap);
-
 /* ================================================================
  * 配置
  * ================================================================ */
-
 /**
  * @brief 设置传播策略
  * @param ctx       传播上下文
  * @param strategy  传播策略
  */
 void propagation_set_strategy(PropagationContext *ctx, PropagationStrategy strategy);
-
 /**
  * @brief 设置坍缩策略
  * @param ctx       传播上下文
  * @param strategy  坍缩策略
  */
 void propagation_set_collapse_strategy(PropagationContext *ctx, CollapseStrategy strategy);
-
 /**
  * @brief 设置流式输出上下文
  * @param ctx  传播上下文
  * @param stream_ctx  流式上下文（可为 NULL 以禁用）
  */
 void propagation_set_stream_context(PropagationContext *ctx, StreamContext *stream_ctx);
-
 /**
  * @brief 设置最大迭代次数
  * @param ctx           传播上下文
  * @param max_iterations  最大迭代次数
  */
 void propagation_set_max_iterations(PropagationContext *ctx, int max_iterations);
-
 /**
  * @brief 设置最大回溯次数
  * @param ctx            传播上下文
  * @param max_backtracks  最大回溯次数
  */
 void propagation_set_max_backtracks(PropagationContext *ctx, int max_backtracks);
-
 /* ================================================================
  * 诊断与查询
  * ================================================================ */
-
 /**
  * @brief 获取传播统计信息
  *
@@ -414,23 +361,19 @@ void propagation_get_statistics(const PropagationContext *ctx,
                                  int64_t *out_collapses,
                                  int64_t *out_backtracks,
                                  int64_t *out_prunes);
-
 /**
  * @brief 统计未坍缩节点数量
  * @param ctx  传播上下文
  * @return 未坍缩且非 unbounded 的节点数量
  */
 int propagation_count_uncollapsed(const PropagationContext *ctx);
-
 /**
  * @brief 检查传播结果是否为 SATISFIED
  * @param ctx  传播上下文
  * @return true = 所有节点已坍缩
  */
 bool propagation_is_fully_collapsed(const PropagationContext *ctx);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_PROPAGATION_H */

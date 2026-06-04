@@ -23,9 +23,6 @@
  *   - type-explorer.css  - TypeExplorer 类型探索器树形视图
  *   - proof-svg.css      - Proof SVG View 证明可视化
  *   - shortcut-help.css  - ShortcutHelp 快捷键帮助面板（从内联样式迁移）
- *   - graph-panel.css    - GraphPanel 图模块面板专用样式
- *   - block-panel.css    - BlockPanel 函数块面板专用样式
- *   - ui-controls.css    - 通用 UI 控件样式（模块标签页、头部操作按钮）
  *   - light-theme.css    - 亮色主题覆盖样式
  *   - focus.css          - 焦点可见样式
  *
@@ -40,7 +37,6 @@
 @import './components/modal.css';
 @import './components/toast.css';
 @import './components/log.css';
-@import './components/ui-controls.css';
 
 /* === 画布相关 / Canvas Related === */
 @import './components/canvas.css';
@@ -51,7 +47,6 @@
 @import './components/help.css';
 @import './components/assistant.css';
 @import './components/formula.css';
-@import './components/formula-panel.css';
 @import './components/module-colors.css';
 @import './components/streaming.css';
 
@@ -59,10 +54,7 @@
 @import './components/error-boundary.css';
 @import './components/type-explorer.css';
 @import './components/proof-svg.css';
-@import './components/proof-panel.css';
 @import './components/shortcut-help.css';
-@import './components/graph-panel.css';
-@import './components/block-panel.css';
 
 /* === 覆盖层 / Override Layers === */
 @import './components/light-theme.css';

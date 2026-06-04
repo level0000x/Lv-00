@@ -1,5 +1,4 @@
 /**
- * @deprecated 此文件已废弃，请使用 @/types 中的替代方案。
  * @module utils/streamEventTypes
  * @description 流式事件类型定义。
  *

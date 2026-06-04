@@ -18,24 +18,18 @@
  * @version 3.3.0
  * @date   2026-05-25
  */
-
 #ifndef LV00_ODE_SOLVER_H
 #define LV00_ODE_SOLVER_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 #include "lv00.h"
-
 /* ============================================================
  * ODE method enumeration
  * ============================================================ */
-
 /**
  * @brief Numerical integration methods for ODE solving.
  */
@@ -44,11 +38,9 @@ typedef enum Lv00ODEMethod {
     ODE_RK4   = 1,   /**< Classical 4th-order Runge-Kutta */
     ODE_ADAMS = 2    /**< Adams-Bashforth multistep (placeholder) */
 } Lv00ODEMethod;
-
 /* ============================================================
  * ODE problem definition
  * ============================================================ */
-
 /**
  * @brief Right-hand-side function signature: dy/dt = rhs(t, y, params).
  *
@@ -58,7 +50,6 @@ typedef enum Lv00ODEMethod {
  * @param[out] dydt  Output derivative vector (caller-allocated, size = dim)
  */
 typedef void (*Lv00ODERhsFn)(double t, const double *y, void *params, double *dydt);
-
 /**
  * @brief Describes an ODE initial value problem.
  *
@@ -72,11 +63,9 @@ typedef struct Lv00ODEProblem {
     double          t_span[2]; /**< Integration interval [t_start, t_end] */
     void           *params;    /**< User parameters passed to rhs_fn */
 } Lv00ODEProblem;
-
 /* ============================================================
  * ODE solver configuration
  * ============================================================ */
-
 /**
  * @brief Configuration for the ODE solver.
  */
@@ -87,11 +76,9 @@ typedef struct Lv00ODEConfig {
     double        rtol;      /**< Relative tolerance (for adaptive, reserved) */
     double        atol;      /**< Absolute tolerance (for adaptive, reserved) */
 } Lv00ODEConfig;
-
 /* ============================================================
  * ODE solution
  * ============================================================ */
-
 /**
  * @brief Stores the solution trajectory of an ODE integration.
  *
@@ -104,11 +91,9 @@ typedef struct Lv00ODESolution {
     size_t  n_steps;   /**< Number of time steps stored */
     size_t  dim;       /**< Dimension of the state vector */
 } Lv00ODESolution;
-
 /* ============================================================
  * API: Solve
  * ============================================================ */
-
 /**
  * @brief Solve an ODE initial value problem.
  *
@@ -118,20 +103,16 @@ typedef struct Lv00ODESolution {
  */
 LV00_PUBLIC_API Lv00ODESolution *ode_solve(const Lv00ODEProblem *problem,
                                            const Lv00ODEConfig  *config);
-
 /* ============================================================
  * API: Destroy
  * ============================================================ */
-
 /**
  * @brief Destroy an ODE solution and free all associated memory.
  *
  * @param sol  The solution to destroy (may be NULL)
  */
 LV00_PUBLIC_API void ode_solution_destroy(Lv00ODESolution *sol);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_ODE_SOLVER_H */

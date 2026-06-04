@@ -967,7 +967,7 @@ uint32_t lv00_contradiction_path_add_node(Lv00ContradictionPath *path,
  */
 bool lv00_detect_contradiction(const ConstraintGraph *graph,
                                 const ProofNavigator *nav,
-                                Lv00EngineContradictionType *out_type,
+                                Lv00ContradictionType *out_type,
                                 char *out_desc) {
     if (!out_type || !out_desc) {
         lv00_set_error(LV00_ERROR_NULL_POINTER,
@@ -1278,7 +1278,7 @@ bool lv00_engine_proof_by_contradiction(Lv00ProofEngine *engine,
 
     while (step < max_steps && !found_contradiction) {
         /* 在约束图中检测矛盾 */
-        Lv00EngineContradictionType ctype;
+        Lv00ContradictionType ctype;
         char cdesc[512];
 
         if (lv00_detect_contradiction(engine->graph, engine->navigator,
@@ -1800,8 +1800,37 @@ static bool execute_strategy_induction(Lv00ProofEngine *engine,
         trace_tree_register_node(tree, step_node);
     }
 
-    /* 归纳法在此简化实现中标记为成功 */
-    return true;
+    /* 归纳法：验证基础步和归纳步 */
+    bool base_ok = false;
+    bool step_ok = false;
+
+    /* 基础步：尝试用直接证明验证 n=0 的情况 */
+    base_ok = execute_strategy_direct(engine, goal, tree);
+    if (base_ok && base_node) {
+        lv00_trace_node_set_status(base_node, TRACE_STATUS_PROVED);
+    } else if (base_node) {
+        lv00_trace_node_set_status(base_node, TRACE_STATUS_BLOCKED);
+    }
+
+    /* 归纳步：假设 n=k 成立，尝试推导 n=k+1 也成立
+     * 简化实现：使用直接证明策略验证归纳步
+     * 完整实现应构造 P(k) -> P(k+1) 并用引擎证明 */
+    if (base_ok) {
+        step_ok = execute_strategy_direct(engine, goal, tree);
+        if (step_ok && step_node) {
+            lv00_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
+        } else if (step_node) {
+            lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+        }
+    } else {
+        /* 基础步失败，归纳步无法进行 */
+        if (step_node) {
+            lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+        }
+    }
+
+    /* 归纳法成功条件：基础步和归纳步均通过 */
+    return base_ok && step_ok;
 }
 
 /**

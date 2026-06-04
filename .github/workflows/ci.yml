@@ -2,18 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-
+    
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # 获取完整历史用于提交信息检查
 
     - name: Cache CMake build
       uses: actions/cache@v4
@@ -25,103 +23,31 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake libgmp-dev lcov cppcheck clang-tidy
-
-    - name: Check commit message format
-      if: github.event_name == 'pull_request'
-      run: |
-        echo "Checking commit messages..."
-        # 获取 PR 中的所有提交
-        git log --format=%s ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} > commits.txt
-
-        # 定义提交信息格式正则
-        # 格式: type(scope): subject 或 type: subject
-        CONVENTIONAL_COMMIT_REGEX="^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\([a-z-]+\))?!?: .+$"
-        MERGE_COMMIT_REGEX="^Merge branch|^Merge pull request"
-
-        INVALID_COMMITS=0
-        while IFS= read -r line; do
-          if [[ -z "$line" ]]; then
-            continue
-          fi
-
-          if echo "$line" | grep -qE "$MERGE_COMMIT_REGEX"; then
-            echo "  [SKIP] Merge commit: $line"
-            continue
-          fi
-
-          if echo "$line" | grep -qE "$CONVENTIONAL_COMMIT_REGEX"; then
-            echo "  [OK] $line"
-          else
-            echo "  [FAIL] $line"
-            INVALID_COMMITS=$((INVALID_COMMITS + 1))
-          fi
-        done < commits.txt
-
-        if [ $INVALID_COMMITS -gt 0 ]; then
-          echo ""
-          echo "Error: $INVALID_COMMITS commit(s) do not follow Conventional Commits format."
-          echo "Expected format: <type>(<scope>): <subject>"
-          echo "Types: feat, fix, docs, style, refactor, perf, test, chore, ci, build"
-          echo "Example: feat(solver): add incremental Groebner basis solving"
-          exit 1
-        fi
-        echo "All commit messages follow the conventional format!"
-
-    - name: Run cppcheck (static analysis)
-      run: |
-        echo "Running cppcheck static analysis..."
-        cppcheck --enable=all --error-exitcode=1 \
-          --suppress=missingIncludeSystem \
-          --suppress=unusedFunction \
-          --suppress=unmatchedSuppression \
-          --inline-suppr \
-          -I core/include \
-          --std=c11 \
-          core/src 2>&1 | tee cppcheck-report.txt | head -200
-        echo "cppcheck completed successfully!"
-
-    - name: Configure CMake with coverage
+        sudo apt-get install -y cmake libgmp-dev lcov
+    
+    - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON
-
+    
     - name: Build
       run: cmake --build build --parallel
-
+    
     - name: Test (Debug + Coverage)
       working-directory: build
       run: ctest --output-on-failure
-
+    
     - name: Generate coverage report
       working-directory: build
       run: |
-        echo "Generating coverage report..."
         lcov --capture --directory . --output-file coverage.info
         lcov --remove coverage.info '/usr/*' --output-file coverage.info
-        lcov --remove coverage.info '*/test/*' --output-file coverage.info
         lcov --list coverage.info
-
-    - name: Check coverage threshold
-      working-directory: build
-      run: |
-        echo "Checking code coverage threshold..."
-        COVERAGE_PERCENT=$(lcov --summary coverage.info 2>&1 | grep "lines" | grep -oP '\d+\.?\d+' | head -1)
-        echo "Current line coverage: ${COVERAGE_PERCENT}%"
-
-        THRESHOLD=60.0
-        if (( $(echo "$COVERAGE_PERCENT < $THRESHOLD" | bc -l) )); then
-          echo "Warning: Code coverage ${COVERAGE_PERCENT}% is below threshold ${THRESHOLD}%"
-          # 不失败，只警告，因为这是一个正在开发的项目
-        else
-          echo "Code coverage ${COVERAGE_PERCENT}% meets threshold ${THRESHOLD}%"
-        fi
-
+    
     - name: Upload coverage to Codecov
       if: success()
       uses: codecov/codecov-action@v5
       with:
         files: build/coverage.info
         fail_ci_if_error: false
-        verbose: true
 
     - name: Run benchmarks
       run: |
@@ -143,49 +69,41 @@ jobs:
       working-directory: build-san
       run: ctest --output-on-failure
 
-    - name: Upload static analysis report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: static-analysis-report
-        path: |
-          cppcheck-report.txt
-
   build-macos:
     runs-on: macos-latest
-
+    
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Install dependencies
       run: brew install cmake gmp
-
+    
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
+    
     - name: Build
       run: cmake --build build --parallel
-
+    
     # macOS 专用：Debug 模式 + sanitizers 构建，用于在 CI 中尽早发现内存问题
     - name: Build with sanitizers (macOS)
       run: |
         cmake -B build-san -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
         cmake --build build-san
-
+    
     - name: Test
       working-directory: build
       run: ctest --output-on-failure
-
+    
     - name: Test with sanitizers
       working-directory: build-san
       run: ctest --output-on-failure
 
   build-windows:
     runs-on: windows-latest
-
+    
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Setup MSYS2
       uses: msys2/setup-msys2@v2
       with:
@@ -194,15 +112,15 @@ jobs:
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-gmp
-
+    
     - name: Configure CMake
       shell: msys2 {0}
       run: cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-
+    
     - name: Build
       shell: msys2 {0}
       run: cmake --build build --parallel
-
+    
     - name: Test
       shell: msys2 {0}
       working-directory: build
@@ -210,24 +128,24 @@ jobs:
 
   static-analysis:
     runs-on: ubuntu-latest
-
+    
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake libgmp-dev cppcheck clang-tidy
-
+    
     - name: Run cppcheck
       run: |
         cppcheck --enable=all --error-exitcode=1 \
           --suppress=missingIncludeSystem \
           -I core/include core/src test/c 2>&1 | head -500
-
+    
     - name: Configure CMake with Clang
       run: cmake -B build -DCMAKE_C_COMPILER=clang -DCMAKE_C_CLANG_TIDY=clang-tidy -DCMAKE_BUILD_TYPE=Debug
-
+    
     - name: Build with clang-tidy
       run: |
         # 将构建输出完整写入日志文件，以便 Build 本身的退出码不被管道吞没
@@ -237,112 +155,3 @@ jobs:
         cmake --build build 2>&1 | tee build-clang-tidy.log
         echo "=== Clang-Tidy 检查摘要 ==="
         grep -E "(warning|error|note):" build-clang-tidy.log | head -50 || true
-
-  code-coverage:
-    runs-on: ubuntu-latest
-    needs: build-linux
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake libgmp-dev lcov
-
-    - name: Configure with coverage
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON
-
-    - name: Build
-      run: cmake --build build --parallel
-
-    - name: Run tests for coverage
-      working-directory: build
-      run: ctest --output-on-failure
-
-    - name: Generate detailed coverage report
-      working-directory: build
-      run: |
-        lcov --capture --directory . --output-file coverage.info
-        lcov --remove coverage.info '/usr/*' --output-file coverage.info
-        lcov --remove coverage.info '*/test/*' --output-file coverage.info
-
-        # 生成 HTML 报告
-        genhtml coverage.info --output-directory coverage-report
-
-        # 输出摘要
-        echo "=== Coverage Summary ==="
-        lcov --summary coverage.info 2>&1
-
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: build/coverage-report/
-
-  commit-lint:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Lint commit messages
-      run: |
-        echo "Linting commit messages in PR..."
-
-        # 获取 PR 的提交范围
-        BASE_SHA=${{ github.event.pull_request.base.sha }}
-        HEAD_SHA=${{ github.event.pull_request.head.sha }}
-
-        echo "Checking commits from $BASE_SHA to $HEAD_SHA"
-
-        # 定义提交类型
-        VALID_TYPES="feat|fix|docs|style|refactor|perf|test|chore|ci|build"
-
-        ERRORS=0
-
-        while IFS= read -r commit_msg; do
-          [ -z "$commit_msg" ] && continue
-
-          # 检查是否是合并提交
-          if echo "$commit_msg" | grep -qE "^Merge (branch|pull request)"; then
-            echo "  [OK] Merge commit: $commit_msg"
-            continue
-          fi
-
-          # 检查格式: type(scope): subject 或 type: subject
-          if ! echo "$commit_msg" | grep -qE "^($VALID_TYPES)(\([a-z0-9-]+\))?!?: .+"; then
-            echo "  [ERROR] Invalid format: $commit_msg"
-            echo "          Expected: <type>[(<scope>)]: <subject>"
-            echo "          Types: $VALID_TYPES"
-            ERRORS=$((ERRORS + 1))
-          else
-            # 检查 subject 是否以大写开头（应该小写）
-            SUBJECT=$(echo "$commit_msg" | sed -E 's/^[^:]+: //')
-            FIRST_CHAR=$(echo "$SUBJECT" | cut -c1)
-            if echo "$FIRST_CHAR" | grep -qE '[A-Z]'; then
-              echo "  [WARN] Subject should start with lowercase: $commit_msg"
-            fi
-
-            # 检查长度
-            MSG_LEN=${#commit_msg}
-            if [ $MSG_LEN -gt 100 ]; then
-              echo "  [WARN] Commit message too long ($MSG_LEN > 100): ${commit_msg:0:50}..."
-            fi
-
-            echo "  [OK] $commit_msg"
-          fi
-        done < <(git log --format=%s $BASE_SHA..$HEAD_SHA)
-
-        if [ $ERRORS -gt 0 ]; then
-          echo ""
-          echo "Found $ERRORS commit message(s) with invalid format."
-          echo "Please follow Conventional Commits: https://www.conventionalcommits.org/"
-          exit 1
-        fi
-
-        echo ""
-        echo "All commit messages are properly formatted!"

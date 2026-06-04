@@ -23,25 +23,19 @@
  * @version 3.3.0
  * @date   2026-05-24
  */
-
 #ifndef LV00_CIRCUIT_BREAKER_H
 #define LV00_CIRCUIT_BREAKER_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stdint.h>
-
 /* 前向声明 —— CircuitBreaker 结构体在 context.h 中定义 */
 struct CircuitBreaker;
 struct Lv00Context;
-
 /* ============================================================
  * 核心熔断器 API
  * ============================================================ */
-
 /**
  * @brief 检查熔断器状态，判断是否可以执行操作
  *
@@ -58,7 +52,6 @@ struct Lv00Context;
  *         false 熔断器打开，拒绝执行
  */
 bool lv00_circuit_breaker_check(struct Lv00Context *ctx);
-
 /**
  * @brief 触发熔断器跳闸
  *
@@ -70,7 +63,6 @@ bool lv00_circuit_breaker_check(struct Lv00Context *ctx);
  * @param reason 跳闸原因的可读描述（内部复制，调用者可释放原字符串）
  */
 void lv00_circuit_breaker_trip(struct Lv00Context *ctx, const char *reason);
-
 /**
  * @brief 重置熔断器到 CLOSED 状态
  *
@@ -82,7 +74,6 @@ void lv00_circuit_breaker_trip(struct Lv00Context *ctx, const char *reason);
  * @param ctx 上下文（非 NULL）
  */
 void lv00_circuit_breaker_reset(struct Lv00Context *ctx);
-
 /**
  * @brief 记录一次成功操作
  *
@@ -92,7 +83,6 @@ void lv00_circuit_breaker_reset(struct Lv00Context *ctx);
  * @param ctx 上下文（非 NULL）
  */
 void lv00_circuit_breaker_record_success(struct Lv00Context *ctx);
-
 /**
  * @brief 记录一次失败操作
  *
@@ -104,7 +94,6 @@ void lv00_circuit_breaker_record_success(struct Lv00Context *ctx);
  *         false 熔断器已跳闸（错误次数超限）
  */
 bool lv00_circuit_breaker_record_failure(struct Lv00Context *ctx);
-
 /**
  * @brief 获取熔断器当前状态的可读名称
  *
@@ -112,7 +101,6 @@ bool lv00_circuit_breaker_record_failure(struct Lv00Context *ctx);
  * @return 状态的中文名称字符串（静态存储，无需释放）
  */
 const char *lv00_circuit_breaker_state_name(struct Lv00Context *ctx);
-
 /**
  * @brief 获取熔断器的健康摘要
  *
@@ -124,7 +112,6 @@ const char *lv00_circuit_breaker_state_name(struct Lv00Context *ctx);
  * @return 实际写入的字符数（不含终止符）
  */
 int lv00_circuit_breaker_summary(struct Lv00Context *ctx, char *buf, size_t buf_size);
-
 /**
  * @brief 获取从创建/重置以来的运行时间（微秒）
  *
@@ -132,7 +119,6 @@ int lv00_circuit_breaker_summary(struct Lv00Context *ctx, char *buf, size_t buf_
  * @return 微秒数
  */
 uint64_t lv00_circuit_breaker_uptime_us(const struct CircuitBreaker *cb);
-
 /**
  * @brief 获取当前时间戳（微秒级）
  *
@@ -141,9 +127,7 @@ uint64_t lv00_circuit_breaker_uptime_us(const struct CircuitBreaker *cb);
  * @return 单调递增的微秒时间戳
  */
 uint64_t lv00_circuit_breaker_now_us(void);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_CIRCUIT_BREAKER_H */

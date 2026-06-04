@@ -4,24 +4,7 @@
  *              每个预设块封装了一个几何构造操作，接收输入点/线段，
  *              返回新创建的点、线段和约束。
  *
- *              Preset function block library for common geometric constructions.
- *              Each preset block encapsulates a geometric construction operation,
- *              accepting input points/segments and returning newly created
- *              points, segments, and constraints.
- *
- * 主要功能 / Key Features:
- * - 提供中点、垂足、平行线、角平分线、圆等常用几何构造预设
- * - 所有几何计算使用纯 JS 实现，不依赖 WASM 后端
- * - 统一的浮点数精度常量（GEOMETRY_EPSILON），避免硬编码 epsilon
- * - 每个预设块返回标准化的 FuncBlockResult 结构
- * - 支持唯一 ID 自动生成
- *
- * 使用示例 / Usage:
- *   import { midpointPreset } from '@/utils/funcBlockPresets';
- *   const result = midpointPreset({ p1: pointA, p2: pointB });
- *   // result.points: 新创建的中点
- *   // result.segments: 新创建的线段（如有）
- *   // result.constraints: 新创建的约束（如有）
+ *              所有几何计算使用纯 JS 实现，不依赖 WASM 后端。
  *
  * 【优化说明】v3.4.2
  * - 添加几何精度常量，替代硬编码的 epsilon 值
@@ -1042,7 +1025,12 @@ export function partialApplyBlock(
   }
 
   // 更新内部点的相对坐标：将固定输入的影响纳入偏移
-  // anchorOffsetX/Y 计算已内联到下面的 map 中
+  const anchorOffsetX = fixedInputValues
+    .filter((_, i) => block.inputPointIds[fixedInputIndices[i]] === block.inputPointIds[0])
+    .reduce((sum, v) => sum + v.relX, 0);
+  const anchorOffsetY = fixedInputValues
+    .filter((_, i) => block.inputPointIds[fixedInputIndices[i]] === block.inputPointIds[0])
+    .reduce((sum, v) => sum + v.relY, 0);
 
   const newRelativePositions = block.relativePositions.map((p) => {
     // 如果是固定输入的内部点，需要调整坐标
@@ -1057,13 +1045,11 @@ export function partialApplyBlock(
       );
       if (fixedIdx !== undefined) {
         const fixedVal = fixedInputValues[fixedInputIndices.indexOf(fixedIdx)];
-        if (fixedVal) {
-          return {
-            ...p,
-            relX: p.relX - fixedVal.relX,
-            relY: p.relY - fixedVal.relY,
-          };
-        }
+        return {
+          ...p,
+          relX: p.relX - fixedVal.relX,
+          relY: p.relY - fixedVal.relY,
+        };
       }
     }
     return { ...p };

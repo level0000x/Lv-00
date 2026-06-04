@@ -483,7 +483,7 @@ bool fptaylor_taylor_form(const char *expr,
 
 ## 29.9 版本历史
 
-- **v3.5.0**
+- **v5.0.0**
   - 补全文档化：不等式推理、PAC 近似模型计数、Herbie 风格精度评估、FPTaylor 风格误差上界。
   - 明确符号证明路径与近似可信路径的边界。
 

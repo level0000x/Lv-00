@@ -6,19 +6,14 @@
  * 以及按证明风格（正向/反向/反证/归纳）进行标记和筛选。
  * 支持在教学场景中按用户水平自适应切换公理集合。
  */
-
 #ifndef LV00_AXIOM_GRADE_H
 #define LV00_AXIOM_GRADE_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stddef.h>
-
 /* ============== 公理难度等级 ============== */
-
 /**
  * @brief 公理难度等级 —— 用于教育场景下的自适应难度筛选
  *
@@ -34,9 +29,7 @@ typedef enum {
     GRADE_ADVANCED     = 2,  /**< 高级 —— 适用于进阶学习者 */
     GRADE_EXPERT       = 3   /**< 专家级 —— 适用于研究级用户 */
 } Lv00AxiomGrade;
-
 /* ============== 证明风格 ============== */
-
 /**
  * @brief 证明风格 —— 描述公理/定理最自然的证明方法
  *
@@ -52,9 +45,7 @@ typedef enum {
     STYLE_CONTRADICTION = 2,  /**< 反证法（归谬法） */
     STYLE_INDUCTION     = 3   /**< 归纳法（数学归纳/良基归纳） */
 } Lv00ProofStyle;
-
 /* ============== 带分级的公理元数据 ============== */
-
 /**
  * @brief 公理分级元数据 —— 附加在每个公理上的难度和风格信息
  *
@@ -69,9 +60,7 @@ typedef struct {
     char  *description;        /**< 教学性描述文本（可为 NULL） */
     bool   is_required;        /**< 是否为必修公理（不受难度筛选影响） */
 } Lv00AxiomGradeMeta;
-
 /* ============== 难度过滤器 ============== */
-
 /**
  * @brief 公理难度过滤器 —— 控制当前可见的公理等级范围
  *
@@ -84,9 +73,7 @@ typedef struct {
     bool           filter_enabled;   /**< 是否启用过滤 */
     int            current_level;    /**< 当前难度级别（0-based，递增解锁） */
 } Lv00AxiomGradeFilter;
-
 /* ============== API ============== */
-
 /**
  * @brief 设置公理难度过滤器的上限
  *
@@ -96,14 +83,12 @@ typedef struct {
  * @param grade  允许的最高难度等级
  */
 void lv00_axiom_set_difficulty(Lv00AxiomGrade grade);
-
 /**
  * @brief 获取当前全局难度过滤器的配置
  *
  * @return 当前难度过滤器指针（只读），可能为 NULL
  */
 const Lv00AxiomGradeFilter *lv00_axiom_get_filter(void);
-
 /**
  * @brief 创建公理分级元数据
  *
@@ -115,14 +100,12 @@ const Lv00AxiomGradeFilter *lv00_axiom_get_filter(void);
  */
 Lv00AxiomGradeMeta *lv00_axiom_grade_meta_create(const char *name, Lv00AxiomGrade grade,
                                                   Lv00ProofStyle style, const char *description);
-
 /**
  * @brief 销毁公理分级元数据
  *
  * @param meta  公理分级元数据指针（可为 NULL）
  */
 void lv00_axiom_grade_meta_destroy(Lv00AxiomGradeMeta *meta);
-
 /**
  * @brief 检查给定公理是否通过当前难度筛选
  *
@@ -131,7 +114,6 @@ void lv00_axiom_grade_meta_destroy(Lv00AxiomGradeMeta *meta);
  * @return false 未通过筛选（该公理被屏蔽）
  */
 bool lv00_axiom_grade_check(const Lv00AxiomGradeMeta *meta);
-
 /**
  * @brief 将难度等级转换为中文字符串
  *
@@ -139,7 +121,6 @@ bool lv00_axiom_grade_check(const Lv00AxiomGradeMeta *meta);
  * @return 中文描述字符串（静态内存，不可释放）
  */
 const char *lv00_axiom_grade_to_string(Lv00AxiomGrade grade);
-
 /**
  * @brief 将证明风格转换为中文字符串
  *
@@ -147,7 +128,6 @@ const char *lv00_axiom_grade_to_string(Lv00AxiomGrade grade);
  * @return 中文描述字符串（静态内存，不可释放）
  */
 const char *lv00_proof_style_to_string(Lv00ProofStyle style);
-
 /**
  * @brief 递进解锁下一个难度等级
  *
@@ -157,7 +137,6 @@ const char *lv00_proof_style_to_string(Lv00ProofStyle style);
  * @return 解锁后的新难度等级
  */
 Lv00AxiomGrade lv00_axiom_unlock_next_grade(void);
-
 /**
  * @brief 按证明风格筛选公理
  *
@@ -173,9 +152,7 @@ Lv00AxiomGrade lv00_axiom_unlock_next_grade(void);
  */
 int lv00_axiom_filter_by_style(const Lv00AxiomGradeMeta *metas, int meta_count,
                                 Lv00ProofStyle style, int *out_indices, int max_out);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_AXIOM_GRADE_H */

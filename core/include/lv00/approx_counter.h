@@ -17,79 +17,58 @@
  * @version v3.3.0
  * @date 2026-05-24
  */
-
 #ifndef LV00_APPROX_COUNTER_H
 #define LV00_APPROX_COUNTER_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stdint.h>
-
 #include "constraint_graph.h"
-
 /* ========================================================================
  * PAC 配置与计数结果
  * ======================================================================== */
-
 /** PAC (Probably Approximately Correct) 配置 */
 typedef struct {
     /** 精度参数：允许的相对误差（如 0.1 表示 ±10%） */
     double epsilon;
-
     /** 置信度参数：成功概率下界（如 0.99 表示 99% 置信度） */
     double delta;
-
     /** 随机种子（用于哈希函数生成） */
     int seed;
-
     /** 是否使用稀疏 XOR 哈希（稀疏适合大变量数） */
     bool sparse_xor;
-
     /** 哈希函数数量（0 = 自动选择，基于 epsilon/delta） */
     int num_hashes;
 } PacConfig;
-
 /** ApproxMC 近似模型计数结果 */
 typedef struct {
     /** 单个哈希桶中采样的解数量 */
     uint64_t cell_sol_count;
-
     /** 实际使用的哈希函数层级数 */
     int hash_count;
-
     /** 估算的模型总数（cell_sol_count * 2^hash_count） */
     uint64_t total_count;
-
     /** PAC 置信度下界（0.0 ~ 1.0） */
     double confidence;
-
     /** 状态消息（如 "Model count: ~12345 with 99% confidence"） */
     char *status_msg;
 } ApproxCountResult;
-
 /* ========================================================================
  * 变量权重（用于加权计数）
  * ======================================================================== */
-
 /** 变量权重（ApproxMC 加权模型计数） */
 typedef struct {
     /** 变量 ID（对应约束图中的变量序号） */
     int var_id;
-
     /** 变量权重（1.0 = 无偏，>1 = 放大，<1 = 缩小） */
     double weight;
-
     /** 是否为固定变量（固定变量不参与计数，已知取值） */
     bool is_fixed;
 } VarWeight;
-
 /* ========================================================================
  * 近似模型计数 API
  * ======================================================================== */
-
 /**
  * @brief 对约束图进行近似模型计数（PAC 保证）
  *
@@ -103,7 +82,6 @@ typedef struct {
  * @return true 计数成功，false 失败（参数错误或内存不足）
  */
 bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, ApproxCountResult *out);
-
 /**
  * @brief 投影模型计数（只计指定变量的不同赋值）
  *
@@ -119,7 +97,6 @@ bool approx_count_solutions(const ConstraintGraph *graph, const PacConfig *cfg, 
  */
 bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int proj_count, const PacConfig *cfg,
                             ApproxCountResult *out);
-
 /**
  * @brief 将约束图编码为 DIMACS CNF 格式字符串
  *
@@ -135,7 +112,6 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int pr
  * @return DIMACS CNF 格式字符串（调用者负责 free），失败返回 NULL
  */
 char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars);
-
 /**
  * @brief 计算指定配置和结果下的 PAC 置信度
  *
@@ -147,18 +123,15 @@ char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars);
  * @return 置信度下界（0.0 ~ 1.0）
  */
 double approx_count_get_pac_bound(const PacConfig *cfg, const ApproxCountResult *res);
-
 /**
  * @brief 释放 ApproxCountResult 占用的资源
  *
  * @param[in,out] res 计数结果
  */
 void approx_count_result_free(ApproxCountResult *res);
-
 /* ========================================================================
  * 近似构造性判断
  * ======================================================================== */
-
 /**
  * @brief 近似构造性判断
  *
@@ -171,9 +144,7 @@ void approx_count_result_free(ApproxCountResult *res);
  * @return true 近似可构造，false 不可构造或无法判定
  */
 bool is_approximately_constructible(const ConstraintGraph *graph, double min_prob);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_APPROX_COUNTER_H */

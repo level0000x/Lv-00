@@ -16,29 +16,22 @@
  * @version v3.3.0
  * @date 2026-05-24
  */
-
 #ifndef LV00_ALGEBRA_MODE_H
 #define LV00_ALGEBRA_MODE_H
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /* ================================================================
  *  前向声明
  * ================================================================ */
-
 typedef struct ConstraintGraph ConstraintGraph;
 typedef struct DslIR DslIR;
-
 /* ================================================================
  *  第一部分：平面与变换定义
  * ================================================================ */
-
 /**
  * @brief 工作平面枚举
  *
@@ -51,7 +44,6 @@ typedef enum {
     PLANE_YZ,    /**< YZ 平面 */
     PLANE_CUSTOM /**< 自定义平面（由法向量和原点定义） */
 } Lv00Plane;
-
 /**
  * @brief 变换操作类型枚举
  *
@@ -65,11 +57,9 @@ typedef enum {
     TRANSFORM_MIRROR,    /**< 镜像变换 */
     TRANSFORM_PROJECT    /**< 投影变换（到指定平面） */
 } Lv00TransformOp;
-
 /* ================================================================
  *  第二部分：选择器系统（借鉴 CadQuery Selector DSL）
  * ================================================================ */
-
 /**
  * @brief 选择器类型枚举
  *
@@ -91,7 +81,6 @@ typedef enum {
     SELECTOR_BY_INDEX,         /**< 按索引选择 */
     SELECTOR_COMPOSITE         /**< 复合选择器（AND/OR/NOT 组合） */
 } Lv00SelectorType;
-
 /**
  * @brief 选择器方向运算符枚举
  *
@@ -103,7 +92,6 @@ typedef enum {
     SEL_DIR_LESS,    /**< < 方向算符（法向指向负方向） */
     SEL_DIR_PARALLEL /**< | 方向算符（与指定轴平行） */
 } Lv00SelectorDirOp;
-
 /**
  * @brief 选择器结构体
  *
@@ -128,11 +116,9 @@ typedef struct Lv00Selector {
     bool is_union;   /**< true=OR, false=AND（COMPOSITE 时有效） */
     bool is_negated; /**< 是否取反（NOT 语义） */
 } Lv00Selector;
-
 /* ================================================================
  *  第三部分：代数操作结果状态
  * ================================================================ */
-
 /**
  * @brief 代数操作结果状态枚举
  *
@@ -148,11 +134,9 @@ typedef enum {
     ALGEBRA_OUT_OF_MEMORY,   /**< 内存不足 */
     ALGEBRA_INVALID_ARGUMENT /**< 无效参数（NULL 指针、非法值） */
 } AlgebraOpResult;
-
 /* ================================================================
  *  第四部分：代数几何体（不透明句柄）
  * ================================================================ */
-
 /**
  * @brief 代数几何体结构
  *
@@ -193,16 +177,13 @@ typedef struct AlgebraicGeom {
     int id;     /**< 几何体唯一标识 */
     char *name; /**< 可选名称 */
 } AlgebraicGeom;
-
 /* ================================================================
  *  第五部分：代数模式 API
  *
  *  所有构造函数遵循代数模式（无状态、返回新句柄），允许链式调用。
  *  每个函数返回时同时记录构造历史，支持 undo/redo/snapshot。
  * ================================================================ */
-
 /* ---- 生命周期 ---- */
-
 /**
  * @brief 创建代数几何体上下文
  *
@@ -213,7 +194,6 @@ typedef struct AlgebraicGeom {
  * @return 新分配的 AlgebraicGeom*，失败返回 NULL
  */
 AlgebraicGeom *algebra_create(Lv00Plane plane, const char *name);
-
 /**
  * @brief 销毁代数几何体上下文
  *
@@ -222,9 +202,7 @@ AlgebraicGeom *algebra_create(Lv00Plane plane, const char *name);
  * @param geom 代数几何体（可为 NULL）
  */
 void algebra_destroy(AlgebraicGeom *geom);
-
 /* ---- 点构造 ---- */
-
 /**
  * @brief 在指定坐标创建点
  *
@@ -235,7 +213,6 @@ void algebra_destroy(AlgebraicGeom *geom);
  * @return geom 自身（链式调用），失败返回 NULL
  */
 AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z);
-
 /**
  * @brief 在已有几何体上创建点
  *
@@ -244,7 +221,6 @@ AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id);
-
 /**
  * @brief 创建两点的中点
  *
@@ -254,7 +230,6 @@ AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b);
-
 /**
  * @brief 创建两几何体的交点
  *
@@ -264,9 +239,7 @@ AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b);
  * @return geom 自身，失败返回 NULL（如平行线无交点）
  */
 AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b);
-
 /* ---- 线构造 ---- */
-
 /**
  * @brief 通过两点创建直线
  *
@@ -276,7 +249,6 @@ AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b);
-
 /**
  * @brief 通过两点创建线段
  *
@@ -286,7 +258,6 @@ AlgebraicGeom *algebra_line(AlgebraicGeom *geom, int id_a, int id_b);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_segment(AlgebraicGeom *geom, int id_a, int id_b);
-
 /**
  * @brief 通过原点和方向点创建射线
  *
@@ -296,9 +267,7 @@ AlgebraicGeom *algebra_segment(AlgebraicGeom *geom, int id_a, int id_b);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id);
-
 /* ---- 圆构造 ---- */
-
 /**
  * @brief 通过圆心和半径创建圆
  *
@@ -308,7 +277,6 @@ AlgebraicGeom *algebra_ray(AlgebraicGeom *geom, int origin_id, int through_id);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double radius);
-
 /**
  * @brief 通过圆心和圆周上一点创建圆
  *
@@ -318,9 +286,7 @@ AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double 
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_circle(AlgebraicGeom *geom, int center_id, int on_circle_id);
-
 /* ---- 特殊线构造 ---- */
-
 /**
  * @brief 通过点作平行线
  *
@@ -330,7 +296,6 @@ AlgebraicGeom *algebra_circle(AlgebraicGeom *geom, int center_id, int on_circle_
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id);
-
 /**
  * @brief 通过点作垂线
  *
@@ -340,9 +305,7 @@ AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point_id);
-
 /* ---- 变换操作（借鉴 build123d 变换链语法）---- */
-
 /**
  * @brief 应用通用变换
  *
@@ -353,7 +316,6 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op, const double *params, int param_count);
-
 /**
  * @brief 绕指定轴旋转
  *
@@ -365,7 +327,6 @@ AlgebraicGeom *algebra_transform(AlgebraicGeom *geom, Lv00TransformOp op, const 
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_rotate(AlgebraicGeom *geom, double angle_deg, double axis_x, double axis_y, double axis_z);
-
 /**
  * @brief 平移
  *
@@ -376,7 +337,6 @@ AlgebraicGeom *algebra_rotate(AlgebraicGeom *geom, double angle_deg, double axis
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_translate(AlgebraicGeom *geom, double dx, double dy, double dz);
-
 /**
  * @brief 缩放
  *
@@ -387,9 +347,7 @@ AlgebraicGeom *algebra_translate(AlgebraicGeom *geom, double dx, double dy, doub
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double sz);
-
 /* ---- 选择器操作（借鉴 CadQuery Selector DSL）---- */
-
 /**
  * @brief 创建选择器
  *
@@ -400,14 +358,12 @@ AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double s
  * @return 新创建的 Lv00Selector*，失败返回 NULL
  */
 Lv00Selector *algebra_selector_create(Lv00SelectorType type, const char *expr);
-
 /**
  * @brief 销毁选择器
  *
  * @param sel 选择器（可为 NULL）
  */
 void algebra_selector_destroy(Lv00Selector *sel);
-
 /**
  * @brief 选择满足条件的子实体
  *
@@ -418,9 +374,7 @@ void algebra_selector_destroy(Lv00Selector *sel);
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel, int **out_ids, int *out_count);
-
 /* ---- 约束与证明 ---- */
-
 /**
  * @brief 添加约束
  *
@@ -431,7 +385,6 @@ AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const Lv00Selector *sel, int 
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_type, const int *entity_ids, int count);
-
 /**
  * @brief 启动证明
  *
@@ -440,9 +393,7 @@ AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_typ
  * @return geom 自身，失败返回 NULL
  */
 AlgebraicGeom *algebra_prove(AlgebraicGeom *geom, const char *proposition);
-
 /* ---- 构建与查询 ---- */
-
 /**
  * @brief 最终构建约束图
  *
@@ -453,7 +404,6 @@ AlgebraicGeom *algebra_prove(AlgebraicGeom *geom, const char *proposition);
  * @return 操作结果状态
  */
 AlgebraOpResult algebra_build(AlgebraicGeom *geom);
-
 /**
  * @brief 获取约束图（只读访问）
  *
@@ -463,7 +413,6 @@ AlgebraOpResult algebra_build(AlgebraicGeom *geom);
  * @return 约束图指针（geom 生命周期内有效），未构建时返回 NULL
  */
 ConstraintGraph *algebra_get_graph(const AlgebraicGeom *geom);
-
 /**
  * @brief 获取最近一次操作的状态
  *
@@ -471,7 +420,6 @@ ConstraintGraph *algebra_get_graph(const AlgebraicGeom *geom);
  * @return 操作结果状态
  */
 AlgebraOpResult algebra_get_status(const AlgebraicGeom *geom);
-
 /**
  * @brief 获取最近创建的实体 ID
  *
@@ -479,9 +427,7 @@ AlgebraOpResult algebra_get_status(const AlgebraicGeom *geom);
  * @return 实体 ID，未创建时返回 -1
  */
 int algebra_get_current_entity(const AlgebraicGeom *geom);
-
 /* ---- Undo/Redo ---- */
-
 /**
  * @brief 撤销上一次操作
  *
@@ -491,7 +437,6 @@ int algebra_get_current_entity(const AlgebraicGeom *geom);
  * @return geom 自身，无可撤销步骤时返回 NULL
  */
 AlgebraicGeom *algebra_undo(AlgebraicGeom *geom);
-
 /**
  * @brief 重做上一次撤销的操作
  *
@@ -499,9 +444,7 @@ AlgebraicGeom *algebra_undo(AlgebraicGeom *geom);
  * @return geom 自身，无可重做步骤时返回 NULL
  */
 AlgebraicGeom *algebra_redo(AlgebraicGeom *geom);
-
 /* ---- 快照/回退 ---- */
-
 /**
  * @brief 创建当前状态的快照
  *
@@ -512,7 +455,6 @@ AlgebraicGeom *algebra_redo(AlgebraicGeom *geom);
  * @return 快照索引（>=0），失败返回 -1
  */
 int algebra_snapshot(AlgebraicGeom *geom);
-
 /**
  * @brief 恢复到指定快照
  *
@@ -524,9 +466,7 @@ int algebra_snapshot(AlgebraicGeom *geom);
  * @return geom 自身，无效索引时返回 NULL
  */
 AlgebraicGeom *algebra_restore(AlgebraicGeom *geom, int snapshot_index);
-
 /* ---- 工作平面 ---- */
-
 /**
  * @brief 切换当前工作平面
  *
@@ -534,38 +474,3 @@ AlgebraicGeom *algebra_restore(AlgebraicGeom *geom, int snapshot_index);
  *
  * @param geom  代数几何体
  * @param plane 新的工作平面
- * @return geom 自身
- */
-AlgebraicGeom *algebra_set_plane(AlgebraicGeom *geom, Lv00Plane plane);
-
-/**
- * @brief 获取当前工作平面
- *
- * @param geom 代数几何体
- * @return 当前工作平面枚举值
- */
-Lv00Plane algebra_get_plane(const AlgebraicGeom *geom);
-
-/* ---- 工具函数 ---- */
-
-/**
- * @brief 获取操作结果状态的字符串名称
- *
- * @param result 操作结果状态
- * @return 静态字符串（不需要释放）
- */
-const char *algebra_result_name(AlgebraOpResult result);
-
-/**
- * @brief 获取选择器类型的字符串名称
- *
- * @param type 选择器类型
- * @return 静态字符串（不需要释放）
- */
-const char *algebra_selector_type_name(Lv00SelectorType type);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* LV00_ALGEBRA_MODE_H */

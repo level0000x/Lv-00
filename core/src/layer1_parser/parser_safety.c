@@ -229,7 +229,6 @@ size_t lv00_input_sanitize(char *input, size_t max_len) {
  * @return LV00_OK 深度在安全范围内，其他值为错误码
  */
 Lv00ErrorCode lv00_check_ast_depth(int depth) {
-    if (depth < 0) return LV00_ERROR_INVALID_PARAM;
     if (depth > LV00_MAX_AST_DEPTH) {
         lv00_set_error(LV00_ERROR_PARSER_DEPTH_EXCEEDED,
                        "AST深度 %d 超过上限 %d", depth, LV00_MAX_AST_DEPTH);
@@ -245,7 +244,6 @@ Lv00ErrorCode lv00_check_ast_depth(int depth) {
  * @return LV00_OK 节点数在安全范围内，其他值为错误码
  */
 Lv00ErrorCode lv00_check_ast_node_count(int count) {
-    if (count < 0) return LV00_ERROR_INVALID_PARAM;
     if (count > LV00_MAX_AST_NODES) {
         lv00_set_error(LV00_ERROR_PARSER_NODE_LIMIT,
                        "AST节点数 %d 超过上限 %d", count, LV00_MAX_AST_NODES);

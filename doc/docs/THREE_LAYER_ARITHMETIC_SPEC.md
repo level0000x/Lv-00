@@ -355,23 +355,7 @@ jobs:
 
 ---
 
-## 10. 相关模块文档
-
-本文档定义了三层数域优化的总体策略。以下模块文档提供了各子系统的详细规范：
-
-| 模块文档 | 覆盖内容 |
-|----------|----------|
-| [17_numerical_analysis.md](17_numerical_analysis.md) | 区间算术 (`interval_arithmetic.h`)、浮点误差验证 (`float_error.h`)、精确有理数 (`rational.h`)、ODE 求解、自动微分、多后端数值抽象、不等式推理、概率约束、数论算法、多项式算术、稀疏线性代数 |
-| [28_number_theory.md](28_number_theory.md) | GMP 数论算法、模运算、Miller-Rabin 素性测试、整数系数多项式、结式计算、精确有理数封装，是层级 A 严格精确层的代码级补全文档 |
-| [29_inequality_approximation.md](29_inequality_approximation.md) | 纯符号不等式证明、ApproxMC 风格近似模型计数、Herbie 精度评估、FPTaylor 误差上界，对应层级 B/C 的近似计算和审计路径 |
-| [30_performance_concurrency.md](30_performance_concurrency.md) | SIMD 向量化、性能基准与高效索引，用于记录精确数值路径与近似数值路径的性能差异 |
-| [33_gappa_verification.md](33_gappa_verification.md) | Gappa DSL、谓词传播、浮点格式、舍入模式和解析安全，是浮点误差证明与审计模式的补充规范 |
-
-其中，本文档第 5 节（区间算术）中 `Lv00Interval` 的完整 API 参见 `17_numerical_analysis.md` 第 1 节；第 3.1 节（精确数值类型）中 `Lv00Rational` 的完整 API 参见 `17_numerical_analysis.md` 与 `28_number_theory.md`；浮点误差验证的信任颜色映射参见 `17_numerical_analysis.md` 第 2 节。层级 A 的精确数论与多项式实现参见 `28_number_theory.md`；层级 B 的近似评估、Herbie/FPTaylor 路径参见 `29_inequality_approximation.md`；层级 C 的 Gappa 证明和浮点审计接口参见 `33_gappa_verification.md`。
-
----
-
-## 11. 参考文献
+## 10. 参考文献
 
 1. GMP (GNU Multiple Precision Arithmetic Library)
 2. MPFI (Multiple Precision Floating-point Interval library)
@@ -380,5 +364,5 @@ jobs:
 
 ---
 
-**文档状态**: 已完成
+**文档状态**: 已完成  
 **下一步**: 实现数值后端的区间算术集成

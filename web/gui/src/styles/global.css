@@ -6,18 +6,16 @@
    - 页面主体（body）基础样式
    - 文本选中和焦点可见样式
    - 自定义滚动条（WebKit + Firefox）
-   - 顶部导航栏（header）、面包屑
+   - 顶部导航栏（header）、面包屑、模块标签页
    - 主布局（app-shell）、左右侧边栏、画布区域
    - 拖拽调整大小手柄（resize-handle）
    - 状态栏（status-bar）
+   - 顶部操作按钮（header-actions）
    - 加载遮罩（loading）
    - 字体加载策略（JetBrains Mono）
    - 全局链接和代码样式
    - 响应式布局断点（768px / 1024px / 1600px）
    - 减少动画偏好支持
-
-   注意：模块标签页（.module-tab）和头部操作按钮（.header-action-btn）
-   已迁移至 components/ui-controls.css。
    ============================================================ */
 
 /* === Global Reset / 全局重置 === */
@@ -44,6 +42,11 @@ body {
 
 /* === 选中文本样式 / Text Selection === */
 ::selection {
+    background: rgba(var(--color-accent-rgb), 0.25);
+    color: var(--color-text-bright);
+}
+
+::-moz-selection {
     background: rgba(var(--color-accent-rgb), 0.25);
     color: var(--color-text-bright);
 }
@@ -157,6 +160,56 @@ body {
     color: var(--color-text-secondary);
     transition: color var(--duration-fast) var(--ease-default);
 }
+
+/* === MODULE TABS / 模块标签页 === */
+.module-tabs {
+    display: flex;
+    height: 100%;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    position: relative;
+}
+.module-tabs::-webkit-scrollbar { display: none; }
+
+.module-tab {
+    padding: 0 var(--spacing-lg);
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    color: var(--color-text-muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+    position: relative;
+}
+
+.module-tab:hover {
+    color: var(--color-text-secondary);
+    background: var(--color-bg-hover-subtle);
+}
+
+.module-tab.active {
+    color: var(--color-text-primary);
+    border-bottom-color: var(--color-accent);
+    background: rgba(var(--color-accent-rgb), 0.05);
+}
+
+.module-tab .tab-icon {
+    font-size: 12px;
+    margin-right: var(--spacing-sm);
+    opacity: 0.7;
+    transition: opacity var(--duration-fast) var(--ease-default), transform var(--duration-fast) var(--ease-spring);
+}
+.module-tab.active .tab-icon { opacity: 1; }
+.module-tab:hover .tab-icon { transform: scale(1.1); }
 
 /* === MAIN LAYOUT / 主布局 === */
 .app-shell {
@@ -330,6 +383,42 @@ body {
 .log-content {
     scrollbar-width: thin;
     scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+/* === HEADER ACTIONS / 顶部操作按钮 === */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.header-action-btn {
+    padding: 0 10px;
+    height: 30px;
+    border: 1px solid var(--color-border-primary);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    font-family: inherit;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.header-action-btn:hover {
+    background: var(--color-bg-overlay);
+    color: var(--color-text-primary);
+    border-color: var(--color-text-muted);
+}
+
+.header-action-btn:active {
+    transform: scale(0.97);
 }
 
 /* === LOADING / 加载遮罩 === */

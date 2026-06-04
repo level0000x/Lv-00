@@ -341,7 +341,6 @@ void test_circuit_context() {
 }
 
 int main() {
-    setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== Lv-00 Symbolic Coordinate Test Suite ===\n\n");
 
     test_rational_arithmetic();

@@ -8,23 +8,17 @@
  * @author Lv-00 Project
  * @version 3.3.0
  */
-
 #ifndef LV00_FORMULA_CONVERTER_H
 #define LV00_FORMULA_CONVERTER_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
-
 #include "constraint_graph.h"
 #include "formula_parser.h"
-
 /* ============================================================
  * 公式 → 图转换结果
  * ============================================================ */
-
 typedef struct {
     bool success;
     int *created_node_ids;        /* 创建的节点 ID 数组 */
@@ -33,11 +27,9 @@ typedef struct {
     int created_constraint_count; /* 创建的约束数量 */
     char error_message[256];      /* 错误信息 */
 } FormulaToGraphResult;
-
 /* ============================================================
  * 图 → 公式转换结果
  * ============================================================ */
-
 typedef struct {
     bool success;
     char *latex_output;      /* LaTeX 格式输出 */
@@ -45,11 +37,9 @@ typedef struct {
     char *dsl_output;        /* DSL 格式输出 */
     char error_message[256]; /* 错误信息 */
 } GraphToFormulaResult;
-
 /* ============================================================
  * 核心 API
  * ============================================================ */
-
 /**
  * @brief 将公式 AST 转换为约束图操作
  * @param[in] ast   公式 AST 根节点
@@ -57,64 +47,53 @@ typedef struct {
  * @return 转换结果，调用者负责通过 formula_to_graph_result_destroy() 销毁
  */
 FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *graph);
-
 /**
  * @brief 将约束图转换为公式
  * @param[in] graph 源约束图
  * @return 转换结果，调用者负责通过 graph_to_formula_result_destroy() 销毁
  */
 GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph);
-
 /* ============================================================
  * 结果销毁函数
  * ============================================================ */
-
 /**
  * @brief 销毁公式到图的转换结果
  * @param[in] result 转换结果指针，可为 NULL
  */
 void formula_to_graph_result_destroy(FormulaToGraphResult *result);
-
 /**
  * @brief 销毁图到公式的转换结果
  * @param[in] result 转换结果指针，可为 NULL
  */
 void graph_to_formula_result_destroy(GraphToFormulaResult *result);
-
 /* ============================================================
  * 变量名到节点ID的映射
  * ============================================================ */
-
 /**
  * @brief 根据变量名获取节点ID
  * @param[in] var_name 变量名（点名、线段名等）
  * @return 节点ID，未找到返回 -1
  */
 int formula_get_node_id(const char *var_name);
-
 /**
  * @brief 设置变量名到节点ID的映射
  * @param[in] var_name 变量名
  * @param[in] node_id  节点ID
  */
 void formula_set_node_id(const char *var_name, int node_id);
-
 /**
  * @brief 清除所有变量名映射
  */
 void formula_clear_var_map(void);
-
 /* ============================================================
  * 辅助转换函数
  * ============================================================ */
-
 /**
  * @brief 从 AST 数字节点创建 SymbolicCoord
  * @param[in] node 数字节点（类型须为 NODE_NUMBER）
  * @return 符号坐标指针，调用者负责销毁；失败返回 NULL
  */
 SymbolicCoord *formula_number_to_coord(const FormulaNode *node);
-
 /**
  * @brief 从坐标列表节点创建 SymbolicCoord 数组
  * @param[in]  coord_list 坐标列表节点
@@ -122,7 +101,6 @@ SymbolicCoord *formula_number_to_coord(const FormulaNode *node);
  * @return SymbolicCoord 数组，调用者负责销毁每个元素和数组本身
  */
 SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *out_count);
-
 /**
  * @brief 从 GeomNode 生成名称
  * @param[in]  node     几何节点
@@ -131,11 +109,9 @@ SymbolicCoord **formula_coords_to_symbolic(const FormulaNode *coord_list, int *o
  * @return 成功返回 true，失败返回 false
  */
 bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size);
-
 /* ============================================================
  * 几何对象转换
  * ============================================================ */
-
 /**
  * @brief 转换点定义到约束图
  * @param[in]  point_node 点节点（类型须为 NODE_GEOM_POINT）
@@ -144,7 +120,6 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph, int *out_node_id);
-
 /**
  * @brief 转换线段定义到约束图
  * @param[in]  segment_node 线段节点（类型须为 NODE_GEOM_SEGMENT）
@@ -153,7 +128,6 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *graph, int *out_node_id);
-
 /**
  * @brief 转换圆定义到约束图
  * @param[in]  circle_node 圆节点（类型须为 NODE_GEOM_CIRCLE）
@@ -162,7 +136,6 @@ bool formula_convert_segment(const FormulaNode *segment_node, ConstraintGraph *g
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *graph, int *out_node_id);
-
 /**
  * @brief 转换三角形定义到约束图
  * @param[in]  triangle_node 三角形节点（类型须为 NODE_GEOM_TRIANGLE）
@@ -173,11 +146,9 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
  */
 bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph *graph, int *out_node_ids,
                               int *out_count);
-
 /* ============================================================
  * 约束转换
  * ============================================================ */
-
 /**
  * @brief 转换垂直约束到约束图
  * @param[in]  constraint_node 约束节点（类型须为 NODE_CONSTRAINT_PERPENDICULAR）
@@ -186,7 +157,6 @@ bool formula_convert_triangle(const FormulaNode *triangle_node, ConstraintGraph 
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_perpendicular(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id);
-
 /**
  * @brief 转换平行约束到约束图
  * @param[in]  constraint_node 约束节点（类型须为 NODE_CONSTRAINT_PARALLEL）
@@ -195,7 +165,6 @@ bool formula_convert_perpendicular(const FormulaNode *constraint_node, Constrain
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id);
-
 /**
  * @brief 转换中点约束到约束图
  * @param[in]  constraint_node 约束节点（类型须为 NODE_CONSTRAINT_MIDPOINT）
@@ -204,7 +173,6 @@ bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGrap
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_node_id);
-
 /**
  * @brief 转换角度约束到约束图
  *
@@ -217,11 +185,9 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *graph, int *out_constraint_id);
-
 /* ============================================================
  * 代数方程转换
  * ============================================================ */
-
 /**
  * @brief 曲线采样点
  */
@@ -230,7 +196,6 @@ typedef struct {
     double y;      /**< 采样点 Y 坐标 */
     bool is_valid; /**< 此采样点是否有效 */
 } CurveSamplePoint;
-
 /**
  * @brief 方程曲线转换结果
  *
@@ -248,7 +213,6 @@ typedef struct {
     double bbox_max_x;        /**< 包围盒最大 X */
     double bbox_max_y;        /**< 包围盒最大 Y */
 } EquationCurveResult;
-
 /**
  * @brief 将代数方程转换为曲线采样点
  *
@@ -264,13 +228,11 @@ typedef struct {
  */
 EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equation_node, int sample_count, double x_min,
                                                        double x_max, double y_min, double y_max);
-
 /**
  * @brief 销毁方程曲线转换结果
  * @param[in] result 转换结果指针，可为 NULL
  */
 void equation_curve_result_destroy(EquationCurveResult *result);
-
 /**
  * @brief 将代数方程节点添加到约束图
  *
@@ -282,9 +244,7 @@ void equation_curve_result_destroy(EquationCurveResult *result);
  * @return 成功返回 true，失败返回 false
  */
 bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph *graph, int *out_node_id);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_FORMULA_CONVERTER_H */

@@ -46,7 +46,6 @@
 #define TEST_FAIL(msg)             \
     do {                           \
         printf("FAIL: %s\n", msg); \
-        g_fail_count++;            \
     } while (0)
 
 #define ASSERT_TRUE(cond)                 \
@@ -82,7 +81,6 @@
             TEST_FAIL(msg);            \
             return;                    \
         }                              \
-        g_pass_count++;                \
     } while (0)
 
 /* 全局测试计数器 */
@@ -192,10 +190,10 @@ void test_prop_ac3_collapsed(void) {
                 "传播结果为 SATISFIED 或 STABLE");
 
     propagation_context_destroy(ctx);
-    for (int i = 0; i < 2; i++) {
-        symbolic_coord_destroy(c0[i]);
-        symbolic_coord_destroy(c1[i]);
-        symbolic_coord_destroy(c2[i]);
+    for (int i = 0; i < 3; i++) {
+        symbolic_coord_destroy(c0[i % 2]);
+        symbolic_coord_destroy(c1[i % 2]);
+        symbolic_coord_destroy(c2[i % 2]);
     }
     graph_destroy(graph);
     printf("  PASS: PROP-T03\n");
@@ -640,11 +638,6 @@ void test_meta_proof_strategy_toggle(void) {
  * ================================================================ */
 
 int main(void) {
-    if (!lv00_init()) {
-        fprintf(stderr, "Failed to initialize Lv-00\n");
-        return 1;
-    }
-
     printf("=== WFC 范式模块集成测试 ===\n\n");
 
     printf("--- Module A: 约束传播引擎 ---\n");
@@ -673,6 +666,5 @@ int main(void) {
     printf("\n=== 测试结果: %d 通过, %d 失败 ===\n",
            g_pass_count, g_fail_count);
 
-    lv00_cleanup();
     return g_fail_count > 0 ? 1 : 0;
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_homotopy_type_theory.c
  * @brief Homotopy Type Theory Axiom Package Test
  *

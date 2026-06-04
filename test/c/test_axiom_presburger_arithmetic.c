@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_presburger_arithmetic.c
  * @brief Presburger Arithmetic Axiom Package Test
  *

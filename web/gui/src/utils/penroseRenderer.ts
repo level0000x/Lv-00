@@ -5,31 +5,12 @@
  *              三层分离架构，在 Lv-00 几何系统中实现"用代码描述数学关系，
  *              自动生成可视化"的叙事方式。
  *
- *              Penrose-style automatic visualization renderer.
- *              Inspired by the Domain-Substance-Style three-layer separation
- *              architecture from the Penrose project, implementing "describe
- *              mathematical relationships in code, auto-generate visualizations"
- *              in the Lv-00 geometry system.
- *
- * 主要功能 / Key Features:
- * - Domain（领域模式）：声明几何类型和谓词（PenroseType, PenrosePredicate）
- * - Substance（物质程序）：编码几何事实和关系（PenroseSubstance）
- * - Style（样式模式）：将几何实体映射到视觉样式（PenroseStyle）
- * - AutoLayout：力导向自动布局引擎，自动排列几何实体
- * - SVG Generator：生成完整 SVG 标记，可直接嵌入或导出
- * - 支持从当前几何构造自动生成 Domain + Substance 描述
- *
- * 使用示例 / Usage:
- *   import { generatePenroseSVG } from '@/utils/penroseRenderer';
- *   const svg = generatePenroseSVG(points, segments, constraints);
- *   // svg: 完整的 SVG 字符串，可用于渲染或导出
- *
- * 核心组件 / Core Components:
- * 1. Domain（领域模式）—— 声明几何类型和谓词
- * 2. Substance（物质程序）—— 编码几何事实和关系
- * 3. Style（样式模式）—— 将几何实体映射到视觉样式
- * 4. AutoLayout —— 力导向自动布局引擎
- * 5. SVG Generator —— 生成完整 SVG 标记
+ *              核心组件：
+ *              1. Domain（领域模式）—— 声明几何类型和谓词
+ *              2. Substance（物质程序）—— 编码几何事实和关系
+ *              3. Style（样式模式）—— 将几何实体映射到视觉样式
+ *              4. AutoLayout —— 力导向自动布局引擎
+ *              5. SVG Generator —— 生成完整 SVG 标记
  */
 
 import type { Point, Segment, Constraint } from '@/types';

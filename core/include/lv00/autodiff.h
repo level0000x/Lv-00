@@ -21,24 +21,18 @@
  * @version 3.3.0
  * @date   2026-05-25
  */
-
 #ifndef LV00_AUTODIFF_H
 #define LV00_AUTODIFF_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 #include "lv00.h"
-
 /* ============================================================
  * AD mode enumeration
  * ============================================================ */
-
 /**
  * @brief Automatic differentiation mode.
  *
@@ -53,11 +47,9 @@ typedef enum Lv00ADMode {
     AD_FORWARD = 0,
     AD_REVERSE = 1
 } Lv00ADMode;
-
 /* ============================================================
  * AD expression kind enumeration
  * ============================================================ */
-
 /**
  * @brief Kinds of AD expression nodes.
  */
@@ -71,11 +63,9 @@ typedef enum Lv00ADExprKind {
     AD_COS   = 6,   /**< Cosine: cos(children[0]) */
     AD_POW   = 7    /**< Power: children[0] ^ children[1] */
 } Lv00ADExprKind;
-
 /* ============================================================
  * AD expression node
  * ============================================================ */
-
 /**
  * @brief A node in the AD expression tree / computation graph.
  *
@@ -93,11 +83,9 @@ typedef struct Lv00ADExpr {
     size_t           child_count;  /**< Number of children */
     double           gradient;     /**< Accumulated gradient (used in reverse mode) */
 } Lv00ADExpr;
-
 /* ============================================================
  * AD engine
  * ============================================================ */
-
 /**
  * @brief Automatic differentiation engine.
  *
@@ -106,11 +94,9 @@ typedef struct Lv00ADExpr {
 typedef struct Lv00ADEngine {
     Lv00ADMode mode;  /**< Differentiation mode */
 } Lv00ADEngine;
-
 /* ============================================================
  * API: Engine lifecycle
  * ============================================================ */
-
 /**
  * @brief Create a new AD engine.
  *
@@ -118,18 +104,15 @@ typedef struct Lv00ADEngine {
  * @return Pointer to the new engine, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADEngine *ad_engine_create(Lv00ADMode mode);
-
 /**
  * @brief Destroy an AD engine.
  *
  * @param engine  The engine to destroy (may be NULL)
  */
 LV00_PUBLIC_API void ad_engine_destroy(Lv00ADEngine *engine);
-
 /* ============================================================
  * API: Expression construction
  * ============================================================ */
-
 /**
  * @brief Create a constant expression node.
  *
@@ -137,7 +120,6 @@ LV00_PUBLIC_API void ad_engine_destroy(Lv00ADEngine *engine);
  * @return Pointer to the new expression node, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADExpr *ad_expr_create_const(double value);
-
 /**
  * @brief Create a variable expression node.
  *
@@ -145,7 +127,6 @@ LV00_PUBLIC_API Lv00ADExpr *ad_expr_create_const(double value);
  * @return Pointer to the new expression node, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADExpr *ad_expr_create_var(int var_index);
-
 /**
  * @brief Create an addition expression: a + b.
  *
@@ -154,7 +135,6 @@ LV00_PUBLIC_API Lv00ADExpr *ad_expr_create_var(int var_index);
  * @return Pointer to the new expression node, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADExpr *ad_expr_add(Lv00ADExpr *a, Lv00ADExpr *b);
-
 /**
  * @brief Create a multiplication expression: a * b.
  *
@@ -163,7 +143,6 @@ LV00_PUBLIC_API Lv00ADExpr *ad_expr_add(Lv00ADExpr *a, Lv00ADExpr *b);
  * @return Pointer to the new expression node, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADExpr *ad_expr_mul(Lv00ADExpr *a, Lv00ADExpr *b);
-
 /**
  * @brief Create a sine expression: sin(x).
  *
@@ -171,7 +150,6 @@ LV00_PUBLIC_API Lv00ADExpr *ad_expr_mul(Lv00ADExpr *a, Lv00ADExpr *b);
  * @return Pointer to the new expression node, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADExpr *ad_expr_sin(Lv00ADExpr *x);
-
 /**
  * @brief Create a cosine expression: cos(x).
  *
@@ -179,7 +157,6 @@ LV00_PUBLIC_API Lv00ADExpr *ad_expr_sin(Lv00ADExpr *x);
  * @return Pointer to the new expression node, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADExpr *ad_expr_cos(Lv00ADExpr *x);
-
 /**
  * @brief Create a power expression: base ^ exponent.
  *
@@ -188,18 +165,15 @@ LV00_PUBLIC_API Lv00ADExpr *ad_expr_cos(Lv00ADExpr *x);
  * @return Pointer to the new expression node, or NULL on failure
  */
 LV00_PUBLIC_API Lv00ADExpr *ad_expr_pow(Lv00ADExpr *base, Lv00ADExpr *exponent);
-
 /**
  * @brief Destroy an expression node and all its children (recursive).
  *
  * @param expr  The expression to destroy (may be NULL)
  */
 LV00_PUBLIC_API void ad_expr_destroy(Lv00ADExpr *expr);
-
 /* ============================================================
  * API: Differentiation
  * ============================================================ */
-
 /**
  * @brief Evaluate an expression and compute its derivative using forward mode.
  *
@@ -215,7 +189,6 @@ LV00_PUBLIC_API void ad_expr_destroy(Lv00ADExpr *expr);
  */
 LV00_PUBLIC_API bool ad_forward_diff(Lv00ADExpr *expr, int var_index,
     double var_value, double *value, double *derivative);
-
 /**
  * @brief Compute gradients using reverse mode (backpropagation).
  *
@@ -232,11 +205,9 @@ LV00_PUBLIC_API bool ad_forward_diff(Lv00ADExpr *expr, int var_index,
 LV00_PUBLIC_API bool ad_reverse_diff(Lv00ADExpr *expr,
     const double *var_values, size_t var_count,
     double *value, double *gradients);
-
 /* ============================================================
  * API: Evaluation and gradient query
  * ============================================================ */
-
 /**
  * @brief Evaluate an expression given variable values.
  *
@@ -248,7 +219,6 @@ LV00_PUBLIC_API bool ad_reverse_diff(Lv00ADExpr *expr,
  */
 LV00_PUBLIC_API bool ad_eval(Lv00ADExpr *expr,
     const double *var_values, size_t var_count, double *result);
-
 /**
  * @brief Get the gradient of a specific variable after reverse differentiation.
  *
@@ -259,9 +229,7 @@ LV00_PUBLIC_API bool ad_eval(Lv00ADExpr *expr,
  * @return The gradient value, or 0.0 if not found
  */
 LV00_PUBLIC_API double ad_grad(Lv00ADExpr *expr, int var_index);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_AUTODIFF_H */

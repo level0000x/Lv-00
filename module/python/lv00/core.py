@@ -1,64 +1,22 @@
 """
 Lv-00 核心模块
-==============
 
-模块功能概述：
-    提供 Lv-00 几何元编程系统的核心 Python 类，是整个 Python 绑定层的基础。
-    本模块封装了底层 C 库的核心数据结构和操作，提供符号精确计算、几何对象
-    管理和约束图构建等能力，是所有上层模块（engine、func_block、dsl_wrappers
-    等）的依赖基础。
+提供几何元编程的核心 Python 类，包括：
+    - SymbolicCoord: 符号坐标，支持有理数、代数数和超越数
+    - Point: 几何点
+    - LineSegment: 线段
+    - Graph: 约束图，表示几何构造
+    - GeomNode: 几何节点包装类
+    - NormalizationResult: 规范化结果类
+    - Lv00Error / Lv00LibraryError: 异常类
 
-核心类列表：
-    - SymbolicCoord: 符号坐标，支持有理数、代数数和超越数的精确表示与运算
-    - Point: 几何点，由两个 SymbolicCoord 构成
-    - LineSegment: 线段，由两个端点定义
-    - Graph: 约束图，表示完整的几何构造，管理节点和约束关系
-    - GeomNode: 几何节点包装类，统一表示点、线段、端口、函数块等几何实体
-    - NormalizationResult: 规范化结果类，封装求解/规范化操作的输出
-    - Lv00BaseError: 统一异常基类，提供 message 和 error_code 属性
-    - Lv00Error: 核心模块异常基类，涵盖库错误、参数错误、约束冲突等
-    - Lv00LibraryError: 库加载或初始化失败异常
-
-使用示例：
-    >>> from lv00.core import Graph, Point, SymbolicCoord
-    >>>
-    >>> # 创建约束图并添加几何对象
-    >>> g = Graph()
-    >>> A = g.add_point(SymbolicCoord(0), SymbolicCoord(0), "A")
-    >>> B = g.add_point(SymbolicCoord(3), SymbolicCoord(4), "B")
-    >>>
-    >>> # 添加约束
-    >>> g.add_constraint(A, B, "distance", SymbolicCoord(5))
-    >>>
-    >>> # 规范化求解
-    >>> result = g.normalize()
-    >>> print(result)
-
-    >>> # 使用上下文管理器确保资源释放
-    >>> with Graph() as g:
-    ...     P = g.add_point(SymbolicCoord(1), SymbolicCoord(2), "P")
-    ...     # 自动管理 C 对象生命周期
-
-与 C 库的绑定关系：
-    本模块通过 ctypes 与底层 C 共享库（lv00_core）交互，绑定关系如下：
-    - _SymbolicCoord (ctypes 结构体) ↔ C 层 SymbolicCoord 结构体
-    - _ConstraintGraph (ctypes 指针) ↔ C 层 ConstraintGraph* 不透明句柄
-    - _NormalizationResult (ctypes 结构体) ↔ C 层 NormalizationResult 结构体
-    - 所有几何常量（GEOM_POINT, GEOM_LINE_SEGMENT 等）直接映射 C 层枚举值
-    - 所有约束常量（CONSTRAINT_INCIDENCE 等）直接映射 C 层枚举值
-    - Python 对象持有 C 指针，通过 __del__ 和上下文管理器自动释放
+本模块通过 ctypes 与底层 C 库交互，管理 C 对象的生命周期。
 
 设计原则：
-    1. 符号计算优先：所有坐标运算保持精确性，避免浮点误差
-    2. 内存安全：自动管理 C 对象的生命周期，防止内存泄漏
+    1. 符号计算优先：所有坐标运算保持精确性
+    2. 内存安全：自动管理 C 对象的生命周期
     3. 类型安全：完整的类型提示和参数验证
-    4. 异常处理：清晰的错误消息和错误码，统一的异常层次结构
-
-注意事项：
-    - 本模块不应直接实例化 C 结构体，应使用 Python 包装类
-    - SymbolicCoord 运算结果为不可变对象，每次运算产生新实例
-    - Graph 对象的线程安全性由上层调用者保证
-    - 在解释器关闭时（__del__ 阶段），模块级清理操作会被跳过
+    4. 异常处理：清晰的错误消息和错误码
 
 版本：3.3.0
 作者：Lv-00 开发团队

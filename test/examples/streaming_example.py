@@ -17,7 +17,7 @@ Lv-00 流式输出示例
     pip install aiohttp websockets
 
 作者：Lv-00 开发团队
-版本：3.5.0
+版本：3.2.0
 """
 
 import asyncio

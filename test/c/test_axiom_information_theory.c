@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_information_theory.c
  * @brief Information Theory Axiom Package Test
  *

@@ -3,30 +3,12 @@
  * @description 流式事件性能优化工具
  *              提供事件节流、批量处理、内存优化等功能
  *
- *              Stream event performance optimization utilities.
- *              Provides event throttling, batching, memory optimization,
- *              and performance monitoring for high-frequency event streams.
- *
- * 主要功能 / Key Features:
- * - 事件节流（throttle）和防抖（debounce），控制高频事件触发频率
- * - 批量处理（batching），将多个事件合并为单次处理以减少开销
- * - 事件优先级队列，确保高优先级事件优先处理
- * - 内存优化（LRU 缓存），自动淘汰最少使用的缓存条目
- * - 性能监控，记录事件处理耗时和吞吐量
- *
- * 使用示例 / Usage:
- *   import { createThrottle, createBatchProcessor, createLRUCache } from '@/utils/streamOptimizer';
- *
- *   // 创建节流器（每 100ms 最多执行一次）
- *   const throttled = createThrottle((data) => console.log(data), { interval: 100 });
- *
- *   // 创建批量处理器（每 200ms 或累积 10 个事件后执行）
- *   const batcher = createBatchProcessor((items) => processItems(items), {
- *     maxBatchSize: 10, maxWait: 200
- *   });
- *
- *   // 创建 LRU 缓存（最多缓存 100 条）
- *   const cache = createLRUCache<string, any>(100);
+ * 功能特性：
+ * - 事件节流（throttle）和防抖（debounce）
+ * - 批量处理（batching）
+ * - 事件优先级队列
+ * - 内存优化（LRU 缓存）
+ * - 性能监控
  */
 
 // ================================================================

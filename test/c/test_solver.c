@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_solver.c
  * @brief 求解器模块测试 - 代数方程求解、自由度分析、冲突方程检测
  *
@@ -217,9 +217,13 @@ static int test_overconstrained_system(void) {
     int p3 = add_point(g, 2, 1, 0, 1);
 
     /* 添加多个约束 */
+    printf("  [TRACE] add seg1\n");
     graph_add_line_segment(g, p1, p2);
+    printf("  [TRACE] add seg2\n");
     graph_add_line_segment(g, p2, p3);
+    printf("  [TRACE] add between\n");
     graph_add_betweenness(g, p1, p2, p3);
+    printf("  [TRACE] check conflict\n");
 
     /* 检测冲突*/
     bool has_conflict = check_conflict_equations(g);
@@ -417,6 +421,7 @@ static int test_equation_system_lifecycle(void) {
 /* ============== 主函数 ============== */
 
 int main(void) {
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== Lv-00 Solver Module Test Suite ===\n\n");
 
     test_degrees_of_freedom();

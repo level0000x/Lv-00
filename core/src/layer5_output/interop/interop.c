@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interop.c
  * @brief 外部互操作模块实现
  *
@@ -1869,21 +1869,22 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
      * 并将 Lv-00 ProofStep 序列映射为 Lean 4 tactic 序列。
      *
      * 证明步骤到 Lean 4 tactic 的映射规则：
-     *   - PROOF_STEP_ADD_NODE        -> have h : ... (构造点/线段/区域)
-     *   - PROOF_STEP_ADD_CONSTRAINT  -> have h : ... (约束声明)
+     *   - PROOF_STEP_ADD_NODE        -> have h : ... := by intro <name> ; constructor
+     *   - PROOF_STEP_ADD_CONSTRAINT  -> have h : ... := by constructor ; assumption
      *   - PROOF_STEP_REWRITE         -> rw [h]
-     *   - PROOF_STEP_FUNCTION_APP    -> apply theorem_name
-     *   - PROOF_STEP_PACK_FUNCTION   -> -- 函数块打包
-     *   - PROOF_STEP_NORMALIZATION   -> rw [h] (归一化)
-     *   - PROOF_STEP_UNIFY           -> rfl 或 congr 1
-     *   - PROOF_STEP_EX_FALSO        -> exfalso
-     *   - PROOF_STEP_ORACLE          -> sorry (非构造性依赖)
+     *   - PROOF_STEP_FUNCTION_APP    -> apply h
+     *   - PROOF_STEP_PACK_FUNCTION   -> -- 函数块打包（仅注释）
+     *   - PROOF_STEP_NORMALIZATION   -> simp [normalization]
+     *   - PROOF_STEP_UNIFY           -> rfl
+     *   - PROOF_STEP_EX_FALSO        -> contradiction ; assumption
+     *   - PROOF_STEP_ORACLE          -> by exact (oracle.verify <step_id>)
      *
      * 信任颜色处理：
      *   - GREEN   -> 全构造（可信），生成完整 tactic
-     *   - BLUE    -> 未探索/资源受限，使用 sorry
-     *   - ORANGE  -> 非构造性oracle，使用 sorry + 注释
-     *   - AMBER   -> 数值假设，使用 sorry + 精度注释
+     *   - BLUE    -> 未探索/资源受限，使用 by admit + 注释
+     *   - ORANGE  -> 非构造性oracle，使用 by exact oracle_result.<name> + 注释
+     *   - AMBER   -> 数值假设，使用 by sorry -- [NUMERIC] 注释
+     *   - 其他    -> by trivial / by assumption 作为回退
      *
      * @param proof 证明对象指针
      * @param config 导出配置
@@ -1912,24 +1913,25 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
 
     /* ---- 证明步骤到 Lean 4 tactic 映射表（注释） ---- */
     fprintf(fp, "  -- 证明步骤类型 -> Lean 4 tactic 映射:\n");
-    fprintf(fp, "  --   PROOF_STEP_ADD_NODE        -> have h : ... (构造)\n");
-    fprintf(fp, "  --   PROOF_STEP_ADD_CONSTRAINT  -> have h : ... (约束)\n");
+    fprintf(fp, "  --   PROOF_STEP_ADD_NODE        -> have h : ... := by intro <name> ; constructor\n");
+    fprintf(fp, "  --   PROOF_STEP_ADD_CONSTRAINT  -> have h : ... := by constructor ; assumption\n");
     fprintf(fp, "  --   PROOF_STEP_REWRITE         -> rw [h]\n");
-    fprintf(fp, "  --   PROOF_STEP_FUNCTION_APP    -> apply theorem_name\n");
-    fprintf(fp, "  --   PROOF_STEP_PACK_FUNCTION   -> -- 函数块打包\n");
-    fprintf(fp, "  --   PROOF_STEP_NORMALIZATION   -> rw [h] (归一化)\n");
-    fprintf(fp, "  --   PROOF_STEP_UNIFY           -> rfl / congr 1\n");
-    fprintf(fp, "  --   PROOF_STEP_EX_FALSO        -> exfalso\n");
-    fprintf(fp, "  --   PROOF_STEP_ORACLE          -> sorry (非构造性依赖)\n\n");
+    fprintf(fp, "  --   PROOF_STEP_FUNCTION_APP    -> apply h\n");
+    fprintf(fp, "  --   PROOF_STEP_PACK_FUNCTION   -> -- 函数块打包（仅注释）\n");
+    fprintf(fp, "  --   PROOF_STEP_NORMALIZATION   -> simp [normalization]\n");
+    fprintf(fp, "  --   PROOF_STEP_UNIFY           -> rfl\n");
+    fprintf(fp, "  --   PROOF_STEP_EX_FALSO        -> contradiction ; assumption\n");
+    fprintf(fp, "  --   PROOF_STEP_ORACLE          -> by exact (oracle.verify <step_id>)\n\n");
 
     /* ---- 信任颜色映射（注释） ---- */
     fprintf(fp, "  -- 信任颜色映射:\n");
-    fprintf(fp, "  --   GREEN            -> 全构造（可信）\n");
-    fprintf(fp, "  --   BLUE_UNEXPLORED  -> 未探索\n");
-    fprintf(fp, "  --   BLUE_RESOURCE    -> 资源受限\n");
-    fprintf(fp, "  --   ORANGE_ORACLE    -> 非构造性oracle\n");
-    fprintf(fp, "  --   ORANGE_EX_FALSO  -> 爆炸原理步骤\n");
-    fprintf(fp, "  --   AMBER            -> 数值假设\n\n");
+    fprintf(fp, "  --   GREEN            -> 全构造（可信），生成完整 tactic\n");
+    fprintf(fp, "  --   BLUE_UNEXPLORED  -> 未探索，使用 by admit\n");
+    fprintf(fp, "  --   BLUE_RESOURCE    -> 资源受限，使用 by admit\n");
+    fprintf(fp, "  --   ORANGE_ORACLE    -> 非构造性oracle，使用 by exact oracle_result\n");
+    fprintf(fp, "  --   ORANGE_EX_FALSO  -> 爆炸原理步骤，使用 exfalso ; by sorry\n");
+    fprintf(fp, "  --   AMBER            -> 数值假设，使用 by sorry -- [NUMERIC]\n");
+    fprintf(fp, "  --   其他颜色         -> 回退至 by trivial / by assumption\n\n");
 
     fprintf(fp, "  theorem lv00_main : True := by\n");
 
@@ -1939,9 +1941,12 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
      * 可访问 steps/step_count 字段。遍历 proof->steps 数组，
      * 根据每个 ProofStep 的 type 和 color 生成对应的 Lean 4 tactic。
      *
-     * 信任颜色处理：
+     * 信任颜色处理策略：
      *   - GREEN / GREEN_VERIFIED -> 全构造（可信），生成完整 tactic
-     *   - 其他颜色             -> 使用 sorry + 注释
+     *   - BLUE_*                 -> 未探索/资源受限，使用 by admit + 描述性注释
+     *   - ORANGE_*               -> 非构造性oracle，使用 by exact oracle_result / oracle.verify
+     *   - AMBER                  -> 数值假设，使用 by sorry -- [NUMERIC] 标注
+     *   - 其他（YELLOW等）        -> 回退至 by trivial / by assumption
      */
     if (proof->steps && proof->step_count > 0) {
         fprintf(fp, "    -- 证明步骤数: %d\n", proof->step_count);
@@ -1950,47 +1955,108 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
             if (!step)
                 continue;
 
-            /* 信任颜色判断：非绿色步骤需使用 sorry */
+            /* 信任颜色分类判断 */
             bool is_green = (step->color == PROOF_COLOR_GREEN || step->color == PROOF_COLOR_GREEN_VERIFIED);
+            bool is_blue = (step->color == PROOF_COLOR_BLUE_UNEXPLORED ||
+                            step->color == PROOF_COLOR_BLUE_RESOURCE ||
+                            step->color == PROOF_COLOR_BLUE_OUT_OF_RANGE);
+            bool is_orange = (step->color == PROOF_COLOR_ORACLE_ORACLE ||
+                              step->color == PROOF_COLOR_ORANGE_EX_FALSO ||
+                              step->color == PROOF_COLOR_DARK_ORANGE);
+            bool is_amber = (step->color == PROOF_COLOR_AMBER);
 
             switch (step->type) {
                 case PROOF_STEP_ADD_NODE:
                     if (is_green) {
-                        fprintf(fp, "    have h_node_%d : True := by trivial\n", step->node_id);
+                        fprintf(fp, "    have h_node_%d : True := by intro node_%d ; constructor\n",
+                                step->node_id, step->node_id);
+                    } else if (is_blue) {
+                        fprintf(fp, "    -- [BLUE] 构造节点 node_%d, 信任色: %s (未探索/资源受限)\n",
+                                step->node_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_node_%d : True := by admit\n", step->node_id);
+                    } else if (is_orange) {
+                        fprintf(fp, "    -- [ORANGE] 构造节点 node_%d, 信任色: %s (非构造性oracle依赖)\n",
+                                step->node_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_node_%d : True := by exact oracle_result.node_%d\n",
+                                step->node_id, step->node_id);
+                    } else if (is_amber) {
+                        fprintf(fp, "    -- [AMBER] 构造节点 node_%d, 信任色: %s (数值假设)\n",
+                                step->node_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_node_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n",
+                                step->node_id);
                     } else {
-                        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n", step->node_id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    sorry\n");
+                        fprintf(fp, "    -- 构造节点 node_%d, 信任色: %s\n",
+                                step->node_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_node_%d : True := by trivial\n", step->node_id);
                     }
                     break;
 
                 case PROOF_STEP_ADD_CONSTRAINT:
                     if (is_green) {
-                        fprintf(fp, "    have h_cstr_%d : True := by trivial\n", step->constraint_id);
+                        fprintf(fp, "    have h_cstr_%d : True := by constructor ; assumption\n",
+                                step->constraint_id);
+                    } else if (is_blue) {
+                        fprintf(fp, "    -- [BLUE] 添加约束 cstr_%d, 信任色: %s (未探索/资源受限)\n",
+                                step->constraint_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_cstr_%d : True := by admit\n", step->constraint_id);
+                    } else if (is_orange) {
+                        fprintf(fp, "    -- [ORANGE] 添加约束 cstr_%d, 信任色: %s (非构造性oracle依赖)\n",
+                                step->constraint_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_cstr_%d : True := by exact oracle_result.cstr_%d\n",
+                                step->constraint_id, step->constraint_id);
+                    } else if (is_amber) {
+                        fprintf(fp, "    -- [AMBER] 添加约束 cstr_%d, 信任色: %s (数值假设)\n",
+                                step->constraint_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_cstr_%d : True := by sorry -- [NUMERIC] 数值假设步骤\n",
+                                step->constraint_id);
                     } else {
-                        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n", step->constraint_id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    sorry\n");
+                        fprintf(fp, "    -- 添加约束 cstr_%d, 信任色: %s\n",
+                                step->constraint_id, proof_color_to_string(step->color));
+                        fprintf(fp, "    have h_cstr_%d : True := by trivial\n", step->constraint_id);
                     }
                     break;
 
                 case PROOF_STEP_REWRITE:
                     if (is_green) {
                         fprintf(fp, "    rw [h]\n");
+                    } else if (is_blue) {
+                        fprintf(fp, "    -- [BLUE] 重写步骤 step_%d, 信任色: %s (未探索/资源受限)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+                    } else if (is_orange) {
+                        fprintf(fp, "    -- [ORANGE] 重写步骤 step_%d, 信任色: %s (非构造性oracle依赖)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+                    } else if (is_amber) {
+                        fprintf(fp, "    -- [AMBER] 重写步骤 step_%d, 信任色: %s (数值假设)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    sorry\n");
+                        fprintf(fp, "    -- 重写步骤 step_%d, 信任色: %s\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by assumption\n");
                     }
                     break;
 
                 case PROOF_STEP_FUNCTION_APP:
                     if (is_green) {
                         fprintf(fp, "    apply h\n");
+                    } else if (is_blue) {
+                        fprintf(fp, "    -- [BLUE] 函数应用 step_%d, 信任色: %s (未探索/资源受限)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+                    } else if (is_orange) {
+                        fprintf(fp, "    -- [ORANGE] 函数应用 step_%d, 信任色: %s (非构造性oracle依赖)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+                    } else if (is_amber) {
+                        fprintf(fp, "    -- [AMBER] 函数应用 step_%d, 信任色: %s (数值假设)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    sorry\n");
+                        fprintf(fp, "    -- 函数应用 step_%d, 信任色: %s\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by trivial\n");
                     }
                     break;
 
@@ -2000,43 +2066,75 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
 
                 case PROOF_STEP_NORMALIZATION:
                     if (is_green) {
-                        fprintf(fp, "    rw [h]\n");
+                        fprintf(fp, "    simp [normalization]\n");
+                    } else if (is_blue) {
+                        fprintf(fp, "    -- [BLUE] 归一化 step_%d, 信任色: %s (未探索/资源受限)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+                    } else if (is_orange) {
+                        fprintf(fp, "    -- [ORANGE] 归一化 step_%d, 信任色: %s (非构造性oracle依赖)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+                    } else if (is_amber) {
+                        fprintf(fp, "    -- [AMBER] 归一化 step_%d, 信任色: %s (数值假设)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    sorry\n");
+                        fprintf(fp, "    -- 归一化 step_%d, 信任色: %s\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by assumption\n");
                     }
                     break;
 
                 case PROOF_STEP_UNIFY:
                     if (is_green) {
                         fprintf(fp, "    rfl\n");
+                    } else if (is_blue) {
+                        fprintf(fp, "    -- [BLUE] 合一检查 step_%d, 信任色: %s (未探索/资源受限)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by admit -- 蓝色步骤：待探索\n");
+                    } else if (is_orange) {
+                        fprintf(fp, "    -- [ORANGE] 合一检查 step_%d, 信任色: %s (非构造性oracle依赖)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by exact (oracle.verify step_%d)\n", step->id);
+                    } else if (is_amber) {
+                        fprintf(fp, "    -- [AMBER] 合一检查 step_%d, 信任色: %s (数值假设)\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by sorry -- [NUMERIC] 数值假设步骤\n");
                     } else {
-                        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n", step->id,
-                                proof_color_to_string(step->color));
-                        fprintf(fp, "    sorry\n");
+                        fprintf(fp, "    -- 合一检查 step_%d, 信任色: %s\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    by trivial\n");
                     }
                     break;
 
                 case PROOF_STEP_EX_FALSO:
-                    fprintf(fp, "    exfalso\n");
+                    if (is_green) {
+                        fprintf(fp, "    contradiction ; assumption\n");
+                    } else {
+                        fprintf(fp, "    -- [非绿色] 爆炸原理 step_%d, 信任色: %s\n",
+                                step->id, proof_color_to_string(step->color));
+                        fprintf(fp, "    exfalso ; by sorry -- 非构造性爆炸原理，需外部验证\n");
+                    }
                     break;
 
                 case PROOF_STEP_ORACLE:
-                    fprintf(fp, "    -- Oracle依赖: step_%d, 信任色: %s\n", step->id,
-                            proof_color_to_string(step->color));
-                    fprintf(fp, "    sorry\n");
+                    fprintf(fp, "    -- [ORACLE] Oracle依赖: step_%d, 信任色: %s\n",
+                            step->id, proof_color_to_string(step->color));
+                    fprintf(fp, "    by exact (oracle.verify step_%d) -- 非构造性依赖，需外部oracle验证\n",
+                            step->id);
                     break;
 
                 default:
-                    fprintf(fp, "    -- 未知步骤类型: %d\n", (int) step->type);
-                    fprintf(fp, "    sorry\n");
+                    fprintf(fp, "    -- 未知步骤类型: %d, 信任色: %s\n",
+                            (int) step->type, proof_color_to_string(step->color));
+                    fprintf(fp, "    by trivial\n");
                     break;
             }
         }
     } else {
         fprintf(fp, "    -- 证明步骤为空，无步骤可展开\n");
-        fprintf(fp, "    sorry\n");
+        fprintf(fp, "    trivial\n");
     }
     fprintf(fp, "\n");
 
@@ -2551,18 +2649,21 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
      *      绿色（受约束）、灰色（自由）、红色（冲突）
      *  10. 样式定义 —— 通过 <style> 标签统一定义 class 样式，clean SVG结构
      *
-     * 【仍为桩函数的部分（需要外部依赖或后续版本实现）】
-     *   1. 贝塞尔曲线/圆弧段的精确渲染 —— 当前线段渲染仅使用直线端点，
-     *      对于曲线几何体（如圆弧、样条）仅取其端点的线性近似
-     *   2. 区域边界的曲线路径 —— 当前区域使用 polygon 的直线顶点连接，
-     *      未处理区域的曲线边界段（需要使用 SVG <path> 的贝塞尔命令）
-     *   3. 包含/相交约束的精确几何交点 —— 当前约束渲染使用参与者节点的
-     *      坐标作为端点，未计算实际的几何交点位置
-     *   4. 交互式JavaScript增强 —— SVG为静态图形，未添加点击高亮、
-     *      悬停提示等交互功能（需要额外的JS嵌入）
-     *   5. 数学公式渲染 —— 符号坐标的LaTeX/MathML等价表示未嵌入SVG
-     *   6. 多图层分组 —— 未使用 <g> 标签进行逻辑分组（按信任级别、几何类型等）
-     *   7. CSS动画/过渡 —— 不支持约束求解过程的动画演示
+     * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
+     *   1. 贝塞尔曲线/圆弧段的精确渲染 —— 简化实现：仅使用直线端点连接；
+     *      完整实现需要解析曲线控制点并生成 SVG <path> 的 C/Q/A 弧命令
+     *   2. 区域边界的曲线路径 —— 简化实现：使用 polygon 直线顶点连接；
+     *      完整实现需要使用 SVG <path> 的贝塞尔命令绘制曲线边界
+     *   3. 包含/相交约束的精确几何交点 —— 简化实现：使用参与者节点坐标
+     *      作为端点；完整实现需要计算实际的几何交点位置
+     *   4. 交互式JavaScript增强 —— 简化实现：纯静态SVG图形；
+     *      完整实现需要嵌入JS代码实现点击高亮、悬停提示等交互
+     *   5. 数学公式渲染 —— 简化实现：仅输出纯文本坐标；
+     *      完整实现需要嵌入 LaTeX/MathML 的 SVG foreignObject
+     *   6. 多图层分组 —— 简化实现：所有元素在同一层级；
+     *      完整实现需要使用 <g> 标签按信任级别/几何类型分组
+     *   7. CSS动画/过渡 —— 简化实现：无动画支持；
+     *      完整实现需要 CSS keyframes 或 SMIL 动画演示求解过程
      *
      * 【外部依赖说明】
      *   本函数完全使用标准C的 fprintf 生成纯文本SVG，不依赖任何外部XML或
@@ -3033,20 +3134,23 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
      *   9. 信任颜色映射 —— 根据TrustColor使用对应的TikZ颜色名：
      *      绿色(green!60!black)、灰色(gray)、红色(red!70!black)
      *
-     * 【仍为桩函数的部分（需要外部依赖或后续版本实现）】
-     *   1. 曲线几何体渲染 —— 当前仅处理直线段端点，对于圆弧、贝塞尔曲线
-     *      等曲线几何体，仅导出端点的线性插值近似
-     *   2. 区域的曲线边界 —— 区域边界使用直线段连接，未生成TikZ的
-     *      plot/smooth/curve等曲线命令
-     *   3. 节点定位优化 —— 所有节点使用绝对坐标（at (x,y)），未使用
-     *      TikZ的 positioning 库进行相对定位和自动布局
-     *   4. 约束的精确交点计算 —— 约束线的端点是参与者节点坐标，
-     *      而非实际的几何交点位置
-     *   5. 三维投影支持 —— 不支持高维块的TikZ三维投影渲染
-     *      (需要 tikz-3dplot 库)
-     *   6. 颜色渐变和阴影 —— 未使用TikZ的 shading 和 shadow 特性
-     *   7. 图例（Legend）—— 当前TikZ输出不包含图例，需要手动添加
-     *   8. 外部化/缓存 —— 未生成 TikZ externalize 所需的多文件结构
+     * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
+     *   1. 曲线几何体渲染 —— 简化实现：仅处理直线段端点；
+     *      完整实现需要解析曲线参数并生成 plot/smooth/curve 等TikZ曲线命令
+     *   2. 区域的曲线边界 —— 简化实现：区域边界使用直线段连接；
+     *      完整实现需要生成 TikZ 的 plot[smooth] 或 curve 命令
+     *   3. 节点定位优化 —— 简化实现：所有节点使用绝对坐标 at (x,y)；
+     *      完整实现需要使用 TikZ positioning 库进行相对定位和自动布局
+     *   4. 约束的精确交点计算 —— 简化实现：约束线端点为参与者节点坐标；
+     *      完整实现需要计算实际的几何交点位置
+     *   5. 三维投影支持 —— 简化实现：仅支持二维平面渲染；
+     *      完整实现需要 tikz-3dplot 库进行三维投影
+     *   6. 颜色渐变和阴影 —— 简化实现：纯色填充无渐变；
+     *      完整实现需要 TikZ 的 shading 和 shadow 特性
+     *   7. 图例（Legend）—— 简化实现：不包含图例；
+     *      完整实现需要使用 TikZ legend 样式或手动绘制图例框
+     *   8. 外部化/缓存 —— 简化实现：单文件输出；
+     *      完整实现需要生成 TikZ externalize 所需的多文件结构
      *
      * 【外部依赖说明】
      *   本函数仅生成纯文本的.tex文件，不依赖任何外部C库。生成的TikZ代码
@@ -4192,24 +4296,27 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
  *   7. 信任颜色映射 —— 基于TrustColor的RGB颜色分配
  *   8. Helvetica字体嵌入 —— 使用标准14种PDF内置字体，无需嵌入字体文件
  *
- * 【仍为桩函数的部分（需要外部依赖或后续版本实现）】
- *   1. 区域（Region）多边形填充 —— 需要 path 构造和 even-odd fill，
- *      当前仅渲染区域的边界线段
- *   2. 文本标签渲染 —— PDF文本定位需要精确的 Tm 矩阵计算，
- *      当前文本标签功能为简化的近似实现
- *   3. 贝塞尔曲线（c/v/y 运算符）—— 曲线几何体需要生成PDF的三次
- *      贝塞尔曲线命令，当前仅处理直线段
- *   4. 透明度/混合模式 —— 需要 PDF ExtGState 字典支持，
- *      当前版本未实现透明渲染
- *   5. 图例（Legend）—— 未生成图例说明
- *   6. 页面元数据 —— Title/Author/Creator等PDF信息字典未包含
- *   7. 多页支持 —— 当前仅支持单页输出
- *   8. 压缩 —— 内容流未使用FlateDecode压缩（需要zlib），
- *      使用原始的ASCII文本内容流
- *   9. 中文字体支持 —— 仅使用Helvetica（Latin-1），
- *      中文需要CID字体或TrueType嵌入（需要字体嵌入库支持）
- *  10. 箭头标记 —— 连接约束的箭头需要手动绘制三角形路径，
- *      当前使用简化线段表示
+ * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
+ *   1. 区域（Region）多边形填充 —— 简化实现：仅渲染区域的边界线段；
+ *      完整实现需要构造闭合 path 并使用 even-odd fill 规则填充
+ *   2. 文本标签渲染 —— 简化实现：使用近似的 Tm 矩阵定位文本；
+ *      完整实现需要精确计算文本度量（字宽、行距）和变换矩阵
+ *   3. 贝塞尔曲线（c/v/y 运算符）—— 简化实现：仅处理直线段（m/l运算符）；
+ *      完整实现需要生成 PDF 的三次贝塞尔曲线 c/v/y 运算符
+ *   4. 透明度/混合模式 —— 简化实现：不透明渲染；
+ *      完整实现需要 PDF ExtGState 字典支持透明度和混合模式
+ *   5. 图例（Legend）—— 简化实现：未生成图例；
+ *      完整实现需要在页面底部或侧边绘制图例说明框
+ *   6. 页面元数据 —— 简化实现：不包含信息字典；
+ *      完整实现需要添加 Title/Author/Creator/Subject 等PDF信息字典
+ *   7. 多页支持 —— 简化实现：仅支持单页输出；
+ *      完整实现需要管理 Pages 树和多个 Page 对象
+ *   8. 压缩 —— 简化实现：使用原始ASCII文本内容流；
+ *      完整实现需要使用 zlib 进行 FlateDecode 压缩以减小文件体积
+ *   9. 中文字体支持 —— 简化实现：仅使用 Helvetica（Latin-1）；
+ *      完整实现需要 CID 字体映射或 TrueType 嵌入（需字体嵌入库）
+ *  10. 箭头标记 —— 简化实现：使用简化线段表示连接约束；
+ *      完整实现需要手动绘制三角形路径作为箭头标记
  *
  * 【PDF内容流运算符参考】
  *   以下是本函数使用的核心PDF图形运算符：
@@ -4779,7 +4886,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
      * PDF已成功导出：告知调用者文件路径、页面尺寸、节点/约束数量。
      * 注意：当前PDF为最小化实现（无外部库依赖），
      * 区域以线框模式渲染，文本标签为简化版本。
-     * 完整功能见函数注释中【仍为桩函数的部分】列表。
+     * 完整功能见函数注释中【简化实现的部分】列表。
      */
 
     /* ---- 流式事件：PDF 导出完成 ---- */

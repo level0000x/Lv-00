@@ -45,8 +45,7 @@
 /* 支持折叠动画：通过 max-height 和 opacity 过渡实现平滑展开/收起 */
 .panel-body {
     overflow: hidden;
-    max-height: 2000px;
-    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, padding 0.3s ease;
+    transition: max-height var(--transition-slow), opacity var(--transition-slow), padding var(--transition-slow);
     opacity: 1;
 }
 .panel-body.collapsed {

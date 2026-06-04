@@ -1,8 +1,6 @@
-# Lv00 元语言学术规范 v3.5.0 (已锁定)
+# Lv00 元语言学术规范
 
 > **适用范围**：本文定义 Lv00 几何元语言的词法、语法、类型系统、符号系统、操作语义和指称语义。该规范是词法语法解析层的权威文档，也是后续基础几何公理层、约束拓扑规约层、多策略自动推理层和输出证明编译层的输入契约。
-> 
-> **版本状态**：v3.5.0 - 语法规则已锁定，后续版本保持向后兼容
 
 ---
 
@@ -114,7 +112,8 @@ EscapeSequence  ::= "\\n" | "\\t" | "\\r" | "\\\"" | "\\\\"
 Point Line Circle Segment Ray Angle Triangle Polygon Scalar Bool Proposition Proof
 Let Constraint Assume Assert Prove Compute Normalize Export Import Theorem Axiom
 forall exists not and or implies iff true false bottom
-Define Macro Extend Syntax Custom
+collinear parallel perpendicular equal congruent tangent incident between on inside outside
+length distance angle area midpoint center radius diameter intersect
 ```
 
 关键字大小写敏感。
@@ -193,9 +192,6 @@ Statement           ::= DeclarationStmt
                     |   ExportStmt
                     |   AxiomStmt
                     |   TheoremStmt
-                    |   DefineStmt
-                    |   MacroStmt
-                    |   ExtendStmt
 ```
 
 ### 5.2 几何声明
@@ -326,40 +322,6 @@ ExportTarget        ::= Identifier | "proof" | "graph" | "theory"
 ExportFormat        ::= "json" | "latex" | "tikz" | "lean" | "coq" | "text"
 ```
 
-### 5.9 自定义扩展语句 (v3.5.0 新增)
-
-```bnf
-DefineStmt          ::= "Define" Identifier "(" ParamList? ")" "{" Statement* "}"
-ParamList           ::= Param ("," Param)*
-Param               ::= Identifier ":" Type
-
-MacroStmt           ::= "Macro" Identifier "=" Expr ";"
-
-ExtendStmt          ::= "Extend" "Syntax" "{" SyntaxExtension* "}"
-SyntaxExtension     ::= "operator" OperatorDef
-                    |   "keyword" KeywordDef
-                    |   "function" FunctionDef
-OperatorDef         ::= String "as" Identifier "precedence" Number
-KeywordDef          ::= String "maps" "to" Identifier
-FunctionDef         ::= Identifier "(" TypeList? ")" "->" Type
-```
-
-示例：
-
-```lv00
-Define midpoint(A: Point, B: Point) -> Point {
-    Let M : Point = point((A.x + B.x)/2, (A.y + B.y)/2);
-    return M;
-}
-
-Macro sq = x * x;
-
-Extend Syntax {
-    operator "~>" as "leads_to" precedence 100;
-    keyword "orthocenter" maps to "orthocenter";
-}
-```
-
 ---
 
 ## 6. 类型系统
@@ -379,8 +341,6 @@ Extend Syntax {
 | `Bool` | 逻辑真假值 | 不等同于命题证明 |
 | `Proposition` | 一阶逻辑命题 | 可被证明、假设、组合 |
 | `Proof` | 证明对象 | 记录证明链与依赖 |
-| `Function` | 函数类型 | 用户自定义函数 |
-| `Macro` | 宏类型 | 语法宏扩展 |
 
 ### 6.2 类型判断
 
@@ -432,7 +392,7 @@ Prove length(A,B);                 // Scalar 不是 Proposition
 系统状态定义：
 
 ```text
-Σ = (Γ, E, C, A, G, P, F, M)
+Σ = (Γ, E, C, A, G, P)
 ```
 
 其中：
@@ -442,9 +402,7 @@ Prove length(A,B);                 // Scalar 不是 Proposition
 - `C`：约束集合；
 - `A`：假设集合；
 - `G`：目标命题集合；
-- `P`：证明对象集合；
-- `F`：自定义函数集合 (v3.5.0 新增)；
-- `M`：宏定义集合 (v3.5.0 新增)。
+- `P`：证明对象集合。
 
 ### 7.1 声明语句
 
@@ -512,23 +470,6 @@ Point A;
 
 解析层仅记录导出请求，实际格式化由输出证明编译层执行。
 
-### 7.8 自定义函数定义 (v3.5.0 新增)
-
-```text
-Γ, x₁:T₁, ..., xₙ:Tₙ ⊢ body : T
-Σ ⟶ Σ[F := F ∪ {f ↦ λ(x₁:T₁, ..., xₙ:Tₙ). body}]
-```
-
-语义：在函数环境中登记用户自定义函数，函数体在调用时展开。
-
-### 7.9 宏定义 (v3.5.0 新增)
-
-```text
-Σ ⟶ Σ[M := M ∪ {m ↦ expr}]
-```
-
-语义：宏在解析阶段展开，不进行类型检查，直接文本替换。
-
 ---
 
 ## 8. 指称语义
@@ -540,7 +481,7 @@ Point A;
 一个 Lv00 几何模型定义为：
 
 ```text
-M = (U_P, U_L, U_C, U_S, I, R, F)
+M = (U_P, U_L, U_C, U_S, I, R)
 ```
 
 其中：
@@ -550,8 +491,7 @@ M = (U_P, U_L, U_C, U_S, I, R, F)
 - `U_C`：圆域；
 - `U_S`：数值域；
 - `I`：函数与构造符解释；
-- `R`：关系符解释；
-- `F`：用户自定义函数解释 (v3.5.0 新增)。
+- `R`：关系符解释。
 
 ### 8.2 实体解释
 
@@ -592,13 +532,6 @@ M ⊨ ∀x:T.φ iff  对所有 a ∈ ⟦T⟧_M, M[x↦a] ⊨ φ
 M ⊨ ∃x:T.φ iff  存在 a ∈ ⟦T⟧_M, M[x↦a] ⊨ φ
 ```
 
-### 8.6 自定义函数解释 (v3.5.0 新增)
-
-```text
-⟦Define f(x₁:T₁, ..., xₙ:Tₙ) { body }⟧_M = 
-    λ(a₁, ..., aₙ). ⟦body⟧_M[x₁↦a₁, ..., xₙ↦aₙ]
-```
-
 ---
 
 ## 9. AST 与 Typed IR 契约
@@ -626,9 +559,6 @@ ExportNode
 LogicExprNode
 MetricExprNode
 GeometryExprNode
-DefineNode          // v3.5.0 新增
-MacroNode           // v3.5.0 新增
-ExtendNode          // v3.5.0 新增
 ```
 
 ### 9.2 Typed IR 对象类别
@@ -641,8 +571,6 @@ Lv00TypedProposition
 Lv00TypedConstraint
 Lv00ProofGoal
 Lv00CommandRequest
-Lv00CustomFunction  // v3.5.0 新增
-Lv00Macro           // v3.5.0 新增
 ```
 
 ### 9.3 层间传递原则
@@ -653,58 +581,11 @@ Lv00Macro           // v3.5.0 新增
 
 ---
 
-## 10. 语法版本控制 (v3.5.0 新增)
+## 10. 示例
 
-### 10.1 版本声明
-
-每个 Lv00 源文件应以版本声明开头：
+### 10.1 等腰三角形声明与证明目标
 
 ```lv00
-#version 3.5.0
-```
-
-版本声明格式：
-
-```bnf
-VersionDecl         ::= "#version" VersionNumber
-VersionNumber       ::= Digit+ "." Digit+ "." Digit+
-```
-
-### 10.2 版本兼容性规则
-
-| 版本变化 | 兼容性 | 说明 |
-|---|---|---|
-| 主版本号变化 | 不兼容 | 语法有重大变更 |
-| 次版本号变化 | 向后兼容 | 新增特性，旧代码可运行 |
-| 补丁版本号变化 | 完全兼容 | 仅 bug 修复 |
-
-### 10.3 语法版本检测
-
-解析器在读取源文件时：
-
-1. 首先检查版本声明
-2. 如果无版本声明，假设为 v3.0.0（默认版本）
-3. 如果版本高于解析器支持的最大版本，报错
-4. 如果版本低于最小支持版本，尝试语法转换
-
-### 10.4 语法转换机制
-
-当解析旧版本语法时，解析器自动应用以下转换：
-
-| 旧语法 | 新语法 | 适用版本 |
-|---|---|---|
-| `point A 10 20` | `point A = point(10, 20)` | < v3.2.0 |
-| `line l A B` | `line l = line(A, B)` | < v3.2.0 |
-| `prove { ... }` | `Prove ...` | < v3.3.0 |
-
----
-
-## 11. 示例
-
-### 11.1 等腰三角形声明与证明目标
-
-```lv00
-#version 3.5.0
 Point A, B, C;
 Constraint length(A,B) = length(A,C);
 Prove angle(A,B,C) = angle(B,C,A);
@@ -712,10 +593,9 @@ Prove angle(A,B,C) = angle(B,C,A);
 
 语义：声明三点，加入等腰约束，登记底角相等证明目标。
 
-### 11.2 平行线约束
+### 10.2 平行线约束
 
 ```lv00
-#version 3.5.0
 Point A, B, C, D;
 Let l1 : Line = line(A,B);
 Let l2 : Line = line(C,D);
@@ -725,10 +605,9 @@ Assert not perpendicular(l1, l2);
 
 注意：若 `l1` 或 `l2` 退化，类型检查或约束相容检测必须报告条件不足。
 
-### 11.3 反证法目标
+### 10.3 反证法目标
 
 ```lv00
-#version 3.5.0
 Point A, B, C;
 Constraint collinear(A,B,C);
 Prove not area(triangle(A,B,C)) > 0;
@@ -736,35 +615,9 @@ Prove not area(triangle(A,B,C)) > 0;
 
 推理层可通过局部反设 `area(triangle(A,B,C)) > 0` 导出矛盾，但该矛盾不得污染全局约束集合。
 
-### 11.4 自定义函数 (v3.5.0)
-
-```lv00
-#version 3.5.0
-Define midpoint(A: Point, B: Point) -> Point {
-    Let M : Point = point((A.x + B.x)/2, (A.y + B.y)/2);
-    return M;
-}
-
-Point P, Q;
-Let M : Point = midpoint(P, Q);
-```
-
-### 11.5 语法扩展 (v3.5.0)
-
-```lv00
-#version 3.5.0
-Extend Syntax {
-    operator "~>" as "leads_to" precedence 100;
-    keyword "orthocenter" maps to "orthocenter";
-}
-
-Point A, B, C;
-Let H : Point = orthocenter(A, B, C);
-```
-
 ---
 
-## 12. 错误分类
+## 11. 错误分类
 
 | 错误类别 | 示例 | 处理层 |
 |---|---|---|
@@ -776,12 +629,10 @@ Let H : Point = orthocenter(A, B, C);
 | 约束矛盾 | `A=B` 且 `A≠B` | 约束拓扑规约层 |
 | 推理失败 | 欠约束无法证明 | 多策略自动推理层 |
 | 导出失败 | 不支持目标格式 | 输出证明编译层 |
-| 版本错误 | 不支持的语法版本 | 词法语法解析层 |
-| 扩展错误 | 自定义语法冲突 | 词法语法解析层 |
 
 ---
 
-## 13. 与五层架构的关系
+## 12. 与十层架构的关系
 
 ```text
 词法语法解析层：本文定义 Token、BNF、AST、Typed IR。
@@ -793,26 +644,10 @@ Let H : Point = orthocenter(A, B, C);
 
 ---
 
-## 14. 版本历史
-
-| 版本 | 日期 | 主要变更 |
-|---|---|---|
-| v3.0.0 | 2025-01 | 初始版本，基础语法定义 |
-| v3.1.0 | 2025-02 | 添加证明命令和导出语句 |
-| v3.2.0 | 2025-03 | 添加类型系统和约束算子 |
-| v3.3.0 | 2025-04 | 添加操作语义和指称语义 |
-| v3.4.0 | 2025-05 | 添加错误分类和层间契约 |
-| v3.5.0 | 2026-05 | **语法锁定**，添加自定义函数、宏、语法扩展、版本控制 |
-
----
-
-## 15. 后续实现要求
+## 13. 后续实现要求
 
 1. 新增 parser 行为时，必须先补充 BNF 与解析测试。
 2. 新增几何实体时，必须同时定义类型规则、操作语义和指称语义。
 3. 新增逻辑算子时，必须定义优先级、结合性和语义解释。
 4. 任何浮点近似结果不得直接作为证明事实。
 5. 反证法、矛盾闭包、SMT 校验均不得在解析层出现实现依赖。
-6. **语法版本必须向后兼容**：v3.5.0 之后的主版本号变更仅在不兼容变更时递增。
-7. 自定义语法扩展必须通过 `Extend Syntax` 语句显式声明。
-8. 所有错误信息必须包含精确的行号、列号和友好的中文描述。

@@ -179,17 +179,54 @@ static struct Proposition *create_result_proposition(int id, const char *name)
  */
 static Lv00TruthValue evaluate_body_for_element(const Lv00QuantifiedExpr *expr, int element_id)
 {
-    (void)element_id; /* 当前简化实现暂不使用具体元素 */
-
     if (!expr || !expr->body_proposition) {
         return LV00_UNKNOWN;
     }
 
-    /* 简化评估：体命题存在且 id 有效时视为 TRUE */
-    if (expr->body_proposition->id > 0) {
+    /* 将元素代入体命题进行评估：
+     * 检查体命题是否包含对量化变量的引用，
+     * 如果 variable_node_id 与 element_id 匹配，则视为满足。
+     * 完整实现应执行真正的变量替换和命题评估。 */
+    if (expr->body_proposition->id <= 0) {
+        return LV00_UNKNOWN;
+    }
+
+    /* 检查体命题的 precondition_region_ids 或 postcondition_constraint_ids
+     * 中是否包含与 element_id 相关的约束 */
+    if (expr->body_proposition->precondition_region_ids) {
+        /* 简化：如果存在前置条件区域，检查 element_id 是否在其中 */
+        for (int i = 0; i < (int)expr->body_proposition->precondition_region_count; i++) {
+            if (expr->body_proposition->precondition_region_ids[i] == element_id) {
+                return LV00_TRUE;
+            }
+        }
+    }
+
+    /* 检查体命题的 output_port_ids 是否与 element_id 关联 */
+    if (expr->body_proposition->output_port_ids) {
+        for (int i = 0; i < (int)expr->body_proposition->output_port_count; i++) {
+            if (expr->body_proposition->output_port_ids[i] == element_id) {
+                return LV00_TRUE;
+            }
+        }
+    }
+
+    /* 检查子命题：递归检查子命题是否引用了 element_id */
+    if (expr->body_proposition->sub_props && expr->body_proposition->sub_prop_count > 0) {
+        for (int i = 0; i < expr->body_proposition->sub_prop_count; i++) {
+            struct Proposition *sub = expr->body_proposition->sub_props[i];
+            if (sub && sub->id == element_id) {
+                return LV00_TRUE;
+            }
+        }
+    }
+
+    /* 如果变量节点 ID 与 element_id 匹配，且体命题有效，视为 TRUE */
+    if (expr->variable_node_id == element_id) {
         return LV00_TRUE;
     }
 
+    /* 默认：体命题有效但无法确定元素代入结果 */
     return LV00_UNKNOWN;
 }
 

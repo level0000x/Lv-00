@@ -28,7 +28,6 @@
 #define LV00_DEBUG_F_OK F_OK
 #endif
 
-#include "lv00.h"       /* 必须先包含以获取 LV00_PUBLIC_API 定义 */
 #include "debug.h"
 #include "context.h"      /* v3.3.0: 结构化日志需要 Lv00Context */
 #include "engine.h"

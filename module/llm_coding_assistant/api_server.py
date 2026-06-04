@@ -2,47 +2,30 @@
 LLM编程辅助系统 - API 服务器模块
 ====================================
 
-模块功能概述：
-    本模块提供基于 FastAPI 的 RESTful API 和 WebSocket 接口，
-    是 LLM 编程辅助系统的网络入口层。支持代码分析、代码生成、
-    代码调试和 AI 对话等功能，为前端应用提供统一的 HTTP/WebSocket 服务。
+本模块提供基于 FastAPI 的 RESTful API 和 WebSocket 接口，
+支持代码分析、代码生成、代码调试和 AI 对话等功能。
 
 核心组件：
-    - FastAPI 应用实例 (app): HTTP 服务器，处理 REST 请求
-    - ConnectionManager: WebSocket 连接管理器，维护活跃连接列表
-    - Pydantic 数据模型: 请求验证（ChatRequest/CodeAnalysisRequest 等）
-    - 生命周期管理器 (lifespan): 启动时初始化 AI 引擎，关闭时清理资源
+  - FastAPI 应用实例 (app): HTTP 服务器，处理 REST 请求
+  - ConnectionManager: WebSocket 连接管理器，维护活跃连接列表
+  - Pydantic 数据模型: 请求验证（ChatRequest/CodeAnalysisRequest 等）
+  - 生命周期管理器 (lifespan): 启动时初始化 AI 引擎，关闭时清理资源
 
 API 端点：
-    - GET  /: 根路径（返回 Web 界面或 API 信息）
-    - GET  /api/status: 系统状态查询
-    - POST /api/chat: AI 对话
-    - POST /api/analyze: 代码分析
-    - POST /api/generate: 代码生成
-    - POST /api/debug: 代码调试
-    - WS   /ws/chat: WebSocket 实时对话
+  - GET  /: 根路径（返回 Web 界面或 API 信息）
+  - GET  /api/status: 系统状态查询
+  - POST /api/chat: AI 对话
+  - POST /api/analyze: 代码分析
+  - POST /api/generate: 代码生成
+  - POST /api/debug: 代码调试
+  - WS   /ws/chat: WebSocket 实时对话
 
 安全特性：
-    - 请求体大小限制（10MB）
-    - CORS 跨域控制
-    - 全局异常处理（不暴露内部错误细节）
-    - Pydantic 数据验证
-
-使用示例：
-    >>> # 启动服务器（命令行）
-    >>> python -m llm_coding_assistant.api_server --host 0.0.0.0 --port 8000
-    >>>
-    >>> # 或使用 uvicorn 直接启动
-    >>> uvicorn llm_coding_assistant.api_server:app --reload
-
-注意事项：
-    - 启动前需确保 AI 引擎依赖已正确安装
-    - WebSocket 连接有超时机制，长时间无活动会被自动断开
-    - 生产环境建议配置 HTTPS 和适当的 CORS 策略
-    - 日志级别可通过环境变量或配置文件调整
+  - 请求体大小限制（10MB）
+  - CORS 跨域控制
+  - 全局异常处理（不暴露内部错误细节）
+  - Pydantic 数据验证
 """
-
-from __future__ import annotations
 
 import os
 import sys
@@ -54,21 +37,21 @@ import time
 import uuid
 import secrets
 from functools import wraps
-from typing import Callable, Awaitable
+from typing import Callable, Optional, Dict, Any, List, Awaitable
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 from datetime import datetime
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-# [安全修复 C-02] 已注释掉 sys.path 注入代码。
-# 修改 sys.path 会影响整个 Python 进程的模块搜索顺序，
-# 可能导致模块加载顺序被恶意利用（如加载同名恶意模块）。
-# 本模块已使用相对导入（from .core import ...），无需手动修改 sys.path。
-# 若通过 `python -m llm_coding_assistant.api_server` 启动，包内导入自动生效。
-# _FRAME_DIR = Path(__file__).resolve().parent
-# if _FRAME_DIR not in sys.path:
-#     sys.path.insert(0, str(_FRAME_DIR))
+# 确保 llm_coding_assistant 目录在搜索路径中，以便 `from core import`
+# 能正确找到 core 子模块。若通过 `python -m llm_coding_assistant.api_server`
+# 启动则不需要手动修改 sys.path。
+# 注意：修改 sys.path 会影响整个 Python 进程的模块搜索顺序，
+# 仅在包内相对导入无法正常工作时才需要此变通方案。
+_FRAME_DIR = Path(__file__).resolve().parent
+if _FRAME_DIR not in sys.path:
+    sys.path.insert(0, str(_FRAME_DIR))
 
 try:
     from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
@@ -101,14 +84,13 @@ from .auth import (
 # ============================================================
 __version__ = "3.3.0"
 
-# [安全修复 C-03] 已移除 logging.basicConfig() 调用。
-# 库模块不应调用 logging.basicConfig()，因为它会全局配置根日志记录器，
-# 影响使用方的日志配置（如格式、级别、处理器等）。
-# 日志配置应由应用入口脚本（如 __main__.py 或启动命令）负责初始化。
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-# )
+# ============================================================
+# 日志配置（必须在其他模块代码之前初始化，避免 logger 在定义前使用）
+# ============================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+)
 logger = logging.getLogger("api_server")
 
 # ============================================================
@@ -120,19 +102,11 @@ _SECRET_KEY_ENV: str = os.getenv("JWT_SECRET_KEY", "")
 SECRET_KEY: str = ""
 
 # 令牌过期时间（秒），默认 24 小时
-# [安全修复 H-05] 添加 try/except 处理环境变量非数字值的情况，
-# 提供友好的错误消息而非直接抛出 ValueError 崩溃。
-try:
-    ACCESS_TOKEN_EXPIRE_SECONDS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "86400"))
-except ValueError:
-    raise ValueError(
-        "环境变量 ACCESS_TOKEN_EXPIRE_SECONDS 的值必须为正整数秒数，"
-        f"例如 86400（24小时）。当前值无效，请检查环境变量配置。"
-    )
+ACCESS_TOKEN_EXPIRE_SECONDS: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "86400"))
 
 # 用户存储（生产环境应使用数据库）
 # 在 _ensure_admin_exists() 中从环境变量初始化管理员账户
-USERS: dict[str, User] = {}
+USERS: Dict[str, User] = {}
 
 
 def _validate_config() -> None:
@@ -199,7 +173,7 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 # 生产环境部署时，务必通过环境变量 CORS_ORIGINS 设置为实际的前端域名，
 # 例如: CORS_ORIGINS=https://your-production-domain.com
 # 注意：对每个来源进行 strip() 处理，避免因逗号后空格导致的匹配失败
-ALLOWED_ORIGINS: list[str] = [
+ALLOWED_ORIGINS: List[str] = [
     origin.strip() 
     for origin in os.getenv(
         "CORS_ORIGINS",
@@ -213,7 +187,7 @@ class ConnectionManager:
 
     def __init__(self) -> None:
         """初始化连接管理器，创建空的连接列表和异步锁"""
-        self.active_connections: list[WebSocket] = []
+        self.active_connections: List[WebSocket] = []
         self._lock: asyncio.Lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket) -> None:
@@ -254,7 +228,7 @@ class ChatRequest(BaseModel):
     """AI对话请求模型"""
     message: str = Field(..., min_length=1, max_length=32000, description="用户消息内容")
     stream: bool = Field(default=False, description="是否使用流式响应")
-    provider: str | None = Field(default=None, description="指定AI服务提供商")
+    provider: Optional[str] = Field(default=None, description="指定AI服务提供商")
 
     @field_validator("message")
     @classmethod
@@ -268,7 +242,7 @@ class ChatRequest(BaseModel):
 class CodeAnalysisRequest(BaseModel):
     """代码分析请求模型"""
     code: str = Field(..., min_length=1, max_length=500000, description="待分析的代码")
-    filename: str | None = Field(default="", description="文件名，用于语言检测")
+    filename: Optional[str] = Field(default="", description="文件名，用于语言检测")
     format: str = Field(default="markdown", description="报告输出格式")
 
     @field_validator("code")
@@ -293,7 +267,7 @@ class CodeGenerationRequest(BaseModel):
     """代码生成请求模型"""
     description: str = Field(..., min_length=1, max_length=16000, description="代码功能描述")
     language: str = Field(default="python", description="目标编程语言")
-    context: str | None = Field(default="", description="上下文或参考代码")
+    context: Optional[str] = Field(default="", description="上下文或参考代码")
 
     @field_validator("description")
     @classmethod
@@ -307,7 +281,7 @@ class CodeGenerationRequest(BaseModel):
 class DebugRequest(BaseModel):
     """代码调试请求模型"""
     code: str = Field(..., min_length=1, max_length=500000, description="待调试的代码")
-    error_message: str | None = Field(default="", description="错误信息")
+    error_message: Optional[str] = Field(default="", description="错误信息")
     language: str = Field(default="python", description="编程语言")
 
     @field_validator("code")
@@ -372,13 +346,13 @@ def auth_required(func: Callable) -> Callable:
 # ============================================================
 
 # AI引擎实例（在 lifespan 中初始化）
-ai_engine: AIEngine | None = None
+ai_engine: Optional[AIEngine] = None
 # 代码分析器实例（在 lifespan 中初始化）
-code_analyzer: CodeAnalyzer | None = None
+code_analyzer: Optional[CodeAnalyzer] = None
 # WebSocket连接管理器
 ws_manager = ConnectionManager()
 # 应用启动时间（在 lifespan 中设置）
-_app_start_time: float | None = None
+_app_start_time: Optional[float] = None
 
 
 # ============================================================
@@ -488,7 +462,7 @@ async def limit_request_size(request: Request, call_next: RequestResponseEndpoin
 
 # 存储格式: { "ip_address": [timestamp1, timestamp2, ...] }
 # 仅保留时间窗口内的请求时间戳，超出窗口的记录在每次检查时清理
-_rate_limit_store: dict[str, list[float]] = {}
+_rate_limit_store: Dict[str, List[float]] = {}
 # 上次全局清理的时间戳
 _last_rate_limit_cleanup: float = 0.0
 # 异步安全锁：保护速率限制存储的并发访问（asyncio.Lock 适用于异步中间件）
@@ -558,12 +532,7 @@ async def rate_limit_middleware(request: Request, call_next: RequestResponseEndp
     if request.url.path.startswith("/ws/"):
         return await call_next(request)
 
-    # 获取客户端真实 IP（优先使用 X-Forwarded-For，适用于反向代理场景）
-    if request.client:
-        forwarded = request.headers.get("X-Forwarded-For", "")
-        client_ip = forwarded.split(",")[0].strip() if forwarded else request.client.host
-    else:
-        client_ip = "unknown"
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(",")[0].strip() if request.client else "unknown"
     now = time.time()
 
     # 使用异步锁保护速率限制存储的并发访问
@@ -652,7 +621,7 @@ def _check_code_analyzer() -> None:
         raise HTTPException(status_code=503, detail="代码分析器未初始化，请稍后重试")
 
 
-def _success_response(data: dict[str, Any]) -> dict[str, Any]:
+def _success_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     构造统一成功响应。
 
@@ -792,7 +761,7 @@ async def login(request: LoginRequest):
 # ============================================================
 
 # 存储格式: { "ip_address": [timestamp1, timestamp2, ...] }
-_register_rate_limit_store: dict[str, list[float]] = {}
+_register_rate_limit_store: Dict[str, List[float]] = {}
 # 注册速率限制：每个IP每分钟最多允许的注册次数
 REGISTER_RATE_LIMIT_MAX = 5
 # 注册速率限制时间窗口（秒）
@@ -922,7 +891,7 @@ async def get_status():
         uptime_seconds = int(time.time() - _app_start_time)
 
     # 构建基本状态信息
-    status_data: dict[str, Any] = {
+    status_data: Dict[str, Any] = {
         "status": "online",
         "version": __version__,
         "uptime_seconds": uptime_seconds,

@@ -2135,6 +2135,13 @@ RestrictionLevel spell_check_restriction(const Spell *spell, const ForbiddenSpel
  * 领域系统
  * ============================================================ */
 
+/** 领域规则结构体 */
+typedef struct {
+    char *pattern;    /* 规则匹配模式 */
+    double priority;  /* 规则优先级（数值越小优先级越高） */
+    int action;       /* 规则动作类型 */
+} DomainRule;
+
 /** 领域结构体：定义一个魔法作用区域 */
 struct Domain {
     char *name;            /* 领域名称 */
@@ -2142,6 +2149,11 @@ struct Domain {
     SymbolicCoord *center; /* 领域中心坐标 */
     bool active;           /* 是否激活 */
     double strength;       /* 领域强度 */
+
+    /* 规则系统 */
+    DomainRule *rules;     /* 规则动态数组 */
+    int rule_count;         /* 当前规则数量 */
+    int rule_capacity;      /* 规则数组容量 */
 };
 
 /**
@@ -2170,6 +2182,11 @@ Domain *domain_create(const char *name, int range) {
     domain->active = false;
     domain->strength = 0.0;
 
+    /* 初始化规则系统 */
+    domain->rules = NULL;
+    domain->rule_count = 0;
+    domain->rule_capacity = 0;
+
     return domain;
 }
 
@@ -2188,22 +2205,72 @@ void domain_destroy(Domain *domain) {
         lv00_free((void **) &domain->name);
     if (domain->center)
         symbolic_coord_destroy(domain->center);
+    /* 释放所有规则 */
+    if (domain->rules) {
+        for (int i = 0; i < domain->rule_count; i++) {
+            if (domain->rules[i].pattern)
+                lv00_free((void **) &domain->rules[i].pattern);
+        }
+        lv00_free((void **) &domain->rules);
+    }
     lv00_free((void **) &domain);
 }
 
 /**
- * @brief 向领域添加规则（简化实现）
+ * @brief 向领域添加规则
+ *
+ * 将规则添加到领域的规则数组中。如果存在相同 pattern 的规则则跳过。
+ * 插入后按优先级排序（数值越小优先级越高）。
  *
  * @param domain     领域指针
- * @param rule_name  规则名称
+ * @param rule_name  规则名称/模式
  * @param priority   规则优先级
- * @return 始终返回 true（当前为简化实现）
+ * @return 成功返回 true，domain 为 NULL 或内存分配失败返回 false
  */
 bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
-    (void) domain;
-    (void) rule_name;
-    (void) priority;
-    return true; /* 简化实现 */
+    if (!domain || !rule_name)
+        return false;
+
+    /* 检查重复规则（相同 pattern） */
+    for (int i = 0; i < domain->rule_count; i++) {
+        if (domain->rules[i].pattern &&
+            strcmp(domain->rules[i].pattern, rule_name) == 0) {
+            return true; /* 已存在，视为成功 */
+        }
+    }
+
+    /* 扩容检查 */
+    if (domain->rule_count >= domain->rule_capacity) {
+        int new_cap = domain->rule_capacity == 0 ? 8 : domain->rule_capacity * 2;
+        DomainRule *new_rules = (DomainRule *) lv00_realloc(
+            domain->rules, new_cap * sizeof(DomainRule));
+        if (!new_rules)
+            return false;
+        domain->rules = new_rules;
+        domain->rule_capacity = new_cap;
+    }
+
+    /* 添加新规则 */
+    int idx = domain->rule_count;
+    domain->rules[idx].pattern = lv00_strdup_safe(rule_name);
+    if (!domain->rules[idx].pattern)
+        return false;
+    domain->rules[idx].priority = priority;
+    domain->rules[idx].action = 0; /* 默认动作 */
+    domain->rule_count++;
+
+    /* 按优先级排序（数值越小优先级越高，使用简单冒泡排序） */
+    for (int i = domain->rule_count - 1; i > 0; i--) {
+        if (domain->rules[i].priority < domain->rules[i - 1].priority) {
+            DomainRule tmp = domain->rules[i];
+            domain->rules[i] = domain->rules[i - 1];
+            domain->rules[i - 1] = tmp;
+        } else {
+            break; /* 已排好序 */
+        }
+    }
+
+    return true;
 }
 
 /**

@@ -141,10 +141,7 @@ def create_app(engine: MonitorEngine, config: Config) -> Flask:
     app.config["SECRET_KEY"] = secret_key
 
     # SSE 客户端管理
-    # 每个客户端对应一个 deque，用于存放待推送的 SSE 事件数据字典。
-    # 类型为 list[deque[dict[str, Any]]]：外层列表管理所有客户端连接，
-    # 内层 deque 为每个客户端的消息缓冲队列，字典为 SSE 事件数据。
-    sse_clients: list[deque[dict[str, Any]]] = []
+    sse_clients: list[deque] = []
     sse_lock = threading.Lock()
 
     # 订阅引擎事件
@@ -274,21 +271,6 @@ def create_app(engine: MonitorEngine, config: Config) -> Flask:
         body = request.get_json(silent=True) or {}
         timeout = body.get("timeout")
         process_ids = body.get("process_ids")
-
-        # 验证 timeout 参数：如果提供，必须是正数
-        if timeout is not None:
-            try:
-                timeout = float(timeout)
-                if timeout <= 0:
-                    return jsonify({
-                        "error": "timeout 必须为正数",
-                        "error_code": "VALIDATION_ERROR",
-                    }), HTTP_BAD_REQUEST
-            except (TypeError, ValueError):
-                return jsonify({
-                    "error": "timeout 必须为数字",
-                    "error_code": "VALIDATION_ERROR",
-                }), HTTP_BAD_REQUEST
 
         try:
             engine.run_in_background(process_ids, timeout)

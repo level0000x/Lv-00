@@ -73,7 +73,6 @@ static const ErrorInfo g_error_table[] = {
     /* 通用系统错误 */
     {LV00_ERROR_UNKNOWN, "LV00_ERROR_UNKNOWN", "未知错误", "系统"},
     {LV00_ERROR_INVALID_PARAM, "LV00_ERROR_INVALID_PARAM", "无效参数", "系统"},
-    /* LV00_ERROR_INVALID_PARAM: 通用参数无效（如 NULL 指针、超出范围的数值） */
     {LV00_ERROR_NULL_POINTER, "LV00_ERROR_NULL_POINTER", "空指针", "系统"},
     {LV00_ERROR_NOT_INITIALIZED, "LV00_ERROR_NOT_INITIALIZED", "未初始化", "系统"},
     {LV00_ERROR_ALREADY_EXISTS, "LV00_ERROR_ALREADY_EXISTS", "已存在", "系统"},
@@ -87,7 +86,6 @@ static const ErrorInfo g_error_table[] = {
     {LV00_ERROR_PARSE, "LV00_ERROR_PARSE", "解析错误", "系统"},
     {LV00_ERROR_INVALID_STATE, "LV00_ERROR_INVALID_STATE", "无效状态", "系统"},
     {LV00_ERROR_INVALID_ARGUMENT, "LV00_ERROR_INVALID_ARGUMENT", "无效参数（字符串为空等）", "系统"},
-    /* LV00_ERROR_INVALID_ARGUMENT: 语义层面的参数无效（如空字符串、不合法的格式） */
     {LV00_ERROR_INDEX_OUT_OF_RANGE, "LV00_ERROR_INDEX_OUT_OF_RANGE", "索引越界", "系统"},
     {LV00_ERROR_VALUE_OUT_OF_RANGE, "LV00_ERROR_VALUE_OUT_OF_RANGE", "数值越界", "系统"},
 

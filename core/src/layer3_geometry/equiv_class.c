@@ -446,9 +446,30 @@ int equiv_merge_algebraic_conjugates(EquivClassManager *mgr) {
                 }
 
                 /* 不同坐标但哈希相同 → 可能是共轭 */
-                /* TODO: 精确比较极小多项式系数（需要访问 Algebraic.minimal_poly） */
-                /* 当前简化实现：标记为需要进一步验证 */
-                (void)cmp;
+                /* 精确比较极小多项式系数 */
+                /* 通过 symbolic_coord_compare 已确认坐标不同，但哈希相同 */
+                /* 进一步验证：检查两个代数坐标是否来自同一极小多项式 */
+                if (sci->algebraic_info && scj->algebraic_info) {
+                    /* 比较极小多项式的度数和系数 */
+                    if (sci->algebraic_info->degree == scj->algebraic_info->degree &&
+                        sci->algebraic_info->coeff_count == scj->algebraic_info->coeff_count) {
+                        bool same_poly = true;
+                        for (int k = 0; k < sci->algebraic_info->coeff_count; k++) {
+                            if (symbolic_coord_compare(
+                                    sci->algebraic_info->coefficients[k],
+                                    scj->algebraic_info->coefficients[k]) != 0) {
+                                same_poly = false;
+                                break;
+                            }
+                        }
+                        if (same_poly) {
+                            /* 同一极小多项式的不同根 → 代数共轭 */
+                            EquivMergeResult r = equiv_merge_classes(mgr, i, j,
+                                EQUIV_SOURCE_ALGEBRAIC_CONJUGATE, -1, TRUST_YELLOW);
+                            if (r == EQUIV_MERGE_OK) conj_count++;
+                        }
+                    }
+                }
             }
         }
     }
@@ -488,9 +509,49 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             double bx = symbolic_coord_to_double(nj->symbolic_coords[0]);
             double by = symbolic_coord_to_double(nj->symbolic_coords[1]);
 
-            /* TODO: 完整实现需要验证平移保持所有邻域约束 */
-            /* 当前仅作为框架预留 */
-            (void)ax; (void)ay; (void)bx; (void)by;
+            /* 验证平移保持所有邻域约束 */
+            double tx = bx - ax;
+            double ty = by - ay;
+
+            /* 收集节点 i 和 j 的邻域约束 */
+            int cids_i[128], cids_j[128];
+            int nc_i = graph_find_constraints_involving(mgr->graph, i, cids_i, 128);
+            int nc_j = graph_find_constraints_involving(mgr->graph, j, cids_j, 128);
+
+            /* 简化验证：检查两个节点的约束数量和类型是否匹配 */
+            if (nc_i != nc_j) continue;
+
+            bool all_match = true;
+            for (int ci = 0; ci < nc_i && all_match; ci++) {
+                Constraint *c_i = graph_get_constraint(mgr->graph, cids_i[ci]);
+                if (!c_i || !c_i->is_active) continue;
+
+                /* 在 j 的约束中寻找相同类型的约束 */
+                bool found_match = false;
+                for (int cj = 0; cj < nc_j; cj++) {
+                    Constraint *c_j = graph_get_constraint(mgr->graph, cids_j[cj]);
+                    if (!c_j || !c_j->is_active) continue;
+                    if (c_i->type == c_j->type) {
+                        /* 对于距离约束，检查值是否相同 */
+                        if (c_i->type == CONSTRAINT_DISTANCE) {
+                            if (fabs(c_i->numeric_value - c_j->numeric_value) < 1e-9) {
+                                found_match = true;
+                                break;
+                            }
+                        } else {
+                            found_match = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found_match) all_match = false;
+            }
+
+            if (all_match && nc_i > 0) {
+                EquivMergeResult r = equiv_merge_classes(mgr, i, j,
+                    EQUIV_SOURCE_TRANSFORM, -1, TRUST_YELLOW);
+                if (r == EQUIV_MERGE_OK) transform_count++;
+            }
         }
     }
 

@@ -11,13 +11,10 @@
  */
 #ifndef LV00_NODE_DEEP_COPY_H
 #define LV00_NODE_DEEP_COPY_H
-
 #include "lv00.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /**
  * @brief 深拷贝端口
  *
@@ -25,7 +22,6 @@ extern "C" {
  * @return 新分配的端口副本，失败返回 NULL
  */
 Port *node_deep_copy_port(const Port *orig);
-
 /**
  * @brief 深拷贝几何节点
  *
@@ -34,7 +30,6 @@ Port *node_deep_copy_port(const Port *orig);
  * @return 深拷贝后的新节点，失败返回 NULL
  */
 GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map);
-
 /**
  * @brief 深拷贝符号坐标
  *
@@ -42,9 +37,7 @@ GeomNode *node_deep_copy_geom_node(const GeomNode *orig, const int *id_map);
  * @return 新分配的坐标副本，失败返回 NULL
  */
 SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig);
-
 #ifdef __cplusplus
 }
 #endif
-
 #endif /* LV00_NODE_DEEP_COPY_H */

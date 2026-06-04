@@ -28,10 +28,6 @@
 #include <stdbool.h>
 
 #include "func_block.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 #ifdef __cplusplus
 extern "C" {

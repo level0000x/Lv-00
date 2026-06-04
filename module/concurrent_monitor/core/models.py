@@ -118,12 +118,6 @@ class OutputLine:
         >>> print(f"[{line.stream}] {line.content}")
     """
     process_id: str
-    # 注意：此处使用 str 而非 StreamType 枚举，原因如下：
-    # 1. 序列化兼容性：OutputLine 需要通过 to_dict()/from_dict() 进行 JSON 序列化，
-    #    使用 str 可以直接映射为 JSON 字符串，避免枚举序列化/反序列化的额外转换
-    # 2. 前端兼容性：SSE 推送到前端的事件数据中 stream 字段为纯字符串，
-    #    前端 JavaScript 无需处理枚举映射
-    # 3. 扩展性：未来如果需要支持自定义流类型，str 比 Enum 更灵活
     stream: str
     content: str
     timestamp: float = field(default_factory=time.time)
@@ -333,11 +327,6 @@ class ProcessInfo:
 
         将状态恢复为初始值：状态设为 PENDING，清空输出和错误计数，
         清除退出码和时间戳。保留 process_id 和 command 不变。
-
-        注意：metadata 字段不会被清空。metadata 中存储的是进程级别的
-        持久化信息（如错误消息、自定义标签等），这些信息在进程重启后
-        仍然具有参考价值。如果需要完全清空 metadata，请在外部手动执行
-        ``info.metadata.clear()``。
         """
         self.status = ProcessStatus.PENDING
         self.output_lines.clear()

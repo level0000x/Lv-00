@@ -44,9 +44,9 @@ cd build && ctest
 - 所有公共 API 添加 Doxygen 风格注释
 - 内存分配统一使用 `lv00_malloc` / `lv00_free` / `lv00_calloc`
 
-### 五层架构规范
+### 十层架构规范
 
-项目严格遵循五层单向依赖架构（详见 [ARCHITECTURE_v3.3.md](docs/ARCHITECTURE_v3.3.md)）：
+项目严格遵循十层单向依赖架构（详见 [ARCHITECTURE_v3.3.md](docs/ARCHITECTURE_v3.3.md)）：
 
 1. **第 1 层** - 输入解析层 (Parser)：词法分析、公式解析
 2. **第 2 层** - 资源管理层 (Resource)：内存、错误码、调试
@@ -81,68 +81,14 @@ refactor(constraint_graph): 按功能拆分模块
 - 自动化任务如需保存产物，应优先使用 CI artifact，不应直接写回主分支。
 - 涉及接口、构建路径或目录结构调整时，必须同步更新 README、CMake 和 CI 配置。
 
-## 分支管理
-
-本项目采用 [Git Flow](https://nvie.com/posts/a-successful-git-branching-model/) 风格的分支管理策略。详细规范请参阅 [.github/BRANCHING_STRATEGY.md](.github/BRANCHING_STRATEGY.md)。
-
-### 分支类型
-
-| 分支类型 | 命名规则 | 基于 | 合并目标 | 用途 |
-|---------|---------|------|---------|------|
-| main | `main` | - | - | 生产就绪代码 |
-| develop | `develop` | main | - | 日常开发集成 |
-| 功能分支 | `feature/*` | develop | develop | 新功能开发 |
-| 修复分支 | `fix/*` | develop | develop | Bug 修复 |
-| 文档分支 | `docs/*` | develop | develop | 文档更新 |
-| 重构分支 | `refactor/*` | develop | develop | 代码重构 |
-| 稳定分支 | `stable` | main | - | 长期稳定版本 |
-| 发行分支 | `release/*` | develop | main, develop | 版本发布准备 |
-| 热修复分支 | `hotfix/*` | main | main, develop | 紧急修复 |
-
-### 快速开始
-
-```bash
-# 1. Fork 项目后克隆到本地
-git clone <your-fork-url>
-cd Lv-00
-
-# 2. 添加上游仓库
-git remote add upstream <original-repo-url>
-
-# 3. 创建功能分支（从 develop）
-git checkout develop
-git pull upstream develop
-git checkout -b feature/my-feature
-
-# 4. 开发并提交
-git add .
-git commit -m "feat(scope): description"
-
-# 5. 保持分支同步
-git fetch upstream
-git rebase upstream/develop
-
-# 6. 推送到你的 Fork
-git push -u origin feature/my-feature
-
-# 7. 创建 Pull Request 到上游 develop 分支
-```
-
-### 分支保护规则
-
-- **main**: 禁止直接推送，需 2 人审查，CI 通过
-- **develop**: 禁止直接推送，需 1 人审查，CI 通过
-- **release/***: 禁止直接推送，需 2 人审查
-
 ## 开发流程
 
-1. **创建功能分支**从 `develop` 分支（详见分支管理）
+1. **Fork 项目**并创建功能分支
 2. **编写代码**并确保编译通过（零警告）
 3. **添加测试**覆盖新增功能
 4. **运行全部测试**确保回归通过
 5. **更新文档**（如有 API 变更）
-6. **提交 PR** 到 `develop` 分支并描述变更内容
-7. **审查通过**后由维护者合并
+6. **提交 PR** 并描述变更内容
 
 ## 测试要求
 

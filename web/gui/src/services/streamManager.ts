@@ -319,8 +319,7 @@ export class StreamManager {
 
     for (let i = 0; i < capacity; i++) {
       const index = (this.bufferHead + i) % capacity;
-      const event = this.eventBuffer[index];
-      if (event) result.push(event);
+      result.push(this.eventBuffer[index]);
     }
 
     return result;

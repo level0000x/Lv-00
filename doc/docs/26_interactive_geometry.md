@@ -494,7 +494,7 @@ int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc);
 
 ## 26.7 版本历史
 
-- **v3.5.0** (当前)
+- **v5.0.0** (当前)
   - 交互几何系统（借鉴 Cinderella + Dr. Geo）
   - 随机化定理验证
   - 连续性跟踪与约束维护

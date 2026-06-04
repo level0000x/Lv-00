@@ -571,12 +571,71 @@ Lv00PluginInterface* lv00_plugin_query_interface(Lv00PluginSystem* system, const
     return NULL;
 }
 
+/* 通配符模式匹配：支持 '*' glob */
+static int wildcard_match(const char* pattern, const char* str) {
+    if (!pattern || !str) return 0;
+
+    const char* p = pattern;
+    const char* s = str;
+    const char* star_p = NULL;
+    const char* star_s = NULL;
+
+    while (*s) {
+        if (*p == '*') {
+            /* 记录星号位置，跳过连续星号 */
+            star_p = p++;
+            star_s = s;
+        } else if (*p == *s || *p == '?') {
+            p++;
+            s++;
+        } else if (star_p) {
+            /* 回溯到上一个星号，多匹配一个字符 */
+            p = star_p + 1;
+            s = ++star_s;
+        } else {
+            return 0;
+        }
+    }
+
+    /* 跳过 pattern 末尾的星号 */
+    while (*p == '*') p++;
+
+    return *p == '\0';
+}
+
 Lv00PluginInterface** lv00_plugin_query_interfaces(Lv00PluginSystem* system, const char* pattern, size_t* count) {
     if (!system || !pattern || !count) return NULL;
-    
-    /* 简化实现：只支持精确匹配 */
-    *count = 0;
-    return NULL;
+
+    /* 第一遍：统计匹配数量 */
+    size_t match_count = 0;
+    for (size_t i = 0; i < system->interface_count; i++) {
+        if (wildcard_match(pattern, system->interfaces[i]->name)) {
+            match_count++;
+        }
+    }
+
+    if (match_count == 0) {
+        *count = 0;
+        return NULL;
+    }
+
+    /* 分配结果数组 */
+    Lv00PluginInterface** result = (Lv00PluginInterface**)malloc(sizeof(Lv00PluginInterface*) * match_count);
+    if (!result) {
+        *count = 0;
+        return NULL;
+    }
+
+    /* 第二遍：填充匹配结果 */
+    size_t idx = 0;
+    for (size_t i = 0; i < system->interface_count; i++) {
+        if (wildcard_match(pattern, system->interfaces[i]->name)) {
+            result[idx++] = system->interfaces[i];
+        }
+    }
+
+    *count = match_count;
+    return result;
 }
 
 /* ============ 插件配置 ============ */
@@ -610,13 +669,64 @@ int lv00_plugin_config_load(Lv00PluginConfig* config, const char* filepath) {
     FILE* fp = fopen(filepath, "r");
     if (!fp) return -1;
     
-    /* 简化实现：按行读取 key=value */
+    /* 当前节名称，NULL 表示全局节 */
+    char current_section[256] = {0};
     char line[2048];
+    
     while (fgets(line, sizeof(line), fp)) {
+        /* 去除行尾换行符 */
+        size_t len = strlen(line);
+        while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) {
+            line[--len] = '\0';
+        }
+        
+        /* 跳过空行 */
+        if (len == 0) continue;
+        
+        /* 跳过注释行（# 或 // 开头） */
+        if (line[0] == '#' || (line[0] == '/' && line[1] == '/')) continue;
+        
+        /* 跳过行首空白后的注释 */
+        {
+            const char* trimmed = line;
+            while (*trimmed == ' ' || *trimmed == '\t') trimmed++;
+            if (*trimmed == '#' || (*trimmed == '/' && *(trimmed+1) == '/')) continue;
+            if (*trimmed == '\0') continue; /* 全空白行 */
+        }
+        
+        /* 检查节标题 [section] */
+        if (line[0] == '[') {
+            char* end = strchr(line, ']');
+            if (end) {
+                size_t slen = (size_t)(end - line - 1);
+                if (slen < sizeof(current_section)) {
+                    memcpy(current_section, line + 1, slen);
+                    current_section[slen] = '\0';
+                }
+            }
+            continue;
+        }
+        
+        /* 解析 key=value */
         char* eq = strchr(line, '=');
         if (eq) {
             *eq = '\0';
-            lv00_plugin_config_set(config, line, eq + 1, 0);
+            const char* key = line;
+            const char* value = eq + 1;
+            
+            /* 去除 key 首尾空白 */
+            while (*key == ' ' || *key == '\t') key++;
+            char* key_end = (char*)(key + strlen(key) - 1);
+            while (key_end > key && (*key_end == ' ' || *key_end == '\t')) *key_end-- = '\0';
+            
+            /* 如果有节名，添加节前缀: "section.key" */
+            if (current_section[0] != '\0') {
+                char full_key[512];
+                snprintf(full_key, sizeof(full_key), "%s.%s", current_section, key);
+                lv00_plugin_config_set(config, full_key, value, 0);
+            } else {
+                lv00_plugin_config_set(config, key, value, 0);
+            }
         }
     }
     
@@ -876,9 +986,62 @@ char** lv00_plugin_system_get_search_paths(Lv00PluginSystem* system, size_t* cou
 
 int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory) {
     if (!system || !directory) return -1;
-    
-    /* 简化实现：实际应该扫描目录 */
+
+    /* 添加搜索路径 */
     lv00_plugin_system_add_search_path(system, directory);
+
+    /* 扫描目录中的 .dll 文件（Windows）或 .so 文件（Linux） */
+#ifdef _WIN32
+    char search_pattern[MAX_PATH];
+    snprintf(search_pattern, sizeof(search_pattern), "%s\\*.dll", directory);
+
+    WIN32_FIND_DATAA find_data;
+    HANDLE hFind = FindFirstFileA(search_pattern, &find_data);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return 0; /* 目录为空或不存在，不算错误 */
+    }
+
+    do {
+        /* 跳过 . 和 .. 目录 */
+        if (strcmp(find_data.cFileName, ".") == 0 ||
+            strcmp(find_data.cFileName, "..") == 0) {
+            continue;
+        }
+
+        /* 构造完整路径 */
+        char full_path[MAX_PATH];
+        snprintf(full_path, sizeof(full_path), "%s\\%s", directory, find_data.cFileName);
+
+        /* 尝试加载为插件 */
+        lv00_plugin_load(system, full_path);
+
+    } while (FindNextFileA(hFind, &find_data));
+
+    FindClose(hFind);
+#else
+    /* Linux/macOS: 使用 opendir/readdir 扫描 .so 文件 */
+    #include <dirent.h>
+    DIR* dir = opendir(directory);
+    if (!dir) return 0;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        /* 跳过 . 和 .. */
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        /* 检查是否为 .so 文件 */
+        size_t name_len = strlen(entry->d_name);
+        if (name_len > 3 && strcmp(entry->d_name + name_len - 3, ".so") == 0) {
+            char full_path[1024];
+            snprintf(full_path, sizeof(full_path), "%s/%s", directory, entry->d_name);
+            lv00_plugin_load(system, full_path);
+        }
+    }
+
+    closedir(dir);
+#endif
+
     return 0;
 }
 
@@ -895,11 +1058,44 @@ int lv00_plugin_system_autoload_all(Lv00PluginSystem* system) {
 
 /* ============ 版本兼容性 ============ */
 
+/* 版本兼容性常量 */
+#define LV00_PLUGIN_VERSION_OK       1
+#define LV00_PLUGIN_VERSION_MISMATCH 0
+
+/* 解析语义版本字符串 "major.minor.patch" */
+static int parse_semver(const char* ver_str, int* major, int* minor, int* patch) {
+    if (!ver_str) return -1;
+    *major = *minor = *patch = 0;
+    return sscanf(ver_str, "%d.%d.%d", major, minor, patch);
+}
+
 int lv00_plugin_check_version(const char* required, const char* provided) {
-    if (!required || !provided) return 0;
-    
-    /* 简化实现：字符串比较 */
-    return strcmp(provided, required) >= 0;
+    if (!required || !provided) return LV00_PLUGIN_VERSION_MISMATCH;
+
+    /* 解析 required 版本 */
+    int req_major, req_minor, req_patch;
+    if (parse_semver(required, &req_major, &req_minor, &req_patch) < 1) {
+        return LV00_PLUGIN_VERSION_MISMATCH;
+    }
+
+    /* 解析 provided 版本 */
+    int prov_major, prov_minor, prov_patch;
+    if (parse_semver(provided, &prov_major, &prov_minor, &prov_patch) < 1) {
+        return LV00_PLUGIN_VERSION_MISMATCH;
+    }
+
+    /* 语义版本比较：逐级比较 major -> minor -> patch */
+    if (prov_major > req_major) return LV00_PLUGIN_VERSION_OK;
+    if (prov_major < req_major) return LV00_PLUGIN_VERSION_MISMATCH;
+
+    /* major 相同，比较 minor */
+    if (prov_minor > req_minor) return LV00_PLUGIN_VERSION_OK;
+    if (prov_minor < req_minor) return LV00_PLUGIN_VERSION_MISMATCH;
+
+    /* minor 相同，比较 patch */
+    if (prov_patch >= req_patch) return LV00_PLUGIN_VERSION_OK;
+
+    return LV00_PLUGIN_VERSION_MISMATCH;
 }
 
 int lv00_plugin_check_api_compatibility(uint32_t required, uint32_t provided) {

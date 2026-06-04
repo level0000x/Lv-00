@@ -31,10 +31,6 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
 
 /* 前向声明 —— 避免循环依赖 */
 struct Lv00Context;

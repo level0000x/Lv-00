@@ -16,10 +16,10 @@
  *   - graph_detect_conflicts                        — 冲突分析
  *
  * 使用示例：
-  *   ConstraintGraph *g = graph_create();
- *   graph_add_point(g, coords, 2);
- *   graph_add_line_segment(g, p1_id, p2_id);
- *   graph_add_incidence(g, point_id, line_id);
+ LV00_PUBLIC_API *   ConstraintGraph *g = graph_create();
+ LV00_PUBLIC_API *   graph_add_point(g, coords, 2);
+ LV00_PUBLIC_API *   graph_add_line_segment(g, p1_id, p2_id);
+ LV00_PUBLIC_API *   graph_add_incidence(g, point_id, line_id);
  *
  * ======================================================================== */
 
@@ -31,23 +31,18 @@
 #ifndef LV00_CONSTRAINT_GRAPH_H
 #define LV00_CONSTRAINT_GRAPH_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdatomic.h> /* v3.4.1: 原子操作支持多线程安全 */
 
-#include "determinism_state.h"  /* 确定性状态枚举（解决循环依赖） */
 #include "error_codes.h"
 #include "stream.h"
 #include "symbolic_coord.h"
-#ifndef LV00_PUBLIC_API
-#define LV00_PUBLIC_API
-#endif
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* ================================================================
  * v3.4.1: 多线程安全原子操作宏
@@ -111,15 +106,7 @@ typedef enum {
     BETWEENNESS,  /* 之间约束：点B在点A和点C之间（共线有序） */
     INTERSECTION, /* 相交约束：两个几何对象在某点相交 */
     CONTAINMENT,  /* 包含约束：一个对象完全包含在另一个对象内 */
-    CONNECTION,   /* 连接约束：端口之间的数据流连接 */
-    /* v3.5.1: 数值约束类型（用于矛盾检测器） */
-    CONSTRAINT_DISTANCE,      /* 距离约束：两个实体之间的距离值（participants=[id1,id2]，numeric_value=距离） */
-    CONSTRAINT_ANGLE,         /* 角度约束：两个实体之间的角度值（participants=[id1,id2]，numeric_value=弧度） */
-    CONSTRAINT_COINCIDENT,    /* 重合约束：两个实体被标记为同一位置（participants=[id1,id2]） */
-    CONSTRAINT_PARALLEL,      /* 平行约束：两条线段平行（participants=[line1_id,line2_id]） */
-    CONSTRAINT_PERPENDICULAR, /* 垂直约束：两条线段垂直（participants=[line1_id,line2_id]） */
-    CONSTRAINT_HORIZONTAL,    /* 水平约束：线段水平（participants=[line_id]） */
-    CONSTRAINT_VERTICAL       /* 垂直约束：线段垂直（participants=[line_id]） */
+    CONNECTION    /* 连接约束：端口之间的数据流连接 */
 } ConstraintType;
 
 typedef struct GeomNode GeomNode;
@@ -206,21 +193,14 @@ struct GeomNode {
             int internal_node_count;   /* 内部节点数量 */
             int input_count;           /* 输入端口数量 */
             int output_count;          /* 输出端口数量 */
-            /* 确定性状态：引用 constraint_graph.h 中定义的 DeterminismState 枚举，
-             * 取值为 DETERMINISM_STATE_UNVERIFIED / _VERIFIED /
-             * _NON_DETERMINISTIC / _PARTIALLY_VERIFIED。
-             * 原先此处使用匿名枚举，与 func_block.h 中的 DeterminismState 重复，
-             * 现统一使用同一类型定义。 */
-            DeterminismState determinism_state;
+            enum {
+                UNVERIFIED,        /* 未验证 */
+                VERIFIED,          /* 已验证 */
+                NON_DETERMINISTIC, /* 非确定性 */
+                PARTIALLY_VERIFIED /* 部分验证 */
+            } determinism_state;   /* 确定性状态 */
         } func_block;              /* 函数块数据（GEOM_FUNCTION_BLOCK 类型使用） */
     } data;
-
-    /* ============================================================
-     * 版本控制字段 (v3.5.0: 自举支持)
-     * ============================================================ */
-    uint16_t version_major;         /**< 主版本号 */
-    uint16_t version_minor;         /**< 次版本号 */
-    uint16_t version_patch;         /**< 补丁版本号 */
 };
 
 struct Constraint {
@@ -230,7 +210,6 @@ struct Constraint {
     int participant_count;
     int template_id;
     bool is_active; /**< 约束生命周期标记：true=活跃，false=已废弃 */
-    double numeric_value; /**< v3.5.1: 数值约束的值（距离/角度），非数值约束为 0.0 */
 };
 
 /**
@@ -317,18 +296,7 @@ struct ConstraintGraph {
      * 中的错误存储，fallback 到 error_buffer。
      * ============================================================ */
     struct Lv00Context *context;  /**< 关联的 Lv00Context 实例（可选，v3.4.0 新增） */
-    bool is_dirty;                 /**< 脏标记：约束被修改时置 true，需同步后置 false */
-
-    /* ============================================================
-     * 版本控制字段 (v3.5.0: 自举支持)
-     *
-     * 用于序列化兼容性验证和自举编译器的版本管理。
-     * 在 graph_create() 中初始化为当前库版本。
-     * 在 graph_deserialize_from_json() 中验证兼容性。
-     * ============================================================ */
-    uint16_t version_major;         /**< 主版本号 */
-    uint16_t version_minor;         /**< 次版本号 */
-    uint16_t version_patch;         /**< 补丁版本号 */
+    bool dirty;                    /**< 脏标记：约束被修改时置 true，需同步后置 false */
 };
 
 typedef enum {

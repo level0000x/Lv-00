@@ -100,18 +100,6 @@ extern bool preset_coding_theory_register(void);
 /* ---- v12.0 新增：差分方程模块 ---- */
 extern bool preset_difference_equations_register(void);
 
-/* ---- v13.0 新增：抽象代数模块 ---- */
-/* 抽象代数（abstract_algebra）：群论进阶/环论/域论/模论/表示论，共40个预设 */
-extern bool preset_abstract_algebra_register(void);
-
-/* ---- v13.0 新增：证明论模块 ---- */
-/* 证明论（proof_theory）：自然推理/矢列演算/证明转换/类型论，共42个预设 */
-extern bool preset_proof_theory_register(void);
-
-/* ---- v13.0 新增：模型论模块 ---- */
-/* 模型论（model_theory）：结构理论/初等等价/模型构造/稳定性/量词消去，共38个预设 */
-extern bool preset_model_theory_register(void);
-
 /* ==================== 命名常量 ==================== */
 
 /** 注册表初始容量 */
@@ -171,96 +159,50 @@ static ExtendedPresetRegistry g_preset_registry = {
 
 /* 线程安全：注册表互斥锁
  *
- * v13.0 改进：使用 InitOnceExecuteOnce 模式替代原有的自旋等待，
- * 消除 Sleep(0) 自旋带来的 CPU 浪费和性能抖动。
- * 与 func_block_registry.c 保持一致的优雅实现。
- *
- * 使用原子操作 + 双重检查锁定模式消除 TOCTOU 竞态条件。
- * 锁的初始化在 preset_blocks_init() 之前惰性完成，
- * 确保多线程环境下的正确性。
+ * 使用原子操作+双重检查锁定模式消除 TOCTOU 竞态条件。
+ * 锁的初始化在 preset_blocks_init() 中提前完成，
+ * LOCK() 宏不再执行惰性初始化，避免多线程竞态。
  */
 #ifdef _WIN32
 #include <windows.h>
-
-/* 全局锁对象 */
 static CRITICAL_SECTION g_preset_registry_lock;
+static volatile LONG g_preset_registry_lock_initialized = 0;
 
-/* 一次性初始化控制块（静态初始化，无需运行时 InitOnceExecuteOnce） */
-static INIT_ONCE g_preset_registry_lock_init_once = INIT_ONCE_STATIC_INIT;
-
-/**
- * @brief Windows 临界区初始化回调（InitOnceExecuteOnce 调用）
+/** 
+ * @brief 初始化预设注册表锁（线程安全，仅执行一次）
  *
- * 保证临界区在任何线程进入锁之前已完成初始化。
- * 这是最可靠的 Windows 一次初始化模式。
- *
- * @param initOnce     初始化控制块指针（未使用）
- * @param param        用户参数（未使用）
- * @param context      上下文指针（未使用）
- * @return TRUE 初始化成功
- */
-static BOOL CALLBACK preset_registry_lock_init_callback(PINIT_ONCE initOnce, PVOID param, PVOID *context) {
-    (void)initOnce;
-    (void)param;
-    (void)context;
-    InitializeCriticalSection(&g_preset_registry_lock);
-    return TRUE;
-}
-
-/**
- * @brief 线程安全地确保注册表锁已初始化
- *
- * 使用 InitOnceExecuteOnce 保证临界区只初始化一次，
- * 消除 TOCTOU（Time-of-Check-Time-of-Use）竞态条件。
- *
- * v13.0 修复：移除原有的 InterlockedCompareExchange 自旋等待，
- * 改用 Windows 内核级一次初始化原语，更高效且更安全。
+ * 使用 InterlockedCompareExchange 原子操作确保
+ * 多线程环境下仅初始化一次临界区，消除 TOCTOU 竞态条件。
  */
 static void preset_registry_lock_init_once(void) {
-    InitOnceExecuteOnce(&g_preset_registry_lock_init_once,
-                        preset_registry_lock_init_callback,
-                        NULL,
-                        NULL);
+    if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) == 0) {
+        /* volatile 重读，避免编译器优化消除检查 */
+        LONG expected = 0;
+        if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 1, 0) == 0) {
+            InitializeCriticalSection(&g_preset_registry_lock);
+            /* 内存屏障：确保临界区初始化对后续所有线程可见 */
+            MemoryBarrier();
+            InterlockedExchange(&g_preset_registry_lock_initialized, 2);
+        } else {
+            /* 其他线程正在初始化，自旋等待完成 */
+            while (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) != 2) {
+                Sleep(0); /* 让出时间片 */
+            }
+        }
+    }
 }
 
-/* 锁操作宏：惰性初始化 + 进入临界区 */
-#define PRESET_REGISTRY_LOCK() \
-    do { \
-        preset_registry_lock_init_once(); \
+#define PRESET_REGISTRY_LOCK()                         \
+    do {                                               \
+        preset_registry_lock_init_once();              \
         EnterCriticalSection(&g_preset_registry_lock); \
     } while (0)
-
 #define PRESET_REGISTRY_UNLOCK() LeaveCriticalSection(&g_preset_registry_lock)
-
-/**
- * @brief 销毁注册表锁（cleanup 时调用）
- *
- * 仅在锁已初始化时销毁，避免重复销毁问题。
- */
-static void preset_registry_lock_destroy(void) {
-    /* 检查锁是否已初始化（通过尝试进入来检测） */
-    /* 由于 EnterCriticalSection 可能在未初始化时崩溃，
-     * 我们使用一个保守的方法：直接调用 DeleteCriticalSection，
-     * 因为 Windows 允许对未初始化的临界区调用（只是会泄漏资源）。
-     * 但在我们的使用模式中，锁总是先被 init_once 确保初始化。 */
-    DeleteCriticalSection(&g_preset_registry_lock);
-}
-
 #else
 #include <pthread.h>
-
-/* POSIX 平台：使用 pthread 互斥锁 */
 static pthread_mutex_t g_preset_registry_lock = PTHREAD_MUTEX_INITIALIZER;
-
 #define PRESET_REGISTRY_LOCK() pthread_mutex_lock(&g_preset_registry_lock)
 #define PRESET_REGISTRY_UNLOCK() pthread_mutex_unlock(&g_preset_registry_lock)
-
-/**
- * @brief POSIX 平台下无操作（pthread 互斥锁无需显式销毁）
- */
-static void preset_registry_lock_destroy(void) {
-    pthread_mutex_destroy(&g_preset_registry_lock);
-}
 #endif
 
 /* ==================== 内部辅助函数 ==================== */
@@ -498,9 +440,11 @@ bool preset_blocks_init(void) {
     }
 
     /* 注册微分几何模块（新增 v9.0） */
+#ifndef LV00_EXCLUDE_BROKEN_PRESETS
     if (!preset_differential_geometry_register()) {
         LV00_LOG_WARNING("微分几何模块预设注册部分失败");
     }
+#endif
 
     /* 注册优化理论模块（新增 v5.0） */
     if (!preset_optimization_register()) {
@@ -573,9 +517,11 @@ bool preset_blocks_init(void) {
     }
 
     /* 注册泛函分析模块（新增 v9.0） */
+#ifndef LV00_EXCLUDE_BROKEN_PRESETS
     if (!preset_functional_analysis_register()) {
         LV00_LOG_WARNING("泛函分析模块预设注册部分失败");
     }
+#endif
 
     /* 注册代数拓扑进阶模块（新增 v7.0） */
     if (!preset_algebraic_topology_adv_register()) {
@@ -717,24 +663,6 @@ bool preset_blocks_init(void) {
         LV00_LOG_WARNING("差分方程模块预设注册部分失败");
     }
 
-    /* ---- v13.0 新增：抽象代数模块接入 ---- */
-    /* 抽象代数（abstract_algebra）：群论进阶/环论/域论/模论/表示论，共40个预设 */
-    if (!preset_abstract_algebra_register()) {
-        LV00_LOG_WARNING("抽象代数模块预设注册部分失败");
-    }
-
-    /* ---- v13.0 新增：证明论模块接入 ---- */
-    /* 证明论（proof_theory）：自然推理/矢列演算/证明转换/类型论，共42个预设 */
-    if (!preset_proof_theory_register()) {
-        LV00_LOG_WARNING("证明论模块预设注册部分失败");
-    }
-
-    /* ---- v13.0 新增：模型论模块接入 ---- */
-    /* 模型论（model_theory）：结构理论/初等等价/模型构造/稳定性/量词消去，共38个预设 */
-    if (!preset_model_theory_register()) {
-        LV00_LOG_WARNING("模型论模块预设注册部分失败");
-    }
-
     g_preset_registry.initialized = true;
     return true;
 }
@@ -758,10 +686,12 @@ void preset_blocks_cleanup(void) {
 
     PRESET_REGISTRY_UNLOCK();
 
-    /* 销毁锁对象（仅在 Windows 平台需要，POSIX 使用静态初始化） */
-    /* 注意：在所有线程都完成锁操作后才能调用此函数 */
 #ifdef _WIN32
-    preset_registry_lock_destroy();
+    /* 检查锁是否已初始化（原子标志值 2 表示完全初始化完成） */
+    if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) != 0) {
+        DeleteCriticalSection(&g_preset_registry_lock);
+        InterlockedExchange(&g_preset_registry_lock_initialized, 0);
+    }
 #endif
 }
 
