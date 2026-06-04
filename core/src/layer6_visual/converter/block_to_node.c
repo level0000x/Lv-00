@@ -137,7 +137,110 @@ Lv00ConvertResult lv00_convert_node_to_block(void *node) {
         strncpy(result.error_msg, "NULL node", sizeof(result.error_msg));
         return result;
     }
-    /* 反向转换暂未实现，保留接口 */
+
+    /* node 指向 NodeGraph 结构（由 lv00_convert_block_to_node 产生） */
+    NodeGraph *ng = (NodeGraph *)node;
+
+    /* 创建 BlockGraphView 结构作为输出 */
+    typedef struct {
+        FuncBlock **blocks;
+        int count;
+    } BlockGraphView;
+
+    BlockGraphView *bg = calloc(1, sizeof(BlockGraphView));
+    if (!bg) {
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
+
+    if (ng->node_count <= 0) {
+        /* 空节点图，返回空的 BlockGraphView */
+        bg->blocks = NULL;
+        bg->count = 0;
+        result.output = bg;
+        result.success = 1;
+        return result;
+    }
+
+    /* 为每个节点创建对应的 FuncBlock */
+    bg->count = ng->node_count;
+    bg->blocks = calloc(ng->node_count, sizeof(FuncBlock *));
+    if (!bg->blocks) {
+        free(bg);
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
+
+    for (int i = 0; i < ng->node_count; i++) {
+        NodeGraphNode *n = &ng->nodes[i];
+
+        /* 创建函数块，使用节点 ID 作为块 ID */
+        FuncBlock *fb = func_block_create(n->id);
+        if (!fb) {
+            /* 内存不足，清理已创建的块 */
+            for (int j = 0; j < i; j++) {
+                func_block_destroy(bg->blocks[j]);
+            }
+            free(bg->blocks);
+            free(bg);
+            result.success = 0;
+            strncpy(result.error_msg, "out of memory creating FuncBlock", sizeof(result.error_msg));
+            return result;
+        }
+
+        /* 设置函数块名称 */
+        if (n->name) {
+            func_block_set_name(fb, n->name);
+        }
+
+        /* 将节点的输入端口映射回块的输入端口 */
+        if (n->input_count > 0 && n->input_ports) {
+            func_block_set_input_ports(fb, n->input_ports, n->input_count);
+        }
+
+        /* 将节点的输出端口映射回块的输出端口 */
+        if (n->output_count > 0 && n->output_ports) {
+            func_block_set_output_ports(fb, n->output_ports, n->output_count);
+        }
+
+        bg->blocks[i] = fb;
+    }
+
+    /* 根据边信息重建端口依赖关系 */
+    /* 边: src_node.output_port -> dst_node.input_port
+     * 反向映射为 PortDependency:
+     *   - external_node_id = 源节点 ID
+     *   - port_id = 源端口
+     *   - internal_node_id = 目标端口
+     */
+    for (int i = 0; i < ng->edge_count; i++) {
+        int src_idx = ng->edges[i].src_node;
+        int dst_idx = ng->edges[i].dst_node;
+        int src_port = ng->edges[i].src_port;
+        int dst_port = ng->edges[i].dst_port;
+
+        if (src_idx < 0 || src_idx >= ng->node_count ||
+            dst_idx < 0 || dst_idx >= ng->node_count) {
+            continue; /* 无效索引，跳过 */
+        }
+
+        FuncBlock *dst_fb = bg->blocks[dst_idx];
+        if (!dst_fb) continue;
+
+        /* 创建端口依赖：目标块依赖源节点的输出端口 */
+        PortDependency dep;
+        dep.type = PORT_DEP_INCIDENCE;  /* 默认关联约束类型 */
+        dep.port_id = dst_port;         /* 目标块的输入端口 */
+        dep.external_node_id = ng->nodes[src_idx].id;  /* 外部节点 ID（源节点） */
+        dep.internal_node_id = src_port;                /* 内部节点 ID（源端口） */
+        dep.constraint_data = NULL;
+
+        func_block_add_port_dependency(dst_fb, &dep);
+    }
+
+    result.output = bg;
     result.success = 1;
     return result;
 }

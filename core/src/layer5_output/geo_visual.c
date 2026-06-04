@@ -385,6 +385,522 @@ static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, si
     #undef SVG_APPEND
 }
 
+/* ============ Cairo 辅助函数 ============ */
+
+/* 递归渲染单个对象为 Cairo 脚本命令 */
+static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+    if (!obj) return;
+
+    /* 辅助宏：向缓冲区追加字符串 */
+    #define CAIRO_APPEND(fmt, ...) do { \
+        int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
+        if (written > 0) { \
+            *pos += (size_t)written; \
+            if (*pos >= *cap) { \
+                *cap *= 2; \
+                char* new_buf = (char*)lv00_realloc(*buf, *cap); \
+                if (new_buf) *buf = new_buf; \
+            } \
+        } \
+    } while(0)
+
+    /* 将浮点 RGBA 颜色转换为 Cairo rgba() 调用 */
+    float sr = obj->style.stroke_color[0];
+    float sg = obj->style.stroke_color[1];
+    float sb = obj->style.stroke_color[2];
+    float sa = obj->style.stroke_color[3];
+    float fr = obj->style.fill_color[0];
+    float fg = obj->style.fill_color[1];
+    float fb_c = obj->style.fill_color[2];
+    float fa = obj->style.fill_color[3];
+
+    switch (obj->type) {
+    case LV00_VISUAL_POINT: {
+        /* 点渲染为小填充圆 */
+        float px = obj->transform[12];
+        float py = obj->transform[13];
+        CAIRO_APPEND("  /* 点 (%.2f, %.2f) */\n", px, py);
+        CAIRO_APPEND("  cr->save();\n");
+        CAIRO_APPEND("  cr->set_source_rgba(%.3f, %.3f, %.3f, %.3f);\n", sr, sg, sb, sa);
+        CAIRO_APPEND("  cr->arc(%.2f, %.2f, 3.0, 0, 2 * M_PI);\n", px, py);
+        CAIRO_APPEND("  cr->fill();\n");
+        CAIRO_APPEND("  cr->restore();\n\n");
+        break;
+    }
+    case LV00_VISUAL_LINE:
+    case LV00_VISUAL_SEGMENT: {
+        /* 线段渲染为 move_to/line_to */
+        if (obj->render_cache) {
+            float* ep = (float*)obj->render_cache;
+            CAIRO_APPEND("  /* 线段 (%.2f,%.2f) -> (%.2f,%.2f) */\n",
+                       ep[0], ep[1], ep[2], ep[3]);
+            CAIRO_APPEND("  cr->save();\n");
+            CAIRO_APPEND("  cr->set_source_rgba(%.3f, %.3f, %.3f, %.3f);\n", sr, sg, sb, sa);
+            CAIRO_APPEND("  cr->set_line_width(%.2f);\n", obj->style.stroke_width);
+            if (obj->style.dashed) {
+                CAIRO_APPEND("  cr->set_dash(dashes, 2);\n");
+            }
+            CAIRO_APPEND("  cr->move_to(%.2f, %.2f);\n", ep[0], ep[1]);
+            CAIRO_APPEND("  cr->line_to(%.2f, %.2f);\n", ep[2], ep[3]);
+            CAIRO_APPEND("  cr->stroke();\n");
+            CAIRO_APPEND("  cr->restore();\n\n");
+        }
+        break;
+    }
+    case LV00_VISUAL_CIRCLE: {
+        /* 圆渲染为 arc */
+        float cx = obj->transform[12];
+        float cy = obj->transform[13];
+        float r = obj->render_cache ? *(float*)obj->render_cache : 10.0f;
+        CAIRO_APPEND("  /* 圆 (%.2f, %.2f) r=%.2f */\n", cx, cy, r);
+        CAIRO_APPEND("  cr->save();\n");
+        CAIRO_APPEND("  cr->set_source_rgba(%.3f, %.3f, %.3f, %.3f);\n", fr, fg, fb_c, fa);
+        CAIRO_APPEND("  cr->arc(%.2f, %.2f, %.2f, 0, 2 * M_PI);\n", cx, cy, r);
+        CAIRO_APPEND("  cr->fill_preserve();\n");
+        CAIRO_APPEND("  cr->set_source_rgba(%.3f, %.3f, %.3f, %.3f);\n", sr, sg, sb, sa);
+        CAIRO_APPEND("  cr->set_line_width(%.2f);\n", obj->style.stroke_width);
+        CAIRO_APPEND("  cr->stroke();\n");
+        CAIRO_APPEND("  cr->restore();\n\n");
+        break;
+    }
+    case LV00_VISUAL_POLYGON: {
+        /* 多边形渲染为 move_to/line_to/close_path */
+        if (obj->children_count > 0) {
+            CAIRO_APPEND("  /* 多边形 (%zu 顶点) */\n", obj->children_count);
+            CAIRO_APPEND("  cr->save();\n");
+            CAIRO_APPEND("  cr->set_source_rgba(%.3f, %.3f, %.3f, %.3f);\n", fr, fg, fb_c, fa);
+            for (size_t i = 0; i < obj->children_count; i++) {
+                Lv00VisualObject* child = obj->children[i];
+                if (child) {
+                    float px = child->transform[12];
+                    float py = child->transform[13];
+                    if (i == 0) {
+                        CAIRO_APPEND("  cr->move_to(%.2f, %.2f);\n", px, py);
+                    } else {
+                        CAIRO_APPEND("  cr->line_to(%.2f, %.2f);\n", px, py);
+                    }
+                }
+            }
+            CAIRO_APPEND("  cr->close_path();\n");
+            CAIRO_APPEND("  cr->fill_preserve();\n");
+            CAIRO_APPEND("  cr->set_source_rgba(%.3f, %.3f, %.3f, %.3f);\n", sr, sg, sb, sa);
+            CAIRO_APPEND("  cr->set_line_width(%.2f);\n", obj->style.stroke_width);
+            CAIRO_APPEND("  cr->stroke();\n");
+            CAIRO_APPEND("  cr->restore();\n\n");
+        }
+        break;
+    }
+    case LV00_VISUAL_MOBJECT_GROUP: {
+        /* 组合对象：递归渲染子对象 */
+        for (size_t i = 0; i < obj->children_count; i++) {
+            render_object_cairo(obj->children[i], buf, pos, cap);
+        }
+        break;
+    }
+    default:
+        /* 其他类型暂不渲染 */
+        break;
+    }
+
+    #undef CAIRO_APPEND
+}
+
+/* ============ Three.js 辅助函数 ============ */
+
+/* 递归渲染单个对象为 Three.js JavaScript 代码 */
+static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+    if (!obj) return;
+
+    /* 辅助宏：向缓冲区追加字符串 */
+    #define THREEJS_APPEND(fmt, ...) do { \
+        int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
+        if (written > 0) { \
+            *pos += (size_t)written; \
+            if (*pos >= *cap) { \
+                *cap *= 2; \
+                char* new_buf = (char*)lv00_realloc(*buf, *cap); \
+                if (new_buf) *buf = new_buf; \
+            } \
+        } \
+    } while(0)
+
+    /* 将浮点 RGBA 颜色转换为 Three.js 十六进制颜色字符串 */
+    int sr = (int)(obj->style.stroke_color[0] * 255.0f);
+    int sg = (int)(obj->style.stroke_color[1] * 255.0f);
+    int sb = (int)(obj->style.stroke_color[2] * 255.0f);
+    int fr = (int)(obj->style.fill_color[0] * 255.0f);
+    int fg = (int)(obj->style.fill_color[1] * 255.0f);
+    int fb_c = (int)(obj->style.fill_color[2] * 255.0f);
+    float opacity = obj->style.opacity;
+
+    switch (obj->type) {
+    case LV00_VISUAL_POINT: {
+        /* 点渲染为 SphereGeometry */
+        float px = obj->transform[12];
+        float py = obj->transform[13];
+        THREEJS_APPEND("  // 点 (%.2f, %.2f)\n", px, py);
+        THREEJS_APPEND("  (function() {\n");
+        THREEJS_APPEND("    var geo = new THREE.SphereGeometry(0.05, 16, 16);\n");
+        THREEJS_APPEND("    var mat = new THREE.MeshBasicMaterial({ color: 0x%02x%02x%02x, opacity: %.2f });\n",
+                       sr, sg, sb, opacity);
+        THREEJS_APPEND("    var mesh = new THREE.Mesh(geo, mat);\n");
+        THREEJS_APPEND("    mesh.position.set(%.2f, %.2f, 0);\n", px, py);
+        THREEJS_APPEND("    scene.add(mesh);\n");
+        THREEJS_APPEND("  })();\n\n");
+        break;
+    }
+    case LV00_VISUAL_LINE:
+    case LV00_VISUAL_SEGMENT: {
+        /* 线段渲染为 BufferGeometry + LineBasicMaterial */
+        if (obj->render_cache) {
+            float* ep = (float*)obj->render_cache;
+            THREEJS_APPEND("  // 线段 (%.2f,%.2f) -> (%.2f,%.2f)\n",
+                       ep[0], ep[1], ep[2], ep[3]);
+            THREEJS_APPEND("  (function() {\n");
+            THREEJS_APPEND("    var points = [new THREE.Vector3(%.2f, %.2f, 0), new THREE.Vector3(%.2f, %.2f, 0)];\n",
+                       ep[0], ep[1], ep[2], ep[3]);
+            THREEJS_APPEND("    var geo = new THREE.BufferGeometry().setFromPoints(points);\n");
+            THREEJS_APPEND("    var mat = new THREE.LineBasicMaterial({ color: 0x%02x%02x%02x, linewidth: %.1f, opacity: %.2f });\n",
+                       sr, sg, sb, obj->style.stroke_width, opacity);
+            THREEJS_APPEND("    var line = new THREE.Line(geo, mat);\n");
+            THREEJS_APPEND("    scene.add(line);\n");
+            THREEJS_APPEND("  })();\n\n");
+        }
+        break;
+    }
+    case LV00_VISUAL_CIRCLE: {
+        /* 圆渲染为自定义圆形轮廓（使用 RingGeometry 近似） */
+        float cx = obj->transform[12];
+        float cy = obj->transform[13];
+        float r = obj->render_cache ? *(float*)obj->render_cache : 10.0f;
+        THREEJS_APPEND("  // 圆 (%.2f, %.2f) r=%.2f\n", cx, cy, r);
+        THREEJS_APPEND("  (function() {\n");
+        THREEJS_APPEND("    var segments = 64;\n");
+        THREEJS_APPEND("    var pts = [];\n");
+        THREEJS_APPEND("    for (var i = 0; i <= segments; i++) {\n");
+        THREEJS_APPEND("      var angle = (i / segments) * 2 * Math.PI;\n");
+        THREEJS_APPEND("      pts.push(new THREE.Vector3(%.2f + %.2f * Math.cos(angle), %.2f + %.2f * Math.sin(angle), 0));\n",
+                       cx, r, cy, r);
+        THREEJS_APPEND("    }\n");
+        THREEJS_APPEND("    var geo = new THREE.BufferGeometry().setFromPoints(pts);\n");
+        THREEJS_APPEND("    var mat = new THREE.LineBasicMaterial({ color: 0x%02x%02x%02x, opacity: %.2f });\n",
+                       sr, sg, sb, opacity);
+        THREEJS_APPEND("    var circle = new THREE.Line(geo, mat);\n");
+        THREEJS_APPEND("    scene.add(circle);\n");
+        THREEJS_APPEND("  })();\n\n");
+        break;
+    }
+    case LV00_VISUAL_POLYGON: {
+        /* 多边形渲染为 ShapeGeometry */
+        if (obj->children_count > 0) {
+            THREEJS_APPEND("  // 多边形 (%zu 顶点)\n", obj->children_count);
+            THREEJS_APPEND("  (function() {\n");
+            THREEJS_APPEND("    var shape = new THREE.Shape();\n");
+            size_t first = 1;
+            for (size_t i = 0; i < obj->children_count; i++) {
+                Lv00VisualObject* child = obj->children[i];
+                if (child) {
+                    float px = child->transform[12];
+                    float py = child->transform[13];
+                    if (first) {
+                        THREEJS_APPEND("    shape.moveTo(%.2f, %.2f);\n", px, py);
+                        first = 0;
+                    } else {
+                        THREEJS_APPEND("    shape.lineTo(%.2f, %.2f);\n", px, py);
+                    }
+                }
+            }
+            THREEJS_APPEND("    var geo = new THREE.ShapeGeometry(shape);\n");
+            THREEJS_APPEND("    var mat = new THREE.MeshBasicMaterial({ color: 0x%02x%02x%02x, opacity: %.2f, side: THREE.DoubleSide });\n",
+                       fr, fg, fb_c, opacity);
+            THREEJS_APPEND("    var mesh = new THREE.Mesh(geo, mat);\n");
+            THREEJS_APPEND("    scene.add(mesh);\n");
+            THREEJS_APPEND("  })();\n\n");
+        }
+        break;
+    }
+    case LV00_VISUAL_MOBJECT_GROUP: {
+        /* 组合对象：递归渲染子对象 */
+        for (size_t i = 0; i < obj->children_count; i++) {
+            render_object_threejs(obj->children[i], buf, pos, cap);
+        }
+        break;
+    }
+    default:
+        /* 其他类型暂不渲染 */
+        break;
+    }
+
+    #undef THREEJS_APPEND
+}
+
+/* ============ TikZ 辅助函数 ============ */
+
+/* 将浮点 RGBA 颜色转换为 TikZ 颜色定义 */
+static void color_to_tikz(float c[4], char* buf, size_t buf_size) {
+    int r = (int)(c[0] * 255.0f);
+    int g = (int)(c[1] * 255.0f);
+    int b = (int)(c[2] * 255.0f);
+    float a = c[3];
+    if (a < 0.999f) {
+        snprintf(buf, buf_size, "{rgb,1:red,%d;green,%d;blue,%d},opacity=%.2f", r, g, b, a);
+    } else {
+        snprintf(buf, buf_size, "{rgb,1:red,%d;green,%d;blue,%d}", r, g, b);
+    }
+}
+
+/* 递归渲染单个对象为 TikZ 命令 */
+static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
+    if (!obj) return;
+
+    /* 辅助宏：向缓冲区追加字符串 */
+    #define TIKZ_APPEND(fmt, ...) do { \
+        int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
+        if (written > 0) { \
+            *pos += (size_t)written; \
+            if (*pos >= *cap) { \
+                *cap *= 2; \
+                char* new_buf = (char*)lv00_realloc(*buf, *cap); \
+                if (new_buf) *buf = new_buf; \
+            } \
+        } \
+    } while(0)
+
+    char stroke[128], fill[128];
+    color_to_tikz(obj->style.stroke_color, stroke, sizeof(stroke));
+    color_to_tikz(obj->style.fill_color, fill, sizeof(fill));
+
+    switch (obj->type) {
+    case LV00_VISUAL_POINT: {
+        /* 点渲染为填充小圆节点 */
+        float px = obj->transform[12];
+        float py = obj->transform[13];
+        TIKZ_APPEND("  %% 点 (%.2f, %.2f)\n", px, py);
+        TIKZ_APPEND("  \\node[circle,fill=%s,inner sep=1.5pt] at (%.2f, %.2f) {};\n\n",
+                   stroke, px, py);
+        break;
+    }
+    case LV00_VISUAL_LINE:
+    case LV00_VISUAL_SEGMENT: {
+        /* 线段渲染为 \draw 命令 */
+        if (obj->render_cache) {
+            float* ep = (float*)obj->render_cache;
+            const char* dash_opt = obj->style.dashed ? ",dashed" : "";
+            TIKZ_APPEND("  %% 线段 (%.2f,%.2f) -> (%.2f,%.2f)\n",
+                       ep[0], ep[1], ep[2], ep[3]);
+            TIKZ_APPEND("  \\draw[thick,color=%s,line width=%.1fpt%s] (%.2f, %.2f) -- (%.2f, %.2f);\n\n",
+                       stroke, obj->style.stroke_width, dash_opt,
+                       ep[0], ep[1], ep[2], ep[3]);
+        }
+        break;
+    }
+    case LV00_VISUAL_CIRCLE: {
+        /* 圆渲染为 \draw circle */
+        float cx = obj->transform[12];
+        float cy = obj->transform[13];
+        float r = obj->render_cache ? *(float*)obj->render_cache : 10.0f;
+        TIKZ_APPEND("  %% 圆 (%.2f, %.2f) r=%.2f\n", cx, cy, r);
+        TIKZ_APPEND("  \\draw[fill=%s,draw=%s,line width=%.1fpt] (%.2f, %.2f) circle (%.2f);\n\n",
+                   fill, stroke, obj->style.stroke_width, cx, cy, r);
+        break;
+    }
+    case LV00_VISUAL_POLYGON: {
+        /* 多边形渲染为 \draw -- cycle */
+        if (obj->children_count > 0) {
+            TIKZ_APPEND("  %% 多边形 (%zu 顶点)\n", obj->children_count);
+            TIKZ_APPEND("  \\draw[fill=%s,draw=%s,line width=%.1fpt] ",
+                       fill, stroke, obj->style.stroke_width);
+            for (size_t i = 0; i < obj->children_count; i++) {
+                Lv00VisualObject* child = obj->children[i];
+                if (child) {
+                    float px = child->transform[12];
+                    float py = child->transform[13];
+                    if (i == 0) {
+                        TIKZ_APPEND("(%.2f, %.2f)", px, py);
+                    } else {
+                        TIKZ_APPEND(" -- (%.2f, %.2f)", px, py);
+                    }
+                }
+            }
+            TIKZ_APPEND(" -- cycle;\n\n");
+        }
+        break;
+    }
+    case LV00_VISUAL_MOBJECT_GROUP: {
+        /* 组合对象：递归渲染子对象 */
+        for (size_t i = 0; i < obj->children_count; i++) {
+            render_object_tikz(obj->children[i], buf, pos, cap);
+        }
+        break;
+    }
+    default:
+        /* 其他类型暂不渲染 */
+        break;
+    }
+
+    #undef TIKZ_APPEND
+}
+
+/* ============ PPM 像素缓冲辅助函数 ============ */
+
+/* 设置像素颜色（含边界检查） */
+static void ppm_set_pixel(unsigned char* pixels, int w, int h, int x, int y,
+                          unsigned char r, unsigned char g, unsigned char b) {
+    if (x < 0 || x >= w || y < 0 || y >= h) return;
+    int idx = (y * w + x) * 3;
+    pixels[idx + 0] = r;
+    pixels[idx + 1] = g;
+    pixels[idx + 2] = b;
+}
+
+/* Bresenham 画线算法 */
+static void ppm_draw_line(unsigned char* pixels, int w, int h,
+                          int x0, int y0, int x1, int y1,
+                          unsigned char r, unsigned char g, unsigned char b) {
+    int dx = abs(x1 - x0);
+    int dy = abs(y1 - y0);
+    int sx = x0 < x1 ? 1 : -1;
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx - dy;
+
+    while (1) {
+        ppm_set_pixel(pixels, w, h, x0, y0, r, g, b);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx)  { err += dx; y0 += sy; }
+    }
+}
+
+/* 中点圆算法：画圆轮廓 */
+static void ppm_draw_circle(unsigned char* pixels, int w, int h,
+                            int cx, int cy, int radius,
+                            unsigned char r, unsigned char g, unsigned char b) {
+    int x = radius;
+    int y = 0;
+    int d = 1 - radius;
+
+    while (x >= y) {
+        /* 对称绘制 8 个点 */
+        ppm_set_pixel(pixels, w, h, cx + x, cy + y, r, g, b);
+        ppm_set_pixel(pixels, w, h, cx - x, cy + y, r, g, b);
+        ppm_set_pixel(pixels, w, h, cx + x, cy - y, r, g, b);
+        ppm_set_pixel(pixels, w, h, cx - x, cy - y, r, g, b);
+        ppm_set_pixel(pixels, w, h, cx + y, cy + x, r, g, b);
+        ppm_set_pixel(pixels, w, h, cx - y, cy + x, r, g, b);
+        ppm_set_pixel(pixels, w, h, cx + y, cy - x, r, g, b);
+        ppm_set_pixel(pixels, w, h, cx - y, cy - x, r, g, b);
+
+        y++;
+        if (d <= 0) {
+            d += 2 * y + 1;
+        } else {
+            x--;
+            d += 2 * (y - x) + 1;
+        }
+    }
+}
+
+/* 填充圆（Bresenham 实心圆） */
+static void ppm_fill_circle(unsigned char* pixels, int w, int h,
+                            int cx, int cy, int radius,
+                            unsigned char r, unsigned char g, unsigned char b) {
+    int x = radius;
+    int y = 0;
+    int d = 1 - radius;
+
+    while (x >= y) {
+        /* 绘制水平线段填充 */
+        for (int i = cx - x; i <= cx + x; i++) {
+            ppm_set_pixel(pixels, w, h, i, cy + y, r, g, b);
+            ppm_set_pixel(pixels, w, h, i, cy - y, r, g, b);
+        }
+        for (int i = cx - y; i <= cx + y; i++) {
+            ppm_set_pixel(pixels, w, h, i, cy + x, r, g, b);
+            ppm_set_pixel(pixels, w, h, i, cy - x, r, g, b);
+        }
+
+        y++;
+        if (d <= 0) {
+            d += 2 * y + 1;
+        } else {
+            x--;
+            d += 2 * (y - x) + 1;
+        }
+    }
+}
+
+/* 递归光栅化单个对象到像素缓冲 */
+static void rasterize_object_ppm(Lv00VisualObject* obj, unsigned char* pixels, int w, int h) {
+    if (!obj) return;
+
+    /* 提取颜色分量 */
+    unsigned char sr = (unsigned char)(obj->style.stroke_color[0] * 255.0f);
+    unsigned char sg = (unsigned char)(obj->style.stroke_color[1] * 255.0f);
+    unsigned char sb = (unsigned char)(obj->style.stroke_color[2] * 255.0f);
+    unsigned char fr = (unsigned char)(obj->style.fill_color[0] * 255.0f);
+    unsigned char fg = (unsigned char)(obj->style.fill_color[1] * 255.0f);
+    unsigned char fb_c = (unsigned char)(obj->style.fill_color[2] * 255.0f);
+
+    switch (obj->type) {
+    case LV00_VISUAL_POINT: {
+        /* 点渲染为填充小圆 */
+        int px = (int)obj->transform[12];
+        int py = (int)(h - obj->transform[13]); /* Y 轴翻转 */
+        ppm_fill_circle(pixels, w, h, px, py, 3, sr, sg, sb);
+        break;
+    }
+    case LV00_VISUAL_LINE:
+    case LV00_VISUAL_SEGMENT: {
+        /* 线段使用 Bresenham 画线 */
+        if (obj->render_cache) {
+            float* ep = (float*)obj->render_cache;
+            int x0 = (int)ep[0];
+            int y0 = (int)(h - ep[1]); /* Y 轴翻转 */
+            int x1 = (int)ep[2];
+            int y1 = (int)(h - ep[3]);
+            ppm_draw_line(pixels, w, h, x0, y0, x1, y1, sr, sg, sb);
+        }
+        break;
+    }
+    case LV00_VISUAL_CIRCLE: {
+        /* 圆使用中点圆算法 */
+        int cx = (int)obj->transform[12];
+        int cy = (int)(h - obj->transform[13]); /* Y 轴翻转 */
+        int r = obj->render_cache ? (int)(*(float*)obj->render_cache) : 10;
+        ppm_draw_circle(pixels, w, h, cx, cy, r, sr, sg, sb);
+        break;
+    }
+    case LV00_VISUAL_POLYGON: {
+        /* 多边形：逐边画线 */
+        if (obj->children_count > 0) {
+            for (size_t i = 0; i < obj->children_count; i++) {
+                Lv00VisualObject* curr = obj->children[i];
+                Lv00VisualObject* next = obj->children[(i + 1) % obj->children_count];
+                if (curr && next) {
+                    int x0 = (int)curr->transform[12];
+                    int y0 = (int)(h - curr->transform[13]);
+                    int x1 = (int)next->transform[12];
+                    int y1 = (int)(h - next->transform[13]);
+                    ppm_draw_line(pixels, w, h, x0, y0, x1, y1, sr, sg, sb);
+                }
+            }
+        }
+        break;
+    }
+    case LV00_VISUAL_MOBJECT_GROUP: {
+        /* 组合对象：递归光栅化子对象 */
+        for (size_t i = 0; i < obj->children_count; i++) {
+            rasterize_object_ppm(obj->children[i], pixels, w, h);
+        }
+        break;
+    }
+    default:
+        /* 其他类型暂不渲染 */
+        break;
+    }
+}
+
 /* ============ 渲染器 ============ */
 
 Lv00VisualRenderer* lv00_visual_renderer_create(Lv00RenderBackend backend, int width, int height) {
@@ -443,18 +959,184 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         lv00_free(buf);
         break;
     }
-    case LV00_RENDER_CAIRO:
-        /* Cairo 后端：暂未实现 */
+    case LV00_RENDER_CAIRO: {
+        /* Cairo 后端：生成 Cairo 脚本命令（非实际 Cairo API 调用，而是脚本格式） */
+        size_t cap = 4096;
+        char* buf = (char*)lv00_malloc(cap);
+        if (!buf) return;
+        size_t pos = 0;
+
+        /* Cairo 脚本头：创建表面和上下文 */
+        pos += snprintf(buf + pos, cap - pos,
+            "/* Cairo 脚本 - 由 Lv-00 几何可视化生成 */\n"
+            "#include <cairo.h>\n\n"
+            "int main(void) {\n"
+            "  /* 创建图像表面 %dx%d */\n"
+            "  cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, %d, %d);\n"
+            "  cairo_t *cr = cairo_create(surface);\n\n"
+            "  /* 白色背景 */\n"
+            "  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);\n"
+            "  cairo_paint(cr);\n\n"
+            "  /* 虚线样式定义 */\n"
+            "  double dashes[] = {5.0, 3.0};\n\n",
+            renderer->width, renderer->height,
+            renderer->width, renderer->height);
+
+        /* 遍历场景中的所有对象并生成 Cairo 命令 */
+        for (size_t i = 0; i < scene->object_count; i++) {
+            render_object_cairo(scene->objects[i], &buf, &pos, &cap);
+        }
+
+        /* Cairo 脚本尾：销毁资源并输出 */
+        pos += snprintf(buf + pos, cap - pos,
+            "  /* 销毁资源 */\n"
+            "  cairo_destroy(cr);\n"
+            "  cairo_surface_write_to_png(surface, \"%s\");\n"
+            "  cairo_surface_destroy(surface);\n"
+            "  return 0;\n"
+            "}\n",
+            output_path);
+
+        /* 写入输出文件 */
+        FILE* fp = fopen(output_path, "w");
+        if (fp) {
+            fputs(buf, fp);
+            fclose(fp);
+        }
+
+        lv00_free(buf);
         break;
-    case LV00_RENDER_THREEJS:
-        /* Three.js 后端：暂未实现 */
+    }
+    case LV00_RENDER_THREEJS: {
+        /* Three.js 后端：生成完整 HTML 文件，包含 Three.js 场景 */
+        size_t cap = 8192;
+        char* buf = (char*)lv00_malloc(cap);
+        if (!buf) return;
+        size_t pos = 0;
+
+        /* HTML 模板头：引入 Three.js 和 OrbitControls */
+        pos += snprintf(buf + pos, cap - pos,
+            "<!DOCTYPE html>\n"
+            "<html>\n<head>\n"
+            "<meta charset=\"UTF-8\">\n"
+            "<title>LV-00 Three.js Visualization</title>\n"
+            "<style>body { margin: 0; overflow: hidden; }</style>\n"
+            "</head>\n<body>\n"
+            "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js\"></script>\n"
+            "<script src=\"https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js\"></script>\n"
+            "<script>\n"
+            "  // 场景初始化\n"
+            "  var scene = new THREE.Scene();\n"
+            "  scene.background = new THREE.Color(0xffffff);\n\n"
+            "  // 相机设置\n"
+            "  var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);\n"
+            "  camera.position.set(0, 0, 50);\n\n"
+            "  // 渲染器\n"
+            "  var renderer = new THREE.WebGLRenderer({ antialias: true });\n"
+            "  renderer.setSize(window.innerWidth, window.innerHeight);\n"
+            "  document.body.appendChild(renderer.domElement);\n\n"
+            "  // 轨道控制器（支持鼠标交互）\n"
+            "  var controls = new THREE.OrbitControls(camera, renderer.domElement);\n"
+            "  controls.enableDamping = true;\n\n"
+            "  // 窗口大小自适应\n"
+            "  window.addEventListener('resize', function() {\n"
+            "    camera.aspect = window.innerWidth / window.innerHeight;\n"
+            "    camera.updateProjectionMatrix();\n"
+            "    renderer.setSize(window.innerWidth, window.innerHeight);\n"
+            "  });\n\n"
+            "  // ====== 几何对象 ======\n\n");
+
+        /* 遍历场景中的所有对象并生成 Three.js 代码 */
+        for (size_t i = 0; i < scene->object_count; i++) {
+            render_object_threejs(scene->objects[i], &buf, &pos, &cap);
+        }
+
+        /* HTML 模板尾：动画循环 */
+        pos += snprintf(buf + pos, cap - pos,
+            "  // ====== 动画循环 ======\n"
+            "  function animate() {\n"
+            "    requestAnimationFrame(animate);\n"
+            "    controls.update();\n"
+            "    renderer.render(scene, camera);\n"
+            "  }\n"
+            "  animate();\n"
+            "</script>\n"
+            "</body>\n</html>\n");
+
+        /* 写入输出文件 */
+        FILE* fp = fopen(output_path, "w");
+        if (fp) {
+            fputs(buf, fp);
+            fclose(fp);
+        }
+
+        lv00_free(buf);
         break;
-    case LV00_RENDER_TIKZ:
-        /* TikZ 后端：暂未实现 */
+    }
+    case LV00_RENDER_TIKZ: {
+        /* TikZ 后端：生成 TikZ/LaTeX 代码 */
+        size_t cap = 4096;
+        char* buf = (char*)lv00_malloc(cap);
+        if (!buf) return;
+        size_t pos = 0;
+
+        /* TikZ 文档头：包含必要的 LaTeX 包 */
+        pos += snprintf(buf + pos, cap - pos,
+            "%% TikZ 图形 - 由 Lv-00 几何可视化生成\n"
+            "\\documentclass[tikz,border=10pt]{standalone}\n"
+            "\\usepackage{tikz}\n"
+            "\\begin{document}\n"
+            "\\begin{tikzpicture}[scale=1.0]\n\n");
+
+        /* 遍历场景中的所有对象并生成 TikZ 命令 */
+        for (size_t i = 0; i < scene->object_count; i++) {
+            render_object_tikz(scene->objects[i], &buf, &pos, &cap);
+        }
+
+        /* TikZ 文档尾 */
+        pos += snprintf(buf + pos, cap - pos,
+            "\\end{tikzpicture}\n"
+            "\\end{document}\n");
+
+        /* 写入输出文件 */
+        FILE* fp = fopen(output_path, "w");
+        if (fp) {
+            fputs(buf, fp);
+            fclose(fp);
+        }
+
+        lv00_free(buf);
         break;
-    case LV00_RENDER_PNG:
-        /* PNG 后端：暂未实现 */
+    }
+    case LV00_RENDER_PNG: {
+        /* PNG 后端：生成 PPM (Portable Pixmap) 作为 PNG 回退格式 */
+        int w = renderer->width;
+        int h = renderer->height;
+
+        /* 创建像素缓冲区 (width x height x 3 RGB) */
+        size_t pixel_size = (size_t)w * h * 3;
+        unsigned char* pixels = (unsigned char*)lv00_malloc(pixel_size);
+        if (!pixels) return;
+
+        /* 设置白色背景 */
+        memset(pixels, 255, pixel_size);
+
+        /* 遍历场景中的所有对象并光栅化到像素缓冲 */
+        for (size_t i = 0; i < scene->object_count; i++) {
+            rasterize_object_ppm(scene->objects[i], pixels, w, h);
+        }
+
+        /* 写入 PPM 文件 (P6 二进制格式) */
+        FILE* fp = fopen(output_path, "wb");
+        if (fp) {
+            fprintf(fp, "P6\n%d %d\n255\n", w, h);
+            fwrite(pixels, 1, pixel_size, fp);
+            fclose(fp);
+        }
+
+        lv00_free(pixels);
         break;
+    }
     default:
         break;
     }
