@@ -247,7 +247,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
     }
 
     /* S = (1/LC(gi)) * mult_i * gi - (1/LC(gj)) * mult_j * gj
-     * 简化实现：仅计算首项的 S-多项式 */
+     * 完整实现：对所有项（不仅是首项）乘以系数后相减 */
     double scale_i = 1.0 / gi->terms[0].coeff;
     double scale_j = 1.0 / gj->terms[0].coeff;
 

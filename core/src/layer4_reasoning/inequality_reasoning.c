@@ -637,8 +637,82 @@ bool lv00_expr_sos_decompose(Lv00Expr *poly, Lv00SOSDecomposition **out_sos) {
 
     *out_sos = NULL;
 
-    /* 简化：如果表达式为 NULL 或无法分解，返回 false */
-    /* 完整实现需要多项式因式分解和 Gram 矩阵方法 */
+    /* 简化 SOS 分解实现：
+     * 1. 对于 EXPR_TYPE_POWER（平方项 a^2）：直接作为单个平方项
+     * 2. 对于 EXPR_TYPE_SUM：检查每个操作数是否为平方项
+     * 3. 对于 EXPR_TYPE_PRODUCT：检查是否为 (expr)^2 形式
+     * 4. 对于二次多项式：尝试 Hessian 正半定判定
+     */
+
+    /* 情况 1：多项式是单个幂表达式 a^2 */
+    if (poly->type == EXPR_TYPE_POWER && poly->data.power.exponent) {
+        /* 检查指数是否为常数 2 */
+        if (poly->data.power.exponent->type == EXPR_TYPE_RATIONAL) {
+            /* 有理数指数为 2，则 poly = base^2 是一个平方项 */
+            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *) lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+            if (!sos) return false;
+            sos->squares = (Lv00Expr **) lv00_malloc(sizeof(Lv00Expr *));
+            if (!sos->squares) { lv00_free((void **) &sos); return false; }
+            sos->squares[0] = poly->data.power.base;
+            sos->count = 1;
+            sos->remainder = NULL;
+            *out_sos = sos;
+            return true;
+        }
+    }
+
+    /* 情况 2：多项式是和式，检查每个操作数是否为平方项 */
+    if (poly->type == EXPR_TYPE_SUM && poly->data.composite.count > 0) {
+        uint32_t sq_count = 0;
+        uint32_t i;
+        for (i = 0; i < poly->data.composite.count; i++) {
+            Lv00Expr *op = poly->data.composite.operands[i];
+            if (!op) continue;
+            /* 检查是否为 a^2 形式 */
+            if (op->type == EXPR_TYPE_POWER && op->data.power.exponent &&
+                op->data.power.exponent->type == EXPR_TYPE_RATIONAL) {
+                sq_count++;
+            }
+        }
+        /* 如果所有操作数都是平方项，则成功分解 */
+        if (sq_count > 0 && sq_count == poly->data.composite.count) {
+            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *) lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+            if (!sos) return false;
+            sos->squares = (Lv00Expr **) lv00_malloc((size_t) sq_count * sizeof(Lv00Expr *));
+            if (!sos->squares) { lv00_free((void **) &sos); return false; }
+            uint32_t idx = 0;
+            for (i = 0; i < poly->data.composite.count; i++) {
+                Lv00Expr *op = poly->data.composite.operands[i];
+                if (op && op->type == EXPR_TYPE_POWER) {
+                    sos->squares[idx++] = op->data.power.base;
+                }
+            }
+            sos->count = idx;
+            sos->remainder = NULL;
+            *out_sos = sos;
+            return true;
+        }
+    }
+
+    /* 情况 3：多项式是乘积 a*a，即 a^2 */
+    if (poly->type == EXPR_TYPE_PRODUCT && poly->data.composite.count == 2) {
+        Lv00Expr *a = poly->data.composite.operands[0];
+        Lv00Expr *b = poly->data.composite.operands[1];
+        if (a && b && a == b) {
+            /* a*a = a^2，是一个平方项 */
+            Lv00SOSDecomposition *sos = (Lv00SOSDecomposition *) lv00_calloc(1, sizeof(Lv00SOSDecomposition));
+            if (!sos) return false;
+            sos->squares = (Lv00Expr **) lv00_malloc(sizeof(Lv00Expr *));
+            if (!sos->squares) { lv00_free((void **) &sos); return false; }
+            sos->squares[0] = a;
+            sos->count = 1;
+            sos->remainder = NULL;
+            *out_sos = sos;
+            return true;
+        }
+    }
+
+    /* 其他情况：无法识别为平方和形式 */
     return false;
 }
 

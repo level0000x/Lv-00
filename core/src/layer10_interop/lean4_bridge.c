@@ -5,58 +5,104 @@
 #include <stdio.h>
 #include <ctype.h>
 
+/* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
+typedef enum {
+    LV00_STEP_ADD_NODE = 0,      /* 添加节点 → intro */
+    LV00_STEP_ADD_CONSTRAINT,    /* 添加约束 → constructor */
+    LV00_STEP_REWRITE,           /* 重写 → rw */
+    LV00_STEP_FUNCTION_APP,      /* 函数应用 → apply */
+    LV00_STEP_EXACT,             /* 精确匹配 → exact */
+    LV00_STEP_HAVE,              /* 中间引理 → have */
+    LV00_STEP_CALC,              /* 计算链 → calc */
+    LV00_STEP_NORMALIZATION,     /* 规范化 → simp */
+    LV00_STEP_ORACLE             /* 外部预言 → sorry */
+} Lv00ProofStepType;
+
+/* 证明步骤结构体 */
+typedef struct {
+    int type;                     /* 步骤类型（Lv00ProofStepType） */
+    char description[512];       /* 步骤描述 */
+    int id;                      /* 步骤编号 */
+} Lv00ProofStep;
+
+/* 内部证明结构体（用于导出/导入） */
+typedef struct {
+    char theorem_name[256];      /* 定理名称 */
+    int step_count;              /* 步骤数量 */
+    int step_capacity;           /* 步骤容量 */
+    Lv00ProofStep *steps;        /* 步骤数组 */
+} Lv00Lean4Proof;
+
 /* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本 */
 static int lean4_export_proof(void *proof, char *output, int output_size) {
     if (!proof || !output || output_size <= 0) return -1;
+
+    Lv00Lean4Proof *p = (Lv00Lean4Proof *)proof;
 
     /* 步骤类型到 Lean 4 tactic 的映射表 */
     static const struct {
         int step_type;
         const char *tactic;
     } tactic_map[] = {
-        { 0, "intro" },        /* ADD_NODE -> intro */
-        { 1, "constructor" },  /* ADD_CONSTRAINT -> constructor */
-        { 2, "rw" },           /* REWRITE -> rw */
-        { 3, "apply" },        /* APPLY -> apply */
-        { 4, "exact" },        /* EXACT -> exact */
-        { 5, "have" },         /* HAVE -> have */
-        { 6, "calc" },         /* CALC -> calc */
-        { 7, "simp" },         /* SIMPLIFY -> simp */
-        { 8, "sorry" },        /* UNKNOWN -> sorry（占位） */
+        { LV00_STEP_ADD_NODE,        "intro" },
+        { LV00_STEP_ADD_CONSTRAINT,   "constructor" },
+        { LV00_STEP_REWRITE,         "rw" },
+        { LV00_STEP_FUNCTION_APP,    "apply" },
+        { LV00_STEP_EXACT,           "exact" },
+        { LV00_STEP_HAVE,            "have" },
+        { LV00_STEP_CALC,            "calc" },
+        { LV00_STEP_NORMALIZATION,   "simp" },
+        { LV00_STEP_ORACLE,          "sorry" }
     };
     int tactic_count = (int)(sizeof(tactic_map) / sizeof(tactic_map[0]));
 
     /* 输出头 */
     const char *header =
         "import Lv00.HilbertAxioms\n\n"
-        "theorem imported_proof : True := by\n";
-    int header_len = (int)strlen(header);
+        "theorem ";
     const char *footer = "\n";
+    int header_len = (int)strlen(header);
     int footer_len = (int)strlen(footer);
 
     /* 计算可用空间 */
     int avail = output_size - header_len - footer_len - 1;
-    if (avail < 16) return -1;
+    if (avail < 64) return -1;
 
     memcpy(output, header, header_len);
     int pos = header_len;
 
-    /* TODO: 当 proof tree API 就绪后，遍历证明树中每个步骤 */
-    /* 伪代码：
-     * for each step in proof->steps:
-     *     const char *tac = "sorry";
-     *     for (int j = 0; j < tactic_count; j++) {
-     *         if (step->type == tactic_map[j].step_type) {
-     *             tac = tactic_map[j].tactic;
-     *             break;
-     *         }
-     *     }
-     *     pos += snprintf(output + pos, avail - pos, "  %s\n", tac);
-     */
+    /* 写入定理名称 */
+    int name_len = (int)strlen(p->theorem_name);
+    if (pos + name_len + 32 >= output_size) return -1;
+    memcpy(output + pos, p->theorem_name, name_len);
+    pos += name_len;
 
-    /* 当前占位：输出默认 tactic */
-    pos += snprintf(output + pos, avail - pos, "  trivial\n");
+    /* 写入 ": Prop := by" */
+    pos += snprintf(output + pos, output_size - pos, " : Prop := by\n");
 
+    /* 遍历证明树中每个步骤，生成对应的 tactic */
+    for (int i = 0; i < p->step_count; i++) {
+        Lv00ProofStep *step = &p->steps[i];
+        const char *tac = "sorry"; /* 默认 tactic（未知类型） */
+
+        /* 在映射表中查找对应的 tactic */
+        for (int j = 0; j < tactic_count; j++) {
+            if (step->type == tactic_map[j].step_type) {
+                tac = tactic_map[j].tactic;
+                break;
+            }
+        }
+
+        /* 检查剩余空间 */
+        int tac_len = (int)strlen(tac);
+        if (pos + tac_len + 8 >= output_size) return -1;
+
+        /* 写入 tactic（缩进两格） */
+        pos += snprintf(output + pos, output_size - pos, "  %s\n", tac);
+    }
+
+    /* 写入尾部 */
+    if (pos + footer_len >= output_size) return -1;
     memcpy(output + pos, footer, footer_len + 1);
     return 0;
 }
@@ -91,26 +137,20 @@ static int lean4_import_proof(const char *input, void **proof) {
         const char *tactic;
         int step_type;
     } reverse_map[] = {
-        { "intro",       0 },  /* intro -> ADD_NODE */
-        { "constructor", 1 },  /* constructor -> ADD_CONSTRAINT */
-        { "rw",          2 },  /* rw -> REWRITE */
-        { "rewrite",     2 },  /* rewrite -> REWRITE */
-        { "apply",       3 },  /* apply -> APPLY */
-        { "exact",       4 },  /* exact -> EXACT */
-        { "have",        5 },  /* have -> HAVE */
-        { "calc",        6 },  /* calc -> CALC */
-        { "simp",        7 },  /* simp -> SIMPLIFY */
+        { "intro",       LV00_STEP_ADD_NODE },
+        { "constructor", LV00_STEP_ADD_CONSTRAINT },
+        { "rw",          LV00_STEP_REWRITE },
+        { "rewrite",     LV00_STEP_REWRITE },
+        { "apply",       LV00_STEP_FUNCTION_APP },
+        { "exact",       LV00_STEP_EXACT },
+        { "have",        LV00_STEP_HAVE },
+        { "calc",        LV00_STEP_CALC },
+        { "simp",        LV00_STEP_NORMALIZATION }
     };
     int reverse_count = (int)(sizeof(reverse_map) / sizeof(reverse_map[0]));
 
-    /* 分配证明结构体（占位） */
-    typedef struct {
-        char theorem_name[256];
-        char tactic_script[4096];
-        int step_count;
-    } ImportedLean4Proof;
-
-    ImportedLean4Proof *p = lv00_calloc(1, sizeof(ImportedLean4Proof));
+    /* 分配证明结构体 */
+    Lv00Lean4Proof *p = (Lv00Lean4Proof *)calloc(1, sizeof(Lv00Lean4Proof));
     if (!p) return -1;
 
     /* 保存定理名 */
@@ -121,18 +161,73 @@ static int lean4_import_proof(const char *input, void **proof) {
         p->theorem_name[nlen] = '\0';
     }
 
-    /* 保存 tactic 脚本 */
-    {
-        size_t slen = strlen(script_start);
-        if (slen >= sizeof(p->tactic_script)) slen = sizeof(p->tactic_script) - 1;
-        memcpy(p->tactic_script, script_start, slen);
-        p->tactic_script[slen] = '\0';
-    }
+    /* 初始化步骤数组 */
+    p->step_capacity = 16;
+    p->steps = (Lv00ProofStep *)calloc(p->step_capacity, sizeof(Lv00ProofStep));
+    if (!p->steps) { free(p); return -1; }
 
-    /* TODO: 当 proof tree API 就绪后，逐行解析 tactic_script，
-     *       通过 reverse_map 将每个 tactic 转换为 Lv-00 步骤类型，
-     *       构建完整的证明树 */
-    (void)reverse_count; /* 暂时抑制未使用警告 */
+    /* 逐行解析 tactic 脚本，通过 reverse_map 转换为 Lv-00 步骤类型 */
+    const char *line = script_start;
+    while (*line) {
+        /* 跳过空白 */
+        while (*line && isspace((unsigned char)*line)) line++;
+        if (!*line) break;
+
+        /* 找到行尾 */
+        const char *line_end = line;
+        while (*line_end && *line_end != '\n' && *line_end != '\r') line_end++;
+
+        /* 提取 tactic 名称（行首到第一个空格或括号） */
+        const char *tac_start = line;
+        const char *tac_end = tac_start;
+        while (tac_end < line_end && !isspace((unsigned char)*tac_end) &&
+               *tac_end != '(' && *tac_end != '[' && *tac_end != '{') tac_end++;
+
+        if (tac_end > tac_start) {
+            /* 查找对应的步骤类型 */
+            int step_type = -1;
+            int tac_len = (int)(tac_end - tac_start);
+
+            for (int j = 0; j < reverse_count; j++) {
+                if ((int)strlen(reverse_map[j].tactic) == tac_len &&
+                    strncmp(tac_start, reverse_map[j].tactic, tac_len) == 0) {
+                    step_type = reverse_map[j].step_type;
+                    break;
+                }
+            }
+
+            /* 如果找到有效映射，添加步骤 */
+            if (step_type >= 0) {
+                /* 检查是否需要扩容 */
+                if (p->step_count >= p->step_capacity) {
+                    int new_cap = p->step_capacity * 2;
+                    Lv00ProofStep *new_steps = (Lv00ProofStep *)realloc(
+                        p->steps, new_cap * sizeof(Lv00ProofStep));
+                    if (!new_steps) {
+                        free(p->steps);
+                        free(p);
+                        return -1;
+                    }
+                    p->steps = new_steps;
+                    p->step_capacity = new_cap;
+                }
+
+                Lv00ProofStep *step = &p->steps[p->step_count];
+                step->type = step_type;
+                step->id = p->step_count;
+                /* 保存 tactic 名称作为描述 */
+                {
+                    size_t dlen = (size_t)(tac_end - tac_start);
+                    if (dlen >= sizeof(step->description)) dlen = sizeof(step->description) - 1;
+                    memcpy(step->description, tac_start, dlen);
+                    step->description[dlen] = '\0';
+                }
+                p->step_count++;
+            }
+        }
+
+        line = line_end + 1; /* 移到下一行 */
+    }
 
     *proof = p;
     return 0;
@@ -196,7 +291,7 @@ static int lean4_validate(const char *input) {
     return 1; /* 校验通过 */
 }
 
-/* Register Lean 4 plugin */
+/* 注册 Lean 4 插件 */
 int lv00_register_lean4_plugin(Lv00InteropManager *mgr) {
     if (!mgr) return -1;
     Lv00Plugin plugin;

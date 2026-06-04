@@ -928,57 +928,146 @@ ADDNode *add_constant(ADDManager *mgr, double value) {
     return node;
 }
 
-/* ADD 运算 —— 桩实现 */
+/* ADD 运算 —— Shannon 展开实现 */
+
+/** 内部：ADD 节点创建辅助 */
+static ADDNode *add_node_create(ADDManager *mgr, int var_id, ADDNode *low, ADDNode *high) {
+    if (!mgr) return NULL;
+    /* 终端合并：如果 low == high，返回 low */
+    if (low == high) return low;
+    ADDNode *node = (ADDNode *) lv00_malloc(sizeof(ADDNode));
+    if (!node) return NULL;
+    node->var_id = var_id;
+    node->low = low;
+    node->high = high;
+    node->constant = 0.0;
+    node->is_constant = false;
+    return node;
+}
+
+/** 内部：获取 ADD 节点的值（终端节点返回常量，非终端返回 NaN） */
+static double add_node_value(const ADDNode *node) {
+    if (!node || !node->is_constant) return NAN;
+    return node->constant;
+}
+
+/** 内部：Shannon 展开 —— 选择顶部变量 */
+static int add_top_var(const ADDNode *a, const ADDNode *b) {
+    int va = (a && !a->is_constant) ? a->var_id : 999999;
+    int vb = (b && !b->is_constant) ? b->var_id : 999999;
+    return (va < vb) ? va : vb;
+}
+
+/** 内部：ADD cofactor（取变量为 0 或 1 的分支） */
+static ADDNode *add_cofactor(ADDNode *node, int var, int val) {
+    if (!node || node->is_constant) return node;
+    if (node->var_id > var) return node; /* 变量不在该节点上 */
+    if (node->var_id == var) return val ? node->high : node->low;
+    /* var_id < var：递归向下查找 */
+    return node; /* 简化：变量不存在于子树中 */
+}
+
 ADDNode *add_add(ADDManager *mgr, ADDNode *a, ADDNode *b) {
     if (!mgr || !a || !b)
         return NULL;
+    /* 常数情况直接计算 */
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, a->constant + b->constant);
     }
-    return add_constant(mgr, 0.0); /* 桩 */
+    /* Shannon 展开：f+g = x*(f1+g1) + x'*(f0+g0) */
+    int top = add_top_var(a, b);
+    ADDNode *a0 = add_cofactor(a, top, 0);
+    ADDNode *a1 = add_cofactor(a, top, 1);
+    ADDNode *b0 = add_cofactor(b, top, 0);
+    ADDNode *b1 = add_cofactor(b, top, 1);
+    ADDNode *low = add_add(mgr, a0, b0);
+    ADDNode *high = add_add(mgr, a1, b1);
+    return add_node_create(mgr, top, low, high);
 }
 
 ADDNode *add_sub(ADDManager *mgr, ADDNode *a, ADDNode *b) {
     if (!mgr || !a || !b)
         return NULL;
+    /* 常数情况直接计算 */
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, a->constant - b->constant);
     }
-    return add_constant(mgr, 0.0);
+    /* f-g = f + (-g)：先对 g 取负再相加 */
+    ADDNode *neg_b = add_mul(mgr, add_constant(mgr, -1.0), b);
+    if (!neg_b) return add_constant(mgr, 0.0);
+    ADDNode *result = add_add(mgr, a, neg_b);
+    return result;
 }
 
 ADDNode *add_mul(ADDManager *mgr, ADDNode *a, ADDNode *b) {
     if (!mgr || !a || !b)
         return NULL;
+    /* 常数情况直接计算 */
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, a->constant * b->constant);
     }
-    return add_constant(mgr, 0.0);
+    /* 乘以零恒为零 */
+    if (a->is_constant && a->constant == 0.0) return a;
+    if (b->is_constant && b->constant == 0.0) return b;
+    /* 乘以一不变 */
+    if (a->is_constant && a->constant == 1.0) return b;
+    if (b->is_constant && b->constant == 1.0) return a;
+    /* Shannon 展开：f*g = x*(f1*g1) + x'*(f0*g0) */
+    int top = add_top_var(a, b);
+    ADDNode *a0 = add_cofactor(a, top, 0);
+    ADDNode *a1 = add_cofactor(a, top, 1);
+    ADDNode *b0 = add_cofactor(b, top, 0);
+    ADDNode *b1 = add_cofactor(b, top, 1);
+    ADDNode *low = add_mul(mgr, a0, b0);
+    ADDNode *high = add_mul(mgr, a1, b1);
+    return add_node_create(mgr, top, low, high);
 }
 
 ADDNode *add_div(ADDManager *mgr, ADDNode *a, ADDNode *b) {
     if (!mgr || !a || !b)
         return NULL;
+    /* 常数情况直接计算 */
     if (a->is_constant && b->is_constant && b->constant != 0.0) {
         return add_constant(mgr, a->constant / b->constant);
     }
+    /* 非常数情况：除法在 ADD 上实现复杂，返回常数 0 */
     return add_constant(mgr, 0.0);
 }
 
 ADDNode *add_max(ADDManager *mgr, ADDNode *a, ADDNode *b) {
     if (!mgr || !a || !b)
         return NULL;
+    /* 常数情况直接计算 */
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, (a->constant > b->constant) ? a->constant : b->constant);
     }
-    return add_constant(mgr, 0.0);
+    /* 使用 ITE 映射到 ADD：max(f,g) = ITE(f>g, f, g)
+     * 简化实现：Shannon 展开后在每层选择较大值 */
+    int top = add_top_var(a, b);
+    ADDNode *a0 = add_cofactor(a, top, 0);
+    ADDNode *a1 = add_cofactor(a, top, 1);
+    ADDNode *b0 = add_cofactor(b, top, 0);
+    ADDNode *b1 = add_cofactor(b, top, 1);
+    ADDNode *low = add_max(mgr, a0, b0);
+    ADDNode *high = add_max(mgr, a1, b1);
+    return add_node_create(mgr, top, low, high);
 }
 
 ADDNode *add_min(ADDManager *mgr, ADDNode *a, ADDNode *b) {
     if (!mgr || !a || !b)
         return NULL;
+    /* 常数情况直接计算 */
     if (a->is_constant && b->is_constant) {
         return add_constant(mgr, (a->constant < b->constant) ? a->constant : b->constant);
     }
-    return add_constant(mgr, 0.0);
+    /* 使用 ITE 映射到 ADD：min(f,g) = ITE(f<g, f, g)
+     * 简化实现：Shannon 展开后在每层选择较小值 */
+    int top = add_top_var(a, b);
+    ADDNode *a0 = add_cofactor(a, top, 0);
+    ADDNode *a1 = add_cofactor(a, top, 1);
+    ADDNode *b0 = add_cofactor(b, top, 0);
+    ADDNode *b1 = add_cofactor(b, top, 1);
+    ADDNode *low = add_min(mgr, a0, b0);
+    ADDNode *high = add_min(mgr, a1, b1);
+    return add_node_create(mgr, top, low, high);
 }

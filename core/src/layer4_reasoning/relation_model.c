@@ -780,14 +780,76 @@ Relation *relation_evaluate_expr(const RelModel *model, const RelInstance *inst,
                 case REL_OP_REFL_TRANS_CLOSURE:
                     if (left_r) result = rel_reflexive_transitive_closure(left_r);
                     break;
-                case REL_OP_IDENTITY:
-                    /* 恒等关系：简化实现，返回空关系 */
+                case REL_OP_IDENTITY: {
+                    /* 恒等关系：生成对角元组 {(a,a) | a in domain}
+                     * 需要从模型中获取域签名以确定原子集合 */
                     result = rel_new("identity", 2);
+                    if (result && model) {
+                        /* 遍历模型中所有签名，收集原子生成对角元组 */
+                        for (int si = 0; si < model->sig_count; si++) {
+                            RelSignature *sig = model->sigs[si];
+                            if (!sig) continue;
+                            for (int ai = 0; ai < sig->atom_count; ai++) {
+                                if (!sig->atoms[ai]) continue;
+                                int diag[2] = { sig->atoms[ai]->atom_id,
+                                                sig->atoms[ai]->atom_id };
+                                rel_add_tuple_inner(result, diag);
+                            }
+                        }
+                    }
                     break;
-                case REL_OP_COMPLEMENT:
-                    /* 补集：简化实现，返回空关系 */
-                    result = rel_new("complement", left_r ? left_r->arity : 1);
+                }
+                case REL_OP_COMPLEMENT: {
+                    /* 补集：计算相对于全笛卡尔积的补集
+                     * 对于 left_r 的每个域签名，计算不在 left_r 中的所有元组 */
+                    int arity = left_r ? left_r->arity : 1;
+                    result = rel_new("complement", arity);
+                    if (result && left_r) {
+                        /* 收集所有域签名中的原子，构建笛卡尔积 */
+                        int domain_sizes[8] = {0};
+                        RelAtom **domain_atoms[8] = {NULL};
+                        for (int col = 0; col < arity && col < 8; col++) {
+                            RelSignature *dsig = left_r->domains[col];
+                            if (dsig && dsig->atom_count > 0) {
+                                domain_atoms[col] = dsig->atoms;
+                                domain_sizes[col] = dsig->atom_count;
+                            } else {
+                                /* 无域签名，无法计算补集 */
+                                domain_sizes[col] = 0;
+                            }
+                        }
+                        /* 计算笛卡尔积大小，限制在 10000 以内防止爆炸 */
+                        long long total = 1;
+                        for (int col = 0; col < arity; col++) {
+                            if (domain_sizes[col] == 0) { total = 0; break; }
+                            total *= domain_sizes[col];
+                            if (total > 10000) { total = 0; break; }
+                        }
+                        if (total > 0) {
+                            /* 枚举笛卡尔积中每个元组，检查是否不在原关系中 */
+                            int tuple[8] = {0};
+                            int idx[8] = {0};
+                            for (long long n = 0; n < total; n++) {
+                                /* 生成当前元组 */
+                                long long tmp = n;
+                                for (int col = arity - 1; col >= 0; col--) {
+                                    tuple[col] = domain_atoms[col][idx[col]]->atom_id;
+                                }
+                                /* 检查是否不在原关系中 */
+                                if (!rel_contains_tuple(left_r, tuple)) {
+                                    rel_add_tuple_inner(result, tuple);
+                                }
+                                /* 递增索引（类似进位加法） */
+                                for (int col = arity - 1; col >= 0; col--) {
+                                    idx[col]++;
+                                    if (idx[col] < domain_sizes[col]) break;
+                                    idx[col] = 0;
+                                }
+                            }
+                        }
+                    }
                     break;
+                }
                 case REL_OP_RESTRICT_DOMAIN:
                     /* 域约束 S <: R —— 仅保留左关系第一元素在右关系中的元组 */
                     if (left_r && right_r) {
