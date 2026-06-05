@@ -177,6 +177,198 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 }
 
 /* OPML JSON 导入 —— 解析 OPML JSON 并构建 Lv-00 证明树 */
+
+/* 辅助：跳过 JSON 空白字符 */
+static const char *json_skip_ws(const char *p) {
+    while (p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) p++;
+    return p;
+}
+
+/* 辅助：提取 JSON 字符串值（从 " 开始到下一个 "），返回值写入 buf */
+static const char *json_extract_string(const char *p, char *buf, int buf_size) {
+    if (!p || *p != '"') return NULL;
+    p++; /* 跳过开头 " */
+    int i = 0;
+    while (*p && *p != '"' && i < buf_size - 1) {
+        if (*p == '\\' && *(p + 1)) {
+            p++; /* 跳过转义字符 */
+        }
+        buf[i++] = *p++;
+    }
+    buf[i] = '\0';
+    if (*p == '"') p++; /* 跳过结尾 " */
+    return p;
+}
+
+/* 辅助：在 JSON 对象中查找指定键，返回键对应的值位置 */
+static const char *json_find_key(const char *obj_start, const char *key) {
+    if (!obj_start || !key) return NULL;
+    char search[256];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    const char *p = obj_start;
+    while (p && *p) {
+        p = strstr(p, search);
+        if (!p) return NULL;
+        p += strlen(search);
+        p = json_skip_ws(p);
+        if (*p == ':') {
+            p++;
+            p = json_skip_ws(p);
+            return p;
+        }
+    }
+    return NULL;
+}
+
+/* 辅助：匹配 JSON 字符串值（与给定 literal 比较） */
+static int json_match_string(const char *p, const char *literal) {
+    if (!p || *p != '"') return 0;
+    p++;
+    size_t len = strlen(literal);
+    if (strncmp(p, literal, len) != 0) return 0;
+    if (p[len] != '"') return 0;
+    return 1;
+}
+
+/* 辅助：提取 JSON 数组中的所有字符串值 */
+static int json_extract_string_array(const char *arr_start, char **out, int max_count, int max_len) {
+    if (!arr_start || *arr_start != '[') return 0;
+    arr_start++; /* 跳过 [ */
+    int count = 0;
+    const char *p = arr_start;
+    while (p && *p && *p != ']' && count < max_count) {
+        p = json_skip_ws(p);
+        if (*p == '"') {
+            out[count] = (char *)lv00_calloc(1, max_len);
+            if (!out[count]) break;
+            p = json_extract_string(p, out[count], max_len);
+            if (p) count++;
+        } else {
+            p++;
+        }
+    }
+    return count;
+}
+
+/* 辅助：解析嵌套 JSON 对象（花括号匹配），返回对象结束后的位置 */
+static const char *json_skip_object(const char *p) {
+    if (!p || *p != '{') return p;
+    int depth = 0;
+    for (; *p; p++) {
+        if (*p == '{') depth++;
+        else if (*p == '}') { depth--; if (depth == 0) { p++; break; } }
+        else if (*p == '"') {
+            p++; /* 跳过字符串内容 */
+            while (*p && *p != '"') { if (*p == '\\' && *(p+1)) p++; p++; }
+        }
+    }
+    return p;
+}
+
+/* 辅助：解析嵌套 JSON 数组（方括号匹配），返回数组结束后的位置 */
+static const char *json_skip_array(const char *p) {
+    if (!p || *p != '[') return p;
+    int depth = 0;
+    for (; *p; p++) {
+        if (*p == '[') depth++;
+        else if (*p == ']') { depth--; if (depth == 0) { p++; break; } }
+        else if (*p == '"') {
+            p++;
+            while (*p && *p != '"') { if (*p == '\\' && *(p+1)) p++; p++; }
+        }
+    }
+    return p;
+}
+
+/* 辅助：从 theory JSON 中提取 axiom 名称列表和 definition 名称列表 */
+static void parse_theory_section(const char *theory_json,
+                                  char axioms[][256], int *axiom_count, int max_axioms,
+                                  char definitions[][256], int *def_count, int max_defs) {
+    *axiom_count = 0;
+    *def_count = 0;
+    if (!theory_json) return;
+
+    /* 查找 "axioms" 键 */
+    const char *axioms_val = json_find_key(theory_json, "axioms");
+    if (axioms_val && *axioms_val == '[') {
+        const char *end = axioms_val;
+        while (*axiom_count < max_axioms) {
+            end = json_skip_ws(end + 1); /* 跳过 [ 或 , */
+            if (*end == ']' || !*end) break;
+            end = json_skip_ws(end);
+            if (*end == '"') {
+                end = json_extract_string(end, axioms[*axiom_count], 256);
+                if (end) (*axiom_count)++;
+            } else {
+                end++;
+            }
+        }
+    }
+
+    /* 查找 "definitions" 键 */
+    const char *defs_val = json_find_key(theory_json, "definitions");
+    if (defs_val && *defs_val == '[') {
+        const char *end = defs_val;
+        while (*def_count < max_defs) {
+            end = json_skip_ws(end + 1);
+            if (*end == ']' || !*end) break;
+            end = json_skip_ws(end);
+            if (*end == '"') {
+                end = json_extract_string(end, definitions[*def_count], 256);
+                if (end) (*def_count)++;
+            } else {
+                end++;
+            }
+        }
+    }
+}
+
+/* 辅助：从 proof JSON 中提取 proof steps（name + type） */
+static void parse_proof_steps(const char *proof_json,
+                               Lv00OpmlProof *proof, int max_steps) {
+    if (!proof_json || !proof) return;
+
+    /* 查找 "steps" 键 */
+    const char *steps_val = json_find_key(proof_json, "steps");
+    if (!steps_val || *steps_val != '[') return;
+
+    const char *p = steps_val + 1; /* 跳过 [ */
+    while (p && *p && *p != ']' && proof->step_count < max_steps) {
+        p = json_skip_ws(p);
+        if (*p != '{') { p++; continue; }
+
+        /* 解析单个 step 对象 */
+        const char *step_end = json_skip_object(p);
+        const char *name_val = json_find_key(p, "name");
+        const char *type_val = json_find_key(p, "type");
+
+        Lv00ProofStep *step = &proof->steps[proof->step_count];
+        memset(step, 0, sizeof(Lv00ProofStep));
+        step->id = proof->step_count;
+
+        if (name_val && *name_val == '"') {
+            json_extract_string(name_val, step->description, sizeof(step->description));
+        }
+        if (type_val && *type_val == '"') {
+            char type_name[64];
+            json_extract_string(type_val, type_name, sizeof(type_name));
+            /* 映射类型名到 Lv00ProofStepType */
+            if (strcmp(type_name, "axiom") == 0) step->type = LV00_STEP_ADD_NODE;
+            else if (strcmp(type_name, "definition") == 0) step->type = LV00_STEP_ADD_CONSTRAINT;
+            else if (strcmp(type_name, "rewrite") == 0) step->type = LV00_STEP_REWRITE;
+            else if (strcmp(type_name, "apply") == 0) step->type = LV00_STEP_FUNCTION_APP;
+            else if (strcmp(type_name, "exact") == 0) step->type = LV00_STEP_EXACT;
+            else if (strcmp(type_name, "have") == 0) step->type = LV00_STEP_HAVE;
+            else if (strcmp(type_name, "calc") == 0) step->type = LV00_STEP_CALC;
+            else if (strcmp(type_name, "normalization") == 0) step->type = LV00_STEP_NORMALIZATION;
+            else step->type = LV00_STEP_ORACLE;
+        }
+
+        proof->step_count++;
+        p = step_end;
+    }
+}
+
 static int opml_import_proof(const char *input, void **proof) {
     if (!input || !proof) return -1;
 
@@ -185,22 +377,20 @@ static int opml_import_proof(const char *input, void **proof) {
         return -1;
     }
 
-    /* 简化 JSON 解析：提取 theory 和 proof 段 */
+    /* 查找 theory 和 proof 段 */
     const char *theory_start = strstr(input, "\"theory\"");
     const char *proof_start = strstr(input, "\"proof\"");
 
-    /* 分配证明结构体（占位：当 proof tree API 就绪后替换） */
-    typedef struct {
-        char theory_section[1024];
-        char proof_section[2048];
-        int has_theory;
-        int has_proof;
-    } ImportedProof;
-
-    ImportedProof *p = lv00_calloc(1, sizeof(ImportedProof));
+    /* 分配 Lv00OpmlProof 结构体 */
+    Lv00OpmlProof *p = (Lv00OpmlProof *)lv00_calloc(1, sizeof(Lv00OpmlProof));
     if (!p) return -1;
 
-    /* 提取 theory 段（简化：复制 theory 起始位置附近的内容） */
+    /* 初始化步骤数组 */
+    p->step_capacity = 64;
+    p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
+    if (!p->steps) { free(p); return -1; }
+
+    /* 提取并解析 theory 段 */
     if (theory_start) {
         const char *brace = strchr(theory_start, '{');
         if (brace) {
@@ -212,14 +402,38 @@ static int opml_import_proof(const char *input, void **proof) {
                 if (depth == 0) { end++; break; }
             }
             size_t len = (size_t)(end - brace);
-            if (len >= sizeof(p->theory_section)) len = sizeof(p->theory_section) - 1;
-            memcpy(p->theory_section, brace, len);
-            p->theory_section[len] = '\0';
-            p->has_theory = 1;
+            char *theory_buf = (char *)lv00_calloc(1, len + 1);
+            if (theory_buf) {
+                memcpy(theory_buf, brace, len);
+                theory_buf[len] = '\0';
+
+                /* 从 theory 中提取公理和定义名称 */
+                char axiom_names[32][256];
+                char def_names[32][256];
+                int axiom_count = 0, def_count = 0;
+                parse_theory_section(theory_buf, axiom_names, &axiom_count, 32,
+                                      def_names, &def_count, 32);
+
+                /* 将公理名称写入 axioms 字段（逗号分隔） */
+                int pos = 0;
+                for (int i = 0; i < axiom_count && pos < (int)sizeof(p->axioms) - 1; i++) {
+                    if (i > 0 && pos < (int)sizeof(p->axioms) - 2) {
+                        p->axioms[pos++] = ',';
+                        p->axioms[pos++] = ' ';
+                    }
+                    int slen = (int)strlen(axiom_names[i]);
+                    if (pos + slen >= (int)sizeof(p->axioms)) slen = (int)sizeof(p->axioms) - pos - 1;
+                    memcpy(p->axioms + pos, axiom_names[i], slen);
+                    pos += slen;
+                }
+                p->axioms[pos] = '\0';
+
+                free(theory_buf);
+            }
         }
     }
 
-    /* 提取 proof 段（简化：复制 proof 起始位置附近的内容） */
+    /* 提取并解析 proof 段 */
     if (proof_start) {
         const char *brace = strchr(proof_start, '{');
         if (brace) {
@@ -231,15 +445,26 @@ static int opml_import_proof(const char *input, void **proof) {
                 if (depth == 0) { end++; break; }
             }
             size_t len = (size_t)(end - brace);
-            if (len >= sizeof(p->proof_section)) len = sizeof(p->proof_section) - 1;
-            memcpy(p->proof_section, brace, len);
-            p->proof_section[len] = '\0';
-            p->has_proof = 1;
+            char *proof_buf = (char *)lv00_calloc(1, len + 1);
+            if (proof_buf) {
+                memcpy(proof_buf, brace, len);
+                proof_buf[len] = '\0';
+
+                /* 从 proof 中提取步骤 */
+                parse_proof_steps(proof_buf, p, p->step_capacity);
+
+                free(proof_buf);
+            }
         }
     }
 
-    /* TODO: 当 proof tree API 就绪后，从 theory_section 和 proof_section
-     *       中解析公理、定义、步骤、策略等，构建完整的 Lv-00 证明树 */
+    /* 查找定理名称（可选：从 "theorem_name" 或 "name" 键） */
+    const char *name_val = json_find_key(input, "theorem_name");
+    if (!name_val) name_val = json_find_key(input, "name");
+    if (name_val && *name_val == '"') {
+        json_extract_string(name_val, p->theorem_name, sizeof(p->theorem_name));
+    }
+
     *proof = p;
     return 0;
 }
