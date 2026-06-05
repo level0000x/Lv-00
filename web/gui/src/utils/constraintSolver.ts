@@ -32,6 +32,8 @@ export interface SolveResult {
   freeVariables: number;
   /** 详细日志 */
   details: string[];
+  /** 求解过程中被调整过的点 */
+  adjustedPoints: Map<number, Point>;
 }
 
 // ================================================================
@@ -320,6 +322,7 @@ export function performSolve(
     satisfactionRate,
     freeVariables: Math.max(0, freeVariables),
     details,
+    adjustedPoints,
   };
 }
 

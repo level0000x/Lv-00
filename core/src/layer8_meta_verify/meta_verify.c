@@ -1,5 +1,6 @@
 #include "lv00/meta_verify.h"
 #include "lv00/proof.h"
+#include "lv00/proof_compiler.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -554,17 +555,200 @@ Lv00VerifyReport lv00_meta_verify_proof(Lv00MetaVerifier *verifier, void *proof)
         strncpy(report.summary, "Invalid verifier", sizeof(report.summary) - 1);
         return report;
     }
+
+    Lv00ProofObject *p = (Lv00ProofObject *)proof;
     report.total_checks = LV00_CHECK_COUNT;
+
     for (int i = 0; i < LV00_CHECK_COUNT; i++) {
         report.results[i].check = (Lv00VerifyCheck)i;
-        if (verifier->check_mask & (1 << i)) {
-            report.results[i].passed = 1;
+        if (!(verifier->check_mask & (1 << i))) {
+            report.results[i].passed = -1;  /* Skipped */
+            report.skipped_checks++;
+            continue;
+        }
+
+        int passed = 0;
+        char desc[512] = {0};
+
+        switch ((Lv00VerifyCheck)i) {
+        case LV00_CHECK_STRUCTURAL: {
+            /* 检查证明至少有一个步骤 */
+            if (!p) {
+                snprintf(desc, sizeof(desc), "Proof is NULL");
+                break;
+            }
+            if (p->step_count < 1) {
+                snprintf(desc, sizeof(desc), "Proof has no steps (step_count=%d)", p->step_count);
+                break;
+            }
+            if (!p->steps || !p->steps[0]) {
+                snprintf(desc, sizeof(desc), "Proof steps array is NULL or first step is NULL");
+                break;
+            }
+            snprintf(desc, sizeof(desc), "Structural check passed: %d steps", p->step_count);
+            passed = 1;
+            break;
+        }
+        case LV00_CHECK_TYPE: {
+            /* 检查步骤链有效性：每个步骤的前提引用更早的步骤 */
+            if (!p) {
+                snprintf(desc, sizeof(desc), "Proof is NULL");
+                break;
+            }
+            passed = 1;
+            for (int s = 0; s < p->step_count; s++) {
+                Lv00ProofStepRecord *step = p->steps[s];
+                if (!step) {
+                    snprintf(desc, sizeof(desc), "Step %d is NULL", s);
+                    passed = 0;
+                    break;
+                }
+                for (int j = 0; j < step->premise_count; j++) {
+                    int pid = step->premise_step_ids[j];
+                    if (pid < 0 || pid >= s) {
+                        snprintf(desc, sizeof(desc),
+                            "Step %d references premise %d which is not an earlier step",
+                            s, pid);
+                        passed = 0;
+                        break;
+                    }
+                }
+                if (!passed) break;
+            }
+            if (passed) {
+                snprintf(desc, sizeof(desc), "Type/chain check passed: all premises reference earlier steps");
+            }
+            break;
+        }
+        case LV00_CHECK_COMPLETE: {
+            /* 检查最后一步的结论是否匹配目标 */
+            if (!p) {
+                snprintf(desc, sizeof(desc), "Proof is NULL");
+                break;
+            }
+            if (p->step_count == 0) {
+                snprintf(desc, sizeof(desc), "No steps to check conclusion");
+                break;
+            }
+            Lv00ProofStepRecord *last = p->steps[p->step_count - 1];
+            if (!last || !last->conclusion) {
+                snprintf(desc, sizeof(desc), "Last step has no conclusion");
+                break;
+            }
+            if (p->goal && last->conclusion != p->goal &&
+                !(last->conclusion->label && p->goal->label &&
+                  strcmp(last->conclusion->label, p->goal->label) == 0)) {
+                snprintf(desc, sizeof(desc),
+                    "Last step conclusion does not match goal");
+                break;
+            }
+            snprintf(desc, sizeof(desc), "Completeness check passed: final conclusion matches goal");
+            passed = 1;
+            break;
+        }
+        case LV00_CHECK_SOUND: {
+            /* 检查循环依赖：确保没有步骤间接依赖自身 */
+            if (!p) {
+                snprintf(desc, sizeof(desc), "Proof is NULL");
+                break;
+            }
+            passed = 1;
+            /* 对每个步骤，检查其前提链是否回指自身 */
+            for (int s = 0; s < p->step_count; s++) {
+                Lv00ProofStepRecord *step = p->steps[s];
+                if (!step) continue;
+                /* BFS 检查前提链中是否包含步骤 s 自身 */
+                int *queue = (int *)lv00_malloc(p->step_count * sizeof(int));
+                int *visited = (int *)calloc(p->step_count, sizeof(int));
+                if (!queue || !visited) {
+                    free(queue); free(visited);
+                    snprintf(desc, sizeof(desc), "Memory allocation failed");
+                    passed = 0;
+                    break;
+                }
+                int head = 0, tail = 0;
+                for (int j = 0; j < step->premise_count; j++) {
+                    queue[tail++] = step->premise_step_ids[j];
+                }
+                visited[s] = 1;
+                int found_cycle = 0;
+                while (head < tail) {
+                    int cur = queue[head++];
+                    if (cur == s) { found_cycle = 1; break; }
+                    if (cur < 0 || cur >= p->step_count) continue;
+                    if (visited[cur]) continue;
+                    visited[cur] = 1;
+                    Lv00ProofStepRecord *cur_step = p->steps[cur];
+                    if (cur_step) {
+                        for (int j = 0; j < cur_step->premise_count; j++) {
+                            queue[tail++] = cur_step->premise_step_ids[j];
+                        }
+                    }
+                }
+                free(queue); free(visited);
+                if (found_cycle) {
+                    snprintf(desc, sizeof(desc),
+                        "Circular dependency detected at step %d", s);
+                    passed = 0;
+                    break;
+                }
+            }
+            if (passed) {
+                snprintf(desc, sizeof(desc), "Soundness check passed: no circular dependencies");
+            }
+            break;
+        }
+        case LV00_CHECK_NONTRIVIAL: {
+            /* 检查证明非平凡：至少有2个步骤或使用了公理/假设 */
+            if (!p) {
+                snprintf(desc, sizeof(desc), "Proof is NULL");
+                break;
+            }
+            if (p->step_count <= 1 && p->axiom_count == 0 && p->assumption_count == 0) {
+                snprintf(desc, sizeof(desc),
+                    "Proof is trivial: only %d step(s), no axioms or assumptions",
+                    p->step_count);
+                break;
+            }
+            snprintf(desc, sizeof(desc),
+                "Nontriviality check passed: %d steps, %d axioms, %d assumptions",
+                p->step_count, p->axiom_count, p->assumption_count);
+            passed = 1;
+            break;
+        }
+        case LV00_CHECK_ROUNDTRIP: {
+            /* 检查证明标记为已完成 */
+            if (!p) {
+                snprintf(desc, sizeof(desc), "Proof is NULL");
+                break;
+            }
+            if (!p->is_proved) {
+                snprintf(desc, sizeof(desc), "Proof is not marked as proved");
+                break;
+            }
+            snprintf(desc, sizeof(desc), "Roundtrip check passed: proof is marked as proved");
+            passed = 1;
+            break;
+        }
+        default:
+            snprintf(desc, sizeof(desc), "Unknown check");
+            break;
+        }
+
+        report.results[i].passed = passed;
+        if (passed) {
             report.passed_checks++;
         } else {
-            report.results[i].passed = -1;
-            report.skipped_checks++;
+            report.failed_checks++;
         }
+        strncpy(report.results[i].description, desc, sizeof(report.results[i].description) - 1);
     }
+
+    /* 生成摘要 */
+    snprintf(report.summary, sizeof(report.summary),
+             "Proof meta-verification: %d/%d passed, %d failed, %d skipped",
+             report.passed_checks, report.total_checks,
+             report.failed_checks, report.skipped_checks);
     return report;
 }
 

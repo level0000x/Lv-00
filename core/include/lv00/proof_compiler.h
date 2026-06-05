@@ -62,8 +62,10 @@ struct Lv00ProofObject {
     /* 假设和公理 */
     int *axiom_ids;            /**< 使用的公理ID */
     int axiom_count;           /**< 公理数量 */
+    int axiom_capacity;        /**< 公理数组容量 */
     int *assumption_ids;       /**< 假设ID数组 */
     int assumption_count;      /**< 假设数量 */
+    int assumption_capacity;    /**< 假设数组容量 */
 
     /* 统计信息 */
     int max_depth;             /**< 最大证明深度 */

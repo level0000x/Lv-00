@@ -4,6 +4,33 @@
 #include <string.h>
 #include <stdio.h>
 
+/* JSON 字符串转义：将原始字符串写入输出缓冲区，转义 " \ 和控制字符 */
+static int json_escape_string(const char *src, char *dst, int dst_size) {
+    int pos = 0;
+    if (!src || !dst || dst_size <= 0) return 0;
+    while (*src && pos < dst_size - 6) { /* 保留空间用于 \uXXXX */
+        unsigned char c = (unsigned char)*src;
+        if (c == '"') {
+            dst[pos++] = '\\'; dst[pos++] = '"';
+        } else if (c == '\\') {
+            dst[pos++] = '\\'; dst[pos++] = '\\';
+        } else if (c == '\n') {
+            dst[pos++] = '\\'; dst[pos++] = 'n';
+        } else if (c == '\r') {
+            dst[pos++] = '\\'; dst[pos++] = 'r';
+        } else if (c == '\t') {
+            dst[pos++] = '\\'; dst[pos++] = 't';
+        } else if (c < 0x20) {
+            pos += snprintf(dst + pos, dst_size - pos, "\\u%04x", c);
+        } else {
+            dst[pos++] = c;
+        }
+        src++;
+    }
+    dst[pos] = '\0';
+    return pos;
+}
+
 /* Lv-00 证明步骤类型枚举（与 coq_bridge.c 一致） */
 typedef enum {
     LV00_STEP_ADD_NODE = 0,      /* 添加节点 */
@@ -59,6 +86,10 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
     int pos = 0;
 
+    /* 转义定理名称，防止 JSON 注入 */
+    char escaped_name[1024];
+    json_escape_string(p->theorem_name, escaped_name, (int)sizeof(escaped_name));
+
     /* 写入 JSON 头部 */
     pos += snprintf(output + pos, output_size - pos,
         "{\n"
@@ -68,7 +99,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
         "    \"title\": \"%s\",\n"
         "    \"date\": \"2026-06-04\"\n"
         "  },\n",
-        p->theorem_name);
+        escaped_name);
 
     /* 生成 theory 段（包含公理） */
     if (strlen(p->axioms) > 0) {

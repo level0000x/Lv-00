@@ -284,9 +284,8 @@ static int coq_validate(const char *input) {
         }
     }
     /* 如果有 Proof 段但未找到已知 tactic，仍然通过（可能是自定义 tactic） */
-    (void)found_tactic;
 
-    return 1; /* 校验通过 */
+    return found_tactic ? 1 : 0;
 }
 
 /* 注册 Coq 插件 */

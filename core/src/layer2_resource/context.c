@@ -387,6 +387,15 @@ bool lv00_context_rollback(Lv00Context *ctx, Lv00Context *snapshot) {
     int preserved_problems_processed = ctx->problems_processed;
     int preserved_trip_count = ctx->circuit_breaker.trip_count;
 
+    /*
+     * 处理 stream_ctx：快照不包含 stream_ctx，回滚后需要置空以避免悬空指针。
+     * stream_ctx 的生命周期由流式输出流程独立管理，不属于可回滚的上下文状态。
+     * 调用方如果需要保留流式输出，应在回滚前另行保存 stream_ctx 引用。
+     */
+    if (ctx->stream_ctx) {
+        ctx->stream_ctx = NULL;
+    }
+
     /* 释放当前上下文的可替换资源（不销毁结构体本身） */
 
     /* 释放推理栈帧 */

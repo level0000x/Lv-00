@@ -302,15 +302,19 @@ static void color_to_svg(float c[4], char* buf, size_t buf_size) {
 static void render_object_svg(Lv00VisualObject* obj, char** buf, size_t* pos, size_t* cap) {
     if (!obj) return;
 
-    /* 辅助宏：向缓冲区追加字符串 */
+    /* 辅助宏：向缓冲区追加字符串（先检查容量再写入） */
     #define SVG_APPEND(fmt, ...) do { \
-        int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
-        if (written > 0) { \
-            *pos += (size_t)written; \
-            if (*pos >= *cap) { \
+        int needed = snprintf(NULL, 0, fmt, ##__VA_ARGS__); \
+        if (needed > 0) { \
+            while (*pos + (size_t)needed + 1 > *cap) { \
                 *cap *= 2; \
-                char* new_buf = (char*)lv00_realloc(*buf, *cap); \
-                if (new_buf) *buf = new_buf; \
+                char* _nb = (char*)lv00_realloc(*buf, *cap); \
+                if (!_nb) break; \
+                *buf = _nb; \
+            } \
+            int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
+            if (written > 0) { \
+                *pos += (size_t)written; \
             } \
         } \
     } while(0)
@@ -1163,7 +1167,10 @@ void lv00_visual_object_destroy(Lv00VisualObject* obj) {
 
 void lv00_visual_scene_destroy(Lv00VisualScene* scene) {
     if (!scene) return;
-    
+
+    for (size_t i = 0; i < scene->object_count; i++) {
+        lv00_visual_object_destroy(scene->objects[i]);
+    }
     lv00_free(scene->objects);
     lv00_free(scene);
 }
