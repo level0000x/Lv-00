@@ -222,7 +222,33 @@ static const char *json_extract_string(const char *p, char *buf, int buf_size) {
     int i = 0;
     while (*p && *p != '"' && i < buf_size - 1) {
         if (*p == '\\' && *(p + 1)) {
-            p++; /* 跳过转义字符 */
+            p++; /* 跳过反斜杠 */
+            if (*p == 'u' && p[1] && p[2] && p[3] && p[4]) {
+                /* \uXXXX: 解析4位十六进制并写入UTF-8 */
+                unsigned int cp = 0;
+                for (int k = 0; k < 4; k++) {
+                    char hc = p[k + 1];
+                    cp <<= 4;
+                    if (hc >= '0' && hc <= '9') cp |= (unsigned int)(hc - '0');
+                    else if (hc >= 'a' && hc <= 'f') cp |= (unsigned int)(hc - 'a' + 10);
+                    else if (hc >= 'A' && hc <= 'F') cp |= (unsigned int)(hc - 'A' + 10);
+                }
+                p += 4; /* 跳过 uXXXX */
+                /* BMP 字符直接写UTF-8 (最多3字节) */
+                if (cp < 0x80) {
+                    buf[i++] = (char)cp;
+                } else if (cp < 0x800) {
+                    buf[i++] = (char)(0xC0 | (cp >> 6));
+                    if (i < buf_size - 1) buf[i++] = (char)(0x80 | (cp & 0x3F));
+                } else {
+                    buf[i++] = (char)(0xE0 | (cp >> 12));
+                    if (i < buf_size - 2) {
+                        buf[i++] = (char)(0x80 | ((cp >> 6) & 0x3F));
+                        buf[i++] = (char)(0x80 | (cp & 0x3F));
+                    }
+                }
+                continue; /* 跳过下面的 buf[i++] = *p++ */
+            }
         }
         buf[i++] = *p++;
     }

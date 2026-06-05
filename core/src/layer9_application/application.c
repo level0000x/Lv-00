@@ -108,6 +108,11 @@ int lv00_app_run_batch(Lv00Application *app, const char **files, int file_count)
             LV00_LOG_ERROR("无法获取文件大小: %s", files[i]);
             continue;
         }
+        if (fsize > (long)(100 * 1024 * 1024)) {  /* 限制100MB */
+            fclose(fp);
+            LV00_LOG_ERROR("File too large: %s (%ld bytes)", files[i], fsize);
+            continue;
+        }
         char *content = lv00_malloc((size_t)fsize + 1);
         if (!content) {
             fclose(fp);

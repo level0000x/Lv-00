@@ -1009,8 +1009,8 @@ export class BackendAdapter {
           /* 成功初始化 WASM 后端 */
           this.backend = new WasmBackend(wasmInstance);
           this.graphHandle = this.backend.graphCreate();
-          console.log('[Lv-00] WASM backend initialized successfully');
-          console.log('[Lv-00] WASM 后端初始化成功');
+          console.info('[Lv-00] WASM backend initialized successfully');
+          console.info('[Lv-00] WASM 后端初始化成功');
           return 'wasm';
         }
       } catch (err) {
@@ -1022,8 +1022,8 @@ export class BackendAdapter {
     /* 回退到 JS 后端 / Fall back to JS backend */
     this.backend = new JsBackend();
     this.graphHandle = this.backend.graphCreate();
-    console.log('[Lv-00] JS backend initialized (fallback mode)');
-    console.log('[Lv-00] JS 后端已初始化（回退模式）');
+    console.info('[Lv-00] JS backend initialized (fallback mode)');
+    console.info('[Lv-00] JS 后端已初始化（回退模式）');
     return 'js';
   }
 
