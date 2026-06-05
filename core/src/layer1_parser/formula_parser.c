@@ -1126,8 +1126,15 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         }
 
         default:
-            /* 未知节点类型，仅拷贝基本字段（type/line/column 已拷贝） */
-            lv00_set_error(LV00_ERROR_UNSUPPORTED, "formula_node_copy: 未实现的节点类型 %d，仅拷贝基本字段",
+            /*
+             * 前向兼容安全兜底：对新增加的未知节点类型，
+             * 通过 memcpy 整体拷贝 data 联合体，确保数据不会静默丢失。
+             * 注意：此拷贝为浅拷贝，若 data 中包含指针，后续使用时需注意
+             * 所有权语义。新增节点类型时应优先在上方添加专用的深拷贝分支。
+             */
+            memcpy(&copy->data, &node->data, sizeof(copy->data));
+            lv00_set_error(LV00_ERROR_UNSUPPORTED,
+                           "formula_node_copy: 未实现的节点类型 %d，已通过 memcpy 兜底拷贝 data",
                            (int) node->type);
             break;
     }

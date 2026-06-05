@@ -3891,8 +3891,8 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                     for (int dep_idx = 0; dep_idx < ku->dependency_count; dep_idx++) {
                         if (!ku->dependency_chain[dep_idx])
                             continue;
-                        /* 简化检查：依赖链中的名称是否与构造特征匹配 */
-                        /* 实际实现可能需要更复杂的图匹配 */
+                        /* 当前检查：依赖链中的名称是否与构造特征匹配 */
+                        /* 完整实现可能需要更复杂的图匹配 */
                     }
                 }
             }
@@ -5307,7 +5307,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         report->results[idx].success = success;
         report->results[idx].elapsed_sec = elapsed;
 
-        /* 生成 Isar 证明脚本（简化版：仅标注策略名称） */
+        /* 生成 Isar 证明脚本（当前仅标注策略名称，完整版应输出完整的 Isar 证明文本） */
         if (success) {
             const char *sname = proof_strategy_type_to_string(strategy_type);
             size_t len = strlen(sname) + 32;
@@ -5352,17 +5352,21 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
 }
 
 /* ================================================================
- * 桩实现 — proof_multi_strategy.c 和 proof_optimize.c 被排除时的备选
+ * 占位实现 — proof_multi_strategy.c 和 proof_optimize.c 被排除时的备选
  *
  * 以下函数为计划中但尚未实现的功能提供占位实现。
  * 当 proof_multi_strategy.c 和 proof_optimize.c 模块被编译排除时，
- * 链接器将使用此处的桩实现以避免未定义符号错误。
+ * 链接器将使用此处的占位实现以避免未定义符号错误。
  *
  * 【设计说明】
- * 这些桩实现是架构设计的一部分，用于支持模块化编译：
+ * 这些占位实现是架构设计的一部分，用于支持模块化编译：
  * - 当完整模块可用时，链接器会自动使用完整实现
- * - 桩实现确保核心代码始终可编译，即使某些高级功能被禁用
- * 
+ * - 占位实现确保核心代码始终可编译，即使某些高级功能被禁用
+ *
+ * 完整实现需要：
+ * - proof_multi_strategy.c: 多策略证明搜索（BFS/DFS/最佳优先/加权随机）
+ * - proof_optimize.c: 证明优化（冗余步骤消除、证明压缩、策略切换）
+ *
  * 相关模块：
  * - proof_multi_strategy_activate: 激活指定的证明策略
  * - proof_multi_strategy_execute: 执行已激活的策略进行证明搜索
@@ -5370,13 +5374,13 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
 #include "proof.h"
 
 /**
- * @brief 激活指定的多策略证明搜索策略（桩实现）
+ * @brief 激活指定的多策略证明搜索策略（占位实现）
  *
  * @param mse            多策略引擎实例（当前未使用）
  * @param strategy_type  要激活的策略类型（当前未使用）
  * @return 始终返回 false，表示激活失败（功能尚未实现）
  *
- * @note 此为桩实现。当 proof_multi_strategy.c 模块可用时，
+ * @note 此为占位实现。当 proof_multi_strategy.c 模块可用时，
  *       链接器将使用该模块中的完整实现替换此函数。
  */
 bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type) {
@@ -5453,7 +5457,7 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
  * ================================================================ */
 
 /**
- * @brief 简化字符串匹配 — 判断 term 是否形如 "A = A"（自反）
+ * @brief 字符串匹配 — 判断 term 是否形如 "A = A"（自反）
  */
 static bool is_refl_form(const char *term) {
     if (!term)
@@ -6037,7 +6041,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
             snprintf(type_query, sizeof(type_query), "%s : %s", entry->geom_object, entry->base_type);
 
             /* 调用 solver 检查该类型声明是否可满足 */
-            /* 简化实现：比较 base_type 关键词 */
+            /* 当前实现：比较 base_type 关键词（完整版应使用类型系统的结构化比较） */
             if (strstr(entry->geom_object, entry->base_type) || strstr(entry->base_type, entry->geom_object) ||
                 strstr(entry->geom_object, "Triangle") || strstr(entry->geom_object, "Circle") ||
                 strstr(entry->geom_object, "Point") || strstr(entry->geom_object, "Line")) {

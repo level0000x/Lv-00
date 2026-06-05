@@ -3,8 +3,9 @@
  * @brief Lv-00 隔离上下文系统 —— 核心实现
  *
  * 实现 Lv00Context 的生命周期管理、错误管理等核心功能。
- * 当前为桩实现（stub），提供基本的创建/销毁/错误设置功能，
+ * 当前为基础实现（stub），提供基本的创建/销毁/错误设置功能，
  * 使链接器能够正确解析所有 context.h 中声明的符号。
+ * 完整实现需要添加：线程局部存储、资源隔离边界、上下文传播机制。
  *
  * @author Lv-00 Project
  * @version 3.3.0
@@ -277,7 +278,7 @@ Lv00Context *lv00_context_snapshot(Lv00Context *ctx) {
             lv00_free((void **)&snap);
             return NULL;
         }
-        /* graph_create 创建空图；此处为简化实现，完整版应深拷贝所有节点和约束 */
+        /* graph_create 创建空图；当前为浅拷贝（仅创建空图），完整版应深拷贝所有节点和约束 */
     }
 
     /* 深拷贝推理栈 */

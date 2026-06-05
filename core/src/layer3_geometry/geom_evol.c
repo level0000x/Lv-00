@@ -126,26 +126,35 @@ static void geoevol_calc_error_weights(Lv00GeomEvol *evol) {
 }
 
 /**
- * @brief 计算 RK4 局部截断误差估计
+ * @brief 计算 RK4 局部截断误差估计（Richardson 外推法）
  *
- * 使用嵌入式 RK3(2) 估计误差：比较 RK4 试探步 y_trial 与低阶 RK3 结果 y1。
- * error = max_i |(y_trial[i] - y1[i]) * weight[i]|
+ * 使用 Richardson 外推估计误差：
+ *   1. 用步长 h 执行一步 RK4 得到 y_h
+ *   2. 用步长 h/2 执行两步 RK4 得到 y_{h/2}
+ *   3. 误差估计 = (y_{h/2} - y_h) / (2^p - 1)，其中 p = 4（RK4 阶数）
  *
- * 简化实现：使用标准 RK4-Fehlberg 风格的误差估计，
- * 其中 y1 来自 3 阶嵌入方法。
+ * 对于经典 RK4（p=4），Richardson 因子为 1/15。
+ * 误差 = max_i |(y_{h/2}[i] - y_h[i]) / 15.0 * weight[i]|
+ *
+ * 相比嵌入式 RK 方法，Richardson 外推不需要额外的低阶积分器，
+ * 且能提供可靠的渐近误差估计。
  */
-static double geoevol_error_estimate_rk4(Lv00GeomEvol *evol, const double *y1,
-                                         const double *y_trial) {
+static double geoevol_error_estimate_rk4(Lv00GeomEvol *evol, const double *y_h,
+                                         const double *y_half_h) {
     int dim = evol->dim;
     double error = 0.0;
+    /* Richardson 因子：对于 p 阶方法，因子 = 1 / (2^p - 1)
+     * RK4 的 p = 4，因此因子 = 1/15 */
+    const double richardson_factor = 1.0 / 15.0;
+
     for (int i = 0; i < dim; ++i) {
-        double diff = fabs(y_trial[i] - y1[i]) * evol->error_weight[i];
+        double diff = fabs(y_half_h[i] - y_h[i]) * richardson_factor
+                      * evol->error_weight[i];
         if (diff > error) {
             error = diff;
         }
     }
-    /* 放大因子用于补偿简化估计 */
-    return error * 1.5;
+    return error;
 }
 
 /**
@@ -633,33 +642,140 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
         }
 
         /* 计算有限差分 Jacobian 并求解线性系统 J * delta = -G
+         *
          * J_{ij} = dG_i/dy_j = gamma_0 * delta_{ij} - h * df_i/dy_j
-         * 使用逐列 Gauss-Seidel 简化近似（对角占优假设）：
-         *   delta_i = -G_i / (gamma_0 - h * df_i/dy_i)
-         * 这是一种简化的 Newton 方法，适用于对角占优系统。
-         * 对于一般系统，需要完整的线性求解器，但此处保持轻量实现。 */
-        for (int i = 0; i < dim; ++i) {
-            /* 有限差分求 df_i/dy_i */
-            double y_save = y_new[i];
-            double pert = fd_eps * (fabs(y_save) + 1.0);
-            y_new[i] = y_save + pert;
-
-            ret = geoevol_rhs_eval(evol, evol->t + h, y_new, f_pert);
-            if (ret != 0) {
-                y_new[i] = y_save;
+         *
+         * 使用稠密有限差分 Jacobian + 部分选主元 LU 分解（Doolittle 方法）。
+         * 对于几何约束系统，Jacobian 通常具有带状结构（每个约束仅涉及
+         * 少数变量），但此处采用通用稠密 LU 分解以保证正确性。
+         * 当 dim 较大时，可替换为带状 LU 或稀疏直接求解器以提升性能。 */
+        {
+            /* 分配稠密 Jacobian 矩阵（行优先存储） */
+            double *J = lv00_malloc((size_t) dim * dim * sizeof(double));
+            if (!J) {
                 goto cleanup_bdf;
             }
-            y_new[i] = y_save;
 
-            double dfdy_i = (f_pert[i] - f_new[i]) / pert;
-            double J_ii = gamma0 - h * dfdy_i;
+            /* 逐列构建 Jacobian：对每个变量 y_j 做有限差分扰动 */
+            for (int j = 0; j < dim; ++j) {
+                double y_save_j = y_new[j];
+                double pert = fd_eps * (fabs(y_save_j) + 1.0);
+                y_new[j] = y_save_j + pert;
 
-            /* 防止除零 */
-            if (fabs(J_ii) < 1e-30) {
-                J_ii = (J_ii >= 0.0) ? 1e-30 : -1e-30;
+                ret = geoevol_rhs_eval(evol, evol->t + h, y_new, f_pert);
+                if (ret != 0) {
+                    y_new[j] = y_save_j;
+                    lv00_free((void **) &J);
+                    goto cleanup_bdf;
+                }
+                y_new[j] = y_save_j;
+
+                /* J_{ij} = gamma_0 * delta_{ij} - h * (f_pert[i] - f_new[i]) / pert */
+                for (int i = 0; i < dim; ++i) {
+                    double dfdy = (f_pert[i] - f_new[i]) / pert;
+                    J[i * dim + j] = (i == j) ? (gamma0 - h * dfdy) : (-h * dfdy);
+                }
             }
 
-            delta[i] = -G[i] / J_ii;
+            /* 设置右端向量 delta = -G */
+            for (int i = 0; i < dim; ++i) {
+                delta[i] = -G[i];
+            }
+
+            /* 部分选主元 LU 分解（原地分解，结果存回 J） */
+            /* 使用紧凑存储：J 的上三角存 U，下三角存 L（对角线为 1），
+             * piv 记录行交换信息 */
+            int *piv = lv00_malloc((size_t) dim * sizeof(int));
+            if (!piv) {
+                lv00_free((void **) &J);
+                goto cleanup_bdf;
+            }
+            for (int i = 0; i < dim; ++i) piv[i] = i;
+
+            /* LU 分解：Doolittle 方法 + 部分选主元 */
+            int lu_ok = 1;
+            for (int k = 0; k < dim; ++k) {
+                /* 选主元：找第 k 列中从第 k 行开始的最大元素 */
+                int max_row = k;
+                double max_val = fabs(J[k * dim + k]);
+                for (int i = k + 1; i < dim; ++i) {
+                    double val = fabs(J[i * dim + k]);
+                    if (val > max_val) {
+                        max_val = val;
+                        max_row = i;
+                    }
+                }
+
+                if (max_val < 1e-30) {
+                    /* 矩阵奇异或接近奇异 */
+                    lu_ok = 0;
+                    break;
+                }
+
+                /* 交换行 */
+                if (max_row != k) {
+                    int tmp_piv = piv[k];
+                    piv[k] = piv[max_row];
+                    piv[max_row] = tmp_piv;
+                    for (int j = 0; j < dim; ++j) {
+                        double tmp = J[k * dim + j];
+                        J[k * dim + j] = J[max_row * dim + j];
+                        J[max_row * dim + j] = tmp;
+                    }
+                }
+
+                /* 消元 */
+                for (int i = k + 1; i < dim; ++i) {
+                    J[i * dim + k] /= J[k * dim + k];
+                    for (int j = k + 1; j < dim; ++j) {
+                        J[i * dim + j] -= J[i * dim + k] * J[k * dim + j];
+                    }
+                }
+            }
+
+            if (lu_ok) {
+                /* 前向替换（Ly = Pb） */
+                for (int i = 0; i < dim; ++i) {
+                    double sum = delta[piv[i]];
+                    for (int j = 0; j < i; ++j) {
+                        sum -= J[i * dim + j] * delta[piv[j]];
+                    }
+                    delta[piv[i]] = sum;
+                }
+
+                /* 回代（Ux = y） */
+                for (int i = dim - 1; i >= 0; --i) {
+                    double sum = delta[piv[i]];
+                    for (int j = i + 1; j < dim; ++j) {
+                        sum -= J[i * dim + j] * delta[piv[j]];
+                    }
+                    delta[piv[i]] = sum / J[i * dim + i];
+                }
+
+                /* 将结果从 piv 顺序还原到自然顺序 */
+                double *delta_sorted = lv00_malloc((size_t) dim * sizeof(double));
+                if (delta_sorted) {
+                    for (int i = 0; i < dim; ++i) {
+                        delta_sorted[piv[i]] = delta[piv[i]];
+                    }
+                    for (int i = 0; i < dim; ++i) {
+                        delta[i] = delta_sorted[i];
+                    }
+                    lv00_free((void **) &delta_sorted);
+                }
+            } else {
+                /* LU 分解失败（矩阵奇异），回退到对角近似 */
+                for (int i = 0; i < dim; ++i) {
+                    double J_ii = J[i * dim + i];
+                    if (fabs(J_ii) < 1e-30) {
+                        J_ii = (J_ii >= 0.0) ? 1e-30 : -1e-30;
+                    }
+                    delta[i] = -G[i] / J_ii;
+                }
+            }
+
+            lv00_free((void **) &piv);
+            lv00_free((void **) &J);
         }
 
         /* 应用修正 */
@@ -727,13 +843,13 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
 
     geoevol_calc_error_weights(evol);
 
-    /* 需要三个临时数组：y_trial（试探步结果）、y_low（低阶结果）、y_save（当前状态备份） */
+    /* 需要临时数组：y_trial（试探步结果）、y_half（半步两步结果）、y_save（当前状态备份） */
     double *y_trial = lv00_malloc((size_t) dim * sizeof(double));
-    double *y_low = lv00_malloc((size_t) dim * sizeof(double));
+    double *y_half = lv00_malloc((size_t) dim * sizeof(double));
     double *y_save = lv00_malloc((size_t) dim * sizeof(double));
-    if (!y_trial || !y_low || !y_save) {
+    if (!y_trial || !y_half || !y_save) {
         if (y_trial) lv00_free((void **) &y_trial);
-        if (y_low) lv00_free((void **) &y_low);
+        if (y_half) lv00_free((void **) &y_half);
         if (y_save) lv00_free((void **) &y_save);
         LV00_ERROR_SET(LV00_ERROR_OUT_OF_MEMORY, "单步演化临时空间分配失败");
         return LV00_EVOL_STATUS_ERROR;
@@ -784,20 +900,50 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
                 goto cleanup;
         }
 
-        /* 执行试探步 */
+        /* 执行试探步（全步长 h） */
         int ret = stepper(evol, h, y_save, y_trial);
         if (ret != 0) {
             evol->status = LV00_EVOL_STATUS_ERROR;
             goto cleanup;
         }
 
-        /* 低阶估计：使用 Euler 步作为低阶估计 */
-        if (method == LV00_EVOL_EULER) {
+        /* Richardson 外推误差估计（仅对 RK4 方法）：
+         * 用步长 h/2 执行两步 RK4，与全步长结果比较。
+         * 误差 = (y_{h/2} - y_h) / (2^p - 1)，p = 方法阶数 */
+        if (method == LV00_EVOL_RK4) {
+            /* 半步长两步法：先走 h/2，再走 h/2 */
+            double half_h = 0.5 * h;
+            double *y_mid = lv00_malloc((size_t) dim * sizeof(double));
+            if (!y_mid) {
+                evol->status = LV00_EVOL_STATUS_ERROR;
+                LV00_ERROR_SET(LV00_ERROR_OUT_OF_MEMORY, "Richardson外推临时空间分配失败");
+                goto cleanup;
+            }
+
+            /* 第一步：从 y_save 出发，步长 half_h */
+            ret = geoevol_step_rk4(evol, half_h, y_save, y_mid);
+            if (ret != 0) {
+                lv00_free((void **) &y_mid);
+                evol->status = LV00_EVOL_STATUS_ERROR;
+                goto cleanup;
+            }
+
+            /* 恢复 evol->t 到中间状态，第二步：从 y_mid 出发，步长 half_h */
+            double t_saved = evol->t;
+            evol->t = t_saved + half_h;
+            ret = geoevol_step_rk4(evol, half_h, y_mid, y_half);
+            evol->t = t_saved; /* 恢复原时间 */
+            lv00_free((void **) &y_mid);
+            if (ret != 0) {
+                evol->status = LV00_EVOL_STATUS_ERROR;
+                goto cleanup;
+            }
+        } else if (method == LV00_EVOL_EULER) {
             /* Euler 没有嵌入式估计，直接接受 */
-            memcpy(y_low, y_trial, (size_t) dim * sizeof(double));
+            memcpy(y_half, y_trial, (size_t) dim * sizeof(double));
         } else {
-            /* 使用 Euler 步作为低阶参考 */
-            ret = geoevol_step_euler(evol, h, y_save, y_low);
+            /* Adams/BDF：使用 Euler 步作为低阶参考（回退估计，Adams/BDF 自身有预测-校正误差控制） */
+            ret = geoevol_step_euler(evol, h, y_save, y_half);
             if (ret != 0) {
                 evol->status = LV00_EVOL_STATUS_ERROR;
                 goto cleanup;
@@ -805,7 +951,7 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
         }
 
         /* 计算误差 */
-        double error = geoevol_error_estimate_rk4(evol, y_low, y_trial);
+        double error = geoevol_error_estimate_rk4(evol, y_trial, y_half);
         evol->stats.last_error_est = error;
 
         /* 误差测试 */
@@ -859,7 +1005,7 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
 
 cleanup:
     if (y_trial) lv00_free((void **) &y_trial);
-    if (y_low) lv00_free((void **) &y_low);
+    if (y_half) lv00_free((void **) &y_half);
     if (y_save) lv00_free((void **) &y_save);
     return evol->status;
 }

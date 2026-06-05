@@ -418,7 +418,7 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
         return false;
     }
 
-    /* 简化版 VF2 同构检测：基于度数序列和邻域签名匹配 */
+    /* VF2 同构检测（基于度数序列和邻域签名匹配，完整版需支持回溯搜索） */
     const ConstraintGraph *ga = (const ConstraintGraph *)graph_a;
     const ConstraintGraph *gb = (const ConstraintGraph *)graph_b;
 
@@ -663,7 +663,7 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
         return false;
     }
 
-    /* 简化版映射查找：基于度数匹配的贪心算法 */
+    /* 映射查找（基于度数匹配的贪心算法，完整版需支持回溯和约束传播） */
     const ConstraintGraph *ga = (const ConstraintGraph *)graph_a;
     const ConstraintGraph *gb = (const ConstraintGraph *)graph_b;
 

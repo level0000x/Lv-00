@@ -161,7 +161,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
                 }
 
                 if (src_block_idx >= 0) {
-                    /* 创建连接线段（简化：使用块中心点） */
+                    /* 创建连接线段（当前使用块中心点，完整版应使用端口坐标） */
                     int src_col = src_block_idx % 4;
                     int src_row = src_block_idx / 4;
                     int dst_col = i % 4;

@@ -375,6 +375,58 @@ class SymbolicCoord:
         if isinstance(other, SymbolicCoord):
             return other
         return SymbolicCoord(other)
+
+    def _value_from_ptr(self, ptr: Any) -> Union[Fraction, int, float, str]:
+        """从 C 指针中提取 Python 侧的值表示。
+
+        尝试序列化 C 指针以获取符号值字符串，
+        然后尝试解析为 Fraction。如果解析失败则保留原始字符串。
+
+        Args:
+            ptr: C 层 SymbolicCoord 指针
+
+        Returns:
+            Fraction/int/float/str: 解析后的值
+        """
+        s = _lib.symbolic_coord_serialize(ptr)
+        if not s:
+            return str(id(ptr))  # 唯一标识回退
+        raw = s.decode('utf-8')
+        _lib.lv00_free_ptr(s)
+        # 尝试解析为 Fraction
+        try:
+            return Fraction(raw)
+        except (ValueError, ZeroDivisionError):
+            pass
+        # 尝试解析为 int
+        try:
+            return int(raw)
+        except ValueError:
+            pass
+        # 尝试解析为 float
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+        # 保留原始符号字符串（如 "sqrt(2)", "pi" 等）
+        return raw
+
+    def _new_from_ptr(self, ptr: Any) -> 'SymbolicCoord':
+        """从 C 指针创建新的 SymbolicCoord 对象（不经过 __post_init__）。
+
+        从 C 指针中序列化值以填充 _value 字段，
+        避免使用 Fraction(0) 占位值。
+
+        Args:
+            ptr: C 层 SymbolicCoord 指针
+
+        Returns:
+            SymbolicCoord: 新创建的坐标对象
+        """
+        result = object.__new__(SymbolicCoord)
+        object.__setattr__(result, '_value', self._value_from_ptr(ptr))
+        object.__setattr__(result, '_ptr', ptr)
+        return result
     
     def __add__(self, other: Union['SymbolicCoord', int, float, Fraction]) -> 'SymbolicCoord':
         """加法运算。"""
@@ -382,11 +434,7 @@ class SymbolicCoord:
         ptr = _lib.symbolic_coord_add(self._ptr, other._ptr)
         if not ptr:
             raise Lv00Error("加法运算失败")
-        # 创建新对象而不经过 __post_init__
-        result = object.__new__(SymbolicCoord)
-        object.__setattr__(result, '_value', Fraction(0))  # 占位值
-        object.__setattr__(result, '_ptr', ptr)
-        return result
+        return self._new_from_ptr(ptr)
     
     def __radd__(self, other: Union[int, float, Fraction]) -> 'SymbolicCoord':
         """加法反向运算（other + self）。"""
@@ -398,10 +446,7 @@ class SymbolicCoord:
         ptr = _lib.symbolic_coord_subtract(self._ptr, other._ptr)
         if not ptr:
             raise Lv00Error("减法运算失败")
-        result = object.__new__(SymbolicCoord)
-        object.__setattr__(result, '_value', Fraction(0))
-        object.__setattr__(result, '_ptr', ptr)
-        return result
+        return self._new_from_ptr(ptr)
     
     def __rsub__(self, other: Union[int, float, Fraction]) -> 'SymbolicCoord':
         """减法反向运算：other - self。"""
@@ -409,10 +454,7 @@ class SymbolicCoord:
         ptr = _lib.symbolic_coord_subtract(other._ptr, self._ptr)
         if not ptr:
             raise Lv00Error("减法运算失败")
-        result = object.__new__(SymbolicCoord)
-        object.__setattr__(result, '_value', Fraction(0))
-        object.__setattr__(result, '_ptr', ptr)
-        return result
+        return self._new_from_ptr(ptr)
     
     def __mul__(self, other: Union['SymbolicCoord', int, float, Fraction]) -> 'SymbolicCoord':
         """乘法运算。"""
@@ -420,10 +462,7 @@ class SymbolicCoord:
         ptr = _lib.symbolic_coord_multiply(self._ptr, other._ptr)
         if not ptr:
             raise Lv00Error("乘法运算失败")
-        result = object.__new__(SymbolicCoord)
-        object.__setattr__(result, '_value', Fraction(0))
-        object.__setattr__(result, '_ptr', ptr)
-        return result
+        return self._new_from_ptr(ptr)
     
     def __rmul__(self, other: Union[int, float, Fraction]) -> 'SymbolicCoord':
         """乘法反向运算（other * self）。"""
@@ -435,20 +474,14 @@ class SymbolicCoord:
         ptr = _lib.symbolic_coord_divide(self._ptr, other._ptr)
         if not ptr:
             raise Lv00Error("除法运算失败（可能除数为零）")
-        result = object.__new__(SymbolicCoord)
-        object.__setattr__(result, '_value', Fraction(0))
-        object.__setattr__(result, '_ptr', ptr)
-        return result
+        return self._new_from_ptr(ptr)
     
     def __neg__(self) -> 'SymbolicCoord':
         """取负运算。"""
         ptr = _lib.symbolic_coord_negate(self._ptr)
         if not ptr:
             raise Lv00Error("取负运算失败")
-        result = object.__new__(SymbolicCoord)
-        object.__setattr__(result, '_value', Fraction(0))
-        object.__setattr__(result, '_ptr', ptr)
-        return result
+        return self._new_from_ptr(ptr)
     
     def __abs__(self) -> 'SymbolicCoord':
         """绝对值运算。"""
@@ -456,10 +489,7 @@ class SymbolicCoord:
             return self.__neg__()
         # 创建副本
         ptr = _lib.symbolic_coord_copy(self._ptr)
-        result = object.__new__(SymbolicCoord)
-        object.__setattr__(result, '_value', Fraction(0))
-        object.__setattr__(result, '_ptr', ptr)
-        return result
+        return self._new_from_ptr(ptr)
     
     def __pow__(self, other: Union['SymbolicCoord', int, float, Fraction]) -> 'SymbolicCoord':
         """幂运算（仅支持整数指数）。"""
@@ -477,10 +507,7 @@ class SymbolicCoord:
             return SymbolicCoord.from_rational(1)
         if exp == 1:
             ptr = _lib.symbolic_coord_copy(self._ptr)
-            result = object.__new__(SymbolicCoord)
-            object.__setattr__(result, '_value', Fraction(0))
-            object.__setattr__(result, '_ptr', ptr)
-            return result
+            return self._new_from_ptr(ptr)
         
         # 正整数幂：使用快速幂算法
         if exp > 0:

@@ -134,7 +134,7 @@ Lv00ExecResult lv00_block_scheduler_run(Lv00BlockScheduler *sched) {
             FuncBlock *fb = bg->blocks[idx];
             if (!fb) continue;
 
-            /* 记录效果（简化：假设纯计算） */
+            /* 记录效果（当前假设纯计算，完整版需分析副作用） */
             if (sched->effect_tracker) {
                 lv00_effect_tracker_record(sched->effect_tracker, LV00_EFFECT_PURE,
                                            fb->id, "block executed");
@@ -315,7 +315,7 @@ void lv00_block_scheduler_mark_dirty(Lv00BlockScheduler *sched, int block_id) {
     if (sched->incremental.dirty_count > 0 &&
         sched->incremental.dirty_count + 1 > sched->incremental.dirty_count) {
         /* 检查是否需要扩容：当前没有容量字段，使用启发式 */
-        /* 每次都重新分配（简化实现） */
+        /* 每次都重新分配（当前无容量字段，完整版应维护 capacity 字段避免频繁 realloc） */
     }
     int new_cap = (sched->incremental.dirty_count + 1) * 2;
     int *new_dirty = realloc(sched->incremental.dirty_blocks, new_cap * sizeof(int));

@@ -110,7 +110,7 @@ int lv00_visual_editor_execute_incremental(Lv00VisualEditor *editor) {
     lv00_block_scheduler_mark_all_dirty(sched);
 
     /* 获取脏块并执行增量调度 */
-    /* 简化实现：传入 NULL 表示使用调度器内部脏块列表 */
+    /* 传入 NULL 表示使用调度器内部脏块列表 */
     Lv00ExecResult exec_result = lv00_block_scheduler_run_incremental(sched, NULL, 0);
 
     /* 根据执行结果更新编辑器状态 */

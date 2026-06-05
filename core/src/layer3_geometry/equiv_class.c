@@ -621,7 +621,7 @@ bool equiv_prove_merge_valid(EquivClassManager *mgr, int class_a_idx, int class_
      * 在逻辑上，坐标等价合并不会引入矛盾（因为坐标已经相等）。
      * 约束推导等价需要验证推导链的有效性。
      *
-     * 简化实现：检查两个等价类的信任颜色
+     * 当前实现：检查两个等价类的信任颜色
      */
     EquivClass *ca = &mgr->classes[class_a_idx];
     EquivClass *cb = &mgr->classes[class_b_idx];

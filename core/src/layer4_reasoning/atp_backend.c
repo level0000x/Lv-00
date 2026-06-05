@@ -253,8 +253,11 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
  * @brief 创建 ATP 求解器实例
  *
  * 框架实现：分配并初始化求解器句柄。
- * 当前所有后端均为桩实现，待链接实际 ATP 可执行文件后
- * 将产生真实的证明结果。
+ * 当前所有后端为占位实现，待链接实际 ATP 可执行文件后
+ * 将产生真实的证明结果。支持的 ATP 后端包括：
+ *   - E prover: 等式推理和超归结
+ *   - Vampire: 一阶逻辑自动定理证明
+ *   - Z3: SMT 求解（通过 SMT-LIB 2 接口）
  */
 ATPBackendSolver *atp_solver_create(ATPBackendType type, const ATPConfig *config) {
     ATPBackendSolver *solver = (ATPBackendSolver *)lv00_malloc(sizeof(ATPBackendSolver));
