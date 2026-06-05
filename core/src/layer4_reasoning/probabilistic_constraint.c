@@ -806,8 +806,9 @@ double prob_dist_pdf(ProbDistribution *dist, double x) {
             double beta = (dist->param_count >= 2) ? dist->params[1] : 1.0;
             if (x < 0.0 || x > 1.0)
                 return 0.0;
-            /* 简化：使用 pow 近似（完整实现需要 Gamma 函数）*/
-            return pow(x, alpha - 1.0) * pow(1.0 - x, beta - 1.0);
+            /* Beta 分布 PDF：使用 lgamma 计算归一化常数 B(α,β) = Γ(α+β)/(Γ(α)Γ(β)) */
+            double norm = exp(lgamma(alpha + beta) - lgamma(alpha) - lgamma(beta));
+            return norm * pow(x, alpha - 1.0) * pow(1.0 - x, beta - 1.0);
         }
         default:
             return 0.0;

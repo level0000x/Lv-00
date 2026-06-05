@@ -115,14 +115,14 @@ static bool instantiate_ensure_capacity(Lv00QuantifiedExpr *expr, int needed)
 {
     int new_capacity;
 
-    if (needed <= expr->instantiated_count) {
-        /* 容量由 instantiated_count 隐含，此处简化处理 */
+    if (needed <= expr->instantiated_capacity) {
+        /* 已分配容量足够 */
         return true;
     }
 
-    new_capacity = expr->instantiated_count == 0
+    new_capacity = expr->instantiated_capacity == 0
                        ? INSTANTIATE_INITIAL_CAPACITY
-                       : expr->instantiated_count * 2;
+                       : expr->instantiated_capacity * 2;
     while (new_capacity < needed) {
         new_capacity *= 2;
     }
@@ -134,6 +134,7 @@ static bool instantiate_ensure_capacity(Lv00QuantifiedExpr *expr, int needed)
     }
 
     expr->instantiated_ids = new_ids;
+    expr->instantiated_capacity = new_capacity;
     return true;
 }
 

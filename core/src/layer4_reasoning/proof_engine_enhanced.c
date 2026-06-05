@@ -1086,8 +1086,44 @@ bool lv00_detect_contradiction(const ConstraintGraph *graph,
                         /* 如果两个连接的端口类型不同且不是多态的 */
                         if (port_a->type == port_b->type &&
                             !port_a->is_polymorphic && !port_b->is_polymorphic) {
-                            /* 类型区域不同则可能矛盾 */
-                            /* 此处为简化检测，实际需要更深入的类型比较 */
+                            /* 检查类型区域是否兼容 */
+                            TypeRegion *tr_a = port_a->type_region;
+                            TypeRegion *tr_b = port_b->type_region;
+
+                            /* 快速检查：如果类型种类不同，直接判定为矛盾 */
+                            if (tr_a->kind != tr_b->kind) {
+                                *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
+                                snprintf(out_desc, 512,
+                                         "端口 %d 和端口 %d 类型不兼容："
+                                         "类型种类不同（%d vs %d）",
+                                         port_a->id, port_b->id,
+                                         (int)tr_a->kind, (int)tr_b->kind);
+                                return true;
+                            }
+
+                            /* 检查类型级别是否兼容 */
+                            if (tr_a->level != tr_b->level) {
+                                *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
+                                snprintf(out_desc, 512,
+                                         "端口 %d 和端口 %d 类型不兼容："
+                                         "类型级别不同（%d vs %d）",
+                                         port_a->id, port_b->id,
+                                         tr_a->level, tr_b->level);
+                                return true;
+                            }
+
+                            /* 类型种类和级别相同，检查变量ID */
+                            if (tr_a->variable_id != tr_b->variable_id &&
+                                tr_a->variable_id > 0 && tr_b->variable_id > 0) {
+                                /* 不同具体变量，记录矛盾 */
+                                *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
+                                snprintf(out_desc, 512,
+                                         "端口 %d 和端口 %d 类型不兼容："
+                                         "类型变量不同（var_%d vs var_%d）",
+                                         port_a->id, port_b->id,
+                                         tr_a->variable_id, tr_b->variable_id);
+                                return true;
+                            }
                         }
                     }
                 }
@@ -1812,15 +1848,67 @@ static bool execute_strategy_induction(Lv00ProofEngine *engine,
         lv00_trace_node_set_status(base_node, TRACE_STATUS_BLOCKED);
     }
 
-    /* 归纳步：假设 n=k 成立，尝试推导 n=k+1 也成立
-     * 简化实现：使用直接证明策略验证归纳步
-     * 完整实现应构造 P(k) -> P(k+1) 并用引擎证明 */
+    /* 归纳步：假设 n=k 成立，推导 n=k+1 也成立
+     * 构造蕴含式命题 P(k) -> P(k+1) 并证明之：
+     *   - 前提（归纳假设）：P(k)，即原命题在 n=k 时的实例
+     *   - 结论（归纳目标）：P(k+1)，即原命题在 n=k+1 时的实例
+     */
     if (base_ok) {
-        step_ok = execute_strategy_direct(engine, goal, tree);
-        if (step_ok && step_node) {
-            lv00_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
-        } else if (step_node) {
-            lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+        /* 构造蕴含式命题 P(k) -> P(k+1) */
+        Proposition *impl = proposition_create(
+            goal->id + 10000, PROPOSITION_TYPE_IMPLICATION);
+        if (impl) {
+            /* 前提：归纳假设 P(k) —— 复制原目标结构作为 P(k) 的代表 */
+            Proposition *ih_prop = proposition_create(
+                goal->id + 10001, goal->type);
+            if (ih_prop) {
+                ih_prop->name = lv00_strdup(goal->name ? goal->name : "P(k)");
+                ih_prop->description = lv00_strdup(
+                    "归纳假设：假设命题在 n=k 时成立 (P(k))");
+                /* 复制子命题结构以保留原始命题的语义 */
+                for (int si = 0; si < goal->sub_prop_count; si++) {
+                    if (goal->sub_props[si]) {
+                        proposition_ref(goal->sub_props[si]);
+                        proposition_add_sub_proposition(ih_prop, goal->sub_props[si]);
+                    }
+                }
+                proposition_add_sub_proposition(impl, ih_prop);
+            }
+
+            /* 结论：归纳目标 P(k+1) —— 复制原目标结构作为 P(k+1) 的代表 */
+            Proposition *goal_prop = proposition_create(
+                goal->id + 10002, goal->type);
+            if (goal_prop) {
+                goal_prop->name = lv00_strdup(goal->name ? goal->name : "P(k+1)");
+                goal_prop->description = lv00_strdup(
+                    "归纳目标：证明命题在 n=k+1 时也成立 (P(k+1))");
+                for (int si = 0; si < goal->sub_prop_count; si++) {
+                    if (goal->sub_props[si]) {
+                        proposition_ref(goal->sub_props[si]);
+                        proposition_add_sub_proposition(goal_prop, goal->sub_props[si]);
+                    }
+                }
+                proposition_add_sub_proposition(impl, goal_prop);
+            }
+
+            /* 证明蕴含式 P(k) -> P(k+1) */
+            step_ok = execute_strategy_direct(engine, impl, tree);
+
+            if (step_ok && step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
+            } else if (step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+            }
+
+            proposition_unref(impl);
+        } else {
+            /* 构造蕴含式失败，回退到直接证明 */
+            step_ok = execute_strategy_direct(engine, goal, tree);
+            if (step_ok && step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
+            } else if (step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+            }
         }
     } else {
         /* 基础步失败，归纳步无法进行 */

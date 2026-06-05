@@ -149,8 +149,15 @@ class _FormulaNode(ctypes.Structure):
     这是底层 C 库 FormulaNode 结构体的 Python 映射定义，
     用于 ctypes 正确解析 C 结构体内存布局。
     """
-
-    pass
+    _fields_ = [
+        ("type", ctypes.c_int),
+        ("left", ctypes.c_void_p),
+        ("right", ctypes.c_void_p),
+        ("value", ctypes.c_double),
+        ("name", ctypes.c_char_p),
+        ("line", ctypes.c_int),
+        ("column", ctypes.c_int),
+    ]
 
 
 class _ParseResult(ctypes.Structure):
@@ -159,7 +166,12 @@ class _ParseResult(ctypes.Structure):
     对应 C 层 ParseResult 结构体的 Python 映射定义，
     包含解析后的 AST 指针和可能的错误信息。
     """
-    pass
+    _fields_ = [
+        ("root", ctypes.c_void_p),
+        ("error_count", ctypes.c_int),
+        ("warning_count", ctypes.c_int),
+        ("error_message", ctypes.c_char_p),
+    ]
 
 
 class _FormulaToGraphResult(ctypes.Structure):
@@ -169,8 +181,13 @@ class _FormulaToGraphResult(ctypes.Structure):
     这是底层 C 库 FormulaToGraphResult 结构体的 Python 映射定义，
     包含转换后的节点 ID、约束 ID 和可能的错误列表。
     """
-
-    pass
+    _fields_ = [
+        ("graph", ctypes.c_void_p),
+        ("node_count", ctypes.c_int),
+        ("constraint_count", ctypes.c_int),
+        ("success", ctypes.c_int),
+        ("error_message", ctypes.c_char_p),
+    ]
 
 
 class FormulaAST:
