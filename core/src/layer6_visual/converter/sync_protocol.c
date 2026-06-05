@@ -33,8 +33,19 @@ void lv00_sync_protocol_destroy(Lv00SyncProtocol *proto) {
 
 /* 传播变更到所有其他视图 */
 /* 根据源视图类型，调用对应的转换器将变更同步到其余视图 */
-int lv00_sync_propagate(Lv00SyncProtocol *proto, int source_view, void *change) {
+/* max_depth 防止循环依赖导致无限递归，默认最大深度 32 */
+int lv00_sync_propagate(Lv00SyncProtocol *proto, int source_view, void *change, int max_depth) {
     if (!proto || !proto->enabled) return -1;
+    if (max_depth <= 0) {
+        /* 达到递归深度上限，可能存在循环依赖 */
+        if (proto->conflict_count < 16) {
+            snprintf(proto->conflicts[proto->conflict_count],
+                     sizeof(proto->conflicts[0]),
+                     "sync recursion depth exceeded (circular dependency?)");
+            proto->conflict_count++;
+        }
+        return -1;
+    }
 
     /* 检查同步是否启用 */
     if (!proto->enabled) {
@@ -71,7 +82,7 @@ int lv00_sync_propagate(Lv00SyncProtocol *proto, int source_view, void *change) 
             if (r.success) {
                 prop_count++;
                 /* 通过块视图继续传播到其他视图 */
-                prop_count += lv00_sync_propagate(proto, SYNC_VIEW_BLOCK, r.output);
+                prop_count += lv00_sync_propagate(proto, SYNC_VIEW_BLOCK, r.output, max_depth - 1);
             }
         }
         break;
@@ -82,7 +93,7 @@ int lv00_sync_propagate(Lv00SyncProtocol *proto, int source_view, void *change) 
             Lv00ConvertResult r = lv00_convert_node_to_block(change);
             if (r.success) {
                 prop_count++;
-                prop_count += lv00_sync_propagate(proto, SYNC_VIEW_BLOCK, r.output);
+                prop_count += lv00_sync_propagate(proto, SYNC_VIEW_BLOCK, r.output, max_depth - 1);
             }
         }
         break;
@@ -93,7 +104,7 @@ int lv00_sync_propagate(Lv00SyncProtocol *proto, int source_view, void *change) 
             Lv00ConvertResult r = lv00_convert_geometry_to_block(change);
             if (r.success) {
                 prop_count++;
-                prop_count += lv00_sync_propagate(proto, SYNC_VIEW_BLOCK, r.output);
+                prop_count += lv00_sync_propagate(proto, SYNC_VIEW_BLOCK, r.output, max_depth - 1);
             }
         }
         break;

@@ -419,7 +419,7 @@ static int opml_import_proof(const char *input, void **proof) {
     /* 初始化步骤数组 */
     p->step_capacity = 64;
     p->steps = (Lv00ProofStep *)lv00_calloc(p->step_capacity, sizeof(Lv00ProofStep));
-    if (!p->steps) { free(p); return -1; }
+    if (!p->steps) { lv00_free((void **)&p); return -1; }
 
     /* 提取并解析 theory 段 */
     if (theory_start) {
