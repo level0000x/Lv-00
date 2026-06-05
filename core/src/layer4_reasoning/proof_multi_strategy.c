@@ -19,6 +19,7 @@
 #include <string.h>
 #include <math.h>
 
+#include "atp_backend.h"
 #include "constraint_graph.h"
 #include "lv00_internal.h"
 #include "normalization.h"
@@ -379,21 +380,33 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                         /* 通过关联约束找到线段上的点 */
                         int l1 = c->participants[1]; /* 线段ID */
                         int l2 = c2->participants[1]; /* 线段ID */
-                        /* 查找线段端点 */
-                        int l1_p1 = -1, l1_p2 = -1, l2_p1 = -1, l2_p2 = -1;
+
+                        /* 查找线段端点：找到与同一线段关联的所有点 */
+                        int l1_points[32], l1_pt_count = 0;
+                        int l2_points[32], l2_pt_count = 0;
                         for (int k = 0; k < graph->constraint_count; k++) {
                             Constraint *cc = graph->constraints[k];
-                            if (!cc || !cc->is_active) continue;
-                            /* 线段端点通过节点关系获取 */
+                            if (!cc || !cc->is_active || cc->type != INCIDENCE) continue;
+                            if (cc->participant_count < 2) continue;
+                            if (cc->participants[1] == l1 && l1_pt_count < 32) {
+                                l1_points[l1_pt_count++] = cc->participants[0];
+                            }
+                            if (cc->participants[1] == l2 && l2_pt_count < 32) {
+                                l2_points[l2_pt_count++] = cc->participants[0];
+                            }
                         }
-                        (void) l1; (void) l2;
-                        (void) l1_p1; (void) l1_p2; (void) l2_p1; (void) l2_p2;
-                        /* 简化：直接用前两个有坐标的点对 */
-                        if (point_count >= 4) {
-                            GeomNode *p1 = graph_get_node(graph, point_ids[0]);
-                            GeomNode *p2 = graph_get_node(graph, point_ids[1]);
-                            GeomNode *p3 = graph_get_node(graph, point_ids[2]);
-                            GeomNode *p4 = graph_get_node(graph, point_ids[3]);
+
+                        /* 取每条线段的前两个关联点作为方向向量端点 */
+                        int l1_p1 = (l1_pt_count >= 1) ? l1_points[0] : -1;
+                        int l1_p2 = (l1_pt_count >= 2) ? l1_points[1] : -1;
+                        int l2_p1 = (l2_pt_count >= 1) ? l2_points[0] : -1;
+                        int l2_p2 = (l2_pt_count >= 2) ? l2_points[1] : -1;
+
+                        if (l1_p1 >= 0 && l1_p2 >= 0 && l2_p1 >= 0 && l2_p2 >= 0) {
+                            GeomNode *p1 = graph_get_node(graph, l1_p1);
+                            GeomNode *p2 = graph_get_node(graph, l1_p2);
+                            GeomNode *p3 = graph_get_node(graph, l2_p1);
+                            GeomNode *p4 = graph_get_node(graph, l2_p2);
                             if (p1 && p2 && p3 && p4 &&
                                 p1->coord_count >= 2 && p2->coord_count >= 2 &&
                                 p3->coord_count >= 2 && p4->coord_count >= 2) {
@@ -907,7 +920,8 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
             if (!facts[i] || strncmp(facts[i], "point_coord:", 11) != 0) continue;
             for (int j = i + 1; j < fact_count; j++) {
                 if (!facts[j] || strncmp(facts[j], "point_coord:", 11) != 0) continue;
-                /* 比较坐标字符串（简化比较） */
+                /* 比较坐标字符串：从逗号后截取坐标部分进行字符串比较 */
+                /* 格式：point_coord:id,x,y —— 逗号后为 ",x,y" */
                 char *comma1_i = strchr(facts[i] + 11, ',');
                 char *comma1_j = strchr(facts[j] + 11, ',');
                 if (comma1_i && comma1_j) {
@@ -926,9 +940,136 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
         }
 
         /* 规则4：SSS 合同判据 —— 如果三边对应相等，则三角形合同 */
-        for (int i = 0; i < fact_count; i++) {
-            if (!facts[i] || strncmp(facts[i], "coincident:", 11) != 0) continue;
-            /* 简化：标记发现了重合关系 */
+        /* 从 point_coord 事实中提取所有点坐标，计算边长，检测合同三角形 */
+        {
+            /* 收集所有有坐标的点 */
+            int pt_ids[128];
+            double pt_x[128], pt_y[128];
+            int pt_count = 0;
+            for (int fi = 0; fi < fact_count && pt_count < 128; fi++) {
+                if (!facts[fi] || strncmp(facts[fi], "point_coord:", 11) != 0) continue;
+                int pid;
+                double fx, fy;
+                if (sscanf(facts[fi], "point_coord:%d,%lf,%lf", &pid, &fx, &fy) == 3) {
+                    pt_ids[pt_count] = pid;
+                    pt_x[pt_count] = fx;
+                    pt_y[pt_count] = fy;
+                    pt_count++;
+                }
+            }
+
+            /* 计算所有点对之间的距离平方（避免开方） */
+            if (pt_count >= 3) {
+                #define SSS_MAX_PAIRS 4096
+                int pair_a[SSS_MAX_PAIRS], pair_b[SSS_MAX_PAIRS];
+                double pair_dist2[SSS_MAX_PAIRS];
+                int pair_count = 0;
+                for (int a = 0; a < pt_count && pair_count < SSS_MAX_PAIRS; a++) {
+                    for (int b = a + 1; b < pt_count && pair_count < SSS_MAX_PAIRS; b++) {
+                        double dx = pt_x[a] - pt_x[b];
+                        double dy = pt_y[a] - pt_y[b];
+                        pair_a[pair_count] = pt_ids[a];
+                        pair_b[pair_count] = pt_ids[b];
+                        pair_dist2[pair_count] = dx * dx + dy * dy;
+                        pair_count++;
+                    }
+                }
+
+                /* 枚举所有三角形（三个点），检查是否有合同三角形 */
+                #define SSS_MAX_TRI 512
+                int tri[SSS_MAX_TRI][3]; /* 每个三角形的三个点ID */
+                int tri_count = 0;
+                for (int a = 0; a < pt_count && tri_count < SSS_MAX_TRI; a++) {
+                    for (int b = a + 1; b < pt_count && tri_count < SSS_MAX_TRI; b++) {
+                        for (int c = b + 1; c < pt_count && tri_count < SSS_MAX_TRI; c++) {
+                            tri[tri_count][0] = pt_ids[a];
+                            tri[tri_count][1] = pt_ids[b];
+                            tri[tri_count][2] = pt_ids[c];
+                            tri_count++;
+                        }
+                    }
+                }
+
+                /* 对每对三角形，检查 SSS 合同 */
+                for (int t1 = 0; t1 < tri_count && !verified; t1++) {
+                    for (int t2 = t1 + 1; t2 < tri_count; t2++) {
+                        /* 计算三角形 t1 的三边长 */
+                        double edges1[3];
+                        int e1_pairs[3][2]; /* 每条边对应的点对索引 */
+                        int e1_found = 0;
+                        for (int e = 0; e < 3; e++) {
+                            int pa = tri[t1][e];
+                            int pb = tri[t1][(e + 1) % 3];
+                            for (int p = 0; p < pair_count; p++) {
+                                if ((pair_a[p] == pa && pair_b[p] == pb) ||
+                                    (pair_a[p] == pb && pair_b[p] == pa)) {
+                                    edges1[e] = pair_dist2[p];
+                                    e1_pairs[e][0] = pa;
+                                    e1_pairs[e][1] = pb;
+                                    e1_found++;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (e1_found < 3) continue;
+
+                        /* 计算三角形 t2 的三边长，尝试所有顶点排列 */
+                        for (int perm = 0; perm < 6; perm++) {
+                            /* 6种排列：012, 021, 102, 120, 201, 210 */
+                            static const int perms[6][3] = {
+                                {0, 1, 2}, {0, 2, 1}, {1, 0, 2},
+                                {1, 2, 0}, {2, 0, 1}, {2, 1, 0}
+                            };
+                            int va = tri[t2][perms[perm][0]];
+                            int vb = tri[t2][perms[perm][1]];
+                            int vc = tri[t2][perms[perm][2]];
+                            double edges2[3];
+                            int e2_found = 0;
+                            int e2_pairs[3][2];
+
+                            int t2verts[3] = {va, vb, vc};
+                            for (int e = 0; e < 3; e++) {
+                                int pa = t2verts[e];
+                                int pb = t2verts[(e + 1) % 3];
+                                for (int p = 0; p < pair_count; p++) {
+                                    if ((pair_a[p] == pa && pair_b[p] == pb) ||
+                                        (pair_a[p] == pb && pair_b[p] == pa)) {
+                                        edges2[e] = pair_dist2[p];
+                                        e2_pairs[e][0] = pa;
+                                        e2_pairs[e][1] = pb;
+                                        e2_found++;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (e2_found < 3) continue;
+
+                            /* 检查三边是否对应相等（使用相对容差） */
+                            bool sss_match = true;
+                            for (int e = 0; e < 3; e++) {
+                                double diff = fabs(edges1[e] - edges2[e]);
+                                double max_val = fmax(fabs(edges1[e]), fabs(edges2[e]));
+                                if (max_val < 1e-12) continue; /* 两边都为零 */
+                                if (diff / max_val > 1e-6) {
+                                    sss_match = false;
+                                    break;
+                                }
+                            }
+
+                            if (sss_match) {
+                                DEDUCT_ADD_FACT("congruent:%d,%d,%d,%d,%d,%d",
+                                    tri[t1][0], tri[t1][1], tri[t1][2],
+                                    tri[t2][0], tri[t2][1], tri[t2][2]);
+                                new_derived++;
+                            }
+                        }
+                    }
+                }
+                #undef SSS_MAX_PAIRS
+                #undef SSS_MAX_TRI
+            }
         }
 
         /* 检查是否推导出目标命题相关的事实 */
@@ -1128,19 +1269,32 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
             if (pa && pb && pc &&
                 pa->coord_count >= 2 && pb->coord_count >= 2 && pc->coord_count >= 2) {
-                /* 验证：B - A 和 C - B 方向相同（数量关系） */
+                /* 验证 betweenness：B 在 A 和 C 之间
+                 * 条件：B = A + t*(C-A)，其中 0 < t < 1
+                 * 等价于：(B-A) 和 (C-B) 方向相同（同号），且 B 在 A 和 C 之间
+                 * 同时检查 x 和 y 分量以确保方向一致 */
                 SymbolicCoord *ab_x = symbolic_coord_subtract(pb->symbolic_coords[0], pa->symbolic_coords[0]);
+                SymbolicCoord *ab_y = symbolic_coord_subtract(pb->symbolic_coords[1], pa->symbolic_coords[1]);
                 SymbolicCoord *bc_x = symbolic_coord_subtract(pc->symbolic_coords[0], pb->symbolic_coords[0]);
+                SymbolicCoord *bc_y = symbolic_coord_subtract(pc->symbolic_coords[1], pb->symbolic_coords[1]);
 
-                if (ab_x && bc_x) {
-                    /* 简化验证：检查方向一致性 */
-                    int cmp = symbolic_coord_compare(ab_x, bc_x);
-                    if (cmp > 0 || symbolic_coord_is_zero(ab_x)) {
+                if (ab_x && ab_y && bc_x && bc_y) {
+                    /* x 分量和 y 分量方向都一致（同号或为零） */
+                    int cmp_x = symbolic_coord_compare(ab_x, bc_x);
+                    int cmp_y = symbolic_coord_compare(ab_y, bc_y);
+
+                    /* 方向一致：cmp > 0 表示同号，is_zero 表示退化情况 */
+                    bool same_dir_x = (cmp_x > 0 || symbolic_coord_is_zero(ab_x));
+                    bool same_dir_y = (cmp_y > 0 || symbolic_coord_is_zero(ab_y));
+
+                    if (same_dir_x && same_dir_y) {
                         equation_count++;
                     }
                 }
                 if (ab_x) symbolic_coord_destroy(ab_x);
+                if (ab_y) symbolic_coord_destroy(ab_y);
                 if (bc_x) symbolic_coord_destroy(bc_x);
+                if (bc_y) symbolic_coord_destroy(bc_y);
             }
         }
 
@@ -1274,15 +1428,23 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
     /* 尝试使用 ATP 后端编码约束图 */
     /* 检查是否有可用的 ATP 后端 */
     bool atp_available = false;
+    ATPBackendType atp_types[] = {ATP_BACKEND_VAMPIRE, ATP_BACKEND_EPROVER, ATP_BACKEND_IPROVER};
     const char *atp_names[] = {"Vampire", "E Prover", "iProver"};
 
-    /* 尝试编码约束图为 TPTP 格式 */
-    /* 注意：atp_encode_constraint_graph 和 atp_is_backend_available 定义在 atp_backend.h */
-    /* 这里使用条件编译检查，如果 ATP 模块可用则调用 */
+    /* 尝试编码约束图为 TPTP 格式并求解 */
     for (int backend = 0; backend < 3 && !verified; backend++) {
-        /* 检查后端是否可用（通过函数指针或全局注册表） */
-        /* 简化实现：尝试编码，如果成功则标记为可用 */
-        (void) backend;
+        /* 检查后端是否可用 */
+        if (!atp_is_backend_available(atp_types[backend])) {
+            ProofStep *skip_step = proof_step_create(PROOF_STEP_ORACLE);
+            if (skip_step) {
+                skip_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
+                char buf[256];
+                snprintf(buf, sizeof(buf), "[Oracle] %s 后端不可用，跳过", atp_names[backend]);
+                skip_step->note = _strdup(buf);
+                proof_navigator_add_step(nav, skip_step);
+            }
+            continue;
+        }
 
         ProofStep *try_step = proof_step_create(PROOF_STEP_ORACLE);
         if (try_step) {
@@ -1292,6 +1454,89 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
             try_step->note = _strdup(buf);
             proof_navigator_add_step(nav, try_step);
         }
+
+        /* 尝试将约束图编码为 TPTP 格式 */
+        char *tptp = atp_encode_constraint_graph(
+            nav->construction, ATP_FORMAT_TPTP_FOF,
+            "lv00_oracle_problem", true, nav->target_prop);
+
+        if (tptp == NULL) {
+            ProofStep *enc_fail = proof_step_create(PROOF_STEP_ORACLE);
+            if (enc_fail) {
+                enc_fail->color = PROOF_COLOR_BLUE_UNEXPLORED;
+                char buf[256];
+                snprintf(buf, sizeof(buf), "[Oracle] %s 编码失败，跳过", atp_names[backend]);
+                enc_fail->note = _strdup(buf);
+                proof_navigator_add_step(nav, enc_fail);
+            }
+            continue;
+        }
+
+        /* 编码成功，标记后端可用 */
+        atp_available = true;
+
+        /* 尝试创建求解器并求解 */
+        ATPConfig config = atp_config_default();
+        config.timeout_seconds = 10.0; /* Oracle 模式使用较短超时 */
+
+        ATPBackendSolver *solver = atp_solver_create(atp_types[backend], &config);
+        if (solver) {
+            int load_rc = atp_solver_load(solver, tptp);
+            if (load_rc == LV00_OK) {
+                ATPResultInfo result;
+                atp_result_init(&result);
+                int solve_rc = atp_solver_solve(solver, &result);
+
+                if (solve_rc == LV00_OK && result.result == ATP_RESULT_UNSAT) {
+                    /* 证明成功：UNSAT 表示目标不可满足（即命题成立） */
+                    verified = true;
+
+                    ProofStep *success_step = proof_step_create(PROOF_STEP_ORACLE);
+                    if (success_step) {
+                        success_step->color = PROOF_COLOR_GREEN_COMPLETE;
+                        char buf[256];
+                        snprintf(buf, sizeof(buf),
+                                 "[Oracle] %s 证明成功（%.2fs, %d 子句）",
+                                 atp_names[backend], result.solve_time_seconds,
+                                 result.processed_clauses);
+                        success_step->note = _strdup(buf);
+                        proof_navigator_add_step(nav, success_step);
+                    }
+
+                    /* 将 ATP 证明步骤转换到导航器 */
+                    if (result.proof_step_count > 0) {
+                        Proof atp_proof;
+                        int converted = 0;
+                        atp_proof_to_lv00(&result, &atp_proof, &converted);
+                        /* 转换后的步骤可追加到导航器（由调用者处理） */
+                        (void) converted;
+                    }
+                } else if (solve_rc == LV00_OK && result.result == ATP_RESULT_SAT) {
+                    ProofStep *sat_step = proof_step_create(PROOF_STEP_ORACLE);
+                    if (sat_step) {
+                        sat_step->color = PROOF_COLOR_RED_CONFLICT;
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "[Oracle] %s 返回 SAT，命题不成立", atp_names[backend]);
+                        sat_step->note = _strdup(buf);
+                        proof_navigator_add_step(nav, sat_step);
+                    }
+                } else {
+                    ProofStep *unknown_step = proof_step_create(PROOF_STEP_ORACLE);
+                    if (unknown_step) {
+                        unknown_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "[Oracle] %s 无法确定（超时/资源耗尽）", atp_names[backend]);
+                        unknown_step->note = _strdup(buf);
+                        proof_navigator_add_step(nav, unknown_step);
+                    }
+                }
+
+                atp_result_free(&result);
+            }
+            atp_solver_destroy(solver);
+        }
+
+        free(tptp);
     }
 
     /* 如果 ATP 后端不可用，尝试直接合一作为降级方案 */
@@ -1771,10 +2016,11 @@ const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
 /* ============== 辅助搜索函数声明 ============== */
 
 /**
- * @brief 深度优先搜索（简化实现）
+ * @brief 深度优先搜索
  *
  * 沿着单一路径深入搜索，直到达到目标或无法继续。
  * 遇到死胡同时回溯到上一个选择点。
+ * 使用栈式迭代实现，支持状态保存恢复、已访问检测和深度限制。
  *
  * @param proof   证明导航器指针
  * @param max_steps 最大搜索步数
@@ -1783,10 +2029,11 @@ const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
 static bool proof_depth_first_search(ProofNavigator *proof, int max_steps);
 
 /**
- * @brief 广度优先搜索（简化实现）
+ * @brief 广度优先搜索
  *
  * 按层次展开搜索空间，先探索所有深度为 d 的节点，
  * 再探索深度为 d+1 的节点。
+ * 使用显式队列维护搜索状态，按层次展开策略组合。
  *
  * @param proof   证明导航器指针
  * @param max_steps 最大搜索步数
@@ -1795,10 +2042,10 @@ static bool proof_depth_first_search(ProofNavigator *proof, int max_steps);
 static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps);
 
 /**
- * @brief 最佳优先搜索（简化实现）
+ * @brief 最佳优先搜索
  *
  * 使用启发式评估函数选择最有希望的节点进行探索。
- * 需要提供启发式评分函数。
+ * 综合考虑适用性、约束匹配度、历史成功率和策略优先级。
  *
  * @param proof   证明导航器指针
  * @param max_steps 最大搜索步数
@@ -1807,10 +2054,11 @@ static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps);
 static bool proof_best_first_search(ProofNavigator *proof, int max_steps);
 
 /**
- * @brief 蒙特卡洛树搜索（简化实现）
+ * @brief 蒙特卡洛树搜索
  *
  * 通过随机模拟评估节点价值，结合探索和利用。
  * 适用于搜索空间大、难以用传统方法评估的证明问题。
+ * 实现完整四步循环：选择（UCB1）、展开、模拟、回传。
  *
  * @param proof   证明导航器指针
  * @param max_steps 最大搜索步数（模拟次数）
