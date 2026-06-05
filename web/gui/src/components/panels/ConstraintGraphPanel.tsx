@@ -716,6 +716,7 @@ const ConstraintGraphPanel: React.FC = () => {
   // Cleanup animation on unmount
   useEffect(() => {
     return () => {
+      clearTimeout(restartTimerRef.current);
       cancelAnimationFrame(animRef.current);
       layoutRef.current.cancel = true;
     };
