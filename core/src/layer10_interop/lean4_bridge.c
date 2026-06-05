@@ -504,7 +504,7 @@ static int lean4_validate(const char *input) {
             }
         }
         /* 如果 tactic 块非空但未找到已知 tactic，仍然通过（可能是自定义 tactic） */
-        (void)found_valid;
+        if (!found_valid) return 0;
     }
 
     return 1; /* 校验通过 */

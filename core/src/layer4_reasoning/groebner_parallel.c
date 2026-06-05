@@ -162,7 +162,7 @@ static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponent
         p->terms = new_terms;
         p->term_capacity = new_cap;
     }
-    int idx = p->term_count++;
+    int idx = p->term_count;
     p->terms[idx].coeff = coeff;
     p->terms[idx].var_count = var_count;
     if (var_count > 0) {
@@ -172,6 +172,7 @@ static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponent
     } else {
         p->terms[idx].exponents = NULL;
     }
+    p->term_count++;
     return 0;
 }
 

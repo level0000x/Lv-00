@@ -88,7 +88,9 @@ Lv00ProofObject *lv00_proof_object_create(void) {
     }
     
     obj->axiom_ids = (int *)lv00_malloc(32 * sizeof(int));
+    obj->axiom_capacity = 32;
     obj->assumption_ids = (int *)lv00_malloc(32 * sizeof(int));
+    obj->assumption_capacity = 32;
     
     return obj;
 }
@@ -145,6 +147,13 @@ int lv00_proof_object_add_step(Lv00ProofObject *obj, Lv00ProofStepRecord *step) 
  */
 bool lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id) {
     if (!obj) return false;
+    if (obj->axiom_count >= obj->axiom_capacity) {
+        int new_capacity = obj->axiom_capacity * 2;
+        int *new_ids = (int *)lv00_realloc(obj->axiom_ids, new_capacity * sizeof(int));
+        if (!new_ids) return false;
+        obj->axiom_ids = new_ids;
+        obj->axiom_capacity = new_capacity;
+    }
     obj->axiom_ids[obj->axiom_count++] = axiom_id;
     return true;
 }
@@ -154,6 +163,13 @@ bool lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id) {
  */
 bool lv00_proof_object_add_assumption(Lv00ProofObject *obj, int assumption_id) {
     if (!obj) return false;
+    if (obj->assumption_count >= obj->assumption_capacity) {
+        int new_capacity = obj->assumption_capacity * 2;
+        int *new_ids = (int *)lv00_realloc(obj->assumption_ids, new_capacity * sizeof(int));
+        if (!new_ids) return false;
+        obj->assumption_ids = new_ids;
+        obj->assumption_capacity = new_capacity;
+    }
     obj->assumption_ids[obj->assumption_count++] = assumption_id;
     return true;
 }
@@ -602,11 +618,11 @@ char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
     const char *lang = language ? language : "zh";
     const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
     const char *qed = strcmp(lang, "en") == 0 ? "\\qed" : "证毕";
-    
+
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\begin{Proof}\\n");
+        "\\begin{Proof}\n");
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "%s.\\n\\n", proof_begin);
+        "%s.\n\n", proof_begin);
     
     /* 生成步骤 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -629,9 +645,9 @@ char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
         }
     }
     
-    offset += snprintf(buffer + offset, buffer_size - offset, "\n%s\n");
+    offset += snprintf(buffer + offset, buffer_size - offset, "\n%s\n", qed);
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\end{Proof}\\n");
+        "\\end{Proof}\n");
     
     return buffer;
 }
@@ -649,11 +665,11 @@ char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
     size_t offset = 0;
     
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\begin{tikzpicture}[node distance=2cm]\\n");
+        "\\begin{tikzpicture}[node distance=2cm]\n");
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\tikzstyle{step}=[circle,draw,minimum size=1cm]\\n");
+        "\\tikzstyle{step}=[circle,draw,minimum size=1cm]\n");
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\tikzstyle{arrow}=[->,>=stealth]\\n");
+        "\\tikzstyle{arrow}=[->,>=stealth]\n");
     
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -675,7 +691,7 @@ char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
     }
     
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\end{tikzpicture}\\n");
+        "\\end{tikzpicture}\n");
     
     return buffer;
 }
@@ -769,11 +785,11 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
     size_t offset = 0;
     
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "digraph ProofTree {\\n");
+        "digraph ProofTree {\n");
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "  rankdir=TB;\\n");
+        "  rankdir=TB;\n");
     offset += snprintf(buffer + offset, buffer_size - offset,
-        "  node [shape=box];\\n");
+        "  node [shape=box];\n");
     
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -784,7 +800,7 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
             step->color == PROOF_COLOR_ORANGE_EX_FALSO ? "orange" : "lightblue";
         
         offset += snprintf(buffer + offset, buffer_size - offset,
-            "  S%d [label=\"%s\", style=filled, fillcolor=%s];\\n",
+            "  S%d [label=\"%s\", style=filled, fillcolor=%s];\n",
             step->step_id, label, color);
     }
     
@@ -795,12 +811,12 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
             int premise_id = step->premise_step_ids[j];
             const char *rule_name = step->rule_name ? step->rule_name : "";
             offset += snprintf(buffer + offset, buffer_size - offset,
-                "  S%d -> S%d [label=\"%s\"];\\n",
+                "  S%d -> S%d [label=\"%s\"];\n",
                 premise_id, step->step_id, rule_name);
         }
     }
     
-    offset += snprintf(buffer + offset, buffer_size - offset, "}\\n");
+    offset += snprintf(buffer + offset, buffer_size - offset, "}\n");
     
     return buffer;
 }

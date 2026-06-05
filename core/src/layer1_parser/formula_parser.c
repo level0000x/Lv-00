@@ -867,6 +867,7 @@ void formula_node_destroy(FormulaNode *node) {
         case NODE_CONSTRAINT_COLLINEAR:
         case NODE_CONSTRAINT_TANGENT:
         case NODE_CONSTRAINT_CONGRUENT:
+        case NODE_CONSTRAINT_ANGLE:
             for (int i = 0; i < node->data.constraint.participant_count; i++) {
                 formula_node_destroy(node->data.constraint.participants[i]);
             }
