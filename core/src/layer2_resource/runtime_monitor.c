@@ -224,6 +224,10 @@ static void rotate_log_file(void) {
     }
 
     g_log_system.log_file = fopen(g_log_system.config.file_path, "a");
+    if (!g_log_system.log_file) {
+        /* 日志文件打开失败，不清除 current_file_size，后续写入将被丢弃 */
+        return;
+    }
     g_log_system.current_file_size = 0;
 }
 
@@ -525,6 +529,7 @@ void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
         return;
     }
 
+    MUTEX_LOCK(g_perf_system.mutex);
     stats->count++;
     stats->sum += value;
     stats->sum_sq += value * value;
@@ -544,6 +549,7 @@ void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
         stats->variance = (stats->sum_sq - stats->sum * stats->sum / stats->count) / (stats->count - 1);
         stats->std_dev = sqrt(stats->variance);
     }
+    MUTEX_UNLOCK(g_perf_system.mutex);
 }
 
 void lv00_perf_stats_reset(Lv00PerfStats *stats) {

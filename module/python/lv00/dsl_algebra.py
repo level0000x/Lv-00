@@ -135,6 +135,15 @@ class Transform:
 
         Transform 乘法链：Pos(5,0) * Rot(45) = 先旋转再平移
         """
+        # 检测旋转+缩放混合组合（数学上不精确）
+        if (self.angle_deg != 0 and (self.scale_x != 1.0 or self.scale_y != 1.0)) or \
+           (other.angle_deg != 0 and (other.scale_x != 1.0 or other.scale_y != 1.0)):
+            import warnings
+            warnings.warn(
+                "Transform._compose: 旋转与缩放混合组合的结果可能不精确。"
+                "建议使用纯旋转或纯缩放的变换链。",
+                RuntimeWarning, stacklevel=2
+            )
         return Transform(
             tx=self.tx + other.tx,
             ty=self.ty + other.ty,

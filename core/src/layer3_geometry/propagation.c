@@ -880,9 +880,6 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     /* 用快照替换 */
     for (int i = 0; i < snap->state_count && i < ctx->state_count; i++) {
         ctx->state_spaces[i] = snap->states[i];
-        /* 防止 double-free：将快照中的指针置空 */
-        snap->states[i] = ctx->state_spaces[i]; /* 拷贝当前状态 */
-        memset(&ctx->state_spaces[i], 0, sizeof(NodeStateSpace)); /* 置空快照中的指针 */
     }
 
     ctx->propagation_steps = snap->propagation_steps;
