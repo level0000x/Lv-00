@@ -566,7 +566,12 @@ static bool cdcl_init_assigns(CDCLContext *ctx, int var_count) {
     ctx->assigns = (int *)lv00_calloc((size_t)(var_count + 1), sizeof(int));
     ctx->levels = (int *)lv00_calloc((size_t)(var_count + 1), sizeof(int));
     ctx->reasons = (int *)lv00_malloc((size_t)(var_count + 1) * sizeof(int));
-    if (!ctx->assigns || !ctx->levels || !ctx->reasons) return false;
+    if (!ctx->assigns || !ctx->levels || !ctx->reasons) {
+        lv00_free((void **)&ctx->assigns);
+        lv00_free((void **)&ctx->levels);
+        lv00_free((void **)&ctx->reasons);
+        return false;
+    }
     for (int i = 0; i <= var_count; i++) ctx->reasons[i] = -1;
     ctx->var_count = var_count;
     ctx->var_capacity = var_count;
@@ -587,16 +592,16 @@ static bool cdcl_init_trail_lim(CDCLContext *ctx, int capacity) {
 static bool cdcl_ensure_trail_lim(CDCLContext *ctx, int level) {
     /* trail_lim 需要至少 level+1 个槽位（决策层 0 不需要记录） */
     /* 我们用 trail_lim[decision_level] 记录当前决策层的起始位置 */
-    static int trail_lim_cap = 0;
-    LV00_UNUSED(trail_lim_cap);
-    /* 简单策略：每次需要时 realloc 到足够大 */
     int needed = level + 2;
-    /* 检查是否需要扩容 - 通过检查 realloc 是否会失败 */
+    /* 简单策略：每次需要时 realloc 到足够大 */
     int *new_lim = (int *)lv00_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
     if (!new_lim) return false;
     /* 初始化新增部分 */
-    for (int i = (ctx->trail_lim ? 0 : 0); i < needed; i++) {
-        /* 只初始化可能未初始化的部分 */
+    int old_cap = 0;
+    /* 估算旧容量：如果 trail_lim 非空，假设之前至少分配过一些空间 */
+    /* 用 needed 作为上界，只初始化 0 到 needed-1 中可能未初始化的部分 */
+    for (int i = 0; i < needed; i++) {
+        new_lim[i] = 0;
     }
     ctx->trail_lim = new_lim;
     return true;

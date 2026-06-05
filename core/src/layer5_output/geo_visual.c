@@ -397,13 +397,20 @@ static void render_object_cairo(Lv00VisualObject* obj, char** buf, size_t* pos, 
 
     /* 辅助宏：向缓冲区追加字符串 */
     #define CAIRO_APPEND(fmt, ...) do { \
-        int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
+        size_t _avail = *cap - *pos; \
+        if (*pos >= *cap) { \
+            *cap *= 2; \
+            char* _nb = (char*)lv00_realloc(*buf, *cap); \
+            if (_nb) *buf = _nb; else break; \
+            _avail = *cap - *pos; \
+        } \
+        int written = snprintf(*buf + *pos, _avail, fmt, ##__VA_ARGS__); \
         if (written > 0) { \
             *pos += (size_t)written; \
             if (*pos >= *cap) { \
                 *cap *= 2; \
-                char* new_buf = (char*)lv00_realloc(*buf, *cap); \
-                if (new_buf) *buf = new_buf; \
+                char* _nb2 = (char*)lv00_realloc(*buf, *cap); \
+                if (_nb2) *buf = _nb2; \
             } \
         } \
     } while(0)
@@ -517,13 +524,20 @@ static void render_object_threejs(Lv00VisualObject* obj, char** buf, size_t* pos
 
     /* 辅助宏：向缓冲区追加字符串 */
     #define THREEJS_APPEND(fmt, ...) do { \
-        int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
+        size_t _avail = *cap - *pos; \
+        if (*pos >= *cap) { \
+            *cap *= 2; \
+            char* _nb = (char*)lv00_realloc(*buf, *cap); \
+            if (_nb) *buf = _nb; else break; \
+            _avail = *cap - *pos; \
+        } \
+        int written = snprintf(*buf + *pos, _avail, fmt, ##__VA_ARGS__); \
         if (written > 0) { \
             *pos += (size_t)written; \
             if (*pos >= *cap) { \
                 *cap *= 2; \
-                char* new_buf = (char*)lv00_realloc(*buf, *cap); \
-                if (new_buf) *buf = new_buf; \
+                char* _nb2 = (char*)lv00_realloc(*buf, *cap); \
+                if (_nb2) *buf = _nb2; \
             } \
         } \
     } while(0)
@@ -659,13 +673,20 @@ static void render_object_tikz(Lv00VisualObject* obj, char** buf, size_t* pos, s
 
     /* 辅助宏：向缓冲区追加字符串 */
     #define TIKZ_APPEND(fmt, ...) do { \
-        int written = snprintf(*buf + *pos, *cap - *pos, fmt, ##__VA_ARGS__); \
+        size_t _avail = *cap - *pos; \
+        if (*pos >= *cap) { \
+            *cap *= 2; \
+            char* _nb = (char*)lv00_realloc(*buf, *cap); \
+            if (_nb) *buf = _nb; else break; \
+            _avail = *cap - *pos; \
+        } \
+        int written = snprintf(*buf + *pos, _avail, fmt, ##__VA_ARGS__); \
         if (written > 0) { \
             *pos += (size_t)written; \
             if (*pos >= *cap) { \
                 *cap *= 2; \
-                char* new_buf = (char*)lv00_realloc(*buf, *cap); \
-                if (new_buf) *buf = new_buf; \
+                char* _nb2 = (char*)lv00_realloc(*buf, *cap); \
+                if (_nb2) *buf = _nb2; \
             } \
         } \
     } while(0)

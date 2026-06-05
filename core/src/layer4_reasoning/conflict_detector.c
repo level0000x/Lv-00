@@ -813,8 +813,10 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
     }
 
     /* DFS 递归栈（手动实现避免栈溢出） */
-    int *stack = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
-    int *iter = (int *)lv00_malloc(sizeof(int) * (size_t)(max_id + 1));
+    /* 栈大小为 max_id+1，但 DFS 深度可能超过此值，需要动态检查 */
+    int stack_cap = max_id + 1;
+    int *stack = (int *)lv00_malloc(sizeof(int) * (size_t)stack_cap);
+    int *iter = (int *)lv00_malloc(sizeof(int) * (size_t)stack_cap);
     if (!stack || !iter) {
         lv00_free((void **)&color);
         lv00_free((void **)&parent_node);
@@ -867,6 +869,19 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
                         color[nb] = 1;
                         parent_node[nb] = cur;
                         sp++;
+                        /* 动态扩容检查 */
+                        if (sp >= stack_cap) {
+                            stack_cap *= 2;
+                            int *new_stack = (int *)lv00_realloc(stack, sizeof(int) * (size_t)stack_cap);
+                            int *new_iter = (int *)lv00_realloc(iter, sizeof(int) * (size_t)stack_cap);
+                            if (!new_stack || !new_iter) {
+                                lv00_free((void **)&new_stack);
+                                lv00_free((void **)&new_iter);
+                                goto cycle_detect_done;
+                            }
+                            stack = new_stack;
+                            iter = new_iter;
+                        }
                         stack[sp] = nb;
                         iter[sp] = 0;
                         found_next = true;

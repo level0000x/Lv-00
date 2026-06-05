@@ -358,7 +358,13 @@ class EngineBridge:
                 'numeric_value': 0.0,
             }
             for handler in self._event_handlers:
-                handler(event_dict)
+                try:
+                    handler(event_dict)
+                except Exception as e:
+                    import logging
+                    logging.getLogger('lv00.stream_bridge').error(
+                        f"模拟事件处理器错误: {e}"
+                    )
 
 
 
