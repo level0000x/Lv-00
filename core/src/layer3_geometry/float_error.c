@@ -796,8 +796,8 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     tf->first_derivs = (double *) lv00_malloc(var_count * sizeof(double));
     tf->deriv_var_ids = (int *) lv00_malloc(var_count * sizeof(int));
     if (!tf->first_derivs || !tf->deriv_var_ids) {
-        free(tf->first_derivs);
-        free(tf->deriv_var_ids);
+        lv00_free((void **)&tf->first_derivs);
+        lv00_free((void **)&tf->deriv_var_ids);
         return false;
     }
 

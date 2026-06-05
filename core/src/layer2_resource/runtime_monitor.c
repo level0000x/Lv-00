@@ -151,7 +151,9 @@ void lv00_log_shutdown(void) {
 
 void lv00_log_set_level(Lv00LogLevel level) {
     if (level >= LOG_LEVEL_TRACE && level <= LOG_LEVEL_OFF) {
+        MUTEX_LOCK(g_log_system.mutex);
         g_log_system.config.min_level = level;
+        MUTEX_UNLOCK(g_log_system.mutex);
     }
 }
 

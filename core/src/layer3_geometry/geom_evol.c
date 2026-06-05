@@ -756,7 +756,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                 double *delta_sorted = lv00_malloc((size_t) dim * sizeof(double));
                 if (delta_sorted) {
                     for (int i = 0; i < dim; ++i) {
-                        delta_sorted[piv[i]] = delta[piv[i]];
+                        delta_sorted[i] = delta[piv[i]];
                     }
                     for (int i = 0; i < dim; ++i) {
                         delta[i] = delta_sorted[i];

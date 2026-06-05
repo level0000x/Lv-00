@@ -1062,7 +1062,87 @@ class NormalizationResult:
     def __init__(self, ptr: Any) -> None:
         """内部构造函数。"""
         self._ptr = ptr
-    
+
+    @property
+    def merged_count(self) -> int:
+        """被合并的等价节点数量（对应 C 结构体 merged_nodes 字段）。"""
+        if self._ptr is None:
+            return 0
+        try:
+            return int(self._ptr.contents.merged_nodes)
+        except Exception:
+            return 0
+
+    @property
+    def original_ids(self) -> list:
+        """
+        被合并的原始节点 ID 列表。
+
+        C 结构体不直接存储逐对的原始/代表 ID 数组，
+        因此返回空列表。如需合并映射，请使用 normalize_build_mapping()。
+        """
+        return []
+
+    @property
+    def representative_ids(self) -> list:
+        """
+        代表节点 ID 列表。
+
+        C 结构体不直接存储逐对的原始/代表 ID 数组，
+        因此返回空列表。如需合并映射，请使用 normalize_build_mapping()。
+        """
+        return []
+
+    @property
+    def user_confirmed(self) -> bool:
+        """归一化是否经过用户确认（对应 C 结构体 success 字段）。"""
+        if self._ptr is None:
+            return False
+        try:
+            return bool(self._ptr.contents.success)
+        except Exception:
+            return False
+
+    @property
+    def simplified_constraints(self) -> int:
+        """化简的约束数量。"""
+        if self._ptr is None:
+            return 0
+        try:
+            return int(self._ptr.contents.simplified_constraints)
+        except Exception:
+            return 0
+
+    @property
+    def removed_nodes(self) -> int:
+        """移除的冗余节点数量。"""
+        if self._ptr is None:
+            return 0
+        try:
+            return int(self._ptr.contents.removed_nodes)
+        except Exception:
+            return 0
+
+    @property
+    def iterations(self) -> int:
+        """规范化迭代次数。"""
+        if self._ptr is None:
+            return 0
+        try:
+            return int(self._ptr.contents.iterations)
+        except Exception:
+            return 0
+
+    @property
+    def success(self) -> bool:
+        """规范化是否成功。"""
+        if self._ptr is None:
+            return False
+        try:
+            return bool(self._ptr.contents.success)
+        except Exception:
+            return False
+
     def __del__(self) -> None:
         """析构函数：释放 C 分配的内存。"""
         try:

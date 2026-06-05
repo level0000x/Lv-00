@@ -278,7 +278,9 @@ static EquivMergeResult equiv_merge_classes(EquivClassManager *mgr,
     EquivClass *source_ec = &mgr->classes[class_b];
 
     /* 合并成员 */
-    equiv_ensure_class_members(target, target->member_count + source_ec->member_count);
+    if (!equiv_ensure_class_members(target, target->member_count + source_ec->member_count)) {
+        return EQUIV_MERGE_INVALID;
+    }
     for (int i = 0; i < source_ec->member_count; i++) {
         int mid = source_ec->member_ids[i];
         target->member_ids[target->member_count++] = mid;
@@ -289,7 +291,9 @@ static EquivMergeResult equiv_merge_classes(EquivClassManager *mgr,
     }
 
     /* 合并证明 */
-    equiv_ensure_class_proofs(target, target->proof_count + source_ec->proof_count);
+    if (!equiv_ensure_class_proofs(target, target->proof_count + source_ec->proof_count)) {
+        return EQUIV_MERGE_INVALID;
+    }
     for (int i = 0; i < source_ec->proof_count; i++) {
         target->proofs[target->proof_count++] = source_ec->proofs[i];
     }

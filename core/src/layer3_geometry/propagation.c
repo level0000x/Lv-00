@@ -295,7 +295,8 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
 
     for (int i = 0; i < ctx->state_count; i++) {
         state_destroy(&ctx->state_spaces[i]);
-        ctx->state_spaces[i] = *(state_create(i));
+        memset(&ctx->state_spaces[i], 0, sizeof(NodeStateSpace));
+        ctx->state_spaces[i].node_id = i;
     }
 
     for (int i = 0; i < ctx->graph->node_count; i++) {
@@ -604,10 +605,15 @@ int propagation_select_node(PropagationContext *ctx) {
                 if (!ss_start->is_collapsed) continue;
 
                 /* 从 start 节点开始 BFS */
-                int bfs_queue[256];
+                int bfs_cap = ctx->state_count > 256 ? ctx->state_count : 256;
+                int *bfs_queue = (int *)lv00_malloc((size_t)bfs_cap * sizeof(int));
+                bool *visited = (bool *)lv00_calloc((size_t)ctx->state_count, sizeof(bool));
+                if (!bfs_queue || !visited) {
+                    lv00_free((void **)&bfs_queue);
+                    lv00_free((void **)&visited);
+                    continue;
+                }
                 int bfs_head = 0, bfs_tail = 0;
-                bool visited[256];
-                memset(visited, 0, sizeof(bool) * (size_t)ctx->state_count);
 
                 bfs_queue[bfs_tail++] = start;
                 visited[start] = true;
@@ -640,6 +646,8 @@ int propagation_select_node(PropagationContext *ctx) {
                     }
                 }
             }
+            lv00_free((void **)&bfs_queue);
+            lv00_free((void **)&visited);
             /* 若 BFS 未找到（无已坍缩节点作为起点），回退到最小熵 */
             if (!found_bfs) {
                 if (entropy < min_entropy ||
@@ -873,7 +881,8 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     for (int i = 0; i < snap->state_count && i < ctx->state_count; i++) {
         ctx->state_spaces[i] = snap->states[i];
         /* 防止 double-free：将快照中的指针置空 */
-        snap->states[i] = *(state_create(-1)); /* 空壳 */
+        snap->states[i] = ctx->state_spaces[i]; /* 拷贝当前状态 */
+        memset(&ctx->state_spaces[i], 0, sizeof(NodeStateSpace)); /* 置空快照中的指针 */
     }
 
     ctx->propagation_steps = snap->propagation_steps;
