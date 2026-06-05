@@ -208,11 +208,23 @@ class Engine:
         
         # 应用配置
         self._apply_config()
+
+        # 冻结点存储
+        self._frozen_points: Dict[str, Dict[str, Any]] = {}
     
     def _apply_config(self) -> None:
         """应用配置到引擎。"""
         _lib.engine_set_rewrite_step_limit(self._ptr, self._config.rewrite_step_limit)
         _lib.engine_set_streaming_enabled(self._ptr, self._config.streaming_enabled)
+
+    def _snapshot_state(self) -> Dict[str, Any]:
+        """捕获引擎当前状态快照（用于冻结点）。"""
+        return {
+            'rewrite_step_limit': self.get_rewrite_step_limit(),
+            'streaming_enabled': self.is_streaming_enabled(),
+            'last_status': self.get_last_status().value,
+            'last_error': self.get_last_error(),
+        }
     
     def _cleanup(self) -> None:
         """释放引擎资源的内部方法。"""
@@ -582,6 +594,169 @@ class Engine:
             int: 处理结果状态码
         """
         return _lib.engine_handle_circuit_trip_with_action(self._ptr, action.value)
+
+    # ========== 冻结点管理 ==========
+
+    def create_frozen_point(self, point_name: str) -> bool:
+        """
+        创建冻结点快照。
+
+        捕获引擎当前状态并存储为命名冻结点，用于后续回滚。
+
+        Args:
+            point_name: 冻结点名称
+
+        Returns:
+            bool: 创建成功返回 True
+
+        Raises:
+            EngineStateError: 引擎指针无效
+            ValueError: 冻结点名称已存在
+        """
+        if not self._ptr:
+            raise EngineStateError("引擎未初始化，无法创建冻结点")
+        if point_name in self._frozen_points:
+            raise ValueError(f"冻结点 '{point_name}' 已存在，请先销毁或使用其他名称")
+
+        self._frozen_points[point_name] = self._snapshot_state()
+        logger.debug("冻结点 '%s' 已创建", point_name)
+        return True
+
+    def restore_frozen_point(self, point_name: str) -> bool:
+        """
+        恢复到指定冻结点。
+
+        将引擎状态恢复到冻结点创建时的状态。
+
+        Args:
+            point_name: 冻结点名称
+
+        Returns:
+            bool: 恢复成功返回 True
+
+        Raises:
+            EngineStateError: 引擎指针无效
+            KeyError: 冻结点不存在
+        """
+        if not self._ptr:
+            raise EngineStateError("引擎未初始化，无法恢复冻结点")
+        if point_name not in self._frozen_points:
+            raise KeyError(f"冻结点 '{point_name}' 不存在")
+
+        state = self._frozen_points[point_name]
+        self.set_rewrite_step_limit(state['rewrite_step_limit'])
+        self.set_streaming_enabled(state['streaming_enabled'])
+        logger.debug("冻结点 '%s' 已恢复", point_name)
+        return True
+
+    def destroy_frozen_point(self, point_name: str) -> bool:
+        """
+        销毁指定冻结点。
+
+        Args:
+            point_name: 冻结点名称
+
+        Returns:
+            bool: 销毁成功返回 True
+
+        Raises:
+            KeyError: 冻结点不存在
+        """
+        if point_name not in self._frozen_points:
+            raise KeyError(f"冻结点 '{point_name}' 不存在")
+
+        del self._frozen_points[point_name]
+        logger.debug("冻结点 '%s' 已销毁", point_name)
+        return True
+
+    # ========== 健康检查与统计 ==========
+
+    def is_healthy(self) -> bool:
+        """
+        检查引擎是否健康可用。
+
+        通过尝试获取引擎状态来验证底层 C 引擎是否正常工作。
+
+        Returns:
+            bool: 引擎健康返回 True，否则返回 False
+        """
+        try:
+            if not self._ptr:
+                return False
+            # 尝试一个轻量级操作来验证引擎可用性
+            _lib.engine_get_last_status(self._ptr)
+            return True
+        except Exception as e:
+            logger.debug("引擎健康检查失败: %s", e)
+            return False
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        获取引擎统计信息。
+
+        Returns:
+            Dict[str, Any]: 包含引擎基本统计信息的字典
+        """
+        return {
+            'status': self.get_last_status().name,
+            'last_error': self.get_last_error(),
+            'rewrite_step_limit': self.get_rewrite_step_limit(),
+            'streaming_enabled': self.is_streaming_enabled(),
+            'frozen_point_count': len(self._frozen_points),
+            'frozen_point_names': list(self._frozen_points.keys()),
+            'healthy': self.is_healthy(),
+        }
+
+    # ========== 重试求解 ==========
+
+    def solve_with_retry(self, max_retries: int = 3,
+                          backoff_factor: float = 1.0) -> SolveResult:
+        """
+        带重试的求解。
+
+        当求解失败时自动重试，每次重试之间有指数退避间隔。
+
+        Args:
+            max_retries: 最大重试次数
+            backoff_factor: 退避因子（秒）
+
+        Returns:
+            SolveResult: 最终求解结果
+
+        Raises:
+            ValueError: 重试次数无效
+        """
+        if max_retries < 1:
+            raise ValueError("max_retries 必须大于等于 1")
+
+        import time
+        last_result = None
+        for attempt in range(max_retries):
+            result = self.solve()
+            last_result = result
+            if result == SolveResult.OK:
+                return result
+            if attempt < max_retries - 1:
+                wait_time = backoff_factor * (2 ** attempt)
+                logger.debug("求解失败 (尝试 %d/%d)，%.1f 秒后重试",
+                             attempt + 1, max_retries, wait_time)
+                time.sleep(wait_time)
+        return last_result  # type: ignore[return-value]
+
+    def safe_solve(self) -> Optional[SolveResult]:
+        """
+        安全求解（不抛出异常）。
+
+        捕获所有异常并返回 None 表示失败。
+
+        Returns:
+            Optional[SolveResult]: 求解结果，失败返回 None
+        """
+        try:
+            return self.solve()
+        except Exception as e:
+            logger.warning("安全求解失败: %s", e)
+            return None
 
 
 # ============================================================

@@ -211,38 +211,38 @@ int lv00_session_run(Lv00Session *session, const char *input) {
 
                     proof_multi_strategy_destroy(mse);
                 } else {
-                    /* 多策略引擎创建失败，使用模拟结果 */
+                    /* 多策略引擎创建失败 */
                     clock_t t1 = clock();
                     double elapsed = (double)(t1 - t0) / CLOCKS_PER_SEC * 1000.0;
                     if (elapsed < 1.0) elapsed = 10.0;
-                    reasoning_ok = 1; /* 模拟成功 */
+                    reasoning_ok = 0;
                     snprintf(session->stages[LV00_STAGE_REASONING].error_msg,
                              sizeof(session->stages[LV00_STAGE_REASONING].error_msg),
-                             "推理完成(模拟): 多策略引擎不可用，使用默认推理");
+                             "推理失败: 多策略引擎创建失败，无法执行推理");
                     session->stages[LV00_STAGE_REASONING].elapsed_ms = elapsed;
                 }
                 proof_navigator_destroy(nav);
             } else {
-                /* 导航器创建失败，使用模拟结果 */
+                /* 导航器创建失败 */
                 clock_t t1 = clock();
                 double elapsed = (double)(t1 - t0) / CLOCKS_PER_SEC * 1000.0;
                 if (elapsed < 1.0) elapsed = 10.0;
-                reasoning_ok = 1; /* 模拟成功 */
+                reasoning_ok = 0;
                 snprintf(session->stages[LV00_STAGE_REASONING].error_msg,
                          sizeof(session->stages[LV00_STAGE_REASONING].error_msg),
-                         "推理完成(模拟): 导航器不可用，使用默认推理");
+                         "推理失败: 证明导航器创建失败，无法执行推理");
                 session->stages[LV00_STAGE_REASONING].elapsed_ms = elapsed;
             }
             proposition_destroy(target);
         } else {
-            /* 命题创建失败，使用纯模拟 */
+            /* 命题创建失败 */
             clock_t t1 = clock();
             double elapsed = (double)(t1 - t0) / CLOCKS_PER_SEC * 1000.0;
             if (elapsed < 1.0) elapsed = 10.0;
-            reasoning_ok = 1; /* 模拟成功 */
+            reasoning_ok = 0;
             snprintf(session->stages[LV00_STAGE_REASONING].error_msg,
                      sizeof(session->stages[LV00_STAGE_REASONING].error_msg),
-                     "推理完成(模拟): 命题创建不可用，使用默认推理");
+                     "推理失败: 证明命题创建失败，无法执行推理");
             session->stages[LV00_STAGE_REASONING].elapsed_ms = elapsed;
         }
 
