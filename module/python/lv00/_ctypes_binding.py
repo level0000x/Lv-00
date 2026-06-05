@@ -144,19 +144,24 @@ class _SymbolicCoord(ctypes.Structure):
     支持有理数、代数数、二次根式和超越数四种表示形式。
     通过 _lib.symbolic_coord_* 系列函数进行操作。
 
-    C 层预期布局：
-        int type;          // 坐标类型枚举 (RATIONAL=0, ALGEBRAIC=1, QUADRATIC=2, TRANSCENDENTAL=3)
-        int64_t num;        // 分子（有理数）/ 系数 a（二次根式 a+b*sqrt(n)）
-        uint64_t den;       // 分母（有理数）/ 系数 b（二次根式）
-        int64_t aux;        // 辅助参数：sqrt(n) 中的 n（二次根式）/ 超越数类型标记
-        char *symbol;       // 符号名称（超越数如 "pi", "e"）
+    C 层预期布局（symbolic_coord.h）：
+        CoordType type;      // 坐标类型枚举 (RATIONAL=0, ALGEBRAIC=1, QUADRATIC=2, TRANSCENDENTAL=3)
+        union {
+            Rational *rational;
+            Algebraic *algebraic;
+            Quadratic *quadratic;
+            Transcendental *transcendental;
+        } data;               // union 以指针形式存储，ctypes 用 c_void_p 表示
+        TrustColor trust;     // 信任颜色枚举
+        double cached_value;   // 几何节点数值缓存
+        bool cache_valid;      // 缓存是否有效
     """
     _fields_ = [
         ("type", c_int),
-        ("num", c_int64),
-        ("den", c_uint64),
-        ("aux", c_int64),
-        ("symbol", c_char_p),
+        ("data", c_void_p),
+        ("trust", c_int),
+        ("cached_value", c_double),
+        ("cache_valid", c_bool),
     ]
 
 class _ConstraintGraph(ctypes.Structure):
@@ -191,19 +196,23 @@ class _NormalizationResult(ctypes.Structure):
     如合并的等价节点数量、化简的约束数量等。
     通过 _lib.normalization_result_destroy() 释放。
 
-    C 层预期布局：
-        int merged_nodes;       // 合并的等价节点数量
-        int simplified_constraints;  // 化简的约束数量
-        int removed_nodes;      // 移除的冗余节点数量
-        int iterations;         // 规范化迭代次数
-        int success;            // 是否成功 (0=失败, 1=成功)
+    C 层预期布局（normalization.h）：
+        int *merged_node_ids;         // 合并的节点 ID 数组
+        int merged_count;             // 合并的节点数量
+        int merged_capacity;          // 预分配的合并记录数组容量
+        int *original_ids;            // 原始 ID 数组
+        int *representative_ids;      // 代表 ID 数组
+        bool user_confirmed;          // 用户是否确认
+        NormalizationLog *log;        // 详细合并日志（结果拥有所有权）
     """
     _fields_ = [
-        ("merged_nodes", c_int),
-        ("simplified_constraints", c_int),
-        ("removed_nodes", c_int),
-        ("iterations", c_int),
-        ("success", c_int),
+        ("merged_node_ids", c_void_p),
+        ("merged_count", c_int),
+        ("merged_capacity", c_int),
+        ("original_ids", c_void_p),
+        ("representative_ids", c_void_p),
+        ("user_confirmed", c_bool),
+        ("log", c_void_p),
     ]
 
 class _GeomNode(ctypes.Structure):
