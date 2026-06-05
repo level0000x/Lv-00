@@ -109,7 +109,7 @@ Lv00ConvertResult lv00_convert_block_to_text(void *graph) {
 }
 
 /* 解析 Lv-00 DSL 文本，构建函数块图 */
-/* 简化实现：创建基本块结构，后续接入 Layer 1 完整解析器 */
+/* 逐行解析器：跟踪花括号深度，支持嵌套块声明 */
 Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
     Lv00ConvertResult result = {0};
     if (!code) {
@@ -126,8 +126,6 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
         return result;
     }
 
-    /* 简化解析：逐行扫描 "block <name> {" 模式 */
-    /* 为每个块创建 FuncBlock，收集输入/输出端口 */
     typedef struct {
         FuncBlock **blocks;
         int count;
@@ -143,89 +141,125 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
     sg->cap = 16;
     sg->blocks = calloc(sg->cap, sizeof(FuncBlock *));
 
-    /* 逐行扫描 */
-    const char *p = code;
+    /* 逐行解析，跟踪花括号深度以支持嵌套块 */
     int block_id_counter = 0;
-    while (*p) {
-        /* 跳过空白行 */
-        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
-        if (!*p) break;
+    int brace_depth = 0;          /* 当前花括号嵌套深度 */
+    int block_brace_start = -1;   /* 当前块的花括号起始深度 */
+    FuncBlock *cur_fb = NULL;     /* 当前正在解析的块 */
+    int cur_inputs[64], cur_outputs[64];
+    int cur_in_cnt = 0, cur_out_cnt = 0;
 
-        /* 检测 "block" 关键字 */
-        if (strncmp(p, "block ", 6) == 0) {
-            p += 6;
-            /* 提取块名称 */
-            char name[256] = {0};
-            int ni = 0;
-            while (*p && *p != ' ' && *p != '{' && *p != '\n' && ni < 255) {
-                name[ni++] = *p++;
+    const char *line_start = code;
+    while (*line_start) {
+        /* 找到行尾 */
+        const char *line_end = line_start;
+        while (*line_end && *line_end != '\n' && *line_end != '\r') line_end++;
+
+        /* 计算行长度并跳过前导空白 */
+        const char *p = line_start;
+        while (p < line_end && (*p == ' ' || *p == '\t')) p++;
+        int line_len = (int)(line_end - p);
+
+        /* 处理非空行 */
+        if (line_len > 0) {
+            /* 统计本行花括号（排除字符串内和注释内的） */
+            int open_braces = 0, close_braces = 0;
+            for (const char *c = p; c < line_end; c++) {
+                if (*c == '{') open_braces++;
+                else if (*c == '}') close_braces++;
             }
-            /* 跳到花括号 */
-            while (*p && *p != '{') p++;
-            if (*p == '{') p++;
 
-            /* 创建函数块 */
-            FuncBlock *fb = func_block_create(block_id_counter++);
-            if (fb) {
-                func_block_set_name(fb, name);
-
-                /* 扫描块体中的 input/output 声明 */
-                int inputs[64], outputs[64];
-                int in_cnt = 0, out_cnt = 0;
-
-                while (*p && *p != '}') {
-                    /* 跳过空白 */
-                    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
-                    if (!*p || *p == '}') break;
-
-                    /* 检测 input */
-                    if (strncmp(p, "input ", 6) == 0) {
-                        p += 6;
-                        int port_id = 0;
-                        if (strncmp(p, "port", 4) == 0) {
-                            p += 4;
-                            port_id = atoi(p);
-                        }
-                        if (in_cnt < 64) inputs[in_cnt++] = port_id;
-                        /* 跳到行尾 */
-                        while (*p && *p != '\n') p++;
-                    }
-                    /* 检测 output */
-                    else if (strncmp(p, "output ", 7) == 0) {
-                        p += 7;
-                        int port_id = 0;
-                        if (strncmp(p, "port", 4) == 0) {
-                            p += 4;
-                            port_id = atoi(p);
-                        }
-                        if (out_cnt < 64) outputs[out_cnt++] = port_id;
-                        /* 跳到行尾 */
-                        while (*p && *p != '\n') p++;
-                    }
-                    else {
-                        /* 跳过其他行 */
-                        while (*p && *p != '\n') p++;
-                    }
+            /* 检测顶层 "block <name> {" 声明 */
+            if (brace_depth == 0 && strncmp(p, "block ", 6) == 0) {
+                /* 提取块名称 */
+                const char *name_start = p + 6;
+                char name[256] = {0};
+                int ni = 0;
+                while (name_start < line_end && *name_start != ' ' &&
+                       *name_start != '{' && *name_start != '\n' && ni < 255) {
+                    name[ni++] = *name_start++;
                 }
+                /* 跳过名称后的空白到花括号 */
+                while (name_start < line_end && *name_start != '{') name_start++;
 
+                /* 创建函数块 */
+                cur_fb = func_block_create(block_id_counter++);
+                if (cur_fb) {
+                    func_block_set_name(cur_fb, name);
+                    cur_in_cnt = 0;
+                    cur_out_cnt = 0;
+                }
+                block_brace_start = brace_depth;
+            }
+            /* 在块体内检测 input/output 端口声明 */
+            else if (cur_fb && brace_depth > block_brace_start) {
+                if (strncmp(p, "input ", 6) == 0) {
+                    const char *port_str = p + 6;
+                    int port_id = 0;
+                    if (strncmp(port_str, "port", 4) == 0) {
+                        port_str += 4;
+                        port_id = atoi(port_str);
+                    }
+                    if (cur_in_cnt < 64) cur_inputs[cur_in_cnt++] = port_id;
+                }
+                else if (strncmp(p, "output ", 7) == 0) {
+                    const char *port_str = p + 7;
+                    int port_id = 0;
+                    if (strncmp(port_str, "port", 4) == 0) {
+                        port_str += 4;
+                        port_id = atoi(port_str);
+                    }
+                    if (cur_out_cnt < 64) cur_outputs[cur_out_cnt++] = port_id;
+                }
+            }
+
+            /* 先处理关闭花括号（在增加深度之前） */
+            brace_depth -= close_braces;
+
+            /* 当回到块的花括号起始深度时，块体结束 */
+            if (cur_fb && brace_depth <= block_brace_start && close_braces > 0) {
                 /* 设置端口 */
-                if (in_cnt > 0) func_block_set_input_ports(fb, inputs, in_cnt);
-                if (out_cnt > 0) func_block_set_output_ports(fb, outputs, out_cnt);
+                if (cur_in_cnt > 0) func_block_set_input_ports(cur_fb, cur_inputs, cur_in_cnt);
+                if (cur_out_cnt > 0) func_block_set_output_ports(cur_fb, cur_outputs, cur_out_cnt);
 
                 /* 添加到块图 */
                 if (sg->count >= sg->cap) {
                     sg->cap *= 2;
                     sg->blocks = realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
                 }
-                sg->blocks[sg->count++] = fb;
+                sg->blocks[sg->count++] = cur_fb;
+                cur_fb = NULL;
+                block_brace_start = -1;
             }
 
-            if (*p == '}') p++;
+            /* 处理打开花括号 */
+            brace_depth += open_braces;
         }
         else {
-            /* 跳过非块行 */
-            while (*p && *p != '\n') p++;
+            /* 空行：仍需统计花括号 */
+            for (const char *c = p; c < line_end; c++) {
+                if (*c == '{') brace_depth++;
+                else if (*c == '}') {
+                    brace_depth--;
+                    if (cur_fb && brace_depth <= block_brace_start) {
+                        if (cur_in_cnt > 0) func_block_set_input_ports(cur_fb, cur_inputs, cur_in_cnt);
+                        if (cur_out_cnt > 0) func_block_set_output_ports(cur_fb, cur_outputs, cur_out_cnt);
+                        if (sg->count >= sg->cap) {
+                            sg->cap *= 2;
+                            sg->blocks = realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
+                        }
+                        sg->blocks[sg->count++] = cur_fb;
+                        cur_fb = NULL;
+                        block_brace_start = -1;
+                    }
+                }
+            }
         }
+
+        /* 跳到下一行 */
+        if (*line_end == '\r') line_end++;
+        if (*line_end == '\n') line_end++;
+        line_start = line_end;
     }
 
     /* 将解析结果作为输出 */

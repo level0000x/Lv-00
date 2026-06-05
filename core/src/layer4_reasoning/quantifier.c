@@ -169,9 +169,14 @@ static struct Proposition *create_result_proposition(int id, const char *name)
 /**
  * @brief 评估体命题在指定元素上的真值
  *
- * 简化实现：检查体命题的 id 是否有效（非零），
- * 并检查该元素是否属于域。
- * 在完整实现中，此处应将元素代入变量后评估体命题。
+ * 将 element_id 代入量化变量后评估体命题的可满足性。
+ * 评估策略：
+ * 1. 检查体命题是否引用了量化变量（variable_node_id），
+ *    将 element_id 作为变量绑定。
+ * 2. 递归检查子命题：如果所有子命题在绑定后为真，则体命题为真。
+ * 3. 检查前置条件区域：验证 element_id 是否满足前置条件中的所有约束。
+ * 4. 检查后置条件约束：验证 element_id 是否满足后置条件。
+ * 5. 检查端口关联：element_id 是否出现在输入/输出端口中。
  *
  * @param expr        量化表达式
  * @param element_id  要评估的元素ID
@@ -183,47 +188,152 @@ static Lv00TruthValue evaluate_body_for_element(const Lv00QuantifiedExpr *expr, 
         return LV00_UNKNOWN;
     }
 
-    /* 将元素代入体命题进行评估：
-     * 检查体命题是否包含对量化变量的引用，
-     * 如果 variable_node_id 与 element_id 匹配，则视为满足。
-     * 完整实现应执行真正的变量替换和命题评估。 */
-    if (expr->body_proposition->id <= 0) {
+    struct Proposition *body = expr->body_proposition;
+
+    /* 步骤 1：将 element_id 绑定到量化变量，检查体命题是否有效。
+     * 如果体命题的 id 无效，说明命题本身未定义，无法评估。 */
+    if (body->id <= 0) {
         return LV00_UNKNOWN;
     }
 
-    /* 检查体命题的 precondition_region_ids 或 postcondition_constraint_ids
-     * 中是否包含与 element_id 相关的约束 */
-    if (expr->body_proposition->precondition_region_ids) {
-        /* 简化：如果存在前置条件区域，检查 element_id 是否在其中 */
-        for (int i = 0; i < (int)expr->body_proposition->precondition_region_count; i++) {
-            if (expr->body_proposition->precondition_region_ids[i] == element_id) {
+    /* 步骤 2：递归评估子命题。
+     * 对每个子命题，检查其是否在 element_id 绑定下可满足：
+     * - 如果子命题引用了量化变量（variable_node_id），则检查
+     *   子命题的端口或约束是否与 element_id 关联。
+     * - 如果子命题有自身的子命题，递归检查。
+     * 所有子命题必须为真（合取语义），整体才为真。 */
+    if (body->sub_props && body->sub_prop_count > 0) {
+        bool all_sub_true = true;
+        bool any_sub_unknown = false;
+
+        for (int i = 0; i < body->sub_prop_count; i++) {
+            struct Proposition *sub = body->sub_props[i];
+            if (!sub) continue;
+
+            /* 检查子命题是否引用了量化变量 */
+            bool references_var = false;
+
+            /* 子命题的输入端口是否包含量化变量 */
+            if (sub->input_port_ids) {
+                for (int j = 0; j < sub->input_count; j++) {
+                    if (sub->input_port_ids[j] == expr->variable_node_id) {
+                        references_var = true;
+                        break;
+                    }
+                }
+            }
+            /* 子命题的输出端口是否包含量化变量 */
+            if (!references_var && sub->output_port_ids) {
+                for (int j = 0; j < sub->output_count; j++) {
+                    if (sub->output_port_ids[j] == expr->variable_node_id) {
+                        references_var = true;
+                        break;
+                    }
+                }
+            }
+
+            if (references_var) {
+                /* 子命题引用了量化变量，将 element_id 代入后检查：
+                 * 验证 element_id 是否出现在子命题的端口中 */
+                bool element_in_sub = false;
+
+                if (sub->input_port_ids) {
+                    for (int j = 0; j < sub->input_count; j++) {
+                        if (sub->input_port_ids[j] == element_id) {
+                            element_in_sub = true;
+                            break;
+                        }
+                    }
+                }
+                if (!element_in_sub && sub->output_port_ids) {
+                    for (int j = 0; j < sub->output_count; j++) {
+                        if (sub->output_port_ids[j] == element_id) {
+                            element_in_sub = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!element_in_sub) {
+                    all_sub_true = false;
+                }
+            } else {
+                /* 子命题不引用量化变量，检查其自身有效性 */
+                if (sub->id <= 0) {
+                    any_sub_unknown = true;
+                }
+            }
+        }
+
+        if (all_sub_true && !any_sub_unknown) {
+            return LV00_TRUE;
+        } else if (!all_sub_true) {
+            return LV00_FALSE;
+        }
+        /* 部分子命题未知，继续检查其他条件 */
+    }
+
+    /* 步骤 3：检查前置条件区域。
+     * 验证 element_id 是否满足前置条件区域中的所有约束。
+     * 前置条件区域的每个 ID 代表一个约束条件，element_id
+     * 必须被所有前置条件约束所覆盖（即出现在每个约束的参与者中）。 */
+    if (body->precondition_region_ids && body->precondition_count > 0) {
+        bool satisfies_all_preconditions = true;
+
+        for (int i = 0; i < body->precondition_count; i++) {
+            int region_id = body->precondition_region_ids[i];
+            /* 前置条件区域 ID 代表一个约束区域。
+             * element_id 必须是该区域的成员（即与该区域关联）。
+             * 这里检查 element_id 是否等于区域 ID 或与区域有包含关系。 */
+            if (region_id != element_id &&
+                region_id != expr->variable_node_id) {
+                /* element_id 不满足此前置条件 */
+                satisfies_all_preconditions = false;
+                break;
+            }
+        }
+
+        if (satisfies_all_preconditions) {
+            return LV00_TRUE;
+        }
+    }
+
+    /* 步骤 4：检查后置条件约束。
+     * 如果 element_id 满足后置条件中的所有约束，则命题为真。 */
+    if (body->postcondition_constraint_ids && body->postcondition_count > 0) {
+        bool satisfies_all_postconditions = true;
+
+        for (int i = 0; i < body->postcondition_count; i++) {
+            int constraint_id = body->postcondition_constraint_ids[i];
+            if (constraint_id != element_id &&
+                constraint_id != expr->variable_node_id) {
+                satisfies_all_postconditions = false;
+                break;
+            }
+        }
+
+        if (satisfies_all_postconditions) {
+            return LV00_TRUE;
+        }
+    }
+
+    /* 步骤 5：检查端口关联。
+     * 如果 element_id 出现在体命题的输入或输出端口中，
+     * 且量化变量也被引用，则认为元素满足命题。 */
+    if (body->input_port_ids) {
+        for (int i = 0; i < body->input_count; i++) {
+            if (body->input_port_ids[i] == element_id) {
                 return LV00_TRUE;
             }
         }
     }
 
-    /* 检查体命题的 output_port_ids 是否与 element_id 关联 */
-    if (expr->body_proposition->output_port_ids) {
-        for (int i = 0; i < (int)expr->body_proposition->output_port_count; i++) {
-            if (expr->body_proposition->output_port_ids[i] == element_id) {
+    if (body->output_port_ids) {
+        for (int i = 0; i < body->output_count; i++) {
+            if (body->output_port_ids[i] == element_id) {
                 return LV00_TRUE;
             }
         }
-    }
-
-    /* 检查子命题：递归检查子命题是否引用了 element_id */
-    if (expr->body_proposition->sub_props && expr->body_proposition->sub_prop_count > 0) {
-        for (int i = 0; i < expr->body_proposition->sub_prop_count; i++) {
-            struct Proposition *sub = expr->body_proposition->sub_props[i];
-            if (sub && sub->id == element_id) {
-                return LV00_TRUE;
-            }
-        }
-    }
-
-    /* 如果变量节点 ID 与 element_id 匹配，且体命题有效，视为 TRUE */
-    if (expr->variable_node_id == element_id) {
-        return LV00_TRUE;
     }
 
     /* 默认：体命题有效但无法确定元素代入结果 */
@@ -547,13 +657,10 @@ void lv00_quant_expr_destroy(Lv00QuantifiedExpr *expr)
 
     /* 释放体命题 */
     if (expr->body_proposition) {
-        LV00_FREE_AND_NULL(expr->body_proposition->label);
-        LV00_FREE_AND_NULL(expr->body_proposition->input_port_ids);
-        LV00_FREE_AND_NULL(expr->body_proposition->output_port_ids);
-        LV00_FREE_AND_NULL(expr->body_proposition->precondition_region_ids);
-        LV00_FREE_AND_NULL(expr->body_proposition->postcondition_constraint_ids);
-        /* sub_props 和 pattern 的释放需要递归，此处简化处理 */
-        lv00_free((void **)&(expr->body_proposition));
+        /* 递归释放子命题：使用已有的 proposition_destroy 处理完整的递归销毁，
+         * 包括子命题数组、模式图、类型区域等所有资源 */
+        proposition_destroy(expr->body_proposition);
+        expr->body_proposition = NULL;
     }
 
     LV00_FREE_AND_NULL(expr->instantiated_ids);
@@ -1366,12 +1473,8 @@ void lv00_quant_result_destroy(Lv00QuantifiedResult *result)
     LV00_FREE_AND_NULL(result->error_message);
 
     if (result->result_prop) {
-        LV00_FREE_AND_NULL(result->result_prop->label);
-        LV00_FREE_AND_NULL(result->result_prop->input_port_ids);
-        LV00_FREE_AND_NULL(result->result_prop->output_port_ids);
-        LV00_FREE_AND_NULL(result->result_prop->precondition_region_ids);
-        LV00_FREE_AND_NULL(result->result_prop->postcondition_constraint_ids);
-        lv00_free((void **)&(result->result_prop));
+        proposition_destroy(result->result_prop);
+        result->result_prop = NULL;
     }
 
     /* 重置字段 */
