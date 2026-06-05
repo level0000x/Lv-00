@@ -1030,11 +1030,15 @@ class GeomNode:
     @property
     def id(self) -> int:
         """节点 ID（在图中的唯一标识符）。"""
+        if self._ptr is None:
+            return -1
         return self._ptr.contents.id
     
     @property
     def type(self) -> int:
         """节点几何类型编码。"""
+        if self._ptr is None:
+            return -1
         return self._ptr.contents.type
     
     @property

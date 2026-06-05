@@ -114,9 +114,10 @@ try:
     _lib = ctypes.CDLL(_lib_path)
 except OSError as e:
     # 加载失败时提供更详细的帮助信息
+    _safe_lib_path = _lib_path if '_lib_path' in dir() else '<未知>'
     raise ImportError(
         f"加载 Lv-00 动态链接库失败。\n"
-        f"库路径: {_lib_path}\n"
+        f"库路径: {_safe_lib_path}\n"
         f"系统错误: {e}\n"
         f"可能原因：\n"
         f"  1. 库文件已损坏或与当前 Python 版本不兼容\n"

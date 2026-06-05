@@ -5472,8 +5472,18 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
         mpz_poly_t *p = &sys->eqs[i].poly;
         for (int d = 0; d <= p->degree; d++) {
             int *exponents = lv00_malloc((size_t) vcount * sizeof(int));
-            if (exponents)
-                memset(exponents, 0, (size_t) vcount * sizeof(int));
+            if (!exponents) {
+                /* 内存分配失败，清理已分配的多项式 */
+                for (int k = 0; k < i; k++) {
+                    mv_poly_destroy(&polys[k]);
+                }
+                for (int k = i; k < eq_count; k++) {
+                    memset(&polys[k], 0, sizeof(mv_poly_t));
+                }
+                lv00_free((void **)&polys);
+                return NULL;
+            }
+            memset(exponents, 0, (size_t) vcount * sizeof(int));
             exponents[var_idx] = d;
             mv_poly_add_term(&polys[i], p->coeffs[d], exponents);
             lv00_free((void **) &exponents);

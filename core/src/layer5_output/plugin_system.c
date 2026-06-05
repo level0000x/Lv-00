@@ -1173,13 +1173,16 @@ char* lv00_plugin_get_info_json(const Lv00Plugin* plugin) {
 
 char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
     if (!system) return NULL;
-    
+
+    /* 防止整数溢出 */
+    if (system->plugin_count > SIZE_MAX / 512 - 2048) return NULL;
     size_t size = 2048 + system->plugin_count * 512;
     char* json = (char*)malloc(size);
     if (!json) return NULL;
-    
+
     char* ptr = json;
-    ptr += sprintf(ptr, "{"
+    int remaining = (int)size;
+    int written = snprintf(ptr, (size_t)remaining, "{"
         "\"version\":%u,"
         "\"plugin_count\":%zu,"
         "\"interface_count\":%zu,"
@@ -1188,9 +1191,11 @@ char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
         system->plugin_count,
         system->interface_count
     );
-    
+    if (written > 0) { ptr += written; remaining -= written; }
+
     for (size_t i = 0; i < system->plugin_count; i++) {
-        ptr += sprintf(ptr, "{"
+        if (remaining <= 0) break;
+        written = snprintf(ptr, (size_t)remaining, "{"
             "\"name\":\"%s\","
             "\"version\":\"%s\","
             "\"state\":%d"
@@ -1200,9 +1205,12 @@ char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
             system->plugins[i]->state,
             (i < system->plugin_count - 1) ? "," : ""
         );
+        if (written > 0) { ptr += written; remaining -= written; }
     }
-    
-    ptr += sprintf(ptr, "]}");
+
+    if (remaining > 0) {
+        snprintf(ptr, (size_t)remaining, "]}");
+    }
     
     return json;
 }
