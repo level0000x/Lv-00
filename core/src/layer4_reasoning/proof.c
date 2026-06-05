@@ -3065,7 +3065,7 @@ bool proposition_contradicts(const Proposition *a, const Proposition *b) {
         /* 两个蕴含命题，检查是否一个的前件等于另一个的后件且结论相反 */
         if (a->precondition_count == b->postcondition_count &&
             a->postcondition_count == b->precondition_count) {
-            /* 简化：检查前提/后件 ID 集合的交集 */
+            /* 检查前提/后件 ID 集合的交集 */
             bool pre_post_overlap = false;
             for (int ap = 0; ap < a->precondition_count && !pre_post_overlap; ap++) {
                 for (int bp = 0; bp < b->postcondition_count; bp++) {
@@ -3650,7 +3650,7 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
                     continue;
 
                 /* 检查构造图的特征是否匹配此已知问题 */
-                /* 简化匹配：检查图大小和节点类型分布 */
+                /* 启发式匹配：根据已知不可构造问题的特征检查约束图 */
                 bool pattern_match = false;
 
                 /* 经典不可构造问题的启发式匹配 */

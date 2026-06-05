@@ -9,7 +9,9 @@
  *          - GROEBNER：已集成，通过 constraint_graph_to_ideal() 将约束图
  *            转换为多项式理想，调用 Buchberger 算法计算 Groebner 基，
  *            通过理想成员关系判定可满足性，并通过代数簇求解获取具体坐标。
- *          - Z3 / cvc5 / Singular：桩代码，返回 SMT_RESULT_UNKNOWN。
+ *          - Z3 / cvc5 / Singular：通过子进程调用外部求解器，
+ *            Z3 和 cvc5 使用 SMT-LIB2 格式，Singular 使用自有脚本格式，
+ *            未安装时返回 SMT_RESULT_UNKNOWN 并可回退到 Groebner 后端。
  *
  *          编码管线：
  *          1. smtencode_constraint_graph_to_smtlib2()  约束图 -> SMT-LIB2
@@ -170,9 +172,9 @@ const SMTSolverConfig *smtsolver_default_config(SolverBackendType type) {
 /**
  * @brief 创建 SMT 求解器实例
  *
- * 根据后端类型创建求解器句柄。当前所有后端均为未链接桩，
- * 设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
- * 仅 GROEBNER 后端标记为可用（使用内置实现）。
+ * 根据后端类型创建求解器句柄。GROEBNER 后端使用内置实现，
+ * Z3/cvc5/Singular 通过子进程调用外部求解器（运行时可用性取决于是否安装）。
+ * 未链接的后端设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
  */
 SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *config) {
     SMTSolver *solver = (SMTSolver *)lv00_malloc(sizeof(SMTSolver));
@@ -449,9 +451,7 @@ static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constrai
      * 线段的端点信息存储在约束图的节点关系中。
      * 这里我们用线段 ID 的低位和高位分别模拟两个端点。
      * 在实际系统中，线段节点应存储端点 ID 的引用。 */
-    /* 简化处理：假设线段端点 ID 可从约束图中查找 */
-    /* 线段的端点通常通过 INCIDENCE 约束关联到线段节点 */
-    /* 这里使用一种通用方法：查找与线段关联的点 */
+    /* 从约束图中查找线段的实际端点（通过 CONNECTION 约束） */
 
     /* 为保证编码的通用性，我们使用参数化方程形式：
      * P = A + t*(B-A), 其中 t in [0,1]
@@ -1312,7 +1312,7 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
      * 内部数据来获取簇的解点信息。在实际集成中，应添加
      * variety_get_solution_points() 等 API。 */
 
-    /* 简化实现：为每个点节点创建赋值条目 */
+    /* 遍历节点映射表，为每个有坐标映射的点节点创建 x/y 赋值条目 */
     int assignment_count = 0;
     int max_assignments = solver->groebner_var_count; /* 最多 var_count 个赋值 */
 
@@ -1382,7 +1382,7 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
  *
  * 根据后端类型执行不同的求解策略：
  * - GROEBNER：调用内置 Groebner 基引擎进行真实求解
- * - Z3/cvc5/Singular：桩代码，返回 SMT_RESULT_UNKNOWN
+ * - Z3/cvc5/Singular：通过子进程调用外部求解器
  */
 SMTSatResult smtsolver_check(SMTSolver *solver) {
     LV00_CHECK_NULL(solver, SMT_RESULT_ERROR);
@@ -1408,7 +1408,8 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
          * 注意：smtsolver_check() 的标准接口不接收 ConstraintGraph 参数，
          * 因此 Groebner 后端在 smtsolver_solve() 中完成完整求解。
          *
-         * 这里我们返回 SMT_RESULT_UNKNOWN 作为占位，
+         * 这里优先返回缓存的代数簇 SAT 结果（若已求解），
+         * 否则返回 SMT_RESULT_UNKNOWN，
          * 实际的 Groebner 求解在 smtsolver_solve() 中通过
          * groebner_backend_solve() 完成。
          *

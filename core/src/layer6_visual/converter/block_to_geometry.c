@@ -151,7 +151,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
                 PortDependency *dep = &fb->port_deps[j];
 
                 /* 查找源块的输出端口点 */
-                /* 简化实现：使用端口偏移量查找 */
+                /* 通过块 ID 匹配查找源块 */
                 int src_block_idx = -1;
                 for (int k = 0; k < bg->count; k++) {
                     if (bg->blocks[k] && func_block_get_id(bg->blocks[k]) == dep->external_node_id) {
@@ -241,7 +241,7 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
         }
 
         /* 统计该矩形左右边缘上的端口点 */
-        /* 简化实现：基于矩形包围盒判定端口归属 */
+        /* 基于矩形包围盒判定端口归属（左边缘为输入，右边缘为输出） */
         double rx_min = rect->base.bounding_box.x_min;
         double rx_max = rect->base.bounding_box.x_max;
 

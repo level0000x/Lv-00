@@ -67,8 +67,7 @@ Lv00ExecResult lv00_block_scheduler_run(Lv00BlockScheduler *sched) {
     }
 
     /* 构建邻接表：根据输出端口和输入端口的连接关系确定依赖 */
-    /* 简化实现：假设块按数组顺序排列，上游块的输出连接到下游块的输入 */
-    /* 实际依赖关系通过端口ID匹配确定 */
+    /* 通过端口 ID 匹配确定块间依赖 */
     for (int i = 0; i < n; i++) {
         FuncBlock *fb = bg->blocks[i];
         if (!fb) continue;

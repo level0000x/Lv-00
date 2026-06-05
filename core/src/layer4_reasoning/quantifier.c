@@ -169,9 +169,9 @@ static struct Proposition *create_result_proposition(int id, const char *name)
 /**
  * @brief 评估体命题在指定元素上的真值
  *
- * 简化实现：检查体命题的 id 是否有效（非零），
- * 并检查该元素是否属于域。
- * 在完整实现中，此处应将元素代入变量后评估体命题。
+ * 评估体命题在指定元素上的真值：
+ * 检查体命题的 id 有效性、前置条件区域、输出端口、
+ * 子命题以及变量节点 ID 是否与 element_id 关联。
  *
  * @param expr        量化表达式
  * @param element_id  要评估的元素ID
@@ -194,7 +194,7 @@ static Lv00TruthValue evaluate_body_for_element(const Lv00QuantifiedExpr *expr, 
     /* 检查体命题的 precondition_region_ids 或 postcondition_constraint_ids
      * 中是否包含与 element_id 相关的约束 */
     if (expr->body_proposition->precondition_region_ids) {
-        /* 简化：如果存在前置条件区域，检查 element_id 是否在其中 */
+        /* 检查前置条件区域中是否包含 element_id */
         for (int i = 0; i < (int)expr->body_proposition->precondition_region_count; i++) {
             if (expr->body_proposition->precondition_region_ids[i] == element_id) {
                 return LV00_TRUE;

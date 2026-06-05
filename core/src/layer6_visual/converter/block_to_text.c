@@ -109,7 +109,7 @@ Lv00ConvertResult lv00_convert_block_to_text(void *graph) {
 }
 
 /* 解析 Lv-00 DSL 文本，构建函数块图 */
-/* 简化实现：创建基本块结构，后续接入 Layer 1 完整解析器 */
+/* 逐行扫描 "block <name> {" 模式，为每个块创建 FuncBlock 并收集端口 */
 Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
     Lv00ConvertResult result = {0};
     if (!code) {
@@ -126,7 +126,7 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
         return result;
     }
 
-    /* 简化解析：逐行扫描 "block <name> {" 模式 */
+    /* 逐行扫描 "block <name> {" 模式 */
     /* 为每个块创建 FuncBlock，收集输入/输出端口 */
     typedef struct {
         FuncBlock **blocks;
