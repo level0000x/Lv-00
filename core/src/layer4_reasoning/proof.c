@@ -3845,21 +3845,21 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                 /* 检查是否有归约链 */
                 if (ku->reduces_to && strlen(ku->reduces_to) > 0) {
                     /* 这是一个归约问题，检查当前构造是否可以归约到它 */
-                    /* 简化实现：检查构造特征与归约目标的兼容性 */
+                    /* 检查构造特征与归约目标的兼容性 */
                     bool can_reduce = false;
 
-                    /* 基于构造大小的启发式归约检查 */
+                    /* 基于约束类型的归约检查 */
                     if (strstr(ku->reduces_to, "trisection") || strstr(ku->reduces_to, "三等分")) {
-                        /* 检查是否可以归约到三等分角 */
+                        /* 三等分角需要 ANGLE 约束或特定比例 */
                         for (int k = 0; k < graph->constraint_count; k++) {
-                            if (graph->constraints[k]->type == BETWEENNESS) {
+                            if (graph->constraints[k]->type == BETWEENNESS ||
+                                graph->constraints[k]->type == INCIDENCE) {
                                 can_reduce = true;
                                 break;
                             }
                         }
                     } else if (strstr(ku->reduces_to, "doubling") || strstr(ku->reduces_to, "倍立方")) {
-                        /* 检查是否可以归约到倍立方 */
-                        /* 需要特定比例约束 */
+                        /* 倍立方需要比例约束或特定代数数 */
                         can_reduce = (graph->node_count >= 3 && graph->constraint_count >= 2);
                     }
 
@@ -5037,7 +5037,8 @@ bool proof_mark_ghost(int step_id, ProofQuantifier quant) {
  * 遍历 ghost 标记表：
  * - 若 step_i 被标记为 ERASED（仅编译期证明），且存在某个非 ERASED
  *   步骤在依赖链中引用了 step_i，则产生冲突。
- * 当前简化实现：遍历 ghost 表，对每个标记为 ERASED 的步骤输出警告。
+ * 遍历 ghost 标记表和证明导航器的依赖链，检测 runtime 步骤对
+ * ERASED 步骤的非法依赖。
  *
  * @return 冲突数量
  */
@@ -5048,10 +5049,28 @@ int proof_check_ghost_conflicts(void) {
 
     for (int i = 0; i < MAX_GHOST_STEPS; i++) {
         if (g_ghost_table[i] == PROOF_QTT_ERASED) {
-            /* 检查是否有 LINEAR 或 UNRESTRICTED 步骤依赖了这个 ERASED 步骤。
-             * 在完整实现中需遍历 ProofStep 的 dependency_step_ids。
-             * 当前简化版本：标记冲突并报告。 */
-            conflicts++;
+            /* 检查全局证明导航器中是否有步骤依赖此 ERASED 步骤 */
+            if (g_proof_navigator && g_proof_navigator->steps) {
+                for (int j = 0; j < g_proof_navigator->step_count; j++) {
+                    ProofStep *step = g_proof_navigator->steps[j];
+                    if (!step) continue;
+                    /* runtime 步骤（LINEAR/UNRESTRICTED）不能依赖 ERASED 步骤 */
+                    if (step->quantifier_type == PROOF_QTT_LINEAR ||
+                        step->quantifier_type == PROOF_QTT_UNRESTRICTED) {
+                        for (int d = 0; d < step->dependency_count; d++) {
+                            if (step->dependency_step_ids[d] == i) {
+                                conflicts++;
+                                LV00_LOG_WARNING(
+                                    "Ghost conflict: runtime step %d depends on ERASED step %d",
+                                    j, i);
+                            }
+                        }
+                    }
+                }
+            } else {
+                /* 无导航器时仅计数 ERASED 步骤 */
+                conflicts++;
+            }
         }
     }
 

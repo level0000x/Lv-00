@@ -2048,15 +2048,12 @@ bool type_check_dependent(const TypeSystem *ts, const TypeRegion *output_type, c
         return false;
 
     /*
-     * 依赖类型检查的简化实现：
+     * 依赖类型检查实现：
      *
-     * 对于依赖类型 Π(x:A).B(x)，我们需要检查：
+     * 对于依赖类型 Π(x:A).B(x)，检查：
      * 1. output_type 和 input_type 的宇宙层级兼容性
-     * 2. 结构兼容性：
-     *    - 如果 input_type 是依赖类型，检查其体类型与 output_type 的关系
-     *    - 如果两者都是函数类型，递归检查参数和返回类型
-     *    - 如果两者类型种类相同，检查子类型结构
-     *    - 类型变量视为通配，与任何类型兼容
+     * 2. 结构兼容性（递归检查子类型）
+     * 3. 若提供 input_values，执行参数替换后检查
      */
 
     /* 类型变量与任何类型兼容 */
@@ -2850,15 +2847,23 @@ ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, 
         if (!rule || !rule->pattern)
             continue;
 
-        /*
-         * 简化的可应用性检查：
-         * 如果规则有模式且名称非空，则视为可应用。
-         * 完整实现需要 VF2 子图同构匹配，但类型系统层面
-         * 的重写规则匹配依赖于 type_check_equivalence 的
-         * 归一化路径，这里采用保守策略——所有已注册规则
-         * 均视为候选。
-         */
-        if (rule->name) {
+        /* 可应用性检查：规则模式与当前类型结构匹配 */
+        bool rule_applicable = false;
+        if (rule->name && rule->pattern) {
+            /* 检查规则模式的顶层类型种类是否匹配当前类型 */
+            if (rule->pattern->kind == TYPE_KIND_VARIABLE) {
+                /* 模式为类型变量 → 可匹配任何类型 */
+                rule_applicable = true;
+            } else if (explorer->current &&
+                       rule->pattern->kind == explorer->current->kind) {
+                /* 顶层种类匹配 → 候选规则 */
+                rule_applicable = true;
+            } else if (rule->pattern->kind == TYPE_KIND_BOTTOM) {
+                /* 底部类型模式可匹配任何类型 */
+                rule_applicable = true;
+            }
+        }
+        if (rule_applicable) {
             indices[applicable++] = i;
         }
     }

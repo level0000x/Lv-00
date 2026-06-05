@@ -948,10 +948,10 @@ Lv00QuantResult lv00_quant_exists_introduce(Lv00QuantifiedExpr *expr, int witnes
  *
  * 从 ∃x.P(x) 和 ∀y.(P(y)→Q) 推导出 Q（其中 y 不在 Q 中自由出现）。
  *
- * 简化实现：
+ * 实现：
  * 1. 验证存在量化表达式
- * 2. 在有限域上找到满足体命题的目击者
- * 3. 将目标命题作为结果返回
+ * 2. 在有限域上找到满足体命题的目击者（遍历搜索）
+ * 3. 若找到目击者，构造实例化结果；否则报告失败
  *
  * @param exists_expr  存在量化表达式
  * @param target_prop  目标命题 Q
