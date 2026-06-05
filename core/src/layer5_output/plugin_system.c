@@ -9,6 +9,7 @@
  */
 
 #include "lv00/plugin_system.h"
+#include "lv00/lv00_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +83,7 @@ static void set_error(Lv00PluginSystem* system, const char* format, ...) {
 /* ============ 生命周期管理 ============ */
 
 Lv00PluginSystem* lv00_plugin_system_create(Lv00Context* ctx) {
-    Lv00PluginSystem* system = (Lv00PluginSystem*)malloc(sizeof(Lv00PluginSystem));
+    Lv00PluginSystem* system = (Lv00PluginSystem*)lv00_malloc(sizeof(Lv00PluginSystem));
     if (!system) return NULL;
     
     memset(system, 0, sizeof(Lv00PluginSystem));
@@ -93,29 +94,29 @@ Lv00PluginSystem* lv00_plugin_system_create(Lv00Context* ctx) {
                       LV00_PLUGIN_SYSTEM_VERSION_PATCH;
     
     system->plugin_capacity = LV00_MAX_PLUGINS;
-    system->plugins = (Lv00Plugin**)malloc(sizeof(Lv00Plugin*) * system->plugin_capacity);
+    system->plugins = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * system->plugin_capacity);
     if (!system->plugins) {
-        free(system);
+        lv00_free((void **)&system);
         return NULL;
     }
     
     system->interface_capacity = LV00_MAX_INTERFACES;
-    system->interfaces = (Lv00PluginInterface**)malloc(
+    system->interfaces = (Lv00PluginInterface**)lv00_malloc(
         sizeof(Lv00PluginInterface*) * system->interface_capacity);
     if (!system->interfaces) {
-        free(system->plugins);
-        free(system);
+        lv00_free((void **)&system->plugins);
+        lv00_free((void **)&system);
         return NULL;
     }
     
     system->search_path_count = 0;
     system->search_paths = NULL;
     
-    PluginSystemInternal* internal = (PluginSystemInternal*)malloc(sizeof(PluginSystemInternal));
+    PluginSystemInternal* internal = (PluginSystemInternal*)lv00_malloc(sizeof(PluginSystemInternal));
     if (!internal) {
-        free(system->interfaces);
-        free(system->plugins);
-        free(system);
+        lv00_free((void **)&system->interfaces);
+        lv00_free((void **)&system->plugins);
+        lv00_free((void **)&system);
         return NULL;
     }
     
@@ -130,16 +131,16 @@ void lv00_plugin_system_destroy(Lv00PluginSystem* system) {
     
     lv00_plugin_system_cleanup(system);
     
-    if (system->plugins) free(system->plugins);
-    if (system->interfaces) free(system->interfaces);
+    if (system->plugins) lv00_free((void **)&system->plugins);
+    if (system->interfaces) lv00_free((void **)&system->interfaces);
     
     for (size_t i = 0; i < system->search_path_count; i++) {
-        if (system->search_paths[i]) free(system->search_paths[i]);
+        if (system->search_paths[i]) lv00_free((void **)&system->search_paths[i]);
     }
-    if (system->search_paths) free(system->search_paths);
+    if (system->search_paths) lv00_free((void **)&system->search_paths);
     
-    if (system->mutex) free(system->mutex);
-    free(system);
+    if (system->mutex) lv00_free((void **)&system->mutex);
+    lv00_free((void **)&system);
 }
 
 int lv00_plugin_system_init(Lv00PluginSystem* system) {
@@ -185,7 +186,7 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     }
     
     /* 创建插件对象 */
-    Lv00Plugin* plugin = (Lv00Plugin*)malloc(sizeof(Lv00Plugin));
+    Lv00Plugin* plugin = (Lv00Plugin*)lv00_malloc(sizeof(Lv00Plugin));
     if (!plugin) {
         unload_library(handle);
         return NULL;
@@ -204,15 +205,15 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     if (!entry) {
         set_error(system, "Plugin entry point not found: %s", path);
         unload_library(handle);
-        free(plugin);
+        lv00_free((void **)&plugin);
         return NULL;
     }
     
     /* 创建插件上下文 */
-    plugin->context = (Lv00PluginContext*)malloc(sizeof(Lv00PluginContext));
+    plugin->context = (Lv00PluginContext*)lv00_malloc(sizeof(Lv00PluginContext));
     if (!plugin->context) {
         unload_library(handle);
-        free(plugin);
+        lv00_free((void **)&plugin);
         return NULL;
     }
     
@@ -224,9 +225,9 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     /* 调用入口函数 */
     if (entry(plugin->context) != 0) {
         set_error(system, "Plugin entry function failed: %s", path);
-        free(plugin->context);
+        lv00_free((void **)&plugin->context);
         unload_library(handle);
-        free(plugin);
+        lv00_free((void **)&plugin);
         return NULL;
     }
     
@@ -234,9 +235,9 @@ Lv00Plugin* lv00_plugin_load(Lv00PluginSystem* system, const char* path) {
     if (plugin->on_load) {
         if (plugin->on_load(plugin->context) != 0) {
             set_error(system, "Plugin on_load failed: %s", path);
-            free(plugin->context);
+            lv00_free((void **)&plugin->context);
             unload_library(handle);
-            free(plugin);
+            lv00_free((void **)&plugin);
             return NULL;
         }
     }
@@ -302,15 +303,15 @@ int lv00_plugin_unload(Lv00PluginSystem* system, Lv00Plugin* plugin) {
         if (plugin->context->config) {
             lv00_plugin_config_destroy(plugin->context->config);
         }
-        free(plugin->context);
+        lv00_free((void **)&plugin->context);
     }
     
     if (plugin->registered_interfaces) {
-        free(plugin->registered_interfaces);
+        lv00_free((void **)&plugin->registered_interfaces);
     }
     
     if (plugin->resolved_dependencies) {
-        free(plugin->resolved_dependencies);
+        lv00_free((void **)&plugin->resolved_dependencies);
     }
     
     plugin->state = LV00_PLUGIN_STATE_UNLOADED;
@@ -320,7 +321,7 @@ int lv00_plugin_unload(Lv00PluginSystem* system, Lv00Plugin* plugin) {
         unload_library(plugin->handle);
     }
     
-    free(plugin);
+    lv00_free((void **)&plugin);
     return 0;
 }
 
@@ -450,7 +451,7 @@ Lv00Plugin** lv00_plugin_get_by_type(Lv00PluginSystem* system, Lv00PluginType ty
     }
     
     /* 分配结果数组 */
-    Lv00Plugin** result = (Lv00Plugin**)malloc(sizeof(Lv00Plugin*) * match_count);
+    Lv00Plugin** result = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * match_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -485,7 +486,7 @@ Lv00Plugin** lv00_plugin_get_by_state(Lv00PluginSystem* system, Lv00PluginState 
     }
     
     /* 分配结果数组 */
-    Lv00Plugin** result = (Lv00Plugin**)malloc(sizeof(Lv00Plugin*) * match_count);
+    Lv00Plugin** result = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * match_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -518,7 +519,7 @@ int lv00_plugin_register_interface(Lv00Plugin* plugin, Lv00PluginInterface* inte
     
     /* 添加到插件注册表 */
     if (!plugin->registered_interfaces) {
-        plugin->registered_interfaces = (Lv00PluginInterface**)malloc(
+        plugin->registered_interfaces = (Lv00PluginInterface**)lv00_malloc(
             sizeof(Lv00PluginInterface*) * LV00_MAX_INTERFACES);
         if (!plugin->registered_interfaces) return -1;
     }
@@ -620,7 +621,7 @@ Lv00PluginInterface** lv00_plugin_query_interfaces(Lv00PluginSystem* system, con
     }
 
     /* 分配结果数组 */
-    Lv00PluginInterface** result = (Lv00PluginInterface**)malloc(sizeof(Lv00PluginInterface*) * match_count);
+    Lv00PluginInterface** result = (Lv00PluginInterface**)lv00_malloc(sizeof(Lv00PluginInterface*) * match_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -641,16 +642,16 @@ Lv00PluginInterface** lv00_plugin_query_interfaces(Lv00PluginSystem* system, con
 /* ============ 插件配置 ============ */
 
 Lv00PluginConfig* lv00_plugin_config_create(void) {
-    Lv00PluginConfig* config = (Lv00PluginConfig*)malloc(sizeof(Lv00PluginConfig));
+    Lv00PluginConfig* config = (Lv00PluginConfig*)lv00_malloc(sizeof(Lv00PluginConfig));
     if (!config) return NULL;
     
     memset(config, 0, sizeof(Lv00PluginConfig));
     config->entry_capacity = 256;
-    config->entries = (Lv00PluginConfigEntry*)malloc(
+    config->entries = (Lv00PluginConfigEntry*)lv00_malloc(
         sizeof(Lv00PluginConfigEntry) * config->entry_capacity);
     
     if (!config->entries) {
-        free(config);
+        lv00_free((void **)&config);
         return NULL;
     }
     
@@ -659,8 +660,8 @@ Lv00PluginConfig* lv00_plugin_config_create(void) {
 
 void lv00_plugin_config_destroy(Lv00PluginConfig* config) {
     if (!config) return;
-    if (config->entries) free(config->entries);
-    free(config);
+    if (config->entries) lv00_free((void **)&config->entries);
+    lv00_free((void **)&config);
 }
 
 int lv00_plugin_config_load(Lv00PluginConfig* config, const char* filepath) {
@@ -913,7 +914,7 @@ Lv00Plugin** lv00_plugin_get_dependents(Lv00PluginSystem* system, const Lv00Plug
     }
     
     /* 分配结果数组 */
-    Lv00Plugin** result = (Lv00Plugin**)malloc(sizeof(Lv00Plugin*) * dependent_count);
+    Lv00Plugin** result = (Lv00Plugin**)lv00_malloc(sizeof(Lv00Plugin*) * dependent_count);
     if (!result) {
         *count = 0;
         return NULL;
@@ -947,12 +948,12 @@ int lv00_plugin_system_add_search_path(Lv00PluginSystem* system, const char* pat
     }
     
     /* 添加新路径 */
-    char** new_paths = (char**)realloc(system->search_paths, 
+    char** new_paths = (char**)lv00_realloc(system->search_paths, 
         sizeof(char*) * (system->search_path_count + 1));
     if (!new_paths) return -1;
     
     system->search_paths = new_paths;
-    system->search_paths[system->search_path_count] = (char*)malloc(strlen(path) + 1);
+    system->search_paths[system->search_path_count] = (char*)lv00_malloc(strlen(path) + 1);
     if (!system->search_paths[system->search_path_count]) return -1;
     
     strcpy(system->search_paths[system->search_path_count], path);
@@ -966,7 +967,7 @@ int lv00_plugin_system_remove_search_path(Lv00PluginSystem* system, const char* 
     
     for (size_t i = 0; i < system->search_path_count; i++) {
         if (strcmp(system->search_paths[i], path) == 0) {
-            free(system->search_paths[i]);
+            lv00_free((void **)&system->search_paths[i]);
             system->search_paths[i] = system->search_paths[--system->search_path_count];
             return 0;
         }
@@ -1148,7 +1149,7 @@ char* lv00_plugin_get_info_json(const Lv00Plugin* plugin) {
     if (!plugin) return NULL;
     
     size_t size = 1024;
-    char* json = (char*)malloc(size);
+    char* json = (char*)lv00_malloc(size);
     if (!json) return NULL;
     
     snprintf(json, size,
@@ -1177,7 +1178,7 @@ char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
     /* 防止整数溢出 */
     if (system->plugin_count > SIZE_MAX / 512 - 2048) return NULL;
     size_t size = 2048 + system->plugin_count * 512;
-    char* json = (char*)malloc(size);
+    char* json = (char*)lv00_malloc(size);
     if (!json) return NULL;
 
     char* ptr = json;

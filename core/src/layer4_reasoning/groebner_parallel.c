@@ -265,7 +265,17 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
                 new_exp[v] = mult_i_exp[v] + et;
             }
         }
-        simple_poly_add_term(&result, scale_i * gi->terms[t].coeff, new_exp, var_count);
+        if (simple_poly_add_term(&result, scale_i * gi->terms[t].coeff, new_exp, var_count) != 0) {
+            free(new_exp);
+            free(lcm_exp);
+            free(mult_i_exp);
+            free(mult_j_exp);
+            simple_poly_destroy(&result);
+            result.term_count = 0;
+            result.terms = NULL;
+            result.capacity = 0;
+            return result;
+        }
         free(new_exp);
     }
 
@@ -280,7 +290,17 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
                 new_exp[v] = mult_j_exp[v] + et;
             }
         }
-        simple_poly_add_term(&result, -scale_j * gj->terms[t].coeff, new_exp, var_count);
+        if (simple_poly_add_term(&result, -scale_j * gj->terms[t].coeff, new_exp, var_count) != 0) {
+            free(new_exp);
+            free(lcm_exp);
+            free(mult_i_exp);
+            free(mult_j_exp);
+            simple_poly_destroy(&result);
+            result.term_count = 0;
+            result.terms = NULL;
+            result.capacity = 0;
+            return result;
+        }
         free(new_exp);
     }
 
