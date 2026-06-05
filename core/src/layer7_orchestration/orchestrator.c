@@ -1,12 +1,13 @@
 #include "lv00/orchestrator.h"
 #include "lv00/lv00_internal.h"
 #include "lv00/proof.h"
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
 
-static int session_counter = 0;
+static atomic_int session_counter = 0;
 
 Lv00SessionConfig lv00_default_session_config(void) {
     Lv00SessionConfig cfg;
@@ -20,9 +21,9 @@ Lv00SessionConfig lv00_default_session_config(void) {
 }
 
 Lv00Session *lv00_session_create(const char *name) {
-    Lv00Session *session = calloc(1, sizeof(Lv00Session));
+    Lv00Session *session = lv00_calloc(1, sizeof(Lv00Session));
     if (!session) return NULL;
-    session->session_id = ++session_counter;
+    session->session_id = atomic_fetch_add(&session_counter, 1) + 1;
     if (name) strncpy(session->session_name, name, sizeof(session->session_name) - 1);
     session->config = lv00_default_session_config();
     for (int i = 0; i < LV00_STAGE_COUNT; i++) {
@@ -33,7 +34,7 @@ Lv00Session *lv00_session_create(const char *name) {
 }
 
 void lv00_session_destroy(Lv00Session *session) {
-    free(session);
+    lv00_free((void **)&session);
 }
 
 int lv00_session_configure(Lv00Session *session, const Lv00SessionConfig *config) {

@@ -13,7 +13,7 @@ typedef struct {
 #define DIRTY_INITIAL_CAPACITY 16
 
 Lv00BlockScheduler *lv00_block_scheduler_create(void *graph) {
-    Lv00BlockScheduler *sched = calloc(1, sizeof(Lv00BlockScheduler));
+    Lv00BlockScheduler *sched = lv00_calloc(1, sizeof(Lv00BlockScheduler));
     if (!sched) return NULL;
     sched->graph = graph;
     sched->strategy = LV00_SCHED_FULL;
@@ -23,10 +23,10 @@ Lv00BlockScheduler *lv00_block_scheduler_create(void *graph) {
 
 void lv00_block_scheduler_destroy(Lv00BlockScheduler *sched) {
     if (!sched) return;
-    free(sched->queue);
-    free(sched->incremental.dirty_blocks);
+    lv00_free((void **)&sched->queue);
+    lv00_free((void **)&sched->incremental.dirty_blocks);
     if (sched->effect_tracker) lv00_effect_tracker_destroy(sched->effect_tracker);
-    free(sched);
+    lv00_free((void **)&sched);
 }
 
 void lv00_block_scheduler_set_strategy(Lv00BlockScheduler *sched, Lv00SchedStrategy strategy) {
@@ -52,15 +52,15 @@ Lv00ExecResult lv00_block_scheduler_run(Lv00BlockScheduler *sched) {
     int n = bg->count;
 
     /* 分配工作数组 */
-    int *in_degree = calloc(n, sizeof(int));
-    int *adj_count = calloc(n, sizeof(int));    /* 每个块的下游邻居数 */
-    int **adj = calloc(n, sizeof(int *));        /* 邻接表 */
-    int *queue_buf = calloc(n, sizeof(int));     /* 拓扑排序队列 */
-    int *topo_order = calloc(n, sizeof(int));     /* 拓扑排序结果 */
+    int *in_degree = lv00_calloc(n, sizeof(int));
+    int *adj_count = lv00_calloc(n, sizeof(int));    /* 每个块的下游邻居数 */
+    int **adj = lv00_calloc(n, sizeof(int *));        /* 邻接表 */
+    int *queue_buf = lv00_calloc(n, sizeof(int));     /* 拓扑排序队列 */
+    int *topo_order = lv00_calloc(n, sizeof(int));     /* 拓扑排序结果 */
 
     if (!in_degree || !adj_count || !adj || !queue_buf || !topo_order) {
-        free(in_degree); free(adj_count); free(adj);
-        free(queue_buf); free(topo_order);
+        lv00_free((void **)&in_degree); lv00_free((void **)&adj_count); lv00_free((void **)&adj);
+        lv00_free((void **)&queue_buf); lv00_free((void **)&topo_order);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
@@ -86,7 +86,7 @@ Lv00ExecResult lv00_block_scheduler_run(Lv00BlockScheduler *sched) {
                     if (in_port == out_port) {
                         /* 存在连接：i -> j */
                         adj_count[i]++;
-                        int *new_adj = realloc(adj[i], adj_count[i] * sizeof(int));
+                        int *new_adj = lv00_realloc(adj[i], adj_count[i] * sizeof(int));
                         if (new_adj) {
                             adj[i] = new_adj;
                             adj[i][adj_count[i] - 1] = j;
@@ -143,19 +143,19 @@ Lv00ExecResult lv00_block_scheduler_run(Lv00BlockScheduler *sched) {
         }
 
         /* 保存拓扑排序队列 */
-        free(sched->queue);
+        lv00_free((void **)&sched->queue);
         sched->queue = topo_order;
         sched->queue_count = topo_count;
         topo_order = NULL; /* 防止下面释放 */
     }
 
     /* 清理 */
-    for (int i = 0; i < n; i++) free(adj[i]);
-    free(adj);
-    free(adj_count);
-    free(in_degree);
-    free(queue_buf);
-    free(topo_order);
+    for (int i = 0; i < n; i++) lv00_free((void **)&adj[i]);
+    lv00_free((void **)&adj);
+    lv00_free((void **)&adj_count);
+    lv00_free((void **)&in_degree);
+    lv00_free((void **)&queue_buf);
+    lv00_free((void **)&topo_order);
 
     return result;
 }
@@ -196,10 +196,10 @@ Lv00ExecResult lv00_block_scheduler_run_incremental(Lv00BlockScheduler *sched, i
     }
 
     /* 构建邻接表（同 run 函数） */
-    int *adj_count = calloc(n, sizeof(int));
-    int **adj = calloc(n, sizeof(int *));
+    int *adj_count = lv00_calloc(n, sizeof(int));
+    int **adj = lv00_calloc(n, sizeof(int *));
     if (!adj_count || !adj) {
-        free(adj_count); free(adj);
+        lv00_free((void **)&adj_count); lv00_free((void **)&adj);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
@@ -233,10 +233,10 @@ Lv00ExecResult lv00_block_scheduler_run_incremental(Lv00BlockScheduler *sched, i
     }
 
     /* 计算脏块的传递闭包（包括所有下游依赖） */
-    int *need_exec = calloc(n, sizeof(int));
+    int *need_exec = lv00_calloc(n, sizeof(int));
     if (!need_exec) {
-        for (int i = 0; i < n; i++) free(adj[i]);
-        free(adj); free(adj_count);
+        for (int i = 0; i < n; i++) lv00_free((void **)&adj[i]);
+        lv00_free((void **)&adj); lv00_free((void **)&adj_count);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
@@ -255,7 +255,7 @@ Lv00ExecResult lv00_block_scheduler_run_incremental(Lv00BlockScheduler *sched, i
     }
 
     /* BFS 扩展：标记所有下游依赖 */
-    int *bfs_queue = calloc(n, sizeof(int));
+    int *bfs_queue = lv00_calloc(n, sizeof(int));
     if (bfs_queue) {
         int front = 0, back = 0;
         for (int i = 0; i < n; i++) {
@@ -271,7 +271,7 @@ Lv00ExecResult lv00_block_scheduler_run_incremental(Lv00BlockScheduler *sched, i
                 }
             }
         }
-        free(bfs_queue);
+        lv00_free((void **)&bfs_queue);
     }
 
     /* 执行需要执行的块（按原始数组顺序，即拓扑序） */
@@ -292,10 +292,10 @@ Lv00ExecResult lv00_block_scheduler_run_incremental(Lv00BlockScheduler *sched, i
     }
 
     /* 清理 */
-    free(need_exec);
-    for (int i = 0; i < n; i++) free(adj[i]);
-    free(adj);
-    free(adj_count);
+    lv00_free((void **)&need_exec);
+    for (int i = 0; i < n; i++) lv00_free((void **)&adj[i]);
+    lv00_free((void **)&adj);
+    lv00_free((void **)&adj_count);
 
     return result;
 }
@@ -310,15 +310,8 @@ void lv00_block_scheduler_mark_dirty(Lv00BlockScheduler *sched, int block_id) {
     }
 
     /* 自动扩容 */
-    int cap = sched->incremental.dirty_count + 1;
-    if (cap < DIRTY_INITIAL_CAPACITY) cap = DIRTY_INITIAL_CAPACITY;
-    if (sched->incremental.dirty_count > 0 &&
-        sched->incremental.dirty_count + 1 > sched->incremental.dirty_count) {
-        /* 检查是否需要扩容：当前没有容量字段，使用启发式 */
-        /* 每次都重新分配（当前无容量字段，完整版应维护 capacity 字段避免频繁 realloc） */
-    }
     int new_cap = (sched->incremental.dirty_count + 1) * 2;
-    int *new_dirty = realloc(sched->incremental.dirty_blocks, new_cap * sizeof(int));
+    int *new_dirty = lv00_realloc(sched->incremental.dirty_blocks, new_cap * sizeof(int));
     if (!new_dirty) return;
     sched->incremental.dirty_blocks = new_dirty;
     sched->incremental.dirty_blocks[sched->incremental.dirty_count] = block_id;
@@ -341,7 +334,7 @@ void lv00_block_scheduler_mark_all_dirty(Lv00BlockScheduler *sched) {
     int n = bg->count;
     if (n <= 0) return;
 
-    int *dirty = calloc(n, sizeof(int));
+    int *dirty = lv00_calloc(n, sizeof(int));
     if (!dirty) return;
 
     for (int i = 0; i < n; i++) {

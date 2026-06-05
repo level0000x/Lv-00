@@ -1,5 +1,5 @@
 #include "lv00/visual_editor.h"
-#include <stdlib.h>
+#include "lv00/lv00_utils.h"
 #include <string.h>
 #include <math.h>
 
@@ -52,15 +52,15 @@ typedef struct Lv00NodeGraphView {
 } Lv00NodeGraphView;
 
 Lv00NodeGraphView *lv00_node_graph_create(void) {
-    Lv00NodeGraphView *graph = calloc(1, sizeof(Lv00NodeGraphView));
+    Lv00NodeGraphView *graph = lv00_calloc(1, sizeof(Lv00NodeGraphView));
     if (!graph) return NULL;
     graph->view_type = LV00_VIEW_NODE_GRAPH;
     graph->node_capacity = 16;
-    graph->nodes = calloc(graph->node_capacity, sizeof(Lv00GraphNode));
-    if (!graph->nodes) { free(graph); return NULL; }
+    graph->nodes = lv00_calloc(graph->node_capacity, sizeof(Lv00GraphNode));
+    if (!graph->nodes) { lv00_free((void **)&graph); return NULL; }
     graph->connection_capacity = 16;
-    graph->connections = calloc(graph->connection_capacity, sizeof(Lv00GraphConnection));
-    if (!graph->connections) { free(graph->nodes); free(graph); return NULL; }
+    graph->connections = lv00_calloc(graph->connection_capacity, sizeof(Lv00GraphConnection));
+    if (!graph->connections) { lv00_free((void **)&graph->nodes); lv00_free((void **)&graph); return NULL; }
     graph->layout_engine.area_width = 800.0;
     graph->layout_engine.area_height = 600.0;
     graph->layout_engine.iterations = 50;
@@ -71,9 +71,9 @@ Lv00NodeGraphView *lv00_node_graph_create(void) {
 
 void lv00_node_graph_destroy(Lv00NodeGraphView *graph) {
     if (!graph) return;
-    free(graph->nodes);
-    free(graph->connections);
-    free(graph);
+    lv00_free((void **)&graph->nodes);
+    lv00_free((void **)&graph->connections);
+    lv00_free((void **)&graph);
 }
 
 /* 添加节点 */
@@ -84,7 +84,7 @@ int lv00_node_graph_add_node(Lv00NodeGraphView *graph, int id, const char *label
     /* 自动扩容 */
     if (graph->node_count >= graph->node_capacity) {
         int new_cap = graph->node_capacity * 2;
-        Lv00GraphNode *new_nodes = realloc(graph->nodes, new_cap * sizeof(Lv00GraphNode));
+        Lv00GraphNode *new_nodes = lv00_realloc(graph->nodes, new_cap * sizeof(Lv00GraphNode));
         if (!new_nodes) return -1;
         graph->nodes = new_nodes;
         graph->node_capacity = new_cap;
@@ -143,7 +143,7 @@ int lv00_node_graph_add_connection(Lv00NodeGraphView *graph, int from_id,
     /* 自动扩容 */
     if (graph->connection_count >= graph->connection_capacity) {
         int new_cap = graph->connection_capacity * 2;
-        Lv00GraphConnection *new_conns = realloc(graph->connections,
+        Lv00GraphConnection *new_conns = lv00_realloc(graph->connections,
                                                   new_cap * sizeof(Lv00GraphConnection));
         if (!new_conns) return -1;
         graph->connections = new_conns;
@@ -204,10 +204,10 @@ int lv00_node_graph_layout(Lv00NodeGraphView *graph) {
     double temperature = graph->layout_engine.area_width / 4.0;
 
     /* 临时位移数组 */
-    double *dx = calloc(n, sizeof(double));
-    double *dy = calloc(n, sizeof(double));
+    double *dx = lv00_calloc(n, sizeof(double));
+    double *dy = lv00_calloc(n, sizeof(double));
     if (!dx || !dy) {
-        free(dx); free(dy);
+        lv00_free((void **)&dx); lv00_free((void **)&dy);
         return -1;
     }
 
@@ -283,8 +283,8 @@ int lv00_node_graph_layout(Lv00NodeGraphView *graph) {
         temperature *= 0.95;
     }
 
-    free(dx);
-    free(dy);
+    lv00_free((void **)&dx);
+    lv00_free((void **)&dy);
     graph->layout_engine.temperature = temperature;
     return 0;
 }

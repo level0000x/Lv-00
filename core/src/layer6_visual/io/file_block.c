@@ -1,8 +1,8 @@
 #include "lv00/io_blocks.h"
-#include <stdlib.h>
+#include "lv00/lv00_utils.h"
 
 Lv00FileBlock *lv00_file_block_create(Lv00EffectType effect) {
-    Lv00FileBlock *block = calloc(1, sizeof(Lv00FileBlock));
+    Lv00FileBlock *block = lv00_calloc(1, sizeof(Lv00FileBlock));
     if (!block) return NULL;
     block->effect = effect;
     block->path_port = -1;
@@ -13,5 +13,5 @@ Lv00FileBlock *lv00_file_block_create(Lv00EffectType effect) {
 }
 
 void lv00_file_block_destroy(Lv00FileBlock *block) {
-    free(block);
+    lv00_free((void **)&block);
 }

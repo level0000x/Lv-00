@@ -17,6 +17,7 @@
 #include "constraint_graph.h"
 #include "stream.h"
 #include "normalization.h"
+#include <stdatomic.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,7 +27,7 @@
  * ============================================================ */
 
 /** 全局上下文 ID 自增计数器（用于分配唯一 context_id） */
-static uint64_t s_next_context_id = 1;
+static atomic_uint_fast64_t s_next_context_id = 1;
 
 /* ============================================================
  * 第六部分：生命周期管理 API
@@ -99,7 +100,7 @@ Lv00Context *lv00_context_create(void) {
     ctx->snapshot_depth = 0;
 
     /* 15. 上下文 ID 与统计 */
-    ctx->context_id = s_next_context_id++;
+    ctx->context_id = atomic_fetch_add(&s_next_context_id, 1);
     ctx->created_at_us = lv00_get_time_us();
     ctx->problems_processed = 0;
 
@@ -365,7 +366,7 @@ Lv00Context *lv00_context_snapshot(Lv00Context *ctx) {
     snap->snapshot_depth = ctx->snapshot_depth + 1;
 
     /* 快照获得新的唯一 ID */
-    snap->context_id = s_next_context_id++;
+    snap->context_id = atomic_fetch_add(&s_next_context_id, 1);
 
     return snap;
 }
