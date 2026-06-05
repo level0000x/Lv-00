@@ -1371,24 +1371,48 @@ Lv00SolverResult lv00_solver_solve_algebraic(Lv00Solver *solver) {
 
     lv00_free((void **)&polynomials);
 
-    /* 解释 Groebner 基计算结果 */
+    /* 解释 Groebner 基计算结果
+     *
+     * Groebner 基理论判定准则：
+     *   - 约化基中包含非零常数多项式（即 1） <=> 理想 I = <1> <=> 方程组无解 (UNSAT)
+     *   - 基计算完成且不含矛盾多项式 <=> 方程组有解 (SAT)
+     *   - 基计算未完成（超时/资源不足）=> 无法判定 (UNKNOWN)
+     */
     Lv00SolverResult solver_result = LV00_SOLVER_UNKNOWN;
 
     if (result == 0) {
-        /* 计算成功完成，检查基是否包含矛盾（即 {1}）
-         * 如果基中包含常数多项式 1，则系统不可满足 */
-        if (gb_engine->basis_size == 1 && gb_engine->groebner_basis != NULL) {
-            /* 简化判断：如果基大小为 1 且 completed_pairs == total_pairs，
-             * 检查是否为平凡基（仅包含常数 1） */
-            Lv00GroebnerState st = lv00_groebner_parallel_state(gb_engine);
-            if (st.completed_pairs == st.total_pairs && st.remaining_pairs == 0) {
-                /* 基计算完成，但无法直接判断 SAT/UNSAT，
-                 * 需要进一步分析基中是否包含矛盾多项式。
-                 * 当前实现保守返回 UNKNOWN。 */
-                solver_result = LV00_SOLVER_UNKNOWN;
+        Lv00GroebnerState st = lv00_groebner_parallel_state(gb_engine);
+
+        if (st.completed_pairs == st.total_pairs && st.remaining_pairs == 0) {
+            /* 基计算已完全完成，可以做出确定判定 */
+
+            /* 检查约化基中是否包含矛盾多项式（非零常数 1）。
+             * 遍历基中的每个多项式，若某个多项式仅含常数项且不为零，
+             * 则理想为全空间（I = <1>），方程组不可满足。 */
+            bool found_contradiction = false;
+            if (gb_engine->groebner_basis != NULL) {
+                for (int i = 0; i < gb_engine->basis_size; i++) {
+                    if (gb_engine->groebner_basis[i] != NULL) {
+                        /* 检查该多项式是否为非零常数。
+                         * 约化基中常数多项式的单项式数为 1 且无常数项为零时
+                         * 意味着该多项式恒等于非零常数（矛盾）。 */
+                        if (lv00_groebner_poly_is_nonzero_constant(
+                                gb_engine->groebner_basis[i])) {
+                            found_contradiction = true;
+                            break;
+                        }
+                    }
+                }
             }
-        } else if (gb_engine->basis_size > 0) {
-            /* 基非空且非平凡：可能存在解 */
+
+            if (found_contradiction) {
+                solver_result = LV00_SOLVER_UNSAT;
+            } else {
+                /* 基计算完成且无矛盾多项式，方程组可满足 */
+                solver_result = LV00_SOLVER_SAT;
+            }
+        } else {
+            /* 基计算未完成（部分完成），保守返回 UNKNOWN */
             solver_result = LV00_SOLVER_UNKNOWN;
         }
     } else {

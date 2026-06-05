@@ -5402,8 +5402,17 @@ bool proof_multi_strategy_execute(ProofMultiStrategy *mse) {
 }
 
 const char *proof_strategy_type_to_string(ProofStrategyType type) {
-    (void) type;
-    return "unknown";
+    switch (type) {
+    case PROOF_STRATEGY_DIRECT:      return "直接构造法";
+    case PROOF_STRATEGY_AREA:        return "面积法";
+    case PROOF_STRATEGY_COORDINATE:  return "坐标法";
+    case PROOF_STRATEGY_VECTOR:      return "向量法";
+    case PROOF_STRATEGY_TRANSFORM:   return "变换法";
+    case PROOF_STRATEGY_TRIGONOMETRY:return "三角法";
+    case PROOF_STRATEGY_ALGEBRAIC:   return "代数法";
+    case PROOF_STRATEGY_CONTRADICTION:return "反证法";
+    default:                          return "未知策略";
+    }
 }
 
 /**
