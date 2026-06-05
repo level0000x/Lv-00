@@ -166,11 +166,12 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
         if (n > 0 && n < remaining) { offset += n; remaining -= n; }
     }
 
-    /* 声明节点常量 */
+    /* 声明节点常量 —— 使用节点真实 ID 而非数组索引 */
     int node_count = graph->node_count;
     for (int i = 0; i < node_count && remaining > 64; i++) {
+        int nid = graph->nodes[i]->id;
         n = snprintf(buf + offset, (size_t)remaining,
-                     "%s(p%d_decl, axiom, point(p%d)).\n", lang, i, i);
+                     "%s(p%d_decl, axiom, point(p%d)).\n", lang, nid, nid);
         if (n > 0 && n < remaining) { offset += n; remaining -= n; }
     }
 

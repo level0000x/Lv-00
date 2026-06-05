@@ -1,6 +1,7 @@
 #include "lv00/meta_verify.h"
 #include "lv00/proof.h"
 #include "lv00/proof_compiler.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

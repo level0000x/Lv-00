@@ -668,6 +668,19 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             next_var += bits;
     }
 
+    /* 辅助：根据节点 ID 查找 node_base_var 数组索引 */
+    /* 当节点 ID != 数组索引时，需要遍历 nodes 数组找到对应位置 */
+    #define LOOKUP_NODE_BASE_VAR(node_id) ({ \
+        int _result = -1; \
+        for (int _j = 0; _j < n; _j++) { \
+            if (graph->nodes[_j] && graph->nodes[_j]->id == (node_id)) { \
+                _result = node_base_var[_j]; \
+                break; \
+            } \
+        } \
+        _result; \
+    })
+
     /* Phase 2: 遍历所有活跃约束，按类型编码 BDD 子公式 */
     BDDNode *constraint_bdd = bdd_true(mgr);
 
@@ -684,8 +697,8 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
             if (con->participant_count >= 2) {
                 int p_id = con->participants[0];
                 int l_id = con->participants[1];
-                int p_var = (p_id >= 0 && p_id < n) ? node_base_var[p_id] : -1;
-                int l_var = (l_id >= 0 && l_id < n) ? node_base_var[l_id] : -1;
+                int p_var = (p_id >= 0) ? LOOKUP_NODE_BASE_VAR(p_id) : -1;
+                int l_var = (l_id >= 0) ? LOOKUP_NODE_BASE_VAR(l_id) : -1;
                 if (p_var >= 0 && l_var >= 0) {
                     BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
                     BDDNode *l_lit = bdd_literal(mgr, l_var + 1);
@@ -699,9 +712,9 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
         case BETWEENNESS:
             /* BETWEENNESS(p1, p2, p3): p2 is between p1 and p3 */
             if (con->participant_count >= 3) {
-                int p1_var = (con->participants[0] >= 0 && con->participants[0] < n) ? node_base_var[con->participants[0]] : -1;
-                int p2_var = (con->participants[1] >= 0 && con->participants[1] < n) ? node_base_var[con->participants[1]] : -1;
-                int p3_var = (con->participants[2] >= 0 && con->participants[2] < n) ? node_base_var[con->participants[2]] : -1;
+                int p1_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
+                int p2_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
+                int p3_var = (con->participants[2] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[2]) : -1;
                 if (p1_var >= 0 && p2_var >= 0 && p3_var >= 0) {
                     BDDNode *a = bdd_literal(mgr, p1_var + 1);
                     BDDNode *b = bdd_literal(mgr, p2_var + 1);
@@ -719,9 +732,9 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
         case INTERSECTION:
             /* INTERSECTION(line1, line2, point): lines intersect at point */
             if (con->participant_count >= 3) {
-                int l1_var = (con->participants[0] >= 0 && con->participants[0] < n) ? node_base_var[con->participants[0]] : -1;
-                int l2_var = (con->participants[1] >= 0 && con->participants[1] < n) ? node_base_var[con->participants[1]] : -1;
-                int p_var  = (con->participants[2] >= 0 && con->participants[2] < n) ? node_base_var[con->participants[2]] : -1;
+                int l1_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
+                int l2_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
+                int p_var  = (con->participants[2] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[2]) : -1;
                 if (l1_var >= 0 && l2_var >= 0 && p_var >= 0) {
                     BDDNode *l1_lit = bdd_literal(mgr, l1_var + 1);
                     BDDNode *l2_lit = bdd_literal(mgr, l2_var + 1);
@@ -739,8 +752,8 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
         case CONTAINMENT:
             /* CONTAINMENT(region, point): point is inside region */
             if (con->participant_count >= 2) {
-                int r_var = (con->participants[0] >= 0 && con->participants[0] < n) ? node_base_var[con->participants[0]] : -1;
-                int p_var = (con->participants[1] >= 0 && con->participants[1] < n) ? node_base_var[con->participants[1]] : -1;
+                int r_var = (con->participants[0] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[0]) : -1;
+                int p_var = (con->participants[1] >= 0) ? LOOKUP_NODE_BASE_VAR(con->participants[1]) : -1;
                 if (r_var >= 0 && p_var >= 0) {
                     BDDNode *r_lit = bdd_literal(mgr, r_var + 1);
                     BDDNode *p_lit = bdd_literal(mgr, p_var + 1);
@@ -768,6 +781,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
     }
 
     lv00_free((void **)&node_base_var);
+    #undef LOOKUP_NODE_BASE_VAR
     return constraint_bdd;
 }
 
