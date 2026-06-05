@@ -1176,6 +1176,12 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
             if (verts_a && verts_b && count_a > 0 && count_b > 0) {
                 /* 计算所有顶点对之和：v_sum = v_a + v_b */
+                if (count_a > INT_MAX / count_b) {
+                    /* 整数乘法溢出保护 */
+                    lv00_free((void **)&verts_a);
+                    lv00_free((void **)&verts_b);
+                    continue;
+                }
                 int sum_count = count_a * count_b;
                 CSGVec3 *sum_verts = (CSGVec3 *) lv00_calloc((size_t) sum_count, sizeof(CSGVec3));
                 if (sum_verts) {

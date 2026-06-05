@@ -287,7 +287,18 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
     if (!buf) return NULL;
 
     int pos = 0;
-    pos += snprintf(buf + pos, buf_size - pos,
+    /* 辅助宏：安全写入 snprintf 链，防止 pos 溢出 buf_size */
+    #define SVG_SAFE_WRITE(...) do { \
+        if (pos < buf_size) { \
+            int _w = snprintf(buf + pos, (size_t)(buf_size - pos), __VA_ARGS__); \
+            if (_w > 0) { \
+                pos += _w; \
+                if (pos >= buf_size) pos = buf_size - 1; \
+            } \
+        } \
+    } while(0)
+
+    SVG_SAFE_WRITE(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         "<svg xmlns=\"http://www.w3.org/2000/svg\" "
         "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
@@ -301,13 +312,13 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
         switch (e->type) {
         case LV00_GEOM_POINT:
             if (e->coord_count >= 2) {
-                pos += snprintf(buf + pos, buf_size - pos,
+                SVG_SAFE_WRITE(
                     "  <circle cx=\"%g\" cy=\"%g\" r=\"4\" "
                     "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
                     e->coords[0], e->coords[1],
                     e->fill_color, e->stroke_color, e->stroke_width);
                 if (e->label[0] != '\0') {
-                    pos += snprintf(buf + pos, buf_size - pos,
+                    SVG_SAFE_WRITE(
                         "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                         "text-anchor=\"middle\" dy=\"-8\">%s</text>\n",
                         e->coords[0], e->coords[1], e->label);
@@ -316,7 +327,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
             break;
         case LV00_GEOM_LINE:
             if (e->coord_count >= 4) {
-                pos += snprintf(buf + pos, buf_size - pos,
+                SVG_SAFE_WRITE(
                     "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
                     "stroke=\"%s\" stroke-width=\"%g\"/>\n",
                     e->coords[0], e->coords[1],
@@ -325,7 +336,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
                 if (e->label[0] != '\0') {
                     double mx = (e->coords[0] + e->coords[2]) / 2.0;
                     double my = (e->coords[1] + e->coords[3]) / 2.0;
-                    pos += snprintf(buf + pos, buf_size - pos,
+                    SVG_SAFE_WRITE(
                         "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                         "text-anchor=\"middle\" dy=\"-6\">%s</text>\n",
                         mx, my, e->label);
@@ -334,13 +345,13 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
             break;
         case LV00_GEOM_CIRCLE:
             if (e->coord_count >= 3) {
-                pos += snprintf(buf + pos, buf_size - pos,
+                SVG_SAFE_WRITE(
                     "  <circle cx=\"%g\" cy=\"%g\" r=\"%g\" "
                     "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
                     e->coords[0], e->coords[1], e->coords[2],
                     e->fill_color, e->stroke_color, e->stroke_width);
                 if (e->label[0] != '\0') {
-                    pos += snprintf(buf + pos, buf_size - pos,
+                    SVG_SAFE_WRITE(
                         "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                         "text-anchor=\"middle\" dy=\"-%g\">%s</text>\n",
                         e->coords[0], e->coords[1], e->coords[2] + 4, e->label);
@@ -349,15 +360,15 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
             break;
         case LV00_GEOM_POLYGON:
             if (e->coord_count >= 6) {
-                pos += snprintf(buf + pos, buf_size - pos,
+                SVG_SAFE_WRITE(
                     "  <polygon points=\"");
                 for (int j = 0; j < e->coord_count; j += 2) {
                     if (j + 1 < e->coord_count) {
-                        pos += snprintf(buf + pos, buf_size - pos,
+                        SVG_SAFE_WRITE(
                             "%g,%g ", e->coords[j], e->coords[j + 1]);
                     }
                 }
-                pos += snprintf(buf + pos, buf_size - pos,
+                SVG_SAFE_WRITE(
                     "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
                     e->fill_color, e->stroke_color, e->stroke_width);
                 if (e->label[0] != '\0') {
@@ -368,7 +379,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
                         if (j + 1 < e->coord_count) cy += e->coords[j + 1];
                     }
                     cx /= npts; cy /= npts;
-                    pos += snprintf(buf + pos, buf_size - pos,
+                    SVG_SAFE_WRITE(
                         "  <text x=\"%g\" y=\"%g\" font-size=\"12\" "
                         "text-anchor=\"middle\">%s</text>\n",
                         cx, cy, e->label);
@@ -385,7 +396,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
         if (find_entity_center(canvas, c->entity_a_id, &ax, &ay) != 0) continue;
         if (find_entity_center(canvas, c->entity_b_id, &bx, &by) != 0) continue;
 
-        pos += snprintf(buf + pos, buf_size - pos,
+        SVG_SAFE_WRITE(
             "  <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" "
             "stroke=\"%s\" stroke-width=\"1\" stroke-dasharray=\"5,5\"/>\n",
             ax, ay, bx, by, c->color);
@@ -393,13 +404,14 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
         if (c->label[0] != '\0') {
             double mx = (ax + bx) / 2.0;
             double my = (ay + by) / 2.0;
-            pos += snprintf(buf + pos, buf_size - pos,
+            SVG_SAFE_WRITE(
                 "  <text x=\"%g\" y=\"%g\" font-size=\"10\" "
                 "fill=\"%s\" text-anchor=\"middle\" dy=\"-4\">%s</text>\n",
                 mx, my, c->color, c->label);
         }
     }
 
-    pos += snprintf(buf + pos, buf_size - pos, "</svg>\n");
+    SVG_SAFE_WRITE("</svg>\n");
+    #undef SVG_SAFE_WRITE
     return buf;
 }

@@ -82,7 +82,7 @@ static int check_type_consistency(const Lv00Session *session, char *desc, int de
     if (session->stages[LV00_STAGE_OUTPUT].status == LV00_STAGE_COMPLETED) {
         /* 验证输出格式与配置一致 */
         const char *fmt = session->config.output_format;
-        if (fmt[0] != '\0' && output_msg && strstr(output_msg, fmt) == NULL) {
+        if (fmt && fmt[0] != '\0' && output_msg && strstr(output_msg, fmt) == NULL) {
             /* 输出消息中未包含配置的格式标识，可能是类型不匹配 */
             snprintf(desc, desc_size, "类型一致性警告：输出格式 '%s' 未在输出消息中找到", fmt);
             /* 不严格失败，仅警告 */

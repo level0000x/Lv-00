@@ -188,8 +188,8 @@ function handleMergeNearest(ctx: ActionContext): void {
     // 将引用目标点的线段重定向到最近点
     // Redirect segments referencing the target point to the nearest point
     const updatedSegments = state.segments.map((s) => {
-      if (s.p1 === targetId) return { ...s, p1: nearest!.id };
-      if (s.p2 === targetId) return { ...s, p2: nearest!.id };
+      if (s.p1 === targetId) return { ...s, p1: nearest.id };
+      if (s.p2 === targetId) return { ...s, p2: nearest.id };
       return s;
     });
     state.setSegments(updatedSegments);
