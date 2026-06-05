@@ -1110,7 +1110,7 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
 
         case PCTL_STEADY_STATE:
             /* S~p [ phi ]：稳态概率
-             * 简化：使用幂迭代法近似稳态分布 */
+             * 使用幂迭代法近似稳态分布，带收敛检查 */
             {
                 int n = mc->state_count;
                 double *pi = (double *) lv00_malloc((size_t) n * sizeof(double));
@@ -1120,8 +1120,12 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
                     for (int i = 0; i < n; i++)
                         pi[i] = 1.0 / (double) n;
 
+                    const double convergence_threshold = 1e-12;
+                    const int max_iter = 10000;
+                    bool converged = false;
+
                     /* 幂迭代 */
-                    for (int iter = 0; iter < 500; iter++) {
+                    for (int iter = 0; iter < max_iter; iter++) {
                         memset(next_pi, 0, (size_t) n * sizeof(double));
                         for (int i = 0; i < n; i++) {
                             for (int t = 0; t < mc->trans_count[i]; t++) {
@@ -1139,10 +1143,26 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
                             for (int i = 0; i < n; i++)
                                 next_pi[i] /= sum;
                         }
+                        /* 收敛检查 */
+                        double max_diff = 0.0;
+                        for (int i = 0; i < n; i++) {
+                            double diff = fabs(next_pi[i] - pi[i]);
+                            if (diff > max_diff)
+                                max_diff = diff;
+                        }
                         /* 交换 */
                         double *tmp = pi;
                         pi = next_pi;
                         next_pi = tmp;
+
+                        if (max_diff < convergence_threshold) {
+                            converged = true;
+                            break;
+                        }
+                    }
+
+                    if (!converged) {
+                        fprintf(stderr, "Warning: PCTL steady-state power iteration did not converge within %d iterations.\n", max_iter);
                     }
 
                     /* 计算满足谓词的稳态概率 */

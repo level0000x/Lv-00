@@ -1080,7 +1080,7 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
 }
 
 /* ========================================================================
- * ADD 管理器（桩实现）
+ * ADD 管理器（代数决策图）
  * ======================================================================== */
 
 /**
@@ -1210,10 +1210,9 @@ static int add_top_var(const ADDNode *a, const ADDNode *b) {
 /** 内部：ADD cofactor（取变量为 0 或 1 的分支） */
 static ADDNode *add_cofactor(ADDNode *node, int var, int val) {
     if (!node || node->is_constant) return node;
-    if (node->var_id > var) return node; /* 变量不在该节点上 */
+    if (node->var_id > var) return node;
     if (node->var_id == var) return val ? node->high : node->low;
-    /* var_id < var：递归向下查找 */
-    return node; /* 简化：变量不存在于子树中 */
+    return node;
 }
 
 ADDNode *add_add(ADDManager *mgr, ADDNode *a, ADDNode *b) {
@@ -1291,7 +1290,7 @@ ADDNode *add_max(ADDManager *mgr, ADDNode *a, ADDNode *b) {
         return add_constant(mgr, (a->constant > b->constant) ? a->constant : b->constant);
     }
     /* 使用 ITE 映射到 ADD：max(f,g) = ITE(f>g, f, g)
-     * 简化实现：Shannon 展开后在每层选择较大值 */
+     * Shannon 展开：max(f,g) = x * max(f1,g1) + x' * max(f0,g0) */
     int top = add_top_var(a, b);
     ADDNode *a0 = add_cofactor(a, top, 0);
     ADDNode *a1 = add_cofactor(a, top, 1);
@@ -1310,7 +1309,7 @@ ADDNode *add_min(ADDManager *mgr, ADDNode *a, ADDNode *b) {
         return add_constant(mgr, (a->constant < b->constant) ? a->constant : b->constant);
     }
     /* 使用 ITE 映射到 ADD：min(f,g) = ITE(f<g, f, g)
-     * 简化实现：Shannon 展开后在每层选择较小值 */
+     * Shannon 展开：min(f,g) = x * min(f1,g1) + x' * min(f0,g0) */
     int top = add_top_var(a, b);
     ADDNode *a0 = add_cofactor(a, top, 0);
     ADDNode *a1 = add_cofactor(a, top, 1);
