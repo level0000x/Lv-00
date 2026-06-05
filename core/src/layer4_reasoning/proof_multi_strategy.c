@@ -785,6 +785,9 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
     #define DEDUCT_MAX_ITER  100
 
     char **facts = (char **) lv00_calloc(DEDUCT_MAX_FACTS, sizeof(char *));
+    if (!facts) {
+        return LV00_ERROR_MEMORY;
+    }
     int fact_count = 0;
     bool verified = false;
 

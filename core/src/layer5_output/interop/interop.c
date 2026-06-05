@@ -7360,13 +7360,17 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
     size_t remaining = new_len - ctx->calls_len + 1;
 
     int written = snprintf(write_ptr, remaining, "%s", theorem_name);
+    if (written < 0) written = 0;
+    if ((size_t)written >= remaining) written = (int)(remaining - 1);
     write_ptr += written;
-    remaining -= written;
+    remaining -= (size_t)written;
 
     for (int i = 0; i < param_count; i++) {
         written = snprintf(write_ptr, remaining, ";%s", params[i] ? params[i] : "null");
+        if (written < 0) written = 0;
+        if ((size_t)written >= remaining) written = (int)(remaining - 1);
         write_ptr += written;
-        remaining -= written;
+        remaining -= (size_t)written;
     }
     *write_ptr = '\n';
     write_ptr++;

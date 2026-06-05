@@ -88,8 +88,19 @@ Lv00ProofObject *lv00_proof_object_create(void) {
     }
     
     obj->axiom_ids = (int *)lv00_malloc(32 * sizeof(int));
+    if (!obj->axiom_ids) {
+        lv00_free((void **)&obj->steps);
+        lv00_free((void **)&obj);
+        return NULL;
+    }
     obj->axiom_capacity = 32;
     obj->assumption_ids = (int *)lv00_malloc(32 * sizeof(int));
+    if (!obj->assumption_ids) {
+        lv00_free((void **)&obj->axiom_ids);
+        lv00_free((void **)&obj->steps);
+        lv00_free((void **)&obj);
+        return NULL;
+    }
     obj->assumption_capacity = 32;
     
     return obj;
@@ -495,11 +506,13 @@ Lv00ProofCompiler *lv00_proof_compiler_create(const Lv00CompilerConfig *config) 
     }
     
     compiler->output_buffer = (char *)lv00_malloc(4096);
+    if (!compiler->output_buffer) {
+        lv00_free((void **)&compiler);
+        return NULL;
+    }
     compiler->buffer_size = 4096;
     compiler->buffer_used = 0;
-    if (compiler->output_buffer) {
-        compiler->output_buffer[0] = '\0';
-    }
+    compiler->output_buffer[0] = '\0';
     
     return compiler;
 }

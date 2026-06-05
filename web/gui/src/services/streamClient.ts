@@ -303,7 +303,7 @@ export function createStreamClient(
 
       // 订阅所有事件类型
       try {
-        ws!.send(JSON.stringify({
+        ws.send(JSON.stringify({
           jsonrpc: '2.0',
           method: 'subscribe',
           params: { event_mask: -1 }, // -1 = 所有事件类型
