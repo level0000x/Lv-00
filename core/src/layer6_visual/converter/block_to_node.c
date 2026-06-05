@@ -130,6 +130,26 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
     return result;
 }
 
+/* 清理节点图中的动态内存（strdup分配的name等） */
+void lv00_convert_block_to_node_cleanup(NodeGraph *ng) {
+    if (!ng) return;
+    for (int i = 0; i < ng->node_count; i++) {
+        free(ng->nodes[i].name);
+        ng->nodes[i].name = NULL;
+        free(ng->nodes[i].input_ports);
+        ng->nodes[i].input_ports = NULL;
+        free(ng->nodes[i].output_ports);
+        ng->nodes[i].output_ports = NULL;
+    }
+    free(ng->edges);
+    ng->edges = NULL;
+    free(ng->nodes);
+    ng->nodes = NULL;
+    ng->node_count = 0;
+    ng->edge_count = 0;
+    free(ng);
+}
+
 Lv00ConvertResult lv00_convert_node_to_block(void *node) {
     Lv00ConvertResult result = {0};
     if (!node) {

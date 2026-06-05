@@ -113,7 +113,11 @@ int lv00_geometry_canvas_add_entity(Lv00GeometryCanvas *canvas, int type,
 
     /* 复制坐标 */
     ent->coords = calloc(coord_count, sizeof(double));
-    if (!ent->coords) return -1;
+    if (!ent->coords) {
+        /* calloc失败，清零该实体槽位防止半初始化数据残留 */
+        memset(ent, 0, sizeof(Lv00GeomEntity));
+        return -1;
+    }
     memcpy(ent->coords, coords, coord_count * sizeof(double));
     ent->coord_count = coord_count;
 

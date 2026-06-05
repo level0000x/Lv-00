@@ -415,10 +415,11 @@ export class StreamManager {
    * 获取事件缓冲区
    */
   getEventBuffer(limit?: number): UnifiedStreamEvent[] {
+    const events = this.getBufferedEvents();
     if (limit !== undefined && limit > 0) {
-      return this.eventBuffer.slice(-limit);
+      return events.slice(-limit);
     }
-    return [...this.eventBuffer];
+    return events;
   }
 
   /**

@@ -91,6 +91,8 @@ static void work_queue_destroy(WorkQueue *q) {
 /** 向队列添加一个 S-多项式对 */
 static int work_queue_push(WorkQueue *q, int i, int j) {
     if (q->size >= q->capacity) {
+        /* 溢出检查：确保 capacity * 2 不超过 INT_MAX */
+        if (q->capacity > INT_MAX / 2) return -1;
         int new_cap = q->capacity * 2;
         SPair *new_pairs = (SPair *)realloc(q->pairs, (size_t)new_cap * sizeof(SPair));
         if (!new_pairs) return -1;

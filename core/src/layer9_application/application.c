@@ -39,7 +39,16 @@ void lv00_app_destroy(Lv00Application *app) {
 
 Lv00Session *lv00_app_create_session(Lv00Application *app, const char *name) {
     if (!app) return NULL;
-    if (app->session_count >= app->session_capacity) return NULL;
+    if (app->session_count >= app->session_capacity) {
+        /* 动态扩容：容量翻倍 */
+        int new_cap = app->session_capacity * 2;
+        if (new_cap <= 0) return NULL; /* 溢出保护 */
+        Lv00Session **new_sessions = (Lv00Session **)realloc(
+            app->sessions, (size_t)new_cap * sizeof(Lv00Session *));
+        if (!new_sessions) return NULL;
+        app->sessions = new_sessions;
+        app->session_capacity = new_cap;
+    }
     Lv00Session *session = lv00_session_create(name);
     if (session) {
         app->sessions[app->session_count++] = session;
@@ -164,6 +173,12 @@ int lv00_app_run_repl(Lv00Application *app) {
         } else {
             const char *err = lv00_session_error(session);
             printf("=> 失败: %s\n", err ? err : "未知错误");
+        }
+
+        /* 销毁临时会话并从数组中移除，防止内存泄漏 */
+        lv00_session_destroy(session);
+        if (app->session_count > 0) {
+            app->sessions[--app->session_count] = NULL;
         }
     }
 
