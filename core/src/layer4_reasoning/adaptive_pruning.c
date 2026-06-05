@@ -202,22 +202,106 @@ double lv00_estimate_solution_likelihood(const Lv00ProblemComplexity *complexity
     return likelihood;
 }
 
-/* ── Neural Suggestion (Stub) ── */
+/* ── Neural Suggestion (Heuristic-based) ── */
 
 Lv00NeuralSuggestion lv00_neural_suggest_strategy(
     const Lv00ProblemComplexity *complexity)
 {
     Lv00NeuralSuggestion suggestion;
     memset(&suggestion, 0, sizeof(suggestion));
-    suggestion.valid = 0;  /* Not yet implemented */
 
     if (!complexity) return suggestion;
 
-    /* Placeholder: uniform weights for all 8 strategies */
-    for (int i = 0; i < 8; i++) {
-        suggestion.strategy_weights[i] = 0.125f;
+    /* 初始化所有策略权重为低基线 */
+    for (int i = 0; i < STRATEGY_COUNT; i++) {
+        suggestion.strategy_weights[i] = 0.05f;
     }
-    suggestion.confidence = 0.0f;
+
+    float total_weight = 0.0f;
+    int feature_matches = 0;
+
+    /*
+     * 启发式策略选择基于问题复杂度分析：
+     *
+     * - 约束少 (< 5): 问题简单，优先直接构造法和面积法
+     * - 约束多 (> 20): 问题复杂，优先代数法和SOS法
+     * - 不等式特征 (高多项式次数): 优先不等式策略
+     * - 平行/垂直特征 (中等节点数): 优先坐标法
+     */
+
+    /* 特征1: 少约束 → 直接构造 + 面积法 */
+    if (complexity->constraint_count < 5) {
+        float boost = 0.35f;
+        suggestion.strategy_weights[STRATEGY_DIRECT_CONSTRUCTION] += boost;
+        suggestion.strategy_weights[STRATEGY_AREA_METHOD] += boost * 0.8f;
+        feature_matches++;
+        total_weight += boost + boost * 0.8f;
+    }
+
+    /* 特征2: 多约束 → 代数法 + SOS法 */
+    if (complexity->constraint_count > 20) {
+        float boost = 0.35f;
+        suggestion.strategy_weights[STRATEGY_ALGEBRAIC] += boost;
+        suggestion.strategy_weights[STRATEGY_SOS] += boost * 0.8f;
+        feature_matches++;
+        total_weight += boost + boost * 0.8f;
+    }
+
+    /* 特征3: 高多项式次数 → 不等式策略 */
+    if (complexity->max_polynomial_degree >= 2) {
+        float boost = 0.25f;
+        suggestion.strategy_weights[STRATEGY_INEQUALITY] += boost;
+        feature_matches++;
+        total_weight += boost;
+    }
+
+    /* 特征4: 中等节点数 (3-10) → 坐标法 (平行/垂直特征常见) */
+    if (complexity->node_count >= 3 && complexity->node_count <= 10) {
+        float boost = 0.20f;
+        suggestion.strategy_weights[STRATEGY_COORDINATE] += boost;
+        feature_matches++;
+        total_weight += boost;
+    }
+
+    /* 特征5: 大搜索空间 → 向量法和变换法 */
+    if (complexity->estimated_search_space > 20.0) {
+        float boost = 0.15f;
+        suggestion.strategy_weights[STRATEGY_VECTOR] += boost;
+        suggestion.strategy_weights[STRATEGY_TRANSFORM] += boost * 0.7f;
+        feature_matches++;
+        total_weight += boost + boost * 0.7f;
+    }
+
+    /* 如果没有特征匹配，回退到均匀分布 */
+    if (feature_matches == 0) {
+        for (int i = 0; i < STRATEGY_COUNT; i++) {
+            suggestion.strategy_weights[i] = 0.125f;
+        }
+        suggestion.confidence = 0.1f;
+        suggestion.valid = 1;
+        return suggestion;
+    }
+
+    /* 归一化权重，使总和为 1.0 */
+    if (total_weight > 0.0f) {
+        float sum = 0.0f;
+        for (int i = 0; i < STRATEGY_COUNT; i++) {
+            sum += suggestion.strategy_weights[i];
+        }
+        if (sum > 0.0f) {
+            for (int i = 0; i < STRATEGY_COUNT; i++) {
+                suggestion.strategy_weights[i] /= sum;
+            }
+        }
+    }
+
+    /* 置信度基于特征匹配的清晰度：
+     * 匹配越多、特征越明确，置信度越高 */
+    suggestion.confidence = (float)feature_matches / 6.0f;
+    if (suggestion.confidence > 1.0f) suggestion.confidence = 1.0f;
+    if (suggestion.confidence < 0.0f) suggestion.confidence = 0.0f;
+
+    suggestion.valid = 1;
 
     return suggestion;
 }

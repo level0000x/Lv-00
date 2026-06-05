@@ -602,9 +602,26 @@ bool type_check_predicate_subtype_value(TypeSystem *ts, TypeRegion *subtype, int
 
     /* 如果有关联的约束ID，检查约束是否满足 */
     if (subtype->predicate_constraint_id >= 0) {
-        /* 通过约束图检查约束状态 */
-        /* 这里简化处理：假设约束系统会验证 */
-        return true; /* 基类型兼容且约束存在 */
+        /* 通过约束ID列表检查约束是否已被验证满足 */
+        bool constraint_satisfied = false;
+        if (subtype->constraint_ids && subtype->constraint_count > 0) {
+            for (int ci = 0; ci < subtype->constraint_count; ci++) {
+                if (subtype->constraint_ids[ci] == subtype->predicate_constraint_id) {
+                    constraint_satisfied = true;
+                    break;
+                }
+            }
+        }
+        /* 同时检查节点的类型区域是否包含该约束ID */
+        if (!constraint_satisfied && node_type->constraint_ids && node_type->constraint_count > 0) {
+            for (int ci = 0; ci < node_type->constraint_count; ci++) {
+                if (node_type->constraint_ids[ci] == subtype->predicate_constraint_id) {
+                    constraint_satisfied = true;
+                    break;
+                }
+            }
+        }
+        return constraint_satisfied;
     }
 
     return true; /* 基类型兼容即可 */
@@ -1056,14 +1073,16 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
             return TYPE_EQUIV_UNKNOWN;
 
         case TYPE_KIND_DEPENDENT:
-            /* 依赖类型 Π(x:A).B(x) 的等价检查
-             * 
-             * 两个依赖类型 Π(x:A1).B1(x) 和 Π(y:A2).B2(y) 等价当且仅当：
+            /* 依赖类型 Pi(x:A).B(x) 的等价检查
+             *
+             * 两个依赖类型 Pi(x:A1).B1(x) 和 Pi(y:A2).B2(y) 等价当且仅当：
              * 1. A1 和 A2 等价（参数类型相同）
-             * 2. B1 和 B2 在参数替换后等价
-             * 
-             * 注意：这是一个简化版本，完整的依赖类型等价需要更复杂的
-             * 规范化和转换规则（如alpha等价）
+             * 2. B1 和 B2 在参数替换后等价（alpha等价）
+             *
+             * Alpha等价实现策略：
+             * - 使用 De Bruijn 索引方法：将两个依赖类型的参数统一重命名为
+             *   同一个规范变量（canonical_var），然后在体类型中替换各自的参数
+             *   为该规范变量，最后比较替换后的体类型。
              */
             {
                 /* 首先检查参数节点是否有效 */
@@ -1077,58 +1096,75 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                     return TYPE_EQUIV_ERROR;
                 }
 
-                /* 对于依赖类型，我们需要检查体类型的等价性
-                 * 由于参数可能不同（alpha等价），我们采用以下策略：
-                 * 
-                 * 1. 如果两个依赖类型有相同的参数节点ID，直接比较体类型
-                 * 2. 否则，检查体类型结构是否相同（忽略参数名称差异）
-                 */
-
-                /* 策略1：相同参数节点ID */
+                /* 策略1：相同参数节点ID，直接比较体类型 */
                 if (type1->param_node_id == type2->param_node_id) {
                     VISITED_CHECK(type1->body_type, type2->body_type);
                     return type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite,
                                                            depth + 1);
                 }
 
-                /* 策略2：不同参数节点ID，进行结构等价检查
-                 * 这需要将type2的参数节点ID替换为type1的参数节点ID，
-                 * 然后比较两个体类型
-                 * 
-                 * 由于完整的替换需要遍历整个类型树，这里我们采用
-                 * 一个简化的方法：检查体类型的结构是否相同
+                /*
+                 * 策略2：Alpha等价 - 使用 De Bruijn 索引规范化
+                 *
+                 * 步骤：
+                 * 1. 创建一个规范类型变量（使用固定ID -1 表示内部规范变量）
+                 * 2. 将 type1 的体类型中的 param_node_id 替换为规范变量
+                 * 3. 将 type2 的体类型中的 param_node_id 替换为规范变量
+                 * 4. 比较两个替换后的体类型
+                 *
+                 * 由于 type_substitute_variable 需要一个 TypeRegion* 作为替换目标，
+                 * 我们创建一个简单的 TYPE_KIND_VARIABLE 节点作为规范变量。
                  */
 
-                /* 创建一个临时替换，将type2的参数映射到type1的参数 */
-                TypeRegion *substituted_body = NULL;
-                if (type_substitute_variable(ts, type2->body_type, type2->param_node_id,
-                                             type1->body_type, /* 使用type1的体类型作为参考 */
-                                             &substituted_body)) {
-                    /* 替换成功，比较体类型 */
-                    VISITED_CHECK(type1->body_type, substituted_body);
+                /* 创建规范变量节点（De Bruijn index 0 → variable_id = -1） */
+                TypeRegion canonical_var;
+                memset(&canonical_var, 0, sizeof(canonical_var));
+                canonical_var.kind = TYPE_KIND_VARIABLE;
+                canonical_var.variable_id = -1;  /* 规范变量标记 */
+
+                /* 替换 type1 体类型中的参数为规范变量 */
+                TypeRegion *norm_body1 = NULL;
+                bool sub1_ok = type_substitute_variable(
+                    ts, type1->body_type, type1->param_node_id,
+                    &canonical_var, &norm_body1);
+
+                /* 替换 type2 体类型中的参数为规范变量 */
+                TypeRegion *norm_body2 = NULL;
+                bool sub2_ok = type_substitute_variable(
+                    ts, type2->body_type, type2->param_node_id,
+                    &canonical_var, &norm_body2);
+
+                if (sub1_ok && sub2_ok && norm_body1 && norm_body2) {
+                    /* 两个替换都成功，比较规范化后的体类型 */
+                    VISITED_CHECK(norm_body1, norm_body2);
                     TypeEquivResult body_result =
-                        type_check_equivalence_internal(ts, type1->body_type, substituted_body, use_rewrite, depth + 1);
+                        type_check_equivalence_internal(ts, norm_body1, norm_body2, use_rewrite, depth + 1);
+
+                    /* 释放临时规范化类型（仅释放容器，不释放共享的 canonical_var） */
+                    type_region_deep_free(norm_body1);
+                    type_region_deep_free(norm_body2);
+
                     return body_result;
                 }
 
-                /* 替换失败，回退到结构比较 */
-                /* 检查体类型的种类是否相同 */
+                /* 替换失败，清理并回退到结构比较 */
+                if (norm_body1) type_region_deep_free(norm_body1);
+                if (norm_body2) type_region_deep_free(norm_body2);
+
+                /* 回退：检查体类型的种类是否相同 */
                 if (type1->body_type->kind != type2->body_type->kind) {
                     return TYPE_EQUIV_NOT_EQUIV;
                 }
 
                 /* 对于简单情况，直接比较体类型（忽略参数差异） */
-                /* 这是一种保守策略，可能产生假阴性结果 */
                 VISITED_CHECK(type1->body_type, type2->body_type);
                 TypeEquivResult body_result =
                     type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
 
-                /* 如果体类型直接等价，则依赖类型等价 */
                 if (body_result == TYPE_EQUIV_OK) {
                     return TYPE_EQUIV_OK;
                 }
 
-                /* 否则返回未知，让更高级的类型检查器处理 */
                 return TYPE_EQUIV_UNKNOWN;
             }
 
@@ -3052,17 +3088,31 @@ ExplorerResult path_explorer_save_path(const PathExplorer *explorer, TypeRewrite
     if (!path)
         return EXPLORER_ERROR;
 
-    /* 将每一步记录到重写路径中 */
+    /* 将每一步记录到重写路径中
+     *
+     * 利用撤销栈恢复 before/after 快照：
+     *   undo_stack[i] 保存了第 i 步应用前的类型深拷贝。
+     *   undo_stack[i+1] 保存了第 i+1 步应用前的类型（即第 i 步之后的状态）。
+     *   对于最后一步，after 为 explorer->current。
+     */
     for (int i = 0; i < explorer->step_count; i++) {
         ExplorerStep *step = &explorer->steps[i];
-        /*
-         * TypeRewritePath 记录 before/after 类型指针。
-         * 由于探索器中我们无法获取每步中间的 before/after 快照
-         * （简化实现），这里使用当前类型作为 after，
-         * before 设为 NULL。
-         */
-        type_rewrite_path_record(path, step->rule_name, NULL, /* before: 简化实现中不可用 */
-                                 explorer->current);
+        const TypeRegion *before = NULL;
+        const TypeRegion *after = NULL;
+
+        /* before: 从撤销栈获取（应用规则前的深拷贝） */
+        if (i < explorer->undo_count) {
+            before = explorer->undo_stack[i];
+        }
+
+        /* after: 下一步的 before（撤销栈中），或当前类型 */
+        if (i + 1 < explorer->undo_count) {
+            after = explorer->undo_stack[i + 1];
+        } else {
+            after = explorer->current;
+        }
+
+        type_rewrite_path_record(path, step->rule_name, before, after);
     }
 
     *out_path = path;

@@ -109,6 +109,7 @@ struct Lv00QuantifiedExpr {
     /* 实例化追踪 */
     int *instantiated_ids;     /**< 已实例化的变量ID列表 */
     int instantiated_count;    /**< 已实例化变量数量 */
+    int instantiated_capacity; /**< 已实例化ID数组的分配容量 */
 
     /* 真值缓存（三值逻辑） */
     Lv00TruthValue cached_truth;  /**< 缓存的真值 */

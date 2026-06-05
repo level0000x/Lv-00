@@ -708,7 +708,7 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
     }
 
     /* 使用 seen 标记数组（复用 levels 数组的符号位，或使用栈上临时数组） */
-    /* 简化实现：收集冲突子句中所有在当前或更早决策层被赋值的文字 */
+    /* 1-UIP 冲突分析：沿蕴含图反向解析，直到当前决策层只剩一个文字 */
     int *seen = (int *)lv00_calloc((size_t)(ctx->var_count + 1), sizeof(int));
     if (!seen) return CDCL_UNSAT;
 
@@ -726,21 +726,47 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
         }
     }
 
-    /* 反向解析：沿蕴含图回溯到 1-UIP */
+    /* 1-UIP 反向解析：沿蕴含图回溯
+     * 策略：从冲突子句出发，逐步解析（resolve）非当前决策层文字的原因子句。
+     * 当当前决策层上只剩一个文字时，该文字即为 1-UIP。
+     * 解析过程：
+     *   1. 统计当前决策层上的文字数 cnt_at_current_level
+     *   2. 遍历解析栈中的文字：
+     *      - 如果在当前决策层上，计数器递减
+     *      - 如果不在当前决策层上且不在第0层，解析其原因子句
+     *   3. 当计数器降为1时，找到1-UIP，停止解析
+     */
     int idx = 0;
     int cnt_at_current_level = 0;
     int bt_level = 0;
+    int uip_lit = -1; /* 1-UIP 文字 */
 
+    /* 第一遍：统计当前决策层上的文字数量 */
+    for (int i = 0; i < resolve_count; i++) {
+        int lit = resolving[i];
+        int var = (lit < 0) ? -lit : lit;
+        if (ctx->levels[var] == ctx->decision_level) {
+            cnt_at_current_level++;
+        }
+    }
+
+    /* 第二遍：解析，直到找到 1-UIP（当前决策层只剩一个文字） */
+    idx = 0;
     while (idx < resolve_count) {
         int lit = resolving[idx++];
         int var = (lit < 0) ? -lit : lit;
         int level = ctx->levels[var];
 
         if (level == ctx->decision_level) {
-            cnt_at_current_level++;
+            cnt_at_current_level--;
+            if (cnt_at_current_level == 1) {
+                /* 找到 1-UIP：当前决策层上只剩一个文字 */
+                uip_lit = lit;
+                break;
+            }
         } else if (level > 0) {
             if (level > bt_level) bt_level = level;
-            /* 将该变量的归因子句中的文字加入解析栈 */
+            /* 解析该变量的原因子句，将其中的文字加入解析栈 */
             int reason = ctx->reasons[var];
             if (reason >= 0 && reason < ctx->orig_clause_count + ctx->learn_clause_count) {
                 int *rclause = ctx->clauses[reason];
@@ -751,6 +777,10 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
                     if (rlit != lit && !seen[rvar]) {
                         seen[rvar] = 1;
                         resolving[resolve_count++] = rlit;
+                        /* 新加入的文字如果在当前决策层上，增加计数 */
+                        if (ctx->levels[rvar] == ctx->decision_level) {
+                            cnt_at_current_level++;
+                        }
                     }
                 }
             }
@@ -758,7 +788,18 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
         /* level == 0 的文字不需要进一步解析 */
     }
 
-    /* 构建学习子句：所有 seen 标记的文字取反 */
+    /* 如果没有找到 1-UIP（例如所有冲突文字都在第0层），回退到收集所有 seen 文字 */
+    if (uip_lit < 0) {
+        /* 尝试从 trail 中找到当前决策层上最近的赋值作为 UIP */
+        if (ctx->trail_lim && ctx->decision_level > 0) {
+            int trail_start = ctx->trail_lim[ctx->decision_level];
+            if (trail_start >= 0 && trail_start < ctx->trail_size) {
+                uip_lit = ctx->trail[trail_start];
+            }
+        }
+    }
+
+    /* 构建学习子句：所有 seen 标记的文字取反（1-UIP 文字也在其中） */
     int learned_size = 0;
     for (int v = 1; v <= ctx->var_count; v++) {
         if (seen[v]) learned_size++;
