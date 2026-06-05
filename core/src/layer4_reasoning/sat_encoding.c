@@ -1058,7 +1058,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         Relation *binding = (Relation *)lv00_malloc(sizeof(Relation));
                         if (!binding) continue;
                         memset(binding, 0, sizeof(Relation));
-                        binding->name = rel->name ? strdup(rel->name) : NULL;
+                        binding->name = rel->name ? lv00_strdup_safe(rel->name) : NULL;
                         binding->arity = rel->arity;
                         for (int d = 0; d < rel->arity && d < 8; d++) {
                             binding->domains[d] = rel->domains[d];
@@ -1067,6 +1067,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         binding->tuples = (int **)lv00_malloc(
                             (size_t)binding->tuple_capacity * sizeof(int *));
                         if (!binding->tuples) {
+                            lv00_free((void **)&binding->name);
                             lv00_free((void **)&binding);
                             continue;
                         }
