@@ -453,6 +453,10 @@ export function buildSubstance(
   constraints: Constraint[],
   _domain: PenroseDomain = euclideanGeometryDomain,
 ): PenroseSubstance {
+  // NOTE: _domain is reserved for future multi-domain support.
+  // Currently, the function hardcodes euclidean geometry type names.
+  // When additional domains are supported, this parameter will be used
+  // to select domain-specific type names and style mappings.
   const pointNameMap = new Map<number, string>();
   const objects: PenroseObject[] = [];
   const statements: PenroseStatement[] = [];

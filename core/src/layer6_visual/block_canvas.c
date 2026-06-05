@@ -281,11 +281,14 @@ char *lv00_block_canvas_render_svg(Lv00BlockCanvasView *canvas) {
     if (!buf) return NULL;
 
     int pos = 0;
-    pos += snprintf(buf + pos, buf_size - pos,
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" "
-        "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
-        min_x, min_y, max_x - min_x, max_y - min_y);
+    {
+        int n = snprintf(buf + pos, buf_size - pos,
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+            "viewBox=\"%g %g %g %g\" width=\"800\" height=\"600\">\n",
+            min_x, min_y, max_x - min_x, max_y - min_y);
+        if (n > 0) pos += (pos + n < buf_size) ? n : (buf_size - 1 - pos);
+    }
 
     /* 绘制连接（贝塞尔曲线） */
     for (int i = 0; i < canvas->connection_count; i++) {
@@ -306,6 +309,7 @@ char *lv00_block_canvas_render_svg(Lv00BlockCanvasView *canvas) {
             "  <path d=\"M %g,%g C %g,%g %g,%g %g,%g\" "
             "fill=\"none\" stroke=\"#666666\" stroke-width=\"2\"/>\n",
             x1, y1, cx1, cy1, cx2, cy2, x2, y2);
+        if (pos >= buf_size) pos = buf_size - 1;
     }
 
     /* 绘制块 */
@@ -321,6 +325,7 @@ char *lv00_block_canvas_render_svg(Lv00BlockCanvasView *canvas) {
             "rx=\"%g\" ry=\"%g\" fill=\"%s\" stroke=\"#333333\" "
             "stroke-width=\"2\" opacity=\"0.9\"/>\n",
             b->x, b->y, b->width, b->height, rx, rx, color);
+        if (pos >= buf_size) pos = buf_size - 1;
 
         /* 标签 */
         pos += snprintf(buf + pos, buf_size - pos,
@@ -328,6 +333,7 @@ char *lv00_block_canvas_render_svg(Lv00BlockCanvasView *canvas) {
             "text-anchor=\"middle\" dominant-baseline=\"middle\" "
             "font-weight=\"bold\">%s</text>\n",
             b->x + b->width / 2.0, b->y + b->height / 2.0, b->label);
+        if (pos >= buf_size) pos = buf_size - 1;
 
         /* 绘制端口（小圆圈） */
         for (int j = 0; j < b->port_count; j++) {
@@ -340,9 +346,11 @@ char *lv00_block_canvas_render_svg(Lv00BlockCanvasView *canvas) {
                 "  <circle cx=\"%g\" cy=\"%g\" r=\"5\" "
                 "fill=\"%s\" stroke=\"%s\" stroke-width=\"1.5\"/>\n",
                 px, py, port_color, port_stroke);
+            if (pos >= buf_size) pos = buf_size - 1;
         }
     }
 
     pos += snprintf(buf + pos, buf_size - pos, "</svg>\n");
+    if (pos >= buf_size) pos = buf_size - 1;
     return buf;
 }

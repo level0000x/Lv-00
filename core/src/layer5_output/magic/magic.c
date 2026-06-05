@@ -1074,7 +1074,8 @@ MagicArray *magic_array_copy(const MagicArray *src) {
         }
 
         /* 添加到图 */
-        graph_add_point(copy->graph, &rune->coord, 1);
+        SymbolicCoord *coords[] = { rune->coord };
+        graph_add_point(copy->graph, coords, 1);
     }
 
     /* 复制约束 */
