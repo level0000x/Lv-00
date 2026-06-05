@@ -1234,7 +1234,7 @@ int atp_register_all_to_scheduler(void) {
  * 2. 含非线性算术 -> 优先 SMT
  * 3. 混合约束 -> 同时尝试，返回最先成功的结果
  *
- * 框架实现：桩代码，返回 ATP_RESULT_UNKNOWN。
+ * 框架实现：自动选择可用后端并求解，无可用后端时返回 ATP_RESULT_UNKNOWN。
  */
 int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config,
                     ATPResultInfo *result) {

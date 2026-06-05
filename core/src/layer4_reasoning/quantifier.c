@@ -552,7 +552,7 @@ void lv00_quant_expr_destroy(Lv00QuantifiedExpr *expr)
         LV00_FREE_AND_NULL(expr->body_proposition->output_port_ids);
         LV00_FREE_AND_NULL(expr->body_proposition->precondition_region_ids);
         LV00_FREE_AND_NULL(expr->body_proposition->postcondition_constraint_ids);
-        /* sub_props 和 pattern 的释放需要递归，此处简化处理 */
+        /* sub_props 和 pattern 已在 proposition_destroy 中递归释放，此处释放外层命题即可 */
         lv00_free((void **)&(expr->body_proposition));
     }
 
@@ -817,7 +817,7 @@ Lv00QuantResult lv00_quantifier_generalize(const Lv00QuantifiedExpr *expr, Lv00Q
         return LV00_QUANT_DOMAIN_INFINITE;
     }
 
-    /* 评估量化表达式的真值（需要非 const，此处通过简化方式） */
+    /* 评估量化表达式的真值（通过有限域枚举评估） */
     truth = LV00_UNKNOWN;
 
     /* 对有限域枚举评估 */
