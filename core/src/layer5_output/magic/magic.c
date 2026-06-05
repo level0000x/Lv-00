@@ -1905,10 +1905,25 @@ SpellStatus spell_cast(Spell *spell, MagicArray *array, SymbolicCoord **inputs, 
 
     spell->current_stage = SPELL_STAGE_RELEASING;
 
-    /* 释放阶段 - 生成输出 */
+    /* 释放阶段 - 生成输出
+     * 基础算术咒语：根据输入坐标数量产生不同结果
+     * - 0 个输入：返回有理数 0/1
+     * - 1 个输入：直接复制返回该输入坐标
+     * - 2+ 个输入：返回所有输入坐标之和 */
     if (outputs && output_count > 0) {
-        SymbolicCoord *one = symbolic_coord_create_rational(1, 1);
-        outputs[0] = one;
+        if (input_count == 0 || !inputs) {
+            outputs[0] = symbolic_coord_create_rational(0, 1);
+        } else if (input_count == 1) {
+            outputs[0] = symbolic_coord_copy(inputs[0]);
+        } else {
+            SymbolicCoord *sum = symbolic_coord_copy(inputs[0]);
+            for (int i = 1; i < input_count; i++) {
+                SymbolicCoord *tmp = symbolic_coord_add(sum, inputs[i]);
+                symbolic_coord_destroy(sum);
+                sum = tmp;
+            }
+            outputs[0] = sum;
+        }
     }
 
     spell->status = SPELL_STATUS_SUCCESS;

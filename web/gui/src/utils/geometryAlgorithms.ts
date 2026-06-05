@@ -370,14 +370,83 @@ export function computeGraphHash(
  * 约束的拓扑排序。
  * 引用其他约束创建的点/线段的约束应排在那些约束之后。
  *
- * 当前按插入顺序返回（稳定排序）。
+ * 使用 Kahn 算法实现真正的拓扑排序：
+ * 1. 构建邻接表：如果约束 A 的参数中引用了约束 B 参数中的元素，
+ *    且 B 的 ID 小于 A，则 A 依赖于 B（B → A）。
+ * 2. 计算每个节点的入度。
+ * 3. 从入度为 0 的节点开始处理，逐步减少邻居的入度。
+ * 4. 返回排序后的约束 ID 列表。
  *
  * @param constraints - 约束列表
  * @returns 排序后的约束 ID 列表
  */
 export function topologicalSort(constraints: Constraint[]): number[] {
-  // 简单实现：按创建顺序返回（按 ID 排序）
-  return [...constraints].sort((a, b) => a.id - b.id).map((c) => c.id);
+  if (constraints.length === 0) return [];
+
+  const ids = constraints.map((c) => c.id);
+
+  // 构建每个约束引用的元素集合
+  const argsSet = constraints.map((c) => new Set(c.args));
+
+  // 构建邻接表和入度数组
+  // adjacency[i] = 约束 i 依赖的约束索引列表（即 i 必须在这些之后）
+  const n = constraints.length;
+  const adjacency: number[][] = Array.from({ length: n }, () => []);
+  const inDegree = new Array<number>(n).fill(0);
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      // 如果约束 i 的参数中引用了约束 j 参数中的元素，且 j.id < i.id，
+      // 则约束 i 依赖于约束 j
+      if (constraints[j].id < constraints[i].id) {
+        for (const arg of constraints[i].args) {
+          if (argsSet[j].has(arg)) {
+            adjacency[j].push(i);
+            inDegree[i]++;
+            break; // 每对约束只建立一条边
+          }
+        }
+      }
+    }
+  }
+
+  // Kahn 算法：从入度为 0 的节点开始
+  const queue: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (inDegree[i] === 0) {
+      queue.push(i);
+    }
+  }
+
+  // 按约束 ID 排序以保证稳定性
+  queue.sort((a, b) => constraints[a].id - constraints[b].id);
+
+  const result: number[] = [];
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    result.push(constraints[node].id);
+
+    for (const neighbor of adjacency[node]) {
+      inDegree[neighbor]--;
+      if (inDegree[neighbor] === 0) {
+        queue.push(neighbor);
+        // 保持队列按 ID 排序以确保稳定输出
+        queue.sort((a, b) => constraints[a].id - constraints[b].id);
+      }
+    }
+  }
+
+  // 如果存在环，返回未处理的约束（追加到末尾）
+  if (result.length < n) {
+    for (const c of constraints) {
+      if (!result.includes(c.id)) {
+        result.push(c.id);
+      }
+    }
+  }
+
+  return result;
 }
 
 /**
