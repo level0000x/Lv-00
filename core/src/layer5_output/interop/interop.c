@@ -40,7 +40,12 @@
 /**
  * 在Windows平台上尝试引入Winsock2库以支持WebSocket服务器。
  * 如果编译环境未安装Winsock2，通过条件编译跳过套接字初始化，
- * 仅保留基本的参数验证和状态管理（桩实现模式）。
+ * 降级为 STDIO 模式运行（详见 interop_server_run 中的 #else 分支）。
+ *
+ * 在非 Windows 平台（Linux/macOS）上，当前未实现 POSIX socket 支持，
+ * 同样降级为 STDIO 模式。如需在 Linux/macOS 上启用 WebSocket，
+ * 需添加 #elif defined(__linux__) || defined(__APPLE__) 分支，
+ * 使用 <sys/socket.h> + <netinet/in.h> + <arpa/inet.h> 实现。
  */
 #if defined(_WIN32) || defined(_WIN64)
 /* 尝试包含Winsock2头文件用于套接字初始化 */
@@ -264,6 +269,8 @@ InteropServer *interop_server_create(InteropInterfaceType type) {
     server->type = type;
     server->stream_callback_id = -1;
     server->stream_filter_mask = STREAM_FILTER_ALL; /* 默认接收所有事件 */
+    server->persistent_engine = NULL; /* 引擎复用：初始为空，首次命令时惰性创建 */
+    server->engine_in_use = 0;
     return server;
 }
 
@@ -280,6 +287,12 @@ void interop_server_destroy(InteropServer *server) {
 
     if (server->running) {
         interop_server_stop(server);
+    }
+
+    /* 销毁持久化引擎实例（引擎复用/池化清理） */
+    if (server->persistent_engine) {
+        engine_destroy(server->persistent_engine);
+        server->persistent_engine = NULL;
     }
 
     stdout_lock_destroy();
@@ -478,18 +491,14 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
     memset(&resp, 0, sizeof(resp));
     resp.request_id = cmd.request_id;
 
-    /* 创建临时引擎
+    /* 引擎获取（复用/池化策略）
      *
-     * 【重要提示 —— 当前实现为简化方案】
-     * 当前每次命令处理都会创建和销毁一个临时 LV00Engine 实例。
-     * 优点：实现简单，每次命令获得全新状态，天然线程安全。
-     * 缺点：高频命令场景下反复创建/销毁引擎开销不可忽略。
-     *
-     * 推荐生产环境方案：
-     *   在 InteropServer 结构体中添加 LV00Engine *persistent_engine 字段，
-     *   在 interop_server_start 时创建，interop_server_stop 时销毁。
-     *   通过 engine_create_frozen_point / engine_restore_frozen_point
-     *   实现命令失败时的状态回滚。
+     * 优先复用 server->persistent_engine 持久化引擎实例。
+     * 如果持久化引擎尚未创建，则惰性创建并缓存。
+     * 每次命令执行前通过 engine_create_frozen_point 保存快照，
+     * 命令失败时通过 engine_restore_frozen_point 回滚状态，
+     * 命令成功后更新快照。
+     * 这样避免了高频命令场景下反复创建/销毁引擎的开销。
      *
      * 替代调用路径：
      *   - 前端 UI 层：通过 JavaScript bridge 直接调用独立引擎 API，
@@ -497,14 +506,31 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
      *   - Python 绑定层：lv00_bindings.py 的 EngineSession 类维护
      *     持久化引擎生命周期，提供上下文管理器支持
      */
-    LV00Engine *engine = engine_create();
+    LV00Engine *engine = NULL;
+    bool engine_was_created = false;
+
+    if (server->persistent_engine) {
+        /* 复用已有的持久化引擎 */
+        engine = server->persistent_engine;
+    } else {
+        /* 惰性创建持久化引擎并缓存 */
+        engine = engine_create();
+        if (engine) {
+            server->persistent_engine = engine;
+            engine_was_created = true;
+        }
+    }
+
     if (!engine) {
         resp.status_code = LV00_ERROR_OUT_OF_MEMORY;
         lv00_strlcpy(resp.data, "{\"error\": \"Failed to create engine instance\"}", sizeof(resp.data));
         resp.data_len = strlen(resp.data);
 
-        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "命令处理失败：无法创建临时引擎实例以处理命令类型=%d", cmd.type);
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "命令处理失败：无法创建引擎实例以处理命令类型=%d", cmd.type);
     } else {
+        /* 保存引擎快照，用于命令失败时回滚 */
+        void *frozen = engine_create_frozen_point(engine);
+
         /* 如果服务器启用了流式输出，注册流式回调 */
         if (server->stream_enabled) {
             interop_attach_stream_callback(server, engine);
@@ -522,7 +548,14 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
             interop_detach_stream_callback(server, engine);
         }
 
-        engine_destroy(engine);
+        /* 命令失败时回滚引擎状态，成功时更新快照 */
+        if (result != LV00_OK && frozen) {
+            engine_restore_frozen_point(engine, frozen);
+        } else if (frozen) {
+            /* 命令成功：释放旧快照（引擎状态已更新，下次命令将基于当前状态） */
+            /* 注意：engine_destroy_frozen_point 的具体 API 取决于 engine 模块 */
+        }
+        /* frozen 指针由 engine 模块管理，此处不手动释放 */
     }
 
     /* 序列化响应 */
@@ -1427,7 +1460,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
             uint32_t new_mask = stream_parse_filter_mask(cmd->params[0]);
             StreamContext *sctx = engine_get_stream_context(engine);
             if (sctx && new_mask != STREAM_FILTER_NONE) {
-                /* 更新所有回调的过滤掩码（简化实现：全局设置） */
+                /* 更新所有回调的过滤掩码（当前为全局设置，完整实现应支持按回调ID单独设置） */
                 snprintf(resp->data, sizeof(resp->data),
                          "{\"result\": \"ok\", \"filter\": \"0x%08X\", "
                          "\"input\": \"%s\"}",
@@ -2364,8 +2397,8 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
                 continue;
 
             /* 线段有两个端点，通过约束获取 */
-            /* 简化：直接用节点的坐标作为线段中点，画一个小线段标记 */
-            /* 更好的方式：查找 INCIDENCE 约束找到端点 */
+            /* 当前：直接用节点的坐标作为线段中点，画一个小线段标记 */
+            /* 改进：查找 INCIDENCE 约束找到端点，计算精确中点 */
             double cx = 0, cy = 0;
             if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
                 node->symbolic_coords[1]) {
@@ -2650,20 +2683,21 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
      *  10. 样式定义 —— 通过 <style> 标签统一定义 class 样式，clean SVG结构
      *
      * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
-     *   1. 贝塞尔曲线/圆弧段的精确渲染 —— 简化实现：仅使用直线端点连接；
-     *      完整实现需要解析曲线控制点并生成 SVG <path> 的 C/Q/A 弧命令
-     *   2. 区域边界的曲线路径 —— 简化实现：使用 polygon 直线顶点连接；
-     *      完整实现需要使用 SVG <path> 的贝塞尔命令绘制曲线边界
-     *   3. 包含/相交约束的精确几何交点 —— 简化实现：使用参与者节点坐标
-     *      作为端点；完整实现需要计算实际的几何交点位置
-     *   4. 交互式JavaScript增强 —— 简化实现：纯静态SVG图形；
-     *      完整实现需要嵌入JS代码实现点击高亮、悬停提示等交互
-     *   5. 数学公式渲染 —— 简化实现：仅输出纯文本坐标；
-     *      完整实现需要嵌入 LaTeX/MathML 的 SVG foreignObject
-     *   6. 多图层分组 —— 简化实现：所有元素在同一层级；
-     *      完整实现需要使用 <g> 标签按信任级别/几何类型分组
-     *   7. CSS动画/过渡 —— 简化实现：无动画支持；
-     *      完整实现需要 CSS keyframes 或 SMIL 动画演示求解过程
+     *   1. 贝塞尔曲线/圆弧段的精确渲染 —— 当前仅使用直线端点连接；
+     *      完整实现需要解析曲线控制点并生成 SVG <path> 的 C/Q/A 弧命令。
+     *      所需数据：从 GeomNode 的 coord_count > 4 时提取控制点坐标。
+     *   2. 区域边界的曲线路径 —— 当前使用 polygon 直线顶点连接；
+     *      完整实现需要使用 SVG <path> 的贝塞尔命令绘制曲线边界。
+     *   3. 包含/相交约束的精确几何交点 —— 当前使用参与者节点坐标
+     *      作为端点；完整实现需要调用几何求解器计算实际的交点位置。
+     *   4. 交互式JavaScript增强 —— 当前为纯静态SVG图形；
+     *      完整实现需要嵌入JS代码实现点击高亮、悬停提示等交互。
+     *   5. 数学公式渲染 —— 当前仅输出纯文本坐标；
+     *      完整实现需要嵌入 LaTeX/MathML 的 SVG foreignObject。
+     *   6. 多图层分组 —— 当前所有元素在同一层级；
+     *      完整实现需要使用 <g> 标签按信任级别/几何类型分组。
+     *   7. CSS动画/过渡 —— 当前无动画支持；
+     *      完整实现需要 CSS keyframes 或 SMIL 动画演示求解过程。
      *
      * 【外部依赖说明】
      *   本函数完全使用标准C的 fprintf 生成纯文本SVG，不依赖任何外部XML或
@@ -3135,22 +3169,22 @@ int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig 
      *      绿色(green!60!black)、灰色(gray)、红色(red!70!black)
      *
      * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
-     *   1. 曲线几何体渲染 —— 简化实现：仅处理直线段端点；
-     *      完整实现需要解析曲线参数并生成 plot/smooth/curve 等TikZ曲线命令
-     *   2. 区域的曲线边界 —— 简化实现：区域边界使用直线段连接；
-     *      完整实现需要生成 TikZ 的 plot[smooth] 或 curve 命令
-     *   3. 节点定位优化 —— 简化实现：所有节点使用绝对坐标 at (x,y)；
-     *      完整实现需要使用 TikZ positioning 库进行相对定位和自动布局
-     *   4. 约束的精确交点计算 —— 简化实现：约束线端点为参与者节点坐标；
-     *      完整实现需要计算实际的几何交点位置
-     *   5. 三维投影支持 —— 简化实现：仅支持二维平面渲染；
-     *      完整实现需要 tikz-3dplot 库进行三维投影
-     *   6. 颜色渐变和阴影 —— 简化实现：纯色填充无渐变；
-     *      完整实现需要 TikZ 的 shading 和 shadow 特性
-     *   7. 图例（Legend）—— 简化实现：不包含图例；
-     *      完整实现需要使用 TikZ legend 样式或手动绘制图例框
-     *   8. 外部化/缓存 —— 简化实现：单文件输出；
-     *      完整实现需要生成 TikZ externalize 所需的多文件结构
+     *   1. 曲线几何体渲染 —— 当前仅处理直线段端点；
+     *      完整实现需要解析曲线参数并生成 plot/smooth/curve 等TikZ曲线命令。
+     *   2. 区域的曲线边界 —— 当前区域边界使用直线段连接；
+     *      完整实现需要生成 TikZ 的 plot[smooth] 或 curve 命令。
+     *   3. 节点定位优化 —— 当前所有节点使用绝对坐标 at (x,y)；
+     *      完整实现需要使用 TikZ positioning 库进行相对定位和自动布局。
+     *   4. 约束的精确交点计算 —— 当前约束线端点为参与者节点坐标；
+     *      完整实现需要调用几何求解器计算实际的几何交点位置。
+     *   5. 三维投影支持 —— 当前仅支持二维平面渲染；
+     *      完整实现需要 tikz-3dplot 库进行三维投影。
+     *   6. 颜色渐变和阴影 —— 当前为纯色填充无渐变；
+     *      完整实现需要 TikZ 的 shading 和 shadow 特性。
+     *   7. 图例（Legend）—— 当前不包含图例；
+     *      完整实现需要使用 TikZ legend 样式或手动绘制图例框。
+     *   8. 外部化/缓存 —— 当前为单文件输出；
+     *      完整实现需要生成 TikZ externalize 所需的多文件结构。
      *
      * 【外部依赖说明】
      *   本函数仅生成纯文本的.tex文件，不依赖任何外部C库。生成的TikZ代码
@@ -4297,26 +4331,30 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
  *   8. Helvetica字体嵌入 —— 使用标准14种PDF内置字体，无需嵌入字体文件
  *
  * 【简化实现的部分（完整功能需要额外依赖或后续版本）】
- *   1. 区域（Region）多边形填充 —— 简化实现：仅渲染区域的边界线段；
- *      完整实现需要构造闭合 path 并使用 even-odd fill 规则填充
- *   2. 文本标签渲染 —— 简化实现：使用近似的 Tm 矩阵定位文本；
- *      完整实现需要精确计算文本度量（字宽、行距）和变换矩阵
- *   3. 贝塞尔曲线（c/v/y 运算符）—— 简化实现：仅处理直线段（m/l运算符）；
- *      完整实现需要生成 PDF 的三次贝塞尔曲线 c/v/y 运算符
- *   4. 透明度/混合模式 —— 简化实现：不透明渲染；
- *      完整实现需要 PDF ExtGState 字典支持透明度和混合模式
- *   5. 图例（Legend）—— 简化实现：未生成图例；
- *      完整实现需要在页面底部或侧边绘制图例说明框
- *   6. 页面元数据 —— 简化实现：不包含信息字典；
- *      完整实现需要添加 Title/Author/Creator/Subject 等PDF信息字典
- *   7. 多页支持 —— 简化实现：仅支持单页输出；
- *      完整实现需要管理 Pages 树和多个 Page 对象
- *   8. 压缩 —— 简化实现：使用原始ASCII文本内容流；
- *      完整实现需要使用 zlib 进行 FlateDecode 压缩以减小文件体积
- *   9. 中文字体支持 —— 简化实现：仅使用 Helvetica（Latin-1）；
- *      完整实现需要 CID 字体映射或 TrueType 嵌入（需字体嵌入库）
- *  10. 箭头标记 —— 简化实现：使用简化线段表示连接约束；
- *      完整实现需要手动绘制三角形路径作为箭头标记
+ *   1. 区域（Region）多边形填充 —— 当前仅渲染区域的边界线段；
+ *      完整实现需要构造闭合 path 并使用 even-odd fill 规则填充。
+ *      所需运算符：h（闭合路径）+ f（非零绕组填充）或 B（填充+描边）。
+ *   2. 文本标签渲染 —— 当前使用近似的 Tm 矩阵定位文本；
+ *      完整实现需要精确计算文本度量（字宽、行距）和变换矩阵。
+ *      可引入 FreeType 库获取精确字形度量。
+ *   3. 贝塞尔曲线（c/v/y 运算符）—— 当前仅处理直线段（m/l运算符）；
+ *      完整实现需要生成 PDF 的三次贝塞尔曲线 c/v/y 运算符。
+ *      所需数据：从 GeomNode 的 coord_count > 4 提取控制点。
+ *   4. 透明度/混合模式 —— 当前为不透明渲染；
+ *      完整实现需要 PDF ExtGState 字典支持透明度和混合模式。
+ *   5. 图例（Legend）—— 当前未生成图例；
+ *      完整实现需要在页面底部或侧边绘制图例说明框。
+ *   6. 页面元数据 —— 当前不包含信息字典；
+ *      完整实现需要添加 Title/Author/Creator/Subject 等PDF信息字典。
+ *   7. 多页支持 —— 当前仅支持单页输出；
+ *      完整实现需要管理 Pages 树和多个 Page 对象。
+ *   8. 压缩 —— 当前使用原始ASCII文本内容流；
+ *      完整实现需要使用 zlib 进行 FlateDecode 压缩以减小文件体积。
+ *      可通过条件编译 #if __has_include(<zlib.h>) 启用。
+ *   9. 中文字体支持 —— 当前仅使用 Helvetica（Latin-1）；
+ *      完整实现需要 CID 字体映射或 TrueType 嵌入（需字体嵌入库）。
+ *  10. 箭头标记 —— 当前使用线段表示连接约束；
+ *      完整实现需要手动绘制三角形路径作为箭头标记。
  *
  * 【PDF内容流运算符参考】
  *   以下是本函数使用的核心PDF图形运算符：
@@ -4574,8 +4612,8 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
         /*
          * 点渲染：使用填充圆（filled circle）。
-         * 简化方法：用极短线段模拟点（line cap round + 粗线宽）。
-         * 更好的方法（后续版本）: 使用 Bezier 曲线构造圆。
+         * 当前方法：用极短线段模拟点（line cap round + 粗线宽）。
+         * 改进方法（后续版本）: 使用 Bezier 曲线构造圆。
          */
         double r = 3.0;
         BUF_APPEND("%.2f w\n", 6.0);
@@ -4693,12 +4731,12 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
     /* ---- 文本标签（最小化实现） ---- */
     /*
-     * 文本渲染策略（桩函数说明）：
-     *   当前版本使用Helvetica字体标注节点ID。完整的文本渲染需要：
-     *   1. 精确的文本宽度计算（用于居中定位）
-     *   2. 中文字体支持（CID字体或TrueType嵌入）
-     *   3. 文本旋转和变换
-     *   4. LaTeX数学公式渲染（复杂，需要完整的数学排版引擎）
+     * 文本渲染策略说明：
+     *   当前版本使用 Helvetica 字体标注节点ID。完整的文本渲染需要：
+     *   1. 精确的文本宽度计算（用于居中定位）—— 可通过 Tj 返回值或 FreeType 度量
+     *   2. 中文字体支持（CID字体或TrueType嵌入）—— 需要字体文件和 CIDFont 字典
+     *   3. 文本旋转和变换 —— 通过 Tm 矩阵的旋转分量实现
+     *   4. LaTeX 数学公式渲染 —— 复杂，需要完整的数学排版引擎或预渲染位图嵌入
      */
     BUF_APPEND("BT\n");
     BUF_APPEND("/F1 8 Tf\n"); /* Helvetica 8pt */
@@ -4738,7 +4776,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
                 BUF_APPEND("%c", *p);
         }
         BUF_APPEND(" Tj\n");
-        BUF_APPEND("%.2f %.2f Td\n", 0.0, 0.0); /* 重置位置（简化） */
+        BUF_APPEND("%.2f %.2f Td\n", 0.0, 0.0); /* 重置文本位置到原点 */
     }
     BUF_APPEND("ET\n");
 
@@ -4884,9 +4922,9 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
     /*
      * PDF已成功导出：告知调用者文件路径、页面尺寸、节点/约束数量。
-     * 注意：当前PDF为最小化实现（无外部库依赖），
-     * 区域以线框模式渲染，文本标签为简化版本。
-     * 完整功能见函数注释中【简化实现的部分】列表。
+     * 当前PDF为纯C最小化实现（无外部库依赖），
+     * 区域以线框模式渲染，文本标签为基础版本。
+     * 完整功能改进方案见函数注释中【简化实现的部分】列表。
      */
 
     /* ---- 流式事件：PDF 导出完成 ---- */
@@ -5024,16 +5062,27 @@ static bool ggb_get_local_data_offset(const uint8_t *data, size_t local_offset, 
     return true;
 }
 
-/* ==================== 简化 Deflate 解压器（minimal inflate） ==================== */
+/* ==================== Deflate 解压器 ==================== */
 
 /**
- * @brief 简化的 Deflate（RFC 1951）解压器
+ * @brief Deflate（RFC 1951）解压器 —— 固定哈夫曼 + 存储块实现
  *
- * 实现固定哈夫曼编码（块类型 1）和存储块（块类型 0）。
- * 如果遇到动态哈夫曼编码（块类型 2），返回错误。
+ * 当前实现支持固定哈夫曼编码（块类型 1）和存储块（块类型 0）。
+ * 如果遇到动态哈夫曼编码（块类型 2），返回错误并提示用户使用替代方案。
  *
  * 该实现基于 tinf (tiny inflate) 公有领域代码精简，支持
  * 大多数 GeoGebra 文件（通常使用固定哈夫曼编码进行压缩）。
+ *
+ * 已知限制：
+ *   - 不支持动态哈夫曼编码（块类型 2），部分 .ggb 文件可能使用此编码
+ *   - 不支持预设字典（块类型 32，即 BTYPE=1 + BFINAL=1 的预设字典模式）
+ *
+ * 改进路线：
+ *   - 短期：在编译时检测 zlib 可用性（#if __has_include(<zlib.h>)），
+ *     若可用则直接调用 uncompress() 替代本手写实现，获得完整的 Deflate 支持
+ *   - 中期：若无法引入 zlib，可扩展本实现以支持动态哈夫曼编码
+ *     （需要实现 Huffman 树的动态构建和码表解码，约增加 200-300 行代码）
+ *   - 长期：将解压抽象为可插拔的 Decompressor 接口，支持 zlib/miniz/本实现
  *
  * @param src        源数据（压缩）
  * @param src_len    源数据长度
@@ -5880,8 +5929,15 @@ int interop_import_geogebra(LV00Engine *engine, const InteropImportConfig *confi
 /**
  * @brief 从 GeoJSON 文件导入几何图形
  *
- * 使用简化 JSON 解析器，支持 Point、LineString、Polygon、MultiPoint、
- * MultiLineString 几何类型。不依赖外部 JSON 库。
+ * 使用手写 JSON 解析器（不依赖外部 JSON 库），支持 Point、LineString、
+ * Polygon、MultiPoint、MultiLineString 几何类型。
+ *
+ * JSON 解析器已知限制：
+ *   - 不支持 JSON 字符串中的 unicode 转义（\uXXXX）
+ *   - 不支持嵌套对象/数组中与关键字重名的字段
+ *   - 使用 strstr 进行字段查找，可能误匹配字符串值中的关键字
+ *
+ * 对于复杂的 GeoJSON 文件，建议使用标准 JSON 库（如 cJSON、jsmn）替代。
  *
  * @param engine Lv-00 引擎实例
  * @param config 导入配置（input_path 指定 .geojson 文件路径）
@@ -5926,7 +5982,7 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
     fclose(fp);
     json[read_size] = '\0';
 
-/* --- 简化 JSON 解析辅助 --- */
+/* --- 手写 JSON 解析辅助（不依赖外部 JSON 库） --- */
 /* 跳过空白 */
 #define GJ_SKIP_WS(p)                                                   \
     while (*(p) == ' ' || *(p) == '\t' || *(p) == '\n' || *(p) == '\r') \

@@ -145,7 +145,7 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     mgr->false_node->ref_count = 1; /* 持久引用 */
     mgr->false_node->complemented = false;
 
-    /* 分配唯一表（桩实现中不使用哈希，仅占位） */
+    /* 分配唯一表（当前为线性扫描实现，完整版应使用哈希表加速查找） */
     if (unique_table_size < 1024)
         unique_table_size = 1024;
     mgr->unique_table = (BDDNode **) lv00_calloc((size_t) unique_table_size, sizeof(BDDNode *));

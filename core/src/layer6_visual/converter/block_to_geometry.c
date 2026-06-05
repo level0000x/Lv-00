@@ -15,10 +15,6 @@ typedef struct {
     PointEntity **port_points;
     int port_point_count;
 
-    /* 端口点附加信息：记录每个端口点的端口ID和所属块索引 */
-    int *port_point_ids;      /* 端口ID数组，与 port_points 一一对应 */
-    int *port_point_blocks;   /* 所属块索引数组，与 port_points 一一对应 */
-
     /* 连接线段列表（端口之间的连接） */
     LinearEntity **connections;
     int connection_count;
@@ -71,8 +67,6 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
     }
     enc->rects = calloc(bg->count + 1, sizeof(PolygonEntity *));
     enc->port_points = calloc(total_ports + 1, sizeof(PointEntity *));
-    enc->port_point_ids = calloc(total_ports + 1, sizeof(int));
-    enc->port_point_blocks = calloc(total_ports + 1, sizeof(int));
     enc->connections = calloc(total_ports + 1, sizeof(LinearEntity *));
 
     /* 为每个 FuncBlock 生成矩形和端口点 */
@@ -124,9 +118,6 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             PointEntity *pt = point_entity_create(px_s, py_s);
             if (pt) {
                 pt->base.name = strdup("input_port");
-                int port_id = fb->input_port_ids ? fb->input_port_ids[j] : j;
-                enc->port_point_ids[enc->port_point_count] = port_id;
-                enc->port_point_blocks[enc->port_point_count] = i;
                 enc->port_points[enc->port_point_count++] = pt;
             }
         }
@@ -140,85 +131,63 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             PointEntity *pt = point_entity_create(px_s, py_s);
             if (pt) {
                 pt->base.name = strdup("output_port");
-                int port_id = fb->output_port_ids ? fb->output_port_ids[j] : j;
-                enc->port_point_ids[enc->port_point_count] = port_id;
-                enc->port_point_blocks[enc->port_point_count] = i;
                 enc->port_points[enc->port_point_count++] = pt;
             }
         }
     }
 
-    /* 根据端口依赖生成连接线段（使用端口ID匹配查找端口点） */
+    /* 根据端口依赖生成连接线段 */
+    int port_offset = 0;
     for (int i = 0; i < bg->count; i++) {
         FuncBlock *fb = bg->blocks[i];
         if (!fb) continue;
 
+        int in_count = func_block_get_input_count(fb);
+        int out_count = func_block_get_output_count(fb);
+
+        /* 遍历端口依赖，创建连接线段 */
         if (fb->port_deps && fb->port_dep_count > 0) {
             for (int j = 0; j < fb->port_dep_count; j++) {
                 PortDependency *dep = &fb->port_deps[j];
 
-                /* 通过端口ID匹配查找源块的输出端口点和目标块的输入端口点 */
-                PointEntity *src_pt = NULL;
-                PointEntity *dst_pt = NULL;
-
-                for (int k = 0; k < enc->port_point_count; k++) {
-                    if (enc->port_point_blocks[k] == i &&
-                        enc->port_point_ids[k] == dep->port_id) {
-                        dst_pt = enc->port_points[k];
-                    }
-                    /* 查找源块中匹配 external_node_id 的输出端口 */
-                    if (enc->port_point_blocks[k] >= 0) {
-                        FuncBlock *owner = bg->blocks[enc->port_point_blocks[k]];
-                        if (owner && func_block_get_id(owner) == dep->external_node_id) {
-                            /* 检查是否为输出端口 */
-                            int out_count = func_block_get_output_count(owner);
-                            for (int oi = 0; oi < out_count; oi++) {
-                                int out_id = owner->output_port_ids ? owner->output_port_ids[oi] : oi;
-                                if (out_id == dep->port_id) {
-                                    src_pt = enc->port_points[k];
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if (src_pt && dst_pt) break;
-                }
-
-                /* 如果未找到精确匹配的端口点，回退到块边缘中心点 */
-                if (!src_pt || !dst_pt) {
-                    int src_block_idx = -1;
-                    for (int k = 0; k < bg->count; k++) {
-                        if (bg->blocks[k] && func_block_get_id(bg->blocks[k]) == dep->external_node_id) {
-                            src_block_idx = k;
-                            break;
-                        }
-                    }
-                    if (src_block_idx >= 0) {
-                        int src_col = src_block_idx % 4;
-                        int src_row = src_block_idx / 4;
-                        int dst_col = i % 4;
-                        int dst_row = i / 4;
-                        double sx = src_col * (BLOCK_WIDTH + BLOCK_GAP_X) + BLOCK_WIDTH;
-                        double sy = src_row * (BLOCK_HEIGHT + BLOCK_GAP_Y) + BLOCK_HEIGHT / 2.0;
-                        double dx = dst_col * (BLOCK_WIDTH + BLOCK_GAP_X);
-                        double dy = dst_row * (BLOCK_HEIGHT + BLOCK_GAP_Y) + BLOCK_HEIGHT / 2.0;
-                        SymbolicCoord *sx_s = symbolic_coord_from_double(sx);
-                        SymbolicCoord *sy_s = symbolic_coord_from_double(sy);
-                        SymbolicCoord *dx_s = symbolic_coord_from_double(dx);
-                        SymbolicCoord *dy_s = symbolic_coord_from_double(dy);
-                        if (!src_pt) src_pt = point_entity_create(sx_s, sy_s);
-                        if (!dst_pt) dst_pt = point_entity_create(dx_s, dy_s);
+                /* 查找源块的输出端口点 */
+                /* 通过块 ID 匹配查找源块 */
+                int src_block_idx = -1;
+                for (int k = 0; k < bg->count; k++) {
+                    if (bg->blocks[k] && func_block_get_id(bg->blocks[k]) == dep->external_node_id) {
+                        src_block_idx = k;
+                        break;
                     }
                 }
 
-                if (src_pt && dst_pt) {
-                    LinearEntity *seg = linear_entity_create_segment(src_pt, dst_pt);
+                if (src_block_idx >= 0) {
+                    /* 创建连接线段（当前使用块中心点，完整版应使用端口坐标） */
+                    int src_col = src_block_idx % 4;
+                    int src_row = src_block_idx / 4;
+                    int dst_col = i % 4;
+                    int dst_row = i / 4;
+
+                    double sx = src_col * (BLOCK_WIDTH + BLOCK_GAP_X) + BLOCK_WIDTH;
+                    double sy = src_row * (BLOCK_HEIGHT + BLOCK_GAP_Y) + BLOCK_HEIGHT / 2.0;
+                    double dx = dst_col * (BLOCK_WIDTH + BLOCK_GAP_X);
+                    double dy = dst_row * (BLOCK_HEIGHT + BLOCK_GAP_Y) + BLOCK_HEIGHT / 2.0;
+
+                    SymbolicCoord *sx_s = symbolic_coord_from_double(sx);
+                    SymbolicCoord *sy_s = symbolic_coord_from_double(sy);
+                    SymbolicCoord *dx_s = symbolic_coord_from_double(dx);
+                    SymbolicCoord *dy_s = symbolic_coord_from_double(dy);
+
+                    PointEntity *p1 = point_entity_create(sx_s, sy_s);
+                    PointEntity *p2 = point_entity_create(dx_s, dy_s);
+                    LinearEntity *seg = linear_entity_create_segment(p1, p2);
                     if (seg) {
                         enc->connections[enc->connection_count++] = seg;
                     }
                 }
             }
         }
+
+        port_offset += in_count + out_count;
     }
 
     result.output = enc;
@@ -233,63 +202,6 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
  *   右边缘上的点 → 输出端口
  *   线段 → 端口连接
  */
-
-/* 辅助：计算点 (px,py) 到线段 (ax,ay)-(bx,by) 的最短距离 */
-static double point_to_segment_dist(double px, double py,
-                                     double ax, double ay, double bx, double by) {
-    double dx = bx - ax, dy = by - ay;
-    double len_sq = dx * dx + dy * dy;
-    if (len_sq < 1e-12) return sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay));
-    double t = ((px - ax) * dx + (py - ay) * dy) / len_sq;
-    if (t < 0.0) t = 0.0;
-    if (t > 1.0) t = 1.0;
-    double proj_x = ax + t * dx, proj_y = ay + t * dy;
-    double ddx = px - proj_x, ddy = py - proj_y;
-    return sqrt(ddx * ddx + ddy * ddy);
-}
-
-/* 辅助：从多边形实体提取顶点坐标（最多 max_verts 个） */
-static int polygon_get_vertices(PolygonEntity *poly, double *xs, double *ys, int max_verts) {
-    if (!poly || !poly->vertices || max_verts <= 0) return 0;
-    int count = 0;
-    for (int v = 0; v < max_verts; v++) {
-        if (!poly->vertices[v]) break;
-        xs[v] = symbolic_coord_to_double(poly->vertices[v]->x);
-        ys[v] = symbolic_coord_to_double(poly->vertices[v]->y);
-        count++;
-    }
-    return count;
-}
-
-/* 辅助：判断点是否在多边形内（射线法） */
-static int point_in_polygon(double px, double py, double *xs, double *ys, int n) {
-    int inside = 0;
-    for (int i = 0, j = n - 1; i < n; j = i++) {
-        if (((ys[i] > py) != (ys[j] > py)) &&
-            (px < (xs[j] - xs[i]) * (py - ys[i]) / (ys[j] - ys[i]) + xs[i])) {
-            inside = !inside;
-        }
-    }
-    return inside;
-}
-
-/* 辅助：判断点是否在多边形某条边的附近（距离 < threshold），
- * 返回最近边的索引，-1 表示不在任何边附近 */
-static int point_near_polygon_edge(double px, double py, double *xs, double *ys, int n,
-                                   double threshold) {
-    int nearest_edge = -1;
-    double min_dist = threshold;
-    for (int i = 0; i < n; i++) {
-        int j = (i + 1) % n;
-        double d = point_to_segment_dist(px, py, xs[i], ys[i], xs[j], ys[j]);
-        if (d < min_dist) {
-            min_dist = d;
-            nearest_edge = i;
-        }
-    }
-    return nearest_edge;
-}
-
 Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
     Lv00ConvertResult result = {0};
     if (!entity) {
@@ -328,10 +240,10 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
             func_block_set_name(fb, rect->base.name);
         }
 
-        /* 使用几何包含测试判定端口点归属 */
-        /* 提取矩形的顶点坐标 */
-        double vert_xs[64], vert_ys[64];
-        int vert_count = polygon_get_vertices(rect, vert_xs, vert_ys, 64);
+        /* 统计该矩形左右边缘上的端口点 */
+        /* 基于矩形包围盒判定端口归属（左边缘为输入，右边缘为输出） */
+        double rx_min = rect->base.bounding_box.x_min;
+        double rx_max = rect->base.bounding_box.x_max;
 
         int inputs[64], outputs[64];
         int in_cnt = 0, out_cnt = 0;
@@ -340,45 +252,13 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
             PointEntity *pt = enc->port_points[j];
             if (!pt) continue;
 
-            /* 提取端口点的坐标 */
-            double px = symbolic_coord_to_double(pt->x);
-            double py = symbolic_coord_to_double(pt->y);
+            double px = pt->base.bounding_box.x_min; /* 点的x坐标 */
 
-            /* 使用射线法判断点是否在多边形内 */
-            if (vert_count < 3) continue;
-            if (!point_in_polygon(px, py, vert_xs, vert_ys, vert_count)) continue;
-
-            /* 点在矩形内，检查它靠近哪条边 */
-            /* 对于标准矩形编码（4个顶点），边的索引对应：
-             *   edge 0: vertex 0 -> vertex 1 (底边)
-             *   edge 1: vertex 1 -> vertex 2 (右边)
-             *   edge 2: vertex 2 -> vertex 3 (顶边)
-             *   edge 3: vertex 3 -> vertex 0 (左边)
-             */
-            int nearest_edge = point_near_polygon_edge(px, py, vert_xs, vert_ys,
-                                                        vert_count, PORT_RADIUS * 2.0);
-            if (nearest_edge < 0) continue;
-
-            /* 判断最近边是左边还是右边：
-             * 计算边的方向向量，如果主要沿 Y 轴（垂直边），
-             * 则检查其 X 坐标是较小（左边/输入）还是较大（右边/输出） */
-            int e0 = nearest_edge;
-            int e1 = (nearest_edge + 1) % vert_count;
-            double edge_dx = fabs(vert_xs[e1] - vert_xs[e0]);
-            double edge_dy = fabs(vert_ys[e1] - vert_ys[e0]);
-
-            if (edge_dy > edge_dx) {
-                /* 垂直边 */
-                double edge_x = (vert_xs[e0] + vert_xs[e1]) / 2.0;
-                double rect_center_x = 0.0;
-                for (int v = 0; v < vert_count; v++) rect_center_x += vert_xs[v];
-                rect_center_x /= vert_count;
-
-                if (edge_x < rect_center_x && in_cnt < 64) {
-                    inputs[in_cnt++] = j;
-                } else if (edge_x >= rect_center_x && out_cnt < 64) {
-                    outputs[out_cnt++] = j;
-                }
+            /* 判断点是否在该矩形的左/右边缘附近 */
+            if (fabs(px - rx_min) < 1.0 && in_cnt < 64) {
+                inputs[in_cnt++] = j;
+            } else if (fabs(px - rx_max) < 1.0 && out_cnt < 64) {
+                outputs[out_cnt++] = j;
             }
         }
 

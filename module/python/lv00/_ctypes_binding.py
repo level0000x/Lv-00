@@ -20,7 +20,7 @@ Lv-00 底层 C 库 ctypes 绑定模块
 import ctypes
 import os
 import sys
-from ctypes import c_int, c_int64, c_uint64, c_double, c_char_p, c_void_p, c_bool, POINTER, CFUNCTYPE
+from ctypes import c_int, c_int64, c_uint64, c_double, c_char_p, c_char, c_void_p, c_bool, POINTER, CFUNCTYPE
 
 # ============================================================
 # 库文件搜索函数
@@ -132,131 +132,281 @@ except Exception as e:
 # ============================================================
 # C 结构体类型定义
 # ============================================================
-# 以下结构体均为 C 层对应类型的 ctypes 占位符。
-# 它们被声明为不透明类型（opaque type）——只定义类型名，
-# 不暴露内部字段。所有字段访问通过 C 函数接口完成。
-# 这样设计的好处：
-#   1. 二进制兼容：C 结构体内部布局变化不影响 Python 代码
-#   2. 内存安全：Python 无法直接读写敏感字段
-#   3. 解耦版本：Python 绑定与 C 库版本可以独立迭代
+# 以下结构体对应 C 层的类型，定义了 ctypes 的 _fields_ 布局。
+# 字段类型和顺序基于 C 层结构体的预期布局。
+# 所有字段访问也可通过 C 函数接口完成，以保持二进制兼容性。
 
 class _SymbolicCoord(ctypes.Structure):
     """
-    符号坐标的 C 结构体占位符。
-    
+    符号坐标的 C 结构体。
+
     对应 C 层 SymbolicCoord 类型，用于表示精确的符号数值。
     支持有理数、代数数、二次根式和超越数四种表示形式。
     通过 _lib.symbolic_coord_* 系列函数进行操作。
+
+    C 层预期布局：
+        int type;          // 坐标类型枚举 (RATIONAL=0, ALGEBRAIC=1, QUADRATIC=2, TRANSCENDENTAL=3)
+        int64_t num;        // 分子（有理数）/ 系数 a（二次根式 a+b*sqrt(n)）
+        uint64_t den;       // 分母（有理数）/ 系数 b（二次根式）
+        int64_t aux;        // 辅助参数：sqrt(n) 中的 n（二次根式）/ 超越数类型标记
+        char *symbol;       // 符号名称（超越数如 "pi", "e"）
     """
-    pass
+    _fields_ = [
+        ("type", c_int),
+        ("num", c_int64),
+        ("den", c_uint64),
+        ("aux", c_int64),
+        ("symbol", c_char_p),
+    ]
 
 class _ConstraintGraph(ctypes.Structure):
     """
-    约束图的 C 结构体占位符。
-    
+    约束图的 C 结构体。
+
     对应 C 层 ConstraintGraph 类型，包含几何节点和约束关系的完整有向图。
     通过 _lib.graph_* 系列函数进行节点增删、约束管理等操作。
+
+    C 层预期布局：
+        void *nodes;           // 节点动态数组
+        void *constraints;     // 约束动态数组
+        int node_count;        // 当前节点数量
+        int constraint_count;  // 当前约束数量
+        int capacity;          // 已分配容量
+        int next_id;            // 下一个可用节点 ID
     """
-    pass
+    _fields_ = [
+        ("nodes", c_void_p),
+        ("constraints", c_void_p),
+        ("node_count", c_int),
+        ("constraint_count", c_int),
+        ("capacity", c_int),
+        ("next_id", c_int),
+    ]
 
 class _NormalizationResult(ctypes.Structure):
     """
-    规范化结果的 C 结构体占位符。
-    
+    规范化结果的 C 结构体。
+
     对应 C 层 NormalizationResult 类型，包含图规范化操作的统计信息，
     如合并的等价节点数量、化简的约束数量等。
     通过 _lib.normalization_result_destroy() 释放。
+
+    C 层预期布局：
+        int merged_nodes;       // 合并的等价节点数量
+        int simplified_constraints;  // 化简的约束数量
+        int removed_nodes;      // 移除的冗余节点数量
+        int iterations;         // 规范化迭代次数
+        int success;            // 是否成功 (0=失败, 1=成功)
     """
-    pass
+    _fields_ = [
+        ("merged_nodes", c_int),
+        ("simplified_constraints", c_int),
+        ("removed_nodes", c_int),
+        ("iterations", c_int),
+        ("success", c_int),
+    ]
 
 class _GeomNode(ctypes.Structure):
     """
-    几何节点的 C 结构体占位符。
-    
+    几何节点的 C 结构体。
+
     对应 C 层 GeomNode 类型，表示约束图中的一个几何元素。
     包含节点 ID（id 字段）和几何类型（type 字段，如 GEOM_POINT）。
     通过 _lib.graph_get_node() 获取。
+
+    C 层预期布局：
+        int id;            // 节点唯一标识符
+        int type;          // 几何类型 (GEOM_POINT, GEOM_LINE_SEGMENT, GEOM_PORT, GEOM_FUNCTION_BLOCK)
+        void *data;        // 类型特定数据指针（指向具体几何结构）
+        int flags;         // 节点状态标志位
     """
-    pass
+    _fields_ = [
+        ("id", c_int),
+        ("type", c_int),
+        ("data", c_void_p),
+        ("flags", c_int),
+    ]
 
 class _Constraint(ctypes.Structure):
     """
-    约束的 C 结构体占位符。
-    
+    约束的 C 结构体。
+
     对应 C 层 Constraint 类型，表示两个或多个几何节点之间的约束关系。
     包含约束类型（如关联、介子、交点等）和参与节点的 ID。
+
+    C 层预期布局：
+        int type;              // 约束类型 (CONSTRAINT_INCIDENCE, CONSTRAINT_BETWEENNESS, ...)
+        int node_ids[4];       // 参与约束的节点 ID（最多 4 个）
+        int node_count;        // 参与节点数量
+        int active;            // 约束是否激活 (0=未激活, 1=激活)
     """
-    pass
+    _fields_ = [
+        ("type", c_int),
+        ("node_ids", c_int * 4),
+        ("node_count", c_int),
+        ("active", c_int),
+    ]
 
 class _FuncBlock(ctypes.Structure):
     """
-    函数块的 C 结构体占位符。
-    
+    函数块的 C 结构体。
+
     对应 C 层 FuncBlock 类型，封装了可重用的几何构造模板。
     包含内部节点、输入/输出端口、确定性状态等信息。
     通过 _lib.func_block_* 系列函数进行打包、实例化和确定性检查。
+
+    C 层预期布局：
+        void *graph;            // 内部约束图指针
+        int input_port_count;   // 输入端口数量
+        int output_port_count;  // 输出端口数量
+        int deterministic;      // 是否确定性 (0=非确定性, 1=确定性)
+        char *name;             // 函数块名称
     """
-    pass
+    _fields_ = [
+        ("graph", c_void_p),
+        ("input_port_count", c_int),
+        ("output_port_count", c_int),
+        ("deterministic", c_int),
+        ("name", c_char_p),
+    ]
 
 class _ProofNavigator(ctypes.Structure):
     """
-    证明导航器的 C 结构体占位符。
-    
+    证明导航器的 C 结构体。
+
     对应 C 层 ProofNavigator 类型，用于遍历和操作证明树结构。
     支持前进（next）、后退（prev）、跳转（goto）等导航操作，
     并可以导出为 HTML/LaTeX 格式的证明文档。
+
+    C 层预期布局：
+        void *proof_tree;       // 证明树根节点指针
+        void *current_step;    // 当前导航位置指针
+        int step_count;         // 证明步骤总数
+        int current_index;      // 当前步骤索引
+        int depth;              // 当前嵌套深度
     """
-    pass
+    _fields_ = [
+        ("proof_tree", c_void_p),
+        ("current_step", c_void_p),
+        ("step_count", c_int),
+        ("current_index", c_int),
+        ("depth", c_int),
+    ]
 
 class _Proposition(ctypes.Structure):
     """
-    命题的 C 结构体占位符。
-    
+    命题的 C 结构体。
+
     对应 C 层 Proposition 类型，表示一个逻辑命题。
     支持原子命题、合取、析取、蕴含、否定等多种命题形式。
     通过 _lib.proposition_create() 创建，_lib.proposition_destroy() 释放。
+
+    C 层预期布局：
+        int type;              // 命题类型 (ATOM=0, AND=1, OR=2, IMPLIES=3, NOT=4)
+        void *left;            // 左子命题指针（二元运算符）
+        void *right;           // 右子命题指针（二元运算符）
+        char *atom_name;       // 原子命题名称（仅 ATOM 类型）
+        int ref_count;         // 引用计数
     """
-    pass
+    _fields_ = [
+        ("type", c_int),
+        ("left", c_void_p),
+        ("right", c_void_p),
+        ("atom_name", c_char_p),
+        ("ref_count", c_int),
+    ]
 
 class _LV00Engine(ctypes.Structure):
     """
-    引擎的 C 结构体占位符。
-    
+    引擎的 C 结构体。
+
     对应 C 层 LV00Engine 类型，是 Lv-00 系统的主引擎。
     协调约束图管理、模块加载、函数打包/实例化、求解和重写等核心功能。
     通过 _lib.engine_create() 创建，_lib.engine_destroy() 释放。
+
+    C 层预期布局：
+        void *graph;                // 主约束图指针
+        void *module_registry;      // 模块注册表指针
+        void *func_block_cache;     // 函数块缓存指针
+        int initialized;            // 初始化标志 (0=未初始化, 1=已初始化)
+        int error_code;             // 最后错误码
+        char last_error[256];      // 最后错误消息缓冲区
     """
-    pass
+    _fields_ = [
+        ("graph", c_void_p),
+        ("module_registry", c_void_p),
+        ("func_block_cache", c_void_p),
+        ("initialized", c_int),
+        ("error_code", c_int),
+        ("last_error", c_char * 256),
+    ]
 
 class _MeasureSystem(ctypes.Structure):
     """
-    测度系统的 C 结构体占位符。
-    
+    测度系统的 C 结构体。
+
     对应 C 层 MeasureSystem 类型，用于管理递归终止测度。
     包含测度集合和默认测度，支持测度的创建、添加和比较操作。
     通过 _lib.measure_system_create() 创建，_lib.measure_system_destroy() 释放。
+
+    C 层预期布局：
+        void *measures;         // 测度集合指针
+        int measure_count;       // 测度数量
+        int default_measure;     // 默认测度索引
+        int initialized;         // 初始化标志
     """
-    pass
+    _fields_ = [
+        ("measures", c_void_p),
+        ("measure_count", c_int),
+        ("default_measure", c_int),
+        ("initialized", c_int),
+    ]
 
 class _RecursionContext(ctypes.Structure):
     """
-    递归上下文的 C 结构体占位符。
-    
+    递归上下文的 C 结构体。
+
     对应 C 层 RecursionContext 类型，用于管理递归调用的上下文状态。
     跟踪递归深度、检查终止测度、检测循环依赖。
     通过 _lib.recursion_context_create() 创建，_lib.recursion_context_destroy() 释放。
+
+    C 层预期布局：
+        int depth;               // 当前递归深度
+        int max_depth;           // 最大允许递归深度
+        void *measure_system;    // 关联的测度系统指针
+        void *call_stack;        // 调用栈指针
+        int cycle_detected;       // 是否检测到循环依赖 (0=无, 1=有)
     """
-    pass
+    _fields_ = [
+        ("depth", c_int),
+        ("max_depth", c_int),
+        ("measure_system", c_void_p),
+        ("call_stack", c_void_p),
+        ("cycle_detected", c_int),
+    ]
 
 class _Port(ctypes.Structure):
     """
-    端口的 C 结构体占位符。
-    
+    端口的 C 结构体。
+
     对应 C 层 Port 类型，表示函数块的输入或输出端口。
     端口是函数块系统的核心概念，用于定义函数块的参数接口。
     通过 _lib.graph_add_port() 添加到约束图中。
+
+    C 层预期布局：
+        int id;              // 端口唯一标识符
+        int type;            // 端口类型 (PORT_INPUT=0, PORT_OUTPUT=1)
+        int parent_block_id; // 所属函数块节点 ID
+        int connected_to;    // 连接目标端口 ID（-1 表示未连接）
+        char *name;          // 端口名称
     """
-    pass
+    _fields_ = [
+        ("id", c_int),
+        ("type", c_int),
+        ("parent_block_id", c_int),
+        ("connected_to", c_int),
+        ("name", c_char_p),
+    ]
 
 # ============================================================
 # SymbolicCoord 函数签名

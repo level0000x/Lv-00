@@ -1167,12 +1167,211 @@ char *magic_array_serialize(const MagicArray *array) {
 /**
  * @brief 从 JSON 字符串反序列化魔法阵
  *
- * 支持简化的 JSON 格式：
+ * 支持的 JSON 格式：
  *   {"name":"阵名","runes":[{"type":"rational","num":1,"denom":2,"element":"FIRE"},...]}
+ *
+ * JSON 解析器说明：
+ *   本解析器采用手写实现，不依赖外部 JSON 库。使用 strstr 进行字段查找，
+ *   并通过跳过字符串值内部内容来避免误匹配。
+ *
+ *   已知限制：
+ *   - 不支持 JSON 字符串中的 unicode 转义（\uXXXX），遇到时将跳过
+ *   - 不支持嵌套超过一层的对象/数组（runes 数组内的对象应为扁平结构）
+ *   - 字段查找基于 strstr，如果字符串值中包含与关键字相同的文本可能误匹配
+ *     （已通过跳过字符串值的机制缓解此问题）
+ *
+ *   对于复杂的 JSON 输入，建议使用标准 JSON 库（如 cJSON）替代。
  *
  * @param json JSON 格式字符串
  * @return 反序列化成功返回新创建的魔法阵，失败返回 NULL
  */
+
+/**
+ * @brief 在 JSON 文本中安全地查找键名（跳过字符串值内部）
+ *
+ * 从位置 start 开始向后搜索 "key" 模式，但跳过所有 JSON 字符串值
+ * 的内部内容（包括转义字符），避免在字符串值中误匹配键名。
+ *
+ * @param start 搜索起始位置
+ * @param key   要查找的键名（不含引号，如 "type"）
+ * @return 找到返回键名起始位置的指针，未找到返回 NULL
+ */
+static const char *json_find_key_safe(const char *start, const char *key) {
+    if (!start || !key) return NULL;
+
+    /* 构造搜索模式: "key" */
+    char pattern[128];
+    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+
+    const char *p = start;
+    while (*p) {
+        /* 检查是否匹配目标键名 */
+        if (strncmp(p, pattern, strlen(pattern)) == 0) {
+            return p;
+        }
+
+        /* 如果当前字符是双引号，跳过整个字符串值 */
+        if (*p == '"') {
+            p++;
+            while (*p && *p != '"') {
+                if (*p == '\\' && *(p + 1)) {
+                    /* 跳过转义字符：\", \\, \/, \b, \f, \n, \r, \t, \uXXXX */
+                    p++;
+                    if (*p == 'u' && *(p + 1) && *(p + 2) && *(p + 3) && *(p + 4)) {
+                        /* 跳过 \uXXXX unicode 转义（4个十六进制数字） */
+                        p += 5;
+                    } else {
+                        p++; /* 跳过转义后的单个字符 */
+                    }
+                } else {
+                    p++;
+                }
+            }
+            if (*p == '"') p++;
+        } else {
+            p++;
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * @brief 从 JSON 字符串值中提取解码后的文本
+ *
+ * 处理常见的 JSON 转义序列：\", \\, \/, \b, \f, \n, \r, \t。
+ * 不处理 \uXXXX unicode 转义（遇到时保留原始转义文本）。
+ *
+ * @param src  指向字符串值第一个字符（引号后）的指针
+ * @param dst  目标缓冲区
+ * @param dst_cap 目标缓冲区容量
+ * @return 写入的字符数（不含终止符），-1 表示错误
+ */
+static int json_decode_string(const char *src, char *dst, size_t dst_cap) {
+    if (!src || !dst || dst_cap == 0) return -1;
+
+    size_t written = 0;
+    const char *p = src;
+
+    while (*p && *p != '"' && written < dst_cap - 1) {
+        if (*p == '\\') {
+            p++;
+            switch (*p) {
+                case '"':  dst[written++] = '"';  break;
+                case '\\': dst[written++] = '\\'; break;
+                case '/':  dst[written++] = '/';  break;
+                case 'b':  dst[written++] = '\b'; break;
+                case 'f':  dst[written++] = '\f'; break;
+                case 'n':  dst[written++] = '\n'; break;
+                case 'r':  dst[written++] = '\r'; break;
+                case 't':  dst[written++] = '\t'; break;
+                case 'u':
+                    /* \uXXXX unicode 转义：当前不解码，保留为原始文本 */
+                    if (written + 6 < dst_cap - 1) {
+                        dst[written++] = '\\';
+                        dst[written++] = 'u';
+                        if (p[1]) dst[written++] = p[1];
+                        if (p[2]) dst[written++] = p[2];
+                        if (p[3]) dst[written++] = p[3];
+                        if (p[4]) dst[written++] = p[4];
+                        p += 4;
+                    }
+                    break;
+                default:
+                    /* 未知转义序列，保留原样 */
+                    if (written + 1 < dst_cap - 1) {
+                        dst[written++] = '\\';
+                        dst[written++] = *p;
+                    }
+                    break;
+            }
+            p++;
+        } else {
+            dst[written++] = *p;
+            p++;
+        }
+    }
+
+    dst[written] = '\0';
+    return (int) written;
+}
+
+/**
+ * @brief 跳过 JSON 字符串值
+ *
+ * 从当前位置（应在引号上）跳过整个字符串值，包括转义字符。
+ *
+ * @param p 指向字符串起始引号的指针
+ * @return 跳过字符串后的下一个字符位置
+ */
+static const char *json_skip_string(const char *p) {
+    if (!p || *p != '"') return p;
+    p++; /* 跳过起始引号 */
+    while (*p && *p != '"') {
+        if (*p == '\\' && *(p + 1)) {
+            p += 2; /* 跳过转义序列 */
+        } else {
+            p++;
+        }
+    }
+    if (*p == '"') p++; /* 跳过结束引号 */
+    return p;
+}
+
+/**
+ * @brief 跳过 JSON 值（字符串、数字、对象、数组、布尔、null）
+ *
+ * @param p 指向值起始位置的指针
+ * @return 跳过值后的下一个字符位置
+ */
+static const char *json_skip_value(const char *p) {
+    if (!p) return NULL;
+
+    /* 跳过空白 */
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+
+    if (*p == '"') {
+        return json_skip_string(p);
+    } else if (*p == '{') {
+        /* 跳过对象 */
+        p++; /* 跳过 '{' */
+        while (*p && *p != '}') {
+            if (*p == '"') {
+                p = json_skip_string(p); /* 跳过键 */
+                while (*p == ' ' || *p == '\t' || *p == ':' || *p == '\n' || *p == '\r') p++;
+                p = json_skip_value(p); /* 跳过值 */
+            } else {
+                p++;
+            }
+            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r') p++;
+        }
+        if (*p == '}') p++;
+        return p;
+    } else if (*p == '[') {
+        /* 跳过数组 */
+        p++; /* 跳过 '[' */
+        while (*p && *p != ']') {
+            p = json_skip_value(p);
+            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\n' || *p == '\r') p++;
+        }
+        if (*p == ']') p++;
+        return p;
+    } else if (*p == 't') {
+        return p + 4; /* true */
+    } else if (*p == 'f') {
+        return p + 5; /* false */
+    } else if (*p == 'n') {
+        return p + 4; /* null */
+    } else {
+        /* 数字 */
+        while (*p && (*p == '-' || *p == '+' || *p == '.' || *p == 'e' || *p == 'E' ||
+               (*p >= '0' && *p <= '9'))) {
+            p++;
+        }
+        return p;
+    }
+}
+
 MagicArray *magic_array_deserialize(const char *json) {
     if (!json || json[0] == '\0') {
         LV00_LOG_WARNING("magic_array_deserialize: 输入 JSON 为空");
@@ -1196,8 +1395,8 @@ MagicArray *magic_array_deserialize(const char *json) {
         return NULL;
     }
 
-    /* 简化解析：查找 runes 数组 */
-    const char *runes_key = strstr(json, "\"runes\"");
+    /* 查找 runes 数组（使用安全查找，避免误匹配字符串值内的 "runes"） */
+    const char *runes_key = json_find_key_safe(json, "runes");
     if (!runes_key) {
         /* 没有 runes 字段，返回空魔法阵 */
         return array;
@@ -1225,17 +1424,24 @@ MagicArray *magic_array_deserialize(const char *json) {
             continue;
         }
 
-        /* 解析单个符文对象 */
+        /* 使用安全查找提取字段，避免嵌套对象/字符串值中的误匹配 */
         const char *obj_end = strchr(ptr, '}');
         if (!obj_end)
             break;
 
-        /* 提取类型字段 */
-        const char *type_key = strstr(ptr, "\"type\"");
-        const char *num_key = strstr(ptr, "\"num\"");
-        const char *denom_key = strstr(ptr, "\"denom\"");
-        const char *value_key = strstr(ptr, "\"value\"");
-        const char *element_key = strstr(ptr, "\"element\"");
+        /* 计算当前对象的范围，限制字段搜索在此范围内 */
+        const char *type_key = json_find_key_safe(ptr, "type");
+        const char *num_key = json_find_key_safe(ptr, "num");
+        const char *denom_key = json_find_key_safe(ptr, "denom");
+        const char *value_key = json_find_key_safe(ptr, "value");
+        const char *element_key = json_find_key_safe(ptr, "element");
+
+        /* 确保找到的键在当前对象范围内 */
+        if (type_key && type_key > obj_end) type_key = NULL;
+        if (num_key && num_key > obj_end) num_key = NULL;
+        if (denom_key && denom_key > obj_end) denom_key = NULL;
+        if (value_key && value_key > obj_end) value_key = NULL;
+        if (element_key && element_key > obj_end) element_key = NULL;
 
         Rune *rune = NULL;
         MagicElement element = ELEMENT_NONE;
@@ -1296,24 +1502,26 @@ MagicArray *magic_array_deserialize(const char *json) {
         ptr = obj_end + 1;
     }
 
-    /* 尝试解析名称字段 */
-    const char *name_key = strstr(json, "\"name\"");
+    /* 尝试解析名称字段（使用安全查找） */
+    const char *name_key = json_find_key_safe(json, "name");
     if (name_key) {
         const char *name_start = strchr(name_key + 6, ':');
         if (name_start) {
             name_start++;
-            while (*name_start == ' ' || *name_start == '"')
+            while (*name_start == ' ')
                 name_start++;
-            const char *name_end = strchr(name_start, '"');
-            if (name_end && name_end > name_start) {
-                size_t name_len = (size_t) (name_end - name_start);
-                char *name_buf = (char *) lv00_malloc(name_len + 1);
-                if (name_buf) {
-                    /* [Bug修复] strncpy + 手动终止 → lv00_strlcpy，更安全简洁 */
-                    lv00_strlcpy(name_buf, name_start, name_len + 1);
-                    if (array->name)
-                        lv00_free((void **) &array->name);
-                    array->name = name_buf;
+            if (*name_start == '"') {
+                name_start++; /* 跳过起始引号 */
+                char name_buf[256];
+                int name_len = json_decode_string(name_start, name_buf, sizeof(name_buf));
+                if (name_len > 0) {
+                    char *name_copy = (char *) lv00_malloc((size_t) name_len + 1);
+                    if (name_copy) {
+                        lv00_strlcpy(name_copy, name_buf, (size_t) name_len + 1);
+                        if (array->name)
+                            lv00_free((void **) &array->name);
+                        array->name = name_copy;
+                    }
                 }
             }
         }

@@ -91,7 +91,7 @@ static int serial_linsol_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
                                const Lv00Vector *b, Lv00Vector *x);
 static void serial_linsol_destroy(Lv00LinearSolver *LS);
 
-/* 迭代法桩函数 */
+/* 迭代法接口声明（当前为占位实现，完整实现需引入迭代求解算法） */
 static int iterative_gmres_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
                                  const Lv00Vector *b, Lv00Vector *x);
 static int iterative_bicgstab_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,

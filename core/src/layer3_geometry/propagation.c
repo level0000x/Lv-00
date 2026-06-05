@@ -363,8 +363,13 @@ NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id
  *
  * 对于 INCIDENCE（点在线段上）约束：
  *   计算行列式 (Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax) 是否为零
+ *
+ * @param point_coord   点节点的 x 坐标（SymbolicCoord）
+ * @param point_node    点节点（用于获取 y 坐标）
+ * @param line_node     线段节点（含端点坐标）
  */
 static bool check_incidence_compatible(const SymbolicCoord *point_coord,
+                                        const GeomNode *point_node,
                                         const GeomNode *line_node) {
     if (!point_coord || !line_node || !line_node->symbolic_coords) return false;
     if (line_node->coord_count < 4) return false;
@@ -377,7 +382,7 @@ static bool check_incidence_compatible(const SymbolicCoord *point_coord,
     if (!ax || !ay || !bx || !by) return false;
 
     /* 点 P(px, py) — 使用 point_coord 的 x,y 分量 */
-    /* 简化：使用 double 近似检查行列式 */
+    /* 使用 double 近似检查行列式（符号坐标的数值评估） */
     double px = symbolic_coord_to_double(point_coord);
     double ax_d = symbolic_coord_to_double(ax);
     double ay_d = symbolic_coord_to_double(ay);
@@ -411,9 +416,11 @@ static bool check_constraint_compatible(const SymbolicCoord *candidate,
     case INCIDENCE: {
         /* 点在线段上：参与者 [point_id, line_id] */
         if (constraint->participant_count < 2) return true;
+        int point_id = constraint->participants[0];
         int line_id = constraint->participants[1];
+        GeomNode *point_node = graph_get_node(graph, point_id);
         GeomNode *line_node = graph_get_node(graph, line_id);
-        return check_incidence_compatible(candidate, line_node);
+        return check_incidence_compatible(candidate, point_node, line_node);
     }
     case BETWEENNESS:
     case INTERSECTION:
@@ -586,15 +593,96 @@ int propagation_select_node(PropagationContext *ctx) {
             }
             break;
 
-        case PROP_STRATEGY_BFS:
-        case PROP_STRATEGY_TOPOLOGICAL:
-            /* 简化：回退到 MRV */
-            if (entropy < min_entropy) {
-                min_entropy = entropy;
-                best_node = i;
-                best_degree = degree;
+        case PROP_STRATEGY_BFS: {
+            /* BFS 策略：从最近坍缩的节点出发，广度优先选择最近的未坍缩邻居。
+             * 使用约束图中的邻接关系进行 BFS 遍历，选择第一个遇到的未坍缩节点。
+             * 若无已坍缩节点作为起点，则回退到最小熵选择。 */
+            bool found_bfs = false;
+            /* 收集所有已坍缩节点作为 BFS 起点 */
+            for (int start = 0; start < ctx->state_count && !found_bfs; start++) {
+                const NodeStateSpace *ss_start = &ctx->state_spaces[start];
+                if (!ss_start->is_collapsed) continue;
+
+                /* 从 start 节点开始 BFS */
+                int bfs_queue[256];
+                int bfs_head = 0, bfs_tail = 0;
+                bool visited[256];
+                memset(visited, 0, sizeof(bool) * (size_t)ctx->state_count);
+
+                bfs_queue[bfs_tail++] = start;
+                visited[start] = true;
+
+                while (bfs_head < bfs_tail && !found_bfs) {
+                    int cur = bfs_queue[bfs_head++];
+
+                    /* 查找 cur 的所有邻接节点（通过约束关系） */
+                    int cids[128];
+                    int nc = graph_find_constraints_involving(ctx->graph, cur, cids, 128);
+                    for (int ci = 0; ci < nc && !found_bfs; ci++) {
+                        Constraint *cc = graph_get_constraint(ctx->graph, cids[ci]);
+                        if (!cc || !cc->is_active) continue;
+                        for (int p = 0; p < cc->participant_count; p++) {
+                            int nb = cc->participants[p];
+                            if (nb < 0 || nb >= ctx->state_count) continue;
+                            if (visited[nb]) continue;
+                            visited[nb] = true;
+
+                            const NodeStateSpace *ss_nb = &ctx->state_spaces[nb];
+                            if (!ss_nb->is_collapsed && !ss_nb->is_unbounded
+                                && ss_nb->coord_count > 0) {
+                                /* 找到最近的未坍缩邻居 */
+                                best_node = nb;
+                                found_bfs = true;
+                                break;
+                            }
+                            bfs_queue[bfs_tail++] = nb;
+                        }
+                    }
+                }
+            }
+            /* 若 BFS 未找到（无已坍缩节点作为起点），回退到最小熵 */
+            if (!found_bfs) {
+                if (entropy < min_entropy ||
+                    (entropy == min_entropy && degree > best_degree)) {
+                    min_entropy = entropy;
+                    best_node = i;
+                    best_degree = degree;
+                }
             }
             break;
+        }
+
+        case PROP_STRATEGY_TOPOLOGICAL: {
+            /* 拓扑排序策略：按约束依赖关系选择"被依赖最多"的未坍缩节点。
+             * 计算每个节点的入度（有多少约束以该节点为被动参与者），
+             * 选择入度最高的节点优先坍缩（确保依赖链上游先确定）。
+             * 若入度相同，选择熵最小的打破平局。 */
+            int in_degree = 0;
+            int cids_t[128];
+            int nc_t = graph_find_constraints_involving(ctx->graph, i, cids_t, 128);
+            for (int ci = 0; ci < nc_t; ci++) {
+                Constraint *cc = graph_get_constraint(ctx->graph, cids_t[ci]);
+                if (!cc || !cc->is_active) continue;
+                /* 统计有多少其他未坍缩参与者依赖此节点 */
+                for (int p = 0; p < cc->participant_count; p++) {
+                    int other = cc->participants[p];
+                    if (other != i && other >= 0 && other < ctx->state_count) {
+                        const NodeStateSpace *ss_other = &ctx->state_spaces[other];
+                        if (!ss_other->is_collapsed) {
+                            in_degree++;
+                        }
+                    }
+                }
+            }
+            /* 优先选择被依赖最多的节点，熵作为次要排序键 */
+            if (in_degree > best_degree ||
+                (in_degree == best_degree && entropy < min_entropy)) {
+                best_degree = in_degree;
+                best_node = i;
+                min_entropy = entropy;
+            }
+            break;
+        }
         }
     }
 

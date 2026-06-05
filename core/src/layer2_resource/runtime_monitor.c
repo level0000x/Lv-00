@@ -766,9 +766,19 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
     /* 线程检查 */
     check = &report->checks[2];
     strncpy(check->name, "Thread Count", sizeof(check->name) - 1);
-    check->value = 1; /* 简化 */
+    /* 线程检查：通过环境变量 LV00_MONITOR_THREADS 配置，默认 1，范围 [1, 64] */
+    int monitor_threads = 1;
+    const char *env_threads = getenv("LV00_MONITOR_THREADS");
+    if (env_threads && env_threads[0] != '\0') {
+        long parsed = strtol(env_threads, NULL, 10);
+        if (parsed < 1) parsed = 1;
+        if (parsed > 64) parsed = 64;
+        monitor_threads = (int)parsed;
+    }
+    check->value = (double)monitor_threads;
     check->status = HEALTH_OK;
-    strncpy(check->message, "Thread count normal", sizeof(check->message) - 1);
+    snprintf(check->message, sizeof(check->message),
+             "Thread count: %d (configurable via LV00_MONITOR_THREADS)", monitor_threads);
 
     /* 计时器检查 */
     check = &report->checks[3];

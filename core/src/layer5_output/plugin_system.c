@@ -1013,7 +1013,27 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
         snprintf(full_path, sizeof(full_path), "%s\\%s", directory, find_data.cFileName);
 
         /* 尝试加载为插件 */
-        lv00_plugin_load(system, full_path);
+        Lv00Plugin* plugin = lv00_plugin_load(system, full_path);
+        if (plugin) {
+            /* 版本兼容性检查：验证插件版本是否与系统版本兼容 */
+            if (plugin->info.version[0] != '\0') {
+                if (!lv00_plugin_check_api_compatibility(
+                        system->version,
+                        (LV00_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
+                        (LV00_PLUGIN_SYSTEM_VERSION_MINOR << 8))) {
+                    /* 插件 API 版本不兼容，记录警告并跳过激活 */
+                    set_error(system,
+                              "Plugin '%s' version '%s' may be incompatible with "
+                              "system API version %d.%d.%d. Loading but not activating.",
+                              plugin->info.name,
+                              plugin->info.version,
+                              LV00_PLUGIN_SYSTEM_VERSION_MAJOR,
+                              LV00_PLUGIN_SYSTEM_VERSION_MINOR,
+                              LV00_PLUGIN_SYSTEM_VERSION_PATCH);
+                    /* 不卸载插件，但也不自动激活，让用户决定 */
+                }
+            }
+        }
 
     } while (FindNextFileA(hFind, &find_data));
 
@@ -1035,7 +1055,27 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
         if (name_len > 3 && strcmp(entry->d_name + name_len - 3, ".so") == 0) {
             char full_path[1024];
             snprintf(full_path, sizeof(full_path), "%s/%s", directory, entry->d_name);
-            lv00_plugin_load(system, full_path);
+
+            /* 尝试加载为插件 */
+            Lv00Plugin* plugin = lv00_plugin_load(system, full_path);
+            if (plugin) {
+                /* 版本兼容性检查：验证插件版本是否与系统版本兼容 */
+                if (plugin->info.version[0] != '\0') {
+                    if (!lv00_plugin_check_api_compatibility(
+                            system->version,
+                            (LV00_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
+                            (LV00_PLUGIN_SYSTEM_VERSION_MINOR << 8))) {
+                        set_error(system,
+                                  "Plugin '%s' version '%s' may be incompatible with "
+                                  "system API version %d.%d.%d. Loading but not activating.",
+                                  plugin->info.name,
+                                  plugin->info.version,
+                                  LV00_PLUGIN_SYSTEM_VERSION_MAJOR,
+                                  LV00_PLUGIN_SYSTEM_VERSION_MINOR,
+                                  LV00_PLUGIN_SYSTEM_VERSION_PATCH);
+                    }
+                }
+            }
         }
     }
 
@@ -1048,7 +1088,7 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
 int lv00_plugin_system_autoload_all(Lv00PluginSystem* system) {
     if (!system) return -1;
     
-    /* 简化实现：加载搜索路径中的所有插件 */
+    /* 遍历所有搜索路径，自动加载其中的插件（含版本兼容性检查） */
     for (size_t i = 0; i < system->search_path_count; i++) {
         lv00_plugin_system_autoload(system, system->search_paths[i]);
     }

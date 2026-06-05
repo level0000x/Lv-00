@@ -418,7 +418,7 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
         return false;
     }
 
-    /* 简化版 VF2 同构检测：基于度数序列和邻域签名匹配 */
+    /* VF2 同构检测（基于度数序列和邻域签名匹配，完整版需支持回溯搜索） */
     const ConstraintGraph *ga = (const ConstraintGraph *)graph_a;
     const ConstraintGraph *gb = (const ConstraintGraph *)graph_b;
 
@@ -456,9 +456,145 @@ bool graph_isomorphism_compare(GraphIsomorphismComparator *comp,
         if (deg_a[i] != deg_b[i]) { same_degree = false; break; }
     }
 
+    if (!same_degree) {
+        free(deg_a);
+        free(deg_b);
+        return false;
+    }
+
+    /* VF2 邻域签名比较：对每个节点，收集其邻居的度数并排序后比较 */
+    /* 重新计算度数（因为上面的已排序） */
+    int *deg_a_raw = (int *)calloc((size_t)n, sizeof(int));
+    int *deg_b_raw = (int *)calloc((size_t)n, sizeof(int));
+    if (!deg_a_raw || !deg_b_raw) { free(deg_a); free(deg_b); free(deg_a_raw); free(deg_b_raw); return false; }
+
+    for (int i = 0; i < n; i++) {
+        int cids[64];
+        deg_a_raw[i] = graph_find_constraints_involving(ga, i, cids, 64);
+        deg_b_raw[i] = graph_find_constraints_involving(gb, i, cids, 64);
+    }
+
+    /* 为每个节点计算排序后的邻居度数签名 */
+    int max_neighbors = 64;
+    int *neighbor_sigs_a = (int *)calloc((size_t)n * (size_t)max_neighbors, sizeof(int));
+    int *neighbor_sigs_b = (int *)calloc((size_t)n * (size_t)max_neighbors, sizeof(int));
+    int *neighbor_counts_a = (int *)calloc((size_t)n, sizeof(int));
+    int *neighbor_counts_b = (int *)calloc((size_t)n, sizeof(int));
+    if (!neighbor_sigs_a || !neighbor_sigs_b || !neighbor_counts_a || !neighbor_counts_b) {
+        free(deg_a); free(deg_b); free(deg_a_raw); free(deg_b_raw);
+        free(neighbor_sigs_a); free(neighbor_sigs_b);
+        free(neighbor_counts_a); free(neighbor_counts_b);
+        return false;
+    }
+
+    for (int i = 0; i < n; i++) {
+        int cids_a[64], cids_b[64];
+        int nc_a = graph_find_constraints_involving(ga, i, cids_a, 64);
+        int nc_b = graph_find_constraints_involving(gb, i, cids_b, 64);
+
+        /* 收集 ga 中节点 i 的邻居度数 */
+        for (int c = 0; c < nc_a && neighbor_counts_a[i] < max_neighbors; c++) {
+            Constraint *cons = graph_get_constraint(ga, cids_a[c]);
+            if (!cons || !cons->is_active) continue;
+            for (int p = 0; p < cons->participant_count; p++) {
+                int nb = cons->participants[p];
+                if (nb >= 0 && nb < n && nb != i) {
+                    neighbor_sigs_a[i * max_neighbors + neighbor_counts_a[i]] = deg_a_raw[nb];
+                    neighbor_counts_a[i]++;
+                }
+            }
+        }
+
+        /* 收集 gb 中节点 i 的邻居度数 */
+        for (int c = 0; c < nc_b && neighbor_counts_b[i] < max_neighbors; c++) {
+            Constraint *cons = graph_get_constraint(gb, cids_b[c]);
+            if (!cons || !cons->is_active) continue;
+            for (int p = 0; p < cons->participant_count; p++) {
+                int nb = cons->participants[p];
+                if (nb >= 0 && nb < n && nb != i) {
+                    neighbor_sigs_b[i * max_neighbors + neighbor_counts_b[i]] = deg_b_raw[nb];
+                    neighbor_counts_b[i]++;
+                }
+            }
+        }
+
+        /* 排序每个节点的邻居度数签名 */
+        for (int x = 0; x < neighbor_counts_a[i] - 1; x++) {
+            for (int y = x + 1; y < neighbor_counts_a[i]; y++) {
+                if (neighbor_sigs_a[i * max_neighbors + x] > neighbor_sigs_a[i * max_neighbors + y]) {
+                    int t = neighbor_sigs_a[i * max_neighbors + x];
+                    neighbor_sigs_a[i * max_neighbors + x] = neighbor_sigs_a[i * max_neighbors + y];
+                    neighbor_sigs_a[i * max_neighbors + y] = t;
+                }
+            }
+        }
+        for (int x = 0; x < neighbor_counts_b[i] - 1; x++) {
+            for (int y = x + 1; y < neighbor_counts_b[i]; y++) {
+                if (neighbor_sigs_b[i * max_neighbors + x] > neighbor_sigs_b[i * max_neighbors + y]) {
+                    int t = neighbor_sigs_b[i * max_neighbors + x];
+                    neighbor_sigs_b[i * max_neighbors + x] = neighbor_sigs_b[i * max_neighbors + y];
+                    neighbor_sigs_b[i * max_neighbors + y] = t;
+                }
+            }
+        }
+    }
+
+    /* 比较两个图的邻域签名多集合 */
+    /* 将所有节点的签名拼接成一个大数组，排序后比较 */
+    int total_sigs_a = 0, total_sigs_b = 0;
+    for (int i = 0; i < n; i++) {
+        total_sigs_a += neighbor_counts_a[i];
+        total_sigs_b += neighbor_counts_b[i];
+    }
+
+    bool same_signatures = (total_sigs_a == total_sigs_b);
+    if (same_signatures && total_sigs_a > 0) {
+        /* 拼接并排序所有签名 */
+        int *all_sigs_a = (int *)calloc((size_t)total_sigs_a, sizeof(int));
+        int *all_sigs_b = (int *)calloc((size_t)total_sigs_b, sizeof(int));
+        if (!all_sigs_a || !all_sigs_b) {
+            same_signatures = false;
+        } else {
+            int pos = 0;
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < neighbor_counts_a[i]; j++) {
+                    all_sigs_a[pos++] = neighbor_sigs_a[i * max_neighbors + j];
+                }
+            }
+            pos = 0;
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < neighbor_counts_b[i]; j++) {
+                    all_sigs_b[pos++] = neighbor_sigs_b[i * max_neighbors + j];
+                }
+            }
+            /* 排序 */
+            for (int i = 0; i < total_sigs_a - 1; i++) {
+                for (int j = i + 1; j < total_sigs_a; j++) {
+                    if (all_sigs_a[i] > all_sigs_a[j]) { int t = all_sigs_a[i]; all_sigs_a[i] = all_sigs_a[j]; all_sigs_a[j] = t; }
+                }
+            }
+            for (int i = 0; i < total_sigs_b - 1; i++) {
+                for (int j = i + 1; j < total_sigs_b; j++) {
+                    if (all_sigs_b[i] > all_sigs_b[j]) { int t = all_sigs_b[i]; all_sigs_b[i] = all_sigs_b[j]; all_sigs_b[j] = t; }
+                }
+            }
+            for (int i = 0; i < total_sigs_a; i++) {
+                if (all_sigs_a[i] != all_sigs_b[i]) { same_signatures = false; break; }
+            }
+            free(all_sigs_a);
+            free(all_sigs_b);
+        }
+    }
+
     free(deg_a);
     free(deg_b);
-    return same_degree;
+    free(deg_a_raw);
+    free(deg_b_raw);
+    free(neighbor_sigs_a);
+    free(neighbor_sigs_b);
+    free(neighbor_counts_a);
+    free(neighbor_counts_b);
+    return same_signatures;
 }
 
 uint64_t graph_isomorphism_hash(const void *graph)
@@ -527,7 +663,7 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
         return false;
     }
 
-    /* 简化版映射查找：基于度数匹配的贪心算法 */
+    /* 映射查找（基于度数匹配的贪心算法，完整版需支持回溯和约束传播） */
     const ConstraintGraph *ga = (const ConstraintGraph *)graph_a;
     const ConstraintGraph *gb = (const ConstraintGraph *)graph_b;
 
@@ -576,7 +712,51 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp,
             if (mapping[i] < 0) { all_mapped = false; break; }
         }
 
+        /* 边保持验证：检查 G1 中所有边在映射下是否在 G2 中也存在 */
+        bool edges_preserved = true;
         if (all_mapped) {
+            for (int c = 0; c < graph_get_constraint_count(ga) && edges_preserved; c++) {
+                Constraint *cons = graph_get_constraint(ga, c);
+                if (!cons || !cons->is_active) continue;
+                if (cons->participant_count < 2) continue;
+
+                /* 对每对参与者 (u, v)，检查 (map[u], map[v]) 是否在 G2 中有对应约束 */
+                for (int p = 0; p < cons->participant_count && edges_preserved; p++) {
+                    int u = cons->participants[p];
+                    if (u < 0 || u >= na) continue;
+                    int u_mapped = mapping[u];
+
+                    for (int q = p + 1; q < cons->participant_count && edges_preserved; q++) {
+                        int v = cons->participants[q];
+                        if (v < 0 || v >= na) continue;
+                        int v_mapped = mapping[v];
+
+                        /* 在 G2 中查找 u_mapped 和 v_mapped 之间是否有相同类型的约束 */
+                        int cids_b[64];
+                        int nc_b = graph_find_constraints_involving(gb, u_mapped, cids_b, 64);
+                        bool found_edge = false;
+                        for (int cb = 0; cb < nc_b; cb++) {
+                            Constraint *cons_b = graph_get_constraint(gb, cids_b[cb]);
+                            if (!cons_b || !cons_b->is_active) continue;
+                            if (cons_b->type != cons->type) continue;
+                            /* 检查 cons_b 是否包含 v_mapped */
+                            for (int pp = 0; pp < cons_b->participant_count; pp++) {
+                                if (cons_b->participants[pp] == v_mapped) {
+                                    found_edge = true;
+                                    break;
+                                }
+                            }
+                            if (found_edge) break;
+                        }
+                        if (!found_edge) {
+                            edges_preserved = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (all_mapped && edges_preserved) {
             *out_node_mapping = mapping;
         } else {
             free(mapping);

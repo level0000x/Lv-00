@@ -1028,8 +1028,31 @@ class FuncBlock:
         conflicts = []
         if has_cross and conflicts_ptr:
             # 跨边界约束以 CrossBoundaryConstraint 数组形式返回
-            # 此处返回是否存在的布尔值，冲突详情由 C 层管理
-            conflicts = list(range(conflict_count.value))  # 占位
+            # C 结构体定义（来自 constraint_graph.h）：
+            #   int constraint_id;   约束 ID
+            #   int type;            约束类型 (ConstraintType 枚举)
+            #   int node_ids[2];     涉及的节点 ID（内部节点和外部节点）
+            #   int node_count;      涉及的节点数量
+            class _CrossBoundaryConstraint(ctypes.Structure):
+                _fields_ = [
+                    ("constraint_id", ctypes.c_int),
+                    ("type", ctypes.c_int),
+                    ("node_ids", ctypes.c_int * 2),
+                    ("node_count", ctypes.c_int),
+                ]
+
+            constraint_array = ctypes.cast(
+                conflicts_ptr,
+                ctypes.POINTER(_CrossBoundaryConstraint)
+            )
+            for i in range(conflict_count.value):
+                c = constraint_array[i]
+                conflicts.append({
+                    "constraint_id": c.constraint_id,
+                    "type": c.type,
+                    "node_ids": list(c.node_ids[:c.node_count]) if c.node_count > 0 else [],
+                    "node_count": c.node_count,
+                })
             _lib.lv00_free_ptr(conflicts_ptr)
         return (has_cross, conflicts)
 

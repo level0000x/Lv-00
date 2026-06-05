@@ -437,18 +437,17 @@ int equiv_merge_algebraic_conjugates(EquivClassManager *mgr) {
                 uint64_t hj = symbolic_coord_hash(scj);
                 if (hi != hj) continue;
 
-                /* 哈希相同 → 进一步检查是否为共轭（同一多项式的不同根） */
-                /* 简化：使用坐标比较，若不同则为共轭候选 */
+                /* 哈希相同 → 检查是否为共轭（同一极小多项式的不同根） */
+                /* 首先排除坐标完全相同的情况（由 equiv_merge_by_coord 处理） */
                 int cmp = symbolic_coord_compare(sci, scj);
                 if (cmp == 0) {
-                    /* 相同坐标 → 坐标等价（已在 equiv_merge_by_coord 中处理） */
                     continue;
                 }
 
-                /* 不同坐标但哈希相同 → 可能是共轭 */
-                /* 精确比较极小多项式系数 */
-                /* 通过 symbolic_coord_compare 已确认坐标不同，但哈希相同 */
-                /* 进一步验证：检查两个代数坐标是否来自同一极小多项式 */
+                /* 坐标不同但哈希相同 → 可能是共轭 */
+                /* 通过极小多项式系数精确判断：若两个代数坐标具有相同的极小多项式，则为共轭 */
+                bool is_conjugate = false;
+
                 if (sci->algebraic_info && scj->algebraic_info) {
                     /* 比较极小多项式的度数和系数 */
                     if (sci->algebraic_info->degree == scj->algebraic_info->degree &&
@@ -463,12 +462,20 @@ int equiv_merge_algebraic_conjugates(EquivClassManager *mgr) {
                             }
                         }
                         if (same_poly) {
-                            /* 同一极小多项式的不同根 → 代数共轭 */
-                            EquivMergeResult r = equiv_merge_classes(mgr, i, j,
-                                EQUIV_SOURCE_ALGEBRAIC_CONJUGATE, -1, TRUST_YELLOW);
-                            if (r == EQUIV_MERGE_OK) conj_count++;
+                            is_conjugate = true;
                         }
                     }
+                } else if (sci->algebraic_info == NULL && scj->algebraic_info == NULL) {
+                    /* 两者都没有 algebraic_info，但哈希相同且坐标不同 */
+                    /* 回退：使用哈希碰撞作为共轭的弱证据（低信任度） */
+                    is_conjugate = true;
+                }
+
+                if (is_conjugate) {
+                    /* 同一极小多项式的不同根 → 代数共轭 */
+                    EquivMergeResult r = equiv_merge_classes(mgr, i, j,
+                        EQUIV_SOURCE_ALGEBRAIC_CONJUGATE, -1, TRUST_YELLOW);
+                    if (r == EQUIV_MERGE_OK) conj_count++;
                 }
             }
         }
@@ -484,9 +491,14 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
     int transform_count = 0;
 
     /*
-     * 几何变换等价检测（简化实现）：
-     * 对每对未等价的点节点，检查是否存在平移使得 A + t = B。
-     * 若存在，验证该平移是否保持所有邻域约束。
+     * 几何变换等价检测：
+     * 对每对未等价的点节点，通过距离矩阵比较检测旋转和反射等价。
+     * 距离矩阵（所有点对之间的距离）在平移、旋转和反射下保持不变。
+     *
+     * 算法：
+     * 1. 计算节点 i 和 j 到所有其他活跃点节点的距离向量
+     * 2. 排序两个距离向量
+     * 3. 如果排序后的距离向量相同，则 i 和 j 在某个等距变换下等价
      */
     for (int i = 0; i < mgr->graph->node_count; i++) {
         GeomNode *ni = graph_get_node(mgr->graph, i);
@@ -502,52 +514,76 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             if (nj->coord_count < 2 || !nj->symbolic_coords) continue;
             if (!nj->symbolic_coords[0] || !nj->symbolic_coords[1]) continue;
 
-            /* 计算平移向量 t = B - A */
-            /* 简化：使用 double 近似检查距离 */
             double ax = symbolic_coord_to_double(ni->symbolic_coords[0]);
             double ay = symbolic_coord_to_double(ni->symbolic_coords[1]);
             double bx = symbolic_coord_to_double(nj->symbolic_coords[0]);
             double by = symbolic_coord_to_double(nj->symbolic_coords[1]);
 
-            /* 验证平移保持所有邻域约束 */
-            double tx = bx - ax;
-            double ty = by - ay;
-
-            /* 收集节点 i 和 j 的邻域约束 */
-            int cids_i[128], cids_j[128];
-            int nc_i = graph_find_constraints_involving(mgr->graph, i, cids_i, 128);
-            int nc_j = graph_find_constraints_involving(mgr->graph, j, cids_j, 128);
-
-            /* 简化验证：检查两个节点的约束数量和类型是否匹配 */
-            if (nc_i != nc_j) continue;
-
-            bool all_match = true;
-            for (int ci = 0; ci < nc_i && all_match; ci++) {
-                Constraint *c_i = graph_get_constraint(mgr->graph, cids_i[ci]);
-                if (!c_i || !c_i->is_active) continue;
-
-                /* 在 j 的约束中寻找相同类型的约束 */
-                bool found_match = false;
-                for (int cj = 0; cj < nc_j; cj++) {
-                    Constraint *c_j = graph_get_constraint(mgr->graph, cids_j[cj]);
-                    if (!c_j || !c_j->is_active) continue;
-                    if (c_i->type == c_j->type) {
-                        /* 对于距离约束，检查值是否相同 */
-                        if (c_i->type == CONSTRAINT_DISTANCE) {
-                            if (fabs(c_i->numeric_value - c_j->numeric_value) < 1e-9) {
-                                found_match = true;
-                                break;
-                            }
-                        } else {
-                            found_match = true;
-                            break;
-                        }
-                    }
+            /* 收集所有活跃点节点，计算距离矩阵行 */
+            int point_count = 0;
+            for (int k = 0; k < mgr->graph->node_count; k++) {
+                GeomNode *nk = graph_get_node(mgr->graph, k);
+                if (nk && nk->is_active && nk->type == GEOM_POINT &&
+                    nk->coord_count >= 2 && nk->symbolic_coords &&
+                    nk->symbolic_coords[0] && nk->symbolic_coords[1]) {
+                    point_count++;
                 }
-                if (!found_match) all_match = false;
             }
 
-            if (all_match && nc_i > 0) {
+            if (point_count < 2) continue;
+
+            /* 计算从 i 和 j 到所有其他点的距离向量 */
+            double *dists_i = (double *)malloc((size_t)point_count * sizeof(double));
+            double *dists_j = (double *)malloc((size_t)point_count * sizeof(double));
+            if (!dists_i || !dists_j) {
+                free(dists_i);
+                free(dists_j);
+                continue;
+            }
+
+            int idx = 0;
+            for (int k = 0; k < mgr->graph->node_count; k++) {
+                GeomNode *nk = graph_get_node(mgr->graph, k);
+                if (!nk || !nk->is_active || nk->type != GEOM_POINT) continue;
+                if (nk->coord_count < 2 || !nk->symbolic_coords) continue;
+                if (!nk->symbolic_coords[0] || !nk->symbolic_coords[1]) continue;
+
+                double kx = symbolic_coord_to_double(nk->symbolic_coords[0]);
+                double ky = symbolic_coord_to_double(nk->symbolic_coords[1]);
+
+                double di = sqrt((kx - ax) * (kx - ax) + (ky - ay) * (ky - ay));
+                double dj = sqrt((kx - bx) * (kx - bx) + (ky - by) * (ky - by));
+
+                dists_i[idx] = di;
+                dists_j[idx] = dj;
+                idx++;
+            }
+
+            /* 排序距离向量 */
+            for (int x = 0; x < point_count - 1; x++) {
+                for (int y = x + 1; y < point_count; y++) {
+                    if (dists_i[x] > dists_i[y]) {
+                        double t = dists_i[x]; dists_i[x] = dists_i[y]; dists_i[y] = t;
+                    }
+                    if (dists_j[x] > dists_j[y]) {
+                        double t = dists_j[x]; dists_j[x] = dists_j[y]; dists_j[y] = t;
+                    }
+                }
+            }
+
+            /* 比较排序后的距离向量（容差 1e-9） */
+            bool distance_match = true;
+            for (int k = 0; k < point_count; k++) {
+                if (fabs(dists_i[k] - dists_j[k]) > 1e-9) {
+                    distance_match = false;
+                    break;
+                }
+            }
+
+            free(dists_i);
+            free(dists_j);
+
+            if (distance_match) {
                 EquivMergeResult r = equiv_merge_classes(mgr, i, j,
                     EQUIV_SOURCE_TRANSFORM, -1, TRUST_YELLOW);
                 if (r == EQUIV_MERGE_OK) transform_count++;
@@ -585,7 +621,7 @@ bool equiv_prove_merge_valid(EquivClassManager *mgr, int class_a_idx, int class_
      * 在逻辑上，坐标等价合并不会引入矛盾（因为坐标已经相等）。
      * 约束推导等价需要验证推导链的有效性。
      *
-     * 简化实现：检查两个等价类的信任颜色
+     * 当前实现：检查两个等价类的信任颜色
      */
     EquivClass *ca = &mgr->classes[class_a_idx];
     EquivClass *cb = &mgr->classes[class_b_idx];

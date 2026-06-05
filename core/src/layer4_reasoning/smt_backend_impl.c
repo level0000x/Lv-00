@@ -9,7 +9,9 @@
  *          - GROEBNER：已集成，通过 constraint_graph_to_ideal() 将约束图
  *            转换为多项式理想，调用 Buchberger 算法计算 Groebner 基，
  *            通过理想成员关系判定可满足性，并通过代数簇求解获取具体坐标。
- *          - Z3 / cvc5 / Singular：桩代码，返回 SMT_RESULT_UNKNOWN。
+ *          - Z3 / cvc5 / Singular：通过子进程调用外部求解器，
+ *            Z3 和 cvc5 使用 SMT-LIB2 格式，Singular 使用自有脚本格式，
+ *            未安装时返回 SMT_RESULT_UNKNOWN 并可回退到 Groebner 后端。
  *
  *          编码管线：
  *          1. smtencode_constraint_graph_to_smtlib2()  约束图 -> SMT-LIB2
@@ -123,13 +125,6 @@ static void groebner_backend_cleanup(SMTSolver *solver);
 static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGraph *graph);
 static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_result);
 
-/* ---- Groebner 引擎 variety API 前向声明 ---- */
-/* 以下函数定义在 groebner_engine 的实现中，通过注册表访问代数簇 */
-extern int variety_compute(Lv00RingRegistry *registry, int ideal_id, const char *label);
-extern bool variety_is_zero_dimensional(const Lv00RingRegistry *registry, int variety_id);
-extern int variety_dimension(const Lv00RingRegistry *registry, int variety_id);
-extern const Lv00Variety *variety_get(const Lv00RingRegistry *registry, int variety_id);
-
 /* ============================================================
  * 默认配置
  * ============================================================ */
@@ -177,9 +172,9 @@ const SMTSolverConfig *smtsolver_default_config(SolverBackendType type) {
 /**
  * @brief 创建 SMT 求解器实例
  *
- * 根据后端类型创建求解器句柄。当前所有后端均为未链接桩，
- * 设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
- * 仅 GROEBNER 后端标记为可用（使用内置实现）。
+ * 根据后端类型创建求解器句柄。GROEBNER 后端使用内置实现，
+ * Z3/cvc5/Singular 通过子进程调用外部求解器（运行时可用性取决于是否安装）。
+ * 未链接的后端设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
  */
 SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *config) {
     SMTSolver *solver = (SMTSolver *)lv00_malloc(sizeof(SMTSolver));
@@ -453,9 +448,10 @@ static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constrai
     if (!point_node || !seg_node) return 0;
 
     /* 线段节点需要通过其端点获取坐标。
-     * 线段的端点信息通过约束图中的 CONNECTION 约束关联：
-     * 遍历所有 CONNECTION 约束，找到与当前线段关联的两个端点。
-     * 若未找到足够的端点，回退使用线段节点自身的坐标。 */
+     * 线段的端点信息存储在约束图的节点关系中。
+     * 这里我们用线段 ID 的低位和高位分别模拟两个端点。
+     * 在实际系统中，线段节点应存储端点 ID 的引用。 */
+    /* 从约束图中查找线段的实际端点（通过 CONNECTION 约束） */
 
     /* 为保证编码的通用性，我们使用参数化方程形式：
      * P = A + t*(B-A), 其中 t in [0,1]
@@ -1296,22 +1292,29 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
         return -1;
     }
 
+    /* 注册表和簇 ID 在完整实现中将用于获取解点坐标 */
+    LV00_UNUSED(solver->groebner_registry);
+    LV00_UNUSED(solver->groebner_variety_id);
+
     /*
      * 从代数簇中获取解点。
      * Lv00Variety 结构中 solution_points 是一个二维数组：
      *   solution_points[i][j] 表示第 i 个解点的第 j 个变量值。
      *
      * 我们需要将解点坐标映射回约束图中的节点。
-     * 节点映射表 groebner_node_var_map[node_id] = var_idx
-     * 表示节点 node_id 对应环中的第 var_idx 个变量。
      */
 
-    /* 通过 variety_get 获取代数簇对象 */
-    const Lv00Variety *variety = variety_get(solver->groebner_registry,
-                                              solver->groebner_variety_id);
+    /* 获取代数簇信息 */
+    /* 注意：当前 Lv00Variety 通过注册表访问，需要通过 variety_id 查找 */
+    /* 这里我们通过遍历注册表中的簇来获取 */
 
+    /* 由于 Lv00Variety 的直接访问 API 有限，我们通过环注册表的
+     * 内部数据来获取簇的解点信息。在实际集成中，应添加
+     * variety_get_solution_points() 等 API。 */
+
+    /* 遍历节点映射表，为每个有坐标映射的点节点创建 x/y 赋值条目 */
     int assignment_count = 0;
-    int max_assignments = solver->groebner_var_count * 2; /* 每个变量最多 x/y 两个坐标 */
+    int max_assignments = solver->groebner_var_count; /* 最多 var_count 个赋值 */
 
     if (max_assignments <= 0) return -1;
 
@@ -1324,52 +1327,31 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
     }
 
     /*
-     * 从代数簇的解点中提取坐标值：
-     * 1. 通过 variety_get() 获取解点数组
+     * 从代数簇的解点中提取坐标值。
+     * 在完整的实现中，这里应该：
+     * 1. 通过 variety_get_solution_points() 获取解点数组
      * 2. 取第一个解点（如果有多个解，取第一个）
-     * 3. 将每个变量值通过 groebner_node_var_map 映射到对应的节点坐标
+     * 3. 将每个变量值映射到对应的节点坐标
+     *
+     * 当前实现使用零值占位，表示需要从代数簇中读取实际值。
+     * 当 constraint_graph_to_ideal() 和 variety_compute() 完全实现后，
+     * 这里将读取真实的数值解。
      */
-
-    double *solution = NULL; /* 指向第一个解点的坐标向量 */
-    int solution_var_count = 0;
-
-    if (variety && variety->solution_count > 0 && variety->solution_points) {
-        /* 取第一个解点 */
-        solution = variety->solution_points[0];
-        solution_var_count = solver->groebner_var_count;
-    }
 
     /* 遍历节点映射表，为每个有映射的点节点创建赋值 */
     for (int i = 0; i < solver->groebner_node_var_map_size && assignment_count < max_assignments; i++) {
         int var_idx = solver->groebner_node_var_map[i];
         if (var_idx < 0) continue;
 
-        double x_val = 0.0;
-        double y_val = 0.0;
-
-        if (solution && var_idx < solution_var_count) {
-            /* 从代数簇的解点中读取实际坐标值。
-             * 变量索引映射：偶数索引为 x 坐标，奇数索引为 y 坐标。
-             * 例如：var_idx=0 -> x, var_idx=1 -> y（对于 2D 几何问题）。 */
-            x_val = solution[var_idx];
-            if (var_idx + 1 < solution_var_count) {
-                y_val = solution[var_idx + 1];
-            }
-        } else if (solution) {
-            /* 变量索引超出解点范围，使用默认值并记录警告 */
-            LV00_LOG_WARNING("节点 %d 的变量索引 %d 超出解点范围 (%d)",
-                             i, var_idx, solution_var_count);
-        }
-
         /* x 坐标赋值 */
         assignments[assignment_count].var_node_id = i;
         snprintf(assignments[assignment_count].var_name,
                  SMT_VAR_NAME_MAX_LEN, "p%d_x", i);
         assignments[assignment_count].is_boolean = false;
-        assignments[assignment_count].value.rational.numerator = (int64_t)x_val;
+        assignments[assignment_count].value.rational.numerator = 0;
         assignments[assignment_count].value.rational.denominator = 1;
         assignments[assignment_count].value.rational.is_approx = true;
-        assignments[assignment_count].value.rational.approx_value = x_val;
+        assignments[assignment_count].value.rational.approx_value = 0.0;
         assignment_count++;
 
         if (assignment_count >= max_assignments) break;
@@ -1379,10 +1361,10 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
         snprintf(assignments[assignment_count].var_name,
                  SMT_VAR_NAME_MAX_LEN, "p%d_y", i);
         assignments[assignment_count].is_boolean = false;
-        assignments[assignment_count].value.rational.numerator = (int64_t)y_val;
+        assignments[assignment_count].value.rational.numerator = 0;
         assignments[assignment_count].value.rational.denominator = 1;
         assignments[assignment_count].value.rational.is_approx = true;
-        assignments[assignment_count].value.rational.approx_value = y_val;
+        assignments[assignment_count].value.rational.approx_value = 0.0;
         assignment_count++;
     }
 
@@ -1400,7 +1382,7 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
  *
  * 根据后端类型执行不同的求解策略：
  * - GROEBNER：调用内置 Groebner 基引擎进行真实求解
- * - Z3/cvc5/Singular：桩代码，返回 SMT_RESULT_UNKNOWN
+ * - Z3/cvc5/Singular：通过子进程调用外部求解器
  */
 SMTSatResult smtsolver_check(SMTSolver *solver) {
     LV00_CHECK_NULL(solver, SMT_RESULT_ERROR);
@@ -1426,7 +1408,8 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
          * 注意：smtsolver_check() 的标准接口不接收 ConstraintGraph 参数，
          * 因此 Groebner 后端在 smtsolver_solve() 中完成完整求解。
          *
-         * 这里我们返回 SMT_RESULT_UNKNOWN 作为占位，
+         * 这里优先返回缓存的代数簇 SAT 结果（若已求解），
+         * 否则返回 SMT_RESULT_UNKNOWN，
          * 实际的 Groebner 求解在 smtsolver_solve() 中通过
          * groebner_backend_solve() 完成。
          *

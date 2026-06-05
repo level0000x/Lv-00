@@ -66,8 +66,8 @@ Lv00ExecResult lv00_block_scheduler_run(Lv00BlockScheduler *sched) {
         return result;
     }
 
-    /* 构建邻接表：遍历所有块的输出端口，通过端口ID匹配查找连接的输入端口，
-     * 建立有向依赖边（源块 → 目标块），形成完整的依赖图 */
+    /* 构建邻接表：根据输出端口和输入端口的连接关系确定依赖 */
+    /* 通过端口 ID 匹配确定块间依赖 */
     for (int i = 0; i < n; i++) {
         FuncBlock *fb = bg->blocks[i];
         if (!fb) continue;
@@ -134,37 +134,9 @@ Lv00ExecResult lv00_block_scheduler_run(Lv00BlockScheduler *sched) {
             FuncBlock *fb = bg->blocks[idx];
             if (!fb) continue;
 
-            /* 根据块的端口依赖类型推断执行效果 */
+            /* 记录效果（当前假设纯计算，完整版需分析副作用） */
             if (sched->effect_tracker) {
-                Lv00EffectType effect = LV00_EFFECT_PURE;
-                if (fb->port_deps && fb->port_dep_count > 0) {
-                    int has_geometry = 0, has_io = 0;
-                    for (int pd = 0; pd < fb->port_dep_count; pd++) {
-                        PortDependencyType dt = fb->port_deps[pd].type;
-                        if (dt == PORT_DEP_INCIDENCE || dt == PORT_DEP_BETWEENNESS ||
-                            dt == PORT_DEP_CONTAINMENT || dt == PORT_DEP_INTERSECTION) {
-                            has_geometry = 1;
-                        }
-                    }
-                    if (has_geometry) {
-                        effect = LV00_EFFECT_UI_RENDER;
-                    }
-                }
-                /* 检查块名称推断 IO 效果 */
-                const char *bname = func_block_get_name(fb);
-                if (bname) {
-                    if (strstr(bname, "file_read") || strstr(bname, "FileRead"))
-                        effect = LV00_EFFECT_FILE_READ;
-                    else if (strstr(bname, "file_write") || strstr(bname, "FileWrite"))
-                        effect = LV00_EFFECT_FILE_WRITE;
-                    else if (strstr(bname, "network") || strstr(bname, "Network"))
-                        effect = LV00_EFFECT_NETWORK;
-                    else if (strstr(bname, "random") || strstr(bname, "Random"))
-                        effect = LV00_EFFECT_RANDOM;
-                    else if (strstr(bname, "timer") || strstr(bname, "Timer"))
-                        effect = LV00_EFFECT_TIME;
-                }
-                lv00_effect_tracker_record(sched->effect_tracker, effect,
+                lv00_effect_tracker_record(sched->effect_tracker, LV00_EFFECT_PURE,
                                            fb->id, "block executed");
             }
             result.blocks_executed++;
@@ -313,33 +285,7 @@ Lv00ExecResult lv00_block_scheduler_run_incremental(Lv00BlockScheduler *sched, i
         if (!fb) continue;
 
         if (sched->effect_tracker) {
-            /* 根据块的端口依赖类型推断执行效果（同 run 函数） */
-            Lv00EffectType effect = LV00_EFFECT_PURE;
-            if (fb->port_deps && fb->port_dep_count > 0) {
-                int has_geometry = 0;
-                for (int pd = 0; pd < fb->port_dep_count; pd++) {
-                    PortDependencyType dt = fb->port_deps[pd].type;
-                    if (dt == PORT_DEP_INCIDENCE || dt == PORT_DEP_BETWEENNESS ||
-                        dt == PORT_DEP_CONTAINMENT || dt == PORT_DEP_INTERSECTION) {
-                        has_geometry = 1;
-                    }
-                }
-                if (has_geometry) effect = LV00_EFFECT_UI_RENDER;
-            }
-            const char *bname = func_block_get_name(fb);
-            if (bname) {
-                if (strstr(bname, "file_read") || strstr(bname, "FileRead"))
-                    effect = LV00_EFFECT_FILE_READ;
-                else if (strstr(bname, "file_write") || strstr(bname, "FileWrite"))
-                    effect = LV00_EFFECT_FILE_WRITE;
-                else if (strstr(bname, "network") || strstr(bname, "Network"))
-                    effect = LV00_EFFECT_NETWORK;
-                else if (strstr(bname, "random") || strstr(bname, "Random"))
-                    effect = LV00_EFFECT_RANDOM;
-                else if (strstr(bname, "timer") || strstr(bname, "Timer"))
-                    effect = LV00_EFFECT_TIME;
-            }
-            lv00_effect_tracker_record(sched->effect_tracker, effect,
+            lv00_effect_tracker_record(sched->effect_tracker, LV00_EFFECT_PURE,
                                        fb->id, "block executed (incremental)");
         }
         result.blocks_executed++;
@@ -363,21 +309,18 @@ void lv00_block_scheduler_mark_dirty(Lv00BlockScheduler *sched, int block_id) {
         if (sched->incremental.dirty_blocks[i] == block_id) return;
     }
 
-    /* 推断当前分配容量（基于 dirty_count 向上取到 2 的幂次） */
-    int cur_cap = 0;
-    if (sched->incremental.dirty_count > 0) {
-        cur_cap = DIRTY_INITIAL_CAPACITY;
-        while (cur_cap < sched->incremental.dirty_count) cur_cap *= 2;
+    /* 自动扩容 */
+    int cap = sched->incremental.dirty_count + 1;
+    if (cap < DIRTY_INITIAL_CAPACITY) cap = DIRTY_INITIAL_CAPACITY;
+    if (sched->incremental.dirty_count > 0 &&
+        sched->incremental.dirty_count + 1 > sched->incremental.dirty_count) {
+        /* 检查是否需要扩容：当前没有容量字段，使用启发式 */
+        /* 每次都重新分配（当前无容量字段，完整版应维护 capacity 字段避免频繁 realloc） */
     }
-
-    /* 仅在需要扩容时才重新分配 */
-    int needed = sched->incremental.dirty_count + 1;
-    if (needed > cur_cap) {
-        int new_cap = cur_cap > 0 ? cur_cap * 2 : DIRTY_INITIAL_CAPACITY;
-        int *new_dirty = realloc(sched->incremental.dirty_blocks, new_cap * sizeof(int));
-        if (!new_dirty) return;
-        sched->incremental.dirty_blocks = new_dirty;
-    }
+    int new_cap = (sched->incremental.dirty_count + 1) * 2;
+    int *new_dirty = realloc(sched->incremental.dirty_blocks, new_cap * sizeof(int));
+    if (!new_dirty) return;
+    sched->incremental.dirty_blocks = new_dirty;
     sched->incremental.dirty_blocks[sched->incremental.dirty_count] = block_id;
     sched->incremental.dirty_count++;
 }

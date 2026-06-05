@@ -1448,7 +1448,13 @@ bool config_remove(ConfigManager *mgr, const char *key) {
     return false;
 }
 
-/* 简化的配置文件格式：key = value */
+/* 配置文件格式支持：
+ *   - 注释行：以 '#' 开头
+ *   - 节头：[section_name]   后续键自动加上 "section_name." 前缀
+ *   - 键值对：key = value     在节内时存储为 "section.key"
+ *   - 空行：忽略
+ * 支持通过 dotted notation (如 "section.key") 查找配置项。
+ */
 bool config_load(ConfigManager *mgr) {
     if (!mgr || !mgr->config_file)
         return false;
@@ -1457,47 +1463,69 @@ bool config_load(ConfigManager *mgr) {
     if (!f)
         return false;
 
+    char current_section[256];
+    current_section[0] = '\0';
+
     char line[CONFIG_LINE_BUFFER_SIZE];
     while (fgets(line, sizeof(line), f)) {
         char *trimmed = lv00_str_trim(line);
         if (*trimmed == '\0' || *trimmed == '#')
             continue;
 
+        /* 解析节头 [section_name] */
+        if (*trimmed == '[') {
+            char *close_bracket = strchr(trimmed, ']');
+            if (close_bracket) {
+                *close_bracket = '\0';
+                char *section_name = lv00_str_trim(trimmed + 1);
+                snprintf(current_section, sizeof(current_section), "%s", section_name);
+            }
+            continue;
+        }
+
         char *eq = strchr(trimmed, '=');
         if (!eq)
             continue;
 
         *eq = '\0';
-        char *key = lv00_str_trim(trimmed);
+        char *raw_key = lv00_str_trim(trimmed);
         char *value = lv00_str_trim(eq + 1);
+
+        /* 构建带节前缀的完整键名：section.key 或直接 key */
+        char full_key[512];
+        if (current_section[0] != '\0') {
+            snprintf(full_key, sizeof(full_key), "%s.%s", current_section, raw_key);
+        } else {
+            snprintf(full_key, sizeof(full_key), "%s", raw_key);
+        }
 
         /* 尝试解析为整数 */
         char *endptr;
         long int_val = strtol(value, &endptr, 10);
         if (*endptr == '\0') {
-            config_set_int(mgr, key, (int) int_val);
+            config_set_int(mgr, full_key, (int) int_val);
             continue;
         }
 
         /* 尝试解析为布尔值 */
         if (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0) {
-            config_set_bool(mgr, key, true);
+            config_set_bool(mgr, full_key, true);
             continue;
         }
         if (strcmp(value, "false") == 0 || strcmp(value, "no") == 0) {
-            config_set_bool(mgr, key, false);
+            config_set_bool(mgr, full_key, false);
             continue;
         }
 
         /* 尝试解析为浮点数 */
         double double_val = strtod(value, &endptr);
         if (*endptr == '\0') {
-            config_set_double(mgr, key, double_val);
+            config_set_double(mgr, full_key, double_val);
             continue;
         }
 
         /* 否则作为字符串 */
-        config_set_string(mgr, key, value);
+        config_set_string(mgr, full_key, value);
     }
 
     fclose(f);
@@ -1515,8 +1543,33 @@ bool config_save(const ConfigManager *mgr) {
     fprintf(f, "# Lv-00 Configuration File\n");
     fprintf(f, "# Auto-generated\n\n");
 
+    char last_section[256];
+    last_section[0] = '\0';
+
     ConfigItem *item = mgr->items;
     while (item) {
+        /* 检测节前缀：如果键包含 '.'，提取节名并在变化时输出节头 */
+        const char *dot = strchr(item->key, '.');
+        if (dot) {
+            char section[256];
+            size_t section_len = (size_t)(dot - item->key);
+            if (section_len >= sizeof(section))
+                section_len = sizeof(section) - 1;
+            memcpy(section, item->key, section_len);
+            section[section_len] = '\0';
+
+            if (strcmp(section, last_section) != 0) {
+                fprintf(f, "\n[%s]\n", section);
+                snprintf(last_section, sizeof(last_section), "%s", section);
+            }
+        } else {
+            /* 无节前缀的键：如果之前在某个节内，先输出空行退出节 */
+            if (last_section[0] != '\0') {
+                fprintf(f, "\n");
+                last_section[0] = '\0';
+            }
+        }
+
         switch (item->type) {
             case CONFIG_TYPE_INT:
                 fprintf(f, "%s = %d\n", item->key, item->value.int_val);

@@ -160,6 +160,10 @@ typedef struct {
     int stream_callback_id;      /**< 流式回调注册 ID（-1 表示未注册） */
     uint64_t stream_filter_mask; /**< 当前事件过滤掩码 */
     long stream_events_sent;     /**< 已发送的流式事件总数 */
+
+    /* 引擎复用池 */
+    LV00Engine *persistent_engine; /**< 持久化引擎实例（避免每次命令创建/销毁） */
+    int engine_in_use;            /**< 引擎是否正在使用（简易互斥标记） */
 } InteropServer;
 
 /**
