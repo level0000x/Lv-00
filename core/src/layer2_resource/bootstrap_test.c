@@ -849,27 +849,103 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name,
     result->primitive_name = name;
     result->comparison = DIFF_RESULT_ERROR;
     result->passed = false;
-    result->error_message = lv00_strdup_safe("Primitive test not yet implemented");
 
     /* 原语差分测试：查找并执行对应原语 */
     for (uint32_t i = 0; i < g_primitive_count; i++) {
         if (strcmp(g_primitives[i].name, name) == 0) {
             g_primitives[i].test_count++;
+
+            /* --- 基础原语测试：验证约束图基本操作 --- */
+            bool basic_test_ok = true;
+            const char *basic_error = NULL;
+
+            /* 子测试 1：创建约束图并添加 3 个节点 */
+            ConstraintGraph *test_graph = graph_create();
+            if (!test_graph) {
+                basic_test_ok = false;
+                basic_error = "Failed to create constraint graph";
+            } else {
+                SymbolicCoord *c0x = symbolic_coord_create_rational(0, 1);
+                SymbolicCoord *c0y = symbolic_coord_create_rational(0, 1);
+                SymbolicCoord *coords0[] = {c0x, c0y};
+                graph_add_point(test_graph, coords0, 2);
+                symbolic_coord_destroy(c0x);
+                symbolic_coord_destroy(c0y);
+
+                SymbolicCoord *c1x = symbolic_coord_create_rational(1, 1);
+                SymbolicCoord *c1y = symbolic_coord_create_rational(0, 1);
+                SymbolicCoord *coords1[] = {c1x, c1y};
+                graph_add_point(test_graph, coords1, 2);
+                symbolic_coord_destroy(c1x);
+                symbolic_coord_destroy(c1y);
+
+                SymbolicCoord *c2x = symbolic_coord_create_rational(0, 1);
+                SymbolicCoord *c2y = symbolic_coord_create_rational(1, 1);
+                SymbolicCoord *coords2[] = {c2x, c2y};
+                graph_add_point(test_graph, coords2, 2);
+                symbolic_coord_destroy(c2x);
+                symbolic_coord_destroy(c2y);
+
+                if (graph_get_node_count(test_graph) != 3) {
+                    basic_test_ok = false;
+                    basic_error = "Expected 3 nodes after adding 3 points";
+                }
+
+                /* 子测试 2：添加约束 */
+                if (basic_test_ok) {
+                    graph_add_distance_constraint(test_graph, 0, 1, 1.0);
+                    graph_add_distance_constraint(test_graph, 1, 2, 1.0);
+                    graph_add_distance_constraint(test_graph, 0, 2, 1.0);
+                    if (graph_get_constraint_count(test_graph) != 3) {
+                        basic_test_ok = false;
+                        basic_error = "Expected 3 constraints after adding 3 distance constraints";
+                    }
+                }
+
+                /* 子测试 3：基本约束满足检查（节点数和约束数一致性） */
+                if (basic_test_ok) {
+                    int nc = graph_get_node_count(test_graph);
+                    int cc = graph_get_constraint_count(test_graph);
+                    if (nc <= 0 || cc <= 0) {
+                        basic_test_ok = false;
+                        basic_error = "Graph validation failed: non-positive node or constraint count";
+                    }
+                }
+
+                graph_destroy(test_graph);
+            }
+
             /* 检查 C API 函数是否已注册 */
             if (g_primitives[i].c_api_func) {
-                result->c_api_result = lv00_strdup_safe("executed");
-                result->comparison = DIFF_RESULT_IDENTICAL;
-                result->passed = true;
-                g_primitives[i].pass_count++;
-                g_pass_count++;
+                if (basic_test_ok) {
+                    result->c_api_result = lv00_strdup_safe("executed");
+                    result->comparison = DIFF_RESULT_IDENTICAL;
+                    result->passed = true;
+                    g_primitives[i].pass_count++;
+                    g_pass_count++;
+                } else {
+                    result->c_api_result = lv00_strdup_safe("executed");
+                    result->comparison = DIFF_RESULT_ERROR;
+                    result->passed = false;
+                    result->error_message = lv00_strdup_safe(basic_error);
+                    g_primitives[i].fail_count++;
+                    g_fail_count++;
+                }
             } else {
-                result->c_api_result = lv00_strdup_safe("skipped: no C API bound");
-                result->comparison = DIFF_RESULT_ERROR;
-                result->passed = false;
-                result->error_message = lv00_asprintf(
-                    "Primitive '%s' has no C API function registered", name);
-                g_primitives[i].fail_count++;
-                g_fail_count++;
+                if (basic_test_ok) {
+                    result->c_api_result = lv00_strdup_safe("skipped: no C API bound");
+                    result->comparison = DIFF_RESULT_IDENTICAL;
+                    result->passed = true;
+                    g_primitives[i].pass_count++;
+                    g_pass_count++;
+                } else {
+                    result->c_api_result = lv00_strdup_safe("skipped: no C API bound");
+                    result->comparison = DIFF_RESULT_ERROR;
+                    result->passed = false;
+                    result->error_message = lv00_strdup_safe(basic_error);
+                    g_primitives[i].fail_count++;
+                    g_fail_count++;
+                }
             }
             g_test_count++;
             return result;

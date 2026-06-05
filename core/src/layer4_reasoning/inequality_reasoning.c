@@ -314,10 +314,24 @@ Lv00InequalityStatus lv00_ineq_prove_with_method(Lv00Inequality *ineq,
     if (!ineq)
         return INEQ_STATUS_UNKNOWN;
 
-    (void) sys;
-
     if (proof)
         *proof = NULL;
+
+    /* 使用 sys 验证：检查目标不等式是否与系统中的已知约束一致 */
+    if (sys && sys->count > 0) {
+        /* 验证目标不等式的变量是否在系统变量范围内 */
+        bool found_in_system = false;
+        for (uint32_t i = 0; i < sys->count && !found_in_system; i++) {
+            if (sys->inequalities[i] &&
+                lv00_expr_structurally_equal(sys->inequalities[i]->left, ineq->left)) {
+                found_in_system = true;
+            }
+        }
+        /* 如果目标在系统中找到匹配，DIRECT 方法优先 */
+        if (found_in_system && method == INEQ_METHOD_DIRECT) {
+            return lv00_ineq_prove(ineq, sys, proof);
+        }
+    }
 
     /* 根据方法类型尝试证明 */
     switch (method) {

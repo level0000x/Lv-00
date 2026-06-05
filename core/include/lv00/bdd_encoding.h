@@ -68,6 +68,8 @@ typedef struct BDDManager {
     uint64_t node_count;       /**< 当前存活节点数（不含终端节点） */
     ITECacheEntry *computed_table; /**< ITE 计算表（缓存 ITE 结果，避免重复计算） */
     int computed_table_size;   /**< 计算表大小 */
+    char **var_names;          /**< 变量名称表（var_names[i] = 第 i 个变量的名称） */
+    BDDVarType *var_types;     /**< 变量类型表（var_types[i] = 第 i 个变量的类型） */
 } BDDManager;
 /* ========================================================================
  * ADD (Algebraic Decision Diagram) 类型

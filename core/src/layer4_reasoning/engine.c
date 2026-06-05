@@ -1176,8 +1176,6 @@ EngineCircuitResult engine_handle_circuit_trip(LV00Engine *engine) {
         return ENGINE_CIRCUIT_IGNORE;
     }
 
-    (void) engine; /* 引擎可用于未来特定上下文的的处理 */
-
     /* 步骤1：检查是否存在冻结点 */
     if (circuit_has_frozen_point()) {
         /* 存在冻结点，调用方可能需要回滚到该点 */
