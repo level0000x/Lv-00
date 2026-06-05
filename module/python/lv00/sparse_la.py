@@ -352,10 +352,6 @@ def graph_degree_analysis(graph) -> Tuple[int, int, float, int]:
 
         # 统计每个节点的度数（参与约束的次数）
         degrees = [0] * node_count
-        for cid in range(constraint_count):
-            # 通过 graph_find_constraints_involving 无法按 ID 遍历，
-            # 改为遍历所有节点，查询每个节点参与的约束数
-            pass
 
         # 使用 graph_detect_conflicts 获取约束参与者信息不可行，
         # 改用逐节点查询方式

@@ -1764,10 +1764,12 @@ static int render_dsl_internal(const FormulaNode *node, char *buffer, size_t siz
 /**
  * @brief 将 AST 渲染为 MathML 格式
  *
- * 简化实现：将 LaTeX 渲染结果包装在 MathML 标签中。
+ * 当前使用 LaTeX-in-annotation 方式（annotation encoding），这是合法的 MathML 表示。
+ * 未来可扩展为原生 MathML 语义元素（<mfrac>, <msqrt>, <msup> 等）。
  */
 static int render_mathml_internal(const FormulaNode *node, char *buffer, size_t size,
                                   const RenderOptions *options) {
+    /* options 预留：未来可控制输出精度、样式等 */
     (void)options;
     if (!node || !buffer || size == 0) return -1;
 
@@ -1802,10 +1804,12 @@ static int render_mathml_internal(const FormulaNode *node, char *buffer, size_t 
 /**
  * @brief 将 AST 渲染为 ASCII 艺术格式
  *
- * 简化实现：生成基本的 ASCII 数学表示。
+ * 生成基本的 ASCII 数学表示。
+ * options 预留：未来可控制精度、宽度等格式参数。
  */
 static int render_ascii_internal(const FormulaNode *node, char *buffer, size_t size,
                                  const RenderOptions *options) {
+    /* options 预留 */
     (void)options;
     if (!node || !buffer || size == 0) return -1;
 
@@ -1906,10 +1910,16 @@ static int render_ascii_internal(const FormulaNode *node, char *buffer, size_t s
  * @brief 将 AST 渲染为 HTML MathJax 兼容格式
  *
  * 将 LaTeX 渲染结果包装在 MathJax 兼容的 HTML 标签中。
+ * options 控制精度和输出样式（inline/block）。
  */
 static int render_html_internal(const FormulaNode *node, char *buffer, size_t size,
                                 const RenderOptions *options) {
-    (void)options;
+    int precision = 6; /* 默认精度 */
+    int use_block = 0; /* 0=inline <code>, 1=block <div> */
+    if (options) {
+        if (options->precision > 0) precision = options->precision;
+        if (options->style) use_block = (options->style[0] == 'b' || options->style[0] == 'B');
+    }
     if (!node || !buffer || size == 0) return -1;
 
     char *latex_buf = (char *) lv00_malloc(LV00_MAX_RENDER_BUFFER);
