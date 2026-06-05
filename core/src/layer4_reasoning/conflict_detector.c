@@ -271,8 +271,15 @@ static bool constraint_has_duplicate_participants(const Constraint *constraint) 
 static int detect_structural_constraint_conflicts(const ConstraintGraph *graph,
                                                   const ConflictDetectorConfig *config,
                                                   ConflictReport *report) {
-    (void)config;
     if (!graph || !report) return LV00_ERROR_NULL_POINTER;
+
+    /* 使用 config 控制检测行为：若 enable_basic_checks 关闭则跳过 */
+    if (config && !config->enable_basic_checks) {
+        return 0;
+    }
+
+    /* 使用 config 限制最大冲突报告数 */
+    int max_conflicts = config ? config->max_conflicts : 0;
 
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *constraint = graph->constraints[i];
@@ -335,6 +342,11 @@ static int detect_structural_constraint_conflicts(const ConstraintGraph *graph,
                         "检查该约束是否确实允许自引用；若不允许，应拆分或删除该约束。");
                     break;
             }
+        }
+
+        /* 达到最大冲突数限制时提前退出 */
+        if (max_conflicts > 0 && report->conflict_count >= max_conflicts) {
+            break;
         }
     }
 
@@ -771,7 +783,14 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
                                                ConflictReport *report) {
     /* DFS 检测约束图中的环 */
     if (!graph || !report) return LV00_ERROR_NULL_POINTER;
-    (void)config;
+
+    /* 使用 config 控制检测行为：若 enable_transitive_checks 关闭则跳过环检测 */
+    if (config && !config->enable_transitive_checks) {
+        return 0;
+    }
+
+    /* 使用 config 限制最大冲突报告数 */
+    int max_conflicts = config ? config->max_conflicts : 0;
 
     int max_id = 0;
     for (int i = 0; i < graph->node_count; i++) {
@@ -840,6 +859,10 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
                         report_constraint_conflict(report, c, CONFLICT_CYCLIC_DEPENDENCY,
                             CONFLICT_SEVERITY_ERROR, desc,
                             "检查约束关系，移除或打破循环依赖链。");
+                        /* 达到最大冲突数限制时提前退出 */
+                        if (max_conflicts > 0 && report->conflict_count >= max_conflicts) {
+                            goto cycle_detect_done;
+                        }
                     } else if (color[nb] == 0) {
                         color[nb] = 1;
                         parent_node[nb] = cur;
@@ -860,6 +883,7 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
         }
     }
 
+cycle_detect_done:
     lv00_free((void **)&color);
     lv00_free((void **)&parent_node);
     lv00_free((void **)&stack);

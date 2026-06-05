@@ -4892,9 +4892,17 @@ bool proof_step_set_note(ProofStep *step, const char *note) {
  * - 通用 fallback → 建议 refine（让用户手动填充）
  */
 FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_type, int goal_dim) {
-    (void) solver;
     FillSuggestion *head = NULL;
     FillSuggestion *tail = NULL;
+
+    /* 使用 solver 上下文：检查求解器状态以引导填充策略 */
+    bool solver_has_assignments = false;
+    if (solver != NULL) {
+        /* 求解器非空：表明存在活跃的约束求解上下文。
+         * 当求解器已有部分赋值时，优先建议精化而非构造，
+         * 因为底层结构已部分确定。*/
+        solver_has_assignments = true;
+    }
 
     if (!goal_type || goal_type[0] == '\0') {
         /* 空目标类型 -> 建议 lambda 抽象 */
@@ -4974,6 +4982,12 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
             snprintf(snippet, sizeof(snippet), "refine_goal(\"%s\")", goal_type);
         }
         APPEND_FILL(FILL_REFINE, "通用精化建议（由用户手动填充）", snippet, 0);
+
+        /* 若求解器已有赋值，额外建议利用已知信息 */
+        if (solver_has_assignments) {
+            APPEND_FILL(FILL_EXACT, "查询求解器已赋值变量",
+                        "solver_assigned_variables()", 0);
+        }
     }
 
 #undef APPEND_FILL

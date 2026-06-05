@@ -173,6 +173,20 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     mgr->var_capacity = var_count;
     mgr->node_count = 0;
 
+    /* 变量名称表和类型表 */
+    mgr->var_names = (char **) lv00_calloc((size_t) var_count, sizeof(char *));
+    mgr->var_types = (BDDVarType *) lv00_calloc((size_t) var_count, sizeof(BDDVarType));
+    if (!mgr->var_names || !mgr->var_types) {
+        lv00_free((void **)&mgr->var_names);
+        lv00_free((void **)&mgr->var_types);
+        lv00_free((void **)&mgr->var_order);
+        lv00_free((void **)&mgr->unique_table);
+        lv00_free((void **)&mgr->false_node);
+        lv00_free((void **)&mgr->true_node);
+        lv00_free((void **)&mgr);
+        return NULL;
+    }
+
     /* 分配 ITE 计算表（缓存 ITE 结果，大小 = 唯一表大小） */
     mgr->computed_table_size = unique_table_size;
     mgr->computed_table = (ITECacheEntry *) lv00_calloc(
@@ -209,6 +223,14 @@ void bdd_manager_destroy(BDDManager *mgr) {
     lv00_free((void **)&mgr->unique_table);
     lv00_free((void **)&mgr->var_order);
     lv00_free((void **)&mgr->computed_table);
+    /* 释放变量名称表 */
+    if (mgr->var_names) {
+        for (int i = 0; i < mgr->var_count; i++) {
+            lv00_free((void **)&mgr->var_names[i]);
+        }
+        lv00_free((void **)&mgr->var_names);
+    }
+    lv00_free((void **)&mgr->var_types);
     lv00_free((void **)&mgr);
 }
 
@@ -216,13 +238,11 @@ void bdd_manager_destroy(BDDManager *mgr) {
  * @brief 在 BDD 管理器中创建新变量
  *
  * @param mgr  BDD 管理器
- * @param name 变量名称（当前未使用）
- * @param type 变量类型（当前未使用）
+ * @param name 变量名称（调试用，可为 NULL）
+ * @param type 变量类型
  * @return 新变量的 ID，失败返回 -1
  */
 int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
-    (void) name;
-    (void) type;
     if (!mgr)
         return -1;
     /* 检查 var_order 数组容量，不足时扩容（2 倍增长） */
@@ -233,10 +253,39 @@ int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
         if (!new_order)
             return -1;
         mgr->var_order = new_order;
+
+        /* 同步扩容 var_names 和 var_types 数组 */
+        char **new_names = (char **) lv00_realloc(mgr->var_names,
+                            (size_t) new_capacity * sizeof(char *));
+        BDDVarType *new_types = (BDDVarType *) lv00_realloc(mgr->var_types,
+                                (size_t) new_capacity * sizeof(BDDVarType));
+        if (!new_names || !new_types) {
+            lv00_free((void **)&new_names);
+            lv00_free((void **)&new_types);
+            return -1;
+        }
+        mgr->var_names = new_names;
+        mgr->var_types = new_types;
+        /* 初始化新增的槽位 */
+        for (int i = mgr->var_capacity; i < new_capacity; i++) {
+            mgr->var_names[i] = NULL;
+            mgr->var_types[i] = BDD_BOOLEAN;
+        }
         mgr->var_capacity = new_capacity;
     }
     int id = mgr->var_count;
     mgr->var_order[id] = id;
+
+    /* 存储变量名称和类型 */
+    if (name) {
+        mgr->var_names[id] = lv00_strdup_safe(name);
+    } else {
+        char auto_name[32];
+        snprintf(auto_name, sizeof(auto_name), "bdd_var_%d", id);
+        mgr->var_names[id] = lv00_strdup_safe(auto_name);
+    }
+    mgr->var_types[id] = type;
+
     mgr->var_count++;
     return id;
 }
