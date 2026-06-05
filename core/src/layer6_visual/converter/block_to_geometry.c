@@ -104,7 +104,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
         if (rect) {
             const char *name = func_block_get_name(fb);
             if (name) {
-                rect->base.name = strdup(name);
+                rect->base.name = lv00_strdup(name);
             }
             enc->rects[enc->rect_count++] = rect;
         }
@@ -117,7 +117,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             SymbolicCoord *py_s = symbolic_coord_from_double(py);
             PointEntity *pt = point_entity_create(px_s, py_s);
             if (pt) {
-                pt->base.name = strdup("input_port");
+                pt->base.name = lv00_strdup("input_port");
                 enc->port_points[enc->port_point_count++] = pt;
             }
         }
@@ -130,7 +130,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             SymbolicCoord *py_s = symbolic_coord_from_double(py);
             PointEntity *pt = point_entity_create(px_s, py_s);
             if (pt) {
-                pt->base.name = strdup("output_port");
+                pt->base.name = lv00_strdup("output_port");
                 enc->port_points[enc->port_point_count++] = pt;
             }
         }
@@ -266,8 +266,16 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
         if (out_cnt > 0) func_block_set_output_ports(fb, outputs, out_cnt);
 
         if (sg->count >= sg->cap) {
-            sg->cap *= 2;
-            sg->blocks = realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
+            int new_cap = sg->cap * 2;
+            FuncBlock **tmp = realloc(sg->blocks, new_cap * sizeof(FuncBlock *));
+            if (!tmp) {
+                result.success = 0;
+                strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+                /* 原始指针 sg->blocks 保持有效，可由调用者释放 */
+                return result;
+            }
+            sg->blocks = tmp;
+            sg->cap = new_cap;
         }
         sg->blocks[sg->count++] = fb;
     }

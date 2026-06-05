@@ -31,7 +31,10 @@ void lv00_effect_tracker_record(Lv00EffectTracker *tracker, Lv00EffectType effec
     if (!tracker) return;
     if (tracker->entry_count >= tracker->entry_capacity) {
         int new_cap = tracker->entry_capacity * 2;
-        tracker->entries = realloc(tracker->entries, new_cap * sizeof(Lv00EffectLogEntry));
+        if (new_cap <= 0) new_cap = 16;
+        Lv00EffectLogEntry *new_entries = (Lv00EffectLogEntry *)realloc(tracker->entries, (size_t)new_cap * sizeof(Lv00EffectLogEntry));
+        if (!new_entries) return;
+        tracker->entries = new_entries;
         tracker->entry_capacity = new_cap;
     }
     Lv00EffectLogEntry *e = &tracker->entries[tracker->entry_count++];

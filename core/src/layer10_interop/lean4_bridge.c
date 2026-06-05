@@ -254,7 +254,7 @@ static void lean4_parse_tactics(const char *start, const char *end,
             lean4_add_step(p, LV00_STEP_ADD_CONSTRAINT, "match", 5);
             /* 跳过 match 目标表达式（到 "with"） */
             const char *with_kw = NULL;
-            for (const char *s = pos; s < end - 3; s++) {
+            for (const char *s = pos; s + 5 < end; s++) {
                 if (isspace((unsigned char)s[0]) && strncmp(s + 1, "with", 4) == 0 &&
                     isspace((unsigned char)s[5])) {
                     with_kw = s + 6;

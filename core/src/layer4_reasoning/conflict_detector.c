@@ -21,7 +21,7 @@
 
 #include "constraint_graph.h"
 #include "debug.h"
-#include "geometry_config.h"
+/* geometry_config.h 已合并到 constraint_graph.h，无需单独包含 */
 #include "geo_utils.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
