@@ -101,7 +101,7 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
     }
 
     /* 写入尾部 */
-    if (pos + footer_len >= output_size) return -1;
+    if (pos + footer_len + 1 >= output_size) return -1;
     memcpy(output + pos, footer, footer_len + 1);
     return 0;
 }

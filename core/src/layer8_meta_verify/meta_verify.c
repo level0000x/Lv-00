@@ -659,8 +659,11 @@ Lv00VerifyReport lv00_meta_verify_proof(Lv00MetaVerifier *verifier, void *proof)
                 Lv00ProofStepRecord *step = p->steps[s];
                 if (!step) continue;
                 /* BFS 检查前提链中是否包含步骤 s 自身 */
-                int *queue = (int *)lv00_malloc(p->step_count * sizeof(int));
-                int *visited = (int *)calloc(p->step_count, sizeof(int));
+                /* 队列大小：最坏情况每个步骤的所有前提都入队 */
+                int queue_cap = p->step_count * 4;
+                if (queue_cap < 16) queue_cap = 16;
+                int *queue = (int *)lv00_malloc((size_t)queue_cap * sizeof(int));
+                int *visited = (int *)calloc((size_t)p->step_count, sizeof(int));
                 if (!queue || !visited) {
                     free(queue); free(visited);
                     snprintf(desc, sizeof(desc), "Memory allocation failed");
@@ -669,7 +672,9 @@ Lv00VerifyReport lv00_meta_verify_proof(Lv00MetaVerifier *verifier, void *proof)
                 }
                 int head = 0, tail = 0;
                 for (int j = 0; j < step->premise_count; j++) {
-                    queue[tail++] = step->premise_step_ids[j];
+                    if (tail < queue_cap) {
+                        queue[tail++] = step->premise_step_ids[j];
+                    }
                 }
                 visited[s] = 1;
                 int found_cycle = 0;
@@ -682,7 +687,9 @@ Lv00VerifyReport lv00_meta_verify_proof(Lv00MetaVerifier *verifier, void *proof)
                     Lv00ProofStepRecord *cur_step = p->steps[cur];
                     if (cur_step) {
                         for (int j = 0; j < cur_step->premise_count; j++) {
-                            queue[tail++] = cur_step->premise_step_ids[j];
+                            if (tail < queue_cap) {
+                                queue[tail++] = cur_step->premise_step_ids[j];
+                            }
                         }
                     }
                 }
