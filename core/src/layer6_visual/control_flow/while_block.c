@@ -1,8 +1,8 @@
 #include "lv00/control_flow_blocks.h"
-#include <stdlib.h>
+#include "lv00/lv00_utils.h"
 
 Lv00WhileBlock *lv00_while_block_create(void) {
-    Lv00WhileBlock *block = calloc(1, sizeof(Lv00WhileBlock));
+    Lv00WhileBlock *block = lv00_calloc(1, sizeof(Lv00WhileBlock));
     if (!block) return NULL;
     block->init_port = -1;
     block->condition_port = -1;
@@ -13,7 +13,7 @@ Lv00WhileBlock *lv00_while_block_create(void) {
 }
 
 void lv00_while_block_destroy(Lv00WhileBlock *block) {
-    free(block);
+    lv00_free((void **)&block);
 }
 
 int lv00_while_block_set_body(Lv00WhileBlock *block, void *body) {

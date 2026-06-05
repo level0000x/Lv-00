@@ -1,6 +1,6 @@
 #include "lv00/representation_converter.h"
 #include "lv00/visual_editor.h"
-#include <stdlib.h>
+#include "lv00/lv00_utils.h"
 #include <string.h>
 
 /* 双向同步协议 */
@@ -14,7 +14,7 @@ typedef struct Lv00SyncProtocol {
 } Lv00SyncProtocol;
 
 Lv00SyncProtocol *lv00_sync_protocol_create(void *graph) {
-    Lv00SyncProtocol *proto = calloc(1, sizeof(Lv00SyncProtocol));
+    Lv00SyncProtocol *proto = lv00_calloc(1, sizeof(Lv00SyncProtocol));
     if (!proto) return NULL;
     proto->enabled = 1;
     proto->core_graph = graph;
@@ -22,7 +22,7 @@ Lv00SyncProtocol *lv00_sync_protocol_create(void *graph) {
 }
 
 void lv00_sync_protocol_destroy(Lv00SyncProtocol *proto) {
-    free(proto);
+    lv00_free((void **)&proto);
 }
 
 /* 视图类型常量（与 Lv00ViewType 对应） */

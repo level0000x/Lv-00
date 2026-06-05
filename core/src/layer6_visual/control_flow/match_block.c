@@ -1,14 +1,14 @@
 #include "lv00/control_flow_blocks.h"
-#include <stdlib.h>
+#include "lv00/lv00_utils.h"
 #include <string.h>
 
 Lv00MatchBlock *lv00_match_block_create(int case_count) {
-    Lv00MatchBlock *block = calloc(1, sizeof(Lv00MatchBlock));
+    Lv00MatchBlock *block = lv00_calloc(1, sizeof(Lv00MatchBlock));
     if (!block) return NULL;
     block->input_port = -1;
     block->output_port = -1;
     if (case_count > 0) {
-        block->cases = calloc(case_count, sizeof(block->cases[0]));
+        block->cases = lv00_calloc(case_count, sizeof(block->cases[0]));
         block->case_count = case_count;
     }
     return block;
@@ -16,8 +16,8 @@ Lv00MatchBlock *lv00_match_block_create(int case_count) {
 
 void lv00_match_block_destroy(Lv00MatchBlock *block) {
     if (!block) return;
-    free(block->cases);
-    free(block);
+    lv00_free((void **)&block->cases);
+    lv00_free((void **)&block);
 }
 
 int lv00_match_block_set_case(Lv00MatchBlock *block, int index, void *pattern, void *handler) {

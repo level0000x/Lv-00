@@ -1,7 +1,7 @@
 #include "lv00/representation_converter.h"
 #include "lv00/func_block.h"
 #include "lv00/geometry_types.h"
-#include <stdlib.h>
+#include "lv00/lv00_utils.h"
 #include <string.h>
 #include <math.h>
 
@@ -19,6 +19,30 @@ typedef struct {
     LinearEntity **connections;
     int connection_count;
 } GeometryEncoding;
+
+/* 销毁几何编码结构及其内部资源 */
+void lv00_geometry_encoding_destroy(GeometryEncoding *enc) {
+    if (!enc) return;
+    for (int i = 0; i < enc->rect_count; i++) {
+        if (enc->rects[i]) {
+            lv00_free((void **)&enc->rects[i]->base.name);
+        }
+    }
+    for (int i = 0; i < enc->port_point_count; i++) {
+        if (enc->port_points[i]) {
+            lv00_free((void **)&enc->port_points[i]->base.name);
+        }
+    }
+    for (int i = 0; i < enc->connection_count; i++) {
+        if (enc->connections[i]) {
+            lv00_free((void **)&enc->connections[i]->base.name);
+        }
+    }
+    lv00_free((void **)&enc->rects);
+    lv00_free((void **)&enc->port_points);
+    lv00_free((void **)&enc->connections);
+    lv00_free((void **)&enc);
+}
 
 /* 默认块布局参数 */
 #define BLOCK_WIDTH  160.0
@@ -50,7 +74,7 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
     BlockGraphView *bg = (BlockGraphView *)block;
 
     /* 创建几何编码结构 */
-    GeometryEncoding *enc = calloc(1, sizeof(GeometryEncoding));
+    GeometryEncoding *enc = lv00_calloc(1, sizeof(GeometryEncoding));
     if (!enc) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
@@ -65,9 +89,9 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
             total_ports += func_block_get_output_count(bg->blocks[i]);
         }
     }
-    enc->rects = calloc(bg->count + 1, sizeof(PolygonEntity *));
-    enc->port_points = calloc(total_ports + 1, sizeof(PointEntity *));
-    enc->connections = calloc(total_ports + 1, sizeof(LinearEntity *));
+    enc->rects = lv00_calloc(bg->count + 1, sizeof(PolygonEntity *));
+    enc->port_points = lv00_calloc(total_ports + 1, sizeof(PointEntity *));
+    enc->connections = lv00_calloc(total_ports + 1, sizeof(LinearEntity *));
 
     /* 为每个 FuncBlock 生成矩形和端口点 */
     for (int i = 0; i < bg->count; i++) {
@@ -218,14 +242,14 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
         int cap;
     } SimpleBlockGraph;
 
-    SimpleBlockGraph *sg = calloc(1, sizeof(SimpleBlockGraph));
+    SimpleBlockGraph *sg = lv00_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     sg->cap = enc->rect_count > 0 ? enc->rect_count : 8;
-    sg->blocks = calloc(sg->cap, sizeof(FuncBlock *));
+    sg->blocks = lv00_calloc(sg->cap, sizeof(FuncBlock *));
 
     /* 遍历矩形区域，每个矩形还原为一个 FuncBlock */
     for (int i = 0; i < enc->rect_count; i++) {
@@ -267,7 +291,7 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
 
         if (sg->count >= sg->cap) {
             int new_cap = sg->cap * 2;
-            FuncBlock **tmp = realloc(sg->blocks, new_cap * sizeof(FuncBlock *));
+            FuncBlock **tmp = lv00_realloc(sg->blocks, new_cap * sizeof(FuncBlock *));
             if (!tmp) {
                 result.success = 0;
                 strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));

@@ -1,9 +1,9 @@
 #include "lv00/control_flow_blocks.h"
-#include <stdlib.h>
+#include "lv00/lv00_utils.h"
 #include <string.h>
 
 Lv00IfBlock *lv00_if_block_create(void) {
-    Lv00IfBlock *block = calloc(1, sizeof(Lv00IfBlock));
+    Lv00IfBlock *block = lv00_calloc(1, sizeof(Lv00IfBlock));
     if (!block) return NULL;
     block->condition_port = -1;
     block->then_output = -1;
@@ -13,7 +13,7 @@ Lv00IfBlock *lv00_if_block_create(void) {
 }
 
 void lv00_if_block_destroy(Lv00IfBlock *block) {
-    free(block);
+    lv00_free((void **)&block);
 }
 
 int lv00_if_block_set_branches(Lv00IfBlock *block, void *then_branch, void *else_branch) {
