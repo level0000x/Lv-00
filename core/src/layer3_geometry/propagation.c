@@ -384,11 +384,17 @@ static bool check_incidence_compatible(const SymbolicCoord *point_coord,
     double bx_d = symbolic_coord_to_double(bx);
     double by_d = symbolic_coord_to_double(by);
 
-    double det = (px - ax_d) * (by_d - ay_d) - (0.0 - 0.0) * (bx_d - ax_d);
-    /* 注意：point_coord 目前是单值，我们用 x 分量 */
-    /* 更精确的做法需要分别处理 x 和 y 坐标 */
-    (void)det;
-    return true; /* 暂时接受所有候选，后续由精确求解器验证 */
+    /* 正确计算行列式：|PA × PB| = (Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax)
+     * 这里 point_coord 是单值，需要分别获取 x 和 y */
+    double py = 0.0;  /* 若 point_coord 只有 x，y 默认为 0 */
+    /* 尝试从 point_node 获取 y 坐标 */
+    if (point_node && point_node->coord_count >= 2) {
+        py = symbolic_coord_to_double(point_node->symbolic_coords[1]);
+    }
+    double det = (px - ax_d) * (by_d - ay_d) - (py - ay_d) * (bx_d - ax_d);
+    /* 使用容差判断点是否在线段上 */
+    double tol = 1e-9;
+    return (fabs(det) < tol);
 }
 
 /**

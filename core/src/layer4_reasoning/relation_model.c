@@ -399,21 +399,37 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
     rel_destroy(tc);
 
     /* 收集所有出现的原子，添加 (x, x) */
-    bool seen[2048] = {false}; /* 简化的去重 */
+    /* 动态位图去重：计算最大元素 ID 以确定位图大小 */
+    int max_elem = 0;
+    for (int i = 0; i < r->tuple_count; i++) {
+        if (r->tuples[i][0] > max_elem) max_elem = r->tuples[i][0];
+        if (r->tuples[i][1] > max_elem) max_elem = r->tuples[i][1];
+    }
+    size_t bitmap_size = (size_t)(max_elem + 8) / 8 + 1;
+    uint8_t *seen = (uint8_t *) lv00_calloc(bitmap_size, sizeof(uint8_t));
+    if (!seen) {
+        rel_destroy(result);
+        return NULL;
+    }
+    #define SEEN_SET(id)  do { if ((id) >= 0) seen[(id) / 8] |= (1u << ((id) % 8)); } while(0)
+    #define SEEN_TEST(id) (((id) >= 0) ? (seen[(id) / 8] & (1u << ((id) % 8))) : 0)
     for (int i = 0; i < r->tuple_count; i++) {
         int a = r->tuples[i][0];
         int b = r->tuples[i][1];
-        if (a >= 0 && a < 2048 && !seen[a]) {
+        if (!SEEN_TEST(a)) {
             int t[2] = {a, a};
             rel_add_tuple_inner(result, t);
-            seen[a] = true;
+            SEEN_SET(a);
         }
-        if (b >= 0 && b < 2048 && !seen[b]) {
+        if (!SEEN_TEST(b)) {
             int t[2] = {b, b};
             rel_add_tuple_inner(result, t);
-            seen[b] = true;
+            SEEN_SET(b);
         }
     }
+    #undef SEEN_SET
+    #undef SEEN_TEST
+    lv00_free((void **) &seen);
 
     return result;
 }

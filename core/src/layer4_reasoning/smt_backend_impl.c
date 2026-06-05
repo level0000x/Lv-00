@@ -463,10 +463,31 @@ static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constrai
      */
 
     /* 使用点坐标变量名和线段端点坐标变量名生成断言。
-     * 由于线段端点可能没有直接的坐标变量，我们用线段 ID 推导端点 ID。 */
-    /* 简化假设：线段端点 ID 为 seg_id*2 和 seg_id*2+1（仅用于编码演示） */
-    int a_id = seg_id * 2;     /* 端点 A 的模拟 ID */
-    int b_id = seg_id * 2 + 1; /* 端点 B 的模拟 ID */
+     * 从约束图中查找线段的实际端点（通过 CONNECTION 约束）。 */
+    int a_id = -1, b_id = -1;
+    for (int ci = 0; ci < graph->constraint_count && (a_id < 0 || b_id < 0); ci++) {
+        Constraint *con = graph->constraints[ci];
+        if (!con || !con->is_active) continue;
+        if (con->type == CONNECTION && con->participant_count >= 2) {
+            /* 检查该连接约束是否涉及当前线段 */
+            bool seg_found = false;
+            int point_id = -1;
+            for (int pi = 0; pi < con->participant_count; pi++) {
+                if (con->participants[pi] == seg_id) {
+                    seg_found = true;
+                } else {
+                    point_id = con->participants[pi];
+                }
+            }
+            if (seg_found && point_id >= 0) {
+                if (a_id < 0) a_id = point_id;
+                else if (b_id < 0) b_id = point_id;
+            }
+        }
+    }
+    /* 回退：若未找到端点，使用线段节点的坐标 */
+    if (a_id < 0) a_id = seg_id;
+    if (b_id < 0) b_id = seg_id;
 
     /* 叉积方程: (Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax) = 0 */
     if (named) {
