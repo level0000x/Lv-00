@@ -24,12 +24,22 @@
 #include "constraint_graph.h"
 #include "lv00/groebner_parallel.h"
 
-/** CDCL 求解器最大决策次数，超过此限制强制终止以避免无限循环 */
-#define CDCL_MAX_DECISIONS     1000
-/** CDCL 求解器主循环最大步数 */
-#define CDCL_MAX_STEPS         1000
-/** CDCL 求解器最大重启次数 */
-#define CDCL_MAX_RESTARTS      10
+/** CDCL 求解器最大决策次数默认值 */
+#define CDCL_MAX_DECISIONS_DEFAULT     1000
+/** CDCL 求解器主循环最大步数默认值 */
+#define CDCL_MAX_STEPS_DEFAULT         1000
+/** CDCL 求解器最大重启次数默认值 */
+#define CDCL_MAX_RESTARTS_DEFAULT      10
+
+/** 从环境变量或配置读取整数值，若未设置则返回默认值 */
+static int cdcl_get_int_config(const char *env_name, int default_val) {
+    const char *val = getenv(env_name);
+    if (val) {
+        int n = atoi(val);
+        if (n > 0) return n;
+    }
+    return default_val;
+}
 
 /* ========================================================================
  * 内部常量
@@ -892,7 +902,9 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
     if (all_assigned) return CDCL_SATISFIED;
 
     /* 资源耗尽检查 */
-    if (ctx->decisions > CDCL_MAX_DECISIONS) {
+    int max_decisions = cdcl_get_int_config("LV00_CDCL_MAX_DECISIONS",
+                                             CDCL_MAX_DECISIONS_DEFAULT);
+    if (ctx->decisions > max_decisions) {
         return CDCL_IDLE;
     }
 
@@ -967,7 +979,8 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
         ctx->state = CDCL_PROPAGATING;
     }
 
-    int max_steps = CDCL_MAX_STEPS;
+    int max_steps = cdcl_get_int_config("LV00_CDCL_MAX_STEPS",
+                                          CDCL_MAX_STEPS_DEFAULT);
     int step = 0;
 
     while (step < max_steps) {
@@ -1006,7 +1019,9 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
                 ctx->state = cdcl_step_learn(ctx);
                 /* 检查是否需要重启 */
                 if (ctx->state == CDCL_DECIDING && solver->config.enable_restarts) {
-                    if (ctx->restarts < CDCL_MAX_RESTARTS &&
+                    int max_restarts = cdcl_get_int_config("LV00_CDCL_MAX_RESTARTS",
+                                                            CDCL_MAX_RESTARTS_DEFAULT);
+                    if (ctx->restarts < max_restarts &&
                         ctx->conflicts > 0 &&
                         (int)ctx->conflicts % solver->config.restart_interval == 0) {
                         ctx->state = CDCL_RESTARTING;

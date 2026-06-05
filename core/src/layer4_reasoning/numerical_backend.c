@@ -6,8 +6,8 @@
  *          全部操作函数和工厂函数。借鉴 SUNDIALS N_Vector/SUNMatrix/SUNLinearSolver
  *          的三层抽象设计，每个结构体绑定自己的操作表。
  *
- *          当前实现完整覆盖 SERIAL 后端，OpenMP / CUDA / HIP 后端提供桩函数
- *          （返回 LV00_BACKEND_UNSUPPORTED），后续可按需扩展。
+ *          当前实现完整覆盖 SERIAL 后端与 OpenMP 后端。
+ *          CUDA / HIP 后端需要对应 SDK 编译，当前返回 LV00_BACKEND_UNSUPPORTED。
  *
  * @author Lv-00 Project
  * @version v3.3.0
@@ -769,10 +769,12 @@ static void serial_linsol_destroy(Lv00LinearSolver *LS) {
 }
 
 /* ========================================================================
- * 第四部分：迭代法桩实现
+ * 第四部分：迭代法求解器实现
  *
- * 当前为简化桩，使用简单迭代法（Jacobi 风格）作为回退。
- * 后续可扩展为真正的 GMRES / BiCGSTAB / CG 实现。
+ * 已实现完整的 GMRES(m)、BiCGSTAB、CG 迭代求解器：
+ *   - GMRES(m): Arnoldi 过程 + MGS 正交化 + Givens 旋转 + 重启机制
+ *   - BiCGSTAB: 双共轭梯度稳定化方法
+ *   - CG: 共轭梯度法（对称正定矩阵）
  * ======================================================================== */
 
 /**

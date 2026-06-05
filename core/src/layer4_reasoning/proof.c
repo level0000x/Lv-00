@@ -5361,22 +5361,20 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
  *       链接器将使用该模块中的完整实现替换此函数。
  */
 bool proof_multi_strategy_activate(ProofMultiStrategy *mse, ProofStrategyType strategy_type) {
-    (void) mse;
-    (void) strategy_type;
-    return false;
+    if (!mse) return false;
+    if (strategy_type < 0 || strategy_type >= PROOF_STRATEGY_COUNT)
+        return false;
+    mse->active_strategy_index = (int) strategy_type;
+    return true;
 }
 
-/**
- * @brief 执行多策略证明搜索（桩实现）
- *
- * @param mse  多策略引擎实例（当前未使用）
- * @return 始终返回 false，表示执行失败（功能尚未实现）
- *
- * @note 此为桩实现。当 proof_multi_strategy.c 模块可用时，
- *       链接器将使用该模块中的完整实现替换此函数。
- */
 bool proof_multi_strategy_execute(ProofMultiStrategy *mse) {
-    (void) mse;
+    if (!mse || mse->active_strategy_index < 0)
+        return false;
+    /* 委托给证明导航器的核心搜索 */
+    if (mse->shared_navigator) {
+        return proof_navigator_search(mse->shared_navigator);
+    }
     return false;
 }
 
