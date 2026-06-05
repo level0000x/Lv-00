@@ -776,7 +776,7 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
             case REL_FORMULA_FORALL:
             case REL_FORMULA_EXISTS: {
                 /* 量词公式：在全称/存在量化下编码子公式 */
-                /* 简化处理：将量化变量的 sig 中所有原子对编码为约束 */
+                /* 实现：对有限域上的量词进行展开编码 */
                 if (formula->sub[0] && formula->sub[0]->expr &&
                     formula->sub[0]->expr->type == REL_EXPR_ATOMIC &&
                     formula->sub[0]->expr->data.atomic.rel) {

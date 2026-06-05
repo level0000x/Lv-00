@@ -1458,12 +1458,26 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
         return cvc5_result;
     }
 
-    /* ---- Singular 后端：桩代码（未来实现） ---- */
+    /* ---- Singular 后端：通过子进程调用 ---- */
     if (solver->type == SMT_SINGULAR) {
-        LV00_LOG_WARNING("Singular 后端: 尚未实现，返回 UNKNOWN");
-        smtsolver_set_error(solver, SMT_ERROR_BACKEND_UNAVAILABLE,
-                            "Singular backend not yet implemented");
-        return SMT_RESULT_UNKNOWN;
+        if (!solver->encoded_formula || solver->encoded_len <= 0) {
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED,
+                                "No Singular script encoded");
+            return SMT_RESULT_ERROR;
+        }
+        LV00_LOG_INFO("Singular 后端: 通过子进程调用 singular");
+        /* Singular 使用 -q 静默模式执行脚本 */
+        SMTSatResult singular_result = smt_external_solver_check(
+            solver, "singular",
+            solver->encoded_formula, solver->encoded_len,
+            NULL, 0);
+        if (singular_result == SMT_RESULT_UNKNOWN) {
+            LV00_LOG_WARNING("Singular 后端: 求解器返回 UNKNOWN（可能未安装 Singular），回退到 Groebner 后端");
+            /* 回退到内部 Groebner 后端 */
+            solver->type = SMT_GROEBNER;
+            return smtsolver_check(solver);
+        }
+        return singular_result;
     }
 }
 

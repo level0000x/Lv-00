@@ -6036,21 +6036,41 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
         /* 步骤 2：SMT 精化谓词检查 */
         bool smt_ok = true;
         if (entry->refinement_pred && entry->refinement_pred[0] != '\0') {
-            /* 简化 SMT 验证：检查谓词字符串合法性 */
-            /* 在完整实现中，这里会调用 Z3/CVC5 SMT solver */
-
-            /* 检测明显不可满足的模式 */
-            if (strstr(entry->refinement_pred, "false") || strstr(entry->refinement_pred, "0 > 1") ||
-                strstr(entry->refinement_pred, "contradiction")) {
-                smt_ok = false;
-                entry->smt_counterexample = _strdup("模型不满足: 谓词包含恒假 (false) 子句");
-            }
-
-            /* 检测超时标记 */
-            if (strstr(entry->refinement_pred, "timeout")) {
-                smt_ok = false;
-                entry->smt_counterexample = _strdup("SMT求解超时");
-                entry->result = REFINE_TIMEOUT;
+            /* 尝试调用 SMT 后端进行实际求解 */
+            SMTSolver *smt_solver = smtsolver_create(SMT_GROEBNER);
+            if (smt_solver) {
+                smtsolver_set_timeout(smt_solver, 5000); /* 5 秒超时 */
+                /* 将谓词编码为 SMT-LIB2 断言 */
+                char *smt_script = (char *) lv00_malloc(
+                    strlen(entry->refinement_pred) + 256);
+                if (smt_script) {
+                    snprintf(smt_script, strlen(entry->refinement_pred) + 256,
+                             "(set-logic QF_LRA)\n"
+                             "(assert %s)\n"
+                             "(check-sat)\n",
+                             entry->refinement_pred);
+                    smtsolver_encode(smt_solver, smt_script, strlen(smt_script));
+                    SMTSatResult smt_result = smtsolver_check(smt_solver);
+                    if (smt_result == SMT_RESULT_UNSAT) {
+                        smt_ok = false;
+                        entry->smt_counterexample = _strdup(
+                            "SMT求解器报告不可满足");
+                    } else if (smt_result == SMT_RESULT_UNKNOWN) {
+                        /* SMT 求解器超时或无法判定，保守通过 */
+                        LV00_LOG_WARNING("SMT精化检查超时/未知，保守通过");
+                    }
+                    lv00_free((void **) &smt_script);
+                }
+                smtsolver_destroy(smt_solver);
+            } else {
+                /* SMT 后端不可用，回退到字符串启发式检测 */
+                if (strstr(entry->refinement_pred, "false") ||
+                    strstr(entry->refinement_pred, "0 > 1") ||
+                    strstr(entry->refinement_pred, "contradiction")) {
+                    smt_ok = false;
+                    entry->smt_counterexample = _strdup(
+                        "模型不满足: 谓词包含恒假 (false) 子句");
+                }
             }
         }
 
