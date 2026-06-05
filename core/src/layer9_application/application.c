@@ -42,7 +42,7 @@ Lv00Session *lv00_app_create_session(Lv00Application *app, const char *name) {
     if (app->session_count >= app->session_capacity) {
         /* 动态扩容：容量翻倍 */
         int new_cap = app->session_capacity * 2;
-        if (new_cap <= 0) return NULL; /* 溢出保护 */
+        if (new_cap <= app->session_capacity) return NULL; /* 溢出保护 */
         Lv00Session **new_sessions = (Lv00Session **)realloc(
             app->sessions, (size_t)new_cap * sizeof(Lv00Session *));
         if (!new_sessions) return NULL;
