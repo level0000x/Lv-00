@@ -278,9 +278,9 @@ Lv00InequalityStatus lv00_ineq_prove(Lv00Inequality *ineq,
                                 1, sizeof(Lv00InequalityStep));
                             if (p->steps) {
                                 p->steps[0].method = INEQ_METHOD_DIRECT;
-                                p->steps[0].justification = (char *) lv00_malloc(64);
+                                p->steps[0].justification = (char *) lv00_malloc(128);
                                 if (p->steps[0].justification)
-                                    snprintf(p->steps[0].justification, 64,
+                                    snprintf(p->steps[0].justification, 128,
                                              "Direct constraint from system (id=%u)", i);
                             }
                             *proof = p;
@@ -649,41 +649,41 @@ bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
     if (!two) return false;
 
     Lv00Expr **a_sq = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
-    if (!a_sq) return false;
+    if (!a_sq) { lv00_expr_free(two); return false; }
     for (uint32_t i = 0; i < count; i++) {
         a_sq[i] = lv00_expr_power(a[i], two);
-        if (!a_sq[i]) return false;
+        if (!a_sq[i]) goto cleanup;
     }
 
     /* 构造 b_i² 数组: b_sq[i] = b[i]^2 */
     Lv00Expr **b_sq = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
-    if (!b_sq) return false;
+    if (!b_sq) goto cleanup;
     for (uint32_t i = 0; i < count; i++) {
         b_sq[i] = lv00_expr_power(b[i], two);
-        if (!b_sq[i]) return false;
+        if (!b_sq[i]) goto cleanup;
     }
 
     /* 构造 a_i·b_i 数组 */
     Lv00Expr **ab = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
-    if (!ab) return false;
+    if (!ab) goto cleanup;
     for (uint32_t i = 0; i < count; i++) {
         ab[i] = lv00_expr_mul(a[i], b[i]);
-        if (!ab[i]) return false;
+        if (!ab[i]) goto cleanup;
     }
 
     /* sum_a_sq = ∑a_i², sum_b_sq = ∑b_i², sum_ab = ∑a_i·b_i */
     Lv00Expr *sum_a_sq = lv00_expr_sum_n(a_sq, count);
     Lv00Expr *sum_b_sq = lv00_expr_sum_n(b_sq, count);
     Lv00Expr *sum_ab   = lv00_expr_sum_n(ab, count);
-    if (!sum_a_sq || !sum_b_sq || !sum_ab) return false;
+    if (!sum_a_sq || !sum_b_sq || !sum_ab) goto cleanup;
 
     /* left = (∑a_i²) * (∑b_i²) */
     Lv00Expr *left = lv00_expr_mul(sum_a_sq, sum_b_sq);
-    if (!left) return false;
+    if (!left) goto cleanup;
 
     /* right = (∑a_i·b_i)² */
     Lv00Expr *right = lv00_expr_power(sum_ab, two);
-    if (!right) return false;
+    if (!right) goto cleanup;
 
     *out_ineq = lv00_ineq_create(left, INEQ_GREATER_EQUAL, right);
     if (*out_ineq) {
@@ -691,10 +691,12 @@ bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
         (*out_ineq)->label = lv00_strdup("Cauchy-Schwarz");
     }
 
+cleanup:
     /* 释放临时数组 */
     lv00_free((void **) &a_sq);
     lv00_free((void **) &b_sq);
     lv00_free((void **) &ab);
+    lv00_expr_free(two);
 
     return (*out_ineq != NULL);
 }
@@ -880,23 +882,29 @@ bool lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
 
         for (uint32_t i = 0; i < count; i++) {
             Lv00Expr *w_expr = lv00_expr_create_rational_mpq(weights[i]);
-            if (!w_expr) return false;
+            if (!w_expr) goto cleanup_jensen;
             w_x[i] = lv00_expr_mul(w_expr, points[i]);
-            if (!w_x[i]) return false;
+            if (!w_x[i]) { lv00_expr_free(w_expr); goto cleanup_jensen; }
 
             /* f(x_i) */
             Lv00Expr *fx = lv00_expr_function(func, points[i]);
-            if (!fx) return false;
+            if (!fx) { lv00_expr_free(w_expr); goto cleanup_jensen; }
             /* 需要另一个权重表达式副本 */
             Lv00Expr *w_expr2 = lv00_expr_create_rational_mpq(weights[i]);
-            if (!w_expr2) return false;
+            if (!w_expr2) { lv00_expr_free(w_expr); lv00_expr_free(fx); goto cleanup_jensen; }
             w_fx[i] = lv00_expr_mul(w_expr2, fx);
-            if (!w_fx[i]) return false;
+            if (!w_fx[i]) {
+                lv00_expr_free(w_expr);
+                lv00_expr_free(w_expr2);
+                lv00_expr_free(fx);
+                goto cleanup_jensen;
+            }
         }
 
         weighted_sum  = lv00_expr_sum_n(w_x, count);
         weighted_func = lv00_expr_sum_n(w_fx, count);
 
+cleanup_jensen:
         lv00_free((void **) &w_x);
         lv00_free((void **) &w_fx);
     } else {
