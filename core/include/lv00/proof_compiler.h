@@ -31,6 +31,7 @@ typedef struct Lv00ProofStepRecord {
     /* 前提步骤 */
     int *premise_step_ids;      /**< 前提步骤ID数组 */
     int premise_count;          /**< 前提数量 */
+    int premise_capacity;       /**< 前提数组容量 */
 
     /* 结论 */
     Proposition *conclusion;    /**< 结论命题 */
