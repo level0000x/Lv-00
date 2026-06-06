@@ -16,7 +16,7 @@ Lv00AppConfig lv00_default_app_config(void) {
 }
 
 Lv00Application *lv00_app_create(const Lv00AppConfig *config) {
-    Lv00Application *app = calloc(1, sizeof(Lv00Application));
+    Lv00Application *app = lv00_calloc(1, sizeof(Lv00Application));
     if (!app) return NULL;
     if (config) app->config = *config;
     else app->config = lv00_default_app_config();

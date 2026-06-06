@@ -998,8 +998,8 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
                     max_rel_err = rel;
             }
 
-            free(tf.first_derivs);
-            free(tf.deriv_var_ids);
+            lv00_free((void **)&tf.first_derivs);
+            lv00_free((void **)&tf.deriv_var_ids);
         }
     }
 
@@ -1022,9 +1022,9 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
     out->proof_text = lv00_strdup(proof_buf);
 
     for (int ei = 0; ei < eq_count; ei++) {
-        free(equations[ei]);
+        lv00_free((void **)&equations[ei]);
     }
-    free(equations);
+    lv00_free((void **)&equations);
 
     return true;
 }
@@ -1077,8 +1077,8 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, i
              out->relative_error);
     out->proof_text = lv00_strdup(proof_buf);
 
-    free(tf.first_derivs);
-    free(tf.deriv_var_ids);
+    lv00_free((void **)&tf.first_derivs);
+    lv00_free((void **)&tf.deriv_var_ids);
 
     return true;
 }
@@ -1163,7 +1163,7 @@ void error_bound_free(ErrorBound *bound) {
     if (!bound)
         return;
     if (bound->proof_text) {
-        free(bound->proof_text);
+        lv00_free((void **)&bound->proof_text);
         bound->proof_text = NULL;
     }
 }

@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv00_utils.h"
 
 /* ================================================================
  * 并查集内部实现
@@ -27,8 +28,8 @@ static int uf_create(EquivClassManager *mgr, int capacity) {
     mgr->uf_parent = (int *)calloc((size_t)capacity, sizeof(int));
     mgr->uf_rank = (int *)calloc((size_t)capacity, sizeof(int));
     if (!mgr->uf_parent || !mgr->uf_rank) {
-        free(mgr->uf_parent);
-        free(mgr->uf_rank);
+        lv00_free((void **)&mgr->uf_parent);
+        lv00_free((void **)&mgr->uf_rank);
         return -1;
     }
     for (int i = 0; i < capacity; i++) {
@@ -39,9 +40,9 @@ static int uf_create(EquivClassManager *mgr, int capacity) {
 }
 
 static void uf_destroy(EquivClassManager *mgr) {
-    free(mgr->uf_parent);
+    lv00_free((void **)&mgr->uf_parent);
     mgr->uf_parent = NULL;
-    free(mgr->uf_rank);
+    lv00_free((void **)&mgr->uf_rank);
     mgr->uf_rank = NULL;
     mgr->uf_capacity = 0;
 }
@@ -196,7 +197,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     /* 初始化并查集 */
     int capacity = graph->node_count > 0 ? graph->node_count : 16;
     if (uf_create(mgr, capacity) != 0) {
-        free(mgr);
+        lv00_free((void **)&mgr);
         return NULL;
     }
 
@@ -205,7 +206,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     mgr->node_to_class = (int *)calloc((size_t)capacity, sizeof(int));
     if (!mgr->node_to_class) {
         uf_destroy(mgr);
-        free(mgr);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     for (int i = 0; i < capacity; i++) {
@@ -221,21 +222,21 @@ void equiv_manager_destroy(EquivClassManager *mgr) {
     /* 销毁等价类 */
     for (int i = 0; i < mgr->class_count; i++) {
         EquivClass *ec = &mgr->classes[i];
-        free(ec->member_ids);
-        free(ec->proofs);
+        lv00_free((void **)&ec->member_ids);
+        lv00_free((void **)&ec->proofs);
     }
-    free(mgr->classes);
+    lv00_free((void **)&mgr->classes);
 
     /* 销毁并查集 */
     uf_destroy(mgr);
 
     /* 销毁节点映射 */
-    free(mgr->node_to_class);
+    lv00_free((void **)&mgr->node_to_class);
 
     /* 销毁证明日志 */
-    free(mgr->proof_log);
+    lv00_free((void **)&mgr->proof_log);
 
-    free(mgr);
+    lv00_free((void **)&mgr);
 }
 
 /* ================================================================
@@ -307,9 +308,9 @@ static EquivMergeResult equiv_merge_classes(EquivClassManager *mgr,
     }
 
     /* 清空源等价类 */
-    free(source_ec->member_ids);
+    lv00_free((void **)&source_ec->member_ids);
     source_ec->member_ids = NULL;
-    free(source_ec->proofs);
+    lv00_free((void **)&source_ec->proofs);
     source_ec->proofs = NULL;
     source_ec->member_count = 0;
     source_ec->proof_count = 0;
@@ -537,11 +538,11 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             if (point_count < 2) continue;
 
             /* 计算从 i 和 j 到所有其他点的距离向量 */
-            double *dists_i = (double *)malloc((size_t)point_count * sizeof(double));
-            double *dists_j = (double *)malloc((size_t)point_count * sizeof(double));
+            double *dists_i = (double *)lv00_malloc((size_t)point_count * sizeof(double));
+            double *dists_j = (double *)lv00_malloc((size_t)point_count * sizeof(double));
             if (!dists_i || !dists_j) {
-                free(dists_i);
-                free(dists_j);
+                lv00_free((void **)&dists_i);
+                lv00_free((void **)&dists_j);
                 continue;
             }
 
@@ -584,8 +585,8 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
                 }
             }
 
-            free(dists_i);
-            free(dists_j);
+            lv00_free((void **)&dists_i);
+            lv00_free((void **)&dists_j);
 
             if (distance_match) {
                 EquivMergeResult r = equiv_merge_classes(mgr, i, j,

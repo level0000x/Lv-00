@@ -4910,8 +4910,8 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
         if (!s)
             return NULL;
         s->kind = FILL_LAMBDA;
-        s->label = _strdup("引入假设（lambda 抽象）");
-        s->code_snippet = _strdup("\\x -> ?hole");
+        s->label = lv00_strdup_safe("引入假设（lambda 抽象）");
+        s->code_snippet = lv00_strdup_safe("\\x -> ?hole");
         s->arity = 1;
         return s;
     }
@@ -4923,8 +4923,8 @@ FillSuggestion *proof_guided_fill(ConstraintSolver *solver, const char *goal_typ
         if (!s)                                                                   \
             break;                                                                \
         s->kind = (kind_);                                                        \
-        s->label = _strdup(label_);                                               \
-        s->code_snippet = _strdup(snippet_);                                      \
+        s->label = lv00_strdup_safe(label_);                                               \
+        s->code_snippet = lv00_strdup_safe(snippet_);                                      \
         s->arity = (arity_);                                                      \
         if (!head) {                                                              \
             head = s;                                                             \
@@ -5659,7 +5659,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                                   char **out_trace) {
     if (!conclusion || conclusion[0] == '\0') {
         if (out_trace)
-            *out_trace = _strdup("VERIFY_INVALID: 结论为空");
+            *out_trace = lv00_strdup_safe("VERIFY_INVALID: 结论为空");
         return VERIFY_INVALID;
     }
 
@@ -5689,7 +5689,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             /* TRANS: s=t, t=u => s=u */
             if (!premises || !premises[0] || !premises[1]) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [TRANS]: 需要两个前提 s=t, t=u");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [TRANS]: 需要两个前提 s=t, t=u");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -5700,7 +5700,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 const char *eq0 = strstr(p0, "=");
                 if (!eq0) {
                     if (out_trace)
-                        *out_trace = _strdup("VERIFY_INVALID [TRANS]: 前提1非等式");
+                        *out_trace = lv00_strdup_safe("VERIFY_INVALID [TRANS]: 前提1非等式");
                     return VERIFY_INVALID;
                 }
                 const char *t_from_p0 = eq0 + 1;
@@ -5711,7 +5711,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
                 const char *eq1 = strstr(p1, "=");
                 if (!eq1) {
                     if (out_trace)
-                        *out_trace = _strdup("VERIFY_INVALID [TRANS]: 前提2非等式");
+                        *out_trace = lv00_strdup_safe("VERIFY_INVALID [TRANS]: 前提2非等式");
                     return VERIFY_INVALID;
                 }
                 size_t t_in_p1_len = (size_t) (eq1 - p1);
@@ -5744,7 +5744,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
             /* ASSUME: t |- t — 结论必须是前提之一 */
             if (!premises) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [ASSUME]: 无前提");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [ASSUME]: 无前提");
                 return VERIFY_UNDECIDED;
             }
             for (int i = 0; premises[i] != NULL; i++) {
@@ -5807,7 +5807,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：需要两个前提（f1=f2 和 g1=g2），结论应含 COMB 模式 */
             if (!premises || !premises[0] || !premises[1]) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -5841,7 +5841,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：需要一个前提 s=t，结论两侧都应含 lambda 抽象 */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -5875,7 +5875,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提应包含替换定理，结论应体现替换结果 */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -5909,7 +5909,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提为泛型定理，结论为特化后的版本（通常含类型标注） */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -5937,7 +5937,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提为含变量的定理，结论为变量被替换后的版本 */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -5965,7 +5965,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
              * 检查：前提为 B，结论应含蕴含模式（A ==> B 或 A --> B） */
             if (!premises || !premises[0]) {
                 if (out_trace)
-                    *out_trace = _strdup("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
+                    *out_trace = lv00_strdup_safe("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
                 return VERIFY_UNDECIDED;
             }
             {
@@ -6005,7 +6005,7 @@ VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, co
 
         default:
             if (out_trace) {
-                *out_trace = _strdup("VERIFY_INVALID: 未知验证规则");
+                *out_trace = lv00_strdup_safe("VERIFY_INVALID: 未知验证规则");
             }
             return VERIFY_INVALID;
     }
@@ -6099,7 +6099,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
                     SMTSatResult smt_result = smtsolver_check(smt_solver);
                     if (smt_result == SMT_RESULT_UNSAT) {
                         smt_ok = false;
-                        entry->smt_counterexample = _strdup(
+                        entry->smt_counterexample = lv00_strdup_safe(
                             "SMT求解器报告不可满足");
                     } else if (smt_result == SMT_RESULT_UNKNOWN) {
                         /* SMT 求解器超时或无法判定，保守通过 */
@@ -6114,7 +6114,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
                     strstr(entry->refinement_pred, "0 > 1") ||
                     strstr(entry->refinement_pred, "contradiction")) {
                     smt_ok = false;
-                    entry->smt_counterexample = _strdup(
+                    entry->smt_counterexample = lv00_strdup_safe(
                         "模型不满足: 谓词包含恒假 (false) 子句");
                 }
             }
@@ -6127,7 +6127,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
         if (!type_ok) {
             entry->result = REFINE_TYPE_ERROR;
             if (!entry->smt_counterexample) {
-                entry->smt_counterexample = _strdup("基础类型检查失败");
+                entry->smt_counterexample = lv00_strdup_safe("基础类型检查失败");
             }
             report->failed_count++;
         } else if (!smt_ok) {

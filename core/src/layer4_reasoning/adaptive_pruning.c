@@ -84,7 +84,7 @@ Lv00AdaptivePruner *lv00_pruner_create(const Lv00AdaptiveConfig *config) {
 }
 
 void lv00_pruner_destroy(Lv00AdaptivePruner *pruner) {
-    free(pruner);
+    lv00_free((void **)&pruner);
 }
 
 int lv00_pruner_set_problem(Lv00AdaptivePruner *pruner,

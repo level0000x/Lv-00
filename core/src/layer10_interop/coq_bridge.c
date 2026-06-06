@@ -1,5 +1,6 @@
 #include "lv00/interop.h"
 #include "lv00/lv00_internal.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -166,7 +167,7 @@ static int coq_import_proof(const char *input, void **proof) {
     /* 初始化步骤数组 */
     p->step_capacity = 16;
     p->steps = (Lv00ProofStep *)calloc(p->step_capacity, sizeof(Lv00ProofStep));
-    if (!p->steps) { free(p); return -1; }
+    if (!p->steps) { lv00_free((void **)&p); return -1; }
 
     /* 逐行解析 tactic 脚本 */
     const char *line = script_start;
@@ -202,10 +203,10 @@ static int coq_import_proof(const char *input, void **proof) {
                 /* 检查是否需要扩容 */
                 if (p->step_count >= p->step_capacity) {
                     int new_cap = p->step_capacity * 2;
-                    Lv00ProofStep *new_steps = (Lv00ProofStep *)realloc(p->steps, new_cap * sizeof(Lv00ProofStep));
+                    Lv00ProofStep *new_steps = (Lv00ProofStep *)lv00_realloc(p->steps, new_cap * sizeof(Lv00ProofStep));
                     if (!new_steps) {
-                        free(p->steps);
-                        free(p);
+                        lv00_free((void **)&p->steps);
+                        lv00_free((void **)&p);
                         return -1;
                     }
                     p->steps = new_steps;

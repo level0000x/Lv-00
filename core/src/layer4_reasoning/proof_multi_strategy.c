@@ -1540,7 +1540,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
             atp_solver_destroy(solver);
         }
 
-        free(tptp);
+        lv00_free((void **)&tptp);
     }
 
     /* 如果 ATP 后端不可用，尝试直接合一作为降级方案 */

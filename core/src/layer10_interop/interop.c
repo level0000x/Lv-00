@@ -1,4 +1,5 @@
 #include "lv00/interop.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,10 +30,10 @@ Lv00InteropManager *lv00_interop_create(void) {
 void lv00_interop_destroy(Lv00InteropManager *mgr) {
     if (!mgr) return;
     for (int i = 0; i < mgr->plugin_count; i++) {
-        free(mgr->plugins[i]);
+        lv00_free((void **)&mgr->plugins[i]);
     }
-    free(mgr->plugins);
-    free(mgr);
+    lv00_free((void **)&mgr->plugins);
+    lv00_free((void **)&mgr);
 }
 
 int lv00_interop_register_plugin(Lv00InteropManager *mgr, const Lv00Plugin *plugin) {
@@ -49,7 +50,7 @@ int lv00_interop_unregister_plugin(Lv00InteropManager *mgr, const char *name) {
     if (!mgr || !name) return -1;
     for (int i = 0; i < mgr->plugin_count; i++) {
         if (strcmp(mgr->plugins[i]->name, name) == 0) {
-            free(mgr->plugins[i]);
+            lv00_free((void **)&mgr->plugins[i]);
             mgr->plugins[i] = mgr->plugins[--mgr->plugin_count];
             return 0;
         }
