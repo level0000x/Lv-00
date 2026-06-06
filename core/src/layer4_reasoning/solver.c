@@ -1491,6 +1491,9 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                 mpz_poly_clear(&poly);
                 break;
             }
+            default:
+                LV00_LOG_WARNING("Unknown constraint type %d in extract_equations_from_constraints", c->type);
+                break;
         }
     }
 
@@ -7848,6 +7851,9 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                    count);
                 break;
             }
+            default:
+                LV00_LOG_WARNING("Unknown constraint type %d in solver_extract_equations", c->type);
+                break;
         } /* closes switch(c->type) */
     } /* closes for(ci) - first pass */
 

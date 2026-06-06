@@ -105,7 +105,7 @@ Lv00Context *lv00_context_create(void) {
     ctx->problems_processed = 0;
 
     /* 12. 公理与规则引用 */
-    ctx->rewrite_step_limit = 1000;
+    ctx->rewrite_step_limit = LV00_DEFAULT_REWRITE_STEP_LIMIT;
 
     return ctx;
 }

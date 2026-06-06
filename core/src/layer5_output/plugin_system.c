@@ -956,7 +956,7 @@ int lv00_plugin_system_add_search_path(Lv00PluginSystem* system, const char* pat
     system->search_paths[system->search_path_count] = (char*)lv00_malloc(strlen(path) + 1);
     if (!system->search_paths[system->search_path_count]) return -1;
     
-    strcpy(system->search_paths[system->search_path_count], path);
+    snprintf(system->search_paths[system->search_path_count], strlen(path) + 1, "%s", path);
     system->search_path_count++;
     
     return 0;

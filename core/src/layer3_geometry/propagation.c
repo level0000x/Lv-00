@@ -18,6 +18,9 @@
 #include "error_codes.h"
 #include "lv00_utils.h"
 
+#define MAX_CONSTRAINTS_PER_NODE 128
+#define MAX_NEIGHBOR_CONSTRAINTS 64
+
 /* ================================================================
  * 内部辅助函数
  * ================================================================ */
@@ -317,8 +320,8 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
                 ss->is_collapsed = true;
             } else {
                 /* 无坐标 → 检查是否有约束 */
-                int constraints[64];
-                int count = graph_find_constraints_involving(ctx->graph, i, constraints, 64);
+                int constraints[MAX_NEIGHBOR_CONSTRAINTS];
+                int count = graph_find_constraints_involving(ctx->graph, i, constraints, MAX_NEIGHBOR_CONSTRAINTS);
                 if (count == 0) {
                     ss->is_unbounded = true;
                 }
@@ -500,9 +503,9 @@ PropagationResult propagation_run(PropagationContext *ctx) {
         if (!queue_pop(ctx, &node_id)) break;
 
         /* 查找涉及该节点的所有约束 */
-        int constraint_ids[128];
+        int constraint_ids[MAX_CONSTRAINTS_PER_NODE];
         int count = graph_find_constraints_involving(ctx->graph, node_id,
-                                                      constraint_ids, 128);
+                                                      constraint_ids, MAX_CONSTRAINTS_PER_NODE);
 
         for (int i = 0; i < count; i++) {
             bool changed = propagation_arc_reduce(ctx, constraint_ids[i]);
@@ -572,8 +575,8 @@ int propagation_select_node(PropagationContext *ctx) {
         if (entropy < 0) continue; /* 跳过 unbounded */
 
         /* 计算度数（邻接约束数） */
-        int constraints[64];
-        int degree = graph_find_constraints_involving(ctx->graph, i, constraints, 64);
+        int constraints[MAX_NEIGHBOR_CONSTRAINTS];
+        int degree = graph_find_constraints_involving(ctx->graph, i, constraints, MAX_NEIGHBOR_CONSTRAINTS);
 
         switch (ctx->strategy) {
         case PROP_STRATEGY_MIN_ENTROPY:

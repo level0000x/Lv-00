@@ -8,7 +8,7 @@ Lv00WhileBlock *lv00_while_block_create(void) {
     block->condition_port = -1;
     block->output_port = -1;
     block->determinism = LV00_DETERMINISM_LOOP_REQUIRES_PROOF;
-    block->max_iterations = 10000;
+    block->max_iterations = LV00_DEFAULT_MAX_ITERATIONS;
     return block;
 }
 

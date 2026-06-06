@@ -13,7 +13,7 @@ Lv00SessionConfig lv00_default_session_config(void) {
     Lv00SessionConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.max_reasoning_depth = 100;
-    cfg.timeout_ms = 30000;
+    cfg.timeout_ms = LV00_DEFAULT_TIMEOUT_MS;
     cfg.enable_visualization = 0;
     strncpy(cfg.input_format, "lv00-dsl", sizeof(cfg.input_format) - 1);
     strncpy(cfg.output_format, "proof", sizeof(cfg.output_format) - 1);

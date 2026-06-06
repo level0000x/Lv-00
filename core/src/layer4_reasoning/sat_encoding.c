@@ -505,6 +505,9 @@ int sat_encode_constraint(SatEncoding *enc, int constraint_id) {
                 return (idx >= 0) ? 1 : -1;
             }
             break;
+        default:
+            LV00_LOG_WARNING("Unknown constraint type %d in sat_encode_constraint", con->type);
+            break;
     }
 
     return 0;
@@ -807,6 +810,9 @@ SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *s
                 }
                 break;
             }
+            default:
+                LV00_LOG_WARNING("Unknown formula type %d in sat_encode_model_facts", formula->type);
+                break;
         }
     }
 
@@ -939,6 +945,10 @@ ConstraintGraph *sat_model_to_graph(const SatModel *model) {
                         case REL_ATOM_REGION:    gtype = GEOM_REGION; break;
                         case REL_ATOM_PORT:      gtype = GEOM_PORT; break;
                         case REL_ATOM_FUNC_BLOCK: gtype = GEOM_FUNCTION_BLOCK; break;
+                        default:
+                            LV00_LOG_WARNING("Unknown atom type %d in sat_decode_to_graph", atom->type);
+                            gtype = GEOM_POINT;
+                            break;
                     }
                     graph_add_node_with_id(graph, atom->atom_id, gtype, NULL, 0);
                 }

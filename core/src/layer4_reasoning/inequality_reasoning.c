@@ -169,7 +169,7 @@ Lv00Inequality *lv00_ineq_copy(const Lv00Inequality *ineq) {
     if (ineq->label) {
         copy->label = (char *) lv00_malloc(strlen(ineq->label) + 1);
         if (copy->label)
-            strcpy(copy->label, ineq->label);
+            snprintf(copy->label, strlen(ineq->label) + 1, "%s", ineq->label);
     }
     return copy;
 }

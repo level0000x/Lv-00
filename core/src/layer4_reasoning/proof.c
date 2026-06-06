@@ -1392,7 +1392,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_ADDED, "反证法证明开始", 0);
     }
 
-    int effective_max = max_steps > 0 ? max_steps : 1000;
+    int effective_max = max_steps > 0 ? max_steps : LV00_DEFAULT_MAX_STEPS;
 
     /* ====== 阶段 1：创建隔离的证明环境 ====== */
     /* 深拷贝目标命题，避免修改原始数据 */

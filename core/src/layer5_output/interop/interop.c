@@ -35,6 +35,9 @@
 #include "stream_context_util.h"
 #include "symbolic_coord.h"
 
+#define MAX_RELATED_CONSTRAINTS 256
+#define MAX_CONSTRAINT_INDICES 64
+
 /* ==================== 条件编译：套接字支持 ==================== */
 
 /**
@@ -4261,8 +4264,8 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
             continue;
 
         /* 查找与线段关联的 INCIDENCE 约束以获取端点 */
-        int constraint_indices[64];
-        int c_count = graph_find_constraints_involving(graph, node->id, constraint_indices, 64);
+        int constraint_indices[MAX_CONSTRAINT_INDICES];
+        int c_count = graph_find_constraints_involving(graph, node->id, constraint_indices, MAX_CONSTRAINT_INDICES);
 
         /* 收集端点坐标 */
         double endpoints[4]; /* x1, y1, x2, y2 */
