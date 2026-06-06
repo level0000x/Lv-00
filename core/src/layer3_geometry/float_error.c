@@ -793,8 +793,8 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     tf->deriv_count = var_count;
     tf->order = 1;
 
-    tf->first_derivs = (double *) lv00_malloc(var_count * sizeof(double));
-    tf->deriv_var_ids = (int *) lv00_malloc(var_count * sizeof(int));
+    tf->first_derivs = (double *) lv00_malloc((size_t)var_count * sizeof(double));
+    tf->deriv_var_ids = (int *) lv00_malloc((size_t)var_count * sizeof(int));
     if (!tf->first_derivs || !tf->deriv_var_ids) {
         lv00_free((void **)&tf->first_derivs);
         lv00_free((void **)&tf->deriv_var_ids);
@@ -869,7 +869,7 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
     /* 分配表达式数组 */
     int alloc_count = (graph->constraint_count < MAX_EQUATIONS) ? graph->constraint_count : MAX_EQUATIONS;
-    char **eqs = (char **) lv00_malloc(alloc_count * sizeof(char *));
+    char **eqs = (char **) lv00_malloc((size_t)alloc_count * sizeof(char *));
     if (!eqs)
         return false;
 

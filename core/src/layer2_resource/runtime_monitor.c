@@ -1091,7 +1091,7 @@ uint32_t lv00_event_trace_get_all(Lv00EventRecord **out_events, uint32_t max_cou
     MUTEX_LOCK(g_event_system.mutex);
 
     uint32_t count = g_event_system.event_count < max_count ? g_event_system.event_count : max_count;
-    *out_events = (Lv00EventRecord *)lv00_malloc(count * sizeof(Lv00EventRecord));
+    *out_events = (Lv00EventRecord *)lv00_malloc((size_t)count * sizeof(Lv00EventRecord));
     if (*out_events) {
         memcpy(*out_events, g_event_system.events, count * sizeof(Lv00EventRecord));
     }

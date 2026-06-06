@@ -1606,7 +1606,7 @@ typedef struct {
    如果方程系统为空（var_count == 0），直接返回 NULL。 */
 static VarInfo *build_var_info(EquationSystem *sys, int node_count, int *out_var_count) {
     /* 收集所有不重复的变量节点 id */
-    int *var_ids = lv00_malloc(sys->count * sizeof(int));
+    int *var_ids = lv00_malloc((size_t) sys->count * sizeof(int));
     int var_count = 0;
     for (int i = 0; i < sys->count; i++) {
         int vid = sys->eqs[i].var_node_id;
@@ -3028,7 +3028,7 @@ static int count_point_variables(ConstraintGraph *graph, int **out_ids) {
             count++;
     }
     if (out_ids) {
-        *out_ids = lv00_malloc(count * sizeof(int));
+        *out_ids = lv00_malloc((size_t) count * sizeof(int));
         int idx = 0;
         for (int i = 0; i < graph->node_count; i++) {
             if (graph->nodes[i]->type == GEOM_POINT) {
@@ -3366,7 +3366,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
      * 已知值可以尽早代入，减少后续方程的复杂度。 */
     {
         /* 收集方程系统中的所有唯一变量 ID */
-        int *all_var_ids = lv00_malloc(sys.count * sizeof(int));
+        int *all_var_ids = lv00_malloc((size_t) sys.count * sizeof(int));
         if (!all_var_ids) {
             equation_system_clear(&sys);
             *out_result = result;
@@ -3418,7 +3418,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 /* 按拓扑排序重排方程系统中的方程顺序。
                  * 将被依赖变量的方程排在前面，确保优先求解。 */
                 /* 构建排序映射: var_id -> priority (越小越优先) */
-                int *priority = lv00_malloc(sys.count * sizeof(int));
+                int *priority = lv00_malloc((size_t) sys.count * sizeof(int));
                 if (!priority) {
                     lv00_free((void **) &ordered_ids);
                     lv00_free((void **) &all_var_ids);
@@ -4369,7 +4369,7 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
     }
 
     /* Collect free variable IDs: points with fewer than 2 equations */
-    int *free_ids = lv00_malloc(dof * sizeof(int));
+    int *free_ids = lv00_malloc((size_t) dof * sizeof(int));
     int free_count = 0;
     for (int i = 0; i < pt_count && free_count < dof; i++) {
         int equations = eq_per_point[i];
@@ -4656,7 +4656,7 @@ static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expo
         p->terms = new_terms;
     }
     MVMonomial *m = &p->terms[p->term_count];
-    m->exponents = lv00_malloc(p->var_count * sizeof(int));
+    m->exponents = lv00_malloc((size_t) p->var_count * sizeof(int));
     for (int v = 0; v < p->var_count; v++) {
         m->exponents[v] = exponents[v];
     }
@@ -4760,7 +4760,7 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
         mpz_init(new_coeff);
         mpz_mul(new_coeff, p->terms[i].coeff, mono_coeff);
 
-        int *new_exp = lv00_malloc(var_count * sizeof(int));
+        int *new_exp = lv00_malloc((size_t) var_count * sizeof(int));
         for (int v = 0; v < var_count; v++) {
             new_exp[v] = p->terms[i].exponents[v] + mono_exp[v];
         }
@@ -4822,15 +4822,15 @@ static void s_polynomial(const MVPolynomial *f, const MVPolynomial *g, int var_c
         return;
 
     /* 检查次数限制: S-多项式的次数可能超过 2, 但输入限制在 degree <= 2 */
-    int *lcm_exp = lv00_malloc(var_count * sizeof(int));
+    int *lcm_exp = lv00_malloc((size_t) var_count * sizeof(int));
     if (!lcm_exp)
         return;
-    int *quo_f_exp = lv00_malloc(var_count * sizeof(int));
+    int *quo_f_exp = lv00_malloc((size_t) var_count * sizeof(int));
     if (!quo_f_exp) {
         lv00_free((void **) &lcm_exp);
         return;
     }
-    int *quo_g_exp = lv00_malloc(var_count * sizeof(int));
+    int *quo_g_exp = lv00_malloc((size_t) var_count * sizeof(int));
     if (!quo_g_exp) {
         lv00_free((void **) &lcm_exp);
         lv00_free((void **) &quo_f_exp);
@@ -4905,7 +4905,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
             for (int j = 0; j < remainder->term_count && !reduced; j++) {
                 if (mv_monomial_divisible(&remainder->terms[j], lt_g, remainder->var_count)) {
                     /* 计算商单项式 */
-                    int *quo_exp = lv00_malloc(remainder->var_count * sizeof(int));
+                    int *quo_exp = lv00_malloc((size_t) remainder->var_count * sizeof(int));
                     if (!quo_exp) {
                         /* 内存分配失败：无法继续约化，退出循环 */
                         reduced = true;
@@ -5038,7 +5038,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 
     /* 初始化 G = F (复制) */
     int g_capacity = f_count + 16;
-    MVPolynomial **G = lv00_malloc(g_capacity * sizeof(MVPolynomial *));
+    MVPolynomial **G = lv00_malloc((size_t) g_capacity * sizeof(MVPolynomial *));
     if (!G) {
         *out_G = NULL;
         *out_g_count = 0;
@@ -5130,7 +5130,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                 if (!lt_i || !lt_j)
                     continue;
 
-                int *lcm_exp = lv00_malloc(var_count * sizeof(int));
+                int *lcm_exp = lv00_malloc((size_t) var_count * sizeof(int));
                 mv_monomial_lcm(lt_i, lt_j, var_count, lcm_exp);
 
                 bool lcm_is_lt_i = true, lcm_is_lt_j = true;
@@ -5166,7 +5166,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         continue;
 
                     /* 重新计算 lcm(G[i], G[j]) 用于链式判据 */
-                    int *lcm_chain = lv00_malloc(var_count * sizeof(int));
+                    int *lcm_chain = lv00_malloc((size_t) var_count * sizeof(int));
                     if (!lcm_chain)
                         continue;
                     mv_monomial_lcm(lt_i, lt_j, var_count, lcm_chain);
@@ -5414,10 +5414,10 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
 static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map, int **out_coord_map,
                                           int *out_var_count) {
     /* 收集所有唯一的 (var_node_id, coord_index) 对 */
-    int *vids = lv00_malloc(sys->count * 2 * sizeof(int));
+    int *vids = lv00_malloc((size_t) sys->count * 2 * sizeof(int));
     if (!vids)
         return NULL;
-    int *cids = lv00_malloc(sys->count * 2 * sizeof(int));
+    int *cids = lv00_malloc((size_t) sys->count * 2 * sizeof(int));
     if (!cids) {
         lv00_free((void **) &vids);
         return NULL;
@@ -5448,7 +5448,7 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
     *out_var_count = vcount;
 
     /* 为每个方程构建多变量多项式 */
-    MVPolynomial *polys = lv00_malloc(sys->count * sizeof(MVPolynomial));
+    MVPolynomial *polys = lv00_malloc((size_t) sys->count * sizeof(MVPolynomial));
     if (!polys) {
         lv00_free((void **) &vids);
         lv00_free((void **) &cids);
@@ -5531,7 +5531,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
         int p1;
         int p2;
     } SegInfo;
-    SegInfo *segs = lv00_malloc(graph->node_count * sizeof(SegInfo));
+    SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs)
         return 0;
     int seg_count = 0;
@@ -5676,7 +5676,7 @@ static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
         int p1;
         int p2;
     } SegInfo;
-    SegInfo *segs = lv00_malloc(graph->node_count * sizeof(SegInfo));
+    SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
     if (!segs)
         return 0;
     int seg_count = 0;
@@ -6013,7 +6013,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         int p1, p2;
         double dx, dy; /* 方向向量 */
     } SegInfo;
-    SegInfo *segs = lv00_malloc(graph->node_count * sizeof(SegInfo));
+    SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
     int seg_count = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -6336,7 +6336,7 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
         return NULL;
 
     /* 构建变量 ID 到索引的映射 */
-    int *id_to_idx = lv00_malloc(var_count * sizeof(int));
+    int *id_to_idx = lv00_malloc((size_t) var_count * sizeof(int));
     for (int i = 0; i < var_count; i++)
         id_to_idx[i] = -1;
     for (int i = 0; i < var_count; i++) {
@@ -6442,7 +6442,7 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
     }
 
     /* Kahn 拓扑排序，优先选择被依赖度最高的节点 */
-    int *order = lv00_malloc(var_count * sizeof(int));
+    int *order = lv00_malloc((size_t) var_count * sizeof(int));
     int order_count = 0;
     bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
     if (visited)
@@ -6538,7 +6538,7 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
         return NULL;
 
     /* 收集所有唯一的变量 ID (来自方程系统) */
-    int *var_ids = lv00_malloc(sys->count * sizeof(int));
+    int *var_ids = lv00_malloc((size_t) sys.count * sizeof(int));
     int var_count = 0;
     for (int i = 0; i < sys->count; i++) {
         if (sys->eqs[i].poly.degree < 0)
@@ -6594,7 +6594,7 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
 
     /* 计算综合权重: 方程数量 * 2 + 约束参与度
      * 方程数量权重更高, 因为它直接反映消元复杂度 */
-    int *weight = lv00_malloc(var_count * sizeof(int));
+    int *weight = lv00_malloc((size_t) var_count * sizeof(int));
     for (int i = 0; i < var_count; i++) {
         weight[i] = eq_count[i] * 2 + constraint_count[i];
     }
@@ -6613,7 +6613,7 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
         /* 找出此约束涉及的所有变量 */
-        int *participants = lv00_malloc(c->participant_count * sizeof(int));
+        int *participants = lv00_malloc((size_t) c->participant_count * sizeof(int));
         int p_var_count = 0;
         for (int p = 0; p < c->participant_count; p++) {
             int pid = c->participants[p];
@@ -6648,7 +6648,7 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
     }
 
     /* 拓扑排序 (Kahn 算法), 优先选择权重高的节点 */
-    int *order = lv00_malloc(var_count * sizeof(int));
+    int *order = lv00_malloc((size_t) var_count * sizeof(int));
     int order_count = 0;
     bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
     if (visited)
@@ -7985,7 +7985,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         return SOLVER_STATUS_OK;
     }
 
-    MVPolynomial **active = lv00_malloc(active_count * sizeof(MVPolynomial *));
+    MVPolynomial **active = lv00_malloc((size_t) active_count * sizeof(MVPolynomial *));
     if (!active) {
         for (int i = 0; i < system->count; i++)
             mv_poly_clear(&mv_polys[i]);

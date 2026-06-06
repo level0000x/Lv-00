@@ -140,7 +140,7 @@ void proposition_destroy(Proposition *prop) {
     /* 初始容量 128，按需动态扩容，避免深层嵌套命题导致内存泄漏 */
     int stack_capacity = PROOF_DESTROY_STACK_INITIAL_CAPACITY;
     int stack_top = 0;
-    Proposition **destroy_stack = (Proposition **) lv00_malloc(stack_capacity * sizeof(Proposition *));
+    Proposition **destroy_stack = (Proposition **) lv00_malloc((size_t)stack_capacity * sizeof(Proposition *));
     if (!destroy_stack) {
         /* 分配失败时的降级处理：直接释放命题本身的资源
          * 注意：这种情况下子命题可能泄漏，但至少避免崩溃 */
@@ -279,7 +279,7 @@ static bool proposition_set_id_list(int **target, int *count_ptr, const int *ids
     if (count > 0) {
         if (!ids)
             return false;
-        new_ids = lv00_malloc(count * sizeof(int));
+        new_ids = lv00_malloc((size_t)count * sizeof(int));
         if (!new_ids)
             return false;
         memcpy(new_ids, ids, count * sizeof(int));
@@ -3142,7 +3142,7 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
     /* 先遍历一次计算祖先数量 */
     int capacity = 16;
     int count = 0;
-    int *ancestors = lv00_malloc(capacity * sizeof(int));
+    int *ancestors = lv00_malloc((size_t)capacity * sizeof(int));
     if (!ancestors)
         return false;
 

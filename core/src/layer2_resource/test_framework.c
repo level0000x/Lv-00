@@ -677,7 +677,7 @@ bool lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t 
     bench->iterations = iterations;
 
     /* 运行基准测试 */
-    int64_t *times = (int64_t *)lv00_malloc(iterations * sizeof(int64_t));
+    int64_t *times = (int64_t *)lv00_malloc((size_t)iterations * sizeof(int64_t));
     if (!times) {
         return false;
     }
