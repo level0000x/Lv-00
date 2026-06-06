@@ -914,10 +914,13 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
         char buf[EXPR_BUFFER_INITIAL];
         int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[", c->id, type_str);
+        if (off < 0) off = 0;
         for (int pi = 0; pi < c->participant_count && off < (int) sizeof(buf) - 20; pi++) {
             off += snprintf(buf + off, sizeof(buf) - off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
+            if (off < 0) break;
         }
-        snprintf(buf + off, sizeof(buf) - off, "]");
+        if (off >= 0)
+            snprintf(buf + off, sizeof(buf) - off, "]");
 
         eqs[*eq_count] = lv00_strdup(buf);
         (*eq_count)++;

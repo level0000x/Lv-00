@@ -1292,11 +1292,13 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
             lv00_free((void **) &arg_mappings);
             if (results && result_count > 0) {
                 int offset = snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"instantiated_ids\": [");
+                if (offset < 0) offset = 0;
                 for (int i = 0; i < result_count && offset < (int)sizeof(resp->data); i++) {
                     offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "%s%d", (i > 0 ? ", " : ""),
                                        results[i]);
+                    if (offset < 0) break;
                 }
-                if (offset < (int)sizeof(resp->data))
+                if (offset >= 0 && offset < (int)sizeof(resp->data))
                     snprintf(resp->data + offset, sizeof(resp->data) - offset, "]}");
                 lv00_free((void **) &results);
             } else {
@@ -1361,6 +1363,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 int offset = snprintf(resp->data, sizeof(resp->data),
                     "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
                     "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
+                if (offset < 0) offset = 0;
                 if (engine->main_graph) {
                     for (int i = 0; i < engine->main_graph->node_count && offset < (int)sizeof(resp->data) - 256; i++) {
                         GeomNode *node = engine->main_graph->nodes[i];
@@ -1370,18 +1373,21 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                             if (offset < (int)sizeof(resp->data))
                                 offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
                                     "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
+                            if (offset < 0) break;
                         } else if (node->type == GEOM_LINE_SEGMENT && offset < (int)sizeof(resp->data)) {
                             offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
                                 "  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"#22c55e\" stroke-width=\"2\"/>\n");
+                            if (offset < 0) break;
                         }
                     }
                 }
-                if (offset < (int)sizeof(resp->data))
+                if (offset >= 0 && offset < (int)sizeof(resp->data))
                     offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "</svg>");
             } else if (strcmp(fmt, "tikz") == 0) {
                 /* TikZ 导出：生成 LaTeX TikZ 代码 */
                 int offset = snprintf(resp->data, sizeof(resp->data),
                     "\\begin{tikzpicture}\n");
+                if (offset < 0) offset = 0;
                 if (engine->main_graph) {
                     for (int i = 0; i < engine->main_graph->node_count && offset < (int)sizeof(resp->data) - 256; i++) {
                         GeomNode *node = engine->main_graph->nodes[i];
@@ -1391,13 +1397,15 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                             if (offset < (int)sizeof(resp->data))
                                 offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
                                     "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
+                            if (offset < 0) break;
                         } else if (node->type == GEOM_LINE_SEGMENT && offset < (int)sizeof(resp->data)) {
                             offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
                                 "  \\draw (0,0) -- (1,1);\n");
+                            if (offset < 0) break;
                         }
                     }
                 }
-                if (offset < (int)sizeof(resp->data))
+                if (offset >= 0 && offset < (int)sizeof(resp->data))
                     offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "\\end{tikzpicture}");
             } else if (strcmp(fmt, "json-pretty") == 0) {
                 /* Pretty-printed JSON 导出：带缩进的 JSON */
