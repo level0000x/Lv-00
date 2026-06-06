@@ -94,6 +94,8 @@
  */
 #define LV00_ZERO_EPSILON 1e-12
 
+#define SOLVER_DETAIL_BUF_SIZE 512
+
 /**
  * @brief 求解快照结构体——保存求解前的节点坐标状态
  *
@@ -3121,7 +3123,7 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, in
                             ev.var_id = sys->eqs[i].var_node_id;
                             ev.step_number = *solved_count;
                             ev.description = "变量解得 (线性)";
-                            char detail[160];
+                            char detail[SOLVER_DETAIL_BUF_SIZE];
                             int _snw_lv;
                             LV00_SAFE_SNPRINTF(_snw_lv, detail, sizeof(detail),
                                                "{\"method\":\"linear_exact\","
@@ -3165,7 +3167,7 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, in
                                 ev.var_id = sys->eqs[i].var_node_id;
                                 ev.step_number = *solved_count;
                                 ev.description = "变量解得 (二次)";
-                                char detail[192];
+                                char detail[SOLVER_DETAIL_BUF_SIZE];
                                 int _snw_qv;
                                 LV00_SAFE_SNPRINTF(_snw_qv, detail, sizeof(detail),
                                                    "{\"method\":\"quadratic_exact\","
@@ -3211,7 +3213,7 @@ static void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, in
                                 ev.var_id = sys->eqs[i].var_node_id;
                                 ev.step_number = *solved_count;
                                 ev.description = "变量解得 (三次)";
-                                char detail[192];
+                                char detail[SOLVER_DETAIL_BUF_SIZE];
                                 int _snw_cv;
                                 LV00_SAFE_SNPRINTF(_snw_cv, detail, sizeof(detail),
                                                    "{\"method\":\"cubic_cardano\","
@@ -3306,7 +3308,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         ev.step_number = sys.count;
         ev.total_steps = -1;
         ev.description = "方程提取完成";
-        char detail[128];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_eq;
         LV00_SAFE_SNPRINTF(_snw_eq, detail, sizeof(detail), "{\"equation_count\":%d,\"phase\":\"extraction\"}",
                            sys.count);
@@ -3403,7 +3405,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 ev.timestamp_ms = stream_timestamp_ms();
                 ev.progress = 0.15;
                 ev.description = "开始变量依赖拓扑排序";
-                char detail[96];
+                char detail[SOLVER_DETAIL_BUF_SIZE];
                 int _snw_ts;
                 LV00_SAFE_SNPRINTF(_snw_ts, detail, sizeof(detail), "{\"phase\":\"topology_sort\",\"var_count\":%d}",
                                    all_var_count);
@@ -3533,7 +3535,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 ev.progress = 0.55;
                 ev.step_number = remaining_before_gb;
                 ev.description = "逐方程消元完成，仍有剩余方程，进入Gröbner基计算";
-                char detail[96];
+                char detail[SOLVER_DETAIL_BUF_SIZE];
                 int _snw_gb_prog;
                 LV00_SAFE_SNPRINTF(_snw_gb_prog, detail, sizeof(detail),
                                    "{\"phase\":\"groebner_entry\",\"remaining\":%d,\"solved\":%d}", remaining_before_gb,
@@ -3629,7 +3631,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         ev.step_number = solved_count;
         ev.total_steps = solved_count + remaining;
         ev.description = "代数求解总结";
-        char detail[320];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_sum;
         LV00_SAFE_SNPRINTF(_snw_sum, detail, sizeof(detail),
                            "{\"phase\":\"solve_summary\","
@@ -3796,7 +3798,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         }
     } else if (dof > 0) {
         fb->type = SOLVER_FEEDBACK_TYPE_DOF_CHANGED;
-        char buf[128];
+        char buf[SOLVER_DETAIL_BUF_SIZE];
         snprintf(buf, sizeof(buf), "当前仍有 %d 个自由度", dof);
         lv00_free((void **) &fb->message);
         fb->message = lv00_malloc(strlen(buf) + 1);
@@ -3816,7 +3818,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = fb->affected_var_id;
         ev.description = fb->message ? fb->message : "";
-        char detail[256];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_fb;
         LV00_SAFE_SNPRINTF(_snw_fb, detail, sizeof(detail),
                            "{\"type\":\"%s\",\"dof\":%d,\"free_count\":%d,\"overconstrained\":%d}",
@@ -3952,7 +3954,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                             GeomNode *target = find_node(graph, eid);
                             if (target) {
                                 lv00_free((void **) &target->numeric_assumption_declaration);
-                                char buf[256];
+                                char buf[SOLVER_DETAIL_BUF_SIZE];
                                 int _snw;
                                 LV00_SAFE_SNPRINTF(_snw, buf, sizeof(buf), "betweenness:p1=(%.6f,%.6f),p3=(%.6f,%.6f)",
                                                    x1, y1, x3, y3);
@@ -4044,7 +4046,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = var_id;
         ev.description = "开始超出代数范围分析";
-        char detail[128];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_diag;
         LV00_SAFE_SNPRINTF(_snw_diag, detail, sizeof(detail), "{\"phase\":\"analyze_out_of_scope\",\"var_id\":%d}",
                            var_id);
@@ -4111,7 +4113,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = var_id;
         ev.description = "发现高次方程，尝试因式分解";
-        char detail[128];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_found;
         LV00_SAFE_SNPRINTF(_snw_found, detail, sizeof(detail), "{\"degree\":%d,\"var_id\":%d}", target_poly->degree,
                            var_id);
@@ -4147,7 +4149,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             ev.timestamp_ms = stream_timestamp_ms();
             ev.var_id = var_id;
             ev.description = "因式分解成功，可通过拆分求解";
-            char detail[512];
+            char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw_fact;
             LV00_SAFE_SNPRINTF(
                 _snw_fact, detail, sizeof(detail),
@@ -4226,7 +4228,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         ev.timestamp_ms = stream_timestamp_ms();
         ev.var_id = var_id;
         ev.description = "不可约高次多项式，超出二次可构造范围";
-        char detail[512];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_irr;
         LV00_SAFE_SNPRINTF(_snw_irr, detail, sizeof(detail),
                            "{\"diagnosis\":\"irreducible_high_degree\",\"degree\":%d,"
@@ -5127,7 +5129,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         ev.total_steps = g_count * (g_count - 1) / 2;
                         ev.progress = (double) steps / (double) (g_count * (g_count - 1) / 2);
                         ev.description = "Buchberger S-多项式约化";
-                        char detail[192];
+                        char detail[SOLVER_DETAIL_BUF_SIZE];
                         int _snw_gb;
                         LV00_SAFE_SNPRINTF(_snw_gb, detail, sizeof(detail),
                                            "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
@@ -5376,7 +5378,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             ev.timestamp_ms = stream_timestamp_ms();
             ev.step_number = steps;
             ev.description = "Gröbner 基自约化完成";
-            char detail[128];
+            char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw_ar;
             LV00_SAFE_SNPRINTF(_snw_ar, detail, sizeof(detail),
                                "{\"phase\":\"auto_reduction\",\"reduced_count\":%d,"
@@ -6947,7 +6949,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.timestamp_ms = stream_timestamp_ms();
         ev.step_number = n_dirty_vars;
         ev.description = "增量求解开始";
-        char detail[128];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc;
         LV00_SAFE_SNPRINTF(_snw_inc, detail, sizeof(detail), "{\"phase\":\"incremental\",\"dirty_count\":%d}",
                            n_dirty_vars);
@@ -6993,7 +6995,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.progress = 0.20;
         ev.step_number = affected_count;
         ev.description = "依赖传播完成";
-        char detail[96];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_dep;
         LV00_SAFE_SNPRINTF(_snw_dep, detail, sizeof(detail), "{\"phase\":\"dependency_propagation\",\"affected\":%d}",
                            affected_count);
@@ -7066,7 +7068,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.progress = 0.40;
         ev.step_number = filtered_sys.count;
         ev.description = "增量求解方程过滤完成";
-        char detail[96];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_filt;
         LV00_SAFE_SNPRINTF(_snw_filt, detail, sizeof(detail), "{\"phase\":\"filter\",\"filtered_eq_count\":%d}",
                            filtered_sys.count);
@@ -7146,7 +7148,7 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
         ev.description = multiple_solutions > 0 ? "增量求解完成: 多解"
                          : solved_count > 0     ? "增量求解完成: 唯一解"
                                                 : "增量求解完成: 部分求解";
-        char detail[96];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_inc_done;
         LV00_SAFE_SNPRINTF(_snw_inc_done, detail, sizeof(detail),
                            "{\"phase\":\"incremental_done\",\"solved\":%d,\"multiple\":%d,\"unique\":%d}", solved_count,
@@ -8079,7 +8081,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
         ev.timestamp_ms = stream_timestamp_ms();
         ev.step_number = 0;
         ev.description = "Groebner 基计算完成";
-        char detail[256];
+        char detail[SOLVER_DETAIL_BUF_SIZE];
         int _snw_gc;
         LV00_SAFE_SNPRINTF(_snw_gc, detail, sizeof(detail),
                            "{\"phase\":\"groebner_complete\",\"status\":\"%s\","
@@ -8301,7 +8303,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.var_id = system->eqs[i].var_node_id;
             ev.step_number = branch_count;
             ev.description = "二次方程双解分支变量";
-            char detail[256];
+            char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw3;
             LV00_SAFE_SNPRINTF(_snw3, detail, sizeof(detail),
                                "{\"var_id\":%d,\"coord\":%d,\"root1\":%.6f,\"root2\":%.6f,\"D\":%.6f}",
@@ -8502,7 +8504,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.timestamp_ms = stream_timestamp_ms();
             ev.progress = (double) (b + 1) / (double) total_branches;
             ev.description = "多解分支验证中";
-            char detail[128];
+            char detail[SOLVER_DETAIL_BUF_SIZE];
             int _snw4;
             LV00_SAFE_SNPRINTF(_snw4, detail, sizeof(detail), "{\"checked\":%d,\"total\":%d,\"valid\":%d}", b + 1,
                                total_branches, valid_branches);
@@ -8548,7 +8550,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             ev.timestamp_ms = stream_timestamp_ms();
             ev.step_number = out_idx;
             ev.description = "有效多解分支";
-            char detail[256];
+            char detail[SOLVER_DETAIL_BUF_SIZE];
             int pos;
             LV00_SAFE_SNPRINTF(pos, detail, sizeof(detail), "{\"branch\":%d,\"valid\":true,\"values\":[", out_idx);
             for (int v = 0; v < branch_count && pos < (int) sizeof(detail) - 30; v++) {

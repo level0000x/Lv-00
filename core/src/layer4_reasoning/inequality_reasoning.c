@@ -1724,6 +1724,7 @@ char *lv00_ineq_proof_to_latex(const Lv00InequalityProof *proof) {
     if (offset < (int)buf_size)
         offset += snprintf(s + offset, buf_size - (size_t)offset,
                           "\\begin{proof}\n");
+    if (offset < 0) goto done;
 
     for (int i = 0; i < proof->step_count && offset < (int)buf_size - 64; i++) {
         const char *just = proof->steps[i].justification
@@ -1731,11 +1732,14 @@ char *lv00_ineq_proof_to_latex(const Lv00InequalityProof *proof) {
         if (offset < (int)buf_size)
             offset += snprintf(s + offset, buf_size - (size_t)offset,
                               "  Step %d: %s\n", i + 1, just);
+        if (offset < 0) break;
     }
 
-    if (offset < (int)buf_size)
+    if (offset >= 0 && offset < (int)buf_size)
         offset += snprintf(s + offset, buf_size - (size_t)offset,
                           "\\end{proof}\n");
+
+done:
 
     return s;
 }
