@@ -904,6 +904,19 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, in
     /* 深拷贝坐标，使节点拥有这些坐标 */
     for (int i = 0; i < coord_count; i++) {
         node->symbolic_coords[i] = coords[i] ? symbolic_coord_copy(coords[i]) : NULL;
+        if (coords[i] && !node->symbolic_coords[i]) {
+            /* 坐标拷贝失败：清理已分配的坐标并回滚节点添加 */
+            for (int j = 0; j < i; j++) {
+                symbolic_coord_destroy(node->symbolic_coords[j]);
+            }
+            lv00_free((void **) &node->symbolic_coords);
+            node->symbolic_coords = NULL;
+            node->coord_count = 0;
+            graph->node_count--;
+            node_index_remove(graph, node->id);
+            lv00_free((void **) &node);
+            return ADD_NODE_CONFLICT;
+        }
     }
     node->coord_count = coord_count;
     if (graph_stream_ctx) {
@@ -3356,6 +3369,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
         lv00_free((void **) &conflicts);
         lv00_free((void **) &*out_conflict_sizes);
         *out_conflict_sizes = NULL;
+        *out_conflict_count = -1; /* 使用 -1 表示 OOM 错误，与 0（无冲突）区分 */
         return NULL;
     }
 

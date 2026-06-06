@@ -260,6 +260,20 @@ static void equation_system_init(EquationSystem *sys) {
 }
 
 /**
+ * @brief 检查 equation_system_push 返回值的辅助宏
+ *
+ * 当 push 失败（OOM）时，设置错误状态并跳转到指定的清理标签。
+ * 用于避免在37个调用点重复相同的错误检查代码。
+ */
+#define EQUATION_PUSH_OR_GOTO(sys, poly, vid, ci, label) \
+    do { \
+        if (equation_system_push((sys), (poly), (vid), (ci)) != 0) { \
+            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "equation_system_push: 方程添加失败（内存不足）"); \
+            goto label; \
+        } \
+    } while (0)
+
+/**
  * @brief 向方程系统中添加一个多项式方程
  *
  * 如果当前容量不足，先扩容再插入。使用临时变量保存新容量，
@@ -797,7 +811,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                 mpz_clear(term1);
                                 mpz_clear(term2);
                             }
-                            equation_system_push(sys, poly, pt->id, 0);
+                            EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
                             mpz_poly_clear(&poly);
 
                             /* y 坐标的第二个方程：
@@ -832,7 +846,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                 mpz_clear(term1);
                                 mpz_clear(term2);
                             }
-                            equation_system_push(sys, poly, pt->id, 1);
+                            EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 1, push_error);
                             mpz_poly_clear(&poly);
                             mpz_clear(dx_s);
                             mpz_clear(dy_s);
@@ -858,7 +872,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                 mpz_init(poly.coeffs[0]);
                                 double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
                                 double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
-                                equation_system_push(sys, poly, pt->id, 0);
+                                EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
                                 mpz_poly_clear(&poly);
 
                                 mpz_poly_init(&poly);
@@ -873,7 +887,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                 mpz_init(poly.coeffs[0]);
                                 double_to_mpz_scaled(dx, poly.coeffs[1], scale);
                                 double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
-                                equation_system_push(sys, poly, pt->id, 1);
+                                EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 1, push_error);
                                 mpz_poly_clear(&poly);
                             }
                         }
@@ -1034,7 +1048,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                 mpz_init(poly.coeffs[0]);
                                 mpz_set(poly.coeffs[1], D_s);
                                 mpz_neg(poly.coeffs[0], x_num_s);
-                                equation_system_push(sys, poly, rpt->id, 0);
+                                EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 0, push_error);
                                 mpz_poly_clear(&poly);
                             } else {
                                 mpz_poly_clear(&poly);
@@ -1049,7 +1063,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                 mpz_init(poly.coeffs[0]);
                                 mpz_set(poly.coeffs[1], D_s);
                                 mpz_neg(poly.coeffs[0], y_num_s);
-                                equation_system_push(sys, poly, rpt->id, 1);
+                                EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 1, push_error);
                                 mpz_poly_clear(&poly);
                             } else {
                                 mpz_poly_clear(&poly);
@@ -1174,7 +1188,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                         mpz_init(poly.coeffs[0]);
                         double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* x 的系数 */
                         double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale); /* 常数项 */
-                        equation_system_push(sys, poly, rpt->id, 0);
+                        EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 0, push_error);
                         mpz_poly_clear(&poly);
 
                         /* y 坐标方程: D*y - y_numerator = 0 */
@@ -1190,7 +1204,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                         mpz_init(poly.coeffs[0]);
                         double_to_mpz_scaled(D, poly.coeffs[1], scale);            /* y 的系数 */
                         double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale); /* 常数项 */
-                        equation_system_push(sys, poly, rpt->id, 1);
+                        EQUATION_PUSH_OR_GOTO(sys, poly, rpt->id, 1, push_error);
                         mpz_poly_clear(&poly);
                     }
                 }
@@ -1253,7 +1267,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                             mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                             mpz_clear(term1);
                             mpz_clear(term2);
-                            equation_system_push(sys, poly, p2->id, 0);
+                            EQUATION_PUSH_OR_GOTO(sys, poly, p2->id, 0, push_error);
                         }
                         mpz_poly_clear(&poly);
                     }
@@ -1278,7 +1292,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                             mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                             mpz_clear(term1);
                             mpz_clear(term2);
-                            equation_system_push(sys, poly, p2->id, 1);
+                            EQUATION_PUSH_OR_GOTO(sys, poly, p2->id, 1, push_error);
                         }
                         mpz_poly_clear(&poly);
                     }
@@ -1359,7 +1373,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                     mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                                     mpz_clear(term1);
                                     mpz_clear(term2);
-                                    equation_system_push(sys, poly, inner->id, 0);
+                                    EQUATION_PUSH_OR_GOTO(sys, poly, inner->id, 0, push_error);
                                 }
                                 mpz_poly_clear(&poly);
                             }
@@ -1384,7 +1398,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                                     mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                                     mpz_clear(term1);
                                     mpz_clear(term2);
-                                    equation_system_push(sys, poly, inner->id, 1);
+                                    EQUATION_PUSH_OR_GOTO(sys, poly, inner->id, 1, push_error);
                                 }
                                 mpz_poly_clear(&poly);
                             }
@@ -1472,7 +1486,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
                 double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-                equation_system_push(sys, poly, nodeB->id, 0);
+                EQUATION_PUSH_OR_GOTO(sys, poly, nodeB->id, 0, push_error);
                 mpz_poly_clear(&poly);
 
                 /* 同理对 yB 建立方程：yB^2 - 2*ay*yB + (ax^2 + ay^2 - dist_sq) = 0 */
@@ -1490,7 +1504,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
                 double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-                equation_system_push(sys, poly, nodeB->id, 1);
+                EQUATION_PUSH_OR_GOTO(sys, poly, nodeB->id, 1, push_error);
                 mpz_poly_clear(&poly);
                 break;
             }
@@ -1569,7 +1583,7 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                 mpz_set_si(poly.coeffs[2], scale);                                        /* x^2 系数 */
                 double_to_mpz_scaled(-2.0 * x1, poly.coeffs[1], scale);                   /* x 系数 */
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
-                equation_system_push(sys, poly, node->id, 0);
+                EQUATION_PUSH_OR_GOTO(sys, poly, node->id, 0, push_error);
                 mpz_poly_clear(&poly);
 
                 /* 同理对 y 建立方程：y^2 - 2*y1*y + (x1^2 + y1^2 - dist_sq) = 0 */
@@ -1587,11 +1601,13 @@ static void extract_equations_from_constraints(const ConstraintGraph *graph, Equ
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * y1, poly.coeffs[1], scale);
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
-                equation_system_push(sys, poly, node->id, 1);
+                EQUATION_PUSH_OR_GOTO(sys, poly, node->id, 1, push_error);
                 mpz_poly_clear(&poly);
             }
         }
     }
+push_error:
+    return;
 }
 
 /* ------------------------------------------------------------------ */
@@ -3433,7 +3449,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     /* 求解失败，回滚所有坐标修改 */
                     solver_snapshot_restore(graph, &snapshot);
                     solver_snapshot_free(&snapshot);
-                    return SOLVER_STATUS_TIMEOUT;
+                    return SOLVER_STATUS_OUT_OF_MEMORY;
                 }
                 for (int i = 0; i < sys.count; i++)
                     priority[i] = INT_MAX;
@@ -4621,9 +4637,11 @@ static void mv_poly_clear(MVPolynomial *p) {
 }
 
 /* 添加一个单项式到多变量多项式 (合并同类项) */
-static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
+/* 添加一个单项式到多变量多项式 (合并同类项)
+ * @return 0 成功，-1 失败（内存不足） */
+static int mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *exponents) {
     if (mpz_cmp_si(coeff, 0) == 0)
-        return;
+        return 0;
 
     /* 检查是否已有同类项 */
     for (int i = 0; i < p->term_count; i++) {
@@ -4646,7 +4664,7 @@ static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expo
                 }
                 p->term_count--;
             }
-            return;
+            return 0;
         }
     }
 
@@ -4656,14 +4674,14 @@ static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expo
         int new_cap = p->capacity == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : p->capacity;
         if (new_cap > 0 && new_cap > INT_MAX / LV00_ARRAY_GROWTH_FACTOR) {
             lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 容量溢出");
-            return;
+            return -1;
         }
         new_cap = new_cap == 0 ? LV00_SOLVER_DYNARRAY_INIT_CAP : new_cap * LV00_ARRAY_GROWTH_FACTOR;
         p->capacity = new_cap;
         MVMonomial *new_terms = lv00_realloc(p->terms, p->capacity * sizeof(MVMonomial));
         if (!new_terms) {
             lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 扩容失败");
-            return;
+            return -1;
         }
         p->terms = new_terms;
     }
@@ -4671,13 +4689,14 @@ static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expo
     m->exponents = lv00_malloc((size_t) p->var_count * sizeof(int));
     if (!m->exponents) {
         lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
-        return;
+        return -1;
     }
     for (int v = 0; v < p->var_count; v++) {
         m->exponents[v] = exponents[v];
     }
     mpz_init_set(m->coeff, coeff);
     p->term_count++;
+    return 0;
 }
 
 /* 计算单项式的全次数 (所有变量幂次之和) */
@@ -5094,7 +5113,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
         lv00_free((void **) &G);
         *out_G = NULL;
         *out_g_count = 0;
-        return SOLVER_STATUS_TIMEOUT;
+        return SOLVER_STATUS_OUT_OF_MEMORY;
     }
     memset(pair_data, 0, (size_t) (g_capacity * g_capacity) * sizeof(bool));
 
@@ -5997,7 +6016,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
                             /* The proportion is not satisfied, add equation */
                             double_to_mpz_scaled(len_j, poly.coeffs[1], scale);
                             double_to_mpz_scaled(-t_j * len_i, poly.coeffs[0], scale);
-                            equation_system_push(sys, poly, pt->id, 0);
+                            EQUATION_PUSH_OR_GOTO(sys, poly, pt->id, 0, push_error);
                             mpz_poly_clear(&poly);
                             added++;
                         } else {
@@ -6012,6 +6031,8 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
     }
 
     return added;
+push_error:
+    return -1;
 }
 
 /* ================================================================== */
@@ -6306,7 +6327,7 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
         if (sys->eqs[i].poly.degree < 0)
             continue;
         if (dirty_set_contains(ds, sys->eqs[i].var_node_id)) {
-            equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index);
+            EQUATION_PUSH_OR_GOTO(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index, push_error);
         }
     }
 
@@ -6333,12 +6354,14 @@ static void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds
                 }
             }
             if (!found) {
-                equation_system_push(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index);
+                EQUATION_PUSH_OR_GOTO(filtered, sys->eqs[i].poly, sys->eqs[i].var_node_id, sys->eqs[i].coord_index, push_error);
             }
         }
     }
 
     dirty_set_free(&related);
+push_error:
+    return;
 }
 
 /* ================================================================== */
@@ -7299,7 +7322,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                         mpz_init(poly.coeffs[0]);
                         double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
                         double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
-                        equation_system_push(out_system, poly, pt->id, 0);
+                        EQUATION_PUSH_OR_GOTO(out_system, poly, pt->id, 0, push_error);
                         mpz_poly_clear(&poly);
                         count++;
                         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7318,7 +7341,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                         mpz_init(poly.coeffs[0]);
                         double_to_mpz_scaled(dx, poly.coeffs[1], scale);
                         double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
-                        equation_system_push(out_system, poly, pt->id, 1);
+                        EQUATION_PUSH_OR_GOTO(out_system, poly, pt->id, 1, push_error);
                         mpz_poly_clear(&poly);
                         count++;
                         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7399,7 +7422,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     mpz_init(poly.coeffs[0]);
                     double_to_mpz_scaled(le1.a, poly.coeffs[1], scale);
                     double_to_mpz_scaled(le1.c, poly.coeffs[0], scale);
-                    equation_system_push(out_system, poly, rpt->id, 0);
+                    EQUATION_PUSH_OR_GOTO(out_system, poly, rpt->id, 0, push_error);
                     mpz_poly_clear(&poly);
                     count++;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7417,7 +7440,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     mpz_init(poly.coeffs[0]);
                     double_to_mpz_scaled(le2.a, poly.coeffs[1], scale);
                     double_to_mpz_scaled(le2.c, poly.coeffs[0], scale);
-                    equation_system_push(out_system, poly, rpt->id, 1);
+                    EQUATION_PUSH_OR_GOTO(out_system, poly, rpt->id, 1, push_error);
                     mpz_poly_clear(&poly);
                     count++;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7523,7 +7546,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                         mpz_mul(term1, dy_s, sx1_s);
                                         mpz_mul(term2, dx_s, sy1_s);
                                         mpz_sub(poly.coeffs[0], term2, term1);
-                                        equation_system_push(out_system, poly, inner->id, 0);
+                                        EQUATION_PUSH_OR_GOTO(out_system, poly, inner->id, 0, push_error);
                                         mpz_poly_clear(&poly);
                                         count++;
                                         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7546,7 +7569,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                         mpz_mul(term1, dy_s, sx1_s);
                                         mpz_mul(term2, dx_s, sy1_s);
                                         mpz_sub(poly.coeffs[0], term1, term2);
-                                        equation_system_push(out_system, poly, inner->id, 1);
+                                        EQUATION_PUSH_OR_GOTO(out_system, poly, inner->id, 1, push_error);
                                         mpz_poly_clear(&poly);
                                         count++;
                                         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7591,7 +7614,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                             mpz_init(poly.coeffs[0]);
                             double_to_mpz_scaled(dy, poly.coeffs[1], scale);
                             double_to_mpz_scaled(-dy * sx1 + dx * sy1, poly.coeffs[0], scale);
-                            equation_system_push(out_system, poly, inner->id, 0);
+                            EQUATION_PUSH_OR_GOTO(out_system, poly, inner->id, 0, push_error);
                             mpz_poly_clear(&poly);
                             count++;
                             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7609,7 +7632,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                             mpz_init(poly.coeffs[0]);
                             double_to_mpz_scaled(-dx, poly.coeffs[1], scale);
                             double_to_mpz_scaled(dy * sx1 - dx * sy1, poly.coeffs[0], scale);
-                            equation_system_push(out_system, poly, inner->id, 1);
+                            EQUATION_PUSH_OR_GOTO(out_system, poly, inner->id, 1, push_error);
                             mpz_poly_clear(&poly);
                             count++;
                             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7713,7 +7736,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                     mpz_mul(term1, dx13_s, y1_s);
                                     mpz_mul(term2, dy13_s, x1_s);
                                     mpz_sub(poly.coeffs[0], term1, term2);
-                                    equation_system_push(out_system, poly, p2->id, 0);
+                                    EQUATION_PUSH_OR_GOTO(out_system, poly, p2->id, 0, push_error);
                                     mpz_poly_clear(&poly);
                                     count++;
                                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7741,7 +7764,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                                     mpz_mul(term1, dy13_s, x1_s);
                                     mpz_mul(term2, dx13_s, y1_s);
                                     mpz_sub(poly.coeffs[0], term1, term2);
-                                    equation_system_push(out_system, poly, p2->id, 1);
+                                    EQUATION_PUSH_OR_GOTO(out_system, poly, p2->id, 1, push_error);
                                     mpz_poly_clear(&poly);
                                     count++;
                                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7791,7 +7814,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                             mpz_init(poly.coeffs[0]);
                             double_to_mpz_scaled(dy13, poly.coeffs[1], scale);
                             double_to_mpz_scaled(dx13 * y1 - dy13 * x1, poly.coeffs[0], scale);
-                            equation_system_push(out_system, poly, p2->id, 0);
+                            EQUATION_PUSH_OR_GOTO(out_system, poly, p2->id, 0, push_error);
                             mpz_poly_clear(&poly);
                             count++;
                             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7808,7 +7831,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                             mpz_init(poly.coeffs[0]);
                             double_to_mpz_scaled(-dx13, poly.coeffs[1], scale);
                             double_to_mpz_scaled(-dx13 * y1 + dy13 * x1, poly.coeffs[0], scale);
-                            equation_system_push(out_system, poly, p2->id, 1);
+                            EQUATION_PUSH_OR_GOTO(out_system, poly, p2->id, 1, push_error);
                             mpz_poly_clear(&poly);
                             count++;
                             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED,
@@ -7896,7 +7919,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
                 double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-                equation_system_push(out_system, poly, nodeB->id, 0);
+                EQUATION_PUSH_OR_GOTO(out_system, poly, nodeB->id, 0, push_error);
                 mpz_poly_clear(&poly);
                 count++;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 连接约束 (x)",
@@ -7916,7 +7939,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
                 double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-                equation_system_push(out_system, poly, nodeB->id, 1);
+                EQUATION_PUSH_OR_GOTO(out_system, poly, nodeB->id, 1, push_error);
                 mpz_poly_clear(&poly);
                 count++;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 连接约束 (y)",
@@ -7976,7 +7999,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * x1, poly.coeffs[1], scale);
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale);
-                equation_system_push(out_system, poly, node->id, 0);
+                EQUATION_PUSH_OR_GOTO(out_system, poly, node->id, 0, push_error);
                 mpz_poly_clear(&poly);
                 count++;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 距离约束 (x)",
@@ -7995,7 +8018,7 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * y1, poly.coeffs[1], scale);
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale);
-                equation_system_push(out_system, poly, node->id, 1);
+                EQUATION_PUSH_OR_GOTO(out_system, poly, node->id, 1, push_error);
                 mpz_poly_clear(&poly);
                 count++;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_EQUATION_EXTRACTED, "提取方程: 距离约束 (y)",
@@ -8005,6 +8028,8 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
     }
 
     return count;
+push_error:
+    return -1;
 }
 
 /* ================================================================== */
@@ -8184,7 +8209,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
             int node_id = var_id_map[best_var];
             int coord_index = coord_map ? coord_map[best_var] : 0;
 
-            equation_system_push(system, poly, node_id, coord_index);
+            EQUATION_PUSH_OR_GOTO(system, poly, node_id, coord_index, push_error);
             mpz_poly_clear(&poly);
         }
 
@@ -8207,6 +8232,8 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     lv00_free((void **) &coord_map);
 
     return (status == SOLVER_STATUS_TIMEOUT) ? SOLVER_STATUS_TIMEOUT : SOLVER_STATUS_OK;
+push_error:
+    return SOLVER_STATUS_OUT_OF_MEMORY;
 }
 
 /* ================================================================== */
@@ -8355,7 +8382,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
     SymbolicCoord **branch_coords = lv00_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
     if (!branch_coords) {
         lv00_free((void **) &branch_vars);
-        return SOLVER_STATUS_TIMEOUT;
+        return SOLVER_STATUS_OUT_OF_MEMORY;
     }
     memset(branch_coords, 0, (size_t) total_coords * sizeof(SymbolicCoord *));
 
@@ -8538,7 +8565,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         lv00_free((void **) &branch_coords);
         lv00_free((void **) &branch_valid);
         lv00_free((void **) &branch_vars);
-        return SOLVER_STATUS_TIMEOUT;
+        return SOLVER_STATUS_OUT_OF_MEMORY;
     }
     memset(out_branch_arr, 0, (size_t) (valid_branches * branch_count) * sizeof(SymbolicCoord *));
 

@@ -574,6 +574,9 @@ TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
     tr->level = base_type->level; /* 子类型与基类型同层级 */
 
     if (!tr->predicate_name) {
+        /* 从 type_regions 数组中移除，避免悬空指针导致 type_system_destroy 时 double-free */
+        ts->type_region_count--;
+        ts->type_regions[ts->type_region_count] = NULL;
         lv00_free((void **)&tr);
         return NULL;
     }

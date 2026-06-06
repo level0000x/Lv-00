@@ -76,6 +76,115 @@ extern "C" {
 #define LV00_SOLVER_SCALE_FACTOR 1000
 #endif
 
+/* ================================================================
+ * 日志级别与日志宏
+ * ================================================================ */
+
+#ifndef LV00_LOG_LEVEL_OFF
+#define LV00_LOG_LEVEL_OFF     0
+#define LV00_LOG_LEVEL_ERROR   1
+#define LV00_LOG_LEVEL_WARNING 2
+#define LV00_LOG_LEVEL_INFO    3
+#define LV00_LOG_LEVEL_DEBUG   4
+#endif
+
+/**
+ * @brief 日志消息分发函数（需在使用日志宏的 .c 文件中提供实现）
+ *
+ * @param level   日志级别（LV00_LOG_LEVEL_*）
+ * @param file    源文件名（由宏自动传入 __FILE__）
+ * @param line    行号（由宏自动传入 __LINE__）
+ * @param fmt     格式化字符串
+ * @param ...     可变参数
+ */
+extern void lv00_log_message(int level, const char *file, int line,
+                             const char *fmt, ...);
+
+#define LV00_LOG_WARNING(fmt, ...) \
+    lv00_log_message(LV00_LOG_LEVEL_WARNING, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#define LV00_LOG_ERROR(fmt, ...) \
+    lv00_log_message(LV00_LOG_LEVEL_ERROR, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#define LV00_LOG_INFO(fmt, ...) \
+    lv00_log_message(LV00_LOG_LEVEL_INFO, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+#define LV00_LOG_DEBUG(fmt, ...) \
+    lv00_log_message(LV00_LOG_LEVEL_DEBUG, __FILE__, __LINE__, (fmt), ##__VA_ARGS__)
+
+/* ================================================================
+ * 安全字符串格式化宏
+ * ================================================================ */
+
+/**
+ * @brief 安全 snprintf 包装宏
+ *
+ * 将 snprintf 的返回值规范化为实际写入的字符数（不含终止符），
+ * 即使输出被截断也不会返回负值或超过缓冲区大小的值。
+ *
+ * @param retvar  接收规范化返回值的 int 变量名
+ * @param buf     目标缓冲区
+ * @param size    缓冲区大小
+ * @param fmt     格式化字符串
+ * @param ...     可变参数
+ */
+#define LV00_SAFE_SNPRINTF(retvar, buf, size, fmt, ...) \
+    do { \
+        int _sn_rc = snprintf((buf), (size), (fmt), ##__VA_ARGS__); \
+        (retvar) = ((_sn_rc) < 0) ? 0 : (((size_t)(_sn_rc) >= (size)) ? (int)((size) - 1) : (_sn_rc)); \
+    } while (0)
+
+/* ================================================================
+ * 流上下文声明宏
+ * ================================================================ */
+
+/**
+ * @brief 声明模块级线程局部流上下文变量
+ *
+ * 在每个使用流式输出的模块 .c 文件中使用，声明一个线程局部的
+ * StreamContext 指针，供 stream_emit_simple 等函数使用。
+ *
+ * @param module  模块名称（用于构造变量名）
+ */
+#define LV00_DECLARE_STREAM_CTX(module) \
+    static LV00_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL
+
+/* ================================================================
+ * 错误返回宏
+ * ================================================================ */
+
+/**
+ * @brief 设置错误上下文并返回的复合宏
+ *
+ * 将 lv00_set_error_ctx 和 return 合并为一步，减少遗漏 return 的风险。
+ * 适用于函数错误路径中的快速退出。
+ *
+ * @param err_code  错误码（LV00_ERROR_*）
+ * @param ret_val   返回值
+ * @param fmt       格式化错误消息
+ * @param ...       可变参数
+ */
+#define LV00_ERROR_RETURN(err_code, ret_val, fmt, ...) \
+    do { \
+        lv00_set_error_ctx((err_code), __FILE__, __LINE__, __func__, (fmt), ##__VA_ARGS__); \
+        return (ret_val); \
+    } while (0)
+
+/* ================================================================
+ * 安全整数加法宏
+ * ================================================================ */
+
+/**
+ * @brief 带溢出检测的整数加法
+ *
+ * 执行有符号 int 加法，若发生溢出则返回 overflow_val。
+ *
+ * @param a             第一个操作数
+ * @param b             第二个操作数
+ * @param overflow_val  溢出时的返回值
+ */
+#define LV00_SAFE_ADD(a, b, overflow_val) \
+    (((a) >= 0 && (b) > 0 && (a) > INT_MAX - (b)) ? (overflow_val) : \
+     ((a) < 0 && (b) < 0 && (a) < INT_MIN - (b)) ? (overflow_val) : \
+     (int)((a) + (b)))
+
 #ifdef __cplusplus
 }
 #endif

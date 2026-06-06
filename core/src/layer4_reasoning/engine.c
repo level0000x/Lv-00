@@ -542,23 +542,20 @@ static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
 bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
     if (!engine || !engine->main_graph || (internal_count > 0 && !internal_node_ids) || (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "引擎或主图为空");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
         return false;
     }
     for (int i = 0; i < internal_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, internal_node_ids[i]);
         if (!n) {
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 内部节点 %d 不存在", internal_node_ids[i]);
             return false;
         }
     }
     for (int i = 0; i < input_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, input_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输入端口 %d 不存在或不是端口类型",
                      input_port_ids[i]);
             return false;
         }
@@ -566,8 +563,7 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
     for (int i = 0; i < output_count; i++) {
         GeomNode *n = graph_get_node(engine->main_graph, output_port_ids[i]);
         if (!n || n->type != GEOM_PORT) {
-            g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-            snprintf(g_thread_last_error, sizeof(g_thread_last_error), "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
+            engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "打包函数块失败: 输出端口 %d 不存在或不是端口类型",
                      output_port_ids[i]);
             return false;
         }
@@ -626,22 +622,19 @@ bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int 
 int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const int *arg_mappings, int arg_count,
                                  int *out_result_count) {
     if (!out_result_count) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "out_result_count 不能为 NULL");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "out_result_count 不能为 NULL");
         return NULL;
     }
     if (!engine || !engine->main_graph) {
         *out_result_count = 0;
-        g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "引擎或主图为空");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT, "引擎或主图为空");
         return NULL;
     }
     *out_result_count = 0;
 
     GeomNode *func_block = graph_get_node(engine->main_graph, func_block_id);
     if (!func_block || func_block->type != GEOM_FUNCTION_BLOCK) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "函数块 %d 不存在或类型不是函数块", func_block_id);
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "函数块 %d 不存在或类型不是函数块", func_block_id);
         return NULL;
     }
 
@@ -652,7 +645,7 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
      */
     FuncBlock *fb = func_block_create(func_block_id);
     if (!fb) {
-        g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "func_block_create 分配失败");
         return NULL;
     }
 
@@ -662,14 +655,14 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
         int *ids = lv00_malloc((size_t) ic * sizeof(int));
         if (!ids) {
             func_block_destroy(fb);
-            g_thread_last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+            engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "内部节点ID数组分配失败");
             return NULL;
         }
         for (int i = 0; i < ic; i++) {
             if (!func_block->data.func_block.internal_nodes[i]) {
                 func_block_destroy(fb);
                 lv00_free((void **) &ids);
-                g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
+                engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "内部节点 %d 为空", i);
                 return NULL;
             }
             ids[i] = func_block->data.func_block.internal_nodes[i]->id;
@@ -699,8 +692,7 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id, const in
     func_block_destroy(fb);
 
     if (inst_result != INSTANTIATE_OK) {
-        g_thread_last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(g_thread_last_error, sizeof(g_thread_last_error), "engine_instantiate_function: instantiation failed (code %d)",
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "engine_instantiate_function: instantiation failed (code %d)",
                  inst_result);
         return NULL;
     }
@@ -843,6 +835,12 @@ static int check_and_report_conflicts(LV00Engine *engine, const char *context) {
 static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *context) {
     int *dirty_ids = NULL;
     int free_count = count_degrees_of_freedom(engine->main_graph, &dirty_ids);
+    if (free_count < 0) {
+        /* count_degrees_of_freedom 返回 -1 表示内部错误（如内存分配失败） */
+        engine_set_error(engine, ENGINE_STATUS_ERROR_INTERNAL, "%s: 计算自由度失败", context);
+        lv00_free((void **) &dirty_ids);
+        return ENGINE_SOLVE_CONFLICT;
+    }
     if (free_count > 0 && dirty_ids) {
         GroebnerResult *result = NULL;
         SolverStatus sstatus = solve_algebraic_system(engine->main_graph, dirty_ids, free_count, &result);
@@ -963,6 +961,10 @@ EngineSolveResult engine_solve(LV00Engine *engine) {
     /* 步骤4：更新自由度信息（重新计数） */
     int *free_var_ids = NULL;
     int free_count = count_degrees_of_freedom(engine->main_graph, &free_var_ids);
+    if (free_count < 0) {
+        LV00_LOG_WARNING("engine_solve: 重新计算自由度失败，使用上一次的值");
+        free_count = 0; /* 使用安全默认值 */
+    }
     lv00_free((void **) &free_var_ids);
 
     /* 流式事件: 引擎完成 */

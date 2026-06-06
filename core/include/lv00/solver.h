@@ -81,7 +81,8 @@ typedef enum {
     SOLVER_STATUS_NO_SOLUTION,     /**< 无解 */
     SOLVER_STATUS_OVERCONSTRAINED, /**< 过度约束 */
     SOLVER_STATUS_OUT_OF_SCOPE,    /**< 超出范围 */
-    SOLVER_STATUS_TIMEOUT          /**< 超时 */
+    SOLVER_STATUS_TIMEOUT,          /**< 超时 */
+    SOLVER_STATUS_OUT_OF_MEMORY     /**< 内存不足 */
 } SolverStatus;
 
 /* AlgebraicOp is now defined in mpz_poly.h (included above) */
