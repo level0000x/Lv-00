@@ -16,6 +16,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "lv00_internal.h"
@@ -548,7 +549,12 @@ static bool cdcl_init_clauses(CDCLContext *ctx, Lv00Solver *solver) {
     for (int i = 0; i < total; i++) {
         int sz = solver->clause_sizes[i];
         ctx->clauses[i] = (int *)lv00_malloc((size_t)(sz + 1) * sizeof(int));
-        if (!ctx->clauses[i]) return false;
+        if (!ctx->clauses[i]) {
+            /* 释放已复制的子句 */
+            for (int j = 0; j < i; j++)
+                lv00_free((void **)&ctx->clauses[j]);
+            return false;
+        }
         memcpy(ctx->clauses[i], solver->clauses[i], (size_t)(sz + 1) * sizeof(int));
         ctx->clause_sizes[i] = sz;
     }

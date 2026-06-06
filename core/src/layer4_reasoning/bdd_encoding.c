@@ -192,6 +192,8 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size) {
     mgr->computed_table = (ITECacheEntry *) lv00_calloc(
         (size_t) unique_table_size, sizeof(ITECacheEntry));
     if (!mgr->computed_table) {
+        lv00_free((void **)&mgr->var_names);
+        lv00_free((void **)&mgr->var_types);
         lv00_free((void **)&mgr->var_order);
         lv00_free((void **)&mgr->unique_table);
         lv00_free((void **)&mgr->false_node);
@@ -1338,7 +1340,7 @@ ADDNode *add_div(ADDManager *mgr, ADDNode *a, ADDNode *b) {
     if (!mgr || !a || !b)
         return NULL;
     /* 常数情况直接计算 */
-    if (a->is_constant && b->is_constant && b->constant != 0.0) {
+    if (a->is_constant && b->is_constant && fabs(b->constant) > LV00_EPSILON_DOUBLE) {
         return add_constant(mgr, a->constant / b->constant);
     }
     /* 非常数情况：除法在 ADD 上实现复杂，返回常数 0 */

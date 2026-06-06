@@ -210,7 +210,7 @@ static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int 
 
     /* 如果任一多项式为空或首项系数为零，S-多项式为零 */
     if (simple_poly_is_zero(gi) || simple_poly_is_zero(gj)) return result;
-    if (gi->terms[0].coeff == 0.0 || gj->terms[0].coeff == 0.0) return result;
+    if (fabs(gi->terms[0].coeff) < LV00_EPSILON_DOUBLE || fabs(gj->terms[0].coeff) < LV00_EPSILON_DOUBLE) return result;
 
     /* 计算 LCM(leading terms) */
     int var_count = gi->terms[0].var_count;
@@ -343,7 +343,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
             int vars = (f_vars > b_vars) ? f_vars : b_vars;
 
             /* 首项系数为零则跳过 */
-            if (basis[b].terms[0].coeff == 0.0) continue;
+            if (fabs(basis[b].terms[0].coeff) < LV00_EPSILON_DOUBLE) continue;
 
             int divisible = 1;
             for (int v = 0; v < vars && divisible; v++) {
