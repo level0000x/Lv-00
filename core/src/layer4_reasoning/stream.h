@@ -35,8 +35,8 @@
  *   6. 销毁上下文: stream_context_destroy(ctx);
  */
 
-#ifndef LV00_STREAM_H
-#define LV00_STREAM_H
+#ifndef LV00_STREAM_INTERNAL_H
+#define LV00_STREAM_INTERNAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -780,4 +780,4 @@ void stream_set_lazy_threshold(StreamContext *ctx, int threshold);
 }
 #endif
 
-#endif /* LV00_STREAM_H */
+#endif /* LV00_STREAM_INTERNAL_H */

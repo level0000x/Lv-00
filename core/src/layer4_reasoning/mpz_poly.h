@@ -274,4 +274,4 @@ bool mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op
 }
 #endif
 
-#endif /* LV00_MPZ_POLY_H */
+#endif /* LV00_MPZ_POLY_INTERNAL_H */

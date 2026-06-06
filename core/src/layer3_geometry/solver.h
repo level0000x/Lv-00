@@ -385,4 +385,4 @@ SolverStatus solver_sparse_solve(ConstraintGraph *graph, GroebnerResult **out_re
 }
 #endif
 
-#endif /* LV00_SOLVER_H */
+#endif /* LV00_SOLVER_INTERNAL_H */
