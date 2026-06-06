@@ -367,6 +367,8 @@ static bool atp_check_executable(const char *name) {
 static int atp_run_subprocess(const char *executable, const char *tptp_text,
                                double timeout_sec, const char *extra_args,
                                char **out_output, int *out_exit_code) {
+    /* TODO: Implement timeout using process kill after timeout_sec */
+    LV00_UNUSED(timeout_sec);
     if (!executable || !tptp_text || !out_output || !out_exit_code)
         return (int)LV00_ERROR_NULL_POINTER;
 

@@ -59,10 +59,10 @@ extern "C" {
  */
 
 /** @brief 原子递增节点ID并返回新值（线程安全） */
-#define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed)
+#define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) (atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed))
 
 /** @brief 原子递增约束ID并返回新值（线程安全） */
-#define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed)
+#define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) (atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed))
 
 /* LV00_DEPRECATED 宏统一由 lv00.h 定义，此处不再重复声明。 */
 

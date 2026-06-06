@@ -412,7 +412,7 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
         return NULL;
     }
     #define SEEN_SET(id)  do { if ((id) >= 0) seen[(id) / 8] |= (1u << ((id) % 8)); } while(0)
-    #define SEEN_TEST(id) (((id) >= 0) ? (seen[(id) / 8] & (1u << ((id) % 8))) : 0)
+    #define SEEN_TEST(id) ((((id) >= 0) ? (seen[(id) / 8] & (1u << ((id) % 8))) : 0))
     for (int i = 0; i < r->tuple_count; i++) {
         int a = r->tuples[i][0];
         int b = r->tuples[i][1];

@@ -338,7 +338,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
  * @param count       参与者数量
  * @return true 表示约束已存在，false 表示不存在
  */
-static bool constraint_exists(ConstraintGraph *graph, ConstraintType type, int *participants, int count) {
+static bool constraint_exists(const ConstraintGraph *graph, ConstraintType type, const int *participants, int count) {
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (!c->is_active)                    /* v3.5.0: 跳过不活跃约束 */
@@ -2993,7 +2993,7 @@ static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_
  * @param max_out     输出数组的最大容量
  * @return 找到的约束数量
  */
-static int count_point_constraints(ConstraintGraph *graph, int point_id, Constraint **out_constraints, int max_out) {
+static int count_point_constraints(const ConstraintGraph *graph, int point_id, Constraint **out_constraints, int max_out) {
     int count = 0;
     for (int i = 0; i < graph->constraint_count && count < max_out; i++) {
         Constraint *c = graph->constraints[i];
@@ -3018,7 +3018,7 @@ static int count_point_constraints(ConstraintGraph *graph, int point_id, Constra
  * @param c2 第二个约束指针
  * @return true 表示两个约束独立，false 表示可能互相推导
  */
-static bool constraints_are_independent(Constraint *c1, Constraint *c2) {
+static bool constraints_are_independent(const Constraint *c1, const Constraint *c2) {
     /* Two constraints are dependent if they involve the exact same participants */
     if (c1->participant_count != c2->participant_count)
         return true;
@@ -3067,7 +3067,7 @@ static bool parse_distance_value(const char *decl, double *out_value) {
  * @param segment_id 线段节点ID
  * @return 点在线段上返回 true，否则返回 false
  */
-static bool point_on_segment(ConstraintGraph *graph, int point_id, int segment_id) {
+static bool point_on_segment(const ConstraintGraph *graph, int point_id, int segment_id) {
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (c->type == INCIDENCE && c->participant_count == 2) {
@@ -3092,7 +3092,7 @@ static bool point_on_segment(ConstraintGraph *graph, int point_id, int segment_i
  * @param node_ids        要添加的节点 ID 数组
  * @param node_count      节点 ID 数量
  */
-static void add_conflict_group(int **conflicts, int *conflict_count, int **conflict_sizes, int *node_ids,
+static void add_conflict_group(int **conflicts, int *conflict_count, int **conflict_sizes, const int *node_ids,
                                int node_count) {
     conflicts[*conflict_count] = lv00_malloc((size_t) node_count * sizeof(int));
     if (!conflicts[*conflict_count]) return;
@@ -3319,7 +3319,7 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
  * @param seg2_id 第二条线段节点 ID
  * @return true 表示两条线段可能相交，false 表示平行
  */
-static bool segments_can_intersect(ConstraintGraph *graph, int seg1_id, int seg2_id) {
+static bool segments_can_intersect(const ConstraintGraph *graph, int seg1_id, int seg2_id) {
     /* For symbolic coordinates, we check if there's any geometric constraint 
      * that would make them parallel */
     for (int i = 0; i < graph->constraint_count; i++) {

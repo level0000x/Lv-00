@@ -2252,6 +2252,7 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
  * @return 优化后的咏唱配置
  */
 IncantationProfile incantation_optimize(const char *goal, double target_value) {
+    LV00_UNUSED(target_value);
     IncantationProfile profile = {INCANTATION_STANDARD, MAGIC_INCANTATION_PRECISION_DEFAULT,
                                   MAGIC_INCANTATION_SPEED_DEFAULT, MAGIC_INCANTATION_STEALTH_DEFAULT};
 

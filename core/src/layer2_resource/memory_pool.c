@@ -68,7 +68,7 @@
 #define LV00_HASH_TABLE_INIT_CAP 64
 
 /* [Bug修复] 溢出检查宏：检测 size_t 乘法是否溢出 */
-#define LV00_SIZE_MUL_OVERFLOW(a, b) ((a) != 0 && (b) > SIZE_MAX / (a))
+#define LV00_SIZE_MUL_OVERFLOW(a, b) (((a) != 0 && (b) > SIZE_MAX / (a)))
 
 /* ============== 平台抽象层（线程安全） ============== */
 

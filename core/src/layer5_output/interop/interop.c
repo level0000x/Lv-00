@@ -6029,9 +6029,7 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
 
 /* --- 手写 JSON 解析辅助（不依赖外部 JSON 库） --- */
 /* 跳过空白 */
-#define GJ_SKIP_WS(p)                                                   \
-    while (*(p) == ' ' || *(p) == '\t' || *(p) == '\n' || *(p) == '\r') \
-    (p)++
+#define GJ_SKIP_WS(p) do { while (*(p) == ' ' || *(p) == '\t' || *(p) == '\n' || *(p) == '\r') (p)++; } while (0)
 /* 跳过JSON字符串值 */
 #define GJ_SKIP_STRING(p)                 \
     do {                                  \
@@ -6047,10 +6045,9 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
         }                                 \
     } while (0)
 /* 跳过JSON数字 */
-#define GJ_SKIP_NUMBER(p)                                                                                             \
-    while (*(p) &&                                                                                                    \
+#define GJ_SKIP_NUMBER(p) do { while (*(p) && \
            (*(p) == '-' || *(p) == '.' || *(p) == 'e' || *(p) == 'E' || *(p) == '+' || (*(p) >= '0' && *(p) <= '9'))) \
-    (p)++
+    (p)++; } while (0)
 
     const char *s = json;
     int imported_count = 0;
@@ -6433,9 +6430,8 @@ typedef struct {
 } SvgParserState;
 
 /** @brief 跳过空白字符 */
-#define SVG_SKIP_WS(s)                                                                 \
-    while (*(s) == ' ' || *(s) == '\t' || *(s) == '\n' || *(s) == '\r' || *(s) == ',') \
-    (s)++
+#define SVG_SKIP_WS(s) do { while (*(s) == ' ' || *(s) == '\t' || *(s) == '\n' || *(s) == '\r' || *(s) == ',') \
+    (s)++; } while (0)
 
 /** @brief 读取一个浮点数 */
 static bool svg_parse_double(const char **s, double *val) {

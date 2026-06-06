@@ -818,6 +818,9 @@ bool primitive_wrapper_register(const char *name,
                                  uint32_t param_count,
                                  const char *return_type)
 {
+    LV00_UNUSED(param_types);
+    LV00_UNUSED(param_count);
+    LV00_UNUSED(return_type);
     if (!name || g_primitive_count >= MAX_PRIMITIVES) {
         return false;
     }
@@ -836,6 +839,7 @@ bool primitive_wrapper_register(const char *name,
 PrimitiveTestResult *primitive_wrapper_test(const char *name,
                                              void **params)
 {
+    LV00_UNUSED(params);
     if (!name || !g_initialized) {
         return NULL;
     }
@@ -1165,6 +1169,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results,
                                       uint32_t count,
                                       const char *format)
 {
+    LV00_UNUSED(format);
     if (!results || count == 0) {
         return NULL;
     }
