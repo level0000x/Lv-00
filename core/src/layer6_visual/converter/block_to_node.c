@@ -58,8 +58,21 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
     }
     ng->node_cap = bg->count > 0 ? bg->count : 8;
     ng->nodes = lv00_calloc(ng->node_cap, sizeof(NodeGraphNode));
+    if (!ng->nodes) {
+        lv00_free((void **)&ng);
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
     ng->edge_cap = 32;
     ng->edges = lv00_calloc(ng->edge_cap, sizeof(ng->edges[0]));
+    if (!ng->edges) {
+        lv00_free((void **)&ng->nodes);
+        lv00_free((void **)&ng);
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
 
     /* 为每个 FuncBlock 创建对应节点 */
     for (int i = 0; i < bg->count; i++) {
@@ -81,6 +94,14 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
         int in_count = func_block_get_input_count(fb);
         if (in_count > 0 && fb->input_port_ids) {
             node->input_ports = lv00_calloc(in_count, sizeof(int));
+            if (!node->input_ports) {
+                lv00_free((void **)&node->name);
+                ng->node_count--;
+                lv00_convert_block_to_node_cleanup(ng);
+                result.success = 0;
+                strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+                return result;
+            }
             memcpy(node->input_ports, fb->input_port_ids, in_count * sizeof(int));
             node->input_count = in_count;
         }
@@ -89,6 +110,15 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
         int out_count = func_block_get_output_count(fb);
         if (out_count > 0 && fb->output_port_ids) {
             node->output_ports = lv00_calloc(out_count, sizeof(int));
+            if (!node->output_ports) {
+                lv00_free((void **)&node->name);
+                lv00_free((void **)&node->input_ports);
+                ng->node_count--;
+                lv00_convert_block_to_node_cleanup(ng);
+                result.success = 0;
+                strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+                return result;
+            }
             memcpy(node->output_ports, fb->output_port_ids, out_count * sizeof(int));
             node->output_count = out_count;
         }
@@ -114,7 +144,14 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
                 /* 扩容检查 */
                 if (ng->edge_count >= ng->edge_cap) {
                     ng->edge_cap *= 2;
-                    ng->edges = lv00_realloc(ng->edges, ng->edge_cap * sizeof(ng->edges[0]));
+                    void *_tmp = lv00_realloc(ng->edges, ng->edge_cap * sizeof(ng->edges[0]));
+                    if (!_tmp) {
+                        lv00_convert_block_to_node_cleanup(ng);
+                        result.success = 0;
+                        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+                        return result;
+                    }
+                    ng->edges = _tmp;
                 }
                 ng->edges[ng->edge_count].src_node = src_idx;
                 ng->edges[ng->edge_count].src_port = dep->port_id;

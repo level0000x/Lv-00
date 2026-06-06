@@ -64,12 +64,12 @@
 
 /** 返回 a 和 b 的最小值 */
 static double double_min(double a, double b) {
-    return (a < b) ? a : b;
+    return fmin(a, b);
 }
 
 /** 返回 a 和 b 的最大值 */
 static double double_max(double a, double b) {
-    return (a > b) ? a : b;
+    return fmax(a, b);
 }
 
 /**

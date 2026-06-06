@@ -31,8 +31,17 @@ Lv00ViewSynchronizer *lv00_view_sync_create(void) {
     sync->sync_enabled = 1;
     sync->dirty_capacity = 8;
     sync->dirty_views = lv00_calloc(sync->dirty_capacity, sizeof(int));
+    if (!sync->dirty_views) {
+        lv00_free((void **)&sync);
+        return NULL;
+    }
     sync->pending_capacity = 8;
     sync->pending_changes = lv00_calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
+    if (!sync->pending_changes) {
+        lv00_free((void **)&sync->dirty_views);
+        lv00_free((void **)&sync);
+        return NULL;
+    }
     return sync;
 }
 

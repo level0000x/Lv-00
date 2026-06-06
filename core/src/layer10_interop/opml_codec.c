@@ -278,16 +278,6 @@ static const char *json_find_key(const char *obj_start, const char *key) {
     return NULL;
 }
 
-/* 辅助：匹配 JSON 字符串值（与给定 literal 比较） */
-static int json_match_string(const char *p, const char *literal) {
-    if (!p || *p != '"') return 0;
-    p++;
-    size_t len = strlen(literal);
-    if (strncmp(p, literal, len) != 0) return 0;
-    if (p[len] != '"') return 0;
-    return 1;
-}
-
 /* 辅助：提取 JSON 数组中的所有字符串值 */
 static int json_extract_string_array(const char *arr_start, char **out, int max_count, int max_len) {
     if (!arr_start || *arr_start != '[') return 0;
@@ -317,21 +307,6 @@ static const char *json_skip_object(const char *p) {
         else if (*p == '}') { depth--; if (depth == 0) { p++; break; } }
         else if (*p == '"') {
             p++; /* 跳过字符串内容 */
-            while (*p && *p != '"') { if (*p == '\\' && *(p+1)) p++; p++; }
-        }
-    }
-    return p;
-}
-
-/* 辅助：解析嵌套 JSON 数组（方括号匹配），返回数组结束后的位置 */
-static const char *json_skip_array(const char *p) {
-    if (!p || *p != '[') return p;
-    int depth = 0;
-    for (; *p; p++) {
-        if (*p == '[') depth++;
-        else if (*p == ']') { depth--; if (depth == 0) { p++; break; } }
-        else if (*p == '"') {
-            p++;
             while (*p && *p != '"') { if (*p == '\\' && *(p+1)) p++; p++; }
         }
     }

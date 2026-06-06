@@ -1679,7 +1679,12 @@ static SMTSatResult smt_external_solver_check(SMTSolver *solver,
     char copy_buf[4096];
     size_t n;
     while ((n = fread(copy_buf, 1, sizeof(copy_buf), tmp)) > 0) {
-        fwrite(copy_buf, 1, n, named_tmp);
+        size_t written = fwrite(copy_buf, 1, n, named_tmp);
+        if (written != n) {
+            LV00_LOG_WARNING("外部求解器 %s: 临时文件写入不完整（期望 %zu, 实际 %zu）",
+                             executable, n, written);
+            break;
+        }
     }
     fclose(named_tmp);
     fclose(tmp);
