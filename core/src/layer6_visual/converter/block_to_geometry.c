@@ -90,8 +90,29 @@ Lv00ConvertResult lv00_convert_block_to_geometry(void *block) {
         }
     }
     enc->rects = lv00_calloc(bg->count + 1, sizeof(PolygonEntity *));
+    if (!enc->rects) {
+        lv00_free((void **)&enc);
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
     enc->port_points = lv00_calloc(total_ports + 1, sizeof(PointEntity *));
+    if (!enc->port_points) {
+        lv00_free((void **)&enc->rects);
+        lv00_free((void **)&enc);
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
     enc->connections = lv00_calloc(total_ports + 1, sizeof(LinearEntity *));
+    if (!enc->connections) {
+        lv00_free((void **)&enc->rects);
+        lv00_free((void **)&enc->port_points);
+        lv00_free((void **)&enc);
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
 
     /* 为每个 FuncBlock 生成矩形和端口点 */
     for (int i = 0; i < bg->count; i++) {

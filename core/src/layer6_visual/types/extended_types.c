@@ -6,6 +6,7 @@
 
 Lv00ListTypeRegion *lv00_list_type_create(void *elem_type) {
     Lv00ListTypeRegion *t = lv00_calloc(1, sizeof(Lv00ListTypeRegion));
+    /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     t->elem_type = elem_type;
     return t;
@@ -17,6 +18,7 @@ void lv00_list_type_destroy(Lv00ListTypeRegion *t) {
 
 Lv00MapTypeRegion *lv00_map_type_create(void *key_type, void *value_type) {
     Lv00MapTypeRegion *t = lv00_calloc(1, sizeof(Lv00MapTypeRegion));
+    /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     t->key_type = key_type;
     t->value_type = value_type;
@@ -29,6 +31,7 @@ void lv00_map_type_destroy(Lv00MapTypeRegion *t) {
 
 Lv00FunctionTypeRegion *lv00_function_type_create(void *param, void *ret, int dependent) {
     Lv00FunctionTypeRegion *t = lv00_calloc(1, sizeof(Lv00FunctionTypeRegion));
+    /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     t->param_type = param;
     t->return_type = ret;
@@ -42,6 +45,7 @@ void lv00_function_type_destroy(Lv00FunctionTypeRegion *t) {
 
 Lv00EffectTypeRegion *lv00_effect_type_create(Lv00EffectType *effects, int count, void *result) {
     Lv00EffectTypeRegion *t = lv00_calloc(1, sizeof(Lv00EffectTypeRegion));
+    /* calloc returns NULL on failure; caller must check */
     if (!t) return NULL;
     if (count > 0 && effects) {
         t->effects = lv00_calloc(count, sizeof(Lv00EffectType));

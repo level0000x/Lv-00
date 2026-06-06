@@ -24,6 +24,10 @@ Lv00InteropManager *lv00_interop_create(void) {
     if (!mgr) return NULL;
     mgr->plugin_capacity = 16;
     mgr->plugins = calloc(mgr->plugin_capacity, sizeof(Lv00Plugin *));
+    if (!mgr->plugins) {
+        free(mgr);
+        return NULL;
+    }
     return mgr;
 }
 

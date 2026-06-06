@@ -22,6 +22,10 @@ Lv00Application *lv00_app_create(const Lv00AppConfig *config) {
     else app->config = lv00_default_app_config();
     app->session_capacity = 16;
     app->sessions = lv00_calloc(app->session_capacity, sizeof(Lv00Session *));
+    if (!app->sessions) {
+        lv00_free((void **)&app);
+        return NULL;
+    }
     if (app->config.enable_meta_verify) {
         app->verifier = lv00_meta_verifier_create();
     }
@@ -121,6 +125,12 @@ int lv00_app_run_batch(Lv00Application *app, const char **files, int file_count)
             continue;
         }
         size_t nread = fread(content, 1, (size_t)fsize, fp);
+        if (nread != (size_t)fsize) {
+            fclose(fp);
+            lv00_free((void **)&content);
+            LV00_LOG_ERROR("读取文件不完整: %s (期望 %ld, 实际 %zu)", files[i], fsize, nread);
+            continue;
+        }
         fclose(fp);
         content[nread] = '\0';
 

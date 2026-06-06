@@ -4841,7 +4841,10 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
      */
     long content_start = ftell(fp);
     fprintf(fp, "4 0 obj\n<< /Length %ld >>\nstream\n", content_length);
-    fwrite(content, 1, content_length, fp);
+    size_t written = fwrite(content, 1, content_length, fp);
+    if (written != (size_t) content_length) {
+        LV00_LOG_WARNING("PDF内容流写入不完整（期望 %ld, 实际 %zu）", content_length, written);
+    }
     fprintf(fp, "\nendstream\nendobj\n");
 
     /*
@@ -5979,6 +5982,13 @@ int interop_import_geojson(LV00Engine *engine, const InteropImportConfig *config
         return LV00_ERROR_OUT_OF_MEMORY;
     }
     size_t read_size = fread(json, 1, (size_t) fsize, fp);
+    if (read_size != (size_t) fsize) {
+        fclose(fp);
+        lv00_free((void **) &json);
+        lv00_set_error(LV00_ERROR_IO, "GeoJSON文件'%s'读取不完整（期望 %ld, 实际 %zu）",
+                       config->input_path, fsize, read_size);
+        return LV00_ERROR_IO;
+    }
     fclose(fp);
     json[read_size] = '\0';
 
@@ -6679,6 +6689,13 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     }
 
     size_t bytes_read = fread(buffer, 1, (size_t) fsize, fp);
+    if (bytes_read != (size_t) fsize) {
+        fclose(fp);
+        lv00_free((void **) &buffer);
+        lv00_set_error(LV00_ERROR_IO, "SVG文件'%s'读取不完整（期望 %ld, 实际 %zu）",
+                       config->input_path, fsize, bytes_read);
+        return LV00_ERROR_IO;
+    }
     fclose(fp);
     buffer[bytes_read] = '\0';
 

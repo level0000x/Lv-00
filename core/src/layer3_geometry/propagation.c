@@ -177,7 +177,7 @@ static void queue_destroy(PropagationContext *ctx) {
 static bool queue_ensure_capacity(PropagationContext *ctx) {
     if (ctx->queue_size < ctx->queue_capacity) return true;
     int new_cap = ctx->queue_capacity * 2;
-    int *new_q = (int *)realloc(ctx->propagation_queue, (size_t)new_cap * sizeof(int));
+    int *new_q = (int *)lv00_realloc(ctx->propagation_queue, (size_t)new_cap * sizeof(int));
     if (!new_q) return false;
 
     /* 将数据从环形缓冲区展开到线性数组 */
@@ -641,6 +641,10 @@ int propagation_select_node(PropagationContext *ctx) {
                                 best_node = nb;
                                 found_bfs = true;
                                 break;
+                            }
+                            if (bfs_tail >= bfs_cap) {
+                                /* 队列已满，跳过此邻居 */
+                                continue;
                             }
                             bfs_queue[bfs_tail++] = nb;
                         }

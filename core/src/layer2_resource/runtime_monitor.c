@@ -321,7 +321,10 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
     /* 输出到文件 */
     if ((g_log_system.config.targets & LOG_TARGET_FILE) && g_log_system.log_file) {
         size_t len = strlen(output);
-        fwrite(output, 1, len, g_log_system.log_file);
+        size_t written = fwrite(output, 1, len, g_log_system.log_file);
+        if (written != len) {
+            LV00_LOG_WARNING("日志文件写入不完整（期望 %zu, 实际 %zu）", len, written);
+        }
         fflush(g_log_system.log_file);
         g_log_system.current_file_size += len;
 

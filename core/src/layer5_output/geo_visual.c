@@ -1155,7 +1155,10 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         FILE* fp = fopen(output_path, "wb");
         if (fp) {
             fprintf(fp, "P6\n%d %d\n255\n", w, h);
-            fwrite(pixels, 1, pixel_size, fp);
+            size_t written = fwrite(pixels, 1, pixel_size, fp);
+            if (written != pixel_size) {
+                LV00_LOG_WARNING("PPM导出写入不完整（期望 %zu, 实际 %zu）", pixel_size, written);
+            }
             fclose(fp);
         }
 

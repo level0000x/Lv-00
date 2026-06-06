@@ -340,8 +340,8 @@ char *lv00_block_canvas_render_svg(Lv00BlockCanvasView *canvas) {
             Lv00BlockPort *p = &b->ports[j];
             double px = b->x + p->rel_x;
             double py = b->y + p->rel_y;
-            const char *port_color = p->is_input ? "#FFFFFF" : "#FFFFFF";
-            const char *port_stroke = p->is_input ? "#333333" : "#333333";
+            const char *port_color = p->is_input ? "#E8F4FD" : "#FFF3E0";
+            const char *port_stroke = p->is_input ? "#2196F3" : "#FF9800";
             pos += snprintf(buf + pos, buf_size - pos,
                 "  <circle cx=\"%g\" cy=\"%g\" r=\"5\" "
                 "fill=\"%s\" stroke=\"%s\" stroke-width=\"1.5\"/>\n",

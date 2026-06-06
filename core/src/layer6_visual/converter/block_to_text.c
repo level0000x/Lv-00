@@ -143,6 +143,12 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
     }
     sg->cap = 16;
     sg->blocks = lv00_calloc(sg->cap, sizeof(FuncBlock *));
+    if (!sg->blocks) {
+        lv00_free((void **)&sg);
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        return result;
+    }
 
     /* 逐行扫描 */
     const char *p = code;
