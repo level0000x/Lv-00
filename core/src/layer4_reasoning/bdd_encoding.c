@@ -864,9 +864,19 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
                     new_capacity = needed;
                 int *new_order = (int *) lv00_realloc(mgr->var_order,
                                                        (size_t) new_capacity * sizeof(int));
-                if (!new_order)
+                char **new_names = (char **) lv00_realloc(mgr->var_names,
+                                                          (size_t) new_capacity * sizeof(char *));
+                int *new_types = (int *) lv00_realloc(mgr->var_types,
+                                                       (size_t) new_capacity * sizeof(int));
+                if (!new_order || !new_names || !new_types) {
+                    if (new_order) lv00_free((void **)&new_order);
+                    if (new_names) lv00_free((void **)&new_names);
+                    if (new_types) lv00_free((void **)&new_types);
                     return -1;
+                }
                 mgr->var_order = new_order;
+                mgr->var_names = new_names;
+                mgr->var_types = new_types;
                 mgr->var_capacity = new_capacity;
             }
             /* 初始化新增的变量序条目 */

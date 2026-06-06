@@ -6814,7 +6814,8 @@ int interop_import_svg(LV00Engine *engine, const InteropImportConfig *config) {
     while ((search_ptr = strstr(search_ptr, "<path")) != NULL) {
         /* 找到 d="..." 属性 */
         const char *d_attr = strstr(search_ptr, "d=\"");
-        if (!d_attr || d_attr > strstr(search_ptr, "/>") + 2) {
+        const char *self_close = strstr(search_ptr, "/>");
+        if (!d_attr || (self_close && d_attr > self_close + 2)) {
             /* 可能使用单引号 */
             d_attr = strstr(search_ptr, "d='");
         }

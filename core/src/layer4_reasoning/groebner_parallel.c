@@ -159,7 +159,7 @@ static void simple_poly_destroy(SimplePoly *p) {
 /** 添加一个项到多项式 */
 static int simple_poly_add_term(SimplePoly *p, double coeff, const int *exponents, int var_count) {
     if (p->term_count >= p->term_capacity) {
-        int new_cap = p->term_capacity * 2;
+        int new_cap = (p->term_capacity == 0) ? 8 : p->term_capacity * 2;
         PolyTerm *new_terms = (PolyTerm *)realloc(p->terms, (size_t)new_cap * sizeof(PolyTerm));
         if (!new_terms) return -1;
         p->terms = new_terms;

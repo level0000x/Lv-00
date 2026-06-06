@@ -602,11 +602,13 @@ static bool cdcl_ensure_trail_lim(CDCLContext *ctx, int level) {
     /* 简单策略：每次需要时 realloc 到足够大 */
     int *new_lim = (int *)lv00_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
     if (!new_lim) return false;
-    /* 初始化新增部分 */
+    /* 只初始化新增部分，保留已有数据 */
     int old_cap = 0;
-    /* 估算旧容量：如果 trail_lim 非空，假设之前至少分配过一些空间 */
-    /* 用 needed 作为上界，只初始化 0 到 needed-1 中可能未初始化的部分 */
-    for (int i = 0; i < needed; i++) {
+    if (ctx->trail_lim) {
+        /* 旧容量未知，保守地不初始化任何元素 */
+        old_cap = needed; /* 标记全部跳过初始化 */
+    }
+    for (int i = old_cap; i < needed; i++) {
         new_lim[i] = 0;
     }
     ctx->trail_lim = new_lim;
