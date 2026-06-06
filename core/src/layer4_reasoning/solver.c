@@ -634,7 +634,7 @@ static GeomNode *find_node(const ConstraintGraph *graph, int id) {
  * @param out 输出：坐标的 double 近似值
  * @return true 表示成功获取，false 表示节点类型不符或坐标不足
  */
-static bool point_coord(GeomNode *pt, int idx, double *out) {
+static bool point_coord(const GeomNode *pt, int idx, double *out) {
     if (!pt || pt->type != GEOM_POINT || pt->coord_count <= idx)
         return false;
     return coord_to_double(pt->symbolic_coords[idx], out);
@@ -1604,7 +1604,7 @@ typedef struct {
 /* 统计方程系统中每个变量节点对应的方程数量和最高次数。
    返回 VarInfo 数组，通过 out_var_count 输出变量数量。
    如果方程系统为空（var_count == 0），直接返回 NULL。 */
-static VarInfo *build_var_info(EquationSystem *sys, int node_count, int *out_var_count) {
+static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *out_var_count) {
     /* 收集所有不重复的变量节点 id */
     int *var_ids = lv00_malloc((size_t) sys->count * sizeof(int));
     if (!var_ids)
@@ -1668,7 +1668,7 @@ static VarInfo *build_var_info(EquationSystem *sys, int node_count, int *out_var
  * @param x_out 输出：方程的解
  * @return true 表示成功求解，false 表示次数不为 1 或 a 近似为 0
  */
-static bool solve_linear(mpz_poly_t *poly, double *x_out) {
+static bool solve_linear(const mpz_poly_t *poly, double *x_out) {
     if (poly->degree != 1)
         return false;
     double a = mpz_get_d(poly->coeffs[1]);
@@ -3023,7 +3023,7 @@ static int constraint_weight(const Constraint *c) {
  * @param out_ids  输出：点节点 ID 数组（调用者负责释放），可为 NULL
  * @return 点节点数量
  */
-static int count_point_variables(ConstraintGraph *graph, int **out_ids) {
+static int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
     int count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         if (graph->nodes[i]->type == GEOM_POINT)
@@ -3861,6 +3861,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
  */
 
 SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids, int elim_count) {
+    LV00_UNUSED(target_var_id);
     if (!graph || elim_count <= 0)
         return SOLVER_STATUS_OK;
 
@@ -5681,7 +5682,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
  * @param sys   方程系统指针（用于存储生成的方程）
  * @return 生成的方程数量
  */
-static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
+static int template_pythagorean(const ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
         return 0;
     int added = 0;
@@ -6561,7 +6562,7 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
  * @param out_order_count 输出：消元顺序数组长度
  * @return 消元顺序数组（变量 ID 列表），调用者负责释放
  */
-static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sys, int *out_order_count) {
+static int *compute_elimination_order(const ConstraintGraph *graph, EquationSystem *sys, int *out_order_count) {
     *out_order_count = 0;
 
     if (!graph || !sys)
@@ -8220,6 +8221,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
  */
 SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, const EquationSystem *system,
                                               SymbolicCoord ***out_branches, int *out_branch_count) {
+    LV00_UNUSED(result);
     if (!out_branches || !out_branch_count)
         return SOLVER_STATUS_TIMEOUT;
     *out_branches = NULL;

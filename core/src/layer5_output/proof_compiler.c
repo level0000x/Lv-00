@@ -562,6 +562,7 @@ static const char *get_event_type_name(Lv00TraceEventType type) {
  */
 char *lv00_proof_compiler_to_json(const Lv00ProofObject *proof,
                                    const Lv00ProofTrace *trace) {
+    LV00_UNUSED(trace);
     if (!proof) return NULL;
 
     /* 动态缓冲区：初始 4096，溢出时翻倍 */
@@ -827,6 +828,7 @@ char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
  */
 char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
                                        const Lv00ProofTrace *trace) {
+    LV00_UNUSED(trace);
     if (!proof) return NULL;
     
     size_t buffer_size = 16384;
