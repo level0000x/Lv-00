@@ -447,7 +447,8 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
 
 #else  /* POSIX: fork + execvp + pipe + dup2 */
     char temp_path[256];
-    snprintf(temp_path, sizeof(temp_path), "/tmp/lv00_atp_%d.p", (int)getpid());
+    const char *tmpdir = getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp";
+    snprintf(temp_path, sizeof(temp_path), "%s/lv00_atp_%d.p", tmpdir, (int)getpid());
 
     FILE *tmp = fopen(temp_path, "w");
     if (!tmp)

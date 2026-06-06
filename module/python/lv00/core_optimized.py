@@ -63,7 +63,6 @@ from __future__ import annotations
 import ctypes
 import logging
 import sys
-import warnings
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import (

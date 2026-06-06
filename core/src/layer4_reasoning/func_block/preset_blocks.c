@@ -166,7 +166,7 @@ static ExtendedPresetRegistry g_preset_registry = {
 #ifdef _WIN32
 #include <windows.h>
 static CRITICAL_SECTION g_preset_registry_lock;
-static volatile LONG g_preset_registry_lock_initialized = 0;
+static volatile long g_preset_registry_lock_initialized = 0;
 
 /** 
  * @brief 初始化预设注册表锁（线程安全，仅执行一次）
@@ -177,7 +177,7 @@ static volatile LONG g_preset_registry_lock_initialized = 0;
 static void preset_registry_lock_init_once(void) {
     if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 0, 0) == 0) {
         /* volatile 重读，避免编译器优化消除检查 */
-        LONG expected = 0;
+        long expected = 0;
         if (InterlockedCompareExchange(&g_preset_registry_lock_initialized, 1, 0) == 0) {
             InitializeCriticalSection(&g_preset_registry_lock);
             /* 内存屏障：确保临界区初始化对后续所有线程可见 */

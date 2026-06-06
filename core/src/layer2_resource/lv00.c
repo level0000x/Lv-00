@@ -588,8 +588,10 @@ bool lv00_get_version_info(LV00VersionInfo *info) {
     info->compiler = "Unknown";
 #endif
 
-#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
+#if defined(_WIN64) || defined(__x86_64__)
     info->arch = "x86_64";
+#elif defined(__aarch64__)
+    info->arch = "ARM64";
 #elif defined(_WIN32) || defined(__i386__)
     info->arch = "x86";
 #elif defined(__arm__)
