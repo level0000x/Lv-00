@@ -16,6 +16,17 @@ static void identity_matrix(float m[16]) {
     m[0] = m[5] = m[10] = m[15] = 1.0f;
 }
 
+/* 将渲染内容写入输出文件（文本模式） */
+static void write_output_to_file(const char *path, const char *content) {
+    FILE *fp = fopen(path, "w");
+    if (fp) {
+        fputs(content, fp);
+        fclose(fp);
+    } else {
+        LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", path);
+    }
+}
+
 /* ============ 构造器实现 ============ */
 
 Lv00VisualObject* lv00_visual_point_create(float x, float y) {
@@ -975,13 +986,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         pos += snprintf(buf + pos, cap - pos, "</svg>\n");
 
         /* 写入输出文件 */
-        FILE* fp = fopen(output_path, "w");
-        if (fp) {
-            fputs(buf, fp);
-            fclose(fp);
-        } else {
-            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
-        }
+        write_output_to_file(output_path, buf);
 
         lv00_free(buf);
         break;
@@ -1025,13 +1030,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
             output_path);
 
         /* 写入输出文件 */
-        FILE* fp = fopen(output_path, "w");
-        if (fp) {
-            fputs(buf, fp);
-            fclose(fp);
-        } else {
-            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
-        }
+        write_output_to_file(output_path, buf);
 
         lv00_free(buf);
         break;
@@ -1093,13 +1092,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
             "</body>\n</html>\n");
 
         /* 写入输出文件 */
-        FILE* fp = fopen(output_path, "w");
-        if (fp) {
-            fputs(buf, fp);
-            fclose(fp);
-        } else {
-            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
-        }
+        write_output_to_file(output_path, buf);
 
         lv00_free(buf);
         break;
@@ -1130,13 +1123,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
             "\\end{document}\n");
 
         /* 写入输出文件 */
-        FILE* fp = fopen(output_path, "w");
-        if (fp) {
-            fputs(buf, fp);
-            fclose(fp);
-        } else {
-            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
-        }
+        write_output_to_file(output_path, buf);
 
         lv00_free(buf);
         break;

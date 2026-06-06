@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
