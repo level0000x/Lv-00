@@ -426,6 +426,8 @@ CircuitStatus check_digit_circuit(const SymbolicCoord *coord) {
             return check_quadratic_circuit(coord->data.quadratic);
         case TRANSCENDENTAL:
             return CIRCUIT_STATUS_OK; /* 超越数没有比特位需要检查 */
+        default:
+            return CIRCUIT_STATUS_OK; /* 未知类型视为安全 */
     }
     return CIRCUIT_STATUS_OK;
 }
@@ -2462,6 +2464,8 @@ void symbolic_coord_destroy(SymbolicCoord *coord) {
             transcendental_destroy(coord->data.transcendental);
             coord->data.transcendental = NULL;
             break;
+        default:
+            break; /* 未知类型无需释放 */
     }
 
     /* 将 trust 颜色重置为安全默认值 */
@@ -2540,6 +2544,7 @@ void symbolic_coord_invalidate_cache(SymbolicCoord *coord) {
 
 /* Cross-type comparison */
 int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
+    if (!a || !b) return 0;
     /* Same type: use type-specific comparison */
     if (a->type == b->type) {
         switch (a->type) {
@@ -3841,6 +3846,8 @@ char *symbolic_coord_serialize(const SymbolicCoord *coord) {
             return quadratic_serialize(coord->data.quadratic);
         case TRANSCENDENTAL:
             return transcendental_serialize(coord->data.transcendental);
+        default:
+            return NULL; /* 未知类型无法序列化 */
     }
     return NULL;
 }

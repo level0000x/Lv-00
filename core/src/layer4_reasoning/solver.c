@@ -3865,7 +3865,7 @@ static int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *s
 
 SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const int *eliminate_ids, int elim_count) {
     LV00_UNUSED(target_var_id);
-    if (!graph || elim_count <= 0)
+    if (!graph || !eliminate_ids || elim_count <= 0)
         return SOLVER_STATUS_OK;
 
     /* Build equation system from constraints */

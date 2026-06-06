@@ -889,7 +889,7 @@ static bool check_incremental_conflict(const ConstraintGraph *graph, const Const
  * @return 添加结果状态
  */
 AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, int coord_count) {
-    if (!graph)
+    if (!graph || (coord_count > 0 && !coords))
         return ADD_NODE_CONFLICT;
     GeomNode *node = graph_alloc_node(graph, GEOM_POINT);
     if (!node)
@@ -1180,6 +1180,8 @@ AddNodeResult graph_add_port(ConstraintGraph *graph, PortType type, int namespac
  */
 AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *internal_node_ids, int internal_count,
                                        const int *input_port_ids, int input_count, const int *output_port_ids, int output_count) {
+    if (!graph || (internal_count > 0 && !internal_node_ids) || (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids))
+        return ADD_NODE_ERROR;
     for (int i = 0; i < internal_count; i++) {
         if (!graph_get_node(graph, internal_node_ids[i]))
             return ADD_NODE_CONFLICT;
@@ -1254,6 +1256,8 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
 CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph, const int *internal_node_ids,
                                                          int internal_count, const int *port_ids, int port_count,
                                                          int *out_count) {
+    if (!graph || !internal_node_ids || !port_ids || !out_count)
+        return NULL;
     int max_count = graph->constraint_count;
     CrossBoundaryConstraint *conflicts = lv00_malloc((size_t) max_count * sizeof(CrossBoundaryConstraint));
     if (!conflicts)
@@ -4163,7 +4167,7 @@ static const char *trust_color_to_string(TrustColor trust) {
         case TRUST_AMBER:
             return "AMBER";
         default:
-            return "GREEN";
+            return "UNKNOWN";
     }
 }
 
