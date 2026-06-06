@@ -13,8 +13,8 @@
  * @version 3.3.0
  */
 
-#ifndef LV00_INTEROP_H
-#define LV00_INTEROP_H
+#ifndef LV00_INTEROP_INTERNAL_H
+#define LV00_INTEROP_INTERNAL_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -468,4 +468,4 @@ const char *interop_get_file_extension(const char *path);
 }
 #endif
 
-#endif /* LV00_INTEROP_H */
+#endif /* LV00_INTEROP_INTERNAL_H */

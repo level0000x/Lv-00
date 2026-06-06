@@ -914,4 +914,4 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id);
 }
 #endif
 
-#endif /* LV00_CONSTRAINT_GRAPH_H */
+#endif /* LV00_CONSTRAINT_GRAPH_INTERNAL_H */
