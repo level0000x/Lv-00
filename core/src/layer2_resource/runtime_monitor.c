@@ -287,27 +287,31 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
         time_t now = time(NULL);
         struct tm *tm_info = localtime(&now);
         pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", tm_info);
-        pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
+        if (pos < (int)sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
     }
 
     if (g_log_system.config.colored_output) {
-        pos += snprintf(output + pos, sizeof(output) - pos, "%s%-5s\033[0m ",
-                        level_colors[level], level_strings[level]);
+        if (pos < (int)sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, "%s%-5s\033[0m ",
+                            level_colors[level], level_strings[level]);
     } else {
-        pos += snprintf(output + pos, sizeof(output) - pos, "%-5s ", level_strings[level]);
+        if (pos < (int)sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, "%-5s ", level_strings[level]);
     }
 
-    if (record.tag[0]) {
+    if (record.tag[0] && pos < (int)sizeof(output)) {
         pos += snprintf(output + pos, sizeof(output) - pos, "[%s] ", record.tag);
     }
 
-    if (g_log_system.config.include_thread_id) {
+    if (g_log_system.config.include_thread_id && pos < (int)sizeof(output)) {
         pos += snprintf(output + pos, sizeof(output) - pos, "(T%d) ", record.thread_id);
     }
 
-    pos += snprintf(output + pos, sizeof(output) - pos, "%s", record.message);
+    if (pos < (int)sizeof(output))
+        pos += snprintf(output + pos, sizeof(output) - pos, "%s", record.message);
 
-    if (g_log_system.config.include_location) {
+    if (g_log_system.config.include_location && pos < (int)sizeof(output)) {
         const char *basename = strrchr(record.file, '/');
         if (!basename) basename = strrchr(record.file, '\\');
         basename = basename ? basename + 1 : record.file;
@@ -315,7 +319,8 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
                         basename, record.line, record.function);
     }
 
-    pos += snprintf(output + pos, sizeof(output) - pos, "\n");
+    if (pos < (int)sizeof(output))
+        pos += snprintf(output + pos, sizeof(output) - pos, "\n");
 
     /* 输出到标准输出/错误 */
     if (g_log_system.config.targets & LOG_TARGET_STDOUT) {

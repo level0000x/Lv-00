@@ -825,17 +825,18 @@ char *lv00_test_report_to_json(const Lv00TestReport *report) {
                        report->skipped_count,
                        (long long)report->total_time_ns);
 
-    for (uint32_t i = 0; i < report->suite_count; i++) {
+    for (uint32_t i = 0; i < report->suite_count && pos < 8192; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
         pos += snprintf(json + pos, 8192 - pos,
                         "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
                         suite->name, suite->passed_count, suite->failed_count, suite->skipped_count);
-        if (i < report->suite_count - 1) {
+        if (i < report->suite_count - 1 && pos < 8192) {
             pos += snprintf(json + pos, 8192 - pos, ",");
         }
     }
 
-    snprintf(json + pos, 8192 - pos, "]}");
+    if (pos < 8192)
+        snprintf(json + pos, 8192 - pos, "]}");
 
     return json;
 }
@@ -856,34 +857,36 @@ char *lv00_test_report_to_xml(const Lv00TestReport *report) {
                        report->total_tests, report->failed_count, report->skipped_count,
                        (double)report->total_time_ns / 1e9);
 
-    for (uint32_t i = 0; i < report->suite_count; i++) {
+    for (uint32_t i = 0; i < report->suite_count && pos < 16384; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
         pos += snprintf(xml + pos, 16384 - pos,
                         "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
                         suite->name, suite->case_count, suite->failed_count, suite->skipped_count);
 
-        for (uint32_t j = 0; j < suite->case_count; j++) {
+        for (uint32_t j = 0; j < suite->case_count && pos < 16384; j++) {
             const Lv00TestCase *test = &suite->cases[j];
             pos += snprintf(xml + pos, 16384 - pos,
                             "    <testcase name=\"%s\" time=\"%.6f\"",
                             test->name, (double)test->elapsed_ns / 1e9);
 
-            if (test->status == TEST_STATUS_FAILED) {
+            if (test->status == TEST_STATUS_FAILED && pos < 16384) {
                 pos += snprintf(xml + pos, 16384 - pos,
                                 ">\n      <failure message=\"%s\"/>\n    </testcase>\n",
                                 test->message);
-            } else if (test->status == TEST_STATUS_SKIPPED) {
+            } else if (test->status == TEST_STATUS_SKIPPED && pos < 16384) {
                 pos += snprintf(xml + pos, 16384 - pos,
                                 ">\n      <skipped/>\n    </testcase>\n");
-            } else {
+            } else if (pos < 16384) {
                 pos += snprintf(xml + pos, 16384 - pos, "/>\n");
             }
         }
 
-        pos += snprintf(xml + pos, 16384 - pos, "  </testsuite>\n");
+        if (pos < 16384)
+            pos += snprintf(xml + pos, 16384 - pos, "  </testsuite>\n");
     }
 
-    snprintf(xml + pos, 16384 - pos, "</testsuites>\n");
+    if (pos < 16384)
+        snprintf(xml + pos, 16384 - pos, "</testsuites>\n");
 
     return xml;
 }
@@ -912,9 +915,9 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
                        "<table><tr><th>Suite</th><th>Test</th><th>Status</th><th>Time (ms)</th></tr>\n",
                        report->total_tests, report->passed_count, report->failed_count, report->skipped_count);
 
-    for (uint32_t i = 0; i < report->suite_count; i++) {
+    for (uint32_t i = 0; i < report->suite_count && pos < 32768; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
-        for (uint32_t j = 0; j < suite->case_count; j++) {
+        for (uint32_t j = 0; j < suite->case_count && pos < 32768; j++) {
             const Lv00TestCase *test = &suite->cases[j];
             const char *status_class = test->status == TEST_STATUS_PASSED ? "passed" :
                                        test->status == TEST_STATUS_FAILED ? "failed" : "skipped";
@@ -928,7 +931,8 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
         }
     }
 
-    snprintf(html + pos, 32768 - pos, "</table></body></html>\n");
+    if (pos < 32768)
+        snprintf(html + pos, 32768 - pos, "</table></body></html>\n");
 
     return html;
 }

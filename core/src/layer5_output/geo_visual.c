@@ -76,7 +76,7 @@ Lv00VisualObject* lv00_visual_line_create(float x1, float y1, float x2, float y2
     /* 存储端点信息在 render_cache */
     float* endpoints = (float*)lv00_malloc(4 * sizeof(float));
     if (!endpoints) {
-        lv00_free(obj);
+        lv00_free_ptr(obj);
         return NULL;
     }
     endpoints[0] = x1; endpoints[1] = y1;
@@ -111,7 +111,7 @@ Lv00VisualObject* lv00_visual_circle_create(float cx, float cy, float r) {
     /* 存储半径 */
     float* radius = (float*)lv00_malloc(sizeof(float));
     if (!radius) {
-        lv00_free(obj);
+        lv00_free_ptr(obj);
         return NULL;
     }
     *radius = r;
@@ -134,7 +134,7 @@ Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_t n) {
     if (n > 0 && objs) {
         obj->children = (Lv00VisualObject**)lv00_malloc((size_t)n * sizeof(Lv00VisualObject*));
         if (!obj->children) {
-            lv00_free(obj);
+            lv00_free_ptr(obj);
             return NULL;
         }
         memcpy(obj->children, objs, n * sizeof(Lv00VisualObject*));
@@ -279,7 +279,7 @@ void lv00_visual_scene_add(Lv00VisualScene* scene, Lv00VisualObject* obj) {
 
     if (scene->objects) {
         memcpy(new_objects, scene->objects, scene->object_count * sizeof(Lv00VisualObject*));
-        lv00_free(scene->objects);
+        lv00_free_ptr(scene->objects);
     }
     
     new_objects[scene->object_count] = obj;
@@ -294,7 +294,7 @@ void lv00_visual_scene_clear(Lv00VisualScene* scene) {
         lv00_visual_object_destroy(scene->objects[i]);
     }
     
-    lv00_free(scene->objects);
+    lv00_free_ptr(scene->objects);
     scene->objects = NULL;
     scene->object_count = 0;
 }
@@ -1001,7 +1001,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         /* 写入输出文件 */
         write_output_to_file(output_path, buf);
 
-        lv00_free(buf);
+        lv00_free_ptr(buf);
         break;
     }
     case LV00_RENDER_CAIRO: {
@@ -1045,7 +1045,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         /* 写入输出文件 */
         write_output_to_file(output_path, buf);
 
-        lv00_free(buf);
+        lv00_free_ptr(buf);
         break;
     }
     case LV00_RENDER_THREEJS: {
@@ -1107,7 +1107,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         /* 写入输出文件 */
         write_output_to_file(output_path, buf);
 
-        lv00_free(buf);
+        lv00_free_ptr(buf);
         break;
     }
     case LV00_RENDER_TIKZ: {
@@ -1138,7 +1138,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         /* 写入输出文件 */
         write_output_to_file(output_path, buf);
 
-        lv00_free(buf);
+        lv00_free_ptr(buf);
         break;
     }
     case LV00_RENDER_PNG: {
@@ -1172,7 +1172,7 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
             LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
         }
 
-        lv00_free(pixels);
+        lv00_free_ptr(pixels);
         break;
     }
     default:
@@ -1186,17 +1186,17 @@ void lv00_visual_object_destroy(Lv00VisualObject* obj) {
     if (!obj) return;
     
     if (obj->render_cache) {
-        lv00_free(obj->render_cache);
+        lv00_free_ptr(obj->render_cache);
     }
     
     if (obj->children) {
         for (size_t i = 0; i < obj->children_count; i++) {
             lv00_visual_object_destroy(obj->children[i]);
         }
-        lv00_free(obj->children);
+        lv00_free_ptr(obj->children);
     }
     
-    lv00_free(obj);
+    lv00_free_ptr(obj);
 }
 
 void lv00_visual_scene_destroy(Lv00VisualScene* scene) {
@@ -1205,11 +1205,11 @@ void lv00_visual_scene_destroy(Lv00VisualScene* scene) {
     for (size_t i = 0; i < scene->object_count; i++) {
         lv00_visual_object_destroy(scene->objects[i]);
     }
-    lv00_free(scene->objects);
-    lv00_free(scene);
+    lv00_free_ptr(scene->objects);
+    lv00_free_ptr(scene);
 }
 
 void lv00_visual_renderer_destroy(Lv00VisualRenderer* renderer) {
     if (!renderer) return;
-    lv00_free(renderer);
+    lv00_free_ptr(renderer);
 }

@@ -18,6 +18,7 @@
 
 #include "interop.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -37,6 +38,28 @@
 
 #define MAX_RELATED_CONSTRAINTS 256
 #define MAX_CONSTRAINT_INDICES 64
+
+/* ==================== 安全整数解析辅助 ==================== */
+
+/**
+ * @brief 安全地将字符串解析为整数，替代不安全的 atoi()。
+ *
+ * atoi() 无法检测无效输入（如空指针、非数字字符、溢出），
+ * 在解析外部 IPC 命令参数时可能导致未定义行为。
+ * 本函数使用 strtol() 进行带错误检测的解析。
+ *
+ * @param str          待解析的字符串（可为 NULL）
+ * @param default_val  解析失败时返回的默认值
+ * @return 解析成功的整数值，或 default_val
+ */
+static int safe_parse_int(const char *str, int default_val) {
+    if (!str) return default_val;
+    char *endptr;
+    long val = strtol(str, &endptr, 10);
+    if (endptr == str || *endptr != '\0') return default_val;
+    if (val < INT_MIN || val > INT_MAX) return default_val;
+    return (int)val;
+}
 
 /* ==================== 条件编译：套接字支持 ==================== */
 
@@ -1066,8 +1089,8 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                     lv00_strlcpy(resp->data, "Usage: AddNode LineSegment <endpoint1_id> <endpoint2_id>", sizeof(resp->data));
                     break;
                 }
-                int ep1 = atoi(cmd->params[1]);
-                int ep2 = atoi(cmd->params[2]);
+                int ep1 = safe_parse_int(cmd->params[1], 0);
+                int ep2 = safe_parse_int(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, ep1, ep2);
                 if (result == ADD_NODE_OK) {
                     snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"line_segment\"}",
@@ -1083,8 +1106,8 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                     lv00_strlcpy(resp->data, "Usage: AddNode Circle <center_id> <radius_point_id>", sizeof(resp->data));
                     break;
                 }
-                int center_id = atoi(cmd->params[1]);
-                int radius_pt_id = atoi(cmd->params[2]);
+                int center_id = safe_parse_int(cmd->params[1], 0);
+                int radius_pt_id = safe_parse_int(cmd->params[2], 0);
                 AddNodeResult result = graph_add_line_segment(engine->main_graph, center_id, radius_pt_id);
                 if (result == ADD_NODE_OK) {
                     snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"node_id\": %d, \"type\": \"circle\"}",
@@ -1103,7 +1126,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 int seg_ids[INTEROP_MAX_PARAMS];
                 int seg_count = 0;
                 for (int i = 1; i < cmd->param_count && i < INTEROP_MAX_PARAMS; i++) {
-                    seg_ids[seg_count++] = atoi(cmd->params[i]);
+                    seg_ids[seg_count++] = safe_parse_int(cmd->params[i], 0);
                 }
                 AddNodeResult result = graph_add_region(engine->main_graph, seg_ids, seg_count);
                 if (result == ADD_NODE_OK) {
@@ -1132,7 +1155,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 lv00_strlcpy(resp->data, "No graph initialized", sizeof(resp->data));
                 break;
             }
-            int node_id = atoi(cmd->params[0]);
+            int node_id = safe_parse_int(cmd->params[0], 0);
             RemoveNodeResult result = graph_remove_node(engine->main_graph, node_id);
             if (result == REMOVE_NODE_OK) {
                 snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_node_id\": %d}", node_id);
@@ -1160,7 +1183,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
             int participants[4] = {0};
             int pcount = 0;
             for (int i = 1; i < cmd->param_count && i < 5; i++) {
-                participants[i - 1] = atoi(cmd->params[i]);
+                participants[i - 1] = safe_parse_int(cmd->params[i], 0);
                 pcount++;
             }
             int ok = 0;
@@ -1222,7 +1245,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 lv00_strlcpy(resp->data, "No graph initialized", sizeof(resp->data));
                 break;
             }
-            int cidx = atoi(cmd->params[0]);
+            int cidx = safe_parse_int(cmd->params[0], 0);
             RemoveConstraintResult rc = graph_remove_constraint(engine->main_graph, cidx);
             if (rc == REMOVE_CONSTRAINT_OK) {
                 snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"removed_index\": %d}", cidx);
@@ -1253,7 +1276,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 lv00_strlcpy(resp->data, "Usage: Instantiate <func_block_id> <arg1_id> ...", sizeof(resp->data));
                 break;
             }
-            int fb_id = atoi(cmd->params[0]);
+            int fb_id = safe_parse_int(cmd->params[0], 0);
             int *arg_mappings = (int *) lv00_malloc(sizeof(int) * (cmd->param_count - 1));
             if (!arg_mappings) {
                 resp->status_code = LV00_ERROR_OUT_OF_MEMORY;
@@ -1261,7 +1284,7 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                 break;
             }
             for (int i = 1; i < cmd->param_count; i++) {
-                arg_mappings[i - 1] = atoi(cmd->params[i]);
+                arg_mappings[i - 1] = safe_parse_int(cmd->params[i], 0);
             }
             int result_count = 0;
             int *results =
@@ -1269,11 +1292,12 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
             lv00_free((void **) &arg_mappings);
             if (results && result_count > 0) {
                 int offset = snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"instantiated_ids\": [");
-                for (int i = 0; i < result_count; i++) {
+                for (int i = 0; i < result_count && offset < (int)sizeof(resp->data); i++) {
                     offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "%s%d", (i > 0 ? ", " : ""),
                                        results[i]);
                 }
-                snprintf(resp->data + offset, sizeof(resp->data) - offset, "]}");
+                if (offset < (int)sizeof(resp->data))
+                    snprintf(resp->data + offset, sizeof(resp->data) - offset, "]}");
                 lv00_free((void **) &results);
             } else {
                 resp->status_code = LV00_ERROR_UNSUPPORTED;
@@ -1343,15 +1367,17 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                         if (node->type == GEOM_POINT && node->coord_count >= 2) {
                             double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                             double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                            offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
-                        } else if (node->type == GEOM_LINE_SEGMENT) {
+                            if (offset < (int)sizeof(resp->data))
+                                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                                    "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
+                        } else if (node->type == GEOM_LINE_SEGMENT && offset < (int)sizeof(resp->data)) {
                             offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
                                 "  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"#22c55e\" stroke-width=\"2\"/>\n");
                         }
                     }
                 }
-                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "</svg>");
+                if (offset < (int)sizeof(resp->data))
+                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "</svg>");
             } else if (strcmp(fmt, "tikz") == 0) {
                 /* TikZ 导出：生成 LaTeX TikZ 代码 */
                 int offset = snprintf(resp->data, sizeof(resp->data),
@@ -1362,15 +1388,17 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
                         if (node->type == GEOM_POINT && node->coord_count >= 2) {
                             double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                             double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                            offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
-                        } else if (node->type == GEOM_LINE_SEGMENT) {
+                            if (offset < (int)sizeof(resp->data))
+                                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                                    "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
+                        } else if (node->type == GEOM_LINE_SEGMENT && offset < (int)sizeof(resp->data)) {
                             offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
                                 "  \\draw (0,0) -- (1,1);\n");
                         }
                     }
                 }
-                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "\\end{tikzpicture}");
+                if (offset < (int)sizeof(resp->data))
+                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "\\end{tikzpicture}");
             } else if (strcmp(fmt, "json-pretty") == 0) {
                 /* Pretty-printed JSON 导出：带缩进的 JSON */
                 char *json_str = graph_serialize_to_json(engine->main_graph);
