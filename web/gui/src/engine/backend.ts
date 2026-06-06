@@ -967,10 +967,8 @@ export class BackendAdapter {
       try {
         wasmInstance = await (globalModuleFactory as () => Promise<Lv00WasmModule>)();
         console.info('[Lv-00] WASM module loaded from global Lv00Module factory');
-        console.info('[Lv-00] 从全局 Lv00Module 工厂加载 WASM 模块');
       } catch (err) {
         console.warn('[Lv-00] Global Lv00Module factory failed:', err);
-        console.warn('[Lv-00] 全局 Lv00Module 工厂初始化失败');
       }
     }
 
@@ -982,17 +980,14 @@ export class BackendAdapter {
         if (typeof moduleFactory.default === 'function') {
           wasmInstance = await (moduleFactory.default as () => Promise<Lv00WasmModule>)();
           console.info('[Lv-00] WASM module loaded via dynamic import from /lv00_web.js');
-          console.info('[Lv-00] 通过动态导入从 /lv00_web.js 加载 WASM 模块');
         } else if (typeof moduleFactory.default === 'object' && moduleFactory.default !== null) {
           /* 模块已经是实例化的对象（非 MODULARIZE 模式） */
           wasmInstance = moduleFactory.default as unknown as Lv00WasmModule;
           console.info('[Lv-00] WASM module loaded as pre-initialized instance');
-          console.info('[Lv-00] WASM 模块已作为预初始化实例加载');
         }
       } catch (err) {
         /* 动态导入失败（模块文件不存在或加载错误），静默回退 */
         console.info('[Lv-00] Dynamic WASM import failed, falling back to JS backend');
-        console.info('[Lv-00] 动态 WASM 导入失败，回退到 JS 后端');
       }
     }
 
@@ -1004,18 +999,15 @@ export class BackendAdapter {
           console.warn(
             `[Lv-00] WASM module missing required export "${requiredFunc}", falling back to JS`
           );
-          console.warn(`[Lv-00] WASM 模块缺少必需的导出函数 "${requiredFunc}"，回退到 JS`);
         } else {
           /* 成功初始化 WASM 后端 */
           this.backend = new WasmBackend(wasmInstance);
           this.graphHandle = this.backend.graphCreate();
           console.info('[Lv-00] WASM backend initialized successfully');
-          console.info('[Lv-00] WASM 后端初始化成功');
           return 'wasm';
         }
       } catch (err) {
         console.warn('[Lv-00] WASM backend construction failed:', err);
-        console.warn('[Lv-00] WASM 后端构建失败');
       }
     }
 
@@ -1023,7 +1015,6 @@ export class BackendAdapter {
     this.backend = new JsBackend();
     this.graphHandle = this.backend.graphCreate();
     console.info('[Lv-00] JS backend initialized (fallback mode)');
-    console.info('[Lv-00] JS 后端已初始化（回退模式）');
     return 'js';
   }
 

@@ -6584,6 +6584,7 @@ static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState
             if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) || !svg_parse_double(s, &rot) ||
                 !svg_parse_double(s, &laf_d) || !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy))
                 return false;
+            LV00_UNUSED(ry); LV00_UNUSED(rot); LV00_UNUSED(laf_d); /* parsed for future SVG arc implementation */
             int sf = (int) (sf_d + 0.5);
             if (is_relative) {
                 dx += state->cx;

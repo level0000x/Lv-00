@@ -25,6 +25,8 @@ Lv-00 核心模块
 import ctypes
 import logging
 from fractions import Fraction
+
+logger = logging.getLogger(__name__)
 from typing import Any, Iterator, List, Optional, Set, Tuple, Union
 
 from ._ctypes_binding import (
@@ -1284,6 +1286,7 @@ class NormalizationResult:
         try:
             return int(self._ptr.contents.merged_nodes)
         except Exception:
+            logger.debug("Property access failed", exc_info=True)
             return 0
 
     @property
@@ -1314,6 +1317,7 @@ class NormalizationResult:
         try:
             return bool(self._ptr.contents.success)
         except Exception:
+            logger.debug("Property access failed", exc_info=True)
             return False
 
     @property
@@ -1324,6 +1328,7 @@ class NormalizationResult:
         try:
             return int(self._ptr.contents.simplified_constraints)
         except Exception:
+            logger.debug("Property access failed", exc_info=True)
             return 0
 
     @property
@@ -1334,6 +1339,7 @@ class NormalizationResult:
         try:
             return int(self._ptr.contents.removed_nodes)
         except Exception:
+            logger.debug("Property access failed", exc_info=True)
             return 0
 
     @property
@@ -1344,6 +1350,7 @@ class NormalizationResult:
         try:
             return int(self._ptr.contents.iterations)
         except Exception:
+            logger.debug("Property access failed", exc_info=True)
             return 0
 
     @property
@@ -1354,6 +1361,7 @@ class NormalizationResult:
         try:
             return bool(self._ptr.contents.success)
         except Exception:
+            logger.debug("Property access failed", exc_info=True)
             return False
     
     def __del__(self) -> None:

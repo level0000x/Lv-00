@@ -73,7 +73,6 @@ int lv00_session_run(Lv00Session *session, const char *input) {
 
         /* 模拟解析耗时（与输入长度成正比） */
         clock_t t0 = clock();
-        LV00_UNUSED(t0);
         /* 实际解析工作：验证输入格式标记 */
         int has_valid_brackets = 0;
         int bracket_depth = 0;
