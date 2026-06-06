@@ -1502,7 +1502,7 @@ int debug_log_init(void) {
      *   进入初始化路径后，先初始化 CRITICAL_SECTION，再获取锁保护全局路径写入。
      * - POSIX: 直接使用 pthread_mutex_lock 保护整个初始化过程。 */
 #ifdef _WIN32
-    static volatile LONG s_init_guard = 0;
+    static volatile long s_init_guard = 0;
     if (InterlockedCompareExchange(&s_init_guard, 1, 0) != 0) {
         /* 另一个线程正在初始化或已完成初始化，等待完成 */
         while (!g_initialized) {

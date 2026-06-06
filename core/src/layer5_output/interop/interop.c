@@ -111,7 +111,7 @@ static int safe_parse_int(const char *str, int default_val) {
 
 #ifdef _WIN32
 static CRITICAL_SECTION g_stdout_mutex;
-static LONG g_stdout_mutex_initialized = 0;
+static long g_stdout_mutex_initialized = 0;
 
 /** @brief 初始化 stdout 互斥锁（在 interop_server_create 中调用） */
 static void stdout_lock_init(void) {

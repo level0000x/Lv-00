@@ -19,6 +19,7 @@
 #include <windows.h>
 #else
 #include <dlfcn.h>
+#include <dirent.h>
 #endif
 
 /* ============ 内部数据结构 ============ */
@@ -1053,7 +1054,6 @@ int lv00_plugin_system_autoload(Lv00PluginSystem* system, const char* directory)
     FindClose(hFind);
 #else
     /* Linux/macOS: 使用 opendir/readdir 扫描 .so 文件 */
-    #include <dirent.h>
     DIR* dir = opendir(directory);
     if (!dir) return 0;
 
