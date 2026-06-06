@@ -220,11 +220,16 @@ bool lv00_ineq_system_add_var_constraint(Lv00InequalitySystem *sys,
         return false;
 
     /* 创建不等式: var <type> value */
-    Lv00Inequality *ineq = lv00_ineq_create(var, type, NULL);
-    if (!ineq)
+    Lv00Expr *val_expr = lv00_expr_create_rational_mpq(value);
+    if (!val_expr)
         return false;
 
-    (void) value; /* value 存储在表达式中 */
+    Lv00Inequality *ineq = lv00_ineq_create(var, type, val_expr);
+    if (!ineq) {
+        lv00_expr_free(val_expr);
+        return false;
+    }
+
     return lv00_ineq_system_add(sys, ineq);
 }
 

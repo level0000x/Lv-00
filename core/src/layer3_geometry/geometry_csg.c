@@ -208,6 +208,7 @@ static void csg_trilist_init(CSGTriList *list, int init_cap) {
  */
 static void csg_trilist_append(CSGTriList *list, const CSGTriangle *tri) {
     if (list->count >= list->capacity) {
+        if (list->capacity > INT_MAX / 2) return;
         int new_cap = list->capacity * 2;
         CSGTriangle *new_tris = (CSGTriangle *) lv00_realloc(list->tris, (size_t) new_cap * sizeof(CSGTriangle));
         if (!new_tris) return;

@@ -662,7 +662,7 @@ LV00_PUBLIC_API void stream_reset_stats(StreamContext *ctx);
  * @param type  事件类型
  * @return 发射次数
  */
-LV00_PUBLIC_API int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type);
+LV00_PUBLIC_API int64_t stream_get_event_count(const StreamContext *ctx, StreamEventType type);
 
 /**
  * @brief 获取事件发射总数
@@ -670,7 +670,7 @@ LV00_PUBLIC_API int64_t stream_get_event_count(StreamContext *ctx, StreamEventTy
  * @param ctx  流式上下文
  * @return 总发射次数
  */
-LV00_PUBLIC_API long stream_get_total_event_count(StreamContext *ctx);
+LV00_PUBLIC_API int64_t stream_get_total_event_count(StreamContext *ctx);
 
 /**
  * @brief 获取已丢弃的事件数（异步队列满时）
@@ -678,7 +678,7 @@ LV00_PUBLIC_API long stream_get_total_event_count(StreamContext *ctx);
  * @param ctx  流式上下文
  * @return 丢弃的事件数
  */
-LV00_PUBLIC_API long stream_get_dropped_count(StreamContext *ctx);
+LV00_PUBLIC_API long stream_get_dropped_count(const StreamContext *ctx);
 
 /* ============== 工具函数 ============== */
 

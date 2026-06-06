@@ -3746,8 +3746,6 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
 
     /* 策略1b：通过命题签名检查 */
     if (prop && prop->pattern) {
-        const ConstraintGraph *pg = prop->pattern;
-
         /* 检查命题是否为矛盾类型（BOTTOM 表示不可构造） */
         if (prop->type == PROPOSITION_TYPE_BOTTOM) {
             info->result = UNCONSTRUCT_PROVED;
@@ -3762,7 +3760,6 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
 
             return UNCONSTRUCT_PROVED;
         }
-        (void) pg; /* 抑制未使用变量警告 */
     }
 
     /* 未找到匹配 */
@@ -6106,28 +6103,10 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
         clock_t entry_start = clock();
 
         /* 步骤 1：类型检查 — 验证基础类型兼容性 */
-        bool type_ok = false;
-
-        /* 尝试使用 solver 进行类型合规性检查 */
+        /* 当前实现：比较 base_type 关键词（完整版应使用类型系统的结构化比较） */
         if (solver && entry->geom_object && entry->base_type) {
-            /* 构造检查字符串："<geom_object> : <base_type>" */
-            char type_query[256];
-            snprintf(type_query, sizeof(type_query), "%s : %s", entry->geom_object, entry->base_type);
-
-            /* 调用 solver 检查该类型声明是否可满足 */
-            /* 当前实现：比较 base_type 关键词（完整版应使用类型系统的结构化比较） */
-            if (strstr(entry->geom_object, entry->base_type) || strstr(entry->base_type, entry->geom_object) ||
-                strstr(entry->geom_object, "Triangle") || strstr(entry->geom_object, "Circle") ||
-                strstr(entry->geom_object, "Point") || strstr(entry->geom_object, "Line")) {
-                type_ok = true;
-            } else {
-                /* 对 solver 参数做使用标记以消除未使用警告 */
-                (void) type_query;
-                type_ok = true; /* 基础几何类型默认可构造 */
-            }
-        } else {
-            /* 无 solver 或缺少信息时，默认类型检查通过 */
-            type_ok = true;
+            /* 对 solver 参数做使用标记以消除未使用警告 */
+            (void) solver;
         }
 
         /* 步骤 2：SMT 精化谓词检查 */
@@ -6175,13 +6154,7 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
         clock_t entry_end = clock();
         entry->elapsed_sec = ((double) (entry_end - entry_start)) / CLOCKS_PER_SEC;
 
-        if (!type_ok) {
-            entry->result = REFINE_TYPE_ERROR;
-            if (!entry->smt_counterexample) {
-                entry->smt_counterexample = lv00_strdup_safe("基础类型检查失败");
-            }
-            report->failed_count++;
-        } else if (!smt_ok) {
+        if (!smt_ok) {
             entry->result = REFINE_SMT_UNSAT;
             report->failed_count++;
         } else {

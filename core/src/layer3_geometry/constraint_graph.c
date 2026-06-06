@@ -257,7 +257,7 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
 /* 带指定ID添加约束（用于反序列化） */
 Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id, ConstraintType type,
-                                         int *participants, int participant_count) {
+                                         const int *participants, int participant_count) {
     if (!graph || !participants || participant_count <= 0)
         return NULL;
 
@@ -413,6 +413,7 @@ static bool node_index_ensure_capacity(ConstraintGraph *graph) {
     }
 
     /* 重新哈希到更大的表 */
+    if (graph->node_index_capacity > INT_MAX / 2) return false;
     int new_cap = graph->node_index_capacity * 2;
     GeomNode **new_index = lv00_calloc(new_cap, sizeof(GeomNode *));
     if (!new_index)
@@ -543,6 +544,7 @@ static bool constraint_index_ensure_capacity(ConstraintGraph *graph) {
         return true;
     }
 
+    if (graph->constraint_index_capacity > INT_MAX / 2) return false;
     int new_cap = graph->constraint_index_capacity * 2;
     Constraint **new_index = lv00_calloc(new_cap, sizeof(Constraint *));
     if (!new_index)
@@ -888,7 +890,7 @@ static bool check_incremental_conflict(const ConstraintGraph *graph, const Const
  * @param coord_count 坐标数量
  * @return 添加结果状态
  */
-AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, int coord_count) {
+AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coords, int coord_count) {
     if (!graph || (coord_count > 0 && !coords))
         return ADD_NODE_CONFLICT;
     GeomNode *node = graph_alloc_node(graph, GEOM_POINT);
@@ -3381,8 +3383,18 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     }
 
     /* adj: node_id -> 约束索引的扁平数组 */
-    int adj_total = (max_node_id + 1) * LV00_ADJ_MAX_PER_NODE;
-    int *adj_lists = lv00_calloc(adj_total, sizeof(int));
+    size_t adj_total = (size_t)(max_node_id + 1) * LV00_ADJ_MAX_PER_NODE;
+    if (adj_total > (size_t)INT_MAX) {
+        lv00_free((void **) &*out_conflict_types);
+        *out_conflict_types = NULL;
+        lv00_free((void **) &*out_conflict_nodes);
+        *out_conflict_nodes = NULL;
+        lv00_free((void **) &*out_conflict_sizes);
+        *out_conflict_sizes = NULL;
+        *out_conflict_count = -1;
+        return NULL;
+    }
+    int *adj_lists = lv00_calloc((int)adj_total, sizeof(int));
     int *adj_counts = lv00_calloc(max_node_id + 1, sizeof(int));
 
     /* inc_adj: node_id -> INCIDENCE 约束索引 */

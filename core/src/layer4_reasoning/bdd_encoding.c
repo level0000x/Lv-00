@@ -249,6 +249,7 @@ int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
         return -1;
     /* 检查 var_order 数组容量，不足时扩容（2 倍增长） */
     if (mgr->var_count >= mgr->var_capacity) {
+        if (mgr->var_capacity > 0 && mgr->var_capacity > INT_MAX / 2) return -1;
         int new_capacity = (mgr->var_capacity > 0) ? mgr->var_capacity * 2 : 16;
         int *new_order = (int *) lv00_realloc(mgr->var_order,
                                                (size_t) new_capacity * sizeof(int));

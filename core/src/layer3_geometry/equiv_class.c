@@ -92,7 +92,10 @@ static bool equiv_ensure_class_capacity(EquivClassManager *mgr) {
 static bool equiv_ensure_node_mapping(EquivClassManager *mgr, int node_id) {
     if (node_id < mgr->node_to_class_capacity) return true;
     int new_cap = mgr->node_to_class_capacity < 16 ? 16 : mgr->node_to_class_capacity * 2;
-    while (new_cap <= node_id) new_cap *= 2;
+    while (new_cap <= node_id) {
+        if (new_cap > INT_MAX / 2) return false;
+        new_cap *= 2;
+    }
     int *new_map = (int *)realloc(mgr->node_to_class, (size_t)new_cap * sizeof(int));
     if (!new_map) return false;
     for (int i = mgr->node_to_class_capacity; i < new_cap; i++) {

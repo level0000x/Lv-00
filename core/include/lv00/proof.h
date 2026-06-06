@@ -376,14 +376,6 @@ LV00_PUBLIC_API bool proposition_add_sub_proposition(Proposition *parent, Propos
  */
 LV00_PUBLIC_API bool proposition_contradicts(const Proposition *a, const Proposition *b);
 
-/* ============== 假设作用域与局部矛盾隔离 ============== */
-LV00_PUBLIC_API Lv00ProofScopeId proof_begin_assumption_scope(ProofNavigator *nav, const Proposition *assumption);
-LV00_PUBLIC_API bool proof_close_assumption_scope(ProofNavigator *nav, Lv00ProofScopeId scope_id);
-LV00_PUBLIC_API bool proof_scope_is_active(const ProofNavigator *nav, Lv00ProofScopeId scope_id);
-LV00_PUBLIC_API bool proof_apply_ex_falso_scoped(ProofNavigator *nav, ConstraintGraph *bottom_proof, Proposition *target_prop,
-                                 Lv00ProofScopeId scope_id);
-LV00_PUBLIC_API bool proof_has_global_proposition(const ProofNavigator *nav, const Proposition *prop);
-
 /* ============== 合一检查 ============== */
 
 /**

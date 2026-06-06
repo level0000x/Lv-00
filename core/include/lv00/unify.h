@@ -238,7 +238,7 @@ LV00_PUBLIC_API void unify_failure_info_destroy(UnifyFailureInfo *info);
  * @param out_failure 输出的失败信息（可为 NULL）
  * @return 合一状态
  */
-LV00_PUBLIC_API UnifyStatus unify_construction_with_proposition_detailed(ConstraintGraph *construction, ConstraintGraph *pattern,
+LV00_PUBLIC_API UnifyStatus unify_construction_with_proposition_detailed(const ConstraintGraph *construction, const ConstraintGraph *pattern,
                                                          UnifyFailureInfo *out_failure);
 
 /* ============== 命题的等价变换 ============== */

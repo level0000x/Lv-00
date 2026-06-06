@@ -179,6 +179,7 @@ static void queue_destroy(PropagationContext *ctx) {
 
 static bool queue_ensure_capacity(PropagationContext *ctx) {
     if (ctx->queue_size < ctx->queue_capacity) return true;
+    if (ctx->queue_capacity > INT_MAX / 2) return false;
     int new_cap = ctx->queue_capacity * 2;
     int *new_q = (int *)lv00_realloc(ctx->propagation_queue, (size_t)new_cap * sizeof(int));
     if (!new_q) return false;

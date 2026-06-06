@@ -118,6 +118,7 @@ void lv00_conflict_report_clear(ConflictReport *report) {
 static bool conflict_report_ensure_capacity(ConflictReport *report) {
     if (report->conflict_count < report->capacity) return true;
     
+    if (report->capacity > INT_MAX / 2) return false;
     int new_capacity = report->capacity * 2;
     ConflictRecord *new_conflicts = (ConflictRecord *)lv00_realloc(
         report->conflicts, sizeof(ConflictRecord) * new_capacity);

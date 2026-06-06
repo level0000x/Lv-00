@@ -367,7 +367,7 @@ TypeRegion *type_create_line_segment(TypeSystem *ts) {
  * @param count         包含节点数量
  * @return 新分配的区域类型区域指针，失败返回 NULL
  */
-TypeRegion *type_create_region(TypeSystem *ts, int *contained_ids, int count) {
+TypeRegion *type_create_region(TypeSystem *ts, const int *contained_ids, int count) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_REGION);
     if (!tr)
         return NULL;
@@ -1998,6 +1998,7 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
     if (ts->node_type_mapping_count >= ts->node_type_mapping_capacity) {
         int new_capacity = ts->node_type_mapping_capacity == 0 ? NODE_TYPE_MAPPING_INITIAL_CAPACITY
                                                                : ts->node_type_mapping_capacity * 2;
+        if (ts->node_type_mapping_capacity > 0 && ts->node_type_mapping_capacity > INT_MAX / 2) return false;
         NodeTypeMapping *new_mappings =
             (NodeTypeMapping *) lv00_realloc(ts->node_type_mappings, new_capacity * sizeof(NodeTypeMapping));
         if (!new_mappings)
@@ -2512,6 +2513,7 @@ int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, in
 
     /* 需要扩容 */
     if (ts->inference_rule_count >= ts->inference_rule_capacity) {
+        if (ts->inference_rule_capacity > 0 && ts->inference_rule_capacity > INT_MAX / 2) return -1;
         int new_capacity =
             ts->inference_rule_capacity == 0 ? INFERENCE_RULE_INITIAL_CAPACITY : ts->inference_rule_capacity * 2;
         TypeInferenceRule *new_arr =
@@ -2970,6 +2972,7 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 应用前：将当前类型压入撤销栈 */
     if (explorer->undo_count >= explorer->undo_capacity) {
+        if (explorer->undo_capacity > INT_MAX / 2) return EXPLORER_ERROR;
         int new_cap = explorer->undo_capacity * 2;
         TypeRegion **new_stack = (TypeRegion **) lv00_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
         if (!new_stack)
@@ -3001,6 +3004,10 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 记录步骤 */
     if (explorer->step_count >= explorer->step_capacity) {
+        if (explorer->step_capacity > INT_MAX / 2) {
+            /* 步骤记录失败，但状态已改变，仍返回成功 */
+            return EXPLORER_OK;
+        }
         int new_cap = explorer->step_capacity * 2;
         ExplorerStep *new_steps = (ExplorerStep *) lv00_realloc(explorer->steps, new_cap * sizeof(ExplorerStep));
         if (!new_steps) {

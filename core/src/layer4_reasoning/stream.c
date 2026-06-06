@@ -1709,7 +1709,7 @@ int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type) {
  * @param ctx 流式上下文
  * @return 总发射次数，ctx 为 NULL 时返回 0
  */
-long stream_get_total_event_count(StreamContext *ctx) {
+int64_t stream_get_total_event_count(const StreamContext *ctx) {
     if (!ctx)
         return 0;
     return ctx->total_count;
@@ -1721,7 +1721,7 @@ long stream_get_total_event_count(StreamContext *ctx) {
  * @param ctx 流式上下文
  * @return 丢弃的事件数，ctx 为 NULL 时返回 0
  */
-long stream_get_dropped_count(StreamContext *ctx) {
+int64_t stream_get_dropped_count(const StreamContext *ctx) {
     if (!ctx)
         return 0;
     return ctx->dropped_count;

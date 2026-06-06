@@ -5104,6 +5104,17 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
     /* Buchberger 链式判据: 跟踪已处理的配对。
      * pair_processed[i][j] = true 表示配对 (i,j) 已经处理过。
      * 使用指针数组 + 单次 malloc 分配以减少碎片。 */
+    /* 内存安全修复：检查 g_capacity * g_capacity 整数溢出 */
+    if (g_capacity > 0 && g_capacity > INT_MAX / g_capacity) {
+        for (int i = 0; i < g_count; i++) {
+            mv_poly_clear(G[i]);
+            lv00_free((void **) &G[i]);
+        }
+        lv00_free((void **) &G);
+        *out_G = NULL;
+        *out_g_count = 0;
+        return SOLVER_STATUS_OUT_OF_MEMORY;
+    }
     bool *pair_data = lv00_malloc((size_t) (g_capacity * g_capacity) * sizeof(bool));
     if (!pair_data) {
         for (int i = 0; i < g_count; i++) {
@@ -5147,15 +5158,17 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         ev.type = STREAM_EVENT_SOLVE_GROEBNER_STEP;
                         ev.timestamp_ms = stream_timestamp_ms();
                         ev.step_number = steps;
-                        ev.total_steps = g_count * (g_count - 1) / 2;
-                        ev.progress = (double) steps / (double) (g_count * (g_count - 1) / 2);
+                        /* 内存安全修复：使用 long long 防止 g_count*(g_count-1) 整数溢出 */
+                        long long total_pairs = (long long) g_count * (g_count - 1) / 2;
+                        ev.total_steps = (int) total_pairs;
+                        ev.progress = (total_pairs > 0) ? (double) steps / (double) total_pairs : 0.0;
                         ev.description = "Buchberger S-多项式约化";
                         char detail[SOLVER_DETAIL_BUF_SIZE];
                         int _snw_gb;
                         LV00_SAFE_SNPRINTF(_snw_gb, detail, sizeof(detail),
                                            "{\"phase\":\"s_polynomial\",\"pair\":[%d,%d],"
-                                           "\"basis_size\":%d,\"step\":%d,\"total_pairs\":%d}",
-                                           i, j, g_count, steps, g_count * (g_count - 1) / 2);
+                                           "\"basis_size\":%d,\"step\":%d,\"total_pairs\":%lld}",
+                                           i, j, g_count, steps, total_pairs);
                         LV00_UNUSED(_snw_gb);
                         ev.detail_json = detail;
                         stream_emit(solver_stream_ctx, &ev);
@@ -5266,7 +5279,21 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         /* 添加到基中 */
                         if (g_count >= g_capacity) {
                             int old_capacity = g_capacity;
+                            /* 内存安全修复：检查 g_capacity 翻倍是否溢出 */
+                            if (g_capacity > INT_MAX / 2) {
+                                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+                                               "buchberger_groebner: 基容量翻倍将溢出 INT_MAX");
+                                mv_poly_clear(&remainder);
+                                break;
+                            }
                             g_capacity *= 2;
+                            /* 内存安全修复：检查 g_capacity * g_capacity 是否溢出 */
+                            if (g_capacity > 0 && g_capacity > INT_MAX / g_capacity) {
+                                lv00_set_error(LV00_ERROR_OUT_OF_MEMORY,
+                                               "buchberger_groebner: pair矩阵容量平方将溢出 INT_MAX");
+                                mv_poly_clear(&remainder);
+                                break;
+                            }
                             MVPolynomial **new_G = lv00_realloc(G, g_capacity * sizeof(MVPolynomial *));
                             if (!new_G) {
                                 lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基扩容失败");
