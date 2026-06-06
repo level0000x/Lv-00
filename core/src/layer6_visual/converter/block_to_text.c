@@ -3,7 +3,6 @@
 #include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <stdarg.h>
 
 /* 内部辅助：追加字符串到动态缓冲区 */

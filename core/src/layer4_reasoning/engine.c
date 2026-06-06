@@ -39,8 +39,6 @@
 
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "node_deep_copy.h"
-#include "prop_verifier.h"
 #include "stream.h"
 #include "stream_context_util.h"
 

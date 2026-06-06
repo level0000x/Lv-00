@@ -61,7 +61,6 @@
 #include "solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
-#include "constraint_graph_safe.h"  /* v3.4.2: 安全操作辅助函数 */
 
 LV00_DECLARE_STREAM_CTX(graph)
 
