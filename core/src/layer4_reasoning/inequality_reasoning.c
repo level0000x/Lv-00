@@ -867,8 +867,8 @@ bool lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
      *   right = ∑ w_i * f(x_i)
      */
 
-    Lv00Expr *weighted_sum;   /* ∑ w_i * x_i */
-    Lv00Expr *weighted_func;  /* ∑ w_i * f(x_i) */
+    Lv00Expr *weighted_sum = NULL;   /* ∑ w_i * x_i */
+    Lv00Expr *weighted_func = NULL;  /* ∑ w_i * f(x_i) */
 
     if (weights) {
         /* 有自定义权重 */
@@ -907,6 +907,7 @@ bool lv00_ineq_jensen(const char *func, Lv00Expr **points, mpq_t *weights,
 cleanup_jensen:
         lv00_free((void **) &w_x);
         lv00_free((void **) &w_fx);
+        if (!weighted_sum || !weighted_func) return false;
     } else {
         /* 等权重: w_i = 1/n */
         Lv00Expr *inv_n = lv00_expr_create_rational(1, count);
@@ -1720,18 +1721,21 @@ char *lv00_ineq_proof_to_latex(const Lv00InequalityProof *proof) {
     if (!s) return NULL;
 
     int offset = 0;
-    offset += snprintf(s + offset, buf_size - (size_t)offset,
-                      "\\begin{proof}\n");
+    if (offset < (int)buf_size)
+        offset += snprintf(s + offset, buf_size - (size_t)offset,
+                          "\\begin{proof}\n");
 
     for (int i = 0; i < proof->step_count && offset < (int)buf_size - 64; i++) {
         const char *just = proof->steps[i].justification
                            ? proof->steps[i].justification : "unknown";
-        offset += snprintf(s + offset, buf_size - (size_t)offset,
-                          "  Step %d: %s\n", i + 1, just);
+        if (offset < (int)buf_size)
+            offset += snprintf(s + offset, buf_size - (size_t)offset,
+                              "  Step %d: %s\n", i + 1, just);
     }
 
-    offset += snprintf(s + offset, buf_size - (size_t)offset,
-                      "\\end{proof}\n");
+    if (offset < (int)buf_size)
+        offset += snprintf(s + offset, buf_size - (size_t)offset,
+                          "\\end{proof}\n");
 
     return s;
 }

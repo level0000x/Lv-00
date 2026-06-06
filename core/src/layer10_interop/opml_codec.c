@@ -101,12 +101,14 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
         "    \"date\": \"2026-06-04\"\n"
         "  },\n",
         escaped_name);
+    if (pos >= output_size) return -1;
 
     /* 生成 theory 段（包含公理） */
     if (strlen(p->axioms) > 0) {
         pos += snprintf(output + pos, output_size - pos,
             "  \"theory\": {\n"
             "    \"axioms\": [\n");
+        if (pos >= output_size) return -1;
 
         /* 逐个输出公理 */
         const char *ax = p->axioms;
@@ -122,31 +124,37 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
             if (ax_end > ax) {
                 if (!first_axiom) {
+                    if (pos >= output_size) return -1;
                     pos += snprintf(output + pos, output_size - pos, ",\n");
                 }
                 first_axiom = 0;
 
                 /* 写入公理条目 */
+                if (pos >= output_size) return -1;
                 pos += snprintf(output + pos, output_size - pos, "      { \"name\": \"");
                 int ax_len = (int)(ax_end - ax);
                 if (pos + ax_len + 32 < output_size) {
                     memcpy(output + pos, ax, ax_len);
                     pos += ax_len;
                 }
+                if (pos >= output_size) return -1;
                 pos += snprintf(output + pos, output_size - pos, "\" }");
             }
             ax = ax_end;
         }
 
+        if (pos >= output_size) return -1;
         pos += snprintf(output + pos, output_size - pos,
             "\n    ]\n"
             "  },\n");
     } else {
+        if (pos >= output_size) return -1;
         pos += snprintf(output + pos, output_size - pos,
             "  \"theory\": {},\n");
     }
 
     /* 生成 proof 段（包含步骤数组） */
+    if (pos >= output_size) return -1;
     pos += snprintf(output + pos, output_size - pos,
         "  \"proof\": {\n"
         "    \"method\": \"forward_chain\",\n"
@@ -157,9 +165,11 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
         Lv00ProofStep *step = &p->steps[i];
 
         if (i > 0) {
+            if (pos >= output_size) return -1;
             pos += snprintf(output + pos, output_size - pos, ",\n");
         }
 
+        if (pos >= output_size) return -1;
         pos += snprintf(output + pos, output_size - pos,
             "      {\n"
             "        \"id\": %d,\n"
@@ -179,24 +189,30 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
             desc++;
         }
 
+        if (pos >= output_size) return -1;
         pos += snprintf(output + pos, output_size - pos, "\",\n");
 
         /* 写入依赖列表 */
+        if (pos >= output_size) return -1;
         pos += snprintf(output + pos, output_size - pos,
             "        \"dependencies\": [");
 
         for (int d = 0; d < step->dep_count; d++) {
             if (d > 0) {
+                if (pos >= output_size) return -1;
                 pos += snprintf(output + pos, output_size - pos, ", ");
             }
+            if (pos >= output_size) return -1;
             pos += snprintf(output + pos, output_size - pos, "%d", step->dependencies[d]);
         }
 
+        if (pos >= output_size) return -1;
         pos += snprintf(output + pos, output_size - pos, "]\n"
             "      }");
     }
 
     /* 写入 proof 段尾部和 JSON 结尾 */
+    if (pos >= output_size) return -1;
     pos += snprintf(output + pos, output_size - pos,
         "\n    ]\n"
         "  }\n"

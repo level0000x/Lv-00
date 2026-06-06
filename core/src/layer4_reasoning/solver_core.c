@@ -34,8 +34,9 @@
 static int cdcl_get_int_config(const char *env_name, int default_val) {
     const char *val = getenv(env_name);
     if (val) {
-        int n = atoi(val);
-        if (n > 0) return n;
+        char *endptr;
+        long n = strtol(val, &endptr, 10);
+        if (endptr != val && n > 0 && n <= INT_MAX) return (int)n;
     }
     return default_val;
 }

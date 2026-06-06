@@ -1150,17 +1150,20 @@ char *magic_array_serialize(const MagicArray *array) {
                        rune_count, constraint_count);
 
     /* 序列化每个符文 */
-    for (int i = 0; i < rune_count; i++) {
+    for (int i = 0; i < rune_count && offset < (int)buf_size; i++) {
         Rune *rune = array->runes->runes[i];
         const char *elem_str = element_to_string(rune->element);
-        if (i > 0) {
+        if (i > 0 && offset < (int)buf_size) {
             offset += snprintf(json + offset, buf_size - offset, ",");
         }
-        offset += snprintf(json + offset, buf_size - offset, "{\"element\":\"%s\",\"power\":%d}", elem_str,
-                           rune->power_level);
+        if (offset < (int)buf_size) {
+            offset += snprintf(json + offset, buf_size - offset, "{\"element\":\"%s\",\"power\":%d}", elem_str,
+                               rune->power_level);
+        }
     }
 
-    offset += snprintf(json + offset, buf_size - offset, "]}");
+    if (offset < (int)buf_size)
+        offset += snprintf(json + offset, buf_size - offset, "]}");
 
     return json;
 }
