@@ -74,7 +74,7 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
         if (name) {
             node->name = lv00_strdup_safe(name);
         } else {
-            node->name = strdup("unnamed");
+            node->name = lv00_strdup_safe("unnamed");
         }
 
         /* 映射输入端口 */

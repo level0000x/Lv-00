@@ -489,7 +489,7 @@ static const char *g_check_names[LV00_CHECK_COUNT] = {
  * ============================================================ */
 
 Lv00MetaVerifier *lv00_meta_verifier_create(void) {
-    Lv00MetaVerifier *v = calloc(1, sizeof(Lv00MetaVerifier));
+    Lv00MetaVerifier *v = lv00_calloc(1, sizeof(Lv00MetaVerifier));
     if (!v) return NULL;
     v->check_mask = (1 << LV00_CHECK_COUNT) - 1;  /* All checks enabled */
     v->strict_mode = 0;
@@ -497,7 +497,7 @@ Lv00MetaVerifier *lv00_meta_verifier_create(void) {
 }
 
 void lv00_meta_verifier_destroy(Lv00MetaVerifier *verifier) {
-    free(verifier);
+    lv00_free((void **)&verifier);
 }
 
 void lv00_meta_verifier_enable_check(Lv00MetaVerifier *verifier, Lv00VerifyCheck check) {
@@ -665,7 +665,7 @@ Lv00VerifyReport lv00_meta_verify_proof(Lv00MetaVerifier *verifier, void *proof)
                 int *queue = (int *)lv00_malloc((size_t)queue_cap * sizeof(int));
                 int *visited = (int *)lv00_calloc((size_t)p->step_count, sizeof(int));
                 if (!queue || !visited) {
-                    free(queue); free(visited);
+                    lv00_free((void **)&queue); lv00_free((void **)&visited);
                     snprintf(desc, sizeof(desc), "Memory allocation failed");
                     passed = 0;
                     break;
@@ -693,7 +693,7 @@ Lv00VerifyReport lv00_meta_verify_proof(Lv00MetaVerifier *verifier, void *proof)
                         }
                     }
                 }
-                free(queue); free(visited);
+                lv00_free((void **)&queue); lv00_free((void **)&visited);
                 if (found_cycle) {
                     snprintf(desc, sizeof(desc),
                         "Circular dependency detected at step %d", s);

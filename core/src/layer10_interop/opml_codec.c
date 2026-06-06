@@ -486,7 +486,7 @@ static int opml_import_proof(const char *input, void **proof) {
                 }
                 p->axioms[pos] = '\0';
 
-                free(theory_buf);
+                lv00_free((void **)&theory_buf);
             }
         }
     }

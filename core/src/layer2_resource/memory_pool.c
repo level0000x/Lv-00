@@ -162,7 +162,7 @@ Lv00ObjectPool *lv00_pool_create(const Lv00PoolConfig *config) {
     pool->block_capacity = 4;
     pool->blocks = (void **)malloc(pool->block_capacity * sizeof(void *));
     if (!pool->blocks) {
-        free(pool);
+        lv00_free((void **)&pool);
         return NULL;
     }
 
@@ -172,8 +172,8 @@ Lv00ObjectPool *lv00_pool_create(const Lv00PoolConfig *config) {
         if (pool->thread_safe) {
             LV00_MUTEX_DESTROY(pool->mutex);
         }
-        free(pool->blocks);
-        free(pool);
+        lv00_free((void **)&pool->blocks);
+        lv00_free((void **)&pool);
         return NULL;
     }
 
@@ -183,9 +183,9 @@ Lv00ObjectPool *lv00_pool_create(const Lv00PoolConfig *config) {
         if (pool->thread_safe) {
             LV00_MUTEX_DESTROY(pool->mutex);
         }
-        free(pool->block_capacities);
-        free(pool->blocks);
-        free(pool);
+        lv00_free((void **)&pool->block_capacities);
+        lv00_free((void **)&pool->blocks);
+        lv00_free((void **)&pool);
         return NULL;
     }
     pool->blocks[0] = block;
@@ -209,19 +209,19 @@ void lv00_pool_destroy(Lv00ObjectPool *pool) {
         return;
     }
 
-    /* 释放所有内存块（性能关键路径：保留原生 free） */
+    /* 释放所有内存块 */
     for (size_t i = 0; i < pool->block_count; i++) {
-        free(pool->blocks[i]);
+        lv00_free((void **)&pool->blocks[i]);
     }
-    free(pool->blocks);
-    free(pool->block_capacities);  /* [Bug修复] 释放块容量记录数组 */
+    lv00_free((void **)&pool->blocks);
+    lv00_free((void **)&pool->block_capacities);  /* [Bug修复] 释放块容量记录数组 */
 
     /* 销毁线程锁 */
     if (pool->thread_safe) {
         LV00_MUTEX_DESTROY(pool->mutex);
     }
 
-    free(pool);
+    lv00_free((void **)&pool);
 }
 
 void *lv00_pool_alloc(Lv00ObjectPool *pool) {
@@ -438,7 +438,7 @@ Lv00LinearAllocator *lv00_linear_allocator_create(size_t block_size) {
     /* 预分配第一个块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
     MemoryBlock *block = (MemoryBlock *)malloc(sizeof(MemoryBlock) + allocator->block_size);
     if (!block) {
-        free(allocator);
+        lv00_free((void **)&allocator);
         return NULL;
     }
     block->next = NULL;
@@ -457,15 +457,15 @@ void lv00_linear_allocator_destroy(Lv00LinearAllocator *allocator) {
         return;
     }
 
-    /* 释放所有内存块（性能关键路径：保留原生 free） */
+    /* 释放所有内存块 */
     MemoryBlock *block = allocator->blocks;
     while (block) {
         MemoryBlock *next = block->next;
-        free(block);
+        lv00_free((void **)&block);
         block = next;
     }
 
-    free(allocator);
+    lv00_free((void **)&allocator);
 }
 
 void *lv00_linear_alloc(Lv00LinearAllocator *allocator, size_t size, size_t alignment) {
@@ -626,7 +626,7 @@ Lv00ObjectCache *lv00_cache_create(size_t capacity,
     cache->hash_capacity = LV00_HASH_TABLE_INIT_CAP;
     cache->hash_table = (CacheEntry **)calloc(cache->hash_capacity, sizeof(CacheEntry *));
     if (!cache->hash_table) {
-        free(cache);
+        lv00_free((void **)&cache);
         return NULL;
     }
 
@@ -638,19 +638,19 @@ void lv00_cache_destroy(Lv00ObjectCache *cache) {
         return;
     }
 
-    /* 释放所有条目（性能关键路径：保留原生 free） */
+    /* 释放所有条目 */
     CacheEntry *entry = cache->head;
     while (entry) {
         CacheEntry *next = entry->next;
         if (cache->destroy_func && entry->value) {
             cache->destroy_func(entry->value, cache->user_data);
         }
-        free(entry);
+        lv00_free((void **)&entry);
         entry = next;
     }
 
-    free(cache->hash_table);
-    free(cache);
+    lv00_free((void **)&cache->hash_table);
+    lv00_free((void **)&cache);
 }
 
 /* 将条目移到链表头部 */
@@ -714,7 +714,7 @@ static void evict_lru(Lv00ObjectCache *cache) {
     if (cache->destroy_func && entry->value) {
         cache->destroy_func(entry->value, cache->user_data);
     }
-    free(entry);
+    lv00_free((void **)&entry);
     cache->current_size--;
 }
 
@@ -812,7 +812,7 @@ bool lv00_cache_remove(Lv00ObjectCache *cache, Lv00CacheKey key) {
             if (cache->destroy_func && entry->value) {
                 cache->destroy_func(entry->value, cache->user_data);
             }
-            free(entry);
+            lv00_free((void **)&entry);
             cache->current_size--;
 
             return true;
@@ -835,7 +835,7 @@ void lv00_cache_clear(Lv00ObjectCache *cache) {
         if (cache->destroy_func && entry->value) {
             cache->destroy_func(entry->value, cache->user_data);
         }
-        free(entry);
+        lv00_free((void **)&entry);
         entry = next;
     }
 

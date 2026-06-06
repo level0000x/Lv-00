@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv00_utils.h"
 
 /* ================================================================
  * 内部辅助函数
@@ -31,8 +32,8 @@ static bool state_ensure_capacity(NodeStateSpace *state, int needed) {
                                                             (size_t)new_cap * sizeof(SymbolicCoord *));
     int *new_dims = (int *)realloc(state->coord_dims, (size_t)new_cap * sizeof(int));
     if (!new_coords || !new_dims) {
-        free(new_coords);
-        free(new_dims);
+        lv00_free((void **)&new_coords);
+        lv00_free((void **)&new_dims);
         return false;
     }
     state->possible_coords = new_coords;
@@ -69,12 +70,12 @@ static void state_destroy(NodeStateSpace *s) {
                 symbolic_coord_destroy(s->possible_coords[i]);
             }
         }
-        free(s->possible_coords);
+        lv00_free((void **)&s->possible_coords);
         s->possible_coords = NULL;
     }
-    free(s->coord_dims);
+    lv00_free((void **)&s->coord_dims);
     s->coord_dims = NULL;
-    free(s);
+    lv00_free((void **)&s);
 }
 
 /** @brief 深拷贝节点状态空间 */
@@ -169,7 +170,7 @@ static bool queue_init(PropagationContext *ctx) {
 }
 
 static void queue_destroy(PropagationContext *ctx) {
-    free(ctx->propagation_queue);
+    lv00_free((void **)&ctx->propagation_queue);
     ctx->propagation_queue = NULL;
 }
 
@@ -238,14 +239,14 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     ctx->state_count = graph->node_count;
     ctx->state_spaces = (NodeStateSpace *)calloc((size_t)ctx->state_count, sizeof(NodeStateSpace));
     if (!ctx->state_spaces && ctx->state_count > 0) {
-        free(ctx);
+        lv00_free((void **)&ctx);
         return NULL;
     }
 
     /* 初始化传播队列 */
     if (!queue_init(ctx)) {
-        free(ctx->state_spaces);
-        free(ctx);
+        lv00_free((void **)&ctx->state_spaces);
+        lv00_free((void **)&ctx);
         return NULL;
     }
 
@@ -255,8 +256,8 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
                                                           sizeof(PropagationSnapshot *));
     if (!ctx->snapshot_stack) {
         queue_destroy(ctx);
-        free(ctx->state_spaces);
-        free(ctx);
+        lv00_free((void **)&ctx->state_spaces);
+        lv00_free((void **)&ctx);
         return NULL;
     }
 
@@ -270,7 +271,7 @@ void propagation_context_destroy(PropagationContext *ctx) {
     for (int i = 0; i < ctx->state_count; i++) {
         state_destroy(&ctx->state_spaces[i]);
     }
-    free(ctx->state_spaces);
+    lv00_free((void **)&ctx->state_spaces);
 
     /* 销毁传播队列 */
     queue_destroy(ctx);
@@ -281,9 +282,9 @@ void propagation_context_destroy(PropagationContext *ctx) {
             propagation_snapshot_destroy(ctx->snapshot_stack[i]);
         }
     }
-    free(ctx->snapshot_stack);
+    lv00_free((void **)&ctx->snapshot_stack);
 
-    free(ctx);
+    lv00_free((void **)&ctx);
 }
 
 /* ================================================================
@@ -740,7 +741,7 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
                     if (r <= accum) { selected_index = k; break; }
                 }
             }
-            free(weights);
+            lv00_free((void **)&weights);
         }
         break;
     }
@@ -851,7 +852,7 @@ PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx) {
     snap->state_count = ctx->state_count;
     snap->states = (NodeStateSpace *)calloc((size_t)snap->state_count, sizeof(NodeStateSpace));
     if (!snap->states) {
-        free(snap);
+        lv00_free((void **)&snap);
         return NULL;
     }
 
@@ -888,8 +889,8 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     ctx->prune_count = snap->prune_count;
 
     /* 销毁快照壳 */
-    free(snap->states);
-    free(snap);
+    lv00_free((void **)&snap->states);
+    lv00_free((void **)&snap);
 }
 
 void propagation_snapshot_destroy(PropagationSnapshot *snap) {
@@ -898,9 +899,9 @@ void propagation_snapshot_destroy(PropagationSnapshot *snap) {
         for (int i = 0; i < snap->state_count; i++) {
             state_destroy(&snap->states[i]);
         }
-        free(snap->states);
+        lv00_free((void **)&snap->states);
     }
-    free(snap);
+    lv00_free((void **)&snap);
 }
 
 /* ================================================================

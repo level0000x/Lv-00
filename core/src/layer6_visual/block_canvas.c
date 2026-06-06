@@ -130,7 +130,7 @@ int lv00_block_canvas_add_block(Lv00BlockCanvasView *canvas, const char *label,
     block->output_port_count = output_count;
     block->port_count = total_ports;
     if (total_ports > 0) {
-        block->ports = calloc(total_ports, sizeof(Lv00BlockPort));
+        block->ports = lv00_calloc(total_ports, sizeof(Lv00BlockPort));
         if (!block->ports) return -1;
 
         /* 输入端口在左侧均匀分布 */
