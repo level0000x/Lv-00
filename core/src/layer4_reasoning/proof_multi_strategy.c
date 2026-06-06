@@ -1599,11 +1599,6 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         }
     }
 
-    /* 标记 ATP 可用性（供后续策略参考） */
-    if (atp_available) {
-        (void) atp_available; /* 避免未使用警告 */
-    }
-
     return verified;
 }
 
