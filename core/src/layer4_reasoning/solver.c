@@ -364,7 +364,7 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
         case TRANSCENDENTAL: {
             /* 使用公共 API 获取超越常数的数值近似值（如 pi, e 等） */
             *out = symbolic_coord_to_double(c);
-            return (*out != 0.0 || c->data.transcendental != NULL);
+            return (fabs(*out) > LV00_EPSILON_DOUBLE || c->data.transcendental != NULL);
         }
         default:
             return false;
@@ -4378,6 +4378,7 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
     if (!free_ids) {
         lv00_free((void **) &pt_ids);
         lv00_free((void **) &eq_per_point);
+        lv00_free((void **) &point_has_quadratic);
         return -1;
     }
     int free_count = 0;
@@ -5555,8 +5556,10 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
         int p2;
     } SegInfo;
     SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
-    if (!segs)
+    if (!segs) {
+        lv00_free((void **) &point_ids);
         return 0;
+    }
     int seg_count = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -5700,8 +5703,10 @@ static int template_pythagorean(const ConstraintGraph *graph, EquationSystem *sy
         int p2;
     } SegInfo;
     SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
-    if (!segs)
+    if (!segs) {
+        lv00_free((void **) &point_ids);
         return 0;
+    }
     int seg_count = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -6471,9 +6476,13 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
     /* Kahn 拓扑排序，优先选择被依赖度最高的节点 */
     int *order = lv00_malloc((size_t) var_count * sizeof(int));
     if (!order) {
-        lv00_free((void **) &id_to_idx);
+        for (int i = 0; i < var_count; i++)
+            lv00_free((void **) &adj[i]);
+        lv00_free((void **) &adj);
+        lv00_free((void **) &participation);
+        lv00_free((void **) &in_degree);
         lv00_free((void **) &in_subset);
-        lv00_free((void **) &visited);
+        lv00_free((void **) &id_to_idx);
         return NULL;
     }
     int order_count = 0;
@@ -6693,11 +6702,14 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     /* 拓扑排序 (Kahn 算法), 优先选择权重高的节点 */
     int *order = lv00_malloc((size_t) var_count * sizeof(int));
     if (!order) {
-        lv00_free((void **) &var_ids);
+        for (int i = 0; i < var_count; i++)
+            lv00_free((void **) &adj[i]);
+        lv00_free((void **) &adj);
         lv00_free((void **) &eq_count);
         lv00_free((void **) &constraint_count);
         lv00_free((void **) &weight);
         lv00_free((void **) &in_degree);
+        lv00_free((void **) &var_ids);
         return NULL;
     }
     int order_count = 0;

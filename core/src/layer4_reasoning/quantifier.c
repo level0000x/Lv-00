@@ -37,6 +37,7 @@
 #include "constraint_graph.h"
 #include "error_codes.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 

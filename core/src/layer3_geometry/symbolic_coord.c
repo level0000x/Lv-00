@@ -1583,7 +1583,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     /* Special case: if b is effectively a rational */
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        if (b_val == 0)
+        if (mpq_sgn(b->cached_rational) == 0)
             return NULL;
 
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
