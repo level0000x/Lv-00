@@ -2248,6 +2248,8 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
                 case GEOM_FUNCTION_BLOCK:
                     fb_count++;
                     break;
+                default:
+                    break;
             }
 
             switch (node->trust) {
@@ -2571,6 +2573,8 @@ int interop_export_html(const LV00Engine *engine, const InteropExportConfig *con
                         region_stroke = "#FFB300";
                         break;
                     default:
+                        region_fill = "#E0E0E0";
+                        region_stroke = "#9E9E9E";
                         break;
                 }
                 fprintf(fp,

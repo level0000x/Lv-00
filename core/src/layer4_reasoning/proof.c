@@ -2193,6 +2193,9 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
             case PROOF_COLOR_DARK_ORANGE:
                 fill_color = "#E65100";
                 break;
+            default:
+                fill_color = "#999999";
+                break;
         }
         /* 节点圆 */
         fprintf(f,
@@ -2255,6 +2258,9 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
                 break;
             case PROOF_COLOR_DARK_ORANGE:
                 dot_border = "var(--c-dark-orange)";
+                break;
+            default:
+                dot_border = "#ccc";
                 break;
         }
         fprintf(f,
@@ -2331,6 +2337,10 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
             case PROOF_COLOR_DARK_ORANGE:
                 bar_class = "cs-dark";
                 badge_class = "bg-dark";
+                break;
+            default:
+                bar_class = "cs-gray";
+                badge_class = "bg-gray";
                 break;
         }
 
