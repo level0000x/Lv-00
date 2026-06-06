@@ -424,6 +424,11 @@ Lv00TestReport *lv00_test_run_suite(const char *suite_name) {
 
     report->start_time_ns = get_time_ns();
     report->suites = (Lv00TestSuite *)lv00_malloc(sizeof(Lv00TestSuite));
+    if (!report->suites) {
+        lv00_free((void **) &report);
+        MUTEX_UNLOCK(g_test_system.mutex);
+        return NULL;
+    }
     report->suite_count = 1;
 
     /* 重置统计 */
@@ -669,6 +674,10 @@ static struct {
 
 bool lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t iterations) {
     if (!name || !func || g_benchmarks.count >= LV00_TEST_MAX_CASES) {
+        return false;
+    }
+    if (iterations == 0) {
+        fprintf(stderr, "Error: benchmark '%s' registered with zero iterations\n", name);
         return false;
     }
 

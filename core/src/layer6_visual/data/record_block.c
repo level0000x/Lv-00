@@ -7,6 +7,10 @@ Lv00RecordBlock *lv00_record_block_create(int field_count) {
     if (!block) return NULL;
     if (field_count > 0) {
         block->fields = lv00_calloc(field_count, sizeof(block->fields[0]));
+        if (!block->fields) {
+            lv00_free((void **)&block);
+            return NULL;
+        }
         block->field_count = field_count;
     }
     return block;

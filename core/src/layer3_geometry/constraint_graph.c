@@ -3095,6 +3095,7 @@ static bool point_on_segment(ConstraintGraph *graph, int point_id, int segment_i
 static void add_conflict_group(int **conflicts, int *conflict_count, int **conflict_sizes, int *node_ids,
                                int node_count) {
     conflicts[*conflict_count] = lv00_malloc((size_t) node_count * sizeof(int));
+    if (!conflicts[*conflict_count]) return;
     memcpy(conflicts[*conflict_count], node_ids, node_count * sizeof(int));
     (*conflict_sizes)[*conflict_count] = node_count;
     (*conflict_count)++;
@@ -4877,8 +4878,12 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                             /* 解析坐标 */
                             if (coord_count > 0) {
                                 coords = lv00_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
-                                for (int i = 0; i < coord_count; i++) {
-                                    coords[i] = NULL;
+                                if (!coords) {
+                                    coord_count = 0;
+                                } else {
+                                    for (int i = 0; i < coord_count; i++) {
+                                        coords[i] = NULL;
+                                    }
                                 }
                             }
 

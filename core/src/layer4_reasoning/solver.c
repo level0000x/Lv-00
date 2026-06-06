@@ -1607,6 +1607,8 @@ typedef struct {
 static VarInfo *build_var_info(EquationSystem *sys, int node_count, int *out_var_count) {
     /* 收集所有不重复的变量节点 id */
     int *var_ids = lv00_malloc((size_t) sys->count * sizeof(int));
+    if (!var_ids)
+        return NULL;
     int var_count = 0;
     for (int i = 0; i < sys->count; i++) {
         int vid = sys->eqs[i].var_node_id;
@@ -4370,6 +4372,11 @@ int count_degrees_of_freedom(const ConstraintGraph *graph, int **out_free_var_id
 
     /* Collect free variable IDs: points with fewer than 2 equations */
     int *free_ids = lv00_malloc((size_t) dof * sizeof(int));
+    if (!free_ids) {
+        lv00_free((void **) &pt_ids);
+        lv00_free((void **) &eq_per_point);
+        return -1;
+    }
     int free_count = 0;
     for (int i = 0; i < pt_count && free_count < dof; i++) {
         int equations = eq_per_point[i];
@@ -4657,6 +4664,10 @@ static void mv_poly_add_term(MVPolynomial *p, const mpz_t coeff, const int *expo
     }
     MVMonomial *m = &p->terms[p->term_count];
     m->exponents = lv00_malloc((size_t) p->var_count * sizeof(int));
+    if (!m->exponents) {
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "mv_poly_add_term: 指数数组分配失败");
+        return;
+    }
     for (int v = 0; v < p->var_count; v++) {
         m->exponents[v] = exponents[v];
     }
@@ -4761,6 +4772,10 @@ static void mv_poly_mul_monomial(MVPolynomial *result, const MVPolynomial *p, co
         mpz_mul(new_coeff, p->terms[i].coeff, mono_coeff);
 
         int *new_exp = lv00_malloc((size_t) var_count * sizeof(int));
+        if (!new_exp) {
+            mpz_clear(new_coeff);
+            continue;
+        }
         for (int v = 0; v < var_count; v++) {
             new_exp[v] = p->terms[i].exponents[v] + mono_exp[v];
         }
@@ -5253,6 +5268,11 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                             pair_data = new_pair;
                         }
                         G[g_count] = lv00_malloc(sizeof(MVPolynomial));
+                        if (!G[g_count]) {
+                            lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "buchberger_groebner: 基元素分配失败");
+                            mv_poly_clear(&remainder);
+                            break;
+                        }
                         *G[g_count] = remainder; /* 转移所有权 */
                         g_count++;
                         changed = true;
@@ -6014,6 +6034,8 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         double dx, dy; /* 方向向量 */
     } SegInfo;
     SegInfo *segs = lv00_malloc((size_t) graph->node_count * sizeof(SegInfo));
+    if (!segs)
+        return 0;
     int seg_count = 0;
 
     for (int i = 0; i < graph->node_count; i++) {
@@ -6337,6 +6359,8 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
 
     /* 构建变量 ID 到索引的映射 */
     int *id_to_idx = lv00_malloc((size_t) var_count * sizeof(int));
+    if (!id_to_idx)
+        return NULL;
     for (int i = 0; i < var_count; i++)
         id_to_idx[i] = -1;
     for (int i = 0; i < var_count; i++) {
@@ -6443,6 +6467,12 @@ static int *order_variables_by_dependency(const ConstraintGraph *graph, const in
 
     /* Kahn 拓扑排序，优先选择被依赖度最高的节点 */
     int *order = lv00_malloc((size_t) var_count * sizeof(int));
+    if (!order) {
+        lv00_free((void **) &id_to_idx);
+        lv00_free((void **) &in_subset);
+        lv00_free((void **) &visited);
+        return NULL;
+    }
     int order_count = 0;
     bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
     if (visited)
@@ -6539,6 +6569,8 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
 
     /* 收集所有唯一的变量 ID (来自方程系统) */
     int *var_ids = lv00_malloc((size_t) sys.count * sizeof(int));
+    if (!var_ids)
+        return NULL;
     int var_count = 0;
     for (int i = 0; i < sys->count; i++) {
         if (sys->eqs[i].poly.degree < 0)
@@ -6595,6 +6627,12 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
     /* 计算综合权重: 方程数量 * 2 + 约束参与度
      * 方程数量权重更高, 因为它直接反映消元复杂度 */
     int *weight = lv00_malloc((size_t) var_count * sizeof(int));
+    if (!weight) {
+        lv00_free((void **) &var_ids);
+        lv00_free((void **) &eq_count);
+        lv00_free((void **) &constraint_count);
+        return NULL;
+    }
     for (int i = 0; i < var_count; i++) {
         weight[i] = eq_count[i] * 2 + constraint_count[i];
     }
@@ -6614,6 +6652,8 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
         Constraint *c = graph->constraints[ci];
         /* 找出此约束涉及的所有变量 */
         int *participants = lv00_malloc((size_t) c->participant_count * sizeof(int));
+        if (!participants)
+            continue;
         int p_var_count = 0;
         for (int p = 0; p < c->participant_count; p++) {
             int pid = c->participants[p];
@@ -6649,6 +6689,14 @@ static int *compute_elimination_order(ConstraintGraph *graph, EquationSystem *sy
 
     /* 拓扑排序 (Kahn 算法), 优先选择权重高的节点 */
     int *order = lv00_malloc((size_t) var_count * sizeof(int));
+    if (!order) {
+        lv00_free((void **) &var_ids);
+        lv00_free((void **) &eq_count);
+        lv00_free((void **) &constraint_count);
+        lv00_free((void **) &weight);
+        lv00_free((void **) &in_degree);
+        return NULL;
+    }
     int order_count = 0;
     bool *visited = lv00_malloc((size_t) var_count * sizeof(bool));
     if (visited)
@@ -7327,6 +7375,10 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     mpz_poly_init(&poly);
                     poly.degree = 1;
                     poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
+                    if (!poly.coeffs) {
+                        mpz_poly_clear(&poly);
+                        continue;
+                    }
                     mpz_init(poly.coeffs[1]);
                     mpz_init(poly.coeffs[0]);
                     double_to_mpz_scaled(le1.a, poly.coeffs[1], scale);
@@ -7341,6 +7393,10 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                     mpz_poly_init(&poly);
                     poly.degree = 1;
                     poly.coeffs = lv00_malloc(2 * sizeof(mpz_t));
+                    if (!poly.coeffs) {
+                        mpz_poly_clear(&poly);
+                        continue;
+                    }
                     mpz_init(poly.coeffs[1]);
                     mpz_init(poly.coeffs[0]);
                     double_to_mpz_scaled(le2.a, poly.coeffs[1], scale);
@@ -7894,6 +7950,10 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 poly.coeffs = lv00_malloc(3 * sizeof(mpz_t));
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    continue;
+                }
                 mpz_init(poly.coeffs[2]);
                 mpz_init(poly.coeffs[1]);
                 mpz_init(poly.coeffs[0]);
@@ -7909,6 +7969,10 @@ int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *
                 mpz_poly_init(&poly);
                 poly.degree = 2;
                 poly.coeffs = lv00_malloc(3 * sizeof(mpz_t));
+                if (!poly.coeffs) {
+                    mpz_poly_clear(&poly);
+                    continue;
+                }
                 mpz_init(poly.coeffs[2]);
                 mpz_init(poly.coeffs[1]);
                 mpz_init(poly.coeffs[0]);

@@ -18,6 +18,10 @@ Lv00TextCodeView *lv00_text_code_create(void) {
     view->view_type = LV00_VIEW_TEXT_CODE;
     view->buffer_size = 4096;
     view->code_buffer = lv00_calloc(1, view->buffer_size);
+    if (!view->code_buffer) {
+        lv00_free((void **)&view);
+        return NULL;
+    }
     return view;
 }
 

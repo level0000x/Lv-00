@@ -7,6 +7,10 @@ Lv00EffectTracker *lv00_effect_tracker_create(void) {
     if (!tracker) return NULL;
     tracker->entry_capacity = 64;
     tracker->entries = lv00_calloc(tracker->entry_capacity, sizeof(Lv00EffectLogEntry));
+    if (!tracker->entries) {
+        lv00_free((void **)&tracker);
+        return NULL;
+    }
     return tracker;
 }
 
@@ -69,6 +73,10 @@ Lv00EffectAnnotation *lv00_effect_compose(const Lv00EffectAnnotation *a,
     if (b) count += b->effect_count;
     if (count == 0) { lv00_free((void **)&result); return NULL; }
     result->effects = lv00_calloc(count, sizeof(Lv00EffectType));
+    if (!result->effects) {
+        lv00_free((void **)&result);
+        return NULL;
+    }
     result->effect_count = 0;
     if (a) {
         memcpy(result->effects, a->effects, a->effect_count * sizeof(Lv00EffectType));

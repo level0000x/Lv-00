@@ -2278,7 +2278,7 @@ static bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
         if (success && queue_tail < queue_head + BFS_QUEUE_SIZE) {
             BFSState *new_state = &queue[queue_tail % BFS_QUEUE_SIZE];
             /* 复制当前状态的已尝试集合 */
-            memcpy(new_state, state, sizeof(BFSState));
+            memmove(new_state, state, sizeof(BFSState));
             new_state->depth = state->depth + 1;
             queue_tail++;
         }

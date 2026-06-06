@@ -15,6 +15,10 @@ typedef struct {
 static void buf_init(TextBuf *b) {
     b->cap = 1024;
     b->data = lv00_calloc(b->cap, 1);
+    if (!b->data) {
+        b->cap = 0;
+        return;
+    }
     b->len = 0;
 }
 
@@ -22,7 +26,12 @@ static void buf_append(TextBuf *b, const char *s) {
     int slen = (int)strlen(s);
     while (b->len + slen + 1 > b->cap) {
         b->cap *= 2;
-        b->data = lv00_realloc(b->data, b->cap);
+        char *tmp = lv00_realloc(b->data, b->cap);
+        if (!tmp) {
+            b->cap /= 2; /* restore old capacity */
+            return;
+        }
+        b->data = tmp;
     }
     memcpy(b->data + b->len, s, slen + 1);
     b->len += slen;
@@ -221,7 +230,12 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                 /* 添加到块图 */
                 if (sg->count >= sg->cap) {
                     sg->cap *= 2;
-                    sg->blocks = lv00_realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
+                    FuncBlock **tmp = lv00_realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
+                    if (!tmp) {
+                        sg->cap /= 2; /* restore old capacity */
+                        break;
+                    }
+                    sg->blocks = tmp;
                 }
                 sg->blocks[sg->count++] = fb;
             }

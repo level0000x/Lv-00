@@ -198,6 +198,9 @@ static void csg_trilist_init(CSGTriList *list, int init_cap) {
     list->count = 0;
     list->capacity = init_cap > 0 ? init_cap : CSG_MAX_TRI_BUFFER;
     list->tris = (CSGTriangle *) lv00_calloc((size_t) list->capacity, sizeof(CSGTriangle));
+    if (!list->tris) {
+        list->capacity = 0;
+    }
 }
 
 /**
@@ -206,7 +209,9 @@ static void csg_trilist_init(CSGTriList *list, int init_cap) {
 static void csg_trilist_append(CSGTriList *list, const CSGTriangle *tri) {
     if (list->count >= list->capacity) {
         int new_cap = list->capacity * 2;
-        list->tris = (CSGTriangle *) lv00_realloc(list->tris, (size_t) new_cap * sizeof(CSGTriangle));
+        CSGTriangle *new_tris = (CSGTriangle *) lv00_realloc(list->tris, (size_t) new_cap * sizeof(CSGTriangle));
+        if (!new_tris) return;
+        list->tris = new_tris;
         list->capacity = new_cap;
     }
     list->tris[list->count] = *tri;
@@ -1078,17 +1083,25 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
                        + m02 * (m10 * m21 - m11 * m20);
 
             /* 逆转置 3x3 = (1/det) * adjugate(M)^T = (1/det) * cofactor(M) */
-            double inv_det = 1.0 / det;
+            double inv_det;
             double invT[3][3];
-            invT[0][0] = ( m11 * m22 - m12 * m21) * inv_det;
-            invT[0][1] = ( m02 * m21 - m01 * m22) * inv_det;
-            invT[0][2] = ( m01 * m12 - m02 * m11) * inv_det;
-            invT[1][0] = ( m12 * m20 - m10 * m22) * inv_det;
-            invT[1][1] = ( m00 * m22 - m02 * m20) * inv_det;
-            invT[1][2] = ( m02 * m10 - m00 * m12) * inv_det;
-            invT[2][0] = ( m10 * m21 - m11 * m20) * inv_det;
-            invT[2][1] = ( m01 * m20 - m00 * m21) * inv_det;
-            invT[2][2] = ( m00 * m11 - m01 * m10) * inv_det;
+            if (fabs(det) < CSG_BSP_EPSILON) {
+                /* 奇异矩阵：行列式接近零，法线保持不变（使用单位矩阵） */
+                invT[0][0] = 1.0; invT[0][1] = 0.0; invT[0][2] = 0.0;
+                invT[1][0] = 0.0; invT[1][1] = 1.0; invT[1][2] = 0.0;
+                invT[2][0] = 0.0; invT[2][1] = 0.0; invT[2][2] = 1.0;
+            } else {
+                inv_det = 1.0 / det;
+                invT[0][0] = ( m11 * m22 - m12 * m21) * inv_det;
+                invT[0][1] = ( m02 * m21 - m01 * m22) * inv_det;
+                invT[0][2] = ( m01 * m12 - m02 * m11) * inv_det;
+                invT[1][0] = ( m12 * m20 - m10 * m22) * inv_det;
+                invT[1][1] = ( m00 * m22 - m02 * m20) * inv_det;
+                invT[1][2] = ( m02 * m10 - m00 * m12) * inv_det;
+                invT[2][0] = ( m10 * m21 - m11 * m20) * inv_det;
+                invT[2][1] = ( m01 * m20 - m00 * m21) * inv_det;
+                invT[2][2] = ( m00 * m11 - m01 * m10) * inv_det;
+            }
 
             /* 对每个三角形应用变换 */
             for (int i = 0; i < child_tris.count; i++) {

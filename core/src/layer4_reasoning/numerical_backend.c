@@ -936,6 +936,10 @@ static int iterative_gmres_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
             r0_norm += r0[i] * r0[i];
         r0_norm = sqrt(r0_norm);
 
+        if (r0_norm < LV00_EPSILON_DOUBLE) {
+            converged = 1;
+            break;
+        }
         if (r0_norm < tol * b_norm) {
             converged = 1;
             break;
@@ -1127,7 +1131,10 @@ static int iterative_bicgstab_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
 
         /* 处理 rho=0 的 breakdown */
         if (fabs(rho_new) < LV00_EPSILON_DOUBLE) break;
-        double beta = (rho_new / rho) * (alpha / omega);
+        /* 防止除零：rho 和 omega 在后续迭代中可能为零 */
+        double safe_rho = (fabs(rho) < LV00_EPSILON_DOUBLE) ? 1.0 : rho;
+        double safe_omega = (fabs(omega) < LV00_EPSILON_DOUBLE) ? 1.0 : omega;
+        double beta = (rho_new / safe_rho) * (alpha / safe_omega);
 
         /* p = r + beta * (p - omega * v) */
         for (int64_t i = 0; i < n; ++i)
@@ -1283,6 +1290,7 @@ static int iterative_cg_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
         if (r_norm < threshold) break;
 
         /* beta = (r_new, r_new) / (r_old, r_old) */
+        if (fabs(rs_old) < LV00_EPSILON_DOUBLE) rs_old = 1.0;
         double beta = rs_new / rs_old;
 
         /* p = r + beta * p */

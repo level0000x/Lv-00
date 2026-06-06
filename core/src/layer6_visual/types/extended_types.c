@@ -49,6 +49,10 @@ Lv00EffectTypeRegion *lv00_effect_type_create(Lv00EffectType *effects, int count
     if (!t) return NULL;
     if (count > 0 && effects) {
         t->effects = lv00_calloc(count, sizeof(Lv00EffectType));
+        if (!t->effects) {
+            lv00_free((void **)&t);
+            return NULL;
+        }
         memcpy(t->effects, effects, count * sizeof(Lv00EffectType));
         t->effect_count = count;
     }
