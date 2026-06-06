@@ -4022,10 +4022,13 @@ static bool json_buf_init(JsonBuf *buf, size_t initial_size) {
  * @param buf JsonBuf 结构体指针
  */
 static void json_buf_grow(JsonBuf *buf) {
+    int old_capacity = buf->capacity;
     buf->capacity *= 2;
     char *new_buf = lv00_realloc(buf->buffer, buf->capacity);
     if (new_buf)
         buf->buffer = new_buf;
+    else
+        buf->capacity = old_capacity; /* 恢复旧容量 */
 }
 
 /**

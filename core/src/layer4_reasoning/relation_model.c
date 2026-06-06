@@ -63,6 +63,8 @@ static bool rel_ensure_capacity(Relation *r) {
     if (r->tuple_count >= r->tuple_capacity) {
         int new_cap = (r->tuple_capacity == 0) ? TUPLE_INITIAL_CAP
                                                : r->tuple_capacity * LV00_ARRAY_GROWTH_FACTOR;
+        if (r->tuple_capacity > 0 && new_cap / r->tuple_capacity != LV00_ARRAY_GROWTH_FACTOR)
+            return false; /* 整数溢出 */
         int **new_t = (int **)lv00_realloc(r->tuples, (size_t)new_cap * sizeof(int *));
         if (!new_t) return false;
         r->tuples = new_t;
@@ -522,7 +524,7 @@ RelModel *relation_model_from_graph(const ConstraintGraph *graph) {
 
         /* 扩容 atom 数组 */
         if (sig->atom_count >= sig->atom_capacity) {
-            int new_cap = sig->atom_capacity * LV00_ARRAY_GROWTH_FACTOR;
+            int new_cap = (sig->atom_capacity == 0) ? 16 : sig->atom_capacity * LV00_ARRAY_GROWTH_FACTOR;
             RelAtom **new_a = (RelAtom **)lv00_realloc(sig->atoms,
                                                         (size_t)new_cap * sizeof(RelAtom *));
             if (!new_a) {
