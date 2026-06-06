@@ -41,6 +41,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <pthread.h>
 #endif
 
 #include "error_codes.h"
@@ -86,6 +87,23 @@ struct ATPBackendSolver {
 /** @brief 全局静态注册表 */
 static ATPBackendRegistry g_atp_registry;
 static bool g_atp_registry_initialized = false;
+
+#ifdef _WIN32
+static CRITICAL_SECTION g_atp_registry_cs = {0};
+static volatile LONG g_atp_cs_initialized = 0;
+#define ATP_REGISTRY_LOCK() do { \
+    if (!g_atp_cs_initialized) { \
+        InterlockedCompareExchange(&g_atp_cs_initialized, 1, 0); \
+        if (g_atp_cs_initialized) InitializeCriticalSection(&g_atp_registry_cs); \
+    } \
+    EnterCriticalSection(&g_atp_registry_cs); \
+} while(0)
+#define ATP_REGISTRY_UNLOCK() LeaveCriticalSection(&g_atp_registry_cs)
+#else
+static pthread_mutex_t g_atp_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
+#define ATP_REGISTRY_LOCK() pthread_mutex_lock(&g_atp_registry_mutex)
+#define ATP_REGISTRY_UNLOCK() pthread_mutex_unlock(&g_atp_registry_mutex)
+#endif
 
 /* ============================================================
  * 默认配置
@@ -1089,11 +1107,13 @@ int atp_proof_to_lv00(const ATPResultInfo *result, Proof *proof, int *step_count
  * @brief 获取全局 ATP 后端注册表
  */
 const ATPBackendRegistry *atp_get_registry(void) {
+    ATP_REGISTRY_LOCK();
     if (!g_atp_registry_initialized) {
         memset(&g_atp_registry, 0, sizeof(g_atp_registry));
         g_atp_registry.count = 0;
         g_atp_registry_initialized = true;
     }
+    ATP_REGISTRY_UNLOCK();
     return &g_atp_registry;
 }
 
@@ -1107,20 +1127,25 @@ int atp_register_backend(const ATPBackendEntry *entry) {
         atp_get_registry(); /* 初始化 */
     }
 
+    ATP_REGISTRY_LOCK();
+
     /* 检查是否已存在 */
     for (int i = 0; i < g_atp_registry.count; i++) {
         if (g_atp_registry.entries[i].type == entry->type) {
+            ATP_REGISTRY_UNLOCK();
             return (int)LV00_ERROR_ALREADY_EXISTS;
         }
     }
 
     if (g_atp_registry.count >= ATP_BACKEND_COUNT) {
+        ATP_REGISTRY_UNLOCK();
         return (int)LV00_ERROR_RESOURCE_EXHAUSTED;
     }
 
     g_atp_registry.entries[g_atp_registry.count] = *entry;
     g_atp_registry.count++;
 
+    ATP_REGISTRY_UNLOCK();
     return (int)LV00_OK;
 }
 

@@ -1,0 +1,4 @@
+#ifndef LV00_EXACT_ARITHMETIC_H
+#define LV00_EXACT_ARITHMETIC_H
+/* TODO: 精确算术模块 - 待实现 */
+#endif /* LV00_EXACT_ARITHMETIC_H */

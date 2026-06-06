@@ -38,6 +38,12 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
+
 #include "error_codes.h"
 #include "groebner_engine.h"
 #include "lv00_internal.h"
@@ -102,6 +108,23 @@ struct SMTSolver {
 /** @brief 全局注册表实例 */
 static SMTBackendRegistry g_smt_registry;
 static bool g_smt_registry_initialized = false;
+
+#ifdef _WIN32
+static CRITICAL_SECTION g_smt_registry_cs = {0};
+static volatile LONG g_smt_cs_initialized = 0;
+#define SMT_REGISTRY_LOCK() do { \
+    if (!g_smt_cs_initialized) { \
+        InterlockedCompareExchange(&g_smt_cs_initialized, 1, 0); \
+        if (g_smt_cs_initialized) InitializeCriticalSection(&g_smt_registry_cs); \
+    } \
+    EnterCriticalSection(&g_smt_registry_cs); \
+} while(0)
+#define SMT_REGISTRY_UNLOCK() LeaveCriticalSection(&g_smt_registry_cs)
+#else
+static pthread_mutex_t g_smt_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
+#define SMT_REGISTRY_LOCK() pthread_mutex_lock(&g_smt_registry_mutex)
+#define SMT_REGISTRY_UNLOCK() pthread_mutex_unlock(&g_smt_registry_mutex)
+#endif
 
 /* ============================================================
  * 前向声明 —— 内部辅助函数
@@ -1975,11 +1998,13 @@ const char *smtsolver_error_string(SMTErrorCode code) {
  * @brief 获取全局后端注册表（惰性初始化）
  */
 SMTBackendRegistry *smtsolver_get_registry(void) {
+    SMT_REGISTRY_LOCK();
     if (!g_smt_registry_initialized) {
         memset(&g_smt_registry, 0, sizeof(g_smt_registry));
         g_smt_registry.count = 0;
         g_smt_registry_initialized = true;
     }
+    SMT_REGISTRY_UNLOCK();
     return &g_smt_registry;
 }
 

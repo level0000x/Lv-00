@@ -51,6 +51,12 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
+
 #include "axiom_pkg.h"
 #include "engine.h"
 #include "lv00_internal.h"
@@ -1760,6 +1766,23 @@ typedef struct {
 static ProofBreakpointSnapshot g_breakpoint_store[MAX_BREAKPOINT_SNAPSHOTS];
 static int g_breakpoint_store_count = 0;
 
+#ifdef _WIN32
+static CRITICAL_SECTION g_breakpoint_cs = {0};
+static volatile LONG g_breakpoint_cs_initialized = 0;
+#define BREAKPOINT_LOCK() do { \
+    if (!g_breakpoint_cs_initialized) { \
+        InterlockedCompareExchange(&g_breakpoint_cs_initialized, 1, 0); \
+        if (g_breakpoint_cs_initialized) InitializeCriticalSection(&g_breakpoint_cs); \
+    } \
+    EnterCriticalSection(&g_breakpoint_cs); \
+} while(0)
+#define BREAKPOINT_UNLOCK() LeaveCriticalSection(&g_breakpoint_cs)
+#else
+static pthread_mutex_t g_breakpoint_mutex = PTHREAD_MUTEX_INITIALIZER;
+#define BREAKPOINT_LOCK() pthread_mutex_lock(&g_breakpoint_mutex)
+#define BREAKPOINT_UNLOCK() pthread_mutex_unlock(&g_breakpoint_mutex)
+#endif
+
 bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     if (!nav)
         return false;
@@ -1767,6 +1790,8 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     /* 检查断点ID是否有效 */
     if (breakpoint_id < 0)
         return false;
+
+    BREAKPOINT_LOCK();
 
     /* 查找是否已有相同ID的快照，如果有则覆盖 */
     int slot = -1;
@@ -1780,6 +1805,7 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     /* 如果没有找到，分配新槽位 */
     if (slot < 0) {
         if (g_breakpoint_store_count >= MAX_BREAKPOINT_SNAPSHOTS) {
+            BREAKPOINT_UNLOCK();
             return false; /* 存储已满 */
         }
         slot = g_breakpoint_store_count;
@@ -1792,6 +1818,8 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
     g_breakpoint_store[slot].step_count = nav->step_count;
     g_breakpoint_store[slot].is_complete = nav->is_complete;
     g_breakpoint_store[slot].final_color = nav->final_color;
+
+    BREAKPOINT_UNLOCK();
 
     /* 将当前步骤标记为断点 */
     if (nav->current_step >= 0 && nav->current_step < nav->step_count) {
@@ -1881,9 +1909,11 @@ void proof_breakpoint_storage_init(void) {
  * 清除所有已保存的断点快照，重置计数器。
  */
 void proof_breakpoint_storage_reset(void) {
+    BREAKPOINT_LOCK();
     /* 清空所有快照 */
     memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
     g_breakpoint_store_count = 0;
+    BREAKPOINT_UNLOCK();
 
     /* 流式事件 */
     if (proof_stream_ctx != NULL) {
@@ -5027,18 +5057,29 @@ void fill_suggestions_destroy(FillSuggestion *list) {
 #define MAX_GHOST_STEPS 1024
 
 static ProofQuantifier g_ghost_table[MAX_GHOST_STEPS];
-static bool g_ghost_table_initialized = false;
+static volatile int g_ghost_table_initialized = 0;
 
 /**
- * @brief 惰性初始化 ghost 标记表
+ * @brief 惰性初始化 ghost 标记表（线程安全的一次性初始化）
  */
 static void ghost_table_init(void) {
-    if (!g_ghost_table_initialized) {
+    if (g_ghost_table_initialized) return;
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_ghost_table_initialized, 1, 0) == 0) {
         for (int i = 0; i < MAX_GHOST_STEPS; i++) {
             g_ghost_table[i] = PROOF_QTT_UNRESTRICTED; /* 默认非擦除 */
         }
-        g_ghost_table_initialized = true;
     }
+#else
+    int expected = 0;
+    if (__atomic_compare_exchange_n(&g_ghost_table_initialized, &expected, 1, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+        for (int i = 0; i < MAX_GHOST_STEPS; i++) {
+            g_ghost_table[i] = PROOF_QTT_UNRESTRICTED; /* 默认非擦除 */
+        }
+    }
+#endif
+    /* 等待其他线程完成初始化 */
+    while (!g_ghost_table_initialized) { /* spin */ }
 }
 
 /**
