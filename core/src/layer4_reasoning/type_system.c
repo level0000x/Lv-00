@@ -375,7 +375,7 @@ TypeRegion *type_create_region(TypeSystem *ts, int *contained_ids, int count) {
     tr->level = UNIVERSE_TYPE_1;
 
     if (contained_ids && count > 0) {
-        tr->contained_node_ids = lv00_malloc(count * sizeof(int));
+        tr->contained_node_ids = lv00_malloc((size_t)count * sizeof(int));
         if (tr->contained_node_ids) {
             memcpy(tr->contained_node_ids, contained_ids, count * sizeof(int));
             tr->contained_count = count;
@@ -931,8 +931,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 if (type1->contained_node_ids && type2->contained_node_ids) {
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->contained_count;
-                    int *sorted1 = lv00_malloc(count * sizeof(int));
-                    int *sorted2 = lv00_malloc(count * sizeof(int));
+                    int *sorted1 = lv00_malloc((size_t)count * sizeof(int));
+                    int *sorted2 = lv00_malloc((size_t)count * sizeof(int));
                     if (!sorted1 || !sorted2) {
                         lv00_free((void **) &sorted1);
                         lv00_free((void **) &sorted2);
@@ -975,8 +975,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->constraint_count;
-                    int *sorted1 = lv00_malloc(count * sizeof(int));
-                    int *sorted2 = lv00_malloc(count * sizeof(int));
+                    int *sorted1 = lv00_malloc((size_t)count * sizeof(int));
+                    int *sorted2 = lv00_malloc((size_t)count * sizeof(int));
                     if (!sorted1 || !sorted2) {
                         lv00_free((void **) &sorted1);
                         lv00_free((void **) &sorted2);

@@ -184,7 +184,7 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
 
     /* 复制坐标 */
     if (coord_count > 0 && coords) {
-        node->symbolic_coords = lv00_malloc(coord_count * sizeof(SymbolicCoord *));
+        node->symbolic_coords = lv00_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
         if (!node->symbolic_coords) {
             lv00_free((void **) &node);
             return NULL;
@@ -276,7 +276,7 @@ Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_
     con->type = type;
     con->is_active = true;   /* v3.5.0: 新约束默认活跃 */
     con->participant_count = participant_count;
-    con->participants = lv00_malloc(participant_count * sizeof(int));
+    con->participants = lv00_malloc((size_t) participant_count * sizeof(int));
     if (!con->participants) {
         lv00_free((void **) &con);
         return NULL;
@@ -894,7 +894,7 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, in
     GeomNode *node = graph_alloc_node(graph, GEOM_POINT);
     if (!node)
         return ADD_NODE_CONFLICT;
-    node->symbolic_coords = lv00_malloc(coord_count * sizeof(SymbolicCoord *));
+    node->symbolic_coords = lv00_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
     if (!node->symbolic_coords) {
         graph->node_count--;
         node_index_remove(graph, node->id);
@@ -941,7 +941,7 @@ AddNodeResult graph_add_line_segment(ConstraintGraph *graph, int endpoint1_id, i
     if (total_coords < 4)
         total_coords = 4;
 
-    node->symbolic_coords = lv00_malloc(total_coords * sizeof(SymbolicCoord *));
+    node->symbolic_coords = lv00_malloc((size_t) total_coords * sizeof(SymbolicCoord *));
     if (!node->symbolic_coords) {
         graph->node_count--;
         node_index_remove(graph, node->id);
@@ -1113,7 +1113,7 @@ AddNodeResult graph_add_region(ConstraintGraph *graph, const int *boundary_segme
         node->coord_count = 0;
         return ADD_NODE_OK;
     }
-    node->data.region.boundary_segments = lv00_malloc(segment_count * sizeof(GeomNode *));
+    node->data.region.boundary_segments = lv00_malloc((size_t) segment_count * sizeof(GeomNode *));
     if (!node->data.region.boundary_segments) {
         graph->node_count--;
         node_index_remove(graph, node->id);
@@ -1197,7 +1197,7 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
     GeomNode *node = graph_alloc_node(graph, GEOM_FUNCTION_BLOCK);
     if (!node)
         return ADD_NODE_CONFLICT;
-    node->data.func_block.internal_nodes = internal_count > 0 ? lv00_malloc(internal_count * sizeof(GeomNode *)) : NULL;
+    node->data.func_block.internal_nodes = internal_count > 0 ? lv00_malloc((size_t) internal_count * sizeof(GeomNode *)) : NULL;
     if (internal_count > 0 && !node->data.func_block.internal_nodes) {
         graph->node_count--;
         node_index_remove(graph, node->id);
@@ -1209,7 +1209,7 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
     }
     node->data.func_block.internal_node_count = internal_count;
     /* 仅在数量大于0时才分配端口ID数组，避免 lv00_malloc(0) 的未定义行为 */
-    node->data.func_block.input_port_ids = input_count > 0 ? lv00_malloc(input_count * sizeof(int)) : NULL;
+    node->data.func_block.input_port_ids = input_count > 0 ? lv00_malloc((size_t) input_count * sizeof(int)) : NULL;
     if (input_count > 0 && !node->data.func_block.input_port_ids) {
         lv00_free((void **) &node->data.func_block.internal_nodes);
         graph->node_count--;
@@ -1220,7 +1220,7 @@ AddNodeResult graph_add_function_block(ConstraintGraph *graph, const int *intern
     if (input_count > 0) {
         memcpy(node->data.func_block.input_port_ids, input_port_ids, input_count * sizeof(int));
     }
-    node->data.func_block.output_port_ids = output_count > 0 ? lv00_malloc(output_count * sizeof(int)) : NULL;
+    node->data.func_block.output_port_ids = output_count > 0 ? lv00_malloc((size_t) output_count * sizeof(int)) : NULL;
     if (output_count > 0 && !node->data.func_block.output_port_ids) {
         lv00_free((void **) &node->data.func_block.input_port_ids);
         lv00_free((void **) &node->data.func_block.internal_nodes);
@@ -1255,7 +1255,7 @@ CrossBoundaryConstraint *find_cross_boundary_constraints(ConstraintGraph *graph,
                                                          int internal_count, const int *port_ids, int port_count,
                                                          int *out_count) {
     int max_count = graph->constraint_count;
-    CrossBoundaryConstraint *conflicts = lv00_malloc(max_count * sizeof(CrossBoundaryConstraint));
+    CrossBoundaryConstraint *conflicts = lv00_malloc((size_t) max_count * sizeof(CrossBoundaryConstraint));
     if (!conflicts)
         return NULL;
     int count = 0;
@@ -1325,7 +1325,7 @@ static bool check_cross_boundary_constraints(ConstraintGraph *graph, GeomNode *f
     int output_count = func_block->data.func_block.output_count;
 
     /* 收集所有内部节点ID和端口ID */
-    int *internal_ids = lv00_malloc((internal_count + input_count + output_count) * sizeof(int));
+    int *internal_ids = lv00_malloc((size_t)(internal_count + input_count + output_count) * sizeof(int));
     if (!internal_ids)
         return true;
 
@@ -2360,7 +2360,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     int n = graph->constraint_count;
     if (n > 1) {
-        ConstraintHashEntry *entries = lv00_malloc(n * sizeof(ConstraintHashEntry));
+        ConstraintHashEntry *entries = lv00_malloc((size_t) n * sizeof(ConstraintHashEntry));
         if (entries) {
             /* Compute hash for each constraint */
             for (int i = 0; i < n; i++) {
@@ -2460,7 +2460,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Collect all coordinate variables (point x,y pairs) */
     /* First, find all points referenced by INCIDENCE/BETWEENNESS constraints */
-    int *point_ids = lv00_malloc(graph->node_count * sizeof(int));
+    int *point_ids = lv00_malloc((size_t) graph->node_count * sizeof(int));
     if (!point_ids) {
         lv00_free((void **) &redundant);
         return redundant;
@@ -2481,7 +2481,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
     /* node_id_to_var_idx: maps node_id to variable index (-1 if not a variable) */
-    int *node_id_to_var_idx = lv00_malloc((max_node_id + 1) * sizeof(int));
+    int *node_id_to_var_idx = lv00_malloc((size_t)(max_node_id + 1) * sizeof(int));
     if (!node_id_to_var_idx) {
         lv00_free((void **) &point_seen);
         lv00_free((void **) &point_ids);
@@ -2517,7 +2517,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     /* Count linear constraints */
     int num_linear = 0;
-    int *linear_constraint_indices = lv00_malloc(graph->constraint_count * sizeof(int));
+    int *linear_constraint_indices = lv00_malloc((size_t) graph->constraint_count * sizeof(int));
     if (!linear_constraint_indices) {
         lv00_free((void **) &node_id_to_var_idx);
         lv00_free((void **) &point_seen);
@@ -2776,7 +2776,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     }
 
     /* Gaussian elimination with partial pivoting using mpq_t */
-    int *pivot_row = lv00_malloc(num_linear * sizeof(int)); /* maps row i -> original constraint index */
+    int *pivot_row = lv00_malloc((size_t) num_linear * sizeof(int)); /* maps row i -> original constraint index */
     if (!pivot_row) {
         for (int i = 0; i < num_linear * (num_vars + 1); i++)
             mpq_clear(matrix[i]);
@@ -2944,7 +2944,7 @@ static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_
 
     /* 收集与新约束相关的所有变量 */
     int max_vars = new_con->participant_count * 2;
-    dirty_vars = lv00_malloc(max_vars * sizeof(int));
+    dirty_vars = lv00_malloc((size_t) max_vars * sizeof(int));
     if (!dirty_vars)
         return false;
 
@@ -3094,7 +3094,7 @@ static bool point_on_segment(ConstraintGraph *graph, int point_id, int segment_i
  */
 static void add_conflict_group(int **conflicts, int *conflict_count, int **conflict_sizes, int *node_ids,
                                int node_count) {
-    conflicts[*conflict_count] = lv00_malloc(node_count * sizeof(int));
+    conflicts[*conflict_count] = lv00_malloc((size_t) node_count * sizeof(int));
     memcpy(conflicts[*conflict_count], node_ids, node_count * sizeof(int));
     (*conflict_sizes)[*conflict_count] = node_count;
     (*conflict_count)++;
@@ -3177,7 +3177,7 @@ static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool
                                  int path_len, int **conflicts, int *conflict_count, int **conflict_sizes,
                                  const int *conn_adj, const int *conn_counts) {
     /* 分配显式 DFS 栈（堆分配，深度不受调用栈限制） */
-    DfsFrame *stack = lv00_malloc(LV00_MAX_TRAVERSAL_DEPTH * sizeof(DfsFrame));
+    DfsFrame *stack = lv00_malloc((size_t) LV00_MAX_TRAVERSAL_DEPTH * sizeof(DfsFrame));
     if (!stack) {
         /* 栈分配失败：回退到快速路径检查 —— 若能分配则无法检测深层环路，
          * 但至少不会崩溃。记录警告并继续。 */
@@ -3344,8 +3344,8 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
 
     /* Allocate maximum possible conflicts */
     int max_conflicts = graph->node_count + graph->constraint_count;
-    int **conflicts = lv00_malloc(max_conflicts * sizeof(int *));
-    *out_conflict_sizes = lv00_malloc(max_conflicts * sizeof(int));
+    int **conflicts = lv00_malloc((size_t) max_conflicts * sizeof(int *));
+    *out_conflict_sizes = lv00_malloc((size_t) max_conflicts * sizeof(int));
 
     if (!conflicts || !*out_conflict_sizes) {
         lv00_free((void **) &conflicts);
@@ -3598,7 +3598,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     if (max_port_id > 0) {
         bool *visited = lv00_calloc(max_port_id + 1, sizeof(bool));
         bool *rec_stack = lv00_calloc(max_port_id + 1, sizeof(bool));
-        int *path = lv00_malloc((max_port_id + 1) * sizeof(int));
+        int *path = lv00_malloc((size_t)(max_port_id + 1) * sizeof(int));
 
         if (visited && rec_stack && path) {
             for (int i = 0; i < graph->node_count; i++) {
@@ -3925,7 +3925,7 @@ bool graph_validate_region_closure(const ConstraintGraph *graph, int region_id) 
     /* Check 5: Self-intersection detection (warning only) */
     /* For each pair of non-adjacent segments, check if they intersect */
     {
-        int *seg_ids = lv00_malloc(segment_count * sizeof(int));
+        int *seg_ids = lv00_malloc((size_t) segment_count * sizeof(int));
         if (seg_ids) {
             for (int i = 0; i < segment_count; i++) {
                 seg_ids[i] = segments[i]->id;
@@ -4694,7 +4694,7 @@ static int *json_parser_parse_int_array(JsonParser *p, int *out_count) {
     /* 先计数 */
     int capacity = 8;
     int count = 0;
-    int *result = lv00_malloc(capacity * sizeof(int));
+    int *result = lv00_malloc((size_t) capacity * sizeof(int));
     if (!result) {
         *out_count = 0;
         return NULL;
@@ -4703,7 +4703,7 @@ static int *json_parser_parse_int_array(JsonParser *p, int *out_count) {
     while (json_parser_peek(p) != ']' && json_parser_peek(p) != '\0') {
         if (count >= capacity) {
             capacity *= 2;
-            int *new_result = lv00_realloc(result, capacity * sizeof(int));
+            int *new_result = lv00_realloc(result, (size_t) capacity * sizeof(int));
             if (!new_result) {
                 lv00_free((void **) &result);
                 *out_count = 0;
@@ -4876,7 +4876,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                             /* 解析坐标 */
                             if (coord_count > 0) {
-                                coords = lv00_malloc(coord_count * sizeof(SymbolicCoord *));
+                                coords = lv00_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
                                 for (int i = 0; i < coord_count; i++) {
                                     coords[i] = NULL;
                                 }
@@ -5021,7 +5021,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
 
                     /* 设置类型特定数据 */
                     if (node_type == GEOM_REGION && boundary_segs && boundary_seg_count > 0) {
-                        node->data.region.boundary_segments = lv00_malloc(boundary_seg_count * sizeof(GeomNode *));
+                        node->data.region.boundary_segments = lv00_malloc((size_t) boundary_seg_count * sizeof(GeomNode *));
                         if (node->data.region.boundary_segments) {
                             for (int i = 0; i < boundary_seg_count; i++) {
                                 node->data.region.boundary_segments[i] = graph_get_node(graph, boundary_segs[i]);
@@ -5047,7 +5047,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         node->data.func_block.output_count = output_port_count;
                         if (internal_nodes && internal_node_count > 0) {
                             node->data.func_block.internal_nodes =
-                                lv00_malloc(internal_node_count * sizeof(GeomNode *));
+                                lv00_malloc((size_t) internal_node_count * sizeof(GeomNode *));
                             if (node->data.func_block.internal_nodes) {
                                 for (int i = 0; i < internal_node_count; i++) {
                                     node->data.func_block.internal_nodes[i] = graph_get_node(graph, internal_nodes[i]);
@@ -5055,14 +5055,14 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                             }
                         }
                         if (input_port_ids && input_port_count > 0) {
-                            node->data.func_block.input_port_ids = lv00_malloc(input_port_count * sizeof(int));
+                            node->data.func_block.input_port_ids = lv00_malloc((size_t) input_port_count * sizeof(int));
                             if (node->data.func_block.input_port_ids) {
                                 memcpy(node->data.func_block.input_port_ids, input_port_ids,
                                        input_port_count * sizeof(int));
                             }
                         }
                         if (output_port_ids && output_port_count > 0) {
-                            node->data.func_block.output_port_ids = lv00_malloc(output_port_count * sizeof(int));
+                            node->data.func_block.output_port_ids = lv00_malloc((size_t) output_port_count * sizeof(int));
                             if (node->data.func_block.output_port_ids) {
                                 memcpy(node->data.func_block.output_port_ids, output_port_ids,
                                        output_port_count * sizeof(int));

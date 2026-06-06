@@ -1901,7 +1901,7 @@ void proof_multi_strategy_set_fallback_order(ProofMultiStrategy *mse, const int 
         return;
 
     lv00_free((void **) &mse->fallback_order);
-    mse->fallback_order = (int *) lv00_malloc(count * sizeof(int));
+    mse->fallback_order = (int *) lv00_malloc((size_t)count * sizeof(int));
     if (!mse->fallback_order)
         return;
 

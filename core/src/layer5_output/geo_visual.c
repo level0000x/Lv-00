@@ -124,7 +124,7 @@ Lv00VisualObject* lv00_visual_group_create(Lv00VisualObject** objs, size_t n) {
     obj->render_cache = NULL;
     
     if (n > 0 && objs) {
-        obj->children = (Lv00VisualObject**)lv00_malloc(n * sizeof(Lv00VisualObject*));
+        obj->children = (Lv00VisualObject**)lv00_malloc((size_t)n * sizeof(Lv00VisualObject*));
         memcpy(obj->children, objs, n * sizeof(Lv00VisualObject*));
         obj->children_count = n;
     } else {
@@ -262,7 +262,7 @@ void lv00_visual_scene_add(Lv00VisualScene* scene, Lv00VisualObject* obj) {
     if (!scene || !obj) return;
     
     size_t new_count = scene->object_count + 1;
-    Lv00VisualObject** new_objects = (Lv00VisualObject**)lv00_malloc(new_count * sizeof(Lv00VisualObject*));
+    Lv00VisualObject** new_objects = (Lv00VisualObject**)lv00_malloc((size_t)new_count * sizeof(Lv00VisualObject*));
     
     if (scene->objects) {
         memcpy(new_objects, scene->objects, scene->object_count * sizeof(Lv00VisualObject*));
