@@ -1077,7 +1077,7 @@ static CDCLState cdcl_run(Lv00Solver *solver) {
                                                             CDCL_MAX_RESTARTS_DEFAULT);
                     if (ctx->restarts < max_restarts &&
                         ctx->conflicts > 0 &&
-                        (int)ctx->conflicts % solver->config.restart_interval == 0) {
+                        ctx->conflicts % (int64_t)solver->config.restart_interval == 0) {
                         ctx->state = CDCL_RESTARTING;
                     }
                 }

@@ -4207,7 +4207,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
 
     /* General high-degree irreducible (> cubic, which v3.1 now supports) */
     char *poly_str = mpz_poly_get_str(target_poly);
-    int needed = 256 + strlen(poly_str);
+    size_t needed = (size_t)256 + strlen(poly_str);
     *suggestion = lv00_malloc(needed);
     int _snw2;
     LV00_SAFE_SNPRINTF(_snw2, *suggestion, needed,

@@ -1023,7 +1023,7 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
     }
 
     int offset = 0;
-    int remaining = (int) buf_size;
+    size_t remaining = buf_size;
     int clause_count = 0;
 
     /* DIMACS 头部（先写占位，后面回填） */

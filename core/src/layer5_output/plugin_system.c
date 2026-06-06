@@ -1181,8 +1181,8 @@ char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
     if (!json) return NULL;
 
     char* ptr = json;
-    int remaining = (int)size;
-    int written = snprintf(ptr, (size_t)remaining, "{"
+    size_t remaining = size;
+    int written = snprintf(ptr, remaining, "{"
         "\"version\":%u,"
         "\"plugin_count\":%zu,"
         "\"interface_count\":%zu,"
