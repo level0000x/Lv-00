@@ -4075,7 +4075,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
     if (!target_poly) {
         /* No high-degree equation found for this variable;
            the out-of-scope might come from the system as a whole */
-        *suggestion = strdup(
+        *suggestion = lv00_strdup_safe(
             "No single high-degree equation found for this variable. "
             "The system may be out of scope due to coupled nonlinear equations. "
             "Consider decomposing the construction into simpler sub-problems "
@@ -4171,7 +4171,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
             }
         }
         if (biquadratic) {
-            *suggestion = strdup(
+            *suggestion = lv00_strdup_safe(
                 "Biquadratic equation detected (only even powers). "
                 "Substitute u = x^2 to reduce to quadratic, solve for u, "
                 "then take square roots. This is within constructible scope "

@@ -663,7 +663,7 @@ Lv00VerifyReport lv00_meta_verify_proof(Lv00MetaVerifier *verifier, void *proof)
                 int queue_cap = p->step_count * 4;
                 if (queue_cap < 16) queue_cap = 16;
                 int *queue = (int *)lv00_malloc((size_t)queue_cap * sizeof(int));
-                int *visited = (int *)calloc((size_t)p->step_count, sizeof(int));
+                int *visited = (int *)lv00_calloc((size_t)p->step_count, sizeof(int));
                 if (!queue || !visited) {
                     free(queue); free(visited);
                     snprintf(desc, sizeof(desc), "Memory allocation failed");

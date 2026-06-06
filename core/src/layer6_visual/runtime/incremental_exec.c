@@ -1,4 +1,5 @@
 #include "lv00/block_scheduler.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,15 +17,15 @@ typedef struct Lv00IncrementalExec {
 } Lv00IncrementalExec;
 
 Lv00IncrementalExec *lv00_incremental_exec_create(int node_count) {
-    Lv00IncrementalExec *exec = calloc(1, sizeof(Lv00IncrementalExec));
+    Lv00IncrementalExec *exec = lv00_calloc(1, sizeof(Lv00IncrementalExec));
     if (!exec) return NULL;
     exec->node_count = node_count;
     /* 分配位图，每个unsigned int追踪32个block */
     if (node_count > 0) {
         exec->bitmap_count = (node_count + 31) / 32;
-        exec->validity_bitmap = calloc(exec->bitmap_count, sizeof(unsigned int));
+        exec->validity_bitmap = lv00_calloc(exec->bitmap_count, sizeof(unsigned int));
         if (!exec->validity_bitmap) {
-            free(exec);
+            lv00_free((void **)&exec);
             return NULL;
         }
         /* 初始状态：所有block都有效 */
@@ -36,9 +37,9 @@ Lv00IncrementalExec *lv00_incremental_exec_create(int node_count) {
 
 void lv00_incremental_exec_destroy(Lv00IncrementalExec *exec) {
     if (!exec) return;
-    free(exec->dependency_graph);
-    free(exec->validity_bitmap);
-    free(exec);
+    lv00_free((void **)&exec->dependency_graph);
+    lv00_free((void **)&exec->validity_bitmap);
+    lv00_free((void **)&exec);
 }
 
 /* 将指定block标记为无效（脏） */

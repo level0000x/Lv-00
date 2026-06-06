@@ -74,15 +74,15 @@ typedef struct Lv00BlockCanvasView {
 } Lv00BlockCanvasView;
 
 Lv00BlockCanvasView *lv00_block_canvas_create(void) {
-    Lv00BlockCanvasView *canvas = calloc(1, sizeof(Lv00BlockCanvasView));
+    Lv00BlockCanvasView *canvas = lv00_calloc(1, sizeof(Lv00BlockCanvasView));
     if (!canvas) return NULL;
     canvas->view_type = LV00_VIEW_BLOCK_CANVAS;
     canvas->block_capacity = 16;
-    canvas->blocks = calloc(canvas->block_capacity, sizeof(Lv00VisualBlock));
-    if (!canvas->blocks) { free(canvas); return NULL; }
+    canvas->blocks = lv00_calloc(canvas->block_capacity, sizeof(Lv00VisualBlock));
+    if (!canvas->blocks) { lv00_free((void **)&canvas); return NULL; }
     canvas->connection_capacity = 16;
-    canvas->connections = calloc(canvas->connection_capacity, sizeof(Lv00BlockConnection));
-    if (!canvas->connections) { free(canvas->blocks); free(canvas); return NULL; }
+    canvas->connections = lv00_calloc(canvas->connection_capacity, sizeof(Lv00BlockConnection));
+    if (!canvas->connections) { lv00_free((void **)&canvas->blocks); lv00_free((void **)&canvas); return NULL; }
     canvas->next_block_id = 1;
     canvas->next_port_id = 1;
     canvas->next_connection_id = 1;
@@ -92,11 +92,11 @@ Lv00BlockCanvasView *lv00_block_canvas_create(void) {
 void lv00_block_canvas_destroy(Lv00BlockCanvasView *canvas) {
     if (!canvas) return;
     for (int i = 0; i < canvas->block_count; i++) {
-        free(canvas->blocks[i].ports);
+        lv00_free((void **)&canvas->blocks[i].ports);
     }
-    free(canvas->blocks);
-    free(canvas->connections);
-    free(canvas);
+    lv00_free((void **)&canvas->blocks);
+    lv00_free((void **)&canvas->connections);
+    lv00_free((void **)&canvas);
 }
 
 /* 添加视觉块 */
@@ -108,7 +108,7 @@ int lv00_block_canvas_add_block(Lv00BlockCanvasView *canvas, const char *label,
     /* 自动扩容 */
     if (canvas->block_count >= canvas->block_capacity) {
         int new_cap = canvas->block_capacity * 2;
-        Lv00VisualBlock *new_arr = realloc(canvas->blocks, new_cap * sizeof(Lv00VisualBlock));
+        Lv00VisualBlock *new_arr = lv00_realloc(canvas->blocks, new_cap * sizeof(Lv00VisualBlock));
         if (!new_arr) return -1;
         canvas->blocks = new_arr;
         canvas->block_capacity = new_cap;
@@ -169,7 +169,7 @@ int lv00_block_canvas_remove_block(Lv00BlockCanvasView *canvas, int block_id) {
     if (found < 0) return -1;
 
     /* 释放端口 */
-    free(canvas->blocks[found].ports);
+    lv00_free((void **)&canvas->blocks[found].ports);
 
     /* 移除相关连接 */
     int new_c = 0;
@@ -238,7 +238,7 @@ int lv00_block_canvas_connect_blocks(Lv00BlockCanvasView *canvas,
     /* 自动扩容 */
     if (canvas->connection_count >= canvas->connection_capacity) {
         int new_cap = canvas->connection_capacity * 2;
-        Lv00BlockConnection *new_arr = realloc(canvas->connections,
+        Lv00BlockConnection *new_arr = lv00_realloc(canvas->connections,
                                                 new_cap * sizeof(Lv00BlockConnection));
         if (!new_arr) return -1;
         canvas->connections = new_arr;
@@ -277,7 +277,7 @@ char *lv00_block_canvas_render_svg(Lv00BlockCanvasView *canvas) {
 
     /* 估算缓冲区 */
     int buf_size = 4096 + canvas->block_count * 1024 + canvas->connection_count * 512;
-    char *buf = calloc(buf_size, sizeof(char));
+    char *buf = lv00_calloc(buf_size, sizeof(char));
     if (!buf) return NULL;
 
     int pos = 0;

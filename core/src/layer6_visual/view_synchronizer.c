@@ -1,4 +1,5 @@
 #include "lv00/visual_editor.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,21 +26,21 @@ typedef struct Lv00ViewSynchronizer {
 } Lv00ViewSynchronizer;
 
 Lv00ViewSynchronizer *lv00_view_sync_create(void) {
-    Lv00ViewSynchronizer *sync = calloc(1, sizeof(Lv00ViewSynchronizer));
+    Lv00ViewSynchronizer *sync = lv00_calloc(1, sizeof(Lv00ViewSynchronizer));
     if (!sync) return NULL;
     sync->sync_enabled = 1;
     sync->dirty_capacity = 8;
-    sync->dirty_views = calloc(sync->dirty_capacity, sizeof(int));
+    sync->dirty_views = lv00_calloc(sync->dirty_capacity, sizeof(int));
     sync->pending_capacity = 8;
-    sync->pending_changes = calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
+    sync->pending_changes = lv00_calloc(sync->pending_capacity, sizeof(sync->pending_changes[0]));
     return sync;
 }
 
 void lv00_view_sync_destroy(Lv00ViewSynchronizer *sync) {
     if (!sync) return;
-    free(sync->dirty_views);
-    free(sync->pending_changes);
-    free(sync);
+    lv00_free((void **)&sync->dirty_views);
+    lv00_free((void **)&sync->pending_changes);
+    lv00_free((void **)&sync);
 }
 
 int lv00_view_sync_enable(Lv00ViewSynchronizer *sync) {
@@ -67,7 +68,7 @@ int lv00_view_sync_propagate(Lv00ViewSynchronizer *sync, int source_view_id,
     /* 添加待处理变更记录 */
     if (sync->pending_count >= sync->pending_capacity) {
         int new_cap = sync->pending_capacity * 2;
-        void *new_arr = realloc(sync->pending_changes,
+        void *new_arr = lv00_realloc(sync->pending_changes,
                                 new_cap * sizeof(sync->pending_changes[0]));
         if (!new_arr) return -1;
         sync->pending_changes = new_arr;
@@ -91,7 +92,7 @@ int lv00_view_sync_propagate(Lv00ViewSynchronizer *sync, int source_view_id,
     if (!already_dirty) {
         if (sync->dirty_count >= sync->dirty_capacity) {
             int new_cap = sync->dirty_capacity * 2;
-            void *new_arr = realloc(sync->dirty_views, new_cap * sizeof(int));
+            void *new_arr = lv00_realloc(sync->dirty_views, new_cap * sizeof(int));
             if (!new_arr) return -1;
             sync->dirty_views = new_arr;
             sync->dirty_capacity = new_cap;

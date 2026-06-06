@@ -1,4 +1,5 @@
 #include "lv00/visual_editor.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -60,15 +61,15 @@ typedef struct Lv00GeometryCanvas {
 } Lv00GeometryCanvas;
 
 Lv00GeometryCanvas *lv00_geometry_canvas_create(void) {
-    Lv00GeometryCanvas *canvas = calloc(1, sizeof(Lv00GeometryCanvas));
+    Lv00GeometryCanvas *canvas = lv00_calloc(1, sizeof(Lv00GeometryCanvas));
     if (!canvas) return NULL;
     canvas->view_type = LV00_VIEW_GEOMETRY_CANVAS;
     canvas->entity_capacity = 16;
-    canvas->entities = calloc(canvas->entity_capacity, sizeof(Lv00GeomEntity));
-    if (!canvas->entities) { free(canvas); return NULL; }
+    canvas->entities = lv00_calloc(canvas->entity_capacity, sizeof(Lv00GeomEntity));
+    if (!canvas->entities) { lv00_free((void **)&canvas); return NULL; }
     canvas->constraint_capacity = 16;
-    canvas->constraints = calloc(canvas->constraint_capacity, sizeof(Lv00GeomConstraint));
-    if (!canvas->constraints) { free(canvas->entities); free(canvas); return NULL; }
+    canvas->constraints = lv00_calloc(canvas->constraint_capacity, sizeof(Lv00GeomConstraint));
+    if (!canvas->constraints) { lv00_free((void **)&canvas->entities); lv00_free((void **)&canvas); return NULL; }
     canvas->next_entity_id = 1;
     canvas->next_constraint_id = 1;
     /* 默认颜色 */
@@ -79,11 +80,11 @@ Lv00GeometryCanvas *lv00_geometry_canvas_create(void) {
 void lv00_geometry_canvas_destroy(Lv00GeometryCanvas *canvas) {
     if (!canvas) return;
     for (int i = 0; i < canvas->entity_count; i++) {
-        free(canvas->entities[i].coords);
+        lv00_free((void **)&canvas->entities[i].coords);
     }
-    free(canvas->entities);
-    free(canvas->constraints);
-    free(canvas);
+    lv00_free((void **)&canvas->entities);
+    lv00_free((void **)&canvas->constraints);
+    lv00_free((void **)&canvas);
 }
 
 /* 添加几何实体 */
@@ -95,7 +96,7 @@ int lv00_geometry_canvas_add_entity(Lv00GeometryCanvas *canvas, int type,
     /* 自动扩容 */
     if (canvas->entity_count >= canvas->entity_capacity) {
         int new_cap = canvas->entity_capacity * 2;
-        Lv00GeomEntity *new_arr = realloc(canvas->entities, new_cap * sizeof(Lv00GeomEntity));
+        Lv00GeomEntity *new_arr = lv00_realloc(canvas->entities, new_cap * sizeof(Lv00GeomEntity));
         if (!new_arr) return -1;
         canvas->entities = new_arr;
         canvas->entity_capacity = new_cap;
@@ -112,7 +113,7 @@ int lv00_geometry_canvas_add_entity(Lv00GeometryCanvas *canvas, int type,
     }
 
     /* 复制坐标 */
-    ent->coords = calloc(coord_count, sizeof(double));
+    ent->coords = lv00_calloc(coord_count, sizeof(double));
     if (!ent->coords) {
         /* calloc失败，清零该实体槽位防止半初始化数据残留 */
         memset(ent, 0, sizeof(Lv00GeomEntity));
@@ -142,7 +143,7 @@ int lv00_geometry_canvas_remove_entity(Lv00GeometryCanvas *canvas, int id) {
     if (found < 0) return -1;
 
     /* 释放坐标 */
-    free(canvas->entities[found].coords);
+    lv00_free((void **)&canvas->entities[found].coords);
 
     /* 移除相关约束 */
     int new_c = 0;
@@ -173,7 +174,7 @@ int lv00_geometry_canvas_add_constraint(Lv00GeometryCanvas *canvas,
     /* 自动扩容 */
     if (canvas->constraint_count >= canvas->constraint_capacity) {
         int new_cap = canvas->constraint_capacity * 2;
-        Lv00GeomConstraint *new_arr = realloc(canvas->constraints,
+        Lv00GeomConstraint *new_arr = lv00_realloc(canvas->constraints,
                                                new_cap * sizeof(Lv00GeomConstraint));
         if (!new_arr) return -1;
         canvas->constraints = new_arr;
@@ -283,7 +284,7 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
 
     /* 估算输出缓冲区大小 */
     int buf_size = 4096 + canvas->entity_count * 512 + canvas->constraint_count * 256;
-    char *buf = calloc(buf_size, sizeof(char));
+    char *buf = lv00_calloc(buf_size, sizeof(char));
     if (!buf) return NULL;
 
     int pos = 0;

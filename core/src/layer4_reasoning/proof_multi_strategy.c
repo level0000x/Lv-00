@@ -22,6 +22,7 @@
 #include "atp_backend.h"
 #include "constraint_graph.h"
 #include "lv00_internal.h"
+#include "lv00_utils.h"
 #include "normalization.h"
 #include "proof.h"
 #include "solver.h"
@@ -128,7 +129,7 @@ static bool execute_area_method(ProofMultiStrategy *mse, ProofNavigator *nav) {
     ProofStep *step = proof_step_create(PROOF_STEP_ADD_CONSTRAINT);
     if (step) {
         step->color = PROOF_COLOR_GREEN;
-        step->note = _strdup("[面积法] 将命题转化为面积比例关系，使用消点法进行推导");
+        step->note = lv00_strdup_safe("[面积法] 将命题转化为面积比例关系，使用消点法进行推导");
         proof_navigator_add_step(nav, step);
     }
 
@@ -138,7 +139,7 @@ static bool execute_area_method(ProofMultiStrategy *mse, ProofNavigator *nav) {
         ProofStep *norm_step = proof_step_create(PROOF_STEP_NORMALIZATION);
         if (norm_step) {
             norm_step->merged_count = norm->merged_count;
-            norm_step->note = _strdup("[面积法] 消去冗余构造点");
+            norm_step->note = lv00_strdup_safe("[面积法] 消去冗余构造点");
             proof_navigator_add_step(nav, norm_step);
         }
         normalization_result_destroy(norm);
@@ -175,7 +176,7 @@ static bool execute_groebner_basis(ProofMultiStrategy *mse, ProofNavigator *nav)
     ProofStep *step = proof_step_create(PROOF_STEP_ADD_CONSTRAINT);
     if (step) {
         step->color = PROOF_COLOR_GREEN;
-        step->note = _strdup("[Groebner基法] 将几何约束转化为多项式方程组，计算Groebner基");
+        step->note = lv00_strdup_safe("[Groebner基法] 将几何约束转化为多项式方程组，计算Groebner基");
         proof_navigator_add_step(nav, step);
     }
 
@@ -190,7 +191,7 @@ static bool execute_groebner_basis(ProofMultiStrategy *mse, ProofNavigator *nav)
             ProofStep *solved_step = proof_step_create(PROOF_STEP_UNIFY);
             if (solved_step) {
                 solved_step->color = PROOF_COLOR_GREEN;
-                solved_step->note = _strdup("[Groebner基法] 多项式系统完全约束，命题得证");
+                solved_step->note = lv00_strdup_safe("[Groebner基法] 多项式系统完全约束，命题得证");
                 proof_navigator_add_step(nav, solved_step);
             }
             return true;
@@ -235,7 +236,7 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
         ProofStep *step = proof_step_create(PROOF_STEP_REWRITE);
         if (step) {
             step->color = PROOF_COLOR_BLUE_UNEXPLORED;
-            step->note = _strdup("[向量法] 点数不足，无法构建向量表达式");
+            step->note = lv00_strdup_safe("[向量法] 点数不足，无法构建向量表达式");
             proof_navigator_add_step(nav, step);
         }
         return false;
@@ -247,7 +248,7 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
         start_step->color = PROOF_COLOR_GREEN;
         char buf[256];
         snprintf(buf, sizeof(buf), "[向量法] 提取 %d 个几何点，构建向量表达式进行代数推导", point_count);
-        start_step->note = _strdup(buf);
+        start_step->note = lv00_strdup_safe(buf);
         proof_navigator_add_step(nav, start_step);
     }
 
@@ -299,7 +300,7 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                                     ProofStep *dot_step = proof_step_create(PROOF_STEP_REWRITE);
                                     if (dot_step) {
                                         dot_step->color = PROOF_COLOR_GREEN;
-                                        dot_step->note = _strdup("[向量法] 点积为零，验证垂直关系成立");
+                                        dot_step->note = lv00_strdup_safe("[向量法] 点积为零，验证垂直关系成立");
                                         proof_navigator_add_step(nav, dot_step);
                                     }
                                     verified = true;
@@ -347,7 +348,7 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                         ProofStep *cross_step = proof_step_create(PROOF_STEP_REWRITE);
                         if (cross_step) {
                             cross_step->color = PROOF_COLOR_GREEN;
-                            cross_step->note = _strdup("[向量法] 叉积为零，验证共线关系成立");
+                            cross_step->note = lv00_strdup_safe("[向量法] 叉积为零，验证共线关系成立");
                             proof_navigator_add_step(nav, cross_step);
                         }
                         verified = true;
@@ -426,7 +427,7 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                                         ProofStep *para_step = proof_step_create(PROOF_STEP_REWRITE);
                                         if (para_step) {
                                             para_step->color = PROOF_COLOR_GREEN;
-                                            para_step->note = _strdup("[向量法] 方向向量叉积为零，验证平行关系成立");
+                                            para_step->note = lv00_strdup_safe("[向量法] 方向向量叉积为零，验证平行关系成立");
                                             proof_navigator_add_step(nav, para_step);
                                         }
                                         verified = true;
@@ -478,7 +479,7 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
                     ProofStep *mid_step = proof_step_create(PROOF_STEP_REWRITE);
                     if (mid_step) {
                         mid_step->color = PROOF_COLOR_GREEN;
-                        mid_step->note = _strdup("[向量法] 位置向量验证中点关系成立：2M = A + B");
+                        mid_step->note = lv00_strdup_safe("[向量法] 位置向量验证中点关系成立：2M = A + B");
                         proof_navigator_add_step(nav, mid_step);
                     }
                     verified = true;
@@ -493,7 +494,7 @@ static bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) 
         ProofStep *unify_step = proof_step_create(PROOF_STEP_UNIFY);
         if (unify_step) {
             unify_step->color = (status == UNIFY_STATUS_OK) ? PROOF_COLOR_GREEN : PROOF_COLOR_BLUE_UNEXPLORED;
-            unify_step->note = _strdup("[向量法] 向量代数推导后执行合一检查");
+            unify_step->note = lv00_strdup_safe("[向量法] 向量代数推导后执行合一检查");
             proof_navigator_add_step(nav, unify_step);
         }
         verified = (status == UNIFY_STATUS_OK);
@@ -574,7 +575,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
         ProofStep *step = proof_step_create(PROOF_STEP_REWRITE);
         if (step) {
             step->color = PROOF_COLOR_BLUE_UNEXPLORED;
-            step->note = _strdup("[全角法] 线段数不足，无法构建全角关系");
+            step->note = lv00_strdup_safe("[全角法] 线段数不足，无法构建全角关系");
             proof_navigator_add_step(nav, step);
         }
         return false;
@@ -586,7 +587,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
         start_step->color = PROOF_COLOR_GREEN;
         char buf[256];
         snprintf(buf, sizeof(buf), "[全角法] 提取 %d 条有向线，构建全角关系进行消点推理", line_count);
-        start_step->note = _strdup(buf);
+        start_step->note = lv00_strdup_safe(buf);
         proof_navigator_add_step(nav, start_step);
     }
 
@@ -620,7 +621,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
             ProofStep *angle_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
             if (angle_step) {
                 angle_step->color = PROOF_COLOR_GREEN;
-                angle_step->note = _strdup("[全角法] 对顶角相等：由相交约束推导 ∠(l1_other, inter, l2_other) 的对顶角关系");
+                angle_step->note = lv00_strdup_safe("[全角法] 对顶角相等：由相交约束推导 ∠(l1_other, inter, l2_other) 的对顶角关系");
                 proof_navigator_add_step(nav, angle_step);
             }
         }
@@ -636,7 +637,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
         ProofStep *collinear_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
         if (collinear_step) {
             collinear_step->color = PROOF_COLOR_GREEN;
-            collinear_step->note = _strdup("[全角法] 三点共线 => 全角(AB, BC) = π，用于消点");
+            collinear_step->note = lv00_strdup_safe("[全角法] 三点共线 => 全角(AB, BC) = π，用于消点");
             proof_navigator_add_step(nav, collinear_step);
         }
     }
@@ -674,7 +675,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
                     ProofStep *tri_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
                     if (tri_step) {
                         tri_step->color = PROOF_COLOR_GREEN;
-                        tri_step->note = _strdup("[全角法] 三角形内角和为π：∠A + ∠B + ∠C = π");
+                        tri_step->note = lv00_strdup_safe("[全角法] 三角形内角和为π：∠A + ∠B + ∠C = π");
                         proof_navigator_add_step(nav, tri_step);
                     }
                 }
@@ -713,7 +714,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
                             ProofStep *iso_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
                             if (iso_step) {
                                 iso_step->color = PROOF_COLOR_GREEN;
-                                iso_step->note = _strdup("[全角法] 等腰三角形底角相等：由两边相等推导底角全角相等");
+                                iso_step->note = lv00_strdup_safe("[全角法] 等腰三角形底角相等：由两边相等推导底角全角相等");
                                 proof_navigator_add_step(nav, iso_step);
                             }
                         }
@@ -739,7 +740,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
         ProofStep *unify_step = proof_step_create(PROOF_STEP_UNIFY);
         if (unify_step) {
             unify_step->color = (status == UNIFY_STATUS_OK) ? PROOF_COLOR_GREEN : PROOF_COLOR_BLUE_UNEXPLORED;
-            unify_step->note = _strdup("[全角法] 全角关系推导后执行合一检查");
+            unify_step->note = lv00_strdup_safe("[全角法] 全角关系推导后执行合一检查");
             proof_navigator_add_step(nav, unify_step);
         }
         verified = (status == UNIFY_STATUS_OK);
@@ -773,7 +774,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
     ProofStep *start_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
     if (start_step) {
         start_step->color = PROOF_COLOR_GREEN;
-        start_step->note = _strdup("[演绎数据库] 从已知条件出发，使用前向链推理逐步推导新事实");
+        start_step->note = lv00_strdup_safe("[演绎数据库] 从已知条件出发，使用前向链推理逐步推导新事实");
         proof_navigator_add_step(nav, start_step);
     }
 
@@ -801,7 +802,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
             if (facts[_fi] && strcmp(facts[_fi], _buf) == 0) { _dup = true; break; } \
         } \
         if (!_dup && fact_count < DEDUCT_MAX_FACTS) { \
-            facts[fact_count++] = _strdup(_buf); \
+            facts[fact_count++] = lv00_strdup_safe(_buf); \
         } \
     } while(0)
 
@@ -851,7 +852,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                     if (facts[fi] && strcmp(facts[fi], buf) == 0) { dup = true; break; }
                 }
                 if (!dup && fact_count < DEDUCT_MAX_FACTS) {
-                    facts[fact_count++] = _strdup(buf);
+                    facts[fact_count++] = lv00_strdup_safe(buf);
                 }
             }
             if (sy) lv00_free((void **) &sy);
@@ -864,7 +865,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
         extract_step->color = PROOF_COLOR_GREEN;
         char buf[256];
         snprintf(buf, sizeof(buf), "[演绎数据库] 从约束图提取 %d 条初始事实", fact_count);
-        extract_step->note = _strdup(buf);
+        extract_step->note = lv00_strdup_safe(buf);
         proof_navigator_add_step(nav, extract_step);
     }
 
@@ -1108,7 +1109,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                 fixpoint_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
                 char buf[256];
                 snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮迭代达到不动点，共 %d 条事实", iter + 1, fact_count);
-                fixpoint_step->note = _strdup(buf);
+                fixpoint_step->note = lv00_strdup_safe(buf);
                 proof_navigator_add_step(nav, fixpoint_step);
             }
             break;
@@ -1121,7 +1122,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
                 char buf[256];
                 snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮推理，新增 %d 条事实，累计 %d 条",
                          iter + 1, new_derived, fact_count);
-                iter_step->note = _strdup(buf);
+                iter_step->note = lv00_strdup_safe(buf);
                 proof_navigator_add_step(nav, iter_step);
             }
         }
@@ -1137,7 +1138,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
         ProofStep *done_step = proof_step_create(PROOF_STEP_UNIFY);
         if (done_step) {
             done_step->color = PROOF_COLOR_GREEN;
-            done_step->note = _strdup("[演绎数据库] 目标命题已从已知条件推导得出");
+            done_step->note = lv00_strdup_safe("[演绎数据库] 目标命题已从已知条件推导得出");
             proof_navigator_add_step(nav, done_step);
         }
     }
@@ -1176,7 +1177,7 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
     ProofStep *start_step = proof_step_create(PROOF_STEP_ADD_NODE);
     if (start_step) {
         start_step->color = PROOF_COLOR_GREEN;
-        start_step->note = _strdup("[坐标法] 建立坐标系，用代数方法计算几何量");
+        start_step->note = lv00_strdup_safe("[坐标法] 建立坐标系，用代数方法计算几何量");
         proof_navigator_add_step(nav, start_step);
     }
 
@@ -1202,7 +1203,7 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
         ProofStep *step = proof_step_create(PROOF_STEP_ADD_NODE);
         if (step) {
             step->color = PROOF_COLOR_BLUE_UNEXPLORED;
-            step->note = _strdup("[坐标法] 点数不足，无法建立坐标系");
+            step->note = lv00_strdup_safe("[坐标法] 点数不足，无法建立坐标系");
             proof_navigator_add_step(nav, step);
         }
         return false;
@@ -1245,7 +1246,7 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 char *sy = symbolic_coord_serialize(cy);
                 snprintf(buf, sizeof(buf), "[坐标法] 为点 %d 分配坐标 (%s, %s)",
                          node->id, sx ? sx : "?", sy ? sy : "?");
-                assign_step->note = _strdup(buf);
+                assign_step->note = lv00_strdup_safe(buf);
                 if (sy) lv00_free((void **) &sy);
                 if (sx) lv00_free((void **) &sx);
                 proof_navigator_add_step(nav, assign_step);
@@ -1345,7 +1346,7 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
                                                     ProofStep *eq_step = proof_step_create(PROOF_STEP_REWRITE);
                                                     if (eq_step) {
                                                         eq_step->color = PROOF_COLOR_GREEN;
-                                                        eq_step->note = _strdup("[坐标法] 距离平方相等，验证等距关系成立");
+                                                        eq_step->note = lv00_strdup_safe("[坐标法] 距离平方相等，验证等距关系成立");
                                                         proof_navigator_add_step(nav, eq_step);
                                                     }
                                                     verified = true;
@@ -1379,7 +1380,7 @@ static bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
         char buf[256];
         snprintf(buf, sizeof(buf), "[坐标法] 坐标分配完成，转化 %d 个约束方程，验证结果：%s",
                  equation_count, verified ? "成功" : "未确认");
-        summary_step->note = _strdup(buf);
+        summary_step->note = lv00_strdup_safe(buf);
         proof_navigator_add_step(nav, summary_step);
     }
 
@@ -1412,7 +1413,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         ProofStep *no_engine_step = proof_step_create(PROOF_STEP_ORACLE);
         if (no_engine_step) {
             no_engine_step->color = PROOF_COLOR_ORANGE_ORACLE;
-            no_engine_step->note = _strdup("[Oracle] 无引擎上下文，无法调用外部求解器");
+            no_engine_step->note = lv00_strdup_safe("[Oracle] 无引擎上下文，无法调用外部求解器");
             proof_navigator_add_step(nav, no_engine_step);
         }
         return false;
@@ -1422,7 +1423,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
     ProofStep *start_step = proof_step_create(PROOF_STEP_ORACLE);
     if (start_step) {
         start_step->color = PROOF_COLOR_ORANGE_ORACLE;
-        start_step->note = _strdup("[Oracle] 尝试调用外部 ATP 求解器辅助验证");
+        start_step->note = lv00_strdup_safe("[Oracle] 尝试调用外部 ATP 求解器辅助验证");
         proof_navigator_add_step(nav, start_step);
     }
 
@@ -1443,7 +1444,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 skip_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
                 char buf[256];
                 snprintf(buf, sizeof(buf), "[Oracle] %s 后端不可用，跳过", atp_names[backend]);
-                skip_step->note = _strdup(buf);
+                skip_step->note = lv00_strdup_safe(buf);
                 proof_navigator_add_step(nav, skip_step);
             }
             continue;
@@ -1454,7 +1455,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
             try_step->color = PROOF_COLOR_ORANGE_ORACLE;
             char buf[256];
             snprintf(buf, sizeof(buf), "[Oracle] 尝试 %s 后端...", atp_names[backend]);
-            try_step->note = _strdup(buf);
+            try_step->note = lv00_strdup_safe(buf);
             proof_navigator_add_step(nav, try_step);
         }
 
@@ -1469,7 +1470,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 enc_fail->color = PROOF_COLOR_BLUE_UNEXPLORED;
                 char buf[256];
                 snprintf(buf, sizeof(buf), "[Oracle] %s 编码失败，跳过", atp_names[backend]);
-                enc_fail->note = _strdup(buf);
+                enc_fail->note = lv00_strdup_safe(buf);
                 proof_navigator_add_step(nav, enc_fail);
             }
             continue;
@@ -1502,7 +1503,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                                  "[Oracle] %s 证明成功（%.2fs, %d 子句）",
                                  atp_names[backend], result.solve_time_seconds,
                                  result.processed_clauses);
-                        success_step->note = _strdup(buf);
+                        success_step->note = lv00_strdup_safe(buf);
                         proof_navigator_add_step(nav, success_step);
                     }
 
@@ -1520,7 +1521,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                         sat_step->color = PROOF_COLOR_RED_CONFLICT;
                         char buf[256];
                         snprintf(buf, sizeof(buf), "[Oracle] %s 返回 SAT，命题不成立", atp_names[backend]);
-                        sat_step->note = _strdup(buf);
+                        sat_step->note = lv00_strdup_safe(buf);
                         proof_navigator_add_step(nav, sat_step);
                     }
                 } else {
@@ -1529,7 +1530,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                         unknown_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
                         char buf[256];
                         snprintf(buf, sizeof(buf), "[Oracle] %s 无法确定（超时/资源耗尽）", atp_names[backend]);
-                        unknown_step->note = _strdup(buf);
+                        unknown_step->note = lv00_strdup_safe(buf);
                         proof_navigator_add_step(nav, unknown_step);
                     }
                 }
@@ -1547,7 +1548,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         ProofStep *fallback_step = proof_step_create(PROOF_STEP_ORACLE);
         if (fallback_step) {
             fallback_step->color = PROOF_COLOR_ORANGE_ORACLE;
-            fallback_step->note = _strdup("[Oracle] ATP 后端不可用，降级为合一检查");
+            fallback_step->note = lv00_strdup_safe("[Oracle] ATP 后端不可用，降级为合一检查");
             proof_navigator_add_step(nav, fallback_step);
         }
 
@@ -1557,8 +1558,8 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         if (result_step) {
             result_step->color = (status == UNIFY_STATUS_OK) ? PROOF_COLOR_ORANGE_ORACLE : PROOF_COLOR_BLUE_UNEXPLORED;
             result_step->note = (status == UNIFY_STATUS_OK)
-                ? _strdup("[Oracle] 合一检查确认命题成立（Oracle辅助）")
-                : _strdup("[Oracle] 合一检查未能确认命题");
+                ? lv00_strdup_safe("[Oracle] 合一检查确认命题成立（Oracle辅助）")
+                : lv00_strdup_safe("[Oracle] 合一检查未能确认命题");
             proof_navigator_add_step(nav, result_step);
         }
 
@@ -1573,7 +1574,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
             if (norm_step) {
                 norm_step->color = PROOF_COLOR_ORANGE_ORACLE;
                 norm_step->merged_count = norm->merged_count;
-                norm_step->note = _strdup("[Oracle] 使用归一化简化构造图后重新验证");
+                norm_step->note = lv00_strdup_safe("[Oracle] 使用归一化简化构造图后重新验证");
                 proof_navigator_add_step(nav, norm_step);
             }
 
@@ -1590,7 +1591,7 @@ static bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         ProofStep *done_step = proof_step_create(PROOF_STEP_ORACLE);
         if (done_step) {
             done_step->color = PROOF_COLOR_ORANGE_ORACLE;
-            done_step->note = _strdup("[Oracle] 外部求解器辅助验证成功（注意：依赖非构造性方法）");
+            done_step->note = lv00_strdup_safe("[Oracle] 外部求解器辅助验证成功（注意：依赖非构造性方法）");
             proof_navigator_add_step(nav, done_step);
         }
     }
@@ -1616,57 +1617,57 @@ static void fill_default_descriptor(ProofStrategyDescriptor *desc, ProofStrategy
 
     switch (type) {
         case PROOF_STRATEGY_DIRECT_CONSTRUCTION:
-            desc->name = _strdup("直接构造法");
-            desc->description = _strdup("通过几何构造直接满足命题模式，构造即证明");
+            desc->name = lv00_strdup_safe("直接构造法");
+            desc->description = lv00_strdup_safe("通过几何构造直接满足命题模式，构造即证明");
             desc->applicability_check = default_applicability_check;
             desc->execute = execute_direct_construction;
             break;
 
         case PROOF_STRATEGY_AREA_METHOD:
-            desc->name = _strdup("面积法");
-            desc->description = _strdup("利用面积关系和消点法进行几何推理（借鉴JGEX面积法）");
+            desc->name = lv00_strdup_safe("面积法");
+            desc->description = lv00_strdup_safe("利用面积关系和消点法进行几何推理（借鉴JGEX面积法）");
             desc->applicability_check = area_method_applicability_check;
             desc->execute = execute_area_method;
             break;
 
         case PROOF_STRATEGY_GROEBNER_BASIS:
-            desc->name = _strdup("Groebner基法");
-            desc->description = _strdup("将几何约束转化为多项式方程组，使用Buchberger算法求解");
+            desc->name = lv00_strdup_safe("Groebner基法");
+            desc->description = lv00_strdup_safe("将几何约束转化为多项式方程组，使用Buchberger算法求解");
             desc->applicability_check = groebner_applicability_check;
             desc->execute = execute_groebner_basis;
             break;
 
         case PROOF_STRATEGY_VECTOR_METHOD:
-            desc->name = _strdup("向量法");
-            desc->description = _strdup("使用矢量代数进行几何关系推导");
+            desc->name = lv00_strdup_safe("向量法");
+            desc->description = lv00_strdup_safe("使用矢量代数进行几何关系推导");
             desc->applicability_check = default_applicability_check;
             desc->execute = execute_vector_method;
             break;
 
         case PROOF_STRATEGY_FULL_ANGLE_METHOD:
-            desc->name = _strdup("全角法");
-            desc->description = _strdup("利用全角关系进行角度推理和消点（借鉴JGEX全角法）");
+            desc->name = lv00_strdup_safe("全角法");
+            desc->description = lv00_strdup_safe("利用全角关系进行角度推理和消点（借鉴JGEX全角法）");
             desc->applicability_check = default_applicability_check;
             desc->execute = execute_full_angle_method;
             break;
 
         case PROOF_STRATEGY_DEDUCTIVE_DATABASE:
-            desc->name = _strdup("演绎数据库法");
-            desc->description = _strdup("前向链推理，从已知条件逐步演绎新事实");
+            desc->name = lv00_strdup_safe("演绎数据库法");
+            desc->description = lv00_strdup_safe("前向链推理，从已知条件逐步演绎新事实");
             desc->applicability_check = default_applicability_check;
             desc->execute = execute_deductive_database;
             break;
 
         case PROOF_STRATEGY_COORDINATE:
-            desc->name = _strdup("坐标法");
-            desc->description = _strdup("建立坐标系，使用解析几何方法进行计算和验证");
+            desc->name = lv00_strdup_safe("坐标法");
+            desc->description = lv00_strdup_safe("建立坐标系，使用解析几何方法进行计算和验证");
             desc->applicability_check = default_applicability_check;
             desc->execute = execute_coordinate;
             break;
 
         case PROOF_STRATEGY_ORACLE:
-            desc->name = _strdup("Oracle法");
-            desc->description = _strdup("调用外部求解器辅助验证非构造性命題");
+            desc->name = lv00_strdup_safe("Oracle法");
+            desc->description = lv00_strdup_safe("调用外部求解器辅助验证非构造性命題");
             desc->applicability_check = NULL; /* 默认不可用，需手动注册 */
             desc->execute = execute_oracle;
             break;
@@ -1755,8 +1756,8 @@ bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyD
     /* 复制新数据 */
     target->type = descriptor->type;
     target->status = descriptor->status;
-    target->name = descriptor->name ? _strdup(descriptor->name) : NULL;
-    target->description = descriptor->description ? _strdup(descriptor->description) : NULL;
+    target->name = descriptor->name ? lv00_strdup_safe(descriptor->name) : NULL;
+    target->description = descriptor->description ? lv00_strdup_safe(descriptor->description) : NULL;
     target->applicability_check = descriptor->applicability_check;
     target->execute = descriptor->execute;
 
@@ -1767,7 +1768,7 @@ bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyD
         if (target->required_axiom_packages) {
             for (int i = 0; i < descriptor->axiom_package_count; i++) {
                 if (descriptor->required_axiom_packages[i]) {
-                    target->required_axiom_packages[i] = _strdup(descriptor->required_axiom_packages[i]);
+                    target->required_axiom_packages[i] = lv00_strdup_safe(descriptor->required_axiom_packages[i]);
                 }
             }
         }
