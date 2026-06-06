@@ -179,6 +179,8 @@ class SparseMatrix:
         参数:
             name: 矩阵名称标签（可为 None）
         """
+        if self._ptr is None:
+            raise SparseLAError("矩阵已释放，无法打印")
         c_name = name.encode('utf-8') if name else None
         _lib.sparse_matrix_print(self._ptr, c_name)
 
