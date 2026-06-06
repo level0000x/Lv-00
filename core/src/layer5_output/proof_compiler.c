@@ -244,8 +244,12 @@ Lv00ProofStepRecord *lv00_proof_step_record_create(void) {
     
     memset(record, 0, sizeof(Lv00ProofStepRecord));
     record->premise_step_ids = (int *)lv00_malloc(8 * sizeof(int));
+    if (!record->premise_step_ids) {
+        lv00_free((void **) &record);
+        return NULL;
+    }
     record->premise_capacity = 8;
-    
+
     return record;
 }
 

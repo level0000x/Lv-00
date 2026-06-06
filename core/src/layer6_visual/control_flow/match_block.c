@@ -9,6 +9,10 @@ Lv00MatchBlock *lv00_match_block_create(int case_count) {
     block->output_port = -1;
     if (case_count > 0) {
         block->cases = lv00_calloc(case_count, sizeof(block->cases[0]));
+        if (!block->cases) {
+            lv00_free((void **)&block);
+            return NULL;
+        }
         block->case_count = case_count;
     }
     return block;

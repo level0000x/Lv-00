@@ -27,6 +27,10 @@ Lv00TypeInference *lv00_type_inference_create(void) {
     if (!inf) return NULL;
     inf->rule_capacity = 8;
     inf->rules = lv00_calloc(inf->rule_capacity, sizeof(TypeInferenceRule));
+    if (!inf->rules) {
+        lv00_free((void **)&inf);
+        return NULL;
+    }
     return inf;
 }
 

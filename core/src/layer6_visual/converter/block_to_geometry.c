@@ -273,6 +273,12 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
     }
     sg->cap = enc->rect_count > 0 ? enc->rect_count : 8;
     sg->blocks = lv00_calloc(sg->cap, sizeof(FuncBlock *));
+    if (!sg->blocks) {
+        result.success = 0;
+        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        lv00_free((void **)&sg);
+        return result;
+    }
 
     /* 遍历矩形区域，每个矩形还原为一个 FuncBlock */
     for (int i = 0; i < enc->rect_count; i++) {
