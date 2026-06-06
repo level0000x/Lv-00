@@ -1,5 +1,6 @@
 #include "lv00/application.h"
 #include "lv00/lv00_internal.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,7 +21,7 @@ Lv00Application *lv00_app_create(const Lv00AppConfig *config) {
     if (config) app->config = *config;
     else app->config = lv00_default_app_config();
     app->session_capacity = 16;
-    app->sessions = calloc(app->session_capacity, sizeof(Lv00Session *));
+    app->sessions = lv00_calloc(app->session_capacity, sizeof(Lv00Session *));
     if (app->config.enable_meta_verify) {
         app->verifier = lv00_meta_verifier_create();
     }
@@ -32,9 +33,9 @@ void lv00_app_destroy(Lv00Application *app) {
     for (int i = 0; i < app->session_count; i++) {
         lv00_session_destroy(app->sessions[i]);
     }
-    free(app->sessions);
+    lv00_free((void **)&app->sessions);
     if (app->verifier) lv00_meta_verifier_destroy(app->verifier);
-    free(app);
+    lv00_free((void **)&app);
 }
 
 Lv00Session *lv00_app_create_session(Lv00Application *app, const char *name) {
@@ -43,10 +44,10 @@ Lv00Session *lv00_app_create_session(Lv00Application *app, const char *name) {
         /* 动态扩容：容量翻倍 */
         int new_cap = app->session_capacity * 2;
         if (new_cap <= app->session_capacity) return NULL; /* 溢出保护 */
-        Lv00Session **new_sessions = (Lv00Session **)realloc(
+        Lv00Session **_tmp = (Lv00Session **)lv00_realloc(
             app->sessions, (size_t)new_cap * sizeof(Lv00Session *));
-        if (!new_sessions) return NULL;
-        app->sessions = new_sessions;
+        if (!_tmp) return NULL;
+        app->sessions = _tmp;
         app->session_capacity = new_cap;
     }
     Lv00Session *session = lv00_session_create(name);

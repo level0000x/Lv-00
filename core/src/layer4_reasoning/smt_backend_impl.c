@@ -967,13 +967,13 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
         /* x 坐标变量 */
         char name_buf[GROEBNER_VAR_NAME_MAX];
         snprintf(name_buf, sizeof(name_buf), "p%d_x", node->id);
-        var_names[var_idx] = _strdup(name_buf);
+        var_names[var_idx] = lv00_strdup_safe(name_buf);
         node_var_map[node->id] = var_idx;
         var_idx++;
 
         /* y 坐标变量 */
         snprintf(name_buf, sizeof(name_buf), "p%d_y", node->id);
-        var_names[var_idx] = _strdup(name_buf);
+        var_names[var_idx] = lv00_strdup_safe(name_buf);
         var_idx++;
     }
 

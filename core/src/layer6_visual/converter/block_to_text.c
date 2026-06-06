@@ -1,5 +1,6 @@
 #include "lv00/representation_converter.h"
 #include "lv00/func_block.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,7 +15,7 @@ typedef struct {
 
 static void buf_init(TextBuf *b) {
     b->cap = 1024;
-    b->data = calloc(b->cap, 1);
+    b->data = lv00_calloc(b->cap, 1);
     b->len = 0;
 }
 
@@ -22,7 +23,7 @@ static void buf_append(TextBuf *b, const char *s) {
     int slen = (int)strlen(s);
     while (b->len + slen + 1 > b->cap) {
         b->cap *= 2;
-        b->data = realloc(b->data, b->cap);
+        b->data = lv00_realloc(b->data, b->cap);
     }
     memcpy(b->data + b->len, s, slen + 1);
     b->len += slen;
@@ -38,7 +39,7 @@ static void buf_appendf(TextBuf *b, const char *fmt, ...) {
 }
 
 static void buf_free(TextBuf *b) {
-    free(b->data);
+    lv00_free((void **)&b->data);
     b->data = NULL;
     b->len = b->cap = 0;
 }
@@ -134,14 +135,14 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
         int cap;
     } SimpleBlockGraph;
 
-    SimpleBlockGraph *sg = calloc(1, sizeof(SimpleBlockGraph));
+    SimpleBlockGraph *sg = lv00_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;
     }
     sg->cap = 16;
-    sg->blocks = calloc(sg->cap, sizeof(FuncBlock *));
+    sg->blocks = lv00_calloc(sg->cap, sizeof(FuncBlock *));
 
     /* 逐行扫描 */
     const char *p = code;
@@ -215,7 +216,7 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                 /* 添加到块图 */
                 if (sg->count >= sg->cap) {
                     sg->cap *= 2;
-                    sg->blocks = realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
+                    sg->blocks = lv00_realloc(sg->blocks, sg->cap * sizeof(FuncBlock *));
                 }
                 sg->blocks[sg->count++] = fb;
             }

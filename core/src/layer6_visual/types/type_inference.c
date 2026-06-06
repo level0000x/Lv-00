@@ -1,4 +1,5 @@
 #include "lv00/extended_types.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,17 +23,17 @@ typedef struct Lv00TypeInference {
 } Lv00TypeInference;
 
 Lv00TypeInference *lv00_type_inference_create(void) {
-    Lv00TypeInference *inf = calloc(1, sizeof(Lv00TypeInference));
+    Lv00TypeInference *inf = lv00_calloc(1, sizeof(Lv00TypeInference));
     if (!inf) return NULL;
     inf->rule_capacity = 8;
-    inf->rules = calloc(inf->rule_capacity, sizeof(TypeInferenceRule));
+    inf->rules = lv00_calloc(inf->rule_capacity, sizeof(TypeInferenceRule));
     return inf;
 }
 
 void lv00_type_inference_destroy(Lv00TypeInference *inf) {
     if (!inf) return;
-    free(inf->rules);
-    free(inf);
+    lv00_free((void **)&inf->rules);
+    lv00_free((void **)&inf);
 }
 
 /* 注册一条 pattern->type 推理规则 */
@@ -41,7 +42,7 @@ int lv00_type_inference_register_rule(Lv00TypeInference *inf,
     if (!inf || !pattern || !type) return -1;
     if (inf->rule_count >= inf->rule_capacity) {
         int new_cap = inf->rule_capacity * 2;
-        TypeInferenceRule *new_arr = realloc(inf->rules,
+        TypeInferenceRule *new_arr = lv00_realloc(inf->rules,
                                               new_cap * sizeof(TypeInferenceRule));
         if (!new_arr) return -1;
         inf->rules = new_arr;

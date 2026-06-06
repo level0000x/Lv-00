@@ -1,5 +1,6 @@
 #include "lv00/interop.h"
 #include "lv00/lv00_internal.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -510,7 +511,7 @@ static int opml_import_proof(const char *input, void **proof) {
                 /* 从 proof 中提取步骤 */
                 parse_proof_steps(proof_buf, p, p->step_capacity);
 
-                free(proof_buf);
+                lv00_free((void **)&proof_buf);
             }
         }
     }

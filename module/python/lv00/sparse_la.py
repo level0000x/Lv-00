@@ -18,10 +18,13 @@ Lv-00 稀疏线性代数模块
 """
 
 import ctypes
+import logging
 from typing import Any, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _ConstraintGraph, c_int, c_double, c_char_p, c_void_p, c_bool, POINTER
 from .core import Lv00BaseError
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "SparseFormat", "SemiringType",
@@ -334,8 +337,8 @@ def graph_degree_analysis(graph) -> Tuple[int, int, float, int]:
             analysis = ctypes.cast(out_ptr, ctypes.POINTER(_DegreeAnalysis)).contents
             return (analysis.node_count, analysis.max_degree,
                     analysis.avg_degree, analysis.isolated_count)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"度分析 ctypes 解析失败: {e}")
         finally:
             try:
                 _lib.degree_analysis_free(out_ptr)

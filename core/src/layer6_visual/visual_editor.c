@@ -1,10 +1,11 @@
 #include "lv00/visual_editor.h"
 #include "lv00/block_scheduler.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
 Lv00VisualEditor *lv00_visual_editor_create(void) {
-    Lv00VisualEditor *editor = calloc(1, sizeof(Lv00VisualEditor));
+    Lv00VisualEditor *editor = lv00_calloc(1, sizeof(Lv00VisualEditor));
     if (!editor) return NULL;
     editor->layer_id = LV00_LAYER_VISUAL;
     editor->active_view = LV00_VIEW_NODE_GRAPH;
@@ -15,7 +16,7 @@ Lv00VisualEditor *lv00_visual_editor_create(void) {
 void lv00_visual_editor_destroy(Lv00VisualEditor *editor) {
     if (!editor) return;
     /* Sub-views destroyed by their own managers */
-    free(editor);
+    lv00_free((void **)&editor);
 }
 
 int lv00_visual_editor_reset(Lv00VisualEditor *editor) {

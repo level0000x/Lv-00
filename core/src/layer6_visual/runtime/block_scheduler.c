@@ -1,5 +1,6 @@
 #include "lv00/block_scheduler.h"
 #include "lv00/func_block.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -221,9 +222,9 @@ Lv00ExecResult lv00_block_scheduler_run_incremental(Lv00BlockScheduler *sched, i
                     int in_port = other->input_port_ids ? other->input_port_ids[ii] : -1;
                     if (in_port == out_port) {
                         adj_count[i]++;
-                        int *new_adj = realloc(adj[i], adj_count[i] * sizeof(int));
-                        if (new_adj) {
-                            adj[i] = new_adj;
+                        int *_tmp = lv00_realloc(adj[i], adj_count[i] * sizeof(int));
+                        if (_tmp) {
+                            adj[i] = _tmp;
                             adj[i][adj_count[i] - 1] = j;
                         }
                     }
@@ -326,7 +327,7 @@ void lv00_block_scheduler_mark_all_dirty(Lv00BlockScheduler *sched) {
     if (!bg || !bg->blocks) return;
 
     /* 释放旧的脏块列表 */
-    free(sched->incremental.dirty_blocks);
+    lv00_free((void **)&sched->incremental.dirty_blocks);
     sched->incremental.dirty_blocks = NULL;
     sched->incremental.dirty_count = 0;
 

@@ -72,7 +72,7 @@ Lv00ConvertResult lv00_convert_block_to_node(void *block) {
         /* 复制名称 */
         const char *name = func_block_get_name(fb);
         if (name) {
-            node->name = strdup(name);
+            node->name = lv00_strdup_safe(name);
         } else {
             node->name = strdup("unnamed");
         }
@@ -182,7 +182,7 @@ Lv00ConvertResult lv00_convert_node_to_block(void *node) {
     bg->count = ng->node_count;
     bg->blocks = lv00_calloc(ng->node_count, sizeof(FuncBlock *));
     if (!bg->blocks) {
-        free(bg);
+        lv00_free((void **)&bg);
         result.success = 0;
         strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
         return result;

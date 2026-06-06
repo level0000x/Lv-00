@@ -1,21 +1,22 @@
 #include "lv00/extended_types.h"
 #include "lv00/type_system.h"
+#include "lv00/lv00_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
 Lv00ListTypeRegion *lv00_list_type_create(void *elem_type) {
-    Lv00ListTypeRegion *t = calloc(1, sizeof(Lv00ListTypeRegion));
+    Lv00ListTypeRegion *t = lv00_calloc(1, sizeof(Lv00ListTypeRegion));
     if (!t) return NULL;
     t->elem_type = elem_type;
     return t;
 }
 
 void lv00_list_type_destroy(Lv00ListTypeRegion *t) {
-    free(t);
+    lv00_free((void **)&t);
 }
 
 Lv00MapTypeRegion *lv00_map_type_create(void *key_type, void *value_type) {
-    Lv00MapTypeRegion *t = calloc(1, sizeof(Lv00MapTypeRegion));
+    Lv00MapTypeRegion *t = lv00_calloc(1, sizeof(Lv00MapTypeRegion));
     if (!t) return NULL;
     t->key_type = key_type;
     t->value_type = value_type;
@@ -23,11 +24,11 @@ Lv00MapTypeRegion *lv00_map_type_create(void *key_type, void *value_type) {
 }
 
 void lv00_map_type_destroy(Lv00MapTypeRegion *t) {
-    free(t);
+    lv00_free((void **)&t);
 }
 
 Lv00FunctionTypeRegion *lv00_function_type_create(void *param, void *ret, int dependent) {
-    Lv00FunctionTypeRegion *t = calloc(1, sizeof(Lv00FunctionTypeRegion));
+    Lv00FunctionTypeRegion *t = lv00_calloc(1, sizeof(Lv00FunctionTypeRegion));
     if (!t) return NULL;
     t->param_type = param;
     t->return_type = ret;
@@ -36,14 +37,14 @@ Lv00FunctionTypeRegion *lv00_function_type_create(void *param, void *ret, int de
 }
 
 void lv00_function_type_destroy(Lv00FunctionTypeRegion *t) {
-    free(t);
+    lv00_free((void **)&t);
 }
 
 Lv00EffectTypeRegion *lv00_effect_type_create(Lv00EffectType *effects, int count, void *result) {
-    Lv00EffectTypeRegion *t = calloc(1, sizeof(Lv00EffectTypeRegion));
+    Lv00EffectTypeRegion *t = lv00_calloc(1, sizeof(Lv00EffectTypeRegion));
     if (!t) return NULL;
     if (count > 0 && effects) {
-        t->effects = calloc(count, sizeof(Lv00EffectType));
+        t->effects = lv00_calloc(count, sizeof(Lv00EffectType));
         memcpy(t->effects, effects, count * sizeof(Lv00EffectType));
         t->effect_count = count;
     }
@@ -53,8 +54,8 @@ Lv00EffectTypeRegion *lv00_effect_type_create(Lv00EffectType *effects, int count
 
 void lv00_effect_type_destroy(Lv00EffectTypeRegion *t) {
     if (!t) return;
-    free(t->effects);
-    free(t);
+    lv00_free((void **)&t->effects);
+    lv00_free((void **)&t);
 }
 
 /* 扩展类型兼容性检查 */
