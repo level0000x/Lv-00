@@ -387,6 +387,8 @@ char *lv00_geometry_canvas_render_svg(Lv00GeometryCanvas *canvas) {
                 }
             }
             break;
+        default:
+            break;
         }
     }
 

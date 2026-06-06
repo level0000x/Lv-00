@@ -348,6 +348,8 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
         case GEOM_FUNCTION_BLOCK:
             /* 其他类型暂不处理状态空间 */
             break;
+        default:
+            break;
         }
     }
 
@@ -432,6 +434,8 @@ static bool check_constraint_compatible(const SymbolicCoord *candidate,
     case CONTAINMENT:
     case CONNECTION:
         /* 其他约束类型暂不进行候选过滤 */
+        return true;
+    default:
         return true;
     }
     return true;
@@ -699,6 +703,8 @@ int propagation_select_node(PropagationContext *ctx) {
             }
             break;
         }
+        default:
+            break;
         }
     }
 
@@ -750,6 +756,8 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
             }
             lv00_free((void **)&weights);
         }
+        break;
+    default:
         break;
     }
 

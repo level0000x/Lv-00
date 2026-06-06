@@ -171,18 +171,25 @@ bool lv00_log_set_file(const char *path) {
 
     MUTEX_LOCK(g_log_system.mutex);
 
+    /* 先打开新文件，确保成功后再关闭旧文件，避免 fopen 失败导致日志丢失 */
+    FILE *new_file = fopen(path, "a");
+    if (!new_file) {
+        MUTEX_UNLOCK(g_log_system.mutex);
+        return false;
+    }
+
+    /* 新文件打开成功，关闭旧文件 */
     if (g_log_system.log_file) {
         fclose(g_log_system.log_file);
-        g_log_system.log_file = NULL;
     }
 
     strncpy(g_log_system.config.file_path, path, sizeof(g_log_system.config.file_path) - 1);
-    g_log_system.log_file = fopen(path, "a");
+    g_log_system.log_file = new_file;
     g_log_system.current_file_size = 0;
 
     MUTEX_UNLOCK(g_log_system.mutex);
 
-    return g_log_system.log_file != NULL;
+    return true;
 }
 
 void lv00_log_set_callback(Lv00LogCallback callback, void *user_data) {

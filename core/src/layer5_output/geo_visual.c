@@ -979,6 +979,8 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         if (fp) {
             fputs(buf, fp);
             fclose(fp);
+        } else {
+            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
         }
 
         lv00_free(buf);
@@ -1027,6 +1029,8 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         if (fp) {
             fputs(buf, fp);
             fclose(fp);
+        } else {
+            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
         }
 
         lv00_free(buf);
@@ -1093,6 +1097,8 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         if (fp) {
             fputs(buf, fp);
             fclose(fp);
+        } else {
+            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
         }
 
         lv00_free(buf);
@@ -1128,6 +1134,8 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         if (fp) {
             fputs(buf, fp);
             fclose(fp);
+        } else {
+            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
         }
 
         lv00_free(buf);
@@ -1160,6 +1168,8 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
                 LV00_LOG_WARNING("PPM导出写入不完整（期望 %zu, 实际 %zu）", pixel_size, written);
             }
             fclose(fp);
+        } else {
+            LV00_LOG_WARNING("geo_visual: 无法打开输出文件 %s", output_path);
         }
 
         lv00_free(pixels);

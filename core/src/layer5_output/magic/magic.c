@@ -2308,6 +2308,8 @@ double incantation_calculate_power(const IncantationProfile *profile) {
         case INCANTATION_RITUAL:
             power *= MAGIC_INCANTATION_MULT_RITUAL;
             break;
+        default:
+            break;
     }
 
     return power;
