@@ -541,7 +541,7 @@ static void update_port_namespace_depth(GeomNode *n, int new_func_block_id,
  */
 bool engine_pack_function(LV00Engine *engine, const int *internal_node_ids, int internal_count, const int *input_port_ids,
                           int input_count, const int *output_port_ids, int output_count, int *out_func_block_id) {
-    if (!engine || !engine->main_graph) {
+    if (!engine || !engine->main_graph || (internal_count > 0 && !internal_node_ids) || (input_count > 0 && !input_port_ids) || (output_count > 0 && !output_port_ids)) {
         g_thread_last_status = ENGINE_STATUS_INVALID_ARGUMENT;
         snprintf(g_thread_last_error, sizeof(g_thread_last_error), "引擎或主图为空");
         return false;

@@ -1191,7 +1191,7 @@ char *relation_instance_export_xml(const RelInstance *inst) {
             case REL_ATOM_REGION: type_name = "Region"; break;
             case REL_ATOM_PORT: type_name = "Port"; break;
             case REL_ATOM_FUNC_BLOCK: type_name = "FuncBlock"; break;
-        }
+            default: type_name = "Unknown"; break;
         pos += snprintf(buf + pos, (size_t)(buf_size - pos),
                         "    <atom id=\"%d\" label=\"%s\"/>\n",
                         atom->atom_id, type_name);

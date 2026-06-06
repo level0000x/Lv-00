@@ -1935,6 +1935,22 @@ const char *stream_event_type_id(StreamEventType type) {
             return "PROGRESS";
         case STREAM_EVENT_GRAPH_SNAPSHOT:
             return "GRAPH_SNAPSHOT";
+        case STREAM_EVENT_PRESET_REGISTER_START:
+            return "PRESET_REGISTER_START";
+        case STREAM_EVENT_PRESET_REGISTER_DONE:
+            return "PRESET_REGISTER_DONE";
+        case STREAM_EVENT_PRESET_REGISTER_FAILED:
+            return "PRESET_REGISTER_FAILED";
+        case STREAM_EVENT_PRESET_LOOKUP:
+            return "PRESET_LOOKUP";
+        case STREAM_EVENT_PRESET_INSTANTIATE:
+            return "PRESET_INSTANTIATE";
+        case STREAM_EVENT_PRESET_VALIDATE:
+            return "PRESET_VALIDATE";
+        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
+            return "PRESET_CATEGORY_LOADED";
+        case STREAM_EVENT_PRESET_MODULE_LOADED:
+            return "PRESET_MODULE_LOADED";
         default:
             return "UNKNOWN_EVENT";
     }

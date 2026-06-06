@@ -91,6 +91,8 @@ static bool lv00_expr_structurally_equal(const Lv00Expr *a, const Lv00Expr *b) {
                     strcmp(a->data.function.func_name, b->data.function.func_name) == 0 &&
                     lv00_expr_structurally_equal(a->data.function.argument,
                                                   b->data.function.argument));
+        default:
+            return false; /* 未知表达式类型视为不等 */
     }
     return false;
 }
