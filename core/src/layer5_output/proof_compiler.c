@@ -48,7 +48,7 @@ static void append_to_buffer(Lv00ProofCompiler *compiler, const char *str) {
     if (!compiler || !str) return;
     size_t len = strlen(str);
     if (ensure_buffer_capacity(compiler, len + 1)) {
-        strcpy(compiler->output_buffer + compiler->buffer_used, str);
+        snprintf(compiler->output_buffer + compiler->buffer_used, compiler->buffer_size - compiler->buffer_used, "%s", str);
         compiler->buffer_used += len;
     }
 }
@@ -918,7 +918,7 @@ Lv00CompilerConfig lv00_compiler_config_default(void) {
     config.include_metadata = true;
     config.include_trace = true;
     config.verbose = false;
-    config.max_depth = 1000;
+    config.max_depth = LV00_DEFAULT_MAX_DEPTH;
     config.language = "zh";
     return config;
 }

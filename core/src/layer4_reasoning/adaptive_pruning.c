@@ -3,6 +3,9 @@
 #include <string.h>
 #include <math.h>
 
+#define LV00_DEFAULT_TIME_BUDGET_MS 30000.0
+#define LV00_DEFAULT_MAX_ITERATIONS 10000
+
 /* ── Complexity Analysis ── */
 
 Lv00ProblemComplexity lv00_analyze_complexity(
@@ -64,7 +67,7 @@ Lv00AdaptiveConfig lv00_default_adaptive_config(void) {
     Lv00AdaptiveConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.base_iterations = 100.0;
-    cfg.time_budget_ms = 30000.0;       /* 30 seconds */
+    cfg.time_budget_ms = LV00_DEFAULT_TIME_BUDGET_MS;       /* 30 seconds */
     cfg.progress_threshold = 0.1;       /* 10% minimum progress */
     cfg.solution_likelihood_min = 0.01; /* 1% minimum probability */
     cfg.enable_heuristic_pruning = 1;
@@ -78,7 +81,7 @@ Lv00AdaptivePruner *lv00_pruner_create(const Lv00AdaptiveConfig *config) {
     Lv00AdaptivePruner *pruner = calloc(1, sizeof(Lv00AdaptivePruner));
     if (!pruner) return NULL;
     pruner->config = config ? *config : lv00_default_adaptive_config();
-    pruner->max_iterations = 10000;
+    pruner->max_iterations = LV00_DEFAULT_MAX_ITERATIONS;
     pruner->max_time_ms = pruner->config.time_budget_ms;
     return pruner;
 }

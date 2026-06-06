@@ -401,6 +401,9 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
             /* 连接约束：端口连接 -> 坐标等价 */
             n = smtlib2_encode_connection(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
             break;
+        default:
+            LV00_LOG_WARNING("Unknown constraint type %d in smtlib2_encode_constraints", c->type);
+            break;
         }
         if (n < 0 || n >= remaining) break;
         written += n;
@@ -1190,6 +1193,9 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
                 }
                 break;
             }
+            default:
+                LV00_LOG_WARNING("Unknown constraint type %d in constraint_graph_to_ideal fallback", c->type);
+                break;
             }
         }
     } else {

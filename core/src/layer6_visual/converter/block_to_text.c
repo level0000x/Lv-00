@@ -177,7 +177,7 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                 func_block_set_name(fb, name);
 
                 /* 扫描块体中的 input/output 声明 */
-                int inputs[64], outputs[64];
+                int inputs[MAX_BLOCK_PORTS], outputs[MAX_BLOCK_PORTS];
                 int in_cnt = 0, out_cnt = 0;
 
                 while (*p && *p != '}') {
@@ -205,7 +205,7 @@ Lv00ConvertResult lv00_convert_text_to_block(const char *code) {
                             p += 4;
                             port_id = atoi(p);
                         }
-                        if (out_cnt < 64) outputs[out_cnt++] = port_id;
+                        if (out_cnt < MAX_BLOCK_PORTS) outputs[out_cnt++] = port_id;
                         /* 跳到行尾 */
                         while (*p && *p != '\n') p++;
                     }

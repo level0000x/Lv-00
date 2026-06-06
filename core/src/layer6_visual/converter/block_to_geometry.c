@@ -5,6 +5,8 @@
 #include <string.h>
 #include <math.h>
 
+#define MAX_BLOCK_PORTS 64
+
 /* 几何编码内部结构：将 FuncBlock 编码为几何实体集合 */
 typedef struct {
     /* 矩形区域列表（每个块对应一个矩形） */
@@ -290,19 +292,19 @@ Lv00ConvertResult lv00_convert_geometry_to_block(void *entity) {
         double rx_min = rect->base.bounding_box.x_min;
         double rx_max = rect->base.bounding_box.x_max;
 
-        int inputs[64], outputs[64];
+        int inputs[MAX_BLOCK_PORTS], outputs[MAX_BLOCK_PORTS];
         int in_cnt = 0, out_cnt = 0;
 
-        for (int j = 0; j < enc->port_point_count && (in_cnt < 64 || out_cnt < 64); j++) {
+        for (int j = 0; j < enc->port_point_count && (in_cnt < MAX_BLOCK_PORTS || out_cnt < MAX_BLOCK_PORTS); j++) {
             PointEntity *pt = enc->port_points[j];
             if (!pt) continue;
 
             double px = pt->base.bounding_box.x_min; /* 点的x坐标 */
 
             /* 判断点是否在该矩形的左/右边缘附近 */
-            if (fabs(px - rx_min) < 1.0 && in_cnt < 64) {
+            if (fabs(px - rx_min) < 1.0 && in_cnt < MAX_BLOCK_PORTS) {
                 inputs[in_cnt++] = j;
-            } else if (fabs(px - rx_max) < 1.0 && out_cnt < 64) {
+            } else if (fabs(px - rx_max) < 1.0 && out_cnt < MAX_BLOCK_PORTS) {
                 outputs[out_cnt++] = j;
             }
         }
