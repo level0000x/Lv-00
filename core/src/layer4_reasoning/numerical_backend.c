@@ -35,6 +35,10 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 
+#ifndef LV00_NUM_EPSILON
+#define LV00_NUM_EPSILON 1e-9
+#endif
+
 /* ========================================================================
  * 模块级常量定义
  * ======================================================================== */
@@ -504,7 +508,7 @@ static int serial_matrix_matvec(const Lv00Matrix *A, const Lv00Vector *x,
 
     for (int64_t j = 0; j < cols; ++j) {
         double xj = x->data[j];
-        if (xj == 0.0) {
+        if (fabs(xj) < LV00_NUM_EPSILON) {
             continue;
         }
         double *col_j = data + j * rows;
@@ -919,7 +923,7 @@ static int iterative_gmres_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
         memset(r0, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double xj = x->data[j];
-            if (xj == 0.0) continue;
+            if (fabs(xj) < LV00_NUM_EPSILON) continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 r0[i] += col_j[i] * xj;
@@ -956,7 +960,7 @@ static int iterative_gmres_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
             memset(w, 0, (size_t) n * sizeof(double));
             for (int64_t j = 0; j < A->cols; ++j) {
                 double vkj = vk[j];
-                if (vkj == 0.0) continue;
+                if (fabs(vkj) < LV00_NUM_EPSILON) continue;
                 double *col_j = a_data + j * n;
                 for (int64_t i = 0; i < n; ++i)
                     w[i] += col_j[i] * vkj;
@@ -1036,7 +1040,7 @@ static int iterative_gmres_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
         /* ---- 更新解 x = x + V * y ---- */
         for (int j = 0; j < k_max; ++j) {
             double yj = y[j];
-            if (yj == 0.0) continue;
+            if (fabs(yj) < LV00_NUM_EPSILON) continue;
             double *vj = V + (int64_t)j * n;
             for (int64_t i = 0; i < n; ++i)
                 x->data[i] += yj * vj[i];
@@ -1133,7 +1137,7 @@ static int iterative_bicgstab_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
         memset(v, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double pj = p[j];
-            if (pj == 0.0) continue;
+            if (fabs(pj) < LV00_NUM_EPSILON) continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 v[i] += col_j[i] * pj;
@@ -1154,7 +1158,7 @@ static int iterative_bicgstab_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
         memset(t, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double sj = s[j];
-            if (sj == 0.0) continue;
+            if (fabs(sj) < LV00_NUM_EPSILON) continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 t[i] += col_j[i] * sj;
@@ -1252,7 +1256,7 @@ static int iterative_cg_solve(Lv00LinearSolver *LS, const Lv00Matrix *A,
         memset(ap, 0, (size_t) n * sizeof(double));
         for (int64_t j = 0; j < A->cols; ++j) {
             double pj = p[j];
-            if (pj == 0.0) continue;
+            if (fabs(pj) < LV00_NUM_EPSILON) continue;
             double *col_j = a_data + j * n;
             for (int64_t i = 0; i < n; ++i)
                 ap[i] += col_j[i] * pj;
