@@ -68,13 +68,21 @@ typedef struct {
  * 工作队列操作
  * ======================================================================== */
 
-/** 初始化工作队列 */
-static void work_queue_init(WorkQueue *q, int initial_capacity) {
+/** 初始化工作队列，成功返回0，失败返回-1 */
+static int work_queue_init(WorkQueue *q, int initial_capacity) {
     q->pairs = (SPair *)calloc((size_t)initial_capacity, sizeof(SPair));
+    if (!q->pairs) {
+        q->size = 0;
+        q->capacity = 0;
+        q->head = 0;
+        q->tail = 0;
+        return -1;
+    }
     q->size = 0;
     q->capacity = initial_capacity;
     q->head = 0;
     q->tail = 0;
+    return 0;
 }
 
 /** 销毁工作队列 */
@@ -135,13 +143,17 @@ static int work_queue_steal(WorkQueue *q, SPair *out) {
  * 简化多项式操作
  * ======================================================================== */
 
-/** 创建空多项式 */
-static SimplePoly simple_poly_create(int initial_capacity) {
-    SimplePoly p;
-    p.terms = (PolyTerm *)calloc((size_t)initial_capacity, sizeof(PolyTerm));
-    p.term_count = 0;
-    p.term_capacity = initial_capacity;
-    return p;
+/** 创建空多项式，成功返回true */
+static bool simple_poly_create(SimplePoly *out, int initial_capacity) {
+    out->terms = (PolyTerm *)calloc((size_t)initial_capacity, sizeof(PolyTerm));
+    if (!out->terms) {
+        out->term_count = 0;
+        out->term_capacity = 0;
+        return false;
+    }
+    out->term_count = 0;
+    out->term_capacity = initial_capacity;
+    return true;
 }
 
 /** 销毁多项式 */
@@ -202,7 +214,8 @@ static int simple_poly_is_zero(const SimplePoly *p) {
  * @return S-多项式
  */
 static SimplePoly compute_s_polynomial(const SimplePoly *f, int fi, int fj, int basis_size) {
-    SimplePoly result = simple_poly_create(8);
+    SimplePoly result;
+    simple_poly_create(&result, 8);
     if (fi < 0 || fi >= basis_size || fj < 0 || fj >= basis_size) return result;
 
     const SimplePoly *gi = &f[fi];
@@ -631,7 +644,15 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
     if (!basis) return -1;
 
     for (int i = 0; i < poly_count; i++) {
-        basis[i] = simple_poly_create(8);
+        if (!simple_poly_create(&basis[i], 8)) {
+            /* calloc 失败，清理并返回 */
+            for (int k = 0; k < i; k++)
+                simple_poly_destroy(&basis[k]);
+            lv00_free((void **)&basis);
+            lv00_free((void **)&args);
+            lv00_free((void **)&all_queues);
+            return -1;
+        }
         if (clauses[i]) {
             /* 将子句编码为多项式：
              * 子句 (l1 v l2 v ... v ln) -> 乘积 (1-x1)(1-x2)...(1-xn)
@@ -671,7 +692,20 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
     /* 创建每个线程的本地工作队列 */
     for (int t = 0; t < num_threads; t++) {
         all_queues[t] = (WorkQueue *)calloc(1, sizeof(WorkQueue));
-        work_queue_init(all_queues[t], engine->config.chunk_size);
+        if (!all_queues[t] || work_queue_init(all_queues[t], engine->config.chunk_size) != 0) {
+            /* 清理已分配的队列 */
+            for (int k = 0; k < t; k++) {
+                work_queue_destroy(all_queues[k]);
+                lv00_free((void **)&all_queues[k]);
+            }
+            if (all_queues[t]) lv00_free((void **)&all_queues[t]);
+            /* 清理基和其他资源 */
+            for (int i = 0; i < poly_count; i++)
+                simple_poly_destroy(&basis[i]);
+            lv00_free((void **)&basis);
+            lv00_free((void **)&args);
+            return -1;
+        }
     }
 
     /* 将初始 S-多项式对分配到各线程的本地队列 */

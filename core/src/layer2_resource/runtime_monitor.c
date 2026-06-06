@@ -847,8 +847,8 @@ Lv00Diagnostics *lv00_diagnostics_generate(void) {
         lv00_get_memory_stats(&mem_stats);
         diag->memory_total = mem_stats.current_used;
         diag->memory_peak = mem_stats.peak_used;
-        diag->alloc_count = (uint32_t)mem_stats.allocation_count;
-        diag->free_count = (uint32_t)mem_stats.free_count;
+        diag->alloc_count = (uint64_t)mem_stats.allocation_count;
+        diag->free_count = (uint64_t)mem_stats.free_count;
     }
 
     /* 性能统计 */

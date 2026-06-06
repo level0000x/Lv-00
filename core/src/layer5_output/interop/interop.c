@@ -576,7 +576,9 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
 
         /* 命令失败时回滚引擎状态，成功时更新快照 */
         if (result != LV00_OK && frozen) {
-            engine_restore_frozen_point(engine, frozen);
+            if (!engine_restore_frozen_point(engine, frozen)) {
+                LV00_LOG_WARNING("interop: 命令失败后引擎状态回滚失败");
+            }
         } else if (frozen) {
             /* 命令成功：释放旧快照（引擎状态已更新，下次命令将基于当前状态） */
             /* 注意：engine_destroy_frozen_point 的具体 API 取决于 engine 模块 */

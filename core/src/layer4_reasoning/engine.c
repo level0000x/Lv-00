@@ -1245,7 +1245,9 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(LV00Engine *engine, E
 
     case ENGINE_CIRCUIT_ACTION_ROLLBACK: /* 回滚：恢复到冻结点 */
         if (engine->frozen_point) {
-            engine_restore_frozen_point(engine, engine->frozen_point);
+            if (!engine_restore_frozen_point(engine, engine->frozen_point)) {
+                LV00_LOG_WARNING("engine: 回滚到冻结点失败，引擎状态可能不一致");
+            }
             /* engine_restore_frozen_point 消费了 frozen_point，已置 NULL */
         }
         circuit_reset_context();
