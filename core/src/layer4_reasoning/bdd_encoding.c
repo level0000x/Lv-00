@@ -68,7 +68,11 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
             existing->low == low &&
             existing->high == high) {
             /* 找到已存在节点，增加引用计数并返回 */
-            existing->ref_count++;
+#ifdef _WIN32
+            InterlockedIncrement64((volatile LONG64 *)&existing->ref_count);
+#else
+            __atomic_fetch_add(&existing->ref_count, 1, __ATOMIC_RELAXED);
+#endif
             return existing;
         }
     }
@@ -339,8 +343,13 @@ BDDNode *bdd_literal(BDDManager *mgr, int var_id) {
  * @param node BDD 节点
  */
 void bdd_ref(BDDNode *node) {
-    if (node)
-        node->ref_count++;
+    if (node) {
+#ifdef _WIN32
+        InterlockedIncrement64((volatile LONG64 *)&node->ref_count);
+#else
+        __atomic_fetch_add(&node->ref_count, 1, __ATOMIC_RELAXED);
+#endif
+    }
 }
 
 /**
@@ -351,11 +360,15 @@ void bdd_ref(BDDNode *node) {
 void bdd_deref(BDDManager *mgr, BDDNode *node) {
     if (!node || node->ref_count == 0)
         return;
-    node->ref_count--;
+#ifdef _WIN32
+    uint64_t old_ref = InterlockedDecrement64((volatile LONG64 *)&node->ref_count);
+#else
+    uint64_t old_ref = __atomic_fetch_sub(&node->ref_count, 1, __ATOMIC_RELAXED);
+#endif
     /* 终端节点（var_id == -1）不回收 */
     if (node->var_id < 0)
         return;
-    if (node->ref_count > 0)
+    if (old_ref > 1)
         return;
 
     /* 引用计数降为 0：从唯一表中标记为墓碑并释放 */

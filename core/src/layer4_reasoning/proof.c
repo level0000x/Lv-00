@@ -1764,7 +1764,11 @@ typedef struct {
 #define MAX_BREAKPOINT_SNAPSHOTS 64
 
 static ProofBreakpointSnapshot g_breakpoint_store[MAX_BREAKPOINT_SNAPSHOTS];
-static int g_breakpoint_store_count = 0;
+#ifdef _WIN32
+static volatile LONG g_breakpoint_store_count = 0;
+#else
+static volatile int g_breakpoint_store_count = 0;
+#endif
 
 #ifdef _WIN32
 static CRITICAL_SECTION g_breakpoint_cs = {0};
@@ -1804,12 +1808,17 @@ bool proof_save_breakpoint(ProofNavigator *nav, int breakpoint_id) {
 
     /* 如果没有找到，分配新槽位 */
     if (slot < 0) {
-        if (g_breakpoint_store_count >= MAX_BREAKPOINT_SNAPSHOTS) {
+        int current_count = (int)g_breakpoint_store_count;
+        if (current_count >= MAX_BREAKPOINT_SNAPSHOTS) {
             BREAKPOINT_UNLOCK();
             return false; /* 存储已满 */
         }
-        slot = g_breakpoint_store_count;
-        g_breakpoint_store_count++;
+        slot = current_count;
+#ifdef _WIN32
+        InterlockedIncrement(&g_breakpoint_store_count);
+#else
+        __atomic_fetch_add(&g_breakpoint_store_count, 1, __ATOMIC_RELAXED);
+#endif
     }
 
     /* 保存当前导航器状态 */
@@ -1892,15 +1901,18 @@ bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoint_id) {
  * 即使多个线程同时调用，也只有第一个会执行初始化。
  */
 void proof_breakpoint_storage_init(void) {
-    /* C11 静态局部变量初始化是线程安全的 */
-    static _Bool initialized = false;
-    if (!initialized) {
-        /* 重置计数器（非原子操作，但因为有 initialized 保护，只执行一次） */
-        g_breakpoint_store_count = 0;
+    BREAKPOINT_LOCK();
+    if (g_breakpoint_store_count == 0 && g_breakpoint_store[0].breakpoint_id == 0) {
+        /* 重置计数器 */
+#ifdef _WIN32
+        InterlockedExchange(&g_breakpoint_store_count, 0);
+#else
+        __atomic_store_n(&g_breakpoint_store_count, 0, __ATOMIC_RELAXED);
+#endif
         /* 清空存储 */
         memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
-        initialized = true;
     }
+    BREAKPOINT_UNLOCK();
 }
 
 /**
@@ -1912,7 +1924,11 @@ void proof_breakpoint_storage_reset(void) {
     BREAKPOINT_LOCK();
     /* 清空所有快照 */
     memset(g_breakpoint_store, 0, sizeof(g_breakpoint_store));
-    g_breakpoint_store_count = 0;
+#ifdef _WIN32
+    InterlockedExchange(&g_breakpoint_store_count, 0);
+#else
+    __atomic_store_n(&g_breakpoint_store_count, 0, __ATOMIC_RELAXED);
+#endif
     BREAKPOINT_UNLOCK();
 
     /* 流式事件 */
@@ -1936,6 +1952,8 @@ bool proof_breakpoint_delete(int breakpoint_id) {
         return false;
     }
 
+    BREAKPOINT_LOCK();
+
     /* 查找断点 */
     int slot = -1;
     for (int i = 0; i < g_breakpoint_store_count; i++) {
@@ -1946,6 +1964,7 @@ bool proof_breakpoint_delete(int breakpoint_id) {
     }
 
     if (slot < 0) {
+        BREAKPOINT_UNLOCK();
         /* 未找到断点 */
         return false;
     }
@@ -1954,7 +1973,13 @@ bool proof_breakpoint_delete(int breakpoint_id) {
     if (slot < g_breakpoint_store_count - 1) {
         g_breakpoint_store[slot] = g_breakpoint_store[g_breakpoint_store_count - 1];
     }
-    g_breakpoint_store_count--;
+#ifdef _WIN32
+    InterlockedDecrement(&g_breakpoint_store_count);
+#else
+    __atomic_fetch_sub(&g_breakpoint_store_count, 1, __ATOMIC_RELAXED);
+#endif
+
+    BREAKPOINT_UNLOCK();
 
     /* 流式事件 */
     if (proof_stream_ctx != NULL) {

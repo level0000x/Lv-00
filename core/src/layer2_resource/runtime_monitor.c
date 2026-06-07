@@ -100,8 +100,25 @@ static const char *level_colors[] = {
     ""
 };
 
+static Lv00Mutex g_log_init_mutex;
+static volatile int g_log_init_mutex_initialized = 0;
+
 bool lv00_log_init(const Lv00LogConfig *config) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_log_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_log_init_mutex);
+    }
+    EnterCriticalSection(&g_log_init_mutex);
+#else
+    static pthread_mutex_t g_log_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_log_init_mutex);
+#endif
     if (g_log_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_log_init_mutex);
+#else
+        pthread_mutex_unlock(&g_log_init_mutex);
+#endif
         return true;
     }
 
@@ -132,6 +149,11 @@ bool lv00_log_init(const Lv00LogConfig *config) {
     }
 
     g_log_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_log_init_mutex);
+#else
+    pthread_mutex_unlock(&g_log_init_mutex);
+#endif
     return true;
 }
 
@@ -357,14 +379,36 @@ static struct {
     bool initialized;
 } g_perf_system = {0};
 
+static Lv00Mutex g_perf_init_mutex;
+static volatile int g_perf_init_mutex_initialized = 0;
+
 bool lv00_perf_init(void) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_perf_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_perf_init_mutex);
+    }
+    EnterCriticalSection(&g_perf_init_mutex);
+#else
+    static pthread_mutex_t g_perf_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_perf_init_mutex);
+#endif
     if (g_perf_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_perf_init_mutex);
+#else
+        pthread_mutex_unlock(&g_perf_init_mutex);
+#endif
         return true;
     }
 
     memset(&g_perf_system, 0, sizeof(g_perf_system));
     MUTEX_INIT(g_perf_system.mutex);
     g_perf_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_perf_init_mutex);
+#else
+    pthread_mutex_unlock(&g_perf_init_mutex);
+#endif
     return true;
 }
 
@@ -588,8 +632,25 @@ static struct {
     bool initialized;
 } g_health_system = {0};
 
+static Lv00Mutex g_health_init_mutex;
+static volatile int g_health_init_mutex_initialized = 0;
+
 bool lv00_health_init(void) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_health_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_health_init_mutex);
+    }
+    EnterCriticalSection(&g_health_init_mutex);
+#else
+    static pthread_mutex_t g_health_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_health_init_mutex);
+#endif
     if (g_health_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_health_init_mutex);
+#else
+        pthread_mutex_unlock(&g_health_init_mutex);
+#endif
         return true;
     }
 
@@ -603,6 +664,11 @@ bool lv00_health_init(void) {
     g_health_system.cpu_critical_percent = 95;
 
     g_health_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_health_init_mutex);
+#else
+    pthread_mutex_unlock(&g_health_init_mutex);
+#endif
     return true;
 }
 
@@ -997,8 +1063,25 @@ static struct {
     bool initialized;
 } g_event_system = {0};
 
+static Lv00Mutex g_event_init_mutex;
+static volatile int g_event_init_mutex_initialized = 0;
+
 bool lv00_event_trace_init(uint32_t max_events) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_event_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_event_init_mutex);
+    }
+    EnterCriticalSection(&g_event_init_mutex);
+#else
+    static pthread_mutex_t g_event_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_event_init_mutex);
+#endif
     if (g_event_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_event_init_mutex);
+#else
+        pthread_mutex_unlock(&g_event_init_mutex);
+#endif
         return true;
     }
 
@@ -1008,11 +1091,21 @@ bool lv00_event_trace_init(uint32_t max_events) {
     memset(&g_event_system, 0, sizeof(g_event_system));
     g_event_system.events = (Lv00EventRecord *)lv00_calloc(actual_max, sizeof(Lv00EventRecord));
     if (!g_event_system.events) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_event_init_mutex);
+#else
+        pthread_mutex_unlock(&g_event_init_mutex);
+#endif
         return false;
     }
     g_event_system.max_events = actual_max;
     MUTEX_INIT(g_event_system.mutex);
     g_event_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_event_init_mutex);
+#else
+    pthread_mutex_unlock(&g_event_init_mutex);
+#endif
     return true;
 }
 

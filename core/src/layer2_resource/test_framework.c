@@ -112,8 +112,25 @@ static Lv00TestSuite *find_or_create_suite(const char *name) {
     return suite;
 }
 
+static Lv00TestMutex g_test_init_mutex;
+static volatile int g_test_init_mutex_initialized = 0;
+
 static void init_test_system(void) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_test_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_test_init_mutex);
+    }
+    EnterCriticalSection(&g_test_init_mutex);
+#else
+    static pthread_mutex_t g_test_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_test_init_mutex);
+#endif
     if (g_test_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_test_init_mutex);
+#else
+        pthread_mutex_unlock(&g_test_init_mutex);
+#endif
         return;
     }
 
@@ -121,6 +138,11 @@ static void init_test_system(void) {
     MUTEX_INIT(g_test_system.mutex);
     g_test_system.timeout_ms = 30000; /* 默认 30 秒超时 */
     g_test_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_test_init_mutex);
+#else
+    pthread_mutex_unlock(&g_test_init_mutex);
+#endif
 }
 
 /* ============== 测试注册实现 ============== */

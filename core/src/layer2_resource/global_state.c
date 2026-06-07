@@ -110,12 +110,16 @@ static int find_or_create_param(const char *key, Lv00GsParamType type) {
 /* ── 公共 API ──────────────────────────────────────────────────────── */
 
 int lv00_global_state_init(void) {
-    if (g_state.initialized) return 0;
-    GS_INIT_LOCK();
+    GS_LOCK();
+    if (g_state.initialized) {
+        GS_UNLOCK();
+        return 0;
+    }
     memset(&g_state, 0, sizeof(Lv00GlobalState));
     g_state.param_count = 0;
     g_state.initialized = true;
     strncpy(g_state.version, "3.3.0", sizeof(g_state.version) - 1);
+    GS_UNLOCK();
     return 0;
 }
 
