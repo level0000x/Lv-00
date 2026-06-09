@@ -232,11 +232,21 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
         total_len += strlen(coeff_strs[i]) + 2;
     }
     char *result = malloc(total_len + 1);
+    if (!result) {
+        for (int i = 0; i <= p->degree; i++) free(coeff_strs[i]);
+        free(coeff_strs);
+        return strdup("0");
+    }
     result[0] = '\0';
+    size_t pos = 0;
     for (int i = 0; i <= p->degree; i++) {
-        if (i > 0)
-            strcat(result, ",");
-        strcat(result, coeff_strs[i]);
+        if (i > 0) {
+            result[pos++] = ',';
+            result[pos] = '\0';
+        }
+        size_t coeff_len = strlen(coeff_strs[i]);
+        memcpy(result + pos, coeff_strs[i], coeff_len + 1);
+        pos += coeff_len;
     }
     for (int i = 0; i <= p->degree; i++) {
         free(coeff_strs[i]);

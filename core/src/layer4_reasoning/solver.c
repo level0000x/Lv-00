@@ -4147,7 +4147,14 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
         char *f1_str = mpz_poly_get_str(&factor1);
         char *f2_str = mpz_poly_get_str(&factor2);
 
-        int needed = 256 + strlen(f1_str) + strlen(f2_str);
+        size_t needed = 256 + strlen(f1_str) + strlen(f2_str);
+        if (needed > INT_MAX) {
+            lv00_free((void **)&f1_str);
+            lv00_free((void **)&f2_str);
+            mpz_poly_clear(&factor1);
+            mpz_poly_clear(&factor2);
+            return SOLVER_STATUS_OUT_OF_SCOPE;
+        }
         *suggestion = lv00_malloc(needed);
         int _snw;
         LV00_SAFE_SNPRINTF(_snw, *suggestion, needed,
@@ -4223,7 +4230,11 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
 
     /* General high-degree irreducible (> cubic, which v3.1 now supports) */
     char *poly_str = mpz_poly_get_str(target_poly);
-    size_t needed = (size_t)256 + strlen(poly_str);
+    size_t needed = 256 + strlen(poly_str);
+    if (needed > INT_MAX || needed == 0) {
+        lv00_free((void **)&poly_str);
+        return SOLVER_STATUS_OUT_OF_SCOPE;
+    }
     *suggestion = lv00_malloc(needed);
     int _snw2;
     LV00_SAFE_SNPRINTF(_snw2, *suggestion, needed,
