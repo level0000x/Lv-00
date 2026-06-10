@@ -41,7 +41,7 @@ extern "C" {
 #include <stdatomic.h> /* v3.4.1: 原子操作支持多线程安全 */
 
 #include "error_codes.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "symbolic_coord.h"
 
 /* ================================================================

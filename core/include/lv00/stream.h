@@ -46,6 +46,25 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+/* LV00_PUBLIC_API —— 若未定义则提供默认实现 */
+#ifndef LV00_PUBLIC_API
+  #if defined(_WIN32) || defined(_MSC_VER)
+    #ifdef LV00_BUILD_SHARED
+      #define LV00_PUBLIC_API __declspec(dllexport)
+    #else
+      #define LV00_PUBLIC_API
+    #endif
+  #elif defined(__GNUC__) || defined(__clang__)
+    #ifdef LV00_BUILD_SHARED
+      #define LV00_PUBLIC_API __attribute__((visibility("default")))
+    #else
+      #define LV00_PUBLIC_API
+    #endif
+  #else
+    #define LV00_PUBLIC_API
+  #endif
+#endif
+
 /* ============== 常量 ============== */
 
 /**

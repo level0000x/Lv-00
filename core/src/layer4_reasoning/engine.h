@@ -34,7 +34,7 @@ extern "C" {
 #include "normalization.h"
 #include "rewrite.h"
 #include "solver.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "unify.h"
 
 /* ============================================================

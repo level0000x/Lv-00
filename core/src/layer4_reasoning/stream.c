@@ -30,7 +30,9 @@
  *       类 Unix: sys/time.h/strings.h/pthread.h）。异步模式使用平台原生线程原语。
  */
 
-#include "stream.h"
+#include "lv00/stream.h"
+
+#include "lv00.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -1693,7 +1695,7 @@ void stream_reset_stats(StreamContext *ctx) {
  * @param type 事件类型
  * @return 发射次数，ctx 为 NULL 或类型越界时返回 0
  */
-int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type) {
+int64_t stream_get_event_count(const StreamContext *ctx, StreamEventType type) {
     if (!ctx)
         return 0;
     int idx = (int) type;
@@ -1709,7 +1711,7 @@ int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type) {
  * @param ctx 流式上下文
  * @return 总发射次数，ctx 为 NULL 时返回 0
  */
-int64_t stream_get_total_event_count(const StreamContext *ctx) {
+int64_t stream_get_total_event_count(StreamContext *ctx) {
     if (!ctx)
         return 0;
     return ctx->total_count;
@@ -1721,7 +1723,7 @@ int64_t stream_get_total_event_count(const StreamContext *ctx) {
  * @param ctx 流式上下文
  * @return 丢弃的事件数，ctx 为 NULL 时返回 0
  */
-int64_t stream_get_dropped_count(const StreamContext *ctx) {
+long stream_get_dropped_count(const StreamContext *ctx) {
     if (!ctx)
         return 0;
     return ctx->dropped_count;

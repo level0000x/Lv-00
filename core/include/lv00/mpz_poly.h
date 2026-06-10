@@ -46,19 +46,20 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
     p->degree = -1;
 }
 
-static inline void mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
+static inline bool mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
     mpz_poly_clear(dst);
     if (src->degree >= 0) {
         dst->coeffs = malloc((src->degree + 1) * sizeof(mpz_t));
         if (!dst->coeffs) {
             dst->degree = -1;
-            return;
+            return false;
         }
         for (int i = 0; i <= src->degree; i++) {
             mpz_init_set(dst->coeffs[i], src->coeffs[i]);
         }
         dst->degree = src->degree;
     }
+    return true;
 }
 
 static inline int mpz_poly_equal(const mpz_poly_t *a, const mpz_poly_t *b) {

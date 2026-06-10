@@ -44,7 +44,7 @@
  *   - normalization.h      : 图规范化
  */
 
-#include "proof.h"
+#include "lv00/proof.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,19 +58,27 @@
 #endif
 
 #include "axiom_pkg.h"
-#include "engine.h"
+#include "lv00/engine.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "node_deep_copy.h"
-#include "proof_trace.h"
-#include "solver.h"
-#include "stream.h"
+#include "lv00/node_deep_copy.h"
+#include "lv00/solver.h"
+#include "lv00/stream.h"
 #include "stream_context_util.h"
-#include "thread_pool.h"
-#include "type_system.h"
-#include "unify.h"
+#include "lv00/thread_pool.h"
+#include "lv00/type_system.h"
+#include "lv00/unify.h"
 
-LV00_DECLARE_STREAM_CTX(proof)
+LV00_DECLARE_STREAM_CTX(proof);
+
+/* 占位：证明树 API（待实现） */
+#define LV00_DEFAULT_MAX_STEPS 10000
+typedef struct Lv00ProofTree Lv00ProofTree;
+typedef struct Lv00ProofTreeNode Lv00ProofTreeNode;
+static inline Lv00ProofTree *lv00_proof_tree_create(const char *name, const char *strategy) { return NULL; }
+static inline Lv00ProofTreeNode *lv00_proof_tree_add_step(Lv00ProofTree *tree, Lv00ProofTreeNode *parent, const char *desc, const char *detail, int id) { return NULL; }
+static inline void lv00_proof_tree_mark_contradiction(Lv00ProofTreeNode *node) {}
+static inline void lv00_proof_tree_destroy(Lv00ProofTree *tree) {}
 
 /** 命题销毁时迭代栈的初始容量 */
 #define PROOF_DESTROY_STACK_INITIAL_CAPACITY 128

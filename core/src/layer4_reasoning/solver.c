@@ -50,7 +50,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h" /* lv00_malloc / lv00_free —— 统一内存分配器 */
 #include "mpz_poly.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "stream_context_util.h"
 
 /* SOLVER_MAX_VAR_ID 已在 solver.h 中统一定义，此处不再重复 */
@@ -224,7 +224,7 @@ static void solver_snapshot_free(SolverSnapshot *snapshot) {
 }
 
 
-LV00_DECLARE_STREAM_CTX(solver)
+LV00_DECLARE_STREAM_CTX(solver);
 
 /**
  * @brief 内部结构：一元多项式方程的内部表示
@@ -1991,7 +1991,7 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
     mpz_init_set(n_part, D);
     mpz_init_set_ui(k_part, 1);
 
-    for (long p = 2; mpz_cmp_ui(n_part, 1) > 0 && p <= LV00_SOLVER_PRIME_LIMIT; p++) {
+    for (long p = 2; mpz_cmp_ui(n_part, 1) > 0 && p <= 1000000L; p++) {
         mpz_t p_mpz, p2_mpz, q, r;
         mpz_init_set_si(p_mpz, p);
         mpz_init(p2_mpz);
@@ -4942,7 +4942,7 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
 
     bool changed = true;
     int safety = 0;
-    const int max_iterations = LV00_DEFAULT_MAX_ITERATIONS; /* 安全上限 */
+    const int max_iterations = 10000; /* 安全上限 */
 
     /* ── 防抖容错 ── */
     int stalled_rounds = 0;
@@ -5573,10 +5573,10 @@ static MVPolynomial *build_mv_polynomials(EquationSystem *sys, int **var_id_map,
             if (!exponents) {
                 /* 内存分配失败，清理已分配的多项式 */
                 for (int k = 0; k < i; k++) {
-                    mv_poly_destroy(&polys[k]);
+                    mv_poly_clear(&polys[k]);
                 }
-                for (int k = i; k < eq_count; k++) {
-                    memset(&polys[k], 0, sizeof(mv_poly_t));
+                for (int k = i; k < sys->count; k++) {
+                    memset(&polys[k], 0, sizeof(mpz_poly_t));
                 }
                 lv00_free((void **)&polys);
                 return NULL;
@@ -5758,7 +5758,7 @@ static int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sy
  * @param sys   方程系统指针（用于存储生成的方程）
  * @return 生成的方程数量
  */
-static int template_pythagorean(const ConstraintGraph *graph, EquationSystem *sys) {
+static int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
     if (!graph || !sys)
         return 0;
     int added = 0;
@@ -6655,7 +6655,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
         return NULL;
 
     /* 收集所有唯一的变量 ID (来自方程系统) */
-    int *var_ids = lv00_malloc((size_t) sys.count * sizeof(int));
+    int *var_ids = lv00_malloc((size_t) sys->count * sizeof(int));
     if (!var_ids)
         return NULL;
     int var_count = 0;
@@ -8160,7 +8160,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     /* Step 4: Run Buchberger's algorithm */
     MVPolynomial **G = NULL;
     int g_count = 0;
-    SolverStatus status = buchberger_groebner(active, active_count, &G, &g_count, LV00_SOLVER_BUCHBERGER_STEP_LIMIT);
+    SolverStatus status = buchberger_groebner(active, active_count, &G, &g_count, 10000);
 
     /* 流式输出: Groebner 基计算步骤完成（含详细统计） */
     if (solver_stream_ctx) {

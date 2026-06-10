@@ -23,7 +23,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "solver.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "stream_context_util.h"
 
 /* ==================== 命名常量 ==================== */

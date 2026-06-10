@@ -46,7 +46,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "rewrite.h"
-#include "stream.h"
+#include "lv00/stream.h"
 
 LV00_DECLARE_STREAM_CTX(type_system)
 

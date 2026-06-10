@@ -38,7 +38,7 @@
 #include "constraint_graph.h"
 #include "exact_arithmetic.h" /* LV00_TOLERATED_FLOAT for proof timing/thresholds */
 #include "normalization.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "type_system.h"
 #include "unify.h"
 

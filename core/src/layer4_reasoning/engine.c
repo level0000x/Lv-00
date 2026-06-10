@@ -39,7 +39,7 @@
 
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "stream_context_util.h"
 
 /** 模块名称最大长度（用于 engine_extract_module_name 静态缓冲区） */
