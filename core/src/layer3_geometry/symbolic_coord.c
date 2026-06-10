@@ -978,7 +978,10 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
     if (!a)
         return NULL;
     mpz_poly_init(&a->minimal_poly);
-    mpz_poly_set(&a->minimal_poly, poly);
+    if (!mpz_poly_set(&a->minimal_poly, poly)) {
+        lv00_free((void **) &a);
+        return NULL;
+    }
     a->left_bound = left;
     a->right_bound = right;
     a->precision_bits = 53;

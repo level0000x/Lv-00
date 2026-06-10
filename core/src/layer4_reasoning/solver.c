@@ -309,7 +309,11 @@ static int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_no
     sys->eqs[sys->count].var_node_id = var_node_id;
     sys->eqs[sys->count].coord_index = coord_index;
     mpz_poly_init(&sys->eqs[sys->count].poly);
-    mpz_poly_set(&sys->eqs[sys->count].poly, &poly);
+    if (!mpz_poly_set(&sys->eqs[sys->count].poly, &poly)) {
+        mpz_poly_clear(&sys->eqs[sys->count].poly);
+        lv00_set_error(LV00_ERROR_OUT_OF_MEMORY, "equation_system_push: mpz_poly_set 失败");
+        return -1;
+    }
     sys->count++;
     return 0;
 }
@@ -2774,6 +2778,10 @@ static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, m
     if (poly->degree < 3)
         return false;
 
+    /* 初始化输出参数，确保所有错误路径上的 mpz_poly_clear 都是安全的 */
+    mpz_poly_init(factor1);
+    mpz_poly_init(factor2);
+
     /*
      * OWNER: const_term, lead_coeff — 本函数全作用域
      * 这两个 mpz_t 在函数顶部 init，在所有返回路径（含提前返回）上 clear。
@@ -2790,7 +2798,6 @@ static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, m
     /* If constant term is 0, factor out x */
     if (mpz_cmp_si(const_term, 0) == 0) {
         /* factor1 = x, factor2 = poly / x */
-        mpz_poly_init(factor1);
         factor1->degree = 1;
         /* GMP 要求使用标准分配器 */
         factor1->coeffs = lv00_malloc(2 * sizeof(mpz_t));
@@ -2804,7 +2811,6 @@ static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, m
         mpz_init_set_si(factor1->coeffs[0], 0);
         mpz_init_set_si(factor1->coeffs[1], 1);
 
-        mpz_poly_init(factor2);
         factor2->degree = poly->degree - 1;
         /* GMP 要求使用标准分配器 */
         factor2->coeffs = lv00_malloc((factor2->degree + 1) * sizeof(mpz_t));
@@ -2888,13 +2894,13 @@ static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, m
                 mpz_clear(lc);
             }
 
-            mpz_poly_init(factor1);
             factor1->degree = 1;
             /* GMP 要求使用标准分配器 */
             factor1->coeffs = lv00_malloc(2 * sizeof(mpz_t));
             if (!factor1->coeffs) {
                 mpz_poly_clear(factor1);
                 mpz_poly_clear(factor2);
+                mpz_poly_clear(&quotient);
                 mpz_clear(const_term);
                 mpz_clear(lead_coeff);
                 return false;
@@ -2902,7 +2908,14 @@ static bool try_factor_polynomial(const mpz_poly_t *poly, mpz_poly_t *factor1, m
             mpz_init_set_si(factor1->coeffs[0], -r);
             mpz_init_set_si(factor1->coeffs[1], 1);
 
-            mpz_poly_set(factor2, &quotient);
+            if (!mpz_poly_set(factor2, &quotient)) {
+                mpz_poly_clear(factor1);
+                mpz_poly_clear(factor2);
+                mpz_poly_clear(&quotient);
+                mpz_clear(const_term);
+                mpz_clear(lead_coeff);
+                return false;
+            }
             mpz_poly_clear(&quotient);
 
             mpz_clear(const_term);
@@ -8229,6 +8242,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
             poly.degree = best_degree;
             poly.coeffs = malloc((best_degree + 1) * sizeof(mpz_t));
             if (!poly.coeffs) {
+                mpz_poly_clear(&poly);
                 continue;
             }
             for (int d = 0; d <= best_degree; d++) {
