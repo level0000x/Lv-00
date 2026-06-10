@@ -483,10 +483,11 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
         /* 简单参数切分（空格分隔） */
         char *extra_copy = strdup(extra_args);
         if (extra_copy) {
-            char *token = strtok(extra_copy, " ");
+            char *save_ptr = NULL;
+            char *token = strtok_s(extra_copy, " ", &save_ptr);
             while (token && argc < 14) {
                 exec_argv[argc++] = token;
-                token = strtok(NULL, " ");
+                token = strtok_s(NULL, " ", &save_ptr);
             }
             /* extra_copy 在 execvp 后由父进程 free，但 fork 后子进程会替换，
              * 为简化：不 free extra_copy，让其随进程退出释放 */

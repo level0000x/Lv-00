@@ -2245,8 +2245,7 @@ const char *type_kind_to_string(TypeKind kind) {
  */
 const char *universe_level_to_string(UniverseLevel level) {
     /* 由于层级现在是任意整数，使用静态缓冲区格式化 */
-    /* WARNING: static buffer – not thread-safe */
-    static char buf[32];
+    static __thread char buf[32];
     if (level == UNIVERSE_BASE)
         return "Base";
     if (level == UNIVERSE_TYPE_1)

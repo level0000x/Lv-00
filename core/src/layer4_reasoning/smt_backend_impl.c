@@ -311,7 +311,7 @@ const char *smtsolver_get_last_error_message(const SMTSolver *solver) {
  * @return 变量名字符串（静态存储）
  */
 static const char *smtlib2_coord_var_name(int node_id, int coord_idx) {
-    static char buf[128];
+    static __thread char buf[128];
     const char *suffix = (coord_idx == 0) ? "x" : "y";
     snprintf(buf, sizeof(buf), "p%d_%s", node_id, suffix);
     return buf;

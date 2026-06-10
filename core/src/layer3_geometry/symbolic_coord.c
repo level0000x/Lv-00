@@ -2519,6 +2519,9 @@ double symbolic_coord_to_double(const SymbolicCoord *coord) {
         case TRANSCENDENTAL:
             val = transcendental_to_double(coord->data.transcendental);
             break;
+        default:
+            val = 0.0;
+            break;
     }
 
     /* 更新缓存（const 转换为非 const：缓存是性能优化，不改变逻辑语义） */
@@ -2559,6 +2562,8 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
                 return quadratic_compare(a->data.quadratic, b->data.quadratic);
             case TRANSCENDENTAL:
                 return transcendental_compare(a->data.transcendental, b->data.transcendental);
+            default:
+                return 0;
         }
     }
 
@@ -5274,6 +5279,8 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
             break;
 
         int64_t int_part = (int64_t) remaining;
+        if (n_terms >= 100)
+            break;
         terms[n_terms++] = (int) int_part;
         remaining = remaining - (double) int_part;
 

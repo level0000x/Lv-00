@@ -307,8 +307,9 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
 
     if (g_log_system.config.include_timestamp) {
         time_t now = time(NULL);
-        struct tm *tm_info = localtime(&now);
-        pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", tm_info);
+        struct tm tm_info;
+        if (localtime_s(&tm_info, &now) == 0)
+            pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", &tm_info);
         if (pos < (int)sizeof(output))
             pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
     }

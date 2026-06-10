@@ -885,7 +885,8 @@ int interop_parse_command(const char *input, InteropCommand *cmd) {
     lv00_strlcpy(buffer, input, sizeof(buffer));
 
     /* 解析命令类型 */
-    char *token = strtok(buffer, " ");
+    char *save_ptr = NULL;
+    char *token = strtok_s(buffer, " ", &save_ptr);
     if (!token)
         return LV00_ERROR_PARSE;
 
@@ -935,7 +936,7 @@ int interop_parse_command(const char *input, InteropCommand *cmd) {
     }
 
     /* 解析参数 */
-    while ((token = strtok(NULL, " ")) != NULL && cmd->param_count < INTEROP_MAX_PARAMS) {
+    while ((token = strtok_s(NULL, " ", &save_ptr)) != NULL && cmd->param_count < INTEROP_MAX_PARAMS) {
         lv00_strlcpy(cmd->params[cmd->param_count], token, 256);
         cmd->param_count++;
     }
@@ -4917,9 +4918,10 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
     {
         /* 获取当前日期时间字符串 */
         time_t now = time(NULL);
-        struct tm *lt = localtime(&now);
-        char date_str[64];
-        strftime(date_str, sizeof(date_str), "D:%Y%m%d%H%M%S", lt);
+        struct tm lt;
+        char date_str[64] = {0};
+        if (localtime_s(&lt, &now) == 0)
+            strftime(date_str, sizeof(date_str), "D:%Y%m%d%H%M%S", &lt);
 
         fprintf(fp,
                 "7 0 obj\n<< /Title (Lv-00 Geometry Export)\n"
@@ -7542,7 +7544,8 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
         memcpy(buf, ctx->exported_calls, ctx->calls_len + 1);
 
         /* 按行分割 */
-        char *line = strtok(buf, "\n");
+        char *save_ptr_line = NULL;
+        char *line = strtok_s(buf, "\n", &save_ptr_line);
         int call_index = 0;
         while (line && offset < output_size) {
             /* 每行格式: theorem_name;param1;param2;...; */
@@ -7588,7 +7591,7 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                 offset += written;
                 call_index++;
             }
-            line = strtok(NULL, "\n");
+            line = strtok_s(NULL, "\n", &save_ptr_line);
         }
         lv00_free((void **) &buf);
 

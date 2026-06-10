@@ -410,7 +410,7 @@ bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule) {
  * @return 静态缓冲区中的文件名字符串（注意：非线程安全，调用后应立即使用）
  */
 static const char *engine_extract_module_name(const char *filepath) {
-    static char name_buf[LV00_MAX_NAME_LENGTH];
+    static __thread char name_buf[LV00_MAX_NAME_LENGTH];
     if (!filepath) {
         name_buf[0] = '\0';
         return name_buf;
@@ -876,7 +876,6 @@ static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *con
  */
 EngineSolveResult engine_solve(LV00Engine *engine) {
     /* P2修复: 迁移到 engine 实例变量，移除全局 TLS 状态依赖 */
-    assert(engine != NULL && "engine_solve: engine is NULL");
     if (!engine || !engine->main_graph) {
         engine->last_status = ENGINE_STATUS_INVALID_STATE;
         snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 引擎实例或约束图为空 (engine=%p)", (void *) engine);
