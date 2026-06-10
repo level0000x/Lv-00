@@ -1487,7 +1487,9 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
             init_step->note = lv00_strdup("反证法起始：假设目标命题的否定");
             /* 设置断点以便后续回溯 */
             init_step->is_breakpoint = true;
-            proof_navigator_add_step(branch_nav, init_step);
+            if (!proof_navigator_add_step(branch_nav, init_step)) {
+                proof_step_destroy(init_step);
+            }
         }
     }
 
@@ -1541,6 +1543,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
         /* 检查推导出的命题是否包含矛盾类型 */
         if (branch_nav->target_prop && branch_nav->target_prop->type == PROPOSITION_TYPE_BOTTOM) {
             has_contradiction = true;
+            lv00_free((void **) &contradiction_desc);
             contradiction_desc = lv00_strdup("推导出矛盾 ⊥：假设 ¬P 导致矛盾，因此 P 成立");
         }
 
@@ -1550,6 +1553,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
             ProofStep *current = proof_navigator_current_step(branch_nav);
             if (current && current->color == PROOF_COLOR_ORANGE_EX_FALSO) {
                 has_contradiction = true;
+                lv00_free((void **) &contradiction_desc);
                 contradiction_desc = lv00_strdup("触发爆炸原理：从 ⊥ 可推出任意命题，表明原假设导致矛盾");
             }
         }
@@ -1561,6 +1565,7 @@ Lv00ContradictionResult *lv00_proof_by_contradiction(ProofNavigator *nav, const 
             if (final_color == PROOF_COLOR_ORANGE_EX_FALSO ||
                 final_color == PROOF_COLOR_DARK_ORANGE) {
                 has_contradiction = true;
+                lv00_free((void **) &contradiction_desc);
                 contradiction_desc = lv00_strdup("证明颜色变为橙色：存在不可构造性冲突，表明矛盾");
             }
         }

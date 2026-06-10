@@ -1557,15 +1557,17 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
 
             lv00_free((void **) &dst->node_index); /* 释放 graph_create 创建的空表 */
             dst->node_index = lv00_calloc((size_t) ni_cap, sizeof(GeomNode *));
-            if (dst->node_index) {
-                dst->node_index_capacity = ni_cap;
-                for (int i = 0; i < dst->node_count; i++) {
-                    unsigned idx = (unsigned) dst->nodes[i]->id * LV00_FNV_HASH_MULTIPLIER & (unsigned) (ni_cap - 1);
-                    while (dst->node_index[idx] != NULL) {
-                        idx = (idx + 1) & (unsigned) (ni_cap - 1);
-                    }
-                    dst->node_index[idx] = dst->nodes[i];
+            if (!dst->node_index) {
+                graph_destroy(dst);
+                return NULL;
+            }
+            dst->node_index_capacity = ni_cap;
+            for (int i = 0; i < dst->node_count; i++) {
+                unsigned idx = (unsigned) dst->nodes[i]->id * LV00_FNV_HASH_MULTIPLIER & (unsigned) (ni_cap - 1);
+                while (dst->node_index[idx] != NULL) {
+                    idx = (idx + 1) & (unsigned) (ni_cap - 1);
                 }
+                dst->node_index[idx] = dst->nodes[i];
             }
         }
 
@@ -1577,16 +1579,18 @@ static ConstraintGraph *graph_deep_copy(const ConstraintGraph *src) {
 
             lv00_free((void **) &dst->constraint_index);
             dst->constraint_index = lv00_calloc((size_t) ci_cap, sizeof(Constraint *));
-            if (dst->constraint_index) {
-                dst->constraint_index_capacity = ci_cap;
-                for (int i = 0; i < dst->constraint_count; i++) {
-                    unsigned idx =
-                        (unsigned) dst->constraints[i]->id * LV00_FNV_HASH_MULTIPLIER & (unsigned) (ci_cap - 1);
-                    while (dst->constraint_index[idx] != NULL) {
-                        idx = (idx + 1) & (unsigned) (ci_cap - 1);
-                    }
-                    dst->constraint_index[idx] = dst->constraints[i];
+            if (!dst->constraint_index) {
+                graph_destroy(dst);
+                return NULL;
+            }
+            dst->constraint_index_capacity = ci_cap;
+            for (int i = 0; i < dst->constraint_count; i++) {
+                unsigned idx =
+                    (unsigned) dst->constraints[i]->id * LV00_FNV_HASH_MULTIPLIER & (unsigned) (ci_cap - 1);
+                while (dst->constraint_index[idx] != NULL) {
+                    idx = (idx + 1) & (unsigned) (ci_cap - 1);
                 }
+                dst->constraint_index[idx] = dst->constraints[i];
             }
         }
     }
