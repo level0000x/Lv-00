@@ -748,7 +748,7 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
             for (int k = 0; k < ss->coord_count; k++) total += weights[k];
             /* 加权随机选择（轮盘赌算法） */
             if (total > 0.0) {
-                double r = ((double)rand() / (double)RAND_MAX) * total;
+                double r = lv00_random_double(0.0, total);
                 double accum = 0.0;
                 for (int k = 0; k < ss->coord_count; k++) {
                     accum += weights[k];
