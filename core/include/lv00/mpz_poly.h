@@ -160,15 +160,15 @@ static inline void mpz_poly_mul(mpz_poly_t *result, const mpz_poly_t *a, const m
     for (int i = 0; i <= result->degree; i++) {
         mpz_init(result->coeffs[i]);
     }
+    mpz_t tmp;
+    mpz_init(tmp);
     for (int i = 0; i <= a->degree; i++) {
         for (int j = 0; j <= b->degree; j++) {
-            mpz_t tmp;
-            mpz_init(tmp);
             mpz_mul(tmp, a->coeffs[i], b->coeffs[j]);
             mpz_add(result->coeffs[i + j], result->coeffs[i + j], tmp);
-            mpz_clear(tmp);
         }
     }
+    mpz_clear(tmp);
 }
 
 /**
@@ -208,18 +208,18 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
     }
     mpz_t factor;
     mpz_init(factor);
+    mpz_t tmp;
+    mpz_init(tmp);
     for (int i = dividend->degree; i >= divisor->degree; i--) {
         int q_deg = i - divisor->degree;
         mpz_divexact(factor, dividend->coeffs[i], divisor->coeffs[divisor->degree]);
         mpz_set(quotient->coeffs[q_deg], factor);
         for (int j = 0; j <= divisor->degree; j++) {
-            mpz_t tmp;
-            mpz_init(tmp);
             mpz_mul(tmp, factor, divisor->coeffs[j]);
             mpz_sub(dividend->coeffs[i - j], dividend->coeffs[i - j], tmp);
-            mpz_clear(tmp);
         }
     }
+    mpz_clear(tmp);
     mpz_clear(factor);
     if (quotient->degree < 0) {
         free(quotient->coeffs);

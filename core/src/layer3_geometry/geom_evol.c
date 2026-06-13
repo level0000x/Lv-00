@@ -953,7 +953,16 @@ Lv00EvolStatus geoevol_step_once(Lv00GeomEvol *evol) {
             /* Euler 没有嵌入式估计，直接接受 */
             memcpy(y_half, y_trial, (size_t) dim * sizeof(double));
         } else {
-            /* Adams/BDF：使用 Euler 步作为低阶参考（回退估计，Adams/BDF 自身有预测-校正误差控制） */
+            /* Adams/BDF：使用 Euler 步作为低阶参考来估计局部截断误差。
+             *
+             * 注意：这是一个保守估计。Euler 方法是一阶方法，而 Adams/BDF 是高阶方法，
+             * 因此差值 |y_trial - y_euler| 会高估真实的局部截断误差。这意味着：
+             *   - 步可能会被不必要地拒绝（保守但安全）
+             *   - 但绝不会接受不正确的步（保证正确性）
+             *
+             * TODO: 未来应改用 Adams/BDF 自身的预测-校正残差或嵌入式低阶公式
+             *       来获得更精确的误差估计，减少不必要的步拒绝。
+             */
             ret = geoevol_step_euler(evol, h, y_save, y_half);
             if (ret != 0) {
                 evol->status = LV00_EVOL_STATUS_ERROR;

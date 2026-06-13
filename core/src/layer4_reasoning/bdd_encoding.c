@@ -880,8 +880,8 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
                                                        (size_t) new_capacity * sizeof(int));
                 char **new_names = (char **) lv00_realloc(mgr->var_names,
                                                           (size_t) new_capacity * sizeof(char *));
-                int *new_types = (int *) lv00_realloc(mgr->var_types,
-                                                       (size_t) new_capacity * sizeof(int));
+                BDDVarType *new_types = (BDDVarType *) lv00_realloc(mgr->var_types,
+                                                       (size_t) new_capacity * sizeof(BDDVarType));
                 if (!new_order || !new_names || !new_types) {
                     /* 某些 realloc 成功了但 mgr-> 指针尚未更新，
                      * 所以 mgr->var_order 等仍指向旧内存（有效）。

@@ -519,7 +519,7 @@ static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
  * @param a         代数数对象
  * @param iterations 迭代次数
  */
-static void refine_algebraic_bounds(Algebraic *a, int iterations) {
+static void refine_algebraic_bounds(const Algebraic *a, int iterations) {
     if (a->minimal_poly.degree < 1)
         return;
 
@@ -2621,7 +2621,7 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
         if (alg->left_bound > b_val + LV00_EPSILON_NUMERIC_COMPARE)
             return 1;
         /* Intervals overlap: refine and retry */
-        refine_algebraic_bounds((Algebraic *) alg, 5);
+        refine_algebraic_bounds(alg, 5);
         if (alg->right_bound < b_val - LV00_EPSILON_NUMERIC_COMPARE)
             return -1;
         if (alg->left_bound > b_val + LV00_EPSILON_NUMERIC_COMPARE)
@@ -2634,7 +2634,7 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
             return 1;
         if (alg->left_bound > a_val + LV00_EPSILON_NUMERIC_COMPARE)
             return -1;
-        refine_algebraic_bounds((Algebraic *) alg, 5);
+        refine_algebraic_bounds(alg, 5);
         if (alg->right_bound < a_val - LV00_EPSILON_NUMERIC_COMPARE)
             return 1;
         if (alg->left_bound > a_val + LV00_EPSILON_NUMERIC_COMPARE)
