@@ -874,13 +874,14 @@ static int detect_cyclic_dependency_conflicts(const ConstraintGraph *graph,
                         if (sp >= stack_cap) {
                             stack_cap *= 2;
                             int *new_stack = (int *)lv00_realloc(stack, sizeof(int) * (size_t)stack_cap);
-                            int *new_iter = (int *)lv00_realloc(iter, sizeof(int) * (size_t)stack_cap);
-                            if (!new_stack || !new_iter) {
-                                lv00_free((void **)&new_stack);
-                                lv00_free((void **)&new_iter);
+                            if (!new_stack) {
                                 goto cycle_detect_done;
                             }
                             stack = new_stack;
+                            int *new_iter = (int *)lv00_realloc(iter, sizeof(int) * (size_t)stack_cap);
+                            if (!new_iter) {
+                                goto cycle_detect_done;
+                            }
                             iter = new_iter;
                         }
                         stack[sp] = nb;

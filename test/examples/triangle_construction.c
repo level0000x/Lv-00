@@ -50,12 +50,22 @@ static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, ui
  *
  * 这是一个等边三角形，边长为2
  */
-static void construct_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *out_c) {
+static int construct_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *out_c) {
     printf("  创建顶点 A(0, 0)...\n");
     int a = add_point(g, 0, 1, 0, 1);
+    if (a < 0) {
+        fprintf(stderr, "construct_triangle: 添加点A失败\n");
+        *out_a = *out_b = *out_c = -1;
+        return -1;
+    }
 
     printf("  创建顶点 B(2, 0)...\n");
     int b = add_point(g, 2, 1, 0, 1);
+    if (b < 0) {
+        fprintf(stderr, "construct_triangle: 添加点B失败\n");
+        *out_a = *out_b = *out_c = -1;
+        return -1;
+    }
 
     printf("  创建顶点 C(1, √3)...\n");
     /* 使用 exact quadratic 坐标 (1, 0 + 1*√3) 代替有理数近似 */
@@ -65,19 +75,32 @@ static void construct_triangle(ConstraintGraph *g, int *out_a, int *out_b, int *
         Rational *ra = rational_create(0, 1);
         Rational *rb = rational_create(1, 1);
         SymbolicCoord *cy = symbolic_coord_create_quadratic(ra, rb, 3);
+        if (!cx || !ra || !rb || !cy) {
+            fprintf(stderr, "construct_triangle: 创建点C坐标失败\n");
+            if (cx) symbolic_coord_destroy(cx);
+            if (ra) rational_destroy(ra);
+            if (rb) rational_destroy(rb);
+            if (cy) symbolic_coord_destroy(cy);
+            *out_a = *out_b = *out_c = -1;
+            return -1;
+        }
         SymbolicCoord *coords_c[] = {cx, cy};
         AddNodeResult res = graph_add_point(g, coords_c, 2);
         rational_destroy(ra);
         rational_destroy(rb);
         if (res != ADD_NODE_OK) {
             fprintf(stderr, "construct_triangle: 添加点C失败\n");
-            return;
+            symbolic_coord_destroy(cx);
+            symbolic_coord_destroy(cy);
+            *out_a = *out_b = *out_c = -1;
+            return -1;
         }
         int c = g->next_node_id - 1;
         *out_c = c;
     }
     *out_a = a;
     *out_b = b;
+    return 0;
 }
 
 /**
@@ -222,7 +245,11 @@ int main(void) {
     printf("[1/5] 构造三角形...\n");
     ConstraintGraph *construction = graph_create();
     int a, b, c;
-    construct_triangle(construction, &a, &b, &c);
+    if (construct_triangle(construction, &a, &b, &c) != 0) {
+        fprintf(stderr, "错误: 三角形构造失败\n");
+        graph_destroy(construction);
+        return 1;
+    }
     printf("  三角形顶点: A=%d, B=%d, C=%d\n\n", a, b, c);
 
     /* 添加约束 */

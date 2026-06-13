@@ -35,8 +35,18 @@ static int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd,
                      int64_t yn, uint64_t yd) {
     SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
     SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
+    if (!cx || !cy) {
+        if (cx) symbolic_coord_destroy(cx);
+        if (cy) symbolic_coord_destroy(cy);
+        return -1;
+    }
     SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(g, coords, 2);
+    AddNodeResult res = graph_add_point(g, coords, 2);
+    if (res != ADD_NODE_OK) {
+        symbolic_coord_destroy(cx);
+        symbolic_coord_destroy(cy);
+        return -1;
+    }
     return g->next_node_id - 1;
 }
 

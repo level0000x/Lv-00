@@ -322,7 +322,9 @@ class Lv00StreamBridge:
             return False
         # 安全检查：拒绝执行项目目录外的文件，防止路径遍历
         project_root = os.path.abspath(os.path.dirname(__file__))
-        if not binary_path.startswith(project_root):
+        real_binary = os.path.realpath(binary_path)
+        real_root = os.path.realpath(project_root)
+        if os.path.commonpath([real_binary, real_root]) != real_root:
             print(f"[BRIDGE] 错误: 禁止执行项目目录外的文件 '{self.binary_path}'")
             return False
 

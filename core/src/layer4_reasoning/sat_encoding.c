@@ -1037,10 +1037,11 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                             int new_cap = true_atom_cap * LV00_ARRAY_GROWTH_FACTOR;
                             int **new_ids = (int **)lv00_realloc(true_atom_ids,
                                 (size_t)new_cap * sizeof(int *));
+                            if (!new_ids) break;
+                            true_atom_ids = new_ids;
                             int *new_ar = (int *)lv00_realloc(true_atom_arities,
                                 (size_t)new_cap * sizeof(int));
-                            if (!new_ids || !new_ar) break;
-                            true_atom_ids = new_ids;
+                            if (!new_ar) break;
                             true_atom_arities = new_ar;
                             true_atom_cap = new_cap;
                         }

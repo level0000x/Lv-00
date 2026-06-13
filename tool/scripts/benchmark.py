@@ -30,6 +30,7 @@ import re
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # 调试模式开关：通过环境变量 LV00_DEBUG=1 或 --debug 参数启用，默认关闭
@@ -83,7 +84,12 @@ class BenchmarkRunner:
             if self._debug:
                 print(f"警告: 找不到可执行文件 {executable_path}")
             return None
-            
+
+        exec_path = Path(executable_path).resolve()
+        build_path = Path(self.build_dir).resolve()
+        if not str(exec_path).startswith(str(build_path)):
+            raise ValueError(f"Executable path {exec_path} is outside build directory {build_path}")
+
         try:
             result = subprocess.run(
                 [executable_path],
