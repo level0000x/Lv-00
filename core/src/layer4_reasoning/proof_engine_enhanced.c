@@ -619,9 +619,12 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
         tree->node_count * sizeof(SearchFrame));
     if (!stack) return 0;
 
-    /* 访问标记 */
-    bool *visited = (bool *)lv00_calloc(tree->node_count, sizeof(bool));
-    if (!visited) {
+    /* 访问标记：使用 ID 到索引的映射避免哈希碰撞 */
+    /* visited_map[id % map_size] 存储已访问节点的 id，0 表示空槽 */
+    uint32_t map_size = tree->node_count * 2;  /* 负载因子 <= 0.5 减少碰撞 */
+    if (map_size < 8) map_size = 8;
+    uint32_t *visited_map = (uint32_t *)lv00_calloc(map_size, sizeof(uint32_t));
+    if (!visited_map) {
         lv00_free((void **)&stack);
         return 0;
     }
@@ -630,16 +633,32 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
     Lv00ProofTraceNode **path = (Lv00ProofTraceNode **)lv00_malloc(
         tree->node_count * sizeof(Lv00ProofTraceNode *));
     if (!path) {
-        lv00_free((void **)&visited);
+        lv00_free((void **)&visited_map);
         lv00_free((void **)&stack);
         return 0;
     }
+
+    /* 辅助函数：检查/标记节点是否已访问（线性探测） */
+    #define VISIT_MARK(node_id) do { \
+        uint32_t idx = (uint32_t)(node_id) % map_size; \
+        while (visited_map[idx] != 0) { idx = (idx + 1) % map_size; } \
+        visited_map[idx] = (uint32_t)(node_id); \
+    } while(0)
+    #define VISIT_CHECK(node_id) ({ \
+        uint32_t _idx = (uint32_t)(node_id) % map_size; \
+        bool _found = false; \
+        while (visited_map[_idx] != 0) { \
+            if (visited_map[_idx] == (uint32_t)(node_id)) { _found = true; break; } \
+            _idx = (_idx + 1) % map_size; \
+        } \
+        _found; \
+    })
 
     uint32_t top = 0;
     stack[top].node = start;
     stack[top].depth = 0;
     path[0] = start;
-    visited[start->id % tree->node_count] = true;
+    VISIT_MARK(start->id);
     uint32_t path_len = 1;
 
     uint32_t result = 0;
@@ -650,10 +669,9 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
 
         for (uint32_t i = 0; i < current->child_count; i++) {
             Lv00ProofTraceNode *child = current->children[i];
-            size_t visit_idx = child->id % tree->node_count;
 
-            if (!visited[visit_idx]) {
-                visited[visit_idx] = true;
+            if (!VISIT_CHECK(child->id)) {
+                VISIT_MARK(child->id);
                 path[path_len++] = child;
 
                 if (child->id == to_id) {
@@ -679,8 +697,10 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
     }
 
 cleanup:
+    #undef VISIT_MARK
+    #undef VISIT_CHECK
     lv00_free((void **)&path);
-    lv00_free((void **)&visited);
+    lv00_free((void **)&visited_map);
     lv00_free((void **)&stack);
     return result;
 }

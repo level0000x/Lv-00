@@ -1728,7 +1728,7 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
         /* FATAL 不在此处加锁/解锁，因为 emergency_save 会在内部自行加锁 */
         EmergencySaveConfig cfg;
         memset(&cfg, 0, sizeof(cfg));
-        cfg.filepath = NULL;          /* 使用默认路径 */
+        cfg.filepath = "lv00_emergency_save.log";  /* 使用默认路径 */
         cfg.include_graph = true;     /* 包含约束图快照 */
         cfg.include_counters = true;  /* 包含性能计数器 */
         cfg.include_log_buffer = true;/* 包含日志缓冲区 */

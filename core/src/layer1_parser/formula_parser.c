@@ -473,7 +473,9 @@ FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
+    formula_node_ref(lhs);
     node->data.equation.lhs = lhs;
+    formula_node_ref(rhs);
     node->data.equation.rhs = rhs;
     return node;
 }
@@ -493,6 +495,9 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
             return NULL;
         }
         memcpy(node->data.coord_list.coords, coords, sizeof(FormulaNode *) * count);
+        for (int i = 0; i < count; i++) {
+            formula_node_ref(coords[i]);
+        }
         node->data.coord_list.coord_count = count;
     }
     return node;

@@ -950,7 +950,6 @@ Lv00Plugin** lv00_plugin_get_dependents(Lv00PluginSystem* system, const Lv00Plug
 
 int lv00_plugin_system_add_search_path(Lv00PluginSystem* system, const char* path) {
     if (!system || !path) return -1;
-    if (!system->search_paths) return -1;
     
     /* 检查是否已存在 */
     for (size_t i = 0; i < system->search_path_count; i++) {
@@ -1232,6 +1231,7 @@ char* lv00_plugin_system_get_info_json(const Lv00PluginSystem* system) {
 
 const char* lv00_plugin_get_last_error(const Lv00Plugin* plugin) {
     if (!plugin || !plugin->context) return NULL;
+    if (!plugin->context->system) return NULL;
     
     PluginSystemInternal* internal = 
         (PluginSystemInternal*)plugin->context->system->mutex;
@@ -1247,6 +1247,7 @@ const char* lv00_plugin_system_get_last_error(const Lv00PluginSystem* system) {
 
 void lv00_plugin_clear_error(Lv00Plugin* plugin) {
     if (!plugin || !plugin->context) return;
+    if (!plugin->context->system) return;
     
     PluginSystemInternal* internal = 
         (PluginSystemInternal*)plugin->context->system->mutex;

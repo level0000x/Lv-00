@@ -975,8 +975,13 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
 
         /* 过约束检测：统计每个实体对被约束的次数 */
         if (eq_count > 0) {
-            int *pair_constraint_count = (int *)lv00_calloc(
-                sizeof(int), (size_t)(graph->node_count * graph->node_count));
+            /* 整数溢出检查 */
+            long long pair_count = (long long)graph->node_count * graph->node_count;
+            if (pair_count > (long long)INT_MAX) {
+                /* 节点数过多，跳过此检测 */
+            } else {
+                int *pair_constraint_count = (int *)lv00_calloc(
+                    sizeof(int), (size_t)pair_count);
             if (pair_constraint_count) {
                 for (int i = 0; i < graph->constraint_count; i++) {
                     Constraint *c = graph->constraints[i];
@@ -1008,6 +1013,7 @@ int lv00_conflict_detect_all(const ConstraintGraph *graph,
                 }
                 lv00_free((void **)&pair_constraint_count);
             }
+            } /* end else: pair_count <= INT_MAX */
         }
     }
     

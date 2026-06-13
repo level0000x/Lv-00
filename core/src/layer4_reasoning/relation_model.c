@@ -1125,10 +1125,12 @@ char *relation_model_export_alloy(const RelModel *model) {
                 if (rel) {
                     pos += snprintf(buf + pos, (size_t)(buf_size - pos),
                                     "  %s: set ", rel->name ? rel->name : "R");
+                    if (pos >= buf_size - 256) break;
                     for (int di = 0; di < rel->arity; di++) {
                         pos += snprintf(buf + pos, (size_t)(buf_size - pos),
                                         "%s%s", (di > 0 ? " -> " : ""),
                                         rel->domains[di] ? rel->domains[di]->name : "univ");
+                        if (pos >= buf_size - 256) break;
                     }
                     pos += snprintf(buf + pos, (size_t)(buf_size - pos), "\n");
                 }
@@ -1195,6 +1197,7 @@ char *relation_instance_export_xml(const RelInstance *inst) {
         pos += snprintf(buf + pos, (size_t)(buf_size - pos),
                         "    <atom id=\"%d\" label=\"%s\"/>\n",
                         atom->atom_id, type_name);
+        if (pos >= buf_size - 128) break;
     }
 
     pos += snprintf(buf + pos, (size_t)(buf_size - pos),

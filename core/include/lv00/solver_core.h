@@ -122,6 +122,7 @@ typedef struct {
     int trail_size;          /**< trail 当前大小 */
     int trail_capacity;      /**< trail 容量 */
     int *trail_lim;          /**< 决策层起始位置数组 */
+    int trail_lim_capacity;  /**< trail_lim 数组容量 */
 
     /* 子句库 */
     int **clauses;           /**< 子句数组（文字序列） */

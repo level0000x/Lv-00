@@ -299,6 +299,9 @@ void csg_node_add_child(CSGNode *parent, CSGNode *child) {
 
     /* 扩容 */
     if (parent->child_count >= parent->child_capacity) {
+        /* 溢出保护：确保 child_capacity * GROW_FACTOR 不会溢出 */
+        if (parent->child_capacity > INT_MAX / CSG_CHILD_CAPACITY_GROW_FACTOR)
+            return;
         int new_cap = parent->child_capacity * CSG_CHILD_CAPACITY_GROW_FACTOR;
         CSGNode **new_arr = (CSGNode **) lv00_realloc(parent->children, (size_t) new_cap * sizeof(CSGNode *));
         if (!new_arr)

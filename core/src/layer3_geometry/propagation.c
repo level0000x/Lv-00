@@ -33,10 +33,10 @@ static bool state_ensure_capacity(NodeStateSpace *state, int needed) {
 
     SymbolicCoord **new_coords = (SymbolicCoord **)realloc(state->possible_coords,
                                                             (size_t)new_cap * sizeof(SymbolicCoord *));
+    if (!new_coords) return false;
     int *new_dims = (int *)realloc(state->coord_dims, (size_t)new_cap * sizeof(int));
-    if (!new_coords || !new_dims) {
-        lv00_free((void **)&new_coords);
-        lv00_free((void **)&new_dims);
+    if (!new_dims) {
+        free(new_coords);
         return false;
     }
     state->possible_coords = new_coords;

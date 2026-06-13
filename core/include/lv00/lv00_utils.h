@@ -560,13 +560,17 @@ LV00_PUBLIC_API bool lv00_check_version(const char *min_version);
 
 /**
  * @brief 安全释放指针并将指针置NULL
+ *
+ * 注意：使用内联函数替代宏，避免宏参数被多次求值的副作用。
  */
-#define LV00_SAFE_FREE(ptr)              \
-    do {                                 \
-        if (ptr) {                       \
-            lv00_free((void **) &(ptr)); \
-        }                                \
-    } while (0)
+static inline void lv00_safe_free(void **ptr) {
+    if (ptr && *ptr) {
+        lv00_free(ptr);
+    }
+}
+
+/* 兼容旧代码的宏（已废弃，建议直接使用 lv00_safe_free 函数） */
+#define LV00_SAFE_FREE(ptr) lv00_safe_free((void **) &(ptr))
 
 /**
  * @brief 字符串化宏

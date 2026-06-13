@@ -126,6 +126,7 @@ static bool instantiate_ensure_capacity(Lv00QuantifiedExpr *expr, int needed)
                        : expr->instantiated_capacity * 2;
     while (new_capacity < needed) {
         new_capacity *= 2;
+        if (new_capacity <= 0 || new_capacity > INT_MAX / 2) return false;
     }
 
     int *new_ids = (int *)lv00_realloc(expr->instantiated_ids,

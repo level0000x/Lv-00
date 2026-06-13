@@ -597,33 +597,52 @@ bool lv00_ineq_am_gm(Lv00Expr **expressions, uint32_t count,
      */
 
     /* 算术平均: (e1 + ... + en) / n */
-    Lv00Expr *sum = lv00_expr_sum_n(expressions, count);
-    if (!sum) return false;
+    Lv00Expr *sum = NULL;
+    Lv00Expr *inv_n = NULL;
+    Lv00Expr *am = NULL;
+    Lv00Expr *prod = NULL;
+    Lv00Expr *inv_n_exp = NULL;
+    Lv00Expr *gm = NULL;
+    bool ok = false;
 
-    Lv00Expr *inv_n = lv00_expr_create_rational(1, count);
-    if (!inv_n) return false;
+    sum = lv00_expr_sum_n(expressions, count);
+    if (!sum) goto cleanup;
+
+    inv_n = lv00_expr_create_rational(1, count);
+    if (!inv_n) goto cleanup;
 
     /* sum * (1/n) = sum / n */
-    Lv00Expr *am = lv00_expr_mul(sum, inv_n);
-    if (!am) return false;
+    am = lv00_expr_mul(sum, inv_n);
+    if (!am) goto cleanup;
 
     /* 几何平均: (e1 * ... * en)^(1/n) */
-    Lv00Expr *prod = lv00_expr_product_n(expressions, count);
-    if (!prod) return false;
+    prod = lv00_expr_product_n(expressions, count);
+    if (!prod) goto cleanup;
 
     /* inv_n_expr = 1/n as exponent */
-    Lv00Expr *inv_n_exp = lv00_expr_create_rational(1, count);
-    if (!inv_n_exp) return false;
+    inv_n_exp = lv00_expr_create_rational(1, count);
+    if (!inv_n_exp) goto cleanup;
 
-    Lv00Expr *gm = lv00_expr_power(prod, inv_n_exp);
-    if (!gm) return false;
+    gm = lv00_expr_power(prod, inv_n_exp);
+    if (!gm) goto cleanup;
 
     if (out_lower_bound)
         *out_lower_bound = gm;
     if (out_upper_bound)
         *out_upper_bound = am;
 
-    return true;
+    ok = true;
+
+cleanup:
+    if (!ok) {
+        lv00_expr_free(gm);
+        lv00_expr_free(inv_n_exp);
+        lv00_expr_free(prod);
+        lv00_expr_free(am);
+        lv00_expr_free(inv_n);
+        lv00_expr_free(sum);
+    }
+    return ok;
 }
 
 /**
@@ -679,17 +698,23 @@ bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
     }
 
     /* sum_a_sq = ∑a_i², sum_b_sq = ∑b_i², sum_ab = ∑a_i·b_i */
-    Lv00Expr *sum_a_sq = lv00_expr_sum_n(a_sq, count);
-    Lv00Expr *sum_b_sq = lv00_expr_sum_n(b_sq, count);
-    Lv00Expr *sum_ab   = lv00_expr_sum_n(ab, count);
+    Lv00Expr *sum_a_sq = NULL;
+    Lv00Expr *sum_b_sq = NULL;
+    Lv00Expr *sum_ab   = NULL;
+    Lv00Expr *left      = NULL;
+    Lv00Expr *right     = NULL;
+
+    sum_a_sq = lv00_expr_sum_n(a_sq, count);
+    sum_b_sq = lv00_expr_sum_n(b_sq, count);
+    sum_ab   = lv00_expr_sum_n(ab, count);
     if (!sum_a_sq || !sum_b_sq || !sum_ab) goto cleanup;
 
     /* left = (∑a_i²) * (∑b_i²) */
-    Lv00Expr *left = lv00_expr_mul(sum_a_sq, sum_b_sq);
+    left = lv00_expr_mul(sum_a_sq, sum_b_sq);
     if (!left) goto cleanup;
 
     /* right = (∑a_i·b_i)² */
-    Lv00Expr *right = lv00_expr_power(sum_ab, two);
+    right = lv00_expr_power(sum_ab, two);
     if (!right) goto cleanup;
 
     *out_ineq = lv00_ineq_create(left, INEQ_GREATER_EQUAL, right);
@@ -699,11 +724,18 @@ bool lv00_ineq_cauchy_schwarz(Lv00Expr **a, Lv00Expr **b, uint32_t count,
     }
 
 cleanup:
-    /* 释放临时数组 */
+    /* 释放临时数组和中间表达式 */
     lv00_free((void **) &a_sq);
     lv00_free((void **) &b_sq);
     lv00_free((void **) &ab);
     lv00_expr_free(two);
+    if (*out_ineq == NULL) {
+        lv00_expr_free(right);
+        lv00_expr_free(left);
+        lv00_expr_free(sum_ab);
+        lv00_expr_free(sum_b_sq);
+        lv00_expr_free(sum_a_sq);
+    }
 
     return (*out_ineq != NULL);
 }
@@ -785,43 +817,63 @@ bool lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
     Lv00Expr *minus_one = lv00_expr_create_rational(-1, 1);
     Lv00Expr *r_expr    = lv00_expr_create_rational((int64_t) r, 1);
     Lv00Expr *zero      = lv00_expr_create_rational(0, 1);
-    if (!minus_one || !r_expr || !zero) return false;
+    if (!minus_one || !r_expr || !zero) {
+        lv00_expr_free(minus_one);
+        lv00_expr_free(r_expr);
+        lv00_expr_free(zero);
+        return false;
+    }
 
     /* 构造差值: a-b, a-c, b-c, b-a, c-a, c-b */
-    Lv00Expr *a_minus_b = lv00_expr_add(a, lv00_expr_mul(b, minus_one));
-    Lv00Expr *a_minus_c = lv00_expr_add(a, lv00_expr_mul(c, minus_one));
-    Lv00Expr *b_minus_c = lv00_expr_add(b, lv00_expr_mul(c, minus_one));
-    Lv00Expr *b_minus_a = lv00_expr_add(b, lv00_expr_mul(a, minus_one));
-    Lv00Expr *c_minus_a = lv00_expr_add(c, lv00_expr_mul(a, minus_one));
-    Lv00Expr *c_minus_b = lv00_expr_add(c, lv00_expr_mul(b, minus_one));
+    Lv00Expr *a_minus_b = NULL;
+    Lv00Expr *a_minus_c = NULL;
+    Lv00Expr *b_minus_c = NULL;
+    Lv00Expr *b_minus_a = NULL;
+    Lv00Expr *c_minus_a = NULL;
+    Lv00Expr *c_minus_b = NULL;
+    Lv00Expr *a_pow_r = NULL;
+    Lv00Expr *b_pow_r = NULL;
+    Lv00Expr *c_pow_r = NULL;
+    Lv00Expr *term1 = NULL;
+    Lv00Expr *term2 = NULL;
+    Lv00Expr *term3 = NULL;
+    Lv00Expr *left = NULL;
+    bool ok = false;
+
+    a_minus_b = lv00_expr_add(a, lv00_expr_mul(b, minus_one));
+    a_minus_c = lv00_expr_add(a, lv00_expr_mul(c, minus_one));
+    b_minus_c = lv00_expr_add(b, lv00_expr_mul(c, minus_one));
+    b_minus_a = lv00_expr_add(b, lv00_expr_mul(a, minus_one));
+    c_minus_a = lv00_expr_add(c, lv00_expr_mul(a, minus_one));
+    c_minus_b = lv00_expr_add(c, lv00_expr_mul(b, minus_one));
     if (!a_minus_b || !a_minus_c || !b_minus_c ||
-        !b_minus_a || !c_minus_a || !c_minus_b) return false;
+        !b_minus_a || !c_minus_a || !c_minus_b) goto cleanup;
 
     /* 构造三项: term1 = a^r * (a-b) * (a-c) */
-    Lv00Expr *a_pow_r = lv00_expr_power(a, r_expr);
-    if (!a_pow_r) return false;
-    Lv00Expr *term1 = lv00_expr_mul(lv00_expr_mul(a_pow_r, a_minus_b), a_minus_c);
-    if (!term1) return false;
+    a_pow_r = lv00_expr_power(a, r_expr);
+    if (!a_pow_r) goto cleanup;
+    term1 = lv00_expr_mul(lv00_expr_mul(a_pow_r, a_minus_b), a_minus_c);
+    if (!term1) goto cleanup;
 
     /* term2 = b^r * (b-c) * (b-a) */
-    Lv00Expr *b_pow_r = lv00_expr_power(b, r_expr);
-    if (!b_pow_r) return false;
-    Lv00Expr *term2 = lv00_expr_mul(lv00_expr_mul(b_pow_r, b_minus_c), b_minus_a);
-    if (!term2) return false;
+    b_pow_r = lv00_expr_power(b, r_expr);
+    if (!b_pow_r) goto cleanup;
+    term2 = lv00_expr_mul(lv00_expr_mul(b_pow_r, b_minus_c), b_minus_a);
+    if (!term2) goto cleanup;
 
     /* term3 = c^r * (c-a) * (c-b) */
-    Lv00Expr *c_pow_r = lv00_expr_power(c, r_expr);
-    if (!c_pow_r) return false;
-    Lv00Expr *term3 = lv00_expr_mul(lv00_expr_mul(c_pow_r, c_minus_a), c_minus_b);
-    if (!term3) return false;
+    c_pow_r = lv00_expr_power(c, r_expr);
+    if (!c_pow_r) goto cleanup;
+    term3 = lv00_expr_mul(lv00_expr_mul(c_pow_r, c_minus_a), c_minus_b);
+    if (!term3) goto cleanup;
 
     /* 左端 = term1 + term2 + term3 */
     Lv00Expr *terms_arr[3];
     terms_arr[0] = term1;
     terms_arr[1] = term2;
     terms_arr[2] = term3;
-    Lv00Expr *left = lv00_expr_sum_n(terms_arr, 3);
-    if (!left) return false;
+    left = lv00_expr_sum_n(terms_arr, 3);
+    if (!left) goto cleanup;
 
     *out_ineq = lv00_ineq_create(left, INEQ_GREATER_EQUAL, zero);
     if (*out_ineq) {
@@ -829,7 +881,28 @@ bool lv00_ineq_schur(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c, uint32_t r,
         (*out_ineq)->label = lv00_strdup("Schur");
     }
 
-    return (*out_ineq != NULL);
+    ok = true;
+
+cleanup:
+    if (!ok) {
+        lv00_expr_free(left);
+        lv00_expr_free(term3);
+        lv00_expr_free(term2);
+        lv00_expr_free(term1);
+        lv00_expr_free(c_pow_r);
+        lv00_expr_free(b_pow_r);
+        lv00_expr_free(a_pow_r);
+        lv00_expr_free(c_minus_b);
+        lv00_expr_free(c_minus_a);
+        lv00_expr_free(b_minus_a);
+        lv00_expr_free(b_minus_c);
+        lv00_expr_free(a_minus_c);
+        lv00_expr_free(a_minus_b);
+        lv00_expr_free(zero);
+        lv00_expr_free(r_expr);
+        lv00_expr_free(minus_one);
+    }
+    return ok;
 }
 
 /**
@@ -917,30 +990,45 @@ cleanup_jensen:
         if (!weighted_sum || !weighted_func) return false;
     } else {
         /* 等权重: w_i = 1/n */
-        Lv00Expr *inv_n = lv00_expr_create_rational(1, count);
+        Lv00Expr *inv_n = NULL;
+        Lv00Expr *sum = NULL;
+        Lv00Expr **fx_arr = NULL;
+        Lv00Expr *fx_sum = NULL;
+        Lv00Expr *inv_n2 = NULL;
+
+        inv_n = lv00_expr_create_rational(1, count);
         if (!inv_n) return false;
 
         /* 等权和 = (x_1 + ... + x_n) / n */
-        Lv00Expr *sum = lv00_expr_sum_n(points, count);
-        if (!sum) return false;
+        sum = lv00_expr_sum_n(points, count);
+        if (!sum) { lv00_expr_free(inv_n); return false; }
         weighted_sum = lv00_expr_mul(sum, inv_n);
-        if (!weighted_sum) return false;
+        if (!weighted_sum) { lv00_expr_free(sum); lv00_expr_free(inv_n); return false; }
 
         /* 等权函数和 = (f(x_1) + ... + f(x_n)) / n */
-        Lv00Expr **fx_arr = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
-        if (!fx_arr) return false;
+        fx_arr = (Lv00Expr **) lv00_malloc((size_t) count * sizeof(Lv00Expr *));
+        if (!fx_arr) { lv00_expr_free(weighted_sum); lv00_expr_free(sum); lv00_expr_free(inv_n); return false; }
         for (uint32_t i = 0; i < count; i++) {
             fx_arr[i] = lv00_expr_function(func, points[i]);
-            if (!fx_arr[i]) return false;
+            if (!fx_arr[i]) {
+                /* 释放已创建的 fx_arr 元素 */
+                for (uint32_t j = 0; j < i; j++)
+                    lv00_expr_free(fx_arr[j]);
+                lv00_free((void **) &fx_arr);
+                lv00_expr_free(weighted_sum);
+                lv00_expr_free(sum);
+                lv00_expr_free(inv_n);
+                return false;
+            }
         }
-        Lv00Expr *fx_sum = lv00_expr_sum_n(fx_arr, count);
+        fx_sum = lv00_expr_sum_n(fx_arr, count);
         lv00_free((void **) &fx_arr);
-        if (!fx_sum) return false;
+        if (!fx_sum) { lv00_expr_free(weighted_sum); lv00_expr_free(sum); lv00_expr_free(inv_n); return false; }
 
-        Lv00Expr *inv_n2 = lv00_expr_create_rational(1, count);
-        if (!inv_n2) return false;
+        inv_n2 = lv00_expr_create_rational(1, count);
+        if (!inv_n2) { lv00_expr_free(fx_sum); lv00_expr_free(weighted_sum); lv00_expr_free(sum); lv00_expr_free(inv_n); return false; }
         weighted_func = lv00_expr_mul(fx_sum, inv_n2);
-        if (!weighted_func) return false;
+        if (!weighted_func) { lv00_expr_free(inv_n2); lv00_expr_free(fx_sum); lv00_expr_free(weighted_sum); lv00_expr_free(sum); lv00_expr_free(inv_n); return false; }
     }
 
     /* 左端: f(weighted_sum) */
@@ -987,11 +1075,28 @@ uint32_t lv00_ineq_triangle(Lv00Expr *a, Lv00Expr *b, Lv00Expr *c,
         return 0;
 
     out_inequalities[0] = lv00_ineq_create(a_plus_b, INEQ_GREATER_THAN, c);
-    out_inequalities[1] = lv00_ineq_create(a_plus_c, INEQ_GREATER_THAN, b);
-    out_inequalities[2] = lv00_ineq_create(b_plus_c, INEQ_GREATER_THAN, a);
-
-    if (!out_inequalities[0] || !out_inequalities[1] || !out_inequalities[2])
+    if (!out_inequalities[0]) {
+        lv00_expr_free(a_plus_c);
+        lv00_expr_free(b_plus_c);
         return 0;
+    }
+
+    out_inequalities[1] = lv00_ineq_create(a_plus_c, INEQ_GREATER_THAN, b);
+    if (!out_inequalities[1]) {
+        lv00_ineq_destroy(out_inequalities[0]);
+        out_inequalities[0] = NULL;
+        lv00_expr_free(b_plus_c);
+        return 0;
+    }
+
+    out_inequalities[2] = lv00_ineq_create(b_plus_c, INEQ_GREATER_THAN, a);
+    if (!out_inequalities[2]) {
+        lv00_ineq_destroy(out_inequalities[1]);
+        out_inequalities[1] = NULL;
+        lv00_ineq_destroy(out_inequalities[0]);
+        out_inequalities[0] = NULL;
+        return 0;
+    }
 
     return 3;
 }
@@ -1007,10 +1112,22 @@ Lv00Inequality *lv00_ineq_add(Lv00Inequality *ineq, Lv00Expr *expr) {
     if (!ineq || !expr)
         return NULL;
 
-    /* 不等式方向不变 */
-    Lv00Inequality *result = lv00_ineq_create(ineq->left, ineq->type, ineq->right);
+    /* 不等式方向不变，两边都加上 expr */
+    Lv00Expr *new_left = lv00_expr_add(ineq->left, expr);
+    Lv00Expr *new_right = lv00_expr_add(ineq->right, expr);
+    if (!new_left || !new_right) {
+        lv00_expr_destroy(new_left);
+        lv00_expr_destroy(new_right);
+        return NULL;
+    }
+
+    Lv00Inequality *result = lv00_ineq_create(new_left, ineq->type, new_right);
     if (result)
         result->status = ineq->status;
+    else {
+        lv00_expr_destroy(new_left);
+        lv00_expr_destroy(new_right);
+    }
     return result;
 }
 
@@ -1031,9 +1148,22 @@ Lv00Inequality *lv00_ineq_mul(Lv00Inequality *ineq, Lv00Expr *expr, int expr_sig
         new_type = ineq_negate_type(ineq->type);
     }
 
-    Lv00Inequality *result = lv00_ineq_create(ineq->left, new_type, ineq->right);
+    /* 不等式两边都乘以 expr */
+    Lv00Expr *new_left = lv00_expr_mul(ineq->left, expr);
+    Lv00Expr *new_right = lv00_expr_mul(ineq->right, expr);
+    if (!new_left || !new_right) {
+        lv00_expr_destroy(new_left);
+        lv00_expr_destroy(new_right);
+        return NULL;
+    }
+
+    Lv00Inequality *result = lv00_ineq_create(new_left, new_type, new_right);
     if (result)
         result->status = ineq->status;
+    else {
+        lv00_expr_destroy(new_left);
+        lv00_expr_destroy(new_right);
+    }
     return result;
 }
 

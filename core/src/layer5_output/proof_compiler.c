@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 #include "lv00.h"
 #include "lv00_utils.h"
@@ -23,13 +24,28 @@
 static bool ensure_buffer_capacity(Lv00ProofCompiler *compiler, size_t needed) {
     if (!compiler) return false;
     
+    /* 溢出检查：buffer_used + needed 不能超过 SIZE_MAX */
+    if (needed > 0 && compiler->buffer_used > SIZE_MAX - needed) {
+        return false;
+    }
+    
     if (compiler->buffer_used + needed <= compiler->buffer_size) {
         return true;
     }
     
     size_t new_size = compiler->buffer_size == 0 ? 4096 : compiler->buffer_size * 2;
+    /* 防止 new_size *= 2 无限循环或溢出 */
     while (new_size < compiler->buffer_used + needed) {
+        if (new_size > SIZE_MAX / 2) {
+            /* 再翻倍会溢出，直接使用最大值 */
+            new_size = SIZE_MAX;
+            break;
+        }
         new_size *= 2;
+    }
+    
+    if (new_size < compiler->buffer_used + needed) {
+        return false;
     }
     
     char *new_buffer = (char *)lv00_realloc(compiler->output_buffer, new_size);

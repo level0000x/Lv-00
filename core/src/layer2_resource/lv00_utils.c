@@ -340,8 +340,8 @@ void *lv00_realloc(void *ptr, size_t size) {
         new_hdr->size = alloc_size;
 
         /* 设置尾部魔数 */
-        uint32_t *tail = (uint32_t *)(new_hdr->data + alloc_size);
-        *tail = ALLOC_TAIL_MAGIC;
+        uint32_t tail_magic = ALLOC_TAIL_MAGIC;
+        memcpy(new_hdr->data + alloc_size, &tail_magic, sizeof(uint32_t));
 
         /* 重新加入追踪链表 */
         track_allocation(new_hdr);
@@ -1812,7 +1812,7 @@ static uint64_t xorshift64star(void) {
 int lv00_random_int(int min, int max) {
     if (min >= max)
         return min;
-    uint64_t range = (uint64_t) (max - min);
+    uint64_t range = (uint64_t)max - (uint64_t)min;
     /* 拒绝采样法：消除模偏差。
      * 当 range 不是 2^64 的约数时，xorshift64star() % range 会使较小值
      * 的出现概率略高于较大值。通过计算阈值并拒绝超出范围的采样值来保证均匀性。 */
@@ -2260,7 +2260,7 @@ void lv00_free_ptr(void *ptr) {
         }
         g_memory_stats.total_freed += freed_size;
         g_memory_stats.free_count++;
-        lv00_free((void **) &hdr);
+        free(hdr);
     } else {
         lv00_free((void **) &ptr);
     }

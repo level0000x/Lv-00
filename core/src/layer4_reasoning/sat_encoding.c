@@ -80,6 +80,10 @@ static int find_var_entry(const SatEncoding *enc, int arity, const int *atom_ids
 static bool ensure_clause_capacity(SatEncoding *enc) {
     if (enc->clause_count >= enc->clause_capacity) {
         int new_cap = (enc->clause_capacity == 0) ? CLAUSE_INITIAL_CAP : enc->clause_capacity * LV00_ARRAY_GROWTH_FACTOR;
+        /* 整数溢出检查 */
+        if (new_cap <= 0 || new_cap < enc->clause_capacity) {
+            return false;
+        }
         int **new_clauses = (int **)lv00_realloc(enc->clauses, (size_t)new_cap * sizeof(int *));
         int *new_sizes = (int *)lv00_realloc(enc->clause_sizes, (size_t)new_cap * sizeof(int));
         if (!new_clauses || !new_sizes) {
@@ -100,6 +104,10 @@ static bool ensure_clause_capacity(SatEncoding *enc) {
 static bool ensure_var_capacity(SatEncoding *enc) {
     if (enc->var_count >= enc->var_capacity) {
         int new_cap = (enc->var_capacity == 0) ? VAR_MAP_INITIAL_CAP : enc->var_capacity * LV00_ARRAY_GROWTH_FACTOR;
+        /* 整数溢出检查 */
+        if (new_cap <= 0 || new_cap < enc->var_capacity) {
+            return false;
+        }
         SatVarEntry *new_map = (SatVarEntry *)lv00_realloc(enc->var_map, (size_t)new_cap * sizeof(SatVarEntry));
         if (!new_map) return false;
         enc->var_map = new_map;

@@ -209,12 +209,12 @@ void lv00_pool_destroy(Lv00ObjectPool *pool) {
         return;
     }
 
-    /* 释放所有内存块 */
+    /* 释放所有内存块（原生 malloc 分配，用原生 free 释放，避免触发毒模式检测） */
     for (size_t i = 0; i < pool->block_count; i++) {
-        lv00_free((void **)&pool->blocks[i]);
+        free(pool->blocks[i]);
     }
-    lv00_free((void **)&pool->blocks);
-    lv00_free((void **)&pool->block_capacities);  /* [Bug修复] 释放块容量记录数组 */
+    free(pool->blocks);
+    free(pool->block_capacities);
 
     /* 销毁线程锁 */
     if (pool->thread_safe) {
@@ -345,7 +345,7 @@ bool lv00_pool_free(Lv00ObjectPool *pool, void *obj) {
     node->next = pool->free_list;
     pool->free_list = node;
     pool->total_frees++;
-    pool->current_used--;
+    if (pool->current_used > 0) pool->current_used--;
 
     if (pool->thread_safe) {
         LV00_MUTEX_UNLOCK(pool->mutex);
@@ -457,11 +457,11 @@ void lv00_linear_allocator_destroy(Lv00LinearAllocator *allocator) {
         return;
     }
 
-    /* 释放所有内存块 */
+    /* 释放所有内存块（原生 malloc 分配，用原生 free 释放，避免触发毒模式检测） */
     MemoryBlock *block = allocator->blocks;
     while (block) {
         MemoryBlock *next = block->next;
-        lv00_free((void **)&block);
+        free(block);
         block = next;
     }
 

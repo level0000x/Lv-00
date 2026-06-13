@@ -4207,9 +4207,17 @@ static mpz_t *mpz_perfect_sqrt(mpz_t n);
  *             or falls back to double approximation with algebraic creation.
  * TRANSCENDENTAL: Marked as out_of_scope, returns NULL.
  */
+/* 指数上限：防止极大指数导致内存耗尽或计算时间过长 */
+#define SYMBOLIC_COORD_POW_MAX_EXPONENT 1000
+
 SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int exponent) {
     if (!base)
         return NULL;
+
+    /* 指数上限检查：防止 DoS */
+    if (exponent > SYMBOLIC_COORD_POW_MAX_EXPONENT) {
+        return NULL;
+    }
 
     /* base^0 = 1 for any type */
     if (exponent == 0) {

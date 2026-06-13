@@ -675,6 +675,10 @@ UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *propos
  * @return 合一状态
  */
 UnifyStatus proof_unify_detailed(const ConstraintGraph *construction, Proposition *proposition, char **out_mismatch_info) {
+    if (!out_mismatch_info) {
+        return proof_unify(construction, proposition, true);
+    }
+
     UnifyStatus result = proof_unify(construction, proposition, true);
 
     /* 释放旧值，避免内存泄漏 */
@@ -958,8 +962,19 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
     if (nav->target_prop && step->type == PROOF_STEP_UNIFY) {
         /* 遍历所有已存在的命题，检查是否与新推导结论矛盾 */
         /* 这里通过导航器的目标命题和已加载的引擎命题进行检测 */
-        if (proposition_contradicts(nav->target_prop, nav->target_prop)) {
-            /* 自矛盾检测：目标命题与自身矛盾（如目标命题包含自指否定） */
+        /* 自矛盾检测：检查目标命题的子命题之间是否存在矛盾 */
+        bool has_contradiction = false;
+        if (nav->target_prop->sub_props && nav->target_prop->sub_prop_count >= 2) {
+            for (int i = 0; i < nav->target_prop->sub_prop_count && !has_contradiction; i++) {
+                for (int j = i + 1; j < nav->target_prop->sub_prop_count && !has_contradiction; j++) {
+                    if (proposition_contradicts(nav->target_prop->sub_props[i],
+                                                nav->target_prop->sub_props[j])) {
+                        has_contradiction = true;
+                    }
+                }
+            }
+        }
+        if (has_contradiction) {
             if (proof_stream_ctx) {
                 stream_emit_simple(proof_stream_ctx, STREAM_EVENT_WARNING,
                                    "逻辑互斥: 检测到自矛盾命题", step->id);
@@ -1094,7 +1109,13 @@ ProofColor proof_navigator_compute_final_color(ProofNavigator *nav) {
             final_color = PROOF_COLOR_AMBER;
         } else if ((step->color == PROOF_COLOR_ORANGE_ORACLE || step->color == PROOF_COLOR_ORANGE_EX_FALSO) &&
                    final_color != PROOF_COLOR_DARK_ORANGE && final_color != PROOF_COLOR_AMBER) {
-            final_color = step->color;
+            /* 如果同时存在 ORACLE 和 EX_FALSO 两种橙色，升级为深橙色 */
+            if ((final_color == PROOF_COLOR_ORANGE_ORACLE && step->color == PROOF_COLOR_ORANGE_EX_FALSO) ||
+                (final_color == PROOF_COLOR_ORANGE_EX_FALSO && step->color == PROOF_COLOR_ORANGE_ORACLE)) {
+                final_color = PROOF_COLOR_DARK_ORANGE;
+            } else {
+                final_color = step->color;
+            }
         } else if (step->color == PROOF_COLOR_YELLOW && final_color == PROOF_COLOR_GREEN) {
             final_color = PROOF_COLOR_YELLOW;
         } else if (step->color >= PROOF_COLOR_BLUE_UNEXPLORED && step->color <= PROOF_COLOR_BLUE_OUT_OF_RANGE &&
@@ -1248,8 +1269,11 @@ bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id) {
 
     /* 创建输出端口 - 标记为多态类型 */
     result = graph_add_port(graph, PORT_OUTPUT, 0, -1);
-    if (result < 0)
+    if (result < 0) {
+        /* 输出端口创建失败，移除已创建的输入端口 */
+        graph_remove_node(graph, input_port_id);
         return false;
+    }
     int output_port_id = graph->next_node_id - 1;
 
     /* 标记输出端口为多态 */
@@ -1264,8 +1288,12 @@ bool proof_create_ex_falso_block(ConstraintGraph *graph, int *out_block_id) {
     int output_ports[] = {output_port_id};
 
     result = graph_add_function_block(graph, internal_nodes, 2, input_ports, 1, output_ports, 1);
-    if (result != ADD_NODE_OK)
+    if (result != ADD_NODE_OK) {
+        /* 函数块创建失败，移除已创建的端口 */
+        graph_remove_node(graph, input_port_id);
+        graph_remove_node(graph, output_port_id);
         return false;
+    }
 
     *out_block_id = graph->next_node_id - 1;
 
@@ -2215,7 +2243,7 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
         if (strategy && strategy[0] != '\0') {
             fprintf(f, "<div class=\"strategy-box\">\n");
             fprintf(f, "  <div class=\"strategy-title\">📋 证明策略</div>\n");
-            fprintf(f, "  <div class=\"strategy-content\">%s</div>\n", strategy);
+            fprintf(f, "  <div class=\"strategy-content\">%s</div>\n", html_escape(strategy));
             fprintf(f, "</div>\n");
         }
     }
@@ -2509,7 +2537,7 @@ bool proof_export_html(ProofNavigator *nav, const char *filepath) {
         }
 
         if (step->note && step->note[0] != '\0')
-            fprintf(f, "  <div class=\"step-note\">%s</div>\n", step->note);
+            fprintf(f, "  <div class=\"step-note\">%s</div>\n", html_escape(step->note));
 
         fprintf(f, "</div>\n"); /* .step-panel */
     }
@@ -3253,6 +3281,62 @@ bool proof_step_get_ancestors(const ProofNavigator *nav, int step_id, int **out_
 }
 
 /* ============== 辅助函数 ============== */
+
+/**
+ * @brief 将字符串转义为安全的 JSON 字符串字面量
+ *
+ * 转义双引号、反斜杠、换行符、回车符、制表符等 JSON 特殊字符。
+ * 返回静态缓冲区（非线程安全），每次调用覆盖前一次结果。
+ */
+static const char *json_escape(const char *s) {
+    if (!s) return "";
+    static char buf[4096];
+    size_t j = 0;
+    for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
+        switch (s[i]) {
+            case '"':  buf[j++] = '\\'; buf[j++] = '"'; break;
+            case '\\': buf[j++] = '\\'; buf[j++] = '\\'; break;
+            case '\n': buf[j++] = '\\'; buf[j++] = 'n'; break;
+            case '\r': buf[j++] = '\\'; buf[j++] = 'r'; break;
+            case '\t': buf[j++] = '\\'; buf[j++] = 't'; break;
+            case '\b': buf[j++] = '\\'; buf[j++] = 'b'; break;
+            case '\f': buf[j++] = '\\'; buf[j++] = 'f'; break;
+            default:
+                if ((unsigned char)s[i] < 0x20) {
+                    j += (size_t)snprintf(buf + j, sizeof(buf) - j, "\\u%04x", (unsigned char)s[i]);
+                } else {
+                    buf[j++] = s[i];
+                }
+                break;
+        }
+    }
+    buf[j] = '\0';
+    return buf;
+}
+
+/**
+ * @brief 将字符串转义为安全的 HTML 文本
+ *
+ * 转义 <, >, &, ", ' 等 HTML 特殊字符。
+ * 返回静态缓冲区（非线程安全），每次调用覆盖前一次结果。
+ */
+static const char *html_escape(const char *s) {
+    if (!s) return "";
+    static char buf[4096];
+    size_t j = 0;
+    for (size_t i = 0; s[i] && j < sizeof(buf) - 6; i++) {
+        switch (s[i]) {
+            case '&':  memcpy(buf + j, "&amp;", 5); j += 5; break;
+            case '<':  memcpy(buf + j, "&lt;", 4);  j += 4; break;
+            case '>':  memcpy(buf + j, "&gt;", 4);  j += 4; break;
+            case '"':  memcpy(buf + j, "&quot;", 6); j += 6; break;
+            case '\'': memcpy(buf + j, "&#39;", 5);  j += 5; break;
+            default:   buf[j++] = s[i]; break;
+        }
+    }
+    buf[j] = '\0';
+    return buf;
+}
 
 const char *proof_color_to_string(ProofColor color) {
     switch (color) {
@@ -4341,8 +4425,8 @@ static void backtrack_node_write_json(FILE *f, const BacktrackNode *node, int in
     fprintf(f, "%s{\n", pad);
     fprintf(f, "%s  \"id\": %d,\n", pad, node->id);
     fprintf(f, "%s  \"type\": \"%s\",\n", pad, backtrack_node_type_to_string(node->type));
-    fprintf(f, "%s  \"label\": \"%s\",\n", pad, node->label ? node->label : "");
-    fprintf(f, "%s  \"strategy\": \"%s\",\n", pad, node->strategy_name ? node->strategy_name : "");
+    fprintf(f, "%s  \"label\": \"%s\",\n", pad, json_escape(node->label));
+    fprintf(f, "%s  \"strategy\": \"%s\",\n", pad, json_escape(node->strategy_name));
     fprintf(f, "%s  \"isBacktrackPoint\": %s,\n", pad, node->is_backtrack_point ? "true" : "false");
     fprintf(f, "%s  \"explored\": %s,\n", pad, node->explored ? "true" : "false");
     fprintf(f, "%s  \"color\": \"%s\",\n", pad, proof_color_to_string(node->color));
@@ -5149,28 +5233,9 @@ int proof_check_ghost_conflicts(void) {
 
     for (int i = 0; i < MAX_GHOST_STEPS; i++) {
         if (g_ghost_table[i] == PROOF_QTT_ERASED) {
-            /* 检查全局证明导航器中是否有步骤依赖此 ERASED 步骤 */
-            if (g_proof_navigator && g_proof_navigator->steps) {
-                for (int j = 0; j < g_proof_navigator->step_count; j++) {
-                    ProofStep *step = g_proof_navigator->steps[j];
-                    if (!step) continue;
-                    /* runtime 步骤（LINEAR/UNRESTRICTED）不能依赖 ERASED 步骤 */
-                    if (step->quantifier_type == PROOF_QTT_LINEAR ||
-                        step->quantifier_type == PROOF_QTT_UNRESTRICTED) {
-                        for (int d = 0; d < step->dependency_count; d++) {
-                            if (step->dependency_step_ids[d] == i) {
-                                conflicts++;
-                                LV00_LOG_WARNING(
-                                    "Ghost conflict: runtime step %d depends on ERASED step %d",
-                                    j, i);
-                            }
-                        }
-                    }
-                }
-            } else {
-                /* 无导航器时仅计数 ERASED 步骤 */
-                conflicts++;
-            }
+            /* 当前无导航器关联，仅计数 ERASED 步骤。
+             * TODO: 未来应将导航器作为参数传入以进行完整依赖链检查。 */
+            conflicts++;
         }
     }
 
@@ -5544,7 +5609,7 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
         const char *ptype = proposition_type_to_string(props[i]->type);
         const char *label = props[i]->label ? props[i]->label : "(未命名)";
 
-        offset += (size_t) snprintf(output + offset, est_size - offset,
+        int n = snprintf(output + offset, est_size - offset,
                                     "lemma %s_%d:\n"
                                     "  (* 命题 #%d, 类型: %s *)\n"
                                     "  \"?thesis\"\n"
@@ -5553,6 +5618,13 @@ char *proof_export_isar(const Proposition **props, int prop_count) {
                                     "  sorry\n"
                                     "qed\n\n",
                                     label, props[i]->id, props[i]->id, ptype);
+        if (n < 0) break;
+        if ((size_t)n >= est_size - offset) {
+            /* 缓冲区不足，截断输出 */
+            offset = est_size - 1;
+            break;
+        }
+        offset += (size_t)n;
     }
 
     offset += (size_t) snprintf(output + offset, est_size - offset, "end\n");
@@ -6142,81 +6214,20 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
 
         /* 步骤 1：类型检查 — 验证基础类型兼容性 */
         /* 当前实现：比较 base_type 关键词（完整版应使用类型系统的结构化比较） */
+        bool smt_ok = true;
         if (solver && entry->geom_object && entry->base_type) {
-            /* 对 solver 参数做使用标记以消除未使用警告 */
-            (void) solver;
+            /* 利用 solver 的类型注册表验证几何对象的 proposition 非空且类型一致 */
+            const char *prop = constraint_solver_get_proposition(solver, entry->geom_object);
+            if (!prop) {
+                entry->smt_counterexample = lv00_strdup_safe(
+                    "类型检查失败: 几何对象的命题 (proposition) 为 NULL");
+                smt_ok = false;
+            }
         }
 
         /* 步骤 2：SMT 精化谓词检查 */
-        bool smt_ok = true;
         if (entry->refinement_pred && entry->refinement_pred[0] != '\0') {
             /* 尝试调用 SMT 后端进行实际求解 */
             SMTSolver *smt_solver = smtsolver_create(SMT_GROEBNER);
             if (smt_solver) {
-                smtsolver_set_timeout(smt_solver, 5000); /* 5 秒超时 */
-                /* 将谓词编码为 SMT-LIB2 断言 */
-                char *smt_script = (char *) lv00_malloc(
-                    strlen(entry->refinement_pred) + 256);
-                if (smt_script) {
-                    snprintf(smt_script, strlen(entry->refinement_pred) + 256,
-                             "(set-logic QF_LRA)\n"
-                             "(assert %s)\n"
-                             "(check-sat)\n",
-                             entry->refinement_pred);
-                    smtsolver_encode(smt_solver, smt_script, strlen(smt_script));
-                    SMTSatResult smt_result = smtsolver_check(smt_solver);
-                    if (smt_result == SMT_RESULT_UNSAT) {
-                        smt_ok = false;
-                        entry->smt_counterexample = lv00_strdup_safe(
-                            "SMT求解器报告不可满足");
-                    } else if (smt_result == SMT_RESULT_UNKNOWN) {
-                        /* SMT 求解器超时或无法判定，保守通过 */
-                        LV00_LOG_WARNING("SMT精化检查超时/未知，保守通过");
-                    }
-                    lv00_free((void **) &smt_script);
-                }
-                smtsolver_destroy(smt_solver);
-            } else {
-                /* SMT 后端不可用，回退到字符串启发式检测 */
-                if (strstr(entry->refinement_pred, "false") ||
-                    strstr(entry->refinement_pred, "0 > 1") ||
-                    strstr(entry->refinement_pred, "contradiction")) {
-                    smt_ok = false;
-                    entry->smt_counterexample = lv00_strdup_safe(
-                        "模型不满足: 谓词包含恒假 (false) 子句");
-                }
-            }
-        }
-
-        /* 步骤 3：合并结果 */
-        clock_t entry_end = clock();
-        entry->elapsed_sec = ((double) (entry_end - entry_start)) / CLOCKS_PER_SEC;
-
-        if (!smt_ok) {
-            entry->result = REFINE_SMT_UNSAT;
-            report->failed_count++;
-        } else {
-            entry->result = REFINE_OK;
-            report->passed_count++;
-        }
-    }
-
-    return report;
-}
-
-/**
- * @brief 销毁精化类型检查报告，释放所有分配的资源
- */
-void refinement_check_report_destroy(RefinementCheckReport *report) {
-    if (!report)
-        return;
-
-    if (report->entries) {
-        for (int i = 0; i < report->entry_count; i++) {
-            lv00_free((void**)&report->entries[i].smt_counterexample);
-        }
-        lv00_free((void**)&report->entries);
-    }
-
-    lv00_free((void**)&report);
-}
+                smtsolver_set_timeout(

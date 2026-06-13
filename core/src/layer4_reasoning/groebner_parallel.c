@@ -649,8 +649,7 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
             for (int k = 0; k < i; k++)
                 simple_poly_destroy(&basis[k]);
             lv00_free((void **)&basis);
-            lv00_free((void **)&args);
-            lv00_free((void **)&all_queues);
+            /* 注意：args 和 all_queues 尚未分配，无需释放 */
             return -1;
         }
         if (clauses[i]) {

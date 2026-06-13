@@ -533,6 +533,10 @@ static bool cdcl_init_clauses(CDCLContext *ctx, Lv00Solver *solver) {
     /* 扩容 */
     if (total > ctx->clause_capacity) {
         int new_cap = total * 2;
+        /* 整数溢出检查 */
+        if (new_cap < total || new_cap <= 0) {
+            return false;
+        }
         int **new_clauses = (int **)lv00_realloc(ctx->clauses, (size_t)new_cap * sizeof(int *));
         int *new_sizes = (int *)lv00_realloc(ctx->clause_sizes, (size_t)new_cap * sizeof(int));
         if (!new_clauses || !new_sizes) {
@@ -603,15 +607,13 @@ static bool cdcl_ensure_trail_lim(CDCLContext *ctx, int level) {
     int *new_lim = (int *)lv00_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
     if (!new_lim) return false;
     /* 只初始化新增部分，保留已有数据 */
-    int old_cap = 0;
-    if (ctx->trail_lim) {
-        /* 旧容量未知，保守地不初始化任何元素 */
-        old_cap = needed; /* 标记全部跳过初始化 */
-    }
+    /* ctx->trail_lim_capacity 记录旧容量；首次分配时为 0，全部初始化 */
+    int old_cap = ctx->trail_lim_capacity;
     for (int i = old_cap; i < needed; i++) {
         new_lim[i] = 0;
     }
     ctx->trail_lim = new_lim;
+    ctx->trail_lim_capacity = needed;
     return true;
 }
 
@@ -975,10 +977,14 @@ static CDCLState cdcl_step_decide(CDCLContext *ctx) {
     /* 记录当前 trail 位置 */
     int needed = ctx->decision_level + 1;
     int *new_lim = (int *)lv00_realloc(ctx->trail_lim, (size_t)needed * sizeof(int));
-    if (new_lim) {
-        ctx->trail_lim = new_lim;
-        ctx->trail_lim[ctx->decision_level] = ctx->trail_size;
+    if (!new_lim) {
+        /* realloc 失败，回退决策层级 */
+        ctx->decision_level--;
+        return CDCL_CONFLICT;  /* 内存不足，视为冲突处理 */
     }
+    ctx->trail_lim = new_lim;
+    ctx->trail_lim_capacity = needed;
+    ctx->trail_lim[ctx->decision_level] = ctx->trail_size;
 
     /* 赋值：默认选正文字（可扩展为 VSIDS 等启发式） */
     cdcl_assign(ctx, decision_var, -1); /* -1 表示决策赋值 */

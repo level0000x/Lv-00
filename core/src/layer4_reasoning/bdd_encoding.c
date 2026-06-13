@@ -883,6 +883,9 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var) 
                 int *new_types = (int *) lv00_realloc(mgr->var_types,
                                                        (size_t) new_capacity * sizeof(int));
                 if (!new_order || !new_names || !new_types) {
+                    /* 某些 realloc 成功了但 mgr-> 指针尚未更新，
+                     * 所以 mgr->var_order 等仍指向旧内存（有效）。
+                     * 释放成功分配的新内存以避免泄漏。 */
                     if (new_order) lv00_free((void **)&new_order);
                     if (new_names) lv00_free((void **)&new_names);
                     if (new_types) lv00_free((void **)&new_types);

@@ -112,10 +112,16 @@ static bool g_smt_registry_initialized = false;
 #ifdef _WIN32
 static CRITICAL_SECTION g_smt_registry_cs = {0};
 static volatile LONG g_smt_cs_initialized = 0;
+static volatile LONG g_smt_cs_ready = 0;
 #define SMT_REGISTRY_LOCK() do { \
-    if (!g_smt_cs_initialized) { \
-        InterlockedCompareExchange(&g_smt_cs_initialized, 1, 0); \
-        if (g_smt_cs_initialized) InitializeCriticalSection(&g_smt_registry_cs); \
+    if (!g_smt_cs_ready) { \
+        if (InterlockedCompareExchange(&g_smt_cs_initialized, 1, 0) == 0) { \
+            InitializeCriticalSection(&g_smt_registry_cs); \
+            g_smt_cs_ready = 1; /* 初始化完成后才标记为就绪 */ \
+        } else { \
+            /* 另一个线程正在初始化，等待完成 */ \
+            while (!g_smt_cs_ready) { Sleep(0); } \
+        } \
     } \
     EnterCriticalSection(&g_smt_registry_cs); \
 } while(0)

@@ -266,6 +266,9 @@ static void serial_vector_linear_sum(double a, const Lv00Vector *x, double b,
         return;
     }
     int64_t n = x->length;
+    /* 使用最短的向量长度避免越界 */
+    if (y->length < n) n = y->length;
+    if (z->length < n) n = z->length;
     for (int64_t i = 0; i < n; ++i) {
         z->data[i] = a * x->data[i] + b * y->data[i];
     }
@@ -280,6 +283,7 @@ static double serial_vector_dot(const Lv00Vector *x, const Lv00Vector *y) {
     }
     double sum = 0.0;
     int64_t n = x->length;
+    if (y->length < n) n = y->length;
     for (int64_t i = 0; i < n; ++i) {
         sum += x->data[i] * y->data[i];
     }
@@ -329,6 +333,7 @@ static double serial_vector_wrms_norm(const Lv00Vector *v,
     }
     double sum_sq = 0.0;
     int64_t n = v->length;
+    if (weights->length < n) n = weights->length;
     for (int64_t i = 0; i < n; ++i) {
         double wv = v->data[i] * weights->data[i];
         sum_sq += wv * wv;
@@ -660,7 +665,11 @@ static int serial_matrix_solve(const Lv00Matrix *A, const Lv00Vector *b,
 
     /* 回代（解 U*x = y） */
     for (int64_t k = n - 1; k >= 0; --k) {
-        x->data[k] /= data[k * n + k];
+        double diag = data[k * n + k];
+        if (fabs(diag) < LV00_EPSILON_DOUBLE) {
+            return LV00_BACKEND_SINGULAR;
+        }
+        x->data[k] /= diag;
         for (int64_t i = 0; i < k; ++i) {
             x->data[i] -= data[k * n + i] * x->data[k];
         }

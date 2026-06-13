@@ -41,8 +41,14 @@ static int test_large_graph_creation(void) {
     for (int s = 0; s < num_sizes; s++) {
         int n = sizes[s];
         double start = get_time_ms();
+        double elapsed = 0.0;
 
         ConstraintGraph *g = graph_create();
+        if (!g) {
+            print_result("Create graph with points and segments", elapsed, n, "nodes");
+            printf("  FAILED (graph_create failed at size %d)\n", n);
+            return -1;
+        }
 
         /* 创建 n 个点 */
         for (int i = 0; i < n; i++) {
@@ -58,10 +64,14 @@ static int test_large_graph_creation(void) {
             }
         }
 
-        double elapsed = get_time_ms() - start;
+        elapsed = get_time_ms() - start;
         print_result("Create graph with points and segments", elapsed, n, "nodes");
 
-        assert(g->node_count >= n);
+        if (g->node_count < n) {
+            printf("  FAILED (node_count %d < expected %d)\n", g->node_count, n);
+            graph_destroy(g);
+            return -1;
+        }
         graph_destroy(g);
     }
 

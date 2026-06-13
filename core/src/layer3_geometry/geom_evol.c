@@ -692,6 +692,15 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
             }
             for (int i = 0; i < dim; ++i) piv[i] = i;
 
+            /* 在 LU 分解前保存原始对角线副本，用于分解失败时的对角回退 */
+            double *J_diag = lv00_malloc((size_t) dim * sizeof(double));
+            if (!J_diag) {
+                lv00_free((void **) &piv);
+                lv00_free((void **) &J);
+                goto cleanup_bdf;
+            }
+            for (int i = 0; i < dim; ++i) J_diag[i] = J[i * dim + i];
+
             /* LU 分解：Doolittle 方法 + 部分选主元 */
             int lu_ok = 1;
             for (int k = 0; k < dim; ++k) {
@@ -765,8 +774,9 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                 }
             } else {
                 /* LU 分解失败（矩阵奇异），回退到对角近似 */
+                /* 使用 LU 分解前保存的原始对角线副本，而非部分修改后的 J */
                 for (int i = 0; i < dim; ++i) {
-                    double J_ii = J[i * dim + i];
+                    double J_ii = J_diag[i];
                     if (fabs(J_ii) < 1e-30) {
                         J_ii = (J_ii >= 0.0) ? 1e-30 : -1e-30;
                     }
@@ -774,6 +784,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                 }
             }
 
+            lv00_free((void **) &J_diag);
             lv00_free((void **) &piv);
             lv00_free((void **) &J);
         }
@@ -790,7 +801,7 @@ static int geoevol_step_bdf(Lv00GeomEvol *evol, double h, const double *y,
                        newton_max_iter, order);
         /* 将初始猜测作为输出，让外层步长控制器缩减步长重试 */
         memcpy(y_out, y, (size_t) dim * sizeof(double));
-        /* 注意：返回 0 让外层误差测试拒绝此步 */
+        /* 返回 -1 表示 Newton 未收敛，调用者可据此缩减步长重试 */
         goto cleanup_bdf;
     }
 
@@ -808,7 +819,7 @@ cleanup_bdf:
     if (f_new) lv00_free((void **) &f_new);
     if (f_pert) lv00_free((void **) &f_pert);
     if (rhs_sum) lv00_free((void **) &rhs_sum);
-    return 0;
+    return newton_converged ? 0 : -1;
 }
 
 /* ========================================================================

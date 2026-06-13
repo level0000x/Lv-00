@@ -710,7 +710,8 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
                     if (ij_sq1 && ij_sq2 && ik_sq1 && ik_sq2) {
                         SymbolicCoord *ij_sq = symbolic_coord_add(ij_sq1, ij_sq2);
                         SymbolicCoord *ik_sq = symbolic_coord_add(ik_sq1, ik_sq2);
-                        if (ij_sq && ik_sq && symbolic_coord_is_zero(symbolic_coord_subtract(ij_sq, ik_sq))) {
+                        SymbolicCoord *diff = (ij_sq && ik_sq) ? symbolic_coord_subtract(ij_sq, ik_sq) : NULL;
+                        if (ij_sq && ik_sq && diff && symbolic_coord_is_zero(diff)) {
                             ProofStep *iso_step = proof_step_create(PROOF_STEP_FUNCTION_APP);
                             if (iso_step) {
                                 iso_step->color = PROOF_COLOR_GREEN;
@@ -718,6 +719,7 @@ static bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *n
                                 proof_navigator_add_step(nav, iso_step);
                             }
                         }
+                        if (diff) symbolic_coord_destroy(diff);
                         if (ik_sq) symbolic_coord_destroy(ik_sq);
                         if (ij_sq) symbolic_coord_destroy(ij_sq);
                     }
@@ -787,7 +789,7 @@ static bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *
 
     char **facts = (char **) lv00_calloc(DEDUCT_MAX_FACTS, sizeof(char *));
     if (!facts) {
-        return LV00_ERROR_MEMORY;
+        return false;
     }
     int fact_count = 0;
     bool verified = false;

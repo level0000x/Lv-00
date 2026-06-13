@@ -474,13 +474,11 @@ static void node_index_remove(ConstraintGraph *graph, int node_id) {
         GeomNode *entry = graph->node_index[i];
         graph->node_index[i] = NULL;
         unsigned ideal = node_id_hash(entry->id, graph->node_index_capacity);
-        /* 判断理想位置是否在 [idx+1, i] 的环绕范围内 */
-        bool in_range = false;
-        if (ideal > idx) {
-            in_range = (i >= ideal || i <= idx);
-        } else {
-            in_range = (i >= ideal && i <= idx);
-        }
+        /* 判断理想位置是否在被删除槽的影响范围内 */
+        unsigned cap = graph->node_index_capacity;
+        unsigned range = (unsigned)((i - idx + cap) % cap);
+        unsigned ideal_dist = (unsigned)((ideal - idx + cap) % cap);
+        bool in_range = (ideal_dist <= range);
         if (in_range) {
             /* 条目属于被删除槽的影响范围，需要重新插入 */
             unsigned j = ideal;

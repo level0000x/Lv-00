@@ -186,6 +186,11 @@ static inline void mpz_poly_mul(mpz_poly_t *result, const mpz_poly_t *a, const m
  */
 static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, const mpz_poly_t *divisor) {
     mpz_poly_clear(quotient);
+    /* 检查输入有效性 */
+    if (!dividend || !divisor) {
+        quotient->degree = -1;
+        return;
+    }
     /* 检查除数是否有效（度数为负或首项系数为零均视为零多项式） */
     if (divisor->degree < 0 || divisor->degree > dividend->degree ||
         mpz_cmp_si(divisor->coeffs[divisor->degree], 0) == 0) {
@@ -226,7 +231,12 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
     if (p->degree < 0) {
         return strdup("0");
     }
-    char **coeff_strs = malloc((p->degree + 1) * sizeof(char *));
+    /* 整数溢出检查：确保 (degree + 1) * sizeof(char*) 不会溢出 */
+    if (p->degree > (int)((SIZE_MAX / sizeof(char *)) - 1)) {
+        return NULL;
+    }
+    size_t coeff_count = (size_t)(p->degree + 1);
+    char **coeff_strs = malloc(coeff_count * sizeof(char *));
     size_t total_len = 0;
     for (int i = 0; i <= p->degree; i++) {
         coeff_strs[i] = mpz_get_str(NULL, 10, p->coeffs[i]);

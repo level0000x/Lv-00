@@ -409,7 +409,7 @@ static bool coord_to_double(const SymbolicCoord *c, double *out) {
 static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, int64_t scale) {
     mpz_t scaled;
     mpz_init(scaled);
-    mpz_set_ui(scaled, (unsigned long) scale);
+    mpz_set_si(scaled, (long) scale);
     mpz_mul(result, mpq_numref(val), scaled);
     mpz_fdiv_q(result, result, mpq_denref(val));
     mpz_clear(scaled);
@@ -436,7 +436,7 @@ static bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t sc
         /* 计算分子 * scale（只计算一次，避免重复） */
         mpz_t scaled_num;
         mpz_init(scaled_num);
-        mpz_mul_ui(scaled_num, mpq_numref(val), (unsigned long) scale);
+        mpz_mul_si(scaled_num, mpq_numref(val), (long) scale);
 
         mpz_t den;
         mpz_init(den);
@@ -567,6 +567,12 @@ static bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, 
  * 当 scaled_num 不能被 den 整除时，使用四舍五入取整。
  */
 static void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
+    /* 防御特殊浮点值 */
+    if (!isfinite(val)) {
+        mpz_set_ui(result, 0);
+        return;
+    }
+
     /* 使用 GMP 的 mpq_set_d 获取最佳精度 */
     mpq_t q;
     mpq_init(q);
@@ -2063,16 +2069,17 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
         mpq_t q_approx;
         mpq_init(q_approx);
         mpq_set_d(q_approx, approx1);
-        int64_t num1 = (int64_t) mpz_get_d(mpq_numref(q_approx));
-        uint64_t den1 = (uint64_t) mpz_get_d(mpq_denref(q_approx));
+        /* 直接从 mpq 提取分子分母，避免 double->mpq->double->int64 精度损失 */
+        int64_t num1 = mpz_get_si(mpq_numref(q_approx));
+        uint64_t den1 = mpz_get_ui(mpq_denref(q_approx));
         if (den1 == 0)
             den1 = 1;
         solutions[0] = symbolic_coord_create_rational(num1, den1);
 
         if (max_solutions >= 2) {
             mpq_set_d(q_approx, approx2);
-            int64_t num2 = (int64_t) mpz_get_d(mpq_numref(q_approx));
-            uint64_t den2 = (uint64_t) mpz_get_d(mpq_denref(q_approx));
+            int64_t num2 = mpz_get_si(mpq_numref(q_approx));
+            uint64_t den2 = mpz_get_ui(mpq_denref(q_approx));
             if (den2 == 0)
                 den2 = 1;
             solutions[1] = symbolic_coord_create_rational(num2, den2);
@@ -2096,6 +2103,18 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
 
     /* 创建 QUADRATIC 类型的解 */
     Rational *qa = rational_create_from_mpz(mpq_numref(rational_part), mpq_denref(rational_part));
+    if (!qa) {
+        /* 内存不足，清理所有 GMP 变量后返回 */
+        mpq_clear(rational_part);
+        mpq_clear(sqrt_coeff);
+        mpz_clear(n_part);
+        mpz_clear(k_part);
+        mpz_clear(two_a);
+        mpz_clear(a_mpz);
+        mpz_clear(b_mpz);
+        mpz_clear(c_mpz);
+        return 0;
+    }
 
     /* 解1: a + (-sqrt_coeff)*sqrt(n) -- 负的 sqrt 系数 */
     {
@@ -2105,16 +2124,62 @@ static int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutio
         Rational *qb1 = rational_create_from_mpz(neg_num, mpq_denref(sqrt_coeff));
         mpz_clear(neg_num);
 
+        if (!qb1) {
+            rational_destroy(qa);
+            mpq_clear(rational_part);
+            mpq_clear(sqrt_coeff);
+            mpz_clear(n_part);
+            mpz_clear(k_part);
+            mpz_clear(two_a);
+            mpz_clear(a_mpz);
+            mpz_clear(b_mpz);
+            mpz_clear(c_mpz);
+            return 0;
+        }
+
         /* solutions[0] 获取 qa 的所有权 */
         solutions[0] = symbolic_coord_create_quadratic(qa, qb1, n_val);
+        if (!solutions[0]) {
+            /* 创建失败时需要手动释放 qa 和 qb1（所有权未转移） */
+            rational_destroy(qa);
+            rational_destroy(qb1);
+        }
     }
 
     /* 解2: a + sqrt_coeff*sqrt(n) -- 正的 sqrt 系数 */
     if (max_solutions >= 2) {
         Rational *qb2 = rational_create_from_mpz(mpq_numref(sqrt_coeff), mpq_denref(sqrt_coeff));
+        if (!qb2) {
+            mpq_clear(rational_part);
+            mpq_clear(sqrt_coeff);
+            mpz_clear(n_part);
+            mpz_clear(k_part);
+            mpz_clear(two_a);
+            mpz_clear(a_mpz);
+            mpz_clear(b_mpz);
+            mpz_clear(c_mpz);
+            return (solutions[0] ? 1 : 0);
+        }
         /* solutions[1] 需要 qa 的独立拷贝，避免 double-free */
         Rational *qa_copy = rational_copy(qa);
+        if (!qa_copy) {
+            rational_destroy(qb2);
+            mpq_clear(rational_part);
+            mpq_clear(sqrt_coeff);
+            mpz_clear(n_part);
+            mpz_clear(k_part);
+            mpz_clear(two_a);
+            mpz_clear(a_mpz);
+            mpz_clear(b_mpz);
+            mpz_clear(c_mpz);
+            return (solutions[0] ? 1 : 0);
+        }
         solutions[1] = symbolic_coord_create_quadratic(qa_copy, qb2, n_val);
+        if (!solutions[1]) {
+            /* 创建失败时需要手动释放 qa_copy 和 qb2（所有权未转移） */
+            rational_destroy(qa_copy);
+            rational_destroy(qb2);
+        }
     }
 
     /* 不要 rational_destroy(qa) -- 所有权已转移给 solutions[0] */
@@ -2252,7 +2317,11 @@ static int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, 
         /* 三个不等实根 (casus irreducibilis): 使用三角函数
          * y_k = 2*sqrt(-P/3)*cos((acos(3Q/(2P)*sqrt(-3/P)) + 2*pi*k)/3) */
         double sqrt_term = sqrt(-P / 3.0);
-        double phi = acos(3.0 * Q / (2.0 * P) * sqrt(-3.0 / P));
+        double acos_arg = 3.0 * Q / (2.0 * P) * sqrt(-3.0 / P);
+        /* 裁剪到 [-1, 1] 以防止浮点精度误差导致 acos 返回 NaN */
+        if (acos_arg > 1.0) acos_arg = 1.0;
+        if (acos_arg < -1.0) acos_arg = -1.0;
+        double phi = acos(acos_arg);
         for (int k = 0; k < 3 && sol_count < max_solutions; k++) {
             double angle = (phi + 2.0 * M_PI * (double) k) / 3.0;
             double y_k = 2.0 * sqrt_term * cos(angle);
@@ -2349,6 +2418,9 @@ static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicC
         double d = mpz_get_d(poly->coeffs[0]);
         result = symbolic_coord_create_rational((int64_t) (d * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
     }
+    if (!result) {
+        return NULL;  /* 内存不足，无法创建初始坐标 */
+    }
 
     /* 霍纳法则：result = result * value + coeff[i] */
     for (int i = poly->degree; i >= 1; i--) {
@@ -2356,6 +2428,9 @@ static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicC
         SymbolicCoord *product = symbolic_coord_multiply(result, value);
         symbolic_coord_destroy(result);
         result = product;
+        if (!result) {
+            return NULL;  /* 内存不足 */
+        }
 
         /* + coeff[i] */
         mpq_t ci;
@@ -2371,11 +2446,18 @@ static SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicC
             double d = mpz_get_d(poly->coeffs[i]);
             term = symbolic_coord_create_rational((int64_t) (d * LV00_SOLVER_SCALE_FACTOR), LV00_SOLVER_SCALE_FACTOR);
         }
+        if (!term) {
+            symbolic_coord_destroy(result);
+            return NULL;  /* 内存不足 */
+        }
 
         SymbolicCoord *sum = symbolic_coord_add(result, term);
         symbolic_coord_destroy(result);
         symbolic_coord_destroy(term);
         result = sum;
+        if (!result) {
+            return NULL;  /* 内存不足 */
+        }
     }
 
     return result;
@@ -5184,7 +5266,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                         ev.step_number = steps;
                         /* 内存安全修复：使用 long long 防止 g_count*(g_count-1) 整数溢出 */
                         long long total_pairs = (long long) g_count * (g_count - 1) / 2;
-                        ev.total_steps = (int) total_pairs;
+                        ev.total_steps = (total_pairs > INT_MAX) ? INT_MAX : (int) total_pairs;
                         ev.progress = (total_pairs > 0) ? (double) steps / (double) total_pairs : 0.0;
                         ev.description = "Buchberger S-多项式约化";
                         char detail[SOLVER_DETAIL_BUF_SIZE];
@@ -5431,6 +5513,7 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             } else {
                 /* 约化为零：该多项式是冗余的，从基中移除 */
                 mv_poly_clear(G[i]);
+                lv00_free((void **) &G[i]);
                 mv_poly_clear(&remainder);
                 /* 将后续多项式前移 */
                 for (int j = i; j < g_count - 1; j++) {
@@ -8285,6 +8368,25 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
 
     return (status == SOLVER_STATUS_TIMEOUT) ? SOLVER_STATUS_TIMEOUT : SOLVER_STATUS_OK;
 push_error:
+    /* 清理 Groebner 基（可能部分已分配） */
+    if (G) {
+        for (int i = 0; i < g_count; i++) {
+            if (G[i]) {
+                mv_poly_clear(G[i]);
+                lv00_free((void **) &G[i]);
+            }
+        }
+        lv00_free((void **) &G);
+    }
+    /* 清理原始多变量多项式 */
+    if (mv_polys) {
+        for (int i = 0; i < original_eq_count; i++) {
+            mv_poly_clear(&mv_polys[i]);
+        }
+        lv00_free((void **) &mv_polys);
+    }
+    lv00_free((void **) &var_id_map);
+    lv00_free((void **) &coord_map);
     return SOLVER_STATUS_OUT_OF_MEMORY;
 }
 
@@ -8635,82 +8737,4 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
         out_idx++;
 
         /* Stream: emit valid branch */
-        if (solver_stream_ctx) {
-            StreamEvent ev;
-            memset(&ev, 0, sizeof(ev));
-            ev.type = STREAM_EVENT_SOLVE_VARIABLE_RESOLVED;
-            ev.timestamp_ms = stream_timestamp_ms();
-            ev.step_number = out_idx;
-            ev.description = "有效多解分支";
-            char detail[SOLVER_DETAIL_BUF_SIZE];
-            int pos;
-            LV00_SAFE_SNPRINTF(pos, detail, sizeof(detail), "{\"branch\":%d,\"valid\":true,\"values\":[", out_idx);
-            for (int v = 0; v < branch_count && pos < (int) sizeof(detail) - 30; v++) {
-                char *coord_str = symbolic_coord_serialize(branch_coords[src_base + v]);
-                if (coord_str) {
-                    int _sn_tmp;
-                    LV00_SAFE_SNPRINTF(_sn_tmp, detail + pos, (size_t) (sizeof(detail) - pos - 5), "%s\"%s\"",
-                                       (v > 0 ? "," : ""), coord_str);
-                    pos += _sn_tmp;
-                    lv00_free((void **) &coord_str);
-                }
-            }
-            {
-                int _sn_tmp2;
-                LV00_SAFE_SNPRINTF(_sn_tmp2, detail + pos, (size_t) (sizeof(detail) - pos - 3), "]}");
-                LV00_UNUSED(_sn_tmp2);
-                LV00_UNUSED(pos);
-            }
-            ev.detail_json = detail;
-            stream_emit(solver_stream_ctx, &ev);
-        }
-    }
-
-    /* Destroy invalid branch coordinates (they're not moved to out_branch_arr) */
-    for (int b = 0; b < total_branches; b++) {
-        if (!branch_valid[b]) {
-            for (int v = 0; v < branch_count; v++) {
-                symbolic_coord_destroy(branch_coords[b * branch_count + v]);
-            }
-        }
-    }
-
-    /* Free temporary working arrays.
-     * branch_coords entries for valid branches were MOVED to out_branch_arr;
-     * don't double-free them. */
-    lv00_free((void **) &branch_coords);
-    lv00_free((void **) &branch_valid);
-    lv00_free((void **) &branch_vars);
-
-    if (valid_branches == 0) {
-        lv00_free((void **) &out_branch_arr);
-        *out_branches = NULL;
-        *out_branch_count = 0;
-        if (solver_stream_ctx) {
-            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "多解分支处理: 所有分支均无效", 0);
-        }
-        return SOLVER_STATUS_NO_SOLUTION;
-    }
-
-    *out_branches = out_branch_arr;
-    *out_branch_count = valid_branches;
-
-    if (valid_branches == 1) {
-        if (solver_stream_ctx) {
-            stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, "多解分支处理: 过滤后仅剩唯一有效解",
-                               valid_branches);
-        }
-        return SOLVER_STATUS_UNIQUE;
-    }
-
-    if (solver_stream_ctx) {
-        char msg[128];
-        int _snw5;
-        LV00_SAFE_SNPRINTF(_snw5, msg, sizeof(msg), "多解分支处理: 生成 %d 个有效分支 (共 %d 个理论组合)",
-                           valid_branches, total_branches);
-        LV00_UNUSED(_snw5);
-        stream_emit_simple(solver_stream_ctx, STREAM_EVENT_SOLVE_DONE, msg, valid_branches);
-    }
-
-    return SOLVER_STATUS_OK;
-}
+   
