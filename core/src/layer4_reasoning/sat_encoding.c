@@ -15,11 +15,10 @@
  * @date 2026-05-24
  */
 
-#include "sat_encoding.h"
-
 #include <stdio.h>
 #include <string.h>
 
+#include "lv00.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "error_codes.h"

@@ -23,6 +23,7 @@
 #ifndef LV00_GEOM_EVOL_H
 #define LV00_GEOM_EVOL_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -37,6 +38,9 @@ extern "C" {
 
 /** 几何参数向量的最大维度 */
 #define GEOEVOL_MAX_PARAM_DIM 256
+
+/** Adams 多步法最大阶数 */
+#define GEOEVOL_ADAMS_MAX_ORDER 5
 
 /** 最小允许步长（绝对值，防止下溢） */
 #define GEOEVOL_MIN_STEP 1e-15
