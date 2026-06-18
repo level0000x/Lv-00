@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_modal_logic.c
  * @brief Modal Logic (Normal Modal Logics K, T, S4, S5) Axiom Package Test
  */

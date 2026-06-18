@@ -10,7 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <time.h>
+#include <stdarg.h>
+#include <stdint.h>
 
 #include "lv00.h"
 #include "lv00_utils.h"
@@ -23,13 +24,28 @@
 static bool ensure_buffer_capacity(Lv00ProofCompiler *compiler, size_t needed) {
     if (!compiler) return false;
     
+    /* 溢出检查：buffer_used + needed 不能超过 SIZE_MAX */
+    if (needed > 0 && compiler->buffer_used > SIZE_MAX - needed) {
+        return false;
+    }
+    
     if (compiler->buffer_used + needed <= compiler->buffer_size) {
         return true;
     }
     
     size_t new_size = compiler->buffer_size == 0 ? 4096 : compiler->buffer_size * 2;
+    /* 防止 new_size *= 2 无限循环或溢出 */
     while (new_size < compiler->buffer_used + needed) {
+        if (new_size > SIZE_MAX / 2) {
+            /* 再翻倍会溢出，直接使用最大值 */
+            new_size = SIZE_MAX;
+            break;
+        }
         new_size *= 2;
+    }
+    
+    if (new_size < compiler->buffer_used + needed) {
+        return false;
     }
     
     char *new_buffer = (char *)lv00_realloc(compiler->output_buffer, new_size);
@@ -47,7 +63,7 @@ static void append_to_buffer(Lv00ProofCompiler *compiler, const char *str) {
     if (!compiler || !str) return;
     size_t len = strlen(str);
     if (ensure_buffer_capacity(compiler, len + 1)) {
-        strcpy(compiler->output_buffer + compiler->buffer_used, str);
+        snprintf(compiler->output_buffer + compiler->buffer_used, compiler->buffer_size - compiler->buffer_used, "%s", str);
         compiler->buffer_used += len;
     }
 }
@@ -88,7 +104,20 @@ Lv00ProofObject *lv00_proof_object_create(void) {
     }
     
     obj->axiom_ids = (int *)lv00_malloc(32 * sizeof(int));
+    if (!obj->axiom_ids) {
+        lv00_free((void **)&obj->steps);
+        lv00_free((void **)&obj);
+        return NULL;
+    }
+    obj->axiom_capacity = 32;
     obj->assumption_ids = (int *)lv00_malloc(32 * sizeof(int));
+    if (!obj->assumption_ids) {
+        lv00_free((void **)&obj->axiom_ids);
+        lv00_free((void **)&obj->steps);
+        lv00_free((void **)&obj);
+        return NULL;
+    }
+    obj->assumption_capacity = 32;
     
     return obj;
 }
@@ -145,6 +174,13 @@ int lv00_proof_object_add_step(Lv00ProofObject *obj, Lv00ProofStepRecord *step) 
  */
 bool lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id) {
     if (!obj) return false;
+    if (obj->axiom_count >= obj->axiom_capacity) {
+        int new_capacity = obj->axiom_capacity * 2;
+        int *new_ids = (int *)lv00_realloc(obj->axiom_ids, new_capacity * sizeof(int));
+        if (!new_ids) return false;
+        obj->axiom_ids = new_ids;
+        obj->axiom_capacity = new_capacity;
+    }
     obj->axiom_ids[obj->axiom_count++] = axiom_id;
     return true;
 }
@@ -154,6 +190,13 @@ bool lv00_proof_object_add_axiom(Lv00ProofObject *obj, int axiom_id) {
  */
 bool lv00_proof_object_add_assumption(Lv00ProofObject *obj, int assumption_id) {
     if (!obj) return false;
+    if (obj->assumption_count >= obj->assumption_capacity) {
+        int new_capacity = obj->assumption_capacity * 2;
+        int *new_ids = (int *)lv00_realloc(obj->assumption_ids, new_capacity * sizeof(int));
+        if (!new_ids) return false;
+        obj->assumption_ids = new_ids;
+        obj->assumption_capacity = new_capacity;
+    }
     obj->assumption_ids[obj->assumption_count++] = assumption_id;
     return true;
 }
@@ -217,8 +260,12 @@ Lv00ProofStepRecord *lv00_proof_step_record_create(void) {
     
     memset(record, 0, sizeof(Lv00ProofStepRecord));
     record->premise_step_ids = (int *)lv00_malloc(8 * sizeof(int));
+    if (!record->premise_step_ids) {
+        lv00_free((void **) &record);
+        return NULL;
+    }
     record->premise_capacity = 8;
-    
+
     return record;
 }
 
@@ -479,11 +526,13 @@ Lv00ProofCompiler *lv00_proof_compiler_create(const Lv00CompilerConfig *config) 
     }
     
     compiler->output_buffer = (char *)lv00_malloc(4096);
+    if (!compiler->output_buffer) {
+        lv00_free((void **)&compiler);
+        return NULL;
+    }
     compiler->buffer_size = 4096;
     compiler->buffer_used = 0;
-    if (compiler->output_buffer) {
-        compiler->output_buffer[0] = '\0';
-    }
+    compiler->output_buffer[0] = '\0';
     
     return compiler;
 }
@@ -529,51 +578,61 @@ static const char *get_event_type_name(Lv00TraceEventType type) {
  */
 char *lv00_proof_compiler_to_json(const Lv00ProofObject *proof,
                                    const Lv00ProofTrace *trace) {
+    LV00_UNUSED(trace);
     if (!proof) return NULL;
-    
-    /* 简化实现：使用固定大小缓冲区 */
-    size_t buffer_size = 16384;
+
+    /* 动态缓冲区：初始 4096，溢出时翻倍 */
+    size_t buffer_size = 4096;
+    size_t offset = 0;
     char *buffer = (char *)lv00_malloc(buffer_size);
     if (!buffer) return NULL;
-    
-    size_t offset = 0;
-    offset += snprintf(buffer + offset, buffer_size - offset, "{\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"proof_id\": %d,\n", proof->proof_id);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"theorem_name\": \"%s\",\n",
+
+    /* 辅助宏：确保容量并写入 */
+    #define JSON_ENSURE(needed) do { \
+        while (offset + (needed) >= buffer_size) { \
+            buffer_size *= 2; \
+            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
+            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            buffer = _nb; \
+        } \
+    } while(0)
+
+    #define JSON_WRITE(fmt, ...) do { \
+        JSON_ENSURE(256); \
+        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
+    } while(0)
+
+    JSON_WRITE("{\n");
+    JSON_WRITE("  \"proof_id\": %d,\n", proof->proof_id);
+    JSON_WRITE("  \"theorem_name\": \"%s\",\n",
         proof->theorem_name ? proof->theorem_name : "unknown");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"final_color\": %d,\n", proof->final_color);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"step_count\": %d,\n", proof->step_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"max_depth\": %d,\n", proof->max_depth);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"axiom_count\": %d,\n", proof->axiom_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"assumption_count\": %d,\n", proof->assumption_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  \"elapsed_us\": %lld,\n", (long long)proof->elapsed_us);
-    
+    JSON_WRITE("  \"is_proved\": %s,\n", proof->is_proved ? "true" : "false");
+    JSON_WRITE("  \"final_color\": %d,\n", proof->final_color);
+    JSON_WRITE("  \"step_count\": %d,\n", proof->step_count);
+    JSON_WRITE("  \"max_depth\": %d,\n", proof->max_depth);
+    JSON_WRITE("  \"axiom_count\": %d,\n", proof->axiom_count);
+    JSON_WRITE("  \"assumption_count\": %d,\n", proof->assumption_count);
+    JSON_WRITE("  \"elapsed_us\": %lld,\n", (long long)proof->elapsed_us);
+
     /* 步骤数组 */
-    offset += snprintf(buffer + offset, buffer_size - offset, "  \"steps\": [\n");
+    JSON_WRITE("  \"steps\": [\n");
     for (int i = 0; i < proof->step_count; i++) {
         Lv00ProofStepRecord *step = proof->steps[i];
-        offset += snprintf(buffer + offset, buffer_size - offset,
-            "    {\"id\": %d, \"type\": %d, \"depth\": %d}",
+        JSON_ENSURE(256);
+        JSON_WRITE("    {\"id\": %d, \"type\": %d, \"depth\": %d}",
             step->step_id, step->type, step->depth);
         if (i < proof->step_count - 1) {
-            offset += snprintf(buffer + offset, buffer_size - offset, ",");
+            JSON_WRITE(",");
         }
-        offset += snprintf(buffer + offset, buffer_size - offset, "\n");
+        JSON_WRITE("\n");
     }
-    offset += snprintf(buffer + offset, buffer_size - offset, "  ]\n");
-    
-    offset += snprintf(buffer + offset, buffer_size - offset, "}\n");
-    
+    JSON_WRITE("  ]\n");
+
+    JSON_WRITE("}\n");
+
+    #undef JSON_ENSURE
+    #undef JSON_WRITE
+
     return buffer;
 }
 
@@ -589,15 +648,28 @@ char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
     if (!buffer) return NULL;
     
     size_t offset = 0;
-    
+
+    /* 辅助宏：确保容量并写入 */
+    #define LATEX_ENSURE(needed) do { \
+        while (offset + (needed) >= buffer_size) { \
+            buffer_size *= 2; \
+            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
+            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            buffer = _nb; \
+        } \
+    } while(0)
+
+    #define LATEX_WRITE(fmt, ...) do { \
+        LATEX_ENSURE(256); \
+        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
+    } while(0)
+
     const char *lang = language ? language : "zh";
     const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
     const char *qed = strcmp(lang, "en") == 0 ? "\\qed" : "证毕";
-    
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\begin{Proof}\\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "%s.\\n\\n", proof_begin);
+
+    LATEX_WRITE("\\begin{Proof}\n");
+    LATEX_WRITE("%s.\n\n", proof_begin);
     
     /* 生成步骤 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -605,24 +677,24 @@ char *lv00_proof_compiler_to_latex(const Lv00ProofObject *proof,
         
         /* 缩进 */
         for (int d = 0; d < step->depth; d++) {
-            offset += snprintf(buffer + offset, buffer_size - offset, "  ");
+            LATEX_WRITE("  ");
         }
         
         const char *rule_name = step->rule_name ? step->rule_name : "规则";
-        offset += snprintf(buffer + offset, buffer_size - offset,
-            "由 %s 可得", rule_name);
+        LATEX_WRITE("由 %s 可得", rule_name);
         
         if (step->conclusion && step->conclusion->label) {
-            offset += snprintf(buffer + offset, buffer_size - offset,
-                " $%s$.\n", step->conclusion->label);
+            LATEX_WRITE(" $%s$.\n", step->conclusion->label);
         } else {
-            offset += snprintf(buffer + offset, buffer_size - offset, "。\n");
+            LATEX_WRITE("。\n");
         }
     }
     
-    offset += snprintf(buffer + offset, buffer_size - offset, "\n%s\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\end{Proof}\\n");
+    LATEX_WRITE("\n%s\n", qed);
+    LATEX_WRITE("\\end{Proof}\n");
+
+    #undef LATEX_ENSURE
+    #undef LATEX_WRITE
     
     return buffer;
 }
@@ -638,19 +710,30 @@ char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
     if (!buffer) return NULL;
     
     size_t offset = 0;
-    
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\begin{tikzpicture}[node distance=2cm]\\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\tikzstyle{step}=[circle,draw,minimum size=1cm]\\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\tikzstyle{arrow}=[->,>=stealth]\\n");
+
+    /* 辅助宏：确保容量并写入 */
+    #define TIKZ_ENSURE(needed) do { \
+        while (offset + (needed) >= buffer_size) { \
+            buffer_size *= 2; \
+            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
+            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            buffer = _nb; \
+        } \
+    } while(0)
+
+    #define TIKZ_WRITE(fmt, ...) do { \
+        TIKZ_ENSURE(256); \
+        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
+    } while(0)
+
+    TIKZ_WRITE("\\begin{tikzpicture}[node distance=2cm]\n");
+    TIKZ_WRITE("\\tikzstyle{step}=[circle,draw,minimum size=1cm]\n");
+    TIKZ_WRITE("\\tikzstyle{arrow}=[->,>=stealth]\n");
     
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
         Lv00ProofStepRecord *step = proof->steps[i];
-        offset += snprintf(buffer + offset, buffer_size - offset,
-            "\\node[step] (S%d) at (%d, %d) {$S_%d$};\n",
+        TIKZ_WRITE("\\node[step] (S%d) at (%d, %d) {$S_%d$};\n",
             step->step_id, step->step_id % 3, -step->depth, step->step_id);
     }
     
@@ -659,14 +742,15 @@ char *lv00_proof_compiler_to_tikz(const Lv00ProofObject *proof) {
         Lv00ProofStepRecord *step = proof->steps[i];
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
-            offset += snprintf(buffer + offset, buffer_size - offset,
-                "\\draw[arrow] (S%d) -- (S%d);\n",
+            TIKZ_WRITE("\\draw[arrow] (S%d) -- (S%d);\n",
                 premise_id, step->step_id);
         }
     }
     
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "\\end{tikzpicture}\\n");
+    TIKZ_WRITE("\\end{tikzpicture}\n");
+
+    #undef TIKZ_ENSURE
+    #undef TIKZ_WRITE
     
     return buffer;
 }
@@ -683,16 +767,29 @@ char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
     if (!buffer) return NULL;
     
     size_t offset = 0;
-    
+
+    /* 辅助宏：确保容量并写入 */
+    #define TEXT_ENSURE(needed) do { \
+        while (offset + (needed) >= buffer_size) { \
+            buffer_size *= 2; \
+            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
+            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            buffer = _nb; \
+        } \
+    } while(0)
+
+    #define TEXT_WRITE(fmt, ...) do { \
+        TEXT_ENSURE(256); \
+        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
+    } while(0)
+
     const char *lang = language ? language : "zh";
     const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
     
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "=== %s ===\n\n", proof_begin);
+    TEXT_WRITE("=== %s ===\n\n", proof_begin);
     
     if (proof->theorem_name) {
-        offset += snprintf(buffer + offset, buffer_size - offset,
-            "定理: %s\n\n", proof->theorem_name);
+        TEXT_WRITE("定理: %s\n\n", proof->theorem_name);
     }
     
     /* 生成步骤 */
@@ -701,47 +798,43 @@ char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
         
         /* 缩进 */
         for (int d = 0; d < step->depth; d++) {
-            offset += snprintf(buffer + offset, buffer_size - offset, "  ");
+            TEXT_WRITE("  ");
         }
         
         /* 步骤编号 */
-        offset += snprintf(buffer + offset, buffer_size - offset, "[%d] ", step->step_id);
+        TEXT_WRITE("[%d] ", step->step_id);
         
         /* 规则名称 */
         const char *rule_name = step->rule_name ? step->rule_name : "规则";
-        offset += snprintf(buffer + offset, buffer_size - offset,
-            "由 %s", rule_name);
+        TEXT_WRITE("由 %s", rule_name);
         
         /* 前提 */
         if (step->premise_count > 0) {
-            offset += snprintf(buffer + offset, buffer_size - offset, " (前提: ");
+            TEXT_WRITE(" (前提: ");
             for (int j = 0; j < step->premise_count; j++) {
-                if (j > 0) offset += snprintf(buffer + offset, buffer_size - offset, ", ");
-                offset += snprintf(buffer + offset, buffer_size - offset, "%d",
-                    step->premise_step_ids[j]);
+                if (j > 0) TEXT_WRITE(", ");
+                TEXT_WRITE("%d", step->premise_step_ids[j]);
             }
-            offset += snprintf(buffer + offset, buffer_size - offset, ")");
+            TEXT_WRITE(")");
         }
         
         /* 结论 */
         if (step->conclusion && step->conclusion->label) {
-            offset += snprintf(buffer + offset, buffer_size - offset,
-                " 可得 %s", step->conclusion->label);
+            TEXT_WRITE(" 可得 %s", step->conclusion->label);
         }
         
-        offset += snprintf(buffer + offset, buffer_size - offset, "\n");
+        TEXT_WRITE("\n");
     }
     
     /* 统计 */
-    offset += snprintf(buffer + offset, buffer_size - offset, "\n--- 统计 ---\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "总步骤: %d\n", proof->step_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "最大深度: %d\n", proof->max_depth);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "使用公理: %d\n", proof->axiom_count);
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "假设数量: %d\n", proof->assumption_count);
+    TEXT_WRITE("\n--- 统计 ---\n");
+    TEXT_WRITE("总步骤: %d\n", proof->step_count);
+    TEXT_WRITE("最大深度: %d\n", proof->max_depth);
+    TEXT_WRITE("使用公理: %d\n", proof->axiom_count);
+    TEXT_WRITE("假设数量: %d\n", proof->assumption_count);
+
+    #undef TEXT_ENSURE
+    #undef TEXT_WRITE
     
     return buffer;
 }
@@ -751,6 +844,7 @@ char *lv00_proof_compiler_to_text(const Lv00ProofObject *proof,
  */
 char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
                                        const Lv00ProofTrace *trace) {
+    LV00_UNUSED(trace);
     if (!proof) return NULL;
     
     size_t buffer_size = 16384;
@@ -758,13 +852,25 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
     if (!buffer) return NULL;
     
     size_t offset = 0;
-    
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "digraph ProofTree {\\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  rankdir=TB;\\n");
-    offset += snprintf(buffer + offset, buffer_size - offset,
-        "  node [shape=box];\\n");
+
+    /* 辅助宏：确保容量并写入 */
+    #define GRAPHVIZ_ENSURE(needed) do { \
+        while (offset + (needed) >= buffer_size) { \
+            buffer_size *= 2; \
+            char *_nb = (char *)lv00_realloc(buffer, buffer_size); \
+            if (!_nb) { lv00_free((void **)&buffer); return NULL; } \
+            buffer = _nb; \
+        } \
+    } while(0)
+
+    #define GRAPHVIZ_WRITE(fmt, ...) do { \
+        GRAPHVIZ_ENSURE(256); \
+        offset += snprintf(buffer + offset, buffer_size - offset, fmt, ##__VA_ARGS__); \
+    } while(0)
+
+    GRAPHVIZ_WRITE("digraph ProofTree {\n");
+    GRAPHVIZ_WRITE("  rankdir=TB;\n");
+    GRAPHVIZ_WRITE("  node [shape=box];\n");
     
     /* 生成节点 */
     for (int i = 0; i < proof->step_count; i++) {
@@ -774,8 +880,7 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
         const char *color = step->color == PROOF_COLOR_GREEN ? "lightgreen" :
             step->color == PROOF_COLOR_ORANGE_EX_FALSO ? "orange" : "lightblue";
         
-        offset += snprintf(buffer + offset, buffer_size - offset,
-            "  S%d [label=\"%s\", style=filled, fillcolor=%s];\\n",
+        GRAPHVIZ_WRITE("  S%d [label=\"%s\", style=filled, fillcolor=%s];\n",
             step->step_id, label, color);
     }
     
@@ -785,13 +890,15 @@ char *lv00_proof_compiler_to_graphviz(const Lv00ProofObject *proof,
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
             const char *rule_name = step->rule_name ? step->rule_name : "";
-            offset += snprintf(buffer + offset, buffer_size - offset,
-                "  S%d -> S%d [label=\"%s\"];\\n",
+            GRAPHVIZ_WRITE("  S%d -> S%d [label=\"%s\"];\n",
                 premise_id, step->step_id, rule_name);
         }
     }
     
-    offset += snprintf(buffer + offset, buffer_size - offset, "}\\n");
+    GRAPHVIZ_WRITE("}\n");
+
+    #undef GRAPHVIZ_ENSURE
+    #undef GRAPHVIZ_WRITE
     
     return buffer;
 }
@@ -832,7 +939,7 @@ Lv00CompilerConfig lv00_compiler_config_default(void) {
     config.include_metadata = true;
     config.include_trace = true;
     config.verbose = false;
-    config.max_depth = 1000;
+    config.max_depth = LV00_DEFAULT_MAX_DEPTH;
     config.language = "zh";
     return config;
 }

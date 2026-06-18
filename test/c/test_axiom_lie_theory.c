@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_lie_theory.c
  * @brief Lie Theory Axiom Package Test
  *

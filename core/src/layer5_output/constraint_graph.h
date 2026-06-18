@@ -28,8 +28,8 @@
  * @brief 约束图 —— 几何节点、约束与哈希索引的核心数据结构
  */
 
-#ifndef LV00_CONSTRAINT_GRAPH_H
-#define LV00_CONSTRAINT_GRAPH_H
+#ifndef LV00_CONSTRAINT_GRAPH_INTERNAL_H
+#define LV00_CONSTRAINT_GRAPH_INTERNAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,10 +59,10 @@ extern "C" {
  */
 
 /** @brief 原子递增节点ID并返回新值（线程安全） */
-#define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed)
+#define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) (atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed))
 
 /** @brief 原子递增约束ID并返回新值（线程安全） */
-#define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed)
+#define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) (atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed))
 
 /* LV00_DEPRECATED 宏统一由 lv00.h 定义，此处不再重复声明。 */
 
@@ -320,14 +320,6 @@ typedef struct Lv00ConstraintCompatibilityResult {
     const char *diagnostic;
 } Lv00ConstraintCompatibilityResult;
 
-/**
- * @brief 约束相容性四态诊断
- *
- * 对约束图进行轻量级结构诊断，区分普通相容、直接矛盾、欠约束和过约束/冗余。
- * 该接口不会修改图结构，适合作为约束写入后的即时校验入口。
- */
-bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result);
-
 typedef enum { ADD_CONSTRAINT_OK, ADD_CONSTRAINT_DUPLICATE, ADD_CONSTRAINT_CONFLICT } AddConstraintResult;
 
 typedef enum { REMOVE_NODE_OK, REMOVE_NODE_NOT_FOUND, REMOVE_NODE_ERROR } RemoveNodeResult;
@@ -349,7 +341,7 @@ Lv00ErrorCode lv00_remove_node_result_to_error(RemoveNodeResult result);
  * @param[in] coord_count 坐标数量
  * @return 操作结果状态码
  */
-AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, int coord_count);
+AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coords, int coord_count);
 
 /**
  * @brief 向约束图添加线段节点
@@ -596,7 +588,7 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
  * @return 新创建的约束指针，失败返回 NULL
  */
 Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id, ConstraintType type,
-                                         int *participants, int participant_count);
+                                         const int *participants, int participant_count);
 
 /**
  * @brief 创建空的约束图
@@ -914,4 +906,4 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id);
 }
 #endif
 
-#endif /* LV00_CONSTRAINT_GRAPH_H */
+#endif /* LV00_CONSTRAINT_GRAPH_INTERNAL_H */

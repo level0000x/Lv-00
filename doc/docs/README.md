@@ -44,7 +44,7 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 | [13_error_handling.md](13_error_handling.md) | 错误处理 | 错误码体系、错误传播、恢复策略 |
 | [14_memory_management.md](14_memory_management.md) | 内存管理 | 内存池、分配策略、泄漏检测 |
 
-### 五层架构详细文档
+### 十层架构详细文档
 
 | 文档 | 模块 | 功能描述 |
 |------|------|----------|
@@ -90,10 +90,10 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 
 ### 核心 API 速查
 
-**引擎初始化**:
+**上下文创建**:
 ```c
-LV00Engine *engine = engine_create();
-engine_load_axiom_package(engine, "euclidean.lvz");
+LV00Context *ctx = engine_create();
+engine_load_axiom_package(ctx, "euclidean.lvz");
 ```
 
 **创建几何体**:
@@ -153,7 +153,7 @@ Lv-00/
 │   └── lv00_internal.h         # 内部接口
 │   │
 │   │  ── 引擎与上下文 ────────────────────────────────
-│   ├── engine.h                # 主引擎
+│   ├── ctx.h                # 主引擎
 │   ├── engine_scheduler.h      # 引擎调度器
 │   ├── context.h               # 上下文管理
 │   ├── circuit_breaker.h       # 熔断器
@@ -352,7 +352,7 @@ make
 ## 版本历史
 
 - **v3.4-academic** (当前版本)
-  - 五层单向依赖学术架构（解析层 -> 几何公理层 -> 约束拓扑层 -> 推理层 -> 输出层）
+  - 十层单向依赖学术架构（解析层 -> 几何公理层 -> 约束拓扑层 -> 推理层 -> 输出层）
   - 完整实现 122+ 核心头文件模块
   - 函数块系统：打包、例化、确定性检查、预设注册表
   - 类型系统：宇宙层级、类型等价检查

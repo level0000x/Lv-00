@@ -312,9 +312,6 @@ int main(void) {
         proof_navigator_destroy(nav);
     }
     if (proposition) {
-        if (proposition->pattern) {
-            graph_destroy(proposition->pattern);
-        }
         proposition_destroy(proposition);
     }
     graph_destroy(construction);

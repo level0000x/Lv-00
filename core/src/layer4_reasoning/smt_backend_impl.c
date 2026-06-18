@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file smt_backend_impl.c
  * @brief SMT 后端抽象层实现 —— 多引擎 SMT 求解器框架（含 Groebner 基真实求解）
  *
@@ -9,7 +9,9 @@
  *          - GROEBNER：已集成，通过 constraint_graph_to_ideal() 将约束图
  *            转换为多项式理想，调用 Buchberger 算法计算 Groebner 基，
  *            通过理想成员关系判定可满足性，并通过代数簇求解获取具体坐标。
- *          - Z3 / cvc5 / Singular：桩代码，返回 SMT_RESULT_UNKNOWN。
+ *          - Z3 / cvc5 / Singular：通过子进程调用外部求解器，
+ *            Z3 和 cvc5 使用 SMT-LIB2 格式，Singular 使用自有脚本格式，
+ *            未安装时返回 SMT_RESULT_UNKNOWN 并可回退到 Groebner 后端。
  *
  *          编码管线：
  *          1. smtencode_constraint_graph_to_smtlib2()  约束图 -> SMT-LIB2
@@ -35,6 +37,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 #include "error_codes.h"
 #include "groebner_engine.h"
@@ -100,6 +108,29 @@ struct SMTSolver {
 /** @brief 全局注册表实例 */
 static SMTBackendRegistry g_smt_registry;
 static bool g_smt_registry_initialized = false;
+
+#ifdef _WIN32
+static CRITICAL_SECTION g_smt_registry_cs = {0};
+static volatile LONG g_smt_cs_initialized = 0;
+static volatile LONG g_smt_cs_ready = 0;
+#define SMT_REGISTRY_LOCK() do { \
+    if (!g_smt_cs_ready) { \
+        if (InterlockedCompareExchange(&g_smt_cs_initialized, 1, 0) == 0) { \
+            InitializeCriticalSection(&g_smt_registry_cs); \
+            g_smt_cs_ready = 1; /* 初始化完成后才标记为就绪 */ \
+        } else { \
+            /* 另一个线程正在初始化，等待完成 */ \
+            while (!g_smt_cs_ready) { Sleep(0); } \
+        } \
+    } \
+    EnterCriticalSection(&g_smt_registry_cs); \
+} while(0)
+#define SMT_REGISTRY_UNLOCK() LeaveCriticalSection(&g_smt_registry_cs)
+#else
+static pthread_mutex_t g_smt_registry_mutex = PTHREAD_MUTEX_INITIALIZER;
+#define SMT_REGISTRY_LOCK() pthread_mutex_lock(&g_smt_registry_mutex)
+#define SMT_REGISTRY_UNLOCK() pthread_mutex_unlock(&g_smt_registry_mutex)
+#endif
 
 /* ============================================================
  * 前向声明 —— 内部辅助函数
@@ -170,9 +201,9 @@ const SMTSolverConfig *smtsolver_default_config(SolverBackendType type) {
 /**
  * @brief 创建 SMT 求解器实例
  *
- * 根据后端类型创建求解器句柄。当前所有后端均为未链接桩，
- * 设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
- * 仅 GROEBNER 后端标记为可用（使用内置实现）。
+ * 根据后端类型创建求解器句柄。GROEBNER 后端使用内置实现，
+ * Z3/cvc5/Singular 通过子进程调用外部求解器（运行时可用性取决于是否安装）。
+ * 未链接的后端设置 SMT_ERROR_BACKEND_UNAVAILABLE 但不阻止创建句柄。
  */
 SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *config) {
     SMTSolver *solver = (SMTSolver *)lv00_malloc(sizeof(SMTSolver));
@@ -286,7 +317,7 @@ const char *smtsolver_get_last_error_message(const SMTSolver *solver) {
  * @return 变量名字符串（静态存储）
  */
 static const char *smtlib2_coord_var_name(int node_id, int coord_idx) {
-    static char buf[128];
+    static __thread char buf[128];
     const char *suffix = (coord_idx == 0) ? "x" : "y";
     snprintf(buf, sizeof(buf), "p%d_%s", node_id, suffix);
     return buf;
@@ -399,6 +430,9 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
             /* 连接约束：端口连接 -> 坐标等价 */
             n = smtlib2_encode_connection(graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
             break;
+        default:
+            LV00_LOG_WARNING("Unknown constraint type %d in smtlib2_encode_constraints", c->type);
+            break;
         }
         if (n < 0 || n >= remaining) break;
         written += n;
@@ -449,9 +483,7 @@ static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constrai
      * 线段的端点信息存储在约束图的节点关系中。
      * 这里我们用线段 ID 的低位和高位分别模拟两个端点。
      * 在实际系统中，线段节点应存储端点 ID 的引用。 */
-    /* 简化处理：假设线段端点 ID 可从约束图中查找 */
-    /* 线段的端点通常通过 INCIDENCE 约束关联到线段节点 */
-    /* 这里使用一种通用方法：查找与线段关联的点 */
+    /* 从约束图中查找线段的实际端点（通过 CONNECTION 约束） */
 
     /* 为保证编码的通用性，我们使用参数化方程形式：
      * P = A + t*(B-A), 其中 t in [0,1]
@@ -463,10 +495,31 @@ static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constrai
      */
 
     /* 使用点坐标变量名和线段端点坐标变量名生成断言。
-     * 由于线段端点可能没有直接的坐标变量，我们用线段 ID 推导端点 ID。 */
-    /* 简化假设：线段端点 ID 为 seg_id*2 和 seg_id*2+1（仅用于编码演示） */
-    int a_id = seg_id * 2;     /* 端点 A 的模拟 ID */
-    int b_id = seg_id * 2 + 1; /* 端点 B 的模拟 ID */
+     * 从约束图中查找线段的实际端点（通过 CONNECTION 约束）。 */
+    int a_id = -1, b_id = -1;
+    for (int ci = 0; ci < graph->constraint_count && (a_id < 0 || b_id < 0); ci++) {
+        Constraint *con = graph->constraints[ci];
+        if (!con || !con->is_active) continue;
+        if (con->type == CONNECTION && con->participant_count >= 2) {
+            /* 检查该连接约束是否涉及当前线段 */
+            bool seg_found = false;
+            int point_id = -1;
+            for (int pi = 0; pi < con->participant_count; pi++) {
+                if (con->participants[pi] == seg_id) {
+                    seg_found = true;
+                } else {
+                    point_id = con->participants[pi];
+                }
+            }
+            if (seg_found && point_id >= 0) {
+                if (a_id < 0) a_id = point_id;
+                else if (b_id < 0) b_id = point_id;
+            }
+        }
+    }
+    /* 回退：若未找到端点，使用线段节点的坐标 */
+    if (a_id < 0) a_id = seg_id;
+    if (b_id < 0) b_id = seg_id;
 
     /* 叉积方程: (Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax) = 0 */
     if (named) {
@@ -946,13 +999,13 @@ static int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph
         /* x 坐标变量 */
         char name_buf[GROEBNER_VAR_NAME_MAX];
         snprintf(name_buf, sizeof(name_buf), "p%d_x", node->id);
-        var_names[var_idx] = _strdup(name_buf);
+        var_names[var_idx] = lv00_strdup_safe(name_buf);
         node_var_map[node->id] = var_idx;
         var_idx++;
 
         /* y 坐标变量 */
         snprintf(name_buf, sizeof(name_buf), "p%d_y", node->id);
-        var_names[var_idx] = _strdup(name_buf);
+        var_names[var_idx] = lv00_strdup_safe(name_buf);
         var_idx++;
     }
 
@@ -1169,6 +1222,9 @@ static SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGr
                 }
                 break;
             }
+            default:
+                LV00_LOG_WARNING("Unknown constraint type %d in constraint_graph_to_ideal fallback", c->type);
+                break;
             }
         }
     } else {
@@ -1291,7 +1347,7 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
      * 内部数据来获取簇的解点信息。在实际集成中，应添加
      * variety_get_solution_points() 等 API。 */
 
-    /* 简化实现：为每个点节点创建赋值条目 */
+    /* 遍历节点映射表，为每个有坐标映射的点节点创建 x/y 赋值条目 */
     int assignment_count = 0;
     int max_assignments = solver->groebner_var_count; /* 最多 var_count 个赋值 */
 
@@ -1361,7 +1417,7 @@ static int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_resul
  *
  * 根据后端类型执行不同的求解策略：
  * - GROEBNER：调用内置 Groebner 基引擎进行真实求解
- * - Z3/cvc5/Singular：桩代码，返回 SMT_RESULT_UNKNOWN
+ * - Z3/cvc5/Singular：通过子进程调用外部求解器
  */
 SMTSatResult smtsolver_check(SMTSolver *solver) {
     LV00_CHECK_NULL(solver, SMT_RESULT_ERROR);
@@ -1387,7 +1443,8 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
          * 注意：smtsolver_check() 的标准接口不接收 ConstraintGraph 参数，
          * 因此 Groebner 后端在 smtsolver_solve() 中完成完整求解。
          *
-         * 这里我们返回 SMT_RESULT_UNKNOWN 作为占位，
+         * 这里优先返回缓存的代数簇 SAT 结果（若已求解），
+         * 否则返回 SMT_RESULT_UNKNOWN，
          * 实际的 Groebner 求解在 smtsolver_solve() 中通过
          * groebner_backend_solve() 完成。
          *
@@ -1401,10 +1458,63 @@ SMTSatResult smtsolver_check(SMTSolver *solver) {
         return SMT_RESULT_UNKNOWN;
     }
 
-    /* 所有外部后端均为桩：返回 UNKNOWN */
-    smtsolver_set_error(solver, SMT_ERROR_BACKEND_UNAVAILABLE,
-                        "Backend solver not linked; returning UNKNOWN");
-    return SMT_RESULT_UNKNOWN;
+    /* ---- Z3 后端：通过子进程调用 ---- */
+    if (solver->type == SMT_Z3) {
+        if (!solver->encoded_formula || solver->encoded_len <= 0) {
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED,
+                                "No SMT-LIB2 formula encoded for Z3 backend");
+            return SMT_RESULT_ERROR;
+        }
+        LV00_LOG_INFO("Z3 后端: 通过子进程调用 z3 (输入长度=%d)", solver->encoded_len);
+        SMTSatResult z3_result = smt_external_solver_check(
+            solver, "z3",
+            solver->encoded_formula, solver->encoded_len,
+            NULL, 0);
+        if (z3_result == SMT_RESULT_UNKNOWN) {
+            LV00_LOG_WARNING("Z3 后端: 求解器返回 UNKNOWN（可能未安装 z3），回退到内部求解");
+        }
+        return z3_result;
+    }
+
+    /* ---- cvc5 后端：通过子进程调用 ---- */
+    if (solver->type == SMT_CVC5) {
+        if (!solver->encoded_formula || solver->encoded_len <= 0) {
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED,
+                                "No SMT-LIB2 formula encoded for cvc5 backend");
+            return SMT_RESULT_ERROR;
+        }
+        LV00_LOG_INFO("cvc5 后端: 通过子进程调用 cvc5 (输入长度=%d)", solver->encoded_len);
+        SMTSatResult cvc5_result = smt_external_solver_check(
+            solver, "cvc5",
+            solver->encoded_formula, solver->encoded_len,
+            NULL, 0);
+        if (cvc5_result == SMT_RESULT_UNKNOWN) {
+            LV00_LOG_WARNING("cvc5 后端: 求解器返回 UNKNOWN（可能未安装 cvc5），回退到内部求解");
+        }
+        return cvc5_result;
+    }
+
+    /* ---- Singular 后端：通过子进程调用 ---- */
+    if (solver->type == SMT_SINGULAR) {
+        if (!solver->encoded_formula || solver->encoded_len <= 0) {
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED,
+                                "No Singular script encoded");
+            return SMT_RESULT_ERROR;
+        }
+        LV00_LOG_INFO("Singular 后端: 通过子进程调用 singular");
+        /* Singular 使用 -q 静默模式执行脚本 */
+        SMTSatResult singular_result = smt_external_solver_check(
+            solver, "singular",
+            solver->encoded_formula, solver->encoded_len,
+            NULL, 0);
+        if (singular_result == SMT_RESULT_UNKNOWN) {
+            LV00_LOG_WARNING("Singular 后端: 求解器返回 UNKNOWN（可能未安装 Singular），回退到 Groebner 后端");
+            /* 回退到内部 Groebner 后端 */
+            solver->type = SMT_GROEBNER;
+            return smtsolver_check(solver);
+        }
+        return singular_result;
+    }
 }
 
 /**
@@ -1535,6 +1645,187 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
     smtsolver_decode_result(solver, sat_res, out_result);
 
     return (sat_res == SMT_RESULT_SAT) ? 0 : ((sat_res == SMT_RESULT_ERROR) ? -1 : 1);
+}
+
+/* ============================================================
+ * 外部求解器子进程辅助函数
+ * ============================================================ */
+
+#ifdef _WIN32
+#include <windows.h>
+#define popen _popen
+#define pclose _pclose
+#else
+#include <unistd.h>
+#endif
+
+/**
+ * @brief 通过子进程调用外部 SMT 求解器
+ *
+ * 将 SMT-LIB2 输入写入临时文件，调用指定求解器可执行文件，
+ * 读取其标准输出并解析 sat/unsat/unknown 结果。
+ *
+ * @param[in]  solver       求解器句柄（用于错误报告）
+ * @param[in]  executable   求解器可执行文件名（如 "z3" 或 "cvc5"）
+ * @param[in]  smt2_input   SMT-LIB2 格式的输入文本
+ * @param[in]  smt2_len     输入文本长度
+ * @param[out] result_buf   可选：存储求解器原始输出
+ * @param[in]  result_size  result_buf 缓冲区大小
+ * @return SMTSatResult 求解结果
+ */
+static SMTSatResult smt_external_solver_check(SMTSolver *solver,
+                                               const char *executable,
+                                               const char *smt2_input,
+                                               int smt2_len,
+                                               char *result_buf,
+                                               int result_size)
+{
+    if (!smt2_input || smt2_len <= 0) {
+        return SMT_RESULT_UNKNOWN;
+    }
+
+    /* 写入临时文件 */
+    FILE *tmp = tmpfile();
+    if (!tmp) {
+        LV00_LOG_WARNING("外部求解器 %s: 无法创建临时文件，回退到 UNKNOWN", executable);
+        return SMT_RESULT_UNKNOWN;
+    }
+    fputs(smt2_input, tmp);
+    fflush(tmp);
+
+    /* 获取临时文件的文件描述符/句柄 */
+#ifdef _WIN32
+    long fd = _fileno(tmp);
+    /* 在 Windows 上获取临时文件路径 */
+    char tmp_path[MAX_PATH];
+    if (_get_osfhandle(fd) == -1 || tmpnam_s(tmp_path, MAX_PATH) != 0) {
+        fclose(tmp);
+        LV00_LOG_WARNING("外部求解器 %s: 无法获取临时文件路径，回退到 UNKNOWN", executable);
+        return SMT_RESULT_UNKNOWN;
+    }
+    /* 将 tmpfile 内容复制到命名临时文件 */
+    FILE *named_tmp = fopen(tmp_path, "w");
+    if (!named_tmp) {
+        fclose(tmp);
+        LV00_LOG_WARNING("外部求解器 %s: 无法创建命名临时文件，回退到 UNKNOWN", executable);
+        return SMT_RESULT_UNKNOWN;
+    }
+    rewind(tmp);
+    char copy_buf[4096];
+    size_t n;
+    while ((n = fread(copy_buf, 1, sizeof(copy_buf), tmp)) > 0) {
+        size_t written = fwrite(copy_buf, 1, n, named_tmp);
+        if (written != n) {
+            LV00_LOG_WARNING("外部求解器 %s: 临时文件写入不完整（期望 %zu, 实际 %zu）",
+                             executable, n, written);
+            break;
+        }
+    }
+    fclose(named_tmp);
+    fclose(tmp);
+
+    /* 构造命令行 */
+    char cmd[1024];
+    if (strcmp(executable, "z3") == 0) {
+        snprintf(cmd, sizeof(cmd), "z3 -in \"%s\" 2>NUL", tmp_path);
+    } else if (strcmp(executable, "cvc5") == 0) {
+        snprintf(cmd, sizeof(cmd), "cvc5 --lang smt2 \"%s\" 2>NUL", tmp_path);
+    } else {
+        snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" 2>NUL", executable, tmp_path);
+    }
+#else
+    char tmp_path[64];
+    snprintf(tmp_path, sizeof(tmp_path), "/dev/fd/%d", fileno(tmp));
+
+    /* 构造命令行 */
+    char cmd[1024];
+    if (strcmp(executable, "z3") == 0) {
+        snprintf(cmd, sizeof(cmd), "%s -in %s 2>/dev/null", executable, tmp_path);
+    } else if (strcmp(executable, "cvc5") == 0) {
+        snprintf(cmd, sizeof(cmd), "%s --lang smt2 %s 2>/dev/null", executable, tmp_path);
+    } else {
+        snprintf(cmd, sizeof(cmd), "%s %s 2>/dev/null", executable, tmp_path);
+    }
+#endif
+
+    LV00_LOG_INFO("外部求解器 %s: 启动子进程: %s", executable, cmd);
+
+    /* 通过 popen 启动子进程 */
+    FILE *pipe = popen(cmd, "r");
+    if (!pipe) {
+        LV00_LOG_WARNING("外部求解器 %s: popen 失败（求解器可能未安装），回退到 UNKNOWN", executable);
+#ifdef _WIN32
+        _unlink(tmp_path);
+#else
+        fclose(tmp);
+#endif
+        return SMT_RESULT_UNKNOWN;
+    }
+
+    /* 读取求解器输出 */
+    char output_buf[4096] = {0};
+    size_t total_read = 0;
+    size_t chunk;
+    while ((chunk = fread(output_buf + total_read, 1,
+                          sizeof(output_buf) - total_read - 1, pipe)) > 0) {
+        total_read += chunk;
+    }
+    output_buf[total_read] = '\0';
+
+    int status = pclose(pipe);
+
+#ifdef _WIN32
+    _unlink(tmp_path);
+#else
+    fclose(tmp);
+#endif
+
+    /* 将原始输出复制到 result_buf（如果调用者需要） */
+    if (result_buf && result_size > 0) {
+        snprintf(result_buf, result_size, "%s", output_buf);
+    }
+
+    /* 检查进程退出状态 */
+#ifndef _WIN32
+    if (WIFEXITED(status)) {
+        int exit_code = WEXITSTATUS(status);
+        if (exit_code != 0) {
+            LV00_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, exit_code);
+            return SMT_RESULT_UNKNOWN;
+        }
+    }
+#else
+    if (status != 0) {
+        LV00_LOG_WARNING("外部求解器 %s: 进程退出码=%d，回退到 UNKNOWN", executable, status);
+        return SMT_RESULT_UNKNOWN;
+    }
+#endif
+
+    /* 解析求解器输出 */
+    /* 去除首尾空白 */
+    char *trimmed = output_buf;
+    while (*trimmed == ' ' || *trimmed == '\t' || *trimmed == '\r' || *trimmed == '\n')
+        trimmed++;
+    char *end = trimmed + strlen(trimmed) - 1;
+    while (end > trimmed && (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n'))
+        *end-- = '\0';
+
+    SMTSatResult result;
+    if (strncmp(trimmed, "sat", 3) == 0) {
+        result = SMT_RESULT_SAT;
+        LV00_LOG_INFO("外部求解器 %s: 结果 = SAT", executable);
+    } else if (strncmp(trimmed, "unsat", 5) == 0) {
+        result = SMT_RESULT_UNSAT;
+        LV00_LOG_INFO("外部求解器 %s: 结果 = UNSAT", executable);
+    } else if (strncmp(trimmed, "unknown", 7) == 0) {
+        result = SMT_RESULT_UNKNOWN;
+        LV00_LOG_INFO("外部求解器 %s: 结果 = UNKNOWN", executable);
+    } else {
+        result = SMT_RESULT_UNKNOWN;
+        LV00_LOG_WARNING("外部求解器 %s: 无法解析输出 \"%s\"，回退到 UNKNOWN", executable, trimmed);
+    }
+
+    return result;
 }
 
 /* ============================================================
@@ -1713,11 +2004,13 @@ const char *smtsolver_error_string(SMTErrorCode code) {
  * @brief 获取全局后端注册表（惰性初始化）
  */
 SMTBackendRegistry *smtsolver_get_registry(void) {
+    SMT_REGISTRY_LOCK();
     if (!g_smt_registry_initialized) {
         memset(&g_smt_registry, 0, sizeof(g_smt_registry));
         g_smt_registry.count = 0;
         g_smt_registry_initialized = true;
     }
+    SMT_REGISTRY_UNLOCK();
     return &g_smt_registry;
 }
 

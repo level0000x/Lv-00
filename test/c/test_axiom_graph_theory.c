@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_graph_theory.c
  * @brief Graph Theory Axiom Package Test
  *

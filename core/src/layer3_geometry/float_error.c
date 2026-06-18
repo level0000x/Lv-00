@@ -1,6 +1,6 @@
-﻿﻿/**
+/**
  * @file float_error.c
- * @brief FPTaylor 风格浮点误差验证实现 —— 区间算术 + 泰勒展开桩
+ * @brief FPTaylor 风格浮点误差验证实现 —— 区间算术 + 泰勒展开验证
  * @details 实现 IEEE 1788 区间算术的基本操作（加减乘除）以及
  *          常超越函数的区间版本。提供一组泰勒展开的有界差分近似。
  *          将约束图变量转换为可评估表达式，并通过误差与容差比较
@@ -64,12 +64,12 @@
 
 /** 返回 a 和 b 的最小值 */
 static double double_min(double a, double b) {
-    return (a < b) ? a : b;
+    return fmin(a, b);
 }
 
 /** 返回 a 和 b 的最大值 */
 static double double_max(double a, double b) {
-    return (a > b) ? a : b;
+    return fmax(a, b);
 }
 
 /**
@@ -793,11 +793,11 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
     tf->deriv_count = var_count;
     tf->order = 1;
 
-    tf->first_derivs = (double *) lv00_malloc(var_count * sizeof(double));
-    tf->deriv_var_ids = (int *) lv00_malloc(var_count * sizeof(int));
+    tf->first_derivs = (double *) lv00_malloc((size_t)var_count * sizeof(double));
+    tf->deriv_var_ids = (int *) lv00_malloc((size_t)var_count * sizeof(int));
     if (!tf->first_derivs || !tf->deriv_var_ids) {
-        free(tf->first_derivs);
-        free(tf->deriv_var_ids);
+        lv00_free((void **)&tf->first_derivs);
+        lv00_free((void **)&tf->deriv_var_ids);
         return false;
     }
 
@@ -869,7 +869,7 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
     /* 分配表达式数组 */
     int alloc_count = (graph->constraint_count < MAX_EQUATIONS) ? graph->constraint_count : MAX_EQUATIONS;
-    char **eqs = (char **) lv00_malloc(alloc_count * sizeof(char *));
+    char **eqs = (char **) lv00_malloc((size_t)alloc_count * sizeof(char *));
     if (!eqs)
         return false;
 
@@ -914,10 +914,13 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
 
         char buf[EXPR_BUFFER_INITIAL];
         int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[", c->id, type_str);
+        if (off < 0) off = 0;
         for (int pi = 0; pi < c->participant_count && off < (int) sizeof(buf) - 20; pi++) {
             off += snprintf(buf + off, sizeof(buf) - off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
+            if (off < 0) break;
         }
-        snprintf(buf + off, sizeof(buf) - off, "]");
+        if (off >= 0)
+            snprintf(buf + off, sizeof(buf) - off, "]");
 
         eqs[*eq_count] = lv00_strdup(buf);
         (*eq_count)++;
@@ -998,8 +1001,8 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
                     max_rel_err = rel;
             }
 
-            free(tf.first_derivs);
-            free(tf.deriv_var_ids);
+            lv00_free((void **)&tf.first_derivs);
+            lv00_free((void **)&tf.deriv_var_ids);
         }
     }
 
@@ -1022,9 +1025,9 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
     out->proof_text = lv00_strdup(proof_buf);
 
     for (int ei = 0; ei < eq_count; ei++) {
-        free(equations[ei]);
+        lv00_free((void **)&equations[ei]);
     }
-    free(equations);
+    lv00_free((void **)&equations);
 
     return true;
 }
@@ -1077,8 +1080,8 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, i
              out->relative_error);
     out->proof_text = lv00_strdup(proof_buf);
 
-    free(tf.first_derivs);
-    free(tf.deriv_var_ids);
+    lv00_free((void **)&tf.first_derivs);
+    lv00_free((void **)&tf.deriv_var_ids);
 
     return true;
 }
@@ -1163,7 +1166,7 @@ void error_bound_free(ErrorBound *bound) {
     if (!bound)
         return;
     if (bound->proof_text) {
-        free(bound->proof_text);
+        lv00_free((void **)&bound->proof_text);
         bound->proof_text = NULL;
     }
 }

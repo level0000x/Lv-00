@@ -175,7 +175,7 @@ typedef struct Lv00ConstraintMaintainer {
 #### 生命周期
 
 ```c
-Lv00InteractiveGeo *interactive_geo_init(LV00Engine *engine_handle);
+Lv00InteractiveGeo *interactive_geo_init(LV00Context *ctx_handle);
 void interactive_geo_destroy(Lv00InteractiveGeo *geo);
 ```
 
@@ -494,7 +494,7 @@ int geo_simplicial_connected_components(const Lv00SimplicialComplex *sc);
 
 ## 26.7 版本历史
 
-- **v3.5.0** (当前)
+- **v5.0.0** (当前)
   - 交互几何系统（借鉴 Cinderella + Dr. Geo）
   - 随机化定理验证
   - 连续性跟踪与约束维护

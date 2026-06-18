@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_sym_expr.c
  * @brief Test suite for the symbolic expression module
  *

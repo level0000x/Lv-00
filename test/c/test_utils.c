@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_utils.c
  * @brief 工具函数库测试
  *

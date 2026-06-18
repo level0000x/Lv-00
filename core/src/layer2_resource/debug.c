@@ -1502,7 +1502,7 @@ int debug_log_init(void) {
      *   进入初始化路径后，先初始化 CRITICAL_SECTION，再获取锁保护全局路径写入。
      * - POSIX: 直接使用 pthread_mutex_lock 保护整个初始化过程。 */
 #ifdef _WIN32
-    static volatile LONG s_init_guard = 0;
+    static volatile long s_init_guard = 0;
     if (InterlockedCompareExchange(&s_init_guard, 1, 0) != 0) {
         /* 另一个线程正在初始化或已完成初始化，等待完成 */
         while (!g_initialized) {
@@ -1515,6 +1515,11 @@ int debug_log_init(void) {
     counter_ensure_mutex_init();
     /* 获取日志互斥锁，保护后续对 g_log_dir_path、g_log_file_path 等全局变量的写入 */
     EnterCriticalSection(&g_log_mutex);
+    if (g_initialized) {
+        LeaveCriticalSection(&g_log_mutex);
+        InterlockedExchange(&s_init_guard, 2);
+        return 0; /* 已初始化 */
+    }
 #else
     pthread_mutex_lock(&g_log_mutex);
     if (g_initialized) {
@@ -1723,7 +1728,7 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
         /* FATAL 不在此处加锁/解锁，因为 emergency_save 会在内部自行加锁 */
         EmergencySaveConfig cfg;
         memset(&cfg, 0, sizeof(cfg));
-        cfg.filepath = NULL;          /* 使用默认路径 */
+        cfg.filepath = "lv00_emergency_save.log";  /* 使用默认路径 */
         cfg.include_graph = true;     /* 包含约束图快照 */
         cfg.include_counters = true;  /* 包含性能计数器 */
         cfg.include_log_buffer = true;/* 包含日志缓冲区 */
@@ -2063,70 +2068,100 @@ void debug_reset_counters(void) {
 }
 
 void debug_counter_node_created(void) {
-    counter_lock();
-    g_counters.total_nodes_created++;
-    g_counters.current_nodes_alive++;
-    counter_unlock();
+#ifdef _WIN32
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.total_nodes_created);
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.current_nodes_alive);
+#else
+    __atomic_fetch_add(&g_counters.total_nodes_created, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&g_counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
+#endif
 }
 
 void debug_counter_node_destroyed(void) {
-    counter_lock();
-    if (g_counters.current_nodes_alive > 0) {
-        g_counters.current_nodes_alive--;
-    }
-    counter_unlock();
+#ifdef _WIN32
+    InterlockedDecrement64((volatile LONG64 *)&g_counters.current_nodes_alive);
+#else
+    __atomic_fetch_sub(&g_counters.current_nodes_alive, 1, __ATOMIC_RELAXED);
+#endif
 }
 
 void debug_counter_constraint_created(void) {
-    counter_lock();
-    g_counters.total_constraints_created++;
-    g_counters.current_constraints_alive++;
-    counter_unlock();
+#ifdef _WIN32
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.total_constraints_created);
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.current_constraints_alive);
+#else
+    __atomic_fetch_add(&g_counters.total_constraints_created, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&g_counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
+#endif
 }
 
 void debug_counter_constraint_destroyed(void) {
-    counter_lock();
-    if (g_counters.current_constraints_alive > 0) {
-        g_counters.current_constraints_alive--;
-    }
-    counter_unlock();
+#ifdef _WIN32
+    InterlockedDecrement64((volatile LONG64 *)&g_counters.current_constraints_alive);
+#else
+    __atomic_fetch_sub(&g_counters.current_constraints_alive, 1, __ATOMIC_RELAXED);
+#endif
 }
 
 void debug_counter_solver_called(uint64_t time_us) {
-    counter_lock();
-    g_counters.solver_call_count++;
-    g_counters.solver_total_time_us += time_us;
-    counter_unlock();
+#ifdef _WIN32
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.solver_call_count);
+    InterlockedExchangeAdd64((volatile LONG64 *)&g_counters.solver_total_time_us, (LONG64)time_us);
+#else
+    __atomic_fetch_add(&g_counters.solver_call_count, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&g_counters.solver_total_time_us, time_us, __ATOMIC_RELAXED);
+#endif
 }
 
 void debug_counter_rewrite_step(void) {
-    counter_lock();
-    g_counters.rewrite_total_steps++;
-    counter_unlock();
+#ifdef _WIN32
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.rewrite_total_steps);
+#else
+    __atomic_fetch_add(&g_counters.rewrite_total_steps, 1, __ATOMIC_RELAXED);
+#endif
 }
 
 void debug_counter_rule_applied(void) {
-    counter_lock();
-    g_counters.rewrite_rule_applications++;
-    counter_unlock();
+#ifdef _WIN32
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.rewrite_rule_applications);
+#else
+    __atomic_fetch_add(&g_counters.rewrite_rule_applications, 1, __ATOMIC_RELAXED);
+#endif
 }
 
 void debug_counter_unify_called(bool success) {
-    counter_lock();
-    g_counters.unify_check_count++;
+#ifdef _WIN32
+    InterlockedIncrement64((volatile LONG64 *)&g_counters.unify_check_count);
     if (success) {
-        g_counters.unify_success_count++;
+        InterlockedIncrement64((volatile LONG64 *)&g_counters.unify_success_count);
     }
-    counter_unlock();
+#else
+    __atomic_fetch_add(&g_counters.unify_check_count, 1, __ATOMIC_RELAXED);
+    if (success) {
+        __atomic_fetch_add(&g_counters.unify_success_count, 1, __ATOMIC_RELAXED);
+    }
+#endif
 }
 
 void debug_counter_memory_update(uint64_t current_bytes) {
-    counter_lock();
-    g_counters.memory_current = current_bytes;
-    if (current_bytes > g_counters.memory_usage_peak) {
-        g_counters.memory_usage_peak = current_bytes;
+#ifdef _WIN32
+    InterlockedExchange64((volatile LONG64 *)&g_counters.memory_current, (LONG64)current_bytes);
+    LONG64 old_peak;
+    do {
+        old_peak = g_counters.memory_usage_peak;
+        if (current_bytes <= (uint64_t)old_peak) break;
+    } while (InterlockedCompareExchange64((volatile LONG64 *)&g_counters.memory_usage_peak,
+                                          (LONG64)current_bytes, old_peak) != old_peak);
+#else
+    __atomic_store_n(&g_counters.memory_current, current_bytes, __ATOMIC_RELAXED);
+    uint64_t old_peak = __atomic_load_n(&g_counters.memory_usage_peak, __ATOMIC_RELAXED);
+    while (current_bytes > old_peak) {
+        if (__atomic_compare_exchange_n(&g_counters.memory_usage_peak, &old_peak, current_bytes,
+                                        0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+            break;
+        }
     }
-    counter_unlock();
+#endif
 }
 
 /*=== 工具函数 ===*/

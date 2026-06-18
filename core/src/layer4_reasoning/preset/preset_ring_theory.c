@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file preset_ring_theory.c
  * @brief 环论预设函数块 - 实现
  *

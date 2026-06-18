@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file streaming_demo.c
  * @brief Lv-00 流式输出端到端演示
  *
@@ -104,10 +104,34 @@ static void demo_triangle(void) {
     Rational *qa = rational_create(0, 1);
     Rational *qb = rational_create(1, 1);
     SymbolicCoord *cy = symbolic_coord_create_quadratic(qa, qb, 3);
+    if (!cx || !qa || !qb || !cy) {
+        fprintf(stderr, "  错误: 创建点C坐标失败\n");
+        if (cx) symbolic_coord_destroy(cx);
+        if (qa) rational_destroy(qa);
+        if (qb) rational_destroy(qb);
+        if (cy) symbolic_coord_destroy(cy);
+        if (sctx && cb_id >= 0) {
+            stream_unregister_callback_by_id(sctx, cb_id);
+        }
+        engine_destroy(engine);
+        fprintf(stderr, "========== 演示1 完成 ==========\n");
+        return;
+    }
     SymbolicCoord *c_coords[] = {cx, cy};
-    graph_add_point(g, c_coords, 2);
+    AddNodeResult res = graph_add_point(g, c_coords, 2);
     rational_destroy(qa);
     rational_destroy(qb);
+    if (res != ADD_NODE_OK) {
+        fprintf(stderr, "  错误: 添加点C失败\n");
+        symbolic_coord_destroy(cx);
+        symbolic_coord_destroy(cy);
+        if (sctx && cb_id >= 0) {
+            stream_unregister_callback_by_id(sctx, cb_id);
+        }
+        engine_destroy(engine);
+        fprintf(stderr, "========== 演示1 完成 ==========\n");
+        return;
+    }
     int c = g->next_node_id - 1;
 
     fprintf(stderr, "  顶点: A=%d, B=%d, C=%d\n", a, b, c);

@@ -23,6 +23,7 @@
 #ifndef LV00_GEOM_EVOL_H
 #define LV00_GEOM_EVOL_H
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -37,6 +38,9 @@ extern "C" {
 
 /** 几何参数向量的最大维度 */
 #define GEOEVOL_MAX_PARAM_DIM 256
+
+/** Adams 多步法最大阶数 */
+#define GEOEVOL_ADAMS_MAX_ORDER 5
 
 /** 最小允许步长（绝对值，防止下溢） */
 #define GEOEVOL_MIN_STEP 1e-15
@@ -197,6 +201,14 @@ struct Lv00GeomEvol {
     Lv00GeomEvolRootFunc root_func;     /**< 根检测函数（可选） */
     int root_ng;                        /**< 根函数数量 */
     void *user_data;                    /**< 用户自定义数据（透传给回调） */
+
+    /* ── 多步法历史缓冲区（Adams / BDF 共用） ── */
+    int ms_order;            /**< 当前多步法阶数（1~GEOEVOL_ADAMS_MAX_ORDER） */
+    int ms_hist_count;       /**< 已积累的历史步数（用于启动阶段判断） */
+    double ms_hist_y[GEOEVOL_ADAMS_MAX_ORDER][GEOEVOL_MAX_PARAM_DIM]; /**< 历史参数向量（循环缓冲区） */
+    double ms_hist_f[GEOEVOL_ADAMS_MAX_ORDER][GEOEVOL_MAX_PARAM_DIM]; /**< 历史 RHS 求值（循环缓冲区） */
+    double ms_hist_t[GEOEVOL_ADAMS_MAX_ORDER]; /**< 历史时间戳（循环缓冲区） */
+    int ms_hist_idx;         /**< 循环缓冲区写入索引（指向下一个可用槽位） */
 
     /* ── 统计 ── */
     Lv00GeomEvolStats stats; /**< 步统计信息 */

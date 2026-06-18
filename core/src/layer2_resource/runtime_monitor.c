@@ -100,8 +100,25 @@ static const char *level_colors[] = {
     ""
 };
 
+static Lv00Mutex g_log_init_mutex;
+static volatile int g_log_init_mutex_initialized = 0;
+
 bool lv00_log_init(const Lv00LogConfig *config) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_log_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_log_init_mutex);
+    }
+    EnterCriticalSection(&g_log_init_mutex);
+#else
+    static pthread_mutex_t g_log_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_log_init_mutex);
+#endif
     if (g_log_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_log_init_mutex);
+#else
+        pthread_mutex_unlock(&g_log_init_mutex);
+#endif
         return true;
     }
 
@@ -132,6 +149,11 @@ bool lv00_log_init(const Lv00LogConfig *config) {
     }
 
     g_log_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_log_init_mutex);
+#else
+    pthread_mutex_unlock(&g_log_init_mutex);
+#endif
     return true;
 }
 
@@ -151,7 +173,9 @@ void lv00_log_shutdown(void) {
 
 void lv00_log_set_level(Lv00LogLevel level) {
     if (level >= LOG_LEVEL_TRACE && level <= LOG_LEVEL_OFF) {
+        MUTEX_LOCK(g_log_system.mutex);
         g_log_system.config.min_level = level;
+        MUTEX_UNLOCK(g_log_system.mutex);
     }
 }
 
@@ -169,18 +193,25 @@ bool lv00_log_set_file(const char *path) {
 
     MUTEX_LOCK(g_log_system.mutex);
 
+    /* 先打开新文件，确保成功后再关闭旧文件，避免 fopen 失败导致日志丢失 */
+    FILE *new_file = fopen(path, "a");
+    if (!new_file) {
+        MUTEX_UNLOCK(g_log_system.mutex);
+        return false;
+    }
+
+    /* 新文件打开成功，关闭旧文件 */
     if (g_log_system.log_file) {
         fclose(g_log_system.log_file);
-        g_log_system.log_file = NULL;
     }
 
     strncpy(g_log_system.config.file_path, path, sizeof(g_log_system.config.file_path) - 1);
-    g_log_system.log_file = fopen(path, "a");
+    g_log_system.log_file = new_file;
     g_log_system.current_file_size = 0;
 
     MUTEX_UNLOCK(g_log_system.mutex);
 
-    return g_log_system.log_file != NULL;
+    return true;
 }
 
 void lv00_log_set_callback(Lv00LogCallback callback, void *user_data) {
@@ -222,6 +253,10 @@ static void rotate_log_file(void) {
     }
 
     g_log_system.log_file = fopen(g_log_system.config.file_path, "a");
+    if (!g_log_system.log_file) {
+        /* 日志文件打开失败，不清除 current_file_size，后续写入将被丢弃 */
+        return;
+    }
     g_log_system.current_file_size = 0;
 }
 
@@ -272,29 +307,34 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
 
     if (g_log_system.config.include_timestamp) {
         time_t now = time(NULL);
-        struct tm *tm_info = localtime(&now);
-        pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", tm_info);
-        pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
+        struct tm tm_info;
+        if (LV00_LOCALTIME(&now, &tm_info) == 0)
+            pos += strftime(output + pos, sizeof(output) - pos, "%Y-%m-%d %H:%M:%S", &tm_info);
+        if (pos < (int)sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, ".%03d ", (int)(record.timestamp_ms % 1000));
     }
 
     if (g_log_system.config.colored_output) {
-        pos += snprintf(output + pos, sizeof(output) - pos, "%s%-5s\033[0m ",
-                        level_colors[level], level_strings[level]);
+        if (pos < (int)sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, "%s%-5s\033[0m ",
+                            level_colors[level], level_strings[level]);
     } else {
-        pos += snprintf(output + pos, sizeof(output) - pos, "%-5s ", level_strings[level]);
+        if (pos < (int)sizeof(output))
+            pos += snprintf(output + pos, sizeof(output) - pos, "%-5s ", level_strings[level]);
     }
 
-    if (record.tag[0]) {
+    if (record.tag[0] && pos < (int)sizeof(output)) {
         pos += snprintf(output + pos, sizeof(output) - pos, "[%s] ", record.tag);
     }
 
-    if (g_log_system.config.include_thread_id) {
+    if (g_log_system.config.include_thread_id && pos < (int)sizeof(output)) {
         pos += snprintf(output + pos, sizeof(output) - pos, "(T%d) ", record.thread_id);
     }
 
-    pos += snprintf(output + pos, sizeof(output) - pos, "%s", record.message);
+    if (pos < (int)sizeof(output))
+        pos += snprintf(output + pos, sizeof(output) - pos, "%s", record.message);
 
-    if (g_log_system.config.include_location) {
+    if (g_log_system.config.include_location && pos < (int)sizeof(output)) {
         const char *basename = strrchr(record.file, '/');
         if (!basename) basename = strrchr(record.file, '\\');
         basename = basename ? basename + 1 : record.file;
@@ -302,7 +342,8 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
                         basename, record.line, record.function);
     }
 
-    pos += snprintf(output + pos, sizeof(output) - pos, "\n");
+    if (pos < (int)sizeof(output))
+        pos += snprintf(output + pos, sizeof(output) - pos, "\n");
 
     /* 输出到标准输出/错误 */
     if (g_log_system.config.targets & LOG_TARGET_STDOUT) {
@@ -315,7 +356,10 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
     /* 输出到文件 */
     if ((g_log_system.config.targets & LOG_TARGET_FILE) && g_log_system.log_file) {
         size_t len = strlen(output);
-        fwrite(output, 1, len, g_log_system.log_file);
+        size_t written = fwrite(output, 1, len, g_log_system.log_file);
+        if (written != len) {
+            LV00_LOG_WARNING("日志文件写入不完整（期望 %zu, 实际 %zu）", len, written);
+        }
         fflush(g_log_system.log_file);
         g_log_system.current_file_size += len;
 
@@ -336,14 +380,36 @@ static struct {
     bool initialized;
 } g_perf_system = {0};
 
+static Lv00Mutex g_perf_init_mutex;
+static volatile int g_perf_init_mutex_initialized = 0;
+
 bool lv00_perf_init(void) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_perf_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_perf_init_mutex);
+    }
+    EnterCriticalSection(&g_perf_init_mutex);
+#else
+    static pthread_mutex_t g_perf_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_perf_init_mutex);
+#endif
     if (g_perf_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_perf_init_mutex);
+#else
+        pthread_mutex_unlock(&g_perf_init_mutex);
+#endif
         return true;
     }
 
     memset(&g_perf_system, 0, sizeof(g_perf_system));
     MUTEX_INIT(g_perf_system.mutex);
     g_perf_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_perf_init_mutex);
+#else
+    pthread_mutex_unlock(&g_perf_init_mutex);
+#endif
     return true;
 }
 
@@ -523,6 +589,7 @@ void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
         return;
     }
 
+    MUTEX_LOCK(g_perf_system.mutex);
     stats->count++;
     stats->sum += value;
     stats->sum_sq += value * value;
@@ -542,6 +609,7 @@ void lv00_perf_stats_record(Lv00PerfStats *stats, double value) {
         stats->variance = (stats->sum_sq - stats->sum * stats->sum / stats->count) / (stats->count - 1);
         stats->std_dev = sqrt(stats->variance);
     }
+    MUTEX_UNLOCK(g_perf_system.mutex);
 }
 
 void lv00_perf_stats_reset(Lv00PerfStats *stats) {
@@ -565,8 +633,25 @@ static struct {
     bool initialized;
 } g_health_system = {0};
 
+static Lv00Mutex g_health_init_mutex;
+static volatile int g_health_init_mutex_initialized = 0;
+
 bool lv00_health_init(void) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_health_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_health_init_mutex);
+    }
+    EnterCriticalSection(&g_health_init_mutex);
+#else
+    static pthread_mutex_t g_health_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_health_init_mutex);
+#endif
     if (g_health_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_health_init_mutex);
+#else
+        pthread_mutex_unlock(&g_health_init_mutex);
+#endif
         return true;
     }
 
@@ -580,6 +665,11 @@ bool lv00_health_init(void) {
     g_health_system.cpu_critical_percent = 95;
 
     g_health_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_health_init_mutex);
+#else
+    pthread_mutex_unlock(&g_health_init_mutex);
+#endif
     return true;
 }
 
@@ -766,9 +856,19 @@ Lv00HealthReport *lv00_runtime_health_check(void) {
     /* 线程检查 */
     check = &report->checks[2];
     strncpy(check->name, "Thread Count", sizeof(check->name) - 1);
-    check->value = 1; /* 简化 */
+    /* 线程检查：通过环境变量 LV00_MONITOR_THREADS 配置，默认 1，范围 [1, 64] */
+    int monitor_threads = 1;
+    const char *env_threads = getenv("LV00_MONITOR_THREADS");
+    if (env_threads && env_threads[0] != '\0') {
+        long parsed = strtol(env_threads, NULL, 10);
+        if (parsed < 1) parsed = 1;
+        if (parsed > 64) parsed = 64;
+        monitor_threads = (int)parsed;
+    }
+    check->value = (double)monitor_threads;
     check->status = HEALTH_OK;
-    strncpy(check->message, "Thread count normal", sizeof(check->message) - 1);
+    snprintf(check->message, sizeof(check->message),
+             "Thread count: %d (configurable via LV00_MONITOR_THREADS)", monitor_threads);
 
     /* 计时器检查 */
     check = &report->checks[3];
@@ -814,8 +914,8 @@ Lv00Diagnostics *lv00_diagnostics_generate(void) {
         lv00_get_memory_stats(&mem_stats);
         diag->memory_total = mem_stats.current_used;
         diag->memory_peak = mem_stats.peak_used;
-        diag->alloc_count = (uint32_t)mem_stats.allocation_count;
-        diag->free_count = (uint32_t)mem_stats.free_count;
+        diag->alloc_count = (uint64_t)mem_stats.allocation_count;
+        diag->free_count = (uint64_t)mem_stats.free_count;
     }
 
     /* 性能统计 */
@@ -964,8 +1064,25 @@ static struct {
     bool initialized;
 } g_event_system = {0};
 
+static Lv00Mutex g_event_init_mutex;
+static volatile int g_event_init_mutex_initialized = 0;
+
 bool lv00_event_trace_init(uint32_t max_events) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_event_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_event_init_mutex);
+    }
+    EnterCriticalSection(&g_event_init_mutex);
+#else
+    static pthread_mutex_t g_event_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_event_init_mutex);
+#endif
     if (g_event_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_event_init_mutex);
+#else
+        pthread_mutex_unlock(&g_event_init_mutex);
+#endif
         return true;
     }
 
@@ -975,11 +1092,21 @@ bool lv00_event_trace_init(uint32_t max_events) {
     memset(&g_event_system, 0, sizeof(g_event_system));
     g_event_system.events = (Lv00EventRecord *)lv00_calloc(actual_max, sizeof(Lv00EventRecord));
     if (!g_event_system.events) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_event_init_mutex);
+#else
+        pthread_mutex_unlock(&g_event_init_mutex);
+#endif
         return false;
     }
     g_event_system.max_events = actual_max;
     MUTEX_INIT(g_event_system.mutex);
     g_event_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_event_init_mutex);
+#else
+    pthread_mutex_unlock(&g_event_init_mutex);
+#endif
     return true;
 }
 
@@ -1063,7 +1190,7 @@ uint32_t lv00_event_trace_get_all(Lv00EventRecord **out_events, uint32_t max_cou
     MUTEX_LOCK(g_event_system.mutex);
 
     uint32_t count = g_event_system.event_count < max_count ? g_event_system.event_count : max_count;
-    *out_events = (Lv00EventRecord *)lv00_malloc(count * sizeof(Lv00EventRecord));
+    *out_events = (Lv00EventRecord *)lv00_malloc((size_t)count * sizeof(Lv00EventRecord));
     if (*out_events) {
         memcpy(*out_events, g_event_system.events, count * sizeof(Lv00EventRecord));
     }

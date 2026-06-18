@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_ring_theory.c
  * @brief Ring Theory Axiom Package Test
  *

@@ -18,10 +18,13 @@ Lv-00 稀疏线性代数模块
 """
 
 import ctypes
+import logging
 from typing import Any, List, Optional, Tuple
 
 from ._ctypes_binding import _lib, _ConstraintGraph, c_int, c_double, c_char_p, c_void_p, c_bool, POINTER
 from .core import Lv00BaseError
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "SparseFormat", "SemiringType",
@@ -176,6 +179,8 @@ class SparseMatrix:
         参数:
             name: 矩阵名称标签（可为 None）
         """
+        if self._ptr is None:
+            raise SparseLAError("矩阵已释放，无法打印")
         c_name = name.encode('utf-8') if name else None
         _lib.sparse_matrix_print(self._ptr, c_name)
 
@@ -307,14 +312,69 @@ def graph_degree_analysis(graph) -> Tuple[int, int, float, int]:
     """
     if not hasattr(graph, '_ptr') or not graph._ptr:
         raise TypeError("graph 必须具有有效的 _ptr 属性")
+
+    # 尝试调用 C 库
     out_ptr = c_void_p()
-    success = _lib.graph_degree_analysis(graph._ptr, ctypes.byref(out_ptr))
+    try:
+        success = _lib.graph_degree_analysis(graph._ptr, ctypes.byref(out_ptr))
+    except (AttributeError, OSError):
+        success = False
+
     if success and out_ptr:
         try:
-            # DegreeAnalysis 结构体: node_count, max_degree, min_degree, avg_degree, isolated_count, ...
-            # 由于 ctypes 无法直接读取不透明结构体，返回基本信息
-            _lib.degree_analysis_free(out_ptr)
-        except Exception:
-            pass
-    # TODO: 占位实现 — 实际需要 DegreeAnalysis ctypes 结构体定义以正确解析返回数据
-    raise NotImplementedError("该功能尚未实现 / This feature is not yet implemented")
+            # DegreeAnalysis ctypes 结构体定义：
+            #   int node_count;      节点总数
+            #   int max_degree;      最大度数
+            #   int min_degree;      最小度数
+            #   double avg_degree;   平均度数
+            #   int isolated_count;  孤立节点数（度数为 0）
+            class _DegreeAnalysis(ctypes.Structure):
+                _fields_ = [
+                    ("node_count", ctypes.c_int),
+                    ("max_degree", ctypes.c_int),
+                    ("min_degree", ctypes.c_int),
+                    ("avg_degree", ctypes.c_double),
+                    ("isolated_count", ctypes.c_int),
+                ]
+            analysis = ctypes.cast(out_ptr, ctypes.POINTER(_DegreeAnalysis)).contents
+            return (analysis.node_count, analysis.max_degree,
+                    analysis.avg_degree, analysis.isolated_count)
+        except Exception as e:
+            logger.debug(f"度分析 ctypes 解析失败: {e}")
+        finally:
+            try:
+                _lib.degree_analysis_free(out_ptr)
+            except Exception:
+                pass
+
+    # 纯 Python 回退：通过约束图 API 计算度数统计
+    try:
+        node_count = _lib.graph_get_node_count(graph._ptr)
+        constraint_count = _lib.graph_get_constraint_count(graph._ptr)
+
+        if node_count <= 0:
+            return (0, 0, 0.0, 0)
+
+        # 统计每个节点的度数（参与约束的次数）
+        degrees = [0] * node_count
+
+        # 使用 graph_detect_conflicts 获取约束参与者信息不可行，
+        # 改用逐节点查询方式
+        for nid in range(node_count):
+            count_ptr = ctypes.c_int()
+            try:
+                _lib.graph_find_constraints_involving(
+                    graph._ptr, nid, ctypes.byref(count_ptr), 0)
+                degrees[nid] = count_ptr.value
+            except (AttributeError, OSError):
+                degrees[nid] = 0
+
+        max_degree = max(degrees) if degrees else 0
+        avg_degree = sum(degrees) / len(degrees) if degrees else 0.0
+        isolated_count = sum(1 for d in degrees if d == 0)
+
+        return (node_count, max_degree, avg_degree, isolated_count)
+    except Exception as e:
+        raise NotImplementedError(
+            f"无法计算图度数分析（C 库和 Python 回退均失败）: {e}"
+        ) from e

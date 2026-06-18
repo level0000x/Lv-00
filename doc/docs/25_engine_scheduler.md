@@ -5,16 +5,16 @@
 本文档描述 Lv-00 几何元语言系统的核心引擎和调度框架。引擎是系统的中央调度器，负责协调约束图、模块、公理包和重写规则之间的工作流程。调度器实现多求解引擎的动态路由，根据约束图特征自动选择最佳后端。
 
 **覆盖头文件**：
-- `engine.h` —— 主引擎核心
+- `ctx.h` —— 主引擎核心
 - `engine_scheduler.h` —— 多引擎调度框架
 
 ---
 
-## 25.2 engine.h —— 主引擎核心
+## 25.2 ctx.h —— 主引擎核心
 
 ### 25.2.1 设计定位
 
-`engine.h` 是 Lv-00 系统的**中央调度器**，负责：
+`ctx.h` 是 Lv-00 系统的**中央调度器**，负责：
 - 引擎生命周期管理（创建、销毁、状态机控制）
 - 模块与公理包的动态加载
 - 重写规则注册与管理
@@ -22,9 +22,9 @@
 - 位电路跳闸处理与冻结点回滚
 - 五状态机形式化管理
 - 流式输出集成
-- 五层架构层级验证
+- 十层架构层级验证
 
-### 25.2.2 五层架构层级标识
+### 25.2.2 十层架构层级标识
 
 ```c
 #define LV00_LAYER_PARSER    1  // 输入解析层
@@ -101,10 +101,10 @@ typedef enum {
 } EngineState;
 ```
 
-### 25.2.4 LV00Engine 结构体
+### 25.2.4 LV00Context 结构体
 
 ```c
-typedef struct LV00Engine {
+typedef struct LV00Context {
     // 核心数据容器
     ConstraintGraph *main_graph;    // 主约束图
     Module **loaded_modules;        // 已加载模块数组
@@ -135,28 +135,28 @@ typedef struct LV00Engine {
     EngineState state;
     EngineState previous_state;
     int state_transition_count;
-} LV00Engine;
+} LV00Context;
 ```
 
 ### 25.2.5 引擎生命周期 API
 
 ```c
 // 创建与销毁
-LV00Engine *engine_create(void);
-void engine_destroy(LV00Engine *engine);
+LV00Context *lv00_context_create();
+void lv00_context_destroy(LV00Context *ctx);
 
 // 资源加载
-bool engine_add_rewrite_rule(LV00Engine *engine, const RewriteRule *rule);
-ModuleLoadStatus engine_load_module(LV00Engine *engine, const char *filepath);
-AxiomLoadStatus engine_load_axiom_package(LV00Engine *engine, const char *filepath);
+bool engine_add_rewrite_rule(LV00Context *ctx, const RewriteRule *rule);
+ModuleLoadStatus engine_load_module(LV00Context *ctx, const char *filepath);
+AxiomLoadStatus engine_load_axiom_package(LV00Context *ctx, const char *filepath);
 
 // 函数块操作
-bool engine_pack_function(LV00Engine *engine, 
+bool engine_pack_function(LV00Context *ctx, 
     const int *internal_node_ids, int internal_count,
     const int *input_port_ids, int input_count,
     const int *output_port_ids, int output_count,
     int *out_func_block_id);
-int *engine_instantiate_function(LV00Engine *engine, int func_block_id,
+int *engine_instantiate_function(LV00Context *ctx, int func_block_id,
     const int *arg_mappings, int arg_count, int *out_result_count);
 ```
 
@@ -164,10 +164,10 @@ int *engine_instantiate_function(LV00Engine *engine, int func_block_id,
 
 ```c
 // 完整求解流水线：重写 → 求解器 → 冲突检查 → 自由度更新
-EngineSolveResult engine_solve(LV00Engine *engine);
+EngineSolveResult engine_solve(LV00Context *ctx);
 
 // 重写-求解协作：先重写 → 遇停顿则求解 → 冲突暴露
-int engine_rewrite_and_solve(LV00Engine *engine, 
+int engine_rewrite_and_solve(LV00Context *ctx, 
     int max_rewrite_steps, int max_solve_steps);
 ```
 
@@ -188,16 +188,16 @@ typedef enum {
     ENGINE_CIRCUIT_ACTION_DOWNGRADE // 永久降级为 AMBER
 } EngineCircuitAction;
 
-EngineCircuitResult engine_handle_circuit_trip(LV00Engine *engine);
+EngineCircuitResult engine_handle_circuit_trip(LV00Context *ctx);
 EngineCircuitResult engine_handle_circuit_trip_with_action(
-    LV00Engine *engine, EngineCircuitAction action);
+    LV00Context *ctx, EngineCircuitAction action);
 ```
 
 ### 25.2.8 冻结点快照机制
 
 ```c
-void *engine_create_frozen_point(LV00Engine *engine);
-bool engine_restore_frozen_point(LV00Engine *engine, void *frozen_point);
+void *engine_create_frozen_point(LV00Context *ctx);
+bool engine_restore_frozen_point(LV00Context *ctx, void *frozen_point);
 void engine_destroy_frozen_point(void *frozen_point);
 ```
 
@@ -206,9 +206,9 @@ void engine_destroy_frozen_point(void *frozen_point);
 ### 25.2.9 状态机 API
 
 ```c
-EngineStatus lv00_engine_transition_state(LV00Engine *engine, EngineState new_state);
-EngineState engine_get_state(const LV00Engine *engine);
-bool engine_is_busy(const LV00Engine *engine);
+EngineStatus lv00_engine_transition_state(LV00Context *ctx, EngineState new_state);
+EngineState engine_get_state(const LV00Context *ctx);
+bool engine_is_busy(const LV00Context *ctx);
 const char *engine_state_name(EngineState state);
 bool engine_is_valid_transition(EngineState from, EngineState to);
 ```
@@ -216,10 +216,10 @@ bool engine_is_valid_transition(EngineState from, EngineState to);
 ### 25.2.10 流式输出集成
 
 ```c
-StreamContext *engine_get_stream_context(const LV00Engine *engine);
-void engine_set_streaming_enabled(LV00Engine *engine, bool enabled);
-bool engine_is_streaming_enabled(const LV00Engine *engine);
-void engine_emit_stream_event(LV00Engine *engine, StreamEventType type,
+StreamContext *engine_get_stream_context(const LV00Context *ctx);
+void engine_set_streaming_enabled(LV00Context *ctx, bool enabled);
+bool engine_is_streaming_enabled(const LV00Context *ctx);
+void engine_emit_stream_event(LV00Context *ctx, StreamEventType type,
     const char *description, int step_number, int node_id, int constraint_id);
 ```
 
@@ -399,7 +399,7 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
 
 | 代码概念 | 理论对应 | 文档位置 |
 |----------|----------|----------|
-| `LV00Engine` | 中央调度器/协调器 | 本文档 25.2.4 |
+| `LV00Context` | 中央调度器/协调器 | 本文档 25.2.4 |
 | `EngineState` | 有限状态机 | 本文档 25.2.3 |
 | `frozen_point` | 检查点/快照 | 本文档 25.2.8 |
 | `GraphFeatures` | 问题特征向量 | 本文档 25.3.2 |

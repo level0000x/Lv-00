@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file float_error.h
  * @brief FPTaylor 风格浮点误差验证 —— 泰勒展开 + 区间算术误差界分析
  *

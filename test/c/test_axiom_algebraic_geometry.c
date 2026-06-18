@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_algebraic_geometry.c
  * @brief Algebraic Geometry Axiom Package Test
  *

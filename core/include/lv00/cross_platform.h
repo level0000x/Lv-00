@@ -594,6 +594,20 @@ static inline int lv00_cache_line_size(void) {
     return LV00_CACHE_LINE_SIZE;
 }
 
+/* ====================================================================
+ * 9. 线程局部存储宏（Thread-Local Storage）
+ * ==================================================================== */
+
+#if defined(_MSC_VER)
+    #define LV00_THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__) || defined(__clang__)
+    #define LV00_THREAD_LOCAL __thread
+#elif __STDC_VERSION__ >= 201112L
+    #define LV00_THREAD_LOCAL _Thread_local
+#else
+    #define LV00_THREAD_LOCAL /* 不支持：回退到全局变量 */
+#endif
+
 #ifdef __cplusplus
 }
 #endif

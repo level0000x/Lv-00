@@ -492,10 +492,14 @@ LV00_PUBLIC_API EngineStatus engine_get_last_status(const LV00Engine *engine);
 /**
  * @brief 获取引擎最近一次错误的描述字符串
  *
- * @param[in] engine 引擎实例（当前未使用，可为 NULL）
- * @return 内部静态错误字符串指针。调用者不得 free。
- *         在下一次可能修改错误状态的操作前有效。
+ * @param[in] engine 引擎实例。建议传入非 NULL 指针以获取线程安全的错误信息。
+ * @return 错误字符串指针。调用者不得 free。
+ *         如果 engine 非 NULL，返回 engine->last_error（线程安全，有效期与 engine 生命周期相同）。
+ *         如果 engine 为 NULL，返回线程局部错误缓冲区（同一线程内，
+ *         在下一次可能修改错误状态的操作前有效）。
  *         如无错误，返回空字符串。
+ * @warning 若 engine 为 NULL，多线程环境下各线程有独立的错误缓冲区，
+ *          但同一线程内后续操作会覆盖前一次错误信息。建议始终传入有效的 engine 指针。
  */
 LV00_PUBLIC_API const char *engine_get_last_error(const LV00Engine *engine);
 

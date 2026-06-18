@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_algebraic_topology.c
  * @brief Algebraic Topology Axiom Package Test
  *

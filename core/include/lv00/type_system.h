@@ -357,7 +357,7 @@ LV00_PUBLIC_API TypeRegion *type_create_line_segment(TypeSystem *ts);
 /**
  * 创建区域类型
  */
-LV00_PUBLIC_API TypeRegion *type_create_region(TypeSystem *ts, int *contained_ids, int count);
+LV00_PUBLIC_API TypeRegion *type_create_region(TypeSystem *ts, const int *contained_ids, int count);
 
 /**
  * 创建函数类型

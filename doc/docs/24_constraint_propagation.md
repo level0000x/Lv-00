@@ -541,7 +541,7 @@ bool prob_constraint_infer(const ConstraintGraph *graph, int target_var,
 
 ## 24.8 版本历史
 
-- **v3.5.0** (当前)
+- **v5.0.0** (当前)
   - 概率约束与 PCTL 评估
   - 代数共轭等价检测
   - 几何变换等价检测

@@ -85,6 +85,7 @@ Testing/
 
 # Temporary
 *.tmp
+*.bak
 temp/
 
 # 根目录构建产物（防止误提交）
@@ -140,3 +141,4 @@ log/benchmark_results/_archive/
 
 # 分支原型目录（非正式源码）
 module/branches/
+.git-safe/

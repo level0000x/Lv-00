@@ -385,7 +385,7 @@ LV00_PUBLIC_API void lv00_guard_reset_stats(Lv00GuardContext *guard);
  * @param var int64_t 兼容变量
  */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
-#define LV00_ATOMIC_INC64(var)  atomic_fetch_add((_Atomic int64_t*)&(var), 1) + 1
+#define LV00_ATOMIC_INC64(var)  (atomic_fetch_add((_Atomic int64_t*)&(var), 1) + 1)
 #define LV00_ATOMIC_ADD64(var, n) atomic_fetch_add((_Atomic int64_t*)&(var), (n))
 #elif defined(__GNUC__) || defined(__clang__)
 #define LV00_ATOMIC_INC64(var)  __sync_add_and_fetch(&(var), 1LL)

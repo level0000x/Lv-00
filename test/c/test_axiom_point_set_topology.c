@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_point_set_topology.c
  * @brief Point-Set Topology Axiom Package Test
  *

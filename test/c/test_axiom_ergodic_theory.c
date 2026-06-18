@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_ergodic_theory.c
  * @brief Ergodic Theory Axiom Package Test
  *

@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_combinatorics.c
  * @brief Combinatorics Axiom Package Test
  *

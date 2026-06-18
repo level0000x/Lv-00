@@ -16,6 +16,10 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv00_utils.h"
+
+#define MAX_CONSTRAINTS_PER_NODE 128
+#define MAX_NEIGHBOR_CONSTRAINTS 64
 
 /* ================================================================
  * 内部辅助函数
@@ -29,10 +33,10 @@ static bool state_ensure_capacity(NodeStateSpace *state, int needed) {
 
     SymbolicCoord **new_coords = (SymbolicCoord **)realloc(state->possible_coords,
                                                             (size_t)new_cap * sizeof(SymbolicCoord *));
+    if (!new_coords) return false;
     int *new_dims = (int *)realloc(state->coord_dims, (size_t)new_cap * sizeof(int));
-    if (!new_coords || !new_dims) {
+    if (!new_dims) {
         free(new_coords);
-        free(new_dims);
         return false;
     }
     state->possible_coords = new_coords;
@@ -69,12 +73,12 @@ static void state_destroy(NodeStateSpace *s) {
                 symbolic_coord_destroy(s->possible_coords[i]);
             }
         }
-        free(s->possible_coords);
+        lv00_free((void **)&s->possible_coords);
         s->possible_coords = NULL;
     }
-    free(s->coord_dims);
+    lv00_free((void **)&s->coord_dims);
     s->coord_dims = NULL;
-    free(s);
+    lv00_free((void **)&s);
 }
 
 /** @brief 深拷贝节点状态空间 */
@@ -169,14 +173,15 @@ static bool queue_init(PropagationContext *ctx) {
 }
 
 static void queue_destroy(PropagationContext *ctx) {
-    free(ctx->propagation_queue);
+    lv00_free((void **)&ctx->propagation_queue);
     ctx->propagation_queue = NULL;
 }
 
 static bool queue_ensure_capacity(PropagationContext *ctx) {
     if (ctx->queue_size < ctx->queue_capacity) return true;
+    if (ctx->queue_capacity > INT_MAX / 2) return false;
     int new_cap = ctx->queue_capacity * 2;
-    int *new_q = (int *)realloc(ctx->propagation_queue, (size_t)new_cap * sizeof(int));
+    int *new_q = (int *)lv00_realloc(ctx->propagation_queue, (size_t)new_cap * sizeof(int));
     if (!new_q) return false;
 
     /* 将数据从环形缓冲区展开到线性数组 */
@@ -238,14 +243,14 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
     ctx->state_count = graph->node_count;
     ctx->state_spaces = (NodeStateSpace *)calloc((size_t)ctx->state_count, sizeof(NodeStateSpace));
     if (!ctx->state_spaces && ctx->state_count > 0) {
-        free(ctx);
+        lv00_free((void **)&ctx);
         return NULL;
     }
 
     /* 初始化传播队列 */
     if (!queue_init(ctx)) {
-        free(ctx->state_spaces);
-        free(ctx);
+        lv00_free((void **)&ctx->state_spaces);
+        lv00_free((void **)&ctx);
         return NULL;
     }
 
@@ -255,8 +260,8 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph) {
                                                           sizeof(PropagationSnapshot *));
     if (!ctx->snapshot_stack) {
         queue_destroy(ctx);
-        free(ctx->state_spaces);
-        free(ctx);
+        lv00_free((void **)&ctx->state_spaces);
+        lv00_free((void **)&ctx);
         return NULL;
     }
 
@@ -270,7 +275,7 @@ void propagation_context_destroy(PropagationContext *ctx) {
     for (int i = 0; i < ctx->state_count; i++) {
         state_destroy(&ctx->state_spaces[i]);
     }
-    free(ctx->state_spaces);
+    lv00_free((void **)&ctx->state_spaces);
 
     /* 销毁传播队列 */
     queue_destroy(ctx);
@@ -281,9 +286,9 @@ void propagation_context_destroy(PropagationContext *ctx) {
             propagation_snapshot_destroy(ctx->snapshot_stack[i]);
         }
     }
-    free(ctx->snapshot_stack);
+    lv00_free((void **)&ctx->snapshot_stack);
 
-    free(ctx);
+    lv00_free((void **)&ctx);
 }
 
 /* ================================================================
@@ -295,7 +300,8 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
 
     for (int i = 0; i < ctx->state_count; i++) {
         state_destroy(&ctx->state_spaces[i]);
-        ctx->state_spaces[i] = *(state_create(i));
+        memset(&ctx->state_spaces[i], 0, sizeof(NodeStateSpace));
+        ctx->state_spaces[i].node_id = i;
     }
 
     for (int i = 0; i < ctx->graph->node_count; i++) {
@@ -315,8 +321,8 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
                 ss->is_collapsed = true;
             } else {
                 /* 无坐标 → 检查是否有约束 */
-                int constraints[64];
-                int count = graph_find_constraints_involving(ctx->graph, i, constraints, 64);
+                int constraints[MAX_NEIGHBOR_CONSTRAINTS];
+                int count = graph_find_constraints_involving(ctx->graph, i, constraints, MAX_NEIGHBOR_CONSTRAINTS);
                 if (count == 0) {
                     ss->is_unbounded = true;
                 }
@@ -343,6 +349,8 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
         case GEOM_FUNCTION_BLOCK:
             /* 其他类型暂不处理状态空间 */
             break;
+        default:
+            break;
         }
     }
 
@@ -363,8 +371,13 @@ NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id
  *
  * 对于 INCIDENCE（点在线段上）约束：
  *   计算行列式 (Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax) 是否为零
+ *
+ * @param point_coord   点节点的 x 坐标（SymbolicCoord）
+ * @param point_node    点节点（用于获取 y 坐标）
+ * @param line_node     线段节点（含端点坐标）
  */
 static bool check_incidence_compatible(const SymbolicCoord *point_coord,
+                                        const GeomNode *point_node,
                                         const GeomNode *line_node) {
     if (!point_coord || !line_node || !line_node->symbolic_coords) return false;
     if (line_node->coord_count < 4) return false;
@@ -377,18 +390,24 @@ static bool check_incidence_compatible(const SymbolicCoord *point_coord,
     if (!ax || !ay || !bx || !by) return false;
 
     /* 点 P(px, py) — 使用 point_coord 的 x,y 分量 */
-    /* 简化：使用 double 近似检查行列式 */
+    /* 使用 double 近似检查行列式（符号坐标的数值评估） */
     double px = symbolic_coord_to_double(point_coord);
     double ax_d = symbolic_coord_to_double(ax);
     double ay_d = symbolic_coord_to_double(ay);
     double bx_d = symbolic_coord_to_double(bx);
     double by_d = symbolic_coord_to_double(by);
 
-    double det = (px - ax_d) * (by_d - ay_d) - (0.0 - 0.0) * (bx_d - ax_d);
-    /* 注意：point_coord 目前是单值，我们用 x 分量 */
-    /* 更精确的做法需要分别处理 x 和 y 坐标 */
-    (void)det;
-    return true; /* 暂时接受所有候选，后续由精确求解器验证 */
+    /* 正确计算行列式：|PA × PB| = (Px-Ax)*(By-Ay) - (Py-Ay)*(Bx-Ax)
+     * 这里 point_coord 是单值，需要分别获取 x 和 y */
+    double py = 0.0;  /* 若 point_coord 只有 x，y 默认为 0 */
+    /* 尝试从 point_node 获取 y 坐标 */
+    if (point_node && point_node->coord_count >= 2) {
+        py = symbolic_coord_to_double(point_node->symbolic_coords[1]);
+    }
+    double det = (px - ax_d) * (by_d - ay_d) - (py - ay_d) * (bx_d - ax_d);
+    /* 使用容差判断点是否在线段上 */
+    double tol = 1e-9;
+    return (fabs(det) < tol);
 }
 
 /**
@@ -405,15 +424,19 @@ static bool check_constraint_compatible(const SymbolicCoord *candidate,
     case INCIDENCE: {
         /* 点在线段上：参与者 [point_id, line_id] */
         if (constraint->participant_count < 2) return true;
+        int point_id = constraint->participants[0];
         int line_id = constraint->participants[1];
+        GeomNode *point_node = graph_get_node(graph, point_id);
         GeomNode *line_node = graph_get_node(graph, line_id);
-        return check_incidence_compatible(candidate, line_node);
+        return check_incidence_compatible(candidate, point_node, line_node);
     }
     case BETWEENNESS:
     case INTERSECTION:
     case CONTAINMENT:
     case CONNECTION:
         /* 其他约束类型暂不进行候选过滤 */
+        return true;
+    default:
         return true;
     }
     return true;
@@ -485,9 +508,9 @@ PropagationResult propagation_run(PropagationContext *ctx) {
         if (!queue_pop(ctx, &node_id)) break;
 
         /* 查找涉及该节点的所有约束 */
-        int constraint_ids[128];
+        int constraint_ids[MAX_CONSTRAINTS_PER_NODE];
         int count = graph_find_constraints_involving(ctx->graph, node_id,
-                                                      constraint_ids, 128);
+                                                      constraint_ids, MAX_CONSTRAINTS_PER_NODE);
 
         for (int i = 0; i < count; i++) {
             bool changed = propagation_arc_reduce(ctx, constraint_ids[i]);
@@ -557,8 +580,8 @@ int propagation_select_node(PropagationContext *ctx) {
         if (entropy < 0) continue; /* 跳过 unbounded */
 
         /* 计算度数（邻接约束数） */
-        int constraints[64];
-        int degree = graph_find_constraints_involving(ctx->graph, i, constraints, 64);
+        int constraints[MAX_NEIGHBOR_CONSTRAINTS];
+        int degree = graph_find_constraints_involving(ctx->graph, i, constraints, MAX_NEIGHBOR_CONSTRAINTS);
 
         switch (ctx->strategy) {
         case PROP_STRATEGY_MIN_ENTROPY:
@@ -580,14 +603,108 @@ int propagation_select_node(PropagationContext *ctx) {
             }
             break;
 
-        case PROP_STRATEGY_BFS:
-        case PROP_STRATEGY_TOPOLOGICAL:
-            /* 简化：回退到 MRV */
-            if (entropy < min_entropy) {
-                min_entropy = entropy;
-                best_node = i;
-                best_degree = degree;
+        case PROP_STRATEGY_BFS: {
+            /* BFS 策略：从最近坍缩的节点出发，广度优先选择最近的未坍缩邻居。
+             * 使用约束图中的邻接关系进行 BFS 遍历，选择第一个遇到的未坍缩节点。
+             * 若无已坍缩节点作为起点，则回退到最小熵选择。 */
+            bool found_bfs = false;
+            /* 收集所有已坍缩节点作为 BFS 起点 */
+            for (int start = 0; start < ctx->state_count && !found_bfs; start++) {
+                const NodeStateSpace *ss_start = &ctx->state_spaces[start];
+                if (!ss_start->is_collapsed) continue;
+
+                /* 从 start 节点开始 BFS */
+                int bfs_cap = ctx->state_count > 256 ? ctx->state_count : 256;
+                int *bfs_queue = (int *)lv00_malloc((size_t)bfs_cap * sizeof(int));
+                bool *visited = (bool *)lv00_calloc((size_t)ctx->state_count, sizeof(bool));
+                if (!bfs_queue || !visited) {
+                    lv00_free((void **)&bfs_queue);
+                    lv00_free((void **)&visited);
+                    continue;
+                }
+                int bfs_head = 0, bfs_tail = 0;
+
+                bfs_queue[bfs_tail++] = start;
+                visited[start] = true;
+
+                while (bfs_head < bfs_tail && !found_bfs) {
+                    int cur = bfs_queue[bfs_head++];
+
+                    /* 查找 cur 的所有邻接节点（通过约束关系） */
+                    int cids[128];
+                    int nc = graph_find_constraints_involving(ctx->graph, cur, cids, 128);
+                    for (int ci = 0; ci < nc && !found_bfs; ci++) {
+                        Constraint *cc = graph_get_constraint(ctx->graph, cids[ci]);
+                        if (!cc || !cc->is_active) continue;
+                        for (int p = 0; p < cc->participant_count; p++) {
+                            int nb = cc->participants[p];
+                            if (nb < 0 || nb >= ctx->state_count) continue;
+                            if (visited[nb]) continue;
+                            visited[nb] = true;
+
+                            const NodeStateSpace *ss_nb = &ctx->state_spaces[nb];
+                            if (!ss_nb->is_collapsed && !ss_nb->is_unbounded
+                                && ss_nb->coord_count > 0) {
+                                /* 找到最近的未坍缩邻居 */
+                                best_node = nb;
+                                found_bfs = true;
+                                break;
+                            }
+                            if (bfs_tail >= bfs_cap) {
+                                /* 队列已满，跳过此邻居 */
+                                continue;
+                            }
+                            bfs_queue[bfs_tail++] = nb;
+                        }
+                    }
+                }
             }
+            lv00_free((void **)&bfs_queue);
+            lv00_free((void **)&visited);
+            /* 若 BFS 未找到（无已坍缩节点作为起点），回退到最小熵 */
+            if (!found_bfs) {
+                if (entropy < min_entropy ||
+                    (entropy == min_entropy && degree > best_degree)) {
+                    min_entropy = entropy;
+                    best_node = i;
+                    best_degree = degree;
+                }
+            }
+            break;
+        }
+
+        case PROP_STRATEGY_TOPOLOGICAL: {
+            /* 拓扑排序策略：按约束依赖关系选择"被依赖最多"的未坍缩节点。
+             * 计算每个节点的入度（有多少约束以该节点为被动参与者），
+             * 选择入度最高的节点优先坍缩（确保依赖链上游先确定）。
+             * 若入度相同，选择熵最小的打破平局。 */
+            int in_degree = 0;
+            int cids_t[128];
+            int nc_t = graph_find_constraints_involving(ctx->graph, i, cids_t, 128);
+            for (int ci = 0; ci < nc_t; ci++) {
+                Constraint *cc = graph_get_constraint(ctx->graph, cids_t[ci]);
+                if (!cc || !cc->is_active) continue;
+                /* 统计有多少其他未坍缩参与者依赖此节点 */
+                for (int p = 0; p < cc->participant_count; p++) {
+                    int other = cc->participants[p];
+                    if (other != i && other >= 0 && other < ctx->state_count) {
+                        const NodeStateSpace *ss_other = &ctx->state_spaces[other];
+                        if (!ss_other->is_collapsed) {
+                            in_degree++;
+                        }
+                    }
+                }
+            }
+            /* 优先选择被依赖最多的节点，熵作为次要排序键 */
+            if (in_degree > best_degree ||
+                (in_degree == best_degree && entropy < min_entropy)) {
+                best_degree = in_degree;
+                best_node = i;
+                min_entropy = entropy;
+            }
+            break;
+        }
+        default:
             break;
         }
     }
@@ -608,10 +725,40 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
     case PROP_COLLAPSE_FIRST:
         selected_index = 0;
         break;
-    case PROP_COLLAPSE_WEIGHTED:
-        /* 简化实现：使用第一个候选 */
-        /* TODO: 实现基于约束兼容性的加权随机选择 */
-        selected_index = 0;
+    case PROP_COLLAPSE_WEIGHTED: {
+        /* 基于约束兼容性的加权随机选择 */
+        /* 计算每个候选坐标的兼容性权重：与邻域约束兼容的数量 */
+        double *weights = (double *)calloc((size_t)ss->coord_count, sizeof(double));
+        if (weights && ss->coord_count > 0) {
+            int cids[128];
+            int nc = graph_find_constraints_involving(ctx->graph, node_id, cids, 128);
+            for (int k = 0; k < ss->coord_count; k++) {
+                double w = 1.0;
+                for (int ci = 0; ci < nc; ci++) {
+                    Constraint *c = graph_get_constraint(ctx->graph, cids[ci]);
+                    if (c && c->is_active &&
+                        check_constraint_compatible(ss->possible_coords[k], c, ctx->graph)) {
+                        w += 1.0;
+                    }
+                }
+                weights[k] = w;
+            }
+            /* 计算总权重 */
+            double total = 0.0;
+            for (int k = 0; k < ss->coord_count; k++) total += weights[k];
+            /* 加权随机选择（轮盘赌算法） */
+            if (total > 0.0) {
+                double r = lv00_random_double(0.0, total);
+                double accum = 0.0;
+                for (int k = 0; k < ss->coord_count; k++) {
+                    accum += weights[k];
+                    if (r <= accum) { selected_index = k; break; }
+                }
+            }
+            lv00_free((void **)&weights);
+        }
+        break;
+    default:
         break;
     }
 
@@ -721,7 +868,7 @@ PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx) {
     snap->state_count = ctx->state_count;
     snap->states = (NodeStateSpace *)calloc((size_t)snap->state_count, sizeof(NodeStateSpace));
     if (!snap->states) {
-        free(snap);
+        lv00_free((void **)&snap);
         return NULL;
     }
 
@@ -750,8 +897,6 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     /* 用快照替换 */
     for (int i = 0; i < snap->state_count && i < ctx->state_count; i++) {
         ctx->state_spaces[i] = snap->states[i];
-        /* 防止 double-free：将快照中的指针置空 */
-        snap->states[i] = *(state_create(-1)); /* 空壳 */
     }
 
     ctx->propagation_steps = snap->propagation_steps;
@@ -760,8 +905,8 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     ctx->prune_count = snap->prune_count;
 
     /* 销毁快照壳 */
-    free(snap->states);
-    free(snap);
+    lv00_free((void **)&snap->states);
+    lv00_free((void **)&snap);
 }
 
 void propagation_snapshot_destroy(PropagationSnapshot *snap) {
@@ -770,9 +915,9 @@ void propagation_snapshot_destroy(PropagationSnapshot *snap) {
         for (int i = 0; i < snap->state_count; i++) {
             state_destroy(&snap->states[i]);
         }
-        free(snap->states);
+        lv00_free((void **)&snap->states);
     }
-    free(snap);
+    lv00_free((void **)&snap);
 }
 
 /* ================================================================

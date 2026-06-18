@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_domain_theory.c
  * @brief Domain Theory Axiom Package Test
  *

@@ -560,13 +560,17 @@ LV00_PUBLIC_API bool lv00_check_version(const char *min_version);
 
 /**
  * @brief 安全释放指针并将指针置NULL
+ *
+ * 注意：使用内联函数替代宏，避免宏参数被多次求值的副作用。
  */
-#define LV00_SAFE_FREE(ptr)              \
-    do {                                 \
-        if (ptr) {                       \
-            lv00_free((void **) &(ptr)); \
-        }                                \
-    } while (0)
+static inline void lv00_safe_free(void **ptr) {
+    if (ptr && *ptr) {
+        lv00_free(ptr);
+    }
+}
+
+/* 兼容旧代码的宏（已废弃，建议直接使用 lv00_safe_free 函数） */
+#define LV00_SAFE_FREE(ptr) lv00_safe_free((void **) &(ptr))
 
 /**
  * @brief 字符串化宏
@@ -1013,6 +1017,50 @@ LV00_PUBLIC_API void lv00_resource_tracker_cleanup(ResourceTracker *rt);
  * @return 追踪的资源数量
  */
 LV00_PUBLIC_API int lv00_resource_tracker_count(const ResourceTracker *rt);
+
+/* ============================================================
+ * 浮点精度常量
+ * ============================================================ */
+
+/**
+ * @brief 通用 double 精度阈值
+ * 用于一般浮点比较（判零、判相等）
+ */
+#ifndef LV00_EPSILON_DOUBLE
+#define LV00_EPSILON_DOUBLE 1e-12
+#endif
+
+/**
+ * @brief 数值比较精度阈值
+ * 用于代数数隔离区间比较、数值验证等
+ */
+#ifndef LV00_EPSILON_NUMERIC_COMPARE
+#define LV00_EPSILON_NUMERIC_COMPARE 1e-10
+#endif
+
+/**
+ * @brief Newton 迭代收敛阈值
+ * 用于代数数求根、区间收缩等 Newton 法迭代
+ */
+#ifndef LV00_EPSILON_NEWTON
+#define LV00_EPSILON_NEWTON 1e-14
+#endif
+
+/**
+ * @brief 分数判零阈值
+ * 用于连分数展开等场景的分数值判零
+ */
+#ifndef LV00_EPSILON_FRACTION_ZERO
+#define LV00_EPSILON_FRACTION_ZERO 1e-15
+#endif
+
+/**
+ * @brief 线段内点判定阈值
+ * 用于判断点是否在线段内部（排除端点）
+ */
+#ifndef LV00_EPSILON_SEGMENT_INTERIOR
+#define LV00_EPSILON_SEGMENT_INTERIOR 1e-9
+#endif
 
 #ifdef __cplusplus
 }

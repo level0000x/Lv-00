@@ -112,8 +112,25 @@ static Lv00TestSuite *find_or_create_suite(const char *name) {
     return suite;
 }
 
+static Lv00TestMutex g_test_init_mutex;
+static volatile int g_test_init_mutex_initialized = 0;
+
 static void init_test_system(void) {
+#ifdef _WIN32
+    if (InterlockedCompareExchange(&g_test_init_mutex_initialized, 1, 0) == 0) {
+        InitializeCriticalSection(&g_test_init_mutex);
+    }
+    EnterCriticalSection(&g_test_init_mutex);
+#else
+    static pthread_mutex_t g_test_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&g_test_init_mutex);
+#endif
     if (g_test_system.initialized) {
+#ifdef _WIN32
+        LeaveCriticalSection(&g_test_init_mutex);
+#else
+        pthread_mutex_unlock(&g_test_init_mutex);
+#endif
         return;
     }
 
@@ -121,6 +138,11 @@ static void init_test_system(void) {
     MUTEX_INIT(g_test_system.mutex);
     g_test_system.timeout_ms = 30000; /* 默认 30 秒超时 */
     g_test_system.initialized = true;
+#ifdef _WIN32
+    LeaveCriticalSection(&g_test_init_mutex);
+#else
+    pthread_mutex_unlock(&g_test_init_mutex);
+#endif
 }
 
 /* ============== 测试注册实现 ============== */
@@ -424,6 +446,11 @@ Lv00TestReport *lv00_test_run_suite(const char *suite_name) {
 
     report->start_time_ns = get_time_ns();
     report->suites = (Lv00TestSuite *)lv00_malloc(sizeof(Lv00TestSuite));
+    if (!report->suites) {
+        lv00_free((void **) &report);
+        MUTEX_UNLOCK(g_test_system.mutex);
+        return NULL;
+    }
     report->suite_count = 1;
 
     /* 重置统计 */
@@ -671,13 +698,17 @@ bool lv00_benchmark_register(const char *name, Lv00BenchmarkFunc func, uint64_t 
     if (!name || !func || g_benchmarks.count >= LV00_TEST_MAX_CASES) {
         return false;
     }
+    if (iterations == 0) {
+        fprintf(stderr, "Error: benchmark '%s' registered with zero iterations\n", name);
+        return false;
+    }
 
     Lv00Benchmark *bench = &g_benchmarks.benchmarks[g_benchmarks.count++];
     strncpy(bench->name, name, sizeof(bench->name) - 1);
     bench->iterations = iterations;
 
     /* 运行基准测试 */
-    int64_t *times = (int64_t *)lv00_malloc(iterations * sizeof(int64_t));
+    int64_t *times = (int64_t *)lv00_malloc((size_t)iterations * sizeof(int64_t));
     if (!times) {
         return false;
     }
@@ -815,18 +846,22 @@ char *lv00_test_report_to_json(const Lv00TestReport *report) {
                        report->failed_count,
                        report->skipped_count,
                        (long long)report->total_time_ns);
+    if (pos < 0) { json[0] = '\0'; return json; }
 
-    for (uint32_t i = 0; i < report->suite_count; i++) {
+    for (uint32_t i = 0; i < report->suite_count && pos < 8192; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
         pos += snprintf(json + pos, 8192 - pos,
                         "{\"name\":\"%s\",\"passed\":%u,\"failed\":%u,\"skipped\":%u}",
                         suite->name, suite->passed_count, suite->failed_count, suite->skipped_count);
-        if (i < report->suite_count - 1) {
+        if (pos < 0) break;
+        if (i < report->suite_count - 1 && pos < 8192) {
             pos += snprintf(json + pos, 8192 - pos, ",");
+            if (pos < 0) break;
         }
     }
 
-    snprintf(json + pos, 8192 - pos, "]}");
+    if (pos >= 0 && pos < 8192)
+        snprintf(json + pos, 8192 - pos, "]}");
 
     return json;
 }
@@ -846,35 +881,43 @@ char *lv00_test_report_to_xml(const Lv00TestReport *report) {
                        "<testsuites tests=\"%u\" failures=\"%u\" skipped=\"%u\" time=\"%.3f\">\n",
                        report->total_tests, report->failed_count, report->skipped_count,
                        (double)report->total_time_ns / 1e9);
+    if (pos < 0) { xml[0] = '\0'; return xml; }
 
-    for (uint32_t i = 0; i < report->suite_count; i++) {
+    for (uint32_t i = 0; i < report->suite_count && pos < 16384; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
         pos += snprintf(xml + pos, 16384 - pos,
                         "  <testsuite name=\"%s\" tests=\"%u\" failures=\"%u\" skipped=\"%u\">\n",
                         suite->name, suite->case_count, suite->failed_count, suite->skipped_count);
+        if (pos < 0) break;
 
-        for (uint32_t j = 0; j < suite->case_count; j++) {
+        for (uint32_t j = 0; j < suite->case_count && pos < 16384; j++) {
             const Lv00TestCase *test = &suite->cases[j];
             pos += snprintf(xml + pos, 16384 - pos,
                             "    <testcase name=\"%s\" time=\"%.6f\"",
                             test->name, (double)test->elapsed_ns / 1e9);
+            if (pos < 0) break;
 
-            if (test->status == TEST_STATUS_FAILED) {
+            if (test->status == TEST_STATUS_FAILED && pos < 16384) {
                 pos += snprintf(xml + pos, 16384 - pos,
                                 ">\n      <failure message=\"%s\"/>\n    </testcase>\n",
                                 test->message);
-            } else if (test->status == TEST_STATUS_SKIPPED) {
+                if (pos < 0) break;
+            } else if (test->status == TEST_STATUS_SKIPPED && pos < 16384) {
                 pos += snprintf(xml + pos, 16384 - pos,
                                 ">\n      <skipped/>\n    </testcase>\n");
-            } else {
+                if (pos < 0) break;
+            } else if (pos < 16384) {
                 pos += snprintf(xml + pos, 16384 - pos, "/>\n");
+                if (pos < 0) break;
             }
         }
 
-        pos += snprintf(xml + pos, 16384 - pos, "  </testsuite>\n");
+        if (pos >= 0 && pos < 16384)
+            pos += snprintf(xml + pos, 16384 - pos, "  </testsuite>\n");
     }
 
-    snprintf(xml + pos, 16384 - pos, "</testsuites>\n");
+    if (pos >= 0 && pos < 16384)
+        snprintf(xml + pos, 16384 - pos, "</testsuites>\n");
 
     return xml;
 }
@@ -902,10 +945,11 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
                        "Failed: <span class=\"failed\">%u</span> | Skipped: <span class=\"skipped\">%u</span></p>\n"
                        "<table><tr><th>Suite</th><th>Test</th><th>Status</th><th>Time (ms)</th></tr>\n",
                        report->total_tests, report->passed_count, report->failed_count, report->skipped_count);
+    if (pos < 0) { html[0] = '\0'; return html; }
 
-    for (uint32_t i = 0; i < report->suite_count; i++) {
+    for (uint32_t i = 0; i < report->suite_count && pos < 32768; i++) {
         const Lv00TestSuite *suite = &report->suites[i];
-        for (uint32_t j = 0; j < suite->case_count; j++) {
+        for (uint32_t j = 0; j < suite->case_count && pos < 32768; j++) {
             const Lv00TestCase *test = &suite->cases[j];
             const char *status_class = test->status == TEST_STATUS_PASSED ? "passed" :
                                        test->status == TEST_STATUS_FAILED ? "failed" : "skipped";
@@ -916,10 +960,12 @@ char *lv00_test_report_to_html(const Lv00TestReport *report) {
                             "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n",
                             suite->name, test->name, status_class, status_text,
                             (double)test->elapsed_ns / 1e6);
+            if (pos < 0) break;
         }
     }
 
-    snprintf(html + pos, 32768 - pos, "</table></body></html>\n");
+    if (pos >= 0 && pos < 32768)
+        snprintf(html + pos, 32768 - pos, "</table></body></html>\n");
 
     return html;
 }

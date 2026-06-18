@@ -118,11 +118,12 @@ class StreamBridgeServer:
             'params': event
         }
 
-        # 广播给所有订阅的客户端
-        asyncio.create_task(self._broadcast(notification))
-
-        # 同时推送给 SSE 客户端
-        asyncio.create_task(self._broadcast_sse(notification))
+        try:
+            loop = asyncio.get_running_loop()
+            asyncio.run_coroutine_threadsafe(self._broadcast(notification), loop)
+            asyncio.run_coroutine_threadsafe(self._broadcast_sse(notification), loop)
+        except RuntimeError:
+            pass  # 事件循环未运行，静默忽略
 
     async def _broadcast(self, message: Dict) -> None:
         """广播消息给所有已连接的客户端。

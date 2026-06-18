@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_second_order_arithmetic.c
  * @brief Second-Order Arithmetic / Reverse Mathematics Axiom Package Test
  *

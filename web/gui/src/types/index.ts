@@ -536,6 +536,7 @@ export type EngineStreamCategory =
   | 'solve'
   | 'proof'
   | 'func_block'
+  | 'preset'
   | 'conflict'
   | 'info';
 
@@ -748,8 +749,9 @@ export type ContextMenuActionId =
  * - 代数求解 (12-16): SOLVE_START ~ SOLVE_DONE
  * - 证明系统 (17-21): PROOF_STEP_ADDED ~ PROOF_DEPENDENCY_CHANGE
  * - 函数块系统 (22-29): FUNC_BLOCK_PACK_START ~ FUNC_BLOCK_CROSS_BOUNDARY
- * - 冲突与错误 (30-35): CONFLICT_DETECTED ~ WARNING
- * - 信息 (36-38): INFO, PROGRESS, GRAPH_SNAPSHOT
+ * - 预设函数块系统 (30-37): PRESET_REGISTER_START ~ PRESET_MODULE_LOADED
+ * - 冲突与错误 (38-43): CONFLICT_DETECTED ~ WARNING
+ * - 信息 (44-46): INFO, PROGRESS, GRAPH_SNAPSHOT
  */
 export enum EngineEventType {
   /* ---- 引擎生命周期 ---- */
@@ -788,24 +790,33 @@ export enum EngineEventType {
   FUNC_BLOCK_DETERMINISM_CHECK = 27,
   FUNC_BLOCK_CAPTURE_AVOID = 28,
   FUNC_BLOCK_CROSS_BOUNDARY = 29,
+  /* ---- 预设函数块系统（v12.0 新增）---- */
+  PRESET_REGISTER_START = 30,
+  PRESET_REGISTER_DONE = 31,
+  PRESET_REGISTER_FAILED = 32,
+  PRESET_LOOKUP = 33,
+  PRESET_INSTANTIATE = 34,
+  PRESET_VALIDATE = 35,
+  PRESET_CATEGORY_LOADED = 36,
+  PRESET_MODULE_LOADED = 37,
   /* ---- 冲突与错误 ---- */
-  CONFLICT_DETECTED = 30,
-  CONSTRAINT_ADDED = 31,
-  NODE_ADDED = 32,
-  CIRCUIT_TRIP = 33,
-  ERROR = 34,
-  WARNING = 35,
+  CONFLICT_DETECTED = 38,
+  CONSTRAINT_ADDED = 39,
+  NODE_ADDED = 40,
+  CIRCUIT_TRIP = 41,
+  ERROR = 42,
+  WARNING = 43,
   /* ---- 信息 ---- */
-  INFO = 36,
-  PROGRESS = 37,
-  GRAPH_SNAPSHOT = 38,
+  INFO = 44,
+  PROGRESS = 45,
+  GRAPH_SNAPSHOT = 46,
 }
 
 /**
  * 将引擎事件类型编号映射到类别
  * Maps engine event type number to category
- * 与 C 内核 stream.h 的 39 种 StreamEventType 完全对齐
- * @param eventType 事件类型编号 (0-38)
+ * 与 C 内核 stream.h 的 47 种 StreamEventType 完全对齐
+ * @param eventType 事件类型编号 (0-46)
  * @returns 事件类别
  */
 export function getEventCategory(eventType: number): EngineStreamCategory {
@@ -815,6 +826,7 @@ export function getEventCategory(eventType: number): EngineStreamCategory {
   if (eventType <= EngineEventType.SOLVE_DONE) return 'solve';
   if (eventType <= EngineEventType.PROOF_DEPENDENCY_CHANGE) return 'proof';
   if (eventType <= EngineEventType.FUNC_BLOCK_CROSS_BOUNDARY) return 'func_block';
+  if (eventType <= EngineEventType.PRESET_MODULE_LOADED) return 'preset';
   if (eventType <= EngineEventType.WARNING) return 'conflict';
   return 'info';
 }

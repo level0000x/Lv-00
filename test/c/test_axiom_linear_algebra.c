@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_linear_algebra.c
  * @brief Linear Algebra Axiom Package Test
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_graph_serialize.c
  * @brief 测试约束图的序列化与反序列化
  */

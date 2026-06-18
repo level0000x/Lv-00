@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_proof_trace.c
  * @brief Lv00ProofTree 模块单元测试
  *

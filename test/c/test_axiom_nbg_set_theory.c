@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_nbg_set_theory.c
  * @brief NBG Set Theory Axiom Package Test
  *

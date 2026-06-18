@@ -135,6 +135,15 @@ class Transform:
 
         Transform 乘法链：Pos(5,0) * Rot(45) = 先旋转再平移
         """
+        # 检测旋转+缩放混合组合（数学上不精确）
+        if (self.angle_deg != 0 and (self.scale_x != 1.0 or self.scale_y != 1.0)) or \
+           (other.angle_deg != 0 and (other.scale_x != 1.0 or other.scale_y != 1.0)):
+            import warnings
+            warnings.warn(
+                "Transform._compose: 旋转与缩放混合组合的结果可能不精确。"
+                "建议使用纯旋转或纯缩放的变换链。",
+                RuntimeWarning, stacklevel=2
+            )
         return Transform(
             tx=self.tx + other.tx,
             ty=self.ty + other.ty,
@@ -305,7 +314,7 @@ class Workplane:
         objects (List): 已构造的对象列表
     """
 
-    __slots__ = ('_ctx', '_plane', '_transform', '_objects', '_pending_points')
+    __slots__ = ('_ctx', '_plane', '_transform', '_objects', '_pending_points', '_selected')
 
     def __init__(self, plane: Plane, ctx: G,
                  transform: Transform = None) -> None:
@@ -314,6 +323,7 @@ class Workplane:
         self._transform = transform if transform is not None else Transform()
         self._objects: List[Any] = []
         self._pending_points: List[PointWrapper] = []
+        self._selected: List[Any] = []
 
     # ---- 点构造 ----
 
@@ -461,16 +471,123 @@ class Workplane:
 
     # ---- 选择器（CadQuery Selector DSL） ----
 
-    def faces(self, selector: str) -> Workplane:
+    def faces(self, selector: str = "") -> Workplane:
         """选择面（CadQuery 风格 selector）。
 
         借鉴 CadQuery：box.faces(">Z").workplane()
-        当前版本为占位符——2D 模式下面选择等价于选择当前平面。
+
+        从已构造的对象中筛选出面状几何体（多边形、三角形、圆），
+        将筛选结果存入 _selected 列表，并返回 self 以支持链式调用。
+
+        参数：
+            selector: 选择器字符串，支持以下模式：
+                - "" (空): 选择所有面
+                - "polygon": 仅选择多边形
+                - "triangle": 仅选择三角形
+                - "circle": 仅选择圆
+                - ">X"/">Y"/">Z": 选择质心在指定正半轴的面
+                - "<X"/"<Y"/"<Z": 选择质心在指定负半轴的面
+
+        返回：
+            Workplane: 自身（链式调用）
         """
+        face_types = (PolygonWrapper, TriangleWrapper, CircleWrapper)
+        candidates = [obj for obj in self._objects if isinstance(obj, face_types)]
+
+        if selector:
+            sel = selector.strip()
+            # 按类型过滤
+            if sel == "polygon":
+                candidates = [o for o in candidates if isinstance(o, PolygonWrapper)]
+            elif sel == "triangle":
+                candidates = [o for o in candidates if isinstance(o, TriangleWrapper)]
+            elif sel == "circle":
+                candidates = [o for o in candidates if isinstance(o, CircleWrapper)]
+            # 按方向过滤（基于质心位置）
+            elif sel.startswith(">") or sel.startswith("<"):
+                axis_char = sel[1].upper() if len(sel) > 1 else "Y"
+                positive = sel.startswith(">")
+                filtered = []
+                for obj in candidates:
+                    cx, cy = self._face_centroid(obj)
+                    coord = cx if axis_char == "X" else cy
+                    if (positive and coord > 0) or (not positive and coord < 0):
+                        filtered.append(obj)
+                candidates = filtered
+
+        # 将筛选结果存入 _selected 供后续链式操作使用
+        self._selected = candidates
         return self
 
-    def edges(self, selector: str) -> Workplane:
-        """选择边。当前为占位符。"""
+    def _face_centroid(self, face) -> Tuple[float, float]:
+        """计算面的质心坐标（近似浮点值）。
+
+        参数：
+            face: 面状对象（PolygonWrapper, TriangleWrapper, CircleWrapper）
+
+        返回：
+            (cx, cy): 质心的 x, y 坐标
+        """
+        if isinstance(face, CircleWrapper):
+            return _float(face.center.x), _float(face.center.y)
+        elif isinstance(face, TriangleWrapper):
+            cx = (_float(face.A.x) + _float(face.B.x) + _float(face.C.x)) / 3.0
+            cy = (_float(face.A.y) + _float(face.B.y) + _float(face.C.y)) / 3.0
+            return cx, cy
+        elif isinstance(face, PolygonWrapper):
+            verts = face.vertices
+            n = len(verts)
+            cx = sum(_float(v.x) for v in verts) / n
+            cy = sum(_float(v.y) for v in verts) / n
+            return cx, cy
+        return 0.0, 0.0
+
+    def edges(self, selector: str = "") -> Workplane:
+        """选择边（CadQuery 风格 selector）。
+
+        从已构造的对象中筛选出边状几何体（线段），
+        将筛选结果存入 _selected 列表，并返回 self 以支持链式调用。
+
+        参数：
+            selector: 选择器字符串，支持以下模式：
+                - "" (空): 选择所有边
+                - "horizontal": 仅选择水平边（y 坐标相同）
+                - "vertical": 仅选择竖直边（x 坐标相同）
+                - ">X"/">Y": 选择中点在指定正半轴的边
+                - "<X"/"<Y": 选择中点在指定负半轴的边
+                - "|X": 选择平行于 X 轴的边（水平）
+                - "|Y": 选择平行于 Y 轴的边（竖直）
+
+        返回：
+            Workplane: 自身（链式调用）
+        """
+        candidates = [obj for obj in self._objects if isinstance(obj, SegmentWrapper)]
+
+        if selector:
+            sel = selector.strip()
+            if sel == "horizontal" or sel == "|X":
+                candidates = [
+                    s for s in candidates
+                    if abs(_float(s.p1.y) - _float(s.p2.y)) < 1e-9
+                ]
+            elif sel == "vertical" or sel == "|Y":
+                candidates = [
+                    s for s in candidates
+                    if abs(_float(s.p1.x) - _float(s.p2.x)) < 1e-9
+                ]
+            elif sel.startswith(">") or sel.startswith("<"):
+                axis_char = sel[1].upper() if len(sel) > 1 else "X"
+                positive = sel.startswith(">")
+                filtered = []
+                for seg in candidates:
+                    mx = (_float(seg.p1.x) + _float(seg.p2.x)) / 2.0
+                    my = (_float(seg.p1.y) + _float(seg.p2.y)) / 2.0
+                    coord = mx if axis_char == "X" else my
+                    if (positive and coord > 0) or (not positive and coord < 0):
+                        filtered.append(seg)
+                candidates = filtered
+
+        self._selected = candidates
         return self
 
     # ---- 查询 ----
@@ -486,6 +603,10 @@ class Workplane:
     def all(self) -> List[Any]:
         """返回所有已创建对象的副本。"""
         return list(self._objects)
+
+    def selected(self) -> List[Any]:
+        """返回最近一次 faces()/edges() 选择的结果列表。"""
+        return list(self._selected)
 
     # ---- 导出 ----
 

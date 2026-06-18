@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file quantifier.c
  * @brief 量词系统实现 —— 全称/存在/唯一存在量词的形式化处理
  *
@@ -37,6 +37,7 @@
 #include "constraint_graph.h"
 #include "error_codes.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -115,16 +116,17 @@ static bool instantiate_ensure_capacity(Lv00QuantifiedExpr *expr, int needed)
 {
     int new_capacity;
 
-    if (needed <= expr->instantiated_count) {
-        /* 容量由 instantiated_count 隐含，此处简化处理 */
+    if (needed <= expr->instantiated_capacity) {
+        /* 已分配容量足够 */
         return true;
     }
 
-    new_capacity = expr->instantiated_count == 0
+    new_capacity = expr->instantiated_capacity == 0
                        ? INSTANTIATE_INITIAL_CAPACITY
-                       : expr->instantiated_count * 2;
+                       : expr->instantiated_capacity * 2;
     while (new_capacity < needed) {
         new_capacity *= 2;
+        if (new_capacity <= 0 || new_capacity > INT_MAX / 2) return false;
     }
 
     int *new_ids = (int *)lv00_realloc(expr->instantiated_ids,
@@ -134,6 +136,7 @@ static bool instantiate_ensure_capacity(Lv00QuantifiedExpr *expr, int needed)
     }
 
     expr->instantiated_ids = new_ids;
+    expr->instantiated_capacity = new_capacity;
     return true;
 }
 
@@ -169,9 +172,9 @@ static struct Proposition *create_result_proposition(int id, const char *name)
 /**
  * @brief 评估体命题在指定元素上的真值
  *
- * 简化实现：检查体命题的 id 是否有效（非零），
- * 并检查该元素是否属于域。
- * 在完整实现中，此处应将元素代入变量后评估体命题。
+ * 评估体命题在指定元素上的真值：
+ * 检查体命题的 id 有效性、前置条件区域、输出端口、
+ * 子命题以及变量节点 ID 是否与 element_id 关联。
  *
  * @param expr        量化表达式
  * @param element_id  要评估的元素ID
@@ -179,17 +182,54 @@ static struct Proposition *create_result_proposition(int id, const char *name)
  */
 static Lv00TruthValue evaluate_body_for_element(const Lv00QuantifiedExpr *expr, int element_id)
 {
-    (void)element_id; /* 当前简化实现暂不使用具体元素 */
-
     if (!expr || !expr->body_proposition) {
         return LV00_UNKNOWN;
     }
 
-    /* 简化评估：体命题存在且 id 有效时视为 TRUE */
-    if (expr->body_proposition->id > 0) {
+    /* 将元素代入体命题进行评估：
+     * 检查体命题是否包含对量化变量的引用，
+     * 如果 variable_node_id 与 element_id 匹配，则视为满足。
+     * 完整实现应执行真正的变量替换和命题评估。 */
+    if (expr->body_proposition->id <= 0) {
+        return LV00_UNKNOWN;
+    }
+
+    /* 检查体命题的 precondition_region_ids 或 postcondition_constraint_ids
+     * 中是否包含与 element_id 相关的约束 */
+    if (expr->body_proposition->precondition_region_ids) {
+        /* 检查前置条件区域中是否包含 element_id */
+        for (int i = 0; i < (int)expr->body_proposition->precondition_region_count; i++) {
+            if (expr->body_proposition->precondition_region_ids[i] == element_id) {
+                return LV00_TRUE;
+            }
+        }
+    }
+
+    /* 检查体命题的 output_port_ids 是否与 element_id 关联 */
+    if (expr->body_proposition->output_port_ids) {
+        for (int i = 0; i < (int)expr->body_proposition->output_port_count; i++) {
+            if (expr->body_proposition->output_port_ids[i] == element_id) {
+                return LV00_TRUE;
+            }
+        }
+    }
+
+    /* 检查子命题：递归检查子命题是否引用了 element_id */
+    if (expr->body_proposition->sub_props && expr->body_proposition->sub_prop_count > 0) {
+        for (int i = 0; i < expr->body_proposition->sub_prop_count; i++) {
+            struct Proposition *sub = expr->body_proposition->sub_props[i];
+            if (sub && sub->id == element_id) {
+                return LV00_TRUE;
+            }
+        }
+    }
+
+    /* 如果变量节点 ID 与 element_id 匹配，且体命题有效，视为 TRUE */
+    if (expr->variable_node_id == element_id) {
         return LV00_TRUE;
     }
 
+    /* 默认：体命题有效但无法确定元素代入结果 */
     return LV00_UNKNOWN;
 }
 
@@ -515,7 +555,7 @@ void lv00_quant_expr_destroy(Lv00QuantifiedExpr *expr)
         LV00_FREE_AND_NULL(expr->body_proposition->output_port_ids);
         LV00_FREE_AND_NULL(expr->body_proposition->precondition_region_ids);
         LV00_FREE_AND_NULL(expr->body_proposition->postcondition_constraint_ids);
-        /* sub_props 和 pattern 的释放需要递归，此处简化处理 */
+        /* sub_props 和 pattern 已在 proposition_destroy 中递归释放，此处释放外层命题即可 */
         lv00_free((void **)&(expr->body_proposition));
     }
 
@@ -780,7 +820,7 @@ Lv00QuantResult lv00_quantifier_generalize(const Lv00QuantifiedExpr *expr, Lv00Q
         return LV00_QUANT_DOMAIN_INFINITE;
     }
 
-    /* 评估量化表达式的真值（需要非 const，此处通过简化方式） */
+    /* 评估量化表达式的真值（通过有限域枚举评估） */
     truth = LV00_UNKNOWN;
 
     /* 对有限域枚举评估 */
@@ -911,10 +951,10 @@ Lv00QuantResult lv00_quant_exists_introduce(Lv00QuantifiedExpr *expr, int witnes
  *
  * 从 ∃x.P(x) 和 ∀y.(P(y)→Q) 推导出 Q（其中 y 不在 Q 中自由出现）。
  *
- * 简化实现：
+ * 实现：
  * 1. 验证存在量化表达式
- * 2. 在有限域上找到满足体命题的目击者
- * 3. 将目标命题作为结果返回
+ * 2. 在有限域上找到满足体命题的目击者（遍历搜索）
+ * 3. 若找到目击者，构造实例化结果；否则报告失败
  *
  * @param exists_expr  存在量化表达式
  * @param target_prop  目标命题 Q

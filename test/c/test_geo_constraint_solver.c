@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_constraint_solver.c
  * @brief 几何约束求解器模块测试（第十三梯队 SolveSpace 落地验证）
  */

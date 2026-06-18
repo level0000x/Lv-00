@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_proof_theory.c
  * @brief Proof Theory Axiom Package Test
  *

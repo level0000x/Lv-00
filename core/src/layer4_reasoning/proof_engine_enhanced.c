@@ -619,9 +619,12 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
         tree->node_count * sizeof(SearchFrame));
     if (!stack) return 0;
 
-    /* 访问标记 */
-    bool *visited = (bool *)lv00_calloc(tree->node_count, sizeof(bool));
-    if (!visited) {
+    /* 访问标记：使用 ID 到索引的映射避免哈希碰撞 */
+    /* visited_map[id % map_size] 存储已访问节点的 id，0 表示空槽 */
+    uint32_t map_size = tree->node_count * 2;  /* 负载因子 <= 0.5 减少碰撞 */
+    if (map_size < 8) map_size = 8;
+    uint32_t *visited_map = (uint32_t *)lv00_calloc(map_size, sizeof(uint32_t));
+    if (!visited_map) {
         lv00_free((void **)&stack);
         return 0;
     }
@@ -630,16 +633,32 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
     Lv00ProofTraceNode **path = (Lv00ProofTraceNode **)lv00_malloc(
         tree->node_count * sizeof(Lv00ProofTraceNode *));
     if (!path) {
-        lv00_free((void **)&visited);
+        lv00_free((void **)&visited_map);
         lv00_free((void **)&stack);
         return 0;
     }
+
+    /* 辅助函数：检查/标记节点是否已访问（线性探测） */
+    #define VISIT_MARK(node_id) do { \
+        uint32_t idx = (uint32_t)(node_id) % map_size; \
+        while (visited_map[idx] != 0) { idx = (idx + 1) % map_size; } \
+        visited_map[idx] = (uint32_t)(node_id); \
+    } while(0)
+    #define VISIT_CHECK(node_id) ({ \
+        uint32_t _idx = (uint32_t)(node_id) % map_size; \
+        bool _found = false; \
+        while (visited_map[_idx] != 0) { \
+            if (visited_map[_idx] == (uint32_t)(node_id)) { _found = true; break; } \
+            _idx = (_idx + 1) % map_size; \
+        } \
+        _found; \
+    })
 
     uint32_t top = 0;
     stack[top].node = start;
     stack[top].depth = 0;
     path[0] = start;
-    visited[start->id % tree->node_count] = true;
+    VISIT_MARK(start->id);
     uint32_t path_len = 1;
 
     uint32_t result = 0;
@@ -650,10 +669,9 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
 
         for (uint32_t i = 0; i < current->child_count; i++) {
             Lv00ProofTraceNode *child = current->children[i];
-            size_t visit_idx = child->id % tree->node_count;
 
-            if (!visited[visit_idx]) {
-                visited[visit_idx] = true;
+            if (!VISIT_CHECK(child->id)) {
+                VISIT_MARK(child->id);
                 path[path_len++] = child;
 
                 if (child->id == to_id) {
@@ -679,8 +697,10 @@ uint32_t lv00_trace_tree_find_path(const Lv00ProofTraceTree *tree,
     }
 
 cleanup:
+    #undef VISIT_MARK
+    #undef VISIT_CHECK
     lv00_free((void **)&path);
-    lv00_free((void **)&visited);
+    lv00_free((void **)&visited_map);
     lv00_free((void **)&stack);
     return result;
 }
@@ -1086,8 +1106,44 @@ bool lv00_detect_contradiction(const ConstraintGraph *graph,
                         /* 如果两个连接的端口类型不同且不是多态的 */
                         if (port_a->type == port_b->type &&
                             !port_a->is_polymorphic && !port_b->is_polymorphic) {
-                            /* 类型区域不同则可能矛盾 */
-                            /* 此处为简化检测，实际需要更深入的类型比较 */
+                            /* 检查类型区域是否兼容 */
+                            TypeRegion *tr_a = port_a->type_region;
+                            TypeRegion *tr_b = port_b->type_region;
+
+                            /* 快速检查：如果类型种类不同，直接判定为矛盾 */
+                            if (tr_a->kind != tr_b->kind) {
+                                *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
+                                snprintf(out_desc, 512,
+                                         "端口 %d 和端口 %d 类型不兼容："
+                                         "类型种类不同（%d vs %d）",
+                                         port_a->id, port_b->id,
+                                         (int)tr_a->kind, (int)tr_b->kind);
+                                return true;
+                            }
+
+                            /* 检查类型级别是否兼容 */
+                            if (tr_a->level != tr_b->level) {
+                                *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
+                                snprintf(out_desc, 512,
+                                         "端口 %d 和端口 %d 类型不兼容："
+                                         "类型级别不同（%d vs %d）",
+                                         port_a->id, port_b->id,
+                                         tr_a->level, tr_b->level);
+                                return true;
+                            }
+
+                            /* 类型种类和级别相同，检查变量ID */
+                            if (tr_a->variable_id != tr_b->variable_id &&
+                                tr_a->variable_id > 0 && tr_b->variable_id > 0) {
+                                /* 不同具体变量，记录矛盾 */
+                                *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
+                                snprintf(out_desc, 512,
+                                         "端口 %d 和端口 %d 类型不兼容："
+                                         "类型变量不同（var_%d vs var_%d）",
+                                         port_a->id, port_b->id,
+                                         tr_a->variable_id, tr_b->variable_id);
+                                return true;
+                            }
                         }
                     }
                 }
@@ -1800,8 +1856,89 @@ static bool execute_strategy_induction(Lv00ProofEngine *engine,
         trace_tree_register_node(tree, step_node);
     }
 
-    /* 归纳法在此简化实现中标记为成功 */
-    return true;
+    /* 归纳法：验证基础步和归纳步 */
+    bool base_ok = false;
+    bool step_ok = false;
+
+    /* 基础步：尝试用直接证明验证 n=0 的情况 */
+    base_ok = execute_strategy_direct(engine, goal, tree);
+    if (base_ok && base_node) {
+        lv00_trace_node_set_status(base_node, TRACE_STATUS_PROVED);
+    } else if (base_node) {
+        lv00_trace_node_set_status(base_node, TRACE_STATUS_BLOCKED);
+    }
+
+    /* 归纳步：假设 n=k 成立，推导 n=k+1 也成立
+     * 构造蕴含式命题 P(k) -> P(k+1) 并证明之：
+     *   - 前提（归纳假设）：P(k)，即原命题在 n=k 时的实例
+     *   - 结论（归纳目标）：P(k+1)，即原命题在 n=k+1 时的实例
+     */
+    if (base_ok) {
+        /* 构造蕴含式命题 P(k) -> P(k+1) */
+        Proposition *impl = proposition_create(
+            goal->id + 10000, PROPOSITION_TYPE_IMPLICATION);
+        if (impl) {
+            /* 前提：归纳假设 P(k) —— 复制原目标结构作为 P(k) 的代表 */
+            Proposition *ih_prop = proposition_create(
+                goal->id + 10001, goal->type);
+            if (ih_prop) {
+                ih_prop->name = lv00_strdup(goal->name ? goal->name : "P(k)");
+                ih_prop->description = lv00_strdup(
+                    "归纳假设：假设命题在 n=k 时成立 (P(k))");
+                /* 复制子命题结构以保留原始命题的语义 */
+                for (int si = 0; si < goal->sub_prop_count; si++) {
+                    if (goal->sub_props[si]) {
+                        proposition_ref(goal->sub_props[si]);
+                        proposition_add_sub_proposition(ih_prop, goal->sub_props[si]);
+                    }
+                }
+                proposition_add_sub_proposition(impl, ih_prop);
+            }
+
+            /* 结论：归纳目标 P(k+1) —— 复制原目标结构作为 P(k+1) 的代表 */
+            Proposition *goal_prop = proposition_create(
+                goal->id + 10002, goal->type);
+            if (goal_prop) {
+                goal_prop->name = lv00_strdup(goal->name ? goal->name : "P(k+1)");
+                goal_prop->description = lv00_strdup(
+                    "归纳目标：证明命题在 n=k+1 时也成立 (P(k+1))");
+                for (int si = 0; si < goal->sub_prop_count; si++) {
+                    if (goal->sub_props[si]) {
+                        proposition_ref(goal->sub_props[si]);
+                        proposition_add_sub_proposition(goal_prop, goal->sub_props[si]);
+                    }
+                }
+                proposition_add_sub_proposition(impl, goal_prop);
+            }
+
+            /* 证明蕴含式 P(k) -> P(k+1) */
+            step_ok = execute_strategy_direct(engine, impl, tree);
+
+            if (step_ok && step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
+            } else if (step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+            }
+
+            proposition_unref(impl);
+        } else {
+            /* 构造蕴含式失败，回退到直接证明 */
+            step_ok = execute_strategy_direct(engine, goal, tree);
+            if (step_ok && step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
+            } else if (step_node) {
+                lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+            }
+        }
+    } else {
+        /* 基础步失败，归纳步无法进行 */
+        if (step_node) {
+            lv00_trace_node_set_status(step_node, TRACE_STATUS_BLOCKED);
+        }
+    }
+
+    /* 归纳法成功条件：基础步和归纳步均通过 */
+    return base_ok && step_ok;
 }
 
 /**

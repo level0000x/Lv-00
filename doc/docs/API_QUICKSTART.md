@@ -1,6 +1,6 @@
 # Lv-00 API 快速入门指南
 
-> **版本**: 3.3.0
+> **版本**: 5.0.0
 > **最后更新**: 2026-05-24
 > **适用范围**: Lv-00 公共 API 使用者
 
@@ -127,7 +127,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON -DBUILD_TESTS=ON
 cmake_minimum_required(VERSION 3.15)
 project(MyApp LANGUAGES C)
 
-find_package(lv00 3.3.0 REQUIRED)
+find_package(lv00 5.0.0 REQUIRED)
 
 add_executable(myapp main.c)
 target_link_libraries(myapp lv00::lv00)
@@ -167,7 +167,7 @@ target_link_libraries(myapp lv00)
 
 int main(void) {
     /* === 步骤 1: 初始化系统 === */
-    if (!lv00_init()) {
+    if (!lv00_context_create()) {
         fprintf(stderr, "错误: Lv-00 初始化失败\n");
         return EXIT_FAILURE;
     }
@@ -181,42 +181,42 @@ int main(void) {
     }
 
     /* === 步骤 3: 创建引擎 === */
-    LV00Engine *engine = lv00_engine_create();
-    if (!engine) {
-        fprintf(stderr, "错误: 引擎创建失败\n");
-        lv00_cleanup();
+    LV00Context *ctx = lv00_context_create();
+    if (!ctx) {
+        fprintf(stderr, "错误: 上下文创建失败\n");
+        lv00_context_destroy(ctx);
         return EXIT_FAILURE;
     }
 
     /* === 步骤 4: 构建几何问题 === */
     /* 直角三角形: A(0,0), B(3,0), C(0,4) */
-    int a = lv00_add_point(engine, 0, 1, 0, 1);   /* (0, 0) */
-    int b = lv00_add_point(engine, 3, 1, 0, 1);   /* (3, 0) */
-    int c = lv00_add_point(engine, 0, 1, 4, 1);   /* (0, 4) */
+    int a = lv00_add_point(ctx, 0, 1, 0, 1);   /* (0, 0) */
+    int b = lv00_add_point(ctx, 3, 1, 0, 1);   /* (3, 0) */
+    int c = lv00_add_point(ctx, 0, 1, 4, 1);   /* (0, 4) */
 
-    int ab = lv00_add_line_segment(engine, a, b);
-    int bc = lv00_add_line_segment(engine, b, c);
-    int ca = lv00_add_line_segment(engine, c, a);
+    int ab = lv00_add_line_segment(ctx, a, b);
+    int bc = lv00_add_line_segment(ctx, b, c);
+    int ca = lv00_add_line_segment(ctx, c, a);
 
     /* 验证边存在 */
     if (a < 0 || b < 0 || c < 0 || ab < 0 || bc < 0 || ca < 0) {
         fprintf(stderr, "错误: 节点创建失败\n");
-        lv00_engine_destroy(engine);
-        lv00_cleanup();
+        lv00_context_destroy(ctx);
+        lv00_context_destroy(ctx);
         return EXIT_FAILURE;
     }
 
     /* 关联约束: 点属于边 */
-    lv00_add_constraint_incidence(engine, a, ab);
-    lv00_add_constraint_incidence(engine, a, ca);
-    lv00_add_constraint_incidence(engine, b, ab);
-    lv00_add_constraint_incidence(engine, b, bc);
-    lv00_add_constraint_incidence(engine, c, bc);
-    lv00_add_constraint_incidence(engine, c, ca);
+    lv00_add_constraint_incidence(ctx, a, ab);
+    lv00_add_constraint_incidence(ctx, a, ca);
+    lv00_add_constraint_incidence(ctx, b, ab);
+    lv00_add_constraint_incidence(ctx, b, bc);
+    lv00_add_constraint_incidence(ctx, c, bc);
+    lv00_add_constraint_incidence(ctx, c, ca);
 
     /* === 步骤 5: 求解 === */
-    lv00_normalize(engine, true);
-    EngineSolveResult result = lv00_solve(engine);
+    lv00_normalize(ctx, true);
+    EngineSolveResult result = lv00_solve(ctx);
 
     /* === 步骤 6: 获取结果 === */
     printf("计算结果:\n");
@@ -227,8 +227,8 @@ int main(void) {
     printf("  系统信息: %s\n", info);
 
     /* === 步骤 7: 清理 === */
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return (result == LV00_SOLVE_SUCCESS) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
@@ -266,7 +266,7 @@ typedef struct {
 } GeometryProblem;
 
 int main(void) {
-    if (!lv00_init()) {
+    if (!lv00_context_create()) {
         fprintf(stderr, "初始化失败\n");
         return EXIT_FAILURE;
     }
@@ -290,9 +290,9 @@ int main(void) {
         printf("[%d/%d] %s ... ", i + 1, num_problems, problems[i].name);
 
         /* 每个问题使用独立的引擎 */
-        LV00Engine *engine = lv00_engine_create();
-        if (!engine) {
-            printf("引擎创建失败\n");
+        LV00Context *ctx = lv00_context_create();
+        if (!ctx) {
+            printf("上下文创建失败\n");
             continue;
         }
 
@@ -300,19 +300,19 @@ int main(void) {
         int p[3];
         int ok = 1;
         for (int j = 0; j < 3 && ok; j++) {
-            p[j] = lv00_add_point(engine,
+            p[j] = lv00_add_point(ctx,
                 problems[i].points[j][0], problems[i].points[j][1],
                 problems[i].points[j][2], problems[i].points[j][3]);
             if (p[j] < 0) ok = 0;
         }
 
         if (ok) {
-            lv00_add_line_segment(engine, p[0], p[1]);
-            lv00_add_line_segment(engine, p[1], p[2]);
-            lv00_add_line_segment(engine, p[2], p[0]);
-            lv00_normalize(engine, true);
+            lv00_add_line_segment(ctx, p[0], p[1]);
+            lv00_add_line_segment(ctx, p[1], p[2]);
+            lv00_add_line_segment(ctx, p[2], p[0]);
+            lv00_normalize(ctx, true);
 
-            EngineSolveResult res = lv00_solve(engine);
+            EngineSolveResult res = lv00_solve(ctx);
             if (res == LV00_SOLVE_SUCCESS) {
                 printf("求解成功\n");
                 success_count++;
@@ -323,7 +323,7 @@ int main(void) {
             printf("节点创建失败\n");
         }
 
-        lv00_engine_destroy(engine);
+        lv00_context_destroy(ctx);
     }
 
     printf("\n总计: %d/%d 个问题求解成功\n", success_count, num_problems);
@@ -334,7 +334,7 @@ int main(void) {
         printf("内存峰值: %zu 字节\n", stats.peak_bytes);
     }
 
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
     return EXIT_SUCCESS;
 }
 ```
@@ -348,10 +348,10 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    if (!lv00_init()) return 1;
+    if (!lv00_context_create()) return 1;
 
-    LV00Engine *engine = lv00_engine_create();
-    if (!engine) { lv00_cleanup(); return 1; }
+    LV00Context *ctx = lv00_context_create();
+    if (!ctx) { lv00_context_destroy(ctx); return 1; }
 
     /* 加载预定义公理包 */
     /* 注意: 具体 API 请参考 axiom_pkg.h 和 module.h */
@@ -361,28 +361,28 @@ int main(void) {
     AxiomPackage *pkg = lv00_axiom_pkg_load("euclidean_plane");
     if (!pkg) {
         fprintf(stderr, "公理包加载失败\n");
-        lv00_engine_destroy(engine);
-        lv00_cleanup();
+        lv00_context_destroy(ctx);
+        lv00_context_destroy(ctx);
         return 1;
     }
 
-    lv00_engine_attach_axiom_pkg(engine, pkg);
+    lv00_context_attach_axiom_pkg(ctx, pkg);
     */
 
     /* 构建并求解问题... */
-    int a = lv00_add_point(engine, 0, 1, 0, 1);
-    int b = lv00_add_point(engine, 1, 1, 0, 1);
-    int ab = lv00_add_line_segment(engine, a, b);
+    int a = lv00_add_point(ctx, 0, 1, 0, 1);
+    int b = lv00_add_point(ctx, 1, 1, 0, 1);
+    int ab = lv00_add_line_segment(ctx, a, b);
 
-    lv00_normalize(engine, true);
-    lv00_solve(engine);
+    lv00_normalize(ctx, true);
+    lv00_solve(ctx);
 
     char info[1024];
     lv00_get_system_info(info, sizeof(info));
     printf("%s\n", info);
 
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
     return 0;
 }
 ```
@@ -402,7 +402,7 @@ int main(void) {
     printf("架构: %s\n", lv00_arch_name());
 
     /* 初始化后获取详细信息 */
-    if (!lv00_init()) {
+    if (!lv00_context_create()) {
         fprintf(stderr, "初始化失败\n");
         return 1;
     }
@@ -424,7 +424,7 @@ int main(void) {
     int len = lv00_get_system_info(sysinfo, sizeof(sysinfo));
     printf("\n=== 系统信息 (%d 字符) ===\n%s\n", len, sysinfo);
 
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
     return 0;
 }
 ```
@@ -436,7 +436,7 @@ int main(void) {
 #include <stdio.h>
 
 int main(void) {
-    lv00_init();
+    lv00_context_create();
 
     /* 查看默认配置 */
     printf("默认配置:\n");
@@ -451,10 +451,10 @@ int main(void) {
     lv00_set_log_level(2);  /* 仅错误和警告 */
 
     /* 创建引擎并求解... */
-    LV00Engine *engine = lv00_engine_create();
-    if (engine) {
+    LV00Context *ctx = lv00_context_create();
+    if (ctx) {
         /* ... 构建问题 ... */
-        lv00_engine_destroy(engine);
+        lv00_context_destroy(ctx);
     }
 
     /* 已验证的配置 */
@@ -463,7 +463,7 @@ int main(void) {
            lv00_config_get_int("rewrite.step_limit", -1));
     printf("  内存上限: %zu 字节\n", lv00_get_memory_limit_ex());
 
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
     return 0;
 }
 ```
@@ -475,47 +475,47 @@ int main(void) {
 ### 4.1 推荐模式: 分层错误检查
 
 ```c
-LV00Engine *create_and_solve_safely(void) {
+LV00Context *create_and_solve_safely(void) {
     /* 第 1 层: 系统级初始化 */
-    if (!lv00_init()) {
-        fprintf(stderr, "FATAL: lv00_init() 失败\n");
+    if (!lv00_context_create()) {
+        fprintf(stderr, "FATAL: lv00_context_create() 失败\n");
         return NULL;
     }
 
     /* 第 2 层: 资源分配 */
-    LV00Engine *engine = lv00_engine_create();
-    if (!engine) {
-        fprintf(stderr, "ERROR: 引擎创建失败\n");
-        lv00_cleanup();
+    LV00Context *ctx = lv00_context_create();
+    if (!ctx) {
+        fprintf(stderr, "ERROR: 上下文创建失败\n");
+        lv00_context_destroy(ctx);
         return NULL;
     }
 
     /* 第 3 层: 问题构建（带错误恢复） */
-    int a = lv00_add_point(engine, 0, 1, 0, 1);
+    int a = lv00_add_point(ctx, 0, 1, 0, 1);
     if (a < 0) {
         fprintf(stderr, "ERROR: 点 A 创建失败\n");
         goto cleanup;
     }
 
-    int b = lv00_add_point(engine, 3, 1, 0, 1);
+    int b = lv00_add_point(ctx, 3, 1, 0, 1);
     if (b < 0) {
         fprintf(stderr, "ERROR: 点 B 创建失败\n");
         goto cleanup;
     }
 
     /* 第 4 层: 求解（可恢复错误） */
-    lv00_normalize(engine, true);
-    EngineSolveResult result = lv00_solve(engine);
+    lv00_normalize(ctx, true);
+    EngineSolveResult result = lv00_solve(ctx);
     if (result != LV00_SOLVE_SUCCESS) {
         fprintf(stderr, "WARNING: 求解未完全成功 (code=%d)\n", (int)result);
         /* 即使求解失败，也可以获取部分结果 */
     }
 
-    return engine;  /* 调用者负责销毁 */
+    return ctx;  /* 调用者负责销毁 */
 
 cleanup:
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
     return NULL;
 }
 ```
@@ -531,20 +531,20 @@ cleanup:
 | `LV00_ERR_TIMEOUT` | 计算超时 | 增大超时值或简化问题 |
 | `LV00_ERR_STATE` | 状态机违规 | 检查 API 调用顺序 |
 | `LV00_ERR_OVERFLOW` | 数值溢出 | 减小数值范围 |
-| `LV00_ERR_NOT_INIT` | 系统未初始化 | 先调用 lv00_init() |
+| `LV00_ERR_NOT_INIT` | 系统未初始化 | 先调用 lv00_context_create() |
 
 ### 4.3 防御性编程示例
 
 ```c
 /* 所有 API 调用前检查初始化状态 */
 static void safe_solve(void) {
-    if (!lv00_is_initialized()) {
+    if (!(ctx != NULL)) {
         fprintf(stderr, "Lv-00 未初始化\n");
         return;
     }
 
-    LV00Engine *engine = lv00_engine_create();
-    if (!engine) return;
+    LV00Context *ctx = lv00_context_create();
+    if (!ctx) return;
 
     /* 健康检查（可选，适合长期运行的应用） */
     int health = lv00_health_check();
@@ -555,7 +555,7 @@ static void safe_solve(void) {
 
     /* ... 继续 ... */
 
-    lv00_engine_destroy(engine);
+    lv00_context_destroy(ctx);
 }
 ```
 
@@ -569,10 +569,10 @@ Lv-00 遵循明确的所有权规则:
 
 | 函数类型 | 所有权 | 示例 |
 |----------|--------|------|
-| `lv00_*_create()` | 调用者拥有，负责销毁 | `lv00_engine_create()` -> `lv00_engine_destroy()` |
+| `lv00_*_create()` | 调用者拥有，负责销毁 | `lv00_context_create()` -> `lv00_context_destroy()` |
 | `lv00_*_get_*()` | 借出引用，不可释放 | `lv00_config_get_string()` |
 | `lv00_normalize()` | 调用者拥有返回值 | 必须通过 `normalization_result_free()` 释放 |
-| `lv00_cleanup()` | 释放所有全局资源 | 最后调用 |
+| `lv00_context_destroy(ctx)` | 释放所有全局资源 | 最后调用 |
 
 ### 5.2 内存使用监控
 
@@ -581,17 +581,17 @@ Lv-00 遵循明确的所有权规则:
 #include <stdio.h>
 
 int main(void) {
-    lv00_init();
+    lv00_context_create();
 
     /* 设置合理的内存上限 */
     lv00_set_memory_limit_ex(512 * 1024 * 1024);  /* 512 MB */
 
-    /* 创建大量引擎，观察内存峰值 */
+    /* 创建大量上下文，观察内存峰值 */
     for (int i = 0; i < 100; i++) {
-        LV00Engine *eng = lv00_engine_create();
+        LV00Context *eng = lv00_context_create();
         if (!eng) {
             /* 内存上限触发！ */
-            fprintf(stderr, "引擎 %d 创建失败（可能达到内存上限）\n", i);
+            fprintf(stderr, "上下文 %d 创建失败（可能达到内存上限）\n", i);
 
             MemoryStats stats;
             lv00_get_memory_stats_ex(&stats);
@@ -600,10 +600,10 @@ int main(void) {
                    lv00_get_memory_limit_ex());
             break;
         }
-        lv00_engine_destroy(eng);
+        lv00_context_destroy(eng);
     }
 
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
     return 0;
 }
 ```
@@ -613,20 +613,20 @@ int main(void) {
 ```c
 /* 使用 goto cleanup 模式模拟 RAII */
 typedef struct {
-    LV00Engine *engine;
+    LV00Context *ctx;
     /* 其他资源 */
 } Lv00Session;
 
 static bool session_init(Lv00Session *s) {
     memset(s, 0, sizeof(*s));
-    if (!lv00_init()) return false;
-    s->engine = lv00_engine_create();
-    return s->engine != NULL;
+    if (!lv00_context_create()) return false;
+    s->ctx = lv00_context_create();
+    return s->ctx != NULL;
 }
 
 static void session_destroy(Lv00Session *s) {
-    if (s->engine) lv00_engine_destroy(s->engine);
-    lv00_cleanup();
+    if (s->ctx) lv00_context_destroy(s->ctx);
+    lv00_context_destroy(ctx);
     memset(s, 0, sizeof(*s));
 }
 
@@ -636,7 +636,7 @@ int main(void) {
     if (!session_init(&session)) return 1;
 
     /* 所有退出路径统一清理 */
-    int a = lv00_add_point(session.engine, 0, 1, 0, 1);
+    int a = lv00_add_point(session.ctx, 0, 1, 0, 1);
     if (a < 0) { session_destroy(&session); return 1; }
 
     /* ... 工作 ... */
@@ -657,8 +657,8 @@ Lv-00 的线程安全分为三个级别:
 | 级别 | 说明 | 操作 |
 |------|------|------|
 | **全局** | 全局初始化/清理 | 单线程调用 |
-| **引擎** | 每个 LV00Engine 独立 | 不同引擎可并发使用 |
-| **引擎内** | 单个引擎不可并发 | 同一引擎必须串行访问 |
+| **引擎** | 每个 LV00Context 独立 | 不同上下文可并发使用 |
+| **引擎内** | 单个上下文不可并发 | 同一引擎必须串行访问 |
 
 ### 6.2 安全的多线程模式
 
@@ -679,31 +679,31 @@ static void *worker_thread(void *arg) {
     ThreadData *td = (ThreadData *)arg;
 
     /* 每个线程创建自己的引擎 */
-    LV00Engine *engine = lv00_engine_create();
-    if (!engine) {
-        fprintf(stderr, "线程 %d: 引擎创建失败\n", td->thread_id);
+    LV00Context *ctx = lv00_context_create();
+    if (!ctx) {
+        fprintf(stderr, "线程 %d: 上下文创建失败\n", td->thread_id);
         return NULL;
     }
 
     /* 构建并求解（线程本地操作） */
-    int a = lv00_add_point(engine, 0, 1, 0, 1);
-    int b = lv00_add_point(engine, 3, 1, 0, 1);
-    int c = lv00_add_point(engine, 0, 1, 4, 1);
+    int a = lv00_add_point(ctx, 0, 1, 0, 1);
+    int b = lv00_add_point(ctx, 3, 1, 0, 1);
+    int c = lv00_add_point(ctx, 0, 1, 4, 1);
 
-    lv00_add_line_segment(engine, a, b);
-    lv00_add_line_segment(engine, b, c);
-    lv00_add_line_segment(engine, c, a);
+    lv00_add_line_segment(ctx, a, b);
+    lv00_add_line_segment(ctx, b, c);
+    lv00_add_line_segment(ctx, c, a);
 
-    lv00_normalize(engine, true);
-    td->result = lv00_solve(engine);
+    lv00_normalize(ctx, true);
+    td->result = lv00_solve(ctx);
 
-    lv00_engine_destroy(engine);
+    lv00_context_destroy(ctx);
     return NULL;
 }
 
 int main(void) {
     /* 全局初始化（主线程，创建任何工作线程之前） */
-    if (!lv00_init()) return 1;
+    if (!lv00_context_create()) return 1;
 
     pthread_t    threads[NUM_THREADS];
     ThreadData   tdata[NUM_THREADS];
@@ -722,7 +722,7 @@ int main(void) {
     }
 
     /* 全局清理（主线程，所有工作线程结束后） */
-    lv00_cleanup();
+    lv00_context_destroy(ctx);
     return 0;
 }
 ```
@@ -731,7 +731,7 @@ int main(void) {
 
 ```c
 /* ❌ 错误: 多个线程共享同一个引擎 */
-LV00Engine *shared_engine = lv00_engine_create();
+LV00Context *shared_engine = lv00_context_create();
 
 void *bad_worker(void *arg) {
     /* 多个线程同时调用 lv00_solve(shared_engine) 是未定义行为 */
@@ -743,8 +743,8 @@ void *bad_worker(void *arg) {
 ### 6.4 线程安全最佳实践
 
 1. **全局初始化在主线程中执行**，在任何工作线程创建之前
-2. **每个线程使用独立的 LV00Engine 实例**
-3. **不要在线程间共享 LV00Engine 指针**（除非有外部同步机制）
+2. **每个线程使用独立的 LV00Context 实例**
+3. **不要在线程间共享 LV00Context 指针**（除非有外部同步机制）
 4. **全局清理在所有工作线程结束后执行**
 5. **lv00_get_version_string() 是线程安全的**，可随时调用
 
@@ -756,11 +756,11 @@ void *bad_worker(void *arg) {
 
 | 函数/宏 | 说明 |
 |---------|------|
-| `lv00_get_version_string()` | 获取版本字符串 "3.3.0" |
+| `lv00_get_version_string()` | 获取版本字符串 "5.0.0" |
 | `lv00_get_version_info(&info)` | 获取详细版本信息结构体 |
 | `lv00_check_version_compat()` | 验证运行时/编译时版本兼容性 |
-| `lv00_version_major()` | 编译期主版本号 (3) |
-| `lv00_version_minor()` | 编译期次版本号 (3) |
+| `lv00_version_major()` | 编译期主版本号 (5) |
+| `lv00_version_minor()` | 编译期次版本号 (0) |
 | `lv00_version_patch()` | 编译期补丁版本号 (0) |
 
 ### 7.2 平台信息 API（来自 cross_platform.h）
@@ -778,11 +778,11 @@ void *bad_worker(void *arg) {
 
 | 函数 | 说明 |
 |------|------|
-| `lv00_init()` | 全局初始化 |
-| `lv00_cleanup()` | 全局清理 |
-| `lv00_is_initialized()` | 检查初始化状态 |
-| `lv00_engine_create()` | 创建引擎实例 |
-| `lv00_engine_destroy(e)` | 销毁引擎实例 |
+| `lv00_context_create()` | 全局初始化 |
+| `lv00_context_destroy(ctx)` | 全局清理 |
+| `(ctx != NULL)` | 检查初始化状态 |
+| `lv00_context_create()` | 创建上下文实例 |
+| `lv00_context_destroy(e)` | 销毁上下文实例 |
 | `lv00_health_check()` | 健康评分 (0-100) |
 
 ### 7.4 几何构造 API
@@ -848,7 +848,7 @@ fatal error: lv00/lv00.h: No such file or directory
 ### Q2: 链接时找不到 lv00 符号
 
 ```
-undefined reference to `lv00_init'
+undefined reference to `lv00_context_create'
 ```
 
 **解决方案**:
@@ -859,8 +859,8 @@ undefined reference to `lv00_init'
 ### Q3: 运行时崩溃在 lv00_solve()
 
 **解决方案**:
-- 确保先调用了 `lv00_init()`
-- 确保引擎不是 NULL
+- 确保先调用了 `lv00_context_create()`
+- 确保上下文不是 NULL
 - 检查内存上限是否过低
 - 尝试启用消毒器构建: `-DENABLE_SANITIZERS=ON`
 
@@ -874,7 +874,7 @@ undefined reference to `lv00_init'
 ### Q5: 内存使用持续增长
 
 **解决方案**:
-- 确保每个 `lv00_engine_create()` 都对应 `lv00_engine_destroy()`
+- 确保每个 `lv00_context_create()` 都对应 `lv00_context_destroy()`
 - 确保每个 `lv00_normalize()` 返回值都被 `normalization_result_free()` 释放
 - 使用 `lv00_get_memory_stats_ex()` 监控内存
 - 设置内存上限: `lv00_set_memory_limit_ex()`

@@ -473,7 +473,9 @@ FormulaNode *formula_create_equation(FormulaNode *lhs, FormulaNode *rhs) {
     node->line = 1;
     node->column = 1;
     node->refcount = 1;
+    formula_node_ref(lhs);
     node->data.equation.lhs = lhs;
+    formula_node_ref(rhs);
     node->data.equation.rhs = rhs;
     return node;
 }
@@ -493,6 +495,9 @@ FormulaNode *formula_create_coord_list(FormulaNode **coords, int count) {
             return NULL;
         }
         memcpy(node->data.coord_list.coords, coords, sizeof(FormulaNode *) * count);
+        for (int i = 0; i < count; i++) {
+            formula_node_ref(coords[i]);
+        }
         node->data.coord_list.coord_count = count;
     }
     return node;
@@ -867,6 +872,7 @@ void formula_node_destroy(FormulaNode *node) {
         case NODE_CONSTRAINT_COLLINEAR:
         case NODE_CONSTRAINT_TANGENT:
         case NODE_CONSTRAINT_CONGRUENT:
+        case NODE_CONSTRAINT_ANGLE:
             for (int i = 0; i < node->data.constraint.participant_count; i++) {
                 formula_node_destroy(node->data.constraint.participants[i]);
             }
@@ -924,7 +930,9 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_BINARY_OP_DIV:
         case NODE_BINARY_OP_POW:
             copy->data.binary_op.left = formula_node_copy(node->data.binary_op.left);
+            if (!copy->data.binary_op.left) { formula_node_destroy(copy); return NULL; }
             copy->data.binary_op.right = formula_node_copy(node->data.binary_op.right);
+            if (!copy->data.binary_op.right) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_UNARY_OP_NEG:
@@ -936,11 +944,14 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_UNARY_OP_LN:
         case NODE_UNARY_OP_LOG:
             copy->data.unary_op.operand = formula_node_copy(node->data.unary_op.operand);
+            if (!copy->data.unary_op.operand) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_EQUATION:
             copy->data.equation.lhs = formula_node_copy(node->data.equation.lhs);
+            if (!copy->data.equation.lhs) { formula_node_destroy(copy); return NULL; }
             copy->data.equation.rhs = formula_node_copy(node->data.equation.rhs);
+            if (!copy->data.equation.rhs) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_COORDINATE_LIST: {
@@ -970,36 +981,68 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
             copy->data.geom_point.name =
                 node->data.geom_point.name ? lv00_strdup_safe(node->data.geom_point.name) : NULL;
             copy->data.geom_point.coords = formula_node_copy(node->data.geom_point.coords);
+            if (!copy->data.geom_point.coords) {
+                lv00_free((void **) &copy->data.geom_point.name);
+                lv00_free((void **) &copy);
+                return NULL;
+            }
             break;
 
         case NODE_GEOM_SEGMENT:
             copy->data.geom_segment.name =
                 node->data.geom_segment.name ? lv00_strdup_safe(node->data.geom_segment.name) : NULL;
             copy->data.geom_segment.endpoint1 = formula_node_copy(node->data.geom_segment.endpoint1);
+            if (!copy->data.geom_segment.endpoint1) {
+                lv00_free((void **) &copy->data.geom_segment.name);
+                lv00_free((void **) &copy);
+                return NULL;
+            }
             copy->data.geom_segment.endpoint2 = formula_node_copy(node->data.geom_segment.endpoint2);
+            if (!copy->data.geom_segment.endpoint2) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_GEOM_LINE:
             copy->data.geom_line.name = node->data.geom_line.name ? lv00_strdup_safe(node->data.geom_line.name) : NULL;
             copy->data.geom_line.point1 = formula_node_copy(node->data.geom_line.point1);
+            if (!copy->data.geom_line.point1) {
+                lv00_free((void **) &copy->data.geom_line.name);
+                lv00_free((void **) &copy);
+                return NULL;
+            }
             copy->data.geom_line.point2 = formula_node_copy(node->data.geom_line.point2);
+            if (!copy->data.geom_line.point2) { formula_node_destroy(copy); return NULL; }
             copy->data.geom_line.equation = formula_node_copy(node->data.geom_line.equation);
+            if (!copy->data.geom_line.equation) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_GEOM_CIRCLE:
             copy->data.geom_circle.name =
                 node->data.geom_circle.name ? lv00_strdup_safe(node->data.geom_circle.name) : NULL;
             copy->data.geom_circle.center = formula_node_copy(node->data.geom_circle.center);
+            if (!copy->data.geom_circle.center) {
+                lv00_free((void **) &copy->data.geom_circle.name);
+                lv00_free((void **) &copy);
+                return NULL;
+            }
             copy->data.geom_circle.radius = formula_node_copy(node->data.geom_circle.radius);
+            if (!copy->data.geom_circle.radius) { formula_node_destroy(copy); return NULL; }
             copy->data.geom_circle.equation = formula_node_copy(node->data.geom_circle.equation);
+            if (!copy->data.geom_circle.equation) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_GEOM_TRIANGLE:
             copy->data.geom_triangle.name =
                 node->data.geom_triangle.name ? lv00_strdup_safe(node->data.geom_triangle.name) : NULL;
             copy->data.geom_triangle.vertex1 = formula_node_copy(node->data.geom_triangle.vertex1);
+            if (!copy->data.geom_triangle.vertex1) {
+                lv00_free((void **) &copy->data.geom_triangle.name);
+                lv00_free((void **) &copy);
+                return NULL;
+            }
             copy->data.geom_triangle.vertex2 = formula_node_copy(node->data.geom_triangle.vertex2);
+            if (!copy->data.geom_triangle.vertex2) { formula_node_destroy(copy); return NULL; }
             copy->data.geom_triangle.vertex3 = formula_node_copy(node->data.geom_triangle.vertex3);
+            if (!copy->data.geom_triangle.vertex3) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_GEOM_POLYGON: {
@@ -1060,16 +1103,30 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         case NODE_GEOM_ARC:
             copy->data.geom_arc.name = node->data.geom_arc.name ? lv00_strdup_safe(node->data.geom_arc.name) : NULL;
             copy->data.geom_arc.center = formula_node_copy(node->data.geom_arc.center);
+            if (!copy->data.geom_arc.center) {
+                lv00_free((void **) &copy->data.geom_arc.name);
+                lv00_free((void **) &copy);
+                return NULL;
+            }
             copy->data.geom_arc.radius = formula_node_copy(node->data.geom_arc.radius);
+            if (!copy->data.geom_arc.radius) { formula_node_destroy(copy); return NULL; }
             copy->data.geom_arc.start_angle = formula_node_copy(node->data.geom_arc.start_angle);
+            if (!copy->data.geom_arc.start_angle) { formula_node_destroy(copy); return NULL; }
             copy->data.geom_arc.end_angle = formula_node_copy(node->data.geom_arc.end_angle);
+            if (!copy->data.geom_arc.end_angle) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_GEOM_VECTOR:
             copy->data.geom_vector.name =
                 node->data.geom_vector.name ? lv00_strdup_safe(node->data.geom_vector.name) : NULL;
             copy->data.geom_vector.start = formula_node_copy(node->data.geom_vector.start);
+            if (!copy->data.geom_vector.start) {
+                lv00_free((void **) &copy->data.geom_vector.name);
+                lv00_free((void **) &copy);
+                return NULL;
+            }
             copy->data.geom_vector.end = formula_node_copy(node->data.geom_vector.end);
+            if (!copy->data.geom_vector.end) { formula_node_destroy(copy); return NULL; }
             break;
 
         case NODE_CONSTRAINT_PERPENDICULAR:
@@ -1126,8 +1183,15 @@ FormulaNode *formula_node_copy(const FormulaNode *node) {
         }
 
         default:
-            /* 未知节点类型，仅拷贝基本字段（type/line/column 已拷贝） */
-            lv00_set_error(LV00_ERROR_UNSUPPORTED, "formula_node_copy: 未实现的节点类型 %d，仅拷贝基本字段",
+            /*
+             * 前向兼容安全兜底：对新增加的未知节点类型，
+             * 通过 memcpy 整体拷贝 data 联合体，确保数据不会静默丢失。
+             * 注意：此拷贝为浅拷贝，若 data 中包含指针，后续使用时需注意
+             * 所有权语义。新增节点类型时应优先在上方添加专用的深拷贝分支。
+             */
+            memcpy(&copy->data, &node->data, sizeof(copy->data));
+            lv00_set_error(LV00_ERROR_UNSUPPORTED,
+                           "formula_node_copy: 未实现的节点类型 %d，已通过 memcpy 兜底拷贝 data",
                            (int) node->type);
             break;
     }

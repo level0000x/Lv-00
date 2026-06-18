@@ -46,19 +46,20 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
     p->degree = -1;
 }
 
-static inline void mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
+static inline bool mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
     mpz_poly_clear(dst);
     if (src->degree >= 0) {
         dst->coeffs = malloc((src->degree + 1) * sizeof(mpz_t));
         if (!dst->coeffs) {
             dst->degree = -1;
-            return;
+            return false;
         }
         for (int i = 0; i <= src->degree; i++) {
             mpz_init_set(dst->coeffs[i], src->coeffs[i]);
         }
         dst->degree = src->degree;
     }
+    return true;
 }
 
 static inline int mpz_poly_equal(const mpz_poly_t *a, const mpz_poly_t *b) {
@@ -232,11 +233,21 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
         total_len += strlen(coeff_strs[i]) + 2;
     }
     char *result = malloc(total_len + 1);
+    if (!result) {
+        for (int i = 0; i <= p->degree; i++) free(coeff_strs[i]);
+        free(coeff_strs);
+        return strdup("0");
+    }
     result[0] = '\0';
+    size_t pos = 0;
     for (int i = 0; i <= p->degree; i++) {
-        if (i > 0)
-            strcat(result, ",");
-        strcat(result, coeff_strs[i]);
+        if (i > 0) {
+            result[pos++] = ',';
+            result[pos] = '\0';
+        }
+        size_t coeff_len = strlen(coeff_strs[i]);
+        memcpy(result + pos, coeff_strs[i], coeff_len + 1);
+        pos += coeff_len;
     }
     for (int i = 0; i <= p->degree; i++) {
         free(coeff_strs[i]);
@@ -274,4 +285,4 @@ bool mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op
 }
 #endif
 
-#endif /* LV00_MPZ_POLY_H */
+#endif /* LV00_MPZ_POLY_INTERNAL_H */

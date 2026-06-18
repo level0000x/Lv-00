@@ -21,9 +21,9 @@ proof.h (核心证明系统)
   +-- proof_widget.h           -- 提供交互式可视化数据契约
 ```
 
-### 1.2 与 Layer 5 输出层的关系
+### 1.2 与 Layer 10 输出层的关系
 
-本组模块均属于 Lv-00 第五层（输出层），位于 `core/src/layer5_output/`（`proof_export_enhanced.c`、`proof_widget.c`）和 `core/src/layer4_reasoning/`（`proof_trace.c`）。输出层负责将推理层产生的内部数据转化为人类可读或机器可消费的外部表示。
+本组模块均属于 Lv-00 第十层（输出层），位于 `core/src/layer10_output/`（`proof_export_enhanced.c`、`proof_widget.c`）和 `core/src/layer9_reasoning/`（`proof_trace.c`）。输出层负责将推理层产生的内部数据转化为人类可读或机器可消费的外部表示。
 
 ---
 

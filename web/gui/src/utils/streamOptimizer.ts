@@ -747,6 +747,29 @@ export class StreamOptimizer<T extends StreamEvent> {
     // 缓存事件
     this.cache.set(event.id, event);
 
+    // 高优先级事件直接处理，低优先级事件入队延迟处理
+    if (event.priority !== undefined && event.priority < 5) {
+      this.priorityQueue.enqueue(event);
+      // 立即处理队列中所有高优先级事件
+      while (!this.priorityQueue.isEmpty) {
+        const highPriorityEvent = this.priorityQueue.dequeue();
+        if (highPriorityEvent) {
+          const startTime = performance.now();
+          if (this.batchProcessor) {
+            this.batchProcessor.add(highPriorityEvent);
+          } else if (this.throttler) {
+            this.throttler.process(highPriorityEvent);
+          } else if (this.debouncer) {
+            this.debouncer.process(highPriorityEvent);
+          } else {
+            this.handler(highPriorityEvent);
+          }
+          this.monitor.recordProcessed(performance.now() - startTime);
+        }
+      }
+      return;
+    }
+
     const startTime = performance.now();
 
     // 根据配置选择处理方式

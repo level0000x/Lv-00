@@ -44,9 +44,9 @@ cd build && ctest
 - 所有公共 API 添加 Doxygen 风格注释
 - 内存分配统一使用 `lv00_malloc` / `lv00_free` / `lv00_calloc`
 
-### 五层架构规范
+### 十层架构规范
 
-项目严格遵循五层单向依赖架构（详见 [ARCHITECTURE_v3.3.md](docs/ARCHITECTURE_v3.3.md)）：
+项目严格遵循十层单向依赖架构（详见 [ARCHITECTURE_v3.3.md](docs/ARCHITECTURE_v3.3.md)）：
 
 1. **第 1 层** - 输入解析层 (Parser)：词法分析、公式解析
 2. **第 2 层** - 资源管理层 (Resource)：内存、错误码、调试

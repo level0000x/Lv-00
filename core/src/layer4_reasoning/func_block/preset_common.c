@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file preset_common.c
  * @brief 预设函数块系统 - 公共工具实现
  *
@@ -17,6 +17,7 @@
 #include "preset_common.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>

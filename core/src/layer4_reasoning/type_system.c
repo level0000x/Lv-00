@@ -46,7 +46,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "rewrite.h"
-#include "stream.h"
+#include "lv00/stream.h"
 
 LV00_DECLARE_STREAM_CTX(type_system)
 
@@ -367,7 +367,7 @@ TypeRegion *type_create_line_segment(TypeSystem *ts) {
  * @param count         包含节点数量
  * @return 新分配的区域类型区域指针，失败返回 NULL
  */
-TypeRegion *type_create_region(TypeSystem *ts, int *contained_ids, int count) {
+TypeRegion *type_create_region(TypeSystem *ts, const int *contained_ids, int count) {
     TypeRegion *tr = type_region_create(ts, TYPE_KIND_REGION);
     if (!tr)
         return NULL;
@@ -375,7 +375,7 @@ TypeRegion *type_create_region(TypeSystem *ts, int *contained_ids, int count) {
     tr->level = UNIVERSE_TYPE_1;
 
     if (contained_ids && count > 0) {
-        tr->contained_node_ids = lv00_malloc(count * sizeof(int));
+        tr->contained_node_ids = lv00_malloc((size_t)count * sizeof(int));
         if (tr->contained_node_ids) {
             memcpy(tr->contained_node_ids, contained_ids, count * sizeof(int));
             tr->contained_count = count;
@@ -574,6 +574,9 @@ TypeRegion *type_create_predicate_subtype(TypeSystem *ts, TypeRegion *base_type,
     tr->level = base_type->level; /* 子类型与基类型同层级 */
 
     if (!tr->predicate_name) {
+        /* 从 type_regions 数组中移除，避免悬空指针导致 type_system_destroy 时 double-free */
+        ts->type_region_count--;
+        ts->type_regions[ts->type_region_count] = NULL;
         lv00_free((void **)&tr);
         return NULL;
     }
@@ -602,9 +605,26 @@ bool type_check_predicate_subtype_value(TypeSystem *ts, TypeRegion *subtype, int
 
     /* 如果有关联的约束ID，检查约束是否满足 */
     if (subtype->predicate_constraint_id >= 0) {
-        /* 通过约束图检查约束状态 */
-        /* 这里简化处理：假设约束系统会验证 */
-        return true; /* 基类型兼容且约束存在 */
+        /* 通过约束ID列表检查约束是否已被验证满足 */
+        bool constraint_satisfied = false;
+        if (subtype->constraint_ids && subtype->constraint_count > 0) {
+            for (int ci = 0; ci < subtype->constraint_count; ci++) {
+                if (subtype->constraint_ids[ci] == subtype->predicate_constraint_id) {
+                    constraint_satisfied = true;
+                    break;
+                }
+            }
+        }
+        /* 同时检查节点的类型区域是否包含该约束ID */
+        if (!constraint_satisfied && node_type->constraint_ids && node_type->constraint_count > 0) {
+            for (int ci = 0; ci < node_type->constraint_count; ci++) {
+                if (node_type->constraint_ids[ci] == subtype->predicate_constraint_id) {
+                    constraint_satisfied = true;
+                    break;
+                }
+            }
+        }
+        return constraint_satisfied;
     }
 
     return true; /* 基类型兼容即可 */
@@ -914,8 +934,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                 if (type1->contained_node_ids && type2->contained_node_ids) {
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->contained_count;
-                    int *sorted1 = lv00_malloc(count * sizeof(int));
-                    int *sorted2 = lv00_malloc(count * sizeof(int));
+                    int *sorted1 = lv00_malloc((size_t)count * sizeof(int));
+                    int *sorted2 = lv00_malloc((size_t)count * sizeof(int));
                     if (!sorted1 || !sorted2) {
                         lv00_free((void **) &sorted1);
                         lv00_free((void **) &sorted2);
@@ -958,8 +978,8 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
                     /* 排序+双指针 O(n log n) 优化 */
                     int count = type1->constraint_count;
-                    int *sorted1 = lv00_malloc(count * sizeof(int));
-                    int *sorted2 = lv00_malloc(count * sizeof(int));
+                    int *sorted1 = lv00_malloc((size_t)count * sizeof(int));
+                    int *sorted2 = lv00_malloc((size_t)count * sizeof(int));
                     if (!sorted1 || !sorted2) {
                         lv00_free((void **) &sorted1);
                         lv00_free((void **) &sorted2);
@@ -1056,14 +1076,16 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
             return TYPE_EQUIV_UNKNOWN;
 
         case TYPE_KIND_DEPENDENT:
-            /* 依赖类型 Π(x:A).B(x) 的等价检查
-             * 
-             * 两个依赖类型 Π(x:A1).B1(x) 和 Π(y:A2).B2(y) 等价当且仅当：
+            /* 依赖类型 Pi(x:A).B(x) 的等价检查
+             *
+             * 两个依赖类型 Pi(x:A1).B1(x) 和 Pi(y:A2).B2(y) 等价当且仅当：
              * 1. A1 和 A2 等价（参数类型相同）
-             * 2. B1 和 B2 在参数替换后等价
-             * 
-             * 注意：这是一个简化版本，完整的依赖类型等价需要更复杂的
-             * 规范化和转换规则（如alpha等价）
+             * 2. B1 和 B2 在参数替换后等价（alpha等价）
+             *
+             * Alpha等价实现策略：
+             * - 使用 De Bruijn 索引方法：将两个依赖类型的参数统一重命名为
+             *   同一个规范变量（canonical_var），然后在体类型中替换各自的参数
+             *   为该规范变量，最后比较替换后的体类型。
              */
             {
                 /* 首先检查参数节点是否有效 */
@@ -1077,58 +1099,75 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
                     return TYPE_EQUIV_ERROR;
                 }
 
-                /* 对于依赖类型，我们需要检查体类型的等价性
-                 * 由于参数可能不同（alpha等价），我们采用以下策略：
-                 * 
-                 * 1. 如果两个依赖类型有相同的参数节点ID，直接比较体类型
-                 * 2. 否则，检查体类型结构是否相同（忽略参数名称差异）
-                 */
-
-                /* 策略1：相同参数节点ID */
+                /* 策略1：相同参数节点ID，直接比较体类型 */
                 if (type1->param_node_id == type2->param_node_id) {
                     VISITED_CHECK(type1->body_type, type2->body_type);
                     return type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite,
                                                            depth + 1);
                 }
 
-                /* 策略2：不同参数节点ID，进行结构等价检查
-                 * 这需要将type2的参数节点ID替换为type1的参数节点ID，
-                 * 然后比较两个体类型
-                 * 
-                 * 由于完整的替换需要遍历整个类型树，这里我们采用
-                 * 一个简化的方法：检查体类型的结构是否相同
+                /*
+                 * 策略2：Alpha等价 - 使用 De Bruijn 索引规范化
+                 *
+                 * 步骤：
+                 * 1. 创建一个规范类型变量（使用固定ID -1 表示内部规范变量）
+                 * 2. 将 type1 的体类型中的 param_node_id 替换为规范变量
+                 * 3. 将 type2 的体类型中的 param_node_id 替换为规范变量
+                 * 4. 比较两个替换后的体类型
+                 *
+                 * 由于 type_substitute_variable 需要一个 TypeRegion* 作为替换目标，
+                 * 我们创建一个简单的 TYPE_KIND_VARIABLE 节点作为规范变量。
                  */
 
-                /* 创建一个临时替换，将type2的参数映射到type1的参数 */
-                TypeRegion *substituted_body = NULL;
-                if (type_substitute_variable(ts, type2->body_type, type2->param_node_id,
-                                             type1->body_type, /* 使用type1的体类型作为参考 */
-                                             &substituted_body)) {
-                    /* 替换成功，比较体类型 */
-                    VISITED_CHECK(type1->body_type, substituted_body);
+                /* 创建规范变量节点（De Bruijn index 0 → variable_id = -1） */
+                TypeRegion canonical_var;
+                memset(&canonical_var, 0, sizeof(canonical_var));
+                canonical_var.kind = TYPE_KIND_VARIABLE;
+                canonical_var.variable_id = -1;  /* 规范变量标记 */
+
+                /* 替换 type1 体类型中的参数为规范变量 */
+                TypeRegion *norm_body1 = NULL;
+                bool sub1_ok = type_substitute_variable(
+                    ts, type1->body_type, type1->param_node_id,
+                    &canonical_var, &norm_body1);
+
+                /* 替换 type2 体类型中的参数为规范变量 */
+                TypeRegion *norm_body2 = NULL;
+                bool sub2_ok = type_substitute_variable(
+                    ts, type2->body_type, type2->param_node_id,
+                    &canonical_var, &norm_body2);
+
+                if (sub1_ok && sub2_ok && norm_body1 && norm_body2) {
+                    /* 两个替换都成功，比较规范化后的体类型 */
+                    VISITED_CHECK(norm_body1, norm_body2);
                     TypeEquivResult body_result =
-                        type_check_equivalence_internal(ts, type1->body_type, substituted_body, use_rewrite, depth + 1);
+                        type_check_equivalence_internal(ts, norm_body1, norm_body2, use_rewrite, depth + 1);
+
+                    /* 释放临时规范化类型（仅释放容器，不释放共享的 canonical_var） */
+                    type_region_deep_free(norm_body1);
+                    type_region_deep_free(norm_body2);
+
                     return body_result;
                 }
 
-                /* 替换失败，回退到结构比较 */
-                /* 检查体类型的种类是否相同 */
+                /* 替换失败，清理并回退到结构比较 */
+                if (norm_body1) type_region_deep_free(norm_body1);
+                if (norm_body2) type_region_deep_free(norm_body2);
+
+                /* 回退：检查体类型的种类是否相同 */
                 if (type1->body_type->kind != type2->body_type->kind) {
                     return TYPE_EQUIV_NOT_EQUIV;
                 }
 
                 /* 对于简单情况，直接比较体类型（忽略参数差异） */
-                /* 这是一种保守策略，可能产生假阴性结果 */
                 VISITED_CHECK(type1->body_type, type2->body_type);
                 TypeEquivResult body_result =
                     type_check_equivalence_internal(ts, type1->body_type, type2->body_type, use_rewrite, depth + 1);
 
-                /* 如果体类型直接等价，则依赖类型等价 */
                 if (body_result == TYPE_EQUIV_OK) {
                     return TYPE_EQUIV_OK;
                 }
 
-                /* 否则返回未知，让更高级的类型检查器处理 */
                 return TYPE_EQUIV_UNKNOWN;
             }
 
@@ -1959,6 +1998,7 @@ bool type_attach_to_node(TypeSystem *ts, int node_id, TypeRegion *type) {
     if (ts->node_type_mapping_count >= ts->node_type_mapping_capacity) {
         int new_capacity = ts->node_type_mapping_capacity == 0 ? NODE_TYPE_MAPPING_INITIAL_CAPACITY
                                                                : ts->node_type_mapping_capacity * 2;
+        if (ts->node_type_mapping_capacity > 0 && ts->node_type_mapping_capacity > INT_MAX / 2) return false;
         NodeTypeMapping *new_mappings =
             (NodeTypeMapping *) lv00_realloc(ts->node_type_mappings, new_capacity * sizeof(NodeTypeMapping));
         if (!new_mappings)
@@ -2048,15 +2088,12 @@ bool type_check_dependent(const TypeSystem *ts, const TypeRegion *output_type, c
         return false;
 
     /*
-     * 依赖类型检查的简化实现：
+     * 依赖类型检查实现：
      *
-     * 对于依赖类型 Π(x:A).B(x)，我们需要检查：
+     * 对于依赖类型 Π(x:A).B(x)，检查：
      * 1. output_type 和 input_type 的宇宙层级兼容性
-     * 2. 结构兼容性：
-     *    - 如果 input_type 是依赖类型，检查其体类型与 output_type 的关系
-     *    - 如果两者都是函数类型，递归检查参数和返回类型
-     *    - 如果两者类型种类相同，检查子类型结构
-     *    - 类型变量视为通配，与任何类型兼容
+     * 2. 结构兼容性（递归检查子类型）
+     * 3. 若提供 input_values，执行参数替换后检查
      */
 
     /* 类型变量与任何类型兼容 */
@@ -2208,8 +2245,7 @@ const char *type_kind_to_string(TypeKind kind) {
  */
 const char *universe_level_to_string(UniverseLevel level) {
     /* 由于层级现在是任意整数，使用静态缓冲区格式化 */
-    /* WARNING: static buffer – not thread-safe */
-    static char buf[32];
+    static __thread char buf[32];
     if (level == UNIVERSE_BASE)
         return "Base";
     if (level == UNIVERSE_TYPE_1)
@@ -2476,6 +2512,7 @@ int type_system_register_inference_rule(TypeSystem *ts, int source_node_type, in
 
     /* 需要扩容 */
     if (ts->inference_rule_count >= ts->inference_rule_capacity) {
+        if (ts->inference_rule_capacity > 0 && ts->inference_rule_capacity > INT_MAX / 2) return -1;
         int new_capacity =
             ts->inference_rule_capacity == 0 ? INFERENCE_RULE_INITIAL_CAPACITY : ts->inference_rule_capacity * 2;
         TypeInferenceRule *new_arr =
@@ -2850,15 +2887,23 @@ ExplorerResult path_explorer_get_applicable_rules(const PathExplorer *explorer, 
         if (!rule || !rule->pattern)
             continue;
 
-        /*
-         * 简化的可应用性检查：
-         * 如果规则有模式且名称非空，则视为可应用。
-         * 完整实现需要 VF2 子图同构匹配，但类型系统层面
-         * 的重写规则匹配依赖于 type_check_equivalence 的
-         * 归一化路径，这里采用保守策略——所有已注册规则
-         * 均视为候选。
-         */
-        if (rule->name) {
+        /* 可应用性检查：规则模式与当前类型结构匹配 */
+        bool rule_applicable = false;
+        if (rule->name && rule->pattern) {
+            /* 检查规则模式的顶层类型种类是否匹配当前类型 */
+            if (rule->pattern->kind == TYPE_KIND_VARIABLE) {
+                /* 模式为类型变量 → 可匹配任何类型 */
+                rule_applicable = true;
+            } else if (explorer->current &&
+                       rule->pattern->kind == explorer->current->kind) {
+                /* 顶层种类匹配 → 候选规则 */
+                rule_applicable = true;
+            } else if (rule->pattern->kind == TYPE_KIND_BOTTOM) {
+                /* 底部类型模式可匹配任何类型 */
+                rule_applicable = true;
+            }
+        }
+        if (rule_applicable) {
             indices[applicable++] = i;
         }
     }
@@ -2926,6 +2971,7 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 应用前：将当前类型压入撤销栈 */
     if (explorer->undo_count >= explorer->undo_capacity) {
+        if (explorer->undo_capacity > INT_MAX / 2) return EXPLORER_ERROR;
         int new_cap = explorer->undo_capacity * 2;
         TypeRegion **new_stack = (TypeRegion **) lv00_realloc(explorer->undo_stack, new_cap * sizeof(TypeRegion *));
         if (!new_stack)
@@ -2957,6 +3003,10 @@ ExplorerResult path_explorer_apply_rule(PathExplorer *explorer, int rule_index) 
 
     /* 记录步骤 */
     if (explorer->step_count >= explorer->step_capacity) {
+        if (explorer->step_capacity > INT_MAX / 2) {
+            /* 步骤记录失败，但状态已改变，仍返回成功 */
+            return EXPLORER_OK;
+        }
         int new_cap = explorer->step_capacity * 2;
         ExplorerStep *new_steps = (ExplorerStep *) lv00_realloc(explorer->steps, new_cap * sizeof(ExplorerStep));
         if (!new_steps) {
@@ -3047,17 +3097,31 @@ ExplorerResult path_explorer_save_path(const PathExplorer *explorer, TypeRewrite
     if (!path)
         return EXPLORER_ERROR;
 
-    /* 将每一步记录到重写路径中 */
+    /* 将每一步记录到重写路径中
+     *
+     * 利用撤销栈恢复 before/after 快照：
+     *   undo_stack[i] 保存了第 i 步应用前的类型深拷贝。
+     *   undo_stack[i+1] 保存了第 i+1 步应用前的类型（即第 i 步之后的状态）。
+     *   对于最后一步，after 为 explorer->current。
+     */
     for (int i = 0; i < explorer->step_count; i++) {
         ExplorerStep *step = &explorer->steps[i];
-        /*
-         * TypeRewritePath 记录 before/after 类型指针。
-         * 由于探索器中我们无法获取每步中间的 before/after 快照
-         * （简化实现），这里使用当前类型作为 after，
-         * before 设为 NULL。
-         */
-        type_rewrite_path_record(path, step->rule_name, NULL, /* before: 简化实现中不可用 */
-                                 explorer->current);
+        const TypeRegion *before = NULL;
+        const TypeRegion *after = NULL;
+
+        /* before: 从撤销栈获取（应用规则前的深拷贝） */
+        if (i < explorer->undo_count) {
+            before = explorer->undo_stack[i];
+        }
+
+        /* after: 下一步的 before（撤销栈中），或当前类型 */
+        if (i + 1 < explorer->undo_count) {
+            after = explorer->undo_stack[i + 1];
+        } else {
+            after = explorer->current;
+        }
+
+        type_rewrite_path_record(path, step->rule_name, before, after);
     }
 
     *out_path = path;

@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_dependent_type_theory.c
  * @brief Dependent Type Theory Axiom Package Test
  *

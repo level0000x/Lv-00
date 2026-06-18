@@ -349,7 +349,7 @@ void lv00_rational_to_mpq(const Lv00Rational *r, mpq_t out);
 
 ## 28.9 版本历史
 
-- **v3.5.0**
+- **v5.0.0**
   - 补全文档化：数论、任意精度多项式、多精度多项式结式、有理数精确类型。
   - 明确 double 转换的非证明边界。
 

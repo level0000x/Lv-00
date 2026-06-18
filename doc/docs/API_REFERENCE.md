@@ -1,6 +1,6 @@
 # Lv-00 API 完整参考
 
-> **版本**: 3.5.0  
+> **版本**: 5.0.0  
 > **最后更新**: 2026-05-29  
 > **适用范围**: Lv-00 公共 API 完整参考
 
@@ -26,97 +26,97 @@
 
 ### 1.1 系统生命周期
 
-#### lv00_init
+#### lv00_context_create
 
 ```c
-bool lv00_init(void);
+LV00Context *lv00_context_create(void);
 ```
 
-初始化 Lv-00 系统。
+创建 Lv-00 上下文。
 
 **返回值**:
-- `true` - 初始化成功
-- `false` - 初始化失败
+- 非 NULL - 创建成功
+- NULL - 创建失败
 
-**说明**: 必须在调用任何其他 Lv-00 API 之前调用。可以多次调用，后续调用若系统已初始化则直接返回 true。
+**说明**: 必须在调用任何其他 Lv-00 API 之前调用。可以多次调用，后续调用若上下文有效则直接返回原上下文。
 
 **示例**:
 ```c
-if (!lv00_init()) {
-    fprintf(stderr, "Lv-00 initialization failed\n");
+LV00Context *ctx = lv00_context_create();
+if (!ctx) {
+    fprintf(stderr, "Lv-00 context creation failed\n");
     return EXIT_FAILURE;
 }
 ```
 
 ---
 
-#### lv00_cleanup
+#### lv00_context_destroy
 
 ```c
-void lv00_cleanup(void);
+void lv00_context_destroy(LV00Context *ctx);
 ```
 
-清理 Lv-00 系统，释放所有资源。
+销毁 Lv-00 上下文，释放所有资源。
 
-**说明**: 必须先销毁所有引擎实例再调用此函数。调用后不应再使用任何 Lv-00 API。
+**说明**: 调用后不应再使用任何 Lv-00 API。
 
 **示例**:
 ```c
-lv00_engine_destroy(engine);
-lv00_cleanup();
+lv00_context_destroy(ctx);
 ```
 
 ---
 
-#### lv00_is_initialized
+#### 上下文有效性检查
 
 ```c
-bool lv00_is_initialized(void);
+/* 上下文有效性通过 ctx != NULL 判断 */
 ```
 
-检查系统是否已初始化。
+检查上下文是否有效。
 
 **返回值**:
-- `true` - 已初始化
-- `false` - 未初始化
+- `true` - 上下文有效（ctx != NULL）
+- `false` - 上下文无效（ctx == NULL）
 
 ---
 
-#### lv00_engine_create
+#### lv00_context_create（替代旧版）
 
 ```c
-LV00Engine *lv00_engine_create(void);
+LV00Context *lv00_context_create(void);
 ```
 
-创建并初始化引擎实例。
+创建并初始化上下文实例。
 
-**返回值**: 引擎指针，失败返回 NULL
+**返回值**: 上下文指针，失败返回 NULL
 
-**说明**: 引擎是 Lv-00 的核心工作单元，持有约束图、符号坐标、重写规则、证明树等所有状态。
+**说明**: 上下文是 Lv-00 的核心工作单元，持有约束图、符号坐标、重写规则、证明树等所有状态。
 
 **示例**:
 ```c
-LV00Engine *engine = lv00_engine_create();
-if (!engine) {
-    fprintf(stderr, "Engine creation failed\n");
+LV00Context *ctx = lv00_context_create();
+if (!ctx) {
+    fprintf(stderr, "Context creation failed\n");
     return EXIT_FAILURE;
 }
 ```
 
 ---
 
-#### lv00_engine_destroy
+#### lv00_context_destroy（替代旧版）
 
 ```c
-void lv00_engine_destroy(LV00Engine *engine);
+void lv00_context_destroy(LV00Context *ctx);
 ```
 
-销毁引擎实例。
+销毁上下文实例。
 
 **参数**:
-- `engine` - 引擎指针（可为 NULL，此时函数无操作）
+- `ctx` - 上下文指针（可为 NULL，此时函数无操作）
 
-**说明**: 销毁引擎后，所有从该引擎获取的指针均失效。
+**说明**: 销毁上下文后，所有从该上下文获取的指针均失效。
 
 ---
 
@@ -130,7 +130,7 @@ const char *lv00_get_version_string(void);
 
 获取版本字符串。
 
-**返回值**: 版本字符串（如 "3.5.0"），静态常量，无需释放
+**返回值**: 版本字符串（如 "5.0.0"），静态常量，无需释放
 
 ---
 
@@ -324,7 +324,7 @@ void symbolic_coord_destroy(SymbolicCoord *coord);
 #### lv00_add_point
 
 ```c
-int lv00_add_point(LV00Engine *engine,
+int lv00_add_point(LV00Context *ctx,
     int64_t x_num, uint64_t x_den,
     int64_t y_num, uint64_t y_den);
 ```
@@ -349,7 +349,7 @@ int p = lv00_add_point(engine, 3, 2, 11, 4);       /* (1.5, 2.75) */
 #### lv00_add_point_i
 
 ```c
-static inline int lv00_add_point_i(LV00Engine *engine, long long x, long long y);
+static inline int lv00_add_point_i(LV00Context *ctx, long long x, long long y);
 ```
 
 添加整数坐标点（便捷函数）。
@@ -361,7 +361,7 @@ static inline int lv00_add_point_i(LV00Engine *engine, long long x, long long y)
 #### lv00_add_line_segment
 
 ```c
-int lv00_add_line_segment(LV00Engine *engine, int point1_id, int point2_id);
+int lv00_add_line_segment(LV00Context *ctx, int point1_id, int point2_id);
 ```
 
 创建连接两点的线段。
@@ -378,7 +378,7 @@ int lv00_add_line_segment(LV00Engine *engine, int point1_id, int point2_id);
 #### lv00_add_constraint_incidence
 
 ```c
-bool lv00_add_constraint_incidence(LV00Engine *engine, int point_id, int line_id);
+bool lv00_add_constraint_incidence(LV00Context *ctx, int point_id, int line_id);
 ```
 
 添加关联约束（点属于线段）。
@@ -443,7 +443,7 @@ bool lv00_constraint_graph_add_edge(Lv00ConstraintGraph *graph, int node1, int n
 #### lv00_normalize
 
 ```c
-NormalizationResult *lv00_normalize(LV00Engine *engine, bool scope_aware);
+NormalizationResult *lv00_normalize(LV00Context *ctx, bool scope_aware);
 ```
 
 执行图归一化。
@@ -463,7 +463,7 @@ NormalizationResult *lv00_normalize(LV00Engine *engine, bool scope_aware);
 #### lv00_solve
 
 ```c
-EngineSolveResult lv00_solve(LV00Engine *engine);
+EngineSolveResult lv00_solve(LV00Context *ctx);
 ```
 
 执行求解流水线。
@@ -494,7 +494,7 @@ typedef enum {
 
 ```c
 EngineSolveResult lv00_solve_with_options(
-    LV00Engine *engine,
+    LV00Context *ctx,
     const SolverOptions *options
 );
 ```
@@ -584,7 +584,7 @@ Proposition *lv00_proposition_implies(Proposition *premise, Proposition *conclus
 #### lv00_prove
 
 ```c
-Proof *lv00_prove(LV00Engine *engine, Proposition *goal);
+Proof *lv00_prove(LV00Context *ctx, Proposition *goal);
 ```
 
 执行自动证明。
@@ -601,7 +601,7 @@ Proof *lv00_prove(LV00Engine *engine, Proposition *goal);
 
 ```c
 Proof *lv00_prove_with_strategy(
-    LV00Engine *engine,
+    LV00Context *ctx,
     Proposition *goal,
     ProofStrategy strategy
 );
@@ -704,7 +704,7 @@ char *lv00_proof_export_json(const Proof *proof);
 #### lv00_preset_load
 
 ```c
-bool lv00_preset_load(LV00Engine *engine, const char *preset_name);
+bool lv00_preset_load(LV00Context *ctx, const char *preset_name);
 ```
 
 加载预设模块。
@@ -722,7 +722,7 @@ bool lv00_preset_load(LV00Engine *engine, const char *preset_name);
 #### lv00_preset_unload
 
 ```c
-bool lv00_preset_unload(LV00Engine *engine, const char *preset_name);
+bool lv00_preset_unload(LV00Context *ctx, const char *preset_name);
 ```
 
 卸载预设模块。
@@ -735,7 +735,7 @@ bool lv00_preset_unload(LV00Engine *engine, const char *preset_name);
 
 ```c
 Proposition *lv00_preset_apply(
-    LV00Engine *engine,
+    LV00Context *ctx,
     const char *theorem_name,
     ...
 );
@@ -941,7 +941,7 @@ Line *lv00_type_cast_line(GeometryEntity *entity);
 #### lv00_stream_create
 
 ```c
-Lv00Stream *lv00_stream_create(LV00Engine *engine, StreamMode mode);
+Lv00Stream *lv00_stream_create(LV00Context *ctx, StreamMode mode);
 ```
 
 创建输出流。

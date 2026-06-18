@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file fuzz_symbolic_coord.c
  * @brief 符号坐标模糊测试 - 使用 libFuzzer
  *

@@ -31,6 +31,7 @@ typedef struct Lv00ProofStepRecord {
     /* 前提步骤 */
     int *premise_step_ids;      /**< 前提步骤ID数组 */
     int premise_count;          /**< 前提数量 */
+    int premise_capacity;       /**< 前提数组容量 */
 
     /* 结论 */
     Proposition *conclusion;    /**< 结论命题 */
@@ -62,8 +63,10 @@ struct Lv00ProofObject {
     /* 假设和公理 */
     int *axiom_ids;            /**< 使用的公理ID */
     int axiom_count;           /**< 公理数量 */
+    int axiom_capacity;        /**< 公理数组容量 */
     int *assumption_ids;       /**< 假设ID数组 */
     int assumption_count;      /**< 假设数量 */
+    int assumption_capacity;    /**< 假设数组容量 */
 
     /* 统计信息 */
     int max_depth;             /**< 最大证明深度 */

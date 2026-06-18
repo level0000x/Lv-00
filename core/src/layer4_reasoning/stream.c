@@ -30,11 +30,12 @@
  *       类 Unix: sys/time.h/strings.h/pthread.h）。异步模式使用平台原生线程原语。
  */
 
-#include "stream.h"
+#include "lv00/stream.h"
+
+#include "lv00.h"
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -980,8 +981,8 @@ void stream_emit_preset_register(StreamContext *ctx, const char *name, bool succ
     ev.timestamp_ms = stream_timestamp_ms();
     ev.step_number = step_number;
 
-    /* 构造描述文本：包含预设名称和结果 */
-    char desc[512];
+    /* 构造描述文本：使用线程局部静态缓冲区，避免局部数组在 BUFFERED/THROTTLED/LAZY 模式下悬空 */
+    static LV00_THREAD_LOCAL char desc[512];
     snprintf(desc, sizeof(desc), "预设 '%s' 注册%s", name, success ? "成功" : "失败");
     ev.description = desc;
 
@@ -1004,7 +1005,7 @@ void stream_emit_preset_instantiate(StreamContext *ctx, const char *name, int in
     ev.step_number = step_number;
     ev.node_id = instance_id; /* 复用 node_id 字段存储实例 ID */
 
-    char desc[512];
+    static __thread char desc[512];
     snprintf(desc, sizeof(desc), "预设 '%s' 实例化 (ID=%d)", name, instance_id);
     ev.description = desc;
 
@@ -1028,7 +1029,7 @@ void stream_emit_preset_validate(StreamContext *ctx, const char *name, bool is_v
     ev.step_number = step_number;
     ev.detail_json = detail; /* 复用 detail_json 字段存储验证详情 */
 
-    char desc[512];
+    static __thread char desc[512];
     snprintf(desc, sizeof(desc), "预设 '%s' 验证%s%s", name, is_valid ? "通过" : "失败", detail ? "" : "");
     ev.description = desc;
 
@@ -1051,7 +1052,7 @@ void stream_emit_preset_module_loaded(StreamContext *ctx, const char *module_nam
     ev.step_number = step_number;
     ev.numeric_value = (double) count; /* 复用 numeric_value 存储注册数量 */
 
-    char desc[512];
+    static __thread char desc[512];
     snprintf(desc, sizeof(desc), "模块 '%s' 加载完成，共 %d 个预设", module_name, count);
     ev.description = desc;
 
@@ -1694,7 +1695,7 @@ void stream_reset_stats(StreamContext *ctx) {
  * @param type 事件类型
  * @return 发射次数，ctx 为 NULL 或类型越界时返回 0
  */
-int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type) {
+int64_t stream_get_event_count(const StreamContext *ctx, StreamEventType type) {
     if (!ctx)
         return 0;
     int idx = (int) type;
@@ -1710,7 +1711,7 @@ int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type) {
  * @param ctx 流式上下文
  * @return 总发射次数，ctx 为 NULL 时返回 0
  */
-long stream_get_total_event_count(StreamContext *ctx) {
+int64_t stream_get_total_event_count(StreamContext *ctx) {
     if (!ctx)
         return 0;
     return ctx->total_count;
@@ -1722,7 +1723,7 @@ long stream_get_total_event_count(StreamContext *ctx) {
  * @param ctx 流式上下文
  * @return 丢弃的事件数，ctx 为 NULL 时返回 0
  */
-long stream_get_dropped_count(StreamContext *ctx) {
+long stream_get_dropped_count(const StreamContext *ctx) {
     if (!ctx)
         return 0;
     return ctx->dropped_count;
@@ -1936,6 +1937,22 @@ const char *stream_event_type_id(StreamEventType type) {
             return "PROGRESS";
         case STREAM_EVENT_GRAPH_SNAPSHOT:
             return "GRAPH_SNAPSHOT";
+        case STREAM_EVENT_PRESET_REGISTER_START:
+            return "PRESET_REGISTER_START";
+        case STREAM_EVENT_PRESET_REGISTER_DONE:
+            return "PRESET_REGISTER_DONE";
+        case STREAM_EVENT_PRESET_REGISTER_FAILED:
+            return "PRESET_REGISTER_FAILED";
+        case STREAM_EVENT_PRESET_LOOKUP:
+            return "PRESET_LOOKUP";
+        case STREAM_EVENT_PRESET_INSTANTIATE:
+            return "PRESET_INSTANTIATE";
+        case STREAM_EVENT_PRESET_VALIDATE:
+            return "PRESET_VALIDATE";
+        case STREAM_EVENT_PRESET_CATEGORY_LOADED:
+            return "PRESET_CATEGORY_LOADED";
+        case STREAM_EVENT_PRESET_MODULE_LOADED:
+            return "PRESET_MODULE_LOADED";
         default:
             return "UNKNOWN_EVENT";
     }
@@ -2113,7 +2130,16 @@ uint64_t stream_parse_filter_mask(const char *str) {
         /* 去除 token 首尾空白 */
         while (*token == ' ' || *token == '\t')
             token++;
-        char *end = token + strlen(token) - 1;
+        if (*token == '\0') {
+            token = strtok_r(NULL, ",", &saveptr);
+            continue; /* 空 token，跳过 */
+        }
+        size_t tok_len = strlen(token);
+        if (tok_len == 0) {
+            token = strtok_r(NULL, ",", &saveptr);
+            continue;
+        }
+        char *end = token + tok_len - 1;
         while (end > token && (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')) {
             *end = '\0';
             end--;

@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_nt_number_theory.c
  * @brief Test suite for the number theory module
  *

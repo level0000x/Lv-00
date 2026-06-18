@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(lv00 VERSION 3.5.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
+project(lv00 VERSION 5.0.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -500,6 +500,15 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/memory_pool.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
+    # 补全遗漏文件：缓存管理、全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
+    core/src/layer2_resource/cache_manager.c
+    core/src/layer2_resource/global_state.c
+    core/src/layer2_resource/geometry_config.c
+    core/src/layer2_resource/debug_trace.c
+    core/src/layer2_resource/preset_helper_cn.c
+    core/src/layer2_resource/math_theory_guide_cn.c
+    core/src/layer2_resource/error_messages_cn.c
+    core/src/layer2_resource/result_messages_cn.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
@@ -532,23 +541,23 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/gappa_propagate.c
     core/src/layer3_geometry/fptaylor_eval.c
     core/src/layer3_geometry/herbie_eval.c
-    # v3.4.0 新增：SMT/SAT 模块（Alt-Ergo + STP + Boolector + CaDiCaL + Yices2 落地）
-    core/src/layer3_geometry/smt_theory_combiner.c
-    core/src/layer3_geometry/smt_bitvector.c
-    core/src/layer3_geometry/smt_trigger_engine.c
-    # v3.4.0 新增：证明策略模块（Aesop + Seed-Prover + MiniF2F 落地）
-    core/src/layer3_geometry/proof_rule_engine.c
-    core/src/layer3_geometry/proof_session.c
-    # v3.4.0 新增：数论/代数模块（NTL + SymEngine + GiNaC 落地）
-    core/src/layer3_geometry/nt_number_theory.c
-    core/src/layer3_geometry/nt_polynomial.c
-    core/src/layer3_geometry/sym_expr.c
-    # v3.4.0 新增：重写引擎模块（egg + Maude + K Framework 落地）
-    core/src/layer3_geometry/rewrite_strategy.c
-    # v3.4.0 新增：版本控制模块（libgit2 落地）
-    core/src/layer3_geometry/proof_version.c
-    # v3.4.0 新增：自动微分模块（Enzyme 落地）
-    core/src/layer3_geometry/autodiff.c
+    # [已移至 Layer 4] SMT/SAT 模块
+    # core/src/layer3_geometry/smt_theory_combiner.c
+    # core/src/layer3_geometry/smt_bitvector.c
+    # core/src/layer3_geometry/smt_trigger_engine.c
+    # [已移至 Layer 4] 证明策略模块
+    # core/src/layer3_geometry/proof_rule_engine.c
+    # core/src/layer3_geometry/proof_session.c
+    # [已移至 Layer 4] 数论/代数模块
+    # core/src/layer3_geometry/nt_number_theory.c
+    # core/src/layer3_geometry/nt_polynomial.c
+    # core/src/layer3_geometry/sym_expr.c
+    # [已移至 Layer 4] 重写引擎模块
+    # core/src/layer3_geometry/rewrite_strategy.c
+    # [已移至 Layer 4] 版本控制模块
+    # core/src/layer3_geometry/proof_version.c
+    # [已移至 Layer 4] 自动微分模块
+    # core/src/layer3_geometry/autodiff.c
     # v3.3.0 性能优化模块
     core/src/layer3_geometry/thread_pool.c
     core/src/layer3_geometry/simd_ops.c
@@ -558,8 +567,16 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/equiv_class.c
     # v3.6.0 新增：WFC 范式 - 约束传播引擎（Layer 3 约束拓扑规约）
     core/src/layer3_geometry/propagation.c
-    # v3.3.0 新增：ODE 求解器
-    core/src/layer3_geometry/ode_solver.c
+    # 补全遗漏文件：代数数、半边网格、约束求解器、几何工具、动态几何、AABB树、几何谓词
+    core/src/layer3_geometry/algebraic_number.c
+    core/src/layer3_geometry/geo_halfedge_mesh.c
+    core/src/layer3_geometry/geo_constraint_solver.c
+    core/src/layer3_geometry/geo_utils.c
+    core/src/layer3_geometry/geo_dynamic.c
+    core/src/layer3_geometry/geo_aabb_tree.c
+    core/src/layer3_geometry/geo_predicate.c
+    # [已移至 Layer 4] ODE 求解器
+    # core/src/layer3_geometry/ode_solver.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -618,8 +635,31 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/math_protocol.c
     core/src/layer4_reasoning/stream.c
     core/src/layer4_reasoning/stream_context_util.c
+    # SMT/SAT 后端（从 Layer 3 迁移）
+    core/src/layer4_reasoning/smt_theory_combiner.c
+    core/src/layer4_reasoning/smt_bitvector.c
+    core/src/layer4_reasoning/smt_trigger_engine.c
+    # 证明策略（从 Layer 3 迁移）
+    core/src/layer4_reasoning/proof_rule_engine.c
+    core/src/layer4_reasoning/proof_session.c
+    # 数论/代数（从 Layer 3 迁移）
+    core/src/layer4_reasoning/nt_number_theory.c
+    core/src/layer4_reasoning/nt_polynomial.c
+    core/src/layer4_reasoning/sym_expr.c
+    # 重写引擎（从 Layer 3 迁移）
+    core/src/layer4_reasoning/rewrite_strategy.c
+    # 版本控制（从 Layer 3 迁移）
+    core/src/layer4_reasoning/proof_version.c
+    # 自动微分（从 Layer 3 迁移）
+    core/src/layer4_reasoning/autodiff.c
+    # ODE 求解器（从 Layer 3 迁移）
+    core/src/layer4_reasoning/ode_solver.c
     # v3.3.0 新增：不等式推理系统（桩实现）
     core/src/layer4_reasoning/inequality_reasoning.c
+    # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
+    core/src/layer4_reasoning/adaptive_pruning.c
+    # v5.0.0 新增：并行 Groebner 引擎（并发优化）
+    core/src/layer4_reasoning/groebner_parallel.c
     # 公理包
     core/src/layer4_reasoning/axiom/axiom_pkg.c
     core/src/layer4_reasoning/axiom/axiom_grade.c
@@ -698,6 +738,10 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/preset/preset_trigonometry.c
     # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
     core/src/layer4_reasoning/meta_proof.c
+    # 补全遗漏文件：冲突检测、矛盾证明、抽象代数预设
+    core/src/layer4_reasoning/conflict_detector.c
+    core/src/layer4_reasoning/proof_contradiction.c
+    core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
 )
 
 # ── Layer 5: 结果输出层 (Output) ──
@@ -710,6 +754,9 @@ set(LV00_LAYER5_SOURCES
     core/src/layer5_output/interop/interop.c
     # Magic 模拟器模块
     core/src/layer5_output/magic/magic.c
+    # 补全遗漏文件：几何可视化（基础版 + 完整版）
+    core/src/layer5_output/geo_visual.c
+    core/src/layer5_output/geo_visual_complete.c
 )
 
 # ============================================================
@@ -760,6 +807,107 @@ add_library(lv00_layer5_output OBJECT ${LV00_LAYER5_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_layer5_output 5)
 target_link_libraries(lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
 
+# ── Layer 6: 图形化编程层 (Visual Programming Layer) ──
+# 设计文档: doc/docs/35_layer6_visual_programming.md
+# 四大子系统: 可视化编辑器、函数块运行时扩展、类型系统扩展、表示转换层
+
+set(LV00_LAYER6_SOURCES
+    # 核心视图
+    core/src/layer6_visual/visual_editor.c
+    core/src/layer6_visual/geometry_canvas.c
+    core/src/layer6_visual/node_graph.c
+    core/src/layer6_visual/block_canvas.c
+    core/src/layer6_visual/text_code.c
+    core/src/layer6_visual/view_synchronizer.c
+    # 控制流块
+    core/src/layer6_visual/control_flow/if_block.c
+    core/src/layer6_visual/control_flow/while_block.c
+    core/src/layer6_visual/control_flow/match_block.c
+    # IO 交互块
+    core/src/layer6_visual/io/file_block.c
+    core/src/layer6_visual/io/network_block.c
+    core/src/layer6_visual/io/ui_block.c
+    # 数据结构块
+    core/src/layer6_visual/data/list_block.c
+    core/src/layer6_visual/data/map_block.c
+    core/src/layer6_visual/data/record_block.c
+    # 运行时
+    core/src/layer6_visual/runtime/block_scheduler.c
+    core/src/layer6_visual/runtime/incremental_exec.c
+    core/src/layer6_visual/runtime/effect_tracker.c
+    # 类型扩展
+    core/src/layer6_visual/types/extended_types.c
+    core/src/layer6_visual/types/effect_types.c
+    core/src/layer6_visual/types/type_inference.c
+    # 表示转换
+    core/src/layer6_visual/converter/block_to_geometry.c
+    core/src/layer6_visual/converter/block_to_node.c
+    core/src/layer6_visual/converter/block_to_text.c
+    core/src/layer6_visual/converter/sync_protocol.c
+)
+
+set(LV00_LAYER6_HEADERS
+    core/include/lv00/visual_editor.h
+    core/include/lv00/control_flow_blocks.h
+    core/include/lv00/io_blocks.h
+    core/include/lv00/data_structure_blocks.h
+    core/include/lv00/extended_types.h
+    core/include/lv00/effect_system.h
+    core/include/lv00/block_scheduler.h
+    core/include/lv00/representation_converter.h
+)
+
+add_library(lv00_layer6_visual OBJECT ${LV00_LAYER6_SOURCES} ${LV00_LAYER6_HEADERS})
+lv00_setup_layer(lv00_layer6_visual 6)
+target_link_libraries(lv00_layer6_visual lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+
+# ── Layer 7: 编排调度层 (Orchestration Layer) ──
+set(LV00_LAYER7_SOURCES
+    core/src/layer7_orchestration/orchestrator.c
+)
+set(LV00_LAYER7_HEADERS
+    core/include/lv00/orchestrator.h
+)
+add_library(lv00_layer7_orchestration OBJECT ${LV00_LAYER7_SOURCES} ${LV00_LAYER7_HEADERS})
+lv00_setup_layer(lv00_layer7_orchestration 7)
+target_link_libraries(lv00_layer7_orchestration lv00_layer6_visual lv00_layer5_output lv00_layer4_reasoning lv00_layer3_geometry lv00_layer2_resource)
+
+# ── Layer 8: 元验证层 (Meta-Verification Layer) ──
+set(LV00_LAYER8_SOURCES
+    core/src/layer8_meta_verify/meta_verify.c
+)
+set(LV00_LAYER8_HEADERS
+    core/include/lv00/meta_verify.h
+)
+add_library(lv00_layer8_meta_verify OBJECT ${LV00_LAYER8_SOURCES} ${LV00_LAYER8_HEADERS})
+lv00_setup_layer(lv00_layer8_meta_verify 8)
+target_link_libraries(lv00_layer8_meta_verify lv00_layer7_orchestration)
+
+# ── Layer 9: 应用入口层 (Application Layer) ──
+set(LV00_LAYER9_SOURCES
+    core/src/layer9_application/application.c
+)
+set(LV00_LAYER9_HEADERS
+    core/include/lv00/application.h
+)
+add_library(lv00_layer9_application OBJECT ${LV00_LAYER9_SOURCES} ${LV00_LAYER9_HEADERS})
+lv00_setup_layer(lv00_layer9_application 9)
+target_link_libraries(lv00_layer9_application lv00_layer8_meta_verify)
+
+# ── Layer 10: 外部集成层 (Interop Layer) ──
+set(LV00_LAYER10_SOURCES
+    core/src/layer10_interop/interop.c
+    core/src/layer10_interop/lean4_bridge.c
+    core/src/layer10_interop/coq_bridge.c
+    core/src/layer10_interop/opml_codec.c
+)
+set(LV00_LAYER10_HEADERS
+    core/include/lv00/interop.h
+)
+add_library(lv00_layer10_interop OBJECT ${LV00_LAYER10_SOURCES} ${LV00_LAYER10_HEADERS})
+lv00_setup_layer(lv00_layer10_interop 10)
+target_link_libraries(lv00_layer10_interop lv00_layer9_application)
+
 # ── 聚合静态库（向后兼容 lv00_static）──
 # 将所有层的 OBJECT 文件聚合到一个静态库中
 add_library(lv00_static STATIC
@@ -768,6 +916,11 @@ add_library(lv00_static STATIC
     $<TARGET_OBJECTS:lv00_layer3_geometry>
     $<TARGET_OBJECTS:lv00_layer4_reasoning>
     $<TARGET_OBJECTS:lv00_layer5_output>
+    $<TARGET_OBJECTS:lv00_layer6_visual>
+    $<TARGET_OBJECTS:lv00_layer7_orchestration>
+    $<TARGET_OBJECTS:lv00_layer8_meta_verify>
+    $<TARGET_OBJECTS:lv00_layer9_application>
+    $<TARGET_OBJECTS:lv00_layer10_interop>
 )
 target_include_directories(lv00_static PUBLIC
     ${GMP_INCLUDE_DIR}
@@ -789,6 +942,11 @@ if(BUILD_SHARED_LIBS)
         $<TARGET_OBJECTS:lv00_layer3_geometry>
         $<TARGET_OBJECTS:lv00_layer4_reasoning>
         $<TARGET_OBJECTS:lv00_layer5_output>
+        $<TARGET_OBJECTS:lv00_layer6_visual>
+        $<TARGET_OBJECTS:lv00_layer7_orchestration>
+        $<TARGET_OBJECTS:lv00_layer8_meta_verify>
+        $<TARGET_OBJECTS:lv00_layer9_application>
+        $<TARGET_OBJECTS:lv00_layer10_interop>
     )
     target_include_directories(lv00_shared PUBLIC
         ${GMP_INCLUDE_DIR}

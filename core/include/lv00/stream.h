@@ -46,6 +46,25 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+/* LV00_PUBLIC_API —— 若未定义则提供默认实现 */
+#ifndef LV00_PUBLIC_API
+  #if defined(_WIN32) || defined(_MSC_VER)
+    #ifdef LV00_BUILD_SHARED
+      #define LV00_PUBLIC_API __declspec(dllexport)
+    #else
+      #define LV00_PUBLIC_API
+    #endif
+  #elif defined(__GNUC__) || defined(__clang__)
+    #ifdef LV00_BUILD_SHARED
+      #define LV00_PUBLIC_API __attribute__((visibility("default")))
+    #else
+      #define LV00_PUBLIC_API
+    #endif
+  #else
+    #define LV00_PUBLIC_API
+  #endif
+#endif
+
 /* ============== 常量 ============== */
 
 /**
@@ -662,7 +681,7 @@ LV00_PUBLIC_API void stream_reset_stats(StreamContext *ctx);
  * @param type  事件类型
  * @return 发射次数
  */
-LV00_PUBLIC_API int64_t stream_get_event_count(StreamContext *ctx, StreamEventType type);
+LV00_PUBLIC_API int64_t stream_get_event_count(const StreamContext *ctx, StreamEventType type);
 
 /**
  * @brief 获取事件发射总数
@@ -670,7 +689,7 @@ LV00_PUBLIC_API int64_t stream_get_event_count(StreamContext *ctx, StreamEventTy
  * @param ctx  流式上下文
  * @return 总发射次数
  */
-LV00_PUBLIC_API long stream_get_total_event_count(StreamContext *ctx);
+LV00_PUBLIC_API int64_t stream_get_total_event_count(StreamContext *ctx);
 
 /**
  * @brief 获取已丢弃的事件数（异步队列满时）
@@ -678,7 +697,7 @@ LV00_PUBLIC_API long stream_get_total_event_count(StreamContext *ctx);
  * @param ctx  流式上下文
  * @return 丢弃的事件数
  */
-LV00_PUBLIC_API long stream_get_dropped_count(StreamContext *ctx);
+LV00_PUBLIC_API long stream_get_dropped_count(const StreamContext *ctx);
 
 /* ============== 工具函数 ============== */
 

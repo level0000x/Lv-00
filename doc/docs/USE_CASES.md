@@ -1,6 +1,6 @@
 # Lv-00 应用场景文档
 
-> **版本**: 3.5.0  
+> **版本**: 5.0.0  
 > **最后更新**: 2026-05-29  
 > **适用范围**: Lv-00 几何元语言应用场景与示例
 
@@ -33,23 +33,23 @@ Lv-00 可用于验证微积分中的基本定理和性质。
 
 /* 验证中值定理 */
 int verify_mean_value_theorem(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
     /* 加载分析学预设 */
-    lv00_preset_load(engine, "calculus");
+    lv00_preset_load(ctx, "calculus");
 
     /* 定义函数 f(x) = x^2 在区间 [0, 2] */
-    int a = lv00_add_point_i(engine, 0, 0);
-    int b = lv00_add_point_i(engine, 2, 0);
+    int a = lv00_add_point_i(ctx, 0, 0);
+    int b = lv00_add_point_i(ctx, 2, 0);
 
     /* 应用中值定理预设 */
     Proposition *mvt = lv00_preset_apply(
-        engine, "mean_value_theorem", a, b
+        ctx, "mean_value_theorem", a, b
     );
 
     /* 证明 */
-    Proof *proof = lv00_prove(engine, mvt);
+    Proof *proof = lv00_prove(ctx, mvt);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -58,9 +58,9 @@ int verify_mean_value_theorem(void) {
         lv00_proof_export_latex(proof, "mvt_proof.tex");
     }
 
-    lv00_preset_unload(engine, "calculus");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "calculus");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -77,11 +77,11 @@ int verify_mean_value_theorem(void) {
 
 /* 验证矩阵乘法结合律 */
 int verify_matrix_associativity(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
     /* 加载线性代数预设 */
-    lv00_preset_load(engine, "linear_algebra");
+    lv00_preset_load(ctx, "linear_algebra");
 
     /* 定义三个矩阵（使用点表示矩阵元素） */
     int A[2][2], B[2][2], C[2][2];
@@ -89,25 +89,25 @@ int verify_matrix_associativity(void) {
     /* 构造 2x2 矩阵 */
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 2; j++) {
-            A[i][j] = lv00_add_point_i(engine, i+1, j+1);
-            B[i][j] = lv00_add_point_i(engine, i+2, j+2);
-            C[i][j] = lv00_add_point_i(engine, i+3, j+3);
+            A[i][j] = lv00_add_point_i(ctx, i+1, j+1);
+            B[i][j] = lv00_add_point_i(ctx, i+2, j+2);
+            C[i][j] = lv00_add_point_i(ctx, i+3, j+3);
         }
     }
 
     /* 应用矩阵结合律预设 */
     Proposition *assoc = lv00_preset_apply(
-        engine, "matrix_multiplication_associative",
+        ctx, "matrix_multiplication_associative",
         A[0][0], B[0][0], C[0][0]
     );
 
-    Proof *proof = lv00_prove(engine, assoc);
+    Proof *proof = lv00_prove(ctx, assoc);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
-    lv00_preset_unload(engine, "linear_algebra");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "linear_algebra");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -124,22 +124,22 @@ int verify_matrix_associativity(void) {
 
 /* 验证常微分方程解 */
 int verify_ode_solution(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "differential_equations");
+    lv00_preset_load(ctx, "differential_equations");
 
     /* 定义微分方程 dy/dx = y, y(0) = 1 */
     /* 验证解 y = e^x */
 
-    int initial_point = lv00_add_point_i(engine, 0, 1);
+    int initial_point = lv00_add_point_i(ctx, 0, 1);
 
     Proposition *solution = lv00_preset_apply(
-        engine, "ode_solution_verification",
+        ctx, "ode_solution_verification",
         initial_point
     );
 
-    Proof *proof = lv00_prove(engine, solution);
+    Proof *proof = lv00_prove(ctx, solution);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -147,9 +147,9 @@ int verify_ode_solution(void) {
         printf("ODE 解验证成功!\n");
     }
 
-    lv00_preset_unload(engine, "differential_equations");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "differential_equations");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -170,27 +170,27 @@ int verify_ode_solution(void) {
 
 /* 验证图的连通性 */
 int verify_graph_connectivity(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "graph_theory");
+    lv00_preset_load(ctx, "graph_theory");
 
     /* 创建一个图：三角形 */
-    int v1 = lv00_add_point_i(engine, 0, 0);
-    int v2 = lv00_add_point_i(engine, 1, 0);
-    int v3 = lv00_add_point_i(engine, 0, 1);
+    int v1 = lv00_add_point_i(ctx, 0, 0);
+    int v2 = lv00_add_point_i(ctx, 1, 0);
+    int v3 = lv00_add_point_i(ctx, 0, 1);
 
     /* 添加边 */
-    lv00_add_line_segment(engine, v1, v2);
-    lv00_add_line_segment(engine, v2, v3);
-    lv00_add_line_segment(engine, v3, v1);
+    lv00_add_line_segment(ctx, v1, v2);
+    lv00_add_line_segment(ctx, v2, v3);
+    lv00_add_line_segment(ctx, v3, v1);
 
     /* 验证连通性 */
     Proposition *connected = lv00_preset_apply(
-        engine, "graph_connected", v1, v2, v3
+        ctx, "graph_connected", v1, v2, v3
     );
 
-    Proof *proof = lv00_prove(engine, connected);
+    Proof *proof = lv00_prove(ctx, connected);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -198,9 +198,9 @@ int verify_graph_connectivity(void) {
         printf("图连通性验证成功!\n");
     }
 
-    lv00_preset_unload(engine, "graph_theory");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "graph_theory");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -217,17 +217,17 @@ int verify_graph_connectivity(void) {
 
 /* 验证组合恒等式 C(n,k) = C(n,n-k) */
 int verify_combinatorial_identity(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "combinatorics");
+    lv00_preset_load(ctx, "combinatorics");
 
     /* 验证帕斯卡恒等式 */
     Proposition *identity = lv00_preset_apply(
-        engine, "pascal_identity"
+        ctx, "pascal_identity"
     );
 
-    Proof *proof = lv00_prove(engine, identity);
+    Proof *proof = lv00_prove(ctx, identity);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -236,9 +236,9 @@ int verify_combinatorial_identity(void) {
         lv00_proof_export_latex(proof, "combinatorial_proof.tex");
     }
 
-    lv00_preset_unload(engine, "combinatorics");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "combinatorics");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -255,17 +255,17 @@ int verify_combinatorial_identity(void) {
 
 /* 验证逻辑推理规则 */
 int verify_logical_inference(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "mathematical_logic");
+    lv00_preset_load(ctx, "mathematical_logic");
 
     /* 验证假言推理 (Modus Ponens): (P ∧ (P→Q)) → Q */
     Proposition *modus_ponens = lv00_preset_apply(
-        engine, "modus_ponens"
+        ctx, "modus_ponens"
     );
 
-    Proof *proof = lv00_prove(engine, modus_ponens);
+    Proof *proof = lv00_prove(ctx, modus_ponens);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -273,9 +273,9 @@ int verify_logical_inference(void) {
         printf("假言推理验证成功!\n");
     }
 
-    lv00_preset_unload(engine, "mathematical_logic");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "mathematical_logic");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -296,21 +296,21 @@ int verify_logical_inference(void) {
 
 /* 验证欧几里得算法正确性 */
 int verify_euclidean_algorithm(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "number_theory");
+    lv00_preset_load(ctx, "number_theory");
 
     /* 定义两个数 */
-    int a = lv00_add_point_i(engine, 48, 0);
-    int b = lv00_add_point_i(engine, 18, 0);
+    int a = lv00_add_point_i(ctx, 48, 0);
+    int b = lv00_add_point_i(ctx, 18, 0);
 
     /* 验证 gcd(48, 18) = 6 */
     Proposition *gcd_correct = lv00_preset_apply(
-        engine, "euclidean_algorithm_correctness", a, b
+        ctx, "euclidean_algorithm_correctness", a, b
     );
 
-    Proof *proof = lv00_prove(engine, gcd_correct);
+    Proof *proof = lv00_prove(ctx, gcd_correct);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -319,9 +319,9 @@ int verify_euclidean_algorithm(void) {
         lv00_proof_export_lean(proof, "euclidean_correct.lean");
     }
 
-    lv00_preset_unload(engine, "number_theory");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "number_theory");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -338,21 +338,21 @@ int verify_euclidean_algorithm(void) {
 
 /* 验证简单认证协议 */
 int verify_authentication_protocol(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "logic_advanced");
+    lv00_preset_load(ctx, "logic_advanced");
 
     /* 定义协议参与者 */
-    int alice = lv00_add_point_i(engine, 1, 0);
-    int bob = lv00_add_point_i(engine, 2, 0);
+    int alice = lv00_add_point_i(ctx, 1, 0);
+    int bob = lv00_add_point_i(ctx, 2, 0);
 
     /* 验证协议安全性 */
     Proposition *security = lv00_preset_apply(
-        engine, "protocol_authentication", alice, bob
+        ctx, "protocol_authentication", alice, bob
     );
 
-    Proof *proof = lv00_prove(engine, security);
+    Proof *proof = lv00_prove(ctx, security);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -360,9 +360,9 @@ int verify_authentication_protocol(void) {
         printf("协议安全性验证成功!\n");
     }
 
-    lv00_preset_unload(engine, "logic_advanced");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "logic_advanced");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -379,22 +379,22 @@ int verify_authentication_protocol(void) {
 
 /* 验证加法器正确性 */
 int verify_adder_correctness(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "boolean_algebra");
+    lv00_preset_load(ctx, "boolean_algebra");
 
     /* 定义输入 */
-    int a = lv00_add_point_i(engine, 1, 0);
-    int b = lv00_add_point_i(engine, 1, 0);
-    int cin = lv00_add_point_i(engine, 0, 0);
+    int a = lv00_add_point_i(ctx, 1, 0);
+    int b = lv00_add_point_i(ctx, 1, 0);
+    int cin = lv00_add_point_i(ctx, 0, 0);
 
     /* 验证全加器 */
     Proposition *adder = lv00_preset_apply(
-        engine, "full_adder_correctness", a, b, cin
+        ctx, "full_adder_correctness", a, b, cin
     );
 
-    Proof *proof = lv00_prove(engine, adder);
+    Proof *proof = lv00_prove(ctx, adder);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -402,9 +402,9 @@ int verify_adder_correctness(void) {
         printf("加法器正确性验证成功!\n");
     }
 
-    lv00_preset_unload(engine, "boolean_algebra");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "boolean_algebra");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -425,17 +425,17 @@ int verify_adder_correctness(void) {
 
 /* 验证 RSA 算法的数学基础 */
 int verify_rsa_mathematics(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "number_theory");
+    lv00_preset_load(ctx, "number_theory");
 
     /* 验证欧拉定理：a^φ(n) ≡ 1 (mod n) */
     Proposition *euler_theorem = lv00_preset_apply(
-        engine, "euler_theorem"
+        ctx, "euler_theorem"
     );
 
-    Proof *proof = lv00_prove(engine, euler_theorem);
+    Proof *proof = lv00_prove(ctx, euler_theorem);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -444,9 +444,9 @@ int verify_rsa_mathematics(void) {
         lv00_proof_export_latex(proof, "rsa_math.tex");
     }
 
-    lv00_preset_unload(engine, "number_theory");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "number_theory");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -463,25 +463,25 @@ int verify_rsa_mathematics(void) {
 
 /* 验证零知识证明的完备性和可靠性 */
 int verify_zk_properties(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "probability");
+    lv00_preset_load(ctx, "probability");
 
     /* 验证零知识证明的三个性质 */
     Proposition *completeness = lv00_preset_apply(
-        engine, "zk_completeness"
+        ctx, "zk_completeness"
     );
     Proposition *soundness = lv00_preset_apply(
-        engine, "zk_soundness"
+        ctx, "zk_soundness"
     );
     Proposition *zero_knowledge = lv00_preset_apply(
-        engine, "zk_zero_knowledge"
+        ctx, "zk_zero_knowledge"
     );
 
-    Proof *proof1 = lv00_prove(engine, completeness);
-    Proof *proof2 = lv00_prove(engine, soundness);
-    Proof *proof3 = lv00_prove(engine, zero_knowledge);
+    Proof *proof1 = lv00_prove(ctx, completeness);
+    Proof *proof2 = lv00_prove(ctx, soundness);
+    Proof *proof3 = lv00_prove(ctx, zero_knowledge);
 
     int result = ((proof1 && lv00_proof_valid(proof1)) &&
                   (proof2 && lv00_proof_valid(proof2)) &&
@@ -491,9 +491,9 @@ int verify_zk_properties(void) {
         printf("零知识证明性质验证成功!\n");
     }
 
-    lv00_preset_unload(engine, "probability");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "probability");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -514,29 +514,29 @@ int verify_zk_properties(void) {
 
 /* 知识图谱推理示例 */
 int knowledge_graph_reasoning(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "logic_advanced");
+    lv00_preset_load(ctx, "logic_advanced");
 
     /* 定义知识图谱中的实体和关系 */
-    int human = lv00_add_point_i(engine, 1, 0);
-    int mortal = lv00_add_point_i(engine, 2, 0);
-    int socrates = lv00_add_point_i(engine, 3, 0);
+    int human = lv00_add_point_i(ctx, 1, 0);
+    int mortal = lv00_add_point_i(ctx, 2, 0);
+    int socrates = lv00_add_point_i(ctx, 3, 0);
 
     /* 定义规则：所有人都是会死的，苏格拉底是人，所以苏格拉底会死 */
     Proposition *syllogism = lv00_proposition_and(
-        lv00_preset_apply(engine, "all_humans_mortal", human, mortal),
-        lv00_preset_apply(engine, "socrates_is_human", socrates, human)
+        lv00_preset_apply(ctx, "all_humans_mortal", human, mortal),
+        lv00_preset_apply(ctx, "socrates_is_human", socrates, human)
     );
 
     Proposition *conclusion = lv00_preset_apply(
-        engine, "socrates_is_mortal", socrates, mortal
+        ctx, "socrates_is_mortal", socrates, mortal
     );
 
     Proposition *reasoning = lv00_proposition_implies(syllogism, conclusion);
 
-    Proof *proof = lv00_prove(engine, reasoning);
+    Proof *proof = lv00_prove(ctx, reasoning);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -544,9 +544,9 @@ int knowledge_graph_reasoning(void) {
         printf("知识图谱推理成功!\n");
     }
 
-    lv00_preset_unload(engine, "logic_advanced");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "logic_advanced");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }
@@ -563,35 +563,35 @@ int knowledge_graph_reasoning(void) {
 
 /* 自动发现几何定理 */
 int auto_discover_theorems(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "euclidean_geometry");
+    lv00_preset_load(ctx, "euclidean_geometry");
 
     /* 构造几何图形 */
-    int A = lv00_add_point_i(engine, 0, 0);
-    int B = lv00_add_point_i(engine, 4, 0);
-    int C = lv00_add_point_i(engine, 2, 3);
+    int A = lv00_add_point_i(ctx, 0, 0);
+    int B = lv00_add_point_i(ctx, 4, 0);
+    int C = lv00_add_point_i(ctx, 2, 3);
 
-    lv00_add_line_segment(engine, A, B);
-    lv00_add_line_segment(engine, B, C);
-    lv00_add_line_segment(engine, C, A);
+    lv00_add_line_segment(ctx, A, B);
+    lv00_add_line_segment(ctx, B, C);
+    lv00_add_line_segment(ctx, C, A);
 
     /* 自动发现定理 */
     Proposition *discovered = lv00_preset_apply(
-        engine, "auto_discover_properties", A, B, C
+        ctx, "auto_discover_properties", A, B, C
     );
 
-    Proof *proof = lv00_prove(engine, discovered);
+    Proof *proof = lv00_prove(ctx, discovered);
 
     if (proof && lv00_proof_valid(proof)) {
         printf("发现新定理!\n");
         lv00_proof_export_latex(proof, "discovered_theorem.tex");
     }
 
-    lv00_preset_unload(engine, "euclidean_geometry");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "euclidean_geometry");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return 0;
 }
@@ -608,22 +608,22 @@ int auto_discover_theorems(void) {
 
 /* 解决数独问题 */
 int solve_sudoku(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "constraint_satisfaction");
+    lv00_preset_load(ctx, "constraint_satisfaction");
 
     /* 定义数独约束 */
     /* 每行、每列、每个 3x3 宫格都包含 1-9 */
 
     Proposition *sudoku_constraints = lv00_preset_apply(
-        engine, "sudoku_rules"
+        ctx, "sudoku_rules"
     );
 
     /* 添加已知数字作为约束 */
     /* ... */
 
-    Proof *proof = lv00_prove(engine, sudoku_constraints);
+    Proof *proof = lv00_prove(ctx, sudoku_constraints);
 
     if (proof && lv00_proof_valid(proof)) {
         printf("数独求解成功!\n");
@@ -631,9 +631,9 @@ int solve_sudoku(void) {
         lv00_proof_export_json(proof, "sudoku_solution.json");
     }
 
-    lv00_preset_unload(engine, "constraint_satisfaction");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "constraint_satisfaction");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return 0;
 }
@@ -654,32 +654,32 @@ int solve_sudoku(void) {
 
 /* 交互式几何演示 */
 int interactive_geometry_demo(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "euclidean_geometry");
+    lv00_preset_load(ctx, "euclidean_geometry");
 
     /* 创建可交互的几何图形 */
-    int A = lv00_add_point_i(engine, 0, 0);
-    int B = lv00_add_point_i(engine, 4, 0);
-    int C = lv00_add_point_i(engine, 2, 3);
+    int A = lv00_add_point_i(ctx, 0, 0);
+    int B = lv00_add_point_i(ctx, 4, 0);
+    int C = lv00_add_point_i(ctx, 2, 3);
 
     /* 构造三角形 */
-    lv00_add_line_segment(engine, A, B);
-    lv00_add_line_segment(engine, B, C);
-    lv00_add_line_segment(engine, C, A);
+    lv00_add_line_segment(ctx, A, B);
+    lv00_add_line_segment(ctx, B, C);
+    lv00_add_line_segment(ctx, C, A);
 
     /* 构造重心 */
     int centroid = lv00_preset_apply(
-        engine, "triangle_centroid", A, B, C
+        ctx, "triangle_centroid", A, B, C
     );
 
     /* 验证重心性质 */
     Proposition *centroid_prop = lv00_preset_apply(
-        engine, "centroid_property", A, B, C, centroid
+        ctx, "centroid_property", A, B, C, centroid
     );
 
-    Proof *proof = lv00_prove(engine, centroid_prop);
+    Proof *proof = lv00_prove(ctx, centroid_prop);
 
     if (proof && lv00_proof_valid(proof)) {
         printf("重心性质验证成功!\n");
@@ -687,9 +687,9 @@ int interactive_geometry_demo(void) {
         lv00_proof_export_tikz(proof, "centroid_demo.tex");
     }
 
-    lv00_preset_unload(engine, "euclidean_geometry");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "euclidean_geometry");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return 0;
 }
@@ -706,10 +706,10 @@ int interactive_geometry_demo(void) {
 
 /* 自动批改几何证明题 */
 int auto_grade_geometry_proof(const char *student_proof) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "euclidean_geometry");
+    lv00_preset_load(ctx, "euclidean_geometry");
 
     /* 解析学生证明 */
     /* ... */
@@ -717,7 +717,7 @@ int auto_grade_geometry_proof(const char *student_proof) {
     /* 验证证明步骤 */
     Proposition *student_proposition = /* 解析结果 */;
 
-    Proof *proof = lv00_prove(engine, student_proposition);
+    Proof *proof = lv00_prove(ctx, student_proposition);
 
     int score = 0;
     if (proof && lv00_proof_valid(proof)) {
@@ -728,9 +728,9 @@ int auto_grade_geometry_proof(const char *student_proof) {
 
     printf("学生证明得分: %d\n", score);
 
-    lv00_preset_unload(engine, "euclidean_geometry");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "euclidean_geometry");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return score;
 }
@@ -751,28 +751,28 @@ int auto_grade_geometry_proof(const char *student_proof) {
 
 /* CAD 几何约束求解 */
 int cad_constraint_solving(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "euclidean_geometry");
+    lv00_preset_load(ctx, "euclidean_geometry");
 
     /* 定义机械零件几何 */
-    int center = lv00_add_point_i(engine, 0, 0);
-    int radius_point = lv00_add_point_i(engine, 5, 0);
+    int center = lv00_add_point_i(ctx, 0, 0);
+    int radius_point = lv00_add_point_i(ctx, 5, 0);
 
     /* 圆约束 */
     /* 圆心在 center，半径为 5 */
 
     /* 添加切线约束 */
-    int tangent_point = lv00_add_point_i(engine, 5, 5);
+    int tangent_point = lv00_add_point_i(ctx, 5, 5);
 
     Proposition *tangent_constraint = lv00_preset_apply(
-        engine, "tangent_constraint", center, radius_point, tangent_point
+        ctx, "tangent_constraint", center, radius_point, tangent_point
     );
 
     /* 求解约束 */
-    lv00_normalize(engine, true);
-    EngineSolveResult result = lv00_solve(engine);
+    lv00_normalize(ctx, true);
+    EngineSolveResult result = lv00_solve(ctx);
 
     if (result == LV00_SOLVE_SUCCESS) {
         printf("CAD 约束求解成功!\n");
@@ -780,9 +780,9 @@ int cad_constraint_solving(void) {
         /* ... */
     }
 
-    lv00_preset_unload(engine, "euclidean_geometry");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "euclidean_geometry");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return (result == LV00_SOLVE_SUCCESS) ? 0 : 1;
 }
@@ -799,28 +799,28 @@ int cad_constraint_solving(void) {
 
 /* 机器人路径规划验证 */
 int robot_path_verification(void) {
-    lv00_init();
-    LV00Engine *engine = lv00_engine_create();
+    lv00_context_create();
+    LV00Context *ctx = lv00_context_create();
 
-    lv00_preset_load(engine, "euclidean_geometry");
+    lv00_preset_load(ctx, "euclidean_geometry");
 
     /* 定义路径点 */
-    int start = lv00_add_point_i(engine, 0, 0);
-    int waypoint1 = lv00_add_point_i(engine, 2, 2);
-    int waypoint2 = lv00_add_point_i(engine, 4, 1);
-    int goal = lv00_add_point_i(engine, 5, 3);
+    int start = lv00_add_point_i(ctx, 0, 0);
+    int waypoint1 = lv00_add_point_i(ctx, 2, 2);
+    int waypoint2 = lv00_add_point_i(ctx, 4, 1);
+    int goal = lv00_add_point_i(ctx, 5, 3);
 
     /* 连接路径 */
-    lv00_add_line_segment(engine, start, waypoint1);
-    lv00_add_line_segment(engine, waypoint1, waypoint2);
-    lv00_add_line_segment(engine, waypoint2, goal);
+    lv00_add_line_segment(ctx, start, waypoint1);
+    lv00_add_line_segment(ctx, waypoint1, waypoint2);
+    lv00_add_line_segment(ctx, waypoint2, goal);
 
     /* 验证路径无碰撞 */
     Proposition *collision_free = lv00_preset_apply(
-        engine, "path_collision_free", start, waypoint1, waypoint2, goal
+        ctx, "path_collision_free", start, waypoint1, waypoint2, goal
     );
 
-    Proof *proof = lv00_prove(engine, collision_free);
+    Proof *proof = lv00_prove(ctx, collision_free);
 
     int result = (proof && lv00_proof_valid(proof)) ? 0 : 1;
 
@@ -828,9 +828,9 @@ int robot_path_verification(void) {
         printf("路径无碰撞验证成功!\n");
     }
 
-    lv00_preset_unload(engine, "euclidean_geometry");
-    lv00_engine_destroy(engine);
-    lv00_cleanup();
+    lv00_preset_unload(ctx, "euclidean_geometry");
+    lv00_context_destroy(ctx);
+    lv00_context_destroy(ctx);
 
     return result;
 }

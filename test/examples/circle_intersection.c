@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file circle_intersection.c
  * @brief 完整示例：圆与线段的相交构造
  *
@@ -145,15 +145,27 @@ int main(void) {
     Rational *rb1 = rational_create(-1, 1);
     SymbolicCoord *ix1 = symbolic_coord_create_quadratic(ra1, rb1, 5);
     SymbolicCoord *iy1 = symbolic_coord_create_rational(2, 1);
+    if (!ra1 || !rb1 || !ix1 || !iy1) {
+        fprintf(stderr, "错误: 创建交点1坐标失败\n");
+        if (ra1) rational_destroy(ra1);
+        if (rb1) rational_destroy(rb1);
+        if (ix1) symbolic_coord_destroy(ix1);
+        if (iy1) symbolic_coord_destroy(iy1);
+        graph_destroy(g);
+        return 1;
+    }
     SymbolicCoord *icoords1[] = {ix1, iy1};
     ares = graph_add_point(g, icoords1, 2);
     rational_destroy(ra1);
     rational_destroy(rb1);
     if (ares != ADD_NODE_OK) {
         fprintf(stderr, "错误: 创建交点1失败 (错误码=%d)\n", ares);
+        symbolic_coord_destroy(ix1);
+        symbolic_coord_destroy(iy1);
         graph_destroy(g);
         return 1;
     }
+    /* graph_add_point 接管 SymbolicCoord 所有权，无需手动释放 ix1/iy1 */
     int intersection1 = g->next_node_id - 1;
 
     /*
@@ -164,15 +176,27 @@ int main(void) {
     Rational *rb2 = rational_create(1, 1);
     SymbolicCoord *ix2 = symbolic_coord_create_quadratic(ra2, rb2, 5);
     SymbolicCoord *iy2 = symbolic_coord_create_rational(2, 1);
+    if (!ra2 || !rb2 || !ix2 || !iy2) {
+        fprintf(stderr, "错误: 创建交点2坐标失败\n");
+        if (ra2) rational_destroy(ra2);
+        if (rb2) rational_destroy(rb2);
+        if (ix2) symbolic_coord_destroy(ix2);
+        if (iy2) symbolic_coord_destroy(iy2);
+        graph_destroy(g);
+        return 1;
+    }
     SymbolicCoord *icoords2[] = {ix2, iy2};
     ares = graph_add_point(g, icoords2, 2);
     rational_destroy(ra2);
     rational_destroy(rb2);
     if (ares != ADD_NODE_OK) {
         fprintf(stderr, "错误: 创建交点2失败 (错误码=%d)\n", ares);
+        symbolic_coord_destroy(ix2);
+        symbolic_coord_destroy(iy2);
         graph_destroy(g);
         return 1;
     }
+    /* graph_add_point 接管 SymbolicCoord 所有权，无需手动释放 ix2/iy2 */
     int intersection2 = g->next_node_id - 1;
 
     /*

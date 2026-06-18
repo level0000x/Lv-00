@@ -498,3 +498,9 @@ Lv00Rule *lv00_rule_from_json(const char *json);
  * @return 是否成功
  */
 bool lv00_rule_library_save(const Lv00RuleLibrary *library, const char *path);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LV00_AXIOM_RULE_ENGINE_H */

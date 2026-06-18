@@ -23,7 +23,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "solver.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "stream_context_util.h"
 
 /* ==================== 命名常量 ==================== */
@@ -158,6 +158,23 @@ FuncBlock *func_block_create(int id) {
                    id, fb->version_major, fb->version_minor, fb->version_patch);
 
     return fb;
+}
+
+/**
+ * @brief 销毁选择器
+ *
+ * 释放 SolutionSelector 结构体及其所有动态分配的成员。
+ * 参数为 NULL 时安全返回（no-op）。
+ */
+void selector_destroy(SolutionSelector *sel) {
+    if (!sel)
+        return;
+    lv00_free((void **) &sel->name);
+    lv00_free((void **) &sel->solution_values);
+    if (sel->free_user_data && sel->user_data) {
+        sel->free_user_data(sel->user_data);
+    }
+    lv00_free((void **) &sel);
 }
 
 /**

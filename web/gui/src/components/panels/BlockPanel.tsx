@@ -448,7 +448,7 @@ const BlockPanel: React.FC = () => {
       // 执行组合
       const result = composeBlocks(composeSelect1, composeSelect2);
       if (result.result) {
-        setUserBlocks((prev) => [...prev, result.result!]);
+        setUserBlocks((prev) => [...prev, result.result]);
         addToast('success', result.description);
         appendLog(result.description, 'info');
         log(result.description);
@@ -491,7 +491,7 @@ const BlockPanel: React.FC = () => {
       // 自动执行组合
       const result = composeBlocks(composeSelect1, block);
       if (result.result) {
-        setUserBlocks((prev) => [...prev, result.result!]);
+        setUserBlocks((prev) => [...prev, result.result]);
         addToast('success', result.description);
         appendLog(result.description, 'info');
         log(result.description);
@@ -572,7 +572,7 @@ const BlockPanel: React.FC = () => {
       // 自动执行乘积
       const result = productBlocks(productSelect1, block);
       if (result.result) {
-        setUserBlocks((prev) => [...prev, result.result!]);
+        setUserBlocks((prev) => [...prev, result.result]);
         addToast('success', result.description);
         appendLog(result.description, 'info');
         log(result.description);
@@ -618,7 +618,7 @@ const BlockPanel: React.FC = () => {
 
     const result = partialApplyBlock(block, fixedInputIndices, fixedInputValues);
     if (result.result) {
-      setUserBlocks((prev) => [...prev, result.result!]);
+      setUserBlocks((prev) => [...prev, result.result]);
       addToast('success', result.description);
       appendLog(result.description, 'info');
       log(result.description);

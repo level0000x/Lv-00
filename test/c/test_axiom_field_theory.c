@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_field_theory.c
  * @brief Field Theory Axiom Package Test
  *

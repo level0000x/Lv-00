@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_functional_analysis.c
  * @brief Functional Analysis Axiom Package Test
  *

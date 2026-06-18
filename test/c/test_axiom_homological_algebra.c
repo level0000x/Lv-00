@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_homological_algebra.c
  * @brief Homological Algebra Axiom Package Test
  *

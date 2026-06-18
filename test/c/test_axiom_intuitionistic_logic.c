@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_intuitionistic_logic.c
  * @brief Intuitionistic Propositional Logic (Heyting's Calculus) Axiom Package Test
  *

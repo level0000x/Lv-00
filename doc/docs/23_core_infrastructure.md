@@ -32,10 +32,10 @@
 ### 23.2.2 版本管理
 
 ```c
-#define LV00_VERSION_MAJOR 3
-#define LV00_VERSION_MINOR 5
+#define LV00_VERSION_MAJOR 5
+#define LV00_VERSION_MINOR 0
 #define LV00_VERSION_PATCH 0
-#define LV00_VERSION_STRING "3.5.0"
+#define LV00_VERSION_STRING "5.0.0"
 ```
 
 **版本 API**：
@@ -71,13 +71,13 @@ int  lv00_health_check(void);                       // 健康评分（0~100）
 3. 调试基础设施
 4. 其他子系统
 
-**线程安全**：`lv00_init()` 应在主线程调用，在创建工作线程之前完成。
+**线程安全**：`lv00_context_create()` 应在主线程调用，在创建工作线程之前完成。
 
 ### 23.2.4 引擎生命周期（便捷 API）
 
 ```c
-LV00Engine *lv00_engine_create(void);   // 创建引擎实例
-void lv00_engine_destroy(LV00Engine *engine);  // 销毁引擎
+LV00Context *lv00_engine_create(void);   // 创建上下文实例
+void lv00_context_destroy(LV00Context *ctx);  // 销毁上下文
 ```
 
 引擎是 Lv-00 的核心工作单元，持有：
@@ -90,28 +90,28 @@ void lv00_engine_destroy(LV00Engine *engine);  // 销毁引擎
 
 ```c
 // 创建点（有理数坐标）
-int lv00_add_point(LV00Engine *engine,
+int lv00_add_point(LV00Context *ctx,
     int64_t x_num, uint64_t x_den,
     int64_t y_num, uint64_t y_den);
 
 // 创建点（整数坐标，内联优化）
-static inline int lv00_add_point_i(LV00Engine *engine, long long x, long long y);
+static inline int lv00_add_point_i(LV00Context *ctx, long long x, long long y);
 
 // 创建线段
-int lv00_add_line_segment(LV00Engine *engine, int point1_id, int point2_id);
+int lv00_add_line_segment(LV00Context *ctx, int point1_id, int point2_id);
 
 // 添加关联约束
-bool lv00_add_constraint_incidence(LV00Engine *engine, int point_id, int line_id);
+bool lv00_add_constraint_incidence(LV00Context *ctx, int point_id, int line_id);
 ```
 
 ### 23.2.6 推理与求解
 
 ```c
 // 图归一化
-NormalizationResult *lv00_normalize(LV00Engine *engine, bool scope_aware);
+NormalizationResult *lv00_normalize(LV00Context *ctx, bool scope_aware);
 
 // 完整求解流水线
-EngineSolveResult lv00_solve(LV00Engine *engine);
+EngineSolveResult lv00_solve(LV00Context *ctx);
 ```
 
 **求解流水线**：归一化 → 重写 → 约束求解 → 验证
@@ -307,7 +307,7 @@ LV00_ERROR_RETURN(err_code, ret, fmt, ...)
 
 **使用示例**：
 ```c
-LV00_CHECK_NULL(engine, NULL);
+LV00_CHECK_NULL(ctx, NULL);
 LV00_CHECK(index >= 0 && index < count, LV00_ERROR_INVALID_PARAM, -1, "索引越界");
 LV00_CHECK_ALLOC(new_node, NULL);
 LV00_PROPAGATE_ERROR(graph_add_constraint(graph, type, participants, n));
@@ -513,7 +513,7 @@ size_t lv00_get_memory_limit_ex(void);                // 获取内存上限
 
 | 代码概念 | 理论对应 | 文档位置 |
 |----------|----------|----------|
-| `lv00_init()` / `lv00_cleanup()` | 系统初始态与终止态 | 本文档 23.2.3 |
+| `lv00_context_create()` / `lv00_context_destroy(ctx)` | 系统初始态与终止态 | 本文档 23.2.3 |
 | `LV00_PUBLIC_API` | 接口契约的形式化边界 | 本文档 23.2.7 |
 | `Lv00ErrorCode` 分层 | 错误分类的代数结构 | 本文档 23.4.1 |
 | `LV00_CONFIG_*` 常量 | 系统参数空间 | 本文档 23.3 |

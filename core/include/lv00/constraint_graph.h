@@ -210,6 +210,7 @@ struct Constraint {
     int participant_count;
     int template_id;
     bool is_active; /**< 约束生命周期标记：true=活跃，false=已废弃 */
+    double numeric_value; /**< 约束的数值参数（如距离、角度等），仅部分约束类型使用 */
 };
 
 /**
@@ -320,14 +321,6 @@ typedef struct Lv00ConstraintCompatibilityResult {
     int free_degree_count;
     const char *diagnostic;
 } Lv00ConstraintCompatibilityResult;
-
-/**
- * @brief 约束相容性四态诊断
- *
- * 对约束图进行轻量级结构诊断，区分普通相容、直接矛盾、欠约束和过约束/冗余。
- * 该接口不会修改图结构，适合作为约束写入后的即时校验入口。
- */
-LV00_PUBLIC_API bool graph_check_compatibility(const ConstraintGraph *graph, Lv00ConstraintCompatibilityResult *out_result);
 
 typedef enum { ADD_CONSTRAINT_OK, ADD_CONSTRAINT_DUPLICATE, ADD_CONSTRAINT_CONFLICT } AddConstraintResult;
 
@@ -597,7 +590,7 @@ LV00_PUBLIC_API GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int nod
  * @return 新创建的约束指针，失败返回 NULL
  */
 LV00_PUBLIC_API Constraint *graph_add_constraint_with_id(ConstraintGraph *graph, int constraint_id, ConstraintType type,
-                                         int *participants, int participant_count);
+                                         const int *participants, int participant_count);
 
 /**
  * @brief 创建空的约束图

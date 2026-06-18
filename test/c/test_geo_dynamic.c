@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_geo_dynamic.c
  * @brief 动态几何依赖图模块测试（第十三梯队 GeoGebra 落地验证）
  */

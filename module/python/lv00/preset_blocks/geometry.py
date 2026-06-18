@@ -931,7 +931,8 @@ def create_circle_by_center_radius(
         radius = SymbolicCoord(radius)
     
     # 检查半径为正
-    # 注意：这里简化处理，实际应检查符号值是否为正
+    if not radius.is_positive():
+        raise ValueError("半径必须为正数")
     
     return (center, radius)
 
@@ -1031,10 +1032,62 @@ def create_circle_line_intersection(
     distance = dist_num / dist_den
     
     # 比较距离和半径
-    # 简化处理：这里返回空列表，实际应根据距离判断
-    # 由于符号计算复杂性，这里仅提供框架
+    # distance² = dist_num² / dist_den²
+    # 比较 distance 与 radius，等价于比较 distance² 与 radius²
+    dist_sq = dist_num * dist_num
+    radius_sq = radius * radius * dist_den * dist_den
     
-    return []
+    # 计算差值: dist_sq - radius_sq
+    diff = dist_sq - radius_sq
+    
+    if diff.is_positive():
+        # distance > radius，无交点
+        return []
+    
+    # 计算圆心在直线上的投影点
+    # t = - (A*x0 + B*y0 + C) / (A² + B²)
+    # 投影点 = (x0 + A*t, y0 + B*t)
+    t_num = -(line_a * center.x + line_b * center.y + line_c)
+    t_den = line_a * line_a + line_b * line_b
+    
+    proj_x = center.x + line_a * t_num / t_den
+    proj_y = center.y + line_b * t_num / t_den
+    
+    if diff.is_zero():
+        # distance == radius，相切，一个交点
+        return [graph.add_point(proj_x, proj_y)]
+    
+    # distance < radius，两个交点
+    # 半弦长 h = sqrt(r² - d²)
+    # 沿直线方向单位向量 (B, -A) / sqrt(A²+B²) 或 (-B, A) / sqrt(A²+B²)
+    # 交点 = 投影点 ± h * 单位方向向量
+    
+    # h² = r² - d² = (radius² * dist_den² - dist_num²) / dist_den²
+    h_sq_num = radius_sq - dist_sq
+    h_sq_den = dist_den * dist_den
+    
+    # 半弦长因子: h = sqrt(h_sq_num / h_sq_den) = sqrt(h_sq_num) / dist_den
+    # 方向向量 (line_b, -line_a) 的模也是 dist_den
+    # 所以偏移量 = h * (line_b, -line_a) / dist_den
+    #            = sqrt(h_sq_num) / dist_den * (line_b, -line_a) / dist_den
+    #            = sqrt(h_sq_num) * (line_b, -line_a) / (dist_den * dist_den)
+    
+    # 使用符号平方根
+    h_sqrt = h_sq_num ** SymbolicCoord.from_rational(1, 2)
+    
+    # 方向向量 (line_b, -line_a)
+    # 归一化因子: dist_den * dist_den (因为 h 已经除以 dist_den 一次)
+    denom = t_den * dist_den
+    
+    offset_x = h_sqrt * line_b / denom
+    offset_y = h_sqrt * (-line_a) / denom
+    
+    p1_x = proj_x + offset_x
+    p1_y = proj_y + offset_y
+    p2_x = proj_x - offset_x
+    p2_y = proj_y - offset_y
+    
+    return [graph.add_point(p1_x, p1_y), graph.add_point(p2_x, p2_y)]
 
 
 # ---- 切线构造 ----
@@ -1112,16 +1165,91 @@ def create_tangent_line(
     if not isinstance(radius, SymbolicCoord):
         radius = SymbolicCoord(radius)
     
-    # 计算点到圆心的距离
-    dist = center.distance_to(p)
+    # 计算点到圆心的距离平方
+    dist_sq = center.distance_to(p)
+    radius_sq = radius * radius
     
-    # 检查点在圆外
-    # 简化处理，实际应比较符号值
+    # 比较距离与半径
+    diff = dist_sq - radius_sq
     
-    # 计算切点（简化实现）
-    # 实际应求解以 OP 为直径的圆与原圆的交点
+    if diff.is_zero():
+        # 点在圆上，一条切线：垂直于半径
+        # 切线方向向量 = (-(p.y - center.y), p.x - center.x)
+        dir_x = center.y - p.y
+        dir_y = p.x - center.x
+        # 切线上另一点
+        q_x = p.x + dir_x
+        q_y = p.y + dir_y
+        q = graph.add_point(q_x, q_y)
+        return [graph.add_line_segment(p, q)]
     
-    return []
+    if not diff.is_positive():
+        # 点在圆内，无切线
+        raise ValueError("点 P 在圆内，无法作切线")
+    
+    # 点在圆外，两条切线
+    # 使用幂点法（power of a point）
+    # 设 d = |OP|, r = radius
+    # 切点 T 满足：
+    #   |OT| = r
+    #   OT ⟂ PT
+    # 以 OP 为直径的圆与原圆的交点即为切点
+    
+    # 以 OP 为直径的圆：圆心为 OP 中点，半径为 d/2
+    # 原圆：圆心 center，半径 r
+    # 两圆交点即为切点
+    
+    # 代数方法：
+    # 设 O = center, P = p
+    # 向量 OP = (p.x - center.x, p.y - center.y)
+    # 距离平方 d² = dist_sq
+    # 
+    # 切点 T 在圆上：|OT|² = r²
+    # 且 OT ⟂ PT：(T-O)·(T-P) = 0
+    # 展开：T·T - T·O - T·P + O·P = 0
+    # 结合 |T-O|² = r²：T·T - 2T·O + O·O = r²
+    # 
+    # 由 OT ⟂ PT：(T-O)·(T-P) = 0
+    # |T|² - T·P - T·O + O·P = 0
+    # (r² + 2T·O - O·O) - T·P - T·O + O·P = 0
+    # r² + T·O - O·O - T·P + O·P = 0
+    # T·(O - P) = O·O - O·P - r²
+    # 
+    # 设 T = O + u * v1 + v * v2，其中 v1 = (P-O)/|P-O|，v2 ⟂ v1
+    # 由于对称性，T 在 OP 所在直线的垂线上有对称的两个解
+    
+    # 更简洁的方法：
+    # 设 d = sqrt(dist_sq)，单位向量 u = (P-O)/d
+    # 则切点 T = O + r²/d² * (P-O) ± r/d * sqrt(1 - r²/d²) * (P-O)⟂
+    #          = O + r²/d² * OP ± r/d² * sqrt(d² - r²) * OP⟂
+    
+    dx = p.x - center.x
+    dy = p.y - center.y
+    
+    # 使用符号计算避免 float
+    # r² / d²
+    r2_over_d2 = radius_sq / dist_sq
+    
+    # 基础点：O + (r²/d²) * OP
+    base_x = center.x + r2_over_d2 * dx
+    base_y = center.y + r2_over_d2 * dy
+    
+    # 垂直方向：(-dy, dx)
+    # 系数：r/d² * sqrt(d² - r²) = r * sqrt(d² - r²) / d²
+    # d² = dist_sq, d² - r² = diff
+    # 所以系数 = r * sqrt(diff) / dist_sq
+    perp_coeff = radius * (diff ** SymbolicCoord.from_rational(1, 2)) / dist_sq
+    
+    # 两个切点
+    t1_x = base_x + perp_coeff * (-dy)
+    t1_y = base_y + perp_coeff * dx
+    t2_x = base_x - perp_coeff * (-dy)
+    t2_y = base_y - perp_coeff * dx
+    
+    t1 = graph.add_point(t1_x, t1_y)
+    t2 = graph.add_point(t2_x, t2_y)
+    
+    return [graph.add_line_segment(p, t1), graph.add_line_segment(p, t2)]
 
 
 # ============================================================
@@ -2088,33 +2216,96 @@ def create_regular_polygon(
     
     from ..core import SymbolicCoord
     
-    # 计算半径
-    radius = center.distance_to(p)
+    # 计算半径平方
+    radius_sq = center.distance_to(p)
     
-    # 计算起始角度
+    # 计算起始向量 (dx, dy)
     dx = p.x - center.x
     dy = p.y - center.y
     
-    # 由于使用符号计算，这里简化处理
-    # 实际应计算 atan2(dy, dx)
-    
     vertices = []
+    
+    # 对 n=3,4,6 使用精确的符号旋转
+    if n == 4:
+        # 正方形：旋转 90°，cos=0, sin=±1
+        # 顶点 k: 旋转 k * 90°
+        # k=0: (dx, dy)
+        # k=1: (-dy, dx)
+        # k=2: (-dx, -dy)
+        # k=3: (dy, -dx)
+        rotations = [
+            (dx, dy),
+            (-dy, dx),
+            (-dx, -dy),
+            (dy, -dx),
+        ]
+        for rx, ry in rotations:
+            vx = center.x + rx
+            vy = center.y + ry
+            vertices.append(graph.add_point(vx, vy))
+        return vertices
+    
+    if n == 3:
+        # 正三角形：旋转 120° 和 240°
+        # cos(120°) = -1/2, sin(120°) = sqrt(3)/2
+        # 使用符号计算
+        half = SymbolicCoord.from_rational(1, 2)
+        sqrt3 = SymbolicCoord.from_rational(3) ** half
+        
+        # 旋转矩阵:
+        # R(120°) = [[-1/2, -sqrt(3)/2], [sqrt(3)/2, -1/2]]
+        # R(240°) = [[-1/2, sqrt(3)/2], [-sqrt(3)/2, -1/2]]
+        
+        # k=0: (dx, dy)
+        vertices.append(graph.add_point(center.x + dx, center.y + dy))
+        
+        # k=1: R(120°) * (dx, dy)
+        r1_dx = -half * dx - sqrt3 * half * dy
+        r1_dy = sqrt3 * half * dx - half * dy
+        vertices.append(graph.add_point(center.x + r1_dx, center.y + r1_dy))
+        
+        # k=2: R(240°) * (dx, dy)
+        r2_dx = -half * dx + sqrt3 * half * dy
+        r2_dy = -sqrt3 * half * dx - half * dy
+        vertices.append(graph.add_point(center.x + r2_dx, center.y + r2_dy))
+        
+        return vertices
+    
+    if n == 6:
+        # 正六边形：旋转 60° 的倍数
+        # cos(60°) = 1/2, sin(60°) = sqrt(3)/2
+        half = SymbolicCoord.from_rational(1, 2)
+        sqrt3 = SymbolicCoord.from_rational(3) ** half
+        
+        # 预计算所有旋转后的向量
+        # k=0: (dx, dy)
+        # k=1: (1/2*dx - sqrt(3)/2*dy, sqrt(3)/2*dx + 1/2*dy)
+        # k=2: (-1/2*dx - sqrt(3)/2*dy, sqrt(3)/2*dx - 1/2*dy)
+        # k=3: (-dx, -dy)
+        # k=4: (-1/2*dx + sqrt(3)/2*dy, -sqrt(3)/2*dx - 1/2*dy)
+        # k=5: (1/2*dx + sqrt(3)/2*dy, -sqrt(3)/2*dx + 1/2*dy)
+        rotations = [
+            (dx, dy),
+            (half * dx - sqrt3 * half * dy, sqrt3 * half * dx + half * dy),
+            (-half * dx - sqrt3 * half * dy, sqrt3 * half * dx - half * dy),
+            (-dx, -dy),
+            (-half * dx + sqrt3 * half * dy, -sqrt3 * half * dx - half * dy),
+            (half * dx + sqrt3 * half * dy, -sqrt3 * half * dx + half * dy),
+        ]
+        for rx, ry in rotations:
+            vertices.append(graph.add_point(center.x + rx, center.y + ry))
+        return vertices
+    
+    # 其他 n：回退到数值计算（保留原有行为）
+    import math
+    radius = float(radius_sq) ** 0.5
+    start_angle = math.atan2(float(dy), float(dx))
+    
     for k in range(n):
-        # 计算第 k 个顶点
-        # 角度 = 起始角 + 2πk/n
-        angle = 2 * math.pi * k / n
-        
-        # 这里简化处理，实际应使用符号计算
-        # x = center.x + radius * cos(angle)
-        # y = center.y + radius * sin(angle)
-        
-        # 临时：使用数值计算
-        import math
-        x = float(center.x) + float(radius) * math.cos(angle)
-        y = float(center.y) + float(radius) * math.sin(angle)
-        
-        vertex = graph.add_point(SymbolicCoord(x), SymbolicCoord(y))
-        vertices.append(vertex)
+        angle = start_angle + 2 * math.pi * k / n
+        x = float(center.x) + radius * math.cos(angle)
+        y = float(center.y) + radius * math.sin(angle)
+        vertices.append(graph.add_point(SymbolicCoord(x), SymbolicCoord(y)))
     
     return vertices
 

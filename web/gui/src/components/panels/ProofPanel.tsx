@@ -412,7 +412,7 @@ const ProofPanel: React.FC = () => {
   // ================================================================
   // 当撤销栈变化时同步步骤索引 / Sync step index when undo stack changes
   // ================================================================
-  React.useEffect(() => {
+  useEffect(() => {
     // 如果 totalSteps 增加了（用户做了新操作），跳到最新步骤
     if (totalSteps > 0 && currentStepIndex >= totalSteps) {
       setCurrentStepIndex(totalSteps - 1);

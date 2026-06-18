@@ -521,6 +521,11 @@ function combineAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
   const onAbort = () => controller.abort();
   a.addEventListener('abort', onAbort, { once: true });
   b.addEventListener('abort', onAbort, { once: true });
+  // TODO: listener leak — event listeners on `a` and `b` are never removed.
+  // If the caller does not abort either signal, the listeners (and the
+  // controller) remain in memory until the signals are GC'd.  A future
+  // improvement would be to return a dispose handle or use a WeakRef-based
+  // cleanup so callers can explicitly detach when the request completes.
   return controller.signal;
 }
 

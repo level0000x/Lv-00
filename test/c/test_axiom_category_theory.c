@@ -1,4 +1,4 @@
-﻿﻿/**
+/**
  * @file test_axiom_category_theory.c
  * @brief Category Theory Axiom Package Test
  *

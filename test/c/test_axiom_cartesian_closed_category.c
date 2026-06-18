@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_axiom_cartesian_closed_category.c
  * @brief Cartesian Closed Category Axiom Package Test
  *

@@ -19,8 +19,8 @@
  * - 五层架构层级验证（编译时和运行时检查跨层调用合法性）
  */
 
-#ifndef LV00_ENGINE_H
-#define LV00_ENGINE_H
+#ifndef LV00_ENGINE_INTERNAL_H
+#define LV00_ENGINE_INTERNAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,7 +34,7 @@ extern "C" {
 #include "normalization.h"
 #include "rewrite.h"
 #include "solver.h"
-#include "stream.h"
+#include "lv00/stream.h"
 #include "unify.h"
 
 /* ============================================================
@@ -719,4 +719,4 @@ bool engine_is_valid_transition(EngineState from, EngineState to);
 }
 #endif
 
-#endif /* LV00_ENGINE_H */
+#endif /* LV00_ENGINE_INTERNAL_H */

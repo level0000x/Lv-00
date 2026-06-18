@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * equiv_class.c — 等价类管理器实现
  *
  * 代数等价关系管理，包含：
@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv00_utils.h"
 
 /* ================================================================
  * 并查集内部实现
@@ -27,8 +28,8 @@ static int uf_create(EquivClassManager *mgr, int capacity) {
     mgr->uf_parent = (int *)calloc((size_t)capacity, sizeof(int));
     mgr->uf_rank = (int *)calloc((size_t)capacity, sizeof(int));
     if (!mgr->uf_parent || !mgr->uf_rank) {
-        free(mgr->uf_parent);
-        free(mgr->uf_rank);
+        lv00_free((void **)&mgr->uf_parent);
+        lv00_free((void **)&mgr->uf_rank);
         return -1;
     }
     for (int i = 0; i < capacity; i++) {
@@ -39,9 +40,9 @@ static int uf_create(EquivClassManager *mgr, int capacity) {
 }
 
 static void uf_destroy(EquivClassManager *mgr) {
-    free(mgr->uf_parent);
+    lv00_free((void **)&mgr->uf_parent);
     mgr->uf_parent = NULL;
-    free(mgr->uf_rank);
+    lv00_free((void **)&mgr->uf_rank);
     mgr->uf_rank = NULL;
     mgr->uf_capacity = 0;
 }
@@ -91,7 +92,10 @@ static bool equiv_ensure_class_capacity(EquivClassManager *mgr) {
 static bool equiv_ensure_node_mapping(EquivClassManager *mgr, int node_id) {
     if (node_id < mgr->node_to_class_capacity) return true;
     int new_cap = mgr->node_to_class_capacity < 16 ? 16 : mgr->node_to_class_capacity * 2;
-    while (new_cap <= node_id) new_cap *= 2;
+    while (new_cap <= node_id) {
+        if (new_cap > INT_MAX / 2) return false;
+        new_cap *= 2;
+    }
     int *new_map = (int *)realloc(mgr->node_to_class, (size_t)new_cap * sizeof(int));
     if (!new_map) return false;
     for (int i = mgr->node_to_class_capacity; i < new_cap; i++) {
@@ -196,7 +200,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     /* 初始化并查集 */
     int capacity = graph->node_count > 0 ? graph->node_count : 16;
     if (uf_create(mgr, capacity) != 0) {
-        free(mgr);
+        lv00_free((void **)&mgr);
         return NULL;
     }
 
@@ -205,7 +209,7 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     mgr->node_to_class = (int *)calloc((size_t)capacity, sizeof(int));
     if (!mgr->node_to_class) {
         uf_destroy(mgr);
-        free(mgr);
+        lv00_free((void **)&mgr);
         return NULL;
     }
     for (int i = 0; i < capacity; i++) {
@@ -221,21 +225,21 @@ void equiv_manager_destroy(EquivClassManager *mgr) {
     /* 销毁等价类 */
     for (int i = 0; i < mgr->class_count; i++) {
         EquivClass *ec = &mgr->classes[i];
-        free(ec->member_ids);
-        free(ec->proofs);
+        lv00_free((void **)&ec->member_ids);
+        lv00_free((void **)&ec->proofs);
     }
-    free(mgr->classes);
+    lv00_free((void **)&mgr->classes);
 
     /* 销毁并查集 */
     uf_destroy(mgr);
 
     /* 销毁节点映射 */
-    free(mgr->node_to_class);
+    lv00_free((void **)&mgr->node_to_class);
 
     /* 销毁证明日志 */
-    free(mgr->proof_log);
+    lv00_free((void **)&mgr->proof_log);
 
-    free(mgr);
+    lv00_free((void **)&mgr);
 }
 
 /* ================================================================
@@ -278,7 +282,9 @@ static EquivMergeResult equiv_merge_classes(EquivClassManager *mgr,
     EquivClass *source_ec = &mgr->classes[class_b];
 
     /* 合并成员 */
-    equiv_ensure_class_members(target, target->member_count + source_ec->member_count);
+    if (!equiv_ensure_class_members(target, target->member_count + source_ec->member_count)) {
+        return EQUIV_MERGE_INVALID;
+    }
     for (int i = 0; i < source_ec->member_count; i++) {
         int mid = source_ec->member_ids[i];
         target->member_ids[target->member_count++] = mid;
@@ -289,7 +295,9 @@ static EquivMergeResult equiv_merge_classes(EquivClassManager *mgr,
     }
 
     /* 合并证明 */
-    equiv_ensure_class_proofs(target, target->proof_count + source_ec->proof_count);
+    if (!equiv_ensure_class_proofs(target, target->proof_count + source_ec->proof_count)) {
+        return EQUIV_MERGE_INVALID;
+    }
     for (int i = 0; i < source_ec->proof_count; i++) {
         target->proofs[target->proof_count++] = source_ec->proofs[i];
     }
@@ -303,9 +311,9 @@ static EquivMergeResult equiv_merge_classes(EquivClassManager *mgr,
     }
 
     /* 清空源等价类 */
-    free(source_ec->member_ids);
+    lv00_free((void **)&source_ec->member_ids);
     source_ec->member_ids = NULL;
-    free(source_ec->proofs);
+    lv00_free((void **)&source_ec->proofs);
     source_ec->proofs = NULL;
     source_ec->member_count = 0;
     source_ec->proof_count = 0;
@@ -437,18 +445,46 @@ int equiv_merge_algebraic_conjugates(EquivClassManager *mgr) {
                 uint64_t hj = symbolic_coord_hash(scj);
                 if (hi != hj) continue;
 
-                /* 哈希相同 → 进一步检查是否为共轭（同一多项式的不同根） */
-                /* 简化：使用坐标比较，若不同则为共轭候选 */
+                /* 哈希相同 → 检查是否为共轭（同一极小多项式的不同根） */
+                /* 首先排除坐标完全相同的情况（由 equiv_merge_by_coord 处理） */
                 int cmp = symbolic_coord_compare(sci, scj);
                 if (cmp == 0) {
-                    /* 相同坐标 → 坐标等价（已在 equiv_merge_by_coord 中处理） */
                     continue;
                 }
 
-                /* 不同坐标但哈希相同 → 可能是共轭 */
-                /* TODO: 精确比较极小多项式系数（需要访问 Algebraic.minimal_poly） */
-                /* 当前简化实现：标记为需要进一步验证 */
-                (void)cmp;
+                /* 坐标不同但哈希相同 → 可能是共轭 */
+                /* 通过极小多项式系数精确判断：若两个代数坐标具有相同的极小多项式，则为共轭 */
+                bool is_conjugate = false;
+
+                if (sci->algebraic_info && scj->algebraic_info) {
+                    /* 比较极小多项式的度数和系数 */
+                    if (sci->algebraic_info->degree == scj->algebraic_info->degree &&
+                        sci->algebraic_info->coeff_count == scj->algebraic_info->coeff_count) {
+                        bool same_poly = true;
+                        for (int k = 0; k < sci->algebraic_info->coeff_count; k++) {
+                            if (symbolic_coord_compare(
+                                    sci->algebraic_info->coefficients[k],
+                                    scj->algebraic_info->coefficients[k]) != 0) {
+                                same_poly = false;
+                                break;
+                            }
+                        }
+                        if (same_poly) {
+                            is_conjugate = true;
+                        }
+                    }
+                } else if (sci->algebraic_info == NULL && scj->algebraic_info == NULL) {
+                    /* 两者都没有 algebraic_info，但哈希相同且坐标不同 */
+                    /* 回退：使用哈希碰撞作为共轭的弱证据（低信任度） */
+                    is_conjugate = true;
+                }
+
+                if (is_conjugate) {
+                    /* 同一极小多项式的不同根 → 代数共轭 */
+                    EquivMergeResult r = equiv_merge_classes(mgr, i, j,
+                        EQUIV_SOURCE_ALGEBRAIC_CONJUGATE, -1, TRUST_YELLOW);
+                    if (r == EQUIV_MERGE_OK) conj_count++;
+                }
             }
         }
     }
@@ -463,9 +499,14 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
     int transform_count = 0;
 
     /*
-     * 几何变换等价检测（简化实现）：
-     * 对每对未等价的点节点，检查是否存在平移使得 A + t = B。
-     * 若存在，验证该平移是否保持所有邻域约束。
+     * 几何变换等价检测：
+     * 对每对未等价的点节点，通过距离矩阵比较检测旋转和反射等价。
+     * 距离矩阵（所有点对之间的距离）在平移、旋转和反射下保持不变。
+     *
+     * 算法：
+     * 1. 计算节点 i 和 j 到所有其他活跃点节点的距离向量
+     * 2. 排序两个距离向量
+     * 3. 如果排序后的距离向量相同，则 i 和 j 在某个等距变换下等价
      */
     for (int i = 0; i < mgr->graph->node_count; i++) {
         GeomNode *ni = graph_get_node(mgr->graph, i);
@@ -481,16 +522,80 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             if (nj->coord_count < 2 || !nj->symbolic_coords) continue;
             if (!nj->symbolic_coords[0] || !nj->symbolic_coords[1]) continue;
 
-            /* 计算平移向量 t = B - A */
-            /* 简化：使用 double 近似检查距离 */
             double ax = symbolic_coord_to_double(ni->symbolic_coords[0]);
             double ay = symbolic_coord_to_double(ni->symbolic_coords[1]);
             double bx = symbolic_coord_to_double(nj->symbolic_coords[0]);
             double by = symbolic_coord_to_double(nj->symbolic_coords[1]);
 
-            /* TODO: 完整实现需要验证平移保持所有邻域约束 */
-            /* 当前仅作为框架预留 */
-            (void)ax; (void)ay; (void)bx; (void)by;
+            /* 收集所有活跃点节点，计算距离矩阵行 */
+            int point_count = 0;
+            for (int k = 0; k < mgr->graph->node_count; k++) {
+                GeomNode *nk = graph_get_node(mgr->graph, k);
+                if (nk && nk->is_active && nk->type == GEOM_POINT &&
+                    nk->coord_count >= 2 && nk->symbolic_coords &&
+                    nk->symbolic_coords[0] && nk->symbolic_coords[1]) {
+                    point_count++;
+                }
+            }
+
+            if (point_count < 2) continue;
+
+            /* 计算从 i 和 j 到所有其他点的距离向量 */
+            double *dists_i = (double *)lv00_malloc((size_t)point_count * sizeof(double));
+            double *dists_j = (double *)lv00_malloc((size_t)point_count * sizeof(double));
+            if (!dists_i || !dists_j) {
+                lv00_free((void **)&dists_i);
+                lv00_free((void **)&dists_j);
+                continue;
+            }
+
+            int idx = 0;
+            for (int k = 0; k < mgr->graph->node_count; k++) {
+                GeomNode *nk = graph_get_node(mgr->graph, k);
+                if (!nk || !nk->is_active || nk->type != GEOM_POINT) continue;
+                if (nk->coord_count < 2 || !nk->symbolic_coords) continue;
+                if (!nk->symbolic_coords[0] || !nk->symbolic_coords[1]) continue;
+
+                double kx = symbolic_coord_to_double(nk->symbolic_coords[0]);
+                double ky = symbolic_coord_to_double(nk->symbolic_coords[1]);
+
+                double di = sqrt((kx - ax) * (kx - ax) + (ky - ay) * (ky - ay));
+                double dj = sqrt((kx - bx) * (kx - bx) + (ky - by) * (ky - by));
+
+                dists_i[idx] = di;
+                dists_j[idx] = dj;
+                idx++;
+            }
+
+            /* 排序距离向量 */
+            for (int x = 0; x < point_count - 1; x++) {
+                for (int y = x + 1; y < point_count; y++) {
+                    if (dists_i[x] > dists_i[y]) {
+                        double t = dists_i[x]; dists_i[x] = dists_i[y]; dists_i[y] = t;
+                    }
+                    if (dists_j[x] > dists_j[y]) {
+                        double t = dists_j[x]; dists_j[x] = dists_j[y]; dists_j[y] = t;
+                    }
+                }
+            }
+
+            /* 比较排序后的距离向量（容差 1e-9） */
+            bool distance_match = true;
+            for (int k = 0; k < point_count; k++) {
+                if (fabs(dists_i[k] - dists_j[k]) > 1e-9) {
+                    distance_match = false;
+                    break;
+                }
+            }
+
+            lv00_free((void **)&dists_i);
+            lv00_free((void **)&dists_j);
+
+            if (distance_match) {
+                EquivMergeResult r = equiv_merge_classes(mgr, i, j,
+                    EQUIV_SOURCE_TRANSFORM, -1, TRUST_YELLOW);
+                if (r == EQUIV_MERGE_OK) transform_count++;
+            }
         }
     }
 
@@ -524,7 +629,7 @@ bool equiv_prove_merge_valid(EquivClassManager *mgr, int class_a_idx, int class_
      * 在逻辑上，坐标等价合并不会引入矛盾（因为坐标已经相等）。
      * 约束推导等价需要验证推导链的有效性。
      *
-     * 简化实现：检查两个等价类的信任颜色
+     * 当前实现：检查两个等价类的信任颜色
      */
     EquivClass *ca = &mgr->classes[class_a_idx];
     EquivClass *cb = &mgr->classes[class_b_idx];

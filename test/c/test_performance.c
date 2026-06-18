@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_performance.c
  * @brief 性能基准测试
  *
@@ -76,17 +76,28 @@ static void test_pool_performance(void) {
 
 static ConstraintGraph *g_test_graph = NULL;
 
+/* 保存测试中创建的 SymbolicCoord 指针，用于循环结束后统一释放 */
+#define MAX_PERF_COORDS 10000
+static SymbolicCoord *g_perf_coords[MAX_PERF_COORDS];
+static int g_perf_coord_count = 0;
+
 static void benchmark_graph_add_point(void) {
     static int counter = 0;
-    SymbolicCoord *coords[2] = {
-        symbolic_coord_create_rational(counter % 100, 1),
-        symbolic_coord_create_rational(counter / 100, 1)
-    };
-    
+    SymbolicCoord *cx = symbolic_coord_create_rational(counter % 100, 1);
+    SymbolicCoord *cy = symbolic_coord_create_rational(counter / 100, 1);
+    SymbolicCoord *coords[2] = {cx, cy};
+
     graph_add_node_with_id(g_test_graph, 1000 + counter, GEOM_POINT, coords, 2);
+
+    /* 保存坐标指针以便后续统一释放 */
+    if (g_perf_coord_count < MAX_PERF_COORDS) {
+        g_perf_coords[g_perf_coord_count++] = cx;
+    }
+    if (g_perf_coord_count < MAX_PERF_COORDS) {
+        g_perf_coords[g_perf_coord_count++] = cy;
+    }
+
     counter++;
-    
-    /* 注意：这里不销毁坐标，为了测试性能 */
 }
 
 static void test_graph_performance(void) {
@@ -100,7 +111,15 @@ static void test_graph_performance(void) {
     TEST_ASSERT_EQ(err, 0);
     
     lv00_perf_benchmark_print_result("graph_add_point", &result, stdout);
-    
+
+    /* 统一释放测试中创建的所有 SymbolicCoord */
+    for (int i = 0; i < g_perf_coord_count; i++) {
+        if (g_perf_coords[i]) {
+            symbolic_coord_destroy(g_perf_coords[i]);
+        }
+    }
+    g_perf_coord_count = 0;
+
     graph_destroy(g_test_graph);
     g_test_graph = NULL;
 }

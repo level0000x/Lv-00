@@ -434,10 +434,28 @@ static void test_memory_cycle(void) {
             SymbolicCoord *cy = symbolic_coord_create_rational(i * 2, 1);
             if (cx && cy) {
                 SymbolicCoord *coords[] = {cx, cy};
-                graph_add_point(g, coords, 2);
+                if (graph_add_point(g, coords, 2) != 0) {
+                    /* graph_add_point 失败，释放坐标 */
+                    symbolic_coord_destroy(cx);
+                    symbolic_coord_destroy(cy);
+                    graph_destroy(g);
+                    cycle_ok = 0;
+                    printf("FAIL (graph_add_point failed at iter %d)\n", i);
+                    g_fail_count++;
+                    break;
+                }
+                symbolic_coord_destroy(cx);
+                symbolic_coord_destroy(cy);
+            } else {
+                /* 坐标创建失败，释放已分配的坐标 */
+                if (cx) symbolic_coord_destroy(cx);
+                if (cy) symbolic_coord_destroy(cy);
+                graph_destroy(g);
+                cycle_ok = 0;
+                printf("FAIL (coord creation failed at iter %d)\n", i);
+                g_fail_count++;
+                break;
             }
-            if (cx) symbolic_coord_destroy(cx);
-            if (cy) symbolic_coord_destroy(cy);
 
             graph_destroy(g);
         }

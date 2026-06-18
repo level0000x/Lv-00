@@ -29,8 +29,8 @@
  *   HOL Light（微内核验证）、F*（精化类型）的证明功能
  */
 
-#ifndef LV00_PROOF_H
-#define LV00_PROOF_H
+#ifndef LV00_PROOF_INTERNAL_H
+#define LV00_PROOF_INTERNAL_H
 
 #include <stdbool.h>
 #include <time.h>
@@ -375,14 +375,6 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child);
  * @return true 表示两个命题互斥，false 表示不互斥或无法判断
  */
 bool proposition_contradicts(const Proposition *a, const Proposition *b);
-
-/* ============== 假设作用域与局部矛盾隔离 ============== */
-Lv00ProofScopeId proof_begin_assumption_scope(ProofNavigator *nav, const Proposition *assumption);
-bool proof_close_assumption_scope(ProofNavigator *nav, Lv00ProofScopeId scope_id);
-bool proof_scope_is_active(const ProofNavigator *nav, Lv00ProofScopeId scope_id);
-bool proof_apply_ex_falso_scoped(ProofNavigator *nav, ConstraintGraph *bottom_proof, Proposition *target_prop,
-                                 Lv00ProofScopeId scope_id);
-bool proof_has_global_proposition(const ProofNavigator *nav, const Proposition *prop);
 
 /* ============== 合一检查 ============== */
 
@@ -1593,4 +1585,4 @@ void refinement_check_report_destroy(RefinementCheckReport *report);
 }
 #endif
 
-#endif /* LV00_PROOF_H */
+#endif /* LV00_PROOF_INTERNAL_H */

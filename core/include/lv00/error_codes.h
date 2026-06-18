@@ -336,3 +336,9 @@ LV00_PUBLIC_API Lv00ErrorCode lv00_error_code_from_string(const char *name);
  * @brief 传播错误（如果错误码不为OK，则直接返回）
  * @param code 错误码
  */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LV00_ERROR_CODES_H */
