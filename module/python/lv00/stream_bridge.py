@@ -35,14 +35,9 @@ import sys
 import time
 import argparse
 from typing import Optional, Callable, Any, Dict, List
-from ctypes import CDLL, CFUNCTYPE, c_void_p, c_int, c_long, c_double, c_char_p, POINTER, Structure
+from ctypes import CDLL, CFUNCTYPE, c_void_p, c_int, c_long, c_double, c_char_p, POINTER
 
-# 重新导出 WebSocket 服务器组件（供 main() 和外部使用）
-from .ws_server import StreamBridgeServer, ClientSession, WEBSOCKETS_AVAILABLE
-try:
-    from .ws_server import serve
-except ImportError:
-    serve = None  # websockets 未安装时 serve 不可用
+from ._stream_types import StreamEvent, WEBSOCKETS_AVAILABLE
 
 # 日志配置：库模块不应调用 logging.basicConfig()，由使用方（应用入口）负责全局日志配置。
 logger = logging.getLogger('stream_bridge')
@@ -50,49 +45,6 @@ logger = logging.getLogger('stream_bridge')
 # ================================================================
 # C 引擎绑定 / C Engine Bindings
 # ================================================================
-
-class StreamEvent(Structure):
-    """
-    C 引擎 StreamEvent 结构体的 Python 映射。
-
-    该结构体用于接收底层 C 引擎发送的流式事件数据，
-    包括事件类型、时间戳、节点/约束/规则 ID、描述文本等信息。
-
-    属性：
-        type: 事件类型编码
-        timestamp_ms: 事件时间戳（毫秒）
-        step_number: 当前步骤编号
-        total_steps: 总步骤数
-        node_id: 相关节点 ID
-        constraint_id: 相关约束 ID
-        rule_id: 相关规则 ID
-        var_id: 相关变量 ID
-        merge_pairs: 合并对指针（StreamMergePair*）
-        merge_count: 合并对数量
-        description: 事件描述文本
-        detail_json: 详细信息（JSON 格式）
-        progress: 进度百分比
-        numeric_value: 数值结果
-        graph_json: 图数据（JSON 格式）
-    """
-
-    _fields_ = [
-        ('type', c_int),
-        ('timestamp_ms', c_long),
-        ('step_number', c_int),
-        ('total_steps', c_int),
-        ('node_id', c_int),
-        ('constraint_id', c_int),
-        ('rule_id', c_int),
-        ('var_id', c_int),
-        ('merge_pairs', c_void_p),  # StreamMergePair*
-        ('merge_count', c_int),
-        ('description', c_char_p),
-        ('detail_json', c_char_p),
-        ('progress', c_double),
-        ('numeric_value', c_double),
-        ('graph_json', c_char_p),
-    ]
 
 # 回调函数类型
 STREAM_CALLBACK = CFUNCTYPE(None, POINTER(StreamEvent), c_void_p)
@@ -899,6 +851,7 @@ def main() -> None:
     engine = EngineBridge(args.engine)
 
     # 创建服务器
+    from .ws_server import StreamBridgeServer
     server = StreamBridgeServer(engine, args.host, args.port)
 
     # 事件持久化
@@ -950,6 +903,7 @@ def main() -> None:
         # 启动 WebSocket 服务器
         tasks = []
         if WEBSOCKETS_AVAILABLE:
+            from websockets.server import serve
             logger.info(f"流式桥接服务器启动: ws://{args.host}:{args.port}")
             ws_server = await serve(server._handle_client, args.host, args.port)
             tasks.append(asyncio.create_task(ws_server.wait_closed()))
