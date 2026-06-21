@@ -1,6 +1,13 @@
 /-  Lv-00 经典几何公理化框架：基础类型定义
    定义 Point、Line、Plane、MetricSpace、Congruence 等数学对象的类 -/
 
+-- [QA] Parallel Hilbert formalization. lv00-formal/Classical/Hilbert/ provides
+--      the full axiomatic treatment with proofs; this file provides the typeclass
+--      abstraction layer. Do NOT merge; they serve different architectural roles.
+-- [QA] Point/Line etc defined here as typeclasses. The structural versions
+--      live in lv00-formal/Basic/Defs.lean. Both are needed: typeclasses for
+--      abstract reasoning, structures for concrete computation.
+
 import Mathlib
 
 namespace Lv00.Basic

@@ -5,6 +5,10 @@
    C4: 角的全等关系
    C5_SAS: 边-角-边三角形全等准则 -/
 
+-- [QA] Parallel Hilbert formalization. lv00-formal/Classical/Hilbert/ provides
+--      the full axiomatic treatment with proofs; this file provides the typeclass
+--      abstraction layer. Do NOT merge; they serve different architectural roles.
+
 import Mathlib
 import Lv00.Basic
 
