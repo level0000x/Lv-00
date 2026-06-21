@@ -16,6 +16,8 @@
  * @date 2026-05-24
  */
 
+-- [QA] Uses double for test assertions against GMP mpq_t via comparison helpers. Acceptable in test code.
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

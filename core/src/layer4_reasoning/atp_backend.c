@@ -22,6 +22,7 @@
  *   - lv00_utils.h           : 统一内存分配器
  *   - error_codes.h          : 统一错误码系统
  *   - proof.h                : Lv-00 证明系统
+ * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
  */
 
 #include "atp_backend.h"

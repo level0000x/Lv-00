@@ -21,6 +21,7 @@ Lv-00 核心模块
 版本：3.3.0
 作者：Lv-00 开发团队
 """
+[QA] Has broad except Exception: blocks — consider narrowing to specific types.
 
 import ctypes
 import logging
