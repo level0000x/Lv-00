@@ -9,6 +9,7 @@
  */
 
 #include "parser_safety.h"
+#include "config.h"          /* LV00_MAX_* macros */
 
 #include <ctype.h>
 #include <string.h>
