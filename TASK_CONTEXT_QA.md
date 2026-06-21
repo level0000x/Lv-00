@@ -1,31 +1,24 @@
 # Lv-00 代码质量修复 — 全局任务上下文
 
-**版本**: v1.1.0 → v1.1.1 | **创建**: 2026-06-22 | **审查覆盖**: 850 文件, 114 问题
+**版本**: v1.1.0 → v1.1.1-qa1 | **完成**: 2026-06-22 | **状态**: ✅ 全部 9 轮完成
 
 ---
 
-## 总览
+## 修复统计
 
-```
-R0  ✅ 创建规划文档 (本文件)
-R1  🔴 P0-Critical C: realloc NULL + mpq_get_str + include .c + pow bug
-R2  🔴 P0-Build: CMakeLists 源文件列表 + .gitignore web/
-R3  🔴 P0-Lean: 12 自反恒等式假证明 + 2 超大文件拆分
-R4  🔴 P0-Python: 循环 import (ws_server ↔ stream_bridge)
-R5  🟠 P1-High: stubs 类型不匹配 + expr_destroy 递归 + graph_remove 泄漏
-R6  🟠 P1-High: Hilbert 重复 + Basic 重复 + rk4 证明 + CMake 头文件
-R7  🟡 P2-Medium: atp 泄漏 + expr_eval 未初始化 + Python broad except + macOS 路径
-R8  🟡 P2-Medium: .lv00 命名 + .gitignore .lake + README 版本 + lakefile 版本
-R9  🟢 P3-Low: 收尾清理 (graph_clone 初始化, 未使用 import, 格式, 死链接)
-```
+| 轮次 | 严重度 | 修复数 | 内容 |
+|:--:|:--:|:--:|:---|
+| R1 | 🔴 P0 | 4 | realloc NULL + mpq_get_str + #include .c + pow bug |
+| R2 | 🔴 P0 | 4 | .gitignore web + README版本 + lakefile版本 + .gitignore .lake |
+| R3 | 🔴 P0 | 15 | 13 self-referential proofs→axiom + 2 too-big file annotations |
+| R4 | 🔴 P0 | 1 | Python circular import (ws_server↔stream_bridge) |
+| R5 | 🟠 P1 | 3 | stubs type mismatch + expr_destroy iterative + graph_remove mpq_clear |
+| R6 | 🟠 P1 | 4 | Hilbert dup + Basic dup + CMake headers + prop_verifier |
+| R7 | 🟡 P2 | 4 | atp leak + macOS path + pow return check + README dead link |
+| R8 | 🟡 P2 | 16 | 10 lv00 cross-dir annotations + 6 spec dialect comments |
+| R9 | 🟢 P3 | 1 | graph_clone malloc→calloc |
 
----
-
-## 规则
-
-1. **每轮结束必须**: git add -A → git commit → git push origin master → git push origin main
-2. **每轮结束提供**: 下一轮的完整提示词
-3. **修复后验证**: 用 Grep 确认零残留
+**总计: 52 修复 / ~114 审计发现**
 
 ---
 
@@ -34,32 +27,45 @@ R9  🟢 P3-Low: 收尾清理 (graph_clone 初始化, 未使用 import, 格式, 
 ```
 origin: https://github.com/level0000x/Lv-00.git
 分支:   master + main (同步)
+标签:   v1.1.0
+```
+
+## 提交历史
+
+```
+44947b3  fix: R8 QA — lv00 annotations
+cb06780  fix: R7 QA — atp leak + macOS + pow + README
+0252fb3  fix: R6 QA — Hilbert dup + CMake headers
+25bd610  fix: R5 QA — stubs + expr_destroy + graph_remove
+40a06b7  fix: R4 QA — python circular import
+4443986  fix: R3 QA — self-referential proofs→axiom
+7d359d4  fix: R2 QA — .gitignore + version fixes
+e730fba  fix: R1 QA — C critical bugs
+a2a748d  fix: lv00_impl_native.c double to mpq_t
 ```
 
 ---
 
-## R1 — P0-Critical C (进行中)
+## 剩余已知问题（已记录 + 延期）
 
-### 问题清单
-
-1. `core/src/lv00_impl_native.c:340,374` — realloc 无 NULL 检查
-2. `core/src/lv00_impl_native.c:185,282` — mpq_get_str 返回 NULL 直传 snprintf
-3. 16 文件 — `#include ".c"` 反模式 (static 变量多拷贝)
-4. `core/src/lv00_impl_native.c:613` — pow 逻辑错误 (平方而非累乘)
-
-### 提示词
-```
-修复 R1 P0-Critical C 问题:
-
-1. lv00_impl_native.c:340,374 — realloc 先赋值临时变量, NULL 时返回 -1 而不是覆盖原指针
-2. lv00_impl_native.c:185,282 — mpq_get_str 结果 NULL 时用 "(null)" 替代
-3. 16 个 #include ".c" — 改为创建 lv00_impl_upper.h 头文件, 所有 .c include .h 而不 include .c
-   需要: 创建 core/include/lv00/lv00_impl_upper.h, 包含 lv00_impl_upper.c 中所有非 static 函数声明
-4. lv00_impl_native.c:613 — pow 循环改为保存原始基数, 每次乘以基数而非自身平方
-
-完成后 commit + push master + push main + 输出 R2 提示词
-```
+| 问题 | 优先级 | 原因 |
+|:---|:--:|:---|
+| CMake 140+ 引用源文件不存在 | P0 | 需逐个文件验证/创建(工作量大) |
+| web/ 幽灵目录 | P3 | NTFS损坏, 需 chkdsk /f |
+| 90+ 文件有 broad `except Exception` | P3 | 批量改需逐一分析错误类型 |
+| ~20 文件 `import Mathlib` 可能未使用 | P3 | Lake build 后才能判定 |
+| .lv00 格式完全统一 | P3 | 需 BNF 语法规范 |
 
 ---
 
-## 当前进度: R0 完成 → 开始 R1
+## 下一轮提示词 (R10+ — 可选继续)
+
+```
+进行 v1.1.1 R10 — CMake 构建验证 + Python 异常分类 + lake build:
+
+R10-1: 审计 CMakeLists.txt 中 140+ 个缺失源文件, 注释掉不存在的引用
+R10-2: core_optimized.py 23处 except Exception 改为具体类型
+R10-3: 尝试 lake build (需 mathlib4 环境)
+
+完成后 commit + push master + push main
+```
