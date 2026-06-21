@@ -623,7 +623,7 @@ int expr_eval(mpq_t result, Expr* e, const char** varnames, const mpq_t* values,
         mpq_clears(l, r, NULL);
         return 0;
     case 6: /* pow */
-        expr_eval(result, e->left, varnames, values, nvars);
+        if (expr_eval(result, e->left, varnames, values, nvars) < 0) return -1;
         /* 精确有理数幂: result = result^exp */
         {
             mpz_t num, den, base_num, base_den;

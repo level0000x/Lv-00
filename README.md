@@ -380,7 +380,7 @@ Lv-00/
 ### 开发文档
 - [贡献指南](CONTRIBUTING.md) - 贡献流程
 - [提交规范](COMMIT_CONVENTION.md) - Git 提交规范
-- [编码规范](doc/docs/CODING_STANDARD_v3.4.2.md) - 代码风格
+<!-- - [编码规范](doc/docs/CODING_STANDARD_v3.4.2.md) - 代码风格 -->
 
 ### 参考文档
 - [CHANGELOG.md](CHANGELOG.md) - 版本变更记录

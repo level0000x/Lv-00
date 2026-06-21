@@ -477,11 +477,12 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
 
     /* 准备参数列表 */
     char *exec_argv[16];
+    char *extra_copy = NULL;
     int argc = 0;
     exec_argv[argc++] = (char *)executable;
     if (extra_args && extra_args[0] != '\0') {
         /* 简单参数切分（空格分隔） */
-        char *extra_copy = strdup(extra_args);
+        extra_copy = strdup(extra_args);
         if (extra_copy) {
             char *save_ptr = NULL;
             char *token = strtok_s(extra_copy, " ", &save_ptr);
@@ -489,8 +490,6 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
                 exec_argv[argc++] = token;
                 token = strtok_s(NULL, " ", &save_ptr);
             }
-            /* extra_copy 在 execvp 后由父进程 free，但 fork 后子进程会替换，
-             * 为简化：不 free extra_copy，让其随进程退出释放 */
         }
     }
     exec_argv[argc++] = temp_path;
@@ -524,6 +523,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text,
     }
 
     /* 父进程：关闭写端，读取管道输出 */
+    free(extra_copy);
     close(pipefd[1]);
 
     size_t out_size = 65536;

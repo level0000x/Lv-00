@@ -69,8 +69,10 @@ def _find_library():
         os.path.join(package_dir, '..', '..', 'build', 'Release'),  # Windows 构建目录
         os.path.join(package_dir, '..', '..'),  # project_root
     ]
-    # 仅在非 Windows 平台添加 Unix 风格的库路径
-    if sys.platform != 'win32':
+    # 根据平台添加对应的库路径
+    if sys.platform == 'darwin':
+        search_paths.extend(['/usr/local/lib', '/opt/homebrew/lib'])
+    elif sys.platform == 'linux':
         search_paths.extend(['/usr/local/lib', '/usr/lib'])
 
     # 在所有路径中搜索
