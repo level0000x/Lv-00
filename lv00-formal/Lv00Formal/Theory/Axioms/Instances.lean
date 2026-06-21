@@ -1794,7 +1794,7 @@ def informationTheoryTemplateNamesRaw : List String :=
 def informationTheoryTemplates : List PackageTemplate :=
   informationTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "information_theory" })
 
-theorem informationTheoryTemplates_length : informationTheoryTemplates.length = 109 := by
+theorem informationTheoryTemplates_length : informationTheoryTemplates.length = 106 := by
   decide
 
 def informationTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -1818,7 +1818,7 @@ def informationTheoryPackage : AxiomPackageInstance :=
 def informationTheoryExecutableRules : List ExecutableRule :=
   informationTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem informationTheoryExecutableRules_length : informationTheoryExecutableRules.length = 109 := by
+theorem informationTheoryExecutableRules_length : informationTheoryExecutableRules.length = 106 := by
   decide
 
 /-! ## Linear Algebra 公理包实例 -/
