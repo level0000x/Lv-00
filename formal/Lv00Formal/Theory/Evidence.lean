@@ -222,13 +222,11 @@ theorem evidence_no_qed_fails (g : ConstraintGraph) (t : ProofTrace)
     (h : t.getLast? ≠ some .qed) :
     evidence_check g t = false := by
   unfold evidence_check
-  -- The check requires the last step to be qed
-  cases t with
-  | nil => simp
-  | cons s ss =>
-      have hlast : (s :: ss).getLast? ≠ some .qed := h
-      simp [List.getLast?_cons]
-      sorry
+  have hlast : t.getLast? ≠ some .qed := h
+  match t.getLast? with
+  | none        => rfl
+  | some .qed   => exact (hlast rfl).elim
+  | some _      => rfl
 
 /-- Evidence check is compositional: if two graphs are independently verified,
     their union is also verifiable. -/

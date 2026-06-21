@@ -57,15 +57,16 @@ def unifyAll (pairs : UnificationProblem) : UnificationResult := unify [] pairs
 
 -- ============ Theorems ============
 
-theorem unify_empty : unify [] [] = some [] := sorry
+theorem unify_empty : unify [] [] = some [] := rfl
 
-theorem unify_same_const (n : Nat) : unify [] [(.const n, .const n)] = some [] := sorry
+theorem unify_same_const (n : Nat) : unify [] [(.const n, .const n)] = some [] := rfl
 
-theorem unify_different_const (n m : Nat) (h : n ≠ m) : unify [] [(.const n, .const m)] = none := sorry
+theorem unify_different_const (n m : Nat) (h : n ≠ m) : unify [] [(.const n, .const m)] = none := by
+  unfold unify; simp [h]
 
-theorem unify_same_var (v : Var) : unify [] [(.var v, .var v)] = none := sorry
+theorem unify_same_var (v : Var) : unify [] [(.var v, .var v)] = none := rfl
 
-theorem unify_var_const (v : Var) (n : Nat) : unify [] [(.var v, .const n)] = some [(v, .const n)] := sorry
+theorem unify_var_const (v : Var) (n : Nat) : unify [] [(.var v, .const n)] = some [(v, .const n)] := rfl
 
 theorem mgu_of_unify_success (t1 t2 : Term) (σ : Substitution)
     (h : unify [] [(t1, t2)] = some σ) : mgu (t1, t2) = some σ := by
@@ -86,8 +87,10 @@ theorem mgu_same_var (v : Var) : mgu (.var v, .var v) = none := by
 theorem mgu_var_const (v : Var) (n : Nat) : mgu (.var v, .const n) = some [(v, .const n)] := by
   unfold mgu; exact unify_var_const v n
 
-theorem isUnifiable_same_const (n : Nat) : isUnifiable (.const n, .const n) = true := sorry
+theorem isUnifiable_same_const (n : Nat) : isUnifiable (.const n, .const n) = true := by
+  unfold isUnifiable; rfl
 
-theorem isUnifiable_different_const (n m : Nat) (h : n ≠ m) : isUnifiable (.const n, .const m) = false := sorry
+theorem isUnifiable_different_const (n m : Nat) (h : n ≠ m) : isUnifiable (.const n, .const m) = false := by
+  unfold isUnifiable; simp [h]
 
 end Unification

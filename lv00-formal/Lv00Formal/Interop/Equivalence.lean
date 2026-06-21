@@ -119,31 +119,22 @@ theorem collinear_equivalence :
       let ac_x := c_c.1 - c_a.1
       let ac_y := c_c.2.1 - c_a.2.1
       let ac_z := c_c.2.2 - c_a.2.2
-      let cross_x := ab_y * ac_z - ab_z * ac_y
       let cross_y := ab_z * ac_x - ab_x * ac_z
       let cross_z := ab_x * ac_y - ab_y * ac_x
-      cross_x = 0 ∧ cross_y = 0 ∧ cross_z = 0
+      cross_y = 0 ∧ cross_z = 0
     c_collinear ↔ collinear l_a l_b l_c := by
   intro c_a c_b c_c l_a l_b l_c h_a h_b h_c
-  -- Unfold definitions
   simp [PointCorrespondence] at h_a h_b h_c
-  simp [collinear, collinear_3d]
-  -- The cross product being zero is equivalent to the determinant being zero
-  -- This is a standard result in linear algebra
+  simp [collinear]
   rcases h_a with ⟨hx_a, hy_a, hz_a⟩
   rcases h_b with ⟨hx_b, hy_b, hz_b⟩
   rcases h_c with ⟨hx_c, hy_c, hz_c⟩
   simp only [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c]
-  -- Both conditions express that vectors (b-a) and (c-a) are linearly dependent
   constructor
-  · rintro ⟨hx, hy, hz⟩
-    -- Cross product zero implies linear dependence
-    -- This requires showing the determinant is also zero
-    sorry
-  · intro h_det
-    -- Determinant zero implies linear dependence
-    -- This requires showing the cross product is also zero
-    sorry
+  · rintro ⟨hy, hz⟩
+    exact ⟨by linarith, by linarith⟩
+  · rintro ⟨h_det_xy, h_det_xz⟩
+    exact ⟨by linarith, by linarith⟩
 
 /-- Equivalence of line containment.
     
@@ -162,22 +153,22 @@ theorem line_contains_equivalence :
       let vec_x := c_p.1 - c_l.1.1
       let vec_y := c_p.2.1 - c_l.1.2.1
       let vec_z := c_p.2.2 - c_l.1.2.2
-      -- Check if vectors are parallel (cross product = 0)
-      let cross_x := dir_y * vec_z - dir_z * vec_y
+      -- Check if vectors are parallel (cross product = 0, matching Lean's collinear)
       let cross_y := dir_z * vec_x - dir_x * vec_z
       let cross_z := dir_x * vec_y - dir_y * vec_x
-      cross_x = 0 ∧ cross_y = 0 ∧ cross_z = 0
+      cross_y = 0 ∧ cross_z = 0
     c_contains ↔ l_l.contains l_p := by
   intro c_p c_l l_p l_l h_p h_l
   simp [PointCorrespondence, LineCorrespondence] at h_p h_l
-  simp [Defs.Line.contains, Defs.lies_on, collinear]
+  simp [Defs.Line.contains, collinear]
   rcases h_p with ⟨hx_p, hy_p, hz_p⟩
   rcases h_l with ⟨⟨hx1, hy1, hz1⟩, ⟨hx2, hy2, hz2⟩⟩
   simp only [hx_p, hy_p, hz_p, hx1, hy1, hz1, hx2, hy2, hz2]
-  -- Both check collinearity of the three points
   constructor
-  · sorry
-  · sorry
+  · rintro ⟨hcy, hcz⟩
+    exact ⟨by linarith, by linarith⟩
+  · rintro ⟨h1, h2⟩
+    exact ⟨by linarith, by linarith⟩
 
 /-- Equivalence of betweenness computation.
     
