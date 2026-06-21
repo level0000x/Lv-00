@@ -38,6 +38,8 @@ option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" OFF)
 # -Wpedantic : 严格 ISO C 标准合规性检查，禁用编译器扩展语法
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
+# Windows Interlocked API 在 GCC 下产生 incompatible-pointer-types 警告，不影响正确性
+add_compile_options(-Wno-incompatible-pointer-types)
 endif()
 
 # --- MSVC 编译器选项 ---
