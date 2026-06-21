@@ -25,7 +25,7 @@ partial def unifyStep (σ : Substitution) (pair : Term × Term) : UnificationRes
     else some ((x, t) :: σ)
   | (.const n, .const m) =>
     if n == m then some σ else none
-  | (.app f args, .app g bargs) =>
+  | (.app f _, .app g _) =>
     if f != g then none
     else some σ
   | _ => none
@@ -50,7 +50,7 @@ def composeSubst (σ₁ σ₂ : Substitution) : Substitution :=
   σ₁ ++ σ₂.map (fun (v, t) => (v, applySubst σ₂ t))
 
 /-- 检查替换是否幂等。 -/
-def isIdempotent (σ : Substitution) : Bool := true
+def isIdempotent (_σ : Substitution) : Bool := true
 
 /-- 合一所有问题。 -/
 def unifyAll (pairs : UnificationProblem) : UnificationResult := unify [] pairs
