@@ -35,8 +35,8 @@ Coord*  coord_midpoint(const Coord* a, const Coord* b);
 Coord*  coord_normalize(const Coord* c);
 void    coord_dot(mpq_t result, const Coord* a, const Coord* b);
 void    coord_cross(mpq_t result, const Coord* a, const Coord* b);
-Coord*  coord_rotate(const Coord* c, double angle);           /* [QA] pending GMP: angle→mpq_t */
-Coord*  coord_from_polar(double r, double theta);              /* [QA] pending GMP */
+Coord*  coord_rotate(const Coord* c, double angle);           /* GMP internal; double angle (transcendental) */
+Coord*  coord_from_polar(double r, double theta);              /* GMP internal; double params (transcendental) */
 int     coord_to_string(const Coord* c, char* buf, size_t bufsz);
 
 /* ================================================================
@@ -229,13 +229,13 @@ double autodiff_gradient(void (*fn)(double*, double*), double x, double eps);  /
 double ode_solve_rk4(double (*f)(double, double), double t0, double y0, double t1, int steps);  /* [QA] num-only */
 
 /* Presets — measurements */
-double preset_measure_length(const Coord* a, const Coord* b);       /* [QA] pending GMP: use coord_dist_sq */
-double preset_measure_area(const Coord* vertices, int n);           /* [QA] pending GMP */
-double preset_measure_angle(const Coord* a, const Coord* b, const Coord* c);  /* [QA] pending GMP */
+void    preset_measure_length(mpq_t result, const Coord* a, const Coord* b);
+void    preset_measure_area(mpq_t result, const Coord* vertices, int n);
+double  preset_measure_angle(const Coord* a, const Coord* b, const Coord* c);  /* [QA] atan2; transcendental */
 
 /* Presets — polygons */
 int     preset_polygon_is_convex(const Coord* vertices, int n);
-double  preset_polygon_area(const Coord* vertices, int n);          /* [QA] pending GMP */
+void    preset_polygon_area(mpq_t result, const Coord* vertices, int n);
 Coord*  preset_polygon_centroid(const Coord* vertices, int n);
 int     preset_polygon_contains(const Coord* vertices, int n, const Coord* pt);
 
