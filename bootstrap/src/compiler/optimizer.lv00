@@ -1,0 +1,10 @@
+// bootstrap: optimizer — IR 优化: 常量折叠/死代码消除/内联
+
+Point Optimizer := optimize(ir: IR, passes: List<Pass>) -> IR;
+Point Pass := ConstantFold | DeadCodeElim | Inline | CSE | TailCall;
+
+Constraint OptPreservesSemantics: forall ir: IR(well_typed), p: Pass.
+  semantics(optimize(ir, [p])) equiv semantics(ir);
+
+Prove OptPreservesSemantics;
+Normalize;

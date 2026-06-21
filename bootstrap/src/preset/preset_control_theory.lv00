@@ -1,0 +1,11 @@
+// bootstrap: preset_control_theory — 控制论: PID/状态空间
+
+Point ControlPreset := PID | StateSpace | Observer | Lyapunov | Stabilizability;
+Point System := { state: Vector, input: Vector, output: Vector, A B C D: Matrix };
+Point Controller := { K: Matrix, integral: Scalar, derivative: Scalar };
+
+Constraint LyapunovStable: forall sys: LTI(System), exists P: Matrix(positive_definite).
+  A.T * P + P * A = -Q(prefixed_positive_definite) -> asymptotically_stable(sys);
+
+Prove LyapunovStable;
+Normalize;

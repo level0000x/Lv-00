@@ -1,0 +1,10 @@
+// bootstrap: parser — 语法分析器: token stream -> AST
+
+Point Parser := parse(tokens: TokenStream) -> AST;
+Point AST := root(ASTNode);
+
+Constraint ParseNoAmbiguity: forall tok: TokenStream(well_formed).
+  parse(tok) is deterministic /\ is_unique(parse_tree);
+
+Prove ParseNoAmbiguity;
+Normalize;

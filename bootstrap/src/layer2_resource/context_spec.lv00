@@ -1,0 +1,10 @@
+// bootstrap: context_spec — 执行上下文/资源作用域
+
+Point ContextSpec := { scope: ScopeTree, resources: ResourceTable, lifecycle: LifecyclePolicy };
+Point Resource := Persistent(handle) | Transient(id, ttl) | Pooled(pool, size);
+
+Constraint ContextIsolation: forall c1 c2: Context(disjoint).
+  no_shared_mutable(c1.resources, c2.resources);
+
+Prove ContextIsolation;
+Normalize;

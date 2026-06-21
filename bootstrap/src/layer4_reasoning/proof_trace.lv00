@@ -1,0 +1,10 @@
+// bootstrap: proof_trace — 证明追踪: derivation tree/依赖图
+
+Point ProofTrace := { steps: List<DerivationStep>, deps: DepGraph, status: Status };
+Point DerivationStep := { rule: RuleName, premises: List<Prop>, conclusion: Prop };
+
+Constraint TraceCompleteness: forall pf: Proof(valid).
+  proof_trace(pf) covers every inference step in pf;
+
+Prove TraceCompleteness;
+Normalize;

@@ -1,0 +1,10 @@
+// bootstrap: lexer_spec — 词法规则: token 类别/正则匹配
+
+Point LexSpec := { tokens: List<TokenDef>, literals: Set<Literal>, whitespace: Regex };
+Point TokenDef := { kind: TokenKind, pattern: Regex, priority: Nat };
+
+Constraint LexCoverage: forall src: ValidSource.
+  every character in src matches exactly one token_def in LexSpec;
+
+Prove LexCoverage;
+Normalize;

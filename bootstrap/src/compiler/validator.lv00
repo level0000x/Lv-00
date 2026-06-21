@@ -1,0 +1,10 @@
+// bootstrap: validator — 输入验证器: schema/lint/invariant
+
+Point Validator := validate(input: Source, schema: Schema) -> ValidationResult;
+Point Schema := { rules: List<Rule>, severity: Map<Rule, Level> };
+
+Constraint ValidatorCompleteness: forall src: Source, s: Schema.
+  validate(src, s) passes -> forall r: Rule(in s), src satisfies r;
+
+Prove ValidatorCompleteness;
+Normalize;

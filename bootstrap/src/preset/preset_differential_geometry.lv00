@@ -1,0 +1,11 @@
+// bootstrap: preset_differential_geometry — 微分几何: 曲率/测地线/Gauss-Bonnet
+
+Point DiffGeoPreset := Curvature | Geodesic | Connection | Metric | GaussBonnet;
+Point Manifold := { dim: Nat, metric: Tensor, curvature: Tensor, chart: Atlas };
+Point Connection := { gamma: ChristoffelSymbols, torsion: Tensor, metric_compat: Bool };
+
+Constraint GaussBonnet2D: forall M: Surface(compact, oriented).
+  integral_M(K * dA) = 2 * pi * euler_characteristic(M);
+
+Prove GaussBonnet2D;
+Normalize;

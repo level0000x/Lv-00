@@ -1,0 +1,10 @@
+// bootstrap: lexer — 词法分析器: tokenize .lv00 source
+
+Point Lexer := lex(input: SourceText) -> TokenStream;
+Point Token := { kind: TokenKind, lexeme: String, span: Span };
+
+Constraint LexerCorrect: forall src: SourceText(valid_lv00).
+  all_tokens_categorized(lex(src)) /\ no_orphan_characters(lex(src));
+
+Prove LexerCorrect;
+Normalize;

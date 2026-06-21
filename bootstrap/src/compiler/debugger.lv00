@@ -1,0 +1,10 @@
+// bootstrap: debugger — 调试器: 断点/单步/变量检查
+
+Point Debugger := { breakpoints: Set<Location>, step_mode: StepMode, watchlist: WatchList };
+Point StepMode := StepIn | StepOver | StepOut;
+
+Constraint DebugConsistency: forall state: RuntimeState(halting).
+  debug_state_from_source(loc(state)) equiv source_location(state);
+
+Prove DebugConsistency;
+Normalize;

@@ -1,0 +1,11 @@
+// bootstrap: preset_graph_theory — 图论: 邻接矩阵/最短路径/MST
+
+Point GraphPreset := AdjacencyMatrix | ShortestPath | MST | ConnectedComponent | DegreeSeq;
+Point Graph := { vertices: Set, edges: Set<Edge>, weights: Map<Edge, Int> };
+Point Path := { nodes: List<Vertex>, distance: Int };
+
+Constraint DijkstraCorrect: forall G: Graph(non_negative_weights), s: Vertex.
+  dijkstra(G, s) returns dist[ ] satisfying forall v: dist[v] = min_path_len(s, v);
+
+Prove DijkstraCorrect;
+Normalize;

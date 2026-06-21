@@ -1,0 +1,11 @@
+// bootstrap: preset_optimization — 优化: gradient/Lagrange/KKT
+
+Point OptPreset := Gradient | LagrangeMultiplier | KKT | ConstraintQualification | Convexity;
+Point Problem := { objective: Function, constraints: List<Constraint>, domain: Set };
+Point Solution := { x: Vector, dual: Vector, status: Feasibility };
+
+Constraint KKTNecessary: forall P: Problem(smooth, differentiable).
+  local_minimum(P) -> exists (lambda, mu): KKT_conditions(P, x*, lambda, mu);
+
+Prove KKTNecessary;
+Normalize;

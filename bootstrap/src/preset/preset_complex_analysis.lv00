@@ -1,0 +1,10 @@
+// bootstrap: preset_complex_analysis — 复分析: Cauchy/Riemann/留数定理
+
+Point ComplexPreset := CauchyIntegral | RiemannMapping | ResidueTheorem | AnalyticCont;
+Point ComplexFunction := { domain: OpenSet(C), f: C->C, singularities: Set<Point> };
+
+Constraint ResidueFormula: forall f: Analytic(D\singularities), gamma: SimpleClosedCurve(in D).
+  contour_integral(f, gamma) = 2 * pi * i * sum(residue(f, z_k) for z_k inside gamma);
+
+Prove ResidueFormula;
+Normalize;

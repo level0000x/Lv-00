@@ -1,0 +1,10 @@
+// bootstrap: preset_functional_analysis — 泛函分析: Banach/Hilbert/谱定理
+
+Point FuncAnalysisPreset := BanachSpace | HilbertSpace | SpectralTheorem | CompactOperator;
+Point Operator := { domain: VectorSpace, codomain: VectorSpace, bounded: Bool, adjoint: Option<Operator> };
+
+Constraint RieszRepresentation: forall H: HilbertSpace, phi: ContinuousLinearFunctional(H).
+  exists u: Vector(in H): forall v in H, phi(v) = inner(u, v);
+
+Prove RieszRepresentation;
+Normalize;

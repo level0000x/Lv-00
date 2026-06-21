@@ -1,0 +1,10 @@
+// bootstrap: semantic — 语义分析: 名字解析/作用域/符号表
+
+Point Semantic := resolve(ast: AST, env: ScopeChain) -> ResolvedAST;
+Point Scope := { bindings: SymbolTable, parent: Option<Scope> };
+
+Constraint NoUndeclared: forall ast: AST(after_parse).
+  forall id: Identifier(in ast) -> id in resolve(ast).visible_names;
+
+Prove NoUndeclared;
+Normalize;
