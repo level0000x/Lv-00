@@ -365,6 +365,7 @@ int graph_remove_node(ConstraintGraph* g, int64_t node_id) {
     for (int i = 0; i < g->node_count; i++) {
         if (g->nodes[i].id == node_id) {
             graph_node_clear(&g->nodes[i]);
+            mpq_clear(g->nodes[i].value);
             g->nodes[i] = g->nodes[--g->node_count];
             return 0;
         }
@@ -403,6 +404,7 @@ int graph_remove_edge(ConstraintGraph* g, int64_t edge_id) {
     for (int i = 0; i < g->edge_count; i++) {
         if (g->edges[i].id == edge_id) {
             graph_edge_clear(&g->edges[i]);
+            mpq_clear(g->edges[i].weight);
             g->edges[i] = g->edges[--g->edge_count];
             return 0;
         }
@@ -559,11 +561,19 @@ Expr* expr_create_binop(int kind, Expr* left, Expr* right) {
 
 void expr_destroy(Expr* e) {
     if (!e) return;
-    mpq_clear(e->val);
-    free(e->name);
-    expr_destroy(e->left);
-    expr_destroy(e->right);
-    free(e);
+    Expr* stack[256];
+    int top = 0;
+    Expr* node = e;
+    while (node) {
+        Expr* left = node->left;
+        Expr* right = node->right;
+        mpq_clear(node->val);
+        free(node->name);
+        free(node);
+        if (right && top < 255) { stack[++top] = right; }
+        node = left;
+        if (!node && top > 0) { node = stack[top--]; }
+    }
 }
 
 /* expr_eval: 代入 env (var_name → mpq_t*) 计算精确有理数值 */
