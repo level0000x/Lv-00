@@ -6,7 +6,7 @@
 [![C11](https://img.shields.io/badge/C-11-green.svg)](https://en.cppreference.com/w/c)
 [![Lean4](https://img.shields.io/badge/Lean-4-purple.svg)](https://lean-lang.org/)
 
-> **Lv-00 是一种尝试将几何构造、代数计算、逻辑证明统一于同一语法体系的形式化元语言。当前版本为 5.0.0，采用严格的 C11 标准实现，并在 Lean 4 中进行形式化验证。**
+> **Lv-00 是一种尝试将几何构造、代数计算、逻辑证明统一于同一语法体系的形式化元语言。当前版本为 1.1.0，采用严格的 C11 标准实现，并在 Lean 4 中进行形式化验证。**
 
 ---
 

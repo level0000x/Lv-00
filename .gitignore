@@ -66,9 +66,14 @@ dist/
 *.whl
 
 # WebAssembly
-web/
 web/wasm/dist/
 web/wasm/build/
+
+# Lake (Lean 4 build)
+.lake/
+
+# Binaries
+bin/
 
 # Environment
 .env
