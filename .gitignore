@@ -66,8 +66,8 @@ dist/
 *.whl
 
 # WebAssembly
-web/legacy/dist/
-web/legacy/build/
+web/wasm/dist/
+web/wasm/build/
 
 # Environment
 .env

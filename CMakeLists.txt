@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(lv00 VERSION 5.0.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
+project(lv00 VERSION 1.1.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -25,7 +25,7 @@ option(ENABLE_SANITIZERS "Enable ASan + UBSan (GCC/Clang)"       OFF)
 option(BUILD_WASM        "Build WebAssembly target (Emscripten)"  OFF)
 option(WASM_ES6_MODULE   "Generate ES6 module for WASM"          ON)
 option(WASM_ALLOW_MEMORY_GROWTH "Allow WASM memory growth"       ON)
-# v3.3.0: 层级验证开关（启用后在编译时检查跨层依赖违规）
+# v1.1.0: 层级验证开关（启用后在编译时检查跨层依赖违规）
 option(ENABLE_LAYER_VALIDATION "Enable compile-time layer boundary checks" OFF)
 
 # ============================================================
@@ -41,7 +41,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # --- MSVC 编译器选项 ---
-# v3.3.0: 升级警告级别到 /W4（最高级别），确保代码质量
+# v1.1.0: 升级警告级别到 /W4（最高级别），确保代码质量
 if(MSVC)
     # /W4          : 最高警告级别（启用所有信息性警告）
     # /guard:cf    : 控制流保护（Control Flow Guard），防止 ROP 攻击
@@ -57,7 +57,7 @@ if(MSVC)
 endif()
 
 # --- GCC 专用编译器选项 ---
-# v3.3.0: 添加额外的 GCC 警告和安全标志
+# v1.1.0: 添加额外的 GCC 警告和安全标志
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # -Wconversion        : 隐式类型转换警告（防止精度损失/符号变化）
     # -Wnull-dereference  : 空指针解引用警告
@@ -90,7 +90,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # --- Clang 专用编译器选项 ---
-# v3.3.0: 与 GCC 保持一致的警告级别，添加 Clang 特有的有用警告
+# v1.1.0: 与 GCC 保持一致的警告级别，添加 Clang 特有的有用警告
 if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
         # 与 GCC/通用选项保持一致的基础警告
@@ -289,7 +289,7 @@ endif()
 #   2. 层间通过 target_link_libraries 控制依赖方向
 #   3. Layer 5 -> Layer 4 -> Layer 3 -> Layer 2 <- Layer 1
 #   4. lv00_static 聚合所有 OBJECT 库，保持向后兼容
-# 详见 doc/docs/ARCHITECTURE_v3.3.md
+# 详见 doc/docs/ARCHITECTURE_v1.1.md
 # ============================================================
 
 # ── 共享头文件列表（所有层共用）──
@@ -330,7 +330,7 @@ set(LV00_HEADERS
     core/include/lv00/stream_context_util.h
     core/include/lv00/func_block_registry.h
     core/include/lv00/func_block_preset_ops.h
-    # v3.3.0 新增模块头文件（第一轮：核心计算模块）
+    # v1.1.0 新增模块头文件（第一轮：核心计算模块）
     core/include/lv00/groebner_engine.h
     core/include/lv00/engine_scheduler.h
     core/include/lv00/euclidean_geometry.h
@@ -340,7 +340,7 @@ set(LV00_HEADERS
     core/include/lv00/smt_backend.h
     core/include/lv00/bdd_encoding.h
     core/include/lv00/approx_counter.h
-    # v3.3.0 新增模块头文件（第二轮：计算后端与数值模块）
+    # v1.1.0 新增模块头文件（第二轮：计算后端与数值模块）
     core/include/lv00/atp_backend.h
     core/include/lv00/solver_core.h
     core/include/lv00/sat_encoding.h
@@ -350,7 +350,7 @@ set(LV00_HEADERS
     core/include/lv00/geo_event_detect.h
     core/include/lv00/lv00_numeric.h
     core/include/lv00/probabilistic_constraint.h
-    # v3.3.0 新增模块头文件（第三轮：几何构造与交互模块）
+    # v1.1.0 新增模块头文件（第三轮：几何构造与交互模块）
     core/include/lv00/algebra_mode.h
     core/include/lv00/dsl_compiler.h
     core/include/lv00/interactive_geo.h
@@ -358,7 +358,7 @@ set(LV00_HEADERS
     core/include/lv00/math_input.h
     core/include/lv00/math_protocol.h
     core/include/lv00/ecosystem.h
-    # v3.3.0 新增模块头文件（第四轮：证明与规约模块）
+    # v1.1.0 新增模块头文件（第四轮：证明与规约模块）
     core/include/lv00/mini_kernel.h
     core/include/lv00/gc_language.h
     core/include/lv00/geo_spec.h
@@ -410,12 +410,12 @@ set(LV00_HEADERS
     core/include/lv00/preset_information_theory.h
     core/include/lv00/preset_coding_theory.h
     core/include/lv00/preset_difference_equations.h
-    # v3.3.0 性能优化模块
+    # v1.1.0 性能优化模块
     core/include/lv00/thread_pool.h
     core/include/lv00/simd_ops.h
     core/include/lv00/fast_index.h
     core/include/lv00/benchmark.h
-    # v3.3.0 新增核心模块（整改实施）
+    # v1.1.0 新增核心模块（整改实施）
     core/include/lv00/memory_pool.h
     core/include/lv00/expr_canonical.h
     core/include/lv00/geometry_transform.h
@@ -496,7 +496,7 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/error_codes.c
     core/src/layer2_resource/debug.c
     core/src/layer2_resource/node_deep_copy.c
-    # v3.3.0 新增：内存池、运行时监控、测试框架
+    # v1.1.0 新增：内存池、运行时监控、测试框架
     core/src/layer2_resource/memory_pool.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
@@ -528,7 +528,7 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/geom_evol.c
     core/src/layer3_geometry/float_error.c
     core/src/layer3_geometry/mpz_poly_resultant.c
-    # v3.3.0 新增：几何变换推理
+    # v1.1.0 新增：几何变换推理
     core/src/layer3_geometry/geometry_transform.c
     # v3.4.0 新增：几何代数模块（GATr + GAALOP + GeoLogic 落地）
     core/src/layer3_geometry/ga_multivector.c
@@ -558,10 +558,10 @@ set(LV00_LAYER3_SOURCES
     # core/src/layer3_geometry/proof_version.c
     # [已移至 Layer 4] 自动微分模块
     # core/src/layer3_geometry/autodiff.c
-    # v3.3.0 性能优化模块
+    # v1.1.0 性能优化模块
     core/src/layer3_geometry/thread_pool.c
     core/src/layer3_geometry/simd_ops.c
-    # v3.3.0 新增：几何拓扑
+    # v1.1.0 新增：几何拓扑
     core/src/layer3_geometry/geo_topology.c
     # v3.6.0 新增：WFC 范式 - 等价类管理器（Layer 3 约束拓扑规约）
     core/src/layer3_geometry/equiv_class.c
@@ -621,7 +621,7 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/rational.c
     core/src/layer4_reasoning/expr_canon.c
     core/src/layer4_reasoning/exact_arithmetic.c
-    # v3.3.0 新增：表达式规范化、不等式推理
+    # v1.1.0 新增：表达式规范化、不等式推理
     core/src/layer4_reasoning/expr_canonical.c
     # 模型与模式
     core/src/layer4_reasoning/relation_model.c
@@ -654,7 +654,7 @@ set(LV00_LAYER4_SOURCES
     core/src/layer4_reasoning/autodiff.c
     # ODE 求解器（从 Layer 3 迁移）
     core/src/layer4_reasoning/ode_solver.c
-    # v3.3.0 新增：不等式推理系统（桩实现）
+    # v1.1.0 新增：不等式推理系统（桩实现）
     core/src/layer4_reasoning/inequality_reasoning.c
     # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
     core/src/layer4_reasoning/adaptive_pruning.c
@@ -793,7 +793,7 @@ target_link_libraries(lv00_layer1_parser lv00_layer2_resource)
 add_library(lv00_layer3_geometry OBJECT ${LV00_LAYER3_SOURCES} ${LV00_HEADERS})
 lv00_setup_layer(lv00_layer3_geometry 3)
 target_link_libraries(lv00_layer3_geometry lv00_layer2_resource)
-# v3.3.0: 线程库链接（用于 thread_pool.c）
+# v1.1.0: 线程库链接（用于 thread_pool.c）
 find_package(Threads REQUIRED)
 target_link_libraries(lv00_layer3_geometry Threads::Threads)
 
@@ -959,7 +959,7 @@ if(BUILD_SHARED_LIBS)
     if(WIN32)
         target_link_libraries(lv00_shared ws2_32)
     endif()
-    # v3.3.0: 定义 LV00_BUILD_SHARED 以启用 lv00.h 中的 dllexport/visibility
+    # v1.1.0: 定义 LV00_BUILD_SHARED 以启用 lv00.h 中的 dllexport/visibility
     target_compile_definitions(lv00_shared PRIVATE LV00_BUILD_SHARED)
 
     set_target_properties(lv00_shared PROPERTIES
@@ -1154,14 +1154,14 @@ if(BUILD_TESTS)
     # 新增：符号坐标系统测试
     add_lv00_test_and_register(test_symbolic_coord
         test/c/test_symbolic_coord.c symbolic_coord_test)
-    # 新增：v3.3.0 新模块集成测试
+    # 新增：v1.1.0 新模块集成测试
     add_lv00_test_and_register(test_rational
         test/c/test_rational.c rational_test)
     add_lv00_test_and_register(test_expr_canon
         test/c/test_expr_canon.c expr_canon_test)
     add_lv00_test_and_register(test_proof_trace
         test/c/test_proof_trace.c proof_trace_test)
-    # v3.3.0 新模块集成测试
+    # v1.1.0 新模块集成测试
     add_lv00_test_and_register(test_new_modules
         test/c/test_new_modules.c new_modules_test)
     add_lv00_test_and_register(test_circuit_breaker
@@ -1279,7 +1279,7 @@ install(EXPORT lv00-targets
 )
 
 # ============================================================
-# v3.3.0: pkg-config .pc 文件生成
+# v1.1.0: pkg-config .pc 文件生成
 #
 # 安装后，使用者可以通过以下命令获取编译和链接标志:
 #   pkg-config --cflags lv00
@@ -1315,10 +1315,10 @@ install(FILES ${CMAKE_BINARY_DIR}/lv00.pc
 )
 
 # ============================================================
-# v3.3.0: CMake 包配置文件生成
+# v1.1.0: CMake 包配置文件生成
 #
 # 安装后，其他 CMake 项目可以通过以下方式引用:
-#   find_package(lv00 3.3.0 REQUIRED)
+#   find_package(lv00 1.1.0 REQUIRED)
 #   target_link_libraries(myapp lv00::lv00)
 # ============================================================
 
@@ -1348,7 +1348,7 @@ install(FILES
 )
 
 # ============================================================
-# v3.3.0: CPack 打包配置
+# v1.1.0: CPack 打包配置
 #
 # 生成可分发的归档包（.tar.gz, .zip）和安装器包（.deb, .rpm, NSIS）。
 #
