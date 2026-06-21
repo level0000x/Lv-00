@@ -38,6 +38,9 @@ import Lv00Formal.Theory.PresetGeometry
 -- v1.1 R4: Codegen + CodegenCorrectness
 import Lv00Formal.Theory.Codegen
 import Lv00Formal.Theory.CodegenCorrectness
+-- v1.1 R5: UndefinedBehavior + Evidence
+import Lv00Formal.Theory.UndefinedBehavior
+import Lv00Formal.Theory.Evidence
 
 namespace Lv00.Tests
 
@@ -163,5 +166,47 @@ theorem codegen_pipeline_test : True := by
   let prog : List Lv00Lang.Lv00Stmt := []
   have safe := CodegenCorrectness.full_pipeline_safety prog Cv00Memory.emptyMem Cv00Lang.emptyEnv
   have _ := safe "TEST"; trivial
+
+-- v1.1 R5: UndefinedBehavior + Evidence tests
+
+/- UndefinedBehavior: 7 UB categories exist -/
+theorem ub_categories_test : True := by
+  have _ : UndefinedBehavior.UBKind := .nullDeref
+  have _ : UndefinedBehavior.UBKind := .oob_access
+  have _ : UndefinedBehavior.UBKind := .useAfterFree
+  have _ : UndefinedBehavior.UBKind := .doubleFree
+  have _ : UndefinedBehavior.UBKind := .divByZero
+  have _ : UndefinedBehavior.UBKind := .signedOverflow
+  have _ : UndefinedBehavior.UBKind := .dataRace
+  trivial
+
+/- UndefinedBehavior: empty graph is UB-free -/
+theorem ub_free_empty_test : True := by
+  let g : ConstraintGraph := { nodes := [], edges := [] }
+  have h := UndefinedBehavior.cgen_graph_ub_free g
+  have _ := h; trivial
+
+/- UndefinedBehavior: full pipeline is UB-free -/
+theorem ub_free_pipeline_test : True := by
+  have h := UndefinedBehavior.full_pipeline_ub_free ([] : List Lv00Lang.Lv00Stmt)
+  have _ := h; trivial
+
+/- Evidence: empty graph + qed trace succeeds -/
+theorem evidence_empty_test : True := by
+  have h := Evidence.evidence_empty_trivially_satisfiable
+  have _ : h = true := rfl
+  trivial
+
+/- Evidence: single distance hypothesis verifies -/
+theorem evidence_single_test : True := by
+  have h := Evidence.evidence_single_distance
+  have _ : h = true := rfl
+  trivial
+
+/- Evidence: incomplete trace rejected -/
+theorem evidence_reject_test : True := by
+  have h := Evidence.evidence_rejects_incomplete
+  have _ : h = false := rfl
+  trivial
 
 end Lv00.Tests
