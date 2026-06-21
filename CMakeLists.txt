@@ -1334,7 +1334,7 @@ set(LV00_CMAKE_CONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/lv00")
 
 # 生成 lv00-config.cmake 和 lv00-config-version.cmake
 configure_package_config_file(
-    ${CMAKE_SOURCE_DIR}/build/cmake/lv00-config.cmake.in
+    ${CMAKE_SOURCE_DIR}/cmake/lv00-config.cmake.in
     ${CMAKE_BINARY_DIR}/lv00-config.cmake
     INSTALL_DESTINATION ${LV00_CMAKE_CONFIG_DIR}
 )
