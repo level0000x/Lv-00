@@ -55,6 +55,7 @@
 
 #include "debug.h"
 #include "error_codes.h"
+#include "config.h"          /* LV00_ARRAY_GROWTH_FACTOR etc. */
 #include "context.h"      /* v3.4.0: Lv00Context 用于统一错误系统 */
 #include "lv00_internal.h"
 #include "lv00_utils.h" /* lv00_malloc / lv00_free —— 统一内存分配器 */
