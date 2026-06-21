@@ -178,7 +178,7 @@ axiom proofTheoryUnconstructibles_have_refs :
 
 /-- 不可构造问题均标记为 green_verified。 -/
 axiom proofTheoryUnconstructibles_green_verified :
-    ∀ u ∈ proofTheoryUnconstructibles, u.greenVerified = true := by
+    ∀ u ∈ proofTheoryUnconstructibles, u.greenVerified = true
   decide
 
 /-- 关键模板：Sequent Calculus 核心。 -/
@@ -195,12 +195,12 @@ def templateNames (ts : List PackageTemplate) : List String :=
 
 /-- Sequent Calculus 核心模板存在。 -/
 axiom sequentCoreTemplates_exist :
-    ∀ n ∈ sequentCoreTemplates, n ∈ templateNames proofTheoryTemplates := by
+    ∀ n ∈ sequentCoreTemplates, n ∈ templateNames proofTheoryTemplates
   decide
 
 /-- 逻辑规则核心模板存在。 -/
 axiom logicCoreTemplates_exist :
-    ∀ n ∈ logicCoreTemplates, n ∈ templateNames proofTheoryTemplates := by
+    ∀ n ∈ logicCoreTemplates, n ∈ templateNames proofTheoryTemplates
   decide
 
 /-- 由模板生成一个 Lv-00 可执行规则的保守映射。
@@ -231,8 +231,7 @@ axiom proofTheoryExecutableRules_length : proofTheoryExecutableRules.length = 36
 /-- 模板生成的规则实例均良构。
     由于模板阶段尚未携带具体前提/结论，良构性主要来自规则种类属于规范八规则集合。 -/
 axiom proofTheoryExecutableRules_wellformed :
-    ∀ r ∈ proofTheoryExecutableRules, WellFormedExecutableRule r := by
-  unfold proofTheoryExecutableRules proofTheoryTemplates
+    ∀ r ∈ proofTheoryExecutableRules, WellFormedExecutableRule r
   simp [templateToExecutableRule, WellFormedExecutableRule, canonicalKinds]
 
 /-! ## Linear Logic 公理包实例
@@ -363,8 +362,7 @@ axiom linearLogicPackage_unconstructible_count : linearLogicPackage.unconstructi
 axiom linearLogic_MELL_open_problem :
     (linearLogicUnconstructibles[1]!).name = "provability_MELL" ∧
     (linearLogicUnconstructibles[1]!).reducesTo = "open_problem" ∧
-    (linearLogicUnconstructibles[1]!).greenVerified = false := by
-  simp [linearLogicUnconstructibles]
+    (linearLogicUnconstructibles[1]!).greenVerified = false
 
 /-- 由全部 Linear Logic 模板生成的规则实例。 -/
 def linearLogicExecutableRules : List ExecutableRule :=
@@ -453,7 +451,7 @@ def galoisTheoryTemplates : List PackageTemplate :=
 axiom galoisTheoryTemplates_length : galoisTheoryTemplates.length = 62 
 
 /-- C 测试要求模板数量至少为 60。 -/
-axiom galoisTheoryTemplates_at_least_60 : 60 ≤ galoisTheoryTemplates.length := by
+axiom galoisTheoryTemplates_at_least_60 : 60 ≤ galoisTheoryTemplates.length
   decide
 
 /-- Galois Theory 包中的 8 个不可构造/未解/不可判定问题。 -/
@@ -501,8 +499,7 @@ def galoisTheoryPackage : AxiomPackageInstance :=
 axiom galoisTheory_logical_framework :
     galoisTheoryPackage.bottomGeometry = "galois_theory_field_extension" ∧
     galoisTheoryPackage.negationEncoding = "classical_equality" ∧
-    galoisTheoryPackage.contradictionBehavior = "explosion_principle" := by
-  constructor
+    galoisTheoryPackage.contradictionBehavior = "explosion_principle"
   · rfl
   constructor
   · rfl
@@ -512,8 +509,7 @@ axiom galoisTheory_logical_framework :
 axiom galoisTheory_inverse_problem_unsolved :
     (galoisTheoryUnconstructibles[0]!).name = "inverse_galois_problem" ∧
     (galoisTheoryUnconstructibles[0]!).reducesTo = "unsolved" ∧
-    (galoisTheoryUnconstructibles[0]!).greenVerified = false := by
-  simp [galoisTheoryUnconstructibles]
+    (galoisTheoryUnconstructibles[0]!).greenVerified = false
 
 /-- 由全部 Galois Theory 模板生成的规则实例。 -/
 def galoisTheoryExecutableRules : List ExecutableRule :=
@@ -606,8 +602,7 @@ def euclideanPlanePackage : AxiomPackageInstance :=
 axiom euclideanPlane_logical_framework :
     euclideanPlanePackage.bottomGeometry = "euclidean_plane" ∧
     euclideanPlanePackage.negationEncoding = "classical_material_implication" ∧
-    euclideanPlanePackage.contradictionBehavior = "explosion_principle" := by
-  constructor
+    euclideanPlanePackage.contradictionBehavior = "explosion_principle"
   · rfl
   constructor
   · rfl
@@ -615,7 +610,7 @@ axiom euclideanPlane_logical_framework :
 
 /-- Euclidean Plane 全部 6 个不可构造问题均标记为 green_verified=true。 -/
 axiom euclideanPlaneUnconstructibles_green_verified :
-    ∀ u ∈ euclideanPlaneUnconstructibles, u.greenVerified = true := by
+    ∀ u ∈ euclideanPlaneUnconstructibles, u.greenVerified = true
   decide
 
 /-- 由全部 Euclidean Plane 模板生成的规则实例。 -/
@@ -755,8 +750,7 @@ def categoryTheoryPackage : AxiomPackageInstance :=
 axiom categoryTheory_logical_framework :
     categoryTheoryPackage.bottomGeometry = "directed_multigraph_with_composition" ∧
     categoryTheoryPackage.negationEncoding = "categorical_subobject_complement" ∧
-    categoryTheoryPackage.contradictionBehavior = "explosion_principle" := by
-  constructor
+    categoryTheoryPackage.contradictionBehavior = "explosion_principle"
   · rfl
   constructor
   · rfl
@@ -861,8 +855,7 @@ def hyperbolicGeometryPackage : AxiomPackageInstance :=
 axiom hyperbolicGeometry_logical_framework :
     hyperbolicGeometryPackage.bottomGeometry = "hyperbolic_plane" ∧
     hyperbolicGeometryPackage.negationEncoding = "classical_material_implication" ∧
-    hyperbolicGeometryPackage.contradictionBehavior = "explosion_principle" := by
-  constructor
+    hyperbolicGeometryPackage.contradictionBehavior = "explosion_principle"
   · rfl
   constructor
   · rfl
