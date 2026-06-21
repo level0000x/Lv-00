@@ -1,0 +1,10 @@
+// bootstrap: profiler — 运行时性能剖析器
+
+Point Profiler := { samples: List<Sample>, stack: StackTrace, timer: HighResTimer };
+Point Sample := { func: FnName, count: Nat, total_ns: Nat, avg_ns: Float };
+
+Constraint ProfilerMinOverhead: forall p: Profiler.
+  overhead(profile_with(p)) < 0.05 * bare_execution_time;
+
+Prove ProfilerMinOverhead;
+Normalize;

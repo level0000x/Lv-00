@@ -1,0 +1,10 @@
+// bootstrap: preset_measure_theory — 测度论: sigma代数/Lebesgue/Radon-Nikodym
+
+Point MeasurePreset := SigmaAlgebra | Measure | LebesgueMeasure | RadonNikodym | LpSpace;
+Point Measure := { space: Set, sigma: SigmaAlgebra, mu: Set->Real_extended };
+
+Constraint MonotoneConvergence: forall fn: Seq(measurable, non_negative, increasing).
+  integral(limit(fn)) = limit(integral(fn));
+
+Prove MonotoneConvergence;
+Normalize;

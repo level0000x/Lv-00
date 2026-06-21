@@ -1,0 +1,10 @@
+// bootstrap: assembler — 汇编器: 助记符 -> 机器码
+
+Point Assembler := assemble(asm: AsmSource) -> BinaryCode;
+Point Instruction := { mnemonic: String, operands: List<Operand>, encoding: Encoding };
+
+Constraint AsmRoundtrip: forall inst: Instruction(valid).
+  disassemble(assemble(inst)) inst_eq inst;
+
+Prove AsmRoundtrip;
+Normalize;

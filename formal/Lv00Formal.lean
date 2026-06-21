@@ -36,6 +36,33 @@ import Lv00Formal.Theory.GeometricAlgebra
 import Lv00Formal.Theory.Numeric
 import Lv00Formal.Theory.ODESolver
 import Lv00Formal.Theory.PresetGeometry
+-- v1.1 R3+: Definition modules (dependencies)
+import Lv00Formal.Theory.GeometricAlgebraDefs
+import Lv00Formal.Theory.GeometryPresetDefs
+import Lv00Formal.Theory.ODESolverDefs
+import Lv00Formal.Theory.NumericDefs
+import Lv00Formal.Theory.PresetGeometryDefs
+import Lv00Formal.Theory.BootstrapDefs
+-- v1.1 R4+: Coverage modules
+import Lv00Formal.Theory.ConstraintPropagation
+import Lv00Formal.Theory.InteropSoundness
+import Lv00Formal.Theory.OrchestrationSoundness
+import Lv00Formal.Theory.AxiomDiscoveryTheory
+import Lv00Formal.Theory.FormulaSemantics
+import Lv00Formal.Theory.VisualLayerSoundness
+import Lv00Formal.Theory.MetaVerificationTheory
+import Lv00Formal.Theory.StreamingTheory
+-- v1.1 Hilbert framework
+import Lv00.Basic
+import Lv00.Incidence
+import Lv00.Betweenness
+import Lv00.Congruence
+import Lv00.Parallel
+import Lv00.Continuity
+import Lv00.Order
+import Lv00.HilbertAxioms
+import Lv00.EuclideanPlane
+import Lv00.Lv00Meta
 
 namespace Lv00Formal
 

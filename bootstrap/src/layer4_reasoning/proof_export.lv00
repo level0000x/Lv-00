@@ -1,0 +1,10 @@
+// bootstrap: proof_export — 证明导出: Coq/Lean/LaTeX/JSON
+
+Point ProofExport := export(pf: Proof, fmt: OutputFormat) -> Text;
+Point OutputFormat := Coq | Lean4 | LaTeX | JSON | SExpr;
+
+Constraint ExportRoundtrip: forall pf: Proof, fmt: OutputFormat(supported).
+  import(export(pf, fmt), fmt) logically_equivalent pf;
+
+Prove ExportRoundtrip;
+Normalize;

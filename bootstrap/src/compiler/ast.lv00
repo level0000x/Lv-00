@@ -1,0 +1,10 @@
+// bootstrap: ast — 抽象语法树定义与遍历
+
+Point ASTNode := leaf(value: Token) | branch(label: NodeKind, children: List<ASTNode>);
+Point Visitor := accept(visitor: ASTVisitor, node: ASTNode) -> Result;
+
+Constraint ASTWellFormed: forall node: ASTNode.
+  is_acyclic(node) /\ all_children_typed(node) /\ root_is_Module(node);
+
+Prove ASTWellFormed;
+Normalize;

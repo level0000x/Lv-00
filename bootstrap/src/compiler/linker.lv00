@@ -1,0 +1,10 @@
+// bootstrap: linker — 链接器: 对象文件合并与重定位
+
+Point Linker := link(objs: List<ObjectFile>, libs: List<Library>) -> Executable;
+Point Relocation := { offset: Addr, symbol: Name, kind: RelocKind };
+
+Constraint LinkerNoConflicts: forall objs: List<ObjectFile>(valid).
+  symbol_unique(resolve_symbols(objs)) /\ no_orphan_reloc(link(objs, []));
+
+Prove LinkerNoConflicts;
+Normalize;

@@ -1,0 +1,10 @@
+// bootstrap: ast_spec — AST 节点定义与构造规则
+
+Point ASTSpec := { nodes: Set<NodeDef>, traversal: Map<NodeKind, TraversalOrder> };
+Point NodeDef := { kind: NodeKind, fields: List<Field>, invariants: List<Constraint> };
+
+Constraint ASTNodeValid: forall node: ASTNode(built from ASTSpec).
+  node satisfies all inv of NodeDef(kind(node));
+
+Prove ASTNodeValid;
+Normalize;

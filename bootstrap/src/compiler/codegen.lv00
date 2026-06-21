@@ -1,0 +1,10 @@
+// bootstrap: codegen — 代码生成: TypedAST -> TargetCode
+
+Point Codegen := emit(node: TypedAST, target: Target) -> Code;
+Point Target := Python | C | Rust | WASM;
+
+Constraint CodegenPreservesSemantics: forall ast: TypedAST, t: Target.
+  semantics(eval(emit(ast, t))) equiv semantics(reduce(ast));
+
+Prove CodegenPreservesSemantics;
+Normalize;

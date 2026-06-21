@@ -1,0 +1,10 @@
+// bootstrap: verifier — 验证器: 输出正确性断言
+
+Point Verifier := verify(output: Output, spec: Spec) -> Verdict;
+Point Verdict := Pass | Fail(Set<Error>);
+
+Constraint VerifierSound: forall o: Output, s: Spec.
+  verify(o, s) passes -> output_satisfies(o, s);
+
+Prove VerifierSound;
+Normalize;

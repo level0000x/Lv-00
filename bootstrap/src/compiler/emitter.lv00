@@ -1,0 +1,10 @@
+// bootstrap: emitter — 目标代码发射: IR -> 汇编/字节码
+
+Point Emitter := emit(ir: IR, target: TargetISA) -> ObjectCode;
+Point TargetISA := X86_64 | ARM64 | WASM | BPF;
+
+Constraint EmitterCorrect: forall ir: IR, isa: TargetISA.
+  decode(emit(ir, isa)) simulates step_semantics(ir);
+
+Prove EmitterCorrect;
+Normalize;

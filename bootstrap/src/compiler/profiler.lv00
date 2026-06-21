@@ -1,0 +1,10 @@
+// bootstrap: profiler — 性能剖析: 热点/调用计数/内存统计
+
+Point Profiler := profile(exec: Execution, mode: ProfileMode) -> ProfileReport;
+Point ProfileMode := CPU | Memory | Allocation | Coverage;
+
+Constraint ProfileDeterministic: forall e: Execution(deterministic).
+  profile(e, CPU) is unique /\ profile(e, CPU) = profile(e, CPU);
+
+Prove ProfileDeterministic;
+Normalize;

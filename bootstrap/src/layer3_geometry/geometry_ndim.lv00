@@ -1,0 +1,11 @@
+// bootstrap: geometry_ndim — N维几何: 超球/单形/超立方
+
+Point NDGeometry := { dim: Nat, metric: MetricTensor, simplex: List<Vertex> };
+Point Hypersphere := { center: Vector(N), radius: R };
+Point Simplex := { vertices: List<Vector(N)>, volume: Det };
+
+Constraint NDHypervolume: forall S: Simplex(affinely_independent, dim=N).
+  volume(S) = (1 / N!) * abs(det(affine_matrix(S)));
+
+Prove NDHypervolume;
+Normalize;

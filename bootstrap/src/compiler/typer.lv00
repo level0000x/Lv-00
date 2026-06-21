@@ -1,0 +1,11 @@
+// bootstrap: typer — 类型检查/推导引擎
+
+Point Typer := check(node: ASTNode, env: TypeEnv) -> TypedAST;
+Point TypeEnv := bindings: Map<Name, Type>;
+Point Type := PrimType | ArrowType | ParamType;
+
+Constraint TypeSoundness: forall e: AST, tau: Type.
+  typer |- e : tau -> eval(e) in denotation(tau);
+
+Prove TypeSoundness;
+Normalize;

@@ -1,0 +1,11 @@
+// bootstrap: preset_probability — 概率论: 随机变量/期望/方差
+
+Point ProbPreset := RandomVariable | Expectation | Variance | Distribution | Independence;
+Point RV := { space: SampleSpace, measure: ProbabilityMeasure, sigmaAlgebra: SigmaAlgebra };
+Point Dist := { pdf: Option<Function>, cdf: Function, support: Set };
+
+Constraint Additivity: forall X Y: RV(independent).
+  Var(X + Y) = Var(X) + Var(Y);
+
+Prove Additivity;
+Normalize;

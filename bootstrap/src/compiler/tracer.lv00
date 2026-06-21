@@ -1,0 +1,10 @@
+// bootstrap: tracer — 追踪器: 执行日志/调用链/时间线
+
+Point Tracer := trace(exec: Execution, level: TraceLevel) -> TraceLog;
+Point TraceLevel := Full | Summary | ErrorOnly;
+
+Constraint TraceFidelity: forall e: Execution(finite), l: TraceLevel.
+  trace(e, l) contains all_observable_events(e) when l = Full;
+
+Prove TraceFidelity;
+Normalize;
