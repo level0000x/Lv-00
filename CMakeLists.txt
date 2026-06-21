@@ -1310,7 +1310,7 @@ endif()
 
 # 生成 lv00.pc
 configure_file(
-    ${CMAKE_SOURCE_DIR}/build/cmake/lv00.pc.in
+    ${CMAKE_SOURCE_DIR}/cmake/lv00.pc.in
     ${CMAKE_BINARY_DIR}/lv00.pc
     @ONLY
 )
