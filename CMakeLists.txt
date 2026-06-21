@@ -471,6 +471,10 @@ set(LV00_HEADERS
     core/include/lv00/preset_polynomial.h
     core/include/lv00/preset_representation_theory.h
     core/include/lv00/preset_special_functions.h
+    # [QA] Pending header additions: adaptive_pruning, autodiff, cache_manager,
+    # conflict_detector, ga_codegen, ga_interface, ga_multivector, groebner_parallel,
+    # math_theory_guide_cn, meta_repr, nt_number_theory, nt_polynomial, ode_solver,
+    # plugin_system, proof_compiler, proof_contradiction (see TASK_CONTEXT_QA.md R6)
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -1197,6 +1201,7 @@ if(BUILD_TESTS)
     add_lv00_test_and_register(test_autodiff
         test/c/test_autodiff.c test_autodiff)
     # prop_verifier 测试：链接 lv00 库以获取 lv00_malloc/lv00_free 等工具函数
+    # [QA] Also listed in LV00_LAYER4_SOURCES; test target requires separate compilation
     add_executable(test_prop_verifier test/c/test_prop_verifier.c core/src/layer4_reasoning/prop_verifier.c)
     target_include_directories(test_prop_verifier PRIVATE core/include core/include/lv00)
     target_link_libraries(test_prop_verifier lv00 ${GMP_LIBRARIES})

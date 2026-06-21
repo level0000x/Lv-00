@@ -3,6 +3,10 @@
    I2: 过任意两点至多存在一条直线
    I3: 每条直线上至少有两个点；存在至少三个不共线的点 -/
 
+-- [QA] Parallel Hilbert formalization. lv00-formal/Classical/Hilbert/ provides
+--      the full axiomatic treatment with proofs; this file provides the typeclass
+--      abstraction layer. Do NOT merge; they serve different architectural roles.
+
 import Mathlib
 
 namespace Lv00.Incidence

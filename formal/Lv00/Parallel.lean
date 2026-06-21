@@ -2,6 +2,10 @@
    过直线外一点至多有一条直线与该直线平行
    两条直线平行当且仅当它们不相交 -/
 
+-- [QA] Parallel Hilbert formalization. lv00-formal/Classical/Hilbert/ provides
+--      the full axiomatic treatment with proofs; this file provides the typeclass
+--      abstraction layer. Do NOT merge; they serve different architectural roles.
+
 import Mathlib
 import Lv00.Incidence
 
