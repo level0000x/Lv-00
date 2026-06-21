@@ -1,3 +1,5 @@
+#define LV00_RUNTIME_MONITOR_LOGLEVEL_SEEN 1
+
 /**
  * @file runtime_monitor.h
  * @brief 运行时监控与日志系统
@@ -47,14 +49,38 @@ extern "C" {
  * @brief 日志级别
  */
 typedef enum {
+#ifndef LOG_LEVEL_TRACE
     LOG_LEVEL_TRACE = 0,    /**< 最详细跟踪 */
+#endif
+#ifndef LOG_LEVEL_DEBUG
     LOG_LEVEL_DEBUG = 1,    /**< 调试信息 */
+#endif
+#ifndef LOG_LEVEL_INFO
     LOG_LEVEL_INFO = 2,     /**< 一般信息 */
+#endif
+#ifndef LOG_LEVEL_WARN
     LOG_LEVEL_WARN = 3,     /**< 警告 */
+#endif
+#ifndef LOG_LEVEL_ERROR
     LOG_LEVEL_ERROR = 4,    /**< 错误 */
+#endif
+#ifndef LOG_LEVEL_FATAL
     LOG_LEVEL_FATAL = 5,    /**< 致命错误 */
+#endif
+#ifndef LOG_LEVEL_OFF
     LOG_LEVEL_OFF = 6       /**< 关闭日志 */
+#endif
 } Lv00LogLevel;
+
+/* Prevent redeclaration of LOG_LEVEL_* in debug.h */
+#define LOG_LEVEL_TRACE 0
+#define LOG_LEVEL_DEBUG 1
+#define LOG_LEVEL_INFO  2
+#define LOG_LEVEL_WARN  3
+#define LOG_LEVEL_ERROR 4
+#define LOG_LEVEL_FATAL 5
+#define LOG_LEVEL_OFF   6
+#define LOG_LEVEL_NONE  7
 
 /**
  * @brief 日志输出目标类型

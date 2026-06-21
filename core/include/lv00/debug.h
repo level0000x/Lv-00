@@ -51,13 +51,27 @@ typedef struct ConstraintGraph ConstraintGraph;
  *   FATAL — 不可恢复错误，记录后触发 emergency_save 和可能的 abort
  */
 typedef enum {
+#ifndef LOG_LEVEL_TRACE
     LOG_LEVEL_TRACE = -1, /**< 追踪级别：最详细的逐步骤日志（函数进入/退出、参数转储） */
+#endif
+#ifndef LOG_LEVEL_DEBUG
     LOG_LEVEL_DEBUG = 0,  /**< 调试级别：开发调试信息 */
+#endif
+#ifndef LOG_LEVEL_INFO
     LOG_LEVEL_INFO  = 1,  /**< 信息级别：常规运行时信息 */
+#endif
+#ifndef LOG_LEVEL_WARN
     LOG_LEVEL_WARN  = 2,  /**< 警告级别：潜在问题，不影响当前操作 */
+#endif
+#ifndef LOG_LEVEL_ERROR
     LOG_LEVEL_ERROR = 3,  /**< 错误级别：操作失败，但引擎可继续 */
+#endif
+#ifndef LOG_LEVEL_FATAL
     LOG_LEVEL_FATAL = 4,  /**< 致命级别：不可恢复错误，记录后触发保护性动作 */
+#endif
+#ifndef LOG_LEVEL_NONE
     LOG_LEVEL_NONE  = 5   /**< 禁用所有日志 */
+#endif
 } LogLevel;
 
 /**

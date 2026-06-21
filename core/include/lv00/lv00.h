@@ -218,6 +218,7 @@ extern "C" {
 #include "normalization.h"    /* 图规范化遍引擎 */
 #include "rewrite.h"          /* 图重写引擎 */
 #include "solver.h"           /* 符号代数求解器 */
+#include "rational.h"          /* 精确有理数系统 */
 #include "symbolic_coord.h"   /* 符号坐标系统 */
 #include "unify.h"            /* 合一检查 */
 
