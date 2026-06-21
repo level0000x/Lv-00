@@ -26,9 +26,9 @@ def rk4_step (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ) : ℝ :=
   y + h/6 * (k1 + 2*k2 + 2*k3 + k4)
 
 /-- RK4 局部截断误差为 O(h⁵) 量级 -/
-theorem rk4_local_truncation_error (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ)
-    (hsm : h > 0) (hsmooth : ∃ C, ∀ x t', |f t' x| ≤ C) : True := by
-  trivial
+-- [QA] placeholder: actual proof pending
+axiom rk4_local_truncation_error (f : ℝ → ℝ → ℝ) (h : ℝ) (t y : ℝ)
+    (hsm : h > 0) (hsmooth : ∃ C, ∀ x t', |f t' x| ≤ C) : True
 
 /-- 谐波振荡器能量守恒: E = x^2 + v^2 在无阻尼下不变 -/
 def harmonic_energy (s : State) : ℝ :=

@@ -1,5 +1,6 @@
 ﻿/-
 Lv-00 自有理论核心：公理包依赖验证模型
+[QA] TODO: split by package (currently ~1402 lines, threshold 500)
 
 本文件对应 C 侧 `axiom_package_validate_dependencies` 的 Lean 抽象版本。
 目标是证明：一个不可构造问题声明的每个依赖，都能在同一公理包的模板表中找到。
