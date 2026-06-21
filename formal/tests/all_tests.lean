@@ -35,6 +35,9 @@ import Lv00Formal.Theory.GeometricAlgebra
 import Lv00Formal.Theory.Numeric
 import Lv00Formal.Theory.ODESolver
 import Lv00Formal.Theory.PresetGeometry
+-- v1.1 R4: Codegen + CodegenCorrectness
+import Lv00Formal.Theory.Codegen
+import Lv00Formal.Theory.CodegenCorrectness
 
 namespace Lv00.Tests
 
@@ -132,5 +135,33 @@ theorem ode_solver_test : True := by
 /- PresetGeometry -/
 theorem preset_geometry_test : True := by
   have _ := PresetGeometry.preset_geometry_consistent []; trivial
+
+-- v1.1 R4: Codegen + CodegenCorrectness tests
+
+/- Codegen: IR expression translation -/
+theorem codegen_expr_test : True := by
+  have e : IRExpr := .add (.var "x") (.const 2)
+  have c := Codegen.cgen_expr e
+  -- cgen_expr translates add(var,const) → Cv00 add(var,lit_float)
+  have _ : c = .add (.var "x") (.lit_float 2) := rfl
+  trivial
+
+/- Codegen: distance constraint → safe C code -/
+theorem codegen_distance_test : True := by
+  let c : IRConstraint := .distance "A" "B" (.const 5)
+  have safe := CodegenCorrectness.cgen_constraint_safe c
+  have _ := safe; trivial
+
+/- CodegenCorrectness: empty graph → safe execution -/
+theorem codegen_empty_graph_test : True := by
+  let g : ConstraintGraph := { nodes := [], edges := [] }
+  have safe := CodegenCorrectness.cgen_graph_safe g
+  have _ := safe; trivial
+
+/- CodegenCorrectness: full pipeline safety -/
+theorem codegen_pipeline_test : True := by
+  let prog : List Lv00Lang.Lv00Stmt := []
+  have safe := CodegenCorrectness.full_pipeline_safety prog Cv00Memory.emptyMem Cv00Lang.emptyEnv
+  have _ := safe "TEST"; trivial
 
 end Lv00.Tests
