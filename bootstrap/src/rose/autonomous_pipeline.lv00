@@ -1,0 +1,179 @@
+// ============================================================
+// ROSE-SCA 全自主工具链 — Lv-00 几何元语言实现
+// ============================================================
+// Phase 5: ROSE 不再需要人类手动选择数据库、
+// 手动触发训练、手动审查矛盾。整个管线自驱动。
+//
+// 闭环:
+//   新数据发现 → 自动下载 → 解析 → WikiLine 写入
+//     → 目光循环处理 → containment 网络增长
+//     → 元认知审视 → 发现矛盾/空白/异常
+//     → 推理引擎介入 → 新关系生成 → 回写 Wiki
+//     → Wiki 重新生成 → 循环继续
+//
+// 此约束图本身是自演化中的——bootstrap_compiler.lv00
+// 保证系统可给自己添加新 Lv-00 原语。
+// ============================================================
+
+// === 自主管线空间 ===
+Point auto_origin = (0, 0);
+Point auto_cycle_back = (0, 900);    // 回到起点
+
+// ================================================================
+// 阶段 0: 数据源发现 — 扫描开放数据注册表
+// ================================================================
+Point phase0_scan = (0, 30);
+Point phase0_registry = (60, 30);     // 数据源注册表
+Point phase0_found_new = (120, 30);   // 发现新数据源
+Point phase0_evaluate = (180, 30);    // 评估覆盖填补价值
+Point phase0_ingest = (240, 30);      // 触发摄入
+
+Constraint distance(phase0_scan, phase0_registry) = 60;
+Constraint distance(phase0_registry, phase0_found_new) = 60;
+Constraint distance(phase0_found_new, phase0_evaluate) = 60;
+Constraint distance(phase0_evaluate, phase0_ingest) = 60;
+
+// 旧数据源重新扫描
+Point phase0_rescan = (120, 70);     // 周期性重扫
+Constraint distance(phase0_ingest, phase0_rescan) = 40;
+Constraint distance(phase0_rescan, phase0_scan) = 0;
+
+// ================================================================
+// 阶段 1: 自动下载 — 多模态下载器
+// ================================================================
+Point phase1_download = (0, 120);
+Point phase1_text = (60, 120);       // 文本数据
+Point phase1_image = (120, 120);     // 图像数据
+Point phase1_audio = (180, 120);     // 音频数据
+Point phase1_code_source = (240, 120); // 代码数据
+Point phase1_downloaded = (300, 120); // 下载完成
+
+Constraint distance(phase1_download, phase1_text) = 60;
+Constraint distance(phase1_text, phase1_image) = 60;
+Constraint distance(phase1_image, phase1_audio) = 60;
+Constraint distance(phase1_audio, phase1_code_source) = 60;
+Constraint distance(phase1_code_source, phase1_downloaded) = 60;
+
+// 触发 → 下载
+Constraint distance(phase0_ingest, phase1_download) = 0;
+
+// ================================================================
+// 阶段 2: 解析 + 训练 — 自动摄入管线
+// ================================================================
+Point phase2_parse = (350, 30);
+Point phase2_predicate_map = (410, 30);   // predicate_mapper
+Point phase2_wikiline = (470, 30);        // wiki_writer
+Point phase2_tsv_written = (530, 30);
+
+Constraint distance(phase2_parse, phase2_predicate_map) = 60;
+Constraint distance(phase2_predicate_map, phase2_wikiline) = 60;
+Constraint distance(phase2_wikiline, phase2_tsv_written) = 60;
+
+Constraint distance(phase1_downloaded, phase2_parse) = 0;
+
+// ================================================================
+// 阶段 3: 目光循环 — 持续处理新数据
+// ================================================================
+Point phase3_gaze_cycle = (0, 220);
+Point phase3_containment_net = (100, 220);
+Point phase3_wiki_write_back = (200, 220);
+
+Constraint distance(phase3_gaze_cycle, phase3_containment_net) = 100;
+Constraint distance(phase3_containment_net, phase3_wiki_write_back) = 100;
+
+Constraint distance(phase2_tsv_written, phase3_gaze_cycle) = 0;
+
+// ================================================================
+// 阶段 4: 元认知审视 — 周期性触发
+// ================================================================
+Point phase4_meta_observe = (300, 220);
+Point phase4_find_contradiction = (360, 220);
+Point phase4_find_gap = (420, 220);
+Point phase4_find_anomaly = (480, 220);
+Point phase4_suggest = (540, 220);
+
+Constraint distance(phase4_meta_observe, phase4_find_contradiction) = 60;
+Constraint distance(phase4_find_contradiction, phase4_find_gap) = 60;
+Constraint distance(phase4_find_gap, phase4_find_anomaly) = 60;
+Constraint distance(phase4_find_anomaly, phase4_suggest) = 60;
+
+Constraint distance(phase3_wiki_write_back, phase4_meta_observe) = 0;
+
+// ================================================================
+// 阶段 5: 推理引擎 — 矛盾解决 + 新关系
+// ================================================================
+Point phase5_reasoning = (0, 320);
+Point phase5_closure = (80, 320);      // 传递闭包
+Point phase5_conflict = (160, 320);    // 矛盾检测
+Point phase5_equivalence = (240, 320); // 等价合并
+Point phase5_analogy = (320, 320);     // 类比推理
+Point phase5_new_relations = (400, 320); // 新关系产出
+
+Constraint distance(phase5_reasoning, phase5_closure) = 80;
+Constraint distance(phase5_closure, phase5_conflict) = 80;
+Constraint distance(phase5_conflict, phase5_equivalence) = 80;
+Constraint distance(phase5_equivalence, phase5_analogy) = 80;
+Constraint distance(phase5_analogy, phase5_new_relations) = 80;
+
+// 矛盾 → 触发自愈
+Constraint distance(phase4_suggest, phase5_reasoning) = 0;
+
+// ================================================================
+// 阶段 6: Wiki 生成 — 自动更新公开页面
+// ================================================================
+Point phase6_wiki_gen = (450, 320);
+Point phase6_static_html = (520, 320);
+Point phase6_deploy = (590, 320);
+
+Constraint distance(phase6_wiki_gen, phase6_static_html) = 70;
+Constraint distance(phase6_static_html, phase6_deploy) = 70;
+
+Constraint distance(phase5_new_relations, phase6_wiki_gen) = 0;
+
+// ================================================================
+// 阶段 7: 架构自演化 — 编译器双向同步
+// ================================================================
+Point phase7_self_observe = (0, 420);
+Point phase7_lv00_extend = (100, 420);
+Point phase7_compile = (200, 420);
+Point phase7_new_capability = (300, 420);
+Point phase7_verify = (400, 420);
+
+Constraint distance(phase7_self_observe, phase7_lv00_extend) = 100;
+Constraint distance(phase7_lv00_extend, phase7_compile) = 100;
+Constraint distance(phase7_compile, phase7_new_capability) = 100;
+Constraint distance(phase7_new_capability, phase7_verify) = 100;
+
+// 闭环: 新能力 → 触发新一轮演化
+Constraint distance(phase7_verify, phase7_self_observe) = 0;
+
+// 演化 → 驱动新一轮数据发现
+Constraint distance(phase7_verify, auto_cycle_back) = 0;
+
+// ================================================================
+// 完整闭环 — 回到阶段0
+// ================================================================
+Constraint distance(phase6_deploy, auto_cycle_back) = 0;
+Constraint distance(phase4_suggest, auto_cycle_back) = 0;
+
+// ================================================================
+// 自主标记 — 闭环节点
+// ================================================================
+Point autonomy_level_stage0 = (0, 520);    // 手动触发
+Point autonomy_level_stage1 = (100, 520);  // 半自动 (Phase 1-2)
+Point autonomy_level_stage2 = (200, 520);  // 全自动 (Phase 5)
+Point autonomy_achieved = (300, 520);      // 自主运行
+
+Constraint distance(autonomy_level_stage0, autonomy_level_stage1) = 100;
+Constraint distance(autonomy_level_stage1, autonomy_level_stage2) = 100;
+Constraint distance(autonomy_level_stage2, autonomy_achieved) = 100;
+
+// 当前: 半自动 (Phase 1-2 已完成)
+Constraint distance(autonomy_level_stage1, auto_origin) = 0;
+// 目标: 全自动
+Constraint distance(autonomy_achieved, phase7_self_observe) = 0;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

@@ -1,0 +1,166 @@
+// ============================================================
+// ROSE-SCA 拆解引擎 — Lv-00 几何元语言实现 v2
+// ============================================================
+// 拆解引擎执行下行分解：从最上层概念开始，逐级拆解到最小给定物。
+//
+// 拆解方向:
+//   containment 下位 → 拆出子类成员 (归类下位)
+//   connection 构成部分 → 拆出物理/逻辑构成 (have_part)
+//
+// 拆出物立即获得概念身份（秘密归类: "构成成分" / "下归类成员"）
+//
+// "最小" 的判定:
+//   当前无 containment 下位 且 无 connection 部分 → 当前最小
+//   非本质属性 — 新数据加入后, 最小可能被继续分解
+// ============================================================
+
+// === 拆解空间 / Decomposition space ===
+Point decomp_origin = (0, 0);
+Point decomp_depth_max = (0, 300);    // 拆解最大深度
+Line decomp_spine = line(decomp_origin, decomp_depth_max);
+
+// ================================================================
+// 下行分解管线
+// ================================================================
+
+// 起点: 最上层概念 (阶段一上行归类后的顶层节点)
+Point decomp_start_top = (100, 0);
+
+// 步骤1: 查询 containment 下位
+Point decomp_lookup_containment = (100, 30);
+// 步骤2: 查询 connection 构成部分
+Point decomp_lookup_connection = (150, 30);
+// 步骤3: 拆出物获取概念身份（秘密归类）
+Point decomp_classify_part = (200, 30);
+// 步骤4: 对每个拆出物递归分解
+Point decomp_descend = (250, 30);
+// 终点: 不可再分 → 最小给定物
+Point decomp_minimum = (300, 30);
+
+Constraint distance(decomp_start_top, decomp_lookup_containment) = 30;
+Constraint distance(decomp_start_top, decomp_lookup_connection) = 58;
+Constraint distance(decomp_lookup_containment, decomp_classify_part) = 50;
+Constraint distance(decomp_lookup_connection, decomp_classify_part) = 50;
+Constraint distance(decomp_classify_part, decomp_descend) = 50;
+// 递归
+Constraint distance(decomp_descend, decomp_lookup_containment) = 0;
+// 不可再分 → 最小
+Constraint distance(decomp_lookup_containment, decomp_minimum) = 200;
+Constraint distance(decomp_lookup_connection, decomp_minimum) = 200;
+
+// ================================================================
+// 拆解示例: 完整的 entity 下行分解树
+// ================================================================
+
+// entity
+Point d_entity = (0, 100);
+// entity containment 下位
+Point d_living_thing = (0, 140);
+Point d_non_living = (50, 140);
+
+Constraint distance(d_entity, d_living_thing) = 40;
+Constraint distance(d_entity, d_non_living) = 50;
+
+// living_thing 继续向下
+Point d_animal = (0, 180);
+Point d_plant = (50, 180);
+
+Constraint distance(d_living_thing, d_animal) = 40;
+Constraint distance(d_living_thing, d_plant) = 40;
+
+// animal 继续向下
+Point d_mammal = (0, 220);
+Point d_bird = (30, 220);
+Point d_reptile = (60, 220);
+
+Constraint distance(d_animal, d_mammal) = 40;
+Constraint distance(d_animal, d_bird) = 36;
+Constraint distance(d_animal, d_reptile) = 36;
+
+// mammal → canine + feline
+Point d_canine = (-10, 260);
+Point d_feline = (20, 260);
+
+Constraint distance(d_mammal, d_canine) = 40;
+Constraint distance(d_mammal, d_feline) = 40;
+
+// canine → dog
+Point d_dog = (-10, 300);
+Constraint distance(d_canine, d_dog) = 40;
+
+// dog 的 connection 构成部分 (have_part)
+Point d_dog_head = (-40, 340);
+Point d_dog_leg = (-10, 340);
+Point d_dog_tail = (20, 340);
+
+Constraint distance(d_dog, d_dog_head) = 42;
+Constraint distance(d_dog, d_dog_leg) = 30;
+Constraint distance(d_dog, d_dog_tail) = 36;
+
+// dog containment 下位: poodle, husky
+Point d_poodle = (-40, 380);
+Point d_husky = (-10, 380);
+
+Constraint distance(d_dog, d_poodle) = 42;
+Constraint distance(d_dog, d_husky) = 36;
+
+// head/leg/tail 无 containment 下位 + 无 connection → 最小给定物
+Point min_head = (-40, 420);
+Point min_leg = (-10, 420);
+Point min_tail = (20, 420);
+Point min_poodle = (-40, 420);
+Point min_husky = (-10, 420);
+
+Constraint distance(d_dog_head, min_head) = 80;
+Constraint distance(d_dog_leg, min_leg) = 80;
+Constraint distance(d_dog_tail, min_tail) = 80;
+Constraint distance(d_poodle, min_poodle) = 40;
+Constraint distance(d_husky, min_husky) = 40;
+
+// ================================================================
+// "最小" 的时态性: 新数据改变最小判定
+// ================================================================
+
+// 之前 poodle 是最小 (无下位)
+Point was_min_poodle = (200, 180);
+// 新摄入: toy_poodle containment poodle
+Point new_data_toy_poodle = (250, 180);
+// → poodle 不再是最小
+Point poodle_not_min = (200, 220);
+Point toy_poodle_leaf = (250, 220);
+
+Constraint distance(was_min_poodle, new_data_toy_poodle) = 50;
+Constraint distance(new_data_toy_poodle, poodle_not_min) = 40;
+Constraint distance(poodle_not_min, toy_poodle_leaf) = 40;
+
+// ================================================================
+// 拆解深度记录
+// ================================================================
+Point depth_level_1 = (350, 100);
+Point depth_level_2 = (380, 100);
+Point depth_level_3 = (410, 100);
+Point depth_level_N = (440, 100);
+Point depth_max_reached = (470, 100);
+
+Constraint distance(depth_level_1, depth_level_2) = 30;
+Constraint distance(depth_level_2, depth_level_3) = 30;
+Constraint distance(depth_level_3, depth_level_N) = 30;
+Constraint distance(depth_level_N, depth_max_reached) = 30;
+
+// ================================================================
+// 拆解模式注册
+// decompose_register(pattern, extraction_rule, source)
+// ================================================================
+Point decom_reg_pattern = (0, 480);
+Point decom_reg_rule = (50, 480);
+Point decom_reg_source = (100, 480);
+Point decom_registered = (150, 480);
+
+Constraint distance(decom_reg_pattern, decom_reg_rule) = 50;
+Constraint distance(decom_reg_rule, decom_reg_source) = 50;
+Constraint distance(decom_reg_source, decom_registered) = 50;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

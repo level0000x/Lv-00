@@ -1,0 +1,159 @@
+// ============================================================
+// ROSE-SCA 多模态扩展 — Lv-00 几何元语言实现
+// ============================================================
+// Phase 3: 约束图模型不区分模态。给定物是一个 Point，
+// 不管它代表什么——词、像素块、声谱切片、代码片段。
+//
+// 扩展方式: 为每种模态写一个 Point 提取器。
+// 提取器: 原始数据 → 给定物 Point → containment/connection 约束边
+//
+// 所有模态共享六条本原谓词、同一约束图引擎、同一 WikiLine TSV 格式。
+// ============================================================
+
+// === 多模态空间 / Multi-modal space ===
+Point multimodal_origin = (0, 0);
+Point multimodal_horizon = (700, 0);
+
+// ================================================================
+// 模态定义 — 六种模态的 Point 提取器类型
+// ================================================================
+
+// 文本模态（已完成）
+Point modal_text = (0, 50);
+Point modal_text_extractor = (50, 50);     // WordNet/ConceptNet 摄入器
+Point modal_text_given = (100, 50);         // 文本词 → Point
+
+Constraint distance(modal_text, modal_text_extractor) = 50;
+Constraint distance(modal_text_extractor, modal_text_given) = 50;
+
+// 图像模态 — 像素区域 → Point
+Point modal_image = (0, 120);
+Point modal_image_extractor = (50, 120);    // ImageNet class → bounding box → Point
+Point modal_image_grid = (100, 120);        // 像素网格坐标
+Point modal_image_given = (150, 120);       // 视觉对象 Point
+
+Constraint distance(modal_image, modal_image_extractor) = 50;
+Constraint distance(modal_image_extractor, modal_image_grid) = 50;
+Constraint distance(modal_image_grid, modal_image_given) = 50;
+
+// 音频模态 — 声谱切片 → Point
+Point modal_audio = (0, 190);
+Point modal_audio_extractor = (50, 190);    // AudioSet label → 频谱切片 → Point
+Point modal_audio_spectrum = (100, 190);    // 频谱坐标系
+Point modal_audio_given = (150, 190);       // 声音事件 Point
+
+Constraint distance(modal_audio, modal_audio_extractor) = 50;
+Constraint distance(modal_audio_extractor, modal_audio_spectrum) = 50;
+Constraint distance(modal_audio_spectrum, modal_audio_given) = 50;
+
+// 代码模态 — AST 节点 → Point
+Point modal_code = (0, 260);
+Point modal_code_extractor = (50, 260);     // AST 解析器
+Point modal_code_ast = (100, 260);          // 语法树
+Point modal_code_given = (150, 260);        // 函数/类型 Point
+
+Constraint distance(modal_code, modal_code_extractor) = 50;
+Constraint distance(modal_code_extractor, modal_code_ast) = 50;
+Constraint distance(modal_code_ast, modal_code_given) = 50;
+
+// 地理模态 — 坐标 → Point
+Point modal_geo = (0, 330);
+Point modal_geo_extractor = (50, 330);     // OSM/GeoNames 解析器
+Point modal_geo_coords = (100, 330);        // (lat, lon)
+Point modal_geo_given = (150, 330);         // 空间实体 Point
+
+Constraint distance(modal_geo, modal_geo_extractor) = 50;
+Constraint distance(modal_geo_extractor, modal_geo_coords) = 50;
+Constraint distance(modal_geo_coords, modal_geo_given) = 50;
+
+// 数学证明模态 — 定理/引理 → Point
+Point modal_math = (0, 400);
+Point modal_math_extractor = (50, 400);    // Metamath/Coq/Lean 解析
+Point modal_math_axiom = (100, 400);        // 公理图
+Point modal_math_given = (150, 400);        // 定理/引理 Point
+
+Constraint distance(modal_math, modal_math_extractor) = 50;
+Constraint distance(modal_math_extractor, modal_math_axiom) = 50;
+Constraint distance(modal_math_axiom, modal_math_given) = 50;
+
+// ================================================================
+// 跨模态 equivalence — 不同模态中的同一给定物
+// 视觉 "dog" 和文本 "dog" 通过 equivalence 谓词关联
+// ================================================================
+
+// 跨模态等价点
+Point cross_text_dog = (250, 50);      // 文本 "dog"
+Point cross_image_dog = (300, 50);     // 视觉 dog 像素区域
+Point cross_audio_dog = (350, 50);     // 声音 dog 录制
+Point cross_code_dog = (400, 50);      // 代码 Dog 类
+
+// equivalence 关联: 不同模态的同一给定物
+Constraint distance(cross_text_dog, cross_image_dog) = 30;
+Constraint distance(cross_image_dog, cross_audio_dog) = 30;
+Constraint distance(cross_audio_dog, cross_code_dog) = 30;
+
+// 跨模态 containment — 它们共享同一祖先链
+Point cross_animal = (325, 100);       // animal — 跨模态 containment 目标
+Constraint distance(cross_text_dog, cross_animal) = 42;
+Constraint distance(cross_image_dog, cross_animal) = 42;
+Constraint distance(cross_audio_dog, cross_animal) = 42;
+Constraint distance(cross_code_dog, cross_animal) = 42;
+
+// ================================================================
+// 模态间导航 — 从一种模态跳转到另一种
+// ================================================================
+
+Point nav_from_text = (250, 150);       // 查询起点: 文本
+Point nav_to_image = (300, 130);        // → 跳转到图像
+Point nav_to_audio = (300, 150);        // → 跳转到音频
+Point nav_to_code = (300, 170);         // → 跳转到代码
+Point nav_to_geo = (300, 190);          // → 跳转到地理
+
+Constraint distance(nav_from_text, nav_to_image) = 42;
+Constraint distance(nav_from_text, nav_to_audio) = 50;
+Constraint distance(nav_from_text, nav_to_code) = 42;
+Constraint distance(nav_from_text, nav_to_geo) = 50;
+
+// ================================================================
+// 提取器输出 → WikiLine TSV — 统一格式
+// ================================================================
+
+Point output_tsv_header = (450, 50);
+Point output_containment_edge = (450, 90);   // 跨模态 containment
+Point output_equivalence_edge = (450, 130);  // 跨模态 equivalence
+Point output_written = (450, 170);
+
+Constraint distance(output_tsv_header, output_containment_edge) = 40;
+Constraint distance(output_containment_edge, output_equivalence_edge) = 40;
+Constraint distance(output_equivalence_edge, output_written) = 40;
+
+// 每种模态提取器 → 输出
+Constraint distance(modal_text_extractor, output_containment_edge) = 400;
+Constraint distance(modal_image_extractor, output_containment_edge) = 400;
+Constraint distance(modal_audio_extractor, output_containment_edge) = 400;
+Constraint distance(modal_code_extractor, output_containment_edge) = 400;
+
+// ================================================================
+// Phase 3 实现路线 — 约束图转 Python 实现
+// ================================================================
+
+Point impl_step_1_text = (500, 300);     // 文本: ✅ 已完成
+Point impl_step_2_image = (530, 300);    // 图像: ImageNet class→Point 提取器
+Point impl_step_3_audio = (560, 300);    // 音频: AudioSet label→Point 提取器
+Point impl_step_4_code = (590, 300);     // 代码: AST→函数/类型 Point
+Point impl_done = (500, 340);            // 完成
+
+Constraint distance(impl_step_1_text, impl_step_2_image) = 30;
+Constraint distance(impl_step_2_image, impl_step_3_audio) = 30;
+Constraint distance(impl_step_3_audio, impl_step_4_code) = 30;
+Constraint distance(impl_step_4_code, impl_done) = 40;
+
+// 当前状态: 文本已完成，图像/音频/代码待实现
+Constraint distance(modal_image_extractor, impl_step_2_image) = 0;
+Constraint distance(modal_audio_extractor, impl_step_3_audio) = 0;
+Constraint distance(modal_code_extractor, impl_step_4_code) = 0;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

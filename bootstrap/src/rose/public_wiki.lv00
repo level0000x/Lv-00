@@ -1,0 +1,130 @@
+// ============================================================
+// ROSE-SCA Wiki 公开网页服务 — Lv-00 几何元语言实现
+// ============================================================
+// 文档五：9 页面架构 + API 接口
+//
+// Wiki双职能:
+//   内部: 作为 ROSE-SCA 的类操作论域，承受目光捕获
+//   公开: 作为人类可访问的公开知识库，提供网页浏览/查询/下载
+// ============================================================
+
+// === 公开Wiki空间 ===
+Point public_origin = (0, 0);
+Point public_extent = (600, 300);
+
+// ================================================================
+// 页面架构 — 9个页面路由
+// ================================================================
+
+// 首页 / — 统计概览、入口导航
+Point page_index = (0, 0);
+Point page_index_stats = (30, 0);     // 给定物总数/关系总数/来源数/冲突数
+Point page_index_search = (60, 0);    // 搜索框
+Point page_index_nav = (90, 0);       // 按谓词/来源快捷入口
+Point page_index_recent = (120, 0);   // 最近更新
+
+Constraint distance(page_index, page_index_stats) = 30;
+Constraint distance(page_index_stats, page_index_search) = 30;
+Constraint distance(page_index_search, page_index_nav) = 30;
+Constraint distance(page_index_nav, page_index_recent) = 30;
+
+// 给定物页 /entity/{id} — 单个给定物完整信息
+Point page_entity = (0, 60);
+Point page_entity_state = (40, 60);    // 时态状态
+Point page_entity_up = (80, 60);       // 向上归类列表
+Point page_entity_down = (120, 60);    // 向下拆解列表
+Point page_entity_relations = (160, 60); // 关联关系
+Point page_entity_sources = (200, 60);   // 来源记录
+
+Constraint distance(page_entity, page_entity_state) = 40;
+Constraint distance(page_entity_state, page_entity_up) = 40;
+Constraint distance(page_entity_up, page_entity_down) = 40;
+Constraint distance(page_entity_down, page_entity_relations) = 40;
+Constraint distance(page_entity_relations, page_entity_sources) = 40;
+
+// 关系浏览 /predicate/{type}
+Point page_predicate = (0, 120);
+// 搜索页 /search
+Point page_search = (100, 120);
+// 状态总览 /status
+Point page_status = (200, 120);
+// 冲突页 /conflicts
+Point page_conflicts = (300, 120);
+// 操作日志 /logs
+Point page_logs = (400, 120);
+// 下载页 /download
+Point page_download = (500, 120);
+// 关于页 /about
+Point page_about = (600, 120);
+
+Constraint distance(page_predicate, page_search) = 100;
+Constraint distance(page_search, page_status) = 100;
+Constraint distance(page_status, page_conflicts) = 100;
+Constraint distance(page_conflicts, page_logs) = 100;
+Constraint distance(page_logs, page_download) = 100;
+Constraint distance(page_download, page_about) = 100;
+
+// ================================================================
+// 状态徽章 — 四条时态状态
+// ================================================================
+Point badge_held = (0, 200);      // ✓ 活跃 — 绿色
+Point badge_unheld = (50, 200);   // — 静默 — 灰色
+Point badge_disputed = (100, 200); // ~ 争议 — 黄色
+Point badge_retracted = (150, 200); // ✗ 撤回 — 红色
+
+Constraint distance(badge_held, badge_unheld) = 50;
+Constraint distance(badge_unheld, badge_disputed) = 50;
+Constraint distance(badge_disputed, badge_retracted) = 50;
+
+// ================================================================
+// API 接口 — 9个 RPC 端点
+// ================================================================
+Point api_entity = (250, 200);       // GET /api/v1/entity/{id}
+Point api_relations = (300, 200);    // GET /api/v1/entity/{id}/relations
+Point api_closure = (350, 200);      // GET /api/v1/entity/{id}/closure
+Point api_list_predicate = (400, 200); // GET /api/v1/predicate/{type}
+Point api_search = (450, 200);       // GET /api/v1/search?q={query}
+Point api_conflicts = (500, 200);    // GET /api/v1/conflicts
+Point api_logs_pub = (550, 200);    // GET /api/v1/logs
+Point api_stats = (600, 200);       // GET /api/v1/stats
+Point api_download = (650, 200);    // GET /api/v1/download/{file}
+
+Constraint distance(api_entity, api_relations) = 50;
+Constraint distance(api_relations, api_closure) = 50;
+Constraint distance(api_closure, api_list_predicate) = 50;
+Constraint distance(api_list_predicate, api_search) = 50;
+Constraint distance(api_search, api_conflicts) = 50;
+Constraint distance(api_conflicts, api_logs_pub) = 50;
+Constraint distance(api_logs_pub, api_stats) = 50;
+Constraint distance(api_stats, api_download) = 50;
+
+// ================================================================
+// 技术实现
+// ================================================================
+Point tech_static_gen = (0, 280);      // 静态站点生成器
+Point tech_tsv_read = (100, 280);      // 直接读取 TSV
+Point tech_inverted_index = (200, 280); // 倒排索引（搜索）
+Point tech_light_http = (300, 280);    // 轻量 HTTP 服务
+Point tech_pure_html = (400, 280);     // 纯 HTML + CSS，无 JS 框架依赖
+
+Constraint distance(tech_static_gen, tech_tsv_read) = 100;
+Constraint distance(tech_tsv_read, tech_inverted_index) = 100;
+Constraint distance(tech_inverted_index, tech_light_http) = 100;
+Constraint distance(tech_light_http, tech_pure_html) = 100;
+
+// ================================================================
+// 声明：Wiki不颁发概念身份
+// ================================================================
+// Wiki是承受者，不是判决者。
+// 给定物在Wiki中是要素。身份在目光中构成。
+Point wiki_disclaimer = (200, 350);
+Point wiki_not_judge = (250, 350);
+Point wiki_element_only = (300, 350);
+
+Constraint distance(wiki_disclaimer, wiki_not_judge) = 50;
+Constraint distance(wiki_not_judge, wiki_element_only) = 50;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

@@ -1,0 +1,179 @@
+// ============================================================
+// ROSE-SCA 语言生成层 — Lv-00 几何元语言实现
+// ============================================================
+// Phase 4: 从约束图遍历生成自然语言文本。
+//
+// 不训练生成式模型。语言生成 = 约束图遍历 + 模板展开。
+//   containment 链 → "X 是一种 Y，Y 是一种 Z"
+//   connection 树 → "X 由 A、B、C 构成"
+//   incidence 属性 → "X 具有属性 P"
+//   操作日志     → "系统在 T1 时刻将 X 归入 Y..."
+//
+// 所有知识内容来自约束图——不存在幻觉。
+// 模板本身也是给定物，可被目光操作管理。
+// ============================================================
+
+// === 语言生成空间 / Language generation space ===
+Point lang_origin = (0, 0);
+Point lang_output = (500, 0);
+
+// ================================================================
+// containent 链展开 — 递归追溯转化为叙事
+// ================================================================
+Point chain_input = (0, 30);        // 给定物
+Point chain_read_parent = (50, 30); // 读取 containment 上位
+Point chain_has_parent = (100, 30); // 找到上位
+Point chain_recurse = (150, 30);    // 递归展开
+Point chain_no_parent = (200, 30);  // 无上位 → 停止
+Point chain_text = (250, 30);       // 输出文本
+
+// 递归管线
+Constraint distance(chain_input, chain_read_parent) = 50;
+Constraint distance(chain_read_parent, chain_has_parent) = 50;
+Constraint distance(chain_has_parent, chain_recurse) = 50;
+Constraint distance(chain_recurse, chain_read_parent) = 0; // 递归
+Constraint distance(chain_read_parent, chain_no_parent) = 150;
+Constraint distance(chain_no_parent, chain_text) = 50;
+
+// 展开模板: "{X} 是一种 {Y}"
+Point template_containment = (0, 80);
+Point template_var_x = (50, 80);
+Point template_var_y = (100, 80);
+Point template_sentence = (150, 80);
+
+Constraint distance(template_containment, template_var_x) = 50;
+Constraint distance(template_var_x, template_var_y) = 50;
+Constraint distance(template_var_y, template_sentence) = 50;
+
+// 链: {child} 是一种 {parent}。{parent} 是一种 {grandparent}。...
+Point chain_concat = (200, 80);  // 拼接多条
+Constraint distance(chain_has_parent, chain_concat) = 100;
+
+// ================================================================
+// connection 树展开 — 递归拆解为叙事
+// ================================================================
+Point tree_input = (300, 30);
+Point tree_read_parts = (350, 30);
+Point tree_has_parts = (400, 30);
+Point tree_recurse = (450, 30);   // 对每部分递归
+Point tree_no_parts = (500, 30);
+Point tree_text = (550, 30);
+
+Constraint distance(tree_input, tree_read_parts) = 50;
+Constraint distance(tree_read_parts, tree_has_parts) = 50;
+Constraint distance(tree_has_parts, tree_recurse) = 50;
+Constraint distance(tree_recurse, tree_read_parts) = 0; // 递归
+Constraint distance(tree_read_parts, tree_no_parts) = 150;
+Constraint distance(tree_no_parts, tree_text) = 50;
+
+// 展开模板: "{X} 由 {[A, B, C]} 构成"
+Point template_connection = (300, 80);
+Point template_whole = (350, 80);
+Point template_parts = (400, 80);
+Point template_conn_text = (450, 80);
+
+Constraint distance(template_connection, template_whole) = 50;
+Constraint distance(template_whole, template_parts) = 50;
+Constraint distance(template_parts, template_conn_text) = 50;
+
+// ================================================================
+// incidence 属性展开
+// ================================================================
+Point prop_input = (0, 130);
+Point prop_read = (50, 130);
+Point prop_has = (100, 130);
+Point prop_text = (150, 130);
+
+Constraint distance(prop_input, prop_read) = 50;
+Constraint distance(prop_read, prop_has) = 50;
+Constraint distance(prop_has, prop_text) = 50;
+
+// 模板: "{X} 具有属性 {P}"
+Point template_property = (200, 130);
+Point template_entity_p = (250, 130);
+Point template_entity_v = (300, 130);
+
+Constraint distance(template_property, template_entity_p) = 50;
+Constraint distance(template_entity_p, template_entity_v) = 50;
+
+// ================================================================
+// 操作日志时间轴展开
+// ================================================================
+Point log_input = (350, 130);
+Point log_parse_entries = (400, 130);
+Point log_sort_time = (450, 130);
+Point log_narrative = (500, 130);
+
+Constraint distance(log_input, log_parse_entries) = 50;
+Constraint distance(log_parse_entries, log_sort_time) = 50;
+Constraint distance(log_sort_time, log_narrative) = 50;
+
+// ================================================================
+// 多语言论域切换
+// ================================================================
+
+Point domain_chinese = (0, 180);  // 中文模板论域
+Point domain_english = (100, 180); // 英文模板论域
+Point domain_japanese = (200, 180); // 日文模板论域
+
+Constraint distance(domain_chinese, domain_english) = 100;
+Constraint distance(domain_english, domain_japanese) = 100;
+
+// 切换到中文论域 → 模板变中文
+Point switch_to_zh = (50, 220);
+Constraint distance(domain_chinese, switch_to_zh) = 40;
+Constraint distance(switch_to_zh, template_sentence) = 0;  // 模板路径重定向
+
+// 切换到英文论域 → 模板变英文
+Point switch_to_en = (150, 220);
+Constraint distance(domain_english, switch_to_en) = 50;
+Constraint distance(switch_to_en, template_sentence) = 0;
+
+// ================================================================
+// LLM API 辅助 — 表层实现(surface realization)
+// ================================================================
+
+Point llm_api_call = (300, 220);     // LLM API 调用点
+Point llm_surface_only = (350, 220); // 仅做 surface realization
+Point llm_result_verify = (400, 220); // 验证结果
+Point llm_optional = (450, 220);     // 可选标记
+
+Constraint distance(llm_api_call, llm_surface_only) = 50;
+Constraint distance(llm_surface_only, llm_result_verify) = 50;
+Constraint distance(llm_result_verify, llm_optional) = 50;
+
+// LLM 是外部工具 — 仅在需更自然衔接时调用
+Constraint distance(template_sentence, llm_api_call) = 250;
+// 关键约束: LLM 不可替代约束图作为知识来源
+Constraint distance(llm_optional, chain_input) = 0; // 回到图遍历
+
+// ================================================================
+// 完整叙事管线 — 四段合成
+// ================================================================
+
+Point narrative_containment = (0, 300);    // 第1段: containment 叙事
+Point narrative_connection = (150, 300);   // 第2段: connection 叙事
+Point narrative_incidence = (300, 300);    // 第3段: 属性叙事
+Point narrative_history = (450, 300);      // 第4段: 操作历史
+Point narrative_complete = (300, 340);     // 完整文本
+
+Constraint distance(narrative_containment, narrative_connection) = 150;
+Constraint distance(narrative_connection, narrative_incidence) = 150;
+Constraint distance(narrative_incidence, narrative_history) = 150;
+
+// 四段汇聚
+Constraint distance(narrative_containment, narrative_complete) = 300;
+Constraint distance(narrative_connection, narrative_complete) = 150;
+Constraint distance(narrative_incidence, narrative_complete) = 150;
+Constraint distance(narrative_history, narrative_complete) = 150;
+
+// 从各部分管线到叙事管线
+Constraint distance(chain_text, narrative_containment) = 0;
+Constraint distance(tree_text, narrative_connection) = 0;
+Constraint distance(prop_text, narrative_incidence) = 0;
+Constraint distance(log_narrative, narrative_history) = 0;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

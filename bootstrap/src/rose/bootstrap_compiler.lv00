@@ -1,0 +1,138 @@
+// ============================================================
+// ROSE-SCA → Lv-00 桥接层 v2 — 几何元语言实现
+// ============================================================
+// ROSE 的认知操作通过本桥接层转换为 Lv-00 的 13 原语。
+//
+// v2 新增:
+//   containment_register → geo-create-constraint
+//   gaze_up_trace        → geo-query (递归)
+//   gaze_down_decompose  → geo-create-node + geo-pack
+//   classify_identity    → geo-query
+//   top_element_merge   → geo-normalize
+//   meta_observe         → geo-query + geo-export
+// ============================================================
+
+// === 桥接锚点 ===
+Point bridge_rose = (0, 0);
+Point bridge_lv00 = (100, 0);
+
+// ================================================================
+// ROSE 操作 → Lv-00 原语映射
+// ================================================================
+
+// gaze_up — containment 追溯 → geo-query (查询 containment 关系)
+Point rose_gaze_up_trace = (0, 50);
+Point lv00_query_containment = (100, 50);
+Constraint distance(rose_gaze_up_trace, lv00_query_containment) = 100;
+
+// gaze_up 找到上位 → geo-create-constraint (写入新 containment)
+Point rose_gaze_up_found = (0, 80);
+Point lv00_create_constraint_a = (100, 80);
+Constraint distance(rose_gaze_up_found, lv00_create_constraint_a) = 100;
+
+// gaze_down — 下行分解 → geo-create-node (拆出子节点)
+Point rose_gaze_down_decompose = (0, 120);
+Point lv00_create_node_a = (100, 110);
+Point lv00_pack_parts = (100, 140);
+Constraint distance(rose_gaze_down_decompose, lv00_create_node_a) = 100;
+
+// classify — 身份判定 → geo-query
+Point rose_classify_identity = (0, 170);
+Point lv00_query_identity = (100, 170);
+Constraint distance(rose_classify_identity, lv00_query_identity) = 100;
+
+// register_containment → geo-create-constraint
+Point rose_register_containment = (0, 210);
+Point lv00_create_constraint_b = (100, 200);
+Constraint distance(rose_register_containment, lv00_create_constraint_b) = 100;
+
+// 最上层要素整理 (等价合并) → geo-normalize
+Point rose_top_merge = (0, 250);
+Point lv00_normalize_merge = (100, 240);
+Constraint distance(rose_top_merge, lv00_normalize_merge) = 100;
+
+// ethics → geo-normalize (可撤回)
+Point rose_ethics = (0, 290);
+Point lv00_normalize_ethics = (100, 280);
+Constraint distance(rose_ethics, lv00_normalize_ethics) = 100;
+
+// reasoning → geo-solve + geo-prove
+Point rose_reasoning = (0, 330);
+Point lv00_solve_reason = (100, 320);
+Point lv00_prove_reason = (100, 350);
+Constraint distance(rose_reasoning, lv00_solve_reason) = 100;
+
+// meta_observe → geo-query + geo-export (审视日志)
+Point rose_meta_observe = (0, 380);
+Point lv00_export_log = (100, 380);
+Constraint distance(rose_meta_observe, lv00_export_log) = 100;
+
+// ================================================================
+// 自举验证管线
+// ================================================================
+Point rose_lv00_sources = (200, 0);
+Point lv00_compile = (250, 0);
+Point lv00_ir = (300, 0);
+Point lv00_execute = (350, 0);
+Point lv00_verify = (400, 0);
+
+Constraint distance(rose_lv00_sources, lv00_compile) = 50;
+Constraint distance(lv00_compile, lv00_ir) = 50;
+Constraint distance(lv00_ir, lv00_execute) = 50;
+Constraint distance(lv00_execute, lv00_verify) = 50;
+Constraint collinear(rose_lv00_sources, lv00_compile, lv00_ir, lv00_execute, lv00_verify);
+
+Constraint distance(rose_lv00_sources, lv00_verify) = 200;
+
+// ================================================================
+// 分类规划循环 → Lv-00 执行对应
+// ================================================================
+// 阶段一: 上行归类 — 大量 geo-query + geo-create-constraint
+Point cycle_phase1 = (200, 100);
+Point cycle_phase1_query = (250, 100);
+Point cycle_phase1_constraint = (300, 100);
+Point cycle_phase1_result = (350, 100);
+
+Constraint distance(cycle_phase1, cycle_phase1_query) = 50;
+Constraint distance(cycle_phase1_query, cycle_phase1_constraint) = 50;
+Constraint distance(cycle_phase1_constraint, cycle_phase1_result) = 50;
+
+// 阶段二: 下行分解 — 大量 geo-create-node + geo-pack
+Point cycle_phase2 = (200, 150);
+Point cycle_phase2_create = (250, 150);
+Point cycle_phase2_pack = (300, 150);
+Point cycle_phase2_result = (350, 150);
+
+Constraint distance(cycle_phase2, cycle_phase2_create) = 50;
+Constraint distance(cycle_phase2_create, cycle_phase2_pack) = 50;
+Constraint distance(cycle_phase2_pack, cycle_phase2_result) = 50;
+
+// 阶段三: 循环 — geo-normalize + geo-solve + geo-prove
+Point cycle_phase3 = (200, 200);
+Point cycle_phase3_normalize = (250, 200);
+Point cycle_phase3_solve = (300, 200);
+Point cycle_phase3_prove = (350, 200);
+
+Constraint distance(cycle_phase3, cycle_phase3_normalize) = 50;
+Constraint distance(cycle_phase3_normalize, cycle_phase3_solve) = 50;
+Constraint distance(cycle_phase3_solve, cycle_phase3_prove) = 50;
+
+// 闭环
+Constraint distance(cycle_phase3_prove, cycle_phase1) = 0;
+Constraint distance(cycle_phase1_result, cycle_phase2) = 50;
+
+// ================================================================
+// 双向同步: ROSE 演化 ↔ Lv-00 扩展
+// ================================================================
+Point rose_evolution = (500, 100);
+Point lv00_extension = (550, 100);
+Point rose_new_capability = (500, 150);
+
+Constraint distance(rose_evolution, lv00_extension) = 50;
+Constraint distance(lv00_extension, rose_new_capability) = 64;
+Constraint distance(rose_new_capability, rose_evolution) = 0;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

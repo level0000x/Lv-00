@@ -1,0 +1,99 @@
+// ============================================================
+// ROSE-SCA 伦理操作层 — Lv-00 几何元语言实现
+// ============================================================
+// 伦理操作三阶段建模为 R^2 约束图变换：
+//   悬置 (Suspend)   → 归零：所有约束撤销，距离→0
+//   边界 (Boundary)   → 对端映射 + 边界测定
+//   承担 (Undertake)  → 牺牲声明 + 重新开案
+// 所有伦理操作均为可撤回的目光操作 (operator: "ethics")
+// ============================================================
+
+// === 伦理空间原点 ===
+Point ethics_origin = (0, 0);
+Point ethics_horizon = (300, 0);
+Line ethics_axis = line(ethics_origin, ethics_horizon);
+
+// ================================================================
+// 阶段一：悬置 (Suspend) — 归零操作
+// ================================================================
+// 撤回所有关系，清空权重、偏好、标签
+Point suspend_target = (30, 0);
+Point suspend_zero_weights = (30, 30);
+Point suspend_zero_prefs = (30, 60);
+Point suspend_zero_tags = (30, 90);
+Point suspend_cleared = (30, 120);
+
+// 从"有关系态"到"归零态"的距离
+Constraint distance(suspend_target, suspend_zero_weights) = 30;
+Constraint distance(suspend_zero_weights, suspend_zero_prefs) = 30;
+Constraint distance(suspend_zero_prefs, suspend_zero_tags) = 30;
+Constraint distance(suspend_zero_tags, suspend_cleared) = 30;
+
+// 悬置完成：所有关系距离归零
+Constraint distance(suspend_target, suspend_cleared) = 0;
+
+// ================================================================
+// 阶段二：边界 (Boundary) — 对端映射 + 边界测定
+// ================================================================
+
+// 对端映射 (antithesis)：为条目生成对立面
+Point antithesis_original = (100, 0);
+Point antithesis_opposite = (100, 50);
+Point antithesis_tension = (100, 25);  // 张力中轴
+
+Constraint distance(antithesis_original, antithesis_tension) = 25;
+Constraint distance(antithesis_tension, antithesis_opposite) = 25;
+// 原始与对端对称
+Constraint distance(antithesis_original, antithesis_opposite) = 50;
+
+// 边界测定 (boundary)：operational/structural 边界类型
+Point boundary_source = (170, 0);
+Point boundary_operational = (170, 30);
+Point boundary_structural = (170, 60);
+Point boundary_measured = (170, 90);
+
+Constraint distance(boundary_source, boundary_operational) = 30;
+Constraint distance(boundary_source, boundary_structural) = 60;
+Constraint distance(boundary_operational, boundary_measured) = 60;
+Constraint distance(boundary_structural, boundary_measured) = 30;
+
+// ================================================================
+// 阶段三：承担 (Undertake) — 牺牲声明 + 重新开案
+// ================================================================
+
+// 牺牲声明 (sacrifice)：声明牺牲并论证必要性
+Point sacrifice_victim = (230, 0);
+Point sacrifice_weight = (230, 25);
+Point sacrifice_argument = (230, 50);
+Point sacrifice_necessity = (230, 75);
+Point sacrifice_declared = (230, 100);
+
+Constraint distance(sacrifice_victim, sacrifice_weight) = 25;
+Constraint distance(sacrifice_weight, sacrifice_argument) = 25;
+Constraint distance(sacrifice_argument, sacrifice_necessity) = 25;
+Constraint distance(sacrifice_necessity, sacrifice_declared) = 25;
+
+// 重新开案 (reopen)：将被牺牲者重新纳入考量
+Point reopen_sacrificed = (300, 0);
+Point reopen_reconsider = (300, 30);
+Point reopen_reintegrated = (300, 60);
+
+Constraint distance(reopen_sacrificed, reopen_reconsider) = 30;
+Constraint distance(reopen_reconsider, reopen_reintegrated) = 30;
+// 重新开案后：牺牲对象重获关系（距离非零 = 有关系）
+Constraint distance(reopen_sacrificed, reopen_reintegrated) = 0;
+
+// ================================================================
+// 伦理操作的可撤回性
+// ================================================================
+// 所有伦理操作通过 Normalize 可撤销
+Point ethics_stack = (0, 150);
+Point ethics_undo = (50, 150);
+Point ethics_redo = (100, 150);
+
+Constraint distance(ethics_stack, ethics_undo) = 50;
+Constraint distance(ethics_undo, ethics_redo) = 50;
+
+Prove;
+Normalize;
+// ============================================================

@@ -1,0 +1,148 @@
+// ============================================================
+// ROSE-SCA 动态构造引擎 v2 — Lv-00 几何元语言实现
+// ============================================================
+// 文档三：目光投出与撤回的执行空间。
+// v2: 集成持续认知循环 — 状态机无限运行。
+//
+// 三组件:
+//   给定物池     — 当前有目光持有的给定物
+//   目光执行器   — 向上/向下/切换/撤回 (无限循环)
+//   Wiki 接口    — 承受目光时提供给定物结构
+//
+// 核心不变:
+//   动态构造引擎不是"缓存"，是目光执行的当下场域。
+//   给定物在此被目光捕获 → 成为概念。
+//   目光撤回 → 概念退回要素。循环继续。
+// ============================================================
+
+// === 执行空间 ===
+Point engine_origin = (0, 0);
+Point engine_boundary = (500, 400);
+
+// ================================================================
+// 给定物池 — 跨轮次的持有
+// ================================================================
+Point pool_empty = (0, 50);
+Point pool_entry_loaded = (50, 50);
+Point pool_held = (100, 50);
+Point pool_identity_constituted = (150, 50);
+Point pool_released = (200, 50);
+
+Constraint distance(pool_empty, pool_entry_loaded) = 50;
+Constraint distance(pool_entry_loaded, pool_held) = 50;
+Constraint distance(pool_held, pool_identity_constituted) = 50;
+Constraint distance(pool_identity_constituted, pool_released) = 50;
+
+// 池容量: 极小/标准/完整
+Point pool_size_minimal = (0, 100);    // 1000
+Point pool_size_standard = (100, 100);  // 10000
+Point pool_size_full = (200, 100);      // 100000
+Constraint distance(pool_size_minimal, pool_size_standard) = 100;
+Constraint distance(pool_size_standard, pool_size_full) = 100;
+
+// ================================================================
+// 目光执行器 — 七态无限循环
+// ================================================================
+
+// ── 状态定义 ──
+Point gaze_idle = (0, 180);
+Point gaze_up_project = (70, 180);    // 投出向上目光
+Point gaze_up_trace = (140, 180);     // containment 链追溯
+Point gaze_down_project = (210, 180); // 投出向下目光
+Point gaze_down_decompose = (280, 180); // 拆解构成部分
+Point gaze_withdraw = (350, 180);     // 撤回目光
+Point gaze_meta_review = (420, 180);  // 元认知审视
+Point gaze_next_round = (350, 220);   // 下一轮
+
+// ── 核心循环 ──
+Constraint distance(gaze_idle, gaze_up_project) = 70;
+Constraint distance(gaze_up_project, gaze_up_trace) = 70;
+Constraint distance(gaze_up_trace, gaze_down_project) = 70;
+Constraint distance(gaze_down_project, gaze_down_decompose) = 70;
+Constraint distance(gaze_down_decompose, gaze_withdraw) = 70;
+Constraint distance(gaze_withdraw, gaze_meta_review) = 70;
+// 闭环: 审视 → 下一轮 → IDLE
+Constraint distance(gaze_meta_review, gaze_next_round) = 70;
+Constraint distance(gaze_next_round, gaze_idle) = 0;
+// 共线约束: 完整循环
+Constraint collinear(gaze_idle, gaze_up_project, gaze_up_trace, 
+    gaze_down_project, gaze_down_decompose, gaze_withdraw, gaze_meta_review);
+
+// ── 分支: 无需拆解 → 直接撤回 ──
+Point gaze_skip_decompose = (280, 240);
+Constraint distance(gaze_down_project, gaze_skip_decompose) = 70;
+Constraint distance(gaze_skip_decompose, gaze_withdraw) = 42;
+
+// ── 分支: 无 containment → 跳过归类 ──
+Point gaze_skip_classify = (140, 240);
+Constraint distance(gaze_up_project, gaze_skip_classify) = 42;
+Constraint distance(gaze_skip_classify, gaze_down_project) = 70;
+
+// ================================================================
+// 目光切换 — 方向切换，身份类型切换
+// ================================================================
+Point switch_current = (250, 320);
+Point switch_up_identity = (220, 290);  // "作为某类成员"
+Point switch_down_identity = (220, 350); // "作为某物的整体" + 拆出物"构成成分"
+
+Constraint distance(switch_current, switch_up_identity) = 42;
+Constraint distance(switch_current, switch_down_identity) = 30;
+Constraint distance(switch_up_identity, switch_down_identity) = 60;
+
+// ================================================================
+// Wiki 接口 — 承受层
+// ================================================================
+Point wiki_query_up = (480, 50);       // containment
+Point wiki_query_down = (480, 90);     // connection
+Point wiki_query_closure = (480, 130); // 闭包
+Point wiki_query_conflict = (480, 170); // 冲突
+
+Constraint distance(wiki_query_up, wiki_query_down) = 40;
+Constraint distance(wiki_query_down, wiki_query_closure) = 40;
+Constraint distance(wiki_query_closure, wiki_query_conflict) = 40;
+
+// ================================================================
+// 数据驱动触发 — 新给定物 → 唤醒循环
+// ================================================================
+Point trigger_new_data = (0, 280);
+Point trigger_ingest = (50, 280);
+Point trigger_wake = (100, 280);
+
+Constraint distance(trigger_new_data, trigger_ingest) = 50;
+Constraint distance(trigger_ingest, trigger_wake) = 50;
+// 新数据唤醒 → 重返 IDLE → 开始新一轮
+Constraint distance(trigger_wake, gaze_idle) = 0;
+
+// ================================================================
+// 每一轮产出
+// ================================================================
+Point output_containment = (350, 350);
+Point output_decompose = (420, 350);
+Point output_log = (490, 350);
+
+Constraint distance(output_containment, output_decompose) = 70;
+Constraint distance(output_decompose, output_log) = 70;
+
+// ================================================================
+// 停止条件 — 优雅终止
+// ================================================================
+Point stop_no_new_data = (0, 350);     // 无新给定物
+Point stop_all_processed = (80, 350);  // 全部已处理
+Point stop_meta_signal = (160, 350);   // 元认知中止
+Point stop_manual = (240, 350);        // 手动停止
+
+Constraint distance(stop_no_new_data, stop_all_processed) = 80;
+Constraint distance(stop_all_processed, stop_meta_signal) = 80;
+Constraint distance(stop_meta_signal, stop_manual) = 80;
+
+// ================================================================
+// 自指: 引擎看向自己 → 引擎的七态成为可分类的概念
+// ================================================================
+Point self_observe = (450, 280);
+Point self_as_concept = (500, 280);
+Constraint distance(self_observe, self_as_concept) = 50;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

@@ -1,0 +1,234 @@
+// ============================================================
+// ROSE-SCA 认知架构总纲 — Lv-00 几何元语言实现 v3
+// ============================================================
+// 以几何约束图定义 ROSE-SCA 七层认知架构 + 三阶段演化管线。
+//
+// V3 新增 Phase 3/4/5 模型叠加约束:
+//   Phase 3 — 多模态 (multimodal.lv00)
+//   Phase 4 — 语言生成 (language_generation.lv00)
+//   Phase 5 — 全自主工具链 (autonomous_pipeline.lv00)
+//
+// 架构分层:
+//   L0  给定物        — 外部数据摄入 (含多模态)
+//   L1  操作层        — 目光操作 (分类规划流程: 上行归类+下行分解)
+//   L2  知识层        — containment/connection 网络 + 操作日志
+//   L3  学习层        — 分类规则演化 + 置信度调整
+//   L4  推理层        — 数学机械化 (演绎/归纳/类比/矛盾)
+//   L5  伦理操作层    — 悬置/边界/承担
+//   L6  元认知层      — 分类网络审视 + 架构涌现
+//   L7  觉照层        — 觉照记录
+//
+// 执行层: Lv-00 内核 (13 原语)
+//
+// 分类规划循环:
+//   阶段一: 上行归类 — containment ↑ → 最上层要素集合
+//   阶段二: 下行分解 — 最上层概念 ↓ → 最小给定物
+//   阶段三: 稳定与循环 — 新加入 → 重组 → 再循环
+// ============================================================
+
+// === 架构轴线 ===
+Point arch_root = (0, 0);
+Point arch_top = (0, 700);
+
+// ================================================================
+// L0 给定物层 — 外部数据进入 Wiki
+// ================================================================
+Point L0_wiki_ingest = (50, 0);
+Point L0_containment_records = (100, 0);
+Point L0_connection_records = (150, 0);
+Point L0_givens_stored = (200, 0);
+
+Constraint distance(L0_wiki_ingest, L0_containment_records) = 50;
+Constraint distance(L0_containment_records, L0_connection_records) = 50;
+Constraint distance(L0_connection_records, L0_givens_stored) = 50;
+
+// ================================================================
+// L1 操作层 — 目光操作: 分类规划流程
+// ================================================================
+
+// 阶段一: 上行归类
+Point L1_gaze_up_start = (50, 100);
+Point L1_gaze_up_trace = (100, 100);
+Point L1_gaze_up_top_set = (150, 100);
+Point L1_gaze_up_organize = (200, 100);  // 最上层要素整理
+
+Constraint distance(L1_gaze_up_start, L1_gaze_up_trace) = 50;
+Constraint distance(L1_gaze_up_trace, L1_gaze_up_top_set) = 50;
+Constraint distance(L1_gaze_up_top_set, L1_gaze_up_organize) = 50;
+
+// 阶段二: 下行分解
+Point L1_gaze_down_start = (50, 150);
+Point L1_gaze_down_containment = (100, 150);
+Point L1_gaze_down_connection = (150, 150);
+Point L1_gaze_down_minimal = (200, 150);
+
+Constraint distance(L1_gaze_down_start, L1_gaze_down_containment) = 50;
+Constraint distance(L1_gaze_down_containment, L1_gaze_down_connection) = 50;
+Constraint distance(L1_gaze_down_connection, L1_gaze_down_minimal) = 50;
+
+// 上行→下行 过渡
+Constraint distance(L1_gaze_up_organize, L1_gaze_down_start) = 50;
+
+// 阶段三: 稳定与循环
+Point L1_cycle_restart = (125, 200);
+Point L1_cycle_new_data = (125, 230);
+Point L1_cycle_reorganize = (125, 260);
+Point L1_cycle_continue = (125, 290);
+
+Constraint distance(L1_cycle_restart, L1_cycle_new_data) = 30;
+Constraint distance(L1_cycle_new_data, L1_cycle_reorganize) = 30;
+Constraint distance(L1_cycle_reorganize, L1_cycle_continue) = 30;
+
+// 阶段三: 闭环 — 撤回后元认知审视 → 下一轮
+Point L1_loop_back = (125, 220);
+Constraint distance(L1_cycle_continue, L1_loop_back) = 30;
+// 闭环: 回到上行归类 → 持续认知循环
+Constraint distance(L1_loop_back, L1_gaze_up_start) = 0;
+// L6 审视 → L1: 元认知发现触发新一轮目光
+Constraint distance(L6_suggest_action, L1_gaze_up_start) = 0;
+
+// ================================================================
+// L2 知识层 — containment/connection 网络 + 操作日志
+// ================================================================
+Point L2_containment_network = (50, 350);
+Point L2_connection_network = (100, 350);
+Point L2_operation_log = (150, 350);
+Point L2_domain_registry = (200, 350);
+
+Constraint distance(L2_containment_network, L2_connection_network) = 50;
+Constraint distance(L2_connection_network, L2_operation_log) = 50;
+Constraint distance(L2_operation_log, L2_domain_registry) = 50;
+
+// L1 → L2: 目光操作写入 containment/connection + 操作日志
+Constraint distance(L1_gaze_up_trace, L2_containment_network) = 250;
+Constraint distance(L1_gaze_down_connection, L2_connection_network) = 200;
+
+// ================================================================
+// L3 学习层 — 分类规则演化
+// ================================================================
+Point L3_feedback = (50, 420);
+Point L3_generalization = (100, 420);
+Point L3_confidence = (150, 420);
+Point L3_pattern = (200, 420);
+
+Constraint distance(L3_feedback, L3_generalization) = 50;
+Constraint distance(L3_generalization, L3_confidence) = 50;
+Constraint distance(L3_confidence, L3_pattern) = 50;
+
+Constraint distance(L2_operation_log, L3_feedback) = 70;
+
+// ================================================================
+// L4 推理层 — 数学机械化
+// ================================================================
+Point L4_deduction = (50, 490);
+Point L4_induction = (100, 490);
+Point L4_analogy = (150, 490);
+Point L4_conflict = (200, 490);
+
+Constraint distance(L4_deduction, L4_induction) = 50;
+Constraint distance(L4_induction, L4_analogy) = 50;
+Constraint distance(L4_analogy, L4_conflict) = 50;
+
+Constraint distance(L3_pattern, L4_deduction) = 70;
+
+// ================================================================
+// L5 伦理操作层
+// ================================================================
+Point L5_suspend = (50, 560);
+Point L5_boundary = (100, 560);
+Point L5_undertake = (150, 560);
+
+Constraint distance(L5_suspend, L5_boundary) = 50;
+Constraint distance(L5_boundary, L5_undertake) = 50;
+
+Constraint distance(L4_conflict, L5_suspend) = 70;
+
+// ================================================================
+// L6 元认知层 — 分类网络审视
+// ================================================================
+Point L6_observe_network = (50, 630);
+Point L6_find_too_many = (100, 630);
+Point L6_find_orphans = (150, 630);
+Point L6_suggest_action = (200, 630);
+
+Constraint distance(L6_observe_network, L6_find_too_many) = 50;
+Constraint distance(L6_find_too_many, L6_find_orphans) = 50;
+Constraint distance(L6_find_orphans, L6_suggest_action) = 50;
+
+Constraint distance(L5_undertake, L6_observe_network) = 70;
+
+// ================================================================
+// L7 觉照层 — 觉照审视 L1 持续循环
+// ================================================================
+Point L7_awareness = (50, 700);
+Point L7_canon = (100, 700);
+Point L7_description = (150, 700);
+Point L7_evolution = (200, 700);
+
+Constraint distance(L7_awareness, L7_canon) = 50;
+Constraint distance(L7_canon, L7_description) = 50;
+Constraint distance(L7_description, L7_evolution) = 50;
+
+Constraint distance(L6_suggest_action, L7_awareness) = 70;
+
+// 反身闭环: 觉照 → 目光持续循环
+Constraint distance(L7_evolution, L1_gaze_up_start) = 0;
+
+// ================================================================
+// Lv-00 内核执行层 — 13 原语
+// ================================================================
+Point lv00_kernel = (250, 300);
+
+Point lv00_create_node = (250, 300);
+Point lv00_create_constraint = (280, 300);
+Point lv00_solve = (310, 300);
+Point lv00_normalize = (340, 300);
+Point lv00_rewrite = (370, 300);
+Point lv00_unify = (400, 300);
+Point lv00_pack = (430, 300);
+Point lv00_instantiate = (460, 300);
+Point lv00_prove = (490, 300);
+Point lv00_export = (520, 300);
+Point lv00_serialize = (550, 300);
+Point lv00_deserialize = (580, 300);
+Point lv00_query = (610, 300);
+
+// 内核支撑各层
+Constraint distance(lv00_kernel, L1_gaze_up_start) = 200;
+Constraint distance(lv00_kernel, L2_containment_network) = 50;
+Constraint distance(lv00_kernel, L3_feedback) = 120;
+Constraint distance(lv00_kernel, L4_deduction) = 190;
+Constraint distance(lv00_kernel, L5_suspend) = 260;
+Constraint distance(lv00_kernel, L6_observe_network) = 330;
+Constraint distance(lv00_kernel, L7_awareness) = 400;
+
+// ================================================================
+// Phase 3/4/5 — 演化管线叠加约束
+// ================================================================
+// 三阶段不是新层 — 是对已有层的模态扩展和能力填充
+
+// Phase 3: 多模态 → L0 给定物层扩展
+Point phase3_multimodal = (50, 800);
+Constraint distance(L0_wiki_ingest, phase3_multimodal) = 0;
+
+// Phase 4: 语言生成 → L1-L2 知识产出
+Point phase4_lang_gen = (150, 800);
+Constraint distance(L2_operation_log, phase4_lang_gen) = 0;
+
+// Phase 5: 全自主闭环 → L6-L7 驱动
+Point phase5_autonomous = (250, 800);
+Constraint distance(L6_suggest_action, phase5_autonomous) = 0;
+
+// 演化方向: Phase 3 → 4 → 5 线性推进
+Point evolution_direction = (150, 850);
+Constraint collinear(phase3_multimodal, phase4_lang_gen, phase5_autonomous);
+Constraint distance(phase3_multimodal, phase4_lang_gen) = 100;
+Constraint distance(phase4_lang_gen, phase5_autonomous) = 100;
+
+// 当前状态: Phase 3/4/5 .lv00 已创建，Python 实现已就绪
+Constraint distance(evolution_direction, L7_awareness) = 50;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

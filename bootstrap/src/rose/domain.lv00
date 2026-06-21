@@ -1,0 +1,92 @@
+// ============================================================
+// ROSE-SCA 论域管理 — Lv-00 几何元语言实现
+// ============================================================
+// 论域 (Domain) 建模为 R^2 上的有界区域 (Region):
+//   论域声明 → 区域中心 + 半径
+//   条目归属 → Point 落在 Region 内 (containment)
+//   论域创建 → 创建新 Region
+//   论域切换 → 条目 Point 迁移到另一个 Region
+// ============================================================
+
+// === 全局论域空间 / Domain space ===
+Point domain_space_origin = (0, 0);
+Point domain_space_extent = (200, 200);
+
+// === 论域声明模板 ===
+// 每个论域: {id, name, declaration, center, radius}
+Point domain_physics_center = (30, 30);
+Point domain_physics_boundary = (70, 70);
+
+Point domain_math_center = (120, 30);
+Point domain_math_boundary = (160, 70);
+
+Point domain_linguistics_center = (30, 130);
+Point domain_linguistics_boundary = (70, 170);
+
+Point domain_philosophy_center = (120, 130);
+Point domain_philosophy_boundary = (160, 170);
+
+// 论域范围约束 (distance from center to boundary = radius)
+Constraint distance(domain_physics_center, domain_physics_boundary) = 56;
+Constraint distance(domain_math_center, domain_math_boundary) = 56;
+Constraint distance(domain_linguistics_center, domain_linguistics_boundary) = 56;
+Constraint distance(domain_philosophy_center, domain_philosophy_boundary) = 56;
+
+// === 论域创建的管线 ===
+// domain_create(id, name, declaration)
+Point create_request = (0, 100);     // 创建请求
+Point create_validate = (25, 100);   // 验证 id 不重复
+Point create_register = (50, 100);   // 注册到 domains 列表
+Point create_activate = (75, 100);   // 激活新论域
+Point create_network = (100, 100);   // 初始化关系网络
+
+Constraint distance(create_request, create_validate) = 25;
+Constraint distance(create_validate, create_register) = 25;
+Constraint distance(create_register, create_activate) = 25;
+Constraint distance(create_activate, create_network) = 25;
+Constraint collinear(create_request, create_validate, create_register, create_activate, create_network);
+
+// === 论域列表管线 ===
+Point list_query = (0, 80);
+Point list_collect = (50, 80);
+Point list_format = (100, 80);
+
+Constraint distance(list_query, list_collect) = 50;
+Constraint distance(list_collect, list_format) = 50;
+
+// === 论域切换管线 ===
+// domain_switch(entry, new_domain)
+Point switch_entry_point = (0, 120);
+Point switch_old_domain = (30, 120);
+Point switch_transition = (60, 120);
+Point switch_new_domain = (90, 120);
+
+Constraint distance(switch_entry_point, switch_old_domain) = 30;
+Constraint distance(switch_old_domain, switch_transition) = 30;
+Constraint distance(switch_transition, switch_new_domain) = 30;
+
+// === 论域间导航 ===
+// 论域之间通过距离约束表达关联度
+Point domain_bridge_physics_math = (95, 50);
+Point domain_bridge_math_philosophy = (140, 100);
+Point domain_bridge_linguistics_philosophy = (95, 150);
+
+Constraint distance(domain_physics_center, domain_bridge_physics_math) = 67;
+Constraint distance(domain_math_center, domain_bridge_physics_math) = 32;
+Constraint distance(domain_math_center, domain_bridge_math_philosophy) = 64;
+Constraint distance(domain_philosophy_center, domain_bridge_math_philosophy) = 38;
+Constraint distance(domain_linguistics_center, domain_bridge_linguistics_philosophy) = 67;
+Constraint distance(domain_philosophy_center, domain_bridge_linguistics_philosophy) = 38;
+
+// === 论域元信息 ===
+// 声明、版本号、条目计数
+Point domain_meta_declaration = (200, 50);
+Point domain_meta_version = (200, 75);
+Point domain_meta_entry_count = (200, 100);
+
+Constraint distance(domain_meta_declaration, domain_meta_version) = 25;
+Constraint distance(domain_meta_version, domain_meta_entry_count) = 25;
+
+Prove;
+Normalize;
+// ============================================================

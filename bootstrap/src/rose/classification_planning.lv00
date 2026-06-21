@@ -1,0 +1,192 @@
+// ============================================================
+// ROSE-SCA 五份设计总纲 — Lv-00 几何元语言实现 v3
+// ============================================================
+// 以约束图形式定义 ROSE-SCA 知识层的完整施工图。
+// 包含底层思想、Wiki知识库、存储格式、动态引擎、公开网页。
+//
+// 文档索引:
+//   0  底层思想体系 — 哲学地基
+//   1  Wiki 知识库 — 类操作论域 · 承受层
+//   2  存储格式 — 给定物结构记录的物理载体
+//   3  动态构造引擎 — 目光执行空间 · 转化场
+//   4  训练流程 — 给定物结构预置
+//   5  公开网页 — 对外发布
+// ============================================================
+
+// === 总纲空间 ===
+Point design_origin = (0, 0);
+Point design_extent = (600, 500);
+
+// ================================================================
+// 文档〇 — 底层思想体系
+// 论域两重性 · 要素/概念 · 身份时态性 · 目光机制 · 四个边界
+// ================================================================
+
+// 论域两重性
+Point ontology_domain_operative = (0, 50);   // 操作论域: 不可选定的背景
+Point ontology_domain_selected = (100, 50);  // 选定论域: 可谈论边界
+
+// 选定论域已在操作论域中执行
+Constraint distance(ontology_domain_operative, ontology_domain_selected) = 100;
+
+// 身份时态性: 要素 ↔ 概念
+Point ontology_element = (0, 120);      // 要素: 目光不在场
+Point ontology_concept = (80, 120);     // 概念: 目光投出
+Point ontology_gaze_bridge = (40, 140); // 目光桥
+
+Constraint distance(ontology_element, ontology_gaze_bridge) = 45;
+Constraint distance(ontology_gaze_bridge, ontology_concept) = 45;
+// 目光不在场 ↔ 目光在场 (光的比喻)
+Constraint distance(ontology_element, ontology_concept) = 80;
+
+// 四个边界
+Point boundary_negate = (0, 190);       // 否定论域需占用论域
+Point boundary_meta = (70, 190);        // 元裁决不可内证
+Point boundary_gaze_diff = (140, 190);  // 目光分化不可对象化
+Point boundary_selection = (210, 190);  // 选定已在操作论域中
+
+Constraint distance(boundary_negate, boundary_meta) = 70;
+Constraint distance(boundary_meta, boundary_gaze_diff) = 70;
+Constraint distance(boundary_gaze_diff, boundary_selection) = 70;
+
+// 自反条款
+Point ontology_self = (105, 240);       // 体系不享有对自身的豁免
+Constraint distance(boundary_meta, ontology_self) = 50;
+
+// ================================================================
+// 文档一 — Wiki 知识库设计
+// 类操作论域 · 给定物存储 · 六条谓词 · 记录生命周期
+// ================================================================
+
+// Wiki 的核心性质
+Point wiki_quasi_domain = (300, 50);     // 类操作论域
+Point wiki_store_givens = (380, 50);     // 存储给定物结构
+Point wiki_not_issue_identity = (460, 50); // 不颁发身份
+
+Constraint distance(wiki_quasi_domain, wiki_store_givens) = 80;
+Constraint distance(wiki_store_givens, wiki_not_issue_identity) = 80;
+
+// 六条本原谓词
+Point wiki_pred_containment = (300, 120);
+Point wiki_pred_connection = (360, 120);
+Point wiki_pred_incidence = (420, 120);
+Point wiki_pred_equivalence = (480, 120);
+Point wiki_pred_between = (540, 120);
+Point wiki_pred_intersection = (600, 120);
+
+Constraint distance(wiki_pred_containment, wiki_pred_connection) = 60;
+Constraint distance(wiki_pred_connection, wiki_pred_incidence) = 60;
+Constraint distance(wiki_pred_incidence, wiki_pred_equivalence) = 60;
+Constraint distance(wiki_pred_equivalence, wiki_pred_between) = 60;
+Constraint distance(wiki_pred_between, wiki_pred_intersection) = 60;
+
+// 记录生命周期: unheld → held → disputed → retracted
+Point wiki_state_unheld = (300, 190);
+Point wiki_state_held = (350, 150);
+Point wiki_state_disputed = (400, 190);
+Point wiki_state_retracted = (450, 190);
+
+Constraint distance(wiki_state_unheld, wiki_state_held) = 58;
+Constraint distance(wiki_state_held, wiki_state_disputed) = 58;
+Constraint distance(wiki_state_held, wiki_state_unheld) = 58; // 撤回
+Constraint distance(wiki_state_disputed, wiki_state_retracted) = 50;
+
+// 查询接口
+Point wiki_query_up = (300, 250);    // 向上: containment
+Point wiki_query_down = (360, 250);  // 向下: connection
+Point wiki_query_closure = (420, 250); // 闭包
+Point wiki_query_relation = (480, 250); // 按谓词
+
+Constraint distance(wiki_query_up, wiki_query_down) = 60;
+Constraint distance(wiki_query_down, wiki_query_closure) = 60;
+Constraint distance(wiki_query_closure, wiki_query_relation) = 60;
+
+// ================================================================
+// 文档二 — 存储格式 (WikiLine TSV 9 字段)
+// ================================================================
+Point ts_fields = (300, 320);
+Point ts_record_id = (320, 320);
+Point ts_entity = (340, 320);
+Point ts_predicate = (360, 320);
+Point ts_target = (380, 320);
+Point ts_source = (400, 320);
+Point ts_state = (420, 320);
+Point ts_conflicts = (440, 320);
+Point ts_parent = (460, 320);
+Point ts_timestamp = (480, 320);
+
+Constraint distance(ts_record_id, ts_entity) = 20;
+Constraint distance(ts_entity, ts_predicate) = 20;
+Constraint distance(ts_predicate, ts_target) = 20;
+Constraint distance(ts_target, ts_source) = 20;
+Constraint distance(ts_source, ts_state) = 20;
+Constraint distance(ts_state, ts_conflicts) = 20;
+Constraint distance(ts_conflicts, ts_parent) = 20;
+Constraint distance(ts_parent, ts_timestamp) = 20;
+
+// ================================================================
+// 文档三 — 动态构造引擎
+// ================================================================
+Point engine_pool = (0, 320);         // 给定物池
+Point engine_executor = (80, 320);    // 目光执行器
+Point engine_wiki_iface = (160, 320); // Wiki 接口
+Point engine_log = (240, 320);        // 操作日志
+
+Constraint distance(engine_pool, engine_executor) = 80;
+Constraint distance(engine_executor, engine_wiki_iface) = 80;
+Constraint distance(engine_wiki_iface, engine_log) = 80;
+
+// 目光投出流程
+Point engine_project = (0, 380);
+Point engine_project_check = (50, 380);
+Point engine_project_wiki = (100, 380);
+Point engine_project_capture = (150, 380);
+Point engine_project_concept = (200, 380);
+Point engine_project_log = (250, 380);
+
+Constraint distance(engine_project, engine_project_check) = 50;
+Constraint distance(engine_project_check, engine_project_wiki) = 50;
+Constraint distance(engine_project_wiki, engine_project_capture) = 50;
+Constraint distance(engine_project_capture, engine_project_concept) = 50;
+Constraint distance(engine_project_concept, engine_project_log) = 50;
+
+// ================================================================
+// 文档四 — 训练流程
+// ================================================================
+Point training_fetch = (0, 440);
+Point training_parse = (60, 440);
+Point training_normalize = (120, 440);
+Point training_dedupe = (180, 440);
+Point training_index = (240, 440);
+
+Constraint distance(training_fetch, training_parse) = 60;
+Constraint distance(training_parse, training_normalize) = 60;
+Constraint distance(training_normalize, training_dedupe) = 60;
+Constraint distance(training_dedupe, training_index) = 60;
+
+// ================================================================
+// 文档五 — 公开网页
+// ================================================================
+Point public_index = (350, 400);
+Point public_entity = (420, 400);
+Point public_predicate = (490, 400);
+Point public_search = (560, 400);
+
+Constraint distance(public_index, public_entity) = 70;
+Constraint distance(public_entity, public_predicate) = 70;
+Constraint distance(public_predicate, public_search) = 70;
+
+// 状态徽章
+Point badge_held_pub = (350, 460);     // ✓ 活跃 绿
+Point badge_unheld_pub = (400, 460);   // — 静默 灰
+Point badge_disputed_pub = (450, 460); // ~ 争议 黄
+Point badge_retracted_pub = (500, 460); // ✗ 撤回 红
+
+Constraint distance(badge_held_pub, badge_unheld_pub) = 50;
+Constraint distance(badge_unheld_pub, badge_disputed_pub) = 50;
+Constraint distance(badge_disputed_pub, badge_retracted_pub) = 50;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

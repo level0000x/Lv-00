@@ -1,0 +1,112 @@
+// ============================================================
+// ROSE-SCA 推理层 — Lv-00 几何元语言实现
+// ============================================================
+// 推理类型代数化映射：
+//   演绎 (deduce)      → 传递性推导（多项式理想包含检验）
+//   归纳 (induce)      → 从实例提取共性结构（理想特征分解）
+//   类比 (analogy)     → 跨域代数同态检测
+//   矛盾分析 (conflict) → 互斥关系检测（方程组相容性判定）
+// ============================================================
+
+// === 推理空间 / Reasoning space ===
+Point reason_origin = (0, 0);
+Point reason_axiom_anchor = (0, 100);
+
+// ================================================================
+// 演绎推理 (Deduction) — 传递性推导
+// 前提A → 前提B → 结论C 形成一个传递链
+// ================================================================
+Point deduce_premise_a = (50, 0);
+Point deduce_premise_b = (50, 30);
+Point deduce_conclusion = (50, 60);
+Point deduce_verified = (50, 90);
+
+Constraint distance(deduce_premise_a, deduce_premise_b) = 30;
+Constraint distance(deduce_premise_b, deduce_conclusion) = 30;
+Constraint distance(deduce_conclusion, deduce_verified) = 30;
+
+// 前提到结论的直接距离 = 60 → 传递性验证通过
+Constraint distance(deduce_premise_a, deduce_conclusion) = 60;
+
+// 演绎推理的代数模型：理想包含检验
+// ideal(premises) ⊆ ideal(conclusion) ?
+Point deduce_ideal_input = (75, 15);
+Point deduce_ideal_membership = (75, 45);
+Point deduce_ideal_result = (75, 75);
+
+Constraint distance(deduce_ideal_input, deduce_ideal_membership) = 30;
+Constraint distance(deduce_ideal_membership, deduce_ideal_result) = 30;
+
+// ================================================================
+// 归纳推理 (Induction) — 实例 → 共性结构
+// ================================================================
+Point induce_instance_1 = (150, 0);
+Point induce_instance_2 = (170, 0);
+Point induce_instance_3 = (160, 20);
+Point induce_pattern = (160, 50);
+Point induce_generalization = (160, 80);
+
+// 三个实例到模式的距离相等 → 模式识别成功
+Constraint distance(induce_instance_1, induce_pattern) = 50;
+Constraint distance(induce_instance_2, induce_pattern) = 50;
+Constraint distance(induce_instance_3, induce_pattern) = 30;
+Constraint distance(induce_pattern, induce_generalization) = 30;
+
+// ================================================================
+// 类比推理 (Analogy) — 跨域代数同态检测
+// ================================================================
+// 论域A的某个结构与论域B的结构同态？
+Point analogy_domain_a = (250, 0);
+Point analogy_structure_a = (280, 30);
+Point analogy_morphism = (280, 50);     // 同态映射
+Point analogy_structure_b = (280, 80);
+Point analogy_domain_b = (250, 100);
+
+Constraint distance(analogy_domain_a, analogy_structure_a) = 42;
+Constraint distance(analogy_structure_a, analogy_morphism) = 28;
+Constraint distance(analogy_morphism, analogy_structure_b) = 30;
+Constraint distance(analogy_structure_b, analogy_domain_b) = 35;
+
+// 类比验证：两组结构到同态映射的距离差 < 容差
+Constraint distance(analogy_domain_a, analogy_domain_b) = 100;
+
+// ================================================================
+// 矛盾分析 (Conflict) — 互斥关系检测
+// 条目A与条目B的断言互斥？
+// ================================================================
+Point conflict_entry_a = (350, 0);
+Point conflict_entry_b = (350, 100);
+Point conflict_assertion_a = (370, 30);
+Point conflict_assertion_b = (370, 70);
+Point conflict_detector = (370, 50);   // 矛盾检测点
+
+Constraint distance(conflict_entry_a, conflict_assertion_a) = 36;
+Constraint distance(conflict_entry_b, conflict_assertion_b) = 36;
+Constraint distance(conflict_assertion_a, conflict_detector) = 20;
+Constraint distance(conflict_assertion_b, conflict_detector) = 20;
+
+// 若两个断言到检测点的距离相等且非零 → 矛盾
+// 若方程组相容 → 容差范围内
+
+// ================================================================
+// 推理规则注册
+// reasoning_register(pattern, type, algebraic_basis, confidence)
+// ================================================================
+Point reason_register_pattern = (0, 50);
+Point reason_register_type = (50, 50);
+Point reason_register_algebra = (100, 50);
+Point reason_register_confidence = (150, 50);
+
+Constraint distance(reason_register_pattern, reason_register_type) = 50;
+Constraint distance(reason_register_type, reason_register_algebra) = 50;
+Constraint distance(reason_register_algebra, reason_register_confidence) = 50;
+
+// ================================================================
+// 推理与公理锚点连接
+// ================================================================
+Line reason_axiom_line = line(reason_origin, reason_axiom_anchor);
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

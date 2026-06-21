@@ -1,0 +1,169 @@
+// ============================================================
+// ROSE-SCA 六条本原谓词 — Lv-00 几何元语言实现
+// ============================================================
+// 文档一 §3.3 关系映射：外部数据源的全部关系类型映射为六条本原谓词。
+// 每条谓词建模为 R^2 空间中的一种约束模式。
+//
+//   1. containment    — 上位归类 (is_a, type_of)
+//   2. connection     — 构成连接 (part_of, made_of, causes)
+//   3. incidence      — 属性依附 (has_property, located_in)
+//   4. equivalence    — 等价 (same_as, equivalent)
+//   5. between        — 介于 (betweenness 关系)
+//   6. intersection   — 交叉 (部分重叠)
+//
+// 这六条谓词覆盖了所有可记录的关系类型。
+// 与 Lv-00 内核的 8 种 C-枚举谓词 (PR_*) 对应：
+//   containment  → PR_CONTAINMENT
+//   connection   → PR_INCIDENCE  (在给定物语境下 = 构成连接)
+//   equivalence  → PR_EQUIVALENCE
+//   incidence    → PR_INCIDENCE
+//   between      → PR_BETWEEN
+// ============================================================
+
+// === 谓词空间原点 / Predicate space ===
+Point predicates_origin = (0, 0);
+Point predicates_horizon = (600, 0);
+
+// ================================================================
+// 1. containment — 上位归类
+//    “它归于何类” — is_a, type_of
+//    建模: distance(child, parent) 约束
+// ================================================================
+Point containment_child = (50, 0);
+Point containment_parent = (50, 60);
+Point containment_class = (50, 120);
+
+// containment = parent在上, child在下, 目光向上追溯
+Constraint distance(containment_child, containment_parent) = 60;
+Constraint distance(containment_parent, containment_class) = 60;
+
+// containment 链追溯: child → parent → ... → 顶层
+Constraint collinear(containment_child, containment_parent, containment_class);
+
+// ================================================================
+// 2. connection — 构成连接
+//    “它由何构成” — part_of, made_of, causes, leads_to
+//    建模: 横向 distance + 拆分 collinear 链
+// ================================================================
+Point connection_whole = (150, 0);
+Point connection_part_a = (150, 40);
+Point connection_part_b = (150, 80);
+Point connection_part_n = (150, 120);
+
+Constraint distance(connection_whole, connection_part_a) = 40;
+Constraint distance(connection_part_a, connection_part_b) = 40;
+Constraint distance(connection_part_b, connection_part_n) = 40;
+Constraint collinear(connection_whole, connection_part_a, connection_part_b, connection_part_n);
+
+// ================================================================
+// 3. incidence — 属性依附
+//    has_property, located_in
+//    建模: 点到点的单向依附
+// ================================================================
+Point incidence_entity = (250, 0);
+Point incidence_property = (280, 40);
+Point incidence_location = (280, 80);
+
+// 属性依附：实体到属性的 distance 编码关联强度
+Constraint distance(incidence_entity, incidence_property) = 45;
+Constraint distance(incidence_entity, incidence_location) = 90;
+
+// ================================================================
+// 4. equivalence — 等价
+//    same_as, equivalent
+//    建模: distance(A, B) = 0 → Normalize 后合并为同一节点
+// ================================================================
+Point equivalence_a = (350, 0);
+Point equivalence_b = (400, 0);
+Point equivalence_check = (375, 40);
+Point equivalence_merged = (375, 80);
+
+Constraint distance(equivalence_a, equivalence_check) = 40;
+Constraint distance(equivalence_b, equivalence_check) = 35;
+// 等价成立 → 合并
+Constraint distance(equivalence_a, equivalence_b) = 50;
+Constraint distance(equivalence_check, equivalence_merged) = 40;
+// 等价合并后 → 距离为零（同一节点）
+Constraint distance(equivalence_a, equivalence_merged) = 0;
+
+// ================================================================
+// 5. between — 介于
+//    “它在 A 和 B 之间”
+//    建模: A — X — B 共线, X 在中间
+// ================================================================
+Point between_a = (450, 0);
+Point between_x = (480, 40);
+Point between_b = (510, 0);
+
+// X 在 A 和 B 的中间
+Constraint distance(between_a, between_x) = 42;
+Constraint distance(between_x, between_b) = 42;
+Constraint collinear(between_a, between_x, between_b);
+
+// ================================================================
+// 6. intersection — 交叉
+//    两个给定物有部分重叠
+//    建模: 两个集合的交点非空
+// ================================================================
+Point intersect_a = (550, 0);
+Point intersect_b = (580, 0);
+Point intersect_overlap = (565, 40);
+Point intersect_result = (565, 80);
+
+Constraint distance(intersect_a, intersect_overlap) = 42;
+Constraint distance(intersect_b, intersect_overlap) = 30;
+// 重叠区域存在
+Constraint distance(intersect_overlap, intersect_result) = 40;
+
+// ================================================================
+// 外部关系类型 → 本原谓词映射表
+// ================================================================
+Point map_is_a = (0, 200);
+Point map_type_of = (30, 200);
+Point map_part_of = (60, 200);
+Point map_made_of = (90, 200);
+Point map_causes = (120, 200);
+Point map_same_as = (150, 200);
+Point map_has_prop = (180, 200);
+Point map_located = (210, 200);
+
+Point map_containment = (15, 240);
+Point map_connection = (90, 240);
+Point map_equivalence = (150, 240);
+Point map_incidence = (195, 240);
+
+// is_a, type_of → containment
+Constraint distance(map_is_a, map_containment) = 40;
+Constraint distance(map_type_of, map_containment) = 30;
+// part_of, made_of, causes → connection
+Constraint distance(map_part_of, map_connection) = 42;
+Constraint distance(map_made_of, map_connection) = 30;
+Constraint distance(map_causes, map_connection) = 40;
+// same_as → equivalence
+Constraint distance(map_same_as, map_equivalence) = 30;
+// has_property, located_in → incidence
+Constraint distance(map_has_prop, map_incidence) = 42;
+Constraint distance(map_located, map_incidence) = 30;
+
+// ================================================================
+// 谓词到 Lv-00 内核 8 种 PR_* 的映射
+// ================================================================
+Point kernel_containment = (300, 200);
+Point kernel_connection = (330, 200);
+Point kernel_equivalence = (360, 200);
+Point kernel_incidence = (390, 200);
+Point kernel_between = (420, 200);
+Point kernel_intersection = (450, 200);
+
+Constraint distance(map_containment, kernel_containment) = 285;
+Constraint distance(map_connection, kernel_connection) = 240;
+Constraint distance(map_equivalence, kernel_equivalence) = 210;
+Constraint distance(map_incidence, kernel_incidence) = 195;
+// between 和 intersection 没有直接外部映射 → 由推理引擎产出
+Constraint distance(between_a, kernel_between) = 30;
+Constraint distance(intersect_a, kernel_intersection) = 100;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

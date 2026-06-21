@@ -1,0 +1,156 @@
+// ============================================================
+// ROSE-SCA 目光操作 — Lv-00 几何元语言实现 v3
+// ============================================================
+// 目光操作是 ROSE 认知架构的核心操作单元。
+// v3: 集成持续循环 — 目光不再"执行一次就停"，而是投出→捕获→撤回→再投出。
+//
+// 目光方向:
+//   gaze_up       → 向上追溯 containment 链 → 最上层要素
+//   gaze_down     → 向下拆解 containment下位 + connection部分 → 最小给定物
+//   gaze_withdraw → 切断所有关系 → 退回要素态
+//   gaze_reflexive→ 对"目光"本身执行目光操作
+//   gaze_cycle    → 从给定物池中选取未处理的，投出目光
+//
+// 身份时态性:
+//   要素(Element)  = 当前无 containment 上位的 Point
+//   概念(Concept)  = 当前有 containment 上位的 Point
+// ============================================================
+
+// === 目光空间 ===
+Point gaze_origin = (0, 0);
+Point gaze_horizon = (100, 0);
+
+// ================================================================
+// gaze_cycle — 持续目光循环
+// ================================================================
+// 从给定物池中选择 → 执行向上目光 → 执行向下目光 → 撤回 → 选择下一个 → 循环
+
+Point cycle_select_from_pool = (0, 50);
+Point cycle_has_unprocessed = (40, 50);
+Point cycle_no_unprocessed = (40, 90);
+Point cycle_execute_gaze_up = (80, 50);
+Point cycle_execute_gaze_down = (120, 50);
+Point cycle_execute_withdraw = (160, 50);
+Point cycle_log_and_next = (200, 50);
+Point cycle_sleep_and_retry = (40, 130);
+
+Constraint distance(cycle_select_from_pool, cycle_has_unprocessed) = 40;
+Constraint distance(cycle_select_from_pool, cycle_no_unprocessed) = 40;
+// 有未处理 → 执行目光操作
+Constraint distance(cycle_has_unprocessed, cycle_execute_gaze_up) = 40;
+Constraint distance(cycle_execute_gaze_up, cycle_execute_gaze_down) = 40;
+Constraint distance(cycle_execute_gaze_down, cycle_execute_withdraw) = 40;
+Constraint distance(cycle_execute_withdraw, cycle_log_and_next) = 40;
+// 下一轮
+Constraint distance(cycle_log_and_next, cycle_select_from_pool) = 0;
+// 无未处理 → 休眠等待新数据
+Constraint distance(cycle_no_unprocessed, cycle_sleep_and_retry) = 40;
+Constraint distance(cycle_sleep_and_retry, cycle_select_from_pool) = 0;
+
+// ================================================================
+// gaze_up — 上行归类：沿 containment 链追溯
+// ================================================================
+Point gaze_up_input = (250, 50);
+Point gaze_up_read_containment = (280, 50);
+Point gaze_up_has_parent = (310, 50);
+Point gaze_up_element_to_concept = (310, 80);
+Point gaze_up_continue_up = (340, 50);
+Point gaze_up_no_parent = (370, 50);
+Point gaze_up_top_element = (400, 50);
+
+Constraint distance(gaze_up_input, gaze_up_read_containment) = 30;
+Constraint distance(gaze_up_read_containment, gaze_up_has_parent) = 30;
+Constraint distance(gaze_up_has_parent, gaze_up_element_to_concept) = 30;
+Constraint distance(gaze_up_has_parent, gaze_up_continue_up) = 30;
+Constraint distance(gaze_up_continue_up, gaze_up_read_containment) = 0; // 递归
+Constraint distance(gaze_up_read_containment, gaze_up_no_parent) = 60;
+Constraint distance(gaze_up_no_parent, gaze_up_top_element) = 30;
+
+// ================================================================
+// gaze_down — 下行分解
+// ================================================================
+Point gaze_down_input = (500, 50);
+Point gaze_down_check_containment = (530, 50);
+Point gaze_down_check_connection = (530, 80);
+Point gaze_down_found_child = (560, 50);
+Point gaze_down_secret_classify = (560, 80);
+Point gaze_down_descend = (590, 50);
+Point gaze_down_no_more = (620, 50);
+Point gaze_down_minimal = (650, 50);
+
+Constraint distance(gaze_down_input, gaze_down_check_containment) = 30;
+Constraint distance(gaze_down_check_containment, gaze_down_found_child) = 30;
+Constraint distance(gaze_down_input, gaze_down_check_connection) = 30;
+Constraint distance(gaze_down_check_connection, gaze_down_secret_classify) = 30;
+Constraint distance(gaze_down_found_child, gaze_down_descend) = 30;
+Constraint distance(gaze_down_secret_classify, gaze_down_descend) = 30;
+Constraint distance(gaze_down_descend, gaze_down_check_containment) = 0; // 递归
+Constraint distance(gaze_down_check_containment, gaze_down_no_more) = 90;
+Constraint distance(gaze_down_no_more, gaze_down_minimal) = 30;
+
+// ================================================================
+// gaze_withdraw — 撤回目光
+// ================================================================
+Point withdraw_held = (250, 150);
+Point withdraw_cut = (280, 150);
+Point withdraw_back = (310, 150);
+Point withdraw_log = (340, 150);
+
+Constraint distance(withdraw_held, withdraw_cut) = 30;
+Constraint distance(withdraw_cut, withdraw_back) = 30;
+Constraint distance(withdraw_back, withdraw_log) = 30;
+Constraint distance(withdraw_held, withdraw_back) = 0; // 撤回完成
+
+// ================================================================
+// gaze_reflexive — 反身目光
+// ================================================================
+Point reflex_self = (500, 150);
+Point reflex_up = (530, 130);
+Point reflex_down = (530, 170);
+Point reflex_pattern = (560, 150);
+
+Constraint distance(reflex_self, reflex_up) = 42;
+Constraint distance(reflex_self, reflex_down) = 30;
+Constraint distance(reflex_up, reflex_pattern) = 30;
+Constraint distance(reflex_down, reflex_pattern) = 30;
+
+// ================================================================
+// 全量梳理: 对所有给定物执行上行归类
+// ================================================================
+Point all_givens = (250, 240);
+Point all_gaze_up_each = (330, 240);
+Point all_forest = (410, 240);
+
+Constraint distance(all_givens, all_gaze_up_each) = 80;
+Constraint distance(all_gaze_up_each, all_forest) = 80;
+
+// 最上层要素整理
+Point top_entity = (250, 300);
+Point top_thing = (300, 300);
+Point top_q = (275, 330);
+Point top_merge = (275, 360);
+Point top_shrunk = (275, 390);
+
+Constraint distance(top_entity, top_merge) = 70;
+Constraint distance(top_thing, top_merge) = 45;
+Constraint distance(top_q, top_merge) = 50;
+Constraint distance(top_merge, top_shrunk) = 30;
+
+// ================================================================
+// 循环计数 — 见证认知的持续
+// ================================================================
+Point round_1 = (500, 240);
+Point round_2 = (530, 240);
+Point round_N = (560, 240);
+Point round_infinite = (590, 240);
+
+Constraint distance(round_1, round_2) = 30;
+Constraint distance(round_2, round_N) = 30;
+Constraint distance(round_N, round_infinite) = 30;
+// 无限循环
+Constraint distance(round_infinite, round_1) = 0;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

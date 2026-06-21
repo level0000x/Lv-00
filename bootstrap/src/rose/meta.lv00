@@ -1,0 +1,224 @@
+// ============================================================
+// ROSE-SCA 元认知层 + 底层思想体系 — Lv-00 几何元语言实现 v3
+// ============================================================
+// 包含文档〇的哲学地基和元认知层的审视功能。
+
+// === 论域两重性 ===
+Point ontology_domain_operative = (0, 50);
+Point ontology_domain_selected = (100, 50);
+Constraint distance(ontology_domain_operative, ontology_domain_selected) = 100;
+
+// === 身份时态性: 要素 ↔ 概念 ===
+Point identity_element = (0, 120);
+Point identity_gaze_bridge = (50, 140);
+Point identity_concept = (100, 120);
+Constraint distance(identity_element, identity_gaze_bridge) = 58;
+Constraint distance(identity_gaze_bridge, identity_concept) = 58;
+Constraint distance(identity_element, identity_concept) = 100;
+
+// === 核心原理 ===
+// 原理1: 身份时态性 — "是要素"或"是概念"并非本质属性，是目光是否落上的功能状态
+Point principle_identity_temporal = (0, 190);
+// 法则4: 元裁决 — 归类动作在执行的瞬间构成身份
+Point principle_meta_judgment = (100, 190);
+// 法则5: 悬置的退回效力 — 撤回目光，概念退回要素
+Point principle_suspend = (200, 190);
+Constraint distance(principle_identity_temporal, principle_meta_judgment) = 100;
+Constraint distance(principle_meta_judgment, principle_suspend) = 100;
+
+// === 四个边界 ===
+Point boundary_1_negate = (0, 260);     // 否定论域需占用论域
+Point boundary_2_meta = (80, 260);      // 元裁决不可内证
+Point boundary_3_gaze = (160, 260);     // 目光分化不可对象化
+Point boundary_4_selected = (240, 260); // 选定已在操作论域中
+Constraint distance(boundary_1_negate, boundary_2_meta) = 80;
+Constraint distance(boundary_2_meta, boundary_3_gaze) = 80;
+Constraint distance(boundary_3_gaze, boundary_4_selected) = 80;
+
+// === 认知活动的三层 ===
+Point layer_select_domain = (0, 340);  // 第一层: 论域选定
+Point layer_classify_suspend = (100, 340); // 第二层: 归类与悬置
+Point layer_awareness = (200, 340);    // 第三层: 觉照
+Constraint distance(layer_select_domain, layer_classify_suspend) = 100;
+Constraint distance(layer_classify_suspend, layer_awareness) = 100;
+
+// === 自反条款 ===
+Point reflexive_clause = (100, 400);
+// 体系不享有对自身的豁免。全部条款受自身约束。
+Constraint distance(layer_awareness, reflexive_clause) = 60;
+Constraint distance(reflexive_clause, identity_element) = 0;
+
+// ================================================================
+// 元认知观察 (Observe) — 定期审视分类网络
+// ================================================================
+
+// 元认知空间
+Point meta_origin = (300, 120);
+Point meta_self = (300, 170);
+
+// 觉照向下看: 审视当前分类网络状态
+Point observe_network = (350, 0);
+Point observe_subclasses = (400, 0);
+Point observe_unknown_relations = (450, 0);
+Point observe_orphans = (500, 0);
+Point observe_record = (550, 0);
+
+Constraint distance(observe_network, observe_subclasses) = 50;
+Constraint distance(observe_network, observe_unknown_relations) = 100;
+Constraint distance(observe_network, observe_orphans) = 150;
+Constraint distance(observe_subclasses, observe_record) = 150;
+Constraint distance(observe_unknown_relations, observe_record) = 100;
+Constraint distance(observe_orphans, observe_record) = 50;
+
+// ================================================================
+// 审视发现一：entity 子类过多 → 建议归纳中间分类
+// ================================================================
+Point too_many_detected = (300, 50);
+Point too_many_entity = (330, 50);
+Point too_many_count = (360, 50);
+Point too_many_suggest = (390, 50);
+Point too_many_intermediate = (420, 50);
+
+Constraint distance(too_many_detected, too_many_entity) = 30;
+Constraint distance(too_many_entity, too_many_count) = 30;
+Constraint distance(too_many_count, too_many_suggest) = 30;
+Constraint distance(too_many_suggest, too_many_intermediate) = 30;
+
+// ================================================================
+// 审视发现二：关系未确认 → 标记待确认
+// ================================================================
+Point unknown_q_entity = (500, 50);
+Point unknown_flag = (530, 50);
+Point unknown_pending = (560, 50);
+Point unknown_retry = (590, 50);
+
+Constraint distance(unknown_q_entity, unknown_flag) = 30;
+Constraint distance(unknown_flag, unknown_pending) = 30;
+Constraint distance(unknown_pending, unknown_retry) = 30;
+
+// ================================================================
+// 审视发现三：无 containment 的孤立给定物
+// ================================================================
+Point orphan_found = (300, 100);
+Point orphan_no_containment = (330, 100);
+Point orphan_suggest_gaze_up = (360, 100);
+Point orphan_probe = (390, 100);
+
+Constraint distance(orphan_found, orphan_no_containment) = 30;
+Constraint distance(orphan_no_containment, orphan_suggest_gaze_up) = 30;
+Constraint distance(orphan_suggest_gaze_up, orphan_probe) = 30;
+
+// ================================================================
+// 审视发现四：分类空白 → 归纳新分类给定物
+// ================================================================
+Point gap_detected = (500, 100);
+Point gap_analyze = (530, 100);
+Point gap_induce_class = (560, 100);
+Point gap_register = (590, 100);
+
+Constraint distance(gap_detected, gap_analyze) = 30;
+Constraint distance(gap_analyze, gap_induce_class) = 30;
+Constraint distance(gap_induce_class, gap_register) = 30;
+
+// ================================================================
+// 审视发现五：分类矛盾 → 标记冲突
+// ================================================================
+Point conflict_child_two_parents = (300, 240);
+Point conflict_flag = (330, 240);
+Point conflict_queue = (360, 240);
+Point conflict_resolve = (390, 240);
+
+Constraint distance(conflict_child_two_parents, conflict_flag) = 30;
+Constraint distance(conflict_flag, conflict_queue) = 30;
+Constraint distance(conflict_queue, conflict_resolve) = 30;
+
+// ================================================================
+// 自我反思 (Reflect) — 分析架构模式
+// ================================================================
+Point reflect_classification = (300, 310);
+Point reflect_analyze_structure = (350, 310);
+Point reflect_bottleneck = (400, 310);
+Point reflect_suggestion = (450, 310);
+Point reflect_record_reflection = (500, 310);
+
+Constraint distance(reflect_classification, reflect_analyze_structure) = 50;
+Constraint distance(reflect_analyze_structure, reflect_bottleneck) = 50;
+Constraint distance(reflect_bottleneck, reflect_suggestion) = 50;
+Constraint distance(reflect_suggestion, reflect_record_reflection) = 50;
+
+Point reflect_too_deep = (550, 310);
+Point reflect_flatten_suggest = (600, 310);
+
+Constraint distance(reflect_bottleneck, reflect_too_deep) = 150;
+Constraint distance(reflect_too_deep, reflect_flatten_suggest) = 50;
+
+// ================================================================
+// 自我质疑 (Question) — 挑战分类假设
+// ================================================================
+Point question_assumption = (300, 380);
+Point question_challenge = (350, 380);
+Point question_verify = (400, 380);
+Point question_update = (450, 380);
+
+Constraint distance(question_assumption, question_challenge) = 50;
+Constraint distance(question_challenge, question_verify) = 50;
+Constraint distance(question_verify, question_update) = 50;
+
+Point question_all_classifiable = (300, 430);
+Point question_cross_domain = (350, 430);
+Point question_cannot_classify = (400, 430);
+
+Constraint distance(question_all_classifiable, question_cross_domain) = 50;
+Constraint distance(question_cross_domain, question_cannot_classify) = 50;
+
+// ================================================================
+// 周期性审视触发
+// ================================================================
+Point meta_periodic_check = (300, 480);
+Point meta_trigger_gaze_work = (350, 480);
+Point meta_trigger_classify = (400, 480);
+Point meta_trigger_decompose = (450, 480);
+Point meta_trigger_cycle_complete = (500, 480);
+
+Constraint distance(meta_periodic_check, meta_trigger_gaze_work) = 50;
+Constraint distance(meta_trigger_gaze_work, meta_trigger_classify) = 50;
+Constraint distance(meta_trigger_gaze_work, meta_trigger_decompose) = 100;
+Constraint distance(meta_trigger_classify, meta_trigger_cycle_complete) = 100;
+Constraint distance(meta_trigger_decompose, meta_trigger_cycle_complete) = 50;
+Constraint distance(meta_trigger_cycle_complete, meta_periodic_check) = 0;
+
+// ================================================================
+// 架构涌现: 观察 → 抽象 → 重构 → 定义自身
+// ================================================================
+Point emergence_observe = (550, 480);
+Point emergence_abstract = (600, 480);
+Point emergence_refactor = (650, 480);
+Point emergence_define = (700, 480);
+
+Constraint distance(emergence_observe, emergence_abstract) = 50;
+Constraint distance(emergence_abstract, emergence_refactor) = 50;
+Constraint distance(emergence_refactor, emergence_define) = 50;
+
+// === 觉照: 不是静观终点，是操作途中不间断的转身 ===
+Point awareness_turn = (400, 530);
+Constraint distance(reflexive_clause, awareness_turn) = 70;
+
+// ================================================================
+// 持续认知 — 元认知的周期性审视
+// ================================================================
+// 每N轮触发一次审视。审视是俯瞰循环本身。
+Point perpetual_interval = (0, 560);      // 每10轮
+Point perpetual_now = (50, 560);         // 当前是否触发
+Point perpetual_look = (100, 560);       // 向下看循环自身
+Point perpetual_find_anomaly = (150, 560); // 发现异常
+Point perpetual_suggest = (200, 560);    // 提出建议
+
+Constraint distance(perpetual_interval, perpetual_now) = 50;
+Constraint distance(perpetual_now, perpetual_look) = 50;
+Constraint distance(perpetual_look, perpetual_find_anomaly) = 50;
+Constraint distance(perpetual_find_anomaly, perpetual_suggest) = 50;
+
+// 审视发现 → 反馈给持续循环
+Constraint distance(perpetual_suggest, meta_periodic_check) = 250;
+
+Prove; Normalize; Rewrite;

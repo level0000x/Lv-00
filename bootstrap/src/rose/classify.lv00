@@ -1,0 +1,154 @@
+// ============================================================
+// ROSE-SCA 分类引擎 — Lv-00 几何元语言实现 v2
+// ============================================================
+// 分类引擎执行 containment 链追溯和给定物的归类判定。
+//
+// 核心操作:
+//   classify(given_thing) → 沿 containment 链向上追溯 → 返回最上层要素
+//   register_containment(child, parent) → 写入 containment 关系
+//   classify_stats() → 返回分类网络统计
+//
+// 与旧版的区别:
+//   不再基于文本特征距离匹配 → 基于 Wiki 中已有的 containment 关系
+//   containment 关系来自外部数据源 (WordNet/Wikidata/SUMO 等)
+//   ROSE 在演化中向 containment 网络追加关系
+// ============================================================
+
+// === 分类空间 / Classification space ===
+Point classify_origin = (0, 0);
+Point classify_dim_parent = (100, 0);  // 父类(上位)轴
+Point classify_dim_depth = (0, 100);   // 追溯深度轴
+Line classify_axis_x = line(classify_origin, classify_dim_parent);
+Line classify_axis_y = line(classify_origin, classify_dim_depth);
+
+// ================================================================
+// containment 关系存储
+// ================================================================
+// containment(p_child, p_parent) → distance(p_child, p_parent) 编码
+// 距离越短 = 父子关系越直接
+
+Point containment_relation_dog_canine = (50, 100);
+Point containment_relation_canine_mammal = (50, 150);
+Point containment_relation_animal_living = (50, 250);
+Point containment_relation_living_entity = (50, 300);
+
+// dog → canine → mammal → ... → entity
+Constraint distance(containment_relation_dog_canine, containment_relation_canine_mammal) = 50;
+Constraint distance(containment_relation_animal_living, containment_relation_living_entity) = 50;
+
+// ================================================================
+// containment 链追溯管线
+// ================================================================
+// 给定物 → 查 containment → 有上位 → 返回 + 继续
+//                         → 无上位 → 确定为最上层要素
+
+Point trace_start = (150, 50);
+Point trace_lookup = (180, 50);
+Point trace_current = (210, 50);
+Point trace_found = (210, 80);
+Point trace_next = (240, 50);
+Point trace_not_found = (270, 50);
+Point trace_top = (300, 50);
+
+Constraint distance(trace_start, trace_lookup) = 30;
+Constraint distance(trace_lookup, trace_current) = 30;
+// 有 containment → found + 迭代
+Constraint distance(trace_current, trace_found) = 30;
+Constraint distance(trace_found, trace_next) = 30;
+Constraint distance(trace_next, trace_lookup) = 0;  // 递归
+// 无 containment → 到达最上层
+Constraint distance(trace_current, trace_not_found) = 60;
+Constraint distance(trace_not_found, trace_top) = 30;
+
+// ================================================================
+// 身份判定: 要素 vs 概念
+// ================================================================
+// 有 ↑ containment → 概念(Concept) — 作为某类的成员
+// 无 ↑ containment → 要素(Element) — 无法继续归类
+
+Point identity_check = (350, 50);
+Point identity_has_containment = (380, 30);
+Point identity_is_concept = (410, 30);
+Point identity_no_containment = (380, 80);
+Point identity_is_element = (410, 80);
+
+Constraint distance(identity_check, identity_has_containment) = 30;
+Constraint distance(identity_has_containment, identity_is_concept) = 30;
+Constraint distance(identity_check, identity_no_containment) = 30;
+Constraint distance(identity_no_containment, identity_is_element) = 30;
+
+// ================================================================
+// 最上层要素的等价性检测
+// ================================================================
+// 两个最上层要素 (entity, thing) → 它们等价吗？
+// → 如果等价: 写入 equivalence 关系
+// → 如果一个 in containment 另一个: 写入 containment, 前者退化为概念
+
+Point equiv_entity = (150, 180);
+Point equiv_thing = (300, 180);
+Point equiv_checker = (225, 210);
+Point equiv_found = (225, 240);
+Point equiv_merged = (225, 270);
+
+Constraint distance(equiv_entity, equiv_checker) = 80;
+Constraint distance(equiv_thing, equiv_checker) = 80;
+Constraint distance(equiv_checker, equiv_found) = 30;
+Constraint distance(equiv_found, equiv_merged) = 30;
+
+// 等价合并后 → 最上层集合收缩
+Point equiv_top_set_before = (225, 150);
+Point equiv_top_set_after = (225, 300);
+
+Constraint distance(equiv_top_set_before, equiv_top_set_after) = 150;
+
+// ================================================================
+// containment 注册管线
+// register_containment(child, parent, source)
+// ================================================================
+Point reg_child = (400, 180);
+Point reg_parent = (430, 180);
+Point reg_source = (460, 180);
+Point reg_written = (490, 180);
+
+Constraint distance(reg_child, reg_parent) = 30;
+Constraint distance(reg_parent, reg_source) = 30;
+Constraint distance(reg_source, reg_written) = 30;
+
+// ================================================================
+// 分类网络统计
+// classify_stats() → { total_containments, top_elements, orphan_count }
+// ================================================================
+Point stats_query = (50, 350);
+Point stats_containments = (100, 350);
+Point stats_top = (150, 350);
+Point stats_orphans = (200, 350);
+Point stats_output = (125, 380);
+
+Constraint distance(stats_query, stats_containments) = 50;
+Constraint distance(stats_query, stats_top) = 100;
+Constraint distance(stats_query, stats_orphans) = 150;
+
+// 孤立给定物检测：无任何 containment 记录的给定物
+Point orphan_detected = (100, 400);
+Point orphan_mark = (150, 400);
+Point orphan_suggest_gaze = (200, 400);
+
+Constraint distance(orphan_detected, orphan_mark) = 50;
+Constraint distance(orphan_mark, orphan_suggest_gaze) = 50;
+
+// ================================================================
+// 数据源交叉：不同数据源的 containment 记录
+// ================================================================
+Point source_wordnet = (350, 300);
+Point source_wikidata = (380, 300);
+Point source_sumo = (410, 300);
+Point source_merge = (380, 330);
+
+Constraint distance(source_wordnet, source_merge) = 42;
+Constraint distance(source_wikidata, source_merge) = 30;
+Constraint distance(source_sumo, source_merge) = 42;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================

@@ -1,0 +1,155 @@
+// ============================================================
+// ROSE-SCA Wiki 数据存储 — Lv-00 几何元语言实现
+// ============================================================
+// 文档二：TSV WikiLine 格式 + 索引格式 + 操作日志
+//
+// WikiLine 格式 (9 字段, \t 分隔):
+//   记录ID | 给定物标识 | 关系类型 | 关联给定物标识 |
+//   来源 | 时态状态 | 冲突记录ID列表 | 父记录ID | 时间戳
+//
+// 设计原则：
+//   纯文本行分隔 | 只追加不擦除 | 字段分隔明确 | 自描述
+// ============================================================
+
+// === 存储空间 / Storage space ===
+Point storage_origin = (0, 0);
+Point storage_extent = (600, 400);
+
+// ================================================================
+// WikiLine 九字段建模 — 每个字段映射为一个 Point
+// ================================================================
+
+// 记录管线：字段依次构成一条完整记录
+Point record_id = (0, 0);
+Point record_entity = (50, 0);
+Point record_predicate = (100, 0);
+Point record_target = (150, 0);
+Point record_source = (200, 0);
+Point record_state = (250, 0);
+Point record_conflicts = (300, 0);
+Point record_parent = (350, 0);
+Point record_timestamp = (400, 0);
+
+Constraint distance(record_id, record_entity) = 50;
+Constraint distance(record_entity, record_predicate) = 50;
+Constraint distance(record_predicate, record_target) = 50;
+Constraint distance(record_target, record_source) = 50;
+Constraint distance(record_source, record_state) = 50;
+Constraint distance(record_state, record_conflicts) = 50;
+Constraint distance(record_conflicts, record_parent) = 50;
+Constraint distance(record_parent, record_timestamp) = 50;
+Constraint collinear(record_id, record_entity, record_predicate, record_target,
+    record_source, record_state, record_conflicts, record_parent, record_timestamp);
+
+// ================================================================
+// 时态状态四态: unheld → held → disputed → retracted
+// ================================================================
+Point state_unheld = (0, 100);      // 无目光持有
+Point state_held = (70, 100);       // 目光投出，持有中
+Point state_disputed = (140, 100);  // 发现矛盾
+Point state_retracted = (210, 100); // 确认错误，已撤回
+
+// 状态转换
+Point transition_gaze = (35, 130);    // unheld → held (目光投出)
+Point transition_withdraw = (70, 130); // held → unheld (目光撤回)
+Point transition_conflict = (105, 130); // held → disputed (矛盾发现)
+Point transition_resolve = (140, 130);  // disputed → held/unheld (矛盾解决)
+Point transition_retract = (175, 130);  // disputed → retracted (确认错误)
+
+Constraint distance(state_unheld, transition_gaze) = 35;
+Constraint distance(transition_gaze, state_held) = 35;
+Constraint distance(state_held, transition_withdraw) = 35;
+Constraint distance(transition_withdraw, state_unheld) = 35;
+Constraint distance(state_held, transition_conflict) = 35;
+Constraint distance(transition_conflict, state_disputed) = 35;
+Constraint distance(state_disputed, transition_resolve) = 35;
+Constraint distance(transition_resolve, state_unheld) = 42;
+Constraint distance(state_disputed, transition_retract) = 35;
+Constraint distance(transition_retract, state_retracted) = 35;
+
+// ================================================================
+// 分库策略
+// ================================================================
+Point db_core = (300, 100);      // 上层本体 (SUMO/DOLCE)
+Point db_wordnet = (350, 100);   // 词汇上位关系
+Point db_wikidata = (400, 100);  // 百科实体
+Point db_conceptnet = (450, 100); // 常识关系
+Point db_user = (500, 100);      // 用户输入
+Point db_inference = (550, 100); // 推理产出
+
+Constraint distance(db_core, db_wordnet) = 50;
+Constraint distance(db_wordnet, db_wikidata) = 50;
+Constraint distance(db_wikidata, db_conceptnet) = 50;
+Constraint distance(db_conceptnet, db_user) = 50;
+Constraint distance(db_user, db_inference) = 50;
+
+// ================================================================
+// 索引层: 给定物索引 / 关系索引 / 闭包索引 / 来源索引
+// ================================================================
+Point idx_entity = (300, 200);     // 给定物 → 记录 ID 列表
+Point idx_relation = (350, 200);   // 关系类型 → 记录 ID 列表
+Point idx_closure = (400, 200);    // 传递闭包（预计算）
+Point idx_source = (450, 200);     // 来源 → 记录 ID 列表
+
+Constraint distance(idx_entity, idx_relation) = 50;
+Constraint distance(idx_relation, idx_closure) = 50;
+Constraint distance(idx_closure, idx_source) = 50;
+
+// 索引本身也是给定物——当觉照看向索引时，索引退化为被审视的对象
+Point idx_self_observation = (375, 260);
+Constraint distance(idx_closure, idx_self_observation) = 60;
+
+// ================================================================
+// 操作日志记录
+// ================================================================
+Point log_id = (0, 250);
+Point log_op_type = (50, 250);
+Point log_entity = (100, 250);
+Point log_gaze_dir = (150, 250);
+Point log_result = (200, 250);
+Point log_timestamp = (250, 250);
+
+Constraint distance(log_id, log_op_type) = 50;
+Constraint distance(log_op_type, log_entity) = 50;
+Constraint distance(log_entity, log_gaze_dir) = 50;
+Constraint distance(log_gaze_dir, log_result) = 50;
+Constraint distance(log_result, log_timestamp) = 50;
+
+// 操作类型: 目光投出 / 目光撤回 / 目光切换 / 矛盾发现 / 结构追加 / 状态变更
+Point op_type_gaze = (0, 310);
+Point op_type_withdraw = (0, 340);
+Point op_type_switch = (0, 370);
+Point op_type_conflict = (0, 400);
+Point op_type_append = (0, 430);
+Point op_type_state_change = (0, 460);
+
+Constraint distance(op_type_gaze, op_type_withdraw) = 30;
+Constraint distance(op_type_withdraw, op_type_switch) = 30;
+Constraint distance(op_type_switch, op_type_conflict) = 30;
+Constraint distance(op_type_conflict, op_type_append) = 30;
+Constraint distance(op_type_append, op_type_state_change) = 30;
+
+// ================================================================
+// 文件组织架构
+// ================================================================
+// /wiki/records/ — 主数据 (core.tsv, wordnet.tsv, ...)
+// /wiki/conflicts/ — conflicts.tsv
+// /wiki/indexes/ — entity.idx, relation.idx, closure.idx, source.idx
+// /wiki/logs/ — operations.tsv, training.tsv
+// /wiki/meta/ — schema.md, sources.md
+
+Point file_records = (500, 200);
+Point file_conflicts = (500, 260);
+Point file_indexes = (500, 320);
+Point file_logs = (500, 380);
+Point file_meta = (500, 440);
+
+Constraint distance(file_records, file_conflicts) = 60;
+Constraint distance(file_conflicts, file_indexes) = 60;
+Constraint distance(file_indexes, file_logs) = 60;
+Constraint distance(file_logs, file_meta) = 60;
+
+Prove;
+Normalize;
+Rewrite;
+// ============================================================
