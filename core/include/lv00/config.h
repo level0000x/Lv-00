@@ -200,6 +200,22 @@ extern "C" {
 #endif
 
 /* ── 源码缺失宏（兼容别名）── */
+/* LV00_PUBLIC_API 安全回退 */
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+/* 路径分隔符 */
+#ifndef LV00_PATH_SEPARATOR
+#ifdef _WIN32
+#define LV00_PATH_SEPARATOR '\\'
+#else
+#define LV00_PATH_SEPARATOR '/'
+#endif
+#endif
+/* localtime */
+#ifndef LV00_LOCALTIME
+#define LV00_LOCALTIME(p) localtime_s(p, &(time_t){time(NULL)})
+#endif
 /* 重写引擎 */
 #ifndef LV00_DEFAULT_REWRITE_STEP_LIMIT
 #define LV00_DEFAULT_REWRITE_STEP_LIMIT    LV00_CONFIG_DEFAULT_REWRITE_LIMIT
@@ -246,6 +262,19 @@ extern "C" {
 #endif
 #ifndef LV00_FNV64_PRIME
 #define LV00_FNV64_PRIME                   1099511628211ULL
+#endif
+/* 内存池短别名（memory_pool.c 使用的无 CONFIG_ 版本） */
+#ifndef LV00_CONSTRAINT_NODE_SIZE
+#define LV00_CONSTRAINT_NODE_SIZE  LV00_CONFIG_POOL_CONSTRAINT_NODE_SIZE
+#endif
+#ifndef LV00_SYMBOLIC_COORD_SIZE
+#define LV00_SYMBOLIC_COORD_SIZE    LV00_CONFIG_POOL_SYMBOLIC_COORD_SIZE
+#endif
+#ifndef LV00_PROOF_STEP_SIZE
+#define LV00_PROOF_STEP_SIZE        LV00_CONFIG_POOL_PROOF_STEP_SIZE
+#endif
+#ifndef LV00_CONSTRAINT_SIZE
+#define LV00_CONSTRAINT_SIZE        LV00_CONFIG_POOL_CONSTRAINT_SIZE
 #endif
 
 #ifdef __cplusplus

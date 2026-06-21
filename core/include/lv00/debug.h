@@ -9,6 +9,20 @@
 #ifndef LV00_DEBUG_H
 #define LV00_DEBUG_H
 
+/* Safe fallback if lv00.h was not included first */
+#ifndef LV00_PUBLIC_API
+#define LV00_PUBLIC_API
+#endif
+#ifndef LV00_THREAD_LOCAL
+#ifdef _MSC_VER
+#define LV00_THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__) || defined(__clang__)
+#define LV00_THREAD_LOCAL __thread
+#else
+#define LV00_THREAD_LOCAL _Thread_local
+#endif
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
