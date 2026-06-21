@@ -62,7 +62,7 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
-LV00_DECLARE_STREAM_CTX(graph)
+LV00_DECLARE_STREAM_CTX(graph);
 
 /* Forward declarations for hash index functions
  * graph_node_index_insert 和 graph_constraint_index_insert 已公开为公共接口，

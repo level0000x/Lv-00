@@ -173,7 +173,7 @@ static void stdout_lock_destroy(void) {
  * 由 interop_set_stream_context() 设置，通常在引擎初始化时
  * 通过 engine_get_stream_context() 获取并注入。
  */
-LV00_DECLARE_STREAM_CTX(interop)
+LV00_DECLARE_STREAM_CTX(interop);
 
 /* ==================== 流式输出集成 ==================== */
 

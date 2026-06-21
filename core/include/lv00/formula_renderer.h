@@ -45,11 +45,12 @@ typedef enum {
  * 渲染选项
  * ============================================================ */
 typedef struct {
-    bool implicit_multiplication; /* LaTeX: 隐式乘法 (ab 而非 a \cdot b) */
-    bool display_mode;            /* LaTeX: 显示模式 (独立行) */
-    bool fraction_mode;           /* Python: 分数模式 (Fraction) 或浮点数 */
-    bool simplify_output;         /* 是否简化输出 */
-    int precision;                /* 浮点数精度 */
+    bool implicit_multiplication;
+    bool display_mode;
+    bool fraction_mode;
+    bool simplify_output;
+    int  precision;
+    const char *style;           /* HTML: inline or block */
 } RenderOptions;
 /* 默认渲染选项 */
 #define RENDER_OPTIONS_DEFAULT {false, true, true, true, 6}
