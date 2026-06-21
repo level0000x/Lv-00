@@ -11,7 +11,7 @@
  * - 坐标双精度浮点转换
  */
 
--- [QA] Uses double for test assertions against GMP mpq_t via comparison helpers. Acceptable in test code.
+/* [QA] Uses double for test assertions against GMP mpq_t via comparison helpers. Acceptable in test code. */
 
 #include <assert.h>
 #include <math.h>
