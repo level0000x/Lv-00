@@ -5,10 +5,9 @@
  * export declarations that were previously in stubs.h.
  */
 
-/* ================================================================
- *  Implementation includes
- * ================================================================ */
-
+/* Unity build: 将两个实现文件合并编译到一个 translation unit。
+   避免 .c 文件被 CMake 重复编译导致 ODR 违规。
+   CMakeLists.txt 需确保 lv00_impl_native.c / lv00_impl_upper.c 不单独编译。 */
 #include "lv00_impl_native.c"
 #include "lv00_impl_upper.c"
 
