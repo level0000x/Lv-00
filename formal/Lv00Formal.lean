@@ -58,6 +58,8 @@ import Lv00Formal.Theory.CodegenCorrectness
 -- v1.1 R5: UndefinedBehavior + Evidence
 import Lv00Formal.Theory.UndefinedBehavior
 import Lv00Formal.Theory.Evidence
+-- v1.1 R6: InteropCorrectness
+import Lv00Formal.Theory.InteropCorrectness
 -- v1.1 Hilbert framework
 import Lv00.Basic
 import Lv00.Incidence
