@@ -41,6 +41,7 @@
  */
 
 #include "memory_pool.h"
+#include "config.h"        /* LV00_FNV64_*, LV00_CONFIG_POOL_* macros */
 
 #include <stdio.h>
 #include <stdlib.h>

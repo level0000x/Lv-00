@@ -214,7 +214,7 @@ extern "C" {
 #endif
 /* localtime */
 #ifndef LV00_LOCALTIME
-#define LV00_LOCALTIME(p) localtime_s(p, &(time_t){time(NULL)})
+#define LV00_LOCALTIME(num, p) localtime_s(p, num)
 #endif
 /* 重写引擎 */
 #ifndef LV00_DEFAULT_REWRITE_STEP_LIMIT

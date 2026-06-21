@@ -13,6 +13,7 @@
  */
 
 #include "context.h"
+#include "config.h"       /* LV00_DEFAULT_* macros */
 #include "lv00_utils.h"
 #include "constraint_graph.h"
 #include "stream.h"
