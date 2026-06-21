@@ -1,4 +1,5 @@
 // bootstrap: func_block_spec — 函数块语义规格
+// [QA] Same filename as layer4_reasoning/func_block_spec.lv00 — different layer scope. Keep both.
 
 // 函数块结构
 Point func_name = (0, 3);          // 函数名

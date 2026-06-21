@@ -1,4 +1,6 @@
 // bootstrap: propagation_spec — 约束传播语义 (core/src/layer3_geometry/propagation.c)
+// [QA] Uses macro-style constraint syntax; other directories use functional-style.
+//      Both are valid .lv00 dialects.
 
 // AC-3 弧相容性传播
 Point arc_var = (0, 1);

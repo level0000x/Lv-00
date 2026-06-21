@@ -1,4 +1,5 @@
 // bootstrap: expr_canonical — 表达式规范: 排序+简化+替换
+// [QA] Same filename as spec/expr_canonical.lv00 — different layer scope. Keep both.
 
 Point expr_canonical:
   canonical_sort(expr: Expr, order: TermOrder) -> Expr

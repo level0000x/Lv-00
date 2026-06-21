@@ -1,4 +1,6 @@
 // bootstrap: lv00_config — 全局可配置参数
+// [QA] Uses macro-style constraint syntax; other directories use functional-style.
+//      Both are valid .lv00 dialects.
 
 // === 求解器参数 ===
 Point cfg_solver_origin = (0, 0);

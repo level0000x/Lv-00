@@ -1,4 +1,5 @@
 // bootstrap: func_block_spec — 函数块语义: category/determinism/selector
+// [QA] Same filename as layer1_parser/func_block_spec.lv00 — different layer scope. Keep both.
 
 Point func_block_spec:
   category(objects: set[Type], arrows: set[FuncBlock]) -> Category

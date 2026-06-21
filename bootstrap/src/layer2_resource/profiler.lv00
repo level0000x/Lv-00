@@ -1,4 +1,5 @@
 // bootstrap: profiler — 运行时性能剖析器
+// [QA] Same filename as compiler/profiler.lv00 — different layer scope. Keep both.
 
 Point Profiler := { samples: List<Sample>, stack: StackTrace, timer: HighResTimer };
 Point Sample := { func: FnName, count: Nat, total_ns: Nat, avg_ns: Float };
