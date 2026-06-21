@@ -182,8 +182,9 @@ void coord_cross(mpq_t result, const Coord* a, const Coord* b) {
 
 int coord_to_string(const Coord* c, char* buf, size_t bufsz) {
     if (!c || !buf || bufsz == 0) return 0;
-    char* xs = mpq_get_str(NULL, 10, c->x);  /* GMP 精确有理数字符串 */
+    char* xs = mpq_get_str(NULL, 10, c->x);
     char* ys = mpq_get_str(NULL, 10, c->y);
+    if (!xs || !ys) { free(xs); free(ys); return snprintf(buf, bufsz, "(null)"); }
     int n = snprintf(buf, bufsz, "(%s, %s)", xs, ys);
     free(xs); free(ys);
     return n;
@@ -279,7 +280,9 @@ int rational_gt(const Rational* a, const Rational* b) { return rational_cmp(a, b
 int rational_ge(const Rational* a, const Rational* b) { return rational_cmp(a, b) >= 0; }
 
 int rational_to_string(const Rational* r, char* buf, size_t bufsz) {
-    char* s = mpq_get_str(NULL, 10, r->val);  /* GMP 精确输出 */
+    if (!r || !buf || bufsz == 0) return 0;
+    char* s = mpq_get_str(NULL, 10, r->val);
+    if (!s) return snprintf(buf, bufsz, "(null)");
     int n = snprintf(buf, bufsz, "%s", s);
     free(s);
     return n;
@@ -336,8 +339,11 @@ void graph_destroy(ConstraintGraph* g) {
 int64_t graph_add_node(ConstraintGraph* g, const mpq_t value, int pinned) {
     if (!g) return -1;
     if (g->node_count >= g->node_cap) {
-        g->node_cap *= 2;
-        g->nodes = (GraphNode*)realloc(g->nodes, g->node_cap * sizeof(GraphNode));
+        size_t new_cap = g->node_cap * 2;
+        GraphNode* tmp = (GraphNode*)realloc(g->nodes, new_cap * sizeof(GraphNode));
+        if (!tmp) return -1;               /* realloc 失败, 原内存保留, 安全返回 */
+        g->node_cap = (int)new_cap;
+        g->nodes = tmp;
     }
     int idx = g->node_count++;
     g->nodes[idx].id = native_id_alloc();
@@ -370,8 +376,11 @@ int64_t graph_add_edge(ConstraintGraph* g, int from_idx, int to_idx, const mpq_t
     if (!g || from_idx < 0 || to_idx < 0) return -1;
     if (from_idx >= g->node_count || to_idx >= g->node_count) return -1;
     if (g->edge_count >= g->edge_cap) {
-        g->edge_cap *= 2;
-        g->edges = (GraphEdge*)realloc(g->edges, g->edge_cap * sizeof(GraphEdge));
+        size_t new_cap = g->edge_cap * 2;
+        GraphEdge* tmp = (GraphEdge*)realloc(g->edges, new_cap * sizeof(GraphEdge));
+        if (!tmp) return -1;               /* realloc 失败, 原内存保留, 安全返回 */
+        g->edge_cap = (int)new_cap;
+        g->edges = tmp;
     }
     int idx = g->edge_count++;
     g->edges[idx].id = native_id_alloc();
@@ -605,17 +614,18 @@ int expr_eval(mpq_t result, Expr* e, const char** varnames, const mpq_t* values,
         return 0;
     case 6: /* pow */
         expr_eval(result, e->left, varnames, values, nvars);
-        /* exact rational power for integer exponents */
+        /* 精确有理数幂: result = result^exp */
         {
-            mpz_t num, den;
-            mpz_inits(num, den, NULL);
-            mpq_get_num(num, result); mpq_get_den(den, result);
+            mpz_t num, den, base_num, base_den;
+            mpz_inits(num, den, base_num, base_den, NULL);
+            mpq_get_num(base_num, result); mpq_get_den(base_den, result);
+            mpz_set(num, base_num); mpz_set(den, base_den);
             for (int i = 1; i < e->exp; i++) {
-                mpz_mul(num, num, num); /* recursive — simplified */
-                mpz_mul(den, den, den);
+                mpz_mul(num, num, base_num);   /* 乘以原始基数, 非平方 */
+                mpz_mul(den, den, base_den);
             }
             mpq_set_num(result, num); mpq_set_den(result, den);
-            mpz_clears(num, den, NULL);
+            mpz_clears(num, den, base_num, base_den, NULL);
         }
         return 0;
     default:
