@@ -211,9 +211,26 @@ def sideBC (t : Triangle) : Segment := ⟨t.b, t.c⟩
 def sideCA (t : Triangle) : Segment := ⟨t.c, t.a⟩
 
 /-- 三角形的顶点角 -/
-def angleA (t : Triangle) : Angle := ⟨t.a, t.b, t.c, sorry, sorry⟩
-def angleB (t : Triangle) : Angle := ⟨t.b, t.a, t.c, sorry, sorry⟩
-def angleC (t : Triangle) : Angle := ⟨t.c, t.a, t.b, sorry, sorry⟩
+def angleA (t : Triangle) : Angle :=
+  have hne_ab : t.a ≠ t.b := by
+    intro h; apply t.nonCollinear; unfold collinear; simp [h]
+  have hne_ac : t.a ≠ t.c := by
+    intro h; apply t.nonCollinear; unfold collinear; simp [h]
+  ⟨t.a, t.b, t.c, hne_ab, hne_ac⟩
+
+def angleB (t : Triangle) : Angle :=
+  have hne_ba : t.b ≠ t.a := by
+    intro h; apply t.nonCollinear; unfold collinear; simp [h, add_comm, mul_comm]
+  have hne_bc : t.b ≠ t.c := by
+    intro h; apply t.nonCollinear; unfold collinear; simp [h]
+  ⟨t.b, t.a, t.c, hne_ba, hne_bc⟩
+
+def angleC (t : Triangle) : Angle :=
+  have hne_ca : t.c ≠ t.a := by
+    intro h; apply t.nonCollinear; unfold collinear; simp [h]
+  have hne_cb : t.c ≠ t.b := by
+    intro h; apply t.nonCollinear; unfold collinear; simp [h]
+  ⟨t.c, t.a, t.b, hne_ca, hne_cb⟩
 
 /-- 三角形的面积（海伦公式）-/
 def area (t : Triangle) : ℝ :=
@@ -251,8 +268,83 @@ def collinear (p1 p2 p3 : Point) : Prop :=
 theorem collinear_trans {p1 p2 p3 p4 : Point} 
     (h12 : collinear p1 p2 p3) (h13 : collinear p1 p3 p4) 
     (hne : p1 ≠ p3) : collinear p1 p2 p4 := by
-  -- 证明略，使用坐标代数
-  sorry
+  rcases h12 with ⟨h12xy, h12xz⟩
+  rcases h13 with ⟨h13xy, h13xz⟩
+  set dx := p3.x - p1.x
+  set dy := p3.y - p1.y
+  set dz := p3.z - p1.z
+  have hdx_dy_dz : dx ≠ 0 ∨ dy ≠ 0 ∨ dz ≠ 0 := by
+    intro h
+    rcases h with ⟨hx, hy, hz⟩
+    apply hne
+    apply Point.ext <;> dsimp <;> linarith
+  have hxy : (p2.x - p1.x) * (p4.y - p1.y) = (p4.x - p1.x) * (p2.y - p1.y) := by
+    by_cases hdx0 : dx = 0
+    · by_cases hdy0 : dy = 0
+      · -- dx = 0, dy = 0, so dz ≠ 0 by hne
+        have hdz0 : dz ≠ 0 := by
+          intro hz
+          rcases hdx_dy_dz with (h | h | h)
+          · exact h hdx0
+          · exact h hdy0
+          · exact h hz
+        have ha0 : p2.x - p1.x = 0 := by
+          have h_eq : (p2.x - p1.x) * dz = 0 := by nlinarith
+          rcases eq_zero_or_eq_zero_of_mul_eq_zero h_eq with (h0 | hz')
+          · exact h0
+          · exact absurd hz' hdz0
+        have he0 : p4.x - p1.x = 0 := by
+          have h_eq : (p4.x - p1.x) * dz = 0 := by nlinarith
+          rcases eq_zero_or_eq_zero_of_mul_eq_zero h_eq with (h0 | hz')
+          · exact h0
+          · exact absurd hz' hdz0
+        nlinarith
+      · -- dy ≠ 0
+        have h_factor : dy * ((p2.x - p1.x) * (p4.y - p1.y) - (p4.x - p1.x) * (p2.y - p1.y)) = 0 := by
+          nlinarith
+        rcases eq_zero_or_eq_zero_of_mul_eq_zero h_factor with (hdy0' | h_target)
+        · exact absurd hdy0' hdy0
+        · nlinarith
+    · -- dx ≠ 0
+      have h_factor : dx * ((p2.x - p1.x) * (p4.y - p1.y) - (p4.x - p1.x) * (p2.y - p1.y)) = 0 := by
+        nlinarith
+      rcases eq_zero_or_eq_zero_of_mul_eq_zero h_factor with (hdx0' | h_target)
+      · exact absurd hdx0' hdx0
+      · nlinarith
+  have hxz : (p2.x - p1.x) * (p4.z - p1.z) = (p4.x - p1.x) * (p2.z - p1.z) := by
+    by_cases hdx0 : dx = 0
+    · by_cases hdz0 : dz = 0
+      · -- dx = 0, dz = 0, so dy ≠ 0 by hne
+        have hdy0 : dy ≠ 0 := by
+          intro hy
+          rcases hdx_dy_dz with (h | h | h)
+          · exact h hdx0
+          · exact h hy
+          · exact h hdz0
+        have ha0 : p2.x - p1.x = 0 := by
+          have h_eq : (p2.x - p1.x) * dy = 0 := by nlinarith
+          rcases eq_zero_or_eq_zero_of_mul_eq_zero h_eq with (h0 | hy')
+          · exact h0
+          · exact absurd hy' hdy0
+        have he0 : p4.x - p1.x = 0 := by
+          have h_eq : (p4.x - p1.x) * dy = 0 := by nlinarith
+          rcases eq_zero_or_eq_zero_of_mul_eq_zero h_eq with (h0 | hy')
+          · exact h0
+          · exact absurd hy' hdy0
+        nlinarith
+      · -- dz ≠ 0
+        have h_factor : dz * ((p2.x - p1.x) * (p4.z - p1.z) - (p4.x - p1.x) * (p2.z - p1.z)) = 0 := by
+          nlinarith
+        rcases eq_zero_or_eq_zero_of_mul_eq_zero h_factor with (hdz0' | h_target)
+        · exact absurd hdz0' hdz0
+        · nlinarith
+    · -- dx ≠ 0
+      have h_factor : dx * ((p2.x - p1.x) * (p4.z - p1.z) - (p4.x - p1.x) * (p2.z - p1.z)) = 0 := by
+        nlinarith
+      rcases eq_zero_or_eq_zero_of_mul_eq_zero h_factor with (hdx0' | h_target)
+      · exact absurd hdx0' hdx0
+      · nlinarith
+  exact ⟨hxy, hxz⟩
 
 /-- 点在线段之间（B在A和C之间）-/
 def between (A B C : Point) : Prop :=

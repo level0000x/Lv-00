@@ -1,0 +1,14 @@
+name = "Lv00Formal"
+version = "1.1.0"
+
+[[lean_lib]]
+name = "Lv00Formal"
+root = "."
+
+[[lean_lib]]
+name = "Lv00"
+root = "."
+
+[[lean_lib]]
+name = "Tests"
+root = "."
