@@ -193,6 +193,8 @@ void lv00_log_write(Lv00LogLevel level, const char *tag,
     lv00_log_write(LOG_LEVEL_INFO, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_WARN(tag, fmt, ...) \
     lv00_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define LV00_LOG_WARNING(tag, fmt, ...) \
+    lv00_log_write(LOG_LEVEL_WARN, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_ERROR(tag, fmt, ...) \
     lv00_log_write(LOG_LEVEL_ERROR, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define LV00_LOG_FATAL(tag, fmt, ...) \
