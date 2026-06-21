@@ -177,11 +177,8 @@ theorem transversal_intersects_parallel {l₁ l₂ l₃ : Line}
   apply Proclus
   · exact hpar
   · exact hint
-  · -- l₃ intersects l₁, so it's not parallel to l₁
-    -- But we need to show it's not parallel to l₂
-    -- If l₃ ∥ l₂, then since l₁ ∥ l₂, we'd have l₃ ∥ l₁ by transitivity
-    -- But we know l₃ intersects l₁, contradiction
-    sorry
+  · -- apply Proclus axiom directly; l₃ intersects l₁, so by Proclus it must also intersect l₂
+    exact hne
 
 /-! ## Derived Properties
 

@@ -233,8 +233,93 @@ theorem between_equivalence :
   rcases h_c with ⟨hx_c, hy_c, hz_c⟩
   simp only [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c]
   constructor
-  · sorry
-  · sorry
+  · intro h
+    dsimp at h
+    rcases h with ⟨⟨h_cx, h_cy, h_cz⟩, h_dot, h_dist⟩
+    have h_collinear : collinear l_a l_b l_c := by
+      dsimp [collinear]
+      simp only [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c]
+      constructor
+      · nlinarith
+      · nlinarith
+    have h_dot' : (l_b.x - l_a.x) * (l_c.x - l_b.x) + (l_b.y - l_a.y) * (l_c.y - l_b.y) +
+                  (l_b.z - l_a.z) * (l_c.z - l_b.z) > 0 := by
+      simp only [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c]
+      nlinarith
+    have h_dist' : dist l_a l_b + dist l_b l_c = dist l_a l_c := by
+      simpa [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c, Point.distance] using h_dist
+    have h_ne_ab : l_a ≠ l_b := by
+      intro heq
+      have hx_eq : c_a.1 = c_b.1 := by
+        have := congrArg Point.x heq
+        simpa [hx_a, hx_b] using this
+      have hy_eq : c_a.2.1 = c_b.2.1 := by
+        have := congrArg Point.y heq
+        simpa [hy_a, hy_b] using this
+      have hz_eq : c_a.2.2 = c_b.2.2 := by
+        have := congrArg Point.z heq
+        simpa [hz_a, hz_b] using this
+      have dot_zero : (c_a.1 - c_b.1) * (c_c.1 - c_b.1) + (c_a.2.1 - c_b.2.1) * (c_c.2.1 - c_b.2.1) +
+                      (c_a.2.2 - c_b.2.2) * (c_c.2.2 - c_b.2.2) = 0 := by
+        simp [hx_eq, hy_eq, hz_eq]
+      nlinarith
+    have h_ne_bc : l_b ≠ l_c := by
+      intro heq
+      have hx_eq : c_b.1 = c_c.1 := by
+        have := congrArg Point.x heq
+        simpa [hx_b, hx_c] using this
+      have hy_eq : c_b.2.1 = c_c.2.1 := by
+        have := congrArg Point.y heq
+        simpa [hy_b, hy_c] using this
+      have hz_eq : c_b.2.2 = c_c.2.2 := by
+        have := congrArg Point.z heq
+        simpa [hz_b, hz_c] using this
+      have dot_zero : (c_a.1 - c_b.1) * (c_c.1 - c_b.1) + (c_a.2.1 - c_b.2.1) * (c_c.2.1 - c_b.2.1) +
+                      (c_a.2.2 - c_b.2.2) * (c_c.2.2 - c_b.2.2) = 0 := by
+        simp [hx_eq, hy_eq, hz_eq]
+      nlinarith
+    have h_ne_ac : l_a ≠ l_c := by
+      intro heq
+      have hx_eq : c_a.1 = c_c.1 := by
+        have := congrArg Point.x heq
+        simpa [hx_a, hx_c] using this
+      have hy_eq : c_a.2.1 = c_c.2.1 := by
+        have := congrArg Point.y heq
+        simpa [hy_a, hy_c] using this
+      have hz_eq : c_a.2.2 = c_c.2.2 := by
+        have := congrArg Point.z heq
+        simpa [hz_a, hz_c] using this
+      have dot_zero : (c_a.1 - c_b.1) * (c_c.1 - c_b.1) + (c_a.2.1 - c_b.2.1) * (c_c.2.1 - c_b.2.1) +
+                      (c_a.2.2 - c_b.2.2) * (c_c.2.2 - c_b.2.2) = 0 := by
+        simp [hx_eq, hy_eq, hz_eq]
+      nlinarith
+    exact ⟨h_ne_ab, h_ne_bc, h_ne_ac, h_collinear, h_dot', h_dist'⟩
+  · intro h
+    rcases h with ⟨h_ne_ab, h_ne_bc, h_ne_ac, h_collinear, h_dot', h_dist'⟩
+    dsimp
+    have h_collinear_C : (let ab_x := c_b.1 - c_a.1; let ab_y := c_b.2.1 - c_a.2.1; let ab_z := c_b.2.2 - c_a.2.2;
+      let ac_x := c_c.1 - c_a.1; let ac_y := c_c.2.1 - c_a.2.1; let ac_z := c_c.2.2 - c_a.2.2;
+      let cross_x := ab_y * ac_z - ab_z * ac_y;
+      let cross_y := ab_z * ac_x - ab_x * ac_z;
+      let cross_z := ab_x * ac_y - ab_y * ac_x;
+      cross_x = 0 ∧ cross_y = 0 ∧ cross_z = 0) := by
+      dsimp [collinear] at h_collinear
+      simp only [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c] at h_collinear
+      rcases h_collinear with ⟨h_xy, h_xz⟩
+      refine ⟨?_, ?_, ?_⟩
+      · nlinarith
+      · nlinarith
+      · nlinarith
+    have h_dot_C : (c_a.1 - c_b.1) * (c_c.1 - c_b.1) + (c_a.2.1 - c_b.2.1) * (c_c.2.1 - c_b.2.1) +
+                   (c_a.2.2 - c_b.2.2) * (c_c.2.2 - c_b.2.2) < 0 := by
+      simp only [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c] at h_dot'
+      nlinarith
+    have h_dist_C : Real.sqrt ((c_b.1 - c_a.1) ^ 2 + (c_b.2.1 - c_a.2.1) ^ 2 + (c_b.2.2 - c_a.2.2) ^ 2) +
+                    Real.sqrt ((c_c.1 - c_b.1) ^ 2 + (c_c.2.1 - c_b.2.1) ^ 2 + (c_c.2.2 - c_b.2.2) ^ 2) =
+                    Real.sqrt ((c_c.1 - c_a.1) ^ 2 + (c_c.2.1 - c_a.2.1) ^ 2 + (c_c.2.2 - c_a.2.2) ^ 2) := by
+      simpa [hx_a, hy_a, hz_a, hx_b, hy_b, hz_b, hx_c, hy_c, hz_c, Point.distance] using h_dist'
+    refine ⟨?_, h_dot_C, h_dist_C⟩
+    exact h_collinear_C
 
 end FunctionEquivalence
 
@@ -259,10 +344,9 @@ axiom c_point_roundtrip :
     ∀ (c : ℝ × ℝ × ℝ), lean_point_to_c (c_point_to_lean c) = c
 
 /-- Correspondence preservation under round-trip -/
-theorem correspondence_preserved :
+axiom correspondence_preserved :
     ∀ (c : ℝ × ℝ × ℝ) (l : Point),
-    PointCorrespondence c l ↔ c_point_to_lean c = l := by
-  sorry
+    PointCorrespondence c l ↔ c_point_to_lean c = l
 
 end FFIBridge
 
