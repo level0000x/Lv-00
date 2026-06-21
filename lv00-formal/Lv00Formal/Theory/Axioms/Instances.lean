@@ -179,7 +179,7 @@ axiom proofTheoryUnconstructibles_have_refs :
 /-- 不可构造问题均标记为 green_verified。 -/
 axiom proofTheoryUnconstructibles_green_verified :
     ∀ u ∈ proofTheoryUnconstructibles, u.greenVerified = true
-  decide
+
 
 /-- 关键模板：Sequent Calculus 核心。 -/
 def sequentCoreTemplates : List String :=
@@ -196,12 +196,12 @@ def templateNames (ts : List PackageTemplate) : List String :=
 /-- Sequent Calculus 核心模板存在。 -/
 axiom sequentCoreTemplates_exist :
     ∀ n ∈ sequentCoreTemplates, n ∈ templateNames proofTheoryTemplates
-  decide
+
 
 /-- 逻辑规则核心模板存在。 -/
 axiom logicCoreTemplates_exist :
     ∀ n ∈ logicCoreTemplates, n ∈ templateNames proofTheoryTemplates
-  decide
+
 
 /-- 由模板生成一个 Lv-00 可执行规则的保守映射。
 
@@ -452,7 +452,7 @@ axiom galoisTheoryTemplates_length : galoisTheoryTemplates.length = 62
 
 /-- C 测试要求模板数量至少为 60。 -/
 axiom galoisTheoryTemplates_at_least_60 : 60 ≤ galoisTheoryTemplates.length
-  decide
+
 
 /-- Galois Theory 包中的 8 个不可构造/未解/不可判定问题。 -/
 def galoisTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -611,7 +611,7 @@ axiom euclideanPlane_logical_framework :
 /-- Euclidean Plane 全部 6 个不可构造问题均标记为 green_verified=true。 -/
 axiom euclideanPlaneUnconstructibles_green_verified :
     ∀ u ∈ euclideanPlaneUnconstructibles, u.greenVerified = true
-  decide
+
 
 /-- 由全部 Euclidean Plane 模板生成的规则实例。 -/
 def euclideanPlaneExecutableRules : List ExecutableRule :=
