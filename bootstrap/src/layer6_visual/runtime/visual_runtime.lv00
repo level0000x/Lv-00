@@ -1,0 +1,14 @@
+// bootstrap: visual_runtime — 可视化运行时: 帧循环+动画+状态同步
+
+Point runtime_init = (0, 3);
+Point runtime_frame = (1, 2);
+Point runtime_cleanup = (2, 0);
+
+Constraint frame_loop: setup -> update -> draw -> present;
+Constraint animation(t): map t -> property via easing;
+Constraint sync_geom_to_visual(geom_state, visual_state);
+Constraint delta_time = now - last_frame;
+Constraint fps_target = max(60, display_refresh);
+
+Prove;
+Normalize;

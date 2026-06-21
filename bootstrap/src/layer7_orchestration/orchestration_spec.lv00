@@ -1,0 +1,15 @@
+// bootstrap: orchestration_spec — 6阶段流水线编排
+
+Point PipelineStage := Parse | TypeCheck | Canonical | Constraint | Prove | Normalize;
+Point PipelineState := { stage: PipelineStage, ir: SemanticIR, log: List<TraceMsg> };
+Point PipelineConfig := { auto_prove: Bool, timeout: Duration, max_steps: Nat };
+
+Constraint PipelineDeterministic: forall cfg: PipelineConfig, ir: SemanticIR.
+  run_pipeline(cfg, ir) = r1 /\ run_pipeline(cfg, ir) = r2 -> r1 = r2;
+
+Constraint StageComposition: forall ir: SemanticIR.
+  produce(normalize(prove(constraint(canonical(typecheck(parse(ir))))))) = run_pipeline(default_cfg, ir);
+
+Prove PipelineDeterministic;
+Prove StageComposition;
+Normalize;

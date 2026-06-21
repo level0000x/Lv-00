@@ -1,0 +1,19 @@
+// bootstrap: equiv_class_spec — 等价类语义 (core/src/layer3_geometry/equiv_class.c)
+
+// 并查集森林结构
+Point uf_root = (0, 4);      // 代表元
+Point uf_node = (1, 3);      // 普通节点
+
+// 基本操作
+Constraint uf_find(uf_node) = uf_root;           // find 返回代表元
+Constraint uf_merge(uf_node, uf_node) = uf_root; // merge 合并两个等价类
+
+// 不变量
+Constraint inv_path_compression(uf_root);         // 路径压缩后所有节点直连根
+Constraint inv_size_heuristic;                    // 按大小合并，树高 O(log n)
+Constraint inv_reflexive(uf_node);                // 自反性：a ~ a
+Constraint inv_symmetric(uf_node, uf_node);       // 对称性：a ~ b => b ~ a
+Constraint inv_transitive(uf_node, uf_node, uf_node);  // 传递性
+
+Prove;
+Normalize;

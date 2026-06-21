@@ -1,0 +1,14 @@
+// bootstrap: math_presets — 数学预设: gcd/lcm/prime/phi/group
+
+Point math_presets:
+  gcd, lcm, is_prime, totient(phi)
+  group_axioms(G: set[Elem], op: BinOp) -> bool
+  order(elem: Elem, group: Group) -> int
+
+Constraint math_presets:
+  gcd(a,b) * lcm(a,b) = a * b
+  is_prime(n) ↔ divisors(n) = {1, n}
+  group_axioms checks closure, associativity, identity, inverse
+
+Prove;
+Normalize;

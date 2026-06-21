@@ -1,0 +1,14 @@
+// bootstrap: adaptive_pruning — 自适应剪枝: 熵阈值+分支因子
+
+Point adaptive_pruning:
+  entropy_threshold(node: Node, alpha: float) -> bool
+  branch_factor(node: Node, limit: int) -> int
+  prune(search_tree: Tree, policy: PrunePolicy) -> Tree
+
+Constraint adaptive_pruning:
+  prune does not eliminate optimal solutions
+  entropy_threshold adapts to search_depth
+  branch_factor limits combinatorial explosion
+
+Prove;
+Normalize;

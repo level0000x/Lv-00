@@ -1,0 +1,12 @@
+// bootstrap: smt_bitvector — SMT比特向量: bitvec宽/算术/比较
+
+BitVec x : 32, y : 32, z : 32;
+
+Constraint bvadd  = x + y;        // 比特向量加法(模2^32)
+Constraint bvmul  = x * y;        // 比特向量乘法
+Constraint bvule  = x <= y;       // 无符号小于等于
+Constraint bvslt  = x < y signed; // 有符号小于
+Constraint bvand  = x & y;        // 按位与
+
+Prove;
+Normalize;

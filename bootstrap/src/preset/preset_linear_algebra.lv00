@@ -1,0 +1,16 @@
+// bootstrap: preset_linear_algebra — 线性代数预设
+
+Point origin = (0, 0, 0);           // 原点
+Point basis_i = (1, 0, 0);          // 标准基 e1
+Point basis_j = (0, 1, 0);          // 标准基 e2
+Point basis_k = (0, 0, 1);          // 标准基 e3
+
+Constraint dot(u, v) = sum(u_i * v_i);
+Constraint cross(u, v) = (u2*v3-u3*v2, u3*v1-u1*v3, u1*v2-u2*v1);
+Constraint norm(v) = sqrt(dot(v, v));
+Constraint projection(u, v) = v * (dot(u, v) / dot(v, v));
+Constraint determinant(M_3x3) = expand Sarrus rule;
+Constraint eigen_max = power_iteration;
+
+Prove;
+Normalize;

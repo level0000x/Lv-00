@@ -1,0 +1,13 @@
+// bootstrap: core_graph — 核心图结构：点节点 + 约束边 + 无向图 + 邻接表
+
+Point V1, V2, V3, V4;           // 图顶点
+Point E12, E23, E34, E41;        // 边中点
+
+Constraint Edge(V1, V2) = E12;   // 无向边
+Constraint Edge(V2, V3) = E23;
+Constraint Edge(V3, V4) = E34;
+Constraint Edge(V4, V1) = E41;
+Constraint Adjacent(V1, {V2, V4}); // 邻接表
+
+Prove;
+Normalize;

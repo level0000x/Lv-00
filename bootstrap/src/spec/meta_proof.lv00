@@ -1,0 +1,21 @@
+// bootstrap: meta_proof — 元证明系统 (core/include/lv00/config.h)
+
+// 四种结论类型在证明空间中的定位
+Point proof_axiom = (0, 4);        // 公理：无需前提，绝对为真
+Point proof_lemma = (1, 3);        // 引理：辅助中间结论
+Point proof_theorem = (2, 2);      // 定理：核心主要结论
+Point proof_corollary = (3, 1);    // 推论：定理直接导出
+
+// 证明依赖关系：定理依赖引理，引理依赖公理
+Constraint dep_lemma_axiom(proof_lemma, proof_axiom);
+Constraint dep_theorem_lemma(proof_theorem, proof_lemma);
+Constraint dep_corollary_theorem(proof_corollary, proof_theorem);
+
+// 证明完备性：从公理可到达所有结论
+Constraint closure(proof_axiom, proof_lemma, proof_theorem, proof_corollary);
+
+// 无循环依赖不变量
+Constraint acyclic(proof_axiom, proof_lemma, proof_theorem, proof_corollary);
+
+Prove;
+Normalize;

@@ -1,0 +1,21 @@
+// bootstrap: formula_converter — 公式格式互转
+
+// 格式转换图
+Point fmt_latex = (0, 2);
+Point fmt_asciimath = (1, 1);
+Point fmt_dsl = (2, 0);
+
+// 双向转换约束
+Constraint convert_latex_to_asciimath(fmt_latex, fmt_asciimath);
+Constraint convert_asciimath_to_latex(fmt_asciimath, fmt_latex);
+Constraint convert_asciimath_to_dsl(fmt_asciimath, fmt_dsl);
+Constraint convert_dsl_to_asciimath(fmt_dsl, fmt_asciimath);
+Constraint convert_latex_to_dsl(fmt_latex, fmt_dsl);
+Constraint convert_dsl_to_latex(fmt_dsl, fmt_latex);
+
+// 往返转换不变量
+Constraint roundtrip_idempotent(toLatex(toAsciiMath(fmt_latex)));
+Constraint roundtrip_idempotent(toDSL(toAsciiMath(fmt_dsl)));
+
+Prove;
+Normalize;

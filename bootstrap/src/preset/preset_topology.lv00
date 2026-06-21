@@ -1,0 +1,10 @@
+// bootstrap: preset_topology — 拓扑预设(开集/连续性)
+
+Point TopoPreset := OpenSet | ClosedSet | Continuous | Homeomorphism | Compact;
+Point TopoSpace := { carrier: Set, open_sets: Set<Set>, axioms: List<Axiom> };
+
+Constraint ContinuityCompose: forall f g: Function, X Y Z: TopoSpace.
+  continuous(f, X, Y) /\ continuous(g, Y, Z) -> continuous(compose(g, f), X, Z);
+
+Prove ContinuityCompose;
+Normalize;

@@ -1,0 +1,11 @@
+// bootstrap: text_code — 文本代码生成: Python/LaTeX/C
+
+Point CodeTarget := Python | LaTeX | C | CSharp | JavaScript;
+Point CodeGenCfg := { target: CodeTarget, indent: Nat, header: Bool, optimize: Bool };
+Point CodeFragment := { source: SemanticIR, code: String, imports: List<String> };
+
+Constraint CodeGenCorrect: forall ir: SemanticIR, cfg: CodeGenCfg.
+  gen_code(ir, cfg) = ok(frag) -> compiles(frag.code, cfg.target) /\ semantics(ir) = semantics(frag.code);
+
+Prove CodeGenCorrect;
+Normalize;

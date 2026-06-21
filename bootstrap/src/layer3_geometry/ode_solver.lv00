@@ -1,0 +1,11 @@
+// bootstrap: ode_solver — ODE求解器: RK4/欧拉/谐振子
+
+State y, v;  Real t, h = 0.01;
+
+Constraint Harmonic(t) => d^2y/dt^2 + y = 0;      // 谐振子ODE
+Constraint Euler(y, dy/dt, h) => y_next;           // 欧拉法
+Constraint RK4(y, f, t, h)   => y_next;            // 四阶龙格库塔
+Constraint EnergyCheck = 0.5*(v^2 + y^2);          // 能量守恒验证
+
+Prove;
+Normalize;

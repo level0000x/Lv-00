@@ -1,0 +1,14 @@
+// bootstrap: solver — 求解器入口: 符号+数值混合
+
+Point solver:
+  symbolic_solve(eq: Equation, domain: Domain) -> Solution
+  numeric_solve(f: Function, init: Point, tol: float) -> ApproxSolution
+  hybrid_solve(problem: Problem) -> Result
+
+Constraint solver:
+  symbolic_solve is exact within domain
+  numeric_solve converges within max_iterations
+  hybrid_solve selects strategy based on problem_class
+
+Prove;
+Normalize;

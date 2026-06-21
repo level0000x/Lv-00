@@ -1,0 +1,13 @@
+// bootstrap: visual_io — 可视化IO: 用户输入+导出
+
+Point mouse, keyboard, touch;         // 输入设备
+Point canvas, svg_export, png_export; // 输出目标
+
+Constraint mouse_event(e: MouseEvent) -> viewport_coord;
+Constraint drag_gesture(start, end) -> transform;
+Constraint export_svg(graph) = valid SVG 1.1;
+Constraint export_png(graph) = valid PNG RGBA;
+Constraint input_rate_limit = 120 Hz;
+
+Prove;
+Normalize;

@@ -1,0 +1,13 @@
+// bootstrap: determinism_state — 确定性状态机
+
+Point state_init = (0, 3);        // 初始状态
+Point state_active = (1, 2);      // 活跃状态
+Point state_terminal = (2, 1);    // 终态
+Point state_error = (3, 0);       // 错误状态
+
+Constraint trans_deterministic(state, event) = unique next_state;
+Constraint event_ordering(e1, e2) = (timestamp(e1) < timestamp(e2));
+Constraint no_ambiguous_path(state_active) = |outgoing| = 1;
+
+Prove;
+Normalize;

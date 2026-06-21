@@ -1,0 +1,13 @@
+// bootstrap: visual_data — 可视化数据: 视口坐标+颜色+样式
+
+Point viewport_origin = (0, 0);
+Point viewport_extent = (1920, 1080);
+
+Constraint world_to_screen(p_world) = scale * (p_world - offset);
+Constraint color_schema: point=#FF6B35, line=#004E89, fill=#1A936F;
+Constraint style_linewidth(default) = 2px;
+Constraint style_pointsize(default) = 4px;
+Constraint data_binding(geom_entity, visual_style) = 1-1 mapping;
+
+Prove;
+Normalize;

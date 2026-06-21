@@ -1,0 +1,11 @@
+// bootstrap: view_synchronizer — 四视图同步: 几何/文本/证明/块
+
+Point ViewKind := Geometry | Text | Proof | Block;
+Point ViewState := { kind: ViewKind, content: SemanticIR, cursor: Position };
+Point SyncEvent := ViewChanged | SelectionChanged | CursorMoved;
+
+Constraint QuadSync: forall v1 v2: ViewState, e: SyncEvent.
+  same_entity(v1, v2) /\ fire(e, v1) = v1' -> exists v2': fire(corresponding(e, v2.kind), v2) = v2' /\ consistent(v1', v2');
+
+Prove QuadSync;
+Normalize;

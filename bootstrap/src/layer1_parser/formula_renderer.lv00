@@ -1,0 +1,19 @@
+// bootstrap: formula_renderer — 公式渲染为 SVG/PNG
+
+// 渲染目标格式
+Point render_input = (0, 2);     // 输入公式（规范化后）
+Point render_svg = (1, 1);       // SVG 矢量输出
+Point render_png = (2, 0);       // PNG 位图输出
+
+// 渲染管线
+Constraint render_to_svg(render_input) = render_svg;
+Constraint render_to_png(render_input) = render_png;
+Constraint svg_to_png(render_svg, render_png);    // SVG 可栅格化为 PNG
+
+// 渲染保真度
+Constraint render_fidelity(render_input, render_svg);   // 语义保真
+Constraint render_fidelity(render_input, render_png);   // 位图保真
+Constraint render_dpi(render_png) >= 96;                 // 最低 96 DPI
+
+Prove;
+Normalize;

@@ -1,0 +1,13 @@
+// bootstrap: preset_group_theory — 群论预设: 公理/子群/同态
+
+Point GroupPreset := Association | Identity | Inverse | Closure;
+Point Group := { carrier: Set, op: BinOp, axioms: List<GroupPreset> };
+Point Subgroup := { parent: Group, subset: Set, closed_under_op: Bool };
+Point GroupHomomorphism := { domain: Group, codomain: Group, map: Function };
+
+Constraint SubgroupTest: forall G: Group, H: Set.
+  H subset G.carrier /\ nonempty(H) /\ (forall a b in H, G.op(a, inv(b)) in H) ->
+  is_subgroup((G, H));
+
+Prove SubgroupTest;
+Normalize;

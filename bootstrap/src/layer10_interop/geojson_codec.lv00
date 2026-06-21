@@ -1,0 +1,11 @@
+// bootstrap: geojson_codec — GeoJSON编解码
+
+Point GeoJSONFeature := { geometry: Geometry, properties: Props, proof_id: Option<UUID> };
+Point GeoJSONExport := { features: List<GeoJSONFeature>, crs: CRS, metadata: MetaBlock };
+
+Constraint GeoJSONFidelity: forall nodes: List<GeoNode>.
+  export_geojson(nodes) = ok(gj) /\ import_geojson(gj) = ok(nodes') ->
+    geometric_congruent(nodes, nodes');
+
+Prove GeoJSONFidelity;
+Normalize;

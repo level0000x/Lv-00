@@ -1,0 +1,12 @@
+// bootstrap: proof_rule_engine — 证明规则引擎: 前向+后向链
+
+Rule ModusPonens: A, A=>B |- B;
+Rule AndIntro:    A, B     |- A&B;
+Rule OrElim:      A|B, ~A  |- B;
+
+Constraint ForwardChain(facts, rules) => new_facts;   // 前向链
+Constraint BackwardChain(goal, rules)  => proof_tree; // 后向链
+Constraint SearchStrategy: BFS | DFS | Heuristic;     // 搜索策略
+
+Prove;
+Normalize;

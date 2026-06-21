@@ -1,0 +1,11 @@
+// bootstrap: svg_export — SVG导出
+
+Point SVGConfig := { width: Nat, height: Nat, grid: Bool, labels: Bool, css_theme: String };
+Point SVGPath := { commands: List<PathCmd>, stroke: Color, fill: Color, stroke_width: Real };
+Point SVGResult := { svg_xml: String, view_box: Rect, layers: List<SVGLayer> };
+
+Constraint SVGFidelity: forall nodes: List<GeoNode>, cfg: SVGConfig.
+  render_svg(nodes, cfg) = ok(svg) -> geometric_congruent(nodes, svg);
+
+Prove SVGFidelity;
+Normalize;

@@ -1,0 +1,11 @@
+// bootstrap: output_manager — 输出管理器: JSON/LaTeX/DOT多格式
+
+Point OutputFormat := JSON | LaTeX | DOT | SVG | GeoJSON | OPML;
+Point OutputConfig := { fmt: OutputFormat, pretty: Bool, theorem_ref: Bool };
+Point OutputResult := Result<FormattedDoc, OutputError>;
+
+Constraint OutputManager_invariant: forall cfg: OutputConfig.
+  valid_format(cfg.fmt) -> produces_wellformed(cfg);
+
+Prove OutputManager_invariant;
+Normalize;

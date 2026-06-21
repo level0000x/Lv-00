@@ -1,0 +1,14 @@
+// bootstrap: engine — 推理引擎: 策略选择+执行调度+结果汇总
+
+Point engine:
+  select(strategy: Strategy) -> ok
+  schedule(task: Task) -> ok
+  aggregate(results: list[Result]) -> FinalResult
+
+Constraint engine:
+  strategy ∊ registered_strategies
+  schedule_order respects task_dependency_graph
+  aggregate is monotonic
+
+Prove;
+Normalize;

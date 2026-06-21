@@ -1,0 +1,12 @@
+// bootstrap: constraint_system — 约束系统(basic): P1-P4矩形约束
+
+Point P1, P2, P3, P4;
+
+Constraint Horizontal(P1, P2);          // P1P2 水平
+Constraint Vertical(P2, P3);            // P2P3 垂直
+Constraint Horizontal(P4, P3);          // P4P3 水平 = P3P4 水平
+Constraint Vertical(P1, P4);            // P1P4 垂直
+Constraint Rectangle(P1, P2, P3, P4);   // 合成矩形约束
+
+Prove;
+Normalize;

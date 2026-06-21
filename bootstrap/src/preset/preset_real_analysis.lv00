@@ -1,0 +1,15 @@
+// bootstrap: preset_real_analysis — 实分析预设
+
+Point R = (real line);              // 实数轴
+Point eps_delta = eps;              // epsilon-delta 范式
+
+Constraint limit(f, a, L):
+  forall eps > 0, exists delta > 0, |x-a| < delta => |f(x)-L| < eps;
+Constraint continuity(f, a): limit(f, a, f(a));
+Constraint derivative(f, a) = limit(h->0, (f(a+h)-f(a))/h);
+Constraint integral_riemann(f, a, b) = limit step -> 0 sum partition;
+Constraint taylor(f, a, n) = sum_{k=0}^n (f^{(k)}(a)/k!)(x-a)^k;
+Constraint supremum(S) = min {u | u >= s forall s in S};
+
+Prove;
+Normalize;

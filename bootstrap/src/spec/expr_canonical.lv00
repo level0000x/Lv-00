@@ -1,0 +1,17 @@
+// bootstrap: expr_canonical — 表达式规范形式 (core/include/lv00/expr_canonical.h)
+
+// 规范形式坐标：有序空间中的项排布
+Point canon_origin = (0, 0);
+Point canon_term = (1, 0);
+
+// 项排序规则
+Constraint total_order(operators);       // 操作符全序
+Constraint lexicographic(terms);         // 项字典序
+Constraint sort_by_degree(variables);     // 变量按度排序
+
+// 规范形式不变量
+Constraint invariant_canonical(expr) = canon_origin;  // 等价表达式映射到同一规范形式
+Constraint invariant_idempotent(expr);                 // canon(canon(e)) = canon(e)
+
+Prove;
+Normalize;

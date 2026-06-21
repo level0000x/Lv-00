@@ -1,0 +1,22 @@
+// bootstrap: global_state — 全局状态管理
+
+// 全局状态单例
+Point state_root = (0, 0);          // 全局状态根
+
+// 状态分层
+Point state_config = (0, 3);        // 配置状态
+Point state_runtime = (0, 2);       // 运行时状态
+Point state_cache = (0, 1);         // 缓存状态
+
+// 访问约束
+Constraint state_singleton(state_root);               // 全局唯一实例
+Constraint state_readonly(state_config);              // 配置只读
+Constraint state_threadsafe(state_runtime);           // 运行时线程安全
+Constraint state_invalidate(state_cache, state_runtime); // 运行时变更 -> 缓存失效
+
+// 状态生命周期
+Constraint init_order(state_config, state_cache, state_runtime);  // 初始化顺序
+Constraint cleanup_order(state_runtime, state_cache, state_config); // 清理逆序
+
+Prove;
+Normalize;

@@ -1,0 +1,10 @@
+// bootstrap: approx_counter — 近似计数
+
+Point approx = (0, 2);
+Constraint count_estimate(N, eps) = (true_count - eps <= N <= true_count + eps);
+Constraint count_error_rate(eps) = |true_count - estimate| / max(1, true_count);
+Constraint merge_counters(c1, c2) = c1.estimate + c2.estimate;
+Constraint counter_capacity(max) = 2^16;  // 16-bit Morris counter
+
+Prove;
+Normalize;

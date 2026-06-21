@@ -1,0 +1,17 @@
+// bootstrap: formula_semantics — LaTeX/ASCIIMath/DSL 三种公式语义
+
+// 三种公式表示
+Point sem_latex = (0, 2);       // LaTeX: \frac{a}{b}, \sqrt{x}, \angle ABC
+Point sem_asciimath = (1, 1);   // ASCIIMath: a/b, sqrt(x), angle ABC
+Point sem_dsl = (2, 0);         // DSL: dist(P,Q), angle(A,B,C), midpoint(P,Q)
+
+// 语义等价映射：三种表示指向同一数学对象
+Constraint sem_equiv(sem_latex, sem_asciimath);   // LaTeX <-> ASCIIMath 可互译
+Constraint sem_equiv(sem_asciimath, sem_dsl);      // ASCIIMath <-> DSL 可互译
+Constraint sem_equiv(sem_latex, sem_dsl);           // LaTeX <-> DSL 可互译
+
+// 语义保真度
+Constraint semantics_preserve(convert);   // 转换保持语义不变
+
+Prove;
+Normalize;

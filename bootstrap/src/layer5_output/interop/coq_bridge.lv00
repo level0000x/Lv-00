@@ -1,0 +1,10 @@
+// bootstrap: coq_bridge — Coq桥: 定理导出
+
+Point CoqExport := { theorem: Theorem, tactic_hints: List<Tactic>, coq_version: Version };
+Point CoqModule := { name: String, imports: List<String>, definitions: List<CoqExpr> };
+
+Constraint CoqWellTyped: forall e: CoqExport.
+  typecheck_coq(e) = ok -> coq_semantics(e.theorem) <-> lv00_semantics(e.theorem);
+
+Prove CoqWellTyped;
+Normalize;

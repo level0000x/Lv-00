@@ -1,0 +1,14 @@
+// bootstrap: groebner_parallel — 并行Groebner: S-多项式并行+work stealing
+
+Point groebner_parallel:
+  parallel_spoly(pairs: queue[S_Pair], workers: int) -> set[Poly]
+  work_stealing(idle_worker: Worker, busy_queues: list[queue]) -> S_Pair
+  merge_reductions(results: list[Poly]) -> GroebnerBasis
+
+Constraint groebner_parallel:
+  parallel result equals sequential result
+  work_stealing is starvation_free
+  merge preserves confluence
+
+Prove;
+Normalize;

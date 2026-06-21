@@ -1,0 +1,11 @@
+// bootstrap: layer10_interop — 互操作桥: Coq/Lean4/OPML
+
+Point InteropTarget := Coq | Lean4 | OPML | GeoJSON | SVG;
+Point InteropBridge := { source: SemanticIR, target: InteropTarget, opts: BridgeOpts };
+Point BridgeResult := { code: String, proofs: List<ProofStub>, metadata: MetaBlock };
+
+Constraint BridgeFidelity: forall b: InteropBridge, s: SemanticIR.
+  bridge(s, b) = ok -> semantics_preserved(s, b.code);
+
+Prove BridgeFidelity;
+Normalize;

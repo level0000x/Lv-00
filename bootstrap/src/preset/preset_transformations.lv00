@@ -1,0 +1,15 @@
+// bootstrap: preset_transform — 变换预设(平移/旋转/反射/缩放)
+
+Point TransformKind := Translate | Rotate | Reflect | Scale | Shear;
+Point Transform2D := { kind: TransformKind, matrix: Mat3, inverse: Mat3 };
+Point TransformedObj := { original: GeoObj, t: Transform2D, result: GeoObj };
+
+Constraint TransformInvertible: forall t: Transform2D.
+  compose(t.matrix, t.inverse) = identity_3x3;
+
+Constraint TransformPreserveCollinear: forall A B C: Point, t: Transform2D.
+  collinear(A,B,C) -> collinear(t(A), t(B), t(C));
+
+Prove TransformInvertible;
+Prove TransformPreserveCollinear;
+Normalize;

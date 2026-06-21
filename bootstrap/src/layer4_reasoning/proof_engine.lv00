@@ -1,0 +1,14 @@
+// bootstrap: proof_engine — 增强证明: 多策略+元证明
+
+Point proof_engine:
+  solve(goal: Goal, strategies: list[Strategy]) -> ProofResult
+  meta_prove(theorem: Theorem, level: int) -> MetaProof
+  reflect(proof: Proof) -> Reflection
+
+Constraint proof_engine:
+  strategies are applied in priority order
+  meta_prove depth ≤ max_meta_depth
+  reflection is sound and complete
+
+Prove;
+Normalize;

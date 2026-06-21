@@ -1,0 +1,18 @@
+// bootstrap: constraint_system_spec — 约束系统语义规格 (core/include/lv00/constraint_graph.h)
+
+// 约束图节点：变量与约束交替构成二分图
+Point graph_var = (0, 1);
+Point graph_cons = (1, 0);
+
+// 基本不变量
+Constraint inv_bipartite(graph_var, graph_cons);     // 二分图结构
+Constraint inv_no_self_loop(graph_cons);              // 无自环
+Constraint inv_connected(graph_var, graph_cons);      // 连通性保证
+Constraint inv_degree_bound(graph_var) = 64;          // 每变量最多关联 64 约束
+
+// 约束图拓扑
+Point constraint_root = (0, 0);
+Constraint rooted_at(graph_var, constraint_root);
+
+Prove;
+Normalize;

@@ -1,0 +1,10 @@
+// bootstrap: lean4_bridge — Lean4桥: 形式化导出
+
+Point Lean4Export := { decl: Theorem, elaborator_hints: List<String>, lean_version: Version };
+Point Lean4Env := { open_namespaces: List<String>, axioms: List<Axiom> };
+
+Constraint Lean4Soundness: forall e: Lean4Export.
+  lean_elaborate(e) = ok -> lean4_provable(e.decl) -> lv00_provable(e.decl);
+
+Prove Lean4Soundness;
+Normalize;

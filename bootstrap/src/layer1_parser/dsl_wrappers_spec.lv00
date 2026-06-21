@@ -1,0 +1,19 @@
+// bootstrap: dsl_wrappers_spec — 6 个几何包装器
+
+// 6 个包装器作为几何语义原语
+Point wrapper_dist = (0, 5);         // dist(P, Q) — 两点距离
+Point wrapper_midpoint = (1, 4);     // midpoint(P, Q) — 中点
+Point wrapper_collinear = (2, 3);    // collinear(A, B, C) — 三点共线
+Point wrapper_perpendicular = (3, 2);// perpendicular(L1, L2) — 两线垂直
+Point wrapper_parallel = (4, 1);     // parallel(L1, L2) — 两线平行
+Point wrapper_angle = (5, 0);        // angle(A, B, C) — ∠ABC 角
+
+// 包装器语义等效性
+Constraint dist_symmetry(dist(P,Q), dist(Q,P));            // 距离对称
+Constraint midpoint_identity(midpoint(P,Q), midpoint(Q,P)); // 中点对称
+Constraint collinear_permute(collinear(A,B,C), collinear(B,C,A)); // 共线旋转不变
+Constraint perpendicular_symmetry(perp(L1,L2), perp(L2,L1));     // 垂直对称
+Constraint parallel_transitivity(par(L1,L2), par(L2,L3), par(L1,L3)); // 平行传递
+
+Prove;
+Normalize;

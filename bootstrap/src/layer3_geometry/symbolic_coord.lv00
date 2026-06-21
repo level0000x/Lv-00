@@ -1,0 +1,12 @@
+// bootstrap: symbolic_coord — 符号坐标: 精确有理+sqrt+符号表达式
+
+Symbolic X = sqrt(2);                // 无理数符号
+Coord P = (1/3, sqrt(3)/2);          // 精确有理+根式坐标
+
+Constraint Dist(A, B) => sqrt((Ax-Bx)^2 + (Ay-By)^2);
+Constraint SymbolicEval(expr, env) => val;
+Constraint Simplify(expr) => canonical_form;  // 符号化简
+Constraint ExactRotate(P, angle=pi/3) => P';  // 精确旋转变换
+
+Prove;
+Normalize;

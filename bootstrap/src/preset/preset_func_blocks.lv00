@@ -1,0 +1,14 @@
+// bootstrap: preset_func_blocks — 函数块预设: init/metadata/instantiate/list
+
+Point FuncBlock := Init | Metadata | Instantiate | List | Inspect | Delete | Update | Archive;
+Point FuncBlockSpec := { name: String, params: List<Param>, body: MExpr, returns: MType };
+
+Constraint FuncBlockIdempotent: forall fb: FuncBlock.
+  apply(Init, spec) = ok -> apply(Init, spec) = err(AlreadyInit);
+
+Constraint MetadataComplete: forall spec: FuncBlockSpec.
+  metadata_present(spec) -> well_typed(spec);
+
+Prove FuncBlockIdempotent;
+Prove MetadataComplete;
+Normalize;

@@ -1,0 +1,12 @@
+// bootstrap: sym_expr — 符号表达式: 树形AST+简化
+
+Expr e1 = Add(Mul(3, x), Pow(x, 2));    // AST: 3*x + x^2
+Expr e2 = Mul(Add(x, 1), Add(x, 1));    // AST: (x+1)*(x+1)
+
+Constraint Simplify(e1) => canonical;    // 规范化简
+Constraint Expand(e2)  => expanded;      // 展开
+Constraint Evaluate(e, env) => val;      // 环境求值
+Constraint Derivative(e, x) => de/dx;    // 符号微分
+
+Prove;
+Normalize;

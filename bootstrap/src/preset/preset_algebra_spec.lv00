@@ -1,0 +1,11 @@
+// bootstrap: preset_algebra_spec — 代数预设(多项式/方程)
+
+Point Polynomial := { coeffs: List<Real>, degree: Nat, variable: Var };
+Point Equation := { lhs: Polynomial, rhs: Polynomial };
+Point AlgebraPresetRule := Factor | Expand | Solve | Substitute;
+
+Constraint PolyEqSolve: forall eq: Equation.
+  solve(eq) = roots -> forall r in roots, eval(eq.lhs, r) = eval(eq.rhs, r);
+
+Prove PolyEqSolve;
+Normalize;

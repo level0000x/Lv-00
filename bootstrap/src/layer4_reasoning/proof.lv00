@@ -1,0 +1,14 @@
+// bootstrap: proof — 证明引擎: hypothesis→lemma→goal 链
+
+Point proof:
+  assume(h: Hypothesis) -> Context
+  lemma(name: str, statement: Prop, pf: Proof) -> Lemma
+  goal(target: Prop) -> Goal
+
+Constraint proof:
+  lemma.proof is valid in lemma.context
+  goal is derivable from context ∪ lemmas
+  proof_chain: hypothesis → lemma* → goal
+
+Prove;
+Normalize;

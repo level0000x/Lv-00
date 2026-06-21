@@ -1,0 +1,14 @@
+// bootstrap: func_block — 函数块系统: 输入/输出/中间约束
+
+Point func_block:
+  define(input: Type, output: Type, body: Expr) -> FuncBlock
+  compose(f: FuncBlock, g: FuncBlock) -> FuncBlock
+
+Constraint func_block:
+  input_type matches f.domain
+  output_type matches f.codomain
+  body respects well_formedness
+  compose is associative
+
+Prove;
+Normalize;

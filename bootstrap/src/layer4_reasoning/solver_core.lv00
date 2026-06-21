@@ -1,0 +1,14 @@
+// bootstrap: solver_core — 求解器核心: Newton-Raphson+梯度下降
+
+Point solver_core:
+  newton_raphson(f, df, x0, tol, max_iter) -> Point
+  gradient_descent(loss, grad, lr, epochs) -> Point
+  line_search(f, direction, step, c) -> float
+
+Constraint solver_core:
+  newton_raphson: |f(x_n)| < tol at convergence
+  gradient_descent: loss decreases monotonically
+  line_search satisfies Wolfe conditions
+
+Prove;
+Normalize;

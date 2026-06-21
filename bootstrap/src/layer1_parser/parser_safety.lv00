@@ -1,0 +1,21 @@
+// bootstrap: parser_safety — 解析器安全保证
+
+// 安全边界
+Point safe_ok = (1, 1);       // 安全状态：正常解析返回
+Point safe_err = (0, 0);      // 安全状态：优雅报错
+
+// 安全不变量
+Constraint no_crash(parse);                      // 任何输入不崩溃
+Constraint no_leak(parse);                        // 无内存泄漏
+Constraint no_undefined_behavior(parse);           // 无未定义行为
+
+// 错误处理
+Constraint graceful_error(syntax_err) = safe_err;  // 语法错误 -> 优雅报错
+Constraint graceful_error(bounds_err) = safe_err;  // 越界错误 -> 优雅报错
+Constraint graceful_error(overflow_err) = safe_err; // 溢出错误 -> 优雅报错
+
+// 解析器状态
+Constraint parser_state(safe_ok, safe_err);        // 状态互斥且完备
+
+Prove;
+Normalize;

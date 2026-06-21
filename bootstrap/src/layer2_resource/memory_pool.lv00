@@ -1,0 +1,23 @@
+// bootstrap: memory_pool — 内存池 Arena Allocator
+
+// Arena 结构
+Point arena_head = (0, 0);           // Arena 起始
+Point arena_current = (4, 0);        // 当前分配位置
+Point arena_end = (8, 0);            // Arena 末尾
+
+// 分配语义
+Constraint arena_alloc(size) = arena_current;          // 分配推进 current
+Constraint arena_bound(arena_current, arena_end);       // current <= end
+Constraint arena_reset(arena_current, arena_head);      // 重置回到 head
+
+// 不变量
+Constraint inv_no_overlap(arena_head, arena_end);       // 分配不重叠
+Constraint inv_alignment(arena_current) = 16;            // 16 字节对齐
+Constraint inv_zero_init(arena_head, arena_current);     // 惰性零初始化
+
+// Arena 链
+Point next_arena = (12, 0);
+Constraint chain_grow(arena_end, next_arena);            // 超限链式扩容
+
+Prove;
+Normalize;

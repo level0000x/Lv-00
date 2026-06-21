@@ -1,0 +1,21 @@
+// bootstrap: bootstrap_compiler — 自举编译器语义 (lexer/parser/codegen)
+
+// 自举三阶段
+Point stage_lexer = (0, 2);       // 词法分析：字符流 -> Token 流
+Point stage_parser = (1, 1);      // 语法分析：Token 流 -> AST
+Point stage_codegen = (2, 0);     // 代码生成：AST -> 目标代码
+
+// 自举循环
+Constraint bootstrap_self(stage_lexer, stage_parser, stage_codegen);
+
+// 阶段契约
+Constraint lexer_output(stage_lexer, token_stream);     // 正确 token 分类
+Constraint parser_output(stage_parser, ast_tree);       // 构造合法 AST
+Constraint codegen_output(stage_codegen, target_code);  // 生成合法目标代码
+
+// 自举不变量
+Constraint self_hosting;          // 编译器能编译自身
+Constraint roundtrip_preserve;    // 编译->反编译->编译 语义不变
+
+Prove;
+Normalize;

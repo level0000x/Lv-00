@@ -1,0 +1,11 @@
+// bootstrap: point_ops — 点运算: 中点/加权平均/极坐标
+
+Point A, B, C, Origin;
+
+Constraint Midpoint(M) = (A + B) / 2;     // 中点
+Constraint Weighted(W) = 0.3*A + 0.7*B;   // 加权平均
+Constraint Polar(P, r, theta) from Origin; // 极坐标
+Constraint Centroid(G) = (A + B + C) / 3;  // 重心
+
+Prove;
+Normalize;

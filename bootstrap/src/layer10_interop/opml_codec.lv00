@@ -1,0 +1,11 @@
+// bootstrap: opml_codec — OPML编解码
+
+Point OPMLNode := { text: String, note: Option<String>, children: List<OPMLNode>, isTheorem: Bool };
+Point OPMLDoc := { head: OPMLHead, body: OPMLBody, proof_chains: List<ProofOutline> };
+
+Constraint OPMLRoundtrip: forall ir: SemanticIR.
+  lv00_to_opml(ir) = ok(doc) /\ opml_to_lv00(doc) = ok(ir') ->
+    semantics_eq(ir, ir');
+
+Prove OPMLRoundtrip;
+Normalize;

@@ -1,0 +1,14 @@
+// bootstrap: bdd_encoding — BDD编码: ROBDD+ITE
+
+Point bdd_encoding:
+  robdd(bexpr: BoolExpr, var_order: list[Var]) -> BDD
+  ite(cond: BDD, then: BDD, else_: BDD) -> BDD
+  apply(op: BoolOp, a: BDD, b: BDD) -> BDD
+
+Constraint bdd_encoding:
+  robdd is reduced and ordered (canonical)
+  ite is exhaustive: every boolean op expressible
+  apply preserves reduced_ordered property
+
+Prove;
+Normalize;
