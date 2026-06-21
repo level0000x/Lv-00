@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 自有理论核心：公理包依赖验证模型
 [QA] TODO: split by package (currently ~1402 lines, threshold 500)
 

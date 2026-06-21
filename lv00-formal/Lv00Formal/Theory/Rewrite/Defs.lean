@@ -40,14 +40,14 @@ def applySubst (σ : Substitution) : Term → Term
 /-- 空替换保持项不变。 -/
 theorem apply_emptySubst (t : Term) :
     applySubst emptySubst t = t := by
-  induction t with
+  cases t with
   | const n => rfl
   | var v => rfl
-  | app f args ih =>
+  | app f args =>
     simp [applySubst]
     induction args with
     | nil => rfl
-    | cons a as ih' => simp [ih a (by simp), ih']
+    | cons a as ih => simp [ih]
 
 end Rewrite
 end Theory
