@@ -19,14 +19,19 @@ Lv-00 WebSocket 服务器模块
 作者：Lv-00 开发团队
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Any, Dict, List, Set
+from typing import TYPE_CHECKING, Optional, Callable, Any, Dict, List, Set
 
-from .stream_bridge import EngineBridge, StreamEvent
+from ._stream_types import StreamEvent, WEBSOCKETS_AVAILABLE
+
+if TYPE_CHECKING:
+    from .stream_bridge import EngineBridge
 
 logger = logging.getLogger('stream_bridge')
 
@@ -37,9 +42,10 @@ logger = logging.getLogger('stream_bridge')
 try:
     import websockets
     from websockets.server import serve, WebSocketServerProtocol
-    WEBSOCKETS_AVAILABLE = True
 except ImportError:
-    WEBSOCKETS_AVAILABLE = False
+    websockets = None
+    serve = None
+    WebSocketServerProtocol = None
     logger.warning("websockets 库未安装，WebSocket 功能不可用。安装: pip install websockets")
 
 
