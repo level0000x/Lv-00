@@ -17,25 +17,24 @@
 
 typedef struct Coord Coord;
 
-Coord*  coord_create(double x, double y);
+Coord*  coord_create(const char* x_str, const char* y_str);
 void    coord_destroy(Coord* c);
 Coord*  coord_dup(const Coord* src);
 Coord*  coord_add(const Coord* a, const Coord* b);
 Coord*  coord_sub(const Coord* a, const Coord* b);
-Coord*  coord_mul(const Coord* a, double scalar);
-Coord*  coord_div(const Coord* a, double scalar);
+Coord*  coord_mul(const Coord* a, const mpq_t scalar);
+Coord*  coord_div(const Coord* a, const mpq_t scalar);
 int     coord_eq(const Coord* a, const Coord* b);
 int     coord_ne(const Coord* a, const Coord* b);
 int     coord_lt(const Coord* a, const Coord* b);
 int     coord_le(const Coord* a, const Coord* b);
 int     coord_gt(const Coord* a, const Coord* b);
 int     coord_ge(const Coord* a, const Coord* b);
-double  coord_to_double(const Coord* c);
-double  coord_distance(const Coord* a, const Coord* b);
+void    coord_dist_sq(mpq_t result, const Coord* a, const Coord* b);
 Coord*  coord_midpoint(const Coord* a, const Coord* b);
 Coord*  coord_normalize(const Coord* c);
-double  coord_dot(const Coord* a, const Coord* b);
-double  coord_cross(const Coord* a, const Coord* b);
+void    coord_dot(mpq_t result, const Coord* a, const Coord* b);
+void    coord_cross(mpq_t result, const Coord* a, const Coord* b);
 Coord*  coord_rotate(const Coord* c, double angle);
 Coord*  coord_from_polar(double r, double theta);
 int     coord_to_string(const Coord* c, char* buf, size_t bufsz);
@@ -61,7 +60,6 @@ int       rational_lt(const Rational* a, const Rational* b);
 int       rational_le(const Rational* a, const Rational* b);
 int       rational_gt(const Rational* a, const Rational* b);
 int       rational_ge(const Rational* a, const Rational* b);
-double    rational_to_double(const Rational* r);
 Rational* rational_abs(const Rational* r);
 Rational* rational_neg(const Rational* r);
 Rational* rational_inv(const Rational* r);
@@ -102,7 +100,7 @@ typedef struct Expr Expr;
 
 Expr*  expr_create(const char* s);
 void   expr_destroy(Expr* e);
-double expr_eval(Expr* e);
+int    expr_eval(mpq_t result, Expr* e, const char** varnames, const mpq_t* values, int nvars);
 Expr*  expr_simplify(Expr* e);
 Expr*  expr_clone(const Expr* e);
 int    expr_is_constant(const Expr* e);
@@ -112,7 +110,7 @@ Expr*  expr_add(const Expr* a, const Expr* b);
 Expr*  expr_sub(const Expr* a, const Expr* b);
 Expr*  expr_mul(const Expr* a, const Expr* b);
 Expr*  expr_div(const Expr* a, const Expr* b);
-int    expr_compare(const Expr* a, const Expr* b);
+int    expr_compare(Expr* a, Expr* b, const char** varnames, const mpq_t* values, int nvars);
 int    expr_to_string(const Expr* e, char* buf, size_t bufsz);
 
 /* ================================================================
