@@ -1,0 +1,1 @@
+digraph G{rankdir=LR;n1[label="A"];n2[label="B"];n3[label="C"];n1->n2;n1->n3;n2->n3;}

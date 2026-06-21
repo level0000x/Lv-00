@@ -1,0 +1,6 @@
+name = "Lv00Formal"
+version = "0.1.0"
+defaultTargets = ["Lv00Formal"]
+
+[[lean_lib]]
+name = "Lv00Formal"

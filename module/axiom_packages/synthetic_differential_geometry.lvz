@@ -1,0 +1,325 @@
+# =============================================================================
+# Lv-00 Axiom Package: Synthetic Differential Geometry (SDG)
+# =============================================================================
+#
+# Mathematical Theory: Synthetic Differential Geometry
+#   A reformulation of differential geometry in the language of topos theory.
+#   Developed by Lawvere, Kock, and others in the 1960s-1980s.
+#   Allows "synthetic" reasoning about differential geometry, similar to how
+#   Euclidean geometry allows synthetic reasoning about distances and angles.
+#
+# References:
+#   - Wikipedia: Synthetic differential geometry
+#     https://en.wikipedia.org/wiki/Synthetic_differential_geometry
+#   - Kock, A. (2006). "Synthetic Differential Geometry" (2nd ed.).
+#     Cambridge University Press. ISBN: 978-0521687386.
+#   - Lavendhomme, R. (1996). "Basic Concepts of Synthetic Differential
+#     Geometry". Springer-Verlag.
+#   - Lawvere, F.W. (1998). "Outline of Synthetic Differential Geometry".
+#     Available at: https://raw.githubusercontent.com/mattearnshaw/lawvere/master/pdfs/1998-outline-of-synthetic-differential-geometry.pdf
+#
+# Primitive Notions:
+#   Smooth space: An object in the category of smooth loci
+#   Smooth map: A morphism between smooth spaces
+#   Infinitesimal object: Objects like D = {d | d² = 0} (dual numbers)
+#   Tangent vector: An element of the tangent bundle at a point
+#   Differential form: Sections of the cotangent bundle
+#
+# Core Axioms (7):
+#   SDG1. Weil Algebra: The category has infinitesimal objects D(V) for
+#          finite-dimensional vector spaces V, with good categorical properties
+#   SDG2. Kock-Lawvere: There is a natural isomorphism between tangent
+#          vectors at a point and R-linear derivations on the algebra of
+#          germs of smooth functions at that point
+#   SDG3. Microaffinity: Functions on infinitesimal objects are affine linear
+#   SDG4. Fibration: There is a tangent bundle functor T: SmoothSpace -> SmoothSpace
+#   SDG5. Weil Functor: There are "infinitesimal thickening" functors W_A
+#   SDG6. Differential Forms: There is a cotangent bundle Ω^1 with good properties
+#   SDG7. Integration: There is a notion of integration along infinitesimal paths
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-28
+# Version: 1.0.0
+# =============================================================================
+
+axiom "synthetic_differential_geometry" "1.0.0" {
+
+    # =================================================================
+    # Group I: Weil Algebras and Infinitesimal Objects (6)
+    # =================================================================
+    # Weil algebras are R-algebras of the form R[x₁,...,xₙ]/(monomials of
+    # degree > k). They model infinitesimal objects in SDG.
+    # The key insight is that the category of "smooth loci" is equivalent
+    # to the category of certain R-algebras (C^\infty-rings).
+    # =================================================================
+
+    # The dual numbers D = R[ε]/(ε²) are the simplest nontrivial infinitesimal
+    # object. Elements are of the form a + bε where a,b ∈ R and ε² = 0.
+    # Params: none (this is a constant infinitesimal object)
+    template "dual_numbers" 0
+
+    # A Weil algebra A is a real algebra with nilpotent elements such that
+    # A/N ≅ R where N is the nilradical. Monomials of degree > k vanish.
+    # Params: dimension n, nilpotency degree k
+    template "weil_algebra" 2
+
+    # The infinitesimal object D(V) associated to a vector space V:
+    # D(V) = {v ∈ V | v² = 0} for appropriate square operation.
+    # Params: vector space V
+    template "infinitesimal_object" 1
+
+    # The tangent bundle of the infinitesimal line: T(D) ≅ D × D.
+    # This is the first example of a nontrivial infinitesimal thickening.
+    # Params: none
+    template "tangent_dual_numbers" 0
+
+    # Microaffine maps: A map f: D(V) -> D(W) is determined by its linear
+    # part (the derivative) since higher-order terms vanish.
+    # Params: source infinitesimal object D(V), target D(W), map f
+    template "microaffine_map" 3
+
+    # The nilpotent neighborhood: For a point x in a smooth space M,
+    # the nilpotent neighborhood M_x is the fiber of M over x in the
+    # topos of smooth spaces.
+    # Params: smooth space M, point x
+    template "nilpotent_neighborhood" 2
+
+    # =================================================================
+    # Group II: Kock-Lawvere Axiom and Tangent Vectors (5)
+    # =================================================================
+    # The Kock-Lawvere axiom is the fundamental correspondence between
+    # differential geometry (tangent vectors) and algebraic geometry
+    # (derivations on function algebras).
+    # =================================================================
+
+    # The Kock-Lawvere isomorphism: For a smooth algebra A and a Weil
+    # algebra A, there is a natural isomorphism:
+    #   Hom_{R-Algebra}(C^\infty(M), A) ≅ M × Der(C^\infty(M), R)
+    # Params: smooth space M, Weil algebra A
+    template "kock_lawvere_isomorphism" 2
+
+    # A tangent vector at a point x in a smooth space M is a derivation
+    # D: C^\infty(M) -> R satisfying D(fg) = f(x)·D(g) + g(x)·D(f).
+    # Params: smooth space M, point x
+    template "tangent_vector" 2
+
+    # The tangent bundle T(M) of a smooth space M is the disjoint union
+    # of all tangent spaces at all points of M.
+    # Params: smooth space M
+    template "tangent_bundle" 1
+
+    # A vector field X on a smooth space M is a smooth assignment of a
+    # tangent vector X_p ∈ T_p(M) to each point p ∈ M.
+    # Params: smooth space M
+    template "vector_field" 1
+
+    # The Lie bracket [X, Y] of two vector fields X, Y is defined by
+    # [X, Y](f) = X(Y(f)) - Y(X(f)) for all smooth functions f.
+    # Params: smooth space M, vector fields X, Y
+    template "lie_bracket" 3
+
+    # =================================================================
+    # Group III: Differential Forms and de Rham Cohomology (5)
+    # =================================================================
+    # In SDG, differential forms are defined as sections of the cotangent
+    # bundle, which has especially nice properties in the synthetic setting.
+    # =================================================================
+
+    # The cotangent space Ω^1_p(M) at a point p ∈ M is the dual of the
+    # tangent space T_p(M).
+    # Params: smooth space M, point p
+    template "cotangent_space" 2
+
+    # The module of differential forms Ω^1(M) is the module of sections
+    # of the cotangent bundle.
+    # Params: smooth space M
+    template "differential_forms" 1
+
+    # The exterior derivative d: Ω^k(M) -> Ω^{k+1}(M) satisfies:
+    # d(dω) = 0 and d(α ∧ β) = dα ∧ β + (-1)^k α ∧ dβ.
+    # Params: smooth space M, differential form ω of degree k
+    template "exterior_derivative" 2
+
+    # The de Rham complex: Ω^0(M) --d--> Ω^1(M) --d--> Ω^2(M) --d--> ...
+    # whose cohomology is the de Rham cohomology H^*_{dR}(M).
+    # Params: smooth space M
+    template "de_rham_complex" 1
+
+    # The de Rham cohomology H^k_{dR}(M) = ker(d_k)/im(d_{k-1}) is
+    # isomorphic to singular cohomology with real coefficients.
+    # Params: smooth space M, degree k
+    template "de_rham_cohomology" 2
+
+    # =================================================================
+    # Group IV: Weil Functors and Jets (5)
+    # =================================================================
+    # Weil functors W_A: SmoothSpace -> SmoothSpace assign to each space
+    # its "A-velocity" or "infinitesimal thickening."
+    # =================================================================
+
+    # The Weil functor W_A(M) for a Weil algebra A is the space of
+    # A-points of M, i.e., Hom(C^\infty(M), A).
+    # Params: smooth space M, Weil algebra A
+    template "weil_functor" 2
+
+    # The jet bundle J^k(M) is the space of k-jets of smooth maps,
+    # which can be expressed as a Weil functor.
+    # Params: smooth space M, order k
+    template "jet_bundle" 2
+
+    # The prolongation of a vector field X to the jet bundle J^k(M).
+    # Params: smooth space M, vector field X, order k
+    template "jet_prolongation" 3
+
+    # The connection on a bundle p: E -> M can be viewed as a map
+    # K: J^1(E) -> T^*(M) ⊗ VE that satisfies certain naturality conditions.
+    # Params: total space E, base space M, connection form K
+    template "connection_form" 3
+
+    # The curvature of a connection K: J^1(E) -> T^*(M) ⊗ VE is the
+    # obstruction to flatness, defined as the Landnser-Resenfeld form.
+    # Params: bundle E, connection K
+    template "curvature_form" 2
+
+    # =================================================================
+    # Group V: Lie Theory in SDG (4)
+    # =================================================================
+    # In SDG, Lie groups and their Lie algebras have synthetic descriptions
+    # that avoid coordinate-dependent constructions.
+    # =================================================================
+
+    # A synthetic Lie group is a smooth space G with a group structure
+    # where multiplication and inversion are smooth maps.
+    # Params: smooth space G
+    template "synthetic_lie_group" 1
+
+    # The Lie algebra Lie(G) of a Lie group G is the tangent space at
+    # the identity, equipped with the Lie bracket.
+    # Params: Lie group G
+    template "lie_algebra" 1
+
+    # The exponential map exp: Lie(G) -> G is defined by following
+    # the integral curve of a left-invariant vector field.
+    # Params: Lie group G, element X in Lie(G)
+    template "exponential_map" 2
+
+    # The adjoint representation Ad: G -> GL(Lie(G)) is given by
+    # conjugation in the group.
+    # Params: Lie group G
+    template "adjoint_representation" 1
+
+    # =================================================================
+    # Group VI: Integration and Cohomology (4)
+    # =================================================================
+    # SDG provides a synthetic framework for integration along
+    # infinitesimal paths and Stokes' theorem.
+    # =================================================================
+
+    # Integration along an infinitesimal path γ: D -> M assigns to
+    # each 1-form ω the integral ∫_γ ω.
+    # Params: smooth space M, path γ: D -> M
+    template "infinitesimal_integration" 2
+
+    # The synthetic Stokes theorem: ∫_M dω = ∫_{∂M} ω for compact
+    # oriented manifolds with boundary.
+    # Params: smooth space M, differential form ω
+    template "stokes_theorem" 2
+
+    # The Poincaré lemma in SDG: On a contractible infinitesimal
+    # neighborhood, every closed form is exact.
+    # Params: smooth space M, closed form ω
+    template "synthetic_poincare_lemma" 2
+
+    # Synthetic de Rham cohomology is defined as the cohomology of the
+    # de Rham complex, without requiring infinite limits.
+    # Params: smooth space M
+    template "synthetic_de_rham_cohomology" 1
+
+    # =================================================================
+    # Group VII: Fiber Bundles and Connections (4)
+    # =================================================================
+    # Fiber bundles and connections have especially nice descriptions
+    # in SDG due to the good behavior of infinitesimal objects.
+    # =================================================================
+
+    # A fiber bundle p: E -> M in SDG is a surjective smooth map where
+    # locally E ≅ M × F for some typical fiber F.
+    # Params: total space E, base space M, fiber F
+    template "fiber_bundle" 3
+
+    # A principal G-bundle P -> M has a free transitive G-action.
+    # Params: principal bundle P, base space M, structure group G
+    template "principal_bundle" 3
+
+    # The connection on a principal bundle assigns to each point a
+    # horizontal subspace of the tangent space.
+    # Params: principal bundle P, connection form ω
+    template "principal_connection" 2
+
+    # The holonomy group Hol(ω) ⊆ G of a connection ω on a principal
+    # bundle P is the group of transformations induced by parallel
+    # transport around loops.
+    # Params: principal bundle P, connection ω
+    template "holonomy_group" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (4)
+    # =================================================================
+    # While SDG provides powerful synthetic tools, some problems
+    # remain unconstructible or undecidable.
+    # =================================================================
+
+    unconstructible "smooth_manifold_classification" {
+        reduces_to "undecidable"
+        dependency "tangent_bundle"
+        dependency "differential_forms"
+        dependency "jet_bundle"
+        external_ref "https://en.wikipedia.org/wiki/Differentiable_manifold"
+        green_verified true
+    }
+
+    unconstructible "riemannian_metric_existence" {
+        reduces_to "axiom_of_choice"
+        dependency "tangent_bundle"
+        dependency "cotangent_space"
+        dependency "exterior_derivative"
+        external_ref "https://en.wikipedia.org/wiki/Riemannian_manifold"
+        green_verified false
+    }
+
+    unconstructible "geodesic_completeness" {
+        reduces_to "undecidable"
+        dependency "exponential_map"
+        dependency "connection_form"
+        dependency "tangent_bundle"
+        external_ref "https://en.wikipedia.org/wiki/Geodesic_completeness"
+        green_verified true
+    }
+
+    unconstructible "index_theorem_computation" {
+        reduces_to "undecidable"
+        dependency "curvature_form"
+        dependency "de_rham_cohomology"
+        dependency "connection_form"
+        external_ref "https://en.wikipedia.org/wiki/Atiyah%E2%80%93Singer_index_theorem"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    # The bottom geometry represents the degenerate case in SDG:
+    # a point with no nontrivial infinitesimal structure.
+    #
+    # ⊥ = a point (0-dimensional smooth space) with trivial tangent bundle
+    # ¬ = negation in the topos (complement in the sheaf semantics)
+    # Contradiction: explosion principle holds in classical models;
+    #                in intuitionistic models, contradiction blocks
+    #                proof by contradiction but allows constructive
+    #                refutation.
+    # =================================================================
+
+    bottom_geometry "smooth_loci_topos"
+    negation_encoding "topos_semantic_negation"
+    contradiction_behavior "explosion_principle"
+}

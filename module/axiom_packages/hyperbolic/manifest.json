@@ -1,0 +1,156 @@
+{
+  "$schema": "https://lv00.dev/schemas/package-manifest-v1.json",
+  "name": "hyperbolic_geometry",
+  "version": "1.0.0",
+  "namespace": "hyperbolic",
+  "description": "Hyperbolic geometry -- reuses Euclidean layers 0-3 (absolute geometry), replaces the parallel axiom with the hyperbolic parallel postulate (Lobachevsky form)",
+  "category": "geometry",
+  "author": "Lv-00 Core Team",
+  "license": "MIT",
+  "keywords": ["geometry", "hyperbolic", "lobachevsky", "boleyai", "non-euclidean", "axioms"],
+  "layers": [
+    {
+      "name": "incidence",
+      "description": "Reuses Euclidean Layer 0 (incidence axioms I1-I3)",
+      "order": 0,
+      "axioms": [],
+      "depends_on": [],
+      "inherits_from": {
+        "package": "euclidean_plane",
+        "layer": "incidence",
+        "minimum_version": "1.0.0"
+      },
+      "note": "Incidence axioms are identical in hyperbolic geometry. Points and lines satisfy the same basic relations."
+    },
+    {
+      "name": "order",
+      "description": "Reuses Euclidean Layer 1 (order axioms B1-B4)",
+      "order": 1,
+      "axioms": [],
+      "depends_on": ["incidence"],
+      "inherits_from": {
+        "package": "euclidean_plane",
+        "layer": "order",
+        "minimum_version": "1.0.0"
+      },
+      "note": "Betweenness axioms are identical. The concept of 'between' is unchanged in hyperbolic geometry."
+    },
+    {
+      "name": "congruence",
+      "description": "Reuses Euclidean Layer 2 (congruence axioms C1-C3)",
+      "order": 2,
+      "axioms": [],
+      "depends_on": ["incidence", "order"],
+      "inherits_from": {
+        "package": "euclidean_plane",
+        "layer": "congruence",
+        "minimum_version": "1.0.0"
+      },
+      "note": "Segment congruence axioms are identical. Absolute geometry is preserved up to this layer."
+    },
+    {
+      "name": "continuity",
+      "description": "Reuses Euclidean Layer 3 (Dedekind continuity)",
+      "order": 3,
+      "axioms": [],
+      "depends_on": ["incidence", "order"],
+      "inherits_from": {
+        "package": "euclidean_plane",
+        "layer": "continuity",
+        "minimum_version": "1.0.0"
+      },
+      "note": "Continuity axiom is the same. Both Euclidean and hyperbolic lines are Dedekind-complete."
+    },
+    {
+      "name": "hyperbolic_parallel",
+      "description": "Hyperbolic parallel postulate -- replaces Playfair. Through a point not on a line, there exist INFINITELY MANY lines parallel to the given line.",
+      "order": 4,
+      "axioms": [
+        {
+          "id": "Lobachevsky",
+          "namespace_name": "hyperbolic.Lobachevsky",
+          "name": "Hyperbolic Parallel Postulate",
+          "signature": "forall (A : Point) (l : Line), ~on(A, l) -> exists (m1 m2 : Line), on(A, m1) /\ on(A, m2) /\ m1 != m2 /\ ~intersect(l, m1) /\ ~intersect(l, m2)",
+          "arity": 2,
+          "primitive_relations": ["on", "intersect", "!="],
+          "alternative_names": ["Lobachevsky postulate", "Bolyai-Lobachevsky axiom"],
+          "note": "This axiom asserts the existence of AT LEAST TWO parallels through a point. Combined with the properties of absolute geometry, this implies INFINITELY MANY parallels."
+        }
+      ],
+      "depends_on": ["incidence"],
+      "independence_notes": "The hyperbolic parallel postulate is the negation of Playfair. It is consistent with layers 0-3 (Beltrami-Klein and Poincare disk models prove relative consistency).",
+      "models": [
+        {
+          "name": "Poincare Disk Model",
+          "description": "Points are interior of unit disk; lines are circular arcs orthogonal to boundary",
+          "reference": "Poincare, H. (1882)"
+        },
+        {
+          "name": "Beltrami-Klein Model",
+          "description": "Points are interior of unit disk; lines are Euclidean chords",
+          "reference": "Beltrami, E. (1868); Klein, F. (1871)"
+        },
+        {
+          "name": "Hyperboloid Model",
+          "description": "Points on upper sheet of two-sheeted hyperboloid in Minkowski space",
+          "reference": "Minkowski, H. (1908)"
+        }
+      ]
+    }
+  ],
+  "key_differences_from_euclidean": {
+    "parallel_postulate": {
+      "euclidean": "Exactly ONE parallel through a point not on a line",
+      "hyperbolic": "INFINITELY MANY parallels through a point not on a line"
+    },
+    "theorems_that_change": [
+      {
+        "theorem": "Triangle Angle Sum",
+        "euclidean": "= 180 degrees (exactly)",
+        "hyperbolic": "< 180 degrees (strictly less, proportional to area)"
+      },
+      {
+        "theorem": "Similar Triangles",
+        "euclidean": "Non-congruent similar triangles exist",
+        "hyperbolic": "Similar triangles are necessarily congruent (AAA is a congruence criterion)"
+      },
+      {
+        "theorem": "Rectangle Existence",
+        "euclidean": "Rectangles (quadrilaterals with four right angles) exist",
+        "hyperbolic": "No rectangles exist (Saccheri-Legendre: at most 3 right angles)"
+      },
+      {
+        "theorem": "Parallel Distance",
+        "euclidean": "Distance between parallel lines is constant",
+        "hyperbolic": "Distance between parallel lines varies (approaches 0 in one direction, infinity in the other)"
+      },
+      {
+        "theorem": "Pythagorean Theorem",
+        "euclidean": "a^2 + b^2 = c^2",
+        "hyperbolic": "cosh(c) = cosh(a) * cosh(b) (hyperbolic Pythagorean theorem)"
+      },
+      {
+        "theorem": "Circle Area",
+        "euclidean": "Area = pi * r^2",
+        "hyperbolic": "Area = 4 * pi * sinh^2(r/2) = 2 * pi * (cosh(r) - 1)"
+      },
+      {
+        "theorem": "Triangle Area",
+        "euclidean": "Area = (1/2) * base * height",
+        "hyperbolic": "Area = pi - (alpha + beta + gamma), where alpha, beta, gamma are angles in radians (Gauss-Bonnet)"
+      }
+    ],
+    "theorems_that_stay_the_same": [
+      "All theorems of absolute geometry (layers 0-3 alone) -- e.g., Saccheri-Legendre theorem, exterior angle theorem, triangle congruence criteria (SAS, ASA, SSS)"
+    ]
+  },
+  "content_hash_algorithm": "SHA-256",
+  "references": [
+    "Lobachevsky, N.I. 'Geometrical Researches on the Theory of Parallels' (1840).",
+    "Bolyai, J. 'Appendix Scientiam Spatii Absolute Veram Exhibens' (1832).",
+    "Beltrami, E. 'Saggio di interpretazione della geometria non-euclidea' (1868). Giornale di Matematiche.",
+    "Poincare, H. 'Theorie des groupes fuchsiens' (1882). Acta Mathematica.",
+    "Anderson, J.W. 'Hyperbolic Geometry' (2nd ed., 2005). Springer Undergraduate Mathematics Series.",
+    "GeoCoq project -- github.com/GeoCoq/GeoCoq"
+  ]
+}

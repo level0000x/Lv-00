@@ -1,0 +1,19 @@
+{
+  "name": "lv00",
+  "version": "3.4.0",
+  "description": "Lv-00 几何元语言 —— 将几何构造、计算程序、一阶逻辑证明统一于同一语法体系的理论数学研究平台",
+  "private": true,
+  "scripts": {
+    "report": "node tool/report_generators/generate_report.js",
+    "cmake:configure": "cmake -B build -DCMAKE_BUILD_TYPE=Release",
+    "cmake:configure:debug": "cmake -B build -DCMAKE_BUILD_TYPE=Debug",
+    "cmake:build": "cmake --build build --config Release -j",
+    "cmake:test": "cd build && ctest --output-on-failure",
+    "cmake:clean": "cmake --build build --target clean",
+    "cmake:reset": "if exist build rmdir /s /q build && cmake -B build -DCMAKE_BUILD_TYPE=Release",
+    "format": "powershell -Command \"Get-ChildItem -Recurse -Include *.c,*.h | Where-Object { $_.FullName -notmatch 'node_modules|build|_deprecated|_archived' } | ForEach-Object { clang-format -i $_.FullName }\""
+  },
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}

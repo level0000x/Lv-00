@@ -1,0 +1,611 @@
+# =============================================================================
+# Lv-00 Axiom Package: Information Theory (Shannon 1948)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Information theory, founded by Claude E. Shannon in 1948. The mathematical
+#   study of the quantification, storage, and communication of information.
+#   Built on probability theory, it defines entropy as the fundamental measure
+#   of uncertainty/information, and establishes the theoretical limits of data
+#   compression (source coding) and reliable communication (channel coding).
+#
+# References:
+#   - Shannon, C.E. (1948). "A Mathematical Theory of Communication."
+#     Bell System Technical Journal, 27(3): 379-423, 27(4): 623-656.
+#     https://en.wikipedia.org/wiki/A_Mathematical_Theory_of_Communication
+#   - Khinchin, A.I. (1957). "Mathematical Foundations of Information Theory."
+#     Dover Publications. (Axiomatic characterization of entropy)
+#     https://en.wikipedia.org/wiki/Alexandr_Khinchin
+#   - Cover, T.M. and Thomas, J.A. (2006). "Elements of Information Theory"
+#     (2nd ed.). Wiley. ISBN 0-471-24195-4.
+#     https://en.wikipedia.org/wiki/Elements_of_Information_Theory
+#   - Wikipedia: Information theory
+#     https://en.wikipedia.org/wiki/Information_theory
+#   - Wikipedia: Entropy (information theory)
+#     https://en.wikipedia.org/wiki/Entropy_(information_theory)
+#   - Wikipedia: Mutual information
+#     https://en.wikipedia.org/wiki/Mutual_information
+#   - Wikipedia: Channel capacity
+#     https://en.wikipedia.org/wiki/Channel_capacity
+#   - Wikipedia: Shannon's source coding theorem
+#     https://en.wikipedia.org/wiki/Shannon%27s_source_coding_theorem
+#   - Wikipedia: Noisy-channel coding theorem
+#     https://en.wikipedia.org/wiki/Noisy-channel_coding_theorem
+#   - Wikipedia: Rate-distortion theory
+#     https://en.wikipedia.org/wiki/Rate%E2%80%93distortion_theory
+#   - Wikipedia: Kolmogorov complexity
+#     https://en.wikipedia.org/wiki/Kolmogorov_complexity
+#   - Wikipedia: Kullback-Leibler divergence
+#     https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence
+#   - Wikipedia: Shannon-Hartley theorem
+#     https://en.wikipedia.org/wiki/Shannon%E2%80%93Hartley_theorem
+#   - Kolmogorov, A.N. (1965). "Three Approaches to the Quantitative
+#     Definition of Information." Problems of Information Transmission, 1(1): 1-7.
+#   - Jaynes, E.T. (1957). "Information Theory and Statistical Mechanics."
+#     Physical Review, 106(4): 620-630.
+#     https://doi.org/10.1103/PhysRev.106.620
+#
+# Primitive Notions:
+#   - Information source: a discrete random variable X with probability
+#     distribution P(X) over a finite alphabet A
+#   - Channel: a conditional probability distribution P(Y|X) mapping inputs
+#     to outputs with noise
+#   - Code: a mapping from source messages to codewords (binary strings)
+#   - Information measure: a real-valued functional on probability distributions
+#
+# Core Axioms (Khinchin 1957 — Axiomatic Characterization of Entropy):
+#   A function H: Δ_n → ℝ⁺ satisfying the following is uniquely the
+#   Shannon entropy H(P) = -Σ p_i log₂(p_i):
+#
+#   H1 (Non-negativity):     H(P) ≥ 0 for all probability distributions P
+#   H2 (Continuity):         H is continuous in all its arguments p_i
+#   H3 (Maximum at uniform): H(p₁,...,pₙ) ≤ H(1/n,...,1/n) = log₂(n)
+#   H4 (Additivity):         H(P × Q) = H(P) + H(Q) for independent distributions
+#   H5 (Expansibility):      H(p₁,...,pₙ,0) = H(p₁,...,pₙ)
+#
+# Fundamental Theorems:
+#   T1 (Source Coding):     H(X) is the lower bound on average code length
+#   T2 (Channel Coding):    Reliable communication at rate R < C is achievable
+#   T3 (Rate-Distortion):   R(D) = min_{Q: E[d]≤D} I(X;X̂) is achievable
+#   T4 (Shannon-Hartley):   C = B log₂(1 + S/N) for AWGN channel
+#
+# Key Information Quantities:
+#   - Shannon entropy:           H(X) = -Σ p(x) log₂ p(x)
+#   - Joint entropy:             H(X,Y) = -Σ p(x,y) log₂ p(x,y)
+#   - Conditional entropy:       H(Y|X) = -Σ p(x,y) log₂ p(y|x)
+#   - Mutual information:        I(X;Y) = H(X) - H(X|Y) = H(Y) - H(Y|X)
+#   - KL divergence:             D(P‖Q) = Σ p(x) log₂(p(x)/q(x))
+#   - Cross-entropy:             H(P,Q) = -Σ p(x) log₂ q(x)
+#   - Conditional MI:            I(X;Y|Z) = H(X|Z) - H(X|Y,Z)
+#   - Channel capacity:          C = max_{P(X)} I(X;Y)
+#   - Rate-distortion function:  R(D) = min_{Q: E[d(X,X̂)]≤D} I(X;X̂)
+#
+# Known Undecidable/Unconstructible Problems:
+#   1. Kolmogorov complexity — uncomputable (halting problem reduction)
+#   2. Channel capacity for general channels — uncomputable
+#   3. Optimal code construction — NP-hard in general
+#   4. Rate-distortion function computation — NP-hard
+#   5. Minimum entropy decoding — NP-hard
+#   6. Network coding capacity — undecidable in general
+#   7. Information-theoretic security proof verification — undecidable
+#
+# Relationship to other axiom packages:
+#   - Builds on: real_analysis (measure theory, Lebesgue integration)
+#   - Builds on: combinatorics (coding theory, combinatorial structures)
+#   - Connects to: probability_theory foundations
+#   - Connects to: functional_analysis (L² spaces, spectral theory for channels)
+#   - Connects to: number_theory (arithmetic coding, prime-based codes)
+#   - Connects to: linear_algebra (channel matrices, linear codes)
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-23
+# Version: 1.0.0
+# =============================================================================
+
+axiom "information_theory" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates: Khinchin Axioms (Entropy Characterization)
+    # =================================================================
+
+    # H1: Non-negativity — entropy is always non-negative
+    # H(P) >= 0 for all probability distributions P
+    template "entropy_non_negativity" 1
+
+    # H2: Continuity — entropy is continuous in all arguments
+    # Small changes in probabilities produce small changes in H
+    template "entropy_continuity" 1
+
+    # H3: Maximum at uniform distribution
+    # H(p1,...,pn) <= H(1/n,...,1/n) = log2(n)
+    # Params: probability distribution, number of outcomes
+    template "entropy_maximum_uniform" 2
+
+    # H4: Additivity for independent distributions
+    # H(P x Q) = H(P) + H(Q) when P and Q are independent
+    # Params: distribution P, distribution Q, joint distribution
+    template "entropy_additivity" 3
+
+    # H5: Expansibility — adding zero-probability event doesn't change entropy
+    # H(p1,...,pn,0) = H(p1,...,pn)
+    # Params: original distribution, extended distribution
+    template "entropy_expansibility" 2
+
+    # =================================================================
+    # Constraint Templates: Shannon Entropy Properties
+    # =================================================================
+
+    # Shannon entropy definition: H(X) = -Σ p(x) log₂ p(x)
+    # Params: random variable X, probability distribution
+    template "shannon_entropy" 2
+
+    # Binary entropy function: H_b(p) = -p log₂ p - (1-p) log₂(1-p)
+    # Params: probability p in [0,1]
+    template "binary_entropy" 1
+
+    # Entropy of deterministic variable is zero
+    # H(X) = 0 when P(X=x₀) = 1 for some x₀
+    template "entropy_deterministic_zero" 1
+
+    # Entropy is concave (Jensen's inequality)
+    # H(λP + (1-λ)Q) >= λH(P) + (1-λ)H(Q)
+    # Params: distribution P, distribution Q, weight λ
+    template "entropy_concavity" 3
+
+    # Entropy is Schur-concave
+    # Majorization ordering implies entropy ordering
+    template "entropy_schur_concavity" 2
+
+    # Grouping property (recursive splitting)
+    # H(p1,...,pn) = H(pA, pB) + pA·H(P|A) + pB·H(P|B)
+    # where pA = Σ_{i∈A} p_i, pB = Σ_{j∈B} p_j
+    template "entropy_grouping_property" 3
+
+    # Fano's inequality: H(X|Y) <= H_b(P_e) + P_e log₂(|X|-1)
+    # Params: error probability, alphabet size
+    template "fano_inequality" 2
+
+    # Data processing inequality: I(X;Y) >= I(X;Z) for Markov chain X→Y→Z
+    # Params: mutual information I(X;Y), mutual information I(X;Z)
+    template "data_processing_inequality" 2
+
+    # =================================================================
+    # Constraint Templates: Joint & Conditional Entropy
+    # =================================================================
+
+    # Joint entropy: H(X,Y) = -Σ p(x,y) log₂ p(x,y)
+    # Params: random variables X, Y, joint distribution
+    template "joint_entropy" 3
+
+    # Conditional entropy: H(Y|X) = Σ p(x) H(Y|X=x)
+    # Params: random variables X, Y, conditional distribution
+    template "conditional_entropy" 3
+
+    # Chain rule for entropy: H(X₁,...,Xₙ) = Σ H(Xᵢ|X₁,...,Xᵢ₋₁)
+    # Params: sequence of random variables
+    template "entropy_chain_rule" 2
+
+    # Joint entropy bounds: max(H(X),H(Y)) <= H(X,Y) <= H(X) + H(Y)
+    # Params: H(X), H(Y), H(X,Y)
+    template "joint_entropy_bounds" 3
+
+    # Conditional entropy non-negativity: H(Y|X) >= 0
+    template "conditional_entropy_non_negativity" 1
+
+    # Conditional entropy reduces entropy: H(Y|X) <= H(Y)
+    template "conditioning_reduces_entropy" 2
+
+    # Independence equivalence: H(X,Y) = H(X) + H(Y) iff X ⊥ Y
+    template "independence_entropy_equivalence" 3
+
+    # =================================================================
+    # Constraint Templates: Mutual Information
+    # =================================================================
+
+    # Mutual information: I(X;Y) = H(X) - H(X|Y) = H(Y) - H(Y|X)
+    # Params: random variables X, Y
+    template "mutual_information" 2
+
+    # Mutual information symmetry: I(X;Y) = I(Y;X)
+    template "mutual_information_symmetry" 2
+
+    # Mutual information non-negativity: I(X;Y) >= 0
+    template "mutual_information_non_negativity" 1
+
+    # Mutual information and independence: I(X;Y) = 0 iff X ⊥ Y
+    template "mutual_information_independence" 2
+
+    # Mutual information as KL divergence: I(X;Y) = D(P(X,Y) || P(X)P(Y))
+    template "mutual_information_kl_divergence" 2
+
+    # Conditional mutual information: I(X;Y|Z) = H(X|Z) - H(X|Y,Z)
+    # Params: random variables X, Y, Z
+    template "conditional_mutual_information" 3
+
+    # Chain rule for mutual information:
+    # I(X₁,...,Xₙ;Y) = Σ I(Xᵢ;Y|X₁,...,Xᵢ₋₁)
+    template "mutual_information_chain_rule" 2
+
+    # Interaction information (co-information):
+    # I(X;Y;Z) = I(X;Y) - I(X;Y|Z)
+    template "interaction_information" 3
+
+    # =================================================================
+    # Constraint Templates: KL Divergence & Cross-Entropy
+    # =================================================================
+
+    # KL divergence: D(P||Q) = Σ p(x) log₂(p(x)/q(x))
+    # Params: distributions P, Q
+    template "kl_divergence" 2
+
+    # KL divergence non-negativity (Gibbs' inequality): D(P||Q) >= 0
+    # Equality iff P = Q
+    template "kl_divergence_non_negativity" 1
+
+    # KL divergence is not symmetric: D(P||Q) ≠ D(Q||P) in general
+    template "kl_divergence_asymmetry" 2
+
+    # KL divergence convexity: D(λP₁+(1-λ)P₂ || Q) <= λD(P₁||Q) + (1-λ)D(P₂||Q)
+    template "kl_divergence_convexity" 3
+
+    # Cross-entropy: H(P,Q) = -Σ p(x) log₂ q(x) = H(P) + D(P||Q)
+    template "cross_entropy" 2
+
+    # Cross-entropy lower bound: H(P,Q) >= H(P)
+    template "cross_entropy_lower_bound" 2
+
+    # Jensen-Shannon divergence: JSD(P||Q) = ½D(P||M) + ½D(Q||M), M = ½(P+Q)
+    template "jensen_shannon_divergence" 2
+
+    # =================================================================
+    # Constraint Templates: Source Coding (Data Compression)
+    # =================================================================
+
+    # Source coding theorem (Shannon 1948):
+    # For any ε > 0, there exists a code with rate R < H(X) + ε
+    # No code can achieve rate R < H(X) with vanishing error
+    # Params: source entropy, target rate, error tolerance
+    template "source_coding_theorem" 3
+
+    # Kraft inequality: Σ 2^(-l_i) <= 1 for prefix-free code lengths
+    # Params: set of codeword lengths
+    template "kraft_inequality" 1
+
+    # Optimal code length: l*(x) = ⌈-log₂ p(x)⌉
+    # Params: symbol probability
+    template "optimal_code_length" 1
+
+    # Huffman coding optimality: minimizes expected code length
+    # among all prefix-free codes
+    template "huffman_optimality" 1
+
+    # Shannon-Fano coding: l(x) = ⌈-log₂ p(x)⌉
+    template "shannon_fano_coding" 1
+
+    # Arithmetic coding achieves near-optimal compression
+    template "arithmetic_coding" 1
+
+    # Asymptotic equipartition property (AEP):
+    # -1/n log₂ p(X₁,...,Xₙ) → H(X) in probability
+    template "asymptotic_equipartition_property" 2
+
+    # Typical set: A_ε^(n) has probability ≈ 1 and size ≈ 2^(nH(X))
+    template "typical_set" 2
+
+    # =================================================================
+    # Constraint Templates: Channel Coding (Reliable Communication)
+    # =================================================================
+
+    # Noisy-channel coding theorem (Shannon 1948):
+    # For rates R < C, there exist codes with arbitrarily low error probability
+    # For rates R > C, no code can achieve arbitrarily low error probability
+    # Params: code rate, channel capacity, target error probability
+    template "noisy_channel_coding_theorem" 3
+
+    # Channel capacity: C = max_{P(X)} I(X;Y)
+    # Params: channel (conditional distribution P(Y|X))
+    template "channel_capacity" 1
+
+    # Channel capacity converse: error probability bounded below for R > C
+    template "channel_capacity_converse" 2
+
+    # Binary symmetric channel capacity: C = 1 - H_b(p)
+    # Params: crossover probability p
+    template "bsc_capacity" 1
+
+    # Binary erasure channel capacity: C = 1 - α
+    # Params: erasure probability α
+    template "bec_capacity" 1
+
+    # Shannon-Hartley theorem: C = B log₂(1 + S/N)
+    # Params: bandwidth B, signal power S, noise power N
+    template "shannon_hartley_theorem" 3
+
+    # AWGN channel capacity: C = ½ log₂(1 + P/σ²)
+    # Params: signal power P, noise variance σ²
+    template "awgn_channel_capacity" 2
+
+    # Channel coding with feedback: feedback does not increase capacity
+    # for memoryless channels
+    template "feedback_no_capacity_increase" 1
+
+    # Fano's inequality for channel coding:
+    # H(X|Y) <= 1 + P_e log₂(|X|-1)
+    template "fano_channel_coding" 2
+
+    # =================================================================
+    # Constraint Templates: Rate-Distortion Theory
+    # =================================================================
+
+    # Rate-distortion function: R(D) = min_{Q: E[d(X,X̂)]≤D} I(X;X̂)
+    # Params: source distribution, distortion measure, distortion level
+    template "rate_distortion_function" 3
+
+    # Rate-distortion theorem: R(D) is achievable and optimal
+    template "rate_distortion_theorem" 2
+
+    # Rate-distortion convexity: R(D) is convex and decreasing
+    template "rate_distortion_convexity" 1
+
+    # Distortion-rate function: D(R) is the inverse of R(D)
+    template "distortion_rate_function" 1
+
+    # Shannon lower bound: R(D) >= H(X) - h(D) for difference distortion
+    template "shannon_lower_bound" 2
+
+    # Binary rate-distortion: R(D) = H_b(p) - H_b(D) for Hamming distortion
+    # Params: source parameter p, distortion level D
+    template "binary_rate_distortion" 2
+
+    # Gaussian rate-distortion: R(D) = ½ log₂(σ²/D) for squared error
+    # Params: source variance σ², distortion level D
+    template "gaussian_rate_distortion" 2
+
+    # =================================================================
+    # Constraint Templates: Differential Entropy (Continuous Sources)
+    # =================================================================
+
+    # Differential entropy: h(X) = -∫ f(x) log₂ f(x) dx
+    # Params: probability density function
+    template "differential_entropy" 1
+
+    # Differential entropy can be negative (unlike discrete entropy)
+    template "differential_entropy_can_be_negative" 1
+
+    # Gaussian maximizes differential entropy for fixed variance
+    # h(X) <= ½ log₂(2πeσ²) with equality for Gaussian
+    template "gaussian_maximizes_differential_entropy" 1
+
+    # Differential entropy of Gaussian: h(X) = ½ log₂(2πeσ²)
+    template "gaussian_differential_entropy" 1
+
+    # Joint differential entropy: h(X,Y) = -∫∫ f(x,y) log₂ f(x,y) dx dy
+    template "joint_differential_entropy" 2
+
+    # Conditional differential entropy: h(Y|X) = h(X,Y) - h(X)
+    template "conditional_differential_entropy" 2
+
+    # Mutual information for continuous: I(X;Y) = h(X) + h(Y) - h(X,Y)
+    template "continuous_mutual_information" 2
+
+    # =================================================================
+    # Constraint Templates: Channel Models
+    # =================================================================
+
+    # Discrete memoryless channel (DMC): P(Yₙ|X₁,...,Xₙ,Y₁,...,Yₙ₋₁) = P(Yₙ|Xₙ)
+    template "discrete_memoryless_channel" 1
+
+    # Binary symmetric channel (BSC): Y = X ⊕ Z, Z ~ Bernoulli(p)
+    # Params: crossover probability p
+    template "binary_symmetric_channel" 1
+
+    # Binary erasure channel (BEC): output is X with prob 1-α, ? with prob α
+    # Params: erasure probability α
+    template "binary_erasure_channel" 1
+
+    # Z-channel: 0→0 with prob 1, 1→0 with prob p, 1→1 with prob 1-p
+    # Params: error probability p
+    template "z_channel" 1
+
+    # Additive white Gaussian noise (AWGN) channel: Y = X + Z, Z ~ N(0,σ²)
+    # Params: noise variance σ²
+    template "awgn_channel" 1
+
+    # Broadcast channel: one sender, multiple receivers
+    template "broadcast_channel" 1
+
+    # Multiple access channel: multiple senders, one receiver
+    template "multiple_access_channel" 1
+
+    # Relay channel: source → relay → destination
+    template "relay_channel" 1
+
+    # =================================================================
+    # Constraint Templates: Network Information Theory
+    # =================================================================
+
+    # Network coding: intermediate nodes can encode/decode
+    template "network_coding" 1
+
+    # Max-flow min-cut theorem for information flow
+    template "max_flow_min_cut_information" 1
+
+    # Slepian-Wolf coding: distributed source coding without communication
+    # H(X,Y) <= R₁ + R₂ <= H(X) + H(Y)
+    template "slepian_wolf_coding" 3
+
+    # Wyner-Ziv coding: source coding with side information at decoder
+    template "wyner_ziv_coding" 1
+
+    # Gelfand-Pinsker theorem: writing on dirty paper
+    template "gelfand_pinsker_theorem" 1
+
+    # =================================================================
+    # Constraint Templates: Algorithmic Information Theory
+    # =================================================================
+
+    # Kolmogorov complexity: K(x) = min{|p| : U(p) = x}
+    # Minimal program length producing x on universal Turing machine U
+    template "kolmogorov_complexity" 1
+
+    # Kolmogorov complexity is uncomputable
+    template "kolmogorov_uncomputability" 1
+
+    # Incompressibility: most strings are incompressible
+    # |{x : K(x) < |x| - c}| < 2^(|x| - c)
+    template "kolmogorov_incompressibility" 2
+
+    # Kolmogorov complexity and entropy: H(X) ≈ E[K(Xⁿ)]/n
+    template "kolmogorov_entropy_relation" 1
+
+    # Algorithmic mutual information: I_K(x;y) = K(x) + K(y) - K(x,y)
+    template "algorithmic_mutual_information" 2
+
+    # Solomonoff induction: universal prior for prediction
+    template "solomonoff_induction" 1
+
+    # =================================================================
+    # Constraint Templates: Constructors (Building Information Measures)
+    # =================================================================
+
+    # Construct entropy from probability distribution
+    template "compute_entropy" 1
+
+    # Construct joint entropy from two random variables
+    template "compute_joint_entropy" 2
+
+    # Construct conditional entropy H(Y|X)
+    template "compute_conditional_entropy" 2
+
+    # Construct mutual information I(X;Y)
+    template "compute_mutual_information" 2
+
+    # Construct KL divergence D(P||Q)
+    template "compute_kl_divergence" 2
+
+    # Construct cross-entropy H(P,Q)
+    template "compute_cross_entropy" 2
+
+    # Construct channel capacity from channel model
+    template "compute_channel_capacity" 1
+
+    # Construct rate-distortion function
+    template "compute_rate_distortion" 2
+
+    # Construct differential entropy from density function
+    template "compute_differential_entropy" 1
+
+    # Construct typical set from source and block length
+    template "construct_typical_set" 2
+
+    # Construct optimal prefix code (Huffman)
+    template "construct_huffman_code" 1
+
+    # Construct channel code from rate and channel
+    template "construct_channel_code" 2
+
+    # =================================================================
+    # Constraint Templates: Derived Identities & Inequalities
+    # =================================================================
+
+    # Entropy power inequality: e^(2h(X+Y)/n) >= e^(2h(X)/n) + e^(2h(Y)/n)
+    template "entropy_power_inequality" 2
+
+    # Log-sum inequality: Σ a_i log(a_i/b_i) >= (Σ a_i) log((Σ a_i)/(Σ b_i))
+    template "log_sum_inequality" 2
+
+    # Shearer's lemma: generalization of entropy subadditivity
+    template "shearers_lemma" 2
+
+    # Han's inequality: entropy of marginals bounds joint entropy
+    template "hans_inequality" 2
+
+    # Mrs. Gerber's lemma: H_b(p * H_b(q)) >= p * H_b(q) for binary entropy
+    template "mrs_gerbers_lemma" 2
+
+    # Csiszár sum identity: for characterizing channel capacity regions
+    template "csiszar_sum_identity" 2
+
+    # Viterbi algorithm: maximum likelihood sequence decoding
+    template "viterbi_decoding" 1
+
+    # BCJR algorithm: maximum a posteriori decoding
+    template "bcjr_decoding" 1
+
+    # Blahut-Arimoto algorithm: computing channel capacity and rate-distortion
+    template "blahut_arimoto_algorithm" 1
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    unconstructible "kolmogorov_complexity_computation" {
+        reduces_to "halting_problem"
+        dependency "turing_machine_universality"
+        dependency "program_termination"
+        external_ref "https://en.wikipedia.org/wiki/Kolmogorov_complexity#Uncomputability"
+        green_verified true
+    }
+
+    unconstructible "channel_capacity_general_channel" {
+        reduces_to "non_convex_optimization"
+        dependency "channel_model_specification"
+        external_ref "https://en.wikipedia.org/wiki/Channel_capacity"
+        green_verified true
+    }
+
+    unconstructible "optimal_prefix_code_construction" {
+        reduces_to "NP-hard_optimization"
+        dependency "source_distribution"
+        external_ref "https://en.wikipedia.org/wiki/Source_coding"
+        green_verified true
+    }
+
+    unconstructible "rate_distortion_function_computation" {
+        reduces_to "NP-hard_optimization"
+        dependency "source_distribution"
+        dependency "distortion_measure"
+        external_ref "https://en.wikipedia.org/wiki/Rate%E2%80%93distortion_theory"
+        green_verified true
+    }
+
+    unconstructible "minimum_entropy_decoding" {
+        reduces_to "NP-hard_optimization"
+        dependency "channel_model"
+        dependency "received_signal"
+        external_ref "https://en.wikipedia.org/wiki/Maximum_likelihood"
+        green_verified false
+    }
+
+    unconstructible "network_coding_capacity_general" {
+        reduces_to "undecidable"
+        dependency "network_topology"
+        dependency "channel_models"
+        external_ref "https://en.wikipedia.org/wiki/Network_coding"
+        green_verified true
+    }
+
+    unconstructible "information_theoretic_security_verification" {
+        reduces_to "undecidable"
+        dependency "cryptographic_protocol"
+        dependency "adversary_model"
+        external_ref "https://en.wikipedia.org/wiki/Information_theoretic_security"
+        green_verified false
+    }
+
+    unconstructible "solomonoff_prior_approximation" {
+        reduces_to "kolmogorov_complexity_computation"
+        dependency "universal_turing_machine"
+        external_ref "https://en.wikipedia.org/wiki/Solomonoff%27s_theory_of_inductive_inference"
+        green_verified true
+    }
+
+    # =================================================================
+    # Logical Framework
+    # =================================================================
+
+    bottom_geometry "probability_space_measure_theory"
+    negation_encoding "classical_measure_theoretic"
+    contradiction_behavior "explosion_principle"
+
+}

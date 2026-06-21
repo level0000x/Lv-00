@@ -1,0 +1,404 @@
+# =============================================================================
+# Lv-00 Axiom Package: Model Theory
+# =============================================================================
+#
+# Mathematical Theory: Model Theory
+#   Model theory studies the relationship between formal languages and
+#   their mathematical structures (models). A first-order language L
+#   consists of function symbols, relation symbols, and constant symbols.
+#   An L-structure M interprets these symbols over a domain, and a
+#   theory T is a set of sentences in L. The central question is:
+#   which theories have models, and what can be said about them?
+#
+# Axiomatization: Meta-theorems (not axioms in the traditional sense)
+#   Model theory is not axiomatized in the same way as algebraic theories.
+#   Instead, its core results are meta-theorems about first-order logic:
+#   completeness, compactness, and the Lowenheim-Skolem theorems.
+#
+# References:
+#   - Wikipedia: Model theory
+#     https://en.wikipedia.org/wiki/Model_theory
+#   - Chang, C.C. & Keisler, H.J. (1990). "Model Theory" (3rd ed.).
+#     North-Holland. ISBN 0-444-88054-2.
+#   - Wikipedia: Completeness theorem
+#     https://en.wikipedia.org/wiki/G%C3%B6del%27s_completeness_theorem
+#   - Wikipedia: Compactness theorem
+#     https://en.wikipedia.org/wiki/Compactness_theorem
+#   - Wikipedia: Lowenheim-Skolem theorem
+#     https://en.wikipedia.org/wiki/L%C3%B6wenheim%E2%80%93Skolem_theorem
+#   - Hodges, W. (1993). "Model Theory." Cambridge University Press.
+#     ISBN 0-521-30442-3.
+#
+# Primitive Notions:
+#   First-order language L: a set of function, relation, and constant symbols
+#   L-structure M (model): a nonempty domain |M| with interpretations of L
+#   Theory T: a set of sentences (closed formulas) in the language L
+#   Satisfaction relation M ⊨ φ: the structure M satisfies the formula φ
+#
+# Core Meta-theorems (5):
+#   MT1. Completeness (Godel, 1930): T ⊢ φ iff T ⊨ φ
+#         (syntactic provability equals semantic truth)
+#   MT2. Compactness: T has a model iff every finite subset of T has a model
+#   MT3. Downward Lowenheim-Skolem: if M ⊨ T with |M| infinite, then
+#         T has a model of cardinality ≤ |L| + ℵ₀
+#   MT4. Upward Lowenheim-Skolem: if M ⊨ T with |M| infinite, then
+#         T has models of every cardinality κ ≥ max(|M|, |L|)
+#   MT5. Lowenheim-Skolem-Tarski: if T has an infinite model, it has
+#         models of every infinite cardinality ≥ |L|
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "model_theory" "1.0.0" {
+
+    # =================================================================
+    # Group I: Basic Concepts (6)
+    # =================================================================
+    # The foundational definitions of model theory: languages, structures,
+    # satisfaction, theories, consistency, and elementary substructures.
+    # =================================================================
+
+    # A first-order language L consists of:
+    #   - Function symbols f with arities n ≥ 0 (constants are 0-ary)
+    #   - Relation symbols R with arities n ≥ 1
+    #   - Logical symbols: variables, connectives (∧, ∨, ¬, →, ↔),
+    #     quantifiers (∀, ∃), equality (=)
+    # Params: language L (signature specification)
+    template "first_order_language" 1
+
+    # An L-structure M consists of:
+    #   - A nonempty domain (universe) |M|
+    #   - For each n-ary function symbol f: an interpretation f^M: |M|^n -> |M|
+    #   - For each n-ary relation symbol R: an interpretation R^M ⊆ |M|^n
+    #   - For each constant symbol c: an interpretation c^M ∈ |M|
+    # Params: language L, structure M (domain + interpretations)
+    template "structure_model" 2
+
+    # The satisfaction relation M ⊨ φ[a₁,...,aₙ]: the structure M
+    # satisfies the formula φ with free variables assigned to a₁,...,aₙ.
+    # Defined recursively on formula structure via Tarski's definition.
+    # Params: structure M, formula φ, variable assignment
+    template "satisfaction_relation" 3
+
+    # A theory T is a set of sentences (closed formulas) in a language L.
+    # T is satisfiable if there exists a model M with M ⊨ T.
+    # T is complete if for every sentence φ, either T ⊨ φ or T ⊨ ¬φ.
+    # Params: language L, set of sentences T
+    template "theory" 2
+
+    # A theory T is consistent if there is no sentence φ such that
+    # both T ⊢ φ and T ⊢ ¬φ (no contradiction is derivable from T).
+    # By the completeness theorem, T is consistent iff T has a model.
+    # Params: theory T
+    template "theory_consistency" 1
+
+    # An elementary substructure N ≺ M: N is a substructure of M and
+    # for every formula φ and tuple a from N, N ⊨ φ[a] iff M ⊨ φ[a].
+    # Equivalently, the inclusion map N -> M is an elementary embedding.
+    # Params: substructure N, structure M
+    template "elementary_substructure" 2
+
+    # =================================================================
+    # Group II: Core Meta-theorems (7)
+    # =================================================================
+    # The fundamental theorems of first-order model theory that establish
+    # the deep connections between syntax (proofs) and semantics (models).
+    # =================================================================
+
+    # Godel's completeness theorem (1930): for any first-order theory T
+    # and sentence φ, T ⊢ φ (φ is provable from T) if and only if
+    # T ⊨ φ (every model of T satisfies φ).
+    # This bridges syntax and semantics for first-order logic.
+    # Params: theory T, sentence φ
+    template "completeness_theorem" 2
+
+    # The compactness theorem: a theory T has a model if and only if
+    # every finite subset of T has a model. Equivalent to the completeness
+    # theorem but highlights the finitary nature of first-order logic.
+    # Params: theory T
+    template "compactness_theorem" 1
+
+    # Downward Lowenheim-Skolem theorem: if a countable first-order
+    # theory T has a model M (with |M| possibly uncountable), then T
+    # has a countable model N ≺ M (an elementary substructure).
+    # Params: theory T, model M, countable submodel N
+    template "downward_lowenheim_skolem" 3
+
+    # Upward Lowenheim-Skolem theorem: if a first-order theory T has
+    # an infinite model of cardinality κ, then for every cardinal
+    # λ ≥ max(κ, |L|), T has a model of cardinality λ.
+    # Params: theory T, infinite model M, target cardinality λ
+    template "upward_lowenheim_skolem" 3
+
+    # Vaught's test: if T is a countable consistent theory such that
+    # (1) all models of T are infinite, and (2) T is κ-categorical
+    # for some infinite cardinal κ, then T is complete.
+    # Params: theory T, cardinal κ
+    template "vaught_test" 2
+
+    # The omitting types theorem: if T is a consistent theory and Σ(x)
+    # is a non-isolated type (not principal), then T has a model that
+    # omits Σ (no element of the model realizes Σ).
+    # Params: theory T, type Σ(x)
+    template "omitting_types_theorem" 2
+
+    # Craig's interpolation theorem: if ⊨ φ → ψ (every model of φ
+    # satisfies ψ), then there exists a formula θ (the interpolant)
+    # using only symbols common to φ and ψ such that ⊨ φ → θ and
+    # ⊨ θ → ψ.
+    # Params: formula φ, formula ψ, interpolant θ
+    template "interpolation_theorem" 3
+
+    # =================================================================
+    # Group III: Model Construction (6)
+    # =================================================================
+    # Techniques for building new models from existing ones, including
+    # ultraproducts, elementary chains, and special model types.
+    # =================================================================
+
+    # The ultraproduct ∏_{i∈I} M_i / U of structures {M_i} with
+    # respect to an ultrafilter U on I. Los's theorem states that
+    # ∏ M_i / U ⊨ φ iff {i : M_i ⊨ φ} ∈ U.
+    # Params: family of structures {M_i}, index set I, ultrafilter U
+    template "ultraproduct" 3
+
+    # An elementary chain (M_α)_{α < λ} is a chain of structures where
+    # each M_α ≺ M_β for α < β. The union M = ∪_{α < λ} M_α satisfies
+    # M_α ≺ M for all α (Tarski-Vaught union theorem).
+    # Params: chain of structures (M_α), ordinal λ
+    template "elementary_chain" 2
+
+    # A model completion T* of a theory T is a model-complete theory
+    # in the same language such that T ⊆ T* and every model of T
+    # embeds into a model of T*.
+    # Params: theory T, model completion T*
+    template "model_completion" 2
+
+    # A prime model of a complete theory T is a model that elementarily
+    # embeds into every other model of T. Prime models realize exactly
+    # the isolated types.
+    # Params: theory T, prime model M
+    template "prime_model" 2
+
+    # A κ-saturated model M realizes every type over every subset
+    # A ⊆ |M| with |A| < κ. Saturated models are homogeneous and
+    # serve as "universal" models for their cardinality.
+    # Params: model M, saturation cardinality κ
+    template "saturated_model" 2
+
+    # A homogeneous model M: for every partial elementary map
+    # f: A -> B with |A| < |M| and every element c ∈ M, f extends
+    # to a partial elementary map f': A ∪ {c} -> M.
+    # Params: model M
+    template "homogeneous_model" 1
+
+    # =================================================================
+    # Group IV: Types & Stability Theory (6)
+    # =================================================================
+    # Type theory classifies elements of models by the formulas they
+    # satisfy. Stability theory classifies theories by the number of
+    # types they admit, leading to a deep classification program.
+    # =================================================================
+
+    # A complete n-type over a set A ⊆ |M| is a maximal consistent
+    # set of formulas φ(x₁,...,xₙ) with parameters from A.
+    # The type of a tuple a in M over A is tp(a/A) = {φ(x) : M ⊨ φ[a]}.
+    # Params: model M, set of parameters A, type p(x)
+    template "complete_type" 3
+
+    # The type space S_n(A) is the set of all complete n-types over A.
+    # It carries a natural Stone topology (zero-dimensional compact
+    # Hausdorff space), making it a compact topological space.
+    # Params: theory T, parameter set A, arity n
+    template "type_space" 3
+
+    # A theory T is stable in cardinality κ if for every model M ⊨ T
+    # with |M| ≤ κ and every A ⊆ |M| with |A| ≤ κ, the number of
+    # complete types over A is ≤ κ. T is stable if stable in some κ.
+    # Params: theory T, cardinality κ
+    template "stability" 2
+
+    # Forking independence: a notion of independence in stable theories
+    # generalizing linear independence in vector spaces and algebraic
+    # independence in algebraically closed fields.
+    # A fork is a splitting of a type over an extension of parameters.
+    # Params: type p, parameter set A, extension set B
+    template "forking" 3
+
+    # An independence relation ⊥ on subsets of models satisfying
+    # properties: invariance, monotonicity, transitivity, and
+    # existence/uniqueness of non-forking extensions.
+    # Params: sets A, B, C (A ⊥_C B means A is independent from B over C)
+    template "independence_relation" 3
+
+    # Rank functions assign ordinal-valued dimensions to types,
+    # measuring their complexity. Examples: Morley rank, Shelah degree,
+    # Lascar rank, U-rank. In stable theories, these are well-defined.
+    # Params: type p, rank function name, rank value
+    template "rank" 3
+
+    # =================================================================
+    # Group V: Special Theories (5)
+    # =================================================================
+    # Important first-order theories that serve as paradigms for
+    # model-theoretic phenomena: algebraically closed fields, real
+    # closed fields, dense linear orders, and arithmetic.
+    # =================================================================
+
+    # The theory ACF of algebraically closed fields: a field F is
+    # algebraically closed if every non-constant polynomial with
+    # coefficients in F has a root in F. ACF is complete, ω-stable,
+    # and has quantifier elimination. ACF_p (characteristic p) and
+    # ACF_0 (characteristic 0) are the completions.
+    # Params: field F, characteristic specification
+    template "algebraically_closed_field" 2
+
+    # The theory RCF of real closed fields: an ordered field F is
+    # real closed if every positive element has a square root and
+    # every polynomial of odd degree has a root. RCF admits
+    # quantifier elimination (Tarski's theorem) and is o-minimal.
+    # Params: ordered field F
+    template "real_closed_field" 1
+
+    # The theory DLO of dense linear orders without endpoints:
+    # (M, <) where < is a dense linear order with no least or
+    # greatest element. DLO is ℵ₀-categorical (Cantor), complete,
+    # and has quantifier elimination.
+    # Params: ordered set (M, <)
+    template "densely_linearly_ordered" 1
+
+    # Peano arithmetic PA: the first-order theory of natural numbers
+    # with addition and multiplication. PA is incomplete (Godel's
+    # first incompleteness theorem) and undecidable (Church).
+    # PA is not finitely axiomatizable.
+    # Params: structure N = (ℕ, 0, S, +, ×)
+    template "peano_arithmetic" 1
+
+    # Presburger arithmetic PrA: the first-order theory of natural
+    # numbers with addition only (no multiplication). Unlike PA,
+    # PrA is complete, decidable, and admits quantifier elimination.
+    # Params: structure N = (ℕ, 0, S, +)
+    template "presburger_arithmetic" 1
+
+    # =================================================================
+    # Group VI: Quantifier Elimination & Decidability (4)
+    # =================================================================
+    # Quantifier elimination is a key property that makes theories
+    # more tractable. A theory T has QE if every formula is T-equivalent
+    # to a quantifier-free formula.
+    # =================================================================
+
+    # A theory T has quantifier elimination (QE) if for every formula
+    # φ(x), there exists a quantifier-free formula ψ(x) such that
+    # T ⊨ ∀x (φ(x) ↔ ψ(x)). QE implies model completeness.
+    # Params: theory T, formula φ, quantifier-free equivalent ψ
+    template "quantifier_elimination" 3
+
+    # A theory T is model-complete if every embedding between models
+    # of T is elementary. Equivalently, every formula is equivalent
+    # to an existential formula. Model completeness is weaker than QE.
+    # Params: theory T, models M ⊆ N
+    template "model_completeness" 2
+
+    # A theory T is decidable if there is an algorithm that, given a
+    # sentence φ, determines whether T ⊨ φ. By the completeness
+    # theorem, this is equivalent to T being recursively axiomatizable
+    # and complete.
+    # Params: theory T, sentence φ
+    template "decidability_of_theory" 2
+
+    # Two structures M and N are elementarily equivalent (M ≡ N) if
+    # they satisfy the same sentences: for all sentences φ,
+    # M ⊨ φ iff N ⊨ φ. By the completeness theorem, M ≡ N iff
+    # Th(M) = Th(N).
+    # Params: structure M, structure N
+    template "elementary_equivalence" 2
+
+    # An elementary embedding f: M -> N is an embedding such that for
+    # every formula φ(x₁,...,xₙ) and every tuple a from M,
+    # M ⊨ φ[a] iff N ⊨ φ[f(a)]. This is stronger than a mere
+    # embedding: it preserves all first-order properties.
+    # Params: structure M, structure N, embedding map f
+    template "elementary_embedding" 3
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems (6)
+    # =================================================================
+    # Fundamental undecidability results in mathematical logic that
+    # limit what can be algorithmically determined about first-order
+    # theories and their models.
+    # =================================================================
+
+    unconstructible "first_order_validity" {
+        reduces_to "undecidable"
+        dependency "first_order_language"
+        dependency "satisfaction_relation"
+        dependency "completeness_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Entscheidungsproblem"
+        green_verified true
+    }
+
+    unconstructible "peano_arithmetic_decidability" {
+        reduces_to "undecidable"
+        dependency "peano_arithmetic"
+        dependency "theory_consistency"
+        dependency "decidability_of_theory"
+        external_ref "https://en.wikipedia.org/wiki/Peano_axioms"
+        green_verified true
+    }
+
+    unconstructible "theory_isomorphism" {
+        reduces_to "undecidable"
+        dependency "theory"
+        dependency "structure_model"
+        dependency "elementary_equivalence"
+        external_ref "https://en.wikipedia.org/wiki/Model_theory"
+        green_verified true
+    }
+
+    unconstructible "model_satisfiability" {
+        reduces_to "undecidable"
+        dependency "theory"
+        dependency "structure_model"
+        dependency "satisfaction_relation"
+        dependency "compactness_theorem"
+        external_ref "https://en.wikipedia.org/wiki/Satisfiability"
+        green_verified true
+    }
+
+    unconstructible "elementary_equivalence_problem" {
+        reduces_to "undecidable"
+        dependency "elementary_equivalence"
+        dependency "structure_model"
+        dependency "satisfaction_relation"
+        external_ref "https://en.wikipedia.org/wiki/Elementary_equivalence"
+        green_verified true
+    }
+
+    unconstructible "stable_theory_classification" {
+        reduces_to "undecidable"
+        dependency "stability"
+        dependency "complete_type"
+        dependency "forking"
+        dependency "rank"
+        external_ref "https://en.wikipedia.org/wiki/Stable_theory"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+    # Model theory studies structures as geometric-logical objects.
+    # The bottom geometry represents the contradictory structure
+    # (no model exists), and negation is classical logical negation.
+    #
+    # ⊥ = the inconsistent theory (has no model, ⊢ ⊥)
+    # ¬ = classical negation: ¬φ is true in M iff φ is false in M
+    # =================================================================
+
+    bottom_geometry "first_order_structures_models"
+    negation_encoding "classical_negation_in_logic"
+    contradiction_behavior "explosion_principle"
+}

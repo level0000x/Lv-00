@@ -1,0 +1,368 @@
+# =============================================================================
+# Lv-00 Axiom Package: Hyperbolic Geometry (Hilbert's Axiomatization,
+#                       replacing the Parallel Postulate)
+# =============================================================================
+#
+# Corresponding Mathematical Theory:
+#   Hyperbolic (Lobachevskian) geometry, obtained by replacing Euclid's
+#   parallel postulate with the hyperbolic parallel postulate within
+#   Hilbert's axiomatic framework.
+#
+# Axiomatization Method:
+#   Hilbert's axiom system (Grundlagen der Geometrie, 1899), with Group IV
+#   (Parallel Axiom) replaced by the Hyperbolic Parallel Postulate.
+#   Groups I, II, III, V remain identical to the Euclidean case.
+#
+# References:
+#   - Wikipedia: Hyperbolic geometry
+#     https://en.wikipedia.org/wiki/Hyperbolic_geometry
+#   - Wikipedia: History of hyperbolic geometry
+#     https://en.wikipedia.org/wiki/History_of_hyperbolic_geometry
+#   - Lobachevsky, N.I. (1840). "Geometrische Untersuchungen zur Theorie
+#     der Parallellinien."
+#   - Bolyai, J. (1832). "Appendix Scientiam Spatii Absolute Veram
+#     Exhibens."
+#   - Wikipedia: Poincare disk model
+#     https://en.wikipedia.org/wiki/Poincar%C3%A9_disk_model
+#   - Wikipedia: Poincare half-plane model
+#     https://en.wikipedia.org/wiki/Poincar%C3%A9_half-plane_model
+#   - Wikipedia: Klein model (Beltrami-Klein)
+#     https://en.wikipedia.org/wiki/Beltrami%E2%80%93Klein_model
+#   - Greenberg, M.J. (2007). "Euclidean and Non-Euclidean Geometries"
+#     (4th ed.). W.H. Freeman.
+#
+# Primitive Notions (same as Euclidean geometry):
+#   Terms: point, line, plane
+#   Relations: incidence (lies_on), betweenness, segment_congruence,
+#              angle_congruence
+#
+# Key Difference from Euclidean Geometry:
+#   The Euclidean parallel postulate (Playfair's axiom: exactly one
+#   parallel through a point not on a line) is REPLACED by the
+#   Hyperbolic Parallel Postulate: through a point not on a line,
+#   there exist AT LEAST TWO distinct lines that do not intersect
+#   the given line.
+#
+# Core Axioms (5 groups):
+#   I.   Incidence (3 axioms, simplified plane version) - same as Euclidean
+#   II.  Betweenness / Order (B1-B4)                  - same as Euclidean
+#   III. Congruence (C1-C6)                            - same as Euclidean
+#   IV.  Hyperbolic Parallel Postulate (H-IV)          - REPLACES Euclid V
+#   V.   Continuity (Archimedes + Completeness)        - same as Euclidean
+#
+# Constraint Templates (29 total, in 7 groups):
+#   Group I:   Incidence Axioms           (3 templates)
+#   Group II:  Betweenness (Order) Axioms (4 templates)
+#   Group III: Congruence Axioms          (6 templates)
+#   Group IV:  Hyperbolic Parallel Axiom  (3 templates)
+#   Group V:   Hyperbolic-Specific        (6 templates)
+#   Group VI:  Continuity & Metric        (3 templates)
+#   Group VII: Hyperbolic Model Constructions (4 templates)
+#
+# Known Unconstructible Problems (6):
+#   1. squaring_the_circle_hyperbolic
+#   2. angle_trisection_hyperbolic
+#   3. doubling_the_cube_hyperbolic
+#   4. regular_polygon_hyperbolic
+#   5. area_of_triangle_trisection
+#   6. constructible_angle_characterization
+#
+# Author: Lv-00 Axiom Package System
+# Date: 2026-05-22
+# Version: 1.0.0
+# =============================================================================
+
+axiom "hyperbolic_geometry" "1.0.0" {
+
+    # =================================================================
+    # Constraint Templates (Legal Constructors & Metrics)
+    # =================================================================
+    # Each template represents a fundamental geometric operation or
+    # relation in hyperbolic plane geometry. Parameters are geometric
+    # objects (points, lines, segments, angles).
+    #
+    # Groups I-III and VI are shared with Euclidean geometry.
+    # Groups IV-V and VII are specific to hyperbolic geometry.
+    # =================================================================
+
+    # --- Group I: Incidence Axioms (same as Euclidean) ---
+    # I1: For every two distinct points, there exists exactly one line
+    #     containing both.
+    # Params: point A, point B -> line AB
+    template "line_through_two_points" 2
+
+    # I2: Every line contains at least two distinct points.
+    # Params: line l -> (exists point A, point B on l)
+    template "line_has_two_points" 1
+
+    # I3: There exist at least three non-collinear points.
+    # Params: (zero-input existence axiom)
+    template "existence_of_triangle" 0
+
+    # --- Group II: Betweenness (Order) Axioms (same as Euclidean) ---
+    # B1: Symmetry of betweenness: A*B*C implies C*B*A
+    # Params: point A, point B, point C
+    template "betweenness_symmetry" 3
+
+    # B2: Extension: For any two distinct points A, C, there exists
+    #     a point B such that A*C*B (C is between A and B).
+    # Params: point A, point C -> point B
+    template "extend_segment" 2
+
+    # B3: Uniqueness: Of any three collinear points, exactly one lies
+    #     between the other two.
+    # Params: point A, point B, point C
+    template "betweenness_uniqueness" 3
+
+    # B4: Pasch's Axiom: If a line intersects one side of a triangle
+    #     (not at a vertex), it must intersect exactly one of the other
+    #     two sides.
+    # Params: point A, point B, point C (triangle vertices), line l
+    template "pasch_axiom" 4
+
+    # --- Group III: Congruence Axioms (same as Euclidean) ---
+    # C1: Segment transport: Given segment AB and point A' on ray A'B',
+    #     there exists B' such that AB = A'B'.
+    # Params: point A, point B, point A_prime, point direction -> point B_prime
+    template "segment_transport" 4
+
+    # C2: Segment congruence is reflexive: AB = AB
+    # Params: point A, point B
+    template "segment_congruence_reflexive" 2
+
+    # C3: Segment congruence is transitive and symmetric
+    #     AB = CD and CD = EF implies AB = EF
+    # Params: segment AB, segment CD, segment EF (6 points)
+    template "segment_congruence_transitive" 6
+
+    # C4: Angle transport: Given angle BAC and ray A'B', there exists
+    #     ray A'C' on a given side such that angle BAC = angle B'A'C'.
+    # Params: angle vertex A, rays AB,AC; new vertex A', ray A'B', side
+    template "angle_transport" 5
+
+    # C5: Angle congruence properties (reflexive, symmetric, transitive)
+    # Params: angle ABC (3 points), angle DEF (3 points)
+    template "angle_congruence_properties" 6
+
+    # C6: SAS (Side-Angle-Side) congruence criterion:
+    #     If AB = A'B', AC = A'C', and angle BAC = angle B'A'C',
+    #     then triangle ABC = triangle A'B'C'.
+    # Params: 6 points (A,B,C and A',B',C')
+    template "SAS_congruence" 6
+
+    # --- Group IV: Hyperbolic Parallel Axiom ---
+    # H-IV: Given a line l and a point P not on l, there exist AT LEAST
+    #     TWO distinct lines through P that do not intersect l.
+    #     This is the defining axiom that distinguishes hyperbolic
+    #     geometry from Euclidean geometry.
+    # Params: point P, line l -> lines m1, m2 (distinct, non-intersecting)
+    template "hyperbolic_parallel_existence" 2
+
+    # Corollary: The parallel through a point not on a line is NOT unique.
+    #     In hyperbolic geometry, there are infinitely many parallels
+    #     through a given point, classified into asymptotic (limiting)
+    #     and ultraparallel lines.
+    # Params: point P, line l -> multiple parallel lines
+    template "parallel_through_point_not_unique" 2
+
+    # Limiting parallel ray: For a given line l and point P not on l,
+    #     there exist exactly two rays from P that are limiting (asymptotic)
+    #     parallels to l, one in each direction. These rays approach l
+    #     arbitrarily closely but never intersect it.
+    # Params: point P, line l, direction -> limiting parallel ray
+    template "limiting_parallel_ray" 3
+
+    # --- Group V: Hyperbolic-Specific Constructions ---
+    # Angle of parallelism: Given a point P and line l with perpendicular
+    #     distance d = dist(P, l), the angle of parallelism Pi(d) is the
+    #     acute angle such that any ray from P making an angle less than
+    #     Pi(d) with the perpendicular will intersect l, and any ray making
+    #     an angle greater than or equal to Pi(d) will not.
+    #     Formula: Pi(d) = 2 * arctan(exp(-d)) in the natural metric.
+    # Params: point P, line l -> angle Pi(d)
+    template "angle_of_parallelism" 2
+
+    # Common perpendicular: Given two ultraparallel lines (lines that are
+    #     not parallel in the limiting sense and do not intersect), there
+    #     exists a unique line segment perpendicular to both, called the
+    #     common perpendicular. This is a key construction unique to
+    #     hyperbolic geometry (no analogue in Euclidean geometry).
+    # Params: line l1, line l2 -> common perpendicular segment
+    template "common_perpendicular" 2
+
+    # Ultraparallel line: Given a line l and a point P not on l, construct
+    #     a line through P that is ultraparallel to l (i.e., has a common
+    #     perpendicular with l). Such lines are characterized by making
+    #     an angle with the perpendicular from P to l that is greater than
+    #     the angle of parallelism Pi(d).
+    # Params: point P, line l -> ultraparallel line m
+    template "ultraparallel_line" 2
+
+    # Asymptotic triangle (ideal triangle): A triangle with one or more
+    #     vertices at infinity (ideal points). The sum of angles of an
+    #     asymptotic triangle is strictly less than pi. The area is
+    #     proportional to the angle defect.
+    # Params: two finite points + one ideal point (direction), or
+    #         one finite point + two ideal points
+    template "asymptotic_triangle" 3
+
+    # Saccheri quadrilateral: A quadrilateral ABCD with AB = CD,
+    #     angles at A and B are right angles. In hyperbolic geometry,
+    #     the angles at C and D are acute (contradicting Saccheri's
+    #     attempt to prove the parallel postulate). The summit CD
+    #     is longer than the base AB.
+    # Params: base endpoints A, B, base length -> Saccheri quadrilateral
+    template "saccheri_quadrilateral" 2
+
+    # Lambert quadrilateral: A quadrilateral with three right angles.
+    #     In hyperbolic geometry, the fourth angle is necessarily acute.
+    #     This is a key distinguishing feature from Euclidean geometry
+    #     (where the fourth angle would also be right).
+    # Params: three vertices defining three right angles -> Lambert quadrilateral
+    template "lambert_quadrilateral" 3
+
+    # --- Group VI: Continuity & Metric ---
+    # V.1 (Archimedes' Axiom): Given segments AB and CD, there exists
+    #     a natural number n such that n copies of CD laid end-to-end
+    #     extend beyond AB. Identical to the Euclidean version.
+    # Params: segment AB, segment CD (4 points)
+    template "archimedes_axiom" 4
+
+    # V.2 (Completeness): The points of a line form a complete ordered
+    #     field (no gaps). This is a second-order axiom ensuring the
+    #     real numbers as coordinate model. Identical to Euclidean.
+    # Params: (zero-input, structural axiom)
+    template "line_completeness" 0
+
+    # Hyperbolic distance: The distance function in hyperbolic geometry
+    #     differs from Euclidean distance. In the Poincare disk model,
+    #     d(z,w) = arccosh(1 + 2|z-w|^2 / ((1-|z|^2)(1-|w|^2))).
+    #     This metric satisfies all axioms of a metric space and is
+    #     conformal (preserves angles).
+    # Params: point P, point Q -> hyperbolic distance d(P,Q)
+    template "hyperbolic_distance" 2
+
+    # --- Group VII: Hyperbolic Model Constructions ---
+    # Poincare disk model: The hyperbolic plane is modeled as the
+    #     interior of the unit disk. Lines are represented as circular
+    #     arcs orthogonal to the boundary circle (or diameters).
+    #     The model is conformal (angle-preserving) and geodesics are
+    #     arcs of circles orthogonal to the boundary.
+    # Params: center O, boundary circle -> Poincare disk model
+    template "poincare_disk_model" 2
+
+    # Poincare half-plane model: The hyperbolic plane is modeled as the
+    #     upper half-plane {(x,y) : y > 0}. Lines are represented as
+    #     vertical rays and semicircles orthogonal to the x-axis.
+    #     The metric is ds^2 = (dx^2 + dy^2) / y^2.
+    #     The model is conformal and useful for analytic computations.
+    # Params: boundary line (x-axis), half-plane region -> half-plane model
+    template "poincare_halfplane_model" 2
+
+    # Klein model (Beltrami-Klein): The hyperbolic plane is modeled as
+    #     the interior of the unit disk. Lines are represented as
+    #     straight chords of the disk. The model is NOT conformal
+    #     (angles are distorted) but geodesics are straight lines,
+    #     making it useful for certain geometric constructions.
+    # Params: center O, boundary circle -> Klein model
+    template "klein_model" 2
+
+    # Hyperbolic isometry: An isometry of the hyperbolic plane is a
+    #     bijection that preserves hyperbolic distance. In the Poincare
+    #     disk model, isometries are given by Mobius transformations
+    #     that map the disk to itself. These include rotations, translations
+    #     (along geodesics), and reflections (in geodesics).
+    # Params: transformation parameters, model reference -> isometry map
+    template "hyperbolic_isometry" 2
+
+    # =================================================================
+    # Known Unconstructible / Undecidable Problems
+    # =================================================================
+
+    # 1. Squaring the circle in hyperbolic geometry: constructing a square
+    #    with the same area as a given circle. The hyperbolic area of a
+    #    circle involves transcendental functions, making this impossible
+    #    with straightedge and compass constructions.
+    unconstructible "squaring_the_circle_hyperbolic" {
+        reduces_to "transcendental_number"
+        dependency "hyperbolic_distance"
+        dependency "line_completeness"
+        dependency "angle_of_parallelism"
+        external_ref "https://en.wikipedia.org/wiki/Squaring_the_circle"
+        green_verified true
+    }
+
+    # 2. Angle trisection in hyperbolic geometry: dividing an arbitrary
+    #    angle into three equal parts. This reduces to solving a general
+    #    cubic equation, which is impossible with straightedge and compass.
+    unconstructible "angle_trisection_hyperbolic" {
+        reduces_to "cubic_equation_solving"
+        dependency "segment_transport"
+        dependency "angle_transport"
+        dependency "SAS_congruence"
+        external_ref "https://en.wikipedia.org/wiki/Angle_trisection"
+        green_verified true
+    }
+
+    # 3. Doubling the cube in hyperbolic geometry: constructing a cube
+    #    with twice the volume of a given cube. This requires constructing
+    #    the cube root of 2, which is algebraic of degree 3.
+    unconstructible "doubling_the_cube_hyperbolic" {
+        reduces_to "cube_root_of_two"
+        dependency "segment_transport"
+        dependency "hyperbolic_distance"
+        external_ref "https://en.wikipedia.org/wiki/Doubling_the_cube"
+        green_verified true
+    }
+
+    # 4. Regular polygon construction in hyperbolic geometry: constructing
+    #    regular n-gons is subject to algebraic constraints. In hyperbolic
+    #    geometry, regular polygons exist for all n >= 3, but their
+    #    constructibility with straightedge and compass depends on the
+    #    same algebraic conditions as in Euclidean geometry (n must be a
+    #    product of a power of 2 and distinct Fermat primes).
+    unconstructible "regular_polygon_hyperbolic" {
+        reduces_to "algebraic_equation"
+        dependency "segment_transport"
+        dependency "angle_transport"
+        dependency "hyperbolic_distance"
+        external_ref "https://en.wikipedia.org/wiki/Constructible_polygon"
+        green_verified true
+    }
+
+    # 5. Area of triangle trisection: dividing the area of a hyperbolic
+    #    triangle into three equal parts. The area of a hyperbolic triangle
+    #    is proportional to its angle defect (pi - sum of angles), which
+    #    involves transcendental relationships when angles are algebraic.
+    unconstructible "area_of_triangle_trisection" {
+        reduces_to "transcendental"
+        dependency "hyperbolic_distance"
+        dependency "angle_of_parallelism"
+        dependency "SAS_congruence"
+        external_ref "https://en.wikipedia.org/wiki/Hyperbolic_triangle"
+        green_verified true
+    }
+
+    # 6. Constructible angle characterization in hyperbolic geometry:
+    #    characterizing which angles are constructible in the hyperbolic
+    #    plane. This is related to the angle of parallelism function
+    #    Pi(d) = 2*arctan(exp(-d)), which maps algebraic distances to
+    #    transcendental angles in general, making full characterization
+    #    depend on deep results in algebraic number theory.
+    unconstructible "constructible_angle_characterization" {
+        reduces_to "algebraic_number_theory"
+        dependency "angle_of_parallelism"
+        dependency "hyperbolic_distance"
+        dependency "line_completeness"
+        external_ref "https://en.wikipedia.org/wiki/Angle_of_parallelism"
+        green_verified true
+    }
+
+    # =================================================================
+    # Bottom Geometry & Logical Framework
+    # =================================================================
+
+    bottom_geometry "hyperbolic_plane"
+    negation_encoding "classical_material_implication"
+    contradiction_behavior "explosion_principle"
+}
