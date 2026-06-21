@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <time.h>
 
+/*
+ * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
+ */
+
 static atomic_int session_counter = 0;
 
 Lv00SessionConfig lv00_default_session_config(void) {

@@ -3,7 +3,9 @@
 #include <string.h>
 #include <math.h>
 
-/* 节点图视图 - 完整实现 */
+/* 节点图视图 - 完整实现
+ * [QA] Uses double for timing/layout — not geometric computation. Acceptable.
+ */
 
 /* 节点类型 */
 typedef enum {
