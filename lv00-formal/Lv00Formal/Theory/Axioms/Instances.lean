@@ -1,4 +1,4 @@
-﻿/-
+/-
 Lv-00 自有理论核心：真实规则包实例
 [QA] TODO: split by package (currently ~2276 lines, threshold 500)
 
