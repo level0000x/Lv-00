@@ -5,14 +5,8 @@
 extern "C" {
 #endif
 
-#include <stdbool.h>
 #include <stddef.h>
-
-/* Forward decl */
-typedef enum {
-    LV00_OK = 0,
-    LV00_ERROR_INVALID_ARGUMENT = 1
-} Lv00ErrorCode;
+#include "error_codes.h"   /* Lv00ErrorCode */
 
 /** Validate input before parsing. Returns LV00_OK or error code. */
 Lv00ErrorCode lv00_input_validate(const char *input, size_t len);
