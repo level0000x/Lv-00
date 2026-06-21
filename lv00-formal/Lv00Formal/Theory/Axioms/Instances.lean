@@ -235,7 +235,7 @@ def proofTheoryExecutableRules : List ExecutableRule :=
 
 /-- 生成的规则实例数量与模板数量一致。 -/
 theorem proofTheoryExecutableRules_length : proofTheoryExecutableRules.length = 36 := by
-  simp [proofTheoryExecutableRules, proofTheoryTemplates_length]
+  rfl
 
 /-- 模板生成的规则实例均良构。
     由于模板阶段尚未携带具体前提/结论，良构性主要来自规则种类属于规范八规则集合。 -/
@@ -385,7 +385,7 @@ def linearLogicExecutableRules : List ExecutableRule :=
 
 /-- 生成的 Linear Logic 规则实例数量与模板数量一致。 -/
 theorem linearLogicExecutableRules_length : linearLogicExecutableRules.length = 54 := by
-  simp [linearLogicExecutableRules, linearLogicTemplates_length]
+  rfl
 
 /-! ## Galois Theory 公理包实例
 
@@ -465,7 +465,7 @@ def galoisTheoryTemplates : List PackageTemplate :=
 
 /-- Galois Theory `.lvz` 中列出的模板数量。 -/
 theorem galoisTheoryTemplates_length : galoisTheoryTemplates.length = 62 := by
-  simp [galoisTheoryTemplates]
+  rfl
 
 /-- C 测试要求模板数量至少为 60。 -/
 theorem galoisTheoryTemplates_at_least_60 : 60 ≤ galoisTheoryTemplates.length := by
@@ -537,7 +537,7 @@ def galoisTheoryExecutableRules : List ExecutableRule :=
 
 /-- 生成的 Galois Theory 规则实例数量与模板数量一致。 -/
 theorem galoisTheoryExecutableRules_length : galoisTheoryExecutableRules.length = 62 := by
-  simp [galoisTheoryExecutableRules, galoisTheoryTemplates_length]
+  rfl
 
 /-! ## Euclidean Plane 公理包实例
 
@@ -643,7 +643,7 @@ def euclideanPlaneExecutableRules : List ExecutableRule :=
 
 /-- 生成的 Euclidean Plane 规则实例数量与模板数量一致。 -/
 theorem euclideanPlaneExecutableRules_length : euclideanPlaneExecutableRules.length = 22 := by
-  simp [euclideanPlaneExecutableRules, euclideanPlaneTemplates_length]
+  rfl
 
 /-! ## Category Theory 公理包实例
 
@@ -790,7 +790,7 @@ def categoryTheoryExecutableRules : List ExecutableRule :=
 
 /-- 生成的 Category Theory 规则实例数量与模板数量一致。 -/
 theorem categoryTheoryExecutableRules_length : categoryTheoryExecutableRules.length = 60 := by
-  simp [categoryTheoryExecutableRules, categoryTheoryTemplates_length]
+  rfl
 
 /-! ## Hyperbolic Geometry 公理包实例
 
@@ -899,7 +899,7 @@ def hyperbolicGeometryExecutableRules : List ExecutableRule :=
 
 /-- 生成的 Hyperbolic Geometry 规则实例数量与模板数量一致。 -/
 theorem hyperbolicGeometryExecutableRules_length : hyperbolicGeometryExecutableRules.length = 29 := by
-  simp [hyperbolicGeometryExecutableRules, hyperbolicGeometryTemplates_length]
+  rfl
 
 /-! ## Projective Geometry 公理包实例
 
@@ -1018,7 +1018,7 @@ def projectiveGeometryExecutableRules : List ExecutableRule :=
 
 /-- 生成的 Projective Geometry 规则实例数量与模板数量一致。 -/
 theorem projectiveGeometryExecutableRules_length : projectiveGeometryExecutableRules.length = 38 := by
-  simp [projectiveGeometryExecutableRules, projectiveGeometryTemplates_length]
+  rfl
 
 /-! ## Group Theory 公理包实例
 
@@ -1121,7 +1121,7 @@ def groupTheoryExecutableRules : List ExecutableRule :=
 
 /-- 生成的 Group Theory 规则实例数量与模板数量一致。 -/
 theorem groupTheoryExecutableRules_length : groupTheoryExecutableRules.length = 34 := by
-  simp [groupTheoryExecutableRules, groupTheoryTemplates_length]
+  rfl
 
 /-! ## ZFC Set Theory 公理包实例
 
@@ -1176,7 +1176,7 @@ def zfcSetTheoryTemplates : List PackageTemplate :=
 
 /-- ZFC Set Theory 模板数量。 -/
 theorem zfcSetTheoryTemplates_length : zfcSetTheoryTemplates.length = 27 := by
-  simp [zfcSetTheoryTemplates]
+  rfl
 
 /-- ZFC Set Theory 包中的 10 个不可构造问题。 -/
 def zfcSetTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -1232,7 +1232,7 @@ def zfcSetTheoryExecutableRules : List ExecutableRule :=
 
 /-- 生成的 ZFC Set Theory 规则实例数量与模板数量一致。 -/
 theorem zfcSetTheoryExecutableRules_length : zfcSetTheoryExecutableRules.length = 27 := by
-  simp [zfcSetTheoryExecutableRules, zfcSetTheoryTemplates_length]
+  rfl
 
 /-! ## Boolean Algebra 公理包实例 -/
 
@@ -1292,7 +1292,7 @@ def booleanAlgebraExecutableRules : List ExecutableRule :=
   booleanAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem booleanAlgebraExecutableRules_length : booleanAlgebraExecutableRules.length = 29 := by
-  simp [booleanAlgebraExecutableRules, booleanAlgebraTemplates_length]
+  rfl
 
 /-! ## Ring Theory 公理包实例 -/
 
@@ -1333,7 +1333,7 @@ def ringTheoryExecutableRules : List ExecutableRule :=
   ringTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem ringTheoryExecutableRules_length : ringTheoryExecutableRules.length = 54 := by
-  simp [ringTheoryExecutableRules, ringTheoryTemplates_length]
+  rfl
 
 /-! ## Peano Arithmetic 公理包实例 -/
 
@@ -1370,7 +1370,7 @@ def peanoArithmeticExecutableRules : List ExecutableRule :=
   peanoArithmeticTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem peanoArithmeticExecutableRules_length : peanoArithmeticExecutableRules.length = 70 := by
-  simp [peanoArithmeticExecutableRules, peanoArithmeticTemplates_length]
+  rfl
 
 /-! ## Field Theory 公理包实例 -/
 
@@ -1411,7 +1411,7 @@ def fieldTheoryExecutableRules : List ExecutableRule :=
   fieldTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem fieldTheoryExecutableRules_length : fieldTheoryExecutableRules.length = 37 := by
-  simp [fieldTheoryExecutableRules, fieldTheoryTemplates_length]
+  rfl
 
 /-! ## Order Theory 公理包实例 -/
 
@@ -1453,7 +1453,7 @@ def orderTheoryExecutableRules : List ExecutableRule :=
   orderTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem orderTheoryExecutableRules_length : orderTheoryExecutableRules.length = 32 := by
-  simp [orderTheoryExecutableRules, orderTheoryTemplates_length]
+  rfl
 
 /-! ## Point-Set Topology 公理包实例 -/
 
@@ -1493,7 +1493,7 @@ def pointSetTopologyExecutableRules : List ExecutableRule :=
   pointSetTopologyTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem pointSetTopologyExecutableRules_length : pointSetTopologyExecutableRules.length = 43 := by
-  simp [pointSetTopologyExecutableRules, pointSetTopologyTemplates_length]
+  rfl
 
 /-! ## Graph Theory 公理包实例 -/
 
@@ -1543,7 +1543,7 @@ def graphTheoryExecutableRules : List ExecutableRule :=
   graphTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem graphTheoryExecutableRules_length : graphTheoryExecutableRules.length = 70 := by
-  simp [graphTheoryExecutableRules, graphTheoryTemplates_length]
+  rfl
 
 /-! ## Number Theory 公理包实例 -/
 
@@ -1583,7 +1583,7 @@ def numberTheoryExecutableRules : List ExecutableRule :=
   numberTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem numberTheoryExecutableRules_length : numberTheoryExecutableRules.length = 38 := by
-  simp [numberTheoryExecutableRules, numberTheoryTemplates_length]
+  rfl
 
 /-! ## Measure Theory 公理包实例 -/
 
@@ -1607,7 +1607,7 @@ def measureTheoryTemplates : List PackageTemplate :=
   measureTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "measure_theory" })
 
 theorem measureTheoryTemplates_length : measureTheoryTemplates.length = 70 := by
-  simp [measureTheoryTemplates]
+  rfl
 
 def measureTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "vitali_set_non_measurable", reducesTo := "axiom_of_choice", dependencies := ["zfc_set_theory", "lebesgue_measure_rn"], externalRef := "https://en.wikipedia.org/wiki/Vitali_set", greenVerified := true },
@@ -1632,7 +1632,7 @@ def measureTheoryExecutableRules : List ExecutableRule :=
   measureTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem measureTheoryExecutableRules_length : measureTheoryExecutableRules.length = 70 := by
-  simp [measureTheoryExecutableRules, measureTheoryTemplates_length]
+  rfl
 
 /-! ## Real Analysis 公理包实例 -/
 
@@ -1672,7 +1672,7 @@ def realAnalysisExecutableRules : List ExecutableRule :=
   realAnalysisTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem realAnalysisExecutableRules_length : realAnalysisExecutableRules.length = 43 := by
-  simp [realAnalysisExecutableRules, realAnalysisTemplates_length]
+  rfl
 
 /-! ## Functional Analysis 公理包实例 -/
 
@@ -1712,7 +1712,7 @@ def functionalAnalysisExecutableRules : List ExecutableRule :=
   functionalAnalysisTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem functionalAnalysisExecutableRules_length : functionalAnalysisExecutableRules.length = 37 := by
-  simp [functionalAnalysisExecutableRules, functionalAnalysisTemplates_length]
+  rfl
 
 /-! ## Probability Theory 公理包实例 -/
 
@@ -1758,7 +1758,7 @@ def probabilityTheoryExecutableRules : List ExecutableRule :=
   probabilityTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem probabilityTheoryExecutableRules_length : probabilityTheoryExecutableRules.length = 87 := by
-  simp [probabilityTheoryExecutableRules, probabilityTheoryTemplates_length]
+  rfl
 
 /-! ## Algebraic Geometry 公理包实例 -/
 
@@ -1797,7 +1797,7 @@ def algebraicGeometryExecutableRules : List ExecutableRule :=
   algebraicGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem algebraicGeometryExecutableRules_length : algebraicGeometryExecutableRules.length = 38 := by
-  simp [algebraicGeometryExecutableRules, algebraicGeometryTemplates_length]
+  rfl
 
 /-! ## Information Theory 公理包实例 -/
 
@@ -1821,7 +1821,7 @@ def informationTheoryTemplates : List PackageTemplate :=
   informationTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "information_theory" })
 
 theorem informationTheoryTemplates_length : informationTheoryTemplates.length = 96 := by
-  simp [informationTheoryTemplates]
+  rfl
 
 def informationTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "kolmogorov_complexity_computation", reducesTo := "halting_problem", dependencies := ["turing_machine_universality", "program_termination"], externalRef := "https://en.wikipedia.org/wiki/Kolmogorov_complexity#Uncomputability", greenVerified := true },
@@ -1845,7 +1845,7 @@ def informationTheoryExecutableRules : List ExecutableRule :=
   informationTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem informationTheoryExecutableRules_length : informationTheoryExecutableRules.length = 96 := by
-  simp [informationTheoryExecutableRules, informationTheoryTemplates_length]
+  rfl
 
 /-! ## Linear Algebra 公理包实例 -/
 
@@ -1891,7 +1891,7 @@ def linearAlgebraExecutableRules : List ExecutableRule :=
   linearAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem linearAlgebraExecutableRules_length : linearAlgebraExecutableRules.length = 90 := by
-  simp [linearAlgebraExecutableRules, linearAlgebraTemplates_length]
+  rfl
 
 /-! ## Homological Algebra 公理包实例 -/
 
@@ -1930,7 +1930,7 @@ def homologicalAlgebraExecutableRules : List ExecutableRule :=
   homologicalAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem homologicalAlgebraExecutableRules_length : homologicalAlgebraExecutableRules.length = 36 := by
-  simp [homologicalAlgebraExecutableRules, homologicalAlgebraTemplates_length]
+  rfl
 
 /-! ## Differential Geometry 公理包实例 -/
 
@@ -1947,7 +1947,7 @@ def differentialGeometryTemplates : List PackageTemplate :=
   differentialGeometryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "differential_geometry" })
 
 theorem differentialGeometryTemplates_length : differentialGeometryTemplates.length = 41 := by
-  simp [differentialGeometryTemplates]
+  rfl
 
 def differentialGeometryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "geodesic_completeness_decision", reducesTo := "undecidable", dependencies := ["geodesic", "riemannian_manifold_complete", "exponential_map"], externalRef := "https://en.wikipedia.org/wiki/Geodesic_completeness", greenVerified := true },
@@ -1969,7 +1969,7 @@ def differentialGeometryExecutableRules : List ExecutableRule :=
   differentialGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem differentialGeometryExecutableRules_length : differentialGeometryExecutableRules.length = 41 := by
-  simp [differentialGeometryExecutableRules, differentialGeometryTemplates_length]
+  rfl
 
 /-! ## Computability Theory 公理包实例 -/
 
@@ -1993,7 +1993,7 @@ def computabilityTheoryTemplates : List PackageTemplate :=
   computabilityTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "computability_theory" })
 
 theorem computabilityTheoryTemplates_length : computabilityTheoryTemplates.length = 53 := by
-  simp [computabilityTheoryTemplates]
+  rfl
 
 def computabilityTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "halting_problem", reducesTo := "non_computable_set", dependencies := ["universal_turing_machine", "diagonalization", "godel_numbering"], externalRef := "https://en.wikipedia.org/wiki/Halting_problem", greenVerified := true },
@@ -2023,7 +2023,7 @@ def computabilityTheoryExecutableRules : List ExecutableRule :=
   computabilityTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem computabilityTheoryExecutableRules_length : computabilityTheoryExecutableRules.length = 53 := by
-  simp [computabilityTheoryExecutableRules, computabilityTheoryTemplates_length]
+  rfl
 
 /-! ## Modal Logic 公理包实例 -/
 
@@ -2045,7 +2045,7 @@ def modalLogicTemplates : List PackageTemplate :=
   modalLogicTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "modal_logic" })
 
 theorem modalLogicTemplates_length : modalLogicTemplates.length = 29 := by
-  simp [modalLogicTemplates]
+  rfl
 
 def modalLogicUnconstructibles : List UnconstructibleProblem :=
   [ { name := "modal_satisfiability_K", reducesTo := "PSPACE_complete", dependencies := ["classical_propositional_logic"], externalRef := "https://en.wikipedia.org/wiki/PSPACE-complete", greenVerified := false },
@@ -2068,7 +2068,7 @@ def modalLogicExecutableRules : List ExecutableRule :=
   modalLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem modalLogicExecutableRules_length : modalLogicExecutableRules.length = 29 := by
-  simp [modalLogicExecutableRules, modalLogicTemplates_length]
+  rfl
 
 /-! ## Universal Algebra 公理包实例 -/
 
@@ -2111,7 +2111,7 @@ def universalAlgebraExecutableRules : List ExecutableRule :=
   universalAlgebraTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem universalAlgebraExecutableRules_length : universalAlgebraExecutableRules.length = 60 := by
-  simp [universalAlgebraExecutableRules, universalAlgebraTemplates_length]
+  rfl
 
 /-! ## Combinatorics 公理包实例 -/
 
@@ -2151,7 +2151,7 @@ def combinatoricsExecutableRules : List ExecutableRule :=
   combinatoricsTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem combinatoricsExecutableRules_length : combinatoricsExecutableRules.length = 39 := by
-  simp [combinatoricsExecutableRules, combinatoricsTemplates_length]
+  rfl
 
 /-! ## Game Theory 公理包实例 -/
 
@@ -2171,7 +2171,7 @@ def gameTheoryTemplates : List PackageTemplate :=
   gameTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "game_theory" })
 
 theorem gameTheoryTemplates_length : gameTheoryTemplates.length = 51 := by
-  simp [gameTheoryTemplates]
+  rfl
 
 def gameTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "nash_equilibrium_computation", reducesTo := "PPAD_complete", dependencies := ["nash_equilibrium", "mixed_strategy", "expected_payoff_mixed", "best_response"], externalRef := "https://doi.org/10.1145/1060590.1060645", greenVerified := true },
@@ -2197,7 +2197,7 @@ def gameTheoryExecutableRules : List ExecutableRule :=
   gameTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem gameTheoryExecutableRules_length : gameTheoryExecutableRules.length = 51 := by
-  simp [gameTheoryExecutableRules, gameTheoryTemplates_length]
+  rfl
 
 /-! ## Homotopy Type Theory 公理包实例 -/
 
@@ -2236,7 +2236,7 @@ def homotopyTypeTheoryExecutableRules : List ExecutableRule :=
   homotopyTypeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem homotopyTypeTheoryExecutableRules_length : homotopyTypeTheoryExecutableRules.length = 37 := by
-  simp [homotopyTypeTheoryExecutableRules, homotopyTypeTheoryTemplates_length]
+  rfl
 
 /-! ## Dependent Type Theory 公理包实例 -/
 
@@ -2275,7 +2275,7 @@ def dependentTypeTheoryExecutableRules : List ExecutableRule :=
   dependentTypeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem dependentTypeTheoryExecutableRules_length : dependentTypeTheoryExecutableRules.length = 33 := by
-  simp [dependentTypeTheoryExecutableRules, dependentTypeTheoryTemplates_length]
+  rfl
 
 /-! ## Simple Type Theory 公理包实例 -/
 
@@ -2314,7 +2314,7 @@ def simpleTypeTheoryExecutableRules : List ExecutableRule :=
   simpleTypeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem simpleTypeTheoryExecutableRules_length : simpleTypeTheoryExecutableRules.length = 39 := by
-  simp [simpleTypeTheoryExecutableRules, simpleTypeTheoryTemplates_length]
+  rfl
 
 /-! ## Affine Geometry 公理包实例 -/
 
@@ -2336,7 +2336,7 @@ def affineGeometryTemplates : List PackageTemplate :=
   affineGeometryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "affine_geometry" })
 
 theorem affineGeometryTemplates_length : affineGeometryTemplates.length = 52 := by
-  simp [affineGeometryTemplates]
+  rfl
 
 def affineGeometryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "perpendicular_bisector", reducesTo := "orthogonality requires metric structure", dependencies := ["affine_geometry", "euclidean_plane"], externalRef := "https://en.wikipedia.org/wiki/Affine_geometry", greenVerified := true },
@@ -2359,7 +2359,7 @@ def affineGeometryExecutableRules : List ExecutableRule :=
   affineGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem affineGeometryExecutableRules_length : affineGeometryExecutableRules.length = 52 := by
-  simp [affineGeometryExecutableRules, affineGeometryTemplates_length]
+  rfl
 
 /-! ## Algebraic Topology 公理包实例 -/
 
@@ -2399,7 +2399,7 @@ def algebraicTopologyExecutableRules : List ExecutableRule :=
   algebraicTopologyTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem algebraicTopologyExecutableRules_length : algebraicTopologyExecutableRules.length = 38 := by
-  simp [algebraicTopologyExecutableRules, algebraicTopologyTemplates_length]
+  rfl
 
 /-! ## Elliptic Geometry 公理包实例 -/
 
@@ -2440,7 +2440,7 @@ def ellipticGeometryExecutableRules : List ExecutableRule :=
   ellipticGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem ellipticGeometryExecutableRules_length : ellipticGeometryExecutableRules.length = 30 := by
-  simp [ellipticGeometryExecutableRules, ellipticGeometryTemplates_length]
+  rfl
 
 /-! ## Metric Space 公理包实例 -/
 
@@ -2483,7 +2483,7 @@ def metricSpaceExecutableRules : List ExecutableRule :=
   metricSpaceTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem metricSpaceExecutableRules_length : metricSpaceExecutableRules.length = 47 := by
-  simp [metricSpaceExecutableRules, metricSpaceTemplates_length]
+  rfl
 
 /-! ## Lattice Theory 公理包实例 -/
 
@@ -2505,7 +2505,7 @@ def latticeTheoryTemplates : List PackageTemplate :=
   latticeTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "lattice_theory" })
 
 theorem latticeTheoryTemplates_length : latticeTheoryTemplates.length = 42 := by
-  simp [latticeTheoryTemplates]
+  rfl
 
 def latticeTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "lattice_variety_membership", reducesTo := "equational_theory_undecidability", dependencies := ["meet", "join", "meet_associativity", "join_associativity"], externalRef := "https://en.wikipedia.org/wiki/Lattice_(order)", greenVerified := true },
@@ -2528,7 +2528,7 @@ def latticeTheoryExecutableRules : List ExecutableRule :=
   latticeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem latticeTheoryExecutableRules_length : latticeTheoryExecutableRules.length = 42 := by
-  simp [latticeTheoryExecutableRules, latticeTheoryTemplates_length]
+  rfl
 
 /-! ## Lie Theory 公理包实例 -/
 
@@ -2572,7 +2572,7 @@ def lieTheoryExecutableRules : List ExecutableRule :=
   lieTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem lieTheoryExecutableRules_length : lieTheoryExecutableRules.length = 70 := by
-  simp [lieTheoryExecutableRules, lieTheoryTemplates_length]
+  rfl
 
 /-! ## Model Theory 公理包实例 -/
 
@@ -2612,7 +2612,7 @@ def modelTheoryExecutableRules : List ExecutableRule :=
   modelTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem modelTheoryExecutableRules_length : modelTheoryExecutableRules.length = 35 := by
-  simp [modelTheoryExecutableRules, modelTheoryTemplates_length]
+  rfl
 
 /-! ## Classical Propositional Logic 公理包实例 -/
 
@@ -2661,7 +2661,7 @@ def classicalPropositionalLogicExecutableRules : List ExecutableRule :=
   classicalPropositionalLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem classicalPropositionalLogicExecutableRules_length : classicalPropositionalLogicExecutableRules.length = 59 := by
-  simp [classicalPropositionalLogicExecutableRules, classicalPropositionalLogicTemplates_length]
+  rfl
 
 /-! ## Intuitionistic Logic 公理包实例 -/
 
@@ -2705,7 +2705,7 @@ def intuitionisticLogicExecutableRules : List ExecutableRule :=
   intuitionisticLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem intuitionisticLogicExecutableRules_length : intuitionisticLogicExecutableRules.length = 50 := by
-  simp [intuitionisticLogicExecutableRules, intuitionisticLogicTemplates_length]
+  rfl
 
 /-! ## Topos Theory 公理包实例 -/
 
@@ -2757,7 +2757,7 @@ def toposTheoryExecutableRules : List ExecutableRule :=
   toposTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 theorem toposTheoryExecutableRules_length : toposTheoryExecutableRules.length = 81 := by
-  simp [toposTheoryExecutableRules, toposTheoryTemplates_length]
+  rfl
 
 end Instances
 end Axioms
