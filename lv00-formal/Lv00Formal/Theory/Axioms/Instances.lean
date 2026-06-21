@@ -172,8 +172,7 @@ def TemplateParamCountReasonable (t : PackageTemplate) : Prop :=
 /-- 当前 proof_theory 包中所有模板参数个数均合理。 -/
 theorem proofTheoryTemplates_param_reasonable :
     ∀ t ∈ proofTheoryTemplates, TemplateParamCountReasonable t := by
-  intro t ht
-  sorry
+  decide
 
 /-- 不可构造问题具有外部引用。 -/
 def HasExternalReference (u : UnconstructibleProblem) : Prop :=
@@ -182,14 +181,12 @@ def HasExternalReference (u : UnconstructibleProblem) : Prop :=
 /-- 当前 proof_theory 包中的不可构造问题均有外部引用。 -/
 theorem proofTheoryUnconstructibles_have_refs :
     ∀ u ∈ proofTheoryUnconstructibles, HasExternalReference u := by
-  intro u hu
-  sorry
+  decide
 
 /-- 不可构造问题均标记为 green_verified。 -/
 theorem proofTheoryUnconstructibles_green_verified :
     ∀ u ∈ proofTheoryUnconstructibles, u.greenVerified = true := by
-  intro u hu
-  sorry
+  decide
 
 /-- 关键模板：Sequent Calculus 核心。 -/
 def sequentCoreTemplates : List String :=
@@ -206,14 +203,12 @@ def templateNames (ts : List PackageTemplate) : List String :=
 /-- Sequent Calculus 核心模板存在。 -/
 theorem sequentCoreTemplates_exist :
     ∀ n ∈ sequentCoreTemplates, n ∈ templateNames proofTheoryTemplates := by
-  intro n hn
-  sorry
+  decide
 
 /-- 逻辑规则核心模板存在。 -/
 theorem logicCoreTemplates_exist :
     ∀ n ∈ logicCoreTemplates, n ∈ templateNames proofTheoryTemplates := by
-  intro n hn
-  sorry
+  decide
 
 /-- 由模板生成一个 Lv-00 可执行规则的保守映射。
 
@@ -245,7 +240,8 @@ theorem proofTheoryExecutableRules_length : proofTheoryExecutableRules.length = 
     由于模板阶段尚未携带具体前提/结论，良构性主要来自规则种类属于规范八规则集合。 -/
 theorem proofTheoryExecutableRules_wellformed :
     ∀ r ∈ proofTheoryExecutableRules, WellFormedExecutableRule r := by
-  sorry
+  unfold proofTheoryExecutableRules proofTheoryTemplates
+  simp [templateToExecutableRule, WellFormedExecutableRule, canonicalKinds]
 
 /-! ## Linear Logic 公理包实例
 
@@ -380,7 +376,7 @@ theorem linearLogic_MELL_open_problem :
     (linearLogicUnconstructibles[1]!).name = "provability_MELL" ∧
     (linearLogicUnconstructibles[1]!).reducesTo = "open_problem" ∧
     (linearLogicUnconstructibles[1]!).greenVerified = false := by
-  sorry
+  simp [linearLogicUnconstructibles]
 
 /-- 由全部 Linear Logic 模板生成的规则实例。 -/
 def linearLogicExecutableRules : List ExecutableRule :=
@@ -468,7 +464,7 @@ def galoisTheoryTemplates : List PackageTemplate :=
 
 /-- Galois Theory `.lvz` 中列出的模板数量。 -/
 theorem galoisTheoryTemplates_length : galoisTheoryTemplates.length = 62 := by
-  sorry
+  rfl
 
 /-- C 测试要求模板数量至少为 60。 -/
 theorem galoisTheoryTemplates_at_least_60 : 60 ≤ galoisTheoryTemplates.length := by
@@ -532,7 +528,7 @@ theorem galoisTheory_inverse_problem_unsolved :
     (galoisTheoryUnconstructibles[0]!).name = "inverse_galois_problem" ∧
     (galoisTheoryUnconstructibles[0]!).reducesTo = "unsolved" ∧
     (galoisTheoryUnconstructibles[0]!).greenVerified = false := by
-  sorry
+  simp [galoisTheoryUnconstructibles]
 
 /-- 由全部 Galois Theory 模板生成的规则实例。 -/
 def galoisTheoryExecutableRules : List ExecutableRule :=
@@ -638,8 +634,7 @@ theorem euclideanPlane_logical_framework :
 /-- Euclidean Plane 全部 6 个不可构造问题均标记为 green_verified=true。 -/
 theorem euclideanPlaneUnconstructibles_green_verified :
     ∀ u ∈ euclideanPlaneUnconstructibles, u.greenVerified = true := by
-  intro u hu
-  sorry
+  decide
 
 /-- 由全部 Euclidean Plane 模板生成的规则实例。 -/
 def euclideanPlaneExecutableRules : List ExecutableRule :=
@@ -1180,7 +1175,7 @@ def zfcSetTheoryTemplates : List PackageTemplate :=
 
 /-- ZFC Set Theory 模板数量。 -/
 theorem zfcSetTheoryTemplates_length : zfcSetTheoryTemplates.length = 27 := by
-  sorry
+  rfl
 
 /-- ZFC Set Theory 包中的 10 个不可构造问题。 -/
 def zfcSetTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -1611,7 +1606,7 @@ def measureTheoryTemplates : List PackageTemplate :=
   measureTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "measure_theory" })
 
 theorem measureTheoryTemplates_length : measureTheoryTemplates.length = 70 := by
-  sorry
+  decide
 
 def measureTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "vitali_set_non_measurable", reducesTo := "axiom_of_choice", dependencies := ["zfc_set_theory", "lebesgue_measure_rn"], externalRef := "https://en.wikipedia.org/wiki/Vitali_set", greenVerified := true },
@@ -1825,7 +1820,7 @@ def informationTheoryTemplates : List PackageTemplate :=
   informationTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "information_theory" })
 
 theorem informationTheoryTemplates_length : informationTheoryTemplates.length = 96 := by
-  sorry
+  decide
 
 def informationTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "kolmogorov_complexity_computation", reducesTo := "halting_problem", dependencies := ["turing_machine_universality", "program_termination"], externalRef := "https://en.wikipedia.org/wiki/Kolmogorov_complexity#Uncomputability", greenVerified := true },
@@ -1951,7 +1946,7 @@ def differentialGeometryTemplates : List PackageTemplate :=
   differentialGeometryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "differential_geometry" })
 
 theorem differentialGeometryTemplates_length : differentialGeometryTemplates.length = 41 := by
-  sorry
+  decide
 
 def differentialGeometryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "geodesic_completeness_decision", reducesTo := "undecidable", dependencies := ["geodesic", "riemannian_manifold_complete", "exponential_map"], externalRef := "https://en.wikipedia.org/wiki/Geodesic_completeness", greenVerified := true },
@@ -1997,7 +1992,7 @@ def computabilityTheoryTemplates : List PackageTemplate :=
   computabilityTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "computability_theory" })
 
 theorem computabilityTheoryTemplates_length : computabilityTheoryTemplates.length = 53 := by
-  sorry
+  decide
 
 def computabilityTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "halting_problem", reducesTo := "non_computable_set", dependencies := ["universal_turing_machine", "diagonalization", "godel_numbering"], externalRef := "https://en.wikipedia.org/wiki/Halting_problem", greenVerified := true },
@@ -2049,7 +2044,7 @@ def modalLogicTemplates : List PackageTemplate :=
   modalLogicTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "modal_logic" })
 
 theorem modalLogicTemplates_length : modalLogicTemplates.length = 29 := by
-  sorry
+  decide
 
 def modalLogicUnconstructibles : List UnconstructibleProblem :=
   [ { name := "modal_satisfiability_K", reducesTo := "PSPACE_complete", dependencies := ["classical_propositional_logic"], externalRef := "https://en.wikipedia.org/wiki/PSPACE-complete", greenVerified := false },
@@ -2175,7 +2170,7 @@ def gameTheoryTemplates : List PackageTemplate :=
   gameTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "game_theory" })
 
 theorem gameTheoryTemplates_length : gameTheoryTemplates.length = 51 := by
-  sorry
+  decide
 
 def gameTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "nash_equilibrium_computation", reducesTo := "PPAD_complete", dependencies := ["nash_equilibrium", "mixed_strategy", "expected_payoff_mixed", "best_response"], externalRef := "https://doi.org/10.1145/1060590.1060645", greenVerified := true },
@@ -2340,7 +2335,7 @@ def affineGeometryTemplates : List PackageTemplate :=
   affineGeometryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "affine_geometry" })
 
 theorem affineGeometryTemplates_length : affineGeometryTemplates.length = 52 := by
-  sorry
+  decide
 
 def affineGeometryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "perpendicular_bisector", reducesTo := "orthogonality requires metric structure", dependencies := ["affine_geometry", "euclidean_plane"], externalRef := "https://en.wikipedia.org/wiki/Affine_geometry", greenVerified := true },
@@ -2509,7 +2504,7 @@ def latticeTheoryTemplates : List PackageTemplate :=
   latticeTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "lattice_theory" })
 
 theorem latticeTheoryTemplates_length : latticeTheoryTemplates.length = 42 := by
-  sorry
+  decide
 
 def latticeTheoryUnconstructibles : List UnconstructibleProblem :=
   [ { name := "lattice_variety_membership", reducesTo := "equational_theory_undecidability", dependencies := ["meet", "join", "meet_associativity", "join_associativity"], externalRef := "https://en.wikipedia.org/wiki/Lattice_(order)", greenVerified := true },
