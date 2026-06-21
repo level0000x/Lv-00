@@ -28,18 +28,18 @@ jobs:
       - name: Syntax check (core impl)
         run: |
           gcc -fsyntax-only -std=c11 `
-            -Icore/include -Icore/src -IC:/msys64/mingw64/include `
+            -Icore/include -Icore/include/lv00 -Icore/src -IC:/msys64/mingw64/include `
             -include gmp.h -include lv00/lv00.h `
             core/src/lv00_impl_native.c
 
       - name: Syntax check (runtime)
         run: |
           gcc -fsyntax-only -std=c11 `
-            -Icore/include -Ibootstrap/runtime -IC:/msys64/mingw64/include `
+            -Icore/include -Icore/include/lv00 -Ibootstrap/runtime -IC:/msys64/mingw64/include `
             -include gmp.h -include lv00/lv00.h `
             bootstrap/runtime/primitive_runtime.c
 
-  lean-typecheck:
+  lean-typecheck-formal:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,13 +53,21 @@ jobs:
         run: |
           cd formal
           lake build
-        continue-on-error: true
+
+  lean-typecheck-lv00-formal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Lean 4
+        uses: leanprover/lean4-action@v1
+        with:
+          toolchain: 'stable'
 
       - name: Lake build (lv00-formal/)
         run: |
           cd lv00-formal
           lake build
-        continue-on-error: true
 
   python-syntax:
     runs-on: ubuntu-latest
@@ -74,4 +82,3 @@ jobs:
           python -m py_compile module/python/lv00/ws_server.py
           python -m py_compile module/python/lv00/stream_bridge.py
           python -m py_compile module/python/lv00/core.py
-        continue-on-error: true
