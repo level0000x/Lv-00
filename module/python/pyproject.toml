@@ -1,42 +1,12 @@
-[build-system]
-requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.build_meta"
+﻿[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "lv00"
-version = "3.4.0"
-description = "Lv-00 几何元语言系统 —— 以几何为唯一载体的双模数学元语言"
-readme = "../../README.md"
+version = "1.1.0"
+description = "Lv-00 Geometric Metalanguage — Python Bindings"
 requires-python = ">=3.10"
-license = {text = "MIT"}
-authors = [
-    {name = "Lv-00 开发团队"}
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "Intended Audience :: Developers",
-    "Topic :: Scientific/Engineering :: Mathematics",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-]
-
-[project.optional-dependencies]
-monitor = ["rich>=13.0", "flask>=3.0"]
-llm-assist = ["fastapi>=0.110", "uvicorn>=0.25", "pydantic>=2.5", "dashscope>=1.18", "openai>=1.0", "httpx>=0.25"]
-dev = ["pytest>=7.0", "black>=23.0", "ruff>=0.1"]
-full = ["lv00[monitor,llm-assist,dev]"]
-
-[tool.setuptools.packages.find]
-where = ["."]
 
 [tool.ruff]
-line-length = 100
 target-version = "py310"
-
-[tool.black]
-line-length = 100
-target-version = ["py310", "py311", "py312"]
