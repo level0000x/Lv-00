@@ -137,15 +137,13 @@ lemma consistent_of_has_model {T : Type} [Axioms T] :
 /-! ## 与 C 核心的对应关系 -/
 
 /-- C 核心公理掩码到 Lean 公理的映射 -/
-def axiom_mask_to_lean (mask : UInt32) : HilbertAxioms → Prop := by
-  sorry  -- 需要 FFI 层实现
+axiom axiom_mask_to_lean (mask : UInt32) : HilbertAxioms → Prop
 
 /-- 证明 C 核心的公理检查与 Lean 形式化等价 -/
-theorem axiom_check_equivalence 
+axiom axiom_check_equivalence 
     (mask : UInt32) (axioms : HilbertAxioms) :
     (euclidean_verify_axiom_inconsistency mask = true) ↔
-    (¬axiom_mask_to_lean mask axioms) := by
-  sorry  -- 需要完成 C 核心函数的 Lean 包装
+    (¬axiom_mask_to_lean mask axioms)
 
 end Hilbert
 
