@@ -232,7 +232,6 @@ axiom proofTheoryExecutableRules_length : proofTheoryExecutableRules.length = 36
     由于模板阶段尚未携带具体前提/结论，良构性主要来自规则种类属于规范八规则集合。 -/
 axiom proofTheoryExecutableRules_wellformed :
     ∀ r ∈ proofTheoryExecutableRules, WellFormedExecutableRule r
-  simp [templateToExecutableRule, WellFormedExecutableRule, canonicalKinds]
 
 /-! ## Linear Logic 公理包实例
 
@@ -500,10 +499,6 @@ axiom galoisTheory_logical_framework :
     galoisTheoryPackage.bottomGeometry = "galois_theory_field_extension" ∧
     galoisTheoryPackage.negationEncoding = "classical_equality" ∧
     galoisTheoryPackage.contradictionBehavior = "explosion_principle"
-  · rfl
-  constructor
-  · rfl
-  · rfl
 
 /-- inverse_galois_problem 是未解问题，greenVerified=false。 -/
 axiom galoisTheory_inverse_problem_unsolved :
@@ -603,10 +598,6 @@ axiom euclideanPlane_logical_framework :
     euclideanPlanePackage.bottomGeometry = "euclidean_plane" ∧
     euclideanPlanePackage.negationEncoding = "classical_material_implication" ∧
     euclideanPlanePackage.contradictionBehavior = "explosion_principle"
-  · rfl
-  constructor
-  · rfl
-  · rfl
 
 /-- Euclidean Plane 全部 6 个不可构造问题均标记为 green_verified=true。 -/
 axiom euclideanPlaneUnconstructibles_green_verified :
@@ -751,10 +742,6 @@ axiom categoryTheory_logical_framework :
     categoryTheoryPackage.bottomGeometry = "directed_multigraph_with_composition" ∧
     categoryTheoryPackage.negationEncoding = "categorical_subobject_complement" ∧
     categoryTheoryPackage.contradictionBehavior = "explosion_principle"
-  · rfl
-  constructor
-  · rfl
-  · rfl
 
 /-- 由全部 Category Theory 模板生成的规则实例。 -/
 def categoryTheoryExecutableRules : List ExecutableRule :=
@@ -856,10 +843,6 @@ axiom hyperbolicGeometry_logical_framework :
     hyperbolicGeometryPackage.bottomGeometry = "hyperbolic_plane" ∧
     hyperbolicGeometryPackage.negationEncoding = "classical_material_implication" ∧
     hyperbolicGeometryPackage.contradictionBehavior = "explosion_principle"
-  · rfl
-  constructor
-  · rfl
-  · rfl
 
 /-- 由全部 Hyperbolic Geometry 模板生成的规则实例。 -/
 def hyperbolicGeometryExecutableRules : List ExecutableRule :=
