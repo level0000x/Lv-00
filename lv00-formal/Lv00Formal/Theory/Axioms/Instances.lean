@@ -459,7 +459,7 @@ def galoisTheoryTemplates : List PackageTemplate :=
   ]
 
 /-- Galois Theory `.lvz` 中列出的模板数量。 -/
-theorem galoisTheoryTemplates_length : galoisTheoryTemplates.length = 62 := by
+theorem galoisTheoryTemplates_length : galoisTheoryTemplates.length = 61 := by
   decide
 
 /-- C 测试要求模板数量至少为 60。 -/
@@ -525,7 +525,7 @@ def galoisTheoryExecutableRules : List ExecutableRule :=
   galoisTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 Galois Theory 规则实例数量与模板数量一致。 -/
-theorem galoisTheoryExecutableRules_length : galoisTheoryExecutableRules.length = 62 := by
+theorem galoisTheoryExecutableRules_length : galoisTheoryExecutableRules.length = 61 := by
   decide
 
 /-! ## Euclidean Plane 公理包实例
@@ -1149,7 +1149,7 @@ def zfcSetTheoryTemplates : List PackageTemplate :=
   ]
 
 /-- ZFC Set Theory 模板数量。 -/
-theorem zfcSetTheoryTemplates_length : zfcSetTheoryTemplates.length = 27 := by
+theorem zfcSetTheoryTemplates_length : zfcSetTheoryTemplates.length = 29 := by
   decide
 
 /-- ZFC Set Theory 包中的 10 个不可构造问题。 -/
@@ -1205,7 +1205,7 @@ def zfcSetTheoryExecutableRules : List ExecutableRule :=
   zfcSetTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
 /-- 生成的 ZFC Set Theory 规则实例数量与模板数量一致。 -/
-theorem zfcSetTheoryExecutableRules_length : zfcSetTheoryExecutableRules.length = 27 := by
+theorem zfcSetTheoryExecutableRules_length : zfcSetTheoryExecutableRules.length = 29 := by
   decide
 
 /-! ## Boolean Algebra 公理包实例 -/
@@ -1580,7 +1580,7 @@ def measureTheoryTemplateNamesRaw : List String :=
 def measureTheoryTemplates : List PackageTemplate :=
   measureTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "measure_theory" })
 
-theorem measureTheoryTemplates_length : measureTheoryTemplates.length = 70 := by
+theorem measureTheoryTemplates_length : measureTheoryTemplates.length = 66 := by
   decide
 
 def measureTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -1605,7 +1605,7 @@ def measureTheoryPackage : AxiomPackageInstance :=
 def measureTheoryExecutableRules : List ExecutableRule :=
   measureTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem measureTheoryExecutableRules_length : measureTheoryExecutableRules.length = 70 := by
+theorem measureTheoryExecutableRules_length : measureTheoryExecutableRules.length = 66 := by
   decide
 
 /-! ## Real Analysis 公理包实例 -/
@@ -1794,7 +1794,7 @@ def informationTheoryTemplateNamesRaw : List String :=
 def informationTheoryTemplates : List PackageTemplate :=
   informationTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "information_theory" })
 
-theorem informationTheoryTemplates_length : informationTheoryTemplates.length = 96 := by
+theorem informationTheoryTemplates_length : informationTheoryTemplates.length = 109 := by
   decide
 
 def informationTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -1818,7 +1818,7 @@ def informationTheoryPackage : AxiomPackageInstance :=
 def informationTheoryExecutableRules : List ExecutableRule :=
   informationTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem informationTheoryExecutableRules_length : informationTheoryExecutableRules.length = 96 := by
+theorem informationTheoryExecutableRules_length : informationTheoryExecutableRules.length = 109 := by
   decide
 
 /-! ## Linear Algebra 公理包实例 -/
@@ -1920,7 +1920,7 @@ def differentialGeometryTemplateNamesRaw : List String :=
 def differentialGeometryTemplates : List PackageTemplate :=
   differentialGeometryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "differential_geometry" })
 
-theorem differentialGeometryTemplates_length : differentialGeometryTemplates.length = 41 := by
+theorem differentialGeometryTemplates_length : differentialGeometryTemplates.length = 39 := by
   decide
 
 def differentialGeometryUnconstructibles : List UnconstructibleProblem :=
@@ -1942,7 +1942,7 @@ def differentialGeometryPackage : AxiomPackageInstance :=
 def differentialGeometryExecutableRules : List ExecutableRule :=
   differentialGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem differentialGeometryExecutableRules_length : differentialGeometryExecutableRules.length = 41 := by
+theorem differentialGeometryExecutableRules_length : differentialGeometryExecutableRules.length = 39 := by
   decide
 
 /-! ## Computability Theory 公理包实例 -/
@@ -1966,7 +1966,7 @@ def computabilityTheoryTemplateNamesRaw : List String :=
 def computabilityTheoryTemplates : List PackageTemplate :=
   computabilityTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "computability_theory" })
 
-theorem computabilityTheoryTemplates_length : computabilityTheoryTemplates.length = 53 := by
+theorem computabilityTheoryTemplates_length : computabilityTheoryTemplates.length = 55 := by
   decide
 
 def computabilityTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -1996,7 +1996,7 @@ def computabilityTheoryPackage : AxiomPackageInstance :=
 def computabilityTheoryExecutableRules : List ExecutableRule :=
   computabilityTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem computabilityTheoryExecutableRules_length : computabilityTheoryExecutableRules.length = 53 := by
+theorem computabilityTheoryExecutableRules_length : computabilityTheoryExecutableRules.length = 55 := by
   decide
 
 /-! ## Modal Logic 公理包实例 -/
@@ -2018,7 +2018,7 @@ def modalLogicTemplateNamesRaw : List String :=
 def modalLogicTemplates : List PackageTemplate :=
   modalLogicTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "modal_logic" })
 
-theorem modalLogicTemplates_length : modalLogicTemplates.length = 29 := by
+theorem modalLogicTemplates_length : modalLogicTemplates.length = 27 := by
   decide
 
 def modalLogicUnconstructibles : List UnconstructibleProblem :=
@@ -2041,7 +2041,7 @@ def modalLogicPackage : AxiomPackageInstance :=
 def modalLogicExecutableRules : List ExecutableRule :=
   modalLogicTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem modalLogicExecutableRules_length : modalLogicExecutableRules.length = 29 := by
+theorem modalLogicExecutableRules_length : modalLogicExecutableRules.length = 27 := by
   decide
 
 /-! ## Universal Algebra 公理包实例 -/
@@ -2144,7 +2144,7 @@ def gameTheoryTemplateNamesRaw : List String :=
 def gameTheoryTemplates : List PackageTemplate :=
   gameTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "game_theory" })
 
-theorem gameTheoryTemplates_length : gameTheoryTemplates.length = 51 := by
+theorem gameTheoryTemplates_length : gameTheoryTemplates.length = 55 := by
   decide
 
 def gameTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -2170,7 +2170,7 @@ def gameTheoryPackage : AxiomPackageInstance :=
 def gameTheoryExecutableRules : List ExecutableRule :=
   gameTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem gameTheoryExecutableRules_length : gameTheoryExecutableRules.length = 51 := by
+theorem gameTheoryExecutableRules_length : gameTheoryExecutableRules.length = 55 := by
   decide
 
 /-! ## Homotopy Type Theory 公理包实例 -/
@@ -2309,7 +2309,7 @@ def affineGeometryTemplateNamesRaw : List String :=
 def affineGeometryTemplates : List PackageTemplate :=
   affineGeometryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "affine_geometry" })
 
-theorem affineGeometryTemplates_length : affineGeometryTemplates.length = 52 := by
+theorem affineGeometryTemplates_length : affineGeometryTemplates.length = 56 := by
   decide
 
 def affineGeometryUnconstructibles : List UnconstructibleProblem :=
@@ -2332,7 +2332,7 @@ def affineGeometryPackage : AxiomPackageInstance :=
 def affineGeometryExecutableRules : List ExecutableRule :=
   affineGeometryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem affineGeometryExecutableRules_length : affineGeometryExecutableRules.length = 52 := by
+theorem affineGeometryExecutableRules_length : affineGeometryExecutableRules.length = 56 := by
   decide
 
 /-! ## Algebraic Topology 公理包实例 -/
@@ -2478,7 +2478,7 @@ def latticeTheoryTemplateNamesRaw : List String :=
 def latticeTheoryTemplates : List PackageTemplate :=
   latticeTheoryTemplateNamesRaw.map (fun n => { name := n, paramCount := 2, group := "lattice_theory" })
 
-theorem latticeTheoryTemplates_length : latticeTheoryTemplates.length = 42 := by
+theorem latticeTheoryTemplates_length : latticeTheoryTemplates.length = 53 := by
   decide
 
 def latticeTheoryUnconstructibles : List UnconstructibleProblem :=
@@ -2501,7 +2501,7 @@ def latticeTheoryPackage : AxiomPackageInstance :=
 def latticeTheoryExecutableRules : List ExecutableRule :=
   latticeTheoryTemplates.mapIdx fun i t => templateToExecutableRule i t
 
-theorem latticeTheoryExecutableRules_length : latticeTheoryExecutableRules.length = 42 := by
+theorem latticeTheoryExecutableRules_length : latticeTheoryExecutableRules.length = 53 := by
   decide
 
 /-! ## Lie Theory 公理包实例 -/
