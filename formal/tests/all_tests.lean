@@ -209,4 +209,28 @@ theorem evidence_reject_test : True := by
   have _ : h = false := rfl
   trivial
 
+-- v1.1 R6: InteropCorrectness tests
+
+/- Interop: Coq export nonempty -/
+theorem interop_coq_test : True := by
+  let g : ConstraintGraph := { nodes := [], edges := [] }
+  have h := InteropCorrectness.coq_export_is_valid_coq g
+  have _ := h; trivial
+
+/- Interop: SVG element count matches nodes -/
+theorem interop_svg_test : True := by
+  let g : ConstraintGraph := { nodes := ["A","B","C"], edges := [] }
+  have h := InteropCorrectness.svg_element_count_matches_nodes g
+  have _ : (InteropCorrectness.export_svg g).element_count = 3 := by
+    unfold InteropCorrectness.export_svg; simp
+  trivial
+
+/- Interop: full interop coherence -/
+theorem interop_coherence_test : True := by
+  let g : ConstraintGraph := { nodes := [], edges := [] }
+  have h := InteropCorrectness.full_interop_coherence g
+  rcases h with ⟨hc, hl, ho, hg, hs⟩
+  have _ := hc; have _ := hl; have _ := ho; have _ := hg; have _ := hs
+  trivial
+
 end Lv00.Tests

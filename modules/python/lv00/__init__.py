@@ -1,4 +1,4 @@
-"""
+﻿"""
 Lv-00 Python Bindings (v1.1.0 — GMP unified)
 """
 __version__ = "1.1.0"
