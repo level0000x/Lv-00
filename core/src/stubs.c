@@ -35,8 +35,8 @@ Coord*  coord_midpoint(const Coord* a, const Coord* b);
 Coord*  coord_normalize(const Coord* c);
 void    coord_dot(mpq_t result, const Coord* a, const Coord* b);
 void    coord_cross(mpq_t result, const Coord* a, const Coord* b);
-Coord*  coord_rotate(const Coord* c, double angle);
-Coord*  coord_from_polar(double r, double theta);
+Coord*  coord_rotate(const Coord* c, double angle);           /* [QA] pending GMP: angle→mpq_t */
+Coord*  coord_from_polar(double r, double theta);              /* [QA] pending GMP */
 int     coord_to_string(const Coord* c, char* buf, size_t bufsz);
 
 /* ================================================================
@@ -76,9 +76,11 @@ typedef struct GraphEdge       GraphEdge;
 
 ConstraintGraph*  graph_create(void);
 void              graph_destroy(ConstraintGraph* g);
-int64_t           graph_add_node(ConstraintGraph* g, double value, int pinned);
+int64_t           graph_add_node(ConstraintGraph* g, const mpq_t value, int pinned);
+int64_t           graph_add_node_si(ConstraintGraph* g, long num, long den, int pinned);
 int               graph_remove_node(ConstraintGraph* g, int64_t node_id);
-int64_t           graph_add_edge(ConstraintGraph* g, int from_idx, int to_idx, double weight);
+int64_t           graph_add_edge(ConstraintGraph* g, int from_idx, int to_idx, const mpq_t weight);
+int64_t           graph_add_edge_si(ConstraintGraph* g, int from, int to, long wnum, long wden);
 int               graph_remove_edge(ConstraintGraph* g, int64_t edge_id);
 const GraphNode*  graph_get_node(const ConstraintGraph* g, int index);
 const GraphEdge*  graph_get_edge(const ConstraintGraph* g, int index);
@@ -156,8 +158,8 @@ void     native_version(int64_t* major, int64_t* minor, int64_t* patch);
 void     native_error(const char* msg);
 void     native_warn(const char* msg);
 void     native_info(const char* msg);
-void     native_config_get(const char* key, double* value);
-void     native_config_set(const char* key, double value);
+void     native_config_get(const char* key, char* value, size_t bufsz); /* [QA] pending GMP */
+void     native_config_set(const char* key, const char* value);          /* [QA] pending GMP */
 int      native_self_test(void);
 
 /* ================================================================
@@ -221,19 +223,19 @@ int64_t proof_version_current(void);
 int     proof_version_checkout(int64_t version);
 
 /* Automatic differentiation */
-double autodiff_gradient(void (*fn)(double*, double*), double x, double eps);
+double autodiff_gradient(void (*fn)(double*, double*), double x, double eps);  /* [QA] num-only, acceptable */
 
 /* ODE solver */
-double ode_solve_rk4(double (*f)(double, double), double t0, double y0, double t1, int steps);
+double ode_solve_rk4(double (*f)(double, double), double t0, double y0, double t1, int steps);  /* [QA] num-only */
 
 /* Presets — measurements */
-double preset_measure_length(const Coord* a, const Coord* b);
-double preset_measure_area(const Coord* vertices, int n);
-double preset_measure_angle(const Coord* a, const Coord* b, const Coord* c);
+double preset_measure_length(const Coord* a, const Coord* b);       /* [QA] pending GMP: use coord_dist_sq */
+double preset_measure_area(const Coord* vertices, int n);           /* [QA] pending GMP */
+double preset_measure_angle(const Coord* a, const Coord* b, const Coord* c);  /* [QA] pending GMP */
 
 /* Presets — polygons */
 int     preset_polygon_is_convex(const Coord* vertices, int n);
-double  preset_polygon_area(const Coord* vertices, int n);
+double  preset_polygon_area(const Coord* vertices, int n);          /* [QA] pending GMP */
 Coord*  preset_polygon_centroid(const Coord* vertices, int n);
 int     preset_polygon_contains(const Coord* vertices, int n, const Coord* pt);
 
