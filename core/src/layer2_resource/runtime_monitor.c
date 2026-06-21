@@ -7,6 +7,7 @@
  */
 
 #include "runtime_monitor.h"
+#include "config.h"         /* LV00_LOCALTIME */
 
 #include "lv00_utils.h"
 
