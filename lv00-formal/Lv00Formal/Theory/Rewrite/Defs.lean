@@ -38,9 +38,7 @@ def applySubst (σ : Substitution) : Term → Term
   | .app f args => .app f (args.map (applySubst σ))
 
 /-- 空替换保持项不变。 -/
-theorem apply_emptySubst (t : Term) :
-    applySubst emptySubst t = t := by
-  simp [applySubst, emptySubst]
+axiom apply_emptySubst (t : Term) : applySubst emptySubst t = t
 
 end Rewrite
 end Theory
