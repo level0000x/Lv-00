@@ -48,7 +48,7 @@
 #include "rewrite.h"
 #include "lv00/stream.h"
 
-LV00_DECLARE_STREAM_CTX(type_system)
+LV00_DECLARE_STREAM_CTX(type_system);
 
 /* ============== 内部辅助宏和前向声明 ============== */
 
