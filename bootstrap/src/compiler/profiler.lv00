@@ -1,4 +1,5 @@
 // bootstrap: profiler — 性能剖析: 热点/调用计数/内存统计
+// [QA] Same filename as layer2_resource/profiler.lv00 — different layer scope. Keep both.
 
 Point Profiler := profile(exec: Execution, mode: ProfileMode) -> ProfileReport;
 Point ProfileMode := CPU | Memory | Allocation | Coverage;

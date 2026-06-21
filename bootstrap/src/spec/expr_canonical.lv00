@@ -1,4 +1,7 @@
 // bootstrap: expr_canonical — 表达式规范形式 (core/include/lv00/expr_canonical.h)
+// [QA] Same filename as layer4_reasoning/expr_canonical.lv00 — different layer scope. Keep both.
+// [QA] Uses macro-style constraint syntax; other directories use functional-style.
+//      Both are valid .lv00 dialects.
 
 // 规范形式坐标：有序空间中的项排布
 Point canon_origin = (0, 0);

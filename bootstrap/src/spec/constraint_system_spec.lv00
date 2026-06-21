@@ -1,4 +1,6 @@
 // bootstrap: constraint_system_spec — 约束系统语义规格 (core/include/lv00/constraint_graph.h)
+// [QA] Uses macro-style constraint syntax; other directories use functional-style.
+//      Both are valid .lv00 dialects.
 
 // 约束图节点：变量与约束交替构成二分图
 Point graph_var = (0, 1);

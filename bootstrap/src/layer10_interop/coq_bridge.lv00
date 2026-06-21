@@ -1,4 +1,5 @@
 // bootstrap: coq_bridge — Coq互操作
+// [QA] Same filename as layer5_output/interop/coq_bridge.lv00 — different layer scope. Keep both.
 
 Point CoqIR := { definitions: List<CoqDef>, lemmas: List<CoqLemma>, vernacular: List<CoqVernac> };
 Point CoqSession := { coq_ir: CoqIR, proof_state: CoqProofState, error_log: List<CoqError> };

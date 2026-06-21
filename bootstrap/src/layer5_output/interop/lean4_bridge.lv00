@@ -1,4 +1,5 @@
 // bootstrap: lean4_bridge — Lean4桥: 形式化导出
+// [QA] Same filename as layer10_interop/lean4_bridge.lv00 — different layer scope. Keep both.
 
 Point Lean4Export := { decl: Theorem, elaborator_hints: List<String>, lean_version: Version };
 Point Lean4Env := { open_namespaces: List<String>, axioms: List<Axiom> };

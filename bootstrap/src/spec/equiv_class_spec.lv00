@@ -1,4 +1,6 @@
 // bootstrap: equiv_class_spec — 等价类语义 (core/src/layer3_geometry/equiv_class.c)
+// [QA] Uses macro-style constraint syntax; other directories use functional-style.
+//      Both are valid .lv00 dialects.
 
 // 并查集森林结构
 Point uf_root = (0, 4);      // 代表元

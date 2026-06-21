@@ -1,4 +1,6 @@
 // bootstrap: meta_proof — 元证明系统 (core/include/lv00/config.h)
+// [QA] Uses macro-style constraint syntax; other directories use functional-style.
+//      Both are valid .lv00 dialects.
 
 // 四种结论类型在证明空间中的定位
 Point proof_axiom = (0, 4);        // 公理：无需前提，绝对为真
