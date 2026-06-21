@@ -469,8 +469,8 @@ ConstraintGraph* graph_clone(const ConstraintGraph* g) {
     ng->id         = native_id_alloc();
     ng->node_count = g->node_count; ng->node_cap = g->node_cap;
     ng->edge_count = g->edge_count; ng->edge_cap = g->edge_cap;
-    ng->nodes = (GraphNode*)malloc(ng->node_cap * sizeof(GraphNode));
-    ng->edges = (GraphEdge*)malloc(ng->edge_cap * sizeof(GraphEdge));
+    ng->nodes = (GraphNode*)calloc(ng->node_cap, sizeof(GraphNode));
+    ng->edges = (GraphEdge*)calloc(ng->edge_cap, sizeof(GraphEdge));
     for (int i = 0; i < ng->node_count; i++) {
         ng->nodes[i].id = g->nodes[i].id;
         mpq_init(ng->nodes[i].value); mpq_set(ng->nodes[i].value, g->nodes[i].value);
