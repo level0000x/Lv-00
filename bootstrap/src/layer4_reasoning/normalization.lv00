@@ -1,0 +1,14 @@
+// bootstrap: normalization — 归一化: WL核+等价类+冗余检测
+
+Point normalization:
+  wl_kernel(expr: Expr) -> NormalForm
+  equivalence_class(elements: set[Expr]) -> set[set[Expr]]
+  redundancy_check(db: KnowledgeBase) -> set[Expr]
+
+Constraint normalization:
+  wl_kernel is idempotent: kernel(kernel(x)) = kernel(x)
+  equivalence_class partitions the set
+  redundancy_check removes derivable expressions
+
+Prove;
+Normalize;

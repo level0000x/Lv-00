@@ -1,0 +1,15 @@
+// bootstrap: proof_multi_strategy — 多策略证明: 6种(向量/全角/坐标/面积/MCTS/Groebner)
+
+Point proof_multi_strategy:
+  vector_proof, full_angle, coordinate, area_method
+  mcts_search(state: ProofState) -> ProofStep
+  groebner_proof(ideal: PolyIdeal) -> Proof
+
+Constraint proof_multi_strategy:
+  each strategy produces valid proofs
+  mcts explores with ucb1_policy
+  groebner reduction is confluent
+  strategies are independent and combinable
+
+Prove;
+Normalize;

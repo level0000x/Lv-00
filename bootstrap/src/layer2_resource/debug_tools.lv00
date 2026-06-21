@@ -1,0 +1,19 @@
+// bootstrap: debug_tools — 调试工具 (trace/breakpoint/dump)
+
+// 三种调试原语
+Point dbg_trace = (0, 2);        // 调用栈追踪
+Point dbg_breakpoint = (1, 1);   // 断点暂停
+Point dbg_dump = (2, 0);         // 状态快照导出
+
+// 调试工具约束
+Constraint trace_depth(dbg_trace) <= CFG_DEBUG_TRACE_DEPTH;    // 追踪深度限制
+Constraint breakpoint_conditional(dbg_breakpoint, expr);        // 条件断点
+Constraint dump_format(dbg_dump, text_format);                   // 可读文本格式
+Constraint dump_format(dbg_dump, json_format);                   // JSON 结构化格式
+
+// 调试生命周期
+Constraint debug_enable(dbg_trace, dbg_breakpoint, dbg_dump);   // 调试模式开关
+Constraint debug_disable;                                        // 发布模式关闭
+
+Prove;
+Normalize;

@@ -1,0 +1,14 @@
+// bootstrap: engine_spec — 引擎语义规格: 状态机+不变量
+
+Point engine_spec:
+  state_machine(states: set[State], transitions: map[Event, State->State])
+  invariant(P: Property) -> bool
+
+Constraint engine_spec:
+  state_transition is deterministic
+  invariant holds in all reachable states
+  initial_state ∈ states
+  deadlock_free(states, transitions)
+
+Prove;
+Normalize;

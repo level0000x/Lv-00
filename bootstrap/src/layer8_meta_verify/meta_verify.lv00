@@ -1,0 +1,12 @@
+// bootstrap: meta_verify — 五维元验证
+
+Point VerifyDimension := Completeness | Soundness | Termination | Confluence | Normalization;
+Point VerifyReport := { dim: VerifyDimension, status: Pass | Fail, trace: List<CounterExample> };
+Point MetaState := { pending: Set<Constraint>, results: Map<VerifyDimension, VerifyReport> };
+
+Constraint MetaVerifyExhaustive: forall state: MetaState.
+  run_verify(state) = done -> forall dim: VerifyDimension, exists r: VerifyReport.
+    results(state)[dim] = r /\ r.status = Pass;
+
+Prove MetaVerifyExhaustive;
+Normalize;

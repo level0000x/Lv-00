@@ -1,0 +1,12 @@
+// bootstrap: proof_tptp — TPTP证明交换: fof/cnf格式
+
+Formula FOF_1 = ![X]: (p(X) => q(X));           // fof全称量化
+Formula CNF_1 = ~p(X) | q(X);                    // cnf子句形式
+Formula FOF_2 = ?[Y]: (r(Y) & s(Y));             // fof存在量化
+
+Constraint Parse(tptp_string)        => formula;  // TPTP解析
+Constraint FOFtoCNF(fof_formula)     => cnf_set;  // FOF转CNF
+Constraint Export(formula, "fof")    => tptp_str; // 导出TPTP
+
+Prove;
+Normalize;

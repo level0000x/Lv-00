@@ -1,0 +1,14 @@
+// bootstrap: visual_control — 可视化控制流: 渲染管线调度
+
+Point vc_init = (0, 3);
+Point vc_rendering = (1, 2);
+Point vc_update = (2, 1);
+Point vc_done = (3, 0);
+
+Constraint pipeline: vc_init -> vc_rendering -> vc_update -> vc_init;
+Constraint vsync(vc_rendering, vc_update) = delta_t >= 16.67ms;  // 60fps target
+Constraint render_budget(frame) = 16ms max;
+Constraint skip_frame_if budget_exceeded;
+
+Prove;
+Normalize;

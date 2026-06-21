@@ -1,0 +1,14 @@
+// bootstrap: rewrite_rules — 重写规则: Church-Rosser+强正则化
+
+Point rewrite_rules:
+  church_rosser(rules: set[Rule]) -> bool
+  strong_normalization(rules: set[Rule]) -> bool
+  apply(t: Term, r: Rule, pos: Position) -> Term
+
+Constraint rewrite_rules:
+  church_rosser: (a ←*→ b) → (a →* c ∧ b →* c)
+  strong_normalization: no infinite reduction sequences
+  apply substitutes at position with matching lhs
+
+Prove;
+Normalize;

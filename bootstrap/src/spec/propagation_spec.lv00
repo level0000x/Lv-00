@@ -1,0 +1,21 @@
+// bootstrap: propagation_spec — 约束传播语义 (core/src/layer3_geometry/propagation.c)
+
+// AC-3 弧相容性传播
+Point arc_var = (0, 1);
+Point arc_dom = (1, 0);
+
+// 弧相容性：对每条弧 (X_i, X_j)，D_i 中每个值在 D_j 中都有支撑
+Constraint ac3_arc_consistent(arc_var, arc_dom);
+
+// 传播队列
+Point queue_head = (0, 0);
+Point queue_tail = (0, 8);
+Constraint queue_fifo(queue_head, queue_tail);         // FIFO 队列
+Constraint queue_no_duplicate(arc_var, arc_dom);       // 无重复入队
+
+// 终止保证
+Constraint propagation_terminates;                      // 域有限，传播必终止
+Constraint propagation_monotone(arc_dom);               // 域单调缩小
+
+Prove;
+Normalize;

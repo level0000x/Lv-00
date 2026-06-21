@@ -1,0 +1,13 @@
+// bootstrap: visual_converter — 可视化转换器: 几何→渲染图元
+
+Point geom_points, geom_lines, geom_fills;   // 几何输入
+Point rast_triangles, rast_lines, rast_text;  // 光栅化输出
+
+Constraint convert_point(p: GeomPoint) -> RastPoint;
+Constraint convert_line(l: GeomSegment) -> RastLine;
+Constraint convert_poly(P: GeomPolygon) -> RastTriangleList;
+Constraint bbox_clip(primitive, viewport) = intersect;
+Constraint lod_selection(distance, detail) = resolution;
+
+Prove;
+Normalize;

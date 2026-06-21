@@ -1,0 +1,24 @@
+// bootstrap: test_framework — 测试框架
+
+// 测试生命周期
+Point test_suite = (0, 2);        // 测试套件
+Point test_case = (1, 1);         // 测试用例
+Point test_assert = (2, 0);       // 断言检查
+
+// 测试组织
+Constraint suite_contains(test_suite, test_case);       // 套件包含用例
+Constraint case_verifies(test_case, test_assert);       // 用例验证断言
+
+// 断言类型
+Constraint assert_eq(actual, expected);                  // 相等断言
+Constraint assert_approx(actual, expected, CFG_FLOAT_EPSILON); // 近似断言
+Constraint assert_constraint(constraint_system);         // 约束满足断言
+Constraint assert_no_crash(test_case);                   // 无崩溃断言
+
+// 测试报告
+Point test_report = (3, 0);
+Constraint report_pass(test_case, test_report);          // 通过
+Constraint report_fail(test_case, test_report);           // 失败
+
+Prove;
+Normalize;

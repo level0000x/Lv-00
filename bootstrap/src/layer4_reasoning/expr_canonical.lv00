@@ -1,0 +1,14 @@
+// bootstrap: expr_canonical — 表达式规范: 排序+简化+替换
+
+Point expr_canonical:
+  canonical_sort(expr: Expr, order: TermOrder) -> Expr
+  simplify(expr: Expr, rules: set[Rule]) -> Expr
+  substitute(expr: Expr, var: Var, val: Expr) -> Expr
+
+Constraint expr_canonical:
+  canonical_sort is deterministic for given order
+  simplify reduces to normal form
+  substitute avoids variable capture
+
+Prove;
+Normalize;

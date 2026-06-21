@@ -1,0 +1,14 @@
+// bootstrap: sparse_la — 稀疏线性代数: CSR/GMRES/CG
+
+Point sparse_la:
+  csr_matrix(rows, cols, data, indices, indptr) -> SparseMatrix
+  gmres(A: SparseMatrix, b: Vector, m: int) -> Vector
+  conjugate_gradient(A: SPD_Matrix, b: Vector) -> Vector
+
+Constraint sparse_la:
+  csr stores only nonzero entries
+  gmres minimizes residual in Krylov subspace K_m
+  conjugate_gradient converges for SPD matrices
+
+Prove;
+Normalize;

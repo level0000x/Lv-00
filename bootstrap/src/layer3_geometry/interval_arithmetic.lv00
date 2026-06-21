@@ -1,0 +1,13 @@
+// bootstrap: interval_arithmetic — 区间算术: lo/hi bounds
+
+Point I_A = interval(a, A);       // 区间 [a, A]
+Point I_B = interval(b, B);       // 区间 [b, B]
+
+Constraint add_lo(I_A, I_B) = a + b;
+Constraint add_hi(I_A, I_B) = A + B;
+Constraint mul_lo(I_A, I_B) = min(a*b, a*B, A*b, A*B);
+Constraint mul_hi(I_A, I_B) = max(a*b, a*B, A*b, A*B);
+Constraint contains(I_A, x) = (a <= x && x <= A);
+
+Prove;
+Normalize;

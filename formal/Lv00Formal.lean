@@ -14,6 +14,29 @@ import Lv00Formal.Theory.Cv00Lang
 import Lv00Formal.Theory.Cv00Memory
 import Lv00Formal.Theory.BootstrapCorrectness
 
+-- Round 5-6: Theory modules (rebuilt)
+import Lv00Formal.Theory.ProofEngineSoundness
+import Lv00Formal.Theory.SolverCorrectness
+import Lv00Formal.Theory.RewriteProperties
+import Lv00Formal.Theory.KernelInvariants
+import Lv00Formal.Theory.ConstraintSoundness
+import Lv00Formal.Theory.RemovedModule
+import Lv00Formal.Theory.GroebnerTheory
+import Lv00Formal.Theory.MathPresetSoundness
+import Lv00Formal.Theory.DSLWrappersSoundness
+import Lv00Formal.Theory.InteractiveGeoSoundness
+import Lv00Formal.Theory.GeomPresetSoundness
+import Lv00Formal.Theory.NormalizationProperties
+import Lv00Formal.Theory.StreamInvariants
+import Lv00Formal.Theory.EngineInvariants
+import Lv00Formal.Theory.NDimGeometry
+import Lv00Formal.Theory.DifferentialGeometry
+import Lv00Formal.Theory.GeometryPresets
+import Lv00Formal.Theory.GeometricAlgebra
+import Lv00Formal.Theory.Numeric
+import Lv00Formal.Theory.ODESolver
+import Lv00Formal.Theory.PresetGeometry
+
 namespace Lv00Formal
 
 -- Lv00Lang exports
@@ -97,5 +120,28 @@ export Theory.BootstrapCorrectness (
   bootstrap_preserves_satisfiability
   bootstrap_never_unsatisfiable_empty
 )
+
+-- Round 5-6 exports
+export Theory.ProofEngineSoundness (soundness_of_proof multi_strategy_completeness)
+export Theory.SolverCorrectness (solver_soundness solver_termination)
+export Theory.RewriteProperties (rewrite_soundness rewrite_confluence)
+export Theory.KernelInvariants (kernel_preserves_invariants kernel_state_safe)
+export Theory.ConstraintSoundness (constraint_soundness constraint_preserved)
+export Theory.RemovedModule (rose_cognition_sound rose_cognition_complete)
+export Theory.GroebnerTheory (groebner_soundness groebner_completeness)
+export Theory.MathPresetSoundness (math_preset_soundness math_preset_preserves)
+export Theory.DSLWrappersSoundness (dsl_wrapper_sound dsl_wrapper_correct)
+export Theory.InteractiveGeoSoundness (interactive_geo_sound interactive_geo_deterministic)
+export Theory.GeomPresetSoundness (geom_preset_soundness geom_preset_valid)
+export Theory.NormalizationProperties (normalization_sound normalization_confluent)
+export Theory.StreamInvariants (stream_invariant_preserved stream_state_safe)
+export Theory.EngineInvariants (engine_invariant_preserved engine_state_consistent)
+export Theory.NDimGeometry (ndim_soundness ndim_completeness)
+export Theory.DifferentialGeometry (diff_geo_soundness diff_geo_consistent)
+export Theory.GeometryPresets (geometry_preset_sound geometry_preset_complete)
+export Theory.GeometricAlgebra (geometric_algebra_sound geometric_algebra_consistent)
+export Theory.Numeric (numeric_stability numeric_precision)
+export Theory.ODESolver (ode_solver_soundness ode_solver_convergence)
+export Theory.PresetGeometry (preset_geometry_sound preset_geometry_valid)
 
 end Lv00Formal

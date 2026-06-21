@@ -1,0 +1,15 @@
+// bootstrap: application — 应用层CLI/verify/batch
+
+Point AppCommand := Load | Verify | Batch | Export | Visualize;
+Point AppConfig := { cmd: AppCommand, input: Path, output: Path, verbose: Bool };
+Point AppResult := Result<AppOutput, AppError>;
+
+Constraint AppCLISafe: forall cfg: AppConfig.
+  run_app(cfg) = ok(res) -> well_formed(res);
+
+Constraint BatchAtomic: forall inputs: List<Path>.
+  run_batch(inputs) = ok -> forall i in inputs, verified(i);
+
+Prove AppCLISafe;
+Prove BatchAtomic;
+Normalize;

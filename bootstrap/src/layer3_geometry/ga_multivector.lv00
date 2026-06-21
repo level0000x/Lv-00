@@ -1,0 +1,13 @@
+// bootstrap: ga_multivector — 几何代数多向量: gp/outer/inner/reversion
+
+Multivector A, B, C;
+Scalar s = 2.0;
+
+Constraint GP = A * B;            // 几何积 (gp)
+Constraint Outer = A ^ B;         // 外积 (wedge)
+Constraint Inner = A | B;         // 内积 (dot)
+Constraint Rev   = ~A;            // 反转 (reversion)
+Constraint Rotor = exp(-theta/2 * e12); // 旋转子
+
+Prove;
+Normalize;

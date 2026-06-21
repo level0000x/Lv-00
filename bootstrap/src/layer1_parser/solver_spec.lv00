@@ -1,0 +1,24 @@
+// bootstrap: solver_spec — 求解器入口语义
+
+// 求解器状态机
+Point solver_idle = (0, 2);       // 空闲
+Point solver_running = (1, 1);    // 运行中
+Point solver_done = (2, 0);       // 完成
+
+// 状态转换
+Constraint solve(solver_idle) = solver_running;       // 求解启动
+Constraint converge(solver_running) = solver_done;    // 收敛完成
+Constraint timeout(solver_running) = solver_idle;     // 超时回退
+
+// 求解器输入输出
+Point input_system = (0, 3);      // 输入：约束系统
+Point output_solution = (3, 0);   // 输出：解或者不可满足证明
+
+Constraint solve_map(input_system, solver_running, output_solution);
+
+// 语义保证
+Constraint solution_sound(output_solution, input_system);    // 可靠性：解满足所有约束
+Constraint solution_complete(output_solution, input_system); // 完备性：有解必找到
+
+Prove;
+Normalize;

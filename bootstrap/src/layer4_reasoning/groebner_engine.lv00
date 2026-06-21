@@ -1,0 +1,14 @@
+// bootstrap: groebner_engine — Groebner基: Buchberger算法+约化
+
+Point groebner_engine:
+  buchberger(F: set[Poly]) -> GroebnerBasis
+  reduce(p: Poly, G: GroebnerBasis) -> Poly
+  spoly(f: Poly, g: Poly) -> Poly
+
+Constraint groebner_engine:
+  buchberger terminates with finite basis
+  reduce yields unique normal form
+  G is a Groebner basis ↔ all S-polys reduce to 0
+
+Prove;
+Normalize;

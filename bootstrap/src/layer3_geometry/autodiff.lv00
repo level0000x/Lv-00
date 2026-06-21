@@ -1,0 +1,12 @@
+// bootstrap: autodiff — 自动微分: 前向模式dual数
+
+Dual x = (2.0, 1.0);   // 值+导数
+Dual y = (3.0, 0.0);
+
+Constraint f(x) = x^3 + 2*x^2 + x;         // 目标函数
+Constraint DualAdd(a, b) => (a.val+b.val, a.der+b.der);
+Constraint DualMul(a, b) => (a.val*b.val, a.val*b.der + a.der*b.val);
+Constraint Grad(f, x) => f'(x);            // 梯度
+
+Prove;
+Normalize;

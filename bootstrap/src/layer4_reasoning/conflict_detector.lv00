@@ -1,0 +1,13 @@
+// bootstrap: conflict_detector — 冲突检测: 约束矛盾识别
+
+Point conflict_detector:
+  detect(constraints: set[Constraint]) -> ConflictSet
+  resolve(conflict: Conflict, strategy: ResolveStrategy) -> set[Constraint]
+
+Constraint conflict_detector:
+  detect reports minimal unsatisfiable cores
+  resolve preserves satisfiability of non_conflicting subset
+  lazy_detection: checked on demand at checkpoint
+
+Prove;
+Normalize;

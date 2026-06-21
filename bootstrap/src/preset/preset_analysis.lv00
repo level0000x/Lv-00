@@ -1,0 +1,12 @@
+// bootstrap: preset_analysis — 分析预设(圆/三角形/多边形)
+
+Point Circle := { center: Point, radius: Real };
+Point Triangle := { A: Point, B: Point, C: Point };
+Point Polygon := { vertices: List<Point>, closed: Bool };
+Point AnalysisConstraint(g: GeometricObj): Prop;
+
+Constraint TriangleSum: forall t: Triangle.
+  interior_angle(t.A) + interior_angle(t.B) + interior_angle(t.C) = pi;
+
+Prove TriangleSum;
+Normalize;

@@ -1,0 +1,16 @@
+// bootstrap: block_scheduler — 块调度器
+
+Point scheduler_idle = (0, 3);
+Point scheduler_active = (1, 2);
+Point scheduler_done = (2, 1);
+
+Point block_ready, block_running, block_completed;
+
+Constraint dispatch(block_ready, scheduler_active) = block_running;
+Constraint complete(block_running, scheduler_active) = block_completed;
+Constraint schedule_order(respects DAG);      // 遵循依赖图拓扑序
+Constraint max_concurrent = 8;                 // 最大并发块数
+Constraint fairness(block) = bounded_wait;     // 公平性保证
+
+Prove;
+Normalize;

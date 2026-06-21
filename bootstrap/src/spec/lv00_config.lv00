@@ -1,0 +1,38 @@
+// bootstrap: lv00_config — 全局可配置参数
+
+// === 求解器参数 ===
+Point cfg_solver_origin = (0, 0);
+Constraint CFG_RECURSION_MAX_DEPTH = 128;
+Constraint CFG_SOLVER_MAX_ITER = 1000;
+Constraint CFG_SOLVER_TIMEOUT(ms) = 30;
+
+// === 视口参数 ===
+Point cfg_viewport_top_left = (0, 0);
+Point cfg_viewport_bottom_right = (1024, 768);
+Constraint CFG_VIEWPORT_W = 1024;
+Constraint CFG_VIEWPORT_H = 768;
+
+// === 缓存参数 ===
+Constraint CFG_CACHE_MAX = 10000;
+Constraint CFG_CACHE_TTL(sec) = 60;
+
+// === 数值精度 ===
+Constraint CFG_FLOAT_EPSILON = 1e-15;
+Constraint CFG_DOUBLE_EPSILON = 1e-30;
+Constraint CFG_RATIO_TOLERANCE = 1e-12;
+
+// === 内存参数 ===
+Constraint CFG_MEMORY_POOL_SIZE(KB) = 65536;
+Constraint CFG_ARENA_BLOCK_SIZE(KB) = 4096;
+
+// === 调试参数 ===
+Constraint CFG_DEBUG_TRACE_DEPTH = 16;
+Constraint CFG_DEBUG_DUMP_MAX_LINES = 500;
+
+// === 渲染参数 ===
+Constraint CFG_RENDER_MAX_POINTS = 100000;
+Constraint CFG_RENDER_MAX_SEGMENTS = 50000;
+Constraint CFG_FORMULA_RENDER_DPI = 96;
+
+Prove;
+Normalize;

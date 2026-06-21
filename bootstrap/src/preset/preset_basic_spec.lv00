@@ -1,0 +1,10 @@
+// bootstrap: preset_basic_spec — 基础几何预设(中点/垂直平分线)
+
+Point BasicGeomPreset := Point | Midpoint | PerpBisector | AngleBisector | CircleRadius;
+Point BasicGeoConstraint(f: BasicGeomPreset): Prop;
+
+Constraint MidpointUnique: forall A B: Point.
+  exists! M: Point, M = midpoint(A, B) /\ dist(A, M) = dist(M, B);
+
+Prove MidpointUnique;
+Normalize;

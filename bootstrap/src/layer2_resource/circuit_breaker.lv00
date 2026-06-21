@@ -1,0 +1,23 @@
+// bootstrap: circuit_breaker — 熔断器模式
+
+// 熔断器三态
+Point cb_closed = (0, 2);         // 关闭：正常通行
+Point cb_open = (1, 1);           // 打开：拒绝请求
+Point cb_half_open = (2, 0);      // 半开：探测恢复
+
+// 状态转换
+Constraint fail_threshold(cb_closed) = cb_open;          // 失败达阈值 -> 熔断
+Constraint cooldown_timeout(cb_open) = cb_half_open;     // 冷却超时 -> 半开
+Constraint probe_success(cb_half_open) = cb_closed;       // 探测成功 -> 恢复
+Constraint probe_failure(cb_half_open) = cb_open;         // 探测失败 -> 继续熔断
+
+// 熔断配置
+Constraint threshold_count = 5;             // 连续 5 次失败触发熔断
+Constraint cooldown_seconds = 30;            // 30 秒冷却期
+Constraint probe_percent = 0.1;              // 半开状态放行 10% 请求
+
+// 快速失败
+Constraint fast_fail(cb_open);               // 熔断时立即返回错误，不等待
+
+Prove;
+Normalize;

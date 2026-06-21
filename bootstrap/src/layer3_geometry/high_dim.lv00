@@ -1,0 +1,12 @@
+// bootstrap: high_dim — 高维几何: 3D/ND 扩展
+
+Point3D A, B, C;
+PointND X{n}, Y{n};
+
+Constraint Tetrahedron(A, B, C, D);      // 四面体
+Constraint Hyperplane(X, Y) => H;        // 超平面
+Constraint Simplex(X1, X2, ..., X_{n+1}); // n维单纯形
+Constraint Project(P, subspace) => P';   // 投影
+
+Prove;
+Normalize;

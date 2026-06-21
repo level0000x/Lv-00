@@ -1,0 +1,11 @@
+// bootstrap: geom_evol — 几何演化: 参数曲线+变形
+
+Curve C(t) = Bezier(P0, P1, P2, P3);   // 参数贝塞尔曲线
+Point  S = Sample(C, t=0.5);            // 采样点
+
+Constraint Deform(C, field) => C';      // 变形映射
+Constraint Evolve(C, dt)    => C_next;  // 时间演化步
+Constraint FlowLine(p, V)   => traject; // 流线追踪
+
+Prove;
+Normalize;

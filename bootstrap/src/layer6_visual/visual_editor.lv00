@@ -1,0 +1,11 @@
+// bootstrap: visual_editor — 可视化编辑器: 画布+渲染
+
+Point CanvasState := { nodes: List<GeoNode>, edges: List<GeoEdge>, camera: Viewport };
+Point EditAction := AddNode | RemoveNode | MoveNode | Connect | Disconnect | Undo;
+Point EditHistory := List<EditAction>;
+
+Constraint VisualEditConsistent: forall a: EditAction, st: CanvasState.
+  apply(a, st) = st' -> geometry_valid(st') /\ invariants_hold(st');
+
+Prove VisualEditConsistent;
+Normalize;

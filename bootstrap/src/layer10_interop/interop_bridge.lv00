@@ -1,0 +1,11 @@
+// bootstrap: interop_bridge — 互操作桥接
+
+Point ExternSystem := Coq | Lean4 | OPML | GeoJSON | SVG | MathJSON;
+Point BridgeMsg := { from: SemanticIR, to: ExternSystem, payload: Bytes, trace_id: UUID };
+Point BridgeResult := Result<Bytes, BridgeError>;
+
+Constraint BridgeRoundtrip: forall ir: SemanticIR, sys: ExternSystem.
+  export(ir, sys) = ok(b) /\ import(b, sys) = ok(ir') -> semantics_eq(ir, ir');
+
+Prove BridgeRoundtrip;
+Normalize;

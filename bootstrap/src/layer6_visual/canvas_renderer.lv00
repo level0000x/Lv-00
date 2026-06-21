@@ -1,0 +1,11 @@
+// bootstrap: canvas_renderer — Canvas渲染器: 力导向布局
+
+Point LayoutAlgorithm := ForceDirected | Grid | Tree | Circular | Sugiyama;
+Point LayoutState := { nodes: List<Vec2>, springs: List<SpringForce>, damping: Real, iterations: Nat };
+Point RenderStyle := { node_radius: Real, edge_width: Real, colors: ColorMap, labels: Bool };
+
+Constraint ForceLayoutConverge: forall st: LayoutState.
+  run_layout(st, 1000) = converged -> energy_local_min(st);
+
+Prove ForceLayoutConverge;
+Normalize;

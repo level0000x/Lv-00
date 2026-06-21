@@ -1,0 +1,14 @@
+// bootstrap: proof_session — 证明会话: 步骤追踪+撤销
+
+Session S;
+Step s1 = Lemma("comm_add", x+y = y+x);
+Step s2 = Apply(s1, a+b);
+Step s3 = Undo;                        // 撤销最后一步
+
+Constraint Record(S, step) => stack_push;
+Constraint Checkpoint(S);              // 保存检查点
+Constraint Undo(S, n=1) => rollback;   // 回滚n步
+Constraint Replay(S, step_id);         // 重放到指定步骤
+
+Prove;
+Normalize;

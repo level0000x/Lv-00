@@ -1,0 +1,13 @@
+// bootstrap: algebra_mode — 代数模式: 符号+数值混合
+
+Point mode_symbolic = (0, 2);      // 纯符号模式
+Point mode_numeric  = (1, 1);      // 纯数值模式
+Point mode_mixed    = (2, 0);      // 符号-数值混合模式
+
+Constraint symbolic_ops(mode_symbolic) = {expand, factor, simplify};
+Constraint numeric_ops(mode_numeric)  = {approx, eval, round};
+Constraint mixed_ops(mode_mixed)      = symbolic_ops ∪ numeric_ops;
+Constraint switch(mode_symbolic, mode_numeric, tolerance) = mode_mixed;
+
+Prove;
+Normalize;

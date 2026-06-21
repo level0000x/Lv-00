@@ -1,0 +1,14 @@
+// bootstrap: preset_number_theory — 数论预设: gcd/lcm/prime/phi
+
+Point NumTheoryFunc := Gcd | Lcm | Prime | Phi | Sigma | Tau;
+Point NumConstraint(a b: Integer): Prop;
+
+Constraint GcdLcmRelation: forall a b: Integer, a > 0 /\ b > 0.
+  gcd(a, b) * lcm(a, b) = a * b;
+
+Constraint FundamentalTheorem: forall n: Integer, n > 1.
+  exists! factors: List<PrimePower>, product(factors) = n;
+
+Prove GcdLcmRelation;
+Prove FundamentalTheorem;
+Normalize;

@@ -1,0 +1,14 @@
+// bootstrap: func_block_spec — 函数块语义: category/determinism/selector
+
+Point func_block_spec:
+  category(objects: set[Type], arrows: set[FuncBlock]) -> Category
+  determinism(f: FuncBlock) -> bool
+  selector(blocks: set[FuncBlock], input: Type) -> FuncBlock
+
+Constraint func_block_spec:
+  category satisfies identity and composition laws
+  determinism(f) ↔ (∀x. f(x) is unique)
+  selector returns most_specific_applicable
+
+Prove;
+Normalize;

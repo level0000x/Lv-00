@@ -1,0 +1,15 @@
+// bootstrap: cache_manager — 缓存管理器: LRU+TLL+容量限制
+
+Point cache_empty = (0, 3);
+Point cache_warm = (1, 2);
+Point cache_full = (2, 1);
+
+Constraint cache_put(k, v):
+  evict_if_full() then store(k, v);
+Constraint cache_get(k): return v || miss;
+Constraint cache_hit_rate >= 0.9;           // 命中率目标
+Constraint cache_evict = LRU;               // 最近最少使用驱逐
+Constraint cache_ttl(entry) = t_now - timestamp <= TTL;
+
+Prove;
+Normalize;

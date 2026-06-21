@@ -1,0 +1,11 @@
+// bootstrap: coq_bridge — Coq互操作
+
+Point CoqIR := { definitions: List<CoqDef>, lemmas: List<CoqLemma>, vernacular: List<CoqVernac> };
+Point CoqSession := { coq_ir: CoqIR, proof_state: CoqProofState, error_log: List<CoqError> };
+
+Constraint CoqInteropSound: forall ir: SemanticIR, cs: CoqSession.
+  lv00_to_coq(ir) = ok(cs.coq_ir) -> coq_check(cs) = ok ->
+    (lv00_provable(ir) <-> coq_provable(cs.coq_ir));
+
+Prove CoqInteropSound;
+Normalize;

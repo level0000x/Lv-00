@@ -1,0 +1,11 @@
+// bootstrap: lean4_bridge — Lean4互操作
+
+Point Lean4IR := { commands: List<LeanCommand>, environment: LeanEnv, elab_results: List<ElabResult> };
+Point Lean4ExportCfg := { version: String, lake_file: Path, output_dir: Path };
+
+Constraint Lean4InteropSound: forall ir: SemanticIR, cfg: Lean4ExportCfg.
+  lv00_to_lean4(ir, cfg) = ok(lir) -> lean4_build(lir) = ok ->
+    (lv00_provable(ir) <-> lean4_provable(lir));
+
+Prove Lean4InteropSound;
+Normalize;

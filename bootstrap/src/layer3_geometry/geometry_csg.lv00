@@ -1,0 +1,12 @@
+// bootstrap: geometry_csg — CSG构造实体几何: union/intersection/difference
+
+Solid A = Sphere(radius=1.0, center=O);
+Solid B = Cube(size=1.5, center=O);
+
+Constraint Union    = A | B;           // 布尔并集
+Constraint Intersect = A & B;          // 布尔交集
+Constraint Diff     = A \ B;           // 布尔差集
+Constraint SymDiff  = (A \ B) | (B \ A); // 对称差
+
+Prove;
+Normalize;

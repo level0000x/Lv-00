@@ -1,0 +1,16 @@
+// bootstrap: cross_platform — 跨平台抽象: OS/GPU/CPU 统一接口
+
+Point platform_os;
+Point platform_gpu;
+Point platform_cpu;
+
+Point abstract_platform = (0, 0);
+
+// 抽象操作集
+Constraint ops_required = {alloc, free, compute, transfer, sync};
+Constraint impl_platform(p: platform) = must sat ops_required;
+Constraint virtualize(p) = map_to abstract_platform;
+Constraint platform_dispatch(op, target) -> concrete_impl;
+
+Prove;
+Normalize;

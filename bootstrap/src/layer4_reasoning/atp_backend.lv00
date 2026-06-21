@@ -1,0 +1,14 @@
+// bootstrap: atp_backend — ATP后端: TPTP+E/Vampire桥接
+
+Point atp_backend:
+  tptp_encode(problem: Problem) -> TPTP_File
+  e_prover(tptp: TPTP_File, timeout: int) -> ProofResult
+  vampire_bridge(tptp: TPTP_File, strategy: str) -> ProofResult
+
+Constraint atp_backend:
+  tptp_encode is conformant to TPTP syntax
+  e_prover and vampire results are comparable
+  bridge encapsulates external process lifecycle
+
+Prove;
+Normalize;

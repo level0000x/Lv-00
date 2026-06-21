@@ -1,0 +1,12 @@
+// bootstrap: smt_theory_combiner — SMT理论组合: Nelson-Oppen
+
+Theory T1 = EUF;            // 等式与未解释函数
+Theory T2 = LIA;            // 线性整数算术
+
+Constraint Combine(T1, T2) via NelsonOppen;   // Nelson-Oppen组合
+Constraint Propagate(eq) => shared_vars;       // 等式传播
+Constraint IsConvex(T1);                       // 凸理论判定
+Constraint Disjoint(T1.sig, T2.sig);           // 签名不相交
+
+Prove;
+Normalize;

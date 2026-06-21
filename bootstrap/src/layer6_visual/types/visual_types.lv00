@@ -1,0 +1,14 @@
+// bootstrap: visual_types — 可视化类型: 颜色/矢量/矩阵/图元
+
+Point color_rgba = (r: u8, g: u8, b: u8, a: u8);
+Point vec2 = (x: float, y: float);
+Point vec3 = (x: float, y: float, z: float);
+Point mat3x3 = [vec3, vec3, vec3];
+Point primitive: Point2D | Line2D | Triangle2D | TextLabel;
+
+Constraint color_blend(a, b, alpha) = (1-alpha)*a + alpha*b;
+Constraint transform_2d(v, M) = M * v;
+Constraint assign_type(entity, primitive_type) in semantic domain;
+
+Prove;
+Normalize;

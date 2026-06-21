@@ -1,0 +1,14 @@
+// bootstrap: preset_measurements — 测量预设(距离/角度/面积)
+
+Point MeasureKind := Distance | Angle | Area | Perimeter | Volume;
+Point Measure := { kind: MeasureKind, value: Real, unit: String, precision: Nat };
+
+Constraint DistanceTriangleInequality: forall A B C: Point.
+  dist(A, C) <= dist(A, B) + dist(B, C);
+
+Constraint AngleAroundPoint: forall O: Point, rays: List<Ray>.
+  sum(map(angle, rays)) = 2*pi;
+
+Prove DistanceTriangleInequality;
+Prove AngleAroundPoint;
+Normalize;

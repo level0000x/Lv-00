@@ -1,0 +1,24 @@
+// bootstrap: func_block_spec — 函数块语义规格
+
+// 函数块结构
+Point func_name = (0, 3);          // 函数名
+Point func_params = (1, 2);        // 参数列表
+Point func_body = (2, 1);          // 函数体
+Point func_return = (3, 0);        // 返回值
+
+// 函数块不变量
+Constraint func_signature(func_name, func_params);    // 签名唯一性
+Constraint func_scope(func_name, func_body);          // 作用域隔离
+Constraint func_returns(func_body, func_return);      // 每路径有返回值
+
+// 调用语义
+Point call_site = (4, 3);
+Constraint call_resolve(call_site, func_name);         // 调用解析
+Constraint call_bind(call_site, func_params);           // 参数绑定
+Constraint call_substitute(call_site, func_body);       // 函数体内联
+
+// 递归约束
+Constraint recursion_bound(func_name) <= CFG_RECURSION_MAX_DEPTH;
+
+Prove;
+Normalize;

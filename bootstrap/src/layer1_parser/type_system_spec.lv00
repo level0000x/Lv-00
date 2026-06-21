@@ -1,0 +1,21 @@
+// bootstrap: type_system_spec — 类型系统 (Point/Line/Segment/Circle/Triangle)
+
+// 五种几何类型
+Point type_Point = (0, 4);        // (x, y) 坐标对
+Point type_Line = (1, 3);         // 通过两点确定
+Point type_Segment = (2, 2);      // 有向线段，两端点
+Point type_Circle = (3, 1);       // 圆心 + 半径
+Point type_Triangle = (4, 0);     // 三个顶点
+
+// 类型层级
+Constraint subtype(type_Segment, type_Line);      // 线段是线的特化
+Constraint subtype(type_Triangle, type_Point);     // 三角形包含点
+
+// 类型构造规则
+Constraint construct_Line(type_Point, type_Point) = type_Line;
+Constraint construct_Segment(type_Point, type_Point) = type_Segment;
+Constraint construct_Circle(type_Point, scalar) = type_Circle;
+Constraint construct_Triangle(type_Point, type_Point, type_Point) = type_Triangle;
+
+Prove;
+Normalize;

@@ -1,0 +1,14 @@
+// bootstrap: kernel_utilities — 内核工具: 递归限制/合一/拓扑排序
+
+Point kernel_utilities:
+  recursion_guard(f: Func, depth: int) -> bool
+  unify(a: Term, b: Term, subst: Subst) -> Subst
+  topological_sort(graph: DAG) -> list[Node]
+
+Constraint kernel_utilities:
+  recursion_guard prevents stack overflow
+  unify returns most general unifier (MGU)
+  topological_sort respects all edge directions
+
+Prove;
+Normalize;

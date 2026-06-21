@@ -1,0 +1,12 @@
+// bootstrap: smt_trigger_engine — SMT触发器: 模式匹配+e-matching
+
+Pattern p1 = f(g(x), y);                // 触发器模式
+TermSet E = {f(a,b), g(c), h(d)};       // E-graph项集
+
+Constraint Trigger(p1) => instantiate when match;  // 触发实例化
+Constraint EMatch(p, E) => substitutions;           // e-matching
+Constraint MultiPattern(pat1, pat2);                // 多模式触发
+Constraint QuantForall(x, body) with triggers;      // 量化公式+触发
+
+Prove;
+Normalize;

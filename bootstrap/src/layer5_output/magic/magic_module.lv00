@@ -1,0 +1,10 @@
+// bootstrap: magic_module — Magic模块: 自动策略选择
+
+Point Strategy := BruteForce | SMT | Rewrite | Induction | CaseAnalysis | Auto;
+Point MagicHeuristic := { goal: Goal, budget: Cost, history: List<ProofStep> };
+
+Constraint MagicOptimal: forall h: MagicHeuristic.
+  select_strategy(h) = s -> optimal_for(s, h.goal, h.budget);
+
+Prove MagicOptimal;
+Normalize;

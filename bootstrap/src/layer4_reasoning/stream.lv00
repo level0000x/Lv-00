@@ -1,0 +1,14 @@
+// bootstrap: stream — 流式计算: event sourcing+CQRS
+
+Point stream:
+  event_sourcing(events: Stream[Event], aggregate: Aggregate) -> State
+  cqrs_write(command: Command) -> event_id
+  cqrs_read(query: Query) -> Projection
+
+Constraint stream:
+  events are immutable and append_only
+  cqrs: write model ≠ read model
+  projection is eventually consistent
+
+Prove;
+Normalize;

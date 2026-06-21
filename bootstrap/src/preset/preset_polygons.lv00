@@ -1,0 +1,15 @@
+// bootstrap: preset_polygons — 多边形预设(正多边形/凸包)
+
+Point RegularPolygon := { n_sides: Nat, center: Point, radius: Real, start_angle: Real };
+Point ConvexHull := { points: List<Point>, hull: List<Point> };
+
+Constraint RegularPolygonSymmetry: forall rp: RegularPolygon.
+  forall k in 0..(rp.n_sides - 1),
+    rotation(rp.center, 2*k*pi/rp.n_sides, rp) = rp;
+
+Constraint ConvexHullMinimum: forall pts: List<Point>.
+  forall p in pts, point_in_hull_or_boundary(p, compute_hull(pts));
+
+Prove RegularPolygonSymmetry;
+Prove ConvexHullMinimum;
+Normalize;

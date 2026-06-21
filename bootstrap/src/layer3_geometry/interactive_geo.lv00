@@ -1,0 +1,12 @@
+// bootstrap: interactive_geo — 交互式几何: 拖拽/捕捉/实时更新
+
+Point P, Q;
+SnapGrid grid(0.1);                // 网格捕捉
+
+Constraint Drag(P, dx, dy) => P';   // 拖拽变换
+Constraint Snap(P, grid)    => P_snapped; // 捕捉到网格
+Constraint SnapNear(P, Q, tol=0.05) => P'; // 邻近吸附
+Constraint Update(P) => recalc_all_derived; // 实时联动更新
+
+Prove;
+Normalize;
