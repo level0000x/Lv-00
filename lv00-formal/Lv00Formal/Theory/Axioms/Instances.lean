@@ -1,5 +1,6 @@
 /-
 Lv-00 自有理论核心：真实规则包实例
+[QA] TODO: split by package (currently ~2276 lines, threshold 500)
 
 本文件对照 `module/axiom_packages/proof_theory.lvz` 与
 `test/c/test_axiom_proof_theory.c`，把 Proof Theory 公理包映射为 Lean 级实例。

@@ -29,7 +29,8 @@ def dsl_to_formula : DSL → Formula
   | .dslMul a b => .mul (dsl_to_formula a) (dsl_to_formula b)
   | .dslEq a b => .eq (dsl_to_formula a) (dsl_to_formula b)
 
-theorem latex_parse_roundtrip (f : Formula) : f = f := rfl
+-- [QA] placeholder: actual proof pending
+axiom latex_parse_roundtrip (f : Formula) : f = f
 
 theorem dsl_parse_roundtrip (f : Formula) : dsl_to_formula (formula_to_dsl f) = f := by
   induction f with

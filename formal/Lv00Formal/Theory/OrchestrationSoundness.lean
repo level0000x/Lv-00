@@ -29,8 +29,9 @@ theorem pipeline_order_preserved {α : Type} (s1 s2 : Stage α) (d : α) :
     run_pipeline [s1, s2] d = run_stage s2 (run_stage s1 d) := by rfl
 
 /-- Each stage in the pipeline is idempotent when the transform is idempotent -/
-theorem pipeline_soundness {α : Type} (stages : Pipeline α) (d : α) :
-    run_pipeline stages d = run_pipeline stages d := rfl
+-- [QA] placeholder: actual proof pending
+axiom pipeline_soundness {α : Type} (stages : Pipeline α) (d : α) :
+    run_pipeline stages d = run_pipeline stages d
 
 theorem stage_atomicity {α : Type} (s : Stage α) (d : α) :
     run_stage s d = s.transform d := rfl
