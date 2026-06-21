@@ -18,6 +18,7 @@
 
 #include "lv00_internal.h"
 #include "lv00_utils.h"
+#include "constraint_graph.h"  /* GeomNode type */
 
 /* ============================================================
  * 符号坐标深拷贝

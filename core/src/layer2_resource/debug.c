@@ -37,7 +37,7 @@
 #include "stream_context_util.h"
 #include "type_system.h"
 
-LV00_DECLARE_STREAM_CTX(debug)
+LV00_DECLARE_STREAM_CTX(debug);
 
 /* ==================== 命名常量（消除魔术数字） ==================== */
 

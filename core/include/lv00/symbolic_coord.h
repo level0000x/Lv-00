@@ -60,7 +60,7 @@ typedef struct {
     double right_bound;
 } AlgebraicExpr;
 
-AlgebraicExpr *algebraic_create(const Rational *p, double lb, double rb);
+AlgebraicExpr *algebraic_create(Rational **minimal_poly, double left_bound, double right_bound);
 void algebraic_destroy(AlgebraicExpr *a);
 
 /* === Quadratic expression (a*sqrt(b) + c) === */
