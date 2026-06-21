@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <gmp.h>
+#include <math.h>
 #include <assert.h>
 
 /* ================================================================
@@ -427,7 +428,7 @@ int graph_solve(ConstraintGraph* g) {
     if (!g || g->node_count == 0) return 0;
     mpq_t eps, propagated, diff;
     mpq_inits(eps, propagated, diff, NULL);
-    mpq_set_si(eps, 1, 1000000000000ULL);  /* ε = 10⁻¹² */
+    mpq_set_str(eps, "1/1000000000000", 10);  /* ε = 10⁻¹² — 用字符串避免 32-bit overflow */
 
     for (int iter = 0; iter < g->node_count * 2; iter++) {
         int changed = 0;
@@ -764,4 +765,62 @@ int native_self_test(void) {
     mpq_clear(v); graph_destroy(g);
 
     return 0;
+}
+
+/* ================================================================
+ *  High-level GMP geometry functions (stubs.c interface)
+ *  coord_rotate / coord_from_polar: 超越函数 sin/cos 不可精确有理化
+ *  preset_measure_*: 用 GMP mpq_t 精确鞋带公式/叉积
+ * ================================================================ */
+
+Coord* coord_rotate(const Coord* c, double angle) {
+    if (!c) return NULL;
+    double cs = cos(angle), sn = sin(angle);
+    mpq_t cs_q, sn_q;
+    mpq_init(cs_q); mpq_set_d(cs_q, cs);
+    mpq_init(sn_q); mpq_set_d(sn_q, sn);
+    Coord* r = (Coord*)malloc(sizeof(Coord));
+    if (!r) { mpq_clears(cs_q, sn_q, NULL); return NULL; }
+    r->id = native_id_alloc();
+    mpq_init(r->x); mpq_init(r->y);
+    mpq_t t1, t2; mpq_inits(t1, t2, NULL);
+    mpq_mul(t1, c->x, cs_q); mpq_mul(t2, c->y, sn_q); mpq_sub(r->x, t1, t2);
+    mpq_mul(t1, c->x, sn_q); mpq_mul(t2, c->y, cs_q); mpq_add(r->y, t1, t2);
+    mpq_clears(t1, t2, cs_q, sn_q, NULL);
+    return r;
+}
+
+Coord* coord_from_polar(double r, double theta) {
+    double cs = cos(theta), sn = sin(theta);
+    mpq_t rq, cq, sq;
+    mpq_init(rq); mpq_set_d(rq, r); mpq_init(cq); mpq_set_d(cq, cs); mpq_init(sq); mpq_set_d(sq, sn);
+    Coord* c = (Coord*)malloc(sizeof(Coord));
+    if (!c) { mpq_clears(rq, cq, sq, NULL); return NULL; }
+    c->id = native_id_alloc();
+    mpq_init(c->x); mpq_mul(c->x, rq, cq);
+    mpq_init(c->y); mpq_mul(c->y, rq, sq);
+    mpq_clears(rq, cq, sq, NULL);
+    return c;
+}
+
+void preset_measure_length(mpq_t result, const Coord* a, const Coord* b) {
+    coord_dist_sq(result, a, b);  /* GMP 精确平方距离 */
+}
+
+void preset_measure_area(mpq_t result, const Coord* vertices, int n) {
+    mpq_set_si(result, 0, 1);
+    if (n < 3) return;
+    mpq_t cross; mpq_init(cross);
+    for (int i = 0; i < n; i++) {
+        coord_cross(cross, &vertices[i], &vertices[(i+1)%n]);
+        mpq_add(result, result, cross);
+    }
+    if (mpq_sgn(result) < 0) mpq_neg(result, result);
+    mpq_t two; mpq_init(two); mpq_set_si(two, 2, 1);
+    mpq_div(result, result, two);
+    mpq_clears(cross, two, NULL);
+}
+
+void preset_polygon_area(mpq_t result, const Coord* vertices, int n) {
+    preset_measure_area(result, vertices, n);  /* 复用鞋带公式 */
 }
