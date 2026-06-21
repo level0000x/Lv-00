@@ -1,7 +1,7 @@
 # Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-5.0.0-blue.svg?style=flat)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
 [![CI](https://github.com/level0000x/Lv-00/actions/workflows/ci.yml/badge.svg)](https://github.com/level0000x/Lv-00/actions/workflows/ci.yml)
 [![C11](https://img.shields.io/badge/C-11-green.svg)](https://en.cppreference.com/w/c)
 [![Lean4](https://img.shields.io/badge/Lean-4-purple.svg)](https://lean-lang.org/)
