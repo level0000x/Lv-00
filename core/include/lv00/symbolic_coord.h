@@ -116,12 +116,20 @@ struct Transcendental {
     TranscendentalExpr *expr;
 };
 
+/* ── Algebraic info (equiv_class.c 依赖) ── */
+typedef struct AlgebraicInfo {
+    int             degree;
+    int             coeff_count;
+    SymbolicCoord **coefficients;
+} AlgebraicInfo;
+
 /* ── Symbolic coordinate ── */
 struct SymbolicCoord {
     CoordType  type;
     TrustColor trust;
     bool       cache_valid;
     double     cached_value;
+    AlgebraicInfo *algebraic_info;  /* v3.5.0: 代数共轭检测 */
     union {
         Rational       *rational;
         Algebraic      *algebraic;

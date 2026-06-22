@@ -69,6 +69,14 @@ struct EquivClassManager {
     EquivProof      *proof_log;
     int              proof_log_count;
     int              proof_log_capacity;
+    /* === Statistics === */
+    int              total_merges;
+    int              coord_merges;
+    int              constraint_derives;
+    int              algebraic_conjugates;
+    int              transform_merges;
+    int              rejected_merges;
+    void            *stream_ctx;
 };
 
 /* ── API ── */
@@ -77,7 +85,8 @@ void               equiv_manager_destroy(EquivClassManager *mgr);
 
 int  equiv_manager_find(EquivClassManager *mgr, int node_id);
 bool equiv_manager_are_equivalent(EquivClassManager *mgr, int a, int b);
-EquivMergeResult   equiv_merge_classes(EquivClassManager *mgr, int class_a, int class_b,
+bool equiv_are_equivalent(const EquivClassManager *mgr, int a, int b);
+EquivMergeResult   equiv_merge_classes(EquivClassManager *mgr, int node_a, int node_b,
                                         EquivSourceType source, int constraint_id, TrustColor trust);
 
 int  equiv_manager_get_class_size(EquivClassManager *mgr, int node_id);
