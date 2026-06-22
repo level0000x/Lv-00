@@ -112,6 +112,7 @@ struct Proposition {
     int input_count;      /* 输入端口数量 */
     int *output_port_ids; /* 输出端口ID数组 */
     int output_count;     /* 输出端口数量 */
+    int output_port_count; /* 别名 = output_count */
 
     /* 几何模式（虚线框内的约束骨架） */
     ConstraintGraph *pattern; /* 命题模式图 */
@@ -119,6 +120,7 @@ struct Proposition {
     /* 前置条件区域 */
     int *precondition_region_ids; /* 前置条件区域ID */
     int precondition_count;       /* 前置条件数量 */
+    int precondition_region_count; /* 别名 = precondition_count */
 
     /* 后置条件 */
     int *postcondition_constraint_ids; /* 后置条件约束ID */
