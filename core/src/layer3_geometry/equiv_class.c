@@ -19,6 +19,13 @@
 #include "error_codes.h"
 #include "lv00_utils.h"
 
+/* Missing enum/field aliases */
+ #define EQUIV_MERGE_INVALID       EQUIV_MERGE_ERROR
+ #define EQUIV_MERGE_ALREADY_EQUIV EQUIV_MERGE_ALREADY_SAME
+ #define EQUIV_SOURCE_CONSTRAINT_DERIVE EQUIV_SOURCE_CONSTRAINT
+ #define EQUIV_SOURCE_ALGEBRAIC_CONJUGATE EQUIV_SOURCE_CONJUGATE
+
+
 /* ================================================================
  * 并查集内部实现
  * ================================================================ */
@@ -249,8 +256,7 @@ void equiv_manager_destroy(EquivClassManager *mgr) {
 /**
  * @brief 内部合并两个等价类
  */
-static EquivMergeResult equiv_merge_classes(EquivClassManager *mgr,
-                                              int node_a, int node_b,
+EquivMergeResult equiv_merge_classes(EquivClassManager *mgr, int node_a, int node_b,
                                               EquivSourceType source,
                                               int constraint_id,
                                               TrustColor trust) {
@@ -665,6 +671,10 @@ bool equiv_are_equivalent(const EquivClassManager *mgr, int node_a, int node_b) 
     if (!mgr || node_a < 0 || node_b < 0) return false;
     if (node_a >= mgr->uf_capacity || node_b >= mgr->uf_capacity) return false;
     return uf_find((EquivClassManager *)mgr, node_a) == uf_find((EquivClassManager *)mgr, node_b);
+}
+
+bool equiv_manager_are_equivalent(EquivClassManager *mgr, int a, int b) {
+    return equiv_are_equivalent((const EquivClassManager *)mgr, a, b);
 }
 
 int equiv_class_count(const EquivClassManager *mgr) {
