@@ -68,11 +68,7 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
             existing->low == low &&
             existing->high == high) {
             /* 找到已存在节点，增加引用计数并返回 */
-#ifdef _WIN32
-            InterlockedIncrement64((volatile LONG64 *)&existing->ref_count);
-#else
-            __atomic_fetch_add(&existing->ref_count, 1, __ATOMIC_RELAXED);
-#endif
+            __sync_fetch_and_add(&existing->ref_count, 1);
             return existing;
         }
     }
@@ -344,11 +340,7 @@ BDDNode *bdd_literal(BDDManager *mgr, int var_id) {
  */
 void bdd_ref(BDDNode *node) {
     if (node) {
-#ifdef _WIN32
-        InterlockedIncrement64((volatile LONG64 *)&node->ref_count);
-#else
-        __atomic_fetch_add(&node->ref_count, 1, __ATOMIC_RELAXED);
-#endif
+        __sync_fetch_and_add(&node->ref_count, 1);
     }
 }
 
@@ -360,11 +352,7 @@ void bdd_ref(BDDNode *node) {
 void bdd_deref(BDDManager *mgr, BDDNode *node) {
     if (!node || node->ref_count == 0)
         return;
-#ifdef _WIN32
-    uint64_t old_ref = InterlockedDecrement64((volatile LONG64 *)&node->ref_count);
-#else
-    uint64_t old_ref = __atomic_fetch_sub(&node->ref_count, 1, __ATOMIC_RELAXED);
-#endif
+    uint64_t old_ref = __sync_fetch_and_sub(&node->ref_count, 1);
     /* 终端节点（var_id == -1）不回收 */
     if (node->var_id < 0)
         return;
@@ -1100,12 +1088,13 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
 
         /* 子句 1: ~v | ~x | high */
         if (remaining > 64) {
+            int n;
             if (high_lit > 0) {
-                int n = snprintf(buf + offset, (size_t) remaining,
+                n = snprintf(buf + offset, (size_t) remaining,
                                 "%d %d %d 0\n", -v, -x, high_lit);
             } else {
                 /* high 是 false (0)，子句变为 ~v | ~x（省略 0） */
-                int n = snprintf(buf + offset, (size_t) remaining,
+                n = snprintf(buf + offset, (size_t) remaining,
                                 "%d %d 0\n", -v, -x);
             }
             if (n > 0 && n < remaining) { offset += n; remaining -= n; }
@@ -1114,11 +1103,12 @@ bool bdd_to_cnf(BDDNode *bdd, char **out_cnf) {
 
         /* 子句 2: ~v | x | low */
         if (remaining > 64) {
+            int n;
             if (low_lit > 0) {
-                int n = snprintf(buf + offset, (size_t) remaining,
+                n = snprintf(buf + offset, (size_t) remaining,
                                 "%d %d %d 0\n", -v, x, low_lit);
             } else {
-                int n = snprintf(buf + offset, (size_t) remaining,
+                n = snprintf(buf + offset, (size_t) remaining,
                                 "%d %d 0\n", -v, x);
             }
             if (n > 0 && n < remaining) { offset += n; remaining -= n; }
