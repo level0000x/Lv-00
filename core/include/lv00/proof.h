@@ -80,7 +80,9 @@ typedef enum {
     PROOF_COLOR_ORANGE_ORACLE,     /**< 浅橙色实心端口：依赖非构造性oracle */
     PROOF_COLOR_ORANGE_EX_FALSO,   /**< 浅橙色虚线箭头：爆炸原理步骤 */
     PROOF_COLOR_AMBER,             /**< 橙黄色：含数值假设 */
-    PROOF_COLOR_DARK_ORANGE        /**< 深橙色：非构造性依赖与数值假设叠加 */
+    PROOF_COLOR_DARK_ORANGE,        /**< 深橙色：非构造性依赖与数值假设叠加 */
+    PROOF_COLOR_GREEN_COMPLETE,     /**< 绿色：证明完成 */
+    PROOF_COLOR_RED_CONFLICT        /**< 红色：冲突/矛盾 */
 } ProofColor;
 
 /* ============== 命题类型 ==============
