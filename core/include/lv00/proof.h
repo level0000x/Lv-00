@@ -255,12 +255,37 @@ typedef int Lv00ProofScopeId;
 
 /* Missing enums/types used by proof.c */
 #define LIGHT_ORANGE_EXPLOSION  30
-void lv00_proof_tree_add_premise(void *tree, void *step);
+void lv00_proof_tree_add_premise(void *tree, int idx, const char *name, bool negated);
+
+/* Missing proof strategies */
+#define PROOF_STRATEGY_DIRECT        100
+#define PROOF_STRATEGY_AREA          101
+#define PROOF_STRATEGY_VECTOR        102
+#define PROOF_STRATEGY_TRANSFORM     103
+#define PROOF_STRATEGY_TRIGONOMETRY  104
+#define PROOF_STRATEGY_ALGEBRAIC     105
+#define PROOF_STRATEGY_CONTRADICTION 106
+
+/* SMT stubs */
+typedef void *SMTSolver;
+#define SMT_GROEBNER 0
+typedef int SMTSatResult;
+#define SMT_RESULT_UNSAT    1
+#define SMT_RESULT_UNKNOWN  2
+SMTSolver smtsolver_create(int type);
+void smtsolver_set_timeout(SMTSolver s, int ms);
+int  smtsolver_encode(SMTSolver s, const char *prop);
+SMTSatResult smtsolver_check(SMTSolver s);
+void smtsolver_destroy(SMTSolver s);
+
+const char *constraint_solver_get_proposition(void *ctx, int id);
+void *proof_navigator_search(void *nav, int strategy, void *prop);
+
 const char *html_escape(const char *s);
 typedef void *Lv00TaskGroup;
-Lv00TaskGroup lv00_task_group_create(int n);
+Lv00TaskGroup lv00_task_group_create(const char *name);
 typedef void *Lv00Task;
-Lv00Task lv00_task_create(void (*fn)(void*), void *arg);
+Lv00Task lv00_task_create(void (*fn)(void*), void *arg, const char *name);
 void lv00_task_group_add(Lv00TaskGroup g, Lv00Task t);
 void lv00_task_group_destroy(Lv00TaskGroup g);
 
