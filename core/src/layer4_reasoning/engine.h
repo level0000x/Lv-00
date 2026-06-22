@@ -49,6 +49,9 @@ extern "C" {
  *   无需手动定义。
  * ============================================================ */
 
+#ifndef LV00_ENGINE_H
+#define LV00_ENGINE_H
+
 /** @brief Layer 1: 输入解析层 — 词法分析、公式解析、DSL 编译 */
 #define LV00_LAYER_PARSER    1
 
@@ -719,4 +722,4 @@ bool engine_is_valid_transition(EngineState from, EngineState to);
 }
 #endif
 
-#endif /* LV00_ENGINE_INTERNAL_H */
+#endif /* LV00_ENGINE_H */
