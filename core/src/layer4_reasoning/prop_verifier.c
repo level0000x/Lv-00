@@ -1,2 +1,2130 @@
-/* Stub for prop_verifier â€” TODO: implement */
-#include "lv00/lv00.h"
+/**
+ * @file prop_verifier.c
+ * @brief ÃüÌâÂß¼­ÑéÖ¤Æ÷ÊµÏÖ ¡ª¡ª ×ÔÈ»ÑİÒïÖ¤Ã÷ËÑË÷
+ *
+ * @details ÊµÏÖ»ùÓÚ×ÔÈ»ÑİÒïµÄÏòºóÁ´½ÓÖ¤Ã÷ËÑË÷Ëã·¨¡£
+ *          Ö§³ÖÖ±¾õÖ÷ÒåÂß¼­ºÍ¾­µäÂß¼­Ä£Ê½¡£
+ *
+ *          ºËĞÄÍÆÀí¹æÔò£º
+ *            - ºÏÈ¡ÏûÈ¥£º´ÓºÏÈ¡ÍÆ³ö·ÖÁ¿
+ *            - ÎöÈ¡ÒıÈë£º´Ó·ÖÁ¿ÍÆ³öÎöÈ¡
+ *            - ÔÌº­ÏûÈ¥£¨modus ponens£©£º´ÓÔÌº­ºÍÇ°¼şÍÆ³öºó¼ş
+ *            - ·ñ¶¨ÏûÈ¥£º´Ó·ñ¶¨ºÍÔ­ÃüÌâÍÆ³öÃ¬¶Ü
+ *            - ±¬Õ¨Ô­Àí£ºÈôÆôÓÃ£¬´ÓÃ¬¶ÜÍÆ³öÈÎÒâÃüÌâ
+ *
+ * @author Lv-00 Project
+ * @version 3.0.1
+ */
+
+#include "prop_verifier.h"
+#include "lv00_utils.h"
+#include "stream_context_util.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+LV00_DECLARE_STREAM_CTX(prop_verifier)
+
+/* ============================================================
+ * ÄÚ²¿³£Á¿
+ * ============================================================ */
+
+#define MAX_PREMISES     64    /**< ×î´óÇ°ÌáÊı */
+#define MAX_GOALS        64    /**< ×î´ó×ÓÄ¿±êÊı */
+#define MAX_MEMO_ENTRIES 1024  /**< ¼ÇÒä»¯±í´óĞ¡ */
+#define MAX_FORMULA_STR  2048  /**< ¹«Ê½×Ö·û´®×î´ó³¤¶È */
+#define MAX_COPY_DEPTH   200   /**< ¹«Ê½Éî¿½±´×î´óµİ¹éÉî¶È£¨·ÀÖ¹Õ»Òç³ö£© */
+#define MAX_DESTROY_DEPTH 200  /**< ¹«Ê½Ïú»Ù×î´óµİ¹éÉî¶È£¨·ÀÖ¹Õ»Òç³ö£© */
+
+/* ---- Îö¹¹Õ»ÈİÁ¿ ---- */
+#define PROP_DESTROY_STACK_INIT_CAP   64   /* Ïú»ÙÊ±Õ»µÄ³õÊ¼ÈİÁ¿ */
+#define PROP_DESTROY_STACK_GROWTH     2    /* Ïú»ÙÕ»À©Èİ±¶Êı */
+
+/* ---- ÔËËã·ûÓÅÏÈ¼¶ ---- */
+#define PROP_PREC_ATOM          100   /* Ô­×ÓÃüÌâÓÅÏÈ¼¶ */
+#define PROP_PREC_NEGATION      80    /* ·ñ¶¨Áª½á´ÊÓÅÏÈ¼¶ */
+#define PROP_PREC_CONJUNCTION   60    /* ºÏÈ¡Áª½á´ÊÓÅÏÈ¼¶ */
+#define PROP_PREC_DISJUNCTION   50    /* ÎöÈ¡Áª½á´ÊÓÅÏÈ¼¶ */
+#define PROP_PREC_IMPLICATION   40    /* ÔÌº­Áª½á´ÊÓÅÏÈ¼¶ */
+#define PROP_PREC_DEFAULT       0     /* Ä¬ÈÏ×îµÍÓÅÏÈ¼¶ */
+
+/* ---- ¹şÏ£º¯Êı³£Á¿ ---- */
+#define PROP_HASH_TYPE_MULTIPLIER      2654435761U  /* »Æ½ğ±ÈÀı³£Êı£¨KnuthÍÆ¼ö£© */
+#define PROP_HASH_STRING_MULTIPLIER    31           /* ×Ö·û´®¹şÏ£³ËÊı */
+#define PROP_HASH_LEFT_MULTIPLIER      0x9e3779b9U  /* ×ó×Ó¹«Ê½¹şÏ£³ËÊı */
+#define PROP_HASH_RIGHT_MULTIPLIER     0x517cc1b7U  /* ÓÒ×Ó¹«Ê½¹şÏ£³ËÊı */
+#define PROP_HASH_PTR_MULTIPLIER       0x45d9f3bU   /* Ö¸Õë¹şÏ£³ËÊı */
+#define PROP_HASH_BIT_SHIFT            16           /* ¹şÏ£Î»»ìºÏÆ«ÒÆÁ¿ */
+#define PROP_HASH_PREMISES_MULTIPLIER  31           /* Ç°Ìá¼¯ºÏ¹şÏ£³ËÊı */
+
+/* ---- Ê±¼ä×ª»» ---- */
+#define PROP_TIME_MS_PER_SEC           1000         /* Ãëµ½ºÁÃëµÄ×ª»»Òò×Ó */
+
+/* ---- ÑÌ²âÓë»º³åÇø³£Á¿ ---- */
+#define PROP_SMOKE_TEST_COUNT          13           /* ÄÚÖÃÑÌ²âÊıÁ¿ */
+#define PROP_SMOKE_MAX_PREM_PTRS       8            /* ÑÌ²âÖĞÇ°ÌáÖ¸ÕëÁÙÊ±Êı×é´óĞ¡ */
+#define PROP_SMOKE_CLEANUP_MAX_PTRS    16           /* ÑÌ²âÇåÀíÊ±×î´óÒıÓÃÖ¸ÕëÊı */
+#define PROP_ATOM_NAME_MAX_LEN         64           /* Ô­×ÓÃüÌâÃû³Æ×î´ó³¤¶È */
+#define PROP_ATOM_COLLECT_MAX          32           /* ÊÕ¼¯Ô­×ÓÃüÌâ×î´óÊı */
+#define PROP_PATTERN_DESC_BUFSIZE      256          /* Ä£Ê½ÃèÊö»º³åÇø´óĞ¡ */
+#define PROP_ANALYSIS_DESC_BUFSIZE     512          /* ·ÖÎöÃèÊö»º³åÇø´óĞ¡ */
+#define PROP_MISSING_LIST_BUFSIZE      512          /* È±Ê§ÁĞ±í»º³åÇø´óĞ¡ */
+#define PROP_STREAM_EVENT_BUFSIZE      256          /* Á÷Ê½ÊÂ¼şÃèÊö»º³åÇø´óĞ¡ */
+#define PROP_JSON_DETAIL_BUFSIZE       192          /* JSONÏêÇé»º³åÇø´óĞ¡ */
+
+/* ---- ĞÅÈÎÑÕÉ«ÅĞ¶¨ãĞÖµ ---- */
+#define PROP_TRUST_YELLOW_THRESHOLD    2            /* »ÆÉ«ĞÅÈÎµÄÈ±Ê§¹¹ÔìÉÏÏŞ */
+#define PROP_TRUST_AMBER_MIN           3            /* çúçêÉ«ĞÅÈÎµÄÈ±Ê§¹¹ÔìÏÂÏŞ */
+
+/* ============================================================
+ * ¹«Ê½¹¹Ôì/Ïú»Ù
+ * ============================================================ */
+
+/**
+ * @brief ´´½¨Ô­×ÓÃüÌâ¹«Ê½
+ *
+ * @param name Ô­×ÓÃüÌâÃû³Æ
+ * @return ĞÂ·ÖÅäµÄ¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_create_atom(const char *name) {
+    if (!name) return NULL;
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!f) return NULL;
+    f->type = PROP_ATOM;
+    snprintf(f->data.atom.name, sizeof(f->data.atom.name), "%s", name);
+    return f;
+}
+
+/**
+ * @brief ´´½¨ºÏÈ¡¹«Ê½£¨A AND B£©
+ *
+ * @param left  ×ó²Ù×÷Êı
+ * @param right ÓÒ²Ù×÷Êı
+ * @return ĞÂ·ÖÅäµÄ¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_create_conjunction(PropFormula *left, PropFormula *right) {
+    if (!left || !right) return NULL;
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!f) return NULL;
+    f->type = PROP_CONJUNCTION;
+    f->data.binary.left = left;
+    f->data.binary.right = right;
+    return f;
+}
+
+/**
+ * @brief ´´½¨ÎöÈ¡¹«Ê½£¨A OR B£©
+ *
+ * @param left  ×ó²Ù×÷Êı
+ * @param right ÓÒ²Ù×÷Êı
+ * @return ĞÂ·ÖÅäµÄ¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_create_disjunction(PropFormula *left, PropFormula *right) {
+    if (!left || !right) return NULL;
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!f) return NULL;
+    f->type = PROP_DISJUNCTION;
+    f->data.binary.left = left;
+    f->data.binary.right = right;
+    return f;
+}
+
+/**
+ * @brief ´´½¨ÔÌº­¹«Ê½£¨A IMPLIES B£©
+ *
+ * @param left  Ç°¼ş
+ * @param right ºó¼ş
+ * @return ĞÂ·ÖÅäµÄ¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_create_implication(PropFormula *left, PropFormula *right) {
+    if (!left || !right) return NULL;
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!f) return NULL;
+    f->type = PROP_IMPLICATION;
+    f->data.binary.left = left;
+    f->data.binary.right = right;
+    return f;
+}
+
+/**
+ * @brief ´´½¨·ñ¶¨¹«Ê½£¨NOT A£©
+ *
+ * @param operand ²Ù×÷Êı
+ * @return ĞÂ·ÖÅäµÄ¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_create_negation(PropFormula *operand) {
+    if (!operand) return NULL;
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!f) return NULL;
+    f->type = PROP_NEGATION;
+    f->data.unary.operand = operand;
+    return f;
+}
+
+/**
+ * @brief ´´½¨µ×ÀàĞÍ¹«Ê½£¨Ã¬¶Ü/¼Ù£©
+ *
+ * @return ĞÂ·ÖÅäµÄ¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_create_bottom(void) {
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!f) return NULL;
+    f->type = PROP_BOTTOM;
+    return f;
+}
+
+/**
+ * @brief ´´½¨ÕæÖµ¹«Ê½£¨¶¥ÀàĞÍ/Õæ£©
+ *
+ * @return ĞÂ·ÖÅäµÄ¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_create_true(void) {
+    PropFormula *f = (PropFormula *)lv00_calloc(1, sizeof(PropFormula));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!f) return NULL;
+    f->type = PROP_TRUE;
+    return f;
+}
+
+/* ÄÚ²¿º¯ÊıÇ°ÏòÉùÃ÷£¨static º¯ÊıĞèÔÚÊ¹ÓÃÇ°ÉùÃ÷£© */
+static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth);
+static void prop_formula_destroy_depth(PropFormula *f, int depth);
+
+/* Éî¿½±´¹«Ê½£¨´øµİ¹éÉî¶È±£»¤£¬·ÀÖ¹Õ»Òç³ö£© */
+/**
+ * @brief Éî¿½±´ÃüÌâ¹«Ê½
+ *
+ * @param f Ô´¹«Ê½Ö¸Õë
+ * @return ¸±±¾¹«Ê½Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+PropFormula *prop_formula_copy(const PropFormula *f) {
+    return prop_formula_copy_depth(f, 0);
+}
+
+/**
+ * @brief Éî¿½±´¹«Ê½£¨ÄÚ²¿ÊµÏÖ£¬´øµİ¹éÉî¶È±£»¤£©
+ *
+ * @param f     Ô´¹«Ê½
+ * @param depth µ±Ç°µİ¹éÉî¶È
+ * @return ¸±±¾¹«Ê½Ö¸Õë£¬³¬Éî¶È·µ»Ø NULL
+ */
+static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
+    if (!f) return NULL;
+    if (depth > MAX_COPY_DEPTH) {
+        /* µİ¹éÉî¶È³¬ÏŞ£¬·ÀÖ¹Õ»Òç³ö */
+        return NULL;
+    }
+    switch (f->type) {
+        case PROP_ATOM:
+            return prop_formula_create_atom(f->data.atom.name);
+        case PROP_CONJUNCTION:
+            return prop_formula_create_conjunction(
+                prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+        case PROP_DISJUNCTION:
+            return prop_formula_create_disjunction(
+                prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+        case PROP_IMPLICATION:
+            return prop_formula_create_implication(
+                prop_formula_copy_depth(f->data.binary.left, depth + 1),
+                prop_formula_copy_depth(f->data.binary.right, depth + 1));
+        case PROP_NEGATION:
+            return prop_formula_create_negation(
+                prop_formula_copy_depth(f->data.unary.operand, depth + 1));
+        case PROP_BOTTOM:
+            return prop_formula_create_bottom();
+        case PROP_TRUE:
+            return prop_formula_create_true();
+    }
+    return NULL;
+}
+
+/* µİ¹éÏú»Ù¹«Ê½£¨´øµİ¹éÉî¶È±£»¤£¬·ÀÖ¹Õ»Òç³ö£© */
+/**
+ * @brief Ïú»ÙÃüÌâ¹«Ê½²¢µİ¹éÊÍ·ÅËùÓĞ×ÊÔ´
+ *
+ * @param f ¹«Ê½Ö¸Õë£¨¿ÉÎª NULL£©
+ */
+void prop_formula_destroy(PropFormula *f) {
+    prop_formula_destroy_depth(f, 0);
+}
+
+/**
+ * @brief °²È«Ïú»ÙÃüÌâ¹«Ê½£¨µü´úÊµÏÖ£¬·ÀÖ¹Õ»Òç³ö£©
+ *
+ * Ê¹ÓÃÏÔÊ½Õ»Ìæ´úµİ¹é±éÀú£¬±ÜÃâÉî¶ÈÇ¶Ì×¹«Ê½µ¼ÖÂµ÷ÓÃÕ»Òç³ö¡£
+ * Í¬Ê±È·±£ËùÓĞ×Ó¹«Ê½½Úµã¶¼±»ÕıÈ·ÊÍ·Å£¬ÎŞÄÚ´æĞ¹Â©¡£
+ *
+ * @param f     ´ıÏú»ÙµÄÃüÌâ¹«Ê½Ö¸Õë
+ * @param depth Î´Ê¹ÓÃ£¨±£Áô²ÎÊıÒÔ¼æÈİº¯ÊıÇ©Ãû£©
+ */
+static void prop_formula_destroy_depth(PropFormula *f, int depth) {
+    (void)depth; /* µü´úÊµÏÖ²»Ê¹ÓÃÉî¶È²ÎÊı */
+    if (!f) return;
+
+    /* ÏÔÊ½Õ»£º´æ´¢´ıÏú»ÙµÄ¹«Ê½½Úµã */
+    int stack_capacity = PROP_DESTROY_STACK_INIT_CAP;
+    int stack_top = 0;
+    PropFormula **stack = (PropFormula **)lv00_malloc(
+        (size_t)stack_capacity * sizeof(PropFormula *));
+    if (!stack) {
+        /* ÄÚ´æ·ÖÅäÊ§°Ü£º»ØÍËµ½¼òµ¥µİ¹é£¨Ç³²ã¹«Ê½ÈÔ¿ÉÕıÈ·Ïú»Ù£© */
+        prop_formula_destroy(f);
+        return;
+    }
+    stack[stack_top++] = f;
+
+    while (stack_top > 0) {
+        PropFormula *current = stack[--stack_top];
+
+        /* ½«×Ó½ÚµãÑ¹Õ»£¨ºó½øÏÈ³ö£¬±£Ö¤´¦ÀíË³Ğò£© */
+        switch (current->type) {
+            case PROP_CONJUNCTION:
+            case PROP_DISJUNCTION:
+            case PROP_IMPLICATION:
+                /* ¶şÔª½Úµã£ºÏÈÑ¹×ó×Ó½Úµã£¬ÔÙÑ¹ÓÒ×Ó½Úµã */
+                if (current->data.binary.right) {
+                    if (stack_top >= stack_capacity) {
+                        int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
+                        if (new_cap <= stack_capacity) break; /* Òç³ö±£»¤ */
+                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
+                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (!new_stack) {
+                            /* Õ»À©ÈİÊ§°Ü£º³¢ÊÔÖ±½Óµİ¹éÏú»ÙÊ£Óà×Ó½Úµã */
+                            if (current->data.binary.left)
+                                prop_formula_destroy(current->data.binary.left);
+                            if (current->data.binary.right)
+                                prop_formula_destroy(current->data.binary.right);
+                            current->data.binary.left = NULL;
+                            current->data.binary.right = NULL;
+                            break;
+                        }
+                        stack = new_stack;
+                        stack_capacity = new_cap;
+                    }
+                    stack[stack_top++] = current->data.binary.right;
+                }
+                if (current->data.binary.left) {
+                    if (stack_top >= stack_capacity) {
+                        int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
+                        if (new_cap <= stack_capacity) break;
+                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
+                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (!new_stack) {
+                            if (current->data.binary.left)
+                                prop_formula_destroy(current->data.binary.left);
+                            current->data.binary.left = NULL;
+                            break;
+                        }
+                        stack = new_stack;
+                        stack_capacity = new_cap;
+                    }
+                    stack[stack_top++] = current->data.binary.left;
+                }
+                current->data.binary.left = NULL;
+                current->data.binary.right = NULL;
+                break;
+            case PROP_NEGATION:
+                /* Ò»Ôª½Úµã£ºÑ¹²Ù×÷Êı×Ó½Úµã */
+                if (current->data.unary.operand) {
+                    if (stack_top >= stack_capacity) {
+                        int new_cap = stack_capacity * PROP_DESTROY_STACK_GROWTH;
+                        if (new_cap <= stack_capacity) break;
+                        PropFormula **new_stack = (PropFormula **)lv00_realloc(
+                            stack, (size_t)new_cap * sizeof(PropFormula *));
+                        if (!new_stack) {
+                            if (current->data.unary.operand)
+                                prop_formula_destroy(current->data.unary.operand);
+                            current->data.unary.operand = NULL;
+                            break;
+                        }
+                        stack = new_stack;
+                        stack_capacity = new_cap;
+                    }
+                    stack[stack_top++] = current->data.unary.operand;
+                }
+                current->data.unary.operand = NULL;
+                break;
+            default:
+                /* Ò¶×Ó½Úµã£¨ATOM, BOTTOM, TRUE£©£ºÎŞ×Ó½Úµã */
+                break;
+        }
+
+        /* ÊÍ·Åµ±Ç°½Úµã */
+        lv00_free((void **)&current);
+    }
+
+    /* ÊÍ·ÅÕ» */
+    lv00_free((void **)&stack);
+}
+
+/* ============================================================
+ * ¹«Ê½±È½Ï£¨ÓÃÓÚ¼ÇÒä»¯ºÍÇ°ÌáÆ¥Åä£©
+ * ============================================================ */
+
+/**
+ * @brief ¹«Ê½½á¹¹ÏàµÈĞÔ±È½Ï£¨µİ¹é£©
+ *
+ * µİ¹é±È½ÏÁ½¸öÃüÌâ¹«Ê½µÄ½á¹¹ÏàµÈĞÔ£º
+ * - ATOM£º±È½ÏÃû³Æ×Ö·û´®
+ * - ¶şÔªÁª½á´Ê£¨CONJ/DISJ/IMPL£©£ºµİ¹é±È½Ï×óÓÒ×Ó¹«Ê½
+ * - Ò»ÔªÁª½á´Ê£¨NEG£©£ºµİ¹é±È½Ï²Ù×÷Êı
+ * - BOTTOM/TRUE£º½öÀàĞÍÆ¥Åä¼´ÏàµÈ
+ *
+ * @param a µÚÒ»¸ö¹«Ê½Ö¸Õë£¨¿ÉÎª NULL£©
+ * @param b µÚ¶ş¸ö¹«Ê½Ö¸Õë£¨¿ÉÎª NULL£©
+ * @return true ±íÊ¾½á¹¹ÏàµÈ£¬false ±íÊ¾²»Í¬
+ */
+static bool formula_equal(const PropFormula *a, const PropFormula *b) {
+    if (!a || !b) return a == b;
+    if (a->type != b->type) return false;
+    switch (a->type) {
+        case PROP_ATOM:
+            return strcmp(a->data.atom.name, b->data.atom.name) == 0;
+        case PROP_CONJUNCTION:
+        case PROP_DISJUNCTION:
+        case PROP_IMPLICATION:
+            return formula_equal(a->data.binary.left, b->data.binary.left) &&
+                   formula_equal(a->data.binary.right, b->data.binary.right);
+        case PROP_NEGATION:
+            return formula_equal(a->data.unary.operand, b->data.unary.operand);
+        case PROP_BOTTOM:
+        case PROP_TRUE:
+            return true;
+    }
+    return false;
+}
+
+/* ============================================================
+ * ¹«Ê½ĞòÁĞ»¯
+ * ============================================================ */
+
+/**
+ * @brief »ñÈ¡ÃüÌâÁª½á´ÊµÄÔËËã·ûÓÅÏÈ¼¶£¨ÓÃÓÚĞòÁĞ»¯À¨ºÅ»¯£©
+ *
+ * @param f ¹«Ê½Ö¸Õë
+ * @return ÓÅÏÈ¼¶ÊıÖµ£¨Ô½¸ß°ó¶¨Ô½½ô£©
+ */
+static int formula_precedence(const PropFormula *f) {
+    switch (f->type) {
+        case PROP_ATOM:     return PROP_PREC_ATOM;
+        case PROP_NEGATION: return PROP_PREC_NEGATION;
+        case PROP_CONJUNCTION: return PROP_PREC_CONJUNCTION;
+        case PROP_DISJUNCTION: return PROP_PREC_DISJUNCTION;
+        case PROP_IMPLICATION: return PROP_PREC_IMPLICATION;
+        case PROP_BOTTOM:   return PROP_PREC_ATOM;
+        case PROP_TRUE:     return PROP_PREC_ATOM;
+    }
+    return PROP_PREC_DEFAULT;
+}
+
+/* ÄÚ²¿µİ¹éĞòÁĞ»¯ */
+static void formula_to_string_buf(const PropFormula *f, char *buf, size_t size,
+                                   int parent_prec) {
+    if (!f || size == 0) return;
+    int prec = formula_precedence(f);
+    bool need_parens = (parent_prec > prec);
+
+    if (need_parens) {
+        strncat(buf, "(", size - strlen(buf) - 1);
+    }
+
+    switch (f->type) {
+        case PROP_ATOM:
+            strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
+            break;
+        case PROP_CONJUNCTION:
+            formula_to_string_buf(f->data.binary.left, buf, size, prec);
+            strncat(buf, " /\\ ", size - strlen(buf) - 1);
+            formula_to_string_buf(f->data.binary.right, buf, size, prec);
+            break;
+        case PROP_DISJUNCTION:
+            formula_to_string_buf(f->data.binary.left, buf, size, prec);
+            strncat(buf, " \\/ ", size - strlen(buf) - 1);
+            formula_to_string_buf(f->data.binary.right, buf, size, prec);
+            break;
+        case PROP_IMPLICATION:
+            formula_to_string_buf(f->data.binary.left, buf, size, prec);
+            strncat(buf, " -> ", size - strlen(buf) - 1);
+            formula_to_string_buf(f->data.binary.right, buf, size, prec + 1);
+            break;
+        case PROP_NEGATION:
+            strncat(buf, "~", size - strlen(buf) - 1);
+            formula_to_string_buf(f->data.unary.operand, buf, size, prec);
+            break;
+        case PROP_BOTTOM:
+            strncat(buf, "_|_", size - strlen(buf) - 1);
+            break;
+        case PROP_TRUE:
+            strncat(buf, "T", size - strlen(buf) - 1);
+            break;
+    }
+
+    if (need_parens) {
+        strncat(buf, ")", size - strlen(buf) - 1);
+    }
+}
+
+/**
+ * @brief ½«ÃüÌâ¹«Ê½ĞòÁĞ»¯Îª×Ö·û´®
+ *
+ * @param f ¹«Ê½Ö¸Õë
+ * @return ĞÂ·ÖÅäµÄ×Ö·û´®Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+char *prop_formula_to_string(const PropFormula *f) {
+    if (!f) return NULL;
+    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!buf) return NULL;
+    formula_to_string_buf(f, buf, MAX_FORMULA_STR, 0);
+    return buf;
+}
+
+/* LaTeX ĞòÁĞ»¯ */
+static void formula_to_latex_buf(const PropFormula *f, char *buf, size_t size,
+                                  int parent_prec) {
+    if (!f || size == 0) return;
+    int prec = formula_precedence(f);
+    bool need_parens = (parent_prec > prec);
+
+    if (need_parens) {
+        strncat(buf, "\\left(", size - strlen(buf) - 1);
+    }
+
+    switch (f->type) {
+        case PROP_ATOM:
+            strncat(buf, f->data.atom.name, size - strlen(buf) - 1);
+            break;
+        case PROP_CONJUNCTION:
+            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
+            strncat(buf, " \\wedge ", size - strlen(buf) - 1);
+            formula_to_latex_buf(f->data.binary.right, buf, size, prec);
+            break;
+        case PROP_DISJUNCTION:
+            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
+            strncat(buf, " \\vee ", size - strlen(buf) - 1);
+            formula_to_latex_buf(f->data.binary.right, buf, size, prec);
+            break;
+        case PROP_IMPLICATION:
+            formula_to_latex_buf(f->data.binary.left, buf, size, prec);
+            strncat(buf, " \\to ", size - strlen(buf) - 1);
+            formula_to_latex_buf(f->data.binary.right, buf, size, prec + 1);
+            break;
+        case PROP_NEGATION:
+            strncat(buf, "\\neg ", size - strlen(buf) - 1);
+            formula_to_latex_buf(f->data.unary.operand, buf, size, prec);
+            break;
+        case PROP_BOTTOM:
+            strncat(buf, "\\bot", size - strlen(buf) - 1);
+            break;
+        case PROP_TRUE:
+            strncat(buf, "\\top", size - strlen(buf) - 1);
+            break;
+    }
+
+    if (need_parens) {
+        strncat(buf, "\\right)", size - strlen(buf) - 1);
+    }
+}
+
+/**
+ * @brief ½«ÃüÌâ¹«Ê½ĞòÁĞ»¯Îª LaTeX ×Ö·û´®
+ *
+ * @param f ¹«Ê½Ö¸Õë
+ * @return ĞÂ·ÖÅäµÄ LaTeX ×Ö·û´®Ö¸Õë£¬Ê§°Ü·µ»Ø NULL
+ */
+char *prop_formula_to_latex(const PropFormula *f) {
+    if (!f) return NULL;
+    char *buf = (char *)lv00_calloc(MAX_FORMULA_STR, sizeof(char));  /* Áã³õÊ¼»¯·ÖÅä */
+    if (!buf) return NULL;
+    formula_to_latex_buf(f, buf, MAX_FORMULA_STR, 0);
+    return buf;
+}
+
+/* ============================================================
+ * Ö¤Ã÷ËÑË÷ÒıÇæ - ÄÚ²¿Êı¾İ½á¹¹
+ * ============================================================ */
+
+/* ¼ÇÒä»¯ÌõÄ¿£º¼ÇÂ¼ÒÑËÑË÷¹ıµÄ (Ä¿±ê, Ç°Ìá¼¯ºÏ) ÊÇ·ñ¿ÉÖ¤ */
+typedef struct {
+    const PropFormula *goal;
+    /* ÓÃÇ°Ìá¼¯ºÏµÄÎ»Í¼À´±êÊ¶£¨¼ò»¯°æ£ºÓÃÇ°ÌáÖ¸ÕëÊı×é¹şÏ££© */
+    uint64_t premises_hash;
+    bool proven;         /* ¸Ã×éºÏÊÇ·ñÒÑÖ¤Ã÷ */
+    bool searched;       /* ÊÇ·ñÒÑËÑË÷¹ı */
+} MemoEntry;
+
+/* Ö¤Ã÷ËÑË÷ÉÏÏÂÎÄ */
+typedef struct {
+    const PropFormula **premises;   /* Ô­Ê¼Ç°Ìá */
+    int premise_count;
+    const VerifierConfig *config;
+    int steps;                       /* ÒÑÓÃ²½Êı */
+    bool timed_out;
+    /* ³¬Ê±»ù×¼Ê±¼ä */
+    uint64_t start_time_ms;
+    /* ¼ÇÒä»¯±í */
+    MemoEntry memo[MAX_MEMO_ENTRIES];
+    int memo_count;
+    /* µİ¹éÉî¶È¼ÆÊıÆ÷£¨·ÀÖ¹Õ»Òç³ö£© */
+    int recursion_depth;
+} ProofContext;
+
+/**
+ * @brief »ñÈ¡Ç½ÉÏÊ±ÖÓÊ±¼ä£¨ºÁÃë£©
+ *
+ * Ê¹ÓÃ C ±ê×¼ time() »ñÈ¡Ç½ÉÏÊ±ÖÓÊ±¼ä£¬¶ø·Ç clock() »ñÈ¡´¦ÀíÆ÷Ê±¼ä¡£
+ * clock() ÔÚ¶àÏß³Ì»ò I/O µÈ´ı³¡¾°ÏÂ²»×¼È·£¨²âÁ¿ CPU Ê±¼ä¶ø·ÇÕæÊµÊ±¼ä£©¡£
+ * ·µ»ØÖµ½öÓÃÓÚ¼ÆËãÏà¶ÔÊ±¼ä²î£¬¾ø¶ÔÖµÎŞÒâÒå¡£
+ *
+ * @return µ±Ç°Ê±¼äµÄºÁÃë¼¶½üËÆÖµ
+ */
+#include <time.h>
+
+static uint64_t get_time_ms(void) {
+    return (uint64_t)time(NULL) * PROP_TIME_MS_PER_SEC;
+}
+
+/* ============================================================
+ * ¹şÏ£º¯Êı£¨ÓÃÓÚ¼ÇÒä»¯£©
+ * ============================================================ */
+
+/**
+ * @brief ¼òµ¥µÄÖ¸Õë¹şÏ£º¯Êı
+ *
+ * Ê¹ÓÃÖ¸ÕëµØÖ·Éú³É 64 Î»¹şÏ£Öµ£¬Í¨¹ıÎ»ÒÆºÍ³ËÊı»ìºÏ¡£
+ *
+ * @param p ´ı¹şÏ£µÄÖ¸Õë
+ * @return 64 Î»¹şÏ£Öµ
+ */
+static uint64_t hash_ptr(const void *p) {
+    uint64_t x = (uint64_t)(uintptr_t)p;
+    x = ((x >> PROP_HASH_BIT_SHIFT) ^ x) * PROP_HASH_PTR_MULTIPLIER;
+    x = ((x >> PROP_HASH_BIT_SHIFT) ^ x) * PROP_HASH_PTR_MULTIPLIER;
+    x = (x >> PROP_HASH_BIT_SHIFT) ^ x;
+    return x;
+}
+
+/**
+ * @brief ¼ÆËã¹«Ê½½á¹¹µÄ¹şÏ£Öµ£¨µİ¹é£©
+ *
+ * »ùÓÚ¹«Ê½½á¹¹¼ÆËã 64 Î»¹şÏ£Öµ£º
+ * - ATOM£º¶ÔÃû³Æ×Ö·û´®Öğ×Ö·û¹şÏ£
+ * - ¶şÔªÁª½á´Ê£ºµİ¹é×éºÏ×óÓÒ×Ó¹«Ê½¹şÏ£
+ * - Ò»ÔªÁª½á´Ê£ºµİ¹é×éºÏ²Ù×÷Êı¹şÏ£
+ * - BOTTOM/TRUE£º½öÀàĞÍ¹şÏ£
+ * Ê¹ÓÃ»Æ½ğ±ÈÀı³£ÊıºÍ²»Í¬±¶ÊıÒÔ±ÜÃâ³åÍ»¡£
+ *
+ * @param f ¹«Ê½Ö¸Õë£¨¿ÉÎª NULL£©
+ * @return 64 Î»¹şÏ£Öµ£¨NULL ¹«Ê½·µ»Ø 0£©
+ */
+static uint64_t formula_hash(const PropFormula *f) {
+    if (!f) return 0;
+    uint64_t h = (uint64_t)f->type * PROP_HASH_TYPE_MULTIPLIER;
+    switch (f->type) {
+        case PROP_ATOM: {
+            for (const char *s = f->data.atom.name; *s; s++)
+                h = h * PROP_HASH_STRING_MULTIPLIER + (uint64_t)(unsigned char)*s;
+            break;
+        }
+        case PROP_CONJUNCTION:
+        case PROP_DISJUNCTION:
+        case PROP_IMPLICATION:
+            h ^= formula_hash(f->data.binary.left) * PROP_HASH_LEFT_MULTIPLIER;
+            h ^= formula_hash(f->data.binary.right) * PROP_HASH_RIGHT_MULTIPLIER;
+            break;
+        case PROP_NEGATION:
+            h ^= formula_hash(f->data.unary.operand) * PROP_HASH_RIGHT_MULTIPLIER;
+            break;
+        case PROP_BOTTOM:
+        case PROP_TRUE:
+            break;
+    }
+    return h;
+}
+
+/**
+ * @brief ¼ÆËãÇ°Ìá¼¯ºÏµÄ¹şÏ£Öµ
+ *
+ * ×éºÏÃ¿¸öÇ°Ìá¹«Ê½µÄ¹şÏ£ÖµÉú³É 64 Î»¼¯ºÏ¹şÏ£¡£
+ *
+ * @param premises Ç°Ìá¹«Ê½Êı×é
+ * @param count    Ç°ÌáÊıÁ¿
+ * @return 64 Î»¹şÏ£Öµ
+ */
+static uint64_t premises_hash(const PropFormula **premises, int count) {
+    uint64_t h = 0;
+    for (int i = 0; i < count; i++) {
+        h = h * PROP_HASH_PREMISES_MULTIPLIER + formula_hash(premises[i]);
+    }
+    return h;
+}
+
+/* ============================================================
+ * ¼ÇÒä»¯²Ù×÷
+ * ============================================================ */
+
+/* ÔÚ¼ÇÒä»¯±íÖĞ²éÕÒ */
+static int memo_find(ProofContext *ctx, const PropFormula *goal,
+                      uint64_t phash) {
+    uint64_t ghash = formula_hash(goal);
+    for (int i = 0; i < ctx->memo_count; i++) {
+        if (ctx->memo[i].goal == goal &&
+            ctx->memo[i].premises_hash == phash) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/* Ìí¼Ó¼ÇÒä»¯ÌõÄ¿ */
+static void memo_add(ProofContext *ctx, const PropFormula *goal,
+                      uint64_t phash, bool proven) {
+    if (ctx->memo_count >= MAX_MEMO_ENTRIES) return;
+    ctx->memo[ctx->memo_count].goal = goal;
+    ctx->memo[ctx->memo_count].premises_hash = phash;
+    ctx->memo[ctx->memo_count].proven = proven;
+    ctx->memo[ctx->memo_count].searched = true;
+    ctx->memo_count++;
+}
+
+/* ============================================================
+ * Ç°Ìá²Ù×÷
+ * ============================================================ */
+
+/* ÔÚÇ°ÌáÁĞ±íÖĞ²éÕÒ¹«Ê½ */
+static bool premise_contains(const PropFormula **premises, int count,
+                              const PropFormula *f) {
+    for (int i = 0; i < count; i++) {
+        if (formula_equal(premises[i], f)) return true;
+    }
+    return false;
+}
+
+/* ============================================================
+ * Ç°ÏòÁ´£º´ÓÇ°ÌáÖĞÌáÈ¡ĞÂĞÅÏ¢
+ * ============================================================ */
+
+/**
+ * @brief Ç°ÏòÁ´Õ¹¿ªºÏÈ¡Ç°Ìá
+ *
+ * ´ÓÊäÈëÇ°Ìá¼¯ºÏÖĞÕ¹¿ªËùÓĞºÏÈ¡¹«Ê½£¨A /\ B£©£¬
+ * ½«×óÓÒ×Ó¹«Ê½·Ö±ğ¼ÓÈëÊä³öÇ°ÌáÁĞ±í£¨È¥ÖØ£©¡£
+ * ³ÖĞøµü´úÖ±µ½Ã»ÓĞĞÂµÄºÏÈ¡¿ÉÕ¹¿ª¡£
+ *
+ * @param input      ÊäÈëÇ°Ìá¹«Ê½Êı×é
+ * @param input_count ÊäÈëÊıÁ¿
+ * @param output     Êä³öÇ°Ìá¹«Ê½Êı×é£¨µ÷ÓÃÕßÔ¤·ÖÅä£©
+ * @param max_output Êä³öÊı×é×î´óÈİÁ¿
+ * @return Êä³öµÄÇ°Ìá¹«Ê½ÊıÁ¿
+ */
+static int forward_chain_conjunctions(const PropFormula **input, int input_count,
+                                       const PropFormula **output, int max_output) {
+    int out_count = 0;
+    /* ÏÈ¸´ÖÆËùÓĞÊäÈë */
+    for (int i = 0; i < input_count && out_count < max_output; i++) {
+        output[out_count++] = input[i];
+    }
+    /* Õ¹¿ªºÏÈ¡ */
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (int i = 0; i < out_count && out_count < max_output; i++) {
+            const PropFormula *p = output[i];
+            if (p->type == PROP_CONJUNCTION) {
+                /* ¼ì²é×óÓÒÊÇ·ñÒÑÔÚÁĞ±íÖĞ */
+                if (!premise_contains(output, out_count, p->data.binary.left)) {
+                    output[out_count++] = p->data.binary.left;
+                    changed = true;
+                }
+                if (!premise_contains(output, out_count, p->data.binary.right)) {
+                    output[out_count++] = p->data.binary.right;
+                    changed = true;
+                }
+            }
+        }
+    }
+    return out_count;
+}
+
+/* ============================================================
+ * ºËĞÄÖ¤Ã÷ËÑË÷£¨µİ¹é£¬ÏòºóÁ´½Ó£©
+ * ============================================================ */
+
+/* Ç°ÏòÉùÃ÷ */
+static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count,
+                   const PropFormula *goal);
+
+/* ¼ì²éÊÇ·ñ³¬Ê±»ò³¬²½Êı */
+static bool check_limits(ProofContext *ctx) {
+    if (ctx->steps >= ctx->config->max_steps) return true;
+    if (ctx->config->timeout_ms > 0) {
+        uint64_t now = get_time_ms();
+        if (now - ctx->start_time_ms >= (uint64_t)ctx->config->timeout_ms) {
+            ctx->timed_out = true;
+            return true;
+        }
+    }
+    return false;
+}
+
+/* ³¢ÊÔ modus ponens£º´ÓÇ°ÌáÖĞÕÒµ½ A¡úB ºÍ A£¬ÍÆ³ö B */
+static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises,
+                              int premise_count, const PropFormula *goal) {
+    for (int i = 0; i < premise_count; i++) {
+        if (premises[i]->type == PROP_IMPLICATION) {
+            const PropFormula *impl = premises[i];
+            const PropFormula *antecedent = impl->data.binary.left;
+            const PropFormula *consequent = impl->data.binary.right;
+
+            /* Èç¹ûÔÌº­µÄ½áÂÛÓëÄ¿±êÆ¥Åä */
+            if (formula_equal(consequent, goal)) {
+                /* ¼ì²éÇ°¼şÊÇ·ñÔÚÇ°ÌáÖĞ */
+                if (premise_contains(premises, premise_count, antecedent)) {
+                    ctx->steps++;
+                    return true;
+                }
+                /* µİ¹éÖ¤Ã÷Ç°¼ş */
+                ctx->steps++;
+                if (prove(ctx, premises, premise_count, antecedent)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/* ³¢ÊÔ´ÓÇ°ÌáÖĞÖ±½ÓÆ¥ÅäÄ¿±ê */
+static bool try_direct_match(const PropFormula **premises, int premise_count,
+                              const PropFormula *goal) {
+    return premise_contains(premises, premise_count, goal);
+}
+
+/* ³¢ÊÔ ?-ÏûÈ¥£º´Ó ?A ºÍ A ÍÆ³ö ¡Í */
+static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises,
+                          int premise_count) {
+    /* Ä¿±êÊÇ ¡Í£º¼ì²éÊÇ·ñÓĞ ?A ºÍ A Í¬Ê±×÷ÎªÇ°Ìá */
+    for (int i = 0; i < premise_count; i++) {
+        if (premises[i]->type == PROP_NEGATION) {
+            const PropFormula *operand = premises[i]->data.unary.operand;
+            if (premise_contains(premises, premise_count, operand)) {
+                ctx->steps++;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief ºËĞÄÖ¤Ã÷ËÑË÷£¨µİ¹éÏòºóÁ´½ÓËã·¨£©
+ *
+ * Ê¹ÓÃ´øÓĞ¼ÇÒä»¯µÄµİ¹éÏòºóÁ´½ÓËã·¨ËÑË÷Ö¤Ã÷£º
+ * 1. ¼ì²é²½ÊıºÍÊ±¼äÏŞÖÆ
+ * 2. ²éÑ¯¼ÇÒä»¯±í£¬±ÜÃâÖØ¸´ËÑË÷
+ * 3. ¸ù¾İÄ¿±ê¹«Ê½ÀàĞÍ·ÖÅÉ£º
+ *    - BOTTOM£º±ØÈ»Îª¼Ù£¨±¬Õ¨Ô­ÀíÊÊÓÃ£©
+ *    - TRUE£ºÆ½·²³ÉÁ¢
+ *    - CONJUNCTION£º·Ö±ğÖ¤Ã÷×óÓÒ×Ó¹«Ê½
+ *    - DISJUNCTION£º³¢ÊÔÖ¤Ã÷ÈÎÒ»·ÖÁ¿
+ *    - IMPLICATION£º³¢ÊÔ Modus Ponens ºÍ×ÓÄ¿±êÖ¤Ã÷
+ *    - NEGATION£º¼ì²éÇ°ÌáÊÇ·ñÔÌº¬Ã¬¶Ü
+ *    - ATOM£º¼ì²éÊÇ·ñÔÚÇ°Ìá¼¯ÖĞ
+ *
+ * @param ctx           Ö¤Ã÷ÉÏÏÂÎÄ£¨°üº¬ÅäÖÃ¡¢¼ÇÒä»¯±íµÈ£©
+ * @param premises      Ç°Ìá¹«Ê½Êı×é
+ * @param premise_count Ç°ÌáÊıÁ¿
+ * @param goal          ´ıÖ¤Ã÷µÄÄ¿±ê¹«Ê½
+ * @return true ±íÊ¾Ö¤Ã÷³É¹¦£¬false ±íÊ¾Ö¤Ã÷Ê§°Ü»ò³¬Ê±/³¬²½Êı
+ */
+static bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count,
+                   const PropFormula *goal) {
+    /* ¼ì²éµİ¹éÉî¶ÈÏŞÖÆ£¬·ÀÖ¹Õ»Òç³ö */
+    ++ctx->recursion_depth;
+    if (ctx->recursion_depth > MAX_MEMO_ENTRIES) {  /* ×î´óµİ¹éÉî¶È = ¼ÇÒä»¯±íÈİÁ¿ */
+        goto prove_depth_exceeded;
+    }
+
+    /* ¼ì²éÏŞÖÆ */
+    if (check_limits(ctx)) {
+        goto prove_depth_exceeded;
+    }
+    ctx->steps++;
+
+    /* ¼ÇÒä»¯¼ì²é */
+    uint64_t phash = premises_hash(premises, premise_count);
+    int midx = memo_find(ctx, goal, phash);
+    if (midx >= 0 && ctx->memo[midx].searched) {
+        bool r = ctx->memo[midx].proven;
+        ctx->recursion_depth--;
+        return r;
+    }
+
+    bool result = false;
+
+    switch (goal->type) {
+        case PROP_TRUE:
+            /* ? ×ÜÊÇ¿ÉÖ¤µÄ */
+            result = true;
+            break;
+
+        case PROP_BOTTOM:
+            /* Ä¿±êÊÇ ¡Í£ºÊ×ÏÈ¼ì²éÇ°ÌáÖĞÊÇ·ñÓĞ ¡Í */
+            result = premise_contains(premises, premise_count, goal);
+            /* Èç¹û²»³É¹¦£¬³¢ÊÔ ?-ÏûÈ¥ */
+            if (!result) {
+                result = try_neg_elim(ctx, premises, premise_count);
+            }
+            /* Èç¹û²»³É¹¦£¬³¢ÊÔ´ÓÔÌº­Ç°ÌáÍÆµ¼Ã¬¶Ü */
+            if (!result) {
+                for (int i = 0; i < premise_count && !result; i++) {
+                    if (premises[i]->type == PROP_IMPLICATION) {
+                        const PropFormula *impl = premises[i];
+                        if (impl->data.binary.right->type == PROP_BOTTOM) {
+                            /* ÓĞ A¡ú¡Í = ?A£¬³¢ÊÔÖ¤Ã÷ A */
+                            ctx->steps++;
+                            result = prove(ctx, premises, premise_count,
+                                           impl->data.binary.left);
+                        }
+                    }
+                }
+            }
+            /* Ç°ÏòÁ´£ºÕ¹¿ªºÏÈ¡ºÍÓ¦ÓÃ modus ponens£¬È»ºóÖØÊÔ ?-ÏûÈ¥ */
+            if (!result) {
+                const PropFormula *expanded[MAX_PREMISES];
+                int exp_count = forward_chain_conjunctions(premises, premise_count,
+                                                            expanded, MAX_PREMISES);
+                /* ¶à²½Ç°ÏòÍÆÀí */
+                {
+                    bool changed = true;
+                    while (changed && exp_count < MAX_PREMISES) {
+                        changed = false;
+                        for (int i = 0; i < exp_count && !changed; i++) {
+                            if (expanded[i]->type == PROP_IMPLICATION) {
+                                const PropFormula *antecedent =
+                                    expanded[i]->data.binary.left;
+                                const PropFormula *consequent =
+                                    expanded[i]->data.binary.right;
+                                if (premise_contains(expanded, exp_count, antecedent) &&
+                                    !premise_contains(expanded, exp_count, consequent)) {
+                                    expanded[exp_count++] = consequent;
+                                    changed = true;
+                                    ctx->steps++;
+                                }
+                            }
+                        }
+                    }
+                    /* ÓÃÀ©Õ¹ºóµÄÇ°ÌáÖØÊÔ ?-ÏûÈ¥ */
+                    if (!result) {
+                        result = try_neg_elim(ctx, expanded, exp_count);
+                    }
+                    /* ¼ì²é ¡Í ÊÇ·ñ±»ÍÆµ¼³öÀ´ */
+                    if (!result) {
+                        result = premise_contains(expanded, exp_count, goal);
+                    }
+                }
+            }
+            break;
+
+        case PROP_ATOM: {
+            /* Ä¿±êÊÇÔ­×ÓÃüÌâ£ºÖ±½ÓÆ¥Åä»ò modus ponens */
+            /* ËùÓĞ¾Ö²¿Êı×éÉùÃ÷ÔÚ case ×÷ÓÃÓò¶¥²¿£¬±ÜÃâ stack-use-after-scope */
+            const PropFormula *new_premises_l[MAX_PREMISES];
+            const PropFormula *new_premises_r[MAX_PREMISES];
+            const PropFormula *expanded[MAX_PREMISES];
+            const PropFormula *fc_expanded[MAX_PREMISES];
+
+            result = try_direct_match(premises, premise_count, goal);
+            if (!result) {
+                result = try_modus_ponens(ctx, premises, premise_count, goal);
+            }
+            /* Ç°ÏòÁ´£ºÕ¹¿ªºÏÈ¡²¢³¢ÊÔ modus ponens Á´ */
+            if (!result) {
+                int exp_count = forward_chain_conjunctions(premises, premise_count,
+                                                            expanded, MAX_PREMISES);
+                /* ¶à²½Ç°ÏòÍÆÀí£º·´¸´Ó¦ÓÃ modus ponens Ö±µ½ÎŞ·¨ÍÆµ¼ĞÂÊÂÊµ */
+                bool changed = true;
+                while (changed && exp_count < MAX_PREMISES) {
+                    changed = false;
+                    for (int i = 0; i < exp_count && !changed; i++) {
+                        if (expanded[i]->type == PROP_IMPLICATION) {
+                            const PropFormula *antecedent =
+                                expanded[i]->data.binary.left;
+                            const PropFormula *consequent =
+                                expanded[i]->data.binary.right;
+                            if (premise_contains(expanded, exp_count, antecedent) &&
+                                !premise_contains(expanded, exp_count, consequent)) {
+                                expanded[exp_count++] = consequent;
+                                changed = true;
+                                ctx->steps++;
+                            }
+                        }
+                    }
+                    /* ¼ì²éÄ¿±êÊÇ·ñÔÚÀ©Õ¹Ç°ÌáÖĞ */
+                    result = try_direct_match(expanded, exp_count, goal);
+                }
+            }
+            /* ³¢ÊÔ ¡Å-ÏûÈ¥£ºÈç¹ûÓĞ A¡ÅB£¬ÇÒ A¡úgoal, B¡úgoal */
+            if (!result) {
+                int fc_count = forward_chain_conjunctions(premises, premise_count,
+                                                            fc_expanded, MAX_PREMISES);
+                /* ¶à²½Ç°ÏòÍÆÀí */
+                {
+                    bool changed = true;
+                    while (changed && fc_count < MAX_PREMISES) {
+                        changed = false;
+                        for (int i = 0; i < fc_count && !changed; i++) {
+                            if (fc_expanded[i]->type == PROP_IMPLICATION) {
+                                const PropFormula *antecedent =
+                                    fc_expanded[i]->data.binary.left;
+                                const PropFormula *consequent =
+                                    fc_expanded[i]->data.binary.right;
+                                if (premise_contains(fc_expanded, fc_count, antecedent) &&
+                                    !premise_contains(fc_expanded, fc_count, consequent)) {
+                                    fc_expanded[fc_count++] = consequent;
+                                    changed = true;
+                                    ctx->steps++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (int i = 0; i < fc_count && !result; i++) {
+                    if (fc_expanded[i]->type == PROP_DISJUNCTION) {
+                        const PropFormula *disj = fc_expanded[i];
+                        /* ³¢ÊÔ×ó·ÖÖ§£º¼ÙÉè A£¬Ö¤Ã÷ goal */
+                        ctx->steps++;
+                        {
+                            int new_count = fc_count;
+                            memcpy((void *)new_premises_l, fc_expanded,
+                                   sizeof(const PropFormula *) * (size_t)fc_count);
+                            if (new_count < MAX_PREMISES) {
+                                new_premises_l[new_count++] = disj->data.binary.left;
+                            }
+                            if (prove(ctx, new_premises_l, new_count, goal)) {
+                                result = true;
+                            }
+                        }
+                        /* ³¢ÊÔÓÒ·ÖÖ§£º¼ÙÉè B£¬Ö¤Ã÷ goal */
+                        if (!result) {
+                            ctx->steps++;
+                            {
+                                int new_count = fc_count;
+                                memcpy((void *)new_premises_r, fc_expanded,
+                                       sizeof(const PropFormula *) * (size_t)fc_count);
+                                if (new_count < MAX_PREMISES) {
+                                    new_premises_r[new_count++] = disj->data.binary.right;
+                                }
+                                if (prove(ctx, new_premises_r, new_count, goal)) {
+                                    result = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+
+        case PROP_CONJUNCTION: {
+            /* Ä¿±êÊÇ A ¡Ä B£º·Ö±ğÖ¤Ã÷ A ºÍ B */
+            const PropFormula *left = goal->data.binary.left;
+            const PropFormula *right = goal->data.binary.right;
+            ctx->steps++;
+            bool left_ok = prove(ctx, premises, premise_count, left);
+            if (left_ok) {
+                ctx->steps++;
+                result = prove(ctx, premises, premise_count, right);
+            }
+            break;
+        }
+
+        case PROP_DISJUNCTION: {
+            /* Ä¿±êÊÇ A ¡Å B£º³¢ÊÔÖ¤Ã÷ A »òÖ¤Ã÷ B */
+            const PropFormula *left = goal->data.binary.left;
+            const PropFormula *right = goal->data.binary.right;
+
+            /* ³¢ÊÔ×ó·ÖÖ§ */
+            ctx->steps++;
+            result = prove(ctx, premises, premise_count, left);
+            if (!result) {
+                /* ³¢ÊÔÓÒ·ÖÖ§ */
+                ctx->steps++;
+                result = prove(ctx, premises, premise_count, right);
+            }
+            break;
+        }
+
+        case PROP_IMPLICATION: {
+            /* Ä¿±êÊÇ A ¡ú B£º¼ÙÉè A£¬Ö¤Ã÷ B */
+            const PropFormula *antecedent = goal->data.binary.left;
+            const PropFormula *consequent = goal->data.binary.right;
+
+            /* ½« A ¼ÓÈëÇ°Ìá */
+            const PropFormula *new_premises[MAX_PREMISES];
+            int new_count = premise_count;
+            if (new_count >= MAX_PREMISES) {
+                result = false;
+                break;
+            }
+            memcpy(new_premises, premises, sizeof(const PropFormula *) * premise_count);
+            new_premises[new_count++] = antecedent;
+
+            ctx->steps++;
+            result = prove(ctx, new_premises, new_count, consequent);
+            break;
+        }
+
+        case PROP_NEGATION: {
+            /* Ä¿±êÊÇ ?A = A ¡ú ¡Í£º¼ÙÉè A£¬Ö¤Ã÷ ¡Í */
+            const PropFormula *operand = goal->data.unary.operand;
+
+            const PropFormula *new_premises[MAX_PREMISES];
+            int new_count = premise_count;
+            if (new_count >= MAX_PREMISES) {
+                result = false;
+                break;
+            }
+            memcpy(new_premises, premises, sizeof(const PropFormula *) * premise_count);
+            new_premises[new_count++] = operand;
+
+            /* ¹¹Ôì ¡Í ×÷Îª×ÓÄ¿±ê */
+            PropFormula *bot = prop_formula_create_bottom();
+            ctx->steps++;
+            result = prove(ctx, new_premises, new_count, bot);
+            prop_formula_destroy(bot);
+            break;
+        }
+    }
+
+    /* ±¬Õ¨Ô­Àí£ºÈç¹ûÇ°ÌáÖĞÓĞ ¡Í£¬ÈÎºÎÄ¿±ê¶¼¿ÉÖ¤ */
+    if (!result && ctx->config->enable_ex_falso) {
+        /* ¼ì²éÇ°ÌáÖĞÊÇ·ñ°üº¬ ¡Í£¨ÃüÌâ³£Á¿"¼Ù"£© */
+        for (int i = 0; i < premise_count; i++) {
+            if (premises[i]->type == PROP_BOTTOM) {
+                result = true;
+                break;
+            }
+        }
+    }
+
+    /* ¶îÍâ³¢ÊÔ£ºÊ¹ÓÃÇ°ÏòÁ´Õ¹¿ªºÏÈ¡Ç°ÌáºóÖØÊÔ */
+    if (!result && goal->type == PROP_ATOM) {
+        const PropFormula *expanded[MAX_PREMISES];
+        int exp_count = forward_chain_conjunctions(premises, premise_count,
+                                                    expanded, MAX_PREMISES);
+        if (exp_count > premise_count) {
+            /* ÓĞĞÂµÄÇ°Ìá±»ÌáÈ¡ */
+            result = try_direct_match(expanded, exp_count, goal);
+            if (!result) {
+                result = try_modus_ponens(ctx, expanded, exp_count, goal);
+            }
+        }
+    }
+
+    /* ¼ÇÂ¼¼ÇÒä»¯½á¹û */
+    memo_add(ctx, goal, phash, result);
+
+    ctx->recursion_depth--;
+    return result;
+
+prove_depth_exceeded:
+    /* µİ¹éÉî¶È³¬ÏŞ»ò²½Êı/Ê±¼ä³¬ÏŞ£¬Í³Ò»ÔÚ´Ëµİ¼õ¼ÆÊıÆ÷ */
+    ctx->recursion_depth--;
+    return false;
+}
+
+/* ============================================================
+ * ¹«¹² API
+ * ============================================================ */
+
+VerifyDetail prop_verifier_verify(
+    const PropFormula **premises, int premise_count,
+    const PropFormula *goal,
+    const VerifierConfig *config)
+{
+    VerifyDetail detail;
+    memset(&detail, 0, sizeof(detail));
+
+    /* Ä¬ÈÏÅäÖÃ */
+    VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
+    if (!config) config = &default_config;
+
+    detail.max_steps = config->max_steps;
+
+    /* ÊäÈëÑéÖ¤ */
+    if (!goal) {
+        detail.result = VERIFY_INVALID_INPUT;
+        snprintf(detail.error_message, sizeof(detail.error_message),
+                 "Ä¿±ê¹«Ê½Îª NULL");
+        return detail;
+    }
+    if (premise_count < 0) {
+        detail.result = VERIFY_INVALID_INPUT;
+        snprintf(detail.error_message, sizeof(detail.error_message),
+                 "Ç°ÌáÊıÁ¿Îª¸ºÊı: %d", premise_count);
+        return detail;
+    }
+    if (premise_count > 0 && !premises) {
+        detail.result = VERIFY_INVALID_INPUT;
+        snprintf(detail.error_message, sizeof(detail.error_message),
+                 "Ç°ÌáÊıÁ¿ > 0 µ«Ç°ÌáÊı×éÎª NULL");
+        return detail;
+    }
+
+    /* ³õÊ¼»¯Ö¤Ã÷ÉÏÏÂÎÄ */
+    ProofContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.premises = premises;
+    ctx.premise_count = premise_count;
+    ctx.config = config;
+    ctx.start_time_ms = get_time_ms();
+
+    /* Á÷Ê½ÊÂ¼ş£ºÑéÖ¤¿ªÊ¼ */
+    if (prop_verifier_stream_ctx) {
+        stream_emit_simple(prop_verifier_stream_ctx,
+                           STREAM_EVENT_PROOF_STEP_ADDED,
+                           "ÃüÌâÑéÖ¤¿ªÊ¼£¬Æô¶¯Ö¤Ã÷ËÑË÷",
+                           0);
+    }
+
+    /* Ö´ĞĞÖ¤Ã÷ËÑË÷ */
+    bool proven = prove(&ctx, premises, premise_count, goal);
+
+    detail.steps_used = ctx.steps;
+
+    if (ctx.timed_out) {
+        detail.result = VERIFY_TIMEOUT;
+        snprintf(detail.error_message, sizeof(detail.error_message),
+                 "Ö¤Ã÷ËÑË÷³¬Ê± (%d ms)", config->timeout_ms);
+    } else if (proven) {
+        detail.result = VERIFY_PROVEN;
+        snprintf(detail.construction_summary,
+                 sizeof(detail.construction_summary),
+                 "Ö¤Ã÷³É¹¦: Ê¹ÓÃ %d ²½ÍÆÀíÍê³ÉÑéÖ¤", ctx.steps);
+    } else {
+        detail.result = VERIFY_FAILED;
+        snprintf(detail.error_message, sizeof(detail.error_message),
+                 "ËÑË÷¿Õ¼äºÄ¾¡£¬Î´ÄÜÖ¤Ã÷ (%d ²½)", ctx.steps);
+    }
+
+    return detail;
+}
+
+/* ============================================================
+ * ÄÚÖÃÑÌ²â¼¯
+ * ============================================================ */
+
+/* ¼ì²é child ÊÇ·ñÊÇ parent µÄ×Ó½Úµã£¨µİ¹é£© */
+static bool formula_is_descendant(const PropFormula *child, const PropFormula *parent) {
+    if (!child || !parent) return false;
+    if (child == parent) return true;
+    switch (parent->type) {
+        case PROP_CONJUNCTION:
+        case PROP_DISJUNCTION:
+        case PROP_IMPLICATION:
+            return formula_is_descendant(child, parent->data.binary.left) ||
+                   formula_is_descendant(child, parent->data.binary.right);
+        case PROP_NEGATION:
+            return formula_is_descendant(child, parent->data.unary.operand);
+        default:
+            return false;
+    }
+}
+
+/* ÑÌ²â¸¨Öúºê£º´´½¨Ô­×ÓÃüÌâ */
+#define ATOM(name) prop_formula_create_atom(name)
+#define AND(a, b) prop_formula_create_conjunction((a), (b))
+#define OR(a, b)  prop_formula_create_disjunction((a), (b))
+#define IMPL(a, b) prop_formula_create_implication((a), (b))
+#define NEG(a)    prop_formula_create_negation(a)
+#define BOT()     prop_formula_create_bottom()
+#define TOP()     prop_formula_create_true()
+
+int prop_verifier_builtin_smoke_test_count(void) {
+    return PROP_SMOKE_TEST_COUNT;
+}
+
+int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
+    SmokeTest tests[PROP_SMOKE_TEST_COUNT];
+    memset(&tests, 0, sizeof(tests));
+
+    /*
+     * ÄÚ´æ¹ÜÀí²ßÂÔ£º
+     * Ã¿¸ö¸´ºÏ¹«Ê½£¨AND/OR/IMPL/NEG£©»ñÈ¡×Ó½ÚµãµÄËùÓĞÈ¨¡£
+     * Îª±ÜÃâ double-free£¬Ã¿¸ö²âÊÔ¿éÄÚµÄ¸´ºÏ¹«Ê½Ê¹ÓÃ¶ÀÁ¢µÄÔ­×ÓÃüÌâ¡£
+     * ÇåÀíÊ±Ê¹ÓÃ formula_is_descendant ÅĞ¶ÏÄÄĞ©ÊÇ"¸ù"¹«Ê½¡£
+     */
+
+    /* ²âÊÔ 1: P, P¡úQ ? Q (modus ponens) */
+    {
+        PropFormula *p = ATOM("P");
+        PropFormula *q = ATOM("Q");
+        PropFormula *pimplq = IMPL(p, q);
+        tests[0].premises[0] = p;
+        tests[0].premises[1] = pimplq;
+        tests[0].premise_count = 2;
+        tests[0].goal = q;
+        tests[0].expected_provable = true;
+        tests[0].description = "P, P->Q |- Q (modus ponens)";
+    }
+
+    /* ²âÊÔ 2: P¡ÄQ ? P (¡Ä-elimination) */
+    {
+        PropFormula *p = ATOM("P");
+        PropFormula *q = ATOM("Q");
+        PropFormula *pq = AND(p, q);
+        tests[1].premises[0] = pq;
+        tests[1].premise_count = 1;
+        tests[1].goal = p;
+        tests[1].expected_provable = true;
+        tests[1].description = "P/\\Q |- P (conjunction elimination)";
+    }
+
+    /* ²âÊÔ 3: P ? P¡ÅQ (¡Å-intro left) */
+    {
+        PropFormula *p = ATOM("P");
+        PropFormula *q = ATOM("Q");
+        PropFormula *porq = OR(p, q);
+        tests[2].premises[0] = p;
+        tests[2].premise_count = 1;
+        tests[2].goal = porq;
+        tests[2].expected_provable = true;
+        tests[2].description = "P |- P\\/Q (disjunction introduction left)";
+    }
+
+    /* ²âÊÔ 4: P¡úQ, Q¡úR ? P¡úR (hypothetical syllogism)
+     * Ã¿¸öÔÌº­Ê¹ÓÃ¶ÀÁ¢µÄÔ­×ÓÃüÌâ */
+    {
+        PropFormula *pimplq = IMPL(ATOM("P"), ATOM("Q"));
+        PropFormula *qimplr = IMPL(ATOM("Q"), ATOM("R"));
+        PropFormula *pimplr = IMPL(ATOM("P"), ATOM("R"));
+        tests[3].premises[0] = pimplq;
+        tests[3].premises[1] = qimplr;
+        tests[3].premise_count = 2;
+        tests[3].goal = pimplr;
+        tests[3].expected_provable = true;
+        tests[3].description = "P->Q, Q->R |- P->R (hypothetical syllogism)";
+    }
+
+    /* ²âÊÔ 5: P¡ú(Q¡úR), P¡ÄQ ? R */
+    {
+        PropFormula *pimplqimplr = IMPL(ATOM("P"), IMPL(ATOM("Q"), ATOM("R")));
+        PropFormula *pq = AND(ATOM("P"), ATOM("Q"));
+        PropFormula *r = ATOM("R");
+        tests[4].premises[0] = pimplqimplr;
+        tests[4].premises[1] = pq;
+        tests[4].premise_count = 2;
+        tests[4].goal = r;
+        tests[4].expected_provable = true;
+        tests[4].description = "P->(Q->R), P/\\Q |- R";
+    }
+
+    /* ²âÊÔ 6: ¡Í ? ¡Í (trivial) */
+    {
+        PropFormula *bot = BOT();
+        tests[5].premises[0] = bot;
+        tests[5].premise_count = 1;
+        tests[5].goal = bot;
+        tests[5].expected_provable = true;
+        tests[5].description = "_|_ |- _|_ (trivial)";
+    }
+
+    /* ²âÊÔ 7: P, ?P ? ¡Í (?-elimination) */
+    {
+        PropFormula *p = ATOM("P");
+        PropFormula *notp = NEG(p);
+        PropFormula *bot = BOT();
+        tests[6].premises[0] = p;
+        tests[6].premises[1] = notp;
+        tests[6].premise_count = 2;
+        tests[6].goal = bot;
+        tests[6].expected_provable = true;
+        tests[6].description = "P, ~P |- _|_ (negation elimination)";
+    }
+
+    /* ²âÊÔ 8: (P¡úQ)¡ú(?Q¡ú?P) (contraposition - intuitionistic) */
+    {
+        PropFormula *contra = IMPL(
+            IMPL(ATOM("P"), ATOM("Q")),
+            IMPL(NEG(ATOM("Q")), NEG(ATOM("P")))
+        );
+        tests[7].premise_count = 0;
+        tests[7].goal = contra;
+        tests[7].expected_provable = true;
+        tests[7].description = "|- (P->Q)->(~Q->~P) (contraposition)";
+    }
+
+    /* ²âÊÔ 9: P¡Ä(Q¡ÅR) ? (P¡ÄQ)¡Å(P¡ÄR) (distribution)
+     * ×óÓÒÁ½²àÊ¹ÓÃÍêÈ«¶ÀÁ¢µÄÔ­×ÓÃüÌâ */
+    {
+        PropFormula *pqorr = AND(ATOM("P"), OR(ATOM("Q"), ATOM("R")));
+        PropFormula *pqorpr = OR(AND(ATOM("P"), ATOM("Q")),
+                                  AND(ATOM("P"), ATOM("R")));
+        tests[8].premises[0] = pqorr;
+        tests[8].premise_count = 1;
+        tests[8].goal = pqorpr;
+        tests[8].expected_provable = true;
+        tests[8].description = "P/\\(Q\\/R) |- (P/\\Q)\\/(P/\\R) (distribution)";
+    }
+
+    /* ²âÊÔ 10: ??P ? P (NOT provable intuitionistically) */
+    {
+        PropFormula *p = ATOM("P");
+        PropFormula *notnotp = NEG(NEG(p));
+        tests[9].premises[0] = notnotp;
+        tests[9].premise_count = 1;
+        tests[9].goal = p;
+        tests[9].expected_provable = false;
+        tests[9].description = "~~P |- P (double negation elimination - NOT intuitionistic)";
+    }
+
+    /* ²âÊÔ 11: ? P¡Å?P (NOT provable intuitionistically) */
+    {
+        PropFormula *pnotp = OR(ATOM("P"), NEG(ATOM("P")));
+        tests[10].premise_count = 0;
+        tests[10].goal = pnotp;
+        tests[10].expected_provable = false;
+        tests[10].description = "|- P\\/~P (LEM - NOT intuitionistic)";
+    }
+
+    /* ²âÊÔ 12: ? ?P¡ÅP (NOT provable intuitionistically) */
+    {
+        PropFormula *notporp = OR(NEG(ATOM("P")), ATOM("P"));
+        tests[11].premise_count = 0;
+        tests[11].goal = notporp;
+        tests[11].expected_provable = false;
+        tests[11].description = "|- ~P\\/P (LEM variant - NOT intuitionistic)";
+    }
+
+    /* ²âÊÔ 13: ¡Í ? P (explosion - only with ex_falso) */
+    {
+        PropFormula *bot = BOT();
+        PropFormula *p = ATOM("P");
+        tests[12].premises[0] = bot;
+        tests[12].premise_count = 1;
+        tests[12].goal = p;
+        tests[12].expected_provable = true;
+        tests[12].description = "_|_ |- P (explosion - requires ex_falso)";
+    }
+
+    /* ÔËĞĞ²âÊÔ */
+    int passed = prop_verifier_run_smoke_tests(tests, PROP_SMOKE_TEST_COUNT, results);
+
+    /* ÇåÀí¹«Ê½
+     * Ã¿¸ö²âÊÔ¿éÄÚµÄ¹«Ê½¿ÉÄÜ¹²Ïí×Ó½Úµã»òÏàÍ¬Ö¸Õë¡£
+     * ²ßÂÔ£ºÏÈÈ¥ÖØ£¬ÔÙÊ¶±ğ¸ù£¬×îºóÍ³Ò»ÊÍ·Å¡£
+     */
+    for (int i = 0; i < PROP_SMOKE_TEST_COUNT; i++) {
+        const PropFormula *ptrs[PROP_SMOKE_CLEANUP_MAX_PTRS];
+        int ptr_count = 0;
+        for (int j = 0; j < tests[i].premise_count && ptr_count < PROP_SMOKE_CLEANUP_MAX_PTRS; j++) {
+            /* È¥ÖØ£ºÌø¹ıÒÑ´æÔÚµÄÖ¸Õë */
+            bool dup = false;
+            for (int d = 0; d < ptr_count; d++) {
+                if (ptrs[d] == tests[i].premises[j]) { dup = true; break; }
+            }
+            if (!dup) ptrs[ptr_count++] = tests[i].premises[j];
+        }
+        if (tests[i].goal) {
+            bool dup = false;
+            for (int d = 0; d < ptr_count; d++) {
+                if (ptrs[d] == tests[i].goal) { dup = true; break; }
+            }
+            if (!dup) ptrs[ptr_count++] = tests[i].goal;
+        }
+
+        /* µÚÒ»±é£ºÊ¶±ğÄÄĞ©ÊÇ"¸ù"£¨²»ÊÇÆäËû¹«Ê½µÄ×Ó½Úµã£© */
+        bool is_root[PROP_SMOKE_CLEANUP_MAX_PTRS];
+        memset(is_root, true, sizeof(is_root));
+        for (int k = 0; k < ptr_count; k++) {
+            for (int m = 0; m < ptr_count; m++) {
+                if (k != m && ptrs[k] != ptrs[m] &&
+                    formula_is_descendant(ptrs[k], ptrs[m])) {
+                    is_root[k] = false;
+                    break;
+                }
+            }
+        }
+
+        /* µÚ¶ş±é£ºÖ»ÊÍ·Å¸ù¹«Ê½ */
+        for (int k = 0; k < ptr_count; k++) {
+            if (is_root[k]) {
+                prop_formula_destroy((PropFormula *)ptrs[k]);
+            }
+        }
+    }
+
+    return passed;
+}
+
+/* ============================================================
+ * ²»¿É¹¹ÔìĞÔ·ÖÎö
+ * ============================================================ */
+
+/**
+ * @brief ÊÕ¼¯Ä¿±ê¹«Ê½µÄËùÓĞÔ­×Ó×Ó¹«Ê½
+ *
+ * µİ¹é±éÀú¹«Ê½ AST£¬ÊÕ¼¯ËùÓĞÔ­×ÓÃüÌâÃû³Æ¡£
+ * ÓÃÓÚ·ÖÎöÖ¤Ã÷Ê§°ÜÊ±ÄÄĞ©Ô­×ÓÃüÌâÈ±ÉÙ¹¹Ôì¡£
+ */
+static int collect_atoms(const PropFormula *f, char atoms[][PROP_ATOM_NAME_MAX_LEN], int max_atoms) {
+    if (!f) return 0;
+    switch (f->type) {
+        case PROP_ATOM: {
+            /* È¥ÖØ¼ì²é */
+            for (int i = 0; i < max_atoms; i++) {
+                if (atoms[i][0] == '\0') break;
+                if (strcmp(atoms[i], f->data.atom.name) == 0) return 0;
+            }
+            for (int i = 0; i < max_atoms; i++) {
+                if (atoms[i][0] == '\0') {
+                    snprintf(atoms[i], PROP_ATOM_NAME_MAX_LEN, "%s", f->data.atom.name);
+                    return 1;
+                }
+            }
+            return 0;
+        }
+        case PROP_CONJUNCTION:
+        case PROP_DISJUNCTION:
+        case PROP_IMPLICATION:
+            return collect_atoms(f->data.binary.left, atoms, max_atoms) +
+                   collect_atoms(f->data.binary.right, atoms, max_atoms);
+        case PROP_NEGATION:
+            return collect_atoms(f->data.unary.operand, atoms, max_atoms);
+        case PROP_BOTTOM:
+        case PROP_TRUE:
+            return 0;
+    }
+    return 0;
+}
+
+/**
+ * @brief ¼ì²éÄ¿±ê¹«Ê½ÊÇ·ñ°üº¬¾­µäÂß¼­ÌØÓĞµÄÄ£Ê½
+ *
+ * Ê¶±ğÒÔÏÂÖ±¾õÖ÷Òå²»¿ÉÖ¤µÄ¾­µäÄ£Ê½£º
+ *   - Ë«ÖØ·ñ¶¨ÏûÈ¥£º~~A ¡ú A
+ *   - ÅÅÖĞÂÉ£ºA ¡Å ~A
+ *   - ·´Ö¤·¨£¨RAA£©£º(~A ¡ú ¡Í) ¡ú A
+ */
+static bool has_classical_pattern(const PropFormula *f, char *pattern_desc, size_t desc_size) {
+    if (!f) return false;
+
+    /* ¼ì²éÅÅÖĞÂÉ£ºA ¡Å ~A »ò ~A ¡Å A */
+    if (f->type == PROP_DISJUNCTION) {
+        const PropFormula *left = f->data.binary.left;
+        const PropFormula *right = f->data.binary.right;
+        /* A ¡Å ~A */
+        if (left->type == PROP_NEGATION &&
+            formula_equal(left->data.unary.operand, right)) {
+            char *s = prop_formula_to_string(right);
+            snprintf(pattern_desc, desc_size,
+                     "ÅÅÖĞÂÉ (LEM): %s \\/ ~%s£¨Ö±¾õÖ÷ÒåÂß¼­ÖĞ²»¿ÉÖ¤£©",
+                     s, s);
+            lv00_free((void **)&s);
+            return true;
+        }
+        /* ~A ¡Å A */
+        if (right->type == PROP_NEGATION &&
+            formula_equal(right->data.unary.operand, left)) {
+            char *s = prop_formula_to_string(left);
+            snprintf(pattern_desc, desc_size,
+                     "ÅÅÖĞÂÉ (LEM): ~%s \\/ %s£¨Ö±¾õÖ÷ÒåÂß¼­ÖĞ²»¿ÉÖ¤£©",
+                     s, s);
+            lv00_free((void **)&s);
+            return true;
+        }
+    }
+
+    /* ¼ì²éË«ÖØ·ñ¶¨ÏûÈ¥£º~~A ¡ú A »òÇ°Ìá ~~A ? A */
+    if (f->type == PROP_IMPLICATION) {
+        const PropFormula *antecedent = f->data.binary.left;
+        const PropFormula *consequent = f->data.binary.right;
+        if (antecedent->type == PROP_NEGATION &&
+            antecedent->data.unary.operand->type == PROP_NEGATION &&
+            formula_equal(antecedent->data.unary.operand->data.unary.operand, consequent)) {
+            char *s = prop_formula_to_string(consequent);
+            snprintf(pattern_desc, desc_size,
+                     "Ë«ÖØ·ñ¶¨ÏûÈ¥: ~~%s ¡ú %s£¨Ö±¾õÖ÷ÒåÂß¼­ÖĞ²»¿ÉÖ¤£©",
+                     s, s);
+            lv00_free((void **)&s);
+            return true;
+        }
+        /* ·´Ö¤·¨ (RAA): (~A ¡ú ¡Í) ¡ú A */
+        if (antecedent->type == PROP_IMPLICATION &&
+            antecedent->data.binary.left->type == PROP_NEGATION &&
+            antecedent->data.binary.right->type == PROP_BOTTOM &&
+            formula_equal(antecedent->data.binary.left->data.unary.operand, consequent)) {
+            char *s = prop_formula_to_string(consequent);
+            snprintf(pattern_desc, desc_size,
+                     "·´Ö¤·¨ (RAA): (~%s ¡ú _|_) ¡ú %s£¨Ö±¾õÖ÷ÒåÂß¼­ÖĞ²»¿ÉÖ¤£©",
+                     s, s);
+            lv00_free((void **)&s);
+            return true;
+        }
+    }
+
+    /* µİ¹é¼ì²é×Ó¹«Ê½ */
+    char sub_desc[PROP_PATTERN_DESC_BUFSIZE];
+    switch (f->type) {
+        case PROP_CONJUNCTION:
+        case PROP_DISJUNCTION:
+        case PROP_IMPLICATION:
+            if (has_classical_pattern(f->data.binary.left, sub_desc, sizeof(sub_desc))) {
+                snprintf(pattern_desc, desc_size, "%s", sub_desc);
+                return true;
+            }
+            if (has_classical_pattern(f->data.binary.right, sub_desc, sizeof(sub_desc))) {
+                snprintf(pattern_desc, desc_size, "%s", sub_desc);
+                return true;
+            }
+            break;
+        case PROP_NEGATION:
+            if (has_classical_pattern(f->data.unary.operand, sub_desc, sizeof(sub_desc))) {
+                snprintf(pattern_desc, desc_size, "%s", sub_desc);
+                return true;
+            }
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(
+    const PropFormula **premises, int premise_count,
+    const PropFormula *goal,
+    const VerifierConfig *config)
+{
+    InconstructibilityAnalysis analysis;
+    memset(&analysis, 0, sizeof(analysis));
+
+    VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
+    if (!config) config = &default_config;
+
+    /* ÏÈÖ´ĞĞÑéÖ¤ */
+    VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
+
+    if (detail.result == VERIFY_PROVEN) {
+        analysis.is_inconstructible = false;
+        snprintf(analysis.reason, sizeof(analysis.reason),
+                 "ÃüÌâÒÑÖ¤Ã÷Îª¿É¹¹Ôì£¬ÎŞĞè²»¿É¹¹ÔìĞÔ·ÖÎö");
+        return analysis;
+    }
+
+    analysis.is_inconstructible = true;
+
+    /* ¼ì²éÊÇ·ñ°üº¬¾­µäÂß¼­Ä£Ê½ */
+    char pattern_desc[PROP_PATTERN_DESC_BUFSIZE] = {0};
+    if (config->use_intuitionistic &&
+        has_classical_pattern(goal, pattern_desc, sizeof(pattern_desc))) {
+        snprintf(analysis.reason, sizeof(analysis.reason),
+                 "Ö±¾õÖ÷ÒåÏŞÖÆ: %s¡£ÔÚÖ±¾õÖ÷ÒåÂß¼­ÖĞ£¬Ö¤Ã÷±ØĞëÌá¹©ÏÔÊ½¹¹Ôì£¬"
+                 "²»ÄÜÒÀÀµÅÅÖĞÂÉ»òË«ÖØ·ñ¶¨ÏûÈ¥µÈ¾­µäÍÆÀí¹æÔò¡£",
+                 pattern_desc);
+    } else if (detail.result == VERIFY_TIMEOUT) {
+        snprintf(analysis.reason, sizeof(analysis.reason),
+                 "ËÑË÷³¬Ê±: Ö¤Ã÷ËÑË÷ÔÚ %d ºÁÃëÄÚÎ´Íê³É¡£"
+                 "¿ÉÄÜĞèÒª¸ü¶à²½Öè»ò´æÔÚ¸´ÔÓµÄ×ÓÄ¿±êÒÀÀµ¹ØÏµ¡£",
+                 config->timeout_ms);
+    } else {
+        /* ·ÖÎöÈ±ÉÙµÄÇ°ÌáºÍ×ÓÄ¿±ê */
+        char goal_atoms[PROP_ATOM_COLLECT_MAX][PROP_ATOM_NAME_MAX_LEN];
+        memset(goal_atoms, 0, sizeof(goal_atoms));
+        int atom_count = collect_atoms(goal, goal_atoms, PROP_ATOM_COLLECT_MAX);
+
+        /* ¼ì²éÄÄĞ©Ä¿±êÔ­×Ó²»ÔÚÇ°ÌáÖĞ */
+        char missing[512] = {0};
+        int missing_count = 0;
+        for (int i = 0; i < atom_count; i++) {
+            bool found = false;
+            for (int j = 0; j < premise_count; j++) {
+                if (premises[j]->type == PROP_ATOM &&
+                    strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                char tmp[64];
+                snprintf(tmp, sizeof(tmp), "%s%s", missing_count > 0 ? ", " : "", goal_atoms[i]);
+                strncat(missing, tmp, sizeof(missing) - strlen(missing) - 1);
+                missing_count++;
+            }
+        }
+
+        if (missing_count > 0) {
+            snprintf(analysis.reason, sizeof(analysis.reason),
+                     "È±ÉÙ¹¹Ôì: Ä¿±êĞèÒªÔ­×ÓÃüÌâ [%s] µÄ¹¹Ôì£¬"
+                     "µ«µ±Ç°Ç°ÌáÖĞÎ´Ìá¹©¡£ÔÚ BHK ½âÊÍÏÂ£¬"
+                     "Ã¿¸öÔ­×ÓÃüÌâĞèÒªÒ»¸ö¼¸ºÎÖ¤Îï£¨µã¡¢Ïß¶Î»òÇøÓò£©¡£",
+                     missing);
+        } else {
+            snprintf(analysis.reason, sizeof(analysis.reason),
+                     "¹¹ÔìÈ±¿Ú: Ç°ÌáÖĞ°üº¬ËùÓĞÄ¿±êÔ­×ÓÃüÌâ£¬µ«ÎŞ·¨Í¨¹ı"
+                     "ÏÖÓĞÍÆÀí¹æÔò×éºÏ³öÄ¿±ê¡£¿ÉÄÜĞèÒª¶îÍâµÄÔÌº­Ç°Ìá"
+                     "»ò¸ü¸´ÔÓµÄ¹¹Ôì²½Öè¡£ÒÑÊ¹ÓÃ %d ²½ÍÆÀí¡£",
+                     detail.steps_used);
+        }
+    }
+
+    /* Éú³ÉÊ§°Ü×ÓÄ¿±êÃèÊö */
+    analysis.failed_subgoals = 1;
+    analysis.subgoal_descriptions = (char **)lv00_malloc(sizeof(char *));  /* ·ÖÅäÄÚ´æ */
+    if (analysis.subgoal_descriptions) {
+        analysis.subgoal_descriptions[0] = (char *)lv00_malloc(512);  /* ·ÖÅäÄÚ´æ */
+        if (analysis.subgoal_descriptions[0]) {
+            snprintf(analysis.subgoal_descriptions[0], 512,
+                     "Ä¿±ê: %s | ×´Ì¬: %s | ²½Êı: %d/%d",
+                     prop_formula_to_string(goal),
+                     detail.result == VERIFY_TIMEOUT ? "³¬Ê±" : "ËÑË÷¿Õ¼äºÄ¾¡",
+                     detail.steps_used, detail.max_steps);
+        }
+        analysis.subgoal_desc_count = 1;
+    }
+
+    return analysis;
+}
+
+void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis) {
+    if (!analysis) return;
+    if (analysis->subgoal_descriptions) {
+        for (int i = 0; i < analysis->subgoal_desc_count; i++) {
+            lv00_free((void**)&analysis->subgoal_descriptions[i]);  /* ÊÍ·Å²¢ÖÃNULL */
+        }
+        lv00_free((void**)&analysis->subgoal_descriptions);  /* ÊÍ·Å²¢ÖÃNULL */
+    }
+    analysis->subgoal_desc_count = 0;
+}
+
+/* ============================================================
+ * BHK ¼¸ºÎ¹¹ÔìÑéÖ¤ÇÅ½Ó
+ * ============================================================ */
+
+/**
+ * @brief »ñÈ¡¹«Ê½ÀàĞÍµÄ BHK ½âÊÍÃèÊö
+ */
+static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
+    if (!f || size == 0) return;
+    switch (f->type) {
+        case PROP_ATOM:
+            snprintf(buf, size, "Ô­×ÓÃüÌâ %s ĞèÒªÒ»¸ö¼¸ºÎÖ¤Îï£¨µã¡¢Ïß¶Î»òÇøÓò£©",
+                     f->data.atom.name);
+            break;
+        case PROP_CONJUNCTION:
+            snprintf(buf, size,
+                     "ºÏÈ¡ %s µÄÖ¤ÎïÊÇÒ»¶ÔÖ¤Îï (a, b)£¬"
+                     "¶ÔÓ¦¼¸ºÎÖĞµÄ»ıÀàĞÍº¯Êı¿é£¨Á½¸öÍ¶Ó°¶Ë¿Ú£©",
+                     prop_formula_to_string(f));
+            break;
+        case PROP_DISJUNCTION:
+            snprintf(buf, size,
+                     "ÎöÈ¡ %s µÄÖ¤ÎïÊÇÒ»¸ö¸½´øÀ´Ô´±ê¼ÇµÄÖ¤Îï£¨×ó/ÓÒ£©£¬"
+                     "¶ÔÓ¦¼¸ºÎÖĞµÄºÍÀàĞÍº¯Êı¿é£¨´ø±ê¼ÇµÄÎöÈ¡Ö¤Îï£©",
+                     prop_formula_to_string(f));
+            break;
+        case PROP_IMPLICATION:
+            snprintf(buf, size,
+                     "ÔÌº­ %s µÄÖ¤ÎïÊÇÒ»¸ö¹¹Ôìº¯Êı£¬"
+                     "½«Ç°¼şµÄÖ¤Îï×ª»»Îªºó¼şµÄÖ¤Îï£¬"
+                     "¶ÔÓ¦¼¸ºÎÖĞµÄ±ê×¼º¯Êı¿é£¨ÊäÈë¶Ë¿Ú¡úÊä³ö¶Ë¿Ú£©",
+                     prop_formula_to_string(f));
+            break;
+        case PROP_NEGATION:
+            snprintf(buf, size,
+                     "·ñ¶¨ %s µÄÖ¤ÎïÊÇÒ»¸ö½« %s µÄÖ¤Îï×ª»»Îª ¡Í µÄ¹¹Ôì£¬"
+                     "¶ÔÓ¦¼¸ºÎÖĞµÄº¯Êı¿é£¨ÊäÈë¡ú¿ÕÊä³ö¶Ë¿Ú£©",
+                     prop_formula_to_string(f),
+                     prop_formula_to_string(f->data.unary.operand));
+            break;
+        case PROP_BOTTOM:
+            snprintf(buf, size,
+                     "Ã¬¶Ü ¡Í Ã»ÓĞÖ¤Îï£¨²»¿É¹¹Ôì£©£¬"
+                     "¶ÔÓ¦¼¸ºÎÖĞµÄ¿ÕÄ£Ê½£¨ÎŞ¿ÉÌî³ä¶Ë¿Ú£©");
+            break;
+        case PROP_TRUE:
+            snprintf(buf, size,
+                     "Õæ ? µÄÖ¤ÎïÊÇÆ½·²¹¹Ôì£¨µ¥Î»ÀàĞÍ£©£¬"
+                     "¶ÔÓ¦¼¸ºÎÖĞµÄµ¥µãÇøÓò");
+            break;
+    }
+}
+
+/**
+ * @brief »ñÈ¡¹«Ê½ÀàĞÍµÄ¼¸ºÎÓ³ÉäÃèÊö
+ */
+static void get_geometric_mapping(const PropFormula *f, char *buf, size_t size) {
+    if (!f || size == 0) return;
+    switch (f->type) {
+        case PROP_ATOM:
+            snprintf(buf, size, "GEOM_POINT / GEOM_REGION£¨Ö¤Îï½Úµã£©");
+            break;
+        case PROP_CONJUNCTION:
+            snprintf(buf, size, "FuncBlock[Product]£¨»ıÀàĞÍº¯Êı¿é£¬Ë«Í¶Ó°¶Ë¿Ú£©");
+            break;
+        case PROP_DISJUNCTION:
+            snprintf(buf, size, "FuncBlock[Sum]£¨ºÍÀàĞÍº¯Êı¿é£¬´ø±ê¼Ç¶Ë¿Ú£©");
+            break;
+        case PROP_IMPLICATION:
+            snprintf(buf, size, "FuncBlock[Arrow]£¨±ê×¼º¯Êı¿é£¬ÊäÈë¡úÊä³ö¶Ë¿Ú£©");
+            break;
+        case PROP_NEGATION:
+            snprintf(buf, size, "FuncBlock[Neg]£¨·ñ¶¨º¯Êı¿é£¬ÊäÈë¡ú¡Í¶Ë¿Ú£©");
+            break;
+        case PROP_BOTTOM:
+            snprintf(buf, size, "¿ÕÄ£Ê½£¨ÎŞ¶Ë¿Ú£¬²»¿ÉÌî³ä£©");
+            break;
+        case PROP_TRUE:
+            snprintf(buf, size, "µ¥µãÇøÓò£¨µ¥Î»ÀàĞÍÖ¤Îï£©");
+            break;
+    }
+}
+
+BHKVerificationResult prop_verifier_bhk_verify(
+    const PropFormula **premises, int premise_count,
+    const PropFormula *goal,
+    const VerifierConfig *config)
+{
+    BHKVerificationResult result;
+    memset(&result, 0, sizeof(result));
+
+    VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
+    if (!config) config = &default_config;
+
+    /* ÏÈÖ´ĞĞÃüÌâÂß¼­ÑéÖ¤ */
+    VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
+    result.verified = (detail.result == VERIFY_PROVEN);
+
+    /* Éú³É BHK ½âÊÍ */
+    get_bhk_description(goal, result.bhk_interpretation, sizeof(result.bhk_interpretation));
+
+    /* Éú³É¼¸ºÎÓ³Éä */
+    get_geometric_mapping(goal, result.geometric_mapping, sizeof(result.geometric_mapping));
+
+    if (result.verified) {
+        /* ÑéÖ¤³É¹¦£º¼ì²é¹¹ÔìÍêÕûĞÔ */
+        result.missing_constructions = 0;
+        result.missing_descriptions = NULL;
+        result.missing_count = 0;
+    } else {
+        /* ÑéÖ¤Ê§°Ü£º·ÖÎöÈ±ÉÙµÄ¹¹Ôì */
+        char goal_atoms[32][64];
+        memset(goal_atoms, 0, sizeof(goal_atoms));
+        int atom_count = collect_atoms(goal, goal_atoms, 32);
+
+        /* Í³¼ÆÈ±ÉÙ¹¹ÔìµÄÔ­×ÓÃüÌâ */
+        int missing = 0;
+        for (int i = 0; i < atom_count; i++) {
+            bool found = false;
+            for (int j = 0; j < premise_count; j++) {
+                if (premises[j]->type == PROP_ATOM &&
+                    strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) missing++;
+        }
+
+        result.missing_constructions = missing;
+        result.missing_count = missing;
+
+        if (missing > 0) {
+            result.missing_descriptions = (char **)lv00_malloc(sizeof(char *) * (size_t)missing);  /* ·ÖÅäÄÚ´æ */
+            if (result.missing_descriptions) {
+                int idx = 0;
+                for (int i = 0; i < atom_count && idx < missing; i++) {
+                    bool found = false;
+                    for (int j = 0; j < premise_count; j++) {
+                        if (premises[j]->type == PROP_ATOM &&
+                            strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        char desc[256];
+                        snprintf(desc, sizeof(desc),
+                                 "È±ÉÙÔ­×ÓÃüÌâ '%s' µÄ¼¸ºÎÖ¤Îï£¨ĞèÒª¶ÔÓ¦µÄµã¡¢Ïß¶Î»òÇøÓò½Úµã£©",
+                                 goal_atoms[i]);
+                        result.missing_descriptions[idx] = lv00_strdup_safe(desc);  /* ¸´ÖÆ×Ö·û´® */
+                        idx++;
+                    }
+                }
+            }
+        } else {
+            result.missing_descriptions = NULL;
+            /* ÓĞÔ­×ÓÇ°Ìáµ«ÎŞ·¨¹¹Ôì£º¿ÉÄÜÊÇÍÆÀí¹æÔò×éºÏÎÊÌâ */
+            result.missing_count = 1;
+            result.missing_descriptions = (char **)lv00_malloc(sizeof(char *));  /* ·ÖÅäÄÚ´æ */
+            if (result.missing_descriptions) {
+                char desc[256];
+                snprintf(desc, sizeof(desc),
+                         "ÎŞ·¨Í¨¹ıÏÖÓĞÇ°ÌáµÄ×éºÏ¹¹ÔìÄ¿±ê£¨ÍÆÀí¹æÔòÁ´²»ÍêÕû£©");
+                result.missing_descriptions[0] = lv00_strdup_safe(desc);  /* ¸´ÖÆ×Ö·û´® */
+            }
+        }
+    }
+
+    return result;
+}
+
+void prop_verifier_free_bhk_result(BHKVerificationResult *result) {
+    if (!result) return;
+    if (result->missing_descriptions) {
+        for (int i = 0; i < result->missing_count; i++) {
+            lv00_free((void**)&result->missing_descriptions[i]);  /* ÊÍ·Å²¢ÖÃNULL */
+        }
+        lv00_free((void**)&result->missing_descriptions);  /* ÊÍ·Å²¢ÖÃNULL */
+    }
+    result->missing_count = 0;
+}
+
+/* ============================================================
+ * ĞÅÈÎÑÕÉ«ÇÅ½Ó ¡ª¡ª BHKÑéÖ¤½á¹û ¡ú Ô¼ÊøÍ¼ TrustColor
+ * ============================================================ */
+
+/**
+ * @brief »ùÓÚ BHK ÑéÖ¤½á¹ûÓ³Éä TrustColor
+ *
+ * ½«ÑéÖ¤½á¹ûÓ³ÉäÎªÊÊµ±µÄĞÅÈÎÑÕÉ«£º
+ *   - verified + 0 missing ¡ú TRUST_GREEN
+ *   - verified + 1-2 missing ¡ú TRUST_YELLOW
+ *   - verified + 3+ missing ¡ú TRUST_AMBER
+ *   - Î´ÑéÖ¤£¨VERIFY_FAILED£©¡ú TRUST_BLUE
+ *   - ÒÑÖ¤Î±£¨VERIFY_DISPROVEN£©¡ú TRUST_RED
+ *   - ³¬Ê±/´íÎó ¡ú TRUST_BLUE
+ */
+static TrustColor map_bhk_to_trust_color(const BHKVerificationResult *bhk,
+                                          VerifyResult verify_result) {
+    switch (verify_result) {
+    case VERIFY_PROVEN:
+        if (!bhk->verified) {
+            /* BHK²ãÎ´Í¨¹ıµ«ÃüÌâ²ãÍ¨¹ı£ºÌõ¼şĞÔ¿ÉĞÅ */
+            return TRUST_YELLOW;
+        }
+        if (bhk->missing_constructions == 0) {
+            return TRUST_GREEN;
+        } else if (bhk->missing_constructions <= 2) {
+            return TRUST_YELLOW;
+        } else {
+            return TRUST_AMBER;
+        }
+    case VERIFY_DISPROVEN:
+        return TRUST_RED;
+    case VERIFY_FAILED:
+        return TRUST_BLUE;
+    case VERIFY_TIMEOUT:
+    case VERIFY_INVALID_INPUT:
+    case VERIFY_ERROR:
+    default:
+        return TRUST_BLUE;
+    }
+}
+
+/**
+ * @brief »ñÈ¡ TrustColor µÄÖĞÎÄÃû³Æ
+ */
+static const char *trust_color_name(TrustColor color) {
+    switch (color) {
+    case TRUST_GREEN:  return "ÂÌÉ«£¨ÍêÈ«¿ÉĞÅ£©";
+    case TRUST_BLUE:   return "À¶É«£¨Î´È·¶¨£©";
+    case TRUST_YELLOW: return "»ÆÉ«£¨Ìõ¼şĞÔ¿ÉĞÅ£©";
+    case TRUST_ORANGE: return "³ÈÉ«£¨Ğè¹Ø×¢£©";
+    case TRUST_LIGHT_ORANGE: return "Ç³³ÈÉ«";
+    case TRUST_RED:    return "ºìÉ«£¨²»¿ÉĞÅ/ÒÑÖ¤Î±£©";
+    case TRUST_AMBER:  return "çúçêÉ«£¨ÏÔÖøÈ±Ê§£©";
+    default:           return "Î´Öª";
+    }
+}
+
+int prop_verifier_apply_trust_colors(
+    ConstraintGraph *graph,
+    const PropFormula **premises, int premise_count,
+    const PropFormula *goal,
+    const VerifierConfig *config,
+    BHKVerificationResult *out_result)
+{
+    if (!graph) return -1;
+
+    /* ²½Öè1: Ö´ĞĞ BHK ÑéÖ¤ */
+    BHKVerificationResult bhk = prop_verifier_bhk_verify(
+        premises, premise_count, goal, config);
+
+    /* Í¬Ê±»ñÈ¡Ô­Ê¼ÑéÖ¤½á¹ûÒÔÅĞ¶Ï DISPROVEN µÈ×´Ì¬ */
+    VerifierConfig default_cfg = VERIFIER_CONFIG_DEFAULT;
+    if (!config) config = &default_cfg;
+    VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
+
+    /* ²½Öè2: Ó³ÉäĞÅÈÎÑÕÉ« */
+    TrustColor target_color = map_bhk_to_trust_color(&bhk, detail.result);
+
+    /* Á÷Ê½Êä³ö: ÑéÖ¤¿ªÊ¼ */
+    if (prop_verifier_stream_ctx) {
+        char desc[256];
+        snprintf(desc, sizeof(desc),
+                 "ĞÅÈÎÑÕÉ«ÇÅ½Ó: BHKÑéÖ¤=%s, È±Ê§¹¹Ôì=%d, Ä¿±êÑÕÉ«=%s",
+                 bhk.verified ? "Í¨¹ı" : "Î´Í¨¹ı",
+                 bhk.missing_constructions,
+                 trust_color_name(target_color));
+        stream_emit_simple(prop_verifier_stream_ctx,
+                           STREAM_EVENT_PROOF_COLOR_UPDATE, desc, 0);
+    }
+
+    /* ²½Öè3: ±éÀúÔ¼ÊøÍ¼ÖĞµÄËùÓĞ½Úµã£¬ÉèÖÃĞÅÈÎÑÕÉ« */
+    int updated_count = 0;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node) continue;
+
+        bool node_updated = false;
+
+        /* ¶Ô½ÚµãµÄÃ¿¸ö·ûºÅ×ø±êÉèÖÃĞÅÈÎÑÕÉ« */
+        for (int c = 0; c < node->coord_count; c++) {
+            SymbolicCoord *coord = node->symbolic_coords[c];
+            if (!coord) continue;
+
+            TrustColor old_color = symbolic_coord_get_trust(coord);
+            if (old_color != target_color) {
+                symbolic_coord_set_trust(coord, target_color);
+                node_updated = true;
+            }
+        }
+
+        if (node_updated) {
+            updated_count++;
+
+            /* Á÷Ê½Êä³ö: µ¥¸ö½ÚµãµÄÑÕÉ«¸üĞÂ */
+            if (prop_verifier_stream_ctx) {
+                StreamEvent ev;
+                memset(&ev, 0, sizeof(ev));
+                ev.type = STREAM_EVENT_PROOF_COLOR_UPDATE;
+                ev.timestamp_ms = stream_timestamp_ms();
+                ev.node_id = node->id;
+                ev.step_number = i;
+                ev.total_steps = graph->node_count;
+                ev.description = trust_color_name(target_color);
+                char detail_json[192];
+                snprintf(detail_json, sizeof(detail_json),
+                         "{\"node_id\":%d,\"type\":%d,\"old_color\":%d,\"new_color\":%d,"
+                         "\"verified\":%s,\"missing\":%d}",
+                         node->id, (int)node->type,
+                         (int)symbolic_coord_get_trust(
+                             node->coord_count > 0 && node->symbolic_coords[0]
+                                 ? node->symbolic_coords[0] : NULL),
+                         (int)target_color,
+                         bhk.verified ? "true" : "false",
+                         bhk.missing_constructions);
+                ev.detail_json = detail_json;
+                stream_emit(prop_verifier_stream_ctx, &ev);
+            }
+        }
+    }
+
+    /* Á÷Ê½Êä³ö: Íê³ÉÍ³¼Æ */
+    if (prop_verifier_stream_ctx) {
+        char done_desc[128];
+        snprintf(done_desc, sizeof(done_desc),
+                 "ĞÅÈÎÑÕÉ«Ó¦ÓÃÍê³É: ¸üĞÂÁË %d/%d ¸ö½Úµã",
+                 updated_count, graph->node_count);
+        stream_emit_simple(prop_verifier_stream_ctx,
+                           STREAM_EVENT_PROOF_COLOR_UPDATE, done_desc, 0);
+    }
+
+    /* ²½Öè4: Êä³ö½á¹û£¨Èç¹ûµ÷ÓÃÕßĞèÒª£© */
+    if (out_result) {
+        memcpy(out_result, &bhk, sizeof(BHKVerificationResult));
+        /* ×¢Òâ: missing_descriptions µÄËùÓĞÈ¨×ªÒÆ¸øµ÷ÓÃÕß */
+        /* ²»ÔÚ´Ë´¦ÊÍ·Å bhk.missing_descriptions */
+    } else {
+        /* µ÷ÓÃÕß²»ĞèÒª½á¹û£¬ÎÒÃÇ¸ºÔğÊÍ·Å */
+        prop_verifier_free_bhk_result(&bhk);
+    }
+
+    return updated_count;
+}
+
+/* ============================================================
+ * ÃüÌâµÈ¼ÛĞÔ¼ì²é
+ * ============================================================ */
+
+bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
+                                      const VerifierConfig *config) {
+    if (!a || !b) return false;
+
+    /* ½á¹¹ÏàµÈĞÔ¿ìËÙÂ·¾¶ */
+    if (formula_equal(a, b)) return true;
+
+    VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
+    if (!config) config = &default_config;
+
+    /* ¼ì²é a ¡ú b ºÍ b ¡ú a ÊÇ·ñ¶¼¿ÉÖ¤ */
+    PropFormula *a_impl_b = prop_formula_create_implication(
+        prop_formula_copy(a), prop_formula_copy(b));
+    PropFormula *b_impl_a = prop_formula_create_implication(
+        prop_formula_copy(b), prop_formula_copy(a));
+
+    VerifyDetail d1 = prop_verifier_verify(NULL, 0, a_impl_b, config);
+    VerifyDetail d2 = prop_verifier_verify(NULL, 0, b_impl_a, config);
+
+    bool result = (d1.result == VERIFY_PROVEN && d2.result == VERIFY_PROVEN);
+
+    prop_formula_destroy(a_impl_b);
+    prop_formula_destroy(b_impl_a);
+
+    return result;
+}
+
+bool prop_verifier_check_tautology(const PropFormula *f,
+                                    const VerifierConfig *config) {
+    if (!f) return false;
+
+    VerifierConfig default_config = VERIFIER_CONFIG_DEFAULT;
+    if (!config) config = &default_config;
+
+    /* ÓÀÕæÊ½ = ÎŞÇ°Ìá¼´¿ÉÖ¤ */
+    VerifyDetail detail = prop_verifier_verify(NULL, 0, f, config);
+    return detail.result == VERIFY_PROVEN;
+}
+
+int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count,
+                                   VerifyDetail *results) {
+    int passed = 0;
+
+    for (int i = 0; i < test_count; i++) {
+        const SmokeTest *t = &tests[i];
+
+        /* ²âÊÔ 13 ĞèÒªÆôÓÃ ex_falso */
+        VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
+        /* ¶ÔÓÚÔ¤ÆÚ²»¿ÉÖ¤µÄ²âÊÔ£¬Ê¹ÓÃÖ±¾õÖ÷ÒåÄ£Ê½ */
+        /* ¶ÔÓÚ²âÊÔ 13£¨±¬Õ¨Ô­Àí£©£¬ÆôÓÃ ex_falso */
+        if (t->expected_provable && t->premise_count == 1 &&
+            t->premises[0] && t->premises[0]->type == PROP_BOTTOM &&
+            t->goal && t->goal->type == PROP_ATOM) {
+            config.enable_ex_falso = true;
+        }
+
+        /* ½«¹Ì¶¨´óĞ¡Êı×é×ªÎªÖ¸ÕëÊı×éÒÔÆ¥Åä API */
+        const PropFormula *prem_ptrs[PROP_SMOKE_MAX_PREM_PTRS];
+        for (int j = 0; j < t->premise_count && j < PROP_SMOKE_MAX_PREM_PTRS; j++) {
+            prem_ptrs[j] = t->premises[j];
+        }
+
+        results[i] = prop_verifier_verify(prem_ptrs, t->premise_count,
+                                           t->goal, &config);
+
+        bool actually_proven = (results[i].result == VERIFY_PROVEN);
+
+        /* ¶ÔÓÚÔ¤ÆÚ²»¿ÉÖ¤µÄ²âÊÔ£º¼ì²éÊÇ·ñÈ·Êµ²»¿ÉÖ¤ */
+        if (t->expected_provable) {
+            if (actually_proven) passed++;
+        } else {
+            if (!actually_proven) passed++;
+        }
+    }
+
+    return passed;
+}
