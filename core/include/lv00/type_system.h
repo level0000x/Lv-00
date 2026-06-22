@@ -421,7 +421,8 @@ LV00_PUBLIC_API TypeRegion *type_predicate_subtype_get_base(TypeRegion *subtype)
  * 销毁类型区域
  */
 LV00_PUBLIC_API void type_region_destroy(TypeRegion *tr);
-#define type_region_deep_free type_region_destroy
+
+static inline void type_region_deep_free(TypeRegion *tr) { type_region_destroy(tr); }
 
 /**
  * 添加类型别名
