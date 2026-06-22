@@ -302,7 +302,8 @@ struct ConstraintGraph {
 typedef enum {
     ADD_NODE_OK,            /* 添加成功 */
     ADD_NODE_CONFLICT,      /* 添加冲突 */
-    ADD_NODE_INVALID_REGION /* 无效区域 */
+    ADD_NODE_INVALID_REGION, /* 无效区域 */
+    ADD_NODE_ERROR           /* 添加错误 */
 } AddNodeResult;
 
 typedef enum {
