@@ -9,18 +9,17 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #include <gmp.h>
-
 #include "rational.h"   /* Rational full definition */
 
-/* === Coord type enum === */
+/** Coord type enum */
 typedef enum {
-    RATIONAL      = 0,
-    ALGEBRAIC     = 1,
-    QUADRATIC     = 2,
+    RATIONAL       = 0,
+    ALGEBRAIC      = 1,
+    QUADRATIC      = 2,
     TRANSCENDENTAL = 3
 } SymbolicCoordType;
 
-/* === Algebraic plan === */
+/** Algebraic plan enum */
 typedef enum {
     PLAN_A_FULL_ALGEBRAIC = 0,
     PLAN_B_QUADRATIC_ONLY = 1,
@@ -29,7 +28,7 @@ typedef enum {
 #define algebraic_set_plan(p) ((void)0)
 #define algebraic_get_plan()  PLAN_A_FULL_ALGEBRAIC
 
-/* === Circuit stubs === */
+/** Circuit context helper */
 #define circuit_set_context(r, op, t1, t2) ((void)0)
 typedef enum { CIRCUIT_OK, CIRCUIT_OK_STATUS = 0, CIRCUIT_FAIL, CIRCUIT_STATUS_OK = 0 } CircuitStatus;
 #define check_digit_circuit(c) CIRCUIT_OK
@@ -40,7 +39,7 @@ typedef enum { CIRCUIT_OK, CIRCUIT_OK_STATUS = 0, CIRCUIT_FAIL, CIRCUIT_STATUS_O
 #define circuit_has_frozen_point() true
 #define circuit_get_frozen_point() ((void*)0)
 
-/* === Trust color === */
+/** Trust color — distinct values required */
 typedef enum {
     TRUST_GREEN        = 0,
     TRUST_BLUE         = 1,
@@ -55,61 +54,15 @@ typedef enum {
     LO_NONE = 0, LO_MEMORY = 1, LO_PERFORMANCE = 2, LO_NUMERIC = 3
 } LightOrangeSubtype;
 
-/* === Algebraic expression (e.g. sqrt(2), root of minimal polynomial) === */
-typedef struct {
-    Rational *minimal_poly; /* representative minimal polynomial */
-    double left_bound;
-    double right_bound;
-} AlgebraicExpr;
-
-AlgebraicExpr *algebraic_create(Rational **minimal_poly, double left_bound, double right_bound);
-void algebraic_destroy(AlgebraicExpr *a);
-
-/* === Quadratic expression (a*sqrt(b) + c) === */
-typedef struct {
-    Rational *a;
-    Rational *b;
-    int n;
-} QuadraticExpr;
-
-QuadraticExpr *quadratic_create(Rational *a, Rational *b, int n);
-void quadratic_destroy(QuadraticExpr *q);
-
-/* === Transcendental expression === */
-typedef enum {
-    TRAN_TYPE_PI, TRAN_TYPE_E, TRAN_TYPE_LOG, TRAN_TYPE_SIN,
-    TRAN_TYPE_COS, TRAN_TYPE_EXP, TRAN_TYPE_CUSTOM
-} TranscendentalType;
-
-typedef struct TranscendentalExpr {
-    TranscendentalType expr_type;
-    char *base_name;
-    Rational *rational_operand;
-    bool out_of_scope;
-    /* union for extra data */
-    union {
-        double numeric_approx;
-        char *custom_id;
-    };
-} TranscendentalExpr;
-
-typedef struct {
-    char *name;
-    TranscendentalExpr *expr;
-} TranscendentalData;
-
-TranscendentalData *transcendental_create(const char *name);
-void transcendental_destroy(TranscendentalData *t);
-
-/* === SymbolicCoord — main type === */
+/** Symbolic coordinate */
 typedef struct Lv00SymbolicCoord {
     SymbolicCoordType type;
     TrustColor trust;
     union {
         Rational *rational;
-        AlgebraicExpr *algebraic;
-        QuadraticExpr *quadratic;
-        TranscendentalData *transcendental;
+        void *algebraic;
+        void *quadratic;
+        void *transcendental;
     } data;
 } Lv00SymbolicCoord;
 

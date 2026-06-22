@@ -17,14 +17,15 @@ typedef struct Rational {
 
 typedef Rational Lv00Rational;
 
-/* === Lifecycle === */
-Rational *rational_create(int num, int den);
-Rational *rational_parse(const char *str);
+/* === Lifecycle (defined in symbolic_coord.c) === */
+Rational *rational_create(int64_t numerator, uint64_t denominator);
+Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominator);
+/* ^ renamed from rational_parse to avoid conflict */
 Rational *rational_copy(const Rational *r);
 void rational_destroy(Rational *r);
 void rational_simplify(Rational *r);
 
-/* === Arithmetic === */
+/* === Arithmetic (defined in symbolic_coord.c) === */
 Rational *rational_add(const Rational *r, const Rational *s);
 Rational *rational_subtract(const Rational *r, const Rational *s);
 Rational *rational_multiply(const Rational *r, const Rational *s);
@@ -33,7 +34,7 @@ Rational *rational_negate(const Rational *r);
 Rational *rational_inverse(const Rational *r);
 Rational *rational_abs(const Rational *r);
 
-/* === Comparison === */
+/* === Comparison (defined in symbolic_coord.c) === */
 int rational_compare(const Rational *r, const Rational *s);
 bool rational_is_zero(const Rational *r);
 bool rational_is_positive(const Rational *r);
@@ -41,12 +42,12 @@ bool rational_is_negative(const Rational *r);
 bool rational_is_integer(const Rational *r);
 int rational_sgn(const Rational *r);
 
-/* === Conversion === */
+/* === Conversion (defined in symbolic_coord.c) === */
 double rational_to_double(const Rational *r);
 char *rational_to_string(const Rational *r);
 char *rational_serialize(const Rational *r);
 
-/* === Setters === */
+/* === Setters (defined in symbolic_coord.c) === */
 void rational_set_one(Rational *r);
 void rational_set_zero(Rational *r);
 
@@ -61,7 +62,7 @@ static inline Lv00Rational *lv00_rational_create(void) {
     if (r) { mpq_init(r->value); mpq_set_ui(r->value, 0, 1); }
     return r;
 }
-static inline Lv00Rational *lv00_rational_create_from_si(int num, int den) {
+static inline Lv00Rational *lv00_rational_create_from_si(long num, unsigned long den) {
     Rational *r = (Rational*)malloc(sizeof(Rational));
     if (r) { mpq_init(r->value); mpq_set_si(r->value, num, den); mpq_canonicalize(r->value); }
     return r;
