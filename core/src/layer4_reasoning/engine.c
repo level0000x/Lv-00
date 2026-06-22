@@ -278,7 +278,7 @@ LV00Engine *engine_create(void) {
      * 注意：这两个函数当前不返回错误码（void 返回类型）。
      * 如果未来重构为返回错误码，应在此处检查返回值并做相应错误处理。
      * 当前状态：调用后无法检测失败，仅记录日志以便排查问题。 */
-    stream_context_register_builtins();
+    stream_context_register_builtins(engine->stream_ctx);
     /* 当前状态：内置模块 setter 注册完成，无法确认是否全部成功 */
     LV00_LOG_WARNING("engine_create: stream_context_register_builtins() 已调用（void 返回，无法检测错误）");
 
