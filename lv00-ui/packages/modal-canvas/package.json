@@ -1,0 +1,1 @@
+{"name":"@lv00/modal-canvas","version":"1.0.0","private":true,"main":"./src/CanvasView.tsx","types":"./src/CanvasView.tsx","peerDependencies":{"react":"^18.0.0","react-dom":"^18.0.0"},"dependencies":{"@lv00/protocol":"*","@lv00/scene-controller":"*","@lv00/visual-language":"*"}}

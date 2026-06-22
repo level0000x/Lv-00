@@ -1,0 +1,1 @@
+{"name":"@lv00/modal-table","version":"1.0.0","private":true,"main":"./src/TableView.tsx","types":"./src/TableView.tsx","peerDependencies":{"react":"^18.0.0","react-dom":"^18.0.0"},"dependencies":{"@lv00/protocol":"*","@lv00/scene-controller":"*","ag-grid-community":"^31.0.0","ag-grid-react":"^31.0.0"}}

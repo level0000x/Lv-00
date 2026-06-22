@@ -1,0 +1,33 @@
+{
+  "name": "lv00-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lv-00 UI 全自动生成系统 — 几何元语言多模态交互界面",
+  "workspaces": [
+    "packages/protocol",
+    "packages/mock-kernel",
+    "packages/scene-controller",
+    "packages/modal-canvas",
+    "packages/modal-text",
+    "packages/modal-table",
+    "packages/modal-tree",
+    "packages/modal-terminal",
+    "packages/modal-topology",
+    "packages/visual-language"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "vite",
+    "test": "vitest run",
+    "lint": "eslint packages --ext .ts,.tsx",
+    "clean": "rimraf packages/*/dist shells/*/dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0",
+    "vitest": "^1.4.0",
+    "@types/node": "^20.11.0",
+    "eslint": "^8.57.0",
+    "rimraf": "^5.0.0"
+  }
+}
