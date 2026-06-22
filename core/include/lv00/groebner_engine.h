@@ -426,3 +426,20 @@ bool ideal_membership(Lv00RingRegistry *registry, int ideal_id, int poly_id);
  *
  * @param registry     环注册表
  * @param ideal_id_a   理想 I 的 ID
+ * @param ideal_id_b   理想 J 的 ID
+ * @return >= 0 新理想 ID, < 0 错误码
+ */
+int ideal_intersection(Lv00RingRegistry *registry, int ideal_id_a, int ideal_id_b);
+
+/* Forward declarations for smt_backend_impl.c */
+int constraint_graph_to_ideal(Lv00RingRegistry *registry, const ConstraintGraph *graph,
+                               int ring_id, const char *ideal_name);
+int variety_compute(Lv00RingRegistry *registry, int ideal_id, const char *variety_name);
+bool variety_is_zero_dimensional(Lv00RingRegistry *registry, int variety_id);
+int variety_dimension(Lv00RingRegistry *registry, int variety_id);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LV00_GROEBNER_ENGINE_H */
