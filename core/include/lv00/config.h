@@ -321,6 +321,12 @@ extern "C" {
 #ifndef LV00_CIRCUIT_OVERFLOW_THRESHOLD
 #define LV00_CIRCUIT_OVERFLOW_THRESHOLD  3
 #endif
+#ifndef LV00_VALUE_TOO_LARGE
+#define LV00_VALUE_TOO_LARGE             1048576  /* 1M — 值过大阈值 */
+#endif
+#ifndef LV00_DOWNGRADE_DENOMINATOR
+#define LV00_DOWNGRADE_DENOMINATOR       100000   /* 降级分母阈值 */
+#endif
 
 #ifdef __cplusplus
 }

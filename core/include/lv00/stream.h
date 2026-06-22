@@ -276,6 +276,9 @@ LV00_PUBLIC_API StreamContext *stream_context_create(void);
  */
 LV00_PUBLIC_API void stream_context_destroy(StreamContext *ctx);
 
+LV00_PUBLIC_API void stream_context_register_builtins(StreamContext *ctx);
+LV00_PUBLIC_API void stream_context_dispatch_all(StreamContext *ctx);
+
 /* ============== 回调管理 API ============== */
 
 /**
