@@ -49,6 +49,8 @@ extern "C" {
  *   无需手动定义。
  * ============================================================ */
 
+#endif /* LV00_ENGINE_INTERNAL_H */
+
 #ifndef LV00_ENGINE_H
 #define LV00_ENGINE_H
 
