@@ -3384,11 +3384,8 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     /* adj: node_id -> 约束索引的扁平数组 */
     size_t adj_total = (size_t)(max_node_id + 1) * LV00_ADJ_MAX_PER_NODE;
     if (adj_total > (size_t)INT_MAX) {
-        lv00_free((void **) &*out_conflict_types);
-        *out_conflict_types = NULL;
-        lv00_free((void **) &*out_conflict_nodes);
-        *out_conflict_nodes = NULL;
-        lv00_free((void **) &*out_conflict_sizes);
+        lv00_free((void **) &conflicts);
+        lv00_free((void **) out_conflict_sizes);
         *out_conflict_sizes = NULL;
         *out_conflict_count = -1;
         return NULL;

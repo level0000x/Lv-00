@@ -43,10 +43,13 @@ typedef enum { CIRCUIT_OK, CIRCUIT_OK_STATUS = 0, CIRCUIT_FAIL, CIRCUIT_STATUS_O
 
 /* === Trust color === */
 typedef enum {
-    TRUST_GREEN = 0, TRUST_BLUE = 0,
-    TRUST_YELLOW = 1,
-    TRUST_ORANGE = 2, TRUST_AMBER = 2,
-    TRUST_RED = 3
+    TRUST_GREEN        = 0,
+    TRUST_BLUE         = 1,
+    TRUST_YELLOW       = 2,
+    TRUST_LIGHT_ORANGE = 3,
+    TRUST_ORANGE       = 4,
+    TRUST_AMBER        = 5,
+    TRUST_RED          = 6
 } TrustColor;
 
 typedef enum {
