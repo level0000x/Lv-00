@@ -34,6 +34,7 @@ extern "C" {
  * 错误码定义和错误处理宏（LV00_CHECK_NULL, LV00_CHECK_NULL_VOID,
  * LV00_CHECK_ALLOC, lv00_set_error_ctx, LV00_ERROR_* 等）
  */
+#include "config.h"
 #include "error_codes.h"
 
 /*

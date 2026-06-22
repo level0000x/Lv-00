@@ -329,7 +329,7 @@ Rational *rational_parse(const char *str) {
  * @param r 有理数对象（不能为 NULL）
  * @return 有理数的双精度浮点数近似值
  */
-static double rational_to_double(const Rational *r) {
+double rational_to_double(const Rational *r) {
     return mpq_get_d(r->value);
 }
 
@@ -1022,7 +1022,7 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
  * @param r 有理数对象（不能为 NULL）
  * @return 新创建的代数数对象，失败时返回 NULL；调用者需负责释放
  */
-static Algebraic *algebraic_from_rational(const Rational *r) {
+Algebraic *algebraic_from_rational(const Rational *r) {
     Algebraic *a = lv00_malloc(sizeof(Algebraic));
     if (!a)
         return NULL;
@@ -1050,7 +1050,7 @@ static Algebraic *algebraic_from_rational(const Rational *r) {
 }
 
 /* Create algebraic from quadratic: a + b*sqrt(n) */
-static Algebraic *algebraic_from_quadratic(const Quadratic *q) {
+Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     Algebraic *alg = lv00_malloc(sizeof(Algebraic));
     if (!alg)
         return NULL;
@@ -1588,7 +1588,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     /* Special case: if b is effectively a rational */
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        if (mpq_sgn(b->cached_rational) == 0)
+        if (mpq_sgn(b->cached_rational->value) == 0)
             return NULL;
 
         Algebraic *result = lv00_malloc(sizeof(Algebraic));
