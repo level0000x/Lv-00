@@ -303,6 +303,25 @@ extern "C" {
 #ifndef LV00_INDEX_LOAD_FACTOR
 #define LV00_INDEX_LOAD_FACTOR           0.75
 #endif
+/* 符号坐标系统常量（symbolic_coord.c 依赖） */
+#ifndef BIT_CUTOFF_THRESHOLD
+#define BIT_CUTOFF_THRESHOLD             1000000
+#endif
+#ifndef LV00_BIT_CUTOFF_THRESHOLD
+#define LV00_BIT_CUTOFF_THRESHOLD        BIT_CUTOFF_THRESHOLD
+#endif
+#ifndef LV00_CONTINUED_FRACTION_MAX_ITER
+#define LV00_CONTINUED_FRACTION_MAX_ITER 1000
+#endif
+#ifndef LV00_MAX_SUBINTERVALS
+#define LV00_MAX_SUBINTERVALS            4096
+#endif
+#ifndef LV00_ROOT_EPSILON
+#define LV00_ROOT_EPSILON                1e-12
+#endif
+#ifndef LV00_CIRCUIT_OVERFLOW_THRESHOLD
+#define LV00_CIRCUIT_OVERFLOW_THRESHOLD  3
+#endif
 
 #ifdef __cplusplus
 }
