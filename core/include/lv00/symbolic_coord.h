@@ -10,8 +10,7 @@ extern "C" {
 #include <stdint.h>
 #include <gmp.h>
 
-/* Forward decls */
-typedef struct Rational Rational;
+#include "rational.h"   /* Rational full definition */
 
 /* === Coord type enum === */
 typedef enum {
