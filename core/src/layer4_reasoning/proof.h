@@ -29,8 +29,8 @@
  *   HOL Light（微内核验证）、F*（精化类型）的证明功能
  */
 
-#ifndef LV00_PROOF_INTERNAL_H
-#define LV00_PROOF_INTERNAL_H
+#ifndef LV00_PROOF_H
+#define LV00_PROOF_H
 
 #include <stdbool.h>
 #include <time.h>
@@ -1585,4 +1585,4 @@ void refinement_check_report_destroy(RefinementCheckReport *report);
 }
 #endif
 
-#endif /* LV00_PROOF_INTERNAL_H */
+#endif /* LV00_PROOF_H */
