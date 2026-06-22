@@ -145,7 +145,7 @@ extern void lv00_log_message(int level, const char *file, int line,
  * @param module  模块名称（用于构造变量名）
  */
 #define LV00_DECLARE_STREAM_CTX(module) \
-    static LV00_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL
+    static LV00_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL;
 
 /* ================================================================
  * 错误返回宏
