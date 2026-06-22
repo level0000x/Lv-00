@@ -1205,3 +1205,4 @@ char *relation_instance_export_xml(const RelInstance *inst) {
 
     return buf;
 }
+}
