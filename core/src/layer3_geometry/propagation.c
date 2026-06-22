@@ -604,57 +604,50 @@ int propagation_select_node(PropagationContext *ctx) {
             break;
 
         case PROP_STRATEGY_BFS: {
-            /* BFS 策略：从最近坍缩的节点出发，广度优先选择最近的未坍缩邻居。
-             * 使用约束图中的邻接关系进行 BFS 遍历，选择第一个遇到的未坍缩节点。
-             * 若无已坍缩节点作为起点，则回退到最小熵选择。 */
             bool found_bfs = false;
-            /* 收集所有已坍缩节点作为 BFS 起点 */
-            for (int start = 0; start < ctx->state_count && !found_bfs; start++) {
-                const NodeStateSpace *ss_start = &ctx->state_spaces[start];
-                if (!ss_start->is_collapsed) continue;
+            int bfs_cap = ctx->state_count > 256 ? ctx->state_count : 256;
+            int *bfs_queue = (int *)lv00_malloc((size_t)bfs_cap * sizeof(int));
+            bool *visited = bfs_queue ? (bool *)lv00_calloc((size_t)ctx->state_count, sizeof(bool)) : NULL;
+            if (bfs_queue && visited) {
+                for (int start = 0; start < ctx->state_count && !found_bfs; start++) {
+                    const NodeStateSpace *ss_start = &ctx->state_spaces[start];
+                    if (!ss_start->is_collapsed) continue;
 
-                /* 从 start 节点开始 BFS */
-                int bfs_cap = ctx->state_count > 256 ? ctx->state_count : 256;
-                int *bfs_queue = (int *)lv00_malloc((size_t)bfs_cap * sizeof(int));
-                bool *visited = (bool *)lv00_calloc((size_t)ctx->state_count, sizeof(bool));
-                if (!bfs_queue || !visited) {
-                    lv00_free((void **)&bfs_queue);
-                    lv00_free((void **)&visited);
-                    continue;
-                }
-                int bfs_head = 0, bfs_tail = 0;
+                    int bfs_head = 0, bfs_tail = 0;
 
-                bfs_queue[bfs_tail++] = start;
-                visited[start] = true;
+                    memset(visited, 0, (size_t)ctx->state_count * sizeof(bool));
+                    bfs_queue[bfs_tail++] = start;
+                    visited[start] = true;
 
-                while (bfs_head < bfs_tail && !found_bfs) {
-                    int cur = bfs_queue[bfs_head++];
+                    while (bfs_head < bfs_tail && !found_bfs) {
+                        int cur = bfs_queue[bfs_head++];
 
-                    /* 查找 cur 的所有邻接节点（通过约束关系） */
-                    int cids[128];
-                    int nc = graph_find_constraints_involving(ctx->graph, cur, cids, 128);
-                    for (int ci = 0; ci < nc && !found_bfs; ci++) {
-                        Constraint *cc = graph_get_constraint(ctx->graph, cids[ci]);
-                        if (!cc || !cc->is_active) continue;
-                        for (int p = 0; p < cc->participant_count; p++) {
-                            int nb = cc->participants[p];
-                            if (nb < 0 || nb >= ctx->state_count) continue;
-                            if (visited[nb]) continue;
-                            visited[nb] = true;
+                        /* 查找 cur 的所有邻接节点（通过约束关系） */
+                        int cids[128];
+                        int nc = graph_find_constraints_involving(ctx->graph, cur, cids, 128);
+                        for (int ci = 0; ci < nc && !found_bfs; ci++) {
+                            Constraint *cc = graph_get_constraint(ctx->graph, cids[ci]);
+                            if (!cc || !cc->is_active) continue;
+                            for (int p = 0; p < cc->participant_count; p++) {
+                                int nb = cc->participants[p];
+                                if (nb < 0 || nb >= ctx->state_count) continue;
+                                if (visited[nb]) continue;
+                                visited[nb] = true;
 
-                            const NodeStateSpace *ss_nb = &ctx->state_spaces[nb];
-                            if (!ss_nb->is_collapsed && !ss_nb->is_unbounded
-                                && ss_nb->coord_count > 0) {
-                                /* 找到最近的未坍缩邻居 */
-                                best_node = nb;
-                                found_bfs = true;
-                                break;
+                                const NodeStateSpace *ss_nb = &ctx->state_spaces[nb];
+                                if (!ss_nb->is_collapsed && !ss_nb->is_unbounded
+                                    && ss_nb->coord_count > 0) {
+                                    /* 找到最近的未坍缩邻居 */
+                                    best_node = nb;
+                                    found_bfs = true;
+                                    break;
+                                }
+                                if (bfs_tail >= bfs_cap) {
+                                    /* 队列已满，跳过此邻居 */
+                                    continue;
+                                }
+                                bfs_queue[bfs_tail++] = nb;
                             }
-                            if (bfs_tail >= bfs_cap) {
-                                /* 队列已满，跳过此邻居 */
-                                continue;
-                            }
-                            bfs_queue[bfs_tail++] = nb;
                         }
                     }
                 }
