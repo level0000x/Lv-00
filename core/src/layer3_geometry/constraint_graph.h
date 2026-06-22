@@ -28,8 +28,8 @@
  * @brief 约束图 —— 几何节点、约束与哈希索引的核心数据结构
  */
 
-#ifndef LV00_CONSTRAINT_GRAPH_INTERNAL_H
-#define LV00_CONSTRAINT_GRAPH_INTERNAL_H
+#ifndef LV00_CONSTRAINT_GRAPH_H
+#define LV00_CONSTRAINT_GRAPH_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -908,4 +908,4 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id);
 }
 #endif
 
-#endif /* LV00_CONSTRAINT_GRAPH_INTERNAL_H */
+#endif /* LV00_CONSTRAINT_GRAPH_H */
