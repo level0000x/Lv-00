@@ -1,7 +1,0 @@
-#define LV00_INDEX_LOAD_FACTOR           0.75
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-#endif /* LV00_CONFIG_H */
