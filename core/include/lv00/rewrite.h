@@ -47,6 +47,7 @@ extern "C" {
 LV00_PUBLIC_API void rewrite_set_stream_context(StreamContext *ctx);
 
 typedef struct RewritePattern {
+    int kind;           /* type kind (TypeKind) — used by type_system.c */
     int *variable_node_ids;
     int var_count;
     Constraint **pattern_constraints;
