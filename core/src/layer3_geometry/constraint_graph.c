@@ -43,8 +43,7 @@
 #define LV00_DESC_BUFFER_SIZE 128
 
 #include "constraint_graph.h"
-#include "rational.h"           /* Rational, rational_compare */
-#include "symbolic_coord.h"     /* SymbolicCoord, TrustColor */
+#include "symbolic_coord.h"     /* SymbolicCoord, TrustColor (brings rational.h) */
 
 #include <assert.h>
 #include <gmp.h>
