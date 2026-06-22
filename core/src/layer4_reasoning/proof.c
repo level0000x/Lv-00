@@ -3320,7 +3320,7 @@ static const char *json_escape(const char *s) {
  * 转义 <, >, &, ", ' 等 HTML 特殊字符。
  * 返回静态缓冲区（非线程安全），每次调用覆盖前一次结果。
  */
-static const char *html_escape(const char *s) {
+const char *html_escape(const char *s) {
     if (!s) return "";
     static char buf[4096];
     size_t j = 0;
