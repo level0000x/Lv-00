@@ -253,6 +253,17 @@ typedef int Lv00ProofScopeId;
 #define LV00_PROOF_SCOPE_GLOBAL 0   /**< 全局作用域（默认公理和约束） */
 #define LV00_PROOF_SCOPE_INVALID -1 /**< 无效作用域标识符 */
 
+/* Missing enums/types used by proof.c */
+#define LIGHT_ORANGE_EXPLOSION  30
+void lv00_proof_tree_add_premise(void *tree, void *step);
+const char *html_escape(const char *s);
+typedef void *Lv00TaskGroup;
+Lv00TaskGroup lv00_task_group_create(int n);
+typedef void *Lv00Task;
+Lv00Task lv00_task_create(void (*fn)(void*), void *arg);
+void lv00_task_group_add(Lv00TaskGroup g, Lv00Task t);
+void lv00_task_group_destroy(Lv00TaskGroup g);
+
 /* ============== 证明导航器 ============== */
 struct ProofNavigator {
     ProofStep **steps; /* 证明步骤数组 */
