@@ -211,6 +211,7 @@ struct Constraint {
     int template_id;
     bool is_active; /**< 约束生命周期标记：true=活跃，false=已废弃 */
     double numeric_value; /**< 约束的数值参数（如距离、角度等），仅部分约束类型使用 */
+    double satisfaction;  /**< 约束满意度 (0.0~1.0)，用于概率推理 */
 };
 
 /**
