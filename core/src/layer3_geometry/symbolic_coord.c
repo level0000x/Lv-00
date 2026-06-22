@@ -519,7 +519,7 @@ static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
  * @param a         代数数对象
  * @param iterations 迭代次数
  */
-static void refine_algebraic_bounds(const Algebraic *a, int iterations) {
+static void refine_algebraic_bounds(Algebraic *a, int iterations) {
     if (a->minimal_poly.degree < 1)
         return;
 
