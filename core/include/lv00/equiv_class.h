@@ -1,28 +1,95 @@
 #ifndef LV00_EQUIV_CLASS_H
 #define LV00_EQUIV_CLASS_H
-/* TODO: Equiv class module stub */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stddef.h>
+#include "symbolic_coord.h"   /* TrustColor, SymbolicCoord */
+#include "constraint_graph.h"  /* ConstraintGraph, GeomNode */
 
-/** Equivalence class manager. */
-typedef struct Lv00EquivClass Lv00EquivClass;
-/** Compatibility typedef for test code. */
-typedef Lv00EquivClass EquivClassManager;
-#define equiv_manager_create(n) lv00_equiv_class_create((n))
+/* ── Equiv source type ── */
+typedef enum {
+    EQUIV_SOURCE_DIRECT      = 0,
+    EQUIV_SOURCE_COORD_EQUAL = 1,
+    EQUIV_SOURCE_CONSTRAINT  = 2,
+    EQUIV_SOURCE_TRANSFORM   = 3,
+    EQUIV_SOURCE_CONJUGATE   = 4
+} EquivSourceType;
 
-/** Create equiv class manager. */
+/* ── Equiv proof ── */
+typedef struct EquivProof {
+    EquivSourceType   source;
+    int               node_a_id;
+    int               node_b_id;
+    int               deriving_constraint_id;
+    int               proof_step_id;
+    TrustColor        trust;
+} EquivProof;
+
+/* ── Equiv class ── */
+typedef struct EquivClass {
+    int          representative_id;
+    int          member_count;
+    int          capacity;
+    int         *member_ids;
+    EquivProof  *proofs;
+    int          proof_count;
+    int          proof_capacity;
+    TrustColor   min_trust;
+} EquivClass;
+
+/* ── Equiv merge result ── */
+typedef enum {
+    EQUIV_MERGE_OK           = 0,
+    EQUIV_MERGE_CONFLICT     = 1,
+    EQUIV_MERGE_ALREADY_SAME = 2,
+    EQUIV_MERGE_ERROR        = -1
+} EquivMergeResult;
+
+/* ── Equiv class manager ── */
+typedef struct EquivClassManager EquivClassManager;
+typedef EquivClassManager        Lv00EquivClass;
+
+struct EquivClassManager {
+    ConstraintGraph *graph;
+    /* === 并查集 === */
+    int             *uf_parent;
+    int             *uf_rank;
+    int              uf_capacity;
+    /* === 等价类 === */
+    EquivClass      *classes;
+    int              class_count;
+    int              class_capacity;
+    int             *node_to_class;
+    int              node_to_class_capacity;
+    /* === 全局证明日志 === */
+    EquivProof      *proof_log;
+    int              proof_log_count;
+    int              proof_log_capacity;
+};
+
+/* ── API ── */
+EquivClassManager *equiv_manager_create(ConstraintGraph *graph);
+void               equiv_manager_destroy(EquivClassManager *mgr);
+
+int  equiv_manager_find(EquivClassManager *mgr, int node_id);
+bool equiv_manager_are_equivalent(EquivClassManager *mgr, int a, int b);
+EquivMergeResult   equiv_merge_classes(EquivClassManager *mgr, int class_a, int class_b,
+                                        EquivSourceType source, int constraint_id, TrustColor trust);
+
+int  equiv_manager_get_class_size(EquivClassManager *mgr, int node_id);
+int  equiv_manager_get_representative(EquivClassManager *mgr, int node_id);
+bool equiv_manager_sync_from_graph(EquivClassManager *mgr);
+
+/* Legacy aliases */
 Lv00EquivClass *lv00_equiv_class_create(size_t n_elements);
-/** Union two elements. */
 int lv00_equiv_class_union(Lv00EquivClass *ec, int a, int b);
-/** Find representative. */
 int lv00_equiv_class_find(Lv00EquivClass *ec, int a);
 
 #ifdef __cplusplus
 }
 #endif
-
 #endif
