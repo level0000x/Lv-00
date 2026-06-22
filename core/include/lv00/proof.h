@@ -274,12 +274,12 @@ typedef int SMTSatResult;
 #define SMT_RESULT_UNKNOWN  2
 SMTSolver smtsolver_create(int type);
 void smtsolver_set_timeout(SMTSolver s, int ms);
-int  smtsolver_encode(SMTSolver s, const char *prop);
+int  smtsolver_encode(SMTSolver s, const char *script, size_t len);
 SMTSatResult smtsolver_check(SMTSolver s);
 void smtsolver_destroy(SMTSolver s);
 
-const char *constraint_solver_get_proposition(void *ctx, int id);
-void *proof_navigator_search(void *nav, int strategy, void *prop);
+const char *constraint_solver_get_proposition(void *solver, void *geom_obj);
+void *proof_navigator_search(void *nav);
 
 const char *html_escape(const char *s);
 typedef void *Lv00TaskGroup;
