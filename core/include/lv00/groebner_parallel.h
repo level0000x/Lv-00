@@ -38,7 +38,7 @@ typedef struct Lv00GroebnerParallel {
     void *thread_pool;
 
     /* Result */
-    void *groebner_basis;
+    void **groebner_basis;
     int basis_size;
 } Lv00GroebnerParallel;
 
@@ -55,6 +55,9 @@ int lv00_groebner_parallel_compute(Lv00GroebnerParallel *engine,
 
 /* Progress query */
 Lv00GroebnerState lv00_groebner_parallel_state(const Lv00GroebnerParallel *engine);
+
+/* Basis inspection */
+bool lv00_groebner_poly_is_nonzero_constant(void *poly);
 
 /* Performance target: 50%+ improvement over sequential computation */
 /* Baseline: sequential Buchberger algorithm */
