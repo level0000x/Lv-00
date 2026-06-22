@@ -1211,7 +1211,8 @@ void csg_evaluate(const CSGNode *node, CSGTriList *out) {
 
                     lv00_free((void **) &sum_verts);
                 }
-            }
+                } /* end if (count_a <= INT_MAX / count_b) */
+            } /* end if (verts_a && verts_b) */
 
             /* 清理 */
             if (verts_a) lv00_free((void **) &verts_a);
