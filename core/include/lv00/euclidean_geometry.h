@@ -394,5 +394,12 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
  * @return true 断言成功且一致，false 冲突
  */
 bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id);
-/* ========================================================================
- * 第九部分：
+
+/* ── forward decls for .c internal functions ── */
+void euclidean_destroy_equivalence_chain(EquivalenceProofChain *chain);
+bool euclidean_check_consistency(EuclideanContext *ctx);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
