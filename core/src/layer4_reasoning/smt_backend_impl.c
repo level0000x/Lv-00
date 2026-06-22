@@ -40,6 +40,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <io.h>
 #else
 #include <pthread.h>
 #endif
@@ -860,7 +861,7 @@ static int smtlib2_encode_connection(const ConstraintGraph *graph, const Constra
 /**
  * @brief 设置求解器内部错误状态
  */
-static void smtsolver_set_error(SMTSolver *solver, SMTErrorCode code, const char *msg) {
+void smtsolver_set_error(SMTSolver *solver, SMTErrorCode code, const char *msg) {
     if (!solver) return;
     solver->last_error = code;
     if (msg) {
@@ -1673,7 +1674,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph,
  * @param[in]  result_size  result_buf 缓冲区大小
  * @return SMTSatResult 求解结果
  */
-static SMTSatResult smt_external_solver_check(SMTSolver *solver,
+SMTSatResult smt_external_solver_check(SMTSolver *solver,
                                                const char *executable,
                                                const char *smt2_input,
                                                int smt2_len,
