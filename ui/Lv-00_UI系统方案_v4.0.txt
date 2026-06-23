@@ -1,0 +1,2963 @@
+﻿Lv-00 UI 系统完整实现规划 v4.0
+
+编制日期：2026年6月22日
+
+核心原则：每一个组件、每一行关键代码的设计决策都必须在这里说清楚。不依赖任何现有资产——所有模块从零开始完整定义其实现细节。
+
+目录
+
+1. 总体架构
+2. L1：裸核引擎（C）
+3. L2：编辑控制器（C++）
+4. L3：多模态投影引擎（C++）
+5. L4a：M1 几何画布
+6. L4b：M2 结构化文本编辑器
+7. L4c：M3 属性表格面板
+8. L4d：M4 依赖树导航器
+9. L4e：M5 终端/REPL
+10. L4f：M6 拓扑蓝图视图
+11. L5a：独立应用外壳（Qt）
+12. L5b：IDE插件外壳（VSCode）
+13. L6：共享视觉语言
+14. 同步协议与通信机制
+15. 数据流完整追踪
+16. 技术栈总览
+
+一、总体架构
+
+1.1 六层架构
+
+层级 名称 语言 物理形态 对上层暴露 对下层依赖
+L1 裸核引擎 C11 liblv00_core.so C ABI 函数指针 无
+L2 编辑控制器 C++17 liblv00_editor.a EditorController 类 L1
+L3 多模态投影引擎 C++17 liblv00_scene.a SceneController 类 L2
+L4 模态视图组件 TypeScript/C++ 6 个独立组件 React 组件 / Qt Widget L3（数据）
+L5 外壳适配器 TypeScript/C++ Qt 应用 / VSCode 插件 可执行文件 L4
+L6 共享视觉语言 JSON/CSS 静态资源 颜色/图标/字体定义 无
+
+1.2 数据流向
+
+```
+用户操作（任一模态）
+    ↓
+L4 模态视图捕获事件 → 生成 Command（二进制序列化）
+    ↓
+L3 SceneController.processCommand() → 转发至 L2
+    ↓
+L2 EditorController.execute() → 压入撤销栈 → 调用 L1 API
+    ↓
+L1 执行图操作 → 归一化 → 返回结果 + 增量日志（Delta）
+    ↓
+L2 将 Delta 追加到环形缓冲区 → 广播给所有订阅的 L3 实例
+    ↓
+L3 更新内部 SceneState → 重新计算所有模态的投影数据
+    ↓
+L4 各模态通过轮询 consumeDrawCommands() 获取更新 → 重新渲染
+```
+
+关键设计决策：
+
+· 单向数据流：所有修改必须经过 L2 → L1，禁止模态间直接传递数据
+· 增量而非全量：L1 只返回变化部分（Delta），减少序列化开销
+· 推送+轮询混合：L2 通过回调通知 L3“有新数据”，L3 主动拉取
+
+二、L1：裸核引擎（C）
+
+L1 是已存在的 C 内核，UI 端只通过其 C ABI 调用。以下是 UI 端需要用到的完整 API 列表：
+
+2.1 核心数据类型
+
+```c
+// lv00_core.h
+
+typedef struct lv00_graph_t lv00_graph_t;
+typedef struct lv00_command_t lv00_command_t;
+typedef struct lv00_delta_t lv00_delta_t;
+typedef struct lv00_result_t lv00_result_t;
+
+// 符号坐标
+typedef struct {
+    enum { SYM_RATIONAL, SYM_ALGEBRAIC, SYM_QUADRATIC } type;
+    union {
+        struct { int64_t num, den; } rational;      // 有理数
+        struct { int64_t coeffs[16]; int degree; } algebraic; // 代数数（极小多项式）
+        struct { int64_t a, b, n; } quadratic;      // 二次根式 a + b√n
+    } data;
+} lv00_coord_t;
+
+// 几何节点
+typedef struct {
+    enum { NODE_POINT, NODE_SEGMENT, NODE_REGION, NODE_PORT } type;
+    uint32_t id;
+    lv00_coord_t* coords;
+    int coord_count;
+    uint32_t color;          // RGBA，对应 Trust 颜色
+} lv00_node_t;
+
+// 约束
+typedef struct {
+    enum { CONSTR_INCIDENCE, CONSTR_BETWEENNESS, CONSTR_INTERSECTION, 
+           CONSTR_CONTAINMENT, CONSTR_CONNECTION } type;
+    uint32_t participants[8]; // 参与节点 ID 列表
+    int count;
+} lv00_constraint_t;
+```
+
+2.2 核心 API 函数
+
+```c
+// ========== 图生命周期 ==========
+
+lv00_graph_t* lv00_graph_create(void);
+void lv00_graph_destroy(lv00_graph_t* g);
+
+// ========== 节点操作 ==========
+
+uint32_t lv00_add_node(lv00_graph_t* g, const lv00_node_t* node);
+void lv00_remove_node(lv00_graph_t* g, uint32_t id);
+void lv00_move_node(lv00_graph_t* g, uint32_t id, const lv00_coord_t* new_coords);
+lv00_node_t* lv00_get_node(lv00_graph_t* g, uint32_t id);
+lv00_node_t* lv00_get_all_nodes(lv00_graph_t* g, int* count);
+
+// ========== 约束操作 ==========
+
+void lv00_add_constraint(lv00_graph_t* g, const lv00_constraint_t* c);
+void lv00_remove_constraint(lv00_graph_t* g, uint32_t id); // 约束也有 ID
+lv00_constraint_t* lv00_get_constraints(lv00_graph_t* g, int* count);
+
+// ========== 图归一化（核心！） ==========
+
+// 执行图规范化遍：合并坐标完全相同的冗余节点
+void lv00_normalize(lv00_graph_t* g, bool scope_aware, uint32_t* merged_pairs, int* pair_count);
+// scope_aware=true: 不同 parent_block_id 的节点提示确认
+// merged_pairs: 返回被合并的 {original_id, kept_id} 对列表
+
+// ========== 合一检查 ==========
+
+typedef struct {
+    bool success;
+    uint32_t conflict_node1;   // 若失败，冲突涉及的两个节点
+    uint32_t conflict_node2;
+    int conflict_type;         // 冲突类型：DUPLICATE_COORD, CONSTRAINT_VIOLATION, PORT_MISMATCH
+} lv00_unify_result_t;
+
+lv00_unify_result_t lv00_unify(lv00_graph_t* construction, lv00_graph_t* pattern);
+
+// ========== 增量日志 ==========
+
+// 从上次调用后收集所有变更
+lv00_delta_t* lv00_collect_delta(lv00_graph_t* g);
+void lv00_delta_free(lv00_delta_t* d);
+int lv00_delta_get_record_count(const lv00_delta_t* d);
+lv00_delta_record_t lv00_delta_get_record(const lv00_delta_t* d, int index);
+
+// Delta 记录结构
+typedef struct {
+    uint64_t seq;                    // 全局序列号
+    enum { DELTA_ADD_NODE, DELTA_REMOVE_NODE, DELTA_MOVE_NODE, 
+           DELTA_ADD_CONSTR, DELTA_REMOVE_CONSTR, DELTA_MERGE_NODES,
+           DELTA_NORMALIZE_COMPLETE } type;
+    uint32_t payload_size;
+    uint8_t payload[256];            // 变长，最大 256 字节
+} lv00_delta_record_t;
+
+// ========== 快照（供撤销） ==========
+
+uint64_t lv00_snapshot(lv00_graph_t* g);   // 返回 snapshot_id
+void lv00_restore(lv00_graph_t* g, uint64_t snapshot_id);
+
+// ========== 命令执行 ==========
+
+// 统一命令入口
+lv00_result_t* lv00_execute(lv00_graph_t* g, const lv00_command_t* cmd);
+// cmd 包含：type, params (序列化), snapshot_id (可选)
+
+// 命令类型
+typedef struct {
+    enum { CMD_ADD_NODE, CMD_MOVE_NODE, CMD_REMOVE_NODE,
+           CMD_ADD_CONSTRAINT, CMD_REMOVE_CONSTRAINT,
+           CMD_MERGE_NODES, CMD_APPLY_REWRITE,
+           CMD_PACK_FUNCTION, CMD_UNPACK_FUNCTION } type;
+    uint32_t param_count;
+    uint32_t params[32];               // 实际含义根据 type 变化
+} lv00_command_t;
+
+// 执行结果
+typedef struct {
+    bool success;
+    uint32_t error_code;                // 0=成功，非0=错误码
+    char error_msg[256];
+    uint64_t snapshot_id;              // 执行后的快照 ID
+    uint64_t delta_sequence_start;     // 本次操作产生 Delta 的起始 seq
+    uint64_t delta_sequence_end;       // 结束 seq（含）
+} lv00_result_t;
+```
+
+2.3 L1 实现细节（UI 端需了解的内部机制）
+
+图规范化遍（Normalization）算法：
+
+```
+输入: 约束图 G, scope_aware_flag
+输出: 规范化的 G, merged_pairs 列表
+
+算法:
+1. 遍历所有节点，按符号坐标建立哈希表（key=坐标的规范字符串表示）
+2. 对于同一坐标的节点集合 S：
+   a. 若所有节点属于同一作用域 (parent_block_id, namespace_depth 相同):
+      保留第一个节点，其他节点重定向所有引用到保留节点，删除冗余节点
+   b. 若节点跨不同作用域:
+      若 scope_aware=true: 记录到 pending_merge_list，不自动执行，等待用户确认
+      若 scope_aware=false: 同 a，直接合并
+3. 合并后重新编号，更新所有约束的参与者引用
+4. 返回 merged_pairs: {{redundant_id, kept_id}, ...}
+```
+
+增量日志（Delta）生成机制：
+
+· L1 内部维护一个环形缓冲区，默认容量 10000 条记录
+· 每次 lv00_execute() 调用成功后，自动将本次操作产生的所有变更记录追加到缓冲区
+· lv00_collect_delta() 从当前读指针开始，返回截至写指针的所有记录，并更新读指针
+· 若读指针落后写指针超过 8000 条（80% 容量），L2 应主动拉取，防止溢出
+
+三、L2：编辑控制器（C++）
+
+L2 是 UI 端直接交互的顶层接口，负责管理会话状态、撤销栈和 L1 通信。
+
+3.1 核心类定义
+
+```cpp
+// editor_controller.h
+#pragma once
+#include <vector>
+#include <functional>
+#include <memory>
+#include <mutex>
+
+class EditorController {
+public:
+    EditorController();
+    ~EditorController();
+
+    // ========== 初始化 ==========
+    bool initialize(const std::string& axiom_package_path);
+    void shutdown();
+
+    // ========== 命令执行（核心入口） ==========
+    struct CommandResult {
+        bool success;
+        uint32_t error_code;
+        std::string error_message;
+        uint64_t snapshot_id;
+    };
+    
+    CommandResult execute(const Command& cmd);
+
+    // ========== 撤销/重做 ==========
+    bool canUndo() const;
+    bool canRedo() const;
+    CommandResult undo();
+    CommandResult redo();
+    void clearHistory();
+
+    // ========== 快照 ==========
+    uint64_t snapshot();               // 当前状态打标
+    CommandResult restore(uint64_t snapshot_id);
+
+    // ========== 增量日志订阅 ==========
+    using DeltaCallback = std::function<void(const Delta&)>;
+    uint32_t subscribe(DeltaCallback callback);   // 返回订阅者 ID
+    void unsubscribe(uint32_t subscriber_id);
+    void forceFlushDeltas();           // 强制推送所有待处理 Delta
+
+    // ========== 状态查询 ==========
+    struct EditorState {
+        int node_count;
+        int constraint_count;
+        int proof_count;
+        std::string last_error;
+        uint64_t current_snapshot_id;
+    };
+    EditorState getState() const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> pImpl;
+};
+```
+
+3.2 命令系统（L1 和 L2 共享协议）
+
+```cpp
+// command.h
+#pragma once
+#include <vector>
+#include <cstdint>
+#include <string>
+
+enum class CommandType : uint8_t {
+    ADD_NODE,
+    MOVE_NODE,
+    DELETE_NODE,
+    ADD_CONSTRAINT,
+    DELETE_CONSTRAINT,
+    MERGE_NODES,
+    APPLY_REWRITE,
+    PACK_FUNCTION,
+    UNPACK_FUNCTION,
+    ADD_REGION,
+    DELETE_REGION,
+    NORMALIZE,
+    SNAPSHOT,
+    RESTORE,
+    UNDO,
+    REDO,
+};
+
+struct Command {
+    CommandType type;
+    uint32_t param_count;
+    uint32_t params[32];              // 定长，最大支持 32 个参数
+    std::vector<uint8_t> blob;        // 变长数据（如符号坐标序列化）
+
+    // 工厂方法
+    static Command makeAddNode(const Node& node);
+    static Command makeMoveNode(uint32_t node_id, const Coord& new_pos);
+    static Command makeAddConstraint(ConstraintType type, const std::vector<uint32_t>& participants);
+    static Command makeDeleteNode(uint32_t node_id);
+    static Command makePackFunction(const std::vector<uint32_t>& internal_nodes,
+                                    uint32_t input_port, uint32_t output_port);
+    static Command makeNormalize(bool scope_aware);
+
+    // 序列化（用于传输给 L1 或通过网络）
+    std::vector<uint8_t> serialize() const;
+    static Command deserialize(const std::vector<uint8_t>& data);
+};
+```
+
+3.3 撤销栈实现
+
+```cpp
+// undo_stack.h
+#pragma once
+#include <vector>
+#include <stack>
+
+struct UndoState {
+    uint64_t snapshot_id;              // L1 快照 ID
+    std::vector<Command> commands_since_snapshot;  // 自快照后执行的命令
+    std::string description;           // 用户可读描述
+};
+
+class UndoStack {
+public:
+    void push(const UndoState& state);
+    UndoState popUndo();               // 从撤销栈弹出
+    UndoState popRedo();               // 从重做栈弹出
+    void pushRedo(const UndoState& state);
+    bool canUndo() const { return !undoStack.empty(); }
+    bool canRedo() const { return !redoStack.empty(); }
+    void clear();
+    size_t undoCount() const { return undoStack.size(); }
+    size_t redoCount() const { return redoStack.size(); }
+
+private:
+    std::vector<UndoState> undoStack;
+    std::vector<UndoState> redoStack;
+    static constexpr size_t MAX_HISTORY = 1000;
+};
+```
+
+3.4 增量日志环形缓冲区
+
+```cpp
+// delta_ring_buffer.h
+#pragma once
+#include <atomic>
+#include <vector>
+
+class DeltaRingBuffer {
+public:
+    explicit DeltaRingBuffer(size_t capacity = 10000);
+    
+    // 生产者（L2 调用，从 L1 获取 Delta 后推送）
+    bool push(const Delta& delta);     // 返回 false 表示缓冲区满
+    void pushBulk(const std::vector<Delta>& deltas);
+    
+    // 消费者（L3 订阅者调用）
+    struct ReadResult {
+        std::vector<Delta> deltas;
+        uint64_t next_seq;             // 下次读取的起始序列号
+        bool has_more;
+    };
+    ReadResult read(uint64_t from_seq, size_t max_count = 100);
+    
+    // 状态
+    uint64_t getWriteSeq() const;
+    uint64_t getReadSeq() const;       // 最旧未读序列号
+    float getUtilization() const;      // 0~1，水位
+
+private:
+    std::vector<Delta> buffer;
+    size_t capacity;
+    std::atomic<uint64_t> writeSeq;
+    std::atomic<uint64_t> readSeq;
+    std::mutex mutex;
+};
+```
+
+3.5 EditorController 实现细节
+
+execute() 完整流程：
+
+```
+EditorController::execute(cmd)
+    ↓
+1. 将 cmd 压入本地命令历史（用于 UI 显示）
+    ↓
+2. 若 cmd.type == UNDO: 调用 undo()，直接返回
+    ↓
+3. 若 cmd.type == REDO: 调用 redo()，直接返回
+    ↓
+4. 调用 L1: lv00_execute(g, cmd_to_l1)
+    ↓
+5. 若 L1 返回 success:
+   a. 收集 Delta: lv00_collect_delta(g)
+   b. 将 Delta 追加到 ringBuffer
+   c. 创建 UndoState: { snapshot_id, commands_since_last_snapshot }
+   d. 若当前已处于未保存状态（已有未打标的命令），先合并再压栈
+   e. 推送通知给所有订阅者: callback(delta)
+   f. 返回成功
+    ↓
+6. 若 L1 返回失败:
+   a. 记录错误到 state.last_error
+   b. 返回失败，不修改撤销栈
+```
+
+undo() 完整流程：
+
+```
+EditorController::undo()
+    ↓
+1. 检查 undoStack.canUndo()
+    ↓
+2. 从撤销栈弹出 UndoState
+    ↓
+3. 调用 L1: lv00_restore(g, state.snapshot_id)
+    ↓
+4. 将 state.commands_since_snapshot 反转后压入 redoStack
+    ↓
+5. 收集 Delta（L1 恢复后产生的变更） → 推送给订阅者
+    ↓
+6. 返回成功
+```
+
+四、L3：多模态投影引擎（C++）
+
+L3 是 UI 端的核心——它负责将 L2 提供的几何数据，投影成六种不同模态可消费的视图。
+
+4.1 核心类定义
+
+```cpp
+// scene_controller.h
+#pragma once
+#include <vector>
+#include <unordered_map>
+#include <functional>
+#include <memory>
+
+class SceneController {
+public:
+    SceneController(EditorController* editor);
+    ~SceneController();
+
+    // ========== 与 L2 绑定 ==========
+    void attach(EditorController* editor);
+    void detach();
+    void onDelta(const Delta& delta);   // L2 回调入口
+
+    // ========== 通用状态 ==========
+    struct SceneState {
+        std::vector<Node> nodes;
+        std::vector<Constraint> constraints;
+        std::vector<Proof> proofs;
+        std::vector<NodeId> selection;
+        Viewport viewport;
+    };
+    const SceneState& getState() const;
+
+    // ========== 选择管理（所有模态共享） ==========
+    void selectNode(NodeId id);
+    void selectNodes(const std::vector<NodeId>& ids);
+    void clearSelection();
+    std::vector<NodeId> getSelection() const;
+
+    // ========== M1: 画布投影 ==========
+    struct DrawCommand {
+        enum Type { LINE, CIRCLE, ARC, RECT, TEXT, POINT, PORT, HIGHLIGHT };
+        Type type;
+        float x1, y1, x2, y2;          // 世界坐标
+        float radius;
+        std::string text;
+        uint32_t color;
+        float lineWidth;
+        enum LineStyle { SOLID, DASHED, DOTTED } style;
+    };
+    std::vector<DrawCommand> getDrawCommands();  // 增量返回，调用后清空
+
+    struct Viewport {
+        float offsetX, offsetY;
+        float scale;                   // 像素/世界单位
+        int canvasWidth, canvasHeight; // 像素
+        float worldToScreenX(float wx, float wy, float* sx) const;
+        float screenToWorldX(float sx, float sy, float* wx) const;
+    };
+    Viewport getViewport() const;
+    void setViewport(const Viewport& vp);
+
+    // ========== M1: 交互输入 ==========
+    void onMouseDown(float screenX, float screenY, MouseButton btn);
+    void onMouseMove(float screenX, float screenY);
+    void onMouseUp(float screenX, float screenY, MouseButton btn);
+    void onMouseWheel(float delta, float centerX, float centerY);
+    void onKeyDown(KeyCode key, KeyModifiers mod);
+    void onKeyUp(KeyCode key, KeyModifiers mod);
+
+    // ========== M2: 文本投影 ==========
+    std::string getTextRepresentation() const;        // 导出当前图为 .lvz 文本
+    void applyTextEdit(const std::string& text);      // 从文本增量更新
+
+    // ========== M3: 表格投影 ==========
+    struct NodeRow {
+        uint32_t id;
+        std::string name;
+        std::string type;              // "point", "segment", "region"
+        std::string coordX, coordY;    // 符号坐标的字符串表示
+        uint32_t color;
+        int constraint_count;
+        uint32_t parent_block;
+    };
+    struct ConstraintRow {
+        uint32_t id;
+        std::string type;
+        std::string participants;      // "A, B, C"
+        bool is_satisfied;
+    };
+    std::vector<NodeRow> getNodesAsTable() const;
+    std::vector<ConstraintRow> getConstraintsAsTable() const;
+    void updateNodeCell(uint32_t node_id, const std::string& field, const std::string& value);
+    void updateConstraintCell(uint32_t constr_id, const std::string& field, const std::string& value);
+
+    // ========== M4: 依赖树投影 ==========
+    struct TreeNode {
+        std::string id;                // 唯一标识
+        std::string label;             // 显示名称
+        uint32_t color;               // Trust 颜色
+        std::string status;           // "proved", "pending", "failed", "assumed"
+        std::vector<TreeNode> children;
+        uint32_t node_id;             // 对应几何节点 ID（如果有）
+    };
+    TreeNode getDependencyTree() const;
+    TreeNode getProofTree() const;     // 证明步骤的树形结构
+
+    // ========== M5: 终端投影 ==========
+    struct CommandHistoryEntry {
+        std::string command;
+        std::string result;
+        uint64_t timestamp;
+        bool success;
+    };
+    std::vector<CommandHistoryEntry> getCommandHistory() const;
+    std::vector<std::string> getCommandCompletions(const std::string& prefix) const;
+
+    // ========== M6: 拓扑投影 ==========
+    struct Port {
+        uint32_t id;
+        std::string name;
+        enum { PORT_INPUT, PORT_OUTPUT } direction;
+        uint32_t connected_to;         // 0=未连接
+    };
+    struct BlockNode {
+        uint32_t id;
+        std::string name;
+        std::vector<Port> inputs;
+        std::vector<Port> outputs;
+        float layoutX, layoutY;        // 拓扑视图中的视觉位置（用户可拖拽）
+    };
+    struct TopologyEdge {
+        uint32_t from_block;
+        uint32_t from_port;
+        uint32_t to_block;
+        uint32_t to_port;
+    };
+    struct TopologyGraph {
+        std::vector<BlockNode> blocks;
+        std::vector<TopologyEdge> edges;
+    };
+    TopologyGraph getTopologyView() const;
+    void setTopologyLayout(uint32_t block_id, float x, float y);
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> pImpl;
+};
+```
+
+4.2 SceneController 内部数据结构
+
+```cpp
+// scene_controller_impl.h (私有)
+struct SceneController::Impl {
+    // 外部依赖
+    EditorController* editor;
+    
+    // 核心数据（从 L2 镜像）
+    std::vector<Node> nodes;
+    std::vector<Constraint> constraints;
+    std::vector<Proof> proofs;
+    std::vector<NodeId> selection;
+    uint64_t current_delta_seq;          // 已处理的最后一条 Delta 序列号
+    
+    // M1 画布专用
+    Viewport viewport;
+    DragState drag;                      // 拖拽状态机
+    HoverState hover;                    // 悬停状态
+    std::vector<DrawCommand> drawQueue;  // 累积的绘制指令
+    
+    // M2 文本专用
+    std::string cachedTextRepresentation;
+    
+    // M3 表格专用
+    std::vector<NodeRow> cachedNodeRows;
+    std::vector<ConstraintRow> cachedConstraintRows;
+    
+    // M4 树专用
+    TreeNode cachedDependencyTree;
+    TreeNode cachedProofTree;
+    
+    // M5 终端专用
+    std::vector<CommandHistoryEntry> commandHistory;
+    static constexpr int MAX_HISTORY = 500;
+    
+    // M6 拓扑专用
+    std::unordered_map<uint32_t, float> topologyLayoutX;  // block_id → x
+    std::unordered_map<uint32_t, float> topologyLayoutY;  // block_id → y
+    
+    // 同步锁（L3 可能被多线程消费）
+    mutable std::shared_mutex mutex;
+};
+```
+
+4.3 M1 核心算法：命中测试（Hit Test）
+
+命中测试用于判断鼠标点击是否落在某个几何对象上。
+
+```cpp
+// hit_test.cpp
+
+struct HitResult {
+    enum { NONE, NODE, CONSTRAINT, REGION } type;
+    uint32_t id;
+    float distance;          // 屏幕距离（像素）
+};
+
+HitResult SceneController::hitTest(float screenX, float screenY) {
+    HitResult best;
+    best.type = HitResult::NONE;
+    best.distance = INFINITY;
+    
+    // 1. 将屏幕坐标转为世界坐标
+    float worldX = viewport.screenToWorldX(screenX);
+    float worldY = viewport.screenToWorldY(screenY);
+    
+    // 2. 遍历所有节点
+    for (const auto& node : state.nodes) {
+        float dx = node.coords[0].toDouble() - worldX;
+        float dy = node.coords[1].toDouble() - worldY;
+        // 世界距离 → 屏幕距离
+        float screenDist = sqrt(dx*dx + dy*dy) * viewport.scale;
+        
+        // 命中阈值：10 像素（可配置）
+        if (screenDist < 10.0f && screenDist < best.distance) {
+            best.type = HitResult::NODE;
+            best.id = node.id;
+            best.distance = screenDist;
+        }
+    }
+    
+    // 3. 若无命中，检测线段（点到线段距离）
+    if (best.type == HitResult::NONE) {
+        for (const auto& constraint : state.constraints) {
+            if (constraint.type == CONSTR_SEGMENT) {
+                // 计算点到线段的屏幕距离
+                float dist = pointToSegmentDistance(worldX, worldY, 
+                                                     getNode(constraint.p0), 
+                                                     getNode(constraint.p1));
+                if (dist < 8.0f && dist < best.distance) {
+                    best.type = HitResult::CONSTRAINT;
+                    best.id = constraint.id;
+                    best.distance = dist;
+                }
+            }
+        }
+    }
+    
+    return best;
+}
+```
+
+4.4 M1 核心算法：拖拽状态机
+
+```cpp
+// drag_state.h
+
+enum class DragMode {
+    NONE,          // 空闲
+    SELECTING,     // 框选进行中
+    DRAGGING,      // 拖拽节点进行中
+    PANNING,       // 平移画布进行中
+};
+
+struct DragState {
+    DragMode mode = DragMode::NONE;
+    float startScreenX, startScreenY;   // 按下时鼠标位置
+    float startWorldX, startWorldY;     // 按下时对应的世界坐标
+    NodeId draggedNodeId = 0;           // 若拖拽的是节点
+    std::vector<NodeId> selectedBefore; // 拖拽前的选中列表
+    bool wasShiftDown = false;          // 是否为多选追加
+    float currentScreenX, currentScreenY;
+    float accumulatedWorldDeltaX, accumulatedWorldDeltaY; // 累积偏移（用于提交）
+};
+
+void SceneController::onMouseDown(float sx, float sy, MouseButton btn) {
+    if (btn == MouseButton::LEFT) {
+        HitResult hit = hitTest(sx, sy);
+        
+        if (hit.type == HitResult::NODE) {
+            // 如果 Shift 按下，追加到选中列表
+            if (isShiftDown()) {
+                if (isSelected(hit.id)) {
+                    removeFromSelection(hit.id);
+                } else {
+                    addToSelection(hit.id);
+                }
+            } else {
+                // 普通点击：选中并准备拖拽
+                selectNode(hit.id);
+                drag.mode = DragMode::DRAGGING;
+                drag.draggedNodeId = hit.id;
+                drag.startScreenX = sx;
+                drag.startScreenY = sy;
+                auto node = getNode(hit.id);
+                drag.startWorldX = node.coords[0];
+                drag.startWorldY = node.coords[1];
+            }
+        } else {
+            // 点击空白处
+            if (!isShiftDown()) {
+                clearSelection();
+            }
+            drag.mode = DragMode::SELECTING;
+            drag.startScreenX = sx;
+            drag.startScreenY = sx;
+        }
+    } else if (btn == MouseButton::MIDDLE || btn == MouseButton::RIGHT) {
+        drag.mode = DragMode::PANNING;
+        drag.startScreenX = sx;
+        drag.startScreenY = sy;
+    }
+}
+
+void SceneController::onMouseMove(float sx, float sy) {
+    switch (drag.mode) {
+        case DragMode::DRAGGING: {
+            float dScreenX = sx - drag.startScreenX;
+            float dScreenY = sy - drag.startScreenY;
+            // 屏幕偏移 → 世界偏移
+            float dWorldX = dScreenX / viewport.scale;
+            float dWorldY = dScreenY / viewport.scale;
+            
+            // 累积偏移，但每帧生成临时绘制指令（即时反馈）
+            float newWorldX = drag.startWorldX + dWorldX;
+            float newWorldY = drag.startWorldY + dWorldY;
+            
+            // 生成临时绘制指令（亮绿色，半透明）
+            DrawCommand temp;
+            temp.type = DrawCommand::POINT;
+            temp.x1 = newWorldX;
+            temp.y1 = newWorldY;
+            temp.color = 0x66FFAA88;   // 亮绿色半透明
+            temp.radius = 6;
+            drawQueue.push_back(temp);
+            
+            // 显示辅助线（原位置→新位置虚线）
+            DrawCommand line;
+            line.type = DrawCommand::LINE;
+            line.x1 = drag.startWorldX;
+            line.y1 = drag.startWorldY;
+            line.x2 = newWorldX;
+            line.y2 = newWorldY;
+            line.color = 0x66FFAA44;
+            line.style = DrawCommand::DASHED;
+            drawQueue.push_back(line);
+            
+            break;
+        }
+        case DragMode::SELECTING: {
+            // 绘制选择框
+            drawSelectionRect(drag.startScreenX, drag.startScreenY, sx, sy);
+            break;
+        }
+        case DragMode::PANNING: {
+            float dX = (sx - drag.startScreenX) / viewport.scale;
+            float dY = (sy - drag.startScreenY) / viewport.scale;
+            viewport.offsetX += dX;
+            viewport.offsetY += dY;
+            drag.startScreenX = sx;
+            drag.startScreenY = sy;
+            break;
+        }
+    }
+}
+
+void SceneController::onMouseUp(float sx, float sy, MouseButton btn) {
+    switch (drag.mode) {
+        case DragMode::DRAGGING: {
+            // 计算最终位置
+            float dWorldX = (sx - drag.startScreenX) / viewport.scale;
+            float dWorldY = (sy - drag.startScreenY) / viewport.scale;
+            float finalX = drag.startWorldX + dWorldX;
+            float finalY = drag.startWorldY + dWorldY;
+            
+            // 构造命令 → 发送给 L2
+            Command cmd = Command::makeMoveNode(drag.draggedNodeId, 
+                                                Coord::fromDouble(finalX, finalY));
+            editor->execute(cmd);
+            
+            drag.mode = DragMode::NONE;
+            break;
+        }
+        case DragMode::SELECTING: {
+            // 计算选择框内的节点
+            std::vector<NodeId> hitNodes = getNodesInRect(
+                drag.startScreenX, drag.startScreenY, sx, sy
+            );
+            if (isShiftDown()) {
+                // 追加选择
+                for (auto id : hitNodes) {
+                    if (!isSelected(id)) addToSelection(id);
+                }
+            } else {
+                setSelection(hitNodes);
+            }
+            drag.mode = DragMode::NONE;
+            break;
+        }
+        case DragMode::PANNING: {
+            drag.mode = DragMode::NONE;
+            break;
+        }
+    }
+}
+```
+
+4.5 M2 文本投影：文本序列化与反序列化
+
+```cpp
+// text_serializer.h
+
+class TextSerializer {
+public:
+    // 将当前约束图导出为 .lvz 文本
+    static std::string serialize(const std::vector<Node>& nodes, 
+                                 const std::vector<Constraint>& constraints);
+    
+    // 解析 .lvz 文本，返回命令列表（可被 EditorController 执行）
+    static std::vector<Command> deserialize(const std::string& text);
+    
+    // 增量解析：从文本的某一行开始解析，返回该行对应的命令
+    static Command parseLine(const std::string& line);
+};
+
+// serialization.cpp
+std::string TextSerializer::serialize(const std::vector<Node>& nodes, 
+                                       const std::vector<Constraint>& constraints) {
+    std::stringstream ss;
+    
+    // 1. 输出所有点
+    for (const auto& node : nodes) {
+        if (node.type == NODE_POINT) {
+            ss << "point " << node.name << " at (";
+            ss << node.coords[0].toString() << ", ";
+            ss << node.coords[1].toString() << ")\n";
+        }
+    }
+    
+    // 2. 输出所有线段
+    for (const auto& c : constraints) {
+        if (c.type == CONSTR_SEGMENT) {
+            ss << "segment " << c.name << " between ";
+            ss << getNode(c.participants[0]).name << " and ";
+            ss << getNode(c.participants[1]).name << "\n";
+        }
+    }
+    
+    // 3. 输出所有约束
+    for (const auto& c : constraints) {
+        if (c.type == CONSTR_EQUAL || c.type == CONSTR_PERPENDICULAR || 
+            c.type == CONSTR_PARALLEL || c.type == CONSTR_COLLINEAR) {
+            ss << "constraint " << constraintTypeToString(c.type) << "(";
+            for (int i = 0; i < c.count; i++) {
+                if (i > 0) ss << ", ";
+                ss << getNode(c.participants[i]).name;
+            }
+            ss << ")\n";
+        }
+    }
+    
+    return ss.str();
+}
+
+Command TextSerializer::parseLine(const std::string& line) {
+    // 去掉首尾空格
+    std::string trimmed = trim(line);
+    if (trimmed.empty() || trimmed[0] == '#') return Command::makeNoop();
+    
+    // 词法分析
+    std::vector<std::string> tokens = tokenize(trimmed);
+    if (tokens.empty()) return Command::makeNoop();
+    
+    if (tokens[0] == "point") {
+        // point <name> at (<x>, <y>)
+        // tokens: [point, name, at, (, x, ,, y, )]
+        std::string name = tokens[1];
+        double x = std::stod(tokens[4]);
+        double y = std::stod(tokens[6]);
+        return Command::makeAddNode(name, Coord::fromDouble(x, y));
+        
+    } else if (tokens[0] == "segment") {
+        // segment <name> between <a> and <b>
+        std::string name = tokens[1];
+        std::string a = tokens[3];
+        std::string b = tokens[5];
+        return Command::makeAddSegment(name, a, b);
+        
+    } else if (tokens[0] == "constraint") {
+        // constraint <type>(<a>, <b>, ...)
+        std::string type = tokens[1];
+        // tokens[2] = "("
+        std::vector<std::string> params;
+        for (size_t i = 3; i < tokens.size(); i++) {
+            if (tokens[i] == ")" || tokens[i] == ",") continue;
+            params.push_back(tokens[i]);
+        }
+        return Command::makeAddConstraint(type, params);
+    }
+    
+    return Command::makeNoop();
+}
+```
+
+4.6 M3 表格投影：数据映射
+
+```cpp
+// table_projection.cpp
+
+std::vector<SceneController::NodeRow> SceneController::getNodesAsTable() const {
+    std::vector<NodeRow> rows;
+    rows.reserve(state.nodes.size());
+    
+    for (const auto& node : state.nodes) {
+        NodeRow row;
+        row.id = node.id;
+        row.name = node.name;
+        row.type = nodeTypeToString(node.type);
+        row.coordX = node.coords[0].toString();
+        row.coordY = node.coords[1].toString();
+        row.color = node.color;
+        row.constraint_count = countConstraintsForNode(node.id);
+        row.parent_block = node.parent_block_id;
+        rows.push_back(row);
+    }
+    
+    return rows;
+}
+
+void SceneController::updateNodeCell(uint32_t node_id, const std::string& field, 
+                                      const std::string& value) {
+    if (field == "coordX" || field == "coordX") {
+        // 解析用户输入的坐标值（如 "1+sqrt(2)"）
+        Coord newCoord = Coord::fromString(value);
+        
+        Command cmd;
+        if (field == "coordX") {
+            cmd = Command::makeMoveNode(node_id, newCoord, getNode(node_id).coords[1]);
+        } else {
+            cmd = Command::makeMoveNode(node_id, getNode(node_id).coords[0], newCoord);
+        }
+        editor->execute(cmd);
+    } else if (field == "name") {
+        Command cmd = Command::makeRenameNode(node_id, value);
+        editor->execute(cmd);
+    }
+}
+```
+
+4.7 M4 依赖树：树的构建算法
+
+```cpp
+// dependency_tree.cpp
+
+SceneController::TreeNode SceneController::getDependencyTree() const {
+    TreeNode root;
+    root.id = "__root__";
+    root.label = "证明依赖树";
+    root.color = 0xFFFFFF;
+    root.status = "root";
+    
+    // 1. 找到所有定理块和引理块
+    std::vector<Proof> proofs = getProofs();
+    
+    for (const auto& proof : proofs) {
+        TreeNode proofNode;
+        proofNode.id = "proof_" + std::to_string(proof.id);
+        proofNode.label = proof.name;
+        proofNode.color = proof.trust_color;
+        proofNode.status = proof.is_proved ? "proved" : "pending";
+        proofNode.node_id = proof.root_node_id;
+        
+        // 2. 递归收集依赖
+        collectDependencies(proof, proofNode);
+        
+        root.children.push_back(proofNode);
+    }
+    
+    return root;
+}
+
+void SceneController::collectDependencies(const Proof& proof, TreeNode& node) {
+    // 遍历 proof 使用的所有引理
+    for (const auto& lemma_id : proof.depends_on) {
+        const Lemma& lemma = getLemma(lemma_id);
+        TreeNode child;
+        child.id = "lemma_" + std::to_string(lemma.id);
+        child.label = lemma.name;
+        child.color = lemma.trust_color;
+        child.status = lemma.is_proved ? "proved" : "pending";
+        child.node_id = lemma.root_node_id;
+        
+        // 递归：引理可能依赖其他引理
+        collectDependencies(lemma, child);
+        
+        node.children.push_back(child);
+    }
+    
+    // 3. 遍历 proof 使用的公理
+    for (const auto& axiom_id : proof.axiom_refs) {
+        const Axiom& axiom = getAxiom(axiom_id);
+        TreeNode child;
+        child.id = "axiom_" + std::to_string(axiom.id);
+        child.label = axiom.name + " (公理)";
+        child.color = 0x88CCFF;   // 公理用浅蓝色
+        child.status = "assumed";
+        child.node_id = 0;
+        node.children.push_back(child);
+    }
+}
+```
+
+4.8 M5 终端：命令解析与执行
+
+```cpp
+// terminal_handler.cpp
+
+std::vector<std::string> SceneController::getCommandCompletions(const std::string& prefix) const {
+    std::vector<std::string> completions;
+    
+    // 预定义命令列表
+    static std::vector<std::string> builtins = {
+        "add point", "add segment", "add constraint", "add region",
+        "move point", "remove point", "remove constraint",
+        "pack function", "unpack function",
+        "prove", "check proof",
+        "load axiom", "save", "normalize",
+        "undo", "redo", "history"
+    };
+    
+    for (const auto& cmd : builtins) {
+        if (cmd.find(prefix) == 0) {
+            completions.push_back(cmd);
+        }
+    }
+    
+    // 加上节点名称补全（如 point A 中 A）
+    for (const auto& node : state.nodes) {
+        std::string suggestion = "point " + node.name;
+        if (suggestion.find(prefix) == 0) {
+            completions.push_back(suggestion);
+        }
+    }
+    
+    return completions;
+}
+```
+
+4.9 M6 拓扑视图：端口提取算法
+
+```cpp
+// topology_extractor.cpp
+
+SceneController::TopologyGraph SceneController::getTopologyView() const {
+    TopologyGraph result;
+    
+    // 1. 找到所有函数块节点
+    for (const auto& node : state.nodes) {
+        if (node.type == NODE_FUNCTION_BLOCK) {
+            BlockNode block;
+            block.id = node.id;
+            block.name = node.name;
+            
+            // 提取输入端口
+            for (const auto& port : node.ports) {
+                if (port.direction == PORT_INPUT) {
+                    block.inputs.push_back({port.id, port.name, PORT_INPUT, port.connected_to});
+                } else {
+                    block.outputs.push_back({port.id, port.name, PORT_OUTPUT, port.connected_to});
+                }
+            }
+            
+            // 恢复用户拖拽保存的布局位置
+            auto itX = topologyLayoutX.find(node.id);
+            auto itY = topologyLayoutY.find(node.id);
+            if (itX != topologyLayoutX.end() && itY != topologyLayoutY.end()) {
+                block.layoutX = itX->second;
+                block.layoutY = itY->second;
+            } else {
+                // 自动布局：简单网格
+                block.layoutX = (result.blocks.size() % 4) * 300.0f;
+                block.layoutY = (result.blocks.size() / 4) * 150.0f;
+            }
+            
+            result.blocks.push_back(block);
+        }
+    }
+    
+    // 2. 提取端口间的连接关系
+    for (const auto& constraint : state.constraints) {
+        if (constraint.type == CONSTR_CONNECTION) {
+            uint32_t from_block = getNode(constraint.from_port).parent_block_id;
+            uint32_t to_block = getNode(constraint.to_port).parent_block_id;
+            
+            TopologyEdge edge;
+            edge.from_block = from_block;
+            edge.from_port = constraint.from_port;
+            edge.to_block = to_block;
+            edge.to_port = constraint.to_port;
+            result.edges.push_back(edge);
+        }
+    }
+    
+    return result;
+}
+```
+
+五、L4a：M1 几何画布（Web 实现）
+
+5.1 总体架构
+
+M1 几何画布是 Web 应用的核心组件，负责：
+
+1. 从 L3 获取 DrawCommand 列表并渲染到 Canvas
+2. 捕获鼠标/键盘事件，转发给 L3 的 onMouseDown/Move/Up/onKeyDown
+3. 本地平滑渲染（帧率 60fps）
+
+5.2 React 组件定义
+
+```tsx
+// CanvasView.tsx
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { SceneController } from '@lv00/scene-controller';
+
+interface CanvasViewProps {
+    controller: SceneController;
+    width?: number;
+    height?: number;
+}
+
+export const CanvasView: React.FC<CanvasViewProps> = ({ 
+    controller, 
+    width = 800, 
+    height = 600 
+}) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [isReady, setIsReady] = useState(false);
+    
+    // 渲染循环
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        let animationId: number;
+        let isRunning = true;
+        
+        const render = () => {
+            if (!isRunning) return;
+            
+            // 1. 从 L3 获取绘制指令
+            const commands = controller.consumeDrawCommands();
+            
+            // 2. 执行绘制
+            renderCommands(ctx, commands);
+            
+            // 3. 下一帧
+            animationId = requestAnimationFrame(render);
+        };
+        
+        render();
+        
+        return () => {
+            isRunning = false;
+            cancelAnimationFrame(animationId);
+        };
+    }, [controller]);
+    
+    // 事件转发
+    const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        controller.onMouseDown(x, y, e.button);
+    }, [controller]);
+    
+    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        controller.onMouseMove(x, y);
+    }, [controller]);
+    
+    const handleMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        controller.onMouseUp(x, y, e.button);
+    }, [controller]);
+    
+    const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
+        e.preventDefault();
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        controller.onMouseWheel(e.deltaY > 0 ? -1 : 1, x, y);
+    }, [controller]);
+    
+    return (
+        <canvas
+            ref={canvasRef}
+            width={width * window.devicePixelRatio}
+            height={height * window.devicePixelRatio}
+            style={{ 
+                width: `${width}px`, 
+                height: `${height}px`,
+                display: 'block',
+                background: '#0a0a0a',
+                cursor: 'crosshair'
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onWheel={handleWheel}
+            onContextMenu={(e) => e.preventDefault()}
+        />
+    );
+};
+
+// ========== 渲染器实现 ==========
+
+interface RenderCommand {
+    type: 'line' | 'circle' | 'arc' | 'rect' | 'text' | 'point' | 'port' | 'highlight';
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    radius: number;
+    text: string;
+    color: number;      // RGBA 32位
+    lineWidth: number;
+    style: 'solid' | 'dashed' | 'dotted';
+}
+
+function renderCommands(ctx: CanvasRenderingContext2D, commands: RenderCommand[]) {
+    for (const cmd of commands) {
+        // 颜色转换
+        const color = intToRGBA(cmd.color);
+        
+        switch (cmd.type) {
+            case 'line':
+                ctx.beginPath();
+                ctx.moveTo(cmd.x1, cmd.y1);
+                ctx.lineTo(cmd.x2, cmd.y2);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = cmd.lineWidth || 2;
+                setLineStyle(ctx, cmd.style);
+                ctx.stroke();
+                break;
+                
+            case 'point':
+                ctx.beginPath();
+                ctx.arc(cmd.x1, cmd.y1, cmd.radius || 5, 0, 2 * Math.PI);
+                ctx.fillStyle = color;
+                ctx.fill();
+                break;
+                
+            case 'circle':
+                ctx.beginPath();
+                ctx.arc(cmd.x1, cmd.y1, cmd.radius || 10, 0, 2 * Math.PI);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = cmd.lineWidth || 2;
+                ctx.stroke();
+                break;
+                
+            case 'text':
+                ctx.fillStyle = color;
+                ctx.font = '14px monospace';
+                ctx.fillText(cmd.text, cmd.x1, cmd.y1);
+                break;
+                
+            case 'highlight':
+                ctx.save();
+                ctx.shadowColor = 'rgba(255,255,255,0.3)';
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(cmd.x1, cmd.y1, cmd.radius || 15, 0, 2 * Math.PI);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.restore();
+                break;
+        }
+    }
+}
+
+function intToRGBA(color: number): string {
+    const a = (color >> 24) & 0xFF;
+    const r = (color >> 16) & 0xFF;
+    const g = (color >> 8) & 0xFF;
+    const b = color & 0xFF;
+    return `rgba(${r}, ${g}, ${b}, ${a/255})`;
+}
+
+function setLineStyle(ctx: CanvasRenderingContext2D, style: string) {
+    if (style === 'dashed') {
+        ctx.setLineDash([8, 6]);
+    } else if (style === 'dotted') {
+        ctx.setLineDash([3, 5]);
+    } else {
+        ctx.setLineDash([]);
+    }
+}
+```
+
+5.3 性能优化：渲染指令增量更新
+
+```tsx
+// CanvasView.optimized.tsx (增量渲染版本)
+
+function useCanvasRenderer(controller: SceneController) {
+    const drawQueueRef = useRef<RenderCommand[]>([]);
+    const frameRef = useRef<number>(0);
+    
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // 每帧从 L3 拉取新的绘制指令（增量）
+            const newCommands = controller.consumeDrawCommands();
+            if (newCommands.length > 0) {
+                // 追加到本地队列
+                drawQueueRef.current.push(...newCommands);
+            }
+            
+            // 触发渲染（不重绘完整场景，只绘制增量部分）
+            // 但 Canvas 2D 无法增量绘制，这里使用双缓冲技术：
+            // 维护一个离屏 Canvas 保存完整场景，每帧只绘制新增部分
+        }, 1000 / 60); // 60fps
+        
+        return () => clearInterval(interval);
+    }, [controller]);
+}
+```
+
+六、L4b：M2 结构化文本编辑器
+
+6.1 技术选型：Monaco Editor
+
+Monaco Editor 是 VS Code 的编辑器核心，支持语法高亮、自动补全、增量解析。
+
+6.2 React 组件定义
+
+```tsx
+// TextView.tsx
+import React, { useRef, useEffect, useState } from 'react';
+import * as monaco from 'monaco-editor';
+
+interface TextViewProps {
+    controller: SceneController;
+    initialText?: string;
+}
+
+export const TextView: React.FC<TextViewProps> = ({ controller, initialText = '' }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    // 初始化编辑器
+    useEffect(() => {
+        if (!containerRef.current) return;
+        
+        // 1. 从 L3 获取当前图的文本表示
+        const initialContent = initialText || controller.getTextRepresentation();
+        
+        // 2. 创建编辑器
+        const editor = monaco.editor.create(containerRef.current, {
+            value: initialContent,
+            language: 'lv00',
+            theme: 'vs-dark',
+            automaticLayout: true,
+            fontSize: 14,
+            fontFamily: 'monospace',
+            minimap: { enabled: false },
+            scrollbar: { vertical: 'visible', horizontal: 'visible' },
+            lineNumbers: 'on',
+            tabSize: 4,
+            insertSpaces: true,
+        });
+        editorRef.current = editor;
+        
+        // 3. 注册语言支持
+        monaco.languages.register({ id: 'lv00' });
+        monaco.languages.setMonarchTokensProvider('lv00', {
+            tokenizer: {
+                root: [
+                    [/^point\b/, 'keyword'],
+                    [/^segment\b/, 'keyword'],
+                    [/^constraint\b/, 'keyword'],
+                    [/^prove\b/, 'keyword'],
+                    [/^function\b/, 'keyword'],
+                    [/^at\b/, 'keyword'],
+                    [/^between\b/, 'keyword'],
+                    [/^and\b/, 'keyword'],
+                    [/\b[A-Za-z_][A-Za-z0-9_]*\b/, 'identifier'],
+                    [/\d+\.?\d*/, 'number'],
+                    [/\(/, 'delimiter'],
+                    [/\)/, 'delimiter'],
+                    [/,/, 'delimiter'],
+                    [/\[/, 'delimiter'],
+                    [/\]/, 'delimiter'],
+                    [/--.*$/, 'comment'],
+                ],
+            },
+        });
+        
+        // 4. 注册自动补全
+        monaco.languages.registerCompletionItemProvider('lv00', {
+            provideCompletionItems: (model, position) => {
+                const suggestions: monaco.languages.CompletionItem[] = [
+                    { label: 'point', kind: monaco.languages.CompletionItemKind.Keyword },
+                    { label: 'segment', kind: monaco.languages.CompletionItemKind.Keyword },
+                    { label: 'constraint', kind: monaco.languages.CompletionItemKind.Keyword },
+                    { label: 'prove', kind: monaco.languages.CompletionItemKind.Keyword },
+                    { label: 'function', kind: monaco.languages.CompletionItemKind.Keyword },
+                    // 从 L3 获取节点名称补全
+                    ...controller.getNodeNames().map(name => ({
+                        label: name,
+                        kind: monaco.languages.CompletionItemKind.Variable,
+                    })),
+                ];
+                return { suggestions };
+            },
+        });
+        
+        // 5. 监听内容变化 → 解析并同步到 L3
+        editor.onDidChangeModelContent((e) => {
+            if (isSyncing) return;
+            const content = editor.getValue();
+            controller.applyTextEdit(content);
+        });
+        
+        return () => editor.dispose();
+    }, [controller]);
+
+    // 监听 L3 的变化 → 更新编辑器（防止循环）
+    useEffect(() => {
+        const unsubscribe = controller.onStateChange(() => {
+            if (document.activeElement !== containerRef.current?.querySelector('.monaco-editor')) {
+                // 只有当编辑器不在焦点时才更新（避免打断用户输入）
+                const newText = controller.getTextRepresentation();
+                if (editorRef.current && newText !== editorRef.current.getValue()) {
+                    setIsSyncing(true);
+                    editorRef.current.setValue(newText);
+                    setIsSyncing(false);
+                }
+            }
+        });
+        
+        return () => unsubscribe();
+    }, [controller]);
+
+    return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+};
+```
+
+6.3 增量解析策略
+
+为避免每次按键触发完整解析导致卡顿，采用防抖+增量解析策略：
+
+```
+用户输入
+    ↓
+防抖 300ms（用户暂停输入）
+    ↓
+获取当前文本全量
+    ↓
+调用 parseAll() 解析为命令序列
+    ↓
+与上次解析结果比较，计算差异
+    ↓
+仅将差异部分的命令发送给 L3 → L2
+    ↓
+L3 更新约束图 → 画布同步更新
+```
+
+```typescript
+// text_parser.ts
+class TextParser {
+    private lastParsedCommands: Command[] = [];
+    private debounceTimer: number | null = null;
+    
+    parseAndApply(text: string, controller: SceneController) {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+        this.debounceTimer = setTimeout(() => {
+            const newCommands = this.parse(text);
+            const diff = this.computeDiff(this.lastParsedCommands, newCommands);
+            
+            // 只发送差异部分
+            for (const cmd of diff) {
+                controller.executeCommand(cmd);
+            }
+            
+            this.lastParsedCommands = newCommands;
+            this.debounceTimer = null;
+        }, 300);
+    }
+    
+    computeDiff(oldCmds: Command[], newCmds: Command[]): Command[] {
+        // 使用最小编辑距离算法，返回需要新增/删除的命令
+        // 简化版：直接返回新命令列表（适用于小规模编辑）
+        // 优化版：基于节点ID匹配，只发送变化的部分
+        return newCmds;
+    }
+}
+```
+
+七、L4c：M3 属性表格面板
+
+7.1 技术选型：AG Grid
+
+AG Grid 是高性能的表格组件，支持排序、筛选、内联编辑。
+
+7.2 React 组件定义
+
+```tsx
+// TableView.tsx
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import { AgGridReact } from 'ag-grid-react';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-dark.css';
+
+interface TableViewProps {
+    controller: SceneController;
+}
+
+export const TableView: React.FC<TableViewProps> = ({ controller }) => {
+    const [rowData, setRowData] = useState<any[]>([]);
+    const [selectedRow, setSelectedRow] = useState<number | null>(null);
+    
+    // 列定义
+    const columnDefs = useMemo(() => [
+        { 
+            field: 'id', 
+            headerName: 'ID', 
+            width: 80,
+            cellStyle: { fontFamily: 'monospace', fontSize: '12px' }
+        },
+        { 
+            field: 'name', 
+            headerName: '名称', 
+            editable: true,
+            width: 120,
+        },
+        { 
+            field: 'type', 
+            headerName: '类型', 
+            width: 100,
+            cellRenderer: (params: any) => {
+                const color = params.value === 'point' ? '#4caf50' : '#ff9800';
+                return `<span style="color:${color}">${params.value}</span>`;
+            }
+        },
+        { 
+            field: 'coordX', 
+            headerName: 'X', 
+            editable: true,
+            width: 120,
+            cellStyle: { fontFamily: 'monospace' }
+        },
+        { 
+            field: 'coordY', 
+            headerName: 'Y', 
+            editable: true,
+            width: 120,
+            cellStyle: { fontFamily: 'monospace' }
+        },
+        { 
+            field: 'color', 
+            headerName: '状态', 
+            width: 100,
+            cellRenderer: (params: any) => {
+                const color = intToHex(params.value);
+                return `<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${color};"></span>`;
+            }
+        },
+        { 
+            field: 'constraint_count', 
+            headerName: '约束数', 
+            width: 80,
+            cellStyle: { textAlign: 'center' }
+        },
+    ], []);
+    
+    // 从 L3 获取数据
+    const refreshData = useCallback(() => {
+        const nodes = controller.getNodesAsTable();
+        setRowData(nodes);
+    }, [controller]);
+    
+    useEffect(() => {
+        refreshData();
+        const unsubscribe = controller.onStateChange(refreshData);
+        return () => unsubscribe();
+    }, [controller, refreshData]);
+    
+    // 单元格编辑事件
+    const onCellValueChanged = useCallback((params: any) => {
+        const { data, colDef, newValue } = params;
+        controller.updateNodeCell(data.id, colDef.field, newValue);
+    }, [controller]);
+    
+    // 行选中事件
+    const onRowSelected = useCallback((params: any) => {
+        if (params.node.selected) {
+            const nodeId = params.data.id;
+            setSelectedRow(nodeId);
+            controller.selectNode(nodeId);
+        }
+    }, [controller]);
+    
+    return (
+        <div className="ag-theme-dark" style={{ width: '100%', height: '100%' }}>
+            <AgGridReact
+                columnDefs={columnDefs}
+                rowData={rowData}
+                rowSelection="single"
+                onRowSelected={onRowSelected}
+                onCellValueChanged={onCellValueChanged}
+                pagination={true}
+                paginationPageSize={50}
+                animateRows={true}
+                enableCellTextSelection={true}
+                ensureDomOrder={true}
+            />
+        </div>
+    );
+};
+```
+
+八、L4d：M4 依赖树导航器
+
+8.1 React 组件定义
+
+```tsx
+// TreeView.tsx
+import React, { useEffect, useState, useCallback } from 'react';
+
+interface TreeNode {
+    id: string;
+    label: string;
+    color: number;
+    status: 'proved' | 'pending' | 'failed' | 'assumed' | 'root';
+    children: TreeNode[];
+    node_id?: number;
+}
+
+interface TreeViewProps {
+    controller: SceneController;
+}
+
+export const TreeView: React.FC<TreeViewProps> = ({ controller }) => {
+    const [treeData, setTreeData] = useState<TreeNode | null>(null);
+    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+    
+    const refreshTree = useCallback(() => {
+        const tree = controller.getDependencyTree();
+        setTreeData(tree);
+        // 默认展开所有根节点
+        if (tree) {
+            const newExpanded = new Set(expandedNodes);
+            newExpanded.add(tree.id);
+            for (const child of tree.children) {
+                newExpanded.add(child.id);
+            }
+            setExpandedNodes(newExpanded);
+        }
+    }, [controller]);
+    
+    useEffect(() => {
+        refreshTree();
+        const unsubscribe = controller.onStateChange(refreshTree);
+        return () => unsubscribe();
+    }, [controller, refreshTree]);
+    
+    const toggleNode = (nodeId: string) => {
+        const newExpanded = new Set(expandedNodes);
+        if (newExpanded.has(nodeId)) {
+            newExpanded.delete(nodeId);
+        } else {
+            newExpanded.add(nodeId);
+        }
+        setExpandedNodes(newExpanded);
+    };
+    
+    const handleNodeClick = (node: TreeNode) => {
+        if (node.node_id && node.node_id > 0) {
+            controller.selectNode(node.node_id);
+        }
+    };
+    
+    if (!treeData) return <div>加载中...</div>;
+    
+    return (
+        <div className="tree-view" style={{ 
+            padding: '12px', 
+            overflow: 'auto', 
+            height: '100%',
+            background: '#111111',
+            color: '#c8c8c8'
+        }}>
+            <TreeNodeComponent 
+                node={treeData} 
+                expanded={expandedNodes}
+                onToggle={toggleNode}
+                onClick={handleNodeClick}
+                depth={0}
+            />
+        </div>
+    );
+};
+
+// 递归树节点组件
+const TreeNodeComponent: React.FC<{
+    node: TreeNode;
+    expanded: Set<string>;
+    onToggle: (id: string) => void;
+    onClick: (node: TreeNode) => void;
+    depth: number;
+}> = ({ node, expanded, onToggle, onClick, depth }) => {
+    const hasChildren = node.children.length > 0;
+    const isExpanded = expanded.has(node.id);
+    
+    // 颜色
+    const colorHex = intToHex(node.color);
+    const statusIcons = {
+        'proved': '✅',
+        'pending': '⏳',
+        'failed': '❌',
+        'assumed': '📖',
+        'root': '📁',
+    };
+    
+    return (
+        <div style={{ marginLeft: depth > 0 ? 20 : 0 }}>
+            <div 
+                style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    transition: 'background 0.2s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#222222'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                onClick={() => {
+                    if (hasChildren) onToggle(node.id);
+                    if (node.node_id && node.node_id > 0) onClick(node);
+                }}
+            >
+                {hasChildren && (
+                    <span style={{ marginRight: 8, fontSize: 12 }}>
+                        {isExpanded ? '▼' : '▶'}
+                    </span>
+                )}
+                <span style={{ marginRight: 8 }}>{statusIcons[node.status] || '•'}</span>
+                <span style={{ color: colorHex }}>●</span>
+                <span style={{ marginLeft: 8, fontSize: 14 }}>{node.label}</span>
+                {node.status !== 'proved' && node.status !== 'root' && (
+                    <span style={{ 
+                        marginLeft: 12, 
+                        fontSize: 11, 
+                        color: '#888',
+                        background: '#2a2a2a',
+                        padding: '1px 8px',
+                        borderRadius: 12,
+                    }}>
+                        {node.status}
+                    </span>
+                )}
+            </div>
+            {hasChildren && isExpanded && (
+                <div>
+                    {node.children.map(child => (
+                        <TreeNodeComponent
+                            key={child.id}
+                            node={child}
+                            expanded={expanded}
+                            onToggle={onToggle}
+                            onClick={onClick}
+                            depth={depth + 1}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+```
+
+九、L4e：M5 终端/REPL
+
+9.1 技术选型：Xterm.js
+
+Xterm.js 是功能完整的终端模拟器，支持 ANSI 颜色、历史命令、复制粘贴。
+
+9.2 React 组件定义
+
+```tsx
+// TerminalView.tsx
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
+
+interface TerminalViewProps {
+    controller: SceneController;
+}
+
+export const TerminalView: React.FC<TerminalViewProps> = ({ controller }) => {
+    const terminalRef = useRef<HTMLDivElement>(null);
+    const terminal = useRef<Terminal | null>(null);
+    const fitAddon = useRef<FitAddon | null>(null);
+    const [isReady, setIsReady] = useState(false);
+    const commandBuffer = useRef<string>('');
+    
+    // 初始化终端
+    useEffect(() => {
+        if (!terminalRef.current) return;
+        
+        terminal.current = new Terminal({
+            theme: {
+                background: '#0a0a0a',
+                foreground: '#c8c8c8',
+                cursor: '#c8c8c8',
+                black: '#000000',
+                red: '#f44336',
+                green: '#4caf50',
+                yellow: '#ff9800',
+                blue: '#2196f3',
+                magenta: '#9c27b0',
+                cyan: '#00bcd4',
+                white: '#ffffff',
+            },
+            fontSize: 14,
+            fontFamily: 'monospace',
+            cursorStyle: 'block',
+            scrollback: 1000,
+            allowTransparency: true,
+        });
+        
+        fitAddon.current = new FitAddon();
+        terminal.current.loadAddon(fitAddon.current);
+        terminal.current.open(terminalRef.current);
+        fitAddon.current.fit();
+        
+        // 显示欢迎信息
+        terminal.current.writeln('╔═══════════════════════════════════════════════════════╗');
+        terminal.current.writeln('║  Lv-00 几何元语言 终端 v1.0                        ║');
+        terminal.current.writeln('║  输入 help 查看命令列表                             ║');
+        terminal.current.writeln('╚═══════════════════════════════════════════════════════╝');
+        terminal.current.write('\r\n');
+        prompt();
+        
+        // 键盘输入处理
+        terminal.current.onKey((e) => {
+            const { key, domEvent } = e;
+            const charCode = domEvent.keyCode;
+            
+            if (domEvent.ctrlKey && charCode === 67) { // Ctrl+C
+                terminal.current!.write('^C\r\n');
+                commandBuffer.current = '';
+                prompt();
+                return;
+            }
+            
+            if (domEvent.key === 'Enter') {
+                const cmd = commandBuffer.current.trim();
+                terminal.current!.write('\r\n');
+                if (cmd) {
+                    executeCommand(cmd);
+                }
+                commandBuffer.current = '';
+                prompt();
+                return;
+            }
+            
+            if (domEvent.key === 'Backspace') {
+                if (commandBuffer.current.length > 0) {
+                    commandBuffer.current = commandBuffer.current.slice(0, -1);
+                    terminal.current!.write('\b \b');
+                }
+                return;
+            }
+            
+            if (domEvent.key === 'Tab') {
+                e.preventDefault();
+                const completions = controller.getCommandCompletions(commandBuffer.current);
+                if (completions.length === 1) {
+                    const suffix = completions[0].slice(commandBuffer.current.length);
+                    commandBuffer.current = completions[0];
+                    terminal.current!.write(suffix);
+                } else if (completions.length > 1) {
+                    terminal.current!.write('\r\n');
+                    for (const c of completions) {
+                        terminal.current!.writeln(`  ${c}`);
+                    }
+                    prompt();
+                    terminal.current!.write(commandBuffer.current);
+                }
+                return;
+            }
+            
+            if (domEvent.key === 'ArrowUp') {
+                // 历史命令上翻（略）
+                return;
+            }
+            
+            if (key && key.length === 1 && key.charCodeAt(0) >= 32) {
+                commandBuffer.current += key;
+                terminal.current!.write(key);
+            }
+        });
+        
+        setIsReady(true);
+        
+        // 窗口大小变化时调整
+        const resizeObserver = new ResizeObserver(() => {
+            fitAddon.current?.fit();
+        });
+        resizeObserver.observe(terminalRef.current);
+        
+        return () => {
+            terminal.current?.dispose();
+            resizeObserver.disconnect();
+        };
+    }, [controller]);
+    
+    const prompt = () => {
+        terminal.current?.write('\r\n> ');
+    };
+    
+    const executeCommand = (cmd: string) => {
+        try {
+            const result = controller.executeCommandString(cmd);
+            if (result.success) {
+                terminal.current?.writeln(`✓ ${result.output || '成功'}`);
+            } else {
+                terminal.current?.writeln(`✗ ${result.error_message || '执行失败'}`);
+            }
+        } catch (e: any) {
+            terminal.current?.writeln(`✗ 异常: ${e.message}`);
+        }
+    };
+    
+    return <div ref={terminalRef} style={{ width: '100%', height: '100%' }} />;
+};
+```
+
+十、L4f：M6 拓扑蓝图视图
+
+10.1 技术选型：React Flow
+
+React Flow 是成熟的节点-连接器可视化库，支持拖拽、缩放、自定义节点。
+
+10.2 React 组件定义
+
+```tsx
+// TopologyView.tsx
+import React, { useEffect, useState, useCallback } from 'react';
+import ReactFlow, {
+    Node,
+    Edge,
+    useNodesState,
+    useEdgesState,
+    addEdge,
+    Connection,
+    Controls,
+    Background,
+    MiniMap,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+
+interface TopologyViewProps {
+    controller: SceneController;
+}
+
+// 自定义函数块节点
+const BlockNode: React.FC<{ data: any }> = ({ data }) => {
+    return (
+        <div style={{
+            background: '#1a1a2e',
+            border: '2px solid #4caf50',
+            borderRadius: 8,
+            padding: 12,
+            minWidth: 120,
+            color: '#c8c8c8',
+        }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+                {data.label}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                    {data.inputs?.map((port: any) => (
+                        <div key={port.id} style={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: 11,
+                            color: '#888'
+                        }}>
+                            <span style={{
+                                display: 'inline-block',
+                                width: 10,
+                                height: 10,
+                                borderRadius: '50%',
+                                background: '#4caf50',
+                                marginRight: 4,
+                            }} />
+                            {port.name}
+                        </div>
+                    ))}
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    {data.outputs?.map((port: any) => (
+                        <div key={port.id} style={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            fontSize: 11,
+                            color: '#888'
+                        }}>
+                            {port.name}
+                            <span style={{
+                                display: 'inline-block',
+                                width: 10,
+                                height: 10,
+                                borderRadius: '50%',
+                                background: '#ff9800',
+                                marginLeft: 4,
+                            }} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const nodeTypes = { block: BlockNode };
+
+export const TopologyView: React.FC<TopologyViewProps> = ({ controller }) => {
+    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    
+    const refreshTopology = useCallback(() => {
+        const topo = controller.getTopologyView();
+        
+        // 将 TopologyGraph 转换为 React Flow 格式
+        const flowNodes: Node[] = topo.blocks.map(block => ({
+            id: `block-${block.id}`,
+            type: 'block',
+            position: { x: block.layoutX || 0, y: block.layoutY || 0 },
+            data: {
+                label: block.name,
+                inputs: block.inputs,
+                outputs: block.outputs,
+            },
+        }));
+        
+        const flowEdges: Edge[] = topo.edges.map(edge => ({
+            id: `edge-${edge.from_block}-${edge.to_block}`,
+            source: `block-${edge.from_block}`,
+            target: `block-${edge.to_block}`,
+            sourceHandle: `output-${edge.from_port}`,
+            targetHandle: `input-${edge.to_port}`,
+            style: { stroke: '#555', strokeWidth: 2 },
+        }));
+        
+        setNodes(flowNodes);
+        setEdges(flowEdges);
+    }, [controller, setNodes, setEdges]);
+    
+    useEffect(() => {
+        refreshTopology();
+        const unsubscribe = controller.onStateChange(refreshTopology);
+        return () => unsubscribe();
+    }, [controller, refreshTopology]);
+    
+    // 节点移动时保存布局
+    const onNodeDragStop = useCallback((_event: any, node: Node) => {
+        const blockId = parseInt(node.id.replace('block-', ''));
+        controller.setTopologyLayout(blockId, node.position.x, node.position.y);
+    }, [controller]);
+    
+    const onConnect = useCallback((params: Connection) => {
+        setEdges((eds) => addEdge(params, eds));
+        // 通知 L3 连接变更
+        controller.onTopologyConnect(params);
+    }, [controller, setEdges]);
+    
+    return (
+        <div style={{ width: '100%', height: '100%', background: '#0a0a0a' }}>
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeDragStop={onNodeDragStop}
+                onConnect={onConnect}
+                nodeTypes={nodeTypes}
+                fitView
+                snapToGrid
+                snapGrid={[15, 15]}
+            >
+                <Background color="#333" gap={20} />
+                <Controls />
+                <MiniMap 
+                    nodeColor="#4caf50" 
+                    maskColor="rgba(0,0,0,0.3)"
+                    style={{ background: '#1a1a1a' }}
+                />
+            </ReactFlow>
+        </div>
+    );
+};
+```
+
+十一、L5a：独立应用外壳（Qt）
+
+11.1 技术选型
+
+· Qt 6.5+：跨平台 GUI 框架
+· QWebEngineView：内嵌 Web 内容（如监控仪表板）
+· QThread：将 L2/L3 放在后台线程，UI 线程只负责渲染
+
+11.2 主窗口布局
+
+```cpp
+// MainWindow.h
+#pragma once
+#include <QMainWindow>
+#include <QDockWidget>
+#include <QWebEngineView>
+
+class MainWindow : public QMainWindow {
+    Q_OBJECT
+
+public:
+    MainWindow(QWidget* parent = nullptr);
+    ~MainWindow();
+
+private:
+    void setupMenuBar();
+    void setupDockWidgets();
+    void setupStatusBar();
+    void setupConnections();
+
+    // 模态视图（6个Dock）
+    QDockWidget* canvasDock;      // M1: 几何画布 (QOpenGLWidget)
+    QDockWidget* textDock;        // M2: 文本编辑器 (QPlainTextEdit)
+    QDockWidget* tableDock;       // M3: 表格面板 (QTableWidget)
+    QDockWidget* treeDock;        // M4: 依赖树 (QTreeWidget)
+    QDockWidget* terminalDock;    // M5: 终端 (QTextEdit)
+    QDockWidget* topologyDock;    // M6: 拓扑视图 (QGraphicsView)
+    
+    // 额外
+    QDockWidget* monitorDock;     // 并发监控仪表板 (QWebEngineView)
+    QDockWidget* propertyDock;    // 属性面板
+    
+    // 核心
+    EditorController* editor;
+    SceneController* scene;
+};
+```
+
+11.2 画布集成（QOpenGLWidget）
+
+```cpp
+// CanvasWidget.h
+#pragma once
+#include <QOpenGLWidget>
+#include <QOpenGLFunctions>
+#include <QMouseEvent>
+#include <QWheelEvent>
+
+class CanvasWidget : public QOpenGLWidget, protected QOpenGLFunctions {
+    Q_OBJECT
+
+public:
+    explicit CanvasWidget(SceneController* scene, QWidget* parent = nullptr);
+    ~CanvasWidget();
+
+protected:
+    void initializeGL() override;
+    void paintGL() override;
+    void resizeGL(int w, int h) override;
+    
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
+
+private:
+    SceneController* scene;
+    QTimer* renderTimer;
+    
+    void renderDrawCommands();
+    void renderPoint(float x, float y, uint32_t color, float radius);
+    void renderLine(float x1, float y1, float x2, float y2, uint32_t color, float width, int style);
+};
+```
+
+```cpp
+// CanvasWidget.cpp
+#include "CanvasWidget.h"
+#include <QPainter>
+#include <QColor>
+
+CanvasWidget::CanvasWidget(SceneController* scene, QWidget* parent)
+    : QOpenGLWidget(parent), scene(scene) {
+    setFocusPolicy(Qt::StrongFocus);
+    setMouseTracking(true);
+    
+    renderTimer = new QTimer(this);
+    connect(renderTimer, &QTimer::timeout, this, QOverload<>::of(&QOpenGLWidget::update));
+    renderTimer->start(16); // ~60fps
+}
+
+void CanvasWidget::paintGL() {
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    
+    // 清空背景
+    painter.fillRect(rect(), QColor(0x0a, 0x0a, 0x0a));
+    
+    // 从 L3 获取绘制指令
+    auto commands = scene->getDrawCommands();
+    
+    // 绘制网格
+    painter.setPen(QColor(0x22, 0x22, 0x22));
+    float gridSize = 50.0f / scene->getViewport().scale;
+    // ... 网格绘制逻辑
+    
+    // 绘制所有图形
+    for (const auto& cmd : commands) {
+        QColor color(
+            (cmd.color >> 16) & 0xFF,
+            (cmd.color >> 8) & 0xFF,
+            cmd.color & 0xFF,
+            (cmd.color >> 24) & 0xFF
+        );
+        
+        switch (cmd.type) {
+            case DrawCommand::LINE:
+                painter.setPen(QPen(color, cmd.lineWidth));
+                painter.drawLine(QPointF(cmd.x1, cmd.y1), QPointF(cmd.x2, cmd.y2));
+                break;
+            case DrawCommand::POINT:
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(color);
+                painter.drawEllipse(QPointF(cmd.x1, cmd.y1), 5, 5);
+                break;
+            // ... 其他类型
+        }
+    }
+    
+    // 绘制高亮选区
+    // ...
+}
+
+void CanvasWidget::mousePressEvent(QMouseEvent* event) {
+    scene->onMouseDown(event->position().x(), event->position().y(), event->button());
+}
+
+void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
+    scene->onMouseMove(event->position().x(), event->position().y());
+}
+
+void CanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
+    scene->onMouseUp(event->position().x(), event->position().y(), event->button());
+}
+
+void CanvasWidget::wheelEvent(QWheelEvent* event) {
+    float delta = event->angleDelta().y() > 0 ? 1.0f : -1.0f;
+    scene->onMouseWheel(delta, event->position().x(), event->position().y());
+}
+```
+
+11.3 监控仪表板内嵌
+
+```cpp
+// MonitorDock.cpp
+#include <QWebEngineView>
+#include <QWebChannel>
+
+class MonitorDock : public QDockWidget {
+    Q_OBJECT
+
+public:
+    MonitorDock(QWidget* parent = nullptr) : QDockWidget(parent) {
+        setWindowTitle("进程监控");
+        
+        webView = new QWebEngineView(this);
+        
+        // 启动 Flask 服务（如果未运行）
+        // 通过 QProcess 启动 python -m module.concurrent_monitor.web
+        // 然后加载 http://localhost:5000
+        webView->load(QUrl("http://localhost:5000"));
+        
+        setWidget(webView);
+        setAllowedAreas(Qt::BottomDockWidgetArea | Qt::RightDockWidgetArea);
+    }
+
+private:
+    QWebEngineView* webView;
+};
+```
+
+11.4 项目文件结构
+
+```
+shell_standalone/
+├── CMakeLists.txt
+├── main.cpp
+├── MainWindow.cpp/h
+├── CanvasWidget.cpp/h
+├── MonitorDock.cpp/h
+├── PropertyPanel.cpp/h
+├── resources/
+│   ├── icons/
+│   └── styles.qss
+└── README.md
+```
+
+十二、L5b：IDE插件外壳（VSCode）
+
+12.1 技术选型
+
+· VSCode Extension API：插件基础框架
+· Webview：渲染几何画布和所有模态视图
+· node-addon-api：加载 L3 编译的 .node 模块
+· WebSocket：与独立的 L2/L1 进程通信
+
+12.2 插件入口
+
+```typescript
+// extension.ts
+import * as vscode from 'vscode';
+import { Lv00Panel } from './Lv00Panel';
+import { Lv00Service } from './Lv00Service';
+
+let panel: Lv00Panel | undefined;
+let service: Lv00Service | undefined;
+
+export function activate(context: vscode.ExtensionContext) {
+    console.log('Lv-00 插件已激活');
+    
+    // 1. 启动 Lv-00 服务进程
+    service = new Lv00Service(context);
+    service.start();
+    
+    // 2. 注册命令：打开 Lv-00 面板
+    const openCommand = vscode.commands.registerCommand('lv00.open', () => {
+        if (panel) {
+            panel.reveal();
+        } else {
+            panel = new Lv00Panel(context, service!);
+            panel.onDidDispose(() => {
+                panel = undefined;
+            });
+        }
+    });
+    
+    // 3. 注册命令：打开 .lvz 文件
+    const openFileCommand = vscode.commands.registerCommand('lv00.openFile', 
+        (uri: vscode.Uri) => {
+            // 在文本编辑器中打开 .lvz 文件，同时激活 Lv-00 面板
+            vscode.window.showTextDocument(uri);
+            vscode.commands.executeCommand('lv00.open');
+        }
+    );
+    
+    context.subscriptions.push(openCommand, openFileCommand);
+}
+
+export function deactivate() {
+    service?.stop();
+}
+```
+
+12.3 Webview 面板
+
+```typescript
+// Lv00Panel.ts
+import * as vscode from 'vscode';
+import { Lv00Service } from './Lv00Service';
+
+export class Lv00Panel {
+    private panel: vscode.WebviewPanel;
+    private context: vscode.ExtensionContext;
+    private service: Lv00Service;
+    private disposables: vscode.Disposable[] = [];
+
+    constructor(context: vscode.ExtensionContext, service: Lv00Service) {
+        this.context = context;
+        this.service = service;
+        
+        this.panel = vscode.window.createWebviewPanel(
+            'lv00',
+            'Lv-00 几何工作台',
+            vscode.ViewColumn.Two,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true,
+                localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'webview')],
+            }
+        );
+        
+        this.panel.webview.html = this.getHtmlContent();
+        
+        this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+        
+        // 监听 Webview 消息
+        this.panel.webview.onDidReceiveMessage(
+            async (message) => {
+                switch (message.command) {
+                    case 'executeCommand':
+                        const result = await this.service.execute(message.payload);
+                        this.panel.webview.postMessage({
+                            command: 'commandResult',
+                            payload: result,
+                        });
+                        break;
+                    case 'getState':
+                        const state = await this.service.getState();
+                        this.panel.webview.postMessage({
+                            command: 'stateUpdate',
+                            payload: state,
+                        });
+                        break;
+                }
+            },
+            null,
+            this.disposables
+        );
+        
+        // 启动状态同步
+        this.startPolling();
+    }
+
+    private getHtmlContent(): string {
+        // 使用 VSCode 的 Webview 资源加载
+        const scriptUri = this.panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'bundle.js')
+        );
+        const styleUri = this.panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'webview', 'styles.css')
+        );
+        
+        return `<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="${styleUri}" rel="stylesheet">
+            <title>Lv-00</title>
+        </head>
+        <body>
+            <div id="root"></div>
+            <script>
+                // VSCode API 通信桥接
+                const vscode = acquireVsCodeApi();
+                window.vscode = vscode;
+                
+                // 全局配置
+                window.LV00 = {
+                    service: {
+                        execute: (cmd) => vscode.postMessage({ command: 'executeCommand', payload: cmd }),
+                        getState: () => vscode.postMessage({ command: 'getState' }),
+                    }
+                };
+            </script>
+            <script src="${scriptUri}"></script>
+        </body>
+        </html>`;
+    }
+
+    private startPolling() {
+        // 每 500ms 轮询状态
+        const interval = setInterval(() => {
+            if (!this.panel) return;
+            this.panel.webview.postMessage({ command: 'getState' });
+        }, 500);
+        
+        this.disposables.push({
+            dispose: () => clearInterval(interval),
+        });
+    }
+
+    reveal() {
+        this.panel.reveal();
+    }
+
+    dispose() {
+        this.panel.dispose();
+        while (this.disposables.length) {
+            const d = this.disposables.pop();
+            if (d) d.dispose();
+        }
+    }
+}
+```
+
+12.4 Native 服务桥接
+
+```typescript
+// Lv00Service.ts
+import * as child_process from 'child_process';
+import * as path from 'path';
+import * as vscode from 'vscode';
+
+// 使用 node-addon-api 加载的 L3 模块
+// 或者通过 stdio 与独立进程通信
+export class Lv00Service {
+    private process: child_process.ChildProcess | null = null;
+    private context: vscode.ExtensionContext;
+    private callbacks: Map<string, (result: any) => void> = new Map();
+    private requestId = 0;
+
+    constructor(context: vscode.ExtensionContext) {
+        this.context = context;
+    }
+
+    start() {
+        const binPath = path.join(
+            this.context.extensionPath,
+            'bin',
+            process.platform === 'win32' ? 'lv00-service.exe' : 'lv00-service'
+        );
+        
+        this.process = child_process.spawn(binPath, ['--stdio'], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        
+        this.process.stdout?.on('data', (data) => {
+            // 解析 JSON 响应
+            try {
+                const lines = data.toString().split('\n').filter((l: string) => l.trim());
+                for (const line of lines) {
+                    const msg = JSON.parse(line);
+                    this.handleResponse(msg);
+                }
+            } catch (e) {
+                console.error('解析服务响应失败:', e);
+            }
+        });
+        
+        this.process.stderr?.on('data', (data) => {
+            console.error('Lv-00 服务错误:', data.toString());
+        });
+        
+        this.process.on('exit', (code) => {
+            console.log(`Lv-00 服务退出，代码: ${code}`);
+            this.process = null;
+        });
+        
+        console.log('Lv-00 服务已启动');
+    }
+
+    stop() {
+        if (this.process) {
+            this.process.kill();
+            this.process = null;
+        }
+    }
+
+    async execute(command: any): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const id = ++this.requestId;
+            this.callbacks.set(id.toString(), resolve);
+            
+            const msg = JSON.stringify({ id, ...command });
+            this.process?.stdin?.write(msg + '\n');
+            
+            // 超时处理
+            setTimeout(() => {
+                if (this.callbacks.has(id.toString())) {
+                    this.callbacks.delete(id.toString());
+                    reject(new Error('请求超时'));
+                }
+            }, 5000);
+        });
+    }
+
+    private handleResponse(msg: any) {
+        if (msg.id && this.callbacks.has(msg.id.toString())) {
+            const callback = this.callbacks.get(msg.id.toString());
+            if (callback) {
+                callback(msg.result);
+                this.callbacks.delete(msg.id.toString());
+            }
+        }
+    }
+}
+```
+
+十三、L6：共享视觉语言
+
+13.1 颜色系统（完整定义）
+
+```typescript
+// colors.ts
+
+export interface ColorDefinition {
+    name: string;
+    hex: string;
+    rgba: string;
+    description: string;
+}
+
+// Trust 颜色系统（10色）
+export const TRUST_COLORS: Record<string, ColorDefinition> = {
+    GREEN: {
+        name: 'GREEN',
+        hex: '#22C55E',
+        rgba: 'rgba(34,197,94,1)',
+        description: '全构造——可由公理直接导出',
+    },
+    LIGHT_GREEN: {
+        name: 'LIGHT_GREEN',
+        hex: '#86EFAC',
+        rgba: 'rgba(134,239,172,1)',
+        description: '标准化构造——经归一化后确认',
+    },
+    YELLOW: {
+        name: 'YELLOW',
+        hex: '#EAB308',
+        rgba: 'rgba(234,179,8,1)',
+        description: '约束求解——由求解器确定',
+    },
+    ORANGE: {
+        name: 'ORANGE',
+        hex: '#FB923C',
+        rgba: 'rgba(251,146,60,1)',
+        description: '数值近似——浮点计算得到',
+    },
+    DARK_ORANGE: {
+        name: 'DARK_ORANGE',
+        hex: '#EA580C',
+        rgba: 'rgba(234,88,12,1)',
+        description: '非构造性 + 数值假设',
+    },
+    RED: {
+        name: 'RED',
+        hex: '#EF4444',
+        rgba: 'rgba(239,68,68,1)',
+        description: '矛盾节点——约束冲突',
+    },
+    GRAY: {
+        name: 'GRAY',
+        hex: '#9CA3AF',
+        rgba: 'rgba(156,163,175,1)',
+        description: '未初始化/未知状态',
+    },
+    BLUE: {
+        name: 'BLUE',
+        hex: '#3B82F6',
+        rgba: 'rgba(59,130,246,1)',
+        description: '用户输入——手动构造',
+    },
+    PURPLE: {
+        name: 'PURPLE',
+        hex: '#A855F7',
+        rgba: 'rgba(168,85,247,1)',
+        description: '形式化验证通过',
+    },
+    CYAN: {
+        name: 'CYAN',
+        hex: '#06B6D4',
+        rgba: 'rgba(6,182,212,1)',
+        description: '互操作/FFI 引入',
+    },
+};
+
+// 深色主题颜色
+export const DARK_THEME = {
+    background: '#0a0a0a',
+    panel: '#111111',
+    border: '#222222',
+    text: '#c8c8c8',
+    textDim: '#666666',
+    accent: '#4caf50',
+    warning: '#ff9800',
+    error: '#f44336',
+};
+
+// 浅色主题（备选）
+export const LIGHT_THEME = {
+    background: '#f5f5f5',
+    panel: '#ffffff',
+    border: '#e0e0e0',
+    text: '#222222',
+    textDim: '#888888',
+    accent: '#4caf50',
+    warning: '#ff9800',
+    error: '#f44336',
+};
+```
+
+13.2 Z-Index 分层
+
+```typescript
+// zindex.ts
+
+export const Z_INDEX = {
+    CANVAS_GRID: 1,
+    CANVAS_OBJECTS: 2,
+    CANVAS_HIGHLIGHT: 5,
+    TOOLBAR: 10,
+    CONTEXT_MENU: 50,
+    TOOLTIP: 100,
+    MODAL_OVERLAY: 200,
+    MODAL_CONTENT: 1000,
+    NOTIFICATION: 2000,
+};
+```
+
+13.3 线型规范
+
+```typescript
+// lineStyles.ts
+
+export interface LineStyle {
+    dashArray: number[];
+    width: number;
+    color: string;
+}
+
+export const LINE_STYLES = {
+    SOLID: { dashArray: [], width: 2, color: '#c8c8c8' },
+    DASHED: { dashArray: [8, 6], width: 1.5, color: '#c8c8c8' },
+    DOTTED: { dashArray: [3, 5], width: 1, color: '#888888' },
+    THICK_SOLID: { dashArray: [], width: 3, color: '#4caf50' },
+    THIN_DASHED: { dashArray: [5, 8], width: 1, color: '#ff9800' },
+};
+```
+
+13.4 图标库（SVG）
+
+```typescript
+// icons.ts
+
+export const ICONS = {
+    TOOL_POINT: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/></svg>`,
+    TOOL_LINE: `<svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" stroke-width="2"/></svg>`,
+    TOOL_CIRCLE: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" fill="none"/></svg>`,
+    TOOL_SELECT: `<svg viewBox="0 0 24 24"><path d="M3 3l6 18 3-8 8-3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>`,
+    TOOL_DELETE: `<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/></svg>`,
+    TOOL_PACK: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8l4 4-4 4" stroke="currentColor" stroke-width="2"/></svg>`,
+    TOOL_PROBE: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
+    UNDO: `<svg viewBox="0 0 24 24"><path d="M3 7v6h6" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" stroke="currentColor" stroke-width="2" fill="none"/></svg>`,
+    REDO: `<svg viewBox="0 0 24 24"><path d="M21 7v6h-6" stroke="currentColor" stroke-width="2" fill="none"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13" stroke="currentColor" stroke-width="2" fill="none"/></svg>`,
+};
+```
+
+十四、同步协议与通信机制
+
+14.1 数据流完整追踪
+
+```
+用户拖拽节点
+    ↓
+[L4a Canvas] onMouseDown/Move/Up → 累积世界坐标偏移
+    ↓
+[L4a Canvas] mouseUp → 构造 CMD_MOVE_NODE(node_id, finalX, finalY)
+    ↓
+[L4a Canvas] → controller.executeCommand(cmd) → WebSocket/stdio
+    ↓
+[L5b VSCode Service] 接收 JSON → 转发给 Native 进程（或通过 node-addon 直接调用）
+    ↓
+[L3 SceneController] processCommand(cmd) → 转发给 L2
+    ↓
+[L2 EditorController] execute(cmd)
+    ↓
+[L2] 压入撤销栈 → 调用 L1: lv00_execute(g, cmd_to_l1)
+    ↓
+[L1] 执行图操作 → 图规范化遍 → 产生 Delta
+    ↓
+[L1] lv00_collect_delta(g) → 返回 Delta 记录列表
+    ↓
+[L2] 将 Delta 追加到 ringBuffer → 通知所有订阅者
+    ↓
+[L3] onDelta(delta) → 更新内部 SceneState
+    ↓
+[L3] 重新计算所有模态的投影数据（懒计算）
+    ↓
+[L3] consumeDrawCommands() → 返回增量绘制指令列表
+    ↓
+[L4a Canvas] 帧循环 → 获取新指令 → 渲染到屏幕
+    ↓
+[L4a Canvas] 同时通知其他模态：数据已更新
+    ↓
+[L4b TextView] getTextRepresentation() → 更新文本显示
+[L4c TableView] getNodesAsTable() → 更新表格
+[L4d TreeView] getDependencyTree() → 更新树
+[L4e Terminal] 打印执行结果
+[L4f TopologyView] getTopologyView() → 更新拓扑图
+    ↓
+用户看到所有模态同步更新 ✓
+```
+
+14.2 通信协议（JSON 格式）
+
+```typescript
+// protocol.ts
+
+// 从 L4 发往 L3/L2 的命令
+export interface CommandMessage {
+    id: number;              // 请求 ID
+    type: string;            // 'execute', 'getState', 'subscribe'
+    payload: any;
+}
+
+// 从 L2/L3 发往 L4 的响应
+export interface ResponseMessage {
+    id: number;              // 对应请求 ID
+    success: boolean;
+    result?: any;
+    error?: string;
+}
+
+// 增量日志推送（L2 → L3 → L4）
+export interface DeltaMessage {
+    type: 'delta';
+    records: DeltaRecord[];
+}
+
+export interface DeltaRecord {
+    seq: number;
+    timestamp: number;
+    type: 'ADD_NODE' | 'MOVE_NODE' | 'MERGE_NODES' | 'ADD_CONSTRAINT' | 'REMOVE_NODE';
+    payload: any;            // 具体数据
+}
+
+// 绘制指令（L3 → L4a Canvas）
+export interface DrawCommand {
+    type: 'line' | 'point' | 'circle' | 'text' | 'highlight' | 'rect';
+    x1: number;
+    y1: number;
+    x2?: number;
+    y2?: number;
+    radius?: number;
+    text?: string;
+    color: string;           // '#RRGGBB' 或 'rgba(...)'
+    lineWidth?: number;
+    style?: 'solid' | 'dashed' | 'dotted';
+}
+```
+
+14.3 性能优化策略
+
+策略 说明
+增量 Delta L1 只返回变更部分，不传输全量图
+绘制指令批处理 L3 累积绘制指令，每帧批量发送
+环形缓冲区 L2 维护 10000 条 Delta 记录，防止数据丢失
+懒计算 各模态只在被激活时才计算投影数据
+离屏渲染 Canvas 使用离屏缓冲，只绘制增量部分
+防抖 文本编辑器在 300ms 无输入后才触发解析
+
+十五、技术栈总览
+
+层级 组件 技术选型
+L1 裸核引擎 C11，编译为 .so/.dylib/.dll
+L2 编辑控制器 C++17，静态库 .a
+L3 多模态投影引擎 C++17，静态库 .a，或编译为 .node (node-addon)
+L4 模态视图 React 18 + TypeScript
+ M1 几何画布 HTML Canvas 2D（或 WebGL）
+ M2 文本编辑器 Monaco Editor
+ M3 表格面板 AG Grid Community
+ M4 依赖树 自定义 React Tree 组件
+ M5 终端 Xterm.js
+ M6 拓扑视图 React Flow
+L5a 独立应用 Qt 6.5+ (QWidgets + QOpenGLWidget)
+L5b VSCode 插件 VSCode Extension API + node-addon-api
+L6 视觉语言 CSS + TypeScript 常量
+通信 进程间 WebSocket / stdio JSON-RPC
+序列化 数据 FlatBuffers（二进制） / JSON（调试）
+
+十六、开发路线图（6个月）
+
+阶段 时间 里程碑 交付物 关键实现
+P0 第1-2周 基础通信层 L2/L3 骨架 + JSON 协议 EditorController, SceneController 基本类
+P1 第3-4周 M1 画布 可显示几何图，拖拽节点 CanvasView, hitTest, 拖拽状态机
+P2 第5-6周 M2+M5 文本编辑器和终端 TextSerializer, TerminalView, 解析器
+P3 第7-8周 M3+M4 表格和依赖树 TableView, TreeView, 数据投影函数
+P4 第9-10周 M6+全模态同步 拓扑视图，6模态联调 TopologyView, 同步总线
+P5 第11-14周 独立应用(Qt) 6模态Dock布局 Qt 外壳，嵌入监控仪表板
+P6 第15-18周 VSCode插件 Webview渲染6模态 插件外壳，Native桥接
+P7 第19-24周 打磨发布 性能优化、文档、演示 全部
+
+十七、总结：六大核心实现细节
+
+1. L1 API 封装：lv00_execute() + lv00_collect_delta() + lv00_normalize() 是 UI 端的三个基石函数，必须稳定。
+2. L2 撤销栈：基于 L1 快照 lv00_snapshot() + lv00_restore() 实现，每个命令执行前自动打标。
+3. L3 命中测试：世界坐标与屏幕坐标的双向转换 + 点到线段距离算法，是拖拽交互的物理基础。
+4. L4 模态同步：所有模态共享同一个 SceneController 实例，通过 onStateChange 回调实现响应式更新。
+5. 通信协议：使用 JSON-RPC over stdio（VSCode插件）或 WebSocket（独立应用），轻量且可调试。
+6. 渲染管线：L3 生成 DrawCommand 列表 → L4 消费并渲染，每帧 60fps，增量更新。
+
+---
+
+规划结束。所有组件均已从零定义，无任何依赖现有资产。可直接用于开发排期和任务分配。

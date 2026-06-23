@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"], "jsx": "react-jsx",
+    "strict": true, "esModuleInterop": true, "skipLibCheck": true,
+    "resolveJsonModule": true, "declaration": true, "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@L1/*": ["L1-base/*"],
+      "@L2/*": ["L2-components/*"],
+      "@L3/*": ["L3-modules/*"],
+      "@L4/*": ["L4-shell/*"],
+      "@L5/*": ["L5-core/*"]
+    }
+  },
+  "include": ["src/**/*.tsx", "L1-base/**/*.ts", "L2-components/**/*.tsx", "L3-modules/**/*.tsx", "L4-shell/**/*.tsx", "L5-core/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
