@@ -29,6 +29,4 @@
       "@lv00/visual-language": ["packages/visual-language/src"]
     }
   },
-  "include": ["packages/**/*.ts", "packages/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
-}
+  "include": ["packages/**/*.ts", "packag
