@@ -460,6 +460,34 @@ int interop_validate_path(const char *path);
  */
 const char *interop_get_file_extension(const char *path);
 
+/* ==================== 命令补全 ==================== */
+
+#define INTEROP_MAX_COMPLETIONS 64
+
+/**
+ * @brief 获取命令补全建议
+ *
+ * 根据当前引擎状态和已输入的前缀，返回匹配的命令补全字符串列表。
+ * 补全建议包括：内置命令（add point / add segment / normalize 等）、
+ * 当前图中已存在的节点名称、约束名称以及所有支持的子命令。
+ *
+ * 调用者负责释放返回的字符串数组（使用 interop_free_completions）。
+ *
+ * @param[in]  engine   引擎句柄
+ * @param[in]  prefix   已输入的命令前缀
+ * @param[out] out_count 输出匹配的补全数量
+ * @return 补全字符串数组（NULL 表示无匹配或错误），由调用者释放
+ */
+char **interop_get_command_completions(LV00Engine *engine, const char *prefix, int *out_count);
+
+/**
+ * @brief 释放命令补全结果
+ *
+ * @param[in] completions 补全字符串数组
+ * @param[in] count       补全数量
+ */
+void interop_free_completions(char **completions, int count);
+
 #ifdef __cplusplus
 }
 #endif

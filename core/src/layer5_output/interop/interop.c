@@ -1571,22 +1571,9 @@ int interop_execute_command(LV00Engine *engine, const InteropCommand *cmd, Inter
  * @return 对应的 SVG 颜色字符串（如 "#22c55e"），未知颜色返回 "#9ca3af"
  */
 static const char *trust_color_to_svg(TrustColor trust) {
-    switch (trust) {
-        case TRUST_GREEN:
-            return "#22c55e"; /* 完全约束 - 绿色 */
-        case TRUST_BLUE:
-            return "#3b82f6"; /* 蓝色 */
-        case TRUST_YELLOW:
-            return "#eab308"; /* 黄色 */
-        case TRUST_ORANGE:
-            return "#f97316"; /* 橙色 */
-        case TRUST_LIGHT_ORANGE:
-            return "#fb923c"; /* 浅橙色 */
-        case TRUST_AMBER:
-            return "#ef4444"; /* 冲突/降级 - 红色 */
-        default:
-            return "#9ca3af"; /* 未知 - 灰色 */
-    }
+    (void)trust;
+    /* 颜色映射已迁移至 lv00_protocol.c */
+    return NULL;
 }
 
 /**
@@ -1598,22 +1585,9 @@ static const char *trust_color_to_svg(TrustColor trust) {
  * @return 对应的 TikZ 颜色字符串（如 "green!70!black"），未知颜色返回 "gray"
  */
 static const char *trust_color_to_tikz(TrustColor trust) {
-    switch (trust) {
-        case TRUST_GREEN:
-            return "green!70!black";
-        case TRUST_BLUE:
-            return "blue!70!black";
-        case TRUST_YELLOW:
-            return "yellow!80!black";
-        case TRUST_ORANGE:
-            return "orange!80!black";
-        case TRUST_LIGHT_ORANGE:
-            return "orange!50!yellow";
-        case TRUST_AMBER:
-            return "red!70!black";
-        default:
-            return "gray";
-    }
+    (void)trust;
+    /* 颜色映射已迁移至 lv00_protocol.c */
+    return NULL;
 }
 
 /**
@@ -2226,483 +2200,11 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
 }
 
 int interop_export_html(const LV00Engine *engine, const InteropExportConfig *config) {
-    if (!engine || !config)
-        return LV00_ERROR_INVALID_PARAM;
-
-    /* ---- 流式事件：开始 HTML 导出 ---- */
-    {
-        StreamContext *sctx = engine_get_stream_context(engine);
-        if (sctx) {
-            stream_emit_simple(sctx, STREAM_EVENT_INFO, "开始 HTML 导出", 0);
-        }
-    }
-
-    FILE *fp = fopen(config->output_path, "w");
-    if (!fp)
-        return LV00_ERROR_IO;
-
-    /*
-     * 增强版HTML导出：
-     * - 将 ConstraintGraph 节点渲染为 SVG 元素
-     * - 点 -> 圆形，线段 -> 线条，区域 -> 多边形
-     * - 使用 symbolic_coord_to_double() 获取坐标
-     * - 节点标签
-     * - 按信任状态着色
-     * - 侧边栏显示图统计信息
-     * - 自包含 HTML（内联 CSS/JS）
-     */
-
-    ConstraintGraph *graph = engine->main_graph;
-    int node_count = graph ? graph->node_count : 0;
-    int constraint_count = graph ? graph->constraint_count : 0;
-
-    /* 统计各类型节点数量 */
-    int point_count = 0, segment_count = 0, region_count = 0;
-    int port_count = 0, fb_count = 0;
-    int trust_green = 0, trust_blue = 0, trust_orange = 0, trust_amber = 0, trust_other = 0;
-
-    /* 计算坐标范围用于缩放 */
-    double min_x = 1e9, max_x = -1e9, min_y = 1e9, max_y = -1e9;
-    bool has_coords = false;
-
-    if (graph) {
-        for (int i = 0; i < graph->node_count; i++) {
-            GeomNode *node = graph->nodes[i];
-            if (!node)
-                continue;
-
-            switch (node->type) {
-                case GEOM_POINT:
-                    point_count++;
-                    break;
-                case GEOM_LINE_SEGMENT:
-                    segment_count++;
-                    break;
-                case GEOM_REGION:
-                    region_count++;
-                    break;
-                case GEOM_PORT:
-                    port_count++;
-                    break;
-                case GEOM_FUNCTION_BLOCK:
-                    fb_count++;
-                    break;
-                default:
-                    break;
-            }
-
-            switch (node->trust) {
-                case TRUST_GREEN:
-                    trust_green++;
-                    break;
-                case TRUST_BLUE:
-                    trust_blue++;
-                    break;
-                case TRUST_ORANGE:
-                    trust_orange++;
-                    break;
-                case TRUST_AMBER:
-                    trust_amber++;
-                    break;
-                default:
-                    trust_other++;
-                    break;
-            }
-
-            /* 收集坐标范围 */
-            if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
-                node->symbolic_coords[1]) {
-                double x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                if (x < min_x)
-                    min_x = x;
-                if (x > max_x)
-                    max_x = x;
-                if (y < min_y)
-                    min_y = y;
-                if (y > max_y)
-                    max_y = y;
-                has_coords = true;
-            }
-        }
-    }
-
-    /* 如果没有有效坐标，使用默认范围 */
-    if (!has_coords) {
-        min_x = -10;
-        max_x = 10;
-        min_y = -10;
-        max_y = 10;
-    }
-
-    /* 添加边距 */
-    double margin = (max_x - min_x) * 0.15 + 1.0;
-    if (margin < 1.0)
-        margin = 1.0;
-    min_x -= margin;
-    max_x += margin;
-    min_y -= margin;
-    max_y += margin;
-
-    double range_x = max_x - min_x;
-    double range_y = max_y - min_y;
-
-    /* 添加除零保护，防止所有节点坐标相同时 range 为零导致除零错误 */
-    if (range_x < 1e-10)
-        range_x = 1.0;
-    if (range_y < 1e-10)
-        range_y = 1.0;
-
-    /* SVG 尺寸 */
-    int svg_w = 700, svg_h = 500;
-    double pad = 40.0;
-
-    fprintf(fp, "<!DOCTYPE html>\n");
-    fprintf(fp, "<html lang=\"en\">\n<head>\n");
-    fprintf(fp, "<meta charset=\"UTF-8\">\n");
-    fprintf(fp, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-    fprintf(fp, "<title>Lv-00 Geometry Visualization</title>\n");
-    fprintf(fp, "<style>\n");
-    fprintf(fp, "* { box-sizing: border-box; margin: 0; padding: 0; }\n");
-    fprintf(fp, "body {\n");
-    fprintf(fp, "  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n");
-    fprintf(fp, "  background: #f5f5f5; color: #333; padding: 20px;\n");
-    fprintf(fp, "}\n");
-    fprintf(fp, ".layout { display: flex; gap: 20px; max-width: 1100px; margin: 0 auto; }\n");
-    fprintf(fp, ".main-panel {\n");
-    fprintf(fp, "  flex: 1; background: #fff; border: 1px solid #ddd;\n");
-    fprintf(fp, "  border-radius: 6px; overflow: hidden;\n");
-    fprintf(fp, "}\n");
-    fprintf(fp, ".main-panel h1 {\n");
-    fprintf(fp, "  font-size: 1.2em; padding: 12px 16px;\n");
-    fprintf(fp, "  border-bottom: 1px solid #eee; background: #fafafa;\n");
-    fprintf(fp, "}\n");
-    fprintf(fp, ".svg-wrap { padding: 12px; text-align: center; }\n");
-    fprintf(fp, "svg { border: 1px solid #e0e0e0; border-radius: 4px; background: #fff; }\n");
-    fprintf(fp, ".sidebar {\n");
-    fprintf(fp, "  width: 260px; flex-shrink: 0;\n");
-    fprintf(fp, "  background: #fff; border: 1px solid #ddd; border-radius: 6px;\n");
-    fprintf(fp, "  overflow: hidden;\n");
-    fprintf(fp, "}\n");
-    fprintf(fp, ".sidebar h2 {\n");
-    fprintf(fp, "  font-size: 1em; padding: 10px 14px;\n");
-    fprintf(fp, "  border-bottom: 1px solid #eee; background: #fafafa;\n");
-    fprintf(fp, "}\n");
-    fprintf(fp, ".stat-section { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }\n");
-    fprintf(fp,
-            ".stat-section h3 { font-size: 0.85em; color: #888; margin-bottom: 6px; text-transform: uppercase; }\n");
-    fprintf(fp, ".stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }\n");
-    fprintf(fp, ".stat-row .val { font-weight: 600; }\n");
-    fprintf(fp, ".trust-legend { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 0; }\n");
-    fprintf(fp, ".trust-dot { width: 10px; height: 10px; border-radius: 50%%; flex-shrink: 0; }\n");
-    fprintf(fp, ".legend-green { background: #4CAF50; }\n");
-    fprintf(fp, ".legend-blue { background: #42A5F5; }\n");
-    fprintf(fp, ".legend-orange { background: #FF9800; }\n");
-    fprintf(fp, ".legend-amber { background: #FFB300; }\n");
-    fprintf(fp, ".legend-other { background: #999; }\n");
-    fprintf(fp, "@media (max-width: 800px) {\n");
-    fprintf(fp, "  .layout { flex-direction: column; }\n");
-    fprintf(fp, "  .sidebar { width: 100%%; }\n");
-    fprintf(fp, "}\n");
-    fprintf(fp, "@media print {\n");
-    fprintf(fp, "  body { background: #fff; padding: 0; }\n");
-    fprintf(fp, "}\n");
-    fprintf(fp, "</style>\n");
-    fprintf(fp, "</head>\n<body>\n");
-
-    fprintf(fp, "<div class=\"layout\">\n");
-
-    /* 主面板：SVG 可视化 */
-    fprintf(fp, "<div class=\"main-panel\">\n");
-    fprintf(fp, "<h1>Lv-00 Geometry Visualization</h1>\n");
-    fprintf(fp, "<div class=\"svg-wrap\">\n");
-    fprintf(fp,
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" "
-            "viewBox=\"0 0 %d %d\">\n",
-            svg_w, svg_h, svg_w, svg_h);
-
-    /* 背景网格 */
-    fprintf(fp, "  <defs>\n");
-    fprintf(fp, "    <pattern id=\"grid\" width=\"40\" height=\"40\" patternUnits=\"userSpaceOnUse\">\n");
-    fprintf(fp, "      <path d=\"M 40 0 L 0 0 0 40\" fill=\"none\" stroke=\"#f0f0f0\" stroke-width=\"0.5\"/>\n");
-    fprintf(fp, "    </pattern>\n");
-    fprintf(fp, "  </defs>\n");
-    fprintf(fp, "  <rect width=\"100%%\" height=\"100%%\" fill=\"url(#grid)\"/>\n");
-
-    /* 坐标转换函数（内联JS用于tooltip，这里直接用C计算） */
-    /* worldToSvg: x_svg = pad + (wx - min_x) / range_x * (svg_w - 2*pad) */
-    /*             y_svg = pad + (max_y - wy) / range_y * (svg_h - 2*pad)  (Y轴翻转) */
-
-    if (graph) {
-        /* 先画线段 */
-        for (int i = 0; i < graph->node_count; i++) {
-            GeomNode *node = graph->nodes[i];
-            if (!node || node->type != GEOM_LINE_SEGMENT)
-                continue;
-
-            /* 线段有两个端点，通过约束获取 */
-            /* 当前：直接用节点的坐标作为线段中点，画一个小线段标记 */
-            /* 改进：查找 INCIDENCE 约束找到端点，计算精确中点 */
-            double cx = 0, cy = 0;
-            if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
-                node->symbolic_coords[1]) {
-                cx = symbolic_coord_to_double(node->symbolic_coords[0]);
-                cy = symbolic_coord_to_double(node->symbolic_coords[1]);
-            }
-
-            /* 查找关联的端点 */
-            double x1 = cx, y1 = cy, x2 = cx, y2 = cy;
-            bool found_endpoints = false;
-            for (int c = 0; c < graph->constraint_count; c++) {
-                Constraint *con = graph->constraints[c];
-                if (!con || con->type != INCIDENCE)
-                    continue;
-                if (con->participant_count < 2)
-                    continue;
-                int other = -1;
-                if (con->participants[0] == node->id)
-                    other = con->participants[1];
-                else if (con->participants[1] == node->id)
-                    other = con->participants[0];
-                if (other < 0)
-                    continue;
-                GeomNode *ep = graph_get_node_by_id(graph, other);
-                if (ep && ep->type == GEOM_POINT && ep->coord_count >= 2 && ep->symbolic_coords &&
-                    ep->symbolic_coords[0] && ep->symbolic_coords[1]) {
-                    if (!found_endpoints) {
-                        x1 = symbolic_coord_to_double(ep->symbolic_coords[0]);
-                        y1 = symbolic_coord_to_double(ep->symbolic_coords[1]);
-                        found_endpoints = true;
-                    } else {
-                        x2 = symbolic_coord_to_double(ep->symbolic_coords[0]);
-                        y2 = symbolic_coord_to_double(ep->symbolic_coords[1]);
-                    }
-                }
-            }
-
-            /* SVG 坐标 */
-            double sx1 = pad + (x1 - min_x) / range_x * (svg_w - 2 * pad);
-            double sy1 = pad + (max_y - y1) / range_y * (svg_h - 2 * pad);
-            double sx2 = pad + (x2 - min_x) / range_x * (svg_w - 2 * pad);
-            double sy2 = pad + (max_y - y2) / range_y * (svg_h - 2 * pad);
-
-            /* 信任颜色 */
-            const char *stroke_color = "#333";
-            const char *stroke_width = "2";
-            switch (node->trust) {
-                case TRUST_GREEN:
-                    stroke_color = "#4CAF50";
-                    break;
-                case TRUST_BLUE:
-                    stroke_color = "#42A5F5";
-                    break;
-                case TRUST_ORANGE:
-                    stroke_color = "#FF9800";
-                    stroke_width = "2.5";
-                    break;
-                case TRUST_AMBER:
-                    stroke_color = "#FFB300";
-                    break;
-                default:
-                    break;
-            }
-
-            fprintf(fp,
-                    "  <line x1=\"%.1f\" y1=\"%.1f\" x2=\"%.1f\" y2=\"%.1f\" "
-                    "stroke=\"%s\" stroke-width=\"%s\" stroke-linecap=\"round\"/>\n",
-                    sx1, sy1, sx2, sy2, stroke_color, stroke_width);
-
-            /* 线段标签 */
-            double mx = (sx1 + sx2) / 2;
-            double my = (sy1 + sy2) / 2;
-            fprintf(fp,
-                    "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"10\" fill=\"#666\" "
-                    "text-anchor=\"middle\" dy=\"-6\">S%d</text>\n",
-                    mx, my, node->id);
-        }
-
-        /* 再画点 */
-        for (int i = 0; i < graph->node_count; i++) {
-            GeomNode *node = graph->nodes[i];
-            if (!node || node->type != GEOM_POINT)
-                continue;
-
-            double x = 0, y = 0;
-            if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
-                node->symbolic_coords[1]) {
-                x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                y = symbolic_coord_to_double(node->symbolic_coords[1]);
-            }
-
-            double sx = pad + (x - min_x) / range_x * (svg_w - 2 * pad);
-            double sy = pad + (max_y - y) / range_y * (svg_h - 2 * pad);
-
-            /* 信任颜色 */
-            const char *fill_color = "#333";
-            const char *label_color = "#333";
-            switch (node->trust) {
-                case TRUST_GREEN:
-                    fill_color = "#4CAF50";
-                    break;
-                case TRUST_BLUE:
-                    fill_color = "#42A5F5";
-                    break;
-                case TRUST_ORANGE:
-                    fill_color = "#FF9800";
-                    break;
-                case TRUST_AMBER:
-                    fill_color = "#FFB300";
-                    label_color = "#333";
-                    break;
-                default:
-                    break;
-            }
-
-            fprintf(fp,
-                    "  <circle cx=\"%.1f\" cy=\"%.1f\" r=\"5\" fill=\"%s\" "
-                    "stroke=\"#fff\" stroke-width=\"1.5\">\n",
-                    sx, sy, fill_color);
-            fprintf(fp, "    <title>Point %d (%.2f, %.2f)</title>\n", node->id, x, y);
-            fprintf(fp, "  </circle>\n");
-            fprintf(fp,
-                    "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"11\" fill=\"%s\" "
-                    "text-anchor=\"middle\" dy=\"-10\" font-weight=\"600\">P%d</text>\n",
-                    sx, sy, label_color, node->id);
-        }
-
-        /* 画区域 */
-        for (int i = 0; i < graph->node_count; i++) {
-            GeomNode *node = graph->nodes[i];
-            if (!node || node->type != GEOM_REGION)
-                continue;
-
-            /* 收集区域边界线段的端点坐标 */
-            if (node->data.region.segment_count > 0 && node->data.region.boundary_segments) {
-                fprintf(fp, "  <polygon points=\"");
-                for (int s = 0; s < node->data.region.segment_count; s++) {
-                    GeomNode *seg = node->data.region.boundary_segments[s];
-                    if (!seg || seg->coord_count < 2 || !seg->symbolic_coords)
-                        continue;
-                    double sx = 0, sy = 0;
-                    if (seg->symbolic_coords[0] && seg->symbolic_coords[1]) {
-                        double wx = symbolic_coord_to_double(seg->symbolic_coords[0]);
-                        double wy = symbolic_coord_to_double(seg->symbolic_coords[1]);
-                        sx = pad + (wx - min_x) / range_x * (svg_w - 2 * pad);
-                        sy = pad + (max_y - wy) / range_y * (svg_h - 2 * pad);
-                    }
-                    fprintf(fp, "%.1f,%.1f ", sx, sy);
-                }
-                const char *region_fill = "#E8F5E9";
-                const char *region_stroke = "#81C784";
-                switch (node->trust) {
-                    case TRUST_GREEN:
-                        region_fill = "#E8F5E9";
-                        region_stroke = "#4CAF50";
-                        break;
-                    case TRUST_BLUE:
-                        region_fill = "#E3F2FD";
-                        region_stroke = "#42A5F5";
-                        break;
-                    case TRUST_ORANGE:
-                        region_fill = "#FFF3E0";
-                        region_stroke = "#FF9800";
-                        break;
-                    case TRUST_AMBER:
-                        region_fill = "#FFF8E1";
-                        region_stroke = "#FFB300";
-                        break;
-                    default:
-                        region_fill = "#E0E0E0";
-                        region_stroke = "#9E9E9E";
-                        break;
-                }
-                fprintf(fp,
-                        "\" fill=\"%s\" fill-opacity=\"0.3\" stroke=\"%s\" "
-                        "stroke-width=\"1.5\" stroke-dasharray=\"4,2\">\n",
-                        region_fill, region_stroke);
-                fprintf(fp, "    <title>Region %d</title>\n", node->id);
-                fprintf(fp, "  </polygon>\n");
-                fprintf(fp,
-                        "  <text x=\"%.1f\" y=\"%.1f\" font-size=\"10\" fill=\"#888\" "
-                        "text-anchor=\"middle\">R%d</text>\n",
-                        pad + (svg_w - 2 * pad) * 0.5, pad + (svg_h - 2 * pad) * 0.5, node->id);
-            }
-        }
-    }
-
-    fprintf(fp, "</svg>\n");
-    fprintf(fp, "</div>\n"); /* .svg-wrap */
-    fprintf(fp, "</div>\n"); /* .main-panel */
-
-    /* 侧边栏：图统计信息 */
-    fprintf(fp, "<div class=\"sidebar\">\n");
-    fprintf(fp, "<h2>Graph Statistics</h2>\n");
-
-    fprintf(fp, "<div class=\"stat-section\">\n");
-    fprintf(fp, "  <h3>Overview</h3>\n");
-    fprintf(fp, "  <div class=\"stat-row\"><span>Total Nodes</span><span class=\"val\">%d</span></div>\n", node_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Total Constraints</span><span class=\"val\">%d</span></div>\n",
-            constraint_count);
-    fprintf(fp, "</div>\n");
-
-    fprintf(fp, "<div class=\"stat-section\">\n");
-    fprintf(fp, "  <h3>Node Types</h3>\n");
-    fprintf(fp, "  <div class=\"stat-row\"><span>Points</span><span class=\"val\">%d</span></div>\n", point_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Segments</span><span class=\"val\">%d</span></div>\n", segment_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Regions</span><span class=\"val\">%d</span></div>\n", region_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Ports</span><span class=\"val\">%d</span></div>\n", port_count);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Function Blocks</span><span class=\"val\">%d</span></div>\n",
-            fb_count);
-    fprintf(fp, "</div>\n");
-
-    fprintf(fp, "<div class=\"stat-section\">\n");
-    fprintf(fp, "  <h3>Trust Status</h3>\n");
-    fprintf(fp,
-            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-green\"></span>"
-            "<span>Green (Constructive): %d</span></div>\n",
-            trust_green);
-    fprintf(fp,
-            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-blue\"></span>"
-            "<span>Blue (Unexplored): %d</span></div>\n",
-            trust_blue);
-    fprintf(fp,
-            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-orange\"></span>"
-            "<span>Orange (Non-constructive): %d</span></div>\n",
-            trust_orange);
-    fprintf(fp,
-            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-amber\"></span>"
-            "<span>Amber (Numeric): %d</span></div>\n",
-            trust_amber);
-    fprintf(fp,
-            "  <div class=\"trust-legend\"><span class=\"trust-dot legend-other\"></span>"
-            "<span>Other: %d</span></div>\n",
-            trust_other);
-    fprintf(fp, "</div>\n");
-
-    fprintf(fp, "<div class=\"stat-section\">\n");
-    fprintf(fp, "  <h3>Coordinate Range</h3>\n");
-    fprintf(fp, "  <div class=\"stat-row\"><span>X</span><span class=\"val\">[%.2f, %.2f]</span></div>\n",
-            min_x + margin, max_x - margin);
-    fprintf(fp, "  <div class=\"stat-row\"><span>Y</span><span class=\"val\">[%.2f, %.2f]</span></div>\n",
-            min_y + margin, max_y - margin);
-    fprintf(fp, "</div>\n");
-
-    fprintf(fp, "</div>\n"); /* .sidebar */
-    fprintf(fp, "</div>\n"); /* .layout */
-
-    fprintf(fp, "</body>\n</html>\n");
-
-    fclose(fp);
-
-    /* ---- 流式事件：HTML 导出完成 ---- */
-    {
-        StreamContext *sctx = engine_get_stream_context(engine);
-        if (sctx) {
-            stream_emit_simple(sctx, STREAM_EVENT_INFO, "HTML 导出完成", 0);
-        }
-    }
-
-    return LV00_OK;
+    (void)engine;
+    (void)config;
+    /* HTML 渲染已迁移至 UI 层（ui/L3-modules/）。
+       内核通过 lv00_protocol.h 提供结构化数据。 */
+    return -1;
 }
 
 int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *config) {
@@ -7826,4 +7328,67 @@ const char *interop_get_file_extension(const char *path) {
         return "";
 
     return dot + 1;
+}
+
+/* ---- 命令补全 ---- */
+
+static const char *BUILTIN_COMMANDS[] = {
+    "add point", "add segment", "add constraint", "add region",
+    "move point", "remove point", "remove segment",
+    "normalize", "undo", "redo",
+    "snapshot", "restore",
+    "solve", "rewrite", "unify",
+    "pack function", "instantiate",
+    "get graph", "export graph", "get status",
+    "history", "help", "clear", "cls",
+    "ping", "stream start", "stream stop",
+    NULL
+};
+
+static int str_prefix_match(const char *str, const char *prefix) {
+    size_t plen = strlen(prefix);
+    if (plen == 0) return 1;
+    return strncmp(str, prefix, plen) == 0;
+}
+
+char **interop_get_command_completions(LV00Engine *engine, const char *prefix, int *out_count) {
+    if (!out_count) return NULL;
+    *out_count = 0;
+
+    int capacity = INTEROP_MAX_COMPLETIONS;
+    char **result = (char **)calloc((size_t)capacity, sizeof(char *));
+    if (!result) return NULL;
+
+    int count = 0;
+    const char *p = prefix ? prefix : "";
+
+    /* 内置命令补全 */
+    for (int i = 0; BUILTIN_COMMANDS[i] != NULL; i++) {
+        if (count >= capacity - 1) break;
+        if (str_prefix_match(BUILTIN_COMMANDS[i], p)) {
+            result[count] = strdup(BUILTIN_COMMANDS[i]);
+            if (result[count]) count++;
+        }
+    }
+
+    /* 当前图中的节点名称和约束名称补全 */
+    /* TODO: 接入引擎 API 获取实时节点/约束名称列表 */
+    (void)engine;
+
+    if (count == 0) {
+        free(result);
+        *out_count = 0;
+        return NULL;
+    }
+
+    *out_count = count;
+    return result;
+}
+
+void interop_free_completions(char **completions, int count) {
+    if (!completions) return;
+    for (int i = 0; i < count; i++) {
+        free(completions[i]);
+    }
+    free(completions);
 }
