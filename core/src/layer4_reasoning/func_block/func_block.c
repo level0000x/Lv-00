@@ -22,7 +22,7 @@
 #include "func_block_internal.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "solver.h"
+#include "lv00/solver.h"
 #include "lv00/stream.h"
 #include "stream_context_util.h"
 

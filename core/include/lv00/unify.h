@@ -283,6 +283,15 @@ LV00_PUBLIC_API void unify_clear_equivalences(void);
 LV00_PUBLIC_API void unify_equivalence_storage_init(void);
 
 /**
+ * @brief 清理等价声明存储系统
+ *
+ * 释放所有等价声明相关资源，重置存储状态。
+ *
+ * 线程安全：每个线程有独立的存储实例。
+ */
+LV00_PUBLIC_API void unify_equivalence_storage_cleanup(void);
+
+/**
  * @brief 获取当前等价声明数量
  *
  * @return 当前存储的等价声明数量

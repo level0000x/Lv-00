@@ -30,7 +30,7 @@
 
 #include "debug.h"
 #include "context.h"      /* v3.3.0: 结构化日志需要 Lv00Context */
-#include "engine.h"
+#include "lv00/engine.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "stream.h"
@@ -1643,6 +1643,9 @@ void debug_log_shutdown(void) {
         lv00_log_ring_buffer_destroy(g_log_ring_buffer);
         g_log_ring_buffer = NULL;
     }
+}
+
+void debug_log_cleanup(void) {
 }
 
 void debug_set_log_level(LogLevel level) {

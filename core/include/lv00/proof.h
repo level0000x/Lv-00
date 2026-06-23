@@ -738,6 +738,16 @@ LV00_PUBLIC_API bool proof_restore_breakpoint(ProofNavigator *nav, int breakpoin
 LV00_PUBLIC_API void proof_breakpoint_storage_init(void);
 
 /**
+ * @brief 清理断点存储系统
+ *
+ * 释放所有断点存储相关资源，重置存储状态。
+ *
+ * @note 线程安全：仅清理当前线程的存储实例。
+ *       不会影响其他线程的断点存储。
+ */
+LV00_PUBLIC_API void proof_breakpoint_storage_cleanup(void);
+
+/**
  * @brief 重置断点存储系统
  *
  * 清除所有已保存的断点快照，释放相关资源。

@@ -28,7 +28,7 @@
  * ============================================================
  */
 
-#include "engine.h"
+#include "lv00/engine.h"
 
 #include <assert.h>
 #include <math.h>
@@ -846,7 +846,7 @@ static EngineSolveResult run_solver_on_graph(LV00Engine *engine, const char *con
         GroebnerResult *result = NULL;
         SolverStatus sstatus = solve_algebraic_system(engine->main_graph, dirty_ids, free_count, &result);
         if (result)
-            groebner_result_free(result);
+            groebner_result_destroy(result);
         lv00_free((void **) &dirty_ids);
 
         if (sstatus == SOLVER_STATUS_NO_SOLUTION || sstatus == SOLVER_STATUS_OVERCONSTRAINED) {

@@ -10,6 +10,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 #include "symbolic_coord.h"   /* Rational struct definition */
+#include "lv00/lv00_utils.h"
 
 typedef Rational Lv00Rational;
 
@@ -33,22 +34,22 @@ int rational_compare(const Rational *r, const Rational *s);
 
 /* === SAFE_FREE_STR === */
 #ifndef SAFE_FREE_STR
-#define SAFE_FREE_STR(p) do { if (p) { free(p); (p) = NULL; } } while(0)
+#define SAFE_FREE_STR(p) do { if (p) { lv00_free((void**)&(p)); } } while(0)
 #endif
 
 /* === lv00_ prefix wrappers === */
 static inline Lv00Rational *lv00_rational_create(void) {
-    Rational *r = (Rational*)malloc(sizeof(Rational));
+    Rational *r = (Rational*)lv00_malloc(sizeof(Rational));
     if (r) { mpq_init(r->value); mpq_set_ui(r->value, 0, 1); }
     return r;
 }
 static inline Lv00Rational *lv00_rational_create_from_si(long num, unsigned long den) {
-    Rational *r = (Rational*)malloc(sizeof(Rational));
+    Rational *r = (Rational*)lv00_malloc(sizeof(Rational));
     if (r) { mpq_init(r->value); mpq_set_si(r->value, num, den); mpq_canonicalize(r->value); }
     return r;
 }
 static inline void lv00_rational_destroy(Lv00Rational **rp) {
-    if (rp && *rp) { mpq_clear((*rp)->value); free(*rp); *rp = NULL; }
+    if (rp && *rp) { mpq_clear((*rp)->value); lv00_free((void**)rp); }
 }
 static inline int lv00_rational_cmp(const Lv00Rational *a, const Lv00Rational *b) { return rational_compare(a, b); }
 static inline Lv00Rational *lv00_rational_clone(const Lv00Rational *r) { return rational_copy(r); }

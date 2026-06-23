@@ -22,7 +22,7 @@
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "error_codes.h"
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "sat_encoding.h"
 #include "solver_core.h"
 

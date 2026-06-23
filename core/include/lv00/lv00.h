@@ -214,51 +214,17 @@ extern "C" {
 
 /* 核心模块 */
 #include "constraint_graph.h" /* 约束图核心 */
-#include "graph_hash.h"       /* 图结构哈希 */
-#include "normalization.h"    /* 图规范化遍引擎 */
-#include "rewrite.h"          /* 图重写引擎 */
+
 #include "solver.h"           /* 符号代数求解器 */
-#include "rational.h"          /* 精确有理数系统 */
-#include "symbolic_coord.h"   /* 符号坐标系统 */
-#include "unify.h"            /* 合一检查 */
-
-/* 公理系统 */
-#include "axiom_pkg.h" /* 公理系统包 */
-#include "module.h"    /* 模块系统 */
-
-/* 高级功能 */
-#include "func_block.h"          /* 函数块系统 */
-#include "func_block_preset.h"   /* 预设函数块库 */
-#include "func_block_registry.h" /* 预设函数块注册系统 */
-
-/* 模块化预设函数块系统 */
-#include "preset_algebraic.h"       /* 代数运算模块 */
-#include "preset_basic_geometry.h"  /* 基础几何构造模块 */
-#include "preset_blocks.h"          /* 模块化预设函数块主系统 */
-#include "preset_measurements.h"    /* 度量计算模块 */
-#include "preset_polygons.h"        /* 多边形构造模块 */
-#include "preset_transformations.h" /* 几何变换模块 */
-#include "proof.h"                  /* 命题与证明系统 */
-#include "three_valued_logic.h"     /* 三值逻辑系统 */
-#include "modal_operators.h"        /* 模态逻辑算子 */
-#include "proof_engine_enhanced.h"  /* 增强证明引擎 */
-#include "recursion.h"              /* 递归与条件 */
-#include "type_system.h"            /* 类型系统 */
-#include "quantifier.h"             /* 量词系统 */
 
 /* 引擎 */
 #include "engine.h" /* 主引擎 */
-#include "magic.h"  /* Magic 模拟器模块 */
 
 /* 调试 */
 #include "debug.h" /* 调试工具 */
 
 /* 工具函数库 */
 #include "lv00_utils.h" /* 通用工具函数 */
-
-/* 流式输出 */
-#include "stream.h"              /* 流式事件系统 */
-#include "stream_context_util.h" /* 流式上下文工具宏 */
 
 /* ============================================================
  * === 版本信息 API ===

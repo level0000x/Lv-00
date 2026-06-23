@@ -21,6 +21,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "lv00/lv00_utils.h"
 
 #ifndef MPZ_POLY_T_DEFINED
 #define MPZ_POLY_T_DEFINED
@@ -40,7 +41,7 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
         for (int i = 0; i <= p->degree; i++) {
             mpz_clear(p->coeffs[i]);
         }
-        free(p->coeffs);
+        lv00_free((void**)&(p->coeffs));
     }
     p->coeffs = NULL;
     p->degree = -1;
@@ -49,7 +50,7 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
 static inline bool mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
     mpz_poly_clear(dst);
     if (src->degree >= 0) {
-        dst->coeffs = malloc((src->degree + 1) * sizeof(mpz_t));
+        dst->coeffs = lv00_malloc((src->degree + 1) * sizeof(mpz_t));
         if (!dst->coeffs) {
             dst->degree = -1;
             return false;
@@ -82,7 +83,7 @@ static inline bool mpz_poly_alloc_result(mpz_poly_t *result, int max_deg) {
         result->coeffs = NULL;
         return true;
     }
-    result->coeffs = malloc((size_t) (max_deg + 1) * sizeof(mpz_t));
+    result->coeffs = lv00_malloc((size_t) (max_deg + 1) * sizeof(mpz_t));
     if (!result->coeffs) {
         result->degree = -1;
         return false;
@@ -101,8 +102,7 @@ static inline void mpz_poly_normalize(mpz_poly_t *result) {
         result->degree--;
     }
     if (result->degree < 0) {
-        free(result->coeffs);
-        result->coeffs = NULL;
+        lv00_free((void**)&(result->coeffs));
     }
 }
 
@@ -152,7 +152,7 @@ static inline void mpz_poly_mul(mpz_poly_t *result, const mpz_poly_t *a, const m
         return;
     }
     result->degree = new_degree;
-    result->coeffs = malloc(coeff_count * sizeof(mpz_t));
+    result->coeffs = lv00_malloc(coeff_count * sizeof(mpz_t));
     if (!result->coeffs) {
         result->degree = -1;
         return;
@@ -198,7 +198,7 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
         return;
     }
     quotient->degree = dividend->degree - divisor->degree;
-    quotient->coeffs = malloc((quotient->degree + 1) * sizeof(mpz_t));
+    quotient->coeffs = lv00_malloc((quotient->degree + 1) * sizeof(mpz_t));
     if (!quotient->coeffs) {
         quotient->degree = -1;
         return;
@@ -222,8 +222,7 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
     mpz_clear(tmp);
     mpz_clear(factor);
     if (quotient->degree < 0) {
-        free(quotient->coeffs);
-        quotient->coeffs = NULL;
+        lv00_free((void**)&(quotient->coeffs));
     }
 }
 
@@ -236,13 +235,13 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
         return NULL;
     }
     size_t coeff_count = (size_t)(p->degree + 1);
-    char **coeff_strs = malloc(coeff_count * sizeof(char *));
+    char **coeff_strs = lv00_malloc(coeff_count * sizeof(char *));
     size_t total_len = 0;
     for (int i = 0; i <= p->degree; i++) {
         coeff_strs[i] = mpz_get_str(NULL, 10, p->coeffs[i]);
         total_len += strlen(coeff_strs[i]) + 2;
     }
-    char *result = malloc(total_len + 1);
+    char *result = lv00_malloc(total_len + 1);
     result[0] = '\0';
     for (int i = 0; i <= p->degree; i++) {
         if (i > 0)
@@ -250,9 +249,9 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
         strcat(result, coeff_strs[i]);
     }
     for (int i = 0; i <= p->degree; i++) {
-        free(coeff_strs[i]);
+        lv00_free((void**)&(coeff_strs[i]));
     }
-    free(coeff_strs);
+    lv00_free((void**)&(coeff_strs));
     return result;
 }
 

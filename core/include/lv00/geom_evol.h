@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "lv00_numeric.h"
 
@@ -37,6 +38,9 @@ extern "C" {
 
 /** 几何参数向量的最大维度 */
 #define GEOEVOL_MAX_PARAM_DIM 256
+
+/** 多步法（Adams/BDF）最大阶数 */
+#define GEOEVOL_ADAMS_MAX_ORDER 12
 
 /** 最小允许步长（绝对值，防止下溢） */
 #define GEOEVOL_MIN_STEP 1e-15

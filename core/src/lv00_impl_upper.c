@@ -1,13 +1,10 @@
 /**
  * @file lv00_impl_upper.c
- * @brief Lv-00 C API 统一实现 —— 替代空壳，GMP精确计算
+ * @brief Lv-00 C API 统一实现 —— 替代空壳
  *
- * 覆盖 L3-L10 全部层级 + func_block_preset。
- * 所有函数使用 LV00Engine* 作为上下文，g_upper_id++ 生成唯一ID，
- * malloc/calloc/snprintf/strdup 模拟实际内存操作。
- * 不使用 double/float，全部以 int64_t 完成 ID/status/stage 计算。
- *
- * @version 3.3.0 unified
+ * @deprecated 本文件将 L3-L10 全部层级的实现塞入单个文件，
+ *             违反分层架构原则。计划按层拆分为独立实现文件。
+ *             新代码应直接在对应层的 .c 文件中实现。
  */
 
 /* ============================================================

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file module.c
  * @brief 模块系统实现
  * @details 实现模块的加载、保存和依赖管理。支持 MessagePack 序列化、
@@ -24,7 +24,7 @@
 #include <time.h>
 
 #include "axiom_pkg.h"
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "lexer_shared.h"
 #include "error_codes.h"
 #include "lv00_internal.h"

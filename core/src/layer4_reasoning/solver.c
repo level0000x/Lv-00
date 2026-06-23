@@ -36,7 +36,7 @@
  *     一个分支 init 而在另一个分支泄漏。
  */
 
-#include "solver.h"
+#include "lv00/solver.h"
 
 #include <float.h>
 #include <math.h>
@@ -45,7 +45,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h" /* lv00_malloc / lv00_free —— 统一内存分配器 */
@@ -3945,7 +3945,7 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         stream_emit(solver_stream_ctx, &ev);
     }
 
-    groebner_result_free(result);
+    groebner_result_destroy(result);
     return fb;
 }
 
@@ -7332,10 +7332,10 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
 }
 
 /* ================================================================== */
-/*  PUBLIC API: groebner_result_free                                   */
+/*  PUBLIC API: groebner_result_destroy                                   */
 /* ================================================================== */
 
-void groebner_result_free(GroebnerResult *result) {
+void groebner_result_destroy(GroebnerResult *result) {
     if (!result)
         return;
     if (result->solutions) {

@@ -41,7 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "debug.h"
 #include "error_codes.h"
 #include "lv00_internal.h"

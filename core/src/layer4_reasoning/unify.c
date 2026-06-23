@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file unify.c
  * @brief 合一检查实现
  * @details 实现构造与命题之间的合一检查，包括约束匹配、坐标判等、
@@ -73,12 +73,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"       /* lv00_strdup_safe, lv00_malloc 等统一内存管理 */
 #include "normalization.h"
-#include "proof.h"
+#include "lv00/proof.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "type_system.h"
@@ -1085,6 +1085,10 @@ void unify_clear_equivalences(void) {
         }
     }
     g_equivalence_count = 0;
+}
+
+void unify_equivalence_storage_cleanup(void) {
+    unify_clear_equivalences();
 }
 
 /* ---------------------------------------------------------------------------

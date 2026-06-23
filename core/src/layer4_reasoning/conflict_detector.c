@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "debug.h"
 /* geometry_config.h 已合并到 constraint_graph.h，无需单独包含 */
 #include "geo_utils.h"
