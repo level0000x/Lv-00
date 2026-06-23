@@ -1,6 +1,5 @@
 #ifndef LV00_SYM_EXPR_H
 #define LV00_SYM_EXPR_H
-/* TODO: Sym expr module stub */
 #ifdef __cplusplus
 extern "C" {
 #endif

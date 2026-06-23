@@ -1,6 +1,5 @@
 #ifndef LV00_PROOF_RULE_ENGINE_H
 #define LV00_PROOF_RULE_ENGINE_H
-/* TODO: Proof rule engine module stub */
 #include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {

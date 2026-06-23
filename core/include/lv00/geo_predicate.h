@@ -1,6 +1,5 @@
 #ifndef LV00_GEO_PREDICATE_H
 #define LV00_GEO_PREDICATE_H
-/* TODO: Geo predicate module stub */
 
 #ifdef __cplusplus
 extern "C" {

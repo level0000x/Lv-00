@@ -1,6 +1,5 @@
 #ifndef LV00_GEOMETRY_CONFIG_H
 #define LV00_GEOMETRY_CONFIG_H
-/* TODO: Geometry config module stub */
 
 #ifdef __cplusplus
 extern "C" {

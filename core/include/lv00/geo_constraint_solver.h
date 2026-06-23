@@ -1,6 +1,5 @@
 #ifndef LV00_GEO_CONSTRAINT_SOLVER_H
 #define LV00_GEO_CONSTRAINT_SOLVER_H
-/* TODO: Geo constraint solver module stub */
 
 #ifdef __cplusplus
 extern "C" {

@@ -337,7 +337,6 @@ set(LV00_HEADERS
     core/include/lv00/engine_scheduler.h
     core/include/lv00/euclidean_geometry.h
     core/include/lv00/geometry_compress.h
-    core/include/lv00/sparse_linear_algebra.h
     core/include/lv00/float_error.h
     core/include/lv00/smt_backend.h
     core/include/lv00/bdd_encoding.h
@@ -356,66 +355,15 @@ set(LV00_HEADERS
     core/include/lv00/algebra_mode.h
     core/include/lv00/dsl_compiler.h
     core/include/lv00/interactive_geo.h
-    core/include/lv00/tikz_export.h
-    core/include/lv00/math_input.h
-    core/include/lv00/math_protocol.h
-    core/include/lv00/ecosystem.h
     # v1.1.0 新增模块头文件（第四轮：证明与规约模块）
     core/include/lv00/mini_kernel.h
-    core/include/lv00/gc_language.h
-    core/include/lv00/geo_spec.h
     core/include/lv00/proof_widget.h
     core/include/lv00/path_type.h
     # 模块化预设函数块系统
     core/include/lv00/preset_blocks.h
-    core/include/lv00/preset_register_macros.h
-    core/include/lv00/preset_basic_geometry.h
-    core/include/lv00/preset_transformations.h
-    core/include/lv00/preset_measurements.h
-    core/include/lv00/preset_polygons.h
-    core/include/lv00/preset_algebraic.h
-    core/include/lv00/preset_number_theory.h
-    core/include/lv00/preset_group_theory.h
-    core/include/lv00/preset_topology.h
-    core/include/lv00/preset_analysis.h
-    core/include/lv00/preset_combinatorics.h
-    core/include/lv00/preset_graph_theory.h
-    core/include/lv00/preset_probability.h
-    core/include/lv00/preset_numerical.h
-    core/include/lv00/preset_optimization.h
-    core/include/lv00/preset_advanced_geometry.h
-    core/include/lv00/preset_geometry_3d.h
-    core/include/lv00/preset_field_theory.h
-    core/include/lv00/preset_ring_theory.h
-    core/include/lv00/preset_linear_algebra.h
-    core/include/lv00/preset_trigonometry.h
-    core/include/lv00/preset_differential_equations.h
-    core/include/lv00/preset_measure_theory.h
-    core/include/lv00/preset_functional_analysis.h
-    core/include/lv00/preset_set_theory.h
-    core/include/lv00/preset_math_logic.h
-    core/include/lv00/preset_category_theory.h
-    core/include/lv00/preset_category_theory_adv.h
-    core/include/lv00/preset_complex_analysis.h
-    core/include/lv00/preset_differential_geometry.h
-    core/include/lv00/preset_differential_geometry_adv.h
-    core/include/lv00/preset_numerical_analysis.h
-    core/include/lv00/preset_probability_statistics.h
-    core/include/lv00/preset_statistics.h
-    # v11.0 新增：理论数学研究模块
-    core/include/lv00/preset_algebraic_geometry.h
-    core/include/lv00/preset_homological_algebra.h
-    core/include/lv00/preset_lie_theory_advanced.h
-    # v12.0 新增：随机过程、博弈论、信息论、编码理论、差分方程模块
-    core/include/lv00/preset_stochastic_processes.h
-    core/include/lv00/preset_game_theory.h
-    core/include/lv00/preset_information_theory.h
-    core/include/lv00/preset_coding_theory.h
-    core/include/lv00/preset_difference_equations.h
     # v1.1.0 性能优化模块
     core/include/lv00/thread_pool.h
     core/include/lv00/simd_ops.h
-    core/include/lv00/fast_index.h
     core/include/lv00/benchmark.h
     # v1.1.0 新增核心模块（整改实施）
     core/include/lv00/memory_pool.h
@@ -439,40 +387,15 @@ set(LV00_HEADERS
     core/include/lv00/func_block_preset.h
     core/include/lv00/expr_canon.h
     core/include/lv00/modal_operators.h
-    core/include/lv00/logic_check.h
     core/include/lv00/circuit_breaker.h
     core/include/lv00/axiom_grade.h
     core/include/lv00/three_valued_logic.h
     core/include/lv00/quantifier.h
     core/include/lv00/rational.h
-    core/include/lv00/proof_priority.h
     core/include/lv00/proof_trace.h
-    core/include/lv00/proof_score.h
     core/include/lv00/runtime_guard.h
-    core/include/lv00/status_codes.h
     core/include/lv00/exact_arithmetic.h
-    # func_block 内部预设头文件
-    core/include/lv00/preset_basic_math.h
-    core/include/lv00/preset_common.h
-    core/include/lv00/preset_calculus.h
-    core/include/lv00/preset_core.h
     core/include/lv00/preset_blocks.h
-    # 预设模块头文件（内部实现）
-    core/include/lv00/preset_algebraic_topology.h
-    core/include/lv00/preset_algebraic_topology_adv.h
-    core/include/lv00/preset_arithmetic_geometry.h
-    core/include/lv00/preset_dynamical_systems.h
-    core/include/lv00/preset_functional_analysis_adv.h
-    core/include/lv00/preset_integral_transforms.h
-    core/include/lv00/preset_lattice_theory.h
-    core/include/lv00/preset_logic_advanced.h
-    core/include/lv00/preset_mathematical_logic.h
-    core/include/lv00/preset_mathematical_physics.h
-    core/include/lv00/preset_matrix.h
-    core/include/lv00/preset_order_theory.h
-    core/include/lv00/preset_polynomial.h
-    core/include/lv00/preset_representation_theory.h
-    core/include/lv00/preset_special_functions.h
     # [QA] Pending header additions: adaptive_pruning, autodiff, cache_manager,
     # conflict_detector, ga_codegen, ga_interface, ga_multivector, groebner_parallel,
     # math_theory_guide_cn, meta_repr, nt_number_theory, nt_polynomial, ode_solver,
@@ -482,6 +405,24 @@ set(LV00_HEADERS
     # v3.0.0 API 版式规范 + 层间通信
     core/include/lv00/lv00_api_spec.h
     core/include/lv00/lv00_layer_msg.h
+    # stubs→headers: 17 semi-finished headers
+    core/include/lv00/adaptive_threshold.h
+    core/include/lv00/gappa_dsl.h
+    core/include/lv00/gappa_propagate.h
+    core/include/lv00/geo_aabb_tree.h
+    core/include/lv00/geo_constraint_solver.h
+    core/include/lv00/geo_dynamic.h
+    core/include/lv00/geo_predicate.h
+    core/include/lv00/geometry_config.h
+    core/include/lv00/performance_profiler.h
+    core/include/lv00/proof_export_enhanced.h
+    core/include/lv00/proof_rule_engine.h
+    core/include/lv00/proof_session.h
+    core/include/lv00/proof_version.h
+    core/include/lv00/reasoning_cache.h
+    core/include/lv00/rewrite_strategy.h
+    core/include/lv00/smt_bitvector.h
+    core/include/lv00/sym_expr.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──

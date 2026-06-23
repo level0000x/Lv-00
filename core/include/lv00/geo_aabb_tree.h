@@ -1,6 +1,5 @@
 #ifndef LV00_GEO_AABB_TREE_H
 #define LV00_GEO_AABB_TREE_H
-/* TODO: Geo AABB tree module stub */
 
 #ifdef __cplusplus
 extern "C" {

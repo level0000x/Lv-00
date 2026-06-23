@@ -1,6 +1,5 @@
 #ifndef LV00_PROOF_EXPORT_ENHANCED_H
 #define LV00_PROOF_EXPORT_ENHANCED_H
-/* TODO: Proof export enhanced module stub */
 #include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {

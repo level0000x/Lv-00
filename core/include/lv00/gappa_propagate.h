@@ -1,6 +1,5 @@
 #ifndef LV00_GAPPA_PROPAGATE_H
 #define LV00_GAPPA_PROPAGATE_H
-/* TODO: Gappa propagate module stub */
 
 #ifdef __cplusplus
 extern "C" {

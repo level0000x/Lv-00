@@ -1,6 +1,5 @@
 #ifndef LV00_ENGINE_SCHEDULER_H
 #define LV00_ENGINE_SCHEDULER_H
-/* TODO: Engine scheduler module stub */
 
 #ifdef __cplusplus
 extern "C" {

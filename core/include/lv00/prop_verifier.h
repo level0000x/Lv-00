@@ -1,6 +1,5 @@
 #ifndef LV00_PROP_VERIFIER_H
 #define LV00_PROP_VERIFIER_H
-/* TODO: Prop verifier module stub */
 #include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {

@@ -1,6 +1,5 @@
 #ifndef LV00_ADAPTIVE_THRESHOLD_H
 #define LV00_ADAPTIVE_THRESHOLD_H
-/* TODO: Adaptive threshold module stub */
 
 #include "lv00/constraint_graph.h"
 
