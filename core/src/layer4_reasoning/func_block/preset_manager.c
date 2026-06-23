@@ -2733,32 +2733,4 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call,
 
 #else
 
-/*
- * DEBUG: 构造函数/析构函数暂时禁用
- * pthread_mutex_init 在 Windows/MinGW 的静态初始化阶段可能导致崩溃
- */
-#if 0
-/**
- * @brief 构造函数（GCC/Clang）
- *
- * 仅初始化互斥锁。用户需显式调用 preset_library_init() 来完成库初始化。
- */
-__attribute__((constructor))
-static void preset_library_constructor(void)
-{
-    pthread_mutex_init(&g_library.mutex, NULL);
-}
-
-/**
- * @brief 析构函数（GCC/Clang）
- *
- * 仅销毁互斥锁。用户应确保在程序退出前已调用 preset_library_shutdown()。
- */
-__attribute__((destructor))
-static void preset_library_destructor(void)
-{
-    pthread_mutex_destroy(&g_library.mutex);
-}
-#endif
-
 #endif

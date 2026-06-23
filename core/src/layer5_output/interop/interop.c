@@ -5032,7 +5032,9 @@ static bool ggb_inflate(const uint8_t *src, size_t src_len, uint8_t *dst, size_t
             bit_pos += len * 8;
         } else if (btype == 1) {
             /* 固定哈夫曼编码 */
+            int _huff_iter = 0;
             while (1) {
+                if (++_huff_iter > 65536) { *out_len = dst_pos; return false; }
                 uint32_t symbol;
                 GGB_HUFF_DECODE(fixed_lit_len_bits, 288, symbol);
                 if (symbol == 0xFFFF) {

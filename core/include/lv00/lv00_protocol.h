@@ -40,26 +40,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "lv00/lv00_api_spec.h"
+#include "lv00/config.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* ================================================================
- * 一、常量
- * ================================================================ */
-
-#define LV00_PROTO_MAX_DRAW_CMDS    4096
-#define LV00_PROTO_MAX_TABLE_ROWS    512
-#define LV00_PROTO_MAX_TREE_NODES    256
-#define LV00_PROTO_MAX_TOPOLOGY      128
-#define LV00_PROTO_MAX_PROOF_STEPS   512
-#define LV00_PROTO_MAX_COMPLETIONS    64
-#define LV00_PROTO_MAX_TERMINAL_LINES 512
-#define LV00_PROTO_STR_LEN            64
-#define LV00_PROTO_LABEL_LEN         128
-#define LV00_PROTO_DESC_LEN          256
-#define LV00_PROTO_BUFFER_LEN       4096
 
 /* ================================================================
  * 二、颜色系统（领域概念，非 UI 样式）

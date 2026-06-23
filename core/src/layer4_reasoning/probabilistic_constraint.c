@@ -897,7 +897,9 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                 if (alpha >= 1.0) {
                     double d = alpha - 1.0 / 3.0;
                     double c = 1.0 / sqrt(9.0 * d);
+                    int _try = 0;
                     for (;;) {
+                        if (++_try > 10000) { x_gamma = 1.0; break; }
                         double v = 1.0 + c * rand_normal_box_muller();
                         if (v <= 0.0) continue;
                         v = v * v * v;
@@ -914,7 +916,9 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                 } else {
                     /* alpha < 1：Gamma 的 Ahrens-Dieter 接受-拒绝法 */
                     double am = 0.0;
+                    int _try2 = 0;
                     for (;;) {
+                        if (++_try2 > 10000) { x_gamma = 1.0; break; }
                         am = alpha + 1.0;
                         double u1 = rand_uniform_lcg();
                         double u2 = rand_uniform_lcg();
@@ -930,7 +934,9 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                 if (beta >= 1.0) {
                     double d = beta - 1.0 / 3.0;
                     double c = 1.0 / sqrt(9.0 * d);
+                    int _try3 = 0;
                     for (;;) {
+                        if (++_try3 > 10000) { y_gamma = 1.0; break; }
                         double v = 1.0 + c * rand_normal_box_muller();
                         if (v <= 0.0) continue;
                         v = v * v * v;
@@ -946,7 +952,9 @@ int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples
                     }
                 } else {
                     double bm = 0.0;
+                    int _try4 = 0;
                     for (;;) {
+                        if (++_try4 > 10000) { y_gamma = 1.0; break; }
                         bm = beta + 1.0;
                         double u1 = rand_uniform_lcg();
                         double u2 = rand_uniform_lcg();
