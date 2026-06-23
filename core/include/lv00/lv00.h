@@ -644,7 +644,7 @@ LV00_PUBLIC_API const char *lv00_config_get_string(const char *key,
  * @param[in] value 配置值
  * @return true 成功，false 失败（键名无效或值超出范围）
  */
-LV00_PUBLIC_API bool lv00_config_set_int(const char *key, int value);
+LV00_PUBLIC_API int lv00_config_set_int(const char *key, int value);
 
 /**
  * @brief 设置布尔配置值
@@ -662,7 +662,7 @@ LV00_PUBLIC_API bool lv00_config_set_bool(const char *key, bool value);
  * @param[in] value 配置值
  * @return true 成功，false 失败
  */
-LV00_PUBLIC_API bool lv00_config_set_double(const char *key, double value);
+LV00_PUBLIC_API int lv00_config_set_double(const char *key, double value);
 
 /**
  * @brief 设置字符串配置值
