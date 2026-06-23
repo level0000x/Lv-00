@@ -6,6 +6,10 @@
  *          例化与捕获避免见 func_block_instantiate.c，
  *          序列化/反序列化见 func_block_serialize.c。
  *
+ * INTERNAL NOTE: 本文件使用 goto 清理路径模式（14 处）。
+ *   对于错误清理场景这是 C 语言惯用法，不做修改。
+ *   若新增代码应考虑拆分超过 200 行的函数。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */
