@@ -423,6 +423,81 @@ set(LV00_HEADERS
     core/include/lv00/rewrite_strategy.h
     core/include/lv00/smt_bitvector.h
     core/include/lv00/sym_expr.h
+    # v3.5.0 stub→real: 12 non-preset modules
+    core/include/lv00/ecosystem.h
+    core/include/lv00/fast_index.h
+    core/include/lv00/gc_language.h
+    core/include/lv00/geo_spec.h
+    core/include/lv00/logic_check.h
+    core/include/lv00/math_input.h
+    core/include/lv00/math_protocol.h
+    core/include/lv00/proof_priority.h
+    core/include/lv00/proof_score.h
+    core/include/lv00/sparse_linear_algebra.h
+    core/include/lv00/status_codes.h
+    core/include/lv00/tikz_export.h
+    # v3.5.0 stub→real: 61 preset module headers
+    core/include/lv00/preset_advanced_geometry.h
+    core/include/lv00/preset_algebraic.h
+    core/include/lv00/preset_algebraic_geometry.h
+    core/include/lv00/preset_algebraic_topology.h
+    core/include/lv00/preset_algebraic_topology_adv.h
+    core/include/lv00/preset_analysis.h
+    core/include/lv00/preset_arithmetic_geometry.h
+    core/include/lv00/preset_basic_geometry.h
+    core/include/lv00/preset_basic_math.h
+    core/include/lv00/preset_calculus.h
+    core/include/lv00/preset_category_theory.h
+    core/include/lv00/preset_category_theory_adv.h
+    core/include/lv00/preset_coding_theory.h
+    core/include/lv00/preset_combinatorics.h
+    core/include/lv00/preset_common.h
+    core/include/lv00/preset_complex_analysis.h
+    core/include/lv00/preset_core.h
+    core/include/lv00/preset_difference_equations.h
+    core/include/lv00/preset_differential_equations.h
+    core/include/lv00/preset_differential_geometry.h
+    core/include/lv00/preset_differential_geometry_adv.h
+    core/include/lv00/preset_dynamical_systems.h
+    core/include/lv00/preset_field_theory.h
+    core/include/lv00/preset_functional_analysis.h
+    core/include/lv00/preset_functional_analysis_adv.h
+    core/include/lv00/preset_game_theory.h
+    core/include/lv00/preset_geometry_3d.h
+    core/include/lv00/preset_graph_theory.h
+    core/include/lv00/preset_group_theory.h
+    core/include/lv00/preset_homological_algebra.h
+    core/include/lv00/preset_information_theory.h
+    core/include/lv00/preset_integral_transforms.h
+    core/include/lv00/preset_lattice_theory.h
+    core/include/lv00/preset_lie_theory_advanced.h
+    core/include/lv00/preset_linear_algebra.h
+    core/include/lv00/preset_logic_advanced.h
+    core/include/lv00/preset_math_logic.h
+    core/include/lv00/preset_mathematical_logic.h
+    core/include/lv00/preset_mathematical_physics.h
+    core/include/lv00/preset_matrix.h
+    core/include/lv00/preset_measure_theory.h
+    core/include/lv00/preset_measurements.h
+    core/include/lv00/preset_number_theory.h
+    core/include/lv00/preset_numerical.h
+    core/include/lv00/preset_numerical_analysis.h
+    core/include/lv00/preset_optimization.h
+    core/include/lv00/preset_order_theory.h
+    core/include/lv00/preset_polygons.h
+    core/include/lv00/preset_polynomial.h
+    core/include/lv00/preset_probability.h
+    core/include/lv00/preset_probability_statistics.h
+    core/include/lv00/preset_register_macros.h
+    core/include/lv00/preset_representation_theory.h
+    core/include/lv00/preset_ring_theory.h
+    core/include/lv00/preset_set_theory.h
+    core/include/lv00/preset_special_functions.h
+    core/include/lv00/preset_statistics.h
+    core/include/lv00/preset_stochastic_processes.h
+    core/include/lv00/preset_topology.h
+    core/include/lv00/preset_transformations.h
+    core/include/lv00/preset_trigonometry.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -462,6 +537,19 @@ set(LV00_LAYER2_SOURCES
     core/src/layer2_resource/math_theory_guide_cn.c
     core/src/layer2_resource/error_messages_cn.c
     core/src/layer2_resource/result_messages_cn.c
+    # v3.5.0 stub→real: 12 new resource modules
+    core/src/layer2_resource/ecosystem.c
+    core/src/layer2_resource/fast_index.c
+    core/src/layer2_resource/gc_language.c
+    core/src/layer2_resource/geo_spec.c
+    core/src/layer2_resource/logic_check.c
+    core/src/layer2_resource/math_input.c
+    core/src/layer2_resource/math_protocol.c
+    core/src/layer2_resource/proof_priority.c
+    core/src/layer2_resource/proof_score.c
+    core/src/layer2_resource/sparse_linear_algebra.c
+    core/src/layer2_resource/status_codes.c
+    core/src/layer2_resource/tikz_export.c
 )
 
 # ── Layer 3: 几何拓扑层 (Geometry) ──
