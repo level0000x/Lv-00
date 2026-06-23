@@ -1,6 +1,5 @@
 #ifndef LV00_PROOF_VERSION_H
 #define LV00_PROOF_VERSION_H
-/* TODO: Proof version module stub */
 #include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {

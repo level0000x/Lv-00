@@ -1,6 +1,5 @@
 #ifndef LV00_GAPPA_DSL_H
 #define LV00_GAPPA_DSL_H
-/* TODO: Gappa DSL module stub */
 #include "lv00/gappa_propagate.h"
 
 #ifdef __cplusplus

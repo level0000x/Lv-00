@@ -1,6 +1,5 @@
 #ifndef LV00_PROOF_TRACE_H
 #define LV00_PROOF_TRACE_H
-/* TODO: Proof trace module stub */
 #include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {

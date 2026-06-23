@@ -1,6 +1,5 @@
 #ifndef LV00_SMT_BITVECTOR_H
 #define LV00_SMT_BITVECTOR_H
-/* TODO: SMT bitvector module stub */
 
 #ifdef __cplusplus
 extern "C" {

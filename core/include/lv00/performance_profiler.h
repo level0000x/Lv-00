@@ -1,6 +1,5 @@
 #ifndef LV00_PERFORMANCE_PROFILER_H
 #define LV00_PERFORMANCE_PROFILER_H
-/* TODO: Performance profiler module stub */
 
 #ifdef __cplusplus
 extern "C" {

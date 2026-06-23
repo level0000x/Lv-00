@@ -1,6 +1,5 @@
 #ifndef LV00_REWRITE_STRATEGY_H
 #define LV00_REWRITE_STRATEGY_H
-/* TODO: Rewrite strategy module stub */
 
 #include "lv00/rewrite.h"
 #include <stddef.h>

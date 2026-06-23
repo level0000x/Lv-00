@@ -1,6 +1,5 @@
 #ifndef LV00_GEO_DYNAMIC_H
 #define LV00_GEO_DYNAMIC_H
-/* TODO: Geo dynamic module stub */
 
 #ifdef __cplusplus
 extern "C" {

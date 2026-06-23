@@ -1,6 +1,5 @@
 #ifndef LV00_APPLICATION_H
 #define LV00_APPLICATION_H
-/* TODO: Application layer module stub */
 
 #ifdef __cplusplus
 extern "C" {

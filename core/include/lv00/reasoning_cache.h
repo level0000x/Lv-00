@@ -1,6 +1,5 @@
 #ifndef LV00_REASONING_CACHE_H
 #define LV00_REASONING_CACHE_H
-/* TODO: Reasoning cache module stub */
 
 #ifdef __cplusplus
 extern "C" {
