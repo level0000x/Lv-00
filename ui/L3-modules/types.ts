@@ -1,81 +1,21 @@
-// L3-Modules types — 纯展示数据类型，零几何逻辑
+// L3-Modules types — 从协议层重导出（单一事实来源）
 
-export type DrawCmdType = 'LINE' | 'POINT' | 'TEXT' | 'HIGHLIGHT';
-export type CmdLineStyle = 'SOLID' | 'DASHED' | 'DOTTED';
+export type {
+  DrawCmd, DrawCmdType, LineStyle,
+  TableRow, TreeNode, TreeNodeStatus,
+  TopoPort, TopoBlock, TopoEdge, TopoGraph,
+  TerminalLine, CompletionItem,
+  ProofStep, ProofStepKind, ProofNavigator,
+  EngineStatus,
+  TrustColor,
+  KernelBridge,
+} from '../L5-core/protocol';
 
-export interface DrawCmd {
-  type: DrawCmdType;
-  x1: number;
-  y1: number;
-  x2?: number;
-  y2?: number;
-  radius?: number;
-  text?: string;
-  color?: string;
-  lineWidth?: number;
-  style?: CmdLineStyle;
-}
+export { trustColorToHex, trustColorToCSS, createMockBridge } from '../L5-core/protocol';
 
-export interface TableRow {
-  id: number;
-  name: string;
-  type: string;
-  coordX: string;
-  coordY: string;
-  constraintCount: number;
-  color?: string;
-  status?: string;
-}
-
-export interface TreeNode {
-  id: string;
-  label: string;
-  color: string;
-  status: 'proved' | 'pending' | 'failed' | 'assumed' | 'root';
-  children: TreeNode[];
-  nodeId?: number;
-}
-
-export interface TermOutputLine {
-  id: number;
-  text: string;
-  color: string;
-}
-
-export interface TopoBlock {
-  id: number;
-  name: string;
-  inputs: { id: number; name: string }[];
-  outputs: { id: number; name: string }[];
-  layoutX: number;
-  layoutY: number;
-}
-
-export interface TopoEdge {
-  fromBlock: number;
-  fromPort: number;
-  toBlock: number;
-  toPort: number;
-}
-
-export interface TopoGraph {
-  blocks: TopoBlock[];
-  edges: TopoEdge[];
-}
-
-export interface CanvasViewport {
-  offsetX: number;
-  offsetY: number;
-  scale: number;
-}
-
-export type CanvasEventType = 'mousedown' | 'mousemove' | 'mouseup' | 'wheel';
-
-export interface CanvasEvent {
-  type: CanvasEventType;
-  screenX: number;
-  screenY: number;
-  button?: number;
-  shiftKey?: boolean;
-  delta?: number;
+export interface CanvasEventHandler {
+  onMouseDown?: (screenX: number, screenY: number, button: number) => void;
+  onMouseMove?: (screenX: number, screenY: number) => void;
+  onMouseUp?: (screenX: number, screenY: number, button: number) => void;
+  onWheel?: (delta: number) => void;
 }

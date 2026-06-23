@@ -1048,68 +1048,10 @@ void lv00_visual_render(Lv00VisualRenderer* renderer, Lv00VisualScene* scene, co
         lv00_free_ptr(buf);
         break;
     }
-    case LV00_RENDER_THREEJS: {
-        /* Three.js 后端：生成完整 HTML 文件，包含 Three.js 场景 */
-        size_t cap = 8192;
-        char* buf = (char*)lv00_malloc(cap);
-        if (!buf) return;
-        size_t pos = 0;
-
-        /* HTML 模板头：引入 Three.js 和 OrbitControls */
-        pos += snprintf(buf + pos, cap - pos,
-            "<!DOCTYPE html>\n"
-            "<html>\n<head>\n"
-            "<meta charset=\"UTF-8\">\n"
-            "<title>LV-00 Three.js Visualization</title>\n"
-            "<style>body { margin: 0; overflow: hidden; }</style>\n"
-            "</head>\n<body>\n"
-            "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js\"></script>\n"
-            "<script src=\"https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js\"></script>\n"
-            "<script>\n"
-            "  // 场景初始化\n"
-            "  var scene = new THREE.Scene();\n"
-            "  scene.background = new THREE.Color(0xffffff);\n\n"
-            "  // 相机设置\n"
-            "  var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);\n"
-            "  camera.position.set(0, 0, 50);\n\n"
-            "  // 渲染器\n"
-            "  var renderer = new THREE.WebGLRenderer({ antialias: true });\n"
-            "  renderer.setSize(window.innerWidth, window.innerHeight);\n"
-            "  document.body.appendChild(renderer.domElement);\n\n"
-            "  // 轨道控制器（支持鼠标交互）\n"
-            "  var controls = new THREE.OrbitControls(camera, renderer.domElement);\n"
-            "  controls.enableDamping = true;\n\n"
-            "  // 窗口大小自适应\n"
-            "  window.addEventListener('resize', function() {\n"
-            "    camera.aspect = window.innerWidth / window.innerHeight;\n"
-            "    camera.updateProjectionMatrix();\n"
-            "    renderer.setSize(window.innerWidth, window.innerHeight);\n"
-            "  });\n\n"
-            "  // ====== 几何对象 ======\n\n");
-
-        /* 遍历场景中的所有对象并生成 Three.js 代码 */
-        for (size_t i = 0; i < scene->object_count; i++) {
-            render_object_threejs(scene->objects[i], &buf, &pos, &cap);
-        }
-
-        /* HTML 模板尾：动画循环 */
-        pos += snprintf(buf + pos, cap - pos,
-            "  // ====== 动画循环 ======\n"
-            "  function animate() {\n"
-            "    requestAnimationFrame(animate);\n"
-            "    controls.update();\n"
-            "    renderer.render(scene, camera);\n"
-            "  }\n"
-            "  animate();\n"
-            "</script>\n"
-            "</body>\n</html>\n");
-
-        /* 写入输出文件 */
-        write_output_to_file(output_path, buf);
-
-        lv00_free_ptr(buf);
+    case LV00_RENDER_THREEJS:
+        /* Three.js HTML 生成已迁移至 UI 层。
+           内核通过 lv00_protocol.h 提供结构化数据。 */
         break;
-    }
     case LV00_RENDER_TIKZ: {
         /* TikZ 后端：生成 TikZ/LaTeX 代码 */
         size_t cap = 4096;

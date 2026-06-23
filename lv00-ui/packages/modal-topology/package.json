@@ -1,1 +1,0 @@
-{"name":"@lv00/modal-topology","version":"1.0.0","private":true,"main":"./src/TopologyView.tsx","types":"./src/TopologyView.tsx","peerDependencies":{"react":"^18.0.0","react-dom":"^18.0.0"},"dependencies":{"@lv00/protocol":"*","@lv00/scene-controller":"*","reactflow":"^11.11.0"}}

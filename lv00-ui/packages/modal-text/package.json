@@ -1,1 +1,0 @@
-{"name":"@lv00/modal-text","version":"1.0.0","private":true,"main":"./src/TextView.tsx","types":"./src/TextView.tsx","peerDependencies":{"react":"^18.0.0","react-dom":"^18.0.0"},"dependencies":{"@lv00/protocol":"*","@lv00/scene-controller":"*","monaco-editor":"^0.47.0"}}

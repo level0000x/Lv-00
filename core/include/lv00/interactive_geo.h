@@ -145,6 +145,8 @@ typedef struct Lv00GeoCanvasState {
     double zoom_level;            /**< 当前缩放级别（1.0 = 100%） */
     double viewport_offset_x;     /**< 视口 X 偏移 */
     double viewport_offset_y;     /**< 视口 Y 偏移 */
+    double canvas_width;          /**< 画布像素宽度（由 UI 设置） */
+    double canvas_height;         /**< 画布像素高度（由 UI 设置） */
     /* ── 元数据 ── */
     bool grid_visible;   /**< 是否显示网格 */
     bool snap_to_grid;   /**< 是否吸附到网格 */
@@ -388,3 +390,114 @@ ConstraintMaintainStatus interactive_geo_drag_end(Lv00InteractiveGeo *geo, doubl
  * @param[out]    result       输出：验证结果详情
  * @return 随机化验证结果状态码
  */
+int interactive_geo_randomized_check(Lv00InteractiveGeo *geo, int sample_count,
+                                     double tolerance, const char *theorem_expr,
+                                     Lv00RandomizedCheck *result);
+
+/* ==================== 坐标变换 ==================== */
+
+/**
+ * @brief 将世界坐标转换为屏幕坐标
+ *
+ * 根据当前视口的缩放级别和偏移量，将几何世界坐标映射到屏幕像素坐标。
+ * 使用 3x3 视口变换矩阵完成仿射变换。
+ *
+ * @param[in]  geo      交互几何上下文
+ * @param[in]  world_x  世界坐标 X
+ * @param[in]  world_y  世界坐标 Y
+ * @param[out] screen_x 输出的屏幕坐标 X
+ * @param[out] screen_y 输出的屏幕坐标 Y
+ */
+void interactive_geo_world_to_screen(const Lv00InteractiveGeo *geo,
+                                     double world_x, double world_y,
+                                     double *screen_x, double *screen_y);
+
+/**
+ * @brief 将屏幕坐标转换为世界坐标
+ *
+ * 逆变换：屏幕像素坐标 → 世界几何坐标。
+ *
+ * @param[in]  geo      交互几何上下文
+ * @param[in]  screen_x 屏幕坐标 X
+ * @param[in]  screen_y 屏幕坐标 Y
+ * @param[out] world_x  输出的世界坐标 X
+ * @param[out] world_y  输出的世界坐标 Y
+ */
+void interactive_geo_screen_to_world(const Lv00InteractiveGeo *geo,
+                                     double screen_x, double screen_y,
+                                     double *world_x, double *world_y);
+
+/* ==================== 命中检测 ==================== */
+
+/**
+ * @brief 对屏幕坐标执行命中检测
+ *
+ * 将屏幕坐标转换为世界坐标后，在所有活跃几何对象中查找
+ * 距离最近的可交互对象。返回最近对象的 ID，如果无对象
+ * 在命中阈值范围内则返回 -1。
+ *
+ * 命中阈值（hit_radius）为屏幕像素距离，默认 12px。
+ *
+ * @param[in] geo         交互几何上下文
+ * @param[in] screen_x    屏幕坐标 X
+ * @param[in] screen_y    屏幕坐标 Y
+ * @param[in] hit_radius  命中半径（屏幕像素，0 = 默认 12px）
+ * @param[out] out_distance 可选：输出最近对象的距离
+ * @return 命中对象 ID，无命中返回 -1
+ */
+int interactive_geo_hit_test(const Lv00InteractiveGeo *geo,
+                             double screen_x, double screen_y,
+                             double hit_radius, double *out_distance);
+
+/**
+ * @brief 获取指定对象的当前世界坐标
+ *
+ * 从引擎图数据中查询对象的世界坐标位置。
+ *
+ * @param[in]  geo       交互几何上下文
+ * @param[in]  object_id 对象 ID
+ * @param[out] world_x   输出 X 坐标
+ * @param[out] world_y   输出 Y 坐标
+ * @return 成功返回 0，对象不存在返回 -1
+ */
+int interactive_geo_get_object_position(const Lv00InteractiveGeo *geo,
+                                        int object_id,
+                                        double *world_x, double *world_y);
+
+/**
+ * @brief 更新视口缩放级别
+ *
+ * 以指定世界坐标点为中心进行缩放。
+ *
+ * @param[in,out] geo       交互几何上下文
+ * @param[in]     zoom_delta 缩放增量（>0 放大，<0 缩小）
+ * @param[in]     center_x   缩放中心 X（屏幕坐标）
+ * @param[in]     center_y   缩放中心 Y（屏幕坐标）
+ */
+void interactive_geo_zoom(Lv00InteractiveGeo *geo, double zoom_delta,
+                          double center_x, double center_y);
+
+/**
+ * @brief 重置视口到默认状态
+ *
+ * @param[in,out] geo 交互几何上下文
+ */
+void interactive_geo_reset_viewport(Lv00InteractiveGeo *geo);
+
+/**
+ * @brief 设置画布像素尺寸
+ *
+ * UI 端在创建画布或窗口 resize 时调用此函数，
+ * 更新 w2s/s2w 坐标变换中使用的画布宽高。
+ *
+ * @param[in,out] geo   交互几何上下文
+ * @param[in]     width  画布宽度（像素）
+ * @param[in]     height 画布高度（像素）
+ */
+void interactive_geo_set_canvas_size(Lv00InteractiveGeo *geo,
+                                     double width, double height);
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* LV00_INTERACTIVE_GEO_H */

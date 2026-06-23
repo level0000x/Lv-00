@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.15)
 project(lv00 VERSION 1.1.0 LANGUAGES C)  # 版本号与 lv00.h 中 LV00_VERSION_MAJOR/MINOR/PATCH 保持一致
 
 set(CMAKE_C_STANDARD 11)
@@ -477,6 +477,8 @@ set(LV00_HEADERS
     # conflict_detector, ga_codegen, ga_interface, ga_multivector, groebner_parallel,
     # math_theory_guide_cn, meta_repr, nt_number_theory, nt_polynomial, ode_solver,
     # plugin_system, proof_compiler, proof_contradiction (see TASK_CONTEXT_QA.md R6)
+    # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
+    core/include/lv00/lv00_protocol.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -547,26 +549,8 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/gappa_propagate.c
     core/src/layer3_geometry/fptaylor_eval.c
     core/src/layer3_geometry/herbie_eval.c
-    # [已移至 Layer 4] SMT/SAT 模块
-    core/src/layer3_geometry/smt_theory_combiner.c
-    core/src/layer3_geometry/smt_bitvector.c
-    core/src/layer3_geometry/smt_trigger_engine.c
-    # [已移至 Layer 4] 证明策略模块
-    core/src/layer3_geometry/proof_rule_engine.c
-    core/src/layer3_geometry/proof_session.c
-    # [已移至 Layer 4] 数论/代数模块
-    core/src/layer3_geometry/nt_number_theory.c
-    core/src/layer3_geometry/nt_polynomial.c
-    core/src/layer3_geometry/sym_expr.c
-    # [已移至 Layer 4] 重写引擎模块
-    core/src/layer3_geometry/rewrite_strategy.c
-    # [已移至 Layer 4] 版本控制模块
-    core/src/layer3_geometry/proof_version.c
-    # [已移至 Layer 4] 自动微分模块
-    core/src/layer3_geometry/autodiff.c
     # v1.1.0 性能优化模块
     core/src/layer3_geometry/thread_pool.c
-    core/src/layer3_geometry/simd_ops.c
     # v1.1.0 新增：几何拓扑
     core/src/layer3_geometry/geo_topology.c
     # v3.6.0 新增：WFC 范式 - 等价类管理器（Layer 3 约束拓扑规约）
@@ -581,8 +565,6 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/geo_dynamic.c
     core/src/layer3_geometry/geo_aabb_tree.c
     core/src/layer3_geometry/geo_predicate.c
-    # [已移至 Layer 4] ODE 求解器
-    core/src/layer3_geometry/ode_solver.c
 )
 
 # ── Layer 4: 公理推理层 (Reasoning) ──
@@ -763,6 +745,8 @@ set(LV00_LAYER5_SOURCES
     # 补全遗漏文件：几何可视化（基础版 + 完整版）
     core/src/layer5_output/geo_visual.c
     core/src/layer5_output/geo_visual_complete.c
+    # UI-Kernel 通信协议
+    core/src/layer5_output/lv00_protocol.c
 )
 
 # ============================================================
