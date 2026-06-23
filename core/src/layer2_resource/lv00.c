@@ -523,14 +523,7 @@ const char *lv00_config_get_string(const char *key, const char *default_val) {
     return config_get_string(g_config, key, default_val);
 }
 
-/**
- * @brief 设置配置值（便捷函数）
- */
-bool lv00_config_set_int(const char *key, int value) {
-    if (!g_config)
-        return false;
-    return config_set_int(g_config, key, value);
-}
+/* lv00_config_set_int / lv00_config_set_double → 已迁移至 lv00_config.c */
 
 /** @brief 设置布尔配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
 bool lv00_config_set_bool(const char *key, bool value) {
@@ -539,12 +532,7 @@ bool lv00_config_set_bool(const char *key, bool value) {
     return config_set_bool(g_config, key, value);
 }
 
-/** @brief 设置双精度浮点配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
-bool lv00_config_set_double(const char *key, double value) {
-    if (!g_config)
-        return false;
-    return config_set_double(g_config, key, value);
-}
+/* lv00_config_set_double → 已迁移至 lv00_config.c */
 
 /** @brief 设置字符串配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
 bool lv00_config_set_string(const char *key, const char *value) {

@@ -1,7 +1,12 @@
 #include "lv00/lv00.h"
 #include "lv00/lv00_protocol.h"
+#include "lv00/lv00_config.h"
 #include <string.h>
 #include <stdlib.h>
+
+/* 运行时配置快捷方式
+   调用 lv00_config_load_json("lv00.config.json") 后，以下限制立即生效 */
+#define PROTO_LIMIT(field) (lv00_config_current()->field)
 
 /* ================================================================
  * 一、颜色系统实现
