@@ -1956,6 +1956,10 @@ void proof_breakpoint_storage_init(void) {
     BREAKPOINT_UNLOCK();
 }
 
+void proof_breakpoint_storage_cleanup(void) {
+    proof_breakpoint_storage_reset();
+}
+
 /**
  * @brief 重置断点存储
  *
@@ -4877,7 +4881,6 @@ void sledgehammer_report_destroy(SledgehammerReport *report) {
  * - proof_multi_strategy_activate: 激活指定的证明策略
  * - proof_multi_strategy_execute: 执行已激活的策略进行证明搜索
  * ================================================================ */
-#include "proof.h"
 
 /**
  * @brief 激活指定的多策略证明搜索策略（占位实现）

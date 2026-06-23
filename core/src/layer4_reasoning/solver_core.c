@@ -21,7 +21,7 @@
 
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "lv00/groebner_parallel.h"
 
 /** CDCL 求解器最大决策次数默认值 */

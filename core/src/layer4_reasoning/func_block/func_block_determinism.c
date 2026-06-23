@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_determinism.c
  * @brief 函数块确定性检查模块
  * @details 实现函数块的静态/动态确定性检查、确定性验证流水线。
@@ -18,7 +18,7 @@
 #include "func_block.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
-#include "solver.h"
+#include "lv00/solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
 #include "func_block_internal.h"

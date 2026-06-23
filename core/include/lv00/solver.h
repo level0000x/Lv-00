@@ -94,14 +94,14 @@ typedef enum {
  * @param[in]  dirty_variable_ids 脏变量节点 ID 数组（可为 NULL）
  * @param[in]  dirty_count       脏变量数量
  * @param[out] out_result        成功时接收新分配的 GroebnerResult。
- *                               调用者需用 groebner_result_free() 释放。
+ *                               调用者需用 groebner_result_destroy() 释放。
  *                               失败时设为 NULL。
  *
  * 【失败时的 out_result 行为 —— 重要】
  *   当函数返回非 SOLVER_OK / SOLVER_UNIQUE / SOLVER_MULTIPLE 的状态码时，
  *   *out_result 会被 **设为 NULL**。如果调用者在调用前 *out_result 已指向
  *   一个有效的 GroebnerResult，该原有值会被 **先释放**（通过内部调用
- *   groebner_result_free()），然后再设为 NULL。
+ *   groebner_result_destroy()），然后再设为 NULL。
  *   因此调用者无需（也不应）在失败后手动释放 *out_result 的旧值。
  *
  * @return 求解器状态：SOLVER_OK / SOLVER_UNIQUE / SOLVER_MULTIPLE /
@@ -173,7 +173,7 @@ LV00_PUBLIC_API bool compute_algebraic_resultant(const mpz_poly_t *p, const mpz_
  * @param[in] dirty_var_ids 发生变化的变量节点 ID 数组
  * @param[in] n_dirty_vars 脏变量数量
  * @return 脏变量的 GroebnerResult。
- *         调用者需用 groebner_result_free() 释放。
+ *         调用者需用 groebner_result_destroy() 释放。
  *         出错返回 NULL。
  */
 LV00_PUBLIC_API GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirty_var_ids, int n_dirty_vars);
@@ -182,7 +182,7 @@ LV00_PUBLIC_API GroebnerResult *solver_incremental_solve(ConstraintGraph *graph,
  * @brief 释放 Groebner 结果
  * @param[in,out] result 要释放的结果
  */
-LV00_PUBLIC_API void groebner_result_free(GroebnerResult *result);
+LV00_PUBLIC_API void groebner_result_destroy(GroebnerResult *result);
 
 /* ------------------------------------------------------------------ */
 /*  增强方程提取：支持所有约束类型                                      */

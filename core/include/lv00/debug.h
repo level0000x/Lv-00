@@ -168,6 +168,12 @@ LV00_PUBLIC_API void debug_log_solver(const char *fmt, ...);
 LV00_PUBLIC_API int debug_log_init(void);
 
 /**
+ * @brief 清理日志系统。
+ * 重置日志系统状态变量到零值。
+ */
+LV00_PUBLIC_API void debug_log_cleanup(void);
+
+/**
  * @brief 关闭日志系统。
  * 关闭日志文件并释放资源。
  */

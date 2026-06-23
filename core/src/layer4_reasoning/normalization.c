@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file normalization.c
  * @brief 图规范化引擎实现
  * @details 实现约束图的规范化处理，包括并查集合并、哈希预分组 O(n) 优化。
@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "lv00_internal.h"
 #include "normalization.h"
 #include "stream.h"

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file rewrite.c
  * @brief 图重写引擎实现
  * @details 实现 VF2 子图同构匹配算法和 Weisfeiler-Lehman 图核哈希。
@@ -47,7 +47,7 @@
 
 #include "lv00_utils.h"         /* lv00_malloc / lv00_free —— 统一内存分配器 */
 
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "debug.h"
 #include "lv00_internal.h"
 #include "normalization.h"

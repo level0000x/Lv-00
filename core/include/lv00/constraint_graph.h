@@ -345,7 +345,7 @@ LV00_PUBLIC_API Lv00ErrorCode lv00_remove_node_result_to_error(RemoveNodeResult 
  * @param[in] coord_count 坐标数量
  * @return 操作结果状态码
  */
-LV00_PUBLIC_API AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord **coords, int coord_count);
+LV00_PUBLIC_API AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coords, int coord_count);
 
 /**
  * @brief 向约束图添加线段节点

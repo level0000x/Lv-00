@@ -34,9 +34,9 @@
  */
 
 #include "proof_engine_enhanced.h"
-#include "proof.h"
+#include "lv00/proof.h"
 #include "axiom_rule_engine.h"
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "error_codes.h"
 #include "three_valued_logic.h"
 #include "lv00.h"              /* LV00_THREAD_LOCAL 宏定义 */

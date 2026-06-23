@@ -332,10 +332,52 @@ LV00_PUBLIC_API Lv00ErrorCode lv00_error_code_from_string(const char *name);
             return (ret);                                                                                           \
         }                                                                                                           \
     } while (0)
+
+/* ============================================================
+ * Lv00Result 结果类型
+ * ============================================================ */
 /**
- * @brief 传播错误（如果错误码不为OK，则直接返回）
- * @param code 错误码
+ * @brief Lv00Result 结构体 - 统一的结果返回类型
+ *
+ * 封装错误码和返回值，用于需要同时返回成功/失败状态和数据的场景。
+ * 可选的 value 字段可用于传递计算结果。
  */
+typedef struct {
+    Lv00ErrorCode code;      /**< 错误码 */
+    int           value;     /**< 返回值（可选，仅 code == LV00_OK 时有效） */
+} Lv00Result;
+
+/* ============================================================
+ * 便捷宏定义
+ * ============================================================ */
+/**
+ * @brief 创建成功的 Lv00Result
+ * @param val 返回值
+ */
+#define LV00_OK(val) ((Lv00Result){ .code = LV00_OK, .value = (val) })
+
+/**
+ * @brief 创建失败的 Lv00Result
+ * @param err 错误码
+ */
+#define LV00_ERR(err) ((Lv00Result){ .code = (err), .value = 0 })
+
+/**
+ * @brief 传播错误 - 如果 result 包含错误，则立即返回该错误结果
+ *
+ * 用法示例：
+ *   Lv00Result result = some_operation();
+ *   LV00_PROPAGATE(result);
+ *
+ * @param result_expr 要检查的 Lv00Result 表达式
+ */
+#define LV00_PROPAGATE(result_expr)                                                \
+    do {                                                                           \
+        Lv00Result _lv00_tmp_res = (result_expr);                                  \
+        if ((_lv00_tmp_res).code != LV00_OK) {                                     \
+            return _lv00_tmp_res;                                                  \
+        }                                                                          \
+    } while (0)
 
 #ifdef __cplusplus
 }

@@ -479,6 +479,9 @@ set(LV00_HEADERS
     # plugin_system, proof_compiler, proof_contradiction (see TASK_CONTEXT_QA.md R6)
     # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
     core/include/lv00/lv00_protocol.h
+    # v3.0.0 API 版式规范 + 层间通信
+    core/include/lv00/lv00_api_spec.h
+    core/include/lv00/lv00_layer_msg.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──
@@ -532,7 +535,6 @@ set(LV00_LAYER3_SOURCES
     core/src/layer3_geometry/geo_event_detect.c
     core/src/layer3_geometry/geo_spec.c
     core/src/layer3_geometry/geometry_csg.c
-    core/src/layer3_geometry/sparse_linear_algebra.c
     core/src/layer3_geometry/geom_evol.c
     core/src/layer3_geometry/float_error.c
     core/src/layer3_geometry/mpz_poly_resultant.c
@@ -747,6 +749,8 @@ set(LV00_LAYER5_SOURCES
     core/src/layer5_output/geo_visual_complete.c
     # UI-Kernel 通信协议
     core/src/layer5_output/lv00_protocol.c
+    # 层间通信消息
+    core/src/layer5_output/lv00_layer_msg.c
 )
 
 # ============================================================
@@ -886,7 +890,6 @@ target_link_libraries(lv00_layer9_application lv00_layer8_meta_verify)
 
 # ── Layer 10: 外部集成层 (Interop Layer) ──
 set(LV00_LAYER10_SOURCES
-    core/src/layer10_interop/interop.c
     core/src/layer10_interop/lean4_bridge.c
     core/src/layer10_interop/coq_bridge.c
     core/src/layer10_interop/opml_codec.c

@@ -33,8 +33,8 @@
 #include "quantifier.h"
 #include "three_valued_logic.h"
 #include "lv00_utils.h"
-#include "proof.h"
-#include "constraint_graph.h"
+#include "lv00/proof.h"
+#include "lv00/constraint_graph.h"
 #include "error_codes.h"
 
 #include <limits.h>

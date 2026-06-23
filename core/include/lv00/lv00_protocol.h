@@ -39,6 +39,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "lv00/lv00_api_spec.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,10 +80,10 @@ typedef enum {
     LV00_COLOR_CYAN = 11,       /* 互操作 */
 } Lv00TrustColor;
 
-const char *lv00_trust_color_name(Lv00TrustColor c);
-uint32_t    lv00_trust_color_rgba(Lv00TrustColor c);
-const char *lv00_trust_color_svg(Lv00TrustColor c);
-const char *lv00_trust_color_tikz(Lv00TrustColor c);
+LV00_API const char *lv00_trust_color_name(Lv00TrustColor c);
+LV00_API uint32_t    lv00_trust_color_rgba(Lv00TrustColor c);
+LV00_API const char *lv00_trust_color_svg(Lv00TrustColor c);
+LV00_API const char *lv00_trust_color_tikz(Lv00TrustColor c);
 
 /* ================================================================
  * 三、内核→UI：DisplayData
@@ -356,38 +357,38 @@ typedef struct {
  * 五、协议生成函数（内核→UI 数据投影）
  * ================================================================ */
 
-int lv00_proto_draw_commands(void *engine,
+LV00_API int lv00_proto_draw_commands(void *engine,
                              double offset_x, double offset_y,
                              double scale,
                              double canvas_w, double canvas_h,
                              Lv00DrawCmdList *out);
 
-int lv00_proto_table_rows(void *engine, Lv00TableRowList *out);
+LV00_API int lv00_proto_table_rows(void *engine, Lv00TableRowList *out);
 
-int lv00_proto_dsl_text(void *engine, char *out, size_t buf_size);
+LV00_API int lv00_proto_dsl_text(void *engine, char *out, size_t buf_size);
 
-int lv00_proto_tree(void *engine, Lv00TreeNode **out_root);
+LV00_API int lv00_proto_tree(void *engine, Lv00TreeNode **out_root);
 
-int lv00_proto_topology(void *engine, Lv00TopoGraph *out);
+LV00_API int lv00_proto_topology(void *engine, Lv00TopoGraph *out);
 
-int lv00_proto_proof_navigator(void *engine, Lv00ProofNavigator *out);
+LV00_API int lv00_proto_proof_navigator(void *engine, Lv00ProofNavigator *out);
 
-int lv00_proto_engine_status(void *engine, Lv00EngineStatus *out);
+LV00_API int lv00_proto_engine_status(void *engine, Lv00EngineStatus *out);
 
-int lv00_proto_completions(void *engine, const char *prefix,
+LV00_API int lv00_proto_completions(void *engine, const char *prefix,
                            Lv00CompletionList *out);
 
-int lv00_proto_terminal_exec(void *engine, const char *command,
+LV00_API int lv00_proto_terminal_exec(void *engine, const char *command,
                              Lv00TerminalResponse *out);
 
 /* ---- 资源释放 ---- */
 
-void lv00_proto_free_draw_commands(Lv00DrawCmdList *list);
-void lv00_proto_free_table_rows(Lv00TableRowList *list);
-void lv00_proto_free_tree(Lv00TreeNode *root);
-void lv00_proto_free_topology(Lv00TopoGraph *graph);
-void lv00_proto_free_proof(Lv00ProofNavigator *nav);
-void lv00_proto_free_completions(Lv00CompletionList *list);
+LV00_API void lv00_proto_free_draw_commands(Lv00DrawCmdList *list);
+LV00_API void lv00_proto_free_table_rows(Lv00TableRowList *list);
+LV00_API void lv00_proto_free_tree(Lv00TreeNode *root);
+LV00_API void lv00_proto_free_topology(Lv00TopoGraph *graph);
+LV00_API void lv00_proto_free_proof(Lv00ProofNavigator *nav);
+LV00_API void lv00_proto_free_completions(Lv00CompletionList *list);
 
 #ifdef __cplusplus
 }

@@ -42,7 +42,7 @@
  */
 #define LV00_DESC_BUFFER_SIZE 128
 
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "symbolic_coord.h"     /* SymbolicCoord, TrustColor (brings rational.h) */
 
 #include <assert.h>
@@ -60,7 +60,7 @@
 #include "context.h"      /* v3.4.0: Lv00Context 用于统一错误系统 */
 #include "lv00_internal.h"
 #include "lv00_utils.h" /* lv00_malloc / lv00_free —— 统一内存分配器 */
-#include "solver.h"
+#include "lv00/solver.h"
 #include "stream.h"
 #include "stream_context_util.h"
 

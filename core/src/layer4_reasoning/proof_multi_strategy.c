@@ -20,12 +20,12 @@
 #include <math.h>
 
 #include "atp_backend.h"
-#include "constraint_graph.h"
+#include "lv00/constraint_graph.h"
 #include "lv00_internal.h"
 #include "lv00_utils.h"
 #include "normalization.h"
-#include "proof.h"
-#include "solver.h"
+#include "lv00/proof.h"
+#include "lv00/solver.h"
 #include "type_system.h"
 #include "unify.h"
 
