@@ -1,7 +1,7 @@
 # Lv-00 API 快速入门指南
 
-> **版本**: 5.0.0
-> **最后更新**: 2026-05-24
+> **版本**: 1.1.0
+> **最后更新**: 2026-06-27
 > **适用范围**: Lv-00 公共 API 使用者
 
 ---
@@ -756,11 +756,11 @@ void *bad_worker(void *arg) {
 
 | 函数/宏 | 说明 |
 |---------|------|
-| `lv00_get_version_string()` | 获取版本字符串 "5.0.0" |
+| `lv00_get_version_string()` | 获取版本字符串 "1.1.0" |
 | `lv00_get_version_info(&info)` | 获取详细版本信息结构体 |
 | `lv00_check_version_compat()` | 验证运行时/编译时版本兼容性 |
-| `lv00_version_major()` | 编译期主版本号 (5) |
-| `lv00_version_minor()` | 编译期次版本号 (0) |
+| `lv00_version_major()` | 编译期主版本号 (1) |
+| `lv00_version_minor()` | 编译期次版本号 (1) |
 | `lv00_version_patch()` | 编译期补丁版本号 (0) |
 
 ### 7.2 平台信息 API（来自 cross_platform.h）
